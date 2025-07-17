@@ -3433,7 +3433,8 @@ fdmi_cmd_exit:
 void
 lpfc_delayed_disc_tmo(struct timer_list *t)
 {
-	struct lpfc_vport *vport = from_timer(vport, t, delayed_disc_tmo);
+	struct lpfc_vport *vport = timer_container_of(vport, t,
+						      delayed_disc_tmo);
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t tmo_posted;
 	unsigned long iflag;

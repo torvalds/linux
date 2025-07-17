@@ -776,8 +776,7 @@ static void apple_dart_domain_free(struct iommu_domain *domain)
 {
 	struct apple_dart_domain *dart_domain = to_dart_domain(domain);
 
-	if (dart_domain->pgtbl_ops)
-		free_io_pgtable_ops(dart_domain->pgtbl_ops);
+	free_io_pgtable_ops(dart_domain->pgtbl_ops);
 
 	kfree(dart_domain);
 }

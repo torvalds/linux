@@ -2,34 +2,24 @@
 /*
  * intel_tpebs.h: Intel TEPBS support
  */
-#ifndef INCLUDE__PERF_INTEL_TPEBS_H__
-#define INCLUDE__PERF_INTEL_TPEBS_H__
+#ifndef __INTEL_TPEBS_H
+#define __INTEL_TPEBS_H
 
-#include "stat.h"
-#include "evsel.h"
+struct evlist;
+struct evsel;
 
-#ifdef HAVE_ARCH_X86_64_SUPPORT
+enum tpebs_mode {
+	TPEBS_MODE__MEAN,
+	TPEBS_MODE__MIN,
+	TPEBS_MODE__MAX,
+	TPEBS_MODE__LAST,
+};
 
 extern bool tpebs_recording;
-int tpebs_start(struct evlist *evsel_list);
-void tpebs_delete(void);
-int tpebs_set_evsel(struct evsel *evsel, int cpu_map_idx, int thread);
+extern enum tpebs_mode tpebs_mode;
 
-#else
+int evsel__tpebs_open(struct evsel *evsel);
+void evsel__tpebs_close(struct evsel *evsel);
+int evsel__tpebs_read(struct evsel *evsel, int cpu_map_idx, int thread);
 
-static inline int tpebs_start(struct evlist *evsel_list __maybe_unused)
-{
-	return 0;
-}
-
-static inline void tpebs_delete(void) {};
-
-static inline int tpebs_set_evsel(struct evsel *evsel  __maybe_unused,
-				int cpu_map_idx  __maybe_unused,
-				int thread  __maybe_unused)
-{
-	return 0;
-}
-
-#endif
-#endif
+#endif /* __INTEL_TPEBS_H */

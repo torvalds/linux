@@ -8,6 +8,7 @@
 
 #include <linux/slab.h>
 #include <linux/unaligned.h>
+#include <net/sock.h>
 #include "ieee80211_i.h"
 #include "mesh.h"
 #include "wme.h"
@@ -39,7 +40,7 @@ void ieee80211s_stop(void)
 static void ieee80211_mesh_housekeeping_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.mesh.housekeeping_timer);
+		timer_container_of(sdata, t, u.mesh.housekeeping_timer);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
@@ -683,7 +684,7 @@ int mesh_add_eht_oper_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *sk
 static void ieee80211_mesh_path_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.mesh.mesh_path_timer);
+		timer_container_of(sdata, t, u.mesh.mesh_path_timer);
 
 	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 }
@@ -691,7 +692,7 @@ static void ieee80211_mesh_path_timer(struct timer_list *t)
 static void ieee80211_mesh_path_root_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.mesh.mesh_path_root_timer);
+		timer_container_of(sdata, t, u.mesh.mesh_path_root_timer);
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
 	set_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
@@ -776,7 +777,7 @@ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	if (ethertype < ETH_P_802_3_MIN)
 		return false;
 
-	if (skb->sk && skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)
+	if (sk_requests_wifi_status(skb->sk))
 		return false;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -956,13 +957,10 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
 	int hdr_len = offsetofend(struct ieee80211_mgmt, u.beacon);
-	u32 rate_flags;
 
 	sdata = container_of(ifmsh, struct ieee80211_sub_if_data, u.mesh);
 
 	sband = ieee80211_get_sband(sdata);
-	rate_flags =
-		ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chanreq.oper);
 
 	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata);
 	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata);
@@ -1091,7 +1089,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	if (ieee80211_put_srates_elem(skb, sband,
 				      sdata->vif.bss_conf.basic_rates,
-				      rate_flags, 0, WLAN_EID_SUPP_RATES) ||
+				      0, WLAN_EID_SUPP_RATES) ||
 	    mesh_add_ds_params_ie(sdata, skb))
 		goto out_free;
 
@@ -1104,7 +1102,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	if (ieee80211_put_srates_elem(skb, sband,
 				      sdata->vif.bss_conf.basic_rates,
-				      rate_flags, 0, WLAN_EID_EXT_SUPP_RATES) ||
+				      0, WLAN_EID_EXT_SUPP_RATES) ||
 	    mesh_add_rsn_ie(sdata, skb) ||
 	    mesh_add_ht_cap_ie(sdata, skb) ||
 	    mesh_add_ht_oper_ie(sdata, skb) ||

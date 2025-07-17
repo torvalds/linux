@@ -458,6 +458,8 @@ static int pl2303_detect_type(struct usb_serial *serial)
 		case 0x605:
 		case 0x700:	/* GR */
 		case 0x705:
+		case 0x905:	/* GT-2AB */
+		case 0x1005:	/* GC-Q20 */
 			return TYPE_HXN;
 		}
 		break;

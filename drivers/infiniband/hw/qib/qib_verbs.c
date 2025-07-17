@@ -361,7 +361,7 @@ drop:
  */
 static void mem_timer(struct timer_list *t)
 {
-	struct qib_ibdev *dev = from_timer(dev, t, mem_timer);
+	struct qib_ibdev *dev = timer_container_of(dev, t, mem_timer);
 	struct list_head *list = &dev->memwait;
 	struct rvt_qp *qp = NULL;
 	struct qib_qp_priv *priv = NULL;

@@ -22,6 +22,7 @@ void xe_guc_pc_print(struct xe_guc_pc *pc, struct drm_printer *p);
 
 u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc);
 int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq);
+u32 xe_guc_pc_get_cur_freq_fw(struct xe_guc_pc *pc);
 u32 xe_guc_pc_get_rp0_freq(struct xe_guc_pc *pc);
 u32 xe_guc_pc_get_rpa_freq(struct xe_guc_pc *pc);
 u32 xe_guc_pc_get_rpe_freq(struct xe_guc_pc *pc);
@@ -37,5 +38,7 @@ u64 xe_guc_pc_mc6_residency(struct xe_guc_pc *pc);
 void xe_guc_pc_init_early(struct xe_guc_pc *pc);
 int xe_guc_pc_restore_stashed_freq(struct xe_guc_pc *pc);
 void xe_guc_pc_raise_unslice(struct xe_guc_pc *pc);
+void xe_guc_pc_apply_flush_freq_limit(struct xe_guc_pc *pc);
+void xe_guc_pc_remove_flush_freq_limit(struct xe_guc_pc *pc);
 
 #endif /* _XE_GUC_PC_H_ */

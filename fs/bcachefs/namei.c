@@ -175,6 +175,16 @@ int bch2_create_trans(struct btree_trans *trans,
 		new_inode->bi_dir_offset	= dir_offset;
 	}
 
+	if (S_ISDIR(mode)) {
+		ret = bch2_maybe_propagate_has_case_insensitive(trans,
+				(subvol_inum) {
+					new_inode->bi_subvol ?: dir.subvol,
+					new_inode->bi_inum },
+				new_inode);
+		if (ret)
+			goto err;
+	}
+
 	if (S_ISDIR(mode) &&
 	    !new_inode->bi_subvol)
 		new_inode->bi_depth = dir_u->bi_depth + 1;
@@ -287,7 +297,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	}
 
 	if (deleting_subvol && !inode_u->bi_subvol) {
-		ret = -BCH_ERR_ENOENT_not_subvol;
+		ret = bch_err_throw(c, ENOENT_not_subvol);
 		goto err;
 	}
 
@@ -425,8 +435,8 @@ int bch2_rename_trans(struct btree_trans *trans,
 	}
 
 	ret = bch2_dirent_rename(trans,
-				 src_dir, &src_hash, &src_dir_u->bi_size,
-				 dst_dir, &dst_hash, &dst_dir_u->bi_size,
+				 src_dir, &src_hash,
+				 dst_dir, &dst_hash,
 				 src_name, &src_inum, &src_offset,
 				 dst_name, &dst_inum, &dst_offset,
 				 mode);
@@ -615,13 +625,25 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 {
 	unsigned orig_pos = path->pos;
 	int ret = 0;
+	DARRAY(subvol_inum) inums = {};
+
+	if (!snapshot) {
+		ret = bch2_subvolume_get_snapshot(trans, subvol, &snapshot);
+		if (ret)
+			goto disconnected;
+	}
 
 	while (true) {
-		if (!snapshot) {
-			ret = bch2_subvolume_get_snapshot(trans, subvol, &snapshot);
-			if (ret)
-				goto disconnected;
+		subvol_inum n = (subvol_inum) { subvol ?: snapshot, inum };
+
+		if (darray_find_p(inums, i, i->subvol == n.subvol && i->inum == n.inum)) {
+			prt_str_reversed(path, "(loop)");
+			break;
 		}
+
+		ret = darray_push(&inums, n);
+		if (ret)
+			goto err;
 
 		struct bch_inode_unpacked inode;
 		ret = bch2_inode_find_by_inum_snapshot(trans, inum, snapshot, &inode, 0);
@@ -633,14 +655,16 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 			break;
 
 		if (!inode.bi_dir && !inode.bi_dir_offset) {
-			ret = -BCH_ERR_ENOENT_inode_no_backpointer;
+			ret = bch_err_throw(trans->c, ENOENT_inode_no_backpointer);
 			goto disconnected;
 		}
 
 		inum = inode.bi_dir;
 		if (inode.bi_parent_subvol) {
 			subvol = inode.bi_parent_subvol;
-			snapshot = 0;
+			ret = bch2_subvolume_get_snapshot(trans, inode.bi_parent_subvol, &snapshot);
+			if (ret)
+				goto disconnected;
 		}
 
 		struct btree_iter d_iter;
@@ -652,6 +676,7 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 			goto disconnected;
 
 		struct qstr dirent_name = bch2_dirent_get_name(d);
+
 		prt_bytes_reversed(path, dirent_name.name, dirent_name.len);
 
 		prt_char(path, '/');
@@ -667,8 +692,10 @@ out:
 		goto err;
 
 	reverse_bytes(path->buf + orig_pos, path->pos - orig_pos);
+	darray_exit(&inums);
 	return 0;
 err:
+	darray_exit(&inums);
 	return ret;
 disconnected:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -707,8 +734,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 	if (inode_points_to_dirent(target, d))
 		return 0;
 
-	if (!target->bi_dir &&
-	    !target->bi_dir_offset) {
+	if (!bch2_inode_has_backpointer(target)) {
 		fsck_err_on(S_ISDIR(target->bi_mode),
 			    trans, inode_dir_missing_backpointer,
 			    "directory with missing backpointer\n%s",
@@ -732,15 +758,6 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 		target->bi_dir_offset	= d.k->p.offset;
 		return __bch2_fsck_write_inode(trans, target);
 	}
-
-	if (bch2_inode_should_have_single_bp(target) &&
-	    !fsck_err(trans, inode_wrong_backpointer,
-		      "dirent points to inode that does not point back:\n%s",
-		      (bch2_bkey_val_to_text(&buf, c, d.s_c),
-		       prt_newline(&buf),
-		       bch2_inode_unpacked_to_text(&buf, target),
-		       buf.buf)))
-		goto err;
 
 	struct bkey_s_c_dirent bp_dirent =
 		bch2_bkey_get_iter_typed(trans, &bp_iter, BTREE_ID_dirents,
@@ -768,6 +785,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 			ret = __bch2_fsck_write_inode(trans, target);
 		}
 	} else {
+		printbuf_reset(&buf);
 		bch2_bkey_val_to_text(&buf, c, d.s_c);
 		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
@@ -857,7 +875,8 @@ int __bch2_check_dirent_target(struct btree_trans *trans,
 			n->v.d_inum = cpu_to_le64(target->bi_inum);
 		}
 
-		ret = bch2_trans_update(trans, dirent_iter, &n->k_i, 0);
+		ret = bch2_trans_update(trans, dirent_iter, &n->k_i,
+					BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto err;
 	}

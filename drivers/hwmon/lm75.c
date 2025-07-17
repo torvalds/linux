@@ -622,7 +622,7 @@ static int lm75_i3c_reg_read(void *context, unsigned int reg, unsigned int *val)
 		{
 			.rnw = true,
 			.len = 2,
-			.data.out = data->val_buf,
+			.data.in = data->val_buf,
 		},
 	};
 	int ret;

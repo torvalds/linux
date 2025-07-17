@@ -592,6 +592,7 @@ static const struct ptp_clock_info idtfc3_caps = {
 	.max_adj	= MAX_FFO_PPB,
 	.n_per_out	= 1,
 	.n_ext_ts	= 1,
+	.supported_extts_flags = PTP_STRICT_FLAGS | PTP_EXT_OFFSET,
 	.adjphase	= &idtfc3_adjphase,
 	.adjfine	= &idtfc3_adjfine,
 	.adjtime	= &idtfc3_adjtime,

@@ -67,7 +67,7 @@ static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
 	"tx_xsk_sent[%u]", "tx_xdp_xmit[%u]", "tx_xdp_xmit_errors[%u]"
 };
 
-static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] = {
+static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] __nonstring_array = {
 	"adminq_prod_cnt", "adminq_cmd_fail", "adminq_timeouts",
 	"adminq_describe_device_cnt", "adminq_cfg_device_resources_cnt",
 	"adminq_register_page_list_cnt", "adminq_unregister_page_list_cnt",
@@ -113,7 +113,7 @@ static void gve_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 						i);
 
 		for (i = 0; i < ARRAY_SIZE(gve_gstrings_adminq_stats); i++)
-			ethtool_puts(&s, gve_gstrings_adminq_stats[i]);
+			ethtool_cpy(&s, gve_gstrings_adminq_stats[i]);
 
 		break;
 

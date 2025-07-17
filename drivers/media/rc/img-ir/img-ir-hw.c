@@ -865,7 +865,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 /* timer function to end waiting for repeat. */
 static void img_ir_end_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = from_timer(priv, t, hw.end_timer);
+	struct img_ir_priv *priv = timer_container_of(priv, t, hw.end_timer);
 
 	spin_lock_irq(&priv->lock);
 	img_ir_end_repeat(priv);
@@ -879,7 +879,8 @@ static void img_ir_end_timer(struct timer_list *t)
  */
 static void img_ir_suspend_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = from_timer(priv, t, hw.suspend_timer);
+	struct img_ir_priv *priv = timer_container_of(priv, t,
+						      hw.suspend_timer);
 
 	spin_lock_irq(&priv->lock);
 	/*

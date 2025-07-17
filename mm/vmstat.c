@@ -7,7 +7,7 @@
  *
  *  zoned VM statistics
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
- *		Christoph Lameter <christoph@lameter.com>
+ *		Christoph Lameter <cl@gentwo.org>
  *  Copyright (C) 2008-2014 Christoph Lameter
  */
 #include <linux/fs.h>
@@ -1201,7 +1201,6 @@ const char * const vmstat_text[] = {
 	"nr_zone_unevictable",
 	"nr_zone_write_pending",
 	"nr_mlock",
-	"nr_bounce",
 #if IS_ENABLED(CONFIG_ZSMALLOC)
 	"nr_zspages",
 #endif

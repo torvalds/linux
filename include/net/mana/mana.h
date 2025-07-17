@@ -408,6 +408,7 @@ struct mana_context {
 	struct gdma_dev *gdma_dev;
 
 	u16 num_ports;
+	u8 bm_hostmode;
 
 	struct mana_eq *eqs;
 	struct dentry *mana_eqs_debugfs;
@@ -488,6 +489,9 @@ int mana_detach(struct net_device *ndev, bool from_close);
 int mana_probe(struct gdma_dev *gd, bool resuming);
 void mana_remove(struct gdma_dev *gd, bool suspending);
 
+int mana_rdma_probe(struct gdma_dev *gd);
+void mana_rdma_remove(struct gdma_dev *gd);
+
 void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev);
 int mana_xdp_xmit(struct net_device *ndev, int n, struct xdp_frame **frames,
 		  u32 flags);
@@ -557,7 +561,8 @@ struct mana_query_device_cfg_resp {
 	u64 pf_cap_flags4;
 
 	u16 max_num_vports;
-	u16 reserved;
+	u8 bm_hostmode; /* response v3: Bare Metal Host Mode */
+	u8 reserved;
 	u32 max_num_eqs;
 
 	/* response v2: */

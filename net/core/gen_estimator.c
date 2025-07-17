@@ -75,7 +75,7 @@ static void est_fetch_counters(struct net_rate_estimator *e,
 
 static void est_timer(struct timer_list *t)
 {
-	struct net_rate_estimator *est = from_timer(est, t, timer);
+	struct net_rate_estimator *est = timer_container_of(est, t, timer);
 	struct gnet_stats_basic_sync b;
 	u64 b_bytes, b_packets;
 	u64 rate, brate;

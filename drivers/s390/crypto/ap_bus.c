@@ -428,7 +428,7 @@ void ap_wait(enum ap_sm_wait wait)
  */
 void ap_request_timeout(struct timer_list *t)
 {
-	struct ap_queue *aq = from_timer(aq, t, timeout);
+	struct ap_queue *aq = timer_container_of(aq, t, timeout);
 
 	spin_lock_bh(&aq->lock);
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_TIMEOUT));

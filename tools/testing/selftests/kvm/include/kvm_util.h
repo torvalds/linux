@@ -177,6 +177,7 @@ enum vm_guest_mode {
 	VM_MODE_P36V48_4K,
 	VM_MODE_P36V48_16K,
 	VM_MODE_P36V48_64K,
+	VM_MODE_P47V47_16K,
 	VM_MODE_P36V47_16K,
 	NUM_VM_MODES,
 };
@@ -229,6 +230,11 @@ extern enum vm_guest_mode vm_mode_default;
 #endif
 
 #define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
+#define MIN_PAGE_SHIFT			12U
+#define ptes_per_page(page_size)	((page_size) / 8)
+
+#elif defined(__loongarch__)
+#define VM_MODE_DEFAULT			VM_MODE_P47V47_16K
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
 
@@ -548,6 +554,41 @@ void kvm_get_stat(struct kvm_binary_stats *stats, const char *name,
 
 #define vm_get_stat(vm, stat) __get_stat(&(vm)->stats, stat)
 #define vcpu_get_stat(vcpu, stat) __get_stat(&(vcpu)->stats, stat)
+
+static inline bool read_smt_control(char *buf, size_t buf_size)
+{
+	FILE *f = fopen("/sys/devices/system/cpu/smt/control", "r");
+	bool ret;
+
+	if (!f)
+		return false;
+
+	ret = fread(buf, sizeof(*buf), buf_size, f) > 0;
+	fclose(f);
+
+	return ret;
+}
+
+static inline bool is_smt_possible(void)
+{
+	char buf[16];
+
+	if (read_smt_control(buf, sizeof(buf)) &&
+	    (!strncmp(buf, "forceoff", 8) || !strncmp(buf, "notsupported", 12)))
+		return false;
+
+	return true;
+}
+
+static inline bool is_smt_on(void)
+{
+	char buf[16];
+
+	if (read_smt_control(buf, sizeof(buf)) && !strncmp(buf, "on", 2))
+		return true;
+
+	return false;
+}
 
 void vm_create_irqchip(struct kvm_vm *vm);
 

@@ -26,6 +26,7 @@
 #include "disk_groups.h"
 #include "ec.h"
 #include "enumerated_ref.h"
+#include "error.h"
 #include "inode.h"
 #include "journal.h"
 #include "journal_reclaim.h"
@@ -37,6 +38,7 @@
 #include "rebalance.h"
 #include "recovery_passes.h"
 #include "replicas.h"
+#include "sb-errors.h"
 #include "super-io.h"
 #include "tests.h"
 
@@ -143,6 +145,7 @@ do {									\
 write_attribute(trigger_gc);
 write_attribute(trigger_discards);
 write_attribute(trigger_invalidates);
+write_attribute(trigger_journal_commit);
 write_attribute(trigger_journal_flush);
 write_attribute(trigger_journal_writes);
 write_attribute(trigger_btree_cache_shrink);
@@ -151,6 +154,7 @@ write_attribute(trigger_btree_updates);
 write_attribute(trigger_freelist_wakeup);
 write_attribute(trigger_recalc_capacity);
 write_attribute(trigger_delete_dead_snapshots);
+write_attribute(trigger_emergency_read_only);
 read_attribute(gc_gens_pos);
 
 read_attribute(uuid);
@@ -172,6 +176,7 @@ read_attribute(btree_write_stats);
 
 read_attribute(btree_cache_size);
 read_attribute(compression_stats);
+read_attribute(errors);
 read_attribute(journal_debug);
 read_attribute(btree_cache);
 read_attribute(btree_key_cache);
@@ -353,6 +358,9 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_compression_stats)
 		bch2_compression_stats_to_text(out, c);
 
+	if (attr == &sysfs_errors)
+		bch2_fs_errors_to_text(out, c);
+
 	if (attr == &sysfs_new_stripes)
 		bch2_new_stripes_to_text(out, c);
 
@@ -428,6 +436,9 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_invalidates)
 		bch2_do_invalidates(c);
 
+	if (attr == &sysfs_trigger_journal_commit)
+		bch2_journal_flush(&c->journal);
+
 	if (attr == &sysfs_trigger_journal_flush) {
 		bch2_journal_flush_all_pins(&c->journal);
 		bch2_journal_meta(&c->journal);
@@ -447,6 +458,16 @@ STORE(bch2_fs)
 
 	if (attr == &sysfs_trigger_delete_dead_snapshots)
 		__bch2_delete_dead_snapshots(c);
+
+	if (attr == &sysfs_trigger_emergency_read_only) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+
+		prt_printf(&buf, "shutdown by sysfs\n");
+		bch2_fs_emergency_read_only2(c, &buf);
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+	}
 
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
@@ -483,6 +504,7 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_recovery_status,
 
 	&sysfs_compression_stats,
+	&sysfs_errors,
 
 #ifdef CONFIG_BCACHEFS_TESTS
 	&sysfs_perf_test,
@@ -571,6 +593,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_gc,
 	&sysfs_trigger_discards,
 	&sysfs_trigger_invalidates,
+	&sysfs_trigger_journal_commit,
 	&sysfs_trigger_journal_flush,
 	&sysfs_trigger_journal_writes,
 	&sysfs_trigger_btree_cache_shrink,
@@ -579,6 +602,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_freelist_wakeup,
 	&sysfs_trigger_recalc_capacity,
 	&sysfs_trigger_delete_dead_snapshots,
+	&sysfs_trigger_emergency_read_only,
 
 	&sysfs_gc_gens_pos,
 

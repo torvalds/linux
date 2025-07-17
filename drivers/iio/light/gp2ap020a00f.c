@@ -1283,12 +1283,11 @@ static int gp2ap020a00f_read_raw(struct iio_dev *indio_dev,
 	int err = -EINVAL;
 
 	if (mask == IIO_CHAN_INFO_RAW) {
-		err = iio_device_claim_direct_mode(indio_dev);
-		if (err)
-			return err;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		err = gp2ap020a00f_read_channel(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 	}
 	return err < 0 ? err : IIO_VAL_INT;
 }

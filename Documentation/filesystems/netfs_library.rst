@@ -712,11 +712,6 @@ handle falling back from one source type to another.  The members are:
      at a boundary with the filesystem structure (e.g. at the end of a Ceph
      object).  It tells netfslib not to retile subrequests across it.
 
-   * ``NETFS_SREQ_SEEK_DATA_READ``
-
-     This is a hint from netfslib to the cache that it might want to try
-     skipping ahead to the next data (ie. using SEEK_DATA).
-
  * ``error``
 
    This is for the filesystem to store result of the subrequest.  It should be

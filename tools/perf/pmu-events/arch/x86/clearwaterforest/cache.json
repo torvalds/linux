@@ -22,6 +22,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
+        "PublicDescription": "Counts the number of load ops retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x81"
     },
@@ -30,6 +31,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
+        "PublicDescription": "Counts the number of store ops retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x82"
     },
@@ -40,6 +42,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_1024",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x400",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -50,6 +53,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_128",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x80",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -60,6 +64,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_16",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x10",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -70,6 +75,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_2048",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x800",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -80,6 +86,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_256",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x100",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -90,6 +97,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_32",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x20",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -100,6 +108,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_4",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x4",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -110,6 +119,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_512",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x200",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -120,6 +130,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_64",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x40",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -130,6 +141,7 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_8",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x8",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -138,7 +150,30 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.STORE_LATENCY",
+        "PublicDescription": "Counts the number of  stores uops retired same as MEM_UOPS_RETIRED.ALL_STORES Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x6"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "PublicDescription": "Counts demand data reads that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "PublicDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
     }
 ]

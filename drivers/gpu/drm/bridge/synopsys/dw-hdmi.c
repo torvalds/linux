@@ -22,8 +22,8 @@
 
 #include <media/cec-notifier.h>
 
-#include <uapi/linux/media-bus-format.h>
-#include <uapi/linux/videodev2.h>
+#include <linux/media-bus-format.h>
+#include <linux/videodev2.h>
 
 #include <drm/bridge/dw_hdmi.h>
 #include <drm/display/drm_hdmi_helper.h>
@@ -2889,12 +2889,13 @@ static int dw_hdmi_bridge_atomic_check(struct drm_bridge *bridge,
 }
 
 static int dw_hdmi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
-		return drm_bridge_attach(bridge->encoder, hdmi->next_bridge,
+		return drm_bridge_attach(encoder, hdmi->next_bridge,
 					 bridge, flags);
 
 	return dw_hdmi_connector_create(hdmi);
@@ -3332,9 +3333,9 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 	u8 config0;
 	u8 config3;
 
-	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
-	if (!hdmi)
-		return ERR_PTR(-ENOMEM);
+	hdmi = devm_drm_bridge_alloc(dev, struct dw_hdmi, bridge, &dw_hdmi_bridge_funcs);
+	if (IS_ERR(hdmi))
+		return hdmi;
 
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
@@ -3494,7 +3495,6 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 	}
 
 	hdmi->bridge.driver_private = hdmi;
-	hdmi->bridge.funcs = &dw_hdmi_bridge_funcs;
 	hdmi->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
 			 | DRM_BRIDGE_OP_HPD;
 	hdmi->bridge.interlace_allowed = true;

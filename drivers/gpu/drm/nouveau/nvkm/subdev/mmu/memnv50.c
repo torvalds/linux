@@ -57,7 +57,7 @@ nv50_mem_map(struct nvkm_mmu *mmu, struct nvkm_memory *memory, void *argv,
 	if (ret)
 		return ret;
 
-	*paddr = device->func->resource_addr(device, 1) + (*pvma)->addr;
+	*paddr = device->func->resource_addr(device, NVKM_BAR1_FB) + (*pvma)->addr;
 	*psize = (*pvma)->size;
 	return nvkm_memory_map(memory, 0, bar, *pvma, &uvmm, sizeof(uvmm));
 }

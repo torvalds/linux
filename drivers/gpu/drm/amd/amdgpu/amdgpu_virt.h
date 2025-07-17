@@ -97,6 +97,7 @@ struct amdgpu_virt_ops {
 	bool (*rcvd_ras_intr)(struct amdgpu_device *adev);
 	int (*req_ras_err_count)(struct amdgpu_device *adev);
 	int (*req_ras_cper_dump)(struct amdgpu_device *adev, u64 vf_rptr);
+	int (*req_bad_pages)(struct amdgpu_device *adev);
 };
 
 /*
@@ -146,11 +147,13 @@ enum AMDGIM_FEATURE_FLAG {
 
 enum AMDGIM_REG_ACCESS_FLAG {
 	/* Use PSP to program IH_RB_CNTL */
-	AMDGIM_FEATURE_IH_REG_PSP_EN     = (1 << 0),
+	AMDGIM_FEATURE_IH_REG_PSP_EN      = (1 << 0),
 	/* Use RLC to program MMHUB regs */
-	AMDGIM_FEATURE_MMHUB_REG_RLC_EN  = (1 << 1),
+	AMDGIM_FEATURE_MMHUB_REG_RLC_EN   = (1 << 1),
 	/* Use RLC to program GC regs */
-	AMDGIM_FEATURE_GC_REG_RLC_EN     = (1 << 2),
+	AMDGIM_FEATURE_GC_REG_RLC_EN      = (1 << 2),
+	/* Use PSP to program L1_TLB_CNTL*/
+	AMDGIM_FEATURE_L1_TLB_CNTL_PSP_EN = (1 << 3),
 };
 
 struct amdgim_pf2vf_info_v1 {
@@ -260,7 +263,10 @@ struct amdgpu_virt {
 	uint32_t			reg_val_offs;
 	struct amdgpu_irq_src		ack_irq;
 	struct amdgpu_irq_src		rcv_irq;
+
 	struct work_struct		flr_work;
+	struct work_struct		bad_pages_work;
+
 	struct amdgpu_mm_table		mm_table;
 	const struct amdgpu_virt_ops	*ops;
 	struct amdgpu_vf_error_buffer	vf_errors;
@@ -329,6 +335,10 @@ struct amdgpu_video_codec_info;
 #define amdgpu_sriov_reg_indirect_gc(adev) \
 (amdgpu_sriov_vf((adev)) && \
 	((adev)->virt.reg_access & (AMDGIM_FEATURE_GC_REG_RLC_EN)))
+
+#define amdgpu_sriov_reg_indirect_l1_tlb_cntl(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_L1_TLB_CNTL_PSP_EN)))
 
 #define amdgpu_sriov_rlcg_error_report_enabled(adev) \
         (amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
@@ -423,4 +433,5 @@ int amdgpu_virt_req_ras_cper_dump(struct amdgpu_device *adev, bool force_update)
 int amdgpu_virt_ras_telemetry_post_reset(struct amdgpu_device *adev);
 bool amdgpu_virt_ras_telemetry_block_en(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);
+void amdgpu_virt_request_bad_pages(struct amdgpu_device *adev);
 #endif

@@ -49,6 +49,7 @@ struct io_imu_folio_data {
 	unsigned int	nr_pages_mid;
 	unsigned int	folio_shift;
 	unsigned int	nr_folios;
+	unsigned long	first_folio_page_idx;
 };
 
 bool io_rsrc_cache_init(struct io_ring_ctx *ctx);

@@ -690,3 +690,9 @@ void __init init_IRQ(void)
 	/* Initialize EPOLL Loop */
 	os_setup_epoll();
 }
+
+void sigchld_handler(int sig, struct siginfo *unused_si,
+		     struct uml_pt_regs *regs, void *mc)
+{
+	do_IRQ(SIGCHLD_IRQ, regs);
+}

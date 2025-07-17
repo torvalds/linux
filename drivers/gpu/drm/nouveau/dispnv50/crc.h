@@ -94,6 +94,7 @@ void nv50_crc_atomic_clr(struct nv50_head *);
 extern const struct nv50_crc_func crc907d;
 extern const struct nv50_crc_func crcc37d;
 extern const struct nv50_crc_func crcc57d;
+extern const struct nv50_crc_func crcca7d;
 
 #else /* IS_ENABLED(CONFIG_DEBUG_FS) */
 struct nv50_crc {};

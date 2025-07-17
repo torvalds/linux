@@ -718,6 +718,69 @@ static const struct regmap_config tas5721_regmap_config = {
 	.volatile_table			= &tas571x_volatile_regs,
 };
 
+static const struct snd_kcontrol_new tas5733_controls[] = {
+	/* MVOL LSB is ignored - see comments in tas571x_i2c_probe() */
+	SOC_SINGLE_TLV("Master Volume",
+		       TAS571X_MVOL_REG, 1, 0x1ff, 1,
+		       tas5717_volume_tlv),
+	SOC_DOUBLE_R_TLV("Speaker Volume",
+			 TAS571X_CH1_VOL_REG, TAS571X_CH2_VOL_REG,
+			 1, 0x1ff, 1, tas5717_volume_tlv),
+	SOC_DOUBLE("Speaker Switch",
+		   TAS571X_SOFT_MUTE_REG,
+		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
+		   1, 1),
+
+	SOC_DOUBLE_R_RANGE("CH1 Mixer Volume",
+			   TAS5717_CH1_LEFT_CH_MIX_REG,
+			   TAS5717_CH1_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
+
+	SOC_DOUBLE_R_RANGE("CH2 Mixer Volume",
+			   TAS5717_CH2_LEFT_CH_MIX_REG,
+			   TAS5717_CH2_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
+
+	/*
+	 * The biquads are named according to the register names.
+	 * Please note that TI's TAS57xx Graphical Development Environment
+	 * tool names them different.
+	 */
+	BIQUAD_COEFS("CH1 - Biquad 0", TAS5733_CH1_BQ0_REG),
+	BIQUAD_COEFS("CH1 - Biquad 1", TAS5733_CH1_BQ1_REG),
+	BIQUAD_COEFS("CH1 - Biquad 2", TAS5733_CH1_BQ2_REG),
+	BIQUAD_COEFS("CH1 - Biquad 3", TAS5733_CH1_BQ3_REG),
+	BIQUAD_COEFS("CH1 - Biquad 4", TAS5733_CH1_BQ4_REG),
+	BIQUAD_COEFS("CH1 - Biquad 5", TAS5733_CH1_BQ5_REG),
+	BIQUAD_COEFS("CH1 - Biquad 6", TAS5733_CH1_BQ6_REG),
+	BIQUAD_COEFS("CH1 - Biquad 7", TAS5733_CH1_BQ7_REG),
+	BIQUAD_COEFS("CH1 - Biquad 8", TAS5733_CH1_BQ8_REG),
+	BIQUAD_COEFS("CH1 - Biquad 9", TAS5733_CH1_BQ9_REG),
+	BIQUAD_COEFS("CH1 - Biquad 10", TAS5733_CH1_BQ10_REG),
+
+	BIQUAD_COEFS("CH2 - Biquad 0", TAS5733_CH2_BQ0_REG),
+	BIQUAD_COEFS("CH2 - Biquad 1", TAS5733_CH2_BQ1_REG),
+	BIQUAD_COEFS("CH2 - Biquad 2", TAS5733_CH2_BQ2_REG),
+	BIQUAD_COEFS("CH2 - Biquad 3", TAS5733_CH2_BQ3_REG),
+	BIQUAD_COEFS("CH2 - Biquad 4", TAS5733_CH2_BQ4_REG),
+	BIQUAD_COEFS("CH2 - Biquad 5", TAS5733_CH2_BQ5_REG),
+	BIQUAD_COEFS("CH2 - Biquad 6", TAS5733_CH2_BQ6_REG),
+	BIQUAD_COEFS("CH2 - Biquad 7", TAS5733_CH2_BQ7_REG),
+	BIQUAD_COEFS("CH2 - Biquad 8", TAS5733_CH2_BQ8_REG),
+	BIQUAD_COEFS("CH2 - Biquad 9", TAS5733_CH2_BQ9_REG),
+	BIQUAD_COEFS("CH2 - Biquad 10", TAS5733_CH2_BQ10_REG),
+
+	BIQUAD_COEFS("CH1 - Cross Biquad 0", TAS5733_CH1_CBQ0_REG),
+	BIQUAD_COEFS("CH1 - Cross Biquad 1", TAS5733_CH1_CBQ1_REG),
+	BIQUAD_COEFS("CH1 - Cross Biquad 2", TAS5733_CH1_CBQ2_REG),
+	BIQUAD_COEFS("CH1 - Cross Biquad 3", TAS5733_CH1_CBQ3_REG),
+
+	BIQUAD_COEFS("CH2 - Cross Biquad 0", TAS5733_CH2_CBQ0_REG),
+	BIQUAD_COEFS("CH2 - Cross Biquad 1", TAS5733_CH2_CBQ1_REG),
+	BIQUAD_COEFS("CH2 - Cross Biquad 2", TAS5733_CH2_CBQ2_REG),
+	BIQUAD_COEFS("CH2 - Cross Biquad 3", TAS5733_CH2_CBQ3_REG),
+};
+
 static const char *const tas5733_supply_names[] = {
 	"AVDD",
 	"DVDD",
@@ -770,8 +833,8 @@ static const struct regmap_config tas5733_regmap_config = {
 static const struct tas571x_chip tas5733_chip = {
 	.supply_names                   = tas5733_supply_names,
 	.num_supply_names               = ARRAY_SIZE(tas5733_supply_names),
-	.controls                       = tas5717_controls,
-	.num_controls                   = ARRAY_SIZE(tas5717_controls),
+	.controls                       = tas5733_controls,
+	.num_controls                   = ARRAY_SIZE(tas5733_controls),
 	.regmap_config                  = &tas5733_regmap_config,
 	.vol_reg_size                   = 2,
 };

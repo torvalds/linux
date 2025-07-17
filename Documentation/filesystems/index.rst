@@ -99,6 +99,7 @@ Documentation for filesystem implementations.
    fuse
    fuse-io
    fuse-io-uring
+   fuse-passthrough
    inotify
    isofs
    nilfs2

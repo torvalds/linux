@@ -229,7 +229,7 @@ err:
 
 static void ntb_netdev_tx_timer(struct timer_list *t)
 {
-	struct ntb_netdev *dev = from_timer(dev, t, tx_timer);
+	struct ntb_netdev *dev = timer_container_of(dev, t, tx_timer);
 	struct net_device *ndev = dev->ndev;
 
 	if (ntb_transport_tx_free_entry(dev->qp) < tx_stop) {

@@ -81,13 +81,9 @@ static inline bool upper_empty(union upper_chunk *chunk)
 {
 	/*
 	 * If chunk->data has no lower chunks, it will be the same
-	 * as a zeroed bitmask. Use find_first_bit() to test it
-	 * and if it doesn't find any bits set, then the array
-	 * is empty.
+	 * as a zeroed bitmask.
 	 */
-	int bit = find_first_bit((unsigned long *)chunk->data,
-				 sizeof(chunk->data) * 8);
-	return bit >= sizeof(chunk->data) * 8;
+	return bitmap_empty((unsigned long *)chunk->data, BITS_PER_TYPE(chunk->data));
 }
 
 static inline int pid_split(unsigned int pid, unsigned int *upper1,

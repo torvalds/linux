@@ -101,7 +101,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 
 		mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
 		if (!mi)
-			return -BCH_ERR_ENOSPC_sb_members_v2;
+			return bch_err_throw(c, ENOSPC_sb_members_v2);
 
 		for (int i = c->disk_sb.sb->nr_devices - 1; i >= 0; --i) {
 			void *dst = (void *) mi->_members + (i * sizeof(struct bch_member));
@@ -325,9 +325,17 @@ static void bch2_sb_members_v1_to_text(struct printbuf *out, struct bch_sb *sb,
 {
 	struct bch_sb_field_members_v1 *mi = field_to_type(f, members_v1);
 	struct bch_sb_field_disk_groups *gi = bch2_sb_field_get(sb, disk_groups);
-	unsigned i;
 
-	for (i = 0; i < sb->nr_devices; i++)
+	if (vstruct_end(&mi->field) <= (void *) &mi->_members[0]) {
+		prt_printf(out, "field ends before start of entries");
+		return;
+	}
+
+	unsigned nr = (vstruct_end(&mi->field) - (void *) &mi->_members[0]) / sizeof(mi->_members[0]);
+	if (nr != sb->nr_devices)
+		prt_printf(out, "nr_devices mismatch: have %i entries, should be %u", nr, sb->nr_devices);
+
+	for (unsigned i = 0; i < min(sb->nr_devices, nr); i++)
 		member_to_text(out, members_v1_get(mi, i), gi, sb, i);
 }
 
@@ -341,9 +349,27 @@ static void bch2_sb_members_v2_to_text(struct printbuf *out, struct bch_sb *sb,
 {
 	struct bch_sb_field_members_v2 *mi = field_to_type(f, members_v2);
 	struct bch_sb_field_disk_groups *gi = bch2_sb_field_get(sb, disk_groups);
-	unsigned i;
 
-	for (i = 0; i < sb->nr_devices; i++)
+	if (vstruct_end(&mi->field) <= (void *) &mi->_members[0]) {
+		prt_printf(out, "field ends before start of entries");
+		return;
+	}
+
+	if (!le16_to_cpu(mi->member_bytes)) {
+		prt_printf(out, "member_bytes 0");
+		return;
+	}
+
+	unsigned nr = (vstruct_end(&mi->field) - (void *) &mi->_members[0]) / le16_to_cpu(mi->member_bytes);
+	if (nr != sb->nr_devices)
+		prt_printf(out, "nr_devices mismatch: have %i entries, should be %u", nr, sb->nr_devices);
+
+	/*
+	 * We call to_text() on superblock sections that haven't passed
+	 * validate, so we can't trust sb->nr_devices.
+	 */
+
+	for (unsigned i = 0; i < min(sb->nr_devices, nr); i++)
 		member_to_text(out, members_v2_get(mi, i), gi, sb, i);
 }
 
@@ -378,14 +404,13 @@ void bch2_sb_members_from_cpu(struct bch_fs *c)
 {
 	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_member_device_rcu(c, ca, NULL) {
 		struct bch_member *m = __bch2_members_v2_get_mut(mi, ca->dev_idx);
 
 		for (unsigned e = 0; e < BCH_MEMBER_ERROR_NR; e++)
 			m->errors[e] = cpu_to_le64(atomic64_read(&ca->errors[e]));
 	}
-	rcu_read_unlock();
 }
 
 void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
@@ -443,20 +468,14 @@ void bch2_dev_errors_reset(struct bch_dev *ca)
 
 bool bch2_dev_btree_bitmap_marked(struct bch_fs *c, struct bkey_s_c k)
 {
-	bool ret = true;
-	rcu_read_lock();
+	guard(rcu)();
 	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
 		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
-		if (!ca)
-			continue;
-
-		if (!bch2_dev_btree_bitmap_marked_sectors(ca, ptr->offset, btree_sectors(c))) {
-			ret = false;
-			break;
-		}
+		if (ca &&
+		    !bch2_dev_btree_bitmap_marked_sectors(ca, ptr->offset, btree_sectors(c)))
+			return false;
 	}
-	rcu_read_unlock();
-	return ret;
+	return true;
 }
 
 static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, unsigned dev,

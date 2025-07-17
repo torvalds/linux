@@ -110,6 +110,8 @@ static const char * const POWER_SUPPLY_HEALTH_TEXT[] = {
 	[POWER_SUPPLY_HEALTH_COOL]		    = "Cool",
 	[POWER_SUPPLY_HEALTH_HOT]		    = "Hot",
 	[POWER_SUPPLY_HEALTH_NO_BATTERY]	    = "No battery",
+	[POWER_SUPPLY_HEALTH_BLOWN_FUSE]	    = "Blown fuse",
+	[POWER_SUPPLY_HEALTH_CELL_IMBALANCE]	    = "Cell imbalance",
 };
 
 static const char * const POWER_SUPPLY_TECHNOLOGY_TEXT[] = {
@@ -138,9 +140,10 @@ static const char * const POWER_SUPPLY_SCOPE_TEXT[] = {
 };
 
 static const char * const POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[] = {
-	[POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO]		= "auto",
-	[POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE]	= "inhibit-charge",
-	[POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE]	= "force-discharge",
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO]			= "auto",
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE]		= "inhibit-charge",
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE_AWAKE]	= "inhibit-charge-awake",
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE]		= "force-discharge",
 };
 
 static struct power_supply_attr power_supply_attrs[] __ro_after_init = {

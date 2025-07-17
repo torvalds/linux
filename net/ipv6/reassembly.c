@@ -73,7 +73,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 
 static void ip6_frag_expire(struct timer_list *t)
 {
-	struct inet_frag_queue *frag = from_timer(frag, t, timer);
+	struct inet_frag_queue *frag = timer_container_of(frag, t, timer);
 	struct frag_queue *fq;
 
 	fq = container_of(frag, struct frag_queue, q);

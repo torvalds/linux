@@ -545,7 +545,7 @@ static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
  */
 static void sym53c8xx_timer(struct timer_list *t)
 {
-	struct sym_hcb *np = from_timer(np, t, s.timer);
+	struct sym_hcb *np = timer_container_of(np, t, s.timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(np->s.host->host_lock, flags);

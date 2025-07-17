@@ -434,7 +434,7 @@ static void tegra_utc_console_write_atomic(struct console *cons, struct nbcon_wr
 
 		outbuf += burst_size;
 		len -= burst_size;
-	};
+	}
 
 	nbcon_exit_unsafe(wctxt);
 }

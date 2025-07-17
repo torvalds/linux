@@ -301,6 +301,75 @@ void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap);
 void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p);
 void xe_vm_snapshot_free(struct xe_vm_snapshot *snap);
 
+/**
+ * xe_vm_set_validating() - Register this task as currently making bos resident
+ * @allow_res_evict: Allow eviction of buffer objects bound to @vm when
+ * validating.
+ * @vm: Pointer to the vm or NULL.
+ *
+ * Register this task as currently making bos resident for the vm. Intended
+ * to avoid eviction by the same task of shared bos bound to the vm.
+ * Call with the vm's resv lock held.
+ *
+ * Return: A pin cookie that should be used for xe_vm_clear_validating().
+ */
+static inline struct pin_cookie xe_vm_set_validating(struct xe_vm *vm,
+						     bool allow_res_evict)
+{
+	struct pin_cookie cookie = {};
+
+	if (vm && !allow_res_evict) {
+		xe_vm_assert_held(vm);
+		cookie = lockdep_pin_lock(&xe_vm_resv(vm)->lock.base);
+		/* Pairs with READ_ONCE in xe_vm_is_validating() */
+		WRITE_ONCE(vm->validating, current);
+	}
+
+	return cookie;
+}
+
+/**
+ * xe_vm_clear_validating() - Unregister this task as currently making bos resident
+ * @vm: Pointer to the vm or NULL
+ * @allow_res_evict: Eviction from @vm was allowed. Must be set to the same
+ * value as for xe_vm_set_validation().
+ * @cookie: Cookie obtained from xe_vm_set_validating().
+ *
+ * Register this task as currently making bos resident for the vm. Intended
+ * to avoid eviction by the same task of shared bos bound to the vm.
+ * Call with the vm's resv lock held.
+ */
+static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict,
+					  struct pin_cookie cookie)
+{
+	if (vm && !allow_res_evict) {
+		lockdep_unpin_lock(&xe_vm_resv(vm)->lock.base, cookie);
+		/* Pairs with READ_ONCE in xe_vm_is_validating() */
+		WRITE_ONCE(vm->validating, NULL);
+	}
+}
+
+/**
+ * xe_vm_is_validating() - Whether bos bound to the vm are currently being made resident
+ * by the current task.
+ * @vm: Pointer to the vm.
+ *
+ * If this function returns %true, we should be in a vm resv locked region, since
+ * the current process is the same task that called xe_vm_set_validating().
+ * The function asserts that that's indeed the case.
+ *
+ * Return: %true if the task is currently making bos resident, %false otherwise.
+ */
+static inline bool xe_vm_is_validating(struct xe_vm *vm)
+{
+	/* Pairs with WRITE_ONCE in xe_vm_is_validating() */
+	if (READ_ONCE(vm->validating) == current) {
+		xe_vm_assert_held(vm);
+		return true;
+	}
+	return false;
+}
+
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
 void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma);
 #else

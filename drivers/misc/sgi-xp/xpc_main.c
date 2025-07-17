@@ -164,7 +164,8 @@ struct xpc_arch_operations xpc_arch_ops;
 static void
 xpc_timeout_partition_disengage(struct timer_list *t)
 {
-	struct xpc_partition *part = from_timer(part, t, disengage_timer);
+	struct xpc_partition *part = timer_container_of(part, t,
+							disengage_timer);
 
 	DBUG_ON(time_is_after_jiffies(part->disengage_timeout));
 

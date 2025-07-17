@@ -267,10 +267,9 @@ out:
 	BUG_ON(wb->sorted.size < wb->flushing.keys.nr);
 }
 
-int bch2_btree_write_buffer_insert_err(struct btree_trans *trans,
+int bch2_btree_write_buffer_insert_err(struct bch_fs *c,
 				       enum btree_id btree, struct bkey_i *k)
 {
-	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 
 	prt_printf(&buf, "attempting to do write buffer update on non wb btree=");
@@ -332,7 +331,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		struct btree_write_buffered_key *k = &wb->flushing.keys.data[i->idx];
 
 		if (unlikely(!btree_type_uses_write_buffer(k->btree))) {
-			ret = bch2_btree_write_buffer_insert_err(trans, k->btree, &k->k);
+			ret = bch2_btree_write_buffer_insert_err(trans->c, k->btree, &k->k);
 			goto err;
 		}
 
@@ -394,7 +393,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		bool accounting_accumulated = false;
 		do {
 			if (race_fault()) {
-				ret = -BCH_ERR_journal_reclaim_would_deadlock;
+				ret = bch_err_throw(c, journal_reclaim_would_deadlock);
 				break;
 			}
 
@@ -633,7 +632,7 @@ int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 
 	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_btree_write_buffer))
-		return -BCH_ERR_erofs_no_writes;
+		return bch_err_throw(c, erofs_no_writes);
 
 	int ret = bch2_btree_write_buffer_flush_nocheck_rw(trans);
 	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_write_buffer);
@@ -676,7 +675,10 @@ int bch2_btree_write_buffer_maybe_flush(struct btree_trans *trans,
 			goto err;
 
 		bch2_bkey_buf_copy(last_flushed, c, tmp.k);
-		ret = -BCH_ERR_transaction_restart_write_buffer_flush;
+
+		/* can we avoid the unconditional restart? */
+		trace_and_count(c, trans_restart_write_buffer_flush, trans, _RET_IP_);
+		ret = bch_err_throw(c, transaction_restart_write_buffer_flush);
 	}
 err:
 	bch2_bkey_buf_exit(&tmp, c);

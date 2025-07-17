@@ -457,7 +457,7 @@ static int tusb_musb_vbus_status(struct musb *musb)
 
 static void musb_do_idle(struct timer_list *t)
 {
-	struct musb	*musb = from_timer(musb, t, dev_timer);
+	struct musb	*musb = timer_container_of(musb, t, dev_timer);
 	unsigned long	flags;
 
 	spin_lock_irqsave(&musb->lock, flags);

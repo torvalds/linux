@@ -19,6 +19,7 @@ description: |
 properties:
   compatible:
     enum:
+      - silergy,sq52206
       - silergy,sy24655
       - ti,ina209
       - ti,ina219
@@ -57,6 +58,9 @@ properties:
       value of 1 maps to ADCRANGE=1 where no gain divisor is applied to the
       shunt voltage, and a value of 4 maps to ADCRANGE=0 such that a wider
       voltage range is used.
+
+      For SQ52206,the shunt-gain value 1 mapps to ADCRANGE=10/11, the value 2
+      mapps to ADCRANGE=01, and the value 4 mapps to ADCRANGE=00.
 
       The default value is device dependent, and is defined by the reset value
       of PGA/ADCRANGE in the respective configuration registers.
@@ -97,6 +101,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - silergy,sq52206
               - silergy,sy24655
               - ti,ina209
               - ti,ina219

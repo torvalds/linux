@@ -907,12 +907,51 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 	},
 };
 
-static inline struct ath11k_pdev *ath11k_core_get_single_pdev(struct ath11k_base *ab)
-{
-	WARN_ON(!ab->hw_params.single_pdev_only);
-
-	return &ab->pdevs[0];
-}
+static const struct dmi_system_id ath11k_pm_quirk_table[] = {
+	{
+		.driver_data = (void *)ATH11K_PM_WOW,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21J4"),
+		},
+	},
+	{
+		.driver_data = (void *)ATH11K_PM_WOW,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21K4"),
+		},
+	},
+	{
+		.driver_data = (void *)ATH11K_PM_WOW,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21K6"),
+		},
+	},
+	{
+		.driver_data = (void *)ATH11K_PM_WOW,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21K8"),
+		},
+	},
+	{
+		.driver_data = (void *)ATH11K_PM_WOW,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21KA"),
+		},
+	},
+	{
+		.driver_data = (void *)ATH11K_PM_WOW,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "21F9"),
+		},
+	},
+	{}
+};
 
 void ath11k_fw_stats_pdevs_free(struct list_head *head)
 {
@@ -951,6 +990,7 @@ void ath11k_fw_stats_init(struct ath11k *ar)
 	INIT_LIST_HEAD(&ar->fw_stats.bcn);
 
 	init_completion(&ar->fw_stats_complete);
+	init_completion(&ar->fw_stats_done);
 }
 
 void ath11k_fw_stats_free(struct ath11k_fw_stats *stats)
@@ -972,22 +1012,32 @@ bool ath11k_core_coldboot_cal_support(struct ath11k_base *ab)
 		return ab->hw_params.coldboot_cal_mm;
 }
 
-int ath11k_core_suspend(struct ath11k_base *ab)
+/* Check if we need to continue with suspend/resume operation.
+ * Return:
+ *	a negative value: error happens and don't continue.
+ *	0:  no error but don't continue.
+ *	positive value: no error and do continue.
+ */
+static int ath11k_core_continue_suspend_resume(struct ath11k_base *ab)
 {
-	int ret;
-	struct ath11k_pdev *pdev;
 	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
 		return -EOPNOTSUPP;
 
 	/* so far single_pdev_only chips have supports_suspend as true
-	 * and only the first pdev is valid.
+	 * so pass 0 as a dummy pdev_id here.
 	 */
-	pdev = ath11k_core_get_single_pdev(ab);
-	ar = pdev->ar;
+	ar = ab->pdevs[0].ar;
 	if (!ar || ar->state != ATH11K_STATE_OFF)
 		return 0;
+
+	return 1;
+}
+
+static int ath11k_core_suspend_wow(struct ath11k_base *ab)
+{
+	int ret;
 
 	ret = ath11k_dp_rx_pktlog_stop(ab, true);
 	if (ret) {
@@ -996,7 +1046,10 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 		return ret;
 	}
 
-	ret = ath11k_mac_wait_tx_complete(ar);
+	/* So far only single_pdev_only devices can reach here,
+	 * so it is valid to handle the first, and the only, pdev.
+	 */
+	ret = ath11k_mac_wait_tx_complete(ab->pdevs[0].ar);
 	if (ret) {
 		ath11k_warn(ab, "failed to wait tx complete: %d\n", ret);
 		return ret;
@@ -1029,24 +1082,146 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 
 	return 0;
 }
-EXPORT_SYMBOL(ath11k_core_suspend);
 
-int ath11k_core_resume(struct ath11k_base *ab)
+static int ath11k_core_suspend_default(struct ath11k_base *ab)
 {
 	int ret;
-	struct ath11k_pdev *pdev;
-	struct ath11k *ar;
 
-	if (!ab->hw_params.supports_suspend)
-		return -EOPNOTSUPP;
+	ret = ath11k_dp_rx_pktlog_stop(ab, true);
+	if (ret) {
+		ath11k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
+			    ret);
+		return ret;
+	}
 
-	/* so far signle_pdev_only chips have supports_suspend as true
-	 * and only the first pdev is valid.
+	/* So far only single_pdev_only devices can reach here,
+	 * so it is valid to handle the first, and the only, pdev.
 	 */
-	pdev = ath11k_core_get_single_pdev(ab);
-	ar = pdev->ar;
-	if (!ar || ar->state != ATH11K_STATE_OFF)
+	ret = ath11k_mac_wait_tx_complete(ab->pdevs[0].ar);
+	if (ret) {
+		ath11k_warn(ab, "failed to wait tx complete: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_dp_rx_pktlog_stop(ab, false);
+	if (ret) {
+		ath11k_warn(ab, "failed to stop dp rx pktlog during suspend: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ath11k_ce_stop_shadow_timers(ab);
+	ath11k_dp_stop_shadow_timers(ab);
+
+	/* PM framework skips suspend_late/resume_early callbacks
+	 * if other devices report errors in their suspend callbacks.
+	 * However ath11k_core_resume() would still be called because
+	 * here we return success thus kernel put us on dpm_suspended_list.
+	 * Since we won't go through a power down/up cycle, there is
+	 * no chance to call complete(&ab->restart_completed) in
+	 * ath11k_core_restart(), making ath11k_core_resume() timeout.
+	 * So call it here to avoid this issue. This also works in case
+	 * no error happens thus suspend_late/resume_early get called,
+	 * because it will be reinitialized in ath11k_core_resume_early().
+	 */
+	complete(&ab->restart_completed);
+
+	return 0;
+}
+
+int ath11k_core_suspend(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
+
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
+		return ath11k_core_suspend_wow(ab);
+
+	return ath11k_core_suspend_default(ab);
+}
+EXPORT_SYMBOL(ath11k_core_suspend);
+
+int ath11k_core_suspend_late(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
+
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
 		return 0;
+
+	ath11k_hif_irq_disable(ab);
+	ath11k_hif_ce_irq_disable(ab);
+
+	ath11k_hif_power_down(ab, true);
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_core_suspend_late);
+
+int ath11k_core_resume_early(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
+
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
+		return 0;
+
+	reinit_completion(&ab->restart_completed);
+	ret = ath11k_hif_power_up(ab);
+	if (ret)
+		ath11k_warn(ab, "failed to power up hif during resume: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath11k_core_resume_early);
+
+static int ath11k_core_resume_default(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	long time_left;
+	int ret;
+
+	time_left = wait_for_completion_timeout(&ab->restart_completed,
+						ATH11K_RESET_TIMEOUT_HZ);
+	if (time_left == 0) {
+		ath11k_warn(ab, "timeout while waiting for restart complete");
+		return -ETIMEDOUT;
+	}
+
+	/* So far only single_pdev_only devices can reach here,
+	 * so it is valid to handle the first, and the only, pdev.
+	 */
+	ar = ab->pdevs[0].ar;
+	if (ab->hw_params.current_cc_support &&
+	    ar->alpha2[0] != 0 && ar->alpha2[1] != 0) {
+		ret = ath11k_reg_set_cc(ar);
+		if (ret) {
+			ath11k_warn(ab, "failed to set country code during resume: %d\n",
+				    ret);
+			return ret;
+		}
+	}
+
+	ret = ath11k_dp_rx_pktlog_start(ab);
+	if (ret)
+		ath11k_warn(ab, "failed to start rx pktlog during resume: %d\n",
+			    ret);
+
+	return ret;
+}
+
+static int ath11k_core_resume_wow(struct ath11k_base *ab)
+{
+	int ret;
 
 	ret = ath11k_hif_resume(ab);
 	if (ret) {
@@ -1071,6 +1246,20 @@ int ath11k_core_resume(struct ath11k_base *ab)
 	}
 
 	return 0;
+}
+
+int ath11k_core_resume(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
+
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
+		return ath11k_core_resume_wow(ab);
+
+	return ath11k_core_resume_default(ab);
 }
 EXPORT_SYMBOL(ath11k_core_resume);
 
@@ -1946,6 +2135,20 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 {
 	int ret;
 
+	switch (ath11k_crypto_mode) {
+	case ATH11K_CRYPT_MODE_SW:
+		set_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	case ATH11K_CRYPT_MODE_HW:
+		clear_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		clear_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	default:
+		ath11k_info(ab, "invalid crypto_mode: %d\n", ath11k_crypto_mode);
+		return -EINVAL;
+	}
+
 	ret = ath11k_core_start_firmware(ab, ab->fw_mode);
 	if (ret) {
 		ath11k_err(ab, "failed to start firmware: %d\n", ret);
@@ -1962,20 +2165,6 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 	if (ret) {
 		ath11k_err(ab, "failed to init DP: %d\n", ret);
 		goto err_firmware_stop;
-	}
-
-	switch (ath11k_crypto_mode) {
-	case ATH11K_CRYPT_MODE_SW:
-		set_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
-		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
-		break;
-	case ATH11K_CRYPT_MODE_HW:
-		clear_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
-		clear_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
-		break;
-	default:
-		ath11k_info(ab, "invalid crypto_mode: %d\n", ath11k_crypto_mode);
-		return -EINVAL;
 	}
 
 	if (ath11k_frame_mode == ATH11K_HW_TXRX_RAW)
@@ -2050,6 +2239,7 @@ err_hal_srng_deinit:
 void ath11k_core_halt(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
+	struct list_head *pos, *n;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -2065,7 +2255,12 @@ void ath11k_core_halt(struct ath11k *ar)
 
 	rcu_assign_pointer(ab->pdevs_active[ar->pdev_idx], NULL);
 	synchronize_rcu();
-	INIT_LIST_HEAD(&ar->arvifs);
+
+	spin_lock_bh(&ar->data_lock);
+	list_for_each_safe(pos, n, &ar->arvifs)
+		list_del_init(pos);
+	spin_unlock_bh(&ar->data_lock);
+
 	idr_init(&ar->txmgmt_idr);
 }
 
@@ -2205,6 +2400,8 @@ static void ath11k_core_restart(struct work_struct *work)
 
 	if (!ab->is_reset)
 		ath11k_core_post_reconfigure_recovery(ab);
+
+	complete(&ab->restart_completed);
 }
 
 static void ath11k_core_reset(struct work_struct *work)
@@ -2275,7 +2472,7 @@ static void ath11k_core_reset(struct work_struct *work)
 	ath11k_hif_irq_disable(ab);
 	ath11k_hif_ce_irq_disable(ab);
 
-	ath11k_hif_power_down(ab);
+	ath11k_hif_power_down(ab, false);
 	ath11k_hif_power_up(ab);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset started\n");
@@ -2325,9 +2522,61 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
 
-int ath11k_core_init(struct ath11k_base *ab)
+static int ath11k_core_pm_notify(struct notifier_block *nb,
+				 unsigned long action, void *nouse)
+{
+	struct ath11k_base *ab = container_of(nb, struct ath11k_base,
+					      pm_nb);
+
+	switch (action) {
+	case PM_SUSPEND_PREPARE:
+		ab->actual_pm_policy = ab->pm_policy;
+		break;
+	case PM_HIBERNATION_PREPARE:
+		ab->actual_pm_policy = ATH11K_PM_DEFAULT;
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static int ath11k_core_pm_notifier_register(struct ath11k_base *ab)
+{
+	ab->pm_nb.notifier_call = ath11k_core_pm_notify;
+	return register_pm_notifier(&ab->pm_nb);
+}
+
+void ath11k_core_pm_notifier_unregister(struct ath11k_base *ab)
 {
 	int ret;
+
+	ret = unregister_pm_notifier(&ab->pm_nb);
+	if (ret)
+		/* just warn here, there is nothing can be done in fail case */
+		ath11k_warn(ab, "failed to unregister PM notifier %d\n", ret);
+}
+EXPORT_SYMBOL(ath11k_core_pm_notifier_unregister);
+
+int ath11k_core_init(struct ath11k_base *ab)
+{
+	const struct dmi_system_id *dmi_id;
+	int ret;
+
+	dmi_id = dmi_first_match(ath11k_pm_quirk_table);
+	if (dmi_id)
+		ab->pm_policy = (kernel_ulong_t)dmi_id->driver_data;
+	else
+		ab->pm_policy = ATH11K_PM_DEFAULT;
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "pm policy %u\n", ab->pm_policy);
+
+	ret = ath11k_core_pm_notifier_register(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to register PM notifier: %d\n", ret);
+		return ret;
+	}
 
 	ret = ath11k_core_soc_create(ab);
 	if (ret) {
@@ -2348,9 +2597,10 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 
 	mutex_unlock(&ab->core_lock);
 
-	ath11k_hif_power_down(ab);
+	ath11k_hif_power_down(ab, false);
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
+	ath11k_core_pm_notifier_unregister(ab);
 }
 EXPORT_SYMBOL(ath11k_core_deinit);
 
@@ -2401,6 +2651,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 	init_completion(&ab->wow.wakeup_completed);
+	init_completion(&ab->restart_completed);
 
 	ab->dev = dev;
 	ab->hif.bus = bus;

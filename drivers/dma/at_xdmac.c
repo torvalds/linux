@@ -2033,10 +2033,8 @@ static int at_xdmac_device_terminate_all(struct dma_chan *chan)
 		 * at_xdmac_start_xfer() for this descriptor. Now it's time
 		 * to release it.
 		 */
-		if (desc->active_xfer) {
-			pm_runtime_put_autosuspend(atxdmac->dev);
-			pm_runtime_mark_last_busy(atxdmac->dev);
-		}
+		if (desc->active_xfer)
+			pm_runtime_put_noidle(atxdmac->dev);
 	}
 
 	clear_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);

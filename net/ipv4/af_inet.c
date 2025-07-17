@@ -1328,10 +1328,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 
 		/* Routing failed... */
 		sk->sk_route_caps = 0;
-		/*
-		 * Other protocols have to map its equivalent state to TCP_SYN_SENT.
-		 * DCCP maps its DCCP_REQUESTING state to TCP_SYN_SENT. -acme
-		 */
+
 		if (!READ_ONCE(sock_net(sk)->ipv4.sysctl_ip_dynaddr) ||
 		    sk->sk_state != TCP_SYN_SENT ||
 		    (sk->sk_userlocks & SOCK_BINDADDR_LOCK) ||

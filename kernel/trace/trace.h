@@ -183,8 +183,7 @@ struct trace_array;
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	atomic_t		disabled;
-	void			*buffer_page;	/* ring buffer spare */
+	local_t			disabled;
 
 	unsigned long		entries;
 	unsigned long		saved_latency;
@@ -404,6 +403,7 @@ struct trace_array {
 	struct trace_options	*topts;
 	struct list_head	systems;
 	struct list_head	events;
+	struct list_head	marker_list;
 	struct trace_event_file *trace_marker_file;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	/* one per_cpu trace_pipe can be opened by only one user */
@@ -665,11 +665,28 @@ bool tracing_is_disabled(void);
 bool tracer_tracing_is_on(struct trace_array *tr);
 void tracer_tracing_on(struct trace_array *tr);
 void tracer_tracing_off(struct trace_array *tr);
+void tracer_tracing_disable(struct trace_array *tr);
+void tracer_tracing_enable(struct trace_array *tr);
 struct dentry *trace_create_file(const char *name,
 				 umode_t mode,
 				 struct dentry *parent,
 				 void *data,
 				 const struct file_operations *fops);
+
+
+/**
+ * tracer_tracing_is_on_cpu - show real state of ring buffer enabled on for a cpu
+ * @tr : the trace array to know if ring buffer is enabled
+ * @cpu: The cpu buffer to check if enabled
+ *
+ * Shows real state of the per CPU buffer if it is enabled or not.
+ */
+static inline bool tracer_tracing_is_on_cpu(struct trace_array *tr, int cpu)
+{
+	if (tr->array_buffer.buffer)
+		return ring_buffer_record_is_on_cpu(tr->array_buffer.buffer, cpu);
+	return false;
+}
 
 int tracing_init_dentry(void);
 
@@ -1368,6 +1385,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(MARKERS,		"markers"),		\
 		C(EVENT_FORK,		"event-fork"),		\
 		C(TRACE_PRINTK,		"trace_printk_dest"),	\
+		C(COPY_MARKER,		"copy_trace_marker"),\
 		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
 		C(HASH_PTR,		"hash-ptr"),	/* Print hashed pointer */ \
 		FUNCTION_FLAGS					\
@@ -1772,6 +1790,9 @@ extern int event_enable_register_trigger(char *glob,
 extern void event_enable_unregister_trigger(char *glob,
 					    struct event_trigger_data *test,
 					    struct trace_event_file *file);
+extern struct event_trigger_data *
+trigger_data_alloc(struct event_command *cmd_ops, char *cmd, char *param,
+		   void *private_data);
 extern void trigger_data_free(struct event_trigger_data *data);
 extern int event_trigger_init(struct event_trigger_data *data);
 extern int trace_event_trigger_enable_disable(struct trace_event_file *file,
@@ -1798,11 +1819,6 @@ extern bool event_trigger_check_remove(const char *glob);
 extern bool event_trigger_empty_param(const char *param);
 extern int event_trigger_separate_filter(char *param_and_filter, char **param,
 					 char **filter, bool param_required);
-extern struct event_trigger_data *
-event_trigger_alloc(struct event_command *cmd_ops,
-		    char *cmd,
-		    char *param,
-		    void *private_data);
 extern int event_trigger_parse_num(char *trigger,
 				   struct event_trigger_data *trigger_data);
 extern int event_trigger_set_filter(struct event_command *cmd_ops,

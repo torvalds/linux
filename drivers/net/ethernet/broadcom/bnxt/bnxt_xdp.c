@@ -115,7 +115,7 @@ static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
 	tx_buf->action = XDP_REDIRECT;
 	tx_buf->xdpf = xdpf;
 	dma_unmap_addr_set(tx_buf, mapping, mapping);
-	dma_unmap_len_set(tx_buf, len, 0);
+	dma_unmap_len_set(tx_buf, len, len);
 }
 
 void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
@@ -425,9 +425,9 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 
 	if (prog) {
 		bnxt_set_rx_skb_mode(bp, true);
-		xdp_features_set_redirect_target(dev, true);
+		xdp_features_set_redirect_target_locked(dev, true);
 	} else {
-		xdp_features_clear_redirect_target(dev);
+		xdp_features_clear_redirect_target_locked(dev);
 		bnxt_set_rx_skb_mode(bp, false);
 	}
 	bp->tx_nr_rings_xdp = tx_xdp;

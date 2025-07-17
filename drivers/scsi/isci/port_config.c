@@ -321,7 +321,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 static void mpc_agent_timeout(struct timer_list *t)
 {
 	u8 index;
-	struct sci_timer *tmr = from_timer(tmr, t, timer);
+	struct sci_timer *tmr = timer_container_of(tmr, t, timer);
 	struct sci_port_configuration_agent *port_agent;
 	struct isci_host *ihost;
 	unsigned long flags;
@@ -659,7 +659,7 @@ static void sci_apc_agent_link_down(
 static void apc_agent_timeout(struct timer_list *t)
 {
 	u32 index;
-	struct sci_timer *tmr = from_timer(tmr, t, timer);
+	struct sci_timer *tmr = timer_container_of(tmr, t, timer);
 	struct sci_port_configuration_agent *port_agent;
 	struct isci_host *ihost;
 	unsigned long flags;

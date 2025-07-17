@@ -3244,8 +3244,9 @@ static int gcc_sm8750_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x52010, BIT(20), BIT(20));
 	regmap_update_bits(regmap, 0x52010, BIT(21), BIT(21));
 
-	/* FORCE_MEM_CORE_ON for ufs phy ice core clocks */
+	/* FORCE_MEM_CORE_ON for ufs phy ice core and gcc ufs phy axi clocks  */
 	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_ice_core_clk, true);
+	qcom_branch_set_force_mem_core(regmap, gcc_ufs_phy_axi_clk, true);
 
 	return qcom_cc_really_probe(&pdev->dev, &gcc_sm8750_desc, regmap);
 }

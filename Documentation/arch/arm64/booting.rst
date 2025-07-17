@@ -234,7 +234,7 @@ Before jumping into the kernel, the following conditions must be met:
 
   - If the kernel is entered at EL1:
 
-      - ICC.SRE_EL2.Enable (bit 3) must be initialised to 0b1
+      - ICC_SRE_EL2.Enable (bit 3) must be initialised to 0b1
       - ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b1.
 
   - The DT or ACPI tables must describe a GICv3 interrupt controller.

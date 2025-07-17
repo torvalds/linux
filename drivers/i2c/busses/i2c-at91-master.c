@@ -26,6 +26,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/string_choices.h>
 
 #include "i2c-at91.h"
 
@@ -523,7 +524,7 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 	 */
 
 	dev_dbg(dev->dev, "transfer: %s %zu bytes.\n",
-		(dev->msg->flags & I2C_M_RD) ? "read" : "write", dev->buf_len);
+		str_read_write(dev->msg->flags & I2C_M_RD), dev->buf_len);
 
 	reinit_completion(&dev->cmd_complete);
 	dev->transfer_status = 0;
@@ -738,8 +739,8 @@ static u32 at91_twi_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm at91_twi_algorithm = {
-	.master_xfer	= at91_twi_xfer,
-	.functionality	= at91_twi_func,
+	.xfer = at91_twi_xfer,
+	.functionality = at91_twi_func,
 };
 
 static int at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)

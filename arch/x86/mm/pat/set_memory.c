@@ -1257,6 +1257,9 @@ static int collapse_pmd_page(pmd_t *pmd, unsigned long addr,
 	pgprot_t pgprot;
 	int i = 0;
 
+	if (!cpu_feature_enabled(X86_FEATURE_PSE))
+		return 0;
+
 	addr &= PMD_MASK;
 	pte = pte_offset_kernel(pmd, addr);
 	first = *pte;
@@ -2146,6 +2149,19 @@ static inline int cpa_clear_pages_array(struct page **pages, int numpages,
 {
 	return change_page_attr_set_clr(NULL, numpages, __pgprot(0), mask, 0,
 		CPA_PAGES_ARRAY, pages);
+}
+
+/*
+ * __set_memory_prot is an internal helper for callers that have been passed
+ * a pgprot_t value from upper layers and a reservation has already been taken.
+ * If you want to set the pgprot to a specific page protocol, use the
+ * set_memory_xx() functions.
+ */
+int __set_memory_prot(unsigned long addr, int numpages, pgprot_t prot)
+{
+	return change_page_attr_set_clr(&addr, numpages, prot,
+					__pgprot(~pgprot_val(prot)), 0, 0,
+					NULL);
 }
 
 int _set_memory_uc(unsigned long addr, int numpages)

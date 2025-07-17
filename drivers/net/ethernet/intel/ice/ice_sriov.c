@@ -63,6 +63,7 @@ static void ice_free_vf_res(struct ice_vf *vf)
 	if (vf->lan_vsi_idx != ICE_NO_VSI) {
 		ice_vf_vsi_release(vf);
 		vf->num_mac = 0;
+		vf->num_mac_lldp = 0;
 	}
 
 	last_vector_idx = vf->first_vector_idx + vf->num_msix - 1;
@@ -1401,6 +1402,9 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 	}
 
 	mutex_lock(&vf->cfg_lock);
+
+	while (!trusted && vf->num_mac_lldp)
+		ice_vf_update_mac_lldp_num(vf, ice_get_vf_vsi(vf), false);
 
 	vf->trusted = trusted;
 	ice_reset_vf(vf, ICE_VF_RESET_NOTIFY);

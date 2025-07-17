@@ -53,11 +53,10 @@ static inline struct bpos bp_pos_to_bucket_and_offset(const struct bch_dev *ca, 
 
 static inline bool bp_pos_to_bucket_nodev_noerror(struct bch_fs *c, struct bpos bp_pos, struct bpos *bucket)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp_pos.inode);
 	if (ca)
 		*bucket = bp_pos_to_bucket(ca, bp_pos);
-	rcu_read_unlock();
 	return ca != NULL;
 }
 
@@ -195,7 +194,7 @@ static inline bool bch2_bucket_bitmap_test(struct bucket_bitmap *b, u64 i)
 	return bitmap && test_bit(i, bitmap);
 }
 
-int bch2_bucket_bitmap_resize(struct bucket_bitmap *, u64, u64);
+int bch2_bucket_bitmap_resize(struct bch_dev *, struct bucket_bitmap *, u64, u64);
 void bch2_bucket_bitmap_free(struct bucket_bitmap *);
 
 #endif /* _BCACHEFS_BACKPOINTERS_BACKGROUND_H */

@@ -733,11 +733,10 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	WARN_ON(vop->event);
 
-	if (crtc->state->self_refresh_active)
+	if (crtc->state->self_refresh_active) {
 		rockchip_drm_set_win_enabled(crtc, false);
-
-	if (crtc->state->self_refresh_active)
 		goto out;
+	}
 
 	mutex_lock(&vop->vop_lock);
 

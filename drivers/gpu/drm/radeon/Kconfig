@@ -2,7 +2,7 @@
 
 config DRM_RADEON
 	tristate "ATI Radeon"
-	depends on DRM && PCI && MMU
+	depends on DRM && PCI
 	depends on AGP || !AGP
 	select FW_LOADER
 	select DRM_CLIENT_SELECTION

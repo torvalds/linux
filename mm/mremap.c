@@ -237,6 +237,8 @@ static int move_ptes(struct pagetable_move_control *pmc,
 
 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
 				   new_pte++, new_addr += PAGE_SIZE) {
+		VM_WARN_ON_ONCE(!pte_none(*new_pte));
+
 		if (pte_none(ptep_get(old_pte)))
 			continue;
 
@@ -1189,10 +1191,6 @@ static int copy_vma_and_data(struct vma_remap_struct *vrm,
 	}
 
 	fixup_hugetlb_reservations(vma);
-
-	/* Tell pfnmap has moved from this vma */
-	if (unlikely(vma->vm_flags & VM_PFNMAP))
-		untrack_pfn_clear(vma);
 
 	*new_vma_ptr = new_vma;
 	return err;

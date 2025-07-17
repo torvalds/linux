@@ -276,7 +276,7 @@ static void kyber_resize_domain(struct kyber_queue_data *kqd,
 
 static void kyber_timer_fn(struct timer_list *t)
 {
-	struct kyber_queue_data *kqd = from_timer(kqd, t, timer);
+	struct kyber_queue_data *kqd = timer_container_of(kqd, t, timer);
 	unsigned int sched_domain;
 	int cpu;
 	bool bad = false;

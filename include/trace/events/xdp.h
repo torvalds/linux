@@ -379,32 +379,6 @@ TRACE_EVENT(mem_connect,
 	)
 );
 
-TRACE_EVENT(mem_return_failed,
-
-	TP_PROTO(const struct xdp_mem_info *mem,
-		 const struct page *page),
-
-	TP_ARGS(mem, page),
-
-	TP_STRUCT__entry(
-		__field(const struct page *,	page)
-		__field(u32,		mem_id)
-		__field(u32,		mem_type)
-	),
-
-	TP_fast_assign(
-		__entry->page		= page;
-		__entry->mem_id		= mem->id;
-		__entry->mem_type	= mem->type;
-	),
-
-	TP_printk("mem_id=%d mem_type=%s page=%p",
-		  __entry->mem_id,
-		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
-		  __entry->page
-	)
-);
-
 TRACE_EVENT(bpf_xdp_link_attach_failed,
 
 	TP_PROTO(const char *msg),

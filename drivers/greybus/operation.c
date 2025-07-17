@@ -295,7 +295,8 @@ static void gb_operation_work(struct work_struct *work)
 
 static void gb_operation_timeout(struct timer_list *t)
 {
-	struct gb_operation *operation = from_timer(operation, t, timer);
+	struct gb_operation *operation = timer_container_of(operation, t,
+							    timer);
 
 	if (gb_operation_result_set(operation, -ETIMEDOUT)) {
 		/*

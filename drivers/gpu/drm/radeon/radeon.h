@@ -394,9 +394,6 @@ long radeon_fence_wait_timeout(struct radeon_fence *fence, bool interruptible, l
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
 int radeon_fence_wait_next(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_empty(struct radeon_device *rdev, int ring);
-int radeon_fence_wait_any(struct radeon_device *rdev,
-			  struct radeon_fence **fences,
-			  bool intr);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
 unsigned radeon_fence_count_emitted(struct radeon_device *rdev, int ring);

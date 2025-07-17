@@ -58,8 +58,13 @@ endif
 # These result in bogus false positives
 KBUILD_CFLAGS += $(call cc-option, -Wno-dangling-pointer)
 
-# Variable Length Arrays (VLAs) should not be used anywhere in the kernel
-KBUILD_CFLAGS += -Wvla
+# Stack Variable Length Arrays (VLAs) must not be used in the kernel.
+# Function array parameters should, however, be usable, but -Wvla will
+# warn for those. Clang has no way yet to distinguish between the VLA
+# types, so depend on GCC for now to keep stack VLAs out of the tree.
+# https://github.com/llvm/llvm-project/issues/57098
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98217
+KBUILD_CFLAGS += $(call cc-option,-Wvla-larger-than=1)
 
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += -Wno-pointer-sign

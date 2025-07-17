@@ -210,13 +210,11 @@ static struct kmem_cache *object_cache;
 static struct kmem_cache *scan_area_cache;
 
 /* set if tracing memory operations is enabled */
-static int kmemleak_enabled = 1;
+static int kmemleak_enabled __read_mostly = 1;
 /* same as above but only for the kmemleak_free() callback */
-static int kmemleak_free_enabled = 1;
+static int kmemleak_free_enabled __read_mostly = 1;
 /* set in the late_initcall if there were no errors */
 static int kmemleak_late_initialized;
-/* set if a kmemleak warning was issued */
-static int kmemleak_warning;
 /* set if a fatal kmemleak error has occurred */
 static int kmemleak_error;
 
@@ -254,7 +252,6 @@ static void kmemleak_disable(void);
 #define kmemleak_warn(x...)	do {		\
 	pr_warn(x);				\
 	dump_stack();				\
-	kmemleak_warning = 1;			\
 } while (0)
 
 /*
@@ -325,8 +322,6 @@ static void hex_dump_object(struct seq_file *seq,
  *		sufficient references to it (count >= min_count)
  * - black - ignore, it doesn't contain references (e.g. text section)
  *		(min_count == -1). No function defined for this color.
- * Newly created objects don't have any color assigned (object->count == -1)
- * before the next memory scan when they become white.
  */
 static bool color_white(const struct kmemleak_object *object)
 {
@@ -1250,6 +1245,20 @@ void __ref kmemleak_transient_leak(const void *ptr)
 		reset_checksum((unsigned long)ptr);
 }
 EXPORT_SYMBOL(kmemleak_transient_leak);
+
+/**
+ * kmemleak_ignore_percpu - similar to kmemleak_ignore but taking a percpu
+ *			    address argument
+ * @ptr:	percpu address of the object
+ */
+void __ref kmemleak_ignore_percpu(const void __percpu *ptr)
+{
+	pr_debug("%s(0x%px)\n", __func__, ptr);
+
+	if (kmemleak_enabled && ptr && !IS_ERR_PCPU(ptr))
+		make_black_object((unsigned long)ptr, OBJECT_PERCPU);
+}
+EXPORT_SYMBOL_GPL(kmemleak_ignore_percpu);
 
 /**
  * kmemleak_ignore - ignore an allocated object

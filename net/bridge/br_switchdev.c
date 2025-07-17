@@ -504,9 +504,10 @@ static void br_switchdev_mdb_complete(struct net_device *dev, int err, void *pri
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port *port = data->port;
 	struct net_bridge *br = port->br;
+	u8 old_flags;
 
-	if (err)
-		goto err;
+	if (err == -EOPNOTSUPP)
+		goto out_free;
 
 	spin_lock_bh(&br->multicast_lock);
 	mp = br_mdb_ip_get(br, &data->ip);
@@ -516,11 +517,15 @@ static void br_switchdev_mdb_complete(struct net_device *dev, int err, void *pri
 	     pp = &p->next) {
 		if (p->key.port != port)
 			continue;
-		p->flags |= MDB_PG_FLAGS_OFFLOAD;
+
+		old_flags = p->flags;
+		br_multicast_set_pg_offload_flags(p, !err);
+		if (br_mdb_should_notify(br, old_flags ^ p->flags))
+			br_mdb_flag_change_notify(br->dev, mp, p);
 	}
 out:
 	spin_unlock_bh(&br->multicast_lock);
-err:
+out_free:
 	kfree(priv);
 }
 

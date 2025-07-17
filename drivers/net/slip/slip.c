@@ -1378,7 +1378,7 @@ module_exit(slip_exit);
 
 static void sl_outfill(struct timer_list *t)
 {
-	struct slip *sl = from_timer(sl, t, outfill_timer);
+	struct slip *sl = timer_container_of(sl, t, outfill_timer);
 
 	spin_lock(&sl->lock);
 
@@ -1409,7 +1409,7 @@ out:
 
 static void sl_keepalive(struct timer_list *t)
 {
-	struct slip *sl = from_timer(sl, t, keepalive_timer);
+	struct slip *sl = timer_container_of(sl, t, keepalive_timer);
 
 	spin_lock(&sl->lock);
 

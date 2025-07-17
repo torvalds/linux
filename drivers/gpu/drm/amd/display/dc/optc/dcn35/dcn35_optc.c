@@ -428,7 +428,7 @@ static void optc35_set_long_vtotal(
 	}
 }
 
-static struct timing_generator_funcs dcn35_tg_funcs = {
+static const struct timing_generator_funcs dcn35_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
@@ -507,6 +507,7 @@ void dcn35_timing_generator_init(struct optc *optc1)
 	optc1->min_v_blank_interlace = 5;
 	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
+	optc1->max_frame_count = 0xFFFFFF;
 
 	dcn35_timing_generator_set_fgcg(
 		optc1, CTX->dc->debug.enable_fine_grain_clock_gating.bits.optc);

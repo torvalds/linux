@@ -471,7 +471,7 @@ EXPORT_SYMBOL_GPL(nvme_auth_generate_key);
  * @c1: Value of challenge C1
  * @c2: Value of challenge C2
  * @hash_len: Hash length of the hash algorithm
- * @ret_psk: Pointer too the resulting generated PSK
+ * @ret_psk: Pointer to the resulting generated PSK
  * @ret_len: length of @ret_psk
  *
  * Generate a PSK for TLS as specified in NVMe base specification, section
@@ -759,8 +759,8 @@ int nvme_auth_derive_tls_psk(int hmac_id, u8 *psk, size_t psk_len,
 		goto out_free_prk;
 
 	/*
-	 * 2 addtional bytes for the length field from HDKF-Expand-Label,
-	 * 2 addtional bytes for the HMAC ID, and one byte for the space
+	 * 2 additional bytes for the length field from HDKF-Expand-Label,
+	 * 2 additional bytes for the HMAC ID, and one byte for the space
 	 * separator.
 	 */
 	info_len = strlen(psk_digest) + strlen(psk_prefix) + 5;

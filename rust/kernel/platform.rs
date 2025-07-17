@@ -5,18 +5,17 @@
 //! C header: [`include/linux/platform_device.h`](srctree/include/linux/platform_device.h)
 
 use crate::{
-    bindings, device, driver,
+    bindings, container_of, device, driver,
     error::{to_result, Result},
     of,
     prelude::*,
     str::CStr,
-    types::{ARef, ForeignOwnable, Opaque},
+    types::{ForeignOwnable, Opaque},
     ThisModule,
 };
 
 use core::{
     marker::PhantomData,
-    ops::Deref,
     ptr::{addr_of_mut, NonNull},
 };
 
@@ -80,7 +79,7 @@ impl<T: Driver + 'static> Adapter<T> {
 
     extern "C" fn remove_callback(pdev: *mut bindings::platform_device) {
         // SAFETY: `pdev` is a valid pointer to a `struct platform_device`.
-        let ptr = unsafe { bindings::platform_get_drvdata(pdev) };
+        let ptr = unsafe { bindings::platform_get_drvdata(pdev) }.cast();
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `ptr` points to a valid and initialized
@@ -151,10 +150,11 @@ macro_rules! module_platform_driver {
 ///```
 pub trait Driver: Send {
     /// The type holding driver private data about each device id supported by the driver.
-    ///
-    /// TODO: Use associated_type_defaults once stabilized:
-    ///
-    /// type IdInfo: 'static = ();
+    // TODO: Use associated_type_defaults once stabilized:
+    //
+    // ```
+    // type IdInfo: 'static = ();
+    // ```
     type IdInfo: 'static;
 
     /// The table of OF device ids supported by the driver.
@@ -184,31 +184,16 @@ pub struct Device<Ctx: device::DeviceContext = device::Normal>(
     PhantomData<Ctx>,
 );
 
-impl Device {
+impl<Ctx: device::DeviceContext> Device<Ctx> {
     fn as_raw(&self) -> *mut bindings::platform_device {
         self.0.get()
     }
 }
 
-impl Deref for Device<device::Core> {
-    type Target = Device;
-
-    fn deref(&self) -> &Self::Target {
-        let ptr: *const Self = self;
-
-        // CAST: `Device<Ctx>` is a transparent wrapper of `Opaque<bindings::platform_device>`.
-        let ptr = ptr.cast::<Device>();
-
-        // SAFETY: `ptr` was derived from `&self`.
-        unsafe { &*ptr }
-    }
-}
-
-impl From<&Device<device::Core>> for ARef<Device> {
-    fn from(dev: &Device<device::Core>) -> Self {
-        (&**dev).into()
-    }
-}
+// SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
+// argument.
+kernel::impl_device_context_deref!(unsafe { Device });
+kernel::impl_device_context_into_aref!(Device);
 
 // SAFETY: Instances of `Device` are always reference-counted.
 unsafe impl crate::types::AlwaysRefCounted for Device {
@@ -223,14 +208,34 @@ unsafe impl crate::types::AlwaysRefCounted for Device {
     }
 }
 
-impl AsRef<device::Device> for Device {
-    fn as_ref(&self) -> &device::Device {
+impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Device<Ctx> {
+    fn as_ref(&self) -> &device::Device<Ctx> {
         // SAFETY: By the type invariant of `Self`, `self.as_raw()` is a pointer to a valid
         // `struct platform_device`.
         let dev = unsafe { addr_of_mut!((*self.as_raw()).dev) };
 
         // SAFETY: `dev` points to a valid `struct device`.
         unsafe { device::Device::as_ref(dev) }
+    }
+}
+
+impl<Ctx: device::DeviceContext> TryFrom<&device::Device<Ctx>> for &Device<Ctx> {
+    type Error = kernel::error::Error;
+
+    fn try_from(dev: &device::Device<Ctx>) -> Result<Self, Self::Error> {
+        // SAFETY: By the type invariant of `Device`, `dev.as_raw()` is a valid pointer to a
+        // `struct device`.
+        if !unsafe { bindings::dev_is_platform(dev.as_raw()) } {
+            return Err(EINVAL);
+        }
+
+        // SAFETY: We've just verified that the bus type of `dev` equals
+        // `bindings::platform_bus_type`, hence `dev` must be embedded in a valid
+        // `struct platform_device` as guaranteed by the corresponding C code.
+        let pdev = unsafe { container_of!(dev.as_raw(), bindings::platform_device, dev) };
+
+        // SAFETY: `pdev` is a valid pointer to a `struct platform_device`.
+        Ok(unsafe { &*pdev.cast() })
     }
 }
 

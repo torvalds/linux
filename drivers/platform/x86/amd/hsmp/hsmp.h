@@ -12,6 +12,7 @@
 
 #include <linux/compiler_types.h>
 #include <linux/device.h>
+#include <linux/hwmon.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/semaphore.h>
@@ -24,6 +25,8 @@
 #define HSMP_CDEV_NAME		"hsmp_cdev"
 #define HSMP_DEVNODE_NAME	"hsmp"
 #define ACPI_HSMP_DEVICE_HID    "AMDI0097"
+
+#define DRIVER_VERSION		"2.5"
 
 struct hsmp_mbaddr_info {
 	u32 base_addr;
@@ -61,4 +64,10 @@ int hsmp_misc_register(struct device *dev);
 int hsmp_get_tbl_dram_base(u16 sock_ind);
 ssize_t hsmp_metric_tbl_read(struct hsmp_socket *sock, char *buf, size_t size);
 struct hsmp_plat_device *get_hsmp_pdev(void);
+#if IS_REACHABLE(CONFIG_HWMON)
+int hsmp_create_sensor(struct device *dev, u16 sock_ind);
+#else
+static inline int hsmp_create_sensor(struct device *dev, u16 sock_ind) { return 0; }
+#endif
+int hsmp_msg_get_nargs(u16 sock_ind, u32 msg_id, u32 *data, u8 num_args);
 #endif /* HSMP_H */

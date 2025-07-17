@@ -39,7 +39,7 @@ int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 
 int etnaviv_gem_prime_pin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach) {
+	if (!drm_gem_is_imported(obj)) {
 		struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
 		mutex_lock(&etnaviv_obj->lock);
@@ -51,7 +51,7 @@ int etnaviv_gem_prime_pin(struct drm_gem_object *obj)
 
 void etnaviv_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach) {
+	if (!drm_gem_is_imported(obj)) {
 		struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
 		mutex_lock(&etnaviv_obj->lock);
@@ -65,7 +65,7 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(etnaviv_obj->vaddr);
 
 	if (etnaviv_obj->vaddr)
-		dma_buf_vunmap_unlocked(etnaviv_obj->base.import_attach->dmabuf, &map);
+		dma_buf_vunmap_unlocked(etnaviv_obj->base.dma_buf, &map);
 
 	/* Don't drop the pages for imported dmabuf, as they are not
 	 * ours, just free the array we allocated:
@@ -82,7 +82,7 @@ static void *etnaviv_gem_prime_vmap_impl(struct etnaviv_gem_object *etnaviv_obj)
 
 	lockdep_assert_held(&etnaviv_obj->lock);
 
-	ret = dma_buf_vmap(etnaviv_obj->base.import_attach->dmabuf, &map);
+	ret = dma_buf_vmap(etnaviv_obj->base.dma_buf, &map);
 	if (ret)
 		return NULL;
 	return map.vaddr;

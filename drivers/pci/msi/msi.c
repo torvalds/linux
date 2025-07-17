@@ -439,15 +439,15 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (nvec < minvec)
 		return -ENOSPC;
 
-	if (nvec > maxvec)
-		nvec = maxvec;
-
 	rc = pci_setup_msi_context(dev);
 	if (rc)
 		return rc;
 
-	if (!pci_setup_msi_device_domain(dev))
+	if (!pci_setup_msi_device_domain(dev, nvec))
 		return -ENODEV;
+
+	if (nvec > maxvec)
+		nvec = maxvec;
 
 	for (;;) {
 		if (affd) {
@@ -934,10 +934,12 @@ int pci_msix_write_tph_tag(struct pci_dev *pdev, unsigned int index, u16 tag)
 	if (!pdev->msix_enabled)
 		return -ENXIO;
 
-	guard(msi_descs_lock)(&pdev->dev);
 	virq = msi_get_virq(&pdev->dev, index);
 	if (!virq)
 		return -ENXIO;
+
+	guard(msi_descs_lock)(&pdev->dev);
+
 	/*
 	 * This is a horrible hack, but short of implementing a PCI
 	 * specific interrupt chip callback and a huge pile of

@@ -170,7 +170,7 @@ ether3_setbuffer(struct net_device *dev, buffer_rw_t read, int start)
  */
 static void ether3_ledoff(struct timer_list *t)
 {
-	struct dev_priv *private = from_timer(private, t, timer);
+	struct dev_priv *private = timer_container_of(private, t, timer);
 	struct net_device *dev = private->dev;
 
 	ether3_outw(priv(dev)->regs.config2 |= CFG2_CTRLO, REG_CONFIG2);

@@ -21,6 +21,7 @@
 #include "display/intel_pfit_regs.h"
 #include "display/intel_psr_regs.h"
 #include "display/intel_sprite_regs.h"
+#include "display/intel_vga_regs.h"
 #include "display/skl_universal_plane_regs.h"
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"

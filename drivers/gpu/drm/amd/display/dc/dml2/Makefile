@@ -99,7 +99,6 @@ CFLAGS_$(AMDDALPATH)/dc/dml2/dml21/src/dml2_standalone_libraries/lib_float_math.
 CFLAGS_$(AMDDALPATH)/dc/dml2/dml21/src/dml21_wrapper.o := $(dml2_ccflags)
 CFLAGS_$(AMDDALPATH)/dc/dml2/dml21/dml21_translation_helper.o := $(dml2_ccflags)
 CFLAGS_$(AMDDALPATH)/dc/dml2/dml21/dml21_utils.o := $(dml2_ccflags)
-CFLAGS_$(AMDDALPATH)/dc/dml2/dml21/inc/dml2_debug.o := $(dml2_ccflags)
 
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/src/dml2_top/dml2_top_interfaces.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/src/dml2_top/dml2_top_soc15.o := $(dml2_rcflags)
@@ -117,11 +116,9 @@ CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/src/dml2_standalone_libraries/lib_floa
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/src/dml21_wrapper.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/dml21_translation_helper.o := $(dml2_rcflags)
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/dml21_utils.o := $(dml2_rcflags)
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml2/dml21/inc/dml2_debug.o := $(dml2_rcflags)
 
 DML21 := src/dml2_top/dml2_top_interfaces.o
 DML21 += src/dml2_top/dml2_top_soc15.o
-DML21 += src/inc/dml2_debug.o
 DML21 += src/dml2_core/dml2_core_dcn4.o
 DML21 += src/dml2_core/dml2_core_factory.o
 DML21 += src/dml2_core/dml2_core_dcn4_calcs.o

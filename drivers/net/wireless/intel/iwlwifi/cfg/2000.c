@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020, 2023 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023, 2025 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -40,7 +40,7 @@
 #define IWL135_FW_PRE "iwlwifi-135"
 #define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl2000_base_params = {
+static const struct iwl_family_base_params iwl2000_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -54,7 +54,7 @@ static const struct iwl_base_params iwl2000_base_params = {
 };
 
 
-static const struct iwl_base_params iwl2030_base_params = {
+static const struct iwl_family_base_params iwl2030_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -65,12 +65,6 @@ static const struct iwl_base_params iwl2030_base_params = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
 	.scd_chain_ext_wa = true,
-};
-
-static const struct iwl_ht_params iwl2000_ht_params = {
-	.ht_greenfield_support = true,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.ht40_bands = BIT(NL80211_BAND_2GHZ),
 };
 
 static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
@@ -86,96 +80,118 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 	.enhanced_txpower = true,
 };
 
+const struct iwl_mac_cfg iwl2000_mac_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_2000,
+	.base = &iwl2000_base,
+};
+
 #define IWL_DEVICE_2000						\
 	.fw_name_pre = IWL2000_FW_PRE,				\
 	.ucode_api_max = IWL2000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_2000,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,			\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,		\
-	.trans.base_params = &iwl2000_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
 
-const struct iwl_cfg iwl2000_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
+const struct iwl_rf_cfg iwl2000_2bgn_cfg = {
 	IWL_DEVICE_2000,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
-const struct iwl_cfg iwl2000_2bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200D BGN",
-	IWL_DEVICE_2000,
-	.ht_params = &iwl2000_ht_params,
+const char iwl2000_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2200 BGN";
+const char iwl2000_2bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 2200D BGN";
+
+const struct iwl_mac_cfg iwl2030_mac_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_2030,
+	.base = &iwl2030_base,
 };
 
 #define IWL_DEVICE_2030						\
 	.fw_name_pre = IWL2030_FW_PRE,				\
 	.ucode_api_max = IWL2030_UCODE_API_MAX,			\
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_2030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl2030_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl2030_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
+const struct iwl_rf_cfg iwl2030_2bgn_cfg = {
 	IWL_DEVICE_2030,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
+};
+
+const char iwl2030_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2230 BGN";
+
+const struct iwl_mac_cfg iwl105_mac_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_105,
+	.base = &iwl2000_base,
 };
 
 #define IWL_DEVICE_105						\
 	.fw_name_pre = IWL105_FW_PRE,				\
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_105,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl2000_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
-const struct iwl_cfg iwl105_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
+const struct iwl_rf_cfg iwl105_bgn_cfg = {
 	IWL_DEVICE_105,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
-const struct iwl_cfg iwl105_bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105D BGN",
-	IWL_DEVICE_105,
-	.ht_params = &iwl2000_ht_params,
+const char iwl105_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 105 BGN";
+const char iwl105_bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 105D BGN";
+
+const struct iwl_mac_cfg iwl135_mac_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_135,
+	.base = &iwl2030_base,
 };
 
 #define IWL_DEVICE_135						\
 	.fw_name_pre = IWL135_FW_PRE,				\
 	.ucode_api_max = IWL135_UCODE_API_MAX,			\
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_135,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl2030_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
-const struct iwl_cfg iwl135_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",
+const struct iwl_rf_cfg iwl135_bgn_cfg = {
 	IWL_DEVICE_135,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
+
+const char iwl135_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 135 BGN";
 
 MODULE_FIRMWARE(IWL2000_MODULE_FIRMWARE(IWL2000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL2030_MODULE_FIRMWARE(IWL2030_UCODE_API_MAX));

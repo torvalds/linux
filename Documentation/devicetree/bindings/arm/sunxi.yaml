@@ -492,6 +492,11 @@ properties:
           - const: lamobo,lamobo-r1
           - const: allwinner,sun7i-a20
 
+      - description: Liontron H-A133L
+        items:
+          - const: liontron,h-a133l
+          - const: allwinner,sun50i-a100
+
       - description: HAOYU Electronics Marsboard A10
         items:
           - const: haoyu,a10-marsboard
@@ -845,6 +850,11 @@ properties:
           - const: allwinner,r7-tv-dongle
           - const: allwinner,sun5i-a10s
 
+      - description: Radxa Cubie A5E
+        items:
+          - const: radxa,cubie-a5e
+          - const: allwinner,sun55i-a527
+
       - description: Remix Mini PC
         items:
           - const: jide,remix-mini-pc
@@ -966,6 +976,11 @@ properties:
           - const: hechuang,x96-mate
           - const: allwinner,sun50i-h616
 
+      - description: X96Q Pro+
+        items:
+          - const: amediatech,x96q-pro-plus
+          - const: allwinner,sun55i-h728
+
       - description: Xunlong OrangePi
         items:
           - const: xunlong,orangepi
@@ -1079,6 +1094,16 @@ properties:
       - description: Xunlong OrangePi Zero 3
         items:
           - const: xunlong,orangepi-zero3
+          - const: allwinner,sun50i-h618
+
+      - description: YuzukiHD Avaota A1
+        items:
+          - const: yuzukihd,avaota-a1
+          - const: allwinner,sun55i-t527
+
+      - description: YuzukiHD Chameleon
+        items:
+          - const: yuzukihd,chameleon
           - const: allwinner,sun50i-h618
 
 additionalProperties: true

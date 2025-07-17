@@ -691,8 +691,7 @@ static void __exit ocfs2_stack_glue_exit(void)
 	memset(&locking_max_version, 0,
 	       sizeof(struct ocfs2_protocol_version));
 	ocfs2_sysfs_exit();
-	if (ocfs2_table_header)
-		unregister_sysctl_table(ocfs2_table_header);
+	unregister_sysctl_table(ocfs2_table_header);
 }
 
 MODULE_AUTHOR("Oracle");

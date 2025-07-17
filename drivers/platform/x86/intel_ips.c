@@ -934,7 +934,7 @@ static u32 calc_avg_power(struct ips_driver *ips, u32 *array)
 
 static void monitor_timeout(struct timer_list *t)
 {
-	struct ips_driver *ips = from_timer(ips, t, timer);
+	struct ips_driver *ips = timer_container_of(ips, t, timer);
 	wake_up_process(ips->monitor);
 }
 

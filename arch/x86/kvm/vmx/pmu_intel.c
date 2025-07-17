@@ -20,6 +20,7 @@
 #include "lapic.h"
 #include "nested.h"
 #include "pmu.h"
+#include "tdx.h"
 
 /*
  * Perf's "BASE" is wildly misleading, architectural PMUs use bits 31:16 of ECX
@@ -34,6 +35,24 @@
 #define INTEL_RDPMC_INDEX_MASK	GENMASK(15, 0)
 
 #define MSR_PMC_FULL_WIDTH_BIT      (MSR_IA32_PMC0 - MSR_IA32_PERFCTR0)
+
+static struct lbr_desc *vcpu_to_lbr_desc(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu))
+		return NULL;
+
+	return &to_vmx(vcpu)->lbr_desc;
+}
+
+static struct x86_pmu_lbr *vcpu_to_lbr_records(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu))
+		return NULL;
+
+	return &to_vmx(vcpu)->lbr_desc.records;
+}
+
+#pragma GCC poison to_vmx
 
 static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 {
@@ -130,6 +149,22 @@ static inline struct kvm_pmc *get_fw_gp_pmc(struct kvm_pmu *pmu, u32 msr)
 	return get_gp_pmc(pmu, msr, MSR_IA32_PMC0);
 }
 
+static bool intel_pmu_lbr_is_compatible(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu))
+		return false;
+
+	return cpuid_model_is_consistent(vcpu);
+}
+
+bool intel_pmu_lbr_is_enabled(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu))
+		return false;
+
+	return !!vcpu_to_lbr_records(vcpu)->nr;
+}
+
 static bool intel_pmu_is_valid_lbr_msr(struct kvm_vcpu *vcpu, u32 index)
 {
 	struct x86_pmu_lbr *records = vcpu_to_lbr_records(vcpu);
@@ -195,6 +230,9 @@ static inline void intel_pmu_release_guest_lbr_event(struct kvm_vcpu *vcpu)
 {
 	struct lbr_desc *lbr_desc = vcpu_to_lbr_desc(vcpu);
 
+	if (!lbr_desc)
+		return;
+
 	if (lbr_desc->event) {
 		perf_event_release_kernel(lbr_desc->event);
 		lbr_desc->event = NULL;
@@ -235,6 +273,9 @@ int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu)
 		.branch_sample_type = PERF_SAMPLE_BRANCH_CALL_STACK |
 					PERF_SAMPLE_BRANCH_USER,
 	};
+
+	if (WARN_ON_ONCE(!lbr_desc))
+		return 0;
 
 	if (unlikely(lbr_desc->event)) {
 		__set_bit(INTEL_PMC_IDX_FIXED_VLBR, pmu->pmc_in_use);
@@ -467,6 +508,9 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	u64 perf_capabilities;
 	u64 counter_rsvd;
 
+	if (!lbr_desc)
+		return;
+
 	memset(&lbr_desc->records, 0, sizeof(lbr_desc->records));
 
 	/*
@@ -543,7 +587,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		INTEL_PMC_MAX_GENERIC, pmu->nr_arch_fixed_counters);
 
 	perf_capabilities = vcpu_get_perf_capabilities(vcpu);
-	if (cpuid_model_is_consistent(vcpu) &&
+	if (intel_pmu_lbr_is_compatible(vcpu) &&
 	    (perf_capabilities & PMU_CAP_LBR_FMT))
 		memcpy(&lbr_desc->records, &vmx_lbr_caps, sizeof(vmx_lbr_caps));
 	else
@@ -570,6 +614,9 @@ static void intel_pmu_init(struct kvm_vcpu *vcpu)
 	int i;
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct lbr_desc *lbr_desc = vcpu_to_lbr_desc(vcpu);
+
+	if (!lbr_desc)
+		return;
 
 	for (i = 0; i < KVM_MAX_NR_INTEL_GP_COUNTERS; i++) {
 		pmu->gp_counters[i].type = KVM_PMC_GP;
@@ -677,6 +724,9 @@ void vmx_passthrough_lbr_msrs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct lbr_desc *lbr_desc = vcpu_to_lbr_desc(vcpu);
+
+	if (WARN_ON_ONCE(!lbr_desc))
+		return;
 
 	if (!lbr_desc->event) {
 		vmx_disable_lbr_msrs_passthrough(vcpu);

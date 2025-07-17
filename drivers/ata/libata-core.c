@@ -6682,12 +6682,6 @@ const struct ata_port_info ata_dummy_port_info = {
 };
 EXPORT_SYMBOL_GPL(ata_dummy_port_info);
 
-void ata_print_version(const struct device *dev, const char *version)
-{
-	dev_printk(KERN_DEBUG, dev, "version %s\n", version);
-}
-EXPORT_SYMBOL(ata_print_version);
-
 EXPORT_TRACEPOINT_SYMBOL_GPL(ata_tf_load);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ata_exec_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ata_bmdma_setup);

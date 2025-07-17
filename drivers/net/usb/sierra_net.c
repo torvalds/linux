@@ -573,7 +573,7 @@ static void sierra_net_defer_kevent(struct usbnet *dev, int work)
  */
 static void sierra_sync_timer(struct timer_list *t)
 {
-	struct sierra_net_data *priv = from_timer(priv, t, sync_timer);
+	struct sierra_net_data *priv = timer_container_of(priv, t, sync_timer);
 	struct usbnet *dev = priv->usbnet;
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);

@@ -1057,8 +1057,11 @@ static int e5010_probe(struct platform_device *pdev)
 	e5010->vdev->lock = &e5010->mutex;
 
 	ret = v4l2_device_register(dev, &e5010->v4l2_dev);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to register v4l2 device\n");
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to register v4l2 device\n");
+		goto fail_after_video_device_alloc;
+	}
+
 
 	e5010->m2m_dev = v4l2_m2m_init(&e5010_m2m_ops);
 	if (IS_ERR(e5010->m2m_dev)) {
@@ -1118,6 +1121,8 @@ fail_after_video_register_device:
 	v4l2_m2m_release(e5010->m2m_dev);
 fail_after_v4l2_register:
 	v4l2_device_unregister(&e5010->v4l2_dev);
+fail_after_video_device_alloc:
+	video_device_release(e5010->vdev);
 	return ret;
 }
 

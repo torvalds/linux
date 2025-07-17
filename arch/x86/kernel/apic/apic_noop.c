@@ -27,7 +27,13 @@ static void noop_send_IPI_allbutself(int vector) { }
 static void noop_send_IPI_all(int vector) { }
 static void noop_send_IPI_self(int vector) { }
 static void noop_apic_icr_write(u32 low, u32 id) { }
-static int noop_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip) { return -1; }
+
+static int noop_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip,
+	unsigned int cpu)
+{
+	return -1;
+}
+
 static u64 noop_apic_icr_read(void) { return 0; }
 static u32 noop_get_apic_id(u32 apicid) { return 0; }
 static void noop_apic_eoi(void) { }

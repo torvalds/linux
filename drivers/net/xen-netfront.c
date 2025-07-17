@@ -245,7 +245,8 @@ static bool xennet_can_sg(struct net_device *dev)
 
 static void rx_refill_timeout(struct timer_list *t)
 {
-	struct netfront_queue *queue = from_timer(queue, t, rx_refill_timer);
+	struct netfront_queue *queue = timer_container_of(queue, t,
+							  rx_refill_timer);
 	napi_schedule(&queue->napi);
 }
 

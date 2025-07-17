@@ -79,6 +79,41 @@ static int fence_cmp(const void *_a, const void *_b)
 	return 0;
 }
 
+/**
+ * dma_fence_dedup_array - Sort and deduplicate an array of dma_fence pointers
+ * @fences:     Array of dma_fence pointers to be deduplicated
+ * @num_fences: Number of entries in the @fences array
+ *
+ * Sorts the input array by context, then removes duplicate
+ * fences with the same context, keeping only the most recent one.
+ *
+ * The array is modified in-place and unreferenced duplicate fences are released
+ * via dma_fence_put(). The function returns the new number of fences after
+ * deduplication.
+ *
+ * Return: Number of unique fences remaining in the array.
+ */
+int dma_fence_dedup_array(struct dma_fence **fences, int num_fences)
+{
+	int i, j;
+
+	sort(fences, num_fences, sizeof(*fences), fence_cmp, NULL);
+
+	/*
+	 * Only keep the most recent fence for each context.
+	 */
+	j = 0;
+	for (i = 1; i < num_fences; i++) {
+		if (fences[i]->context == fences[j]->context)
+			dma_fence_put(fences[i]);
+		else
+			fences[++j] = fences[i];
+	}
+
+	return ++j;
+}
+EXPORT_SYMBOL_GPL(dma_fence_dedup_array);
+
 /* Implementation for the dma_fence_merge() marco, don't use directly */
 struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 					   struct dma_fence **fences,
@@ -87,7 +122,7 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 	struct dma_fence *tmp, *unsignaled = NULL, **array;
 	struct dma_fence_array *result;
 	ktime_t timestamp;
-	int i, j, count;
+	int i, count;
 
 	count = 0;
 	timestamp = ns_to_ktime(0);
@@ -141,19 +176,7 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 	if (count == 0 || count == 1)
 		goto return_fastpath;
 
-	sort(array, count, sizeof(*array), fence_cmp, NULL);
-
-	/*
-	 * Only keep the most recent fence for each context.
-	 */
-	j = 0;
-	for (i = 1; i < count; i++) {
-		if (array[i]->context == array[j]->context)
-			dma_fence_put(array[i]);
-		else
-			array[++j] = array[i];
-	}
-	count = ++j;
+	count = dma_fence_dedup_array(array, count);
 
 	if (count > 1) {
 		result = dma_fence_array_create(count, array,

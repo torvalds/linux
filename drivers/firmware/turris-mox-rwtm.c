@@ -2,29 +2,31 @@
 /*
  * Turris Mox rWTM firmware driver
  *
- * Copyright (C) 2019, 2024 Marek Behún <kabel@kernel.org>
+ * Copyright (C) 2019, 2024, 2025 Marek Behún <kabel@kernel.org>
  */
 
 #include <crypto/sha2.h>
 #include <linux/align.h>
 #include <linux/armada-37xx-rwtm-mailbox.h>
+#include <linux/cleanup.h>
 #include <linux/completion.h>
 #include <linux/container_of.h>
-#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/fs.h>
 #include <linux/hw_random.h>
 #include <linux/if_ether.h>
+#include <linux/key.h>
 #include <linux/kobject.h>
 #include <linux/mailbox_client.h>
+#include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/sysfs.h>
+#include <linux/turris-signing-key.h>
 #include <linux/types.h>
 
 #define DRIVER_NAME		"turris-mox-rwtm"
@@ -37,10 +39,13 @@
  * https://gitlab.labs.nic.cz/turris/mox-boot-builder/tree/master/wtmi.
  */
 
-#define MOX_ECC_NUMBER_WORDS	17
-#define MOX_ECC_NUMBER_LEN	(MOX_ECC_NUMBER_WORDS * sizeof(u32))
-
-#define MOX_ECC_SIGNATURE_WORDS	(2 * MOX_ECC_NUMBER_WORDS)
+enum {
+	MOX_ECC_NUM_BITS	= 521,
+	MOX_ECC_NUM_LEN		= DIV_ROUND_UP(MOX_ECC_NUM_BITS, 8),
+	MOX_ECC_NUM_WORDS	= DIV_ROUND_UP(MOX_ECC_NUM_BITS, 32),
+	MOX_ECC_SIG_LEN		= 2 * MOX_ECC_NUM_LEN,
+	MOX_ECC_PUBKEY_LEN	= 1 + MOX_ECC_NUM_LEN,
+};
 
 #define MBOX_STS_SUCCESS	(0 << 30)
 #define MBOX_STS_FAIL		(1 << 30)
@@ -77,10 +82,7 @@ enum mbox_cmd {
  * @ram_size:		RAM size of the device
  * @mac_address1:	first MAC address of the device
  * @mac_address2:	second MAC address of the device
- * @has_pubkey:		whether board ECDSA public key is present
  * @pubkey:		board ECDSA public key
- * @last_sig:		last ECDSA signature generated with board ECDSA private key
- * @last_sig_done:	whether the last ECDSA signing is complete
  */
 struct mox_rwtm {
 	struct mbox_client mbox_client;
@@ -100,18 +102,8 @@ struct mox_rwtm {
 	int board_version, ram_size;
 	u8 mac_address1[ETH_ALEN], mac_address2[ETH_ALEN];
 
-	bool has_pubkey;
-	u8 pubkey[135];
-
-#ifdef CONFIG_DEBUG_FS
-	/*
-	 * Signature process. This is currently done via debugfs, because it
-	 * does not conform to the sysfs standard "one file per attribute".
-	 * It should be rewritten via crypto API once akcipher API is available
-	 * from userspace.
-	 */
-	u32 last_sig[MOX_ECC_SIGNATURE_WORDS];
-	bool last_sig_done;
+#ifdef CONFIG_TURRIS_MOX_RWTM_KEYCTL
+	u8 pubkey[MOX_ECC_PUBKEY_LEN];
 #endif
 };
 
@@ -120,24 +112,23 @@ static inline struct device *rwtm_dev(struct mox_rwtm *rwtm)
 	return rwtm->mbox_client.dev;
 }
 
-#define MOX_ATTR_RO(name, format, cat)				\
+#define MOX_ATTR_RO(name, format)				\
 static ssize_t							\
 name##_show(struct device *dev, struct device_attribute *a,	\
 	    char *buf)						\
 {								\
 	struct mox_rwtm *rwtm = dev_get_drvdata(dev);		\
-	if (!rwtm->has_##cat)					\
+	if (!rwtm->has_board_info)				\
 		return -ENODATA;				\
 	return sysfs_emit(buf, format, rwtm->name);		\
 }								\
 static DEVICE_ATTR_RO(name)
 
-MOX_ATTR_RO(serial_number, "%016llX\n", board_info);
-MOX_ATTR_RO(board_version, "%i\n", board_info);
-MOX_ATTR_RO(ram_size, "%i\n", board_info);
-MOX_ATTR_RO(mac_address1, "%pM\n", board_info);
-MOX_ATTR_RO(mac_address2, "%pM\n", board_info);
-MOX_ATTR_RO(pubkey, "%s\n", pubkey);
+MOX_ATTR_RO(serial_number, "%016llX\n");
+MOX_ATTR_RO(board_version, "%i\n");
+MOX_ATTR_RO(ram_size, "%i\n");
+MOX_ATTR_RO(mac_address1, "%pM\n");
+MOX_ATTR_RO(mac_address2, "%pM\n");
 
 static struct attribute *turris_mox_rwtm_attrs[] = {
 	&dev_attr_serial_number.attr,
@@ -145,7 +136,6 @@ static struct attribute *turris_mox_rwtm_attrs[] = {
 	&dev_attr_ram_size.attr,
 	&dev_attr_mac_address1.attr,
 	&dev_attr_mac_address2.attr,
-	&dev_attr_pubkey.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(turris_mox_rwtm);
@@ -247,24 +237,6 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 		pr_info("           burned RAM size %i MiB\n", rwtm->ram_size);
 	}
 
-	ret = mox_rwtm_exec(rwtm, MBOX_CMD_ECDSA_PUB_KEY, NULL, false);
-	if (ret == -ENODATA) {
-		dev_warn(dev, "Board has no public key burned!\n");
-	} else if (ret == -EOPNOTSUPP) {
-		dev_notice(dev,
-			   "Firmware does not support the ECDSA_PUB_KEY command\n");
-	} else if (ret < 0) {
-		return ret;
-	} else {
-		u32 *s = reply->status;
-
-		rwtm->has_pubkey = true;
-		sprintf(rwtm->pubkey,
-			"%06x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x",
-			ret, s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
-			s[8], s[9], s[10], s[11], s[12], s[13], s[14], s[15]);
-	}
-
 	return 0;
 }
 
@@ -306,127 +278,139 @@ unlock_mutex:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int rwtm_debug_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
+#ifdef CONFIG_TURRIS_MOX_RWTM_KEYCTL
 
-	return nonseekable_open(inode, file);
+static void mox_ecc_number_to_bin(void *dst, const u32 *src)
+{
+	__be32 tmp[MOX_ECC_NUM_WORDS];
+
+	cpu_to_be32_array(tmp, src, MOX_ECC_NUM_WORDS);
+
+	memcpy(dst, (void *)tmp + 2, MOX_ECC_NUM_LEN);
 }
 
-static ssize_t do_sign_read(struct file *file, char __user *buf, size_t len,
-			    loff_t *ppos)
+static void mox_ecc_public_key_to_bin(void *dst, u32 src_first,
+				      const u32 *src_rest)
 {
-	struct mox_rwtm *rwtm = file->private_data;
-	ssize_t ret;
+	__be32 tmp[MOX_ECC_NUM_WORDS - 1];
+	u8 *p = dst;
 
-	/* only allow one read, of whole signature, from position 0 */
-	if (*ppos != 0)
-		return 0;
+	/* take 3 bytes from the first word */
+	*p++ = src_first >> 16;
+	*p++ = src_first >> 8;
+	*p++ = src_first;
 
-	if (len < sizeof(rwtm->last_sig))
-		return -EINVAL;
-
-	if (!rwtm->last_sig_done)
-		return -ENODATA;
-
-	ret = simple_read_from_buffer(buf, len, ppos, rwtm->last_sig,
-				      sizeof(rwtm->last_sig));
-	rwtm->last_sig_done = false;
-
-	return ret;
+	/* take the rest of the words */
+	cpu_to_be32_array(tmp, src_rest, MOX_ECC_NUM_WORDS - 1);
+	memcpy(p, tmp, sizeof(tmp));
 }
 
-static ssize_t do_sign_write(struct file *file, const char __user *buf,
-			     size_t len, loff_t *ppos)
+static int mox_rwtm_sign(const struct key *key, const void *data, void *signature)
 {
-	struct mox_rwtm *rwtm = file->private_data;
-	struct armada_37xx_rwtm_tx_msg msg;
-	loff_t dummy = 0;
-	ssize_t ret;
+	struct mox_rwtm *rwtm = dev_get_drvdata(turris_signing_key_get_dev(key));
+	struct armada_37xx_rwtm_tx_msg msg = {};
+	u32 offset_r, offset_s;
+	int ret;
 
-	if (len != SHA512_DIGEST_SIZE)
-		return -EINVAL;
-
-	/* if last result is not zero user has not read that information yet */
-	if (rwtm->last_sig_done)
-		return -EBUSY;
-
-	if (!mutex_trylock(&rwtm->busy))
-		return -EBUSY;
+	guard(mutex)(&rwtm->busy);
 
 	/*
-	 * Here we have to send:
-	 *   1. Address of the input to sign.
-	 *      The input is an array of 17 32-bit words, the first (most
-	 *      significat) is 0, the rest 16 words are copied from the SHA-512
-	 *      hash given by the user and converted from BE to LE.
-	 *   2. Address of the buffer where ECDSA signature value R shall be
-	 *      stored by the rWTM firmware.
-	 *   3. Address of the buffer where ECDSA signature value S shall be
-	 *      stored by the rWTM firmware.
+	 * For MBOX_CMD_SIGN command:
+	 *   args[0] - must be 1
+	 *   args[1] - address of message M to sign; message is a 521-bit number
+	 *   args[2] - address where the R part of the signature will be stored
+	 *   args[3] - address where the S part of the signature will be stored
+	 *
+	 * M, R and S are 521-bit numbers encoded as seventeen 32-bit words,
+	 * most significat word first.
+	 * Since the message in @data is a sha512 digest, the most significat
+	 * word is always zero.
 	 */
+
+	offset_r = MOX_ECC_NUM_WORDS * sizeof(u32);
+	offset_s = 2 * MOX_ECC_NUM_WORDS * sizeof(u32);
+
 	memset(rwtm->buf, 0, sizeof(u32));
-	ret = simple_write_to_buffer(rwtm->buf + sizeof(u32),
-				     SHA512_DIGEST_SIZE, &dummy, buf, len);
-	if (ret < 0)
-		goto unlock_mutex;
-	be32_to_cpu_array(rwtm->buf, rwtm->buf, MOX_ECC_NUMBER_WORDS);
+	memcpy(rwtm->buf + sizeof(u32), data, SHA512_DIGEST_SIZE);
+	be32_to_cpu_array(rwtm->buf, rwtm->buf, MOX_ECC_NUM_WORDS);
 
 	msg.args[0] = 1;
 	msg.args[1] = rwtm->buf_phys;
-	msg.args[2] = rwtm->buf_phys + MOX_ECC_NUMBER_LEN;
-	msg.args[3] = rwtm->buf_phys + 2 * MOX_ECC_NUMBER_LEN;
+	msg.args[2] = rwtm->buf_phys + offset_r;
+	msg.args[3] = rwtm->buf_phys + offset_s;
 
 	ret = mox_rwtm_exec(rwtm, MBOX_CMD_SIGN, &msg, true);
 	if (ret < 0)
-		goto unlock_mutex;
+		return ret;
 
-	/*
-	 * Here we read the R and S values of the ECDSA signature
-	 * computed by the rWTM firmware and convert their words from
-	 * LE to BE.
-	 */
-	memcpy(rwtm->last_sig, rwtm->buf + MOX_ECC_NUMBER_LEN,
-	       sizeof(rwtm->last_sig));
-	cpu_to_be32_array(rwtm->last_sig, rwtm->last_sig,
-			  MOX_ECC_SIGNATURE_WORDS);
-	rwtm->last_sig_done = true;
+	/* convert R and S parts of the signature */
+	mox_ecc_number_to_bin(signature, rwtm->buf + offset_r);
+	mox_ecc_number_to_bin(signature + MOX_ECC_NUM_LEN, rwtm->buf + offset_s);
 
-	mutex_unlock(&rwtm->busy);
-	return len;
-unlock_mutex:
-	mutex_unlock(&rwtm->busy);
-	return ret;
+	return 0;
 }
 
-static const struct file_operations do_sign_fops = {
-	.owner	= THIS_MODULE,
-	.open	= rwtm_debug_open,
-	.read	= do_sign_read,
-	.write	= do_sign_write,
+static const void *mox_rwtm_get_public_key(const struct key *key)
+{
+	struct mox_rwtm *rwtm = dev_get_drvdata(turris_signing_key_get_dev(key));
+
+	return rwtm->pubkey;
+}
+
+static const struct turris_signing_key_subtype mox_signing_key_subtype = {
+	.key_size		= MOX_ECC_NUM_BITS,
+	.data_size		= SHA512_DIGEST_SIZE,
+	.sig_size		= MOX_ECC_SIG_LEN,
+	.public_key_size	= MOX_ECC_PUBKEY_LEN,
+	.hash_algo		= "sha512",
+	.get_public_key		= mox_rwtm_get_public_key,
+	.sign			= mox_rwtm_sign,
 };
 
-static void rwtm_debugfs_release(void *root)
+static int mox_register_signing_key(struct mox_rwtm *rwtm)
 {
-	debugfs_remove_recursive(root);
+	struct armada_37xx_rwtm_rx_msg *reply = &rwtm->reply;
+	struct device *dev = rwtm_dev(rwtm);
+	int ret;
+
+	ret = mox_rwtm_exec(rwtm, MBOX_CMD_ECDSA_PUB_KEY, NULL, false);
+	if (ret == -ENODATA) {
+		dev_warn(dev, "Board has no public key burned!\n");
+	} else if (ret == -EOPNOTSUPP) {
+		dev_notice(dev,
+			   "Firmware does not support the ECDSA_PUB_KEY command\n");
+	} else if (ret < 0) {
+		return ret;
+	} else {
+		char sn[17] = "unknown";
+		char desc[46];
+
+		if (rwtm->has_board_info)
+			sprintf(sn, "%016llX", rwtm->serial_number);
+
+		sprintf(desc, "Turris MOX SN %s rWTM ECDSA key", sn);
+
+		mox_ecc_public_key_to_bin(rwtm->pubkey, ret, reply->status);
+
+		ret = devm_turris_signing_key_create(dev,
+						     &mox_signing_key_subtype,
+						     desc);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Cannot create signing key\n");
+	}
+
+	return 0;
 }
 
-static void rwtm_register_debugfs(struct mox_rwtm *rwtm)
+#else /* CONFIG_TURRIS_MOX_RWTM_KEYCTL */
+
+static inline int mox_register_signing_key(struct mox_rwtm *rwtm)
 {
-	struct dentry *root;
-
-	root = debugfs_create_dir("turris-mox-rwtm", NULL);
-
-	debugfs_create_file_unsafe("do_sign", 0600, root, rwtm, &do_sign_fops);
-
-	devm_add_action_or_reset(rwtm_dev(rwtm), rwtm_debugfs_release, root);
+	return 0;
 }
-#else
-static inline void rwtm_register_debugfs(struct mox_rwtm *rwtm)
-{
-}
-#endif
+
+#endif /* !CONFIG_TURRIS_MOX_RWTM_KEYCTL */
 
 static void rwtm_devm_mbox_release(void *mbox)
 {
@@ -477,6 +461,10 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_warn(dev, "Cannot read board information: %i\n", ret);
 
+	ret = mox_register_signing_key(rwtm);
+	if (ret < 0)
+		return ret;
+
 	ret = check_get_random_support(rwtm);
 	if (ret < 0) {
 		dev_notice(dev,
@@ -490,8 +478,6 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	ret = devm_hwrng_register(dev, &rwtm->hwrng);
 	if (ret)
 		return dev_err_probe(dev, ret, "Cannot register HWRNG!\n");
-
-	rwtm_register_debugfs(rwtm);
 
 	dev_info(dev, "HWRNG successfully registered\n");
 

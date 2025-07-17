@@ -510,6 +510,10 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.capability |=
 					HSA_CAP_AQL_QUEUE_DOUBLE_MAP;
 
+		if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0) &&
+			(dev->gpu->adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+				dev->node_props.capability2 |= HSA_CAP2_PER_SDMA_QUEUE_RESET_SUPPORTED;
+
 		sysfs_show_32bit_prop(buffer, offs, "max_engine_clk_fcompute",
 			dev->node_props.max_engine_clk_fcompute);
 
@@ -1267,34 +1271,41 @@ static void kfd_set_recommended_sdma_engines(struct kfd_topology_device *to_dev,
 {
 	struct kfd_node *gpu = outbound_link->gpu;
 	struct amdgpu_device *adev = gpu->adev;
-	int num_xgmi_nodes = adev->gmc.xgmi.num_physical_nodes;
+	unsigned int num_xgmi_nodes = adev->gmc.xgmi.num_physical_nodes;
+	unsigned int num_xgmi_sdma_engines = kfd_get_num_xgmi_sdma_engines(gpu);
+	unsigned int num_sdma_engines = kfd_get_num_sdma_engines(gpu);
+	uint32_t sdma_eng_id_mask = (1 << num_sdma_engines) - 1;
+	uint32_t xgmi_sdma_eng_id_mask =
+			((1 << num_xgmi_sdma_engines) - 1) << num_sdma_engines;
+
 	bool support_rec_eng = !amdgpu_sriov_vf(adev) && to_dev->gpu &&
 		adev->aid_mask && num_xgmi_nodes && gpu->kfd->num_nodes == 1 &&
-		kfd_get_num_xgmi_sdma_engines(gpu) >= 14 &&
-		(!(adev->flags & AMD_IS_APU) && num_xgmi_nodes == 8);
+		num_xgmi_sdma_engines >= 6 && (!(adev->flags & AMD_IS_APU) &&
+		num_xgmi_nodes == 8);
 
 	if (support_rec_eng) {
 		int src_socket_id = adev->gmc.xgmi.physical_node_id;
 		int dst_socket_id = to_dev->gpu->adev->gmc.xgmi.physical_node_id;
+		unsigned int reshift = num_xgmi_sdma_engines == 6 ? 1 : 0;
 
 		outbound_link->rec_sdma_eng_id_mask =
-			1 << rec_sdma_eng_map[src_socket_id][dst_socket_id];
+			1 << (rec_sdma_eng_map[src_socket_id][dst_socket_id] >> reshift);
 		inbound_link->rec_sdma_eng_id_mask =
-			1 << rec_sdma_eng_map[dst_socket_id][src_socket_id];
+			1 << (rec_sdma_eng_map[dst_socket_id][src_socket_id] >> reshift);
+
+		/* If recommended engine is out of range, need to reset the mask */
+		if (outbound_link->rec_sdma_eng_id_mask & sdma_eng_id_mask)
+			outbound_link->rec_sdma_eng_id_mask = xgmi_sdma_eng_id_mask;
+		if (inbound_link->rec_sdma_eng_id_mask & sdma_eng_id_mask)
+			inbound_link->rec_sdma_eng_id_mask = xgmi_sdma_eng_id_mask;
+
 	} else {
-		int num_sdma_eng = kfd_get_num_sdma_engines(gpu);
-		int i, eng_offset = 0;
+		uint32_t engine_mask = (outbound_link->iolink_type == CRAT_IOLINK_TYPE_XGMI &&
+				num_xgmi_sdma_engines && to_dev->gpu) ? xgmi_sdma_eng_id_mask :
+				sdma_eng_id_mask;
 
-		if (outbound_link->iolink_type == CRAT_IOLINK_TYPE_XGMI &&
-		    kfd_get_num_xgmi_sdma_engines(gpu) && to_dev->gpu) {
-			eng_offset = num_sdma_eng;
-			num_sdma_eng = kfd_get_num_xgmi_sdma_engines(gpu);
-		}
-
-		for (i = 0; i < num_sdma_eng; i++) {
-			outbound_link->rec_sdma_eng_id_mask |= (1 << (i + eng_offset));
-			inbound_link->rec_sdma_eng_id_mask |= (1 << (i + eng_offset));
-		}
+		outbound_link->rec_sdma_eng_id_mask = engine_mask;
+		inbound_link->rec_sdma_eng_id_mask = engine_mask;
 	}
 }
 
@@ -2001,8 +2012,6 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 		if (!amdgpu_sriov_vf(dev->gpu->adev))
 			dev->node_props.capability |= HSA_CAP_PER_QUEUE_RESET_SUPPORTED;
 
-		if (dev->gpu->adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE)
-			dev->node_props.capability2 |= HSA_CAP2_PER_SDMA_QUEUE_RESET_SUPPORTED;
 	} else {
 		dev->node_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10 |
 					HSA_DBG_WATCH_ADDR_MASK_HI_BIT;

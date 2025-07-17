@@ -249,9 +249,10 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
-static ssize_t name_show(struct device *dev,
-			 struct device_attribute *attr, char *buff)
+static ssize_t name_show(struct kobject *kobj,
+			 struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	ssize_t ret;
@@ -262,11 +263,12 @@ static ssize_t name_show(struct device *dev,
 
 	return ret;
 }
-static DEVICE_ATTR_RO(name);
+static struct kobj_attribute name_attr = __ATTR_RO(name);
 
-static ssize_t idle_status_show(struct device *dev,
-				struct device_attribute *attr, char *buff)
+static ssize_t idle_status_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	enum xe_gt_idle_state state;
@@ -277,6 +279,7 @@ static ssize_t idle_status_show(struct device *dev,
 
 	return sysfs_emit(buff, "%s\n", gt_idle_state_to_string(state));
 }
+static struct kobj_attribute idle_status_attr = __ATTR_RO(idle_status);
 
 u64 xe_gt_idle_residency_msec(struct xe_gt_idle *gtidle)
 {
@@ -291,10 +294,11 @@ u64 xe_gt_idle_residency_msec(struct xe_gt_idle *gtidle)
 	return residency;
 }
 
-static DEVICE_ATTR_RO(idle_status);
-static ssize_t idle_residency_ms_show(struct device *dev,
-				      struct device_attribute *attr, char *buff)
+
+static ssize_t idle_residency_ms_show(struct kobject *kobj,
+				      struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	u64 residency;
@@ -305,12 +309,12 @@ static ssize_t idle_residency_ms_show(struct device *dev,
 
 	return sysfs_emit(buff, "%llu\n", residency);
 }
-static DEVICE_ATTR_RO(idle_residency_ms);
+static struct kobj_attribute idle_residency_attr = __ATTR_RO(idle_residency_ms);
 
 static const struct attribute *gt_idle_attrs[] = {
-	&dev_attr_name.attr,
-	&dev_attr_idle_status.attr,
-	&dev_attr_idle_residency_ms.attr,
+	&name_attr.attr,
+	&idle_status_attr.attr,
+	&idle_residency_attr.attr,
 	NULL,
 };
 

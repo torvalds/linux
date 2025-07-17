@@ -91,4 +91,15 @@ config UCSI_LENOVO_YOGA_C630
 	  To compile the driver as a module, choose M here: the module will be
 	  called ucsi_yoga_c630.
 
+config UCSI_HUAWEI_GAOKUN
+	tristate "UCSI Interface Driver for Huawei Matebook E Go"
+	depends on EC_HUAWEI_GAOKUN
+	select DRM_AUX_HPD_BRIDGE if DRM_BRIDGE && OF
+	help
+	  This driver enables UCSI support on the Huawei Matebook E Go tablet,
+	  which is a sc8280xp-based 2-in-1 tablet.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called ucsi_huawei_gaokun.
+
 endif

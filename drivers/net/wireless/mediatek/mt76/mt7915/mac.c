@@ -56,10 +56,7 @@ static struct mt76_wcid *mt7915_rx_get_wcid(struct mt7915_dev *dev,
 	struct mt7915_sta *sta;
 	struct mt76_wcid *wcid;
 
-	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
-		return NULL;
-
-	wcid = rcu_dereference(dev->mt76.wcid[idx]);
+	wcid = mt76_wcid_ptr(dev, idx);
 	if (unicast || !wcid)
 		return wcid;
 
@@ -917,7 +914,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 			u16 idx;
 
 			idx = FIELD_GET(MT_TX_FREE_WLAN_ID, info);
-			wcid = rcu_dereference(dev->mt76.wcid[idx]);
+			wcid = mt76_wcid_ptr(dev, idx);
 			sta = wcid_to_sta(wcid);
 			if (!sta)
 				continue;
@@ -1013,12 +1010,9 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
 	if (pid < MT_PACKET_ID_WED)
 		return;
 
-	if (wcidx >= mt7915_wtbl_size(dev))
-		return;
-
 	rcu_read_lock();
 
-	wcid = rcu_dereference(dev->mt76.wcid[wcidx]);
+	wcid = mt76_wcid_ptr(dev, wcidx);
 	if (!wcid)
 		goto out;
 
@@ -2035,16 +2029,15 @@ void mt7915_mac_work(struct work_struct *work)
 static void mt7915_dfs_stop_radar_detector(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
+	int rdd_idx = mt7915_get_rdd_idx(phy, false);
 
-	if (phy->rdd_state & BIT(0))
-		mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, 0,
-					MT_RX_SEL0, 0);
-	if (phy->rdd_state & BIT(1))
-		mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, 1,
-					MT_RX_SEL0, 0);
+	if (rdd_idx < 0)
+		return;
+
+	mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, rdd_idx, 0, 0);
 }
 
-static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int chain)
+static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int rdd_idx)
 {
 	int err, region;
 
@@ -2061,51 +2054,37 @@ static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int chain)
 		break;
 	}
 
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_START, chain,
-				      MT_RX_SEL0, region);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_START, rdd_idx, 0, region);
 	if (err < 0)
 		return err;
 
 	if (is_mt7915(&dev->mt76)) {
-		err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_SET_WF_ANT, chain,
+		err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_SET_WF_ANT, rdd_idx,
 					      0, dev->dbdc_support ? 2 : 0);
 		if (err < 0)
 			return err;
 	}
 
-	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_DET_MODE, chain,
-				       MT_RX_SEL0, 1);
+	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_DET_MODE, rdd_idx, 0, 1);
 }
 
 static int mt7915_dfs_start_radar_detector(struct mt7915_phy *phy)
 {
-	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	struct mt7915_dev *dev = phy->dev;
-	int err;
+	int err, rdd_idx;
+
+	rdd_idx = mt7915_get_rdd_idx(phy, false);
+	if (rdd_idx < 0)
+		return -EINVAL;
 
 	/* start CAC */
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_START,
-				      phy->mt76->band_idx, MT_RX_SEL0, 0);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_START, rdd_idx, 0, 0);
 	if (err < 0)
 		return err;
 
-	err = mt7915_dfs_start_rdd(dev, phy->mt76->band_idx);
+	err = mt7915_dfs_start_rdd(dev, rdd_idx);
 	if (err < 0)
 		return err;
-
-	phy->rdd_state |= BIT(phy->mt76->band_idx);
-
-	if (!is_mt7915(&dev->mt76))
-		return 0;
-
-	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
-	    chandef->width == NL80211_CHAN_WIDTH_80P80) {
-		err = mt7915_dfs_start_rdd(dev, 1);
-		if (err < 0)
-			return err;
-
-		phy->rdd_state |= BIT(1);
-	}
 
 	return 0;
 }
@@ -2148,12 +2127,12 @@ int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	enum mt76_dfs_state dfs_state, prev_state;
-	int err;
+	int err, rdd_idx = mt7915_get_rdd_idx(phy, false);
 
 	prev_state = phy->mt76->dfs_state;
 	dfs_state = mt76_phy_dfs_state(phy->mt76);
 
-	if (prev_state == dfs_state)
+	if (prev_state == dfs_state || rdd_idx < 0)
 		return 0;
 
 	if (prev_state == MT_DFS_STATE_UNKNOWN)
@@ -2177,8 +2156,7 @@ int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy)
 	if (dfs_state == MT_DFS_STATE_CAC)
 		return 0;
 
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_END,
-				      phy->mt76->band_idx, MT_RX_SEL0, 0);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_END, rdd_idx, 0, 0);
 	if (err < 0) {
 		phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
 		return err;
@@ -2188,15 +2166,13 @@ int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy)
 	return 0;
 
 stop:
-	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_NORMAL_START,
-				      phy->mt76->band_idx, MT_RX_SEL0, 0);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_NORMAL_START, rdd_idx, 0, 0);
 	if (err < 0)
 		return err;
 
 	if (is_mt7915(&dev->mt76)) {
 		err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_SET_WF_ANT,
-					      phy->mt76->band_idx, 0,
-					      dev->dbdc_support ? 2 : 0);
+					      rdd_idx, 0, dev->dbdc_support ? 2 : 0);
 		if (err < 0)
 			return err;
 	}

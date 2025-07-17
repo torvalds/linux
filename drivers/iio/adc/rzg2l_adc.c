@@ -11,6 +11,7 @@
 #include <linux/cleanup.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/iio/adc-helpers.h>
 #include <linux/iio/iio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -324,48 +325,39 @@ static irqreturn_t rzg2l_adc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static const struct iio_chan_spec rzg2l_adc_chan_template = {
+	.indexed = 1,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+};
+
 static int rzg2l_adc_parse_properties(struct platform_device *pdev, struct rzg2l_adc *adc)
 {
 	const struct rzg2l_adc_hw_params *hw_params = adc->hw_params;
 	struct iio_chan_spec *chan_array;
 	struct rzg2l_adc_data *data;
-	unsigned int channel;
 	int num_channels;
-	int ret;
 	u8 i;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	num_channels = device_get_child_node_count(&pdev->dev);
-	if (!num_channels)
-		return dev_err_probe(&pdev->dev, -ENODEV, "no channel children\n");
+	num_channels = devm_iio_adc_device_alloc_chaninfo_se(&pdev->dev,
+						&rzg2l_adc_chan_template,
+						hw_params->num_channels - 1,
+						&chan_array);
+	if (num_channels < 0)
+		return num_channels;
 
 	if (num_channels > hw_params->num_channels)
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "num of channel children out of range\n");
 
-	chan_array = devm_kcalloc(&pdev->dev, num_channels, sizeof(*chan_array),
-				  GFP_KERNEL);
-	if (!chan_array)
-		return -ENOMEM;
+	for (i = 0; i < num_channels; i++) {
+		int channel = chan_array[i].channel;
 
-	i = 0;
-	device_for_each_child_node_scoped(&pdev->dev, fwnode) {
-		ret = fwnode_property_read_u32(fwnode, "reg", &channel);
-		if (ret)
-			return ret;
-
-		if (channel >= hw_params->num_channels)
-			return -EINVAL;
-
-		chan_array[i].type = rzg2l_adc_channels[channel].type;
-		chan_array[i].indexed = 1;
-		chan_array[i].channel = channel;
-		chan_array[i].info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 		chan_array[i].datasheet_name = rzg2l_adc_channels[channel].name;
-		i++;
+		chan_array[i].type = rzg2l_adc_channels[channel].type;
 	}
 
 	data->num_channels = num_channels;
@@ -515,7 +507,7 @@ static const struct rzg2l_adc_hw_params rzg3s_hw_params = {
 static const struct of_device_id rzg2l_adc_match[] = {
 	{ .compatible = "renesas,r9a08g045-adc", .data = &rzg3s_hw_params },
 	{ .compatible = "renesas,rzg2l-adc", .data = &rzg2l_hw_params },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_adc_match);
 
@@ -626,3 +618,4 @@ module_platform_driver(rzg2l_adc_driver);
 MODULE_AUTHOR("Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>");
 MODULE_DESCRIPTION("Renesas RZ/G2L ADC driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_DRIVER");

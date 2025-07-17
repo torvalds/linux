@@ -237,8 +237,8 @@ static void _rtl88ee_set_fw_ps_rf_off_low_power(struct ieee80211_hw *hw)
 
 void rtl88ee_fw_clk_off_timer_callback(struct timer_list *t)
 {
-	struct rtl_priv *rtlpriv = from_timer(rtlpriv, t,
-					      works.fw_clockoff_timer);
+	struct rtl_priv *rtlpriv = timer_container_of(rtlpriv, t,
+						      works.fw_clockoff_timer);
 	struct ieee80211_hw *hw = rtlpriv->hw;
 
 	_rtl88ee_set_fw_ps_rf_off_low_power(hw);

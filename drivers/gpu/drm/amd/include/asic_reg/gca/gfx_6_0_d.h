@@ -1779,6 +1779,8 @@
 #define mmRLC_TTOP_D                                    0x3105
 #define mmRLC_CLEAR_STATE_RESTORE_BASE                  0x30C8
 #define mmRLC_PG_AO_CU_MASK                             0x310B
+#define mmSPI_STATIC_THREAD_MGMT_1			0x2438
+#define mmSPI_STATIC_THREAD_MGMT_2			0x2439
 #define mmSPI_STATIC_THREAD_MGMT_3                      0x243A
 
 #endif

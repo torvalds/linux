@@ -3297,14 +3297,15 @@ static int gpiod_get_raw_value_commit(const struct gpio_desc *desc)
 static int gpio_chip_get_multiple(struct gpio_chip *gc,
 				  unsigned long *mask, unsigned long *bits)
 {
-	int ret;
-	
 	lockdep_assert_held(&gc->gpiodev->srcu);
 
 	if (gc->get_multiple) {
+		int ret;
+
 		ret = gc->get_multiple(gc, mask, bits);
 		if (ret > 0)
 			return -EBADE;
+		return ret;
 	}
 
 	if (gc->get) {

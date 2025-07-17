@@ -219,14 +219,14 @@ static void ltc1660_remove(struct spi_device *spi)
 static const struct of_device_id ltc1660_dt_ids[] = {
 	{ .compatible = "lltc,ltc1660", .data = (void *)ID_LTC1660 },
 	{ .compatible = "lltc,ltc1665", .data = (void *)ID_LTC1665 },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc1660_dt_ids);
 
 static const struct spi_device_id ltc1660_id[] = {
 	{"ltc1660", ID_LTC1660},
 	{"ltc1665", ID_LTC1665},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc1660_id);
 

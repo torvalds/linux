@@ -1393,7 +1393,7 @@ static void calculate_bandwidth(
 						if ((bw_mtn(data->dram_speed_change_margin, bw_int_to_fixed(0)) && bw_ltn(data->dram_speed_change_margin, bw_int_to_fixed(9999)))) {
 							/*determine the minimum dram clock change margin for each set of clock frequencies*/
 							data->min_dram_speed_change_margin[i][j] = bw_min2(data->min_dram_speed_change_margin[i][j], data->dram_speed_change_margin);
-							/*compute the maximum clock frequuency required for the dram clock change at each set of clock frequencies*/
+							/*compute the maximum clock frequency required for the dram clock change at each set of clock frequencies*/
 							data->dispclk_required_for_dram_speed_change_pipe[i][j] = bw_max2(bw_div(bw_div(bw_mul(data->src_pixels_for_first_output_pixel[k], dceip->display_pipe_throughput_factor), dceip->lb_write_pixels_per_dispclk), (bw_sub(bw_sub(bw_sub(data->maximum_latency_hiding_with_cursor[k], vbios->nbp_state_change_latency), data->dmif_burst_time[i][j]), data->dram_speed_change_line_source_transfer_time[k][i][j]))), bw_div(bw_div(bw_mul(data->src_pixels_for_last_output_pixel[k], dceip->display_pipe_throughput_factor), dceip->lb_write_pixels_per_dispclk), (bw_add(bw_sub(bw_sub(bw_sub(data->maximum_latency_hiding_with_cursor[k], vbios->nbp_state_change_latency), data->dmif_burst_time[i][j]), data->dram_speed_change_line_source_transfer_time[k][i][j]), data->active_time[k]))));
 							if ((bw_ltn(data->dispclk_required_for_dram_speed_change_pipe[i][j], vbios->high_voltage_max_dispclk))) {
 								data->display_pstate_change_enable[k] = 1;
@@ -1407,7 +1407,7 @@ static void calculate_bandwidth(
 						if ((bw_mtn(data->dram_speed_change_margin, bw_int_to_fixed(0)) && bw_ltn(data->dram_speed_change_margin, bw_int_to_fixed(9999)))) {
 							/*determine the minimum dram clock change margin for each display pipe*/
 							data->min_dram_speed_change_margin[i][j] = bw_min2(data->min_dram_speed_change_margin[i][j], data->dram_speed_change_margin);
-							/*compute the maximum clock frequuency required for the dram clock change at each set of clock frequencies*/
+							/*compute the maximum clock frequency required for the dram clock change at each set of clock frequencies*/
 							data->dispclk_required_for_dram_speed_change_pipe[i][j] = bw_max2(bw_div(bw_div(bw_mul(data->src_pixels_for_first_output_pixel[k], dceip->display_pipe_throughput_factor), dceip->lb_write_pixels_per_dispclk), (bw_sub(bw_sub(bw_sub(bw_sub(data->maximum_latency_hiding_with_cursor[k], vbios->nbp_state_change_latency), data->dmif_burst_time[i][j]), data->dram_speed_change_line_source_transfer_time[k][i][j]), data->mcifwr_burst_time[i][j]))), bw_div(bw_div(bw_mul(data->src_pixels_for_last_output_pixel[k], dceip->display_pipe_throughput_factor), dceip->lb_write_pixels_per_dispclk), (bw_add(bw_sub(bw_sub(bw_sub(bw_sub(data->maximum_latency_hiding_with_cursor[k], vbios->nbp_state_change_latency), data->dmif_burst_time[i][j]), data->dram_speed_change_line_source_transfer_time[k][i][j]), data->mcifwr_burst_time[i][j]), data->active_time[k]))));
 							if ((bw_ltn(data->dispclk_required_for_dram_speed_change_pipe[i][j], vbios->high_voltage_max_dispclk))) {
 								data->display_pstate_change_enable[k] = 1;

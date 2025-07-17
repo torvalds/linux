@@ -24,4 +24,11 @@ config NET_AIROHA
 	  This driver supports the gigabit ethernet MACs in the
 	  Airoha SoC family.
 
+config NET_AIROHA_FLOW_STATS
+	default y
+	bool "Airoha flow stats"
+	depends on NET_AIROHA && NET_AIROHA_NPU
+	help
+	  Enable Aiorha flowtable statistic counters.
+
 endif #NET_VENDOR_AIROHA

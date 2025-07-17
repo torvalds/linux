@@ -41,11 +41,11 @@ enum board_model {
 	MODEL_82351A
 };
 
-// struct which defines private_data for board
+/* struct which defines private_data for board */
 struct agilent_82350b_priv {
 	struct tms9914_priv tms9914_priv;
 	struct pci_dev *pci_device;
-	void __iomem *plx_base;	//82350a only
+	void __iomem *plx_base;	/* 82350a only */
 	void __iomem *gpib_base;
 	void __iomem *sram_base;
 	void __iomem *misc_base;
@@ -57,12 +57,12 @@ struct agilent_82350b_priv {
 	bool using_fifos;
 };
 
-//registers
+/* registers */
 enum agilent_82350b_gpib_registers
 
 {
 	CARD_MODE_REG = 0x1,
-	CONFIG_DATA_REG = 0x2, // 82350A specific
+	CONFIG_DATA_REG = 0x2, /* 82350A specific */
 	INTERRUPT_ENABLE_REG = 0x3,
 	EVENT_STATUS_REG = 0x4,
 	EVENT_ENABLE_REG = 0x5,
@@ -76,8 +76,8 @@ enum agilent_82350b_gpib_registers
 	XFER_COUNT_HI_REG = 0xe,
 	TMS9914_BASE_REG = 0x10,
 	INTERNAL_CONFIG_REG = 0x18,
-	IMR0_READ_REG = 0x19, //read
-	T1_DELAY_REG = 0x19, // write
+	IMR0_READ_REG = 0x19, /* read */
+	T1_DELAY_REG = 0x19, /* write */
 	IMR1_READ_REG = 0x1a,
 	ADR_READ_REG = 0x1b,
 	SPMR_READ_REG = 0x1c,
@@ -89,7 +89,7 @@ enum agilent_82350b_gpib_registers
 enum card_mode_bits
 
 {
-	ACTIVE_CONTROLLER_BIT = 0x2,	// read-only
+	ACTIVE_CONTROLLER_BIT = 0x2, /* read-only */
 	CM_SYSTEM_CONTROLLER_BIT = 0x8,
 	ENABLE_BUS_MONITOR_BIT = 0x10,
 	ENABLE_PCI_IRQ_BIT = 0x20,
@@ -115,15 +115,15 @@ enum event_status_bits
 {
 	TMS9914_IRQ_STATUS_BIT = 0x1,
 	IRQ_STATUS_BIT = 0x2,
-	BUFFER_END_STATUS_BIT = 0x10,	// write-clear
-	TERM_COUNT_STATUS_BIT = 0x20,	// write-clear
+	BUFFER_END_STATUS_BIT = 0x10, /* write-clear */
+	TERM_COUNT_STATUS_BIT = 0x20, /* write-clear */
 };
 
 enum stream_status_bits
 
 {
-	HALTED_STATUS_BIT = 0x1,	//read
-	RESTART_STREAM_BIT = 0x1,	//write
+	HALTED_STATUS_BIT = 0x1, /* read */
+	RESTART_STREAM_BIT = 0x1, /* write */
 };
 
 enum internal_config_bits
@@ -135,9 +135,9 @@ enum internal_config_bits
 enum sram_access_control_bits
 
 {
-	DIRECTION_GPIB_TO_HOST = 0x20,	// transfer direction
-	ENABLE_TI_TO_SRAM = 0x40,	// enable fifo
-	ENABLE_FAST_TALKER = 0x80	// added for 82350A (not used)
+	DIRECTION_GPIB_TO_HOST = 0x20, /* transfer direction */
+	ENABLE_TI_TO_SRAM = 0x40, /* enable fifo */
+	ENABLE_FAST_TALKER = 0x80 /* added for 82350A (not used) */
 };
 
 enum borg_bits

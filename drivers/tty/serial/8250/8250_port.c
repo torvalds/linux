@@ -517,22 +517,20 @@ void serial8250_clear_and_reinit_fifos(struct uart_8250_port *p)
 }
 EXPORT_SYMBOL_GPL(serial8250_clear_and_reinit_fifos);
 
-void serial8250_rpm_get(struct uart_8250_port *p)
+static void serial8250_rpm_get(struct uart_8250_port *p)
 {
 	if (!(p->capabilities & UART_CAP_RPM))
 		return;
 	pm_runtime_get_sync(p->port.dev);
 }
-EXPORT_SYMBOL_GPL(serial8250_rpm_get);
 
-void serial8250_rpm_put(struct uart_8250_port *p)
+static void serial8250_rpm_put(struct uart_8250_port *p)
 {
 	if (!(p->capabilities & UART_CAP_RPM))
 		return;
 	pm_runtime_mark_last_busy(p->port.dev);
 	pm_runtime_put_autosuspend(p->port.dev);
 }
-EXPORT_SYMBOL_GPL(serial8250_rpm_put);
 
 /**
  *	serial8250_em485_init() - put uart_8250_port into rs485 emulating
@@ -647,7 +645,7 @@ EXPORT_SYMBOL_GPL(serial8250_em485_config);
  * once and disable_runtime_pm_tx() will still disable RPM because the fifo is
  * empty and the HW can idle again.
  */
-void serial8250_rpm_get_tx(struct uart_8250_port *p)
+static void serial8250_rpm_get_tx(struct uart_8250_port *p)
 {
 	unsigned char rpm_active;
 
@@ -659,9 +657,8 @@ void serial8250_rpm_get_tx(struct uart_8250_port *p)
 		return;
 	pm_runtime_get_sync(p->port.dev);
 }
-EXPORT_SYMBOL_GPL(serial8250_rpm_get_tx);
 
-void serial8250_rpm_put_tx(struct uart_8250_port *p)
+static void serial8250_rpm_put_tx(struct uart_8250_port *p)
 {
 	unsigned char rpm_active;
 
@@ -674,7 +671,6 @@ void serial8250_rpm_put_tx(struct uart_8250_port *p)
 	pm_runtime_mark_last_busy(p->port.dev);
 	pm_runtime_put_autosuspend(p->port.dev);
 }
-EXPORT_SYMBOL_GPL(serial8250_rpm_put_tx);
 
 /*
  * IER sleep support.  UARTs which have EFRs need the "extended
@@ -2993,6 +2989,8 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 		if (!request_region(port->iobase, size, "serial"))
 			return -EBUSY;
 		return 0;
+	case UPIO_UNKNOWN:
+		break;
 	}
 
 	return 0;
@@ -3024,6 +3022,8 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		release_region(port->iobase, size);
+		break;
+	case UPIO_UNKNOWN:
 		break;
 	}
 }

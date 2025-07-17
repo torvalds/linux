@@ -45,9 +45,8 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 /* free os related resource in struct recv_buf */
 void rtw_os_recvbuf_resource_free(struct adapter *padapter, struct recv_buf *precvbuf)
 {
-	if (precvbuf->pskb) {
+	if (precvbuf->pskb)
 		dev_kfree_skb_any(precvbuf->pskb);
-	}
 }
 
 struct sk_buff *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
@@ -160,21 +159,19 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 		}
 	}
 
-	if (bgroup) {
+	if (bgroup)
 		key_type |= NL80211_KEYTYPE_GROUP;
-	} else {
+	else
 		key_type |= NL80211_KEYTYPE_PAIRWISE;
-	}
 
 	cfg80211_michael_mic_failure(padapter->pnetdev, (u8 *)&pmlmepriv->assoc_bssid[0], key_type, -1,
 		NULL, GFP_ATOMIC);
 
 	memset(&ev, 0x00, sizeof(ev));
-	if (bgroup) {
+	if (bgroup)
 		ev.flags |= IW_MICFAILURE_GROUP;
-	} else {
+	else
 		ev.flags |= IW_MICFAILURE_PAIRWISE;
-	}
 
 	ev.src_addr.sa_family = ARPHRD_ETHER;
 	memcpy(ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[0], ETH_ALEN);

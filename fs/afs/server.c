@@ -131,6 +131,7 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell, const uuid_t *
 	timer_setup(&server->timer, afs_server_timer, 0);
 	INIT_LIST_HEAD(&server->volumes);
 	init_waitqueue_head(&server->probe_wq);
+	mutex_init(&server->cm_token_lock);
 	INIT_LIST_HEAD(&server->probe_link);
 	INIT_HLIST_NODE(&server->proc_link);
 	spin_lock_init(&server->probe_lock);
@@ -396,6 +397,7 @@ static void afs_server_rcu(struct rcu_head *rcu)
 	afs_put_endpoint_state(rcu_access_pointer(server->endpoint_state),
 			       afs_estate_trace_put_server);
 	afs_put_cell(server->cell, afs_cell_trace_put_server);
+	kfree(server->cm_rxgk_appdata.data);
 	kfree(server);
 }
 

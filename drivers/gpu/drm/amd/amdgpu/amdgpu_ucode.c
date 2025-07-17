@@ -30,6 +30,10 @@
 
 #define AMDGPU_UCODE_NAME_MAX		(128)
 
+static const struct kicker_device kicker_device_list[] = {
+	{0x744B, 0x00},
+};
+
 static void amdgpu_ucode_print_common_hdr(const struct common_firmware_header *hdr)
 {
 	DRM_DEBUG("size_bytes: %u\n", le32_to_cpu(hdr->size_bytes));
@@ -765,8 +769,10 @@ FW_VERSION_ATTR(sdma_fw_version, 0444, sdma.instance[0].fw_version);
 FW_VERSION_ATTR(sdma2_fw_version, 0444, sdma.instance[1].fw_version);
 FW_VERSION_ATTR(vcn_fw_version, 0444, vcn.fw_version);
 FW_VERSION_ATTR(dmcu_fw_version, 0444, dm.dmcu_fw_version);
+FW_VERSION_ATTR(dmcub_fw_version, 0444, dm.dmcub_fw_version);
 FW_VERSION_ATTR(mes_fw_version, 0444, mes.sched_version & AMDGPU_MES_VERSION_MASK);
 FW_VERSION_ATTR(mes_kiq_fw_version, 0444, mes.kiq_version & AMDGPU_MES_VERSION_MASK);
+FW_VERSION_ATTR(pldm_fw_version, 0444, firmware.pldm_version);
 
 static struct attribute *fw_attrs[] = {
 	&dev_attr_vce_fw_version.attr, &dev_attr_uvd_fw_version.attr,
@@ -779,8 +785,9 @@ static struct attribute *fw_attrs[] = {
 	&dev_attr_ta_ras_fw_version.attr, &dev_attr_ta_xgmi_fw_version.attr,
 	&dev_attr_smc_fw_version.attr, &dev_attr_sdma_fw_version.attr,
 	&dev_attr_sdma2_fw_version.attr, &dev_attr_vcn_fw_version.attr,
-	&dev_attr_dmcu_fw_version.attr, &dev_attr_imu_fw_version.attr,
-	&dev_attr_mes_fw_version.attr, &dev_attr_mes_kiq_fw_version.attr,
+	&dev_attr_dmcu_fw_version.attr, &dev_attr_dmcub_fw_version.attr,
+	&dev_attr_imu_fw_version.attr, &dev_attr_mes_fw_version.attr,
+	&dev_attr_mes_kiq_fw_version.attr, &dev_attr_pldm_fw_version.attr,
 	NULL
 };
 
@@ -1382,6 +1389,19 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		}
 	}
 	return NULL;
+}
+
+bool amdgpu_is_kicker_fw(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(kicker_device_list); i++) {
+		if (adev->pdev->device == kicker_device_list[i].device &&
+			adev->pdev->revision == kicker_device_list[i].revision)
+		return true;
+	}
+
+	return false;
 }
 
 void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, char *ucode_prefix, int len)

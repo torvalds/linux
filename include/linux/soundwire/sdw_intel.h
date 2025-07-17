@@ -189,6 +189,9 @@
 #define SDW_SHIM3_INTEL_VS_ACTMCTL_DOAISE2	BIT(14)
 #define SDW_SHIM3_INTEL_VS_ACTMCTL_CLDE		BIT(15)
 
+/* ACE3+ Mic privacy control and status register */
+#define SDW_SHIM2_INTEL_VS_PVCCS		0x10
+
 /**
  * struct sdw_intel_stream_params_data: configuration passed during
  * the @params_stream callback, e.g. for interaction with DSP
@@ -331,6 +334,7 @@ struct sdw_intel_ctx {
  * @shim_base: sdw shim base.
  * @alh_base: sdw alh base.
  * @ext: extended HDaudio link support
+ * @mic_privacy: ACE version supports microphone privacy
  * @hbus: hdac_bus pointer, needed for power management
  * @eml_lock: mutex protecting shared registers in the HDaudio multi-link
  * space
@@ -349,6 +353,7 @@ struct sdw_intel_res {
 	u32 shim_base;
 	u32 alh_base;
 	bool ext;
+	bool mic_privacy;
 	struct hdac_bus *hbus;
 	struct mutex *eml_lock;
 };

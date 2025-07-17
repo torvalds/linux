@@ -49,11 +49,14 @@
 #define UBLKSRV_IO_IDLE_SECS		20
 
 #define UBLK_IO_MAX_BYTES               (1 << 20)
-#define UBLK_MAX_QUEUES                 32
+#define UBLK_MAX_QUEUES_SHIFT		5
+#define UBLK_MAX_QUEUES                 (1 << UBLK_MAX_QUEUES_SHIFT)
+#define UBLK_MAX_THREADS_SHIFT		5
+#define UBLK_MAX_THREADS		(1 << UBLK_MAX_THREADS_SHIFT)
 #define UBLK_QUEUE_DEPTH                1024
 
 #define UBLK_DBG_DEV            (1U << 0)
-#define UBLK_DBG_QUEUE          (1U << 1)
+#define UBLK_DBG_THREAD         (1U << 1)
 #define UBLK_DBG_IO_CMD         (1U << 2)
 #define UBLK_DBG_IO             (1U << 3)
 #define UBLK_DBG_CTRL_CMD       (1U << 4)
@@ -61,6 +64,7 @@
 
 struct ublk_dev;
 struct ublk_queue;
+struct ublk_thread;
 
 struct stripe_ctx {
 	/* stripe */
@@ -76,6 +80,7 @@ struct dev_ctx {
 	char tgt_type[16];
 	unsigned long flags;
 	unsigned nr_hw_queues;
+	unsigned short nthreads;
 	unsigned queue_depth;
 	int dev_id;
 	int nr_files;
@@ -85,6 +90,7 @@ struct dev_ctx {
 	unsigned int	fg:1;
 	unsigned int	recovery:1;
 	unsigned int	auto_zc_fallback:1;
+	unsigned int	per_io_tasks:1;
 
 	int _evtfd;
 	int _shmid;
@@ -123,10 +129,14 @@ struct ublk_io {
 	unsigned short flags;
 	unsigned short refs;		/* used by target code only */
 
+	int tag;
+
 	int result;
 
+	unsigned short buf_index;
 	unsigned short tgt_ios;
 	void *private_data;
+	struct ublk_thread *t;
 };
 
 struct ublk_tgt_ops {
@@ -165,28 +175,39 @@ struct ublk_tgt {
 struct ublk_queue {
 	int q_id;
 	int q_depth;
-	unsigned int cmd_inflight;
-	unsigned int io_inflight;
 	struct ublk_dev *dev;
 	const struct ublk_tgt_ops *tgt_ops;
 	struct ublksrv_io_desc *io_cmd_buf;
-	struct io_uring ring;
+
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
-#define UBLKSRV_QUEUE_STOPPING	(1U << 0)
-#define UBLKSRV_QUEUE_IDLE	(1U << 1)
 #define UBLKSRV_NO_BUF		(1U << 2)
 #define UBLKSRV_ZC		(1U << 3)
 #define UBLKSRV_AUTO_BUF_REG		(1U << 4)
 #define UBLKSRV_AUTO_BUF_REG_FALLBACK	(1U << 5)
 	unsigned state;
-	pid_t tid;
+};
+
+struct ublk_thread {
+	struct ublk_dev *dev;
+	struct io_uring ring;
+	unsigned int cmd_inflight;
+	unsigned int io_inflight;
+
 	pthread_t thread;
+	unsigned idx;
+
+#define UBLKSRV_THREAD_STOPPING	(1U << 0)
+#define UBLKSRV_THREAD_IDLE	(1U << 1)
+	unsigned state;
 };
 
 struct ublk_dev {
 	struct ublk_tgt tgt;
 	struct ublksrv_ctrl_dev_info  dev_info;
 	struct ublk_queue q[UBLK_MAX_QUEUES];
+	struct ublk_thread threads[UBLK_MAX_THREADS];
+	unsigned nthreads;
+	unsigned per_io_tasks;
 
 	int fds[MAX_BACK_FILES + 1];	/* fds[0] points to /dev/ublkcN */
 	int nr_fds;
@@ -211,7 +232,7 @@ struct ublk_dev {
 
 
 extern unsigned int ublk_dbg_mask;
-extern int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag);
+extern int ublk_queue_io_cmd(struct ublk_io *io);
 
 
 static inline int ublk_io_auto_zc_fallback(const struct ublksrv_io_desc *iod)
@@ -225,11 +246,14 @@ static inline int is_target_io(__u64 user_data)
 }
 
 static inline __u64 build_user_data(unsigned tag, unsigned op,
-		unsigned tgt_data, unsigned is_target_io)
+		unsigned tgt_data, unsigned q_id, unsigned is_target_io)
 {
-	assert(!(tag >> 16) && !(op >> 8) && !(tgt_data >> 16));
+	/* we only have 7 bits to encode q_id */
+	_Static_assert(UBLK_MAX_QUEUES_SHIFT <= 7);
+	assert(!(tag >> 16) && !(op >> 8) && !(tgt_data >> 16) && !(q_id >> 7));
 
-	return tag | (op << 16) | (tgt_data << 24) | (__u64)is_target_io << 63;
+	return tag | (op << 16) | (tgt_data << 24) |
+		(__u64)q_id << 56 | (__u64)is_target_io << 63;
 }
 
 static inline unsigned int user_data_to_tag(__u64 user_data)
@@ -245,6 +269,11 @@ static inline unsigned int user_data_to_op(__u64 user_data)
 static inline unsigned int user_data_to_tgt_data(__u64 user_data)
 {
 	return (user_data >> 24) & 0xffff;
+}
+
+static inline unsigned int user_data_to_q_id(__u64 user_data)
+{
+	return (user_data >> 56) & 0x7f;
 }
 
 static inline unsigned short ublk_cmd_op_nr(unsigned int op)
@@ -280,17 +309,23 @@ static inline void ublk_dbg(int level, const char *fmt, ...)
 	}
 }
 
-static inline int ublk_queue_alloc_sqes(struct ublk_queue *q,
+static inline struct ublk_queue *ublk_io_to_queue(const struct ublk_io *io)
+{
+	return container_of(io, struct ublk_queue, ios[io->tag]);
+}
+
+static inline int ublk_io_alloc_sqes(struct ublk_io *io,
 		struct io_uring_sqe *sqes[], int nr_sqes)
 {
-	unsigned left = io_uring_sq_space_left(&q->ring);
+	struct io_uring *ring = &io->t->ring;
+	unsigned left = io_uring_sq_space_left(ring);
 	int i;
 
 	if (left < nr_sqes)
-		io_uring_submit(&q->ring);
+		io_uring_submit(ring);
 
 	for (i = 0; i < nr_sqes; i++) {
-		sqes[i] = io_uring_get_sqe(&q->ring);
+		sqes[i] = io_uring_get_sqe(ring);
 		if (!sqes[i])
 			return i;
 	}
@@ -373,7 +408,7 @@ static inline int ublk_complete_io(struct ublk_queue *q, unsigned tag, int res)
 
 	ublk_mark_io_done(io, res);
 
-	return ublk_queue_io_cmd(q, io, tag);
+	return ublk_queue_io_cmd(io);
 }
 
 static inline void ublk_queued_tgt_io(struct ublk_queue *q, unsigned tag, int queued)
@@ -383,7 +418,7 @@ static inline void ublk_queued_tgt_io(struct ublk_queue *q, unsigned tag, int qu
 	else {
 		struct ublk_io *io = ublk_get_io(q, tag);
 
-		q->io_inflight += queued;
+		io->t->io_inflight += queued;
 		io->tgt_ios = queued;
 		io->result = 0;
 	}
@@ -393,7 +428,7 @@ static inline int ublk_completed_tgt_io(struct ublk_queue *q, unsigned tag)
 {
 	struct ublk_io *io = ublk_get_io(q, tag);
 
-	q->io_inflight--;
+	io->t->io_inflight--;
 
 	return --io->tgt_ios == 0;
 }

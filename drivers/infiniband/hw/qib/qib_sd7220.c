@@ -1385,7 +1385,7 @@ MODULE_PARM_DESC(relock_by_timer, "Allow relock attempt if link not up");
 
 static void qib_run_relock(struct timer_list *t)
 {
-	struct qib_chip_specific *cs = from_timer(cs, t, relock_timer);
+	struct qib_chip_specific *cs = timer_container_of(cs, t, relock_timer);
 	struct qib_devdata *dd = cs->dd;
 	struct qib_pportdata *ppd = dd->pport;
 	int timeoff;

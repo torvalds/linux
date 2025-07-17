@@ -1694,7 +1694,7 @@ static void dcn314_get_panel_config_defaults(struct dc_panel_config *panel_confi
 	*panel_config = panel_config_defaults;
 }
 
-bool dcn314_validate_bandwidth(struct dc *dc,
+enum dc_status dcn314_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -1750,7 +1750,7 @@ validate_out:
 
 	BW_VAL_TRACE_FINISH();
 
-	return out;
+	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 static struct resource_funcs dcn314_res_pool_funcs = {
@@ -1884,6 +1884,9 @@ static bool dcn314_resource_construct(
 	dc->caps.color.mpc.ocsc = 1;
 
 	dc->caps.max_disp_clock_khz_at_vmin = 650000;
+
+	dc->caps.num_of_host_routers = 2;
+	dc->caps.num_of_dpias_per_host_router = 2;
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;

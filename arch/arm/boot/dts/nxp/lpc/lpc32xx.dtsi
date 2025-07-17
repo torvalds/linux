@@ -94,7 +94,7 @@
 			/*
 			 * Enable either ohci or usbd (gadget)!
 			 */
-			ohci: ohci@0 {
+			ohci: usb@0 {
 				compatible = "nxp,ohci-nxp", "usb-ohci";
 				reg = <0x0 0x300>;
 				interrupt-parent = <&sic1>;

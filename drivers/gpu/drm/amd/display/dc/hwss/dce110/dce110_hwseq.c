@@ -952,8 +952,8 @@ void dce110_edp_backlight_control(
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	uint8_t pwrseq_instance = 0;
-	unsigned int pre_T11_delay = OLED_PRE_T11_DELAY;
-	unsigned int post_T7_delay = OLED_POST_T7_DELAY;
+	unsigned int pre_T11_delay = (link->dpcd_sink_ext_caps.bits.oled ? OLED_PRE_T11_DELAY : 0);
+	unsigned int post_T7_delay = (link->dpcd_sink_ext_caps.bits.oled ? OLED_POST_T7_DELAY : 0);
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -1069,7 +1069,8 @@ void dce110_edp_backlight_control(
 	if (!enable) {
 		/*follow oem panel config's requirement*/
 		pre_T11_delay += link->panel_config.pps.extra_pre_t11_ms;
-		msleep(pre_T11_delay);
+		if (pre_T11_delay)
+			msleep(pre_T11_delay);
 	}
 }
 
@@ -1220,8 +1221,11 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->link;
 	struct dce_hwseq *hws = link->dc->hwseq;
 
+	if (hws && hws->wa_state.skip_blank_stream)
+		return;
+
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-		if (!link->skip_implict_edp_power_control)
+		if (!link->skip_implict_edp_power_control && hws)
 			hws->funcs.edp_backlight_control(link, false);
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
@@ -2763,12 +2767,12 @@ static void dce110_enable_per_frame_crtc_position_reset(
 
 }
 
-static void init_pipes(struct dc *dc, struct dc_state *context)
+static void dce110_init_pipes(struct dc *dc, struct dc_state *context)
 {
 	// Do nothing
 }
 
-static void init_hw(struct dc *dc)
+static void dce110_init_hw(struct dc *dc)
 {
 	int i;
 	struct dc_bios *bp;
@@ -3327,7 +3331,7 @@ void dce110_disable_link_output(struct dc_link *link,
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_output_csc = program_output_csc,
-	.init_hw = init_hw,
+	.init_hw = dce110_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,
 	.post_unlock_program_front_end = dce110_post_unlock_program_front_end,
@@ -3371,7 +3375,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 };
 
 static const struct hwseq_private_funcs dce110_private_funcs = {
-	.init_pipes = init_pipes,
+	.init_pipes = dce110_init_pipes,
 	.set_input_transfer_func = dce110_set_input_transfer_func,
 	.set_output_transfer_func = dce110_set_output_transfer_func,
 	.power_down = dce110_power_down,

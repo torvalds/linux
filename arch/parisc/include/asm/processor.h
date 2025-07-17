@@ -9,7 +9,7 @@
 #ifndef __ASM_PARISC_PROCESSOR_H
 #define __ASM_PARISC_PROCESSOR_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/threads.h>
 #include <linux/irqreturn.h>
 
@@ -20,7 +20,7 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
@@ -45,7 +45,7 @@
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	DEFAULT_TASK_SIZE
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct rlimit;
 unsigned long mmap_upper_limit(struct rlimit *rlim_stack);
@@ -325,6 +325,6 @@ extern void sba_directed_lmmio(struct parisc_device *, struct resource *);
 extern void lba_set_iregs(struct parisc_device *lba, u32 ibase, u32 imask);
 extern void ccio_cujo20_fixup(struct parisc_device *dev, u32 iovp);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_PARISC_PROCESSOR_H */

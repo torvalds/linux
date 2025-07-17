@@ -6,12 +6,12 @@
 #ifndef __INTEL_DVO_H__
 #define __INTEL_DVO_H__
 
-struct drm_i915_private;
+struct intel_display;
 
 #ifdef I915
-void intel_dvo_init(struct drm_i915_private *dev_priv);
+void intel_dvo_init(struct intel_display *display);
 #else
-static inline void intel_dvo_init(struct drm_i915_private *dev_priv)
+static inline void intel_dvo_init(struct intel_display *display)
 {
 }
 #endif

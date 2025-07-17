@@ -46,7 +46,7 @@ static inline void x25_start_t20timer(struct x25_neigh *nb)
 
 static void x25_t20timer_expiry(struct timer_list *t)
 {
-	struct x25_neigh *nb = from_timer(nb, t, t20timer);
+	struct x25_neigh *nb = timer_container_of(nb, t, t20timer);
 
 	x25_transmit_restart_request(nb);
 

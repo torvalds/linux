@@ -1046,7 +1046,7 @@ static inline void pl011_dma_rx_stop(struct uart_amba_port *uap)
  */
 static void pl011_dma_rx_poll(struct timer_list *t)
 {
-	struct uart_amba_port *uap = from_timer(uap, t, dmarx.timer);
+	struct uart_amba_port *uap = timer_container_of(uap, t, dmarx.timer);
 	struct tty_port *port = &uap->port.state->port;
 	struct pl011_dmarx_data *dmarx = &uap->dmarx;
 	struct dma_chan *rxchan = uap->dmarx.chan;
@@ -2476,7 +2476,7 @@ static int pl011_console_setup(struct console *co, char *options)
 static int pl011_console_match(struct console *co, char *name, int idx,
 			       char *options)
 {
-	unsigned char iotype;
+	enum uart_iotype iotype;
 	resource_size_t addr;
 	int i;
 

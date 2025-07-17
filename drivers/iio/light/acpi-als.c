@@ -230,7 +230,7 @@ static int acpi_als_add(struct acpi_device *device)
 
 static const struct acpi_device_id acpi_als_device_ids[] = {
 	{"ACPI0008", 0},
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, acpi_als_device_ids);

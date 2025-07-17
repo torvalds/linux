@@ -4,6 +4,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x51",
         "EventName": "L1D.HWPF_MISS",
+        "PublicDescription": "L1D.HWPF_MISS Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x20"
     },
@@ -12,7 +13,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x51",
         "EventName": "L1D.REPLACEMENT",
-        "PublicDescription": "Counts L1D data line replacements including opportunistic replacements, and replacements that require stall-for-replace or block-for-replace.",
+        "PublicDescription": "Counts L1D data line replacements including opportunistic replacements, and replacements that require stall-for-replace or block-for-replace. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -21,7 +22,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
-        "PublicDescription": "Counts number of cycles a demand request has waited due to L1D Fill Buffer (FB) unavailability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
+        "PublicDescription": "Counts number of cycles a demand request has waited due to L1D Fill Buffer (FB) unavailability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -32,7 +33,7 @@
         "EdgeDetect": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL_PERIODS",
-        "PublicDescription": "Counts number of phases a demand request has waited due to L1D Fill Buffer (FB) unavailability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
+        "PublicDescription": "Counts number of phases a demand request has waited due to L1D Fill Buffer (FB) unavailability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -41,7 +42,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.L2_STALLS",
-        "PublicDescription": "Counts number of cycles a demand request has waited due to L1D due to lack of L2 resources. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
+        "PublicDescription": "Counts number of cycles a demand request has waited due to L1D due to lack of L2 resources. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -50,7 +51,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
-        "PublicDescription": "Counts number of L1D misses that are outstanding in each cycle, that is each cycle the number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch. Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
+        "PublicDescription": "Counts number of L1D misses that are outstanding in each cycle, that is each cycle the number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch. Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -60,7 +61,7 @@
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING_CYCLES",
-        "PublicDescription": "Counts duration of L1D miss outstanding in cycles.",
+        "PublicDescription": "Counts duration of L1D miss outstanding in cycles. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -69,7 +70,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "L2_LINES_IN.ALL",
-        "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1f"
     },
@@ -78,7 +79,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x26",
         "EventName": "L2_LINES_OUT.NON_SILENT",
-        "PublicDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines are in Modified state. Modified lines are written back to L3",
+        "PublicDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines are in Modified state. Modified lines are written back to L3 Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -87,7 +88,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x26",
         "EventName": "L2_LINES_OUT.SILENT",
-        "PublicDescription": "Counts the number of lines that are silently dropped by L2 cache. These lines are typically in Shared or Exclusive state. A non-threaded event.",
+        "PublicDescription": "Counts the number of lines that are silently dropped by L2 cache. These lines are typically in Shared or Exclusive state. A non-threaded event. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -96,7 +97,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x26",
         "EventName": "L2_LINES_OUT.USELESS_HWPF",
-        "PublicDescription": "Counts the number of cache lines that have been prefetched by the L2 hardware prefetcher but not used by demand access when evicted from the L2 cache",
+        "PublicDescription": "Counts the number of cache lines that have been prefetched by the L2 hardware prefetcher but not used by demand access when evicted from the L2 cache Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
     },
@@ -105,7 +106,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.ALL",
-        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.REFERENCES]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.REFERENCES] Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -114,7 +115,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.HIT",
-        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_RQSTS.HIT]",
+        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_RQSTS.HIT] Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xdf"
     },
@@ -123,7 +124,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.MISS",
-        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.MISS]",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_RQSTS.MISS] Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x3f"
     },
@@ -132,7 +133,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_CODE_RD",
-        "PublicDescription": "Counts the total number of L2 code requests.",
+        "PublicDescription": "Counts the total number of L2 code requests. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xe4"
     },
@@ -141,7 +142,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
-        "PublicDescription": "Counts Demand Data Read requests accessing the L2 cache. These requests may hit or miss L2 cache. True-miss exclude misses that were merged with ongoing L2 misses. An access is counted once.",
+        "PublicDescription": "Counts Demand Data Read requests accessing the L2 cache. These requests may hit or miss L2 cache. True-miss exclude misses that were merged with ongoing L2 misses. An access is counted once. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xe1"
     },
@@ -150,7 +151,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
-        "PublicDescription": "Counts demand requests that miss L2 cache.",
+        "PublicDescription": "Counts demand requests that miss L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x27"
     },
@@ -159,7 +160,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
-        "PublicDescription": "Counts demand requests to L2 cache.",
+        "PublicDescription": "Counts demand requests to L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xe7"
     },
@@ -168,6 +169,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_HWPF",
+        "PublicDescription": "L2_RQSTS.ALL_HWPF Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xf0"
     },
@@ -176,7 +178,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_RFO",
-        "PublicDescription": "Counts the total number of RFO (read for ownership) requests to L2 cache. L2 RFO requests include both L1D demand RFO misses as well as L1D RFO prefetches.",
+        "PublicDescription": "Counts the total number of RFO (read for ownership) requests to L2 cache. L2 RFO requests include both L1D demand RFO misses as well as L1D RFO prefetches. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xe2"
     },
@@ -185,7 +187,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_HIT",
-        "PublicDescription": "Counts L2 cache hits when fetching instructions, code reads.",
+        "PublicDescription": "Counts L2 cache hits when fetching instructions, code reads. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xc4"
     },
@@ -194,7 +196,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_MISS",
-        "PublicDescription": "Counts L2 cache misses when fetching instructions.",
+        "PublicDescription": "Counts L2 cache misses when fetching instructions. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x24"
     },
@@ -203,7 +205,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
-        "PublicDescription": "Counts the number of demand Data Read requests initiated by load instructions that hit L2 cache.",
+        "PublicDescription": "Counts the number of demand Data Read requests initiated by load instructions that hit L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xc1"
     },
@@ -212,7 +214,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
-        "PublicDescription": "Counts demand Data Read requests with true-miss in the L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. An access is counted once.",
+        "PublicDescription": "Counts demand Data Read requests with true-miss in the L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. An access is counted once. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x21"
     },
@@ -221,7 +223,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.HIT",
-        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_REQUEST.HIT]",
+        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_REQUEST.HIT] Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xdf"
     },
@@ -230,6 +232,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.HWPF_MISS",
+        "PublicDescription": "L2_RQSTS.HWPF_MISS Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x30"
     },
@@ -238,7 +241,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
-        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.MISS]",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.MISS] Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x3f"
     },
@@ -247,7 +250,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
-        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.ALL]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. [This event is alias to L2_REQUEST.ALL] Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -256,7 +259,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_HIT",
-        "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that hit L2 cache.",
+        "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that hit L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xc2"
     },
@@ -265,7 +268,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_MISS",
-        "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that miss L2 cache.",
+        "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that miss L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x22"
     },
@@ -274,7 +277,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.SWPF_HIT",
-        "PublicDescription": "Counts Software prefetch requests that hit the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
+        "PublicDescription": "Counts Software prefetch requests that hit the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xc8"
     },
@@ -283,7 +286,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.SWPF_MISS",
-        "PublicDescription": "Counts Software prefetch requests that miss the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
+        "PublicDescription": "Counts Software prefetch requests that miss the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x28"
     },
@@ -292,7 +295,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "L2_TRANS.L2_WB",
-        "PublicDescription": "Counts L2 writebacks that access L2 cache.",
+        "PublicDescription": "Counts L2 writebacks that access L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x40"
     },
@@ -301,7 +304,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
         "EventName": "LONGEST_LAT_CACHE.MISS",
-        "PublicDescription": "Counts core-originated cacheable requests that miss the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3.",
+        "PublicDescription": "Counts core-originated cacheable requests that miss the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x41"
     },
@@ -310,7 +313,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
         "EventName": "LONGEST_LAT_CACHE.REFERENCE",
-        "PublicDescription": "Counts core-originated cacheable requests to the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3.",
+        "PublicDescription": "Counts core-originated cacheable requests to the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x4f"
     },
@@ -320,7 +323,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_LOADS",
-        "PublicDescription": "Counts all retired load instructions. This event accounts for SW prefetch instructions of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW.",
+        "PublicDescription": "Counts all retired load instructions. This event accounts for SW prefetch instructions of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x81"
     },
@@ -330,7 +333,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
-        "PublicDescription": "Counts all retired store instructions.",
+        "PublicDescription": "Counts all retired store instructions. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x82"
     },
@@ -340,7 +343,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ANY",
-        "PublicDescription": "Counts all retired memory instructions - loads and stores.",
+        "PublicDescription": "Counts all retired memory instructions - loads and stores. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x83"
     },
@@ -350,7 +353,10 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.LOCK_LOADS",
-        "PublicDescription": "Counts retired load instructions with locked access.",
+        "PublicDescription": "Counts retired load instructions with locked access. Available PDIST counters: 0",
+        "RetirementLatencyMax": 5156,
+        "RetirementLatencyMean": 63.76,
+        "RetirementLatencyMin": 15,
         "SampleAfterValue": "100007",
         "UMask": "0x21"
     },
@@ -360,7 +366,10 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.SPLIT_LOADS",
-        "PublicDescription": "Counts retired load instructions that split across a cacheline boundary.",
+        "PublicDescription": "Counts retired load instructions that split across a cacheline boundary. Available PDIST counters: 0",
+        "RetirementLatencyMax": 4704,
+        "RetirementLatencyMean": 3.97,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100003",
         "UMask": "0x41"
     },
@@ -370,7 +379,10 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.SPLIT_STORES",
-        "PublicDescription": "Counts retired store instructions that split across a cacheline boundary.",
+        "PublicDescription": "Counts retired store instructions that split across a cacheline boundary. Available PDIST counters: 0",
+        "RetirementLatencyMax": 65535,
+        "RetirementLatencyMean": 19.0,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100003",
         "UMask": "0x42"
     },
@@ -380,7 +392,10 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_HIT_LOADS",
-        "PublicDescription": "Number of retired load instructions with a clean hit in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired load instructions with a clean hit in the 2nd-level TLB (STLB). Available PDIST counters: 0",
+        "RetirementLatencyMax": 3424,
+        "RetirementLatencyMean": 1.57,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100003",
         "UMask": "0x9"
     },
@@ -390,7 +405,10 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_HIT_STORES",
-        "PublicDescription": "Number of retired store instructions that hit in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired store instructions that hit in the 2nd-level TLB (STLB). Available PDIST counters: 0",
+        "RetirementLatencyMax": 65535,
+        "RetirementLatencyMean": 5.24,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100003",
         "UMask": "0xa"
     },
@@ -400,7 +418,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_LOADS",
-        "PublicDescription": "Number of retired load instructions that (start a) miss in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired load instructions that (start a) miss in the 2nd-level TLB (STLB). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x11"
     },
@@ -410,7 +428,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_STORES",
-        "PublicDescription": "Number of retired store instructions that (start a) miss in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired store instructions that (start a) miss in the 2nd-level TLB (STLB). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x12"
     },
@@ -419,7 +437,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "MEM_LOAD_COMPLETED.L1_MISS_ANY",
-        "PublicDescription": "Number of completed demand load requests that missed the L1 data cache including shadow misses (FB hits, merge to an ongoing L1D miss)",
+        "PublicDescription": "Number of completed demand load requests that missed the L1 data cache including shadow misses (FB hits, merge to an ongoing L1D miss) Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0xfd"
     },
@@ -429,7 +447,10 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_FWD",
-        "PublicDescription": "Counts retired load instructions whose data sources were HitM responses from shared L3.",
+        "PublicDescription": "Counts retired load instructions whose data sources were HitM responses from shared L3. Available PDIST counters: 0",
+        "RetirementLatencyMax": 4472,
+        "RetirementLatencyMean": 353.04,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "20011",
         "UMask": "0x4"
     },
@@ -439,7 +460,10 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS",
-        "PublicDescription": "Counts the retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "PublicDescription": "Counts the retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache. Available PDIST counters: 0",
+        "RetirementLatencyMax": 830,
+        "RetirementLatencyMean": 125.27,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "20011",
         "UMask": "0x1"
     },
@@ -449,7 +473,7 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NONE",
-        "PublicDescription": "Counts retired load instructions whose data sources were hits in L3 without snoops required.",
+        "PublicDescription": "Counts retired load instructions whose data sources were hits in L3 without snoops required. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -459,7 +483,10 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NO_FWD",
-        "PublicDescription": "Counts retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "PublicDescription": "Counts retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache. Available PDIST counters: 0",
+        "RetirementLatencyMax": 3939,
+        "RetirementLatencyMean": 289.9,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "20011",
         "UMask": "0x2"
     },
@@ -469,7 +496,10 @@
         "Data_LA": "1",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.LOCAL_DRAM",
-        "PublicDescription": "Retired load instructions which data sources missed L3 but serviced from local DRAM.",
+        "PublicDescription": "Retired load instructions which data sources missed L3 but serviced from local DRAM. Available PDIST counters: 0",
+        "RetirementLatencyMax": 4146,
+        "RetirementLatencyMean": 115.83,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
@@ -479,6 +509,10 @@
         "Data_LA": "1",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_DRAM",
+        "PublicDescription": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_DRAM Available PDIST counters: 0",
+        "RetirementLatencyMax": 3572,
+        "RetirementLatencyMean": 430.22,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -488,7 +522,10 @@
         "Data_LA": "1",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_FWD",
-        "PublicDescription": "Retired load instructions whose data sources was forwarded from a remote cache.",
+        "PublicDescription": "Retired load instructions whose data sources was forwarded from a remote cache. Available PDIST counters: 0",
+        "RetirementLatencyMax": 8552,
+        "RetirementLatencyMean": 125.36,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100007",
         "UMask": "0x8"
     },
@@ -498,6 +535,10 @@
         "Data_LA": "1",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_HITM",
+        "PublicDescription": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_HITM Available PDIST counters: 0",
+        "RetirementLatencyMax": 2580,
+        "RetirementLatencyMean": 135.29,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -507,7 +548,7 @@
         "Data_LA": "1",
         "EventCode": "0xd4",
         "EventName": "MEM_LOAD_MISC_RETIRED.UC",
-        "PublicDescription": "Retired instructions with at least one load to uncacheable memory-type, or at least one cache-line split locked access (Bus Lock).",
+        "PublicDescription": "Retired instructions with at least one load to uncacheable memory-type, or at least one cache-line split locked access (Bus Lock). Available PDIST counters: 0",
         "SampleAfterValue": "100007",
         "UMask": "0x4"
     },
@@ -517,7 +558,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready.",
+        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready. Available PDIST counters: 0",
         "SampleAfterValue": "100007",
         "UMask": "0x40"
     },
@@ -527,7 +568,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L1 data cache. This event includes all SW prefetches and lock instructions regardless of the data source.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L1 data cache. This event includes all SW prefetches and lock instructions regardless of the data source. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -537,7 +578,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_MISS",
-        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L1 cache.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L1 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x8"
     },
@@ -547,7 +588,10 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L2_HIT",
-        "PublicDescription": "Counts retired load instructions with L2 cache hits as data sources.",
+        "PublicDescription": "Counts retired load instructions with L2 cache hits as data sources. Available PDIST counters: 0",
+        "RetirementLatencyMax": 7140,
+        "RetirementLatencyMean": 5.71,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -557,7 +601,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L2_MISS",
-        "PublicDescription": "Counts retired load instructions missed L2 cache as data sources.",
+        "PublicDescription": "Counts retired load instructions missed L2 cache as data sources. Available PDIST counters: 0",
         "SampleAfterValue": "100021",
         "UMask": "0x10"
     },
@@ -567,7 +611,10 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L3_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L3 cache.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L3 cache. Available PDIST counters: 0",
+        "RetirementLatencyMax": 5630,
+        "RetirementLatencyMean": 57.64,
+        "RetirementLatencyMin": 0,
         "SampleAfterValue": "100021",
         "UMask": "0x4"
     },
@@ -577,7 +624,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L3_MISS",
-        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L3 cache.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "50021",
         "UMask": "0x20"
     },
@@ -586,6 +633,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x44",
         "EventName": "MEM_STORE_RETIRED.L2_HIT",
+        "PublicDescription": "MEM_STORE_RETIRED.L2_HIT Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -594,9 +642,20 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe5",
         "EventName": "MEM_UOP_RETIRED.ANY",
-        "PublicDescription": "Number of retired micro-operations (uops) for load or store memory accesses",
+        "PublicDescription": "Number of retired micro-operations (uops) for load or store memory accesses Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_CODE_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit in the L3 or were snooped from another core's caches on the same socket.",
@@ -605,6 +664,7 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit in the L3 or were snooped from another core's caches on the same socket. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -615,6 +675,18 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that resulted in a snoop hit a modified line in another core's caches which forwarded the data. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "PublicDescription": "Counts demand data reads that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -625,6 +697,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0001",
+        "PublicDescription": "Counts demand data reads that hit in the L3 or were snooped from another core's caches on the same socket. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -635,6 +708,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
+        "PublicDescription": "Counts demand data reads that resulted in a snoop hit a modified line in another core's caches which forwarded the data. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -645,6 +719,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
+        "PublicDescription": "Counts demand data reads that resulted in a snoop that hit in another core, which did not forward the data. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -655,6 +730,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0001",
+        "PublicDescription": "Counts demand data reads that resulted in a snoop hit in another core's caches which forwarded the unmodified data to the requesting core. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -665,6 +741,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.REMOTE_CACHE.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1030000001",
+        "PublicDescription": "Counts demand data reads that were supplied by a cache on a remote socket where a snoop hit a modified line in another core's caches which forwarded the data. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -675,6 +752,40 @@
         "EventName": "OCR.DEMAND_DATA_RD.REMOTE_CACHE.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x830000001",
+        "PublicDescription": "Counts demand data reads that were supplied by a cache on a remote socket where a snoop hit in another core's caches which forwarded the unmodified data to the requesting core. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that hit a modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.SNC_CACHE.HITM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x1008000001",
+        "PublicDescription": "Counts demand data reads that hit a modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that either hit a non-modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.SNC_CACHE.HIT_WITH_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x808000001",
+        "PublicDescription": "Counts demand data reads that either hit a non-modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3F3FFC0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -685,6 +796,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit in the L3 or were snooped from another core's caches on the same socket. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -695,6 +807,29 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that resulted in a snoop hit a modified line in another core's caches which forwarded the data. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts writebacks of modified cachelines and streaming stores that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.MODIFIED_WRITE.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10808",
+        "PublicDescription": "Counts writebacks of modified cachelines and streaming stores that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3F3FFC4477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -705,6 +840,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F003C4477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that hit in the L3 or were snooped from another core's caches on the same socket. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -715,6 +851,18 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C4477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop hit a modified line in another core's caches which forwarded the data. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.REMOTE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3F33004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -725,6 +873,7 @@
         "EventName": "OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1830004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop was sent and data was returned (Modified or Not Modified). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -735,6 +884,7 @@
         "EventName": "OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1030004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop hit a modified line in another core's caches which forwarded the data. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -745,6 +895,7 @@
         "EventName": "OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x830004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop hit in another core's caches which forwarded the unmodified data to the requesting core. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -755,6 +906,7 @@
         "EventName": "OCR.READS_TO_CORE.SNC_CACHE.HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1008004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that hit a modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -765,6 +917,7 @@
         "EventName": "OCR.READS_TO_CORE.SNC_CACHE.HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x808004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that either hit a non-modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -775,6 +928,7 @@
         "EventName": "OCR.RFO_TO_CORE.L3_HIT_M",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F80040022",
+        "PublicDescription": "Counts demand reads for ownership (RFO), hardware prefetch RFOs (which bring data to L2), and software prefetches for exclusive ownership (PREFETCHW) that hit to a (M)odified cacheline in the L3 or snoop filter. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -783,7 +937,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.ALL_REQUESTS",
-        "PublicDescription": "Counts memory transactions reached the super queue including requests initiated by the core, all L3 prefetches, page walks, etc..",
+        "PublicDescription": "Counts memory transactions reached the super queue including requests initiated by the core, all L3 prefetches, page walks, etc.. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -792,7 +946,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.DATA_RD",
-        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -801,7 +955,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
-        "PublicDescription": "Counts both cacheable and Non-Cacheable code read requests.",
+        "PublicDescription": "Counts both cacheable and Non-Cacheable code read requests. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -810,7 +964,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.DEMAND_DATA_RD",
-        "PublicDescription": "Counts the Demand Data Read requests sent to uncore. Use it in conjunction with OFFCORE_REQUESTS_OUTSTANDING to determine average latency in the uncore.",
+        "PublicDescription": "Counts the Demand Data Read requests sent to uncore. Use it in conjunction with OFFCORE_REQUESTS_OUTSTANDING to determine average latency in the uncore. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -819,7 +973,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.DEMAND_RFO",
-        "PublicDescription": "Counts the demand RFO (read for ownership) requests including regular RFOs, locks, ItoM.",
+        "PublicDescription": "Counts the demand RFO (read for ownership) requests including regular RFOs, locks, ItoM. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
@@ -829,7 +983,7 @@
         "CounterMask": "1",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
-        "PublicDescription": "Counts cycles when offcore outstanding cacheable Core Data Read transactions are present in the super queue. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
+        "PublicDescription": "Counts cycles when offcore outstanding cacheable Core Data Read transactions are present in the super queue. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -839,7 +993,7 @@
         "CounterMask": "1",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_CODE_RD",
-        "PublicDescription": "Counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "PublicDescription": "Counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -849,6 +1003,7 @@
         "CounterMask": "1",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
+        "PublicDescription": "Cycles where at least 1 outstanding demand data read request is pending. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -858,7 +1013,7 @@
         "CounterMask": "1",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
-        "PublicDescription": "Counts the number of offcore outstanding demand rfo Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "PublicDescription": "Counts the number of offcore outstanding demand rfo Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -867,6 +1022,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
+        "PublicDescription": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -875,7 +1031,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_CODE_RD",
-        "PublicDescription": "Counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "PublicDescription": "Counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -884,7 +1040,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD",
-        "PublicDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.   Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor.",
+        "PublicDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.   Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -893,7 +1049,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO",
-        "PublicDescription": "Counts the number of off-core outstanding read-for-ownership (RFO) store transactions every cycle. An RFO transaction is considered to be in the Off-core outstanding state between L2 cache miss and transaction completion.",
+        "PublicDescription": "Counts the number of off-core outstanding read-for-ownership (RFO) store transactions every cycle. An RFO transaction is considered to be in the Off-core outstanding state between L2 cache miss and transaction completion. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -902,7 +1058,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x2c",
         "EventName": "SQ_MISC.BUS_LOCK",
-        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
+        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x10"
     },
@@ -911,6 +1067,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "SW_PREFETCH_ACCESS.ANY",
+        "PublicDescription": "Counts the number of PREFETCHNTA, PREFETCHW, PREFETCHT0, PREFETCHT1 or PREFETCHT2 instructions executed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0xf"
     },
@@ -919,7 +1076,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "SW_PREFETCH_ACCESS.NTA",
-        "PublicDescription": "Counts the number of PREFETCHNTA instructions executed.",
+        "PublicDescription": "Counts the number of PREFETCHNTA instructions executed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -928,7 +1085,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "SW_PREFETCH_ACCESS.PREFETCHW",
-        "PublicDescription": "Counts the number of PREFETCHW instructions executed.",
+        "PublicDescription": "Counts the number of PREFETCHW instructions executed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -937,7 +1094,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "SW_PREFETCH_ACCESS.T0",
-        "PublicDescription": "Counts the number of PREFETCHT0 instructions executed.",
+        "PublicDescription": "Counts the number of PREFETCHT0 instructions executed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -946,7 +1103,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "SW_PREFETCH_ACCESS.T1_T2",
-        "PublicDescription": "Counts the number of PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "PublicDescription": "Counts the number of PREFETCHT1 or PREFETCHT2 instructions executed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     }

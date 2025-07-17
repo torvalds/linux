@@ -648,7 +648,7 @@ static void br_multicast_del_mdb_entry(struct net_bridge_mdb_entry *mp)
 
 static void br_multicast_group_expired(struct timer_list *t)
 {
-	struct net_bridge_mdb_entry *mp = from_timer(mp, t, timer);
+	struct net_bridge_mdb_entry *mp = timer_container_of(mp, t, timer);
 	struct net_bridge *br = mp->br;
 
 	spin_lock(&br->multicast_lock);
@@ -856,7 +856,7 @@ static void br_multicast_find_del_pg(struct net_bridge *br,
 
 static void br_multicast_port_group_expired(struct timer_list *t)
 {
-	struct net_bridge_port_group *pg = from_timer(pg, t, timer);
+	struct net_bridge_port_group *pg = timer_container_of(pg, t, timer);
 	struct net_bridge_group_src *src_ent;
 	struct net_bridge *br = pg->key.port->br;
 	struct hlist_node *tmp;
@@ -1314,7 +1314,7 @@ struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
 
 static void br_multicast_group_src_expired(struct timer_list *t)
 {
-	struct net_bridge_group_src *src = from_timer(src, t, timer);
+	struct net_bridge_group_src *src = timer_container_of(src, t, timer);
 	struct net_bridge_port_group *pg;
 	struct net_bridge *br = src->br;
 
@@ -1667,8 +1667,8 @@ out:
 
 static void br_ip4_multicast_router_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast_port *pmctx = from_timer(pmctx, t,
-							 ip4_mc_router_timer);
+	struct net_bridge_mcast_port *pmctx = timer_container_of(pmctx, t,
+								 ip4_mc_router_timer);
 
 	br_multicast_router_expired(pmctx, t, &pmctx->ip4_rlist);
 }
@@ -1676,8 +1676,8 @@ static void br_ip4_multicast_router_expired(struct timer_list *t)
 #if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_router_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast_port *pmctx = from_timer(pmctx, t,
-							 ip6_mc_router_timer);
+	struct net_bridge_mcast_port *pmctx = timer_container_of(pmctx, t,
+								 ip6_mc_router_timer);
 
 	br_multicast_router_expired(pmctx, t, &pmctx->ip6_rlist);
 }
@@ -1713,8 +1713,8 @@ out:
 
 static void br_ip4_multicast_local_router_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast *brmctx = from_timer(brmctx, t,
-						     ip4_mc_router_timer);
+	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
+							     ip4_mc_router_timer);
 
 	br_multicast_local_router_expired(brmctx, t);
 }
@@ -1722,8 +1722,8 @@ static void br_ip4_multicast_local_router_expired(struct timer_list *t)
 #if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_local_router_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast *brmctx = from_timer(brmctx, t,
-						     ip6_mc_router_timer);
+	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
+							     ip6_mc_router_timer);
 
 	br_multicast_local_router_expired(brmctx, t);
 }
@@ -1746,8 +1746,8 @@ out:
 
 static void br_ip4_multicast_querier_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast *brmctx = from_timer(brmctx, t,
-						     ip4_other_query.timer);
+	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
+							     ip4_other_query.timer);
 
 	br_multicast_querier_expired(brmctx, &brmctx->ip4_own_query);
 }
@@ -1755,8 +1755,8 @@ static void br_ip4_multicast_querier_expired(struct timer_list *t)
 #if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_querier_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast *brmctx = from_timer(brmctx, t,
-						     ip6_other_query.timer);
+	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
+							     ip6_other_query.timer);
 
 	br_multicast_querier_expired(brmctx, &brmctx->ip6_own_query);
 }
@@ -1918,8 +1918,8 @@ out:
 
 static void br_ip4_multicast_port_query_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast_port *pmctx = from_timer(pmctx, t,
-							 ip4_own_query.timer);
+	struct net_bridge_mcast_port *pmctx = timer_container_of(pmctx, t,
+								 ip4_own_query.timer);
 
 	br_multicast_port_query_expired(pmctx, &pmctx->ip4_own_query);
 }
@@ -1927,8 +1927,8 @@ static void br_ip4_multicast_port_query_expired(struct timer_list *t)
 #if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_port_query_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast_port *pmctx = from_timer(pmctx, t,
-							 ip6_own_query.timer);
+	struct net_bridge_mcast_port *pmctx = timer_container_of(pmctx, t,
+								 ip6_own_query.timer);
 
 	br_multicast_port_query_expired(pmctx, &pmctx->ip6_own_query);
 }
@@ -1936,7 +1936,8 @@ static void br_ip6_multicast_port_query_expired(struct timer_list *t)
 
 static void br_multicast_port_group_rexmit(struct timer_list *t)
 {
-	struct net_bridge_port_group *pg = from_timer(pg, t, rexmit_timer);
+	struct net_bridge_port_group *pg = timer_container_of(pg, t,
+							      rexmit_timer);
 	struct bridge_mcast_other_query *other_query = NULL;
 	struct net_bridge *br = pg->key.port->br;
 	struct net_bridge_mcast_port *pmctx;
@@ -2014,10 +2015,19 @@ void br_multicast_port_ctx_init(struct net_bridge_port *port,
 
 void br_multicast_port_ctx_deinit(struct net_bridge_mcast_port *pmctx)
 {
+	struct net_bridge *br = pmctx->port->br;
+	bool del = false;
+
 #if IS_ENABLED(CONFIG_IPV6)
 	timer_delete_sync(&pmctx->ip6_mc_router_timer);
 #endif
 	timer_delete_sync(&pmctx->ip4_mc_router_timer);
+
+	spin_lock_bh(&br->multicast_lock);
+	del |= br_ip6_multicast_rport_del(pmctx);
+	del |= br_ip4_multicast_rport_del(pmctx);
+	br_multicast_rport_del_notify(pmctx, del);
+	spin_unlock_bh(&br->multicast_lock);
 }
 
 int br_multicast_add_port(struct net_bridge_port *port)
@@ -2105,12 +2115,17 @@ static void __br_multicast_enable_port_ctx(struct net_bridge_mcast_port *pmctx)
 	}
 }
 
-void br_multicast_enable_port(struct net_bridge_port *port)
+static void br_multicast_enable_port_ctx(struct net_bridge_mcast_port *pmctx)
 {
-	struct net_bridge *br = port->br;
+	struct net_bridge *br = pmctx->port->br;
 
 	spin_lock_bh(&br->multicast_lock);
-	__br_multicast_enable_port_ctx(&port->multicast_ctx);
+	if (br_multicast_port_ctx_is_vlan(pmctx) &&
+	    !(pmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED)) {
+		spin_unlock_bh(&br->multicast_lock);
+		return;
+	}
+	__br_multicast_enable_port_ctx(pmctx);
 	spin_unlock_bh(&br->multicast_lock);
 }
 
@@ -2137,11 +2152,67 @@ static void __br_multicast_disable_port_ctx(struct net_bridge_mcast_port *pmctx)
 	br_multicast_rport_del_notify(pmctx, del);
 }
 
+static void br_multicast_disable_port_ctx(struct net_bridge_mcast_port *pmctx)
+{
+	struct net_bridge *br = pmctx->port->br;
+
+	spin_lock_bh(&br->multicast_lock);
+	if (br_multicast_port_ctx_is_vlan(pmctx) &&
+	    !(pmctx->vlan->priv_flags & BR_VLFLAG_MCAST_ENABLED)) {
+		spin_unlock_bh(&br->multicast_lock);
+		return;
+	}
+
+	__br_multicast_disable_port_ctx(pmctx);
+	spin_unlock_bh(&br->multicast_lock);
+}
+
+static void br_multicast_toggle_port(struct net_bridge_port *port, bool on)
+{
+#if IS_ENABLED(CONFIG_BRIDGE_VLAN_FILTERING)
+	if (br_opt_get(port->br, BROPT_MCAST_VLAN_SNOOPING_ENABLED)) {
+		struct net_bridge_vlan_group *vg;
+		struct net_bridge_vlan *vlan;
+
+		rcu_read_lock();
+		vg = nbp_vlan_group_rcu(port);
+		if (!vg) {
+			rcu_read_unlock();
+			return;
+		}
+
+		/* iterate each vlan, toggle vlan multicast context */
+		list_for_each_entry_rcu(vlan, &vg->vlan_list, vlist) {
+			struct net_bridge_mcast_port *pmctx =
+						&vlan->port_mcast_ctx;
+			u8 state = br_vlan_get_state(vlan);
+			/* enable vlan multicast context when state is
+			 * LEARNING or FORWARDING
+			 */
+			if (on && br_vlan_state_allowed(state, true))
+				br_multicast_enable_port_ctx(pmctx);
+			else
+				br_multicast_disable_port_ctx(pmctx);
+		}
+		rcu_read_unlock();
+		return;
+	}
+#endif
+	/* toggle port multicast context when vlan snooping is disabled */
+	if (on)
+		br_multicast_enable_port_ctx(&port->multicast_ctx);
+	else
+		br_multicast_disable_port_ctx(&port->multicast_ctx);
+}
+
+void br_multicast_enable_port(struct net_bridge_port *port)
+{
+	br_multicast_toggle_port(port, true);
+}
+
 void br_multicast_disable_port(struct net_bridge_port *port)
 {
-	spin_lock_bh(&port->br->multicast_lock);
-	__br_multicast_disable_port_ctx(&port->multicast_ctx);
-	spin_unlock_bh(&port->br->multicast_lock);
+	br_multicast_toggle_port(port, false);
 }
 
 static int __grp_src_delete_marked(struct net_bridge_port_group *pg)
@@ -3995,8 +4066,8 @@ out:
 
 static void br_ip4_multicast_query_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast *brmctx = from_timer(brmctx, t,
-						     ip4_own_query.timer);
+	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
+							     ip4_own_query.timer);
 
 	br_multicast_query_expired(brmctx, &brmctx->ip4_own_query,
 				   &brmctx->ip4_querier);
@@ -4005,8 +4076,8 @@ static void br_ip4_multicast_query_expired(struct timer_list *t)
 #if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_query_expired(struct timer_list *t)
 {
-	struct net_bridge_mcast *brmctx = from_timer(brmctx, t,
-						     ip6_own_query.timer);
+	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
+							     ip6_own_query.timer);
 
 	br_multicast_query_expired(brmctx, &brmctx->ip6_own_query,
 				   &brmctx->ip6_querier);
@@ -4211,6 +4282,32 @@ static void __br_multicast_stop(struct net_bridge_mcast *brmctx)
 #endif
 }
 
+void br_multicast_update_vlan_mcast_ctx(struct net_bridge_vlan *v, u8 state)
+{
+#if IS_ENABLED(CONFIG_BRIDGE_VLAN_FILTERING)
+	struct net_bridge *br;
+
+	if (!br_vlan_should_use(v))
+		return;
+
+	if (br_vlan_is_master(v))
+		return;
+
+	br = v->port->br;
+
+	if (!br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED))
+		return;
+
+	if (br_vlan_state_allowed(state, true))
+		br_multicast_enable_port_ctx(&v->port_mcast_ctx);
+
+	/* Multicast is not disabled for the vlan when it goes in
+	 * blocking state because the timers will expire and stop by
+	 * themselves without sending more queries.
+	 */
+#endif
+}
+
 void br_multicast_toggle_one_vlan(struct net_bridge_vlan *vlan, bool on)
 {
 	struct net_bridge *br;
@@ -4304,9 +4401,9 @@ int br_multicast_toggle_vlan_snooping(struct net_bridge *br, bool on,
 		__br_multicast_open(&br->multicast_ctx);
 	list_for_each_entry(p, &br->port_list, list) {
 		if (on)
-			br_multicast_disable_port(p);
+			br_multicast_disable_port_ctx(&p->multicast_ctx);
 		else
-			br_multicast_enable_port(p);
+			br_multicast_enable_port_ctx(&p->multicast_ctx);
 	}
 
 	list_for_each_entry(vlan, &vg->vlan_list, vlist)

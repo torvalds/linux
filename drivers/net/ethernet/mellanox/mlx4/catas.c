@@ -236,7 +236,7 @@ static void dump_err_buf(struct mlx4_dev *dev)
 
 static void poll_catas(struct timer_list *t)
 {
-	struct mlx4_priv *priv = from_timer(priv, t, catas_err.timer);
+	struct mlx4_priv *priv = timer_container_of(priv, t, catas_err.timer);
 	struct mlx4_dev *dev = &priv->dev;
 	u32 slave_read;
 

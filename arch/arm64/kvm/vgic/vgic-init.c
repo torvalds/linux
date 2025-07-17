@@ -84,14 +84,39 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		!kvm_vgic_global_state.can_emulate_gicv2)
 		return -ENODEV;
 
-	/* Must be held to avoid race with vCPU creation */
+	/*
+	 * Ensure mutual exclusion with vCPU creation and any vCPU ioctls by:
+	 *
+	 *  - Holding kvm->lock to prevent KVM_CREATE_VCPU from reaching
+	 *    kvm_arch_vcpu_precreate() and ensuring created_vcpus is stable.
+	 *    This alone is insufficient, as kvm_vm_ioctl_create_vcpu() drops
+	 *    the kvm->lock before completing the vCPU creation.
+	 */
 	lockdep_assert_held(&kvm->lock);
 
+	/*
+	 *  - Acquiring the vCPU mutex for every *online* vCPU to prevent
+	 *    concurrent vCPU ioctls for vCPUs already visible to userspace.
+	 */
 	ret = -EBUSY;
-	if (!lock_all_vcpus(kvm))
+	if (kvm_trylock_all_vcpus(kvm))
 		return ret;
 
+	/*
+	 *  - Taking the config_lock which protects VGIC data structures such
+	 *    as the per-vCPU arrays of private IRQs (SGIs, PPIs).
+	 */
 	mutex_lock(&kvm->arch.config_lock);
+
+	/*
+	 * - Bailing on the entire thing if a vCPU is in the middle of creation,
+	 *   dropped the kvm->lock, but hasn't reached kvm_arch_vcpu_create().
+	 *
+	 * The whole combination of this guarantees that no vCPU can get into
+	 * KVM with a VGIC configuration inconsistent with the VM's VGIC.
+	 */
+	if (kvm->created_vcpus != atomic_read(&kvm->online_vcpus))
+		goto out_unlock;
 
 	if (irqchip_in_kernel(kvm)) {
 		ret = -EEXIST;
@@ -142,7 +167,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
-	unlock_all_vcpus(kvm);
+	kvm_unlock_all_vcpus(kvm);
 	return ret;
 }
 

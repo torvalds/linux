@@ -123,11 +123,41 @@ impl<T> Revocable<T> {
         }
     }
 
+    /// Tries to access the wrapped object and run a closure on it while the guard is held.
+    ///
+    /// This is a convenience method to run short non-sleepable code blocks while ensuring the
+    /// guard is dropped afterwards. [`Self::try_access`] carries the risk that the caller will
+    /// forget to explicitly drop that returned guard before calling sleepable code; this method
+    /// adds an extra safety to make sure it doesn't happen.
+    ///
+    /// Returns [`None`] if the object has been revoked and is therefore no longer accessible, or
+    /// the result of the closure wrapped in [`Some`]. If the closure returns a [`Result`] then the
+    /// return type becomes `Option<Result<>>`, which can be inconvenient. Users are encouraged to
+    /// define their own macro that turns the [`Option`] into a proper error code and flattens the
+    /// inner result into it if it makes sense within their subsystem.
+    pub fn try_access_with<R, F: FnOnce(&T) -> R>(&self, f: F) -> Option<R> {
+        self.try_access().map(|t| f(&*t))
+    }
+
+    /// Directly access the revocable wrapped object.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure this [`Revocable`] instance hasn't been revoked and won't be revoked
+    /// as long as the returned `&T` lives.
+    pub unsafe fn access(&self) -> &T {
+        // SAFETY: By the safety requirement of this function it is guaranteed that
+        // `self.data.get()` is a valid pointer to an instance of `T`.
+        unsafe { &*self.data.get() }
+    }
+
     /// # Safety
     ///
     /// Callers must ensure that there are no more concurrent users of the revocable object.
-    unsafe fn revoke_internal<const SYNC: bool>(&self) {
-        if self.is_available.swap(false, Ordering::Relaxed) {
+    unsafe fn revoke_internal<const SYNC: bool>(&self) -> bool {
+        let revoke = self.is_available.swap(false, Ordering::Relaxed);
+
+        if revoke {
             if SYNC {
                 // SAFETY: Just an FFI call, there are no further requirements.
                 unsafe { bindings::synchronize_rcu() };
@@ -137,6 +167,8 @@ impl<T> Revocable<T> {
             // `compare_exchange` above that takes `is_available` from `true` to `false`.
             unsafe { drop_in_place(self.data.get()) };
         }
+
+        revoke
     }
 
     /// Revokes access to and drops the wrapped object.
@@ -144,10 +176,13 @@ impl<T> Revocable<T> {
     /// Access to the object is revoked immediately to new callers of [`Revocable::try_access`],
     /// expecting that there are no concurrent users of the object.
     ///
+    /// Returns `true` if `&self` has been revoked with this call, `false` if it was revoked
+    /// already.
+    ///
     /// # Safety
     ///
     /// Callers must ensure that there are no more concurrent users of the revocable object.
-    pub unsafe fn revoke_nosync(&self) {
+    pub unsafe fn revoke_nosync(&self) -> bool {
         // SAFETY: By the safety requirement of this function, the caller ensures that nobody is
         // accessing the data anymore and hence we don't have to wait for the grace period to
         // finish.
@@ -161,7 +196,10 @@ impl<T> Revocable<T> {
     /// If there are concurrent users of the object (i.e., ones that called
     /// [`Revocable::try_access`] beforehand and still haven't dropped the returned guard), this
     /// function waits for the concurrent access to complete before dropping the wrapped object.
-    pub fn revoke(&self) {
+    ///
+    /// Returns `true` if `&self` has been revoked with this call, `false` if it was revoked
+    /// already.
+    pub fn revoke(&self) -> bool {
         // SAFETY: By passing `true` we ask `revoke_internal` to wait for the grace period to
         // finish.
         unsafe { self.revoke_internal::<true>() }

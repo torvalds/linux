@@ -66,6 +66,4 @@ int ksmbd_gen_smb311_encryptionkey(struct ksmbd_conn *conn,
 				   struct ksmbd_session *sess);
 int ksmbd_gen_preauth_integrity_hash(struct ksmbd_conn *conn, char *buf,
 				     __u8 *pi_hash);
-int ksmbd_gen_sd_hash(struct ksmbd_conn *conn, char *sd_buf, int len,
-		      __u8 *pi_hash);
 #endif

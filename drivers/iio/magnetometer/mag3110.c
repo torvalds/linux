@@ -9,6 +9,7 @@
  * TODO: irq, user offset, oversampling, continuous mode
  */
 
+#include <linux/cleanup.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
@@ -102,17 +103,12 @@ static int mag3110_read(struct mag3110_data *data, __be16 buf[3])
 {
 	int ret;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 	ret = mag3110_request(data);
-	if (ret < 0) {
-		mutex_unlock(&data->lock);
+	if (ret < 0)
 		return ret;
-	}
-	ret = i2c_smbus_read_i2c_block_data(data->client,
-		MAG3110_OUT_X, 3 * sizeof(__be16), (u8 *) buf);
-	mutex_unlock(&data->lock);
-
-	return ret;
+	return i2c_smbus_read_i2c_block_data(data->client, MAG3110_OUT_X,
+					     3 * sizeof(__be16), (u8 *) buf);
 }
 
 static ssize_t mag3110_show_int_plus_micros(char *buf,
@@ -231,19 +227,17 @@ static int mag3110_change_config(struct mag3110_data *data, u8 reg, u8 val)
 	int ret;
 	int is_active;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 
 	is_active = mag3110_is_active(data);
-	if (is_active < 0) {
-		ret = is_active;
-		goto fail;
-	}
+	if (is_active < 0)
+		return is_active;
 
 	/* config can only be changed when in standby */
 	if (is_active > 0) {
 		ret = mag3110_standby(data);
 		if (ret < 0)
-			goto fail;
+			return ret;
 	}
 
 	/*
@@ -252,23 +246,52 @@ static int mag3110_change_config(struct mag3110_data *data, u8 reg, u8 val)
 	 */
 	ret = mag3110_wait_standby(data);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	ret = i2c_smbus_write_byte_data(data->client, reg, val);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	if (is_active > 0) {
 		ret = mag3110_active(data);
 		if (ret < 0)
-			goto fail;
+			return ret;
 	}
 
-	ret = 0;
-fail:
-	mutex_unlock(&data->lock);
+	return 0;
+}
 
-	return ret;
+static int __mag3110_read_info_raw(struct mag3110_data *data,
+				   struct iio_chan_spec const *chan,
+				   int *val)
+{
+	__be16 buffer[3];
+	int ret;
+
+	switch (chan->type) {
+	case IIO_MAGN: /* in 0.1 uT / LSB */
+		ret = mag3110_read(data, buffer);
+		if (ret < 0)
+			return ret;
+		*val = sign_extend32(be16_to_cpu(buffer[chan->scan_index]),
+				     chan->scan_type.realbits - 1);
+		return IIO_VAL_INT;
+
+	case IIO_TEMP: { /* in 1 C / LSB */
+		guard(mutex)(&data->lock);
+		ret = mag3110_request(data);
+		if (ret < 0)
+			return ret;
+		ret = i2c_smbus_read_byte_data(data->client,
+					       MAG3110_DIE_TEMP);
+		if (ret < 0)
+			return ret;
+		*val = sign_extend32(ret, chan->scan_type.realbits - 1);
+		return IIO_VAL_INT;
+	}
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mag3110_read_raw(struct iio_dev *indio_dev,
@@ -276,46 +299,14 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct mag3110_data *data = iio_priv(indio_dev);
-	__be16 buffer[3];
 	int i, ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		switch (chan->type) {
-		case IIO_MAGN: /* in 0.1 uT / LSB */
-			ret = mag3110_read(data, buffer);
-			if (ret < 0)
-				goto release;
-			*val = sign_extend32(
-				be16_to_cpu(buffer[chan->scan_index]),
-					    chan->scan_type.realbits - 1);
-			ret = IIO_VAL_INT;
-			break;
-		case IIO_TEMP: /* in 1 C / LSB */
-			mutex_lock(&data->lock);
-			ret = mag3110_request(data);
-			if (ret < 0) {
-				mutex_unlock(&data->lock);
-				goto release;
-			}
-			ret = i2c_smbus_read_byte_data(data->client,
-				MAG3110_DIE_TEMP);
-			mutex_unlock(&data->lock);
-			if (ret < 0)
-				goto release;
-			*val = sign_extend32(ret,
-					     chan->scan_type.realbits - 1);
-			ret = IIO_VAL_INT;
-			break;
-		default:
-			ret = -EINVAL;
-		}
-release:
-		iio_device_release_direct_mode(indio_dev);
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = __mag3110_read_info_raw(data, chan, val);
+		iio_device_release_direct(indio_dev);
 		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -346,24 +337,18 @@ release:
 	return -EINVAL;
 }
 
-static int mag3110_write_raw(struct iio_dev *indio_dev,
-			     struct iio_chan_spec const *chan,
-			     int val, int val2, long mask)
+static int __mag3110_write_raw(struct mag3110_data *data,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
 {
-	struct mag3110_data *data = iio_priv(indio_dev);
-	int rate, ret;
-
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	int rate;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		rate = mag3110_get_samp_freq_index(data, val, val2);
-		if (rate < 0) {
-			ret = -EINVAL;
-			break;
-		}
+		if (rate < 0)
+			return -EINVAL;
+
 		data->ctrl_reg1 &= 0xff & ~MAG3110_CTRL_DR_MASK
 					& ~MAG3110_CTRL_AC;
 		data->ctrl_reg1 |= rate << MAG3110_CTRL_DR_SHIFT;
@@ -371,22 +356,32 @@ static int mag3110_write_raw(struct iio_dev *indio_dev,
 		if (data->sleep_val < 40)
 			data->ctrl_reg1 |= MAG3110_CTRL_AC;
 
-		ret = mag3110_change_config(data, MAG3110_CTRL_REG1,
-					    data->ctrl_reg1);
-		break;
+		return mag3110_change_config(data, MAG3110_CTRL_REG1,
+					     data->ctrl_reg1);
+
 	case IIO_CHAN_INFO_CALIBBIAS:
-		if (val < -10000 || val > 10000) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = i2c_smbus_write_word_swapped(data->client,
+		if (val < -10000 || val > 10000)
+			return -EINVAL;
+
+		return i2c_smbus_write_word_swapped(data->client,
 			MAG3110_OFF_X + 2 * chan->scan_index, val << 1);
-		break;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	iio_device_release_direct_mode(indio_dev);
+}
+
+static int mag3110_write_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     int val, int val2, long mask)
+{
+	struct mag3110_data *data = iio_priv(indio_dev);
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+	ret = __mag3110_write_raw(data, chan, val, val2, mask);
+	iio_device_release_direct(indio_dev);
+
 	return ret;
 }
 
@@ -409,8 +404,8 @@ static irqreturn_t mag3110_trigger_handler(int irq, void *p)
 		data->scan.temperature = ret;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-		iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

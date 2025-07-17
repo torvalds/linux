@@ -7,6 +7,9 @@ protocol: genetlink-legacy
 doc: Partial family for Ethtool Netlink.
 uapi-header: linux/ethtool_netlink_generated.h
 
+c-family-name: ethtool-genl-name
+c-version-name: ethtool-genl-version
+
 definitions:
   -
     name: udp-tunnel-type
@@ -45,7 +48,7 @@ definitions:
         name: started
         doc: The firmware flashing process has started.
       -
-        name: in_progress
+        name: in-progress
         doc: The firmware flashing process is in progress.
       -
         name: completed
@@ -98,6 +101,24 @@ definitions:
     name: tcp-data-split
     type: enum
     entries: [ unknown, disabled, enabled ]
+  -
+    name: hwtstamp-source
+    doc: Source of the hardware timestamp
+    enum-name: hwtstamp-source
+    name-prefix: hwtstamp-source-
+    type: enum
+    entries:
+      -
+        name: netdev
+        doc: |
+          Hardware timestamp comes from a MAC or a device
+          which has MAC and PHY integrated
+        value: 1
+      -
+        name: phylib
+        doc: |
+          Hardware timestamp comes from one PHY device
+          of the network topology
 
 attribute-sets:
   -
@@ -896,6 +917,13 @@ attribute-sets:
         name: hwtstamp-provider
         type: nest
         nested-attributes: ts-hwtstamp-provider
+      -
+        name: hwtstamp-source
+        type: u32
+        enum: hwtstamp-source
+      -
+        name: hwtstamp-phyindex
+        type: u32
   -
     name: cable-result
     attr-cnt-name: __ethtool-a-cable-result-cnt
@@ -1394,7 +1422,7 @@ attribute-sets:
         name: hkey
         type: binary
       -
-        name: input_xfrm
+        name: input-xfrm
         type: u32
       -
         name: start-context
@@ -1981,6 +2009,8 @@ operations:
             - phc-index
             - stats
             - hwtstamp-provider
+            - hwtstamp-source
+            - hwtstamp-phyindex
       dump: *tsinfo-get-op
     -
       name: cable-test-act
@@ -2208,7 +2238,7 @@ operations:
             - hfunc
             - indir
             - hkey
-            - input_xfrm
+            - input-xfrm
       dump:
         request:
           attributes:

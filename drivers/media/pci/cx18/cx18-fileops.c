@@ -628,7 +628,7 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 
 void cx18_vb_timeout(struct timer_list *t)
 {
-	struct cx18_stream *s = from_timer(s, t, vb_timeout);
+	struct cx18_stream *s = timer_container_of(s, t, vb_timeout);
 
 	/*
 	 * Return all of the buffers in error state, so the vbi/vid inode

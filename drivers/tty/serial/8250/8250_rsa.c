@@ -43,6 +43,8 @@ static void rsa8250_release_resource(struct uart_8250_port *up)
 	case UPIO_PORT:
 		release_region(port->iobase + offset, size);
 		break;
+	default:
+		break;
 	}
 }
 

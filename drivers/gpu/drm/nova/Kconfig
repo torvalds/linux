@@ -1,0 +1,14 @@
+config DRM_NOVA
+	tristate "Nova DRM driver"
+	depends on DRM=y
+	depends on PCI
+	depends on RUST
+	select AUXILIARY_BUS
+	default n
+	help
+	  Choose this if you want to build the Nova DRM driver for Nvidia
+	  GSP-based GPUs.
+
+	  This driver is work in progress and may not be functional.
+
+	  If M is selected, the module will be called nova.

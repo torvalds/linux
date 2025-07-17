@@ -26,6 +26,8 @@
 #ifndef _CORE_STATUS_H_
 #define _CORE_STATUS_H_
 
+#include "dc_hw_types.h"
+
 enum dc_status {
 	DC_OK = 1,
 
@@ -56,6 +58,7 @@ enum dc_status {
 	DC_NO_LINK_ENC_RESOURCE = 26,
 	DC_FAIL_DP_PAYLOAD_ALLOCATION = 27,
 	DC_FAIL_DP_LINK_BANDWIDTH = 28,
+	DC_FAIL_HW_CURSOR_SUPPORT = 29,
 	DC_ERROR_UNEXPECTED = -1
 };
 

@@ -23,7 +23,7 @@ MODULE_DEVICE_TABLE(pci, pdsc_id_table);
 
 static void pdsc_wdtimer_cb(struct timer_list *t)
 {
-	struct pdsc *pdsc = from_timer(pdsc, t, wdtimer);
+	struct pdsc *pdsc = timer_container_of(pdsc, t, wdtimer);
 
 	dev_dbg(pdsc->dev, "%s: jiffies %ld\n", __func__, jiffies);
 	mod_timer(&pdsc->wdtimer,

@@ -301,7 +301,7 @@ top:
 
 static void v_timer(struct timer_list *t)
 {
-	struct vudc *udc = from_timer(udc, t, tr_timer.timer);
+	struct vudc *udc = timer_container_of(udc, t, tr_timer.timer);
 	struct transfer_timer *timer = &udc->tr_timer;
 	struct urbp *urb_p, *tmp;
 	unsigned long flags;

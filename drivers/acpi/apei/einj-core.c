@@ -766,7 +766,7 @@ static int __init einj_probe(struct faux_device *fdev)
 
 	rc = einj_get_available_error_type(&available_error_type);
 	if (rc)
-		return rc;
+		goto err_put_table;
 
 	rc = -ENOMEM;
 	einj_debug_dir = debugfs_create_dir("einj", apei_get_debugfs_dir());
@@ -883,19 +883,16 @@ static int __init einj_init(void)
 	}
 
 	einj_dev = faux_device_create("acpi-einj", NULL, &einj_device_ops);
-	if (!einj_dev)
-		return -ENODEV;
 
-	einj_initialized = true;
+	if (einj_dev)
+		einj_initialized = true;
 
 	return 0;
 }
 
 static void __exit einj_exit(void)
 {
-	if (einj_initialized)
-		faux_device_destroy(einj_dev);
-
+	faux_device_destroy(einj_dev);
 }
 
 module_init(einj_init);

@@ -16,7 +16,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.22";
+static const char *version_str = "v1.23";
 
 static const int supported_api_ver = 3;
 static struct isst_if_platform_info isst_platform_info;
@@ -26,6 +26,7 @@ static FILE *outf;
 
 static int cpu_model;
 static int cpu_stepping;
+static int extended_family;
 
 #define MAX_CPUS_IN_ONE_REQ 512
 static short max_target_cpus;
@@ -143,6 +144,14 @@ int is_icx_platform(void)
 	return 0;
 }
 
+static int is_dmr_plus_platform(void)
+{
+	if (extended_family == 0x04)
+		return 1;
+
+	return 0;
+}
+
 static int update_cpu_model(void)
 {
 	unsigned int ebx, ecx, edx;
@@ -150,6 +159,7 @@ static int update_cpu_model(void)
 
 	__cpuid(1, fms, ebx, ecx, edx);
 	family = (fms >> 8) & 0xf;
+	extended_family = (fms >> 20) & 0x0f;
 	cpu_model = (fms >> 4) & 0xf;
 	if (family == 6 || family == 0xf)
 		cpu_model += ((fms >> 16) & 0xf) << 4;
@@ -1517,7 +1527,8 @@ display_result:
 		usleep(2000);
 
 		/* Adjusting uncore freq */
-		isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
+		if (!is_dmr_plus_platform())
+			isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
 
 		fprintf(stderr, "Option is set to online/offline\n");
 		ctdp_level.core_cpumask_size =

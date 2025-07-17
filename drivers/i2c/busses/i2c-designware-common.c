@@ -572,8 +572,10 @@ u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 	 * Clock is not necessary if we got LCNT/HCNT values directly from
 	 * the platform code.
 	 */
-	if (WARN_ON_ONCE(!dev->get_clk_rate_khz))
+	if (!dev->get_clk_rate_khz) {
+		dev_dbg_once(dev->dev, "Callback get_clk_rate_khz() is not defined\n");
 		return 0;
+	}
 	return dev->get_clk_rate_khz(dev);
 }
 

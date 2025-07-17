@@ -1697,7 +1697,7 @@ static int ibmvfc_map_sg_data(struct scsi_cmnd *scmd,
  **/
 static void ibmvfc_timeout(struct timer_list *t)
 {
-	struct ibmvfc_event *evt = from_timer(evt, t, timer);
+	struct ibmvfc_event *evt = timer_container_of(evt, t, timer);
 	struct ibmvfc_host *vhost = evt->vhost;
 	dev_err(vhost->dev, "Command timed out (%p). Resetting connection\n", evt);
 	ibmvfc_reset_host(vhost);
@@ -4630,7 +4630,7 @@ static void ibmvfc_tgt_adisc_cancel_done(struct ibmvfc_event *evt)
  **/
 static void ibmvfc_adisc_timeout(struct timer_list *t)
 {
-	struct ibmvfc_target *tgt = from_timer(tgt, t, timer);
+	struct ibmvfc_target *tgt = timer_container_of(tgt, t, timer);
 	struct ibmvfc_host *vhost = tgt->vhost;
 	struct ibmvfc_event *evt;
 	struct ibmvfc_tmf *tmf;

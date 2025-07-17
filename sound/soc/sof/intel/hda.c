@@ -192,6 +192,9 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		res.ext = true;
 		res.ops = &sdw_ace2x_callback;
 
+		/* ACE3+ supports microphone privacy */
+		if (chip->hw_ip_version >= SOF_INTEL_ACE_3_0)
+			res.mic_privacy = true;
 	}
 	res.irq = sdev->ipc_irq;
 	res.handle = hdev->info.handle;
@@ -1254,11 +1257,11 @@ static int check_tplg_quirk_mask(struct snd_soc_acpi_mach *mach)
 	return 0;
 }
 
-static char *remove_file_ext(const char *tplg_filename)
+static char *remove_file_ext(struct device *dev, const char *tplg_filename)
 {
 	char *filename, *tmp;
 
-	filename = kstrdup(tplg_filename, GFP_KERNEL);
+	filename = devm_kstrdup(dev, tplg_filename, GFP_KERNEL);
 	if (!filename)
 		return NULL;
 
@@ -1342,7 +1345,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		 */
 		if (!sof_pdata->tplg_filename) {
 			/* remove file extension if it exists */
-			tplg_filename = remove_file_ext(mach->sof_tplg_filename);
+			tplg_filename = remove_file_ext(sdev->dev, mach->sof_tplg_filename);
 			if (!tplg_filename)
 				return NULL;
 

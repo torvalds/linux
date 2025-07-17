@@ -863,7 +863,7 @@ static int kvaser_pciefd_set_bittiming(struct kvaser_pciefd_can *can, bool data)
 	struct can_bittiming *bt;
 
 	if (data)
-		bt = &can->can.data_bittiming;
+		bt = &can->can.fd.data_bittiming;
 	else
 		bt = &can->can.bittiming;
 
@@ -937,7 +937,8 @@ static int kvaser_pciefd_get_berr_counter(const struct net_device *ndev,
 
 static void kvaser_pciefd_bec_poll_timer(struct timer_list *data)
 {
-	struct kvaser_pciefd_can *can = from_timer(can, data, bec_poll_timer);
+	struct kvaser_pciefd_can *can = timer_container_of(can, data,
+							   bec_poll_timer);
 
 	kvaser_pciefd_enable_err_gen(can);
 	kvaser_pciefd_request_status(can);
@@ -966,7 +967,7 @@ static int kvaser_pciefd_setup_can_ctrls(struct kvaser_pciefd *pcie)
 		u32 status, tx_nr_packets_max;
 
 		netdev = alloc_candev(sizeof(struct kvaser_pciefd_can),
-				      KVASER_PCIEFD_CAN_TX_MAX_COUNT);
+				      roundup_pow_of_two(KVASER_PCIEFD_CAN_TX_MAX_COUNT));
 		if (!netdev)
 			return -ENOMEM;
 
@@ -995,13 +996,12 @@ static int kvaser_pciefd_setup_can_ctrls(struct kvaser_pciefd *pcie)
 		can->tx_max_count = min(KVASER_PCIEFD_CAN_TX_MAX_COUNT, tx_nr_packets_max - 1);
 
 		can->can.clock.freq = pcie->freq;
-		can->can.echo_skb_max = roundup_pow_of_two(can->tx_max_count);
 		spin_lock_init(&can->lock);
 
 		can->can.bittiming_const = &kvaser_pciefd_bittiming_const;
-		can->can.data_bittiming_const = &kvaser_pciefd_bittiming_const;
+		can->can.fd.data_bittiming_const = &kvaser_pciefd_bittiming_const;
 		can->can.do_set_bittiming = kvaser_pciefd_set_nominal_bittiming;
-		can->can.do_set_data_bittiming = kvaser_pciefd_set_data_bittiming;
+		can->can.fd.do_set_data_bittiming = kvaser_pciefd_set_data_bittiming;
 		can->can.do_set_mode = kvaser_pciefd_set_mode;
 		can->can.do_get_berr_counter = kvaser_pciefd_get_berr_counter;
 		can->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY |

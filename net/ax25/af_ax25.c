@@ -287,7 +287,7 @@ void ax25_destroy_socket(ax25_cb *);
  */
 static void ax25_destroy_timer(struct timer_list *t)
 {
-	ax25_cb *ax25 = from_timer(ax25, t, dtimer);
+	ax25_cb *ax25 = timer_container_of(ax25, t, dtimer);
 	struct sock *sk;
 
 	sk=ax25->sk;

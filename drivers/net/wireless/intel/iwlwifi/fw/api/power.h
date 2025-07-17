@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_power_h__
 #define __iwl_fw_api_power_h__
+
+#include "nvm-reg.h"
 
 /* Power Management Commands, Responses, Notifications */
 
@@ -54,7 +56,7 @@ struct iwl_ltr_config_cmd_v1 {
  * @flags: See &enum iwl_ltr_config_flags
  * @static_long: static LTR Long register value.
  * @static_short: static LTR Short register value.
- * @ltr_cfg_values: LTR parameters table values (in usec) in folowing order:
+ * @ltr_cfg_values: LTR parameters table values (in usec) in following order:
  *	TX, RX, Short Idle, Long Idle. Used only if %LTR_CFG_FLAG_UPDATE_VALUES
  *	is set.
  * @ltr_short_idle_timeout: LTR Short Idle timeout (in usec). Used only if
@@ -89,6 +91,7 @@ struct iwl_ltr_config_cmd {
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
  * @POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
  *		detection enablement
+ * @POWER_FLAGS_ENABLE_SMPS_MSK: SMPS is allowed for this vif
 */
 enum iwl_power_flags {
 	POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
@@ -99,6 +102,7 @@ enum iwl_power_flags {
 	POWER_FLAGS_ADVANCE_PM_ENA_MSK		= BIT(9),
 	POWER_FLAGS_LPRX_ENA_MSK		= BIT(11),
 	POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK	= BIT(12),
+	POWER_FLAGS_ENABLE_SMPS_MSK		= BIT(14),
 };
 
 #define IWL_POWER_VEC_SIZE 5
@@ -216,7 +220,6 @@ struct iwl_mac_power_cmd {
 	/* CONTEXT_DESC_API_T_VER_1 */
 	__le32 id_and_color;
 
-	/* CLIENT_PM_POWER_TABLE_S_VER_1 */
 	__le16 flags;
 	__le16 keep_alive_seconds;
 	__le32 rx_data_timeout;
@@ -237,7 +240,7 @@ struct iwl_mac_power_cmd {
 	u8 heavy_rx_thld_percentage;
 	u8 limited_ps_threshold;
 	u8 reserved;
-} __packed;
+} __packed; /* CLIENT_PM_POWER_TABLE_S_VER_1, VER_2 */
 
 /*
  * struct iwl_uapsd_misbehaving_ap_notif - FW sends this notification when
@@ -628,34 +631,52 @@ enum iwl_ppag_flags {
 
 /**
  * union iwl_ppag_table_cmd - union for all versions of PPAG command
- * @v1: version 1
- * @v2: version 2
- * version 3, 4, 5 and 6 are the same structure as v2,
+ * @v1: command version 1 structure.
+ * @v2: command version from 2 to 6 are same structure as v2.
  *	but has a different format of the flags bitmap
+ * @v3: command version 7 structure.
  * @v1.flags: values from &enum iwl_ppag_flags
  * @v1.gain: table of antenna gain values per chain and sub-band
  * @v1.reserved: reserved
  * @v2.flags: values from &enum iwl_ppag_flags
  * @v2.gain: table of antenna gain values per chain and sub-band
- * @v2.reserved: reserved
+ * @v3.ppag_config_info: see @struct bios_value_u32
+ * @v3.gain: table of antenna gain values per chain and sub-band
+ * @v3.reserved: reserved
  */
 union iwl_ppag_table_cmd {
 	struct {
 		__le32 flags;
 		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
 		s8 reserved[2];
-	} v1;
+	} __packed v1; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_1 */
 	struct {
 		__le32 flags;
 		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
 		s8 reserved[2];
-	} v2;
+	} __packed v2; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_2, VER3, VER4,
+			* VER5, VER6
+			*/
+	struct {
+		struct bios_value_u32 ppag_config_info;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+		s8 reserved[2];
+	} __packed v3; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_7 */
 } __packed;
 
 #define IWL_PPAG_CMD_V4_MASK (IWL_PPAG_ETSI_MASK | IWL_PPAG_CHINA_MASK)
 #define IWL_PPAG_CMD_V5_MASK (IWL_PPAG_CMD_V4_MASK | \
 			      IWL_PPAG_ETSI_LPI_UHB_MASK | \
 			      IWL_PPAG_USA_LPI_UHB_MASK)
+
+#define IWL_PPAG_CMD_V6_MASK (IWL_PPAG_CMD_V5_MASK |		\
+			      IWL_PPAG_ETSI_VLP_UHB_MASK |	\
+			      IWL_PPAG_ETSI_SP_UHB_MASK |	\
+			      IWL_PPAG_USA_VLP_UHB_MASK |	\
+			      IWL_PPAG_USA_SP_UHB_MASK |	\
+			      IWL_PPAG_CANADA_LPI_UHB_MASK |	\
+			      IWL_PPAG_CANADA_VLP_UHB_MASK |	\
+			      IWL_PPAG_CANADA_SP_UHB_MASK)
 
 #define MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE	26
 #define MCC_TO_SAR_OFFSET_TABLE_COL_SIZE	13
@@ -690,7 +711,7 @@ struct iwl_sar_offset_mapping_cmd {
  *      Roaming Energy Delta Threshold, otherwise use normal Energy Delta
  *      Threshold. Typical energy threshold is -72dBm.
  * @bf_temp_threshold: This threshold determines the type of temperature
- *	filtering (Slow or Fast) that is selected (Units are in Celsuis):
+ *	filtering (Slow or Fast) that is selected (Units are in Celsius):
  *	If the current temperature is above this threshold - Fast filter
  *	will be used, If the current temperature is below this threshold -
  *	Slow filter will be used.
@@ -698,12 +719,12 @@ struct iwl_sar_offset_mapping_cmd {
  *      calculated for this and the last passed beacon is greater than this
  *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be  forced to be sent to driver
- *      regardless of whether its temerature has been changed.
+ *      regardless of whether its temperature has been changed.
  * @bf_temp_slow_filter: Send Beacon to driver if delta in temperature values
  *      calculated for this and the last passed beacon is greater than this
  *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be forced to be sent to driver
- *      regardless of whether its temerature has been changed.
+ *      regardless of whether its temperature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
  * @bf_debug_flag: beacon filtering debug configuration
  * @bf_escape_timer: Send beacons to to driver if no beacons were passed

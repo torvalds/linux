@@ -134,7 +134,7 @@ static void drm_gem_shmem_test_pin_pages(struct kunit *test)
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 0);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -142,14 +142,14 @@ static void drm_gem_shmem_test_pin_pages(struct kunit *test)
 	ret = drm_gem_shmem_pin(shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	KUNIT_ASSERT_NOT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 1);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 1);
 
 	for (i = 0; i < (shmem->base.size >> PAGE_SHIFT); i++)
 		KUNIT_ASSERT_NOT_NULL(test, shmem->pages[i]);
 
 	drm_gem_shmem_unpin(shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 0);
 }
 
 /*
@@ -168,24 +168,24 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_NULL(test, shmem->vaddr);
-	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->vmap_use_count), 0);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	ret = drm_gem_shmem_vmap(shmem, &map);
+	ret = drm_gem_shmem_vmap_locked(shmem, &map);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	KUNIT_ASSERT_NOT_NULL(test, shmem->vaddr);
 	KUNIT_ASSERT_FALSE(test, iosys_map_is_null(&map));
-	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 1);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->vmap_use_count), 1);
 
 	iosys_map_memset(&map, 0, TEST_BYTE, TEST_SIZE);
 	for (i = 0; i < TEST_SIZE; i++)
 		KUNIT_EXPECT_EQ(test, iosys_map_rd(&map, i, u8), TEST_BYTE);
 
-	drm_gem_shmem_vunmap(shmem, &map);
+	drm_gem_shmem_vunmap_locked(shmem, &map);
 	KUNIT_EXPECT_NULL(test, shmem->vaddr);
-	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->vmap_use_count), 0);
 }
 
 /*
@@ -254,7 +254,7 @@ static void drm_gem_shmem_test_get_sg_table(struct kunit *test)
 	sgt = drm_gem_shmem_get_pages_sgt(shmem);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sgt);
 	KUNIT_ASSERT_NOT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 1);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 1);
 	KUNIT_EXPECT_PTR_EQ(test, sgt, shmem->sgt);
 
 	for_each_sgtable_sg(sgt, sg, si) {
@@ -284,17 +284,17 @@ static void drm_gem_shmem_test_madvise(struct kunit *test)
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	ret = drm_gem_shmem_madvise(shmem, 1);
+	ret = drm_gem_shmem_madvise_locked(shmem, 1);
 	KUNIT_EXPECT_TRUE(test, ret);
 	KUNIT_ASSERT_EQ(test, shmem->madv, 1);
 
 	/* Set madv to a negative value */
-	ret = drm_gem_shmem_madvise(shmem, -1);
+	ret = drm_gem_shmem_madvise_locked(shmem, -1);
 	KUNIT_EXPECT_FALSE(test, ret);
 	KUNIT_ASSERT_EQ(test, shmem->madv, -1);
 
 	/* Check that madv cannot be set back to a positive value */
-	ret = drm_gem_shmem_madvise(shmem, 0);
+	ret = drm_gem_shmem_madvise_locked(shmem, 0);
 	KUNIT_EXPECT_FALSE(test, ret);
 	KUNIT_ASSERT_EQ(test, shmem->madv, -1);
 }
@@ -322,7 +322,7 @@ static void drm_gem_shmem_test_purge(struct kunit *test)
 	ret = drm_gem_shmem_is_purgeable(shmem);
 	KUNIT_EXPECT_FALSE(test, ret);
 
-	ret = drm_gem_shmem_madvise(shmem, 1);
+	ret = drm_gem_shmem_madvise_locked(shmem, 1);
 	KUNIT_EXPECT_TRUE(test, ret);
 
 	/* The scatter/gather table will be freed by drm_gem_shmem_free */
@@ -332,7 +332,7 @@ static void drm_gem_shmem_test_purge(struct kunit *test)
 	ret = drm_gem_shmem_is_purgeable(shmem);
 	KUNIT_EXPECT_TRUE(test, ret);
 
-	drm_gem_shmem_purge(shmem);
+	drm_gem_shmem_purge_locked(shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
 	KUNIT_EXPECT_NULL(test, shmem->sgt);
 	KUNIT_EXPECT_EQ(test, shmem->madv, -1);

@@ -349,7 +349,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 		/* Fill out the rest of the info structure */
 		info.addr = addr;
 		info.irq = irq_of_parse_and_map(node, 0);
-		info.of_node = of_node_get(node);
+		info.fwnode = of_fwnode_handle(of_node_get(node));
 
 		newdev = i2c_new_client_device(adap, &info);
 		if (IS_ERR(newdev)) {

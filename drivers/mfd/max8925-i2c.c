@@ -201,6 +201,7 @@ static void max8925_remove(struct i2c_client *client)
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	max8925_device_exit(chip);
+	device_init_wakeup(&client->dev, false);
 	i2c_unregister_device(chip->adc);
 	i2c_unregister_device(chip->rtc);
 }

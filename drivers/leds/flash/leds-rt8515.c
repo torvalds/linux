@@ -165,7 +165,7 @@ static const struct led_flash_ops rt8515_flash_ops = {
 
 static void rt8515_powerdown_timer(struct timer_list *t)
 {
-	struct rt8515 *rt = from_timer(rt, t, powerdown_timer);
+	struct rt8515 *rt = timer_container_of(rt, t, powerdown_timer);
 
 	/* Turn the LED off */
 	rt8515_gpio_led_off(rt);

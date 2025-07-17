@@ -402,7 +402,7 @@ struct handlers {
 	exception_handler_fn exception_handlers[NR_VECTORS][NR_EXCEPTIONS];
 };
 
-void route_exception(struct ex_regs *regs)
+void route_exception(struct pt_regs *regs)
 {
 	struct handlers *handlers = (struct handlers *)exception_handlers;
 	int vector = 0, ec;

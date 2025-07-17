@@ -123,65 +123,44 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 }
 
 int __bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
-				   enum btree_id id,
-				   struct bpos old_pos,
-				   struct bpos new_pos)
+				     enum btree_id btree, struct bpos pos,
+				     snapshot_id_list *s)
 {
-	struct bch_fs *c = trans->c;
-	struct btree_iter old_iter, new_iter = {};
-	struct bkey_s_c old_k, new_k;
-	snapshot_id_list s;
-	struct bkey_i *update;
 	int ret = 0;
 
-	if (!bch2_snapshot_has_children(c, old_pos.snapshot))
-		return 0;
+	darray_for_each(*s, id) {
+		pos.snapshot = *id;
 
-	darray_init(&s);
-
-	bch2_trans_iter_init(trans, &old_iter, id, old_pos,
-			     BTREE_ITER_not_extents|
-			     BTREE_ITER_all_snapshots);
-	while ((old_k = bch2_btree_iter_prev(trans, &old_iter)).k &&
-	       !(ret = bkey_err(old_k)) &&
-	       bkey_eq(old_pos, old_k.k->p)) {
-		struct bpos whiteout_pos =
-			SPOS(new_pos.inode, new_pos.offset, old_k.k->p.snapshot);
-
-		if (!bch2_snapshot_is_ancestor(c, old_k.k->p.snapshot, old_pos.snapshot) ||
-		    snapshot_list_has_ancestor(c, &s, old_k.k->p.snapshot))
-			continue;
-
-		new_k = bch2_bkey_get_iter(trans, &new_iter, id, whiteout_pos,
-					   BTREE_ITER_not_extents|
-					   BTREE_ITER_intent);
-		ret = bkey_err(new_k);
+		struct btree_iter iter;
+		struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, btree, pos,
+						       BTREE_ITER_not_extents|
+						       BTREE_ITER_intent);
+		ret = bkey_err(k);
 		if (ret)
 			break;
 
-		if (new_k.k->type == KEY_TYPE_deleted) {
-			update = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
+		if (k.k->type == KEY_TYPE_deleted) {
+			struct bkey_i *update = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
 			ret = PTR_ERR_OR_ZERO(update);
-			if (ret)
+			if (ret) {
+				bch2_trans_iter_exit(trans, &iter);
 				break;
+			}
 
 			bkey_init(&update->k);
-			update->k.p		= whiteout_pos;
+			update->k.p		= pos;
 			update->k.type		= KEY_TYPE_whiteout;
 
-			ret = bch2_trans_update(trans, &new_iter, update,
+			ret = bch2_trans_update(trans, &iter, update,
 						BTREE_UPDATE_internal_snapshot_node);
 		}
-		bch2_trans_iter_exit(trans, &new_iter);
+		bch2_trans_iter_exit(trans, &iter);
 
-		ret = snapshot_list_add(c, &s, old_k.k->p.snapshot);
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_exit(trans, &new_iter);
-	bch2_trans_iter_exit(trans, &old_iter);
-	darray_exit(&s);
 
+	darray_exit(s);
 	return ret;
 }
 
@@ -570,20 +549,26 @@ void *__bch2_trans_subbuf_alloc(struct btree_trans *trans,
 				unsigned u64s)
 {
 	unsigned new_top = buf->u64s + u64s;
-	unsigned old_size = buf->size;
+	unsigned new_size = buf->size;
 
-	if (new_top > buf->size)
-		buf->size = roundup_pow_of_two(new_top);
+	BUG_ON(roundup_pow_of_two(new_top) > U16_MAX);
 
-	void *n = bch2_trans_kmalloc_nomemzero(trans, buf->size * sizeof(u64));
+	if (new_top > new_size)
+		new_size = roundup_pow_of_two(new_top);
+
+	void *n = bch2_trans_kmalloc_nomemzero(trans, new_size * sizeof(u64));
 	if (IS_ERR(n))
 		return n;
+
+	unsigned offset = (u64 *) n - (u64 *) trans->mem;
+	BUG_ON(offset > U16_MAX);
 
 	if (buf->u64s)
 		memcpy(n,
 		       btree_trans_subbuf_base(trans, buf),
-		       old_size * sizeof(u64));
+		       buf->size * sizeof(u64));
 	buf->base = (u64 *) n - (u64 *) trans->mem;
+	buf->size = new_size;
 
 	void *p = btree_trans_subbuf_top(trans, buf);
 	buf->u64s = new_top;
@@ -608,7 +593,7 @@ int bch2_bkey_get_empty_slot(struct btree_trans *trans, struct btree_iter *iter,
 	BUG_ON(k.k->type != KEY_TYPE_deleted);
 
 	if (bkey_gt(k.k->p, end)) {
-		ret = -BCH_ERR_ENOSPC_btree_slot;
+		ret = bch_err_throw(trans->c, ENOSPC_btree_slot);
 		goto err;
 	}
 

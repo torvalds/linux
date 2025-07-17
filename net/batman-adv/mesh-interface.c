@@ -36,7 +36,6 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
@@ -74,18 +73,6 @@ int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 		return result;
 
 	skb_push(skb, len);
-	return 0;
-}
-
-static int batadv_interface_open(struct net_device *dev)
-{
-	netif_start_queue(dev);
-	return 0;
-}
-
-static int batadv_interface_release(struct net_device *dev)
-{
-	netif_stop_queue(dev);
 	return 0;
 }
 
@@ -890,8 +877,6 @@ out:
 
 static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_init = batadv_meshif_init_late,
-	.ndo_open = batadv_interface_open,
-	.ndo_stop = batadv_interface_release,
 	.ndo_get_stats = batadv_interface_stats,
 	.ndo_vlan_rx_add_vid = batadv_interface_add_vid,
 	.ndo_vlan_rx_kill_vid = batadv_interface_kill_vid,

@@ -564,14 +564,14 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 
 static void llc_shdlc_connect_timeout(struct timer_list *t)
 {
-	struct llc_shdlc *shdlc = from_timer(shdlc, t, connect_timer);
+	struct llc_shdlc *shdlc = timer_container_of(shdlc, t, connect_timer);
 
 	schedule_work(&shdlc->sm_work);
 }
 
 static void llc_shdlc_t1_timeout(struct timer_list *t)
 {
-	struct llc_shdlc *shdlc = from_timer(shdlc, t, t1_timer);
+	struct llc_shdlc *shdlc = timer_container_of(shdlc, t, t1_timer);
 
 	pr_debug("SoftIRQ: need to send ack\n");
 
@@ -580,7 +580,7 @@ static void llc_shdlc_t1_timeout(struct timer_list *t)
 
 static void llc_shdlc_t2_timeout(struct timer_list *t)
 {
-	struct llc_shdlc *shdlc = from_timer(shdlc, t, t2_timer);
+	struct llc_shdlc *shdlc = timer_container_of(shdlc, t, t2_timer);
 
 	pr_debug("SoftIRQ: need to retransmit\n");
 

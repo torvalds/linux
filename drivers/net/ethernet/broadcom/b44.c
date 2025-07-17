@@ -575,7 +575,7 @@ static void b44_check_phy(struct b44 *bp)
 
 static void b44_timer(struct timer_list *t)
 {
-	struct b44 *bp = from_timer(bp, t, timer);
+	struct b44 *bp = timer_container_of(bp, t, timer);
 
 	spin_lock_irq(&bp->lock);
 

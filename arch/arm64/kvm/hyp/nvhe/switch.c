@@ -33,66 +33,19 @@ DEFINE_PER_CPU(struct kvm_host_data, kvm_host_data);
 DEFINE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
 DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
 
+struct fgt_masks hfgrtr_masks;
+struct fgt_masks hfgwtr_masks;
+struct fgt_masks hfgitr_masks;
+struct fgt_masks hdfgrtr_masks;
+struct fgt_masks hdfgwtr_masks;
+struct fgt_masks hafgrtr_masks;
+struct fgt_masks hfgrtr2_masks;
+struct fgt_masks hfgwtr2_masks;
+struct fgt_masks hfgitr2_masks;
+struct fgt_masks hdfgrtr2_masks;
+struct fgt_masks hdfgwtr2_masks;
+
 extern void kvm_nvhe_prepare_backtrace(unsigned long fp, unsigned long pc);
-
-static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
-{
-	u64 val = CPTR_EL2_TAM;	/* Same bit irrespective of E2H */
-
-	if (!guest_owns_fp_regs())
-		__activate_traps_fpsimd32(vcpu);
-
-	if (has_hvhe()) {
-		val |= CPACR_EL1_TTA;
-
-		if (guest_owns_fp_regs()) {
-			val |= CPACR_EL1_FPEN;
-			if (vcpu_has_sve(vcpu))
-				val |= CPACR_EL1_ZEN;
-		}
-
-		write_sysreg(val, cpacr_el1);
-	} else {
-		val |= CPTR_EL2_TTA | CPTR_NVHE_EL2_RES1;
-
-		/*
-		 * Always trap SME since it's not supported in KVM.
-		 * TSM is RES1 if SME isn't implemented.
-		 */
-		val |= CPTR_EL2_TSM;
-
-		if (!vcpu_has_sve(vcpu) || !guest_owns_fp_regs())
-			val |= CPTR_EL2_TZ;
-
-		if (!guest_owns_fp_regs())
-			val |= CPTR_EL2_TFP;
-
-		write_sysreg(val, cptr_el2);
-	}
-}
-
-static void __deactivate_cptr_traps(struct kvm_vcpu *vcpu)
-{
-	if (has_hvhe()) {
-		u64 val = CPACR_EL1_FPEN;
-
-		if (cpus_have_final_cap(ARM64_SVE))
-			val |= CPACR_EL1_ZEN;
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN;
-
-		write_sysreg(val, cpacr_el1);
-	} else {
-		u64 val = CPTR_NVHE_EL2_RES1;
-
-		if (!cpus_have_final_cap(ARM64_SVE))
-			val |= CPTR_EL2_TZ;
-		if (!cpus_have_final_cap(ARM64_SME))
-			val |= CPTR_EL2_TSM;
-
-		write_sysreg(val, cptr_el2);
-	}
-}
 
 static void __activate_traps(struct kvm_vcpu *vcpu)
 {
@@ -142,7 +95,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	__deactivate_traps_common(vcpu);
 
-	write_sysreg(this_cpu_ptr(&kvm_init_params)->hcr_el2, hcr_el2);
+	write_sysreg_hcr(this_cpu_ptr(&kvm_init_params)->hcr_el2);
 
 	__deactivate_cptr_traps(vcpu);
 	write_sysreg(__kvm_hyp_host_vector, vbar_el2);

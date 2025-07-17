@@ -38,7 +38,9 @@
 #define LRC_ENGINE_CLASS			GENMASK_ULL(63, 61)
 #define LRC_ENGINE_INSTANCE			GENMASK_ULL(53, 48)
 
+#define LRC_PPHWSP_SIZE				SZ_4K
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
+#define LRC_WA_BB_SIZE				SZ_4K
 
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
@@ -51,19 +53,22 @@ size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
 	struct xe_device *xe = gt_to_xe(gt);
 	size_t size;
 
+	/* Per-process HW status page (PPHWSP) */
+	size = LRC_PPHWSP_SIZE;
+
+	/* Engine context image */
 	switch (class) {
 	case XE_ENGINE_CLASS_RENDER:
 		if (GRAPHICS_VER(xe) >= 20)
-			size = 4 * SZ_4K;
+			size += 3 * SZ_4K;
 		else
-			size = 14 * SZ_4K;
+			size += 13 * SZ_4K;
 		break;
 	case XE_ENGINE_CLASS_COMPUTE:
-		/* 14 pages since graphics_ver == 11 */
 		if (GRAPHICS_VER(xe) >= 20)
-			size = 3 * SZ_4K;
+			size += 2 * SZ_4K;
 		else
-			size = 14 * SZ_4K;
+			size += 13 * SZ_4K;
 		break;
 	default:
 		WARN(1, "Unknown engine class: %d", class);
@@ -72,7 +77,7 @@ size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
 	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
 	case XE_ENGINE_CLASS_OTHER:
-		size = 2 * SZ_4K;
+		size += 1 * SZ_4K;
 	}
 
 	/* Add indirect ring state page */
@@ -652,7 +657,6 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 #define LRC_CTX_JOB_TIMESTAMP_OFFSET (LRC_START_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
 #define LRC_ENGINE_ID_PPHWSP_OFFSET 2096
-#define LRC_PPHWSP_SIZE SZ_4K
 
 u32 xe_lrc_regs_offset(struct xe_lrc *lrc)
 {
@@ -906,11 +910,12 @@ static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)
 static void xe_lrc_finish(struct xe_lrc *lrc)
 {
 	xe_hw_fence_ctx_finish(&lrc->fence_ctx);
-	xe_bo_lock(lrc->bo, false);
-	xe_bo_unpin(lrc->bo);
-	xe_bo_unlock(lrc->bo);
-	xe_bo_put(lrc->bo);
-	xe_bo_unpin_map_no_vm(lrc->bb_per_ctx_bo);
+	xe_bo_unpin_map_no_vm(lrc->bo);
+}
+
+static size_t wa_bb_offset(struct xe_lrc *lrc)
+{
+	return lrc->bo->size - LRC_WA_BB_SIZE;
 }
 
 /*
@@ -941,11 +946,19 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
  * store it in the PPHSWP.
  */
 #define CONTEXT_ACTIVE 1ULL
-static void xe_lrc_setup_utilization(struct xe_lrc *lrc)
+static int xe_lrc_setup_utilization(struct xe_lrc *lrc)
 {
-	u32 *cmd;
+	const size_t max_size = LRC_WA_BB_SIZE;
+	u32 *cmd, *buf = NULL;
 
-	cmd = lrc->bb_per_ctx_bo->vmap.vaddr;
+	if (lrc->bo->vmap.is_iomem) {
+		buf = kmalloc(max_size, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+		cmd = buf;
+	} else {
+		cmd = lrc->bo->vmap.vaddr + wa_bb_offset(lrc);
+	}
 
 	*cmd++ = MI_STORE_REGISTER_MEM | MI_SRM_USE_GGTT | MI_SRM_ADD_CS_OFFSET;
 	*cmd++ = ENGINE_ID(0).addr;
@@ -966,9 +979,17 @@ static void xe_lrc_setup_utilization(struct xe_lrc *lrc)
 
 	*cmd++ = MI_BATCH_BUFFER_END;
 
-	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR,
-			     xe_bo_ggtt_addr(lrc->bb_per_ctx_bo) | 1);
+	if (buf) {
+		xe_map_memcpy_to(gt_to_xe(lrc->gt), &lrc->bo->vmap,
+				 wa_bb_offset(lrc), buf,
+				 (cmd - buf) * sizeof(*cmd));
+		kfree(buf);
+	}
 
+	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR, xe_bo_ggtt_addr(lrc->bo) +
+			     wa_bb_offset(lrc) + 1);
+
+	return 0;
 }
 
 #define PVC_CTX_ASID		(0x2e + 1)
@@ -997,24 +1018,19 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
 		   XE_BO_FLAG_GGTT_INVALIDATE;
+	if (vm && vm->xef) /* userspace */
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE;
 
 	/*
 	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
 	 * via VM bind calls.
 	 */
-	lrc->bo = xe_bo_create_pin_map(xe, tile, vm, lrc_size,
+	lrc->bo = xe_bo_create_pin_map(xe, tile, NULL,
+				       lrc_size + LRC_WA_BB_SIZE,
 				       ttm_bo_type_kernel,
 				       bo_flags);
 	if (IS_ERR(lrc->bo))
 		return PTR_ERR(lrc->bo);
-
-	lrc->bb_per_ctx_bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K,
-						  ttm_bo_type_kernel,
-						  bo_flags);
-	if (IS_ERR(lrc->bb_per_ctx_bo)) {
-		err = PTR_ERR(lrc->bb_per_ctx_bo);
-		goto err_lrc_finish;
-	}
 
 	lrc->size = lrc_size;
 	lrc->ring.size = ring_size;
@@ -1123,7 +1139,9 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	map = __xe_lrc_start_seqno_map(lrc);
 	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
 
-	xe_lrc_setup_utilization(lrc);
+	err = xe_lrc_setup_utilization(lrc);
+	if (err)
+		goto err_lrc_finish;
 
 	return 0;
 
@@ -1566,6 +1584,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_CLIP_MESH);
 	MATCH3D(3DSTATE_SBE_MESH);
 	MATCH3D(3DSTATE_CPSIZE_CONTROL_BUFFER);
+	MATCH3D(3DSTATE_COARSE_PIXEL);
 
 	MATCH3D(3DSTATE_DRAWING_RECTANGLE);
 	MATCH3D(3DSTATE_CHROMA_KEY);
@@ -1789,9 +1808,6 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 	if (!snapshot)
 		return NULL;
 
-	if (lrc->bo->vm)
-		xe_vm_get(lrc->bo->vm);
-
 	snapshot->context_desc = xe_lrc_ggtt_addr(lrc);
 	snapshot->ring_addr = __xe_lrc_ring_ggtt_addr(lrc);
 	snapshot->indirect_context_desc = xe_lrc_indirect_ring_ggtt_addr(lrc);
@@ -1803,7 +1819,8 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 	snapshot->seqno = xe_lrc_seqno(lrc);
 	snapshot->lrc_bo = xe_bo_get(lrc->bo);
 	snapshot->lrc_offset = xe_lrc_pphwsp_offset(lrc);
-	snapshot->lrc_size = lrc->bo->size - snapshot->lrc_offset;
+	snapshot->lrc_size = lrc->bo->size - snapshot->lrc_offset -
+		LRC_WA_BB_SIZE;
 	snapshot->lrc_snapshot = NULL;
 	snapshot->ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(lrc));
 	snapshot->ctx_job_timestamp = xe_lrc_ctx_job_timestamp(lrc);
@@ -1813,14 +1830,12 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 void xe_lrc_snapshot_capture_delayed(struct xe_lrc_snapshot *snapshot)
 {
 	struct xe_bo *bo;
-	struct xe_vm *vm;
 	struct iosys_map src;
 
 	if (!snapshot)
 		return;
 
 	bo = snapshot->lrc_bo;
-	vm = bo->vm;
 	snapshot->lrc_bo = NULL;
 
 	snapshot->lrc_snapshot = kvmalloc(snapshot->lrc_size, GFP_KERNEL);
@@ -1840,8 +1855,6 @@ void xe_lrc_snapshot_capture_delayed(struct xe_lrc_snapshot *snapshot)
 	xe_bo_unlock(bo);
 put_bo:
 	xe_bo_put(bo);
-	if (vm)
-		xe_vm_put(vm);
 }
 
 void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer *p)
@@ -1894,14 +1907,9 @@ void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot)
 		return;
 
 	kvfree(snapshot->lrc_snapshot);
-	if (snapshot->lrc_bo) {
-		struct xe_vm *vm;
-
-		vm = snapshot->lrc_bo->vm;
+	if (snapshot->lrc_bo)
 		xe_bo_put(snapshot->lrc_bo);
-		if (vm)
-			xe_vm_put(vm);
-	}
+
 	kfree(snapshot);
 }
 

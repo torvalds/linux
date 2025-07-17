@@ -948,7 +948,7 @@ int au0828_analog_unregister(struct au0828_dev *dev)
    such as tvtime from hanging) */
 static void au0828_vid_buffer_timeout(struct timer_list *t)
 {
-	struct au0828_dev *dev = from_timer(dev, t, vid_timeout);
+	struct au0828_dev *dev = timer_container_of(dev, t, vid_timeout);
 	struct au0828_dmaqueue *dma_q = &dev->vidq;
 	struct au0828_buffer *buf;
 	unsigned char *vid_data;
@@ -972,7 +972,7 @@ static void au0828_vid_buffer_timeout(struct timer_list *t)
 
 static void au0828_vbi_buffer_timeout(struct timer_list *t)
 {
-	struct au0828_dev *dev = from_timer(dev, t, vbi_timeout);
+	struct au0828_dev *dev = timer_container_of(dev, t, vbi_timeout);
 	struct au0828_dmaqueue *dma_q = &dev->vbiq;
 	struct au0828_buffer *buf;
 	unsigned char *vbi_data;

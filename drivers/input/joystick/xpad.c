@@ -105,6 +105,8 @@
 #define PKT_XBE2_FW_5_EARLY 3
 #define PKT_XBE2_FW_5_11    4
 
+#define FLAG_DELAY_INIT BIT(0)
+
 static bool dpad_to_buttons;
 module_param(dpad_to_buttons, bool, S_IRUGO);
 MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unknown pads");
@@ -127,6 +129,7 @@ static const struct xpad_device {
 	char *name;
 	u8 mapping;
 	u8 xtype;
+	u8 flags;
 } xpad_device[] = {
 	/* Please keep this list sorted by vendor and product ID. */
 	{ 0x0079, 0x18d4, "GPD Win 2 X-Box Controller", 0, XTYPE_XBOX360 },
@@ -174,6 +177,7 @@ static const struct xpad_device {
 	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", 0, XTYPE_XBOX },
 	{ 0x05fe, 0x3030, "Chic Controller", 0, XTYPE_XBOX },
 	{ 0x05fe, 0x3031, "Chic Controller", 0, XTYPE_XBOX },
+	{ 0x0502, 0x1305, "Acer NGR200", 0, XTYPE_XBOX },
 	{ 0x062a, 0x0020, "Logic3 Xbox GamePad", 0, XTYPE_XBOX },
 	{ 0x062a, 0x0033, "Competition Pro Steering Wheel", 0, XTYPE_XBOX },
 	{ 0x06a3, 0x0200, "Saitek Racing Wheel", 0, XTYPE_XBOX },
@@ -416,6 +420,7 @@ static const struct xpad_device {
 	{ 0x3285, 0x0663, "Nacon Evol-X", 0, XTYPE_XBOXONE },
 	{ 0x3537, 0x1004, "GameSir T4 Kaleid", 0, XTYPE_XBOX360 },
 	{ 0x3537, 0x1010, "GameSir G7 SE", 0, XTYPE_XBOXONE },
+	{ 0x366c, 0x0005, "ByoWave Proteus Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE, FLAG_DELAY_INIT },
 	{ 0x3767, 0x0101, "Fanatec Speedster 3 Forceshock Wheel", 0, XTYPE_XBOX },
 	{ 0x413d, 0x2104, "Black Shark Green Ghost Gamepad", 0, XTYPE_XBOX360 },
 	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", 0, XTYPE_XBOX },
@@ -520,6 +525,7 @@ static const struct usb_device_id xpad_table[] = {
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft Xbox 360 controllers */
 	XPAD_XBOXONE_VENDOR(0x045e),		/* Microsoft Xbox One controllers */
 	XPAD_XBOX360_VENDOR(0x046d),		/* Logitech Xbox 360-style controllers */
+	XPAD_XBOX360_VENDOR(0x0502),		/* Acer Inc. Xbox 360 style controllers */
 	XPAD_XBOX360_VENDOR(0x056e),		/* Elecom JC-U3613M */
 	XPAD_XBOX360_VENDOR(0x06a3),		/* Saitek P3600 */
 	XPAD_XBOX360_VENDOR(0x0738),		/* Mad Catz Xbox 360 controllers */
@@ -571,6 +577,7 @@ static const struct usb_device_id xpad_table[] = {
 	XPAD_XBOXONE_VENDOR(0x3285),		/* Nacon Evol-X */
 	XPAD_XBOX360_VENDOR(0x3537),		/* GameSir Controllers */
 	XPAD_XBOXONE_VENDOR(0x3537),		/* GameSir Controllers */
+	XPAD_XBOXONE_VENDOR(0x366c),		/* ByoWave controllers */
 	XPAD_XBOX360_VENDOR(0x413d),		/* Black Shark Green Ghost Controller */
 	{ }
 };
@@ -599,6 +606,7 @@ struct xboxone_init_packet {
  * - https://github.com/medusalix/xone/blob/master/bus/protocol.c
  */
 #define GIP_CMD_ACK      0x01
+#define GIP_CMD_ANNOUNCE 0x02
 #define GIP_CMD_IDENTIFY 0x04
 #define GIP_CMD_POWER    0x05
 #define GIP_CMD_AUTHENTICATE 0x06
@@ -673,20 +681,19 @@ static const u8 xboxone_hori_ack_id[] = {
 };
 
 /*
- * This packet is required for most (all?) of the PDP pads to start
- * sending input reports. These pads include: (0x0e6f:0x02ab),
- * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
+ * This packet is sent by default on Windows, and is required for some pads to
+ * start sending input reports, including most (all?) of the PDP. These pads
+ * include: (0x0e6f:0x02ab), (0x0e6f:0x02a4), (0x0e6f:0x02a6).
  */
-static const u8 xboxone_pdp_led_on[] = {
-	GIP_CMD_LED, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(3), 0x00, GIP_LED_ON, 0x14
-};
+static const u8 xboxone_led_on[] = { GIP_CMD_LED, GIP_OPT_INTERNAL, GIP_SEQ0,
+GIP_PL_LEN(3), 0x00, GIP_LED_ON, 0x14 };
 
 /*
  * This packet is required for most (all?) of the PDP pads to start
  * sending input reports. These pads include: (0x0e6f:0x02ab),
  * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
  */
-static const u8 xboxone_pdp_auth[] = {
+static const u8 xboxone_auth_done[] = {
 	GIP_CMD_AUTHENTICATE, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(2), 0x01, 0x00
 };
 
@@ -723,12 +730,8 @@ static const struct xboxone_init_packet xboxone_init_packets[] = {
 	XBOXONE_INIT_PKT(0x045e, 0x02ea, xboxone_s_init),
 	XBOXONE_INIT_PKT(0x045e, 0x0b00, xboxone_s_init),
 	XBOXONE_INIT_PKT(0x045e, 0x0b00, extra_input_packet_init),
-	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_led_on),
-	XBOXONE_INIT_PKT(0x0f0d, 0x01b2, xboxone_pdp_led_on),
-	XBOXONE_INIT_PKT(0x20d6, 0xa01a, xboxone_pdp_led_on),
-	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_auth),
-	XBOXONE_INIT_PKT(0x0f0d, 0x01b2, xboxone_pdp_auth),
-	XBOXONE_INIT_PKT(0x20d6, 0xa01a, xboxone_pdp_auth),
+	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_led_on),
+	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_auth_done),
 	XBOXONE_INIT_PKT(0x24c6, 0x541a, xboxone_rumblebegin_init),
 	XBOXONE_INIT_PKT(0x24c6, 0x542a, xboxone_rumblebegin_init),
 	XBOXONE_INIT_PKT(0x24c6, 0x543a, xboxone_rumblebegin_init),
@@ -788,10 +791,13 @@ struct usb_xpad {
 	const char *name;		/* name of the device */
 	struct work_struct work;	/* init/remove device from callback */
 	time64_t mode_btn_down_ts;
+	bool delay_init;		/* init packets should be delayed */
+	bool delayed_init_done;
 };
 
 static int xpad_init_input(struct usb_xpad *xpad);
 static void xpad_deinit_input(struct usb_xpad *xpad);
+static int xpad_start_input(struct usb_xpad *xpad);
 static void xpadone_ack_mode_report(struct usb_xpad *xpad, u8 seq_num);
 static void xpad360w_poweroff_controller(struct usb_xpad *xpad);
 
@@ -1076,6 +1082,17 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 
 			do_sync = true;
 		}
+	} else if (data[0] == GIP_CMD_ANNOUNCE) {
+		int error;
+
+		if (xpad->delay_init && !xpad->delayed_init_done) {
+			xpad->delayed_init_done = true;
+			error = xpad_start_input(xpad);
+			if (error)
+				dev_warn(&xpad->dev->dev,
+					 "unable to start delayed input: %d\n",
+					 error);
+		}
 	} else if (data[0] == GIP_CMD_INPUT) { /* The main valid packet type for inputs */
 		/* menu/view buttons */
 		input_report_key(dev, BTN_START,  data[4] & BIT(2));
@@ -1254,6 +1271,14 @@ static bool xpad_prepare_next_init_packet(struct usb_xpad *xpad)
 	if (xpad->xtype != XTYPE_XBOXONE)
 		return false;
 
+	/*
+	 * Some dongles will discard init packets if they're sent before the
+	 * controller connects. In these cases, we need to wait until we get
+	 * an announce packet from them to send the init packet sequence.
+	 */
+	if (xpad->delay_init && !xpad->delayed_init_done)
+		return false;
+
 	/* Perform initialization sequence for Xbox One pads that require it */
 	while (xpad->init_seq < ARRAY_SIZE(xboxone_init_packets)) {
 		init_packet = &xboxone_init_packets[xpad->init_seq++];
@@ -1321,11 +1346,12 @@ static int xpad_try_sending_next_out_packet(struct usb_xpad *xpad)
 		usb_anchor_urb(xpad->irq_out, &xpad->irq_out_anchor);
 		error = usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
 		if (error) {
-			dev_err(&xpad->intf->dev,
-				"%s - usb_submit_urb failed with result %d\n",
-				__func__, error);
+			if (error != -ENODEV)
+				dev_err(&xpad->intf->dev,
+					"%s - usb_submit_urb failed with result %d\n",
+					__func__, error);
 			usb_unanchor_urb(xpad->irq_out);
-			return -EIO;
+			return error;
 		}
 
 		xpad->irq_out_active = true;
@@ -2069,6 +2095,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->mapping = xpad_device[i].mapping;
 	xpad->xtype = xpad_device[i].xtype;
 	xpad->name = xpad_device[i].name;
+	if (xpad_device[i].flags & FLAG_DELAY_INIT)
+		xpad->delay_init = true;
+
 	xpad->packet_type = PKT_XB;
 	INIT_WORK(&xpad->work, xpad_presence_work);
 
@@ -2268,6 +2297,7 @@ static int xpad_resume(struct usb_interface *intf)
 	struct usb_xpad *xpad = usb_get_intfdata(intf);
 	struct input_dev *input = xpad->dev;
 
+	xpad->delayed_init_done = false;
 	if (xpad->xtype == XTYPE_XBOX360W)
 		return xpad360w_start_input(xpad);
 

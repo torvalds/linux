@@ -57,12 +57,50 @@ use pin_init::{InPlaceWrite, Init, PinInit, ZeroableOption};
 /// assert!(KVBox::<Huge>::new_uninit(GFP_KERNEL).is_ok());
 /// ```
 ///
+/// [`Box`]es can also be used to store trait objects by coercing their type:
+///
+/// ```
+/// trait FooTrait {}
+///
+/// struct FooStruct;
+/// impl FooTrait for FooStruct {}
+///
+/// let _ = KBox::new(FooStruct, GFP_KERNEL)? as KBox<dyn FooTrait>;
+/// # Ok::<(), Error>(())
+/// ```
+///
 /// # Invariants
 ///
 /// `self.0` is always properly aligned and either points to memory allocated with `A` or, for
 /// zero-sized types, is a dangling, well aligned pointer.
 #[repr(transparent)]
-pub struct Box<T: ?Sized, A: Allocator>(NonNull<T>, PhantomData<A>);
+#[cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, derive(core::marker::CoercePointee))]
+pub struct Box<#[cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, pointee)] T: ?Sized, A: Allocator>(
+    NonNull<T>,
+    PhantomData<A>,
+);
+
+// This is to allow coercion from `Box<T, A>` to `Box<U, A>` if `T` can be converted to the
+// dynamically-sized type (DST) `U`.
+#[cfg(not(CONFIG_RUSTC_HAS_COERCE_POINTEE))]
+impl<T, U, A> core::ops::CoerceUnsized<Box<U, A>> for Box<T, A>
+where
+    T: ?Sized + core::marker::Unsize<U>,
+    U: ?Sized,
+    A: Allocator,
+{
+}
+
+// This is to allow `Box<U, A>` to be dispatched on when `Box<T, A>` can be coerced into `Box<U,
+// A>`.
+#[cfg(not(CONFIG_RUSTC_HAS_COERCE_POINTEE))]
+impl<T, U, A> core::ops::DispatchFromDyn<Box<U, A>> for Box<T, A>
+where
+    T: ?Sized + core::marker::Unsize<U>,
+    U: ?Sized,
+    A: Allocator,
+{
+}
 
 /// Type alias for [`Box`] with a [`Kmalloc`] allocator.
 ///
@@ -101,7 +139,7 @@ pub type VBox<T> = Box<T, super::allocator::Vmalloc>;
 pub type KVBox<T> = Box<T, super::allocator::KVmalloc>;
 
 // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
-// https://doc.rust-lang.org/stable/std/option/index.html#representation).
+// <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
 unsafe impl<T, A: Allocator> ZeroableOption for Box<T, A> {}
 
 // SAFETY: `Box` is `Send` if `T` is `Send` because the `Box` owns a `T`.
@@ -360,68 +398,70 @@ where
     }
 }
 
-impl<T: 'static, A> ForeignOwnable for Box<T, A>
+// SAFETY: The `into_foreign` function returns a pointer that is well-aligned.
+unsafe impl<T: 'static, A> ForeignOwnable for Box<T, A>
 where
     A: Allocator,
 {
+    type PointedTo = T;
     type Borrowed<'a> = &'a T;
     type BorrowedMut<'a> = &'a mut T;
 
-    fn into_foreign(self) -> *mut crate::ffi::c_void {
-        Box::into_raw(self).cast()
+    fn into_foreign(self) -> *mut Self::PointedTo {
+        Box::into_raw(self)
     }
 
-    unsafe fn from_foreign(ptr: *mut crate::ffi::c_void) -> Self {
+    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Box::from_raw(ptr.cast()) }
+        unsafe { Box::from_raw(ptr) }
     }
 
-    unsafe fn borrow<'a>(ptr: *mut crate::ffi::c_void) -> &'a T {
+    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> &'a T {
         // SAFETY: The safety requirements of this method ensure that the object remains alive and
         // immutable for the duration of 'a.
-        unsafe { &*ptr.cast() }
+        unsafe { &*ptr }
     }
 
-    unsafe fn borrow_mut<'a>(ptr: *mut crate::ffi::c_void) -> &'a mut T {
-        let ptr = ptr.cast();
+    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> &'a mut T {
         // SAFETY: The safety requirements of this method ensure that the pointer is valid and that
         // nothing else will access the value for the duration of 'a.
         unsafe { &mut *ptr }
     }
 }
 
-impl<T: 'static, A> ForeignOwnable for Pin<Box<T, A>>
+// SAFETY: The `into_foreign` function returns a pointer that is well-aligned.
+unsafe impl<T: 'static, A> ForeignOwnable for Pin<Box<T, A>>
 where
     A: Allocator,
 {
+    type PointedTo = T;
     type Borrowed<'a> = Pin<&'a T>;
     type BorrowedMut<'a> = Pin<&'a mut T>;
 
-    fn into_foreign(self) -> *mut crate::ffi::c_void {
+    fn into_foreign(self) -> *mut Self::PointedTo {
         // SAFETY: We are still treating the box as pinned.
-        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) }).cast()
+        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) })
     }
 
-    unsafe fn from_foreign(ptr: *mut crate::ffi::c_void) -> Self {
+    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Pin::new_unchecked(Box::from_raw(ptr.cast())) }
+        unsafe { Pin::new_unchecked(Box::from_raw(ptr)) }
     }
 
-    unsafe fn borrow<'a>(ptr: *mut crate::ffi::c_void) -> Pin<&'a T> {
+    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> Pin<&'a T> {
         // SAFETY: The safety requirements for this function ensure that the object is still alive,
         // so it is safe to dereference the raw pointer.
         // The safety requirements of `from_foreign` also ensure that the object remains alive for
         // the lifetime of the returned value.
-        let r = unsafe { &*ptr.cast() };
+        let r = unsafe { &*ptr };
 
         // SAFETY: This pointer originates from a `Pin<Box<T>>`.
         unsafe { Pin::new_unchecked(r) }
     }
 
-    unsafe fn borrow_mut<'a>(ptr: *mut crate::ffi::c_void) -> Pin<&'a mut T> {
-        let ptr = ptr.cast();
+    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> Pin<&'a mut T> {
         // SAFETY: The safety requirements for this function ensure that the object is still alive,
         // so it is safe to dereference the raw pointer.
         // The safety requirements of `from_foreign` also ensure that the object remains alive for

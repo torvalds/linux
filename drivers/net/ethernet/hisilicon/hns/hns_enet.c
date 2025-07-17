@@ -2075,7 +2075,7 @@ static void hns_nic_task_schedule(struct hns_nic_priv *priv)
 
 static void hns_nic_service_timer(struct timer_list *t)
 {
-	struct hns_nic_priv *priv = from_timer(priv, t, service_timer);
+	struct hns_nic_priv *priv = timer_container_of(priv, t, service_timer);
 
 	(void)mod_timer(&priv->service_timer, jiffies + SERVICE_TIMER_HZ);
 

@@ -183,6 +183,7 @@ enum atom_dgpu_vram_type {
   ATOM_DGPU_VRAM_TYPE_HBM2E = 0x61,
   ATOM_DGPU_VRAM_TYPE_GDDR6 = 0x70,
   ATOM_DGPU_VRAM_TYPE_HBM3 = 0x80,
+	ATOM_DGPU_VRAM_TYPE_HBM3E = 0x81,
 };
 
 enum atom_dp_vs_preemph_def{
@@ -1713,7 +1714,7 @@ enum atom_system_vbiosmisc_def{
 
 // gpucapinfo
 enum atom_system_gpucapinf_def{
-  SYS_INFO_GPUCAPS__ENABEL_DFS_BYPASS  = 0x10,
+  SYS_INFO_GPUCAPS__ENABLE_DFS_BYPASS  = 0x10,
 };
 
 //dpphy_override

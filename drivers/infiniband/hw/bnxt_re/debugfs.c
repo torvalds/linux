@@ -170,6 +170,9 @@ static int map_cc_config_offset_gen0_ext0(u32 offset, struct bnxt_qplib_cc_param
 	case CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TCP_CP:
 		*val =  ccparam->tcp_cp;
 		break;
+	case CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_INACTIVITY_CP:
+		*val = ccparam->inact_th;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -203,7 +206,7 @@ static ssize_t bnxt_re_cc_config_get(struct file *filp, char __user *buffer,
 	return simple_read_from_buffer(buffer, usr_buf_len, ppos, (u8 *)(buf), rc);
 }
 
-static void bnxt_re_fill_gen0_ext0(struct bnxt_qplib_cc_param *ccparam, u32 offset, u32 val)
+static int bnxt_re_fill_gen0_ext0(struct bnxt_qplib_cc_param *ccparam, u32 offset, u32 val)
 {
 	u32 modify_mask;
 
@@ -247,7 +250,9 @@ static void bnxt_re_fill_gen0_ext0(struct bnxt_qplib_cc_param *ccparam, u32 offs
 		ccparam->tcp_cp = val;
 		break;
 	case CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TX_QUEUE:
+		return -EOPNOTSUPP;
 	case CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_INACTIVITY_CP:
+		ccparam->inact_th = val;
 		break;
 	case CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TIME_PER_PHASE:
 		ccparam->time_pph = val;
@@ -258,17 +263,20 @@ static void bnxt_re_fill_gen0_ext0(struct bnxt_qplib_cc_param *ccparam, u32 offs
 	}
 
 	ccparam->mask = modify_mask;
+	return 0;
 }
 
 static int bnxt_re_configure_cc(struct bnxt_re_dev *rdev, u32 gen_ext, u32 offset, u32 val)
 {
 	struct bnxt_qplib_cc_param ccparam = { };
+	int rc;
 
-	/* Supporting only Gen 0 now */
-	if (gen_ext == CC_CONFIG_GEN0_EXT0)
-		bnxt_re_fill_gen0_ext0(&ccparam, offset, val);
-	else
-		return -EINVAL;
+	if (gen_ext != CC_CONFIG_GEN0_EXT0)
+		return -EOPNOTSUPP;
+
+	rc = bnxt_re_fill_gen0_ext0(&ccparam, offset, val);
+	if (rc)
+		return rc;
 
 	bnxt_qplib_modify_cc(&rdev->qplib_res, &ccparam);
 	return 0;

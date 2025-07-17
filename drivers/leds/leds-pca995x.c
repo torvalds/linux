@@ -197,7 +197,7 @@ MODULE_DEVICE_TABLE(i2c, pca995x_id);
 
 static const struct of_device_id pca995x_of_match[] = {
 	{ .compatible = "nxp,pca9952", .data = &pca9952_chipdef },
-	{ .compatible = "nxp,pca9955b", . data = &pca9955b_chipdef },
+	{ .compatible = "nxp,pca9955b", .data = &pca9955b_chipdef },
 	{ .compatible = "nxp,pca9956b", .data = &pca9956b_chipdef },
 	{},
 };

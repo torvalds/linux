@@ -105,13 +105,15 @@ static int rb532_gpio_get(struct gpio_chip *chip, unsigned offset)
 /*
  * Set output GPIO level
  */
-static void rb532_gpio_set(struct gpio_chip *chip,
-				unsigned offset, int value)
+static int rb532_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct rb532_gpio_chip	*gpch;
 
 	gpch = gpiochip_get_data(chip);
 	rb532_set_bit(value, offset, gpch->regbase + GPIOD);
+
+	return 0;
 }
 
 /*
@@ -162,7 +164,7 @@ static struct rb532_gpio_chip rb532_gpio_chip[] = {
 			.direction_input	= rb532_gpio_direction_input,
 			.direction_output	= rb532_gpio_direction_output,
 			.get			= rb532_gpio_get,
-			.set			= rb532_gpio_set,
+			.set_rv			= rb532_gpio_set,
 			.to_irq			= rb532_gpio_to_irq,
 			.base			= 0,
 			.ngpio			= 32,

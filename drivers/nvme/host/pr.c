@@ -82,8 +82,6 @@ static int nvme_status_to_pr_err(int status)
 		return PR_STS_SUCCESS;
 	case NVME_SC_RESERVATION_CONFLICT:
 		return PR_STS_RESERVATION_CONFLICT;
-	case NVME_SC_ONCS_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
 	case NVME_SC_BAD_ATTRIBUTES:
 	case NVME_SC_INVALID_OPCODE:
 	case NVME_SC_INVALID_FIELD:

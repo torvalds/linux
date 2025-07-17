@@ -108,6 +108,10 @@ extern const struct raid6_calls raid6_vpermxor4;
 extern const struct raid6_calls raid6_vpermxor8;
 extern const struct raid6_calls raid6_lsx;
 extern const struct raid6_calls raid6_lasx;
+extern const struct raid6_calls raid6_rvvx1;
+extern const struct raid6_calls raid6_rvvx2;
+extern const struct raid6_calls raid6_rvvx4;
+extern const struct raid6_calls raid6_rvvx8;
 
 struct raid6_recov_calls {
 	void (*data2)(int, size_t, int, int, void **);
@@ -125,6 +129,7 @@ extern const struct raid6_recov_calls raid6_recov_s390xc;
 extern const struct raid6_recov_calls raid6_recov_neon;
 extern const struct raid6_recov_calls raid6_recov_lsx;
 extern const struct raid6_recov_calls raid6_recov_lasx;
+extern const struct raid6_recov_calls raid6_recov_rvv;
 
 extern const struct raid6_calls raid6_neonx1;
 extern const struct raid6_calls raid6_neonx2;

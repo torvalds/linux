@@ -1758,7 +1758,7 @@ dcn31_set_mcif_arb_params(struct dc *dc,
 	DC_FP_END();
 }
 
-bool dcn31_validate_bandwidth(struct dc *dc,
+enum dc_status dcn31_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -1813,7 +1813,7 @@ validate_out:
 
 	BW_VAL_TRACE_FINISH();
 
-	return out;
+	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 static void dcn31_get_panel_config_defaults(struct dc_panel_config *panel_config)
@@ -1953,6 +1953,9 @@ static bool dcn31_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->caps.num_of_host_routers = 2;
+	dc->caps.num_of_dpias_per_host_router = 2;
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;

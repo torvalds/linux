@@ -6,7 +6,6 @@
 
 #include <linux/binfmts.h>
 #include <linux/elf.h>
-#include <linux/export.h>
 #include <linux/sched.h>
 
 #include <asm/cpu-features.h>

@@ -40,7 +40,6 @@ shader main
   type(CS)
   wave_size(32)
 // Note: original source code from SQ team
-
 //
 // Create 32 waves in a threadgroup (CS waves)
 // Each allocates 64 VGPRs
@@ -71,8 +70,8 @@ label_0005:
   s_sub_u32     s2, s2, 8
   s_cbranch_scc0  label_0005
   //
-  s_mov_b32     s2, 0x80000000                     // Bit31 is first_wave
-  s_and_b32     s2, s2, s0                                  // sgpr0 has tg_size (first_wave) term as in ucode only COMPUTE_PGM_RSRC2.tg_size_en is set
+  s_mov_b32     s2, 0x80000000                       // Bit31 is first_wave
+  s_and_b32     s2, s2, s1                           // sgpr0 has tg_size (first_wave) term as in ucode only COMPUTE_PGM_RSRC2.tg_size_en is set
   s_cbranch_scc0  label_0023                         // Clean LDS if its first wave of ThreadGroup/WorkGroup
   // CLEAR LDS
   //
@@ -99,10 +98,10 @@ label_001F:
 label_0023:
   s_mov_b32     m0, 0x00000068  // Loop 108/4=27 times  (loop unrolled for performance)
 label_sgpr_loop:
-  s_movreld_b32     s0, 0
-  s_movreld_b32     s1, 0
-  s_movreld_b32     s2, 0
-  s_movreld_b32     s3, 0
+  s_movreld_b32     s0, s0
+  s_movreld_b32     s1, s0
+  s_movreld_b32     s2, s0
+  s_movreld_b32     s3, s0
   s_sub_u32         m0, m0, 4
   s_cbranch_scc0  label_sgpr_loop
 

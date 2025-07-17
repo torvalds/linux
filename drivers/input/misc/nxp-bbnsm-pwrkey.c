@@ -45,7 +45,7 @@ struct bbnsm_pwrkey {
 
 static void bbnsm_pwrkey_check_for_events(struct timer_list *t)
 {
-	struct bbnsm_pwrkey *bbnsm = from_timer(bbnsm, t, check_timer);
+	struct bbnsm_pwrkey *bbnsm = timer_container_of(bbnsm, t, check_timer);
 	struct input_dev *input = bbnsm->input;
 	u32 state;
 

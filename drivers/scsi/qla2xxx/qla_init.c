@@ -45,7 +45,7 @@ static void __qla24xx_handle_gpdb_event(scsi_qla_host_t *, struct event_arg *);
 void
 qla2x00_sp_timeout(struct timer_list *t)
 {
-	srb_t *sp = from_timer(sp, t, u.iocb_cmd.timer);
+	srb_t *sp = timer_container_of(sp, t, u.iocb_cmd.timer);
 	struct srb_iocb *iocb;
 	scsi_qla_host_t *vha = sp->vha;
 

@@ -14,6 +14,7 @@
 #include "mem-events.h"
 
 struct evsel_config_term;
+struct hashmap;
 struct perf_cpu_map;
 struct print_callbacks;
 
@@ -125,7 +126,7 @@ struct perf_pmu {
 	 * event read from <sysfs>/bus/event_source/devices/<name>/events/ or
 	 * from json events in pmu-events.c.
 	 */
-	struct list_head aliases;
+	struct hashmap *aliases;
 	/**
 	 * @events_table: The events table for json events in pmu-events.c.
 	 */
@@ -194,6 +195,9 @@ struct perf_pmu {
 struct perf_pmu_info {
 	const char *unit;
 	double scale;
+	double retirement_latency_mean;
+	double retirement_latency_min;
+	double retirement_latency_max;
 	bool per_pkg;
 	bool snapshot;
 };
@@ -274,6 +278,8 @@ bool pmu_uncore_identifier_match(const char *compat, const char *id);
 
 int perf_pmu__convert_scale(const char *scale, char **end, double *sval);
 
+struct perf_pmu_caps *perf_pmu__get_cap(struct perf_pmu *pmu, const char *name);
+
 int perf_pmu__caps_parse(struct perf_pmu *pmu);
 
 void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
@@ -289,6 +295,7 @@ int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 int perf_pmu__event_source_devices_fd(void);
 int perf_pmu__pathname_fd(int dirfd, const char *pmu_name, const char *filename, int flags);
 
+int perf_pmu__init(struct perf_pmu *pmu, __u32 type, const char *name);
 struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char *lookup_name,
 				  bool eager_load);
 struct perf_pmu *perf_pmu__create_placeholder_core_pmu(struct list_head *core_pmus);

@@ -353,7 +353,7 @@ static void rxq_refill(struct net_device *dev)
 
 static inline void rxq_refill_timer_wrapper(struct timer_list *t)
 {
-	struct pxa168_eth_private *pep = from_timer(pep, t, timeout);
+	struct pxa168_eth_private *pep = timer_container_of(pep, t, timeout);
 	napi_schedule(&pep->napi);
 }
 

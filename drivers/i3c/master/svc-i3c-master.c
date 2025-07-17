@@ -201,11 +201,10 @@ struct svc_i3c_drvdata {
  * @addrs: Array containing the dynamic addresses of each attached device
  * @descs: Array of descriptors, one per attached device
  * @hj_work: Hot-join work
- * @ibi_work: IBI work
  * @irq: Main interrupt
- * @pclk: System clock
+ * @num_clks: I3C clock number
  * @fclk: Fast clock (bus)
- * @sclk: Slow clock (other events)
+ * @clks: I3C clock array
  * @xferqueue: Transfer queue structure
  * @xferqueue.list: List member
  * @xferqueue.cur: Current ongoing transfer
@@ -229,11 +228,10 @@ struct svc_i3c_master {
 	u8 addrs[SVC_I3C_MAX_DEVS];
 	struct i3c_dev_desc *descs[SVC_I3C_MAX_DEVS];
 	struct work_struct hj_work;
-	struct work_struct ibi_work;
 	int irq;
-	struct clk *pclk;
+	int num_clks;
 	struct clk *fclk;
-	struct clk *sclk;
+	struct clk_bulk_data *clks;
 	struct {
 		struct list_head list;
 		struct svc_i3c_xfer *cur;
@@ -487,9 +485,8 @@ static int svc_i3c_master_handle_ibi_won(struct svc_i3c_master *master, u32 msta
 	return ret;
 }
 
-static void svc_i3c_master_ibi_work(struct work_struct *work)
+static void svc_i3c_master_ibi_isr(struct svc_i3c_master *master)
 {
-	struct svc_i3c_master *master = container_of(work, struct svc_i3c_master, ibi_work);
 	struct svc_i3c_i2c_dev_data *data;
 	unsigned int ibitype, ibiaddr;
 	struct i3c_dev_desc *dev;
@@ -504,7 +501,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	 * schedule during the whole I3C transaction, otherwise, the I3C bus timeout may happen if
 	 * any irq or schedule happen during transaction.
 	 */
-	guard(spinlock_irqsave)(&master->xferqueue.lock);
+	guard(spinlock)(&master->xferqueue.lock);
 
 	/*
 	 * IBIWON may be set before SVC_I3C_MCTRL_REQUEST_AUTO_IBI, causing
@@ -530,7 +527,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	if (ret) {
 		dev_err(master->dev, "Timeout when polling for IBIWON\n");
 		svc_i3c_master_emit_stop(master);
-		goto reenable_ibis;
+		return;
 	}
 
 	status = readl(master->regs + SVC_I3C_MSTATUS);
@@ -574,17 +571,17 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 
 		svc_i3c_master_emit_stop(master);
 
-		goto reenable_ibis;
+		return;
 	}
 
 	/* Handle the non critical tasks */
 	switch (ibitype) {
 	case SVC_I3C_MSTATUS_IBITYPE_IBI:
+		svc_i3c_master_emit_stop(master);
 		if (dev) {
 			i3c_master_queue_ibi(dev, master->ibi.tbq_slot);
 			master->ibi.tbq_slot = NULL;
 		}
-		svc_i3c_master_emit_stop(master);
 		break;
 	case SVC_I3C_MSTATUS_IBITYPE_HOT_JOIN:
 		svc_i3c_master_emit_stop(master);
@@ -597,9 +594,6 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	default:
 		break;
 	}
-
-reenable_ibis:
-	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
 }
 
 static irqreturn_t svc_i3c_master_irq_handler(int irq, void *dev_id)
@@ -618,10 +612,12 @@ static irqreturn_t svc_i3c_master_irq_handler(int irq, void *dev_id)
 	    !SVC_I3C_MSTATUS_STATE_SLVREQ(active))
 		return IRQ_HANDLED;
 
-	svc_i3c_master_disable_interrupts(master);
-
-	/* Handle the interrupt in a non atomic context */
-	queue_work(master->base.wq, &master->ibi_work);
+	/*
+	 * The SDA line remains low until the request is processed.
+	 * Receive the request in the interrupt context to respond promptly
+	 * and restore the bus to idle state.
+	 */
+	svc_i3c_master_ibi_isr(master);
 
 	return IRQ_HANDLED;
 }
@@ -1281,9 +1277,9 @@ static int svc_i3c_master_write(struct svc_i3c_master *master,
 static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 			       bool rnw, unsigned int xfer_type, u8 addr,
 			       u8 *in, const u8 *out, unsigned int xfer_len,
-			       unsigned int *actual_len, bool continued)
+			       unsigned int *actual_len, bool continued, bool repeat_start)
 {
-	int retry = 2;
+	int retry = repeat_start ? 1 : 2;
 	u32 reg;
 	int ret;
 
@@ -1468,7 +1464,7 @@ static void svc_i3c_master_start_xfer_locked(struct svc_i3c_master *master)
 		ret = svc_i3c_master_xfer(master, cmd->rnw, xfer->type,
 					  cmd->addr, cmd->in, cmd->out,
 					  cmd->len, &cmd->actual_len,
-					  cmd->continued);
+					  cmd->continued, i > 0);
 		/* cmd->xfer is NULL if I2C or CCC transfer */
 		if (cmd->xfer)
 			cmd->xfer->actual_len = cmd->actual_len;
@@ -1875,42 +1871,11 @@ static const struct i3c_master_controller_ops svc_i3c_master_ops = {
 	.set_speed = svc_i3c_master_set_speed,
 };
 
-static int svc_i3c_master_prepare_clks(struct svc_i3c_master *master)
-{
-	int ret = 0;
-
-	ret = clk_prepare_enable(master->pclk);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(master->fclk);
-	if (ret) {
-		clk_disable_unprepare(master->pclk);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(master->sclk);
-	if (ret) {
-		clk_disable_unprepare(master->pclk);
-		clk_disable_unprepare(master->fclk);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void svc_i3c_master_unprepare_clks(struct svc_i3c_master *master)
-{
-	clk_disable_unprepare(master->pclk);
-	clk_disable_unprepare(master->fclk);
-	clk_disable_unprepare(master->sclk);
-}
-
 static int svc_i3c_master_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct svc_i3c_master *master;
-	int ret;
+	int ret, i;
 
 	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
@@ -1924,30 +1889,33 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 	if (IS_ERR(master->regs))
 		return PTR_ERR(master->regs);
 
-	master->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(master->pclk))
-		return PTR_ERR(master->pclk);
+	master->num_clks = devm_clk_bulk_get_all(dev, &master->clks);
+	if (master->num_clks < 0)
+		return dev_err_probe(dev, -EINVAL, "can't get I3C clocks\n");
 
-	master->fclk = devm_clk_get(dev, "fast_clk");
+	for (i = 0; i < master->num_clks; i++) {
+		if (!strcmp(master->clks[i].id, "fast_clk"))
+			break;
+	}
+
+	if (i == master->num_clks)
+		return dev_err_probe(dev, -EINVAL,
+				     "can't get I3C peripheral clock\n");
+
+	master->fclk = master->clks[i].clk;
 	if (IS_ERR(master->fclk))
 		return PTR_ERR(master->fclk);
-
-	master->sclk = devm_clk_get(dev, "slow_clk");
-	if (IS_ERR(master->sclk))
-		return PTR_ERR(master->sclk);
 
 	master->irq = platform_get_irq(pdev, 0);
 	if (master->irq < 0)
 		return master->irq;
 
 	master->dev = dev;
-
-	ret = svc_i3c_master_prepare_clks(master);
+	ret = clk_bulk_prepare_enable(master->num_clks, master->clks);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "can't enable I3C clocks\n");
 
 	INIT_WORK(&master->hj_work, svc_i3c_master_hj_work);
-	INIT_WORK(&master->ibi_work, svc_i3c_master_ibi_work);
 	mutex_init(&master->lock);
 
 	ret = devm_request_irq(dev, master->irq, svc_i3c_master_irq_handler,
@@ -1998,7 +1966,7 @@ rpm_disable:
 	pm_runtime_set_suspended(&pdev->dev);
 
 err_disable_clks:
-	svc_i3c_master_unprepare_clks(master);
+	clk_bulk_disable_unprepare(master->num_clks, master->clks);
 
 	return ret;
 }
@@ -2036,7 +2004,7 @@ static int __maybe_unused svc_i3c_runtime_suspend(struct device *dev)
 	struct svc_i3c_master *master = dev_get_drvdata(dev);
 
 	svc_i3c_save_regs(master);
-	svc_i3c_master_unprepare_clks(master);
+	clk_bulk_disable_unprepare(master->num_clks, master->clks);
 	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
@@ -2045,9 +2013,12 @@ static int __maybe_unused svc_i3c_runtime_suspend(struct device *dev)
 static int __maybe_unused svc_i3c_runtime_resume(struct device *dev)
 {
 	struct svc_i3c_master *master = dev_get_drvdata(dev);
+	int ret;
 
 	pinctrl_pm_select_default_state(dev);
-	svc_i3c_master_prepare_clks(master);
+	ret = clk_bulk_prepare_enable(master->num_clks, master->clks);
+	if (ret)
+		return ret;
 
 	svc_i3c_restore_regs(master);
 

@@ -49,12 +49,9 @@ static const struct IP_BASE MP0_BASE = { { { { 0x00016000, 0x00DC0000, 0x00E0000
 					{ { 0, 0, 0, 0, 0, 0 } },
 					{ { 0, 0, 0, 0, 0, 0 } },
 					{ { 0, 0, 0, 0, 0, 0 } } } };
-static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D20, 0x00010400, 0x0241B000, 0x04040000 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } } } };
+
+#define CTX clk_mgr->base.ctx
+#define IND_REG(offset)	offset
 
 #define regBIF_BX_PF2_RSMU_INDEX                                                                        0x0000
 #define regBIF_BX_PF2_RSMU_INDEX_BASE_IDX                                                               1
@@ -67,15 +64,19 @@ static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
 
-#define REG_NBIO(reg_name) \
-	(NBIO_BASE.instance[0].segment[regBIF_BX_PF2_ ## reg_name ## _BASE_IDX] + regBIF_BX_PF2_ ## reg_name)
-
 #undef DC_LOGGER
 #define DC_LOGGER \
 	CTX->logger
 #define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
 
 #define mmMP1_C2PMSG_3                            0x3B1050C
+
+#define reg__MP1_C2PMSG_3_MASK					(0xFFFFFFFF)
+#define reg__MP1_C2PMSG_3__SHIFT					(0)
+
+
+#define data_reg_name__MP1_C2PMSG_3_MASK		(0xFFFFFFFF)
+#define data_reg_name__MP1_C2PMSG_3__SHIFT		(0)
 
 #define VBIOSSMC_MSG_TestMessage                  0x01 ///< To check if PMFW is alive and responding. Requirement specified by PMFW team
 #define VBIOSSMC_MSG_GetPmfwVersion               0x02 ///< Get PMFW version
@@ -153,12 +154,10 @@ static int dcn315_smu_send_msg_with_param(
 
 	for (i = 0; i < SMU_REGISTER_WRITE_RETRY_COUNT; i++) {
 		/* Trigger the message transaction by writing the message ID */
-		generic_write_indirect_reg(CTX,
-			REG_NBIO(RSMU_INDEX), REG_NBIO(RSMU_DATA),
-			mmMP1_C2PMSG_3, msg_id);
-		read_back_data = generic_read_indirect_reg(CTX,
-			REG_NBIO(RSMU_INDEX), REG_NBIO(RSMU_DATA),
-			mmMP1_C2PMSG_3);
+		IX_REG_SET_SYNC(mmMP1_C2PMSG_3, 0,
+			MP1_C2PMSG_3, msg_id);
+		IX_REG_GET_SYNC(mmMP1_C2PMSG_3,
+			MP1_C2PMSG_3, &read_back_data);
 		if (read_back_data == msg_id)
 			break;
 		udelay(2);

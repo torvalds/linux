@@ -16,7 +16,7 @@
 #ifndef __ASM_PARISC_PREFETCH_H
 #define __ASM_PARISC_PREFETCH_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef CONFIG_PREFETCH
 
 #define ARCH_HAS_PREFETCH
@@ -40,6 +40,6 @@ static inline void prefetchw(const void *addr)
 #endif /* CONFIG_PA20 */
 
 #endif /* CONFIG_PREFETCH */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_PARISC_PROCESSOR_H */

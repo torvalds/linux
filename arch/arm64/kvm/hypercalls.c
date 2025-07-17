@@ -270,6 +270,7 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 	u32 feature;
 	u8 action;
 	gpa_t gpa;
+	uuid_t uuid;
 
 	action = kvm_smccc_get_action(vcpu, func_id);
 	switch (action) {
@@ -355,10 +356,11 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 			val[0] = gpa;
 		break;
 	case ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID:
-		val[0] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_0;
-		val[1] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_1;
-		val[2] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_2;
-		val[3] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_3;
+		uuid = ARM_SMCCC_VENDOR_HYP_UID_KVM;
+		val[0] = smccc_uuid_to_reg(&uuid, 0);
+		val[1] = smccc_uuid_to_reg(&uuid, 1);
+		val[2] = smccc_uuid_to_reg(&uuid, 2);
+		val[3] = smccc_uuid_to_reg(&uuid, 3);
 		break;
 	case ARM_SMCCC_VENDOR_HYP_KVM_FEATURES_FUNC_ID:
 		val[0] = smccc_feat->vendor_hyp_bmap;

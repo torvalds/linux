@@ -13,7 +13,6 @@
 
 	.text
 
-#define FENTRY_RA_OFFSET	8
 #define ABI_SIZE_ON_STACK	80
 #define ABI_A0			0
 #define ABI_A1			8
@@ -56,16 +55,13 @@
 	addi	sp, sp, ABI_SIZE_ON_STACK
 	.endm
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-
 /**
 * SAVE_ABI_REGS - save regs against the ftrace_regs struct
 *
 * After the stack is established,
 *
 * 0(sp) stores the PC of the traced function which can be accessed
-* by &(fregs)->epc in tracing function. Note that the real
-* function entry address should be computed with -FENTRY_RA_OFFSET.
+* by &(fregs)->epc in tracing function.
 *
 * 8(sp) stores the function return address (i.e. parent IP) that
 * can be accessed by &(fregs)->ra in tracing function.
@@ -86,17 +82,20 @@
 *                       +++++++++
 **/
 	.macro SAVE_ABI_REGS
-	mv	t4, sp			// Save original SP in T4
 	addi	sp, sp, -FREGS_SIZE_ON_STACK
-
 	REG_S	t0,  FREGS_EPC(sp)
 	REG_S	x1,  FREGS_RA(sp)
-	REG_S	t4,  FREGS_SP(sp)	// Put original SP on stack
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	REG_S	x8,  FREGS_S0(sp)
 #endif
 	REG_S	x6,  FREGS_T1(sp)
-
+#ifdef CONFIG_CC_IS_CLANG
+	REG_S	x7,  FREGS_T2(sp)
+	REG_S	x28, FREGS_T3(sp)
+	REG_S	x29, FREGS_T4(sp)
+	REG_S	x30, FREGS_T5(sp)
+	REG_S	x31, FREGS_T6(sp)
+#endif
 	// save the arguments
 	REG_S	x10, FREGS_A0(sp)
 	REG_S	x11, FREGS_A1(sp)
@@ -106,16 +105,25 @@
 	REG_S	x15, FREGS_A5(sp)
 	REG_S	x16, FREGS_A6(sp)
 	REG_S	x17, FREGS_A7(sp)
+	mv	a0, sp
+	addi	a0, a0, FREGS_SIZE_ON_STACK
+	REG_S	a0, FREGS_SP(sp)	// Put original SP on stack
 	.endm
 
-	.macro RESTORE_ABI_REGS, all=0
+	.macro RESTORE_ABI_REGS
 	REG_L	t0, FREGS_EPC(sp)
 	REG_L	x1, FREGS_RA(sp)
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	REG_L	x8, FREGS_S0(sp)
 #endif
 	REG_L	x6,  FREGS_T1(sp)
-
+#ifdef CONFIG_CC_IS_CLANG
+	REG_L	x7,  FREGS_T2(sp)
+	REG_L	x28, FREGS_T3(sp)
+	REG_L	x29, FREGS_T4(sp)
+	REG_L	x30, FREGS_T5(sp)
+	REG_L	x31, FREGS_T6(sp)
+#endif
 	// restore the arguments
 	REG_L	x10, FREGS_A0(sp)
 	REG_L	x11, FREGS_A1(sp)
@@ -130,59 +138,70 @@
 	.endm
 
 	.macro PREPARE_ARGS
-	addi	a0, t0, -FENTRY_RA_OFFSET
+	addi	a0, t0, -MCOUNT_JALR_SIZE	// ip (callsite's jalr insn)
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	mv 	a1, ra				// parent_ip
+	REG_L   a2, -16(t0)			// op
+	REG_L   ra, FTRACE_OPS_FUNC(a2)		// op->func
+#else
 	la	a1, function_trace_op
-	REG_L	a2, 0(a1)
-	mv	a1, ra
-	mv	a3, sp
+	REG_L	a2, 0(a1)			// op
+	mv	a1, ra				// parent_ip
+#endif
+	mv	a3, sp				// regs
 	.endm
 
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
-
-#ifndef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 SYM_FUNC_START(ftrace_caller)
-	SAVE_ABI
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	/*
+	 * When CALL_OPS is enabled (2 or 4) nops [8B] are placed before the
+	 * function entry, these are later overwritten with the pointer to the
+	 * associated struct ftrace_ops.
+	 *
+	 * -8: &ftrace_ops of the associated tracer function.
+	 *<ftrace enable>:
+	 *  0: auipc  t0/ra, 0x?
+	 *  4: jalr   t0/ra, ?(t0/ra)
+	 *
+	 * -8: &ftrace_nop_ops
+	 *<ftrace disable>:
+	 *  0: nop
+	 *  4: nop
+	 *
+	 * t0 is set to ip+8 after the jalr is executed at the callsite,
+	 * so we find the associated op at t0-16.
+	 */
+	REG_L	t1, -16(t0) // op Should be SZ_REG instead of 16
 
-	addi	a0, t0, -FENTRY_RA_OFFSET
-	la	a1, function_trace_op
-	REG_L	a2, 0(a1)
-	mv	a1, ra
-	mv	a3, sp
-
-SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	call	ftrace_stub
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	addi	a0, sp, ABI_RA
-	REG_L	a1, ABI_T0(sp)
-	addi	a1, a1, -FENTRY_RA_OFFSET
-#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-	mv	a2, s0
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	/*
+	 * If the op has a direct call, handle it immediately without
+	 * saving/restoring registers.
+	 */
+	REG_L	t1, FTRACE_OPS_DIRECT_CALL(t1)
+	bnez	t1, ftrace_caller_direct
 #endif
-SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL)
-	call	ftrace_stub
 #endif
-	RESTORE_ABI
-	jr	t0
-SYM_FUNC_END(ftrace_caller)
-
-#else /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
-SYM_FUNC_START(ftrace_caller)
-	mv	t1, zero
 	SAVE_ABI_REGS
 	PREPARE_ARGS
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	jalr	ra
+#else
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	call	ftrace_stub
-
+	REG_L	ra, ftrace_call_dest
+	jalr	ra, 0(ra)
+#endif
 	RESTORE_ABI_REGS
-	bnez	t1, .Ldirect
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	bnez	t1, ftrace_caller_direct
+#endif
 	jr	t0
-.Ldirect:
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+SYM_INNER_LABEL(ftrace_caller_direct, SYM_L_LOCAL)
 	jr	t1
+#endif
 SYM_FUNC_END(ftrace_caller)
-
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 SYM_CODE_START(ftrace_stub_direct_tramp)

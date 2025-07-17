@@ -561,7 +561,7 @@ out:
 
 static void ppp_timer(struct timer_list *t)
 {
-	struct proto *proto = from_timer(proto, t, timer);
+	struct proto *proto = timer_container_of(proto, t, timer);
 	struct ppp *ppp = get_ppp(proto->dev);
 	unsigned long flags;
 

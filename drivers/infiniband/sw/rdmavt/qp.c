@@ -2585,7 +2585,7 @@ EXPORT_SYMBOL(rvt_del_timers_sync);
  */
 static void rvt_rc_timeout(struct timer_list *t)
 {
-	struct rvt_qp *qp = from_timer(qp, t, s_timer);
+	struct rvt_qp *qp = timer_container_of(qp, t, s_timer);
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	unsigned long flags;
 

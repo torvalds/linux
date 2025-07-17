@@ -93,7 +93,6 @@ enum {
 
 #define AAC_NUM_MGT_FIB         8
 #define AAC_NUM_IO_FIB		(1024 - AAC_NUM_MGT_FIB)
-#define AAC_NUM_FIB		(AAC_NUM_IO_FIB + AAC_NUM_MGT_FIB)
 
 #define AAC_MAX_LUN		256
 

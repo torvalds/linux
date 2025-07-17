@@ -1235,6 +1235,7 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_disable		= bcm_sf2_port_disable,
 	.support_eee		= b53_support_eee,
 	.set_mac_eee		= b53_set_mac_eee,
+	.set_ageing_time	= b53_set_ageing_time,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_pre_bridge_flags	= b53_br_flags_pre,

@@ -2059,45 +2059,6 @@ int smu_v11_0_set_single_dpm_table(struct smu_context *smu,
 	return 0;
 }
 
-int smu_v11_0_get_dpm_level_range(struct smu_context *smu,
-				  enum smu_clk_type clk_type,
-				  uint32_t *min_value,
-				  uint32_t *max_value)
-{
-	uint32_t level_count = 0;
-	int ret = 0;
-
-	if (!min_value && !max_value)
-		return -EINVAL;
-
-	if (min_value) {
-		/* by default, level 0 clock value as min value */
-		ret = smu_v11_0_get_dpm_freq_by_index(smu,
-						      clk_type,
-						      0,
-						      min_value);
-		if (ret)
-			return ret;
-	}
-
-	if (max_value) {
-		ret = smu_v11_0_get_dpm_level_count(smu,
-						    clk_type,
-						    &level_count);
-		if (ret)
-			return ret;
-
-		ret = smu_v11_0_get_dpm_freq_by_index(smu,
-						      clk_type,
-						      level_count - 1,
-						      max_value);
-		if (ret)
-			return ret;
-	}
-
-	return ret;
-}
-
 int smu_v11_0_get_current_pcie_link_width_level(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;

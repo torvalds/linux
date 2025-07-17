@@ -211,7 +211,7 @@ static inline int shpc_indirect_read(struct controller *ctrl, int index,
  */
 static void int_poll_timeout(struct timer_list *t)
 {
-	struct controller *ctrl = from_timer(ctrl, t, poll_timer);
+	struct controller *ctrl = timer_container_of(ctrl, t, poll_timer);
 
 	/* Poll for interrupt events.  regs == NULL => polling */
 	shpc_isr(0, ctrl);

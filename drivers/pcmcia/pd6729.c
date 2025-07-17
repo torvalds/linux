@@ -236,7 +236,8 @@ static irqreturn_t pd6729_interrupt(int irq, void *dev)
 
 static void pd6729_interrupt_wrapper(struct timer_list *t)
 {
-	struct pd6729_socket *socket = from_timer(socket, t, poll_timer);
+	struct pd6729_socket *socket = timer_container_of(socket, t,
+							  poll_timer);
 
 	pd6729_interrupt(0, (void *)socket);
 	mod_timer(&socket->poll_timer, jiffies + HZ);

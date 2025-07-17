@@ -693,7 +693,7 @@ EXPORT_SYMBOL_GPL(lbs_resume);
  */
 static void lbs_cmd_timeout_handler(struct timer_list *t)
 {
-	struct lbs_private *priv = from_timer(priv, t, command_timer);
+	struct lbs_private *priv = timer_container_of(priv, t, command_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -727,7 +727,8 @@ out:
  */
 static void lbs_tx_lockup_handler(struct timer_list *t)
 {
-	struct lbs_private *priv = from_timer(priv, t, tx_lockup_timer);
+	struct lbs_private *priv = timer_container_of(priv, t,
+						      tx_lockup_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);

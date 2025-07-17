@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #ifndef __iwl_fw_runtime_h__
 #define __iwl_fw_runtime_h__
@@ -110,6 +110,9 @@ struct iwl_txf_iter_data {
  *	Only read the UEFI variables if locked.
  * @sar_profiles: sar profiles as read from WRDS/EWRD BIOS tables
  * @geo_profiles: geographic profiles as read from WGDS BIOS table
+ * @phy_filters: specific phy filters as read from WPFC BIOS table
+ * @ppag_bios_rev: PPAG BIOS revision
+ * @ppag_bios_source: see &enum bios_source
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -178,12 +181,14 @@ struct iwl_fw_runtime {
 	bool geo_enabled;
 	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 	u32 ppag_flags;
-	u8 ppag_ver;
+	u8 ppag_bios_rev;
+	u8 ppag_bios_source;
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
 	struct iwl_mcc_allowed_ap_type_cmd uats_table;
 	bool uats_valid;
 	u8 uefi_tables_lock_status;
+	struct iwl_phy_specific_cfg phy_filters;
 };
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,

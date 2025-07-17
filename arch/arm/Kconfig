@@ -1380,8 +1380,7 @@ config CC_HAVE_STACKPROTECTOR_TLS
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
 	depends on STACKPROTECTOR && CURRENT_POINTER_IN_TPIDRURO && !XIP_DEFLATED_DATA
-	depends on GCC_PLUGINS || CC_HAVE_STACKPROTECTOR_TLS
-	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
+	depends on CC_HAVE_STACKPROTECTOR_TLS
 	default y
 	help
 	  Due to the fact that GCC uses an ordinary symbol reference from

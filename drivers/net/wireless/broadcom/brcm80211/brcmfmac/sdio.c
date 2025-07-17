@@ -4121,7 +4121,7 @@ brcmf_sdio_watchdog_thread(void *data)
 static void
 brcmf_sdio_watchdog(struct timer_list *t)
 {
-	struct brcmf_sdio *bus = from_timer(bus, t, timer);
+	struct brcmf_sdio *bus = timer_container_of(bus, t, timer);
 
 	if (bus->watchdog_tsk) {
 		complete(&bus->watchdog_wait);

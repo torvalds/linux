@@ -157,6 +157,7 @@ kms_flip@plain-flip-ts-check-interruptible,Fail
 kms_flip@wf_vblank-ts-check,Fail
 kms_flip@wf_vblank-ts-check-interruptible,Fail
 kms_invalid_mode@int-max-clock,Fail
+kms_invalid_mode@overflow-vrefresh,Fail
 kms_lease@cursor-implicit-plane,Fail
 kms_lease@lease-uevent,Fail
 kms_lease@page-flip-implicit-plane,Fail

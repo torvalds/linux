@@ -1044,8 +1044,8 @@ done:
 
 static void reenable_7220_chase(struct timer_list *t)
 {
-	struct qib_chippport_specific *cpspec = from_timer(cpspec, t,
-							 chase_timer);
+	struct qib_chippport_specific *cpspec = timer_container_of(cpspec, t,
+								   chase_timer);
 	struct qib_pportdata *ppd = &cpspec->pportdata;
 
 	ppd->cpspec->chase_timer.expires = 0;
@@ -3240,7 +3240,7 @@ done:
  */
 static void qib_get_7220_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
+	struct qib_devdata *dd = timer_container_of(dd, t, stats_timer);
 	struct qib_pportdata *ppd = dd->pport;
 	unsigned long flags;
 	u64 traffic_wds;

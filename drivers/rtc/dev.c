@@ -72,7 +72,7 @@ static void rtc_uie_task(struct work_struct *work)
 
 static void rtc_uie_timer(struct timer_list *t)
 {
-	struct rtc_device *rtc = from_timer(rtc, t, uie_timer);
+	struct rtc_device *rtc = timer_container_of(rtc, t, uie_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc->irq_lock, flags);

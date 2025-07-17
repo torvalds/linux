@@ -328,7 +328,7 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 
 void saa7134_buffer_timeout(struct timer_list *t)
 {
-	struct saa7134_dmaqueue *q = from_timer(q, t, timeout);
+	struct saa7134_dmaqueue *q = timer_container_of(q, t, timeout);
 	struct saa7134_dev *dev = q->dev;
 	unsigned long flags;
 

@@ -4327,7 +4327,7 @@ static DECLARE_WORK(skb_work, process_work);
 
 static void ep_timeout(struct timer_list *t)
 {
-	struct c4iw_ep *ep = from_timer(ep, t, timer);
+	struct c4iw_ep *ep = timer_container_of(ep, t, timer);
 	int kickit = 0;
 
 	spin_lock(&timeout_lock);

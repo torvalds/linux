@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "msm8926.dtsi"
 #include "qcom-msm8226-samsung-matisse-common.dtsi"
 
 / {
@@ -25,6 +26,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsp_en1_default_state>;
 	};
+};
+
+&modem {
+	mss-supply = <&pm8226_s5>;
 };
 
 &tlmm {

@@ -630,6 +630,19 @@ bool dm_helpers_submit_i2c(
 	return result;
 }
 
+bool dm_helpers_execute_fused_io(
+		struct dc_context *ctx,
+		struct dc_link *link,
+		union dmub_rb_cmd *commands,
+		uint8_t count,
+		uint32_t timeout_us
+)
+{
+	struct amdgpu_device *dev = ctx->driver_context;
+
+	return amdgpu_dm_execute_fused_io(dev, link, commands, count, timeout_us);
+}
+
 static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		bool is_write_cmd,
 		unsigned char cmd,
@@ -1016,6 +1029,10 @@ enum dc_edid_status dm_helpers_read_local_edid(
 			return EDID_NO_RESPONSE;
 
 		edid = drm_edid_raw(drm_edid); // FIXME: Get rid of drm_edid_raw()
+		if (!edid ||
+		    edid->extensions >= sizeof(sink->dc_edid.raw_edid) / EDID_LENGTH)
+			return EDID_BAD_INPUT;
+
 		sink->dc_edid.length = EDID_LENGTH * (edid->extensions + 1);
 		memmove(sink->dc_edid.raw_edid, (uint8_t *)edid, sink->dc_edid.length);
 

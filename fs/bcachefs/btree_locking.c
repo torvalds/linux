@@ -194,6 +194,30 @@ static int btree_trans_abort_preference(struct btree_trans *trans)
 	return 3;
 }
 
+static noinline __noreturn void break_cycle_fail(struct lock_graph *g)
+{
+	struct printbuf buf = PRINTBUF;
+	buf.atomic++;
+
+	prt_printf(&buf, bch2_fmt(g->g->trans->c, "cycle of nofail locks"));
+
+	for (struct trans_waiting_for_lock *i = g->g; i < g->g + g->nr; i++) {
+		struct btree_trans *trans = i->trans;
+
+		bch2_btree_trans_to_text(&buf, trans);
+
+		prt_printf(&buf, "backtrace:\n");
+		printbuf_indent_add(&buf, 2);
+		bch2_prt_task_backtrace(&buf, trans->locking_wait.task, 2, GFP_NOWAIT);
+		printbuf_indent_sub(&buf, 2);
+		prt_newline(&buf);
+	}
+
+	bch2_print_str(g->g->trans->c, KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+	BUG();
+}
+
 static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle,
 				struct trans_waiting_for_lock *from)
 {
@@ -219,28 +243,8 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle,
 		}
 	}
 
-	if (unlikely(!best)) {
-		struct printbuf buf = PRINTBUF;
-		buf.atomic++;
-
-		prt_printf(&buf, bch2_fmt(g->g->trans->c, "cycle of nofail locks"));
-
-		for (i = g->g; i < g->g + g->nr; i++) {
-			struct btree_trans *trans = i->trans;
-
-			bch2_btree_trans_to_text(&buf, trans);
-
-			prt_printf(&buf, "backtrace:\n");
-			printbuf_indent_add(&buf, 2);
-			bch2_prt_task_backtrace(&buf, trans->locking_wait.task, 2, GFP_NOWAIT);
-			printbuf_indent_sub(&buf, 2);
-			prt_newline(&buf);
-		}
-
-		bch2_print_str_nonblocking(g->g->trans->c, KERN_ERR, buf.buf);
-		printbuf_exit(&buf);
-		BUG();
-	}
+	if (unlikely(!best))
+		break_cycle_fail(g);
 
 	ret = abort_lock(g, abort);
 out:
@@ -255,15 +259,14 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 			      struct printbuf *cycle)
 {
 	struct btree_trans *orig_trans = g->g->trans;
-	struct trans_waiting_for_lock *i;
 
-	for (i = g->g; i < g->g + g->nr; i++)
+	for (struct trans_waiting_for_lock *i = g->g; i < g->g + g->nr; i++)
 		if (i->trans == trans) {
 			closure_put(&trans->ref);
 			return break_cycle(g, cycle, i);
 		}
 
-	if (g->nr == ARRAY_SIZE(g->g)) {
+	if (unlikely(g->nr == ARRAY_SIZE(g->g))) {
 		closure_put(&trans->ref);
 
 		if (orig_trans->lock_may_not_fail)
@@ -308,7 +311,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	lock_graph_down(&g, trans);
 
 	/* trans->paths is rcu protected vs. freeing */
-	rcu_read_lock();
+	guard(rcu)();
 	if (cycle)
 		cycle->atomic++;
 next:
@@ -406,7 +409,6 @@ up:
 out:
 	if (cycle)
 		--cycle->atomic;
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -769,7 +771,7 @@ static inline void __bch2_trans_unlock(struct btree_trans *trans)
 }
 
 static noinline __cold void bch2_trans_relock_fail(struct btree_trans *trans, struct btree_path *path,
-						  struct get_locks_fail *f, bool trace)
+						   struct get_locks_fail *f, bool trace, ulong ip)
 {
 	if (!trace)
 		goto out;
@@ -794,7 +796,7 @@ static noinline __cold void bch2_trans_relock_fail(struct btree_trans *trans, st
 			prt_printf(&buf, " total locked %u.%u.%u", c.n[0], c.n[1], c.n[2]);
 		}
 
-		trace_trans_restart_relock(trans, _RET_IP_, buf.buf);
+		trace_trans_restart_relock(trans, ip, buf.buf);
 		printbuf_exit(&buf);
 	}
 
@@ -804,7 +806,7 @@ out:
 	bch2_trans_verify_locks(trans);
 }
 
-static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
+static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace, ulong ip)
 {
 	bch2_trans_verify_locks(trans);
 
@@ -823,7 +825,7 @@ static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
 		if (path->should_be_locked &&
 		    (ret = btree_path_get_locks(trans, path, false, &f,
 					BCH_ERR_transaction_restart_relock))) {
-			bch2_trans_relock_fail(trans, path, &f, trace);
+			bch2_trans_relock_fail(trans, path, &f, trace, ip);
 			return ret;
 		}
 	}
@@ -836,12 +838,12 @@ out:
 
 int bch2_trans_relock(struct btree_trans *trans)
 {
-	return __bch2_trans_relock(trans, true);
+	return __bch2_trans_relock(trans, true, _RET_IP_);
 }
 
 int bch2_trans_relock_notrace(struct btree_trans *trans)
 {
-	return __bch2_trans_relock(trans, false);
+	return __bch2_trans_relock(trans, false, _RET_IP_);
 }
 
 void bch2_trans_unlock(struct btree_trans *trans)

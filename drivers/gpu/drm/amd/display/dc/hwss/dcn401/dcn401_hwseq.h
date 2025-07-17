@@ -109,4 +109,12 @@ void dcn401_detect_pipe_changes(
 void dcn401_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp);
+bool dcn401_program_rmcm_luts(
+	struct hubp *hubp,
+	struct pipe_ctx *pipe_ctx,
+	enum dc_cm2_transfer_func_source lut3d_src,
+	struct dc_cm2_func_luts *mcm_luts,
+	struct mpc *mpc,
+	bool lut_bank_a,
+	int mpcc_id);
 #endif /* __DC_HWSS_DCN401_H__ */

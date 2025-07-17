@@ -614,6 +614,7 @@ struct usb3_lpm_parameters {
  *	FIXME -- complete doc
  * @authenticated: Crypto authentication passed
  * @tunnel_mode: Connection native or tunneled over USB4
+ * @usb4_link: device link to the USB4 host interface
  * @lpm_capable: device supports LPM
  * @lpm_devinit_allow: Allow USB3 device initiated LPM, exit latency is in range
  * @usb2_hw_lpm_capable: device can perform USB2 hardware LPM
@@ -724,6 +725,7 @@ struct usb_device {
 	unsigned reset_resume:1;
 	unsigned port_is_suspended:1;
 	enum usb_link_tunnel_mode tunnel_mode;
+	struct device_link *usb4_link;
 
 	int slot_id;
 	struct usb2_lpm_parameters l1_params;
@@ -815,10 +817,10 @@ static inline void usb_mark_last_busy(struct usb_device *udev)
 
 #else
 
-static inline int usb_enable_autosuspend(struct usb_device *udev)
-{ return 0; }
-static inline int usb_disable_autosuspend(struct usb_device *udev)
-{ return 0; }
+static inline void usb_enable_autosuspend(struct usb_device *udev)
+{ }
+static inline void usb_disable_autosuspend(struct usb_device *udev)
+{ }
 
 static inline int usb_autopm_get_interface(struct usb_interface *intf)
 { return 0; }

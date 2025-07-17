@@ -317,7 +317,7 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 
 static void phy_sata_timeout(struct timer_list *t)
 {
-	struct sci_timer *tmr = from_timer(tmr, t, timer);
+	struct sci_timer *tmr = timer_container_of(tmr, t, timer);
 	struct isci_phy *iphy = container_of(tmr, typeof(*iphy), sata_timer);
 	struct isci_host *ihost = iphy->owning_port->owning_controller;
 	unsigned long flags;

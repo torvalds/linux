@@ -176,6 +176,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	frame->ret_addr = (unsigned long) ret_from_fork_asm;
 	p->thread.sp = (unsigned long) fork_frame;
 	p->thread.io_bitmap = NULL;
+	clear_tsk_thread_flag(p, TIF_IO_BITMAP);
 	p->thread.iopl_warn = 0;
 	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
@@ -463,6 +464,11 @@ void native_tss_update_io_bitmap(void)
 		*base = IO_BITMAP_OFFSET_VALID_ALL;
 	} else {
 		struct io_bitmap *iobm = t->io_bitmap;
+
+		if (WARN_ON_ONCE(!iobm)) {
+			clear_thread_flag(TIF_IO_BITMAP);
+			native_tss_invalidate_io_bitmap();
+		}
 
 		/*
 		 * Only copy bitmap data when the sequence number differs. The
@@ -901,16 +907,24 @@ static __init bool prefer_mwait_c1_over_halt(void)
  */
 static __cpuidle void mwait_idle(void)
 {
+	if (need_resched())
+		return;
+
+	x86_idle_clear_cpu_buffers();
+
 	if (!current_set_polling_and_test()) {
 		const void *addr = &current_thread_info()->flags;
 
 		alternative_input("", "clflush (%[addr])", X86_BUG_CLFLUSH_MONITOR, [addr] "a" (addr));
 		__monitor(addr, 0, 0);
-		if (!need_resched()) {
-			__sti_mwait(0, 0);
-			raw_local_irq_disable();
-		}
+		if (need_resched())
+			goto out;
+
+		__sti_mwait(0, 0);
+		raw_local_irq_disable();
 	}
+
+out:
 	__current_clr_polling();
 }
 

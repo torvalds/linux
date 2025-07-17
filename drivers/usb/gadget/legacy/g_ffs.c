@@ -188,7 +188,7 @@ static int __init gfs_init(void)
 	/*
 	 * Allocate in one chunk for easier maintenance
 	 */
-	f_ffs[0] = kcalloc(func_num * N_CONF, sizeof(*f_ffs), GFP_KERNEL);
+	f_ffs[0] = kcalloc(func_num * N_CONF, sizeof(*f_ffs[0]), GFP_KERNEL);
 	if (!f_ffs[0]) {
 		ret = -ENOMEM;
 		goto no_func;

@@ -688,7 +688,7 @@ static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 	/* Arrange to retransmit all messages in the relq. */
 static void bcsp_timed_event(struct timer_list *t)
 {
-	struct bcsp_struct *bcsp = from_timer(bcsp, t, tbcsp);
+	struct bcsp_struct *bcsp = timer_container_of(bcsp, t, tbcsp);
 	struct hci_uart *hu = bcsp->hu;
 	struct sk_buff *skb;
 	unsigned long flags;

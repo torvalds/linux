@@ -293,12 +293,12 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	 */
 	if (parent->algo->master_xfer) {
 		if (muxc->mux_locked)
-			priv->algo.master_xfer = i2c_mux_master_xfer;
+			priv->algo.xfer = i2c_mux_master_xfer;
 		else
-			priv->algo.master_xfer = __i2c_mux_master_xfer;
+			priv->algo.xfer = __i2c_mux_master_xfer;
 	}
 	if (parent->algo->master_xfer_atomic)
-		priv->algo.master_xfer_atomic = priv->algo.master_xfer;
+		priv->algo.xfer_atomic = priv->algo.master_xfer;
 
 	if (parent->algo->smbus_xfer) {
 		if (muxc->mux_locked)

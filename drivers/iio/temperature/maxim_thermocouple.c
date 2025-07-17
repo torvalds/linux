@@ -9,7 +9,6 @@
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
@@ -169,8 +168,9 @@ static irqreturn_t maxim_thermocouple_trigger_handler(int irq, void *private)
 
 	ret = spi_read(data->spi, data->buffer, data->chip->read_size);
 	if (!ret) {
-		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-						   iio_get_time_ns(indio_dev));
+		iio_push_to_buffers_with_ts(indio_dev, data->buffer,
+					    sizeof(data->buffer),
+					    iio_get_time_ns(indio_dev));
 	}
 
 	iio_trigger_notify_done(indio_dev->trig);
@@ -183,40 +183,35 @@ static int maxim_thermocouple_read_raw(struct iio_dev *indio_dev,
 				       int *val, int *val2, long mask)
 {
 	struct maxim_thermocouple_data *data = iio_priv(indio_dev);
-	int ret = -EINVAL;
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
+		ret = maxim_thermocouple_read(data, chan, val);
+		iio_device_release_direct(indio_dev);
 		if (ret)
 			return ret;
 
-		ret = maxim_thermocouple_read(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-
-		if (!ret)
-			return IIO_VAL_INT;
-
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->channel2) {
 		case IIO_MOD_TEMP_AMBIENT:
 			*val = 62;
 			*val2 = 500000; /* 1000 * 0.0625 */
-			ret = IIO_VAL_INT_PLUS_MICRO;
-			break;
+			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			*val = 250; /* 1000 * 0.25 */
-			ret = IIO_VAL_INT;
+			return IIO_VAL_INT;
 		}
-		break;
 	case IIO_CHAN_INFO_THERMOCOUPLE_TYPE:
 		*val = data->tc_type;
-		ret = IIO_VAL_CHAR;
-		break;
+		return IIO_VAL_CHAR;
+	default:
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static const struct iio_info maxim_thermocouple_info = {
@@ -271,7 +266,7 @@ static const struct spi_device_id maxim_thermocouple_id[] = {
 	{"max31855t", MAX31855T},
 	{"max31855e", MAX31855E},
 	{"max31855r", MAX31855R},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, maxim_thermocouple_id);
 

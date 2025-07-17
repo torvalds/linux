@@ -57,7 +57,7 @@ struct mt7915_mcu_bcc_notify {
 struct mt7915_mcu_rdd_report {
 	struct mt76_connac2_mcu_rxd_hdr rxd;
 
-	u8 band_idx;
+	u8 rdd_idx;
 	u8 long_detected;
 	u8 constant_prf_detected;
 	u8 staggered_prf_detected;

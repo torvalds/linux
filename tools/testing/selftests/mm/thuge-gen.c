@@ -77,7 +77,7 @@ void show(unsigned long ps)
 	system(buf);
 }
 
-unsigned long read_sysfs(int warn, char *fmt, ...)
+unsigned long thuge_read_sysfs(int warn, char *fmt, ...)
 {
 	char *line = NULL;
 	size_t linelen = 0;
@@ -106,7 +106,7 @@ unsigned long read_sysfs(int warn, char *fmt, ...)
 
 unsigned long read_free(unsigned long ps)
 {
-	return read_sysfs(ps != getpagesize(),
+	return thuge_read_sysfs(ps != getpagesize(),
 			  "/sys/kernel/mm/hugepages/hugepages-%lukB/free_hugepages",
 			  ps >> 10);
 }
@@ -127,7 +127,7 @@ void test_mmap(unsigned long size, unsigned flags)
 
 	show(size);
 	ksft_test_result(size == getpagesize() || (before - after) == NUM_PAGES,
-			 "%s mmap %lu\n", __func__, size);
+			 "%s mmap %lu %x\n", __func__, size, flags);
 
 	if (munmap(map, size * NUM_PAGES))
 		ksft_exit_fail_msg("%s: unmap %s\n", __func__, strerror(errno));
@@ -165,7 +165,7 @@ void test_shmget(unsigned long size, unsigned flags)
 
 	show(size);
 	ksft_test_result(size == getpagesize() || (before - after) == NUM_PAGES,
-			 "%s: mmap %lu\n", __func__, size);
+			 "%s: mmap %lu %x\n", __func__, size, flags);
 	if (shmdt(map))
 		ksft_exit_fail_msg("%s: shmdt: %s\n", __func__, strerror(errno));
 }
@@ -195,7 +195,7 @@ void find_pagesizes(void)
 	}
 	globfree(&g);
 
-	if (read_sysfs(0, "/proc/sys/kernel/shmmax") < NUM_PAGES * largest)
+	if (thuge_read_sysfs(0, "/proc/sys/kernel/shmmax") < NUM_PAGES * largest)
 		ksft_exit_fail_msg("Please do echo %lu > /proc/sys/kernel/shmmax",
 				   largest * NUM_PAGES);
 

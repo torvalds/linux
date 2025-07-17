@@ -19,6 +19,7 @@
 #include "../../../util/evlist.h"
 #include "../../../util/evsel.h"
 #include "../../../util/evsel_config.h"
+#include "../../../util/config.h"
 #include "../../../util/cpumap.h"
 #include "../../../util/mmap.h"
 #include <subcmd/parse-options.h>
@@ -52,6 +53,7 @@ struct intel_pt_recording {
 	struct perf_pmu			*intel_pt_pmu;
 	int				have_sched_switch;
 	struct evlist		*evlist;
+	bool				all_switch_events;
 	bool				snapshot_mode;
 	bool				snapshot_init_done;
 	size_t				snapshot_size;
@@ -794,7 +796,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			bool cpu_wide = !target__none(&opts->target) &&
 					!target__has_task(&opts->target);
 
-			if (!cpu_wide && perf_can_record_cpu_wide()) {
+			if (ptr->all_switch_events && !cpu_wide && perf_can_record_cpu_wide()) {
 				struct evsel *switch_evsel;
 
 				switch_evsel = evlist__add_dummy_on_all_cpus(evlist);
@@ -1178,6 +1180,16 @@ static u64 intel_pt_reference(struct auxtrace_record *itr __maybe_unused)
 	return rdtsc();
 }
 
+static int intel_pt_perf_config(const char *var, const char *value, void *data)
+{
+	struct intel_pt_recording *ptr = data;
+
+	if (!strcmp(var, "intel-pt.all-switch-events"))
+		ptr->all_switch_events = perf_config_bool(var, value);
+
+	return 0;
+}
+
 struct auxtrace_record *intel_pt_recording_init(int *err)
 {
 	struct perf_pmu *intel_pt_pmu = perf_pmus__find(INTEL_PT_PMU_NAME);
@@ -1196,6 +1208,8 @@ struct auxtrace_record *intel_pt_recording_init(int *err)
 		*err = -ENOMEM;
 		return NULL;
 	}
+
+	perf_config(intel_pt_perf_config, ptr);
 
 	ptr->intel_pt_pmu = intel_pt_pmu;
 	ptr->itr.recording_options = intel_pt_recording_options;

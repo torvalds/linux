@@ -103,6 +103,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 {
 	struct xe_pt *pt;
 	struct xe_bo *bo;
+	u32 bo_flags;
 	int err;
 
 	if (level) {
@@ -115,14 +116,16 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	if (!pt)
 		return ERR_PTR(-ENOMEM);
 
+	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+		   XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE |
+		   XE_BO_FLAG_NO_RESV_EVICT | XE_BO_FLAG_PAGETABLE;
+	if (vm->xef) /* userspace */
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE;
+
 	pt->level = level;
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm, SZ_4K,
 				  ttm_bo_type_kernel,
-				  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
-				  XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE |
-				  XE_BO_FLAG_PINNED |
-				  XE_BO_FLAG_NO_RESV_EVICT |
-				  XE_BO_FLAG_PAGETABLE);
+				  bo_flags);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto err_kfree;
@@ -269,8 +272,11 @@ struct xe_pt_update {
 	bool preexisting;
 };
 
+/**
+ * struct xe_pt_stage_bind_walk - Walk state for the stage_bind walk.
+ */
 struct xe_pt_stage_bind_walk {
-	/** base: The base class. */
+	/** @base: The base class. */
 	struct xe_pt_walk base;
 
 	/* Input parameters for the walk */
@@ -278,15 +284,19 @@ struct xe_pt_stage_bind_walk {
 	struct xe_vm *vm;
 	/** @tile: The tile we're building for. */
 	struct xe_tile *tile;
-	/** @default_pte: PTE flag only template. No address is associated */
-	u64 default_pte;
+	/** @default_vram_pte: PTE flag only template for VRAM. No address is associated */
+	u64 default_vram_pte;
+	/** @default_system_pte: PTE flag only template for System. No address is associated */
+	u64 default_system_pte;
 	/** @dma_offset: DMA offset to add to the PTE. */
 	u64 dma_offset;
 	/**
-	 * @needs_64k: This address range enforces 64K alignment and
-	 * granularity.
+	 * @needs_64K: This address range enforces 64K alignment and
+	 * granularity on VRAM.
 	 */
 	bool needs_64K;
+	/** @clear_pt: clear page table entries during the bind walk */
+	bool clear_pt;
 	/**
 	 * @vma: VMA being mapped
 	 */
@@ -299,6 +309,7 @@ struct xe_pt_stage_bind_walk {
 	u64 va_curs_start;
 
 	/* Output */
+	/** @wupd: Walk output data for page-table updates. */
 	struct xe_walk_update {
 		/** @wupd.entries: Caller provided storage. */
 		struct xe_vm_pgtable_update *entries;
@@ -316,7 +327,7 @@ struct xe_pt_stage_bind_walk {
 	u64 l0_end_addr;
 	/** @addr_64K: The start address of the current 64K chunk. */
 	u64 addr_64K;
-	/** @found_64: Whether @add_64K actually points to a 64K chunk. */
+	/** @found_64K: Whether @add_64K actually points to a 64K chunk. */
 	bool found_64K;
 };
 
@@ -436,6 +447,10 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	if (xe_vma_is_null(xe_walk->vma))
 		return true;
 
+	/* if we are clearing page table, no dma addresses*/
+	if (xe_walk->clear_pt)
+		return true;
+
 	/* Is the DMA address huge PTE size aligned? */
 	size = next - addr;
 	dma = addr - xe_walk->va_curs_start + xe_res_dma(xe_walk->curs);
@@ -515,24 +530,35 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 	if (level == 0 || xe_pt_hugepte_possible(addr, next, level, xe_walk)) {
 		struct xe_res_cursor *curs = xe_walk->curs;
 		bool is_null = xe_vma_is_null(xe_walk->vma);
+		bool is_vram = is_null ? false : xe_res_is_vram(curs);
 
 		XE_WARN_ON(xe_walk->va_curs_start != addr);
 
-		pte = vm->pt_ops->pte_encode_vma(is_null ? 0 :
-						 xe_res_dma(curs) + xe_walk->dma_offset,
-						 xe_walk->vma, pat_index, level);
-		pte |= xe_walk->default_pte;
+		if (xe_walk->clear_pt) {
+			pte = 0;
+		} else {
+			pte = vm->pt_ops->pte_encode_vma(is_null ? 0 :
+							 xe_res_dma(curs) +
+							 xe_walk->dma_offset,
+							 xe_walk->vma,
+							 pat_index, level);
+			if (!is_null)
+				pte |= is_vram ? xe_walk->default_vram_pte :
+					xe_walk->default_system_pte;
 
-		/*
-		 * Set the XE_PTE_PS64 hint if possible, otherwise if
-		 * this device *requires* 64K PTE size for VRAM, fail.
-		 */
-		if (level == 0 && !xe_parent->is_compact) {
-			if (xe_pt_is_pte_ps64K(addr, next, xe_walk)) {
-				xe_walk->vma->gpuva.flags |= XE_VMA_PTE_64K;
-				pte |= XE_PTE_PS64;
-			} else if (XE_WARN_ON(xe_walk->needs_64K)) {
-				return -EINVAL;
+			/*
+			 * Set the XE_PTE_PS64 hint if possible, otherwise if
+			 * this device *requires* 64K PTE size for VRAM, fail.
+			 */
+			if (level == 0 && !xe_parent->is_compact) {
+				if (xe_pt_is_pte_ps64K(addr, next, xe_walk)) {
+					xe_walk->vma->gpuva.flags |=
+							XE_VMA_PTE_64K;
+					pte |= XE_PTE_PS64;
+				} else if (XE_WARN_ON(xe_walk->needs_64K &&
+					   is_vram)) {
+					return -EINVAL;
+				}
 			}
 		}
 
@@ -540,7 +566,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		if (unlikely(ret))
 			return ret;
 
-		if (!is_null)
+		if (!is_null && !xe_walk->clear_pt)
 			xe_res_next(curs, next - addr);
 		xe_walk->va_curs_start = next;
 		xe_walk->vma->gpuva.flags |= (XE_VMA_PTE_4K << level);
@@ -603,6 +629,44 @@ static const struct xe_pt_walk_ops xe_pt_stage_bind_ops = {
 	.pt_entry = xe_pt_stage_bind_entry,
 };
 
+/*
+ * Default atomic expectations for different allocation scenarios are as follows:
+ *
+ * 1. Traditional API: When the VM is not in LR mode:
+ *    - Device atomics are expected to function with all allocations.
+ *
+ * 2. Compute/SVM API: When the VM is in LR mode:
+ *    - Device atomics are the default behavior when the bo is placed in a single region.
+ *    - In all other cases device atomics will be disabled with AE=0 until an application
+ *      request differently using a ioctl like madvise.
+ */
+static bool xe_atomic_for_vram(struct xe_vm *vm)
+{
+	return true;
+}
+
+static bool xe_atomic_for_system(struct xe_vm *vm, struct xe_bo *bo)
+{
+	struct xe_device *xe = vm->xe;
+
+	if (!xe->info.has_device_atomics_on_smem)
+		return false;
+
+	/*
+	 * If a SMEM+LMEM allocation is backed by SMEM, a device
+	 * atomics will cause a gpu page fault and which then
+	 * gets migrated to LMEM, bind such allocations with
+	 * device atomics enabled.
+	 *
+	 * TODO: Revisit this. Perhaps add something like a
+	 * fault_on_atomics_in_system UAPI flag.
+	 * Note that this also prohibits GPU atomics in LR mode for
+	 * userptr and system memory on DGFX.
+	 */
+	return (!IS_DGFX(xe) || (!xe_vm_in_lr_mode(vm) ||
+				 (bo && xe_bo_has_single_placement(bo))));
+}
+
 /**
  * xe_pt_stage_bind() - Build a disconnected page-table tree for a given address
  * range.
@@ -612,6 +676,7 @@ static const struct xe_pt_walk_ops xe_pt_stage_bind_ops = {
  * @entries: Storage for the update entries used for connecting the tree to
  * the main tree at commit time.
  * @num_entries: On output contains the number of @entries used.
+ * @clear_pt: Clear the page table entries.
  *
  * This function builds a disconnected page-table tree for a given address
  * range. The tree is connected to the main vm tree for the gpu using
@@ -625,13 +690,13 @@ static const struct xe_pt_walk_ops xe_pt_stage_bind_ops = {
 static int
 xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 struct xe_svm_range *range,
-		 struct xe_vm_pgtable_update *entries, u32 *num_entries)
+		 struct xe_vm_pgtable_update *entries,
+		 u32 *num_entries, bool clear_pt)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_bo *bo = xe_vma_bo(vma);
-	bool is_devmem = !xe_vma_is_userptr(vma) && bo &&
-		(xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo));
 	struct xe_res_cursor curs;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	struct xe_pt_stage_bind_walk xe_walk = {
 		.base = {
 			.ops = &xe_pt_stage_bind_ops,
@@ -639,34 +704,31 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 			.staging = true,
 		},
-		.vm = xe_vma_vm(vma),
+		.vm = vm,
 		.tile = tile,
 		.curs = &curs,
 		.va_curs_start = range ? range->base.itree.start :
 			xe_vma_start(vma),
 		.vma = vma,
 		.wupd.entries = entries,
+		.clear_pt = clear_pt,
 	};
-	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
+	struct xe_pt *pt = vm->pt_root[tile->id];
 	int ret;
 
 	if (range) {
 		/* Move this entire thing to xe_svm.c? */
-		xe_svm_notifier_lock(xe_vma_vm(vma));
+		xe_svm_notifier_lock(vm);
 		if (!xe_svm_range_pages_valid(range)) {
 			xe_svm_range_debug(range, "BIND PREPARE - RETRY");
-			xe_svm_notifier_unlock(xe_vma_vm(vma));
+			xe_svm_notifier_unlock(vm);
 			return -EAGAIN;
 		}
 		if (xe_svm_range_has_dma_mapping(range)) {
 			xe_res_first_dma(range->base.dma_addr, 0,
 					 range->base.itree.last + 1 - range->base.itree.start,
 					 &curs);
-			is_devmem = xe_res_is_vram(&curs);
-			if (is_devmem)
-				xe_svm_range_debug(range, "BIND PREPARE - DMA VRAM");
-			else
-				xe_svm_range_debug(range, "BIND PREPARE - DMA");
+			xe_svm_range_debug(range, "BIND PREPARE - MIXED");
 		} else {
 			xe_assert(xe, false);
 		}
@@ -674,54 +736,21 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 * Note, when unlocking the resource cursor dma addresses may become
 		 * stale, but the bind will be aborted anyway at commit time.
 		 */
-		xe_svm_notifier_unlock(xe_vma_vm(vma));
+		xe_svm_notifier_unlock(vm);
 	}
 
-	xe_walk.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAG_64K) && is_devmem;
+	xe_walk.needs_64K = (vm->flags & XE_VM_FLAG_64K);
+	if (clear_pt)
+		goto walk_pt;
 
-	/**
-	 * Default atomic expectations for different allocation scenarios are as follows:
-	 *
-	 * 1. Traditional API: When the VM is not in LR mode:
-	 *    - Device atomics are expected to function with all allocations.
-	 *
-	 * 2. Compute/SVM API: When the VM is in LR mode:
-	 *    - Device atomics are the default behavior when the bo is placed in a single region.
-	 *    - In all other cases device atomics will be disabled with AE=0 until an application
-	 *      request differently using a ioctl like madvise.
-	 */
 	if (vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) {
-		if (xe_vm_in_lr_mode(xe_vma_vm(vma))) {
-			if (bo && xe_bo_has_single_placement(bo))
-				xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
-			/**
-			 * If a SMEM+LMEM allocation is backed by SMEM, a device
-			 * atomics will cause a gpu page fault and which then
-			 * gets migrated to LMEM, bind such allocations with
-			 * device atomics enabled.
-			 */
-			else if (is_devmem)
-				xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
-		} else {
-			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
-		}
-
-		/**
-		 * Unset AE if the platform(PVC) doesn't support it on an
-		 * allocation
-		 */
-		if (!xe->info.has_device_atomics_on_smem && !is_devmem)
-			xe_walk.default_pte &= ~XE_USM_PPGTT_PTE_AE;
+		xe_walk.default_vram_pte = xe_atomic_for_vram(vm) ? XE_USM_PPGTT_PTE_AE : 0;
+		xe_walk.default_system_pte = xe_atomic_for_system(vm, bo) ?
+			XE_USM_PPGTT_PTE_AE : 0;
 	}
 
-	if (is_devmem) {
-		xe_walk.default_pte |= XE_PPGTT_PTE_DM;
-		xe_walk.dma_offset = bo ? vram_region_gpu_offset(bo->ttm.resource) : 0;
-	}
-
-	if (!xe_vma_has_no_bo(vma) && xe_bo_is_stolen(bo))
-		xe_walk.dma_offset = xe_ttm_stolen_gpu_offset(xe_bo_device(bo));
-
+	xe_walk.default_vram_pte |= XE_PPGTT_PTE_DM;
+	xe_walk.dma_offset = bo ? vram_region_gpu_offset(bo->ttm.resource) : 0;
 	if (!range)
 		xe_bo_assert_held(bo);
 
@@ -739,6 +768,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		curs.size = xe_vma_size(vma);
 	}
 
+walk_pt:
 	ret = xe_pt_walk_range(&pt->base, pt->level,
 			       range ? range->base.itree.start : xe_vma_start(vma),
 			       range ? range->base.itree.last + 1 : xe_vma_end(vma),
@@ -1103,12 +1133,14 @@ static void xe_pt_free_bind(struct xe_vm_pgtable_update *entries,
 static int
 xe_pt_prepare_bind(struct xe_tile *tile, struct xe_vma *vma,
 		   struct xe_svm_range *range,
-		   struct xe_vm_pgtable_update *entries, u32 *num_entries)
+		   struct xe_vm_pgtable_update *entries,
+		   u32 *num_entries, bool invalidate_on_bind)
 {
 	int err;
 
 	*num_entries = 0;
-	err = xe_pt_stage_bind(tile, vma, range, entries, num_entries);
+	err = xe_pt_stage_bind(tile, vma, range, entries, num_entries,
+			       invalidate_on_bind);
 	if (!err)
 		xe_tile_assert(tile, *num_entries);
 
@@ -1420,6 +1452,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	return err;
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_GPUSVM)
 static int xe_pt_svm_pre_commit(struct xe_migrate_pt_update *pt_update)
 {
 	struct xe_vm *vm = pt_update->vops->vm;
@@ -1453,6 +1486,7 @@ static int xe_pt_svm_pre_commit(struct xe_migrate_pt_update *pt_update)
 
 	return 0;
 }
+#endif
 
 struct invalidation_fence {
 	struct xe_gt_tlb_invalidation_fence base;
@@ -1791,7 +1825,7 @@ static int vma_reserve_fences(struct xe_device *xe, struct xe_vma *vma)
 
 static int bind_op_prepare(struct xe_vm *vm, struct xe_tile *tile,
 			   struct xe_vm_pgtable_update_ops *pt_update_ops,
-			   struct xe_vma *vma)
+			   struct xe_vma *vma, bool invalidate_on_bind)
 {
 	u32 current_op = pt_update_ops->current_op;
 	struct xe_vm_pgtable_update_op *pt_op = &pt_update_ops->ops[current_op];
@@ -1813,7 +1847,7 @@ static int bind_op_prepare(struct xe_vm *vm, struct xe_tile *tile,
 		return err;
 
 	err = xe_pt_prepare_bind(tile, vma, NULL, pt_op->entries,
-				 &pt_op->num_entries);
+				 &pt_op->num_entries, invalidate_on_bind);
 	if (!err) {
 		xe_tile_assert(tile, pt_op->num_entries <=
 			       ARRAY_SIZE(pt_op->entries));
@@ -1835,11 +1869,11 @@ static int bind_op_prepare(struct xe_vm *vm, struct xe_tile *tile,
 		 * If !rebind, and scratch enabled VMs, there is a chance the scratch
 		 * PTE is already cached in the TLB so it needs to be invalidated.
 		 * On !LR VMs this is done in the ring ops preceding a batch, but on
-		 * non-faulting LR, in particular on user-space batch buffer chaining,
-		 * it needs to be done here.
+		 * LR, in particular on user-space batch buffer chaining, it needs to
+		 * be done here.
 		 */
 		if ((!pt_op->rebind && xe_vm_has_scratch(vm) &&
-		     xe_vm_in_preempt_fence_mode(vm)))
+		     xe_vm_in_lr_mode(vm)))
 			pt_update_ops->needs_invalidation = true;
 		else if (pt_op->rebind && !xe_vm_in_lr_mode(vm))
 			/* We bump also if batch_invalidate_tlb is true */
@@ -1875,7 +1909,7 @@ static int bind_range_prepare(struct xe_vm *vm, struct xe_tile *tile,
 	pt_op->rebind = BIT(tile->id) & range->tile_present;
 
 	err = xe_pt_prepare_bind(tile, vma, range, pt_op->entries,
-				 &pt_op->num_entries);
+				 &pt_op->num_entries, false);
 	if (!err) {
 		xe_tile_assert(tile, pt_op->num_entries <=
 			       ARRAY_SIZE(pt_op->entries));
@@ -1987,11 +2021,13 @@ static int op_prepare(struct xe_vm *vm,
 
 	switch (op->base.op) {
 	case DRM_GPUVA_OP_MAP:
-		if ((!op->map.immediate && xe_vm_in_fault_mode(vm)) ||
+		if ((!op->map.immediate && xe_vm_in_fault_mode(vm) &&
+		     !op->map.invalidate_on_bind) ||
 		    op->map.is_cpu_addr_mirror)
 			break;
 
-		err = bind_op_prepare(vm, tile, pt_update_ops, op->map.vma);
+		err = bind_op_prepare(vm, tile, pt_update_ops, op->map.vma,
+				      op->map.invalidate_on_bind);
 		pt_update_ops->wait_vm_kernel = true;
 		break;
 	case DRM_GPUVA_OP_REMAP:
@@ -2005,12 +2041,12 @@ static int op_prepare(struct xe_vm *vm,
 
 		if (!err && op->remap.prev) {
 			err = bind_op_prepare(vm, tile, pt_update_ops,
-					      op->remap.prev);
+					      op->remap.prev, false);
 			pt_update_ops->wait_vm_bookkeep = true;
 		}
 		if (!err && op->remap.next) {
 			err = bind_op_prepare(vm, tile, pt_update_ops,
-					      op->remap.next);
+					      op->remap.next, false);
 			pt_update_ops->wait_vm_bookkeep = true;
 		}
 		break;
@@ -2032,7 +2068,7 @@ static int op_prepare(struct xe_vm *vm,
 		if (xe_vma_is_cpu_addr_mirror(vma))
 			break;
 
-		err = bind_op_prepare(vm, tile, pt_update_ops, vma);
+		err = bind_op_prepare(vm, tile, pt_update_ops, vma, false);
 		pt_update_ops->wait_vm_kernel = true;
 		break;
 	}
@@ -2115,7 +2151,7 @@ ALLOW_ERROR_INJECTION(xe_pt_update_ops_prepare, ERRNO);
 static void bind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 			   struct xe_vm_pgtable_update_ops *pt_update_ops,
 			   struct xe_vma *vma, struct dma_fence *fence,
-			   struct dma_fence *fence2)
+			   struct dma_fence *fence2, bool invalidate_on_bind)
 {
 	xe_tile_assert(tile, !xe_vma_is_cpu_addr_mirror(vma));
 
@@ -2132,6 +2168,8 @@ static void bind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 	}
 	vma->tile_present |= BIT(tile->id);
 	vma->tile_staged &= ~BIT(tile->id);
+	if (invalidate_on_bind)
+		vma->tile_invalidated |= BIT(tile->id);
 	if (xe_vma_is_userptr(vma)) {
 		lockdep_assert_held_read(&vm->userptr.notifier_lock);
 		to_userptr_vma(vma)->userptr.initial_bind = true;
@@ -2193,7 +2231,7 @@ static void op_commit(struct xe_vm *vm,
 			break;
 
 		bind_op_commit(vm, tile, pt_update_ops, op->map.vma, fence,
-			       fence2);
+			       fence2, op->map.invalidate_on_bind);
 		break;
 	case DRM_GPUVA_OP_REMAP:
 	{
@@ -2206,10 +2244,10 @@ static void op_commit(struct xe_vm *vm,
 
 		if (op->remap.prev)
 			bind_op_commit(vm, tile, pt_update_ops, op->remap.prev,
-				       fence, fence2);
+				       fence, fence2, false);
 		if (op->remap.next)
 			bind_op_commit(vm, tile, pt_update_ops, op->remap.next,
-				       fence, fence2);
+				       fence, fence2, false);
 		break;
 	}
 	case DRM_GPUVA_OP_UNMAP:
@@ -2227,7 +2265,7 @@ static void op_commit(struct xe_vm *vm,
 
 		if (!xe_vma_is_cpu_addr_mirror(vma))
 			bind_op_commit(vm, tile, pt_update_ops, vma, fence,
-				       fence2);
+				       fence2, false);
 		break;
 	}
 	case DRM_GPUVA_OP_DRIVER:
@@ -2265,11 +2303,15 @@ static const struct xe_migrate_pt_update_ops userptr_migrate_ops = {
 	.pre_commit = xe_pt_userptr_pre_commit,
 };
 
+#if IS_ENABLED(CONFIG_DRM_XE_GPUSVM)
 static const struct xe_migrate_pt_update_ops svm_migrate_ops = {
 	.populate = xe_vm_populate_pgtable,
 	.clear = xe_migrate_clear_pgtable_callback,
 	.pre_commit = xe_pt_svm_pre_commit,
 };
+#else
+static const struct xe_migrate_pt_update_ops svm_migrate_ops;
+#endif
 
 /**
  * xe_pt_update_ops_run() - Run PT update operations

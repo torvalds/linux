@@ -78,6 +78,9 @@
 
 #include <trace/events/sched.h>
 
+/* For vma exec functions. */
+#include "../mm/internal.h"
+
 static int bprm_creds_from_file(struct linux_binprm *bprm);
 
 int suid_dumpable = 0;
@@ -111,6 +114,9 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 
 bool path_noexec(const struct path *path)
 {
+	/* If it's an anonymous inode make sure that we catch any shenanigans. */
+	VFS_WARN_ON_ONCE(IS_ANON_FILE(d_inode(path->dentry)) &&
+			 !(path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC));
 	return (path->mnt->mnt_flags & MNT_NOEXEC) ||
 	       (path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC);
 }
@@ -182,60 +188,6 @@ static void flush_arg_page(struct linux_binprm *bprm, unsigned long pos,
 	flush_cache_page(bprm->vma, pos, page_to_pfn(page));
 }
 
-static int __bprm_mm_init(struct linux_binprm *bprm)
-{
-	int err;
-	struct vm_area_struct *vma = NULL;
-	struct mm_struct *mm = bprm->mm;
-
-	bprm->vma = vma = vm_area_alloc(mm);
-	if (!vma)
-		return -ENOMEM;
-	vma_set_anonymous(vma);
-
-	if (mmap_write_lock_killable(mm)) {
-		err = -EINTR;
-		goto err_free;
-	}
-
-	/*
-	 * Need to be called with mmap write lock
-	 * held, to avoid race with ksmd.
-	 */
-	err = ksm_execve(mm);
-	if (err)
-		goto err_ksm;
-
-	/*
-	 * Place the stack at the largest stack address the architecture
-	 * supports. Later, we'll move this to an appropriate place. We don't
-	 * use STACK_TOP because that can depend on attributes which aren't
-	 * configured yet.
-	 */
-	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
-	vma->vm_end = STACK_TOP_MAX;
-	vma->vm_start = vma->vm_end - PAGE_SIZE;
-	vm_flags_init(vma, VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP);
-	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-
-	err = insert_vm_struct(mm, vma);
-	if (err)
-		goto err;
-
-	mm->stack_vm = mm->total_vm = 1;
-	mmap_write_unlock(mm);
-	bprm->p = vma->vm_end - sizeof(void *);
-	return 0;
-err:
-	ksm_exit(mm);
-err_ksm:
-	mmap_write_unlock(mm);
-err_free:
-	bprm->vma = NULL;
-	vm_area_free(vma);
-	return err;
-}
-
 static bool valid_arg_len(struct linux_binprm *bprm, long len)
 {
 	return len <= MAX_ARG_STRLEN;
@@ -288,12 +240,6 @@ static void flush_arg_page(struct linux_binprm *bprm, unsigned long pos,
 {
 }
 
-static int __bprm_mm_init(struct linux_binprm *bprm)
-{
-	bprm->p = PAGE_SIZE * MAX_ARG_PAGES - sizeof(void *);
-	return 0;
-}
-
 static bool valid_arg_len(struct linux_binprm *bprm, long len)
 {
 	return len <= bprm->p;
@@ -322,9 +268,13 @@ static int bprm_mm_init(struct linux_binprm *bprm)
 	bprm->rlim_stack = current->signal->rlim[RLIMIT_STACK];
 	task_unlock(current->group_leader);
 
-	err = __bprm_mm_init(bprm);
+#ifndef CONFIG_MMU
+	bprm->p = PAGE_SIZE * MAX_ARG_PAGES - sizeof(void *);
+#else
+	err = create_init_stack_vma(bprm->mm, &bprm->vma, &bprm->p);
 	if (err)
 		goto err;
+#endif
 
 	return 0;
 
@@ -834,13 +784,15 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 	if (IS_ERR(file))
 		return file;
 
+	if (path_noexec(&file->f_path))
+		return ERR_PTR(-EACCES);
+
 	/*
 	 * In the past the regular type check was here. It moved to may_open() in
 	 * 633fb6ac3980 ("exec: move S_ISREG() check earlier"). Since then it is
 	 * an invariant that all non-regular files error out before we get here.
 	 */
-	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode)) ||
-	    path_noexec(&file->f_path))
+	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode)))
 		return ERR_PTR(-EACCES);
 
 	err = exe_file_deny_write_access(file);

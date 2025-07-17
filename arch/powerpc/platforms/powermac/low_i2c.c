@@ -359,7 +359,8 @@ static irqreturn_t kw_i2c_irq(int irq, void *dev_id)
 
 static void kw_i2c_timeout(struct timer_list *t)
 {
-	struct pmac_i2c_host_kw *host = from_timer(host, t, timeout_timer);
+	struct pmac_i2c_host_kw *host = timer_container_of(host, t,
+							   timeout_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);

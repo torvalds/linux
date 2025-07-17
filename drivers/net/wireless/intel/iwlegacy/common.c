@@ -4804,7 +4804,7 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 void
 il_bg_watchdog(struct timer_list *t)
 {
-	struct il_priv *il = from_timer(il, t, watchdog);
+	struct il_priv *il = timer_container_of(il, t, watchdog);
 	int cnt;
 	unsigned long timeout;
 

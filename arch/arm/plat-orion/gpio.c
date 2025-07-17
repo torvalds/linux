@@ -211,7 +211,7 @@ orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin, int value)
 	return 0;
 }
 
-static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
+static int orion_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 {
 	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -219,6 +219,8 @@ static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 	spin_lock_irqsave(&ochip->lock, flags);
 	__set_level(ochip, pin, value);
 	spin_unlock_irqrestore(&ochip->lock, flags);
+
+	return 0;
 }
 
 static int orion_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
@@ -538,7 +540,7 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 	ochip->chip.direction_input = orion_gpio_direction_input;
 	ochip->chip.get = orion_gpio_get;
 	ochip->chip.direction_output = orion_gpio_direction_output;
-	ochip->chip.set = orion_gpio_set;
+	ochip->chip.set_rv = orion_gpio_set;
 	ochip->chip.to_irq = orion_gpio_to_irq;
 	ochip->chip.base = gpio_base;
 	ochip->chip.ngpio = ngpio;

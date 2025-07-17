@@ -39,6 +39,16 @@ static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 		return -1;
 }
 
+static inline void syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr)
+{
+	/*
+	 * Unlike syscall_get_nr(), syscall_set_nr() can be called only when
+	 * the target task is stopped for tracing on entering syscall, so
+	 * there is no need to have the same check syscall_get_nr() has.
+	 */
+	regs->gpr[0] = nr;
+}
+
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
@@ -108,6 +118,16 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 		args[n] = val & mask;
 	}
+}
+
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 const unsigned long *args)
+{
+	memcpy(&regs->gpr[3], args, 6 * sizeof(args[0]));
+
+	/* Also copy the first argument into orig_gpr3 */
+	regs->orig_gpr3 = args[0];
 }
 
 static inline int syscall_get_arch(struct task_struct *task)

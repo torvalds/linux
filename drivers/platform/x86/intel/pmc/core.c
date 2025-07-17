@@ -29,6 +29,7 @@
 #include <asm/tsc.h>
 
 #include "core.h"
+#include "ssram_telemetry.h"
 #include "../pmt/telemetry.h"
 
 /* Maximum number of modes supported by platfoms that has low power mode capability */
@@ -1345,6 +1346,198 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	}
 }
 
+static u32 pmc_core_find_guid(struct pmc_info *list, const struct pmc_reg_map *map)
+{
+	for (; list->map; ++list)
+		if (list->map == map)
+			return list->guid;
+
+	return 0;
+}
+
+/*
+ * This function retrieves low power mode requirement data from PMC Low
+ * Power Mode (LPM) table.
+ *
+ * In telemetry space, the LPM table contains a 4 byte header followed
+ * by 8 consecutive mode blocks (one for each LPM mode). Each block
+ * has a 4 byte header followed by a set of registers that describe the
+ * IP state requirements for the given mode. The IP mapping is platform
+ * specific but the same for each block, making for easy analysis.
+ * Platforms only use a subset of the space to track the requirements
+ * for their IPs. Callers provide the requirement registers they use as
+ * a list of indices. Each requirement register is associated with an
+ * IP map that's maintained by the caller.
+ *
+ * Header
+ * +----+----------------------------+----------------------------+
+ * |  0 |      REVISION              |      ENABLED MODES         |
+ * +----+--------------+-------------+-------------+--------------+
+ *
+ * Low Power Mode 0 Block
+ * +----+--------------+-------------+-------------+--------------+
+ * |  1 |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
+ * +----+--------------+-------------+-------------+--------------+
+ * |  2 |           LPM0 Requirements 0                           |
+ * +----+---------------------------------------------------------+
+ * |    |                  ...                                    |
+ * +----+---------------------------------------------------------+
+ * | 29 |           LPM0 Requirements 27                          |
+ * +----+---------------------------------------------------------+
+ *
+ * ...
+ *
+ * Low Power Mode 7 Block
+ * +----+--------------+-------------+-------------+--------------+
+ * |    |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
+ * +----+--------------+-------------+-------------+--------------+
+ * | 60 |           LPM7 Requirements 0                           |
+ * +----+---------------------------------------------------------+
+ * |    |                  ...                                    |
+ * +----+---------------------------------------------------------+
+ * | 87 |           LPM7 Requirements 27                          |
+ * +----+---------------------------------------------------------+
+ *
+ */
+static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct pci_dev *pcidev)
+{
+	struct telem_endpoint *ep;
+	const u8 *lpm_indices;
+	int num_maps, mode_offset = 0;
+	int ret, mode;
+	int lpm_size;
+	u32 guid;
+
+	lpm_indices = pmc->map->lpm_reg_index;
+	num_maps = pmc->map->lpm_num_maps;
+	lpm_size = LPM_MAX_NUM_MODES * num_maps;
+
+	guid = pmc_core_find_guid(pmcdev->regmap_list, pmc->map);
+	if (!guid)
+		return -ENXIO;
+
+	ep = pmt_telem_find_and_register_endpoint(pcidev, guid, 0);
+	if (IS_ERR(ep)) {
+		dev_dbg(&pmcdev->pdev->dev, "couldn't get telem endpoint %pe", ep);
+		return -EPROBE_DEFER;
+	}
+
+	pmc->lpm_req_regs = devm_kzalloc(&pmcdev->pdev->dev,
+					 lpm_size * sizeof(u32),
+					 GFP_KERNEL);
+	if (!pmc->lpm_req_regs) {
+		ret = -ENOMEM;
+		goto unregister_ep;
+	}
+
+	mode_offset = LPM_HEADER_OFFSET + LPM_MODE_OFFSET;
+	pmc_for_each_mode(mode, pmcdev) {
+		u32 *req_offset = pmc->lpm_req_regs + (mode * num_maps);
+		int m;
+
+		for (m = 0; m < num_maps; m++) {
+			u8 sample_id = lpm_indices[m] + mode_offset;
+
+			ret = pmt_telem_read32(ep, sample_id, req_offset, 1);
+			if (ret) {
+				dev_err(&pmcdev->pdev->dev,
+					"couldn't read Low Power Mode requirements: %d\n", ret);
+				goto unregister_ep;
+			}
+			++req_offset;
+		}
+		mode_offset += LPM_REG_COUNT + LPM_MODE_OFFSET;
+	}
+
+unregister_ep:
+	pmt_telem_unregister_endpoint(ep);
+
+	return ret;
+}
+
+static int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev, int func)
+{
+	struct pci_dev *pcidev __free(pci_dev_put) = NULL;
+	unsigned int i;
+	int ret;
+
+	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, func));
+	if (!pcidev)
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
+		if (!pmcdev->pmcs[i])
+			continue;
+
+		ret = pmc_core_get_lpm_req(pmcdev, pmcdev->pmcs[i], pcidev);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static const struct pmc_reg_map *pmc_core_find_regmap(struct pmc_info *list, u16 devid)
+{
+	for (; list->map; ++list)
+		if (devid == list->devid)
+			return list->map;
+
+	return NULL;
+}
+
+static int pmc_core_pmc_add(struct pmc_dev *pmcdev, unsigned int pmc_index)
+
+{
+	struct pmc_ssram_telemetry pmc_ssram_telemetry;
+	const struct pmc_reg_map *map;
+	struct pmc *pmc;
+	int ret;
+
+	ret = pmc_ssram_telemetry_get_pmc_info(pmc_index, &pmc_ssram_telemetry);
+	if (ret)
+		return ret;
+
+	map = pmc_core_find_regmap(pmcdev->regmap_list, pmc_ssram_telemetry.devid);
+	if (!map)
+		return -ENODEV;
+
+	pmc = pmcdev->pmcs[pmc_index];
+	/* Memory for primary PMC has been allocated */
+	if (!pmc) {
+		pmc = devm_kzalloc(&pmcdev->pdev->dev, sizeof(*pmc), GFP_KERNEL);
+		if (!pmc)
+			return -ENOMEM;
+	}
+
+	pmc->map = map;
+	pmc->base_addr = pmc_ssram_telemetry.base_addr;
+	pmc->regbase = ioremap(pmc->base_addr, pmc->map->regmap_length);
+
+	if (!pmc->regbase) {
+		devm_kfree(&pmcdev->pdev->dev, pmc);
+		return -ENOMEM;
+	}
+
+	pmcdev->pmcs[pmc_index] = pmc;
+
+	return 0;
+}
+
+static int pmc_core_ssram_get_reg_base(struct pmc_dev *pmcdev)
+{
+	int ret;
+
+	ret = pmc_core_pmc_add(pmcdev, PMC_IDX_MAIN);
+	if (ret)
+		return ret;
+
+	pmc_core_pmc_add(pmcdev, PMC_IDX_IOE);
+	pmc_core_pmc_add(pmcdev, PMC_IDX_PCH);
+
+	return 0;
+}
+
 /*
  * When supported, ssram init is used to achieve all available PMCs.
  * If ssram init fails, this function uses legacy method to at least get the
@@ -1362,10 +1555,18 @@ int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 	ssram = pmc_dev_info->regmap_list != NULL;
 	if (ssram) {
 		pmcdev->regmap_list = pmc_dev_info->regmap_list;
-		ret = pmc_core_ssram_init(pmcdev, pmc_dev_info->pci_func);
+		ret = pmc_core_ssram_get_reg_base(pmcdev);
+		/*
+		 * EAGAIN error code indicates Intel PMC SSRAM Telemetry driver
+		 * has not finished probe and PMC info is not available yet. Try
+		 * again later.
+		 */
+		if (ret == -EAGAIN)
+			return -EPROBE_DEFER;
+
 		if (ret) {
 			dev_warn(&pmcdev->pdev->dev,
-				 "ssram init failed, %d, using legacy init\n", ret);
+				 "Failed to get PMC info from SSRAM, %d, using legacy init\n", ret);
 			ssram = false;
 		}
 	}
@@ -1381,10 +1582,26 @@ int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 	if (pmc_dev_info->dmu_guid)
 		pmc_core_punit_pmt_init(pmcdev, pmc_dev_info->dmu_guid);
 
-	if (ssram)
-		return pmc_core_ssram_get_lpm_reqs(pmcdev);
+	if (ssram) {
+		ret = pmc_core_ssram_get_lpm_reqs(pmcdev, pmc_dev_info->pci_func);
+		if (ret)
+			goto unmap_regbase;
+	}
 
 	return 0;
+
+unmap_regbase:
+	for (unsigned int i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
+		struct pmc *pmc = pmcdev->pmcs[i];
+
+		if (pmc && pmc->regbase)
+			iounmap(pmc->regbase);
+	}
+
+	if (pmcdev->punit_ep)
+		pmt_telem_unregister_endpoint(pmcdev->punit_ep);
+
+	return ret;
 }
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
@@ -1471,20 +1688,14 @@ static void pmc_core_clean_structure(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
 		struct pmc *pmc = pmcdev->pmcs[i];
 
-		if (pmc)
+		if (pmc && pmc->regbase)
 			iounmap(pmc->regbase);
-	}
-
-	if (pmcdev->ssram_pcidev) {
-		pci_dev_put(pmcdev->ssram_pcidev);
-		pci_disable_device(pmcdev->ssram_pcidev);
 	}
 
 	if (pmcdev->punit_ep)
 		pmt_telem_unregister_endpoint(pmcdev->punit_ep);
 
 	platform_set_drvdata(pdev, NULL);
-	mutex_destroy(&pmcdev->lock);
 }
 
 static int pmc_core_probe(struct platform_device *pdev)
@@ -1529,7 +1740,9 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!pmcdev->pkgc_res_cnt)
 		return -ENOMEM;
 
-	mutex_init(&pmcdev->lock);
+	ret = devm_mutex_init(&pdev->dev, &pmcdev->lock);
+	if (ret)
+		return ret;
 
 	if (pmc_dev_info->init)
 		ret = pmc_dev_info->init(pmcdev, pmc_dev_info);
@@ -1537,7 +1750,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 		ret = generic_core_init(pmcdev, pmc_dev_info);
 
 	if (ret) {
-		pmc_core_clean_structure(pdev);
+		platform_set_drvdata(pdev, NULL);
 		return ret;
 	}
 
@@ -1719,5 +1932,6 @@ static struct platform_driver pmc_core_driver = {
 
 module_platform_driver(pmc_core_driver);
 
+MODULE_IMPORT_NS("INTEL_PMT_TELEMETRY");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel PMC Core Driver");

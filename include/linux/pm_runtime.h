@@ -470,6 +470,8 @@ static inline int pm_runtime_put(struct device *dev)
 	return __pm_runtime_idle(dev, RPM_GET_PUT | RPM_ASYNC);
 }
 
+DEFINE_FREE(pm_runtime_put, struct device *, if (_T) pm_runtime_put(_T))
+
 /**
  * __pm_runtime_put_autosuspend - Drop device usage counter and queue autosuspend if 0.
  * @dev: Target device.

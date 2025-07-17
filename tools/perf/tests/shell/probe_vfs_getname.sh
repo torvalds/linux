@@ -13,7 +13,13 @@ skip_if_no_perf_probe || exit 2
 # shellcheck source=lib/probe_vfs_getname.sh
 . "$(dirname $0)"/lib/probe_vfs_getname.sh
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname
 err=$?
+
+if [ $err -eq 1 ] ; then
+	skip_if_no_debuginfo
+	err=$?
+fi
+
 cleanup_probe_vfs_getname
 exit $err

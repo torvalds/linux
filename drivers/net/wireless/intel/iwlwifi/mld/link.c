@@ -580,7 +580,7 @@ iwl_mld_get_omi_bw_reduction_pointers(struct iwl_mld *mld,
 
 	*link_sta = NULL;
 
-	if (mld->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_SC)
+	if (mld->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_SC)
 		return NULL;
 
 	vif = iwl_mld_get_bss_vif(mld);
@@ -782,10 +782,11 @@ iwl_mld_init_link(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 
 	iwl_mld_init_internal_sta(&mld_link->bcast_sta);
 	iwl_mld_init_internal_sta(&mld_link->mcast_sta);
-	iwl_mld_init_internal_sta(&mld_link->aux_sta);
+	iwl_mld_init_internal_sta(&mld_link->mon_sta);
 
-	wiphy_delayed_work_init(&mld_link->rx_omi.finished_work,
-				iwl_mld_omi_bw_finished_work);
+	if (!mld->fw_status.in_hw_restart)
+		wiphy_delayed_work_init(&mld_link->rx_omi.finished_work,
+					iwl_mld_omi_bw_finished_work);
 
 	return iwl_mld_allocate_link_fw_id(mld, &mld_link->fw_id, link);
 }

@@ -18,30 +18,6 @@
 #define SIW_STAG_MAX_INDEX	0x00ffffff
 
 /*
- * The code avoids special Stag of zero and tries to randomize
- * STag values between 1 and SIW_STAG_MAX_INDEX.
- */
-int siw_mem_add(struct siw_device *sdev, struct siw_mem *m)
-{
-	struct xa_limit limit = XA_LIMIT(1, SIW_STAG_MAX_INDEX);
-	u32 id, next;
-
-	get_random_bytes(&next, 4);
-	next &= SIW_STAG_MAX_INDEX;
-
-	if (xa_alloc_cyclic(&sdev->mem_xa, &id, m, limit, &next,
-	    GFP_KERNEL) < 0)
-		return -ENOMEM;
-
-	/* Set the STag index part */
-	m->stag = id << 8;
-
-	siw_dbg_mem(m, "new MEM object\n");
-
-	return 0;
-}
-
-/*
  * siw_mem_id2obj()
  *
  * resolves memory from stag given by id. might be called from:
@@ -181,10 +157,10 @@ int siw_check_mem(struct ib_pd *pd, struct siw_mem *mem, u64 addr,
 	 */
 	if (addr < mem->va || addr + len > mem->va + mem->len) {
 		siw_dbg_pd(pd, "MEM interval len %d\n", len);
-		siw_dbg_pd(pd, "[0x%pK, 0x%pK] out of bounds\n",
+		siw_dbg_pd(pd, "[0x%p, 0x%p] out of bounds\n",
 			   (void *)(uintptr_t)addr,
 			   (void *)(uintptr_t)(addr + len));
-		siw_dbg_pd(pd, "[0x%pK, 0x%pK] STag=0x%08x\n",
+		siw_dbg_pd(pd, "[0x%p, 0x%p] STag=0x%08x\n",
 			   (void *)(uintptr_t)mem->va,
 			   (void *)(uintptr_t)(mem->va + mem->len),
 			   mem->stag);

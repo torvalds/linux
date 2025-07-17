@@ -1044,7 +1044,7 @@ static inline void vnet_free_skbs(struct sk_buff *skb)
 
 void sunvnet_clean_timer_expire_common(struct timer_list *t)
 {
-	struct vnet_port *port = from_timer(port, t, clean_timer);
+	struct vnet_port *port = timer_container_of(port, t, clean_timer);
 	struct sk_buff *freeskbs;
 	unsigned pending;
 

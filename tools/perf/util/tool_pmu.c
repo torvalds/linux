@@ -486,8 +486,14 @@ int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 		delta_start *= 1000000000 / ticks_per_sec;
 	}
 	count->val    = delta_start;
-	count->ena    = count->run = delta_start;
 	count->lost   = 0;
+	/*
+	 * The values of enabled and running must make a ratio of 100%. The
+	 * exact values don't matter as long as they are non-zero to avoid
+	 * issues with evsel__count_has_error.
+	 */
+	count->ena++;
+	count->run++;
 	return 0;
 }
 
@@ -496,19 +502,12 @@ struct perf_pmu *tool_pmu__new(void)
 	struct perf_pmu *tool = zalloc(sizeof(struct perf_pmu));
 
 	if (!tool)
-		goto out;
-	tool->name = strdup("tool");
-	if (!tool->name) {
-		zfree(&tool);
-		goto out;
+		return NULL;
+
+	if (perf_pmu__init(tool, PERF_PMU_TYPE_TOOL, "tool") != 0) {
+		perf_pmu__delete(tool);
+		return NULL;
 	}
-
-	tool->type = PERF_PMU_TYPE_TOOL;
-	INIT_LIST_HEAD(&tool->aliases);
-	INIT_LIST_HEAD(&tool->caps);
-	INIT_LIST_HEAD(&tool->format);
 	tool->events_table = find_core_events_table("common", "common");
-
-out:
 	return tool;
 }

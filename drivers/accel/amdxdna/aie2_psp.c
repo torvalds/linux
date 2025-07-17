@@ -126,8 +126,8 @@ struct psp_device *aie2m_psp_create(struct drm_device *ddev, struct psp_config *
 	psp->ddev = ddev;
 	memcpy(psp->psp_regs, conf->psp_regs, sizeof(psp->psp_regs));
 
-	psp->fw_buf_sz = ALIGN(conf->fw_size, PSP_FW_ALIGN) + PSP_FW_ALIGN;
-	psp->fw_buffer = drmm_kmalloc(ddev, psp->fw_buf_sz, GFP_KERNEL);
+	psp->fw_buf_sz = ALIGN(conf->fw_size, PSP_FW_ALIGN);
+	psp->fw_buffer = drmm_kmalloc(ddev, psp->fw_buf_sz + PSP_FW_ALIGN, GFP_KERNEL);
 	if (!psp->fw_buffer) {
 		drm_err(ddev, "no memory for fw buffer");
 		return NULL;

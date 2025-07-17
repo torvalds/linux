@@ -12,8 +12,6 @@
 #include <linux/soc/mediatek/mtk-cmdq.h>
 #include "mtk-img-ipi.h"
 
-struct platform_device *mdp_get_plat_device(struct platform_device *pdev);
-
 struct mdp_cmdq_param {
 	struct img_config *config;
 	struct img_ipi_frameparam *param;

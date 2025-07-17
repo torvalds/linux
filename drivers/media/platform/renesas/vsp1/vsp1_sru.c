@@ -14,6 +14,7 @@
 
 #include "vsp1.h"
 #include "vsp1_dl.h"
+#include "vsp1_entity.h"
 #include "vsp1_pipe.h"
 #include "vsp1_sru.h"
 
@@ -178,6 +179,8 @@ static void sru_try_format(struct vsp1_sru *sru,
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
 
+		vsp1_entity_adjust_color_space(fmt);
+
 		fmt->width = clamp(fmt->width, SRU_MIN_SIZE, SRU_MAX_SIZE);
 		fmt->height = clamp(fmt->height, SRU_MIN_SIZE, SRU_MAX_SIZE);
 		break;
@@ -186,6 +189,11 @@ static void sru_try_format(struct vsp1_sru *sru,
 		/* The SRU can't perform format conversion. */
 		format = v4l2_subdev_state_get_format(sd_state, SRU_PAD_SINK);
 		fmt->code = format->code;
+
+		fmt->colorspace = format->colorspace;
+		fmt->xfer_func = format->xfer_func;
+		fmt->ycbcr_enc = format->ycbcr_enc;
+		fmt->quantization = format->quantization;
 
 		/*
 		 * We can upscale by 2 in both direction, but not independently.
@@ -211,7 +219,6 @@ static void sru_try_format(struct vsp1_sru *sru,
 	}
 
 	fmt->field = V4L2_FIELD_NONE;
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
 static int sru_set_format(struct v4l2_subdev *subdev,

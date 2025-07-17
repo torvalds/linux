@@ -242,7 +242,7 @@ static const struct iio_chan_spec_ext_info ad5504_ext_info[] = {
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
 		 &ad5504_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ad5504_powerdown_mode_enum),
-	{ },
+	{ }
 };
 
 #define AD5504_CHANNEL(_chan) { \
@@ -320,7 +320,7 @@ static int ad5504_probe(struct spi_device *spi)
 static const struct spi_device_id ad5504_id[] = {
 	{"ad5504", ID_AD5504},
 	{"ad5501", ID_AD5501},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5504_id);
 

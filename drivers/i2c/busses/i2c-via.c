@@ -89,10 +89,9 @@ static int vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 rev;
 	int res;
 
-	if (pm_io_base) {
-		dev_err(&dev->dev, "i2c-via: Will only support one host\n");
-		return -ENODEV;
-	}
+	if (pm_io_base)
+		return dev_err_probe(&dev->dev, -ENODEV,
+				     "Will only support one host\n");
 
 	pci_read_config_byte(dev, PM_CFG_REVID, &rev);
 
@@ -113,10 +112,10 @@ static int vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_read_config_word(dev, base, &pm_io_base);
 	pm_io_base &= (0xff << 8);
 
-	if (!request_region(I2C_DIR, IOSPACE, vt586b_driver.name)) {
-		dev_err(&dev->dev, "IO 0x%x-0x%x already in use\n", I2C_DIR, I2C_DIR + IOSPACE);
-		return -ENODEV;
-	}
+	if (!request_region(I2C_DIR, IOSPACE, vt586b_driver.name))
+		return dev_err_probe(&dev->dev, -ENODEV,
+				     "IO 0x%x-0x%x already in use\n",
+				     I2C_DIR, I2C_DIR + IOSPACE);
 
 	outb(inb(I2C_DIR) & ~(I2C_SDA | I2C_SCL), I2C_DIR);
 	outb(inb(I2C_OUT) & ~(I2C_SDA | I2C_SCL), I2C_OUT);

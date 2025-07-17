@@ -39,6 +39,7 @@
 #include <linux/debugfs.h>
 #include <linux/if_bridge.h>
 #include <linux/filter.h>
+#include <net/netdev_lock.h>
 #include <net/netdev_queues.h>
 #include <net/page_pool/types.h>
 #include <net/pkt_sched.h>
@@ -1903,7 +1904,20 @@ void mlx5e_tx_err_cqe_work(struct work_struct *recover_work)
 	struct mlx5e_txqsq *sq = container_of(recover_work, struct mlx5e_txqsq,
 					      recover_work);
 
+	/* Recovering queues means re-enabling NAPI, which requires the netdev
+	 * instance lock. However, SQ closing flows have to wait for work tasks
+	 * to finish while also holding the netdev instance lock. So either get
+	 * the lock or find that the SQ is no longer enabled and thus this work
+	 * is not relevant anymore.
+	 */
+	while (!netdev_trylock(sq->netdev)) {
+		if (!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state))
+			return;
+		msleep(20);
+	}
+
 	mlx5e_reporter_tx_err_cqe(sq);
+	netdev_unlock(sq->netdev);
 }
 
 static struct dim_cq_moder mlx5e_get_def_tx_moderation(u8 cq_period_mode)
@@ -2705,8 +2719,8 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->aff_mask = irq_get_effective_affinity_mask(irq);
 	c->lag_port = mlx5e_enumerate_lag_port(mdev, ix);
 
-	netif_napi_add_config(netdev, &c->napi, mlx5e_napi_poll, ix);
-	netif_napi_set_irq(&c->napi, irq);
+	netif_napi_add_config_locked(netdev, &c->napi, mlx5e_napi_poll, ix);
+	netif_napi_set_irq_locked(&c->napi, irq);
 
 	err = mlx5e_open_queues(c, params, cparam);
 	if (unlikely(err))
@@ -2728,7 +2742,7 @@ err_close_queues:
 	mlx5e_close_queues(c);
 
 err_napi_del:
-	netif_napi_del(&c->napi);
+	netif_napi_del_locked(&c->napi);
 
 err_free:
 	kvfree(cparam);
@@ -2741,7 +2755,7 @@ static void mlx5e_activate_channel(struct mlx5e_channel *c)
 {
 	int tc;
 
-	napi_enable(&c->napi);
+	napi_enable_locked(&c->napi);
 
 	for (tc = 0; tc < c->num_tc; tc++)
 		mlx5e_activate_txqsq(&c->sq[tc]);
@@ -2773,7 +2787,7 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 		mlx5e_deactivate_txqsq(&c->sq[tc]);
 	mlx5e_qos_deactivate_queues(c);
 
-	napi_disable(&c->napi);
+	napi_disable_locked(&c->napi);
 }
 
 static void mlx5e_close_channel(struct mlx5e_channel *c)
@@ -2782,7 +2796,7 @@ static void mlx5e_close_channel(struct mlx5e_channel *c)
 		mlx5e_close_xsk(c);
 	mlx5e_close_queues(c);
 	mlx5e_qos_close_queues(c);
-	netif_napi_del(&c->napi);
+	netif_napi_del_locked(&c->napi);
 
 	kvfree(c);
 }
@@ -4276,7 +4290,7 @@ void mlx5e_set_xdp_feature(struct net_device *netdev)
 
 	if (!netdev->netdev_ops->ndo_bpf ||
 	    params->packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
-		xdp_clear_features_flag(netdev);
+		xdp_set_features_flag_locked(netdev, 0);
 		return;
 	}
 
@@ -4285,7 +4299,7 @@ void mlx5e_set_xdp_feature(struct net_device *netdev)
 	      NETDEV_XDP_ACT_RX_SG |
 	      NETDEV_XDP_ACT_NDO_XMIT |
 	      NETDEV_XDP_ACT_NDO_XMIT_SG;
-	xdp_set_features_flag(netdev, val);
+	xdp_set_features_flag_locked(netdev, val);
 }
 
 int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
@@ -4968,20 +4982,18 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 	struct net_device *netdev = priv->netdev;
 	int i;
 
-	/* Take rtnl_lock to ensure no change in netdev->real_num_tx_queues
-	 * through this flow. However, channel closing flows have to wait for
-	 * this work to finish while holding rtnl lock too. So either get the
-	 * lock or find that channels are being closed for other reason and
-	 * this work is not relevant anymore.
+	/* Recovering the TX queues implies re-enabling NAPI, which requires
+	 * the netdev instance lock.
+	 * However, channel closing flows have to wait for this work to finish
+	 * while holding the same lock. So either get the lock or find that
+	 * channels are being closed for other reason and this work is not
+	 * relevant anymore.
 	 */
-	while (!rtnl_trylock()) {
+	while (!netdev_trylock(netdev)) {
 		if (!test_bit(MLX5E_STATE_CHANNELS_ACTIVE, &priv->state))
 			return;
 		msleep(20);
 	}
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		goto unlock;
 
 	for (i = 0; i < netdev->real_num_tx_queues; i++) {
 		struct netdev_queue *dev_queue =
@@ -4996,8 +5008,7 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 			break;
 	}
 
-unlock:
-	rtnl_unlock();
+	netdev_unlock(netdev);
 }
 
 static void mlx5e_tx_timeout(struct net_device *dev, unsigned int txqueue)
@@ -5321,7 +5332,6 @@ static void mlx5e_get_queue_stats_rx(struct net_device *dev, int i,
 	struct mlx5e_rq_stats *xskrq_stats;
 	struct mlx5e_rq_stats *rq_stats;
 
-	ASSERT_RTNL();
 	if (mlx5e_is_uplink_rep(priv) || !priv->stats_nch)
 		return;
 
@@ -5341,7 +5351,6 @@ static void mlx5e_get_queue_stats_tx(struct net_device *dev, int i,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_sq_stats *sq_stats;
 
-	ASSERT_RTNL();
 	if (!priv->stats_nch)
 		return;
 
@@ -5362,7 +5371,6 @@ static void mlx5e_get_base_stats(struct net_device *dev,
 	struct mlx5e_ptp *ptp_channel;
 	int i, tc;
 
-	ASSERT_RTNL();
 	if (!mlx5e_is_uplink_rep(priv)) {
 		rx->packets = 0;
 		rx->bytes = 0;
@@ -5458,6 +5466,8 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->netdev_ops = &mlx5e_netdev_ops;
 	netdev->xdp_metadata_ops = &mlx5e_xdp_metadata_ops;
 	netdev->xsk_tx_metadata_ops = &mlx5e_xsk_tx_metadata_ops;
+	netdev->request_ops_lock = true;
+	netdev_lockdep_set_classes(netdev);
 
 	mlx5e_dcbnl_build_netdev(netdev);
 
@@ -5839,9 +5849,11 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	mlx5e_nic_set_rx_mode(priv);
 
 	rtnl_lock();
+	netdev_lock(netdev);
 	if (netif_running(netdev))
 		mlx5e_open(netdev);
 	udp_tunnel_nic_reset_ntf(priv->netdev);
+	netdev_unlock(netdev);
 	netif_device_attach(netdev);
 	rtnl_unlock();
 }
@@ -5854,9 +5866,16 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 		mlx5e_dcbnl_delete_app(priv);
 
 	rtnl_lock();
+	netdev_lock(priv->netdev);
 	if (netif_running(priv->netdev))
 		mlx5e_close(priv->netdev);
 	netif_device_detach(priv->netdev);
+	if (priv->en_trap) {
+		mlx5e_deactivate_trap(priv);
+		mlx5e_close_trap(priv->en_trap);
+		priv->en_trap = NULL;
+	}
+	netdev_unlock(priv->netdev);
 	rtnl_unlock();
 
 	mlx5e_nic_set_rx_mode(priv);
@@ -5866,11 +5885,6 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 		mlx5e_monitor_counter_cleanup(priv);
 
 	mlx5e_disable_blocking_events(priv);
-	if (priv->en_trap) {
-		mlx5e_deactivate_trap(priv);
-		mlx5e_close_trap(priv->en_trap);
-		priv->en_trap = NULL;
-	}
 	mlx5e_disable_async_events(priv);
 	mlx5_lag_remove_netdev(mdev, priv->netdev);
 	mlx5_vxlan_reset_to_default(mdev->vxlan);
@@ -6125,7 +6139,9 @@ static void mlx5e_update_features(struct net_device *netdev)
 		return; /* features will be updated on netdev registration */
 
 	rtnl_lock();
+	netdev_lock(netdev);
 	netdev_update_features(netdev);
+	netdev_unlock(netdev);
 	rtnl_unlock();
 }
 
@@ -6136,7 +6152,7 @@ static void mlx5e_reset_channels(struct net_device *netdev)
 
 int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 {
-	const bool take_rtnl = priv->netdev->reg_state == NETREG_REGISTERED;
+	const bool need_lock = priv->netdev->reg_state == NETREG_REGISTERED;
 	const struct mlx5e_profile *profile = priv->profile;
 	int max_nch;
 	int err;
@@ -6178,15 +6194,19 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 	 * 2. Set our default XPS cpumask.
 	 * 3. Build the RQT.
 	 *
-	 * rtnl_lock is required by netif_set_real_num_*_queues in case the
+	 * Locking is required by netif_set_real_num_*_queues in case the
 	 * netdev has been registered by this point (if this function was called
 	 * in the reload or resume flow).
 	 */
-	if (take_rtnl)
+	if (need_lock) {
 		rtnl_lock();
+		netdev_lock(priv->netdev);
+	}
 	err = mlx5e_num_channels_changed(priv);
-	if (take_rtnl)
+	if (need_lock) {
+		netdev_unlock(priv->netdev);
 		rtnl_unlock();
+	}
 	if (err)
 		goto out;
 

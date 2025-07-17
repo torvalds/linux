@@ -46,10 +46,9 @@ pub type UserPtr = usize;
 ///
 /// ```no_run
 /// use kernel::ffi::c_void;
-/// use kernel::error::Result;
 /// use kernel::uaccess::{UserPtr, UserSlice};
 ///
-/// fn bytes_add_one(uptr: UserPtr, len: usize) -> Result<()> {
+/// fn bytes_add_one(uptr: UserPtr, len: usize) -> Result {
 ///     let (read, mut write) = UserSlice::new(uptr, len).reader_writer();
 ///
 ///     let mut buf = KVec::new();
@@ -68,7 +67,6 @@ pub type UserPtr = usize;
 ///
 /// ```no_run
 /// use kernel::ffi::c_void;
-/// use kernel::error::{code::EINVAL, Result};
 /// use kernel::uaccess::{UserPtr, UserSlice};
 ///
 /// /// Returns whether the data in this region is valid.
@@ -290,7 +288,7 @@ impl UserSliceReader {
 
         // SAFETY: Since the call to `read_raw` was successful, so the next `len` bytes of the
         // vector have been initialized.
-        unsafe { buf.set_len(buf.len() + len) };
+        unsafe { buf.inc_len(len) };
         Ok(())
     }
 }

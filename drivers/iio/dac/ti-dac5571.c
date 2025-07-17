@@ -216,7 +216,7 @@ static const struct iio_chan_spec_ext_info dac5571_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &dac5571_powerdown_mode),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &dac5571_powerdown_mode),
-	{},
+	{ }
 };
 
 #define dac5571_CHANNEL(chan, name) {				\
@@ -398,7 +398,7 @@ static const struct of_device_id dac5571_of_id[] = {
 	{.compatible = "ti,dac5573", .data = &dac5571_spec[quad_8bit] },
 	{.compatible = "ti,dac6573", .data = &dac5571_spec[quad_10bit] },
 	{.compatible = "ti,dac7573", .data = &dac5571_spec[quad_12bit] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, dac5571_of_id);
 
@@ -414,7 +414,7 @@ static const struct i2c_device_id dac5571_id[] = {
 	{"dac5573", (kernel_ulong_t)&dac5571_spec[quad_8bit] },
 	{"dac6573", (kernel_ulong_t)&dac5571_spec[quad_10bit] },
 	{"dac7573", (kernel_ulong_t)&dac5571_spec[quad_12bit] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dac5571_id);
 

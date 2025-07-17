@@ -11,6 +11,13 @@
 #ifndef THUNDERBOLT_H_
 #define THUNDERBOLT_H_
 
+#include <linux/types.h>
+
+struct fwnode_handle;
+struct device;
+
+#if IS_REACHABLE(CONFIG_USB4)
+
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/list.h>
@@ -673,5 +680,16 @@ static inline struct device *tb_ring_dma_device(struct tb_ring *ring)
 {
 	return &ring->nhi->pdev->dev;
 }
+
+bool usb4_usb3_port_match(struct device *usb4_port_dev,
+			  const struct fwnode_handle *usb3_port_fwnode);
+
+#else /* CONFIG_USB4 */
+static inline bool usb4_usb3_port_match(struct device *usb4_port_dev,
+					const struct fwnode_handle *usb3_port_fwnode)
+{
+	return false;
+}
+#endif /* CONFIG_USB4 */
 
 #endif /* THUNDERBOLT_H_ */

@@ -45,8 +45,39 @@
 #define perr(_ys, _msg)			__yerr(&(_ys)->err, errno, _msg)
 
 /* -- Netlink boiler plate */
+static bool
+ynl_err_walk_is_sel(const struct ynl_policy_nest *policy,
+		    const struct nlattr *attr)
+{
+	unsigned int type = ynl_attr_type(attr);
+
+	return policy && type <= policy->max_attr &&
+		policy->table[type].is_selector;
+}
+
+static const struct ynl_policy_nest *
+ynl_err_walk_sel_policy(const struct ynl_policy_attr *policy_attr,
+			const struct nlattr *selector)
+{
+	const struct ynl_policy_nest *policy = policy_attr->nest;
+	const char *sel;
+	unsigned int i;
+
+	if (!policy_attr->is_submsg)
+		return policy;
+
+	sel = ynl_attr_get_str(selector);
+	for (i = 0; i <= policy->max_attr; i++) {
+		if (!strcmp(sel, policy->table[i].name))
+			return policy->table[i].nest;
+	}
+
+	return NULL;
+}
+
 static int
-ynl_err_walk_report_one(const struct ynl_policy_nest *policy, unsigned int type,
+ynl_err_walk_report_one(const struct ynl_policy_nest *policy,
+			const struct nlattr *selector, unsigned int type,
 			char *str, int str_sz, int *n)
 {
 	if (!policy) {
@@ -67,9 +98,34 @@ ynl_err_walk_report_one(const struct ynl_policy_nest *policy, unsigned int type,
 		return 1;
 	}
 
-	if (*n < str_sz)
-		*n += snprintf(str, str_sz - *n,
-			       ".%s", policy->table[type].name);
+	if (*n < str_sz) {
+		int sz;
+
+		sz = snprintf(str, str_sz - *n,
+			      ".%s", policy->table[type].name);
+		*n += sz;
+		str += sz;
+	}
+
+	if (policy->table[type].is_submsg) {
+		if (!selector) {
+			if (*n < str_sz)
+				*n += snprintf(str, str_sz, "(!selector)");
+			return 1;
+		}
+
+		if (ynl_attr_type(selector) !=
+		    policy->table[type].selector_type) {
+			if (*n < str_sz)
+				*n += snprintf(str, str_sz, "(!=selector)");
+			return 1;
+		}
+
+		if (*n < str_sz)
+			*n += snprintf(str, str_sz - *n, "(%s)",
+				       ynl_attr_get_str(selector));
+	}
+
 	return 0;
 }
 
@@ -78,6 +134,8 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	     const struct ynl_policy_nest *policy, char *str, int str_sz,
 	     const struct ynl_policy_nest **nest_pol)
 {
+	const struct ynl_policy_nest *next_pol;
+	const struct nlattr *selector = NULL;
 	unsigned int astart_off, aend_off;
 	const struct nlattr *attr;
 	unsigned int data_len;
@@ -96,6 +154,10 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	ynl_attr_for_each_payload(start, data_len, attr) {
 		astart_off = (char *)attr - (char *)start;
 		aend_off = (char *)ynl_attr_data_end(attr) - (char *)start;
+
+		if (ynl_err_walk_is_sel(policy, attr))
+			selector = attr;
+
 		if (aend_off <= off)
 			continue;
 
@@ -109,16 +171,20 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 
 	type = ynl_attr_type(attr);
 
-	if (ynl_err_walk_report_one(policy, type, str, str_sz, &n))
+	if (ynl_err_walk_report_one(policy, selector, type, str, str_sz, &n))
+		return n;
+
+	next_pol = ynl_err_walk_sel_policy(&policy->table[type], selector);
+	if (!next_pol)
 		return n;
 
 	if (!off) {
 		if (nest_pol)
-			*nest_pol = policy->table[type].nest;
+			*nest_pol = next_pol;
 		return n;
 	}
 
-	if (!policy->table[type].nest) {
+	if (!next_pol) {
 		if (n < str_sz)
 			n += snprintf(str, str_sz, "!nest");
 		return n;
@@ -128,7 +194,7 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	start =  ynl_attr_data(attr);
 	end = start + ynl_attr_data_len(attr);
 
-	return n + ynl_err_walk(ys, start, end, off, policy->table[type].nest,
+	return n + ynl_err_walk(ys, start, end, off, next_pol,
 				&str[n], str_sz - n, nest_pol);
 }
 
@@ -191,12 +257,12 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		n = snprintf(bad_attr, sizeof(bad_attr), "%sbad attribute: ",
 			     str ? " (" : "");
 
-		start = ynl_nlmsg_data_offset(ys->nlh, ys->family->hdr_len);
+		start = ynl_nlmsg_data_offset(ys->nlh, ys->req_hdr_len);
 		end = ynl_nlmsg_end_addr(ys->nlh);
 
 		off = ys->err.attr_offs;
 		off -= sizeof(struct nlmsghdr);
-		off -= ys->family->hdr_len;
+		off -= ys->req_hdr_len;
 
 		n += ynl_err_walk(ys, start, end, off, ys->req_policy,
 				  &bad_attr[n], sizeof(bad_attr) - n, NULL);
@@ -216,14 +282,14 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		n = snprintf(miss_attr, sizeof(miss_attr), "%smissing attribute: ",
 			     bad_attr[0] ? ", " : (str ? " (" : ""));
 
-		start = ynl_nlmsg_data_offset(ys->nlh, ys->family->hdr_len);
+		start = ynl_nlmsg_data_offset(ys->nlh, ys->req_hdr_len);
 		end = ynl_nlmsg_end_addr(ys->nlh);
 
 		nest_pol = ys->req_policy;
 		if (tb[NLMSGERR_ATTR_MISS_NEST]) {
 			off = ynl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_NEST]);
 			off -= sizeof(struct nlmsghdr);
-			off -= ys->family->hdr_len;
+			off -= ys->req_hdr_len;
 
 			n += ynl_err_walk(ys, start, end, off, ys->req_policy,
 					  &miss_attr[n], sizeof(miss_attr) - n,
@@ -231,7 +297,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		}
 
 		n2 = 0;
-		ynl_err_walk_report_one(nest_pol, type, &miss_attr[n],
+		ynl_err_walk_report_one(nest_pol, NULL, type, &miss_attr[n],
 					sizeof(miss_attr) - n, &n2);
 		n += n2;
 
@@ -384,6 +450,15 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 	return 0;
 }
 
+int ynl_submsg_failed(struct ynl_parse_arg *yarg, const char *field_name,
+		      const char *sel_name)
+{
+	yerr(yarg->ys, YNL_ERROR_SUBMSG_KEY,
+	     "Parsing error: Sub-message key not set (msg %s, key %s)",
+	     field_name, sel_name);
+	return YNL_PARSE_CB_ERROR;
+}
+
 /* Generic code */
 
 static void ynl_err_reset(struct ynl_sock *ys)
@@ -451,14 +526,14 @@ ynl_gemsg_start(struct ynl_sock *ys, __u32 id, __u16 flags,
 	return nlh;
 }
 
-void ynl_msg_start_req(struct ynl_sock *ys, __u32 id)
+struct nlmsghdr *ynl_msg_start_req(struct ynl_sock *ys, __u32 id, __u16 flags)
 {
-	ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK);
+	return ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK | flags);
 }
 
-void ynl_msg_start_dump(struct ynl_sock *ys, __u32 id)
+struct nlmsghdr *ynl_msg_start_dump(struct ynl_sock *ys, __u32 id)
 {
-	ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP);
+	return ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP);
 }
 
 struct nlmsghdr *
@@ -663,6 +738,7 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	struct sockaddr_nl addr;
 	struct ynl_sock *ys;
 	socklen_t addrlen;
+	int sock_type;
 	int one = 1;
 
 	ys = malloc(sizeof(*ys) + 2 * YNL_SOCKET_BUFFER_SIZE);
@@ -675,7 +751,9 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	ys->rx_buf = &ys->raw_buf[YNL_SOCKET_BUFFER_SIZE];
 	ys->ntf_last_next = &ys->ntf_first;
 
-	ys->socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
+	sock_type = yf->is_classic ? yf->classic_id : NETLINK_GENERIC;
+
+	ys->socket = socket(AF_NETLINK, SOCK_RAW, sock_type);
 	if (ys->socket < 0) {
 		__perr(yse, "failed to create a netlink socket");
 		goto err_free_sock;
@@ -708,8 +786,9 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	ys->portid = addr.nl_pid;
 	ys->seq = random();
 
-
-	if (ynl_sock_read_family(ys, yf->name)) {
+	if (yf->is_classic) {
+		ys->family_id = yf->classic_id;
+	} else if (ynl_sock_read_family(ys, yf->name)) {
 		if (yse)
 			memcpy(yse, &ys->err, sizeof(*yse));
 		goto err_close_sock;
@@ -791,13 +870,21 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 	struct ynl_parse_arg yarg = { .ys = ys, };
 	const struct ynl_ntf_info *info;
 	struct ynl_ntf_base_type *rsp;
-	struct genlmsghdr *gehdr;
+	__u32 cmd;
 	int ret;
 
-	gehdr = ynl_nlmsg_data(nlh);
-	if (gehdr->cmd >= ys->family->ntf_info_size)
+	if (ys->family->is_classic) {
+		cmd = nlh->nlmsg_type;
+	} else {
+		struct genlmsghdr *gehdr;
+
+		gehdr = ynl_nlmsg_data(nlh);
+		cmd = gehdr->cmd;
+	}
+
+	if (cmd >= ys->family->ntf_info_size)
 		return YNL_PARSE_CB_ERROR;
-	info = &ys->family->ntf_info[gehdr->cmd];
+	info = &ys->family->ntf_info[cmd];
 	if (!info->cb)
 		return YNL_PARSE_CB_ERROR;
 
@@ -811,7 +898,7 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 		goto err_free;
 
 	rsp->family = nlh->nlmsg_type;
-	rsp->cmd = gehdr->cmd;
+	rsp->cmd = cmd;
 
 	*ys->ntf_last_next = rsp;
 	ys->ntf_last_next = &rsp->next;
@@ -863,17 +950,22 @@ int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg)
 static int
 ynl_check_alien(struct ynl_sock *ys, const struct nlmsghdr *nlh, __u32 rsp_cmd)
 {
-	struct genlmsghdr *gehdr;
+	if (ys->family->is_classic) {
+		if (nlh->nlmsg_type != rsp_cmd)
+			return ynl_ntf_parse(ys, nlh);
+	} else {
+		struct genlmsghdr *gehdr;
 
-	if (ynl_nlmsg_data_len(nlh) < sizeof(*gehdr)) {
-		yerr(ys, YNL_ERROR_INV_RESP,
-		     "Kernel responded with truncated message");
-		return -1;
+		if (ynl_nlmsg_data_len(nlh) < sizeof(*gehdr)) {
+			yerr(ys, YNL_ERROR_INV_RESP,
+			     "Kernel responded with truncated message");
+			return -1;
+		}
+
+		gehdr = ynl_nlmsg_data(nlh);
+		if (gehdr->cmd != rsp_cmd)
+			return ynl_ntf_parse(ys, nlh);
 	}
-
-	gehdr = ynl_nlmsg_data(nlh);
-	if (gehdr->cmd != rsp_cmd)
-		return ynl_ntf_parse(ys, nlh);
 
 	return 0;
 }

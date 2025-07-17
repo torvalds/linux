@@ -15,6 +15,8 @@
 #include "test_util.h"
 #include <linux/bitfield.h>
 
+bool have_cap_arm_mte;
+
 enum ftr_type {
 	FTR_EXACT,			/* Use a predefined safe value */
 	FTR_LOWER_SAFE,			/* Smaller value is safe */
@@ -543,6 +545,70 @@ static void test_user_set_mpam_reg(struct kvm_vcpu *vcpu)
 		ksft_test_result_fail("ID_AA64PFR1_EL1.MPAM_frac value should not be ignored\n");
 }
 
+#define MTE_IDREG_TEST 1
+static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
+{
+	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+	struct reg_mask_range range = {
+		.addr = (__u64)masks,
+	};
+	uint64_t val;
+	uint64_t mte;
+	uint64_t mte_frac;
+	int idx, err;
+
+	if (!have_cap_arm_mte) {
+		ksft_test_result_skip("MTE capability not supported, nothing to test\n");
+		return;
+	}
+
+	/* Get writable masks for feature ID registers */
+	memset(range.reserved, 0, sizeof(range.reserved));
+	vm_ioctl(vcpu->vm, KVM_ARM_GET_REG_WRITABLE_MASKS, &range);
+
+	idx = encoding_to_range_idx(SYS_ID_AA64PFR1_EL1);
+	if ((masks[idx] & ID_AA64PFR1_EL1_MTE_frac_MASK) == ID_AA64PFR1_EL1_MTE_frac_MASK) {
+		ksft_test_result_skip("ID_AA64PFR1_EL1.MTE_frac is officially writable, nothing to test\n");
+		return;
+	}
+
+	/*
+	 * When MTE is supported but MTE_ASYMM is not (ID_AA64PFR1_EL1.MTE == 2)
+	 * ID_AA64PFR1_EL1.MTE_frac == 0xF indicates MTE_ASYNC is unsupported
+	 * and MTE_frac == 0 indicates it is supported.
+	 *
+	 * As MTE_frac was previously unconditionally read as 0, check
+	 * that the set to 0 succeeds but does not change MTE_frac
+	 * from unsupported (0xF) to supported (0).
+	 *
+	 */
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
+
+	mte = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE), val);
+	mte_frac = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac), val);
+	if (mte != ID_AA64PFR1_EL1_MTE_MTE2 ||
+	    mte_frac != ID_AA64PFR1_EL1_MTE_frac_NI) {
+		ksft_test_result_skip("MTE_ASYNC or MTE_ASYMM are supported, nothing to test\n");
+		return;
+	}
+
+	/* Try to set MTE_frac=0. */
+	val &= ~ID_AA64PFR1_EL1_MTE_frac_MASK;
+	val |= FIELD_PREP(ID_AA64PFR1_EL1_MTE_frac_MASK, 0);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1), val);
+	if (err) {
+		ksft_test_result_fail("ID_AA64PFR1_EL1.MTE_frac=0 was not accepted\n");
+		return;
+	}
+
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
+	mte_frac = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac), val);
+	if (mte_frac == ID_AA64PFR1_EL1_MTE_frac_NI)
+		ksft_test_result_pass("ID_AA64PFR1_EL1.MTE_frac=0 accepted and still 0xF\n");
+	else
+		ksft_test_result_pass("ID_AA64PFR1_EL1.MTE_frac no longer 0xF\n");
+}
+
 static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 {
 	bool done = false;
@@ -673,6 +739,14 @@ static void test_reset_preserves_id_regs(struct kvm_vcpu *vcpu)
 	ksft_test_result_pass("%s\n", __func__);
 }
 
+void kvm_arch_vm_post_create(struct kvm_vm *vm)
+{
+	if (vm_check_cap(vm, KVM_CAP_ARM_MTE)) {
+		vm_enable_cap(vm, KVM_CAP_ARM_MTE, 0);
+		have_cap_arm_mte = true;
+	}
+}
+
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
@@ -701,7 +775,7 @@ int main(void)
 		   ARRAY_SIZE(ftr_id_aa64pfr1_el1) + ARRAY_SIZE(ftr_id_aa64mmfr0_el1) +
 		   ARRAY_SIZE(ftr_id_aa64mmfr1_el1) + ARRAY_SIZE(ftr_id_aa64mmfr2_el1) +
 		   ARRAY_SIZE(ftr_id_aa64zfr0_el1) - ARRAY_SIZE(test_regs) + 3 +
-		   MPAM_IDREG_TEST;
+		   MPAM_IDREG_TEST + MTE_IDREG_TEST;
 
 	ksft_set_plan(test_cnt);
 
@@ -709,6 +783,7 @@ int main(void)
 	test_vcpu_ftr_id_regs(vcpu);
 	test_vcpu_non_ftr_id_regs(vcpu);
 	test_user_set_mpam_reg(vcpu);
+	test_user_set_mte_reg(vcpu);
 
 	test_guest_reg_read(vcpu);
 

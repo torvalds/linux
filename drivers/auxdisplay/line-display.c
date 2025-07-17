@@ -40,7 +40,7 @@
  */
 static void linedisp_scroll(struct timer_list *t)
 {
-	struct linedisp *linedisp = from_timer(linedisp, t, timer);
+	struct linedisp *linedisp = timer_container_of(linedisp, t, timer);
 	unsigned int i, ch = linedisp->scroll_pos;
 	unsigned int num_chars = linedisp->num_chars;
 

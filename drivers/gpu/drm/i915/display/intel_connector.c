@@ -31,8 +31,10 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
+#include "intel_display_core.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
@@ -154,13 +156,14 @@ void intel_connector_destroy(struct drm_connector *connector)
 int intel_connector_register(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	int ret;
 
 	ret = intel_backlight_device_register(intel_connector);
 	if (ret)
 		goto err;
 
-	if (i915_inject_probe_failure(to_i915(connector->dev))) {
+	if (i915_inject_probe_failure(i915)) {
 		ret = -EFAULT;
 		goto err_backlight;
 	}
@@ -204,10 +207,10 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 
 enum pipe intel_connector_get_pipe(struct intel_connector *connector)
 {
-	struct drm_device *dev = connector->base.dev;
+	struct intel_display *display = to_intel_display(connector);
 
-	drm_WARN_ON(dev,
-		    !drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	drm_WARN_ON(display->drm,
+		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
 
 	if (!connector->base.state->crtc)
 		return INVALID_PIPE;
@@ -264,20 +267,19 @@ static const struct drm_prop_enum_list force_audio_names[] = {
 void
 intel_attach_force_audio_property(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_property *prop;
 
-	prop = dev_priv->display.properties.force_audio;
+	prop = display->properties.force_audio;
 	if (prop == NULL) {
-		prop = drm_property_create_enum(dev, 0,
-					   "audio",
-					   force_audio_names,
-					   ARRAY_SIZE(force_audio_names));
+		prop = drm_property_create_enum(display->drm, 0,
+						"audio",
+						force_audio_names,
+						ARRAY_SIZE(force_audio_names));
 		if (prop == NULL)
 			return;
 
-		dev_priv->display.properties.force_audio = prop;
+		display->properties.force_audio = prop;
 	}
 	drm_object_attach_property(&connector->base, prop, 0);
 }
@@ -291,20 +293,19 @@ static const struct drm_prop_enum_list broadcast_rgb_names[] = {
 void
 intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_property *prop;
 
-	prop = dev_priv->display.properties.broadcast_rgb;
+	prop = display->properties.broadcast_rgb;
 	if (prop == NULL) {
-		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
-					   "Broadcast RGB",
-					   broadcast_rgb_names,
-					   ARRAY_SIZE(broadcast_rgb_names));
+		prop = drm_property_create_enum(display->drm, DRM_MODE_PROP_ENUM,
+						"Broadcast RGB",
+						broadcast_rgb_names,
+						ARRAY_SIZE(broadcast_rgb_names));
 		if (prop == NULL)
 			return;
 
-		dev_priv->display.properties.broadcast_rgb = prop;
+		display->properties.broadcast_rgb = prop;
 	}
 
 	drm_object_attach_property(&connector->base, prop, 0);
@@ -336,14 +337,14 @@ intel_attach_dp_colorspace_property(struct drm_connector *connector)
 void
 intel_attach_scaling_mode_property(struct drm_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	u32 scaling_modes;
 
 	scaling_modes = BIT(DRM_MODE_SCALE_ASPECT) |
 		BIT(DRM_MODE_SCALE_FULLSCREEN);
 
 	/* On GMCH platforms borders are only possible on the LVDS port */
-	if (!HAS_GMCH(i915) || connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
+	if (!HAS_GMCH(display) || connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
 		scaling_modes |= BIT(DRM_MODE_SCALE_CENTER);
 
 	drm_connector_attach_scaling_mode_property(connector, scaling_modes);

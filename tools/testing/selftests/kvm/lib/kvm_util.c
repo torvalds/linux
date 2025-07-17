@@ -222,6 +222,7 @@ const char *vm_guest_mode_string(uint32_t i)
 		[VM_MODE_P36V48_4K]	= "PA-bits:36,  VA-bits:48,  4K pages",
 		[VM_MODE_P36V48_16K]	= "PA-bits:36,  VA-bits:48, 16K pages",
 		[VM_MODE_P36V48_64K]	= "PA-bits:36,  VA-bits:48, 64K pages",
+		[VM_MODE_P47V47_16K]	= "PA-bits:47,  VA-bits:47, 16K pages",
 		[VM_MODE_P36V47_16K]	= "PA-bits:36,  VA-bits:47, 16K pages",
 	};
 	_Static_assert(sizeof(strings)/sizeof(char *) == NUM_VM_MODES,
@@ -248,6 +249,7 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 	[VM_MODE_P36V48_4K]	= { 36, 48,  0x1000, 12 },
 	[VM_MODE_P36V48_16K]	= { 36, 48,  0x4000, 14 },
 	[VM_MODE_P36V48_64K]	= { 36, 48, 0x10000, 16 },
+	[VM_MODE_P47V47_16K]	= { 47, 47,  0x4000, 14 },
 	[VM_MODE_P36V47_16K]	= { 36, 47,  0x4000, 14 },
 };
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
@@ -319,6 +321,7 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 	case VM_MODE_P36V48_16K:
 		vm->pgtable_levels = 4;
 		break;
+	case VM_MODE_P47V47_16K:
 	case VM_MODE_P36V47_16K:
 		vm->pgtable_levels = 3;
 		break;
@@ -444,6 +447,15 @@ void kvm_set_files_rlimit(uint32_t nr_vcpus)
 
 }
 
+static bool is_guest_memfd_required(struct vm_shape shape)
+{
+#ifdef __x86_64__
+	return shape.type == KVM_X86_SNP_VM;
+#else
+	return false;
+#endif
+}
+
 struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 			   uint64_t nr_extra_pages)
 {
@@ -451,7 +463,7 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 						 nr_extra_pages);
 	struct userspace_mem_region *slot0;
 	struct kvm_vm *vm;
-	int i;
+	int i, flags;
 
 	kvm_set_files_rlimit(nr_runnable_vcpus);
 
@@ -460,7 +472,15 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 
 	vm = ____vm_create(shape);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0, 0, nr_pages, 0);
+	/*
+	 * Force GUEST_MEMFD for the primary memory region if necessary, e.g.
+	 * for CoCo VMs that require GUEST_MEMFD backed private memory.
+	 */
+	flags = 0;
+	if (is_guest_memfd_required(shape))
+		flags |= KVM_MEM_GUEST_MEMFD;
+
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0, 0, nr_pages, flags);
 	for (i = 0; i < NR_MEM_REGIONS; i++)
 		vm->memslots[i] = 0;
 

@@ -199,25 +199,6 @@ void isst_resume_common(void)
 }
 EXPORT_SYMBOL_GPL(isst_resume_common);
 
-static void isst_restore_msr_local(int cpu)
-{
-	struct isst_cmd *sst_cmd;
-	int i;
-
-	mutex_lock(&isst_hash_lock);
-	for (i = 0; i < ARRAY_SIZE(punit_msr_white_list); ++i) {
-		if (!punit_msr_white_list[i])
-			break;
-
-		hash_for_each_possible(isst_hash, sst_cmd, hnode,
-				       punit_msr_white_list[i]) {
-			if (!sst_cmd->mbox_cmd_type && sst_cmd->cpu == cpu)
-				wrmsrq_safe(sst_cmd->cmd, sst_cmd->data);
-		}
-	}
-	mutex_unlock(&isst_hash_lock);
-}
-
 /**
  * isst_if_mbox_cmd_invalid() - Check invalid mailbox commands
  * @cmd: Pointer to the command structure to verify.
@@ -434,8 +415,6 @@ static int isst_if_cpu_online(unsigned int cpu)
 
 set_punit_id:
 	isst_cpu_info[cpu].punit_cpu_id = data;
-
-	isst_restore_msr_local(cpu);
 
 	return 0;
 }

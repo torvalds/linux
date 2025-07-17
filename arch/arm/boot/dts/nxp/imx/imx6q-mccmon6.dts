@@ -279,7 +279,7 @@
 	ranges = <0 0 0x08000000 0x08000000>;
 	status = "okay";
 
-	nor@0,0 {
+	flash@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0 0x02000000>;
 		#address-cells = <1>;

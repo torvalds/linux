@@ -1074,7 +1074,7 @@ static void allocate_rx_buffers(struct net_device *dev)
 
 static void netdev_timer(struct timer_list *t)
 {
-	struct netdev_private *np = from_timer(np, t, timer);
+	struct netdev_private *np = timer_container_of(np, t, timer);
 	struct net_device *dev = np->mii.dev;
 	void __iomem *ioaddr = np->mem;
 	int old_crvalue = np->crvalue;
@@ -1163,7 +1163,7 @@ static void enable_rxtx(struct net_device *dev)
 
 static void reset_timer(struct timer_list *t)
 {
-	struct netdev_private *np = from_timer(np, t, reset_timer);
+	struct netdev_private *np = timer_container_of(np, t, reset_timer);
 	struct net_device *dev = np->mii.dev;
 	unsigned long flags;
 

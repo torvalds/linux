@@ -193,7 +193,7 @@ _ib_uverbs_lookup_comp_file(s32 fd, struct uverbs_attr_bundle *attrs)
 					       fd, attrs);
 
 	if (IS_ERR(uobj))
-		return (void *)uobj;
+		return ERR_CAST(uobj);
 
 	uverbs_uobject_get(uobj);
 	uobj_put_read(uobj);

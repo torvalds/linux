@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020 - 2021, 2023 - 2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2021, 2023-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -583,6 +583,9 @@ struct iwl_stats_ntfy_per_phy {
 	__le32 fail_per_ch_width[IWL_STATS_MAX_BW_INDEX];
 	__le32 last_tx_ch_width_indx;
 } __packed; /* STATISTICS_NTFY_PER_PHY_API_S_VER_1 */
+
+/* unknown channel load (due to not being active on channel) */
+#define IWL_STATS_UNKNOWN_CHANNEL_LOAD	0xffffffff
 
 /**
  * struct iwl_stats_ntfy_per_sta

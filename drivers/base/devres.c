@@ -987,17 +987,10 @@ EXPORT_SYMBOL_GPL(devm_krealloc);
  */
 char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
 {
-	size_t size;
-	char *buf;
-
 	if (!s)
 		return NULL;
 
-	size = strlen(s) + 1;
-	buf = devm_kmalloc(dev, size, gfp);
-	if (buf)
-		memcpy(buf, s, size);
-	return buf;
+	return devm_kmemdup(dev, s, strlen(s) + 1, gfp);
 }
 EXPORT_SYMBOL_GPL(devm_kstrdup);
 

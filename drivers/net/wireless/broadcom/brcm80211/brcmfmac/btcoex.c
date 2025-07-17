@@ -272,7 +272,8 @@ static void brcmf_btcoex_restore_part1(struct brcmf_btcoex_info *btci)
  */
 static void brcmf_btcoex_timerfunc(struct timer_list *t)
 {
-	struct brcmf_btcoex_info *bt_local = from_timer(bt_local, t, timer);
+	struct brcmf_btcoex_info *bt_local = timer_container_of(bt_local, t,
+								timer);
 	brcmf_dbg(TRACE, "enter\n");
 
 	bt_local->timer_on = false;

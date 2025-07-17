@@ -130,7 +130,7 @@ static void altera_mbox_rx_data(struct mbox_chan *chan)
 
 static void altera_mbox_poll_rx(struct timer_list *t)
 {
-	struct altera_mbox *mbox = from_timer(mbox, t, rxpoll_timer);
+	struct altera_mbox *mbox = timer_container_of(mbox, t, rxpoll_timer);
 
 	altera_mbox_rx_data(mbox->chan);
 

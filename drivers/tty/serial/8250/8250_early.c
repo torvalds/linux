@@ -77,6 +77,8 @@ static void serial8250_early_out(struct uart_port *port, int offset, int value)
 		outb(value, port->iobase + offset);
 		break;
 #endif
+	default:
+		break;
 	}
 }
 

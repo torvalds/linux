@@ -346,6 +346,7 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 	case CAMSS_8280XP:
 	case CAMSS_845:
 	case CAMSS_8550:
+	case CAMSS_X1E80100:
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_YUYV8_1X16:
 		{
@@ -428,8 +429,8 @@ u32 vfe_hw_version(struct vfe_device *vfe)
 	u32 rev = (hw_version >> HW_VERSION_REVISION) & 0xFFF;
 	u32 step = (hw_version >> HW_VERSION_STEPPING) & 0xFFFF;
 
-	dev_info(vfe->camss->dev, "VFE:%d HW Version = %u.%u.%u\n",
-		 vfe->id, gen, rev, step);
+	dev_dbg(vfe->camss->dev, "VFE:%d HW Version = %u.%u.%u\n",
+		vfe->id, gen, rev, step);
 
 	return hw_version;
 }
@@ -1973,6 +1974,7 @@ static int vfe_bpl_align(struct vfe_device *vfe)
 	case CAMSS_8280XP:
 	case CAMSS_845:
 	case CAMSS_8550:
+	case CAMSS_X1E80100:
 		ret = 16;
 		break;
 	default:

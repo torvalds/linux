@@ -3250,6 +3250,7 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	const u8 *ie;
 	size_t ielen;
 	u64 tsf;
+	size_t s1g_optional_len;
 
 	if (WARN_ON(!mgmt))
 		return NULL;
@@ -3264,12 +3265,11 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 
 	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
 		ext = (void *) mgmt;
-		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
-			min_hdr_len = offsetof(struct ieee80211_ext,
-					       u.s1g_short_beacon.variable);
-		else
-			min_hdr_len = offsetof(struct ieee80211_ext,
-					       u.s1g_beacon.variable);
+		s1g_optional_len =
+			ieee80211_s1g_optional_len(ext->frame_control);
+		min_hdr_len =
+			offsetof(struct ieee80211_ext, u.s1g_beacon.variable) +
+			s1g_optional_len;
 	} else {
 		/* same for beacons */
 		min_hdr_len = offsetof(struct ieee80211_mgmt,
@@ -3285,11 +3285,7 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 		const struct ieee80211_s1g_bcn_compat_ie *compat;
 		const struct element *elem;
 
-		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
-			ie = ext->u.s1g_short_beacon.variable;
-		else
-			ie = ext->u.s1g_beacon.variable;
-
+		ie = ext->u.s1g_beacon.variable + s1g_optional_len;
 		elem = cfg80211_find_elem(WLAN_EID_S1G_BCN_COMPAT, ie, ielen);
 		if (!elem)
 			return NULL;

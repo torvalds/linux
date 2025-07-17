@@ -1777,7 +1777,7 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 		if (ENA_IS_XDP_INDEX(adapter, i))
 			napi_handler = ena_xdp_io_poll;
 
-		netif_napi_add(adapter->netdev, &napi->napi, napi_handler);
+		netif_napi_add_config(adapter->netdev, &napi->napi, napi_handler, i);
 
 		if (!ENA_IS_XDP_INDEX(adapter, i))
 			napi->rx_ring = rx_ring;
@@ -3667,7 +3667,8 @@ static void ena_update_host_info(struct ena_admin_host_info *host_info,
 
 static void ena_timer_service(struct timer_list *t)
 {
-	struct ena_adapter *adapter = from_timer(adapter, t, timer_service);
+	struct ena_adapter *adapter = timer_container_of(adapter, t,
+							 timer_service);
 	u8 *debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
 	struct ena_admin_host_info *host_info =
 		adapter->ena_dev->host_attr.host_info;

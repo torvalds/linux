@@ -44,6 +44,7 @@ struct bch_read_bio {
 				have_ioref:1,
 				narrow_crcs:1,
 				saw_error:1,
+				self_healing:1,
 				context:2;
 	};
 	u16			_state;
@@ -91,6 +92,8 @@ static inline int bch2_read_indirect_extent(struct btree_trans *trans,
 		return 0;
 
 	*data_btree = BTREE_ID_reflink;
+
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k = bch2_lookup_indirect_extent(trans, &iter,
 						offset_into_extent,
@@ -102,10 +105,10 @@ static inline int bch2_read_indirect_extent(struct btree_trans *trans,
 
 	if (bkey_deleted(k.k)) {
 		bch2_trans_iter_exit(trans, &iter);
-		return -BCH_ERR_missing_indirect_extent;
+		return bch_err_throw(c, missing_indirect_extent);
 	}
 
-	bch2_bkey_buf_reassemble(extent, trans->c, k);
+	bch2_bkey_buf_reassemble(extent, c, k);
 	bch2_trans_iter_exit(trans, &iter);
 	return 0;
 }

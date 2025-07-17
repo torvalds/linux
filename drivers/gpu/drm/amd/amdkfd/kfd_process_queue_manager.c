@@ -279,20 +279,17 @@ static int init_user_queue(struct process_queue_manager *pqm,
 		/* Starting with GFX11, wptr BOs must be mapped to GART for MES to determine work
 		 * on unmapped queues for usermode queue oversubscription (no aggregated doorbell)
 		 */
-		if (((dev->adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK)
-		    >> AMDGPU_MES_API_VERSION_SHIFT) >= 2) {
-			if (dev->adev != amdgpu_ttm_adev(q_properties->wptr_bo->tbo.bdev)) {
-				pr_err("Queue memory allocated to wrong device\n");
-				retval = -EINVAL;
-				goto free_gang_ctx_bo;
-			}
+		if (dev->adev != amdgpu_ttm_adev(q_properties->wptr_bo->tbo.bdev)) {
+			pr_err("Queue memory allocated to wrong device\n");
+			retval = -EINVAL;
+			goto free_gang_ctx_bo;
+		}
 
-			retval = amdgpu_amdkfd_map_gtt_bo_to_gart(q_properties->wptr_bo,
-								  &(*q)->wptr_bo_gart);
-			if (retval) {
-				pr_err("Failed to map wptr bo to GART\n");
-				goto free_gang_ctx_bo;
-			}
+		retval = amdgpu_amdkfd_map_gtt_bo_to_gart(q_properties->wptr_bo,
+							  &(*q)->wptr_bo_gart);
+		if (retval) {
+			pr_err("Failed to map wptr bo to GART\n");
+			goto free_gang_ctx_bo;
 		}
 	}
 
@@ -451,8 +448,15 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	if (retval != 0) {
-		pr_err("process pid %d DQM create queue type %d failed. ret %d\n",
-			pqm->process->lead_thread->pid, type, retval);
+		if ((type == KFD_QUEUE_TYPE_SDMA ||
+		    type == KFD_QUEUE_TYPE_SDMA_XGMI ||
+		    type == KFD_QUEUE_TYPE_SDMA_BY_ENG_ID) &&
+		    retval == -ENOMEM)
+			pr_warn("process pid %d DQM create queue type %d failed. ret %d\n",
+				pqm->process->lead_thread->pid, type, retval);
+		else
+			pr_err("process pid %d DQM create queue type %d failed. ret %d\n",
+				pqm->process->lead_thread->pid, type, retval);
 		goto err_create_queue;
 	}
 

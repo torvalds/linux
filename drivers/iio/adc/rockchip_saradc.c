@@ -425,7 +425,8 @@ static irqreturn_t rockchip_saradc_trigger_handler(int irq, void *p)
 		j++;
 	}
 
-	iio_push_to_buffers_with_timestamp(i_dev, &data, iio_get_time_ns(i_dev));
+	iio_push_to_buffers_with_ts(i_dev, &data, sizeof(data),
+				    iio_get_time_ns(i_dev));
 out:
 	mutex_unlock(&info->lock);
 

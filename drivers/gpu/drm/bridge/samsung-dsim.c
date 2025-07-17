@@ -1095,7 +1095,7 @@ static void samsung_dsim_send_to_fifo(struct samsung_dsim *dsi,
 	bool first = !xfer->tx_done;
 	u32 reg;
 
-	dev_dbg(dev, "< xfer %pK: tx len %u, done %u, rx len %u, done %u\n",
+	dev_dbg(dev, "< xfer %p: tx len %u, done %u, rx len %u, done %u\n",
 		xfer, length, xfer->tx_done, xfer->rx_len, xfer->rx_done);
 
 	if (length > DSI_TX_FIFO_SIZE)
@@ -1293,7 +1293,7 @@ static bool samsung_dsim_transfer_finish(struct samsung_dsim *dsi)
 	spin_unlock_irqrestore(&dsi->transfer_lock, flags);
 
 	dev_dbg(dsi->dev,
-		"> xfer %pK, tx_len %zu, tx_done %u, rx_len %u, rx_done %u\n",
+		"> xfer %p, tx_len %zu, tx_done %u, rx_len %u, rx_done %u\n",
 		xfer, xfer->packet.payload_length, xfer->tx_done, xfer->rx_len,
 		xfer->rx_done);
 
@@ -1640,11 +1640,12 @@ static void samsung_dsim_mode_set(struct drm_bridge *bridge,
 }
 
 static int samsung_dsim_attach(struct drm_bridge *bridge,
+			       struct drm_encoder *encoder,
 			       enum drm_bridge_attach_flags flags)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
-	return drm_bridge_attach(bridge->encoder, dsi->out_bridge, bridge,
+	return drm_bridge_attach(encoder, dsi->out_bridge, bridge,
 				 flags);
 }
 
@@ -1935,9 +1936,9 @@ int samsung_dsim_probe(struct platform_device *pdev)
 	struct samsung_dsim *dsi;
 	int ret, i;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi)
-		return -ENOMEM;
+	dsi = devm_drm_bridge_alloc(dev, struct samsung_dsim, bridge, &samsung_dsim_bridge_funcs);
+	if (IS_ERR(dsi))
+		return PTR_ERR(dsi);
 
 	init_completion(&dsi->completed);
 	spin_lock_init(&dsi->transfer_lock);
@@ -2007,7 +2008,6 @@ int samsung_dsim_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	dsi->bridge.funcs = &samsung_dsim_bridge_funcs;
 	dsi->bridge.of_node = dev->of_node;
 	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 

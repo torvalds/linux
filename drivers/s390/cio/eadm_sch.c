@@ -98,7 +98,7 @@ static int eadm_subchannel_clear(struct subchannel *sch)
 
 static void eadm_subchannel_timeout(struct timer_list *t)
 {
-	struct eadm_private *private = from_timer(private, t, timer);
+	struct eadm_private *private = timer_container_of(private, t, timer);
 	struct subchannel *sch = private->sch;
 
 	spin_lock_irq(&sch->lock);

@@ -22,6 +22,7 @@ use proc_macro::TokenStream;
 #[cfg(kernel)]
 #[path = "../../../macros/quote.rs"]
 #[macro_use]
+#[cfg_attr(not(kernel), rustfmt::skip)]
 mod quote;
 #[cfg(not(kernel))]
 #[macro_use]
@@ -45,4 +46,9 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Zeroable)]
 pub fn derive_zeroable(input: TokenStream) -> TokenStream {
     zeroable::derive(input.into()).into()
+}
+
+#[proc_macro_derive(MaybeZeroable)]
+pub fn maybe_derive_zeroable(input: TokenStream) -> TokenStream {
+    zeroable::maybe_derive(input.into()).into()
 }

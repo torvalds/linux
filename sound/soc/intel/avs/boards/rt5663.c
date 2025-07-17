@@ -228,7 +228,7 @@ static int avs_rt5663_probe(struct platform_device *pdev)
 		card->name = "avs_rt5663";
 	} else {
 		card->driver_name = "avs_rt5663";
-		card->long_name = card->name = "AVS I2S ALC5640";
+		card->long_name = card->name = "AVS I2S ALC5663";
 	}
 	card->dev = dev;
 	card->owner = THIS_MODULE;

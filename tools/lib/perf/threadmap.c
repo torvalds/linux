@@ -97,5 +97,22 @@ int perf_thread_map__nr(struct perf_thread_map *threads)
 
 pid_t perf_thread_map__pid(struct perf_thread_map *map, int idx)
 {
+	if (!map) {
+		assert(idx == 0);
+		return -1;
+	}
+
 	return map->map[idx].pid;
+}
+
+int perf_thread_map__idx(struct perf_thread_map *threads, pid_t pid)
+{
+	if (!threads)
+		return pid == -1 ? 0 : -1;
+
+	for (int i = 0; i < threads->nr; ++i) {
+		if (threads->map[i].pid == pid)
+			return i;
+	}
+	return -1;
 }

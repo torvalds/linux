@@ -535,7 +535,7 @@ static int tifm_ms_set_param(struct memstick_host *msh,
 
 static void tifm_ms_abort(struct timer_list *t)
 {
-	struct tifm_ms *host = from_timer(host, t, timer);
+	struct tifm_ms *host = timer_container_of(host, t, timer);
 
 	dev_dbg(&host->dev->dev, "status %x\n",
 		readl(host->dev->addr + SOCK_MS_STATUS));

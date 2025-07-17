@@ -151,7 +151,7 @@ static struct pci_ops histb_pci_ops = {
 	.write = histb_pcie_wr_own_conf,
 };
 
-static int histb_pcie_link_up(struct dw_pcie *pci)
+static bool histb_pcie_link_up(struct dw_pcie *pci)
 {
 	struct histb_pcie *hipcie = to_histb_pcie(pci);
 	u32 regval;
@@ -160,11 +160,8 @@ static int histb_pcie_link_up(struct dw_pcie *pci)
 	regval = histb_pcie_readl(hipcie, PCIE_SYS_STAT0);
 	status = histb_pcie_readl(hipcie, PCIE_SYS_STAT4);
 	status &= PCIE_LTSSM_STATE_MASK;
-	if ((regval & PCIE_XMLH_LINK_UP) && (regval & PCIE_RDLH_LINK_UP) &&
-	    (status == PCIE_LTSSM_STATE_ACTIVE))
-		return 1;
-
-	return 0;
+	return ((regval & PCIE_XMLH_LINK_UP) && (regval & PCIE_RDLH_LINK_UP) &&
+		(status == PCIE_LTSSM_STATE_ACTIVE));
 }
 
 static int histb_pcie_start_link(struct dw_pcie *pci)

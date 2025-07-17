@@ -197,7 +197,8 @@ static unsigned short fake_waveform(struct comedi_device *dev,
  */
 static void waveform_ai_timer(struct timer_list *t)
 {
-	struct waveform_private *devpriv = from_timer(devpriv, t, ai_timer);
+	struct waveform_private *devpriv = timer_container_of(devpriv, t,
+							      ai_timer);
 	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
@@ -444,7 +445,8 @@ static int waveform_ai_insn_read(struct comedi_device *dev,
  */
 static void waveform_ao_timer(struct timer_list *t)
 {
-	struct waveform_private *devpriv = from_timer(devpriv, t, ao_timer);
+	struct waveform_private *devpriv = timer_container_of(devpriv, t,
+							      ao_timer);
 	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;

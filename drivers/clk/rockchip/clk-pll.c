@@ -1027,16 +1027,6 @@ static int rockchip_rk3588_pll_is_enabled(struct clk_hw *hw)
 	return !(pllcon & RK3588_PLLCON1_PWRDOWN);
 }
 
-static int rockchip_rk3588_pll_init(struct clk_hw *hw)
-{
-	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
-
-	if (!(pll->flags & ROCKCHIP_PLL_SYNC_RATE))
-		return 0;
-
-	return 0;
-}
-
 static const struct clk_ops rockchip_rk3588_pll_clk_norate_ops = {
 	.recalc_rate = rockchip_rk3588_pll_recalc_rate,
 	.enable = rockchip_rk3588_pll_enable,
@@ -1051,7 +1041,6 @@ static const struct clk_ops rockchip_rk3588_pll_clk_ops = {
 	.enable = rockchip_rk3588_pll_enable,
 	.disable = rockchip_rk3588_pll_disable,
 	.is_enabled = rockchip_rk3588_pll_is_enabled,
-	.init = rockchip_rk3588_pll_init,
 };
 
 /*

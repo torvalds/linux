@@ -493,7 +493,7 @@ static void enable_chip(struct qib_devdata *dd)
 
 static void verify_interrupt(struct timer_list *t)
 {
-	struct qib_devdata *dd = from_timer(dd, t, intrchk_timer);
+	struct qib_devdata *dd = timer_container_of(dd, t, intrchk_timer);
 	u64 int_counter;
 
 	if (!dd)

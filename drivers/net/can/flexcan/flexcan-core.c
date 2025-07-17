@@ -1226,7 +1226,7 @@ static void flexcan_set_bittiming_cbt(const struct net_device *dev)
 {
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct can_bittiming *bt = &priv->can.bittiming;
-	struct can_bittiming *dbt = &priv->can.data_bittiming;
+	struct can_bittiming *dbt = &priv->can.fd.data_bittiming;
 	struct flexcan_regs __iomem *regs = priv->regs;
 	u32 reg_cbt, reg_fdctrl;
 
@@ -2239,7 +2239,7 @@ static int flexcan_probe(struct platform_device *pdev)
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_FD |
 			CAN_CTRLMODE_FD_NON_ISO;
 		priv->can.bittiming_const = &flexcan_fd_bittiming_const;
-		priv->can.data_bittiming_const =
+		priv->can.fd.data_bittiming_const =
 			&flexcan_fd_data_bittiming_const;
 	} else {
 		priv->can.bittiming_const = &flexcan_bittiming_const;

@@ -878,6 +878,8 @@ nfsd4_getattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd4_getattr *getattr = &u->getattr;
 	__be32 status;
 
+	trace_nfsd_vfs_getattr(rqstp, &cstate->current_fh);
+
 	status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 	if (status)
 		return status;
@@ -999,6 +1001,9 @@ nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd4_readdir *readdir = &u->readdir;
 	u64 cookie = readdir->rd_cookie;
 	static const nfs4_verifier zeroverf;
+
+	trace_nfsd_vfs_readdir(rqstp, &cstate->current_fh,
+			       readdir->rd_maxcount, readdir->rd_cookie);
 
 	/* no need to check permission - this will be done in nfsd_readdir() */
 
@@ -1213,7 +1218,6 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd_file *nf = NULL;
 	__be32 status = nfs_ok;
 	unsigned long cnt;
-	int nvecs;
 
 	if (write->wr_offset > (u64)OFFSET_MAX ||
 	    write->wr_offset + write->wr_buflen > (u64)OFFSET_MAX)
@@ -1228,13 +1232,9 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return status;
 
 	write->wr_how_written = write->wr_stable_how;
-
-	nvecs = svc_fill_write_vector(rqstp, &write->wr_payload);
-	WARN_ON_ONCE(nvecs > ARRAY_SIZE(rqstp->rq_vec));
-
 	status = nfsd_vfs_write(rqstp, &cstate->current_fh, nf,
-				write->wr_offset, rqstp->rq_vec, nvecs, &cnt,
-				write->wr_how_written,
+				write->wr_offset, &write->wr_payload,
+				&cnt, write->wr_how_written,
 				(__be32 *)write->wr_verifier.data);
 	nfsd_file_put(nf);
 
@@ -1381,8 +1381,11 @@ static void nfs4_put_copy(struct nfsd4_copy *copy)
 static void nfsd4_stop_copy(struct nfsd4_copy *copy)
 {
 	trace_nfsd_copy_async_cancel(copy);
-	if (!test_and_set_bit(NFSD4_COPY_F_STOPPED, &copy->cp_flags))
+	if (!test_and_set_bit(NFSD4_COPY_F_STOPPED, &copy->cp_flags)) {
 		kthread_stop(copy->copy_task);
+		copy->nfserr = nfs_ok;
+		set_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags);
+	}
 	nfs4_put_copy(copy);
 }
 
@@ -1711,10 +1714,11 @@ static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
 	switch (task->tk_status) {
 	case -NFS4ERR_DELAY:
 		if (cbo->co_retries--) {
-			rpc_delay(task, 1 * HZ);
+			rpc_delay(task, HZ / 5);
 			return 0;
 		}
 	}
+	nfsd41_cb_destroy_referring_call_list(cb);
 	return 1;
 }
 
@@ -1847,6 +1851,9 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
 
 	nfsd4_init_cb(&cbo->co_cb, copy->cp_clp, &nfsd4_cb_offload_ops,
 		      NFSPROC4_CLNT_CB_OFFLOAD);
+	nfsd41_cb_referring_call(&cbo->co_cb, &cbo->co_referring_sessionid,
+				 cbo->co_referring_slotid,
+				 cbo->co_referring_seqno);
 	trace_nfsd_cb_offload(copy->cp_clp, &cbo->co_res.cb_stateid,
 			      &cbo->co_fh, copy->cp_count, copy->nfserr);
 	nfsd4_try_run_cb(&cbo->co_cb);
@@ -1963,6 +1970,11 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		memcpy(&result->cb_stateid, &copy->cp_stateid.cs_stid,
 			sizeof(result->cb_stateid));
 		dup_copy_fields(copy, async_copy);
+		memcpy(async_copy->cp_cb_offload.co_referring_sessionid.data,
+		       cstate->session->se_sessionid.data,
+		       NFS4_MAX_SESSIONID_LEN);
+		async_copy->cp_cb_offload.co_referring_slotid = cstate->slot->sl_index;
+		async_copy->cp_cb_offload.co_referring_seqno = cstate->slot->sl_seqid;
 		async_copy->copy_task = kthread_create(nfsd4_do_async_copy,
 				async_copy, "%s", "copy thread");
 		if (IS_ERR(async_copy->copy_task))
@@ -3768,7 +3780,8 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 	struct nfs4_op_map *allow = &cstate->clp->cl_spo_must_allow;
 	u32 opiter;
 
-	if (!cstate->minorversion)
+	if (rqstp->rq_procinfo != &nfsd_version4.vs_proc[NFSPROC4_COMPOUND] ||
+	    cstate->minorversion == 0)
 		return false;
 
 	if (cstate->spo_must_allowed)
@@ -3834,7 +3847,7 @@ static const struct svc_procedure nfsd_procedures4[2] = {
 		.pc_ressize = sizeof(struct nfsd4_compoundres),
 		.pc_release = nfsd4_release_compoundargs,
 		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = NFSD_BUFSIZE/4,
+		.pc_xdrressize = 3+NFSSVC_MAXBLKSIZE/4,
 		.pc_name = "COMPOUND",
 	},
 };

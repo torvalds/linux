@@ -6,8 +6,10 @@
 #include <linux/log2.h>
 #include <linux/math64.h>
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
 #include "intel_ddi.h"
@@ -2761,9 +2763,9 @@ static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
 
 	if (!is_dp && is_hdmi_frl(port_clock))
-		val |= XELPDP_DDI_CLOCK_SELECT(XELPDP_DDI_CLOCK_SELECT_DIV18CLK);
+		val |= XELPDP_DDI_CLOCK_SELECT_PREP(display, XELPDP_DDI_CLOCK_SELECT_DIV18CLK);
 	else
-		val |= XELPDP_DDI_CLOCK_SELECT(XELPDP_DDI_CLOCK_SELECT_MAXPCLK);
+		val |= XELPDP_DDI_CLOCK_SELECT_PREP(display, XELPDP_DDI_CLOCK_SELECT_MAXPCLK);
 
 	/* TODO: HDMI FRL */
 	/* DP2.0 10G and 20G rates enable MPLLA*/
@@ -2774,7 +2776,7 @@ static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
 		     XELPDP_LANE1_PHY_CLOCK_SELECT | XELPDP_FORWARD_CLOCK_UNGATE |
-		     XELPDP_DDI_CLOCK_SELECT_MASK | XELPDP_SSC_ENABLE_PLLA |
+		     XELPDP_DDI_CLOCK_SELECT_MASK(display) | XELPDP_SSC_ENABLE_PLLA |
 		     XELPDP_SSC_ENABLE_PLLB, val);
 }
 
@@ -3097,10 +3099,7 @@ int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
 
 	val = intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port));
 
-	if (DISPLAY_VER(display) >= 30)
-		clock = REG_FIELD_GET(XE3_DDI_CLOCK_SELECT_MASK, val);
-	else
-		clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
+	clock = XELPDP_DDI_CLOCK_SELECT_GET(display, val);
 
 	drm_WARN_ON(display->drm, !(val & XELPDP_FORWARD_CLOCK_UNGATE));
 	drm_WARN_ON(display->drm, !(val & XELPDP_TBT_CLOCK_REQUEST));
@@ -3168,13 +3167,9 @@ static void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	 * clock muxes, gating and SSC
 	 */
 
-	if (DISPLAY_VER(display) >= 30) {
-		mask = XE3_DDI_CLOCK_SELECT_MASK;
-		val |= XE3_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
-	} else {
-		mask = XELPDP_DDI_CLOCK_SELECT_MASK;
-		val |= XELPDP_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
-	}
+	mask = XELPDP_DDI_CLOCK_SELECT_MASK(display);
+	val |= XELPDP_DDI_CLOCK_SELECT_PREP(display,
+					    intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
 
 	mask |= XELPDP_FORWARD_CLOCK_UNGATE;
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
@@ -3287,7 +3282,7 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 
 	/* 7. Program PORT_CLOCK_CTL register to disable and gate clocks. */
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-		     XELPDP_DDI_CLOCK_SELECT_MASK, 0);
+		     XELPDP_DDI_CLOCK_SELECT_MASK(display), 0);
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
 		     XELPDP_FORWARD_CLOCK_UNGATE, 0);
 
@@ -3336,7 +3331,7 @@ static void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 	 * 5. Program PORT CLOCK CTRL register to disable and gate clocks
 	 */
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-		     XELPDP_DDI_CLOCK_SELECT_MASK |
+		     XELPDP_DDI_CLOCK_SELECT_MASK(display) |
 		     XELPDP_FORWARD_CLOCK_UNGATE, 0);
 
 	/* 6. Program DDI_CLK_VALFREQ to 0. */
@@ -3365,7 +3360,7 @@ intel_mtl_port_pll_type(struct intel_encoder *encoder,
 	 * handling is done via the standard shared DPLL framework.
 	 */
 	val = intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port));
-	clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
+	clock = XELPDP_DDI_CLOCK_SELECT_GET(display, val);
 
 	if (clock == XELPDP_DDI_CLOCK_SELECT_MAXPCLK ||
 	    clock == XELPDP_DDI_CLOCK_SELECT_DIV18CLK)

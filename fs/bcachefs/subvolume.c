@@ -130,10 +130,20 @@ static int check_subvol(struct btree_trans *trans,
 			     "subvolume %llu points to missing subvolume root %llu:%u",
 			     k.k->p.offset, le64_to_cpu(subvol.v->inode),
 			     le32_to_cpu(subvol.v->snapshot))) {
-			ret = bch2_subvolume_delete(trans, iter->pos.offset);
-			bch_err_msg(c, ret, "deleting subvolume %llu", iter->pos.offset);
-			ret = ret ?: -BCH_ERR_transaction_restart_nested;
-			goto err;
+			/*
+			 * Recreate - any contents that are still disconnected
+			 * will then get reattached under lost+found
+			 */
+			bch2_inode_init_early(c, &inode);
+			bch2_inode_init_late(c, &inode, bch2_current_time(c),
+					     0, 0, S_IFDIR|0700, 0, NULL);
+			inode.bi_inum			= le64_to_cpu(subvol.v->inode);
+			inode.bi_snapshot		= le32_to_cpu(subvol.v->snapshot);
+			inode.bi_subvol			= k.k->p.offset;
+			inode.bi_parent_subvol		= le32_to_cpu(subvol.v->fs_path_parent);
+			ret = __bch2_fsck_write_inode(trans, &inode);
+			if (ret)
+				goto err;
 		}
 	} else {
 		goto err;
@@ -141,13 +151,9 @@ static int check_subvol(struct btree_trans *trans,
 
 	if (!BCH_SUBVOLUME_SNAP(subvol.v)) {
 		u32 snapshot_root = bch2_snapshot_root(c, le32_to_cpu(subvol.v->snapshot));
-		u32 snapshot_tree;
+		u32 snapshot_tree = bch2_snapshot_tree(c, snapshot_root);
+
 		struct bch_snapshot_tree st;
-
-		rcu_read_lock();
-		snapshot_tree = snapshot_t(c, snapshot_root)->tree;
-		rcu_read_unlock();
-
 		ret = bch2_snapshot_tree_lookup(trans, snapshot_tree, &st);
 
 		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
@@ -259,6 +265,13 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 		prt_printf(out, " creation_parent %u", le32_to_cpu(s.v->creation_parent));
 		prt_printf(out, " fs_parent %u", le32_to_cpu(s.v->fs_path_parent));
 	}
+
+	if (BCH_SUBVOLUME_RO(s.v))
+		prt_printf(out, " ro");
+	if (BCH_SUBVOLUME_SNAP(s.v))
+		prt_printf(out, " snapshot");
+	if (BCH_SUBVOLUME_UNLINKED(s.v))
+		prt_printf(out, " unlinked");
 }
 
 static int subvolume_children_mod(struct btree_trans *trans, struct bpos pos, bool set)
@@ -486,9 +499,12 @@ err:
 
 static int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
-	return bch2_subvolumes_reparent(trans, subvolid) ?:
+	int ret = bch2_subvolumes_reparent(trans, subvolid) ?:
 		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			  __bch2_subvolume_delete(trans, subvolid));
+
+	bch2_recovery_pass_set_no_ratelimit(trans->c, BCH_RECOVERY_PASS_check_subvols);
+	return ret;
 }
 
 static void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
@@ -597,7 +613,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 	ret = bch2_bkey_get_empty_slot(trans, &dst_iter,
 				BTREE_ID_subvolumes, POS(0, U32_MAX));
 	if (ret == -BCH_ERR_ENOSPC_btree_slot)
-		ret = -BCH_ERR_ENOSPC_subvolume_create;
+		ret = bch_err_throw(c, ENOSPC_subvolume_create);
 	if (ret)
 		return ret;
 
@@ -703,8 +719,9 @@ static int __bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 		return ret;
 
 	if (!bkey_is_inode(k.k)) {
-		bch_err(trans->c, "root inode not found");
-		ret = -BCH_ERR_ENOENT_inode;
+		struct bch_fs *c = trans->c;
+		bch_err(c, "root inode not found");
+		ret = bch_err_throw(c, ENOENT_inode);
 		goto err;
 	}
 

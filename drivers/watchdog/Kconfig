@@ -804,6 +804,15 @@ config IMX7ULP_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx7ulp_wdt.
 
+config S32G_WDT
+	tristate "S32G Watchdog"
+	depends on ARCH_S32 || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This is the driver for the hardware watchdog on the NXP
+	  S32G platforms. If you wish to have watchdog support
+	  enabled, say Y, otherwise say N.
+
 config DB500_WATCHDOG
 	tristate "ST-Ericsson DB800 watchdog"
 	depends on MFD_DB8500_PRCMU
@@ -1001,7 +1010,7 @@ config STM32_WATCHDOG
 	tristate "STM32 Independent WatchDoG (IWDG) support"
 	depends on ARCH_STM32 || COMPILE_TEST
 	select WATCHDOG_CORE
-	default y
+	default ARCH_STM32
 	help
 	  Say Y here to include support for the watchdog timer
 	  in stm32 SoCs.
@@ -1362,6 +1371,17 @@ config INTEL_MID_WATCHDOG
 	  implementation in SCU, available for Merrifield generation.
 
 	  To compile this driver as a module, choose M here.
+
+config INTEL_OC_WATCHDOG
+	tristate "Intel OC Watchdog"
+	depends on (X86 || COMPILE_TEST) && ACPI && HAS_IOPORT
+	select WATCHDOG_CORE
+	help
+	  Hardware driver for Intel Over-Clocking watchdog present in
+	  Platform Controller Hub (PCH) chipsets.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel_oc_wdt.
 
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
@@ -1869,7 +1889,7 @@ config OCTEON_WDT
 config MARVELL_GTI_WDT
 	tristate "Marvell GTI Watchdog driver"
 	depends on ARCH_THUNDER || (COMPILE_TEST && 64BIT)
-	default y
+	default ARCH_THUNDER
 	select WATCHDOG_CORE
 	help
 	  Marvell GTI hardware supports watchdog timer. First timeout
@@ -2035,7 +2055,7 @@ config 8xxx_WDT
 config PIKA_WDT
 	tristate "PIKA FPGA Watchdog"
 	depends on WARP || (PPC64 && COMPILE_TEST)
-	default y
+	default WARP
 	help
 	  This enables the watchdog in the PIKA FPGA. Currently used on
 	  the Warp platform.

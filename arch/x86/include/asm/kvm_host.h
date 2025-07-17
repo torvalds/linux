@@ -31,6 +31,7 @@
 
 #include <asm/apic.h>
 #include <asm/pvclock-abi.h>
+#include <asm/debugreg.h>
 #include <asm/desc.h>
 #include <asm/mtrr.h>
 #include <asm/msr-index.h>
@@ -126,7 +127,8 @@
 	KVM_ARCH_REQ_FLAGS(31, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_HV_TLB_FLUSH \
 	KVM_ARCH_REQ_FLAGS(32, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_UPDATE_PROTECTED_GUEST_STATE	KVM_ARCH_REQ(34)
+#define KVM_REQ_UPDATE_PROTECTED_GUEST_STATE \
+	KVM_ARCH_REQ_FLAGS(34, KVM_REQUEST_WAIT)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -248,7 +250,6 @@ enum x86_intercept_stage;
 #define DR7_BP_EN_MASK	0x000000ff
 #define DR7_GE		(1 << 9)
 #define DR7_GD		(1 << 13)
-#define DR7_FIXED_1	0x00000400
 #define DR7_VOLATILE	0xffff2bff
 
 #define KVM_GUESTDBG_VALID_MASK \
@@ -412,7 +413,6 @@ struct kvm_rmap_head {
 };
 
 struct kvm_pio_request {
-	unsigned long linear_rip;
 	unsigned long count;
 	int in;
 	int port;
@@ -609,8 +609,15 @@ struct kvm_pmu {
 struct kvm_pmu_ops;
 
 enum {
-	KVM_DEBUGREG_BP_ENABLED = 1,
-	KVM_DEBUGREG_WONT_EXIT = 2,
+	KVM_DEBUGREG_BP_ENABLED		= BIT(0),
+	KVM_DEBUGREG_WONT_EXIT		= BIT(1),
+	/*
+	 * Guest debug registers (DR0-3, DR6 and DR7) are saved/restored by
+	 * hardware on exit from or enter to guest. KVM needn't switch them.
+	 * DR0-3, DR6 and DR7 are set to their architectural INIT value on VM
+	 * exit, host values need to be restored.
+	 */
+	KVM_DEBUGREG_AUTO_SWITCH	= BIT(2),
 };
 
 struct kvm_mtrr {
@@ -693,8 +700,13 @@ struct kvm_vcpu_hv {
 
 	struct kvm_vcpu_hv_tlb_flush_fifo tlb_flush_fifo[HV_NR_TLB_FLUSH_FIFOS];
 
-	/* Preallocated buffer for handling hypercalls passing sparse vCPU set */
+	/*
+	 * Preallocated buffers for handling hypercalls that pass sparse vCPU
+	 * sets (for high vCPU counts, they're too large to comfortably fit on
+	 * the stack).
+	 */
 	u64 sparse_banks[HV_MAX_SPARSE_VCPU_BANKS];
+	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
 
 	struct hv_vp_assist_page vp_assist_page;
 
@@ -757,6 +769,7 @@ enum kvm_only_cpuid_leafs {
 	CPUID_8000_0022_EAX,
 	CPUID_7_2_EDX,
 	CPUID_24_0_EBX,
+	CPUID_8000_0021_ECX,
 	NR_KVM_CPU_CAPS,
 
 	NKVMCAPINTS = NR_KVM_CPU_CAPS - NCAPINTS,
@@ -911,6 +924,7 @@ struct kvm_vcpu_arch {
 	bool emulate_regs_need_sync_to_vcpu;
 	bool emulate_regs_need_sync_from_vcpu;
 	int (*complete_userspace_io)(struct kvm_vcpu *vcpu);
+	unsigned long cui_linear_rip;
 
 	gpa_t time;
 	s8  pvclock_tsc_shift;
@@ -1028,6 +1042,7 @@ struct kvm_vcpu_arch {
 
 	int pending_ioapic_eoi;
 	int pending_external_vector;
+	int highest_stale_pending_ioapic_eoi;
 
 	/* be preempted when it's in kernel-mode(cpl=0) */
 	bool preempted_in_kernel;
@@ -1571,6 +1586,13 @@ struct kvm_arch {
 	struct kvm_mmu_memory_cache split_desc_cache;
 
 	gfn_t gfn_direct_bits;
+
+	/*
+	 * Size of the CPU's dirty log buffer, i.e. VMX's PML buffer. A Zero
+	 * value indicates CPU dirty logging is unsupported or disabled in
+	 * current VM.
+	 */
+	int cpu_dirty_log_size;
 };
 
 struct kvm_vm_stat {
@@ -1674,6 +1696,7 @@ struct kvm_x86_ops {
 	unsigned int vm_size;
 	int (*vm_init)(struct kvm *kvm);
 	void (*vm_destroy)(struct kvm *kvm);
+	void (*vm_pre_destroy)(struct kvm *kvm);
 
 	/* Create, but do not attach this VCPU */
 	int (*vcpu_precreate)(struct kvm *kvm);
@@ -1823,11 +1846,6 @@ struct kvm_x86_ops {
 			       struct x86_exception *exception);
 	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu);
 
-	/*
-	 * Size of the CPU's dirty log buffer, i.e. VMX's PML buffer.  A zero
-	 * value indicates CPU dirty logging is unsupported or disabled.
-	 */
-	int cpu_dirty_log_size;
 	void (*update_cpu_dirty_logging)(struct kvm_vcpu *vcpu);
 
 	const struct kvm_x86_nested_ops *nested_ops;
@@ -1841,6 +1859,7 @@ struct kvm_x86_ops {
 	void (*apicv_pre_state_restore)(struct kvm_vcpu *vcpu);
 	void (*apicv_post_state_restore)(struct kvm_vcpu *vcpu);
 	bool (*dy_apicv_has_pending_interrupt)(struct kvm_vcpu *vcpu);
+	bool (*protected_apic_has_interrupt)(struct kvm_vcpu *vcpu);
 
 	int (*set_hv_timer)(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc,
 			    bool *expired);
@@ -1857,6 +1876,7 @@ struct kvm_x86_ops {
 
 	int (*dev_get_attr)(u32 group, u64 attr, u64 *val);
 	int (*mem_enc_ioctl)(struct kvm *kvm, void __user *argp);
+	int (*vcpu_mem_enc_ioctl)(struct kvm_vcpu *vcpu, void __user *argp);
 	int (*mem_enc_register_region)(struct kvm *kvm, struct kvm_enc_region *argp);
 	int (*mem_enc_unregister_region)(struct kvm *kvm, struct kvm_enc_region *argp);
 	int (*vm_copy_enc_context_from)(struct kvm *kvm, unsigned int source_fd);
@@ -1930,6 +1950,7 @@ struct kvm_arch_async_pf {
 extern u32 __read_mostly kvm_nr_uret_msrs;
 extern bool __read_mostly allow_smaller_maxphyaddr;
 extern bool __read_mostly enable_apicv;
+extern bool __read_mostly enable_device_posted_irqs;
 extern struct kvm_x86_ops kvm_x86_ops;
 
 #define kvm_x86_call(func) static_call(kvm_x86_##func)
@@ -2333,6 +2354,7 @@ int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 int kvm_add_user_return_msr(u32 msr);
 int kvm_find_user_return_msr(u32 msr);
 int kvm_set_user_return_msr(unsigned index, u64 val, u64 mask);
+void kvm_user_return_msr_update_cache(unsigned int index, u64 val);
 
 static inline bool kvm_is_supported_user_return_msr(u32 msr)
 {
@@ -2416,7 +2438,12 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN |	\
 	 KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS |	\
 	 KVM_X86_QUIRK_SLOT_ZAP_ALL |		\
-	 KVM_X86_QUIRK_STUFF_FEATURE_MSRS)
+	 KVM_X86_QUIRK_STUFF_FEATURE_MSRS |	\
+	 KVM_X86_QUIRK_IGNORE_GUEST_PAT)
+
+#define KVM_X86_CONDITIONAL_QUIRKS		\
+	(KVM_X86_QUIRK_CD_NW_CLEARED |		\
+	 KVM_X86_QUIRK_IGNORE_GUEST_PAT)
 
 /*
  * KVM previously used a u32 field in kvm_run to indicate the hypercall was
@@ -2427,7 +2454,7 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 
 static inline bool kvm_arch_has_irq_bypass(void)
 {
-	return enable_apicv && irq_remapping_cap(IRQ_POSTING_CAP);
+	return enable_device_posted_irqs;
 }
 
 #endif /* _ASM_X86_KVM_HOST_H */

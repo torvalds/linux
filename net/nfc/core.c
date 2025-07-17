@@ -1010,7 +1010,7 @@ exit:
 
 static void nfc_check_pres_timeout(struct timer_list *t)
 {
-	struct nfc_dev *dev = from_timer(dev, t, check_pres_timer);
+	struct nfc_dev *dev = timer_container_of(dev, t, check_pres_timer);
 
 	schedule_work(&dev->check_pres_work);
 }

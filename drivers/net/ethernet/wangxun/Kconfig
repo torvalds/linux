@@ -40,7 +40,7 @@ config NGBE
 	  will be called ngbe.
 
 config TXGBE
-	tristate "Wangxun(R) 10GbE PCI Express adapters support"
+	tristate "Wangxun(R) 10/25/40GbE PCI Express adapters support"
 	depends on PCI
 	depends on COMMON_CLK
 	depends on I2C_DESIGNWARE_PLATFORM
@@ -55,7 +55,7 @@ config TXGBE
 	select PCS_XPCS
 	select LIBWX
 	help
-	  This driver supports Wangxun(R) 10GbE PCI Express family of
+	  This driver supports Wangxun(R) 10/25/40GbE PCI Express family of
 	  adapters.
 
 	  More specific information on configuring the driver is in

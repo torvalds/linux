@@ -424,6 +424,7 @@ static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 #ifdef CONFIG_MMU_GATHER_PAGE_SIZE
 	tlb->page_size = 0;
 #endif
+	tlb->vma_pfn = 0;
 
 	__tlb_reset_range(tlb);
 	inc_tlb_flush_pending(tlb->mm);

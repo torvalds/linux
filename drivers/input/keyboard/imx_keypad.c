@@ -183,7 +183,8 @@ static void imx_keypad_fire_events(struct imx_keypad *keypad,
  */
 static void imx_keypad_check_for_events(struct timer_list *t)
 {
-	struct imx_keypad *keypad = from_timer(keypad, t, check_matrix_timer);
+	struct imx_keypad *keypad = timer_container_of(keypad, t,
+						       check_matrix_timer);
 	unsigned short matrix_volatile_state[MAX_MATRIX_KEY_COLS];
 	unsigned short reg_val;
 	bool state_changed, is_zero_matrix;

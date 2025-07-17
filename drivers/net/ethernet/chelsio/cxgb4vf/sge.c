@@ -2062,7 +2062,7 @@ irq_handler_t t4vf_intr_handler(struct adapter *adapter)
  */
 static void sge_rx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adapter = from_timer(adapter, t, sge.rx_timer);
+	struct adapter *adapter = timer_container_of(adapter, t, sge.rx_timer);
 	struct sge *s = &adapter->sge;
 	unsigned int i;
 
@@ -2121,7 +2121,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
  */
 static void sge_tx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adapter = from_timer(adapter, t, sge.tx_timer);
+	struct adapter *adapter = timer_container_of(adapter, t, sge.tx_timer);
 	struct sge *s = &adapter->sge;
 	unsigned int i, budget;
 

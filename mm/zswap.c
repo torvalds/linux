@@ -981,7 +981,7 @@ static bool zswap_compress(struct page *page, struct zswap_entry *entry,
 
 	zpool = pool->zpool;
 	gfp = GFP_NOWAIT | __GFP_NORETRY | __GFP_HIGHMEM | __GFP_MOVABLE;
-	alloc_ret = zpool_malloc(zpool, dlen, gfp, &handle);
+	alloc_ret = zpool_malloc(zpool, dlen, gfp, &handle, page_to_nid(page));
 	if (alloc_ret)
 		goto unlock;
 

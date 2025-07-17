@@ -52,6 +52,7 @@
 #include <linux/pagemap.h>
 #include <linux/iov_iter.h>
 #include <linux/indirect_call_wrapper.h>
+#include <linux/crc32.h>
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -61,7 +62,8 @@
 #include <net/tcp_states.h>
 #include <trace/events/skb.h>
 #include <net/busy_poll.h>
-#include <crypto/hash.h>
+
+#include "devmem.h"
 
 /*
  *	Is a socket 'connection oriented' ?
@@ -163,8 +165,7 @@ done:
 	return skb;
 }
 
-struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
-					  struct sk_buff_head *queue,
+struct sk_buff *__skb_try_recv_from_queue(struct sk_buff_head *queue,
 					  unsigned int flags,
 					  int *off, int *err,
 					  struct sk_buff **last)
@@ -261,7 +262,7 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk,
 		 * However, this function was correct in any case. 8)
 		 */
 		spin_lock_irqsave(&queue->lock, cpu_flags);
-		skb = __skb_try_recv_from_queue(sk, queue, flags, off, &error,
+		skb = __skb_try_recv_from_queue(queue, flags, off, &error,
 						last);
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
 		if (error)
@@ -482,41 +483,37 @@ short_copy:
 	return 0;
 }
 
-static size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
-				    struct iov_iter *i)
+#ifdef CONFIG_NET_CRC32C
+static size_t crc32c_and_copy_to_iter(const void *addr, size_t bytes,
+				      void *_crcp, struct iov_iter *i)
 {
-#ifdef CONFIG_CRYPTO_HASH
-	struct ahash_request *hash = hashp;
-	struct scatterlist sg;
+	u32 *crcp = _crcp;
 	size_t copied;
 
 	copied = copy_to_iter(addr, bytes, i);
-	sg_init_one(&sg, addr, copied);
-	ahash_request_set_crypt(hash, &sg, NULL, copied);
-	crypto_ahash_update(hash);
+	*crcp = crc32c(*crcp, addr, copied);
 	return copied;
-#else
-	return 0;
-#endif
 }
 
 /**
- *	skb_copy_and_hash_datagram_iter - Copy datagram to an iovec iterator
- *          and update a hash.
+ *	skb_copy_and_crc32c_datagram_iter - Copy datagram to an iovec iterator
+ *		and update a CRC32C value.
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying from
  *	@to: iovec iterator to copy to
  *	@len: amount of data to copy from buffer to iovec
- *      @hash: hash request to update
+ *	@crcp: pointer to CRC32C value to update
+ *
+ *	Return: 0 on success, -EFAULT if there was a fault during copy.
  */
-int skb_copy_and_hash_datagram_iter(const struct sk_buff *skb, int offset,
-			   struct iov_iter *to, int len,
-			   struct ahash_request *hash)
+int skb_copy_and_crc32c_datagram_iter(const struct sk_buff *skb, int offset,
+				      struct iov_iter *to, int len, u32 *crcp)
 {
 	return __skb_datagram_iter(skb, offset, to, len, true,
-			hash_and_copy_to_iter, hash);
+				   crc32c_and_copy_to_iter, crcp);
 }
-EXPORT_SYMBOL(skb_copy_and_hash_datagram_iter);
+EXPORT_SYMBOL(skb_copy_and_crc32c_datagram_iter);
+#endif /* CONFIG_NET_CRC32C */
 
 static size_t simple_copy_to_iter(const void *addr, size_t bytes,
 		void *data __always_unused, struct iov_iter *i)
@@ -692,9 +689,50 @@ int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
 	return 0;
 }
 
+static int
+zerocopy_fill_skb_from_devmem(struct sk_buff *skb, struct iov_iter *from,
+			      int length,
+			      struct net_devmem_dmabuf_binding *binding)
+{
+	int i = skb_shinfo(skb)->nr_frags;
+	size_t virt_addr, size, off;
+	struct net_iov *niov;
+
+	/* Devmem filling works by taking an IOVEC from the user where the
+	 * iov_addrs are interpreted as an offset in bytes into the dma-buf to
+	 * send from. We do not support other iter types.
+	 */
+	if (iov_iter_type(from) != ITER_IOVEC &&
+	    iov_iter_type(from) != ITER_UBUF)
+		return -EFAULT;
+
+	while (length && iov_iter_count(from)) {
+		if (i == MAX_SKB_FRAGS)
+			return -EMSGSIZE;
+
+		virt_addr = (size_t)iter_iov_addr(from);
+		niov = net_devmem_get_niov_at(binding, virt_addr, &off, &size);
+		if (!niov)
+			return -EFAULT;
+
+		size = min_t(size_t, size, length);
+		size = min_t(size_t, size, iter_iov_len(from));
+
+		get_netmem(net_iov_to_netmem(niov));
+		skb_add_rx_frag_netmem(skb, i, net_iov_to_netmem(niov), off,
+				       size, PAGE_SIZE);
+		iov_iter_advance(from, size);
+		length -= size;
+		i++;
+	}
+
+	return 0;
+}
+
 int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 			    struct sk_buff *skb, struct iov_iter *from,
-			    size_t length)
+			    size_t length,
+			    struct net_devmem_dmabuf_binding *binding)
 {
 	unsigned long orig_size = skb->truesize;
 	unsigned long truesize;
@@ -702,6 +740,8 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 
 	if (msg && msg->msg_ubuf && msg->sg_from_iter)
 		ret = msg->sg_from_iter(skb, from, length);
+	else if (binding)
+		ret = zerocopy_fill_skb_from_devmem(skb, from, length, binding);
 	else
 		ret = zerocopy_fill_skb_from_iter(skb, from, length);
 
@@ -735,7 +775,7 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 	if (skb_copy_datagram_from_iter(skb, 0, from, copy))
 		return -EFAULT;
 
-	return __zerocopy_sg_from_iter(NULL, NULL, skb, from, ~0U);
+	return __zerocopy_sg_from_iter(NULL, NULL, skb, from, ~0U, NULL);
 }
 EXPORT_SYMBOL(zerocopy_sg_from_iter);
 

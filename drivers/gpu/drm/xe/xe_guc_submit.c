@@ -229,6 +229,17 @@ static bool exec_queue_killed_or_banned_or_wedged(struct xe_exec_queue *q)
 static void guc_submit_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc *guc = arg;
+	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
+	int ret;
+
+	ret = wait_event_timeout(guc->submission_state.fini_wq,
+				 xa_empty(&guc->submission_state.exec_queue_lookup),
+				 HZ * 5);
+
+	drain_workqueue(xe->destroy_wq);
+
+	xe_gt_assert(gt, ret);
 
 	xa_destroy(&guc->submission_state.exec_queue_lookup);
 }
@@ -299,6 +310,8 @@ int xe_guc_submit_init(struct xe_guc *guc, unsigned int num_ids)
 	init_waitqueue_head(&guc->submission_state.fini_wq);
 
 	primelockdep(guc);
+
+	guc->submission_state.initialized = true;
 
 	return drmm_add_action_or_reset(&xe->drm, guc_submit_fini, guc);
 }
@@ -834,6 +847,13 @@ void xe_guc_submit_wedge(struct xe_guc *guc)
 
 	xe_gt_assert(guc_to_gt(guc), guc_to_xe(guc)->wedged.mode);
 
+	/*
+	 * If device is being wedged even before submission_state is
+	 * initialized, there's nothing to do here.
+	 */
+	if (!guc->submission_state.initialized)
+		return;
+
 	err = devm_add_action_or_reset(guc_to_xe(guc)->drm.dev,
 				       guc_submit_wedged_fini, guc);
 	if (err) {
@@ -871,12 +891,13 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	struct xe_exec_queue *q = ge->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_gpu_scheduler *sched = &ge->sched;
-	bool wedged;
+	bool wedged = false;
 
 	xe_gt_assert(guc_to_gt(guc), xe_exec_queue_is_lr(q));
 	trace_xe_exec_queue_lr_cleanup(q);
 
-	wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
+	if (!exec_queue_killed(q))
+		wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
 
 	/* Kill the run_job / process_msg entry points */
 	xe_sched_submission_stop(sched);
@@ -1050,7 +1071,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	int err = -ETIME;
 	pid_t pid = -1;
 	int i = 0;
-	bool wedged, skip_timeout_check;
+	bool wedged = false, skip_timeout_check;
 
 	/*
 	 * TDR has fired before free job worker. Common if exec queue
@@ -1096,7 +1117,8 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	 * doesn't work for SRIOV. For now assuming timeouts in wedged mode are
 	 * genuine timeouts.
 	 */
-	wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
+	if (!exec_queue_killed(q))
+		wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
 
 	/* Engine state now stable, disable scheduling to check timestamp */
 	if (!wedged && exec_queue_registered(q)) {
@@ -1170,9 +1192,12 @@ trigger_reset:
 		process_name = q->vm->xef->process_name;
 		pid = q->vm->xef->pid;
 	}
-	xe_gt_notice(guc_to_gt(guc), "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx in %s [%d]",
-		     xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
-		     q->guc->id, q->flags, process_name, pid);
+
+	if (!exec_queue_killed(q))
+		xe_gt_notice(guc_to_gt(guc),
+			     "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx in %s [%d]",
+			     xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
+			     q->guc->id, q->flags, process_name, pid);
 
 	trace_xe_sched_job_timedout(job);
 
@@ -1738,6 +1763,9 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 int xe_guc_submit_reset_prepare(struct xe_guc *guc)
 {
 	int ret;
+
+	if (!guc->submission_state.initialized)
+		return 0;
 
 	/*
 	 * Using an atomic here rather than submission_state.lock as this

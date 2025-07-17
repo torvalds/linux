@@ -143,7 +143,8 @@ EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
  */
 static void sta_rx_agg_session_timer_expired(struct timer_list *t)
 {
-	struct tid_ampdu_rx *tid_rx = from_timer(tid_rx, t, session_timer);
+	struct tid_ampdu_rx *tid_rx = timer_container_of(tid_rx, t,
+							 session_timer);
 	struct sta_info *sta = tid_rx->sta;
 	u8 tid = tid_rx->tid;
 	unsigned long timeout;
@@ -163,7 +164,8 @@ static void sta_rx_agg_session_timer_expired(struct timer_list *t)
 
 static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
 {
-	struct tid_ampdu_rx *tid_rx = from_timer(tid_rx, t, reorder_timer);
+	struct tid_ampdu_rx *tid_rx = timer_container_of(tid_rx, t,
+							 reorder_timer);
 
 	rcu_read_lock();
 	ieee80211_release_reorder_timeout(tid_rx->sta, tid_rx->tid);

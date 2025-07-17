@@ -1093,9 +1093,17 @@ static int damon_commit_targets(
 			if (err)
 				return err;
 		} else {
+			struct damos *s;
+
 			if (damon_target_has_pid(dst))
 				put_pid(dst_target->pid);
 			damon_destroy_target(dst_target);
+			damon_for_each_scheme(s, dst) {
+				if (s->quota.charge_target_from == dst_target) {
+					s->quota.charge_target_from = NULL;
+					s->quota.charge_addr_from = 0;
+				}
+			}
 		}
 	}
 
@@ -1392,6 +1400,19 @@ int damos_walk(struct damon_ctx *ctx, struct damos_walk_control *control)
 }
 
 /*
+ * Warn and fix corrupted ->nr_accesses[_bp] for investigations and preventing
+ * the problem being propagated.
+ */
+static void damon_warn_fix_nr_accesses_corruption(struct damon_region *r)
+{
+	if (r->nr_accesses_bp == r->nr_accesses * 10000)
+		return;
+	WARN_ONCE(true, "invalid nr_accesses_bp at reset: %u %u\n",
+			r->nr_accesses_bp, r->nr_accesses);
+	r->nr_accesses_bp = r->nr_accesses * 10000;
+}
+
+/*
  * Reset the aggregated monitoring results ('nr_accesses' of each region).
  */
 static void kdamond_reset_aggregated(struct damon_ctx *c)
@@ -1404,6 +1425,7 @@ static void kdamond_reset_aggregated(struct damon_ctx *c)
 
 		damon_for_each_region(r, t) {
 			trace_damon_aggregated(ti, r, damon_nr_regions(t));
+			damon_warn_fix_nr_accesses_corruption(r);
 			r->last_nr_accesses = r->nr_accesses;
 			r->nr_accesses = 0;
 		}
@@ -1427,6 +1449,7 @@ static unsigned long damon_get_intervals_score(struct damon_ctx *c)
 		}
 	}
 	target_access_events = max_access_events * goal_bp / 10000;
+	target_access_events = target_access_events ? : 1;
 	return access_events * 10000 / target_access_events;
 }
 
@@ -1889,6 +1912,29 @@ static inline u64 damos_get_some_mem_psi_total(void)
 
 #endif	/* CONFIG_PSI */
 
+#ifdef CONFIG_NUMA
+static __kernel_ulong_t damos_get_node_mem_bp(
+		struct damos_quota_goal *goal)
+{
+	struct sysinfo i;
+	__kernel_ulong_t numerator;
+
+	si_meminfo_node(&i, goal->nid);
+	if (goal->metric == DAMOS_QUOTA_NODE_MEM_USED_BP)
+		numerator = i.totalram - i.freeram;
+	else	/* DAMOS_QUOTA_NODE_MEM_FREE_BP */
+		numerator = i.freeram;
+	return numerator * 10000 / i.totalram;
+}
+#else
+static __kernel_ulong_t damos_get_node_mem_bp(
+		struct damos_quota_goal *goal)
+{
+	return 0;
+}
+#endif
+
+
 static void damos_set_quota_goal_current_value(struct damos_quota_goal *goal)
 {
 	u64 now_psi_total;
@@ -1901,6 +1947,10 @@ static void damos_set_quota_goal_current_value(struct damos_quota_goal *goal)
 		now_psi_total = damos_get_some_mem_psi_total();
 		goal->current_value = now_psi_total - goal->last_psi_total;
 		goal->last_psi_total = now_psi_total;
+		break;
+	case DAMOS_QUOTA_NODE_MEM_USED_BP:
+	case DAMOS_QUOTA_NODE_MEM_FREE_BP:
+		goal->current_value = damos_get_node_mem_bp(goal);
 		break;
 	default:
 		break;
@@ -2306,9 +2356,8 @@ static void kdamond_usleep(unsigned long usecs)
  *
  * If there is a &struct damon_call_control request that registered via
  * &damon_call() on @ctx, do or cancel the invocation of the function depending
- * on @cancel.  @cancel is set when the kdamond is deactivated by DAMOS
- * watermarks, or the kdamond is already out of the main loop and therefore
- * will be terminated.
+ * on @cancel.  @cancel is set when the kdamond is already out of the main loop
+ * and therefore will be terminated.
  */
 static void kdamond_call(struct damon_ctx *ctx, bool cancel)
 {
@@ -2356,7 +2405,7 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
 		if (ctx->callback.after_wmarks_check &&
 				ctx->callback.after_wmarks_check(ctx))
 			break;
-		kdamond_call(ctx, true);
+		kdamond_call(ctx, false);
 		damos_walk_cancel(ctx);
 	}
 	return -EBUSY;

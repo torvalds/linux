@@ -52,6 +52,15 @@
 		regulator-name = "vref-1v8";
 	};
 
+	reg_module_wifi: regulator-module-wifi {
+		compatible = "regulator-fixed";
+		gpio = <&gpio_expander_43 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-name = "Wi-Fi_PDn";
+		startup-delay-us = <2000>;
+	};
+
 	reg_usbh_vbus: regulator-usbh-vbus {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -261,6 +270,16 @@
 	};
 };
 
+&hsio_phy {
+	fsl,hsio-cfg = "pciea-x2-pcieb";
+	fsl,refclk-pad-mode = "input";
+	status = "okay";
+};
+
+&hsio_refb_clk {
+	enable-gpios = <&gpio_expander_43 3 GPIO_ACTIVE_HIGH>;
+};
+
 /* Colibri SPI */
 &lpspi2 {
 	pinctrl-names = "default";
@@ -454,7 +473,15 @@
 
 /* TODO MIPI DSI with DSI-to-HDMI bridge lt8912 */
 
-/* TODO on-module PCIe for Wi-Fi */
+/* On-module PCIe for Wi-Fi */
+&pcieb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcieb>;
+	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
+	phy-names = "pcie-phy";
+	reset-gpios = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
 
 /* On-module I2S */
 &sai0 {

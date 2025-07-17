@@ -377,7 +377,7 @@ static void tun_flow_delete_by_queue(struct tun_struct *tun, u16 queue_index)
 
 static void tun_flow_cleanup(struct timer_list *t)
 {
-	struct tun_struct *tun = from_timer(tun, t, flow_gc_timer);
+	struct tun_struct *tun = timer_container_of(tun, t, flow_gc_timer);
 	unsigned long delay = tun->ageing_time;
 	unsigned long next_timer = jiffies + delay;
 	unsigned long count = 0;
@@ -3193,7 +3193,13 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 
 	case SIOCSIFHWADDR:
 		/* Set hw address */
-		ret = dev_set_mac_address_user(tun->dev, &ifr.ifr_hwaddr, NULL);
+		if (tun->dev->addr_len > sizeof(ifr.ifr_hwaddr)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dev_set_mac_address_user(tun->dev,
+					       (struct sockaddr_storage *)&ifr.ifr_hwaddr,
+					       NULL);
 		break;
 
 	case TUNGETSNDBUF:

@@ -5,6 +5,7 @@
         "CounterMask": "6",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L3_MISS",
+        "PublicDescription": "Execution stalls while L3 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x6"
     },
@@ -13,7 +14,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -23,6 +24,7 @@
         "CounterMask": "2",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.CYCLES_L1D_MISS",
+        "PublicDescription": "Cycles while L1 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -32,6 +34,7 @@
         "CounterMask": "3",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L1D_MISS",
+        "PublicDescription": "Execution stalls while L1 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x3"
     },
@@ -41,7 +44,7 @@
         "CounterMask": "5",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L2_MISS",
-        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
+        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock). Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -51,7 +54,7 @@
         "CounterMask": "9",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L3_MISS",
-        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
+        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock). Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x9"
     },
@@ -169,9 +172,20 @@
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.STORE_SAMPLE",
-        "PublicDescription": "Counts Retired memory accesses with at least 1 store operation. This PEBS event is the precisely-distributed (PDist) trigger covering all stores uops for sampling by the PEBS Store Latency Facility. The facility is described in Intel SDM Volume 3 section 19.9.8",
+        "PublicDescription": "Counts Retired memory accesses with at least 1 store operation. This PEBS event is the precisely-distributed (PDist) trigger covering all stores uops for sampling by the PEBS Store Latency Facility. The facility is described in Intel SDM Volume 3 section 19.9.8 Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_CODE_RD.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x73C000004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were not supplied by the local socket's L1, L2, or L3 caches.",
@@ -180,6 +194,40 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were not supplied by the local socket's L1, L2, or L3 caches. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_CODE_RD.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x104000004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_CODE_RD.SNC_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x708000004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x73C000001",
+        "PublicDescription": "Counts demand data reads that were supplied by DRAM. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -190,6 +238,51 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FBFC00001",
+        "PublicDescription": "Counts demand data reads that were not supplied by the local socket's L1, L2, or L3 caches. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x104000001",
+        "PublicDescription": "Counts demand data reads that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that were supplied by DRAM attached to another socket.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.REMOTE_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x730000001",
+        "PublicDescription": "Counts demand data reads that were supplied by DRAM attached to another socket. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.SNC_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x708000001",
+        "PublicDescription": "Counts demand data reads that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_RFO.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x73C000002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -200,6 +293,29 @@
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F3FC00002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were not supplied by the local socket's L1, L2, or L3 caches. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_RFO.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x104000002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_RFO.SNC_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x708000002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -210,6 +326,7 @@
         "EventName": "OCR.HWPF_L3.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x94002380",
+        "PublicDescription": "Counts hardware prefetches to the L3 only that missed the local socket's L1, L2, and L3 caches. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -220,6 +337,18 @@
         "EventName": "OCR.HWPF_L3.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x84002380",
+        "PublicDescription": "Counts hardware prefetches to the L3 only that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x73C004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -230,6 +359,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F3FC04477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -240,6 +370,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F04C04477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -250,6 +381,62 @@
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL_SOCKET",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x70CC04477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.  It does not count misses to the L3 which go to Local CXL Type 2 Memory or Local Non DRAM. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x104004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x70C004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to another socket.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.REMOTE_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x730004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to another socket. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM or PMM attached to another socket.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.REMOTE_MEMORY",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x733004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM or PMM attached to another socket. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.SNC_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x708004477",
+        "PublicDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -260,6 +447,7 @@
         "EventName": "OCR.STREAMING_WR.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x94000800",
+        "PublicDescription": "Counts streaming stores that missed the local socket's L1, L2, and L3 caches. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -270,6 +458,18 @@
         "EventName": "OCR.STREAMING_WR.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x84000800",
+        "PublicDescription": "Counts streaming stores that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts Demand RFOs, ItoM's, PREFECTHW's, Hardware RFO Prefetches to the L1/L2 and Streaming stores that likely resulted in a store to Memory (DRAM or PMM)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.WRITE_ESTIMATE.MEMORY",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0xFBFF80822",
+        "PublicDescription": "Counts Demand RFOs, ItoM's, PREFECTHW's, Hardware RFO Prefetches to the L1/L2 and Streaming stores that likely resulted in a store to Memory (DRAM or PMM) Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -278,6 +478,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD",
+        "PublicDescription": "Counts demand data read requests that miss the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x10"
     },
@@ -286,7 +487,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "For every cycle, increments by the number of demand data read requests pending that are known to have missed the L3 cache.  Note that this does not capture all elapsed cycles while requests are outstanding - only cycles from when the requests were known by the requesting core to have missed the L3 cache.",
+        "PublicDescription": "For every cycle, increments by the number of demand data read requests pending that are known to have missed the L3 cache.  Note that this does not capture all elapsed cycles while requests are outstanding - only cycles from when the requests were known by the requesting core to have missed the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -295,7 +496,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED",
-        "PublicDescription": "Counts the number of times RTM abort was triggered.",
+        "PublicDescription": "Counts the number of times RTM abort was triggered. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
@@ -304,7 +505,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 3 categories (e.g. interrupt).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 3 categories (e.g. interrupt). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -313,7 +514,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MEM",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -322,7 +523,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MEMTYPE",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to incompatible memory type.",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to incompatible memory type. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x40"
     },
@@ -331,7 +532,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_UNFRIENDLY",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to HLE-unfriendly instructions.",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to HLE-unfriendly instructions. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x20"
     },
@@ -340,7 +541,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.COMMIT",
-        "PublicDescription": "Counts the number of times RTM commit succeeded.",
+        "PublicDescription": "Counts the number of times RTM commit succeeded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -349,7 +550,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -358,7 +559,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CAPACITY_READ",
-        "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional reads",
+        "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional reads Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -367,7 +568,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CAPACITY_WRITE",
-        "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional writes.",
+        "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional writes. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -376,7 +577,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CONFLICT",
-        "PublicDescription": "Counts the number of times a TSX line had a cache conflict.",
+        "PublicDescription": "Counts the number of times a TSX line had a cache conflict. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     }

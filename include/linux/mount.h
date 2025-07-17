@@ -65,7 +65,8 @@ enum mount_flags {
 	MNT_ATIME_MASK = MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME,
 
 	MNT_INTERNAL_FLAGS = MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL |
-			     MNT_DOOMED | MNT_SYNC_UMOUNT | MNT_MARKED,
+			     MNT_DOOMED | MNT_SYNC_UMOUNT | MNT_MARKED |
+			     MNT_LOCKED,
 };
 
 struct vfsmount {
@@ -101,9 +102,6 @@ extern struct vfsmount *vfs_create_mount(struct fs_context *fc);
 extern struct vfsmount *vfs_kern_mount(struct file_system_type *type,
 				      int flags, const char *name,
 				      void *data);
-extern struct vfsmount *vfs_submount(const struct dentry *mountpoint,
-				     struct file_system_type *type,
-				     const char *name, void *data);
 
 extern void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list);
 extern void mark_mounts_for_expiry(struct list_head *mounts);
@@ -118,10 +116,8 @@ extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
 int do_mount(const char *, const char __user *,
 		     const char *, unsigned long, void *);
-extern struct vfsmount *collect_mounts(const struct path *);
-extern void drop_collected_mounts(struct vfsmount *);
-extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
-			  struct vfsmount *);
+extern struct path *collect_paths(const struct path *, struct path *, unsigned);
+extern void drop_collected_paths(struct path *, struct path *);
 extern void kern_unmount_array(struct vfsmount *mnt[], unsigned int num);
 
 extern int cifs_root_data(char **dev, char **opts);

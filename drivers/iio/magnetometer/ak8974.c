@@ -673,8 +673,8 @@ static void ak8974_fill_buffer(struct iio_dev *indio_dev)
 		goto out_unlock;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &ak8974->scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &ak8974->scan, sizeof(ak8974->scan),
+				    iio_get_time_ns(indio_dev));
 
  out_unlock:
 	mutex_unlock(&ak8974->lock);
@@ -704,7 +704,7 @@ ak8974_get_mount_matrix(const struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec_ext_info ak8974_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, ak8974_get_mount_matrix),
-	{ },
+	{ }
 };
 
 #define AK8974_AXIS_CHANNEL(axis, index, bits)				\
@@ -1023,14 +1023,14 @@ static const struct i2c_device_id ak8974_id[] = {
 	{ "ami306" },
 	{ "ak8974" },
 	{ "hscdtd008a" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak8974_id);
 
 static const struct of_device_id ak8974_of_match[] = {
 	{ .compatible = "asahi-kasei,ak8974", },
 	{ .compatible = "alps,hscdtd008a", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ak8974_of_match);
 

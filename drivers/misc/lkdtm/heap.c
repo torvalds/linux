@@ -355,23 +355,12 @@ static void lkdtm_SLAB_FREE_PAGE(void)
 	free_page(p);
 }
 
-/*
- * We have constructors to keep the caches distinctly separated without
- * needing to boot with "slab_nomerge".
- */
-static void ctor_double_free(void *region)
-{ }
-static void ctor_a(void *region)
-{ }
-static void ctor_b(void *region)
-{ }
-
 void __init lkdtm_heap_init(void)
 {
 	double_free_cache = kmem_cache_create("lkdtm-heap-double_free",
-					      64, 0, 0, ctor_double_free);
-	a_cache = kmem_cache_create("lkdtm-heap-a", 64, 0, 0, ctor_a);
-	b_cache = kmem_cache_create("lkdtm-heap-b", 64, 0, 0, ctor_b);
+					      64, 0, SLAB_NO_MERGE, NULL);
+	a_cache = kmem_cache_create("lkdtm-heap-a", 64, 0, SLAB_NO_MERGE, NULL);
+	b_cache = kmem_cache_create("lkdtm-heap-b", 64, 0, SLAB_NO_MERGE, NULL);
 }
 
 void __exit lkdtm_heap_exit(void)

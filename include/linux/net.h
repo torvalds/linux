@@ -36,14 +36,13 @@ struct net;
  * in sock->flags, but moved into sk->sk_wq->flags to be RCU protected.
  * Eventually all flags will be in sk->sk_wq->flags.
  */
-#define SOCKWQ_ASYNC_NOSPACE	0
-#define SOCKWQ_ASYNC_WAITDATA	1
-#define SOCK_NOSPACE		2
-#define SOCK_PASSCRED		3
-#define SOCK_PASSSEC		4
-#define SOCK_SUPPORT_ZC		5
-#define SOCK_CUSTOM_SOCKOPT	6
-#define SOCK_PASSPIDFD		7
+enum socket_flags {
+	SOCKWQ_ASYNC_NOSPACE,
+	SOCKWQ_ASYNC_WAITDATA,
+	SOCK_NOSPACE,
+	SOCK_SUPPORT_ZC,
+	SOCK_CUSTOM_SOCKOPT,
+};
 
 #ifndef ARCH_HAS_SOCKET_TYPES
 /**

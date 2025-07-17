@@ -22,12 +22,17 @@
 #include "intel_de.h"
 #include "intel_display_power.h"
 #include "intel_display_power_well.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_dp_mst.h"
 #include "intel_hdcp.h"
 #include "intel_hdcp_gsc.h"
+#include "intel_hdcp_gsc_message.h"
 #include "intel_hdcp_regs.h"
 #include "intel_hdcp_shim.h"
 #include "intel_pcode.h"
+
+#define USE_HDCP_GSC(__display)		(DISPLAY_VER(__display) >= 14)
 
 #define KEY_LOAD_TRIES	5
 #define HDCP2_LC_RETRY_CNT			3
@@ -136,7 +141,7 @@ intel_hdcp_required_content_stream(struct intel_atomic_state *state,
 		data->k++;
 
 		/* if there is only one active stream */
-		if (dig_port->dp.mst.active_links <= 1)
+		if (intel_dp_mst_active_streams(&dig_port->dp) <= 1)
 			break;
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -248,8 +253,8 @@ static bool intel_hdcp2_prerequisite(struct intel_connector *connector)
 		return false;
 
 	/* If MTL+ make sure gsc is loaded and proxy is setup */
-	if (intel_hdcp_gsc_cs_required(display)) {
-		if (!intel_hdcp_gsc_check_status(display))
+	if (USE_HDCP_GSC(display)) {
+		if (!intel_hdcp_gsc_check_status(display->drm))
 			return false;
 	}
 
@@ -334,9 +339,7 @@ static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *dig_port,
 
 static bool hdcp_key_loadable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum i915_power_well_id id;
-	intel_wakeref_t wakeref;
 	bool enabled = false;
 
 	/*
@@ -349,7 +352,7 @@ static bool hdcp_key_loadable(struct intel_display *display)
 		id = SKL_DISP_PW_1;
 
 	/* PG1 (power well #1) needs to be enabled */
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+	with_intel_display_rpm(display)
 		enabled = intel_display_power_well_is_enabled(display, id);
 
 	/*
@@ -2339,7 +2342,7 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 
 static bool is_hdcp2_supported(struct intel_display *display)
 {
-	if (intel_hdcp_gsc_cs_required(display))
+	if (USE_HDCP_GSC(display))
 		return true;
 
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_HDCP))
@@ -2363,7 +2366,7 @@ void intel_hdcp_component_init(struct intel_display *display)
 
 	display->hdcp.comp_added = true;
 	mutex_unlock(&display->hdcp.hdcp_mutex);
-	if (intel_hdcp_gsc_cs_required(display))
+	if (USE_HDCP_GSC(display))
 		ret = intel_hdcp_gsc_init(display);
 	else
 		ret = component_add_typed(display->drm->dev, &i915_hdcp_ops,
@@ -2638,7 +2641,7 @@ void intel_hdcp_component_fini(struct intel_display *display)
 	display->hdcp.comp_added = false;
 	mutex_unlock(&display->hdcp.hdcp_mutex);
 
-	if (intel_hdcp_gsc_cs_required(display))
+	if (USE_HDCP_GSC(display))
 		intel_hdcp_gsc_fini(display);
 	else
 		component_del(display->drm->dev, &i915_hdcp_ops);

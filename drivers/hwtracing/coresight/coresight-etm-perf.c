@@ -366,6 +366,18 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		}
 
 		/*
+		 * If AUX pause feature is enabled but the ETM driver does not
+		 * support the operations, clear this CPU from the mask and
+		 * continue to next one.
+		 */
+		if (event->attr.aux_start_paused &&
+		    (!source_ops(csdev)->pause_perf || !source_ops(csdev)->resume_perf)) {
+			dev_err_once(&csdev->dev, "AUX pause is not supported.\n");
+			cpumask_clear_cpu(cpu, mask);
+			continue;
+		}
+
+		/*
 		 * No sink provided - look for a default sink for all the ETMs,
 		 * where this event can be scheduled.
 		 * We allocate the sink specific buffers only once for this
@@ -450,6 +462,15 @@ err:
 	goto out;
 }
 
+static int etm_event_resume(struct coresight_device *csdev,
+			     struct etm_ctxt *ctxt)
+{
+	if (!ctxt->event_data)
+		return 0;
+
+	return coresight_resume_source(csdev);
+}
+
 static void etm_event_start(struct perf_event *event, int flags)
 {
 	int cpu = smp_processor_id();
@@ -462,6 +483,14 @@ static void etm_event_start(struct perf_event *event, int flags)
 
 	if (!csdev)
 		goto fail;
+
+	if (flags & PERF_EF_RESUME) {
+		if (etm_event_resume(csdev, ctxt) < 0) {
+			dev_err(&csdev->dev, "Failed to resume ETM event.\n");
+			goto fail;
+		}
+		return;
+	}
 
 	/* Have we messed up our tracking ? */
 	if (WARN_ON(ctxt->event_data))
@@ -545,6 +574,55 @@ fail:
 	return;
 }
 
+static void etm_event_pause(struct perf_event *event,
+			    struct coresight_device *csdev,
+			    struct etm_ctxt *ctxt)
+{
+	int cpu = smp_processor_id();
+	struct coresight_device *sink;
+	struct perf_output_handle *handle = &ctxt->handle;
+	struct coresight_path *path;
+	unsigned long size;
+
+	if (!ctxt->event_data)
+		return;
+
+	/* Stop tracer */
+	coresight_pause_source(csdev);
+
+	path = etm_event_cpu_path(ctxt->event_data, cpu);
+	sink = coresight_get_sink(path);
+	if (WARN_ON_ONCE(!sink))
+		return;
+
+	/*
+	 * The per CPU sink has own interrupt handling, it might have
+	 * race condition with updating buffer on AUX trace pause if
+	 * it is invoked from NMI.  To avoid the race condition,
+	 * disallows updating buffer for the per CPU sink case.
+	 */
+	if (coresight_is_percpu_sink(sink))
+		return;
+
+	if (WARN_ON_ONCE(handle->event != event))
+		return;
+
+	if (!sink_ops(sink)->update_buffer)
+		return;
+
+	size = sink_ops(sink)->update_buffer(sink, handle,
+					     ctxt->event_data->snk_config);
+	if (READ_ONCE(handle->event)) {
+		if (!size)
+			return;
+
+		perf_aux_output_end(handle, size);
+		perf_aux_output_begin(handle, event);
+	} else {
+		WARN_ON_ONCE(size);
+	}
+}
+
 static void etm_event_stop(struct perf_event *event, int mode)
 {
 	int cpu = smp_processor_id();
@@ -554,6 +632,9 @@ static void etm_event_stop(struct perf_event *event, int mode)
 	struct perf_output_handle *handle = &ctxt->handle;
 	struct etm_event_data *event_data;
 	struct coresight_path *path;
+
+	if (mode & PERF_EF_PAUSE)
+		return etm_event_pause(event, csdev, ctxt);
 
 	/*
 	 * If we still have access to the event_data via handle,
@@ -899,7 +980,8 @@ int __init etm_perf_init(void)
 	int ret;
 
 	etm_pmu.capabilities		= (PERF_PMU_CAP_EXCLUSIVE |
-					   PERF_PMU_CAP_ITRACE);
+					   PERF_PMU_CAP_ITRACE |
+					   PERF_PMU_CAP_AUX_PAUSE);
 
 	etm_pmu.attr_groups		= etm_pmu_attr_groups;
 	etm_pmu.task_ctx_nr		= perf_sw_context;

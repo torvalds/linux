@@ -3836,7 +3836,7 @@ megaraid_sysfs_get_ldmap_done(uioc_t *uioc)
 static void
 megaraid_sysfs_get_ldmap_timeout(struct timer_list *t)
 {
-	struct uioc_timeout *timeout = from_timer(timeout, t, timer);
+	struct uioc_timeout *timeout = timer_container_of(timeout, t, timer);
 	uioc_t		*uioc = timeout->uioc;
 	adapter_t	*adapter = (adapter_t *)uioc->buf_vaddr;
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);

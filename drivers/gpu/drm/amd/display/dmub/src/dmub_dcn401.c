@@ -66,23 +66,19 @@ void dmub_dcn401_reset(struct dmub_srv *dmub)
 	const uint32_t timeout_us = 1 * 1000 * 1000; //1s
 	const uint32_t poll_delay_us = 1; //1us
 	uint32_t i = 0;
-	uint32_t in_reset, scratch, pwait_mode;
+	uint32_t enabled, in_reset, scratch, pwait_mode;
 
-	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
+	REG_GET(DMCUB_CNTL,
+			DMCUB_ENABLE, &enabled);
+	REG_GET(DMCUB_CNTL2,
+			DMCUB_SOFT_RESET, &in_reset);
 
-	if (in_reset == 0) {
+	if (enabled && in_reset == 0) {
 		cmd.bits.status = 1;
 		cmd.bits.command_code = DMUB_GPINT__STOP_FW;
 		cmd.bits.param = 0;
 
 		dmub->hw_funcs.set_gpint(dmub, cmd);
-
-		for (i = 0; i < timeout_us; i++) {
-			if (dmub->hw_funcs.is_gpint_acked(dmub, cmd))
-				break;
-
-			udelay(poll_delay_us);
-		}
 
 		for (; i < timeout_us; i++) {
 			scratch = dmub->hw_funcs.get_gpint_response(dmub);
@@ -517,28 +513,69 @@ void dmub_dcn401_send_reg_inbox0_cmd_msg(struct dmub_srv *dmub,
 		union dmub_rb_cmd *cmd)
 {
 	uint32_t *dwords = (uint32_t *)cmd;
-
+	int32_t payload_size_bytes = cmd->cmd_common.header.payload_bytes;
+	uint32_t msg_index;
 	static_assert(sizeof(*cmd) == 64, "DMUB command size mismatch");
 
-	REG_WRITE(DMCUB_REG_INBOX0_MSG0, dwords[0]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG1, dwords[1]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG2, dwords[2]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG3, dwords[3]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG4, dwords[4]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG5, dwords[5]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG6, dwords[6]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG7, dwords[7]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG8, dwords[8]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG9, dwords[9]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG10, dwords[10]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG11, dwords[11]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG12, dwords[12]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG13, dwords[13]);
-	REG_WRITE(DMCUB_REG_INBOX0_MSG14, dwords[14]);
+	/* read remaining data based on payload size */
+	for (msg_index = 0; msg_index < 15; msg_index++) {
+		if (payload_size_bytes <= msg_index * 4) {
+			break;
+		}
+
+		switch (msg_index) {
+		case 0:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG0, dwords[msg_index + 1]);
+			break;
+		case 1:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG1, dwords[msg_index + 1]);
+			break;
+		case 2:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG2, dwords[msg_index + 1]);
+			break;
+		case 3:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG3, dwords[msg_index + 1]);
+			break;
+		case 4:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG4, dwords[msg_index + 1]);
+			break;
+		case 5:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG5, dwords[msg_index + 1]);
+			break;
+		case 6:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG6, dwords[msg_index + 1]);
+			break;
+		case 7:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG7, dwords[msg_index + 1]);
+			break;
+		case 8:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG8, dwords[msg_index + 1]);
+			break;
+		case 9:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG9, dwords[msg_index + 1]);
+			break;
+		case 10:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG10, dwords[msg_index + 1]);
+			break;
+		case 11:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG11, dwords[msg_index + 1]);
+			break;
+		case 12:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG12, dwords[msg_index + 1]);
+			break;
+		case 13:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG13, dwords[msg_index + 1]);
+			break;
+		case 14:
+			REG_WRITE(DMCUB_REG_INBOX0_MSG14, dwords[msg_index + 1]);
+			break;
+		}
+	}
+
 	/* writing to INBOX RDY register will trigger DMUB REG INBOX0 RDY
 	 * interrupt.
 	 */
-	REG_WRITE(DMCUB_REG_INBOX0_RDY, dwords[15]);
+	REG_WRITE(DMCUB_REG_INBOX0_RDY, dwords[0]);
 }
 
 uint32_t dmub_dcn401_read_reg_inbox0_rsp_int_status(struct dmub_srv *dmub)
@@ -556,28 +593,37 @@ void dmub_dcn401_read_reg_inbox0_cmd_rsp(struct dmub_srv *dmub,
 
 	static_assert(sizeof(*cmd) == 64, "DMUB command size mismatch");
 
-	dwords[0] = REG_READ(DMCUB_REG_INBOX0_MSG0);
-	dwords[1] = REG_READ(DMCUB_REG_INBOX0_MSG1);
-	dwords[2] = REG_READ(DMCUB_REG_INBOX0_MSG2);
-	dwords[3] = REG_READ(DMCUB_REG_INBOX0_MSG3);
-	dwords[4] = REG_READ(DMCUB_REG_INBOX0_MSG4);
-	dwords[5] = REG_READ(DMCUB_REG_INBOX0_MSG5);
-	dwords[6] = REG_READ(DMCUB_REG_INBOX0_MSG6);
-	dwords[7] = REG_READ(DMCUB_REG_INBOX0_MSG7);
-	dwords[8] = REG_READ(DMCUB_REG_INBOX0_MSG8);
-	dwords[9] = REG_READ(DMCUB_REG_INBOX0_MSG9);
-	dwords[10] = REG_READ(DMCUB_REG_INBOX0_MSG10);
-	dwords[11] = REG_READ(DMCUB_REG_INBOX0_MSG11);
-	dwords[12] = REG_READ(DMCUB_REG_INBOX0_MSG12);
-	dwords[13] = REG_READ(DMCUB_REG_INBOX0_MSG13);
-	dwords[14] = REG_READ(DMCUB_REG_INBOX0_MSG14);
-	dwords[15] = REG_READ(DMCUB_REG_INBOX0_RSP);
+	dwords[0] = REG_READ(DMCUB_REG_INBOX0_RSP);
+	dwords[1] = REG_READ(DMCUB_REG_INBOX0_MSG0);
+	dwords[2] = REG_READ(DMCUB_REG_INBOX0_MSG1);
+	dwords[3] = REG_READ(DMCUB_REG_INBOX0_MSG2);
+	dwords[4] = REG_READ(DMCUB_REG_INBOX0_MSG3);
+	dwords[5] = REG_READ(DMCUB_REG_INBOX0_MSG4);
+	dwords[6] = REG_READ(DMCUB_REG_INBOX0_MSG5);
+	dwords[7] = REG_READ(DMCUB_REG_INBOX0_MSG6);
+	dwords[8] = REG_READ(DMCUB_REG_INBOX0_MSG7);
+	dwords[9] = REG_READ(DMCUB_REG_INBOX0_MSG8);
+	dwords[10] = REG_READ(DMCUB_REG_INBOX0_MSG9);
+	dwords[11] = REG_READ(DMCUB_REG_INBOX0_MSG10);
+	dwords[12] = REG_READ(DMCUB_REG_INBOX0_MSG11);
+	dwords[13] = REG_READ(DMCUB_REG_INBOX0_MSG12);
+	dwords[14] = REG_READ(DMCUB_REG_INBOX0_MSG13);
+	dwords[15] = REG_READ(DMCUB_REG_INBOX0_MSG14);
 }
 
 void dmub_dcn401_write_reg_inbox0_rsp_int_ack(struct dmub_srv *dmub)
 {
 	REG_UPDATE(HOST_INTERRUPT_CSR, HOST_REG_INBOX0_RSP_INT_ACK, 1);
+}
+
+void dmub_dcn401_clear_reg_inbox0_rsp_int_ack(struct dmub_srv *dmub)
+{
 	REG_UPDATE(HOST_INTERRUPT_CSR, HOST_REG_INBOX0_RSP_INT_ACK, 0);
+}
+
+void dmub_dcn401_enable_reg_inbox0_rsp_int(struct dmub_srv *dmub, bool enable)
+{
+	REG_UPDATE(HOST_INTERRUPT_CSR, HOST_REG_INBOX0_RSP_INT_EN, enable ? 1:0);
 }
 
 void dmub_dcn401_write_reg_outbox0_rdy_int_ack(struct dmub_srv *dmub)
@@ -602,11 +648,6 @@ uint32_t dmub_dcn401_read_reg_outbox0_rsp_int_status(struct dmub_srv *dmub)
 
 	REG_GET(DMCUB_INTERRUPT_STATUS, DMCUB_REG_OUTBOX0_RSP_INT_STAT, &status);
 	return status;
-}
-
-void dmub_dcn401_enable_reg_inbox0_rsp_int(struct dmub_srv *dmub, bool enable)
-{
-	REG_UPDATE(HOST_INTERRUPT_CSR, HOST_REG_INBOX0_RSP_INT_EN, enable ? 1:0);
 }
 
 void dmub_dcn401_enable_reg_outbox0_rdy_int(struct dmub_srv *dmub, bool enable)

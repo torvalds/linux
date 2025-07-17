@@ -22,6 +22,9 @@ void rtw89_p2p_noa_renew(struct rtw89_vif_link *rtwvif_link);
 void rtw89_p2p_noa_append(struct rtw89_vif_link *rtwvif_link,
 			  const struct ieee80211_p2p_noa_desc *desc);
 u8 rtw89_p2p_noa_fetch(struct rtw89_vif_link *rtwvif_link, void **data);
+void rtw89_p2p_noa_once_init(struct rtw89_vif_link *rtwvif_link);
+void rtw89_p2p_noa_once_deinit(struct rtw89_vif_link *rtwvif_link);
+void rtw89_p2p_noa_once_recalc(struct rtw89_vif_link *rtwvif_link);
 
 static inline void rtw89_leave_ips_by_hwflags(struct rtw89_dev *rtwdev)
 {

@@ -62,11 +62,14 @@ struct xe_device_desc {
 	u8 is_dgfx:1;
 
 	u8 has_display:1;
+	u8 has_fan_control:1;
 	u8 has_heci_gscfi:1;
 	u8 has_heci_cscfi:1;
 	u8 has_llc:1;
+	u8 has_mbx_power_limits:1;
 	u8 has_pxp:1;
 	u8 has_sriov:1;
+	u8 needs_scratch:1;
 	u8 skip_guc_pc:1;
 	u8 skip_mtcfg:1;
 	u8 skip_pcode:1;
@@ -137,7 +140,6 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_asid = 1, \
 	.has_atomic_enable_pte_bit = 1, \
 	.has_flat_ccs = 1, \
-	.has_indirect_ring_state = 1, \
 	.has_range_tlb_invalidation = 1, \
 	.has_usm = 1, \
 	.has_64bit_timestamp = 1, \
@@ -303,6 +305,8 @@ static const struct xe_device_desc dg2_desc = {
 
 	DG2_FEATURES,
 	.has_display = true,
+	.has_fan_control = true,
+	.has_mbx_power_limits = false,
 };
 
 static const __maybe_unused struct xe_device_desc pvc_desc = {
@@ -314,6 +318,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.has_heci_gscfi = 1,
 	.max_remote_tiles = 1,
 	.require_force_probe = true,
+	.has_mbx_power_limits = false,
 };
 
 static const struct xe_device_desc mtl_desc = {
@@ -330,6 +335,7 @@ static const struct xe_device_desc lnl_desc = {
 	.dma_mask_size = 46,
 	.has_display = true,
 	.has_pxp = true,
+	.needs_scratch = true,
 };
 
 static const struct xe_device_desc bmg_desc = {
@@ -337,7 +343,10 @@ static const struct xe_device_desc bmg_desc = {
 	PLATFORM(BATTLEMAGE),
 	.dma_mask_size = 46,
 	.has_display = true,
+	.has_fan_control = true,
+	.has_mbx_power_limits = true,
 	.has_heci_cscfi = 1,
+	.needs_scratch = true,
 };
 
 static const struct xe_device_desc ptl_desc = {
@@ -346,6 +355,7 @@ static const struct xe_device_desc ptl_desc = {
 	.has_display = true,
 	.has_sriov = true,
 	.require_force_probe = true,
+	.needs_scratch = true,
 };
 
 #undef PLATFORM
@@ -576,6 +586,8 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.dma_mask_size = desc->dma_mask_size;
 	xe->info.is_dgfx = desc->is_dgfx;
+	xe->info.has_fan_control = desc->has_fan_control;
+	xe->info.has_mbx_power_limits = desc->has_mbx_power_limits;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
 	xe->info.has_heci_cscfi = desc->has_heci_cscfi;
 	xe->info.has_llc = desc->has_llc;
@@ -584,6 +596,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.skip_guc_pc = desc->skip_guc_pc;
 	xe->info.skip_mtcfg = desc->skip_mtcfg;
 	xe->info.skip_pcode = desc->skip_pcode;
+	xe->info.needs_scratch = desc->needs_scratch;
 
 	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				 xe_modparam.probe_display &&
@@ -735,7 +748,7 @@ static void xe_pci_remove(struct pci_dev *pdev)
 		return;
 
 	xe_device_remove(xe);
-	xe_pm_runtime_fini(xe);
+	xe_pm_fini(xe);
 }
 
 /*
@@ -805,18 +818,17 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	err = xe_device_probe_early(xe);
-	if (err) {
-		/*
-		 * In Boot Survivability mode, no drm card is exposed and driver
-		 * is loaded with bare minimum to allow for firmware to be
-		 * flashed through mei. If early probe failed, but it managed to
-		 * enable survivability mode, return success.
-		 */
-		if (xe_survivability_mode_is_enabled(xe))
-			return 0;
+	/*
+	 * In Boot Survivability mode, no drm card is exposed and driver
+	 * is loaded with bare minimum to allow for firmware to be
+	 * flashed through mei. Return success, if survivability mode
+	 * is enabled due to pcode failure or configfs being set
+	 */
+	if (xe_survivability_mode_is_enabled(xe))
+		return 0;
 
+	if (err)
 		return err;
-	}
 
 	err = xe_info_init(xe, desc);
 	if (err)
@@ -922,6 +934,7 @@ static int xe_pci_suspend(struct device *dev)
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3cold);
 
 	return 0;
 }

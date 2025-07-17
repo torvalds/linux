@@ -555,7 +555,7 @@ static void act(struct floppy_state *fs)
 
 static void scan_timeout(struct timer_list *t)
 {
-	struct floppy_state *fs = from_timer(fs, t, timeout);
+	struct floppy_state *fs = timer_container_of(fs, t, timeout);
 	struct swim3 __iomem *sw = fs->swim3;
 	unsigned long flags;
 
@@ -579,7 +579,7 @@ static void scan_timeout(struct timer_list *t)
 
 static void seek_timeout(struct timer_list *t)
 {
-	struct floppy_state *fs = from_timer(fs, t, timeout);
+	struct floppy_state *fs = timer_container_of(fs, t, timeout);
 	struct swim3 __iomem *sw = fs->swim3;
 	unsigned long flags;
 
@@ -598,7 +598,7 @@ static void seek_timeout(struct timer_list *t)
 
 static void settle_timeout(struct timer_list *t)
 {
-	struct floppy_state *fs = from_timer(fs, t, timeout);
+	struct floppy_state *fs = timer_container_of(fs, t, timeout);
 	struct swim3 __iomem *sw = fs->swim3;
 	unsigned long flags;
 
@@ -627,7 +627,7 @@ static void settle_timeout(struct timer_list *t)
 
 static void xfer_timeout(struct timer_list *t)
 {
-	struct floppy_state *fs = from_timer(fs, t, timeout);
+	struct floppy_state *fs = timer_container_of(fs, t, timeout);
 	struct swim3 __iomem *sw = fs->swim3;
 	struct dbdma_regs __iomem *dr = fs->dma;
 	unsigned long flags;

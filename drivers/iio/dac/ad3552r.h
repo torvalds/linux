@@ -156,6 +156,7 @@ struct ad3552r_model_data {
 	int num_ranges;
 	bool requires_output_range;
 	int num_spi_data_lanes;
+	int max_reg_addr;
 };
 
 struct ad3552r_ch_data {

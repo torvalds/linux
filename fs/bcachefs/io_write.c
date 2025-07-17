@@ -558,6 +558,7 @@ static void bch2_write_done(struct closure *cl)
 
 static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 {
+	struct bch_fs *c = op->c;
 	struct keylist *keys = &op->insert_keys;
 	struct bkey_i *src, *dst = keys->keys, *n;
 
@@ -569,7 +570,7 @@ static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 					    test_bit(ptr->dev, op->failed.d));
 
 			if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(src)))
-				return -BCH_ERR_data_write_io;
+				return bch_err_throw(c, data_write_io);
 		}
 
 		if (dst != src)
@@ -976,7 +977,7 @@ csum_err:
 		op->crc.csum_type < BCH_CSUM_NR
 		? __bch2_csum_types[op->crc.csum_type]
 		: "(unknown)");
-	return -BCH_ERR_data_write_csum;
+	return bch_err_throw(c, data_write_csum);
 }
 
 static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
@@ -1208,16 +1209,13 @@ static bool bch2_extent_is_writeable(struct bch_write_op *op,
 
 	e = bkey_s_c_to_extent(k);
 
-	rcu_read_lock();
+	guard(rcu)();
 	extent_for_each_ptr_decode(e, p, entry) {
-		if (crc_is_encoded(p.crc) || p.has_ec) {
-			rcu_read_unlock();
+		if (crc_is_encoded(p.crc) || p.has_ec)
 			return false;
-		}
 
 		replicas += bch2_extent_ptr_durability(c, &p);
 	}
-	rcu_read_unlock();
 
 	return replicas >= op->opts.data_replicas;
 }
@@ -1290,7 +1288,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 static void __bch2_nocow_write_done(struct bch_write_op *op)
 {
 	if (unlikely(op->flags & BCH_WRITE_io_error)) {
-		op->error = -BCH_ERR_data_write_io;
+		op->error = bch_err_throw(op->c, data_write_io);
 	} else if (unlikely(op->flags & BCH_WRITE_convert_unwritten))
 		bch2_nocow_write_convert_unwritten(op);
 }
@@ -1483,10 +1481,10 @@ err_bucket_stale:
 				    "pointer to invalid bucket in nocow path on device %llu\n  %s",
 				    stale_at->b.inode,
 				    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = -BCH_ERR_data_write_invalid_ptr;
+		ret = bch_err_throw(c, data_write_invalid_ptr);
 	} else {
 		/* We can retry this: */
-		ret = -BCH_ERR_transaction_restart;
+		ret = bch_err_throw(c, transaction_restart);
 	}
 	printbuf_exit(&buf);
 
@@ -1693,18 +1691,18 @@ CLOSURE_CALLBACK(bch2_write)
 
 	if (unlikely(bio->bi_iter.bi_size & (c->opts.block_size - 1))) {
 		bch2_write_op_error(op, op->pos.offset, "misaligned write");
-		op->error = -BCH_ERR_data_write_misaligned;
+		op->error = bch_err_throw(c, data_write_misaligned);
 		goto err;
 	}
 
 	if (c->opts.nochanges) {
-		op->error = -BCH_ERR_erofs_no_writes;
+		op->error = bch_err_throw(c, erofs_no_writes);
 		goto err;
 	}
 
 	if (!(op->flags & BCH_WRITE_move) &&
 	    !enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_write)) {
-		op->error = -BCH_ERR_erofs_no_writes;
+		op->error = bch_err_throw(c, erofs_no_writes);
 		goto err;
 	}
 
@@ -1776,7 +1774,7 @@ int bch2_fs_io_write_init(struct bch_fs *c)
 {
 	if (bioset_init(&c->bio_write,   1, offsetof(struct bch_write_bio, bio), BIOSET_NEED_BVECS) ||
 	    bioset_init(&c->replica_set, 4, offsetof(struct bch_write_bio, bio), 0))
-		return -BCH_ERR_ENOMEM_bio_write_init;
+		return bch_err_throw(c, ENOMEM_bio_write_init);
 
 	return 0;
 }

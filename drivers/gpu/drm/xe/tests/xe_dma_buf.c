@@ -65,7 +65,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 	 * the exporter and the importer should be the same bo.
 	 */
 	swap(exported->ttm.base.dma_buf, dmabuf);
-	ret = xe_bo_evict(exported, true);
+	ret = xe_bo_evict(exported);
 	swap(exported->ttm.base.dma_buf, dmabuf);
 	if (ret) {
 		if (ret != -EINTR && ret != -ERESTARTSYS)

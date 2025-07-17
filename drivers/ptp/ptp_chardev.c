@@ -162,6 +162,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 {
 	struct ptp_clock *ptp =
 		container_of(pccontext->clk, struct ptp_clock, clock);
+	unsigned int i, pin_index, supported_extts_flags;
 	struct ptp_sys_offset_extended *extoff = NULL;
 	struct ptp_sys_offset_precise precise_offset;
 	struct system_device_crosststamp xtstamp;
@@ -172,7 +173,6 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	struct ptp_clock_request req;
 	struct ptp_clock_caps caps;
 	struct ptp_clock_time *pct;
-	unsigned int i, pin_index;
 	struct ptp_pin_desc pd;
 	struct timespec64 ts;
 	int enable, err = 0;
@@ -240,6 +240,18 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 			err = -EINVAL;
 			break;
 		}
+		supported_extts_flags = ptp->info->supported_extts_flags;
+		/* The PTP_ENABLE_FEATURE flag is always supported. */
+		supported_extts_flags |= PTP_ENABLE_FEATURE;
+		/* If the driver does not support strictly checking flags, the
+		 * PTP_RISING_EDGE and PTP_FALLING_EDGE flags are merely
+		 * hints which are not enforced.
+		 */
+		if (!(supported_extts_flags & PTP_STRICT_FLAGS))
+			supported_extts_flags |= PTP_EXTTS_EDGES;
+		/* Reject unsupported flags */
+		if (req.extts.flags & ~supported_extts_flags)
+			return -EOPNOTSUPP;
 		req.type = PTP_CLK_REQ_EXTTS;
 		enable = req.extts.flags & PTP_ENABLE_FEATURE ? 1 : 0;
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
@@ -312,6 +324,8 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 			err = -EINVAL;
 			break;
 		}
+		if (req.perout.flags & ~ptp->info->supported_perout_flags)
+			return -EOPNOTSUPP;
 		req.type = PTP_CLK_REQ_PEROUT;
 		enable = req.perout.period.sec || req.perout.period.nsec;
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))

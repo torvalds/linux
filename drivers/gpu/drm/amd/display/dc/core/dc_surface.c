@@ -109,7 +109,8 @@ struct dc_plane_state *dc_create_plane_state(const struct dc *dc)
  *****************************************************************************
  */
 const struct dc_plane_status *dc_plane_get_status(
-		const struct dc_plane_state *plane_state)
+		const struct dc_plane_state *plane_state,
+		union dc_plane_status_update_flags flags)
 {
 	const struct dc_plane_status *plane_status;
 	struct dc  *dc;
@@ -136,7 +137,7 @@ const struct dc_plane_status *dc_plane_get_status(
 		if (pipe_ctx->plane_state != plane_state)
 			continue;
 
-		if (pipe_ctx->plane_state)
+		if (pipe_ctx->plane_state && flags.bits.address)
 			pipe_ctx->plane_state->status.is_flip_pending = false;
 
 		break;
@@ -151,7 +152,8 @@ const struct dc_plane_status *dc_plane_get_status(
 		if (pipe_ctx->plane_state != plane_state)
 			continue;
 
-		dc->hwss.update_pending_status(pipe_ctx);
+		if (flags.bits.address)
+			dc->hwss.update_pending_status(pipe_ctx);
 	}
 
 	return plane_status;
@@ -293,4 +295,18 @@ void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
 		if (dc->hwss.clear_surface_dcc_and_tiling)
 			dc->hwss.clear_surface_dcc_and_tiling(pipe_ctx, plane_state, clear_tiling);
 	}
+}
+
+void dc_plane_copy_config(struct dc_plane_state *dst, const struct dc_plane_state *src)
+{
+	struct kref temp_refcount;
+
+	/* backup persistent info */
+	memcpy(&temp_refcount, &dst->refcount, sizeof(struct kref));
+
+	/* copy all configuration information */
+	memcpy(dst, src, sizeof(struct dc_plane_state));
+
+	/* restore persistent info */
+	memcpy(&dst->refcount, &temp_refcount, sizeof(struct kref));
 }

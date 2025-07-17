@@ -828,10 +828,14 @@ EXPORT_SYMBOL(drm_sched_job_init);
  *
  * This arms a scheduler job for execution. Specifically it initializes the
  * &drm_sched_job.s_fence of @job, so that it can be attached to struct dma_resv
- * or other places that need to track the completion of this job.
+ * or other places that need to track the completion of this job. It also
+ * initializes sequence numbers, which are fundamental for fence ordering.
  *
  * Refer to drm_sched_entity_push_job() documentation for locking
  * considerations.
+ *
+ * Once this function was called, you *must* submit @job with
+ * drm_sched_entity_push_job().
  *
  * This can only be called if drm_sched_job_init() succeeded.
  */
@@ -1015,13 +1019,14 @@ EXPORT_SYMBOL(drm_sched_job_has_dependency);
  * Cleans up the resources allocated with drm_sched_job_init().
  *
  * Drivers should call this from their error unwind code if @job is aborted
- * before it was submitted to an entity with drm_sched_entity_push_job().
+ * before drm_sched_job_arm() is called.
  *
- * Since calling drm_sched_job_arm() causes the job's fences to be initialized,
- * it is up to the driver to ensure that fences that were exposed to external
- * parties get signaled. drm_sched_job_cleanup() does not ensure this.
+ * drm_sched_job_arm() is a point of no return since it initializes the fences
+ * and their sequence number etc. Once that function has been called, you *must*
+ * submit it with drm_sched_entity_push_job() and cannot simply abort it by
+ * calling drm_sched_job_cleanup().
  *
- * This function must also be called in &struct drm_sched_backend_ops.free_job
+ * This function should be called in the &drm_sched_backend_ops.free_job callback.
  */
 void drm_sched_job_cleanup(struct drm_sched_job *job)
 {
@@ -1029,10 +1034,15 @@ void drm_sched_job_cleanup(struct drm_sched_job *job)
 	unsigned long index;
 
 	if (kref_read(&job->s_fence->finished.refcount)) {
-		/* drm_sched_job_arm() has been called */
+		/* The job has been processed by the scheduler, i.e.,
+		 * drm_sched_job_arm() and drm_sched_entity_push_job() have
+		 * been called.
+		 */
 		dma_fence_put(&job->s_fence->finished);
 	} else {
-		/* aborted job before arming */
+		/* The job was aborted before it has been committed to be run;
+		 * notably, drm_sched_job_arm() has not been called.
+		 */
 		drm_sched_fence_free(job->s_fence);
 	}
 
@@ -1220,20 +1230,23 @@ static void drm_sched_run_job_work(struct work_struct *w)
 	drm_sched_job_begin(sched_job);
 
 	trace_drm_run_job(sched_job, entity);
+	/*
+	 * The run_job() callback must by definition return a fence whose
+	 * refcount has been incremented for the scheduler already.
+	 */
 	fence = sched->ops->run_job(sched_job);
 	complete_all(&entity->entity_idle);
 	drm_sched_fence_scheduled(s_fence, fence);
 
 	if (!IS_ERR_OR_NULL(fence)) {
-		/* Drop for original kref_init of the fence */
-		dma_fence_put(fence);
-
 		r = dma_fence_add_callback(fence, &sched_job->cb,
 					   drm_sched_job_done_cb);
 		if (r == -ENOENT)
 			drm_sched_job_done(sched_job, fence->error);
 		else if (r)
 			DRM_DEV_ERROR(sched->dev, "fence add callback failed (%d)\n", r);
+
+		dma_fence_put(fence);
 	} else {
 		drm_sched_job_done(sched_job, IS_ERR(fence) ?
 				   PTR_ERR(fence) : 0);

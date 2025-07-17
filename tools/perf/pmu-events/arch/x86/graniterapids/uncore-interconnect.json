@@ -1076,7 +1076,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress bypasses for for AD_BNC",
+        "BriefDescription": "Egress bypasses for AD_BNC",
         "Counter": "0,1,2,3",
         "EventCode": "0x1E",
         "EventName": "UNC_MDF_TxR_BYPASS.AD_BNC",
@@ -1086,7 +1086,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress bypasses for for AD_CRD",
+        "BriefDescription": "Egress bypasses for AD_CRD",
         "Counter": "0,1,2,3",
         "EventCode": "0x1E",
         "EventName": "UNC_MDF_TxR_BYPASS.AD_CRD",
@@ -1096,7 +1096,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress bypasses for for AK",
+        "BriefDescription": "Egress bypasses for AK",
         "Counter": "0,1,2,3",
         "EventCode": "0x1E",
         "EventName": "UNC_MDF_TxR_BYPASS.AK",
@@ -1106,7 +1106,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress bypasses for for BL_BNC",
+        "BriefDescription": "Egress bypasses for BL_BNC",
         "Counter": "0,1,2,3",
         "EventCode": "0x1E",
         "EventName": "UNC_MDF_TxR_BYPASS.BL_BNC",
@@ -1116,7 +1116,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress bypasses for for BL_CRD",
+        "BriefDescription": "Egress bypasses for BL_CRD",
         "Counter": "0,1,2,3",
         "EventCode": "0x1E",
         "EventName": "UNC_MDF_TxR_BYPASS.BL_CRD",
@@ -1126,7 +1126,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress bypasses for for IV",
+        "BriefDescription": "Egress bypasses for IV",
         "Counter": "0,1,2,3",
         "EventCode": "0x1E",
         "EventName": "UNC_MDF_TxR_BYPASS.IV",
@@ -1136,7 +1136,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of egress inserts for for AD_BNC",
+        "BriefDescription": "Number of egress inserts for AD_BNC",
         "Counter": "0,1,2,3",
         "EventCode": "0x1C",
         "EventName": "UNC_MDF_TxR_INSERTS.AD_BNC",
@@ -1146,7 +1146,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of egress inserts for for AD_CRD",
+        "BriefDescription": "Number of egress inserts for AD_CRD",
         "Counter": "0,1,2,3",
         "EventCode": "0x1C",
         "EventName": "UNC_MDF_TxR_INSERTS.AD_CRD",
@@ -1156,7 +1156,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of egress inserts for for AK",
+        "BriefDescription": "Number of egress inserts for AK",
         "Counter": "0,1,2,3",
         "EventCode": "0x1C",
         "EventName": "UNC_MDF_TxR_INSERTS.AK",
@@ -1166,7 +1166,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of egress inserts for for BL_BNC",
+        "BriefDescription": "Number of egress inserts for BL_BNC",
         "Counter": "0,1,2,3",
         "EventCode": "0x1C",
         "EventName": "UNC_MDF_TxR_INSERTS.BL_BNC",
@@ -1176,7 +1176,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of egress inserts for for BL_CRD",
+        "BriefDescription": "Number of egress inserts for BL_CRD",
         "Counter": "0,1,2,3",
         "EventCode": "0x1C",
         "EventName": "UNC_MDF_TxR_INSERTS.BL_CRD",
@@ -1186,7 +1186,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of egress inserts for for IV",
+        "BriefDescription": "Number of egress inserts for IV",
         "Counter": "0,1,2,3",
         "EventCode": "0x1C",
         "EventName": "UNC_MDF_TxR_INSERTS.IV",
@@ -1196,7 +1196,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress occupancy for for AD_BNC",
+        "BriefDescription": "Egress occupancy for AD_BNC",
         "Counter": "0,1,2,3",
         "EventCode": "0x1D",
         "EventName": "UNC_MDF_TxR_OCCUPANCY.AD_BNC",
@@ -1206,7 +1206,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress occupancy for for AD_CRD",
+        "BriefDescription": "Egress occupancy for AD_CRD",
         "Counter": "0,1,2,3",
         "EventCode": "0x1D",
         "EventName": "UNC_MDF_TxR_OCCUPANCY.AD_CRD",
@@ -1216,7 +1216,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress occupancy for for AK",
+        "BriefDescription": "Egress occupancy for AK",
         "Counter": "0,1,2,3",
         "EventCode": "0x1D",
         "EventName": "UNC_MDF_TxR_OCCUPANCY.AK",
@@ -1226,7 +1226,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress occupancy for for BL_BNC",
+        "BriefDescription": "Egress occupancy for BL_BNC",
         "Counter": "0,1,2,3",
         "EventCode": "0x1D",
         "EventName": "UNC_MDF_TxR_OCCUPANCY.BL_BNC",
@@ -1236,7 +1236,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress occupancy for for BL_CRD",
+        "BriefDescription": "Egress occupancy for BL_CRD",
         "Counter": "0,1,2,3",
         "EventCode": "0x1D",
         "EventName": "UNC_MDF_TxR_OCCUPANCY.BL_CRD",
@@ -1246,7 +1246,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Egress occupancy for for IV",
+        "BriefDescription": "Egress occupancy for IV",
         "Counter": "0,1,2,3",
         "EventCode": "0x1D",
         "EventName": "UNC_MDF_TxR_OCCUPANCY.IV",
@@ -1932,5 +1932,59 @@
         "Experimental": "1",
         "PerPkg": "1",
         "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Message Received : Doorbell",
+        "Counter": "0,1",
+        "EventCode": "0x42",
+        "EventName": "UNC_U_EVENT_MSG.DOORBELL_RCVD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Message Received : Interrupt",
+        "Counter": "0,1",
+        "EventCode": "0x42",
+        "EventName": "UNC_U_EVENT_MSG.INT_PRIO",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Message Received : Interrupt : Interrupts",
+        "UMask": "0x10",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Message Received : IPI",
+        "Counter": "0,1",
+        "EventCode": "0x42",
+        "EventName": "UNC_U_EVENT_MSG.IPI_RCVD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Message Received : IPI : Inter Processor Interrupts",
+        "UMask": "0x4",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Message Received : MSI",
+        "Counter": "0,1",
+        "EventCode": "0x42",
+        "EventName": "UNC_U_EVENT_MSG.MSI_RCVD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Message Received : MSI : Message Signaled Interrupts - interrupts sent by devices (including PCIe via IOxAPIC) (Socket Mode only)",
+        "UMask": "0x2",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Message Received : VLW",
+        "Counter": "0,1",
+        "EventCode": "0x42",
+        "EventName": "UNC_U_EVENT_MSG.VLW_RCVD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Message Received : VLW : Virtual Logical Wire (legacy) message were received from Uncore.",
+        "UMask": "0x1",
+        "Unit": "UBOX"
     }
 ]

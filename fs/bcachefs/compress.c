@@ -187,7 +187,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 			     __bch2_compression_types[crc.compression_type]))
 			ret = bch2_check_set_has_compressed_data(c, opt);
 		else
-			ret = -BCH_ERR_compression_workspace_not_initialized;
+			ret = bch_err_throw(c, compression_workspace_not_initialized);
 		if (ret)
 			goto err;
 	}
@@ -200,7 +200,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		ret2 = LZ4_decompress_safe_partial(src_data.b, dst_data,
 						   src_len, dst_len, dst_len);
 		if (ret2 != dst_len)
-			ret = -BCH_ERR_decompress_lz4;
+			ret = bch_err_throw(c, decompress_lz4);
 		break;
 	case BCH_COMPRESSION_TYPE_gzip: {
 		z_stream strm = {
@@ -219,7 +219,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		mempool_free(workspace, workspace_pool);
 
 		if (ret2 != Z_STREAM_END)
-			ret = -BCH_ERR_decompress_gzip;
+			ret = bch_err_throw(c, decompress_gzip);
 		break;
 	}
 	case BCH_COMPRESSION_TYPE_zstd: {
@@ -227,7 +227,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		size_t real_src_len = le32_to_cpup(src_data.b);
 
 		if (real_src_len > src_len - 4) {
-			ret = -BCH_ERR_decompress_zstd_src_len_bad;
+			ret = bch_err_throw(c, decompress_zstd_src_len_bad);
 			goto err;
 		}
 
@@ -241,7 +241,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		mempool_free(workspace, workspace_pool);
 
 		if (ret2 != dst_len)
-			ret = -BCH_ERR_decompress_zstd;
+			ret = bch_err_throw(c, decompress_zstd);
 		break;
 	}
 	default:
@@ -270,7 +270,7 @@ int bch2_bio_uncompress_inplace(struct bch_write_op *op,
 		bch2_write_op_error(op, op->pos.offset,
 				    "extent too big to decompress (%u > %u)",
 				    crc->uncompressed_size << 9, c->opts.encoded_extent_max);
-		return -BCH_ERR_decompress_exceeded_max_encoded_extent;
+		return bch_err_throw(c, decompress_exceeded_max_encoded_extent);
 	}
 
 	data = __bounce_alloc(c, dst_len, WRITE);
@@ -314,7 +314,7 @@ int bch2_bio_uncompress(struct bch_fs *c, struct bio *src,
 
 	if (crc.uncompressed_size << 9	> c->opts.encoded_extent_max ||
 	    crc.compressed_size << 9	> c->opts.encoded_extent_max)
-		return -BCH_ERR_decompress_exceeded_max_encoded_extent;
+		return bch_err_throw(c, decompress_exceeded_max_encoded_extent);
 
 	dst_data = dst_len == dst_iter.bi_size
 		? __bio_map_or_bounce(c, dst, dst_iter, WRITE)
@@ -656,12 +656,12 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 	if (!mempool_initialized(&c->compression_bounce[READ]) &&
 	    mempool_init_kvmalloc_pool(&c->compression_bounce[READ],
 				       1, c->opts.encoded_extent_max))
-		return -BCH_ERR_ENOMEM_compression_bounce_read_init;
+		return bch_err_throw(c, ENOMEM_compression_bounce_read_init);
 
 	if (!mempool_initialized(&c->compression_bounce[WRITE]) &&
 	    mempool_init_kvmalloc_pool(&c->compression_bounce[WRITE],
 				       1, c->opts.encoded_extent_max))
-		return -BCH_ERR_ENOMEM_compression_bounce_write_init;
+		return bch_err_throw(c, ENOMEM_compression_bounce_write_init);
 
 	for (i = compression_types;
 	     i < compression_types + ARRAY_SIZE(compression_types);
@@ -675,7 +675,7 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		if (mempool_init_kvmalloc_pool(
 				&c->compress_workspace[i->type],
 				1, i->compress_workspace))
-			return -BCH_ERR_ENOMEM_compression_workspace_init;
+			return bch_err_throw(c, ENOMEM_compression_workspace_init);
 	}
 
 	return 0;

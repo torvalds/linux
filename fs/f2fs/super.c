@@ -47,6 +47,7 @@ const char *f2fs_fault_name[FAULT_MAX] = {
 	[FAULT_KVMALLOC]		= "kvmalloc",
 	[FAULT_PAGE_ALLOC]		= "page alloc",
 	[FAULT_PAGE_GET]		= "page get",
+	[FAULT_ALLOC_BIO]		= "alloc bio(obsolete)",
 	[FAULT_ALLOC_NID]		= "alloc nid",
 	[FAULT_ORPHAN]			= "orphan",
 	[FAULT_BLOCK]			= "no more block",
@@ -64,32 +65,35 @@ const char *f2fs_fault_name[FAULT_MAX] = {
 	[FAULT_BLKADDR_CONSISTENCE]	= "inconsistent blkaddr",
 	[FAULT_NO_SEGMENT]		= "no free segment",
 	[FAULT_INCONSISTENT_FOOTER]	= "inconsistent footer",
+	[FAULT_TIMEOUT]			= "timeout",
+	[FAULT_VMALLOC]			= "vmalloc",
 };
 
 int f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned long rate,
-							unsigned long type)
+				unsigned long type, enum fault_option fo)
 {
 	struct f2fs_fault_info *ffi = &F2FS_OPTION(sbi).fault_info;
 
-	if (rate) {
+	if (fo & FAULT_ALL) {
+		memset(ffi, 0, sizeof(struct f2fs_fault_info));
+		return 0;
+	}
+
+	if (fo & FAULT_RATE) {
 		if (rate > INT_MAX)
 			return -EINVAL;
 		atomic_set(&ffi->inject_ops, 0);
 		ffi->inject_rate = (int)rate;
+		f2fs_info(sbi, "build fault injection rate: %lu", rate);
 	}
 
-	if (type) {
+	if (fo & FAULT_TYPE) {
 		if (type >= BIT(FAULT_MAX))
 			return -EINVAL;
 		ffi->inject_type = (unsigned int)type;
+		f2fs_info(sbi, "build fault injection type: 0x%lx", type);
 	}
 
-	if (!rate && !type)
-		memset(ffi, 0, sizeof(struct f2fs_fault_info));
-	else
-		f2fs_info(sbi,
-			"build fault injection attr: rate: %lu, type: 0x%lx",
-								rate, type);
 	return 0;
 }
 #endif
@@ -896,8 +900,7 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options, bool is_remoun
 		case Opt_fault_injection:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (f2fs_build_fault_attr(sbi, arg,
-					F2FS_ALL_FAULT_TYPE))
+			if (f2fs_build_fault_attr(sbi, arg, 0, FAULT_RATE))
 				return -EINVAL;
 			set_opt(sbi, FAULT_INJECTION);
 			break;
@@ -905,7 +908,7 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options, bool is_remoun
 		case Opt_fault_type:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (f2fs_build_fault_attr(sbi, 0, arg))
+			if (f2fs_build_fault_attr(sbi, 0, arg, FAULT_TYPE))
 				return -EINVAL;
 			set_opt(sbi, FAULT_INJECTION);
 			break;
@@ -1531,7 +1534,9 @@ int f2fs_inode_dirtied(struct inode *inode, bool sync)
 	}
 	spin_unlock(&sbi->inode_lock[DIRTY_META]);
 
-	if (!ret && f2fs_is_atomic_file(inode))
+	/* if atomic write is not committed, set inode w/ atomic dirty */
+	if (!ret && f2fs_is_atomic_file(inode) &&
+			!is_inode_flag_set(inode, FI_ATOMIC_COMMITTED))
 		set_inode_flag(inode, FI_ATOMIC_DIRTIED);
 
 	return ret;
@@ -1804,26 +1809,32 @@ static int f2fs_statfs_project(struct super_block *sb,
 
 	limit = min_not_zero(dquot->dq_dqb.dqb_bsoftlimit,
 					dquot->dq_dqb.dqb_bhardlimit);
-	if (limit)
-		limit >>= sb->s_blocksize_bits;
+	limit >>= sb->s_blocksize_bits;
 
-	if (limit && buf->f_blocks > limit) {
+	if (limit) {
+		uint64_t remaining = 0;
+
 		curblock = (dquot->dq_dqb.dqb_curspace +
 			    dquot->dq_dqb.dqb_rsvspace) >> sb->s_blocksize_bits;
-		buf->f_blocks = limit;
-		buf->f_bfree = buf->f_bavail =
-			(buf->f_blocks > curblock) ?
-			 (buf->f_blocks - curblock) : 0;
+		if (limit > curblock)
+			remaining = limit - curblock;
+
+		buf->f_blocks = min(buf->f_blocks, limit);
+		buf->f_bfree = min(buf->f_bfree, remaining);
+		buf->f_bavail = min(buf->f_bavail, remaining);
 	}
 
 	limit = min_not_zero(dquot->dq_dqb.dqb_isoftlimit,
 					dquot->dq_dqb.dqb_ihardlimit);
 
-	if (limit && buf->f_files > limit) {
-		buf->f_files = limit;
-		buf->f_ffree =
-			(buf->f_files > dquot->dq_dqb.dqb_curinodes) ?
-			 (buf->f_files - dquot->dq_dqb.dqb_curinodes) : 0;
+	if (limit) {
+		uint64_t remaining = 0;
+
+		if (limit > dquot->dq_dqb.dqb_curinodes)
+			remaining = limit - dquot->dq_dqb.dqb_curinodes;
+
+		buf->f_files = min(buf->f_files, limit);
+		buf->f_ffree = min(buf->f_ffree, remaining);
 	}
 
 	spin_unlock(&dquot->dq_dqb_lock);
@@ -1882,9 +1893,9 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid    = u64_to_fsid(id);
 
 #ifdef CONFIG_QUOTA
-	if (is_inode_flag_set(dentry->d_inode, FI_PROJ_INHERIT) &&
+	if (is_inode_flag_set(d_inode(dentry), FI_PROJ_INHERIT) &&
 			sb_has_quota_limits_enabled(sb, PRJQUOTA)) {
-		f2fs_statfs_project(sb, F2FS_I(dentry->d_inode)->i_projid, buf);
+		f2fs_statfs_project(sb, F2FS_I(d_inode(dentry))->i_projid, buf);
 	}
 #endif
 	return 0;
@@ -2208,7 +2219,7 @@ static void default_options(struct f2fs_sb_info *sbi, bool remount)
 	set_opt(sbi, POSIX_ACL);
 #endif
 
-	f2fs_build_fault_attr(sbi, 0, 0);
+	f2fs_build_fault_attr(sbi, 0, 0, FAULT_ALL);
 }
 
 #ifdef CONFIG_QUOTA
@@ -2689,12 +2700,9 @@ static ssize_t f2fs_quota_read(struct super_block *sb, int type, char *data,
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
 	struct address_space *mapping = inode->i_mapping;
-	block_t blkidx = F2FS_BYTES_TO_BLK(off);
-	int offset = off & (sb->s_blocksize - 1);
 	int tocopy;
 	size_t toread;
 	loff_t i_size = i_size_read(inode);
-	struct page *page;
 
 	if (off > i_size)
 		return 0;
@@ -2703,37 +2711,42 @@ static ssize_t f2fs_quota_read(struct super_block *sb, int type, char *data,
 		len = i_size - off;
 	toread = len;
 	while (toread > 0) {
-		tocopy = min_t(unsigned long, sb->s_blocksize - offset, toread);
+		struct folio *folio;
+		size_t offset;
+
 repeat:
-		page = read_cache_page_gfp(mapping, blkidx, GFP_NOFS);
-		if (IS_ERR(page)) {
-			if (PTR_ERR(page) == -ENOMEM) {
+		folio = mapping_read_folio_gfp(mapping, off >> PAGE_SHIFT,
+				GFP_NOFS);
+		if (IS_ERR(folio)) {
+			if (PTR_ERR(folio) == -ENOMEM) {
 				memalloc_retry_wait(GFP_NOFS);
 				goto repeat;
 			}
 			set_sbi_flag(F2FS_SB(sb), SBI_QUOTA_NEED_REPAIR);
-			return PTR_ERR(page);
+			return PTR_ERR(folio);
 		}
+		offset = offset_in_folio(folio, off);
+		tocopy = min(folio_size(folio) - offset, toread);
 
-		lock_page(page);
+		folio_lock(folio);
 
-		if (unlikely(page->mapping != mapping)) {
-			f2fs_put_page(page, 1);
+		if (unlikely(folio->mapping != mapping)) {
+			f2fs_folio_put(folio, true);
 			goto repeat;
 		}
-		if (unlikely(!PageUptodate(page))) {
-			f2fs_put_page(page, 1);
-			set_sbi_flag(F2FS_SB(sb), SBI_QUOTA_NEED_REPAIR);
-			return -EIO;
-		}
 
-		memcpy_from_page(data, page, offset, tocopy);
-		f2fs_put_page(page, 1);
+		/*
+		 * should never happen, just leave f2fs_bug_on() here to catch
+		 * any potential bug.
+		 */
+		f2fs_bug_on(F2FS_SB(sb), !folio_test_uptodate(folio));
 
-		offset = 0;
+		memcpy_from_folio(data, folio, offset, tocopy);
+		f2fs_folio_put(folio, true);
+
 		toread -= tocopy;
 		data += tocopy;
-		blkidx++;
+		off += tocopy;
 	}
 	return len;
 }
@@ -3432,7 +3445,7 @@ static int __f2fs_commit_super(struct f2fs_sb_info *sbi, struct folio *folio,
 	bio = bio_alloc(sbi->sb->s_bdev, 1, opf, GFP_NOFS);
 
 	/* it doesn't need to set crypto context for superblock update */
-	bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(folio_index(folio));
+	bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(folio->index);
 
 	if (!bio_add_folio(bio, folio, folio_size(folio), 0))
 		f2fs_bug_on(sbi, 1);
@@ -3558,7 +3571,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 			return -EFSCORRUPTED;
 		}
 		crc = le32_to_cpu(raw_super->crc);
-		if (!f2fs_crc_valid(sbi, crc, raw_super, crc_offset)) {
+		if (crc != f2fs_crc32(raw_super, crc_offset)) {
 			f2fs_info(sbi, "Invalid SB checksum value: %u", crc);
 			return -EFSCORRUPTED;
 		}
@@ -3717,6 +3730,7 @@ int f2fs_sanity_check_ckpt(struct f2fs_sb_info *sbi)
 	block_t user_block_count, valid_user_blocks;
 	block_t avail_node_count, valid_node_count;
 	unsigned int nat_blocks, nat_bits_bytes, nat_bits_blocks;
+	unsigned int sit_blk_cnt;
 	int i, j;
 
 	total = le32_to_cpu(raw_super->segment_count);
@@ -3825,6 +3839,13 @@ skip_cross:
 		nat_bitmap_size != ((nat_segs / 2) << log_blocks_per_seg) / 8) {
 		f2fs_err(sbi, "Wrong bitmap size: sit: %u, nat:%u",
 			 sit_bitmap_size, nat_bitmap_size);
+		return 1;
+	}
+
+	sit_blk_cnt = DIV_ROUND_UP(main_segs, SIT_ENTRY_PER_BLOCK);
+	if (sit_bitmap_size * 8 < sit_blk_cnt) {
+		f2fs_err(sbi, "Wrong bitmap size: sit: %u, sit_blk_cnt:%u",
+			 sit_bitmap_size, sit_blk_cnt);
 		return 1;
 	}
 
@@ -4106,7 +4127,7 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 
 	/* we should update superblock crc here */
 	if (!recover && f2fs_sb_has_sb_chksum(sbi)) {
-		crc = f2fs_crc32(sbi, F2FS_RAW_SUPER(sbi),
+		crc = f2fs_crc32(F2FS_RAW_SUPER(sbi),
 				offsetof(struct f2fs_super_block, crc));
 		F2FS_RAW_SUPER(sbi)->crc = cpu_to_le32(crc);
 	}
@@ -4304,14 +4325,35 @@ static void f2fs_record_error_work(struct work_struct *work)
 	f2fs_record_stop_reason(sbi);
 }
 
-static inline unsigned int get_first_zoned_segno(struct f2fs_sb_info *sbi)
+static inline unsigned int get_first_seq_zone_segno(struct f2fs_sb_info *sbi)
 {
+#ifdef CONFIG_BLK_DEV_ZONED
+	unsigned int zoneno, total_zones;
 	int devi;
 
-	for (devi = 0; devi < sbi->s_ndevs; devi++)
-		if (bdev_is_zoned(FDEV(devi).bdev))
-			return GET_SEGNO(sbi, FDEV(devi).start_blk);
-	return 0;
+	if (!f2fs_sb_has_blkzoned(sbi))
+		return NULL_SEGNO;
+
+	for (devi = 0; devi < sbi->s_ndevs; devi++) {
+		if (!bdev_is_zoned(FDEV(devi).bdev))
+			continue;
+
+		total_zones = GET_ZONE_FROM_SEG(sbi, FDEV(devi).total_segments);
+
+		for (zoneno = 0; zoneno < total_zones; zoneno++) {
+			unsigned int segs, blks;
+
+			if (!f2fs_zone_is_seq(sbi, devi, zoneno))
+				continue;
+
+			segs = GET_SEG_FROM_SEC(sbi,
+					zoneno * sbi->secs_per_zone);
+			blks = SEGS_TO_BLKS(sbi, segs);
+			return GET_SEGNO(sbi, FDEV(devi).start_blk + blks);
+		}
+	}
+#endif
+	return NULL_SEGNO;
 }
 
 static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
@@ -4348,6 +4390,14 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 #endif
 
 	for (i = 0; i < max_devices; i++) {
+		if (max_devices == 1) {
+			FDEV(i).total_segments =
+				le32_to_cpu(raw_super->segment_count_main);
+			FDEV(i).start_blk = 0;
+			FDEV(i).end_blk = FDEV(i).total_segments *
+						BLKS_PER_SEG(sbi);
+		}
+
 		if (i == 0)
 			FDEV(0).bdev_file = sbi->sb->s_bdev_file;
 		else if (!RDEV(i).path[0])
@@ -4538,8 +4588,8 @@ try_onemore:
 
 	/* precompute checksum seed for metadata */
 	if (f2fs_sb_has_inode_chksum(sbi))
-		sbi->s_chksum_seed = f2fs_chksum(sbi, ~0, raw_super->uuid,
-						sizeof(raw_super->uuid));
+		sbi->s_chksum_seed = f2fs_chksum(~0, raw_super->uuid,
+						 sizeof(raw_super->uuid));
 
 	default_options(sbi, false);
 	/* parse mount options */
@@ -4718,7 +4768,7 @@ try_onemore:
 	sbi->sectors_written_start = f2fs_get_sectors_written(sbi);
 
 	/* get segno of first zoned block device */
-	sbi->first_zoned_segno = get_first_zoned_segno(sbi);
+	sbi->first_seq_zone_segno = get_first_seq_zone_segno(sbi);
 
 	/* Read accumulated write IO statistics if exists */
 	seg_i = CURSEG_I(sbi, CURSEG_HOT_NODE);

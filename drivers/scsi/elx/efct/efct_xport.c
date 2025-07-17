@@ -180,7 +180,7 @@ efct_xport_config_stats_timer(struct efct *efct);
 static void
 efct_xport_stats_timer_cb(struct timer_list *t)
 {
-	struct efct_xport *xport = from_timer(xport, t, stats_timer);
+	struct efct_xport *xport = timer_container_of(xport, t, stats_timer);
 	struct efct *efct = xport->efct;
 
 	efct_xport_config_stats_timer(efct);

@@ -1773,7 +1773,7 @@ unlock:
  */
 static void fcoe_ctlr_timeout(struct timer_list *t)
 {
-	struct fcoe_ctlr *fip = from_timer(fip, t, timer);
+	struct fcoe_ctlr *fip = timer_container_of(fip, t, timer);
 
 	schedule_work(&fip->timer_work);
 }

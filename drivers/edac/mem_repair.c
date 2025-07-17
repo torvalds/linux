@@ -45,6 +45,15 @@ struct edac_mem_repair_context {
 	struct attribute_group group;
 };
 
+const char * const edac_repair_type[] = {
+	[EDAC_REPAIR_PPR] = "ppr",
+	[EDAC_REPAIR_CACHELINE_SPARING] = "cacheline-sparing",
+	[EDAC_REPAIR_ROW_SPARING] = "row-sparing",
+	[EDAC_REPAIR_BANK_SPARING] = "bank-sparing",
+	[EDAC_REPAIR_RANK_SPARING] = "rank-sparing",
+};
+EXPORT_SYMBOL_GPL(edac_repair_type);
+
 #define TO_MR_DEV_ATTR(_dev_attr)      \
 	container_of(_dev_attr, struct edac_mem_repair_dev_attr, dev_attr)
 
@@ -324,6 +333,7 @@ static int mem_repair_create_desc(struct device *dev,
 	for (i = 0; i < MR_MAX_ATTRS; i++) {
 		memcpy(&ctx->mem_repair_dev_attr[i],
 		       &dev_attr[i], sizeof(dev_attr[i]));
+		sysfs_attr_init(&ctx->mem_repair_dev_attr[i].dev_attr.attr);
 		ctx->mem_repair_attrs[i] =
 			&ctx->mem_repair_dev_attr[i].dev_attr.attr;
 	}

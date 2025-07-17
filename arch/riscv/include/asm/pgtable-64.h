@@ -184,7 +184,7 @@ static inline int pud_none(pud_t pud)
 
 static inline int pud_bad(pud_t pud)
 {
-	return !pud_present(pud);
+	return !pud_present(pud) || (pud_val(pud) & _PAGE_LEAF);
 }
 
 #define pud_leaf	pud_leaf
@@ -261,8 +261,6 @@ static inline unsigned long _pmd_pfn(pmd_t pmd)
 {
 	return __page_val_to_pfn(pmd_val(pmd));
 }
-
-#define mk_pmd(page, prot)    pfn_pmd(page_to_pfn(page), prot)
 
 #define pmd_ERROR(e) \
 	pr_err("%s:%d: bad pmd %016lx.\n", __FILE__, __LINE__, pmd_val(e))
@@ -401,6 +399,7 @@ p4d_t *p4d_offset(pgd_t *pgd, unsigned long address);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline int pte_devmap(pte_t pte);
 static inline pte_t pmd_pte(pmd_t pmd);
+static inline pte_t pud_pte(pud_t pud);
 
 static inline int pmd_devmap(pmd_t pmd)
 {
@@ -409,7 +408,7 @@ static inline int pmd_devmap(pmd_t pmd)
 
 static inline int pud_devmap(pud_t pud)
 {
-	return 0;
+	return pte_devmap(pud_pte(pud));
 }
 
 static inline int pgd_devmap(pgd_t pgd)

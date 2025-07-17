@@ -137,12 +137,9 @@ ATOMIC64_OPS(xor, xor, xor)
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 
-static inline s64
-arch_atomic64_cmpxchg(atomic64_t *ptr, s64 expected, s64 new)
+static inline u64 __arch_cmpxchg64_relaxed(volatile void *ptr, u64 old, u64 new)
 {
-	s64 prev;
-
-	smp_mb();
+	u64 prev;
 
 	__asm__ __volatile__(
 	"1:	llockd  %0, [%1]	\n"
@@ -152,14 +149,12 @@ arch_atomic64_cmpxchg(atomic64_t *ptr, s64 expected, s64 new)
 	"	bnz     1b		\n"
 	"2:				\n"
 	: "=&r"(prev)
-	: "r"(ptr), "ir"(expected), "r"(new)
-	: "cc");	/* memory clobber comes from smp_mb() */
-
-	smp_mb();
+	: "r"(ptr), "ir"(old), "r"(new)
+	: "memory", "cc");
 
 	return prev;
 }
-#define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
+#define arch_cmpxchg64_relaxed __arch_cmpxchg64_relaxed
 
 static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 {

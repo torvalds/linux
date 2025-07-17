@@ -1186,7 +1186,7 @@ static const struct of_device_id xadc_of_match_table[] = {
 		.compatible = "xlnx,system-management-wiz-1.3",
 		.data = &xadc_us_axi_ops
 	},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, xadc_of_match_table);
 

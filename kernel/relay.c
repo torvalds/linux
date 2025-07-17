@@ -452,7 +452,7 @@ int relay_prepare_cpu(unsigned int cpu)
 
 /**
  *	relay_open - create a new relay channel
- *	@base_filename: base name of files to create, %NULL for buffering only
+ *	@base_filename: base name of files to create
  *	@parent: dentry of parent directory, %NULL for root directory or buffer
  *	@subbuf_size: size of sub-buffers
  *	@n_subbufs: number of sub-buffers
@@ -465,10 +465,6 @@ int relay_prepare_cpu(unsigned int cpu)
  *	attributes specified.  The created channel buffer files
  *	will be named base_filename0...base_filenameN-1.  File
  *	permissions will be %S_IRUSR.
- *
- *	If opening a buffer (@parent = NULL) that you later wish to register
- *	in a filesystem, call relay_late_setup_files() once the @parent dentry
- *	is available.
  */
 struct rchan *relay_open(const char *base_filename,
 			 struct dentry *parent,
@@ -539,111 +535,6 @@ struct rchan_percpu_buf_dispatcher {
 	struct rchan_buf *buf;
 	struct dentry *dentry;
 };
-
-/* Called in atomic context. */
-static void __relay_set_buf_dentry(void *info)
-{
-	struct rchan_percpu_buf_dispatcher *p = info;
-
-	relay_set_buf_dentry(p->buf, p->dentry);
-}
-
-/**
- *	relay_late_setup_files - triggers file creation
- *	@chan: channel to operate on
- *	@base_filename: base name of files to create
- *	@parent: dentry of parent directory, %NULL for root directory
- *
- *	Returns 0 if successful, non-zero otherwise.
- *
- *	Use to setup files for a previously buffer-only channel created
- *	by relay_open() with a NULL parent dentry.
- *
- *	For example, this is useful for perfomring early tracing in kernel,
- *	before VFS is up and then exposing the early results once the dentry
- *	is available.
- */
-int relay_late_setup_files(struct rchan *chan,
-			   const char *base_filename,
-			   struct dentry *parent)
-{
-	int err = 0;
-	unsigned int i, curr_cpu;
-	unsigned long flags;
-	struct dentry *dentry;
-	struct rchan_buf *buf;
-	struct rchan_percpu_buf_dispatcher disp;
-
-	if (!chan || !base_filename)
-		return -EINVAL;
-
-	strscpy(chan->base_filename, base_filename, NAME_MAX);
-
-	mutex_lock(&relay_channels_mutex);
-	/* Is chan already set up? */
-	if (unlikely(chan->has_base_filename)) {
-		mutex_unlock(&relay_channels_mutex);
-		return -EEXIST;
-	}
-	chan->has_base_filename = 1;
-	chan->parent = parent;
-
-	if (chan->is_global) {
-		err = -EINVAL;
-		buf = *per_cpu_ptr(chan->buf, 0);
-		if (!WARN_ON_ONCE(!buf)) {
-			dentry = relay_create_buf_file(chan, buf, 0);
-			if (dentry && !WARN_ON_ONCE(!chan->is_global)) {
-				relay_set_buf_dentry(buf, dentry);
-				err = 0;
-			}
-		}
-		mutex_unlock(&relay_channels_mutex);
-		return err;
-	}
-
-	curr_cpu = get_cpu();
-	/*
-	 * The CPU hotplug notifier ran before us and created buffers with
-	 * no files associated. So it's safe to call relay_setup_buf_file()
-	 * on all currently online CPUs.
-	 */
-	for_each_online_cpu(i) {
-		buf = *per_cpu_ptr(chan->buf, i);
-		if (unlikely(!buf)) {
-			WARN_ONCE(1, KERN_ERR "CPU has no buffer!\n");
-			err = -EINVAL;
-			break;
-		}
-
-		dentry = relay_create_buf_file(chan, buf, i);
-		if (unlikely(!dentry)) {
-			err = -EINVAL;
-			break;
-		}
-
-		if (curr_cpu == i) {
-			local_irq_save(flags);
-			relay_set_buf_dentry(buf, dentry);
-			local_irq_restore(flags);
-		} else {
-			disp.buf = buf;
-			disp.dentry = dentry;
-			smp_mb();
-			/* relay_channels_mutex must be held, so wait. */
-			err = smp_call_function_single(i,
-						       __relay_set_buf_dentry,
-						       &disp, 1);
-		}
-		if (unlikely(err))
-			break;
-	}
-	put_cpu();
-	mutex_unlock(&relay_channels_mutex);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(relay_late_setup_files);
 
 /**
  *	relay_switch_subbuf - switch to a new sub-buffer

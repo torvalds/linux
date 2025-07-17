@@ -22,7 +22,6 @@
 #include <asm/uv.h>
 
 #include "kvm-s390.h"
-#include "gmap.h"
 
 /**
  * gmap_find_shadow - find a specific asce in the list of shadow tables

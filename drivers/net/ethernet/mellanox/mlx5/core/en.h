@@ -520,6 +520,12 @@ struct mlx5e_xdpsq {
 	struct mlx5e_channel      *channel;
 } ____cacheline_aligned_in_smp;
 
+struct mlx5e_xdp_buff {
+	struct xdp_buff xdp;
+	struct mlx5_cqe64 *cqe;
+	struct mlx5e_rq *rq;
+};
+
 struct mlx5e_ktls_resync_resp;
 
 struct mlx5e_icosq {
@@ -716,6 +722,7 @@ struct mlx5e_rq {
 	struct mlx5e_xdpsq    *xdpsq;
 	DECLARE_BITMAP(flags, 8);
 	struct page_pool      *page_pool;
+	struct mlx5e_xdp_buff mxbuf;
 
 	/* AF_XDP zero-copy */
 	struct xsk_buff_pool  *xsk_pool;

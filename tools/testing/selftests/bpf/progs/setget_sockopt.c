@@ -83,6 +83,14 @@ struct loop_ctx {
 	struct sock *sk;
 };
 
+static bool sk_is_tcp(struct sock *sk)
+{
+	return (sk->__sk_common.skc_family == AF_INET ||
+		sk->__sk_common.skc_family == AF_INET6) &&
+		sk->sk_type == SOCK_STREAM &&
+		sk->sk_protocol == IPPROTO_TCP;
+}
+
 static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 				 const struct sockopt_test *t,
 				 int level)
@@ -90,6 +98,9 @@ static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 	int old, tmp, new, opt = t->opt;
 
 	opt = t->opt;
+
+	if (opt == SO_TXREHASH && !sk_is_tcp(sk))
+		return 0;
 
 	if (bpf_getsockopt(ctx, level, opt, &old, sizeof(old)))
 		return 1;

@@ -40,7 +40,7 @@ static void parport_ieee1284_wakeup (struct parport *port)
 
 static void timeout_waiting_on_port (struct timer_list *t)
 {
-	struct parport *port = from_timer(port, t, timer);
+	struct parport *port = timer_container_of(port, t, timer);
 
 	parport_ieee1284_wakeup (port);
 }

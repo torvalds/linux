@@ -447,7 +447,7 @@ static int __bch2_folio_reservation_get(struct bch_fs *c,
 
 					if (!reserved) {
 						bch2_disk_reservation_put(c, &disk_res);
-						return -BCH_ERR_ENOSPC_disk_reservation;
+						return bch_err_throw(c, ENOSPC_disk_reservation);
 					}
 					break;
 				}

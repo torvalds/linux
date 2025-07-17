@@ -1,4 +1,4 @@
-//* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /***************************************************************************
  *    copyright            : (C) 2002 by Frank Mori Hess
@@ -78,19 +78,19 @@ enum {
 };
 
 // interface functions
-int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		 size_t length, int *end, size_t *bytes_read);
-int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		  size_t length, int send_eoi, size_t *bytes_written);
-int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		    size_t length, size_t *bytes_written);
 int nec7210_take_control(struct gpib_board *board, struct nec7210_priv *priv, int syncronous);
 int nec7210_go_to_standby(struct gpib_board *board, struct nec7210_priv *priv);
-void nec7210_request_system_control(struct gpib_board *board,
-				    struct nec7210_priv *priv, int request_control);
+int nec7210_request_system_control(struct gpib_board *board,
+				   struct nec7210_priv *priv, int request_control);
 void nec7210_interface_clear(struct gpib_board *board, struct nec7210_priv *priv, int assert);
 void nec7210_remote_enable(struct gpib_board *board, struct nec7210_priv *priv, int enable);
-int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, uint8_t eos_bytes,
+int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, u8 eos_bytes,
 		       int compare_8_bits);
 void nec7210_disable_eos(struct gpib_board *board, struct nec7210_priv *priv);
 unsigned int nec7210_update_status(struct gpib_board *board, struct nec7210_priv *priv,
@@ -100,14 +100,14 @@ int nec7210_primary_address(const struct gpib_board *board,
 			    struct nec7210_priv *priv, unsigned int address);
 int nec7210_secondary_address(const struct gpib_board *board, struct nec7210_priv *priv,
 			      unsigned int address, int enable);
-int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *result);
-void nec7210_serial_poll_response(struct gpib_board *board, struct nec7210_priv *priv, uint8_t status);
+int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, u8 *result);
+void nec7210_serial_poll_response(struct gpib_board *board,
+				  struct nec7210_priv *priv, u8 status);
 void nec7210_parallel_poll_configure(struct gpib_board *board,
 				     struct nec7210_priv *priv, unsigned int configuration);
 void nec7210_parallel_poll_response(struct gpib_board *board,
 				    struct nec7210_priv *priv, int ist);
-uint8_t nec7210_serial_poll_status(struct gpib_board *board,
-				   struct nec7210_priv *priv);
+u8 nec7210_serial_poll_status(struct gpib_board *board, struct nec7210_priv *priv);
 int nec7210_t1_delay(struct gpib_board *board,
 		     struct nec7210_priv *priv, unsigned int nano_sec);
 void nec7210_return_to_local(const struct gpib_board *board, struct nec7210_priv *priv);
@@ -119,18 +119,18 @@ unsigned int nec7210_set_reg_bits(struct nec7210_priv *priv, unsigned int reg,
 				  unsigned int mask, unsigned int bits);
 void nec7210_set_handshake_mode(struct gpib_board *board, struct nec7210_priv *priv, int mode);
 void nec7210_release_rfd_holdoff(struct gpib_board *board, struct nec7210_priv *priv);
-uint8_t nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end);
+u8 nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end);
 
 // wrappers for io functions
-uint8_t nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num);
-void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num);
-uint8_t nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num);
-void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num);
-uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num);
-void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
+u8 nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num);
+void nec7210_ioport_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num);
+u8 nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num);
+void nec7210_iomem_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num);
+u8 nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num);
+void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, u8 data,
 				       unsigned int register_num);
-uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num);
-void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, uint8_t data,
+u8 nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num);
+void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, u8 data,
 				      unsigned int register_num);
 
 // interrupt service routine

@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/memory.h>
+#include <linux/mempolicy.h>
 #include <linux/vmstat.h>
 #include <linux/notifier.h>
 #include <linux/node.h>
@@ -212,6 +213,14 @@ void node_set_perf_attrs(unsigned int nid, struct access_coordinate *coord,
 			pr_info("failed to add performance attribute to node %d\n",
 				nid);
 			break;
+		}
+	}
+
+	/* When setting CPU access coordinates, update mempolicy */
+	if (access == ACCESS_COORDINATE_CPU) {
+		if (mempolicy_set_node_perf(nid, coord)) {
+			pr_info("failed to set mempolicy attrs for node %d\n",
+				nid);
 		}
 	}
 }

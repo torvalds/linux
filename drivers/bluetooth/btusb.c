@@ -21,6 +21,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/hci_drv.h>
 
 #include "btintel.h"
 #include "btbcm.h"
@@ -34,7 +35,6 @@ static bool force_scofix;
 static bool enable_autosuspend = IS_ENABLED(CONFIG_BT_HCIBTUSB_AUTOSUSPEND);
 static bool enable_poll_sync = IS_ENABLED(CONFIG_BT_HCIBTUSB_POLL_SYNC);
 static bool reset = true;
-static bool auto_isoc_alt = IS_ENABLED(CONFIG_BT_HCIBTUSB_AUTO_ISOC_ALT);
 
 static struct usb_driver btusb_driver;
 
@@ -513,6 +513,7 @@ static const struct usb_device_id quirks_table[] = {
 						     BTUSB_WIDEBAND_SPEECH },
 
 	/* Realtek 8851BE Bluetooth devices */
+	{ USB_DEVICE(0x0bda, 0xb850), .driver_info = BTUSB_REALTEK },
 	{ USB_DEVICE(0x13d3, 0x3600), .driver_info = BTUSB_REALTEK },
 
 	/* Realtek 8852AE Bluetooth devices */
@@ -678,6 +679,8 @@ static const struct usb_device_id quirks_table[] = {
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3568), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3584), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3605), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3607), .driver_info = BTUSB_MEDIATEK |
@@ -716,7 +719,11 @@ static const struct usb_device_id quirks_table[] = {
 						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3608), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3613), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH },
 	{ USB_DEVICE(0x13d3, 0x3628), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3630), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH },
 
 	/* Additional Realtek 8723AE Bluetooth devices */
@@ -1118,52 +1125,12 @@ static inline void btusb_free_frags(struct btusb_data *data)
 	spin_unlock_irqrestore(&data->rxlock, flags);
 }
 
-static void btusb_sco_connected(struct btusb_data *data, struct sk_buff *skb)
-{
-	struct hci_event_hdr *hdr = (void *) skb->data;
-	struct hci_ev_sync_conn_complete *ev =
-		(void *) skb->data + sizeof(*hdr);
-	struct hci_dev *hdev = data->hdev;
-	unsigned int notify_air_mode;
-
-	if (hci_skb_pkt_type(skb) != HCI_EVENT_PKT)
-		return;
-
-	if (skb->len < sizeof(*hdr) || hdr->evt != HCI_EV_SYNC_CONN_COMPLETE)
-		return;
-
-	if (skb->len != sizeof(*hdr) + sizeof(*ev) || ev->status)
-		return;
-
-	switch (ev->air_mode) {
-	case BT_CODEC_CVSD:
-		notify_air_mode = HCI_NOTIFY_ENABLE_SCO_CVSD;
-		break;
-
-	case BT_CODEC_TRANSPARENT:
-		notify_air_mode = HCI_NOTIFY_ENABLE_SCO_TRANSP;
-		break;
-
-	default:
-		return;
-	}
-
-	bt_dev_info(hdev, "enabling SCO with air mode %u", ev->air_mode);
-	data->sco_num = 1;
-	data->air_mode = notify_air_mode;
-	schedule_work(&data->work);
-}
-
 static int btusb_recv_event(struct btusb_data *data, struct sk_buff *skb)
 {
 	if (data->intr_interval) {
 		/* Trigger dequeue immediately if an event is received */
 		schedule_delayed_work(&data->rx_work, 0);
 	}
-
-	/* Configure altsetting for HCI_USER_CHANNEL on SCO connected */
-	if (auto_isoc_alt && hci_dev_test_flag(data->hdev, HCI_USER_CHANNEL))
-		btusb_sco_connected(data, skb);
 
 	return data->recv_event(data->hdev, skb);
 }
@@ -3753,31 +3720,133 @@ static const struct file_operations force_poll_sync_fops = {
 	.llseek		= default_llseek,
 };
 
-static ssize_t isoc_alt_show(struct device *dev,
-			     struct device_attribute *attr,
-			     char *buf)
-{
-	struct btusb_data *data = dev_get_drvdata(dev);
+#define BTUSB_HCI_DRV_OP_SUPPORTED_ALTSETTINGS \
+		hci_opcode_pack(HCI_DRV_OGF_DRIVER_SPECIFIC, 0x0000)
+#define BTUSB_HCI_DRV_SUPPORTED_ALTSETTINGS_SIZE	0
+struct btusb_hci_drv_rp_supported_altsettings {
+	__u8	num;
+	__u8	altsettings[];
+} __packed;
 
-	return sysfs_emit(buf, "%d\n", data->isoc_altsetting);
+#define BTUSB_HCI_DRV_OP_SWITCH_ALTSETTING \
+		hci_opcode_pack(HCI_DRV_OGF_DRIVER_SPECIFIC, 0x0001)
+#define BTUSB_HCI_DRV_SWITCH_ALTSETTING_SIZE		1
+struct btusb_hci_drv_cmd_switch_altsetting {
+	__u8	altsetting;
+} __packed;
+
+static const struct {
+	u16 opcode;
+	const char *desc;
+} btusb_hci_drv_supported_commands[] = {
+	/* Common commands */
+	{ HCI_DRV_OP_READ_INFO, "Read Info" },
+
+	/* Driver specific commands */
+	{ BTUSB_HCI_DRV_OP_SUPPORTED_ALTSETTINGS, "Supported Altsettings" },
+	{ BTUSB_HCI_DRV_OP_SWITCH_ALTSETTING,     "Switch Altsetting" },
+};
+static int btusb_hci_drv_read_info(struct hci_dev *hdev, void *data,
+				   u16 data_len)
+{
+	struct hci_drv_rp_read_info *rp;
+	size_t rp_size;
+	int err, i;
+	u16 opcode, num_supported_commands =
+		ARRAY_SIZE(btusb_hci_drv_supported_commands);
+
+	rp_size = sizeof(*rp) + num_supported_commands * 2;
+
+	rp = kmalloc(rp_size, GFP_KERNEL);
+	if (!rp)
+		return -ENOMEM;
+
+	strscpy_pad(rp->driver_name, btusb_driver.name);
+
+	rp->num_supported_commands = cpu_to_le16(num_supported_commands);
+	for (i = 0; i < num_supported_commands; i++) {
+		opcode = btusb_hci_drv_supported_commands[i].opcode;
+		bt_dev_info(hdev,
+			    "Supported HCI Drv command (0x%02x|0x%04x): %s",
+			    hci_opcode_ogf(opcode),
+			    hci_opcode_ocf(opcode),
+			    btusb_hci_drv_supported_commands[i].desc);
+		rp->supported_commands[i] = cpu_to_le16(opcode);
+	}
+
+	err = hci_drv_cmd_complete(hdev, HCI_DRV_OP_READ_INFO,
+				   HCI_DRV_STATUS_SUCCESS, rp, rp_size);
+
+	kfree(rp);
+	return err;
 }
 
-static ssize_t isoc_alt_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
+static int btusb_hci_drv_supported_altsettings(struct hci_dev *hdev, void *data,
+					       u16 data_len)
 {
-	struct btusb_data *data = dev_get_drvdata(dev);
-	int alt;
-	int ret;
+	struct btusb_data *drvdata = hci_get_drvdata(hdev);
+	struct btusb_hci_drv_rp_supported_altsettings *rp;
+	size_t rp_size;
+	int err;
+	u8 i;
 
-	if (kstrtoint(buf, 10, &alt))
-		return -EINVAL;
+	/* There are at most 7 alt (0 - 6) */
+	rp = kmalloc(sizeof(*rp) + 7, GFP_KERNEL);
 
-	ret = btusb_switch_alt_setting(data->hdev, alt);
-	return ret < 0 ? ret : count;
+	rp->num = 0;
+	if (!drvdata->isoc)
+		goto done;
+
+	for (i = 0; i <= 6; i++) {
+		if (btusb_find_altsetting(drvdata, i))
+			rp->altsettings[rp->num++] = i;
+	}
+
+done:
+	rp_size = sizeof(*rp) + rp->num;
+
+	err = hci_drv_cmd_complete(hdev, BTUSB_HCI_DRV_OP_SUPPORTED_ALTSETTINGS,
+				   HCI_DRV_STATUS_SUCCESS, rp, rp_size);
+	kfree(rp);
+	return err;
 }
 
-static DEVICE_ATTR_RW(isoc_alt);
+static int btusb_hci_drv_switch_altsetting(struct hci_dev *hdev, void *data,
+					   u16 data_len)
+{
+	struct btusb_hci_drv_cmd_switch_altsetting *cmd = data;
+	u8 status;
+
+	if (cmd->altsetting > 6) {
+		status = HCI_DRV_STATUS_INVALID_PARAMETERS;
+	} else {
+		if (btusb_switch_alt_setting(hdev, cmd->altsetting))
+			status = HCI_DRV_STATUS_UNSPECIFIED_ERROR;
+		else
+			status = HCI_DRV_STATUS_SUCCESS;
+	}
+
+	return hci_drv_cmd_status(hdev, BTUSB_HCI_DRV_OP_SWITCH_ALTSETTING,
+				  status);
+}
+
+static const struct hci_drv_handler btusb_hci_drv_common_handlers[] = {
+	{ btusb_hci_drv_read_info,	HCI_DRV_READ_INFO_SIZE },
+};
+
+static const struct hci_drv_handler btusb_hci_drv_specific_handlers[] = {
+	{ btusb_hci_drv_supported_altsettings,
+				BTUSB_HCI_DRV_SUPPORTED_ALTSETTINGS_SIZE },
+	{ btusb_hci_drv_switch_altsetting,
+				BTUSB_HCI_DRV_SWITCH_ALTSETTING_SIZE },
+};
+
+static struct hci_drv btusb_hci_drv = {
+	.common_handler_count	= ARRAY_SIZE(btusb_hci_drv_common_handlers),
+	.common_handlers	= btusb_hci_drv_common_handlers,
+	.specific_handler_count	= ARRAY_SIZE(btusb_hci_drv_specific_handlers),
+	.specific_handlers	= btusb_hci_drv_specific_handlers,
+};
 
 static int btusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -3918,12 +3987,13 @@ static int btusb_probe(struct usb_interface *intf,
 		data->reset_gpio = reset_gpio;
 	}
 
-	hdev->open   = btusb_open;
-	hdev->close  = btusb_close;
-	hdev->flush  = btusb_flush;
-	hdev->send   = btusb_send_frame;
-	hdev->notify = btusb_notify;
-	hdev->wakeup = btusb_wakeup;
+	hdev->open    = btusb_open;
+	hdev->close   = btusb_close;
+	hdev->flush   = btusb_flush;
+	hdev->send    = btusb_send_frame;
+	hdev->notify  = btusb_notify;
+	hdev->wakeup  = btusb_wakeup;
+	hdev->hci_drv = &btusb_hci_drv;
 
 #ifdef CONFIG_PM
 	err = btusb_config_oob_wake(hdev);
@@ -4142,10 +4212,6 @@ static int btusb_probe(struct usb_interface *intf,
 						 data->isoc, data);
 		if (err < 0)
 			goto out_free_dev;
-
-		err = device_create_file(&intf->dev, &dev_attr_isoc_alt);
-		if (err)
-			goto out_free_dev;
 	}
 
 	if (IS_ENABLED(CONFIG_BT_HCIBTUSB_BCM) && data->diag) {
@@ -4192,10 +4258,8 @@ static void btusb_disconnect(struct usb_interface *intf)
 	hdev = data->hdev;
 	usb_set_intfdata(data->intf, NULL);
 
-	if (data->isoc) {
-		device_remove_file(&intf->dev, &dev_attr_isoc_alt);
+	if (data->isoc)
 		usb_set_intfdata(data->isoc, NULL);
-	}
 
 	if (data->diag)
 		usb_set_intfdata(data->diag, NULL);

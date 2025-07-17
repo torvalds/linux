@@ -81,14 +81,6 @@ static int bmp280_spi_probe(struct spi_device *spi)
 	const struct bmp280_chip_info *chip_info;
 	struct regmap_bus const *bmp_regmap_bus;
 	struct regmap *regmap;
-	int ret;
-
-	spi->bits_per_word = 8;
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		dev_err(&spi->dev, "spi_setup failed!\n");
-		return ret;
-	}
 
 	chip_info = spi_get_device_match_data(spi);
 
@@ -121,7 +113,7 @@ static const struct of_device_id bmp280_of_spi_match[] = {
 	{ .compatible = "bosch,bme280", .data = &bme280_chip_info },
 	{ .compatible = "bosch,bmp380", .data = &bmp380_chip_info },
 	{ .compatible = "bosch,bmp580", .data = &bmp580_chip_info },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bmp280_of_spi_match);
 

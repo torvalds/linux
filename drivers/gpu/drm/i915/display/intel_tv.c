@@ -33,15 +33,15 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
-#include "intel_display_irq.h"
 #include "intel_display_driver.h"
+#include "intel_display_irq.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
@@ -1585,19 +1585,17 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_crtc *crtc = to_intel_crtc(connector->state->crtc);
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tv_ctl, save_tv_ctl;
 	u32 tv_dac, save_tv_dac;
 	int type;
 
 	/* Disable TV interrupts around load detect or we'll recurse */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		i915_disable_pipestat(dev_priv, 0,
+		spin_lock_irq(&display->irq.lock);
+		i915_disable_pipestat(display, 0,
 				      PIPE_HOTPLUG_INTERRUPT_STATUS |
 				      PIPE_HOTPLUG_TV_INTERRUPT_STATUS);
-		spin_unlock_irq(&dev_priv->irq_lock);
+		spin_unlock_irq(&display->irq.lock);
 	}
 
 	save_tv_dac = tv_dac = intel_de_read(display, TV_DAC);
@@ -1668,11 +1666,11 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 
 	/* Restore interrupt config */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		i915_enable_pipestat(dev_priv, 0,
+		spin_lock_irq(&display->irq.lock);
+		i915_enable_pipestat(display, 0,
 				     PIPE_HOTPLUG_INTERRUPT_STATUS |
 				     PIPE_HOTPLUG_TV_INTERRUPT_STATUS);
-		spin_unlock_irq(&dev_priv->irq_lock);
+		spin_unlock_irq(&display->irq.lock);
 	}
 
 	return type;

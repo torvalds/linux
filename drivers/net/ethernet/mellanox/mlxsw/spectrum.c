@@ -1159,63 +1159,31 @@ static int mlxsw_sp_set_features(struct net_device *dev,
 	return 0;
 }
 
-static int mlxsw_sp_port_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				      struct ifreq *ifr)
+static int mlxsw_sp_port_hwtstamp_set(struct net_device *dev,
+				      struct kernel_hwtstamp_config *config,
+				      struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
-	int err;
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_set(mlxsw_sp_port,
-							     &config);
-	if (err)
-		return err;
-
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
-
-	return 0;
+	return mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_set(mlxsw_sp_port,
+							      config, extack);
 }
 
-static int mlxsw_sp_port_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
-				      struct ifreq *ifr)
+static int mlxsw_sp_port_hwtstamp_get(struct net_device *dev,
+				      struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config config;
-	int err;
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
-	err = mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_get(mlxsw_sp_port,
-							     &config);
-	if (err)
-		return err;
-
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
-
-	return 0;
+	return mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_get(mlxsw_sp_port,
+							      config);
 }
 
 static inline void mlxsw_sp_port_ptp_clear(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	struct hwtstamp_config config = {0};
+	struct kernel_hwtstamp_config config = {};
 
-	mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_set(mlxsw_sp_port, &config);
-}
-
-static int
-mlxsw_sp_port_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return mlxsw_sp_port_hwtstamp_set(mlxsw_sp_port, ifr);
-	case SIOCGHWTSTAMP:
-		return mlxsw_sp_port_hwtstamp_get(mlxsw_sp_port, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
+	mlxsw_sp_port->mlxsw_sp->ptp_ops->hwtstamp_set(mlxsw_sp_port, &config,
+						       NULL);
 }
 
 static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
@@ -1232,7 +1200,8 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= mlxsw_sp_port_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlxsw_sp_port_kill_vid,
 	.ndo_set_features	= mlxsw_sp_set_features,
-	.ndo_eth_ioctl		= mlxsw_sp_port_ioctl,
+	.ndo_hwtstamp_get	= mlxsw_sp_port_hwtstamp_get,
+	.ndo_hwtstamp_set	= mlxsw_sp_port_hwtstamp_set,
 };
 
 static int

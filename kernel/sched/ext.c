@@ -4092,6 +4092,11 @@ bool scx_can_stop_tick(struct rq *rq)
 DEFINE_STATIC_PERCPU_RWSEM(scx_cgroup_rwsem);
 static bool scx_cgroup_enabled;
 
+void scx_tg_init(struct task_group *tg)
+{
+	tg->scx_weight = CGROUP_WEIGHT_DFL;
+}
+
 int scx_tg_online(struct task_group *tg)
 {
 	struct scx_sched *sch = scx_root;
@@ -4241,12 +4246,12 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 
 	percpu_down_read(&scx_cgroup_rwsem);
 
-	if (scx_cgroup_enabled && tg->scx_weight != weight) {
-		if (SCX_HAS_OP(sch, cgroup_set_weight))
-			SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_set_weight, NULL,
-				    tg_cgrp(tg), weight);
-		tg->scx_weight = weight;
-	}
+	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_weight) &&
+	    tg->scx_weight != weight)
+		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_set_weight, NULL,
+			    tg_cgrp(tg), weight);
+
+	tg->scx_weight = weight;
 
 	percpu_up_read(&scx_cgroup_rwsem);
 }
@@ -5791,21 +5796,8 @@ static int bpf_scx_btf_struct_access(struct bpf_verifier_log *log,
 	return -EACCES;
 }
 
-static const struct bpf_func_proto *
-bpf_scx_get_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-{
-	switch (func_id) {
-	case BPF_FUNC_task_storage_get:
-		return &bpf_task_storage_get_proto;
-	case BPF_FUNC_task_storage_delete:
-		return &bpf_task_storage_delete_proto;
-	default:
-		return bpf_base_func_proto(func_id, prog);
-	}
-}
-
 static const struct bpf_verifier_ops bpf_scx_verifier_ops = {
-	.get_func_proto = bpf_scx_get_func_proto,
+	.get_func_proto = bpf_base_func_proto,
 	.is_valid_access = bpf_scx_is_valid_access,
 	.btf_struct_access = bpf_scx_btf_struct_access,
 };

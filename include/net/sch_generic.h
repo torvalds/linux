@@ -803,6 +803,14 @@ static inline bool qdisc_tx_changing(const struct net_device *dev)
 	return false;
 }
 
+/* "noqueue" qdisc identified by not having any enqueue, see noqueue_init() */
+static inline bool qdisc_txq_has_no_queue(const struct netdev_queue *txq)
+{
+	struct Qdisc *qdisc = rcu_access_pointer(txq->qdisc);
+
+	return qdisc->enqueue == NULL;
+}
+
 /* Is the device using the noop qdisc on all queues?  */
 static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 {
@@ -963,14 +971,6 @@ static inline void qdisc_qstats_qlen_backlog(struct Qdisc *sch,  __u32 *qlen,
 	gnet_stats_add_queue(&qstats, sch->cpu_qstats, &sch->qstats);
 	*qlen = qstats.qlen + qdisc_qlen(sch);
 	*backlog = qstats.backlog;
-}
-
-static inline void qdisc_tree_flush_backlog(struct Qdisc *sch)
-{
-	__u32 qlen, backlog;
-
-	qdisc_qstats_qlen_backlog(sch, &qlen, &backlog);
-	qdisc_tree_reduce_backlog(sch, qlen, backlog);
 }
 
 static inline void qdisc_purge_queue(struct Qdisc *sch)

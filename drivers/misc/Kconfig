@@ -114,6 +114,18 @@ config RPMB
 
 	  If unsure, select N.
 
+config TI_FPC202
+	tristate "TI FPC202 Dual Port Controller"
+	depends on I2C
+	select GPIOLIB
+	select I2C_ATR
+	help
+	  If you say yes here you get support for the Texas Instruments FPC202
+	  Dual Port Controller.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called fpc202.
+
 config TIFM_CORE
 	tristate "TI Flash Media interface support"
 	depends on PCI
@@ -640,7 +652,6 @@ source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mei/Kconfig"
 source "drivers/misc/vmw_vmci/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
-source "drivers/misc/echo/Kconfig"
 source "drivers/misc/ocxl/Kconfig"
 source "drivers/misc/bcm-vk/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
@@ -648,4 +659,5 @@ source "drivers/misc/uacce/Kconfig"
 source "drivers/misc/pvpanic/Kconfig"
 source "drivers/misc/mchp_pci1xxxx/Kconfig"
 source "drivers/misc/keba/Kconfig"
+source "drivers/misc/amd-sbi/Kconfig"
 endmenu

@@ -218,6 +218,24 @@ config SENSORS_LM25066_REGULATOR
 	  If you say yes here you get regulator support for National
 	  Semiconductor LM25066, LM5064, and LM5066.
 
+config SENSORS_LT3074
+	tristate "Analog Devices LT3074"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices LT3074.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called lt3074.
+
+config SENSORS_LT3074_REGULATOR
+	tristate "Regulator support for LT3074"
+	depends on SENSORS_LT3074 && REGULATOR
+	help
+	  If you say yes here you get regulator support for Analog Devices
+	  LT3074. The LT3074 is a low voltage, ultralow noise, high PSRR,
+	  dropout linear regulator. The device supplies up to 3A with a
+	  typical dropout voltage of 45mV.
+
 config SENSORS_LT7182S
 	tristate "Analog Devices LT7182S"
 	help

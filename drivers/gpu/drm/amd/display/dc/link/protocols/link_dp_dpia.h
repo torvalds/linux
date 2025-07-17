@@ -38,4 +38,10 @@ enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link);
  * Returns true if HPD high.
  */
 bool dpia_query_hpd_status(struct dc_link *link);
+
+/* Decide the DP tunneling settings based on the DPCD capabilities
+ */
+void link_decide_dp_tunnel_settings(struct dc_stream_state *stream,
+			struct dc_tunnel_settings *dp_tunnel_setting);
+
 #endif /* __DC_LINK_DPIA_H__ */

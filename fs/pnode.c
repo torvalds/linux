@@ -231,8 +231,8 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 	/* skip if mountpoint isn't visible in m */
 	if (!is_subdir(dest_mp->m_dentry, m->mnt.mnt_root))
 		return 0;
-	/* skip if m is in the anon_ns we are emptying */
-	if (m->mnt_ns->mntns_flags & MNTNS_PROPAGATING)
+	/* skip if m is in the anon_ns */
+	if (is_anon_ns(m->mnt_ns))
 		return 0;
 
 	if (peers(m, last_dest)) {

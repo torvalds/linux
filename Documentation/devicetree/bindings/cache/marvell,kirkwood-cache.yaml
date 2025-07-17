@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cache/marvell,kirkwood-cache.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Feroceon/Kirkwood Cache
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  compatible:
+    enum:
+      - marvell,feroceon-cache
+      - marvell,kirkwood-cache
+
+  reg:
+    maxItems: 1
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: marvell,kirkwood-cache
+    then:
+      required:
+        - reg
+    else:
+      properties:
+        reg: false
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    l2-cache@20128 {
+        compatible = "marvell,kirkwood-cache";
+        reg = <0x20128 0x4>;
+    };

@@ -3935,7 +3935,8 @@ static int arcmsr_polling_ccbdone(struct AdapterControlBlock *acb,
 
 static void arcmsr_set_iop_datetime(struct timer_list *t)
 {
-	struct AdapterControlBlock *pacb = from_timer(pacb, t, refresh_timer);
+	struct AdapterControlBlock *pacb = timer_container_of(pacb, t,
+							      refresh_timer);
 	unsigned int next_time;
 	struct tm tm;
 
@@ -4263,7 +4264,8 @@ static void arcmsr_wait_firmware_ready(struct AdapterControlBlock *acb)
 
 static void arcmsr_request_device_map(struct timer_list *t)
 {
-	struct AdapterControlBlock *acb = from_timer(acb, t, eternal_timer);
+	struct AdapterControlBlock *acb = timer_container_of(acb, t,
+							     eternal_timer);
 	if (acb->acb_flags & (ACB_F_MSG_GET_CONFIG | ACB_F_BUS_RESET | ACB_F_ABORT)) {
 		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
 	} else {

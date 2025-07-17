@@ -449,13 +449,13 @@ static int mcp9600_probe(struct i2c_client *client)
 
 static const struct i2c_device_id mcp9600_id[] = {
 	{ "mcp9600" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp9600_id);
 
 static const struct of_device_id mcp9600_of_match[] = {
 	{ .compatible = "microchip,mcp9600" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp9600_of_match);
 

@@ -153,8 +153,6 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		c->verify_data = __bch2_btree_node_mem_alloc(c);
 		if (!c->verify_data)
 			goto out;
-
-		list_del_init(&c->verify_data->list);
 	}
 
 	BUG_ON(b->nsets != 1);
@@ -492,6 +490,8 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	prt_printf(out, "journal pin %px:\t%llu\n",
 		   &b->writes[1].journal, b->writes[1].journal.seq);
 
+	prt_printf(out, "ob:\t%u\n", b->ob.nr);
+
 	printbuf_indent_sub(out, 2);
 }
 
@@ -508,27 +508,27 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 	i->ret	= 0;
 
 	do {
-		struct bucket_table *tbl;
-		struct rhash_head *pos;
-		struct btree *b;
-
 		ret = bch2_debugfs_flush_buf(i);
 		if (ret)
 			return ret;
 
-		rcu_read_lock();
 		i->buf.atomic++;
-		tbl = rht_dereference_rcu(c->btree_cache.table.tbl,
-					  &c->btree_cache.table);
-		if (i->iter < tbl->size) {
-			rht_for_each_entry_rcu(b, pos, tbl, i->iter, hash)
-				bch2_cached_btree_node_to_text(&i->buf, c, b);
-			i->iter++;
-		} else {
-			done = true;
+		scoped_guard(rcu) {
+			struct bucket_table *tbl =
+				rht_dereference_rcu(c->btree_cache.table.tbl,
+						    &c->btree_cache.table);
+			if (i->iter < tbl->size) {
+				struct rhash_head *pos;
+				struct btree *b;
+
+				rht_for_each_entry_rcu(b, pos, tbl, i->iter, hash)
+					bch2_cached_btree_node_to_text(&i->buf, c, b);
+				i->iter++;
+			} else {
+				done = true;
+			}
 		}
 		--i->buf.atomic;
-		rcu_read_unlock();
 	} while (!done);
 
 	if (i->buf.allocation_failure)
@@ -584,6 +584,8 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
+
+	int srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 restart:
 	seqmutex_lock(&c->btree_trans_lock);
 	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
@@ -596,6 +598,11 @@ restart:
 
 		if (!closure_get_not_zero(&trans->ref))
 			continue;
+
+		if (!trans->srcu_held) {
+			closure_put(&trans->ref);
+			continue;
+		}
 
 		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
@@ -618,6 +625,8 @@ restart:
 	}
 	seqmutex_unlock(&c->btree_trans_lock);
 unlocked:
+	srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
+
 	if (i->buf.allocation_failure)
 		ret = -ENOMEM;
 

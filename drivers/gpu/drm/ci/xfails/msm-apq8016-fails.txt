@@ -1,8 +1,4 @@
 kms_3d,Fail
-kms_cursor_legacy@forked-bo,Fail
-kms_cursor_legacy@forked-move,Fail
-kms_cursor_legacy@single-bo,Fail
-kms_cursor_legacy@torture-bo,Fail
 kms_force_connector_basic@force-edid,Fail
 kms_hdmi_inject@inject-4k,Fail
 kms_lease@lease-uevent,Fail

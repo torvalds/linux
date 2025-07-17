@@ -411,12 +411,11 @@ static int vxlan_vnifilter_dump(struct sk_buff *skb, struct netlink_callback *cb
 	struct tunnel_msg *tmsg;
 	struct net_device *dev;
 
-	if (cb->nlh->nlmsg_len < nlmsg_msg_size(sizeof(struct tunnel_msg))) {
+	tmsg = nlmsg_payload(cb->nlh, sizeof(*tmsg));
+	if (!tmsg) {
 		NL_SET_ERR_MSG(cb->extack, "Invalid msg length");
 		return -EINVAL;
 	}
-
-	tmsg = nlmsg_data(cb->nlh);
 
 	if (tmsg->flags & ~TUNNEL_MSG_VALID_USER_FLAGS) {
 		NL_SET_ERR_MSG(cb->extack, "Invalid tunnelmsg flags in ancillary header");
@@ -483,11 +482,9 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 					  struct netlink_ext_ack *extack)
 {
 	struct vxlan_rdst *dst = &vxlan->default_dst;
-	u32 hash_index;
 	int err = 0;
 
-	hash_index = fdb_head_index(vxlan, all_zeros_mac, vni);
-	spin_lock_bh(&vxlan->hash_lock[hash_index]);
+	spin_lock_bh(&vxlan->hash_lock);
 	if (remote_ip && !vxlan_addr_any(remote_ip)) {
 		err = vxlan_fdb_update(vxlan, all_zeros_mac,
 				       remote_ip,
@@ -499,7 +496,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 				       dst->remote_ifindex,
 				       NTF_SELF, 0, true, extack);
 		if (err) {
-			spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+			spin_unlock_bh(&vxlan->hash_lock);
 			return err;
 		}
 	}
@@ -512,7 +509,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 				   dst->remote_ifindex,
 				   true);
 	}
-	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+	spin_unlock_bh(&vxlan->hash_lock);
 
 	return err;
 }
@@ -628,10 +625,7 @@ static void vxlan_vni_delete_group(struct vxlan_dev *vxlan,
 	 */
 	if (!vxlan_addr_any(&vninode->remote_ip) ||
 	    !vxlan_addr_any(&dst->remote_ip)) {
-		u32 hash_index = fdb_head_index(vxlan, all_zeros_mac,
-						vninode->vni);
-
-		spin_lock_bh(&vxlan->hash_lock[hash_index]);
+		spin_lock_bh(&vxlan->hash_lock);
 		__vxlan_fdb_delete(vxlan, all_zeros_mac,
 				   (vxlan_addr_any(&vninode->remote_ip) ?
 				   dst->remote_ip : vninode->remote_ip),
@@ -639,7 +633,7 @@ static void vxlan_vni_delete_group(struct vxlan_dev *vxlan,
 				   vninode->vni, vninode->vni,
 				   dst->remote_ifindex,
 				   true);
-		spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+		spin_unlock_bh(&vxlan->hash_lock);
 	}
 
 	if (vxlan->dev->flags & IFF_UP) {

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/amazon,al-fic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amazon Annapurna Labs Fabric Interrupt Controller
+
+maintainers:
+  - Talel Shenhar <talel@amazon.com>
+
+properties:
+  compatible:
+    const: amazon,al-fic
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    interrupt-controller@fd8a8500 {
+        compatible = "amazon,al-fic";
+        reg = <0xfd8a8500 0x1000>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupts = <GIC_SPI 0x0 IRQ_TYPE_LEVEL_HIGH>;
+    };

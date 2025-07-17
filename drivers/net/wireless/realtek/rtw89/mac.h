@@ -370,6 +370,7 @@ enum rtw89_mac_mem_sel {
 	RTW89_MAC_MEM_TXD_FIFO_0_V1,
 	RTW89_MAC_MEM_TXD_FIFO_1_V1,
 	RTW89_MAC_MEM_WD_PAGE,
+	RTW89_MAC_MEM_MLD_TBL,
 
 	/* keep last */
 	RTW89_MAC_MEM_NUM,
@@ -427,6 +428,18 @@ enum rtw89_mac_c2h_mcc_func {
 	NUM_OF_RTW89_MAC_C2H_FUNC_MCC,
 };
 
+enum rtw89_mac_c2h_mlo_func {
+	RTW89_MAC_C2H_FUNC_MLO_GET_TBL			= 0x0,
+	RTW89_MAC_C2H_FUNC_MLO_EMLSR_TRANS_DONE		= 0x1,
+	RTW89_MAC_C2H_FUNC_MLO_EMLSR_STA_CFG_DONE	= 0x2,
+	RTW89_MAC_C2H_FUNC_MCMLO_RELINK_RPT		= 0x3,
+	RTW89_MAC_C2H_FUNC_MCMLO_SN_SYNC_RPT		= 0x4,
+	RTW89_MAC_C2H_FUNC_MLO_LINK_CFG_STAT		= 0x5,
+	RTW89_MAC_C2H_FUNC_MLO_DM_DBG_DUMP		= 0x6,
+
+	NUM_OF_RTW89_MAC_C2H_FUNC_MLO,
+};
+
 enum rtw89_mac_c2h_mrc_func {
 	RTW89_MAC_C2H_FUNC_MRC_TSF_RPT = 0,
 	RTW89_MAC_C2H_FUNC_MRC_STATUS_RPT = 1,
@@ -453,6 +466,7 @@ enum rtw89_mac_c2h_class {
 	RTW89_MAC_C2H_CLASS_WOW = 0x3,
 	RTW89_MAC_C2H_CLASS_MCC = 0x4,
 	RTW89_MAC_C2H_CLASS_FWDBG = 0x5,
+	RTW89_MAC_C2H_CLASS_MLO = 0xc,
 	RTW89_MAC_C2H_CLASS_MRC = 0xe,
 	RTW89_MAC_C2H_CLASS_AP = 0x18,
 	RTW89_MAC_C2H_CLASS_MAX,
@@ -1031,8 +1045,11 @@ struct rtw89_mac_gen_def {
 
 	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
 
+	int (*prep_chan_list)(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link);
+	void (*free_chan_list)(struct rtw89_dev *rtwdev);
 	int (*add_chan_list)(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif_link *rtwvif_link, bool connected);
+			     struct rtw89_vif_link *rtwvif_link);
 	int (*add_chan_list_pno)(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link);
 	int (*scan_offload)(struct rtw89_dev *rtwdev,

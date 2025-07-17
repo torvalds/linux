@@ -12,6 +12,7 @@
 #include "reg.h"
 #include "rtw8922a.h"
 #include "rtw8922a_rfk.h"
+#include "sar.h"
 #include "util.h"
 
 #define RTW8922A_FW_FORMAT_MAX 3
@@ -2070,7 +2071,8 @@ static void __rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev,
 	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
 
 	rtw89_phy_rfk_dack_and_wait(rtwdev, phy_idx, chan, 58);
-	rtw89_phy_rfk_rxdck_and_wait(rtwdev, phy_idx, chan, false, 32);
+	if (!test_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags))
+		rtw89_phy_rfk_rxdck_and_wait(rtwdev, phy_idx, chan, false, 128);
 }
 
 static void rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev)
@@ -2233,6 +2235,31 @@ static void rtw8922a_set_tx_shape(struct rtw89_dev *rtwdev,
 		rtw8922a_bb_tx_triangular(rtwdev, true, phy_idx);
 }
 
+static void rtw8922a_set_txpwr_sar_diff(struct rtw89_dev *rtwdev,
+					const struct rtw89_chan *chan,
+					enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_sar_parm sar_parm = {
+		.center_freq = chan->freq,
+		.force_path = true,
+	};
+	s16 sar_rf;
+	s8 sar_mac;
+
+	if (phy_idx != RTW89_PHY_0)
+		return;
+
+	sar_parm.path = RF_PATH_A;
+	sar_mac = rtw89_query_sar(rtwdev, &sar_parm);
+	sar_rf = rtw89_phy_txpwr_mac_to_rf(rtwdev, sar_mac);
+	rtw89_phy_write32_mask(rtwdev, R_P0_TXPWRB_BE, B_TXPWRB_MAX_BE, sar_rf);
+
+	sar_parm.path = RF_PATH_B;
+	sar_mac = rtw89_query_sar(rtwdev, &sar_parm);
+	sar_rf = rtw89_phy_txpwr_mac_to_rf(rtwdev, sar_mac);
+	rtw89_phy_write32_mask(rtwdev, R_P1_TXPWRB_BE, B_TXPWRB_MAX_BE, sar_rf);
+}
+
 static void rtw8922a_set_txpwr(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
 			       enum rtw89_phy_idx phy_idx)
@@ -2244,6 +2271,7 @@ static void rtw8922a_set_txpwr(struct rtw89_dev *rtwdev,
 	rtw89_phy_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
 	rtw8922a_set_txpwr_diff(rtwdev, chan, phy_idx);
 	rtw8922a_set_txpwr_ref(rtwdev, phy_idx);
+	rtw8922a_set_txpwr_sar_diff(rtwdev, chan, phy_idx);
 }
 
 static void rtw8922a_set_txpwr_ctrl(struct rtw89_dev *rtwdev,
@@ -2823,12 +2851,14 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.support_unii4		= true,
 	.support_ant_gain	= true,
 	.support_tas		= false,
+	.support_sar_by_ant	= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
 	.rx_freq_frome_ie	= false,
 	.hw_sec_hdr		= true,
 	.hw_mgmt_tx_encrypt	= true,
 	.hw_tkip_crypto		= true,
+	.hw_mlo_bmc_crypto	= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,

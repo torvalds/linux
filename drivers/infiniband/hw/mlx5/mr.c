@@ -525,7 +525,7 @@ static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
 		ent->fill_to_high_water = false;
 		if (ent->pending)
 			queue_delayed_work(ent->dev->cache.wq, &ent->dwork,
-					   msecs_to_jiffies(1000));
+					   secs_to_jiffies(1));
 		else
 			mod_delayed_work(ent->dev->cache.wq, &ent->dwork, 0);
 	}
@@ -576,7 +576,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 					"add keys command failed, err %d\n",
 					err);
 				queue_delayed_work(cache->wq, &ent->dwork,
-						   msecs_to_jiffies(1000));
+						   secs_to_jiffies(1));
 			}
 		}
 	} else if (ent->mkeys_queue.ci > 2 * ent->limit) {
@@ -838,7 +838,7 @@ static void mlx5_mkey_cache_debugfs_init(struct mlx5_ib_dev *dev)
 
 static void delay_time_func(struct timer_list *t)
 {
-	struct mlx5_ib_dev *dev = from_timer(dev, t, delay_timer);
+	struct mlx5_ib_dev *dev = timer_container_of(dev, t, delay_timer);
 
 	WRITE_ONCE(dev->fill_delay, 0);
 }
@@ -2027,45 +2027,22 @@ void mlx5_ib_revoke_data_direct_mrs(struct mlx5_ib_dev *dev)
 	}
 }
 
-static int mlx5_revoke_mr(struct mlx5_ib_mr *mr)
+static int mlx5_umr_revoke_mr_with_lock(struct mlx5_ib_mr *mr)
 {
-	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
-	struct mlx5_cache_ent *ent = mr->mmkey.cache_ent;
-	bool is_odp = is_odp_mr(mr);
 	bool is_odp_dma_buf = is_dmabuf_mr(mr) &&
-			!to_ib_umem_dmabuf(mr->umem)->pinned;
-	bool from_cache = !!ent;
-	int ret = 0;
+			      !to_ib_umem_dmabuf(mr->umem)->pinned;
+	bool is_odp = is_odp_mr(mr);
+	int ret;
 
 	if (is_odp)
 		mutex_lock(&to_ib_umem_odp(mr->umem)->umem_mutex);
 
 	if (is_odp_dma_buf)
-		dma_resv_lock(to_ib_umem_dmabuf(mr->umem)->attach->dmabuf->resv, NULL);
+		dma_resv_lock(to_ib_umem_dmabuf(mr->umem)->attach->dmabuf->resv,
+			      NULL);
 
-	if (mr->mmkey.cacheable && !mlx5r_umr_revoke_mr(mr) && !cache_ent_find_and_store(dev, mr)) {
-		ent = mr->mmkey.cache_ent;
-		/* upon storing to a clean temp entry - schedule its cleanup */
-		spin_lock_irq(&ent->mkeys_queue.lock);
-		if (from_cache)
-			ent->in_use--;
-		if (ent->is_tmp && !ent->tmp_cleanup_scheduled) {
-			mod_delayed_work(ent->dev->cache.wq, &ent->dwork,
-					 msecs_to_jiffies(30 * 1000));
-			ent->tmp_cleanup_scheduled = true;
-		}
-		spin_unlock_irq(&ent->mkeys_queue.lock);
-		goto out;
-	}
+	ret = mlx5r_umr_revoke_mr(mr);
 
-	if (ent) {
-		spin_lock_irq(&ent->mkeys_queue.lock);
-		ent->in_use--;
-		mr->mmkey.cache_ent = NULL;
-		spin_unlock_irq(&ent->mkeys_queue.lock);
-	}
-	ret = destroy_mkey(dev, mr);
-out:
 	if (is_odp) {
 		if (!ret)
 			to_ib_umem_odp(mr->umem)->private = NULL;
@@ -2075,9 +2052,65 @@ out:
 	if (is_odp_dma_buf) {
 		if (!ret)
 			to_ib_umem_dmabuf(mr->umem)->private = NULL;
-		dma_resv_unlock(to_ib_umem_dmabuf(mr->umem)->attach->dmabuf->resv);
+		dma_resv_unlock(
+			to_ib_umem_dmabuf(mr->umem)->attach->dmabuf->resv);
 	}
 
+	return ret;
+}
+
+static int mlx5r_handle_mkey_cleanup(struct mlx5_ib_mr *mr)
+{
+	bool is_odp_dma_buf = is_dmabuf_mr(mr) &&
+			      !to_ib_umem_dmabuf(mr->umem)->pinned;
+	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
+	struct mlx5_cache_ent *ent = mr->mmkey.cache_ent;
+	bool is_odp = is_odp_mr(mr);
+	bool from_cache = !!ent;
+	int ret;
+
+	if (mr->mmkey.cacheable && !mlx5_umr_revoke_mr_with_lock(mr) &&
+	    !cache_ent_find_and_store(dev, mr)) {
+		ent = mr->mmkey.cache_ent;
+		/* upon storing to a clean temp entry - schedule its cleanup */
+		spin_lock_irq(&ent->mkeys_queue.lock);
+		if (from_cache)
+			ent->in_use--;
+		if (ent->is_tmp && !ent->tmp_cleanup_scheduled) {
+			mod_delayed_work(ent->dev->cache.wq, &ent->dwork,
+					 secs_to_jiffies(30));
+			ent->tmp_cleanup_scheduled = true;
+		}
+		spin_unlock_irq(&ent->mkeys_queue.lock);
+		return 0;
+	}
+
+	if (ent) {
+		spin_lock_irq(&ent->mkeys_queue.lock);
+		ent->in_use--;
+		mr->mmkey.cache_ent = NULL;
+		spin_unlock_irq(&ent->mkeys_queue.lock);
+	}
+
+	if (is_odp)
+		mutex_lock(&to_ib_umem_odp(mr->umem)->umem_mutex);
+
+	if (is_odp_dma_buf)
+		dma_resv_lock(to_ib_umem_dmabuf(mr->umem)->attach->dmabuf->resv,
+			      NULL);
+	ret = destroy_mkey(dev, mr);
+	if (is_odp) {
+		if (!ret)
+			to_ib_umem_odp(mr->umem)->private = NULL;
+		mutex_unlock(&to_ib_umem_odp(mr->umem)->umem_mutex);
+	}
+
+	if (is_odp_dma_buf) {
+		if (!ret)
+			to_ib_umem_dmabuf(mr->umem)->private = NULL;
+		dma_resv_unlock(
+			to_ib_umem_dmabuf(mr->umem)->attach->dmabuf->resv);
+	}
 	return ret;
 }
 
@@ -2126,7 +2159,7 @@ static int __mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	}
 
 	/* Stop DMA */
-	rc = mlx5_revoke_mr(mr);
+	rc = mlx5r_handle_mkey_cleanup(mr);
 	if (rc)
 		return rc;
 

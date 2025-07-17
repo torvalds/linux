@@ -198,12 +198,6 @@ struct cm_peer {
 	struct rio_dev *rdev;
 };
 
-struct rio_cm_work {
-	struct work_struct work;
-	struct cm_dev *cm;
-	void *data;
-};
-
 struct conn_req {
 	struct list_head node;
 	u32 destid;	/* requester destID */
@@ -788,6 +782,9 @@ static int riocm_ch_send(u16 ch_id, void *buf, int len)
 
 	if (buf == NULL || ch_id == 0 || len == 0 || len > RIO_MAX_MSG_SIZE)
 		return -EINVAL;
+
+	if (len < sizeof(struct rio_ch_chan_hdr))
+		return -EINVAL;		/* insufficient data from user */
 
 	ch = riocm_get_channel(ch_id);
 	if (!ch) {

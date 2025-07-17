@@ -119,7 +119,7 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 	return 0;
 bad:
 	bch2_replicas_entry_to_text(err, r);
-	return -BCH_ERR_invalid_replicas_entry;
+	return bch_err_throw(c, invalid_replicas_entry);
 }
 
 void bch2_cpu_replicas_to_text(struct printbuf *out,
@@ -311,7 +311,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	    !__replicas_has_entry(&c->replicas_gc, new_entry)) {
 		new_gc = cpu_replicas_add_entry(c, &c->replicas_gc, new_entry);
 		if (!new_gc.entries) {
-			ret = -BCH_ERR_ENOMEM_cpu_replicas;
+			ret = bch_err_throw(c, ENOMEM_cpu_replicas);
 			goto err;
 		}
 	}
@@ -319,7 +319,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	if (!__replicas_has_entry(&c->replicas, new_entry)) {
 		new_r = cpu_replicas_add_entry(c, &c->replicas, new_entry);
 		if (!new_r.entries) {
-			ret = -BCH_ERR_ENOMEM_cpu_replicas;
+			ret = bch_err_throw(c, ENOMEM_cpu_replicas);
 			goto err;
 		}
 
@@ -422,7 +422,7 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	if (!c->replicas_gc.entries) {
 		mutex_unlock(&c->sb_lock);
 		bch_err(c, "error allocating c->replicas_gc");
-		return -BCH_ERR_ENOMEM_replicas_gc;
+		return bch_err_throw(c, ENOMEM_replicas_gc);
 	}
 
 	for_each_cpu_replicas_entry(&c->replicas, e)
@@ -458,7 +458,7 @@ retry:
 	new.entries	= kcalloc(nr, new.entry_size, GFP_KERNEL);
 	if (!new.entries) {
 		bch_err(c, "error allocating c->replicas_gc");
-		return -BCH_ERR_ENOMEM_replicas_gc;
+		return bch_err_throw(c, ENOMEM_replicas_gc);
 	}
 
 	mutex_lock(&c->sb_lock);
@@ -622,7 +622,7 @@ static int bch2_cpu_replicas_to_sb_replicas_v0(struct bch_fs *c,
 	sb_r = bch2_sb_field_resize(&c->disk_sb, replicas_v0,
 			DIV_ROUND_UP(bytes, sizeof(u64)));
 	if (!sb_r)
-		return -BCH_ERR_ENOSPC_sb_replicas;
+		return bch_err_throw(c, ENOSPC_sb_replicas);
 
 	bch2_sb_field_delete(&c->disk_sb, BCH_SB_FIELD_replicas);
 	sb_r = bch2_sb_field_get(c->disk_sb.sb, replicas_v0);
@@ -667,7 +667,7 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *c,
 	sb_r = bch2_sb_field_resize(&c->disk_sb, replicas,
 			DIV_ROUND_UP(bytes, sizeof(u64)));
 	if (!sb_r)
-		return -BCH_ERR_ENOSPC_sb_replicas;
+		return bch_err_throw(c, ENOSPC_sb_replicas);
 
 	bch2_sb_field_delete(&c->disk_sb, BCH_SB_FIELD_replicas_v0);
 	sb_r = bch2_sb_field_get(c->disk_sb.sb, replicas);
@@ -819,19 +819,18 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 		if (e->data_type == BCH_DATA_cached)
 			continue;
 
-		rcu_read_lock();
-		for (unsigned i = 0; i < e->nr_devs; i++) {
-			if (e->devs[i] == BCH_SB_MEMBER_INVALID) {
-				nr_failed++;
-				continue;
+		scoped_guard(rcu)
+			for (unsigned i = 0; i < e->nr_devs; i++) {
+				if (e->devs[i] == BCH_SB_MEMBER_INVALID) {
+					nr_failed++;
+					continue;
+				}
+
+				nr_online += test_bit(e->devs[i], devs.d);
+
+				struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
+				nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 			}
-
-			nr_online += test_bit(e->devs[i], devs.d);
-
-			struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
-			nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
-		}
-		rcu_read_unlock();
 
 		if (nr_online + nr_failed == e->nr_devs)
 			continue;

@@ -3,7 +3,7 @@
 # Makefile for the linux kernel.
 #
 
-extra-y	+= vmlinux.lds
+always-$(KBUILD_BUILTIN)	+= vmlinux.lds
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 

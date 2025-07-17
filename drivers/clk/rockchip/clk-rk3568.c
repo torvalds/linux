@@ -89,6 +89,7 @@ static struct rockchip_pll_rate_table rk3568_pll_rates[] = {
 	RK3036_PLL_RATE(96000000, 1, 96, 6, 4, 1, 0),
 	RK3036_PLL_RATE(78750000, 4, 315, 6, 4, 1, 0),
 	RK3036_PLL_RATE(74250000, 2, 99, 4, 4, 1, 0),
+	RK3036_PLL_RATE(33300000, 4, 111, 5, 4, 1, 0),
 	{ /* sentinel */ },
 };
 
@@ -590,7 +591,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKSEL_CON(9), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(4), 0, GFLAGS),
 	MUXGRF(CLK_DDR1X, "clk_ddr1x", clk_ddr1x_p, CLK_SET_RATE_PARENT,
-			RK3568_CLKSEL_CON(9), 15, 1, MFLAGS),
+			RK3568_CLKSEL_CON(9), 15, 1, MFLAGS, grf_type_sys),
 
 	COMPOSITE_NOMUX(CLK_MSCH, "clk_msch", "clk_ddr1x", CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(10), 0, 2, DFLAGS,

@@ -129,7 +129,7 @@ static void qaic_timesync_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_resu
 
 static void qaic_timesync_timer(struct timer_list *t)
 {
-	struct mqts_dev *mqtsdev = from_timer(mqtsdev, t, timer);
+	struct mqts_dev *mqtsdev = timer_container_of(mqtsdev, t, timer);
 	struct qts_host_time_sync_msg_data *sync_msg;
 	u64 device_qtimer_us;
 	u64 device_qtimer;

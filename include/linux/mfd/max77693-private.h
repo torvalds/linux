@@ -2,7 +2,7 @@
 /*
  * max77693-private.h - Voltage regulator driver for the Maxim 77693
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electronics
  *  SangYoung Son <hello.son@samsung.com>
  *
  * This program is not provided / owned by Maxim Integrated Products.

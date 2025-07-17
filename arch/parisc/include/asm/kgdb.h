@@ -21,7 +21,7 @@
 
 #define CACHE_FLUSH_IS_SAFE		1
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline void arch_kgdb_breakpoint(void)
 {

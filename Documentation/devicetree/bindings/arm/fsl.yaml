@@ -1120,6 +1120,12 @@ properties:
           - const: avnet,sm2s-imx8mp              # SM2S-IMX8PLUS SoM
           - const: fsl,imx8mp
 
+      - description: Boundary Devices Nitrogen8M Plus ENC Carrier Board
+        items:
+          - const: boundary,imx8mp-nitrogen-enc-carrier-board
+          - const: boundary,imx8mp-nitrogen-som
+          - const: fsl,imx8mp
+
       - description: Boundary Device Nitrogen8MP Universal SMARC Carrier Board
         items:
           - const: boundary,imx8mp-nitrogen-smarc-universal-board
@@ -1156,6 +1162,13 @@ properties:
           - const: kontron,imx8mp-osm-s               # Kontron i.MX8MP OSM-S SoM
           - const: fsl,imx8mp
 
+      - description: PHYTEC phyCORE-i.MX8MP FPSC based boards
+        items:
+          - enum:
+              - phytec,imx8mp-libra-rdk-fpsc  # i.MX 8M Plus Libra RDK
+          - const: phytec,imx8mp-phycore-fpsc # phyCORE-i.MX 8M Plus FPSC
+          - const: fsl,imx8mp
+
       - description: PHYTEC phyCORE-i.MX8MP SoM based boards
         items:
           - const: phytec,imx8mp-phyboard-pollux-rdk # phyBOARD-Pollux RDK
@@ -1174,6 +1187,12 @@ properties:
           - enum:
               - polyhex,imx8mp-debix-som-a-bmb-08   # Polyhex Debix SOM A on SOM A I/O board
           - const: polyhex,imx8mp-debix-som-a       # Polyhex Debix SOM A
+          - const: fsl,imx8mp
+
+      - description: Toradex Boards with SMARC iMX8M Plus Modules
+        items:
+          - const: toradex,smarc-imx8mp-dev # Toradex SMARC iMX8M Plus on Toradex SMARC Development Board
+          - const: toradex,smarc-imx8mp     # Toradex SMARC iMX8M Plus Module
           - const: fsl,imx8mp
 
       - description: Toradex Boards with Verdin iMX8M Plus Modules
@@ -1333,6 +1352,22 @@ properties:
               - const: tq,imx8qxp-tqma8xqp     # TQ-Systems GmbH TQMa8XQP SOM (with i.MX8QXP)
               - const: fsl,imx8qxp
 
+      - description:
+          TQMa8XxS is a series of SOM featuring NXP i.MX8X system-on-chip
+          variants. It has the SMARC-2.0 form factor and is designed to be placed on
+          different carrier boards. MB-SMARC-2 is a carrier reference design.
+        oneOf:
+          - items:
+              - enum:
+                  - tq,imx8qxp-tqma8xqps-mb-smarc-2 # TQ-Systems GmbH TQMa8QXPS SOM on MB-SMARC-2
+              - const: tq,imx8qxp-tqma8xqps         # TQ-Systems GmbH TQMa8QXPS SOM
+              - const: fsl,imx8qxp
+          - items:
+              - enum:
+                  - tq,imx8dxp-tqma8xdps-mb-smarc-2 # TQ-Systems GmbH TQMa8XDPS SOM on MB-SMARC-2
+              - const: tq,imx8dxp-tqma8xdps         # TQ-Systems GmbH TQMa8XDPS SOM
+              - const: fsl,imx8dxp
+
       - description: i.MX8ULP based Boards
         items:
           - enum:
@@ -1346,6 +1381,12 @@ properties:
               - fsl,imx93-11x11-evk       # i.MX93 11x11 EVK Board
               - fsl,imx93-14x14-evk       # i.MX93 14x14 EVK Board
           - const: fsl,imx93
+
+      - description: i.MX94 based Boards
+        items:
+          - enum:
+              - fsl,imx943-evk            # i.MX943 EVK Board
+          - const: fsl,imx94
 
       - description: i.MX95 based Boards
         items:
@@ -1374,12 +1415,16 @@ properties:
           All SOM and CPU variants use the same device tree hence only one
           compatible is needed. Bootloader disables all features not present
           in the assembled SOC.
+          MBa91xxCA mainboard can be used as starterkit for the SOM
+          soldered on an adapter board or for the connector variant
+          to evaluate RGB display support.
           MBa93xxCA mainboard can be used as starterkit for the SOM
           soldered on an adapter board or for the connector variant
           MBa93xxLA mainboard is a single board computer using the solderable
           SOM variant
         items:
           - enum:
+              - tq,imx93-tqma9352-mba91xxca # TQ-Systems GmbH i.MX93 TQMa93xxCA/LA SOM on MBa91xxCA
               - tq,imx93-tqma9352-mba93xxca # TQ-Systems GmbH i.MX93 TQMa93xxCA/LA SOM on MBa93xxCA
               - tq,imx93-tqma9352-mba93xxla # TQ-Systems GmbH i.MX93 TQMa93xxLA SOM on MBa93xxLA SBC
           - const: tq,imx93-tqma9352        # TQ-Systems GmbH i.MX93 TQMa93xxCA/LA SOM
@@ -1387,8 +1432,10 @@ properties:
 
       - description: PHYTEC phyCORE-i.MX93 SoM based boards
         items:
-          - const: phytec,imx93-phyboard-segin # phyBOARD-Segin with i.MX93
-          - const: phytec,imx93-phycore-som    # phyCORE-i.MX93 SoM
+          - enum:
+              - phytec,imx93-phyboard-nash  # phyBOARD-Nash-i.MX93
+              - phytec,imx93-phyboard-segin # phyBOARD-Segin with i.MX93
+          - const: phytec,imx93-phycore-som # phyCORE-i.MX93 SoM
           - const: fsl,imx93
 
       - description: Variscite VAR-SOM-MX93 based boards
@@ -1402,6 +1449,16 @@ properties:
           - const: kontron,imx93-bl-osm-s # Kontron BL i.MX93 OSM-S board
           - const: kontron,imx93-osm-s    # Kontron OSM-S i.MX93 SoM
           - const: fsl,imx93
+
+      - description:
+          TQMa95xxSA is a series of SOM featuring NXP i.MX95 SoC variants.
+          It has the SMARC form factor and is designed to be placed on
+          different carrier boards. MB-SMARC-2 is a carrier reference design.
+        items:
+          - enum:
+              - tq,imx95-tqma9596sa-mb-smarc-2 # TQ-Systems GmbH i.MX95 TQMa95xxSA SOM on MB-SMARC-2
+          - const: tq,imx95-tqma9596sa         # TQ-Systems GmbH i.MX95 TQMa95xxSA SOM
+          - const: fsl,imx95
 
       - description:
           Freescale Vybrid Platform Device Tree Bindings

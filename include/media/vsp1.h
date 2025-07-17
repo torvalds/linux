@@ -52,6 +52,8 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
  * @alpha: alpha value (0: fully transparent, 255: fully opaque)
  * @zpos: Z position of the plane (from 0 to number of planes minus 1)
  * @premult: true for premultiplied alpha
+ * @color_encoding: color encoding (valid for YUV formats only)
+ * @color_range: color range (valid for YUV formats only)
  */
 struct vsp1_du_atomic_config {
 	u32 pixelformat;
@@ -62,6 +64,8 @@ struct vsp1_du_atomic_config {
 	unsigned int alpha;
 	unsigned int zpos;
 	bool premult;
+	enum v4l2_ycbcr_encoding color_encoding;
+	enum v4l2_quantization color_range;
 };
 
 /**

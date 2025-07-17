@@ -33,6 +33,7 @@
 */
 
 #include <crypto/hash.h>
+#include <crypto/sha2.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
@@ -737,7 +738,6 @@ struct cld_net {
 	spinlock_t		 cn_lock;
 	struct list_head	 cn_list;
 	unsigned int		 cn_xid;
-	struct crypto_shash	*cn_tfm;
 #ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	bool			 cn_has_legacy;
 #endif
@@ -1063,8 +1063,6 @@ nfsd4_remove_cld_pipe(struct net *net)
 
 	nfsd4_cld_unregister_net(net, cn->cn_pipe);
 	rpc_destroy_pipe_data(cn->cn_pipe);
-	if (cn->cn_tfm)
-		crypto_free_shash(cn->cn_tfm);
 	kfree(nn->cld_net);
 	nn->cld_net = NULL;
 }
@@ -1158,8 +1156,6 @@ nfsd4_cld_create_v2(struct nfs4_client *clp)
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 	struct cld_msg_v2 *cmsg;
-	struct crypto_shash *tfm = cn->cn_tfm;
-	struct xdr_netobj cksum;
 	char *principal = NULL;
 
 	/* Don't upcall if it's already stored */
@@ -1182,22 +1178,9 @@ nfsd4_cld_create_v2(struct nfs4_client *clp)
 	else if (clp->cl_cred.cr_principal)
 		principal = clp->cl_cred.cr_principal;
 	if (principal) {
-		cksum.len = crypto_shash_digestsize(tfm);
-		cksum.data = kmalloc(cksum.len, GFP_KERNEL);
-		if (cksum.data == NULL) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		ret = crypto_shash_tfm_digest(tfm, principal, strlen(principal),
-					      cksum.data);
-		if (ret) {
-			kfree(cksum.data);
-			goto out;
-		}
-		cmsg->cm_u.cm_clntinfo.cc_princhash.cp_len = cksum.len;
-		memcpy(cmsg->cm_u.cm_clntinfo.cc_princhash.cp_data,
-		       cksum.data, cksum.len);
-		kfree(cksum.data);
+		sha256(principal, strlen(principal),
+		       cmsg->cm_u.cm_clntinfo.cc_princhash.cp_data);
+		cmsg->cm_u.cm_clntinfo.cc_princhash.cp_len = SHA256_DIGEST_SIZE;
 	} else
 		cmsg->cm_u.cm_clntinfo.cc_princhash.cp_len = 0;
 
@@ -1207,7 +1190,6 @@ nfsd4_cld_create_v2(struct nfs4_client *clp)
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 	}
 
-out:
 	free_cld_upcall(cup);
 out_err:
 	if (ret)
@@ -1346,12 +1328,11 @@ found:
 static int
 nfsd4_cld_check_v2(struct nfs4_client *clp)
 {
-	struct nfs4_client_reclaim *crp;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	struct cld_net *cn = nn->cld_net;
-	int status;
-	struct crypto_shash *tfm = cn->cn_tfm;
-	struct xdr_netobj cksum;
+#endif
+	struct nfs4_client_reclaim *crp;
 	char *principal = NULL;
 
 	/* did we already find that this client is stable? */
@@ -1367,6 +1348,7 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 	if (cn->cn_has_legacy) {
 		struct xdr_netobj name;
 		char dname[HEXDIR_LEN];
+		int status;
 
 		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 		if (status)
@@ -1389,28 +1371,18 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 	return -ENOENT;
 found:
 	if (crp->cr_princhash.len) {
+		u8 digest[SHA256_DIGEST_SIZE];
+
 		if (clp->cl_cred.cr_raw_principal)
 			principal = clp->cl_cred.cr_raw_principal;
 		else if (clp->cl_cred.cr_principal)
 			principal = clp->cl_cred.cr_principal;
 		if (principal == NULL)
 			return -ENOENT;
-		cksum.len = crypto_shash_digestsize(tfm);
-		cksum.data = kmalloc(cksum.len, GFP_KERNEL);
-		if (cksum.data == NULL)
+		sha256(principal, strlen(principal), digest);
+		if (memcmp(crp->cr_princhash.data, digest,
+				crp->cr_princhash.len))
 			return -ENOENT;
-		status = crypto_shash_tfm_digest(tfm, principal,
-						 strlen(principal), cksum.data);
-		if (status) {
-			kfree(cksum.data);
-			return -ENOENT;
-		}
-		if (memcmp(crp->cr_princhash.data, cksum.data,
-				crp->cr_princhash.len)) {
-			kfree(cksum.data);
-			return -ENOENT;
-		}
-		kfree(cksum.data);
 	}
 	crp->cr_clp = clp;
 	return 0;
@@ -1590,7 +1562,6 @@ nfsd4_cld_tracking_init(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	bool running;
 	int retries = 10;
-	struct crypto_shash *tfm;
 
 	status = nfs4_cld_state_init(net);
 	if (status)
@@ -1615,12 +1586,6 @@ nfsd4_cld_tracking_init(struct net *net)
 		status = -ETIMEDOUT;
 		goto err_remove;
 	}
-	tfm = crypto_alloc_shash("sha256", 0, 0);
-	if (IS_ERR(tfm)) {
-		status = PTR_ERR(tfm);
-		goto err_remove;
-	}
-	nn->cld_net->cn_tfm = tfm;
 
 	status = nfsd4_cld_get_version(nn);
 	if (status == -EOPNOTSUPP)

@@ -26,8 +26,8 @@ void wg_cookie_checker_init(struct cookie_checker *checker,
 }
 
 enum { COOKIE_KEY_LABEL_LEN = 8 };
-static const u8 mac1_key_label[COOKIE_KEY_LABEL_LEN] = "mac1----";
-static const u8 cookie_key_label[COOKIE_KEY_LABEL_LEN] = "cookie--";
+static const u8 mac1_key_label[COOKIE_KEY_LABEL_LEN] __nonstring = "mac1----";
+static const u8 cookie_key_label[COOKIE_KEY_LABEL_LEN] __nonstring = "cookie--";
 
 static void precompute_key(u8 key[NOISE_SYMMETRIC_KEY_LEN],
 			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN],

@@ -249,7 +249,7 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 
 		/* disable VGA render */
 		tmp = RREG32(mmVGA_RENDER_CONTROL);
-		tmp &= ~VGA_VSTATUS_CNTL;
+		tmp &= VGA_RENDER_CONTROL__VGA_VSTATUS_CNTL_MASK;
 		WREG32(mmVGA_RENDER_CONTROL, tmp);
 	}
 	/* Update configuration */
@@ -627,17 +627,16 @@ static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
 	       "write" : "read", block, mc_client, mc_id);
 }
 
-/*
 static const u32 mc_cg_registers[] = {
-	MC_HUB_MISC_HUB_CG,
-	MC_HUB_MISC_SIP_CG,
-	MC_HUB_MISC_VM_CG,
-	MC_XPB_CLK_GAT,
-	ATC_MISC_CG,
-	MC_CITF_MISC_WR_CG,
-	MC_CITF_MISC_RD_CG,
-	MC_CITF_MISC_VM_CG,
-	VM_L2_CG,
+	mmMC_HUB_MISC_HUB_CG,
+	mmMC_HUB_MISC_SIP_CG,
+	mmMC_HUB_MISC_VM_CG,
+	mmMC_XPB_CLK_GAT,
+	mmATC_MISC_CG,
+	mmMC_CITF_MISC_WR_CG,
+	mmMC_CITF_MISC_RD_CG,
+	mmMC_CITF_MISC_VM_CG,
+	mmVM_L2_CG,
 };
 
 static const u32 mc_cg_ls_en[] = {
@@ -672,7 +671,7 @@ static void gmc_v6_0_enable_mc_ls(struct amdgpu_device *adev,
 
 	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
 		orig = data = RREG32(mc_cg_registers[i]);
-		if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_MC_LS))
+		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_LS))
 			data |= mc_cg_ls_en[i];
 		else
 			data &= ~mc_cg_ls_en[i];
@@ -689,7 +688,7 @@ static void gmc_v6_0_enable_mc_mgcg(struct amdgpu_device *adev,
 
 	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
 		orig = data = RREG32(mc_cg_registers[i]);
-		if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_MC_MGCG))
+		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG))
 			data |= mc_cg_en[i];
 		else
 			data &= ~mc_cg_en[i];
@@ -705,7 +704,7 @@ static void gmc_v6_0_enable_bif_mgls(struct amdgpu_device *adev,
 
 	orig = data = RREG32_PCIE(ixPCIE_CNTL2);
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_BIF_LS)) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_LS)) {
 		data = REG_SET_FIELD(data, PCIE_CNTL2, SLV_MEM_LS_EN, 1);
 		data = REG_SET_FIELD(data, PCIE_CNTL2, MST_MEM_LS_EN, 1);
 		data = REG_SET_FIELD(data, PCIE_CNTL2, REPLAY_MEM_LS_EN, 1);
@@ -728,7 +727,7 @@ static void gmc_v6_0_enable_hdp_mgcg(struct amdgpu_device *adev,
 
 	orig = data = RREG32(mmHDP_HOST_PATH_CNTL);
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_HDP_MGCG))
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_MGCG))
 		data = REG_SET_FIELD(data, HDP_HOST_PATH_CNTL, CLOCK_GATING_DIS, 0);
 	else
 		data = REG_SET_FIELD(data, HDP_HOST_PATH_CNTL, CLOCK_GATING_DIS, 1);
@@ -744,7 +743,7 @@ static void gmc_v6_0_enable_hdp_ls(struct amdgpu_device *adev,
 
 	orig = data = RREG32(mmHDP_MEM_POWER_LS);
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_HDP_LS))
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
 		data = REG_SET_FIELD(data, HDP_MEM_POWER_LS, LS_ENABLE, 1);
 	else
 		data = REG_SET_FIELD(data, HDP_MEM_POWER_LS, LS_ENABLE, 0);
@@ -752,7 +751,6 @@ static void gmc_v6_0_enable_hdp_ls(struct amdgpu_device *adev,
 	if (orig != data)
 		WREG32(mmHDP_MEM_POWER_LS, data);
 }
-*/
 
 static int gmc_v6_0_convert_vram_type(int mc_seq_vram_type)
 {
@@ -1098,6 +1096,20 @@ static int gmc_v6_0_process_interrupt(struct amdgpu_device *adev,
 static int gmc_v6_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = ip_block->adev;
+	bool gate = false;
+
+	if (state == AMD_CG_STATE_GATE)
+		gate = true;
+
+	if (!(adev->flags & AMD_IS_APU)) {
+		gmc_v6_0_enable_mc_mgcg(adev, gate);
+		gmc_v6_0_enable_mc_ls(adev, gate);
+	}
+	gmc_v6_0_enable_bif_mgls(adev, gate);
+	gmc_v6_0_enable_hdp_mgcg(adev, gate);
+	gmc_v6_0_enable_hdp_ls(adev, gate);
+
 	return 0;
 }
 

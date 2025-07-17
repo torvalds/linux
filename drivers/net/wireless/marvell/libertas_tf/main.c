@@ -126,7 +126,7 @@ static void lbtf_cmd_work(struct work_struct *work)
  */
 static void command_timer_fn(struct timer_list *t)
 {
-	struct lbtf_private *priv = from_timer(priv, t, command_timer);
+	struct lbtf_private *priv = timer_container_of(priv, t, command_timer);
 	unsigned long flags;
 	lbtf_deb_enter(LBTF_DEB_CMD);
 

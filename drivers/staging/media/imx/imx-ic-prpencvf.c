@@ -295,7 +295,7 @@ static irqreturn_t prp_nfb4eof_interrupt(int irq, void *dev_id)
  */
 static void prp_eof_timeout(struct timer_list *t)
 {
-	struct prp_priv *priv = from_timer(priv, t, eof_timeout_timer);
+	struct prp_priv *priv = timer_container_of(priv, t, eof_timeout_timer);
 	struct imx_media_video_dev *vdev = priv->vdev;
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
 

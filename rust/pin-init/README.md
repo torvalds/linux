@@ -40,6 +40,12 @@ However, using the crate on stable compilers is possible by disabling `alloc`. I
 will require the `std` feature, because stable compilers have neither `Box` nor `Arc` in no-std
 mode.
 
+### Nightly needed for `unsafe-pinned` feature
+
+This feature enables the `Wrapper` implementation on the unstable `core::pin::UnsafePinned` type.
+This requires the [`unsafe_pinned` unstable feature](https://github.com/rust-lang/rust/issues/125735)
+and therefore a nightly compiler. Note that this feature is not enabled by default.
+
 ## Overview
 
 To initialize a `struct` with an in-place constructor you will need two things:
@@ -216,13 +222,15 @@ the `kernel` crate. The [`sync`] module is a good starting point.
 
 [`sync`]: https://rust.docs.kernel.org/kernel/sync/index.html
 [pinning]: https://doc.rust-lang.org/std/pin/index.html
-[structurally pinned fields]: https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
+[structurally pinned fields]: https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning
 [stack]: https://docs.rs/pin-init/latest/pin_init/macro.stack_pin_init.html
-[`Arc<T>`]: https://doc.rust-lang.org/stable/alloc/sync/struct.Arc.html
-[`Box<T>`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html
 [`impl PinInit<Foo>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl PinInit<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl Init<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.Init.html
 [Rust-for-Linux]: https://rust-for-linux.com/
 
 <!-- cargo-rdme end -->
+
+<!-- These links are not picked up by cargo-rdme, since they are behind cfgs... -->
+[`Arc<T>`]: https://doc.rust-lang.org/stable/alloc/sync/struct.Arc.html
+[`Box<T>`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html

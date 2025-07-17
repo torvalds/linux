@@ -198,7 +198,8 @@ static void quirk_poll_work(struct work_struct *work)
 
 static void quirk_poll_timer(struct timer_list *t)
 {
-	struct ehci_platform_priv *priv = from_timer(priv, t, poll_timer);
+	struct ehci_platform_priv *priv = timer_container_of(priv, t,
+							     poll_timer);
 	struct ehci_hcd *ehci = container_of((void *)priv, struct ehci_hcd,
 					     priv);
 

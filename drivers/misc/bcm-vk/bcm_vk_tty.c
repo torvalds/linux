@@ -43,7 +43,7 @@ struct bcm_vk_tty_chan {
 
 static void bcm_vk_tty_poll(struct timer_list *t)
 {
-	struct bcm_vk *vk = from_timer(vk, t, serial_timer);
+	struct bcm_vk *vk = timer_container_of(vk, t, serial_timer);
 
 	queue_work(vk->tty_wq_thread, &vk->tty_wq_work);
 	mod_timer(&vk->serial_timer, jiffies + SERIAL_TIMER_VALUE);

@@ -709,7 +709,7 @@ static inline unsigned int modulo_min(unsigned int a, unsigned int b,
 */
 static void snd_card_asihpi_timer_function(struct timer_list *t)
 {
-	struct snd_card_asihpi_pcm *dpcm = from_timer(dpcm, t, timer);
+	struct snd_card_asihpi_pcm *dpcm = timer_container_of(dpcm, t, timer);
 	struct snd_pcm_substream *substream = dpcm->substream;
 	struct snd_card_asihpi *card = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime;

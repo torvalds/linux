@@ -257,6 +257,8 @@ static int mctp_usb_open(struct net_device *dev)
 
 	WRITE_ONCE(mctp_usb->stopped, false);
 
+	netif_start_queue(dev);
+
 	return mctp_usb_rx_queue(mctp_usb, GFP_KERNEL);
 }
 

@@ -81,3 +81,39 @@
 				  "UART1_TO_RSP";	/* GPIO_15 */
 	};
 };
+
+&gpio0 {
+	status = "okay";
+	gpio-line-names = "PERST_N",		/* GPIO_0 */
+			  "LM96063_ALERT_N",	/* GPIO_1 */
+			  "INA3221_PV",		/* GPIO_2 */
+			  "INA3221_CRIT",	/* GPIO_3 */
+			  "INA3221_WARN",	/* GPIO_4 */
+			  "INA3221_TC",		/* GPIO_5 */
+			  "QSPI0_RST_N",	/* GPIO_6 */
+			  "LM96063_TCRIT_N",	/* GPIO_7 */
+			  "DSI_TCH_INT",	/* GPIO_8 */
+			  "DSI_RST",		/* GPIO_9 */
+			  "DSI_BL",		/* GPIO_10 */
+			  "DSI_INT",		/* GPIO_11 */
+			  "ETH_RST",		/* GPIO_12 */
+			  "CSI0_RST",		/* GPIO_13 */
+			  "CSI0_PWDN",		/* GPIO_14 */
+			  "CSI1_RST",		/* GPIO_15 */
+			  "CSI1_PWDN",		/* GPIO_16 */
+			  "CSI2_RST",		/* GPIO_17 */
+			  "CSI2_PWDN",		/* GPIO_18 */
+			  "CSI3_RST",		/* GPIO_19 */
+			  "CSI3_PWDN",		/* GPIO_20 */
+			  "ADAC_RST",		/* GPIO_21 */
+			  "SD_SW_VDD",		/* GPIO_22 */
+			  "SD_PON_VDD",		/* GPIO_23 */
+			  "GPIO_EXP_INT",	/* GPIO_24 */
+			  "BOARD_ID_0",		/* GPIO_25 */
+			  "SDIO1_SW_VDD",	/* GPIO_26 */
+			  "SDIO1_PON_VDD",	/* GPIO_27 */
+			  "SDIO2_SW_VDD",	/* GPIO_28 */
+			  "SDIO2_PON_VDD",	/* GPIO_29 */
+			  "BOARD_ID_1",		/* GPIO_30 */
+			  "BOARD_ID_2";		/* GPIO_31 */
+};

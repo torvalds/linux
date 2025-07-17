@@ -498,6 +498,7 @@ CIFSSMBNegotiate(const unsigned int xid,
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cifs_dbg(NOISY, "Max buf = %d\n", ses->server->maxBuf);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
+	server->session_key_id = pSMBr->SessionKey;
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
 
@@ -1333,7 +1334,12 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		cifs_stats_bytes_read(tcon, rdata->got_bytes);
 		break;
 	case MID_REQUEST_SUBMITTED:
+		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_req_submitted);
+		goto do_retry;
 	case MID_RETRY_NEEDED:
+		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_retry_needed);
+do_retry:
+		__set_bit(NETFS_SREQ_NEED_RETRY, &rdata->subreq.flags);
 		rdata->result = -EAGAIN;
 		if (server->sign && rdata->got_bytes)
 			/* reset bytes number since we can not check a sign */
@@ -1342,8 +1348,14 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		task_io_account_read(rdata->got_bytes);
 		cifs_stats_bytes_read(tcon, rdata->got_bytes);
 		break;
-	default:
+	case MID_RESPONSE_MALFORMED:
+		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_malformed);
 		rdata->result = -EIO;
+		break;
+	default:
+		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_unknown);
+		rdata->result = -EIO;
+		break;
 	}
 
 	if (rdata->result == -ENODATA) {
@@ -1712,10 +1724,21 @@ cifs_writev_callback(struct mid_q_entry *mid)
 		}
 		break;
 	case MID_REQUEST_SUBMITTED:
-	case MID_RETRY_NEEDED:
+		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_req_submitted);
+		__set_bit(NETFS_SREQ_NEED_RETRY, &wdata->subreq.flags);
 		result = -EAGAIN;
 		break;
+	case MID_RETRY_NEEDED:
+		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_retry_needed);
+		__set_bit(NETFS_SREQ_NEED_RETRY, &wdata->subreq.flags);
+		result = -EAGAIN;
+		break;
+	case MID_RESPONSE_MALFORMED:
+		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_malformed);
+		result = -EIO;
+		break;
 	default:
+		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_unknown);
 		result = -EIO;
 		break;
 	}
@@ -1725,7 +1748,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 			      server->credits, server->in_flight,
 			      0, cifs_trace_rw_credits_write_response_clear);
 	wdata->credits.value = 0;
-	cifs_write_subrequest_terminated(wdata, result, true);
+	cifs_write_subrequest_terminated(wdata, result);
 	release_mid(mid);
 	trace_smb3_rw_credits(credits.rreq_debug_id, credits.rreq_debug_index, 0,
 			      server->credits, server->in_flight,
@@ -1813,7 +1836,7 @@ async_writev_out:
 out:
 	if (rc) {
 		add_credits_and_wake_if(wdata->server, &wdata->credits, 0);
-		cifs_write_subrequest_terminated(wdata, rc, false);
+		cifs_write_subrequest_terminated(wdata, rc);
 	}
 }
 
@@ -2753,10 +2776,10 @@ int cifs_query_reparse_point(const unsigned int xid,
 
 	io_req->TotalParameterCount = 0;
 	io_req->TotalDataCount = 0;
-	io_req->MaxParameterCount = cpu_to_le32(2);
+	io_req->MaxParameterCount = cpu_to_le32(0);
 	/* BB find exact data count max from sess structure BB */
 	io_req->MaxDataCount = cpu_to_le32(CIFSMaxBufSize & 0xFFFFFF00);
-	io_req->MaxSetupCount = 4;
+	io_req->MaxSetupCount = 1;
 	io_req->Reserved = 0;
 	io_req->ParameterOffset = 0;
 	io_req->DataCount = 0;
@@ -2779,6 +2802,22 @@ int cifs_query_reparse_point(const unsigned int xid,
 	data_count = le32_to_cpu(io_rsp->DataCount);
 	if (get_bcc(&io_rsp->hdr) < 2 || data_offset > 512 ||
 	    !data_count || data_count > 2048) {
+		rc = -EIO;
+		goto error;
+	}
+
+	/* SetupCount must be 1, otherwise offset to ByteCount is incorrect. */
+	if (io_rsp->SetupCount != 1) {
+		rc = -EIO;
+		goto error;
+	}
+
+	/*
+	 * ReturnedDataLen is output length of executed IOCTL.
+	 * DataCount is output length transferred over network.
+	 * Check that we have full FSCTL_GET_REPARSE_POINT buffer.
+	 */
+	if (data_count != le16_to_cpu(io_rsp->ReturnedDataLen)) {
 		rc = -EIO;
 		goto error;
 	}

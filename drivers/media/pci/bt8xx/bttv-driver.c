@@ -2798,7 +2798,7 @@ bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
 
 static void bttv_irq_timeout(struct timer_list *t)
 {
-	struct bttv *btv = from_timer(btv, t, timeout);
+	struct bttv *btv = timer_container_of(btv, t, timeout);
 	struct bttv_buffer_set old,new;
 	struct bttv_buffer *ovbi;
 	struct bttv_buffer *item;

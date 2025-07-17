@@ -172,8 +172,8 @@ Currently, the types available are:
   - It's usually used for copying pixel data between host memory and
     memory-mapped GPU device memory, such as found on modern PCI video graphics
     cards. The most immediate example is the OpenGL API function
-    ``glReadPielx()``, which might require a verbatim copy of a huge framebuffer
-    from local device memory onto host memory.
+    ``glReadPixels()``, which might require a verbatim copy of a huge
+    framebuffer from local device memory onto host memory.
 
 - DMA_XOR
 

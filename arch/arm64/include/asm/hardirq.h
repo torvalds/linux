@@ -41,7 +41,7 @@ do {									\
 									\
 	___hcr = read_sysreg(hcr_el2);					\
 	if (!(___hcr & HCR_TGE)) {					\
-		write_sysreg(___hcr | HCR_TGE, hcr_el2);		\
+		write_sysreg_hcr(___hcr | HCR_TGE);			\
 		isb();							\
 	}								\
 	/*								\
@@ -82,7 +82,7 @@ do {									\
 	 */								\
 	barrier();							\
 	if (!___ctx->cnt && !(___hcr & HCR_TGE))			\
-		write_sysreg(___hcr, hcr_el2);				\
+		write_sysreg_hcr(___hcr);				\
 } while (0)
 
 static inline void ack_bad_irq(unsigned int irq)

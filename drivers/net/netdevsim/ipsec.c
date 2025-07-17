@@ -85,11 +85,11 @@ static int nsim_ipsec_find_empty_idx(struct nsim_ipsec *ipsec)
 	return -ENOSPC;
 }
 
-static int nsim_ipsec_parse_proto_keys(struct xfrm_state *xs,
+static int nsim_ipsec_parse_proto_keys(struct net_device *dev,
+				       struct xfrm_state *xs,
 				       u32 *mykey, u32 *mysalt)
 {
 	const char aes_gcm_name[] = "rfc4106(gcm(aes))";
-	struct net_device *dev = xs->xso.real_dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
 	int key_len;
@@ -129,17 +129,16 @@ static int nsim_ipsec_parse_proto_keys(struct xfrm_state *xs,
 	return 0;
 }
 
-static int nsim_ipsec_add_sa(struct xfrm_state *xs,
+static int nsim_ipsec_add_sa(struct net_device *dev,
+			     struct xfrm_state *xs,
 			     struct netlink_ext_ack *extack)
 {
 	struct nsim_ipsec *ipsec;
-	struct net_device *dev;
 	struct netdevsim *ns;
 	struct nsim_sa sa;
 	u16 sa_idx;
 	int ret;
 
-	dev = xs->xso.real_dev;
 	ns = netdev_priv(dev);
 	ipsec = &ns->ipsec;
 
@@ -174,7 +173,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs,
 		sa.crypt = xs->ealg || xs->aead;
 
 	/* get the key and salt */
-	ret = nsim_ipsec_parse_proto_keys(xs, sa.key, &sa.salt);
+	ret = nsim_ipsec_parse_proto_keys(dev, xs, sa.key, &sa.salt);
 	if (ret) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for SA table");
 		return ret;
@@ -200,9 +199,9 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs,
 	return 0;
 }
 
-static void nsim_ipsec_del_sa(struct xfrm_state *xs)
+static void nsim_ipsec_del_sa(struct net_device *dev, struct xfrm_state *xs)
 {
-	struct netdevsim *ns = netdev_priv(xs->xso.real_dev);
+	struct netdevsim *ns = netdev_priv(dev);
 	struct nsim_ipsec *ipsec = &ns->ipsec;
 	u16 sa_idx;
 

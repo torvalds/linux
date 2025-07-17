@@ -220,7 +220,6 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		struct ttm_operation_ctx ctx = {
 			.interruptible = true,
 			.no_wait_gpu = false,
-			.force_alloc = true
 		};
 
 		ttm = bo->ttm;

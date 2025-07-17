@@ -352,7 +352,8 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 
 static void dvb_dmxdev_filter_timeout(struct timer_list *t)
 {
-	struct dmxdev_filter *dmxdevfilter = from_timer(dmxdevfilter, t, timer);
+	struct dmxdev_filter *dmxdevfilter = timer_container_of(dmxdevfilter,
+								t, timer);
 
 	dmxdevfilter->buffer.error = -ETIMEDOUT;
 	spin_lock_irq(&dmxdevfilter->dev->lock);

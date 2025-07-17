@@ -49,6 +49,7 @@ properties:
               - qcom,qcs615-apss-shared
               - qcom,sc7180-apss-shared
               - qcom,sc8180x-apss-shared
+              - qcom,sm7150-apss-shared
               - qcom,sm8150-apss-shared
           - const: qcom,sdm845-apss-shared
       - items:
@@ -72,6 +73,7 @@ properties:
     description: phandles to the parent clocks of the clock driver
     minItems: 2
     maxItems: 3
+    deprecated: true
 
   '#mbox-cells':
     const: 1
@@ -82,6 +84,23 @@ properties:
   clock-names:
     minItems: 2
     maxItems: 3
+    deprecated: true
+
+  clock-controller:
+    type: object
+    additionalProperties: false
+    properties:
+      clocks:
+        description: phandles to the parent clocks of the clock driver
+        minItems: 2
+        maxItems: 3
+
+      '#clock-cells':
+        enum: [0, 1]
+
+      clock-names:
+        minItems: 2
+        maxItems: 3
 
 required:
   - compatible
@@ -89,6 +108,76 @@ required:
   - '#mbox-cells'
 
 additionalProperties: false
+
+# Clocks should be specified either on the parent node or on the child node
+oneOf:
+  - required:
+      - clock-controller
+    properties:
+      clocks: false
+      clock-names: false
+      '#clock-cells': false
+  - properties:
+      clock-controller: false
+
+$defs:
+  msm8916-apcs-clock-controller:
+    properties:
+      clocks:
+        items:
+          - description: primary pll parent of the clock driver
+          - description: auxiliary parent
+      clock-names:
+        items:
+          - const: pll
+          - const: aux
+      '#clock-cells':
+        const: 0
+
+  msm8939-apcs-clock-controller:
+    properties:
+      clocks:
+        items:
+          - description: primary pll parent of the clock driver
+          - description: auxiliary parent
+          - description: reference clock
+      clock-names:
+        items:
+          - const: pll
+          - const: aux
+          - const: ref
+      '#clock-cells':
+        const: 0
+
+  sdx55-apcs-clock-controller:
+    properties:
+      clocks:
+        items:
+          - description: reference clock
+          - description: primary pll parent of the clock driver
+          - description: auxiliary parent
+      clock-names:
+        items:
+          - const: ref
+          - const: pll
+          - const: aux
+      '#clock-cells':
+        const: 0
+
+  ipq6018-apcs-clock-controller:
+    properties:
+      clocks:
+        items:
+          - description: primary pll parent of the clock driver
+          - description: XO clock
+          - description: GCC GPLL0 clock source
+      clock-names:
+        items:
+          - const: pll
+          - const: xo
+          - const: gpll0
+      '#clock-cells':
+        const: 1
 
 allOf:
   - if:
@@ -98,15 +187,10 @@ allOf:
             enum:
               - qcom,msm8916-apcs-kpss-global
     then:
+      $ref: "#/$defs/msm8916-apcs-clock-controller"
       properties:
-        clocks:
-          items:
-            - description: primary pll parent of the clock driver
-            - description: auxiliary parent
-        clock-names:
-          items:
-            - const: pll
-            - const: aux
+        clock-controller:
+          $ref: "#/$defs/msm8916-apcs-clock-controller"
 
   - if:
       properties:
@@ -115,17 +199,10 @@ allOf:
             enum:
               - qcom,msm8939-apcs-kpss-global
     then:
+      $ref: "#/$defs/msm8939-apcs-clock-controller"
       properties:
-        clocks:
-          items:
-            - description: primary pll parent of the clock driver
-            - description: auxiliary parent
-            - description: reference clock
-        clock-names:
-          items:
-            - const: pll
-            - const: aux
-            - const: ref
+        clock-controller:
+          $ref: "#/$defs/msm8939-apcs-clock-controller"
 
   - if:
       properties:
@@ -134,17 +211,10 @@ allOf:
             enum:
               - qcom,sdx55-apcs-gcc
     then:
+      $ref: "#/$defs/sdx55-apcs-clock-controller"
       properties:
-        clocks:
-          items:
-            - description: reference clock
-            - description: primary pll parent of the clock driver
-            - description: auxiliary parent
-        clock-names:
-          items:
-            - const: ref
-            - const: pll
-            - const: aux
+        clock-controller:
+          $ref: "#/$defs/sdx55-apcs-clock-controller"
 
   - if:
       properties:
@@ -153,17 +223,10 @@ allOf:
             enum:
               - qcom,ipq6018-apcs-apps-global
     then:
+      $ref: "#/$defs/ipq6018-apcs-clock-controller"
       properties:
-        clocks:
-          items:
-            - description: primary pll parent of the clock driver
-            - description: XO clock
-            - description: GCC GPLL0 clock source
-        clock-names:
-          items:
-            - const: pll
-            - const: xo
-            - const: gpll0
+        clock-controller:
+          $ref: "#/$defs/ipq6018-apcs-clock-controller"
 
   - if:
       properties:
@@ -179,19 +242,7 @@ allOf:
       properties:
         clocks: false
         clock-names: false
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,ipq6018-apcs-apps-global
-    then:
-      properties:
-        '#clock-cells':
-          const: 1
-    else:
-      properties:
+        clock-controller: false
         '#clock-cells':
           const: 0
 
@@ -216,6 +267,23 @@ examples:
     };
 
   # Example apcs with qcs404
+  - |
+    #define GCC_APSS_AHB_CLK_SRC  1
+    #define GCC_GPLL0_AO_OUT_MAIN 123
+    mailbox@b011000 {
+        compatible = "qcom,qcs404-apcs-apps-global",
+                     "qcom,msm8916-apcs-kpss-global", "syscon";
+        reg = <0x0b011000 0x1000>;
+        #mbox-cells = <1>;
+
+        apcs_clk: clock-controller {
+          clocks = <&apcs_hfpll>, <&gcc GCC_GPLL0_AO_OUT_MAIN>;
+          clock-names = "pll", "aux";
+          #clock-cells = <0>;
+        };
+    };
+
+  # Example apcs with qcs404 (deprecated: use clock-controller subnode)
   - |
     #define GCC_APSS_AHB_CLK_SRC  1
     #define GCC_GPLL0_AO_OUT_MAIN 123

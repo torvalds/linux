@@ -81,7 +81,7 @@ void _menu_init(void);
 void menu_warn(const struct menu *menu, const char *fmt, ...);
 struct menu *menu_add_menu(void);
 void menu_end_menu(void);
-void menu_add_entry(struct symbol *sym);
+void menu_add_entry(struct symbol *sym, enum menu_type type);
 void menu_add_dep(struct expr *dep);
 void menu_add_visibility(struct expr *dep);
 struct property *menu_add_prompt(enum prop_type type, const char *prompt,

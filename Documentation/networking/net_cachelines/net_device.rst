@@ -10,6 +10,7 @@ Type                                Name                        fastpath_tx_acce
 =================================== =========================== =================== =================== ===================================================================================
 unsigned_long:32                    priv_flags                  read_mostly                             __dev_queue_xmit(tx)
 unsigned_long:1                     lltx                        read_mostly                             HARD_TX_LOCK,HARD_TX_TRYLOCK,HARD_TX_UNLOCK(tx)
+unsigned long:1                     netmem_tx:1;                read_mostly
 char                                name[16]
 struct netdev_name_node*            name_node
 struct dev_ifalias*                 ifalias
@@ -131,7 +132,7 @@ struct ref_tracker_dir              refcnt_tracker
 struct list_head                    link_watch_list
 enum:8                              reg_state
 bool                                dismantle
-enum:16                             rtnl_link_state
+bool                                rtnl_link_initilizing
 bool                                needs_free_netdev
 void*priv_destructor                struct net_device
 struct netpoll_info*                npinfo                                          read_mostly         napi_poll/napi_poll_lock

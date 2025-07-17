@@ -824,13 +824,6 @@ struct super_block *sget(struct file_system_type *type,
 	struct super_block *old;
 	int err;
 
-	/* We don't yet pass the user namespace of the parent
-	 * mount through to here so always use &init_user_ns
-	 * until that changes.
-	 */
-	if (flags & SB_SUBMOUNT)
-		user_ns = &init_user_ns;
-
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -850,7 +843,7 @@ retry:
 	}
 	if (!s) {
 		spin_unlock(&sb_lock);
-		s = alloc_super(type, (flags & ~SB_SUBMOUNT), user_ns);
+		s = alloc_super(type, flags, user_ns);
 		if (!s)
 			return ERR_PTR(-ENOMEM);
 		goto retry;
@@ -971,8 +964,10 @@ void iterate_supers_type(struct file_system_type *type,
 		spin_unlock(&sb_lock);
 
 		locked = super_lock_shared(sb);
-		if (locked)
+		if (locked) {
 			f(sb, arg);
+			super_unlock_shared(sb);
+		}
 
 		spin_lock(&sb_lock);
 		if (p)

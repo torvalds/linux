@@ -209,6 +209,19 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	return r;
 }
 
+int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
+{
+	switch (cap->cap) {
+	case KVM_CAP_RISCV_MP_STATE_RESET:
+		if (cap->flags)
+			return -EINVAL;
+		kvm->arch.mp_state_reset = true;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
 	return -EINVAL;

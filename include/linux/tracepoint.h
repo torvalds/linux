@@ -464,16 +464,30 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #endif
 
 #define DECLARE_TRACE(name, proto, args)				\
-	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args),		\
+	__DECLARE_TRACE(name##_tp, PARAMS(proto), PARAMS(args),		\
 			cpu_online(raw_smp_processor_id()),		\
 			PARAMS(void *__data, proto))
 
 #define DECLARE_TRACE_CONDITION(name, proto, args, cond)		\
-	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args),		\
+	__DECLARE_TRACE(name##_tp, PARAMS(proto), PARAMS(args),		\
 			cpu_online(raw_smp_processor_id()) && (PARAMS(cond)), \
 			PARAMS(void *__data, proto))
 
 #define DECLARE_TRACE_SYSCALL(name, proto, args)			\
+	__DECLARE_TRACE_SYSCALL(name##_tp, PARAMS(proto), PARAMS(args),	\
+				PARAMS(void *__data, proto))
+
+#define DECLARE_TRACE_EVENT(name, proto, args)				\
+	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args),		\
+			cpu_online(raw_smp_processor_id()),		\
+			PARAMS(void *__data, proto))
+
+#define DECLARE_TRACE_EVENT_CONDITION(name, proto, args, cond)		\
+	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args),		\
+			cpu_online(raw_smp_processor_id()) && (PARAMS(cond)), \
+			PARAMS(void *__data, proto))
+
+#define DECLARE_TRACE_EVENT_SYSCALL(name, proto, args)			\
 	__DECLARE_TRACE_SYSCALL(name, PARAMS(proto), PARAMS(args),	\
 				PARAMS(void *__data, proto))
 
@@ -591,32 +605,32 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 #define DECLARE_EVENT_CLASS(name, proto, args, tstruct, assign, print)
 #define DEFINE_EVENT(template, name, proto, args)		\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+	DECLARE_TRACE_EVENT(name, PARAMS(proto), PARAMS(args))
 #define DEFINE_EVENT_FN(template, name, proto, args, reg, unreg)\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+	DECLARE_TRACE_EVENT(name, PARAMS(proto), PARAMS(args))
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+	DECLARE_TRACE_EVENT(name, PARAMS(proto), PARAMS(args))
 #define DEFINE_EVENT_CONDITION(template, name, proto,		\
 			       args, cond)			\
-	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\
+	DECLARE_TRACE_EVENT_CONDITION(name, PARAMS(proto),	\
 				PARAMS(args), PARAMS(cond))
 
 #define TRACE_EVENT(name, proto, args, struct, assign, print)	\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+	DECLARE_TRACE_EVENT(name, PARAMS(proto), PARAMS(args))
 #define TRACE_EVENT_FN(name, proto, args, struct,		\
 		assign, print, reg, unreg)			\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
-#define TRACE_EVENT_FN_COND(name, proto, args, cond, struct,		\
+	DECLARE_TRACE_EVENT(name, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_FN_COND(name, proto, args, cond, struct,	\
 		assign, print, reg, unreg)			\
-	DECLARE_TRACE_CONDITION(name, PARAMS(proto),	\
+	DECLARE_TRACE_EVENT_CONDITION(name, PARAMS(proto),	\
 			PARAMS(args), PARAMS(cond))
 #define TRACE_EVENT_CONDITION(name, proto, args, cond,		\
 			      struct, assign, print)		\
-	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\
+	DECLARE_TRACE_EVENT_CONDITION(name, PARAMS(proto),	\
 				PARAMS(args), PARAMS(cond))
 #define TRACE_EVENT_SYSCALL(name, proto, args, struct, assign,	\
 			    print, reg, unreg)			\
-	DECLARE_TRACE_SYSCALL(name, PARAMS(proto), PARAMS(args))
+	DECLARE_TRACE_EVENT_SYSCALL(name, PARAMS(proto), PARAMS(args))
 
 #define TRACE_EVENT_FLAGS(event, flag)
 

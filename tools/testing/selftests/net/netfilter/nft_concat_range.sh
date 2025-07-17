@@ -15,10 +15,12 @@ source lib.sh
 # Available test groups:
 # - reported_issues: check for issues that were reported in the past
 # - correctness: check that packets match given entries, and only those
+# - correctness_large: same but with additional non-matching entries
 # - concurrency: attempt races between insertion, deletion and lookup
 # - timeout: check that packets match entries until they expire
 # - performance: estimate matching rate, compare with rbtree and hash baselines
-TESTS="reported_issues correctness concurrency timeout"
+TESTS="reported_issues correctness correctness_large concurrency timeout"
+
 [ -n "$NFT_CONCAT_RANGE_TESTS" ] && TESTS="${NFT_CONCAT_RANGE_TESTS}"
 
 # Set types, defined by TYPE_ variables below
@@ -376,7 +378,7 @@ display		net,port,proto
 type_spec	ipv4_addr . inet_service . inet_proto
 chain_spec	ip daddr . udp dport . meta l4proto
 dst		addr4 port proto
-src
+src		 
 start		1
 count		9
 src_delta	9
@@ -417,6 +419,7 @@ table inet filter {
 
 	set test {
 		type ${type_spec}
+		counter
 		flags interval,timeout
 	}
 
@@ -1156,8 +1159,17 @@ del() {
 	fi
 }
 
-# Return packet count from 'test' counter in 'inet filter' table
+# Return packet count for elem $1 from 'test' counter in 'inet filter' table
 count_packets() {
+	found=0
+	for token in $(nft reset element inet filter test "${1}" ); do
+		[ ${found} -eq 1 ] && echo "${token}" && return
+		[ "${token}" = "packets" ] && found=1
+	done
+}
+
+# Return packet count from 'test' counter in 'inet filter' table
+count_packets_nomatch() {
 	found=0
 	for token in $(nft list counter inet filter test); do
 		[ ${found} -eq 1 ] && echo "${token}" && return
@@ -1204,6 +1216,10 @@ perf() {
 
 # Set MAC addresses, send single packet, check that it matches, reset counter
 send_match() {
+	local elem="$1"
+
+	shift
+
 	ip link set veth_a address "$(format_mac "${1}")"
 	ip -n B link set veth_b address "$(format_mac "${2}")"
 
@@ -1214,7 +1230,7 @@ send_match() {
 		eval src_"$f"=\$\(format_\$f "${2}"\)
 	done
 	eval send_\$proto
-	if [ "$(count_packets)" != "1" ]; then
+	if [ "$(count_packets "$elem")" != "1" ]; then
 		err "${proto} packet to:"
 		err "  $(for f in ${dst}; do
 			 eval format_\$f "${1}"; printf ' '; done)"
@@ -1240,7 +1256,7 @@ send_nomatch() {
 		eval src_"$f"=\$\(format_\$f "${2}"\)
 	done
 	eval send_\$proto
-	if [ "$(count_packets)" != "0" ]; then
+	if [ "$(count_packets_nomatch)" != "0" ]; then
 		err "${proto} packet to:"
 		err "  $(for f in ${dst}; do
 			 eval format_\$f "${1}"; printf ' '; done)"
@@ -1253,15 +1269,51 @@ send_nomatch() {
 	fi
 }
 
+maybe_send_nomatch() {
+	local elem="$1"
+	local what="$4"
+
+	[ $((RANDOM%20)) -gt 0 ] && return
+
+	dst_addr4="$2"
+	dst_port="$3"
+	send_udp
+
+	if [ "$(count_packets_nomatch)" != "0" ]; then
+		err "Packet to $dst_addr4:$dst_port did match $what"
+		err "$(nft -a list ruleset)"
+		return 1
+	fi
+}
+
+maybe_send_match() {
+	local elem="$1"
+	local what="$4"
+
+	[ $((RANDOM%20)) -gt 0 ] && return
+
+	dst_addr4="$2"
+	dst_port="$3"
+	send_udp
+
+	if [ "$(count_packets "{ $elem }")" != "1" ]; then
+		err "Packet to $dst_addr4:$dst_port did not match $what"
+		err "$(nft -a list ruleset)"
+		return 1
+	fi
+	nft reset counter inet filter test >/dev/null
+	nft reset element inet filter test "{ $elem }" >/dev/null
+}
+
 # Correctness test template:
 # - add ranged element, check that packets match it
 # - check that packets outside range don't match it
 # - remove some elements, check that packets don't match anymore
-test_correctness() {
-	setup veth send_"${proto}" set || return ${ksft_skip}
-
+test_correctness_main() {
 	range_size=1
 	for i in $(seq "${start}" $((start + count))); do
+		local elem=""
+
 		end=$((start + range_size))
 
 		# Avoid negative or zero-sized port ranges
@@ -1272,15 +1324,16 @@ test_correctness() {
 		srcstart=$((start + src_delta))
 		srcend=$((end + src_delta))
 
-		add "$(format)" || return 1
+		elem="$(format)"
+		add "$elem" || return 1
 		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
-			send_match "${j}" $((j + src_delta)) || return 1
+			send_match "$elem" "${j}" $((j + src_delta)) || return 1
 		done
 		send_nomatch $((end + 1)) $((end + 1 + src_delta)) || return 1
 
 		# Delete elements now and then
 		if [ $((i % 3)) -eq 0 ]; then
-			del "$(format)" || return 1
+			del "$elem" || return 1
 			for j in $(seq "$start" \
 				   $((range_size / 2 + 1)) ${end}); do
 				send_nomatch "${j}" $((j + src_delta)) \
@@ -1291,6 +1344,163 @@ test_correctness() {
 		range_size=$((range_size + 1))
 		start=$((end + range_size))
 	done
+}
+
+test_correctness() {
+	setup veth send_"${proto}" set || return ${ksft_skip}
+
+	test_correctness_main
+}
+
+# Repeat the correctness tests, but add extra non-matching entries.
+# This exercises the more compact '4 bit group' representation that
+# gets picked when the default 8-bit representation exceed
+# NFT_PIPAPO_LT_SIZE_HIGH bytes of memory.
+# See usage of NFT_PIPAPO_LT_SIZE_HIGH in pipapo_lt_bits_adjust().
+#
+# The format() helper is way too slow when generating lots of
+# entries so its not used here.
+test_correctness_large() {
+	setup veth send_"${proto}" set || return ${ksft_skip}
+	# number of dummy (filler) entries to add.
+	local dcount=16385
+
+	(
+	echo -n "add element inet filter test { "
+
+	case "$type_spec" in
+	"ether_addr . ipv4_addr")
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			format_mac $((1000000 + i))
+			printf ". 172.%i.%i.%i " $((RANDOM%256)) $((RANDOM%256)) $((i%256))
+		done
+		;;
+	"inet_proto . ipv6_addr")
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "%i . " $((RANDOM%256))
+			format_addr6 $((1000000 + i))
+		done
+		;;
+	"inet_service . inet_proto")
+		# smaller key sizes, need more entries to hit the
+		# 4-bit threshold.
+		dcount=65536
+		for i in $(seq 1 $dcount); do
+			local proto=$((RANDOM%256))
+
+			# Test uses UDP to match, as it also fails when matching
+			# an entry that doesn't exist, so skip 'udp' entries
+			# to not trigger a wrong failure.
+			[ $proto -eq 17 ] && proto=18
+			[ $i -gt 1 ] && echo ", "
+			printf "%i . %i " $(((i%65534) + 1)) $((proto))
+		done
+		;;
+	"inet_service . ipv4_addr")
+		dcount=32768
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "%i . 172.%i.%i.%i " $(((RANDOM%65534) + 1)) $((RANDOM%256)) $((RANDOM%256)) $((i%256))
+		done
+		;;
+	"ipv4_addr . ether_addr")
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "172.%i.%i.%i . " $((RANDOM%256)) $((RANDOM%256)) $((i%256))
+			format_mac $((1000000 + i))
+		done
+		;;
+	"ipv4_addr . inet_service")
+		dcount=32768
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "172.%i.%i.%i . %i" $((RANDOM%256)) $((RANDOM%256)) $((i%256)) $(((RANDOM%65534) + 1))
+		done
+		;;
+	"ipv4_addr . inet_service . ether_addr . inet_proto . ipv4_addr")
+		dcount=65536
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "172.%i.%i.%i . %i . " $((RANDOM%256)) $((RANDOM%256)) $((i%256)) $(((RANDOM%65534) + 1))
+			format_mac $((1000000 + i))
+			printf ". %i . 192.168.%i.%i" $((RANDOM%256)) $((RANDOM%256)) $((i%256))
+		done
+		;;
+	"ipv4_addr . inet_service . inet_proto")
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "172.%i.%i.%i . %i . %i " $((RANDOM%256)) $((RANDOM%256)) $((i%256)) $(((RANDOM%65534) + 1)) $((RANDOM%256))
+		done
+		;;
+	"ipv4_addr . inet_service . inet_proto . ipv4_addr")
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "172.%i.%i.%i . %i . %i . 192.168.%i.%i " $((RANDOM%256)) $((RANDOM%256)) $((i%256)) $(((RANDOM%65534) + 1)) $((RANDOM%256)) $((RANDOM%256)) $((RANDOM%256))
+		done
+		;;
+	"ipv4_addr . inet_service . ipv4_addr")
+		dcount=32768
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			printf "172.%i.%i.%i . %i . 192.168.%i.%i " $((RANDOM%256)) $((RANDOM%256)) $((i%256)) $(((RANDOM%65534) + 1)) $((RANDOM%256)) $((RANDOM%256))
+		done
+		;;
+	"ipv6_addr . ether_addr")
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			format_addr6 $((i + 1000000))
+			echo -n " . "
+			format_mac $((1000000 + i))
+		done
+		;;
+	"ipv6_addr . inet_service")
+		dcount=32768
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			format_addr6 $((i + 1000000))
+			echo -n " .  $(((RANDOM%65534) + 1))"
+		done
+		;;
+	"ipv6_addr . inet_service . ether_addr")
+		dcount=32768
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			format_addr6 $((i + 1000000))
+			echo -n " .  $(((RANDOM%65534) + 1)) . "
+			format_mac $((i + 1000000))
+		done
+		;;
+	"ipv6_addr . inet_service . ether_addr . inet_proto")
+		dcount=65536
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			format_addr6 $((i + 1000000))
+			echo -n " .  $(((RANDOM%65534) + 1)) . "
+			format_mac $((i + 1000000))
+			echo -n " .  $((RANDOM%256))"
+		done
+		;;
+	"ipv6_addr . inet_service . ipv6_addr . inet_service")
+		dcount=32768
+		for i in $(seq 1 $dcount); do
+			[ $i -gt 1 ] && echo ", "
+			format_addr6 $((i + 1000000))
+			echo -n " .  $(((RANDOM%65534) + 1)) . "
+			format_addr6 $((i + 2123456))
+			echo -n " .  $((RANDOM%256))"
+		done
+		;;
+	*)
+		"Unhandled $type_spec"
+		return 1
+	esac
+	echo -n "}"
+
+	) | nft -f - || return 1
+
+	test_correctness_main
 }
 
 # Concurrency test template:
@@ -1415,14 +1625,17 @@ test_timeout() {
 
 	range_size=1
 	for i in $(seq "$start" $((start + count))); do
+		local elem=""
+
 		end=$((start + range_size))
 		srcstart=$((start + src_delta))
 		srcend=$((end + src_delta))
 
-		add "$(format)" || return 1
+		elem="$(format)"
+		add "$elem" || return 1
 
 		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
-			send_match "${j}" $((j + src_delta)) || return 1
+			send_match "$elem" "${j}" $((j + src_delta)) || return 1
 		done
 
 		range_size=$((range_size + 1))
@@ -1580,7 +1793,7 @@ test_bug_reload() {
 		srcend=$((end + src_delta))
 
 		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
-			send_match "${j}" $((j + src_delta)) || return 1
+			send_match "$(format)" "${j}" $((j + src_delta)) || return 1
 		done
 
 		range_size=$((range_size + 1))
@@ -1599,22 +1812,34 @@ test_bug_net_port_proto_match() {
 	range_size=1
 	for i in $(seq 1 10); do
 		for j in $(seq 1 20) ; do
-			elem=$(printf "10.%d.%d.0/24 . %d1-%d0 . 6-17 " ${i} ${j} ${i} "$((i+1))")
+			local dport=$j
+
+			elem=$(printf "10.%d.%d.0/24 . %d-%d0 . 6-17 " ${i} ${j} ${dport} "$((dport+1))")
+
+			# too slow, do not test all addresses
+			maybe_send_nomatch "$elem" $(printf "10.%d.%d.1" $i $j) $(printf "%d1" $((dport+1))) "before add" || return 1
 
 			nft "add element inet filter test { $elem }" || return 1
+
+			maybe_send_match "$elem" $(printf "10.%d.%d.1" $i $j) $(printf "%d" $dport) "after add" || return 1
+
 			nft "get element inet filter test { $elem }" | grep -q "$elem"
 			if [ $? -ne 0 ];then
 				local got=$(nft "get element inet filter test { $elem }")
 				err "post-add: should have returned $elem but got $got"
 				return 1
 			fi
+
+			maybe_send_nomatch "$elem" $(printf "10.%d.%d.1" $i $j) $(printf "%d1" $((dport+1))) "out-of-range" || return 1
 		done
 	done
 
 	# recheck after set was filled
 	for i in $(seq 1 10); do
 		for j in $(seq 1 20) ; do
-			elem=$(printf "10.%d.%d.0/24 . %d1-%d0 . 6-17 " ${i} ${j} ${i} "$((i+1))")
+			local dport=$j
+
+			elem=$(printf "10.%d.%d.0/24 . %d-%d0 . 6-17 " ${i} ${j} ${dport} "$((dport+1))")
 
 			nft "get element inet filter test { $elem }" | grep -q "$elem"
 			if [ $? -ne 0 ];then
@@ -1622,6 +1847,9 @@ test_bug_net_port_proto_match() {
 				err "post-fill: should have returned $elem but got $got"
 				return 1
 			fi
+
+			maybe_send_match "$elem" $(printf "10.%d.%d.1" $i $j) $(printf "%d" $dport) "recheck" || return 1
+			maybe_send_nomatch "$elem" $(printf "10.%d.%d.1" $i $j) $(printf "%d1" $((dport+1))) "recheck out-of-range" || return 1
 		done
 	done
 
@@ -1629,9 +1857,10 @@ test_bug_net_port_proto_match() {
 	for i in $(seq 1 10); do
 		for j in $(seq 1 20) ; do
 			local rnd=$((RANDOM%10))
+			local dport=$j
 			local got=""
 
-			elem=$(printf "10.%d.%d.0/24 . %d1-%d0 . 6-17 " ${i} ${j} ${i} "$((i+1))")
+			elem=$(printf "10.%d.%d.0/24 . %d-%d0 . 6-17 " ${i} ${j} ${dport} "$((dport+1))")
 			if [ $rnd -gt 0 ];then
 				continue
 			fi
@@ -1642,6 +1871,8 @@ test_bug_net_port_proto_match() {
 				err "post-delete: query for $elem returned $got instead of error."
 				return 1
 			fi
+
+			maybe_send_nomatch "$elem" $(printf "10.%d.%d.1" $i $j) $(printf "%d" $dport) "match after deletion" || return 1
 		done
 	done
 
@@ -1660,7 +1891,7 @@ test_bug_avx2_mismatch()
 	dst_addr6="$a2"
 	send_icmp6
 
-	if [ "$(count_packets)" -gt "0" ]; then
+	if [ "$(count_packets "{ icmpv6 . $a1 }")" -gt "0" ]; then
 		err "False match for $a2"
 		return 1
 	fi

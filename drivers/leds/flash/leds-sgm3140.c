@@ -135,7 +135,7 @@ static int sgm3140_brightness_set(struct led_classdev *led_cdev,
 
 static void sgm3140_powerdown_timer(struct timer_list *t)
 {
-	struct sgm3140 *priv = from_timer(priv, t, powerdown_timer);
+	struct sgm3140 *priv = timer_container_of(priv, t, powerdown_timer);
 
 	gpiod_set_value(priv->enable_gpio, 0);
 	gpiod_set_value(priv->flash_gpio, 0);

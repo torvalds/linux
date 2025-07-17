@@ -161,7 +161,7 @@ static const struct spi_device_id mcp4922_id[] = {
 	{"mcp4912", ID_MCP4912},
 	{"mcp4921", ID_MCP4921},
 	{"mcp4922", ID_MCP4922},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp4922_id);
 

@@ -41,6 +41,9 @@ SYM_FUNC_START(__seamcall_ret)
 	TDX_MODULE_CALL host=1 ret=1
 SYM_FUNC_END(__seamcall_ret)
 
+/* KVM requires non-instrumentable __seamcall_saved_ret() for TDH.VP.ENTER */
+.section .noinstr.text, "ax"
+
 /*
  * __seamcall_saved_ret() - Host-side interface functions to SEAM software
  * (the P-SEAMLDR or the TDX module), with saving output registers to the

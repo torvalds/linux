@@ -1018,7 +1018,7 @@ static irqreturn_t ei_irq_wrapper(int irq, void *dev_id)
 
 static void ei_watchdog(struct timer_list *t)
 {
-    struct pcnet_dev *info = from_timer(info, t, watchdog);
+    struct pcnet_dev *info = timer_container_of(info, t, watchdog);
     struct net_device *dev = info->p_dev->priv;
     unsigned int nic_base = dev->base_addr;
     unsigned int mii_addr = nic_base + DLINK_GPIO;

@@ -237,7 +237,7 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
-	const struct usb_function_instance *fi;
+	struct usb_function_instance *fi;
 
 	unsigned int		bind_deactivated:1;
 };

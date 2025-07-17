@@ -2,6 +2,7 @@
 /* Copyright (c) 2024 Yixun Lan <dlan@gentoo.org> */
 
 #include <linux/bits.h>
+#include <linux/clk.h>
 #include <linux/cleanup.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -721,6 +722,7 @@ static int spacemit_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct spacemit_pinctrl *pctrl;
+	struct clk *func_clk, *bus_clk;
 	const struct spacemit_pinctrl_data *pctrl_data;
 	int ret;
 
@@ -738,6 +740,14 @@ static int spacemit_pinctrl_probe(struct platform_device *pdev)
 	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->regs))
 		return PTR_ERR(pctrl->regs);
+
+	func_clk = devm_clk_get_enabled(dev, "func");
+	if (IS_ERR(func_clk))
+		return dev_err_probe(dev, PTR_ERR(func_clk), "failed to get func clock\n");
+
+	bus_clk = devm_clk_get_enabled(dev, "bus");
+	if (IS_ERR(bus_clk))
+		return dev_err_probe(dev, PTR_ERR(bus_clk), "failed to get bus clock\n");
 
 	pctrl->pdesc.name = dev_name(dev);
 	pctrl->pdesc.pins = pctrl_data->pins;

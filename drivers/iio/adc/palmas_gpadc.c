@@ -1164,7 +1164,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(palmas_pm_ops, palmas_gpadc_suspend,
 
 static const struct of_device_id of_palmas_gpadc_match_tbl[] = {
 	{ .compatible = "ti,palmas-gpadc", },
-	{ /* end */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_palmas_gpadc_match_tbl);
 

@@ -119,6 +119,9 @@ struct kvm_arch {
 
 	/* AIA Guest/VM context */
 	struct kvm_aia aia;
+
+	/* KVM_CAP_RISCV_MP_STATE_RESET */
+	bool mp_state_reset;
 };
 
 struct kvm_cpu_trap {
@@ -193,6 +196,12 @@ struct kvm_vcpu_smstateen_csr {
 	unsigned long sstateen0;
 };
 
+struct kvm_vcpu_reset_state {
+	spinlock_t lock;
+	unsigned long pc;
+	unsigned long a1;
+};
+
 struct kvm_vcpu_arch {
 	/* VCPU ran at least once */
 	bool ran_atleast_once;
@@ -227,12 +236,8 @@ struct kvm_vcpu_arch {
 	/* CPU Smstateen CSR context of Guest VCPU */
 	struct kvm_vcpu_smstateen_csr smstateen_csr;
 
-	/* CPU context upon Guest VCPU reset */
-	struct kvm_cpu_context guest_reset_context;
-	spinlock_t reset_cntx_lock;
-
-	/* CPU CSR context upon Guest VCPU reset */
-	struct kvm_vcpu_csr guest_reset_csr;
+	/* CPU reset state of Guest VCPU */
+	struct kvm_vcpu_reset_state reset_state;
 
 	/*
 	 * VCPU interrupts

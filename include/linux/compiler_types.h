@@ -449,6 +449,11 @@ struct ftrace_likely_data {
 /*
  * When the size of an allocated object is needed, use the best available
  * mechanism to find it. (For cases where sizeof() cannot be used.)
+ *
+ * Optional: only supported since gcc >= 12
+ *
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Object-Size-Checking.html
+ * clang: https://clang.llvm.org/docs/LanguageExtensions.html#evaluating-object-size
  */
 #if __has_builtin(__builtin_dynamic_object_size)
 #define __struct_size(p)	__builtin_dynamic_object_size(p, 0)
@@ -525,6 +530,12 @@ struct ftrace_likely_data {
 	 sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 
 #ifdef __OPTIMIZE__
+/*
+ * #ifdef __OPTIMIZE__ is only a good approximation; for instance "make
+ * CFLAGS_foo.o=-Og" defines __OPTIMIZE__, does not elide the conditional code
+ * and can break compilation with wrong error message(s). Combine with
+ * -U__OPTIMIZE__ when needed.
+ */
 # define __compiletime_assert(condition, msg, prefix, suffix)		\
 	do {								\
 		/*							\
@@ -538,7 +549,7 @@ struct ftrace_likely_data {
 			prefix ## suffix();				\
 	} while (0)
 #else
-# define __compiletime_assert(condition, msg, prefix, suffix) do { } while (0)
+# define __compiletime_assert(condition, msg, prefix, suffix) ((void)(condition))
 #endif
 
 #define _compiletime_assert(condition, msg, prefix, suffix) \

@@ -29,7 +29,8 @@ ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 
 int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi);
 
-void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
+void ice_vsi_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
+void ice_cfg_sw_rx_lldp(struct ice_pf *pf, bool enable);
 
 int ice_set_link(struct ice_vsi *vsi, bool ena);
 

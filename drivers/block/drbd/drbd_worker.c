@@ -442,7 +442,8 @@ int w_resync_timer(struct drbd_work *w, int cancel)
 
 void resync_timer_fn(struct timer_list *t)
 {
-	struct drbd_device *device = from_timer(device, t, resync_timer);
+	struct drbd_device *device = timer_container_of(device, t,
+							resync_timer);
 
 	drbd_queue_work_if_unqueued(
 		&first_peer_device(device)->connection->sender_work,
@@ -1698,7 +1699,8 @@ void drbd_rs_controller_reset(struct drbd_peer_device *peer_device)
 
 void start_resync_timer_fn(struct timer_list *t)
 {
-	struct drbd_device *device = from_timer(device, t, start_resync_timer);
+	struct drbd_device *device = timer_container_of(device, t,
+							start_resync_timer);
 	drbd_device_post_work(device, RS_START);
 }
 

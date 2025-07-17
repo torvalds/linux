@@ -15,13 +15,18 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,soundwire-v1.3.0
-      - qcom,soundwire-v1.5.0
-      - qcom,soundwire-v1.5.1
-      - qcom,soundwire-v1.6.0
-      - qcom,soundwire-v1.7.0
-      - qcom,soundwire-v2.0.0
+    oneOf:
+      - enum:
+          - qcom,soundwire-v1.3.0
+          - qcom,soundwire-v1.5.0
+          - qcom,soundwire-v1.5.1
+          - qcom,soundwire-v1.6.0
+          - qcom,soundwire-v1.7.0
+          - qcom,soundwire-v2.0.0
+      - items:
+          - enum:
+              - qcom,soundwire-v2.1.0
+          - const: qcom,soundwire-v2.0.0
 
   reg:
     maxItems: 1

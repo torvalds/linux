@@ -212,7 +212,7 @@ out:
 
 static void mmc_retune_timer(struct timer_list *t)
 {
-	struct mmc_host *host = from_timer(host, t, retune_timer);
+	struct mmc_host *host = timer_container_of(host, t, retune_timer);
 
 	mmc_retune_needed(host);
 }

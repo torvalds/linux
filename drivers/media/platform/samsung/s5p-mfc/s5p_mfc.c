@@ -143,7 +143,7 @@ void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq)
 
 static void s5p_mfc_watchdog(struct timer_list *t)
 {
-	struct s5p_mfc_dev *dev = from_timer(dev, t, watchdog_timer);
+	struct s5p_mfc_dev *dev = timer_container_of(dev, t, watchdog_timer);
 
 	if (test_bit(0, &dev->hw_lock))
 		atomic_inc(&dev->watchdog_cnt);
@@ -737,6 +737,20 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 
 	case S5P_MFC_R2H_CMD_DPB_FLUSH_RET:
 		ctx->state = MFCINST_RUNNING;
+		goto irq_cleanup_hw;
+
+	case S5P_MFC_R2H_CMD_ENC_BUFFER_FUL_RET:
+		ctx->state = MFCINST_NAL_ABORT;
+		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
+		set_work_bit(ctx);
+		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+		break;
+
+	case S5P_MFC_R2H_CMD_NAL_ABORT_RET:
+		ctx->state = MFCINST_ERROR;
+		s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
+		s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 		goto irq_cleanup_hw;
 
 	default:

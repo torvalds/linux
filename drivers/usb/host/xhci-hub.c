@@ -1907,7 +1907,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			 * prevent port event interrupts from interfering
 			 * with usb2 port resume process
 			 */
-			xhci_disable_interrupter(xhci->interrupters[0]);
+			xhci_disable_interrupter(xhci, xhci->interrupters[0]);
 			disabled_irq = true;
 		}
 	}

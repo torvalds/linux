@@ -133,7 +133,7 @@ static void cw1200_queue_gc(struct timer_list *t)
 {
 	LIST_HEAD(list);
 	struct cw1200_queue *queue =
-		from_timer(queue, t, gc);
+		timer_container_of(queue, t, gc);
 
 	spin_lock_bh(&queue->lock);
 	__cw1200_queue_gc(queue, &list, true);

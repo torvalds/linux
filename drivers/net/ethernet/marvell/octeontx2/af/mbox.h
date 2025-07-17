@@ -524,6 +524,8 @@ struct get_hw_cap_rsp {
 	u8 nix_fixed_txschq_mapping; /* Schq mapping fixed or flexible */
 	u8 nix_shaping;		     /* Is shaping and coloring supported */
 	u8 npc_hash_extract;	/* Is hash extract supported */
+#define HW_CAP_MACSEC		BIT_ULL(1)
+	u64 hw_caps;
 };
 
 /* CGX mbox message formats */

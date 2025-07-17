@@ -98,7 +98,7 @@ enum iwl_data_path_subcmd_ids {
 
 	/**
 	 * @ESR_MODE_NOTIF: notification to recommend/force a wanted esr mode,
-	 *	uses &struct iwl_esr_mode_notif
+	 *	uses &struct iwl_esr_mode_notif or &struct iwl_esr_mode_notif_v1
 	 */
 	ESR_MODE_NOTIF = 0xF3,
 

@@ -40,6 +40,7 @@
 #include <asm/machine.h>
 #include <asm/stp.h>
 #include <asm/gmap.h>
+#include <asm/gmap_helpers.h>
 #include <asm/nmi.h>
 #include <asm/isc.h>
 #include <asm/sclp.h>
@@ -52,7 +53,6 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "pci.h"
-#include "gmap.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -2674,7 +2674,9 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 		if (r)
 			break;
 
-		r = s390_disable_cow_sharing();
+		mmap_write_lock(kvm->mm);
+		r = gmap_helper_disable_cow_sharing();
+		mmap_write_unlock(kvm->mm);
 		if (r)
 			break;
 
@@ -4973,7 +4975,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 		 * previous protected guest. The old pages need to be destroyed
 		 * so the new guest can use them.
 		 */
-		if (gmap_destroy_page(vcpu->arch.gmap, gaddr)) {
+		if (kvm_s390_pv_destroy_page(vcpu->kvm, gaddr)) {
 			/*
 			 * Either KVM messed up the secure guest mapping or the
 			 * same page is mapped into multiple secure guests.
@@ -4995,7 +4997,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 		 * guest has not been imported yet. Try to import the page into
 		 * the protected guest.
 		 */
-		rc = gmap_convert_to_secure(vcpu->arch.gmap, gaddr);
+		rc = kvm_s390_pv_convert_to_secure(vcpu->kvm, gaddr);
 		if (rc == -EINVAL)
 			send_sig(SIGSEGV, current, 0);
 		if (rc != -ENXIO)

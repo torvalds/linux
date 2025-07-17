@@ -683,12 +683,13 @@ static void inv_icm42600_disable_pm(void *_data)
 	pm_runtime_disable(dev);
 }
 
-int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
+int inv_icm42600_core_probe(struct regmap *regmap, int chip,
 			    inv_icm42600_bus_setup bus_setup)
 {
 	struct device *dev = regmap_get_device(regmap);
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct inv_icm42600_state *st;
-	int irq_type;
+	int irq, irq_type;
 	bool open_drain;
 	int ret;
 
@@ -696,6 +697,15 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 		dev_err(dev, "invalid chip = %d\n", chip);
 		return -ENODEV;
 	}
+
+	/* get INT1 only supported interrupt or fallback to first interrupt */
+	irq = fwnode_irq_get_byname(fwnode, "INT1");
+	if (irq < 0 && irq != -EPROBE_DEFER) {
+		dev_info(dev, "no INT1 interrupt defined, fallback to first interrupt\n");
+		irq = fwnode_irq_get(fwnode, 0);
+	}
+	if (irq < 0)
+		return dev_err_probe(dev, irq, "error missing INT1 interrupt\n");
 
 	irq_type = irq_get_trigger_type(irq);
 	if (!irq_type)

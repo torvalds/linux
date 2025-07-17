@@ -73,8 +73,8 @@ static inline int cb7210_page_in_bits(unsigned int page)
 	return 0x50 | (page & 0xf);
 }
 
-static inline uint8_t cb7210_paged_read_byte(struct cb7210_priv *cb_priv,
-					     unsigned int register_num, unsigned int page)
+static inline u8 cb7210_paged_read_byte(struct cb7210_priv *cb_priv,
+					unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
 	u8 retval;
@@ -89,8 +89,8 @@ static inline uint8_t cb7210_paged_read_byte(struct cb7210_priv *cb_priv,
 }
 
 // don't use for register_num < 8, since it doesn't lock
-static inline uint8_t cb7210_read_byte(const struct cb7210_priv *cb_priv,
-				       enum hs_regs register_num)
+static inline u8 cb7210_read_byte(const struct cb7210_priv *cb_priv,
+				  enum hs_regs register_num)
 {
 	const struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
 	u8 retval;
@@ -99,7 +99,7 @@ static inline uint8_t cb7210_read_byte(const struct cb7210_priv *cb_priv,
 	return retval;
 }
 
-static inline void cb7210_paged_write_byte(struct cb7210_priv *cb_priv, uint8_t data,
+static inline void cb7210_paged_write_byte(struct cb7210_priv *cb_priv, u8 data,
 					   unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -113,7 +113,7 @@ static inline void cb7210_paged_write_byte(struct cb7210_priv *cb_priv, uint8_t 
 }
 
 // don't use for register_num < 8, since it doesn't lock
-static inline void cb7210_write_byte(const struct cb7210_priv *cb_priv, uint8_t data,
+static inline void cb7210_write_byte(const struct cb7210_priv *cb_priv, u8 data,
 				     enum hs_regs register_num)
 {
 	const struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -134,7 +134,8 @@ enum bus_status_bits {
 
 /* CBI 488.2 HS control */
 
-/* when both bit 0 and 1 are set, it
+/*
+ * when both bit 0 and 1 are set, it
  *   1 clears the transmit state machine to an initial condition
  *   2 clears any residual interrupts left latched on cbi488.2
  *   3 resets all control bits in HS_MODE to zero
@@ -189,11 +190,12 @@ static inline unsigned int irq_bits(unsigned int irq)
 }
 
 enum cb7210_aux_cmds {
-/* AUX_RTL2 is an undocumented aux command which causes cb7210 to assert
- *	(and keep asserted) local rtl message.  This is used in conjunction
- *	with the (stupid) cb7210 implementation
- *	of the normal nec7210 AUX_RTL aux command, which
- *	causes the rtl message to toggle between on and off.
+/*
+ * AUX_RTL2 is an undocumented aux command which causes cb7210 to assert
+ * (and keep asserted) local rtl message.  This is used in conjunction
+ * with the (stupid) cb7210 implementation
+ * of the normal nec7210 AUX_RTL aux command, which
+ * causes the rtl message to toggle between on and off.
  */
 	AUX_RTL2 = 0xd,
 	AUX_LO_SPEED = 0x40,

@@ -1758,7 +1758,7 @@ static void iter_dequeue(struct lanai_dev *lanai, vci_t vci)
 
 static void lanai_timed_poll(struct timer_list *t)
 {
-	struct lanai_dev *lanai = from_timer(lanai, t, timer);
+	struct lanai_dev *lanai = timer_container_of(lanai, t, timer);
 #ifndef DEBUG_RW
 	unsigned long flags;
 #ifdef USE_POWERDOWN

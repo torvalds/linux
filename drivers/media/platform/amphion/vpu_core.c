@@ -250,6 +250,7 @@ static void vpu_core_get_vpu(struct vpu_core *core)
 static int vpu_core_register(struct device *dev, struct vpu_core *core)
 {
 	struct vpu_dev *vpu = dev_get_drvdata(dev);
+	unsigned int buffer_size;
 	int ret = 0;
 
 	dev_dbg(core->dev, "register core %s\n", vpu_core_type_desc(core->type));
@@ -263,14 +264,14 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	}
 	INIT_WORK(&core->msg_work, vpu_msg_run_work);
 	INIT_DELAYED_WORK(&core->msg_delayed_work, vpu_msg_delayed_work);
-	core->msg_buffer_size = roundup_pow_of_two(VPU_MSG_BUFFER_SIZE);
-	core->msg_buffer = vzalloc(core->msg_buffer_size);
+	buffer_size = roundup_pow_of_two(VPU_MSG_BUFFER_SIZE);
+	core->msg_buffer = vzalloc(buffer_size);
 	if (!core->msg_buffer) {
 		dev_err(core->dev, "failed allocate buffer for fifo\n");
 		ret = -ENOMEM;
 		goto error;
 	}
-	ret = kfifo_init(&core->msg_fifo, core->msg_buffer, core->msg_buffer_size);
+	ret = kfifo_init(&core->msg_fifo, core->msg_buffer, buffer_size);
 	if (ret) {
 		dev_err(core->dev, "failed init kfifo\n");
 		goto error;

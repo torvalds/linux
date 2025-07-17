@@ -2101,8 +2101,6 @@ static void nvme_map_cmb(struct nvme_dev *dev)
 	if ((dev->cmbsz & (NVME_CMBSZ_WDS | NVME_CMBSZ_RDS)) ==
 			(NVME_CMBSZ_WDS | NVME_CMBSZ_RDS))
 		pci_p2pmem_publish(pdev, true);
-
-	nvme_update_attrs(dev);
 }
 
 static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
@@ -3010,12 +3008,14 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result < 0)
 		goto out;
 
+	nvme_update_attrs(dev);
+
 	result = nvme_setup_io_queues(dev);
 	if (result)
 		goto out;
 
 	/*
-	 * Freeze and update the number of I/O queues as thos might have
+	 * Freeze and update the number of I/O queues as those might have
 	 * changed.  If there are no I/O queues left after this reset, keep the
 	 * controller around but remove all namespaces.
 	 */
@@ -3186,7 +3186,7 @@ static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
 		/*
 		 * Exclude some Kingston NV1 and A2000 devices from
 		 * NVME_QUIRK_SIMPLE_SUSPEND. Do a full suspend to save a
-		 * lot fo energy with s2idle sleep on some TUXEDO platforms.
+		 * lot of energy with s2idle sleep on some TUXEDO platforms.
 		 */
 		if (dmi_match(DMI_BOARD_NAME, "NS5X_NS7XAU") ||
 		    dmi_match(DMI_BOARD_NAME, "NS5x_7xAU") ||
@@ -3342,6 +3342,8 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	result = nvme_setup_host_mem(dev);
 	if (result < 0)
 		goto out_disable;
+
+	nvme_update_attrs(dev);
 
 	result = nvme_setup_io_queues(dev);
 	if (result)

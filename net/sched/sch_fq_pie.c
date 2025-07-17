@@ -384,7 +384,7 @@ flow_error:
 
 static void fq_pie_timer(struct timer_list *t)
 {
-	struct fq_pie_sched_data *q = from_timer(q, t, adapt_timer);
+	struct fq_pie_sched_data *q = timer_container_of(q, t, adapt_timer);
 	unsigned long next, tupdate;
 	struct Qdisc *sch = q->sch;
 	spinlock_t *root_lock; /* to lock qdisc for probability calculations */

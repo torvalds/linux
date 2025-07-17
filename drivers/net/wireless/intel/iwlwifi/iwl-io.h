@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2021, 2025 Intel Corporation
  */
 #ifndef __iwl_io_h__
 #define __iwl_io_h__
@@ -64,38 +64,38 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf);
  */
 static inline u32 iwl_umac_prph(struct iwl_trans *trans, u32 ofs)
 {
-	return ofs + trans->trans_cfg->umac_prph_offset;
+	return ofs + trans->mac_cfg->umac_prph_offset;
 }
 
 static inline u32 iwl_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
 {
 	return iwl_read_prph_no_grab(trans, ofs +
-				     trans->trans_cfg->umac_prph_offset);
+				     trans->mac_cfg->umac_prph_offset);
 }
 
 static inline u32 iwl_read_umac_prph(struct iwl_trans *trans, u32 ofs)
 {
-	return iwl_read_prph(trans, ofs + trans->trans_cfg->umac_prph_offset);
+	return iwl_read_prph(trans, ofs + trans->mac_cfg->umac_prph_offset);
 }
 
 static inline void iwl_write_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs,
 					       u32 val)
 {
-	iwl_write_prph_no_grab(trans,  ofs + trans->trans_cfg->umac_prph_offset,
+	iwl_write_prph_no_grab(trans,  ofs + trans->mac_cfg->umac_prph_offset,
 			       val);
 }
 
 static inline void iwl_write_umac_prph(struct iwl_trans *trans, u32 ofs,
 				       u32 val)
 {
-	iwl_write_prph(trans,  ofs + trans->trans_cfg->umac_prph_offset, val);
+	iwl_write_prph(trans,  ofs + trans->mac_cfg->umac_prph_offset, val);
 }
 
 static inline int iwl_poll_umac_prph_bit(struct iwl_trans *trans, u32 addr,
 					 u32 bits, u32 mask, int timeout)
 {
 	return iwl_poll_prph_bit(trans, addr +
-				 trans->trans_cfg->umac_prph_offset,
+				 trans->mac_cfg->umac_prph_offset,
 				 bits, mask, timeout);
 }
 

@@ -304,7 +304,8 @@ static void aspeed_vuart_unthrottle(struct uart_port *port)
 
 static void aspeed_vuart_unthrottle_exp(struct timer_list *timer)
 {
-	struct aspeed_vuart *vuart = from_timer(vuart, timer, unthrottle_timer);
+	struct aspeed_vuart *vuart = timer_container_of(vuart, timer,
+							unthrottle_timer);
 	struct uart_8250_port *up = vuart->port;
 
 	if (!tty_buffer_space_avail(&up->port.state->port)) {

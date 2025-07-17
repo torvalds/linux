@@ -6,18 +6,8 @@ The following document describes how to use Symbol Namespaces to structure the
 export surface of in-kernel symbols exported through the family of
 EXPORT_SYMBOL() macros.
 
-.. Table of Contents
-
-	=== 1 Introduction
-	=== 2 How to define Symbol Namespaces
-	   --- 2.1 Using the EXPORT_SYMBOL macros
-	   --- 2.2 Using the DEFAULT_SYMBOL_NAMESPACE define
-	=== 3 How to use Symbols exported in Namespaces
-	=== 4 Loading Modules that use namespaced Symbols
-	=== 5 Automatically creating MODULE_IMPORT_NS statements
-
-1. Introduction
-===============
+Introduction
+============
 
 Symbol Namespaces have been introduced as a means to structure the export
 surface of the in-kernel API. It allows subsystem maintainers to partition
@@ -28,15 +18,18 @@ kernel. As of today, modules that make use of symbols exported into namespaces,
 are required to import the namespace. Otherwise the kernel will, depending on
 its configuration, reject loading the module or warn about a missing import.
 
-2. How to define Symbol Namespaces
-==================================
+Additionally, it is possible to put symbols into a module namespace, strictly
+limiting which modules are allowed to use these symbols.
+
+How to define Symbol Namespaces
+===============================
 
 Symbols can be exported into namespace using different methods. All of them are
 changing the way EXPORT_SYMBOL and friends are instrumented to create ksymtab
 entries.
 
-2.1 Using the EXPORT_SYMBOL macros
-==================================
+Using the EXPORT_SYMBOL macros
+------------------------------
 
 In addition to the macros EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(), that allow
 exporting of kernel symbols to the kernel symbol table, variants of these are
@@ -54,8 +47,8 @@ refer to ``NULL``. There is no default namespace if none is defined. ``modpost``
 and kernel/module/main.c make use the namespace at build time or module load
 time, respectively.
 
-2.2 Using the DEFAULT_SYMBOL_NAMESPACE define
-=============================================
+Using the DEFAULT_SYMBOL_NAMESPACE define
+-----------------------------------------
 
 Defining namespaces for all symbols of a subsystem can be very verbose and may
 become hard to maintain. Therefore a default define (DEFAULT_SYMBOL_NAMESPACE)
@@ -83,8 +76,24 @@ unit as preprocessor statement. The above example would then read::
 within the corresponding compilation unit before the #include for
 <linux/export.h>. Typically it's placed before the first #include statement.
 
-3. How to use Symbols exported in Namespaces
-============================================
+Using the EXPORT_SYMBOL_GPL_FOR_MODULES() macro
+-----------------------------------------------
+
+Symbols exported using this macro are put into a module namespace. This
+namespace cannot be imported.
+
+The macro takes a comma separated list of module names, allowing only those
+modules to access this symbol. Simple tail-globs are supported.
+
+For example::
+
+  EXPORT_SYMBOL_GPL_FOR_MODULES(preempt_notifier_inc, "kvm,kvm-*")
+
+will limit usage of this symbol to modules whoes name matches the given
+patterns.
+
+How to use Symbols exported in Namespaces
+=========================================
 
 In order to use symbols that are exported into namespaces, kernel modules need
 to explicitly import these namespaces. Otherwise the kernel might reject to
@@ -106,11 +115,10 @@ inspected with modinfo::
 
 
 It is advisable to add the MODULE_IMPORT_NS() statement close to other module
-metadata definitions like MODULE_AUTHOR() or MODULE_LICENSE(). Refer to section
-5. for a way to create missing import statements automatically.
+metadata definitions like MODULE_AUTHOR() or MODULE_LICENSE().
 
-4. Loading Modules that use namespaced Symbols
-==============================================
+Loading Modules that use namespaced Symbols
+===========================================
 
 At module loading time (e.g. ``insmod``), the kernel will check each symbol
 referenced from the module for its availability and whether the namespace it
@@ -121,8 +129,8 @@ allow loading of modules that don't satisfy this precondition, a configuration
 option is available: Setting MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS=y will
 enable loading regardless, but will emit a warning.
 
-5. Automatically creating MODULE_IMPORT_NS statements
-=====================================================
+Automatically creating MODULE_IMPORT_NS statements
+==================================================
 
 Missing namespaces imports can easily be detected at build time. In fact,
 modpost will emit a warning if a module uses a symbol from a namespace
@@ -154,3 +162,6 @@ in-tree modules::
 You can also run nsdeps for external module builds. A typical usage is::
 
 	$ make -C <path_to_kernel_src> M=$PWD nsdeps
+
+Note: it will happily generate an import statement for the module namespace;
+which will not work and generates build and runtime failures.

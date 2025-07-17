@@ -9,6 +9,7 @@
 #include "events_stats.h"
 #include "evsel.h"
 #include "map_symbol.h"
+#include "mem-events.h"
 #include "mutex.h"
 #include "sample.h"
 #include "spark.h"
@@ -41,6 +42,7 @@ enum hist_column {
 	HISTC_TIME,
 	HISTC_DSO,
 	HISTC_THREAD,
+	HISTC_TGID,
 	HISTC_COMM,
 	HISTC_CGROUP_ID,
 	HISTC_CGROUP,
@@ -100,6 +102,13 @@ enum hist_column {
 struct thread;
 struct dso;
 
+#define MEM_STAT_LEN  8
+
+struct he_mem_stat {
+	/* meaning of entries depends on enum mem_stat_type */
+	u64			entries[MEM_STAT_LEN];
+};
+
 struct hists {
 	struct rb_root_cached	entries_in_array[2];
 	struct rb_root_cached	*entries_in;
@@ -125,6 +134,9 @@ struct hists {
 	struct perf_hpp_list	*hpp_list;
 	struct list_head	hpp_formats;
 	int			nr_hpp_node;
+	int			nr_mem_stats;
+	enum mem_stat_type	*mem_stat_types;
+	struct he_mem_stat	*mem_stat_total;
 };
 
 #define hists__has(__h, __f) (__h)->hpp_list->__f
@@ -232,6 +244,7 @@ struct hist_entry {
 	} pairs;
 	struct he_stat		stat;
 	struct he_stat		*stat_acc;
+	struct he_mem_stat	*mem_stat;
 	struct map_symbol	ms;
 	struct thread		*thread;
 	struct comm		*comm;
@@ -576,18 +589,25 @@ enum {
 	PERF_HPP__WEIGHT1,
 	PERF_HPP__WEIGHT2,
 	PERF_HPP__WEIGHT3,
+	PERF_HPP__MEM_STAT_OP,
+	PERF_HPP__MEM_STAT_CACHE,
+	PERF_HPP__MEM_STAT_MEMORY,
+	PERF_HPP__MEM_STAT_SNOOP,
+	PERF_HPP__MEM_STAT_DTLB,
 
 	PERF_HPP__MAX_INDEX
 };
 
 void perf_hpp__init(void);
-void perf_hpp__cancel_cumulate(void);
-void perf_hpp__cancel_latency(void);
+void perf_hpp__cancel_cumulate(struct evlist *evlist);
+void perf_hpp__cancel_latency(struct evlist *evlist);
 void perf_hpp__setup_output_field(struct perf_hpp_list *list);
 void perf_hpp__reset_output_field(struct perf_hpp_list *list);
 void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
 int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 				  struct evlist *evlist);
+int perf_hpp__alloc_mem_stats(struct perf_hpp_list *list,
+			      struct evlist *evlist);
 
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
@@ -643,6 +663,9 @@ int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		 struct hist_entry *he, hpp_field_fn get_field,
 		 const char *fmtstr, hpp_snprint_fn print_fn,
 		 enum perf_hpp_fmt_type fmtype);
+int hpp__fmt_mem_stat(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct hist_entry *he, enum mem_stat_type mst,
+		      const char *fmtstr, hpp_snprint_fn print_fn);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {

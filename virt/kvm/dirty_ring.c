@@ -11,14 +11,14 @@
 #include <trace/events/kvm.h>
 #include "kvm_mm.h"
 
-int __weak kvm_cpu_dirty_log_size(void)
+int __weak kvm_cpu_dirty_log_size(struct kvm *kvm)
 {
 	return 0;
 }
 
-u32 kvm_dirty_ring_get_rsvd_entries(void)
+u32 kvm_dirty_ring_get_rsvd_entries(struct kvm *kvm)
 {
-	return KVM_DIRTY_RING_RSVD_ENTRIES + kvm_cpu_dirty_log_size();
+	return KVM_DIRTY_RING_RSVD_ENTRIES + kvm_cpu_dirty_log_size(kvm);
 }
 
 bool kvm_use_dirty_bitmap(struct kvm *kvm)
@@ -74,14 +74,15 @@ static void kvm_reset_dirty_gfn(struct kvm *kvm, u32 slot, u64 offset, u64 mask)
 	KVM_MMU_UNLOCK(kvm);
 }
 
-int kvm_dirty_ring_alloc(struct kvm_dirty_ring *ring, int index, u32 size)
+int kvm_dirty_ring_alloc(struct kvm *kvm, struct kvm_dirty_ring *ring,
+			 int index, u32 size)
 {
 	ring->dirty_gfns = vzalloc(size);
 	if (!ring->dirty_gfns)
 		return -ENOMEM;
 
 	ring->size = size / sizeof(struct kvm_dirty_gfn);
-	ring->soft_limit = ring->size - kvm_dirty_ring_get_rsvd_entries();
+	ring->soft_limit = ring->size - kvm_dirty_ring_get_rsvd_entries(kvm);
 	ring->dirty_index = 0;
 	ring->reset_index = 0;
 	ring->index = index;

@@ -155,24 +155,10 @@ static const struct icssg_miig_stats icssg_all_miig_stats[] = {
 	ICSSG_MIIG_STATS(tx_bytes, true),
 };
 
-/**
- * struct pa_stats_regs - ICSSG Firmware maintained PA Stats register
- * @fw_rx_cnt: Number of valid packets sent by Rx PRU to Host on PSI
- * @fw_tx_cnt: Number of valid packets copied by RTU0 to Tx queues
- * @fw_tx_pre_overflow: Host Egress Q (Pre-emptible) Overflow Counter
- * @fw_tx_exp_overflow: Host Egress Q (Express) Overflow Counter
- */
-struct pa_stats_regs {
-	u32 fw_rx_cnt;
-	u32 fw_tx_cnt;
-	u32 fw_tx_pre_overflow;
-	u32 fw_tx_exp_overflow;
-};
-
-#define ICSSG_PA_STATS(field)			\
-{						\
-	#field,					\
-	offsetof(struct pa_stats_regs, field),	\
+#define ICSSG_PA_STATS(field)	\
+{				\
+	#field,			\
+	field,			\
 }
 
 struct icssg_pa_stats {
@@ -181,10 +167,38 @@ struct icssg_pa_stats {
 };
 
 static const struct icssg_pa_stats icssg_all_pa_stats[] = {
-	ICSSG_PA_STATS(fw_rx_cnt),
-	ICSSG_PA_STATS(fw_tx_cnt),
-	ICSSG_PA_STATS(fw_tx_pre_overflow),
-	ICSSG_PA_STATS(fw_tx_exp_overflow),
+	ICSSG_PA_STATS(FW_RTU_PKT_DROP),
+	ICSSG_PA_STATS(FW_Q0_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q1_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q2_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q3_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q4_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q5_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q6_OVERFLOW),
+	ICSSG_PA_STATS(FW_Q7_OVERFLOW),
+	ICSSG_PA_STATS(FW_DROPPED_PKT),
+	ICSSG_PA_STATS(FW_RX_ERROR),
+	ICSSG_PA_STATS(FW_RX_DS_INVALID),
+	ICSSG_PA_STATS(FW_TX_DROPPED_PACKET),
+	ICSSG_PA_STATS(FW_TX_TS_DROPPED_PACKET),
+	ICSSG_PA_STATS(FW_INF_PORT_DISABLED),
+	ICSSG_PA_STATS(FW_INF_SAV),
+	ICSSG_PA_STATS(FW_INF_SA_DL),
+	ICSSG_PA_STATS(FW_INF_PORT_BLOCKED),
+	ICSSG_PA_STATS(FW_INF_DROP_TAGGED),
+	ICSSG_PA_STATS(FW_INF_DROP_PRIOTAGGED),
+	ICSSG_PA_STATS(FW_INF_DROP_NOTAG),
+	ICSSG_PA_STATS(FW_INF_DROP_NOTMEMBER),
+	ICSSG_PA_STATS(FW_RX_EOF_SHORT_FRMERR),
+	ICSSG_PA_STATS(FW_RX_B0_DROP_EARLY_EOF),
+	ICSSG_PA_STATS(FW_TX_JUMBO_FRM_CUTOFF),
+	ICSSG_PA_STATS(FW_RX_EXP_FRAG_Q_DROP),
+	ICSSG_PA_STATS(FW_RX_FIFO_OVERRUN),
+	ICSSG_PA_STATS(FW_CUT_THR_PKT),
+	ICSSG_PA_STATS(FW_HOST_RX_PKT_CNT),
+	ICSSG_PA_STATS(FW_HOST_TX_PKT_CNT),
+	ICSSG_PA_STATS(FW_HOST_EGRESS_Q_PRE_OVERFLOW),
+	ICSSG_PA_STATS(FW_HOST_EGRESS_Q_EXP_OVERFLOW),
 };
 
 #endif /* __NET_TI_ICSSG_STATS_H */

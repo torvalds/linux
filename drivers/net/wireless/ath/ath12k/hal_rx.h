@@ -108,11 +108,12 @@ enum hal_rx_mon_status {
 	HAL_RX_MON_STATUS_PPDU_DONE,
 	HAL_RX_MON_STATUS_BUF_DONE,
 	HAL_RX_MON_STATUS_BUF_ADDR,
+	HAL_RX_MON_STATUS_MPDU_START,
 	HAL_RX_MON_STATUS_MPDU_END,
 	HAL_RX_MON_STATUS_MSDU_END,
 };
 
-#define HAL_RX_MAX_MPDU		256
+#define HAL_RX_MAX_MPDU				1024
 #define HAL_RX_NUM_WORDS_PER_PPDU_BITMAP	(HAL_RX_MAX_MPDU >> 5)
 
 struct hal_rx_user_status {
@@ -506,6 +507,18 @@ struct hal_rx_mpdu_start {
 	__le32 rsvd2[16];
 } __packed;
 
+struct hal_rx_msdu_end {
+	__le32 info0;
+	__le32 rsvd0[9];
+	__le16 info00;
+	__le16 info01;
+	__le32 rsvd00[8];
+	__le32 info1;
+	__le32 rsvd1[10];
+	__le32 info2;
+	__le32 rsvd2;
+} __packed;
+
 #define HAL_RX_PPDU_END_DURATION	GENMASK(23, 0)
 struct hal_rx_ppdu_end_duration {
 	__le32 rsvd0[9];
@@ -525,6 +538,7 @@ struct hal_rx_msdu_desc_info {
 #define HAL_RX_NUM_MSDU_DESC 6
 struct hal_rx_msdu_list {
 	struct hal_rx_msdu_desc_info msdu_info[HAL_RX_NUM_MSDU_DESC];
+	u64 paddr[HAL_RX_NUM_MSDU_DESC];
 	u32 sw_cookie[HAL_RX_NUM_MSDU_DESC];
 	u8 rbm[HAL_RX_NUM_MSDU_DESC];
 };
@@ -1128,8 +1142,8 @@ void ath12k_hal_rx_msdu_link_info_get(struct hal_rx_msdu_link *link, u32 *num_ms
 				      u32 *msdu_cookies,
 				      enum hal_rx_buf_return_buf_manager *rbm);
 void ath12k_hal_rx_msdu_link_desc_set(struct ath12k_base *ab,
-				      struct hal_wbm_release_ring *dst_desc,
-				      struct hal_wbm_release_ring *src_desc,
+				      struct hal_wbm_release_ring *desc,
+				      struct ath12k_buffer_addr *buf_addr_info,
 				      enum hal_wbm_rel_bm_act action);
 void ath12k_hal_rx_buf_addr_info_set(struct ath12k_buffer_addr *binfo,
 				     dma_addr_t paddr, u32 cookie, u8 manager);
@@ -1144,5 +1158,12 @@ int ath12k_hal_wbm_desc_parse_err(struct ath12k_base *ab, void *desc,
 void ath12k_hal_rx_reo_ent_paddr_get(struct ath12k_base *ab,
 				     struct ath12k_buffer_addr *buff_addr,
 				     dma_addr_t *paddr, u32 *cookie);
+void ath12k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr, u32 *sw_cookie,
+					 struct ath12k_buffer_addr **pp_buf_addr,
+					 u8 *rbm, u32 *msdu_cnt);
+void ath12k_hal_rx_msdu_list_get(struct ath12k *ar,
+				 struct hal_rx_msdu_link *link_desc,
+				 struct hal_rx_msdu_list *msdu_list,
+				 u16 *num_msdus);
 
 #endif

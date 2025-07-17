@@ -7,6 +7,11 @@ void rust_helper_mutex_lock(struct mutex *lock)
 	mutex_lock(lock);
 }
 
+int rust_helper_mutex_trylock(struct mutex *lock)
+{
+	return mutex_trylock(lock);
+}
+
 void rust_helper___mutex_init(struct mutex *mutex, const char *name,
 			      struct lock_class_key *key)
 {

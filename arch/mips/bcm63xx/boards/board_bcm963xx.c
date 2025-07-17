@@ -764,7 +764,7 @@ void __init board_prom_init(void)
 			snprintf(cfe_version, 12, "%s", (char *) &cfe[4]);
 		}
 	} else {
-		strcpy(cfe_version, "unknown");
+		strscpy(cfe_version, "unknown");
 	}
 	pr_info("CFE version: %s\n", cfe_version);
 

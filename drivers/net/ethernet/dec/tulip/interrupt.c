@@ -104,7 +104,7 @@ int tulip_refill_rx(struct net_device *dev)
 
 void oom_timer(struct timer_list *t)
 {
-	struct tulip_private *tp = from_timer(tp, t, oom_timer);
+	struct tulip_private *tp = timer_container_of(tp, t, oom_timer);
 
 	napi_schedule(&tp->napi);
 }

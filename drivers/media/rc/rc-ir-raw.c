@@ -552,7 +552,8 @@ EXPORT_SYMBOL(ir_raw_encode_scancode);
  */
 static void ir_raw_edge_handle(struct timer_list *t)
 {
-	struct ir_raw_event_ctrl *raw = from_timer(raw, t, edge_handle);
+	struct ir_raw_event_ctrl *raw = timer_container_of(raw, t,
+							   edge_handle);
 	struct rc_dev *dev = raw->dev;
 	unsigned long flags;
 	ktime_t interval;

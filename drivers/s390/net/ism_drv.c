@@ -611,7 +611,7 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ism->dev.parent = &pdev->dev;
 	ism->dev.release = ism_dev_release;
 	device_initialize(&ism->dev);
-	dev_set_name(&ism->dev, dev_name(&pdev->dev));
+	dev_set_name(&ism->dev, "%s", dev_name(&pdev->dev));
 	ret = device_add(&ism->dev);
 	if (ret)
 		goto err_dev;

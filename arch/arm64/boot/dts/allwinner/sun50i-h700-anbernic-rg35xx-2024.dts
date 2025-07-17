@@ -184,8 +184,11 @@
 };
 
 &codec {
-	allwinner,audio-routing = "Line Out", "LINEOUT";
+	/* Both speakers and headphone jack connected to 74HC4052D analog mux*/
+	allwinner,audio-routing = "Speaker", "LINEOUT",
+				  "Headphone", "LINEOUT";
 	allwinner,pa-gpios = <&pio 8 5 GPIO_ACTIVE_HIGH>; // PI5
+	hp-det-gpios = <&pio 8 3 GPIO_ACTIVE_HIGH>; // PI3
 	status = "okay";
 };
 
@@ -194,6 +197,11 @@
 };
 
 &ehci0 {
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&reg_dcdc2>;
 	status = "okay";
 };
 

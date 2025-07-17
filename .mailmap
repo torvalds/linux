@@ -21,7 +21,8 @@ Adam Radford <aradford@gmail.com>
 Adriana Reus <adi.reus@gmail.com> <adriana.reus@intel.com>
 Adrian Bunk <bunk@stusta.de>
 Ajay Kaher <ajay.kaher@broadcom.com> <akaher@vmware.com>
-Akhil P Oommen <quic_akhilpo@quicinc.com> <akhilpo@codeaurora.org>
+Akhil P Oommen <akhilpo@oss.qualcomm.com> <akhilpo@codeaurora.org>
+Akhil P Oommen <akhilpo@oss.qualcomm.com> <quic_akhilpo@quicinc.com>
 Alan Cox <alan@lxorguk.ukuu.org.uk>
 Alan Cox <root@hraefn.swansea.linux.org.uk>
 Aleksandar Markovic <aleksandar.markovic@mips.com> <aleksandar.markovic@imgtec.com>
@@ -106,7 +107,8 @@ Asahi Lina <lina+kernel@asahilina.net> <lina@asahilina.net>
 Ashok Raj Nagarajan <quic_arnagara@quicinc.com> <arnagara@codeaurora.org>
 Ashwin Chaugule <quic_ashwinc@quicinc.com> <ashwinc@codeaurora.org>
 Asutosh Das <quic_asutoshd@quicinc.com> <asutoshd@codeaurora.org>
-Atish Patra <atishp@atishpatra.org> <atish.patra@wdc.com>
+Atish Patra <atish.patra@linux.dev> <atishp@atishpatra.org>
+Atish Patra <atish.patra@linux.dev> <atish.patra@wdc.com>
 Avaneesh Kumar Dwivedi <quic_akdwived@quicinc.com> <akdwived@codeaurora.org>
 Axel Dyks <xl@xlsigned.net>
 Axel Lin <axel.lin@gmail.com>
@@ -135,6 +137,7 @@ Ben Widawsky <bwidawsk@kernel.org> <benjamin.widawsky@intel.com>
 Benjamin Poirier <benjamin.poirier@gmail.com> <bpoirier@suse.de>
 Benjamin Tissoires <bentiss@kernel.org> <benjamin.tissoires@gmail.com>
 Benjamin Tissoires <bentiss@kernel.org> <benjamin.tissoires@redhat.com>
+Benno Lossin <lossin@kernel.org> <benno.lossin@proton.me>
 Bingwu Zhang <xtex@aosc.io> <xtexchooser@duck.com>
 Bingwu Zhang <xtex@aosc.io> <xtex@xtexx.eu.org>
 Bjorn Andersson <andersson@kernel.org> <bjorn@kryo.se>
@@ -155,6 +158,9 @@ Brian King <brking@us.ibm.com>
 Brian Silverman <bsilver16384@gmail.com> <brian.silverman@bluerivertech.com>
 Bryan Tan <bryan-bt.tan@broadcom.com> <bryantan@vmware.com>
 Cai Huoqing <cai.huoqing@linux.dev> <caihuoqing@baidu.com>
+Casey Connolly <casey.connolly@linaro.org> <caleb.connolly@linaro.org>
+Casey Connolly <casey.connolly@linaro.org> <caleb@connolly.tech>
+Casey Connolly <casey.connolly@linaro.org> <caleb@postmarketos.org>
 Can Guo <quic_cang@quicinc.com> <cang@codeaurora.org>
 Carl Huang <quic_cjhuang@quicinc.com> <cjhuang@codeaurora.org>
 Carlos Bilbao <carlos.bilbao@kernel.org> <carlos.bilbao@amd.com>
@@ -191,6 +197,7 @@ Daniel Borkmann <daniel@iogearbox.net> <daniel.borkmann@tik.ee.ethz.ch>
 Daniel Borkmann <daniel@iogearbox.net> <dborkmann@redhat.com>
 Daniel Borkmann <daniel@iogearbox.net> <dborkman@redhat.com>
 Daniel Borkmann <daniel@iogearbox.net> <dxchgb@gmail.com>
+Danilo Krummrich <dakr@kernel.org> <dakr@redhat.com>
 David Brownell <david-b@pacbell.net>
 David Collins <quic_collinsd@quicinc.com> <collinsd@codeaurora.org>
 David Heidelberg <david@ixit.cz> <d.okias@gmail.com>
@@ -216,6 +223,8 @@ Dmitry Safonov <0x7f454c46@gmail.com> <d.safonov@partner.samsung.com>
 Dmitry Safonov <0x7f454c46@gmail.com> <dsafonov@virtuozzo.com>
 Domen Puncer <domen@coderock.org>
 Douglas Gilbert <dougg@torque.net>
+Drew Fustini <fustini@kernel.org> <drew@pdp7.com>
+<duje@dujemihanovic.xyz> <duje.mihanovic@skole.hr>
 Ed L. Cashin <ecashin@coraid.com>
 Elliot Berman <quic_eberman@quicinc.com> <eberman@codeaurora.org>
 Enric Balletbo i Serra <eballetbo@kernel.org> <enric.balletbo@collabora.com>
@@ -276,6 +285,7 @@ Gustavo Padovan <gustavo@las.ic.unicamp.br>
 Gustavo Padovan <padovan@profusion.mobi>
 Hamza Mahfooz <hamzamahfooz@linux.microsoft.com> <hamza.mahfooz@amd.com>
 Hanjun Guo <guohanjun@huawei.com> <hanjun.guo@linaro.org>
+Hans de Goede <hansg@kernel.org> <hdegoede@redhat.com>
 Hans Verkuil <hverkuil@xs4all.nl> <hansverk@cisco.com>
 Hans Verkuil <hverkuil@xs4all.nl> <hverkuil-cisco@xs4all.nl>
 Harry Yoo <harry.yoo@oracle.com> <42.hyeyoo@gmail.com>
@@ -406,6 +416,7 @@ Kenneth W Chen <kenneth.w.chen@intel.com>
 Kenneth Westfield <quic_kwestfie@quicinc.com> <kwestfie@codeaurora.org>
 Kiran Gunda <quic_kgunda@quicinc.com> <kgunda@codeaurora.org>
 Kirill Tkhai <tkhai@ya.ru> <ktkhai@virtuozzo.com>
+Kirill A. Shutemov <kas@kernel.org> <kirill.shutemov@linux.intel.com>
 Kishon Vijay Abraham I <kishon@kernel.org> <kishon@ti.com>
 Konrad Dybcio <konradybcio@kernel.org> <konrad.dybcio@linaro.org>
 Konrad Dybcio <konradybcio@kernel.org> <konrad.dybcio@somainline.org>
@@ -416,8 +427,13 @@ Krishna Manikandan <quic_mkrishn@quicinc.com> <mkrishn@codeaurora.org>
 Krzysztof Kozlowski <krzk@kernel.org> <k.kozlowski.k@gmail.com>
 Krzysztof Kozlowski <krzk@kernel.org> <k.kozlowski@samsung.com>
 Krzysztof Kozlowski <krzk@kernel.org> <krzysztof.kozlowski@canonical.com>
+Krzysztof Wilczyński <kwilczynski@kernel.org> <krzysztof.wilczynski@linux.com>
+Krzysztof Wilczyński <kwilczynski@kernel.org> <kw@linux.com>
 Kshitiz Godara <quic_kgodara@quicinc.com> <kgodara@codeaurora.org>
 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+Kuniyuki Iwashima <kuniyu@google.com> <kuniyu@amazon.com>
+Kuniyuki Iwashima <kuniyu@google.com> <kuniyu@amazon.co.jp>
+Kuniyuki Iwashima <kuniyu@google.com> <kuni1840@gmail.com>
 Kuogee Hsieh <quic_khsieh@quicinc.com> <khsieh@codeaurora.org>
 Lee Jones <lee@kernel.org> <joneslee@google.com>
 Lee Jones <lee@kernel.org> <lee.jones@canonical.com>
@@ -458,6 +474,7 @@ Maheshwar Ajja <quic_majja@quicinc.com> <majja@codeaurora.org>
 Malathi Gottam <quic_mgottam@quicinc.com> <mgottam@codeaurora.org>
 Manikanta Pubbisetty <quic_mpubbise@quicinc.com> <mpubbise@codeaurora.org>
 Manivannan Sadhasivam <mani@kernel.org> <manivannanece23@gmail.com>
+Manivannan Sadhasivam <mani@kernel.org> <manivannan.sadhasivam@linaro.org>
 Manoj Basapathi <quic_manojbm@quicinc.com> <manojbm@codeaurora.org>
 Marcin Nowakowski <marcin.nowakowski@mips.com> <marcin.nowakowski@imgtec.com>
 Marc Zyngier <maz@kernel.org> <marc.zyngier@arm.com>
@@ -511,6 +528,7 @@ Mayuresh Janorkar <mayur@ti.com>
 Md Sadre Alam <quic_mdalam@quicinc.com> <mdalam@codeaurora.org>
 Miaoqing Pan <quic_miaoqing@quicinc.com> <miaoqing@codeaurora.org>
 Michael Buesch <m@bues.ch>
+Michael Riesch <michael.riesch@collabora.com> <michael.riesch@wolfvision.net>
 Michal Simek <michal.simek@amd.com> <michal.simek@xilinx.com>
 Michel Dänzer <michel@tungstengraphics.com>
 Michel Lespinasse <michel@lespinasse.org>
@@ -545,6 +563,8 @@ Naveen N Rao <naveen@kernel.org> <naveen.n.rao@linux.vnet.ibm.com>
 Neeraj Upadhyay <neeraj.upadhyay@kernel.org> <quic_neeraju@quicinc.com>
 Neeraj Upadhyay <neeraj.upadhyay@kernel.org> <neeraju@codeaurora.org>
 Neil Armstrong <neil.armstrong@linaro.org> <narmstrong@baylibre.com>
+NeilBrown <neil@brown.name> <neilb@suse.de>
+NeilBrown <neil@brown.name> <neilb@cse.unsw.edu.au>
 Nguyen Anh Quynh <aquynh@gmail.com>
 Nicholas Piggin <npiggin@gmail.com> <npiggen@suse.de>
 Nicholas Piggin <npiggin@gmail.com> <npiggin@kernel.dk>
@@ -590,6 +610,12 @@ Paul Mackerras <paulus@ozlabs.org> <paulus@samba.org>
 Paul Mackerras <paulus@ozlabs.org> <paulus@au1.ibm.com>
 Paul Moore <paul@paul-moore.com> <paul.moore@hp.com>
 Paul Moore <paul@paul-moore.com> <pmoore@redhat.com>
+Paulo Alcantara <pc@manguebit.org> <pcacjr@zytor.com>
+Paulo Alcantara <pc@manguebit.org> <paulo@paulo.ac>
+Paulo Alcantara <pc@manguebit.org> <pc@cjr.nz>
+Paulo Alcantara <pc@manguebit.org> <palcantara@suse.de>
+Paulo Alcantara <pc@manguebit.org> <palcantara@suse.com>
+Paulo Alcantara <pc@manguebit.org> <pc@manguebit.com>
 Pavankumar Kondeti <quic_pkondeti@quicinc.com> <pkondeti@codeaurora.org>
 Peter A Jonsson <pj@ludd.ltu.se>
 Peter Oruba <peter.oruba@amd.com>
@@ -630,6 +656,8 @@ Richard Genoud <richard.genoud@bootlin.com> <richard.genoud@gmail.com>
 Richard Leitner <richard.leitner@linux.dev> <dev@g0hl1n.net>
 Richard Leitner <richard.leitner@linux.dev> <me@g0hl1n.net>
 Richard Leitner <richard.leitner@linux.dev> <richard.leitner@skidata.com>
+Rob Clark <robin.clark@oss.qualcomm.com> <robdclark@chromium.org>
+Rob Clark <robin.clark@oss.qualcomm.com> <robdclark@gmail.com>
 Robert Foss <rfoss@kernel.org> <robert.foss@linaro.org>
 Rocky Liao <quic_rjliao@quicinc.com> <rjliao@codeaurora.org>
 Rodrigo Siqueira <siqueira@igalia.com> <rodrigosiqueiramelo@gmail.com>
@@ -668,9 +696,10 @@ Serge Hallyn <sergeh@kernel.org> <serge.hallyn@canonical.com>
 Serge Hallyn <sergeh@kernel.org> <serue@us.ibm.com>
 Seth Forshee <sforshee@kernel.org> <seth.forshee@canonical.com>
 Shakeel Butt <shakeel.butt@linux.dev> <shakeelb@google.com>
-Shannon Nelson <shannon.nelson@amd.com> <snelson@pensando.io>
-Shannon Nelson <shannon.nelson@amd.com> <shannon.nelson@intel.com>
-Shannon Nelson <shannon.nelson@amd.com> <shannon.nelson@oracle.com>
+Shannon Nelson <sln@onemain.com> <shannon.nelson@amd.com>
+Shannon Nelson <sln@onemain.com> <snelson@pensando.io>
+Shannon Nelson <sln@onemain.com> <shannon.nelson@intel.com>
+Shannon Nelson <sln@onemain.com> <shannon.nelson@oracle.com>
 Sharath Chandra Vurukala <quic_sharathv@quicinc.com> <sharathv@codeaurora.org>
 Shiraz Hashim <shiraz.linux.kernel@gmail.com> <shiraz.hashim@st.com>
 Shuah Khan <shuah@kernel.org> <shuahkhan@gmail.com>
@@ -699,6 +728,7 @@ Srinivas Ramana <quic_sramana@quicinc.com> <sramana@codeaurora.org>
 Sriram R <quic_srirrama@quicinc.com> <srirrama@codeaurora.org>
 Sriram Yagnaraman <sriram.yagnaraman@ericsson.com> <sriram.yagnaraman@est.tech>
 Stanislav Fomichev <sdf@fomichev.me> <sdf@google.com>
+Stanislav Fomichev <sdf@fomichev.me> <stfomichev@gmail.com>
 Stefan Wahren <wahrenst@gmx.net> <stefan.wahren@i2se.com>
 Stéphane Witzmann <stephane.witzmann@ubpmes.univ-bpclermont.fr>
 Stephen Hemminger <stephen@networkplumber.org> <shemminger@linux-foundation.org>
@@ -722,6 +752,7 @@ Sven Eckelmann <sven@narfation.org> <sven.eckelmann@gmx.de>
 Sven Eckelmann <sven@narfation.org> <sven.eckelmann@open-mesh.com>
 Sven Eckelmann <sven@narfation.org> <sven.eckelmann@openmesh.com>
 Sven Eckelmann <sven@narfation.org> <sven@open-mesh.com>
+Sven Peter <sven@kernel.org> <sven@svenpeter.dev>
 Takashi YOSHII <takashi.yoshii.zj@renesas.com>
 Tamizh Chelvam Raja <quic_tamizhr@quicinc.com> <tamizhr@codeaurora.org>
 Taniya Das <quic_tdas@quicinc.com> <tdas@codeaurora.org>
@@ -802,3 +833,6 @@ Yosry Ahmed <yosry.ahmed@linux.dev> <yosryahmed@google.com>
 Yusuke Goda <goda.yusuke@renesas.com>
 Zack Rusin <zack.rusin@broadcom.com> <zackr@vmware.com>
 Zhu Yanjun <zyjzyj2000@gmail.com> <yanjunz@nvidia.com>
+Zijun Hu <zijun.hu@oss.qualcomm.com> <quic_zijuhu@quicinc.com>
+Zijun Hu <zijun.hu@oss.qualcomm.com> <zijuhu@codeaurora.org>
+Zijun Hu <zijun_hu@htc.com>

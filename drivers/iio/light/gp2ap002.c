@@ -700,7 +700,7 @@ MODULE_DEVICE_TABLE(i2c, gp2ap002_id_table);
 static const struct of_device_id gp2ap002_of_match[] = {
 	{ .compatible = "sharp,gp2ap002a00f" },
 	{ .compatible = "sharp,gp2ap002s00f" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, gp2ap002_of_match);
 

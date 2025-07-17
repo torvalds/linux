@@ -40,6 +40,16 @@ struct drm_scanout_buffer {
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 
 	/**
+	 * @pages: Optional, if the scanout buffer is not mapped, set this field
+	 * to the array of pages of the scanout buffer. The panic code will use
+	 * kmap_local_page_try_from_panic() to map one page at a time to write
+	 * all the pixels. This array shouldn't be allocated from the
+	 * get_scanoutbuffer() callback.
+	 * The scanout buffer should be in linear format.
+	 */
+	struct page **pages;
+
+	/**
 	 * @width: Width of the scanout buffer, in pixels.
 	 */
 	unsigned int width;
@@ -57,7 +67,7 @@ struct drm_scanout_buffer {
 	/**
 	 * @set_pixel: Optional function, to set a pixel color on the
 	 * framebuffer. It allows to handle special tiling format inside the
-	 * driver.
+	 * driver. It takes precedence over the @map and @pages fields.
 	 */
 	void (*set_pixel)(struct drm_scanout_buffer *sb, unsigned int x,
 			  unsigned int y, u32 color);

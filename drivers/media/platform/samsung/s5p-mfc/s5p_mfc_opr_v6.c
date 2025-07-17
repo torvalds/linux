@@ -2229,6 +2229,11 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 		case MFCINST_HEAD_PRODUCED:
 			ret = s5p_mfc_run_init_enc_buffers(ctx);
 			break;
+		case MFCINST_NAL_ABORT:
+			mfc_write(dev, ctx->inst_no, S5P_FIMV_INSTANCE_ID_V6);
+			s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc,
+					dev, S5P_FIMV_H2R_CMD_NAL_ABORT_V6, NULL);
+			break;
 		default:
 			ret = -EAGAIN;
 		}

@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-==========================
-DAMON: Data Access MONitor
-==========================
+================================================================
+DAMON: Data Access MONitoring and Access-aware System Operations
+================================================================
 
 DAMON is a Linux kernel subsystem that provides a framework for data access
 monitoring and the monitoring results based system operations.  The core

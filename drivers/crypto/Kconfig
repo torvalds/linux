@@ -180,6 +180,7 @@ config CRYPTO_PAES_S390
 	depends on PKEY
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
+	select CRYPTO_ENGINE
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms for use with protected key.

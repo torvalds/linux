@@ -651,7 +651,7 @@ static int gaokun_ec_resume(struct device *dev)
 			break;
 
 		msleep(100); /* EC need time to resume */
-	};
+	}
 
 	ec->suspended = false;
 

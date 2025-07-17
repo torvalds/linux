@@ -2,7 +2,7 @@
 /*
  * max77686.h - Driver for the Maxim 77686/802
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electronics
  *  Chiwoong Byun <woong.byun@samsung.com>
  *
  * This driver is based on max8997.h

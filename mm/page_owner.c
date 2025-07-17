@@ -302,7 +302,7 @@ void __reset_page_owner(struct page *page, unsigned short order)
 	/*
 	 * Do not specify GFP_NOWAIT to make gfpflags_allow_spinning() == false
 	 * to prevent issues in stack_depot_save().
-	 * This is similar to try_alloc_pages() gfp flags, but only used
+	 * This is similar to alloc_pages_nolock() gfp flags, but only used
 	 * to signal stack_depot to avoid spin_locks.
 	 */
 	handle = save_stack(__GFP_NOWARN);

@@ -119,7 +119,7 @@ static inline void at91_wdt_reset(struct at91wdt *wdt)
  */
 static void at91_ping(struct timer_list *t)
 {
-	struct at91wdt *wdt = from_timer(wdt, t, timer);
+	struct at91wdt *wdt = timer_container_of(wdt, t, timer);
 	if (time_before(jiffies, wdt->next_heartbeat) ||
 	    !watchdog_active(&wdt->wdd)) {
 		at91_wdt_reset(wdt);

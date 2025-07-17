@@ -129,36 +129,9 @@ static enum dc_irq_source to_dal_irq_source_dcn32(
 	}
 }
 
-static bool hpd_ack(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info)
-{
-	uint32_t addr = info->status_reg;
-	uint32_t value = dm_read_reg(irq_service->ctx, addr);
-	uint32_t current_status =
-		get_reg_field_value(
-			value,
-			HPD0_DC_HPD_INT_STATUS,
-			DC_HPD_SENSE_DELAYED);
-
-	dal_irq_service_ack_generic(irq_service, info);
-
-	value = dm_read_reg(irq_service->ctx, info->enable_reg);
-
-	set_reg_field_value(
-		value,
-		current_status ? 0 : 1,
-		HPD0_DC_HPD_INT_CONTROL,
-		DC_HPD_INT_POLARITY);
-
-	dm_write_reg(irq_service->ctx, info->enable_reg, value);
-
-	return true;
-}
-
 static struct irq_source_info_funcs hpd_irq_info_funcs  = {
 	.set = NULL,
-	.ack = hpd_ack
+	.ack = hpd0_ack
 };
 
 static struct irq_source_info_funcs hpd_rx_irq_info_funcs = {
@@ -187,6 +160,16 @@ static struct irq_source_info_funcs outbox_irq_info_funcs = {
 };
 
 static struct irq_source_info_funcs vline0_irq_info_funcs = {
+	.set = NULL,
+	.ack = NULL
+};
+
+static struct irq_source_info_funcs vline1_irq_info_funcs = {
+	.set = NULL,
+	.ack = NULL
+};
+
+static struct irq_source_info_funcs vline2_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
@@ -259,6 +242,13 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 		.funcs = &pflip_irq_info_funcs\
 	}
 
+#define vblank_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
+		IRQ_REG_ENTRY(OTG, reg_num,\
+			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_INT_EN,\
+			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_EVENT_CLEAR),\
+		.funcs = &vblank_irq_info_funcs\
+	}
 /* vupdate_no_lock_int_entry maps to DC_IRQ_SOURCE_VUPDATEx, to match semantic
  * of DCE's DC_IRQ_SOURCE_VUPDATEx.
  */
@@ -270,20 +260,26 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 		.funcs = &vupdate_no_lock_irq_info_funcs\
 	}
 
-#define vblank_int_entry(reg_num)\
-	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
-		IRQ_REG_ENTRY(OTG, reg_num,\
-			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_INT_EN,\
-			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_EVENT_CLEAR),\
-		.funcs = &vblank_irq_info_funcs\
-}
-
 #define vline0_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_DC1_VLINE0 + reg_num] = {\
 		IRQ_REG_ENTRY(OTG, reg_num,\
 			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_INT_ENABLE,\
 			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_CLEAR),\
 		.funcs = &vline0_irq_info_funcs\
+	}
+#define vline1_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_DC1_VLINE1 + reg_num] = {\
+		IRQ_REG_ENTRY(OTG, reg_num,\
+			OTG_VERTICAL_INTERRUPT1_CONTROL, OTG_VERTICAL_INTERRUPT1_INT_ENABLE,\
+			OTG_VERTICAL_INTERRUPT1_CONTROL, OTG_VERTICAL_INTERRUPT1_CLEAR),\
+		.funcs = &vline1_irq_info_funcs\
+	}
+#define vline2_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_DC1_VLINE2 + reg_num] = {\
+		IRQ_REG_ENTRY(OTG, reg_num,\
+			OTG_VERTICAL_INTERRUPT2_CONTROL, OTG_VERTICAL_INTERRUPT2_INT_ENABLE,\
+			OTG_VERTICAL_INTERRUPT2_CONTROL, OTG_VERTICAL_INTERRUPT2_CLEAR),\
+		.funcs = &vline2_irq_info_funcs\
 	}
 #define dmub_outbox_int_entry()\
 	[DC_IRQ_SOURCE_DMCUB_OUTBOX] = {\
@@ -387,21 +383,29 @@ irq_source_info_dcn32[DAL_IRQ_SOURCES_NUMBER] = {
 	dc_underflow_int_entry(6),
 	[DC_IRQ_SOURCE_DMCU_SCP] = dummy_irq_entry(),
 	[DC_IRQ_SOURCE_VBIOS_SW] = dummy_irq_entry(),
-	vupdate_no_lock_int_entry(0),
-	vupdate_no_lock_int_entry(1),
-	vupdate_no_lock_int_entry(2),
-	vupdate_no_lock_int_entry(3),
 	vblank_int_entry(0),
 	vblank_int_entry(1),
 	vblank_int_entry(2),
 	vblank_int_entry(3),
+	[DC_IRQ_SOURCE_DC5_VLINE1] = dummy_irq_entry(),
+	[DC_IRQ_SOURCE_DC6_VLINE1] = dummy_irq_entry(),
+	dmub_outbox_int_entry(),
+	vupdate_no_lock_int_entry(0),
+	vupdate_no_lock_int_entry(1),
+	vupdate_no_lock_int_entry(2),
+	vupdate_no_lock_int_entry(3),
 	vline0_int_entry(0),
 	vline0_int_entry(1),
 	vline0_int_entry(2),
 	vline0_int_entry(3),
-	[DC_IRQ_SOURCE_DC5_VLINE1] = dummy_irq_entry(),
-	[DC_IRQ_SOURCE_DC6_VLINE1] = dummy_irq_entry(),
-	dmub_outbox_int_entry(),
+	vline1_int_entry(0),
+	vline1_int_entry(1),
+	vline1_int_entry(2),
+	vline1_int_entry(3),
+	vline2_int_entry(0),
+	vline2_int_entry(1),
+	vline2_int_entry(2),
+	vline2_int_entry(3)
 };
 
 static const struct irq_service_funcs irq_service_funcs_dcn32 = {

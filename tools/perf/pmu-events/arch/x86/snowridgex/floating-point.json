@@ -23,6 +23,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.FPDIV",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of floating point divide uops retired (x87 and SSE, including x87 sqrt). Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     }

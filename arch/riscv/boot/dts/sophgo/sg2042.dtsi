@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/sophgo,sg2042-pll.h>
 #include <dt-bindings/clock/sophgo,sg2042-rpgate.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/pinctrl-sg2042.h>
 #include <dt-bindings/reset/sophgo,sg2042-reset.h>
 
 #include "sg2042-cpus.dtsi"
@@ -198,6 +199,11 @@
 			clocks = <&clkgen GATE_CLK_RP_CPU_NORMAL>;
 			clock-names = "rpgate";
 			#clock-cells = <1>;
+		};
+
+		pinctrl: pinctrl@7030011000 {
+			compatible = "sophgo,sg2042-pinctrl";
+			reg = <0x70 0x30011000 0x0 0x1000>;
 		};
 
 		clkgen: clock-controller@7030012000 {
@@ -534,6 +540,32 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			resets = <&rstgen RST_UART0>;
+			status = "disabled";
+		};
+
+		spi0: spi@7040004000 {
+			compatible = "sophgo,sg2042-spi", "snps,dw-apb-ssi";
+			reg = <0x70 0x40004000 0x00 0x1000>;
+			clocks = <&clkgen GATE_CLK_APB_SPI>;
+			interrupt-parent = <&intc>;
+			interrupts = <110 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			num-cs = <2>;
+			resets = <&rstgen RST_SPI0>;
+			status = "disabled";
+		};
+
+		spi1: spi@7040005000 {
+			compatible = "sophgo,sg2042-spi", "snps,dw-apb-ssi";
+			reg = <0x70 0x40005000 0x00 0x1000>;
+			clocks = <&clkgen GATE_CLK_APB_SPI>;
+			interrupt-parent = <&intc>;
+			interrupts = <111 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			num-cs = <2>;
+			resets = <&rstgen RST_SPI1>;
 			status = "disabled";
 		};
 

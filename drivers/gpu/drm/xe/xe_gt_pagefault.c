@@ -240,7 +240,7 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	atomic = access_is_atomic(pf->access_type);
 
 	if (xe_vma_is_cpu_addr_mirror(vma))
-		err = xe_svm_handle_pagefault(vm, vma, gt_to_tile(gt),
+		err = xe_svm_handle_pagefault(vm, vma, gt,
 					      pf->page_addr, atomic);
 	else
 		err = handle_vma_pagefault(gt, vma, atomic);
@@ -444,6 +444,7 @@ static int xe_alloc_pf_queue(struct xe_gt *gt, struct pf_queue *pf_queue)
 #define PF_MULTIPLIER	8
 	pf_queue->num_dw =
 		(num_eus + XE_NUM_HW_ENGINES) * PF_MSG_LEN_DW * PF_MULTIPLIER;
+	pf_queue->num_dw = roundup_pow_of_two(pf_queue->num_dw);
 #undef PF_MULTIPLIER
 
 	pf_queue->gt = gt;

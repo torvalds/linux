@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * proactive reclamation: monitor access pattern of a given process, find
- * regiosn that seems not accessed, and proactively page out the regions.
+ * regions that seems not accessed, and proactively page out the regions.
  */
 
 #define pr_fmt(fmt) "damon_sample_prcl: " fmt
@@ -122,8 +122,12 @@ static int damon_sample_prcl_enable_store(
 	if (enable == enabled)
 		return 0;
 
-	if (enable)
-		return damon_sample_prcl_start();
+	if (enable) {
+		err = damon_sample_prcl_start();
+		if (err)
+			enable = false;
+		return err;
+	}
 	damon_sample_prcl_stop();
 	return 0;
 }

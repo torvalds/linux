@@ -3420,6 +3420,8 @@ static int qla4xxx_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 		task_data->data_dma = dma_map_single(&ha->pdev->dev, task->data,
 						     task->data_count,
 						     DMA_TO_DEVICE);
+		if (dma_mapping_error(&ha->pdev->dev, task_data->data_dma))
+			return -ENOMEM;
 	}
 
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: MaxRecvLen %u, iscsi hrd %d\n",
@@ -4551,7 +4553,7 @@ static void qla4xxx_check_relogin_flash_ddb(struct iscsi_cls_session *cls_sess)
  **/
 static void qla4xxx_timer(struct timer_list *t)
 {
-	struct scsi_qla_host *ha = from_timer(ha, t, timer);
+	struct scsi_qla_host *ha = timer_container_of(ha, t, timer);
 	int start_dpc = 0;
 	uint16_t w;
 

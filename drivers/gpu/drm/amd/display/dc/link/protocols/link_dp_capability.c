@@ -158,6 +158,14 @@ uint8_t dp_parse_lttpr_repeater_count(uint8_t lttpr_repeater_count)
 	return 0; // invalid value
 }
 
+uint32_t dp_get_closest_lttpr_offset(uint8_t lttpr_count)
+{
+	/* Calculate offset for LTTPR closest to DPTX which is highest in the chain
+	 * Offset is 0 for single LTTPR cases as base LTTPR DPCD addresses target LTTPR 1
+	 */
+	return DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE * (lttpr_count - 1);
+}
+
 uint32_t link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
 {
 	switch (bw) {
@@ -377,9 +385,15 @@ bool dp_is_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 bool dp_is_lttpr_present(struct dc_link *link)
 {
 	/* Some sink devices report invalid LTTPR revision, so don't validate against that cap */
-	return (dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) != 0 &&
+	uint32_t lttpr_count = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	bool is_lttpr_present = (lttpr_count > 0 &&
 			link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
 			link->dpcd_caps.lttpr_caps.max_lane_count <= 4);
+
+	if (lttpr_count > 0 && !is_lttpr_present)
+		DC_LOG_ERROR("LTTPR count is nonzero but invalid lane count reported. Assuming no LTTPR present.\n");
+
+	return is_lttpr_present;
 }
 
 /* in DP compliance test, DPR-120 may have
@@ -1543,6 +1557,8 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 	uint8_t lttpr_dpcd_data[10] = {0};
 	enum dc_status status;
 	bool is_lttpr_present;
+	uint32_t lttpr_count;
+	uint32_t closest_lttpr_offset;
 
 	/* Logic to determine LTTPR support*/
 	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
@@ -1594,20 +1610,22 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 			lttpr_dpcd_data[DP_LTTPR_ALPM_CAPABILITIES -
 							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
 
+	lttpr_count = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
 	/* If this chip cap is set, at least one retimer must exist in the chain
 	 * Override count to 1 if we receive a known bad count (0 or an invalid value) */
 	if (((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-			(dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == 0)) {
+			lttpr_count == 0) {
 		/* If you see this message consistently, either the host platform has FIXED_VS flag
 		 * incorrectly configured or the sink device is returning an invalid count.
 		 */
 		DC_LOG_ERROR("lttpr_caps phy_repeater_cnt is 0x%x, forcing it to 0x80.",
 			     link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 		link->dpcd_caps.lttpr_caps.phy_repeater_cnt = 0x80;
+		lttpr_count = 1;
 		DC_LOG_DC("lttpr_caps forced phy_repeater_cnt = %d\n", link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	}
 
-	/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
 	is_lttpr_present = dp_is_lttpr_present(link);
 
 	DC_LOG_DC("is_lttpr_present = %d\n", is_lttpr_present);
@@ -1615,11 +1633,25 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 	if (is_lttpr_present) {
 		CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 
-		core_link_read_dpcd(link, DP_LTTPR_IEEE_OUI, link->dpcd_caps.lttpr_caps.lttpr_ieee_oui, sizeof(link->dpcd_caps.lttpr_caps.lttpr_ieee_oui));
-		CONN_DATA_DETECT(link, link->dpcd_caps.lttpr_caps.lttpr_ieee_oui, sizeof(link->dpcd_caps.lttpr_caps.lttpr_ieee_oui), "LTTPR IEEE OUI: ");
+		// Identify closest LTTPR to determine if workarounds required for known embedded LTTPR
+		closest_lttpr_offset = dp_get_closest_lttpr_offset(lttpr_count);
 
-		core_link_read_dpcd(link, DP_LTTPR_DEVICE_ID, link->dpcd_caps.lttpr_caps.lttpr_device_id, sizeof(link->dpcd_caps.lttpr_caps.lttpr_device_id));
-		CONN_DATA_DETECT(link, link->dpcd_caps.lttpr_caps.lttpr_device_id, sizeof(link->dpcd_caps.lttpr_caps.lttpr_device_id), "LTTPR Device ID: ");
+		core_link_read_dpcd(link, (DP_LTTPR_IEEE_OUI + closest_lttpr_offset),
+				link->dpcd_caps.lttpr_caps.lttpr_ieee_oui, sizeof(link->dpcd_caps.lttpr_caps.lttpr_ieee_oui));
+		core_link_read_dpcd(link, (DP_LTTPR_DEVICE_ID + closest_lttpr_offset),
+				link->dpcd_caps.lttpr_caps.lttpr_device_id, sizeof(link->dpcd_caps.lttpr_caps.lttpr_device_id));
+
+		if (lttpr_count > 1) {
+			CONN_DATA_DETECT(link, link->dpcd_caps.lttpr_caps.lttpr_ieee_oui, sizeof(link->dpcd_caps.lttpr_caps.lttpr_ieee_oui),
+					"Closest LTTPR To Host's IEEE OUI: ");
+			CONN_DATA_DETECT(link, link->dpcd_caps.lttpr_caps.lttpr_device_id, sizeof(link->dpcd_caps.lttpr_caps.lttpr_device_id),
+					"Closest LTTPR To Host's LTTPR Device ID: ");
+		} else {
+			CONN_DATA_DETECT(link, link->dpcd_caps.lttpr_caps.lttpr_ieee_oui, sizeof(link->dpcd_caps.lttpr_caps.lttpr_ieee_oui),
+					"LTTPR IEEE OUI: ");
+			CONN_DATA_DETECT(link, link->dpcd_caps.lttpr_caps.lttpr_device_id, sizeof(link->dpcd_caps.lttpr_caps.lttpr_device_id),
+					"LTTPR Device ID: ");
+		}
 	}
 
 	return status;
@@ -2013,11 +2045,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 			sizeof(link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw));
 
 	/* Read DP tunneling information. */
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-		status = dpcd_get_tunneling_device_data(link);
-		if (status != DC_OK)
-			dm_error("%s: Read DP tunneling device data failed.\n", __func__);
-	}
+	status = dpcd_get_tunneling_device_data(link);
+	if (status != DC_OK)
+		DC_LOG_DP2("%s: Read DP tunneling device data failed.\n", __func__);
 
 	retrieve_cable_id(link);
 	dpcd_write_cable_id_to_dprx(link);

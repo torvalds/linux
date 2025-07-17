@@ -26,6 +26,8 @@ properties:
 
   ranges: true
 
+  dma-coherent: true
+
   power-domains:
     description: specifies a phandle to PM domain provider node
     maxItems: 1

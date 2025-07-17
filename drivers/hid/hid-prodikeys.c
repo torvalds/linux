@@ -227,7 +227,7 @@ drop_note:
 
 static void pcmidi_sustained_note_release(struct timer_list *t)
 {
-	struct pcmidi_sustain *pms = from_timer(pms, t, timer);
+	struct pcmidi_sustain *pms = timer_container_of(pms, t, timer);
 
 	pcmidi_send_note(pms->pm, pms->status, pms->note, pms->velocity);
 	pms->in_use = 0;

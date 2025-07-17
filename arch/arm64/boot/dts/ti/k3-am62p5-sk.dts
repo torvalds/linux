@@ -49,6 +49,30 @@
 		#size-cells = <2>;
 		ranges;
 
+		mcu_r5fss0_core0_dma_memory_region: mcu-r5fss-dma-memory-region@9b800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9b800000 0x00 0x100000>;
+			no-map;
+		};
+
+		mcu_r5fss0_core0_memory_region: mcu-r5fss-memory-region@9b900000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9b900000 0x00 0xf00000>;
+			no-map;
+		};
+
+		wkup_r5fss0_core0_dma_memory_region: r5f-dma-memory@9c800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9c800000 0x00 0x100000>;
+			no-map;
+		};
+
+		wkup_r5fss0_core0_memory_region: r5f-memory@9c900000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9c900000 0x00 0xf00000>;
+			no-map;
+		};
+
 		secure_tfa_ddr: tfa@9e780000 {
 			reg = <0x00 0x9e780000 0x00 0x80000>;
 			no-map;
@@ -56,12 +80,6 @@
 
 		secure_ddr: optee@9e800000 {
 			reg = <0x00 0x9e800000 0x00 0x01800000>; /* for OP-TEE */
-			no-map;
-		};
-
-		wkup_r5fss0_core0_memory_region: r5f-dma-memory@9c900000 {
-			compatible = "shared-dma-pool";
-			reg = <0x00 0x9c900000 0x00 0x01e00000>;
 			no-map;
 		};
 	};
@@ -113,6 +131,28 @@
 		states = <1800000 0x0>,
 			 <3300000 0x1>;
 		bootph-all;
+	};
+
+	vcc_3v3_main: regulator-4 {
+		/* output of LM5141-Q1 */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_main";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vmain_pd>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc_3v3_sys: regulator-5 {
+		/* output of TPS222965DSGT */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_sys";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_main>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	leds {
@@ -356,6 +396,32 @@
 			AM62PX_IOPAD(0x0124, PIN_INPUT, 7) /* (J25) MMC2_SDCD.GPIO0_71 */
 		>;
 	};
+
+	main_ecap1_pins_default: main-ecap1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x019c, PIN_OUTPUT, 2) /* (E24) MCASP0_AXR1.ECAP1_IN_APWM_OUT */
+		>;
+	};
+
+	main_ecap2_pins_default: main-ecap2-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01a4, PIN_OUTPUT, 2) /* (F24) MCASP0_ACLKX.ECAP2_IN_APWM_OUT */
+		>;
+	};
+
+	main_epwm0_pins_default: main-epwm0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01b4, PIN_OUTPUT, 2) /* (D20) SPI0_CS0.EHRPWM0_A */
+			AM62PX_IOPAD(0x01b8, PIN_OUTPUT, 2) /* (E20) SPI0_CS1.EHRPWM0_B */
+		>;
+	};
+
+	main_epwm1_pins_default: main-epwm1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01bc, PIN_OUTPUT, 2) /* (B21) SPI0_CLK.EHRPWM1_A */
+			AM62PX_IOPAD(0x01c0, PIN_OUTPUT, 2) /* (B20) SPI0_D0.EHRPWM1_B */
+		>;
+	};
 };
 
 &main_i2c0 {
@@ -454,8 +520,8 @@
 
 &sdhci0 {
 	status = "okay";
+	non-removable;
 	ti,driver-strength-ohm = <50>;
-	disable-wp;
 	bootph-all;
 };
 
@@ -640,6 +706,26 @@
 	};
 };
 
+&wkup_r5fss0 {
+	status = "okay";
+};
+
+&wkup_r5fss0_core0 {
+	mboxes = <&mailbox0_cluster0 &mbox_r5_0>;
+	memory-region = <&wkup_r5fss0_core0_dma_memory_region>,
+			<&wkup_r5fss0_core0_memory_region>;
+};
+
+&mcu_r5fss0 {
+	status = "okay";
+};
+
+&mcu_r5fss0_core0 {
+	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5_0>;
+	memory-region = <&mcu_r5fss0_core0_dma_memory_region>,
+			<&mcu_r5fss0_core0_memory_region>;
+};
+
 &main_uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
@@ -682,4 +768,32 @@
 
 &mcu_gpio_intr {
 	status = "reserved";
+};
+
+&ecap1 {
+	/* P36 of J4 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_ecap1_pins_default>;
+	status = "okay";
+};
+
+&ecap2 {
+	/* P11 of J4 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_ecap2_pins_default>;
+	status = "okay";
+};
+
+&epwm0 {
+	/* P24/P26 of J4 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_epwm0_pins_default>;
+	status = "okay";
+};
+
+&epwm1 {
+	/* P23/P19 of J4 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_epwm1_pins_default>;
+	status = "okay";
 };

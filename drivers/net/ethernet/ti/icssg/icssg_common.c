@@ -98,19 +98,10 @@ void prueth_xmit_free(struct prueth_tx_chn *tx_chn,
 {
 	struct cppi5_host_desc_t *first_desc, *next_desc;
 	dma_addr_t buf_dma, next_desc_dma;
-	struct prueth_swdata *swdata;
-	struct page *page;
 	u32 buf_dma_len;
 
 	first_desc = desc;
 	next_desc = first_desc;
-
-	swdata = cppi5_hdesc_get_swdata(desc);
-	if (swdata->type == PRUETH_SWDATA_PAGE) {
-		page = swdata->data.page;
-		page_pool_recycle_direct(page->pp, swdata->data.page);
-		goto free_desc;
-	}
 
 	cppi5_hdesc_get_obuf(first_desc, &buf_dma, &buf_dma_len);
 	k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &buf_dma);
@@ -135,7 +126,6 @@ void prueth_xmit_free(struct prueth_tx_chn *tx_chn,
 		k3_cppi_desc_pool_free(tx_chn->desc_pool, next_desc);
 	}
 
-free_desc:
 	k3_cppi_desc_pool_free(tx_chn->desc_pool, first_desc);
 }
 EXPORT_SYMBOL_GPL(prueth_xmit_free);
@@ -612,13 +602,8 @@ u32 emac_xmit_xdp_frame(struct prueth_emac *emac,
 	k3_udma_glue_tx_dma_to_cppi5_addr(tx_chn->tx_chn, &buf_dma);
 	cppi5_hdesc_attach_buf(first_desc, buf_dma, xdpf->len, buf_dma, xdpf->len);
 	swdata = cppi5_hdesc_get_swdata(first_desc);
-	if (page) {
-		swdata->type = PRUETH_SWDATA_PAGE;
-		swdata->data.page = page;
-	} else {
-		swdata->type = PRUETH_SWDATA_XDPF;
-		swdata->data.xdpf = xdpf;
-	}
+	swdata->type = PRUETH_SWDATA_XDPF;
+	swdata->data.xdpf = xdpf;
 
 	/* Report BQL before sending the packet */
 	netif_txq = netdev_get_tx_queue(ndev, tx_chn->id);
@@ -1329,10 +1314,28 @@ void icssg_ndo_get_stats64(struct net_device *ndev,
 	stats->rx_over_errors = emac_get_stat_by_name(emac, "rx_over_errors");
 	stats->multicast      = emac_get_stat_by_name(emac, "rx_multicast_frames");
 
-	stats->rx_errors  = ndev->stats.rx_errors;
-	stats->rx_dropped = ndev->stats.rx_dropped;
+	stats->rx_errors  = ndev->stats.rx_errors +
+			    emac_get_stat_by_name(emac, "FW_RX_ERROR") +
+			    emac_get_stat_by_name(emac, "FW_RX_EOF_SHORT_FRMERR") +
+			    emac_get_stat_by_name(emac, "FW_RX_B0_DROP_EARLY_EOF") +
+			    emac_get_stat_by_name(emac, "FW_RX_EXP_FRAG_Q_DROP") +
+			    emac_get_stat_by_name(emac, "FW_RX_FIFO_OVERRUN");
+	stats->rx_dropped = ndev->stats.rx_dropped +
+			    emac_get_stat_by_name(emac, "FW_DROPPED_PKT") +
+			    emac_get_stat_by_name(emac, "FW_INF_PORT_DISABLED") +
+			    emac_get_stat_by_name(emac, "FW_INF_SAV") +
+			    emac_get_stat_by_name(emac, "FW_INF_SA_DL") +
+			    emac_get_stat_by_name(emac, "FW_INF_PORT_BLOCKED") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_TAGGED") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_PRIOTAGGED") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_NOTAG") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_NOTMEMBER");
 	stats->tx_errors  = ndev->stats.tx_errors;
-	stats->tx_dropped = ndev->stats.tx_dropped;
+	stats->tx_dropped = ndev->stats.tx_dropped +
+			    emac_get_stat_by_name(emac, "FW_RTU_PKT_DROP") +
+			    emac_get_stat_by_name(emac, "FW_TX_DROPPED_PACKET") +
+			    emac_get_stat_by_name(emac, "FW_TX_TS_DROPPED_PACKET") +
+			    emac_get_stat_by_name(emac, "FW_TX_JUMBO_FRM_CUTOFF");
 }
 EXPORT_SYMBOL_GPL(icssg_ndo_get_stats64);
 

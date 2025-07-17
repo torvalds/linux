@@ -727,14 +727,21 @@ struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 	legacy_core_type =
 		evsel->core.attr.type == PERF_TYPE_HARDWARE ||
 		evsel->core.attr.type == PERF_TYPE_HW_CACHE;
-	if (!pmu && legacy_core_type) {
-		if (perf_pmus__supports_extended_type()) {
-			u32 type = evsel->core.attr.config >> PERF_PMU_TYPE_SHIFT;
+	if (!pmu && legacy_core_type && perf_pmus__supports_extended_type()) {
+		u32 type = evsel->core.attr.config >> PERF_PMU_TYPE_SHIFT;
 
-			pmu = perf_pmus__find_by_type(type);
-		} else {
-			pmu = perf_pmus__find_core_pmu();
-		}
+		pmu = perf_pmus__find_by_type(type);
+	}
+	if (!pmu && (legacy_core_type || evsel->core.attr.type == PERF_TYPE_RAW)) {
+		/*
+		 * For legacy events, if there was no extended type info then
+		 * assume the PMU is the first core PMU.
+		 *
+		 * On architectures like ARM there is no sysfs PMU with type
+		 * PERF_TYPE_RAW, assume the RAW events are going to be handled
+		 * by the first core PMU.
+		 */
+		pmu = perf_pmus__find_core_pmu();
 	}
 	((struct evsel *)evsel)->pmu = pmu;
 	return pmu;

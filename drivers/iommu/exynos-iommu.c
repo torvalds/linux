@@ -902,11 +902,11 @@ static struct iommu_domain *exynos_iommu_domain_alloc_paging(struct device *dev)
 	if (!domain)
 		return NULL;
 
-	domain->pgtable = iommu_alloc_pages(GFP_KERNEL, 2);
+	domain->pgtable = iommu_alloc_pages_sz(GFP_KERNEL, SZ_16K);
 	if (!domain->pgtable)
 		goto err_pgtable;
 
-	domain->lv2entcnt = iommu_alloc_pages(GFP_KERNEL, 1);
+	domain->lv2entcnt = iommu_alloc_pages_sz(GFP_KERNEL, SZ_8K);
 	if (!domain->lv2entcnt)
 		goto err_counter;
 
@@ -932,9 +932,9 @@ static struct iommu_domain *exynos_iommu_domain_alloc_paging(struct device *dev)
 	return &domain->domain;
 
 err_lv2ent:
-	iommu_free_pages(domain->lv2entcnt, 1);
+	iommu_free_pages(domain->lv2entcnt);
 err_counter:
-	iommu_free_pages(domain->pgtable, 2);
+	iommu_free_pages(domain->pgtable);
 err_pgtable:
 	kfree(domain);
 	return NULL;
@@ -975,8 +975,8 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 					phys_to_virt(base));
 		}
 
-	iommu_free_pages(domain->pgtable, 2);
-	iommu_free_pages(domain->lv2entcnt, 1);
+	iommu_free_pages(domain->pgtable);
+	iommu_free_pages(domain->lv2entcnt);
 	kfree(domain);
 }
 

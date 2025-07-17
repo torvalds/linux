@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/rohm,bd96802-pmic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM BD96802 / BD96806 Scalable Power Management Integrated Circuit
+
+maintainers:
+  - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+
+description: |
+  BD96802Qxx-C and BD96806 are automotive grade configurable Power Management
+  Integrated Circuits supporting Functional Safety features for application
+  processors, SoCs and FPGAs
+
+properties:
+  compatible:
+    enum:
+      - rohm,bd96802
+      - rohm,bd96806
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description:
+      The PMIC provides intb and errb IRQ lines. The errb IRQ line is used
+      for fatal IRQs which will cause the PMIC to shut down power outputs.
+      In many systems this will shut down the SoC contolling the PMIC and
+      connecting/handling the errb can be omitted. However, there are cases
+      where the SoC is not powered by the PMIC or has a short time backup
+      energy to handle shutdown of critical hardware. In that case it may be
+      useful to connect the errb and handle errb events.
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - enum: [intb, errb]
+      - const: errb
+
+  regulators:
+    $ref: ../regulator/rohm,bd96802-regulator.yaml
+    description:
+      List of child nodes that specify the regulators.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/leds/common.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pmic: pmic@62 {
+            reg = <0x62>;
+            compatible = "rohm,bd96802";
+            interrupt-parent = <&gpio1>;
+            interrupts = <29 IRQ_TYPE_LEVEL_LOW>, <6 IRQ_TYPE_LEVEL_LOW>;
+            interrupt-names = "intb", "errb";
+
+            regulators {
+                buck1 {
+                    regulator-name = "buck1";
+                    regulator-ramp-delay = <1250>;
+                    /* 0.5V min INITIAL - 150 mV tune */
+                    regulator-min-microvolt = <350000>;
+                    /* 3.3V + 150mV tune */
+                    regulator-max-microvolt = <3450000>;
+
+                    /* These can be set only when PMIC is in STBY */
+                    rohm,initial-voltage-microvolt = <500000>;
+                    regulator-ov-error-microvolt = <230000>;
+                    regulator-uv-error-microvolt = <230000>;
+                    regulator-temp-protection-kelvin = <1>;
+                    regulator-temp-warn-kelvin = <0>;
+                };
+                buck2 {
+                    regulator-name = "buck2";
+                    regulator-min-microvolt = <350000>;
+                    regulator-max-microvolt = <3450000>;
+
+                    rohm,initial-voltage-microvolt = <3000000>;
+                    regulator-ov-error-microvolt = <18000>;
+                    regulator-uv-error-microvolt = <18000>;
+                    regulator-temp-protection-kelvin = <1>;
+                    regulator-temp-warn-kelvin = <1>;
+                };
+            };
+        };
+    };

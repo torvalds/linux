@@ -24,7 +24,18 @@ SYM_FUNC_START(__asm_vector_usercopy)
 	/* Enable access to user memory */
 	li	t6, SR_SUM
 	csrs	CSR_STATUS, t6
+	mv	t6, ra
 
+	call 	__asm_vector_usercopy_sum_enabled
+
+	/* Disable access to user memory */
+	mv 	ra, t6
+	li 	t6, SR_SUM
+	csrc	CSR_STATUS, t6
+	ret
+SYM_FUNC_END(__asm_vector_usercopy)
+
+SYM_FUNC_START(__asm_vector_usercopy_sum_enabled)
 loop:
 	vsetvli iVL, iNum, e8, ELEM_LMUL_SETTING, ta, ma
 	fixup vle8.v vData, (pSrc), 10f
@@ -36,8 +47,6 @@ loop:
 
 	/* Exception fixup for vector load is shared with normal exit */
 10:
-	/* Disable access to user memory */
-	csrc	CSR_STATUS, t6
 	mv	a0, iNum
 	ret
 
@@ -49,4 +58,4 @@ loop:
 	csrr	t2, CSR_VSTART
 	sub	iNum, iNum, t2
 	j	10b
-SYM_FUNC_END(__asm_vector_usercopy)
+SYM_FUNC_END(__asm_vector_usercopy_sum_enabled)

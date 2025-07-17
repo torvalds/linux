@@ -128,23 +128,27 @@ static void part_stat_read_all(struct block_device *part,
 static void bdev_count_inflight_rw(struct block_device *part,
 		unsigned int inflight[2], bool mq_driver)
 {
+	int write = 0;
+	int read = 0;
 	int cpu;
 
 	if (mq_driver) {
 		blk_mq_in_driver_rw(part, inflight);
-	} else {
-		for_each_possible_cpu(cpu) {
-			inflight[READ] += part_stat_local_read_cpu(
-						part, in_flight[READ], cpu);
-			inflight[WRITE] += part_stat_local_read_cpu(
-						part, in_flight[WRITE], cpu);
-		}
+		return;
 	}
 
-	if (WARN_ON_ONCE((int)inflight[READ] < 0))
-		inflight[READ] = 0;
-	if (WARN_ON_ONCE((int)inflight[WRITE] < 0))
-		inflight[WRITE] = 0;
+	for_each_possible_cpu(cpu) {
+		read += part_stat_local_read_cpu(part, in_flight[READ], cpu);
+		write += part_stat_local_read_cpu(part, in_flight[WRITE], cpu);
+	}
+
+	/*
+	 * While iterating all CPUs, some IOs may be issued from a CPU already
+	 * traversed and complete on a CPU that has not yet been traversed,
+	 * causing the inflight number to be negative.
+	 */
+	inflight[READ] = read > 0 ? read : 0;
+	inflight[WRITE] = write > 0 ? write : 0;
 }
 
 /**

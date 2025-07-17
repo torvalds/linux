@@ -95,7 +95,7 @@ EXPORT_SYMBOL(mISDN_FsmChangeState);
 static void
 FsmExpireTimer(struct timer_list *t)
 {
-	struct FsmTimer *ft = from_timer(ft, t, tl);
+	struct FsmTimer *ft = timer_container_of(ft, t, tl);
 #if FSM_TIMER_DEBUG
 	if (ft->fi->debug)
 		ft->fi->printdebug(ft->fi, "FsmExpireTimer %lx", (long) ft);

@@ -162,11 +162,12 @@ static int imx_pd_bridge_atomic_check(struct drm_bridge *bridge,
 }
 
 static int imx_pd_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct imx_parallel_display *imxpd = bridge_to_imxpd(bridge);
 
-	return drm_bridge_attach(bridge->encoder, imxpd->next_bridge, bridge, flags);
+	return drm_bridge_attach(encoder, imxpd->next_bridge, bridge, flags);
 }
 
 static const struct drm_bridge_funcs imx_pd_bridge_funcs = {

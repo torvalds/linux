@@ -699,7 +699,7 @@ static unsigned int loopback_jiffies_timer_pos_update
 
 static void loopback_jiffies_timer_function(struct timer_list *t)
 {
-	struct loopback_pcm *dpcm = from_timer(dpcm, t, timer);
+	struct loopback_pcm *dpcm = timer_container_of(dpcm, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dpcm->cable->lock, flags);

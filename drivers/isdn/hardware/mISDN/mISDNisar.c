@@ -1135,7 +1135,7 @@ EXPORT_SYMBOL(mISDNisar_irq);
 static void
 ftimer_handler(struct timer_list *t)
 {
-	struct isar_ch *ch = from_timer(ch, t, ftimer);
+	struct isar_ch *ch = timer_container_of(ch, t, ftimer);
 
 	pr_debug("%s: ftimer flags %lx\n", ch->is->name, ch->bch.Flags);
 	test_and_clear_bit(FLG_FTI_RUN, &ch->bch.Flags);

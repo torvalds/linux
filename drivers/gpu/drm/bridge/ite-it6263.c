@@ -665,13 +665,14 @@ it6263_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static int it6263_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct it6263 *it = bridge_to_it6263(bridge);
 	struct drm_connector *connector;
 	int ret;
 
-	ret = drm_bridge_attach(bridge->encoder, it->next_bridge, bridge,
+	ret = drm_bridge_attach(encoder, it->next_bridge, bridge,
 				flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret < 0)
 		return ret;
@@ -679,7 +680,7 @@ static int it6263_bridge_attach(struct drm_bridge *bridge,
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
 		return 0;
 
-	connector = drm_bridge_connector_init(bridge->dev, bridge->encoder);
+	connector = drm_bridge_connector_init(bridge->dev, encoder);
 	if (IS_ERR(connector)) {
 		ret = PTR_ERR(connector);
 		dev_err(it->dev, "failed to initialize bridge connector: %d\n",
@@ -687,7 +688,7 @@ static int it6263_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	drm_connector_attach_encoder(connector, bridge->encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

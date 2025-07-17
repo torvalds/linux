@@ -60,6 +60,7 @@ struct mana_ib_adapter_caps {
 	u32 max_recv_sge_count;
 	u32 max_inline_data_size;
 	u64 feature_flags;
+	u64 page_size_cap;
 };
 
 struct mana_ib_queue {
@@ -543,6 +544,11 @@ static inline void mana_put_qp_ref(struct mana_ib_qp *qp)
 		complete(&qp->free);
 }
 
+static inline bool mana_ib_is_rnic(struct mana_ib_dev *mdev)
+{
+	return mdev->gdma_dev->dev_id.type == GDMA_DEVICE_MANA_IB;
+}
+
 static inline struct net_device *mana_ib_get_netdev(struct ib_device *ibdev, u32 port)
 {
 	struct mana_ib_dev *mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
@@ -642,6 +648,7 @@ int mana_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 void mana_ib_disassociate_ucontext(struct ib_ucontext *ibcontext);
 
 int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *mdev);
+int mana_eth_query_adapter_caps(struct mana_ib_dev *mdev);
 
 int mana_ib_create_eqs(struct mana_ib_dev *mdev);
 

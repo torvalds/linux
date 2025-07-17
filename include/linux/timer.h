@@ -129,7 +129,7 @@ extern void timer_destroy_on_stack(struct timer_list *timer);
 static inline void timer_destroy_on_stack(struct timer_list *timer) { }
 #endif
 
-#define from_timer(var, callback_timer, timer_fieldname) \
+#define timer_container_of(var, callback_timer, timer_fieldname)	\
 	container_of(callback_timer, typeof(*var), timer_fieldname)
 
 /**

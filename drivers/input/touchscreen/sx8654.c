@@ -116,7 +116,7 @@ static inline void sx865x_penrelease(struct sx8654 *ts)
 
 static void sx865x_penrelease_timer_handler(struct timer_list *t)
 {
-	struct sx8654 *ts = from_timer(ts, t, timer);
+	struct sx8654 *ts = timer_container_of(ts, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ts->lock, flags);

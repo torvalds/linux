@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Generic PCI host driver common code
+ * Common library for PCI host controller drivers
  *
  * Copyright (C) 2014 ARM Limited
  *
@@ -14,6 +14,8 @@
 #include <linux/of_pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
+
+#include "pci-host-common.h"
 
 static void gen_pci_unmap_cfg(void *ptr)
 {
@@ -49,24 +51,20 @@ static struct pci_config_window *gen_pci_init(struct device *dev,
 	return cfg;
 }
 
-int pci_host_common_probe(struct platform_device *pdev)
+int pci_host_common_init(struct platform_device *pdev,
+			 const struct pci_ecam_ops *ops)
 {
 	struct device *dev = &pdev->dev;
 	struct pci_host_bridge *bridge;
 	struct pci_config_window *cfg;
-	const struct pci_ecam_ops *ops;
-
-	ops = of_device_get_match_data(&pdev->dev);
-	if (!ops)
-		return -ENODEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, bridge);
-
 	of_pci_check_probe_only();
+
+	platform_set_drvdata(pdev, bridge);
 
 	/* Parse and map our Configuration Space windows */
 	cfg = gen_pci_init(dev, bridge, ops);
@@ -81,6 +79,18 @@ int pci_host_common_probe(struct platform_device *pdev)
 
 	return pci_host_probe(bridge);
 }
+EXPORT_SYMBOL_GPL(pci_host_common_init);
+
+int pci_host_common_probe(struct platform_device *pdev)
+{
+	const struct pci_ecam_ops *ops;
+
+	ops = of_device_get_match_data(&pdev->dev);
+	if (!ops)
+		return -ENODEV;
+
+	return pci_host_common_init(pdev, ops);
+}
 EXPORT_SYMBOL_GPL(pci_host_common_probe);
 
 void pci_host_common_remove(struct platform_device *pdev)
@@ -94,5 +104,5 @@ void pci_host_common_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(pci_host_common_remove);
 
-MODULE_DESCRIPTION("Generic PCI host common driver");
+MODULE_DESCRIPTION("Common library for PCI host controller drivers");
 MODULE_LICENSE("GPL v2");

@@ -123,7 +123,7 @@ static bool frag_expire_skip_icmp(u32 user)
 static void ip_expire(struct timer_list *t)
 {
 	enum skb_drop_reason reason = SKB_DROP_REASON_FRAG_REASM_TIMEOUT;
-	struct inet_frag_queue *frag = from_timer(frag, t, timer);
+	struct inet_frag_queue *frag = timer_container_of(frag, t, timer);
 	const struct iphdr *iph;
 	struct sk_buff *head = NULL;
 	struct net *net;

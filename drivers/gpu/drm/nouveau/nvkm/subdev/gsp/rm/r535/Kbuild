@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+#
+# Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
+
+nvkm-y += nvkm/subdev/gsp/rm/r535/rm.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/gsp.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/rpc.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/ctrl.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/alloc.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/client.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/device.o
+
+nvkm-y += nvkm/subdev/gsp/rm/r535/bar.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/fbsr.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/vmm.o
+
+nvkm-y += nvkm/subdev/gsp/rm/r535/disp.o
+
+nvkm-y += nvkm/subdev/gsp/rm/r535/fifo.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/ce.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/gr.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/nvdec.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/nvenc.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/nvjpg.o
+nvkm-y += nvkm/subdev/gsp/rm/r535/ofa.o

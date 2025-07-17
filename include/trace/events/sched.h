@@ -20,16 +20,16 @@ TRACE_EVENT(sched_kthread_stop,
 	TP_ARGS(t),
 
 	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	pid			)
+		__string(	comm,	t->comm		)
+		__field(	pid_t,	pid		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, t->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid	= t->pid;
 	),
 
-	TP_printk("comm=%s pid=%d", __entry->comm, __entry->pid)
+	TP_printk("comm=%s pid=%d", __get_str(comm), __entry->pid)
 );
 
 /*
@@ -276,15 +276,15 @@ TRACE_EVENT(sched_migrate_task,
 	TP_ARGS(p, dest_cpu),
 
 	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	pid			)
-		__field(	int,	prio			)
-		__field(	int,	orig_cpu		)
-		__field(	int,	dest_cpu		)
+		__string(	comm,	p->comm		)
+		__field(	pid_t,	pid		)
+		__field(	int,	prio		)
+		__field(	int,	orig_cpu	)
+		__field(	int,	dest_cpu	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio; /* XXX SCHED_DEADLINE */
 		__entry->orig_cpu	= task_cpu(p);
@@ -292,7 +292,7 @@ TRACE_EVENT(sched_migrate_task,
 	),
 
 	TP_printk("comm=%s pid=%d prio=%d orig_cpu=%d dest_cpu=%d",
-		  __entry->comm, __entry->pid, __entry->prio,
+		  __get_str(comm), __entry->pid, __entry->prio,
 		  __entry->orig_cpu, __entry->dest_cpu)
 );
 
@@ -303,19 +303,19 @@ DECLARE_EVENT_CLASS(sched_process_template,
 	TP_ARGS(p),
 
 	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	pid			)
-		__field(	int,	prio			)
+		__string(	comm,	p->comm		)
+		__field(	pid_t,	pid		)
+		__field(	int,	prio		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio; /* XXX SCHED_DEADLINE */
 	),
 
 	TP_printk("comm=%s pid=%d prio=%d",
-		  __entry->comm, __entry->pid, __entry->prio)
+		  __get_str(comm), __entry->pid, __entry->prio)
 );
 
 /*
@@ -375,19 +375,19 @@ TRACE_EVENT(sched_process_wait,
 	TP_ARGS(pid),
 
 	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
+		__string(	comm,	current->comm		)
 		__field(	pid_t,	pid			)
 		__field(	int,	prio			)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid		= pid_nr(pid);
 		__entry->prio		= current->prio; /* XXX SCHED_DEADLINE */
 	),
 
 	TP_printk("comm=%s pid=%d prio=%d",
-		  __entry->comm, __entry->pid, __entry->prio)
+		  __get_str(comm), __entry->pid, __entry->prio)
 );
 
 /*
@@ -400,22 +400,22 @@ TRACE_EVENT(sched_process_fork,
 	TP_ARGS(parent, child),
 
 	TP_STRUCT__entry(
-		__array(	char,	parent_comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	parent_pid			)
-		__array(	char,	child_comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	child_pid			)
+		__string(	parent_comm,	parent->comm	)
+		__field(	pid_t,		parent_pid	)
+		__string(	child_comm,	child->comm	)
+		__field(	pid_t,		child_pid	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->parent_comm, parent->comm, TASK_COMM_LEN);
+		__assign_str(parent_comm);
 		__entry->parent_pid	= parent->pid;
-		memcpy(__entry->child_comm, child->comm, TASK_COMM_LEN);
+		__assign_str(child_comm);
 		__entry->child_pid	= child->pid;
 	),
 
 	TP_printk("comm=%s pid=%d child_comm=%s child_pid=%d",
-		__entry->parent_comm, __entry->parent_pid,
-		__entry->child_comm, __entry->child_pid)
+		__get_str(parent_comm), __entry->parent_pid,
+		__get_str(child_comm), __entry->child_pid)
 );
 
 /*
@@ -499,19 +499,19 @@ DECLARE_EVENT_CLASS_SCHEDSTAT(sched_stat_template,
 	TP_ARGS(__perf_task(tsk), __perf_count(delay)),
 
 	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( u64,	delay			)
+		__string( comm,	tsk->comm	)
+		__field(  pid_t,	pid	)
+		__field(  u64,		delay	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid	= tsk->pid;
 		__entry->delay	= delay;
 	),
 
 	TP_printk("comm=%s pid=%d delay=%Lu [ns]",
-			__entry->comm, __entry->pid,
+			__get_str(comm), __entry->pid,
 			(unsigned long long)__entry->delay)
 );
 
@@ -557,19 +557,19 @@ DECLARE_EVENT_CLASS(sched_stat_runtime,
 	TP_ARGS(tsk, __perf_count(runtime)),
 
 	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( u64,	runtime			)
+		__string( comm,		tsk->comm	)
+		__field(  pid_t,	pid		)
+		__field(  u64,		runtime		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid		= tsk->pid;
 		__entry->runtime	= runtime;
 	),
 
 	TP_printk("comm=%s pid=%d runtime=%Lu [ns]",
-			__entry->comm, __entry->pid,
+			__get_str(comm), __entry->pid,
 			(unsigned long long)__entry->runtime)
 );
 
@@ -588,14 +588,14 @@ TRACE_EVENT(sched_pi_setprio,
 	TP_ARGS(tsk, pi_task),
 
 	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( int,	oldprio			)
-		__field( int,	newprio			)
+		__string( comm,		tsk->comm	)
+		__field(  pid_t,	pid		)
+		__field(  int,		oldprio		)
+		__field(  int,		newprio		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid		= tsk->pid;
 		__entry->oldprio	= tsk->prio;
 		__entry->newprio	= pi_task ?
@@ -605,7 +605,7 @@ TRACE_EVENT(sched_pi_setprio,
 	),
 
 	TP_printk("comm=%s pid=%d oldprio=%d newprio=%d",
-			__entry->comm, __entry->pid,
+			__get_str(comm), __entry->pid,
 			__entry->oldprio, __entry->newprio)
 );
 
@@ -615,16 +615,16 @@ TRACE_EVENT(sched_process_hang,
 	TP_ARGS(tsk),
 
 	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
+		__string( comm,		tsk->comm	)
+		__field(  pid_t,	pid		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__assign_str(comm);
 		__entry->pid = tsk->pid;
 	),
 
-	TP_printk("comm=%s pid=%d", __entry->comm, __entry->pid)
+	TP_printk("comm=%s pid=%d", __get_str(comm), __entry->pid)
 );
 #endif /* CONFIG_DETECT_HUNG_TASK */
 
@@ -771,6 +771,39 @@ TRACE_EVENT(sched_skip_vma_numa,
 		  __entry->vm_end,
 		  __print_symbolic(__entry->reason, NUMAB_SKIP_REASON))
 );
+
+TRACE_EVENT(sched_skip_cpuset_numa,
+
+	TP_PROTO(struct task_struct *tsk, nodemask_t *mem_allowed_ptr),
+
+	TP_ARGS(tsk, mem_allowed_ptr),
+
+	TP_STRUCT__entry(
+		__array( char,		comm,		TASK_COMM_LEN		)
+		__field( pid_t,		pid					)
+		__field( pid_t,		tgid					)
+		__field( pid_t,		ngid					)
+		__array( unsigned long, mem_allowed, BITS_TO_LONGS(MAX_NUMNODES))
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		 = task_pid_nr(tsk);
+		__entry->tgid		 = task_tgid_nr(tsk);
+		__entry->ngid		 = task_numa_group_id(tsk);
+		BUILD_BUG_ON(sizeof(nodemask_t) != \
+			     BITS_TO_LONGS(MAX_NUMNODES) * sizeof(long));
+		memcpy(__entry->mem_allowed, mem_allowed_ptr->bits,
+		       sizeof(__entry->mem_allowed));
+	),
+
+	TP_printk("comm=%s pid=%d tgid=%d ngid=%d mem_nodes_allowed=%*pbl",
+		  __entry->comm,
+		  __entry->pid,
+		  __entry->tgid,
+		  __entry->ngid,
+		  MAX_NUMNODES, __entry->mem_allowed)
+);
 #endif /* CONFIG_NUMA_BALANCING */
 
 /*
@@ -799,64 +832,64 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
  *
  * Postfixed with _tp to make them easily identifiable in the code.
  */
-DECLARE_TRACE(pelt_cfs_tp,
+DECLARE_TRACE(pelt_cfs,
 	TP_PROTO(struct cfs_rq *cfs_rq),
 	TP_ARGS(cfs_rq));
 
-DECLARE_TRACE(pelt_rt_tp,
+DECLARE_TRACE(pelt_rt,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_dl_tp,
+DECLARE_TRACE(pelt_dl,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_hw_tp,
+DECLARE_TRACE(pelt_hw,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_irq_tp,
+DECLARE_TRACE(pelt_irq,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_se_tp,
+DECLARE_TRACE(pelt_se,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se));
 
-DECLARE_TRACE(sched_cpu_capacity_tp,
+DECLARE_TRACE(sched_cpu_capacity,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(sched_overutilized_tp,
+DECLARE_TRACE(sched_overutilized,
 	TP_PROTO(struct root_domain *rd, bool overutilized),
 	TP_ARGS(rd, overutilized));
 
-DECLARE_TRACE(sched_util_est_cfs_tp,
+DECLARE_TRACE(sched_util_est_cfs,
 	TP_PROTO(struct cfs_rq *cfs_rq),
 	TP_ARGS(cfs_rq));
 
-DECLARE_TRACE(sched_util_est_se_tp,
+DECLARE_TRACE(sched_util_est_se,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se));
 
-DECLARE_TRACE(sched_update_nr_running_tp,
+DECLARE_TRACE(sched_update_nr_running,
 	TP_PROTO(struct rq *rq, int change),
 	TP_ARGS(rq, change));
 
-DECLARE_TRACE(sched_compute_energy_tp,
+DECLARE_TRACE(sched_compute_energy,
 	TP_PROTO(struct task_struct *p, int dst_cpu, unsigned long energy,
 		 unsigned long max_util, unsigned long busy_time),
 	TP_ARGS(p, dst_cpu, energy, max_util, busy_time));
 
-DECLARE_TRACE(sched_entry_tp,
+DECLARE_TRACE(sched_entry,
 	TP_PROTO(bool preempt, unsigned long ip),
 	TP_ARGS(preempt, ip));
 
-DECLARE_TRACE(sched_exit_tp,
+DECLARE_TRACE(sched_exit,
 	TP_PROTO(bool is_switch, unsigned long ip),
 	TP_ARGS(is_switch, ip));
 
-DECLARE_TRACE_CONDITION(sched_set_state_tp,
+DECLARE_TRACE_CONDITION(sched_set_state,
 	TP_PROTO(struct task_struct *tsk, int state),
 	TP_ARGS(tsk, state),
 	TP_CONDITION(!!(tsk->__state) != !!state));

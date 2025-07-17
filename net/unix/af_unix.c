@@ -660,6 +660,11 @@ static void unix_sock_destructor(struct sock *sk)
 #endif
 }
 
+static unsigned int unix_skb_len(const struct sk_buff *skb)
+{
+	return skb->len - UNIXCB(skb).consumed;
+}
+
 static void unix_release_sock(struct sock *sk, int embrion)
 {
 	struct unix_sock *u = unix_sk(sk);
@@ -694,10 +699,16 @@ static void unix_release_sock(struct sock *sk, int embrion)
 
 	if (skpair != NULL) {
 		if (sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET) {
+			struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
+
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+			if (skb && !unix_skb_len(skb))
+				skb = skb_peek_next(skb, &sk->sk_receive_queue);
+#endif
 			unix_state_lock(skpair);
 			/* No more writes */
 			WRITE_ONCE(skpair->sk_shutdown, SHUTDOWN_MASK);
-			if (!skb_queue_empty_lockless(&sk->sk_receive_queue) || embrion)
+			if (skb || embrion)
 				WRITE_ONCE(skpair->sk_err, ECONNRESET);
 			unix_state_unlock(skpair);
 			skpair->sk_state_change(skpair);
@@ -805,6 +816,11 @@ static void copy_peercred(struct sock *sk, struct sock *peersk)
 	pidfs_get_pid(sk->sk_peer_pid);
 	sk->sk_peer_cred = get_cred(peersk->sk_peer_cred);
 	spin_unlock(&sk->sk_peer_lock);
+}
+
+static bool unix_may_passcred(const struct sock *sk)
+{
+	return sk->sk_scm_credentials || sk->sk_scm_pidfd;
 }
 
 static int unix_listen(struct socket *sock, int backlog)
@@ -997,13 +1013,6 @@ static void unix_close(struct sock *sk, long timeout)
 	 */
 }
 
-static void unix_unhash(struct sock *sk)
-{
-	/* Nothing to do here, unix socket does not need a ->unhash().
-	 * This is merely for sockmap.
-	 */
-}
-
 static bool unix_bpf_bypass_getsockopt(int level, int optname)
 {
 	if (level == SOL_SOCKET) {
@@ -1034,7 +1043,6 @@ struct proto unix_stream_proto = {
 	.owner			= THIS_MODULE,
 	.obj_size		= sizeof(struct unix_sock),
 	.close			= unix_close,
-	.unhash			= unix_unhash,
 	.bpf_bypass_getsockopt	= unix_bpf_bypass_getsockopt,
 #ifdef CONFIG_BPF_SYSCALL
 	.psock_update_sk_prot	= unix_stream_bpf_update_proto,
@@ -1065,6 +1073,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern,
 
 	sock_init_data(sock, sk);
 
+	sk->sk_scm_rights	= 1;
 	sk->sk_hash		= unix_unbound_hash(sk);
 	sk->sk_allocation	= GFP_KERNEL_ACCOUNT;
 	sk->sk_write_space	= unix_write_space;
@@ -1492,9 +1501,7 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		if (err)
 			goto out;
 
-		if ((test_bit(SOCK_PASSCRED, &sock->flags) ||
-		     test_bit(SOCK_PASSPIDFD, &sock->flags)) &&
-		    !READ_ONCE(unix_sk(sk)->addr)) {
+		if (unix_may_passcred(sk) && !READ_ONCE(unix_sk(sk)->addr)) {
 			err = unix_autobind(sk);
 			if (err)
 				goto out;
@@ -1613,9 +1620,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (err)
 		goto out;
 
-	if ((test_bit(SOCK_PASSCRED, &sock->flags) ||
-	     test_bit(SOCK_PASSPIDFD, &sock->flags)) &&
-	    !READ_ONCE(u->addr)) {
+	if (unix_may_passcred(sk) && !READ_ONCE(u->addr)) {
 		err = unix_autobind(sk);
 		if (err)
 			goto out;
@@ -1711,10 +1716,12 @@ restart:
 	/* The way is open! Fastly set all the necessary fields... */
 
 	sock_hold(sk);
-	unix_peer(newsk)	= sk;
-	newsk->sk_state		= TCP_ESTABLISHED;
-	newsk->sk_type		= sk->sk_type;
+	unix_peer(newsk) = sk;
+	newsk->sk_state = TCP_ESTABLISHED;
+	newsk->sk_type = sk->sk_type;
+	newsk->sk_scm_recv_flags = other->sk_scm_recv_flags;
 	init_peercred(newsk, &peercred);
+
 	newu = unix_sk(newsk);
 	newu->listener = other;
 	RCU_INIT_POINTER(newsk->sk_wq, &newu->peer_wq);
@@ -1808,17 +1815,6 @@ static int unix_socketpair(struct socket *socka, struct socket *sockb)
 	return 0;
 }
 
-static void unix_sock_inherit_flags(const struct socket *old,
-				    struct socket *new)
-{
-	if (test_bit(SOCK_PASSCRED, &old->flags))
-		set_bit(SOCK_PASSCRED, &new->flags);
-	if (test_bit(SOCK_PASSPIDFD, &old->flags))
-		set_bit(SOCK_PASSPIDFD, &new->flags);
-	if (test_bit(SOCK_PASSSEC, &old->flags))
-		set_bit(SOCK_PASSSEC, &new->flags);
-}
-
 static int unix_accept(struct socket *sock, struct socket *newsock,
 		       struct proto_accept_arg *arg)
 {
@@ -1855,7 +1851,6 @@ static int unix_accept(struct socket *sock, struct socket *newsock,
 	unix_state_lock(tsk);
 	unix_update_edges(unix_sk(tsk));
 	newsock->state = SS_CONNECTED;
-	unix_sock_inherit_flags(sock, newsock);
 	sock_graft(tsk, newsock);
 	unix_state_unlock(tsk);
 	return 0;
@@ -1964,7 +1959,7 @@ static int unix_scm_to_skb(struct scm_cookie *scm, struct sk_buff *skb, bool sen
 {
 	int err = 0;
 
-	UNIXCB(skb).pid  = get_pid(scm->pid);
+	UNIXCB(skb).pid = get_pid(scm->pid);
 	UNIXCB(skb).uid = scm->creds.uid;
 	UNIXCB(skb).gid = scm->creds.gid;
 	UNIXCB(skb).fp = NULL;
@@ -1976,28 +1971,20 @@ static int unix_scm_to_skb(struct scm_cookie *scm, struct sk_buff *skb, bool sen
 	return err;
 }
 
-static bool unix_passcred_enabled(const struct socket *sock,
-				  const struct sock *other)
-{
-	return test_bit(SOCK_PASSCRED, &sock->flags) ||
-	       test_bit(SOCK_PASSPIDFD, &sock->flags) ||
-	       !other->sk_socket ||
-	       test_bit(SOCK_PASSCRED, &other->sk_socket->flags) ||
-	       test_bit(SOCK_PASSPIDFD, &other->sk_socket->flags);
-}
-
 /*
  * Some apps rely on write() giving SCM_CREDENTIALS
  * We include credentials if source or destination socket
  * asserted SOCK_PASSCRED.
  */
-static void maybe_add_creds(struct sk_buff *skb, const struct socket *sock,
-			    const struct sock *other)
+static void unix_maybe_add_creds(struct sk_buff *skb, const struct sock *sk,
+				 const struct sock *other)
 {
 	if (UNIXCB(skb).pid)
 		return;
-	if (unix_passcred_enabled(sock, other)) {
-		UNIXCB(skb).pid  = get_pid(task_tgid(current));
+
+	if (unix_may_passcred(sk) || unix_may_passcred(other) ||
+	    !other->sk_socket) {
+		UNIXCB(skb).pid = get_pid(task_tgid(current));
 		current_uid_gid(&UNIXCB(skb).uid, &UNIXCB(skb).gid);
 	}
 }
@@ -2073,9 +2060,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 			goto out;
 	}
 
-	if ((test_bit(SOCK_PASSCRED, &sock->flags) ||
-	     test_bit(SOCK_PASSPIDFD, &sock->flags)) &&
-	    !READ_ONCE(u->addr)) {
+	if (unix_may_passcred(sk) && !READ_ONCE(u->addr)) {
 		err = unix_autobind(sk);
 		if (err)
 			goto out;
@@ -2192,6 +2177,11 @@ restart_locked:
 		goto out_unlock;
 	}
 
+	if (UNIXCB(skb).fp && !other->sk_scm_rights) {
+		err = -EPERM;
+		goto out_unlock;
+	}
+
 	if (sk->sk_type != SOCK_SEQPACKET) {
 		err = security_unix_may_send(sk->sk_socket, other->sk_socket);
 		if (err)
@@ -2238,7 +2228,8 @@ restart_locked:
 
 	if (sock_flag(other, SOCK_RCVTSTAMP))
 		__net_timestamp(skb);
-	maybe_add_creds(skb, sock, other);
+
+	unix_maybe_add_creds(skb, sk, other);
 	scm_stat_add(other, skb);
 	skb_queue_tail(&other->sk_receive_queue, skb);
 	unix_state_unlock(other);
@@ -2266,14 +2257,14 @@ out:
 #define UNIX_SKB_FRAGS_SZ (PAGE_SIZE << get_order(32768))
 
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
-static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other,
+static int queue_oob(struct sock *sk, struct msghdr *msg, struct sock *other,
 		     struct scm_cookie *scm, bool fds_sent)
 {
 	struct unix_sock *ousk = unix_sk(other);
 	struct sk_buff *skb;
 	int err;
 
-	skb = sock_alloc_send_skb(sock->sk, 1, msg->msg_flags & MSG_DONTWAIT, &err);
+	skb = sock_alloc_send_skb(sk, 1, msg->msg_flags & MSG_DONTWAIT, &err);
 
 	if (!skb)
 		return err;
@@ -2292,12 +2283,16 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 
 	if (sock_flag(other, SOCK_DEAD) ||
 	    (other->sk_shutdown & RCV_SHUTDOWN)) {
-		unix_state_unlock(other);
 		err = -EPIPE;
-		goto out;
+		goto out_unlock;
 	}
 
-	maybe_add_creds(skb, sock, other);
+	if (UNIXCB(skb).fp && !other->sk_scm_rights) {
+		err = -EPERM;
+		goto out_unlock;
+	}
+
+	unix_maybe_add_creds(skb, sk, other);
 	scm_stat_add(other, skb);
 
 	spin_lock(&other->sk_receive_queue.lock);
@@ -2310,6 +2305,8 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	other->sk_data_ready(other);
 
 	return 0;
+out_unlock:
+	unix_state_unlock(other);
 out:
 	consume_skb(skb);
 	return err;
@@ -2413,7 +2410,13 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		    (other->sk_shutdown & RCV_SHUTDOWN))
 			goto out_pipe_unlock;
 
-		maybe_add_creds(skb, sock, other);
+		if (UNIXCB(skb).fp && !other->sk_scm_rights) {
+			unix_state_unlock(other);
+			err = -EPERM;
+			goto out_free;
+		}
+
+		unix_maybe_add_creds(skb, sk, other);
 		scm_stat_add(other, skb);
 		skb_queue_tail(&other->sk_receive_queue, skb);
 		unix_state_unlock(other);
@@ -2423,7 +2426,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	if (msg->msg_flags & MSG_OOB) {
-		err = queue_oob(sock, msg, other, &scm, fds_sent);
+		err = queue_oob(sk, msg, other, &scm, fds_sent);
 		if (err)
 			goto out_err;
 		sent++;
@@ -2669,11 +2672,6 @@ static long unix_stream_data_wait(struct sock *sk, long timeo,
 	return timeo;
 }
 
-static unsigned int unix_skb_len(const struct sk_buff *skb)
-{
-	return skb->len - UNIXCB(skb).consumed;
-}
-
 struct unix_stream_read_state {
 	int (*recv_actor)(struct sk_buff *, int, int,
 			  struct unix_stream_read_state *);
@@ -2688,11 +2686,11 @@ struct unix_stream_read_state {
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 {
+	struct sk_buff *oob_skb, *read_skb = NULL;
 	struct socket *sock = state->socket;
 	struct sock *sk = sock->sk;
 	struct unix_sock *u = unix_sk(sk);
 	int chunk = 1;
-	struct sk_buff *oob_skb;
 
 	mutex_lock(&u->iolock);
 	unix_state_lock(sk);
@@ -2707,8 +2705,15 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 
 	oob_skb = u->oob_skb;
 
-	if (!(state->flags & MSG_PEEK))
+	if (!(state->flags & MSG_PEEK)) {
 		WRITE_ONCE(u->oob_skb, NULL);
+
+		if (oob_skb->prev != (struct sk_buff *)&sk->sk_receive_queue &&
+		    !unix_skb_len(oob_skb->prev)) {
+			read_skb = oob_skb->prev;
+			__skb_unlink(read_skb, &sk->sk_receive_queue);
+		}
+	}
 
 	spin_unlock(&sk->sk_receive_queue.lock);
 	unix_state_unlock(sk);
@@ -2719,6 +2724,8 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 		UNIXCB(oob_skb).consumed += 1;
 
 	mutex_unlock(&u->iolock);
+
+	consume_skb(read_skb);
 
 	if (chunk < 0)
 		return -EFAULT;
@@ -2945,8 +2952,7 @@ unlock:
 			/* Never glue messages from different writers */
 			if (!unix_skb_scm_eq(skb, &scm))
 				break;
-		} else if (test_bit(SOCK_PASSCRED, &sock->flags) ||
-			   test_bit(SOCK_PASSPIDFD, &sock->flags)) {
+		} else if (unix_may_passcred(sk)) {
 			/* Copy credentials */
 			scm_set_cred(&scm, UNIXCB(skb).pid, UNIXCB(skb).uid, UNIXCB(skb).gid);
 			unix_set_secdata(&scm, skb);

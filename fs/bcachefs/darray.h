@@ -8,6 +8,7 @@
  * Inspired by CCAN's darray
  */
 
+#include <linux/cleanup.h>
 #include <linux/slab.h>
 
 #define DARRAY_PREALLOCATED(_type, _nr)					\
@@ -87,7 +88,23 @@ int __bch2_darray_resize_noprof(darray_char *, size_t, size_t, gfp_t);
 #define darray_remove_item(_d, _pos)					\
 	array_remove_item((_d)->data, (_d)->nr, (_pos) - (_d)->data)
 
-#define __darray_for_each(_d, _i)						\
+#define darray_find_p(_d, _i, cond)					\
+({									\
+	typeof((_d).data) _ret = NULL;					\
+									\
+	darray_for_each(_d, _i)						\
+		if (cond) {						\
+			_ret = _i;					\
+			break;						\
+		}							\
+	_ret;								\
+})
+
+#define darray_find(_d, _item)	darray_find_p(_d, _i, *_i == _item)
+
+/* Iteration: */
+
+#define __darray_for_each(_d, _i)					\
 	for ((_i) = (_d).data; _i < (_d).data + (_d).nr; _i++)
 
 #define darray_for_each(_d, _i)						\
@@ -95,6 +112,8 @@ int __bch2_darray_resize_noprof(darray_char *, size_t, size_t, gfp_t);
 
 #define darray_for_each_reverse(_d, _i)					\
 	for (typeof(&(_d).data[0]) _i = (_d).data + (_d).nr - 1; _i >= (_d).data && (_d).nr; --_i)
+
+/* Init/exit */
 
 #define darray_init(_d)							\
 do {									\
@@ -110,5 +129,30 @@ do {									\
 		kvfree((_d)->data);					\
 	darray_init(_d);						\
 } while (0)
+
+#define DEFINE_DARRAY_CLASS(_type)					\
+DEFINE_CLASS(_type, _type, darray_exit(&(_T)), (_type) {}, void)
+
+#define DEFINE_DARRAY(_type)						\
+typedef DARRAY(_type)	darray_##_type;					\
+DEFINE_DARRAY_CLASS(darray_##_type)
+
+#define DEFINE_DARRAY_NAMED(_name, _type)				\
+typedef DARRAY(_type)	_name;						\
+DEFINE_DARRAY_CLASS(_name)
+
+DEFINE_DARRAY_CLASS(darray_char);
+DEFINE_DARRAY_CLASS(darray_str)
+DEFINE_DARRAY_CLASS(darray_const_str)
+
+DEFINE_DARRAY_CLASS(darray_u8)
+DEFINE_DARRAY_CLASS(darray_u16)
+DEFINE_DARRAY_CLASS(darray_u32)
+DEFINE_DARRAY_CLASS(darray_u64)
+
+DEFINE_DARRAY_CLASS(darray_s8)
+DEFINE_DARRAY_CLASS(darray_s16)
+DEFINE_DARRAY_CLASS(darray_s32)
+DEFINE_DARRAY_CLASS(darray_s64)
 
 #endif /* _BCACHEFS_DARRAY_H */

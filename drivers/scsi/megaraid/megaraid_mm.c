@@ -783,7 +783,7 @@ ioctl_done(uioc_t *kioc)
 static void
 lld_timedout(struct timer_list *t)
 {
-	struct uioc_timeout *timeout = from_timer(timeout, t, timer);
+	struct uioc_timeout *timeout = timer_container_of(timeout, t, timer);
 	uioc_t *kioc	= timeout->uioc;
 
 	kioc->status 	= -ETIME;

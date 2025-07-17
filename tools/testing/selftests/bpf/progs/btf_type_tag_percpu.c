@@ -57,15 +57,15 @@ int BPF_PROG(test_percpu_load, struct cgroup *cgrp, const char *path)
 SEC("tp_btf/cgroup_mkdir")
 int BPF_PROG(test_percpu_helper, struct cgroup *cgrp, const char *path)
 {
-	struct cgroup_rstat_cpu *rstat;
+	struct css_rstat_cpu *rstat;
 	__u32 cpu;
 
 	cpu = bpf_get_smp_processor_id();
-	rstat = (struct cgroup_rstat_cpu *)bpf_per_cpu_ptr(
+	rstat = (struct css_rstat_cpu *)bpf_per_cpu_ptr(
 			cgrp->self.rstat_cpu, cpu);
 	if (rstat) {
 		/* READ_ONCE */
-		*(volatile int *)rstat;
+		*(volatile long *)rstat;
 	}
 
 	return 0;

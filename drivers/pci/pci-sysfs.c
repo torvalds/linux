@@ -1475,6 +1475,9 @@ static ssize_t reset_method_store(struct device *dev,
 		return count;
 	}
 
+	pm_runtime_get_sync(dev);
+	struct device *pmdev __free(pm_runtime_put) = dev;
+
 	if (sysfs_streq(buf, "default")) {
 		pci_init_reset_methods(pdev);
 		return count;
@@ -1805,6 +1808,7 @@ const struct attribute_group *pci_dev_attr_groups[] = {
 	&pcie_dev_attr_group,
 #ifdef CONFIG_PCIEAER
 	&aer_stats_attr_group,
+	&aer_attr_group,
 #endif
 #ifdef CONFIG_PCIEASPM
 	&aspm_ctrl_attr_group,

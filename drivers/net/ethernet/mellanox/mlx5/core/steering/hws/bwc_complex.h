@@ -4,6 +4,27 @@
 #ifndef HWS_BWC_COMPLEX_H_
 #define HWS_BWC_COMPLEX_H_
 
+struct mlx5hws_bwc_complex_rule_hash_node {
+	u32 match_buf[MLX5_ST_SZ_DW_MATCH_PARAM];
+	u32 tag;
+	refcount_t refcount;
+	bool rtc_valid;
+	u32 rtc_0;
+	u32 rtc_1;
+	struct rhash_head hash_node;
+};
+
+struct mlx5hws_bwc_matcher_complex_data {
+	struct mlx5hws_table *isolated_tbl;
+	struct mlx5hws_bwc_matcher *isolated_bwc_matcher;
+	struct mlx5hws_action *action_metadata;
+	struct mlx5hws_action *action_go_to_tbl;
+	struct mlx5hws_action *action_last;
+	struct rhashtable refcount_hash;
+	struct mutex hash_lock; /* Protect the refcount rhashtable */
+	struct ida metadata_ida;
+};
+
 bool mlx5hws_bwc_match_params_is_complex(struct mlx5hws_context *ctx,
 					 u8 match_criteria_enable,
 					 struct mlx5hws_match_parameters *mask);

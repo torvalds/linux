@@ -66,8 +66,6 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
-
 	intel_device_info_print(INTEL_INFO(i915), RUNTIME_INFO(i915), &p);
 	i915_print_iommu_status(i915, &p);
 	intel_gt_info_print(&to_gt(i915)->info, &p);

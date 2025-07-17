@@ -2065,15 +2065,10 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
-	if (clk & SDHCI_CLOCK_CARD_EN)
-		sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN,
-			SDHCI_CLOCK_CONTROL);
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
 
-	if (clock == 0) {
-		sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+	if (clock == 0)
 		return;
-	}
 
 	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
 	sdhci_enable_clk(host, clk);
@@ -3245,7 +3240,7 @@ static void sdhci_timeout_timer(struct timer_list *t)
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = from_timer(host, t, timer);
+	host = timer_container_of(host, t, timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -3267,7 +3262,7 @@ static void sdhci_timeout_data_timer(struct timer_list *t)
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = from_timer(host, t, data_timer);
+	host = timer_container_of(host, t, data_timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 

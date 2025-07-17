@@ -228,7 +228,7 @@ static __always_inline u64 rdpmc(int counter)
 #endif	/* !CONFIG_PARAVIRT_XXL */
 
 /* Instruction opcode for WRMSRNS supported in binutils >= 2.40 */
-#define WRMSRNS _ASM_BYTES(0x0f,0x01,0xc6)
+#define ASM_WRMSRNS _ASM_BYTES(0x0f,0x01,0xc6)
 
 /* Non-serializing WRMSR, when available.  Falls back to a serializing WRMSR. */
 static __always_inline void wrmsrns(u32 msr, u64 val)
@@ -237,7 +237,7 @@ static __always_inline void wrmsrns(u32 msr, u64 val)
 	 * WRMSR is 2 bytes.  WRMSRNS is 3 bytes.  Pad WRMSR with a redundant
 	 * DS prefix to avoid a trailing NOP.
 	 */
-	asm volatile("1: " ALTERNATIVE("ds wrmsr", WRMSRNS, X86_FEATURE_WRMSRNS)
+	asm volatile("1: " ALTERNATIVE("ds wrmsr", ASM_WRMSRNS, X86_FEATURE_WRMSRNS)
 		     "2: " _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_WRMSR)
 		     : : "c" (msr), "a" ((u32)val), "d" ((u32)(val >> 32)));
 }

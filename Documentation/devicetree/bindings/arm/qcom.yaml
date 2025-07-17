@@ -90,6 +90,7 @@ description: |
         sm6350
         sm6375
         sm7125
+        sm7150
         sm7225
         sm7325
         sm8150
@@ -1020,6 +1021,7 @@ properties:
       - items:
           - enum:
               - sony,pdx201
+              - xiaomi,ginkgo
               - xiaomi,laurel-sprout
           - const: qcom,sm6125
 
@@ -1038,6 +1040,11 @@ properties:
               - xiaomi,curtana
               - xiaomi,joyeuse
           - const: qcom,sm7125
+
+      - items:
+          - enum:
+              - google,sunfish
+          - const: qcom,sm7150
 
       - items:
           - enum:
@@ -1123,14 +1130,18 @@ properties:
 
       - items:
           - enum:
-              - lenovo,thinkpad-t14s
+              - lenovo,thinkpad-t14s-lcd
+              - lenovo,thinkpad-t14s-oled
+          - const: lenovo,thinkpad-t14s
           - const: qcom,x1e78100
           - const: qcom,x1e80100
 
       - items:
           - enum:
               - asus,vivobook-s15
+              - asus,zenbook-a14-ux3407ra
               - dell,xps13-9345
+              - hp,elitebook-ultra-g1q
               - hp,omnibook-x14
               - lenovo,yoga-slim7x
               - microsoft,romulus13
@@ -1141,6 +1152,7 @@ properties:
 
       - items:
           - enum:
+              - asus,zenbook-a14-ux3407qa
               - qcom,x1p42100-crd
           - const: qcom,x1p42100
 

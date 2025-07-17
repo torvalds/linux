@@ -431,7 +431,7 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 
 static void saa7134_input_timer(struct timer_list *t)
 {
-	struct saa7134_card_ir *ir = from_timer(ir, t, timer);
+	struct saa7134_card_ir *ir = timer_container_of(ir, t, timer);
 	struct saa7134_dev *dev = ir->dev->priv;
 
 	build_key(dev);

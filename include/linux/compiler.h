@@ -192,9 +192,9 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 })
 
 #ifdef __CHECKER__
-#define __BUILD_BUG_ON_ZERO_MSG(e, msg) (0)
+#define __BUILD_BUG_ON_ZERO_MSG(e, msg, ...) (0)
 #else /* __CHECKER__ */
-#define __BUILD_BUG_ON_ZERO_MSG(e, msg) ((int)sizeof(struct {_Static_assert(!(e), msg);}))
+#define __BUILD_BUG_ON_ZERO_MSG(e, msg, ...) ((int)sizeof(struct {_Static_assert(!(e), msg);}))
 #endif /* __CHECKER__ */
 
 /* &a[0] degrades to a pointer: a different type from an array */

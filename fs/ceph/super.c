@@ -1033,8 +1033,7 @@ void ceph_umount_begin(struct super_block *sb)
 	struct ceph_fs_client *fsc = ceph_sb_to_fs_client(sb);
 
 	doutc(fsc->client, "starting forced umount\n");
-	if (!fsc)
-		return;
+
 	fsc->mount_state = CEPH_MOUNT_SHUTDOWN;
 	__ceph_umount_begin(fsc);
 }
@@ -1227,6 +1226,7 @@ static int ceph_set_super(struct super_block *s, struct fs_context *fc)
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
 	s->s_flags |= SB_NODIRATIME | SB_NOATIME;
+	s->s_magic = CEPH_SUPER_MAGIC;
 
 	ceph_fscrypt_set_ops(s);
 

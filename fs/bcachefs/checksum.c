@@ -173,7 +173,7 @@ int bch2_encrypt(struct bch_fs *c, unsigned type,
 
 	if (bch2_fs_inconsistent_on(!c->chacha20_key_set,
 				    c, "attempting to encrypt without encryption key"))
-		return -BCH_ERR_no_encryption_key;
+		return bch_err_throw(c, no_encryption_key);
 
 	bch2_chacha20(&c->chacha20_key, nonce, data, len);
 	return 0;
@@ -262,7 +262,7 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 
 	if (bch2_fs_inconsistent_on(!c->chacha20_key_set,
 				    c, "attempting to encrypt without encryption key"))
-		return -BCH_ERR_no_encryption_key;
+		return bch_err_throw(c, no_encryption_key);
 
 	bch2_chacha20_init(&chacha_state, &c->chacha20_key, nonce);
 
@@ -375,7 +375,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		prt_str(&buf, ")");
 		WARN_RATELIMIT(1, "%s", buf.buf);
 		printbuf_exit(&buf);
-		return -BCH_ERR_recompute_checksum;
+		return bch_err_throw(c, recompute_checksum);
 	}
 
 	for (i = splits; i < splits + ARRAY_SIZE(splits); i++) {
@@ -659,7 +659,7 @@ int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 	crypt = bch2_sb_field_resize(&c->disk_sb, crypt,
 				     sizeof(*crypt) / sizeof(u64));
 	if (!crypt) {
-		ret = -BCH_ERR_ENOSPC_sb_crypt;
+		ret = bch_err_throw(c, ENOSPC_sb_crypt);
 		goto err;
 	}
 

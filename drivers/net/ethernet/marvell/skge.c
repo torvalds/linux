@@ -1494,7 +1494,7 @@ static int xm_check_link(struct net_device *dev)
  */
 static void xm_link_timer(struct timer_list *t)
 {
-	struct skge_port *skge = from_timer(skge, t, link_timer);
+	struct skge_port *skge = timer_container_of(skge, t, link_timer);
 	struct net_device *dev = skge->netdev;
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;

@@ -57,8 +57,8 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
         }
     }
 
-    // Add `#[cfg(CONFIG_KUNIT)]` before the module declaration.
-    let config_kunit = "#[cfg(CONFIG_KUNIT)]".to_owned().parse().unwrap();
+    // Add `#[cfg(CONFIG_KUNIT="y")]` before the module declaration.
+    let config_kunit = "#[cfg(CONFIG_KUNIT=\"y\")]".to_owned().parse().unwrap();
     tokens.insert(
         0,
         TokenTree::Group(Group::new(Delimiter::None, config_kunit)),
@@ -85,28 +85,52 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     // Looks like:
     //
     // ```
-    // unsafe extern "C" fn kunit_rust_wrapper_foo(_test: *mut kernel::bindings::kunit) { foo(); }
-    // unsafe extern "C" fn kunit_rust_wrapper_bar(_test: *mut kernel::bindings::kunit) { bar(); }
+    // unsafe extern "C" fn kunit_rust_wrapper_foo(_test: *mut ::kernel::bindings::kunit) { foo(); }
+    // unsafe extern "C" fn kunit_rust_wrapper_bar(_test: *mut ::kernel::bindings::kunit) { bar(); }
     //
-    // static mut TEST_CASES: [kernel::bindings::kunit_case; 3] = [
-    //     kernel::kunit::kunit_case(kernel::c_str!("foo"), kunit_rust_wrapper_foo),
-    //     kernel::kunit::kunit_case(kernel::c_str!("bar"), kunit_rust_wrapper_bar),
-    //     kernel::kunit::kunit_case_null(),
+    // static mut TEST_CASES: [::kernel::bindings::kunit_case; 3] = [
+    //     ::kernel::kunit::kunit_case(::kernel::c_str!("foo"), kunit_rust_wrapper_foo),
+    //     ::kernel::kunit::kunit_case(::kernel::c_str!("bar"), kunit_rust_wrapper_bar),
+    //     ::kernel::kunit::kunit_case_null(),
     // ];
     //
-    // kernel::kunit_unsafe_test_suite!(kunit_test_suit_name, TEST_CASES);
+    // ::kernel::kunit_unsafe_test_suite!(kunit_test_suit_name, TEST_CASES);
     // ```
     let mut kunit_macros = "".to_owned();
     let mut test_cases = "".to_owned();
+    let mut assert_macros = "".to_owned();
+    let path = crate::helpers::file();
     for test in &tests {
         let kunit_wrapper_fn_name = format!("kunit_rust_wrapper_{test}");
+        // An extra `use` is used here to reduce the length of the message.
         let kunit_wrapper = format!(
-            "unsafe extern \"C\" fn {kunit_wrapper_fn_name}(_test: *mut kernel::bindings::kunit) {{ {test}(); }}"
+            "unsafe extern \"C\" fn {kunit_wrapper_fn_name}(_test: *mut ::kernel::bindings::kunit) {{ use ::kernel::kunit::is_test_result_ok; assert!(is_test_result_ok({test}())); }}",
         );
         writeln!(kunit_macros, "{kunit_wrapper}").unwrap();
         writeln!(
             test_cases,
-            "    kernel::kunit::kunit_case(kernel::c_str!(\"{test}\"), {kunit_wrapper_fn_name}),"
+            "    ::kernel::kunit::kunit_case(::kernel::c_str!(\"{test}\"), {kunit_wrapper_fn_name}),"
+        )
+        .unwrap();
+        writeln!(
+            assert_macros,
+            r#"
+/// Overrides the usual [`assert!`] macro with one that calls KUnit instead.
+#[allow(unused)]
+macro_rules! assert {{
+    ($cond:expr $(,)?) => {{{{
+        kernel::kunit_assert!("{test}", "{path}", 0, $cond);
+    }}}}
+}}
+
+/// Overrides the usual [`assert_eq!`] macro with one that calls KUnit instead.
+#[allow(unused)]
+macro_rules! assert_eq {{
+    ($left:expr, $right:expr $(,)?) => {{{{
+        kernel::kunit_assert_eq!("{test}", "{path}", 0, $left, $right);
+    }}}}
+}}
+        "#
         )
         .unwrap();
     }
@@ -114,14 +138,14 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     writeln!(kunit_macros).unwrap();
     writeln!(
         kunit_macros,
-        "static mut TEST_CASES: [kernel::bindings::kunit_case; {}] = [\n{test_cases}    kernel::kunit::kunit_case_null(),\n];",
+        "static mut TEST_CASES: [::kernel::bindings::kunit_case; {}] = [\n{test_cases}    ::kernel::kunit::kunit_case_null(),\n];",
         tests.len() + 1
     )
     .unwrap();
 
     writeln!(
         kunit_macros,
-        "kernel::kunit_unsafe_test_suite!({attr}, TEST_CASES);"
+        "::kernel::kunit_unsafe_test_suite!({attr}, TEST_CASES);"
     )
     .unwrap();
 
@@ -147,10 +171,12 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
         }
     }
 
-    let mut new_body = TokenStream::from_iter(new_body);
-    new_body.extend::<TokenStream>(kunit_macros.parse().unwrap());
+    let mut final_body = TokenStream::new();
+    final_body.extend::<TokenStream>(assert_macros.parse().unwrap());
+    final_body.extend(new_body);
+    final_body.extend::<TokenStream>(kunit_macros.parse().unwrap());
 
-    tokens.push(TokenTree::Group(Group::new(Delimiter::Brace, new_body)));
+    tokens.push(TokenTree::Group(Group::new(Delimiter::Brace, final_body)));
 
     tokens.into_iter().collect()
 }

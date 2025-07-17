@@ -85,6 +85,7 @@ struct rtw89_debugfs {
 	struct rtw89_debugfs_priv phy_info;
 	struct rtw89_debugfs_priv stations;
 	struct rtw89_debugfs_priv disable_dm;
+	struct rtw89_debugfs_priv mlo_mode;
 };
 
 struct rtw89_debugfs_iter_data {
@@ -854,44 +855,20 @@ static ssize_t __print_txpwr_map(struct rtw89_dev *rtwdev, char *buf, size_t buf
 	return p - buf;
 }
 
-#define case_REGD(_regd) \
-	case RTW89_ ## _regd: \
-		p += scnprintf(p, end - p, #_regd "\n"); \
-		break
-
 static int __print_regd(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 			const struct rtw89_chan *chan)
 {
+	const struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	char *p = buf, *end = buf + bufsz;
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
-	switch (regd) {
-	default:
-		p += scnprintf(p, end - p, "UNKNOWN: %d\n", regd);
-		break;
-	case_REGD(WW);
-	case_REGD(ETSI);
-	case_REGD(FCC);
-	case_REGD(MKK);
-	case_REGD(NA);
-	case_REGD(IC);
-	case_REGD(KCC);
-	case_REGD(NCC);
-	case_REGD(CHILE);
-	case_REGD(ACMA);
-	case_REGD(MEXICO);
-	case_REGD(UKRAINE);
-	case_REGD(CN);
-	case_REGD(QATAR);
-	case_REGD(UK);
-	case_REGD(THAILAND);
-	}
+	p += scnprintf(p, end - p, "%s\n", rtw89_regd_get_string(regd));
+	p += scnprintf(p, end - p, "\t(txpwr UK follow ETSI: %s)\n",
+		       str_yes_no(regulatory->txpwr_uk_follow_etsi));
 
 	return p - buf;
 }
-
-#undef case_REGD
 
 struct dbgfs_txpwr_table {
 	const struct txpwr_map *byr;
@@ -949,6 +926,7 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 					 char *buf, size_t bufsz)
 {
 	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	struct rtw89_sar_parm sar_parm = {};
 	const struct dbgfs_txpwr_table *tbl;
 	const struct rtw89_chan *chan;
 	char *p = buf, *end = buf + bufsz;
@@ -958,11 +936,12 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 
 	rtw89_leave_ps_mode(rtwdev);
 	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	sar_parm.center_freq = chan->freq;
 
 	p += rtw89_debug_priv_txpwr_table_get_regd(rtwdev, p, end - p, chan);
 
 	p += scnprintf(p, end - p, "[SAR]\n");
-	p += rtw89_print_sar(rtwdev, p, end - p, chan->freq);
+	p += rtw89_print_sar(rtwdev, p, end - p, &sar_parm);
 
 	p += scnprintf(p, end - p, "[TAS]\n");
 	p += rtw89_print_tas(rtwdev, p, end - p);
@@ -3993,14 +3972,16 @@ static int rtw89_dump_pkt_offload(char *buf, size_t bufsz, struct list_head *pkt
 
 static int rtw89_vif_link_ids_get(struct rtw89_dev *rtwdev,
 				  char *buf, size_t bufsz, u8 *mac,
-				  struct rtw89_vif_link *rtwvif_link)
+				  struct rtw89_vif_link *rtwvif_link,
+				  bool designated)
 {
 	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
 	char *p = buf, *end = buf + bufsz;
 
 	p += scnprintf(p, end - p, "    [%u] %pM\n", rtwvif_link->mac_id,
 		       rtwvif_link->mac_addr);
-	p += scnprintf(p, end - p, "\tlink_id=%u\n", rtwvif_link->link_id);
+	p += scnprintf(p, end - p, "\tlink_id=%u%s\n", rtwvif_link->link_id,
+		       designated ? " (*)" : "");
 	p += scnprintf(p, end - p, "\tbssid_cam_idx=%u\n",
 		       bssid_cam->bssid_cam_idx);
 	p += rtw89_dump_addr_cam(rtwdev, p, end - p, &rtwvif_link->addr_cam);
@@ -4017,15 +3998,19 @@ void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		(struct rtw89_debugfs_iter_data *)data;
 	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
 	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif_link *designated_link;
 	struct rtw89_vif_link *rtwvif_link;
 	size_t bufsz = iter_data->bufsz;
 	char *buf = iter_data->buf;
 	char *p = buf, *end = buf + bufsz;
 	unsigned int link_id;
 
+	designated_link = rtw89_get_designated_link(rtwvif);
+
 	p += scnprintf(p, end - p, "VIF %pM\n", rtwvif->mac_addr);
 	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
-		p += rtw89_vif_link_ids_get(rtwdev, p, end - p, mac, rtwvif_link);
+		p += rtw89_vif_link_ids_get(rtwdev, p, end - p, mac, rtwvif_link,
+					    rtwvif_link == designated_link);
 
 	rtw89_debugfs_iter_data_next(iter_data, p, end - p, p - buf);
 }
@@ -4055,7 +4040,8 @@ static int rtw89_dump_ba_cam(struct rtw89_dev *rtwdev,
 
 static int rtw89_sta_link_ids_get(struct rtw89_dev *rtwdev,
 				  char *buf, size_t bufsz,
-				  struct rtw89_sta_link *rtwsta_link)
+				  struct rtw89_sta_link *rtwsta_link,
+				  bool designated)
 {
 	struct ieee80211_link_sta *link_sta;
 	char *p = buf, *end = buf + bufsz;
@@ -4069,7 +4055,8 @@ static int rtw89_sta_link_ids_get(struct rtw89_dev *rtwdev,
 
 	rcu_read_unlock();
 
-	p += scnprintf(p, end - p, "\tlink_id=%u\n", rtwsta_link->link_id);
+	p += scnprintf(p, end - p, "\tlink_id=%u%s\n", rtwsta_link->link_id,
+		       designated ? " (*)" : "");
 	p += rtw89_dump_addr_cam(rtwdev, p, end - p, &rtwsta_link->addr_cam);
 	p += rtw89_dump_ba_cam(rtwdev, p, end - p, rtwsta_link);
 
@@ -4082,16 +4069,20 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 		(struct rtw89_debugfs_iter_data *)data;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
 	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_sta_link *designated_link;
 	struct rtw89_sta_link *rtwsta_link;
 	size_t bufsz = iter_data->bufsz;
 	char *buf = iter_data->buf;
 	char *p = buf, *end = buf + bufsz;
 	unsigned int link_id;
 
+	designated_link = rtw89_get_designated_link(rtwsta);
+
 	p += scnprintf(p, end - p, "STA %pM %s\n", sta->addr,
 		       sta->tdls ? "(TDLS)" : "");
 	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id)
-		p += rtw89_sta_link_ids_get(rtwdev, p, end - p, rtwsta_link);
+		p += rtw89_sta_link_ids_get(rtwdev, p, end - p, rtwsta_link,
+					    rtwsta_link == designated_link);
 
 	rtw89_debugfs_iter_data_next(iter_data, p, end - p, p - buf);
 }
@@ -4146,6 +4137,35 @@ static ssize_t rtw89_debug_priv_stations_get(struct rtw89_dev *rtwdev,
 	return p - buf;
 }
 
+static void rtw89_debug_disable_dm_cfg_bmap(struct rtw89_dev *rtwdev, u32 new)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 old = hal->disabled_dm_bitmap;
+
+	if (new == old)
+		return;
+
+	hal->disabled_dm_bitmap = new;
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Disable DM: 0x%x -> 0x%x\n", old, new);
+}
+
+static void rtw89_debug_disable_dm_set_flag(struct rtw89_dev *rtwdev, u8 flag)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 cur = hal->disabled_dm_bitmap;
+
+	rtw89_debug_disable_dm_cfg_bmap(rtwdev, cur | BIT(flag));
+}
+
+static void rtw89_debug_disable_dm_clr_flag(struct rtw89_dev *rtwdev, u8 flag)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 cur = hal->disabled_dm_bitmap;
+
+	rtw89_debug_disable_dm_cfg_bmap(rtwdev, cur & ~BIT(flag));
+}
+
 #define DM_INFO(type) {RTW89_DM_ ## type, #type}
 
 static const struct rtw89_disabled_dm_info {
@@ -4155,6 +4175,7 @@ static const struct rtw89_disabled_dm_info {
 	DM_INFO(DYNAMIC_EDCCA),
 	DM_INFO(THERMAL_PROTECT),
 	DM_INFO(TAS),
+	DM_INFO(MLO),
 };
 
 static ssize_t
@@ -4188,7 +4209,6 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 				struct rtw89_debugfs_priv *debugfs_priv,
 				const char *buf, size_t count)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
 	u32 conf;
 	int ret;
 
@@ -4196,7 +4216,83 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 	if (ret)
 		return -EINVAL;
 
-	hal->disabled_dm_bitmap = conf;
+	rtw89_debug_disable_dm_cfg_bmap(rtwdev, conf);
+
+	return count;
+}
+
+static void rtw89_debug_mlo_mode_set_mlsr(struct rtw89_dev *rtwdev,
+					  unsigned int link_id)
+{
+	struct ieee80211_vif *vif;
+	struct rtw89_vif *rtwvif;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		vif = rtwvif_to_vif(rtwvif);
+		if (!ieee80211_vif_is_mld(vif))
+			continue;
+
+		rtw89_core_mlsr_switch(rtwdev, rtwvif, link_id);
+	}
+}
+
+static ssize_t
+rtw89_debug_priv_mlo_mode_get(struct rtw89_dev *rtwdev,
+			      struct rtw89_debugfs_priv *debugfs_priv,
+			      char *buf, size_t bufsz)
+{
+	bool mlo_dm_dis = rtwdev->hal.disabled_dm_bitmap & BIT(RTW89_DM_MLO);
+	char *p = buf, *end = buf + bufsz;
+	struct ieee80211_vif *vif;
+	struct rtw89_vif *rtwvif;
+	int count = 0;
+
+	p += scnprintf(p, end - p, "MLD(s) status: (MLO DM: %s)\n",
+		       str_disable_enable(mlo_dm_dis));
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		vif = rtwvif_to_vif(rtwvif);
+		if (!ieee80211_vif_is_mld(vif))
+			continue;
+
+		p += scnprintf(p, end - p,
+			       "\t#%u: MLO mode %x, valid 0x%x, active 0x%x\n",
+			       count++, rtwvif->mlo_mode, vif->valid_links,
+			       vif->active_links);
+	}
+
+	if (count == 0)
+		p += scnprintf(p, end - p, "\t(None)\n");
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_mlo_mode_set(struct rtw89_dev *rtwdev,
+			      struct rtw89_debugfs_priv *debugfs_priv,
+			      const char *buf, size_t count)
+{
+	u8 num, mlo_mode;
+	u32 argv;
+
+	num = sscanf(buf, "%hhx %u", &mlo_mode, &argv);
+	if (num != 2)
+		return -EINVAL;
+
+	rtw89_debug_disable_dm_set_flag(rtwdev, RTW89_DM_MLO);
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Set MLO mode to %x\n", mlo_mode);
+
+	switch (mlo_mode) {
+	case RTW89_MLO_MODE_MLSR:
+		rtw89_debug_mlo_mode_set_mlsr(rtwdev, argv);
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_STATE, "Unsupported MLO mode\n");
+		rtw89_debug_disable_dm_clr_flag(rtwdev, RTW89_DM_MLO);
+
+		return -EOPNOTSUPP;
+	}
 
 	return count;
 }
@@ -4257,7 +4353,8 @@ static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.fw_log_manual = rtw89_debug_priv_set(fw_log_manual, WLOCK),
 	.phy_info = rtw89_debug_priv_get(phy_info),
 	.stations = rtw89_debug_priv_get(stations, RLOCK),
-	.disable_dm = rtw89_debug_priv_set_and_get(disable_dm),
+	.disable_dm = rtw89_debug_priv_set_and_get(disable_dm, RWLOCK),
+	.mlo_mode = rtw89_debug_priv_set_and_get(mlo_mode, RWLOCK),
 };
 
 #define rtw89_debugfs_add(name, mode, fopname, parent)				\
@@ -4302,6 +4399,7 @@ void rtw89_debugfs_add_sec1(struct rtw89_dev *rtwdev, struct dentry *debugfs_top
 	rtw89_debugfs_add_r(phy_info);
 	rtw89_debugfs_add_r(stations);
 	rtw89_debugfs_add_rw(disable_dm);
+	rtw89_debugfs_add_rw(mlo_mode);
 }
 
 void rtw89_debugfs_init(struct rtw89_dev *rtwdev)

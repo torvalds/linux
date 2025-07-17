@@ -98,12 +98,14 @@ int pcie_read_tlp_log(struct pci_dev *dev, int where, int where2,
  * pcie_print_tlp_log - Print TLP Header / Prefix Log contents
  * @dev: PCIe device
  * @log: TLP Log structure
+ * @level: Printk log level
  * @pfx: String prefix
  *
  * Prints TLP Header and Prefix Log information held by @log.
  */
 void pcie_print_tlp_log(const struct pci_dev *dev,
-			const struct pcie_tlp_log *log, const char *pfx)
+			const struct pcie_tlp_log *log, const char *level,
+			const char *pfx)
 {
 	/* EE_PREFIX_STR fits the extended DW space needed for the Flit mode */
 	char buf[11 * PCIE_STD_MAX_TLP_HEADERLOG + 1];
@@ -130,6 +132,6 @@ void pcie_print_tlp_log(const struct pci_dev *dev,
 		}
 	}
 
-	pci_err(dev, "%sTLP Header%s: %s\n", pfx,
+	dev_printk(level, &dev->dev, "%sTLP Header%s: %s\n", pfx,
 		log->flit ? " (Flit)" : "", buf);
 }

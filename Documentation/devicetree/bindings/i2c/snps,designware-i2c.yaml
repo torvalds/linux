@@ -32,15 +32,13 @@ properties:
           - const: renesas,r9a06g032-i2c  # RZ/N1D
           - const: renesas,rzn1-i2c       # RZ/N1
           - const: snps,designware-i2c
-      - description: Microsemi Ocelot SoCs I2C controller
-        items:
-          - const: mscc,ocelot-i2c
-          - const: snps,designware-i2c
       - description: Baikal-T1 SoC System I2C controller
         const: baikal,bt1-sys-i2c
-      - description: T-HEAD TH1520 SoCs I2C controller
-        items:
-          - const: thead,th1520-i2c
+      - items:
+          - enum:
+              - mscc,ocelot-i2c
+              - sophgo,sg2044-i2c
+              - thead,th1520-i2c
           - const: snps,designware-i2c
 
   reg:

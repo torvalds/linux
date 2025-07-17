@@ -8,10 +8,10 @@
 #include <linux/mfd/tps68470.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/tps68470.h>
+#include <linux/platform_data/x86/int3472.h>
 #include <linux/regmap.h>
 #include <linux/string.h>
 
-#include "common.h"
 #include "tps68470.h"
 
 #define DESIGNED_FOR_CHROMEOS		1
@@ -261,4 +261,5 @@ module_i2c_driver(int3472_tps68470);
 MODULE_DESCRIPTION("Intel SkyLake INT3472 ACPI TPS68470 Device Driver");
 MODULE_AUTHOR("Daniel Scally <djrscally@gmail.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("INTEL_INT3472");
 MODULE_SOFTDEP("pre: clk-tps68470 tps68470-regulator");

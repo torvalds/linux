@@ -1540,7 +1540,8 @@ static void sleep_on_endio_wait(struct dm_integrity_c *ic)
 
 static void autocommit_fn(struct timer_list *t)
 {
-	struct dm_integrity_c *ic = from_timer(ic, t, autocommit_timer);
+	struct dm_integrity_c *ic = timer_container_of(ic, t,
+						       autocommit_timer);
 
 	if (likely(!dm_integrity_failed(ic)))
 		queue_work(ic->commit_wq, &ic->commit_work);

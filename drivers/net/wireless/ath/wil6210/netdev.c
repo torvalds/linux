@@ -227,7 +227,7 @@ static void wil_ndev_destructor(struct net_device *ndev)
 
 static void wil_connect_timer_fn(struct timer_list *t)
 {
-	struct wil6210_vif *vif = from_timer(vif, t, connect_timer);
+	struct wil6210_vif *vif = timer_container_of(vif, t, connect_timer);
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	bool q;
 
@@ -243,7 +243,7 @@ static void wil_connect_timer_fn(struct timer_list *t)
 
 static void wil_scan_timer_fn(struct timer_list *t)
 {
-	struct wil6210_vif *vif = from_timer(vif, t, scan_timer);
+	struct wil6210_vif *vif = timer_container_of(vif, t, scan_timer);
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
 	clear_bit(wil_status_fwready, wil->status);
@@ -253,7 +253,8 @@ static void wil_scan_timer_fn(struct timer_list *t)
 
 static void wil_p2p_discovery_timer_fn(struct timer_list *t)
 {
-	struct wil6210_vif *vif = from_timer(vif, t, p2p.discovery_timer);
+	struct wil6210_vif *vif = timer_container_of(vif, t,
+						     p2p.discovery_timer);
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
 	wil_dbg_misc(wil, "p2p_discovery_timer_fn\n");

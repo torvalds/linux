@@ -895,24 +895,25 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	 * it emulates a normal v4l2 device there, passing through try_fmt /
 	 * set_fmt to the sensor.
 	 */
-	try_sd_state = __v4l2_subdev_state_alloc(input->camera,
-				"atomisp:try_sd_state->lock", &try_sd_state_key);
+	try_sd_state = __v4l2_subdev_state_alloc(input->sensor,
+						 "atomisp:try_sd_state->lock",
+						 &try_sd_state_key);
 	if (IS_ERR(try_sd_state))
 		return;
 
 	input->try_sd_state = try_sd_state;
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
 
 	mbus_code_enum.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	err = v4l2_subdev_call(input->camera, pad, enum_mbus_code,
+	err = v4l2_subdev_call(input->sensor, pad, enum_mbus_code,
 			       act_sd_state, &mbus_code_enum);
 	if (!err)
 		input->code = mbus_code_enum.code;
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_NATIVE_SIZE;
-	err = v4l2_subdev_call(input->camera, pad, get_selection,
+	err = v4l2_subdev_call(input->sensor, pad, get_selection,
 			       act_sd_state, &sel);
 	if (err)
 		goto unlock_act_sd_state;
@@ -921,7 +922,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_CROP_DEFAULT;
-	err = v4l2_subdev_call(input->camera, pad, get_selection,
+	err = v4l2_subdev_call(input->sensor, pad, get_selection,
 			       act_sd_state, &sel);
 	if (err)
 		goto unlock_act_sd_state;
@@ -939,7 +940,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 		fse.code = input->code;
 		fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
-		err = v4l2_subdev_call(input->camera, pad, enum_frame_size,
+		err = v4l2_subdev_call(input->sensor, pad, enum_frame_size,
 				       act_sd_state, &fse);
 		if (err)
 			break;
@@ -962,22 +963,29 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	sel.which = V4L2_SUBDEV_FORMAT_TRY;
 	sel.target = V4L2_SEL_TGT_CROP;
 	sel.r = input->native_rect;
-	v4l2_subdev_lock_state(input->try_sd_state);
-	err = v4l2_subdev_call(input->camera, pad, set_selection,
+
+	/* Don't lock try_sd_state if the lock is shared with the active state */
+	if (!input->sensor->state_lock)
+		v4l2_subdev_lock_state(input->try_sd_state);
+
+	err = v4l2_subdev_call(input->sensor, pad, set_selection,
 			       input->try_sd_state, &sel);
-	v4l2_subdev_unlock_state(input->try_sd_state);
+
+	if (!input->sensor->state_lock)
+		v4l2_subdev_unlock_state(input->try_sd_state);
+
 	if (err)
 		goto unlock_act_sd_state;
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_CROP;
 	sel.r = input->native_rect;
-	err = v4l2_subdev_call(input->camera, pad, set_selection,
+	err = v4l2_subdev_call(input->sensor, pad, set_selection,
 			       act_sd_state, &sel);
 	if (err)
 		goto unlock_act_sd_state;
 
-	dev_info(input->camera->dev, "Supports crop native %dx%d active %dx%d binning %d\n",
+	dev_info(input->sensor->dev, "Supports crop native %dx%d active %dx%d binning %d\n",
 		 input->native_rect.width, input->native_rect.height,
 		 input->active_rect.width, input->active_rect.height,
 		 input->binning_support);
@@ -991,8 +999,9 @@ unlock_act_sd_state:
 
 int atomisp_register_device_nodes(struct atomisp_device *isp)
 {
+	struct media_pad *sensor_isp_sink, *sensor_src;
 	struct atomisp_input_subdev *input;
-	int i, err;
+	int i, err, source_pad;
 
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		err = media_create_pad_link(&isp->csi2_port[i].subdev.entity,
@@ -1007,12 +1016,33 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		input = &isp->inputs[isp->input_cnt];
 
 		input->port = i;
-		input->camera = isp->sensor_subdevs[i];
 		input->csi_port = &isp->csi2_port[i].subdev;
+		input->csi_remote_source = isp->sensor_subdevs[i];
+
+		/*
+		 * Special case for sensors with a ISP in the sensor modelled
+		 * as a separate v4l2-subdev, like the mt9m114.
+		 */
+		if (isp->sensor_subdevs[i]->entity.function == MEDIA_ENT_F_PROC_VIDEO_ISP) {
+			input->sensor_isp = isp->sensor_subdevs[i];
+			source_pad = SENSOR_ISP_PAD_SOURCE;
+
+			sensor_isp_sink = &input->sensor_isp->entity.pads[SENSOR_ISP_PAD_SINK];
+			sensor_src = media_pad_remote_pad_first(sensor_isp_sink);
+			if (!sensor_src) {
+				dev_err(isp->dev, "Error could not find remote pad for sensor ISP sink\n");
+				return -ENOENT;
+			}
+
+			input->sensor = media_entity_to_v4l2_subdev(sensor_src->entity);
+		} else {
+			input->sensor = isp->sensor_subdevs[i];
+			source_pad = 0;
+		}
 
 		atomisp_init_sensor(input);
 
-		err = media_create_pad_link(&input->camera->entity, 0,
+		err = media_create_pad_link(&isp->sensor_subdevs[i]->entity, source_pad,
 					    &isp->csi2_port[i].subdev.entity,
 					    CSI2_PAD_SINK,
 					    MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);

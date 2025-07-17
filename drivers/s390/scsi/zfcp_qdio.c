@@ -102,7 +102,8 @@ static void zfcp_qdio_request_tasklet(struct tasklet_struct *tasklet)
 
 static void zfcp_qdio_request_timer(struct timer_list *timer)
 {
-	struct zfcp_qdio *qdio = from_timer(qdio, timer, request_timer);
+	struct zfcp_qdio *qdio = timer_container_of(qdio, timer,
+						    request_timer);
 
 	tasklet_schedule(&qdio->request_tasklet);
 }

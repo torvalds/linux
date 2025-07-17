@@ -10,7 +10,7 @@
  */
 #define RWS_ERRORCHECK 0
 
-struct rw_semaphore {
+struct LOCKABLE rw_semaphore {
 #if RWS_ERRORCHECK
 	struct mutex mtx;
 #else
@@ -21,10 +21,10 @@ struct rw_semaphore {
 int init_rwsem(struct rw_semaphore *sem);
 int exit_rwsem(struct rw_semaphore *sem);
 
-int down_read(struct rw_semaphore *sem);
-int up_read(struct rw_semaphore *sem);
+int down_read(struct rw_semaphore *sem) SHARED_LOCK_FUNCTION(sem);
+int up_read(struct rw_semaphore *sem) UNLOCK_FUNCTION(sem);
 
-int down_write(struct rw_semaphore *sem);
-int up_write(struct rw_semaphore *sem);
+int down_write(struct rw_semaphore *sem) EXCLUSIVE_LOCK_FUNCTION(sem);
+int up_write(struct rw_semaphore *sem) UNLOCK_FUNCTION(sem);
 
 #endif /* _PERF_RWSEM_H */

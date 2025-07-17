@@ -103,7 +103,7 @@ static void wakeup_mirrord(void *context)
 
 static void delayed_wake_fn(struct timer_list *t)
 {
-	struct mirror_set *ms = from_timer(ms, t, timer);
+	struct mirror_set *ms = timer_container_of(ms, t, timer);
 
 	clear_bit(0, &ms->timer_pending);
 	wakeup_mirrord(ms);
@@ -133,10 +133,9 @@ static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw)
 	spin_lock_irqsave(&ms->lock, flags);
 	should_wake = !(bl->head);
 	bio_list_add(bl, bio);
-	spin_unlock_irqrestore(&ms->lock, flags);
-
 	if (should_wake)
 		wakeup_mirrord(ms);
+	spin_unlock_irqrestore(&ms->lock, flags);
 }
 
 static void dispatch_bios(void *context, struct bio_list *bio_list)
@@ -646,9 +645,9 @@ static void write_callback(unsigned long error, void *context)
 	if (!ms->failures.head)
 		should_wake = 1;
 	bio_list_add(&ms->failures, bio);
-	spin_unlock_irqrestore(&ms->lock, flags);
 	if (should_wake)
 		wakeup_mirrord(ms);
+	spin_unlock_irqrestore(&ms->lock, flags);
 }
 
 static void do_write(struct mirror_set *ms, struct bio *bio)

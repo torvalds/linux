@@ -63,7 +63,7 @@ static void wacom_force_proxout(struct wacom_wac *wacom_wac)
 
 void wacom_idleprox_timeout(struct timer_list *list)
 {
-	struct wacom *wacom = from_timer(wacom, list, idleprox_timer);
+	struct wacom *wacom = timer_container_of(wacom, list, idleprox_timer);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
 	if (!wacom_wac->hid_data.sense_state) {

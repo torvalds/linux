@@ -1574,7 +1574,7 @@ static inline void clear_ep_state (struct pxa25x_udc *dev)
 
 static void udc_watchdog(struct timer_list *t)
 {
-	struct pxa25x_udc	*dev = from_timer(dev, t, timer);
+	struct pxa25x_udc	*dev = timer_container_of(dev, t, timer);
 
 	local_irq_disable();
 	if (dev->ep0state == EP0_STALL

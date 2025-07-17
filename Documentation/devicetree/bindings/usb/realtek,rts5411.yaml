@@ -10,7 +10,7 @@ maintainers:
   - Matthias Kaehlcke <mka@chromium.org>
 
 allOf:
-  - $ref: usb-device.yaml#
+  - $ref: usb-hub.yaml#
 
 properties:
   compatible:
@@ -19,60 +19,34 @@ properties:
           - usbbda,5411
           - usbbda,411
 
-  reg: true
-
-  '#address-cells':
-    const: 1
-
-  '#size-cells':
-    const: 0
-
   vdd-supply:
     description:
       phandle to the regulator that provides power to the hub.
 
-  peer-hub:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      phandle to the peer hub on the controller.
+  peer-hub: true
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
-    properties:
-      port@1:
+    patternProperties:
+      '^port@':
         $ref: /schemas/graph.yaml#/properties/port
-        description:
-          1st downstream facing USB port
 
-      port@2:
-        $ref: /schemas/graph.yaml#/properties/port
-        description:
-          2nd downstream facing USB port
+        properties:
+          reg:
+            minimum: 1
+            maximum: 4
 
-      port@3:
-        $ref: /schemas/graph.yaml#/properties/port
-        description:
-          3rd downstream facing USB port
-
-      port@4:
-        $ref: /schemas/graph.yaml#/properties/port
-        description:
-          4th downstream facing USB port
-
-patternProperties:
-  '^.*@[1-4]$':
-    description: The hard wired USB devices
-    type: object
-    $ref: /schemas/usb/usb-device.yaml
-    additionalProperties: true
+additionalProperties:
+  properties:
+    reg:
+      minimum: 1
+      maximum: 4
 
 required:
   - peer-hub
   - compatible
   - reg
-
-additionalProperties: false
 
 examples:
   - |

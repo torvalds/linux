@@ -96,6 +96,10 @@ properties:
           Built-in switch of the Airoha EN7581 SoC
         const: airoha,en7581-switch
 
+      - description:
+          Built-in switch of the Airoha AN7583 SoC
+        const: airoha,an7583-switch
+
   reg:
     maxItems: 1
 
@@ -291,6 +295,7 @@ allOf:
           enum:
             - mediatek,mt7988-switch
             - airoha,en7581-switch
+            - airoha,an7583-switch
     then:
       $ref: "#/$defs/mt7530-dsa-port"
       properties:

@@ -5,6 +5,8 @@
  * Copyright (C) 2022 Intel Corporation
  */
 
+#define pr_fmt(fmt)			KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
@@ -15,13 +17,145 @@
 #include <linux/set_memory.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/sockptr.h>
 #include <linux/tsm.h>
-#include <linux/sizes.h>
+#include <linux/tsm-mr.h>
 
 #include <uapi/linux/tdx-guest.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/tdx.h>
+
+/* TDREPORT buffer */
+static u8 *tdx_report_buf;
+
+/* Lock to serialize TDG.MR.REPORT and TDG.MR.RTMR.EXTEND TDCALLs */
+static DEFINE_MUTEX(mr_lock);
+
+/* TDREPORT fields */
+enum {
+	TDREPORT_reportdata = 128,
+	TDREPORT_tee_tcb_info = 256,
+	TDREPORT_tdinfo = TDREPORT_tee_tcb_info + 256,
+	TDREPORT_attributes = TDREPORT_tdinfo,
+	TDREPORT_xfam = TDREPORT_attributes + sizeof(u64),
+	TDREPORT_mrtd = TDREPORT_xfam + sizeof(u64),
+	TDREPORT_mrconfigid = TDREPORT_mrtd + SHA384_DIGEST_SIZE,
+	TDREPORT_mrowner = TDREPORT_mrconfigid + SHA384_DIGEST_SIZE,
+	TDREPORT_mrownerconfig = TDREPORT_mrowner + SHA384_DIGEST_SIZE,
+	TDREPORT_rtmr0 = TDREPORT_mrownerconfig + SHA384_DIGEST_SIZE,
+	TDREPORT_rtmr1 = TDREPORT_rtmr0 + SHA384_DIGEST_SIZE,
+	TDREPORT_rtmr2 = TDREPORT_rtmr1 + SHA384_DIGEST_SIZE,
+	TDREPORT_rtmr3 = TDREPORT_rtmr2 + SHA384_DIGEST_SIZE,
+	TDREPORT_servtd_hash = TDREPORT_rtmr3 + SHA384_DIGEST_SIZE,
+};
+
+static int tdx_do_report(sockptr_t data, sockptr_t tdreport)
+{
+	scoped_cond_guard(mutex_intr, return -EINTR, &mr_lock) {
+		u8 *reportdata = tdx_report_buf + TDREPORT_reportdata;
+		int ret;
+
+		if (!sockptr_is_null(data) &&
+		    copy_from_sockptr(reportdata, data, TDX_REPORTDATA_LEN))
+			return -EFAULT;
+
+		ret = tdx_mcall_get_report0(reportdata, tdx_report_buf);
+		if (WARN_ONCE(ret, "tdx_mcall_get_report0() failed: %d", ret))
+			return ret;
+
+		if (!sockptr_is_null(tdreport) &&
+		    copy_to_sockptr(tdreport, tdx_report_buf, TDX_REPORT_LEN))
+			return -EFAULT;
+	}
+	return 0;
+}
+
+static int tdx_do_extend(u8 mr_ind, const u8 *data)
+{
+	scoped_cond_guard(mutex_intr, return -EINTR, &mr_lock) {
+		/*
+		 * TDX requires @extend_buf to be 64-byte aligned.
+		 * It's safe to use REPORTDATA buffer for that purpose because
+		 * tdx_mr_report/extend_lock() are mutually exclusive.
+		 */
+		u8 *extend_buf = tdx_report_buf + TDREPORT_reportdata;
+		int ret;
+
+		memcpy(extend_buf, data, SHA384_DIGEST_SIZE);
+
+		ret = tdx_mcall_extend_rtmr(mr_ind, extend_buf);
+		if (WARN_ONCE(ret, "tdx_mcall_extend_rtmr(%u) failed: %d", mr_ind, ret))
+			return ret;
+	}
+	return 0;
+}
+
+#define TDX_MR_(r) .mr_value = (void *)TDREPORT_##r, TSM_MR_(r, SHA384)
+static struct tsm_measurement_register tdx_mrs[] = {
+	{ TDX_MR_(rtmr0) | TSM_MR_F_RTMR },
+	{ TDX_MR_(rtmr1) | TSM_MR_F_RTMR },
+	{ TDX_MR_(rtmr2) | TSM_MR_F_RTMR },
+	{ TDX_MR_(rtmr3) | TSM_MR_F_RTMR },
+	{ TDX_MR_(mrtd) },
+	{ TDX_MR_(mrconfigid) | TSM_MR_F_NOHASH },
+	{ TDX_MR_(mrowner) | TSM_MR_F_NOHASH },
+	{ TDX_MR_(mrownerconfig) | TSM_MR_F_NOHASH },
+};
+#undef TDX_MR_
+
+static int tdx_mr_refresh(const struct tsm_measurements *tm)
+{
+	return tdx_do_report(KERNEL_SOCKPTR(NULL), KERNEL_SOCKPTR(NULL));
+}
+
+static int tdx_mr_extend(const struct tsm_measurements *tm,
+			 const struct tsm_measurement_register *mr,
+			 const u8 *data)
+{
+	return tdx_do_extend(mr - tm->mrs, data);
+}
+
+static struct tsm_measurements tdx_measurements = {
+	.mrs = tdx_mrs,
+	.nr_mrs = ARRAY_SIZE(tdx_mrs),
+	.refresh = tdx_mr_refresh,
+	.write = tdx_mr_extend,
+};
+
+static const struct attribute_group *tdx_mr_init(void)
+{
+	const struct attribute_group *g;
+	int rc;
+
+	u8 *buf __free(kfree) = kzalloc(TDX_REPORT_LEN, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	tdx_report_buf = buf;
+	rc = tdx_mr_refresh(&tdx_measurements);
+	if (rc)
+		return ERR_PTR(rc);
+
+	/*
+	 * @mr_value was initialized with the offset only, while the base
+	 * address is being added here.
+	 */
+	for (size_t i = 0; i < ARRAY_SIZE(tdx_mrs); ++i)
+		*(long *)&tdx_mrs[i].mr_value += (long)buf;
+
+	g = tsm_mr_create_attribute_group(&tdx_measurements);
+	if (!IS_ERR(g))
+		tdx_report_buf = no_free_ptr(buf);
+
+	return g;
+}
+
+static void tdx_mr_deinit(const struct attribute_group *mr_grp)
+{
+	tsm_mr_free_attribute_group(mr_grp);
+	kfree(tdx_report_buf);
+}
 
 /*
  * Intel's SGX QE implementation generally uses Quote size less
@@ -68,37 +202,8 @@ static u32 getquote_timeout = 30;
 
 static long tdx_get_report0(struct tdx_report_req __user *req)
 {
-	u8 *reportdata, *tdreport;
-	long ret;
-
-	reportdata = kmalloc(TDX_REPORTDATA_LEN, GFP_KERNEL);
-	if (!reportdata)
-		return -ENOMEM;
-
-	tdreport = kzalloc(TDX_REPORT_LEN, GFP_KERNEL);
-	if (!tdreport) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	if (copy_from_user(reportdata, req->reportdata, TDX_REPORTDATA_LEN)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	/* Generate TDREPORT0 using "TDG.MR.REPORT" TDCALL */
-	ret = tdx_mcall_get_report0(reportdata, tdreport);
-	if (ret)
-		goto out;
-
-	if (copy_to_user(req->tdreport, tdreport, TDX_REPORT_LEN))
-		ret = -EFAULT;
-
-out:
-	kfree(reportdata);
-	kfree(tdreport);
-
-	return ret;
+	return tdx_do_report(USER_SOCKPTR(req->reportdata),
+			     USER_SOCKPTR(req->tdreport));
 }
 
 static void free_quote_buf(void *buf)
@@ -157,53 +262,24 @@ static int wait_for_quote_completion(struct tdx_quote_buf *quote_buf, u32 timeou
 	return (i == timeout) ? -ETIMEDOUT : 0;
 }
 
-static int tdx_report_new(struct tsm_report *report, void *data)
+static int tdx_report_new_locked(struct tsm_report *report, void *data)
 {
-	u8 *buf, *reportdata = NULL, *tdreport = NULL;
+	u8 *buf;
 	struct tdx_quote_buf *quote_buf = quote_data;
-	struct tsm_desc *desc = &report->desc;
+	struct tsm_report_desc *desc = &report->desc;
 	int ret;
 	u64 err;
-
-	/* TODO: switch to guard(mutex_intr) */
-	if (mutex_lock_interruptible(&quote_lock))
-		return -EINTR;
 
 	/*
 	 * If the previous request is timedout or interrupted, and the
 	 * Quote buf status is still in GET_QUOTE_IN_FLIGHT (owned by
 	 * VMM), don't permit any new request.
 	 */
-	if (quote_buf->status == GET_QUOTE_IN_FLIGHT) {
-		ret = -EBUSY;
-		goto done;
-	}
+	if (quote_buf->status == GET_QUOTE_IN_FLIGHT)
+		return -EBUSY;
 
-	if (desc->inblob_len != TDX_REPORTDATA_LEN) {
-		ret = -EINVAL;
-		goto done;
-	}
-
-	reportdata = kmalloc(TDX_REPORTDATA_LEN, GFP_KERNEL);
-	if (!reportdata) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	tdreport = kzalloc(TDX_REPORT_LEN, GFP_KERNEL);
-	if (!tdreport) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	memcpy(reportdata, desc->inblob, desc->inblob_len);
-
-	/* Generate TDREPORT0 using "TDG.MR.REPORT" TDCALL */
-	ret = tdx_mcall_get_report0(reportdata, tdreport);
-	if (ret) {
-		pr_err("GetReport call failed\n");
-		goto done;
-	}
+	if (desc->inblob_len != TDX_REPORTDATA_LEN)
+		return -EINVAL;
 
 	memset(quote_data, 0, GET_QUOTE_BUF_SIZE);
 
@@ -211,26 +287,26 @@ static int tdx_report_new(struct tsm_report *report, void *data)
 	quote_buf->version = GET_QUOTE_CMD_VER;
 	quote_buf->in_len = TDX_REPORT_LEN;
 
-	memcpy(quote_buf->data, tdreport, TDX_REPORT_LEN);
+	ret = tdx_do_report(KERNEL_SOCKPTR(desc->inblob),
+			    KERNEL_SOCKPTR(quote_buf->data));
+	if (ret)
+		return ret;
 
 	err = tdx_hcall_get_quote(quote_data, GET_QUOTE_BUF_SIZE);
 	if (err) {
 		pr_err("GetQuote hypercall failed, status:%llx\n", err);
-		ret = -EIO;
-		goto done;
+		return -EIO;
 	}
 
 	ret = wait_for_quote_completion(quote_buf, getquote_timeout);
 	if (ret) {
 		pr_err("GetQuote request timedout\n");
-		goto done;
+		return ret;
 	}
 
 	buf = kvmemdup(quote_buf->data, quote_buf->out_len, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto done;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	report->outblob = buf;
 	report->outblob_len = quote_buf->out_len;
@@ -239,12 +315,14 @@ static int tdx_report_new(struct tsm_report *report, void *data)
 	 * TODO: parse the PEM-formatted cert chain out of the quote buffer when
 	 * provided
 	 */
-done:
-	mutex_unlock(&quote_lock);
-	kfree(reportdata);
-	kfree(tdreport);
 
 	return ret;
+}
+
+static int tdx_report_new(struct tsm_report *report, void *data)
+{
+	scoped_cond_guard(mutex_intr, return -EINTR, &quote_lock)
+		return tdx_report_new_locked(report, data);
 }
 
 static bool tdx_report_attr_visible(int n)
@@ -285,10 +363,16 @@ static const struct file_operations tdx_guest_fops = {
 	.unlocked_ioctl = tdx_guest_ioctl,
 };
 
+static const struct attribute_group *tdx_attr_groups[] = {
+	NULL, /* measurements */
+	NULL
+};
+
 static struct miscdevice tdx_misc_dev = {
 	.name = KBUILD_MODNAME,
 	.minor = MISC_DYNAMIC_MINOR,
 	.fops = &tdx_guest_fops,
+	.groups = tdx_attr_groups,
 };
 
 static const struct x86_cpu_id tdx_guest_ids[] = {
@@ -297,7 +381,7 @@ static const struct x86_cpu_id tdx_guest_ids[] = {
 };
 MODULE_DEVICE_TABLE(x86cpu, tdx_guest_ids);
 
-static const struct tsm_ops tdx_tsm_ops = {
+static const struct tsm_report_ops tdx_tsm_ops = {
 	.name = KBUILD_MODNAME,
 	.report_new = tdx_report_new,
 	.report_attr_visible = tdx_report_attr_visible,
@@ -311,9 +395,13 @@ static int __init tdx_guest_init(void)
 	if (!x86_match_cpu(tdx_guest_ids))
 		return -ENODEV;
 
+	tdx_attr_groups[0] = tdx_mr_init();
+	if (IS_ERR(tdx_attr_groups[0]))
+		return PTR_ERR(tdx_attr_groups[0]);
+
 	ret = misc_register(&tdx_misc_dev);
 	if (ret)
-		return ret;
+		goto deinit_mr;
 
 	quote_data = alloc_quote_buf();
 	if (!quote_data) {
@@ -322,7 +410,7 @@ static int __init tdx_guest_init(void)
 		goto free_misc;
 	}
 
-	ret = tsm_register(&tdx_tsm_ops, NULL);
+	ret = tsm_report_register(&tdx_tsm_ops, NULL);
 	if (ret)
 		goto free_quote;
 
@@ -332,6 +420,8 @@ free_quote:
 	free_quote_buf(quote_data);
 free_misc:
 	misc_deregister(&tdx_misc_dev);
+deinit_mr:
+	tdx_mr_deinit(tdx_attr_groups[0]);
 
 	return ret;
 }
@@ -339,9 +429,10 @@ module_init(tdx_guest_init);
 
 static void __exit tdx_guest_exit(void)
 {
-	tsm_unregister(&tdx_tsm_ops);
+	tsm_report_unregister(&tdx_tsm_ops);
 	free_quote_buf(quote_data);
 	misc_deregister(&tdx_misc_dev);
+	tdx_mr_deinit(tdx_attr_groups[0]);
 }
 module_exit(tdx_guest_exit);
 

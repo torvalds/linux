@@ -148,6 +148,9 @@ properties:
         attr-max-name:
           description: The explicit name for last member of attribute enum.
           type: string
+        header:
+          description: For C-compatible languages, header which already defines this attribute set.
+          type: string
         # End genetlink-c
         attributes:
           description: List of attributes in the space.

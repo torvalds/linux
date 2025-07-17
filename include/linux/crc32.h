@@ -73,29 +73,6 @@ static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
 	return crc32_le_shift(crc1, len2) ^ crc2;
 }
 
-u32 crc32c_shift(u32 crc, size_t len);
-
-/**
- * crc32c_combine - Combine two crc32c check values into one. For two sequences
- *		    of bytes, seq1 and seq2 with lengths len1 and len2, crc32c()
- *		    check values were calculated for each, crc1 and crc2.
- *
- * @crc1: crc32c of the first block
- * @crc2: crc32c of the second block
- * @len2: length of the second block
- *
- * Return: The crc32c() check value of seq1 and seq2 concatenated, requiring
- *	   only crc1, crc2, and len2. Note: If seq_full denotes the concatenated
- *	   memory area of seq1 with seq2, and crc_full the crc32c() value of
- *	   seq_full, then crc_full == crc32c_combine(crc1, crc2, len2) when
- *	   crc_full was seeded with the same initializer as crc1, and crc2 seed
- *	   was 0. See also crc_combine_test().
- */
-static inline u32 crc32c_combine(u32 crc1, u32 crc2, size_t len2)
-{
-	return crc32c_shift(crc1, len2) ^ crc2;
-}
-
 #define crc32(seed, data, length)  crc32_le(seed, (unsigned char const *)(data), length)
 
 /*

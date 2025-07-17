@@ -3,11 +3,17 @@
  * Copyright (c) 2022, Matti Lehtimäki <matti.lehtimaki@gmail.com>
  */
 
+/*
+ * The .dts should first include qcom-msm8226.dtsi or msm8926.dtsi depending on
+ * the SoC on the given device.
+ */
+
 #include <dt-bindings/input/input.h>
-#include "qcom-msm8226.dtsi"
 #include "pm8226.dtsi"
 
 /delete-node/ &adsp_region;
+/delete-node/ &mba_region;
+/delete-node/ &mpss_region;
 /delete-node/ &smem_region;
 
 / {
@@ -145,12 +151,12 @@
 			no-map;
 		};
 
-		mpss@8400000 {
+		mpss_region: mpss@8400000 {
 			reg = <0x08400000 0x1f00000>;
 			no-map;
 		};
 
-		mba@a300000 {
+		mba_region: mba@a300000 {
 			reg = <0x0a300000 0x100000>;
 			no-map;
 		};
@@ -220,6 +226,13 @@
 };
 
 &blsp1_uart3 {
+	status = "okay";
+};
+
+&modem {
+	mx-supply = <&pm8226_l3>;
+	pll-supply = <&pm8226_l8>;
+
 	status = "okay";
 };
 

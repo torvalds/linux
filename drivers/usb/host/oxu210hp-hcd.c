@@ -2955,7 +2955,7 @@ static irqreturn_t oxu_irq(struct usb_hcd *hcd)
 
 static void oxu_watchdog(struct timer_list *t)
 {
-	struct oxu_hcd	*oxu = from_timer(oxu, t, watchdog);
+	struct oxu_hcd	*oxu = timer_container_of(oxu, t, watchdog);
 	unsigned long flags;
 
 	spin_lock_irqsave(&oxu->lock, flags);

@@ -779,7 +779,7 @@ nfp_nfdk_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 		case NFP_NET_META_CSUM:
 			meta->csum_type = CHECKSUM_COMPLETE;
 			meta->csum =
-				(__force __wsum)__get_unaligned_cpu32(data);
+				(__force __wsum)get_unaligned((u32 *)data);
 			data += 4;
 			break;
 		case NFP_NET_META_RESYNC_INFO:

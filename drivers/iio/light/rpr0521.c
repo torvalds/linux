@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/cleanup.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -704,49 +705,57 @@ static int rpr0521_write_ps_offset(struct rpr0521_data *data, int offset)
 	return ret;
 }
 
+static int rpr0521_read_info_raw(struct rpr0521_data *data,
+				 struct iio_chan_spec const *chan,
+				 int *val)
+{
+	u8 device_mask;
+	__le16 raw_data;
+	int ret;
+
+	device_mask = rpr0521_data_reg[chan->address].device_mask;
+
+	guard(mutex)(&data->lock);
+	ret = rpr0521_set_power_state(data, true, device_mask);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_bulk_read(data->regmap,
+			       rpr0521_data_reg[chan->address].address,
+			       &raw_data, sizeof(raw_data));
+	if (ret < 0) {
+		rpr0521_set_power_state(data, false, device_mask);
+		return ret;
+	}
+
+	ret = rpr0521_set_power_state(data, false, device_mask);
+	if (ret < 0)
+		return ret;
+
+	*val = le16_to_cpu(raw_data);
+
+	return 0;
+}
+
 static int rpr0521_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int *val,
 			    int *val2, long mask)
 {
 	struct rpr0521_data *data = iio_priv(indio_dev);
 	int ret;
-	int busy;
-	u8 device_mask;
-	__le16 raw_data;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (chan->type != IIO_INTENSITY && chan->type != IIO_PROXIMITY)
 			return -EINVAL;
 
-		busy = iio_device_claim_direct_mode(indio_dev);
-		if (busy)
+		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
 
-		device_mask = rpr0521_data_reg[chan->address].device_mask;
-
-		mutex_lock(&data->lock);
-		ret = rpr0521_set_power_state(data, true, device_mask);
-		if (ret < 0)
-			goto rpr0521_read_raw_out;
-
-		ret = regmap_bulk_read(data->regmap,
-				       rpr0521_data_reg[chan->address].address,
-				       &raw_data, sizeof(raw_data));
-		if (ret < 0) {
-			rpr0521_set_power_state(data, false, device_mask);
-			goto rpr0521_read_raw_out;
-		}
-
-		ret = rpr0521_set_power_state(data, false, device_mask);
-
-rpr0521_read_raw_out:
-		mutex_unlock(&data->lock);
-		iio_device_release_direct_mode(indio_dev);
+		ret = rpr0521_read_info_raw(data, chan, val);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
-
-		*val = le16_to_cpu(raw_data);
 
 		return IIO_VAL_INT;
 

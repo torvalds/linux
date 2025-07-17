@@ -39,9 +39,6 @@
  * int nodes_full(mask)			Is mask full (all bits sets)?
  * int nodes_weight(mask)		Hamming weight - number of set bits
  *
- * void nodes_shift_right(dst, src, n)	Shift right
- * void nodes_shift_left(dst, src, n)	Shift left
- *
  * unsigned int first_node(mask)	Number lowest set bit, or MAX_NUMNODES
  * unsigend int next_node(node, mask)	Next node past 'node', or MAX_NUMNODES
  * unsigned int next_node_in(node, mask) Next node past 'node', or wrap to first,
@@ -245,22 +242,6 @@ static __always_inline bool __nodes_full(const nodemask_t *srcp, unsigned int nb
 static __always_inline int __nodes_weight(const nodemask_t *srcp, unsigned int nbits)
 {
 	return bitmap_weight(srcp->bits, nbits);
-}
-
-#define nodes_shift_right(dst, src, n) \
-			__nodes_shift_right(&(dst), &(src), (n), MAX_NUMNODES)
-static __always_inline void __nodes_shift_right(nodemask_t *dstp,
-					const nodemask_t *srcp, int n, int nbits)
-{
-	bitmap_shift_right(dstp->bits, srcp->bits, n, nbits);
-}
-
-#define nodes_shift_left(dst, src, n) \
-			__nodes_shift_left(&(dst), &(src), (n), MAX_NUMNODES)
-static __always_inline void __nodes_shift_left(nodemask_t *dstp,
-					const nodemask_t *srcp, int n, int nbits)
-{
-	bitmap_shift_left(dstp->bits, srcp->bits, n, nbits);
 }
 
 /* FIXME: better would be to fix all architectures to never return
@@ -541,6 +522,7 @@ static __always_inline int node_random(const nodemask_t *maskp)
 
 #define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
 #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
+#define for_each_node_with_cpus(node)	for_each_node_state(node, N_CPU)
 
 /*
  * For nodemask scratch area.

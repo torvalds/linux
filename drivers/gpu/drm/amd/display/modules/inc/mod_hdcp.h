@@ -133,9 +133,22 @@ enum mod_hdcp_display_disable_option {
 	MOD_HDCP_DISPLAY_DISABLE_ENCRYPTION,
 };
 
+struct mod_hdcp_atomic_op_i2c {
+	uint8_t address;
+	uint8_t offset;
+	uint8_t *data;
+	uint32_t size;
+};
+
+struct mod_hdcp_atomic_op_aux {
+	uint32_t address;
+	uint8_t *data;
+	uint32_t size;
+};
+
 struct mod_hdcp_ddc {
 	void *handle;
-	struct {
+	struct mod_hdcp_ddc_funcs {
 		bool (*read_i2c)(void *handle,
 				uint32_t address,
 				uint8_t offset,
@@ -153,6 +166,22 @@ struct mod_hdcp_ddc {
 				uint32_t address,
 				const uint8_t *data,
 				uint32_t size);
+		bool (*atomic_write_poll_read_i2c)(
+				void *handle,
+				const struct mod_hdcp_atomic_op_i2c *write,
+				const struct mod_hdcp_atomic_op_i2c *poll,
+				struct mod_hdcp_atomic_op_i2c *read,
+				uint32_t poll_timeout_us,
+				uint8_t poll_mask_msb
+		);
+		bool (*atomic_write_poll_read_aux)(
+				void *handle,
+				const struct mod_hdcp_atomic_op_aux *write,
+				const struct mod_hdcp_atomic_op_aux *poll,
+				struct mod_hdcp_atomic_op_aux *read,
+				uint32_t poll_timeout_us,
+				uint8_t poll_mask_msb
+		);
 	} funcs;
 };
 
@@ -185,7 +214,8 @@ struct mod_hdcp_link_adjustment_hdcp2 {
 	uint8_t force_type		: 2;
 	uint8_t force_no_stored_km	: 1;
 	uint8_t increase_h_prime_timeout: 1;
-	uint8_t reserved		: 3;
+	uint8_t force_sw_locality_check : 1;
+	uint8_t reserved		: 2;
 };
 
 struct mod_hdcp_link_adjustment {
@@ -272,6 +302,10 @@ struct mod_hdcp_display_query {
 struct mod_hdcp_config {
 	struct mod_hdcp_psp psp;
 	struct mod_hdcp_ddc ddc;
+	struct {
+		uint8_t lc_enable_sw_fallback : 1;
+		uint8_t reserved : 7;
+	} debug;
 	uint8_t index;
 };
 

@@ -36,16 +36,16 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for LPVO usb devices");
 
 /*
- *  Table of devices that work with this driver.
+ * Table of devices that work with this driver.
  *
- *  Currently, only one device is known to be used in the
- *  lpvo_usb_gpib adapter (FTDI 0403:6001).
- *  If your adapter uses a different chip, insert a line
- *  in the following table with proper <Vendor-id>, <Product-id>.
+ * Currently, only one device is known to be used in the
+ * lpvo_usb_gpib adapter (FTDI 0403:6001).
+ * If your adapter uses a different chip, insert a line
+ * in the following table with proper <Vendor-id>, <Product-id>.
  *
- *  To have your chip automatically handled by the driver,
- *  update files "/usr/local/etc/modprobe.d/lpvo_usb_gpib.conf"
- *  and /usr/local/etc/udev/rules.d/99-lpvo_usb_gpib.rules.
+ * To have your chip automatically handled by the driver,
+ * update files "/usr/local/etc/modprobe.d/lpvo_usb_gpib.conf"
+ * and /usr/local/etc/udev/rules.d/99-lpvo_usb_gpib.rules.
  *
  */
 
@@ -56,18 +56,18 @@ static const struct usb_device_id skel_table[] = {
 MODULE_DEVICE_TABLE(usb, skel_table);
 
 /*
- *    ***  Diagnostics and Debug  ***
- *  To enable the diagnostic and debug messages either compile with DEBUG set
- *  or control via the dynamic debug mechanisms.
- *  The module parameter "debug" controls the sending of debug messages to
- *  syslog. By default it is set to 0
- *    debug = 0: only attach/detach messages are sent
- *	      1: every action is logged
- *	      2: extended logging; each single exchanged byte is documented
- *		 (about twice the log volume of [1])
- *    To switch debug level:
- *	      At module loading:  modprobe lpvo_usb_gpib debug={0,1,2}
- *	      On the fly: echo {0,1,2} > /sys/modules/lpvo_usb_gpib/parameters/debug
+ *   ***  Diagnostics and Debug  ***
+ * To enable the diagnostic and debug messages either compile with DEBUG set
+ * or control via the dynamic debug mechanisms.
+ * The module parameter "debug" controls the sending of debug messages to
+ * syslog. By default it is set to 0
+ * debug = 0: only attach/detach messages are sent
+ *         1: every action is logged
+ *         2: extended logging; each single exchanged byte is documented
+ *	(about twice the log volume of [1])
+ * To switch debug level:
+ *         At module loading:  modprobe lpvo_usb_gpib debug={0,1,2}
+ *         On the fly: echo {0,1,2} > /sys/modules/lpvo_usb_gpib/parameters/debug
  */
 
 static int debug;
@@ -169,10 +169,10 @@ static void show_status(struct gpib_board *board)
 }
 
 /*
- *  GLOBAL VARIABLES: required for
- *  pairing among gpib minor and usb minor.
- *  MAX_DEV is the max number of usb-gpib adapters; free
- *  to change as you like, but no more than 32
+ * GLOBAL VARIABLES: required for
+ * pairing among gpib minor and usb minor.
+ * MAX_DEV is the max number of usb-gpib adapters; free
+ * to change as you like, but no more than 32
  */
 
 #define MAX_DEV 8
@@ -182,7 +182,7 @@ static int assigned_usb_minors;		   /* mask of filled slots */
 static struct mutex minors_lock;     /* operations on usb_minors are to be protected */
 
 /*
- *  usb-skeleton prototypes
+ * usb-skeleton prototypes
  */
 
 struct usb_skel;
@@ -192,7 +192,7 @@ static int skel_do_open(struct gpib_board *, int);
 static int skel_do_release(struct gpib_board *);
 
 /*
- *   usec_diff : take difference in MICROsec between two 'timespec'
+ *  usec_diff : take difference in MICROsec between two 'timespec'
  *		 (unix time in sec and NANOsec)
  */
 
@@ -203,7 +203,7 @@ static inline int usec_diff(struct timespec64 *a, struct timespec64 *b)
 }
 
 /*
- *   ***  these routines are specific to the usb-gpib adapter  ***
+ *  ***  these routines are specific to the usb-gpib adapter  ***
  */
 
 /**
@@ -262,13 +262,11 @@ static int send_command(struct gpib_board *board, char *msg, int leng)
 }
 
 /*
- *
  * set_control_line() - Set the value of a single gpib control line
  *
  * @board:    the gpib_board_struct data area for this gpib interface
  * @line:     line mask
  * @value:    line new value (0/1)
- *
  */
 
 static int set_control_line(struct gpib_board *board, int line, int value)
@@ -368,7 +366,7 @@ static void set_timeout(struct gpib_board *board)
 }
 
 /*
- *    now the standard interface functions - attach and detach
+ * now the standard interface functions - attach and detach
  */
 
 /**
@@ -384,7 +382,7 @@ static void set_timeout(struct gpib_board *board)
  * detach() will be called. Always.
  */
 
-static int usb_gpib_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int usb_gpib_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int retval, j;
 	u32 base = config->ibbase;
@@ -464,7 +462,8 @@ static int usb_gpib_attach(struct gpib_board *board, const gpib_board_config_t *
 	if (retval != ACK)
 		return -EIO;
 
-	/* We must setup debug mode because we need the extended instruction
+	/*
+	 * We must setup debug mode because we need the extended instruction
 	 * set to cope with the Core (gpib_common) point of view
 	 */
 
@@ -473,7 +472,8 @@ static int usb_gpib_attach(struct gpib_board *board, const gpib_board_config_t *
 	if (retval != ACK)
 		return -EIO;
 
-	/* We must keep REN off after an IFC because so it is
+	/*
+	 * We must keep REN off after an IFC because so it is
 	 * assumed by the Core
 	 */
 
@@ -654,7 +654,8 @@ static int usb_gpib_line_status(const struct gpib_board *board)
 
 	DIA_LOG(1, "%s\n", "request");
 
-	/* if we are on the wait queue (board->wait), do not hurry
+	/*
+	 * if we are on the wait queue (board->wait), do not hurry
 	 * reading status line; instead, pause a little
 	 */
 
@@ -705,9 +706,10 @@ static int usb_gpib_line_status(const struct gpib_board *board)
 
 /* parallel_poll */
 
-static int usb_gpib_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int usb_gpib_parallel_poll(struct gpib_board *board, u8 *result)
 {
-	/* request parallel poll asserting ATN | EOI;
+	/*
+	 * request parallel poll asserting ATN | EOI;
 	 * we suppose ATN already asserted
 	 */
 
@@ -909,15 +911,13 @@ static void usb_gpib_remote_enable(struct gpib_board *board, int enable)
 
 /* request_system_control */
 
-static void usb_gpib_request_system_control(struct gpib_board *board,
-					    int request_control)
+static int usb_gpib_request_system_control(struct gpib_board *board, int request_control)
 {
-	if (request_control)
-		set_bit(CIC_NUM, &board->status);
-	else
-		clear_bit(CIC_NUM, &board->status);
+	if (!request_control)
+		return -EINVAL;
 
 	DIA_LOG(1, "done with %d -> %lx\n", request_control, board->status);
+	return 0;
 }
 
 /* take_control */
@@ -997,7 +997,7 @@ static int usb_gpib_write(struct gpib_board *board,
 /* parallel_poll configure */
 
 static void usb_gpib_parallel_poll_configure(struct gpib_board *board,
-					     uint8_t configuration)
+					     u8 configuration)
 {
 }
 
@@ -1031,13 +1031,13 @@ static int usb_gpib_secondary_address(struct gpib_board *board,
 
 /* serial_poll_response */
 
-static void usb_gpib_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void usb_gpib_serial_poll_response(struct gpib_board *board, u8 status)
 {
 }
 
 /* serial_poll_status */
 
-static uint8_t usb_gpib_serial_poll_status(struct gpib_board *board)
+static u8 usb_gpib_serial_poll_status(struct gpib_board *board)
 {
 	return 0;
 }
@@ -1053,7 +1053,7 @@ static int usb_gpib_t1_delay(struct gpib_board *board, unsigned int nano_sec)
  *   ***  module dispatch table and init/exit functions	 ***
  */
 
-static gpib_interface_t usb_gpib_interface = {
+static struct gpib_interface usb_gpib_interface = {
 	.name = NAME,
 	.attach = usb_gpib_attach,
 	.detach = usb_gpib_detach,
@@ -1083,13 +1083,13 @@ static gpib_interface_t usb_gpib_interface = {
 };
 
 /*
- *   usb_gpib_init_module(), usb_gpib_exit_module()
+ * usb_gpib_init_module(), usb_gpib_exit_module()
  *
- *   This functions are called every time a new device is detected
- *   and registered or is removed and unregistered.
- *   We must take note of created and destroyed usb minors to be used
- *   when usb_gpib_attach() and usb_gpib_detach() will be called on
- *   request by gpib_config.
+ * This functions are called every time a new device is detected
+ * and registered or is removed and unregistered.
+ * We must take note of created and destroyed usb minors to be used
+ * when usb_gpib_attach() and usb_gpib_detach() will be called on
+ * request by gpib_config.
  */
 
 static int usb_gpib_init_module(struct usb_interface *interface)
@@ -1107,8 +1107,9 @@ static int usb_gpib_init_module(struct usb_interface *interface)
 			goto exit;
 		}
 	} else {
-		/* check if minor is already registered - maybe useless, but if
-		 *  it happens the code is inconsistent somewhere
+		/*
+		 * check if minor is already registered - maybe useless, but if
+		 * it happens the code is inconsistent somewhere
 		 */
 
 		for (j = 0 ; j < MAX_DEV ; j++) {
@@ -1162,12 +1163,11 @@ exit:
 }
 
 /*
- *     Default latency time (16 msec) is too long.
- *     We must use 1 msec (best); anyhow, no more than 5 msec.
+ * Default latency time (16 msec) is too long.
+ * We must use 1 msec (best); anyhow, no more than 5 msec.
  *
- *     Defines and function taken and modified from the kernel tree
- *     (see ftdi_sio.h and ftdi_sio.c).
- *
+ * Defines and function taken and modified from the kernel tree
+ * (see ftdi_sio.h and ftdi_sio.c).
  */
 
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
@@ -1235,7 +1235,8 @@ static int write_latency_timer(struct usb_device *udev)
 /*   private defines   */
 
 #define MAX_TRANSFER		    (PAGE_SIZE - 512)
-/* MAX_TRANSFER is chosen so that the VM is not stressed by
+/*
+ * MAX_TRANSFER is chosen so that the VM is not stressed by
  * allocations > PAGE_SIZE and the number of packets in a page
  * is an integer 512 is the largest possible packet on EHCI
  */
@@ -1280,7 +1281,7 @@ static void skel_delete(struct kref *kref)
 }
 
 /*
- *   skel_do_open() - to be called by usb_gpib_attach
+ * skel_do_open() - to be called by usb_gpib_attach
  */
 
 static int skel_do_open(struct gpib_board *board, int subminor)
@@ -1317,7 +1318,7 @@ exit:
 }
 
 /*
- *   skel_do_release() - to be called by usb_gpib_detach
+ * skel_do_release() - to be called by usb_gpib_detach
  */
 
 static int skel_do_release(struct gpib_board *board)
@@ -1340,7 +1341,7 @@ static int skel_do_release(struct gpib_board *board)
 }
 
 /*
- *   read functions
+ * read functions
  */
 
 static void skel_read_bulk_callback(struct urb *urb)
@@ -1405,7 +1406,7 @@ static int skel_do_read_io(struct usb_skel *dev, size_t count)
 }
 
 /*
- *   skel_do_read() - read operations from lpvo_usb_gpib
+ * skel_do_read() - read operations from lpvo_usb_gpib
  */
 
 static ssize_t skel_do_read(struct usb_skel *dev, char *buffer, size_t count)
@@ -1482,7 +1483,8 @@ retry:
 			 * all data has been used
 			 * actual IO needs to be done
 			 */
-			/* it seems that requests for less than dev->bulk_in_size
+			/*
+			 * it seems that requests for less than dev->bulk_in_size
 			 *  are not accepted
 			 */
 			rv = skel_do_read_io(dev, dev->bulk_in_size);
@@ -1496,7 +1498,8 @@ retry:
 		 * data is available - chunk tells us how much shall be copied
 		 */
 
-		/* Condition dev->bulk_in_copied > 0 maybe will never happen. In case,
+		/*
+		 * Condition dev->bulk_in_copied > 0 maybe will never happen. In case,
 		 * signal the event and copy using the original procedure, i.e., copy
 		 * first two bytes also
 		 */
@@ -1551,7 +1554,7 @@ exit:
 }
 
 /*
- *   write functions
+ * write functions
  */
 
 static void skel_write_bulk_callback(struct urb *urb)
@@ -1581,7 +1584,7 @@ static void skel_write_bulk_callback(struct urb *urb)
 }
 
 /*
- *   skel_do_write() - write operations from lpvo_usb_gpib
+ * skel_do_write() - write operations from lpvo_usb_gpib
  */
 
 static ssize_t skel_do_write(struct usb_skel *dev, const char *buffer, size_t count)
@@ -1686,7 +1689,7 @@ exit:
 }
 
 /*
- *   services for the user space devices
+ * services for the user space devices
  */
 
 #if USER_DEVICE	 /* conditional compilation of user space device */
@@ -1771,7 +1774,7 @@ static int skel_release(struct inode *inode, struct file *file)
 }
 
 /*
- *  user space access to read function
+ * user space access to read function
  */
 
 static ssize_t skel_read(struct file *file, char __user *buffer, size_t count,
@@ -1800,7 +1803,7 @@ static ssize_t skel_read(struct file *file, char __user *buffer, size_t count,
 }
 
 /*
- *  user space access to write function
+ * user space access to write function
  */
 
 static ssize_t skel_write(struct file *file, const char __user *user_buffer,

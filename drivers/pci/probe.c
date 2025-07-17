@@ -2058,7 +2058,7 @@ int pci_setup_device(struct pci_dev *dev)
 		if (class == PCI_CLASS_BRIDGE_PCI)
 			goto bad;
 		pci_read_irq(dev);
-		pci_read_bases(dev, 6, PCI_ROM_ADDRESS);
+		pci_read_bases(dev, PCI_STD_NUM_BARS, PCI_ROM_ADDRESS);
 
 		pci_subsystem_ids(dev, &dev->subsystem_vendor, &dev->subsystem_device);
 
@@ -2711,7 +2711,6 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	pci_set_msi_domain(dev);
 
 	/* Notifier could use PCI capabilities */
-	dev->match_driver = false;
 	ret = device_add(&dev->dev);
 	WARN_ON(ret < 0);
 

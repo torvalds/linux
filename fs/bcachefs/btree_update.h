@@ -4,6 +4,7 @@
 
 #include "btree_iter.h"
 #include "journal.h"
+#include "snapshot.h"
 
 struct bch_fs;
 struct btree;
@@ -74,7 +75,7 @@ static inline int bch2_btree_delete_at_buffered(struct btree_trans *trans,
 }
 
 int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,
-				     struct bpos, struct bpos);
+				     struct bpos, snapshot_id_list *);
 
 /*
  * For use when splitting extents in existing snapshots:
@@ -88,11 +89,20 @@ static inline int bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 						 struct bpos old_pos,
 						 struct bpos new_pos)
 {
+	BUG_ON(old_pos.snapshot != new_pos.snapshot);
+
 	if (!btree_type_has_snapshots(btree) ||
 	    bkey_eq(old_pos, new_pos))
 		return 0;
 
-	return __bch2_insert_snapshot_whiteouts(trans, btree, old_pos, new_pos);
+	snapshot_id_list s;
+	int ret = bch2_get_snapshot_overwrites(trans, btree, old_pos, &s);
+	if (ret)
+		return ret;
+
+	return s.nr
+		? __bch2_insert_snapshot_whiteouts(trans, btree, new_pos, &s)
+		: 0;
 }
 
 int bch2_trans_update_extent_overwrite(struct btree_trans *, struct btree_iter *,
@@ -160,8 +170,7 @@ bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsigned u64s)
 
 int bch2_btree_insert_clone_trans(struct btree_trans *, enum btree_id, struct bkey_i *);
 
-int bch2_btree_write_buffer_insert_err(struct btree_trans *,
-				       enum btree_id, struct bkey_i *);
+int bch2_btree_write_buffer_insert_err(struct bch_fs *, enum btree_id, struct bkey_i *);
 
 static inline int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 					    enum btree_id btree,
@@ -172,7 +181,7 @@ static inline int __must_check bch2_trans_update_buffered(struct btree_trans *tr
 	EBUG_ON(k->k.u64s > BTREE_WRITE_BUFERED_U64s_MAX);
 
 	if (unlikely(!btree_type_uses_write_buffer(btree))) {
-		int ret = bch2_btree_write_buffer_insert_err(trans, btree, k);
+		int ret = bch2_btree_write_buffer_insert_err(trans->c, btree, k);
 		dump_stack();
 		return ret;
 	}

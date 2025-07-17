@@ -1231,7 +1231,7 @@ int cpsw_ale_rx_ratelimit_bc(struct cpsw_ale *ale, int port, unsigned int rateli
 
 static void cpsw_ale_timer(struct timer_list *t)
 {
-	struct cpsw_ale *ale = from_timer(ale, t, timer);
+	struct cpsw_ale *ale = timer_container_of(ale, t, timer);
 
 	cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
 

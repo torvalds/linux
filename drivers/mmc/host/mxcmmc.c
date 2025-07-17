@@ -955,7 +955,7 @@ static bool filter(struct dma_chan *chan, void *param)
 
 static void mxcmci_watchdog(struct timer_list *t)
 {
-	struct mxcmci_host *host = from_timer(host, t, watchdog);
+	struct mxcmci_host *host = timer_container_of(host, t, watchdog);
 	struct mmc_request *req = host->req;
 	unsigned int stat = mxcmci_readl(host, MMC_REG_STATUS);
 

@@ -19,6 +19,7 @@
 #include <linux/log2.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
+#include <linux/property.h>
 #include <linux/refcount.h>
 #include <linux/scatterlist.h>
 
@@ -76,8 +77,6 @@ pvr_gem_object_flags_validate(u64 flags)
 		 DRM_PVR_BO_ALLOW_CPU_USERSPACE_ACCESS),
 	};
 
-	int i;
-
 	/*
 	 * Check for bits set in undefined regions. Reserved regions refer to
 	 * options that can only be set by the kernel. These are explicitly
@@ -91,7 +90,7 @@ pvr_gem_object_flags_validate(u64 flags)
 	 * Check for all combinations of flags marked as invalid in the array
 	 * above.
 	 */
-	for (i = 0; i < ARRAY_SIZE(invalid_combinations); ++i) {
+	for (int i = 0; i < ARRAY_SIZE(invalid_combinations); ++i) {
 		u64 combo = invalid_combinations[i];
 
 		if ((flags & combo) == combo)
@@ -203,7 +202,7 @@ pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj)
 
 	dma_resv_lock(obj->resv, NULL);
 
-	err = drm_gem_shmem_vmap(shmem_obj, &map);
+	err = drm_gem_shmem_vmap_locked(shmem_obj, &map);
 	if (err)
 		goto err_unlock;
 
@@ -257,7 +256,7 @@ pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj)
 			dma_sync_sgtable_for_device(dev, shmem_obj->sgt, DMA_BIDIRECTIONAL);
 	}
 
-	drm_gem_shmem_vunmap(shmem_obj, &map);
+	drm_gem_shmem_vunmap_locked(shmem_obj, &map);
 
 	dma_resv_unlock(obj->resv);
 }
@@ -336,6 +335,7 @@ struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t 
 struct pvr_gem_object *
 pvr_gem_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags)
 {
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
 	struct drm_gem_shmem_object *shmem_obj;
 	struct pvr_gem_object *pvr_obj;
 	struct sg_table *sgt;
@@ -345,7 +345,10 @@ pvr_gem_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags)
 	if (size == 0 || !pvr_gem_object_flags_validate(flags))
 		return ERR_PTR(-EINVAL);
 
-	shmem_obj = drm_gem_shmem_create(from_pvr_device(pvr_dev), size);
+	if (device_get_dma_attr(drm_dev->dev) == DEV_DMA_COHERENT)
+		flags |= PVR_BO_CPU_CACHED;
+
+	shmem_obj = drm_gem_shmem_create(drm_dev, size);
 	if (IS_ERR(shmem_obj))
 		return ERR_CAST(shmem_obj);
 
@@ -360,8 +363,7 @@ pvr_gem_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags)
 		goto err_shmem_object_free;
 	}
 
-	dma_sync_sgtable_for_device(shmem_obj->base.dev->dev, sgt,
-				    DMA_BIDIRECTIONAL);
+	dma_sync_sgtable_for_device(drm_dev->dev, sgt, DMA_BIDIRECTIONAL);
 
 	/*
 	 * Do this last because pvr_gem_object_zero() requires a fully

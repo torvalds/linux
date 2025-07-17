@@ -189,7 +189,8 @@ out:
 
 static void wl1271_rx_streaming_timer(struct timer_list *t)
 {
-	struct wl12xx_vif *wlvif = from_timer(wlvif, t, rx_streaming_timer);
+	struct wl12xx_vif *wlvif = timer_container_of(wlvif, t,
+						      rx_streaming_timer);
 	struct wl1271 *wl = wlvif->wl;
 	ieee80211_queue_work(wl->hw, &wlvif->rx_streaming_disable_work);
 }

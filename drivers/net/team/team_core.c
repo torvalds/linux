@@ -55,7 +55,7 @@ static int __set_port_dev_addr(struct net_device *port_dev,
 
 	memcpy(addr.__data, dev_addr, port_dev->addr_len);
 	addr.ss_family = port_dev->type;
-	return dev_set_mac_address(port_dev, (struct sockaddr *)&addr, NULL);
+	return dev_set_mac_address(port_dev, &addr, NULL);
 }
 
 static int team_port_set_orig_dev_addr(struct team_port *port)

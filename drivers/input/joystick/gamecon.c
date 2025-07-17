@@ -726,7 +726,7 @@ static void gc_psx_process_packet(struct gc *gc)
 
 static void gc_timer(struct timer_list *t)
 {
-	struct gc *gc = from_timer(gc, t, timer);
+	struct gc *gc = timer_container_of(gc, t, timer);
 
 /*
  * N64 pads - must be read first, any read confuses them for 200 us

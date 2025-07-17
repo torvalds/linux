@@ -20,7 +20,6 @@ struct fuse_iqueue;
 struct fuse_forget_link;
 
 struct fuse_copy_state {
-	int write;
 	struct fuse_req *req;
 	struct iov_iter *iter;
 	struct pipe_buffer *pipebufs;
@@ -30,8 +29,9 @@ struct fuse_copy_state {
 	struct page *pg;
 	unsigned int len;
 	unsigned int offset;
-	unsigned int move_pages:1;
-	unsigned int is_uring:1;
+	bool write:1;
+	bool move_folios:1;
+	bool is_uring:1;
 	struct {
 		unsigned int copied_sz; /* copied size into the user buffer */
 	} ring;
@@ -51,7 +51,7 @@ struct fuse_req *fuse_request_find(struct fuse_pqueue *fpq, u64 unique);
 
 void fuse_dev_end_requests(struct list_head *head);
 
-void fuse_copy_init(struct fuse_copy_state *cs, int write,
+void fuse_copy_init(struct fuse_copy_state *cs, bool write,
 			   struct iov_iter *iter);
 int fuse_copy_args(struct fuse_copy_state *cs, unsigned int numargs,
 		   unsigned int argpages, struct fuse_arg *args,
@@ -64,7 +64,6 @@ void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req);
 bool fuse_remove_pending_req(struct fuse_req *req, spinlock_t *lock);
 
 bool fuse_request_expired(struct fuse_conn *fc, struct list_head *list);
-bool fuse_fpq_processing_expired(struct fuse_conn *fc, struct list_head *processing);
 
 #endif
 

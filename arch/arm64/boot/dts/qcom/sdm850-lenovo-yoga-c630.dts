@@ -355,10 +355,6 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
-&gmu {
-	status = "okay";
-};
-
 &gpu {
 	status = "okay";
 	zap-shader {
@@ -616,15 +612,15 @@
 
 &q6asmdai {
 	dai@0 {
-		reg = <0>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
 	};
 
 	dai@1 {
-		reg = <1>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA2>;
 	};
 
 	dai@2 {
-		reg = <2>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA3>;
 	};
 };
 
@@ -636,10 +632,7 @@
 		"RX_BIAS", "MCLK",
 		"AMIC2", "MIC BIAS2",
 		"SpkrLeft IN", "SPK1 OUT",
-		"SpkrRight IN", "SPK2 OUT",
-		"MM_DL1",  "MultiMedia1 Playback",
-		"MM_DL3",  "MultiMedia3 Playback",
-		"MultiMedia2 Capture", "MM_UL2";
+		"SpkrRight IN", "SPK2 OUT";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";
@@ -910,7 +903,7 @@
 	vdd-3.3-ch1-supply = <&vreg_l23a_3p3>;
 
 	qcom,snoc-host-cap-8bit-quirk;
-	qcom,ath10k-calibration-variant = "Lenovo_C630";
+	qcom,calibration-variant = "Lenovo_C630";
 };
 
 &crypto {

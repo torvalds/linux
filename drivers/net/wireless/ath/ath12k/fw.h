@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_FW_H
@@ -32,5 +32,6 @@ enum ath12k_fw_features {
 
 void ath12k_fw_map(struct ath12k_base *ab);
 void ath12k_fw_unmap(struct ath12k_base *ab);
+bool ath12k_fw_feature_supported(struct ath12k_base *ab, enum ath12k_fw_features feat);
 
 #endif /* ATH12K_FW_H */

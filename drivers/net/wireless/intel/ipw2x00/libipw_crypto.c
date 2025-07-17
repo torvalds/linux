@@ -110,8 +110,8 @@ static void libipw_crypt_quiescing(struct libipw_crypt_info *info)
 
 static void libipw_crypt_deinit_handler(struct timer_list *t)
 {
-	struct libipw_crypt_info *info = from_timer(info, t,
-						    crypt_deinit_timer);
+	struct libipw_crypt_info *info = timer_container_of(info, t,
+							    crypt_deinit_timer);
 	unsigned long flags;
 
 	libipw_crypt_deinit_entries(info, 0);

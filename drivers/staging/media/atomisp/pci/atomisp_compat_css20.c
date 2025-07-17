@@ -1845,7 +1845,7 @@ static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(
 {
 	struct atomisp_device *isp = asd->isp;
 	struct camera_mipi_info *mipi_info = atomisp_to_sensor_mipi_info(
-		isp->inputs[asd->input_curr].camera);
+		isp->inputs[asd->input_curr].sensor);
 
 	switch (pipe_id) {
 	case IA_CSS_PIPE_ID_COPY:

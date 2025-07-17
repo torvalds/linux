@@ -902,7 +902,7 @@ static void ar5523_tx_work(struct work_struct *work)
 
 static void ar5523_tx_wd_timer(struct timer_list *t)
 {
-	struct ar5523 *ar = from_timer(ar, t, tx_wd_timer);
+	struct ar5523 *ar = timer_container_of(ar, t, tx_wd_timer);
 
 	ar5523_dbg(ar, "TX watchdog timer triggered\n");
 	ieee80211_queue_work(ar->hw, &ar->tx_wd_work);

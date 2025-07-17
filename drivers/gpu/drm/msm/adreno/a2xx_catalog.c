@@ -45,8 +45,3 @@ static const struct adreno_info a2xx_gpus[] = {
 	}
 };
 DECLARE_ADRENO_GPULIST(a2xx);
-
-MODULE_FIRMWARE("qcom/leia_pfp_470.fw");
-MODULE_FIRMWARE("qcom/leia_pm4_470.fw");
-MODULE_FIRMWARE("qcom/yamato_pfp.fw");
-MODULE_FIRMWARE("qcom/yamato_pm4.fw");

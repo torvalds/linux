@@ -658,7 +658,8 @@ static const struct rq_qos_ops blkcg_iolatency_ops = {
 
 static void blkiolatency_timer_fn(struct timer_list *t)
 {
-	struct blk_iolatency *blkiolat = from_timer(blkiolat, t, timer);
+	struct blk_iolatency *blkiolat = timer_container_of(blkiolat, t,
+							    timer);
 	struct blkcg_gq *blkg;
 	struct cgroup_subsys_state *pos_css;
 	u64 now = blk_time_get_ns();

@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/subdev/gsp/rm/r570/rm.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/gsp.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/client.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/fbsr.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/disp.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/fifo.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/gr.o
+nvkm-y += nvkm/subdev/gsp/rm/r570/ofa.o

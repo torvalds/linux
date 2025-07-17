@@ -53,7 +53,6 @@ void bch2_io_timer_del(struct io_clock *clock, struct io_timer *timer)
 
 struct io_clock_wait {
 	struct io_timer		io_timer;
-	struct timer_list	cpu_timer;
 	struct task_struct	*task;
 	int			expired;
 };
@@ -62,15 +61,6 @@ static void io_clock_wait_fn(struct io_timer *timer)
 {
 	struct io_clock_wait *wait = container_of(timer,
 				struct io_clock_wait, io_timer);
-
-	wait->expired = 1;
-	wake_up_process(wait->task);
-}
-
-static void io_clock_cpu_timeout(struct timer_list *timer)
-{
-	struct io_clock_wait *wait = container_of(timer,
-				struct io_clock_wait, cpu_timer);
 
 	wait->expired = 1;
 	wake_up_process(wait->task);
@@ -90,8 +80,8 @@ void bch2_io_clock_schedule_timeout(struct io_clock *clock, u64 until)
 	bch2_io_timer_del(clock, &wait.io_timer);
 }
 
-void bch2_kthread_io_clock_wait(struct io_clock *clock,
-				u64 io_until, unsigned long cpu_timeout)
+unsigned long bch2_kthread_io_clock_wait_once(struct io_clock *clock,
+				     u64 io_until, unsigned long cpu_timeout)
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	struct io_clock_wait wait = {
@@ -103,27 +93,26 @@ void bch2_kthread_io_clock_wait(struct io_clock *clock,
 
 	bch2_io_timer_add(clock, &wait.io_timer);
 
-	timer_setup_on_stack(&wait.cpu_timer, io_clock_cpu_timeout, 0);
-
-	if (cpu_timeout != MAX_SCHEDULE_TIMEOUT)
-		mod_timer(&wait.cpu_timer, cpu_timeout + jiffies);
-
-	do {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (kthread && kthread_should_stop())
-			break;
-
-		if (wait.expired)
-			break;
-
-		schedule();
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (!(kthread && kthread_should_stop())) {
+		cpu_timeout = schedule_timeout(cpu_timeout);
 		try_to_freeze();
-	} while (0);
+	}
 
 	__set_current_state(TASK_RUNNING);
-	timer_delete_sync(&wait.cpu_timer);
-	timer_destroy_on_stack(&wait.cpu_timer);
 	bch2_io_timer_del(clock, &wait.io_timer);
+	return cpu_timeout;
+}
+
+void bch2_kthread_io_clock_wait(struct io_clock *clock,
+				u64 io_until, unsigned long cpu_timeout)
+{
+	bool kthread = (current->flags & PF_KTHREAD) != 0;
+
+	while (!(kthread && kthread_should_stop()) &&
+	       cpu_timeout &&
+	       atomic64_read(&clock->now) < io_until)
+		cpu_timeout = bch2_kthread_io_clock_wait_once(clock, io_until, cpu_timeout);
 }
 
 static struct io_timer *get_expired_timer(struct io_clock *clock, u64 now)

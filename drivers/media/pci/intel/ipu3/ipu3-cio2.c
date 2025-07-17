@@ -1702,13 +1702,12 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	dev_info(dev, "device 0x%x (rev: 0x%x)\n",
 		 pci_dev->device, pci_dev->revision);
 
-	r = pcim_iomap_regions(pci_dev, 1 << CIO2_PCI_BAR, pci_name(pci_dev));
+	cio2->base = pcim_iomap_region(pci_dev, CIO2_PCI_BAR, CIO2_NAME);
+	r = PTR_ERR_OR_ZERO(cio2->base);
 	if (r) {
 		dev_err(dev, "failed to remap I/O memory (%d)\n", r);
 		return -ENODEV;
 	}
-
-	cio2->base = pcim_iomap_table(pci_dev)[CIO2_PCI_BAR];
 
 	pci_set_drvdata(pci_dev, cio2);
 

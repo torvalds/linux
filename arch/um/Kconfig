@@ -52,13 +52,7 @@ config NO_IOMEM
 config UML_IOMEM_EMULATION
 	bool
 	select INDIRECT_IOMEM
-	select HAS_IOPORT
 	select GENERIC_PCI_IOMAP
-	select GENERIC_IOMAP
-	select NO_GENERIC_PCI_IOPORT_MAP
-
-config NO_IOPORT_MAP
-	def_bool !UML_IOMEM_EMULATION
 
 config ISA
 	bool

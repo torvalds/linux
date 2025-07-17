@@ -278,7 +278,8 @@ static void mlx5_sync_reset_reload_work(struct work_struct *work)
 #define MLX5_RESET_POLL_INTERVAL	(HZ / 10)
 static void poll_sync_reset(struct timer_list *t)
 {
-	struct mlx5_fw_reset *fw_reset = from_timer(fw_reset, t, timer);
+	struct mlx5_fw_reset *fw_reset = timer_container_of(fw_reset, t,
+							    timer);
 	struct mlx5_core_dev *dev = fw_reset->dev;
 	u32 fatal_error;
 

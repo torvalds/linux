@@ -1563,7 +1563,7 @@ err_drop:
 
 static void ag71xx_oom_timer_handler(struct timer_list *t)
 {
-	struct ag71xx *ag = from_timer(ag, t, oom_timer);
+	struct ag71xx *ag = timer_container_of(ag, t, oom_timer);
 
 	napi_schedule(&ag->napi);
 }

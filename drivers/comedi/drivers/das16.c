@@ -517,7 +517,8 @@ static void das16_interrupt(struct comedi_device *dev)
 
 static void das16_timer_interrupt(struct timer_list *t)
 {
-	struct das16_private_struct *devpriv = from_timer(devpriv, t, timer);
+	struct das16_private_struct *devpriv = timer_container_of(devpriv, t,
+								  timer);
 	struct comedi_device *dev = devpriv->dev;
 	unsigned long flags;
 

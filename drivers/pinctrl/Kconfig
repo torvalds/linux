@@ -103,12 +103,10 @@ config PINCTRL_AS3722
 
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
-	depends on OF
-	depends on ARCH_AT91
+	depends on (OF && ARCH_AT91) || COMPILE_TEST
 	select PINMUX
 	select PINCONF
 	select GPIOLIB
-	select OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to enable the at91 pinctrl driver

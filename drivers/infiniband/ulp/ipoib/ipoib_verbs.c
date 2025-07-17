@@ -280,15 +280,15 @@ void ipoib_event(struct ib_event_handler *handler,
 		  dev_name(&record->device->dev), record->element.port_num);
 
 	if (record->event == IB_EVENT_CLIENT_REREGISTER) {
-		queue_work(ipoib_workqueue, &priv->flush_light);
+		ipoib_queue_work(priv, IPOIB_FLUSH_LIGHT);
 	} else if (record->event == IB_EVENT_PORT_ERR ||
 		   record->event == IB_EVENT_PORT_ACTIVE ||
 		   record->event == IB_EVENT_LID_CHANGE) {
-		queue_work(ipoib_workqueue, &priv->flush_normal);
+		ipoib_queue_work(priv, IPOIB_FLUSH_NORMAL);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
-		queue_work(ipoib_workqueue, &priv->flush_heavy);
+		ipoib_queue_work(priv, IPOIB_FLUSH_HEAVY);
 	} else if (record->event == IB_EVENT_GID_CHANGE &&
 		   !test_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags)) {
-		queue_work(ipoib_workqueue, &priv->flush_light);
+		ipoib_queue_work(priv, IPOIB_FLUSH_LIGHT);
 	}
 }

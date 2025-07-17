@@ -46,6 +46,7 @@ properties:
       - description: K3 AM625 SoC
         items:
           - enum:
+              - beagle,am62-pocketbeagle2
               - beagle,am625-beagleplay
               - ti,am625-sk
               - ti,am62-lp-sk
@@ -74,6 +75,30 @@ properties:
           - const: toradex,verdin-am62-wifi     # Verdin AM62 Wi-Fi / BT Module
           - const: toradex,verdin-am62          # Verdin AM62 Module
           - const: ti,am625
+
+      - description: K3 AM62P5 SoC Toradex Verdin Modules and Carrier Boards
+        items:
+          - enum:
+              - toradex,verdin-am62p-nonwifi-dahlia # Verdin AM62P Module on Dahlia
+              - toradex,verdin-am62p-nonwifi-dev    # Verdin AM62P Module on Verdin Development Board
+              - toradex,verdin-am62p-nonwifi-ivy    # Verdin AM62P Module on Ivy
+              - toradex,verdin-am62p-nonwifi-mallow # Verdin AM62P Module on Mallow
+              - toradex,verdin-am62p-nonwifi-yavia  # Verdin AM62P Module on Yavia
+          - const: toradex,verdin-am62p-nonwifi     # Verdin AM62P Module without Wi-Fi / BT
+          - const: toradex,verdin-am62p             # Verdin AM62P Module
+          - const: ti,am62p5
+
+      - description: K3 AM62P5 SoC Toradex Verdin Modules and Carrier Boards with Wi-Fi / BT
+        items:
+          - enum:
+              - toradex,verdin-am62p-wifi-dahlia # Verdin AM62P Wi-Fi / BT Module on Dahlia
+              - toradex,verdin-am62p-wifi-dev    # Verdin AM62P Wi-Fi / BT M. on Verdin Development B.
+              - toradex,verdin-am62p-wifi-ivy    # Verdin AM62P Wi-Fi / BT Module on Ivy
+              - toradex,verdin-am62p-wifi-mallow # Verdin AM62P Wi-Fi / BT Module on Mallow
+              - toradex,verdin-am62p-wifi-yavia  # Verdin AM62P Wi-Fi / BT Module on Yavia
+          - const: toradex,verdin-am62p-wifi     # Verdin AM62P Wi-Fi / BT Module
+          - const: toradex,verdin-am62p          # Verdin AM62P Module
+          - const: ti,am62p5
 
       - description: K3 AM642 SoC
         items:
@@ -137,6 +162,13 @@ properties:
           - enum:
               - ti,am68-sk
               - ti,j721s2-evm
+          - const: ti,j721s2
+
+      - description: K3 J721s2 SoC Phytec SoM based boards
+        items:
+          - enum:
+              - phytec,am68-phyboard-izar
+          - const: phytec,am68-phycore-som
           - const: ti,j721s2
 
       - description: K3 J722S SoC and Boards

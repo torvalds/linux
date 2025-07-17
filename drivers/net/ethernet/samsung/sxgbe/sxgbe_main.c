@@ -104,7 +104,8 @@ void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
  */
 static void sxgbe_eee_ctrl_timer(struct timer_list *t)
 {
-	struct sxgbe_priv_data *priv = from_timer(priv, t, eee_ctrl_timer);
+	struct sxgbe_priv_data *priv = timer_container_of(priv, t,
+							  eee_ctrl_timer);
 
 	sxgbe_enable_eee_mode(priv);
 	mod_timer(&priv->eee_ctrl_timer, SXGBE_LPI_TIMER(eee_timer));
@@ -1012,7 +1013,7 @@ static void sxgbe_disable_mtl_engine(struct sxgbe_priv_data *priv)
  */
 static void sxgbe_tx_timer(struct timer_list *t)
 {
-	struct sxgbe_tx_queue *p = from_timer(p, t, txtimer);
+	struct sxgbe_tx_queue *p = timer_container_of(p, t, txtimer);
 	sxgbe_tx_queue_clean(p);
 }
 

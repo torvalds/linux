@@ -188,7 +188,7 @@ int txgbe_reset_hw(struct wx *wx)
 	if (status != 0)
 		return status;
 
-	if (wx->media_type != sp_media_copper) {
+	if (wx->media_type != wx_media_copper) {
 		u32 val;
 
 		val = WX_MIS_RST_LAN_RST(wx->bus.func);
@@ -218,7 +218,7 @@ int txgbe_reset_hw(struct wx *wx)
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
 	 * since we modify this value when programming the SAN MAC address.
 	 */
-	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
+	wx->mac.num_rar_entries = TXGBE_RAR_ENTRIES;
 	wx_init_rx_addrs(wx);
 
 	pci_set_master(wx->pdev);

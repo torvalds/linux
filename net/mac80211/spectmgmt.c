@@ -147,14 +147,14 @@ validate_chandef_by_6ghz_he_eht_oper(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	u32 control_freq, center_freq1, center_freq2;
 	enum nl80211_chan_width chan_width;
-	struct {
-		struct ieee80211_he_operation _oper;
-		struct ieee80211_he_6ghz_oper _6ghz_oper;
-	} __packed he;
-	struct {
-		struct ieee80211_eht_operation _oper;
-		struct ieee80211_eht_operation_info _oper_info;
-	} __packed eht;
+	DEFINE_RAW_FLEX(struct ieee80211_he_operation, he, optional,
+			sizeof(struct ieee80211_he_6ghz_oper));
+	struct ieee80211_he_6ghz_oper *_6ghz_oper =
+				(struct ieee80211_he_6ghz_oper *)he->optional;
+	DEFINE_RAW_FLEX(struct ieee80211_eht_operation, eht, optional,
+			sizeof(struct ieee80211_eht_operation_info));
+	struct ieee80211_eht_operation_info *_oper_info =
+			(struct ieee80211_eht_operation_info *)eht->optional;
 	const struct ieee80211_eht_operation *eht_oper;
 
 	if (conn->mode < IEEE80211_CONN_MODE_HE) {
@@ -167,38 +167,38 @@ validate_chandef_by_6ghz_he_eht_oper(struct ieee80211_sub_if_data *sdata,
 	center_freq2 = chandef->center_freq2;
 	chan_width = chandef->width;
 
-	he._oper.he_oper_params =
+	he->he_oper_params =
 		le32_encode_bits(1, IEEE80211_HE_OPERATION_6GHZ_OP_INFO);
-	he._6ghz_oper.primary =
+	_6ghz_oper->primary =
 		ieee80211_frequency_to_channel(control_freq);
-	he._6ghz_oper.ccfs0 = ieee80211_frequency_to_channel(center_freq1);
-	he._6ghz_oper.ccfs1 = center_freq2 ?
+	_6ghz_oper->ccfs0 = ieee80211_frequency_to_channel(center_freq1);
+	_6ghz_oper->ccfs1 = center_freq2 ?
 		ieee80211_frequency_to_channel(center_freq2) : 0;
 
 	switch (chan_width) {
 	case NL80211_CHAN_WIDTH_320:
-		he._6ghz_oper.ccfs1 = he._6ghz_oper.ccfs0;
-		he._6ghz_oper.ccfs0 += control_freq < center_freq1 ? -16 : 16;
-		he._6ghz_oper.control = IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ;
+		_6ghz_oper->ccfs1 = _6ghz_oper->ccfs0;
+		_6ghz_oper->ccfs0 += control_freq < center_freq1 ? -16 : 16;
+		_6ghz_oper->control = IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		he._6ghz_oper.ccfs1 = he._6ghz_oper.ccfs0;
-		he._6ghz_oper.ccfs0 += control_freq < center_freq1 ? -8 : 8;
+		_6ghz_oper->ccfs1 = _6ghz_oper->ccfs0;
+		_6ghz_oper->ccfs0 += control_freq < center_freq1 ? -8 : 8;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_80P80:
-		he._6ghz_oper.control =
+		_6ghz_oper->control =
 			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ;
 		break;
 	case NL80211_CHAN_WIDTH_80:
-		he._6ghz_oper.control =
+		_6ghz_oper->control =
 			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_80MHZ;
 		break;
 	case NL80211_CHAN_WIDTH_40:
-		he._6ghz_oper.control =
+		_6ghz_oper->control =
 			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_40MHZ;
 		break;
 	default:
-		he._6ghz_oper.control =
+		_6ghz_oper->control =
 			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_20MHZ;
 		break;
 	}
@@ -206,15 +206,14 @@ validate_chandef_by_6ghz_he_eht_oper(struct ieee80211_sub_if_data *sdata,
 	if (conn->mode < IEEE80211_CONN_MODE_EHT) {
 		eht_oper = NULL;
 	} else {
-		eht._oper.params = IEEE80211_EHT_OPER_INFO_PRESENT;
-		eht._oper_info.control = he._6ghz_oper.control;
-		eht._oper_info.ccfs0 = he._6ghz_oper.ccfs0;
-		eht._oper_info.ccfs1 = he._6ghz_oper.ccfs1;
-		eht_oper = &eht._oper;
+		eht->params = IEEE80211_EHT_OPER_INFO_PRESENT;
+		_oper_info->control = _6ghz_oper->control;
+		_oper_info->ccfs0 = _6ghz_oper->ccfs0;
+		_oper_info->ccfs1 = _6ghz_oper->ccfs1;
+		eht_oper = eht;
 	}
 
-	if (!ieee80211_chandef_he_6ghz_oper(local, &he._oper,
-					    eht_oper, chandef))
+	if (!ieee80211_chandef_he_6ghz_oper(local, he, eht_oper, chandef))
 		chandef->chan = NULL;
 }
 

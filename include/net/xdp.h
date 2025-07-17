@@ -616,8 +616,12 @@ struct xdp_metadata_ops {
 u32 bpf_xdp_metadata_kfunc_id(int id);
 bool bpf_dev_bound_kfunc_id(u32 btf_id);
 void xdp_set_features_flag(struct net_device *dev, xdp_features_t val);
+void xdp_set_features_flag_locked(struct net_device *dev, xdp_features_t val);
 void xdp_features_set_redirect_target(struct net_device *dev, bool support_sg);
+void xdp_features_set_redirect_target_locked(struct net_device *dev,
+					     bool support_sg);
 void xdp_features_clear_redirect_target(struct net_device *dev);
+void xdp_features_clear_redirect_target_locked(struct net_device *dev);
 #else
 static inline u32 bpf_xdp_metadata_kfunc_id(int id) { return 0; }
 static inline bool bpf_dev_bound_kfunc_id(u32 btf_id) { return false; }

@@ -690,8 +690,8 @@ static void nvme_remove_head(struct nvme_ns_head *head)
 		nvme_cdev_del(&head->cdev, &head->cdev_device);
 		synchronize_srcu(&head->srcu);
 		del_gendisk(head->disk);
-		nvme_put_ns_head(head);
 	}
+	nvme_put_ns_head(head);
 }
 
 static void nvme_remove_head_work(struct work_struct *work)
@@ -760,7 +760,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	 * controller's scan_work context. If a path error occurs here, the IO
 	 * will wait until a path becomes available or all paths are torn down,
 	 * but that action also occurs within scan_work, so it would deadlock.
-	 * Defer the partion scan to a different context that does not block
+	 * Defer the partition scan to a different context that does not block
 	 * scan_work.
 	 */
 	set_bit(GD_SUPPRESS_PART_SCAN, &head->disk->state);
@@ -998,7 +998,7 @@ void nvme_mpath_update(struct nvme_ctrl *ctrl)
 
 static void nvme_anatt_timeout(struct timer_list *t)
 {
-	struct nvme_ctrl *ctrl = from_timer(ctrl, t, anatt_timer);
+	struct nvme_ctrl *ctrl = timer_container_of(ctrl, t, anatt_timer);
 
 	dev_info(ctrl->device, "ANATT timeout, resetting controller.\n");
 	nvme_reset_ctrl(ctrl);
@@ -1200,7 +1200,8 @@ void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
 	 */
 	srcu_idx = srcu_read_lock(&head->srcu);
 
-	list_for_each_entry_rcu(ns, &head->list, siblings) {
+	list_for_each_entry_srcu(ns, &head->list, siblings,
+				 srcu_read_lock_held(&head->srcu)) {
 		/*
 		 * Ensure that ns path disk node is already added otherwise we
 		 * may get invalid kobj name for target
@@ -1291,6 +1292,9 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 	bool remove = false;
 
+	if (!head->disk)
+		return;
+
 	mutex_lock(&head->subsys->lock);
 	/*
 	 * We are called when all paths have been removed, and at that point
@@ -1311,7 +1315,7 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 		 */
 		if (!try_module_get(THIS_MODULE))
 			goto out;
-		queue_delayed_work(nvme_wq, &head->remove_work,
+		mod_delayed_work(nvme_wq, &head->remove_work,
 				head->delayed_removal_secs * HZ);
 	} else {
 		list_del_init(&head->entry);

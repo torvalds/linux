@@ -29,6 +29,7 @@ properties:
           - enum:
               - renesas,riic-r9a08g045   # RZ/G3S
               - renesas,riic-r9a09g047   # RZ/G3E
+              - renesas,riic-r9a09g056   # RZ/V2N
           - const: renesas,riic-r9a09g057   # RZ/V2H(P)
 
       - const: renesas,riic-r9a09g057   # RZ/V2H(P)

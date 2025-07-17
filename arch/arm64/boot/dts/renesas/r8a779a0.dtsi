@@ -2588,12 +2588,19 @@
 		isp0: isp@fed00000 {
 			compatible = "renesas,r8a779a0-isp",
 				     "renesas,rcar-gen4-isp";
-			reg = <0 0xfed00000 0 0x10000>;
-			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 612>;
+			reg = <0 0xfed00000 0 0x10000>, <0 0xfec00000 0 0x100000>;
+			reg-names = "cs", "core";
+			interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cs", "core";
+			clocks = <&cpg CPG_MOD 612>, <&cpg CPG_MOD 16>;
+			clock-names = "cs", "core";
 			power-domains = <&sysc R8A779A0_PD_A3ISP01>;
-			resets = <&cpg 612>;
+			resets = <&cpg 612>, <&cpg 16>;
+			reset-names = "cs", "core";
 			status = "disabled";
+
+			renesas,vspx = <&vspx0>;
 
 			ports {
 				#address-cells = <1>;
@@ -2672,12 +2679,19 @@
 		isp1: isp@fed20000 {
 			compatible = "renesas,r8a779a0-isp",
 				     "renesas,rcar-gen4-isp";
-			reg = <0 0xfed20000 0 0x10000>;
-			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 613>;
+			reg = <0 0xfed20000 0 0x10000>, <0 0xfee00000 0 0x100000>;
+			reg-names = "cs", "core";
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cs", "core";
+			clocks = <&cpg CPG_MOD 613>, <&cpg CPG_MOD 17>;
+			clock-names = "cs", "core";
 			power-domains = <&sysc R8A779A0_PD_A3ISP01>;
-			resets = <&cpg 613>;
+			resets = <&cpg 613>, <&cpg 17>;
+			reset-names = "cs", "core";
 			status = "disabled";
+
+			renesas,vspx = <&vspx1>;
 
 			ports {
 				#address-cells = <1>;
@@ -2756,12 +2770,19 @@
 		isp2: isp@fed30000 {
 			compatible = "renesas,r8a779a0-isp",
 				     "renesas,rcar-gen4-isp";
-			reg = <0 0xfed30000 0 0x10000>;
-			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 614>;
+			reg = <0 0xfed30000 0 0x10000>, <0 0xfef00000 0 0x100000>;
+			reg-names = "cs", "core";
+			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cs", "core";
+			clocks = <&cpg CPG_MOD 614>, <&cpg CPG_MOD 18>;
+			clock-names = "cs", "core";
 			power-domains = <&sysc R8A779A0_PD_A3ISP23>;
-			resets = <&cpg 614>;
+			resets = <&cpg 614>, <&cpg 18>;
+			reset-names = "cs", "core";
 			status = "disabled";
+
+			renesas,vspx = <&vspx2>;
 
 			ports {
 				#address-cells = <1>;
@@ -2840,12 +2861,19 @@
 		isp3: isp@fed40000 {
 			compatible = "renesas,r8a779a0-isp",
 				     "renesas,rcar-gen4-isp";
-			reg = <0 0xfed40000 0 0x10000>;
-			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 615>;
+			reg = <0 0xfed40000 0 0x10000>, <0 0xfe400000 0 0x100000>;
+			reg-names = "cs", "core";
+			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cs", "core";
+			clocks = <&cpg CPG_MOD 615>, <&cpg CPG_MOD 19>;
+			clock-names = "cs", "core";
 			power-domains = <&sysc R8A779A0_PD_A3ISP23>;
-			resets = <&cpg 615>;
+			resets = <&cpg 615>, <&cpg 19>;
+			reset-names = "cs", "core";
 			status = "disabled";
+
+			renesas,vspx = <&vspx3>;
 
 			ports {
 				#address-cells = <1>;

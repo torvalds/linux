@@ -49,7 +49,7 @@ static const struct of_device_id st_magn_of_match[] = {
 		.compatible = "st,lsm303c-magn",
 		.data = LSM303C_MAGN_DEV_NAME,
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, st_magn_of_match);
 
@@ -94,7 +94,7 @@ static const struct spi_device_id st_magn_id_table[] = {
 	{ LSM9DS1_MAGN_DEV_NAME },
 	{ IIS2MDC_MAGN_DEV_NAME },
 	{ LSM303C_MAGN_DEV_NAME },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, st_magn_id_table);
 

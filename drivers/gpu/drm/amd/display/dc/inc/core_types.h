@@ -65,6 +65,7 @@ struct resource_pool;
 struct dc_state;
 struct resource_context;
 struct clk_bw_params;
+struct dc_mcache_params;
 
 struct resource_funcs {
 	enum engine_id (*get_preferred_eng_id_dpia)(unsigned int dpia_index);
@@ -78,8 +79,7 @@ struct resource_funcs {
 	/* Create a minimal link encoder object with no dc_link object
 	 * associated with it. */
 	struct link_encoder *(*link_enc_create_minimal)(struct dc_context *ctx, enum engine_id eng_id);
-
-	bool (*validate_bandwidth)(
+	enum dc_status (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
 					bool fast_validate);
@@ -218,6 +218,11 @@ struct resource_funcs {
 	int (*get_power_profile)(const struct dc_state *context);
 	unsigned int (*get_det_buffer_size)(const struct dc_state *context);
 	unsigned int (*get_vstartup_for_pipe)(struct pipe_ctx *pipe_ctx);
+	unsigned int (*get_max_hw_cursor_size)(const struct dc *dc,
+			struct dc_state *state,
+			const struct dc_stream_state *stream);
+	bool (*program_mcache_pipe_config)(struct dc_state *context,
+		const struct dc_mcache_params *mcache_params);
 };
 
 struct audio_support{
@@ -382,7 +387,9 @@ struct link_resource {
 
 struct link_config {
 	struct dc_link_settings dp_link_settings;
+	struct dc_tunnel_settings dp_tunnel_settings;
 };
+
 union pipe_update_flags {
 	struct {
 		uint32_t enable : 1;
@@ -480,6 +487,10 @@ struct pipe_ctx {
 	struct pixel_rate_divider pixel_rate_divider;
 	/* pixels borrowed from hblank to hactive */
 	uint8_t hblank_borrow;
+	/* next vupdate */
+	uint32_t next_vupdate;
+	uint32_t wait_frame_count;
+	bool wait_is_required;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -507,7 +518,7 @@ struct resource_context {
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
-	/* solely used for build scalar data in dml2 */
+	/* used to build scalar data in dml2 and for edp backlight programming */
 	struct pipe_ctx temp_pipe;
 };
 
@@ -630,7 +641,7 @@ struct dc_state {
 	 */
 	struct bw_context bw_ctx;
 
-	struct block_sequence block_sequence[100];
+	struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE];
 	unsigned int block_sequence_steps;
 	struct dc_dmub_cmd dc_dmub_cmd[10];
 	unsigned int dmub_cmd_count;

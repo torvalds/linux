@@ -3738,7 +3738,7 @@ csio_mberr_worker(void *data)
 static void
 csio_hw_mb_timer(struct timer_list *t)
 {
-	struct csio_mbm *mbm = from_timer(mbm, t, timer);
+	struct csio_mbm *mbm = timer_container_of(mbm, t, timer);
 	struct csio_hw *hw = mbm->hw;
 	struct csio_mb *mbp = NULL;
 
@@ -4107,7 +4107,7 @@ csio_mgmt_req_lookup(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req)
 static void
 csio_mgmt_tmo_handler(struct timer_list *t)
 {
-	struct csio_mgmtm *mgmtm = from_timer(mgmtm, t, mgmt_timer);
+	struct csio_mgmtm *mgmtm = timer_container_of(mgmtm, t, mgmt_timer);
 	struct list_head *tmp;
 	struct csio_ioreq *io_req;
 

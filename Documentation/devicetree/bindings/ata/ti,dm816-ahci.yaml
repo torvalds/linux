@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/ti,dm816-ahci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI DM816 AHCI SATA Controller
+
+maintainers:
+  - Bartosz Golaszewski <brgl@bgdev.pl>
+
+allOf:
+  - $ref: ahci-common.yaml#
+
+properties:
+  compatible:
+    const: ti,dm816-ahci
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: functional clock
+      - description: external reference clock
+
+  ti,hwmods:
+    const: sata
+
+required:
+  - compatible
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sata@4a140000 {
+        compatible = "ti,dm816-ahci";
+        reg = <0x4a140000 0x10000>;
+        interrupts = <16>;
+        clocks = <&sysclk5_ck>, <&sata_refclk>;
+    };

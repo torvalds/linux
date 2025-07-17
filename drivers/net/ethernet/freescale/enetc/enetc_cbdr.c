@@ -60,6 +60,44 @@ void enetc_teardown_cbdr(struct enetc_cbdr *cbdr)
 }
 EXPORT_SYMBOL_GPL(enetc_teardown_cbdr);
 
+int enetc4_setup_cbdr(struct enetc_si *si)
+{
+	struct ntmp_user *user = &si->ntmp_user;
+	struct device *dev = &si->pdev->dev;
+	struct enetc_hw *hw = &si->hw;
+	struct netc_cbdr_regs regs;
+
+	user->cbdr_num = 1;
+	user->dev = dev;
+	user->ring = devm_kcalloc(dev, user->cbdr_num,
+				  sizeof(struct netc_cbdr), GFP_KERNEL);
+	if (!user->ring)
+		return -ENOMEM;
+
+	/* set CBDR cache attributes */
+	enetc_wr(hw, ENETC_SICAR2,
+		 ENETC_SICAR_RD_COHERENT | ENETC_SICAR_WR_COHERENT);
+
+	regs.pir = hw->reg + ENETC_SICBDRPIR;
+	regs.cir = hw->reg + ENETC_SICBDRCIR;
+	regs.mr = hw->reg + ENETC_SICBDRMR;
+	regs.bar0 = hw->reg + ENETC_SICBDRBAR0;
+	regs.bar1 = hw->reg + ENETC_SICBDRBAR1;
+	regs.lenr = hw->reg + ENETC_SICBDRLENR;
+
+	return ntmp_init_cbdr(user->ring, dev, &regs);
+}
+EXPORT_SYMBOL_GPL(enetc4_setup_cbdr);
+
+void enetc4_teardown_cbdr(struct enetc_si *si)
+{
+	struct ntmp_user *user = &si->ntmp_user;
+
+	ntmp_free_cbdr(user->ring);
+	user->dev = NULL;
+}
+EXPORT_SYMBOL_GPL(enetc4_teardown_cbdr);
+
 static void enetc_clean_cbdr(struct enetc_cbdr *ring)
 {
 	struct enetc_cbd *dest_cbd;
@@ -256,3 +294,15 @@ int enetc_set_rss_table(struct enetc_si *si, const u32 *table, int count)
 	return enetc_cmd_rss_table(si, (u32 *)table, count, false);
 }
 EXPORT_SYMBOL_GPL(enetc_set_rss_table);
+
+int enetc4_get_rss_table(struct enetc_si *si, u32 *table, int count)
+{
+	return ntmp_rsst_query_entry(&si->ntmp_user, table, count);
+}
+EXPORT_SYMBOL_GPL(enetc4_get_rss_table);
+
+int enetc4_set_rss_table(struct enetc_si *si, const u32 *table, int count)
+{
+	return ntmp_rsst_update_entry(&si->ntmp_user, table, count);
+}
+EXPORT_SYMBOL_GPL(enetc4_set_rss_table);

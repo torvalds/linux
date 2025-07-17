@@ -1498,7 +1498,7 @@ static int msb_ftl_scan(struct msb_data *msb)
 
 static void msb_cache_flush_timer(struct timer_list *t)
 {
-	struct msb_data *msb = from_timer(msb, t, cache_flush_timer);
+	struct msb_data *msb = timer_container_of(msb, t, cache_flush_timer);
 
 	msb->need_flush_cache = true;
 	queue_work(msb->io_queue, &msb->io_work);

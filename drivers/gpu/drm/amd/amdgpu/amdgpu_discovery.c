@@ -270,9 +270,10 @@ static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, 
 static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 						 uint8_t *binary)
 {
+	bool sz_valid = true;
 	uint64_t vram_size;
-	u32 msg;
 	int i, ret = 0;
+	u32 msg;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* It can take up to a second for IFWI init to complete on some dGPUs,
@@ -291,15 +292,24 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 		}
 	}
 
-	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
+	vram_size = RREG32(mmRCC_CONFIG_MEMSIZE);
+	if (!vram_size || vram_size == U32_MAX)
+		sz_valid = false;
+	else
+		vram_size <<= 20;
 
-	if (vram_size) {
+	if (sz_valid) {
 		uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
 		amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
 					  adev->mman.discovery_tmr_size, false);
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
+
+	if (ret)
+		dev_err(adev->dev,
+			"failed to read discovery info from memory, vram size read: %llx",
+			vram_size);
 
 	return ret;
 }
@@ -311,10 +321,12 @@ static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev,
 	const struct firmware *fw;
 	int r;
 
-	r = request_firmware(&fw, fw_name, adev->dev);
+	r = firmware_request_nowarn(&fw, fw_name, adev->dev);
 	if (r) {
-		dev_err(adev->dev, "can't load firmware \"%s\"\n",
-			fw_name);
+		if (amdgpu_discovery == 2)
+			dev_err(adev->dev, "can't load firmware \"%s\"\n", fw_name);
+		else
+			drm_info(&adev->ddev, "Optional firmware \"%s\" was not found\n", fw_name);
 		return r;
 	}
 
@@ -449,16 +461,12 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	/* Read from file if it is the preferred option */
 	fw_name = amdgpu_discovery_get_fw_name(adev);
 	if (fw_name != NULL) {
-		dev_info(adev->dev, "use ip discovery information from file");
+		drm_dbg(&adev->ddev, "use ip discovery information from file");
 		r = amdgpu_discovery_read_binary_from_file(adev, adev->mman.discovery_bin, fw_name);
-
-		if (r) {
-			dev_err(adev->dev, "failed to read ip discovery binary from file\n");
-			r = -EINVAL;
+		if (r)
 			goto out;
-		}
-
 	} else {
+		drm_dbg(&adev->ddev, "use ip discovery information from memory");
 		r = amdgpu_discovery_read_binary_from_mem(
 			adev, adev->mman.discovery_bin);
 		if (r)
@@ -1328,10 +1336,8 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	int r;
 
 	r = amdgpu_discovery_init(adev);
-	if (r) {
-		DRM_ERROR("amdgpu_discovery_init failed\n");
+	if (r)
 		return r;
-	}
 
 	wafl_ver = 0;
 	adev->gfx.xcc_mask = 0;
@@ -2569,8 +2575,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	default:
 		r = amdgpu_discovery_reg_base_init(adev);
-		if (r)
-			return -EINVAL;
+		if (r) {
+			drm_err(&adev->ddev, "discovery failed: %d\n", r);
+			return r;
+		}
 
 		amdgpu_discovery_harvest_ip(adev);
 		amdgpu_discovery_get_gfx_info(adev);

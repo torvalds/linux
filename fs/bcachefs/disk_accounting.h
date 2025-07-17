@@ -174,16 +174,16 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans,
 		case BCH_DISK_ACCOUNTING_replicas:
 			fs_usage_data_type_to_base(&trans->fs_usage_delta, acc_k.replicas.data_type, a.v->d[0]);
 			break;
-		case BCH_DISK_ACCOUNTING_dev_data_type:
-			rcu_read_lock();
+		case BCH_DISK_ACCOUNTING_dev_data_type: {
+			guard(rcu)();
 			struct bch_dev *ca = bch2_dev_rcu_noerror(c, acc_k.dev_data_type.dev);
 			if (ca) {
 				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
 				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
 				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].fragmented, a.v->d[2]);
 			}
-			rcu_read_unlock();
 			break;
+		}
 		}
 	}
 

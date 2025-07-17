@@ -349,7 +349,8 @@ void efx_siena_free_rx_buffers(struct efx_rx_queue *rx_queue,
 
 void efx_siena_rx_slow_fill(struct timer_list *t)
 {
-	struct efx_rx_queue *rx_queue = from_timer(rx_queue, t, slow_fill);
+	struct efx_rx_queue *rx_queue = timer_container_of(rx_queue, t,
+							   slow_fill);
 
 	/* Post an event to cause NAPI to run and refill the queue */
 	efx_nic_generate_fill_event(rx_queue);

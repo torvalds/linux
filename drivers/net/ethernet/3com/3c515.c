@@ -859,7 +859,7 @@ static int corkscrew_open(struct net_device *dev)
 static void corkscrew_timer(struct timer_list *t)
 {
 #ifdef AUTOMEDIA
-	struct corkscrew_private *vp = from_timer(vp, t, timer);
+	struct corkscrew_private *vp = timer_container_of(vp, t, timer);
 	struct net_device *dev = vp->our_dev;
 	int ioaddr = dev->base_addr;
 	unsigned long flags;

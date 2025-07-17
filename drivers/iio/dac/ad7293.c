@@ -114,6 +114,7 @@
 #define AD7293_REG_DATA_RAW_MSK			GENMASK(15, 4)
 #define AD7293_REG_VINX_RANGE_GET_CH_MSK(x, ch)	(((x) >> (ch)) & 0x1)
 #define AD7293_REG_VINX_RANGE_SET_CH_MSK(x, ch)	(((x) & 0x1) << (ch))
+#define AD7293_GENERAL_ADC_REF_MSK			BIT(7)
 #define AD7293_CHIP_ID				0x18
 
 enum ad7293_ch_type {
@@ -141,6 +142,7 @@ struct ad7293_state {
 	/* Protect against concurrent accesses to the device, page selection and data content */
 	struct mutex lock;
 	struct gpio_desc *gpio_reset;
+	bool vrefin_en;
 	u8 page_select;
 	u8 data[3] __aligned(IIO_DMA_MINALIGN);
 };
@@ -785,6 +787,12 @@ static int ad7293_properties_parse(struct ad7293_state *st)
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "failed to enable VDRIVE\n");
 
+	ret = devm_regulator_get_enable_optional(&spi->dev, "vrefin");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(&spi->dev, ret, "failed to enable VREFIN\n");
+
+	st->vrefin_en = ret != -ENODEV;
+
 	st->gpio_reset = devm_gpiod_get_optional(&st->spi->dev, "reset",
 						 GPIOD_OUT_HIGH);
 	if (IS_ERR(st->gpio_reset))
@@ -817,6 +825,11 @@ static int ad7293_init(struct ad7293_state *st)
 		dev_err(&spi->dev, "Invalid Chip ID.\n");
 		return -EINVAL;
 	}
+
+	if (!st->vrefin_en)
+		return __ad7293_spi_update_bits(st, AD7293_REG_GENERAL,
+						AD7293_GENERAL_ADC_REF_MSK,
+						AD7293_GENERAL_ADC_REF_MSK);
 
 	return 0;
 }
@@ -859,13 +872,13 @@ static int ad7293_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad7293_id[] = {
 	{ "ad7293", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7293_id);
 
 static const struct of_device_id ad7293_of_match[] = {
 	{ .compatible = "adi,ad7293" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7293_of_match);
 

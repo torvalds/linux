@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023, 2025 Intel Corporation
  */
 #include <linux/dmi.h>
 #include "iwl-drv.h"
@@ -34,6 +34,7 @@ IWL_BIOS_TABLE_LOADER(wrds_table);
 IWL_BIOS_TABLE_LOADER(ewrd_table);
 IWL_BIOS_TABLE_LOADER(wgds_table);
 IWL_BIOS_TABLE_LOADER(ppag_table);
+IWL_BIOS_TABLE_LOADER(phy_filters);
 IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
 IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
 IWL_BIOS_TABLE_LOADER_DATA(mcc, char);
@@ -180,9 +181,9 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 	 */
 	return IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) >= 38 ||
 		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 &&
-		 fwrt->trans->hw_rev != CSR_HW_REV_TYPE_3160) ||
+		 fwrt->trans->info.hw_rev != CSR_HW_REV_TYPE_3160) ||
 		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
-		 ((fwrt->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
+		 ((fwrt->trans->info.hw_rev & CSR_HW_REV_TYPE_MSK) ==
 		  CSR_HW_REV_TYPE_7265D));
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
@@ -313,7 +314,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 	bool send_ppag_always;
 
 	/* many firmware images for JF lie about this */
-	if (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id) ==
+	if (CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id) ==
 	    CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF))
 		return -EOPNOTSUPP;
 
@@ -338,31 +339,35 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 		return -EINVAL;
 	}
 
-	/* The 'flags' field is the same in v1 and in v2 so we can just
-	 * use v1 to access it.
-	 */
-	cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags);
-
 	IWL_DEBUG_RADIO(fwrt, "PPAG cmd ver is %d\n", cmd_ver);
 	if (cmd_ver == 1) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V1;
 		gain = cmd->v1.gain[0];
 		*cmd_size = sizeof(cmd->v1);
-		if (fwrt->ppag_ver >= 1) {
+		cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags);
+		if (fwrt->ppag_bios_rev >= 1) {
 			/* in this case FW supports revision 0 */
 			IWL_DEBUG_RADIO(fwrt,
 					"PPAG table rev is %d, send truncated table\n",
-					fwrt->ppag_ver);
+					fwrt->ppag_bios_rev);
 		}
 	} else if (cmd_ver >= 2 && cmd_ver <= 6) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 		gain = cmd->v2.gain[0];
 		*cmd_size = sizeof(cmd->v2);
-		if (fwrt->ppag_ver == 0) {
+		cmd->v2.flags = cpu_to_le32(fwrt->ppag_flags);
+		if (fwrt->ppag_bios_rev == 0) {
 			/* in this case FW supports revisions 1,2 or 3 */
 			IWL_DEBUG_RADIO(fwrt,
 					"PPAG table rev is 0, send padded table\n");
 		}
+	} else if (cmd_ver == 7) {
+		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
+		gain = cmd->v3.gain[0];
+		*cmd_size = sizeof(cmd->v3);
+		cmd->v3.ppag_config_info.table_source = fwrt->ppag_bios_source;
+		cmd->v3.ppag_config_info.table_revision = fwrt->ppag_bios_rev;
+		cmd->v3.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags);
 	} else {
 		IWL_DEBUG_RADIO(fwrt, "Unsupported PPAG command version\n");
 		return -EINVAL;
@@ -371,9 +376,11 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 	/* ppag mode */
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits were read from bios: %d\n",
-			le32_to_cpu(cmd->v1.flags));
+			fwrt->ppag_flags);
 
-	if (cmd_ver == 5)
+	if (cmd_ver == 6)
+		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V6_MASK);
+	else if (cmd_ver == 5)
 		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V5_MASK);
 	else if (cmd_ver < 5)
 		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V4_MASK);
@@ -381,16 +388,20 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 	if ((cmd_ver == 1 &&
 	     !fw_has_capa(&fwrt->fw->ucode_capa,
 			  IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) ||
-	    (cmd_ver == 2 && fwrt->ppag_ver >= 2)) {
+	    (cmd_ver == 2 && fwrt->ppag_bios_rev >= 2)) {
 		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
 		IWL_DEBUG_RADIO(fwrt, "masking ppag China bit\n");
 	} else {
 		IWL_DEBUG_RADIO(fwrt, "isn't masking ppag China bit\n");
 	}
 
+	/* The 'flags' field is the same in v1 and v2 so we can just
+	 * use v1 to access it.
+	 */
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits going to be sent: %d\n",
-			le32_to_cpu(cmd->v1.flags));
+			(cmd_ver < 7) ? le32_to_cpu(cmd->v1.flags) :
+					le32_to_cpu(cmd->v3.ppag_config_info.value));
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
 		for (j = 0; j < num_sub_bands; j++) {
@@ -480,7 +491,7 @@ __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	u32 val;
 	__le32 config_bitmap = 0;
 
-	switch (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_HR1:
 	case IWL_CFG_RF_TYPE_HR2:
 	case IWL_CFG_RF_TYPE_JF1:

@@ -118,12 +118,12 @@ static u64 dra7xx_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 cpu_addr)
 	return cpu_addr & DRA7XX_CPU_TO_BUS_ADDR;
 }
 
-static int dra7xx_pcie_link_up(struct dw_pcie *pci)
+static bool dra7xx_pcie_link_up(struct dw_pcie *pci)
 {
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	u32 reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_PHY_CS);
 
-	return !!(reg & LINK_UP);
+	return reg & LINK_UP;
 }
 
 static void dra7xx_pcie_stop_link(struct dw_pcie *pci)

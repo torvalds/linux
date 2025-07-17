@@ -169,7 +169,7 @@ found:
 
 static void atalk_destroy_timer(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 
 	if (sk_has_allocations(sk)) {
 		sk->sk_timer.expires = jiffies + SOCK_DESTROY_TIME;
@@ -576,6 +576,7 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 
 	/* Fill in the routing entry */
 	rt->target  = ta->sat_addr;
+	dev_put(rt->dev); /* Release old device */
 	dev_hold(devhint);
 	rt->dev     = devhint;
 	rt->flags   = r->rt_flags;

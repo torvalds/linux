@@ -2833,7 +2833,7 @@ static int gbe_ioctl(void *intf_priv, struct ifreq *req, int cmd)
 
 static void netcp_ethss_timer(struct timer_list *t)
 {
-	struct gbe_priv *gbe_dev = from_timer(gbe_dev, t, timer);
+	struct gbe_priv *gbe_dev = timer_container_of(gbe_dev, t, timer);
 	struct gbe_intf *gbe_intf;
 	struct gbe_slave *slave;
 

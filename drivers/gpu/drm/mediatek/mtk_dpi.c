@@ -59,7 +59,8 @@ enum mtk_dpi_out_channel_swap {
 
 enum mtk_dpi_out_color_format {
 	MTK_DPI_COLOR_FORMAT_RGB,
-	MTK_DPI_COLOR_FORMAT_YCBCR_422
+	MTK_DPI_COLOR_FORMAT_YCBCR_422,
+	MTK_DPI_COLOR_FORMAT_YCBCR_444
 };
 
 struct mtk_dpi {
@@ -450,9 +451,16 @@ static void mtk_dpi_config_disable_edge(struct mtk_dpi *dpi)
 static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
 					enum mtk_dpi_out_color_format format)
 {
-	mtk_dpi_config_channel_swap(dpi, MTK_DPI_OUT_CHANNEL_SWAP_RGB);
+	mtk_dpi_config_channel_swap(dpi, dpi->channel_swap);
 
-	if (format == MTK_DPI_COLOR_FORMAT_YCBCR_422) {
+	switch (format) {
+	case MTK_DPI_COLOR_FORMAT_YCBCR_444:
+		mtk_dpi_config_yuv422_enable(dpi, false);
+		mtk_dpi_config_csc_enable(dpi, true);
+		if (dpi->conf->swap_input_support)
+			mtk_dpi_config_swap_input(dpi, false);
+		break;
+	case MTK_DPI_COLOR_FORMAT_YCBCR_422:
 		mtk_dpi_config_yuv422_enable(dpi, true);
 		mtk_dpi_config_csc_enable(dpi, true);
 
@@ -463,11 +471,14 @@ static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
 		mtk_dpi_mask(dpi, DPI_MATRIX_SET, dpi->mode.hdisplay <= 720 ?
 			     MATRIX_SEL_RGB_TO_BT601 : MATRIX_SEL_RGB_TO_JPEG,
 			     INT_MATRIX_SEL_MASK);
-	} else {
+		break;
+	default:
+	case MTK_DPI_COLOR_FORMAT_RGB:
 		mtk_dpi_config_yuv422_enable(dpi, false);
 		mtk_dpi_config_csc_enable(dpi, false);
 		if (dpi->conf->swap_input_support)
 			mtk_dpi_config_swap_input(dpi, false);
+		break;
 	}
 }
 
@@ -734,6 +745,65 @@ static u32 *mtk_dpi_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	return input_fmts;
 }
 
+static unsigned int mtk_dpi_bus_fmt_bit_num(unsigned int out_bus_format)
+{
+	switch (out_bus_format) {
+	default:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
+	case MEDIA_BUS_FMT_RGB888_2X12_LE:
+	case MEDIA_BUS_FMT_RGB888_2X12_BE:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		return MTK_DPI_OUT_BIT_NUM_8BITS;
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		return MTK_DPI_OUT_BIT_NUM_10BITS;
+	case MEDIA_BUS_FMT_YUYV12_1X24:
+		return MTK_DPI_OUT_BIT_NUM_12BITS;
+	}
+}
+
+static unsigned int mtk_dpi_bus_fmt_channel_swap(unsigned int out_bus_format)
+{
+	switch (out_bus_format) {
+	default:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB888_2X12_LE:
+	case MEDIA_BUS_FMT_RGB888_2X12_BE:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
+		return MTK_DPI_OUT_CHANNEL_SWAP_RGB;
+	case MEDIA_BUS_FMT_BGR888_1X24:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		return MTK_DPI_OUT_CHANNEL_SWAP_BGR;
+	}
+}
+
+static unsigned int mtk_dpi_bus_fmt_color_format(unsigned int out_bus_format)
+{
+	switch (out_bus_format) {
+	default:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
+	case MEDIA_BUS_FMT_RGB888_2X12_LE:
+	case MEDIA_BUS_FMT_RGB888_2X12_BE:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		return MTK_DPI_COLOR_FORMAT_RGB;
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
+		return MTK_DPI_COLOR_FORMAT_YCBCR_422;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		return MTK_DPI_COLOR_FORMAT_YCBCR_444;
+	}
+}
+
 static int mtk_dpi_bridge_atomic_check(struct drm_bridge *bridge,
 				       struct drm_bridge_state *bridge_state,
 				       struct drm_crtc_state *crtc_state,
@@ -753,18 +823,16 @@ static int mtk_dpi_bridge_atomic_check(struct drm_bridge *bridge,
 		bridge_state->output_bus_cfg.format);
 
 	dpi->output_fmt = out_bus_format;
-	dpi->bit_num = MTK_DPI_OUT_BIT_NUM_8BITS;
-	dpi->channel_swap = MTK_DPI_OUT_CHANNEL_SWAP_RGB;
+	dpi->bit_num = mtk_dpi_bus_fmt_bit_num(out_bus_format);
+	dpi->channel_swap = mtk_dpi_bus_fmt_channel_swap(out_bus_format);
 	dpi->yc_map = MTK_DPI_OUT_YC_MAP_RGB;
-	if (out_bus_format == MEDIA_BUS_FMT_YUYV8_1X16)
-		dpi->color_format = MTK_DPI_COLOR_FORMAT_YCBCR_422;
-	else
-		dpi->color_format = MTK_DPI_COLOR_FORMAT_RGB;
+	dpi->color_format = mtk_dpi_bus_fmt_color_format(out_bus_format);
 
 	return 0;
 }
 
 static int mtk_dpi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct mtk_dpi *dpi = bridge_to_dpi(bridge);
@@ -783,7 +851,7 @@ static int mtk_dpi_bridge_attach(struct drm_bridge *bridge,
 					     "Failed to get bridge\n");
 	}
 
-	return drm_bridge_attach(bridge->encoder, dpi->next_bridge,
+	return drm_bridge_attach(encoder, dpi->next_bridge,
 				 &dpi->bridge, flags);
 }
 
@@ -1026,9 +1094,29 @@ static const u32 mt8183_output_fmts[] = {
 	MEDIA_BUS_FMT_RGB888_2X12_BE,
 };
 
-static const u32 mt8195_output_fmts[] = {
+static const u32 mt8195_dpi_output_fmts[] = {
+	MEDIA_BUS_FMT_BGR888_1X24,
 	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB888_2X12_LE,
+	MEDIA_BUS_FMT_RGB888_2X12_BE,
+	MEDIA_BUS_FMT_RGB101010_1X30,
 	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YUYV10_1X20,
+	MEDIA_BUS_FMT_YUYV12_1X24,
+	MEDIA_BUS_FMT_YUV8_1X24,
+	MEDIA_BUS_FMT_YUV10_1X30,
+};
+
+static const u32 mt8195_dp_intf_output_fmts[] = {
+	MEDIA_BUS_FMT_BGR888_1X24,
+	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB888_2X12_LE,
+	MEDIA_BUS_FMT_RGB888_2X12_BE,
+	MEDIA_BUS_FMT_RGB101010_1X30,
+	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YUYV10_1X20,
+	MEDIA_BUS_FMT_YUV8_1X24,
+	MEDIA_BUS_FMT_YUV10_1X30,
 };
 
 static const struct mtk_dpi_factor dpi_factor_mt2701[] = {
@@ -1141,8 +1229,8 @@ static const struct mtk_dpi_conf mt8192_conf = {
 
 static const struct mtk_dpi_conf mt8195_conf = {
 	.max_clock_khz = 594000,
-	.output_fmts = mt8183_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8183_output_fmts),
+	.output_fmts = mt8195_dpi_output_fmts,
+	.num_output_fmts = ARRAY_SIZE(mt8195_dpi_output_fmts),
 	.pixels_per_iter = 1,
 	.is_ck_de_pol = true,
 	.swap_input_support = true,
@@ -1161,8 +1249,8 @@ static const struct mtk_dpi_conf mt8195_dpintf_conf = {
 	.dpi_factor = dpi_factor_mt8195_dp_intf,
 	.num_dpi_factor = ARRAY_SIZE(dpi_factor_mt8195_dp_intf),
 	.max_clock_khz = 600000,
-	.output_fmts = mt8195_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8195_output_fmts),
+	.output_fmts = mt8195_dp_intf_output_fmts,
+	.num_output_fmts = ARRAY_SIZE(mt8195_dp_intf_output_fmts),
 	.pixels_per_iter = 4,
 	.dimension_mask = DPINTF_HPW_MASK,
 	.hvsize_mask = DPINTF_HSIZE_MASK,

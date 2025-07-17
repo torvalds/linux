@@ -77,6 +77,8 @@ static const struct usb_device_id rtw_8822bu_id_table[] = {
 	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Mercusys MA30N */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3322, 0xff, 0xff, 0xff),
 	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* D-Link DWA-T185 rev. A1 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0411, 0x03d1, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* BUFFALO WI-U2-866DM */
 	{},
 };
 MODULE_DEVICE_TABLE(usb, rtw_8822bu_id_table);
@@ -88,7 +90,7 @@ static int rtw8822bu_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver rtw_8822bu_driver = {
-	.name = "rtw_8822bu",
+	.name = KBUILD_MODNAME,
 	.id_table = rtw_8822bu_id_table,
 	.probe = rtw8822bu_probe,
 	.disconnect = rtw_usb_disconnect,

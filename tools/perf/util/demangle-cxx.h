@@ -2,6 +2,8 @@
 #ifndef __PERF_DEMANGLE_CXX
 #define __PERF_DEMANGLE_CXX 1
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

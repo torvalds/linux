@@ -97,7 +97,7 @@ static void au0828_restart_dvb_streaming(struct work_struct *work);
 
 static void au0828_bulk_timeout(struct timer_list *t)
 {
-	struct au0828_dev *dev = from_timer(dev, t, bulk_timeout);
+	struct au0828_dev *dev = timer_container_of(dev, t, bulk_timeout);
 
 	dprintk(1, "%s called\n", __func__);
 	dev->bulk_timeout_running = 0;

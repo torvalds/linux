@@ -269,7 +269,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	unsigned int tmp_data_size, data_size, replaced_size;
 	int i, err2, jblocks, retries = 0;
 	int replaced_count = 0;
-	int from = data_offset_in_page << orig_inode->i_blkbits;
+	int from;
 	int blocks_per_page = PAGE_SIZE >> orig_inode->i_blkbits;
 	struct super_block *sb = orig_inode->i_sb;
 	struct buffer_head *bh = NULL;
@@ -323,11 +323,6 @@ again:
 	 * hold page's lock, if it is still the case data copy is not
 	 * necessary, just swap data blocks between orig and donor.
 	 */
-
-	VM_BUG_ON_FOLIO(folio_test_large(folio[0]), folio[0]);
-	VM_BUG_ON_FOLIO(folio_test_large(folio[1]), folio[1]);
-	VM_BUG_ON_FOLIO(folio_nr_pages(folio[0]) != folio_nr_pages(folio[1]), folio[1]);
-
 	if (unwritten) {
 		ext4_double_down_write_data_sem(orig_inode, donor_inode);
 		/* If any of extents in range became initialized we have to
@@ -360,6 +355,8 @@ again:
 		goto unlock_folios;
 	}
 data_copy:
+	from = offset_in_folio(folio[0],
+			       orig_blk_offset << orig_inode->i_blkbits);
 	*err = mext_page_mkuptodate(folio[0], from, from + replaced_size);
 	if (*err)
 		goto unlock_folios;
@@ -390,7 +387,7 @@ data_copy:
 	if (!bh)
 		bh = create_empty_buffers(folio[0],
 				1 << orig_inode->i_blkbits, 0);
-	for (i = 0; i < data_offset_in_page; i++)
+	for (i = 0; i < from >> orig_inode->i_blkbits; i++)
 		bh = bh->b_this_page;
 	for (i = 0; i < block_len_in_page; i++) {
 		*err = ext4_get_block(orig_inode, orig_blk_offset + i, bh, 0);

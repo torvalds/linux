@@ -56,8 +56,10 @@ EXPORT_SYMBOL(cpu_sibling_map);
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
 
+#ifndef CONFIG_HOTPLUG_PARALLEL
 static DECLARE_COMPLETION(cpu_starting);
 static DECLARE_COMPLETION(cpu_running);
+#endif
 
 /*
  * A logical cpu mask containing only one VPE per core to
@@ -73,6 +75,8 @@ static cpumask_t cpu_sibling_setup_map;
 static cpumask_t cpu_core_setup_map;
 
 cpumask_t cpu_coherent_mask;
+
+struct cpumask __cpu_primary_thread_mask __read_mostly;
 
 unsigned int smp_max_threads __initdata = UINT_MAX;
 
@@ -367,6 +371,9 @@ asmlinkage void start_secondary(void)
 	 * to an option instead of something based on .cputype
 	 */
 
+#ifdef CONFIG_HOTPLUG_PARALLEL
+	cpuhp_ap_sync_alive();
+#endif
 	calibrate_delay();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
@@ -376,8 +383,10 @@ asmlinkage void start_secondary(void)
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
 
+#ifndef CONFIG_HOTPLUG_PARALLEL
 	/* Notify boot CPU that we're starting & ready to sync counters */
 	complete(&cpu_starting);
+#endif
 
 	synchronise_count_slave(cpu);
 
@@ -386,11 +395,13 @@ asmlinkage void start_secondary(void)
 
 	calculate_cpu_foreign_map();
 
+#ifndef CONFIG_HOTPLUG_PARALLEL
 	/*
 	 * Notify boot CPU that we're up & online and it can safely return
 	 * from __cpu_up
 	 */
 	complete(&cpu_running);
+#endif
 
 	/*
 	 * irq will be enabled in ->smp_finish(), enabling it too early
@@ -447,6 +458,12 @@ void __init smp_prepare_boot_cpu(void)
 	set_cpu_online(0, true);
 }
 
+#ifdef CONFIG_HOTPLUG_PARALLEL
+int arch_cpuhp_kick_ap_alive(unsigned int cpu, struct task_struct *tidle)
+{
+	return mp_ops->boot_secondary(cpu, tidle);
+}
+#else
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int err;
@@ -466,6 +483,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	wait_for_completion(&cpu_running);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_PROFILING
 /* Not really SMP stuff ... */

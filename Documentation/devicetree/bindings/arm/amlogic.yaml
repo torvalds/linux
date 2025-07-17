@@ -27,6 +27,7 @@ properties:
         items:
           - enum:
               - minix,neo-x8
+              - tcu,fernsehfee3
           - const: amlogic,meson8
 
       - description: Boards with the Amlogic Meson8m2 SoC
@@ -71,6 +72,13 @@ properties:
               - amlogic,p241
               - libretech,aml-s805x-ac
           - const: amlogic,s805x
+          - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXL S805Y SoC
+        items:
+          - enum:
+              - xiaomi,aquaman
+          - const: amlogic,s805y
           - const: amlogic,meson-gxl
 
       - description: Boards with the Amlogic Meson GXL S905W SoC
@@ -236,6 +244,24 @@ properties:
           - enum:
               - amlogic,aq222
           - const: amlogic,s4
+
+      - description: Boards with the Amlogic S6 S905X5 SoC
+        items:
+          - enum:
+              - amlogic,bl209
+          - const: amlogic,s6
+
+      - description: Boards with the Amlogic S7 S805X3 SoC
+        items:
+          - enum:
+              - amlogic,bp201
+          - const: amlogic,s7
+
+      - description: Boards with the Amlogic S7D S905X5M SoC
+        items:
+          - enum:
+              - amlogic,bm202
+          - const: amlogic,s7d
 
       - description: Boards with the Amlogic T7 A311D2 SoC
         items:

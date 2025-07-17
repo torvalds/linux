@@ -2862,7 +2862,7 @@ static void tipc_sk_retry_connect(struct sock *sk, struct sk_buff_head *list)
 
 static void tipc_sk_timeout(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 	struct tipc_sock *tsk = tipc_sk(sk);
 	u32 pnode = tsk_peer_node(tsk);
 	struct sk_buff_head list;

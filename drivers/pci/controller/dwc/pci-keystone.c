@@ -492,13 +492,12 @@ static struct pci_ops ks_pcie_ops = {
  * @pci: A pointer to the dw_pcie structure which holds the DesignWare PCIe host
  *	 controller driver information.
  */
-static int ks_pcie_link_up(struct dw_pcie *pci)
+static bool ks_pcie_link_up(struct dw_pcie *pci)
 {
 	u32 val;
 
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG0);
-	val &= PORT_LOGIC_LTSSM_STATE_MASK;
-	return (val == PORT_LOGIC_LTSSM_STATE_L0);
+	return (val & PORT_LOGIC_LTSSM_STATE_MASK) == PORT_LOGIC_LTSSM_STATE_L0;
 }
 
 static void ks_pcie_stop_link(struct dw_pcie *pci)

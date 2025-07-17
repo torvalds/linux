@@ -580,7 +580,7 @@ static u32 i2c_pnx_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm pnx_algorithm = {
-	.master_xfer = i2c_pnx_xfer,
+	.xfer = i2c_pnx_xfer,
 	.functionality = i2c_pnx_func,
 };
 

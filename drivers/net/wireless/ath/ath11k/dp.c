@@ -1117,8 +1117,9 @@ fail_link_desc_cleanup:
 
 static void ath11k_dp_shadow_timer_handler(struct timer_list *t)
 {
-	struct ath11k_hp_update_timer *update_timer = from_timer(update_timer,
-								 t, timer);
+	struct ath11k_hp_update_timer *update_timer = timer_container_of(update_timer,
+									 t,
+									 timer);
 	struct ath11k_base *ab = update_timer->ab;
 	struct hal_srng	*srng = &ab->hal.srng_list[update_timer->ring_id];
 

@@ -1503,7 +1503,7 @@
 							groups = "uart_a_tx",
 								 "uart_a_rx";
 							function = "uart_a";
-							bias-disable;
+							bias-pull-up;
 						};
 					};
 
@@ -1521,7 +1521,7 @@
 							groups = "uart_b_tx",
 								 "uart_b_rx";
 							function = "uart_b";
-							bias-disable;
+							bias-pull-up;
 						};
 					};
 
@@ -1918,7 +1918,7 @@
 						groups = "uart_ao_a_tx",
 							 "uart_ao_a_rx";
 						function = "uart_ao_a";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1936,7 +1936,7 @@
 						groups = "uart_ao_b_tx_2",
 							 "uart_ao_b_rx_3";
 						function = "uart_ao_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1945,7 +1945,7 @@
 						groups = "uart_ao_b_tx_8",
 							 "uart_ao_b_rx_9";
 						function = "uart_ao_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 

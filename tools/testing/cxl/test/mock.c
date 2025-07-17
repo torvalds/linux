@@ -312,5 +312,6 @@ void __wrap_cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device 
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dport_init_ras_reporting, "CXL");
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("cxl_test: emulation module");
 MODULE_IMPORT_NS("ACPI");
 MODULE_IMPORT_NS("CXL");

@@ -34,7 +34,7 @@
 #include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
-#include <asm/amd/fch.h>
+#include <linux/platform_data/x86/amd-fch.h>
 
 #include "i2c-piix4.h"
 
@@ -971,7 +971,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 	 * This would allow the ee1004 to be probed incorrectly.
 	 */
 	if (port == 0)
-		i2c_register_spd(adap);
+		i2c_register_spd_write_enable(adap);
 
 	*padap = adap;
 	return 0;

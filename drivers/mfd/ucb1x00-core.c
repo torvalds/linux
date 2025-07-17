@@ -104,7 +104,8 @@ unsigned int ucb1x00_io_read(struct ucb1x00 *ucb)
 	return ucb1x00_reg_read(ucb, UCB_IO_DATA);
 }
 
-static void ucb1x00_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int ucb1x00_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct ucb1x00 *ucb = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -119,6 +120,8 @@ static void ucb1x00_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	ucb1x00_reg_write(ucb, UCB_IO_DATA, ucb->io_out);
 	ucb1x00_disable(ucb);
 	spin_unlock_irqrestore(&ucb->io_lock, flags);
+
+	return 0;
 }
 
 static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -567,7 +570,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 		ucb->gpio.owner = THIS_MODULE;
 		ucb->gpio.base = pdata->gpio_base;
 		ucb->gpio.ngpio = 10;
-		ucb->gpio.set = ucb1x00_gpio_set;
+		ucb->gpio.set_rv = ucb1x00_gpio_set;
 		ucb->gpio.get = ucb1x00_gpio_get;
 		ucb->gpio.direction_input = ucb1x00_gpio_direction_input;
 		ucb->gpio.direction_output = ucb1x00_gpio_direction_output;

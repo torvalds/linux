@@ -535,8 +535,8 @@ struct v12_gfx_mqd {
     uint32_t reserved_507; // offset: 507  (0x1FB)
     uint32_t reserved_508; // offset: 508  (0x1FC)
     uint32_t reserved_509; // offset: 509  (0x1FD)
-    uint32_t reserved_510; // offset: 510  (0x1FE)
-    uint32_t reserved_511; // offset: 511  (0x1FF)
+    uint32_t fence_address_lo; // offset: 510  (0x1FE)
+    uint32_t fence_address_hi; // offset: 511  (0x1FF)
 };
 
 struct v12_sdma_mqd {
@@ -1118,8 +1118,8 @@ struct v12_compute_mqd {
     uint32_t reserved_443; // offset: 443  (0x1BB)
     uint32_t reserved_444; // offset: 444  (0x1BC)
     uint32_t reserved_445; // offset: 445  (0x1BD)
-    uint32_t reserved_446; // offset: 446  (0x1BE)
-    uint32_t reserved_447; // offset: 447  (0x1BF)
+    uint32_t fence_address_lo; // offset: 446  (0x1BE)
+    uint32_t fence_address_hi; // offset: 447  (0x1BF)
     uint32_t gws_0_val; // offset: 448  (0x1C0)
     uint32_t gws_1_val; // offset: 449  (0x1C1)
     uint32_t gws_2_val; // offset: 450  (0x1C2)

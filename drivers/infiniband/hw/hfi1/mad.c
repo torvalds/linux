@@ -369,7 +369,7 @@ static void send_trap(struct hfi1_ibport *ibp, struct trap_node *trap)
 
 void hfi1_handle_trap_timer(struct timer_list *t)
 {
-	struct hfi1_ibport *ibp = from_timer(ibp, t, rvp.trap_timer);
+	struct hfi1_ibport *ibp = timer_container_of(ibp, t, rvp.trap_timer);
 	struct trap_node *trap = NULL;
 	unsigned long flags;
 	int i;

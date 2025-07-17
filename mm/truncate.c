@@ -425,7 +425,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion not changing folio->index */
 
 			if (xa_is_value(folio))
 				continue;

@@ -171,7 +171,7 @@ static const struct of_device_id mcp41010_match[] = {
 	{ .compatible = "microchip,mcp42010", .data = &mcp41010_cfg[MCP42010] },
 	{ .compatible = "microchip,mcp42050", .data = &mcp41010_cfg[MCP42050] },
 	{ .compatible = "microchip,mcp42100", .data = &mcp41010_cfg[MCP42100] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp41010_match);
 
@@ -182,7 +182,7 @@ static const struct spi_device_id mcp41010_id[] = {
 	{ "mcp42010", MCP42010 },
 	{ "mcp42050", MCP42050 },
 	{ "mcp42100", MCP42100 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp41010_id);
 

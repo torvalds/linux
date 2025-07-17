@@ -7711,6 +7711,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC42(LISTXATTRS,	enc_listxattrs,		dec_listxattrs),
 	PROC42(REMOVEXATTR,	enc_removexattr,	dec_removexattr),
 	PROC42(READ_PLUS,	enc_read_plus,		dec_read_plus),
+	PROC42(ZERO_RANGE,	enc_zero_range,		dec_zero_range),
 };
 
 static unsigned int nfs_version4_counts[ARRAY_SIZE(nfs4_procedures)];

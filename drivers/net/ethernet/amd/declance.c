@@ -1004,7 +1004,7 @@ static void lance_set_multicast(struct net_device *dev)
 
 static void lance_set_multicast_retry(struct timer_list *t)
 {
-	struct lance_private *lp = from_timer(lp, t, multicast_timer);
+	struct lance_private *lp = timer_container_of(lp, t, multicast_timer);
 	struct net_device *dev = lp->dev;
 
 	lance_set_multicast(dev);

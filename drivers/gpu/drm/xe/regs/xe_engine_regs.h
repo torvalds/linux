@@ -193,6 +193,10 @@
 #define   PREEMPT_GPGPU_LEVEL_MASK		PREEMPT_GPGPU_LEVEL(1, 1)
 #define   PREEMPT_3D_OBJECT_LEVEL		REG_BIT(0)
 
+#define CS_GPR_DATA(base, n)			XE_REG((base) + 0x600 + (n) * 4)
+#define CS_GPR_REG(base, n)			CS_GPR_DATA((base), (n) * 2)
+#define CS_GPR_REG_UDW(base, n)			CS_GPR_DATA((base), (n) * 2 + 1)
+
 #define VDBOX_CGCTL3F08(base)			XE_REG((base) + 0x3f08)
 #define   CG3DDISHRS_CLKGATE_DIS		REG_BIT(5)
 

@@ -416,11 +416,13 @@ int amdgpu_dpm_pause_power_profile(struct amdgpu_device *adev,
 int amdgpu_dpm_baco_reset(struct amdgpu_device *adev);
 
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev);
+int amdgpu_dpm_link_reset(struct amdgpu_device *adev);
 int amdgpu_dpm_enable_gfx_features(struct amdgpu_device *adev);
 
 int amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
 
 bool amdgpu_dpm_is_mode1_reset_supported(struct amdgpu_device *adev);
+bool amdgpu_dpm_is_link_reset_supported(struct amdgpu_device *adev);
 int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev);
 
 int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
@@ -522,6 +524,8 @@ int amdgpu_dpm_get_power_profile_mode(struct amdgpu_device *adev,
 int amdgpu_dpm_set_power_profile_mode(struct amdgpu_device *adev,
 				      long *input, uint32_t size);
 int amdgpu_dpm_get_gpu_metrics(struct amdgpu_device *adev, void **table);
+ssize_t amdgpu_dpm_get_xcp_metrics(struct amdgpu_device *adev, int xcp_id,
+				   void *table);
 
 /**
  * @get_pm_metrics: Get one snapshot of power management metrics from PMFW. The
@@ -559,6 +563,7 @@ int amdgpu_dpm_get_smu_prv_buf_details(struct amdgpu_device *adev,
 				       void **addr,
 				       size_t *size);
 int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_is_overdrive_enabled(struct amdgpu_device *adev);
 int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
 			    const char *buf,
 			    size_t size);
@@ -607,5 +612,6 @@ ssize_t amdgpu_dpm_get_pm_policy_info(struct amdgpu_device *adev,
 				      enum pp_pm_policy p_type, char *buf);
 int amdgpu_dpm_reset_sdma(struct amdgpu_device *adev, uint32_t inst_mask);
 bool amdgpu_dpm_reset_sdma_is_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_reset_vcn(struct amdgpu_device *adev, uint32_t inst_mask);
 
 #endif

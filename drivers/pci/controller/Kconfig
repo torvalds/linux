@@ -3,6 +3,10 @@
 menu "PCI controller drivers"
 	depends on PCI
 
+config PCI_HOST_COMMON
+	tristate
+	select PCI_ECAM
+
 config PCI_AARDVARK
 	tristate "Aardvark PCIe controller"
 	depends on (ARCH_MVEBU && ARM64) || COMPILE_TEST
@@ -119,10 +123,6 @@ config PCI_FTPCI100
 	bool "Faraday Technology FTPCI100 PCI controller"
 	depends on OF
 	default ARCH_GEMINI
-
-config PCI_HOST_COMMON
-	tristate
-	select PCI_ECAM
 
 config PCI_HOST_GENERIC
 	tristate "Generic PCI host controller"

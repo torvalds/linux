@@ -993,7 +993,7 @@ restart:
 /* flush timer, runs a second after last write */
 static void sm_cache_flush_timer(struct timer_list *t)
 {
-	struct sm_ftl *ftl = from_timer(ftl, t, timer);
+	struct sm_ftl *ftl = timer_container_of(ftl, t, timer);
 	queue_work(cache_flush_workqueue, &ftl->flush_work);
 }
 

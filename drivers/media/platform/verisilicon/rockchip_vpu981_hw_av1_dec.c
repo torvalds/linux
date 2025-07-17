@@ -2202,6 +2202,10 @@ static void rockchip_vpu981_postproc_enable(struct hantro_ctx *ctx)
 	case V4L2_PIX_FMT_NV12:
 		hantro_reg_write(vpu, &av1_pp_out_format, 3);
 		break;
+	case V4L2_PIX_FMT_NV15:
+		/* this mapping is RK specific */
+		hantro_reg_write(vpu, &av1_pp_out_format, 10);
+		break;
 	default:
 		hantro_reg_write(vpu, &av1_pp_out_format, 0);
 	}

@@ -155,6 +155,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	struct cached_fids *cfids;
 	const char *npath;
 	int retries = 0, cur_sleep = 1;
+	__le32 lease_flags = 0;
 
 	if (cifs_sb->root == NULL)
 		return -ENOENT;
@@ -201,6 +202,8 @@ replay_again:
 	}
 	spin_unlock(&cfids->cfid_list_lock);
 
+	pfid = &cfid->fid;
+
 	/*
 	 * Skip any prefix paths in @path as lookup_noperm_positive_unlocked() ends up
 	 * calling ->lookup() which already adds those through
@@ -222,6 +225,25 @@ replay_again:
 			rc = -ENOENT;
 			goto out;
 		}
+		if (dentry->d_parent && server->dialect >= SMB30_PROT_ID) {
+			struct cached_fid *parent_cfid;
+
+			spin_lock(&cfids->cfid_list_lock);
+			list_for_each_entry(parent_cfid, &cfids->entries, entry) {
+				if (parent_cfid->dentry == dentry->d_parent) {
+					cifs_dbg(FYI, "found a parent cached file handle\n");
+					if (parent_cfid->has_lease && parent_cfid->time) {
+						lease_flags
+							|= SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET_LE;
+						memcpy(pfid->parent_lease_key,
+						       parent_cfid->fid.lease_key,
+						       SMB2_LEASE_KEY_SIZE);
+					}
+					break;
+				}
+			}
+			spin_unlock(&cfids->cfid_list_lock);
+		}
 	}
 	cfid->dentry = dentry;
 	cfid->tcon = tcon;
@@ -236,7 +258,6 @@ replay_again:
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	pfid = &cfid->fid;
 	server->ops->new_lease_key(pfid);
 
 	memset(rqst, 0, sizeof(rqst));
@@ -256,6 +277,7 @@ replay_again:
 				   FILE_READ_EA,
 		.disposition = FILE_OPEN,
 		.fid = pfid,
+		.lease_flags = lease_flags,
 		.replay = !!(retries),
 	};
 
@@ -487,8 +509,17 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 		spin_lock(&cfids->cfid_list_lock);
 		list_for_each_entry(cfid, &cfids->entries, entry) {
 			tmp_list = kmalloc(sizeof(*tmp_list), GFP_ATOMIC);
-			if (tmp_list == NULL)
-				break;
+			if (tmp_list == NULL) {
+				/*
+				 * If the malloc() fails, we won't drop all
+				 * dentries, and unmounting is likely to trigger
+				 * a 'Dentry still in use' error.
+				 */
+				cifs_tcon_dbg(VFS, "Out of memory while dropping dentries\n");
+				spin_unlock(&cfids->cfid_list_lock);
+				spin_unlock(&cifs_sb->tlink_tree_lock);
+				goto done;
+			}
 			spin_lock(&cfid->fid_lock);
 			tmp_list->dentry = cfid->dentry;
 			cfid->dentry = NULL;
@@ -500,6 +531,7 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 	}
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
+done:
 	list_for_each_entry_safe(tmp_list, q, &entry, entry) {
 		list_del(&tmp_list->entry);
 		dput(tmp_list->dentry);

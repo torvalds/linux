@@ -133,7 +133,7 @@ static int encode_sixpack(unsigned char *, unsigned char *, int, unsigned char);
 
 static void sp_xmit_on_air(struct timer_list *t)
 {
-	struct sixpack *sp = from_timer(sp, t, tx_t);
+	struct sixpack *sp = timer_container_of(sp, t, tx_t);
 	int actual, when = sp->slottime;
 	static unsigned char random;
 
@@ -491,7 +491,7 @@ static inline void tnc_set_sync_state(struct sixpack *sp, int new_tnc_state)
 
 static void resync_tnc(struct timer_list *t)
 {
-	struct sixpack *sp = from_timer(sp, t, resync_t);
+	struct sixpack *sp = timer_container_of(sp, t, resync_t);
 	static char resync_cmd = 0xe8;
 
 	/* clear any data that might have been received */

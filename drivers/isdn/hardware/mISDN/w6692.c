@@ -802,7 +802,7 @@ w6692_irq(int intno, void *dev_id)
 static void
 dbusy_timer_handler(struct timer_list *t)
 {
-	struct dchannel *dch = from_timer(dch, t, timer);
+	struct dchannel *dch = timer_container_of(dch, t, timer);
 	struct w6692_hw	*card = dch->hw;
 	int		rbch, star;
 	u_long		flags;

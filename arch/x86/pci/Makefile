@@ -8,13 +8,13 @@ obj-$(CONFIG_PCI_OLPC)		+= olpc.o
 obj-$(CONFIG_PCI_XEN)		+= xen.o
 
 obj-y				+= fixup.o
-obj-$(CONFIG_X86_INTEL_CE)      += ce4100.o
 obj-$(CONFIG_ACPI)		+= acpi.o
 obj-y				+= legacy.o irq.o
 
-obj-$(CONFIG_X86_NUMACHIP)	+= numachip.o
+obj-$(CONFIG_X86_INTEL_CE)	+= ce4100.o
+obj-$(CONFIG_X86_INTEL_MID)	+= intel_mid.o
 
-obj-$(CONFIG_X86_INTEL_MID)	+= intel_mid_pci.o
+obj-$(CONFIG_X86_NUMACHIP)	+= numachip.o
 
 obj-y				+= common.o early.o
 obj-y				+= bus_numa.o

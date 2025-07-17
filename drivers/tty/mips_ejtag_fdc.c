@@ -683,7 +683,8 @@ static irqreturn_t mips_ejtag_fdc_isr(int irq, void *dev_id)
  */
 static void mips_ejtag_fdc_tty_timer(struct timer_list *t)
 {
-	struct mips_ejtag_fdc_tty *priv = from_timer(priv, t, poll_timer);
+	struct mips_ejtag_fdc_tty *priv = timer_container_of(priv, t,
+						             poll_timer);
 
 	mips_ejtag_fdc_handle(priv);
 	if (!priv->removing)

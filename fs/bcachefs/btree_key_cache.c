@@ -187,27 +187,23 @@ lock:
 static struct bkey_cached *
 bkey_cached_reuse(struct btree_key_cache *c)
 {
-	struct bucket_table *tbl;
+
+	guard(rcu)();
+	struct bucket_table *tbl = rht_dereference_rcu(c->table.tbl, &c->table);
 	struct rhash_head *pos;
 	struct bkey_cached *ck;
-	unsigned i;
 
-	rcu_read_lock();
-	tbl = rht_dereference_rcu(c->table.tbl, &c->table);
-	for (i = 0; i < tbl->size; i++)
+	for (unsigned i = 0; i < tbl->size; i++)
 		rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
 			if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
 			    bkey_cached_lock_for_evict(ck)) {
 				if (bkey_cached_evict(c, ck))
-					goto out;
+					return ck;
 				six_unlock_write(&ck->c.lock);
 				six_unlock_intent(&ck->c.lock);
 			}
 		}
-	ck = NULL;
-out:
-	rcu_read_unlock();
-	return ck;
+	return NULL;
 }
 
 static int btree_key_cache_create(struct btree_trans *trans,
@@ -242,7 +238,7 @@ static int btree_key_cache_create(struct btree_trans *trans,
 		if (unlikely(!ck)) {
 			bch_err(c, "error allocating memory for key cache item, btree %s",
 				bch2_btree_id_str(ck_path->btree_id));
-			return -BCH_ERR_ENOMEM_btree_key_cache_create;
+			return bch_err_throw(c, ENOMEM_btree_key_cache_create);
 		}
 	}
 
@@ -260,7 +256,7 @@ static int btree_key_cache_create(struct btree_trans *trans,
 		if (unlikely(!new_k)) {
 			bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
 				bch2_btree_id_str(ck->key.btree_id), key_u64s);
-			ret = -BCH_ERR_ENOMEM_btree_key_cache_fill;
+			ret = bch_err_throw(c, ENOMEM_btree_key_cache_fill);
 		} else if (ret) {
 			kfree(new_k);
 			goto err;
@@ -826,20 +822,20 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 
 	bc->nr_pending = alloc_percpu(size_t);
 	if (!bc->nr_pending)
-		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+		return bch_err_throw(c, ENOMEM_fs_btree_cache_init);
 
 	if (rcu_pending_init(&bc->pending[0], &c->btree_trans_barrier, __bkey_cached_free) ||
 	    rcu_pending_init(&bc->pending[1], &c->btree_trans_barrier, __bkey_cached_free))
-		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+		return bch_err_throw(c, ENOMEM_fs_btree_cache_init);
 
 	if (rhashtable_init(&bc->table, &bch2_btree_key_cache_params))
-		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+		return bch_err_throw(c, ENOMEM_fs_btree_cache_init);
 
 	bc->table_init_done = true;
 
 	shrink = shrinker_alloc(0, "%s-btree_key_cache", c->name);
 	if (!shrink)
-		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+		return bch_err_throw(c, ENOMEM_fs_btree_cache_init);
 	bc->shrink = shrink;
 	shrink->count_objects	= bch2_btree_key_cache_count;
 	shrink->scan_objects	= bch2_btree_key_cache_scan;

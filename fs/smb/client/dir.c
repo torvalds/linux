@@ -23,6 +23,7 @@
 #include "fs_context.h"
 #include "cifs_ioctl.h"
 #include "fscache.h"
+#include "cached_dir.h"
 
 static void
 renew_parental_timestamps(struct dentry *direntry)
@@ -190,6 +191,7 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
 	int rdwr_for_fscache = 0;
+	__le32 lease_flags = 0;
 
 	*oplock = 0;
 	if (tcon->ses->server->oplocks)
@@ -312,6 +314,26 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 		create_options |= CREATE_OPTION_READONLY;
 
 retry_open:
+	if (tcon->cfids && direntry->d_parent && server->dialect >= SMB30_PROT_ID) {
+		struct cached_fid *parent_cfid;
+
+		spin_lock(&tcon->cfids->cfid_list_lock);
+		list_for_each_entry(parent_cfid, &tcon->cfids->entries, entry) {
+			if (parent_cfid->dentry == direntry->d_parent) {
+				cifs_dbg(FYI, "found a parent cached file handle\n");
+				if (parent_cfid->has_lease && parent_cfid->time) {
+					lease_flags
+						|= SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET_LE;
+					memcpy(fid->parent_lease_key,
+					       parent_cfid->fid.lease_key,
+					       SMB2_LEASE_KEY_SIZE);
+				}
+				break;
+			}
+		}
+		spin_unlock(&tcon->cfids->cfid_list_lock);
+	}
+
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
 		.cifs_sb = cifs_sb,
@@ -320,6 +342,7 @@ retry_open:
 		.disposition = disposition,
 		.path = full_path,
 		.fid = fid,
+		.lease_flags = lease_flags,
 		.mode = mode,
 	};
 	rc = server->ops->open(xid, &oparms, oplock, buf);

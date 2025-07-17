@@ -346,6 +346,12 @@ static inline const char *btf_field_type_name(enum btf_field_type type)
 	}
 }
 
+#if IS_ENABLED(CONFIG_DEBUG_KERNEL)
+#define BPF_WARN_ONCE(cond, format...) WARN_ONCE(cond, format)
+#else
+#define BPF_WARN_ONCE(cond, format...) BUILD_BUG_ON_INVALID(cond)
+#endif
+
 static inline u32 btf_field_type_size(enum btf_field_type type)
 {
 	switch (type) {
@@ -1349,6 +1355,20 @@ u32 __bpf_dynptr_size(const struct bpf_dynptr_kern *ptr);
 const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u32 len);
 void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u32 len);
 bool __bpf_dynptr_is_rdonly(const struct bpf_dynptr_kern *ptr);
+int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u32 offset,
+		       void *src, u32 len, u64 flags);
+void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u32 offset,
+			    void *buffer__opt, u32 buffer__szk);
+
+static inline int bpf_dynptr_check_off_len(const struct bpf_dynptr_kern *ptr, u32 offset, u32 len)
+{
+	u32 size = __bpf_dynptr_size(ptr);
+
+	if (len > size || offset > size - len)
+		return -E2BIG;
+
+	return 0;
+}
 
 #ifdef CONFIG_BPF_JIT
 int bpf_trampoline_link_prog(struct bpf_tramp_link *link,

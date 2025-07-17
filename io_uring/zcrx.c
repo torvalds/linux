@@ -106,8 +106,10 @@ static int io_import_dmabuf(struct io_zcrx_ifq *ifq,
 	for_each_sgtable_dma_sg(mem->sgt, sg, i)
 		total_size += sg_dma_len(sg);
 
-	if (total_size < off + len)
-		return -EINVAL;
+	if (total_size < off + len) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	mem->dmabuf_offset = off;
 	mem->size = len;
@@ -366,7 +368,8 @@ static void io_free_rbuf_ring(struct io_zcrx_ifq *ifq)
 
 static void io_zcrx_free_area(struct io_zcrx_area *area)
 {
-	io_zcrx_unmap_area(area->ifq, area);
+	if (area->ifq)
+		io_zcrx_unmap_area(area->ifq, area);
 	io_release_area_mem(&area->mem);
 
 	kvfree(area->freelist);
@@ -426,6 +429,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 		niov->owner = &area->nia;
 		area->freelist[i] = i;
 		atomic_set(&area->user_refs[i], 0);
+		niov->type = NET_IOV_IOURING;
 	}
 
 	area->free_count = nr_iovs;
@@ -630,12 +634,13 @@ ifq_free:
 void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
-	unsigned long id;
 
 	lockdep_assert_held(&ctx->uring_lock);
 
 	while (1) {
 		scoped_guard(mutex, &ctx->mmap_lock) {
+			unsigned long id = 0;
+
 			ifq = xa_find(&ctx->zcrx_ctxs, &id, ULONG_MAX, XA_PRESENT);
 			if (ifq)
 				xa_erase(&ctx->zcrx_ctxs, id);
@@ -858,10 +863,7 @@ static int io_pp_zc_init(struct page_pool *pp)
 static void io_pp_zc_destroy(struct page_pool *pp)
 {
 	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
-	struct io_zcrx_area *area = ifq->area;
 
-	if (WARN_ON_ONCE(area->free_count != area->nia.num_niovs))
-		return;
 	percpu_ref_put(&ifq->ctx->refs);
 }
 
@@ -1017,7 +1019,7 @@ static int io_zcrx_recv_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		return io_zcrx_copy_frag(req, ifq, frag, off, len);
 
 	niov = netmem_to_net_iov(frag->netmem);
-	if (niov->pp->mp_ops != &io_uring_pp_zc_ops ||
+	if (!niov->pp || niov->pp->mp_ops != &io_uring_pp_zc_ops ||
 	    io_pp_to_ifq(niov->pp) != ifq)
 		return -EFAULT;
 

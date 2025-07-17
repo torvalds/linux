@@ -288,6 +288,11 @@ test_jitdump()
 	jitdump_incl_dir="${script_dir}/../../util"
 	jitdump_h="${jitdump_incl_dir}/jitdump.h"
 
+        if ! perf check feature -q libelf ; then
+		echo "SKIP: libelf is needed for jitdump"
+		return 2
+	fi
+
 	if [ ! -e "${jitdump_h}" ] ; then
 		echo "SKIP: Include file jitdump.h not found"
 		return 2

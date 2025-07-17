@@ -2905,7 +2905,7 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 
 static void pcnet32_watchdog(struct timer_list *t)
 {
-	struct pcnet32_private *lp = from_timer(lp, t, watchdog_timer);
+	struct pcnet32_private *lp = timer_container_of(lp, t, watchdog_timer);
 	struct net_device *dev = lp->dev;
 	unsigned long flags;
 

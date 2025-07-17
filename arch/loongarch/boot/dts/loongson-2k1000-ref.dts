@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include "dt-bindings/thermal/thermal.h"
 #include "loongson-2k1000.dtsi"
 
 / {
@@ -37,6 +38,13 @@
 			size = <0x0 0x2000000>;
 			linux,cma-default;
 		};
+	};
+
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		cooling-levels = <255 153 85 25>;
+		pwms = <&pwm1 0 100000 0>;
+		#cooling-cells = <2>;
 	};
 };
 
@@ -90,6 +98,22 @@
 
 	#address-cells = <1>;
 	#size-cells = <0>;
+};
+
+&pwm1 {
+	status = "okay";
+
+	pinctrl-0 = <&pwm1_pins_default>;
+	pinctrl-names = "default";
+};
+
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			trip = <&cpu_alert>;
+			cooling-device = <&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
 };
 
 &ehci0 {

@@ -242,7 +242,7 @@ Description:
 		decoding a Host Physical Address range. Note that this number
 		may be elevated without any regionX objects active or even
 		enumerated, as this may be due to decoders established by
-		platform firwmare or a previous kernel (kexec).
+		platform firmware or a previous kernel (kexec).
 
 
 What:		/sys/bus/cxl/devices/decoderX.Y
@@ -572,7 +572,7 @@ Description:
 
 
 What:		/sys/bus/cxl/devices/regionZ/accessY/read_bandwidth
-		/sys/bus/cxl/devices/regionZ/accessY/write_banwidth
+		/sys/bus/cxl/devices/regionZ/accessY/write_bandwidth
 Date:		Jan, 2024
 KernelVersion:	v6.9
 Contact:	linux-cxl@vger.kernel.org

@@ -704,7 +704,7 @@ static void iio_rescale_test_offset(struct kunit *test)
 static struct kunit_case iio_rescale_test_cases[] = {
 	KUNIT_CASE_PARAM(iio_rescale_test_scale, iio_rescale_scale_gen_params),
 	KUNIT_CASE_PARAM(iio_rescale_test_offset, iio_rescale_offset_gen_params),
-	{}
+	{ }
 };
 
 static struct kunit_suite iio_rescale_test_suite = {

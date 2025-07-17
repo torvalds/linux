@@ -1207,7 +1207,8 @@ EXPORT_SYMBOL_GPL(kthread_queue_work);
  */
 void kthread_delayed_work_timer_fn(struct timer_list *t)
 {
-	struct kthread_delayed_work *dwork = from_timer(dwork, t, timer);
+	struct kthread_delayed_work *dwork = timer_container_of(dwork, t,
+								timer);
 	struct kthread_work *work = &dwork->work;
 	struct kthread_worker *worker = work->worker;
 	unsigned long flags;

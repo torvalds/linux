@@ -48,8 +48,6 @@ struct bpf_jit {
 	int lit64;		/* Current position in 64-bit literal pool */
 	int base_ip;		/* Base address for literal pool */
 	int exit_ip;		/* Address of exit */
-	int r1_thunk_ip;	/* Address of expoline thunk for 'br %r1' */
-	int r14_thunk_ip;	/* Address of expoline thunk for 'br %r14' */
 	int tail_call_start;	/* Tail call start offset */
 	int excnt;		/* Number of exception table entries */
 	int prologue_plt_ret;	/* Return address for prologue hotpatch PLT */
@@ -127,6 +125,18 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 		jit->seen_regs |= (1 << r1);
 }
 
+static s32 off_to_pcrel(struct bpf_jit *jit, u32 off)
+{
+	return off - jit->prg;
+}
+
+static s64 ptr_to_pcrel(struct bpf_jit *jit, const void *ptr)
+{
+	if (jit->prg_buf)
+		return (const u8 *)ptr - ((const u8 *)jit->prg_buf + jit->prg);
+	return 0;
+}
+
 #define REG_SET_SEEN(b1)					\
 ({								\
 	reg_set_seen(jit, b1);					\
@@ -201,7 +211,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT4_PCREL_RIC(op, mask, target)			\
 ({								\
-	int __rel = ((target) - jit->prg) / 2;			\
+	int __rel = off_to_pcrel(jit, target) / 2;		\
 	_EMIT4((op) | (mask) << 20 | (__rel & 0xffff));		\
 })
 
@@ -239,7 +249,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT6_PCREL_RIEB(op1, op2, b1, b2, mask, target)	\
 ({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	unsigned int rel = off_to_pcrel(jit, target) / 2;	\
 	_EMIT6((op1) | reg(b1, b2) << 16 | (rel & 0xffff),	\
 	       (op2) | (mask) << 12);				\
 	REG_SET_SEEN(b1);					\
@@ -248,7 +258,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT6_PCREL_RIEC(op1, op2, b1, imm, mask, target)	\
 ({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	unsigned int rel = off_to_pcrel(jit, target) / 2;	\
 	_EMIT6((op1) | (reg_high(b1) | (mask)) << 16 |		\
 		(rel & 0xffff), (op2) | ((imm) & 0xff) << 8);	\
 	REG_SET_SEEN(b1);					\
@@ -257,29 +267,41 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT6_PCREL(op1, op2, b1, b2, i, off, mask)		\
 ({								\
-	int rel = (addrs[(i) + (off) + 1] - jit->prg) / 2;	\
+	int rel = off_to_pcrel(jit, addrs[(i) + (off) + 1]) / 2;\
 	_EMIT6((op1) | reg(b1, b2) << 16 | (rel & 0xffff), (op2) | (mask));\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
 
-#define EMIT6_PCREL_RILB(op, b, target)				\
-({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
-	_EMIT6((op) | reg_high(b) << 16 | rel >> 16, rel & 0xffff);\
-	REG_SET_SEEN(b);					\
-})
+static void emit6_pcrel_ril(struct bpf_jit *jit, u32 op, s64 pcrel)
+{
+	u32 pc32dbl = (s32)(pcrel / 2);
 
-#define EMIT6_PCREL_RIL(op, target)				\
-({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
-	_EMIT6((op) | rel >> 16, rel & 0xffff);			\
-})
+	_EMIT6(op | pc32dbl >> 16, pc32dbl & 0xffff);
+}
+
+static void emit6_pcrel_rilb(struct bpf_jit *jit, u32 op, u8 b, s64 pcrel)
+{
+	emit6_pcrel_ril(jit, op | reg_high(b) << 16, pcrel);
+	REG_SET_SEEN(b);
+}
+
+#define EMIT6_PCREL_RILB(op, b, target)				\
+	emit6_pcrel_rilb(jit, op, b, off_to_pcrel(jit, target))
+
+#define EMIT6_PCREL_RILB_PTR(op, b, target_ptr)			\
+	emit6_pcrel_rilb(jit, op, b, ptr_to_pcrel(jit, target_ptr))
+
+static void emit6_pcrel_rilc(struct bpf_jit *jit, u32 op, u8 mask, s64 pcrel)
+{
+	emit6_pcrel_ril(jit, op | mask << 20, pcrel);
+}
 
 #define EMIT6_PCREL_RILC(op, mask, target)			\
-({								\
-	EMIT6_PCREL_RIL((op) | (mask) << 20, (target));		\
-})
+	emit6_pcrel_rilc(jit, op, mask, off_to_pcrel(jit, target))
+
+#define EMIT6_PCREL_RILC_PTR(op, mask, target_ptr)		\
+	emit6_pcrel_rilc(jit, op, mask, ptr_to_pcrel(jit, target_ptr))
 
 #define _EMIT6_IMM(op, imm)					\
 ({								\
@@ -503,7 +525,7 @@ static void bpf_skip(struct bpf_jit *jit, int size)
 {
 	if (size >= 6 && !is_valid_rel(size)) {
 		/* brcl 0xf,size */
-		EMIT6_PCREL_RIL(0xc0f4000000, size);
+		EMIT6_PCREL_RILC(0xc0040000, 0xf, size);
 		size -= 6;
 	} else if (size >= 4 && is_valid_rel(size)) {
 		/* brc 0xf,size */
@@ -605,43 +627,30 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp,
 	}
 	/* Setup stack and backchain */
 	if (is_first_pass(jit) || (jit->seen & SEEN_STACK)) {
-		if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
-			/* lgr %w1,%r15 (backchain) */
-			EMIT4(0xb9040000, REG_W1, REG_15);
+		/* lgr %w1,%r15 (backchain) */
+		EMIT4(0xb9040000, REG_W1, REG_15);
 		/* la %bfp,STK_160_UNUSED(%r15) (BPF frame pointer) */
 		EMIT4_DISP(0x41000000, BPF_REG_FP, REG_15, STK_160_UNUSED);
 		/* aghi %r15,-STK_OFF */
 		EMIT4_IMM(0xa70b0000, REG_15, -(STK_OFF + stack_depth));
-		if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
-			/* stg %w1,152(%r15) (backchain) */
-			EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
-				      REG_15, 152);
+		/* stg %w1,152(%r15) (backchain) */
+		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
+			      REG_15, 152);
 	}
 }
 
 /*
- * Emit an expoline for a jump that follows
+ * Jump using a register either directly or via an expoline thunk
  */
-static void emit_expoline(struct bpf_jit *jit)
-{
-	/* exrl %r0,.+10 */
-	EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
-	/* j . */
-	EMIT4_PCREL(0xa7f40000, 0);
-}
-
-/*
- * Emit __s390_indirect_jump_r1 thunk if necessary
- */
-static void emit_r1_thunk(struct bpf_jit *jit)
-{
-	if (nospec_uses_trampoline()) {
-		jit->r1_thunk_ip = jit->prg;
-		emit_expoline(jit);
-		/* br %r1 */
-		_EMIT2(0x07f1);
-	}
-}
+#define EMIT_JUMP_REG(reg) do {						\
+	if (nospec_uses_trampoline())					\
+		/* brcl 0xf,__s390_indirect_jump_rN */			\
+		EMIT6_PCREL_RILC_PTR(0xc0040000, 0x0f,			\
+				     __s390_indirect_jump_r ## reg);	\
+	else								\
+		/* br %rN */						\
+		_EMIT2(0x07f0 | reg);					\
+} while (0)
 
 /*
  * Call r1 either directly or via __s390_indirect_jump_r1 thunk
@@ -650,7 +659,8 @@ static void call_r1(struct bpf_jit *jit)
 {
 	if (nospec_uses_trampoline())
 		/* brasl %r14,__s390_indirect_jump_r1 */
-		EMIT6_PCREL_RILB(0xc0050000, REG_14, jit->r1_thunk_ip);
+		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14,
+				     __s390_indirect_jump_r1);
 	else
 		/* basr %r14,%r1 */
 		EMIT2(0x0d00, REG_14, REG_1);
@@ -666,16 +676,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	EMIT4(0xb9040000, REG_2, BPF_REG_0);
 	/* Restore registers */
 	save_restore_regs(jit, REGS_RESTORE, stack_depth, 0);
-	if (nospec_uses_trampoline()) {
-		jit->r14_thunk_ip = jit->prg;
-		/* Generate __s390_indirect_jump_r14 thunk */
-		emit_expoline(jit);
-	}
-	/* br %r14 */
-	_EMIT2(0x07fe);
-
-	if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
-		emit_r1_thunk(jit);
+	EMIT_JUMP_REG(14);
 
 	jit->prg = ALIGN(jit->prg, 8);
 	jit->prologue_plt = jit->prg;
@@ -1877,7 +1878,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			/* aghi %r1,tail_call_start */
 			EMIT4_IMM(0xa70b0000, REG_1, jit->tail_call_start);
 			/* brcl 0xf,__s390_indirect_jump_r1 */
-			EMIT6_PCREL_RILC(0xc0040000, 0xf, jit->r1_thunk_ip);
+			EMIT6_PCREL_RILC_PTR(0xc0040000, 0xf,
+					     __s390_indirect_jump_r1);
 		} else {
 			/* bc 0xf,tail_call_start(%r1) */
 			_EMIT4(0x47f01000 + jit->tail_call_start);
@@ -2585,9 +2587,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	if (nr_stack_args > MAX_NR_STACK_ARGS)
 		return -ENOTSUPP;
 
-	/* Return to %r14, since func_addr and %r0 are not available. */
-	if ((!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK)) ||
-	    (flags & BPF_TRAMP_F_INDIRECT))
+	/* Return to %r14 in the struct_ops case. */
+	if (flags & BPF_TRAMP_F_INDIRECT)
 		flags |= BPF_TRAMP_F_SKIP_FRAME;
 
 	/*
@@ -2847,17 +2848,10 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	       0xf000 | tjit->tccnt_off);
 	/* aghi %r15,stack_size */
 	EMIT4_IMM(0xa70b0000, REG_15, tjit->stack_size);
-	/* Emit an expoline for the following indirect jump. */
-	if (nospec_uses_trampoline())
-		emit_expoline(jit);
 	if (flags & BPF_TRAMP_F_SKIP_FRAME)
-		/* br %r14 */
-		_EMIT2(0x07fe);
+		EMIT_JUMP_REG(14);
 	else
-		/* br %r1 */
-		_EMIT2(0x07f1);
-
-	emit_r1_thunk(jit);
+		EMIT_JUMP_REG(1);
 
 	return 0;
 }

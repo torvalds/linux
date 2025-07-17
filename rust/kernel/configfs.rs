@@ -554,7 +554,7 @@ where
         let c_group: *mut bindings::config_group =
             // SAFETY: By function safety requirements, `item` is embedded in a
             // `config_group`.
-            unsafe { container_of!(item, bindings::config_group, cg_item) }.cast_mut();
+            unsafe { container_of!(item, bindings::config_group, cg_item) };
 
         // SAFETY: The function safety requirements for this function satisfy
         // the conditions for this call.
@@ -588,7 +588,7 @@ where
         let c_group: *mut bindings::config_group =
         // SAFETY: By function safety requirements, `item` is embedded in a
         // `config_group`.
-            unsafe { container_of!(item, bindings::config_group, cg_item) }.cast_mut();
+            unsafe { container_of!(item, bindings::config_group, cg_item) };
 
         // SAFETY: The function safety requirements for this function satisfy
         // the conditions for this call.

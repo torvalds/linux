@@ -14,7 +14,8 @@
  * and find the first range, but that's correct because the condition
  * expression would cause us to quit the loop.
  */
-static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *region)
+static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *region,
+			   uint8_t page_type, bool private)
 {
 	const struct sparsebit *protected_phy_pages = region->protected_phy_pages;
 	const vm_paddr_t gpa_base = region->region.guest_phys_addr;
@@ -24,25 +25,35 @@ static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *regio
 	if (!sparsebit_any_set(protected_phy_pages))
 		return;
 
-	sev_register_encrypted_memory(vm, region);
+	if (!is_sev_snp_vm(vm))
+		sev_register_encrypted_memory(vm, region);
 
 	sparsebit_for_each_set_range(protected_phy_pages, i, j) {
 		const uint64_t size = (j - i + 1) * vm->page_size;
 		const uint64_t offset = (i - lowest_page_in_region) * vm->page_size;
 
-		sev_launch_update_data(vm, gpa_base + offset, size);
+		if (private)
+			vm_mem_set_private(vm, gpa_base + offset, size);
+
+		if (is_sev_snp_vm(vm))
+			snp_launch_update_data(vm, gpa_base + offset,
+					       (uint64_t)addr_gpa2hva(vm, gpa_base + offset),
+					       size, page_type);
+		else
+			sev_launch_update_data(vm, gpa_base + offset, size);
+
 	}
 }
 
 void sev_vm_init(struct kvm_vm *vm)
 {
 	if (vm->type == KVM_X86_DEFAULT_VM) {
-		assert(vm->arch.sev_fd == -1);
+		TEST_ASSERT_EQ(vm->arch.sev_fd, -1);
 		vm->arch.sev_fd = open_sev_dev_path_or_exit();
 		vm_sev_ioctl(vm, KVM_SEV_INIT, NULL);
 	} else {
 		struct kvm_sev_init init = { 0 };
-		assert(vm->type == KVM_X86_SEV_VM);
+		TEST_ASSERT_EQ(vm->type, KVM_X86_SEV_VM);
 		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 	}
 }
@@ -50,14 +61,22 @@ void sev_vm_init(struct kvm_vm *vm)
 void sev_es_vm_init(struct kvm_vm *vm)
 {
 	if (vm->type == KVM_X86_DEFAULT_VM) {
-		assert(vm->arch.sev_fd == -1);
+		TEST_ASSERT_EQ(vm->arch.sev_fd, -1);
 		vm->arch.sev_fd = open_sev_dev_path_or_exit();
 		vm_sev_ioctl(vm, KVM_SEV_ES_INIT, NULL);
 	} else {
 		struct kvm_sev_init init = { 0 };
-		assert(vm->type == KVM_X86_SEV_ES_VM);
+		TEST_ASSERT_EQ(vm->type, KVM_X86_SEV_ES_VM);
 		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 	}
+}
+
+void snp_vm_init(struct kvm_vm *vm)
+{
+	struct kvm_sev_init init = { 0 };
+
+	TEST_ASSERT_EQ(vm->type, KVM_X86_SNP_VM);
+	vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 }
 
 void sev_vm_launch(struct kvm_vm *vm, uint32_t policy)
@@ -76,7 +95,7 @@ void sev_vm_launch(struct kvm_vm *vm, uint32_t policy)
 	TEST_ASSERT_EQ(status.state, SEV_GUEST_STATE_LAUNCH_UPDATE);
 
 	hash_for_each(vm->regions.slot_hash, ctr, region, slot_node)
-		encrypt_region(vm, region);
+		encrypt_region(vm, region, KVM_SEV_PAGE_TYPE_INVALID, false);
 
 	if (policy & SEV_POLICY_ES)
 		vm_sev_ioctl(vm, KVM_SEV_LAUNCH_UPDATE_VMSA, NULL);
@@ -112,6 +131,33 @@ void sev_vm_launch_finish(struct kvm_vm *vm)
 	TEST_ASSERT_EQ(status.state, SEV_GUEST_STATE_RUNNING);
 }
 
+void snp_vm_launch_start(struct kvm_vm *vm, uint64_t policy)
+{
+	struct kvm_sev_snp_launch_start launch_start = {
+		.policy = policy,
+	};
+
+	vm_sev_ioctl(vm, KVM_SEV_SNP_LAUNCH_START, &launch_start);
+}
+
+void snp_vm_launch_update(struct kvm_vm *vm)
+{
+	struct userspace_mem_region *region;
+	int ctr;
+
+	hash_for_each(vm->regions.slot_hash, ctr, region, slot_node)
+		encrypt_region(vm, region, KVM_SEV_SNP_PAGE_TYPE_NORMAL, true);
+
+	vm->arch.is_pt_protected = true;
+}
+
+void snp_vm_launch_finish(struct kvm_vm *vm)
+{
+	struct kvm_sev_snp_launch_finish launch_finish = { 0 };
+
+	vm_sev_ioctl(vm, KVM_SEV_SNP_LAUNCH_FINISH, &launch_finish);
+}
+
 struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t type, void *guest_code,
 					   struct kvm_vcpu **cpu)
 {
@@ -128,8 +174,20 @@ struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t type, void *guest_code,
 	return vm;
 }
 
-void vm_sev_launch(struct kvm_vm *vm, uint32_t policy, uint8_t *measurement)
+void vm_sev_launch(struct kvm_vm *vm, uint64_t policy, uint8_t *measurement)
 {
+	if (is_sev_snp_vm(vm)) {
+		vm_enable_cap(vm, KVM_CAP_EXIT_HYPERCALL, BIT(KVM_HC_MAP_GPA_RANGE));
+
+		snp_vm_launch_start(vm, policy);
+
+		snp_vm_launch_update(vm);
+
+		snp_vm_launch_finish(vm);
+
+		return;
+	}
+
 	sev_vm_launch(vm, policy);
 
 	if (!measurement)

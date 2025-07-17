@@ -622,6 +622,11 @@ struct encoding_to_trap_config {
 	const unsigned int		line;
 };
 
+/*
+ * WARNING: using ranges is a treacherous endeavour, as sysregs that
+ * are part of an architectural range are not necessarily contiguous
+ * in the [Op0,Op1,CRn,CRm,Ops] space. Tread carefully.
+ */
 #define SR_RANGE_TRAP(sr_start, sr_end, trap_id)			\
 	{								\
 		.encoding	= sr_start,				\
@@ -1279,98 +1284,128 @@ enum fg_filter_id {
 	__NR_FG_FILTER_IDS__
 };
 
-#define SR_FGF(sr, g, b, p, f)					\
-	{							\
-		.encoding	= sr,				\
-		.end		= sr,				\
-		.tc		= {				\
+#define __FGT(g, b, p, f)					\
+		{						\
 			.fgt = g ## _GROUP,			\
 			.bit = g ## _EL2_ ## b ## _SHIFT,	\
 			.pol = p,				\
 			.fgf = f,				\
-		},						\
+		}
+
+#define FGT(g, b, p)		__FGT(g, b, p, __NO_FGF__)
+
+/*
+ * See the warning next to SR_RANGE_TRAP(), and apply the same
+ * level of caution.
+ */
+#define SR_FGF_RANGE(sr, e, g, b, p, f)				\
+	{							\
+		.encoding	= sr,				\
+		.end		= e,				\
+		.tc		= __FGT(g, b, p, f),		\
 		.line = __LINE__,				\
 	}
 
-#define SR_FGT(sr, g, b, p)	SR_FGF(sr, g, b, p, __NO_FGF__)
+#define SR_FGF(sr, g, b, p, f) 	SR_FGF_RANGE(sr, sr, g, b, p, f)
+#define SR_FGT(sr, g, b, p)	SR_FGF_RANGE(sr, sr, g, b, p, __NO_FGF__)
+#define SR_FGT_RANGE(sr, end, g, b, p)	\
+				SR_FGF_RANGE(sr, end, g, b, p, __NO_FGF__)
 
 static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	/* HFGRTR_EL2, HFGWTR_EL2 */
-	SR_FGT(SYS_AMAIR2_EL1,		HFGxTR, nAMAIR2_EL1, 0),
-	SR_FGT(SYS_MAIR2_EL1,		HFGxTR, nMAIR2_EL1, 0),
-	SR_FGT(SYS_S2POR_EL1,		HFGxTR, nS2POR_EL1, 0),
-	SR_FGT(SYS_POR_EL1,		HFGxTR, nPOR_EL1, 0),
-	SR_FGT(SYS_POR_EL0,		HFGxTR, nPOR_EL0, 0),
-	SR_FGT(SYS_PIR_EL1,		HFGxTR, nPIR_EL1, 0),
-	SR_FGT(SYS_PIRE0_EL1,		HFGxTR, nPIRE0_EL1, 0),
-	SR_FGT(SYS_RCWMASK_EL1,		HFGxTR, nRCWMASK_EL1, 0),
-	SR_FGT(SYS_TPIDR2_EL0,		HFGxTR, nTPIDR2_EL0, 0),
-	SR_FGT(SYS_SMPRI_EL1,		HFGxTR, nSMPRI_EL1, 0),
-	SR_FGT(SYS_GCSCR_EL1,		HFGxTR, nGCS_EL1, 0),
-	SR_FGT(SYS_GCSPR_EL1,		HFGxTR, nGCS_EL1, 0),
-	SR_FGT(SYS_GCSCRE0_EL1,		HFGxTR, nGCS_EL0, 0),
-	SR_FGT(SYS_GCSPR_EL0,		HFGxTR, nGCS_EL0, 0),
-	SR_FGT(SYS_ACCDATA_EL1,		HFGxTR, nACCDATA_EL1, 0),
-	SR_FGT(SYS_ERXADDR_EL1,		HFGxTR, ERXADDR_EL1, 1),
-	SR_FGT(SYS_ERXPFGCDN_EL1,	HFGxTR, ERXPFGCDN_EL1, 1),
-	SR_FGT(SYS_ERXPFGCTL_EL1,	HFGxTR, ERXPFGCTL_EL1, 1),
-	SR_FGT(SYS_ERXPFGF_EL1,		HFGxTR, ERXPFGF_EL1, 1),
-	SR_FGT(SYS_ERXMISC0_EL1,	HFGxTR, ERXMISCn_EL1, 1),
-	SR_FGT(SYS_ERXMISC1_EL1,	HFGxTR, ERXMISCn_EL1, 1),
-	SR_FGT(SYS_ERXMISC2_EL1,	HFGxTR, ERXMISCn_EL1, 1),
-	SR_FGT(SYS_ERXMISC3_EL1,	HFGxTR, ERXMISCn_EL1, 1),
-	SR_FGT(SYS_ERXSTATUS_EL1,	HFGxTR, ERXSTATUS_EL1, 1),
-	SR_FGT(SYS_ERXCTLR_EL1,		HFGxTR, ERXCTLR_EL1, 1),
-	SR_FGT(SYS_ERXFR_EL1,		HFGxTR, ERXFR_EL1, 1),
-	SR_FGT(SYS_ERRSELR_EL1,		HFGxTR, ERRSELR_EL1, 1),
-	SR_FGT(SYS_ERRIDR_EL1,		HFGxTR, ERRIDR_EL1, 1),
-	SR_FGT(SYS_ICC_IGRPEN0_EL1,	HFGxTR, ICC_IGRPENn_EL1, 1),
-	SR_FGT(SYS_ICC_IGRPEN1_EL1,	HFGxTR, ICC_IGRPENn_EL1, 1),
-	SR_FGT(SYS_VBAR_EL1,		HFGxTR, VBAR_EL1, 1),
-	SR_FGT(SYS_TTBR1_EL1,		HFGxTR, TTBR1_EL1, 1),
-	SR_FGT(SYS_TTBR0_EL1,		HFGxTR, TTBR0_EL1, 1),
-	SR_FGT(SYS_TPIDR_EL0,		HFGxTR, TPIDR_EL0, 1),
-	SR_FGT(SYS_TPIDRRO_EL0,		HFGxTR, TPIDRRO_EL0, 1),
-	SR_FGT(SYS_TPIDR_EL1,		HFGxTR, TPIDR_EL1, 1),
-	SR_FGT(SYS_TCR_EL1,		HFGxTR, TCR_EL1, 1),
-	SR_FGT(SYS_TCR2_EL1,		HFGxTR, TCR_EL1, 1),
-	SR_FGT(SYS_SCXTNUM_EL0,		HFGxTR, SCXTNUM_EL0, 1),
-	SR_FGT(SYS_SCXTNUM_EL1, 	HFGxTR, SCXTNUM_EL1, 1),
-	SR_FGT(SYS_SCTLR_EL1, 		HFGxTR, SCTLR_EL1, 1),
-	SR_FGT(SYS_REVIDR_EL1, 		HFGxTR, REVIDR_EL1, 1),
-	SR_FGT(SYS_PAR_EL1, 		HFGxTR, PAR_EL1, 1),
-	SR_FGT(SYS_MPIDR_EL1, 		HFGxTR, MPIDR_EL1, 1),
-	SR_FGT(SYS_MIDR_EL1, 		HFGxTR, MIDR_EL1, 1),
-	SR_FGT(SYS_MAIR_EL1, 		HFGxTR, MAIR_EL1, 1),
-	SR_FGT(SYS_LORSA_EL1, 		HFGxTR, LORSA_EL1, 1),
-	SR_FGT(SYS_LORN_EL1, 		HFGxTR, LORN_EL1, 1),
-	SR_FGT(SYS_LORID_EL1, 		HFGxTR, LORID_EL1, 1),
-	SR_FGT(SYS_LOREA_EL1, 		HFGxTR, LOREA_EL1, 1),
-	SR_FGT(SYS_LORC_EL1, 		HFGxTR, LORC_EL1, 1),
-	SR_FGT(SYS_ISR_EL1, 		HFGxTR, ISR_EL1, 1),
-	SR_FGT(SYS_FAR_EL1, 		HFGxTR, FAR_EL1, 1),
-	SR_FGT(SYS_ESR_EL1, 		HFGxTR, ESR_EL1, 1),
-	SR_FGT(SYS_DCZID_EL0, 		HFGxTR, DCZID_EL0, 1),
-	SR_FGT(SYS_CTR_EL0, 		HFGxTR, CTR_EL0, 1),
-	SR_FGT(SYS_CSSELR_EL1, 		HFGxTR, CSSELR_EL1, 1),
-	SR_FGT(SYS_CPACR_EL1, 		HFGxTR, CPACR_EL1, 1),
-	SR_FGT(SYS_CONTEXTIDR_EL1, 	HFGxTR, CONTEXTIDR_EL1, 1),
-	SR_FGT(SYS_CLIDR_EL1, 		HFGxTR, CLIDR_EL1, 1),
-	SR_FGT(SYS_CCSIDR_EL1, 		HFGxTR, CCSIDR_EL1, 1),
-	SR_FGT(SYS_APIBKEYLO_EL1, 	HFGxTR, APIBKey, 1),
-	SR_FGT(SYS_APIBKEYHI_EL1, 	HFGxTR, APIBKey, 1),
-	SR_FGT(SYS_APIAKEYLO_EL1, 	HFGxTR, APIAKey, 1),
-	SR_FGT(SYS_APIAKEYHI_EL1, 	HFGxTR, APIAKey, 1),
-	SR_FGT(SYS_APGAKEYLO_EL1, 	HFGxTR, APGAKey, 1),
-	SR_FGT(SYS_APGAKEYHI_EL1, 	HFGxTR, APGAKey, 1),
-	SR_FGT(SYS_APDBKEYLO_EL1, 	HFGxTR, APDBKey, 1),
-	SR_FGT(SYS_APDBKEYHI_EL1, 	HFGxTR, APDBKey, 1),
-	SR_FGT(SYS_APDAKEYLO_EL1, 	HFGxTR, APDAKey, 1),
-	SR_FGT(SYS_APDAKEYHI_EL1, 	HFGxTR, APDAKey, 1),
-	SR_FGT(SYS_AMAIR_EL1, 		HFGxTR, AMAIR_EL1, 1),
-	SR_FGT(SYS_AIDR_EL1, 		HFGxTR, AIDR_EL1, 1),
-	SR_FGT(SYS_AFSR1_EL1, 		HFGxTR, AFSR1_EL1, 1),
-	SR_FGT(SYS_AFSR0_EL1, 		HFGxTR, AFSR0_EL1, 1),
+	SR_FGT(SYS_AMAIR2_EL1,		HFGRTR, nAMAIR2_EL1, 0),
+	SR_FGT(SYS_MAIR2_EL1,		HFGRTR, nMAIR2_EL1, 0),
+	SR_FGT(SYS_S2POR_EL1,		HFGRTR, nS2POR_EL1, 0),
+	SR_FGT(SYS_POR_EL1,		HFGRTR, nPOR_EL1, 0),
+	SR_FGT(SYS_POR_EL0,		HFGRTR, nPOR_EL0, 0),
+	SR_FGT(SYS_PIR_EL1,		HFGRTR, nPIR_EL1, 0),
+	SR_FGT(SYS_PIRE0_EL1,		HFGRTR, nPIRE0_EL1, 0),
+	SR_FGT(SYS_RCWMASK_EL1,		HFGRTR, nRCWMASK_EL1, 0),
+	SR_FGT(SYS_TPIDR2_EL0,		HFGRTR, nTPIDR2_EL0, 0),
+	SR_FGT(SYS_SMPRI_EL1,		HFGRTR, nSMPRI_EL1, 0),
+	SR_FGT(SYS_GCSCR_EL1,		HFGRTR, nGCS_EL1, 0),
+	SR_FGT(SYS_GCSPR_EL1,		HFGRTR, nGCS_EL1, 0),
+	SR_FGT(SYS_GCSCRE0_EL1,		HFGRTR, nGCS_EL0, 0),
+	SR_FGT(SYS_GCSPR_EL0,		HFGRTR, nGCS_EL0, 0),
+	SR_FGT(SYS_ACCDATA_EL1,		HFGRTR, nACCDATA_EL1, 0),
+	SR_FGT(SYS_ERXADDR_EL1,		HFGRTR, ERXADDR_EL1, 1),
+	SR_FGT(SYS_ERXPFGCDN_EL1,	HFGRTR, ERXPFGCDN_EL1, 1),
+	SR_FGT(SYS_ERXPFGCTL_EL1,	HFGRTR, ERXPFGCTL_EL1, 1),
+	SR_FGT(SYS_ERXPFGF_EL1,		HFGRTR, ERXPFGF_EL1, 1),
+	SR_FGT(SYS_ERXMISC0_EL1,	HFGRTR, ERXMISCn_EL1, 1),
+	SR_FGT(SYS_ERXMISC1_EL1,	HFGRTR, ERXMISCn_EL1, 1),
+	SR_FGT(SYS_ERXMISC2_EL1,	HFGRTR, ERXMISCn_EL1, 1),
+	SR_FGT(SYS_ERXMISC3_EL1,	HFGRTR, ERXMISCn_EL1, 1),
+	SR_FGT(SYS_ERXSTATUS_EL1,	HFGRTR, ERXSTATUS_EL1, 1),
+	SR_FGT(SYS_ERXCTLR_EL1,		HFGRTR, ERXCTLR_EL1, 1),
+	SR_FGT(SYS_ERXFR_EL1,		HFGRTR, ERXFR_EL1, 1),
+	SR_FGT(SYS_ERRSELR_EL1,		HFGRTR, ERRSELR_EL1, 1),
+	SR_FGT(SYS_ERRIDR_EL1,		HFGRTR, ERRIDR_EL1, 1),
+	SR_FGT(SYS_ICC_IGRPEN0_EL1,	HFGRTR, ICC_IGRPENn_EL1, 1),
+	SR_FGT(SYS_ICC_IGRPEN1_EL1,	HFGRTR, ICC_IGRPENn_EL1, 1),
+	SR_FGT(SYS_VBAR_EL1,		HFGRTR, VBAR_EL1, 1),
+	SR_FGT(SYS_TTBR1_EL1,		HFGRTR, TTBR1_EL1, 1),
+	SR_FGT(SYS_TTBR0_EL1,		HFGRTR, TTBR0_EL1, 1),
+	SR_FGT(SYS_TPIDR_EL0,		HFGRTR, TPIDR_EL0, 1),
+	SR_FGT(SYS_TPIDRRO_EL0,		HFGRTR, TPIDRRO_EL0, 1),
+	SR_FGT(SYS_TPIDR_EL1,		HFGRTR, TPIDR_EL1, 1),
+	SR_FGT(SYS_TCR_EL1,		HFGRTR, TCR_EL1, 1),
+	SR_FGT(SYS_TCR2_EL1,		HFGRTR, TCR_EL1, 1),
+	SR_FGT(SYS_SCXTNUM_EL0,		HFGRTR, SCXTNUM_EL0, 1),
+	SR_FGT(SYS_SCXTNUM_EL1, 	HFGRTR, SCXTNUM_EL1, 1),
+	SR_FGT(SYS_SCTLR_EL1, 		HFGRTR, SCTLR_EL1, 1),
+	SR_FGT(SYS_REVIDR_EL1, 		HFGRTR, REVIDR_EL1, 1),
+	SR_FGT(SYS_PAR_EL1, 		HFGRTR, PAR_EL1, 1),
+	SR_FGT(SYS_MPIDR_EL1, 		HFGRTR, MPIDR_EL1, 1),
+	SR_FGT(SYS_MIDR_EL1, 		HFGRTR, MIDR_EL1, 1),
+	SR_FGT(SYS_MAIR_EL1, 		HFGRTR, MAIR_EL1, 1),
+	SR_FGT(SYS_LORSA_EL1, 		HFGRTR, LORSA_EL1, 1),
+	SR_FGT(SYS_LORN_EL1, 		HFGRTR, LORN_EL1, 1),
+	SR_FGT(SYS_LORID_EL1, 		HFGRTR, LORID_EL1, 1),
+	SR_FGT(SYS_LOREA_EL1, 		HFGRTR, LOREA_EL1, 1),
+	SR_FGT(SYS_LORC_EL1, 		HFGRTR, LORC_EL1, 1),
+	SR_FGT(SYS_ISR_EL1, 		HFGRTR, ISR_EL1, 1),
+	SR_FGT(SYS_FAR_EL1, 		HFGRTR, FAR_EL1, 1),
+	SR_FGT(SYS_ESR_EL1, 		HFGRTR, ESR_EL1, 1),
+	SR_FGT(SYS_DCZID_EL0, 		HFGRTR, DCZID_EL0, 1),
+	SR_FGT(SYS_CTR_EL0, 		HFGRTR, CTR_EL0, 1),
+	SR_FGT(SYS_CSSELR_EL1, 		HFGRTR, CSSELR_EL1, 1),
+	SR_FGT(SYS_CPACR_EL1, 		HFGRTR, CPACR_EL1, 1),
+	SR_FGT(SYS_CONTEXTIDR_EL1, 	HFGRTR, CONTEXTIDR_EL1, 1),
+	SR_FGT(SYS_CLIDR_EL1, 		HFGRTR, CLIDR_EL1, 1),
+	SR_FGT(SYS_CCSIDR_EL1, 		HFGRTR, CCSIDR_EL1, 1),
+	SR_FGT(SYS_APIBKEYLO_EL1, 	HFGRTR, APIBKey, 1),
+	SR_FGT(SYS_APIBKEYHI_EL1, 	HFGRTR, APIBKey, 1),
+	SR_FGT(SYS_APIAKEYLO_EL1, 	HFGRTR, APIAKey, 1),
+	SR_FGT(SYS_APIAKEYHI_EL1, 	HFGRTR, APIAKey, 1),
+	SR_FGT(SYS_APGAKEYLO_EL1, 	HFGRTR, APGAKey, 1),
+	SR_FGT(SYS_APGAKEYHI_EL1, 	HFGRTR, APGAKey, 1),
+	SR_FGT(SYS_APDBKEYLO_EL1, 	HFGRTR, APDBKey, 1),
+	SR_FGT(SYS_APDBKEYHI_EL1, 	HFGRTR, APDBKey, 1),
+	SR_FGT(SYS_APDAKEYLO_EL1, 	HFGRTR, APDAKey, 1),
+	SR_FGT(SYS_APDAKEYHI_EL1, 	HFGRTR, APDAKey, 1),
+	SR_FGT(SYS_AMAIR_EL1, 		HFGRTR, AMAIR_EL1, 1),
+	SR_FGT(SYS_AIDR_EL1, 		HFGRTR, AIDR_EL1, 1),
+	SR_FGT(SYS_AFSR1_EL1, 		HFGRTR, AFSR1_EL1, 1),
+	SR_FGT(SYS_AFSR0_EL1, 		HFGRTR, AFSR0_EL1, 1),
+
+	/* HFGRTR2_EL2, HFGWTR2_EL2 */
+	SR_FGT(SYS_ACTLRALIAS_EL1,	HFGRTR2, nACTLRALIAS_EL1, 0),
+	SR_FGT(SYS_ACTLRMASK_EL1,	HFGRTR2, nACTLRMASK_EL1, 0),
+	SR_FGT(SYS_CPACRALIAS_EL1,	HFGRTR2, nCPACRALIAS_EL1, 0),
+	SR_FGT(SYS_CPACRMASK_EL1,	HFGRTR2, nCPACRMASK_EL1, 0),
+	SR_FGT(SYS_PFAR_EL1,		HFGRTR2, nPFAR_EL1, 0),
+	SR_FGT(SYS_RCWSMASK_EL1,	HFGRTR2, nRCWSMASK_EL1, 0),
+	SR_FGT(SYS_SCTLR2ALIAS_EL1,	HFGRTR2, nSCTLRALIAS2_EL1, 0),
+	SR_FGT(SYS_SCTLR2MASK_EL1,	HFGRTR2, nSCTLR2MASK_EL1, 0),
+	SR_FGT(SYS_SCTLRALIAS_EL1,	HFGRTR2, nSCTLRALIAS_EL1, 0),
+	SR_FGT(SYS_SCTLRMASK_EL1,	HFGRTR2, nSCTLRMASK_EL1, 0),
+	SR_FGT(SYS_TCR2ALIAS_EL1,	HFGRTR2, nTCR2ALIAS_EL1, 0),
+	SR_FGT(SYS_TCR2MASK_EL1,	HFGRTR2, nTCR2MASK_EL1, 0),
+	SR_FGT(SYS_TCRALIAS_EL1,	HFGRTR2, nTCRALIAS_EL1, 0),
+	SR_FGT(SYS_TCRMASK_EL1,		HFGRTR2, nTCRMASK_EL1, 0),
+	SR_FGT(SYS_ERXGSR_EL1,		HFGRTR2, nERXGSR_EL1, 0),
+
 	/* HFGITR_EL2 */
 	SR_FGT(OP_AT_S1E1A, 		HFGITR, ATS1E1A, 1),
 	SR_FGT(OP_COSP_RCTX, 		HFGITR, COSPRCTX, 1),
@@ -1480,6 +1515,11 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	SR_FGT(SYS_IC_IVAU, 		HFGITR, ICIVAU, 1),
 	SR_FGT(SYS_IC_IALLU, 		HFGITR, ICIALLU, 1),
 	SR_FGT(SYS_IC_IALLUIS, 		HFGITR, ICIALLUIS, 1),
+
+	/* HFGITR2_EL2 */
+	SR_FGT(SYS_DC_CIGDVAPS,		HFGITR2, nDCCIVAPS, 0),
+	SR_FGT(SYS_DC_CIVAPS,		HFGITR2, nDCCIVAPS, 0),
+
 	/* HDFGRTR_EL2 */
 	SR_FGT(SYS_PMBIDR_EL1, 		HDFGRTR, PMBIDR_EL1, 1),
 	SR_FGT(SYS_PMSNEVFR_EL1, 	HDFGRTR, nPMSNEVFR_EL1, 0),
@@ -1789,68 +1829,12 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	SR_FGT(SYS_PMCNTENSET_EL0, 	HDFGRTR, PMCNTEN, 1),
 	SR_FGT(SYS_PMCCNTR_EL0, 	HDFGRTR, PMCCNTR_EL0, 1),
 	SR_FGT(SYS_PMCCFILTR_EL0, 	HDFGRTR, PMCCFILTR_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(0), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(1), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(2), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(3), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(4), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(5), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(6), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(7), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(8), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(9), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(10), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(11), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(12), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(13), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(14), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(15), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(16), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(17), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(18), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(19), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(20), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(21), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(22), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(23), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(24), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(25), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(26), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(27), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(28), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(29), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVTYPERn_EL0(30), 	HDFGRTR, PMEVTYPERn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(0), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(1), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(2), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(3), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(4), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(5), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(6), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(7), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(8), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(9), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(10), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(11), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(12), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(13), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(14), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(15), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(16), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(17), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(18), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(19), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(20), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(21), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(22), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(23), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(24), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(25), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(26), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(27), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(28), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(29), 	HDFGRTR, PMEVCNTRn_EL0, 1),
-	SR_FGT(SYS_PMEVCNTRn_EL0(30), 	HDFGRTR, PMEVCNTRn_EL0, 1),
+	SR_FGT_RANGE(SYS_PMEVTYPERn_EL0(0),
+		     SYS_PMEVTYPERn_EL0(30),
+		     HDFGRTR, PMEVTYPERn_EL0, 1),
+	SR_FGT_RANGE(SYS_PMEVCNTRn_EL0(0),
+		     SYS_PMEVCNTRn_EL0(30),
+		     HDFGRTR, PMEVCNTRn_EL0, 1),
 	SR_FGT(SYS_OSDLR_EL1, 		HDFGRTR, OSDLR_EL1, 1),
 	SR_FGT(SYS_OSECCR_EL1, 		HDFGRTR, OSECCR_EL1, 1),
 	SR_FGT(SYS_OSLSR_EL1, 		HDFGRTR, OSLSR_EL1, 1),
@@ -1928,6 +1912,59 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	SR_FGT(SYS_DBGBCRn_EL1(13), 	HDFGRTR, DBGBCRn_EL1, 1),
 	SR_FGT(SYS_DBGBCRn_EL1(14), 	HDFGRTR, DBGBCRn_EL1, 1),
 	SR_FGT(SYS_DBGBCRn_EL1(15), 	HDFGRTR, DBGBCRn_EL1, 1),
+
+	/* HDFGRTR2_EL2 */
+	SR_FGT(SYS_MDSELR_EL1,		HDFGRTR2, nMDSELR_EL1, 0),
+	SR_FGT(SYS_MDSTEPOP_EL1,	HDFGRTR2, nMDSTEPOP_EL1, 0),
+	SR_FGT(SYS_PMCCNTSVR_EL1,	HDFGRTR2, nPMSSDATA, 0),
+	SR_FGT_RANGE(SYS_PMEVCNTSVRn_EL1(0),
+		     SYS_PMEVCNTSVRn_EL1(30),
+		     HDFGRTR2, nPMSSDATA, 0),
+	SR_FGT(SYS_PMICNTSVR_EL1,	HDFGRTR2, nPMSSDATA, 0),
+	SR_FGT(SYS_PMECR_EL1,		HDFGRTR2, nPMECR_EL1, 0),
+	SR_FGT(SYS_PMIAR_EL1,		HDFGRTR2, nPMIAR_EL1, 0),
+	SR_FGT(SYS_PMICFILTR_EL0,	HDFGRTR2, nPMICFILTR_EL0, 0),
+	SR_FGT(SYS_PMICNTR_EL0,		HDFGRTR2, nPMICNTR_EL0, 0),
+	SR_FGT(SYS_PMSSCR_EL1,		HDFGRTR2, nPMSSCR_EL1, 0),
+	SR_FGT(SYS_PMUACR_EL1,		HDFGRTR2, nPMUACR_EL1, 0),
+	SR_FGT(SYS_SPMACCESSR_EL1,	HDFGRTR2, nSPMACCESSR_EL1, 0),
+	SR_FGT(SYS_SPMCFGR_EL1,		HDFGRTR2, nSPMID, 0),
+	SR_FGT(SYS_SPMDEVARCH_EL1,	HDFGRTR2, nSPMID, 0),
+	SR_FGT(SYS_SPMCGCRn_EL1(0),	HDFGRTR2, nSPMID, 0),
+	SR_FGT(SYS_SPMCGCRn_EL1(1),	HDFGRTR2, nSPMID, 0),
+	SR_FGT(SYS_SPMIIDR_EL1,		HDFGRTR2, nSPMID, 0),
+	SR_FGT(SYS_SPMCNTENCLR_EL0,	HDFGRTR2, nSPMCNTEN, 0),
+	SR_FGT(SYS_SPMCNTENSET_EL0,	HDFGRTR2, nSPMCNTEN, 0),
+	SR_FGT(SYS_SPMCR_EL0,		HDFGRTR2, nSPMCR_EL0, 0),
+	SR_FGT(SYS_SPMDEVAFF_EL1,	HDFGRTR2, nSPMDEVAFF_EL1, 0),
+	/*
+	 * We have up to 64 of these registers in ranges of 16, banked via
+	 * SPMSELR_EL0.BANK. We're only concerned with the accessors here,
+	 * not the architectural registers.
+	 */
+	SR_FGT_RANGE(SYS_SPMEVCNTRn_EL0(0),
+		     SYS_SPMEVCNTRn_EL0(15),
+		     HDFGRTR2, nSPMEVCNTRn_EL0, 0),
+	SR_FGT_RANGE(SYS_SPMEVFILT2Rn_EL0(0),
+		     SYS_SPMEVFILT2Rn_EL0(15),
+		     HDFGRTR2, nSPMEVTYPERn_EL0, 0),
+	SR_FGT_RANGE(SYS_SPMEVFILTRn_EL0(0),
+		     SYS_SPMEVFILTRn_EL0(15),
+		     HDFGRTR2, nSPMEVTYPERn_EL0, 0),
+	SR_FGT_RANGE(SYS_SPMEVTYPERn_EL0(0),
+		     SYS_SPMEVTYPERn_EL0(15),
+		     HDFGRTR2, nSPMEVTYPERn_EL0, 0),
+	SR_FGT(SYS_SPMINTENCLR_EL1,	HDFGRTR2, nSPMINTEN, 0),
+	SR_FGT(SYS_SPMINTENSET_EL1,	HDFGRTR2, nSPMINTEN, 0),
+	SR_FGT(SYS_SPMOVSCLR_EL0,	HDFGRTR2, nSPMOVS, 0),
+	SR_FGT(SYS_SPMOVSSET_EL0,	HDFGRTR2, nSPMOVS, 0),
+	SR_FGT(SYS_SPMSCR_EL1,		HDFGRTR2, nSPMSCR_EL1, 0),
+	SR_FGT(SYS_SPMSELR_EL0,		HDFGRTR2, nSPMSELR_EL0, 0),
+	SR_FGT(SYS_TRCITECR_EL1,	HDFGRTR2, nTRCITECR_EL1, 0),
+	SR_FGT(SYS_PMBMAR_EL1,		HDFGRTR2, nPMBMAR_EL1, 0),
+	SR_FGT(SYS_PMSDSFR_EL1,		HDFGRTR2, nPMSDSFR_EL1, 0),
+	SR_FGT(SYS_TRBMPAM_EL1,		HDFGRTR2, nTRBMPAM_EL1, 0),
+
 	/*
 	 * HDFGWTR_EL2
 	 *
@@ -1938,12 +1975,19 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	 * read-side mappings, and only the write-side mappings that
 	 * differ from the read side, and the trap handler will pick
 	 * the correct shadow register based on the access type.
+	 *
+	 * Same model applies to the FEAT_FGT2 registers.
 	 */
 	SR_FGT(SYS_TRFCR_EL1,		HDFGWTR, TRFCR_EL1, 1),
 	SR_FGT(SYS_TRCOSLAR,		HDFGWTR, TRCOSLAR, 1),
 	SR_FGT(SYS_PMCR_EL0,		HDFGWTR, PMCR_EL0, 1),
 	SR_FGT(SYS_PMSWINC_EL0,		HDFGWTR, PMSWINC_EL0, 1),
 	SR_FGT(SYS_OSLAR_EL1,		HDFGWTR, OSLAR_EL1, 1),
+
+	/* HDFGWTR2_EL2 */
+	SR_FGT(SYS_PMZR_EL0,		HDFGWTR2, nPMZR_EL0, 0),
+	SR_FGT(SYS_SPMZR_EL0,		HDFGWTR2, nSPMEVCNTRn_EL0, 0),
+
 	/*
 	 * HAFGRTR_EL2
 	 */
@@ -1987,6 +2031,20 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	SR_FGT(SYS_AMEVCNTR0_EL0(2),	HAFGRTR, AMEVCNTR02_EL0, 1),
 	SR_FGT(SYS_AMEVCNTR0_EL0(1),	HAFGRTR, AMEVCNTR01_EL0, 1),
 	SR_FGT(SYS_AMEVCNTR0_EL0(0),	HAFGRTR, AMEVCNTR00_EL0, 1),
+};
+
+/*
+ * Additional FGTs that do not fire with ESR_EL2.EC==0x18. This table
+ * isn't used for exception routing, but only as a promise that the
+ * trap is handled somewhere else.
+ */
+static const union trap_config non_0x18_fgt[] __initconst = {
+	FGT(HFGITR, PSBCSYNC, 1),
+	FGT(HFGITR, nGCSSTR_EL1, 0),
+	FGT(HFGITR, SVC_EL1, 1),
+	FGT(HFGITR, SVC_EL0, 1),
+	FGT(HFGITR, ERET, 1),
+	FGT(HFGITR2, TSBCSYNC, 1),
 };
 
 static union trap_config get_trap_config(u32 sysreg)
@@ -2033,6 +2091,130 @@ static u32 encoding_next(u32 encoding)
 	return sys_reg(op0 + 1, 0, 0, 0, 0);
 }
 
+#define FGT_MASKS(__n, __m)						\
+	struct fgt_masks __n = { .str = #__m, .res0 = __m, }
+
+FGT_MASKS(hfgrtr_masks, HFGRTR_EL2_RES0);
+FGT_MASKS(hfgwtr_masks, HFGWTR_EL2_RES0);
+FGT_MASKS(hfgitr_masks, HFGITR_EL2_RES0);
+FGT_MASKS(hdfgrtr_masks, HDFGRTR_EL2_RES0);
+FGT_MASKS(hdfgwtr_masks, HDFGWTR_EL2_RES0);
+FGT_MASKS(hafgrtr_masks, HAFGRTR_EL2_RES0);
+FGT_MASKS(hfgrtr2_masks, HFGRTR2_EL2_RES0);
+FGT_MASKS(hfgwtr2_masks, HFGWTR2_EL2_RES0);
+FGT_MASKS(hfgitr2_masks, HFGITR2_EL2_RES0);
+FGT_MASKS(hdfgrtr2_masks, HDFGRTR2_EL2_RES0);
+FGT_MASKS(hdfgwtr2_masks, HDFGWTR2_EL2_RES0);
+
+static __init bool aggregate_fgt(union trap_config tc)
+{
+	struct fgt_masks *rmasks, *wmasks;
+
+	switch (tc.fgt) {
+	case HFGRTR_GROUP:
+		rmasks = &hfgrtr_masks;
+		wmasks = &hfgwtr_masks;
+		break;
+	case HDFGRTR_GROUP:
+		rmasks = &hdfgrtr_masks;
+		wmasks = &hdfgwtr_masks;
+		break;
+	case HAFGRTR_GROUP:
+		rmasks = &hafgrtr_masks;
+		wmasks = NULL;
+		break;
+	case HFGITR_GROUP:
+		rmasks = &hfgitr_masks;
+		wmasks = NULL;
+		break;
+	case HFGRTR2_GROUP:
+		rmasks = &hfgrtr2_masks;
+		wmasks = &hfgwtr2_masks;
+		break;
+	case HDFGRTR2_GROUP:
+		rmasks = &hdfgrtr2_masks;
+		wmasks = &hdfgwtr2_masks;
+		break;
+	case HFGITR2_GROUP:
+		rmasks = &hfgitr2_masks;
+		wmasks = NULL;
+		break;
+	}
+
+	/*
+	 * A bit can be reserved in either the R or W register, but
+	 * not both.
+	 */
+	if ((BIT(tc.bit) & rmasks->res0) &&
+	    (!wmasks || (BIT(tc.bit) & wmasks->res0)))
+		return false;
+
+	if (tc.pol)
+		rmasks->mask |= BIT(tc.bit) & ~rmasks->res0;
+	else
+		rmasks->nmask |= BIT(tc.bit) & ~rmasks->res0;
+
+	if (wmasks) {
+		if (tc.pol)
+			wmasks->mask |= BIT(tc.bit) & ~wmasks->res0;
+		else
+			wmasks->nmask |= BIT(tc.bit) & ~wmasks->res0;
+	}
+
+	return true;
+}
+
+static __init int check_fgt_masks(struct fgt_masks *masks)
+{
+	unsigned long duplicate = masks->mask & masks->nmask;
+	u64 res0 = masks->res0;
+	int ret = 0;
+
+	if (duplicate) {
+		int i;
+
+		for_each_set_bit(i, &duplicate, 64) {
+			kvm_err("%s[%d] bit has both polarities\n",
+				masks->str, i);
+		}
+
+		ret = -EINVAL;
+	}
+
+	masks->res0 = ~(masks->mask | masks->nmask);
+	if (masks->res0 != res0)
+		kvm_info("Implicit %s = %016llx, expecting %016llx\n",
+			 masks->str, masks->res0, res0);
+
+	return ret;
+}
+
+static __init int check_all_fgt_masks(int ret)
+{
+	static struct fgt_masks * const masks[] __initconst = {
+		&hfgrtr_masks,
+		&hfgwtr_masks,
+		&hfgitr_masks,
+		&hdfgrtr_masks,
+		&hdfgwtr_masks,
+		&hafgrtr_masks,
+		&hfgrtr2_masks,
+		&hfgwtr2_masks,
+		&hfgitr2_masks,
+		&hdfgrtr2_masks,
+		&hdfgwtr2_masks,
+	};
+	int err = 0;
+
+	for (int i = 0; i < ARRAY_SIZE(masks); i++)
+		err |= check_fgt_masks(masks[i]);
+
+	return ret ?: err;
+}
+
+#define for_each_encoding_in(__x, __s, __e)	\
+	for (u32 __x = __s; __x <= __e; __x = encoding_next(__x))
+
 int __init populate_nv_trap_config(void)
 {
 	int ret = 0;
@@ -2041,6 +2223,7 @@ int __init populate_nv_trap_config(void)
 	BUILD_BUG_ON(__NR_CGT_GROUP_IDS__ > BIT(TC_CGT_BITS));
 	BUILD_BUG_ON(__NR_FGT_GROUP_IDS__ > BIT(TC_FGT_BITS));
 	BUILD_BUG_ON(__NR_FG_FILTER_IDS__ > BIT(TC_FGF_BITS));
+	BUILD_BUG_ON(__HCRX_EL2_MASK & __HCRX_EL2_nMASK);
 
 	for (int i = 0; i < ARRAY_SIZE(encoding_to_cgt); i++) {
 		const struct encoding_to_trap_config *cgt = &encoding_to_cgt[i];
@@ -2051,7 +2234,7 @@ int __init populate_nv_trap_config(void)
 			ret = -EINVAL;
 		}
 
-		for (u32 enc = cgt->encoding; enc <= cgt->end; enc = encoding_next(enc)) {
+		for_each_encoding_in(enc, cgt->encoding, cgt->end) {
 			prev = xa_store(&sr_forward_xa, enc,
 					xa_mk_value(cgt->tc.val), GFP_KERNEL);
 			if (prev && !xa_is_err(prev)) {
@@ -2065,6 +2248,10 @@ int __init populate_nv_trap_config(void)
 			}
 		}
 	}
+
+	if (__HCRX_EL2_RES0 != HCRX_EL2_RES0)
+		kvm_info("Sanitised HCR_EL2_RES0 = %016llx, expecting %016llx\n",
+			 __HCRX_EL2_RES0, HCRX_EL2_RES0);
 
 	kvm_info("nv: %ld coarse grained trap handlers\n",
 		 ARRAY_SIZE(encoding_to_cgt));
@@ -2082,22 +2269,38 @@ int __init populate_nv_trap_config(void)
 			print_nv_trap_error(fgt, "Invalid FGT", ret);
 		}
 
-		tc = get_trap_config(fgt->encoding);
+		for_each_encoding_in(enc, fgt->encoding, fgt->end) {
+			tc = get_trap_config(enc);
 
-		if (tc.fgt) {
-			ret = -EINVAL;
-			print_nv_trap_error(fgt, "Duplicate FGT", ret);
-		}
+			if (tc.fgt) {
+				ret = -EINVAL;
+				print_nv_trap_error(fgt, "Duplicate FGT", ret);
+			}
 
-		tc.val |= fgt->tc.val;
-		prev = xa_store(&sr_forward_xa, fgt->encoding,
-				xa_mk_value(tc.val), GFP_KERNEL);
+			tc.val |= fgt->tc.val;
+			prev = xa_store(&sr_forward_xa, enc,
+					xa_mk_value(tc.val), GFP_KERNEL);
 
-		if (xa_is_err(prev)) {
-			ret = xa_err(prev);
-			print_nv_trap_error(fgt, "Failed FGT insertion", ret);
+			if (xa_is_err(prev)) {
+				ret = xa_err(prev);
+				print_nv_trap_error(fgt, "Failed FGT insertion", ret);
+			}
+
+			if (!aggregate_fgt(tc)) {
+				ret = -EINVAL;
+				print_nv_trap_error(fgt, "FGT bit is reserved", ret);
+			}
 		}
 	}
+
+	for (int i = 0; i < ARRAY_SIZE(non_0x18_fgt); i++) {
+		if (!aggregate_fgt(non_0x18_fgt[i])) {
+			ret = -EINVAL;
+			kvm_err("non_0x18_fgt[%d] is reserved\n", i);
+		}
+	}
+
+	ret = check_all_fgt_masks(ret);
 
 	kvm_info("nv: %ld fine grained trap handlers\n",
 		 ARRAY_SIZE(encoding_to_fgt));
@@ -2215,11 +2418,11 @@ static u64 kvm_get_sysreg_res0(struct kvm *kvm, enum vcpu_sysreg sr)
 	return masks->mask[sr - __VNCR_START__].res0;
 }
 
-static bool check_fgt_bit(struct kvm_vcpu *vcpu, bool is_read,
-			  u64 val, const union trap_config tc)
+static bool check_fgt_bit(struct kvm_vcpu *vcpu, enum vcpu_sysreg sr,
+			  const union trap_config tc)
 {
 	struct kvm *kvm = vcpu->kvm;
-	enum vcpu_sysreg sr;
+	u64 val;
 
 	/*
 	 * KVM doesn't know about any FGTs that apply to the host, and hopefully
@@ -2227,6 +2430,8 @@ static bool check_fgt_bit(struct kvm_vcpu *vcpu, bool is_read,
 	 */
 	if (is_hyp_ctxt(vcpu))
 		return false;
+
+	val = __vcpu_sys_reg(vcpu, sr);
 
 	if (tc.pol)
 		return (val & BIT(tc.bit));
@@ -2242,38 +2447,17 @@ static bool check_fgt_bit(struct kvm_vcpu *vcpu, bool is_read,
 	if (val & BIT(tc.bit))
 		return false;
 
-	switch ((enum fgt_group_id)tc.fgt) {
-	case HFGxTR_GROUP:
-		sr = is_read ? HFGRTR_EL2 : HFGWTR_EL2;
-		break;
-
-	case HDFGRTR_GROUP:
-		sr = is_read ? HDFGRTR_EL2 : HDFGWTR_EL2;
-		break;
-
-	case HAFGRTR_GROUP:
-		sr = HAFGRTR_EL2;
-		break;
-
-	case HFGITR_GROUP:
-		sr = HFGITR_EL2;
-		break;
-
-	default:
-		WARN_ONCE(1, "Unhandled FGT group");
-		return false;
-	}
-
 	return !(kvm_get_sysreg_res0(kvm, sr) & BIT(tc.bit));
 }
 
 bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 {
+	enum vcpu_sysreg fgtreg;
 	union trap_config tc;
 	enum trap_behaviour b;
 	bool is_read;
 	u32 sysreg;
-	u64 esr, val;
+	u64 esr;
 
 	esr = kvm_vcpu_get_esr(vcpu);
 	sysreg = esr_sys64_to_sysreg(esr);
@@ -2319,26 +2503,20 @@ bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 	case __NO_FGT_GROUP__:
 		break;
 
-	case HFGxTR_GROUP:
-		if (is_read)
-			val = __vcpu_sys_reg(vcpu, HFGRTR_EL2);
-		else
-			val = __vcpu_sys_reg(vcpu, HFGWTR_EL2);
+	case HFGRTR_GROUP:
+		fgtreg = is_read ? HFGRTR_EL2 : HFGWTR_EL2;
 		break;
 
 	case HDFGRTR_GROUP:
-		if (is_read)
-			val = __vcpu_sys_reg(vcpu, HDFGRTR_EL2);
-		else
-			val = __vcpu_sys_reg(vcpu, HDFGWTR_EL2);
+		fgtreg = is_read ? HDFGRTR_EL2 : HDFGWTR_EL2;
 		break;
 
 	case HAFGRTR_GROUP:
-		val = __vcpu_sys_reg(vcpu, HAFGRTR_EL2);
+		fgtreg = HAFGRTR_EL2;
 		break;
 
 	case HFGITR_GROUP:
-		val = __vcpu_sys_reg(vcpu, HFGITR_EL2);
+		fgtreg = HFGITR_EL2;
 		switch (tc.fgf) {
 			u64 tmp;
 
@@ -2352,13 +2530,26 @@ bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 		}
 		break;
 
-	case __NR_FGT_GROUP_IDS__:
+	case HFGRTR2_GROUP:
+		fgtreg = is_read ? HFGRTR2_EL2 : HFGWTR2_EL2;
+		break;
+
+	case HDFGRTR2_GROUP:
+		fgtreg = is_read ? HDFGRTR2_EL2 : HDFGWTR2_EL2;
+		break;
+
+	case HFGITR2_GROUP:
+		fgtreg = HFGITR2_EL2;
+		break;
+
+	default:
 		/* Something is really wrong, bail out */
-		WARN_ONCE(1, "__NR_FGT_GROUP_IDS__");
+		WARN_ONCE(1, "Bad FGT group (encoding %08x, config %016llx)\n",
+			  sysreg, tc.val);
 		goto local;
 	}
 
-	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(vcpu, is_read, val, tc))
+	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(vcpu, fgtreg, tc))
 		goto inject;
 
 	b = compute_trap_behaviour(vcpu, tc);
@@ -2470,13 +2661,6 @@ static u64 kvm_check_illegal_exception_return(struct kvm_vcpu *vcpu, u64 spsr)
 void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 {
 	u64 spsr, elr, esr;
-
-	/*
-	 * Forward this trap to the virtual EL2 if the virtual
-	 * HCR_EL2.NV bit is set and this is coming from !EL2.
-	 */
-	if (forward_hcr_traps(vcpu, HCR_NV))
-		return;
 
 	spsr = vcpu_read_sys_reg(vcpu, SPSR_EL2);
 	spsr = kvm_check_illegal_exception_return(vcpu, spsr);

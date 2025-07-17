@@ -432,6 +432,7 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	udph->dest = htons(np->remote_port);
 	udph->len = htons(udp_len);
 
+	udph->check = 0;
 	if (np->ipv6) {
 		udph->check = csum_ipv6_magic(&np->local_ip.in6,
 					      &np->remote_ip.in6,
@@ -460,7 +461,6 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		skb_reset_mac_header(skb);
 		skb->protocol = eth->h_proto = htons(ETH_P_IPV6);
 	} else {
-		udph->check = 0;
 		udph->check = csum_tcpudp_magic(np->local_ip.ip,
 						np->remote_ip.ip,
 						udp_len, IPPROTO_UDP,

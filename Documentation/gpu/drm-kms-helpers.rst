@@ -233,6 +233,21 @@ Panel Self Refresh Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
    :export:
 
+HDMI Atomic State Helpers
+=========================
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/display/drm_hdmi_state_helper.c
+   :doc: hdmi helpers
+
+Functions Reference
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/display/drm_hdmi_state_helper.c
+   :export:
+
 HDCP Helper Functions Reference
 ===============================
 

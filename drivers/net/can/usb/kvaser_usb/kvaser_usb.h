@@ -137,7 +137,7 @@ struct kvaser_usb_net_priv {
  * @dev_set_mode:		used for can.do_set_mode
  * @dev_set_bittiming:		used for can.do_set_bittiming
  * @dev_get_busparams:		readback arbitration busparams
- * @dev_set_data_bittiming:	used for can.do_set_data_bittiming
+ * @dev_set_data_bittiming:	used for can.fd.do_set_data_bittiming
  * @dev_get_data_busparams:	readback data busparams
  * @dev_get_berr_counter:	used for can.do_get_berr_counter
  *

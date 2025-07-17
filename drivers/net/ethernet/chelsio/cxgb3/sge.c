@@ -2906,7 +2906,7 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
  */
 static void sge_timer_tx(struct timer_list *t)
 {
-	struct sge_qset *qs = from_timer(qs, t, tx_reclaim_timer);
+	struct sge_qset *qs = timer_container_of(qs, t, tx_reclaim_timer);
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
 	unsigned int tbd[SGE_TXQ_PER_SET] = {0, 0};
@@ -2947,7 +2947,7 @@ static void sge_timer_tx(struct timer_list *t)
 static void sge_timer_rx(struct timer_list *t)
 {
 	spinlock_t *lock;
-	struct sge_qset *qs = from_timer(qs, t, rx_reclaim_timer);
+	struct sge_qset *qs = timer_container_of(qs, t, rx_reclaim_timer);
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
 	u32 status;

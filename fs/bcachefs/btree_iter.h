@@ -963,16 +963,6 @@ struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_trans *,
 	_p;								\
 })
 
-#define bch2_trans_run(_c, _do)						\
-({									\
-	struct btree_trans *trans = bch2_trans_get(_c);			\
-	int _ret = (_do);						\
-	bch2_trans_put(trans);						\
-	_ret;								\
-})
-
-#define bch2_trans_do(_c, _do)	bch2_trans_run(_c, lockrestart_do(trans, _do))
-
 struct btree_trans *__bch2_trans_get(struct bch_fs *, unsigned);
 void bch2_trans_put(struct btree_trans *);
 
@@ -989,6 +979,27 @@ unsigned bch2_trans_get_fn_idx(const char *);
 		trans_fn_idx = bch2_trans_get_fn_idx(__func__);		\
 	__bch2_trans_get(_c, trans_fn_idx);				\
 })
+
+/*
+ * We don't use DEFINE_CLASS() because using a function for the constructor
+ * breaks bch2_trans_get()'s use of __func__
+ */
+typedef struct btree_trans * class_btree_trans_t;
+static inline void class_btree_trans_destructor(struct btree_trans **p)
+{
+	struct btree_trans *trans = *p;
+	bch2_trans_put(trans);
+}
+
+#define class_btree_trans_constructor(_c)	bch2_trans_get(_c)
+
+#define bch2_trans_run(_c, _do)						\
+({									\
+	CLASS(btree_trans, trans)(_c);					\
+	(_do);								\
+})
+
+#define bch2_trans_do(_c, _do)	bch2_trans_run(_c, lockrestart_do(trans, _do))
 
 void bch2_btree_trans_to_text(struct printbuf *, struct btree_trans *);
 

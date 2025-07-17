@@ -67,6 +67,7 @@ enum lock_aggr_mode {
 enum lock_class_sym {
 	LOCK_CLASS_NONE,
 	LOCK_CLASS_RQLOCK,
+	LOCK_CLASS_ZONE_LOCK,
 };
 
 struct slab_cache_data {

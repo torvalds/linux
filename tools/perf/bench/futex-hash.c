@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/prctl.h>
 #include <linux/zalloc.h>
 #include <sys/time.h>
 #include <sys/mman.h>

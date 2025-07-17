@@ -80,7 +80,8 @@ static struct xe_guc *exec_queue_to_guc(struct xe_exec_queue *q)
 	return &q->gt->uc.guc;
 }
 
-static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
+static ssize_t __xe_devcoredump_read(char *buffer, ssize_t count,
+				     ssize_t start,
 				     struct xe_devcoredump *coredump)
 {
 	struct xe_device *xe;
@@ -94,7 +95,7 @@ static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
 	ss = &coredump->snapshot;
 
 	iter.data = buffer;
-	iter.start = 0;
+	iter.start = start;
 	iter.remain = count;
 
 	p = drm_coredump_printer(&iter);
@@ -168,12 +169,34 @@ static void xe_devcoredump_snapshot_free(struct xe_devcoredump_snapshot *ss)
 	ss->vm = NULL;
 }
 
+#define XE_DEVCOREDUMP_CHUNK_MAX	(SZ_512M + SZ_1G)
+
+/**
+ * xe_devcoredump_read() - Read data from the Xe device coredump snapshot
+ * @buffer: Destination buffer to copy the coredump data into
+ * @offset: Offset in the coredump data to start reading from
+ * @count: Number of bytes to read
+ * @data: Pointer to the xe_devcoredump structure
+ * @datalen: Length of the data (unused)
+ *
+ * Reads a chunk of the coredump snapshot data into the provided buffer.
+ * If the devcoredump is smaller than 1.5 GB (XE_DEVCOREDUMP_CHUNK_MAX),
+ * it is read directly from a pre-written buffer. For larger devcoredumps,
+ * the pre-written buffer must be periodically repopulated from the snapshot
+ * state due to kmalloc size limitations.
+ *
+ * Return: Number of bytes copied on success, or a negative error code on failure.
+ */
 static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 				   size_t count, void *data, size_t datalen)
 {
 	struct xe_devcoredump *coredump = data;
 	struct xe_devcoredump_snapshot *ss;
-	ssize_t byte_copied;
+	ssize_t byte_copied = 0;
+	u32 chunk_offset;
+	ssize_t new_chunk_position;
+	bool pm_needed = false;
+	int ret = 0;
 
 	if (!coredump)
 		return -ENODEV;
@@ -183,25 +206,45 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 	/* Ensure delayed work is captured before continuing */
 	flush_work(&ss->work);
 
+	pm_needed = ss->read.size > XE_DEVCOREDUMP_CHUNK_MAX;
+	if (pm_needed)
+		xe_pm_runtime_get(gt_to_xe(ss->gt));
+
 	mutex_lock(&coredump->lock);
 
 	if (!ss->read.buffer) {
-		mutex_unlock(&coredump->lock);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unlock;
 	}
 
-	if (offset >= ss->read.size) {
-		mutex_unlock(&coredump->lock);
-		return 0;
+	if (offset >= ss->read.size)
+		goto unlock;
+
+	new_chunk_position = div_u64_rem(offset,
+					 XE_DEVCOREDUMP_CHUNK_MAX,
+					 &chunk_offset);
+
+	if (offset >= ss->read.chunk_position + XE_DEVCOREDUMP_CHUNK_MAX ||
+	    offset < ss->read.chunk_position) {
+		ss->read.chunk_position = new_chunk_position *
+			XE_DEVCOREDUMP_CHUNK_MAX;
+
+		__xe_devcoredump_read(ss->read.buffer,
+				      XE_DEVCOREDUMP_CHUNK_MAX,
+				      ss->read.chunk_position, coredump);
 	}
 
 	byte_copied = count < ss->read.size - offset ? count :
 		ss->read.size - offset;
-	memcpy(buffer, ss->read.buffer + offset, byte_copied);
+	memcpy(buffer, ss->read.buffer + chunk_offset, byte_copied);
 
+unlock:
 	mutex_unlock(&coredump->lock);
 
-	return byte_copied;
+	if (pm_needed)
+		xe_pm_runtime_put(gt_to_xe(ss->gt));
+
+	return byte_copied ? byte_copied : ret;
 }
 
 static void xe_devcoredump_free(void *data)
@@ -254,17 +297,32 @@ static void xe_devcoredump_deferred_snap_work(struct work_struct *work)
 	xe_guc_exec_queue_snapshot_capture_delayed(ss->ge);
 	xe_force_wake_put(gt_to_fw(ss->gt), fw_ref);
 
-	xe_pm_runtime_put(xe);
+	ss->read.chunk_position = 0;
 
 	/* Calculate devcoredump size */
-	ss->read.size = __xe_devcoredump_read(NULL, INT_MAX, coredump);
+	ss->read.size = __xe_devcoredump_read(NULL, LONG_MAX, 0, coredump);
 
-	ss->read.buffer = kvmalloc(ss->read.size, GFP_USER);
-	if (!ss->read.buffer)
-		return;
+	if (ss->read.size > XE_DEVCOREDUMP_CHUNK_MAX) {
+		ss->read.buffer = kvmalloc(XE_DEVCOREDUMP_CHUNK_MAX,
+					   GFP_USER);
+		if (!ss->read.buffer)
+			goto put_pm;
 
-	__xe_devcoredump_read(ss->read.buffer, ss->read.size, coredump);
-	xe_devcoredump_snapshot_free(ss);
+		__xe_devcoredump_read(ss->read.buffer,
+				      XE_DEVCOREDUMP_CHUNK_MAX,
+				      0, coredump);
+	} else {
+		ss->read.buffer = kvmalloc(ss->read.size, GFP_USER);
+		if (!ss->read.buffer)
+			goto put_pm;
+
+		__xe_devcoredump_read(ss->read.buffer, ss->read.size, 0,
+				      coredump);
+		xe_devcoredump_snapshot_free(ss);
+	}
+
+put_pm:
+	xe_pm_runtime_put(xe);
 }
 
 static void devcoredump_snapshot(struct xe_devcoredump *coredump,
@@ -425,7 +483,7 @@ void xe_print_blob_ascii85(struct drm_printer *p, const char *prefix, char suffi
 	if (offset & 3)
 		drm_printf(p, "Offset not word aligned: %zu", offset);
 
-	line_buff = kzalloc(DMESG_MAX_LINE_LEN, GFP_KERNEL);
+	line_buff = kzalloc(DMESG_MAX_LINE_LEN, GFP_ATOMIC);
 	if (!line_buff) {
 		drm_printf(p, "Failed to allocate line buffer\n");
 		return;

@@ -1,0 +1,212 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/adi,adv748x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADV748X video decoder with HDMI receiver
+
+maintainers:
+  - Kieran Bingham <kieran.bingham@ideasonboard.com>
+  - Niklas Söderlund <niklas.soderlund@ragnatech.se>
+
+description:
+  The ADV7481 and ADV7482 are multi format video decoders with an integrated
+  HDMI receiver. They can output CSI-2 on two independent outputs TXA and TXB
+  from three input sources HDMI, analog and TTL.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - adi,adv7481
+          - adi,adv7482
+
+  reg:
+    minItems: 1
+    maxItems: 12
+    description:
+      The ADV748x has up to twelve 256-byte maps that can be accessed via the
+      main I2C ports. Each map has it own I2C address and acts as a standard
+      slave device on the I2C bus. The main address is mandatory, others are
+      optional and remain at default values if not specified.
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: main
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+      - enum: [ dpll, cp, hdmi, edid, repeater, infoframe, cbus, cec, sdp, txa, txb ]
+
+  interrupts: true
+
+  interrupt-names: true
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      "^port@[0-7]$":
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Input port nodes for analog inputs AIN[0-7].
+
+    properties:
+      port@8:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Input port node for HDMI.
+
+      port@9:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Input port node for TTL.
+
+      port@a:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description:
+          Output port node, single endpoint describing the CSI-2 transmitter TXA.
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              clock-lanes:
+                maxItems: 1
+
+              data-lanes:
+                minItems: 1
+                maxItems: 4
+
+            required:
+              - clock-lanes
+              - data-lanes
+
+      port@b:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description:
+          Output port node, single endpoint describing the CSI-2 transmitter TXB.
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              clock-lanes:
+                maxItems: 1
+
+              data-lanes:
+                maxItems: 1
+
+            required:
+              - clock-lanes
+              - data-lanes
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,adv7481
+    then:
+      properties:
+        interrupts:
+          minItems: 1
+          maxItems: 3
+
+        interrupt-names:
+          minItems: 1
+          maxItems: 3
+          items:
+            enum: [ intrq1, intrq2, intrq3 ]
+    else:
+      properties:
+        interrupts:
+          minItems: 1
+          maxItems: 2
+
+        interrupt-names:
+          minItems: 1
+          maxItems: 2
+          items:
+            enum: [ intrq1, intrq2 ]
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - ports
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        video-receiver@70 {
+            compatible = "adi,adv7482";
+            reg = <0x70 0x71 0x72 0x73 0x74 0x75
+                   0x60 0x61 0x62 0x63 0x64 0x65>;
+            reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
+                        "infoframe", "cbus", "cec", "sdp", "txa", "txb";
+
+            interrupt-parent = <&gpio6>;
+            interrupts = <30 IRQ_TYPE_LEVEL_LOW>, <31 IRQ_TYPE_LEVEL_LOW>;
+            interrupt-names = "intrq1", "intrq2";
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@7 {
+                    reg = <7>;
+
+                    adv7482_ain7: endpoint {
+                        remote-endpoint = <&cvbs_in>;
+                    };
+                };
+
+                port@8 {
+                    reg = <8>;
+
+                    adv7482_hdmi: endpoint {
+                        remote-endpoint = <&hdmi_in>;
+                    };
+                };
+
+                port@a {
+                    reg = <10>;
+
+                    adv7482_txa: endpoint {
+                        clock-lanes = <0>;
+                        data-lanes = <1 2 3 4>;
+                        remote-endpoint = <&csi40_in>;
+                    };
+                };
+
+                port@b {
+                    reg = <11>;
+
+                    adv7482_txb: endpoint {
+                        clock-lanes = <0>;
+                        data-lanes = <1>;
+                        remote-endpoint = <&csi20_in>;
+                    };
+                };
+            };
+        };
+    };

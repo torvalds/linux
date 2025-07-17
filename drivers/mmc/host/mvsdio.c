@@ -509,7 +509,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 
 static void mvsd_timeout_timer(struct timer_list *t)
 {
-	struct mvsd_host *host = from_timer(host, t, timer);
+	struct mvsd_host *host = timer_container_of(host, t, timer);
 	void __iomem *iobase = host->base;
 	struct mmc_request *mrq;
 	unsigned long flags;

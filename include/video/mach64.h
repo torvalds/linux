@@ -934,9 +934,6 @@
 #define MEM_BNDRY_EN		0x00040000
 
 #define ONE_MB			0x100000
-/* ATI PCI constants */
-#define PCI_ATI_VENDOR_ID	0x1002
-
 
 /* CNFG_CHIP_ID register constants */
 #define CFG_CHIP_TYPE		0x0000FFFF

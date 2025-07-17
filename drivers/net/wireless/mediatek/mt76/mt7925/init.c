@@ -52,6 +52,8 @@ static int mt7925_thermal_init(struct mt792x_phy *phy)
 
 	name = devm_kasprintf(&wiphy->dev, GFP_KERNEL, "mt7925_%s",
 			      wiphy_name(wiphy));
+	if (!name)
+		return -ENOMEM;
 
 	hwmon = devm_hwmon_device_register_with_groups(&wiphy->dev, name, phy,
 						       mt7925_hwmon_groups);
@@ -89,7 +91,7 @@ void mt7925_regd_be_ctrl(struct mt792x_dev *dev, u8 *alpha2)
 		}
 
 		/* Check the last one */
-		if (rule->flag && BIT(0))
+		if (rule->flag & BIT(0))
 			break;
 
 		pos += sizeof(*rule);
@@ -319,6 +321,12 @@ static void mt7925_init_work(struct work_struct *work)
 	ret = mt7925_thermal_init(&dev->phy);
 	if (ret) {
 		dev_err(dev->mt76.dev, "thermal init failed\n");
+		return;
+	}
+
+	ret = mt7925_mcu_set_thermal_protect(dev);
+	if (ret) {
+		dev_err(dev->mt76.dev, "thermal protection enable failed\n");
 		return;
 	}
 

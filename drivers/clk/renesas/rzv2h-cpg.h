@@ -11,19 +11,50 @@
 #include <linux/bitfield.h>
 
 /**
+ * struct pll - Structure for PLL configuration
+ *
+ * @offset: STBY register offset
+ * @has_clkn: Flag to indicate if CLK1/2 are accessible or not
+ */
+struct pll {
+	unsigned int offset:9;
+	unsigned int has_clkn:1;
+};
+
+#define PLL_PACK(_offset, _has_clkn) \
+	((struct pll){ \
+		.offset = _offset, \
+		.has_clkn = _has_clkn \
+	})
+
+#define PLLCA55		PLL_PACK(0x60, 1)
+#define PLLGPU		PLL_PACK(0x120, 1)
+
+/**
  * struct ddiv - Structure for dynamic switching divider
  *
  * @offset: register offset
  * @shift: position of the divider bit
  * @width: width of the divider
  * @monbit: monitor bit in CPG_CLKSTATUS0 register
+ * @no_rmw: flag to indicate if the register is read-modify-write
+ *        (1: no RMW, 0: RMW)
  */
 struct ddiv {
 	unsigned int offset:11;
 	unsigned int shift:4;
 	unsigned int width:4;
 	unsigned int monbit:5;
+	unsigned int no_rmw:1;
 };
+
+/*
+ * On RZ/V2H(P), the dynamic divider clock supports up to 19 monitor bits,
+ * while on RZ/G3E, it supports up to 16 monitor bits. Use the maximum value
+ * `0x1f` to indicate that monitor bits are not supported for static divider
+ * clocks.
+ */
+#define CSDIV_NO_MON	(0x1f)
 
 #define DDIV_PACK(_offset, _shift, _width, _monbit) \
 	((struct ddiv){ \
@@ -33,10 +64,41 @@ struct ddiv {
 		.monbit = _monbit \
 	})
 
+#define DDIV_PACK_NO_RMW(_offset, _shift, _width, _monbit) \
+	((struct ddiv){ \
+		.offset = (_offset), \
+		.shift = (_shift), \
+		.width = (_width), \
+		.monbit = (_monbit), \
+		.no_rmw = 1 \
+	})
+
+/**
+ * struct smuxed - Structure for static muxed clocks
+ *
+ * @offset: register offset
+ * @shift: position of the divider field
+ * @width: width of the divider field
+ */
+struct smuxed {
+	unsigned int offset:11;
+	unsigned int shift:4;
+	unsigned int width:4;
+};
+
+#define SMUX_PACK(_offset, _shift, _width) \
+	((struct smuxed){ \
+		.offset = (_offset), \
+		.shift = (_shift), \
+		.width = (_width), \
+	})
+
+#define CPG_SSEL1		(0x304)
 #define CPG_CDDIV0		(0x400)
 #define CPG_CDDIV1		(0x404)
 #define CPG_CDDIV3		(0x40C)
 #define CPG_CDDIV4		(0x410)
+#define CPG_CSDIV0		(0x500)
 
 #define CDDIV0_DIVCTL1	DDIV_PACK(CPG_CDDIV0, 4, 3, 1)
 #define CDDIV0_DIVCTL2	DDIV_PACK(CPG_CDDIV0, 8, 3, 2)
@@ -44,11 +106,17 @@ struct ddiv {
 #define CDDIV1_DIVCTL1	DDIV_PACK(CPG_CDDIV1, 4, 2, 5)
 #define CDDIV1_DIVCTL2	DDIV_PACK(CPG_CDDIV1, 8, 2, 6)
 #define CDDIV1_DIVCTL3	DDIV_PACK(CPG_CDDIV1, 12, 2, 7)
+#define CDDIV3_DIVCTL1	DDIV_PACK(CPG_CDDIV3, 4, 3, 13)
 #define CDDIV3_DIVCTL2	DDIV_PACK(CPG_CDDIV3, 8, 3, 14)
 #define CDDIV3_DIVCTL3	DDIV_PACK(CPG_CDDIV3, 12, 1, 15)
 #define CDDIV4_DIVCTL0	DDIV_PACK(CPG_CDDIV4, 0, 1, 16)
 #define CDDIV4_DIVCTL1	DDIV_PACK(CPG_CDDIV4, 4, 1, 17)
 #define CDDIV4_DIVCTL2	DDIV_PACK(CPG_CDDIV4, 8, 1, 18)
+
+#define CSDIV0_DIVCTL3	DDIV_PACK_NO_RMW(CPG_CSDIV0, 12, 2, CSDIV_NO_MON)
+
+#define SSEL1_SELCTL2	SMUX_PACK(CPG_SSEL1, 8, 1)
+#define SSEL1_SELCTL3	SMUX_PACK(CPG_SSEL1, 12, 1)
 
 #define BUS_MSTOP_IDX_MASK	GENMASK(31, 16)
 #define BUS_MSTOP_BITS_MASK	GENMASK(15, 0)
@@ -74,8 +142,13 @@ struct cpg_core_clk {
 	union {
 		unsigned int conf;
 		struct ddiv ddiv;
+		struct pll pll;
+		struct smuxed smux;
 	} cfg;
 	const struct clk_div_table *dtable;
+	const char * const *parent_names;
+	unsigned int num_parents;
+	u8 mux_flags;
 	u32 flag;
 };
 
@@ -85,20 +158,15 @@ enum clk_types {
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
 	CLK_TYPE_PLL,
 	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
+	CLK_TYPE_SMUX,		/* Static Mux */
 };
-
-/* BIT(31) indicates if CLK1/2 are accessible or not */
-#define PLL_CONF(n)		(BIT(31) | ((n) & ~GENMASK(31, 16)))
-#define PLL_CLK_ACCESS(n)	((n) & BIT(31) ? 1 : 0)
-#define PLL_CLK1_OFFSET(n)	((n) & ~GENMASK(31, 16))
-#define PLL_CLK2_OFFSET(n)	(((n) & ~GENMASK(31, 16)) + (0x4))
 
 #define DEF_TYPE(_name, _id, _type...) \
 	{ .name = _name, .id = _id, .type = _type }
 #define DEF_BASE(_name, _id, _type, _parent...) \
 	DEF_TYPE(_name, _id, _type, .parent = _parent)
-#define DEF_PLL(_name, _id, _parent, _conf) \
-	DEF_TYPE(_name, _id, CLK_TYPE_PLL, .parent = _parent, .cfg.conf = _conf)
+#define DEF_PLL(_name, _id, _parent, _pll_packed) \
+	DEF_TYPE(_name, _id, CLK_TYPE_PLL, .parent = _parent, .cfg.pll = _pll_packed)
 #define DEF_INPUT(_name, _id) \
 	DEF_TYPE(_name, _id, CLK_TYPE_IN)
 #define DEF_FIXED(_name, _id, _parent, _mult, _div) \
@@ -109,6 +177,15 @@ enum clk_types {
 		.parent = _parent, \
 		.dtable = _dtable, \
 		.flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_CSDIV(_name, _id, _parent, _ddiv_packed, _dtable) \
+	DEF_DDIV(_name, _id, _parent, _ddiv_packed, _dtable)
+#define DEF_SMUX(_name, _id, _smux_packed, _parent_names) \
+	DEF_TYPE(_name, _id, CLK_TYPE_SMUX, \
+		 .cfg.smux = _smux_packed, \
+		 .parent_names = _parent_names, \
+		 .num_parents = ARRAY_SIZE(_parent_names), \
+		 .flag = CLK_SET_RATE_PARENT, \
+		 .mux_flags = CLK_MUX_HIWORD_MASK)
 
 /**
  * struct rzv2h_mod_clk - Module Clocks definitions
@@ -221,6 +298,7 @@ struct rzv2h_cpg_info {
 };
 
 extern const struct rzv2h_cpg_info r9a09g047_cpg_info;
+extern const struct rzv2h_cpg_info r9a09g056_cpg_info;
 extern const struct rzv2h_cpg_info r9a09g057_cpg_info;
 
 #endif	/* __RENESAS_RZV2H_CPG_H__ */

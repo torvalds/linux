@@ -407,11 +407,11 @@ static void __drop_largest_extent(struct extent_tree *et,
 	}
 }
 
-void f2fs_init_read_extent_tree(struct inode *inode, struct page *ipage)
+void f2fs_init_read_extent_tree(struct inode *inode, struct folio *ifolio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct extent_tree_info *eti = &sbi->extent_tree[EX_READ];
-	struct f2fs_extent *i_ext = &F2FS_INODE(ipage)->i_ext;
+	struct f2fs_extent *i_ext = &F2FS_INODE(&ifolio->page)->i_ext;
 	struct extent_tree *et;
 	struct extent_node *en;
 	struct extent_info ei;
@@ -419,9 +419,9 @@ void f2fs_init_read_extent_tree(struct inode *inode, struct page *ipage)
 	if (!__may_extent_tree(inode, EX_READ)) {
 		/* drop largest read extent */
 		if (i_ext->len) {
-			f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+			f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 			i_ext->len = 0;
-			set_page_dirty(ipage);
+			folio_mark_dirty(ifolio);
 		}
 		set_inode_flag(inode, FI_NO_EXTENT);
 		return;
@@ -934,7 +934,7 @@ static void __update_extent_cache(struct dnode_of_data *dn, enum extent_type typ
 	if (!__may_extent_tree(dn->inode, type))
 		return;
 
-	ei.fofs = f2fs_start_bidx_of_node(ofs_of_node(dn->node_page), dn->inode) +
+	ei.fofs = f2fs_start_bidx_of_node(ofs_of_node(&dn->node_folio->page), dn->inode) +
 								dn->ofs_in_node;
 	ei.len = 1;
 

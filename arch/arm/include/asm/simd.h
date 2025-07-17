@@ -8,7 +8,8 @@
 
 static __must_check inline bool may_use_simd(void)
 {
-	return IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq();
+	return IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq()
+	       && !irqs_disabled();
 }
 
 #endif	/* _ASM_SIMD_H */

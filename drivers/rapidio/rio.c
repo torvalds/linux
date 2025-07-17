@@ -1775,19 +1775,6 @@ struct dma_chan *rio_request_mport_dma(struct rio_mport *mport)
 EXPORT_SYMBOL_GPL(rio_request_mport_dma);
 
 /**
- * rio_request_dma - request RapidIO capable DMA channel that supports
- *   specified target RapidIO device.
- * @rdev: RIO device associated with DMA transfer
- *
- * Returns pointer to allocated DMA channel or NULL if failed.
- */
-struct dma_chan *rio_request_dma(struct rio_dev *rdev)
-{
-	return rio_request_mport_dma(rdev->net->hport);
-}
-EXPORT_SYMBOL_GPL(rio_request_dma);
-
-/**
  * rio_release_dma - release specified DMA channel
  * @dchan: DMA channel to release
  */
@@ -1834,55 +1821,7 @@ struct dma_async_tx_descriptor *rio_dma_prep_xfer(struct dma_chan *dchan,
 }
 EXPORT_SYMBOL_GPL(rio_dma_prep_xfer);
 
-/**
- * rio_dma_prep_slave_sg - RapidIO specific wrapper
- *   for device_prep_slave_sg callback defined by DMAENGINE.
- * @rdev: RIO device control structure
- * @dchan: DMA channel to configure
- * @data: RIO specific data descriptor
- * @direction: DMA data transfer direction (TO or FROM the device)
- * @flags: dmaengine defined flags
- *
- * Initializes RapidIO capable DMA channel for the specified data transfer.
- * Uses DMA channel private extension to pass information related to remote
- * target RIO device.
- *
- * Returns: pointer to DMA transaction descriptor if successful,
- *          error-valued pointer or NULL if failed.
- */
-struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(struct rio_dev *rdev,
-	struct dma_chan *dchan, struct rio_dma_data *data,
-	enum dma_transfer_direction direction, unsigned long flags)
-{
-	return rio_dma_prep_xfer(dchan,	rdev->destid, data, direction, flags);
-}
-EXPORT_SYMBOL_GPL(rio_dma_prep_slave_sg);
-
 #endif /* CONFIG_RAPIDIO_DMA_ENGINE */
-
-/**
- * rio_find_mport - find RIO mport by its ID
- * @mport_id: number (ID) of mport device
- *
- * Given a RIO mport number, the desired mport is located
- * in the global list of mports. If the mport is found, a pointer to its
- * data structure is returned.  If no mport is found, %NULL is returned.
- */
-struct rio_mport *rio_find_mport(int mport_id)
-{
-	struct rio_mport *port;
-
-	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
-		if (port->id == mport_id)
-			goto found;
-	}
-	port = NULL;
-found:
-	mutex_unlock(&rio_mport_list_lock);
-
-	return port;
-}
 
 /**
  * rio_register_scan - enumeration/discovery method registration interface
@@ -1960,48 +1899,6 @@ err_out:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(rio_register_scan);
-
-/**
- * rio_unregister_scan - removes enumeration/discovery method from mport
- * @mport_id: mport device ID for which fabric scan routine has to be
- *            unregistered (RIO_MPORT_ANY = apply to all mports that use
- *            the specified scan_ops)
- * @scan_ops: enumeration/discovery operations structure
- *
- * Removes enumeration or discovery method assigned to the specified mport
- * device. If RIO_MPORT_ANY is specified, removes the specified operations from
- * all mports that have them attached.
- */
-int rio_unregister_scan(int mport_id, struct rio_scan *scan_ops)
-{
-	struct rio_mport *port;
-	struct rio_scan_node *scan;
-
-	pr_debug("RIO: %s for mport_id=%d\n", __func__, mport_id);
-
-	if (mport_id != RIO_MPORT_ANY && mport_id >= RIO_MAX_MPORTS)
-		return -EINVAL;
-
-	mutex_lock(&rio_mport_list_lock);
-
-	list_for_each_entry(port, &rio_mports, node)
-		if (port->id == mport_id ||
-		    (mport_id == RIO_MPORT_ANY && port->nscan == scan_ops))
-			port->nscan = NULL;
-
-	list_for_each_entry(scan, &rio_scans, node) {
-		if (scan->mport_id == mport_id) {
-			list_del(&scan->node);
-			kfree(scan);
-			break;
-		}
-	}
-
-	mutex_unlock(&rio_mport_list_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rio_unregister_scan);
 
 /**
  * rio_mport_scan - execute enumeration/discovery on the specified mport

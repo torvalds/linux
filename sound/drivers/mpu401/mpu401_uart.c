@@ -157,7 +157,7 @@ EXPORT_SYMBOL(snd_mpu401_uart_interrupt_tx);
  */
 static void snd_mpu401_uart_timer(struct timer_list *t)
 {
-	struct snd_mpu401 *mpu = from_timer(mpu, t, timer);
+	struct snd_mpu401 *mpu = timer_container_of(mpu, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mpu->timer_lock, flags);

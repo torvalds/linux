@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 
 #include "../kselftest_harness.h"
-#include "overlayfs/wrappers.h"
+#include "wrappers.h"
 
 TEST(anon_inode_no_chown)
 {

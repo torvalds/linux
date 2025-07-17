@@ -106,7 +106,7 @@ early_param("iommu.forcedac", iommu_dma_forcedac_setup);
 struct iova_fq_entry {
 	unsigned long iova_pfn;
 	unsigned long pages;
-	struct list_head freelist;
+	struct iommu_pages_list freelist;
 	u64 counter; /* Flush counter when this entry was added */
 };
 
@@ -155,6 +155,8 @@ static void fq_ring_free_locked(struct iommu_dma_cookie *cookie, struct iova_fq 
 			       fq->entries[idx].iova_pfn,
 			       fq->entries[idx].pages);
 
+		fq->entries[idx].freelist =
+			IOMMU_PAGES_LIST_INIT(fq->entries[idx].freelist);
 		fq->head = (fq->head + 1) & fq->mod_mask;
 	}
 }
@@ -177,7 +179,8 @@ static void fq_flush_iotlb(struct iommu_dma_cookie *cookie)
 
 static void fq_flush_timeout(struct timer_list *t)
 {
-	struct iommu_dma_cookie *cookie = from_timer(cookie, t, fq_timer);
+	struct iommu_dma_cookie *cookie = timer_container_of(cookie, t,
+							     fq_timer);
 	int cpu;
 
 	atomic_set(&cookie->fq_timer_on, 0);
@@ -193,7 +196,7 @@ static void fq_flush_timeout(struct timer_list *t)
 
 static void queue_iova(struct iommu_dma_cookie *cookie,
 		unsigned long pfn, unsigned long pages,
-		struct list_head *freelist)
+		struct iommu_pages_list *freelist)
 {
 	struct iova_fq *fq;
 	unsigned long flags;
@@ -232,7 +235,7 @@ static void queue_iova(struct iommu_dma_cookie *cookie,
 	fq->entries[idx].iova_pfn = pfn;
 	fq->entries[idx].pages    = pages;
 	fq->entries[idx].counter  = atomic64_read(&cookie->fq_flush_start_cnt);
-	list_splice(freelist, &fq->entries[idx].freelist);
+	iommu_pages_list_splice(freelist, &fq->entries[idx].freelist);
 
 	spin_unlock_irqrestore(&fq->lock, flags);
 
@@ -290,7 +293,8 @@ static void iommu_dma_init_one_fq(struct iova_fq *fq, size_t fq_size)
 	spin_lock_init(&fq->lock);
 
 	for (i = 0; i < fq_size; i++)
-		INIT_LIST_HEAD(&fq->entries[i].freelist);
+		fq->entries[i].freelist =
+			IOMMU_PAGES_LIST_INIT(fq->entries[i].freelist);
 }
 
 static int iommu_dma_init_fq_single(struct iommu_dma_cookie *cookie)

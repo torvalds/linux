@@ -566,7 +566,6 @@ int pt_dmaengine_register(struct pt_device *pt)
 	struct ae4_device *ae4 = NULL;
 	struct pt_dma_chan *chan;
 	char *desc_cache_name;
-	char *cmd_cache_name;
 	int ret, i;
 
 	if (pt->ver == AE4_DMA_VERSION)
@@ -582,27 +581,17 @@ int pt_dmaengine_register(struct pt_device *pt)
 	if (!pt->pt_dma_chan)
 		return -ENOMEM;
 
-	cmd_cache_name = devm_kasprintf(pt->dev, GFP_KERNEL,
-					"%s-dmaengine-cmd-cache",
-					dev_name(pt->dev));
-	if (!cmd_cache_name)
-		return -ENOMEM;
-
 	desc_cache_name = devm_kasprintf(pt->dev, GFP_KERNEL,
 					 "%s-dmaengine-desc-cache",
 					 dev_name(pt->dev));
-	if (!desc_cache_name) {
-		ret = -ENOMEM;
-		goto err_cache;
-	}
+	if (!desc_cache_name)
+		return -ENOMEM;
 
 	pt->dma_desc_cache = kmem_cache_create(desc_cache_name,
 					       sizeof(struct pt_dma_desc), 0,
 					       SLAB_HWCACHE_ALIGN, NULL);
-	if (!pt->dma_desc_cache) {
-		ret = -ENOMEM;
-		goto err_cache;
-	}
+	if (!pt->dma_desc_cache)
+		return -ENOMEM;
 
 	dma_dev->dev = pt->dev;
 	dma_dev->src_addr_widths = DMA_SLAVE_BUSWIDTH_64_BYTES;
@@ -656,9 +645,6 @@ int pt_dmaengine_register(struct pt_device *pt)
 err_reg:
 	kmem_cache_destroy(pt->dma_desc_cache);
 
-err_cache:
-	kmem_cache_destroy(pt->dma_cmd_cache);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pt_dmaengine_register);
@@ -670,5 +656,4 @@ void pt_dmaengine_unregister(struct pt_device *pt)
 	dma_async_device_unregister(dma_dev);
 
 	kmem_cache_destroy(pt->dma_desc_cache);
-	kmem_cache_destroy(pt->dma_cmd_cache);
 }

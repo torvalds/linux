@@ -332,7 +332,7 @@ fail_paprd:
  */
 void ath_ani_calibrate(struct timer_list *t)
 {
-	struct ath_common *common = from_timer(common, t, ani.timer);
+	struct ath_common *common = timer_container_of(common, t, ani.timer);
 	struct ath_softc *sc = common->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	bool longcal = false;

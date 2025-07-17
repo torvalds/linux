@@ -35,8 +35,7 @@ static void bcm63xx_gpio_out_low_reg_init(void)
 static DEFINE_SPINLOCK(bcm63xx_gpio_lock);
 static u32 gpio_out_low, gpio_out_high;
 
-static void bcm63xx_gpio_set(struct gpio_chip *chip,
-			     unsigned gpio, int val)
+static int bcm63xx_gpio_set(struct gpio_chip *chip, unsigned int gpio, int val)
 {
 	u32 reg;
 	u32 mask;
@@ -62,6 +61,8 @@ static void bcm63xx_gpio_set(struct gpio_chip *chip,
 		*v &= ~mask;
 	bcm_gpio_writel(*v, reg);
 	spin_unlock_irqrestore(&bcm63xx_gpio_lock, flags);
+
+	return 0;
 }
 
 static int bcm63xx_gpio_get(struct gpio_chip *chip, unsigned gpio)
@@ -130,7 +131,7 @@ static struct gpio_chip bcm63xx_gpio_chip = {
 	.direction_input	= bcm63xx_gpio_direction_input,
 	.direction_output	= bcm63xx_gpio_direction_output,
 	.get			= bcm63xx_gpio_get,
-	.set			= bcm63xx_gpio_set,
+	.set_rv			= bcm63xx_gpio_set,
 	.base			= 0,
 };
 

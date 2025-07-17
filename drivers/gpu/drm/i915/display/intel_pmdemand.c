@@ -5,6 +5,8 @@
 
 #include <linux/bitops.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
@@ -476,13 +478,34 @@ static bool intel_pmdemand_req_complete(struct intel_display *display)
 		 XELPDP_PMDEMAND_REQ_ENABLE);
 }
 
+static void intel_pmdemand_poll(struct intel_display *display)
+{
+	const unsigned int timeout_ms = 10;
+	u32 status;
+	int ret;
+
+	ret = intel_de_wait_custom(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
+				   XELPDP_PMDEMAND_REQ_ENABLE, 0,
+				   50, timeout_ms, &status);
+
+	if (ret == -ETIMEDOUT)
+		drm_err(display->drm,
+			"timed out waiting for Punit PM Demand Response within %ums (status 0x%08x)\n",
+			timeout_ms, status);
+}
+
 static void intel_pmdemand_wait(struct intel_display *display)
 {
-	if (!wait_event_timeout(display->pmdemand.waitqueue,
-				intel_pmdemand_req_complete(display),
-				msecs_to_jiffies_timeout(10)))
-		drm_err(display->drm,
-			"timed out waiting for Punit PM Demand Response\n");
+	/* Wa_14024400148 For lnl use polling method */
+	if (DISPLAY_VER(display) == 20) {
+		intel_pmdemand_poll(display);
+	} else {
+		if (!wait_event_timeout(display->pmdemand.waitqueue,
+					intel_pmdemand_req_complete(display),
+					msecs_to_jiffies_timeout(10)))
+			drm_err(display->drm,
+				"timed out waiting for Punit PM Demand Response\n");
+	}
 }
 
 /* Required to be programmed during Display Init Sequences. */

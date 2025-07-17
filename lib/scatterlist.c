@@ -14,29 +14,6 @@
 #include <linux/folio_queue.h>
 
 /**
- * sg_next - return the next scatterlist entry in a list
- * @sg:		The current sg entry
- *
- * Description:
- *   Usually the next entry will be @sg@ + 1, but if this sg element is part
- *   of a chained scatterlist, it could jump to the start of a new
- *   scatterlist array.
- *
- **/
-struct scatterlist *sg_next(struct scatterlist *sg)
-{
-	if (sg_is_last(sg))
-		return NULL;
-
-	sg++;
-	if (unlikely(sg_is_chain(sg)))
-		sg = sg_chain_ptr(sg);
-
-	return sg;
-}
-EXPORT_SYMBOL(sg_next);
-
-/**
  * sg_nents - return total count of entries in scatterlist
  * @sg:		The scatterlist
  *
@@ -96,9 +73,9 @@ EXPORT_SYMBOL(sg_nents_for_len);
  *   Should only be used casually, it (currently) scans the entire list
  *   to get the last entry.
  *
- *   Note that the @sgl@ pointer passed in need not be the first one,
- *   the important bit is that @nents@ denotes the number of entries that
- *   exist from @sgl@.
+ *   Note that the @sgl pointer passed in need not be the first one,
+ *   the important bit is that @nents denotes the number of entries that
+ *   exist from @sgl.
  *
  **/
 struct scatterlist *sg_last(struct scatterlist *sgl, unsigned int nents)
@@ -368,7 +345,7 @@ EXPORT_SYMBOL(__sg_alloc_table);
  * @gfp_mask:	GFP allocation mask
  *
  *  Description:
- *    Allocate and initialize an sg table. If @nents@ is larger than
+ *    Allocate and initialize an sg table. If @nents is larger than
  *    SG_MAX_SINGLE_ALLOC a chained sg table will be setup.
  *
  **/

@@ -167,7 +167,7 @@ static void battery_flat(struct appleir *appleir)
 
 static void key_up_tick(struct timer_list *t)
 {
-	struct appleir *appleir = from_timer(appleir, t, key_up_timer);
+	struct appleir *appleir = timer_container_of(appleir, t, key_up_timer);
 	struct hid_device *hid = appleir->hid;
 	unsigned long flags;
 

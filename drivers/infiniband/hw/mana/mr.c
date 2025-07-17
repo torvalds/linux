@@ -5,8 +5,8 @@
 
 #include "mana_ib.h"
 
-#define VALID_MR_FLAGS                                                         \
-	(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ)
+#define VALID_MR_FLAGS (IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ |\
+			IB_ACCESS_REMOTE_ATOMIC | IB_ZERO_BASED)
 
 #define VALID_DMA_MR_FLAGS (IB_ACCESS_LOCAL_WRITE)
 
@@ -23,6 +23,9 @@ mana_ib_verbs_to_gdma_access_flags(int access_flags)
 
 	if (access_flags & IB_ACCESS_REMOTE_READ)
 		flags |= GDMA_ACCESS_FLAG_REMOTE_READ;
+
+	if (access_flags & IB_ACCESS_REMOTE_ATOMIC)
+		flags |= GDMA_ACCESS_FLAG_REMOTE_ATOMIC;
 
 	return flags;
 }
@@ -48,7 +51,10 @@ static int mana_ib_gd_create_mr(struct mana_ib_dev *dev, struct mana_ib_mr *mr,
 		req.gva.virtual_address = mr_params->gva.virtual_address;
 		req.gva.access_flags = mr_params->gva.access_flags;
 		break;
-
+	case GDMA_MR_TYPE_ZBVA:
+		req.zbva.dma_region_handle = mr_params->zbva.dma_region_handle;
+		req.zbva.access_flags = mr_params->zbva.access_flags;
+		break;
 	default:
 		ibdev_dbg(&dev->ib_dev,
 			  "invalid param (GDMA_MR_TYPE) passed, type %d\n",
@@ -144,11 +150,18 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		  dma_region_handle);
 
 	mr_params.pd_handle = pd->pd_handle;
-	mr_params.mr_type = GDMA_MR_TYPE_GVA;
-	mr_params.gva.dma_region_handle = dma_region_handle;
-	mr_params.gva.virtual_address = iova;
-	mr_params.gva.access_flags =
-		mana_ib_verbs_to_gdma_access_flags(access_flags);
+	if (access_flags & IB_ZERO_BASED) {
+		mr_params.mr_type = GDMA_MR_TYPE_ZBVA;
+		mr_params.zbva.dma_region_handle = dma_region_handle;
+		mr_params.zbva.access_flags =
+			mana_ib_verbs_to_gdma_access_flags(access_flags);
+	} else {
+		mr_params.mr_type = GDMA_MR_TYPE_GVA;
+		mr_params.gva.dma_region_handle = dma_region_handle;
+		mr_params.gva.virtual_address = iova;
+		mr_params.gva.access_flags =
+			mana_ib_verbs_to_gdma_access_flags(access_flags);
+	}
 
 	err = mana_ib_gd_create_mr(dev, mr, &mr_params);
 	if (err)

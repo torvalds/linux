@@ -74,8 +74,8 @@ extern struct list_head fuse_conn_list;
 extern struct mutex fuse_mutex;
 
 /** Module parameters */
-extern unsigned max_user_bgreq;
-extern unsigned max_user_congthresh;
+extern unsigned int max_user_bgreq;
+extern unsigned int max_user_congthresh;
 
 /* One forget request */
 struct fuse_forget_link {
@@ -161,9 +161,6 @@ struct fuse_inode {
 
 			/* waitq for direct-io completion */
 			wait_queue_head_t direct_io_waitq;
-
-			/* List of writepage requestst (pending or sent) */
-			struct rb_root writepages;
 		};
 
 		/* readdir cache (directory only) */
@@ -635,6 +632,9 @@ struct fuse_conn {
 
 	/** Number of fuse_dev's */
 	atomic_t dev_count;
+
+	/** Current epoch for up-to-date dentries */
+	atomic_t epoch;
 
 	struct rcu_head rcu;
 

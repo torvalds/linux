@@ -30,7 +30,7 @@
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT-PAGE_SHIFT)
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/uncached.h>
 
 extern unsigned long shm_align_mask;
@@ -85,7 +85,7 @@ typedef struct page *pgtable_t;
 
 #define pte_pgprot(x) __pgprot(pte_val(x) & PTE_FLAGS_MASK)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /*
  * __MEMORY_START and SIZE are the physical addresses and size of RAM.
@@ -126,10 +126,10 @@ typedef struct page *pgtable_t;
 #define ___va(x)	((x)+PAGE_OFFSET)
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define __pa(x)		___pa((unsigned long)x)
 #define __va(x)		(void *)___va((unsigned long)x)
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #ifdef CONFIG_UNCACHED_MAPPING
 #if defined(CONFIG_29BIT)

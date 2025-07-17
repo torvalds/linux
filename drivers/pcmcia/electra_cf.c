@@ -68,7 +68,7 @@ static int electra_cf_ss_init(struct pcmcia_socket *s)
 /* the timer is primarily to kick this socket's pccardd */
 static void electra_cf_timer(struct timer_list *t)
 {
-	struct electra_cf_socket *cf = from_timer(cf, t, timer);
+	struct electra_cf_socket *cf = timer_container_of(cf, t, timer);
 	int present = electra_cf_present(cf);
 
 	if (present != cf->present) {
