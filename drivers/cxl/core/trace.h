@@ -661,7 +661,10 @@ TRACE_EVENT(cxl_dram,
 		       CXL_EVENT_GEN_MED_COMP_ID_SIZE);
 		__entry->sub_channel = rec->sub_channel;
 		__entry->cme_threshold_ev_flags = rec->cme_threshold_ev_flags;
-		__entry->cvme_count = get_unaligned_le24(rec->cvme_count);
+		if (rec->media_hdr.descriptor & CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+			__entry->cvme_count = get_unaligned_le24(rec->cvme_count);
+		else
+			__entry->cvme_count = 0;
 	),
 
 	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' descriptor='%s' type='%s' sub_type='%s' " \

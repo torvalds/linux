@@ -941,6 +941,15 @@ void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 			if (cxl_store_rec_dram((struct cxl_memdev *)cxlmd, evt))
 				dev_dbg(&cxlmd->dev, "CXL store rec_dram failed\n");
 
+			if (evt->dram.media_hdr.descriptor &
+			    CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+				WARN_ON_ONCE((evt->dram.media_hdr.type &
+					      CXL_DER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE) &&
+					     !get_unaligned_le24(evt->dram.cvme_count));
+			else
+				WARN_ON_ONCE(evt->dram.media_hdr.type &
+					     CXL_DER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE);
+
 			trace_cxl_dram(cxlmd, type, cxlr, hpa, hpa_alias,
 				       &evt->dram);
 		}
