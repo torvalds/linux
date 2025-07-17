@@ -259,6 +259,7 @@ extern void mremap_userfaultfd_prep(struct vm_area_struct *,
 extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
 					unsigned long from, unsigned long to,
 					unsigned long len);
+void mremap_userfaultfd_fail(struct vm_userfaultfd_ctx *);
 
 extern bool userfaultfd_remove(struct vm_area_struct *vma,
 			       unsigned long start,
@@ -368,6 +369,10 @@ static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
 					       unsigned long from,
 					       unsigned long to,
 					       unsigned long len)
+{
+}
+
+static inline void mremap_userfaultfd_fail(struct vm_userfaultfd_ctx *ctx)
 {
 }
 
