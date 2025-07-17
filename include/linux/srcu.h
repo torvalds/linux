@@ -481,4 +481,9 @@ DEFINE_LOCK_GUARD_1(srcu, struct srcu_struct,
 		    srcu_read_unlock(_T->lock, _T->idx),
 		    int idx)
 
+DEFINE_LOCK_GUARD_1(srcu_fast, struct srcu_struct,
+		    _T->scp = srcu_read_lock_fast(_T->lock),
+		    srcu_read_unlock_fast(_T->lock, _T->scp),
+		    struct srcu_ctr __percpu *scp)
+
 #endif
