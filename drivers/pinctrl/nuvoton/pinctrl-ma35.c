@@ -361,7 +361,7 @@ static int ma35_gpio_core_get(struct gpio_chip *gc, unsigned int gpio)
 	return !!(readl(reg_pin) & BIT(gpio));
 }
 
-static void ma35_gpio_core_set(struct gpio_chip *gc, unsigned int gpio, int val)
+static int ma35_gpio_core_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct ma35_pin_bank *bank = gpiochip_get_data(gc);
 	void __iomem *reg_dout = bank->reg_base + MA35_GP_REG_DOUT;
@@ -373,6 +373,8 @@ static void ma35_gpio_core_set(struct gpio_chip *gc, unsigned int gpio, int val)
 		regval = readl(reg_dout) & ~BIT(gpio);
 
 	writel(regval, reg_dout);
+
+	return 0;
 }
 
 static int ma35_gpio_core_to_request(struct gpio_chip *gc, unsigned int gpio)
@@ -524,7 +526,7 @@ static int ma35_gpiolib_register(struct platform_device *pdev, struct ma35_pinct
 		bank->chip.direction_input = ma35_gpio_core_direction_in;
 		bank->chip.direction_output = ma35_gpio_core_direction_out;
 		bank->chip.get = ma35_gpio_core_get;
-		bank->chip.set = ma35_gpio_core_set;
+		bank->chip.set_rv = ma35_gpio_core_set;
 		bank->chip.base = -1;
 		bank->chip.ngpio = bank->nr_pins;
 		bank->chip.can_sleep = false;
