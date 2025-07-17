@@ -968,6 +968,33 @@ TEST_F(iommufd_ioas, area_auto_iova)
 		test_ioctl_ioas_unmap(iovas[i], PAGE_SIZE * (i + 1));
 }
 
+/*  https://lore.kernel.org/r/685af644.a00a0220.2e5631.0094.GAE@google.com */
+TEST_F(iommufd_ioas, reserved_overflow)
+{
+	struct iommu_test_cmd test_cmd = {
+		.size = sizeof(test_cmd),
+		.op = IOMMU_TEST_OP_ADD_RESERVED,
+		.id = self->ioas_id,
+		.add_reserved.start = 6,
+	};
+	unsigned int map_len;
+	__u64 iova;
+
+	if (PAGE_SIZE == 4096) {
+		test_cmd.add_reserved.length = 0xffffffffffff8001;
+		map_len = 0x5000;
+	} else {
+		test_cmd.add_reserved.length =
+			0xffffffffffffffff - MOCK_PAGE_SIZE * 16;
+		map_len = MOCK_PAGE_SIZE * 10;
+	}
+
+	ASSERT_EQ(0,
+		  ioctl(self->fd, _IOMMU_TEST_CMD(IOMMU_TEST_OP_ADD_RESERVED),
+			&test_cmd));
+	test_err_ioctl_ioas_map(ENOSPC, buffer, map_len, &iova);
+}
+
 TEST_F(iommufd_ioas, area_allowed)
 {
 	struct iommu_test_cmd test_cmd = {
