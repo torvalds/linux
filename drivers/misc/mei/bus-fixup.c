@@ -463,14 +463,14 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	if (IS_ERR(cl)) {
 		ret = PTR_ERR(cl);
 		cl = NULL;
-		dev_err(bus->dev, "nfc hook alloc failed %d\n", ret);
+		dev_err(&cldev->dev, "nfc hook alloc failed %d\n", ret);
 		goto out;
 	}
 
 	me_cl = mei_me_cl_by_uuid(bus, &mei_nfc_info_guid);
 	if (!me_cl) {
 		ret = -ENOTTY;
-		dev_err(bus->dev, "Cannot find nfc info %d\n", ret);
+		dev_err(&cldev->dev, "Cannot find nfc info %d\n", ret);
 		goto out;
 	}
 
@@ -496,13 +496,13 @@ static void mei_nfc(struct mei_cl_device *cldev)
 		goto disconnect;
 	}
 
-	dev_dbg(bus->dev, "nfc radio %s\n", radio_name);
+	dev_dbg(&cldev->dev, "nfc radio %s\n", radio_name);
 	strscpy(cldev->name, radio_name, sizeof(cldev->name));
 
 disconnect:
 	mutex_lock(&bus->device_lock);
 	if (mei_cl_disconnect(cl) < 0)
-		dev_err(bus->dev, "Can't disconnect the NFC INFO ME\n");
+		dev_err(&cldev->dev, "Can't disconnect the NFC INFO ME\n");
 
 	mei_cl_flush_queues(cl, NULL);
 
@@ -515,7 +515,7 @@ out:
 	if (ret)
 		cldev->do_match = 0;
 
-	dev_dbg(bus->dev, "end of fixup match = %d\n", cldev->do_match);
+	dev_dbg(&cldev->dev, "end of fixup match = %d\n", cldev->do_match);
 }
 
 /**
