@@ -1883,6 +1883,7 @@ int mlx5_odp_init_mkey_cache(struct mlx5_ib_dev *dev)
 	struct mlx5r_cache_rb_key rb_key = {
 		.access_mode = MLX5_MKC_ACCESS_MODE_KSM,
 		.ndescs = mlx5_imr_ksm_entries,
+		.ph = MLX5_IB_NO_PH,
 	};
 	struct mlx5_cache_ent *ent;
 

@@ -638,8 +638,13 @@ enum mlx5_mkey_type {
 	MLX5_MKEY_IMPLICIT_CHILD,
 };
 
+/* Used for non-existent ph value */
+#define MLX5_IB_NO_PH 0xff
+
 struct mlx5r_cache_rb_key {
 	u8 ats:1;
+	u8 ph;
+	u16 st_index;
 	unsigned int access_mode;
 	unsigned int access_flags;
 	unsigned int ndescs;
