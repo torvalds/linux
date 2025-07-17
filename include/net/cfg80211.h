@@ -1424,6 +1424,23 @@ struct cfg80211_unsol_bcast_probe_resp {
 };
 
 /**
+ * struct cfg80211_s1g_short_beacon - S1G short beacon data.
+ *
+ * @update: Set to true if the feature configuration should be updated.
+ * @short_head: Short beacon head.
+ * @short_tail: Short beacon tail.
+ * @short_head_len: Short beacon head len.
+ * @short_tail_len: Short beacon tail len.
+ */
+struct cfg80211_s1g_short_beacon {
+	bool update;
+	const u8 *short_head;
+	const u8 *short_tail;
+	size_t short_head_len;
+	size_t short_tail_len;
+};
+
+/**
  * struct cfg80211_ap_settings - AP configuration
  *
  * Used to configure an AP interface.
@@ -1463,6 +1480,8 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @mbssid_config: AP settings for multiple bssid
+ * @s1g_long_beacon_period: S1G long beacon period
+ * @s1g_short_beacon: S1G short beacon data
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -1496,6 +1515,8 @@ struct cfg80211_ap_settings {
 	struct cfg80211_fils_discovery fils_discovery;
 	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	struct cfg80211_mbssid_config mbssid_config;
+	u8 s1g_long_beacon_period;
+	struct cfg80211_s1g_short_beacon s1g_short_beacon;
 };
 
 
@@ -1507,11 +1528,13 @@ struct cfg80211_ap_settings {
  * @beacon: beacon data
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
+ * @s1g_short_beacon: S1G short beacon data
  */
 struct cfg80211_ap_update {
 	struct cfg80211_beacon_data beacon;
 	struct cfg80211_fils_discovery fils_discovery;
 	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
+	struct cfg80211_s1g_short_beacon s1g_short_beacon;
 };
 
 /**

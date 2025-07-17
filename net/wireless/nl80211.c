@@ -482,6 +482,16 @@ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] = {
 	[NL80211_STA_WME_MAX_SP] = { .type = NLA_U8 },
 };
 
+static const struct nla_policy
+nl80211_s1g_short_beacon[NL80211_S1G_SHORT_BEACON_ATTR_MAX + 1] = {
+	[NL80211_S1G_SHORT_BEACON_ATTR_HEAD] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_beacon_head,
+				       IEEE80211_MAX_DATA_LEN),
+	[NL80211_S1G_SHORT_BEACON_ATTR_TAIL] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
+				       IEEE80211_MAX_DATA_LEN),
+};
+
 static const struct netlink_range_validation nl80211_punct_bitmap_range = {
 	.min = 0,
 	.max = 0xffff,
@@ -858,6 +868,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_EPCS] = { .type = NLA_FLAG },
 	[NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS] = { .type = NLA_U16 },
 	[NL80211_ATTR_WIPHY_RADIO_INDEX] = { .type = NLA_U8 },
+	[NL80211_ATTR_S1G_LONG_BEACON_PERIOD] = NLA_POLICY_MIN(NLA_U8, 2),
+	[NL80211_ATTR_S1G_SHORT_BEACON] =
+		NLA_POLICY_NESTED(nl80211_s1g_short_beacon),
 };
 
 /* policy for the key attributes */
@@ -6202,6 +6215,41 @@ static int nl80211_validate_ap_phy_operation(struct cfg80211_ap_settings *params
 	return 0;
 }
 
+static int
+nl80211_parse_s1g_short_beacon(struct cfg80211_registered_device *rdev,
+			       struct nlattr *attrs,
+			       struct cfg80211_s1g_short_beacon *sb)
+{
+	struct nlattr *tb[NL80211_S1G_SHORT_BEACON_ATTR_MAX + 1];
+	int ret;
+
+	if (!rdev->wiphy.bands[NL80211_BAND_S1GHZ])
+		return -EINVAL;
+
+	ret = nla_parse_nested(tb, NL80211_S1G_SHORT_BEACON_ATTR_MAX, attrs,
+			       NULL, NULL);
+	if (ret)
+		return ret;
+
+	/* Short beacon tail is optional (i.e might only include the TIM) */
+	if (!tb[NL80211_S1G_SHORT_BEACON_ATTR_HEAD])
+		return -EINVAL;
+
+	sb->short_head = nla_data(tb[NL80211_S1G_SHORT_BEACON_ATTR_HEAD]);
+	sb->short_head_len = nla_len(tb[NL80211_S1G_SHORT_BEACON_ATTR_HEAD]);
+	sb->short_tail_len = 0;
+
+	if (tb[NL80211_S1G_SHORT_BEACON_ATTR_TAIL]) {
+		sb->short_tail =
+			nla_data(tb[NL80211_S1G_SHORT_BEACON_ATTR_TAIL]);
+		sb->short_tail_len =
+			nla_len(tb[NL80211_S1G_SHORT_BEACON_ATTR_TAIL]);
+	}
+
+	sb->update = true;
+	return 0;
+}
+
 static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -6442,6 +6490,22 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
+	if (info->attrs[NL80211_ATTR_S1G_SHORT_BEACON]) {
+		if (!info->attrs[NL80211_ATTR_S1G_LONG_BEACON_PERIOD]) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		params->s1g_long_beacon_period = nla_get_u8(
+			info->attrs[NL80211_ATTR_S1G_LONG_BEACON_PERIOD]);
+
+		err = nl80211_parse_s1g_short_beacon(
+			rdev, info->attrs[NL80211_ATTR_S1G_SHORT_BEACON],
+			&params->s1g_short_beacon);
+		if (err)
+			goto out;
+	}
+
 	err = nl80211_calculate_ap_params(params);
 	if (err)
 		goto out;
@@ -6546,6 +6610,14 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 	if (attr) {
 		err = nl80211_parse_unsol_bcast_probe_resp(rdev, attr,
 							   &params->unsol_bcast_probe_resp);
+		if (err)
+			goto out;
+	}
+
+	attr = info->attrs[NL80211_ATTR_S1G_SHORT_BEACON];
+	if (attr) {
+		err = nl80211_parse_s1g_short_beacon(rdev, attr,
+						     &params->s1g_short_beacon);
 		if (err)
 			goto out;
 	}
