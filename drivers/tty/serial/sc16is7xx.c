@@ -1425,7 +1425,7 @@ static int sc16is7xx_setup_gpio_chip(struct sc16is7xx_port *s)
 	s->gpio.direction_input	 = sc16is7xx_gpio_direction_input;
 	s->gpio.get		 = sc16is7xx_gpio_get;
 	s->gpio.direction_output = sc16is7xx_gpio_direction_output;
-	s->gpio.set_rv		 = sc16is7xx_gpio_set;
+	s->gpio.set		 = sc16is7xx_gpio_set;
 	s->gpio.base		 = -1;
 	s->gpio.ngpio		 = s->devtype->nr_gpio;
 	s->gpio.can_sleep	 = 1;

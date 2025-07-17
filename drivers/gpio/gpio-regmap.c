@@ -260,9 +260,9 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	chip->free = gpiochip_generic_free;
 	chip->get = gpio_regmap_get;
 	if (gpio->reg_set_base && gpio->reg_clr_base)
-		chip->set_rv = gpio_regmap_set_with_clear;
+		chip->set = gpio_regmap_set_with_clear;
 	else if (gpio->reg_set_base)
-		chip->set_rv = gpio_regmap_set;
+		chip->set = gpio_regmap_set;
 
 	chip->get_direction = gpio_regmap_get_direction;
 	if (gpio->reg_dir_in_base || gpio->reg_dir_out_base) {

@@ -582,7 +582,7 @@ static int plgpio_probe(struct platform_device *pdev)
 	plgpio->chip.direction_input = plgpio_direction_input;
 	plgpio->chip.direction_output = plgpio_direction_output;
 	plgpio->chip.get = plgpio_get_value;
-	plgpio->chip.set_rv = plgpio_set_value;
+	plgpio->chip.set = plgpio_set_value;
 	plgpio->chip.label = dev_name(&pdev->dev);
 	plgpio->chip.parent = &pdev->dev;
 	plgpio->chip.owner = THIS_MODULE;

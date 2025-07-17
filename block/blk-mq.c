@@ -4974,12 +4974,13 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
  * Switch back to the elevator type stored in the xarray.
  */
 static void blk_mq_elv_switch_back(struct request_queue *q,
-		struct xarray *elv_tbl)
+		struct xarray *elv_tbl, struct xarray *et_tbl)
 {
 	struct elevator_type *e = xa_load(elv_tbl, q->id);
+	struct elevator_tags *t = xa_load(et_tbl, q->id);
 
 	/* The elv_update_nr_hw_queues unfreezes the queue. */
-	elv_update_nr_hw_queues(q, e);
+	elv_update_nr_hw_queues(q, e, t);
 
 	/* Drop the reference acquired in blk_mq_elv_switch_none. */
 	if (e)
@@ -5031,7 +5032,7 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 	int prev_nr_hw_queues = set->nr_hw_queues;
 	unsigned int memflags;
 	int i;
-	struct xarray elv_tbl;
+	struct xarray elv_tbl, et_tbl;
 
 	lockdep_assert_held(&set->tag_list_lock);
 
@@ -5043,6 +5044,10 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 		return;
 
 	memflags = memalloc_noio_save();
+
+	xa_init(&et_tbl);
+	if (blk_mq_alloc_sched_tags_batch(&et_tbl, set, nr_hw_queues) < 0)
+		goto out_memalloc_restore;
 
 	xa_init(&elv_tbl);
 
@@ -5087,7 +5092,7 @@ fallback:
 switch_back:
 	/* The blk_mq_elv_switch_back unfreezes queue for us. */
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
-		blk_mq_elv_switch_back(q, &elv_tbl);
+		blk_mq_elv_switch_back(q, &elv_tbl, &et_tbl);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_sysfs_register_hctxs(q);
@@ -5098,7 +5103,8 @@ switch_back:
 	}
 
 	xa_destroy(&elv_tbl);
-
+	xa_destroy(&et_tbl);
+out_memalloc_restore:
 	memalloc_noio_restore(memflags);
 
 	/* Free the excess tags when nr_hw_queues shrink. */

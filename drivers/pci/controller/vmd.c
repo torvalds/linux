@@ -280,10 +280,12 @@ static int vmd_msi_alloc(struct irq_domain *domain, unsigned int virq,
 static void vmd_msi_free(struct irq_domain *domain, unsigned int virq,
 			 unsigned int nr_irqs)
 {
+	struct irq_data *irq_data;
 	struct vmd_irq *vmdirq;
 
 	for (int i = 0; i < nr_irqs; ++i) {
-		vmdirq = irq_get_chip_data(virq + i);
+		irq_data = irq_domain_get_irq_data(domain, virq + i);
+		vmdirq = irq_data->chip_data;
 
 		synchronize_srcu(&vmdirq->irq->srcu);
 

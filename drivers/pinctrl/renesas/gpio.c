@@ -234,7 +234,7 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	gc->direction_input = gpio_pin_direction_input;
 	gc->get = gpio_pin_get;
 	gc->direction_output = gpio_pin_direction_output;
-	gc->set_rv = gpio_pin_set;
+	gc->set = gpio_pin_set;
 	gc->to_irq = gpio_pin_to_irq;
 
 	gc->label = pfc->info->name;

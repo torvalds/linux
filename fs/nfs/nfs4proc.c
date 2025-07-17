@@ -222,6 +222,7 @@ const u32 nfs4_fattr_bitmap[3] = {
 	| FATTR4_WORD1_RAWDEV
 	| FATTR4_WORD1_SPACE_USED
 	| FATTR4_WORD1_TIME_ACCESS
+	| FATTR4_WORD1_TIME_CREATE
 	| FATTR4_WORD1_TIME_METADATA
 	| FATTR4_WORD1_TIME_MODIFY
 	| FATTR4_WORD1_MOUNTED_ON_FILEID,
@@ -243,6 +244,7 @@ static const u32 nfs4_pnfs_open_bitmap[3] = {
 	| FATTR4_WORD1_RAWDEV
 	| FATTR4_WORD1_SPACE_USED
 	| FATTR4_WORD1_TIME_ACCESS
+	| FATTR4_WORD1_TIME_CREATE
 	| FATTR4_WORD1_TIME_METADATA
 	| FATTR4_WORD1_TIME_MODIFY,
 	FATTR4_WORD2_MDSTHRESHOLD
@@ -322,6 +324,9 @@ static void nfs4_bitmap_copy_adjust(__u32 *dst, const __u32 *src,
 		dst[1] &= ~FATTR4_WORD1_MODE;
 	if (!(cache_validity & NFS_INO_INVALID_OTHER))
 		dst[1] &= ~(FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP);
+
+	if (!(cache_validity & NFS_INO_INVALID_BTIME))
+		dst[1] &= ~FATTR4_WORD1_TIME_CREATE;
 
 	if (nfs_have_delegated_mtime(inode)) {
 		if (!(cache_validity & NFS_INO_INVALID_ATIME))
@@ -1307,7 +1312,8 @@ nfs4_update_changeattr_locked(struct inode *inode,
 				NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL |
 				NFS_INO_INVALID_SIZE | NFS_INO_INVALID_OTHER |
 				NFS_INO_INVALID_BLOCKS | NFS_INO_INVALID_NLINK |
-				NFS_INO_INVALID_MODE | NFS_INO_INVALID_XATTR;
+				NFS_INO_INVALID_MODE | NFS_INO_INVALID_BTIME |
+				NFS_INO_INVALID_XATTR;
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 	}
 	nfsi->attrtimeo_timestamp = jiffies;
@@ -4047,6 +4053,10 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 			server->fattr_valid &= ~NFS_ATTR_FATTR_CTIME;
 		if (!(res.attr_bitmask[1] & FATTR4_WORD1_TIME_MODIFY))
 			server->fattr_valid &= ~NFS_ATTR_FATTR_MTIME;
+		if (!(res.attr_bitmask[1] & FATTR4_WORD1_TIME_MODIFY))
+			server->fattr_valid &= ~NFS_ATTR_FATTR_MTIME;
+		if (!(res.attr_bitmask[1] & FATTR4_WORD1_TIME_CREATE))
+			server->fattr_valid &= ~NFS_ATTR_FATTR_BTIME;
 		memcpy(server->attr_bitmask_nl, res.attr_bitmask,
 				sizeof(server->attr_bitmask));
 		server->attr_bitmask_nl[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
@@ -4082,7 +4092,7 @@ int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 	};
 	int err;
 
-	nfs4_server_set_init_caps(server);
+	nfs_server_set_init_caps(server);
 	do {
 		err = nfs4_handle_exception(server,
 				_nfs4_server_capabilities(server, fhandle),
@@ -4230,15 +4240,18 @@ out:
 }
 
 static int _nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fsinfo *info)
+			     struct nfs_fattr *fattr)
 {
-	u32 bitmask[3];
+	u32 bitmask[3] = {
+		[0] = FATTR4_WORD0_TYPE | FATTR4_WORD0_CHANGE |
+		      FATTR4_WORD0_SIZE | FATTR4_WORD0_FSID,
+	};
 	struct nfs4_lookup_root_arg args = {
 		.bitmask = bitmask,
 	};
 	struct nfs4_lookup_res res = {
 		.server = server,
-		.fattr = info->fattr,
+		.fattr = fattr,
 		.fh = fhandle,
 	};
 	struct rpc_message msg = {
@@ -4247,27 +4260,20 @@ static int _nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_resp = &res,
 	};
 
-	bitmask[0] = nfs4_fattr_bitmap[0];
-	bitmask[1] = nfs4_fattr_bitmap[1];
-	/*
-	 * Process the label in the upcoming getfattr
-	 */
-	bitmask[2] = nfs4_fattr_bitmap[2] & ~FATTR4_WORD2_SECURITY_LABEL;
-
-	nfs_fattr_init(info->fattr);
+	nfs_fattr_init(fattr);
 	return nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 }
 
 static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fsinfo *info)
+			    struct nfs_fattr *fattr)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = _nfs4_lookup_root(server, fhandle, info);
-		trace_nfs4_lookup_root(server, fhandle, info->fattr, err);
+		err = _nfs4_lookup_root(server, fhandle, fattr);
+		trace_nfs4_lookup_root(server, fhandle, fattr, err);
 		switch (err) {
 		case 0:
 		case -NFS4ERR_WRONGSEC:
@@ -4280,8 +4286,9 @@ out:
 	return err;
 }
 
-static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
-				struct nfs_fsinfo *info, rpc_authflavor_t flavor)
+static int nfs4_lookup_root_sec(struct nfs_server *server,
+				struct nfs_fh *fhandle, struct nfs_fattr *fattr,
+				rpc_authflavor_t flavor)
 {
 	struct rpc_auth_create_args auth_args = {
 		.pseudoflavor = flavor,
@@ -4291,7 +4298,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
 	auth = rpcauth_create(&auth_args, server->client);
 	if (IS_ERR(auth))
 		return -EACCES;
-	return nfs4_lookup_root(server, fhandle, info);
+	return nfs4_lookup_root(server, fhandle, fattr);
 }
 
 /*
@@ -4304,7 +4311,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
  * negative errno value.
  */
 static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
-			      struct nfs_fsinfo *info)
+			      struct nfs_fattr *fattr)
 {
 	/* Per 3530bis 15.33.5 */
 	static const rpc_authflavor_t flav_array[] = {
@@ -4320,8 +4327,9 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	if (server->auth_info.flavor_len > 0) {
 		/* try each flavor specified by user */
 		for (i = 0; i < server->auth_info.flavor_len; i++) {
-			status = nfs4_lookup_root_sec(server, fhandle, info,
-						server->auth_info.flavors[i]);
+			status = nfs4_lookup_root_sec(
+				server, fhandle, fattr,
+				server->auth_info.flavors[i]);
 			if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 				continue;
 			break;
@@ -4329,7 +4337,7 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	} else {
 		/* no flavors specified by user, try default list */
 		for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
-			status = nfs4_lookup_root_sec(server, fhandle, info,
+			status = nfs4_lookup_root_sec(server, fhandle, fattr,
 						      flav_array[i]);
 			if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 				continue;
@@ -4353,28 +4361,22 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
  * nfs4_proc_get_rootfh - get file handle for server's pseudoroot
  * @server: initialized nfs_server handle
  * @fhandle: we fill in the pseudo-fs root file handle
- * @info: we fill in an FSINFO struct
+ * @fattr: we fill in a bare bones struct fattr
  * @auth_probe: probe the auth flavours
  *
  * Returns zero on success, or a negative errno.
  */
 int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
-			 struct nfs_fsinfo *info,
-			 bool auth_probe)
+			 struct nfs_fattr *fattr, bool auth_probe)
 {
 	int status = 0;
 
 	if (!auth_probe)
-		status = nfs4_lookup_root(server, fhandle, info);
+		status = nfs4_lookup_root(server, fhandle, fattr);
 
 	if (auth_probe || status == NFS4ERR_WRONGSEC)
-		status = server->nfs_client->cl_mvops->find_root_sec(server,
-				fhandle, info);
-
-	if (status == 0)
-		status = nfs4_server_capabilities(server, fhandle);
-	if (status == 0)
-		status = nfs4_do_fsinfo(server, fhandle, info);
+		status = server->nfs_client->cl_mvops->find_root_sec(
+			server, fhandle, fattr);
 
 	return nfs4_map_errors(status);
 }
@@ -5781,6 +5783,8 @@ void nfs4_bitmask_set(__u32 bitmask[], const __u32 src[],
 		bitmask[1] |= FATTR4_WORD1_TIME_MODIFY;
 	if (cache_validity & NFS_INO_INVALID_BLOCKS)
 		bitmask[1] |= FATTR4_WORD1_SPACE_USED;
+	if (cache_validity & NFS_INO_INVALID_BTIME)
+		bitmask[1] |= FATTR4_WORD1_TIME_CREATE;
 
 	if (cache_validity & NFS_INO_INVALID_SIZE)
 		bitmask[0] |= FATTR4_WORD0_SIZE;
@@ -10339,10 +10343,10 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
  * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
  * possible) as per RFC3530bis and RFC5661 Security Considerations sections
  */
-static int
-_nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
-		    struct nfs_fsinfo *info,
-		    struct nfs4_secinfo_flavors *flavors, bool use_integrity)
+static int _nfs41_proc_secinfo_no_name(struct nfs_server *server,
+				       struct nfs_fh *fhandle,
+				       struct nfs4_secinfo_flavors *flavors,
+				       bool use_integrity)
 {
 	struct nfs41_secinfo_no_name_args args = {
 		.style = SECINFO_STYLE_CURRENT_FH,
@@ -10386,9 +10390,9 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 	return status;
 }
 
-static int
-nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
-			   struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
+static int nfs41_proc_secinfo_no_name(struct nfs_server *server,
+				      struct nfs_fh *fhandle,
+				      struct nfs4_secinfo_flavors *flavors)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
@@ -10400,7 +10404,7 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 
 		/* try to use integrity protection with machine cred */
 		if (_nfs4_is_integrity_protected(server->nfs_client))
-			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+			err = _nfs41_proc_secinfo_no_name(server, fhandle,
 							  flavors, true);
 
 		/*
@@ -10410,7 +10414,7 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		 * the current filesystem's rpc_client and the user cred.
 		 */
 		if (err == -NFS4ERR_WRONGSEC)
-			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+			err = _nfs41_proc_secinfo_no_name(server, fhandle,
 							  flavors, false);
 
 		switch (err) {
@@ -10426,9 +10430,8 @@ out:
 	return err;
 }
 
-static int
-nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
-		    struct nfs_fsinfo *info)
+static int nfs41_find_root_sec(struct nfs_server *server,
+			       struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	int err;
 	struct page *page;
@@ -10444,14 +10447,14 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	}
 
 	flavors = page_address(page);
-	err = nfs41_proc_secinfo_no_name(server, fhandle, info, flavors);
+	err = nfs41_proc_secinfo_no_name(server, fhandle, flavors);
 
 	/*
 	 * Fall back on "guess and check" method if
 	 * the server doesn't support SECINFO_NO_NAME
 	 */
 	if (err == -NFS4ERR_WRONGSEC || err == -ENOTSUPP) {
-		err = nfs4_find_root_sec(server, fhandle, info);
+		err = nfs4_find_root_sec(server, fhandle, fattr);
 		goto out_freepage;
 	}
 	if (err)
@@ -10476,8 +10479,8 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			flavor = RPC_AUTH_MAXFLAVOR;
 
 		if (flavor != RPC_AUTH_MAXFLAVOR) {
-			err = nfs4_lookup_root_sec(server, fhandle,
-						   info, flavor);
+			err = nfs4_lookup_root_sec(server, fhandle, fattr,
+						   flavor);
 			if (!err)
 				break;
 		}
@@ -10680,6 +10683,8 @@ nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 static bool nfs41_match_stateid(const nfs4_stateid *s1,
 		const nfs4_stateid *s2)
 {
+	trace_nfs41_match_stateid(s1, s2);
+
 	if (s1->type != s2->type)
 		return false;
 
@@ -10697,6 +10702,8 @@ static bool nfs41_match_stateid(const nfs4_stateid *s1,
 static bool nfs4_match_stateid(const nfs4_stateid *s1,
 		const nfs4_stateid *s2)
 {
+	trace_nfs4_match_stateid(s1, s2);
+
 	return nfs4_stateid_match(s1, s2);
 }
 
@@ -10867,7 +10874,7 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 
 static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 {
-	ssize_t error, error2, error3, error4;
+	ssize_t error, error2, error3, error4 = 0;
 	size_t left = size;
 
 	error = generic_listxattr(dentry, list, left);
@@ -10895,9 +10902,11 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 		left -= error3;
 	}
 
-	error4 = security_inode_listsecurity(d_inode(dentry), list, left);
-	if (error4 < 0)
-		return error4;
+	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_SECURITY_LABEL)) {
+		error4 = security_inode_listsecurity(d_inode(dentry), list, left);
+		if (error4 < 0)
+			return error4;
+	}
 
 	error += error2 + error3 + error4;
 	if (size && error > size)
@@ -10951,6 +10960,26 @@ static const struct inode_operations nfs4_file_inode_operations = {
 	.listxattr	= nfs4_listxattr,
 };
 
+static struct nfs_server *nfs4_clone_server(struct nfs_server *source,
+		struct nfs_fh *fh, struct nfs_fattr *fattr,
+		rpc_authflavor_t flavor)
+{
+	struct nfs_server *server;
+	int error;
+
+	server = nfs_clone_server(source, fh, fattr, flavor);
+	if (IS_ERR(server))
+		return server;
+
+	error = nfs4_delegation_hash_alloc(server);
+	if (error) {
+		nfs_free_server(server);
+		return ERR_PTR(error);
+	}
+
+	return server;
+}
+
 const struct nfs_rpc_ops nfs_v4_clientops = {
 	.version	= 4,			/* protocol version */
 	.dentry_ops	= &nfs4_dentry_operations,
@@ -11003,7 +11032,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.init_client	= nfs4_init_client,
 	.free_client	= nfs4_free_client,
 	.create_server	= nfs4_create_server,
-	.clone_server	= nfs_clone_server,
+	.clone_server	= nfs4_clone_server,
 	.discover_trunking = nfs4_discover_trunking,
 	.enable_swap	= nfs4_enable_swap,
 	.disable_swap	= nfs4_disable_swap,

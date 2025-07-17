@@ -526,7 +526,7 @@ static int ma35_gpiolib_register(struct platform_device *pdev, struct ma35_pinct
 		bank->chip.direction_input = ma35_gpio_core_direction_in;
 		bank->chip.direction_output = ma35_gpio_core_direction_out;
 		bank->chip.get = ma35_gpio_core_get;
-		bank->chip.set_rv = ma35_gpio_core_set;
+		bank->chip.set = ma35_gpio_core_set;
 		bank->chip.base = -1;
 		bank->chip.ngpio = bank->nr_pins;
 		bank->chip.can_sleep = false;

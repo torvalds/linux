@@ -237,7 +237,7 @@ static struct gpio_chip chip = {
 	.direction_input = rza2_chip_direction_input,
 	.direction_output = rza2_chip_direction_output,
 	.get = rza2_chip_get,
-	.set_rv = rza2_chip_set,
+	.set = rza2_chip_set,
 };
 
 static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)

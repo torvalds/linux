@@ -17,6 +17,35 @@ struct pcc_mbox_chan {
 	u32 latency;
 	u32 max_access_rate;
 	u16 min_turnaround_time;
+
+	/* Set to true to indicate that the mailbox should manage
+	 * writing the dat to the shared buffer. This differs from
+	 * the case where the drivesr are writing to the buffer and
+	 * using send_data only to  ring the doorbell.  If this flag
+	 * is set, then the void * data parameter of send_data must
+	 * point to a kernel-memory buffer formatted in accordance with
+	 * the PCC specification.
+	 *
+	 * The active buffer management will include reading the
+	 * notify_on_completion flag, and will then
+	 * call mbox_chan_txdone when the acknowledgment interrupt is
+	 * received.
+	 */
+	bool manage_writes;
+
+	/* Optional callback that allows the driver
+	 * to allocate the memory used for receiving
+	 * messages.  The return value is the location
+	 * inside the buffer where the mailbox should write the data.
+	 */
+	void *(*rx_alloc)(struct mbox_client *cl,  int size);
+};
+
+struct pcc_header {
+	u32 signature;
+	u32 flags;
+	u32 length;
+	u32 command;
 };
 
 /* Generic Communications Channel Shared Memory Region */
