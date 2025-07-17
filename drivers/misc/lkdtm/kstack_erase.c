@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * This code tests that the current task stack is properly erased (filled
- * with STACKLEAK_POISON).
+ * with KSTACK_ERASE_POISON).
  *
  * Authors:
  *   Alexander Popov <alex.popov@linux.com>
@@ -9,9 +9,9 @@
  */
 
 #include "lkdtm.h"
-#include <linux/stackleak.h>
+#include <linux/kstack_erase.h>
 
-#if defined(CONFIG_GCC_PLUGIN_STACKLEAK)
+#if defined(CONFIG_KSTACK_ERASE)
 /*
  * Check that stackleak tracks the lowest stack pointer and erases the stack
  * below this as expected.
@@ -85,7 +85,7 @@ static void noinstr check_stackleak_irqoff(void)
 	while (poison_low > task_stack_low) {
 		poison_low -= sizeof(unsigned long);
 
-		if (*(unsigned long *)poison_low == STACKLEAK_POISON)
+		if (*(unsigned long *)poison_low == KSTACK_ERASE_POISON)
 			continue;
 
 		instrumentation_begin();
@@ -96,7 +96,7 @@ static void noinstr check_stackleak_irqoff(void)
 	}
 
 	instrumentation_begin();
-	pr_info("stackleak stack usage:\n"
+	pr_info("kstack erase stack usage:\n"
 		"  high offset: %lu bytes\n"
 		"  current:     %lu bytes\n"
 		"  lowest:      %lu bytes\n"
@@ -121,7 +121,7 @@ out:
 	instrumentation_end();
 }
 
-static void lkdtm_STACKLEAK_ERASING(void)
+static void lkdtm_KSTACK_ERASE(void)
 {
 	unsigned long flags;
 
@@ -129,19 +129,19 @@ static void lkdtm_STACKLEAK_ERASING(void)
 	check_stackleak_irqoff();
 	local_irq_restore(flags);
 }
-#else /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */
-static void lkdtm_STACKLEAK_ERASING(void)
+#else /* defined(CONFIG_KSTACK_ERASE) */
+static void lkdtm_KSTACK_ERASE(void)
 {
-	if (IS_ENABLED(CONFIG_HAVE_ARCH_STACKLEAK)) {
-		pr_err("XFAIL: stackleak is not enabled (CONFIG_GCC_PLUGIN_STACKLEAK=n)\n");
+	if (IS_ENABLED(CONFIG_HAVE_ARCH_KSTACK_ERASE)) {
+		pr_err("XFAIL: stackleak is not enabled (CONFIG_KSTACK_ERASE=n)\n");
 	} else {
-		pr_err("XFAIL: stackleak is not supported on this arch (HAVE_ARCH_STACKLEAK=n)\n");
+		pr_err("XFAIL: stackleak is not supported on this arch (HAVE_ARCH_KSTACK_ERASE=n)\n");
 	}
 }
-#endif /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */
+#endif /* defined(CONFIG_KSTACK_ERASE) */
 
 static struct crashtype crashtypes[] = {
-	CRASHTYPE(STACKLEAK_ERASING),
+	CRASHTYPE(KSTACK_ERASE),
 };
 
 struct crashtype_category stackleak_crashtypes = {

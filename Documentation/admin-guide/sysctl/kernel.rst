@@ -1465,7 +1465,7 @@ stack_erasing
 =============
 
 This parameter can be used to control kernel stack erasing at the end
-of syscalls for kernels built with ``CONFIG_GCC_PLUGIN_STACKLEAK``.
+of syscalls for kernels built with ``CONFIG_KSTACK_ERASE``.
 
 That erasing reduces the information which kernel stack leak bugs
 can reveal and blocks some uninitialized stack variable attacks.
@@ -1473,7 +1473,7 @@ The tradeoff is the performance impact: on a single CPU system kernel
 compilation sees a 1% slowdown, other systems and workloads may vary.
 
 = ====================================================================
-0 Kernel stack erasing is disabled, STACKLEAK_METRICS are not updated.
+0 Kernel stack erasing is disabled, KSTACK_ERASE_METRICS are not updated.
 1 Kernel stack erasing is enabled (default), it is performed before
   returning to the userspace at the end of syscalls.
 = ====================================================================
