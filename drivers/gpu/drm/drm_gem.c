@@ -283,7 +283,12 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	if (obj->funcs->close)
 		obj->funcs->close(obj, file_priv);
 
+	mutex_lock(&file_priv->prime.lock);
+
 	drm_prime_remove_buf_handle(&file_priv->prime, id);
+
+	mutex_unlock(&file_priv->prime.lock);
+
 	drm_vma_node_revoke(&obj->vma_node, file_priv);
 
 	drm_gem_object_handle_put_unlocked(obj);
@@ -931,6 +936,57 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 
 err:
 	drm_gem_object_put(obj);
+	return ret;
+}
+
+int drm_gem_change_handle_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	struct drm_gem_change_handle *args = data;
+	struct drm_gem_object *obj;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
+		return -EOPNOTSUPP;
+
+	obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	if (args->handle == args->new_handle)
+		return 0;
+
+	mutex_lock(&file_priv->prime.lock);
+
+	spin_lock(&file_priv->table_lock);
+	ret = idr_alloc(&file_priv->object_idr, obj,
+		args->new_handle, args->new_handle + 1, GFP_NOWAIT);
+	spin_unlock(&file_priv->table_lock);
+
+	if (ret < 0)
+		goto out_unlock;
+
+	if (obj->dma_buf) {
+		ret = drm_prime_add_buf_handle(&file_priv->prime, obj->dma_buf, args->new_handle);
+		if (ret < 0) {
+			spin_lock(&file_priv->table_lock);
+			idr_remove(&file_priv->object_idr, args->new_handle);
+			spin_unlock(&file_priv->table_lock);
+			goto out_unlock;
+		}
+
+		drm_prime_remove_buf_handle(&file_priv->prime, args->handle);
+	}
+
+	ret = 0;
+
+	spin_lock(&file_priv->table_lock);
+	idr_remove(&file_priv->object_idr, args->handle);
+	spin_unlock(&file_priv->table_lock);
+
+out_unlock:
+	mutex_unlock(&file_priv->prime.lock);
+
 	return ret;
 }
 
