@@ -647,12 +647,25 @@ static void dpm_async_resume_children(struct device *dev, async_func_t func)
 	/*
 	 * Start processing "async" children of the device unless it's been
 	 * started already for them.
-	 *
-	 * This could have been done for the device's "async" consumers too, but
-	 * they either need to wait for their parents or the processing has
-	 * already started for them after their parents were processed.
 	 */
 	device_for_each_child(dev, func, dpm_async_with_cleanup);
+}
+
+static void dpm_async_resume_subordinate(struct device *dev, async_func_t func)
+{
+	struct device_link *link;
+	int idx;
+
+	dpm_async_resume_children(dev, func);
+
+	idx = device_links_read_lock();
+
+	/* Start processing the device's "async" consumers. */
+	list_for_each_entry_rcu(link, &dev->links.consumers, s_node)
+		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
+			dpm_async_with_cleanup(link->consumer, func);
+
+	device_links_read_unlock(idx);
 }
 
 static void dpm_clear_async_state(struct device *dev)
@@ -663,7 +676,14 @@ static void dpm_clear_async_state(struct device *dev)
 
 static bool dpm_root_device(struct device *dev)
 {
-	return !dev->parent;
+	lockdep_assert_held(&dpm_list_mtx);
+
+	/*
+	 * Since this function is required to run under dpm_list_mtx, the
+	 * list_empty() below will only return true if the device's list of
+	 * consumers is actually empty before calling it.
+	 */
+	return !dev->parent && list_empty(&dev->links.suppliers);
 }
 
 static void async_resume_noirq(void *data, async_cookie_t cookie);
@@ -752,7 +772,7 @@ Out:
 		pm_dev_err(dev, state, async ? " async noirq" : " noirq", error);
 	}
 
-	dpm_async_resume_children(dev, async_resume_noirq);
+	dpm_async_resume_subordinate(dev, async_resume_noirq);
 }
 
 static void async_resume_noirq(void *data, async_cookie_t cookie)
@@ -895,7 +915,7 @@ Out:
 		pm_dev_err(dev, state, async ? " async early" : " early", error);
 	}
 
-	dpm_async_resume_children(dev, async_resume_early);
+	dpm_async_resume_subordinate(dev, async_resume_early);
 }
 
 static void async_resume_early(void *data, async_cookie_t cookie)
@@ -1071,7 +1091,7 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 		pm_dev_err(dev, state, async ? " async" : "", error);
 	}
 
-	dpm_async_resume_children(dev, async_resume);
+	dpm_async_resume_subordinate(dev, async_resume);
 }
 
 static void async_resume(void *data, async_cookie_t cookie)
@@ -1095,7 +1115,6 @@ void dpm_resume(pm_message_t state)
 	ktime_t starttime = ktime_get();
 
 	trace_suspend_resume(TPS("dpm_resume"), state.event, true);
-	might_sleep();
 
 	pm_transition = state;
 	async_error = 0;
@@ -1198,7 +1217,6 @@ void dpm_complete(pm_message_t state)
 	struct list_head list;
 
 	trace_suspend_resume(TPS("dpm_complete"), state.event, true);
-	might_sleep();
 
 	INIT_LIST_HEAD(&list);
 	mutex_lock(&dpm_list_mtx);
@@ -1258,10 +1276,15 @@ static bool dpm_leaf_device(struct device *dev)
 		return false;
 	}
 
-	return true;
+	/*
+	 * Since this function is required to run under dpm_list_mtx, the
+	 * list_empty() below will only return true if the device's list of
+	 * consumers is actually empty before calling it.
+	 */
+	return list_empty(&dev->links.consumers);
 }
 
-static void dpm_async_suspend_parent(struct device *dev, async_func_t func)
+static bool dpm_async_suspend_parent(struct device *dev, async_func_t func)
 {
 	guard(mutex)(&dpm_list_mtx);
 
@@ -1273,11 +1296,31 @@ static void dpm_async_suspend_parent(struct device *dev, async_func_t func)
 	 * deleted before it.
 	 */
 	if (!device_pm_initialized(dev))
-		return;
+		return false;
 
 	/* Start processing the device's parent if it is "async". */
 	if (dev->parent)
 		dpm_async_with_cleanup(dev->parent, func);
+
+	return true;
+}
+
+static void dpm_async_suspend_superior(struct device *dev, async_func_t func)
+{
+	struct device_link *link;
+	int idx;
+
+	if (!dpm_async_suspend_parent(dev, func))
+		return;
+
+	idx = device_links_read_lock();
+
+	/* Start processing the device's "async" suppliers. */
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
+		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
+			dpm_async_with_cleanup(link->supplier, func);
+
+	device_links_read_unlock(idx);
 }
 
 static void dpm_async_suspend_complete_all(struct list_head *device_list)
@@ -1417,7 +1460,7 @@ Complete:
 	if (error || async_error)
 		return error;
 
-	dpm_async_suspend_parent(dev, async_suspend_noirq);
+	dpm_async_suspend_superior(dev, async_suspend_noirq);
 
 	return 0;
 }
@@ -1614,7 +1657,7 @@ Complete:
 	if (error || async_error)
 		return error;
 
-	dpm_async_suspend_parent(dev, async_suspend_late);
+	dpm_async_suspend_superior(dev, async_suspend_late);
 
 	return 0;
 }
@@ -1906,7 +1949,7 @@ static int device_suspend(struct device *dev, pm_message_t state, bool async)
 	if (error || async_error)
 		return error;
 
-	dpm_async_suspend_parent(dev, async_suspend);
+	dpm_async_suspend_superior(dev, async_suspend);
 
 	return 0;
 }
@@ -2129,7 +2172,6 @@ int dpm_prepare(pm_message_t state)
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_prepare"), state.event, true);
-	might_sleep();
 
 	/*
 	 * Give a chance for the known devices to complete their probes, before
