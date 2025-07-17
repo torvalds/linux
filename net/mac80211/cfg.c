@@ -1382,6 +1382,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_link_data *link;
 	struct ieee80211_bss_conf *link_conf;
 	struct ieee80211_chan_req chanreq = { .oper = params->chandef };
+	u64 tsf;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
@@ -1603,7 +1604,12 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		goto error;
 	}
 
-	ieee80211_recalc_dtim(local, sdata);
+	tsf = drv_get_tsf(local, sdata);
+	ieee80211_recalc_dtim(sdata, tsf);
+
+	if (link->u.ap.s1g_short_beacon)
+		ieee80211_recalc_sb_count(sdata, tsf);
+
 	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_SSID);
 	ieee80211_link_info_change_notify(sdata, link, changed);
 

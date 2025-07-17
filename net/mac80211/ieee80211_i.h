@@ -314,6 +314,7 @@ struct ps_data {
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	int dtim_count;
 	bool dtim_bc_mc;
+	int sb_count; /* num short beacons til next long beacon */
 };
 
 struct ieee80211_if_ap {
@@ -2774,9 +2775,8 @@ void ieee80211_dfs_radar_detected_work(struct wiphy *wiphy,
 				       struct wiphy_work *work);
 int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			      struct cfg80211_csa_settings *csa_settings);
-
-void ieee80211_recalc_dtim(struct ieee80211_local *local,
-			   struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_sb_count(struct ieee80211_sub_if_data *sdata, u64 tsf);
+void ieee80211_recalc_dtim(struct ieee80211_sub_if_data *sdata, u64 tsf);
 int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 				 const struct cfg80211_chan_def *chandef,
 				 enum ieee80211_chanctx_mode chanmode,

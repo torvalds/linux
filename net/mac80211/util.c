@@ -3913,10 +3913,8 @@ int ieee80211_parse_p2p_noa(const struct ieee80211_p2p_noa_attr *attr,
 }
 EXPORT_SYMBOL(ieee80211_parse_p2p_noa);
 
-void ieee80211_recalc_dtim(struct ieee80211_local *local,
-			   struct ieee80211_sub_if_data *sdata)
+void ieee80211_recalc_dtim(struct ieee80211_sub_if_data *sdata, u64 tsf)
 {
-	u64 tsf = drv_get_tsf(local, sdata);
 	u64 dtim_count = 0;
 	u32 beacon_int = sdata->vif.bss_conf.beacon_int * 1024;
 	u8 dtim_period = sdata->vif.bss_conf.dtim_period;
@@ -3952,6 +3950,33 @@ void ieee80211_recalc_dtim(struct ieee80211_local *local,
 		dtim_count = dtim_period - bcns_from_dtim;
 
 	ps->dtim_count = dtim_count;
+}
+
+/*
+ * Given a long beacon period, calculate the current index into
+ * that period to determine the number of TSBTTs until the next TBTT.
+ * It is completely valid to have a short beacon period that differs
+ * from the dtim period (i.e a TBTT thats not a DTIM).
+ */
+void ieee80211_recalc_sb_count(struct ieee80211_sub_if_data *sdata, u64 tsf)
+{
+	u32 sb_idx;
+	struct ps_data *ps = &sdata->bss->ps;
+	u8 lb_period = sdata->vif.bss_conf.s1g_long_beacon_period;
+	u32 beacon_int = sdata->vif.bss_conf.beacon_int * 1024;
+
+	/* No mesh / IBSS support for short beaconing */
+	if (tsf == -1ULL || !lb_period ||
+	    (sdata->vif.type != NL80211_IFTYPE_AP &&
+	     sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
+		return;
+
+	/* find the current TSBTT index in our lb_period */
+	do_div(tsf, beacon_int);
+	sb_idx = do_div(tsf, lb_period);
+
+	/* num TSBTTs until the next TBTT */
+	ps->sb_count = sb_idx ? lb_period - sb_idx : 0;
 }
 
 static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
