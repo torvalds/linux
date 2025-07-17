@@ -43,6 +43,9 @@ bool convert_legacy_settings_to_link_ksettings(
 int ethtool_check_max_channel(struct net_device *dev,
 			      struct ethtool_channels channels,
 			      struct genl_info *info);
+struct ethtool_rxfh_context *
+ethtool_rxfh_ctx_alloc(const struct ethtool_ops *ops,
+		       u32 indir_size, u32 key_size);
 int ethtool_check_rss_ctx_busy(struct net_device *dev, u32 rss_context);
 int ethtool_rxfh_config_is_sym(u64 rxfh);
 

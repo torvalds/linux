@@ -806,6 +806,40 @@ out_free:
 	return rc;
 }
 
+struct ethtool_rxfh_context *
+ethtool_rxfh_ctx_alloc(const struct ethtool_ops *ops,
+		       u32 indir_size, u32 key_size)
+{
+	size_t indir_bytes, flex_len, key_off, size;
+	struct ethtool_rxfh_context *ctx;
+	u32 priv_bytes, indir_max;
+	u16 key_max;
+
+	key_max = max(key_size, ops->rxfh_key_space);
+	indir_max = max(indir_size, ops->rxfh_indir_space);
+
+	priv_bytes = ALIGN(ops->rxfh_priv_size, sizeof(u32));
+	indir_bytes = array_size(indir_max, sizeof(u32));
+
+	key_off = size_add(priv_bytes, indir_bytes);
+	flex_len = size_add(key_off, key_max);
+	size = struct_size_t(struct ethtool_rxfh_context, data, flex_len);
+
+	ctx = kzalloc(size, GFP_KERNEL_ACCOUNT);
+	if (!ctx)
+		return NULL;
+
+	ctx->indir_size = indir_size;
+	ctx->key_size = key_size;
+	ctx->key_off = key_off;
+	ctx->priv_size = ops->rxfh_priv_size;
+
+	ctx->hfunc = ETH_RSS_HASH_NO_CHANGE;
+	ctx->input_xfrm = RXH_XFRM_NO_CHANGE;
+
+	return ctx;
+}
+
 /* Check if fields configured for flow hash are symmetric - if src is included
  * so is dst and vice versa.
  */
