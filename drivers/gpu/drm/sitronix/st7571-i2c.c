@@ -1024,7 +1024,7 @@ static void st7571_remove(struct i2c_client *client)
 	drm_dev_unplug(&st7571->dev);
 }
 
-struct st7571_panel_data st7567_config = {
+static const struct st7571_panel_data st7567_config = {
 	.init = st7567_lcd_init,
 	.parse_dt = st7567_parse_dt,
 	.constraints = {
@@ -1036,7 +1036,7 @@ struct st7571_panel_data st7567_config = {
 	},
 };
 
-struct st7571_panel_data st7571_config = {
+static const struct st7571_panel_data st7571_config = {
 	.init = st7571_lcd_init,
 	.parse_dt = st7571_parse_dt,
 	.constraints = {
