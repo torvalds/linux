@@ -93,8 +93,10 @@ static struct kmem_cache *audit_tree_mark_cachep __ro_after_init;
 static struct audit_tree *alloc_tree(const char *s)
 {
 	struct audit_tree *tree;
+	size_t sz;
 
-	tree = kmalloc(struct_size(tree, pathname, strlen(s) + 1), GFP_KERNEL);
+	sz = strlen(s) + 1;
+	tree = kmalloc(struct_size(tree, pathname, sz), GFP_KERNEL);
 	if (tree) {
 		refcount_set(&tree->count, 1);
 		tree->goner = 0;
@@ -103,7 +105,7 @@ static struct audit_tree *alloc_tree(const char *s)
 		INIT_LIST_HEAD(&tree->list);
 		INIT_LIST_HEAD(&tree->same_root);
 		tree->root = NULL;
-		strcpy(tree->pathname, s);
+		strscpy(tree->pathname, s, sz);
 	}
 	return tree;
 }
