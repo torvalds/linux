@@ -64,7 +64,7 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 {
 	int i, j;
 
-	if (!xe_gt_is_media_type(gt))
+	if (xe_gt_is_main_type(gt))
 		init_domain(fw, XE_FW_DOMAIN_ID_RENDER,
 			    FORCEWAKE_RENDER,
 			    FORCEWAKE_ACK_RENDER);

@@ -39,13 +39,44 @@
 #define LRC_ENGINE_INSTANCE			GENMASK_ULL(53, 48)
 
 #define LRC_PPHWSP_SIZE				SZ_4K
+#define LRC_INDIRECT_CTX_BO_SIZE		SZ_4K
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
 #define LRC_WA_BB_SIZE				SZ_4K
+
+/*
+ * Layout of the LRC and associated data allocated as
+ * lrc->bo:
+ *
+ *   Region                       Size
+ *  +============================+=================================+ <- __xe_lrc_ring_offset()
+ *  | Ring                       | ring_size, see                  |
+ *  |                            | xe_lrc_init()                   |
+ *  +============================+=================================+ <- __xe_lrc_pphwsp_offset()
+ *  | PPHWSP (includes SW state) | 4K                              |
+ *  +----------------------------+---------------------------------+ <- __xe_lrc_regs_offset()
+ *  | Engine Context Image       | n * 4K, see                     |
+ *  |                            | xe_gt_lrc_size()                |
+ *  +----------------------------+---------------------------------+ <- __xe_lrc_indirect_ring_offset()
+ *  | Indirect Ring State Page   | 0 or 4k, see                    |
+ *  |                            | XE_LRC_FLAG_INDIRECT_RING_STATE |
+ *  +============================+=================================+ <- __xe_lrc_indirect_ctx_offset()
+ *  | Indirect Context Page      | 0 or 4k, see                    |
+ *  |                            | XE_LRC_FLAG_INDIRECT_CTX        |
+ *  +============================+=================================+ <- __xe_lrc_wa_bb_offset()
+ *  | WA BB Per Ctx              | 4k                              |
+ *  +============================+=================================+ <- xe_bo_size(lrc->bo)
+ */
 
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
 {
 	return gt_to_xe(lrc->fence_ctx.gt);
+}
+
+static bool
+gt_engine_needs_indirect_ctx(struct xe_gt *gt, enum xe_engine_class class)
+{
+	return false;
 }
 
 size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
@@ -582,8 +613,6 @@ static void set_context_control(u32 *regs, struct xe_hw_engine *hwe)
 	if (xe_gt_has_indirect_ring_state(hwe->gt))
 		regs[CTX_CONTEXT_CONTROL] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_INDIRECT_RING_STATE_ENABLE);
-
-	/* TODO: Timestamp */
 }
 
 static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
@@ -717,7 +746,18 @@ static u32 __xe_lrc_ctx_timestamp_udw_offset(struct xe_lrc *lrc)
 
 static inline u32 __xe_lrc_indirect_ring_offset(struct xe_lrc *lrc)
 {
-	return xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE - LRC_INDIRECT_RING_STATE_SIZE;
+	u32 offset = xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE -
+		     LRC_INDIRECT_RING_STATE_SIZE;
+
+	if (lrc->flags & XE_LRC_FLAG_INDIRECT_CTX)
+		offset -= LRC_INDIRECT_CTX_BO_SIZE;
+
+	return offset;
+}
+
+static inline u32 __xe_lrc_indirect_ctx_offset(struct xe_lrc *lrc)
+{
+	return xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE - LRC_INDIRECT_CTX_BO_SIZE;
 }
 
 static inline u32 __xe_lrc_wa_bb_offset(struct xe_lrc *lrc)
@@ -944,8 +984,10 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
  * store it in the PPHSWP.
  */
 #define CONTEXT_ACTIVE 1ULL
-static ssize_t wa_bb_setup_utilization(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-				       u32 *batch, size_t max_len)
+static ssize_t setup_utilization_wa(struct xe_lrc *lrc,
+				    struct xe_hw_engine *hwe,
+				    u32 *batch,
+				    size_t max_len)
 {
 	u32 *cmd = batch;
 
@@ -972,67 +1014,160 @@ static ssize_t wa_bb_setup_utilization(struct xe_lrc *lrc, struct xe_hw_engine *
 	return cmd - batch;
 }
 
-struct wa_bb_setup {
+struct bo_setup {
 	ssize_t (*setup)(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 			 u32 *batch, size_t max_size);
 };
 
-static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
-{
-	const size_t max_size = LRC_WA_BB_SIZE;
-	static const struct wa_bb_setup funcs[] = {
-		{ .setup = wa_bb_setup_utilization },
-	};
-	ssize_t remain;
-	u32 *cmd, *buf = NULL;
+struct bo_setup_state {
+	/* Input: */
+	struct xe_lrc		*lrc;
+	struct xe_hw_engine	*hwe;
+	size_t			max_size;
+	size_t                  reserve_dw;
+	unsigned int		offset;
+	const struct bo_setup	*funcs;
+	unsigned int		num_funcs;
 
-	if (lrc->bo->vmap.is_iomem) {
-		buf = kmalloc(max_size, GFP_KERNEL);
-		if (!buf)
+	/* State: */
+	u32			*buffer;
+	u32			*ptr;
+	unsigned int		written;
+};
+
+static int setup_bo(struct bo_setup_state *state)
+{
+	ssize_t remain;
+
+	if (state->lrc->bo->vmap.is_iomem) {
+		state->buffer = kmalloc(state->max_size, GFP_KERNEL);
+		if (!state->buffer)
 			return -ENOMEM;
-		cmd = buf;
+		state->ptr = state->buffer;
 	} else {
-		cmd = lrc->bo->vmap.vaddr + __xe_lrc_wa_bb_offset(lrc);
+		state->ptr = state->lrc->bo->vmap.vaddr + state->offset;
+		state->buffer = NULL;
 	}
 
-	remain = max_size / sizeof(*cmd);
+	remain = state->max_size / sizeof(u32);
 
-	for (size_t i = 0; i < ARRAY_SIZE(funcs); i++) {
-		ssize_t len = funcs[i].setup(lrc, hwe, cmd, remain);
+	for (size_t i = 0; i < state->num_funcs; i++) {
+		ssize_t len = state->funcs[i].setup(state->lrc, state->hwe,
+						    state->ptr, remain);
 
 		remain -= len;
 
 		/*
-		 * There should always be at least 1 additional dword for
-		 * the end marker
+		 * Caller has asked for at least reserve_dw to remain unused.
 		 */
-		if (len < 0 || xe_gt_WARN_ON(lrc->gt, remain < 1))
+		if (len < 0 ||
+		    xe_gt_WARN_ON(state->lrc->gt, remain < state->reserve_dw))
 			goto fail;
 
-		cmd += len;
+		state->ptr += len;
+		state->written += len;
 	}
-
-	*cmd++ = MI_BATCH_BUFFER_END;
-
-	if (buf) {
-		xe_map_memcpy_to(gt_to_xe(lrc->gt), &lrc->bo->vmap,
-				 __xe_lrc_wa_bb_offset(lrc), buf,
-				 (cmd - buf) * sizeof(*cmd));
-		kfree(buf);
-	}
-
-	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR, xe_bo_ggtt_addr(lrc->bo) +
-			     __xe_lrc_wa_bb_offset(lrc) + 1);
 
 	return 0;
 
 fail:
-	kfree(buf);
+	kfree(state->buffer);
 	return -ENOSPC;
 }
 
-#define PVC_CTX_ASID		(0x2e + 1)
-#define PVC_CTX_ACC_CTR_THOLD	(0x2a + 1)
+static void finish_bo(struct bo_setup_state *state)
+{
+	if (!state->buffer)
+		return;
+
+	xe_map_memcpy_to(gt_to_xe(state->lrc->gt), &state->lrc->bo->vmap,
+			 state->offset, state->buffer,
+			 state->written * sizeof(u32));
+	kfree(state->buffer);
+}
+
+static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+{
+	static const struct bo_setup funcs[] = {
+		{ .setup = setup_utilization_wa },
+	};
+	struct bo_setup_state state = {
+		.lrc = lrc,
+		.hwe = hwe,
+		.max_size = LRC_WA_BB_SIZE,
+		.reserve_dw = 1,
+		.offset = __xe_lrc_wa_bb_offset(lrc),
+		.funcs = funcs,
+		.num_funcs = ARRAY_SIZE(funcs),
+	};
+	int ret;
+
+	ret = setup_bo(&state);
+	if (ret)
+		return ret;
+
+	*state.ptr++ = MI_BATCH_BUFFER_END;
+	state.written++;
+
+	finish_bo(&state);
+
+	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR,
+			     xe_bo_ggtt_addr(lrc->bo) + state.offset + 1);
+
+	return 0;
+}
+
+static int
+setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+{
+	static struct bo_setup rcs_funcs[] = {
+	};
+	struct bo_setup_state state = {
+		.lrc = lrc,
+		.hwe = hwe,
+		.max_size = (63 * 64) /* max 63 cachelines */,
+		.offset = __xe_lrc_indirect_ctx_offset(lrc),
+	};
+	int ret;
+
+	if (!(lrc->flags & XE_LRC_FLAG_INDIRECT_CTX))
+		return 0;
+
+	if (hwe->class == XE_ENGINE_CLASS_RENDER ||
+	    hwe->class == XE_ENGINE_CLASS_COMPUTE) {
+		state.funcs = rcs_funcs;
+		state.num_funcs = ARRAY_SIZE(rcs_funcs);
+	}
+
+	if (xe_gt_WARN_ON(lrc->gt, !state.funcs))
+		return 0;
+
+	ret = setup_bo(&state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Align to 64B cacheline so there's no garbage at the end for CS to
+	 * execute: size for indirect ctx must be a multiple of 64.
+	 */
+	while (state.written & 0xf) {
+		*state.ptr++ = MI_NOOP;
+		state.written++;
+	}
+
+	finish_bo(&state);
+
+	xe_lrc_write_ctx_reg(lrc,
+			     CTX_CS_INDIRECT_CTX,
+			     (xe_bo_ggtt_addr(lrc->bo) + state.offset) |
+			     /* Size in CLs. */
+			     (state.written * sizeof(u32) / 64));
+	xe_lrc_write_ctx_reg(lrc,
+			     CTX_CS_INDIRECT_CTX_OFFSET,
+			     CTX_INDIRECT_CTX_OFFSET_DEFAULT);
+
+	return 0;
+}
 
 static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		       struct xe_vm *vm, u32 ring_size, u16 msix_vec,
@@ -1040,11 +1175,10 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 {
 	struct xe_gt *gt = hwe->gt;
 	const u32 lrc_size = xe_gt_lrc_size(gt, hwe->class);
-	const u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
+	u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct iosys_map map;
-	void *init_data = NULL;
 	u32 arb_enable;
 	u32 bo_flags;
 	int err;
@@ -1055,6 +1189,12 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	lrc->flags = 0;
 	lrc->ring.size = ring_size;
 	lrc->ring.tail = 0;
+
+	if (gt_engine_needs_indirect_ctx(gt, hwe->class)) {
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_CTX;
+		bo_size += LRC_INDIRECT_CTX_BO_SIZE;
+	}
+
 	if (xe_gt_has_indirect_ring_state(gt))
 		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
 
@@ -1063,10 +1203,6 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	if (vm && vm->xef) /* userspace */
 		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE;
 
-	/*
-	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
-	 * via VM bind calls.
-	 */
 	lrc->bo = xe_bo_create_pin_map(xe, tile, NULL, bo_size,
 				       ttm_bo_type_kernel,
 				       bo_flags);
@@ -1076,25 +1212,26 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
 			     hwe->fence_irq, hwe->name);
 
-	if (!gt->default_lrc[hwe->class]) {
-		init_data = empty_lrc_data(hwe);
-		if (!init_data) {
-			err = -ENOMEM;
-			goto err_lrc_finish;
-		}
-	}
-
 	/*
 	 * Init Per-Process of HW status Page, LRC / context state to known
-	 * values
+	 * values. If there's already a primed default_lrc, just copy it, otherwise
+	 * it's the early submission to record the lrc: build a new empty one from
+	 * scratch.
 	 */
 	map = __xe_lrc_pphwsp_map(lrc);
-	if (!init_data) {
+	if (gt->default_lrc[hwe->class]) {
 		xe_map_memset(xe, &map, 0, 0, LRC_PPHWSP_SIZE);	/* PPHWSP */
 		xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 				 gt->default_lrc[hwe->class] + LRC_PPHWSP_SIZE,
 				 lrc_size - LRC_PPHWSP_SIZE);
 	} else {
+		void *init_data = empty_lrc_data(hwe);
+
+		if (!init_data) {
+			err = -ENOMEM;
+			goto err_lrc_finish;
+		}
+
 		xe_map_memcpy_to(xe, &map, 0, init_data, lrc_size);
 		kfree(init_data);
 	}
@@ -1149,7 +1286,7 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP_UDW, 0);
 
 	if (xe->info.has_asid && vm)
-		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID, vm->usm.asid);
+		xe_lrc_write_ctx_reg(lrc, CTX_ASID, vm->usm.asid);
 
 	lrc->desc = LRC_VALID;
 	lrc->desc |= FIELD_PREP(LRC_ADDRESSING_MODE, LRC_LEGACY_64B_CONTEXT);
@@ -1176,6 +1313,10 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
 
 	err = setup_wa_bb(lrc, hwe);
+	if (err)
+		goto err_lrc_finish;
+
+	err = setup_indirect_ctx(lrc, hwe);
 	if (err)
 		goto err_lrc_finish;
 
@@ -1771,7 +1912,7 @@ static const struct instr_state xe_hpg_svg_state[] = {
 	{ .instr = CMD_3DSTATE_DRAWING_RECTANGLE, .num_dw = 4 },
 };
 
-void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *bb)
+u32 *xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, u32 *cs)
 {
 	struct xe_gt *gt = q->hwe->gt;
 	struct xe_device *xe = gt_to_xe(gt);
@@ -1806,7 +1947,7 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 	if (!state_table) {
 		xe_gt_dbg(gt, "No non-register state to emit on graphics ver %d.%02d\n",
 			  GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
-		return;
+		return cs;
 	}
 
 	for (int i = 0; i < state_table_size; i++) {
@@ -1829,12 +1970,14 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 		    instr == CMD_3DSTATE_DRAWING_RECTANGLE)
 			instr = CMD_3DSTATE_DRAWING_RECTANGLE_FAST;
 
-		bb->cs[bb->len] = instr;
+		*cs = instr;
 		if (!is_single_dw)
-			bb->cs[bb->len] |= (num_dw - 2);
+			*cs |= (num_dw - 2);
 
-		bb->len += num_dw;
+		cs += num_dw;
 	}
+
+	return cs;
 }
 
 struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)

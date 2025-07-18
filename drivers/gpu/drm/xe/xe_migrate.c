@@ -1817,8 +1817,8 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	xe_bo_assert_held(bo);
 
 	/* Use bounce buffer for small access and unaligned access */
-	if (len & XE_CACHELINE_MASK ||
-	    ((uintptr_t)buf | offset) & XE_CACHELINE_MASK) {
+	if (!IS_ALIGNED(len, XE_CACHELINE_BYTES) ||
+	    !IS_ALIGNED((unsigned long)buf + offset, XE_CACHELINE_BYTES)) {
 		int buf_offset = 0;
 
 		/*
@@ -1848,7 +1848,7 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 				err = xe_migrate_access_memory(m, bo,
 							       offset & ~XE_CACHELINE_MASK,
 							       (void *)ptr,
-							       sizeof(bounce), 0);
+							       sizeof(bounce), write);
 				if (err)
 					return err;
 			} else {

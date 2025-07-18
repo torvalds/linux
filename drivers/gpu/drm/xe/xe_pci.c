@@ -327,6 +327,7 @@ static const struct xe_device_desc bmg_desc = {
 	.has_mbx_power_limits = true,
 	.has_gsc_nvm = 1,
 	.has_heci_cscfi = 1,
+	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	.needs_scratch = true,
 };

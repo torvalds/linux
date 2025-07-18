@@ -121,7 +121,7 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 	if (vcs_mask || vecs_mask)
 		gtidle->powergate_enable = MEDIA_POWERGATE_ENABLE;
 
-	if (!xe_gt_is_media_type(gt))
+	if (xe_gt_is_main_type(gt))
 		gtidle->powergate_enable |= RENDER_POWERGATE_ENABLE;
 
 	if (xe->info.platform != XE_DG1) {

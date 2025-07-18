@@ -112,7 +112,7 @@ static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
 	if (!fw_ref)
 		return;
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
 		reg |= CG_DIS_CNTLBUS;
 		xe_gt_mcr_multicast_write(gt, XE2_GAMREQSTRM_CTRL, reg);
@@ -146,30 +146,23 @@ static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
 
 static void gt_reset_worker(struct work_struct *w);
 
-static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+static int emit_job_sync(struct xe_exec_queue *q, struct xe_bb *bb,
+			 long timeout_jiffies)
 {
 	struct xe_sched_job *job;
-	struct xe_bb *bb;
 	struct dma_fence *fence;
 	long timeout;
 
-	bb = xe_bb_new(gt, 4, false);
-	if (IS_ERR(bb))
-		return PTR_ERR(bb);
-
 	job = xe_bb_create_job(q, bb);
-	if (IS_ERR(job)) {
-		xe_bb_free(bb, NULL);
+	if (IS_ERR(job))
 		return PTR_ERR(job);
-	}
 
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
 	xe_sched_job_push(job);
 
-	timeout = dma_fence_wait_timeout(fence, false, HZ);
+	timeout = dma_fence_wait_timeout(fence, false, timeout_jiffies);
 	dma_fence_put(fence);
-	xe_bb_free(bb, NULL);
 	if (timeout < 0)
 		return timeout;
 	else if (!timeout)
@@ -178,27 +171,30 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	return 0;
 }
 
+static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+{
+	struct xe_bb *bb;
+	int ret;
+
+	bb = xe_bb_new(gt, 4, false);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
+
+	ret = emit_job_sync(q, bb, HZ);
+	xe_bb_free(bb, NULL);
+
+	return ret;
+}
+
 static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
 	struct xe_reg_sr *sr = &q->hwe->reg_lrc;
 	struct xe_reg_sr_entry *entry;
+	int count_rmw = 0, count = 0, ret;
 	unsigned long idx;
-	struct xe_sched_job *job;
 	struct xe_bb *bb;
-	struct dma_fence *fence;
-	long timeout;
-	int count_rmw = 0;
-	int count = 0;
-
-	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
-		/* Big enough to emit all of the context's 3DSTATE */
-		bb = xe_bb_new(gt, xe_gt_lrc_size(gt, q->hwe->class), false);
-	else
-		/* Just pick a large BB size */
-		bb = xe_bb_new(gt, SZ_4K, false);
-
-	if (IS_ERR(bb))
-		return PTR_ERR(bb);
+	size_t bb_len = 0;
+	u32 *cs;
 
 	/* count RMW registers as those will be handled separately */
 	xa_for_each(&sr->xa, idx, entry) {
@@ -208,13 +204,34 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			++count_rmw;
 	}
 
-	if (count || count_rmw)
-		xe_gt_dbg(gt, "LRC WA %s save-restore batch\n", sr->name);
+	if (count)
+		bb_len += count * 2 + 1;
+
+	if (count_rmw)
+		bb_len += count_rmw * 20 + 7;
+
+	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
+		/*
+		 * Big enough to emit all of the context's 3DSTATE via
+		 * xe_lrc_emit_hwe_state_instructions()
+		 */
+		bb_len += xe_gt_lrc_size(gt, q->hwe->class) / sizeof(u32);
+
+	xe_gt_dbg(gt, "LRC %s WA job: %zu dwords\n", q->hwe->name, bb_len);
+
+	bb = xe_bb_new(gt, bb_len, false);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
+
+	cs = bb->cs;
 
 	if (count) {
-		/* emit single LRI with all non RMW regs */
+		/*
+		 * Emit single LRI with all non RMW regs: 1 leading dw + 2dw per
+		 * reg + 1
+		 */
 
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
+		*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
 
 		xa_for_each(&sr->xa, idx, entry) {
 			struct xe_reg reg = entry->reg;
@@ -229,79 +246,68 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 
 			val |= entry->set_bits;
 
-			bb->cs[bb->len++] = reg.addr;
-			bb->cs[bb->len++] = val;
+			*cs++ = reg.addr;
+			*cs++ = val;
 			xe_gt_dbg(gt, "REG[0x%x] = 0x%08x", reg.addr, val);
 		}
 	}
 
 	if (count_rmw) {
-		/* emit MI_MATH for each RMW reg */
+		/* Emit MI_MATH for each RMW reg: 20dw per reg + 7 trailing dw */
 
 		xa_for_each(&sr->xa, idx, entry) {
 			if (entry->reg.masked || entry->clr_bits == ~0)
 				continue;
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_REG | MI_LRR_DST_CS_MMIO;
-			bb->cs[bb->len++] = entry->reg.addr;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
+			*cs++ = MI_LOAD_REGISTER_REG | MI_LRR_DST_CS_MMIO;
+			*cs++ = entry->reg.addr;
+			*cs++ = CS_GPR_REG(0, 0).addr;
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
-					    MI_LRI_LRM_CS_MMIO;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 1).addr;
-			bb->cs[bb->len++] = entry->clr_bits;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 2).addr;
-			bb->cs[bb->len++] = entry->set_bits;
+			*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
+				MI_LRI_LRM_CS_MMIO;
+			*cs++ = CS_GPR_REG(0, 1).addr;
+			*cs++ = entry->clr_bits;
+			*cs++ = CS_GPR_REG(0, 2).addr;
+			*cs++ = entry->set_bits;
 
-			bb->cs[bb->len++] = MI_MATH(8);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCA, REG0);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOADINV(SRCB, REG1);
-			bb->cs[bb->len++] = CS_ALU_INSTR_AND;
-			bb->cs[bb->len++] = CS_ALU_INSTR_STORE(REG0, ACCU);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCA, REG0);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCB, REG2);
-			bb->cs[bb->len++] = CS_ALU_INSTR_OR;
-			bb->cs[bb->len++] = CS_ALU_INSTR_STORE(REG0, ACCU);
+			*cs++ = MI_MATH(8);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCA, REG0);
+			*cs++ = CS_ALU_INSTR_LOADINV(SRCB, REG1);
+			*cs++ = CS_ALU_INSTR_AND;
+			*cs++ = CS_ALU_INSTR_STORE(REG0, ACCU);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCA, REG0);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCB, REG2);
+			*cs++ = CS_ALU_INSTR_OR;
+			*cs++ = CS_ALU_INSTR_STORE(REG0, ACCU);
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_REG | MI_LRR_SRC_CS_MMIO;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
-			bb->cs[bb->len++] = entry->reg.addr;
+			*cs++ = MI_LOAD_REGISTER_REG | MI_LRR_SRC_CS_MMIO;
+			*cs++ = CS_GPR_REG(0, 0).addr;
+			*cs++ = entry->reg.addr;
 
 			xe_gt_dbg(gt, "REG[%#x] = ~%#x|%#x\n",
 				  entry->reg.addr, entry->clr_bits, entry->set_bits);
 		}
 
 		/* reset used GPR */
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(3) | MI_LRI_LRM_CS_MMIO;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
-		bb->cs[bb->len++] = 0;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 1).addr;
-		bb->cs[bb->len++] = 0;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 2).addr;
-		bb->cs[bb->len++] = 0;
+		*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(3) |
+			MI_LRI_LRM_CS_MMIO;
+		*cs++ = CS_GPR_REG(0, 0).addr;
+		*cs++ = 0;
+		*cs++ = CS_GPR_REG(0, 1).addr;
+		*cs++ = 0;
+		*cs++ = CS_GPR_REG(0, 2).addr;
+		*cs++ = 0;
 	}
 
-	xe_lrc_emit_hwe_state_instructions(q, bb);
+	cs = xe_lrc_emit_hwe_state_instructions(q, cs);
 
-	job = xe_bb_create_job(q, bb);
-	if (IS_ERR(job)) {
-		xe_bb_free(bb, NULL);
-		return PTR_ERR(job);
-	}
+	bb->len = cs - bb->cs;
 
-	xe_sched_job_arm(job);
-	fence = dma_fence_get(&job->drm.s_fence->finished);
-	xe_sched_job_push(job);
+	ret = emit_job_sync(q, bb, HZ);
 
-	timeout = dma_fence_wait_timeout(fence, false, HZ);
-	dma_fence_put(fence);
 	xe_bb_free(bb, NULL);
-	if (timeout < 0)
-		return timeout;
-	else if (!timeout)
-		return -ETIME;
 
-	return 0;
+	return ret;
 }
 
 int xe_gt_record_default_lrcs(struct xe_gt *gt)
@@ -360,14 +366,6 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		if (err) {
 			xe_gt_err(gt, "hwe %s: nop emit_nop_job failed (%pe) guc_id=%u\n",
 				  hwe->name, ERR_PTR(err), nop_q->guc->id);
-			goto put_nop_q;
-		}
-
-		/* Reload golden LRC to record the effect of any indirect W/A */
-		err = emit_nop_job(gt, q);
-		if (err) {
-			xe_gt_err(gt, "hwe %s: emit_nop_job failed (%pe) guc_id=%u\n",
-				  hwe->name, ERR_PTR(err), q->guc->id);
 			goto put_nop_q;
 		}
 
@@ -470,7 +468,7 @@ static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 	xe_gt_mcr_init(gt);
 	xe_gt_enable_host_l2_vram(gt);
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
 		if (err)
 			goto err_force_wake;
@@ -547,7 +545,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		/*
 		 * USM has its only SA pool to non-block behind user operations
 		 */
@@ -563,7 +561,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		}
 	}
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		struct xe_tile *tile = gt_to_tile(gt);
 
 		tile->migrate = xe_migrate_init(tile);
@@ -583,7 +581,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		xe_gt_apply_ccs_mode(gt);
 	}
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
 	if (IS_SRIOV_PF(gt_to_xe(gt))) {
@@ -628,15 +626,15 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_gt_pagefault_init(gt);
-	if (err)
-		return err;
-
 	err = xe_gt_sysfs_init(gt);
 	if (err)
 		return err;
 
 	err = gt_init_with_gt_forcewake(gt);
+	if (err)
+		return err;
+
+	err = xe_gt_pagefault_init(gt);
 	if (err)
 		return err;
 
@@ -780,7 +778,7 @@ static int do_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
 	if (IS_SRIOV_PF(gt_to_xe(gt)))
@@ -834,6 +832,9 @@ static int gt_reset(struct xe_gt *gt)
 		err = -ETIMEDOUT;
 		goto err_out;
 	}
+
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
+		xe_gt_sriov_pf_stop_prepare(gt);
 
 	xe_uc_gucrc_disable(&gt->uc);
 	xe_uc_stop_prepare(&gt->uc);
