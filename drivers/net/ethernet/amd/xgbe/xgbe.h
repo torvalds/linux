@@ -741,14 +741,6 @@ struct xgbe_hw_if {
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
 	void (*read_mmc_stats)(struct xgbe_prv_data *);
 
-	/* For Timestamp config */
-	int (*config_tstamp)(struct xgbe_prv_data *, unsigned int);
-	void (*update_tstamp_addend)(struct xgbe_prv_data *, unsigned int);
-	void (*set_tstamp_time)(struct xgbe_prv_data *, unsigned int sec,
-				unsigned int nsec);
-	u64 (*get_tstamp_time)(struct xgbe_prv_data *);
-	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
-
 	/* For Data Center Bridging config */
 	void (*config_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_tc)(struct xgbe_prv_data *);
@@ -1276,6 +1268,28 @@ void xgbe_init_rx_coalesce(struct xgbe_prv_data *);
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
 void xgbe_restart_dev(struct xgbe_prv_data *pdata);
 void xgbe_full_restart_dev(struct xgbe_prv_data *pdata);
+
+/* For Timestamp config */
+int xgbe_config_tstamp(struct xgbe_prv_data *pdata, unsigned int mac_tscr);
+u64 xgbe_get_tstamp_time(struct xgbe_prv_data *pdata);
+u64 xgbe_get_tx_tstamp(struct xgbe_prv_data *pdata);
+void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
+			struct xgbe_ring_desc *rdesc);
+void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
+			struct xgbe_ring_desc *rdesc);
+void xgbe_update_tstamp_addend(struct xgbe_prv_data *pdata,
+			       unsigned int addend);
+void xgbe_set_tstamp_time(struct xgbe_prv_data *pdata, unsigned int sec,
+			  unsigned int nsec);
+int xgbe_config_tstamp(struct xgbe_prv_data *pdata, unsigned int mac_tscr);
+void xgbe_tx_tstamp(struct work_struct *work);
+int xgbe_get_hwtstamp_settings(struct xgbe_prv_data *pdata,
+			       struct ifreq *ifreq);
+int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
+			       struct ifreq *ifreq);
+void xgbe_prep_tx_tstamp(struct xgbe_prv_data *pdata,
+			 struct sk_buff *skb,
+			 struct xgbe_packet_data *packet);
 
 #ifdef CONFIG_DEBUG_FS
 void xgbe_debugfs_init(struct xgbe_prv_data *);

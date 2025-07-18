@@ -20,7 +20,7 @@ static u64 xgbe_cc_read(const struct cyclecounter *cc)
 						   tstamp_cc);
 	u64 nsec;
 
-	nsec = pdata->hw_if.get_tstamp_time(pdata);
+	nsec = xgbe_get_tstamp_time(pdata);
 
 	return nsec;
 }
@@ -37,7 +37,7 @@ static int xgbe_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 
 	spin_lock_irqsave(&pdata->tstamp_lock, flags);
 
-	pdata->hw_if.update_tstamp_addend(pdata, addend);
+	xgbe_update_tstamp_addend(pdata, addend);
 
 	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
 
