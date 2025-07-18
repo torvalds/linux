@@ -476,11 +476,14 @@ static bool irq_wait_on_inprogress(struct irq_desc *desc)
 
 static bool irq_can_handle_pm(struct irq_desc *desc)
 {
+	struct irq_data *irqd = &desc->irq_data;
+	const struct cpumask *aff;
+
 	/*
 	 * If the interrupt is not in progress and is not an armed
 	 * wakeup interrupt, proceed.
 	 */
-	if (!irqd_has_set(&desc->irq_data, IRQD_IRQ_INPROGRESS | IRQD_WAKEUP_ARMED))
+	if (!irqd_has_set(irqd, IRQD_IRQ_INPROGRESS | IRQD_WAKEUP_ARMED))
 		return true;
 
 	/*
@@ -501,7 +504,41 @@ static bool irq_can_handle_pm(struct irq_desc *desc)
 			return false;
 		return irq_wait_on_inprogress(desc);
 	}
-	return false;
+
+	/* The below works only for single target interrupts */
+	if (!IS_ENABLED(CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK) ||
+	    !irqd_is_single_target(irqd) || desc->handle_irq != handle_edge_irq)
+		return false;
+
+	/*
+	 * If the interrupt affinity was moved to this CPU and the
+	 * interrupt is currently handled on the previous target CPU, then
+	 * busy wait for INPROGRESS to be cleared. Otherwise for edge type
+	 * interrupts the handler might get stuck on the previous target:
+	 *
+	 * CPU 0			CPU 1 (new target)
+	 * handle_edge_irq()
+	 * repeat:
+	 *	handle_event()		handle_edge_irq()
+	 *			        if (INPROGESS) {
+	 *				  set(PENDING);
+	 *				  mask();
+	 *				  return;
+	 *				}
+	 *	if (PENDING) {
+	 *	  clear(PENDING);
+	 *	  unmask();
+	 *	  goto repeat;
+	 *	}
+	 *
+	 * This happens when the device raises interrupts with a high rate
+	 * and always before handle_event() completes and the CPU0 handler
+	 * can clear INPROGRESS. This has been observed in virtual machines.
+	 */
+	aff = irq_data_get_effective_affinity_mask(irqd);
+	if (cpumask_first(aff) != smp_processor_id())
+		return false;
+	return irq_wait_on_inprogress(desc);
 }
 
 static inline bool irq_can_handle_actions(struct irq_desc *desc)
