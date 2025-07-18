@@ -1252,6 +1252,19 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 		    ((__link) = sdata_dereference((__sdata)->link[__link_id],	\
 						  (__sdata))))
 
+/*
+ * for_each_link_data_rcu should be used under RCU read lock.
+ */
+#define for_each_link_data_rcu(sdata, __link)					\
+	/* outer loop just to define the variable ... */			\
+	for (struct ieee80211_sub_if_data *__sdata = (sdata); __sdata;		\
+		__sdata = NULL /* always stop */)				\
+	for (int __link_id = 0;							\
+	     __link_id < ARRAY_SIZE((__sdata)->link); __link_id++)		\
+		if ((!(__sdata)->vif.valid_links ||				\
+		     (__sdata)->vif.valid_links & BIT(__link_id)) &&		\
+		    ((__link) = rcu_dereference((__sdata)->link[__link_id])))	\
+
 static inline int
 ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems,
 				struct cfg80211_rnr_elems *rnr_elems,
