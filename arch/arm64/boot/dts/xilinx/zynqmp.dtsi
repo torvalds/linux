@@ -1319,22 +1319,22 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
+				live_video: port@0 {
 					reg = <0>;
 				};
-				port@1 {
+				live_gfx: port@1 {
 					reg = <1>;
 				};
-				port@2 {
+				live_audio: port@2 {
 					reg = <2>;
 				};
-				port@3 {
+				out_video: port@3 {
 					reg = <3>;
 				};
-				port@4 {
+				out_audio: port@4 {
 					reg = <4>;
 				};
-				port@5 {
+				out_dp: port@5 {
 					reg = <5>;
 				};
 			};
