@@ -433,8 +433,10 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 
 	/* Look for the key in the destination tree. */
 	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 		return ret;
+	}
 
 	dst_eb = path->nodes[0];
 	dst_slot = path->slots[0];
@@ -453,6 +455,7 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 		src_copy = kmalloc(item_size, GFP_NOFS);
 		if (!src_copy) {
 			btrfs_release_path(path);
+			btrfs_abort_transaction(trans, -ENOMEM);
 			return -ENOMEM;
 		}
 
@@ -537,6 +540,7 @@ insert:
 		else if (found_size < item_size)
 			btrfs_extend_item(trans, path, item_size - found_size);
 	} else if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 	dst_ptr = btrfs_item_ptr_offset(dst_eb, dst_slot);
@@ -667,6 +671,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		extent_end = ALIGN(start + size,
 				   fs_info->sectorsize);
 	} else {
+		btrfs_abort_transaction(trans, -EUCLEAN);
 		btrfs_err(fs_info,
 		  "unexpected extent type=%d root=%llu inode=%llu offset=%llu",
 			  found_type, btrfs_root_id(root), key->objectid, key->offset);
@@ -674,8 +679,11 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	}
 
 	inode = btrfs_iget_logging(key->objectid, root);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		btrfs_abort_transaction(trans, ret);
+		return ret;
+	}
 
 	/*
 	 * first check to see if we already have this extent in the
@@ -710,8 +718,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	drop_args.end = extent_end;
 	drop_args.drop_cache = true;
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
@@ -725,8 +735,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_insert_empty_item(trans, root, path, key,
 					      sizeof(*item));
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 		dest_offset = btrfs_item_ptr_offset(path->nodes[0],
 						    path->slots[0]);
 		copy_extent_buffer(path->nodes[0], eb, dest_offset,
@@ -748,8 +760,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_qgroup_trace_extent(trans,
 				btrfs_file_extent_disk_bytenr(eb, item),
 				btrfs_file_extent_disk_num_bytes(eb, item));
-		if (ret < 0)
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 
 		if (ins.objectid > 0) {
 			u64 csum_start;
@@ -763,6 +777,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_data_extent(fs_info, ins.objectid,
 						ins.offset);
 			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			} else if (ret == 0) {
 				struct btrfs_ref ref = {
@@ -775,8 +790,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				btrfs_init_data_ref(&ref, key->objectid, offset,
 						    0, false);
 				ret = btrfs_inc_extent_ref(trans, &ref);
-				if (ret)
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
 					goto out;
+				}
 			} else {
 				/*
 				 * insert the extent pointer in the extent
@@ -785,8 +802,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				ret = btrfs_alloc_logged_file_extent(trans,
 						btrfs_root_id(root),
 						key->objectid, offset, &ins);
-				if (ret)
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
 					goto out;
+				}
 			}
 			btrfs_release_path(path);
 
@@ -803,8 +822,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_csums_list(root->log_root,
 						csum_start, csum_end - 1,
 						&ordered_sums, false);
-			if (ret < 0)
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
+			}
 			ret = 0;
 			/*
 			 * Now delete all existing cums in the csum root that
@@ -864,14 +885,20 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 							list);
 				csum_root = btrfs_csum_root(fs_info,
 							    sums->logical);
-				if (!ret)
+				if (!ret) {
 					ret = btrfs_del_csums(trans, csum_root,
 							      sums->logical,
 							      sums->len);
-				if (!ret)
+					if (ret)
+						btrfs_abort_transaction(trans, ret);
+				}
+				if (!ret) {
 					ret = btrfs_csum_file_blocks(trans,
 								     csum_root,
 								     sums);
+					if (ret)
+						btrfs_abort_transaction(trans, ret);
+				}
 				list_del(&sums->list);
 				kfree(sums);
 			}
@@ -888,12 +915,16 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_inode_set_file_extent_range(inode, start, extent_end - start);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 update_inode:
 	btrfs_update_inode_bytes(inode, nbytes, drop_args.bytes_found);
 	ret = btrfs_update_inode(trans, inode);
+	if (ret)
+		btrfs_abort_transaction(trans, ret);
 out:
 	iput(&inode->vfs_inode);
 	return ret;
@@ -907,15 +938,20 @@ static int unlink_inode_for_log_replay(struct btrfs_trans_handle *trans,
 	int ret;
 
 	ret = btrfs_unlink_inode(trans, dir, inode, name);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		return ret;
+	}
 	/*
 	 * Whenever we need to check if a name exists or not, we check the
 	 * fs/subvolume tree. So after an unlink we must run delayed items, so
 	 * that future checks for a name during log replay see that the name
 	 * does not exists anymore.
 	 */
-	return btrfs_run_delayed_items(trans);
+	ret = btrfs_run_delayed_items(trans);
+	if (ret)
+		btrfs_abort_transaction(trans, ret);
+	return ret;
 }
 
 /*
@@ -942,14 +978,17 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 
 	btrfs_dir_item_key_to_cpu(leaf, di, &location);
 	ret = read_alloc_one_name(leaf, di + 1, btrfs_dir_name_len(leaf, di), &name);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		return ret;
+	}
 
 	btrfs_release_path(path);
 
 	inode = btrfs_iget_logging(location.objectid, root);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
+		btrfs_abort_transaction(trans, ret);
 		inode = NULL;
 		goto out;
 	}
@@ -1080,14 +1119,18 @@ static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
 		ret = read_alloc_one_name(leaf, (victim_ref + 1),
 					  btrfs_inode_ref_name_len(leaf, victim_ref),
 					  &victim_name);
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			return ret;
+		}
 
 		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
 		if (ret) {
 			kfree(victim_name.name);
-			if (ret < 0)
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
 				return ret;
+			}
 			ptr = (unsigned long)(victim_ref + 1) + victim_name.len;
 			continue;
 		}
@@ -1133,8 +1176,10 @@ static int unlink_extrefs_not_in_log(struct btrfs_trans_handle *trans,
 
 		ret = read_alloc_one_name(leaf, &extref->name, victim_name.len,
 					  &victim_name);
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			return ret;
+		}
 
 		search_key->objectid = inode_objectid;
 		search_key->type = BTRFS_INODE_EXTREF_KEY;
@@ -1144,8 +1189,10 @@ static int unlink_extrefs_not_in_log(struct btrfs_trans_handle *trans,
 		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
 		if (ret) {
 			kfree(victim_name.name);
-			if (ret < 0)
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
 				return ret;
+			}
 next:
 			cur_offset += victim_name.len + sizeof(*extref);
 			continue;
@@ -1154,7 +1201,9 @@ next:
 		victim_parent = btrfs_iget_logging(parent_objectid, root);
 		if (IS_ERR(victim_parent)) {
 			kfree(victim_name.name);
-			return PTR_ERR(victim_parent);
+			ret = PTR_ERR(victim_parent);
+			btrfs_abort_transaction(trans, ret);
+			return ret;
 		}
 
 		inc_nlink(&inode->vfs_inode);
@@ -1193,6 +1242,7 @@ again:
 	search_key.offset = parent_objectid;
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 		return ret;
 	} else if (ret == 0) {
 		/*
@@ -1230,7 +1280,9 @@ again:
 	di = btrfs_lookup_dir_index_item(trans, root, path, btrfs_ino(dir),
 					 ref_index, name, 0);
 	if (IS_ERR(di)) {
-		return PTR_ERR(di);
+		ret = PTR_ERR(di);
+		btrfs_abort_transaction(trans, ret);
+		return ret;
 	} else if (di) {
 		ret = drop_one_dir_item(trans, path, dir, di);
 		if (ret)
@@ -1320,8 +1372,10 @@ again:
 		ret = 0;
 		goto out;
 	}
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	eb = path->nodes[0];
 	ref_ptr = btrfs_item_ptr_offset(eb, path->slots[0]);
@@ -1333,12 +1387,18 @@ again:
 		if (key->type == BTRFS_INODE_EXTREF_KEY) {
 			ret = extref_get_fields(eb, ref_ptr, &name,
 						NULL, &parent_id);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto out;
+			}
 		} else {
 			parent_id = key->offset;
 			ret = ref_get_fields(eb, ref_ptr, &name, NULL);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto out;
+			}
 		}
-		if (ret)
-			goto out;
 
 		if (key->type == BTRFS_INODE_EXTREF_KEY)
 			ret = !!btrfs_find_name_in_ext_backref(log_eb, log_slot,
@@ -1354,6 +1414,7 @@ again:
 			if (IS_ERR(dir)) {
 				ret = PTR_ERR(dir);
 				kfree(name.name);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 			ret = unlink_inode_for_log_replay(trans, dir, inode, &name);
@@ -1428,6 +1489,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 		ret = PTR_ERR(dir);
 		if (ret == -ENOENT)
 			ret = 0;
+		else
+			btrfs_abort_transaction(trans, ret);
 		dir = NULL;
 		goto out;
 	}
@@ -1435,6 +1498,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	inode = btrfs_iget_logging(inode_objectid, root);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
+		btrfs_abort_transaction(trans, ret);
 		inode = NULL;
 		goto out;
 	}
@@ -1443,8 +1507,10 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 		if (is_extref_item) {
 			ret = extref_get_fields(eb, ref_ptr, &name,
 						&ref_index, &parent_objectid);
-			if (ret)
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
+			}
 			/*
 			 * parent object can change from one array
 			 * item to another.
@@ -1469,19 +1535,24 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 						 */
 						ret = 0;
 						goto next;
+					} else {
+						btrfs_abort_transaction(trans, ret);
 					}
 					goto out;
 				}
 			}
 		} else {
 			ret = ref_get_fields(eb, ref_ptr, &name, &ref_index);
-			if (ret)
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
+			}
 		}
 
 		ret = inode_in_dir(root, path, btrfs_ino(dir), btrfs_ino(inode),
 				   ref_index, &name);
 		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		} else if (ret == 0) {
 			/*
@@ -1502,12 +1573,16 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 
 			/* insert our name */
 			ret = btrfs_add_link(trans, dir, inode, &name, 0, ref_index);
-			if (ret)
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
+			}
 
 			ret = btrfs_update_inode(trans, inode);
-			if (ret)
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
+			}
 		}
 		/* Else, ret == 1, we already have a perfect match, we're done. */
 
@@ -1779,8 +1854,11 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 	struct inode *vfs_inode;
 
 	inode = btrfs_iget_logging(objectid, root);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		btrfs_abort_transaction(trans, ret);
+		return ret;
+	}
 
 	vfs_inode = &inode->vfs_inode;
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
@@ -1798,6 +1876,8 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 		ret = btrfs_update_inode(trans, inode);
 	} else if (ret == -EEXIST) {
 		ret = 0;
+	} else {
+		btrfs_abort_transaction(trans, ret);
 	}
 	iput(vfs_inode);
 
@@ -1904,19 +1984,26 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	bool name_added = false;
 
 	dir = btrfs_iget_logging(key->objectid, root);
-	if (IS_ERR(dir))
-		return PTR_ERR(dir);
+	if (IS_ERR(dir)) {
+		ret = PTR_ERR(dir);
+		btrfs_abort_transaction(trans, ret);
+		return ret;
+	}
 
 	ret = read_alloc_one_name(eb, di + 1, btrfs_dir_name_len(eb, di), &name);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	log_flags = btrfs_dir_flags(eb, di);
 	btrfs_dir_item_key_to_cpu(eb, di, &log_key);
 	ret = btrfs_lookup_inode(trans, root, path, &log_key, 0);
 	btrfs_release_path(path);
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 	exists = (ret == 0);
 	ret = 0;
 
@@ -1924,12 +2011,15 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 					   &name, 1);
 	if (IS_ERR(dir_dst_di)) {
 		ret = PTR_ERR(dir_dst_di);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (dir_dst_di) {
 		ret = delete_conflicting_dir_entry(trans, dir, path, dir_dst_di,
 						   &log_key, log_flags, exists);
-		if (ret < 0)
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 		dir_dst_matches = (ret == 1);
 	}
 
@@ -1940,12 +2030,15 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 						   &name, 1);
 	if (IS_ERR(index_dst_di)) {
 		ret = PTR_ERR(index_dst_di);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (index_dst_di) {
 		ret = delete_conflicting_dir_entry(trans, dir, path, index_dst_di,
 						   &log_key, log_flags, exists);
-		if (ret < 0)
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 		index_dst_matches = (ret == 1);
 	}
 
@@ -1966,6 +2059,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	search_key.offset = key->objectid;
 	ret = backref_in_log(root->log_root, &search_key, 0, &name);
 	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 	        goto out;
 	} else if (ret) {
 	        /* The dentry will be added later. */
@@ -1979,6 +2073,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	search_key.offset = btrfs_extref_hash(key->objectid, name.name, name.len);
 	ret = backref_in_log(root->log_root, &search_key, key->objectid, &name);
 	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (ret) {
 		/* The dentry will be added later. */
@@ -1989,8 +2084,10 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 	ret = insert_one_name(trans, root, key->objectid, key->offset,
 			      &name, &log_key);
-	if (ret && ret != -ENOENT && ret != -EEXIST)
+	if (ret && ret != -ENOENT && ret != -EEXIST) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 	if (!ret)
 		name_added = true;
 	update_size = false;
@@ -2000,6 +2097,8 @@ out:
 	if (!ret && update_size) {
 		btrfs_i_size_write(dir, dir->vfs_inode.i_size + name.len * 2);
 		ret = btrfs_update_inode(trans, dir);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
 	}
 	kfree(name.name);
 	iput(&dir->vfs_inode);
@@ -2057,8 +2156,10 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 		struct btrfs_key di_key;
 
 		fixup_path = btrfs_alloc_path();
-		if (!fixup_path)
+		if (!fixup_path) {
+			btrfs_abort_transaction(trans, -ENOMEM);
 			return -ENOMEM;
+		}
 
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
 		ret = link_to_fixup_dir(trans, root, fixup_path, di_key.objectid);
@@ -2183,8 +2284,10 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 	slot = path->slots[0];
 	di = btrfs_item_ptr(eb, slot, struct btrfs_dir_item);
 	ret = read_alloc_one_name(eb, di + 1, btrfs_dir_name_len(eb, di), &name);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	if (log) {
 		struct btrfs_dir_item *log_di;
@@ -2194,6 +2297,7 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 						     dir_key->offset, &name, 0);
 		if (IS_ERR(log_di)) {
 			ret = PTR_ERR(log_di);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		} else if (log_di) {
 			/* The dentry exists in the log, we have nothing to do. */
@@ -2209,6 +2313,7 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		inode = NULL;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -2245,16 +2350,20 @@ static int replay_xattr_deletes(struct btrfs_trans_handle *trans,
 	int ret;
 
 	log_path = btrfs_alloc_path();
-	if (!log_path)
+	if (!log_path) {
+		btrfs_abort_transaction(trans, -ENOMEM);
 		return -ENOMEM;
+	}
 
 	search_key.objectid = ino;
 	search_key.type = BTRFS_XATTR_ITEM_KEY;
 	search_key.offset = 0;
 again:
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 process_leaf:
 	nritems = btrfs_header_nritems(path->nodes[0]);
 	for (i = path->slots[0]; i < nritems; i++) {
@@ -2282,6 +2391,7 @@ process_leaf:
 			name = kmalloc(name_len, GFP_NOFS);
 			if (!name) {
 				ret = -ENOMEM;
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 			read_extent_buffer(path->nodes[0], name,
@@ -2298,13 +2408,16 @@ process_leaf:
 				kfree(name);
 				if (IS_ERR(di)) {
 					ret = PTR_ERR(di);
+					btrfs_abort_transaction(trans, ret);
 					goto out;
 				}
 				ASSERT(di);
 				ret = btrfs_delete_one_dir_name(trans, root,
 								path, di);
-				if (ret)
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
 					goto out;
+				}
 				btrfs_release_path(path);
 				search_key = key;
 				goto again;
@@ -2312,6 +2425,7 @@ process_leaf:
 			kfree(name);
 			if (IS_ERR(log_di)) {
 				ret = PTR_ERR(log_di);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 			cur += this_len;
@@ -2323,6 +2437,8 @@ process_leaf:
 		ret = 0;
 	else if (ret == 0)
 		goto process_leaf;
+	else
+		btrfs_abort_transaction(trans, ret);
 out:
 	btrfs_free_path(log_path);
 	btrfs_release_path(path);
@@ -2357,8 +2473,10 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 	dir_key.objectid = dirid;
 	dir_key.type = BTRFS_DIR_INDEX_KEY;
 	log_path = btrfs_alloc_path();
-	if (!log_path)
+	if (!log_path) {
+		btrfs_abort_transaction(trans, -ENOMEM);
 		return -ENOMEM;
+	}
 
 	dir = btrfs_iget_logging(dirid, root);
 	/*
@@ -2370,6 +2488,8 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 		ret = PTR_ERR(dir);
 		if (ret == -ENOENT)
 			ret = 0;
+		else
+			btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
@@ -2381,10 +2501,12 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 		else {
 			ret = find_dir_range(log, path, dirid,
 					     &range_start, &range_end);
-			if (ret < 0)
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
-			else if (ret > 0)
+			} else if (ret > 0) {
 				break;
+			}
 		}
 
 		dir_key.offset = range_start;
@@ -2392,16 +2514,20 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 			int nritems;
 			ret = btrfs_search_slot(NULL, root, &dir_key, path,
 						0, 0);
-			if (ret < 0)
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, ret);
 				goto out;
+			}
 
 			nritems = btrfs_header_nritems(path->nodes[0]);
 			if (path->slots[0] >= nritems) {
 				ret = btrfs_next_leaf(root, path);
-				if (ret == 1)
+				if (ret == 1) {
 					break;
-				else if (ret < 0)
+				} else if (ret < 0) {
+					btrfs_abort_transaction(trans, ret);
 					goto out;
+				}
 			}
 			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 					      path->slots[0]);
@@ -2463,8 +2589,10 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	int ret;
 
 	ret = btrfs_read_extent_buffer(eb, &check);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		return ret;
+	}
 
 	level = btrfs_header_level(eb);
 
@@ -2472,8 +2600,10 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 		return 0;
 
 	path = btrfs_alloc_path();
-	if (!path)
+	if (!path) {
+		btrfs_abort_transaction(trans, -ENOMEM);
 		return -ENOMEM;
+	}
 
 	nritems = btrfs_header_nritems(eb);
 	for (i = 0; i < nritems; i++) {
@@ -2545,6 +2675,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				inode = btrfs_iget_logging(key.objectid, root);
 				if (IS_ERR(inode)) {
 					ret = PTR_ERR(inode);
+					btrfs_abort_transaction(trans, ret);
 					break;
 				}
 				from = ALIGN(i_size_read(&inode->vfs_inode),
@@ -2553,11 +2684,15 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				drop_args.end = (u64)-1;
 				drop_args.drop_cache = true;
 				ret = btrfs_drop_extents(trans, root, inode,  &drop_args);
-				if (!ret) {
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
+				} else {
 					inode_sub_bytes(&inode->vfs_inode,
 							drop_args.bytes_found);
 					/* Update the inode's nbytes. */
 					ret = btrfs_update_inode(trans, inode);
+					if (ret)
+						btrfs_abort_transaction(trans, ret);
 				}
 				iput(&inode->vfs_inode);
 				if (ret)
