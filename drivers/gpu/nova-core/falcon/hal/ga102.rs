@@ -73,7 +73,7 @@ fn signature_reg_fuse_version_ga102(
 fn program_brom_ga102<E: FalconEngine>(bar: &Bar0, params: &FalconBromParams) -> Result {
     regs::NV_PFALCON2_FALCON_BROM_PARAADDR::default()
         .set_value(params.pkc_data_offset)
-        .write(bar, &E::ID);
+        .write(bar, &E::ID, 0);
     regs::NV_PFALCON2_FALCON_BROM_ENGIDMASK::default()
         .set_value(u32::from(params.engine_id_mask))
         .write(bar, &E::ID);
