@@ -827,7 +827,7 @@ void mlx5_esw_vport_vhca_id_clear(struct mlx5_eswitch *esw, u16 vport_num);
 int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num);
 
 /**
- * mlx5_esw_event_info - Indicates eswitch mode changed/changing.
+ * struct mlx5_esw_event_info - Indicates eswitch mode changed/changing.
  *
  * @new_mode: New mode of eswitch.
  */
