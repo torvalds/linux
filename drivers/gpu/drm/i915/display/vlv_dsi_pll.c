@@ -262,6 +262,11 @@ void vlv_dsi_pll_disable(struct intel_encoder *encoder)
 	vlv_cck_put(display->drm);
 }
 
+static bool has_dsic_clock(struct intel_display *display)
+{
+	return display->platform.broxton;
+}
+
 bool bxt_dsi_pll_is_enabled(struct intel_display *display)
 {
 	bool enabled;
@@ -284,7 +289,7 @@ bool bxt_dsi_pll_is_enabled(struct intel_display *display)
 	 * causes a system hang.
 	 */
 	val = intel_de_read(display, BXT_DSI_PLL_CTL);
-	if (display->platform.geminilake) {
+	if (!has_dsic_clock(display)) {
 		if (!(val & BXT_DSIA_16X_MASK)) {
 			drm_dbg_kms(display->drm,
 				    "Invalid PLL divider (%08x)\n", val);
@@ -358,6 +363,8 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 	u32 pclk;
 
 	config->dsi_pll.ctrl = intel_de_read(display, BXT_DSI_PLL_CTL);
+	if (!has_dsic_clock(display))
+		config->dsi_pll.ctrl &= ~BXT_DSIC_16X_MASK;
 
 	pclk = bxt_dsi_pclk(encoder, config);
 
@@ -514,7 +521,9 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 	 * Spec says both have to be programmed, even if one is not getting
 	 * used. Configure MIPI_CLOCK_CTL dividers in modeset
 	 */
-	config->dsi_pll.ctrl = dsi_ratio | BXT_DSIA_16X_BY2 | BXT_DSIC_16X_BY2;
+	config->dsi_pll.ctrl = dsi_ratio | BXT_DSIA_16X_BY2;
+	if (has_dsic_clock(display))
+		config->dsi_pll.ctrl |= BXT_DSIC_16X_BY2;
 
 	/* As per recommendation from hardware team,
 	 * Prog PVD ratio =1 if dsi ratio <= 50
