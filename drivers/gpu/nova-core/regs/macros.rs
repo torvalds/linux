@@ -92,7 +92,7 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name @ $offset $(, $comment)?);
+        register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $offset);
     };
@@ -103,7 +103,7 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name @ $alias::OFFSET $(, $comment)?);
+        register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $alias::OFFSET);
     };
@@ -114,7 +114,7 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name @ $offset $(, $comment)?);
+        register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ + $offset);
     };
@@ -125,7 +125,7 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name @ $alias::OFFSET $(, $comment)?);
+        register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ + $alias::OFFSET);
     };
@@ -134,18 +134,13 @@ macro_rules! register {
 
     // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
     // and conversion to regular `u32`).
-    (@common $name:ident @ $offset:expr $(, $comment:literal)?) => {
+    (@common $name:ident $(, $comment:literal)?) => {
         $(
         #[doc=$comment]
         )?
         #[repr(transparent)]
         #[derive(Clone, Copy, Default)]
         pub(crate) struct $name(u32);
-
-        #[allow(dead_code)]
-        impl $name {
-            pub(crate) const OFFSET: usize = $offset;
-        }
 
         // TODO[REGA]: display the raw hex value, then the value of all the fields. This requires
         // matching the fields, which will complexify the syntax considerably...
@@ -319,6 +314,8 @@ macro_rules! register {
     (@io $name:ident @ $offset:expr) => {
         #[allow(dead_code)]
         impl $name {
+            pub(crate) const OFFSET: usize = $offset;
+
             #[inline]
             pub(crate) fn read<const SIZE: usize, T>(io: &T) -> Self where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
@@ -351,6 +348,8 @@ macro_rules! register {
     (@io $name:ident @ + $offset:literal) => {
         #[allow(dead_code)]
         impl $name {
+            pub(crate) const OFFSET: usize = $offset;
+
             #[inline]
             pub(crate) fn read<const SIZE: usize, T>(
                 io: &T,
