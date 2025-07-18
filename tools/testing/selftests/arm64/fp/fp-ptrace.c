@@ -1669,7 +1669,7 @@ int main(void)
 	 * Run the test set if there is no SVE or SME, with those we
 	 * have to pick a VL for each run.
 	 */
-	if (!sve_supported()) {
+	if (!sve_supported() && !sme_supported()) {
 		test_config.sve_vl_in = 0;
 		test_config.sve_vl_expected = 0;
 		test_config.sme_vl_in = 0;
