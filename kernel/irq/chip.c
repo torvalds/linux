@@ -488,8 +488,10 @@ static bool irq_can_handle_pm(struct irq_desc *desc)
 	 * and suspended, disable it and notify the pm core about the
 	 * event.
 	 */
-	if (irq_pm_check_wakeup(desc))
+	if (unlikely(irqd_has_set(irqd, IRQD_WAKEUP_ARMED))) {
+		irq_pm_handle_wakeup(desc);
 		return false;
+	}
 
 	/* Check whether the interrupt is polled on another CPU */
 	if (unlikely(desc->istate & IRQS_POLL_INPROGRESS)) {
