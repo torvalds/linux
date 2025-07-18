@@ -112,14 +112,14 @@ macro_rules! register {
 
     // All rules below are helpers.
 
-    // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
-    // and conversion to the value type) and field accessor methods.
+    // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`,
+    // `Default`, `BitOr`, and conversion to the value type) and field accessor methods.
     (@core $name:ident $(, $comment:literal)? { $($fields:tt)* }) => {
         $(
         #[doc=$comment]
         )?
         #[repr(transparent)]
-        #[derive(Clone, Copy, Default)]
+        #[derive(Clone, Copy)]
         pub(crate) struct $name(u32);
 
         impl ::core::ops::BitOr for $name {
@@ -162,6 +162,7 @@ macro_rules! register {
             )*
         });
         register!(@debug $name { $($field;)* });
+        register!(@default $name { $($field;)* });
     };
 
     // Defines all the field getter/methods methods for `$name`.
@@ -317,6 +318,25 @@ macro_rules! register {
                     .field(stringify!($field), &self.$field())
                 )*
                     .finish()
+            }
+        }
+    };
+
+    // Generates the `Default` implementation for `$name`.
+    (@default $name:ident { $($field:ident;)* }) => {
+        /// Returns a value for the register where all fields are set to their default value.
+        impl ::core::default::Default for $name {
+            fn default() -> Self {
+                #[allow(unused_mut)]
+                let mut value = Self(Default::default());
+
+                ::kernel::macros::paste!(
+                $(
+                value.[<set_ $field>](Default::default());
+                )*
+                );
+
+                value
             }
         }
     };
