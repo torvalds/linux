@@ -1242,7 +1242,9 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	if ((_link = rcu_dereference((___sdata)->link[___link_id])))
 
 #define for_each_link_data(sdata, __link)					\
-	struct ieee80211_sub_if_data *__sdata = sdata;				\
+	/* outer loop just to define the variable ... */			\
+	for (struct ieee80211_sub_if_data *__sdata = (sdata); __sdata;		\
+		__sdata = NULL /* always stop */)				\
 	for (int __link_id = 0;							\
 	     __link_id < ARRAY_SIZE((__sdata)->link); __link_id++)		\
 		if ((!(__sdata)->vif.valid_links ||				\
