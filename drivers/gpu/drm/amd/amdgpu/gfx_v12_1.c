@@ -89,6 +89,7 @@ static void gfx_v12_1_update_perf_clk(struct amdgpu_device *adev,
 				      bool enable);
 static void gfx_v12_1_xcc_update_perf_clk(struct amdgpu_device *adev,
 					 bool enable, int xcc_id);
+static int gfx_v12_1_init_cp_compute_microcode_bo(struct amdgpu_device *adev);
 
 static void gfx_v12_1_kiq_set_resources(struct amdgpu_ring *kiq_ring,
 					uint64_t queue_mask)
@@ -1245,6 +1246,10 @@ static int gfx_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 		r = gfx_v12_1_rlc_autoload_buffer_init(adev);
 		if (r)
 			return r;
+	} else if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		r = gfx_v12_1_init_cp_compute_microcode_bo(adev);
+		if (r)
+			return r;
 	}
 
 	r = gfx_v12_1_gpu_early_init(adev);
@@ -1919,15 +1924,13 @@ static void gfx_v12_1_xcc_cp_compute_enable(struct amdgpu_device *adev,
 	udelay(50);
 }
 
-static int gfx_v12_1_xcc_cp_compute_load_microcode_rs64(struct amdgpu_device *adev,
-							uint16_t xcc_mask)
+static int gfx_v12_1_init_cp_compute_microcode_bo(struct amdgpu_device *adev)
 {
 	const struct gfx_firmware_header_v2_0 *mec_hdr;
 	const __le32 *fw_ucode, *fw_data;
-	u32 tmp, fw_ucode_size, fw_data_size;
-	u32 i, usec_timeout = 50000; /* Wait for 50 ms */
+	u32 fw_ucode_size, fw_data_size;
 	u32 *fw_ucode_ptr, *fw_data_ptr;
-	int r, xcc_id;
+	int i, r, xcc_id;
 
 	if (!adev->gfx.mec_fw)
 		return -EINVAL;
@@ -1943,119 +1946,139 @@ static int gfx_v12_1_xcc_cp_compute_load_microcode_rs64(struct amdgpu_device *ad
 				le32_to_cpu(mec_hdr->data_offset_bytes));
 	fw_data_size = le32_to_cpu(mec_hdr->data_size_bytes);
 
-	r = amdgpu_bo_create_reserved(adev, fw_ucode_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
-				      &adev->gfx.mec.mec_fw_obj,
-				      &adev->gfx.mec.mec_fw_gpu_addr,
-				      (void **)&fw_ucode_ptr);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to create mec fw ucode bo\n", r);
-		gfx_v12_1_mec_fini(adev);
-		return r;
-	}
-
-	r = amdgpu_bo_create_reserved(adev,
-				      ALIGN(fw_data_size, 64 * 1024) *
-				      adev->gfx.mec.num_pipe_per_mec * NUM_XCC(xcc_mask),
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
-				      &adev->gfx.mec.mec_fw_data_obj,
-				      &adev->gfx.mec.mec_fw_data_gpu_addr,
-				      (void **)&fw_data_ptr);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to create mec fw ucode bo\n", r);
-		gfx_v12_1_mec_fini(adev);
-		return r;
-	}
-
-	memcpy(fw_ucode_ptr, fw_ucode, fw_ucode_size);
-	for (xcc_id = 0; xcc_id < NUM_XCC(xcc_mask); xcc_id++) {
-		for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
-			u32 offset = (xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
-				     ALIGN(fw_data_size, 64 * 1024) / 4;
-			memcpy(fw_data_ptr + offset, fw_data, fw_data_size);
+	if (adev->gfx.mec.mec_fw_obj == NULL) {
+		r = amdgpu_bo_create_reserved(adev, fw_ucode_size,
+					      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.mec.mec_fw_obj,
+					      &adev->gfx.mec.mec_fw_gpu_addr,
+					      (void **)&fw_ucode_ptr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to create mec fw ucode bo\n", r);
+			gfx_v12_1_mec_fini(adev);
+			return r;
 		}
+
+		memcpy(fw_ucode_ptr, fw_ucode, fw_ucode_size);
+
+		amdgpu_bo_kunmap(adev->gfx.mec.mec_fw_obj);
+		amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_obj);
 	}
 
-	amdgpu_bo_kunmap(adev->gfx.mec.mec_fw_obj);
-	amdgpu_bo_kunmap(adev->gfx.mec.mec_fw_data_obj);
-	amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_obj);
-	amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_data_obj);
-
-	for (xcc_id = 0; xcc_id < NUM_XCC(xcc_mask); xcc_id++) {
-		gfx_v12_1_xcc_cp_compute_enable(adev, false, xcc_id);
-
-		tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_CNTL);
-		tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
-		tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, EXE_DISABLE, 0);
-		tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_CNTL, tmp);
-
-		tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_BASE_CNTL);
-		tmp = REG_SET_FIELD(tmp, CP_MEC_DC_BASE_CNTL, VMID, 0);
-		tmp = REG_SET_FIELD(tmp, CP_MEC_DC_BASE_CNTL, CACHE_POLICY, 0);
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_BASE_CNTL, tmp);
-
-		mutex_lock(&adev->srbm_mutex);
-		for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
-			soc_v1_0_grbm_select(adev, 1, i, 0, 0, GET_INST(GC, xcc_id));
-
-			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_MDBASE_LO,
-					lower_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr +
-									(xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
-									ALIGN(fw_data_size, 64 * 1024)));
-			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_MDBASE_HI,
-					upper_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr +
-									(xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
-									ALIGN(fw_data_size, 64 * 1024)));
-
-			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_LO,
-					lower_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
-			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_HI,
-					upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
+	if (adev->gfx.mec.mec_fw_data_obj == NULL) {
+		r = amdgpu_bo_create_reserved(adev,
+					      ALIGN(fw_data_size, 64 * 1024) *
+					      adev->gfx.mec.num_pipe_per_mec * NUM_XCC(adev->gfx.xcc_mask),
+					      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.mec.mec_fw_data_obj,
+					      &adev->gfx.mec.mec_fw_data_gpu_addr,
+					      (void **)&fw_data_ptr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to create mec fw data bo\n", r);
+			gfx_v12_1_mec_fini(adev);
+			return r;
 		}
-		mutex_unlock(&adev->srbm_mutex);
-		soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
 
-		/* Trigger an invalidation of the L1 instruction caches */
+		for (xcc_id = 0; xcc_id < NUM_XCC(adev->gfx.xcc_mask); xcc_id++) {
+			for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
+				u32 offset = (xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
+					     ALIGN(fw_data_size, 64 * 1024) / 4;
+				memcpy(fw_data_ptr + offset, fw_data, fw_data_size);
+			}
+		}
+
+		amdgpu_bo_kunmap(adev->gfx.mec.mec_fw_data_obj);
+		amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_data_obj);
+	}
+
+	return 0;
+}
+
+static int gfx_v12_1_xcc_cp_compute_load_microcode_rs64(struct amdgpu_device *adev,
+							int xcc_id)
+{
+	const struct gfx_firmware_header_v2_0 *mec_hdr;
+	u32 fw_data_size;
+	u32 tmp, i, usec_timeout = 50000; /* Wait for 50 ms */
+
+	if (!adev->gfx.mec_fw)
+		return -EINVAL;
+
+	mec_hdr = (const struct gfx_firmware_header_v2_0 *)adev->gfx.mec_fw->data;
+	fw_data_size = le32_to_cpu(mec_hdr->data_size_bytes);
+
+	gfx_v12_1_xcc_cp_compute_enable(adev, false, xcc_id);
+
+	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
+	tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, EXE_DISABLE, 0);
+	tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_CNTL, tmp);
+
+	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_BASE_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_DC_BASE_CNTL, VMID, 0);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_DC_BASE_CNTL, CACHE_POLICY, 0);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_BASE_CNTL, tmp);
+
+	mutex_lock(&adev->srbm_mutex);
+	for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
+		soc_v1_0_grbm_select(adev, 1, i, 0, 0, GET_INST(GC, xcc_id));
+
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_MDBASE_LO,
+			     lower_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr +
+					   (xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
+					   ALIGN(fw_data_size, 64 * 1024)));
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_MDBASE_HI,
+			     upper_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr +
+					   (xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
+					   ALIGN(fw_data_size, 64 * 1024)));
+
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_LO,
+				lower_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_HI,
+				upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
+	}
+	mutex_unlock(&adev->srbm_mutex);
+	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
+
+	/* Trigger an invalidation of the L1 instruction caches */
+	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_OP_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_DC_OP_CNTL, INVALIDATE_DCACHE, 1);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_OP_CNTL, tmp);
+
+	/* Wait for invalidation complete */
+	for (i = 0; i < usec_timeout; i++) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_OP_CNTL);
-		tmp = REG_SET_FIELD(tmp, CP_MEC_DC_OP_CNTL, INVALIDATE_DCACHE, 1);
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_OP_CNTL, tmp);
-
-		/* Wait for invalidation complete */
-		for (i = 0; i < usec_timeout; i++) {
-			tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_OP_CNTL);
-			if (1 == REG_GET_FIELD(tmp, CP_MEC_DC_OP_CNTL,
-						INVALIDATE_DCACHE_COMPLETE))
-				break;
-			udelay(1);
-		}
-
-		if (i >= usec_timeout) {
-			dev_err(adev->dev, "failed to invalidate instruction cache\n");
-			return -EINVAL;
-		}
-
-		/* Trigger an invalidation of the L1 instruction caches */
-		tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_OP_CNTL);
-		tmp = REG_SET_FIELD(tmp, CP_CPC_IC_OP_CNTL, INVALIDATE_CACHE, 1);
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_OP_CNTL, tmp);
-
-		/* Wait for invalidation complete */
-		for (i = 0; i < usec_timeout; i++) {
-			tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_OP_CNTL);
-			if (1 == REG_GET_FIELD(tmp, CP_CPC_IC_OP_CNTL,
-						INVALIDATE_CACHE_COMPLETE))
-				break;
-			udelay(1);
-		}
-
-		if (i >= usec_timeout) {
-			dev_err(adev->dev, "failed to invalidate instruction cache\n");
-			return -EINVAL;
-		}
-
-		gfx_v12_1_xcc_set_mec_ucode_start_addr(adev, xcc_id);
+		if (1 == REG_GET_FIELD(tmp, CP_MEC_DC_OP_CNTL,
+				       INVALIDATE_DCACHE_COMPLETE))
+			break;
+		udelay(1);
 	}
+
+	if (i >= usec_timeout) {
+		dev_err(adev->dev, "failed to invalidate data cache\n");
+		return -EINVAL;
+	}
+
+	/* Trigger an invalidation of the L1 instruction caches */
+	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_OP_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_CPC_IC_OP_CNTL, INVALIDATE_CACHE, 1);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_OP_CNTL, tmp);
+
+	/* Wait for invalidation complete */
+	for (i = 0; i < usec_timeout; i++) {
+		tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_OP_CNTL);
+		if (1 == REG_GET_FIELD(tmp, CP_CPC_IC_OP_CNTL,
+				       INVALIDATE_CACHE_COMPLETE))
+			break;
+		udelay(1);
+	}
+
+	if (i >= usec_timeout) {
+		dev_err(adev->dev, "failed to invalidate instruction cache\n");
+		return -EINVAL;
+	}
+
+	gfx_v12_1_xcc_set_mec_ucode_start_addr(adev, xcc_id);
 
 	return 0;
 }
@@ -2460,14 +2483,14 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev, uint16_t xcc_mask
 	int r, i, xcc_id;
 	struct amdgpu_ring *ring;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		/* legacy firmware loading */
-		r = gfx_v12_1_xcc_cp_compute_load_microcode_rs64(adev, xcc_mask);
-		if (r)
-			return r;
-	}
+	for_each_inst(xcc_id, xcc_mask) {
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+			/* legacy firmware loading */
+			r = gfx_v12_1_xcc_cp_compute_load_microcode_rs64(adev, xcc_id);
+			if (r)
+				return r;
+		}
 
-	for (xcc_id = 0; xcc_id < NUM_XCC(xcc_mask); xcc_id++) {
 		if (!(adev->flags & AMD_IS_APU))
 			gfx_v12_1_xcc_enable_gui_idle_interrupt(adev, false, xcc_id);
 
@@ -2500,6 +2523,7 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev, uint16_t xcc_mask
 static int gfx_v12_1_cp_resume(struct amdgpu_device *adev)
 {
 	int num_xcc, num_xcp, num_xcc_per_xcp;
+	uint16_t xcc_mask;
 	int r = 0;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
@@ -2531,7 +2555,9 @@ static int gfx_v12_1_cp_resume(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	return gfx_v12_1_xcc_cp_resume(adev, adev->gfx.xcc_mask);
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+
+	return gfx_v12_1_xcc_cp_resume(adev, xcc_mask);
 }
 
 static int gfx_v12_1_gfxhub_enable(struct amdgpu_device *adev)
