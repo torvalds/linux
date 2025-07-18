@@ -70,6 +70,29 @@
 #define ABCD_SAVED	%xmm8
 #define E0_SAVED	%xmm9
 
+.macro do_4rounds	i, m0, m1, m2, m3, e0, e1
+.if \i < 16
+	movdqu		\i*4(DATA_PTR), \m0
+	pshufb		SHUF_MASK, \m0
+.endif
+.if \i == 0
+	paddd		\m0, \e0
+.else
+	sha1nexte	\m0, \e0
+.endif
+	movdqa		ABCD, \e1
+.if \i >= 12 && \i < 76
+	sha1msg2	\m0, \m1
+.endif
+	sha1rnds4	$\i / 20, \e0, ABCD
+.if \i >= 4 && \i < 68
+	sha1msg1	\m0, \m3
+.endif
+.if \i >= 8 && \i < 72
+	pxor		\m0, \m2
+.endif
+.endm
+
 /*
  * Intel SHA Extensions optimized implementation of a SHA-1 block function
  *
@@ -79,9 +102,6 @@
  * processed, the state is updated with the new state.  This function only
  * processes complete blocks.  State initialization, buffering of partial
  * blocks, and digest finalization are expected to be handled elsewhere.
- *
- * The indented lines in the loop are instructions related to rounds processing.
- * The non-indented lines are instructions related to the message schedule.
  *
  * void sha1_ni_transform(struct sha1_block_state *state,
  *			  const u8 *data, size_t nblocks)
@@ -102,161 +122,12 @@ SYM_FUNC_START(sha1_ni_transform)
 	movdqa		E0, E0_SAVED
 	movdqa		ABCD, ABCD_SAVED
 
-	/* Rounds 0-3 */
-	movdqu		0*16(DATA_PTR), MSG0
-	pshufb		SHUF_MASK, MSG0
-		paddd		MSG0, E0
-		movdqa		ABCD, E1
-		sha1rnds4	$0, E0, ABCD
-
-	/* Rounds 4-7 */
-	movdqu		1*16(DATA_PTR), MSG1
-	pshufb		SHUF_MASK, MSG1
-		sha1nexte	MSG1, E1
-		movdqa		ABCD, E0
-		sha1rnds4	$0, E1, ABCD
-	sha1msg1	MSG1, MSG0
-
-	/* Rounds 8-11 */
-	movdqu		2*16(DATA_PTR), MSG2
-	pshufb		SHUF_MASK, MSG2
-		sha1nexte	MSG2, E0
-		movdqa		ABCD, E1
-		sha1rnds4	$0, E0, ABCD
-	sha1msg1	MSG2, MSG1
-	pxor		MSG2, MSG0
-
-	/* Rounds 12-15 */
-	movdqu		3*16(DATA_PTR), MSG3
-	pshufb		SHUF_MASK, MSG3
-		sha1nexte	MSG3, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG3, MSG0
-		sha1rnds4	$0, E1, ABCD
-	sha1msg1	MSG3, MSG2
-	pxor		MSG3, MSG1
-
-	/* Rounds 16-19 */
-		sha1nexte	MSG0, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG0, MSG1
-		sha1rnds4	$0, E0, ABCD
-	sha1msg1	MSG0, MSG3
-	pxor		MSG0, MSG2
-
-	/* Rounds 20-23 */
-		sha1nexte	MSG1, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG1, MSG2
-		sha1rnds4	$1, E1, ABCD
-	sha1msg1	MSG1, MSG0
-	pxor		MSG1, MSG3
-
-	/* Rounds 24-27 */
-		sha1nexte	MSG2, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG2, MSG3
-		sha1rnds4	$1, E0, ABCD
-	sha1msg1	MSG2, MSG1
-	pxor		MSG2, MSG0
-
-	/* Rounds 28-31 */
-		sha1nexte	MSG3, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG3, MSG0
-		sha1rnds4	$1, E1, ABCD
-	sha1msg1	MSG3, MSG2
-	pxor		MSG3, MSG1
-
-	/* Rounds 32-35 */
-		sha1nexte	MSG0, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG0, MSG1
-		sha1rnds4	$1, E0, ABCD
-	sha1msg1	MSG0, MSG3
-	pxor		MSG0, MSG2
-
-	/* Rounds 36-39 */
-		sha1nexte	MSG1, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG1, MSG2
-		sha1rnds4	$1, E1, ABCD
-	sha1msg1	MSG1, MSG0
-	pxor		MSG1, MSG3
-
-	/* Rounds 40-43 */
-		sha1nexte	MSG2, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG2, MSG3
-		sha1rnds4	$2, E0, ABCD
-	sha1msg1	MSG2, MSG1
-	pxor		MSG2, MSG0
-
-	/* Rounds 44-47 */
-		sha1nexte	MSG3, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG3, MSG0
-		sha1rnds4	$2, E1, ABCD
-	sha1msg1	MSG3, MSG2
-	pxor		MSG3, MSG1
-
-	/* Rounds 48-51 */
-		sha1nexte	MSG0, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG0, MSG1
-		sha1rnds4	$2, E0, ABCD
-	sha1msg1	MSG0, MSG3
-	pxor		MSG0, MSG2
-
-	/* Rounds 52-55 */
-		sha1nexte	MSG1, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG1, MSG2
-		sha1rnds4	$2, E1, ABCD
-	sha1msg1	MSG1, MSG0
-	pxor		MSG1, MSG3
-
-	/* Rounds 56-59 */
-		sha1nexte	MSG2, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG2, MSG3
-		sha1rnds4	$2, E0, ABCD
-	sha1msg1	MSG2, MSG1
-	pxor		MSG2, MSG0
-
-	/* Rounds 60-63 */
-		sha1nexte	MSG3, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG3, MSG0
-		sha1rnds4	$3, E1, ABCD
-	sha1msg1	MSG3, MSG2
-	pxor		MSG3, MSG1
-
-	/* Rounds 64-67 */
-		sha1nexte	MSG0, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG0, MSG1
-		sha1rnds4	$3, E0, ABCD
-	sha1msg1	MSG0, MSG3
-	pxor		MSG0, MSG2
-
-	/* Rounds 68-71 */
-		sha1nexte	MSG1, E1
-		movdqa		ABCD, E0
-	sha1msg2	MSG1, MSG2
-		sha1rnds4	$3, E1, ABCD
-	pxor		MSG1, MSG3
-
-	/* Rounds 72-75 */
-		sha1nexte	MSG2, E0
-		movdqa		ABCD, E1
-	sha1msg2	MSG2, MSG3
-		sha1rnds4	$3, E0, ABCD
-
-	/* Rounds 76-79 */
-		sha1nexte	MSG3, E1
-		movdqa		ABCD, E0
-		sha1rnds4	$3, E1, ABCD
+.irp i, 0, 16, 32, 48, 64
+	do_4rounds	(\i + 0),  MSG0, MSG1, MSG2, MSG3, E0, E1
+	do_4rounds	(\i + 4),  MSG1, MSG2, MSG3, MSG0, E1, E0
+	do_4rounds	(\i + 8),  MSG2, MSG3, MSG0, MSG1, E0, E1
+	do_4rounds	(\i + 12), MSG3, MSG0, MSG1, MSG2, E1, E0
+.endr
 
 	/* Add the previous state (before the rounds) to the current state. */
 	sha1nexte	E0_SAVED, E0
