@@ -131,7 +131,7 @@
 				       "PH5", "PH6", "PH7", "PH9", "PH10",
 				       "PH14", "PH15", "PH16", "PH17", "PH18";
 				allwinner,pinmux = <5>;
-				function = "emac0";
+				function = "gmac0";
 				drive-strength = <40>;
 				bias-disable;
 			};
@@ -540,8 +540,8 @@
 			status = "disabled";
 		};
 
-		emac0: ethernet@4500000 {
-			compatible = "allwinner,sun55i-a523-emac0",
+		gmac0: ethernet@4500000 {
+			compatible = "allwinner,sun55i-a523-gmac0",
 				     "allwinner,sun50i-a64-emac";
 			reg = <0x04500000 0x10000>;
 			clocks = <&ccu CLK_BUS_EMAC0>;

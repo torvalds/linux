@@ -12,7 +12,7 @@
 	compatible = "radxa,cubie-a5e", "allwinner,sun55i-a527";
 
 	aliases {
-		ethernet0 = &emac0;
+		ethernet0 = &gmac0;
 		serial0 = &uart0;
 	};
 
@@ -55,7 +55,7 @@
 	status = "okay";
 };
 
-&emac0 {
+&gmac0 {
 	phy-mode = "rgmii-id";
 	phy-handle = <&ext_rgmii_phy>;
 	phy-supply = <&reg_cldo3>;
