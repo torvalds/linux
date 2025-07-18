@@ -254,6 +254,7 @@ struct nfs_server {
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
 	struct list_head	delegations;
+	atomic_long_t		nr_active_delegations;
 	struct list_head	ss_copies;
 	struct list_head	ss_src_copies;
 
