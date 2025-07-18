@@ -1334,7 +1334,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				      GFP_KERNEL);
 	if (!local->int_scan_req)
 		return -ENOMEM;
-	local->int_scan_req->n_channels = channels;
 
 	eth_broadcast_addr(local->int_scan_req->bssid);
 
