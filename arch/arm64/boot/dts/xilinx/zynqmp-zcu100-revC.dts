@@ -509,6 +509,9 @@
 	xlnx,mio-bank = <0>;
 	non-removable;
 	disable-wp;
+	no-sd;
+	no-sdio;
+	cap-mmc-hw-reset;
 	cap-power-off-card;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	vqmmc-supply = <&wmmcsdio_fixed>;
