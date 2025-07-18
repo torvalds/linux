@@ -10967,6 +10967,26 @@ static const struct inode_operations nfs4_file_inode_operations = {
 	.listxattr	= nfs4_listxattr,
 };
 
+static struct nfs_server *nfs4_clone_server(struct nfs_server *source,
+		struct nfs_fh *fh, struct nfs_fattr *fattr,
+		rpc_authflavor_t flavor)
+{
+	struct nfs_server *server;
+	int error;
+
+	server = nfs_clone_server(source, fh, fattr, flavor);
+	if (IS_ERR(server))
+		return server;
+
+	error = nfs4_delegation_hash_alloc(server);
+	if (error) {
+		nfs_free_server(server);
+		return ERR_PTR(error);
+	}
+
+	return server;
+}
+
 const struct nfs_rpc_ops nfs_v4_clientops = {
 	.version	= 4,			/* protocol version */
 	.dentry_ops	= &nfs4_dentry_operations,
@@ -11019,7 +11039,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.init_client	= nfs4_init_client,
 	.free_client	= nfs4_free_client,
 	.create_server	= nfs4_create_server,
-	.clone_server	= nfs_clone_server,
+	.clone_server	= nfs4_clone_server,
 	.discover_trunking = nfs4_discover_trunking,
 	.enable_swap	= nfs4_enable_swap,
 	.disable_swap	= nfs4_disable_swap,

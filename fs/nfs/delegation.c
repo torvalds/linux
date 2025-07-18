@@ -30,6 +30,13 @@
 static unsigned nfs_delegation_watermark = NFS_DEFAULT_DELEGATION_WATERMARK;
 module_param_named(delegation_watermark, nfs_delegation_watermark, uint, 0644);
 
+static struct hlist_head *nfs_delegation_hash(struct nfs_server *server,
+		const struct nfs_fh *fhandle)
+{
+	return server->delegation_hash_table +
+		(nfs_fhandle_hash(fhandle) & server->delegation_hash_mask);
+}
+
 static void __nfs_free_delegation(struct nfs_delegation *delegation)
 {
 	put_cred(delegation->cred);
@@ -367,6 +374,7 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 		spin_unlock(&delegation->lock);
 		return NULL;
 	}
+	hlist_del_init_rcu(&delegation->hash);
 	list_del_rcu(&delegation->super_list);
 	delegation->inode = NULL;
 	rcu_assign_pointer(nfsi->delegation, NULL);
@@ -529,6 +537,8 @@ add_new:
 	spin_unlock(&inode->i_lock);
 
 	list_add_tail_rcu(&delegation->super_list, &server->delegations);
+	hlist_add_head_rcu(&delegation->hash,
+			nfs_delegation_hash(server, &NFS_I(inode)->fh));
 	rcu_assign_pointer(nfsi->delegation, delegation);
 	delegation = NULL;
 
@@ -1166,11 +1176,12 @@ static struct inode *
 nfs_delegation_find_inode_server(struct nfs_server *server,
 				 const struct nfs_fh *fhandle)
 {
+	struct hlist_head *head = nfs_delegation_hash(server, fhandle);
 	struct nfs_delegation *delegation;
 	struct super_block *freeme = NULL;
 	struct inode *res = NULL;
 
-	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
+	hlist_for_each_entry_rcu(delegation, head, hash) {
 		spin_lock(&delegation->lock);
 		if (delegation->inode != NULL &&
 		    !test_bit(NFS_DELEGATION_REVOKED, &delegation->flags) &&
@@ -1576,4 +1587,19 @@ bool nfs4_delegation_flush_on_close(const struct inode *inode)
 out:
 	rcu_read_unlock();
 	return ret;
+}
+
+int nfs4_delegation_hash_alloc(struct nfs_server *server)
+{
+	int delegation_buckets, i;
+
+	delegation_buckets = roundup_pow_of_two(nfs_delegation_watermark / 16);
+	server->delegation_hash_mask = delegation_buckets - 1;
+	server->delegation_hash_table = kmalloc_array(delegation_buckets,
+			sizeof(*server->delegation_hash_table), GFP_KERNEL);
+	if (!server->delegation_hash_table)
+		return -ENOMEM;
+	for (i = 0; i < delegation_buckets; i++)
+		INIT_HLIST_HEAD(&server->delegation_hash_table[i]);
+	return 0;
 }
