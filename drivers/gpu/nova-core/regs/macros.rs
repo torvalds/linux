@@ -280,7 +280,7 @@ macro_rules! register {
         #[doc="Returns the value of this field:"]
         #[doc=$comment]
         )?
-        #[inline]
+        #[inline(always)]
         pub(crate) fn $field(self) -> $res_type {
             ::kernel::macros::paste!(
             const MASK: u32 = $name::[<$field:upper _MASK>];
@@ -296,7 +296,7 @@ macro_rules! register {
         #[doc="Sets the value of this field:"]
         #[doc=$comment]
         )?
-        #[inline]
+        #[inline(always)]
         pub(crate) fn [<set_ $field>](mut self, value: $to_type) -> Self {
             const MASK: u32 = $name::[<$field:upper _MASK>];
             const SHIFT: u32 = $name::[<$field:upper _SHIFT>];
@@ -348,7 +348,7 @@ macro_rules! register {
             pub(crate) const OFFSET: usize = $offset;
 
             /// Read the register from its address in `io`.
-            #[inline]
+            #[inline(always)]
             pub(crate) fn read<const SIZE: usize, T>(io: &T) -> Self where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
             {
@@ -356,7 +356,7 @@ macro_rules! register {
             }
 
             /// Write the value contained in `self` to the register address in `io`.
-            #[inline]
+            #[inline(always)]
             pub(crate) fn write<const SIZE: usize, T>(self, io: &T) where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
             {
@@ -365,7 +365,7 @@ macro_rules! register {
 
             /// Read the register from its address in `io` and run `f` on its value to obtain a new
             /// value to write back.
-            #[inline]
+            #[inline(always)]
             pub(crate) fn alter<const SIZE: usize, T, F>(
                 io: &T,
                 f: F,
@@ -385,7 +385,7 @@ macro_rules! register {
         impl $name {
             pub(crate) const OFFSET: usize = $offset;
 
-            #[inline]
+            #[inline(always)]
             pub(crate) fn read<const SIZE: usize, T>(
                 io: &T,
                 base: usize,
@@ -395,7 +395,7 @@ macro_rules! register {
                 Self(io.read32(base + $offset))
             }
 
-            #[inline]
+            #[inline(always)]
             pub(crate) fn write<const SIZE: usize, T>(
                 self,
                 io: &T,
@@ -406,7 +406,7 @@ macro_rules! register {
                 io.write32(self.0, base + $offset)
             }
 
-            #[inline]
+            #[inline(always)]
             pub(crate) fn alter<const SIZE: usize, T, F>(
                 io: &T,
                 base: usize,
