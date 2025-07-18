@@ -12,26 +12,17 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-	.irp		b,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
-	.set		.Lq\b, \b
-	.set		.Lv\b\().2d, \b
-	.endr
-
-	.macro		sha512h, rd, rn, rm
-	.inst		0xce608000 | .L\rd | (.L\rn << 5) | (.L\rm << 16)
-	.endm
-
-	.macro		sha512h2, rd, rn, rm
-	.inst		0xce608400 | .L\rd | (.L\rn << 5) | (.L\rm << 16)
-	.endm
-
-	.macro		sha512su0, rd, rn
-	.inst		0xcec08000 | .L\rd | (.L\rn << 5)
-	.endm
-
-	.macro		sha512su1, rd, rn, rm
-	.inst		0xce608800 | .L\rd | (.L\rn << 5) | (.L\rm << 16)
-	.endm
+	/*
+	 * We have to specify the "sha3" feature here, since the GNU and clang
+	 * assemblers both consider the SHA-512 instructions to be part of the
+	 * "sha3" feature.  (Except binutils 2.30 through 2.42, which used
+	 * "sha2".  But "sha3" implies "sha2", so "sha3" still works in those
+	 * versions.)  "sha3" doesn't make a lot of sense, since SHA-512 is part
+	 * of the SHA-2 family of algorithms, and also the Arm Architecture
+	 * Reference Manual defines FEAT_SHA512 and FEAT_SHA3 separately.
+	 * Regardless, we must use "sha3" to be compatible with the assemblers.
+	 */
+	.arch		armv8-a+sha3
 
 	/*
 	 * The SHA-512 round constants
