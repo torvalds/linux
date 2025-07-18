@@ -45,8 +45,10 @@ impl NV_PMC_BOOT_0 {
 
 // PBUS
 
-// TODO[REGA]: this is an array of registers.
-register!(NV_PBUS_SW_SCRATCH_0E@0x00001438  {
+register!(NV_PBUS_SW_SCRATCH @ 0x00001400[64]  {});
+
+register!(NV_PBUS_SW_SCRATCH_0E_FRTS_ERR => NV_PBUS_SW_SCRATCH[0xe],
+    "scratch register 0xe used as FRTS firmware error code" {
     31:16   frts_err_code as u16;
 });
 
@@ -124,13 +126,12 @@ register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK @ 0x00118128,
     0:0     read_protection_level0 as bool, "Set after FWSEC lowers its protection level";
 });
 
-// TODO[REGA]: This is an array of registers.
-register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05 @ 0x00118234 {
-    31:0    value as u32;
-});
+// OpenRM defines this as a register array, but doesn't specify its size and only uses its first
+// element. Be conservative until we know the actual size or need to use more registers.
+register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05 @ 0x00118234[1] {});
 
 register!(
-    NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT => NV_PGC6_AON_SECURE_SCRATCH_GROUP_05,
+    NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT => NV_PGC6_AON_SECURE_SCRATCH_GROUP_05[0],
     "Scratch group 05 register 0 used as GFW boot progress indicator" {
         7:0    progress as u8, "Progress of GFW boot (0xff means completed)";
     }

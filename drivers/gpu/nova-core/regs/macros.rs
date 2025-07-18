@@ -162,6 +162,57 @@ pub(crate) trait RegisterBase<T> {
 /// // Start the aliased `CPU0`.
 /// CPU_CTL_ALIAS::alter(bar, &CPU0, |r| r.set_alias_start(true));
 /// ```
+///
+/// ## Arrays of registers
+///
+/// Some I/O areas contain consecutive values that can be interpreted in the same way. These areas
+/// can be defined as an array of identical registers, allowing them to be accessed by index with
+/// compile-time or runtime bound checking. Simply define their address as `Address[Size]`, and add
+/// an `idx` parameter to their `read`, `write` and `alter` methods:
+///
+/// ```no_run
+/// # fn no_run() -> Result<(), Error> {
+/// # fn get_scratch_idx() -> usize {
+/// #   0x15
+/// # }
+/// // Array of 64 consecutive registers with the same layout starting at offset `0x80`.
+/// register!(SCRATCH @ 0x00000080[64], "Scratch registers" {
+///     31:0    value as u32;
+/// });
+///
+/// // Read scratch register 0, i.e. I/O address `0x80`.
+/// let scratch_0 = SCRATCH::read(bar, 0).value();
+/// // Read scratch register 15, i.e. I/O address `0x80 + (15 * 4)`.
+/// let scratch_15 = SCRATCH::read(bar, 15).value();
+///
+/// // This is out of bounds and won't build.
+/// // let scratch_128 = SCRATCH::read(bar, 128).value();
+///
+/// // Runtime-obtained array index.
+/// let scratch_idx = get_scratch_idx();
+/// // Access on a runtime index returns an error if it is out-of-bounds.
+/// let some_scratch = SCRATCH::try_read(bar, scratch_idx)?.value();
+///
+/// // Alias to a particular register in an array.
+/// // Here `SCRATCH[8]` is used to convey the firmware exit code.
+/// register!(FIRMWARE_STATUS => SCRATCH[8], "Firmware exit status code" {
+///     7:0     status as u8;
+/// });
+///
+/// let status = FIRMWARE_STATUS::read(bar).status();
+///
+/// // Non-contiguous register arrays can be defined by adding a stride parameter.
+/// // Here, each of the 16 registers of the array are separated by 8 bytes, meaning that the
+/// // registers of the two declarations below are interleaved.
+/// register!(SCRATCH_INTERLEAVED_0 @ 0x000000c0[16 ; 8], "Scratch registers bank 0" {
+///     31:0    value as u32;
+/// });
+/// register!(SCRATCH_INTERLEAVED_1 @ 0x000000c4[16 ; 8], "Scratch registers bank 1" {
+///     31:0    value as u32;
+/// });
+/// # Ok(())
+/// # }
+/// ```
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     ($name:ident @ $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
@@ -185,6 +236,35 @@ macro_rules! register {
     ($name:ident => $base:ty [ $alias:ident ] $(, $comment:literal)? { $($fields:tt)* }) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
         register!(@io_relative $name @ $base [ $alias::OFFSET ]);
+    };
+
+    // Creates an array of registers at a fixed offset of the MMIO space.
+    (
+        $name:ident @ $offset:literal [ $size:expr ; $stride:expr ] $(, $comment:literal)? {
+            $($fields:tt)*
+        }
+    ) => {
+        static_assert!(::core::mem::size_of::<u32>() <= $stride);
+        register!(@core $name $(, $comment)? { $($fields)* } );
+        register!(@io_array $name @ $offset [ $size ; $stride ]);
+    };
+
+    // Shortcut for contiguous array of registers (stride == size of element).
+    (
+        $name:ident @ $offset:literal [ $size:expr ] $(, $comment:literal)? {
+            $($fields:tt)*
+        }
+    ) => {
+        register!($name @ $offset [ $size ; ::core::mem::size_of::<u32>() ] $(, $comment)? {
+            $($fields)*
+        } );
+    };
+
+    // Creates an alias of register `idx` of array of registers `alias` with its own fields.
+    ($name:ident => $alias:ident [ $idx:expr ] $(, $comment:literal)? { $($fields:tt)* }) => {
+        static_assert!($idx < $alias::SIZE);
+        register!(@core $name $(, $comment)? { $($fields)* } );
+        register!(@io_fixed $name @ $alias::OFFSET + $idx * $alias::STRIDE );
     };
 
     // All rules below are helpers.
@@ -517,6 +597,121 @@ macro_rules! register {
             {
                 let reg = f(Self::read(io, base));
                 reg.write(io, base);
+            }
+        }
+    };
+
+    // Generates the IO accessors for an array of registers.
+    (@io_array $name:ident @ $offset:literal [ $size:expr ; $stride:expr ]) => {
+        #[allow(dead_code)]
+        impl $name {
+            pub(crate) const OFFSET: usize = $offset;
+            pub(crate) const SIZE: usize = $size;
+            pub(crate) const STRIDE: usize = $stride;
+
+            /// Read the array register at index `idx` from its address in `io`.
+            #[inline(always)]
+            pub(crate) fn read<const SIZE: usize, T>(
+                io: &T,
+                idx: usize,
+            ) -> Self where
+                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+            {
+                build_assert!(idx < Self::SIZE);
+
+                let offset = Self::OFFSET + (idx * Self::STRIDE);
+                let value = io.read32(offset);
+
+                Self(value)
+            }
+
+            /// Write the value contained in `self` to the array register with index `idx` in `io`.
+            #[inline(always)]
+            pub(crate) fn write<const SIZE: usize, T>(
+                self,
+                io: &T,
+                idx: usize
+            ) where
+                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+            {
+                build_assert!(idx < Self::SIZE);
+
+                let offset = Self::OFFSET + (idx * Self::STRIDE);
+
+                io.write32(self.0, offset);
+            }
+
+            /// Read the array register at index `idx` in `io` and run `f` on its value to obtain a
+            /// new value to write back.
+            #[inline(always)]
+            pub(crate) fn alter<const SIZE: usize, T, F>(
+                io: &T,
+                idx: usize,
+                f: F,
+            ) where
+                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+                F: ::core::ops::FnOnce(Self) -> Self,
+            {
+                let reg = f(Self::read(io, idx));
+                reg.write(io, idx);
+            }
+
+            /// Read the array register at index `idx` from its address in `io`.
+            ///
+            /// The validity of `idx` is checked at run-time, and `EINVAL` is returned is the
+            /// access was out-of-bounds.
+            #[inline(always)]
+            pub(crate) fn try_read<const SIZE: usize, T>(
+                io: &T,
+                idx: usize,
+            ) -> ::kernel::error::Result<Self> where
+                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+            {
+                if idx < Self::SIZE {
+                    Ok(Self::read(io, idx))
+                } else {
+                    Err(EINVAL)
+                }
+            }
+
+            /// Write the value contained in `self` to the array register with index `idx` in `io`.
+            ///
+            /// The validity of `idx` is checked at run-time, and `EINVAL` is returned is the
+            /// access was out-of-bounds.
+            #[inline(always)]
+            pub(crate) fn try_write<const SIZE: usize, T>(
+                self,
+                io: &T,
+                idx: usize,
+            ) -> ::kernel::error::Result where
+                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+            {
+                if idx < Self::SIZE {
+                    Ok(self.write(io, idx))
+                } else {
+                    Err(EINVAL)
+                }
+            }
+
+            /// Read the array register at index `idx` in `io` and run `f` on its value to obtain a
+            /// new value to write back.
+            ///
+            /// The validity of `idx` is checked at run-time, and `EINVAL` is returned is the
+            /// access was out-of-bounds.
+            #[inline(always)]
+            pub(crate) fn try_alter<const SIZE: usize, T, F>(
+                io: &T,
+                idx: usize,
+                f: F,
+            ) -> ::kernel::error::Result where
+                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+                F: ::core::ops::FnOnce(Self) -> Self,
+            {
+                if idx < Self::SIZE {
+                    Ok(Self::alter(io, idx, f))
+                } else {
+                    Err(EINVAL)
+                }
             }
         }
     };
