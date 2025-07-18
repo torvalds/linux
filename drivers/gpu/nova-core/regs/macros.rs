@@ -57,9 +57,7 @@
 /// definition, or the field getter and setter methods they are attached to.
 ///
 /// Putting a `+` before the address of the register makes it relative to a base: the `read` and
-/// `write` methods take a `base` argument that is added to the specified address before access,
-/// and `try_read` and `try_write` methods are also created, allowing access with offsets unknown
-/// at compile-time:
+/// `write` methods take a `base` argument that is added to the specified address before access:
 ///
 /// ```no_run
 /// register!(CPU_CTL @ +0x0000010, "CPU core control" {
@@ -385,40 +383,6 @@ macro_rules! register {
             {
                 let reg = f(Self::read(io, base));
                 reg.write(io, base);
-            }
-
-            #[inline]
-            pub(crate) fn try_read<const SIZE: usize, T>(
-                io: &T,
-                base: usize,
-            ) -> ::kernel::error::Result<Self> where
-                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
-            {
-                io.try_read32(base + $offset).map(Self)
-            }
-
-            #[inline]
-            pub(crate) fn try_write<const SIZE: usize, T>(
-                self,
-                io: &T,
-                base: usize,
-            ) -> ::kernel::error::Result<()> where
-                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
-            {
-                io.try_write32(self.0, base + $offset)
-            }
-
-            #[inline]
-            pub(crate) fn try_alter<const SIZE: usize, T, F>(
-                io: &T,
-                base: usize,
-                f: F,
-            ) -> ::kernel::error::Result<()> where
-                T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
-                F: ::core::ops::FnOnce(Self) -> Self,
-            {
-                let reg = f(Self::try_read(io, base)?);
-                reg.try_write(io, base)
             }
         }
     };
