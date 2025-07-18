@@ -749,10 +749,8 @@ static int query_eu_stall(struct xe_device *xe,
 	u32 num_rates;
 	int ret;
 
-	if (!xe_eu_stall_supported_on_platform(xe)) {
-		drm_dbg(&xe->drm, "EU stall monitoring is not supported on this platform\n");
+	if (!xe_eu_stall_supported_on_platform(xe))
 		return -ENODEV;
-	}
 
 	array_size = xe_eu_stall_get_sampling_rates(&num_rates, &rates);
 	size = sizeof(struct drm_xe_query_eu_stall) + array_size;
