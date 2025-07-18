@@ -170,7 +170,7 @@ static void flexcop_reset(struct flexcop_device *fc)
 	flexcop_ibi_value v210, v204;
 
 	/* reset the flexcop itself */
-	fc->write_ibi_reg(fc,ctrl_208,ibi_zero);
+	fc->write_ibi_reg(fc, ctrl_208, ibi_zero);
 
 	v210.raw = 0;
 	v210.sw_reset_210.reset_block_000 = 1;
@@ -183,17 +183,17 @@ static void flexcop_reset(struct flexcop_device *fc)
 	v210.sw_reset_210.reset_block_700 = 1;
 	v210.sw_reset_210.Block_reset_enable = 0xb2;
 	v210.sw_reset_210.Special_controls = 0xc259;
-	fc->write_ibi_reg(fc,sw_reset_210,v210);
+	fc->write_ibi_reg(fc, sw_reset_210, v210);
 	msleep(1);
 
 	/* reset the periphical devices */
 
-	v204 = fc->read_ibi_reg(fc,misc_204);
+	v204 = fc->read_ibi_reg(fc, misc_204);
 	v204.misc_204.Per_reset_sig = 0;
-	fc->write_ibi_reg(fc,misc_204,v204);
+	fc->write_ibi_reg(fc, misc_204, v204);
 	msleep(1);
 	v204.misc_204.Per_reset_sig = 1;
-	fc->write_ibi_reg(fc,misc_204,v204);
+	fc->write_ibi_reg(fc, misc_204, v204);
 }
 
 void flexcop_reset_block_300(struct flexcop_device *fc)
@@ -202,13 +202,13 @@ void flexcop_reset_block_300(struct flexcop_device *fc)
 			  v210 = fc->read_ibi_reg(fc, sw_reset_210);
 
 	deb_rdump("208: %08x, 210: %08x\n", v208_save.raw, v210.raw);
-	fc->write_ibi_reg(fc,ctrl_208,ibi_zero);
+	fc->write_ibi_reg(fc, ctrl_208, ibi_zero);
 
 	v210.sw_reset_210.reset_block_300 = 1;
 	v210.sw_reset_210.Block_reset_enable = 0xb2;
 
-	fc->write_ibi_reg(fc,sw_reset_210,v210);
-	fc->write_ibi_reg(fc,ctrl_208,v208_save);
+	fc->write_ibi_reg(fc, sw_reset_210, v210);
+	fc->write_ibi_reg(fc, ctrl_208, v208_save);
 }
 
 struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len)
@@ -266,8 +266,8 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 	if (fc->get_mac_addr(fc, 0) == 0) {
 		u8 *b = fc->dvb_adapter.proposed_mac;
 		info("MAC address = %pM", b);
-		flexcop_set_mac_filter(fc,b);
-		flexcop_mac_filter_ctrl(fc,1);
+		flexcop_set_mac_filter(fc, b);
+		flexcop_mac_filter_ctrl(fc, 1);
 	} else
 		warn("reading of MAC address failed.\n");
 
@@ -275,7 +275,7 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 	if (ret)
 		goto error;
 
-	flexcop_device_name(fc,"initialization of","complete");
+	flexcop_device_name(fc, "initialization of", "complete");
 	return 0;
 
 error:
