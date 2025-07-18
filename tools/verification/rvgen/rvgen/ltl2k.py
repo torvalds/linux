@@ -112,14 +112,16 @@ class ltl2k(generator.Monitor):
             if node.op.is_temporal():
                 continue
 
-            if isinstance(node.op, ltl2ba.Variable):
-                buf.append("\tbool %s = test_bit(LTL_%s, mon->atoms);" % (node, node.op.name))
-            elif isinstance(node.op, ltl2ba.AndOp):
+            if isinstance(node.op, ltl2ba.AndOp):
                 buf.append("\tbool %s = %s && %s;" % (node, node.op.left, node.op.right))
             elif isinstance(node.op, ltl2ba.OrOp):
                 buf.append("\tbool %s = %s || %s;" % (node, node.op.left, node.op.right))
             elif isinstance(node.op, ltl2ba.NotOp):
                 buf.append("\tbool %s = !%s;" % (node, node.op.child))
+
+        for atom in self.atoms:
+            buf.append("\tbool %s = test_bit(LTL_%s, mon->atoms);" % (atom.lower(), atom))
+
         buf.reverse()
 
         buf2 = []
