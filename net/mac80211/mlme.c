@@ -2505,6 +2505,21 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 		}
 	}
 
+	/*
+	 * It is not necessary to reset these timers if any link does not
+	 * have an active CSA and that link still receives the beacons
+	 * when other links have active CSA.
+	 */
+	for_each_link_data(sdata, link) {
+		if (!link->conf->csa_active)
+			return;
+	}
+
+	/*
+	 * Reset the beacon monitor and connection monitor timers when CSA
+	 * is active for all links in MLO when channel switch occurs in all
+	 * the links.
+	 */
 	ieee80211_sta_reset_beacon_monitor(sdata);
 	ieee80211_sta_reset_conn_monitor(sdata);
 }
@@ -8473,16 +8488,32 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
+static bool
+ieee80211_is_csa_in_progress(struct ieee80211_sub_if_data *sdata)
+{
+	/*
+	 * In MLO, check the CSA flags 'active' and 'waiting_bcn' for all
+	 * the links.
+	 */
+	struct ieee80211_link_data *link;
+
+	guard(rcu)();
+
+	for_each_link_data_rcu(sdata, link) {
+		if (!(link->conf->csa_active &&
+		      !link->u.mgd.csa.waiting_bcn))
+			return false;
+	}
+
+	return true;
+}
+
 static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
 		timer_container_of(sdata, t, u.mgd.bcn_mon_timer);
 
-	if (WARN_ON(ieee80211_vif_is_mld(&sdata->vif)))
-		return;
-
-	if (sdata->vif.bss_conf.csa_active &&
-	    !sdata->deflink.u.mgd.csa.waiting_bcn)
+	if (ieee80211_is_csa_in_progress(sdata))
 		return;
 
 	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
