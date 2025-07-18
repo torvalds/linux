@@ -823,6 +823,8 @@ static struct phy_driver qca807x_drivers[] = {
 		.cable_test_get_status	= qca808x_cable_test_get_status,
 		.update_stats		= qca807x_update_stats,
 		.get_phy_stats		= qca807x_get_phy_stats,
+		.set_wol		= at8031_set_wol,
+		.get_wol		= at803x_get_wol,
 	},
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_QCA8075),
@@ -848,6 +850,8 @@ static struct phy_driver qca807x_drivers[] = {
 		.led_hw_control_get = qca807x_led_hw_control_get,
 		.update_stats		= qca807x_update_stats,
 		.get_phy_stats		= qca807x_get_phy_stats,
+		.set_wol		= at8031_set_wol,
+		.get_wol		= at803x_get_wol,
 	},
 };
 module_phy_driver(qca807x_drivers);
