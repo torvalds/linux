@@ -1382,8 +1382,9 @@ static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
 		 */
 		if (flushes & CLFLUSH_AFTER)
 			drm_clflush_virt_range(addr, sizeof(*addr));
-	} else
+	} else {
 		*addr = value;
+	}
 }
 
 static u64
