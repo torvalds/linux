@@ -253,7 +253,7 @@ int sdca_regmap_populate_constants(struct device *dev,
 				   struct sdca_function_data *function,
 				   struct reg_default *consts)
 {
-	int i, j, k;
+	int i, j, k, l;
 
 	for (i = 0, k = 0; i < function->num_entities; i++) {
 		struct sdca_entity *entity = &function->entities[i];
@@ -265,13 +265,15 @@ int sdca_regmap_populate_constants(struct device *dev,
 			if (control->mode != SDCA_ACCESS_MODE_DC)
 				continue;
 
+			l = 0;
 			for_each_set_bit(cn, (unsigned long *)&control->cn_list,
 					 BITS_PER_TYPE(control->cn_list)) {
 				consts[k].reg = SDW_SDCA_CTL(function->desc->adr,
 							     entity->id,
 							     control->sel, cn);
-				consts[k].def = control->value;
+				consts[k].def = control->values[l];
 				k++;
+				l++;
 			}
 		}
 	}
@@ -295,7 +297,7 @@ EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
 int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 			       struct sdca_function_data *function)
 {
-	int i, j;
+	int i, j, k;
 	int ret;
 
 	for (i = 0; i < function->num_entities; i++) {
@@ -311,6 +313,7 @@ int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 			if (!control->has_default && !control->has_fixed)
 				continue;
 
+			k = 0;
 			for_each_set_bit(cn, (unsigned long *)&control->cn_list,
 					 BITS_PER_TYPE(control->cn_list)) {
 				unsigned int reg;
@@ -318,9 +321,11 @@ int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 				reg = SDW_SDCA_CTL(function->desc->adr, entity->id,
 						   control->sel, cn);
 
-				ret = regmap_write(regmap, reg, control->value);
+				ret = regmap_write(regmap, reg, control->values[k]);
 				if (ret)
 					return ret;
+
+				k++;
 			}
 		}
 	}

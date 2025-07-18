@@ -742,14 +742,14 @@ struct sdca_control_range {
  * struct sdca_control - information for one SDCA Control
  * @label: Name for the Control, from SDCA Specification v1.0, section 7.1.7.
  * @sel: Identifier used for addressing.
- * @value: Holds the Control value for constants and defaults.
  * @nbits: Number of bits used in the Control.
- * @interrupt_position: SCDA interrupt line that will alert to changes on this
- * Control.
+ * @values: Holds the Control value for constants and defaults.
  * @cn_list: A bitmask showing the valid Control Numbers within this Control,
  * Control Numbers typically represent channels.
- * @range: Buffer describing valid range of values for the Control.
+ * @interrupt_position: SCDA interrupt line that will alert to changes on this
+ * Control.
  * @type: Format of the data in the Control.
+ * @range: Buffer describing valid range of values for the Control.
  * @mode: Access mode of the Control.
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
@@ -760,13 +760,13 @@ struct sdca_control {
 	const char *label;
 	int sel;
 
-	int value;
 	int nbits;
-	int interrupt_position;
+	int *values;
 	u64 cn_list;
+	int interrupt_position;
 
-	struct sdca_control_range range;
 	enum sdca_control_datatype type;
+	struct sdca_control_range range;
 	enum sdca_access_mode mode;
 	u8 layers;
 
