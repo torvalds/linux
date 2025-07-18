@@ -4304,12 +4304,12 @@ static const struct sys_reg_desc cp15_64_regs[] = {
 };
 
 static bool check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
-			       bool is_32)
+			       bool reset_check)
 {
 	unsigned int i;
 
 	for (i = 0; i < n; i++) {
-		if (!is_32 && table[i].reg && !table[i].reset) {
+		if (reset_check && table[i].reg && !table[i].reset) {
 			kvm_err("sys_reg table %pS entry %d (%s) lacks reset\n",
 				&table[i], i, table[i].name);
 			return false;
@@ -5303,11 +5303,11 @@ int __init kvm_sys_reg_table_init(void)
 	int ret = 0;
 
 	/* Make sure tables are unique and in order. */
-	valid &= check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), false);
-	valid &= check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs), true);
-	valid &= check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), true);
-	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), true);
-	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), true);
+	valid &= check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), true);
+	valid &= check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs), false);
+	valid &= check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), false);
+	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), false);
+	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), false);
 	valid &= check_sysreg_table(sys_insn_descs, ARRAY_SIZE(sys_insn_descs), false);
 
 	if (!valid)
