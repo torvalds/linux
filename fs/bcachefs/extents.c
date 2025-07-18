@@ -50,19 +50,17 @@ void bch2_io_failures_to_text(struct printbuf *out,
 			      struct bch_io_failures *failed)
 {
 	static const char * const error_types[] = {
-		"io", "checksum", "ec reconstruct", NULL
+		"btree validate", "io", "checksum", "ec reconstruct", NULL
 	};
 
 	for (struct bch_dev_io_failures *f = failed->devs;
 	     f < failed->devs + failed->nr;
 	     f++) {
 		unsigned errflags =
-			((!!f->failed_io)	<< 0) |
-			((!!f->failed_csum_nr)	<< 1) |
-			((!!f->failed_ec)	<< 2);
-
-		if (!errflags)
-			continue;
+			((!!f->failed_btree_validate)	<< 0) |
+			((!!f->failed_io)		<< 1) |
+			((!!f->failed_csum_nr)		<< 2) |
+			((!!f->failed_ec)		<< 3);
 
 		bch2_printbuf_make_room(out, 1024);
 		out->atomic++;
@@ -77,7 +75,9 @@ void bch2_io_failures_to_text(struct printbuf *out,
 
 		prt_char(out, ' ');
 
-		if (is_power_of_2(errflags)) {
+		if (!errflags) {
+			prt_str(out, "no error - confused");
+		} else if (is_power_of_2(errflags)) {
 			prt_bitflags(out, error_types, errflags);
 			prt_str(out, " error");
 		} else {

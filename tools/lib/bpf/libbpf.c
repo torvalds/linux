@@ -735,7 +735,7 @@ struct bpf_object {
 
 	struct usdt_manager *usdt_man;
 
-	struct bpf_map *arena_map;
+	int arena_map_idx;
 	void *arena_data;
 	size_t arena_data_sz;
 
@@ -1517,6 +1517,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.obj_buf_sz = obj_buf_sz;
 	obj->efile.btf_maps_shndx = -1;
 	obj->kconfig_map_idx = -1;
+	obj->arena_map_idx = -1;
 
 	obj->kern_version = get_kernel_version();
 	obj->state  = OBJ_OPEN;
@@ -2964,7 +2965,7 @@ static int init_arena_map_data(struct bpf_object *obj, struct bpf_map *map,
 	const long page_sz = sysconf(_SC_PAGE_SIZE);
 	size_t mmap_sz;
 
-	mmap_sz = bpf_map_mmap_sz(obj->arena_map);
+	mmap_sz = bpf_map_mmap_sz(map);
 	if (roundup(data_sz, page_sz) > mmap_sz) {
 		pr_warn("elf: sec '%s': declared ARENA map size (%zu) is too small to hold global __arena variables of size %zu\n",
 			sec_name, mmap_sz, data_sz);
@@ -3038,12 +3039,12 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 		if (map->def.type != BPF_MAP_TYPE_ARENA)
 			continue;
 
-		if (obj->arena_map) {
+		if (obj->arena_map_idx >= 0) {
 			pr_warn("map '%s': only single ARENA map is supported (map '%s' is also ARENA)\n",
-				map->name, obj->arena_map->name);
+				map->name, obj->maps[obj->arena_map_idx].name);
 			return -EINVAL;
 		}
-		obj->arena_map = map;
+		obj->arena_map_idx = i;
 
 		if (obj->efile.arena_data) {
 			err = init_arena_map_data(obj, map, ARENA_SEC, obj->efile.arena_data_shndx,
@@ -3053,7 +3054,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 				return err;
 		}
 	}
-	if (obj->efile.arena_data && !obj->arena_map) {
+	if (obj->efile.arena_data && obj->arena_map_idx < 0) {
 		pr_warn("elf: sec '%s': to use global __arena variables the ARENA map should be explicitly declared in SEC(\".maps\")\n",
 			ARENA_SEC);
 		return -ENOENT;
@@ -4583,8 +4584,13 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	if (shdr_idx == obj->efile.arena_data_shndx) {
 		reloc_desc->type = RELO_DATA;
 		reloc_desc->insn_idx = insn_idx;
-		reloc_desc->map_idx = obj->arena_map - obj->maps;
+		reloc_desc->map_idx = obj->arena_map_idx;
 		reloc_desc->sym_off = sym->st_value;
+
+		map = &obj->maps[obj->arena_map_idx];
+		pr_debug("prog '%s': found arena map %d (%s, sec %d, off %zu) for insn %u\n",
+			 prog->name, obj->arena_map_idx, map->name, map->sec_idx,
+			 map->sec_offset, insn_idx);
 		return 0;
 	}
 

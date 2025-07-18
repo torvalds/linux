@@ -1683,7 +1683,7 @@ xfs_free_buftarg(
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
 	/* the main block device is closed by kill_block_super */
 	if (btp->bt_bdev != btp->bt_mount->m_super->s_bdev)
-		bdev_fput(btp->bt_bdev_file);
+		bdev_fput(btp->bt_file);
 	kfree(btp);
 }
 
@@ -1712,8 +1712,8 @@ xfs_configure_buftarg_atomic_writes(
 		max_bytes = 0;
 	}
 
-	btp->bt_bdev_awu_min = min_bytes;
-	btp->bt_bdev_awu_max = max_bytes;
+	btp->bt_awu_min = min_bytes;
+	btp->bt_awu_max = max_bytes;
 }
 
 /* Configure a buffer target that abstracts a block device. */
@@ -1738,14 +1738,9 @@ xfs_configure_buftarg(
 		return -EINVAL;
 	}
 
-	/*
-	 * Flush the block device pagecache so our bios see anything dirtied
-	 * before mount.
-	 */
 	if (bdev_can_atomic_write(btp->bt_bdev))
 		xfs_configure_buftarg_atomic_writes(btp);
-
-	return sync_blockdev(btp->bt_bdev);
+	return 0;
 }
 
 int
@@ -1803,7 +1798,7 @@ xfs_alloc_buftarg(
 	btp = kzalloc(sizeof(*btp), GFP_KERNEL | __GFP_NOFAIL);
 
 	btp->bt_mount = mp;
-	btp->bt_bdev_file = bdev_file;
+	btp->bt_file = bdev_file;
 	btp->bt_bdev = file_bdev(bdev_file);
 	btp->bt_dev = btp->bt_bdev->bd_dev;
 	btp->bt_daxdev = fs_dax_get_by_bdev(btp->bt_bdev, &btp->bt_dax_part_off,
@@ -2078,44 +2073,6 @@ xfs_buf_delwri_submit(
 		if (!error)
 			error = error2;
 	}
-
-	return error;
-}
-
-/*
- * Push a single buffer on a delwri queue.
- *
- * The purpose of this function is to submit a single buffer of a delwri queue
- * and return with the buffer still on the original queue.
- *
- * The buffer locking and queue management logic between _delwri_pushbuf() and
- * _delwri_queue() guarantee that the buffer cannot be queued to another list
- * before returning.
- */
-int
-xfs_buf_delwri_pushbuf(
-	struct xfs_buf		*bp,
-	struct list_head	*buffer_list)
-{
-	int			error;
-
-	ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-
-	trace_xfs_buf_delwri_pushbuf(bp, _RET_IP_);
-
-	xfs_buf_lock(bp);
-	bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC);
-	bp->b_flags |= XBF_WRITE;
-	xfs_buf_submit(bp);
-
-	/*
-	 * The buffer is now locked, under I/O but still on the original delwri
-	 * queue. Wait for I/O completion, restore the DELWRI_Q flag and
-	 * return with the buffer unlocked and still on the original queue.
-	 */
-	error = xfs_buf_iowait(bp);
-	bp->b_flags |= _XBF_DELWRI_Q;
-	xfs_buf_unlock(bp);
 
 	return error;
 }

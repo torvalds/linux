@@ -206,7 +206,7 @@ static int ucs_page_entry_cmp(const void *key, const void *element)
 
 /**
  * ucs_get_fallback() - Get a substitution for the provided Unicode character
- * @base: Base Unicode code point (UCS-4)
+ * @cp: Unicode code point (UCS-4)
  *
  * Get a simpler fallback character for the provided Unicode character.
  * This is used for terminal display when corresponding glyph is unavailable.

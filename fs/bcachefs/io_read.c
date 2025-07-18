@@ -166,6 +166,7 @@ static noinline void promote_free(struct bch_read_bio *rbio)
 	BUG_ON(ret);
 
 	async_object_list_del(c, promote, op->list_idx);
+	async_object_list_del(c, rbio, rbio->list_idx);
 
 	bch2_data_update_exit(&op->write);
 
@@ -456,6 +457,10 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 	if (rbio->start_time)
 		bch2_time_stats_update(&rbio->c->times[BCH_TIME_data_read],
 				       rbio->start_time);
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	if (rbio->list_idx)
+		async_object_list_del(rbio->c, rbio, rbio->list_idx);
+#endif
 	bio_endio(&rbio->bio);
 }
 
@@ -1491,7 +1496,12 @@ void bch2_read_bio_to_text(struct printbuf *out, struct bch_read_bio *rbio)
 	prt_printf(out, "have_ioref:\t%u\n",	rbio->have_ioref);
 	prt_printf(out, "narrow_crcs:\t%u\n",	rbio->narrow_crcs);
 	prt_printf(out, "context:\t%u\n",	rbio->context);
-	prt_printf(out, "ret:\t%s\n",		bch2_err_str(rbio->ret));
+
+	int ret = READ_ONCE(rbio->ret);
+	if (ret < 0)
+		prt_printf(out, "ret:\t%s\n",		bch2_err_str(ret));
+	else
+		prt_printf(out, "ret:\t%i\n",		ret);
 
 	prt_printf(out, "flags:\t");
 	bch2_prt_bitflags(out, bch2_read_bio_flags, rbio->flags);

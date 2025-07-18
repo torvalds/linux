@@ -143,6 +143,9 @@ static struct btrfs_inode *btrfs_iget_logging(u64 objectid, struct btrfs_root *r
 	unsigned int nofs_flag;
 	struct btrfs_inode *inode;
 
+	/* Only meant to be called for subvolume roots and not for log roots. */
+	ASSERT(is_fstree(btrfs_root_id(root)));
+
 	/*
 	 * We're holding a transaction handle whether we are logging or
 	 * replaying a log tree, so we must make sure NOFS semantics apply
@@ -604,21 +607,6 @@ static int read_alloc_one_name(struct extent_buffer *eb, void *start, int len,
 	return 0;
 }
 
-/*
- * simple helper to read an inode off the disk from a given root
- * This can only be called for subvolume roots and not for the log
- */
-static noinline struct btrfs_inode *read_one_inode(struct btrfs_root *root,
-						   u64 objectid)
-{
-	struct btrfs_inode *inode;
-
-	inode = btrfs_iget_logging(objectid, root);
-	if (IS_ERR(inode))
-		return NULL;
-	return inode;
-}
-
 /* replays a single extent in 'eb' at 'slot' with 'key' into the
  * subvolume 'root'.  path is released on entry and should be released
  * on exit.
@@ -674,9 +662,9 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		return -EUCLEAN;
 	}
 
-	inode = read_one_inode(root, key->objectid);
-	if (!inode)
-		return -EIO;
+	inode = btrfs_iget_logging(key->objectid, root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	/*
 	 * first check to see if we already have this extent in the
@@ -948,9 +936,10 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 
 	btrfs_release_path(path);
 
-	inode = read_one_inode(root, location.objectid);
-	if (!inode) {
-		ret = -EIO;
+	inode = btrfs_iget_logging(location.objectid, root);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		inode = NULL;
 		goto out;
 	}
 
@@ -1073,7 +1062,9 @@ again:
 	search_key.type = BTRFS_INODE_REF_KEY;
 	search_key.offset = parent_objectid;
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
-	if (ret == 0) {
+	if (ret < 0) {
+		return ret;
+	} else if (ret == 0) {
 		struct btrfs_inode_ref *victim_ref;
 		unsigned long ptr;
 		unsigned long ptr_end;
@@ -1146,13 +1137,13 @@ again:
 			struct fscrypt_str victim_name;
 
 			extref = (struct btrfs_inode_extref *)(base + cur_offset);
+			victim_name.len = btrfs_inode_extref_name_len(leaf, extref);
 
 			if (btrfs_inode_extref_parent(leaf, extref) != parent_objectid)
 				goto next;
 
 			ret = read_alloc_one_name(leaf, &extref->name,
-				 btrfs_inode_extref_name_len(leaf, extref),
-				 &victim_name);
+						  victim_name.len, &victim_name);
 			if (ret)
 				return ret;
 
@@ -1167,10 +1158,10 @@ again:
 				kfree(victim_name.name);
 				return ret;
 			} else if (!ret) {
-				ret = -ENOENT;
-				victim_parent = read_one_inode(root,
-						parent_objectid);
-				if (victim_parent) {
+				victim_parent = btrfs_iget_logging(parent_objectid, root);
+				if (IS_ERR(victim_parent)) {
+					ret = PTR_ERR(victim_parent);
+				} else {
 					inc_nlink(&inode->vfs_inode);
 					btrfs_release_path(path);
 
@@ -1315,9 +1306,9 @@ again:
 			struct btrfs_inode *dir;
 
 			btrfs_release_path(path);
-			dir = read_one_inode(root, parent_id);
-			if (!dir) {
-				ret = -ENOENT;
+			dir = btrfs_iget_logging(parent_id, root);
+			if (IS_ERR(dir)) {
+				ret = PTR_ERR(dir);
 				kfree(name.name);
 				goto out;
 			}
@@ -1389,15 +1380,17 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	 * copy the back ref in.  The link count fixup code will take
 	 * care of the rest
 	 */
-	dir = read_one_inode(root, parent_objectid);
-	if (!dir) {
-		ret = -ENOENT;
+	dir = btrfs_iget_logging(parent_objectid, root);
+	if (IS_ERR(dir)) {
+		ret = PTR_ERR(dir);
+		dir = NULL;
 		goto out;
 	}
 
-	inode = read_one_inode(root, inode_objectid);
-	if (!inode) {
-		ret = -EIO;
+	inode = btrfs_iget_logging(inode_objectid, root);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		inode = NULL;
 		goto out;
 	}
 
@@ -1409,11 +1402,13 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			 * parent object can change from one array
 			 * item to another.
 			 */
-			if (!dir)
-				dir = read_one_inode(root, parent_objectid);
 			if (!dir) {
-				ret = -ENOENT;
-				goto out;
+				dir = btrfs_iget_logging(parent_objectid, root);
+				if (IS_ERR(dir)) {
+					ret = PTR_ERR(dir);
+					dir = NULL;
+					goto out;
+				}
 			}
 		} else {
 			ret = ref_get_fields(eb, ref_ptr, &name, &ref_index);
@@ -1682,9 +1677,9 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 
 		btrfs_release_path(path);
-		inode = read_one_inode(root, key.offset);
-		if (!inode) {
-			ret = -EIO;
+		inode = btrfs_iget_logging(key.offset, root);
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
 			break;
 		}
 
@@ -1720,9 +1715,9 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 	struct btrfs_inode *inode;
 	struct inode *vfs_inode;
 
-	inode = read_one_inode(root, objectid);
-	if (!inode)
-		return -EIO;
+	inode = btrfs_iget_logging(objectid, root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	vfs_inode = &inode->vfs_inode;
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
@@ -1761,14 +1756,14 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 	struct btrfs_inode *dir;
 	int ret;
 
-	inode = read_one_inode(root, location->objectid);
-	if (!inode)
-		return -ENOENT;
+	inode = btrfs_iget_logging(location->objectid, root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-	dir = read_one_inode(root, dirid);
-	if (!dir) {
+	dir = btrfs_iget_logging(dirid, root);
+	if (IS_ERR(dir)) {
 		iput(&inode->vfs_inode);
-		return -EIO;
+		return PTR_ERR(dir);
 	}
 
 	ret = btrfs_add_link(trans, dir, inode, name, 1, index);
@@ -1845,9 +1840,9 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	bool update_size = true;
 	bool name_added = false;
 
-	dir = read_one_inode(root, key->objectid);
-	if (!dir)
-		return -EIO;
+	dir = btrfs_iget_logging(key->objectid, root);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
 
 	ret = read_alloc_one_name(eb, di + 1, btrfs_dir_name_len(eb, di), &name);
 	if (ret)
@@ -2147,9 +2142,10 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 	btrfs_dir_item_key_to_cpu(eb, di, &location);
 	btrfs_release_path(path);
 	btrfs_release_path(log_path);
-	inode = read_one_inode(root, location.objectid);
-	if (!inode) {
-		ret = -EIO;
+	inode = btrfs_iget_logging(location.objectid, root);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		inode = NULL;
 		goto out;
 	}
 
@@ -2301,14 +2297,17 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 	if (!log_path)
 		return -ENOMEM;
 
-	dir = read_one_inode(root, dirid);
-	/* it isn't an error if the inode isn't there, that can happen
-	 * because we replay the deletes before we copy in the inode item
-	 * from the log
+	dir = btrfs_iget_logging(dirid, root);
+	/*
+	 * It isn't an error if the inode isn't there, that can happen because
+	 * we replay the deletes before we copy in the inode item from the log.
 	 */
-	if (!dir) {
+	if (IS_ERR(dir)) {
 		btrfs_free_path(log_path);
-		return 0;
+		ret = PTR_ERR(dir);
+		if (ret == -ENOENT)
+			ret = 0;
+		return ret;
 	}
 
 	range_start = 0;
@@ -2467,9 +2466,9 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				struct btrfs_inode *inode;
 				u64 from;
 
-				inode = read_one_inode(root, key.objectid);
-				if (!inode) {
-					ret = -EIO;
+				inode = btrfs_iget_logging(key.objectid, root);
+				if (IS_ERR(inode)) {
+					ret = PTR_ERR(inode);
 					break;
 				}
 				from = ALIGN(i_size_read(&inode->vfs_inode),
@@ -7448,6 +7447,8 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  * full log sync.
  * Also we don't need to worry with renames, since btrfs_rename() marks the log
  * for full commit when renaming a subvolume.
+ *
+ * Must be called before creating the subvolume entry in its parent directory.
  */
 void btrfs_record_new_subvolume(const struct btrfs_trans_handle *trans,
 				struct btrfs_inode *dir)

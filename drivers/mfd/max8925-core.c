@@ -656,7 +656,6 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 {
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	int ret;
-	struct device_node *node = chip->dev->of_node;
 
 	/* clear all interrupts */
 	max8925_reg_read(chip->i2c, MAX8925_CHG_IRQ1);
@@ -682,8 +681,9 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 		return -EBUSY;
 	}
 
-	irq_domain_create_legacy(of_fwnode_handle(node), MAX8925_NR_IRQS, chip->irq_base, 0,
-				 &max8925_irq_domain_ops, chip);
+	irq_domain_create_legacy(dev_fwnode(chip->dev), MAX8925_NR_IRQS,
+				 chip->irq_base, 0, &max8925_irq_domain_ops,
+				 chip);
 
 	/* request irq handler for pmic main irq*/
 	chip->core_irq = irq;

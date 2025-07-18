@@ -34,7 +34,7 @@
 #define ORC_TYPE_REGS			3
 #define ORC_TYPE_REGS_PARTIAL		4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * This struct is more or less a vastly simplified version of the DWARF Call
  * Frame Information standard.  It contains only the necessary parts of DWARF
@@ -53,6 +53,6 @@ struct orc_entry {
 	unsigned int	type:3;
 	unsigned int	signal:1;
 };
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ORC_TYPES_H */

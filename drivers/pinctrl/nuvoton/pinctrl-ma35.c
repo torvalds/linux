@@ -1074,7 +1074,10 @@ static int ma35_pinctrl_probe_dt(struct platform_device *pdev, struct ma35_pinct
 	u32 idx = 0;
 	int ret;
 
-	for_each_gpiochip_node(dev, child) {
+	device_for_each_child_node(dev, child) {
+		if (fwnode_property_present(child, "gpio-controller"))
+			continue;
+
 		npctl->nfunctions++;
 		npctl->ngroups += of_get_child_count(to_of_node(child));
 	}
@@ -1092,7 +1095,10 @@ static int ma35_pinctrl_probe_dt(struct platform_device *pdev, struct ma35_pinct
 	if (!npctl->groups)
 		return -ENOMEM;
 
-	for_each_gpiochip_node(dev, child) {
+	device_for_each_child_node(dev, child) {
+		if (fwnode_property_present(child, "gpio-controller"))
+			continue;
+
 		ret = ma35_pinctrl_parse_functions(child, npctl, idx++);
 		if (ret) {
 			fwnode_handle_put(child);

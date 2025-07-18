@@ -1283,7 +1283,7 @@ static int bch2_set_nr_journal_buckets_loop(struct bch_fs *c, struct bch_dev *ca
 			ret = 0; /* wait and retry */
 
 		bch2_disk_reservation_put(c, &disk_res);
-		closure_sync(&cl);
+		bch2_wait_on_allocator(c, &cl);
 	}
 
 	return ret;
@@ -1474,14 +1474,13 @@ void bch2_fs_journal_stop(struct journal *j)
 		clear_bit(JOURNAL_running, &j->flags);
 }
 
-int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
+int bch2_fs_journal_start(struct journal *j, u64 last_seq, u64 cur_seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_entry_pin_list *p;
 	struct journal_replay *i, **_i;
 	struct genradix_iter iter;
 	bool had_entries = false;
-	u64 last_seq = cur_seq, nr, seq;
 
 	/*
 	 *
@@ -1495,17 +1494,11 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 		return -EINVAL;
 	}
 
-	genradix_for_each_reverse(&c->journal_entries, iter, _i) {
-		i = *_i;
+	/* Clean filesystem? */
+	if (!last_seq)
+		last_seq = cur_seq;
 
-		if (journal_replay_ignore(i))
-			continue;
-
-		last_seq = le64_to_cpu(i->j.last_seq);
-		break;
-	}
-
-	nr = cur_seq - last_seq;
+	u64 nr = cur_seq - last_seq;
 
 	/*
 	 * Extra fudge factor, in case we crashed when the journal pin fifo was
@@ -1532,6 +1525,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	j->pin.back		= cur_seq;
 	atomic64_set(&j->seq, cur_seq - 1);
 
+	u64 seq;
 	fifo_for_each_entry_ptr(p, &j->pin, seq)
 		journal_pin_list_init(p, 1);
 

@@ -1349,9 +1349,15 @@ static int sdma_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 	else
 		DRM_ERROR("Failed to allocated memory for SDMA IP Dump\n");
 
-	/* add firmware version checks here */
-	if (0 && !adev->sdma.disable_uq)
-		adev->userq_funcs[AMDGPU_HW_IP_DMA] = &userq_mes_funcs;
+	switch (amdgpu_ip_version(adev, SDMA0_HWIP, 0)) {
+	case IP_VERSION(7, 0, 0):
+	case IP_VERSION(7, 0, 1):
+		if ((adev->sdma.instance[0].fw_version >= 7836028) && !adev->sdma.disable_uq)
+			adev->userq_funcs[AMDGPU_HW_IP_DMA] = &userq_mes_funcs;
+		break;
+	default:
+		break;
+	}
 
 	return r;
 }

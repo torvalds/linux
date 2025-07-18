@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/objtool.h>
+#include <linux/export.h>
 #include <linux/module.h>
+#include <linux/objtool.h>
 #include <linux/sort.h>
 #include <asm/exception.h>
 #include <asm/orc_header.h>

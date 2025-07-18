@@ -243,7 +243,7 @@ __xfs_xattr_put_listent(
 	offset = context->buffer + context->count;
 	memcpy(offset, prefix, prefix_len);
 	offset += prefix_len;
-	strncpy(offset, (char *)name, namelen);			/* real name */
+	memcpy(offset, (char *)name, namelen);			/* real name */
 	offset += namelen;
 	*offset = '\0';
 

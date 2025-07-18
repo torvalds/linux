@@ -176,6 +176,7 @@ static int scrub_create_desc(struct device *scrub_dev,
 	group = &scrub_ctx->group;
 	for (i = 0; i < SCRUB_MAX_ATTRS; i++) {
 		memcpy(&scrub_ctx->scrub_dev_attr[i], &dev_attr[i], sizeof(dev_attr[i]));
+		sysfs_attr_init(&scrub_ctx->scrub_dev_attr[i].dev_attr.attr);
 		scrub_ctx->scrub_attrs[i] = &scrub_ctx->scrub_dev_attr[i].dev_attr.attr;
 	}
 	sprintf(scrub_ctx->name, "%s%d", "scrub", instance);

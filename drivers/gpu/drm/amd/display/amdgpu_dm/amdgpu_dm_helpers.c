@@ -1029,6 +1029,10 @@ enum dc_edid_status dm_helpers_read_local_edid(
 			return EDID_NO_RESPONSE;
 
 		edid = drm_edid_raw(drm_edid); // FIXME: Get rid of drm_edid_raw()
+		if (!edid ||
+		    edid->extensions >= sizeof(sink->dc_edid.raw_edid) / EDID_LENGTH)
+			return EDID_BAD_INPUT;
+
 		sink->dc_edid.length = EDID_LENGTH * (edid->extensions + 1);
 		memmove(sink->dc_edid.raw_edid, (uint8_t *)edid, sink->dc_edid.length);
 

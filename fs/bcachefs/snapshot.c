@@ -135,7 +135,9 @@ static bool test_ancestor_bitmap(struct snapshot_table *t, u32 id, u32 ancestor)
 
 bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
-	bool ret;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	u32 orig_id = id;
+#endif
 
 	guard(rcu)();
 	struct snapshot_table *t = rcu_dereference(c->snapshots);
@@ -147,11 +149,11 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 		while (id && id < ancestor - IS_ANCESTOR_BITMAP)
 			id = get_ancestor_below(t, id, ancestor);
 
-	ret = id && id < ancestor
+	bool ret = id && id < ancestor
 		? test_ancestor_bitmap(t, id, ancestor)
 		: id == ancestor;
 
-	EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, id, ancestor));
+	EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, orig_id, ancestor));
 	return ret;
 }
 
@@ -869,7 +871,8 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_snapshot_trees, POS_MIN,
 				     0, k, ret) {
-		if (le32_to_cpu(bkey_s_c_to_snapshot_tree(k).v->root_snapshot) == id) {
+		if (k.k->type == KEY_TYPE_snapshot_tree &&
+		    le32_to_cpu(bkey_s_c_to_snapshot_tree(k).v->root_snapshot) == id) {
 			tree_id = k.k->p.offset;
 			break;
 		}
@@ -897,7 +900,8 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_subvolumes, POS_MIN,
 				     0, k, ret) {
-		if (le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot) == id) {
+		if (k.k->type == KEY_TYPE_subvolume &&
+		    le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot) == id) {
 			snapshot->v.subvol = cpu_to_le32(k.k->p.offset);
 			SET_BCH_SNAPSHOT_SUBVOL(&snapshot->v, true);
 			break;
