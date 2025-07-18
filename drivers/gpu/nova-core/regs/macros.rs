@@ -89,25 +89,25 @@ macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     ($name:ident @ $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
-        register!(@io $name @ $offset);
+        register!(@io_fixed $name @ $offset);
     };
 
     // Creates an alias register of fixed offset register `alias` with its own fields.
     ($name:ident => $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
-        register!(@io $name @ $alias::OFFSET);
+        register!(@io_fixed $name @ $alias::OFFSET);
     };
 
     // Creates a register at a relative offset from a base address.
     ($name:ident @ + $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
-        register!(@io $name @ + $offset);
+        register!(@io_relative $name @ + $offset);
     };
 
     // Creates an alias register of relative offset register `alias` with its own fields.
     ($name:ident => + $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
-        register!(@io $name @ + $alias::OFFSET);
+        register!(@io_relative $name @ + $alias::OFFSET);
     };
 
     // All rules below are helpers.
@@ -342,7 +342,7 @@ macro_rules! register {
     };
 
     // Generates the IO accessors for a fixed offset register.
-    (@io $name:ident @ $offset:expr) => {
+    (@io_fixed $name:ident @ $offset:expr) => {
         #[allow(dead_code)]
         impl $name {
             pub(crate) const OFFSET: usize = $offset;
@@ -380,7 +380,7 @@ macro_rules! register {
     };
 
     // Generates the IO accessors for a relative offset register.
-    (@io $name:ident @ + $offset:literal) => {
+    (@io_relative $name:ident @ + $offset:literal) => {
         #[allow(dead_code)]
         impl $name {
             pub(crate) const OFFSET: usize = $offset;
