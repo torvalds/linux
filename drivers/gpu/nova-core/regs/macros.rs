@@ -33,25 +33,25 @@
 /// let boot0 = BOOT_0::read(&bar);
 /// pr_info!("chip revision: {}.{}", boot0.major_revision(), boot0.minor_revision());
 ///
-/// // `Chipset::try_from` will be called with the value of the field and returns an error if the
-/// // value is invalid.
+/// // `Chipset::try_from` is called with the value of the `chipset` field and returns an
+/// // error if it is invalid.
 /// let chipset = boot0.chipset()?;
 ///
 /// // Update some fields and write the value back.
 /// boot0.set_major_revision(3).set_minor_revision(10).write(&bar);
 ///
-/// // Or just read and update the register in a single step:
+/// // Or, just read and update the register in a single step:
 /// BOOT_0::alter(&bar, |r| r.set_major_revision(3).set_minor_revision(10));
 /// ```
 ///
-/// Fields can be defined as follows:
+/// Fields are defined as follows:
 ///
-/// - `as <type>` simply returns the field value casted as the requested integer type, typically
-///   `u32`, `u16`, `u8` or `bool`. Note that `bool` fields must have a range of 1 bit.
+/// - `as <type>` simply returns the field value casted to <type>, typically `u32`, `u16`, `u8` or
+///   `bool`. Note that `bool` fields must have a range of 1 bit.
 /// - `as <type> => <into_type>` calls `<into_type>`'s `From::<<type>>` implementation and returns
 ///   the result.
 /// - `as <type> ?=> <try_into_type>` calls `<try_into_type>`'s `TryFrom::<<type>>` implementation
-///   and returns the result. This is useful on fields for which not all values are value.
+///   and returns the result. This is useful with fields for which not all values are valid.
 ///
 /// The documentation strings are optional. If present, they will be added to the type's
 /// definition, or the field getter and setter methods they are attached to.
@@ -76,15 +76,17 @@
 /// for cases where a register's interpretation depends on the context:
 ///
 /// ```no_run
-/// register!(SCRATCH_0 @ 0x0000100, "Scratch register 0" {
+/// register!(SCRATCH @ 0x00000200, "Scratch register" {
 ///    31:0     value as u32, "Raw value";
+/// });
 ///
-/// register!(SCRATCH_0_BOOT_STATUS => SCRATCH_0, "Boot status of the firmware" {
+/// register!(SCRATCH_BOOT_STATUS => SCRATCH, "Boot status of the firmware" {
 ///     0:0     completed as bool, "Whether the firmware has completed booting";
+/// });
 /// ```
 ///
-/// In this example, `SCRATCH_0_BOOT_STATUS` uses the same I/O address as `SCRATCH_0`, while also
-/// providing its own `completed` method.
+/// In this example, `SCRATCH_0_BOOT_STATUS` uses the same I/O address as `SCRATCH`, while also
+/// providing its own `completed` field.
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     (
