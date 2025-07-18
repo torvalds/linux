@@ -300,6 +300,7 @@ macro_rules! register {
         impl $name {
             pub(crate) const OFFSET: usize = $offset;
 
+            /// Read the register from its address in `io`.
             #[inline]
             pub(crate) fn read<const SIZE: usize, T>(io: &T) -> Self where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
@@ -307,6 +308,7 @@ macro_rules! register {
                 Self(io.read32($offset))
             }
 
+            /// Write the value contained in `self` to the register address in `io`.
             #[inline]
             pub(crate) fn write<const SIZE: usize, T>(self, io: &T) where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
@@ -314,6 +316,8 @@ macro_rules! register {
                 io.write32(self.0, $offset)
             }
 
+            /// Read the register from its address in `io` and run `f` on its value to obtain a new
+            /// value to write back.
             #[inline]
             pub(crate) fn alter<const SIZE: usize, T, F>(
                 io: &T,
