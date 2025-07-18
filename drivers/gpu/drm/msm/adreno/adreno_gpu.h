@@ -180,6 +180,8 @@ struct adreno_gpu {
 	uint16_t speedbin;
 	const struct adreno_gpu_funcs *funcs;
 
+	struct completion fault_coredump_done;
+
 	/* interesting register offsets to dump: */
 	const unsigned int *registers;
 
