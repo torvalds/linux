@@ -76,6 +76,8 @@ static int io_import_dmabuf(struct io_zcrx_ifq *ifq,
 	int dmabuf_fd = area_reg->dmabuf_fd;
 	int i, ret;
 
+	if (off)
+		return -EINVAL;
 	if (WARN_ON_ONCE(!ifq->dev))
 		return -EFAULT;
 	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
@@ -106,7 +108,7 @@ static int io_import_dmabuf(struct io_zcrx_ifq *ifq,
 	for_each_sgtable_dma_sg(mem->sgt, sg, i)
 		total_size += sg_dma_len(sg);
 
-	if (total_size < off + len) {
+	if (total_size != len) {
 		ret = -EINVAL;
 		goto err;
 	}
