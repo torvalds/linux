@@ -9,7 +9,7 @@ pub(crate) mod macros;
 
 use crate::falcon::{
     DmaTrfCmdSize, FalconCoreRev, FalconCoreRevSubversion, FalconFbifMemType, FalconFbifTarget,
-    FalconModSelAlgo, FalconSecurityModel, PFalconBase, PeregrineCoreSelect,
+    FalconModSelAlgo, FalconSecurityModel, PFalcon2Base, PFalconBase, PeregrineCoreSelect,
 };
 use crate::gpu::{Architecture, Chipset};
 use kernel::prelude::*;
@@ -296,20 +296,22 @@ register!(NV_PFALCON_FBIF_CTL @ PFalconBase[0x00000624] {
     7:7     allow_phys_no_ctx as bool;
 });
 
-register!(NV_PFALCON2_FALCON_MOD_SEL @ PFalconBase[0x00001180] {
+/* PFALCON2 */
+
+register!(NV_PFALCON2_FALCON_MOD_SEL @ PFalcon2Base[0x00000180] {
     7:0     algo as u8 ?=> FalconModSelAlgo;
 });
 
-register!(NV_PFALCON2_FALCON_BROM_CURR_UCODE_ID @ PFalconBase[0x00001198] {
+register!(NV_PFALCON2_FALCON_BROM_CURR_UCODE_ID @ PFalcon2Base[0x00000198] {
     7:0    ucode_id as u8;
 });
 
-register!(NV_PFALCON2_FALCON_BROM_ENGIDMASK @ PFalconBase[0x0000119c] {
+register!(NV_PFALCON2_FALCON_BROM_ENGIDMASK @ PFalcon2Base[0x0000019c] {
     31:0    value as u32;
 });
 
 // TODO[REGA]: this is an array of registers.
-register!(NV_PFALCON2_FALCON_BROM_PARAADDR @ PFalconBase[0x00001210] {
+register!(NV_PFALCON2_FALCON_BROM_PARAADDR @ PFalcon2Base[0x00000210] {
     31:0    value as u32;
 });
 

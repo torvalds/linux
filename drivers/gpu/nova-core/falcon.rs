@@ -278,11 +278,16 @@ impl From<bool> for FalconFbifMemType {
 /// Type used to represent the `PFALCON` registers address base for a given falcon engine.
 pub(crate) struct PFalconBase(());
 
+/// Type used to represent the `PFALCON2` registers address base for a given falcon engine.
+pub(crate) struct PFalcon2Base(());
+
 /// Trait defining the parameters of a given Falcon engine.
 ///
 /// Each engine provides one base for `PFALCON` and `PFALCON2` registers. The `ID` constant is used
 /// to identify a given Falcon instance with register I/O methods.
-pub(crate) trait FalconEngine: Sync + RegisterBase<PFalconBase> + Sized {
+pub(crate) trait FalconEngine:
+    Sync + RegisterBase<PFalconBase> + RegisterBase<PFalcon2Base> + Sized
+{
     /// Singleton of the engine, used to identify it with register I/O methods.
     const ID: Self;
 }

@@ -2,7 +2,7 @@
 
 use crate::{
     driver::Bar0,
-    falcon::{Falcon, FalconEngine, PFalconBase},
+    falcon::{Falcon, FalconEngine, PFalcon2Base, PFalconBase},
     regs::{self, macros::RegisterBase},
 };
 
@@ -11,6 +11,10 @@ pub(crate) struct Gsp(());
 
 impl RegisterBase<PFalconBase> for Gsp {
     const BASE: usize = 0x00110000;
+}
+
+impl RegisterBase<PFalcon2Base> for Gsp {
+    const BASE: usize = 0x00111000;
 }
 
 impl FalconEngine for Gsp {
