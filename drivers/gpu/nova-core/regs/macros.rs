@@ -10,6 +10,16 @@
 //! dedicated type for each register. Each such type comes with its own field accessors that can
 //! return an error if a field's value is invalid.
 
+/// Trait providing a base address to be added to the offset of a relative register to obtain
+/// its actual offset.
+///
+/// The `T` generic argument is used to distinguish which base to use, in case a type provides
+/// several bases. It is given to the `register!` macro to restrict the use of the register to
+/// implementors of this particular variant.
+pub(crate) trait RegisterBase<T> {
+    const BASE: usize;
+}
+
 /// Defines a dedicated type for a register with an absolute offset, including getter and setter
 /// methods for its fields and methods to read and write it from an `Io` region.
 ///
@@ -56,20 +66,6 @@
 /// The documentation strings are optional. If present, they will be added to the type's
 /// definition, or the field getter and setter methods they are attached to.
 ///
-/// Putting a `+` before the address of the register makes it relative to a base: the `read` and
-/// `write` methods take a `base` argument that is added to the specified address before access:
-///
-/// ```no_run
-/// register!(CPU_CTL @ +0x0000010, "CPU core control" {
-///    0:0     start as bool, "Start the CPU core";
-/// });
-///
-/// // Flip the `start` switch for the CPU core which base address is at `CPU_BASE`.
-/// let cpuctl = CPU_CTL::read(&bar, CPU_BASE);
-/// pr_info!("CPU CTL: {:#x}", cpuctl);
-/// cpuctl.set_start(true).write(&bar, CPU_BASE);
-/// ```
-///
 /// It is also possible to create a alias register by using the `=> ALIAS` syntax. This is useful
 /// for cases where a register's interpretation depends on the context:
 ///
@@ -85,6 +81,87 @@
 ///
 /// In this example, `SCRATCH_0_BOOT_STATUS` uses the same I/O address as `SCRATCH`, while also
 /// providing its own `completed` field.
+///
+/// ## Relative registers
+///
+/// A register can be defined as being accessible from a fixed offset of a provided base. For
+/// instance, imagine the following I/O space:
+///
+/// ```text
+///           +-----------------------------+
+///           |             ...             |
+///           |                             |
+///  0x100--->+------------CPU0-------------+
+///           |                             |
+///  0x110--->+-----------------------------+
+///           |           CPU_CTL           |
+///           +-----------------------------+
+///           |             ...             |
+///           |                             |
+///           |                             |
+///  0x200--->+------------CPU1-------------+
+///           |                             |
+///  0x210--->+-----------------------------+
+///           |           CPU_CTL           |
+///           +-----------------------------+
+///           |             ...             |
+///           +-----------------------------+
+/// ```
+///
+/// `CPU0` and `CPU1` both have a `CPU_CTL` register that starts at offset `0x10` of their I/O
+/// space segment. Since both instances of `CPU_CTL` share the same layout, we don't want to define
+/// them twice and would prefer a way to select which one to use from a single definition
+///
+/// This can be done using the `Base[Offset]` syntax when specifying the register's address.
+///
+/// `Base` is an arbitrary type (typically a ZST) to be used as a generic parameter of the
+/// [`RegisterBase`] trait to provide the base as a constant, i.e. each type providing a base for
+/// this register needs to implement `RegisterBase<Base>`. Here is the above example translated
+/// into code:
+///
+/// ```no_run
+/// // Type used to identify the base.
+/// pub(crate) struct CpuCtlBase;
+///
+/// // ZST describing `CPU0`.
+/// struct Cpu0;
+/// impl RegisterBase<CpuCtlBase> for Cpu0 {
+///     const BASE: usize = 0x100;
+/// }
+/// // Singleton of `CPU0` used to identify it.
+/// const CPU0: Cpu0 = Cpu0;
+///
+/// // ZST describing `CPU1`.
+/// struct Cpu1;
+/// impl RegisterBase<CpuCtlBase> for Cpu1 {
+///     const BASE: usize = 0x200;
+/// }
+/// // Singleton of `CPU1` used to identify it.
+/// const CPU1: Cpu1 = Cpu1;
+///
+/// // This makes `CPU_CTL` accessible from all implementors of `RegisterBase<CpuCtlBase>`.
+/// register!(CPU_CTL @ CpuCtlBase[0x10], "CPU core control" {
+///     0:0     start as bool, "Start the CPU core";
+/// });
+///
+/// // The `read`, `write` and `alter` methods of relative registers take an extra `base` argument
+/// // that is used to resolve its final address by adding its `BASE` to the offset of the
+/// // register.
+///
+/// // Start `CPU0`.
+/// CPU_CTL::alter(bar, &CPU0, |r| r.set_start(true));
+///
+/// // Start `CPU1`.
+/// CPU_CTL::alter(bar, &CPU1, |r| r.set_start(true));
+///
+/// // Aliases can also be defined for relative register.
+/// register!(CPU_CTL_ALIAS => CpuCtlBase[CPU_CTL], "Alias to CPU core control" {
+///     1:1     alias_start as bool, "Start the aliased CPU core";
+/// });
+///
+/// // Start the aliased `CPU0`.
+/// CPU_CTL_ALIAS::alter(bar, &CPU0, |r| r.set_alias_start(true));
+/// ```
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     ($name:ident @ $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
@@ -98,16 +175,16 @@ macro_rules! register {
         register!(@io_fixed $name @ $alias::OFFSET);
     };
 
-    // Creates a register at a relative offset from a base address.
-    ($name:ident @ + $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
+    // Creates a register at a relative offset from a base address provider.
+    ($name:ident @ $base:ty [ $offset:literal ] $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
-        register!(@io_relative $name @ + $offset);
+        register!(@io_relative $name @ $base [ $offset ]);
     };
 
     // Creates an alias register of relative offset register `alias` with its own fields.
-    ($name:ident => + $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
+    ($name:ident => $base:ty [ $alias:ident ] $(, $comment:literal)? { $($fields:tt)* }) => {
         register!(@core $name $(, $comment)? { $($fields)* } );
-        register!(@io_relative $name @ + $alias::OFFSET);
+        register!(@io_relative $name @ $base [ $alias::OFFSET ]);
     };
 
     // All rules below are helpers.
@@ -380,39 +457,62 @@ macro_rules! register {
     };
 
     // Generates the IO accessors for a relative offset register.
-    (@io_relative $name:ident @ + $offset:literal) => {
+    (@io_relative $name:ident @ $base:ty [ $offset:expr ]) => {
         #[allow(dead_code)]
         impl $name {
             pub(crate) const OFFSET: usize = $offset;
 
+            /// Read the register from `io`, using the base address provided by `base` and adding
+            /// the register's offset to it.
             #[inline(always)]
-            pub(crate) fn read<const SIZE: usize, T>(
+            pub(crate) fn read<const SIZE: usize, T, B>(
                 io: &T,
-                base: usize,
+                #[allow(unused_variables)]
+                base: &B,
             ) -> Self where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+                B: crate::regs::macros::RegisterBase<$base>,
             {
-                Self(io.read32(base + $offset))
+                const OFFSET: usize = $name::OFFSET;
+
+                let value = io.read32(
+                    <B as crate::regs::macros::RegisterBase<$base>>::BASE + OFFSET
+                );
+
+                Self(value)
             }
 
+            /// Write the value contained in `self` to `io`, using the base address provided by
+            /// `base` and adding the register's offset to it.
             #[inline(always)]
-            pub(crate) fn write<const SIZE: usize, T>(
+            pub(crate) fn write<const SIZE: usize, T, B>(
                 self,
                 io: &T,
-                base: usize,
+                #[allow(unused_variables)]
+                base: &B,
             ) where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+                B: crate::regs::macros::RegisterBase<$base>,
             {
-                io.write32(self.0, base + $offset)
+                const OFFSET: usize = $name::OFFSET;
+
+                io.write32(
+                    self.0,
+                    <B as crate::regs::macros::RegisterBase<$base>>::BASE + OFFSET
+                );
             }
 
+            /// Read the register from `io`, using the base address provided by `base` and adding
+            /// the register's offset to it, then run `f` on its value to obtain a new value to
+            /// write back.
             #[inline(always)]
-            pub(crate) fn alter<const SIZE: usize, T, F>(
+            pub(crate) fn alter<const SIZE: usize, T, B, F>(
                 io: &T,
-                base: usize,
+                base: &B,
                 f: F,
             ) where
                 T: ::core::ops::Deref<Target = ::kernel::io::Io<SIZE>>,
+                B: crate::regs::macros::RegisterBase<$base>,
                 F: ::core::ops::FnOnce(Self) -> Self,
             {
                 let reg = f(Self::read(io, base));

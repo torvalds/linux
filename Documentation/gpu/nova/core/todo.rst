@@ -131,7 +131,6 @@ crate so it can be used by other components as well.
 
 Features desired before this happens:
 
-* Relative register with build-time base address validation,
 * Arrays of registers with build-time index validation,
 * Make I/O optional I/O (for field values that are not registers),
 * Support other sizes than `u32`,
