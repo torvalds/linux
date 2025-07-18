@@ -3644,9 +3644,11 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 				wait_event(cur_trans->writer_wait,
 				   atomic_read(&cur_trans->num_writers) == 1);
 				ret = update_block_group_item(trans, path, cache);
-			}
-			if (ret)
+				if (ret)
+					btrfs_abort_transaction(trans, ret);
+			} else if (ret) {
 				btrfs_abort_transaction(trans, ret);
+			}
 		}
 
 		/* If its not on the io list, we need to put the block group */
