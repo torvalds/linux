@@ -87,44 +87,28 @@
 /// providing its own `completed` field.
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
-    (
-        $name:ident @ $offset:literal $(, $comment:literal)? {
-            $($fields:tt)*
-        }
-    ) => {
+    ($name:ident @ $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $offset);
     };
 
-    // Creates a alias register of fixed offset register `alias` with its own fields.
-    (
-        $name:ident => $alias:ident $(, $comment:literal)? {
-            $($fields:tt)*
-        }
-    ) => {
+    // Creates an alias register of fixed offset register `alias` with its own fields.
+    ($name:ident => $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $alias::OFFSET);
     };
 
     // Creates a register at a relative offset from a base address.
-    (
-        $name:ident @ + $offset:literal $(, $comment:literal)? {
-            $($fields:tt)*
-        }
-    ) => {
+    ($name:ident @ + $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ + $offset);
     };
 
-    // Creates a alias register of relative offset register `alias` with its own fields.
-    (
-        $name:ident => + $alias:ident $(, $comment:literal)? {
-            $($fields:tt)*
-        }
-    ) => {
+    // Creates an alias register of relative offset register `alias` with its own fields.
+    ($name:ident => + $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
         register!(@common $name $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ + $alias::OFFSET);
@@ -259,7 +243,7 @@ macro_rules! register {
             { |f| <$into_type>::from(f as $type) } $into_type => $into_type $(, $comment)?;);
     };
 
-    // Shortcut for fields defined as non-`bool` without the `=>` or `?=>` syntax.
+    // Shortcut for non-boolean fields defined without the `=>` or `?=>` syntax.
     (
         @field_accessor $name:ident $hi:tt:$lo:tt $field:ident as $type:tt
             $(, $comment:literal)?;
@@ -310,7 +294,7 @@ macro_rules! register {
         );
     };
 
-    // Creates the IO accessors for a fixed offset register.
+    // Generates the IO accessors for a fixed offset register.
     (@io $name:ident @ $offset:expr) => {
         #[allow(dead_code)]
         impl $name {
@@ -344,7 +328,7 @@ macro_rules! register {
         }
     };
 
-    // Create the IO accessors for a relative offset register.
+    // Generates the IO accessors for a relative offset register.
     (@io $name:ident @ + $offset:literal) => {
         #[allow(dead_code)]
         impl $name {
