@@ -230,7 +230,7 @@ macro_rules! register {
             $(, $comment:literal)?;
     ) => {
         register!(
-            @leaf_accessor $name $hi:$lo $field as bool
+            @leaf_accessor $name $hi:$lo $field
             { |f| <$into_type>::from(if f != 0 { true } else { false }) }
             $into_type => $into_type $(, $comment)?;
         );
@@ -248,7 +248,7 @@ macro_rules! register {
         @field_accessor $name:ident $hi:tt:$lo:tt $field:ident as $type:tt ?=> $try_into_type:ty
             $(, $comment:literal)?;
     ) => {
-        register!(@leaf_accessor $name $hi:$lo $field as $type
+        register!(@leaf_accessor $name $hi:$lo $field
             { |f| <$try_into_type>::try_from(f as $type) } $try_into_type =>
             ::core::result::Result<
                 $try_into_type,
@@ -262,7 +262,7 @@ macro_rules! register {
         @field_accessor $name:ident $hi:tt:$lo:tt $field:ident as $type:tt => $into_type:ty
             $(, $comment:literal)?;
     ) => {
-        register!(@leaf_accessor $name $hi:$lo $field as $type
+        register!(@leaf_accessor $name $hi:$lo $field
             { |f| <$into_type>::from(f as $type) } $into_type => $into_type $(, $comment)?;);
     };
 
@@ -276,7 +276,7 @@ macro_rules! register {
 
     // Generates the accessor methods for a single field.
     (
-        @leaf_accessor $name:ident $hi:tt:$lo:tt $field:ident as $type:ty
+        @leaf_accessor $name:ident $hi:tt:$lo:tt $field:ident
             { $process:expr } $to_type:ty => $res_type:ty $(, $comment:literal)?;
     ) => {
         ::kernel::macros::paste!(
