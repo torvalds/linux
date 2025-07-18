@@ -19,43 +19,8 @@ static int irqfixup __read_mostly;
 #define POLL_SPURIOUS_IRQ_INTERVAL (HZ/10)
 static void poll_spurious_irqs(struct timer_list *unused);
 static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs);
-static int irq_poll_cpu;
+int irq_poll_cpu;
 static atomic_t irq_poll_active;
-
-/*
- * We wait here for a poller to finish.
- *
- * If the poll runs on this CPU, then we yell loudly and return
- * false. That will leave the interrupt line disabled in the worst
- * case, but it should never happen.
- *
- * We wait until the poller is done and then recheck disabled and
- * action (about to be disabled). Only if it's still active, we return
- * true and let the handler run.
- */
-bool irq_wait_for_poll(struct irq_desc *desc)
-{
-	lockdep_assert_held(&desc->lock);
-
-	if (WARN_ONCE(irq_poll_cpu == smp_processor_id(),
-		      "irq poll in progress on cpu %d for irq %d\n",
-		      smp_processor_id(), desc->irq_data.irq))
-		return false;
-
-#ifdef CONFIG_SMP
-	do {
-		raw_spin_unlock(&desc->lock);
-		while (irqd_irq_inprogress(&desc->irq_data))
-			cpu_relax();
-		raw_spin_lock(&desc->lock);
-	} while (irqd_irq_inprogress(&desc->irq_data));
-	/* Might have been disabled in meantime */
-	return !irqd_irq_disabled(&desc->irq_data) && desc->action;
-#else
-	return false;
-#endif
-}
-
 
 /*
  * Recovery handler for misrouted interrupts.
