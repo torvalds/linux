@@ -443,6 +443,12 @@ static const struct sys_reg_desc gic_v3_icc_reg_descs[] = {
 	EL2_REG(ICH_LR15_EL2, ich_reg),
 };
 
+const struct sys_reg_desc *vgic_v3_get_sysreg_table(unsigned int *sz)
+{
+	*sz = ARRAY_SIZE(gic_v3_icc_reg_descs);
+	return gic_v3_icc_reg_descs;
+}
+
 static u64 attr_to_id(u64 attr)
 {
 	return ARM64_SYS_REG(FIELD_GET(KVM_REG_ARM_VGIC_SYSREG_OP0_MASK, attr),

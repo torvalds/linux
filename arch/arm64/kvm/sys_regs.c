@@ -5298,8 +5298,9 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 
 int __init kvm_sys_reg_table_init(void)
 {
+	const struct sys_reg_desc *gicv3_regs;
 	bool valid = true;
-	unsigned int i;
+	unsigned int i, sz;
 	int ret = 0;
 
 	/* Make sure tables are unique and in order. */
@@ -5309,6 +5310,9 @@ int __init kvm_sys_reg_table_init(void)
 	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), false);
 	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), false);
 	valid &= check_sysreg_table(sys_insn_descs, ARRAY_SIZE(sys_insn_descs), false);
+
+	gicv3_regs = vgic_v3_get_sysreg_table(&sz);
+	valid &= check_sysreg_table(gicv3_regs, sz, false);
 
 	if (!valid)
 		return -EINVAL;
