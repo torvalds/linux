@@ -88,37 +88,33 @@
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     ($name:ident @ $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
-        register!(@common $name $(, $comment)?);
-        register!(@field_accessors $name { $($fields)* });
+        register!(@core $name $(, $comment)? { $($fields)* } );
         register!(@io $name @ $offset);
     };
 
     // Creates an alias register of fixed offset register `alias` with its own fields.
     ($name:ident => $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
-        register!(@common $name $(, $comment)?);
-        register!(@field_accessors $name { $($fields)* });
+        register!(@core $name $(, $comment)? { $($fields)* } );
         register!(@io $name @ $alias::OFFSET);
     };
 
     // Creates a register at a relative offset from a base address.
     ($name:ident @ + $offset:literal $(, $comment:literal)? { $($fields:tt)* } ) => {
-        register!(@common $name $(, $comment)?);
-        register!(@field_accessors $name { $($fields)* });
+        register!(@core $name $(, $comment)? { $($fields)* } );
         register!(@io $name @ + $offset);
     };
 
     // Creates an alias register of relative offset register `alias` with its own fields.
     ($name:ident => + $alias:ident $(, $comment:literal)? { $($fields:tt)* } ) => {
-        register!(@common $name $(, $comment)?);
-        register!(@field_accessors $name { $($fields)* });
+        register!(@core $name $(, $comment)? { $($fields)* } );
         register!(@io $name @ + $alias::OFFSET);
     };
 
     // All rules below are helpers.
 
     // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
-    // and conversion to regular `u32`).
-    (@common $name:ident $(, $comment:literal)?) => {
+    // and conversion to the value type) and field accessor methods.
+    (@core $name:ident $(, $comment:literal)? { $($fields:tt)* }) => {
         $(
         #[doc=$comment]
         )?
@@ -149,6 +145,32 @@ macro_rules! register {
                 reg.0
             }
         }
+
+        register!(@fields_dispatcher $name { $($fields)* });
+    };
+
+    // Captures the fields and passes them to all the implementers that require field information.
+    //
+    // Used to simplify the matching rules for implementers, so they don't need to match the entire
+    // complex fields rule even though they only make use of part of it.
+    (@fields_dispatcher $name:ident {
+        $($hi:tt:$lo:tt $field:ident as $type:tt
+            $(?=> $try_into_type:ty)?
+            $(=> $into_type:ty)?
+            $(, $comment:literal)?
+        ;
+        )*
+    }
+    ) => {
+        register!(@field_accessors $name {
+            $(
+                $hi:$lo $field as $type
+                $(?=> $try_into_type)?
+                $(=> $into_type)?
+                $(, $comment)?
+            ;
+            )*
+        });
     };
 
     // Defines all the field getter/methods methods for `$name`.
