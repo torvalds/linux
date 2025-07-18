@@ -2108,7 +2108,7 @@ __cxl_decoder_detach(struct cxl_region *cxlr,
 		if (pos >= p->interleave_ways) {
 			dev_dbg(&cxlr->dev, "position %d out of range %d\n",
 				pos, p->interleave_ways);
-			return ERR_PTR(-ENXIO);
+			return NULL;
 		}
 
 		if (!p->targets[pos])
