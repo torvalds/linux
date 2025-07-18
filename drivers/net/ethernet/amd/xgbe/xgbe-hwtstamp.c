@@ -10,6 +10,30 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
+void xgbe_update_tstamp_time(struct xgbe_prv_data *pdata,
+			     unsigned int sec, unsigned int nsec)
+{
+	int count;
+
+	/* Set the time values and tell the device */
+	XGMAC_IOWRITE(pdata, MAC_STSUR, sec);
+	XGMAC_IOWRITE(pdata, MAC_STNUR, nsec);
+
+	/* issue command to update the system time value */
+	XGMAC_IOWRITE(pdata, MAC_TSCR,
+		      XGMAC_IOREAD(pdata, MAC_TSCR) |
+		      (1 << MAC_TSCR_TSUPDT_INDEX));
+
+	/* Wait for the time adjust/update to complete */
+	count = 10000;
+	while (--count && XGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSUPDT))
+		udelay(5);
+
+	if (count < 0)
+		netdev_err(pdata->netdev,
+			   "timed out updating system timestamp\n");
+}
+
 void xgbe_update_tstamp_addend(struct xgbe_prv_data *pdata,
 			       unsigned int addend)
 {
@@ -88,8 +112,8 @@ void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_CONTEXT_DESC3, TSA) &&
 	    !XGMAC_GET_BITS_LE(rdesc->desc3, RX_CONTEXT_DESC3, TSD)) {
 		nsec = le32_to_cpu(rdesc->desc1);
-		nsec <<= 32;
-		nsec |= le32_to_cpu(rdesc->desc0);
+		nsec *= NSEC_PER_SEC;
+		nsec += le32_to_cpu(rdesc->desc0);
 		if (nsec != 0xffffffffffffffffULL) {
 			packet->rx_tstamp = nsec;
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
@@ -98,34 +122,13 @@ void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
 	}
 }
 
-int xgbe_config_tstamp(struct xgbe_prv_data *pdata, unsigned int mac_tscr)
+void xgbe_config_tstamp(struct xgbe_prv_data *pdata, unsigned int mac_tscr)
 {
-	/* Set one nano-second accuracy */
-	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCTRLSSR, 1);
+	unsigned int value = 0;
 
-	/* Set fine timestamp update */
-	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCFUPDT, 1);
-
-	/* Overwrite earlier timestamps */
-	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TXTSSTSM, 1);
-
-	XGMAC_IOWRITE(pdata, MAC_TSCR, mac_tscr);
-
-	/* Exit if timestamping is not enabled */
-	if (!XGMAC_GET_BITS(mac_tscr, MAC_TSCR, TSENA))
-		return 0;
-
-	/* Initialize time registers */
-	XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SSINC, XGBE_TSTAMP_SSINC);
-	XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SNSINC, XGBE_TSTAMP_SNSINC);
-	xgbe_update_tstamp_addend(pdata, pdata->tstamp_addend);
-	xgbe_set_tstamp_time(pdata, 0, 0);
-
-	/* Initialize the timecounter */
-	timecounter_init(&pdata->tstamp_tc, &pdata->tstamp_cc,
-			 ktime_to_ns(ktime_get_real()));
-
-	return 0;
+	value = XGMAC_IOREAD(pdata, MAC_TSCR);
+	value |= mac_tscr;
+	XGMAC_IOWRITE(pdata, MAC_TSCR, value);
 }
 
 void xgbe_tx_tstamp(struct work_struct *work)
@@ -135,18 +138,14 @@ void xgbe_tx_tstamp(struct work_struct *work)
 						   tx_tstamp_work);
 	struct skb_shared_hwtstamps hwtstamps;
 	unsigned long flags;
-	u64 nsec;
 
 	spin_lock_irqsave(&pdata->tstamp_lock, flags);
 	if (!pdata->tx_tstamp_skb)
 		goto unlock;
 
 	if (pdata->tx_tstamp) {
-		nsec = timecounter_cyc2time(&pdata->tstamp_tc,
-					    pdata->tx_tstamp);
-
 		memset(&hwtstamps, 0, sizeof(hwtstamps));
-		hwtstamps.hwtstamp = ns_to_ktime(nsec);
+		hwtstamps.hwtstamp = ns_to_ktime(pdata->tx_tstamp);
 		skb_tstamp_tx(pdata->tx_tstamp_skb, &hwtstamps);
 	}
 
@@ -316,4 +315,87 @@ void xgbe_prep_tx_tstamp(struct xgbe_prv_data *pdata,
 	}
 
 	skb_tx_timestamp(skb);
+}
+
+int xgbe_init_ptp(struct xgbe_prv_data *pdata)
+{
+	unsigned int mac_tscr = 0;
+	struct timespec64 now;
+	u64 dividend;
+
+	/* Register Settings to be done based on the link speed. */
+	switch (pdata->phy.speed) {
+	case SPEED_1000:
+		XGMAC_IOWRITE(pdata, MAC_TICNR, MAC_TICNR_1G_INITVAL);
+		XGMAC_IOWRITE(pdata, MAC_TECNR, MAC_TECNR_1G_INITVAL);
+		break;
+	case SPEED_2500:
+	case SPEED_10000:
+		XGMAC_IOWRITE_BITS(pdata, MAC_TICSNR, TSICSNS,
+				   MAC_TICSNR_10G_INITVAL);
+		XGMAC_IOWRITE(pdata, MAC_TECNR, MAC_TECNR_10G_INITVAL);
+		XGMAC_IOWRITE_BITS(pdata, MAC_TECSNR, TSECSNS,
+				   MAC_TECSNR_10G_INITVAL);
+		break;
+	case SPEED_UNKNOWN:
+	default:
+		break;
+	}
+
+	/* Enable IEEE1588 PTP clock. */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+
+	/* Overwrite earlier timestamps */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TXTSSTSM, 1);
+
+	/* Set one nano-second accuracy */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCTRLSSR, 1);
+
+	/* Set fine timestamp update */
+	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCFUPDT, 1);
+
+	xgbe_config_tstamp(pdata, mac_tscr);
+
+	/* Exit if timestamping is not enabled */
+	if (!XGMAC_GET_BITS(mac_tscr, MAC_TSCR, TSENA))
+		return -EOPNOTSUPP;
+
+	if (pdata->vdata->tstamp_ptp_clock_freq) {
+		/* Initialize time registers based on
+		 * 125MHz PTP Clock Frequency
+		 */
+		XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SSINC,
+				   XGBE_V2_TSTAMP_SSINC);
+		XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SNSINC,
+				   XGBE_V2_TSTAMP_SNSINC);
+	} else {
+		/* Initialize time registers based on
+		 * 50MHz PTP Clock Frequency
+		 */
+		XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SSINC, XGBE_TSTAMP_SSINC);
+		XGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SNSINC, XGBE_TSTAMP_SNSINC);
+	}
+
+	/* Calculate the addend:
+	 *   addend = 2^32 / (PTP ref clock / (PTP clock based on SSINC))
+	 *          = (2^32 * (PTP clock based on SSINC)) / PTP ref clock
+	 */
+	if (pdata->vdata->tstamp_ptp_clock_freq)
+		dividend = XGBE_V2_PTP_ACT_CLK_FREQ;
+	else
+		dividend = XGBE_PTP_ACT_CLK_FREQ;
+
+	dividend = (u64)(dividend << 32);
+	pdata->tstamp_addend = div_u64(dividend, pdata->ptpclk_rate);
+
+	xgbe_update_tstamp_addend(pdata, pdata->tstamp_addend);
+
+	dma_wmb();
+	/* initialize system time */
+	ktime_get_real_ts64(&now);
+
+	/* lower 32 bits of tv_sec are safe until y2106 */
+	xgbe_set_tstamp_time(pdata, (u32)now.tv_sec, now.tv_nsec);
+
+	return 0;
 }

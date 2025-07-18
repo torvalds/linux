@@ -1583,6 +1583,9 @@ static int xgbe_open(struct net_device *netdev)
 	INIT_WORK(&pdata->stopdev_work, xgbe_stopdev);
 	INIT_WORK(&pdata->tx_tstamp_work, xgbe_tx_tstamp);
 
+	/* Initialize PTP timestamping and clock. */
+	xgbe_init_ptp(pdata);
+
 	ret = xgbe_alloc_memory(pdata);
 	if (ret)
 		goto err_ptpclk;
@@ -2353,12 +2356,8 @@ skip_data:
 
 		if (XGMAC_GET_BITS(packet->attributes,
 				   RX_PACKET_ATTRIBUTES, RX_TSTAMP)) {
-			u64 nsec;
-
-			nsec = timecounter_cyc2time(&pdata->tstamp_tc,
-						    packet->rx_tstamp);
 			hwtstamps = skb_hwtstamps(skb);
-			hwtstamps->hwtstamp = ns_to_ktime(nsec);
+			hwtstamps->hwtstamp = ns_to_ktime(packet->rx_tstamp);
 		}
 
 		if (XGMAC_GET_BITS(packet->attributes,
