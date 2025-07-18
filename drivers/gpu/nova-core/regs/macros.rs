@@ -116,7 +116,7 @@ macro_rules! register {
     ) => {
         register!(@common $name @ $offset $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
-        register!(@io$name @ + $offset);
+        register!(@io $name @ + $offset);
     };
 
     // Creates a alias register of relative offset register `alias` with its own fields.
