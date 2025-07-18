@@ -120,8 +120,8 @@ int xe_tile_alloc_vram(struct xe_tile *tile)
 		return 0;
 
 	vram = xe_vram_region_alloc(xe, tile->id, XE_PL_VRAM0 + tile->id);
-	if (IS_ERR(vram))
-		return PTR_ERR(vram);
+	if (!vram)
+		return -ENOMEM;
 	tile->mem.vram = vram;
 
 	return 0;
