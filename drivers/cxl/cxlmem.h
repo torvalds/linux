@@ -634,6 +634,14 @@ struct cxl_mbox_identify {
 		  0x13, 0xb7, 0x74)
 
 /*
+ * Memory Sparing Event Record UUID
+ * CXL rev 3.2 section 8.2.10.2.1.4: Table 8-60
+ */
+#define CXL_EVENT_MEM_SPARING_UUID                                          \
+	UUID_INIT(0xe71f3a40, 0x2d29, 0x4092, 0x8a, 0x39, 0x4d, 0x1c, 0x96, \
+		  0x6c, 0x7c, 0x65)
+
+/*
  * Get Event Records output payload
  * CXL rev 3.0 section 8.2.9.2.2; Table 8-50
  */

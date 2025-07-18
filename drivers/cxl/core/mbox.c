@@ -899,6 +899,10 @@ void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 		trace_cxl_generic_event(cxlmd, type, uuid, &evt->generic);
 		return;
 	}
+	if (event_type == CXL_CPER_EVENT_MEM_SPARING) {
+		trace_cxl_memory_sparing(cxlmd, type, &evt->mem_sparing);
+		return;
+	}
 
 	if (trace_cxl_general_media_enabled() || trace_cxl_dram_enabled()) {
 		u64 dpa, hpa = ULLONG_MAX, hpa_alias = ULLONG_MAX;
@@ -926,11 +930,29 @@ void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 			if (cxl_store_rec_gen_media((struct cxl_memdev *)cxlmd, evt))
 				dev_dbg(&cxlmd->dev, "CXL store rec_gen_media failed\n");
 
+			if (evt->gen_media.media_hdr.descriptor &
+			    CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+				WARN_ON_ONCE((evt->gen_media.media_hdr.type &
+					      CXL_GMER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE) &&
+					     !get_unaligned_le24(evt->gen_media.cme_count));
+			else
+				WARN_ON_ONCE(evt->gen_media.media_hdr.type &
+					     CXL_GMER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE);
+
 			trace_cxl_general_media(cxlmd, type, cxlr, hpa,
 						hpa_alias, &evt->gen_media);
 		} else if (event_type == CXL_CPER_EVENT_DRAM) {
 			if (cxl_store_rec_dram((struct cxl_memdev *)cxlmd, evt))
 				dev_dbg(&cxlmd->dev, "CXL store rec_dram failed\n");
+
+			if (evt->dram.media_hdr.descriptor &
+			    CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+				WARN_ON_ONCE((evt->dram.media_hdr.type &
+					      CXL_DER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE) &&
+					     !get_unaligned_le24(evt->dram.cvme_count));
+			else
+				WARN_ON_ONCE(evt->dram.media_hdr.type &
+					     CXL_DER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE);
 
 			trace_cxl_dram(cxlmd, type, cxlr, hpa, hpa_alias,
 				       &evt->dram);
@@ -952,6 +974,8 @@ static void __cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 		ev_type = CXL_CPER_EVENT_DRAM;
 	else if (uuid_equal(uuid, &CXL_EVENT_MEM_MODULE_UUID))
 		ev_type = CXL_CPER_EVENT_MEM_MODULE;
+	else if (uuid_equal(uuid, &CXL_EVENT_MEM_SPARING_UUID))
+		ev_type = CXL_CPER_EVENT_MEM_SPARING;
 
 	cxl_event_trace_record(cxlmd, type, ev_type, uuid, &record->event);
 }
