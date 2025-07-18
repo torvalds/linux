@@ -55,4 +55,11 @@ int amdgpu_display_resume_helper(struct amdgpu_device *adev);
 int amdgpu_display_get_scanout_buffer(struct drm_plane *plane,
 				      struct drm_scanout_buffer *sb);
 
+#define ABM_SYSFS_CONTROL	-1
+#define ABM_LEVEL_OFF		0
+#define ABM_LEVEL_MIN		1
+#define ABM_LEVEL_BIAS_MIN	2
+#define ABM_LEVEL_BIAS_MAX	3
+#define ABM_LEVEL_MAX		4
+
 #endif

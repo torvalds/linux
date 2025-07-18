@@ -5200,6 +5200,7 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 static void setup_backlight_device(struct amdgpu_display_manager *dm,
 				   struct amdgpu_dm_connector *aconnector)
 {
+	struct amdgpu_dm_backlight_caps *caps;
 	struct dc_link *link = aconnector->dc_link;
 	int bl_idx = dm->num_of_edps;
 
@@ -5219,6 +5220,13 @@ static void setup_backlight_device(struct amdgpu_display_manager *dm,
 	dm->num_of_edps++;
 
 	update_connector_ext_caps(aconnector);
+	caps = &dm->backlight_caps[aconnector->bl_idx];
+
+	/* Only offer ABM property when non-OLED and user didn't turn off by module parameter */
+	if (!caps->ext_caps->bits.oled && amdgpu_dm_abm_level < 0)
+		drm_object_attach_property(&aconnector->base.base,
+					   dm->adev->mode_info.abm_level_property,
+					   ABM_SYSFS_CONTROL);
 }
 
 static void amdgpu_set_panel_orientation(struct drm_connector *connector);
@@ -7291,6 +7299,20 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
+	} else if (property == adev->mode_info.abm_level_property) {
+		switch (val) {
+		case ABM_SYSFS_CONTROL:
+			dm_new_state->abm_sysfs_forbidden = false;
+			break;
+		case ABM_LEVEL_OFF:
+			dm_new_state->abm_sysfs_forbidden = true;
+			dm_new_state->abm_level = ABM_LEVEL_IMMEDIATE_DISABLE;
+			break;
+		default:
+			dm_new_state->abm_sysfs_forbidden = true;
+			dm_new_state->abm_level = val;
+		};
+		ret = 0;
 	}
 
 	return ret;
@@ -7332,6 +7354,13 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 		ret = 0;
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
+		ret = 0;
+	} else if (property == adev->mode_info.abm_level_property) {
+		if (!dm_state->abm_sysfs_forbidden)
+			*val = ABM_SYSFS_CONTROL;
+		else
+			*val = (dm_state->abm_level != ABM_LEVEL_IMMEDIATE_DISABLE) ?
+				dm_state->abm_level : 0;
 		ret = 0;
 	}
 
@@ -7385,9 +7414,15 @@ static ssize_t panel_power_savings_store(struct device *device,
 		return -EINVAL;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	to_dm_connector_state(connector->state)->abm_level = val ?:
-		ABM_LEVEL_IMMEDIATE_DISABLE;
+	if (to_dm_connector_state(connector->state)->abm_sysfs_forbidden)
+		ret = -EBUSY;
+	else
+		to_dm_connector_state(connector->state)->abm_level = val ?:
+			ABM_LEVEL_IMMEDIATE_DISABLE;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+	if (ret)
+		return ret;
 
 	drm_kms_helper_hotplug_event(dev);
 
