@@ -927,7 +927,7 @@ EXPORT_SYMBOL_GPL(gpiod_export_link);
  */
 void gpiod_unexport(struct gpio_desc *desc)
 {
-	struct gpiod_data *desc_data = NULL;
+	struct gpiod_data *tmp, *desc_data = NULL;
 	struct gpiodev_data *gdev_data;
 	struct gpio_device *gdev;
 
@@ -945,9 +945,12 @@ void gpiod_unexport(struct gpio_desc *desc)
 		if (!gdev_data)
 			return;
 
-		list_for_each_entry(desc_data, &gdev_data->exported_lines, list)
-			if (gpiod_is_equal(desc, desc_data->desc))
+		list_for_each_entry(tmp, &gdev_data->exported_lines, list) {
+			if (gpiod_is_equal(desc, tmp->desc)) {
+				desc_data = tmp;
 				break;
+			}
+		}
 
 		if (!desc_data)
 			return;
