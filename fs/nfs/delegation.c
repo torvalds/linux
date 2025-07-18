@@ -29,6 +29,7 @@
 
 static atomic_long_t nfs_active_delegations;
 static unsigned nfs_delegation_watermark = NFS_DEFAULT_DELEGATION_WATERMARK;
+module_param_named(delegation_watermark, nfs_delegation_watermark, uint, 0644);
 
 static void __nfs_free_delegation(struct nfs_delegation *delegation)
 {
@@ -1573,5 +1574,3 @@ out:
 	rcu_read_unlock();
 	return ret;
 }
-
-module_param_named(delegation_watermark, nfs_delegation_watermark, uint, 0644);
