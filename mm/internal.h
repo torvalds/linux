@@ -208,17 +208,20 @@ typedef int __bitwise fpb_t;
 /* Compare PTEs respecting the soft-dirty bit. */
 #define FPB_RESPECT_SOFT_DIRTY		((__force fpb_t)BIT(1))
 
+/* Compare PTEs respecting the writable bit. */
+#define FPB_RESPECT_WRITE		((__force fpb_t)BIT(2))
+
 /*
  * Merge PTE write bits: if any PTE in the batch is writable, modify the
  * PTE at @ptentp to be writable.
  */
-#define FPB_MERGE_WRITE			((__force fpb_t)BIT(2))
+#define FPB_MERGE_WRITE			((__force fpb_t)BIT(3))
 
 /*
  * Merge PTE young and dirty bits: if any PTE in the batch is young or dirty,
  * modify the PTE at @ptentp to be young or dirty, respectively.
  */
-#define FPB_MERGE_YOUNG_DIRTY		((__force fpb_t)BIT(3))
+#define FPB_MERGE_YOUNG_DIRTY		((__force fpb_t)BIT(4))
 
 static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
 {
@@ -226,7 +229,9 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
 		pte = pte_mkclean(pte);
 	if (likely(!(flags & FPB_RESPECT_SOFT_DIRTY)))
 		pte = pte_clear_soft_dirty(pte);
-	return pte_wrprotect(pte_mkold(pte));
+	if (likely(!(flags & FPB_RESPECT_WRITE)))
+		pte = pte_wrprotect(pte);
+	return pte_mkold(pte);
 }
 
 /**
