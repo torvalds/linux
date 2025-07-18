@@ -122,16 +122,6 @@ macro_rules! register {
         #[derive(Clone, Copy, Default)]
         pub(crate) struct $name(u32);
 
-        // TODO[REGA]: display the raw hex value, then the value of all the fields. This requires
-        // matching the fields, which will complexify the syntax considerably...
-        impl ::core::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                f.debug_tuple(stringify!($name))
-                    .field(&format_args!("0x{0:x}", &self.0))
-                    .finish()
-            }
-        }
-
         impl ::core::ops::BitOr for $name {
             type Output = Self;
 
@@ -171,6 +161,7 @@ macro_rules! register {
             ;
             )*
         });
+        register!(@debug $name { $($field;)* });
     };
 
     // Defines all the field getter/methods methods for `$name`.
@@ -314,6 +305,20 @@ macro_rules! register {
             self
         }
         );
+    };
+
+    // Generates the `Debug` implementation for `$name`.
+    (@debug $name:ident { $($field:ident;)* }) => {
+        impl ::core::fmt::Debug for $name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                f.debug_struct(stringify!($name))
+                    .field("<raw>", &format_args!("{:#x}", &self.0))
+                $(
+                    .field(stringify!($field), &self.$field())
+                )*
+                    .finish()
+            }
+        }
     };
 
     // Generates the IO accessors for a fixed offset register.
