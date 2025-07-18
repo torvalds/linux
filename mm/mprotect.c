@@ -83,28 +83,43 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 	return pte_dirty(pte);
 }
 
-static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
-			   pte_t oldpte, pte_t *pte, int target_node)
+static int mprotect_folio_pte_batch(struct folio *folio, pte_t *ptep,
+				    pte_t pte, int max_nr_ptes)
 {
-	struct folio *folio;
+	/* No underlying folio, so cannot batch */
+	if (!folio)
+		return 1;
+
+	if (!folio_test_large(folio))
+		return 1;
+
+	return folio_pte_batch(folio, ptep, pte, max_nr_ptes);
+}
+
+static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
+			   pte_t oldpte, pte_t *pte, int target_node,
+			   struct folio **foliop)
+{
+	struct folio *folio = NULL;
+	bool ret = true;
 	bool toptier;
 	int nid;
 
 	/* Avoid TLB flush if possible */
 	if (pte_protnone(oldpte))
-		return true;
+		goto skip;
 
 	folio = vm_normal_folio(vma, addr, oldpte);
 	if (!folio)
-		return true;
+		goto skip;
 
 	if (folio_is_zone_device(folio) || folio_test_ksm(folio))
-		return true;
+		goto skip;
 
 	/* Also skip shared copy-on-write pages */
 	if (is_cow_mapping(vma->vm_flags) &&
 	    (folio_maybe_dma_pinned(folio) || folio_maybe_mapped_shared(folio)))
-		return true;
+		goto skip;
 
 	/*
 	 * While migration can move some dirty pages,
@@ -112,7 +127,7 @@ static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
 	 * context.
 	 */
 	if (folio_is_file_lru(folio) && folio_test_dirty(folio))
-		return true;
+		goto skip;
 
 	/*
 	 * Don't mess with PTEs if page is already on the node
@@ -120,7 +135,7 @@ static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
 	 */
 	nid = folio_nid(folio);
 	if (target_node == nid)
-		return true;
+		goto skip;
 
 	toptier = node_is_toptier(nid);
 
@@ -129,11 +144,15 @@ static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
 	 * balancing is disabled
 	 */
 	if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_NORMAL) && toptier)
-		return true;
+		goto skip;
 
+	ret = false;
 	if (folio_use_access_time(folio))
 		folio_xchg_access_time(folio, jiffies_to_msecs(jiffies));
-	return false;
+
+skip:
+	*foliop = folio;
+	return ret;
 }
 
 static long change_pte_range(struct mmu_gather *tlb,
@@ -147,6 +166,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
 	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
+	int nr_ptes;
 
 	tlb_change_page_size(tlb, PAGE_SIZE);
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -161,8 +181,11 @@ static long change_pte_range(struct mmu_gather *tlb,
 	flush_tlb_batched_pending(vma->vm_mm);
 	arch_enter_lazy_mmu_mode();
 	do {
+		nr_ptes = 1;
 		oldpte = ptep_get(pte);
 		if (pte_present(oldpte)) {
+			int max_nr_ptes = (end - addr) >> PAGE_SHIFT;
+			struct folio *folio;
 			pte_t ptent;
 
 			/*
@@ -170,9 +193,15 @@ static long change_pte_range(struct mmu_gather *tlb,
 			 * pages. See similar comment in change_huge_pmd.
 			 */
 			if (prot_numa) {
-				if (prot_numa_skip(vma, addr, oldpte, pte,
-						   target_node))
+				int ret = prot_numa_skip(vma, addr, oldpte, pte,
+							 target_node, &folio);
+				if (ret) {
+
+					/* determine batch to skip */
+					nr_ptes = mprotect_folio_pte_batch(folio,
+						  pte, oldpte, max_nr_ptes);
 					continue;
+				}
 			}
 
 			oldpte = ptep_modify_prot_start(vma, addr, pte);
@@ -289,7 +318,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 				pages++;
 			}
 		}
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+	} while (pte += nr_ptes, addr += nr_ptes * PAGE_SIZE, addr != end);
 	arch_leave_lazy_mmu_mode();
 	pte_unmap_unlock(pte - 1, ptl);
 
