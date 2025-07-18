@@ -22,6 +22,7 @@ my %repeat_tests;
 my %repeats;
 my %evals;
 my @command_vars;
+my %command_tmp_vars;
 
 #default opts
 my %default = (
@@ -901,13 +902,21 @@ sub set_eval {
 }
 
 sub set_variable {
-    my ($lvalue, $rvalue) = @_;
+    my ($lvalue, $rvalue, $command) = @_;
 
+    # Command line variables override all others
+    if (defined($command_tmp_vars{$lvalue})) {
+	return;
+    }
     if ($rvalue =~ /^\s*$/) {
 	delete $variable{$lvalue};
     } else {
 	$rvalue = process_variables($rvalue);
 	$variable{$lvalue} = $rvalue;
+    }
+
+    if (defined($command)) {
+	$command_tmp_vars{$lvalue} = 1;
     }
 }
 
@@ -4267,6 +4276,11 @@ ktest.pl version: $VERSION
                 -D TEST_TYPE[2]=build
                     Sets TEST_TYPE of test 2 to "build"
 
+	        It can also override all temp variables.
+                 -D USE_TEMP_DIR:=1
+                    Will override all variables that use
+                    "USE_TEMP_DIR="
+
 EOF
 ;
 }
@@ -4277,7 +4291,11 @@ while ( $#ARGV >= 0 ) {
 	die_usage if ($#ARGV < 1);
 	my $val = shift;
 
-	$command_vars[$#command_vars + 1] = $val;
+	if ($val =~ m/(.*?):=(.*)$/) {
+	    set_variable($1, $2, 1);
+	} else {
+	    $command_vars[$#command_vars + 1] = $val;
+	}
 
     } elsif ( $ARGV[0] eq "-h" ) {
 	die_usage;
