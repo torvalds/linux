@@ -540,11 +540,43 @@ void mempool_free(void *element, mempool_t *pool)
 		if (likely(pool->curr_nr < pool->min_nr)) {
 			add_element(pool, element);
 			spin_unlock_irqrestore(&pool->lock, flags);
-			wake_up(&pool->wait);
+			if (wq_has_sleeper(&pool->wait))
+				wake_up(&pool->wait);
 			return;
 		}
 		spin_unlock_irqrestore(&pool->lock, flags);
 	}
+
+	/*
+	 * Handle the min_nr = 0 edge case:
+	 *
+	 * For zero-minimum pools, curr_nr < min_nr (0 < 0) never succeeds,
+	 * so waiters sleeping on pool->wait would never be woken by the
+	 * wake-up path of previous test. This explicit check ensures the
+	 * allocation of element when both min_nr and curr_nr are 0, and
+	 * any active waiters are properly awakened.
+	 *
+	 * Inline the same logic as previous test, add_element() cannot be
+	 * directly used here since it has BUG_ON to deny if min_nr equals
+	 * curr_nr, so here picked rest of add_element() to use without
+	 * BUG_ON check.
+	 */
+	if (unlikely(pool->min_nr == 0 &&
+		     READ_ONCE(pool->curr_nr) == 0)) {
+		spin_lock_irqsave(&pool->lock, flags);
+		if (likely(pool->curr_nr == 0)) {
+			/* Inline the logic of add_element() */
+			poison_element(pool, element);
+			if (kasan_poison_element(pool, element))
+				pool->elements[pool->curr_nr++] = element;
+			spin_unlock_irqrestore(&pool->lock, flags);
+			if (wq_has_sleeper(&pool->wait))
+				wake_up(&pool->wait);
+			return;
+		}
+		spin_unlock_irqrestore(&pool->lock, flags);
+	}
+
 	pool->free(element, pool->pool_data);
 }
 EXPORT_SYMBOL(mempool_free);
