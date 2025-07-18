@@ -272,7 +272,9 @@ if:
           - spacemit,k1-uart
           - nxp,lpc1850-uart
 then:
-  required: [clock-names]
+  required:
+    - clocks
+    - clock-names
   properties:
     clocks:
       minItems: 2
