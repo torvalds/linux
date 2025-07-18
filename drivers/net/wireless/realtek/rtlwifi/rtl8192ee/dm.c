@@ -223,10 +223,7 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (bfirstconnect) {
-			if (dm_dig->rssi_val_min <= dig_maxofmin)
-				current_igi = dm_dig->rssi_val_min;
-			else
-				current_igi = dig_maxofmin;
+			current_igi = min(dm_dig->rssi_val_min, dig_maxofmin);
 
 			dm_dig->large_fa_hit = 0;
 		} else {

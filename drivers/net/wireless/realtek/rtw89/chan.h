@@ -18,15 +18,21 @@
 #define RTW89_MCC_EARLY_RX_BCN_TIME 5
 #define RTW89_MCC_MIN_RX_BCN_TIME 10
 #define RTW89_MCC_DFLT_BCN_OFST_TIME 40
+#define RTW89_MCC_SWITCH_CH_TIME 3
 
 #define RTW89_MCC_PROBE_TIMEOUT 100
 #define RTW89_MCC_PROBE_MAX_TRIES 3
+
+#define RTW89_MCC_DETECT_BCN_MAX_TRIES 2
 
 #define RTW89_MCC_MIN_GO_DURATION \
 	(RTW89_MCC_EARLY_TX_BCN_TIME + RTW89_MCC_MIN_RX_BCN_TIME)
 
 #define RTW89_MCC_MIN_STA_DURATION \
 	(RTW89_MCC_EARLY_RX_BCN_TIME + RTW89_MCC_MIN_RX_BCN_TIME)
+
+#define RTW89_MCC_MIN_RX_BCN_WITH_SWITCH_CH_TIME \
+	(RTW89_MCC_MIN_RX_BCN_TIME + RTW89_MCC_SWITCH_CH_TIME)
 
 #define RTW89_MCC_DFLT_GROUP 0
 #define RTW89_MCC_NEXT_GROUP(cur) (((cur) + 1) % 4)
@@ -90,6 +96,7 @@ struct rtw89_mr_chanctx_info {
 enum rtw89_chanctx_pause_reasons {
 	RTW89_CHANCTX_PAUSE_REASON_HW_SCAN,
 	RTW89_CHANCTX_PAUSE_REASON_ROC,
+	RTW89_CHANCTX_PAUSE_REASON_GC_BCN_LOSS,
 };
 
 struct rtw89_chanctx_pause_parm {
@@ -178,7 +185,15 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 #define rtw89_mgnt_chan_get(rtwdev, link_index) \
 	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index)
 
+struct rtw89_mcc_links_info {
+	struct rtw89_vif_link *links[NUM_OF_RTW89_MCC_ROLES];
+};
+
+void rtw89_mcc_get_links(struct rtw89_dev *rtwdev, struct rtw89_mcc_links_info *info);
 void rtw89_mcc_prepare_done_work(struct wiphy *wiphy, struct wiphy_work *work);
+void rtw89_mcc_gc_detect_beacon_work(struct wiphy *wiphy, struct wiphy_work *work);
+bool rtw89_mcc_detect_go_bcn(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif_link *rtwvif_link);
 
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx);

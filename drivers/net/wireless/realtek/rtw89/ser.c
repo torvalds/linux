@@ -492,6 +492,7 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 	case SER_EV_STATE_IN:
 		wiphy_lock(wiphy);
 		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_work);
+		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_ps_work);
 		wiphy_unlock(wiphy);
 		drv_stop_tx(ser);
 
@@ -525,6 +526,8 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 		drv_resume_tx(ser);
 		wiphy_delayed_work_queue(wiphy, &rtwdev->track_work,
 					 RTW89_TRACK_WORK_PERIOD);
+		wiphy_delayed_work_queue(wiphy, &rtwdev->track_ps_work,
+					 RTW89_TRACK_PS_WORK_PERIOD);
 		break;
 
 	default:
