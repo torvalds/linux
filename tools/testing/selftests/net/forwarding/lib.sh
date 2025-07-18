@@ -142,6 +142,20 @@ check_tc_version()
 	fi
 }
 
+check_tc_erspan_support()
+{
+	local dev=$1; shift
+
+	tc filter add dev $dev ingress pref 1 handle 1 flower \
+		erspan_opts 1:0:0:0 &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing erspan support"
+		return $ksft_skip
+	fi
+	tc filter del dev $dev ingress pref 1 handle 1 flower \
+		erspan_opts 1:0:0:0 &> /dev/null
+}
+
 # Old versions of tc don't understand "mpls_uc"
 check_tc_mpls_support()
 {
