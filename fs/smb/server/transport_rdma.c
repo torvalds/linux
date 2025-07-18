@@ -9,8 +9,6 @@
 
 #define SUBMOD_NAME	"smb_direct"
 
-#define SMBDIRECT_USE_INLINE_C_FILES 1
-
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/string_choices.h>
@@ -690,11 +688,3 @@ static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
 	.rdma_write	= smb_direct_rdma_write,
 	.free_transport = smb_direct_free_transport,
 };
-
-/*
- * This is a temporary solution until all code
- * is moved to smbdirect_all_c_files.c and we
- * have an smbdirect.ko that exports the required
- * functions.
- */
-#include "../common/smbdirect/smbdirect_all_c_files.c"
