@@ -1151,6 +1151,9 @@ static void sve_write_expected(struct test_config *config)
 	int vl = vl_expected(config);
 	int sme_vq = __sve_vq_from_vl(config->sme_vl_expected);
 
+	if (!vl)
+		return;
+
 	fill_random(z_expected, __SVE_ZREGS_SIZE(__sve_vq_from_vl(vl)));
 	fill_random(p_expected, __SVE_PREGS_SIZE(__sve_vq_from_vl(vl)));
 
@@ -1177,6 +1180,9 @@ static void sve_write_sve(pid_t child, struct test_config *config)
 
 	vl = vl_expected(config);
 	vq = __sve_vq_from_vl(vl);
+
+	if (!vl)
+		return;
 
 	iov.iov_len = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
 	iov.iov_base = malloc(iov.iov_len);
