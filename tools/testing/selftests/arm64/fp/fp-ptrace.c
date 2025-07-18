@@ -1066,6 +1066,23 @@ static bool sve_write_supported(struct test_config *config)
 	return true;
 }
 
+static bool sve_write_fpsimd_supported(struct test_config *config)
+{
+	if (!sve_supported())
+		return false;
+
+	if ((config->svcr_in & SVCR_ZA) != (config->svcr_expected & SVCR_ZA))
+		return false;
+
+	if (config->svcr_expected & SVCR_SM)
+		return false;
+
+	if (config->sme_vl_in != config->sme_vl_expected)
+		return false;
+
+	return true;
+}
+
 static void fpsimd_write_expected(struct test_config *config)
 {
 	int vl;
@@ -1152,7 +1169,7 @@ static void sve_write_expected(struct test_config *config)
 	}
 }
 
-static void sve_write(pid_t child, struct test_config *config)
+static void sve_write_sve(pid_t child, struct test_config *config)
 {
 	struct user_sve_header *sve;
 	struct iovec iov;
@@ -1188,6 +1205,45 @@ static void sve_write(pid_t child, struct test_config *config)
 		regset = NT_ARM_SVE;
 
 	ret = ptrace(PTRACE_SETREGSET, child, regset, &iov);
+	if (ret != 0)
+		ksft_print_msg("Failed to write SVE: %s (%d)\n",
+			       strerror(errno), errno);
+
+	free(iov.iov_base);
+}
+
+static void sve_write_fpsimd(pid_t child, struct test_config *config)
+{
+	struct user_sve_header *sve;
+	struct user_fpsimd_state *fpsimd;
+	struct iovec iov;
+	int ret, vl, vq;
+
+	vl = vl_expected(config);
+	vq = __sve_vq_from_vl(vl);
+
+	if (!vl)
+		return;
+
+	iov.iov_len = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq,
+							  SVE_PT_REGS_FPSIMD);
+	iov.iov_base = malloc(iov.iov_len);
+	if (!iov.iov_base) {
+		ksft_print_msg("Failed allocating %lu byte SVE write buffer\n",
+			       iov.iov_len);
+		return;
+	}
+	memset(iov.iov_base, 0, iov.iov_len);
+
+	sve = iov.iov_base;
+	sve->size = iov.iov_len;
+	sve->flags = SVE_PT_REGS_FPSIMD;
+	sve->vl = vl;
+
+	fpsimd = iov.iov_base + SVE_PT_REGS_OFFSET;
+	memcpy(&fpsimd->vregs, v_expected, sizeof(v_expected));
+
+	ret = ptrace(PTRACE_SETREGSET, child, NT_ARM_SVE, &iov);
 	if (ret != 0)
 		ksft_print_msg("Failed to write SVE: %s (%d)\n",
 			       strerror(errno), errno);
@@ -1386,7 +1442,13 @@ static struct test_definition sve_test_defs[] = {
 		.name = "SVE write",
 		.supported = sve_write_supported,
 		.set_expected_values = sve_write_expected,
-		.modify_values = sve_write,
+		.modify_values = sve_write_sve,
+	},
+	{
+		.name = "SVE write FPSIMD format",
+		.supported = sve_write_fpsimd_supported,
+		.set_expected_values = fpsimd_write_expected,
+		.modify_values = sve_write_fpsimd,
 	},
 };
 
