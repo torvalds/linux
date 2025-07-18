@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 
-//! Macro to define register layout and accessors.
+//! `register!` macro to define register layout and accessors.
 //!
 //! A single register typically includes several fields, which are accessed through a combination
 //! of bit-shift and mask operations that introduce a class of potential mistakes, notably because
 //! not all possible field values are necessarily valid.
 //!
-//! The macro in this module allow to define, using an intruitive and readable syntax, a dedicated
-//! type for each register with its own field accessors that can return an error is a field's value
-//! is invalid.
+//! The `register!` macro in this module provides an intuitive and readable syntax for defining a
+//! dedicated type for each register. Each such type comes with its own field accessors that can
+//! return an error if a field's value is invalid.
 
-/// Defines a dedicated type for a register with an absolute offset, alongside with getter and
-/// setter methods for its fields and methods to read and write it from an `Io` region.
+/// Defines a dedicated type for a register with an absolute offset, including getter and setter
+/// methods for its fields and methods to read and write it from an `Io` region.
 ///
 /// Example:
 ///
@@ -24,7 +24,7 @@
 /// ```
 ///
 /// This defines a `BOOT_0` type which can be read or written from offset `0x100` of an `Io`
-/// region. It is composed of 3 fields, for instance `minor_revision` is made of the 4 less
+/// region. It is composed of 3 fields, for instance `minor_revision` is made of the 4 least
 /// significant bits of the register. Each field can be accessed and modified using accessor
 /// methods:
 ///
