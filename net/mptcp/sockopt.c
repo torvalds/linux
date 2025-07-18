@@ -914,10 +914,8 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 
 	lock_sock(sk);
 	ssk = msk->first;
-	if (ssk) {
-		ret = tcp_getsockopt(ssk, level, optname, optval, optlen);
-		goto out;
-	}
+	if (ssk)
+		goto get;
 
 	ssk = __mptcp_nmpc_sk(msk);
 	if (IS_ERR(ssk)) {
@@ -925,6 +923,7 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 		goto out;
 	}
 
+get:
 	ret = tcp_getsockopt(ssk, level, optname, optval, optlen);
 
 out:
