@@ -814,6 +814,9 @@ void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 	__be32 code;
 	int ret, ioc;
 
+	if (sp->hdr.type == RXRPC_PACKET_TYPE_ABORT)
+		return; /* Never abort an abort. */
+
 	rxrpc_see_skb(skb, rxrpc_skb_see_reject);
 
 	iov[0].iov_base = &whdr;
@@ -826,7 +829,13 @@ void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
-	memset(&whdr, 0, sizeof(whdr));
+	whdr = (struct rxrpc_wire_header) {
+		.epoch		= htonl(sp->hdr.epoch),
+		.cid		= htonl(sp->hdr.cid),
+		.callNumber	= htonl(sp->hdr.callNumber),
+		.serviceId	= htons(sp->hdr.serviceId),
+		.flags		= ~sp->hdr.flags & RXRPC_CLIENT_INITIATED,
+	};
 
 	switch (skb->mark) {
 	case RXRPC_SKB_MARK_REJECT_BUSY:
@@ -834,6 +843,9 @@ void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		size = sizeof(whdr);
 		ioc = 1;
 		break;
+	case RXRPC_SKB_MARK_REJECT_CONN_ABORT:
+		whdr.callNumber	= 0;
+		fallthrough;
 	case RXRPC_SKB_MARK_REJECT_ABORT:
 		whdr.type = RXRPC_PACKET_TYPE_ABORT;
 		code = htonl(skb->priority);
@@ -846,14 +858,6 @@ void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 
 	if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
 		msg.msg_namelen = srx.transport_len;
-
-		whdr.epoch	= htonl(sp->hdr.epoch);
-		whdr.cid	= htonl(sp->hdr.cid);
-		whdr.callNumber	= htonl(sp->hdr.callNumber);
-		whdr.serviceId	= htons(sp->hdr.serviceId);
-		whdr.flags	= sp->hdr.flags;
-		whdr.flags	^= RXRPC_CLIENT_INITIATED;
-		whdr.flags	&= RXRPC_CLIENT_INITIATED;
 
 		iov_iter_kvec(&msg.msg_iter, WRITE, iov, ioc, size);
 		ret = do_udp_sendmsg(local->socket, &msg, size);

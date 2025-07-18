@@ -128,6 +128,32 @@
         ]
     },
     {
+        "id": "5456",
+        "name": "Test htb_dequeue_tree with deactivation and row emptying",
+        "category": [
+            "qdisc",
+            "htb"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.11.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: htb default 1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 htb rate 64bit ",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: netem",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3: blackhole"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -I $DUMMY 10.10.11.11",
+        "expExitCode": "1",
+        "verifyCmd": "$TC -j qdisc show dev $DUMMY",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root"
+        ]
+    },
+    {
         "id": "c024",
         "name": "Test TBF with SKBPRIO - catch qlen corner cases",
         "category": [
@@ -671,6 +697,72 @@
         "matchJSON": [],
         "teardown": [
             "$TC qdisc del dev $DUMMY root handle 1: drr"
+        ]
+    },
+    {
+        "id": "be28",
+        "name": "Try to add fq_codel qdisc as a child of an hhf qdisc",
+        "category": [
+            "qdisc",
+            "fq_codel",
+            "hhf"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY root handle a: hhf"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent a: handle b: fq_codel",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j qdisc ls dev $DUMMY handle b:",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root"
+        ]
+    },
+    {
+        "id": "fcb5",
+        "name": "Try to add pie qdisc as a child of a drr qdisc",
+        "category": [
+            "qdisc",
+            "pie",
+            "drr"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY root handle a: drr"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent a: handle b: pie",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j qdisc ls dev $DUMMY handle b:",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root"
+        ]
+    },
+    {
+        "id": "7801",
+        "name": "Try to add fq qdisc as a child of an inexistent hfsc class",
+        "category": [
+            "qdisc",
+            "sfq",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY root handle a: hfsc"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent a:fff2 sfq limit 4",
+        "expExitCode": "2",
+        "verifyCmd": "$TC -j qdisc ls dev $DUMMY handle b:",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root"
         ]
     }
 ]

@@ -1807,7 +1807,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 				      "local-bd-address",
 				      (u8 *)&ba, sizeof(ba));
 	if (bacmp(&ba, BDADDR_ANY))
-		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY);
 
 	if (hci_register_dev(hdev) < 0) {
 		dev_err(&serdev->dev, "Can't register HCI device\n");
