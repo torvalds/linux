@@ -392,27 +392,6 @@ nfsd_file_put_local(struct nfsd_file __rcu **pnf)
 }
 
 /**
- * nfsd_file_get_local - get nfsd_file reference and reference to net
- * @nf: nfsd_file of which to put the reference
- *
- * Get reference to both the nfsd_file and nf->nf_net.
- */
-struct nfsd_file *
-nfsd_file_get_local(struct nfsd_file *nf)
-{
-	struct net *net = nf->nf_net;
-
-	if (nfsd_net_try_get(net)) {
-		nf = nfsd_file_get(nf);
-		if (!nf)
-			nfsd_net_put(net);
-	} else {
-		nf = NULL;
-	}
-	return nf;
-}
-
-/**
  * nfsd_file_file - get the backing file of an nfsd_file
  * @nf: nfsd_file of which to access the backing file.
  *
