@@ -3595,6 +3595,8 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 	struct anon_vma *anon_vma = NULL;
 	int order = folio_order(folio);
 	struct folio *new_folio, *next;
+	int nr_shmem_dropped = 0;
+	int remap_flags = 0;
 	int extra_pins, ret;
 	pgoff_t end;
 	bool is_hzp;
@@ -3718,15 +3720,16 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 		 */
 		xas_lock(&xas);
 		xas_reset(&xas);
-		if (xas_load(&xas) != folio)
+		if (xas_load(&xas) != folio) {
+			ret = -EAGAIN;
 			goto fail;
+		}
 	}
 
 	/* Prevent deferred_split_scan() touching ->_refcount */
 	spin_lock(&ds_queue->split_queue_lock);
 	if (folio_ref_freeze(folio, 1 + extra_pins)) {
 		struct address_space *swap_cache = NULL;
-		int nr_dropped = 0;
 		struct lruvec *lruvec;
 
 		if (folio_order(folio) > 1 &&
@@ -3798,7 +3801,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 			/* Some pages can be beyond EOF: drop them from cache */
 			if (new_folio->index >= end) {
 				if (shmem_mapping(mapping))
-					nr_dropped += folio_nr_pages(new_folio);
+					nr_shmem_dropped += folio_nr_pages(new_folio);
 				else if (folio_test_clear_dirty(new_folio))
 					folio_account_cleaned(
 						new_folio,
@@ -3828,47 +3831,41 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 
 		if (swap_cache)
 			xa_unlock(&swap_cache->i_pages);
-		if (mapping)
-			xas_unlock(&xas);
-
-		local_irq_enable();
-
-		if (nr_dropped)
-			shmem_uncharge(mapping->host, nr_dropped);
-
-		remap_page(folio, 1 << order,
-			   !ret && folio_test_anon(folio) ?
-				   RMP_USE_SHARED_ZEROPAGE :
-				   0);
-
-		/*
-		 * Unlock all after-split folios except the one containing
-		 * @lock_at page. If @folio is not split, it will be kept locked.
-		 */
-		for (new_folio = folio; new_folio != end_folio;
-		     new_folio = next) {
-			next = folio_next(new_folio);
-			if (new_folio == page_folio(lock_at))
-				continue;
-
-			folio_unlock(new_folio);
-			/*
-			 * Subpages may be freed if there wasn't any mapping
-			 * like if add_to_swap() is running on a lru page that
-			 * had its mapping zapped. And freeing these pages
-			 * requires taking the lru_lock so we do the put_page
-			 * of the tail pages after the split is complete.
-			 */
-			free_folio_and_swap_cache(new_folio);
-		}
 	} else {
 		spin_unlock(&ds_queue->split_queue_lock);
-fail:
-		if (mapping)
-			xas_unlock(&xas);
-		local_irq_enable();
-		remap_page(folio, folio_nr_pages(folio), 0);
 		ret = -EAGAIN;
+	}
+fail:
+	if (mapping)
+		xas_unlock(&xas);
+
+	local_irq_enable();
+
+	if (nr_shmem_dropped)
+		shmem_uncharge(mapping->host, nr_shmem_dropped);
+
+	if (!ret && is_anon)
+		remap_flags = RMP_USE_SHARED_ZEROPAGE;
+	remap_page(folio, 1 << order, remap_flags);
+
+	/*
+	 * Unlock all after-split folios except the one containing
+	 * @lock_at page. If @folio is not split, it will be kept locked.
+	 */
+	for (new_folio = folio; new_folio != end_folio; new_folio = next) {
+		next = folio_next(new_folio);
+		if (new_folio == page_folio(lock_at))
+			continue;
+
+		folio_unlock(new_folio);
+		/*
+		 * Subpages may be freed if there wasn't any mapping
+		 * like if add_to_swap() is running on a lru page that
+		 * had its mapping zapped. And freeing these pages
+		 * requires taking the lru_lock so we do the put_page
+		 * of the tail pages after the split is complete.
+		 */
+		free_folio_and_swap_cache(new_folio);
 	}
 
 out_unlock:
