@@ -753,9 +753,6 @@ int main(void)
 	ksft_print_header();
 	ksft_set_plan(EXPECTED_TESTS);
 
-	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
-		ksft_exit_skip("SVE not available\n");
-
 	child = fork();
 	if (!child)
 		return do_child();
