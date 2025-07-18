@@ -13,6 +13,15 @@
 #include "smbdirect.h"
 #include "smbdirect_pdu.h"
 #include "smbdirect_public.h"
+
+#include <linux/mutex.h>
+
+struct smbdirect_module_state {
+	struct mutex mutex;
+};
+
+extern struct smbdirect_module_state smbdirect_globals;
+
 #include "smbdirect_socket.h"
 
 #ifdef SMBDIRECT_USE_INLINE_C_FILES
