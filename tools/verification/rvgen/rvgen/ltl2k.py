@@ -106,20 +106,25 @@ class ltl2k(generator.Monitor):
         ])
         return buf
 
-    def _fill_atom_values(self):
+    def _fill_atom_values(self, required_values):
         buf = []
         for node in self.ltl:
-            if node.op.is_temporal():
+            if str(node) not in required_values:
                 continue
 
             if isinstance(node.op, ltl2ba.AndOp):
                 buf.append("\tbool %s = %s && %s;" % (node, node.op.left, node.op.right))
+                required_values |= {str(node.op.left), str(node.op.right)}
             elif isinstance(node.op, ltl2ba.OrOp):
                 buf.append("\tbool %s = %s || %s;" % (node, node.op.left, node.op.right))
+                required_values |= {str(node.op.left), str(node.op.right)}
             elif isinstance(node.op, ltl2ba.NotOp):
                 buf.append("\tbool %s = !%s;" % (node, node.op.child))
+                required_values.add(str(node.op.child))
 
         for atom in self.atoms:
+            if atom.lower() not in required_values:
+                continue
             buf.append("\tbool %s = test_bit(LTL_%s, mon->atoms);" % (atom.lower(), atom))
 
         buf.reverse()
@@ -135,7 +140,13 @@ class ltl2k(generator.Monitor):
             "ltl_possible_next_states(struct ltl_monitor *mon, unsigned int state, unsigned long *next)",
             "{"
         ]
-        buf.extend(self._fill_atom_values())
+
+        required_values = set()
+        for node in self.ba:
+            for o in sorted(node.outgoing):
+                required_values |= o.labels
+
+        buf.extend(self._fill_atom_values(required_values))
         buf.extend([
             "",
             "\tswitch (state) {"
@@ -166,7 +177,13 @@ class ltl2k(generator.Monitor):
             "static void ltl_start(struct task_struct *task, struct ltl_monitor *mon)",
             "{"
         ]
-        buf.extend(self._fill_atom_values())
+
+        required_values = set()
+        for node in self.ba:
+            if node.init:
+                required_values |= node.labels
+
+        buf.extend(self._fill_atom_values(required_values))
         buf.append("")
 
         for node in self.ba:
