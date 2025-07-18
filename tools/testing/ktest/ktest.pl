@@ -4297,6 +4297,15 @@ while ( $#ARGV >= 0 ) {
 	    $command_vars[$#command_vars + 1] = $val;
 	}
 
+    } elsif ( $ARGV[0] =~ m/^-D(.*)/) {
+	my $val = $1;
+	shift;
+
+	if ($val =~ m/(.*?):=(.*)$/) {
+	    set_variable($1, $2, 1);
+	} else {
+	    $command_vars[$#command_vars + 1] = $val;
+	}
     } elsif ( $ARGV[0] eq "-h" ) {
 	die_usage;
     } else {
