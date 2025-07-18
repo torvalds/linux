@@ -55,12 +55,9 @@
 
 #include <linux/linkage.h>
 
-#define DIGEST_PTR	%rdi	/* 1st arg */
+#define STATE_PTR	%rdi	/* 1st arg */
 #define DATA_PTR	%rsi	/* 2nd arg */
 #define NUM_BLKS	%rdx	/* 3rd arg */
-
-/* gcc conversion */
-#define FRAME_SIZE	32	/* space for 2x16 bytes */
 
 #define ABCD		%xmm0
 #define E0		%xmm1	/* Need two E's b/c they ping pong */
@@ -70,15 +67,17 @@
 #define MSG2		%xmm5
 #define MSG3		%xmm6
 #define SHUF_MASK	%xmm7
-
+#define ABCD_SAVED	%xmm8
+#define E0_SAVED	%xmm9
 
 /*
  * Intel SHA Extensions optimized implementation of a SHA-1 block function
  *
  * This function takes a pointer to the current SHA-1 state, a pointer to the
- * input data, and the number of 64-byte blocks to process.  Once all blocks
- * have been processed, the state is updated with the new state.  This function
- * only processes complete blocks.  State initialization, buffering of partial
+ * input data, and the number of 64-byte blocks to process.  The number of
+ * blocks to process is assumed to be nonzero.  Once all blocks have been
+ * processed, the state is updated with the new state.  This function only
+ * processes complete blocks.  State initialization, buffering of partial
  * blocks, and digest finalization are expected to be handled elsewhere.
  *
  * The indented lines in the loop are instructions related to rounds processing.
@@ -89,27 +88,19 @@
  */
 .text
 SYM_FUNC_START(sha1_ni_transform)
-	push		%rbp
-	mov		%rsp, %rbp
-	sub		$FRAME_SIZE, %rsp
-	and		$~0xF, %rsp
 
-	shl		$6, NUM_BLKS		/* convert to bytes */
-	jz		.Ldone_hash
-	add		DATA_PTR, NUM_BLKS	/* pointer to end of data */
-
-	/* load initial hash values */
-	pinsrd		$3, 1*16(DIGEST_PTR), E0
-	movdqu		0*16(DIGEST_PTR), ABCD
-	pand		UPPER_WORD_MASK(%rip), E0
+	/* Load the initial state from STATE_PTR. */
+	pxor		E0, E0
+	pinsrd		$3, 16(STATE_PTR), E0
+	movdqu		(STATE_PTR), ABCD
 	pshufd		$0x1B, ABCD, ABCD
 
 	movdqa		PSHUFFLE_BYTE_FLIP_MASK(%rip), SHUF_MASK
 
-.Lloop0:
-	/* Save hash values for addition after rounds */
-	movdqa		E0, (0*16)(%rsp)
-	movdqa		ABCD, (1*16)(%rsp)
+.Lnext_block:
+	/* Save the state for addition after the rounds. */
+	movdqa		E0, E0_SAVED
+	movdqa		ABCD, ABCD_SAVED
 
 	/* Rounds 0-3 */
 	movdqu		0*16(DATA_PTR), MSG0
@@ -267,23 +258,19 @@ SYM_FUNC_START(sha1_ni_transform)
 		movdqa		ABCD, E0
 		sha1rnds4	$3, E1, ABCD
 
-	/* Add current hash values with previously saved */
-	sha1nexte	(0*16)(%rsp), E0
-	paddd		(1*16)(%rsp), ABCD
+	/* Add the previous state (before the rounds) to the current state. */
+	sha1nexte	E0_SAVED, E0
+	paddd		ABCD_SAVED, ABCD
 
-	/* Increment data pointer and loop if more to process */
+	/* Advance to the next block, or break if there are no more blocks. */
 	add		$64, DATA_PTR
-	cmp		NUM_BLKS, DATA_PTR
-	jne		.Lloop0
+	dec		NUM_BLKS
+	jnz		.Lnext_block
 
-	/* Write hash values back in the correct order */
+	/* Store the new state to STATE_PTR. */
+	pextrd		$3, E0, 16(STATE_PTR)
 	pshufd		$0x1B, ABCD, ABCD
-	movdqu		ABCD, 0*16(DIGEST_PTR)
-	pextrd		$3, E0, 1*16(DIGEST_PTR)
-
-.Ldone_hash:
-	mov		%rbp, %rsp
-	pop		%rbp
+	movdqu		ABCD, (STATE_PTR)
 
 	RET
 SYM_FUNC_END(sha1_ni_transform)
@@ -292,8 +279,3 @@ SYM_FUNC_END(sha1_ni_transform)
 .align 16
 PSHUFFLE_BYTE_FLIP_MASK:
 	.octa 0x000102030405060708090a0b0c0d0e0f
-
-.section	.rodata.cst16.UPPER_WORD_MASK, "aM", @progbits, 16
-.align 16
-UPPER_WORD_MASK:
-	.octa 0xFFFFFFFF000000000000000000000000
