@@ -310,20 +310,18 @@ __add_event(struct list_head *list, int *idx,
 	if (pmu) {
 		is_pmu_core = pmu->is_core;
 		pmu_cpus = perf_cpu_map__get(pmu->cpus);
+		if (perf_cpu_map__is_empty(pmu_cpus))
+			pmu_cpus = cpu_map__online();
 	} else {
 		is_pmu_core = (attr->type == PERF_TYPE_HARDWARE ||
 			       attr->type == PERF_TYPE_HW_CACHE);
 		pmu_cpus = is_pmu_core ? cpu_map__online() : NULL;
 	}
 
-	if (has_user_cpus) {
+	if (has_user_cpus)
 		cpus = perf_cpu_map__get(user_cpus);
-		/* Existing behavior that pmu_cpus matches the given user ones. */
-		perf_cpu_map__put(pmu_cpus);
-		pmu_cpus = perf_cpu_map__get(user_cpus);
-	} else {
+	else
 		cpus = perf_cpu_map__get(pmu_cpus);
-	}
 
 	if (init_attr)
 		event_attr_init(attr);
