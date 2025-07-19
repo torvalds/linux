@@ -43,7 +43,7 @@ impl<'a> IoRequest<'a> {
     /// The following example uses a [`platform::Device`] for illustration
     /// purposes.
     ///
-    /// ```ignore
+    /// ```no_run
     /// use kernel::{bindings, c_str, platform, of, device::Core};
     /// struct SampleDriver;
     ///
@@ -101,7 +101,7 @@ impl<'a> IoRequest<'a> {
     /// The following example uses a [`platform::Device`] for illustration
     /// purposes.
     ///
-    /// ```ignore
+    /// ```no_run
     /// use kernel::{bindings, c_str, platform, of, device::Core};
     /// struct SampleDriver;
     ///
