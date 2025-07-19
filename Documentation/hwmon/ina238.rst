@@ -65,7 +65,7 @@ Additional sysfs entries for sq52206
 ------------------------------------
 
 ======================= =======================================================
-energy1_input		Energy measurement (mJ)
+energy1_input		Energy measurement (uJ)
 
 power1_input_highest	Peak Power (uW)
 ======================= =======================================================

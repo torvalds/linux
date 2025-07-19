@@ -97,7 +97,7 @@
  *  Power (mW) = 0.2 * register value * 20000 / rshunt / 4 * gain
  *  (Specific for SQ52206)
  *  Power (mW) = 0.24 * register value * 20000 / rshunt / 4 * gain
- *  Energy (mJ) = 16 * 0.24 * register value * 20000 / rshunt / 4 * gain
+ *  Energy (uJ) = 16 * 0.24 * register value * 20000 / rshunt / 4 * gain * 1000
  */
 #define INA238_CALIBRATION_VALUE	16384
 #define INA238_FIXED_SHUNT		20000
@@ -500,9 +500,9 @@ static ssize_t energy1_input_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	/* result in mJ */
-	energy = div_u64(regval * INA238_FIXED_SHUNT *	data->gain * 16 *
-				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
+	/* result in uJ */
+	energy = div_u64(regval * INA238_FIXED_SHUNT *	data->gain * 16 * 10 *
+				data->config->power_calculate_factor, 4 * data->rshunt);
 
 	return sysfs_emit(buf, "%llu\n", energy);
 }
