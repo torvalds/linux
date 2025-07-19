@@ -571,6 +571,11 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
 	switch (imm) {
 	/* dst_reg = load_acquire(src_reg + off16) */
 	case BPF_LOAD_ACQ:
+		if (BPF_MODE(code) == BPF_PROBE_ATOMIC) {
+			emit_add(RV_REG_T2, rs, RV_REG_ARENA, ctx);
+			rs = RV_REG_T2;
+		}
+
 		emit_ldx(rd, off, rs, BPF_SIZE(code), false, ctx);
 		emit_fence_r_rw(ctx);
 
@@ -582,6 +587,11 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
 		break;
 	/* store_release(dst_reg + off16, src_reg) */
 	case BPF_STORE_REL:
+		if (BPF_MODE(code) == BPF_PROBE_ATOMIC) {
+			emit_add(RV_REG_T2, rd, RV_REG_ARENA, ctx);
+			rd = RV_REG_T2;
+		}
+
 		emit_fence_rw_w(ctx);
 		emit_stx(rd, off, rs, BPF_SIZE(code), ctx);
 		break;
@@ -599,13 +609,12 @@ static int emit_atomic_rmw(u8 rd, u8 rs, const struct bpf_insn *insn,
 	u8 code = insn->code;
 	s16 off = insn->off;
 	s32 imm = insn->imm;
-	bool is64;
+	bool is64 = BPF_SIZE(code) == BPF_DW;
 
 	if (BPF_SIZE(code) != BPF_W && BPF_SIZE(code) != BPF_DW) {
 		pr_err_once("bpf-jit: 1- and 2-byte RMW atomics are not supported\n");
 		return -EINVAL;
 	}
-	is64 = BPF_SIZE(code) == BPF_DW;
 
 	if (off) {
 		if (is_12b_int(off)) {
@@ -617,53 +626,76 @@ static int emit_atomic_rmw(u8 rd, u8 rs, const struct bpf_insn *insn,
 		rd = RV_REG_T1;
 	}
 
+	if (BPF_MODE(code) == BPF_PROBE_ATOMIC) {
+		emit_add(RV_REG_T1, rd, RV_REG_ARENA, ctx);
+		rd = RV_REG_T1;
+	}
+
 	switch (imm) {
 	/* lock *(u32/u64 *)(dst_reg + off16) <op>= src_reg */
 	case BPF_ADD:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoadd_d(RV_REG_ZERO, rs, rd, 0, 0) :
 		     rv_amoadd_w(RV_REG_ZERO, rs, rd, 0, 0), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		break;
 	case BPF_AND:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoand_d(RV_REG_ZERO, rs, rd, 0, 0) :
 		     rv_amoand_w(RV_REG_ZERO, rs, rd, 0, 0), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		break;
 	case BPF_OR:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoor_d(RV_REG_ZERO, rs, rd, 0, 0) :
 		     rv_amoor_w(RV_REG_ZERO, rs, rd, 0, 0), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		break;
 	case BPF_XOR:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoxor_d(RV_REG_ZERO, rs, rd, 0, 0) :
 		     rv_amoxor_w(RV_REG_ZERO, rs, rd, 0, 0), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		break;
 	/* src_reg = atomic_fetch_<op>(dst_reg + off16, src_reg) */
 	case BPF_ADD | BPF_FETCH:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoadd_d(rs, rs, rd, 1, 1) :
 		     rv_amoadd_w(rs, rs, rd, 1, 1), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		if (!is64)
 			emit_zextw(rs, rs, ctx);
 		break;
 	case BPF_AND | BPF_FETCH:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoand_d(rs, rs, rd, 1, 1) :
 		     rv_amoand_w(rs, rs, rd, 1, 1), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		if (!is64)
 			emit_zextw(rs, rs, ctx);
 		break;
 	case BPF_OR | BPF_FETCH:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoor_d(rs, rs, rd, 1, 1) :
 		     rv_amoor_w(rs, rs, rd, 1, 1), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		if (!is64)
 			emit_zextw(rs, rs, ctx);
 		break;
 	case BPF_XOR | BPF_FETCH:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoxor_d(rs, rs, rd, 1, 1) :
 		     rv_amoxor_w(rs, rs, rd, 1, 1), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		if (!is64)
 			emit_zextw(rs, rs, ctx);
 		break;
 	/* src_reg = atomic_xchg(dst_reg + off16, src_reg); */
 	case BPF_XCHG:
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rv_amoswap_d(rs, rs, rd, 1, 1) :
 		     rv_amoswap_w(rs, rs, rd, 1, 1), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		if (!is64)
 			emit_zextw(rs, rs, ctx);
 		break;
@@ -711,7 +743,8 @@ static int add_exception_handler(const struct bpf_insn *insn, int dst_reg,
 
 	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
 	    BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
-	    BPF_MODE(insn->code) != BPF_PROBE_MEM32)
+	    BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
+	    BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
 		return 0;
 
 	if (WARN_ON_ONCE(ctx->nexentries >= ctx->prog->aux->num_exentries))
@@ -1841,14 +1874,21 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			return ret;
 		break;
 
+	/* Atomics */
 	case BPF_STX | BPF_ATOMIC | BPF_B:
 	case BPF_STX | BPF_ATOMIC | BPF_H:
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_B:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_H:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_W:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
 		if (bpf_atomic_is_load_store(insn))
 			ret = emit_atomic_ld_st(rd, rs, insn, ctx);
 		else
 			ret = emit_atomic_rmw(rd, rs, insn, ctx);
+
+		ret = ret ?: add_exception_handler(insn, REG_DONT_CLEAR_MARKER, ctx);
 		if (ret)
 			return ret;
 		break;
@@ -1976,6 +2016,20 @@ bool bpf_jit_supports_ptr_xchg(void)
 
 bool bpf_jit_supports_arena(void)
 {
+	return true;
+}
+
+bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
+{
+	if (in_arena) {
+		switch (insn->code) {
+		case BPF_STX | BPF_ATOMIC | BPF_W:
+		case BPF_STX | BPF_ATOMIC | BPF_DW:
+			if (insn->imm == BPF_CMPXCHG)
+				return rv_ext_enabled(ZACAS);
+		}
+	}
+
 	return true;
 }
 

@@ -1301,8 +1301,10 @@ static inline void emit_cmpxchg(u8 rd, u8 rs, u8 r0, bool is64, struct rv_jit_co
 	int jmp_offset;
 
 	if (rv_ext_enabled(ZACAS)) {
+		ctx->ex_insn_off = ctx->ninsns;
 		emit(is64 ? rvzacas_amocas_d(r0, rs, rd, 1, 1) :
 		     rvzacas_amocas_w(r0, rs, rd, 1, 1), ctx);
+		ctx->ex_jmp_off = ctx->ninsns;
 		if (!is64)
 			emit_zextw(r0, r0, ctx);
 		return;
