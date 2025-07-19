@@ -751,8 +751,7 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 
 static void cma_debug_show_areas(struct cma *cma)
 {
-	unsigned long next_zero_bit, next_set_bit, nr_zero;
-	unsigned long start;
+	unsigned long start, end;
 	unsigned long nr_part;
 	unsigned long nbits;
 	int r;
@@ -763,22 +762,12 @@ static void cma_debug_show_areas(struct cma *cma)
 	for (r = 0; r < cma->nranges; r++) {
 		cmr = &cma->ranges[r];
 
-		start = 0;
 		nbits = cma_bitmap_maxno(cma, cmr);
 
 		pr_info("range %d: ", r);
-		for (;;) {
-			next_zero_bit = find_next_zero_bit(cmr->bitmap,
-							   nbits, start);
-			if (next_zero_bit >= nbits)
-				break;
-			next_set_bit = find_next_bit(cmr->bitmap, nbits,
-						     next_zero_bit);
-			nr_zero = next_set_bit - next_zero_bit;
-			nr_part = nr_zero << cma->order_per_bit;
-			pr_cont("%s%lu@%lu", start ? "+" : "", nr_part,
-				next_zero_bit);
-			start = next_zero_bit + nr_zero;
+		for_each_clear_bitrange(start, end, cmr->bitmap, nbits) {
+			nr_part = (end - start) << cma->order_per_bit;
+			pr_cont("%s%lu@%lu", start ? "+" : "", nr_part, start);
 		}
 		pr_info("\n");
 	}
