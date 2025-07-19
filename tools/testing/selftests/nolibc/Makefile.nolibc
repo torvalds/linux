@@ -263,7 +263,7 @@ REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{if (!f) printf("\n"); f++
 		printf("\nSee all results in %s\n", ARGV[1]); }'
 
 # Execute the toplevel kernel Makefile
-KBUILD_MAKE = $(MAKE) -C $(srctree) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+KBUILD_MAKE = $(MAKE) -C $(srctree) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) LLVM=
 
 help:
 	@echo "Supported targets under selftests/nolibc:"
@@ -276,8 +276,8 @@ help:
 	@echo "  initramfs.cpio    prepare the initramfs archive with nolibc-test"
 	@echo "  initramfs         prepare the initramfs tree with nolibc-test"
 	@echo "  defconfig         create a fresh new default config (uses \$$XARCH)"
-	@echo "  kernel            (re)build the kernel (uses \$$XARCH)"
-	@echo "  kernel-standalone (re)build the kernel with the initramfs (uses \$$XARCH)"
+	@echo "  kernel            (re)build the kernel (uses \$$XARCH, \$$CROSS_COMPILE)"
+	@echo "  kernel-standalone (re)build the kernel with the initramfs (uses \$$XARCH, \$$CROSS_COMPILE)"
 	@echo "  run               runs the kernel in QEMU after building it (uses \$$XARCH, \$$TEST)"
 	@echo "  rerun             runs a previously prebuilt kernel in QEMU (uses \$$XARCH, \$$TEST)"
 	@echo "  clean             clean the sysroot, initramfs, build and output files"
