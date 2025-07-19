@@ -577,6 +577,24 @@ static void emit_stx_insn(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context 
 	}
 }
 
+static int emit_st(u8 rd, s16 off, s32 imm, u8 size, struct rv_jit_context *ctx)
+{
+	int insns_start;
+
+	emit_imm(RV_REG_T1, imm, ctx);
+	if (is_12b_int(off)) {
+		insns_start = ctx->ninsns;
+		emit_stx_insn(rd, off, RV_REG_T1, size, ctx);
+		return ctx->ninsns - insns_start;
+	}
+
+	emit_imm(RV_REG_T2, off, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
+	insns_start = ctx->ninsns;
+	emit_stx_insn(RV_REG_T2, 0, RV_REG_T1, size, ctx);
+	return ctx->ninsns - insns_start;
+}
+
 static int emit_stx(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context *ctx)
 {
 	int insns_start;
@@ -1870,128 +1888,27 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 
 	/* ST: *(size *)(dst + off) = imm */
 	case BPF_ST | BPF_MEM | BPF_B:
-		emit_imm(RV_REG_T1, imm, ctx);
-		if (is_12b_int(off)) {
-			emit(rv_sb(rd, off, RV_REG_T1), ctx);
-			break;
-		}
-
-		emit_imm(RV_REG_T2, off, ctx);
-		emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-		emit(rv_sb(RV_REG_T2, 0, RV_REG_T1), ctx);
-		break;
-
 	case BPF_ST | BPF_MEM | BPF_H:
-		emit_imm(RV_REG_T1, imm, ctx);
-		if (is_12b_int(off)) {
-			emit(rv_sh(rd, off, RV_REG_T1), ctx);
-			break;
-		}
-
-		emit_imm(RV_REG_T2, off, ctx);
-		emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-		emit(rv_sh(RV_REG_T2, 0, RV_REG_T1), ctx);
-		break;
 	case BPF_ST | BPF_MEM | BPF_W:
-		emit_imm(RV_REG_T1, imm, ctx);
-		if (is_12b_int(off)) {
-			emit_sw(rd, off, RV_REG_T1, ctx);
-			break;
-		}
-
-		emit_imm(RV_REG_T2, off, ctx);
-		emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-		emit_sw(RV_REG_T2, 0, RV_REG_T1, ctx);
-		break;
 	case BPF_ST | BPF_MEM | BPF_DW:
-		emit_imm(RV_REG_T1, imm, ctx);
-		if (is_12b_int(off)) {
-			emit_sd(rd, off, RV_REG_T1, ctx);
-			break;
-		}
-
-		emit_imm(RV_REG_T2, off, ctx);
-		emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-		emit_sd(RV_REG_T2, 0, RV_REG_T1, ctx);
-		break;
-
+	/* ST | PROBE_MEM32: *(size *)(dst + RV_REG_ARENA + off) = imm */
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_B:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_H:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_W:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_DW:
 	{
-		int insn_len, insns_start;
+		int insn_len;
 
-		emit_add(RV_REG_T3, rd, RV_REG_ARENA, ctx);
-		rd = RV_REG_T3;
-
-		/* Load imm to a register then store it */
-		emit_imm(RV_REG_T1, imm, ctx);
-
-		switch (BPF_SIZE(code)) {
-		case BPF_B:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit(rv_sb(rd, off, RV_REG_T1), ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T2, off, ctx);
-			emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit(rv_sb(RV_REG_T2, 0, RV_REG_T1), ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		case BPF_H:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit(rv_sh(rd, off, RV_REG_T1), ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T2, off, ctx);
-			emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit(rv_sh(RV_REG_T2, 0, RV_REG_T1), ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		case BPF_W:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit_sw(rd, off, RV_REG_T1, ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T2, off, ctx);
-			emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit_sw(RV_REG_T2, 0, RV_REG_T1, ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		case BPF_DW:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit_sd(rd, off, RV_REG_T1, ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T2, off, ctx);
-			emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit_sd(RV_REG_T2, 0, RV_REG_T1, ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
+		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
+			emit_add(RV_REG_T3, rd, RV_REG_ARENA, ctx);
+			rd = RV_REG_T3;
 		}
 
-		ret = add_exception_handler(insn, ctx, REG_DONT_CLEAR_MARKER,
-					    insn_len);
+		insn_len = emit_st(rd, off, imm, BPF_SIZE(code), ctx);
+
+		ret = add_exception_handler(insn, ctx, REG_DONT_CLEAR_MARKER, insn_len);
 		if (ret)
 			return ret;
-
 		break;
 	}
 
