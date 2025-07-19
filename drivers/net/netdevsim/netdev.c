@@ -387,15 +387,34 @@ static int nsim_get_iflink(const struct net_device *dev)
 static int nsim_rcv(struct nsim_rq *rq, int budget)
 {
 	struct net_device *dev = rq->napi.dev;
+	struct bpf_prog *xdp_prog;
+	struct netdevsim *ns;
 	struct sk_buff *skb;
 	unsigned int skblen;
 	int i, ret;
+
+	ns = netdev_priv(dev);
+	xdp_prog = READ_ONCE(ns->xdp.prog);
 
 	for (i = 0; i < budget; i++) {
 		if (skb_queue_empty(&rq->skb_queue))
 			break;
 
 		skb = skb_dequeue(&rq->skb_queue);
+
+		if (xdp_prog) {
+			/* skb might be freed directly by XDP, save the len */
+			skblen = skb->len;
+
+			if (skb->ip_summed == CHECKSUM_PARTIAL)
+				skb_checksum_help(skb);
+			ret = do_xdp_generic(xdp_prog, &skb);
+			if (ret != XDP_PASS) {
+				dev_dstats_rx_add(dev, skblen);
+				continue;
+			}
+		}
+
 		/* skb might be discard at netif_receive_skb, save the len */
 		skblen = skb->len;
 		skb_mark_napi_id(skb, &rq->napi);
@@ -936,7 +955,7 @@ static void nsim_setup(struct net_device *dev)
 			    NETIF_F_TSO;
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_DSTATS;
 	dev->max_mtu = ETH_MAX_MTU;
-	dev->xdp_features = NETDEV_XDP_ACT_HW_OFFLOAD;
+	dev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_HW_OFFLOAD;
 }
 
 static int nsim_queue_init(struct netdevsim *ns)
