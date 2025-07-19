@@ -77,6 +77,7 @@ FIXTURE(proc_maps_race)
 	int shared_mem_size;
 	int page_size;
 	int vma_count;
+	bool verbose;
 	int maps_fd;
 	pid_t pid;
 };
@@ -188,12 +189,104 @@ static void stop_vma_modifier(struct vma_modifier_info *mod_info)
 	signal_state(mod_info, SETUP_MODIFY_MAPS);
 }
 
+static void print_first_lines(char *text, int nr)
+{
+	const char *end = text;
+
+	while (nr && (end = strchr(end, '\n')) != NULL) {
+		nr--;
+		end++;
+	}
+
+	if (end) {
+		int offs = end - text;
+
+		text[offs] = '\0';
+		printf(text);
+		text[offs] = '\n';
+		printf("\n");
+	} else {
+		printf(text);
+	}
+}
+
+static void print_last_lines(char *text, int nr)
+{
+	const char *start = text + strlen(text);
+
+	nr++; /* to ignore the last newline */
+	while (nr) {
+		while (start > text && *start != '\n')
+			start--;
+		nr--;
+		start--;
+	}
+	printf(start);
+}
+
+static void print_boundaries(const char *title, FIXTURE_DATA(proc_maps_race) *self)
+{
+	if (!self->verbose)
+		return;
+
+	printf("%s", title);
+	/* Print 3 boundary lines from each page */
+	print_last_lines(self->page1.data, 3);
+	printf("-----------------page boundary-----------------\n");
+	print_first_lines(self->page2.data, 3);
+}
+
+static bool print_boundaries_on(bool condition, const char *title,
+				FIXTURE_DATA(proc_maps_race) *self)
+{
+	if (self->verbose && condition)
+		print_boundaries(title, self);
+
+	return condition;
+}
+
+static void report_test_start(const char *name, bool verbose)
+{
+	if (verbose)
+		printf("==== %s ====\n", name);
+}
+
+static struct timespec print_ts;
+
+static void start_test_loop(struct timespec *ts, bool verbose)
+{
+	if (verbose)
+		print_ts.tv_sec = ts->tv_sec;
+}
+
+static void end_test_iteration(struct timespec *ts, bool verbose)
+{
+	if (!verbose)
+		return;
+
+	/* Update every second */
+	if (print_ts.tv_sec == ts->tv_sec)
+		return;
+
+	printf(".");
+	fflush(stdout);
+	print_ts.tv_sec = ts->tv_sec;
+}
+
+static void end_test_loop(bool verbose)
+{
+	if (verbose)
+		printf("\n");
+}
+
 static bool capture_mod_pattern(FIXTURE_DATA(proc_maps_race) *self,
 				struct line_content *mod_last_line,
 				struct line_content *mod_first_line,
 				struct line_content *restored_last_line,
 				struct line_content *restored_first_line)
 {
+	print_boundaries("Before modification", self);
+
 	signal_state(self->mod_info, SETUP_MODIFY_MAPS);
 	wait_for_state(self->mod_info, SETUP_MAPS_MODIFIED);
 
@@ -201,12 +294,16 @@ static bool capture_mod_pattern(FIXTURE_DATA(proc_maps_race) *self,
 	if (!read_boundary_lines(self, mod_last_line, mod_first_line))
 		return false;
 
+	print_boundaries("After modification", self);
+
 	signal_state(self->mod_info, SETUP_RESTORE_MAPS);
 	wait_for_state(self->mod_info, SETUP_MAPS_RESTORED);
 
 	/* Copy last line of the first page and first line of the last page */
 	if (!read_boundary_lines(self, restored_last_line, restored_first_line))
 		return false;
+
+	print_boundaries("After restore", self);
 
 	if (!self->mod_info->vma_mod_check(mod_last_line, mod_first_line,
 					   restored_last_line, restored_first_line))
@@ -295,6 +392,7 @@ static inline bool check_remap_result(struct line_content *mod_last_line,
 
 FIXTURE_SETUP(proc_maps_race)
 {
+	const char *verbose = getenv("VERBOSE");
 	const char *duration = getenv("DURATION");
 	struct vma_modifier_info *mod_info;
 	pthread_mutexattr_t mutex_attr;
@@ -303,6 +401,7 @@ FIXTURE_SETUP(proc_maps_race)
 	char fname[32];
 
 	self->page_size = (unsigned long)sysconf(_SC_PAGESIZE);
+	self->verbose = verbose && !strncmp(verbose, "1", 1);
 	duration_sec = duration ? atol(duration) : 0;
 	self->duration_sec = duration_sec ? duration_sec : 5UL;
 
@@ -444,6 +543,7 @@ TEST_F(proc_maps_race, test_maps_tearing_from_split)
 	mod_info->vma_restore = merge_vma;
 	mod_info->vma_mod_check = check_split_result;
 
+	report_test_start("Tearing from split", self->verbose);
 	ASSERT_TRUE(capture_mod_pattern(self, &split_last_line, &split_first_line,
 					&restored_last_line, &restored_first_line));
 
@@ -455,6 +555,7 @@ TEST_F(proc_maps_race, test_maps_tearing_from_split)
 	struct timespec start_ts, end_ts;
 
 	clock_gettime(CLOCK_MONOTONIC_COARSE, &start_ts);
+	start_test_loop(&start_ts, self->verbose);
 	do {
 		bool last_line_changed;
 		bool first_line_changed;
@@ -472,12 +573,18 @@ TEST_F(proc_maps_race, test_maps_tearing_from_split)
 			 * In that case new first line will be the same as the
 			 * last restored line.
 			 */
-			ASSERT_FALSE(strcmp(new_first_line.text, split_first_line.text) &&
-				     strcmp(new_first_line.text, restored_last_line.text));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_first_line.text, split_first_line.text) &&
+					strcmp(new_first_line.text, restored_last_line.text),
+					"Split result invalid", self));
 		} else {
 			/* The vmas should be consistent with merge results */
-			ASSERT_FALSE(strcmp(new_last_line.text, restored_last_line.text));
-			ASSERT_FALSE(strcmp(new_first_line.text, restored_first_line.text));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_last_line.text, restored_last_line.text),
+					"Merge result invalid", self));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_first_line.text, restored_first_line.text),
+					"Merge result invalid", self));
 		}
 		/*
 		 * First and last lines should change in unison. If the last
@@ -489,7 +596,9 @@ TEST_F(proc_maps_race, test_maps_tearing_from_split)
 		ASSERT_EQ(last_line_changed, first_line_changed);
 
 		clock_gettime(CLOCK_MONOTONIC_COARSE, &end_ts);
+		end_test_iteration(&end_ts, self->verbose);
 	} while (end_ts.tv_sec - start_ts.tv_sec < self->duration_sec);
+	end_test_loop(self->verbose);
 
 	/* Signal the modifyer thread to stop and wait until it exits */
 	signal_state(mod_info, TEST_DONE);
@@ -513,6 +622,7 @@ TEST_F(proc_maps_race, test_maps_tearing_from_resize)
 	mod_info->vma_restore = expand_vma;
 	mod_info->vma_mod_check = check_shrink_result;
 
+	report_test_start("Tearing from resize", self->verbose);
 	ASSERT_TRUE(capture_mod_pattern(self, &shrunk_last_line, &shrunk_first_line,
 					&restored_last_line, &restored_first_line));
 
@@ -524,6 +634,7 @@ TEST_F(proc_maps_race, test_maps_tearing_from_resize)
 	struct timespec start_ts, end_ts;
 
 	clock_gettime(CLOCK_MONOTONIC_COARSE, &start_ts);
+	start_test_loop(&start_ts, self->verbose);
 	do {
 		ASSERT_TRUE(read_boundary_lines(self, &new_last_line, &new_first_line));
 
@@ -537,16 +648,24 @@ TEST_F(proc_maps_race, test_maps_tearing_from_resize)
 			 * again. In that case new first line will be the same
 			 * as the last restored line.
 			 */
-			ASSERT_FALSE(strcmp(new_first_line.text, shrunk_first_line.text) &&
-				     strcmp(new_first_line.text, restored_last_line.text));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_first_line.text, shrunk_first_line.text) &&
+					strcmp(new_first_line.text, restored_last_line.text),
+					"Shrink result invalid", self));
 		} else {
 			/* The vmas should be consistent with the original/resored state */
-			ASSERT_FALSE(strcmp(new_last_line.text, restored_last_line.text));
-			ASSERT_FALSE(strcmp(new_first_line.text, restored_first_line.text));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_last_line.text, restored_last_line.text),
+					"Expand result invalid", self));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_first_line.text, restored_first_line.text),
+					"Expand result invalid", self));
 		}
 
 		clock_gettime(CLOCK_MONOTONIC_COARSE, &end_ts);
+		end_test_iteration(&end_ts, self->verbose);
 	} while (end_ts.tv_sec - start_ts.tv_sec < self->duration_sec);
+	end_test_loop(self->verbose);
 
 	/* Signal the modifyer thread to stop and wait until it exits */
 	signal_state(mod_info, TEST_DONE);
@@ -570,6 +689,7 @@ TEST_F(proc_maps_race, test_maps_tearing_from_remap)
 	mod_info->vma_restore = patch_vma;
 	mod_info->vma_mod_check = check_remap_result;
 
+	report_test_start("Tearing from remap", self->verbose);
 	ASSERT_TRUE(capture_mod_pattern(self, &remapped_last_line, &remapped_first_line,
 					&restored_last_line, &restored_first_line));
 
@@ -581,6 +701,7 @@ TEST_F(proc_maps_race, test_maps_tearing_from_remap)
 	struct timespec start_ts, end_ts;
 
 	clock_gettime(CLOCK_MONOTONIC_COARSE, &start_ts);
+	start_test_loop(&start_ts, self->verbose);
 	do {
 		ASSERT_TRUE(read_boundary_lines(self, &new_last_line, &new_first_line));
 
@@ -594,16 +715,24 @@ TEST_F(proc_maps_race, test_maps_tearing_from_remap)
 			 * again. In that case new first line will be the same
 			 * as the last restored line.
 			 */
-			ASSERT_FALSE(strcmp(new_first_line.text, remapped_first_line.text) &&
-				     strcmp(new_first_line.text, restored_last_line.text));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_first_line.text, remapped_first_line.text) &&
+					strcmp(new_first_line.text, restored_last_line.text),
+					"Remap result invalid", self));
 		} else {
 			/* The vmas should be consistent with the original/resored state */
-			ASSERT_FALSE(strcmp(new_last_line.text, restored_last_line.text));
-			ASSERT_FALSE(strcmp(new_first_line.text, restored_first_line.text));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_last_line.text, restored_last_line.text),
+					"Remap restore result invalid", self));
+			ASSERT_FALSE(print_boundaries_on(
+					strcmp(new_first_line.text, restored_first_line.text),
+					"Remap restore result invalid", self));
 		}
 
 		clock_gettime(CLOCK_MONOTONIC_COARSE, &end_ts);
+		end_test_iteration(&end_ts, self->verbose);
 	} while (end_ts.tv_sec - start_ts.tv_sec < self->duration_sec);
+	end_test_loop(self->verbose);
 
 	/* Signal the modifyer thread to stop and wait until it exits */
 	signal_state(mod_info, TEST_DONE);
