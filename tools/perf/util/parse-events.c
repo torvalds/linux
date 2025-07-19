@@ -2190,6 +2190,11 @@ static int evlist__cmp(void *_fg_idx, const struct list_head *l, const struct li
 	return arch_evlist__cmp(lhs, rhs);
 }
 
+int __weak arch_evlist__add_required_events(struct list_head *list __always_unused)
+{
+	return 0;
+}
+
 static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 {
 	int idx = 0, force_grouped_idx = -1;
@@ -2200,6 +2205,11 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	int ret;
 	struct evsel *force_grouped_leader = NULL;
 	bool last_event_was_forced_leader = false;
+
+	/* On x86 topdown metrics events require a slots event. */
+	ret = arch_evlist__add_required_events(list);
+	if (ret)
+		return ret;
 
 	/*
 	 * Compute index to insert ungrouped events at. Place them where the
