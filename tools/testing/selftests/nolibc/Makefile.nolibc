@@ -263,7 +263,7 @@ REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{if (!f) printf("\n"); f++
 		printf("\nSee all results in %s\n", ARGV[1]); }'
 
 # Execute the toplevel kernel Makefile
-KBUILD_MAKE = $(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE)
+KBUILD_MAKE = $(MAKE) -C $(srctree) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
 
 help:
 	@echo "Supported targets under selftests/nolibc:"
