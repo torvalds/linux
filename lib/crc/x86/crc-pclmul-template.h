@@ -25,23 +25,20 @@ crc_t prefix##_vpclmul_avx512(crc_t crc, const u8 *p, size_t len,	\
 			      const void *consts_ptr);			\
 DEFINE_STATIC_CALL(prefix##_pclmul, prefix##_pclmul_sse)
 
-#define INIT_CRC_PCLMUL(prefix)						\
-do {									\
-	if (boot_cpu_has(X86_FEATURE_VPCLMULQDQ) &&			\
-	    boot_cpu_has(X86_FEATURE_AVX2) &&				\
-	    cpu_has_xfeatures(XFEATURE_MASK_YMM, NULL)) {		\
-		if (boot_cpu_has(X86_FEATURE_AVX512BW) &&		\
-		    boot_cpu_has(X86_FEATURE_AVX512VL) &&		\
-		    !boot_cpu_has(X86_FEATURE_PREFER_YMM) &&		\
-		    cpu_has_xfeatures(XFEATURE_MASK_AVX512, NULL)) {	\
-			static_call_update(prefix##_pclmul,		\
-					   prefix##_vpclmul_avx512);	\
-		} else {						\
-			static_call_update(prefix##_pclmul,		\
-					   prefix##_vpclmul_avx2);	\
-		}							\
-	}								\
-} while (0)
+static inline bool have_vpclmul(void)
+{
+	return boot_cpu_has(X86_FEATURE_VPCLMULQDQ) &&
+	       boot_cpu_has(X86_FEATURE_AVX2) &&
+	       cpu_has_xfeatures(XFEATURE_MASK_YMM, NULL);
+}
+
+static inline bool have_avx512(void)
+{
+	return boot_cpu_has(X86_FEATURE_AVX512BW) &&
+	       boot_cpu_has(X86_FEATURE_AVX512VL) &&
+	       !boot_cpu_has(X86_FEATURE_PREFER_YMM) &&
+	       cpu_has_xfeatures(XFEATURE_MASK_AVX512, NULL);
+}
 
 /*
  * Call a [V]PCLMULQDQ optimized CRC function if the data length is at least 16

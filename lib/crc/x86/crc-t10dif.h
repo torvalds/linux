@@ -23,6 +23,13 @@ static inline void crc_t10dif_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		static_branch_enable(&have_pclmulqdq);
-		INIT_CRC_PCLMUL(crc16_msb);
+		if (have_vpclmul()) {
+			if (have_avx512())
+				static_call_update(crc16_msb_pclmul,
+						   crc16_msb_vpclmul_avx512);
+			else
+				static_call_update(crc16_msb_pclmul,
+						   crc16_msb_vpclmul_avx2);
+		}
 	}
 }

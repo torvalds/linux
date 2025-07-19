@@ -31,7 +31,18 @@ static inline void crc64_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		static_branch_enable(&have_pclmulqdq);
-		INIT_CRC_PCLMUL(crc64_msb);
-		INIT_CRC_PCLMUL(crc64_lsb);
+		if (have_vpclmul()) {
+			if (have_avx512()) {
+				static_call_update(crc64_msb_pclmul,
+						   crc64_msb_vpclmul_avx512);
+				static_call_update(crc64_lsb_pclmul,
+						   crc64_lsb_vpclmul_avx512);
+			} else {
+				static_call_update(crc64_msb_pclmul,
+						   crc64_msb_vpclmul_avx2);
+				static_call_update(crc64_lsb_pclmul,
+						   crc64_lsb_vpclmul_avx2);
+			}
+		}
 	}
 }

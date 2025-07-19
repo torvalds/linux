@@ -77,7 +77,15 @@ static inline void crc32_mod_init_arch(void)
 		static_branch_enable(&have_crc32);
 	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		static_branch_enable(&have_pclmulqdq);
-		INIT_CRC_PCLMUL(crc32_lsb);
+		if (have_vpclmul()) {
+			if (have_avx512()) {
+				static_call_update(crc32_lsb_pclmul,
+						   crc32_lsb_vpclmul_avx512);
+			} else {
+				static_call_update(crc32_lsb_pclmul,
+						   crc32_lsb_vpclmul_avx2);
+			}
+		}
 	}
 }
 
