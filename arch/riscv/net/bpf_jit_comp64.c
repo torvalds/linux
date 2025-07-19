@@ -559,52 +559,39 @@ static int emit_load_64(bool sign_ext, u8 rd, s32 off, u8 rs, struct rv_jit_cont
 	return ctx->ninsns - insns_start;
 }
 
-static void emit_store_8(u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
+static void emit_stx_insn(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context *ctx)
 {
-	if (is_12b_int(off)) {
+	switch (size) {
+	case BPF_B:
 		emit(rv_sb(rd, off, rs), ctx);
-		return;
-	}
-
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-	emit(rv_sb(RV_REG_T1, 0, rs), ctx);
-}
-
-static void emit_store_16(u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
-{
-	if (is_12b_int(off)) {
+		break;
+	case BPF_H:
 		emit(rv_sh(rd, off, rs), ctx);
-		return;
-	}
-
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-	emit(rv_sh(RV_REG_T1, 0, rs), ctx);
-}
-
-static void emit_store_32(u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
-{
-	if (is_12b_int(off)) {
+		break;
+	case BPF_W:
 		emit_sw(rd, off, rs, ctx);
-		return;
+		break;
+	case BPF_DW:
+		emit_sd(rd, off, rs, ctx);
+		break;
 	}
-
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-	emit_sw(RV_REG_T1, 0, rs, ctx);
 }
 
-static void emit_store_64(u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
+static int emit_stx(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context *ctx)
 {
+	int insns_start;
+
 	if (is_12b_int(off)) {
-		emit_sd(rd, off, rs, ctx);
-		return;
+		insns_start = ctx->ninsns;
+		emit_stx_insn(rd, off, rs, size, ctx);
+		return ctx->ninsns - insns_start;
 	}
 
 	emit_imm(RV_REG_T1, off, ctx);
 	emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-	emit_sd(RV_REG_T1, 0, rs, ctx);
+	insns_start = ctx->ninsns;
+	emit_stx_insn(RV_REG_T1, 0, rs, size, ctx);
+	return ctx->ninsns - insns_start;
 }
 
 static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
@@ -642,20 +629,7 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
 	/* store_release(dst_reg + off16, src_reg) */
 	case BPF_STORE_REL:
 		emit_fence_rw_w(ctx);
-		switch (BPF_SIZE(code)) {
-		case BPF_B:
-			emit_store_8(rd, off, rs, ctx);
-			break;
-		case BPF_H:
-			emit_store_16(rd, off, rs, ctx);
-			break;
-		case BPF_W:
-			emit_store_32(rd, off, rs, ctx);
-			break;
-		case BPF_DW:
-			emit_store_64(rd, off, rs, ctx);
-			break;
-		}
+		emit_stx(rd, off, rs, BPF_SIZE(code), ctx);
 		break;
 	default:
 		pr_err_once("bpf-jit: invalid atomic load/store opcode %02x\n", imm);
@@ -2023,17 +1997,30 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 
 	/* STX: *(size *)(dst + off) = src */
 	case BPF_STX | BPF_MEM | BPF_B:
-		emit_store_8(rd, off, rs, ctx);
-		break;
 	case BPF_STX | BPF_MEM | BPF_H:
-		emit_store_16(rd, off, rs, ctx);
-		break;
 	case BPF_STX | BPF_MEM | BPF_W:
-		emit_store_32(rd, off, rs, ctx);
-		break;
 	case BPF_STX | BPF_MEM | BPF_DW:
-		emit_store_64(rd, off, rs, ctx);
+	/* STX | PROBE_MEM32: *(size *)(dst + RV_REG_ARENA + off) = src */
+	case BPF_STX | BPF_PROBE_MEM32 | BPF_B:
+	case BPF_STX | BPF_PROBE_MEM32 | BPF_H:
+	case BPF_STX | BPF_PROBE_MEM32 | BPF_W:
+	case BPF_STX | BPF_PROBE_MEM32 | BPF_DW:
+	{
+		int insn_len;
+
+		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
+			emit_add(RV_REG_T2, rd, RV_REG_ARENA, ctx);
+			rd = RV_REG_T2;
+		}
+
+		insn_len = emit_stx(rd, off, rs, BPF_SIZE(code), ctx);
+
+		ret = add_exception_handler(insn, ctx, REG_DONT_CLEAR_MARKER, insn_len);
+		if (ret)
+			return ret;
 		break;
+	}
+
 	case BPF_STX | BPF_ATOMIC | BPF_B:
 	case BPF_STX | BPF_ATOMIC | BPF_H:
 	case BPF_STX | BPF_ATOMIC | BPF_W:
@@ -2045,83 +2032,6 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		if (ret)
 			return ret;
 		break;
-
-	case BPF_STX | BPF_PROBE_MEM32 | BPF_B:
-	case BPF_STX | BPF_PROBE_MEM32 | BPF_H:
-	case BPF_STX | BPF_PROBE_MEM32 | BPF_W:
-	case BPF_STX | BPF_PROBE_MEM32 | BPF_DW:
-	{
-		int insn_len, insns_start;
-
-		emit_add(RV_REG_T2, rd, RV_REG_ARENA, ctx);
-		rd = RV_REG_T2;
-
-		switch (BPF_SIZE(code)) {
-		case BPF_B:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit(rv_sb(rd, off, rs), ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T1, off, ctx);
-			emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit(rv_sb(RV_REG_T1, 0, rs), ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		case BPF_H:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit(rv_sh(rd, off, rs), ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T1, off, ctx);
-			emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit(rv_sh(RV_REG_T1, 0, rs), ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		case BPF_W:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit_sw(rd, off, rs, ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T1, off, ctx);
-			emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit_sw(RV_REG_T1, 0, rs, ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		case BPF_DW:
-			if (is_12b_int(off)) {
-				insns_start = ctx->ninsns;
-				emit_sd(rd, off, rs, ctx);
-				insn_len = ctx->ninsns - insns_start;
-				break;
-			}
-
-			emit_imm(RV_REG_T1, off, ctx);
-			emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-			insns_start = ctx->ninsns;
-			emit_sd(RV_REG_T1, 0, rs, ctx);
-			insn_len = ctx->ninsns - insns_start;
-			break;
-		}
-
-		ret = add_exception_handler(insn, ctx, REG_DONT_CLEAR_MARKER,
-					    insn_len);
-		if (ret)
-			return ret;
-
-		break;
-	}
 
 	default:
 		pr_err("bpf-jit: unknown opcode %02x\n", code);
