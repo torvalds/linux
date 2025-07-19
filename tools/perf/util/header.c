@@ -4507,8 +4507,8 @@ int perf_event__process_event_update(const struct perf_tool *tool __maybe_unused
 	case PERF_EVENT_UPDATE__CPUS:
 		map = cpu_map__new_data(&ev->cpus.cpus);
 		if (map) {
-			perf_cpu_map__put(evsel->core.own_cpus);
-			evsel->core.own_cpus = map;
+			perf_cpu_map__put(evsel->core.pmu_cpus);
+			evsel->core.pmu_cpus = map;
 		} else
 			pr_err("failed to get event_update cpus\n");
 	default:

@@ -2045,7 +2045,7 @@ int perf_event__synthesize_event_update_name(const struct perf_tool *tool, struc
 int perf_event__synthesize_event_update_cpus(const struct perf_tool *tool, struct evsel *evsel,
 					     perf_event__handler_t process)
 {
-	struct synthesize_cpu_map_data syn_data = { .map = evsel->core.own_cpus };
+	struct synthesize_cpu_map_data syn_data = { .map = evsel->core.pmu_cpus };
 	struct perf_record_event_update *ev;
 	int err;
 
@@ -2126,7 +2126,7 @@ int perf_event__synthesize_extra_attr(const struct perf_tool *tool, struct evlis
 			}
 		}
 
-		if (evsel->core.own_cpus) {
+		if (evsel->core.pmu_cpus) {
 			err = perf_event__synthesize_event_update_cpus(tool, evsel, process);
 			if (err < 0) {
 				pr_err("Couldn't synthesize evsel cpus.\n");

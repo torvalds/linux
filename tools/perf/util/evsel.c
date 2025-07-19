@@ -488,7 +488,7 @@ struct evsel *evsel__clone(struct evsel *dest, struct evsel *orig)
 		return NULL;
 
 	evsel->core.cpus = perf_cpu_map__get(orig->core.cpus);
-	evsel->core.own_cpus = perf_cpu_map__get(orig->core.own_cpus);
+	evsel->core.pmu_cpus = perf_cpu_map__get(orig->core.pmu_cpus);
 	evsel->core.threads = perf_thread_map__get(orig->core.threads);
 	evsel->core.nr_members = orig->core.nr_members;
 	evsel->core.system_wide = orig->core.system_wide;
@@ -1527,7 +1527,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 		attr->exclude_user   = 1;
 	}
 
-	if (evsel->core.own_cpus || evsel->unit)
+	if (evsel->core.pmu_cpus || evsel->unit)
 		evsel->core.attr.read_format |= PERF_FORMAT_ID;
 
 	/*
@@ -1680,7 +1680,7 @@ void evsel__exit(struct evsel *evsel)
 	evsel__free_config_terms(evsel);
 	cgroup__put(evsel->cgrp);
 	perf_cpu_map__put(evsel->core.cpus);
-	perf_cpu_map__put(evsel->core.own_cpus);
+	perf_cpu_map__put(evsel->core.pmu_cpus);
 	perf_thread_map__put(evsel->core.threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);

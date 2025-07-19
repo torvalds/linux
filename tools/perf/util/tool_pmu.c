@@ -357,10 +357,10 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *resu
 			/*
 			 * "Any CPU" event that can be scheduled on any CPU in
 			 * the PMU's cpumask. The PMU cpumask should be saved in
-			 * own_cpus. If not present fall back to max.
+			 * pmu_cpus. If not present fall back to max.
 			 */
-			if (!perf_cpu_map__is_empty(evsel->core.own_cpus))
-				*result = perf_cpu_map__nr(evsel->core.own_cpus);
+			if (!perf_cpu_map__is_empty(evsel->core.pmu_cpus))
+				*result = perf_cpu_map__nr(evsel->core.pmu_cpus);
 			else
 				*result = cpu__max_present_cpu().cpu;
 		}
@@ -386,12 +386,12 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, struct evsel *evsel, u64 *resu
 			/*
 			 * "Any CPU" event that can be scheduled on any CPU in
 			 * the PMU's cpumask. The PMU cpumask should be saved in
-			 * own_cpus, if not present then just the online cpu
+			 * pmu_cpus, if not present then just the online cpu
 			 * mask.
 			 */
-			if (!perf_cpu_map__is_empty(evsel->core.own_cpus)) {
+			if (!perf_cpu_map__is_empty(evsel->core.pmu_cpus)) {
 				struct perf_cpu_map *tmp =
-					perf_cpu_map__intersect(online, evsel->core.own_cpus);
+					perf_cpu_map__intersect(online, evsel->core.pmu_cpus);
 
 				*result = perf_cpu_map__nr(tmp);
 				perf_cpu_map__put(tmp);

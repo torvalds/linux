@@ -46,7 +46,7 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		 * are valid by intersecting with those of the PMU.
 		 */
 		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__intersect(evlist->user_requested_cpus, evsel->own_cpus);
+		evsel->cpus = perf_cpu_map__intersect(evlist->user_requested_cpus, evsel->pmu_cpus);
 
 		/*
 		 * Empty cpu lists would eventually get opened as "any" so remove
@@ -61,7 +61,7 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 				list_for_each_entry_from(next, &evlist->entries, node)
 					next->idx--;
 		}
-	} else if (!evsel->own_cpus || evlist->has_user_cpus ||
+	} else if (!evsel->pmu_cpus || evlist->has_user_cpus ||
 		(!evsel->requires_cpu && perf_cpu_map__has_any_cpu(evlist->user_requested_cpus))) {
 		/*
 		 * The PMU didn't specify a default cpu map, this isn't a core
@@ -72,13 +72,13 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 		 */
 		perf_cpu_map__put(evsel->cpus);
 		evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
-	} else if (evsel->cpus != evsel->own_cpus) {
+	} else if (evsel->cpus != evsel->pmu_cpus) {
 		/*
 		 * No user requested cpu map but the PMU cpu map doesn't match
 		 * the evsel's. Reset it back to the PMU cpu map.
 		 */
 		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__get(evsel->own_cpus);
+		evsel->cpus = perf_cpu_map__get(evsel->pmu_cpus);
 	}
 
 	if (evsel->system_wide) {
