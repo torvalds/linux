@@ -252,7 +252,7 @@ macro_rules! impl_list_item {
                 // the pointer stays in bounds of the allocation.
                 let self_ptr = unsafe { (links_field as *const u8).add(spoff) }
                     as *const ::core::cell::UnsafeCell<*const Self>;
-                let cell_inner = ::core::cell::UnsafeCell::cast_into(self_ptr);
+                let cell_inner = ::core::cell::UnsafeCell::raw_get(self_ptr);
                 // SAFETY: This is not a data race, because the only function that writes to this
                 // value is `prepare_to_insert`, but by the safety requirements the
                 // `prepare_to_insert` method may not be called in parallel with `view_value` or
