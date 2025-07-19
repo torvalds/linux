@@ -751,6 +751,17 @@ static inline u16 rvc_swsp(u32 imm8, u8 rs2)
 	return rv_css_insn(0x6, imm, rs2, 0x2);
 }
 
+/* RVZACAS instructions. */
+static inline u32 rvzacas_amocas_w(u8 rd, u8 rs2, u8 rs1, u8 aq, u8 rl)
+{
+	return rv_amo_insn(0x5, aq, rl, rs2, rs1, 2, rd, 0x2f);
+}
+
+static inline u32 rvzacas_amocas_d(u8 rd, u8 rs2, u8 rs1, u8 aq, u8 rl)
+{
+	return rv_amo_insn(0x5, aq, rl, rs2, rs1, 3, rd, 0x2f);
+}
+
 /* RVZBA instructions. */
 static inline u32 rvzba_sh2add(u8 rd, u8 rs1, u8 rs2)
 {
