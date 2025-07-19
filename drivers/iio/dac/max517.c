@@ -15,8 +15,6 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/dac/max517.h>
 
-#define MAX517_DRV_NAME	"max517"
-
 /* Commands */
 #define COMMAND_CHANNEL0	0x00
 #define COMMAND_CHANNEL1	0x01 /* for MAX518 and MAX519 */
@@ -200,7 +198,7 @@ MODULE_DEVICE_TABLE(i2c, max517_id);
 
 static struct i2c_driver max517_driver = {
 	.driver = {
-		.name	= MAX517_DRV_NAME,
+		.name	= "max517",
 		.pm	= pm_sleep_ptr(&max517_pm_ops),
 	},
 	.probe		= max517_probe,

@@ -1165,7 +1165,6 @@ static int ad7380_init_offload_msg(struct ad7380_state *st,
 	struct spi_transfer *xfer = &st->offload_xfer;
 	struct device *dev = &st->spi->dev;
 	const struct iio_scan_type *scan_type;
-	int oversampling_ratio;
 	int ret;
 
 	scan_type = iio_get_current_scan_type(indio_dev,
@@ -1194,10 +1193,6 @@ static int ad7380_init_offload_msg(struct ad7380_state *st,
 				return ret;
 		}
 	}
-
-	ret = ad7380_get_osr(st, &oversampling_ratio);
-	if (ret)
-		return ret;
 
 	xfer->bits_per_word = scan_type->realbits;
 	xfer->offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;

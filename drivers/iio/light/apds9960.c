@@ -25,7 +25,6 @@
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/sysfs.h>
 
-#define APDS9960_REGMAP_NAME	"apds9960_regmap"
 #define APDS9960_DRV_NAME	"apds9960"
 
 #define APDS9960_REG_RAM_START	0x00
@@ -221,7 +220,7 @@ static const struct regmap_access_table apds9960_writeable_table = {
 };
 
 static const struct regmap_config apds9960_regmap_config = {
-	.name = APDS9960_REGMAP_NAME,
+	.name = "apds9960_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.use_single_read = true,

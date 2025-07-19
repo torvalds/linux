@@ -8,6 +8,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <linux/iio/adc/stm32-dfsdm-adc.h>
 #include <linux/iio/backend.h>
 #include <linux/iio/buffer.h>

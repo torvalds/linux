@@ -892,9 +892,7 @@ static irqreturn_t veml6030_trigger_handler(int irq, void *p)
 	struct {
 		u16 chans[2];
 		aligned_s64 timestamp;
-	} scan;
-
-	memset(&scan, 0, sizeof(scan));
+	} scan = { };
 
 	iio_for_each_active_channel(iio, ch) {
 		ret = regmap_read(data->regmap, VEML6030_REG_DATA(ch),

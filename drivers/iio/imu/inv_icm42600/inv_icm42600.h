@@ -135,6 +135,14 @@ struct inv_icm42600_suspended {
 	bool temp;
 };
 
+struct inv_icm42600_apex {
+	unsigned int on;
+	struct {
+		u64 value;
+		bool enable;
+	} wom;
+};
+
 /**
  *  struct inv_icm42600_state - driver state variables
  *  @lock:		lock for serializing multiple registers access.
@@ -143,14 +151,16 @@ struct inv_icm42600_suspended {
  *  @map:		regmap pointer.
  *  @vdd_supply:	VDD voltage regulator for the chip.
  *  @vddio_supply:	I/O voltage regulator for the chip.
+ *  @irq:		chip irq, required to enable/disable and set wakeup
  *  @orientation:	sensor chip orientation relative to main hardware.
  *  @conf:		chip sensors configurations.
  *  @suspended:		suspended sensors configuration.
  *  @indio_gyro:	gyroscope IIO device.
  *  @indio_accel:	accelerometer IIO device.
- *  @buffer:		data transfer buffer aligned for DMA.
- *  @fifo:		FIFO management structure.
  *  @timestamp:		interrupt timestamps.
+ *  @apex:		APEX (Advanced Pedometer and Event detection) management
+ *  @fifo:		FIFO management structure.
+ *  @buffer:		data transfer buffer aligned for DMA.
  */
 struct inv_icm42600_state {
 	struct mutex lock;
@@ -159,17 +169,19 @@ struct inv_icm42600_state {
 	struct regmap *map;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
+	int irq;
 	struct iio_mount_matrix orientation;
 	struct inv_icm42600_conf conf;
 	struct inv_icm42600_suspended suspended;
 	struct iio_dev *indio_gyro;
 	struct iio_dev *indio_accel;
-	uint8_t buffer[2] __aligned(IIO_DMA_MINALIGN);
-	struct inv_icm42600_fifo fifo;
 	struct {
-		int64_t gyro;
-		int64_t accel;
+		s64 gyro;
+		s64 accel;
 	} timestamp;
+	struct inv_icm42600_apex apex;
+	struct inv_icm42600_fifo fifo;
+	u8 buffer[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 
@@ -253,6 +265,18 @@ struct inv_icm42600_sensor_state {
 #define INV_ICM42600_REG_FIFO_COUNT			0x002E
 #define INV_ICM42600_REG_FIFO_DATA			0x0030
 
+#define INV_ICM42600_REG_INT_STATUS2			0x0037
+#define INV_ICM42600_INT_STATUS2_SMD_INT		BIT(3)
+#define INV_ICM42600_INT_STATUS2_WOM_INT		GENMASK(2, 0)
+
+#define INV_ICM42600_REG_INT_STATUS3			0x0038
+#define INV_ICM42600_INT_STATUS3_STEP_DET_INT		BIT(5)
+#define INV_ICM42600_INT_STATUS3_STEP_CNT_OVF_INT	BIT(4)
+#define INV_ICM42600_INT_STATUS3_TILT_DET_INT		BIT(3)
+#define INV_ICM42600_INT_STATUS3_WAKE_INT		BIT(2)
+#define INV_ICM42600_INT_STATUS3_SLEEP_INT		BIT(1)
+#define INV_ICM42600_INT_STATUS3_TAP_DET_INT		BIT(0)
+
 #define INV_ICM42600_REG_SIGNAL_PATH_RESET		0x004B
 #define INV_ICM42600_SIGNAL_PATH_RESET_DMP_INIT_EN	BIT(6)
 #define INV_ICM42600_SIGNAL_PATH_RESET_DMP_MEM_RESET	BIT(5)
@@ -309,6 +333,14 @@ struct inv_icm42600_sensor_state {
 #define INV_ICM42600_TMST_CONFIG_TMST_FSYNC_EN		BIT(1)
 #define INV_ICM42600_TMST_CONFIG_TMST_EN		BIT(0)
 
+#define INV_ICM42600_REG_SMD_CONFIG			0x0057
+#define INV_ICM42600_SMD_CONFIG_WOM_INT_MODE		BIT(3)
+#define INV_ICM42600_SMD_CONFIG_WOM_MODE		BIT(2)
+#define INV_ICM42600_SMD_CONFIG_SMD_MODE_OFF		0x00
+#define INV_ICM42600_SMD_CONFIG_SMD_MODE_WOM		0x01
+#define INV_ICM42600_SMD_CONFIG_SMD_MODE_SHORT		0x02
+#define INV_ICM42600_SMD_CONFIG_SMD_MODE_LONG		0x03
+
 #define INV_ICM42600_REG_FIFO_CONFIG1			0x005F
 #define INV_ICM42600_FIFO_CONFIG1_RESUME_PARTIAL_RD	BIT(6)
 #define INV_ICM42600_FIFO_CONFIG1_WM_GT_TH		BIT(5)
@@ -337,6 +369,11 @@ struct inv_icm42600_sensor_state {
 #define INV_ICM42600_INT_SOURCE0_FIFO_THS_INT1_EN	BIT(2)
 #define INV_ICM42600_INT_SOURCE0_FIFO_FULL_INT1_EN	BIT(1)
 #define INV_ICM42600_INT_SOURCE0_UI_AGC_RDY_INT1_EN	BIT(0)
+
+#define INV_ICM42600_REG_INT_SOURCE1			0x0066
+#define INV_ICM42600_INT_SOURCE1_I3C_ERROR_INT1_EN	BIT(6)
+#define INV_ICM42600_INT_SOURCE1_SMD_INT1_EN		BIT(3)
+#define INV_ICM42600_INT_SOURCE1_WOM_INT1_EN		GENMASK(2, 0)
 
 #define INV_ICM42600_REG_WHOAMI				0x0075
 #define INV_ICM42600_WHOAMI_ICM42600			0x40
@@ -373,6 +410,10 @@ struct inv_icm42600_sensor_state {
 #define INV_ICM42600_INTF_CONFIG6_I3C_SDR_EN		BIT(0)
 
 /* User bank 4 (MSB 0x40) */
+#define INV_ICM42600_REG_ACCEL_WOM_X_THR		0x404A
+#define INV_ICM42600_REG_ACCEL_WOM_Y_THR		0x404B
+#define INV_ICM42600_REG_ACCEL_WOM_Z_THR		0x404C
+
 #define INV_ICM42600_REG_INT_SOURCE8			0x404F
 #define INV_ICM42600_INT_SOURCE8_FSYNC_IBI_EN		BIT(5)
 #define INV_ICM42600_INT_SOURCE8_PLL_RDY_IBI_EN		BIT(4)
@@ -410,7 +451,7 @@ const struct iio_mount_matrix *
 inv_icm42600_get_mount_matrix(const struct iio_dev *indio_dev,
 			      const struct iio_chan_spec *chan);
 
-uint32_t inv_icm42600_odr_to_period(enum inv_icm42600_odr odr);
+u32 inv_icm42600_odr_to_period(enum inv_icm42600_odr odr);
 
 int inv_icm42600_set_accel_conf(struct inv_icm42600_state *st,
 				struct inv_icm42600_sensor_conf *conf,
@@ -422,6 +463,9 @@ int inv_icm42600_set_gyro_conf(struct inv_icm42600_state *st,
 
 int inv_icm42600_set_temp_conf(struct inv_icm42600_state *st, bool enable,
 			       unsigned int *sleep_ms);
+
+int inv_icm42600_enable_wom(struct inv_icm42600_state *st);
+int inv_icm42600_disable_wom(struct inv_icm42600_state *st);
 
 int inv_icm42600_debugfs_reg(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval);
@@ -436,5 +480,9 @@ int inv_icm42600_gyro_parse_fifo(struct iio_dev *indio_dev);
 struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st);
 
 int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev);
+
+void inv_icm42600_accel_handle_events(struct iio_dev *indio_dev,
+				      unsigned int status2, unsigned int status3,
+				      s64 timestamp);
 
 #endif

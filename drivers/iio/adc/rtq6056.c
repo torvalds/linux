@@ -645,11 +645,9 @@ static irqreturn_t rtq6056_buffer_trigger_handler(int irq, void *p)
 	struct {
 		u16 vals[RTQ6056_MAX_CHANNEL];
 		aligned_s64 timestamp;
-	} data;
+	} data = { };
 	unsigned int raw;
 	int i = 0, bit, ret;
-
-	memset(&data, 0, sizeof(data));
 
 	pm_runtime_get_sync(dev);
 

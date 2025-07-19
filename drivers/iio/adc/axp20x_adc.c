@@ -173,7 +173,7 @@ static const struct iio_map axp22x_maps[] = {
 	{ }
 };
 
-static struct iio_map axp717_maps[] = {
+static const struct iio_map axp717_maps[] = {
 	{
 		.consumer_dev_name = "axp20x-usb-power-supply",
 		.consumer_channel = "vbus_v",

@@ -562,7 +562,7 @@ static const struct regmap_config isl29028_regmap_config = {
 	.volatile_reg = isl29028_is_volatile_reg,
 	.max_register = ISL29028_NUM_REGS - 1,
 	.num_reg_defaults_raw = ISL29028_NUM_REGS,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int isl29028_probe(struct i2c_client *client)

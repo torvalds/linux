@@ -69,6 +69,8 @@ properties:
   spi-max-frequency:
     maximum: 25000000
 
+  spi-3wire: true
+
   '#address-cells':
     const: 1
 

@@ -45,7 +45,7 @@ struct ad8366_state {
 	struct gpio_desc	*reset_gpio;
 	unsigned char		ch[2];
 	enum ad8366_type	type;
-	struct ad8366_info	*info;
+	const struct ad8366_info *info;
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
@@ -53,7 +53,7 @@ struct ad8366_state {
 	unsigned char		data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
-static struct ad8366_info ad8366_infos[] = {
+static const struct ad8366_info ad8366_infos[] = {
 	[ID_AD8366] = {
 		.gain_min = 4500,
 		.gain_max = 20500,
@@ -163,7 +163,7 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 			    long mask)
 {
 	struct ad8366_state *st = iio_priv(indio_dev);
-	struct ad8366_info *inf = st->info;
+	const struct ad8366_info *inf = st->info;
 	int code = 0, gain;
 	int ret;
 

@@ -21,8 +21,6 @@
 #include <linux/regulator/consumer.h>
 #include "bmg160.h"
 
-#define BMG160_IRQ_NAME		"bmg160_event"
-
 #define BMG160_REG_CHIP_ID		0x00
 #define BMG160_CHIP_ID_VAL		0x0F
 
@@ -1099,7 +1097,7 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 						bmg160_data_rdy_trig_poll,
 						bmg160_event_handler,
 						IRQF_TRIGGER_RISING,
-						BMG160_IRQ_NAME,
+						"bmg160_event",
 						indio_dev);
 		if (ret)
 			return ret;

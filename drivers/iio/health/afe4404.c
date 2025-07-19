@@ -413,7 +413,7 @@ static const struct regmap_config afe4404_regmap_config = {
 	.val_bits = 24,
 
 	.max_register = AFE4404_AVG_LED1_ALED1VAL,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &afe4404_volatile_table,
 };
 

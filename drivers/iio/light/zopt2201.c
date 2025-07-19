@@ -119,7 +119,7 @@ struct zopt2201_scale {
 	u8 res; /* resolution register value */
 };
 
-static struct zopt2201_scale zopt2201_scale_als[] = {
+static const struct zopt2201_scale zopt2201_scale_als[] = {
 	{ 19, 200000, 0, 5 },
 	{  6, 400000, 1, 5 },
 	{  3, 200000, 2, 5 },
@@ -144,7 +144,7 @@ static struct zopt2201_scale zopt2201_scale_als[] = {
 	{  0,   8333, 4, 0 },
 };
 
-static struct zopt2201_scale zopt2201_scale_uvb[] = {
+static const struct zopt2201_scale zopt2201_scale_uvb[] = {
 	{ 0, 460800, 0, 5 },
 	{ 0, 153600, 1, 5 },
 	{ 0,  76800, 2, 5 },
@@ -347,7 +347,7 @@ static int zopt2201_set_gain(struct zopt2201_data *data, u8 gain)
 }
 
 static int zopt2201_write_scale_by_idx(struct zopt2201_data *data, int idx,
-				     struct zopt2201_scale *zopt2201_scale_array)
+				       const struct zopt2201_scale *zopt2201_scale_array)
 {
 	int ret;
 

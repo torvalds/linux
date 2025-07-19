@@ -426,7 +426,7 @@ static const struct regmap_config ad5380_regmap_config = {
 	.val_bits = 14,
 
 	.max_register = AD5380_REG_DATA(40),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = ad5380_reg_false,
 	.readable_reg = ad5380_reg_false,

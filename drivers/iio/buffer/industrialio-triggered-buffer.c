@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
- /*
+/*
  * Copyright (c) 2012 Analog Devices, Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
  */

@@ -8,6 +8,7 @@
 #include <linux/regmap.h>
 #include <linux/units.h>
 
+#include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
@@ -28,8 +29,13 @@
 #define BMI270_ACCEL_X_REG				0x0c
 #define BMI270_ANG_VEL_X_REG				0x12
 
+#define BMI270_INT_STATUS_0_REG				0x1c
+#define BMI270_INT_STATUS_0_STEP_CNT_MSK		BIT(1)
+
 #define BMI270_INT_STATUS_1_REG				0x1d
 #define BMI270_INT_STATUS_1_ACC_GYR_DRDY_MSK		GENMASK(7, 6)
+
+#define BMI270_SC_OUT_0_REG				0x1e
 
 #define BMI270_INTERNAL_STATUS_REG			0x21
 #define BMI270_INTERNAL_STATUS_MSG_MSK			GENMASK(3, 0)
@@ -38,6 +44,8 @@
 #define BMI270_INTERNAL_STATUS_ODR_50HZ_ERR_MSK		BIT(6)
 
 #define BMI270_TEMPERATURE_0_REG			0x22
+
+#define BMI270_FEAT_PAGE_REG				0x2f
 
 #define BMI270_ACC_CONF_REG				0x40
 #define BMI270_ACC_CONF_ODR_MSK				GENMASK(3, 0)
@@ -70,6 +78,10 @@
 #define BMI270_INT_LATCH_REG				0x55
 #define BMI270_INT_LATCH_REG_MSK			BIT(0)
 
+#define BMI270_INT1_MAP_FEAT_REG			0x56
+#define BMI270_INT2_MAP_FEAT_REG			0x57
+#define BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK		BIT(1)
+
 #define BMI270_INT_MAP_DATA_REG				0x58
 #define BMI270_INT_MAP_DATA_DRDY_INT1_MSK		BIT(2)
 #define BMI270_INT_MAP_DATA_DRDY_INT2_MSK		BIT(6)
@@ -90,9 +102,17 @@
 #define BMI270_PWR_CTRL_ACCEL_EN_MSK			BIT(2)
 #define BMI270_PWR_CTRL_TEMP_EN_MSK			BIT(3)
 
+#define BMI270_STEP_SC26_WTRMRK_MSK			GENMASK(9, 0)
+#define BMI270_STEP_SC26_RST_CNT_MSK			BIT(10)
+#define BMI270_STEP_SC26_EN_CNT_MSK			BIT(12)
+
 /* See datasheet section 4.6.14, Temperature Sensor */
 #define BMI270_TEMP_OFFSET				11776
 #define BMI270_TEMP_SCALE				1953125
+
+/* See page 90 of datasheet. The step counter "holds implicitly a 20x factor" */
+#define BMI270_STEP_COUNTER_FACTOR			20
+#define BMI270_STEP_COUNTER_MAX				20460
 
 #define BMI260_INIT_DATA_FILE "bmi260-init-data.fw"
 #define BMI270_INIT_DATA_FILE "bmi270-init-data.fw"
@@ -111,6 +131,7 @@ struct bmi270_data {
 	struct iio_trigger *trig;
 	 /* Protect device's private data from concurrent access */
 	struct mutex mutex;
+	bool steps_enabled;
 
 	/*
 	 * Where IIO_DMA_MINALIGN may be larger than 8 bytes, align to
@@ -120,6 +141,11 @@ struct bmi270_data {
 		__le16 channels[6];
 		aligned_s64 timestamp;
 	} buffer __aligned(IIO_DMA_MINALIGN);
+	/*
+	 * Variable to access feature registers. It can be accessed concurrently
+	 * with the 'buffer' variable
+	 */
+	__le16 regval __aligned(IIO_DMA_MINALIGN);
 };
 
 enum bmi270_scan {
@@ -282,6 +308,137 @@ static const struct  bmi270_odr_item bmi270_odr_table[] = {
 	},
 };
 
+enum bmi270_feature_reg_id {
+	BMI270_SC_26_REG,
+};
+
+struct bmi270_feature_reg {
+	u8 page;
+	u8 addr;
+};
+
+static const struct bmi270_feature_reg bmi270_feature_regs[] = {
+	[BMI270_SC_26_REG] = {
+		.page = 6,
+		.addr = 0x32,
+	},
+};
+
+static int bmi270_write_feature_reg(struct bmi270_data *data,
+				    enum bmi270_feature_reg_id id,
+				    u16 val)
+{
+	const struct bmi270_feature_reg *reg = &bmi270_feature_regs[id];
+	int ret;
+
+	ret = regmap_write(data->regmap, BMI270_FEAT_PAGE_REG, reg->page);
+	if (ret)
+		return ret;
+
+	data->regval = cpu_to_le16(val);
+	return regmap_bulk_write(data->regmap, reg->addr, &data->regval,
+				 sizeof(data->regval));
+}
+
+static int bmi270_read_feature_reg(struct bmi270_data *data,
+				   enum bmi270_feature_reg_id id,
+				   u16 *val)
+{
+	const struct bmi270_feature_reg *reg = &bmi270_feature_regs[id];
+	int ret;
+
+	ret = regmap_write(data->regmap, BMI270_FEAT_PAGE_REG, reg->page);
+	if (ret)
+		return ret;
+
+	ret = regmap_bulk_read(data->regmap, reg->addr, &data->regval,
+			       sizeof(data->regval));
+	if (ret)
+		return ret;
+
+	*val = le16_to_cpu(data->regval);
+	return 0;
+}
+
+static int bmi270_update_feature_reg(struct bmi270_data *data,
+				     enum bmi270_feature_reg_id id,
+				     u16 mask, u16 val)
+{
+	u16 regval;
+	int ret;
+
+	ret = bmi270_read_feature_reg(data, id, &regval);
+	if (ret)
+		return ret;
+
+	regval = (regval & ~mask) | (val & mask);
+
+	return bmi270_write_feature_reg(data, id, regval);
+}
+
+static int bmi270_enable_steps(struct bmi270_data *data, int val)
+{
+	int ret;
+
+	guard(mutex)(&data->mutex);
+	if (data->steps_enabled)
+		return 0;
+
+	ret = bmi270_update_feature_reg(data, BMI270_SC_26_REG,
+					BMI270_STEP_SC26_EN_CNT_MSK,
+					FIELD_PREP(BMI270_STEP_SC26_EN_CNT_MSK,
+						   val ? 1 : 0));
+	if (ret)
+		return ret;
+
+	data->steps_enabled = true;
+	return 0;
+}
+
+static int bmi270_read_steps(struct bmi270_data *data, int *val)
+{
+	__le16 steps_count;
+	int ret;
+
+	ret = regmap_bulk_read(data->regmap, BMI270_SC_OUT_0_REG, &steps_count,
+			       sizeof(steps_count));
+	if (ret)
+		return ret;
+
+	*val = sign_extend32(le16_to_cpu(steps_count), 15);
+	return IIO_VAL_INT;
+}
+
+static int bmi270_int_map_reg(enum bmi270_irq_pin pin)
+{
+	switch (pin) {
+	case BMI270_IRQ_INT1:
+		return BMI270_INT1_MAP_FEAT_REG;
+	case BMI270_IRQ_INT2:
+		return BMI270_INT2_MAP_FEAT_REG;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bmi270_step_wtrmrk_en(struct bmi270_data *data, bool state)
+{
+	int reg;
+
+	guard(mutex)(&data->mutex);
+	if (!data->steps_enabled)
+		return -EINVAL;
+
+	reg = bmi270_int_map_reg(data->irq_pin);
+	if (reg < 0)
+		return reg;
+
+	return regmap_update_bits(data->regmap, reg,
+				  BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK,
+				  FIELD_PREP(BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK,
+					     state));
+}
+
 static int bmi270_set_scale(struct bmi270_data *data, int chan_type, int uscale)
 {
 	int i;
@@ -438,18 +595,30 @@ static irqreturn_t bmi270_irq_thread_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct bmi270_data *data = iio_priv(indio_dev);
-	unsigned int status;
+	unsigned int status0, status1;
+	s64 timestamp = iio_get_time_ns(indio_dev);
 	int ret;
 
 	scoped_guard(mutex, &data->mutex) {
+		ret = regmap_read(data->regmap, BMI270_INT_STATUS_0_REG,
+				  &status0);
+		if (ret)
+			return IRQ_NONE;
+
 		ret = regmap_read(data->regmap, BMI270_INT_STATUS_1_REG,
-				  &status);
+				  &status1);
 		if (ret)
 			return IRQ_NONE;
 	}
 
-	if (FIELD_GET(BMI270_INT_STATUS_1_ACC_GYR_DRDY_MSK, status))
+	if (FIELD_GET(BMI270_INT_STATUS_1_ACC_GYR_DRDY_MSK, status1))
 		iio_trigger_poll_nested(data->trig);
+
+	if (FIELD_GET(BMI270_INT_STATUS_0_STEP_CNT_MSK, status0))
+		iio_push_event(indio_dev, IIO_UNMOD_EVENT_CODE(IIO_STEPS, 0,
+							       IIO_EV_TYPE_CHANGE,
+							       IIO_EV_DIR_NONE),
+			       timestamp);
 
 	return IRQ_HANDLED;
 }
@@ -551,6 +720,8 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 	struct bmi270_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
+	case IIO_CHAN_INFO_PROCESSED:
+		return bmi270_read_steps(data, val);
 	case IIO_CHAN_INFO_RAW:
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
@@ -571,6 +742,9 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret = bmi270_get_odr(data, chan->type, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_ENABLE:
+		*val = data->steps_enabled ? 1 : 0;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -596,6 +770,19 @@ static int bmi270_write_raw(struct iio_dev *indio_dev,
 		ret = bmi270_set_odr(data, chan->type, val, val2);
 		iio_device_release_direct(indio_dev);
 		return ret;
+	case IIO_CHAN_INFO_ENABLE:
+		return bmi270_enable_steps(data, val);
+	case IIO_CHAN_INFO_PROCESSED: {
+		if (val || !data->steps_enabled)
+			return -EINVAL;
+
+		guard(mutex)(&data->mutex);
+		/* Clear step counter value */
+		return bmi270_update_feature_reg(data, BMI270_SC_26_REG,
+						 BMI270_STEP_SC26_RST_CNT_MSK,
+						 FIELD_PREP(BMI270_STEP_SC26_RST_CNT_MSK,
+							    1));
+	}
 	default:
 		return -EINVAL;
 	}
@@ -640,10 +827,116 @@ static int bmi270_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
+static int bmi270_write_event_config(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir, bool state)
+{
+	struct bmi270_data *data = iio_priv(indio_dev);
+
+	switch (type) {
+	case IIO_EV_TYPE_CHANGE:
+		return bmi270_step_wtrmrk_en(data, state);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bmi270_read_event_config(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir)
+{
+	struct bmi270_data *data = iio_priv(indio_dev);
+	int ret, reg, regval;
+
+	guard(mutex)(&data->mutex);
+
+	switch (chan->type) {
+	case IIO_STEPS:
+		reg = bmi270_int_map_reg(data->irq_pin);
+		if (reg)
+			return reg;
+
+		ret = regmap_read(data->regmap, reg, &regval);
+		if (ret)
+			return ret;
+		return FIELD_GET(BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK,
+				 regval) ? 1 : 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bmi270_write_event_value(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir,
+				    enum iio_event_info info,
+				    int val, int val2)
+{
+	struct bmi270_data *data = iio_priv(indio_dev);
+	unsigned int raw;
+
+	guard(mutex)(&data->mutex);
+
+	switch (type) {
+	case IIO_EV_TYPE_CHANGE:
+		if (!in_range(val, 0, BMI270_STEP_COUNTER_MAX + 1))
+			return -EINVAL;
+
+		raw = val / BMI270_STEP_COUNTER_FACTOR;
+		return bmi270_update_feature_reg(data, BMI270_SC_26_REG,
+						 BMI270_STEP_SC26_WTRMRK_MSK,
+						 FIELD_PREP(BMI270_STEP_SC26_WTRMRK_MSK,
+							    raw));
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bmi270_read_event_value(struct iio_dev *indio_dev,
+				   const struct iio_chan_spec *chan,
+				   enum iio_event_type type,
+				   enum iio_event_direction dir,
+				   enum iio_event_info info,
+				   int *val, int *val2)
+{
+	struct bmi270_data *data = iio_priv(indio_dev);
+	unsigned int raw;
+	u16 regval;
+	int ret;
+
+	guard(mutex)(&data->mutex);
+
+	switch (type) {
+	case IIO_EV_TYPE_CHANGE:
+		ret = bmi270_read_feature_reg(data, BMI270_SC_26_REG, &regval);
+		if (ret)
+			return ret;
+
+		raw = FIELD_GET(BMI270_STEP_SC26_WTRMRK_MSK, regval);
+		*val = raw * BMI270_STEP_COUNTER_FACTOR;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct iio_event_spec bmi270_step_wtrmrk_event = {
+	.type = IIO_EV_TYPE_CHANGE,
+	.dir = IIO_EV_DIR_NONE,
+	.mask_shared_by_type = BIT(IIO_EV_INFO_ENABLE) | BIT(IIO_EV_INFO_VALUE),
+};
+
 static const struct iio_info bmi270_info = {
 	.read_raw = bmi270_read_raw,
 	.write_raw = bmi270_write_raw,
 	.read_avail = bmi270_read_avail,
+	.write_event_config = bmi270_write_event_config,
+	.read_event_config = bmi270_read_event_config,
+	.write_event_value = bmi270_write_event_value,
+	.read_event_value = bmi270_read_event_value,
 };
 
 #define BMI270_ACCEL_CHANNEL(_axis) {				\
@@ -697,6 +990,14 @@ static const struct iio_chan_spec bmi270_channels[] = {
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OFFSET),
 		.scan_index = -1, /* No buffer support */
+	},
+	{
+		.type = IIO_STEPS,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_ENABLE) |
+				      BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = -1, /* No buffer support */
+		.event_spec = &bmi270_step_wtrmrk_event,
+		.num_event_specs = 1,
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(BMI270_SCAN_TIMESTAMP),
 };
@@ -982,6 +1283,7 @@ int bmi270_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->available_scan_masks = bmi270_avail_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmi270_info;
+	dev_set_drvdata(data->dev, indio_dev);
 
 	ret = bmi270_trigger_probe(data, indio_dev);
 	if (ret)
@@ -996,6 +1298,25 @@ int bmi270_core_probe(struct device *dev, struct regmap *regmap,
 	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL_NS_GPL(bmi270_core_probe, "IIO_BMI270");
+
+static int bmi270_core_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_suspend_triggering(indio_dev);
+}
+
+static int bmi270_core_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_resume_triggering(indio_dev);
+}
+
+const struct dev_pm_ops bmi270_core_pm_ops = {
+	RUNTIME_PM_OPS(bmi270_core_runtime_suspend, bmi270_core_runtime_resume, NULL)
+};
+EXPORT_SYMBOL_NS_GPL(bmi270_core_pm_ops, "IIO_BMI270");
 
 MODULE_AUTHOR("Alex Lanzano");
 MODULE_DESCRIPTION("BMI270 driver");

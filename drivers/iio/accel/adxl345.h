@@ -69,11 +69,10 @@
  * BW_RATE bits - Bandwidth and output data rate. The default value is
  * 0x0A, which translates to a 100 Hz output data rate
  */
-#define ADXL345_BW_RATE			GENMASK(3, 0)
+#define ADXL345_BW_RATE_MSK		GENMASK(3, 0)
 #define ADXL345_BW_LOW_POWER		BIT(4)
 #define ADXL345_BASE_RATE_NANO_HZ	97656250LL
 
-#define ADXL345_POWER_CTL_STANDBY	0x00
 #define ADXL345_POWER_CTL_WAKEUP	GENMASK(1, 0)
 #define ADXL345_POWER_CTL_SLEEP	BIT(2)
 #define ADXL345_POWER_CTL_MEASURE	BIT(3)

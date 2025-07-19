@@ -92,7 +92,7 @@ static void ad7091r5_regmap_init(struct ad7091r_state *st,
 	st->map = devm_regmap_init_i2c(i2c, regmap_conf);
 }
 
-static struct ad7091r_init_info ad7091r5_init_info = {
+static const struct ad7091r_init_info ad7091r5_init_info = {
 	.info_irq = &ad7091r5_chip_info_irq,
 	.info_no_irq = &ad7091r5_chip_info_noirq,
 	.regmap_config = &ad7091r_regmap_config,
