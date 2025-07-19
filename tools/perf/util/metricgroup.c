@@ -179,7 +179,7 @@ static void metric__watchdog_constraint_hint(const char *name, bool foot)
 		   "    echo 1 > /proc/sys/kernel/nmi_watchdog\n");
 }
 
-static bool metric__group_events(const struct pmu_metric *pm)
+static bool metric__group_events(const struct pmu_metric *pm, bool metric_no_threshold)
 {
 	switch (pm->event_grouping) {
 	case MetricNoGroupEvents:
@@ -191,6 +191,13 @@ static bool metric__group_events(const struct pmu_metric *pm)
 		return false;
 	case MetricNoGroupEventsSmt:
 		return !smt_on();
+	case MetricNoGroupEventsThresholdAndNmi:
+		if (metric_no_threshold)
+			return true;
+		if (!sysctl__nmi_watchdog_enabled())
+			return true;
+		metric__watchdog_constraint_hint(pm->metric_name, /*foot=*/false);
+		return false;
 	case MetricGroupEvents:
 	default:
 		return true;
@@ -212,6 +219,7 @@ static void metric__free(struct metric *m)
 static struct metric *metric__new(const struct pmu_metric *pm,
 				  const char *modifier,
 				  bool metric_no_group,
+				  bool metric_no_threshold,
 				  int runtime,
 				  const char *user_requested_cpu_list,
 				  bool system_wide)
@@ -246,7 +254,7 @@ static struct metric *metric__new(const struct pmu_metric *pm,
 	}
 	m->pctx->sctx.runtime = runtime;
 	m->pctx->sctx.system_wide = system_wide;
-	m->group_events = !metric_no_group && metric__group_events(pm);
+	m->group_events = !metric_no_group && metric__group_events(pm, metric_no_threshold);
 	m->metric_refs = NULL;
 	m->evlist = NULL;
 
@@ -831,8 +839,8 @@ static int __add_metric(struct list_head *metric_list,
 		 * This metric is the root of a tree and may reference other
 		 * metrics that are added recursively.
 		 */
-		root_metric = metric__new(pm, modifier, metric_no_group, runtime,
-					  user_requested_cpu_list, system_wide);
+		root_metric = metric__new(pm, modifier, metric_no_group, metric_no_threshold,
+					  runtime, user_requested_cpu_list, system_wide);
 		if (!root_metric)
 			return -ENOMEM;
 
