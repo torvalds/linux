@@ -290,6 +290,7 @@ static void __init riscv_spinlock_init(void)
 
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZABHA) &&
 	    IS_ENABLED(CONFIG_RISCV_ISA_ZACAS) &&
+	    IS_ENABLED(CONFIG_TOOLCHAIN_HAS_ZACAS) &&
 	    riscv_isa_extension_available(NULL, ZABHA) &&
 	    riscv_isa_extension_available(NULL, ZACAS)) {
 		using_ext = "using Zabha";
