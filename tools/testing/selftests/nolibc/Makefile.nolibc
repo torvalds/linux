@@ -262,6 +262,9 @@ REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{if (!f) printf("\n"); f++
 		if (f || !p || !done) printf("failure\n"); else if (s) printf("warning\n"); else printf("success\n");; \
 		printf("\nSee all results in %s\n", ARGV[1]); }'
 
+# Execute the toplevel kernel Makefile
+KBUILD_MAKE = $(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE)
+
 help:
 	@echo "Supported targets under selftests/nolibc:"
 	@echo "  all               call the \"run\" target below"
@@ -340,17 +343,17 @@ initramfs: nolibc-test
 	$(Q)cp nolibc-test initramfs/init
 
 defconfig:
-	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) $(DEFCONFIG)
+	$(Q)$(KBUILD_MAKE) $(DEFCONFIG)
 	$(Q)if [ -n "$(EXTRACONFIG)" ]; then \
 		$(srctree)/scripts/config --file $(objtree)/.config $(EXTRACONFIG); \
-		$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) olddefconfig < /dev/null; \
+		$(KBUILD_MAKE) olddefconfig < /dev/null; \
 	fi
 
 kernel:
-	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) $(IMAGE_NAME) < /dev/null
+	$(Q)$(KBUILD_MAKE) $(IMAGE_NAME) < /dev/null
 
 kernel-standalone: initramfs
-	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) $(IMAGE_NAME) CONFIG_INITRAMFS_SOURCE=$(CURDIR)/initramfs < /dev/null
+	$(Q)$(KBUILD_MAKE) $(IMAGE_NAME) CONFIG_INITRAMFS_SOURCE=$(CURDIR)/initramfs < /dev/null
 
 # run the tests after building the kernel
 run: kernel initramfs.cpio
