@@ -1295,9 +1295,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_bounce_free(c, btree_buf_bytes(b), used_mempool, sorted);
 
-	if (updated_range)
-		bch2_btree_node_drop_keys_outside_node(b);
-
 	i = &b->data->keys;
 	for (k = i->start; k != vstruct_last(i);) {
 		struct bkey tmp;
@@ -1334,6 +1331,9 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	set_needs_whiteout(btree_bset_first(b), true);
 
 	btree_node_reset_sib_u64s(b);
+
+	if (updated_range)
+		bch2_btree_node_drop_keys_outside_node(b);
 
 	/*
 	 * XXX:

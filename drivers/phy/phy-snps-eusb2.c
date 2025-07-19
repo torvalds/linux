@@ -567,9 +567,11 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (IS_ERR_OR_NULL(phy->ref_clk))
-		return dev_err_probe(dev, PTR_ERR(phy->ref_clk),
+	if (IS_ERR_OR_NULL(phy->ref_clk)) {
+		ret = phy->ref_clk ? PTR_ERR(phy->ref_clk) : -ENOENT;
+		return dev_err_probe(dev, ret,
 				     "failed to get ref clk\n");
+	}
 
 	num = ARRAY_SIZE(phy->vregs);
 	for (i = 0; i < num; i++)

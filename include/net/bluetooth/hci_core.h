@@ -464,7 +464,7 @@ struct hci_dev {
 
 	unsigned int	auto_accept_delay;
 
-	unsigned long	quirks;
+	DECLARE_BITMAP(quirk_flags, __HCI_NUM_QUIRKS);
 
 	atomic_t	cmd_cnt;
 	unsigned int	acl_cnt;
@@ -656,6 +656,10 @@ struct hci_dev {
 	u8 (*classify_pkt_type)(struct hci_dev *hdev, struct sk_buff *skb);
 };
 
+#define hci_set_quirk(hdev, nr) set_bit((nr), (hdev)->quirk_flags)
+#define hci_clear_quirk(hdev, nr) clear_bit((nr), (hdev)->quirk_flags)
+#define hci_test_quirk(hdev, nr) test_bit((nr), (hdev)->quirk_flags)
+
 #define HCI_PHY_HANDLE(handle)	(handle & 0xff)
 
 enum conn_reasons {
@@ -829,20 +833,20 @@ extern struct mutex hci_cb_list_lock;
 #define hci_dev_test_and_clear_flag(hdev, nr)  test_and_clear_bit((nr), (hdev)->dev_flags)
 #define hci_dev_test_and_change_flag(hdev, nr) test_and_change_bit((nr), (hdev)->dev_flags)
 
-#define hci_dev_clear_volatile_flags(hdev)			\
-	do {							\
-		hci_dev_clear_flag(hdev, HCI_LE_SCAN);		\
-		hci_dev_clear_flag(hdev, HCI_LE_ADV);		\
-		hci_dev_clear_flag(hdev, HCI_LL_RPA_RESOLUTION);\
-		hci_dev_clear_flag(hdev, HCI_PERIODIC_INQ);	\
-		hci_dev_clear_flag(hdev, HCI_QUALITY_REPORT);	\
+#define hci_dev_clear_volatile_flags(hdev)				\
+	do {								\
+		hci_dev_clear_flag((hdev), HCI_LE_SCAN);		\
+		hci_dev_clear_flag((hdev), HCI_LE_ADV);			\
+		hci_dev_clear_flag((hdev), HCI_LL_RPA_RESOLUTION);	\
+		hci_dev_clear_flag((hdev), HCI_PERIODIC_INQ);		\
+		hci_dev_clear_flag((hdev), HCI_QUALITY_REPORT);		\
 	} while (0)
 
 #define hci_dev_le_state_simultaneous(hdev) \
-	(!test_bit(HCI_QUIRK_BROKEN_LE_STATES, &hdev->quirks) && \
-	 (hdev->le_states[4] & 0x08) &&	/* Central */ \
-	 (hdev->le_states[4] & 0x40) &&	/* Peripheral */ \
-	 (hdev->le_states[3] & 0x10))	/* Simultaneous */
+	(!hci_test_quirk((hdev), HCI_QUIRK_BROKEN_LE_STATES) && \
+	 ((hdev)->le_states[4] & 0x08) &&	/* Central */ \
+	 ((hdev)->le_states[4] & 0x40) &&	/* Peripheral */ \
+	 ((hdev)->le_states[3] & 0x10))		/* Simultaneous */
 
 /* ----- HCI interface to upper protocols ----- */
 int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
@@ -1931,8 +1935,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 		      ((dev)->le_rx_def_phys & HCI_LE_SET_PHY_2M))
 
 #define le_coded_capable(dev) (((dev)->le_features[1] & HCI_LE_PHY_CODED) && \
-			       !test_bit(HCI_QUIRK_BROKEN_LE_CODED, \
-					 &(dev)->quirks))
+			       !hci_test_quirk((dev), \
+					       HCI_QUIRK_BROKEN_LE_CODED))
 
 #define scan_coded(dev) (((dev)->le_tx_def_phys & HCI_LE_SET_PHY_CODED) || \
 			 ((dev)->le_rx_def_phys & HCI_LE_SET_PHY_CODED))
@@ -1940,31 +1944,31 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define ll_privacy_capable(dev) ((dev)->le_features[0] & HCI_LE_LL_PRIVACY)
 
 #define privacy_mode_capable(dev) (ll_privacy_capable(dev) && \
-				   (hdev->commands[39] & 0x04))
+				   ((dev)->commands[39] & 0x04))
 
 #define read_key_size_capable(dev) \
 	((dev)->commands[20] & 0x10 && \
-	 !test_bit(HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE, &hdev->quirks))
+	 !hci_test_quirk((dev), HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE))
 
 #define read_voice_setting_capable(dev) \
 	((dev)->commands[9] & 0x04 && \
-	 !test_bit(HCI_QUIRK_BROKEN_READ_VOICE_SETTING, &(dev)->quirks))
+	 !hci_test_quirk((dev), HCI_QUIRK_BROKEN_READ_VOICE_SETTING))
 
 /* Use enhanced synchronous connection if command is supported and its quirk
  * has not been set.
  */
 #define enhanced_sync_conn_capable(dev) \
 	(((dev)->commands[29] & 0x08) && \
-	 !test_bit(HCI_QUIRK_BROKEN_ENHANCED_SETUP_SYNC_CONN, &(dev)->quirks))
+	 !hci_test_quirk((dev), HCI_QUIRK_BROKEN_ENHANCED_SETUP_SYNC_CONN))
 
 /* Use ext scanning if set ext scan param and ext scan enable is supported */
 #define use_ext_scan(dev) (((dev)->commands[37] & 0x20) && \
 			   ((dev)->commands[37] & 0x40) && \
-			   !test_bit(HCI_QUIRK_BROKEN_EXT_SCAN, &(dev)->quirks))
+			   !hci_test_quirk((dev), HCI_QUIRK_BROKEN_EXT_SCAN))
 
 /* Use ext create connection if command is supported */
 #define use_ext_conn(dev) (((dev)->commands[37] & 0x80) && \
-	!test_bit(HCI_QUIRK_BROKEN_EXT_CREATE_CONN, &(dev)->quirks))
+	!hci_test_quirk((dev), HCI_QUIRK_BROKEN_EXT_CREATE_CONN))
 /* Extended advertising support */
 #define ext_adv_capable(dev) (((dev)->le_features[1] & HCI_LE_EXT_ADV))
 
@@ -1979,8 +1983,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
  */
 #define use_enhanced_conn_complete(dev) ((ll_privacy_capable(dev) || \
 					 ext_adv_capable(dev)) && \
-					 !test_bit(HCI_QUIRK_BROKEN_EXT_CREATE_CONN, \
-						 &(dev)->quirks))
+					 !hci_test_quirk((dev), \
+							 HCI_QUIRK_BROKEN_EXT_CREATE_CONN))
 
 /* Periodic advertising support */
 #define per_adv_capable(dev) (((dev)->le_features[1] & HCI_LE_PERIODIC_ADV))
@@ -1997,7 +2001,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define sync_recv_capable(dev) ((dev)->le_features[3] & HCI_LE_ISO_SYNC_RECEIVER)
 
 #define mws_transport_config_capable(dev) (((dev)->commands[30] & 0x08) && \
-	(!test_bit(HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG, &(dev)->quirks)))
+	(!hci_test_quirk((dev), HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG)))
 
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
