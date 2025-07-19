@@ -511,57 +511,54 @@ static void emit_stx_insn(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context 
 	}
 }
 
-static int emit_ldx(u8 rd, s16 off, u8 rs, u8 size, bool sign_ext,
+static void emit_ldx(u8 rd, s16 off, u8 rs, u8 size, bool sign_ext,
 		    struct rv_jit_context *ctx)
 {
-	int insns_start;
-
 	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
+		ctx->ex_insn_off = ctx->ninsns;
 		emit_ldx_insn(rd, off, rs, size, sign_ext, ctx);
-		return ctx->ninsns - insns_start;
+		ctx->ex_jmp_off = ctx->ninsns;
+		return;
 	}
 
 	emit_imm(RV_REG_T1, off, ctx);
 	emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
-	insns_start = ctx->ninsns;
+	ctx->ex_insn_off = ctx->ninsns;
 	emit_ldx_insn(rd, 0, RV_REG_T1, size, sign_ext, ctx);
-	return ctx->ninsns - insns_start;
+	ctx->ex_jmp_off = ctx->ninsns;
 }
 
-static int emit_st(u8 rd, s16 off, s32 imm, u8 size, struct rv_jit_context *ctx)
+static void emit_st(u8 rd, s16 off, s32 imm, u8 size, struct rv_jit_context *ctx)
 {
-	int insns_start;
-
 	emit_imm(RV_REG_T1, imm, ctx);
 	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
+		ctx->ex_insn_off = ctx->ninsns;
 		emit_stx_insn(rd, off, RV_REG_T1, size, ctx);
-		return ctx->ninsns - insns_start;
+		ctx->ex_jmp_off = ctx->ninsns;
+		return;
 	}
 
 	emit_imm(RV_REG_T2, off, ctx);
 	emit_add(RV_REG_T2, RV_REG_T2, rd, ctx);
-	insns_start = ctx->ninsns;
+	ctx->ex_insn_off = ctx->ninsns;
 	emit_stx_insn(RV_REG_T2, 0, RV_REG_T1, size, ctx);
-	return ctx->ninsns - insns_start;
+	ctx->ex_jmp_off = ctx->ninsns;
 }
 
-static int emit_stx(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context *ctx)
+static void emit_stx(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context *ctx)
 {
-	int insns_start;
-
 	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
+		ctx->ex_insn_off = ctx->ninsns;
 		emit_stx_insn(rd, off, rs, size, ctx);
-		return ctx->ninsns - insns_start;
+		ctx->ex_jmp_off = ctx->ninsns;
+		return;
 	}
 
 	emit_imm(RV_REG_T1, off, ctx);
 	emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
-	insns_start = ctx->ninsns;
+	ctx->ex_insn_off = ctx->ninsns;
 	emit_stx_insn(RV_REG_T1, 0, rs, size, ctx);
-	return ctx->ninsns - insns_start;
+	ctx->ex_jmp_off = ctx->ninsns;
 }
 
 static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
@@ -700,9 +697,8 @@ bool ex_handler_bpf(const struct exception_table_entry *ex,
 }
 
 /* For accesses to BTF pointers, add an entry to the exception table */
-static int add_exception_handler(const struct bpf_insn *insn,
-				 struct rv_jit_context *ctx,
-				 int dst_reg, int insn_len)
+static int add_exception_handler(const struct bpf_insn *insn, int dst_reg,
+				 struct rv_jit_context *ctx)
 {
 	struct exception_table_entry *ex;
 	unsigned long pc;
@@ -710,21 +706,22 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	off_t fixup_offset;
 
 	if (!ctx->insns || !ctx->ro_insns || !ctx->prog->aux->extable ||
-	    (BPF_MODE(insn->code) != BPF_PROBE_MEM && BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
-	     BPF_MODE(insn->code) != BPF_PROBE_MEM32))
+	    ctx->ex_insn_off <= 0 || ctx->ex_jmp_off <= 0)
+		return 0;
+
+	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
+	    BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
+	    BPF_MODE(insn->code) != BPF_PROBE_MEM32)
 		return 0;
 
 	if (WARN_ON_ONCE(ctx->nexentries >= ctx->prog->aux->num_exentries))
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(insn_len > ctx->ninsns))
-		return -EINVAL;
-
-	if (WARN_ON_ONCE(!rvc_enabled() && insn_len == 1))
+	if (WARN_ON_ONCE(ctx->ex_insn_off > ctx->ninsns || ctx->ex_jmp_off > ctx->ninsns))
 		return -EINVAL;
 
 	ex = &ctx->prog->aux->extable[ctx->nexentries];
-	pc = (unsigned long)&ctx->ro_insns[ctx->ninsns - insn_len];
+	pc = (unsigned long)&ctx->ro_insns[ctx->ex_insn_off];
 
 	/*
 	 * This is the relative offset of the instruction that may fault from
@@ -748,7 +745,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	 * that may fault. The execution will jump to this after handling the
 	 * fault.
 	 */
-	fixup_offset = (long)&ex->fixup - (pc + insn_len * sizeof(u16));
+	fixup_offset = (long)&ex->fixup - (long)&ctx->ro_insns[ctx->ex_jmp_off];
 	if (!FIELD_FIT(BPF_FIXUP_OFFSET_MASK, fixup_offset))
 		return -ERANGE;
 
@@ -765,6 +762,8 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
 	ex->type = EX_TYPE_BPF;
 
+	ctx->ex_insn_off = 0;
+	ctx->ex_jmp_off = 0;
 	ctx->nexentries++;
 	return 0;
 }
@@ -1774,7 +1773,6 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_LDX | BPF_PROBE_MEM32 | BPF_DW:
 	{
 		bool sign_ext;
-		int insn_len;
 
 		sign_ext = BPF_MODE(insn->code) == BPF_MEMSX ||
 			   BPF_MODE(insn->code) == BPF_PROBE_MEMSX;
@@ -1784,9 +1782,9 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			rs = RV_REG_T2;
 		}
 
-		insn_len = emit_ldx(rd, off, rs, BPF_SIZE(code), sign_ext, ctx);
+		emit_ldx(rd, off, rs, BPF_SIZE(code), sign_ext, ctx);
 
-		ret = add_exception_handler(insn, ctx, rd, insn_len);
+		ret = add_exception_handler(insn, rd, ctx);
 		if (ret)
 			return ret;
 
@@ -1809,21 +1807,17 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_H:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_W:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_DW:
-	{
-		int insn_len;
-
 		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
 			emit_add(RV_REG_T3, rd, RV_REG_ARENA, ctx);
 			rd = RV_REG_T3;
 		}
 
-		insn_len = emit_st(rd, off, imm, BPF_SIZE(code), ctx);
+		emit_st(rd, off, imm, BPF_SIZE(code), ctx);
 
-		ret = add_exception_handler(insn, ctx, REG_DONT_CLEAR_MARKER, insn_len);
+		ret = add_exception_handler(insn, REG_DONT_CLEAR_MARKER, ctx);
 		if (ret)
 			return ret;
 		break;
-	}
 
 	/* STX: *(size *)(dst + off) = src */
 	case BPF_STX | BPF_MEM | BPF_B:
@@ -1835,21 +1829,17 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_H:
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_W:
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_DW:
-	{
-		int insn_len;
-
 		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
 			emit_add(RV_REG_T2, rd, RV_REG_ARENA, ctx);
 			rd = RV_REG_T2;
 		}
 
-		insn_len = emit_stx(rd, off, rs, BPF_SIZE(code), ctx);
+		emit_stx(rd, off, rs, BPF_SIZE(code), ctx);
 
-		ret = add_exception_handler(insn, ctx, REG_DONT_CLEAR_MARKER, insn_len);
+		ret = add_exception_handler(insn, REG_DONT_CLEAR_MARKER, ctx);
 		if (ret)
 			return ret;
 		break;
-	}
 
 	case BPF_STX | BPF_ATOMIC | BPF_B:
 	case BPF_STX | BPF_ATOMIC | BPF_H:

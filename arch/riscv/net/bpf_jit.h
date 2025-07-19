@@ -78,6 +78,8 @@ struct rv_jit_context {
 	int epilogue_offset;
 	int *offset;		/* BPF to RV */
 	int nexentries;
+	int ex_insn_off;
+	int ex_jmp_off;
 	unsigned long flags;
 	int stack_size;
 	u64 arena_vm_start;
