@@ -72,6 +72,9 @@
 #include "raid-stripe-tree.h"
 #include "fiemap.h"
 
+#define COW_FILE_RANGE_KEEP_LOCKED	(1UL << 0)
+#define COW_FILE_RANGE_NO_INLINE	(1UL << 1)
+
 struct btrfs_iget_args {
 	u64 ino;
 	struct btrfs_root *root;
@@ -1245,18 +1248,18 @@ u64 btrfs_get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
  * locked_folio is the folio that writepage had locked already.  We use
  * it to make sure we don't do extra locks or unlocks.
  *
- * When this function fails, it unlocks all pages except @locked_folio.
+ * When this function fails, it unlocks all folios except @locked_folio.
  *
  * When this function successfully creates an inline extent, it returns 1 and
- * unlocks all pages including locked_folio and starts I/O on them.
- * (In reality inline extents are limited to a single page, so locked_folio is
- * the only page handled anyway).
+ * unlocks all folios including locked_folio and starts I/O on them.
+ * (In reality inline extents are limited to a single block, so locked_folio is
+ * the only folio handled anyway).
  *
- * When this function succeed and creates a normal extent, the page locking
+ * When this function succeed and creates a normal extent, the folio locking
  * status depends on the passed in flags:
  *
- * - If @keep_locked is set, all pages are kept locked.
- * - Else all pages except for @locked_folio are unlocked.
+ * - If COW_FILE_RANGE_KEEP_LOCKED flag is set, all folios are kept locked.
+ * - Else all folios except for @locked_folio are unlocked.
  *
  * When a failure happens in the second or later iteration of the
  * while-loop, the ordered extents created in previous iterations are cleaned up.
@@ -1264,7 +1267,7 @@ u64 btrfs_get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
 static noinline int cow_file_range(struct btrfs_inode *inode,
 				   struct folio *locked_folio, u64 start,
 				   u64 end, u64 *done_offset,
-				   bool keep_locked, bool no_inline)
+				   unsigned long flags)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -1292,7 +1295,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 	inode_should_defrag(inode, start, end, num_bytes, SZ_64K);
 
-	if (!no_inline) {
+	if (!(flags & COW_FILE_RANGE_NO_INLINE)) {
 		/* lets try to make an inline extent */
 		ret = cow_file_range_inline(inode, locked_folio, start, end, 0,
 					    BTRFS_COMPRESS_NONE, NULL, false);
@@ -1320,7 +1323,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	 * Do set the Ordered (Private2) bit so we know this page was properly
 	 * setup for writepage.
 	 */
-	page_ops = (keep_locked ? 0 : PAGE_UNLOCK);
+	page_ops = ((flags & COW_FILE_RANGE_KEEP_LOCKED) ? 0 : PAGE_UNLOCK);
 	page_ops |= PAGE_SET_ORDERED;
 
 	/*
@@ -1687,7 +1690,7 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 
 	while (start <= end) {
 		ret = cow_file_range(inode, locked_folio, start, end,
-				     &done_offset, true, false);
+				     &done_offset, COW_FILE_RANGE_KEEP_LOCKED);
 		if (ret)
 			return ret;
 		extent_write_locked_range(&inode->vfs_inode, locked_folio,
@@ -1769,8 +1772,8 @@ static int fallback_to_cow(struct btrfs_inode *inode,
 	 * is written out and unlocked directly and a normal NOCOW extent
 	 * doesn't work.
 	 */
-	ret = cow_file_range(inode, locked_folio, start, end, NULL, false,
-			     true);
+	ret = cow_file_range(inode, locked_folio, start, end, NULL,
+			     COW_FILE_RANGE_NO_INLINE);
 	ASSERT(ret != 1);
 	return ret;
 }
@@ -2349,8 +2352,7 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_fol
 		ret = run_delalloc_cow(inode, locked_folio, start, end, wbc,
 				       true);
 	else
-		ret = cow_file_range(inode, locked_folio, start, end, NULL,
-				     false, false);
+		ret = cow_file_range(inode, locked_folio, start, end, NULL, 0);
 	return ret;
 }
 
