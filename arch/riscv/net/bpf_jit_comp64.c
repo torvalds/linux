@@ -599,10 +599,9 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
 static int emit_atomic_rmw(u8 rd, u8 rs, const struct bpf_insn *insn,
 			   struct rv_jit_context *ctx)
 {
-	u8 r0, code = insn->code;
+	u8 code = insn->code;
 	s16 off = insn->off;
 	s32 imm = insn->imm;
-	int jmp_offset;
 	bool is64;
 
 	if (BPF_SIZE(code) != BPF_W && BPF_SIZE(code) != BPF_DW) {
@@ -673,20 +672,7 @@ static int emit_atomic_rmw(u8 rd, u8 rs, const struct bpf_insn *insn,
 		break;
 	/* r0 = atomic_cmpxchg(dst_reg + off16, r0, src_reg); */
 	case BPF_CMPXCHG:
-		r0 = bpf_to_rv_reg(BPF_REG_0, ctx);
-		if (is64)
-			emit_mv(RV_REG_T2, r0, ctx);
-		else
-			emit_addiw(RV_REG_T2, r0, 0, ctx);
-		emit(is64 ? rv_lr_d(r0, 0, rd, 0, 0) :
-		     rv_lr_w(r0, 0, rd, 0, 0), ctx);
-		jmp_offset = ninsns_rvoff(8);
-		emit(rv_bne(RV_REG_T2, r0, jmp_offset >> 1), ctx);
-		emit(is64 ? rv_sc_d(RV_REG_T3, rs, rd, 0, 1) :
-		     rv_sc_w(RV_REG_T3, rs, rd, 0, 1), ctx);
-		jmp_offset = ninsns_rvoff(-6);
-		emit(rv_bne(RV_REG_T3, 0, jmp_offset >> 1), ctx);
-		emit_fence_rw_rw(ctx);
+		emit_cmpxchg(rd, rs, regmap[BPF_REG_0], is64, ctx);
 		break;
 	default:
 		pr_err_once("bpf-jit: invalid atomic RMW opcode %02x\n", imm);
