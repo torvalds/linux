@@ -1200,8 +1200,8 @@ static int ksmbd_vfs_lookup_in_dir(const struct path *dir, char *name,
 
 /**
  * ksmbd_vfs_kern_path_locked() - lookup a file and get path info
- * @work:	work
- * @name:		file path that is relative to share
+ * @work:		work
+ * @filepath:		file path that is relative to share
  * @flags:		lookup flags
  * @parent_path:	if lookup succeed, return parent_path info
  * @path:		if lookup succeed, return path info
@@ -1209,84 +1209,62 @@ static int ksmbd_vfs_lookup_in_dir(const struct path *dir, char *name,
  *
  * Return:	0 on success, otherwise error
  */
-int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *name,
+int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *filepath,
 			       unsigned int flags, struct path *parent_path,
 			       struct path *path, bool caseless)
 {
 	struct ksmbd_share_config *share_conf = work->tcon->share_conf;
+	size_t path_len, remain_len;
 	int err;
 
-	err = ksmbd_vfs_path_lookup_locked(share_conf, name, flags, parent_path,
+retry:
+	err = ksmbd_vfs_path_lookup_locked(share_conf, filepath, flags, parent_path,
 					   path);
-	if (!err)
-		return 0;
+	if (!err || !caseless)
+		return err;
 
-	if (caseless) {
-		char *filepath;
-		size_t path_len, remain_len;
+	path_len = strlen(filepath);
+	remain_len = path_len;
 
-		filepath = name;
-		path_len = strlen(filepath);
-		remain_len = path_len;
+	*parent_path = share_conf->vfs_path;
+	path_get(parent_path);
 
-		*parent_path = share_conf->vfs_path;
-		path_get(parent_path);
+	while (d_can_lookup(parent_path->dentry)) {
+		char *filename = filepath + path_len - remain_len;
+		char *next = strchrnul(filename, '/');
+		size_t filename_len = next - filename;
+		bool is_last = !next[0];
 
-		while (d_can_lookup(parent_path->dentry)) {
-			char *filename = filepath + path_len - remain_len;
-			char *next = strchrnul(filename, '/');
-			size_t filename_len = next - filename;
-			bool is_last = !next[0];
+		if (filename_len == 0)
+			break;
 
-			if (filename_len == 0)
-				break;
-
-			err = ksmbd_vfs_lookup_in_dir(parent_path, filename,
-						      filename_len,
-						      work->conn->um);
-			if (err)
-				goto out2;
-
-			next[0] = '\0';
-
-			err = vfs_path_lookup(share_conf->vfs_path.dentry,
-					      share_conf->vfs_path.mnt,
-					      filepath,
-					      flags,
-					      path);
-			if (!is_last)
-				next[0] = '/';
-			if (err)
-				goto out2;
-			else if (is_last)
-				goto out1;
-			path_put(parent_path);
-			*parent_path = *path;
-
-			remain_len -= filename_len + 1;
-		}
-
-		err = -EINVAL;
-out2:
+		err = ksmbd_vfs_lookup_in_dir(parent_path, filename,
+					      filename_len,
+					      work->conn->um);
 		path_put(parent_path);
+		if (err)
+			goto out;
+		if (is_last) {
+			caseless = false;
+			goto retry;
+		}
+		next[0] = '\0';
+
+		err = vfs_path_lookup(share_conf->vfs_path.dentry,
+				      share_conf->vfs_path.mnt,
+				      filepath,
+				      flags,
+				      parent_path);
+		next[0] = '/';
+		if (err)
+			goto out;
+
+		remain_len -= filename_len + 1;
 	}
 
-out1:
-	if (!err) {
-		err = mnt_want_write(parent_path->mnt);
-		if (err) {
-			path_put(path);
-			path_put(parent_path);
-			return err;
-		}
-
-		err = ksmbd_vfs_lock_parent(parent_path->dentry, path->dentry);
-		if (err) {
-			mnt_drop_write(parent_path->mnt);
-			path_put(path);
-			path_put(parent_path);
-		}
-	}
+	err = -EINVAL;
+	path_put(parent_path);
+out:
 	return err;
 }
 
