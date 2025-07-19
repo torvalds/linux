@@ -4967,7 +4967,7 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev)
 		list_add_tail(&dev->close_list, &dev_list);
 	}
 
-	dev_close_many(&dev_list, false);
+	netif_close_many(&dev_list, false);
 
 	eth->dma_dev = dma_dev;
 
@@ -5610,3 +5610,4 @@ module_platform_driver(mtk_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Crispin <blogic@openwrt.org>");
 MODULE_DESCRIPTION("Ethernet driver for MediaTek SoC");
+MODULE_IMPORT_NS("NETDEV_INTERNAL");

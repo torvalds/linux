@@ -784,9 +784,9 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	case NETDEV_PRE_CHANGEADDR:
 		prechaddr_info = ptr;
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-			err = dev_pre_changeaddr_notify(ipvlan->dev,
-						    prechaddr_info->dev_addr,
-						    extack);
+			err = netif_pre_changeaddr_notify(ipvlan->dev,
+							  prechaddr_info->dev_addr,
+							  extack);
 			if (err)
 				return notifier_from_errno(err);
 		}
@@ -1094,3 +1094,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mahesh Bandewar <maheshb@google.com>");
 MODULE_DESCRIPTION("Driver for L3 (IPv6/IPv4) based VLANs");
 MODULE_ALIAS_RTNL_LINK("ipvlan");
+MODULE_IMPORT_NS("NETDEV_INTERNAL");
