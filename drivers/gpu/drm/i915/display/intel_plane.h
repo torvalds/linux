@@ -87,7 +87,6 @@ int intel_plane_add_affected(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc);
 int intel_plane_atomic_check(struct intel_atomic_state *state);
 
-u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state);
 bool intel_plane_format_mod_supported_async(struct drm_plane *plane,
 					    u32 format,
 					    u64 modifier);
