@@ -211,98 +211,169 @@ static inline void ibmveth_flush_buffer(void *addr, unsigned long length)
 static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
 					  struct ibmveth_buff_pool *pool)
 {
-	u32 i;
-	u32 count = pool->size - atomic_read(&pool->available);
-	u32 buffers_added = 0;
-	struct sk_buff *skb;
-	unsigned int free_index, index;
-	u64 correlator;
+	union ibmveth_buf_desc descs[IBMVETH_MAX_RX_PER_HCALL] = {0};
+	u32 remaining = pool->size - atomic_read(&pool->available);
+	u64 correlators[IBMVETH_MAX_RX_PER_HCALL] = {0};
 	unsigned long lpar_rc;
+	u32 buffers_added = 0;
+	u32 i, filled, batch;
+	struct vio_dev *vdev;
 	dma_addr_t dma_addr;
+	struct device *dev;
+	u32 index;
+
+	vdev = adapter->vdev;
+	dev = &vdev->dev;
 
 	mb();
 
-	for (i = 0; i < count; ++i) {
-		union ibmveth_buf_desc desc;
+	batch = adapter->rx_buffers_per_hcall;
 
-		free_index = pool->consumer_index;
-		index = pool->free_map[free_index];
-		skb = NULL;
+	while (remaining > 0) {
+		unsigned int free_index = pool->consumer_index;
 
-		if (WARN_ON(index == IBM_VETH_INVALID_MAP)) {
-			schedule_work(&adapter->work);
-			goto bad_index_failure;
+		/* Fill a batch of descriptors */
+		for (filled = 0; filled < min(remaining, batch); filled++) {
+			index = pool->free_map[free_index];
+			if (WARN_ON(index == IBM_VETH_INVALID_MAP)) {
+				adapter->replenish_add_buff_failure++;
+				netdev_info(adapter->netdev,
+					    "Invalid map index %u, reset\n",
+					    index);
+				schedule_work(&adapter->work);
+				break;
+			}
+
+			if (!pool->skbuff[index]) {
+				struct sk_buff *skb = NULL;
+
+				skb = netdev_alloc_skb(adapter->netdev,
+						       pool->buff_size);
+				if (!skb) {
+					adapter->replenish_no_mem++;
+					adapter->replenish_add_buff_failure++;
+					break;
+				}
+
+				dma_addr = dma_map_single(dev, skb->data,
+							  pool->buff_size,
+							  DMA_FROM_DEVICE);
+				if (dma_mapping_error(dev, dma_addr)) {
+					dev_kfree_skb_any(skb);
+					adapter->replenish_add_buff_failure++;
+					break;
+				}
+
+				pool->dma_addr[index] = dma_addr;
+				pool->skbuff[index] = skb;
+			} else {
+				/* re-use case */
+				dma_addr = pool->dma_addr[index];
+			}
+
+			if (rx_flush) {
+				unsigned int len;
+
+				len = adapter->netdev->mtu + IBMVETH_BUFF_OH;
+				len = min(pool->buff_size, len);
+				ibmveth_flush_buffer(pool->skbuff[index]->data,
+						     len);
+			}
+
+			descs[filled].fields.flags_len = IBMVETH_BUF_VALID |
+							  pool->buff_size;
+			descs[filled].fields.address = dma_addr;
+
+			correlators[filled] = ((u64)pool->index << 32) | index;
+			*(u64 *)pool->skbuff[index]->data = correlators[filled];
+
+			free_index++;
+			if (free_index >= pool->size)
+				free_index = 0;
 		}
 
-		/* are we allocating a new buffer or recycling an old one */
-		if (pool->skbuff[index])
-			goto reuse;
-
-		skb = netdev_alloc_skb(adapter->netdev, pool->buff_size);
-
-		if (!skb) {
-			netdev_dbg(adapter->netdev,
-				   "replenish: unable to allocate skb\n");
-			adapter->replenish_no_mem++;
+		if (!filled)
 			break;
-		}
 
-		dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
-				pool->buff_size, DMA_FROM_DEVICE);
-
-		if (dma_mapping_error(&adapter->vdev->dev, dma_addr))
-			goto failure;
-
-		pool->dma_addr[index] = dma_addr;
-		pool->skbuff[index] = skb;
-
-		if (rx_flush) {
-			unsigned int len = min(pool->buff_size,
-					       adapter->netdev->mtu +
-					       IBMVETH_BUFF_OH);
-			ibmveth_flush_buffer(skb->data, len);
-		}
-reuse:
-		dma_addr = pool->dma_addr[index];
-		desc.fields.flags_len = IBMVETH_BUF_VALID | pool->buff_size;
-		desc.fields.address = dma_addr;
-
-		correlator = ((u64)pool->index << 32) | index;
-		*(u64 *)pool->skbuff[index]->data = correlator;
-
-		lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address,
-						   desc.desc);
-
+		/* single buffer case*/
+		if (filled == 1)
+			lpar_rc = h_add_logical_lan_buffer(vdev->unit_address,
+							   descs[0].desc);
+		else
+			/* Multi-buffer hcall */
+			lpar_rc = h_add_logical_lan_buffers(vdev->unit_address,
+							    descs[0].desc,
+							    descs[1].desc,
+							    descs[2].desc,
+							    descs[3].desc,
+							    descs[4].desc,
+							    descs[5].desc,
+							    descs[6].desc,
+							    descs[7].desc);
 		if (lpar_rc != H_SUCCESS) {
-			netdev_warn(adapter->netdev,
-				    "%sadd_logical_lan failed %lu\n",
-				    skb ? "" : "When recycling: ", lpar_rc);
-			goto failure;
+			dev_warn_ratelimited(dev,
+					     "RX h_add_logical_lan failed: filled=%u, rc=%lu, batch=%u\n",
+					     filled, lpar_rc, batch);
+			goto hcall_failure;
 		}
 
-		pool->free_map[free_index] = IBM_VETH_INVALID_MAP;
-		pool->consumer_index++;
-		if (pool->consumer_index >= pool->size)
-			pool->consumer_index = 0;
+		/* Only update pool state after hcall succeeds */
+		for (i = 0; i < filled; i++) {
+			free_index = pool->consumer_index;
+			pool->free_map[free_index] = IBM_VETH_INVALID_MAP;
 
-		buffers_added++;
-		adapter->replenish_add_buff_success++;
+			pool->consumer_index++;
+			if (pool->consumer_index >= pool->size)
+				pool->consumer_index = 0;
+		}
+
+		buffers_added += filled;
+		adapter->replenish_add_buff_success += filled;
+		remaining -= filled;
+
+		memset(&descs, 0, sizeof(descs));
+		memset(&correlators, 0, sizeof(correlators));
+		continue;
+
+hcall_failure:
+		for (i = 0; i < filled; i++) {
+			index = correlators[i] & 0xffffffffUL;
+			dma_addr =  pool->dma_addr[index];
+
+			if (pool->skbuff[index]) {
+				if (dma_addr &&
+				    !dma_mapping_error(dev, dma_addr))
+					dma_unmap_single(dev, dma_addr,
+							 pool->buff_size,
+							 DMA_FROM_DEVICE);
+
+				dev_kfree_skb_any(pool->skbuff[index]);
+				pool->skbuff[index] = NULL;
+			}
+		}
+		adapter->replenish_add_buff_failure += filled;
+
+		/*
+		 * If multi rx buffers hcall is no longer supported by FW
+		 * e.g. in the case of Live Parttion Migration
+		 */
+		if (batch > 1 && lpar_rc == H_FUNCTION) {
+			/*
+			 * Instead of retry submit single buffer individually
+			 * here just set the max rx buffer per hcall to 1
+			 * buffers will be respleshed next time
+			 * when ibmveth_replenish_buffer_pool() is called again
+			 * with single-buffer case
+			 */
+			netdev_info(adapter->netdev,
+				    "RX Multi buffers not supported by FW, rc=%lu\n",
+				    lpar_rc);
+			adapter->rx_buffers_per_hcall = 1;
+			netdev_info(adapter->netdev,
+				    "Next rx replesh will fall back to single-buffer hcall\n");
+		}
+		break;
 	}
-
-	mb();
-	atomic_add(buffers_added, &(pool->available));
-	return;
-
-failure:
-
-	if (dma_addr && !dma_mapping_error(&adapter->vdev->dev, dma_addr))
-		dma_unmap_single(&adapter->vdev->dev,
-		                 pool->dma_addr[index], pool->buff_size,
-		                 DMA_FROM_DEVICE);
-	dev_kfree_skb_any(pool->skbuff[index]);
-	pool->skbuff[index] = NULL;
-bad_index_failure:
-	adapter->replenish_add_buff_failure++;
 
 	mb();
 	atomic_add(buffers_added, &(pool->available));
@@ -1781,6 +1852,19 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		adapter->is_active_trunk = true;
 		netdev->hw_features |= NETIF_F_FRAGLIST;
 		netdev->features |= NETIF_F_FRAGLIST;
+	}
+
+	if (ret == H_SUCCESS &&
+	    (ret_attr & IBMVETH_ILLAN_RX_MULTI_BUFF_SUPPORT)) {
+		adapter->rx_buffers_per_hcall = IBMVETH_MAX_RX_PER_HCALL;
+		netdev_dbg(netdev,
+			   "RX Multi-buffer hcall supported by FW, batch set to %u\n",
+			    adapter->rx_buffers_per_hcall);
+	} else {
+		adapter->rx_buffers_per_hcall = 1;
+		netdev_dbg(netdev,
+			   "RX Single-buffer hcall mode, batch set to %u\n",
+			   adapter->rx_buffers_per_hcall);
 	}
 
 	netdev->min_mtu = IBMVETH_MIN_MTU;
