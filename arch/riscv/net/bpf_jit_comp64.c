@@ -473,90 +473,24 @@ static inline void emit_kcfi(u32 hash, struct rv_jit_context *ctx)
 		emit(hash, ctx);
 }
 
-static int emit_load_8(bool sign_ext, u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
+static void emit_ldx_insn(u8 rd, s16 off, u8 rs, u8 size, bool sign_ext,
+			  struct rv_jit_context *ctx)
 {
-	int insns_start;
-
-	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
-		if (sign_ext)
-			emit(rv_lb(rd, off, rs), ctx);
-		else
-			emit(rv_lbu(rd, off, rs), ctx);
-		return ctx->ninsns - insns_start;
-	}
-
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
-	insns_start = ctx->ninsns;
-	if (sign_ext)
-		emit(rv_lb(rd, 0, RV_REG_T1), ctx);
-	else
-		emit(rv_lbu(rd, 0, RV_REG_T1), ctx);
-	return ctx->ninsns - insns_start;
-}
-
-static int emit_load_16(bool sign_ext, u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
-{
-	int insns_start;
-
-	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
-		if (sign_ext)
-			emit(rv_lh(rd, off, rs), ctx);
-		else
-			emit(rv_lhu(rd, off, rs), ctx);
-		return ctx->ninsns - insns_start;
-	}
-
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
-	insns_start = ctx->ninsns;
-	if (sign_ext)
-		emit(rv_lh(rd, 0, RV_REG_T1), ctx);
-	else
-		emit(rv_lhu(rd, 0, RV_REG_T1), ctx);
-	return ctx->ninsns - insns_start;
-}
-
-static int emit_load_32(bool sign_ext, u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
-{
-	int insns_start;
-
-	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
-		if (sign_ext)
-			emit(rv_lw(rd, off, rs), ctx);
-		else
-			emit(rv_lwu(rd, off, rs), ctx);
-		return ctx->ninsns - insns_start;
-	}
-
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
-	insns_start = ctx->ninsns;
-	if (sign_ext)
-		emit(rv_lw(rd, 0, RV_REG_T1), ctx);
-	else
-		emit(rv_lwu(rd, 0, RV_REG_T1), ctx);
-	return ctx->ninsns - insns_start;
-}
-
-static int emit_load_64(bool sign_ext, u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
-{
-	int insns_start;
-
-	if (is_12b_int(off)) {
-		insns_start = ctx->ninsns;
+	switch (size) {
+	case BPF_B:
+		emit(sign_ext ? rv_lb(rd, off, rs) : rv_lbu(rd, off, rs), ctx);
+		break;
+	case BPF_H:
+		emit(sign_ext ? rv_lh(rd, off, rs) : rv_lhu(rd, off, rs), ctx);
+		break;
+	case BPF_W:
+		emit(sign_ext ? rv_lw(rd, off, rs) : rv_lwu(rd, off, rs), ctx);
+		break;
+	case BPF_DW:
 		emit_ld(rd, off, rs, ctx);
-		return ctx->ninsns - insns_start;
+		break;
 	}
 
-	emit_imm(RV_REG_T1, off, ctx);
-	emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
-	insns_start = ctx->ninsns;
-	emit_ld(rd, 0, RV_REG_T1, ctx);
-	return ctx->ninsns - insns_start;
 }
 
 static void emit_stx_insn(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context *ctx)
@@ -575,6 +509,24 @@ static void emit_stx_insn(u8 rd, s16 off, u8 rs, u8 size, struct rv_jit_context 
 		emit_sd(rd, off, rs, ctx);
 		break;
 	}
+}
+
+static int emit_ldx(u8 rd, s16 off, u8 rs, u8 size, bool sign_ext,
+		    struct rv_jit_context *ctx)
+{
+	int insns_start;
+
+	if (is_12b_int(off)) {
+		insns_start = ctx->ninsns;
+		emit_ldx_insn(rd, off, rs, size, sign_ext, ctx);
+		return ctx->ninsns - insns_start;
+	}
+
+	emit_imm(RV_REG_T1, off, ctx);
+	emit_add(RV_REG_T1, RV_REG_T1, rs, ctx);
+	insns_start = ctx->ninsns;
+	emit_ldx_insn(rd, 0, RV_REG_T1, size, sign_ext, ctx);
+	return ctx->ninsns - insns_start;
 }
 
 static int emit_st(u8 rd, s16 off, s32 imm, u8 size, struct rv_jit_context *ctx)
@@ -622,20 +574,7 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
 	switch (imm) {
 	/* dst_reg = load_acquire(src_reg + off16) */
 	case BPF_LOAD_ACQ:
-		switch (BPF_SIZE(code)) {
-		case BPF_B:
-			emit_load_8(false, rd, off, rs, ctx);
-			break;
-		case BPF_H:
-			emit_load_16(false, rd, off, rs, ctx);
-			break;
-		case BPF_W:
-			emit_load_32(false, rd, off, rs, ctx);
-			break;
-		case BPF_DW:
-			emit_load_64(false, rd, off, rs, ctx);
-			break;
-		}
+		emit_ldx(rd, off, rs, BPF_SIZE(code), false, ctx);
 		emit_fence_r_rw(ctx);
 
 		/* If our next insn is a redundant zext, return 1 to tell
@@ -1859,20 +1798,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			rs = RV_REG_T2;
 		}
 
-		switch (BPF_SIZE(code)) {
-		case BPF_B:
-			insn_len = emit_load_8(sign_ext, rd, off, rs, ctx);
-			break;
-		case BPF_H:
-			insn_len = emit_load_16(sign_ext, rd, off, rs, ctx);
-			break;
-		case BPF_W:
-			insn_len = emit_load_32(sign_ext, rd, off, rs, ctx);
-			break;
-		case BPF_DW:
-			insn_len = emit_load_64(sign_ext, rd, off, rs, ctx);
-			break;
-		}
+		insn_len = emit_ldx(rd, off, rs, BPF_SIZE(code), sign_ext, ctx);
 
 		ret = add_exception_handler(insn, ctx, rd, insn_len);
 		if (ret)
@@ -1882,6 +1808,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			return 1;
 		break;
 	}
+
 	/* speculation barrier */
 	case BPF_ST | BPF_NOSPEC:
 		break;
