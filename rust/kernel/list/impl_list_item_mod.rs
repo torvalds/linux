@@ -17,13 +17,13 @@
 /// [`ListLinks<ID>`]: crate::list::ListLinks
 /// [`ListItem`]: crate::list::ListItem
 pub unsafe trait HasListLinks<const ID: u64 = 0> {
-    /// Returns a pointer to the [`ListLinks<T, ID>`] field.
+    /// Returns a pointer to the [`ListLinks<ID>`] field.
     ///
     /// # Safety
     ///
     /// The provided pointer must point at a valid struct of type `Self`.
     ///
-    /// [`ListLinks<T, ID>`]: crate::list::ListLinks
+    /// [`ListLinks<ID>`]: crate::list::ListLinks
     unsafe fn raw_get_list_links(ptr: *mut Self) -> *mut crate::list::ListLinks<ID>;
 }
 
