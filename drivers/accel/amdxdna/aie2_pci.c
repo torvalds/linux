@@ -520,14 +520,14 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	if (!ndev->psp_hdl) {
 		XDNA_ERR(xdna, "failed to create psp");
 		ret = -ENOMEM;
-		goto free_irq;
+		goto release_fw;
 	}
 	xdna->dev_handle = ndev;
 
 	ret = aie2_hw_start(xdna);
 	if (ret) {
 		XDNA_ERR(xdna, "start npu failed, ret %d", ret);
-		goto free_irq;
+		goto release_fw;
 	}
 
 	ret = aie2_mgmt_fw_query(ndev);
@@ -578,8 +578,6 @@ async_event_free:
 	aie2_error_async_events_free(ndev);
 stop_hw:
 	aie2_hw_stop(xdna);
-free_irq:
-	pci_free_irq_vectors(pdev);
 release_fw:
 	release_firmware(fw);
 
@@ -588,12 +586,10 @@ release_fw:
 
 static void aie2_fini(struct amdxdna_dev *xdna)
 {
-	struct pci_dev *pdev = to_pci_dev(xdna->ddev.dev);
 	struct amdxdna_dev_hdl *ndev = xdna->dev_handle;
 
 	aie2_hw_stop(xdna);
 	aie2_error_async_events_free(ndev);
-	pci_free_irq_vectors(pdev);
 }
 
 static int aie2_get_aie_status(struct amdxdna_client *client,
