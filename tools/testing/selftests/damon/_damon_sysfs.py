@@ -165,6 +165,42 @@ class DamosQuota:
                 return err
         return None
 
+class DamosWatermarks:
+    metric = None
+    interval = None
+    high = None
+    mid = None
+    low = None
+    scheme = None   # owner scheme
+
+    def __init__(self, metric='none', interval=0, high=0, mid=0, low=0):
+        self.metric = metric
+        self.interval = interval
+        self.high = high
+        self.mid = mid
+        self.low = low
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), 'watermarks')
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'metric'), self.metric)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'interval_us'),
+                         self.interval)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'high'), self.high)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'mid'), self.mid)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'low'), self.low)
+        if err is not None:
+            return err
+
 class DamosStats:
     nr_tried = None
     sz_tried = None
@@ -190,6 +226,7 @@ class Damos:
     action = None
     access_pattern = None
     quota = None
+    watermarks = None
     apply_interval_us = None
     # todo: Support watermarks, stats
     idx = None
@@ -199,12 +236,15 @@ class Damos:
     tried_regions = None
 
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
-                 quota=DamosQuota(), apply_interval_us=0):
+                 quota=DamosQuota(), watermarks=DamosWatermarks(),
+                 apply_interval_us=0):
         self.action = action
         self.access_pattern = access_pattern
         self.access_pattern.scheme = self
         self.quota = quota
         self.quota.scheme = self
+        self.watermarks = watermarks
+        self.watermarks.scheme = self
         self.apply_interval_us = apply_interval_us
 
     def sysfs_dir(self):
@@ -227,9 +267,7 @@ class Damos:
         if err is not None:
             return err
 
-        # disable watermarks
-        err = write_file(
-                os.path.join(self.sysfs_dir(), 'watermarks', 'metric'), 'none')
+        err = self.watermarks.stage()
         if err is not None:
             return err
 
