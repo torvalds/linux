@@ -164,6 +164,21 @@ def assert_monitoring_attrs_committed(attrs, dump):
     assert_true(dump['max_nr_regions'] == attrs.max_nr_regions,
                 'max_nr_regions', dump)
 
+def assert_ctx_committed(ctx, dump):
+    ops_val = {
+            'vaddr': 0,
+            'fvaddr': 1,
+            'paddr': 2,
+            }
+    assert_true(dump['ops']['id'] == ops_val[ctx.ops], 'ops_id', dump)
+    assert_monitoring_attrs_committed(ctx.monitoring_attrs, dump['attrs'])
+    assert_schemes_committed(ctx.schemes, dump['schemes'])
+
+def assert_ctxs_committed(ctxs, dump):
+    assert_true(len(ctxs) == len(dump), 'ctxs length', dump)
+    for idx, ctx in enumerate(ctxs):
+        assert_ctx_committed(ctx, dump[idx])
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -182,18 +197,7 @@ def main():
         kdamonds.stop()
         exit(1)
 
-    if len(status['contexts']) != 1:
-        fail('number of contexts', status)
-
-    ctx = status['contexts'][0]
-
-    assert_monitoring_attrs_committed(_damon_sysfs.DamonAttrs(), ctx['attrs'])
-
-    if ctx['adaptive_targets'] != [
-            { 'pid': 0, 'nr_regions': 0, 'regions_list': []}]:
-        fail('adaptive targets', status)
-
-    assert_schemes_committed([_damon_sysfs.Damos()], ctx['schemes'])
+    assert_ctxs_committed(kdamonds.kdamonds[0].contexts, status['contexts'])
 
     kdamonds.stop()
 
