@@ -992,6 +992,7 @@ _mlx5r_dmabuf_umr_update_pas(struct mlx5_ib_mr *mr, unsigned int flags,
 static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 			       unsigned int flags,
 			       unsigned int page_shift,
+			       size_t *nblocks,
 			       bool dd)
 {
 	unsigned int old_page_shift = mr->page_shift;
@@ -1000,7 +1001,6 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 	size_t page_shift_nblocks;
 	unsigned int max_log_size;
 	int access_mode;
-	size_t nblocks;
 	int err;
 
 	access_mode = dd ? MLX5_MKC_ACCESS_MODE_KSM : MLX5_MKC_ACCESS_MODE_MTT;
@@ -1014,26 +1014,26 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 	 * Block size must be aligned to MLX5_UMR_FLEX_ALIGNMENT since it may
 	 * be used as offset into the XLT later on.
 	 */
-	nblocks = ib_umem_num_dma_blocks(mr->umem, 1UL << max_page_shift);
+	*nblocks = ib_umem_num_dma_blocks(mr->umem, 1UL << max_page_shift);
 	if (dd)
-		nblocks = ALIGN(nblocks, MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT);
+		*nblocks = ALIGN(*nblocks, MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT);
 	else
-		nblocks = ALIGN(nblocks, MLX5_UMR_MTT_NUM_ENTRIES_ALIGNMENT);
+		*nblocks = ALIGN(*nblocks, MLX5_UMR_MTT_NUM_ENTRIES_ALIGNMENT);
 	page_shift_nblocks = ib_umem_num_dma_blocks(mr->umem,
 						    1UL << page_shift);
 	/* If the number of blocks at max possible page shift is greater than
 	 * the number of blocks at the new page size, we should just go over the
 	 * whole mkey entries.
 	 */
-	if (nblocks >= page_shift_nblocks)
-		nblocks = 0;
+	if (*nblocks >= page_shift_nblocks)
+		*nblocks = 0;
 
 	/* Make the first nblocks entries non-present without changing
 	 * page size yet.
 	 */
-	if (nblocks)
+	if (*nblocks)
 		mr->page_shift = max_page_shift;
-	err = _mlx5r_dmabuf_umr_update_pas(mr, flags, 0, nblocks, dd);
+	err = _mlx5r_dmabuf_umr_update_pas(mr, flags, 0, *nblocks, dd);
 	if (err) {
 		mr->page_shift = old_page_shift;
 		return err;
@@ -1042,7 +1042,7 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 	/* Change page size to the max page size now that the MR is completely
 	 * non-present.
 	 */
-	if (nblocks) {
+	if (*nblocks) {
 		err = mlx5r_umr_update_mr_page_shift(mr, max_page_shift, dd);
 		if (err) {
 			mr->page_shift = old_page_shift;
@@ -1050,7 +1050,7 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 		}
 	}
 
-	return nblocks;
+	return 0;
 }
 
 /**
@@ -1085,10 +1085,10 @@ int mlx5r_umr_dmabuf_update_pgsz(struct mlx5_ib_mr *mr, u32 xlt_flags,
 	size_t total_blocks;
 	int err;
 
-	zapped_blocks = _mlx5r_umr_zap_mkey(mr, xlt_flags, page_shift,
-					    mr->data_direct);
-	if (zapped_blocks < 0)
-		return zapped_blocks;
+	err = _mlx5r_umr_zap_mkey(mr, xlt_flags, page_shift, &zapped_blocks,
+				  mr->data_direct);
+	if (err)
+		return err;
 
 	/* _mlx5r_umr_zap_mkey already enables the mkey */
 	xlt_flags &= ~MLX5_IB_UPD_XLT_ENABLE;
