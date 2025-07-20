@@ -73,6 +73,13 @@ def assert_quota_committed(quota, dump):
     assert_true(
             dump['weight_age'] == quota.weight_age_permil, 'weight_age', dump)
 
+
+def assert_migrate_dests_committed(dests, dump):
+    assert_true(dump['nr_dests'] == len(dests.dests), 'nr_dests', dump)
+    for idx, dest in enumerate(dests.dests):
+        assert_true(dump['node_id_arr'][idx] == dest.id, 'node_id', dump)
+        assert_true(dump['weight_arr'][idx] == dest.weight, 'weight', dump)
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -137,14 +144,8 @@ def main():
     if scheme['target_nid'] != -1:
         fail('damos target nid', status)
 
-    migrate_dests = scheme['migrate_dests']
-    if migrate_dests['nr_dests'] != 0:
-        fail('nr_dests', status)
-    if migrate_dests['node_id_arr'] != []:
-        fail('node_id_arr', status)
-    if migrate_dests['weight_arr'] != []:
-        fail('weight_arr', status)
-
+    assert_migrate_dests_committed(_damon_sysfs.DamosDests(),
+                                   scheme['migrate_dests'])
     assert_quota_committed(_damon_sysfs.DamosQuota(), scheme['quota'])
     assert_watermarks_committed(_damon_sysfs.DamosWatermarks(),
                                 scheme['wmarks'])
