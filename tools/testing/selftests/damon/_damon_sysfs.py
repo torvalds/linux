@@ -125,12 +125,20 @@ class DamosQuota:
     ms = None                   # time quota
     goals = None                # quota goals
     reset_interval_ms = None    # quota reset interval
+    weight_sz_permil = None
+    weight_nr_accesses_permil = None
+    weight_age_permil = None
     scheme = None               # owner scheme
 
-    def __init__(self, sz=0, ms=0, goals=None, reset_interval_ms=0):
+    def __init__(self, sz=0, ms=0, goals=None, reset_interval_ms=0,
+                 weight_sz_permil=0, weight_nr_accesses_permil=0,
+                 weight_age_permil=0):
         self.sz = sz
         self.ms = ms
         self.reset_interval_ms = reset_interval_ms
+        self.weight_sz_permil = weight_sz_permil
+        self.weight_nr_accesses_permil = weight_nr_accesses_permil
+        self.weight_age_permil = weight_age_permil
         self.goals = goals if goals is not None else []
         for idx, goal in enumerate(self.goals):
             goal.idx = idx
@@ -148,6 +156,20 @@ class DamosQuota:
             return err
         err = write_file(os.path.join(self.sysfs_dir(), 'reset_interval_ms'),
                          self.reset_interval_ms)
+        if err is not None:
+            return err
+
+        err = write_file(os.path.join(
+            self.sysfs_dir(), 'weights', 'sz_permil'), self.weight_sz_permil)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(
+            self.sysfs_dir(), 'weights', 'nr_accesses_permil'),
+                         self.weight_nr_accesses_permil)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(
+            self.sysfs_dir(), 'weights', 'age_permil'), self.weight_age_permil)
         if err is not None:
             return err
 
