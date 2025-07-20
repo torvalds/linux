@@ -3385,7 +3385,7 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 	struct ieee80211_supported_band **bands;
 	enum nl80211_band band;
 	struct ieee80211_channel *channel;
-	struct wmi_scan_chan_list_arg arg = {0};
+	struct wmi_scan_chan_list_arg arg = {};
 	struct wmi_channel_arg *ch;
 	bool passive;
 	int len;
@@ -4885,7 +4885,7 @@ static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
 
 static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 {
-	struct ieee80211_sta_vht_cap vht_cap = {0};
+	struct ieee80211_sta_vht_cap vht_cap = {};
 	struct ath10k_hw_params *hw = &ar->hw_params;
 	u16 mcs_map;
 	u32 val;
@@ -4943,7 +4943,7 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
 {
 	int i;
-	struct ieee80211_sta_ht_cap ht_cap = {0};
+	struct ieee80211_sta_ht_cap ht_cap = {};
 
 	if (!(ar->ht_cap_info & WMI_HT_CAP_ENABLED))
 		return ht_cap;
@@ -5175,7 +5175,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 	u32 param;
 	int ret = 0;
-	struct wmi_bb_timing_cfg_arg bb_timing = {0};
+	struct wmi_bb_timing_cfg_arg bb_timing = {};
 
 	/*
 	 * This makes sense only when restarting hw. It is harmless to call
