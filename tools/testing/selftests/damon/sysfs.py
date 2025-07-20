@@ -80,6 +80,21 @@ def assert_migrate_dests_committed(dests, dump):
         assert_true(dump['node_id_arr'][idx] == dest.id, 'node_id', dump)
         assert_true(dump['weight_arr'][idx] == dest.weight, 'weight', dump)
 
+def assert_filter_committed(filter_, dump):
+    assert_true(filter_.type_ == dump['type'], 'type', dump)
+    assert_true(filter_.matching == dump['matching'], 'matching', dump)
+    assert_true(filter_.allow == dump['allow'], 'allow', dump)
+    # TODO: check memcg_path and memcg_id if type is memcg
+    if filter_.type_ == 'addr':
+        assert_true([filter_.addr_start, filter_.addr_end] ==
+                    dump['addr_range'], 'addr_range', dump)
+    elif filter_.type_ == 'target':
+        assert_true(filter_.target_idx == dump['target_idx'], 'target_idx',
+                    dump)
+    elif filter_.type_ == 'hugepage_size':
+        assert_true([filter_.min_, filter_.max_] == dump['sz_range'],
+                    'sz_range', dump)
+
 def assert_access_pattern_committed(pattern, dump):
     assert_true(dump['min_sz_region'] == pattern.size[0], 'min_sz_region',
                 dump)
@@ -115,6 +130,11 @@ def assert_scheme_committed(scheme, dump):
     assert_migrate_dests_committed(scheme.dests, dump['migrate_dests'])
     assert_quota_committed(scheme.quota, dump['quota'])
     assert_watermarks_committed(scheme.watermarks, dump['wmarks'])
+    # TODO: test filters directory
+    for idx, f in enumerate(scheme.core_filters.filters):
+        assert_filter_committed(f, dump['filters'][idx])
+    for idx, f in enumerate(scheme.ops_filters.filters):
+        assert_filter_committed(f, dump['ops_filters'][idx])
 
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
