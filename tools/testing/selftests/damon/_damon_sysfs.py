@@ -395,6 +395,7 @@ class Damos:
     ops_filters = None
     filters = None
     apply_interval_us = None
+    target_nid = None
     dests = None
     idx = None
     context = None
@@ -404,7 +405,7 @@ class Damos:
 
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
                  quota=DamosQuota(), watermarks=DamosWatermarks(),
-                 core_filters=[], ops_filters=[], filters=[],
+                 core_filters=[], ops_filters=[], filters=[], target_nid=0,
                  dests=DamosDests(), apply_interval_us=0):
         self.action = action
         self.access_pattern = access_pattern
@@ -423,6 +424,7 @@ class Damos:
         self.filters = DamosFilters(name='filters', filters=filters)
         self.filters.scheme = self
 
+        self.target_nid = target_nid
         self.dests = dests
         self.dests.scheme = self
 
@@ -459,6 +461,11 @@ class Damos:
         if err is not None:
             return err
         err = self.filters.stage()
+        if err is not None:
+            return err
+
+        err = write_file(os.path.join(self.sysfs_dir(), 'target_nid'), '%d' %
+                         self.target_nid)
         if err is not None:
             return err
 
