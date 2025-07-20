@@ -175,7 +175,7 @@ where
 
     /// Returns the number of elements that can be stored within the vector without allocating
     /// additional memory.
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         if const { Self::is_zst() } {
             usize::MAX
         } else {
@@ -185,7 +185,7 @@ where
 
     /// Returns the number of elements stored within the vector.
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.len
     }
 
@@ -196,7 +196,7 @@ where
     /// - `additional` must be less than or equal to `self.capacity - self.len`.
     /// - All elements within the interval [`self.len`,`self.len + additional`) must be initialized.
     #[inline]
-    pub unsafe fn inc_len(&mut self, additional: usize) {
+    pub const unsafe fn inc_len(&mut self, additional: usize) {
         // Guaranteed by the type invariant to never underflow.
         debug_assert!(additional <= self.capacity() - self.len());
         // INVARIANT: By the safety requirements of this method this represents the exact number of
@@ -255,7 +255,7 @@ where
     /// Returns a raw pointer to the vector's backing buffer, or, if `T` is a ZST, a dangling raw
     /// pointer.
     #[inline]
-    pub fn as_ptr(&self) -> *const T {
+    pub const fn as_ptr(&self) -> *const T {
         self.ptr.as_ptr()
     }
 
@@ -271,7 +271,7 @@ where
     /// assert!(!v.is_empty());
     /// ```
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
