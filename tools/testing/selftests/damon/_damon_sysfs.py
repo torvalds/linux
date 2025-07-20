@@ -405,18 +405,56 @@ class DamonTarget:
         return write_file(
                 os.path.join(self.sysfs_dir(), 'pid_target'), self.pid)
 
+class IntervalsGoal:
+    access_bp = None
+    aggrs = None
+    min_sample_us = None
+    max_sample_us = None
+    attrs = None    # owner DamonAttrs
+
+    def __init__(self, access_bp=0, aggrs=0, min_sample_us=0, max_sample_us=0):
+        self.access_bp = access_bp
+        self.aggrs = aggrs
+        self.min_sample_us = min_sample_us
+        self.max_sample_us = max_sample_us
+
+    def sysfs_dir(self):
+        return os.path.join(self.attrs.interval_sysfs_dir(), 'intervals_goal')
+
+    def stage(self):
+        err = write_file(
+                os.path.join(self.sysfs_dir(), 'access_bp'), self.access_bp)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'aggrs'), self.aggrs)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'min_sample_us'),
+                         self.min_sample_us)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'max_sample_us'),
+                         self.max_sample_us)
+        if err is not None:
+            return err
+        return None
+
 class DamonAttrs:
     sample_us = None
     aggr_us = None
+    intervals_goal = None
     update_us = None
     min_nr_regions = None
     max_nr_regions = None
     context = None
 
-    def __init__(self, sample_us=5000, aggr_us=100000, update_us=1000000,
+    def __init__(self, sample_us=5000, aggr_us=100000,
+                 intervals_goal=IntervalsGoal(), update_us=1000000,
             min_nr_regions=10, max_nr_regions=1000):
         self.sample_us = sample_us
         self.aggr_us = aggr_us
+        self.intervals_goal = intervals_goal
+        self.intervals_goal.attrs = self
         self.update_us = update_us
         self.min_nr_regions = min_nr_regions
         self.max_nr_regions = max_nr_regions
@@ -436,6 +474,9 @@ class DamonAttrs:
             return err
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'aggr_us'),
                 self.aggr_us)
+        if err is not None:
+            return err
+        err = self.intervals_goal.stage()
         if err is not None:
             return err
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'update_us'),
