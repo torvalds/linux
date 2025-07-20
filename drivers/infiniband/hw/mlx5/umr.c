@@ -660,7 +660,8 @@ static void mlx5r_umr_final_update_xlt(struct mlx5_ib_dev *dev,
 		if (!mr->ibmr.length)
 			MLX5_SET(mkc, &wqe->mkey_seg, length64, 1);
 		if (flags & MLX5_IB_UPD_XLT_KEEP_PGSZ)
-			wqe->ctrl_seg.mkey_mask &= ~MLX5_MKEY_MASK_PAGE_SIZE;
+			wqe->ctrl_seg.mkey_mask &=
+				cpu_to_be64(~MLX5_MKEY_MASK_PAGE_SIZE);
 	}
 
 	wqe->ctrl_seg.xlt_octowords =
