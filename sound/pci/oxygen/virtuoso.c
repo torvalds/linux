@@ -82,11 +82,9 @@ static struct pci_driver xonar_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = xonar_ids,
 	.probe = xonar_probe,
-#ifdef CONFIG_PM_SLEEP
 	.driver = {
-		.pm = &oxygen_pci_pm,
+		.pm = pm_sleep_ptr(&oxygen_pci_pm),
 	},
-#endif
 	.shutdown = oxygen_pci_shutdown,
 };
 

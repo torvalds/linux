@@ -17,6 +17,7 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 
 #define MSR_OC_MAILBOX			0x150
 #define MSR_OC_MAILBOX_CMD_OFFSET	32
@@ -41,14 +42,14 @@ static int get_oc_core_priority(unsigned int cpu)
 	value = cmd << MSR_OC_MAILBOX_CMD_OFFSET;
 	/* Set the busy bit to indicate OS is trying to issue command */
 	value |=  BIT_ULL(MSR_OC_MAILBOX_BUSY_BIT);
-	ret = wrmsrl_safe(MSR_OC_MAILBOX, value);
+	ret = wrmsrq_safe(MSR_OC_MAILBOX, value);
 	if (ret) {
 		pr_debug("cpu %d OC mailbox write failed\n", cpu);
 		return ret;
 	}
 
 	for (i = 0; i < OC_MAILBOX_RETRY_COUNT; ++i) {
-		ret = rdmsrl_safe(MSR_OC_MAILBOX, &value);
+		ret = rdmsrq_safe(MSR_OC_MAILBOX, &value);
 		if (ret) {
 			pr_debug("cpu %d OC mailbox read failed\n", cpu);
 			break;

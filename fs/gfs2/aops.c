@@ -37,27 +37,6 @@
 #include "aops.h"
 
 
-void gfs2_trans_add_databufs(struct gfs2_inode *ip, struct folio *folio,
-			     size_t from, size_t len)
-{
-	struct buffer_head *head = folio_buffers(folio);
-	unsigned int bsize = head->b_size;
-	struct buffer_head *bh;
-	size_t to = from + len;
-	size_t start, end;
-
-	for (bh = head, start = 0; bh != head || !start;
-	     bh = bh->b_this_page, start = end) {
-		end = start + bsize;
-		if (end <= from)
-			continue;
-		if (start >= to)
-			break;
-		set_buffer_uptodate(bh);
-		gfs2_trans_add_data(ip->i_gl, bh);
-	}
-}
-
 /**
  * gfs2_get_block_noalloc - Fills in a buffer head with details about a block
  * @inode: The inode
@@ -133,9 +112,40 @@ static int __gfs2_jdata_write_folio(struct folio *folio,
 					inode->i_sb->s_blocksize,
 					BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
-		gfs2_trans_add_databufs(ip, folio, 0, folio_size(folio));
+		gfs2_trans_add_databufs(ip->i_gl, folio, 0, folio_size(folio));
 	}
 	return gfs2_write_jdata_folio(folio, wbc);
+}
+
+/**
+ * gfs2_jdata_writeback - Write jdata folios to the log
+ * @mapping: The mapping to write
+ * @wbc: The writeback control
+ *
+ * Returns: errno
+ */
+int gfs2_jdata_writeback(struct address_space *mapping, struct writeback_control *wbc)
+{
+	struct inode *inode = mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(mapping->host);
+	struct folio *folio = NULL;
+	int error;
+
+	BUG_ON(current->journal_info);
+	if (gfs2_assert_withdraw(sdp, ip->i_gl->gl_state == LM_ST_EXCLUSIVE))
+		return 0;
+
+	while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
+		if (folio_test_checked(folio)) {
+			folio_redirty_for_writepage(wbc, folio);
+			folio_unlock(folio);
+			continue;
+		}
+		error = __gfs2_jdata_write_folio(folio, wbc);
+	}
+
+	return error;
 }
 
 /**
@@ -228,24 +238,16 @@ continue_unlock:
 
 		ret = __gfs2_jdata_write_folio(folio, wbc);
 		if (unlikely(ret)) {
-			if (ret == AOP_WRITEPAGE_ACTIVATE) {
-				folio_unlock(folio);
-				ret = 0;
-			} else {
-
-				/*
-				 * done_index is set past this page,
-				 * so media errors will not choke
-				 * background writeout for the entire
-				 * file. This has consequences for
-				 * range_cyclic semantics (ie. it may
-				 * not be suitable for data integrity
-				 * writeout).
-				 */
-				*done_index = folio_next_index(folio);
-				ret = 1;
-				break;
-			}
+			/*
+			 * done_index is set past this page, so media errors
+			 * will not choke background writeout for the entire
+			 * file. This has consequences for range_cyclic
+			 * semantics (ie. it may not be suitable for data
+			 * integrity writeout).
+			 */
+			*done_index = folio_next_index(folio);
+			ret = 1;
+			break;
 		}
 
 		/*
@@ -540,7 +542,7 @@ out:
 	gfs2_trans_end(sdp);
 }
 
-static bool jdata_dirty_folio(struct address_space *mapping,
+static bool gfs2_jdata_dirty_folio(struct address_space *mapping,
 		struct folio *folio)
 {
 	if (current->journal_info)
@@ -722,7 +724,7 @@ static const struct address_space_operations gfs2_jdata_aops = {
 	.writepages = gfs2_jdata_writepages,
 	.read_folio = gfs2_read_folio,
 	.readahead = gfs2_readahead,
-	.dirty_folio = jdata_dirty_folio,
+	.dirty_folio = gfs2_jdata_dirty_folio,
 	.bmap = gfs2_bmap,
 	.migrate_folio = buffer_migrate_folio,
 	.invalidate_folio = gfs2_invalidate_folio,

@@ -78,7 +78,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
-						err_data.err_addr_cnt);
+						err_data.err_addr_cnt, false);
 		amdgpu_ras_save_bad_pages(adev, NULL);
 	}
 
@@ -166,10 +166,11 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 		if ((amdgpu_bad_page_threshold != 0) &&
 			err_data->err_addr_cnt) {
 			amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
-						err_data->err_addr_cnt);
+						err_data->err_addr_cnt, false);
 			amdgpu_ras_save_bad_pages(adev, &err_count);
 
-			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
+			amdgpu_dpm_send_hbm_bad_pages_num(adev,
+					con->eeprom_control.ras_num_bad_pages);
 
 			if (con->update_channel_flag == true) {
 				amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);
@@ -386,6 +387,45 @@ int amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 	return 0;
 }
 
+static int amdgpu_umc_loop_all_aid(struct amdgpu_device *adev, umc_func func,
+				   void *data)
+{
+	uint32_t umc_node_inst;
+	uint32_t node_inst;
+	uint32_t umc_inst;
+	uint32_t ch_inst;
+	int ret;
+
+	/*
+	 * This loop is done based on the following -
+	 * umc.active mask = mask of active umc instances across all nodes
+	 * umc.umc_inst_num = maximum number of umc instancess per node
+	 * umc.node_inst_num = maximum number of node instances
+	 * Channel instances are not assumed to be harvested.
+	 */
+	dev_dbg(adev->dev, "active umcs :%lx umc_inst per node: %d",
+		adev->umc.active_mask, adev->umc.umc_inst_num);
+	for_each_set_bit(umc_node_inst, &(adev->umc.active_mask),
+			 adev->umc.node_inst_num * adev->umc.umc_inst_num) {
+		node_inst = umc_node_inst / adev->umc.umc_inst_num;
+		umc_inst = umc_node_inst % adev->umc.umc_inst_num;
+		LOOP_UMC_CH_INST(ch_inst) {
+			dev_dbg(adev->dev,
+				"node_inst :%d umc_inst: %d ch_inst: %d",
+				node_inst, umc_inst, ch_inst);
+			ret = func(adev, node_inst, umc_inst, ch_inst, data);
+			if (ret) {
+				dev_err(adev->dev,
+					"Node %d umc %d ch %d func returns %d\n",
+					node_inst, umc_inst, ch_inst, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data)
 {
@@ -393,6 +433,9 @@ int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
 	int ret = 0;
+
+	if (adev->aid_mask)
+		return amdgpu_umc_loop_all_aid(adev, func, data);
 
 	if (adev->umc.node_inst_num) {
 		LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) {
@@ -443,4 +486,102 @@ int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 	mutex_unlock(&ecc_log->lock);
 
 	return ret;
+}
+
+int amdgpu_umc_pages_in_a_row(struct amdgpu_device *adev,
+			struct ras_err_data *err_data, uint64_t pa_addr)
+{
+	struct ta_ras_query_address_output addr_out;
+
+	/* reinit err_data */
+	err_data->err_addr_cnt = 0;
+	err_data->err_addr_len = adev->umc.retire_unit;
+
+	addr_out.pa.pa = pa_addr;
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
+		return adev->umc.ras->convert_ras_err_addr(adev, err_data, NULL,
+				&addr_out, false);
+	else
+		return -EINVAL;
+}
+
+int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
+			uint64_t pa_addr, uint64_t *pfns, int len)
+{
+	int i, ret;
+	struct ras_err_data err_data;
+
+	err_data.err_addr = kcalloc(adev->umc.retire_unit,
+				sizeof(struct eeprom_table_record), GFP_KERNEL);
+	if (!err_data.err_addr) {
+		dev_warn(adev->dev, "Failed to alloc memory in bad page lookup!\n");
+		return 0;
+	}
+
+	ret = amdgpu_umc_pages_in_a_row(adev, &err_data, pa_addr);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < adev->umc.retire_unit; i++) {
+		if (i >= len)
+			goto out;
+
+		pfns[i] = err_data.err_addr[i].retired_page;
+	}
+	ret = i;
+	adev->umc.err_addr_cnt = err_data.err_addr_cnt;
+
+out:
+	kfree(err_data.err_addr);
+	return ret;
+}
+
+int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
+			uint64_t err_addr, uint32_t ch, uint32_t umc,
+			uint32_t node, uint32_t socket,
+			struct ta_ras_query_address_output *addr_out, bool dump_addr)
+{
+	struct ta_ras_query_address_input addr_in;
+	int ret;
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	addr_in.ma.err_addr = err_addr;
+	addr_in.ma.ch_inst = ch;
+	addr_in.ma.umc_inst = umc;
+	addr_in.ma.node_inst = node;
+	addr_in.ma.socket_id = socket;
+
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
+		ret = adev->umc.ras->convert_ras_err_addr(adev, NULL, &addr_in,
+				addr_out, dump_addr);
+		if (ret)
+			return ret;
+	} else {
+		return 0;
+	}
+
+	return 0;
+}
+
+int amdgpu_umc_pa2mca(struct amdgpu_device *adev,
+		uint64_t pa, uint64_t *mca, enum amdgpu_memory_partition nps)
+{
+	struct ta_ras_query_address_input addr_in;
+	struct ta_ras_query_address_output addr_out;
+	int ret;
+
+	/* nps: the pa belongs to */
+	addr_in.pa.pa = pa | ((uint64_t)nps << 58);
+	addr_in.addr_type = TA_RAS_PA_TO_MCA;
+	ret = psp_ras_query_address(&adev->psp, &addr_in, &addr_out);
+	if (ret) {
+		dev_warn(adev->dev, "Failed to query RAS MCA address for 0x%llx",
+			pa);
+
+		return ret;
+	}
+
+	*mca = addr_out.ma.err_addr;
+
+	return 0;
 }

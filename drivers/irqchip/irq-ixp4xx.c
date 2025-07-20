@@ -261,7 +261,7 @@ static int __init ixp4xx_of_init_irq(struct device_node *np,
 		pr_crit("IXP4XX: could not ioremap interrupt controller\n");
 		return -ENODEV;
 	}
-	fwnode = of_node_to_fwnode(np);
+	fwnode = of_fwnode_handle(np);
 
 	/* These chip variants have 64 interrupts */
 	is_356 = of_device_is_compatible(np, "intel,ixp43x-interrupt") ||

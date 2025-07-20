@@ -57,6 +57,8 @@ struct events_stats {
 struct hists_stats {
 	u64 total_period;
 	u64 total_non_filtered_period;
+	u64 total_latency;
+	u64 total_non_filtered_latency;
 	u32 nr_samples;
 	u32 nr_non_filtered_samples;
 	u32 nr_lost_samples;

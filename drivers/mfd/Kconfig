@@ -138,7 +138,7 @@ config MFD_AAT2870_CORE
 config MFD_AT91_USART
 	tristate "AT91 USART Driver"
 	select MFD_CORE
-	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ARCH_AT91 || ARCH_LAN969X || COMPILE_TEST
 	help
 	  Select this to get support for AT91 USART IP. This is a wrapper
 	  over at91-usart-serial driver and usart-spi-driver. Only one function
@@ -858,7 +858,7 @@ config MFD_MAX77541
 	  There are regulators and adc.
 
 config MFD_MAX77620
-	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
+	tristate "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
 	depends on I2C=y
 	depends on OF
 	select MFD_CORE
@@ -916,6 +916,19 @@ config MFD_MAX77693
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX77705
+	tristate "Maxim MAX77705 PMIC Support"
+	depends on I2C
+	select MFD_CORE
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  Say yes here to add support for Maxim Integrated MAX77705 PMIC.
+	  This is a Power Management IC with Charger, safe LDOs, Flash, Haptic
+	  and MUIC controls on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 config MFD_MAX77714
 	tristate "Maxim Semiconductor MAX77714 PMIC Support"
 	depends on I2C
@@ -929,6 +942,26 @@ config MFD_MAX77714
 	  provides common support for accessing the device; additional
 	  drivers must be enabled in order to use each functionality of the
 	  device.
+
+config MFD_MAX77759
+	tristate "Maxim Integrated MAX77759 PMIC"
+	depends on I2C
+	depends on OF
+	select IRQ_DOMAIN
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Say yes here to add support for Maxim Integrated MAX77759.
+	  This is a companion Power Management IC for USB Type-C applications
+	  with Battery Charger, Fuel Gauge, temperature sensors, USB Type-C
+	  Port Controller (TCPC), NVMEM, and additional GPIO interfaces.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max77759.
 
 config MFD_MAX77843
 	bool "Maxim Semiconductor MAX77843 PMIC Support"
@@ -1119,30 +1152,6 @@ config MFD_RETU
 	  Retu and Tahvo are a multi-function devices found on Nokia
 	  Internet Tablets (770, N800 and N810).
 
-config MFD_PCF50633
-	tristate "NXP PCF50633"
-	depends on I2C
-	select REGMAP_I2C
-	help
-	  Say yes here if you have NXP PCF50633 chip on your board.
-	  This core driver provides register access and IRQ handling
-	  facilities, and registers devices for the various functions
-	  so that function-specific drivers can bind to them.
-
-config PCF50633_ADC
-	tristate "NXP PCF50633 ADC"
-	depends on MFD_PCF50633
-	help
-	  Say yes here if you want to include support for ADC in the
-	  NXP PCF50633 chip.
-
-config PCF50633_GPIO
-	tristate "NXP PCF50633 GPIO"
-	depends on MFD_PCF50633
-	help
-	  Say yes here if you want to include support GPIO for pins on
-	  the PCF50633 chip.
-
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on ARM || HEXAGON || COMPILE_TEST
@@ -1303,21 +1312,42 @@ config MFD_RN5T618
 	  functionality of the device.
 
 config MFD_SEC_CORE
-	tristate "Samsung Electronics PMIC Series Support"
+	tristate
+	select MFD_CORE
+	select REGMAP_IRQ
+
+config MFD_SEC_ACPM
+	tristate "Samsung Electronics S2MPG1x PMICs"
+	depends on EXYNOS_ACPM_PROTOCOL
+	depends on OF
+	select MFD_SEC_CORE
+	help
+	  Support for the Samsung Electronics PMICs with ACPM interface.
+	  This is a Power Management IC for mobile applications with buck
+	  converters, various LDOs, power meters, RTC, clock outputs, and
+	  additional GPIOs interfaces.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called sec-acpm.
+
+config MFD_SEC_I2C
+	tristate "Samsung Electronics S2MPA/S2MPS1X/S2MPU/S5M series PMICs"
 	depends on I2C=y
 	depends on OF
-	select MFD_CORE
+	select MFD_SEC_CORE
 	select REGMAP_I2C
-	select REGMAP_IRQ
 	help
-	  Support for the Samsung Electronics PMIC devices coming
-	  usually along with Samsung Exynos SoC chipset.
+	  Support for the Samsung Electronics PMIC devices with I2C interface
+	  coming usually along with Samsung Exynos SoC chipset.
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the functionality
-	  of the device
+	  of the device.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called sec-core.
+	  module will be called sec-i2c.
 	  Have in mind that important core drivers (like regulators) depend
 	  on this driver so building this as a module might require proper
 	  initial ramdisk or might not boot up as well in certain scenarios.
@@ -1494,12 +1524,6 @@ config STMPE_SPI
 	help
 	  This is used to enable SPI interface of STMPE
 endmenu
-
-config MFD_STA2X11
-	bool "STMicroelectronics STA2X11"
-	depends on STA2X11
-	select MFD_CORE
-	select REGMAP_MMIO
 
 config MFD_SUN6I_PRCM
 	bool "Allwinner A31/A23/A33 PRCM controller"
@@ -2386,6 +2410,19 @@ config MFD_INTEL_M10_BMC_PMCI
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_QNAP_MCU
+	tristate "QNAP microcontroller unit core driver"
+	depends on SERIAL_DEV_BUS
+	select MFD_CORE
+	help
+	  Select this to get support for the QNAP MCU device found in
+	  several devices of QNAP network attached storage products that
+	  implements additional functionality for the device, like fan
+	  and LED control.
+
+	  This driver implements the base serial protocol to talk to the
+	  device and provides functions for the other parts to hook into.
+
 config MFD_RSMU_I2C
 	tristate "Renesas Synchronization Management Unit with I2C"
 	depends on I2C && OF
@@ -2413,6 +2450,18 @@ config MFD_RSMU_SPI
 	  This driver provides common support for accessing the device.
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_UPBOARD_FPGA
+	tristate "Support for the AAeon UP board FPGA"
+	depends on (X86 && ACPI)
+	select MFD_CORE
+	help
+	  Select this option to enable the AAEON UP and UP^2 onboard FPGA.
+	  This is the core driver of this FPGA, which has a pin controller and a
+	  LED controller.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called upboard-fpga.
 
 endmenu
 endif

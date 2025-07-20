@@ -68,9 +68,7 @@
 # include "cpufreq_schedutil.c"
 #endif
 
-#ifdef CONFIG_SCHED_DEBUG
-# include "debug.c"
-#endif
+#include "debug.c"
 
 #ifdef CONFIG_SCHEDSTATS
 # include "stats.c"

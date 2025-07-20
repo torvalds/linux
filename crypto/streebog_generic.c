@@ -13,9 +13,10 @@
  */
 
 #include <crypto/internal/hash.h>
-#include <linux/module.h>
-#include <linux/crypto.h>
 #include <crypto/streebog.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
 
 static const struct streebog_uint512 buffer0 = { {
 	0, 0, 0, 0, 0, 0, 0, 0
@@ -919,17 +920,6 @@ static int streebog_init(struct shash_desc *desc)
 	return 0;
 }
 
-static void streebog_pad(struct streebog_state *ctx)
-{
-	if (ctx->fillsize >= STREEBOG_BLOCK_SIZE)
-		return;
-
-	memset(ctx->buffer + ctx->fillsize, 0,
-	       sizeof(ctx->buffer) - ctx->fillsize);
-
-	ctx->buffer[ctx->fillsize] = 1;
-}
-
 static void streebog_add512(const struct streebog_uint512 *x,
 			    const struct streebog_uint512 *y,
 			    struct streebog_uint512 *r)
@@ -984,16 +974,23 @@ static void streebog_stage2(struct streebog_state *ctx, const u8 *data)
 	streebog_add512(&ctx->Sigma, &m, &ctx->Sigma);
 }
 
-static void streebog_stage3(struct streebog_state *ctx)
+static void streebog_stage3(struct streebog_state *ctx, const u8 *src,
+			    unsigned int len)
 {
 	struct streebog_uint512 buf = { { 0 } };
+	union {
+		u8 buffer[STREEBOG_BLOCK_SIZE];
+		struct streebog_uint512 m;
+	} u = {};
 
-	buf.qword[0] = cpu_to_le64(ctx->fillsize << 3);
-	streebog_pad(ctx);
+	buf.qword[0] = cpu_to_le64(len << 3);
+	memcpy(u.buffer, src, len);
+	u.buffer[len] = 1;
 
-	streebog_g(&ctx->h, &ctx->N, &ctx->m);
+	streebog_g(&ctx->h, &ctx->N, &u.m);
 	streebog_add512(&ctx->N, &buf, &ctx->N);
-	streebog_add512(&ctx->Sigma, &ctx->m, &ctx->Sigma);
+	streebog_add512(&ctx->Sigma, &u.m, &ctx->Sigma);
+	memzero_explicit(&u, sizeof(u));
 	streebog_g(&ctx->h, &buffer0, &ctx->N);
 	streebog_g(&ctx->h, &buffer0, &ctx->Sigma);
 	memcpy(&ctx->hash, &ctx->h, sizeof(struct streebog_uint512));
@@ -1003,42 +1000,22 @@ static int streebog_update(struct shash_desc *desc, const u8 *data,
 			   unsigned int len)
 {
 	struct streebog_state *ctx = shash_desc_ctx(desc);
-	size_t chunksize;
 
-	if (ctx->fillsize) {
-		chunksize = STREEBOG_BLOCK_SIZE - ctx->fillsize;
-		if (chunksize > len)
-			chunksize = len;
-		memcpy(&ctx->buffer[ctx->fillsize], data, chunksize);
-		ctx->fillsize += chunksize;
-		len  -= chunksize;
-		data += chunksize;
-
-		if (ctx->fillsize == STREEBOG_BLOCK_SIZE) {
-			streebog_stage2(ctx, ctx->buffer);
-			ctx->fillsize = 0;
-		}
-	}
-
-	while (len >= STREEBOG_BLOCK_SIZE) {
+	do {
 		streebog_stage2(ctx, data);
 		data += STREEBOG_BLOCK_SIZE;
 		len  -= STREEBOG_BLOCK_SIZE;
-	}
+	} while (len >= STREEBOG_BLOCK_SIZE);
 
-	if (len) {
-		memcpy(&ctx->buffer, data, len);
-		ctx->fillsize = len;
-	}
-	return 0;
+	return len;
 }
 
-static int streebog_final(struct shash_desc *desc, u8 *digest)
+static int streebog_finup(struct shash_desc *desc, const u8 *src,
+			  unsigned int len, u8 *digest)
 {
 	struct streebog_state *ctx = shash_desc_ctx(desc);
 
-	streebog_stage3(ctx);
-	ctx->fillsize = 0;
+	streebog_stage3(ctx, src, len);
 	if (crypto_shash_digestsize(desc->tfm) == STREEBOG256_DIGEST_SIZE)
 		memcpy(digest, &ctx->hash.qword[4], STREEBOG256_DIGEST_SIZE);
 	else
@@ -1050,11 +1027,12 @@ static struct shash_alg algs[2] = { {
 	.digestsize	=	STREEBOG256_DIGEST_SIZE,
 	.init		=	streebog_init,
 	.update		=	streebog_update,
-	.final		=	streebog_final,
+	.finup		=	streebog_finup,
 	.descsize	=	sizeof(struct streebog_state),
 	.base		=	{
 		.cra_name	 =	"streebog256",
 		.cra_driver_name =	"streebog256-generic",
+		.cra_flags	 =	CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize	 =	STREEBOG_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	},
@@ -1062,11 +1040,12 @@ static struct shash_alg algs[2] = { {
 	.digestsize	=	STREEBOG512_DIGEST_SIZE,
 	.init		=	streebog_init,
 	.update		=	streebog_update,
-	.final		=	streebog_final,
+	.finup		=	streebog_finup,
 	.descsize	=	sizeof(struct streebog_state),
 	.base		=	{
 		.cra_name	 =	"streebog512",
 		.cra_driver_name =	"streebog512-generic",
+		.cra_flags	 =	CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize	 =	STREEBOG_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	}
@@ -1082,7 +1061,7 @@ static void __exit streebog_mod_fini(void)
 	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 }
 
-subsys_initcall(streebog_mod_init);
+module_init(streebog_mod_init);
 module_exit(streebog_mod_fini);
 
 MODULE_LICENSE("GPL");

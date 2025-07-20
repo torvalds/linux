@@ -33,6 +33,8 @@ do {							\
 	(b)->data = (tmp).data;				\
 } while (0)
 
+bool insn_may_access_user(unsigned long addr, unsigned long esr);
+
 #ifdef CONFIG_BPF_JIT
 bool ex_handler_bpf(const struct exception_table_entry *ex,
 		    struct pt_regs *regs);
@@ -45,5 +47,5 @@ bool ex_handler_bpf(const struct exception_table_entry *ex,
 }
 #endif /* !CONFIG_BPF_JIT */
 
-bool fixup_exception(struct pt_regs *regs);
+bool fixup_exception(struct pt_regs *regs, unsigned long esr);
 #endif

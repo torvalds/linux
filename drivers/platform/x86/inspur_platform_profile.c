@@ -32,7 +32,7 @@ enum inspur_tmp_profile {
 
 struct inspur_wmi_priv {
 	struct wmi_device *wdev;
-	struct platform_profile_handler handler;
+	struct device *ppdev;
 };
 
 static int inspur_wmi_perform_query(struct wmi_device *wdev,
@@ -84,11 +84,10 @@ out_free:
  *         0x0: No Error
  *         0x1: Error
  */
-static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
+static int inspur_platform_profile_set(struct device *dev,
 				       enum platform_profile_option profile)
 {
-	struct inspur_wmi_priv *priv = container_of(pprof, struct inspur_wmi_priv,
-						    handler);
+	struct inspur_wmi_priv *priv = dev_get_drvdata(dev);
 	u8 ret_code[4] = {0, 0, 0, 0};
 	int ret;
 
@@ -132,11 +131,10 @@ static int inspur_platform_profile_set(struct platform_profile_handler *pprof,
  *         0x1: Performance Mode
  *         0x2: Power Saver Mode
  */
-static int inspur_platform_profile_get(struct platform_profile_handler *pprof,
+static int inspur_platform_profile_get(struct device *dev,
 				       enum platform_profile_option *profile)
 {
-	struct inspur_wmi_priv *priv = container_of(pprof, struct inspur_wmi_priv,
-						    handler);
+	struct inspur_wmi_priv *priv = dev_get_drvdata(dev);
 	u8 ret_code[4] = {0, 0, 0, 0};
 	int ret;
 
@@ -166,6 +164,21 @@ static int inspur_platform_profile_get(struct platform_profile_handler *pprof,
 	return 0;
 }
 
+static int inspur_platform_profile_probe(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+
+	return 0;
+}
+
+static const struct platform_profile_ops inspur_platform_profile_ops = {
+	.probe = inspur_platform_profile_probe,
+	.profile_get = inspur_platform_profile_get,
+	.profile_set = inspur_platform_profile_set,
+};
+
 static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct inspur_wmi_priv *priv;
@@ -177,19 +190,10 @@ static int inspur_wmi_probe(struct wmi_device *wdev, const void *context)
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
 
-	priv->handler.profile_get = inspur_platform_profile_get;
-	priv->handler.profile_set = inspur_platform_profile_set;
+	priv->ppdev = devm_platform_profile_register(&wdev->dev, "inspur-wmi", priv,
+						     &inspur_platform_profile_ops);
 
-	set_bit(PLATFORM_PROFILE_LOW_POWER, priv->handler.choices);
-	set_bit(PLATFORM_PROFILE_BALANCED, priv->handler.choices);
-	set_bit(PLATFORM_PROFILE_PERFORMANCE, priv->handler.choices);
-
-	return platform_profile_register(&priv->handler);
-}
-
-static void inspur_wmi_remove(struct wmi_device *wdev)
-{
-	platform_profile_remove();
+	return PTR_ERR_OR_ZERO(priv->ppdev);
 }
 
 static const struct wmi_device_id inspur_wmi_id_table[] = {
@@ -206,7 +210,6 @@ static struct wmi_driver inspur_wmi_driver = {
 	},
 	.id_table = inspur_wmi_id_table,
 	.probe = inspur_wmi_probe,
-	.remove = inspur_wmi_remove,
 	.no_singleton = true,
 };
 

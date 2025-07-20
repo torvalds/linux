@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test PRR-slowstart implementation. The sender sends 20 packets. Packet
+// 1 to 4 are lost. The sender writes another 10 packets.
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+
+ +.01 < . 1:1(0) ack 1 win 320
+   +0 accept(3, ..., ...) = 4
+
+// Send 20 data segments.
+   +0 write(4, ..., 10000) = 10000
+   +0 > P. 1:10001(10000) ack 1
+
+// Lost packet 1,2,3,4
+ +.01 < . 1:1(0) ack 1 win 320 <sack 4001:5001,nop,nop>
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:6001,nop,nop>
+   +0 < . 1:1(0) ack 1 win 320 <sack 4001:7001,nop,nop>
+   +0 > . 1:1001(1000) ack 1
+   +0 < . 1:1(0) ack 1 win 320 <sack 4001:8001,nop,nop>
+   +0 > . 1001:2001(1000) ack 1
+   +0 < . 1:1(0) ack 1 win 320 <sack 4001:9001,nop,nop>
+   +0 > . 2001:3001(1000) ack 1
+   +0 < . 1:1(0) ack 1 win 320 <sack 4001:10001,nop,nop>
+   +0 > . 3001:4001(1000) ack 1
+
+// Receiver ACKs all data.
+ +.01 < . 1:1(0) ack 1001 win 320 <sack 4001:10001,nop,nop>
+   +0 < . 1:1(0) ack 2001 win 320 <sack 4001:10001,nop,nop>
+   +0 < . 1:1(0) ack 3001 win 320 <sack 4001:10001,nop,nop>
+   +0 < . 1:1(0) ack 10001 win 320
+
+// Writes another 10 packets, which the ssthresh*mss amount
+// should be sent right away
+ +.01 write(4, ..., 10000) = 10000
+   +0 > . 10001:17001(7000) ack 1

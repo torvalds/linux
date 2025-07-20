@@ -57,15 +57,18 @@ static int __mc33880_set(struct mc33880 *mc, unsigned offset, int value)
 }
 
 
-static void mc33880_set(struct gpio_chip *chip, unsigned offset, int value)
+static int mc33880_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct mc33880 *mc = gpiochip_get_data(chip);
+	int ret;
 
 	mutex_lock(&mc->lock);
 
-	__mc33880_set(mc, offset, value);
+	ret = __mc33880_set(mc, offset, value);
 
 	mutex_unlock(&mc->lock);
+
+	return ret;
 }
 
 static int mc33880_probe(struct spi_device *spi)
@@ -100,7 +103,7 @@ static int mc33880_probe(struct spi_device *spi)
 	mc->spi = spi;
 
 	mc->chip.label = DRIVER_NAME;
-	mc->chip.set = mc33880_set;
+	mc->chip.set_rv = mc33880_set;
 	mc->chip.base = pdata->base;
 	mc->chip.ngpio = PIN_NUMBER;
 	mc->chip.can_sleep = true;

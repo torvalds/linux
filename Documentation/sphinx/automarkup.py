@@ -11,13 +11,7 @@ from sphinx.errors import NoUri
 import re
 from itertools import chain
 
-#
-# Python 2 lacks re.ASCII...
-#
-try:
-    ascii_p3 = re.ASCII
-except AttributeError:
-    ascii_p3 = 0
+from kernel_abi import get_kernel_abi
 
 #
 # Regex nastiness.  Of course.
@@ -26,28 +20,30 @@ except AttributeError:
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=ascii_p3)
+RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=re.ASCII)
 
 #
 # Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
 #
 RE_generic_type = re.compile(r'\b(struct|union|enum|typedef)\s+([a-zA-Z_]\w+)',
-                             flags=ascii_p3)
+                             flags=re.ASCII)
 
 #
 # Sphinx 3 uses a different C role for each one of struct, union, enum and
 # typedef
 #
-RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
-RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
-RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
-RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
+RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
 
 #
 # Detects a reference to a documentation page of the form Documentation/... with
 # an optional extension
 #
 RE_doc = re.compile(r'(\bDocumentation/)?((\.\./)*[\w\-/]+)\.(rst|txt)')
+RE_abi_file = re.compile(r'(\bDocumentation/ABI/[\w\-/]+)')
+RE_abi_symbol = re.compile(r'(\b/(sys|config|proc)/[\w\-/]+)')
 
 RE_namespace = re.compile(r'^\s*..\s*c:namespace::\s*(\S+)\s*$')
 
@@ -83,22 +79,16 @@ def markup_refs(docname, app, node):
     #
     # Associate each regex with the function that will markup its matches
     #
-    markup_func_sphinx2 = {RE_doc: markup_doc_ref,
-                           RE_function: markup_c_ref,
-                           RE_generic_type: markup_c_ref}
 
-    markup_func_sphinx3 = {RE_doc: markup_doc_ref,
+    markup_func = {RE_doc: markup_doc_ref,
+                           RE_abi_file: markup_abi_file_ref,
+                           RE_abi_symbol: markup_abi_ref,
                            RE_function: markup_func_ref_sphinx3,
                            RE_struct: markup_c_ref,
                            RE_union: markup_c_ref,
                            RE_enum: markup_c_ref,
                            RE_typedef: markup_c_ref,
                            RE_git: markup_git}
-
-    if sphinx.version_info[0] >= 3:
-        markup_func = markup_func_sphinx3
-    else:
-        markup_func = markup_func_sphinx2
 
     match_iterators = [regex.finditer(t) for regex in markup_func]
     #
@@ -138,13 +128,8 @@ def note_failure(target):
 # own C role, but both match the same regex, so we try both.
 #
 def markup_func_ref_sphinx3(docname, app, match):
-    cdom = app.env.domains['c']
-    #
-    # Go through the dance of getting an xref out of the C domain
-    #
     base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
-    xref = None
     possible_targets = [base_target]
     # Check if this document has a namespace, and if so, try
     # cross-referencing inside it first.
@@ -156,22 +141,8 @@ def markup_func_ref_sphinx3(docname, app, match):
             if (target not in Skipfuncs) and not failure_seen(target):
                 lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
                 lit_text += target_text
-                pxref = addnodes.pending_xref('', refdomain = 'c',
-                                              reftype = 'function',
-                                              reftarget = target,
-                                              modname = None,
-                                              classname = None)
-                #
-                # XXX The Latex builder will throw NoUri exceptions here,
-                # work around that by ignoring them.
-                #
-                try:
-                    xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                             'function', target, pxref,
-                                             lit_text)
-                except NoUri:
-                    xref = None
-
+                xref = add_and_resolve_xref(app, docname, 'c', 'function',
+                                            target, contnode=lit_text)
                 if xref:
                     return xref
                 note_failure(target)
@@ -198,13 +169,8 @@ def markup_c_ref(docname, app, match):
                    RE_typedef: 'type',
                    }
 
-    cdom = app.env.domains['c']
-    #
-    # Go through the dance of getting an xref out of the C domain
-    #
     base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
-    xref = None
     possible_targets = [base_target]
     # Check if this document has a namespace, and if so, try
     # cross-referencing inside it first.
@@ -216,21 +182,9 @@ def markup_c_ref(docname, app, match):
             if not (match.re == RE_function and target in Skipfuncs):
                 lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
                 lit_text += target_text
-                pxref = addnodes.pending_xref('', refdomain = 'c',
-                                              reftype = reftype_str[match.re],
-                                              reftarget = target, modname = None,
-                                              classname = None)
-                #
-                # XXX The Latex builder will throw NoUri exceptions here,
-                # work around that by ignoring them.
-                #
-                try:
-                    xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                             reftype_str[match.re], target, pxref,
-                                             lit_text)
-                except NoUri:
-                    xref = None
-
+                xref = add_and_resolve_xref(app, docname, 'c',
+                                            reftype_str[match.re], target,
+                                            contnode=lit_text)
                 if xref:
                     return xref
 
@@ -241,34 +195,69 @@ def markup_c_ref(docname, app, match):
 # cross reference to that page
 #
 def markup_doc_ref(docname, app, match):
-    stddom = app.env.domains['std']
-    #
-    # Go through the dance of getting an xref out of the std domain
-    #
     absolute = match.group(1)
     target = match.group(2)
     if absolute:
        target = "/" + target
-    xref = None
-    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
+
+    xref = add_and_resolve_xref(app, docname, 'std', 'doc', target)
+    if xref:
+        return xref
+    else:
+        return nodes.Text(match.group(0))
+
+#
+# Try to replace a documentation reference for ABI symbols and files
+# with a cross reference to that page
+#
+def markup_abi_ref(docname, app, match, warning=False):
+    kernel_abi = get_kernel_abi()
+
+    fname = match.group(1)
+    target = kernel_abi.xref(fname)
+
+    # Kernel ABI doesn't describe such file or symbol
+    if not target:
+        if warning:
+            kernel_abi.log.warning("%s not found", fname)
+        return nodes.Text(match.group(0))
+
+    xref = add_and_resolve_xref(app, docname, 'std', 'ref', target)
+    if xref:
+        return xref
+    else:
+        return nodes.Text(match.group(0))
+
+def add_and_resolve_xref(app, docname, domain, reftype, target, contnode=None):
+    #
+    # Go through the dance of getting an xref out of the corresponding domain
+    #
+    dom_obj = app.env.domains[domain]
+    pxref = addnodes.pending_xref('', refdomain = domain, reftype = reftype,
                                   reftarget = target, modname = None,
                                   classname = None, refexplicit = False)
+
     #
     # XXX The Latex builder will throw NoUri exceptions here,
     # work around that by ignoring them.
     #
     try:
-        xref = stddom.resolve_xref(app.env, docname, app.builder, 'doc',
-                                   target, pxref, None)
+        xref = dom_obj.resolve_xref(app.env, docname, app.builder, reftype,
+                                    target, pxref, contnode)
     except NoUri:
         xref = None
-    #
-    # Return the xref if we got it; otherwise just return the plain text.
-    #
+
     if xref:
         return xref
-    else:
-        return nodes.Text(match.group(0))
+
+    return None
+
+#
+# Variant of markup_abi_ref() that warns whan a reference is not found
+#
+def markup_abi_file_ref(docname, app, match):
+    return markup_abi_ref(docname, app, match, warning=True)
+
 
 def get_c_namespace(app, docname):
     source = app.env.doc2path(docname)

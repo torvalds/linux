@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -9,8 +17,7 @@
 			device_type = "cpu";
 			compatible = "mips,mips4KEc";
 			reg = <0>;
-			clocks = <&baseclk 0>;
-			clock-names = "cpu";
+			clocks = <&baseclk>;
 		};
 	};
 
@@ -18,5 +25,105 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <500000000>;
+	};
+
+	cpuintc: cpuintc {
+		compatible = "mti,cpu-interrupt-controller";
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+	};
+
+	lx_clk: clock-lexra {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000000>;
+	};
+
+	soc@18000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x18000000 0x10000>;
+
+		spi0: spi@1200 {
+			compatible = "realtek,rtl8380-spi";
+			reg = <0x1200 0x100>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		uart0: serial@2000 {
+			compatible = "ns16550a";
+			reg = <0x2000 0x100>;
+
+			clocks = <&lx_clk>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <31>;
+
+			reg-io-width = <1>;
+			reg-shift = <2>;
+			fifo-size = <1>;
+			no-loopback-test;
+
+			status = "disabled";
+		};
+
+		uart1: serial@2100 {
+			compatible = "ns16550a";
+			reg = <0x2100 0x100>;
+
+			clocks = <&lx_clk>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <30>;
+
+			reg-io-width = <1>;
+			reg-shift = <2>;
+			fifo-size = <1>;
+			no-loopback-test;
+
+			status = "disabled";
+		};
+
+		intc: interrupt-controller@3000 {
+			compatible = "realtek,rtl8380-intc", "realtek,rtl-intc";
+			reg = <0x3000 0x20>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>, <3>, <4>, <5>, <6>;
+		};
+
+		watchdog: watchdog@3150 {
+			compatible = "realtek,rtl8380-wdt";
+			reg = <0x3150 0xc>;
+
+			realtek,reset-mode = "soc";
+
+			clocks = <&lx_clk>;
+			timeout-sec = <20>;
+
+			interrupt-parent = <&intc>;
+			interrupt-names = "phase1", "phase2";
+			interrupts = <19>, <18>;
+		};
+
+		gpio0: gpio@3500 {
+			compatible = "realtek,rtl8380-gpio", "realtek,otto-gpio";
+			reg = <0x3500 0x1c>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <24>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&intc>;
+			interrupts = <23>;
+		};
 	};
 };

@@ -49,8 +49,7 @@ int mt8365_afe_init_audio_clk(struct mtk_base_afe *afe)
 
 void mt8365_afe_disable_clk(struct mtk_base_afe *afe, struct clk *clk)
 {
-	if (clk)
-		clk_disable_unprepare(clk);
+	clk_disable_unprepare(clk);
 }
 
 int mt8365_afe_set_clk_rate(struct mtk_base_afe *afe, struct clk *clk,

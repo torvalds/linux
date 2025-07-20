@@ -28,6 +28,7 @@ properties:
       - items:
           - enum:
               - fsl,imx93-gpio
+              - fsl,imx94-gpio
               - fsl,imx95-gpio
           - const: fsl,imx8ulp-gpio
 
@@ -68,6 +69,13 @@ properties:
   gpio-ranges:
     minItems: 1
     maxItems: 4
+
+  gpio-reserved-ranges: true
+
+  ngpios:
+    minimum: 1
+    maximum: 32
+    default: 32
 
 patternProperties:
   "^.+-hog(-[0-9]+)?$":

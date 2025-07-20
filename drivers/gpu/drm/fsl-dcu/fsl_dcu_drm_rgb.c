@@ -6,6 +6,7 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 
 #include <drm/drm_atomic_helper.h>
@@ -62,7 +63,7 @@ static int fsl_dcu_drm_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 fsl_dcu_drm_connector_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
+				 const struct drm_display_mode *mode)
 {
 	if (mode->hdisplay & 0xf)
 		return MODE_ERROR;

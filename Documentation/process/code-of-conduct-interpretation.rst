@@ -145,13 +145,16 @@ kernel community.
 
 Any decisions regarding enforcement recommendations will be brought to
 the TAB for implementation of enforcement with the relevant maintainers
-if needed.  A decision by the Code of Conduct Committee can be overturned
-by the TAB by a two-thirds vote.
+if needed.  Once the TAB approves one or more of the measures outlined
+in the scope of the ban by two-thirds of the members voting for the
+measures, the Code of Conduct Committee will enforce the TAB approved
+measures.  Any Code of Conduct Committee members serving on the TAB will
+not vote on the measures.
 
 At quarterly intervals, the Code of Conduct Committee and TAB will
 provide a report summarizing the anonymised reports that the Code of
 Conduct committee has received and their status, as well details of any
-overridden decisions including complete and identifiable voting details.
+TAB approved decisions including complete and identifiable voting details.
 
 Because how we interpret and enforce the Code of Conduct will evolve over
 time, this document will be updated when necessary to reflect any
@@ -227,9 +230,11 @@ The scope of the ban for a period of time could include:
        such as mailing lists and social media sites
 
 Once the TAB approves one or more of the measures outlined in the scope of
-the ban by a two-thirds vote, the Code of Conduct Committee will enforce
-the TAB approved measure(s) in collaboration with the community, maintainers,
-sub-maintainers, and kernel.org administrators.
+the ban by two-thirds of the members voting for the measures, the Code of
+Conduct Committee will enforce the TAB approved measure(s) in collaboration
+with the community, maintainers, sub-maintainers, and kernel.org
+administrators.  Any Code of Conduct Committee members serving on the TAB
+will not vote on the measures.
 
 The Code of Conduct Committee is mindful of the negative impact of seeking
 public apology and instituting ban could have on individuals. It is also

@@ -149,7 +149,7 @@ efc_node_free(struct efc_node *node)
 
 	/* if the gidpt_delay_timer is still running, then delete it */
 	if (timer_pending(&node->gidpt_delay_timer))
-		del_timer(&node->gidpt_delay_timer);
+		timer_delete(&node->gidpt_delay_timer);
 
 	xa_erase(&nport->lookup, node->rnode.fc_id);
 

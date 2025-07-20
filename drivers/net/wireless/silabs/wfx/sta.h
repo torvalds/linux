@@ -56,6 +56,9 @@ int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *link_conf,
 			      struct ieee80211_chanctx_conf *conf);
+int wfx_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+int wfx_resume(struct ieee80211_hw *hw);
+void wfx_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 
 /* Hardware API Callbacks */
 void wfx_cooling_timeout_work(struct work_struct *work);

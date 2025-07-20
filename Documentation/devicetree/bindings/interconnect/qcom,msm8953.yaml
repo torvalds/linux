@@ -84,17 +84,17 @@ additionalProperties: false
 
 examples:
   - |
-      #include <dt-bindings/clock/qcom,gcc-msm8953.h>
+    #include <dt-bindings/clock/qcom,gcc-msm8953.h>
 
-      snoc: interconnect@580000 {
-          compatible = "qcom,msm8953-snoc";
-          reg = <0x580000 0x16080>;
+    interconnect@580000 {
+        compatible = "qcom,msm8953-snoc";
+        reg = <0x580000 0x16080>;
 
-          #interconnect-cells = <2>;
+        #interconnect-cells = <2>;
 
-          snoc_mm: interconnect-snoc {
-              compatible = "qcom,msm8953-snoc-mm";
+        interconnect-snoc {
+            compatible = "qcom,msm8953-snoc-mm";
 
-              #interconnect-cells = <2>;
-          };
-      };
+            #interconnect-cells = <2>;
+        };
+    };

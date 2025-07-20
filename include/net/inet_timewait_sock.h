@@ -74,6 +74,10 @@ struct inet_timewait_sock {
 				tw_tos		: 8;
 	u32			tw_txhash;
 	u32			tw_priority;
+	/**
+	 * @tw_reuse_stamp: Time of entry into %TCP_TIME_WAIT state in msec.
+	 */
+	u32			tw_entry_stamp;
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
 	struct inet_bind2_bucket	*tw_tb2;

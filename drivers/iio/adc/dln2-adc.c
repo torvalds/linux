@@ -66,8 +66,6 @@ struct dln2_adc {
 	/* Demux table */
 	unsigned int demux_count;
 	struct dln2_adc_demux_table demux[DLN2_ADC_MAX_CHANNELS];
-	/* Precomputed timestamp padding offset and length */
-	unsigned int ts_pad_offset, ts_pad_length;
 };
 
 struct dln2_adc_port_chan {
@@ -111,8 +109,6 @@ static void dln2_adc_update_demux(struct dln2_adc *dln2)
 	if (iio_get_masklength(indio_dev) &&
 	    (*indio_dev->active_scan_mask & 0xff) == 0xff) {
 		dln2_adc_add_demux(dln2, 0, 0, 16);
-		dln2->ts_pad_offset = 0;
-		dln2->ts_pad_length = 0;
 		return;
 	}
 
@@ -126,16 +122,6 @@ static void dln2_adc_update_demux(struct dln2_adc *dln2)
 		dln2_adc_add_demux(dln2, in_loc, out_loc, 2);
 		out_loc += 2;
 		in_loc += 2;
-	}
-
-	if (indio_dev->scan_timestamp) {
-		size_t ts_offset = indio_dev->scan_bytes / sizeof(int64_t) - 1;
-
-		dln2->ts_pad_offset = out_loc;
-		dln2->ts_pad_length = ts_offset * sizeof(int64_t) - out_loc;
-	} else {
-		dln2->ts_pad_offset = 0;
-		dln2->ts_pad_length = 0;
 	}
 }
 
@@ -328,15 +314,14 @@ static int dln2_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		mutex_lock(&dln2->mutex);
 		ret = dln2_adc_read(dln2, chan->channel);
 		mutex_unlock(&dln2->mutex);
 
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 
 		if (ret < 0)
 			return ret;
@@ -481,7 +466,7 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct {
 		__le16 values[DLN2_ADC_MAX_CHANNELS];
-		int64_t timestamp_space;
+		aligned_s64 timestamp_space;
 	} data;
 	struct dln2_adc_get_all_vals dev_data;
 	struct dln2_adc *dln2 = iio_priv(indio_dev);
@@ -494,6 +479,8 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 	if (ret < 0)
 		goto done;
 
+	memset(&data, 0, sizeof(data));
+
 	/* Demux operation */
 	for (i = 0; i < dln2->demux_count; ++i) {
 		t = &dln2->demux[i];
@@ -501,13 +488,8 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 		       (void *)dev_data.values + t->from, t->length);
 	}
 
-	/* Zero padding space between values and timestamp */
-	if (dln2->ts_pad_length)
-		memset((void *)data.values + dln2->ts_pad_offset,
-		       0, dln2->ts_pad_length);
-
-	iio_push_to_buffers_with_timestamp(indio_dev, &data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data, sizeof(data),
+				    iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

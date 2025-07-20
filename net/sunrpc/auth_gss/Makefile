@@ -5,7 +5,7 @@
 
 obj-$(CONFIG_SUNRPC_GSS) += auth_rpcgss.o
 
-auth_rpcgss-y := auth_gss.o gss_generic_token.o \
+auth_rpcgss-y := auth_gss.o \
 	gss_mech_switch.o svcauth_gss.o \
 	gss_rpc_upcall.o gss_rpc_xdr.o trace.o
 

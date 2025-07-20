@@ -2033,8 +2033,10 @@ static bool _rtl8821ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 			if (!_rtl8821ae_check_condition(hw, v1)) {
 				i += 2; /* skip the pair of expression*/
 				v2 = array[i+1];
-				while (v2 != 0xDEAD)
+				while (v2 != 0xDEAD) {
 					i += 3;
+					v2 = array[i + 1];
+				}
 			}
 		}
 	}
@@ -4581,10 +4583,6 @@ void rtl8821ae_do_iqk(struct ieee80211_hw *hw, u8 delta_thermal_index,
 }
 
 void rtl8821ae_phy_lc_calibrate(struct ieee80211_hw *hw)
-{
-}
-
-void rtl8821ae_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
 {
 }
 

@@ -269,61 +269,56 @@ Namely, when invoked to select an idle state for a CPU (i.e. an idle state that
 the CPU will ask the processor hardware to enter), it attempts to predict the
 idle duration and uses the predicted value for idle state selection.
 
-It first obtains the time until the closest timer event with the assumption
-that the scheduler tick will be stopped.  That time, referred to as the *sleep
-length* in what follows, is the upper bound on the time before the next CPU
-wakeup.  It is used to determine the sleep length range, which in turn is needed
-to get the sleep length correction factor.
+It first uses a simple pattern recognition algorithm to obtain a preliminary
+idle duration prediction.  Namely, it saves the last 8 observed idle duration
+values and, when predicting the idle duration next time, it computes the average
+and variance of them.  If the variance is small (smaller than 400 square
+milliseconds) or it is small relative to the average (the average is greater
+that 6 times the standard deviation), the average is regarded as the "typical
+interval" value.  Otherwise, either the longest or the shortest (depending on
+which one is farther from the average) of the saved observed idle duration
+values is discarded and the computation is repeated for the remaining ones.
 
-The ``menu`` governor maintains two arrays of sleep length correction factors.
-One of them is used when tasks previously running on the given CPU are waiting
-for some I/O operations to complete and the other one is used when that is not
-the case.  Each array contains several correction factor values that correspond
-to different sleep length ranges organized so that each range represented in the
-array is approximately 10 times wider than the previous one.
+Again, if the variance of them is small (in the above sense), the average is
+taken as the "typical interval" value and so on, until either the "typical
+interval" is determined or too many data points are disregarded.  In the latter
+case, if the size of the set of data points still under consideration is
+sufficiently large, the next idle duration is not likely to be above the largest
+idle duration value still in that set, so that value is taken as the predicted
+next idle duration.  Finally, if the set of data points still under
+consideration is too small, no prediction is made.
+
+If the preliminary prediction of the next idle duration computed this way is
+long enough, the governor obtains the time until the closest timer event with
+the assumption that the scheduler tick will be stopped.  That time, referred to
+as the *sleep length* in what follows, is the upper bound on the time before the
+next CPU wakeup.  It is used to determine the sleep length range, which in turn
+is needed to get the sleep length correction factor.
+
+The ``menu`` governor maintains an array containing several correction factor
+values that correspond to different sleep length ranges organized so that each
+range represented in the array is approximately 10 times wider than the previous
+one.
 
 The correction factor for the given sleep length range (determined before
 selecting the idle state for the CPU) is updated after the CPU has been woken
 up and the closer the sleep length is to the observed idle duration, the closer
 to 1 the correction factor becomes (it must fall between 0 and 1 inclusive).
 The sleep length is multiplied by the correction factor for the range that it
-falls into to obtain the first approximation of the predicted idle duration.
+falls into to obtain an approximation of the predicted idle duration that is
+compared to the "typical interval" determined previously and the minimum of
+the two is taken as the final idle duration prediction.
 
-Next, the governor uses a simple pattern recognition algorithm to refine its
-idle duration prediction.  Namely, it saves the last 8 observed idle duration
-values and, when predicting the idle duration next time, it computes the average
-and variance of them.  If the variance is small (smaller than 400 square
-milliseconds) or it is small relative to the average (the average is greater
-that 6 times the standard deviation), the average is regarded as the "typical
-interval" value.  Otherwise, the longest of the saved observed idle duration
-values is discarded and the computation is repeated for the remaining ones.
-Again, if the variance of them is small (in the above sense), the average is
-taken as the "typical interval" value and so on, until either the "typical
-interval" is determined or too many data points are disregarded, in which case
-the "typical interval" is assumed to equal "infinity" (the maximum unsigned
-integer value).  The "typical interval" computed this way is compared with the
-sleep length multiplied by the correction factor and the minimum of the two is
-taken as the predicted idle duration.
-
-Then, the governor computes an extra latency limit to help "interactive"
-workloads.  It uses the observation that if the exit latency of the selected
-idle state is comparable with the predicted idle duration, the total time spent
-in that state probably will be very short and the amount of energy to save by
-entering it will be relatively small, so likely it is better to avoid the
-overhead related to entering that state and exiting it.  Thus selecting a
-shallower state is likely to be a better option then.   The first approximation
-of the extra latency limit is the predicted idle duration itself which
-additionally is divided by a value depending on the number of tasks that
-previously ran on the given CPU and now they are waiting for I/O operations to
-complete.  The result of that division is compared with the latency limit coming
-from the power management quality of service, or `PM QoS <cpu-pm-qos_>`_,
-framework and the minimum of the two is taken as the limit for the idle states'
-exit latency.
+If the "typical interval" value is small, which means that the CPU is likely
+to be woken up soon enough, the sleep length computation is skipped as it may
+be costly and the idle duration is simply predicted to equal the "typical
+interval" value.
 
 Now, the governor is ready to walk the list of idle states and choose one of
 them.  For this purpose, it compares the target residency of each state with
-the predicted idle duration and the exit latency of it with the computed latency
-limit.  It selects the state with the target residency closest to the predicted
+the predicted idle duration and the exit latency of it with the with the latency
+limit coming from the power management quality of service, or `PM QoS <cpu-pm-qos_>`_,
+framework.  It selects the state with the target residency closest to the predicted
 idle duration, but still below it, and exit latency that does not exceed the
 limit.
 

@@ -3,8 +3,11 @@
 #ifndef __ASM_RISCV_SPINLOCK_H
 #define __ASM_RISCV_SPINLOCK_H
 
-#ifdef CONFIG_RISCV_COMBO_SPINLOCKS
+#ifdef CONFIG_QUEUED_SPINLOCKS
 #define _Q_PENDING_LOOPS	(1 << 9)
+#endif
+
+#ifdef CONFIG_RISCV_COMBO_SPINLOCKS
 
 #define __no_arch_spinlock_redefine
 #include <asm/ticket_spinlock.h>

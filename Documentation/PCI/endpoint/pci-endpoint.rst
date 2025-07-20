@@ -57,11 +57,10 @@ by the PCI controller driver.
    The PCI controller driver can then create a new EPC device by invoking
    devm_pci_epc_create()/pci_epc_create().
 
-* devm_pci_epc_destroy()/pci_epc_destroy()
+* pci_epc_destroy()
 
-   The PCI controller driver can destroy the EPC device created by either
-   devm_pci_epc_create() or pci_epc_create() using devm_pci_epc_destroy() or
-   pci_epc_destroy().
+   The PCI controller driver can destroy the EPC device created by
+   pci_epc_create() using pci_epc_destroy().
 
 * pci_epc_linkup()
 

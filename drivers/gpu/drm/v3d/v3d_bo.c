@@ -13,10 +13,6 @@
  * Display engines requiring physically contiguous allocations should
  * look into Mesa's "renderonly" support (as used by the Mesa pl111
  * driver) for an example of how to integrate with V3D.
- *
- * Long term, we should support evicting pages from the MMU when under
- * memory pressure (thus the v3d_bo_get_pages() refcounting), but
- * that's not a high priority since our systems tend to not have swap.
  */
 
 #include <linux/dma-buf.h>

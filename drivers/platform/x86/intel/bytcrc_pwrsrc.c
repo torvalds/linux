@@ -8,13 +8,22 @@
  * Copyright (C) 2013 Intel Corporation
  */
 
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/debugfs.h>
+#include <linux/interrupt.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
+#define CRYSTALCOVE_PWRSRC_IRQ		0x03
 #define CRYSTALCOVE_SPWRSRC_REG		0x1E
+#define CRYSTALCOVE_SPWRSRC_USB		BIT(0)
+#define CRYSTALCOVE_SPWRSRC_DC		BIT(1)
+#define CRYSTALCOVE_SPWRSRC_BATTERY	BIT(2)
 #define CRYSTALCOVE_RESETSRC0_REG	0x20
 #define CRYSTALCOVE_RESETSRC1_REG	0x21
 #define CRYSTALCOVE_WAKESRC_REG		0x22
@@ -22,6 +31,7 @@
 struct crc_pwrsrc_data {
 	struct regmap *regmap;
 	struct dentry *debug_dentry;
+	struct power_supply *psy;
 	unsigned int resetsrc0;
 	unsigned int resetsrc1;
 	unsigned int wakesrc;
@@ -118,13 +128,60 @@ static int crc_pwrsrc_read_and_clear(struct crc_pwrsrc_data *data,
 	return regmap_write(data->regmap, reg, *val);
 }
 
+static irqreturn_t crc_pwrsrc_irq_handler(int irq, void *_data)
+{
+	struct crc_pwrsrc_data *data = _data;
+	unsigned int irq_mask;
+
+	if (regmap_read(data->regmap, CRYSTALCOVE_PWRSRC_IRQ, &irq_mask))
+		return IRQ_NONE;
+
+	regmap_write(data->regmap, CRYSTALCOVE_PWRSRC_IRQ, irq_mask);
+
+	power_supply_changed(data->psy);
+	return IRQ_HANDLED;
+}
+
+static int crc_pwrsrc_psy_get_property(struct power_supply *psy,
+				       enum power_supply_property psp,
+				       union power_supply_propval *val)
+{
+	struct crc_pwrsrc_data *data = power_supply_get_drvdata(psy);
+	unsigned int pwrsrc;
+	int ret;
+
+	if (psp != POWER_SUPPLY_PROP_ONLINE)
+		return -EINVAL;
+
+	ret = regmap_read(data->regmap, CRYSTALCOVE_SPWRSRC_REG, &pwrsrc);
+	if (ret)
+		return ret;
+
+	val->intval = !!(pwrsrc & (CRYSTALCOVE_SPWRSRC_USB |
+				   CRYSTALCOVE_SPWRSRC_DC));
+	return 0;
+}
+
+static const enum power_supply_property crc_pwrsrc_psy_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+};
+
+static const struct power_supply_desc crc_pwrsrc_psy_desc = {
+	.name = "crystal_cove_pwrsrc",
+	.type = POWER_SUPPLY_TYPE_MAINS,
+	.properties = crc_pwrsrc_psy_props,
+	.num_properties = ARRAY_SIZE(crc_pwrsrc_psy_props),
+	.get_property = crc_pwrsrc_psy_get_property,
+};
+
 static int crc_pwrsrc_probe(struct platform_device *pdev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
 	struct crc_pwrsrc_data *data;
-	int ret;
+	int irq, ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -148,6 +205,24 @@ static int crc_pwrsrc_probe(struct platform_device *pdev)
 	ret = crc_pwrsrc_read_and_clear(data, CRYSTALCOVE_WAKESRC_REG, &data->wakesrc);
 	if (ret)
 		return ret;
+
+	if (device_property_read_bool(dev->parent, "linux,register-pwrsrc-power_supply")) {
+		struct power_supply_config psy_cfg = { .drv_data = data };
+
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0)
+			return irq;
+
+		data->psy = devm_power_supply_register(dev, &crc_pwrsrc_psy_desc, &psy_cfg);
+		if (IS_ERR(data->psy))
+			return dev_err_probe(dev, PTR_ERR(data->psy), "registering power-supply\n");
+
+		ret = devm_request_threaded_irq(dev, irq, NULL,
+						crc_pwrsrc_irq_handler,
+						IRQF_ONESHOT, KBUILD_MODNAME, data);
+		if (ret)
+			return dev_err_probe(dev, ret, "requesting IRQ\n");
+	}
 
 	data->debug_dentry = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	debugfs_create_file("pwrsrc", 0444, data->debug_dentry, data, &pwrsrc_fops);

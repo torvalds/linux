@@ -166,8 +166,8 @@ err_out:
 	return error;
 }
 
-static int coda_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *de, umode_t mode)
+static struct dentry *coda_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *de, umode_t mode)
 {
 	struct inode *inode;
 	struct coda_vattr attrs;
@@ -177,14 +177,14 @@ static int coda_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct CodaFid newfid;
 
 	if (is_root_inode(dir) && coda_iscontrol(name, len))
-		return -EPERM;
+		return ERR_PTR(-EPERM);
 
 	attrs.va_mode = mode;
-	error = venus_mkdir(dir->i_sb, coda_i2f(dir), 
+	error = venus_mkdir(dir->i_sb, coda_i2f(dir),
 			       name, len, &newfid, &attrs);
 	if (error)
 		goto err_out;
-         
+
 	inode = coda_iget(dir->i_sb, &newfid, &attrs);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
@@ -195,10 +195,10 @@ static int coda_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	coda_dir_inc_nlink(dir);
 	coda_dir_update_mtime(dir);
 	d_instantiate(de, inode);
-	return 0;
+	return NULL;
 err_out:
 	d_drop(de);
-	return error;
+	return ERR_PTR(error);
 }
 
 /* try to make de an entry in dir_inodde linked to source_de */ 
@@ -445,7 +445,8 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 }
 
 /* called when a cache lookup succeeds */
-static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
+static int coda_dentry_revalidate(struct inode *dir, const struct qstr *name,
+				  struct dentry *de, unsigned int flags)
 {
 	struct inode *inode;
 	struct coda_inode_info *cii;

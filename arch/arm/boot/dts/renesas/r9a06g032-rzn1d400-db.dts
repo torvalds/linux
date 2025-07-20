@@ -8,8 +8,10 @@
 
 /dts-v1/;
 
-#include <dt-bindings/pinctrl/rzn1-pinctrl.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/net/pcs-rzn1-miic.h>
+#include <dt-bindings/pinctrl/rzn1-pinctrl.h>
 
 #include "r9a06g032.dtsi"
 
@@ -23,6 +25,68 @@
 
 	aliases {
 		serial0 = &uart0;
+	};
+
+	keyboard {
+		compatible = "gpio-keys-polled";
+		poll-interval = <100>;
+
+		switch-1 {
+			linux,code = <KEY_1>;
+			label = "SW1-1";
+			debounce-interval = <20>;
+			gpios = <&pca9698 8 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-2 {
+			linux,code = <KEY_2>;
+			label = "SW1-2";
+			debounce-interval = <20>;
+			gpios = <&pca9698 9 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-3 {
+			linux,code = <KEY_3>;
+			label = "SW1-3";
+			debounce-interval = <20>;
+			gpios = <&pca9698 10 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-4 {
+			linux,code = <KEY_4>;
+			label = "SW1-4";
+			debounce-interval = <20>;
+			gpios = <&pca9698 11 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-5 {
+			linux,code = <KEY_5>;
+			label = "SW1-5";
+			debounce-interval = <20>;
+			gpios = <&pca9698 12 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-6 {
+			linux,code = <KEY_6>;
+			label = "SW1-6";
+			debounce-interval = <20>;
+			gpios = <&pca9698 13 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-7 {
+			linux,code = <KEY_7>;
+			label = "SW1-7";
+			debounce-interval = <20>;
+			gpios = <&pca9698 14 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-8 {
+			linux,code = <KEY_8>;
+			label = "SW1-8";
+			debounce-interval = <20>;
+			gpios = <&pca9698 15 GPIO_ACTIVE_LOW>;
+		};
+
 	};
 };
 
@@ -57,6 +121,44 @@
 	};
 };
 
+&i2c2 {
+	pinctrl-0 = <&pins_i2c2>;
+	pinctrl-names = "default";
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pca9698: gpio@20 {
+		compatible = "nxp,pca9698";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		/* configure the analog switch to let i2c2 access the eeprom */
+		max4662-in1-hog {
+			gpio-hog;
+			gpios = <16 0>;
+			output-high;
+		};
+		max4662-in2-hog {
+			gpio-hog;
+			gpios = <17 0>;
+			output-low;
+		};
+		max4662-in3-hog {
+			gpio-hog;
+			gpios = <18 0>;
+			output-low;
+		};
+	};
+
+	/* Some revisions may have a 24cs64 at address 0x58 */
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		pagesize = <32>;
+		reg = <0x50>;
+	};
+};
+
 &mii_conv4 {
 	renesas,miic-input = <MIIC_SWITCH_PORTB>;
 	status = "okay";
@@ -68,6 +170,9 @@
 };
 
 &pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_cpld>;
+
 	pins_can0: pins_can0 {
 		pinmux = <RZN1_PINMUX(162, RZN1_FUNC_CAN)>,	/* CAN0_TXD */
 			 <RZN1_PINMUX(163, RZN1_FUNC_CAN)>;	/* CAN0_RXD */
@@ -78,6 +183,13 @@
 		pinmux = <RZN1_PINMUX(109, RZN1_FUNC_CAN)>,	/* CAN1_TXD */
 			 <RZN1_PINMUX(110, RZN1_FUNC_CAN)>;	/* CAN1_RXD */
 		drive-strength = <6>;
+	};
+
+	pins_cpld: pins-cpld {
+		pinmux = <RZN1_PINMUX(119, RZN1_FUNC_USB)>,
+			 <RZN1_PINMUX(120, RZN1_FUNC_USB)>,
+			 <RZN1_PINMUX(121, RZN1_FUNC_USB)>,
+			 <RZN1_PINMUX(122, RZN1_FUNC_USB)>;
 	};
 
 	pins_eth3: pins_eth3 {
@@ -112,6 +224,12 @@
 			 <RZN1_PINMUX(59, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>;
 		drive-strength = <6>;
 		bias-disable;
+	};
+
+	pins_i2c2: pins_i2c2 {
+		pinmux = <RZN1_PINMUX(115, RZN1_FUNC_I2C)>,
+			 <RZN1_PINMUX(116, RZN1_FUNC_I2C)>;
+		drive-strength = <12>;
 	};
 
 	pins_mdio1: pins_mdio1 {
@@ -171,6 +289,10 @@
 };
 
 &uart0 {
+	status = "okay";
+};
+
+&udc {
 	status = "okay";
 };
 

@@ -8,6 +8,45 @@
 	model = "SKOV IMX8MP CPU revB - LT6";
 	compatible = "skov,imx8mp-skov-revb-lt6", "fsl,imx8mp";
 
+	lvds-decoder {
+		compatible = "ti,sn65lvds822", "lvds-decoder";
+		power-supply = <&reg_3v3>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				in_lvds1: endpoint {
+					data-mapping = "vesa-24";
+					remote-endpoint = <&ldb_lvds_ch1>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_decoder_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+
+	panel {
+		compatible = "logictechno,lttd800480070-l6wh-rt";
+		backlight = <&backlight>;
+		power-supply = <&reg_tft_vcom>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds_decoder_out>;
+			};
+		};
+	};
+
 	touchscreen {
 		compatible = "resistive-adc-touch";
 		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>, <&adc_ts 5>;
@@ -74,6 +113,27 @@
 			reg = <5>;
 			settling-time-us = <700>;
 			oversampling-ratio = <5>;
+		};
+	};
+};
+
+&lcdif2 {
+	status = "okay";
+};
+
+&lvds_bridge {
+	assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>,
+				 <&clk IMX8MP_VIDEO_PLL1>;
+	assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
+	/* IMX8MP_VIDEO_PLL1 = IMX8MP_CLK_MEDIA_DISP2_PIX * 2 * 7 */
+	assigned-clock-rates = <0>, <462000000>;
+	status = "okay";
+
+	ports {
+		port@2 {
+			ldb_lvds_ch1: endpoint {
+				remote-endpoint = <&in_lvds1>;
+			};
 		};
 	};
 };

@@ -180,6 +180,18 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&peaq_c1010_info,
 	},
 	{
+		/* Vexia Edu Atla 10 tablet 5V version */
+		.matches = {
+			/* Having all 3 of these not set is somewhat unique */
+			DMI_MATCH(DMI_SYS_VENDOR, "To be filled by O.E.M."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "To be filled by O.E.M."),
+			DMI_MATCH(DMI_BOARD_NAME, "To be filled by O.E.M."),
+			/* Above strings are too generic, also match on BIOS date */
+			DMI_MATCH(DMI_BIOS_DATE, "05/14/2015"),
+		},
+		.driver_data = (void *)&vexia_edu_atla10_5v_info,
+	},
+	{
 		/* Vexia Edu Atla 10 tablet 9V version */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
@@ -187,7 +199,7 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 			/* Above strings are too generic, also match on BIOS date */
 			DMI_MATCH(DMI_BIOS_DATE, "08/25/2014"),
 		},
-		.driver_data = (void *)&vexia_edu_atla10_info,
+		.driver_data = (void *)&vexia_edu_atla10_9v_info,
 	},
 	{
 		/* Whitelabel (sold as various brands) TM800A550L */

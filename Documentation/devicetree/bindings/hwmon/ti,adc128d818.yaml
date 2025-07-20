@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-
 $id: http://devicetree.org/schemas/hwmon/ti,adc128d818.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 

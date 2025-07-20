@@ -37,3 +37,13 @@ config SND_SOC_LOONGSON_I2S_PLATFORM
 	  The controller work as a platform device, we can found it in
 	  Loongson-2K1000 SoCs.
 endmenu
+
+config SND_LOONGSON1_AC97
+	tristate "Loongson1 AC97 Support"
+	depends on LOONGSON1_APB_DMA
+	select SND_SOC_AC97_CODEC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Loongson1 AC97 controller.

@@ -25,7 +25,7 @@
 /*
  * Testcase for group constraint check of thresh_cmp bits which is
  * used to program thresh compare field in Monitor Mode Control Register A
- * (MMCRA: 9-18 bits for power9 and MMCRA: 8-18 bits for power10).
+ * (MMCRA: 9-18 bits for power9 and MMCRA: 8-18 bits for power10/power11).
  * All events in the group should match thresh compare bits otherwise
  * event_open for the group will fail.
  */

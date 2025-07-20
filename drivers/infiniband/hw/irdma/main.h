@@ -29,8 +29,8 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #endif
 #include <linux/auxiliary_bus.h>
-#include <linux/net/intel/iidc.h>
-#include <crypto/hash.h>
+#include <linux/net/intel/iidc_rdma.h>
+#include <linux/net/intel/iidc_rdma_ice.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -116,6 +116,9 @@ extern struct auxiliary_driver i40iw_auxiliary_drv;
 #define IRDMA_FLUSH_WAIT	BIT(3)
 
 #define IRDMA_IRQ_NAME_STR_LEN (64)
+
+#define IRDMA_NUM_AEQ_MSIX	1
+#define IRDMA_MIN_MSIX		2
 
 enum init_completion_state {
 	INVALID_STATE = 0,

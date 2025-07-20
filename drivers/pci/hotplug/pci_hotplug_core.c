@@ -14,21 +14,15 @@
  *   Scott Murray <scottm@somanetworks.com>
  */
 
-#include <linux/module.h>	/* try_module_get & module_put */
+#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
-#include <linux/pagemap.h>
 #include <linux/init.h>
-#include <linux/mount.h>
-#include <linux/namei.h>
-#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <linux/uaccess.h>
 #include "../pci.h"
 #include "cpci_hotplug.h"
 
@@ -42,20 +36,14 @@
 /* local variables */
 static bool debug;
 
-static LIST_HEAD(pci_hotplug_slot_list);
-static DEFINE_MUTEX(pci_hp_mutex);
-
 /* Weee, fun with macros... */
 #define GET_STATUS(name, type)	\
 static int get_##name(struct hotplug_slot *slot, type *value)		\
 {									\
 	const struct hotplug_slot_ops *ops = slot->ops;			\
 	int retval = 0;							\
-	if (!try_module_get(slot->owner))				\
-		return -ENODEV;						\
 	if (ops->get_##name)						\
 		retval = ops->get_##name(slot, value);			\
-	module_put(slot->owner);					\
 	return retval;							\
 }
 
@@ -88,10 +76,6 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 	power = (u8)(lpower & 0xff);
 	dbg("power = %d\n", power);
 
-	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
-		goto exit;
-	}
 	switch (power) {
 	case 0:
 		if (slot->ops->disable_slot)
@@ -107,9 +91,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 		err("Illegal value specified for power\n");
 		retval = -EINVAL;
 	}
-	module_put(slot->owner);
 
-exit:
 	if (retval)
 		return retval;
 	return count;
@@ -146,15 +128,9 @@ static ssize_t attention_write_file(struct pci_slot *pci_slot, const char *buf,
 	attention = (u8)(lattention & 0xff);
 	dbg(" - attention = %d\n", attention);
 
-	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
-		goto exit;
-	}
 	if (ops->set_attention_status)
 		retval = ops->set_attention_status(slot, attention);
-	module_put(slot->owner);
 
-exit:
 	if (retval)
 		return retval;
 	return count;
@@ -212,15 +188,9 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 	test = (u32)(ltest & 0xffffffff);
 	dbg("test = %d\n", test);
 
-	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
-		goto exit;
-	}
 	if (slot->ops->hardware_test)
 		retval = slot->ops->hardware_test(slot, test);
-	module_put(slot->owner);
 
-exit:
 	if (retval)
 		return retval;
 	return count;
@@ -231,12 +201,8 @@ static struct pci_slot_attribute hotplug_slot_attr_test = {
 	.store = test_write_file
 };
 
-static bool has_power_file(struct pci_slot *pci_slot)
+static bool has_power_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
-	if ((!slot) || (!slot->ops))
-		return false;
 	if ((slot->ops->enable_slot) ||
 	    (slot->ops->disable_slot) ||
 	    (slot->ops->get_power_status))
@@ -244,87 +210,79 @@ static bool has_power_file(struct pci_slot *pci_slot)
 	return false;
 }
 
-static bool has_attention_file(struct pci_slot *pci_slot)
+static bool has_attention_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
-	if ((!slot) || (!slot->ops))
-		return false;
 	if ((slot->ops->set_attention_status) ||
 	    (slot->ops->get_attention_status))
 		return true;
 	return false;
 }
 
-static bool has_latch_file(struct pci_slot *pci_slot)
+static bool has_latch_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
-	if ((!slot) || (!slot->ops))
-		return false;
 	if (slot->ops->get_latch_status)
 		return true;
 	return false;
 }
 
-static bool has_adapter_file(struct pci_slot *pci_slot)
+static bool has_adapter_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
-	if ((!slot) || (!slot->ops))
-		return false;
 	if (slot->ops->get_adapter_status)
 		return true;
 	return false;
 }
 
-static bool has_test_file(struct pci_slot *pci_slot)
+static bool has_test_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
-	if ((!slot) || (!slot->ops))
-		return false;
 	if (slot->ops->hardware_test)
 		return true;
 	return false;
 }
 
-static int fs_add_slot(struct pci_slot *pci_slot)
+static int fs_add_slot(struct hotplug_slot *slot, struct pci_slot *pci_slot)
 {
+	struct kobject *kobj;
 	int retval = 0;
 
 	/* Create symbolic link to the hotplug driver module */
-	pci_hp_create_module_link(pci_slot);
+	kobj = kset_find_obj(module_kset, slot->mod_name);
+	if (kobj) {
+		retval = sysfs_create_link(&pci_slot->kobj, kobj, "module");
+		if (retval)
+			dev_err(&pci_slot->bus->dev,
+				"Error creating sysfs link (%d)\n", retval);
+		kobject_put(kobj);
+	}
 
-	if (has_power_file(pci_slot)) {
+	if (has_power_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_power.attr);
 		if (retval)
 			goto exit_power;
 	}
 
-	if (has_attention_file(pci_slot)) {
+	if (has_attention_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_attention.attr);
 		if (retval)
 			goto exit_attention;
 	}
 
-	if (has_latch_file(pci_slot)) {
+	if (has_latch_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_latch.attr);
 		if (retval)
 			goto exit_latch;
 	}
 
-	if (has_adapter_file(pci_slot)) {
+	if (has_adapter_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_presence.attr);
 		if (retval)
 			goto exit_adapter;
 	}
 
-	if (has_test_file(pci_slot)) {
+	if (has_test_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_test.attr);
 		if (retval)
@@ -334,56 +292,45 @@ static int fs_add_slot(struct pci_slot *pci_slot)
 	goto exit;
 
 exit_test:
-	if (has_adapter_file(pci_slot))
+	if (has_adapter_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_presence.attr);
 exit_adapter:
-	if (has_latch_file(pci_slot))
+	if (has_latch_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_latch.attr);
 exit_latch:
-	if (has_attention_file(pci_slot))
+	if (has_attention_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_attention.attr);
 exit_attention:
-	if (has_power_file(pci_slot))
+	if (has_power_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_power.attr);
 exit_power:
-	pci_hp_remove_module_link(pci_slot);
+	sysfs_remove_link(&pci_slot->kobj, "module");
 exit:
 	return retval;
 }
 
-static void fs_remove_slot(struct pci_slot *pci_slot)
+static void fs_remove_slot(struct hotplug_slot *slot, struct pci_slot *pci_slot)
 {
-	if (has_power_file(pci_slot))
+	if (has_power_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_power.attr);
 
-	if (has_attention_file(pci_slot))
+	if (has_attention_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_attention.attr);
 
-	if (has_latch_file(pci_slot))
+	if (has_latch_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_latch.attr);
 
-	if (has_adapter_file(pci_slot))
+	if (has_adapter_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_presence.attr);
 
-	if (has_test_file(pci_slot))
+	if (has_test_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_test.attr);
 
-	pci_hp_remove_module_link(pci_slot);
-}
-
-static struct hotplug_slot *get_slot_from_name(const char *name)
-{
-	struct hotplug_slot *slot;
-
-	list_for_each_entry(slot, &pci_hotplug_slot_list, slot_list) {
-		if (strcmp(hotplug_slot_name(slot), name) == 0)
-			return slot;
-	}
-	return NULL;
+	sysfs_remove_link(&pci_slot->kobj, "module");
 }
 
 /**
@@ -476,18 +423,19 @@ EXPORT_SYMBOL_GPL(__pci_hp_initialize);
  */
 int pci_hp_add(struct hotplug_slot *slot)
 {
-	struct pci_slot *pci_slot = slot->pci_slot;
+	struct pci_slot *pci_slot;
 	int result;
 
-	result = fs_add_slot(pci_slot);
+	if (WARN_ON(!slot))
+		return -EINVAL;
+
+	pci_slot = slot->pci_slot;
+
+	result = fs_add_slot(slot, pci_slot);
 	if (result)
 		return result;
 
 	kobject_uevent(&pci_slot->kobj, KOBJ_ADD);
-	mutex_lock(&pci_hp_mutex);
-	list_add(&slot->slot_list, &pci_hotplug_slot_list);
-	mutex_unlock(&pci_hp_mutex);
-	dbg("Added slot %s to the list\n", hotplug_slot_name(slot));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_hp_add);
@@ -514,22 +462,10 @@ EXPORT_SYMBOL_GPL(pci_hp_deregister);
  */
 void pci_hp_del(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *temp;
-
 	if (WARN_ON(!slot))
 		return;
 
-	mutex_lock(&pci_hp_mutex);
-	temp = get_slot_from_name(hotplug_slot_name(slot));
-	if (WARN_ON(temp != slot)) {
-		mutex_unlock(&pci_hp_mutex);
-		return;
-	}
-
-	list_del(&slot->slot_list);
-	mutex_unlock(&pci_hp_mutex);
-	dbg("Removed slot %s from the list\n", hotplug_slot_name(slot));
-	fs_remove_slot(slot->pci_slot);
+	fs_remove_slot(slot, slot->pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_del);
 
@@ -551,6 +487,75 @@ void pci_hp_destroy(struct hotplug_slot *slot)
 	pci_destroy_slot(pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_destroy);
+
+static DECLARE_WAIT_QUEUE_HEAD(pci_hp_link_change_wq);
+
+/**
+ * pci_hp_ignore_link_change - begin code section causing spurious link changes
+ * @pdev: PCI hotplug bridge
+ *
+ * Mark the beginning of a code section causing spurious link changes on the
+ * Secondary Bus of @pdev, e.g. as a side effect of a Secondary Bus Reset,
+ * D3cold transition, firmware update or FPGA reconfiguration.
+ *
+ * Hotplug drivers can thus check whether such a code section is executing
+ * concurrently, await it with pci_hp_spurious_link_change() and ignore the
+ * resulting link change events.
+ *
+ * Must be paired with pci_hp_unignore_link_change().  May be called both
+ * from the PCI core and from Endpoint drivers.  May be called for bridges
+ * which are not hotplug-capable, in which case it has no effect because
+ * no hotplug driver is bound to the bridge.
+ */
+void pci_hp_ignore_link_change(struct pci_dev *pdev)
+{
+	set_bit(PCI_LINK_CHANGING, &pdev->priv_flags);
+	smp_mb__after_atomic(); /* pairs with implied barrier of wait_event() */
+}
+
+/**
+ * pci_hp_unignore_link_change - end code section causing spurious link changes
+ * @pdev: PCI hotplug bridge
+ *
+ * Mark the end of a code section causing spurious link changes on the
+ * Secondary Bus of @pdev.  Must be paired with pci_hp_ignore_link_change().
+ */
+void pci_hp_unignore_link_change(struct pci_dev *pdev)
+{
+	set_bit(PCI_LINK_CHANGED, &pdev->priv_flags);
+	mb(); /* ensure pci_hp_spurious_link_change() sees either bit set */
+	clear_bit(PCI_LINK_CHANGING, &pdev->priv_flags);
+	wake_up_all(&pci_hp_link_change_wq);
+}
+
+/**
+ * pci_hp_spurious_link_change - check for spurious link changes
+ * @pdev: PCI hotplug bridge
+ *
+ * Check whether a code section is executing concurrently which is causing
+ * spurious link changes on the Secondary Bus of @pdev.  Await the end of the
+ * code section if so.
+ *
+ * May be called by hotplug drivers to check whether a link change is spurious
+ * and can be ignored.
+ *
+ * Because a genuine link change may have occurred in-between a spurious link
+ * change and the invocation of this function, hotplug drivers should perform
+ * sanity checks such as retrieving the current link state and bringing down
+ * the slot if the link is down.
+ *
+ * Return: %true if such a code section has been executing concurrently,
+ * otherwise %false.  Also return %true if such a code section has not been
+ * executing concurrently, but at least once since the last invocation of this
+ * function.
+ */
+bool pci_hp_spurious_link_change(struct pci_dev *pdev)
+{
+	wait_event(pci_hp_link_change_wq,
+		   !test_bit(PCI_LINK_CHANGING, &pdev->priv_flags));
+
+	return test_and_clear_bit(PCI_LINK_CHANGED, &pdev->priv_flags);
+}
 
 static int __init pci_hotplug_init(void)
 {

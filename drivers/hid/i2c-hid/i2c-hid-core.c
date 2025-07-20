@@ -51,6 +51,7 @@
 #define I2C_HID_QUIRK_NO_WAKEUP_AFTER_RESET	BIT(4)
 #define I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND	BIT(5)
 #define I2C_HID_QUIRK_DELAY_WAKEUP_AFTER_RESUME BIT(6)
+#define I2C_HID_QUIRK_RE_POWER_ON		BIT(7)
 
 /* Command opcodes */
 #define I2C_HID_OPCODE_RESET			0x01
@@ -135,6 +136,11 @@ static const struct i2c_hid_quirks {
 		I2C_HID_QUIRK_BAD_INPUT_SIZE },
 	{ I2C_VENDOR_ID_CIRQUE, I2C_PRODUCT_ID_CIRQUE_1063,
 		I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND },
+	/*
+	 * Without additional power on command, at least some QTEC devices send garbage
+	 */
+	{ I2C_VENDOR_ID_QTEC, HID_ANY_ID,
+		I2C_HID_QUIRK_RE_POWER_ON },
 	/*
 	 * Sending the wakeup after reset actually break ELAN touchscreen controller
 	 */
@@ -284,7 +290,7 @@ static int i2c_hid_get_report(struct i2c_hid *ihid,
 			     ihid->rawbuf, recv_len + sizeof(__le16));
 	if (error) {
 		dev_err(&ihid->client->dev,
-			"failed to set a report to device: %d\n", error);
+			"failed to get a report from device: %d\n", error);
 		return error;
 	}
 
@@ -1073,7 +1079,11 @@ static int i2c_hid_core_register_hid(struct i2c_hid *ihid)
 		return ret;
 	}
 
-	return 0;
+	/* At least some QTEC devices need this after initialization */
+	if (ihid->quirks & I2C_HID_QUIRK_RE_POWER_ON)
+		ret = i2c_hid_set_power(ihid, I2C_HID_PWR_ON);
+
+	return ret;
 }
 
 static int i2c_hid_core_probe_panel_follower(struct i2c_hid *ihid)

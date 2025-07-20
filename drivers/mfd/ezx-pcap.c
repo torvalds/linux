@@ -25,11 +25,6 @@ struct pcap_adc_request {
 	void *data;
 };
 
-struct pcap_adc_sync_request {
-	u16 res[2];
-	struct completion completion;
-};
-
 struct pcap_chip {
 	struct spi_device *spi;
 
@@ -334,34 +329,6 @@ int pcap_adc_async(struct pcap_chip *pcap, u8 bank, u32 flags, u8 ch[],
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pcap_adc_async);
-
-static void pcap_adc_sync_cb(void *param, u16 res[])
-{
-	struct pcap_adc_sync_request *req = param;
-
-	req->res[0] = res[0];
-	req->res[1] = res[1];
-	complete(&req->completion);
-}
-
-int pcap_adc_sync(struct pcap_chip *pcap, u8 bank, u32 flags, u8 ch[],
-								u16 res[])
-{
-	struct pcap_adc_sync_request sync_data;
-	int ret;
-
-	init_completion(&sync_data.completion);
-	ret = pcap_adc_async(pcap, bank, flags, ch, pcap_adc_sync_cb,
-								&sync_data);
-	if (ret)
-		return ret;
-	wait_for_completion(&sync_data.completion);
-	res[0] = sync_data.res[0];
-	res[1] = sync_data.res[1];
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pcap_adc_sync);
 
 /* subdevs */
 static int pcap_remove_subdev(struct device *dev, void *unused)

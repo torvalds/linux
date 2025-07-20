@@ -36,6 +36,7 @@ int
 nvif_disp_ctor(struct nvif_device *device, const char *name, s32 oclass, struct nvif_disp *disp)
 {
 	static const struct nvif_mclass disps[] = {
+		{ GB202_DISP, 0 },
 		{ AD102_DISP, 0 },
 		{ GA102_DISP, 0 },
 		{ TU102_DISP, 0 },

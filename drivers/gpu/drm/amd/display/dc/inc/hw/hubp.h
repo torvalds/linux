@@ -42,6 +42,7 @@
 #include "cursor_reg_cache.h"
 
 #include "dml2/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2/dml21/inc/dml_top_types.h"
 
 #define OPP_ID_INVALID 0xf
 #define MAX_TTU 0xffffff
@@ -144,13 +145,25 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
+	void (*hubp_setup2)(
+		struct hubp *hubp,
+		struct dml2_dchub_per_pipe_register_set *pipe_regs,
+		union dml2_global_sync_programming *pipe_global_sync,
+		struct dc_crtc_timing *timing);
+
 	void (*hubp_setup_interdependent)(
 			struct hubp *hubp,
 			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
 
+	void (*hubp_setup_interdependent2)(
+		struct hubp *hubp,
+		struct dml2_dchub_per_pipe_register_set *pipe_regs);
+
 	void (*dcc_control)(struct hubp *hubp, bool enable,
 			enum hubp_ind_block_size blk_size);
+
+	void (*hubp_reset)(struct hubp *hubp);
 
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
@@ -165,7 +178,7 @@ struct hubp_funcs {
 	void (*hubp_program_pte_vm)(
 		struct hubp *hubp,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation);
 
 	void (*hubp_set_vm_system_aperture_settings)(
@@ -179,7 +192,7 @@ struct hubp_funcs {
 	void (*hubp_program_surface_config)(
 		struct hubp *hubp,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
@@ -275,6 +288,7 @@ struct hubp_funcs {
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r);
 	int (*hubp_get_3dlut_fl_done)(struct hubp *hubp);
+	void (*hubp_clear_tiling)(struct hubp *hubp);
 };
 
 #endif

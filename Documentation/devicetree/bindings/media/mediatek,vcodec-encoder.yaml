@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/media/mediatek,vcodec-encoder.yaml#
@@ -42,10 +41,6 @@ properties:
     minItems: 1
     maxItems: 5
 
-  assigned-clocks: true
-
-  assigned-clock-parents: true
-
   iommus:
     minItems: 1
     maxItems: 32
@@ -79,8 +74,6 @@ required:
   - clocks
   - clock-names
   - iommus
-  - assigned-clocks
-  - assigned-clock-parents
 
 allOf:
   - if:

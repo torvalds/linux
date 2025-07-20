@@ -1014,6 +1014,14 @@ struct bdb_tv_options {
  * Block 27 - eDP VBT Block
  */
 
+struct edp_power_seq {
+	u16 t1_t3;
+	u16 t8;
+	u16 t9;
+	u16 t10;
+	u16 t11_t12;
+} __packed;
+
 #define EDP_18BPP	0
 #define EDP_24BPP	1
 #define EDP_30BPP	2

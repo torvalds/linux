@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Landlock LSM - System call implementations and user space interfaces
+ * Landlock - System call implementations and user space interfaces
  *
  * Copyright © 2016-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2021-2025 Microsoft Corporation
  */
 
 #include <asm/current.h>
 #include <linux/anon_inodes.h>
+#include <linux/bitops.h>
 #include <linux/build_bug.h>
 #include <linux/capability.h>
+#include <linux/cleanup.h>
 #include <linux/compiler_types.h>
 #include <linux/dcache.h>
 #include <linux/err.h>
@@ -27,6 +30,7 @@
 #include <uapi/linux/landlock.h>
 
 #include "cred.h"
+#include "domain.h"
 #include "fs.h"
 #include "limits.h"
 #include "net.h"
@@ -150,7 +154,14 @@ static const struct file_operations ruleset_fops = {
 	.write = fop_dummy_write,
 };
 
-#define LANDLOCK_ABI_VERSION 6
+/*
+ * The Landlock ABI version should be incremented for each new Landlock-related
+ * user space visible change (e.g. Landlock syscalls).  This version should
+ * only be incremented once per Linux release, and the date in
+ * Documentation/userspace-api/landlock.rst should be updated to reflect the
+ * UAPI change.
+ */
+const int landlock_abi_version = 7;
 
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
@@ -159,14 +170,16 @@ static const struct file_operations ruleset_fops = {
  *        the new ruleset.
  * @size: Size of the pointed &struct landlock_ruleset_attr (needed for
  *        backward and forward compatibility).
- * @flags: Supported value: %LANDLOCK_CREATE_RULESET_VERSION.
+ * @flags: Supported values:
+ *
+ *         - %LANDLOCK_CREATE_RULESET_VERSION
+ *         - %LANDLOCK_CREATE_RULESET_ERRATA
  *
  * This system call enables to create a new Landlock ruleset, and returns the
  * related file descriptor on success.
  *
- * If @flags is %LANDLOCK_CREATE_RULESET_VERSION and @attr is NULL and @size is
- * 0, then the returned value is the highest supported Landlock ABI version
- * (starting at 1).
+ * If %LANDLOCK_CREATE_RULESET_VERSION or %LANDLOCK_CREATE_RULESET_ERRATA is
+ * set, then @attr must be NULL and @size must be 0.
  *
  * Possible returned errors are:
  *
@@ -175,6 +188,9 @@ static const struct file_operations ruleset_fops = {
  * - %E2BIG: @attr or @size inconsistencies;
  * - %EFAULT: @attr or @size inconsistencies;
  * - %ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
+ *
+ * .. kernel-doc:: include/uapi/linux/landlock.h
+ *     :identifiers: landlock_create_ruleset_flags
  */
 SYSCALL_DEFINE3(landlock_create_ruleset,
 		const struct landlock_ruleset_attr __user *const, attr,
@@ -191,9 +207,15 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 		return -EOPNOTSUPP;
 
 	if (flags) {
-		if ((flags == LANDLOCK_CREATE_RULESET_VERSION) && !attr &&
-		    !size)
-			return LANDLOCK_ABI_VERSION;
+		if (attr || size)
+			return -EINVAL;
+
+		if (flags == LANDLOCK_CREATE_RULESET_VERSION)
+			return landlock_abi_version;
+
+		if (flags == LANDLOCK_CREATE_RULESET_ERRATA)
+			return landlock_errata;
+
 		return -EINVAL;
 	}
 
@@ -398,8 +420,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 		const enum landlock_rule_type, rule_type,
 		const void __user *const, rule_attr, const __u32, flags)
 {
-	struct landlock_ruleset *ruleset;
-	int err;
+	struct landlock_ruleset *ruleset __free(landlock_put_ruleset) = NULL;
 
 	if (!is_initialized())
 		return -EOPNOTSUPP;
@@ -415,17 +436,12 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 
 	switch (rule_type) {
 	case LANDLOCK_RULE_PATH_BENEATH:
-		err = add_rule_path_beneath(ruleset, rule_attr);
-		break;
+		return add_rule_path_beneath(ruleset, rule_attr);
 	case LANDLOCK_RULE_NET_PORT:
-		err = add_rule_net_port(ruleset, rule_attr);
-		break;
+		return add_rule_net_port(ruleset, rule_attr);
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	landlock_put_ruleset(ruleset);
-	return err;
 }
 
 /* Enforcement */
@@ -434,7 +450,11 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  * sys_landlock_restrict_self - Enforce a ruleset on the calling thread
  *
  * @ruleset_fd: File descriptor tied to the ruleset to merge with the target.
- * @flags: Must be 0.
+ * @flags: Supported values:
+ *
+ *         - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
+ *         - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
+ *         - %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
  *
  * This system call enables to enforce a Landlock ruleset on the current
  * thread.  Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
@@ -444,7 +464,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  * Possible returned errors are:
  *
  * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - %EINVAL: @flags is not 0.
+ * - %EINVAL: @flags contains an unknown bit.
  * - %EBADF: @ruleset_fd is not a file descriptor for the current thread;
  * - %EBADFD: @ruleset_fd is not a ruleset file descriptor;
  * - %EPERM: @ruleset_fd has no read access to the underlying ruleset, or the
@@ -452,14 +472,19 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  *   %CAP_SYS_ADMIN in its namespace.
  * - %E2BIG: The maximum number of stacked rulesets is reached for the current
  *   thread.
+ *
+ * .. kernel-doc:: include/uapi/linux/landlock.h
+ *     :identifiers: landlock_restrict_self_flags
  */
 SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		flags)
 {
-	struct landlock_ruleset *new_dom, *ruleset;
+	struct landlock_ruleset *new_dom,
+		*ruleset __free(landlock_put_ruleset) = NULL;
 	struct cred *new_cred;
 	struct landlock_cred_security *new_llcred;
-	int err;
+	bool __maybe_unused log_same_exec, log_new_exec, log_subdomains,
+		prev_log_subdomains;
 
 	if (!is_initialized())
 		return -EOPNOTSUPP;
@@ -472,22 +497,50 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
-	/* No flag for now. */
-	if (flags)
+	if ((flags | LANDLOCK_MASK_RESTRICT_SELF) !=
+	    LANDLOCK_MASK_RESTRICT_SELF)
 		return -EINVAL;
 
-	/* Gets and checks the ruleset. */
-	ruleset = get_ruleset_from_fd(ruleset_fd, FMODE_CAN_READ);
-	if (IS_ERR(ruleset))
-		return PTR_ERR(ruleset);
+	/* Translates "off" flag to boolean. */
+	log_same_exec = !(flags & LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF);
+	/* Translates "on" flag to boolean. */
+	log_new_exec = !!(flags & LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON);
+	/* Translates "off" flag to boolean. */
+	log_subdomains = !(flags & LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF);
+
+	/*
+	 * It is allowed to set LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF with
+	 * -1 as ruleset_fd, but no other flag must be set.
+	 */
+	if (!(ruleset_fd == -1 &&
+	      flags == LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF)) {
+		/* Gets and checks the ruleset. */
+		ruleset = get_ruleset_from_fd(ruleset_fd, FMODE_CAN_READ);
+		if (IS_ERR(ruleset))
+			return PTR_ERR(ruleset);
+	}
 
 	/* Prepares new credentials. */
 	new_cred = prepare_creds();
-	if (!new_cred) {
-		err = -ENOMEM;
-		goto out_put_ruleset;
-	}
+	if (!new_cred)
+		return -ENOMEM;
+
 	new_llcred = landlock_cred(new_cred);
+
+#ifdef CONFIG_AUDIT
+	prev_log_subdomains = !new_llcred->log_subdomains_off;
+	new_llcred->log_subdomains_off = !prev_log_subdomains ||
+					 !log_subdomains;
+#endif /* CONFIG_AUDIT */
+
+	/*
+	 * The only case when a ruleset may not be set is if
+	 * LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF is set and ruleset_fd is -1.
+	 * We could optimize this case by not calling commit_creds() if this flag
+	 * was already set, but it is not worth the complexity.
+	 */
+	if (!ruleset)
+		return commit_creds(new_cred);
 
 	/*
 	 * There is no possible race condition while copying and manipulating
@@ -495,21 +548,24 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	 */
 	new_dom = landlock_merge_ruleset(new_llcred->domain, ruleset);
 	if (IS_ERR(new_dom)) {
-		err = PTR_ERR(new_dom);
-		goto out_put_creds;
+		abort_creds(new_cred);
+		return PTR_ERR(new_dom);
 	}
+
+#ifdef CONFIG_AUDIT
+	new_dom->hierarchy->log_same_exec = log_same_exec;
+	new_dom->hierarchy->log_new_exec = log_new_exec;
+	if ((!log_same_exec && !log_new_exec) || !prev_log_subdomains)
+		new_dom->hierarchy->log_status = LANDLOCK_LOG_DISABLED;
+#endif /* CONFIG_AUDIT */
 
 	/* Replaces the old (prepared) domain. */
 	landlock_put_ruleset(new_llcred->domain);
 	new_llcred->domain = new_dom;
 
-	landlock_put_ruleset(ruleset);
+#ifdef CONFIG_AUDIT
+	new_llcred->domain_exec |= BIT(new_dom->num_layers - 1);
+#endif /* CONFIG_AUDIT */
+
 	return commit_creds(new_cred);
-
-out_put_creds:
-	abort_creds(new_cred);
-
-out_put_ruleset:
-	landlock_put_ruleset(ruleset);
-	return err;
 }

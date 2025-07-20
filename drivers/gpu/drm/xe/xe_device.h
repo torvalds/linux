@@ -157,8 +157,7 @@ static inline bool xe_device_has_sriov(struct xe_device *xe)
 
 static inline bool xe_device_has_msix(struct xe_device *xe)
 {
-	/* TODO: change this when MSI-X support is fully integrated */
-	return false;
+	return xe->irq.msix.nvec > 0;
 }
 
 static inline bool xe_device_has_memirq(struct xe_device *xe)
@@ -169,6 +168,11 @@ static inline bool xe_device_has_memirq(struct xe_device *xe)
 static inline bool xe_device_uses_memirq(struct xe_device *xe)
 {
 	return xe_device_has_memirq(xe) && (IS_SRIOV_VF(xe) || xe_device_has_msix(xe));
+}
+
+static inline bool xe_device_has_lmtt(struct xe_device *xe)
+{
+	return IS_DGFX(xe);
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size);

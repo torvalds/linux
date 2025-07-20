@@ -124,7 +124,7 @@ static struct phy_driver ste10xp_pdriver[] = {
 
 module_phy_driver(ste10xp_pdriver);
 
-static struct mdio_device_id __maybe_unused ste10Xp_tbl[] = {
+static const struct mdio_device_id __maybe_unused ste10Xp_tbl[] = {
 	{ STE101P_PHY_ID, 0xfffffff0 },
 	{ STE100P_PHY_ID, 0xffffffff },
 	{ }

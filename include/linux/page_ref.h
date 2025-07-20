@@ -234,7 +234,7 @@ static inline bool page_ref_add_unless(struct page *page, int nr, int u)
 
 	rcu_read_lock();
 	/* avoid writing to the vmemmap area being remapped */
-	if (!page_is_fake_head(page) && page_ref_count(page) != u)
+	if (page_count_writable(page, u))
 		ret = atomic_add_unless(&page->_refcount, nr, u);
 	rcu_read_unlock();
 

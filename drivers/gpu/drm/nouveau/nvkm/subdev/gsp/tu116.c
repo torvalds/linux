@@ -22,29 +22,27 @@
 #include "priv.h"
 
 static const struct nvkm_gsp_func
-tu116_gsp_r535_113_01 = {
+tu116_gsp = {
 	.flcn = &tu102_gsp_flcn,
 	.fwsec = &tu102_gsp_fwsec,
 
 	.sig_section = ".fwsignature_tu11x",
 
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
-
 	.booter.ctor = tu102_gsp_booter_ctor,
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
+	.init = tu102_gsp_init,
+	.fini = tu102_gsp_fini,
 	.reset = tu102_gsp_reset,
 
-	.rm = &r535_gsp_rm,
+	.rm.gpu = &tu1xx_gpu,
 };
 
 static struct nvkm_gsp_fwif
 tu116_gsps[] = {
-	{  0,  r535_gsp_load, &tu116_gsp_r535_113_01, "535.113.01" },
+	{  1, tu102_gsp_load, &tu116_gsp, &r570_rm_tu102, "570.144" },
+	{  0, tu102_gsp_load, &tu116_gsp, &r535_rm_tu102, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };
@@ -55,3 +53,9 @@ tu116_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	return nvkm_gsp_new_(tu116_gsps, device, type, inst, pgsp);
 }
+
+NVKM_GSP_FIRMWARE_BOOTER(tu116, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(tu117, 535.113.01);
+
+NVKM_GSP_FIRMWARE_BOOTER(tu116, 570.144);
+NVKM_GSP_FIRMWARE_BOOTER(tu117, 570.144);

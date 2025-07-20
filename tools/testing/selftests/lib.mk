@@ -228,4 +228,7 @@ $(OUTPUT)/%:%.S
 	$(LINK.S) $^ $(LDLIBS) -o $@
 endif
 
-.PHONY: run_tests all clean install emit_tests gen_mods_dir clean_mods_dir
+headers:
+	$(Q)$(MAKE) -C $(top_srcdir) headers
+
+.PHONY: run_tests all clean install emit_tests gen_mods_dir clean_mods_dir headers

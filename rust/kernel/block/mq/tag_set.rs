@@ -10,12 +10,11 @@ use crate::{
     bindings,
     block::mq::{operations::OperationsVTable, request::RequestDataWrapper, Operations},
     error,
-    prelude::PinInit,
-    try_pin_init,
+    prelude::try_pin_init,
     types::Opaque,
 };
 use core::{convert::TryInto, marker::PhantomData};
-use macros::{pin_data, pinned_drop};
+use pin_init::{pin_data, pinned_drop, PinInit};
 
 /// A wrapper for the C `struct blk_mq_tag_set`.
 ///
@@ -52,7 +51,7 @@ impl<T: Operations> TagSet<T> {
                     numa_node: bindings::NUMA_NO_NODE,
                     queue_depth: num_tags,
                     cmd_size,
-                    flags: bindings::BLK_MQ_F_SHOULD_MERGE,
+                    flags: 0,
                     driver_data: core::ptr::null_mut::<crate::ffi::c_void>(),
                     nr_maps: num_maps,
                     ..tag_set

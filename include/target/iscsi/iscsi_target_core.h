@@ -576,9 +576,6 @@ struct iscsit_conn {
 	spinlock_t		state_lock;
 	spinlock_t		login_timer_lock;
 	spinlock_t		login_worker_lock;
-	/* libcrypto RX and TX contexts for crc32c */
-	struct ahash_request	*conn_rx_hash;
-	struct ahash_request	*conn_tx_hash;
 	/* Used for scheduling TX and RX connection kthreads */
 	cpumask_var_t		conn_cpumask;
 	cpumask_var_t		allowed_cpumask;

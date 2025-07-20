@@ -42,7 +42,7 @@ pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret, *init;
 
-	ret = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+	ret = __pgd_alloc(mm, 0);
 	init = pgd_offset(&init_mm, 0UL);
 	if (ret) {
 #ifdef CONFIG_ALPHA_LARGE_VMALLOC
@@ -272,14 +272,6 @@ srm_paging_stop (void)
 	tbia();
 }
 #endif
-
-void __init
-mem_init(void)
-{
-	set_max_mapnr(max_low_pfn);
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-	memblock_free_all();
-}
 
 static const pgprot_t protection_map[16] = {
 	[VM_NONE]					= _PAGE_P(_PAGE_FOE | _PAGE_FOW |

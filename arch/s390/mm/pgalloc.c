@@ -12,34 +12,7 @@
 #include <asm/mmu_context.h>
 #include <asm/page-states.h>
 #include <asm/pgalloc.h>
-#include <asm/gmap.h>
-#include <asm/tlb.h>
 #include <asm/tlbflush.h>
-
-#ifdef CONFIG_PGSTE
-
-int page_table_allocate_pgste = 0;
-EXPORT_SYMBOL(page_table_allocate_pgste);
-
-static struct ctl_table page_table_sysctl[] = {
-	{
-		.procname	= "allocate_pgste",
-		.data		= &page_table_allocate_pgste,
-		.maxlen		= sizeof(int),
-		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-};
-
-static int __init page_table_register_sysctl(void)
-{
-	return register_sysctl("vm", page_table_sysctl) ? 0 : -ENOMEM;
-}
-__initcall(page_table_register_sysctl);
-
-#endif /* CONFIG_PGSTE */
 
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
@@ -63,11 +36,15 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
+	struct ctlreg asce;
 
 	/* change all active ASCEs to avoid the creation of new TLBs */
 	if (current->active_mm == mm) {
-		get_lowcore()->user_asce.val = mm->context.asce;
-		local_ctl_load(7, &get_lowcore()->user_asce);
+		asce.val = mm->context.asce;
+		get_lowcore()->user_asce = asce;
+		local_ctl_load(7, &asce);
+		if (!test_thread_flag(TIF_ASCE_PRIMARY))
+			local_ctl_load(1, &asce);
 	}
 	__tlb_flush_local();
 }
@@ -76,6 +53,8 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 {
 	unsigned long *pgd = NULL, *p4d = NULL, *__pgd;
 	unsigned long asce_limit = mm->context.asce_limit;
+
+	mmap_assert_write_locked(mm);
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
 	VM_BUG_ON(asce_limit < _REGION2_SIZE);
@@ -88,22 +67,17 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 		if (unlikely(!p4d))
 			goto err_p4d;
 		crst_table_init(p4d, _REGION2_ENTRY_EMPTY);
+		pagetable_p4d_ctor(virt_to_ptdesc(p4d));
 	}
 	if (end > _REGION1_SIZE) {
 		pgd = crst_table_alloc(mm);
 		if (unlikely(!pgd))
 			goto err_pgd;
 		crst_table_init(pgd, _REGION1_ENTRY_EMPTY);
+		pagetable_pgd_ctor(virt_to_ptdesc(pgd));
 	}
 
 	spin_lock_bh(&mm->page_table_lock);
-
-	/*
-	 * This routine gets called with mmap_lock lock held and there is
-	 * no reason to optimize for the case of otherwise. However, if
-	 * that would ever change, the below check will let us know.
-	 */
-	VM_BUG_ON(asce_limit != mm->context.asce_limit);
 
 	if (p4d) {
 		__pgd = (unsigned long *) mm->pgd;
@@ -130,6 +104,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	return 0;
 
 err_pgd:
+	pagetable_dtor(virt_to_ptdesc(p4d));
 	crst_table_free(mm, p4d);
 err_p4d:
 	return -ENOMEM;
@@ -167,43 +142,22 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
 	if (!ptdesc)
 		return NULL;
-	if (!pagetable_pte_ctor(ptdesc)) {
+	if (!pagetable_pte_ctor(mm, ptdesc)) {
 		pagetable_free(ptdesc);
 		return NULL;
 	}
 	table = ptdesc_to_virt(ptdesc);
 	__arch_set_page_dat(table, 1);
-	/* pt_list is used by gmap only */
-	INIT_LIST_HEAD(&ptdesc->pt_list);
 	memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
 	memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	return table;
-}
-
-static void pagetable_pte_dtor_free(struct ptdesc *ptdesc)
-{
-	pagetable_pte_dtor(ptdesc);
-	pagetable_free(ptdesc);
 }
 
 void page_table_free(struct mm_struct *mm, unsigned long *table)
 {
 	struct ptdesc *ptdesc = virt_to_ptdesc(table);
 
-	pagetable_pte_dtor_free(ptdesc);
-}
-
-void __tlb_remove_table(void *table)
-{
-	struct ptdesc *ptdesc = virt_to_ptdesc(table);
-	struct page *page = ptdesc_page(ptdesc);
-
-	if (compound_order(page) == CRST_ALLOC_ORDER) {
-		/* pmd, pud, or p4d */
-		pagetable_free(ptdesc);
-		return;
-	}
-	pagetable_pte_dtor_free(ptdesc);
+	pagetable_dtor_free(ptdesc);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -211,7 +165,7 @@ static void pte_free_now(struct rcu_head *head)
 {
 	struct ptdesc *ptdesc = container_of(head, struct ptdesc, pt_rcu_head);
 
-	pagetable_pte_dtor_free(ptdesc);
+	pagetable_dtor_free(ptdesc);
 }
 
 void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)

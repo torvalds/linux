@@ -200,26 +200,6 @@ struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
 EXPORT_SYMBOL_GPL(tty_port_register_device_attr_serdev);
 
 /**
- * tty_port_register_device_serdev - register tty or serdev device
- * @port: tty_port of the device
- * @driver: tty_driver for this device
- * @index: index of the tty
- * @host: serial port hardware controller device
- * @parent: parent if exists, otherwise NULL
- *
- * Register a serdev or tty device depending on if the parent device has any
- * defined serdev clients or not.
- */
-struct device *tty_port_register_device_serdev(struct tty_port *port,
-		struct tty_driver *driver, unsigned index,
-		struct device *host, struct device *parent)
-{
-	return tty_port_register_device_attr_serdev(port, driver, index,
-			host, parent, NULL, NULL);
-}
-EXPORT_SYMBOL_GPL(tty_port_register_device_serdev);
-
-/**
  * tty_port_unregister_device - deregister a tty or serdev device
  * @port: tty_port of the device
  * @driver: tty_driver for this device

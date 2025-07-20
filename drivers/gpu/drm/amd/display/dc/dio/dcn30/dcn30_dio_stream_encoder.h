@@ -322,6 +322,10 @@ void enc3_dp_set_dsc_pps_info_packet(
 	struct stream_encoder *enc,
 	bool enable,
 	uint8_t *dsc_packed_pps,
-    bool immediate_update);
+	bool immediate_update);
+void enc3_update_hdmi_info_packet(
+	struct dcn10_stream_encoder *enc1,
+	uint32_t packet_index,
+	const struct dc_info_packet *info_packet);
 
 #endif /* __DC_DIO_STREAM_ENCODER_DCN30_H__ */

@@ -141,6 +141,38 @@ struct crc_params {
 
 	bool continuous_mode;
 	bool enable;
+
+	uint8_t crc_eng_inst;
+	bool reset;
+};
+
+struct dcn_otg_state {
+	uint32_t v_blank_start;
+	uint32_t v_blank_end;
+	uint32_t v_sync_a_pol;
+	uint32_t v_total;
+	uint32_t v_total_max;
+	uint32_t v_total_min;
+	uint32_t v_total_min_sel;
+	uint32_t v_total_max_sel;
+	uint32_t v_sync_a_start;
+	uint32_t v_sync_a_end;
+	uint32_t h_blank_start;
+	uint32_t h_blank_end;
+	uint32_t h_sync_a_start;
+	uint32_t h_sync_a_end;
+	uint32_t h_sync_a_pol;
+	uint32_t h_total;
+	uint32_t underflow_occurred_status;
+	uint32_t otg_enabled;
+	uint32_t blank_enabled;
+	uint32_t vertical_interrupt1_en;
+	uint32_t vertical_interrupt1_line;
+	uint32_t vertical_interrupt2_en;
+	uint32_t vertical_interrupt2_line;
+	uint32_t vertical_interrupt2_dest;
+	uint32_t otg_master_update_lock;
+	uint32_t otg_double_buffer_control;
 };
 
 /**
@@ -291,7 +323,7 @@ struct timing_generator_funcs {
 	 * @get_crc: Get CRCs for the given timing generator. Return false if
 	 * CRCs are not enabled (via configure_crc).
 	 */
-	bool (*get_crc)(struct timing_generator *tg,
+	bool (*get_crc)(struct timing_generator *tg, uint8_t idx,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
 
 	void (*program_manual_trigger)(struct timing_generator *optc);
@@ -347,6 +379,7 @@ struct timing_generator_funcs {
 	bool (*get_pipe_update_pending)(struct timing_generator *tg);
 	void (*set_vupdate_keepout)(struct timing_generator *tg, bool enable);
 	bool (*wait_update_lock_status)(struct timing_generator *tg, bool locked);
+	void (*read_otg_state)(struct timing_generator *tg, struct dcn_otg_state *s);
 };
 
 #endif

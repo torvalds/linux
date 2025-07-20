@@ -178,7 +178,9 @@ properties:
     description: Child nodes are just another property from a json-schema
       perspective.
     type: object  # DT nodes are json objects
-    # Child nodes also need additionalProperties or unevaluatedProperties
+    # Child nodes also need additionalProperties or unevaluatedProperties, where
+    # 'false' should be used in most cases (see 'child-node-with-own-schema'
+    # below).
     additionalProperties: false
     properties:
       vendor,a-child-node-property:
@@ -188,6 +190,17 @@ properties:
 
     required:
       - vendor,a-child-node-property
+
+  child-node-with-own-schema:
+    description: |
+      Child node with their own compatible and device schema which ends in
+      'additionalProperties: false' or 'unevaluatedProperties: false' can
+      mention only the compatible and use here 'additionalProperties: true'.
+    type: object
+    additionalProperties: true
+    properties:
+      compatible:
+        const: vendor,sub-device
 
 # Describe the relationship between different properties
 dependencies:

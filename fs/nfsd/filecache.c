@@ -39,6 +39,7 @@
 #include <linux/fsnotify.h>
 #include <linux/seq_file.h>
 #include <linux/rhashtable.h>
+#include <linux/nfslocalio.h>
 
 #include "vfs.h"
 #include "nfsd.h"
@@ -318,15 +319,14 @@ nfsd_file_check_writeback(struct nfsd_file *nf)
 		mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK);
 }
 
-
-static bool nfsd_file_lru_add(struct nfsd_file *nf)
+static void nfsd_file_lru_add(struct nfsd_file *nf)
 {
-	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	if (list_lru_add_obj(&nfsd_file_lru, &nf->nf_lru)) {
+	refcount_inc(&nf->nf_ref);
+	if (list_lru_add_obj(&nfsd_file_lru, &nf->nf_lru))
 		trace_nfsd_file_lru_add(nf);
-		return true;
-	}
-	return false;
+	else
+		WARN_ON(1);
+	nfsd_file_schedule_laundrette();
 }
 
 static bool nfsd_file_lru_remove(struct nfsd_file *nf)
@@ -362,48 +362,54 @@ nfsd_file_put(struct nfsd_file *nf)
 
 	if (test_bit(NFSD_FILE_GC, &nf->nf_flags) &&
 	    test_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
-		/*
-		 * If this is the last reference (nf_ref == 1), then try to
-		 * transfer it to the LRU.
-		 */
-		if (refcount_dec_not_one(&nf->nf_ref))
-			return;
-
-		/* Try to add it to the LRU.  If that fails, decrement. */
-		if (nfsd_file_lru_add(nf)) {
-			/* If it's still hashed, we're done */
-			if (test_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
-				nfsd_file_schedule_laundrette();
-				return;
-			}
-
-			/*
-			 * We're racing with unhashing, so try to remove it from
-			 * the LRU. If removal fails, then someone else already
-			 * has our reference.
-			 */
-			if (!nfsd_file_lru_remove(nf))
-				return;
-		}
+		set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
+		set_bit(NFSD_FILE_RECENT, &nf->nf_flags);
 	}
+
 	if (refcount_dec_and_test(&nf->nf_ref))
 		nfsd_file_free(nf);
 }
 
 /**
- * nfsd_file_put_local - put nfsd_file reference and arm nfsd_serv_put in caller
+ * nfsd_file_put_local - put nfsd_file reference and arm nfsd_net_put in caller
  * @nf: nfsd_file of which to put the reference
  *
  * First save the associated net to return to caller, then put
  * the reference of the nfsd_file.
  */
 struct net *
-nfsd_file_put_local(struct nfsd_file *nf)
+nfsd_file_put_local(struct nfsd_file __rcu **pnf)
+{
+	struct nfsd_file *nf;
+	struct net *net = NULL;
+
+	nf = unrcu_pointer(xchg(pnf, NULL));
+	if (nf) {
+		net = nf->nf_net;
+		nfsd_file_put(nf);
+	}
+	return net;
+}
+
+/**
+ * nfsd_file_get_local - get nfsd_file reference and reference to net
+ * @nf: nfsd_file of which to put the reference
+ *
+ * Get reference to both the nfsd_file and nf->nf_net.
+ */
+struct nfsd_file *
+nfsd_file_get_local(struct nfsd_file *nf)
 {
 	struct net *net = nf->nf_net;
 
-	nfsd_file_put(nf);
-	return net;
+	if (nfsd_net_try_get(net)) {
+		nf = nfsd_file_get(nf);
+		if (!nf)
+			nfsd_net_put(net);
+	} else {
+		nf = NULL;
+	}
+	return nf;
 }
 
 /**
@@ -445,11 +451,20 @@ nfsd_file_dispose_list_delayed(struct list_head *dispose)
 						struct nfsd_file, nf_gc);
 		struct nfsd_net *nn = net_generic(nf->nf_net, nfsd_net_id);
 		struct nfsd_fcache_disposal *l = nn->fcache_disposal;
+		struct svc_serv *serv;
 
 		spin_lock(&l->lock);
 		list_move_tail(&nf->nf_gc, &l->freeme);
 		spin_unlock(&l->lock);
-		svc_wake_up(nn->nfsd_serv);
+
+		/*
+		 * The filecache laundrette is shut down after the
+		 * nn->nfsd_serv pointer is cleared, but before the
+		 * svc_serv is freed.
+		 */
+		serv = nn->nfsd_serv;
+		if (serv)
+			svc_wake_up(serv);
 	}
 }
 
@@ -520,13 +535,12 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 	}
 
 	/*
-	 * Put the reference held on behalf of the LRU. If it wasn't the last
-	 * one, then just remove it from the LRU and ignore it.
+	 * Put the reference held on behalf of the LRU if it is the last
+	 * reference, else rotate.
 	 */
-	if (!refcount_dec_and_test(&nf->nf_ref)) {
+	if (!refcount_dec_if_one(&nf->nf_ref)) {
 		trace_nfsd_file_gc_in_use(nf);
-		list_lru_isolate(lru, &nf->nf_lru);
-		return LRU_REMOVED;
+		return LRU_ROTATE;
 	}
 
 	/* Refcount went to zero. Unhash it and queue it to the dispose list */
@@ -538,14 +552,54 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 	return LRU_REMOVED;
 }
 
+static enum lru_status
+nfsd_file_gc_cb(struct list_head *item, struct list_lru_one *lru,
+		 void *arg)
+{
+	struct nfsd_file *nf = list_entry(item, struct nfsd_file, nf_lru);
+
+	if (test_and_clear_bit(NFSD_FILE_RECENT, &nf->nf_flags)) {
+		/*
+		 * "REFERENCED" really means "should be at the end of the
+		 * LRU. As we are putting it there we can clear the flag.
+		 */
+		clear_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
+		trace_nfsd_file_gc_aged(nf);
+		return LRU_ROTATE;
+	}
+	return nfsd_file_lru_cb(item, lru, arg);
+}
+
+/* If the shrinker runs between calls to list_lru_walk_node() in
+ * nfsd_file_gc(), the "remaining" count will be wrong.  This could
+ * result in premature freeing of some files.  This may not matter much
+ * but is easy to fix with this spinlock which temporarily disables
+ * the shrinker.
+ */
+static DEFINE_SPINLOCK(nfsd_gc_lock);
 static void
 nfsd_file_gc(void)
 {
+	unsigned long ret = 0;
 	LIST_HEAD(dispose);
-	unsigned long ret;
+	int nid;
 
-	ret = list_lru_walk(&nfsd_file_lru, nfsd_file_lru_cb,
-			    &dispose, list_lru_count(&nfsd_file_lru));
+	spin_lock(&nfsd_gc_lock);
+	for_each_node_state(nid, N_NORMAL_MEMORY) {
+		unsigned long remaining = list_lru_count_node(&nfsd_file_lru, nid);
+
+		while (remaining > 0) {
+			unsigned long nr = min(remaining, NFSD_FILE_GC_BATCH);
+
+			remaining -= nr;
+			ret += list_lru_walk_node(&nfsd_file_lru, nid, nfsd_file_gc_cb,
+						  &dispose, &nr);
+			if (nr)
+				/* walk aborted early */
+				remaining = 0;
+		}
+	}
+	spin_unlock(&nfsd_gc_lock);
 	trace_nfsd_file_gc_removed(ret, list_lru_count(&nfsd_file_lru));
 	nfsd_file_dispose_list_delayed(&dispose);
 }
@@ -553,9 +607,9 @@ nfsd_file_gc(void)
 static void
 nfsd_file_gc_worker(struct work_struct *work)
 {
-	nfsd_file_gc();
 	if (list_lru_count(&nfsd_file_lru))
-		nfsd_file_schedule_laundrette();
+		nfsd_file_gc();
+	nfsd_file_schedule_laundrette();
 }
 
 static unsigned long
@@ -570,8 +624,12 @@ nfsd_file_lru_scan(struct shrinker *s, struct shrink_control *sc)
 	LIST_HEAD(dispose);
 	unsigned long ret;
 
+	if (!spin_trylock(&nfsd_gc_lock))
+		return SHRINK_STOP;
+
 	ret = list_lru_shrink_walk(&nfsd_file_lru, sc,
 				   nfsd_file_lru_cb, &dispose);
+	spin_unlock(&nfsd_gc_lock);
 	trace_nfsd_file_shrinker_removed(ret, list_lru_count(&nfsd_file_lru));
 	nfsd_file_dispose_list_delayed(&dispose);
 	return ret;
@@ -676,17 +734,12 @@ nfsd_file_close_inode(struct inode *inode)
 void
 nfsd_file_close_inode_sync(struct inode *inode)
 {
-	struct nfsd_file *nf;
 	LIST_HEAD(dispose);
 
 	trace_nfsd_file_close(inode);
 
 	nfsd_file_queue_for_close(inode, &dispose);
-	while (!list_empty(&dispose)) {
-		nf = list_first_entry(&dispose, struct nfsd_file, nf_gc);
-		list_del_init(&nf->nf_gc);
-		nfsd_file_free(nf);
-	}
+	nfsd_file_dispose_list(&dispose);
 }
 
 static int
@@ -832,6 +885,14 @@ __nfsd_file_cache_purge(struct net *net)
 	struct rhashtable_iter iter;
 	struct nfsd_file *nf;
 	LIST_HEAD(dispose);
+
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+	if (net) {
+		struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+		nfs_localio_invalidate_clients(&nn->local_clients,
+					       &nn->local_clients_lock);
+	}
+#endif
 
 	rhltable_walk_enter(&nfsd_file_rhltable, &iter);
 	do {
@@ -1040,16 +1101,8 @@ retry:
 	nf = nfsd_file_lookup_locked(net, current_cred(), inode, need, want_gc);
 	rcu_read_unlock();
 
-	if (nf) {
-		/*
-		 * If the nf is on the LRU then it holds an extra reference
-		 * that must be put if it's removed. It had better not be
-		 * the last one however, since we should hold another.
-		 */
-		if (nfsd_file_lru_remove(nf))
-			refcount_dec(&nf->nf_ref);
+	if (nf)
 		goto wait_for_construction;
-	}
 
 	new = nfsd_file_alloc(net, inode, need, want_gc);
 	if (!new) {
@@ -1143,6 +1196,9 @@ open_file:
 	 */
 	if (status != nfs_ok || inode->i_nlink == 0)
 		nfsd_file_unhash(nf);
+	else if (want_gc)
+		nfsd_file_lru_add(nf);
+
 	clear_and_wake_up_bit(NFSD_FILE_PENDING, &nf->nf_flags);
 	if (status == nfs_ok)
 		goto out;
@@ -1222,10 +1278,9 @@ nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * a file.  The security implications of this should be carefully
  * considered before use.
  *
- * The nfsd_file object returned by this API is reference-counted
- * and garbage-collected. The object is retained for a few
- * seconds after the final nfsd_file_put() in case the caller
- * wants to re-use it.
+ * The nfsd_file_object returned by this API is reference-counted
+ * but not garbage-collected. The object is unhashed after the
+ * final nfsd_file_put().
  *
  * Return values:
  *   %nfs_ok - @pnf points to an nfsd_file with its reference
@@ -1247,8 +1302,8 @@ nfsd_file_acquire_local(struct net *net, struct svc_cred *cred,
 	__be32 beres;
 
 	beres = nfsd_file_do_acquire(NULL, net, cred, client,
-				     fhp, may_flags, NULL, pnf, true);
-	revert_creds(save_cred);
+				     fhp, may_flags, NULL, pnf, false);
+	put_cred(revert_creds(save_cred));
 	return beres;
 }
 

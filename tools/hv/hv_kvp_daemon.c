@@ -24,6 +24,7 @@
 
 #include <sys/poll.h>
 #include <sys/utsname.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -83,6 +84,7 @@ enum {
 };
 
 static int in_hand_shake;
+static int debug;
 
 static char *os_name = "";
 static char *os_major = "";
@@ -183,6 +185,20 @@ static void kvp_update_file(int pool)
 	kvp_release_lock(pool);
 }
 
+static void kvp_dump_initial_pools(int pool)
+{
+	int i;
+
+	syslog(LOG_DEBUG, "===Start dumping the contents of pool %d ===\n",
+	       pool);
+
+	for (i = 0; i < kvp_file_info[pool].num_records; i++)
+		syslog(LOG_DEBUG, "pool: %d, %d/%d key=%s val=%s\n",
+		       pool, i + 1, kvp_file_info[pool].num_records,
+		       kvp_file_info[pool].records[i].key,
+		       kvp_file_info[pool].records[i].value);
+}
+
 static void kvp_update_mem_state(int pool)
 {
 	FILE *filep;
@@ -270,6 +286,8 @@ static int kvp_file_init(void)
 			return 1;
 		kvp_file_info[i].num_records = 0;
 		kvp_update_mem_state(i);
+		if (debug)
+			kvp_dump_initial_pools(i);
 	}
 
 	return 0;
@@ -297,6 +315,9 @@ static int kvp_key_delete(int pool, const __u8 *key, int key_size)
 		 * Found a match; just move the remaining
 		 * entries up.
 		 */
+		if (debug)
+			syslog(LOG_DEBUG, "%s: deleting the KVP: pool=%d key=%s val=%s",
+			       __func__, pool, record[i].key, record[i].value);
 		if (i == (num_records - 1)) {
 			kvp_file_info[pool].num_records--;
 			kvp_update_file(pool);
@@ -315,20 +336,36 @@ static int kvp_key_delete(int pool, const __u8 *key, int key_size)
 		kvp_update_file(pool);
 		return 0;
 	}
+
+	if (debug)
+		syslog(LOG_DEBUG, "%s: could not delete KVP: pool=%d key=%s. Record not found",
+		       __func__, pool, key);
+
 	return 1;
 }
 
 static int kvp_key_add_or_modify(int pool, const __u8 *key, int key_size,
 				 const __u8 *value, int value_size)
 {
-	int i;
-	int num_records;
 	struct kvp_record *record;
+	int num_records;
 	int num_blocks;
+	int i;
+
+	if (debug)
+		syslog(LOG_DEBUG, "%s: got a KVP: pool=%d key=%s val=%s",
+		       __func__, pool, key, value);
 
 	if ((key_size > HV_KVP_EXCHANGE_MAX_KEY_SIZE) ||
-		(value_size > HV_KVP_EXCHANGE_MAX_VALUE_SIZE))
+		(value_size > HV_KVP_EXCHANGE_MAX_VALUE_SIZE)) {
+		syslog(LOG_ERR, "%s: Too long key or value: key=%s, val=%s",
+		       __func__, key, value);
+
+		if (debug)
+			syslog(LOG_DEBUG, "%s: Too long key or value: pool=%d, key=%s, val=%s",
+			       __func__, pool, key, value);
 		return 1;
+	}
 
 	/*
 	 * First update the in-memory state.
@@ -348,6 +385,9 @@ static int kvp_key_add_or_modify(int pool, const __u8 *key, int key_size,
 		 */
 		memcpy(record[i].value, value, value_size);
 		kvp_update_file(pool);
+		if (debug)
+			syslog(LOG_DEBUG, "%s: updated: pool=%d key=%s val=%s",
+			       __func__, pool, key, value);
 		return 0;
 	}
 
@@ -359,8 +399,10 @@ static int kvp_key_add_or_modify(int pool, const __u8 *key, int key_size,
 		record = realloc(record, sizeof(struct kvp_record) *
 			 ENTRIES_PER_BLOCK * (num_blocks + 1));
 
-		if (record == NULL)
+		if (!record) {
+			syslog(LOG_ERR, "%s: Memory alloc failure", __func__);
 			return 1;
+		}
 		kvp_file_info[pool].num_blocks++;
 
 	}
@@ -368,6 +410,11 @@ static int kvp_key_add_or_modify(int pool, const __u8 *key, int key_size,
 	memcpy(record[i].key, key, key_size);
 	kvp_file_info[pool].records = record;
 	kvp_file_info[pool].num_records++;
+
+	if (debug)
+		syslog(LOG_DEBUG, "%s: added: pool=%d key=%s val=%s",
+		       __func__, pool, key, value);
+
 	kvp_update_file(pool);
 	return 0;
 }
@@ -677,6 +724,88 @@ static void kvp_process_ipconfig_file(char *cmd,
 	pclose(file);
 }
 
+static bool kvp_verify_ip_address(const void *address_string)
+{
+	char verify_buf[sizeof(struct in6_addr)];
+
+	if (inet_pton(AF_INET, address_string, verify_buf) == 1)
+		return true;
+	if (inet_pton(AF_INET6, address_string, verify_buf) == 1)
+		return true;
+	return false;
+}
+
+static void kvp_extract_routes(const char *line, void **output, size_t *remaining)
+{
+	static const char needle[] = "via ";
+	const char *match, *haystack = line;
+
+	while ((match = strstr(haystack, needle))) {
+		const char *address, *next_char;
+
+		/* Address starts after needle. */
+		address = match + strlen(needle);
+
+		/* The char following address is a space or end of line. */
+		next_char = strpbrk(address, " \t\\");
+		if (!next_char)
+			next_char = address + strlen(address) + 1;
+
+		/* Enough room for address and semicolon. */
+		if (*remaining >= (next_char - address) + 1) {
+			memcpy(*output, address, next_char - address);
+			/* Terminate string for verification. */
+			memcpy(*output + (next_char - address), "", 1);
+			if (kvp_verify_ip_address(*output)) {
+				/* Advance output buffer. */
+				*output += next_char - address;
+				*remaining -= next_char - address;
+
+				/* Each address needs a trailing semicolon. */
+				memcpy(*output, ";", 1);
+				*output += 1;
+				*remaining -= 1;
+			}
+		}
+		haystack = next_char;
+	}
+}
+
+static void kvp_get_gateway(void *buffer, size_t buffer_len)
+{
+	static const char needle[] = "default ";
+	FILE *f;
+	void *output = buffer;
+	char *line = NULL;
+	size_t alloc_size = 0, remaining = buffer_len - 1;
+	ssize_t num_chars;
+
+	/* Show route information in a single line, for each address family */
+	f = popen("ip --oneline -4 route show;ip --oneline -6 route show", "r");
+	if (!f) {
+		/* Convert buffer into C-String. */
+		memcpy(output, "", 1);
+		return;
+	}
+	while ((num_chars = getline(&line, &alloc_size, f)) > 0) {
+		/* Skip short lines. */
+		if (num_chars <= strlen(needle))
+			continue;
+		/* Skip lines without default route. */
+		if (memcmp(line, needle, strlen(needle)))
+			continue;
+		/* Remove trailing newline to simplify further parsing. */
+		if (line[num_chars - 1] == '\n')
+			line[num_chars - 1] = '\0';
+		/* Search routes after match. */
+		kvp_extract_routes(line + strlen(needle), &output, &remaining);
+	}
+	/* Convert buffer into C-String. */
+	memcpy(output, "", 1);
+	free(line);
+	pclose(f);
+}
+
 static void kvp_get_ipconfig_info(char *if_name,
 				 struct hv_kvp_ipaddr_value *buffer)
 {
@@ -685,30 +814,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 	char *p;
 	FILE *file;
 
-	/*
-	 * Get the address of default gateway (ipv4).
-	 */
-	sprintf(cmd, "%s %s", "ip route show dev", if_name);
-	strcat(cmd, " | awk '/default/ {print $3 }'");
-
-	/*
-	 * Execute the command to gather gateway info.
-	 */
-	kvp_process_ipconfig_file(cmd, (char *)buffer->gate_way,
-				(MAX_GATEWAY_SIZE * 2), INET_ADDRSTRLEN, 0);
-
-	/*
-	 * Get the address of default gateway (ipv6).
-	 */
-	sprintf(cmd, "%s %s", "ip -f inet6  route show dev", if_name);
-	strcat(cmd, " | awk '/default/ {print $3 }'");
-
-	/*
-	 * Execute the command to gather gateway info (ipv6).
-	 */
-	kvp_process_ipconfig_file(cmd, (char *)buffer->gate_way,
-				(MAX_GATEWAY_SIZE * 2), INET6_ADDRSTRLEN, 1);
-
+	kvp_get_gateway(buffer->gate_way, sizeof(buffer->gate_way));
 
 	/*
 	 * Gather the DNS state.
@@ -1662,6 +1768,7 @@ void print_usage(char *argv[])
 	fprintf(stderr, "Usage: %s [options]\n"
 		"Options are:\n"
 		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -d, --debug            Enable debug logs(syslog debug by default)\n"
 		"  -h, --help             print this help\n", argv[0]);
 }
 
@@ -1683,10 +1790,11 @@ int main(int argc, char *argv[])
 	static struct option long_options[] = {
 		{"help",	no_argument,	   0,  'h' },
 		{"no-daemon",	no_argument,	   0,  'n' },
+		{"debug",	no_argument,	   0,  'd' },
 		{0,		0,		   0,  0   }
 	};
 
-	while ((opt = getopt_long(argc, argv, "hn", long_options,
+	while ((opt = getopt_long(argc, argv, "hnd", long_options,
 				  &long_index)) != -1) {
 		switch (opt) {
 		case 'n':
@@ -1695,6 +1803,9 @@ int main(int argc, char *argv[])
 		case 'h':
 			print_usage(argv);
 			exit(0);
+		case 'd':
+			debug = 1;
+			break;
 		default:
 			print_usage(argv);
 			exit(EXIT_FAILURE);
@@ -1716,6 +1827,9 @@ int main(int argc, char *argv[])
 	 * unpredictable amount of time to finish.
 	 */
 	kvp_get_domain_name(full_domain_name, sizeof(full_domain_name));
+
+	if (debug)
+		syslog(LOG_INFO, "Logging debug info in syslog(debug)");
 
 	if (kvp_file_init()) {
 		syslog(LOG_ERR, "Failed to initialize the pools");

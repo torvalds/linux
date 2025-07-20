@@ -26,7 +26,6 @@
  *          Jerome Glisse
  */
 
-#include <linux/console.h>
 #include <linux/efi.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
@@ -530,7 +529,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  * @mc: memory controller structure holding memory informations
  * @base: base address at which to put VRAM
  *
- * Function will place try to place VRAM at base address provided
+ * Function will try to place VRAM at base address provided
  * as parameter (which is so far either PCI aperture address or
  * for IGP TOM base address).
  *
@@ -557,7 +556,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  *
  * Note 3: when limiting vram it's safe to overwritte real_vram_size because
  * we are not in case where real_vram_size is inferior to mc_vram_size (ie
- * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
+ * not affected by bogus hw of Novell bug 204882 + along with lots of ubuntu
  * ones)
  *
  * Note 4: IGP TOM addr should be the same as the aperture addr, we don't
@@ -594,7 +593,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
  * @rdev: radeon device structure holding all necessary informations
  * @mc: memory controller structure holding memory informations
  *
- * Function will place try to place GTT before or after VRAM.
+ * Function will try to place GTT before or after VRAM.
  *
  * If GTT size is bigger than space left then we ajust GTT size.
  * Thus function will never fails.
@@ -1635,11 +1634,9 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	if (notify_clients) {
-		console_lock();
-		drm_client_dev_suspend(dev, true);
-		console_unlock();
-	}
+	if (notify_clients)
+		drm_client_dev_suspend(dev, false);
+
 	return 0;
 }
 
@@ -1661,17 +1658,11 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool notify_clients)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	if (notify_clients) {
-		console_lock();
-	}
 	if (resume) {
 		pci_set_power_state(pdev, PCI_D0);
 		pci_restore_state(pdev);
-		if (pci_enable_device(pdev)) {
-			if (notify_clients)
-				console_unlock();
+		if (pci_enable_device(pdev))
 			return -1;
-		}
 	}
 	/* resume AGP if in use */
 	radeon_agp_resume(rdev);
@@ -1747,10 +1738,8 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool notify_clients)
 	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
 		radeon_pm_compute_clocks(rdev);
 
-	if (notify_clients) {
-		drm_client_dev_resume(dev, true);
-		console_unlock();
-	}
+	if (notify_clients)
+		drm_client_dev_resume(dev, false);
 
 	return 0;
 }

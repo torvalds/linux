@@ -8,7 +8,7 @@
 #include <drm/intel/i915_drm.h>
 
 #include "display/intel_display.h"
-#include "display/intel_display_irq.h"
+#include "display/intel_display_rps.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -74,7 +74,7 @@ static void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
 
 static void rps_timer(struct timer_list *t)
 {
-	struct intel_rps *rps = from_timer(rps, t, timer);
+	struct intel_rps *rps = timer_container_of(rps, t, timer);
 	struct intel_gt *gt = rps_to_gt(rps);
 	struct intel_engine_cs *engine;
 	ktime_t dt, last, timestamp;
@@ -161,7 +161,7 @@ static void rps_start_timer(struct intel_rps *rps)
 
 static void rps_stop_timer(struct intel_rps *rps)
 {
-	del_timer_sync(&rps->timer);
+	timer_delete_sync(&rps->timer);
 	rps->pm_timestamp = ktime_sub(ktime_get(), rps->pm_timestamp);
 	cancel_work_sync(&rps->work);
 }
@@ -550,6 +550,7 @@ static unsigned int init_emon(struct intel_uncore *uncore)
 static bool gen5_rps_enable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_display *display = &i915->display;
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u8 fstart, vstart;
 	u32 rgvmodectl;
@@ -607,9 +608,7 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 	rps->ips.last_count2 = intel_uncore_read(uncore, GFXEC);
 	rps->ips.last_time2 = ktime_get_raw_ns();
 
-	spin_lock(&i915->irq_lock);
-	ilk_enable_display_irq(i915, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	ilk_display_rps_enable(display);
 
 	spin_unlock_irq(&mchdev_lock);
 
@@ -621,14 +620,13 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 static void gen5_rps_disable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_display *display = &i915->display;
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u16 rgvswctl;
 
 	spin_lock_irq(&mchdev_lock);
 
-	spin_lock(&i915->irq_lock);
-	ilk_disable_display_irq(i915, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	ilk_display_rps_disable(display);
 
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 
@@ -1001,6 +999,10 @@ void intel_rps_dec_waiters(struct intel_rps *rps)
 	if (rps_uses_slpc(rps)) {
 		slpc = rps_to_slpc(rps);
 
+		/* Don't decrement num_waiters for req where increment was skipped */
+		if (slpc->power_profile == SLPC_POWER_PROFILES_POWER_SAVING)
+			return;
+
 		intel_guc_slpc_dec_waiters(slpc);
 	} else {
 		atomic_dec(&rps->num_waiters);
@@ -1025,11 +1027,19 @@ void intel_rps_boost(struct i915_request *rq)
 		if (rps_uses_slpc(rps)) {
 			slpc = rps_to_slpc(rps);
 
-			if (slpc->min_freq_softlimit >= slpc->boost_freq)
+			/* Waitboost should not be done with power saving profile */
+			if (slpc->power_profile == SLPC_POWER_PROFILES_POWER_SAVING)
 				return;
 
 			/* Return if old value is non zero */
 			if (!atomic_fetch_inc(&slpc->num_waiters)) {
+				/*
+				 * Skip queuing boost work if frequency is already boosted,
+				 * but still increment num_waiters.
+				 */
+				if (slpc->min_freq_softlimit >= slpc->boost_freq)
+					return;
+
 				GT_TRACE(rps_to_gt(rps), "boost fence:%llx:%llx\n",
 					 rq->fence.context, rq->fence.seqno);
 				queue_work(rps_to_gt(rps)->i915->unordered_wq,

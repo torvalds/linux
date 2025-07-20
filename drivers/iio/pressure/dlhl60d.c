@@ -147,12 +147,11 @@ static int dlh_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = dlh_read_direct(st, &pressure, &temperature);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret)
 			return ret;
 
@@ -344,14 +343,14 @@ static int dlh_probe(struct i2c_client *client)
 static const struct of_device_id dlh_of_match[] = {
 	{ .compatible = "asc,dlhl60d" },
 	{ .compatible = "asc,dlhl60g" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, dlh_of_match);
 
 static const struct i2c_device_id dlh_id[] = {
 	{ "dlhl60d",    dlhl60d },
 	{ "dlhl60g",    dlhl60g },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dlh_id);
 

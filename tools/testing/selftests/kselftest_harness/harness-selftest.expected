@@ -1,0 +1,64 @@
+TAP version 13
+1..9
+# Starting 9 tests from 4 test cases.
+#  RUN           global.standalone_pass ...
+# harness-selftest.c:19:standalone_pass:before
+# harness-selftest.c:23:standalone_pass:after
+#            OK  global.standalone_pass
+ok 1 global.standalone_pass
+#  RUN           global.standalone_fail ...
+# harness-selftest.c:27:standalone_fail:before
+# harness-selftest.c:29:standalone_fail:Expected 0 (0) == 1 (1)
+# harness-selftest.c:30:standalone_fail:Expected 0 (0) == 1 (1)
+# standalone_fail: Test terminated by assertion
+#          FAIL  global.standalone_fail
+not ok 2 global.standalone_fail
+#  RUN           global.signal_pass ...
+# harness-selftest.c:35:signal_pass:before
+# harness-selftest.c:37:signal_pass:after
+#            OK  global.signal_pass
+ok 3 global.signal_pass
+#  RUN           global.signal_fail ...
+# harness-selftest.c:42:signal_fail:before
+# harness-selftest.c:43:signal_fail:Expected 0 (0) == 1 (1)
+# signal_fail: Test terminated by assertion
+#          FAIL  global.signal_fail
+not ok 4 global.signal_fail
+#  RUN           fixture.pass ...
+# harness-selftest.c:53:pass:setup
+# harness-selftest.c:62:pass:before
+# harness-selftest.c:19:pass:before
+# harness-selftest.c:23:pass:after
+# harness-selftest.c:66:pass:after
+# harness-selftest.c:58:pass:teardown same-process=1
+#            OK  fixture.pass
+ok 5 fixture.pass
+#  RUN           fixture.fail ...
+# harness-selftest.c:53:fail:setup
+# harness-selftest.c:70:fail:before
+# harness-selftest.c:71:fail:Expected 0 (0) == 1 (1)
+# harness-selftest.c:58:fail:teardown same-process=1
+# fail: Test terminated by assertion
+#          FAIL  fixture.fail
+not ok 6 fixture.fail
+#  RUN           fixture.timeout ...
+# harness-selftest.c:53:timeout:setup
+# harness-selftest.c:77:timeout:before
+# timeout: Test terminated by timeout
+#          FAIL  fixture.timeout
+not ok 7 fixture.timeout
+#  RUN           fixture_parent.pass ...
+# harness-selftest.c:87:pass:setup
+# harness-selftest.c:96:pass:before
+# harness-selftest.c:98:pass:after
+# harness-selftest.c:92:pass:teardown same-process=0
+#            OK  fixture_parent.pass
+ok 8 fixture_parent.pass
+#  RUN           fixture_setup_failure.pass ...
+# harness-selftest.c:106:pass:setup
+# harness-selftest.c:108:pass:Expected 0 (0) == 1 (1)
+# pass: Test terminated by assertion
+#          FAIL  fixture_setup_failure.pass
+not ok 9 fixture_setup_failure.pass
+# FAILED: 4 / 9 tests passed.
+# Totals: pass:4 fail:5 xfail:0 xpass:0 skip:0 error:0

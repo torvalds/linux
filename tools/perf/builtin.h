@@ -2,22 +2,17 @@
 #ifndef BUILTIN_H
 #define BUILTIN_H
 
-#include <stddef.h>
-#include <linux/compiler.h>
-#include <tools/config.h>
-
 struct feature_status {
 	const char *name;
 	const char *macro;
+	const char *tip;
 	int is_builtin;
 };
 
-#define FEATURE_STATUS(name_, macro_) {    \
-	.name = name_,                     \
-	.macro = #macro_,                  \
-	.is_builtin = IS_BUILTIN(macro_) }
-
 extern struct feature_status supported_features[];
+
+void feature_status__printf(const struct feature_status *feature);
+
 struct cmdnames;
 
 void list_common_cmds_help(void);
@@ -56,6 +51,4 @@ int cmd_ftrace(int argc, const char **argv);
 int cmd_daemon(int argc, const char **argv);
 int cmd_kwork(int argc, const char **argv);
 
-int find_scripts(char **scripts_array, char **scripts_path_array, int num,
-		 int pathlen);
 #endif

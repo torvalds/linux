@@ -16,6 +16,9 @@
 struct rcu_synchronize {
 	struct rcu_head head;
 	struct completion completion;
+
+	/* This is for debugging. */
+	struct rcu_gp_oldstate oldstate;
 };
 void wakeme_after_rcu(struct rcu_head *head);
 
@@ -62,6 +65,17 @@ static inline void cond_resched_rcu(void)
 	rcu_read_unlock();
 	cond_resched();
 	rcu_read_lock();
+#endif
+}
+
+// Has the current task blocked within its current RCU read-side
+// critical section?
+static inline bool has_rcu_reader_blocked(void)
+{
+#ifdef CONFIG_PREEMPT_RCU
+	return !list_empty(&current->rcu_node_entry);
+#else
+	return false;
 #endif
 }
 

@@ -35,8 +35,8 @@ u32 inet6_ehashfn(const struct net *net,
 	lhash = (__force u32)laddr->s6_addr32[3];
 	fhash = __ipv6_addr_jhash(faddr, tcp_ipv6_hash_secret);
 
-	return __inet6_ehashfn(lhash, lport, fhash, fport,
-			       inet6_ehash_secret + net_hash_mix(net));
+	return lport + __inet6_ehashfn(lhash, 0, fhash, fport,
+				       inet6_ehash_secret + net_hash_mix(net));
 }
 EXPORT_SYMBOL_GPL(inet6_ehashfn);
 
@@ -263,7 +263,9 @@ EXPORT_SYMBOL_GPL(inet6_lookup);
 
 static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				     struct sock *sk, const __u16 lport,
-				     struct inet_timewait_sock **twp)
+				     struct inet_timewait_sock **twp,
+				     bool rcu_lookup,
+				     u32 hash)
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
@@ -273,14 +275,26 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	struct net *net = sock_net(sk);
 	const int sdif = l3mdev_master_ifindex_by_index(net, dif);
 	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
-	const unsigned int hash = inet6_ehashfn(net, daddr, lport, saddr,
-						inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
-	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
-	struct sock *sk2;
-	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw = NULL;
+	const struct hlist_nulls_node *node;
+	struct sock *sk2;
+	spinlock_t *lock;
 
+	if (rcu_lookup) {
+		sk_nulls_for_each(sk2, node, &head->chain) {
+			if (sk2->sk_hash != hash ||
+			    !inet6_match(net, sk2, saddr, daddr,
+					 ports, dif, sdif))
+				continue;
+			if (sk2->sk_state == TCP_TIME_WAIT)
+				break;
+			return -EADDRNOTAVAIL;
+		}
+		return 0;
+	}
+
+	lock = inet_ehash_lockp(hinfo, hash);
 	spin_lock(lock);
 
 	sk_nulls_for_each(sk2, node, &head->chain) {
@@ -339,11 +353,19 @@ static u64 inet6_sk_port_offset(const struct sock *sk)
 int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 		       struct sock *sk)
 {
+	const struct in6_addr *daddr = &sk->sk_v6_rcv_saddr;
+	const struct in6_addr *saddr = &sk->sk_v6_daddr;
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct net *net = sock_net(sk);
 	u64 port_offset = 0;
+	u32 hash_port0;
 
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet6_sk_port_offset(sk);
-	return __inet_hash_connect(death_row, sk, port_offset,
+
+	hash_port0 = inet6_ehashfn(net, daddr, 0, saddr, inet->inet_dport);
+
+	return __inet_hash_connect(death_row, sk, port_offset, hash_port0,
 				   __inet6_check_established);
 }
 EXPORT_SYMBOL_GPL(inet6_hash_connect);

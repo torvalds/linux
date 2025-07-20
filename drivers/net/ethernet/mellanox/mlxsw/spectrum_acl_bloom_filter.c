@@ -212,7 +212,22 @@ static const u8 mlxsw_sp4_acl_bf_crc6_tab[256] = {
  * This array defines key offsets for easy access when copying key blocks from
  * entry key to Bloom filter chunk.
  */
-static const u8 chunk_key_offsets[MLXSW_BLOOM_KEY_CHUNKS] = {2, 20, 38};
+static char *
+mlxsw_sp_acl_bf_enc_key_get(struct mlxsw_sp_acl_atcam_entry *aentry,
+			    u8 chunk_index)
+{
+	switch (chunk_index) {
+	case 0:
+		return &aentry->ht_key.enc_key[2];
+	case 1:
+		return &aentry->ht_key.enc_key[20];
+	case 2:
+		return &aentry->ht_key.enc_key[38];
+	default:
+		WARN_ON_ONCE(1);
+		return &aentry->ht_key.enc_key[0];
+	}
+}
 
 static u16 mlxsw_sp2_acl_bf_crc16_byte(u16 crc, u8 c)
 {
@@ -235,9 +250,10 @@ __mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
 			     u8 key_offset, u8 chunk_key_len, u8 chunk_len)
 {
 	struct mlxsw_afk_key_info *key_info = aregion->region->key_info;
-	u8 chunk_index, chunk_count, block_count;
+	u8 chunk_index, chunk_count;
 	char *chunk = output;
 	__be16 erp_region_id;
+	u32 block_count;
 
 	block_count = mlxsw_afk_key_info_blocks_count_get(key_info);
 	chunk_count = 1 + ((block_count - 1) >> 2);
@@ -245,12 +261,13 @@ __mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
 				   (aregion->region->id << 4));
 	for (chunk_index = max_chunks - chunk_count; chunk_index < max_chunks;
 	     chunk_index++) {
+		char *enc_key;
+
 		memset(chunk, 0, pad_bytes);
 		memcpy(chunk + pad_bytes, &erp_region_id,
 		       sizeof(erp_region_id));
-		memcpy(chunk + key_offset,
-		       &aentry->ht_key.enc_key[chunk_key_offsets[chunk_index]],
-		       chunk_key_len);
+		enc_key = mlxsw_sp_acl_bf_enc_key_get(aentry, chunk_index);
+		memcpy(chunk + key_offset, enc_key, chunk_key_len);
 		chunk += chunk_len;
 	}
 	*len = chunk_count * chunk_len;

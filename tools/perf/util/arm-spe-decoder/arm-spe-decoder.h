@@ -24,6 +24,8 @@ enum arm_spe_sample_type {
 	ARM_SPE_REMOTE_ACCESS		= 1 << 7,
 	ARM_SPE_SVE_PARTIAL_PRED	= 1 << 8,
 	ARM_SPE_SVE_EMPTY_PRED		= 1 << 9,
+	ARM_SPE_BRANCH_NOT_TAKEN	= 1 << 10,
+	ARM_SPE_IN_TXN			= 1 << 11,
 };
 
 enum arm_spe_op_type {
@@ -52,8 +54,12 @@ enum arm_spe_op_type {
 	ARM_SPE_OP_SVE_SG		= 1 << 27,
 
 	/* Second level operation type for BRANCH_ERET */
-	ARM_SPE_OP_BR_COND	= 1 << 16,
-	ARM_SPE_OP_BR_INDIRECT	= 1 << 17,
+	ARM_SPE_OP_BR_COND		= 1 << 16,
+	ARM_SPE_OP_BR_INDIRECT		= 1 << 17,
+	ARM_SPE_OP_BR_GCS		= 1 << 18,
+	ARM_SPE_OP_BR_CR_BL		= 1 << 19,
+	ARM_SPE_OP_BR_CR_RET		= 1 << 20,
+	ARM_SPE_OP_BR_CR_NON_BL_RET	= 1 << 21,
 };
 
 enum arm_spe_common_data_source {
@@ -67,6 +73,32 @@ enum arm_spe_common_data_source {
 	ARM_SPE_COMMON_DS_DRAM		= 0xe,
 };
 
+enum arm_spe_ampereone_data_source {
+	ARM_SPE_AMPEREONE_LOCAL_CHIP_CACHE_OR_DEVICE    = 0x0,
+	ARM_SPE_AMPEREONE_SLC                           = 0x3,
+	ARM_SPE_AMPEREONE_REMOTE_CHIP_CACHE             = 0x5,
+	ARM_SPE_AMPEREONE_DDR                           = 0x7,
+	ARM_SPE_AMPEREONE_L1D                           = 0x8,
+	ARM_SPE_AMPEREONE_L2D                           = 0x9,
+};
+
+enum arm_spe_hisi_hip_data_source {
+	ARM_SPE_HISI_HIP_PEER_CPU		= 0,
+	ARM_SPE_HISI_HIP_PEER_CPU_HITM		= 1,
+	ARM_SPE_HISI_HIP_L3			= 2,
+	ARM_SPE_HISI_HIP_L3_HITM		= 3,
+	ARM_SPE_HISI_HIP_PEER_CLUSTER		= 4,
+	ARM_SPE_HISI_HIP_PEER_CLUSTER_HITM	= 5,
+	ARM_SPE_HISI_HIP_REMOTE_SOCKET		= 6,
+	ARM_SPE_HISI_HIP_REMOTE_SOCKET_HITM	= 7,
+	ARM_SPE_HISI_HIP_LOCAL_MEM		= 8,
+	ARM_SPE_HISI_HIP_REMOTE_MEM		= 9,
+	ARM_SPE_HISI_HIP_NC_DEV			= 13,
+	ARM_SPE_HISI_HIP_L2			= 16,
+	ARM_SPE_HISI_HIP_L2_HITM		= 17,
+	ARM_SPE_HISI_HIP_L1			= 18,
+};
+
 struct arm_spe_record {
 	enum arm_spe_sample_type type;
 	int err;
@@ -74,6 +106,7 @@ struct arm_spe_record {
 	u32 latency;
 	u64 from_ip;
 	u64 to_ip;
+	u64 prev_br_tgt;
 	u64 timestamp;
 	u64 virt_addr;
 	u64 phys_addr;

@@ -628,12 +628,12 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 				else
 					RX_STAT_INC(sc, rx_spectral_sample_err);
 
-				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
-
 				/* Mix the received bins to the /dev/random
 				 * pool
 				 */
 				add_device_randomness(sample_buf, num_bins);
+
+				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
 			}
 
 			/* Process a normal frame */
@@ -734,7 +734,7 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 				 ATH9K_RX_FILTER_PHYRADAR |
 				 ATH9K_RX_FILTER_PHYERR);
 
-	/* TODO: usually this should not be neccesary, but for some reason
+	/* TODO: usually this should not be necessary, but for some reason
 	 * (or in some mode?) the trigger must be called after the
 	 * configuration, otherwise the register will have its values reset
 	 * (on my ar9220 to value 0x01002310)

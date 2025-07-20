@@ -22,6 +22,7 @@
  */
 
 #include "bxt_dpio_phy_regs.h"
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
@@ -39,7 +40,7 @@
  * VLV, CHV and BXT have slightly peculiar display PHYs for driving DP/HDMI
  * ports. DPIO is the name given to such a display PHY. These PHYs
  * don't follow the standard programming model using direct MMIO
- * registers, and instead their registers must be accessed trough IOSF
+ * registers, and instead their registers must be accessed through IOSF
  * sideband. VLV has one such PHY for driving ports B and C, and CHV
  * adds another PHY for driving port D. Each PHY responds to specific
  * IOSF-SB port.
@@ -221,9 +222,7 @@ static const struct bxt_dpio_phy_info glk_dpio_phy_info[] = {
 static const struct bxt_dpio_phy_info *
 bxt_get_phy_list(struct intel_display *display, int *count)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	if (IS_GEMINILAKE(dev_priv)) {
+	if (display->platform.geminilake) {
 		*count =  ARRAY_SIZE(glk_dpio_phy_info);
 		return glk_dpio_phy_info;
 	} else {
@@ -807,9 +806,9 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	vlv_dpio_put(dev_priv);
 }
 
-void chv_data_lane_soft_reset(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state,
-			      bool reset)
+static void __chv_data_lane_soft_reset(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state,
+				       bool reset)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
@@ -852,9 +851,21 @@ void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 	}
 }
 
+void chv_data_lane_soft_reset(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state,
+			      bool reset)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	vlv_dpio_get(i915);
+	__chv_data_lane_soft_reset(encoder, crtc_state, reset);
+	vlv_dpio_put(i915);
+}
+
 void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -871,14 +882,14 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	 */
 	if (ch == DPIO_CH0 && pipe == PIPE_B)
 		dig_port->release_cl2_override =
-			!chv_phy_powergate_ch(dev_priv, DPIO_PHY0, DPIO_CH1, true);
+			!chv_phy_powergate_ch(display, DPIO_PHY0, DPIO_CH1, true);
 
 	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
 	vlv_dpio_get(dev_priv);
 
 	/* Assert data lane reset */
-	chv_data_lane_soft_reset(encoder, crtc_state, true);
+	__chv_data_lane_soft_reset(encoder, crtc_state, true);
 
 	/* program left/right clock distribution */
 	if (pipe != PIPE_B) {
@@ -1006,18 +1017,18 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	}
 
 	/* Deassert data lane reset */
-	chv_data_lane_soft_reset(encoder, crtc_state, false);
+	__chv_data_lane_soft_reset(encoder, crtc_state, false);
 
 	vlv_dpio_put(dev_priv);
 }
 
 void chv_phy_release_cl2_override(struct intel_encoder *encoder)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (dig_port->release_cl2_override) {
-		chv_phy_powergate_ch(dev_priv, DPIO_PHY0, DPIO_CH1, false);
+		chv_phy_powergate_ch(display, DPIO_PHY0, DPIO_CH1, false);
 		dig_port->release_cl2_override = false;
 	}
 }
@@ -1153,4 +1164,38 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch), 0x00000000);
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch), 0x00e00060);
 	vlv_dpio_put(dev_priv);
+}
+
+void vlv_wait_port_ready(struct intel_encoder *encoder,
+			 unsigned int expected_mask)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	u32 port_mask;
+	i915_reg_t dpll_reg;
+
+	switch (encoder->port) {
+	default:
+		MISSING_CASE(encoder->port);
+		fallthrough;
+	case PORT_B:
+		port_mask = DPLL_PORTB_READY_MASK;
+		dpll_reg = DPLL(display, 0);
+		break;
+	case PORT_C:
+		port_mask = DPLL_PORTC_READY_MASK;
+		dpll_reg = DPLL(display, 0);
+		expected_mask <<= 4;
+		break;
+	case PORT_D:
+		port_mask = DPLL_PORTD_READY_MASK;
+		dpll_reg = DPIO_PHY_STATUS;
+		break;
+	}
+
+	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+		drm_WARN(display->drm, 1,
+			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
+			 encoder->base.base.id, encoder->base.name,
+			 intel_de_read(display, dpll_reg) & port_mask,
+			 expected_mask);
 }

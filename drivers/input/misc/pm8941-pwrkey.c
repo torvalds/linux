@@ -154,8 +154,8 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 	if (pwrkey->sw_debounce_time_us) {
 		if (ktime_before(ktime_get(), pwrkey->sw_debounce_end_time)) {
 			dev_dbg(pwrkey->dev,
-				"ignoring key event received before debounce end %llu us\n",
-				pwrkey->sw_debounce_end_time);
+				"ignoring key event received before debounce end %lld us\n",
+				ktime_to_us(pwrkey->sw_debounce_end_time));
 			return IRQ_HANDLED;
 		}
 	}

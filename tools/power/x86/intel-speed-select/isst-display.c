@@ -173,7 +173,11 @@ static int print_package_info(struct isst_id *id, FILE *outf)
 
 	if (out_format_is_json()) {
 		if (api_version() > 1) {
-			if (id->cpu < 0)
+			if (id->die < 0 && id->cpu < 0)
+				snprintf(header, sizeof(header),
+					 "package-%d:die-IO:powerdomain-%d:cpu-None",
+					 id->pkg, id->punit);
+			else if (id->cpu < 0)
 				snprintf(header, sizeof(header),
 					 "package-%d:die-%d:powerdomain-%d:cpu-None",
 					 id->pkg, id->die, id->punit);
@@ -190,7 +194,10 @@ static int print_package_info(struct isst_id *id, FILE *outf)
 	}
 	snprintf(header, sizeof(header), "package-%d", id->pkg);
 	format_and_print(outf, level++, header, NULL);
-	snprintf(header, sizeof(header), "die-%d", id->die);
+	if (id->die < 0)
+		snprintf(header, sizeof(header), "die-IO");
+	else
+		snprintf(header, sizeof(header), "die-%d", id->die);
 	format_and_print(outf, level++, header, NULL);
 	if (api_version() > 1) {
 		snprintf(header, sizeof(header), "powerdomain-%d", id->punit);
@@ -450,6 +457,26 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			snprintf(header, sizeof(header), "uncore-frequency-base(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 ctdp_level->uncore_p1 * isst_get_disp_freq_multiplier());
+			format_and_print(outf, level + 2, header, value);
+		}
+
+		if (ctdp_level->uncore1_p1) {
+			snprintf(header, sizeof(header), "uncore-1-frequency-base(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->uncore1_p1 * isst_get_disp_freq_multiplier());
+			format_and_print(outf, level + 2, header, value);
+		}
+		if (ctdp_level->uncore1_pm) {
+			snprintf(header, sizeof(header), "uncore-1-frequency-min(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->uncore1_pm * isst_get_disp_freq_multiplier());
+			format_and_print(outf, level + 2, header, value);
+		}
+
+		if (ctdp_level->uncore1_p0) {
+			snprintf(header, sizeof(header), "uncore-1-frequency-max(MHz)");
+			snprintf(value, sizeof(value), "%d",
+				 ctdp_level->uncore1_p0 * isst_get_disp_freq_multiplier());
 			format_and_print(outf, level + 2, header, value);
 		}
 

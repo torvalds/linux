@@ -382,7 +382,7 @@ static void arcdev_setup(struct net_device *dev)
 
 static void arcnet_timer(struct timer_list *t)
 {
-	struct arcnet_local *lp = from_timer(lp, t, timer);
+	struct arcnet_local *lp = timer_container_of(lp, t, timer);
 	struct net_device *dev = lp->dev;
 
 	spin_lock_irq(&lp->lock);
@@ -616,7 +616,7 @@ int arcnet_close(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 
 	arcnet_led_event(dev, ARCNET_LED_EVENT_STOP);
-	del_timer_sync(&lp->timer);
+	timer_delete_sync(&lp->timer);
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);

@@ -16,7 +16,7 @@
 
 #define STACK_SIZE	1024	/* Minimum number of bytes for stack */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/stdarg.h>
 #include <linux/types.h>
@@ -34,7 +34,7 @@
 extern struct setup_header hdr;
 extern struct boot_params boot_params;
 
-#define cpu_relax()	asm volatile("rep; nop")
+#define cpu_relax()	asm volatile("pause")
 
 static inline void io_delay(void)
 {
@@ -155,14 +155,14 @@ static inline void wrgs32(u32 v, addr_t addr)
 static inline bool memcmp_fs(const void *s1, addr_t s2, size_t len)
 {
 	bool diff;
-	asm volatile("fs; repe; cmpsb" CC_SET(nz)
+	asm volatile("fs repe cmpsb" CC_SET(nz)
 		     : CC_OUT(nz) (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
 static inline bool memcmp_gs(const void *s1, addr_t s2, size_t len)
 {
 	bool diff;
-	asm volatile("gs; repe; cmpsb" CC_SET(nz)
+	asm volatile("gs repe cmpsb" CC_SET(nz)
 		     : CC_OUT(nz) (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
@@ -327,6 +327,6 @@ void probe_cards(int unsafe);
 /* video-vesa.c */
 void vesa_store_edid(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* BOOT_BOOT_H */

@@ -560,6 +560,9 @@ struct rtw89_phy_sts_iehdr {
 #define BE_RXD_HDR_OFFSET_MASK GENMASK(20, 16)
 #define BE_RXD_WL_HD_IV_LEN_MASK GENMASK(26, 21)
 
+/* BE RXD - PHY RPT dword0 */
+#define BE_RXD_PHY_RSSI GENMASK(11, 0)
+
 struct rtw89_phy_sts_ie00 {
 	__le32 w0;
 	__le32 w1;
@@ -709,6 +712,25 @@ static inline u8 rtw89_core_get_qsel(struct rtw89_dev *rtwdev, u8 tid)
 	}
 }
 
+static inline u8
+rtw89_core_get_qsel_mgmt(struct rtw89_dev *rtwdev, struct rtw89_core_tx_request *tx_req)
+{
+	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
+	struct rtw89_vif_link *rtwvif_link = tx_req->rtwvif_link;
+
+	if (desc_info->hiq) {
+		if (rtwvif_link->mac_idx == RTW89_MAC_1)
+			return RTW89_TX_QSEL_B1_HI;
+		else
+			return RTW89_TX_QSEL_B0_HI;
+	}
+
+	if (rtwvif_link->mac_idx == RTW89_MAC_1)
+		return RTW89_TX_QSEL_B1_MGMT;
+	else
+		return RTW89_TX_QSEL_B0_MGMT;
+}
+
 static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
 {
 	switch (qsel) {
@@ -716,12 +738,24 @@ static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
 		rtw89_warn(rtwdev, "Cannot map qsel to dma: %d\n", qsel);
 		fallthrough;
 	case RTW89_TX_QSEL_BE_0:
+	case RTW89_TX_QSEL_BE_1:
+	case RTW89_TX_QSEL_BE_2:
+	case RTW89_TX_QSEL_BE_3:
 		return RTW89_TXCH_ACH0;
 	case RTW89_TX_QSEL_BK_0:
+	case RTW89_TX_QSEL_BK_1:
+	case RTW89_TX_QSEL_BK_2:
+	case RTW89_TX_QSEL_BK_3:
 		return RTW89_TXCH_ACH1;
 	case RTW89_TX_QSEL_VI_0:
+	case RTW89_TX_QSEL_VI_1:
+	case RTW89_TX_QSEL_VI_2:
+	case RTW89_TX_QSEL_VI_3:
 		return RTW89_TXCH_ACH2;
 	case RTW89_TX_QSEL_VO_0:
+	case RTW89_TX_QSEL_VO_1:
+	case RTW89_TX_QSEL_VO_2:
+	case RTW89_TX_QSEL_VO_3:
 		return RTW89_TXCH_ACH3;
 	case RTW89_TX_QSEL_B0_MGMT:
 		return RTW89_TXCH_CH8;

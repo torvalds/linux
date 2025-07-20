@@ -926,6 +926,42 @@ kvaser_usb_hydra_bus_status_to_can_state(const struct kvaser_usb_net_priv *priv,
 	}
 }
 
+static void kvaser_usb_hydra_change_state(struct kvaser_usb_net_priv *priv,
+					  const struct can_berr_counter *bec,
+					  struct can_frame *cf,
+					  enum can_state new_state)
+{
+	struct net_device *netdev = priv->netdev;
+	enum can_state old_state = priv->can.state;
+	enum can_state tx_state, rx_state;
+
+	tx_state = (bec->txerr >= bec->rxerr) ?
+				new_state : CAN_STATE_ERROR_ACTIVE;
+	rx_state = (bec->txerr <= bec->rxerr) ?
+				new_state : CAN_STATE_ERROR_ACTIVE;
+	can_change_state(netdev, cf, tx_state, rx_state);
+
+	if (new_state == CAN_STATE_BUS_OFF && old_state < CAN_STATE_BUS_OFF) {
+		if (priv->can.restart_ms == 0)
+			kvaser_usb_hydra_send_simple_cmd_async(priv, CMD_STOP_CHIP_REQ);
+
+		can_bus_off(netdev);
+	}
+
+	if (priv->can.restart_ms &&
+	    old_state >= CAN_STATE_BUS_OFF &&
+	    new_state < CAN_STATE_BUS_OFF) {
+		priv->can.can_stats.restarts++;
+		if (cf)
+			cf->can_id |= CAN_ERR_RESTARTED;
+	}
+	if (cf && new_state != CAN_STATE_BUS_OFF) {
+		cf->can_id |= CAN_ERR_CNT;
+		cf->data[6] = bec->txerr;
+		cf->data[7] = bec->rxerr;
+	}
+}
+
 static void kvaser_usb_hydra_update_state(struct kvaser_usb_net_priv *priv,
 					  u8 bus_status,
 					  const struct can_berr_counter *bec)
@@ -951,41 +987,11 @@ static void kvaser_usb_hydra_update_state(struct kvaser_usb_net_priv *priv,
 		return;
 
 	skb = alloc_can_err_skb(netdev, &cf);
-	if (skb) {
-		enum can_state tx_state, rx_state;
-
-		tx_state = (bec->txerr >= bec->rxerr) ?
-					new_state : CAN_STATE_ERROR_ACTIVE;
-		rx_state = (bec->txerr <= bec->rxerr) ?
-					new_state : CAN_STATE_ERROR_ACTIVE;
-		can_change_state(netdev, cf, tx_state, rx_state);
-	}
-
-	if (new_state == CAN_STATE_BUS_OFF && old_state < CAN_STATE_BUS_OFF) {
-		if (!priv->can.restart_ms)
-			kvaser_usb_hydra_send_simple_cmd_async
-						(priv, CMD_STOP_CHIP_REQ);
-
-		can_bus_off(netdev);
-	}
-
-	if (!skb) {
+	kvaser_usb_hydra_change_state(priv, bec, cf, new_state);
+	if (skb)
+		netif_rx(skb);
+	else
 		netdev_warn(netdev, "No memory left for err_skb\n");
-		return;
-	}
-
-	if (priv->can.restart_ms &&
-	    old_state >= CAN_STATE_BUS_OFF &&
-	    new_state < CAN_STATE_BUS_OFF)
-		priv->can.can_stats.restarts++;
-
-	if (new_state != CAN_STATE_BUS_OFF) {
-		cf->can_id |= CAN_ERR_CNT;
-		cf->data[6] = bec->txerr;
-		cf->data[7] = bec->rxerr;
-	}
-
-	netif_rx(skb);
 }
 
 static void kvaser_usb_hydra_state_event(const struct kvaser_usb *dev,
@@ -1078,9 +1084,8 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 {
 	struct net_device *netdev = priv->netdev;
 	struct net_device_stats *stats = &netdev->stats;
-	struct can_frame *cf;
-	struct sk_buff *skb;
-	struct skb_shared_hwtstamps *shhwtstamps;
+	struct can_frame *cf = NULL;
+	struct sk_buff *skb = NULL;
 	struct can_berr_counter bec;
 	enum can_state new_state, old_state;
 	u8 bus_status;
@@ -1096,51 +1101,25 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 	kvaser_usb_hydra_bus_status_to_can_state(priv, bus_status, &bec,
 						 &new_state);
 
-	skb = alloc_can_err_skb(netdev, &cf);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		skb = alloc_can_err_skb(netdev, &cf);
+	if (new_state != old_state)
+		kvaser_usb_hydra_change_state(priv, &bec, cf, new_state);
 
-	if (new_state != old_state) {
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
 		if (skb) {
-			enum can_state tx_state, rx_state;
+			struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 
-			tx_state = (bec.txerr >= bec.rxerr) ?
-					new_state : CAN_STATE_ERROR_ACTIVE;
-			rx_state = (bec.txerr <= bec.rxerr) ?
-					new_state : CAN_STATE_ERROR_ACTIVE;
-
-			can_change_state(netdev, cf, tx_state, rx_state);
-
-			if (priv->can.restart_ms &&
-			    old_state >= CAN_STATE_BUS_OFF &&
-			    new_state < CAN_STATE_BUS_OFF)
-				cf->can_id |= CAN_ERR_RESTARTED;
-		}
-
-		if (new_state == CAN_STATE_BUS_OFF) {
-			if (!priv->can.restart_ms)
-				kvaser_usb_hydra_send_simple_cmd_async
-						(priv, CMD_STOP_CHIP_REQ);
-
-			can_bus_off(netdev);
+			shhwtstamps->hwtstamp = hwtstamp;
+			cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_CNT;
+			cf->data[6] = bec.txerr;
+			cf->data[7] = bec.rxerr;
+			netif_rx(skb);
+		} else {
+			stats->rx_dropped++;
+			netdev_warn(netdev, "No memory left for err_skb\n");
 		}
 	}
-
-	if (!skb) {
-		stats->rx_dropped++;
-		netdev_warn(netdev, "No memory left for err_skb\n");
-		return;
-	}
-
-	shhwtstamps = skb_hwtstamps(skb);
-	shhwtstamps->hwtstamp = hwtstamp;
-
-	cf->can_id |= CAN_ERR_BUSERROR;
-	if (new_state != CAN_STATE_BUS_OFF) {
-		cf->can_id |= CAN_ERR_CNT;
-		cf->data[6] = bec.txerr;
-		cf->data[7] = bec.rxerr;
-	}
-
-	netif_rx(skb);
 
 	priv->bec.txerr = bec.txerr;
 	priv->bec.rxerr = bec.rxerr;

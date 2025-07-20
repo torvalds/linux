@@ -137,7 +137,7 @@ static int snow_probe(struct platform_device *pdev)
 	link = &priv->dai_link;
 
 	link->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS;
+			SND_SOC_DAIFMT_CBC_CFC;
 
 	link->name = "Primary";
 	link->stream_name = link->name;

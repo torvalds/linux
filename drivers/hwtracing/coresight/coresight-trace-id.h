@@ -117,6 +117,15 @@ int coresight_trace_id_read_cpu_id_map(int cpu, struct coresight_trace_id_map *i
 int coresight_trace_id_get_system_id(void);
 
 /**
+ * Allocate a CoreSight static trace ID for a system component.
+ *
+ * Used to allocate static IDs for system trace sources such as dummy source.
+ *
+ * return: Trace ID or -EINVAL if allocation is impossible.
+ */
+int coresight_trace_id_get_static_system_id(int id);
+
+/**
  * Release an allocated system trace ID.
  *
  * Unconditionally release a trace ID allocated to a system component.

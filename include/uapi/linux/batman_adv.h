@@ -342,7 +342,7 @@ enum batadv_nl_attrs {
 	BATADV_ATTR_MCAST_FLAGS_PRIV,
 
 	/**
-	 * @BATADV_ATTR_VLANID: VLAN id on top of soft interface
+	 * @BATADV_ATTR_VLANID: VLAN id on top of mesh interface
 	 */
 	BATADV_ATTR_VLANID,
 
@@ -380,7 +380,7 @@ enum batadv_nl_attrs {
 	/**
 	 * @BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED: whether the bridge loop
 	 *  avoidance feature is enabled. This feature detects and avoids loops
-	 *  between the mesh and devices bridged with the soft interface
+	 *  between the mesh and devices bridged with the mesh interface
 	 */
 	BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED,
 
@@ -509,7 +509,7 @@ enum batadv_nl_commands {
 	BATADV_CMD_UNSPEC,
 
 	/**
-	 * @BATADV_CMD_GET_MESH: Get attributes from softif/mesh
+	 * @BATADV_CMD_GET_MESH: Get attributes from mesh(if)
 	 */
 	BATADV_CMD_GET_MESH,
 
@@ -535,7 +535,7 @@ enum batadv_nl_commands {
 
 	/**
 	 * @BATADV_CMD_GET_HARDIF: Get attributes from a hardif of the
-	 *  current softif
+	 *  current mesh(if)
 	 */
 	BATADV_CMD_GET_HARDIF,
 
@@ -591,25 +591,25 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_MCAST_FLAGS,
 
 	/**
-	 * @BATADV_CMD_SET_MESH: Set attributes for softif/mesh
+	 * @BATADV_CMD_SET_MESH: Set attributes for mesh(if)
 	 */
 	BATADV_CMD_SET_MESH,
 
 	/**
 	 * @BATADV_CMD_SET_HARDIF: Set attributes for hardif of the
-	 *  current softif
+	 *  current mesh(if)
 	 */
 	BATADV_CMD_SET_HARDIF,
 
 	/**
 	 * @BATADV_CMD_GET_VLAN: Get attributes from a VLAN of the
-	 *  current softif
+	 *  current mesh(if)
 	 */
 	BATADV_CMD_GET_VLAN,
 
 	/**
 	 * @BATADV_CMD_SET_VLAN: Set attributes for VLAN of the
-	 *  current softif
+	 *  current mesh(if)
 	 */
 	BATADV_CMD_SET_VLAN,
 
@@ -691,7 +691,7 @@ enum batadv_ifla_attrs {
 	 */
 	IFLA_BATADV_ALGO_NAME,
 
-	/* add attributes above here, update the policy in soft-interface.c */
+	/* add attributes above here, update the policy in mesh-interface.c */
 
 	/**
 	 * @__IFLA_BATADV_MAX: internal use

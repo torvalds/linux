@@ -23,13 +23,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto free_napi_vectors;
 
-	err = netif_set_real_num_tx_queues(fbn->netdev,
-					   fbn->num_tx_queues);
-	if (err)
-		goto free_resources;
-
-	err = netif_set_real_num_rx_queues(fbn->netdev,
-					   fbn->num_rx_queues);
+	err = fbnic_set_netif_queues(fbn);
 	if (err)
 		goto free_resources;
 
@@ -50,9 +44,10 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto time_stop;
 
-	err = fbnic_pcs_irq_enable(fbd);
+	err = fbnic_pcs_request_irq(fbd);
 	if (err)
 		goto time_stop;
+
 	/* Pull the BMC config and initialize the RPC */
 	fbnic_bmc_rpc_init(fbd);
 	fbnic_rss_reinit(fbd, fbn);
@@ -74,6 +69,8 @@ static int fbnic_open(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	int err;
 
+	fbnic_napi_name_irqs(fbn->fbd);
+
 	err = __fbnic_open(fbn);
 	if (!err)
 		fbnic_up(fbn);
@@ -86,11 +83,12 @@ static int fbnic_stop(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 
 	fbnic_down(fbn);
-	fbnic_pcs_irq_disable(fbn->fbd);
+	fbnic_pcs_free_irq(fbn->fbd);
 
 	fbnic_time_stop(fbn);
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 
+	fbnic_reset_netif_queues(fbn);
 	fbnic_free_resources(fbn);
 	fbnic_free_napi_vectors(fbn);
 
@@ -406,11 +404,15 @@ static int fbnic_hwtstamp_set(struct net_device *netdev,
 static void fbnic_get_stats64(struct net_device *dev,
 			      struct rtnl_link_stats64 *stats64)
 {
+	u64 rx_bytes, rx_packets, rx_dropped = 0, rx_errors = 0;
 	u64 tx_bytes, tx_packets, tx_dropped = 0;
-	u64 rx_bytes, rx_packets, rx_dropped = 0;
 	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
+	u64 rx_over = 0, rx_missed = 0;
 	unsigned int start, i;
+
+	fbnic_get_hw_stats(fbd);
 
 	stats = &fbn->tx_stats;
 
@@ -421,6 +423,12 @@ static void fbnic_get_stats64(struct net_device *dev,
 	stats64->tx_bytes = tx_bytes;
 	stats64->tx_packets = tx_packets;
 	stats64->tx_dropped = tx_dropped;
+
+	/* Record drops from Tx HW Datapath */
+	tx_dropped += fbd->hw_stats.tmi.drop.frames.value +
+		      fbd->hw_stats.tti.cm_drop.frames.value +
+		      fbd->hw_stats.tti.frame_drop.frames.value +
+		      fbd->hw_stats.tti.tbi_drop.frames.value;
 
 	for (i = 0; i < fbn->num_tx_queues; i++) {
 		struct fbnic_ring *txr = fbn->tx[i];
@@ -447,9 +455,34 @@ static void fbnic_get_stats64(struct net_device *dev,
 	rx_packets = stats->packets;
 	rx_dropped = stats->dropped;
 
+	spin_lock(&fbd->hw_stats_lock);
+	/* Record drops for the host FIFOs.
+	 * 4: network to Host,	6: BMC to Host
+	 * Exclude the BMC and MC FIFOs as those stats may contain drops
+	 * due to unrelated items such as TCAM misses. They are still
+	 * accessible through the ethtool stats.
+	 */
+	i = FBNIC_RXB_FIFO_HOST;
+	rx_missed += fbd->hw_stats.rxb.fifo[i].drop.frames.value;
+	i = FBNIC_RXB_FIFO_BMC_TO_HOST;
+	rx_missed += fbd->hw_stats.rxb.fifo[i].drop.frames.value;
+
+	for (i = 0; i < fbd->max_num_queues; i++) {
+		/* Report packets dropped due to CQ/BDQ being full/empty */
+		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_cq_drop.value;
+		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_bdq_drop.value;
+
+		/* Report packets with errors */
+		rx_errors += fbd->hw_stats.hw_q[i].rde_pkt_err.value;
+	}
+	spin_unlock(&fbd->hw_stats_lock);
+
 	stats64->rx_bytes = rx_bytes;
 	stats64->rx_packets = rx_packets;
 	stats64->rx_dropped = rx_dropped;
+	stats64->rx_over_errors = rx_over;
+	stats64->rx_errors = rx_errors;
+	stats64->rx_missed_errors = rx_missed;
 
 	for (i = 0; i < fbn->num_rx_queues; i++) {
 		struct fbnic_ring *rxr = fbn->rx[i];
@@ -489,9 +522,11 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 {
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *rxr = fbn->rx[idx];
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
+	u64 bytes, packets, alloc_fail;
+	u64 csum_complete, csum_none;
 	unsigned int start;
-	u64 bytes, packets;
 
 	if (!rxr)
 		return;
@@ -501,10 +536,25 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 		start = u64_stats_fetch_begin(&stats->syncp);
 		bytes = stats->bytes;
 		packets = stats->packets;
+		alloc_fail = stats->rx.alloc_failed;
+		csum_complete = stats->rx.csum_complete;
+		csum_none = stats->rx.csum_none;
 	} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 	rx->bytes = bytes;
 	rx->packets = packets;
+	rx->alloc_fail = alloc_fail;
+	rx->csum_complete = csum_complete;
+	rx->csum_none = csum_none;
+
+	fbnic_get_hw_q_stats(fbd, fbd->hw_stats.hw_q);
+
+	spin_lock(&fbd->hw_stats_lock);
+	rx->hw_drop_overruns = fbd->hw_stats.hw_q[idx].rde_pkt_cq_drop.value +
+			       fbd->hw_stats.hw_q[idx].rde_pkt_bdq_drop.value;
+	rx->hw_drops = fbd->hw_stats.hw_q[idx].rde_pkt_err.value +
+		       rx->hw_drop_overruns;
+	spin_unlock(&fbd->hw_stats_lock);
 }
 
 static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
@@ -513,6 +563,7 @@ static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *txr = fbn->tx[idx];
 	struct fbnic_queue_stats *stats;
+	u64 stop, wake, csum, lso;
 	unsigned int start;
 	u64 bytes, packets;
 
@@ -524,10 +575,18 @@ static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
 		start = u64_stats_fetch_begin(&stats->syncp);
 		bytes = stats->bytes;
 		packets = stats->packets;
+		csum = stats->twq.csum_partial;
+		lso = stats->twq.lso;
+		stop = stats->twq.stop;
+		wake = stats->twq.wake;
 	} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 	tx->bytes = bytes;
 	tx->packets = packets;
+	tx->needs_csum = csum + lso;
+	tx->hw_gso_wire_packets = lso;
+	tx->stop = stop;
+	tx->wake = wake;
 }
 
 static void fbnic_get_base_stats(struct net_device *dev,
@@ -538,9 +597,16 @@ static void fbnic_get_base_stats(struct net_device *dev,
 
 	tx->bytes = fbn->tx_stats.bytes;
 	tx->packets = fbn->tx_stats.packets;
+	tx->needs_csum = fbn->tx_stats.twq.csum_partial + fbn->tx_stats.twq.lso;
+	tx->hw_gso_wire_packets = fbn->tx_stats.twq.lso;
+	tx->stop = fbn->tx_stats.twq.stop;
+	tx->wake = fbn->tx_stats.twq.wake;
 
 	rx->bytes = fbn->rx_stats.bytes;
 	rx->packets = fbn->rx_stats.packets;
+	rx->alloc_fail = fbn->rx_stats.rx.alloc_failed;
+	rx->csum_complete = fbn->rx_stats.rx.csum_complete;
+	rx->csum_none = fbn->rx_stats.rx.csum_none;
 }
 
 static const struct netdev_stat_ops fbnic_stat_ops = {
@@ -591,7 +657,7 @@ void fbnic_netdev_free(struct fbnic_dev *fbd)
  * Allocate and initialize the netdev and netdev private structure. Bind
  * together the hardware, netdev, and pci data structures.
  *
- *  Return: 0 on success, negative on failure
+ *  Return: Pointer to net_device on success, NULL on failure
  **/
 struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 {
@@ -615,12 +681,15 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 
 	fbn->netdev = netdev;
 	fbn->fbd = fbd;
-	INIT_LIST_HEAD(&fbn->napis);
 
 	fbn->txq_size = FBNIC_TXQ_SIZE_DEFAULT;
 	fbn->hpq_size = FBNIC_HPQ_SIZE_DEFAULT;
 	fbn->ppq_size = FBNIC_PPQ_SIZE_DEFAULT;
 	fbn->rcq_size = FBNIC_RCQ_SIZE_DEFAULT;
+
+	fbn->tx_usecs = FBNIC_TX_USECS_DEFAULT;
+	fbn->rx_usecs = FBNIC_RX_USECS_DEFAULT;
+	fbn->rx_max_frames = FBNIC_RX_FRAMES_DEFAULT;
 
 	default_queues = netif_get_num_default_rss_queues();
 	if (default_queues > fbd->max_num_queues)
@@ -632,15 +701,32 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	fbnic_rss_key_fill(fbn->rss_key);
 	fbnic_rss_init_en_mask(fbn);
 
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+
+	netdev->gso_partial_features =
+		NETIF_F_GSO_GRE |
+		NETIF_F_GSO_GRE_CSUM |
+		NETIF_F_GSO_IPXIP4 |
+		NETIF_F_GSO_UDP_TUNNEL |
+		NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
 	netdev->features |=
+		netdev->gso_partial_features |
+		FBNIC_TUN_GSO_FEATURES |
 		NETIF_F_RXHASH |
 		NETIF_F_SG |
 		NETIF_F_HW_CSUM |
-		NETIF_F_RXCSUM;
+		NETIF_F_RXCSUM |
+		NETIF_F_TSO |
+		NETIF_F_TSO_ECN |
+		NETIF_F_TSO6 |
+		NETIF_F_GSO_PARTIAL |
+		NETIF_F_GSO_UDP_L4;
 
 	netdev->hw_features |= netdev->features;
 	netdev->vlan_features |= netdev->features;
 	netdev->hw_enc_features |= netdev->features;
+	netdev->features |= NETIF_F_NTUPLE;
 
 	netdev->min_mtu = IPV6_MIN_MTU;
 	netdev->max_mtu = FBNIC_MAX_JUMBO_FRAME_SIZE - ETH_HLEN;

@@ -15,6 +15,10 @@ enum intel_sbi_destination {
 	SBI_MPHY,
 };
 
+void intel_sbi_init(struct drm_i915_private *i915);
+void intel_sbi_fini(struct drm_i915_private *i915);
+void intel_sbi_lock(struct drm_i915_private *i915);
+void intel_sbi_unlock(struct drm_i915_private *i915);
 u32 intel_sbi_read(struct drm_i915_private *i915, u16 reg,
 		   enum intel_sbi_destination destination);
 void intel_sbi_write(struct drm_i915_private *i915, u16 reg, u32 value,

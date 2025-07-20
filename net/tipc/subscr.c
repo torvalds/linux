@@ -105,7 +105,7 @@ void tipc_sub_report_overlap(struct tipc_subscription *sub,
 
 static void tipc_sub_timeout(struct timer_list *t)
 {
-	struct tipc_subscription *sub = from_timer(sub, t, timer);
+	struct tipc_subscription *sub = timer_container_of(sub, t, timer);
 
 	spin_lock(&sub->lock);
 	tipc_sub_send_event(sub, NULL, TIPC_SUBSCR_TIMEOUT);
@@ -177,7 +177,7 @@ void tipc_sub_unsubscribe(struct tipc_subscription *sub)
 {
 	tipc_nametbl_unsubscribe(sub);
 	if (sub->evt.s.timeout != TIPC_WAIT_FOREVER)
-		del_timer_sync(&sub->timer);
+		timer_delete_sync(&sub->timer);
 	list_del(&sub->sub_list);
 	tipc_sub_put(sub);
 }

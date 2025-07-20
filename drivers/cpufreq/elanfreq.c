@@ -21,7 +21,6 @@
 #include <linux/cpufreq.h>
 
 #include <asm/cpu_device_id.h>
-#include <asm/msr.h>
 #include <linux/timex.h>
 #include <linux/io.h>
 
@@ -194,7 +193,6 @@ static struct cpufreq_driver elanfreq_driver = {
 	.target_index	= elanfreq_target,
 	.init		= elanfreq_cpu_init,
 	.name		= "elanfreq",
-	.attr		= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id elan_id[] = {

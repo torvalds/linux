@@ -9,7 +9,8 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
-#include <asm/fixmap.h>
+#include <linux/init.h>
+#include <asm/sections.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <as-layout.h>
@@ -55,7 +56,7 @@ int kmalloc_ok = 0;
 /* Used during early boot */
 static unsigned long brk_end;
 
-void __init mem_init(void)
+void __init arch_mm_preinit(void)
 {
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
@@ -67,13 +68,16 @@ void __init mem_init(void)
 	map_memory(brk_end, __pa(brk_end), uml_reserved - brk_end, 1, 1, 0);
 	memblock_free((void *)brk_end, uml_reserved - brk_end);
 	uml_reserved = brk_end;
-
-	/* this will put all low memory onto the freelists */
-	memblock_free_all();
+	min_low_pfn = PFN_UP(__pa(uml_reserved));
 	max_pfn = max_low_pfn;
+}
+
+void __init mem_init(void)
+{
 	kmalloc_ok = 1;
 }
 
+#if IS_ENABLED(CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA)
 /*
  * Create a page table and place a pointer to it in a middle page
  * directory entry.
@@ -152,7 +156,6 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 
 static void __init fixaddr_user_init( void)
 {
-#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 	long size = FIXADDR_USER_END - FIXADDR_USER_START;
 	pte_t *pte;
 	phys_t p;
@@ -174,13 +177,12 @@ static void __init fixaddr_user_init( void)
 		pte = virt_to_kpte(vaddr);
 		pte_set_val(*pte, p, PAGE_READONLY);
 	}
-#endif
 }
+#endif
 
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-	unsigned long vaddr;
 
 	empty_zero_page = (unsigned long *) memblock_alloc_low(PAGE_SIZE,
 							       PAGE_SIZE);
@@ -191,14 +193,9 @@ void __init paging_init(void)
 	max_zone_pfn[ZONE_NORMAL] = end_iomem >> PAGE_SHIFT;
 	free_area_init(max_zone_pfn);
 
-	/*
-	 * Fixed mappings, only the page table structure has to be
-	 * created - mappings will be set by set_fixmap():
-	 */
-	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
-	fixrange_init(vaddr, FIXADDR_TOP, swapper_pg_dir);
-
+#if IS_ENABLED(CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA)
 	fixaddr_user_init();
+#endif
 }
 
 /*
@@ -214,14 +211,13 @@ void free_initmem(void)
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL);
+	pgd_t *pgd = __pgd_alloc(mm, 0);
 
-	if (pgd) {
-		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
+	if (pgd)
 		memcpy(pgd + USER_PTRS_PER_PGD,
 		       swapper_pg_dir + USER_PTRS_PER_PGD,
 		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
-	}
+
 	return pgd;
 }
 
@@ -249,3 +245,11 @@ static const pgprot_t protection_map[16] = {
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_SHARED
 };
 DECLARE_VM_GET_PAGE_PROT
+
+void mark_rodata_ro(void)
+{
+	unsigned long rodata_start = PFN_ALIGN(__start_rodata);
+	unsigned long rodata_end = PFN_ALIGN(__end_rodata);
+
+	os_protect_memory((void *)rodata_start, rodata_end - rodata_start, 1, 0, 0);
+}

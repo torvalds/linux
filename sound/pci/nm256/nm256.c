@@ -696,7 +696,9 @@ snd_nm256_playback_copy(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nm256_stream *s = runtime->private_data;
 
-	return copy_from_iter_toio(s->bufptr + pos, src, count);
+	if (copy_from_iter_toio(s->bufptr + pos, count, src) != count)
+		return -EFAULT;
+	return 0;
 }
 
 /*
@@ -710,7 +712,9 @@ snd_nm256_capture_copy(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nm256_stream *s = runtime->private_data;
 
-	return copy_to_iter_fromio(dst, s->bufptr + pos, count);
+	if (copy_to_iter_fromio(s->bufptr + pos, count, dst) != count)
+		return -EFAULT;
+	return 0;
 }
 
 #endif /* !__i386__ */
@@ -1443,7 +1447,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 	chip->buffer_addr = pci_resource_start(pci, 0);
 	chip->cport_addr = pci_resource_start(pci, 1);
 
-	err = pci_request_regions(pci, card->driver);
+	err = pcim_request_all_regions(pci, card->driver);
 	if (err < 0)
 		return err;
 

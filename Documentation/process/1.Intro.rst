@@ -251,12 +251,12 @@ there is no prospect of a migration to version 3 of the GPL in the
 foreseeable future.
 
 It is imperative that all code contributed to the kernel be legitimately
-free software.  For that reason, code from anonymous (or pseudonymous)
-contributors will not be accepted.  All contributors are required to "sign
-off" on their code, stating that the code can be distributed with the
-kernel under the GPL.  Code which has not been licensed as free software by
-its owner, or which risks creating copyright-related problems for the
-kernel (such as code which derives from reverse-engineering efforts lacking
+free software.  For that reason, code from contributors without a known
+identity or anonymous contributors will not be accepted. All contributors are
+required to "sign off" on their code, stating that the code can be distributed
+with the kernel under the GPL.  Code which has not been licensed as free
+software by its owner, or which risks creating copyright-related problems for
+the kernel (such as code which derives from reverse-engineering efforts lacking
 proper safeguards) cannot be contributed.
 
 Questions about copyright-related issues are common on Linux development

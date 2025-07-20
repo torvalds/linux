@@ -6,6 +6,8 @@
 #include <linux/mm.h>		/* for struct page */
 #include <linux/pagemap.h>
 
+#include <asm/cpufeature.h>
+
 #define __HAVE_ARCH_PTE_ALLOC_ONE
 #define __HAVE_ARCH_PGD_FREE
 #include <asm-generic/pgalloc.h>
@@ -30,20 +32,16 @@ static inline void paravirt_release_p4d(unsigned long pfn) {}
 #endif
 
 /*
- * Flags to use when allocating a user page table page.
+ * In case of Page Table Isolation active, we acquire two PGDs instead of one.
+ * Being order-1, it is both 8k in size and 8k-aligned.  That lets us just
+ * flip bit 12 in a pointer to swap between the two 4k halves.
  */
-extern gfp_t __userpte_alloc_gfp;
-
-#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
-/*
- * Instead of one PGD, we acquire two PGDs.  Being order-1, it is
- * both 8k in size and 8k-aligned.  That lets us just flip bit 12
- * in a pointer to swap between the two 4k halves.
- */
-#define PGD_ALLOCATION_ORDER 1
-#else
-#define PGD_ALLOCATION_ORDER 0
-#endif
+static inline unsigned int pgd_allocation_order(void)
+{
+	if (cpu_feature_enabled(X86_FEATURE_PTI))
+		return 1;
+	return 0;
+}
 
 /*
  * Allocate and free page tables.
@@ -145,24 +143,6 @@ static inline void pgd_populate_safe(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4
 		return;
 	paravirt_alloc_p4d(mm, __pa(p4d) >> PAGE_SHIFT);
 	set_pgd_safe(pgd, __pgd(_PAGE_TABLE | __pa(p4d)));
-}
-
-static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long addr)
-{
-	gfp_t gfp = GFP_KERNEL_ACCOUNT;
-
-	if (mm == &init_mm)
-		gfp &= ~__GFP_ACCOUNT;
-	return (p4d_t *)get_zeroed_page(gfp);
-}
-
-static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
-{
-	if (!pgtable_l5_enabled())
-		return;
-
-	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
-	free_page((unsigned long)p4d);
 }
 
 extern void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d);

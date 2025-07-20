@@ -13,6 +13,34 @@
 #include <linux/llist.h>
 #include <linux/workqueue.h>
 
+#define BCH_WRITE_FLAGS()		\
+	x(alloc_nowait)			\
+	x(cached)			\
+	x(data_encoded)			\
+	x(pages_stable)			\
+	x(pages_owned)			\
+	x(only_specified_devs)		\
+	x(wrote_data_inline)		\
+	x(check_enospc)			\
+	x(sync)				\
+	x(move)				\
+	x(in_worker)			\
+	x(submitted)			\
+	x(io_error)			\
+	x(convert_unwritten)
+
+enum __bch_write_flags {
+#define x(f)	__BCH_WRITE_##f,
+	BCH_WRITE_FLAGS()
+#undef x
+};
+
+enum bch_write_flags {
+#define x(f)	BCH_WRITE_##f = BIT(__BCH_WRITE_##f),
+	BCH_WRITE_FLAGS()
+#undef x
+};
+
 struct bch_write_bio {
 	struct_group(wbio,
 	struct bch_fs		*c;
@@ -43,6 +71,10 @@ struct bch_write_op {
 	void			(*end_io)(struct bch_write_op *);
 	u64			start_time;
 
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	unsigned		list_idx;
+#endif
+
 	unsigned		written; /* sectors */
 	u16			flags;
 	s16			error; /* dio write path expects it to hold -ERESTARTSYS... */
@@ -64,7 +96,7 @@ struct bch_write_op {
 	struct bpos		pos;
 	struct bversion		version;
 
-	/* For BCH_WRITE_DATA_ENCODED: */
+	/* For BCH_WRITE_data_encoded: */
 	struct bch_extent_crc_unpacked crc;
 
 	struct write_point_specifier write_point;

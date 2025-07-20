@@ -24,12 +24,6 @@ Description:	Default value for the Data Stream Control Register (DSCR) on
 		If set by a process it will be inherited by child processes.
 Values:		64 bit unsigned integer (bit field)
 
-What:           /sys/devices/system/cpu/cpuX/topology/physical_package_id
-Description:    physical package id of cpuX. Typically corresponds to a physical
-                socket number, but the actual value is architecture and platform
-                dependent.
-Values:         integer
-
 What:           /sys/devices/system/cpu/cpuX/topology/die_id
 Description:    the CPU die ID of cpuX. Typically it is the hardware platform's
                 identifier (rather than the kernel's). The actual value is
@@ -85,10 +79,6 @@ Values:         decimal list.
 What:           /sys/devices/system/cpu/cpuX/topology/die_cpus
 Description:    internal kernel map of CPUs within the same die.
 Values:         hexadecimal bitmask.
-
-What:           /sys/devices/system/cpu/cpuX/topology/ppin
-Description:    per-socket protected processor inventory number
-Values:         hexadecimal.
 
 What:           /sys/devices/system/cpu/cpuX/topology/die_cpus_list
 Description:    human-readable list of CPUs within the same die.

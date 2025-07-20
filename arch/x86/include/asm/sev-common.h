@@ -116,7 +116,7 @@ enum psc_op {
 #define GHCB_MSR_VMPL_REQ		0x016
 #define GHCB_MSR_VMPL_REQ_LEVEL(v)			\
 	/* GHCBData[39:32] */				\
-	(((u64)(v) & GENMASK_ULL(7, 0) << 32) |		\
+	((((u64)(v) & GENMASK_ULL(7, 0)) << 32) |	\
 	/* GHCBDdata[11:0] */				\
 	GHCB_MSR_VMPL_REQ)
 
@@ -206,12 +206,22 @@ struct snp_psc_desc {
 #define GHCB_TERM_NO_SVSM		7	/* SVSM is not advertised in the secrets page */
 #define GHCB_TERM_SVSM_VMPL0		8	/* SVSM is present but has set VMPL to 0 */
 #define GHCB_TERM_SVSM_CAA		9	/* SVSM is present but CAA is not page aligned */
+#define GHCB_TERM_SECURE_TSC		10	/* Secure TSC initialization failed */
+#define GHCB_TERM_SVSM_CA_REMAP_FAIL	11	/* SVSM is present but CA could not be remapped */
 
 #define GHCB_RESP_CODE(v)		((v) & GHCB_MSR_INFO_MASK)
 
 /*
- * Error codes related to GHCB input that can be communicated back to the guest
- * by setting the lower 32-bits of the GHCB SW_EXITINFO1 field to 2.
+ * GHCB-defined return codes that are communicated back to the guest via
+ * SW_EXITINFO1.
+ */
+#define GHCB_HV_RESP_NO_ACTION		0
+#define GHCB_HV_RESP_ISSUE_EXCEPTION	1
+#define GHCB_HV_RESP_MALFORMED_INPUT	2
+
+/*
+ * GHCB-defined sub-error codes for malformed input (see above) that are
+ * communicated back to the guest via SW_EXITINFO2[31:0].
  */
 #define GHCB_ERR_NOT_REGISTERED		1
 #define GHCB_ERR_INVALID_USAGE		2

@@ -6,6 +6,16 @@ menu "DesignWare-based PCIe controllers"
 config PCIE_DW
 	bool
 
+config PCIE_DW_DEBUGFS
+	bool "DesignWare PCIe debugfs entries"
+	depends on DEBUG_FS
+	depends on PCIE_DW_HOST || PCIE_DW_EP
+	help
+	  Say Y here to enable debugfs entries for the PCIe controller. These
+	  entries provide various debug features related to the controller and
+	  expose the RAS DES capabilities such as Silicon Debug, Error Injection
+	  and Statistical Counters.
+
 config PCIE_DW_HOST
 	bool
 	select PCIE_DW
@@ -26,6 +36,17 @@ config PCIE_AL
 	  core plus Annapurna Labs proprietary hardware wrappers. This is
 	  required only for DT-based platforms. ACPI platforms with the
 	  Annapurna Labs PCIe controller don't need to enable this.
+
+config PCIE_AMD_MDB
+	bool "AMD MDB Versal2 PCIe controller"
+	depends on OF && (ARM64 || COMPILE_TEST)
+	depends on PCI_MSI
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCIe controller support on AMD
+	  Versal2 SoCs. The AMD MDB Versal2 PCIe controller is based on
+	  DesignWare IP and therefore the driver re-uses the DesignWare
+	  core functions to implement the driver.
 
 config PCI_MESON
 	tristate "Amlogic Meson PCIe controller"

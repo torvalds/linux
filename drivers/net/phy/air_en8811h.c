@@ -11,6 +11,7 @@
  * Copyright (C) 2023 Airoha Technology Corp.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/phy.h>
 #include <linux/firmware.h>
 #include <linux/property.h>
@@ -115,6 +116,11 @@
 #define EN8811H_GPIO_OUTPUT		0xcf8b8
 #define   EN8811H_GPIO_OUTPUT_345		(BIT(3) | BIT(4) | BIT(5))
 
+#define EN8811H_HWTRAP1			0xcf914
+#define   EN8811H_HWTRAP1_CKO			BIT(12)
+#define EN8811H_CLK_CGM			0xcf958
+#define   EN8811H_CLK_CGM_CKO			BIT(26)
+
 #define EN8811H_FW_CTRL_1		0x0f0018
 #define   EN8811H_FW_CTRL_1_START		0x0
 #define   EN8811H_FW_CTRL_1_FINISH		0x1
@@ -142,10 +148,15 @@ struct led {
 	unsigned long state;
 };
 
+#define clk_hw_to_en8811h_priv(_hw)			\
+	container_of(_hw, struct en8811h_priv, hw)
+
 struct en8811h_priv {
-	u32		firmware_version;
-	bool		mcu_needs_restart;
-	struct led	led[EN8811H_LED_COUNT];
+	u32			firmware_version;
+	bool			mcu_needs_restart;
+	struct led		led[EN8811H_LED_COUNT];
+	struct clk_hw		hw;
+	struct phy_device	*phydev;
 };
 
 enum {
@@ -806,6 +817,86 @@ static int en8811h_led_hw_is_supported(struct phy_device *phydev, u8 index,
 	return 0;
 };
 
+static unsigned long en8811h_clk_recalc_rate(struct clk_hw *hw,
+					     unsigned long parent)
+{
+	struct en8811h_priv *priv = clk_hw_to_en8811h_priv(hw);
+	struct phy_device *phydev = priv->phydev;
+	u32 pbus_value;
+	int ret;
+
+	ret = air_buckpbus_reg_read(phydev, EN8811H_HWTRAP1, &pbus_value);
+	if (ret < 0)
+		return ret;
+
+	return (pbus_value & EN8811H_HWTRAP1_CKO) ? 50000000 : 25000000;
+}
+
+static int en8811h_clk_enable(struct clk_hw *hw)
+{
+	struct en8811h_priv *priv = clk_hw_to_en8811h_priv(hw);
+	struct phy_device *phydev = priv->phydev;
+
+	return air_buckpbus_reg_modify(phydev, EN8811H_CLK_CGM,
+				       EN8811H_CLK_CGM_CKO,
+				       EN8811H_CLK_CGM_CKO);
+}
+
+static void en8811h_clk_disable(struct clk_hw *hw)
+{
+	struct en8811h_priv *priv = clk_hw_to_en8811h_priv(hw);
+	struct phy_device *phydev = priv->phydev;
+
+	air_buckpbus_reg_modify(phydev, EN8811H_CLK_CGM,
+				EN8811H_CLK_CGM_CKO, 0);
+}
+
+static int en8811h_clk_is_enabled(struct clk_hw *hw)
+{
+	struct en8811h_priv *priv = clk_hw_to_en8811h_priv(hw);
+	struct phy_device *phydev = priv->phydev;
+	u32 pbus_value;
+	int ret;
+
+	ret = air_buckpbus_reg_read(phydev, EN8811H_CLK_CGM, &pbus_value);
+	if (ret < 0)
+		return ret;
+
+	return (pbus_value & EN8811H_CLK_CGM_CKO);
+}
+
+static const struct clk_ops en8811h_clk_ops = {
+	.recalc_rate	= en8811h_clk_recalc_rate,
+	.enable		= en8811h_clk_enable,
+	.disable	= en8811h_clk_disable,
+	.is_enabled	= en8811h_clk_is_enabled,
+};
+
+static int en8811h_clk_provider_setup(struct device *dev, struct clk_hw *hw)
+{
+	struct clk_init_data init;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_COMMON_CLK))
+		return 0;
+
+	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s-cko",
+				   fwnode_get_name(dev_fwnode(dev)));
+	if (!init.name)
+		return -ENOMEM;
+
+	init.ops = &en8811h_clk_ops;
+	init.flags = 0;
+	init.num_parents = 0;
+	hw->init = &init;
+
+	ret = devm_clk_hw_register(dev, hw);
+	if (ret)
+		return ret;
+
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, hw);
+}
+
 static int en8811h_probe(struct phy_device *phydev)
 {
 	struct en8811h_priv *priv;
@@ -837,6 +928,12 @@ static int en8811h_probe(struct phy_device *phydev)
 		phydev_err(phydev, "Failed to disable leds: %d\n", ret);
 		return ret;
 	}
+
+	priv->phydev = phydev;
+	/* Co-Clock Output */
+	ret = en8811h_clk_provider_setup(&phydev->mdio.dev, &priv->hw);
+	if (ret)
+		return ret;
 
 	/* Configure led gpio pins as output */
 	ret = air_buckpbus_reg_modify(phydev, EN8811H_GPIO_OUTPUT,
@@ -1075,7 +1172,7 @@ static struct phy_driver en8811h_driver[] = {
 
 module_phy_driver(en8811h_driver);
 
-static struct mdio_device_id __maybe_unused en8811h_tbl[] = {
+static const struct mdio_device_id __maybe_unused en8811h_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(EN8811H_PHY_ID) },
 	{ }
 };

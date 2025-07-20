@@ -1,0 +1,10 @@
+[
+    {
+        "ArchStdEvent": "MEM_ACCESS",
+        "BriefDescription": "This event counts architecturally executed memory-reading instructions and memory-writing instructions, as defined by the LDST_SPEC events."
+    },
+    {
+        "ArchStdEvent": "MEM_ACCESS_RD",
+        "BriefDescription": "This event counts architecturally executed memory-reading instructions, as defined by the LD_SPEC events."
+    }
+]

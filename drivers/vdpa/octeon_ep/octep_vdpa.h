@@ -8,6 +8,7 @@
 #include <linux/pci_regs.h>
 #include <linux/vdpa.h>
 #include <linux/virtio_pci_modern.h>
+#include <uapi/linux/virtio_crypto.h>
 #include <uapi/linux/virtio_net.h>
 #include <uapi/linux/virtio_blk.h>
 #include <uapi/linux/virtio_config.h>
@@ -29,12 +30,12 @@
 #define OCTEP_EPF_RINFO(x) (0x000209f0 | ((x) << 25))
 #define OCTEP_VF_MBOX_DATA(x) (0x00010210 | ((x) << 17))
 #define OCTEP_PF_MBOX_DATA(x) (0x00022000 | ((x) << 4))
-
-#define OCTEP_EPF_RINFO_RPVF(val) (((val) >> 32) & 0xF)
-#define OCTEP_EPF_RINFO_NVFS(val) (((val) >> 48) & 0x7F)
+#define OCTEP_VF_IN_CTRL(x)        (0x00010000 | ((x) << 17))
+#define OCTEP_VF_IN_CTRL_RPVF(val) (((val) >> 48) & 0xF)
 
 #define OCTEP_FW_READY_SIGNATURE0  0xFEEDFEED
 #define OCTEP_FW_READY_SIGNATURE1  0x3355ffaa
+#define OCTEP_MAX_CB_INTR          8
 
 enum octep_vdpa_dev_status {
 	OCTEP_VDPA_DEV_STATUS_INVALID,
@@ -48,9 +49,26 @@ enum octep_vdpa_dev_status {
 struct octep_vring_info {
 	struct vdpa_callback cb;
 	void __iomem *notify_addr;
-	u32 __iomem *cb_notify_addr;
+	void __iomem *cb_notify_addr;
 	phys_addr_t notify_pa;
-	char msix_name[256];
+};
+
+enum octep_pci_vndr_cfg_type {
+	OCTEP_PCI_VNDR_CFG_TYPE_VIRTIO_ID,
+	OCTEP_PCI_VNDR_CFG_TYPE_MAX,
+};
+
+struct octep_pci_vndr_data {
+	struct virtio_pci_vndr_data hdr;
+	u8 id;
+	u8 bar;
+	union {
+		u64 data;
+		struct {
+			u32 offset;
+			u32 length;
+		};
+	};
 };
 
 struct octep_hw {
@@ -68,7 +86,9 @@ struct octep_hw {
 	u64 features;
 	u16 nr_vring;
 	u32 config_size;
-	int irq;
+	int nb_irqs;
+	int *irqs;
+	u8 dev_id;
 };
 
 u8 octep_hw_get_status(struct octep_hw *oct_hw);

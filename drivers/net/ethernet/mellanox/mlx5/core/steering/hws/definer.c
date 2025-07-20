@@ -70,7 +70,7 @@
 			u32 second_dw_mask = (mask) & ((1 << _bit_off) - 1); \
 			_HWS_SET32(p, (v) >> _bit_off, byte_off, 0, (mask) >> _bit_off); \
 			_HWS_SET32(p, (v) & second_dw_mask, (byte_off) + DW_SIZE, \
-				    (bit_off) % BITS_IN_DW, second_dw_mask); \
+				    (bit_off + BITS_IN_DW) % BITS_IN_DW, second_dw_mask); \
 		} else { \
 			_HWS_SET32(p, v, byte_off, (bit_off), (mask)); \
 		} \
@@ -157,6 +157,218 @@ struct mlx5hws_definer_conv_data {
 	/* enum mlx5hws_definer_match_flag */
 	u32 match_flags;
 };
+
+#define HWS_DEFINER_ENTRY(name)[MLX5HWS_DEFINER_FNAME_##name] = #name
+
+static const char * const hws_definer_fname_to_str[] = {
+	HWS_DEFINER_ENTRY(ETH_SMAC_47_16_O),
+	HWS_DEFINER_ENTRY(ETH_SMAC_47_16_I),
+	HWS_DEFINER_ENTRY(ETH_SMAC_15_0_O),
+	HWS_DEFINER_ENTRY(ETH_SMAC_15_0_I),
+	HWS_DEFINER_ENTRY(ETH_DMAC_47_16_O),
+	HWS_DEFINER_ENTRY(ETH_DMAC_47_16_I),
+	HWS_DEFINER_ENTRY(ETH_DMAC_15_0_O),
+	HWS_DEFINER_ENTRY(ETH_DMAC_15_0_I),
+	HWS_DEFINER_ENTRY(ETH_TYPE_O),
+	HWS_DEFINER_ENTRY(ETH_TYPE_I),
+	HWS_DEFINER_ENTRY(ETH_L3_TYPE_O),
+	HWS_DEFINER_ENTRY(ETH_L3_TYPE_I),
+	HWS_DEFINER_ENTRY(VLAN_TYPE_O),
+	HWS_DEFINER_ENTRY(VLAN_TYPE_I),
+	HWS_DEFINER_ENTRY(VLAN_FIRST_PRIO_O),
+	HWS_DEFINER_ENTRY(VLAN_FIRST_PRIO_I),
+	HWS_DEFINER_ENTRY(VLAN_CFI_O),
+	HWS_DEFINER_ENTRY(VLAN_CFI_I),
+	HWS_DEFINER_ENTRY(VLAN_ID_O),
+	HWS_DEFINER_ENTRY(VLAN_ID_I),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_TYPE_O),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_TYPE_I),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_PRIO_O),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_PRIO_I),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_CFI_O),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_CFI_I),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_ID_O),
+	HWS_DEFINER_ENTRY(VLAN_SECOND_ID_I),
+	HWS_DEFINER_ENTRY(IPV4_IHL_O),
+	HWS_DEFINER_ENTRY(IPV4_IHL_I),
+	HWS_DEFINER_ENTRY(IP_DSCP_O),
+	HWS_DEFINER_ENTRY(IP_DSCP_I),
+	HWS_DEFINER_ENTRY(IP_ECN_O),
+	HWS_DEFINER_ENTRY(IP_ECN_I),
+	HWS_DEFINER_ENTRY(IP_TTL_O),
+	HWS_DEFINER_ENTRY(IP_TTL_I),
+	HWS_DEFINER_ENTRY(IPV4_DST_O),
+	HWS_DEFINER_ENTRY(IPV4_DST_I),
+	HWS_DEFINER_ENTRY(IPV4_SRC_O),
+	HWS_DEFINER_ENTRY(IPV4_SRC_I),
+	HWS_DEFINER_ENTRY(IP_VERSION_O),
+	HWS_DEFINER_ENTRY(IP_VERSION_I),
+	HWS_DEFINER_ENTRY(IP_FRAG_O),
+	HWS_DEFINER_ENTRY(IP_FRAG_I),
+	HWS_DEFINER_ENTRY(IP_LEN_O),
+	HWS_DEFINER_ENTRY(IP_LEN_I),
+	HWS_DEFINER_ENTRY(IP_TOS_O),
+	HWS_DEFINER_ENTRY(IP_TOS_I),
+	HWS_DEFINER_ENTRY(IPV6_FLOW_LABEL_O),
+	HWS_DEFINER_ENTRY(IPV6_FLOW_LABEL_I),
+	HWS_DEFINER_ENTRY(IPV6_DST_127_96_O),
+	HWS_DEFINER_ENTRY(IPV6_DST_95_64_O),
+	HWS_DEFINER_ENTRY(IPV6_DST_63_32_O),
+	HWS_DEFINER_ENTRY(IPV6_DST_31_0_O),
+	HWS_DEFINER_ENTRY(IPV6_DST_127_96_I),
+	HWS_DEFINER_ENTRY(IPV6_DST_95_64_I),
+	HWS_DEFINER_ENTRY(IPV6_DST_63_32_I),
+	HWS_DEFINER_ENTRY(IPV6_DST_31_0_I),
+	HWS_DEFINER_ENTRY(IPV6_SRC_127_96_O),
+	HWS_DEFINER_ENTRY(IPV6_SRC_95_64_O),
+	HWS_DEFINER_ENTRY(IPV6_SRC_63_32_O),
+	HWS_DEFINER_ENTRY(IPV6_SRC_31_0_O),
+	HWS_DEFINER_ENTRY(IPV6_SRC_127_96_I),
+	HWS_DEFINER_ENTRY(IPV6_SRC_95_64_I),
+	HWS_DEFINER_ENTRY(IPV6_SRC_63_32_I),
+	HWS_DEFINER_ENTRY(IPV6_SRC_31_0_I),
+	HWS_DEFINER_ENTRY(IP_PROTOCOL_O),
+	HWS_DEFINER_ENTRY(IP_PROTOCOL_I),
+	HWS_DEFINER_ENTRY(L4_SPORT_O),
+	HWS_DEFINER_ENTRY(L4_SPORT_I),
+	HWS_DEFINER_ENTRY(L4_DPORT_O),
+	HWS_DEFINER_ENTRY(L4_DPORT_I),
+	HWS_DEFINER_ENTRY(TCP_FLAGS_I),
+	HWS_DEFINER_ENTRY(TCP_FLAGS_O),
+	HWS_DEFINER_ENTRY(TCP_SEQ_NUM),
+	HWS_DEFINER_ENTRY(TCP_ACK_NUM),
+	HWS_DEFINER_ENTRY(GTP_TEID),
+	HWS_DEFINER_ENTRY(GTP_MSG_TYPE),
+	HWS_DEFINER_ENTRY(GTP_EXT_FLAG),
+	HWS_DEFINER_ENTRY(GTP_NEXT_EXT_HDR),
+	HWS_DEFINER_ENTRY(GTP_EXT_HDR_PDU),
+	HWS_DEFINER_ENTRY(GTP_EXT_HDR_QFI),
+	HWS_DEFINER_ENTRY(GTPU_DW0),
+	HWS_DEFINER_ENTRY(GTPU_FIRST_EXT_DW0),
+	HWS_DEFINER_ENTRY(GTPU_DW2),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_0),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_1),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_2),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_3),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_4),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_5),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_6),
+	HWS_DEFINER_ENTRY(FLEX_PARSER_7),
+	HWS_DEFINER_ENTRY(VPORT_REG_C_0),
+	HWS_DEFINER_ENTRY(VXLAN_FLAGS),
+	HWS_DEFINER_ENTRY(VXLAN_VNI),
+	HWS_DEFINER_ENTRY(VXLAN_GPE_FLAGS),
+	HWS_DEFINER_ENTRY(VXLAN_GPE_RSVD0),
+	HWS_DEFINER_ENTRY(VXLAN_GPE_PROTO),
+	HWS_DEFINER_ENTRY(VXLAN_GPE_VNI),
+	HWS_DEFINER_ENTRY(VXLAN_GPE_RSVD1),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_LEN),
+	HWS_DEFINER_ENTRY(GENEVE_OAM),
+	HWS_DEFINER_ENTRY(GENEVE_PROTO),
+	HWS_DEFINER_ENTRY(GENEVE_VNI),
+	HWS_DEFINER_ENTRY(SOURCE_QP),
+	HWS_DEFINER_ENTRY(SOURCE_GVMI),
+	HWS_DEFINER_ENTRY(REG_0),
+	HWS_DEFINER_ENTRY(REG_1),
+	HWS_DEFINER_ENTRY(REG_2),
+	HWS_DEFINER_ENTRY(REG_3),
+	HWS_DEFINER_ENTRY(REG_4),
+	HWS_DEFINER_ENTRY(REG_5),
+	HWS_DEFINER_ENTRY(REG_6),
+	HWS_DEFINER_ENTRY(REG_7),
+	HWS_DEFINER_ENTRY(REG_8),
+	HWS_DEFINER_ENTRY(REG_9),
+	HWS_DEFINER_ENTRY(REG_10),
+	HWS_DEFINER_ENTRY(REG_11),
+	HWS_DEFINER_ENTRY(REG_A),
+	HWS_DEFINER_ENTRY(REG_B),
+	HWS_DEFINER_ENTRY(GRE_KEY_PRESENT),
+	HWS_DEFINER_ENTRY(GRE_C),
+	HWS_DEFINER_ENTRY(GRE_K),
+	HWS_DEFINER_ENTRY(GRE_S),
+	HWS_DEFINER_ENTRY(GRE_PROTOCOL),
+	HWS_DEFINER_ENTRY(GRE_OPT_KEY),
+	HWS_DEFINER_ENTRY(GRE_OPT_SEQ),
+	HWS_DEFINER_ENTRY(GRE_OPT_CHECKSUM),
+	HWS_DEFINER_ENTRY(INTEGRITY_O),
+	HWS_DEFINER_ENTRY(INTEGRITY_I),
+	HWS_DEFINER_ENTRY(ICMP_DW1),
+	HWS_DEFINER_ENTRY(ICMP_DW2),
+	HWS_DEFINER_ENTRY(ICMP_DW3),
+	HWS_DEFINER_ENTRY(IPSEC_SPI),
+	HWS_DEFINER_ENTRY(IPSEC_SEQUENCE_NUMBER),
+	HWS_DEFINER_ENTRY(IPSEC_SYNDROME),
+	HWS_DEFINER_ENTRY(MPLS0_O),
+	HWS_DEFINER_ENTRY(MPLS1_O),
+	HWS_DEFINER_ENTRY(MPLS2_O),
+	HWS_DEFINER_ENTRY(MPLS3_O),
+	HWS_DEFINER_ENTRY(MPLS4_O),
+	HWS_DEFINER_ENTRY(MPLS0_I),
+	HWS_DEFINER_ENTRY(MPLS1_I),
+	HWS_DEFINER_ENTRY(MPLS2_I),
+	HWS_DEFINER_ENTRY(MPLS3_I),
+	HWS_DEFINER_ENTRY(MPLS4_I),
+	HWS_DEFINER_ENTRY(FLEX_PARSER0_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER1_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER2_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER3_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER4_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER5_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER6_OK),
+	HWS_DEFINER_ENTRY(FLEX_PARSER7_OK),
+	HWS_DEFINER_ENTRY(OKS2_MPLS0_O),
+	HWS_DEFINER_ENTRY(OKS2_MPLS1_O),
+	HWS_DEFINER_ENTRY(OKS2_MPLS2_O),
+	HWS_DEFINER_ENTRY(OKS2_MPLS3_O),
+	HWS_DEFINER_ENTRY(OKS2_MPLS4_O),
+	HWS_DEFINER_ENTRY(OKS2_MPLS0_I),
+	HWS_DEFINER_ENTRY(OKS2_MPLS1_I),
+	HWS_DEFINER_ENTRY(OKS2_MPLS2_I),
+	HWS_DEFINER_ENTRY(OKS2_MPLS3_I),
+	HWS_DEFINER_ENTRY(OKS2_MPLS4_I),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_0),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_1),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_2),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_3),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_4),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_5),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_6),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_OK_7),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_0),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_1),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_2),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_3),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_4),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_5),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_6),
+	HWS_DEFINER_ENTRY(GENEVE_OPT_DW_7),
+	HWS_DEFINER_ENTRY(IB_L4_OPCODE),
+	HWS_DEFINER_ENTRY(IB_L4_QPN),
+	HWS_DEFINER_ENTRY(IB_L4_A),
+	HWS_DEFINER_ENTRY(RANDOM_NUM),
+	HWS_DEFINER_ENTRY(PTYPE_L2_O),
+	HWS_DEFINER_ENTRY(PTYPE_L2_I),
+	HWS_DEFINER_ENTRY(PTYPE_L3_O),
+	HWS_DEFINER_ENTRY(PTYPE_L3_I),
+	HWS_DEFINER_ENTRY(PTYPE_L4_O),
+	HWS_DEFINER_ENTRY(PTYPE_L4_I),
+	HWS_DEFINER_ENTRY(PTYPE_L4_EXT_O),
+	HWS_DEFINER_ENTRY(PTYPE_L4_EXT_I),
+	HWS_DEFINER_ENTRY(PTYPE_FRAG_O),
+	HWS_DEFINER_ENTRY(PTYPE_FRAG_I),
+	HWS_DEFINER_ENTRY(TNL_HDR_0),
+	HWS_DEFINER_ENTRY(TNL_HDR_1),
+	HWS_DEFINER_ENTRY(TNL_HDR_2),
+	HWS_DEFINER_ENTRY(TNL_HDR_3),
+	[MLX5HWS_DEFINER_FNAME_MAX] = "DEFINER_FNAME_UNKNOWN",
+};
+
+const char *mlx5hws_definer_fname_to_str(enum mlx5hws_definer_fname fname)
+{
+	if (fname > MLX5HWS_DEFINER_FNAME_MAX)
+		fname = MLX5HWS_DEFINER_FNAME_MAX;
+	return hws_definer_fname_to_str[fname];
+}
 
 static void
 hws_definer_ones_set(struct mlx5hws_definer_fc *fc,
@@ -500,7 +712,8 @@ hws_definer_check_match_flags(struct mlx5hws_definer_conv_data *cd)
 	return 0;
 
 err_conflict:
-	mlx5hws_err(cd->ctx, "Invalid definer fields combination\n");
+	mlx5hws_err(cd->ctx, "Invalid definer fields combination: match_flags = 0x%08x\n",
+		    cd->match_flags);
 	return -EINVAL;
 }
 
@@ -508,7 +721,7 @@ static int
 hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 		       u32 *match_param)
 {
-	bool is_s_ipv6, is_d_ipv6, smac_set, dmac_set;
+	bool is_ipv6, smac_set, dmac_set, ip_addr_set, ip_ver_set;
 	struct mlx5hws_definer_fc *fc = cd->fc;
 	struct mlx5hws_definer_fc *curr_fc;
 	u32 *s_ipv6, *d_ipv6;
@@ -517,6 +730,20 @@ hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.reserved_at_c2, 0xe) ||
 	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.reserved_at_c4, 0x4)) {
 		mlx5hws_err(cd->ctx, "Unsupported outer parameters set\n");
+		return -EINVAL;
+	}
+
+	ip_addr_set = HWS_IS_FLD_SET_SZ(match_param,
+					outer_headers.src_ipv4_src_ipv6,
+					0x80) ||
+		      HWS_IS_FLD_SET_SZ(match_param,
+					outer_headers.dst_ipv4_dst_ipv6, 0x80);
+	ip_ver_set = HWS_IS_FLD_SET(match_param, outer_headers.ip_version) ||
+		     HWS_IS_FLD_SET(match_param, outer_headers.ethertype);
+
+	if (ip_addr_set && !ip_ver_set) {
+		mlx5hws_err(cd->ctx,
+			    "Unsupported match on IP address without version or ethertype\n");
 		return -EINVAL;
 	}
 
@@ -558,6 +785,9 @@ hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 	HWS_SET_HDR(fc, match_param, IP_PROTOCOL_O,
 		    outer_headers.ip_protocol,
 		    eth_l3_outer.protocol_next_header);
+	HWS_SET_HDR(fc, match_param, IP_VERSION_O,
+		    outer_headers.ip_version,
+		    eth_l3_outer.ip_version);
 	HWS_SET_HDR(fc, match_param, IP_TTL_O,
 		    outer_headers.ttl_hoplimit,
 		    eth_l3_outer.time_to_live_hop_limit);
@@ -569,10 +799,16 @@ hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 			      outer_headers.dst_ipv4_dst_ipv6.ipv6_layout);
 
 	/* Assume IPv6 is used if ipv6 bits are set */
-	is_s_ipv6 = s_ipv6[0] || s_ipv6[1] || s_ipv6[2];
-	is_d_ipv6 = d_ipv6[0] || d_ipv6[1] || d_ipv6[2];
+	is_ipv6 = s_ipv6[0] || s_ipv6[1] || s_ipv6[2] ||
+		  d_ipv6[0] || d_ipv6[1] || d_ipv6[2];
 
-	if (is_s_ipv6) {
+	/* IHL is an IPv4-specific field. */
+	if (is_ipv6 && HWS_IS_FLD_SET(match_param, outer_headers.ipv4_ihl)) {
+		mlx5hws_err(cd->ctx, "Unsupported match on IPv6 address and IPv4 IHL\n");
+		return -EINVAL;
+	}
+
+	if (is_ipv6) {
 		/* Handle IPv6 source address */
 		HWS_SET_HDR(fc, match_param, IPV6_SRC_127_96_O,
 			    outer_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_127_96,
@@ -586,13 +822,6 @@ hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 		HWS_SET_HDR(fc, match_param, IPV6_SRC_31_0_O,
 			    outer_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_31_0,
 			    ipv6_src_outer.ipv6_address_31_0);
-	} else {
-		/* Handle IPv4 source address */
-		HWS_SET_HDR(fc, match_param, IPV4_SRC_O,
-			    outer_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_31_0,
-			    ipv4_src_dest_outer.source_address);
-	}
-	if (is_d_ipv6) {
 		/* Handle IPv6 destination address */
 		HWS_SET_HDR(fc, match_param, IPV6_DST_127_96_O,
 			    outer_headers.dst_ipv4_dst_ipv6.ipv6_simple_layout.ipv6_127_96,
@@ -607,6 +836,10 @@ hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 			    outer_headers.dst_ipv4_dst_ipv6.ipv6_simple_layout.ipv6_31_0,
 			    ipv6_dst_outer.ipv6_address_31_0);
 	} else {
+		/* Handle IPv4 source address */
+		HWS_SET_HDR(fc, match_param, IPV4_SRC_O,
+			    outer_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_31_0,
+			    ipv4_src_dest_outer.source_address);
 		/* Handle IPv4 destination address */
 		HWS_SET_HDR(fc, match_param, IPV4_DST_O,
 			    outer_headers.dst_ipv4_dst_ipv6.ipv6_simple_layout.ipv6_31_0,
@@ -664,7 +897,7 @@ static int
 hws_definer_conv_inner(struct mlx5hws_definer_conv_data *cd,
 		       u32 *match_param)
 {
-	bool is_s_ipv6, is_d_ipv6, smac_set, dmac_set;
+	bool is_ipv6, smac_set, dmac_set, ip_addr_set, ip_ver_set;
 	struct mlx5hws_definer_fc *fc = cd->fc;
 	struct mlx5hws_definer_fc *curr_fc;
 	u32 *s_ipv6, *d_ipv6;
@@ -673,6 +906,20 @@ hws_definer_conv_inner(struct mlx5hws_definer_conv_data *cd,
 	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.reserved_at_c2, 0xe) ||
 	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.reserved_at_c4, 0x4)) {
 		mlx5hws_err(cd->ctx, "Unsupported inner parameters set\n");
+		return -EINVAL;
+	}
+
+	ip_addr_set = HWS_IS_FLD_SET_SZ(match_param,
+					inner_headers.src_ipv4_src_ipv6,
+					0x80) ||
+		      HWS_IS_FLD_SET_SZ(match_param,
+					inner_headers.dst_ipv4_dst_ipv6, 0x80);
+	ip_ver_set = HWS_IS_FLD_SET(match_param, inner_headers.ip_version) ||
+		     HWS_IS_FLD_SET(match_param, inner_headers.ethertype);
+
+	if (ip_addr_set && !ip_ver_set) {
+		mlx5hws_err(cd->ctx,
+			    "Unsupported match on IP address without version or ethertype\n");
 		return -EINVAL;
 	}
 
@@ -727,10 +974,16 @@ hws_definer_conv_inner(struct mlx5hws_definer_conv_data *cd,
 			      inner_headers.dst_ipv4_dst_ipv6.ipv6_layout);
 
 	/* Assume IPv6 is used if ipv6 bits are set */
-	is_s_ipv6 = s_ipv6[0] || s_ipv6[1] || s_ipv6[2];
-	is_d_ipv6 = d_ipv6[0] || d_ipv6[1] || d_ipv6[2];
+	is_ipv6 = s_ipv6[0] || s_ipv6[1] || s_ipv6[2] ||
+		  d_ipv6[0] || d_ipv6[1] || d_ipv6[2];
 
-	if (is_s_ipv6) {
+	/* IHL is an IPv4-specific field. */
+	if (is_ipv6 && HWS_IS_FLD_SET(match_param, inner_headers.ipv4_ihl)) {
+		mlx5hws_err(cd->ctx, "Unsupported match on IPv6 address and IPv4 IHL\n");
+		return -EINVAL;
+	}
+
+	if (is_ipv6) {
 		/* Handle IPv6 source address */
 		HWS_SET_HDR(fc, match_param, IPV6_SRC_127_96_I,
 			    inner_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_127_96,
@@ -744,13 +997,6 @@ hws_definer_conv_inner(struct mlx5hws_definer_conv_data *cd,
 		HWS_SET_HDR(fc, match_param, IPV6_SRC_31_0_I,
 			    inner_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_31_0,
 			    ipv6_src_inner.ipv6_address_31_0);
-	} else {
-		/* Handle IPv4 source address */
-		HWS_SET_HDR(fc, match_param, IPV4_SRC_I,
-			    inner_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_31_0,
-			    ipv4_src_dest_inner.source_address);
-	}
-	if (is_d_ipv6) {
 		/* Handle IPv6 destination address */
 		HWS_SET_HDR(fc, match_param, IPV6_DST_127_96_I,
 			    inner_headers.dst_ipv4_dst_ipv6.ipv6_simple_layout.ipv6_127_96,
@@ -765,6 +1011,10 @@ hws_definer_conv_inner(struct mlx5hws_definer_conv_data *cd,
 			    inner_headers.dst_ipv4_dst_ipv6.ipv6_simple_layout.ipv6_31_0,
 			    ipv6_dst_inner.ipv6_address_31_0);
 	} else {
+		/* Handle IPv4 source address */
+		HWS_SET_HDR(fc, match_param, IPV4_SRC_I,
+			    inner_headers.src_ipv4_src_ipv6.ipv6_simple_layout.ipv6_31_0,
+			    ipv4_src_dest_inner.source_address);
 		/* Handle IPv4 destination address */
 		HWS_SET_HDR(fc, match_param, IPV4_DST_I,
 			    inner_headers.dst_ipv4_dst_ipv6.ipv6_simple_layout.ipv6_31_0,
@@ -1985,8 +2235,7 @@ int mlx5hws_definer_get_obj(struct mlx5hws_context *ctx,
 			continue;
 
 		/* Reuse definer and set LRU (move to be first in the list) */
-		list_del_init(&cached_definer->list_node);
-		list_add(&cached_definer->list_node, &cache->list_head);
+		list_move(&cached_definer->list_node, &cache->list_head);
 		cached_definer->refcount++;
 		return cached_definer->definer.obj_id;
 	}

@@ -34,9 +34,9 @@
  *
  * CPU Interface:
  *
- * - kvm_vgic_vcpu_init(): initialization of static data that
- *   doesn't depend on any sizing information or emulation type. No
- *   allocation is allowed there.
+ * - kvm_vgic_vcpu_init(): initialization of static data that doesn't depend
+ *   on any sizing information. Private interrupts are allocated if not
+ *   already allocated at vgic-creation time.
  */
 
 /* EARLY INIT */
@@ -57,6 +57,8 @@ void kvm_vgic_early_init(struct kvm *kvm)
 }
 
 /* CREATION */
+
+static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type);
 
 /**
  * kvm_vgic_create: triggered by the instantiation of the VGIC device by
@@ -82,14 +84,39 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		!kvm_vgic_global_state.can_emulate_gicv2)
 		return -ENODEV;
 
-	/* Must be held to avoid race with vCPU creation */
+	/*
+	 * Ensure mutual exclusion with vCPU creation and any vCPU ioctls by:
+	 *
+	 *  - Holding kvm->lock to prevent KVM_CREATE_VCPU from reaching
+	 *    kvm_arch_vcpu_precreate() and ensuring created_vcpus is stable.
+	 *    This alone is insufficient, as kvm_vm_ioctl_create_vcpu() drops
+	 *    the kvm->lock before completing the vCPU creation.
+	 */
 	lockdep_assert_held(&kvm->lock);
 
+	/*
+	 *  - Acquiring the vCPU mutex for every *online* vCPU to prevent
+	 *    concurrent vCPU ioctls for vCPUs already visible to userspace.
+	 */
 	ret = -EBUSY;
-	if (!lock_all_vcpus(kvm))
+	if (kvm_trylock_all_vcpus(kvm))
 		return ret;
 
+	/*
+	 *  - Taking the config_lock which protects VGIC data structures such
+	 *    as the per-vCPU arrays of private IRQs (SGIs, PPIs).
+	 */
 	mutex_lock(&kvm->arch.config_lock);
+
+	/*
+	 * - Bailing on the entire thing if a vCPU is in the middle of creation,
+	 *   dropped the kvm->lock, but hasn't reached kvm_arch_vcpu_create().
+	 *
+	 * The whole combination of this guarantees that no vCPU can get into
+	 * KVM with a VGIC configuration inconsistent with the VM's VGIC.
+	 */
+	if (kvm->created_vcpus != atomic_read(&kvm->online_vcpus))
+		goto out_unlock;
 
 	if (irqchip_in_kernel(kvm)) {
 		ret = -EEXIST;
@@ -112,6 +139,22 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		goto out_unlock;
 	}
 
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		ret = vgic_allocate_private_irqs_locked(vcpu, type);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+			kfree(vgic_cpu->private_irqs);
+			vgic_cpu->private_irqs = NULL;
+		}
+
+		goto out_unlock;
+	}
+
 	kvm->arch.vgic.in_kernel = true;
 	kvm->arch.vgic.vgic_model = type;
 
@@ -124,7 +167,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
-	unlock_all_vcpus(kvm);
+	kvm_unlock_all_vcpus(kvm);
 	return ret;
 }
 
@@ -180,7 +223,28 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	return 0;
 }
 
-static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu)
+/* Default GICv3 Maintenance Interrupt INTID, as per SBSA */
+#define DEFAULT_MI_INTID	25
+
+int kvm_vgic_vcpu_nv_init(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	guard(mutex)(&vcpu->kvm->arch.config_lock);
+
+	/*
+	 * Matching the tradition established with the timers, provide
+	 * a default PPI for the maintenance interrupt. It makes
+	 * things easier to reason about.
+	 */
+	if (vcpu->kvm->arch.vgic.mi_intid == 0)
+		vcpu->kvm->arch.vgic.mi_intid = DEFAULT_MI_INTID;
+	ret = kvm_vgic_set_owner(vcpu, vcpu->kvm->arch.vgic.mi_intid, vcpu);
+
+	return ret;
+}
+
+static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	int i;
@@ -218,17 +282,28 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu)
 			/* PPIs */
 			irq->config = VGIC_CONFIG_LEVEL;
 		}
+
+		switch (type) {
+		case KVM_DEV_TYPE_ARM_VGIC_V3:
+			irq->group = 1;
+			irq->mpidr = kvm_vcpu_get_mpidr_aff(vcpu);
+			break;
+		case KVM_DEV_TYPE_ARM_VGIC_V2:
+			irq->group = 0;
+			irq->targets = BIT(vcpu->vcpu_id);
+			break;
+		}
 	}
 
 	return 0;
 }
 
-static int vgic_allocate_private_irqs(struct kvm_vcpu *vcpu)
+static int vgic_allocate_private_irqs(struct kvm_vcpu *vcpu, u32 type)
 {
 	int ret;
 
 	mutex_lock(&vcpu->kvm->arch.config_lock);
-	ret = vgic_allocate_private_irqs_locked(vcpu);
+	ret = vgic_allocate_private_irqs_locked(vcpu, type);
 	mutex_unlock(&vcpu->kvm->arch.config_lock);
 
 	return ret;
@@ -258,7 +333,7 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	if (!irqchip_in_kernel(vcpu->kvm))
 		return 0;
 
-	ret = vgic_allocate_private_irqs(vcpu);
+	ret = vgic_allocate_private_irqs(vcpu, dist->vgic_model);
 	if (ret)
 		return ret;
 
@@ -295,7 +370,7 @@ int vgic_init(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int ret = 0, i;
+	int ret = 0;
 	unsigned long idx;
 
 	lockdep_assert_held(&kvm->arch.config_lock);
@@ -314,35 +389,6 @@ int vgic_init(struct kvm *kvm)
 	ret = kvm_vgic_dist_init(kvm, dist->nr_spis);
 	if (ret)
 		goto out;
-
-	/* Initialize groups on CPUs created before the VGIC type was known */
-	kvm_for_each_vcpu(idx, vcpu, kvm) {
-		ret = vgic_allocate_private_irqs_locked(vcpu);
-		if (ret)
-			goto out;
-
-		for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
-			struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, i);
-
-			switch (dist->vgic_model) {
-			case KVM_DEV_TYPE_ARM_VGIC_V3:
-				irq->group = 1;
-				irq->mpidr = kvm_vcpu_get_mpidr_aff(vcpu);
-				break;
-			case KVM_DEV_TYPE_ARM_VGIC_V2:
-				irq->group = 0;
-				irq->targets = 1U << idx;
-				break;
-			default:
-				ret = -EINVAL;
-			}
-
-			vgic_put_irq(kvm, irq);
-
-			if (ret)
-				goto out;
-		}
-	}
 
 	/*
 	 * If we have GICv4.1 enabled, unconditionally request enable the
@@ -588,12 +634,20 @@ void kvm_vgic_cpu_down(void)
 
 static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 {
+	struct kvm_vcpu *vcpu = *(struct kvm_vcpu **)data;
+
 	/*
 	 * We cannot rely on the vgic maintenance interrupt to be
 	 * delivered synchronously. This means we can only use it to
 	 * exit the VM, and we perform the handling of EOIed
 	 * interrupts on the exit path (see vgic_fold_lr_state).
+	 *
+	 * Of course, NV throws a wrench in this plan, and needs
+	 * something special.
 	 */
+	if (vcpu && vgic_state_is_nested(vcpu))
+		vgic_v3_handle_nested_maint_irq(vcpu);
+
 	return IRQ_HANDLED;
 }
 

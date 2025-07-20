@@ -34,6 +34,8 @@
 #define NUM_PCIE_BITRATES     4
 #define NUM_XGMI_BITRATES     4
 #define NUM_XGMI_WIDTHS       3
+#define NUM_SOC_P2S_TABLES    3
+#define NUM_TDP_GROUPS        4
 
 typedef enum {
 /*0*/   FEATURE_DATA_CALCULATION            = 0,
@@ -80,8 +82,10 @@ typedef enum {
 /*41*/  FEATURE_CXL_QOS                     = 41,
 /*42*/  FEATURE_SOC_DC_RTC                  = 42,
 /*43*/  FEATURE_GFX_DC_RTC                  = 43,
+/*44*/  FEATURE_DVM_MIN_PSM                 = 44,
+/*45*/  FEATURE_PRC                         = 45,
 
-/*44*/  NUM_FEATURES                        = 44
+/*46*/  NUM_FEATURES                        = 46
 } FEATURE_LIST_e;
 
 //enum for MPIO PCIe gen speed msgs
@@ -123,8 +127,9 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0xE
+#define SMU_METRICS_TABLE_VERSION 0x11
 
+// Unified metrics table for smu_v13_0_6
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
 
@@ -234,8 +239,15 @@ typedef struct __attribute__((packed, aligned(4))) {
 
   //PCIE BW Data and error count
   uint32_t PCIeOtherEndRecoveryAcc;       // The Pcie counter itself is accumulated
-} MetricsTableX_t;
 
+  //Total App Clock Counter
+  uint64_t GfxclkBelowHostLimitPptAcc[8];
+  uint64_t GfxclkBelowHostLimitThmAcc[8];
+  uint64_t GfxclkBelowHostLimitTotalAcc[8];
+  uint64_t GfxclkLowUtilizationAcc[8];
+} MetricsTableV0_t;
+
+// Metrics table for smu_v13_0_6 APUS
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
 
@@ -326,15 +338,134 @@ typedef struct __attribute__((packed, aligned(4))) {
   // VCN/JPEG ACTIVITY
   uint32_t VcnBusy[4];
   uint32_t JpegBusy[32];
-} MetricsTableA_t;
+} MetricsTableV1_t;
 
-#define SMU_VF_METRICS_TABLE_VERSION 0x3
+// Metrics table for smu_v13_0_12
+typedef struct __attribute__((packed, aligned(4))) {
+  uint64_t AccumulationCounter;
+
+  //TEMPERATURE
+  uint32_t MaxSocketTemperature;
+  uint32_t MaxVrTemperature;
+  uint32_t MaxHbmTemperature;
+  uint64_t MaxSocketTemperatureAcc;
+  uint64_t MaxVrTemperatureAcc;
+  uint64_t MaxHbmTemperatureAcc;
+
+  //POWER
+  uint32_t SocketPowerLimit;
+  uint32_t MaxSocketPowerLimit;
+  uint32_t SocketPower;
+
+  //ENERGY
+  uint64_t Timestamp;
+  uint64_t SocketEnergyAcc;
+  uint64_t CcdEnergyAcc;
+  uint64_t XcdEnergyAcc;
+  uint64_t AidEnergyAcc;
+  uint64_t HbmEnergyAcc;
+
+  //FREQUENCY
+  uint32_t GfxclkFrequencyLimit;
+  uint32_t FclkFrequency;
+  uint32_t UclkFrequency;
+  uint32_t SocclkFrequency[4];
+  uint32_t VclkFrequency[4];
+  uint32_t DclkFrequency[4];
+  uint32_t LclkFrequency[4];
+  uint64_t GfxclkFrequencyAcc[8];
+
+  //FREQUENCY RANGE
+  uint32_t MaxGfxclkFrequency;
+  uint32_t MinGfxclkFrequency;
+  uint32_t FclkFrequencyTable[4];
+  uint32_t UclkFrequencyTable[4];
+  uint32_t SocclkFrequencyTable[4];
+  uint32_t VclkFrequencyTable[4];
+  uint32_t DclkFrequencyTable[4];
+  uint32_t LclkFrequencyTable[4];
+  uint32_t MaxLclkDpmRange;
+  uint32_t MinLclkDpmRange;
+
+  //XGMI
+  uint32_t XgmiWidth;
+  uint32_t XgmiBitrate;
+  uint64_t XgmiReadBandwidthAcc[8];
+  uint64_t XgmiWriteBandwidthAcc[8];
+
+  //ACTIVITY
+  uint32_t SocketGfxBusy;
+  uint32_t DramBandwidthUtilization;
+  uint64_t SocketC0ResidencyAcc;
+  uint64_t SocketGfxBusyAcc;
+  uint64_t DramBandwidthAcc;
+  uint32_t MaxDramBandwidth;
+  uint64_t DramBandwidthUtilizationAcc;
+  uint64_t PcieBandwidthAcc[4];
+
+  //THROTTLERS
+  uint32_t ProchotResidencyAcc;
+  uint32_t PptResidencyAcc;
+  uint32_t SocketThmResidencyAcc;
+  uint32_t VrThmResidencyAcc;
+  uint32_t HbmThmResidencyAcc;
+  uint32_t GfxLockXCDMak;
+
+  // New Items at end to maintain driver compatibility
+  uint32_t GfxclkFrequency[8];
+
+  //PSNs
+  uint64_t PublicSerialNumber_AID[4];
+  uint64_t PublicSerialNumber_XCD[8];
+
+  //XGMI Data tranfser size
+  uint64_t XgmiReadDataSizeAcc[8];//in KByte
+  uint64_t XgmiWriteDataSizeAcc[8];//in KByte
+
+  //PCIE BW Data and error count
+  uint32_t PcieBandwidth[4];
+  uint32_t PCIeL0ToRecoveryCountAcc;      // The Pcie counter itself is accumulated
+  uint32_t PCIenReplayAAcc;               // The Pcie counter itself is accumulated
+  uint32_t PCIenReplayARolloverCountAcc;  // The Pcie counter itself is accumulated
+  uint32_t PCIeNAKSentCountAcc;           // The Pcie counter itself is accumulated
+  uint32_t PCIeNAKReceivedCountAcc;       // The Pcie counter itself is accumulated
+
+  // VCN/JPEG ACTIVITY
+  uint32_t VcnBusy[4];
+  uint32_t JpegBusy[32];
+
+  // PCIE LINK Speed and width
+  uint32_t PCIeLinkSpeed;
+  uint32_t PCIeLinkWidth;
+
+  // PER XCD ACTIVITY
+  uint32_t GfxBusy[8];
+  uint64_t GfxBusyAcc[8];
+
+  //PCIE BW Data and error count
+  uint32_t PCIeOtherEndRecoveryAcc;       // The Pcie counter itself is accumulated
+
+  //Total App Clock Counter
+  uint64_t GfxclkBelowHostLimitAcc[8];
+} MetricsTableV2_t;
+
+#define SMU_VF_METRICS_TABLE_VERSION 0x5
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
   uint32_t InstGfxclk_TargFreq;
   uint64_t AccGfxclk_TargFreq;
   uint64_t AccGfxRsmuDpm_Busy;
+  uint64_t AccGfxclkBelowHostLimit;
 } VfMetricsTable_t;
+
+#pragma pack(push, 4)
+typedef struct {
+  // Telemetry
+  uint32_t InputTelemetryVoltageInmV;
+  // General info
+  uint32_t pldmVersion[2];
+} StaticMetricsTable_t;
+#pragma pack(pop)
 
 #endif

@@ -245,7 +245,6 @@ static struct cpufreq_driver pas_cpufreq_driver = {
 	.exit		= pas_cpufreq_cpu_exit,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= pas_cpufreq_target,
-	.attr		= cpufreq_generic_attr,
 };
 
 /*

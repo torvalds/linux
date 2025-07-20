@@ -13,12 +13,14 @@
 #define VERDICT_REJECT	0
 #define VERDICT_PROCEED	1
 
+int port;
+
 SEC("cgroup/connect4")
 int connect_v4_dropper(struct bpf_sock_addr *ctx)
 {
 	if (ctx->type != SOCK_STREAM)
 		return VERDICT_PROCEED;
-	if (ctx->user_port == bpf_htons(60120))
+	if (ctx->user_port == bpf_htons(port))
 		return VERDICT_REJECT;
 	return VERDICT_PROCEED;
 }

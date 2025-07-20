@@ -313,3 +313,15 @@ nouveau_debugfs_fini(struct nouveau_drm *drm)
 	kfree(drm->debugfs);
 	drm->debugfs = NULL;
 }
+
+void
+nouveau_module_debugfs_init(void)
+{
+	nouveau_debugfs_root = debugfs_create_dir("nouveau", NULL);
+}
+
+void
+nouveau_module_debugfs_fini(void)
+{
+	debugfs_remove(nouveau_debugfs_root);
+}

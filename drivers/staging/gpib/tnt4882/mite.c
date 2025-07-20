@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  *	Hardware driver for NI Mite PCI interface chip,
@@ -88,7 +88,6 @@ int mite_setup(struct mite_struct *mite)
 		pr_err("mite: failed to remap mite io memory address.\n");
 		return -ENOMEM;
 	}
-	pr_info("mite: 0x%08lx mapped to %p\n", mite->mite_phys_addr, mite->mite_io_addr);
 	addr = pci_resource_start(mite->pcidev, 1);
 	mite->daq_phys_addr = addr;
 	mite->daq_io_addr = ioremap(mite->daq_phys_addr, pci_resource_len(mite->pcidev, 1));
@@ -96,7 +95,6 @@ int mite_setup(struct mite_struct *mite)
 		pr_err("mite: failed to remap daq io memory address.\n");
 		return -ENOMEM;
 	}
-	pr_info("mite: daq: 0x%08lx mapped to %p\n", mite->daq_phys_addr, mite->daq_io_addr);
 	writel(mite->daq_phys_addr | WENAB, mite->mite_io_addr + MITE_IODWBSR);
 	mite->used = 1;
 	return 0;
@@ -133,87 +131,3 @@ void mite_unsetup(struct mite_struct *mite)
 	}
 	mite->used = 0;
 }
-
-void mite_list_devices(void)
-{
-	struct mite_struct *mite, *next;
-
-	pr_info("Available NI PCI device IDs:");
-	if (mite_devices)
-		for (mite = mite_devices; mite; mite = next) {
-			next = mite->next;
-			pr_info(" 0x%04x", mite_device_id(mite));
-			if (mite->used)
-				pr_info("(used)");
-	}
-	pr_info("\n");
-}
-
-int mite_bytes_transferred(struct mite_struct *mite, int chan)
-{
-	int dar, fcr;
-
-	dar = readl(mite->mite_io_addr + MITE_DAR + CHAN_OFFSET(chan));
-	fcr = readl(mite->mite_io_addr + MITE_FCR + CHAN_OFFSET(chan)) & 0x000000FF;
-	return dar - fcr;
-}
-
-int mite_dma_tcr(struct mite_struct *mite)
-{
-	int tcr;
-	int lkar;
-
-	lkar = readl(mite->mite_io_addr + CHAN_OFFSET(0) + MITE_LKAR);
-	tcr = readl(mite->mite_io_addr + CHAN_OFFSET(0) + MITE_TCR);
-	MDPRINTK("lkar=0x%08x tcr=%d\n", lkar, tcr);
-
-	return tcr;
-}
-
-void mite_dma_disarm(struct mite_struct *mite)
-{
-	int chor;
-
-	/* disarm */
-	chor = CHOR_ABORT;
-	writel(chor, mite->mite_io_addr + CHAN_OFFSET(0) + MITE_CHOR);
-}
-
-void mite_dump_regs(struct mite_struct *mite)
-{
-	void *addr = 0;
-	unsigned long temp = 0;
-
-	pr_info("mite address is  =0x%p\n", mite->mite_io_addr);
-
-	addr = mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(0);
-	pr_info("mite status[CHOR]at 0x%p =0x%08lx\n", addr, temp = readl(addr));
-	//mite_decode(mite_CHOR_strings,temp);
-	addr = mite->mite_io_addr + MITE_CHCR + CHAN_OFFSET(0);
-	pr_info("mite status[CHCR]at 0x%p =0x%08lx\n", addr, temp = readl(addr));
-	//mite_decode(mite_CHCR_strings,temp);
-	addr = mite->mite_io_addr + MITE_TCR + CHAN_OFFSET(0);
-	pr_info("mite status[TCR] at 0x%p =0x%08x\n", addr, readl(addr));
-	addr = mite->mite_io_addr + MITE_MCR + CHAN_OFFSET(0);
-	pr_info("mite status[MCR] at 0x%p =0x%08lx\n", addr, temp = readl(addr));
-	//mite_decode(mite_MCR_strings,temp);
-	addr = mite->mite_io_addr + MITE_MAR + CHAN_OFFSET(0);
-	pr_info("mite status[MAR] at 0x%p =0x%08x\n", addr, readl(addr));
-	addr = mite->mite_io_addr + MITE_DCR + CHAN_OFFSET(0);
-	pr_info("mite status[DCR] at 0x%p =0x%08lx\n", addr, temp = readl(addr));
-	//mite_decode(mite_CR_strings,temp);
-	addr = mite->mite_io_addr + MITE_DAR + CHAN_OFFSET(0);
-	pr_info("mite status[DAR] at 0x%p =0x%08x\n", addr, readl(addr));
-	addr = mite->mite_io_addr + MITE_LKCR + CHAN_OFFSET(0);
-	pr_info("mite status[LKCR]at 0x%p =0x%08lx\n", addr, temp = readl(addr));
-	//mite_decode(mite_CR_strings,temp);
-	addr = mite->mite_io_addr + MITE_LKAR + CHAN_OFFSET(0);
-	pr_info("mite status[LKAR]at 0x%p =0x%08x\n", addr, readl(addr));
-
-	addr = mite->mite_io_addr + MITE_CHSR + CHAN_OFFSET(0);
-	pr_info("mite status[CHSR]at 0x%p =0x%08lx\n", addr, temp = readl(addr));
-	//mite_decode(mite_CHSR_strings,temp);
-	addr = mite->mite_io_addr + MITE_FCR + CHAN_OFFSET(0);
-	pr_info("mite status[FCR] at 0x%p =0x%08x\n\n", addr, readl(addr));
-}
-

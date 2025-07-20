@@ -132,4 +132,15 @@ config LEDS_SY7802
 
 	  This driver can be built as a module, it will be called "leds-sy7802".
 
+config LEDS_TPS6131X
+	tristate "LED support for TI TPS6131x flash LED driver"
+	depends on I2C && OF
+	depends on GPIOLIB
+	select REGMAP_I2C
+	help
+	  This option enables support for Texas Instruments TPS61310/TPS61311
+	  flash LED driver.
+
+	  This driver can be built as a module, it will be called "leds-tps6131x".
+
 endif # LEDS_CLASS_FLASH

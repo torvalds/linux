@@ -4,10 +4,13 @@
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_ERRNO_H
 #define _NOLIBC_ERRNO_H
 
-#include <asm/errno.h>
+#include <linux/errno.h>
 
 #ifndef NOLIBC_IGNORE_ERRNO
 #define SET_ERRNO(v) do { errno = (v); } while (0)
@@ -21,8 +24,5 @@ int errno __attribute__((weak));
  * because they all correspond to the highest addressable memory page.
  */
 #define MAX_ERRNO 4095
-
-/* make sure to include all global symbols */
-#include "nolibc.h"
 
 #endif /* _NOLIBC_ERRNO_H */

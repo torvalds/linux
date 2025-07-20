@@ -14,25 +14,6 @@
 #include "hbm.h"
 #include "client.h"
 
-int ishtp_cl_get_tx_free_buffer_size(struct ishtp_cl *cl)
-{
-	unsigned long tx_free_flags;
-	int size;
-
-	spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
-	size = cl->tx_ring_free_size * cl->device->fw_client->props.max_msg_length;
-	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
-
-	return size;
-}
-EXPORT_SYMBOL(ishtp_cl_get_tx_free_buffer_size);
-
-int ishtp_cl_get_tx_free_rings(struct ishtp_cl *cl)
-{
-	return cl->tx_ring_free_size;
-}
-EXPORT_SYMBOL(ishtp_cl_get_tx_free_rings);
-
 /**
  * ishtp_read_list_flush() - Flush read queue
  * @cl: ishtp client instance

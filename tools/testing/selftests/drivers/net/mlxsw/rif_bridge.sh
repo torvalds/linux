@@ -12,6 +12,7 @@ ALL_TESTS="
 	bridge_rif_remaster_port
 "
 
+REQUIRE_TEAMD="yes"
 NUM_NETIFS=2
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh

@@ -62,6 +62,7 @@ unset sflags
 unset fastclose
 unset fullmesh
 unset speed
+unset join_syn_rej
 unset join_csum_ns1
 unset join_csum_ns2
 unset join_fail_nr
@@ -1039,13 +1040,8 @@ do_transfer()
 
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		fail_test "client exit code $retc, server $rets"
-		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
-		cat /tmp/${listener_ns}.out
-		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
-		cat /tmp/${connector_ns}.out
-
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
+			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
 		return 1
 	fi
 
@@ -1408,6 +1404,7 @@ chk_join_nr()
 	local syn_nr=$1
 	local syn_ack_nr=$2
 	local ack_nr=$3
+	local syn_rej=${join_syn_rej:-0}
 	local csum_ns1=${join_csum_ns1:-0}
 	local csum_ns2=${join_csum_ns2:-0}
 	local fail_nr=${join_fail_nr:-0}
@@ -1446,6 +1443,15 @@ chk_join_nr()
 		fi
 	fi
 
+	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynAckHMacFailure")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "0" ]; then
+		rc=${KSFT_FAIL}
+		print_check "synack HMAC"
+		fail_test "got $count JOIN[s] synack HMAC failure expected 0"
+	fi
+
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckRx")
 	if [ -z "$count" ]; then
 		rc=${KSFT_SKIP}
@@ -1453,6 +1459,24 @@ chk_join_nr()
 		rc=${KSFT_FAIL}
 		print_check "ack rx"
 		fail_test "got $count JOIN[s] ack rx expected $ack_nr"
+	fi
+
+	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckHMacFailure")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "0" ]; then
+		rc=${KSFT_FAIL}
+		print_check "ack HMAC"
+		fail_test "got $count JOIN[s] ack HMAC failure expected 0"
+	fi
+
+	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinRejected")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$syn_rej" ]; then
+		rc=${KSFT_FAIL}
+		print_check "syn rejected"
+		fail_test "got $count JOIN[s] syn rejected expected $syn_rej"
 	fi
 
 	print_results "join Rx" ${rc}
@@ -1950,7 +1974,8 @@ subflows_tests()
 		pm_nl_set_limits $ns2 0 1
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
 		run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 1 1 0
+		join_syn_rej=1 \
+			chk_join_nr 1 1 0
 	fi
 
 	# subflow
@@ -1979,7 +2004,8 @@ subflows_tests()
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
 		pm_nl_add_endpoint $ns2 10.0.2.2 flags subflow
 		run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 2 2 1
+		join_syn_rej=1 \
+			chk_join_nr 2 2 1
 	fi
 
 	# single subflow, dev
@@ -3048,7 +3074,8 @@ syncookies_tests()
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
 		pm_nl_add_endpoint $ns2 10.0.2.2 flags subflow
 		run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 2 1 1
+		join_syn_rej=1 \
+			chk_join_nr 2 1 1
 	fi
 
 	# test signal address with cookies
@@ -3532,7 +3559,8 @@ userspace_tests()
 		pm_nl_set_limits $ns2 1 1
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
 		run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 1 1 0
+		join_syn_rej=1 \
+			chk_join_nr 1 1 0
 	fi
 
 	# userspace pm type does not send join
@@ -3555,7 +3583,8 @@ userspace_tests()
 		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
 		sflags=backup speed=slow \
 			run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 1 1 0
+		join_syn_rej=1 \
+			chk_join_nr 1 1 0
 		chk_prio_nr 0 0 0 0
 	fi
 

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+---
+$id: http://devicetree.org/schemas/interrupt-controller/faraday,ftintc010.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Faraday Technology FTINTC010 interrupt controller
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  This interrupt controller is a stock IP block from Faraday Technology found
+  in the Gemini SoCs and other designs.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: moxa,moxart-ic
+          - const: faraday,ftintc010
+      - enum:
+          - faraday,ftintc010
+          - cortina,gemini-interrupt-controller
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@48000000 {
+        compatible = "faraday,ftintc010";
+        reg = <0x48000000 0x1000>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+    };

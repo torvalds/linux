@@ -8,6 +8,7 @@
 #define KMSG_COMPONENT "sclp_cmd"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/cpufeature.h>
 #include <linux/completion.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -428,7 +429,7 @@ static void __init add_memory_merged(u16 rn)
 		goto skip_add;
 	for (addr = start; addr < start + size; addr += block_size)
 		add_memory(0, addr, block_size,
-			   MACHINE_HAS_EDAT1 ?
+			   cpu_has_edat1() ?
 			   MHP_MEMMAP_ON_MEMORY | MHP_OFFLINE_INACCESSIBLE : MHP_NONE);
 skip_add:
 	first_rn = rn;

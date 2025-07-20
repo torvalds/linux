@@ -1,9 +1,30 @@
 [
     {
+        "BriefDescription": "C10 residency percent per package",
+        "MetricExpr": "cstate_pkg@c10\\-residency@ / TSC",
+        "MetricGroup": "Power",
+        "MetricName": "C10_Pkg_Residency",
+        "ScaleUnit": "100%"
+    },
+    {
         "BriefDescription": "C1 residency percent per core",
         "MetricExpr": "cstate_core@c1\\-residency@ / TSC",
         "MetricGroup": "Power",
         "MetricName": "C1_Core_Residency",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "C2 residency percent per package",
+        "MetricExpr": "cstate_pkg@c2\\-residency@ / TSC",
+        "MetricGroup": "Power",
+        "MetricName": "C2_Pkg_Residency",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "C3 residency percent per package",
+        "MetricExpr": "cstate_pkg@c3\\-residency@ / TSC",
+        "MetricGroup": "Power",
+        "MetricName": "C3_Pkg_Residency",
         "ScaleUnit": "100%"
     },
     {
@@ -14,13 +35,6 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "C6 residency percent per module",
-        "MetricExpr": "cstate_module@c6\\-residency@ / TSC",
-        "MetricGroup": "Power",
-        "MetricName": "C6_Module_Residency",
-        "ScaleUnit": "100%"
-    },
-    {
         "BriefDescription": "C6 residency percent per package",
         "MetricExpr": "cstate_pkg@c6\\-residency@ / TSC",
         "MetricGroup": "Power",
@@ -28,7 +42,21 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "Cycles per instruction retired; indicating how much time each executed instruction took; in units of cycles.",
+        "BriefDescription": "C7 residency percent per core",
+        "MetricExpr": "cstate_core@c7\\-residency@ / TSC",
+        "MetricGroup": "Power",
+        "MetricName": "C7_Core_Residency",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "C8 residency percent per package",
+        "MetricExpr": "cstate_pkg@c8\\-residency@ / TSC",
+        "MetricGroup": "Power",
+        "MetricName": "C8_Pkg_Residency",
+        "ScaleUnit": "100%"
+    },
+    {
+        "BriefDescription": "Cycles per instruction retired; indicating how much time each executed instruction took; in units of cycles",
         "MetricExpr": "CPU_CLK_UNHALTED.THREAD / INST_RETIRED.ANY",
         "MetricName": "cpi",
         "ScaleUnit": "1per_instr"
@@ -49,31 +77,31 @@
         "BriefDescription": "Ratio of number of completed page walks (for 2 megabyte page sizes) caused by demand data loads to the total number of completed instructions",
         "MetricExpr": "DTLB_LOAD_MISSES.WALK_COMPLETED_2M_4M / INST_RETIRED.ANY",
         "MetricName": "dtlb_2nd_level_2mb_large_page_load_mpi",
-        "PublicDescription": "Ratio of number of completed page walks (for 2 megabyte page sizes) caused by demand data loads to the total number of completed instructions. This implies it missed in the Data Translation Lookaside Buffer (DTLB) and further levels of TLB.",
+        "PublicDescription": "Ratio of number of completed page walks (for 2 megabyte page sizes) caused by demand data loads to the total number of completed instructions. This implies it missed in the Data Translation Lookaside Buffer (DTLB) and further levels of TLB",
         "ScaleUnit": "1per_instr"
     },
     {
         "BriefDescription": "Ratio of number of completed page walks (for all page sizes) caused by demand data loads to the total number of completed instructions",
         "MetricExpr": "DTLB_LOAD_MISSES.WALK_COMPLETED / INST_RETIRED.ANY",
         "MetricName": "dtlb_2nd_level_load_mpi",
-        "PublicDescription": "Ratio of number of completed page walks (for all page sizes) caused by demand data loads to the total number of completed instructions. This implies it missed in the DTLB and further levels of TLB.",
+        "PublicDescription": "Ratio of number of completed page walks (for all page sizes) caused by demand data loads to the total number of completed instructions. This implies it missed in the DTLB and further levels of TLB",
         "ScaleUnit": "1per_instr"
     },
     {
         "BriefDescription": "Ratio of number of completed page walks (for all page sizes) caused by demand data stores to the total number of completed instructions",
         "MetricExpr": "DTLB_STORE_MISSES.WALK_COMPLETED / INST_RETIRED.ANY",
         "MetricName": "dtlb_2nd_level_store_mpi",
-        "PublicDescription": "Ratio of number of completed page walks (for all page sizes) caused by demand data stores to the total number of completed instructions. This implies it missed in the DTLB and further levels of TLB.",
+        "PublicDescription": "Ratio of number of completed page walks (for all page sizes) caused by demand data stores to the total number of completed instructions. This implies it missed in the DTLB and further levels of TLB",
         "ScaleUnit": "1per_instr"
     },
     {
-        "BriefDescription": "Bandwidth of IO reads that are initiated by end device controllers that are requesting memory from the CPU.",
+        "BriefDescription": "Bandwidth of IO reads that are initiated by end device controllers that are requesting memory from the CPU",
         "MetricExpr": "UNC_CHA_TOR_INSERTS.IO_PCIRDCUR * 64 / 1e6 / duration_time",
         "MetricName": "io_bandwidth_read",
         "ScaleUnit": "1MB/s"
     },
     {
-        "BriefDescription": "Bandwidth of IO writes that are initiated by end device controllers that are writing memory to the CPU.",
+        "BriefDescription": "Bandwidth of IO writes that are initiated by end device controllers that are writing memory to the CPU",
         "MetricExpr": "(UNC_CHA_TOR_INSERTS.IO_ITOM + UNC_CHA_TOR_INSERTS.IO_ITOMCACHENEAR) * 64 / 1e6 / duration_time",
         "MetricName": "io_bandwidth_write",
         "ScaleUnit": "1MB/s"
@@ -82,14 +110,14 @@
         "BriefDescription": "Ratio of number of completed page walks (for 2 megabyte and 4 megabyte page sizes) caused by a code fetch to the total number of completed instructions",
         "MetricExpr": "ITLB_MISSES.WALK_COMPLETED_2M_4M / INST_RETIRED.ANY",
         "MetricName": "itlb_2nd_level_large_page_mpi",
-        "PublicDescription": "Ratio of number of completed page walks (for 2 megabyte and 4 megabyte page sizes) caused by a code fetch to the total number of completed instructions. This implies it missed in the Instruction Translation Lookaside Buffer (ITLB) and further levels of TLB.",
+        "PublicDescription": "Ratio of number of completed page walks (for 2 megabyte and 4 megabyte page sizes) caused by a code fetch to the total number of completed instructions. This implies it missed in the Instruction Translation Lookaside Buffer (ITLB) and further levels of TLB",
         "ScaleUnit": "1per_instr"
     },
     {
         "BriefDescription": "Ratio of number of completed page walks (for all page sizes) caused by a code fetch to the total number of completed instructions",
         "MetricExpr": "ITLB_MISSES.WALK_COMPLETED / INST_RETIRED.ANY",
         "MetricName": "itlb_2nd_level_mpi",
-        "PublicDescription": "Ratio of number of completed page walks (for all page sizes) caused by a code fetch to the total number of completed instructions. This implies it missed in the ITLB (Instruction TLB) and further levels of TLB.",
+        "PublicDescription": "Ratio of number of completed page walks (for all page sizes) caused by a code fetch to the total number of completed instructions. This implies it missed in the ITLB (Instruction TLB) and further levels of TLB",
         "ScaleUnit": "1per_instr"
     },
     {
@@ -333,60 +361,29 @@
     },
     {
         "BriefDescription": "Percentage of time that retirement is stalled due to a first level data TLB miss",
-        "MetricExpr": "tma_info_bottleneck_dtlb_miss_bound_cycles",
+        "MetricExpr": "100 * (LD_HEAD.DTLB_MISS_AT_RET + LD_HEAD.PGWALK_AT_RET) / CPU_CLK_UNHALTED.CORE",
         "MetricName": "tma_info_bottleneck_%_dtlb_miss_bound_cycles"
     },
     {
         "BriefDescription": "Percentage of time that allocation and retirement is stalled by the Frontend Cluster due to an Ifetch Miss, either Icache or ITLB Miss",
-        "MetricExpr": "tma_info_bottleneck_ifetch_miss_bound_cycles",
+        "MetricExpr": "100 * MEM_BOUND_STALLS_IFETCH.ALL / CPU_CLK_UNHALTED.CORE",
         "MetricGroup": "Ifetch",
         "MetricName": "tma_info_bottleneck_%_ifetch_miss_bound_cycles",
         "PublicDescription": "Percentage of time that allocation and retirement is stalled by the Frontend Cluster due to an Ifetch Miss, either Icache or ITLB Miss. See Info.Ifetch_Bound"
     },
     {
         "BriefDescription": "Percentage of time that retirement is stalled due to an L1 miss",
-        "MetricExpr": "tma_info_bottleneck_load_miss_bound_cycles",
+        "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.ALL / CPU_CLK_UNHALTED.CORE",
         "MetricGroup": "Load_Store_Miss",
         "MetricName": "tma_info_bottleneck_%_load_miss_bound_cycles",
         "PublicDescription": "Percentage of time that retirement is stalled due to an L1 miss. See Info.Load_Miss_Bound"
     },
     {
         "BriefDescription": "Percentage of time that retirement is stalled by the Memory Cluster due to a pipeline stall",
-        "MetricExpr": "tma_info_bottleneck_mem_exec_bound_cycles",
+        "MetricExpr": "100 * LD_HEAD.ANY_AT_RET / CPU_CLK_UNHALTED.CORE",
         "MetricGroup": "Mem_Exec",
         "MetricName": "tma_info_bottleneck_%_mem_exec_bound_cycles",
         "PublicDescription": "Percentage of time that retirement is stalled by the Memory Cluster due to a pipeline stall. See Info.Mem_Exec_Bound"
-    },
-    {
-        "BriefDescription": "Percentage of time that retirement is stalled due to a first level data TLB miss",
-        "MetricExpr": "100 * (LD_HEAD.DTLB_MISS_AT_RET + LD_HEAD.PGWALK_AT_RET) / CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": "Cycles",
-        "MetricName": "tma_info_bottleneck_dtlb_miss_bound_cycles",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of time that allocation and retirement is stalled by the Frontend Cluster due to an Ifetch Miss, either Icache or ITLB Miss",
-        "MetricExpr": "100 * MEM_BOUND_STALLS_IFETCH.ALL / CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": "Cycles;Ifetch",
-        "MetricName": "tma_info_bottleneck_ifetch_miss_bound_cycles",
-        "PublicDescription": "Percentage of time that allocation and retirement is stalled by the Frontend Cluster due to an Ifetch Miss, either Icache or ITLB Miss. See Info.Ifetch_Bound",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of time that retirement is stalled due to an L1 miss",
-        "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.ALL / CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": "Cycles;Load_Store_Miss",
-        "MetricName": "tma_info_bottleneck_load_miss_bound_cycles",
-        "PublicDescription": "Percentage of time that retirement is stalled due to an L1 miss. See Info.Load_Miss_Bound",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of time that retirement is stalled by the Memory Cluster due to a pipeline stall",
-        "MetricExpr": "100 * LD_HEAD.ANY_AT_RET / CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": "Cycles;Mem_Exec",
-        "MetricName": "tma_info_bottleneck_mem_exec_bound_cycles",
-        "PublicDescription": "Percentage of time that retirement is stalled by the Memory Cluster due to a pipeline stall. See Info.Mem_Exec_Bound",
-        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "Instructions per Branch (lower number means higher occurrence rate)",
@@ -440,36 +437,18 @@
     },
     {
         "BriefDescription": "Percentage of time that allocation is stalled due to load buffer full",
-        "MetricExpr": "tma_info_buffer_stalls_load_buffer_stall_cycles",
+        "MetricExpr": "100 * MEM_SCHEDULER_BLOCK.LD_BUF / CPU_CLK_UNHALTED.CORE",
         "MetricName": "tma_info_buffer_stalls_%_load_buffer_stall_cycles"
     },
     {
         "BriefDescription": "Percentage of time that allocation is stalled due to memory reservation stations full",
-        "MetricExpr": "tma_info_buffer_stalls_mem_rsv_stall_cycles",
+        "MetricExpr": "100 * MEM_SCHEDULER_BLOCK.RSV / CPU_CLK_UNHALTED.CORE",
         "MetricName": "tma_info_buffer_stalls_%_mem_rsv_stall_cycles"
     },
     {
         "BriefDescription": "Percentage of time that allocation is stalled due to store buffer full",
-        "MetricExpr": "tma_info_buffer_stalls_store_buffer_stall_cycles",
-        "MetricName": "tma_info_buffer_stalls_%_store_buffer_stall_cycles"
-    },
-    {
-        "BriefDescription": "Percentage of time that allocation is stalled due to load buffer full",
-        "MetricExpr": "100 * MEM_SCHEDULER_BLOCK.LD_BUF / CPU_CLK_UNHALTED.CORE",
-        "MetricName": "tma_info_buffer_stalls_load_buffer_stall_cycles",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of time that allocation is stalled due to memory reservation stations full",
-        "MetricExpr": "100 * MEM_SCHEDULER_BLOCK.RSV / CPU_CLK_UNHALTED.CORE",
-        "MetricName": "tma_info_buffer_stalls_mem_rsv_stall_cycles",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of time that allocation is stalled due to store buffer full",
         "MetricExpr": "100 * MEM_SCHEDULER_BLOCK.ST_BUF / CPU_CLK_UNHALTED.CORE",
-        "MetricName": "tma_info_buffer_stalls_store_buffer_stall_cycles",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_buffer_stalls_%_store_buffer_stall_cycles"
     },
     {
         "BriefDescription": "Cycles Per Instruction",
@@ -494,12 +473,17 @@
     },
     {
         "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss hits in the L2",
-        "MetricExpr": "tma_info_ifetch_miss_bound_ifetchmissbound_with_l2hit",
+        "MetricExpr": "100 * MEM_BOUND_STALLS_IFETCH.L2_HIT / MEM_BOUND_STALLS_IFETCH.ALL",
         "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l2hit"
     },
     {
+        "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss doesn't hit in the L2",
+        "MetricExpr": "100 * (MEM_BOUND_STALLS_IFETCH.LLC_HIT + MEM_BOUND_STALLS_IFETCH.LLC_MISS) / MEM_BOUND_STALLS_IFETCH.ALL",
+        "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l2miss"
+    },
+    {
         "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss hits in the L3",
-        "MetricExpr": "tma_info_ifetch_miss_bound_ifetchmissbound_with_l3hit",
+        "MetricExpr": "100 * MEM_BOUND_STALLS_IFETCH.LLC_HIT / MEM_BOUND_STALLS_IFETCH.ALL",
         "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l3hit"
     },
     {
@@ -508,26 +492,20 @@
         "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l3miss"
     },
     {
-        "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss hits in the L2",
-        "MetricExpr": "100 * MEM_BOUND_STALLS_IFETCH.L2_HIT / MEM_BOUND_STALLS_IFETCH.ALL",
-        "MetricName": "tma_info_ifetch_miss_bound_ifetchmissbound_with_l2hit",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss hits in the L3",
-        "MetricExpr": "100 * MEM_BOUND_STALLS_IFETCH.LLC_HIT / MEM_BOUND_STALLS_IFETCH.ALL",
-        "MetricName": "tma_info_ifetch_miss_bound_ifetchmissbound_with_l3hit",
-        "ScaleUnit": "100%"
-    },
-    {
         "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that hit the L2",
-        "MetricExpr": "tma_info_load_miss_bound_loadmissbound_with_l2hit",
+        "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.L2_HIT / MEM_BOUND_STALLS_LOAD.ALL",
         "MetricGroup": "load_store_bound",
         "MetricName": "tma_info_load_miss_bound_%_loadmissbound_with_l2hit"
     },
     {
+        "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that subsequently misses in the L2",
+        "MetricExpr": "100 * (MEM_BOUND_STALLS_LOAD.LLC_HIT + MEM_BOUND_STALLS_LOAD.LLC_MISS) / MEM_BOUND_STALLS_LOAD.ALL",
+        "MetricGroup": "load_store_bound",
+        "MetricName": "tma_info_load_miss_bound_%_loadmissbound_with_l2miss"
+    },
+    {
         "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that hit the L3",
-        "MetricExpr": "tma_info_load_miss_bound_loadmissbound_with_l3hit",
+        "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.LLC_HIT / MEM_BOUND_STALLS_LOAD.ALL",
         "MetricGroup": "load_store_bound",
         "MetricName": "tma_info_load_miss_bound_%_loadmissbound_with_l3hit"
     },
@@ -536,20 +514,6 @@
         "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.LLC_MISS / MEM_BOUND_STALLS_LOAD.ALL",
         "MetricGroup": "load_store_bound",
         "MetricName": "tma_info_load_miss_bound_%_loadmissbound_with_l3miss"
-    },
-    {
-        "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that hit the L2",
-        "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.L2_HIT / MEM_BOUND_STALLS_LOAD.ALL",
-        "MetricGroup": "load_store_bound",
-        "MetricName": "tma_info_load_miss_bound_loadmissbound_with_l2hit",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that hit the L3",
-        "MetricExpr": "100 * MEM_BOUND_STALLS_LOAD.LLC_HIT / MEM_BOUND_STALLS_LOAD.ALL",
-        "MetricGroup": "load_store_bound",
-        "MetricName": "tma_info_load_miss_bound_loadmissbound_with_l3hit",
-        "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "Counts the number of cycles that the oldest load of the load buffer is stalled at retirement due to a pipeline block",
@@ -586,80 +550,38 @@
     },
     {
         "BriefDescription": "Percentage of total non-speculative loads with an address aliasing block",
-        "MetricExpr": "tma_info_mem_exec_blocks_loads_with_adressaliasing",
+        "MetricExpr": "100 * LD_BLOCKS.ADDRESS_ALIAS / MEM_UOPS_RETIRED.ALL_LOADS",
         "MetricName": "tma_info_mem_exec_blocks_%_loads_with_adressaliasing"
     },
     {
         "BriefDescription": "Percentage of total non-speculative loads with a store forward or unknown store address block",
-        "MetricExpr": "tma_info_mem_exec_blocks_loads_with_storefwdblk",
-        "MetricName": "tma_info_mem_exec_blocks_%_loads_with_storefwdblk"
-    },
-    {
-        "BriefDescription": "Percentage of total non-speculative loads with an address aliasing block",
-        "MetricExpr": "100 * LD_BLOCKS.ADDRESS_ALIAS / MEM_UOPS_RETIRED.ALL_LOADS",
-        "MetricName": "tma_info_mem_exec_blocks_loads_with_adressaliasing",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of total non-speculative loads with a store forward or unknown store address block",
         "MetricExpr": "100 * LD_BLOCKS.DATA_UNKNOWN / MEM_UOPS_RETIRED.ALL_LOADS",
-        "MetricName": "tma_info_mem_exec_blocks_loads_with_storefwdblk",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "Percentage of Memory Execution Bound due to a first level data cache miss",
-        "MetricExpr": "tma_info_mem_exec_bound_loadhead_with_l1miss",
-        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_l1miss"
-    },
-    {
-        "BriefDescription": "Percentage of Memory Execution Bound due to other block cases, such as pipeline conflicts, fences, etc",
-        "MetricExpr": "tma_info_mem_exec_bound_loadhead_with_otherpipelineblks",
-        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_otherpipelineblks"
-    },
-    {
-        "BriefDescription": "Percentage of Memory Execution Bound due to a pagewalk",
-        "MetricExpr": "tma_info_mem_exec_bound_loadhead_with_pagewalk",
-        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_pagewalk"
-    },
-    {
-        "BriefDescription": "Percentage of Memory Execution Bound due to a second level TLB miss",
-        "MetricExpr": "tma_info_mem_exec_bound_loadhead_with_stlbhit",
-        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_stlbhit"
-    },
-    {
-        "BriefDescription": "Percentage of Memory Execution Bound due to a store forward address match",
-        "MetricExpr": "tma_info_mem_exec_bound_loadhead_with_storefwding",
-        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_storefwding"
+        "MetricName": "tma_info_mem_exec_blocks_%_loads_with_storefwdblk"
     },
     {
         "BriefDescription": "Percentage of Memory Execution Bound due to a first level data cache miss",
         "MetricExpr": "100 * LD_HEAD.L1_MISS_AT_RET / LD_HEAD.ANY_AT_RET",
-        "MetricName": "tma_info_mem_exec_bound_loadhead_with_l1miss",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_l1miss"
     },
     {
         "BriefDescription": "Percentage of Memory Execution Bound due to other block cases, such as pipeline conflicts, fences, etc",
         "MetricExpr": "100 * LD_HEAD.OTHER_AT_RET / LD_HEAD.ANY_AT_RET",
-        "MetricName": "tma_info_mem_exec_bound_loadhead_with_otherpipelineblks",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_otherpipelineblks"
     },
     {
         "BriefDescription": "Percentage of Memory Execution Bound due to a pagewalk",
         "MetricExpr": "100 * LD_HEAD.PGWALK_AT_RET / LD_HEAD.ANY_AT_RET",
-        "MetricName": "tma_info_mem_exec_bound_loadhead_with_pagewalk",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_pagewalk"
     },
     {
         "BriefDescription": "Percentage of Memory Execution Bound due to a second level TLB miss",
         "MetricExpr": "100 * LD_HEAD.DTLB_MISS_AT_RET / LD_HEAD.ANY_AT_RET",
-        "MetricName": "tma_info_mem_exec_bound_loadhead_with_stlbhit",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_stlbhit"
     },
     {
         "BriefDescription": "Percentage of Memory Execution Bound due to a store forward address match",
         "MetricExpr": "100 * LD_HEAD.ST_ADDR_AT_RET / LD_HEAD.ANY_AT_RET",
-        "MetricName": "tma_info_mem_exec_bound_loadhead_with_storefwding",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_mem_exec_bound_%_loadhead_with_storefwding"
     },
     {
         "BriefDescription": "Instructions per Load",
@@ -688,14 +610,8 @@
     },
     {
         "BriefDescription": "Percentage of time that the core is stalled due to a TPAUSE or UMWAIT instruction",
-        "MetricExpr": "tma_info_serialization_tpause_cycles",
-        "MetricName": "tma_info_serialization _%_tpause_cycles"
-    },
-    {
-        "BriefDescription": "Percentage of time that the core is stalled due to a TPAUSE or UMWAIT instruction",
         "MetricExpr": "100 * SERIALIZATION.C01_MS_SCB / (6 * CPU_CLK_UNHALTED.CORE)",
-        "MetricName": "tma_info_serialization_tpause_cycles",
-        "ScaleUnit": "100%"
+        "MetricName": "tma_info_serialization_%_tpause_cycles"
     },
     {
         "BriefDescription": "Average CPU Utilization",
@@ -714,6 +630,12 @@
         "MetricExpr": "cpu@CPU_CLK_UNHALTED.CORE_P@k / CPU_CLK_UNHALTED.CORE",
         "MetricGroup": "Summary",
         "MetricName": "tma_info_system_kernel_utilization"
+    },
+    {
+        "BriefDescription": "PerfMon Event Multiplexing accuracy indicator",
+        "MetricExpr": "CPU_CLK_UNHALTED.CORE_P / CPU_CLK_UNHALTED.CORE",
+        "MetricName": "tma_info_system_mux",
+        "MetricThreshold": "tma_info_system_mux > 1.1 | tma_info_system_mux < 0.9"
     },
     {
         "BriefDescription": "Average Frequency Utilization relative nominal frequency",

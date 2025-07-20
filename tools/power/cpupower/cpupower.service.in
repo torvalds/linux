@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2012-2020, Sébastien Luttringer
+# Copyright (C) 2024-2025, Francesco Poli <invernomuto@paranoici.org>
+
+[Unit]
+Description=Apply cpupower configuration
+ConditionVirtualization=!container
+
+[Service]
+Type=oneshot
+EnvironmentFile=-___CDIR___cpupower-service.conf
+ExecStart=___LDIR___/cpupower
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

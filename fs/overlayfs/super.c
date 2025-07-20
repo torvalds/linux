@@ -91,7 +91,24 @@ static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
 		if (d->d_flags & DCACHE_OP_WEAK_REVALIDATE)
 			ret =  d->d_op->d_weak_revalidate(d, flags);
 	} else if (d->d_flags & DCACHE_OP_REVALIDATE) {
-		ret = d->d_op->d_revalidate(d, flags);
+		struct dentry *parent;
+		struct inode *dir;
+		struct name_snapshot n;
+
+		if (flags & LOOKUP_RCU) {
+			parent = READ_ONCE(d->d_parent);
+			dir = d_inode_rcu(parent);
+			if (!dir)
+				return -ECHILD;
+		} else {
+			parent = dget_parent(d);
+			dir = d_inode(parent);
+		}
+		take_dentry_name_snapshot(&n, d);
+		ret = d->d_op->d_revalidate(dir, &n.name, d, flags);
+		release_dentry_name_snapshot(&n);
+		if (!(flags & LOOKUP_RCU))
+			dput(parent);
 		if (!ret) {
 			if (!(flags & LOOKUP_RCU))
 				d_invalidate(d);
@@ -127,7 +144,8 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	return ret;
 }
 
-static int ovl_dentry_revalidate(struct dentry *dentry, unsigned int flags)
+static int ovl_dentry_revalidate(struct inode *dir, const struct qstr *name,
+				 struct dentry *dentry, unsigned int flags)
 {
 	return ovl_dentry_revalidate_common(dentry, flags, false);
 }
@@ -309,9 +327,10 @@ retry:
 			goto retry;
 		}
 
-		err = ovl_mkdir_real(ofs, dir, &work, attr.ia_mode);
-		if (err)
-			goto out_dput;
+		work = ovl_do_mkdir(ofs, dir, work, attr.ia_mode);
+		err = PTR_ERR(work);
+		if (IS_ERR(work))
+			goto out_err;
 
 		/* Weird filesystem returning with hashed negative (kernfs)? */
 		err = -EINVAL;
@@ -1119,6 +1138,11 @@ static struct ovl_entry *ovl_get_lowerstack(struct super_block *sb,
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (ctx->nr == ctx->nr_data) {
+		pr_err("at least one non-data lowerdir is required\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	err = -EINVAL;
 	for (i = 0; i < ctx->nr; i++) {
 		l = &ctx->lower[i];
@@ -1287,6 +1311,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct ovl_fs_context *ctx = fc->fs_private;
+	const struct cred *old_cred = NULL;
 	struct dentry *root_dentry;
 	struct ovl_entry *oe;
 	struct ovl_layer *layers;
@@ -1300,9 +1325,14 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_d_op = &ovl_dentry_operations;
 
 	err = -ENOMEM;
-	ofs->creator_cred = cred = prepare_creds();
+	if (!ofs->creator_cred)
+		ofs->creator_cred = cred = prepare_creds();
+	else
+		cred = (struct cred *)ofs->creator_cred;
 	if (!cred)
 		goto out_err;
+
+	old_cred = ovl_override_creds(sb);
 
 	err = ovl_fs_params_verify(ctx, &ofs->config);
 	if (err)
@@ -1463,11 +1493,19 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_root = root_dentry;
 
+	ovl_revert_creds(old_cred);
 	return 0;
 
 out_free_oe:
 	ovl_free_entry(oe);
 out_err:
+	/*
+	 * Revert creds before calling ovl_free_fs() which will call
+	 * put_cred() and put_cred() requires that the cred's that are
+	 * put are not the caller's creds, i.e., current->cred.
+	 */
+	if (old_cred)
+		ovl_revert_creds(old_cred);
 	ovl_free_fs(ofs);
 	sb->s_fs_info = NULL;
 	return err;

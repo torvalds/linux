@@ -69,6 +69,8 @@ STATIC size_t
 xchk_superblock_ondisk_size(
 	struct xfs_mount	*mp)
 {
+	if (xfs_has_zoned(mp))
+		return offsetofend(struct xfs_dsb, sb_rtreserved);
 	if (xfs_has_metadir(mp))
 		return offsetofend(struct xfs_dsb, sb_pad);
 	if (xfs_has_metauuid(mp))

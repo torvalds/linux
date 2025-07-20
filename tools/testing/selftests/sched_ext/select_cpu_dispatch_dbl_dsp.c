@@ -15,8 +15,11 @@ static enum scx_test_status setup(void **ctx)
 {
 	struct select_cpu_dispatch_dbl_dsp *skel;
 
-	skel = select_cpu_dispatch_dbl_dsp__open_and_load();
-	SCX_FAIL_IF(!skel, "Failed to open and load skel");
+	skel = select_cpu_dispatch_dbl_dsp__open();
+	SCX_FAIL_IF(!skel, "Failed to open");
+	SCX_ENUM_INIT(skel);
+	SCX_FAIL_IF(select_cpu_dispatch_dbl_dsp__load(skel), "Failed to load skel");
+
 	*ctx = skel;
 
 	return SCX_TEST_PASS;

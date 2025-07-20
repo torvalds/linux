@@ -10,10 +10,10 @@
 
 #include <crypto/internal/hash.h>
 #include <crypto/sha2.h>
-#include <linux/crypto.h>
-#include <linux/module.h>
+#include <linux/compiler.h>
+#include <linux/math.h>
 #include <linux/string.h>
-
+#include <linux/types.h>
 #include <linux/unaligned.h>
 
 typedef void (sha512_block_fn)(struct sha512_state *sst, u8 const *src,
@@ -53,66 +53,51 @@ static inline int sha512_base_init(struct shash_desc *desc)
 	return 0;
 }
 
-static inline int sha512_base_do_update(struct shash_desc *desc,
-					const u8 *data,
-					unsigned int len,
-					sha512_block_fn *block_fn)
+static inline int sha512_base_do_update_blocks(struct shash_desc *desc,
+					       const u8 *data,
+					       unsigned int len,
+					       sha512_block_fn *block_fn)
 {
+	unsigned int remain = len - round_down(len, SHA512_BLOCK_SIZE);
 	struct sha512_state *sctx = shash_desc_ctx(desc);
-	unsigned int partial = sctx->count[0] % SHA512_BLOCK_SIZE;
 
+	len -= remain;
 	sctx->count[0] += len;
 	if (sctx->count[0] < len)
 		sctx->count[1]++;
-
-	if (unlikely((partial + len) >= SHA512_BLOCK_SIZE)) {
-		int blocks;
-
-		if (partial) {
-			int p = SHA512_BLOCK_SIZE - partial;
-
-			memcpy(sctx->buf + partial, data, p);
-			data += p;
-			len -= p;
-
-			block_fn(sctx, sctx->buf, 1);
-		}
-
-		blocks = len / SHA512_BLOCK_SIZE;
-		len %= SHA512_BLOCK_SIZE;
-
-		if (blocks) {
-			block_fn(sctx, data, blocks);
-			data += blocks * SHA512_BLOCK_SIZE;
-		}
-		partial = 0;
-	}
-	if (len)
-		memcpy(sctx->buf + partial, data, len);
-
-	return 0;
+	block_fn(sctx, data, len / SHA512_BLOCK_SIZE);
+	return remain;
 }
 
-static inline int sha512_base_do_finalize(struct shash_desc *desc,
-					  sha512_block_fn *block_fn)
+static inline int sha512_base_do_finup(struct shash_desc *desc, const u8 *src,
+				       unsigned int len,
+				       sha512_block_fn *block_fn)
 {
-	const int bit_offset = SHA512_BLOCK_SIZE - sizeof(__be64[2]);
+	unsigned int bit_offset = SHA512_BLOCK_SIZE / 8 - 2;
 	struct sha512_state *sctx = shash_desc_ctx(desc);
-	__be64 *bits = (__be64 *)(sctx->buf + bit_offset);
-	unsigned int partial = sctx->count[0] % SHA512_BLOCK_SIZE;
+	union {
+		__be64 b64[SHA512_BLOCK_SIZE / 4];
+		u8 u8[SHA512_BLOCK_SIZE * 2];
+	} block = {};
 
-	sctx->buf[partial++] = 0x80;
-	if (partial > bit_offset) {
-		memset(sctx->buf + partial, 0x0, SHA512_BLOCK_SIZE - partial);
-		partial = 0;
+	if (len >= SHA512_BLOCK_SIZE) {
+		int remain;
 
-		block_fn(sctx, sctx->buf, 1);
+		remain = sha512_base_do_update_blocks(desc, src, len, block_fn);
+		src += len - remain;
+		len = remain;
 	}
 
-	memset(sctx->buf + partial, 0x0, bit_offset - partial);
-	bits[0] = cpu_to_be64(sctx->count[1] << 3 | sctx->count[0] >> 61);
-	bits[1] = cpu_to_be64(sctx->count[0] << 3);
-	block_fn(sctx, sctx->buf, 1);
+	if (len >= bit_offset * 8)
+		bit_offset += SHA512_BLOCK_SIZE / 8;
+	memcpy(&block, src, len);
+	block.u8[len] = 0x80;
+	sctx->count[0] += len;
+	block.b64[bit_offset] = cpu_to_be64(sctx->count[1] << 3 |
+					    sctx->count[0] >> 61);
+	block.b64[bit_offset + 1] = cpu_to_be64(sctx->count[0] << 3);
+	block_fn(sctx, block.u8, (bit_offset + 2) * 8 / SHA512_BLOCK_SIZE);
+	memzero_explicit(&block, sizeof(block));
 
 	return 0;
 }
@@ -126,9 +111,10 @@ static inline int sha512_base_finish(struct shash_desc *desc, u8 *out)
 
 	for (i = 0; digest_size > 0; i++, digest_size -= sizeof(__be64))
 		put_unaligned_be64(sctx->state[i], digest++);
-
-	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
 }
+
+void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
+			     int blocks);
 
 #endif /* _CRYPTO_SHA512_BASE_H */

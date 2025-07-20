@@ -37,13 +37,13 @@ static int bme680_i2c_probe(struct i2c_client *client)
 
 static const struct i2c_device_id bme680_i2c_id[] = {
 	{ "bme680" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bme680_i2c_id);
 
 static const struct of_device_id bme680_of_i2c_match[] = {
 	{ .compatible = "bosch,bme680", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bme680_of_i2c_match);
 
@@ -51,6 +51,7 @@ static struct i2c_driver bme680_i2c_driver = {
 	.driver = {
 		.name			= "bme680_i2c",
 		.of_match_table		= bme680_of_i2c_match,
+		.pm = pm_ptr(&bme680_dev_pm_ops),
 	},
 	.probe = bme680_i2c_probe,
 	.id_table = bme680_i2c_id,

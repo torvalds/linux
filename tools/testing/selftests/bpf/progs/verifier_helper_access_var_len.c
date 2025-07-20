@@ -67,7 +67,7 @@ SEC("socket")
 __description("helper access to variable memory: stack, bitwise AND, zero included")
 /* in privileged mode reads from uninitialized stack locations are permitted */
 __success __failure_unpriv
-__msg_unpriv("invalid indirect read from stack R2 off -64+0 size 64")
+__msg_unpriv("invalid read from stack R2 off -64+0 size 64")
 __retval(0)
 __naked void stack_bitwise_and_zero_included(void)
 {
@@ -100,7 +100,7 @@ __naked void stack_bitwise_and_zero_included(void)
 
 SEC("tracepoint")
 __description("helper access to variable memory: stack, bitwise AND + JMP, wrong max")
-__failure __msg("invalid indirect access to stack R1 off=-64 size=65")
+__failure __msg("invalid write to stack R1 off=-64 size=65")
 __naked void bitwise_and_jmp_wrong_max(void)
 {
 	asm volatile ("					\
@@ -187,7 +187,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tracepoint")
 __description("helper access to variable memory: stack, JMP, bounds + offset")
-__failure __msg("invalid indirect access to stack R1 off=-64 size=65")
+__failure __msg("invalid write to stack R1 off=-64 size=65")
 __naked void memory_stack_jmp_bounds_offset(void)
 {
 	asm volatile ("					\
@@ -211,7 +211,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tracepoint")
 __description("helper access to variable memory: stack, JMP, wrong max")
-__failure __msg("invalid indirect access to stack R1 off=-64 size=65")
+__failure __msg("invalid write to stack R1 off=-64 size=65")
 __naked void memory_stack_jmp_wrong_max(void)
 {
 	asm volatile ("					\
@@ -260,7 +260,7 @@ SEC("socket")
 __description("helper access to variable memory: stack, JMP, no min check")
 /* in privileged mode reads from uninitialized stack locations are permitted */
 __success __failure_unpriv
-__msg_unpriv("invalid indirect read from stack R2 off -64+0 size 64")
+__msg_unpriv("invalid read from stack R2 off -64+0 size 64")
 __retval(0)
 __naked void stack_jmp_no_min_check(void)
 {
@@ -750,7 +750,7 @@ SEC("socket")
 __description("helper access to variable memory: 8 bytes leak")
 /* in privileged mode reads from uninitialized stack locations are permitted */
 __success __failure_unpriv
-__msg_unpriv("invalid indirect read from stack R2 off -64+32 size 64")
+__msg_unpriv("invalid read from stack R2 off -64+32 size 64")
 __retval(0)
 __naked void variable_memory_8_bytes_leak(void)
 {

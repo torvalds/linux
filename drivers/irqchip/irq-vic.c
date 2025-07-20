@@ -289,8 +289,9 @@ static void __init vic_register(void __iomem *base, unsigned int parent_irq,
 						 vic_handle_irq_cascaded, v);
 	}
 
-	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
-					  &vic_irqdomain_ops, v);
+	v->domain = irq_domain_create_simple(of_fwnode_handle(node),
+					     fls(valid_sources), irq,
+					     &vic_irqdomain_ops, v);
 	/* create an IRQ mapping for each valid IRQ */
 	for (i = 0; i < fls(valid_sources); i++)
 		if (valid_sources & (1 << i))

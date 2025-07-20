@@ -10,7 +10,7 @@
 #include <linux/errqueue.h>
 #include <linux/if_link.h>
 #include <linux/net_tstamp.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <poll.h>
@@ -133,23 +133,6 @@ static void close_xsk(struct xsk *xsk)
 	munmap(xsk->umem_area, UMEM_SIZE);
 }
 
-static void ip_csum(struct iphdr *iph)
-{
-	__u32 sum = 0;
-	__u16 *p;
-	int i;
-
-	iph->check = 0;
-	p = (void *)iph;
-	for (i = 0; i < sizeof(*iph) / sizeof(*p); i++)
-		sum += p[i];
-
-	while (sum >> 16)
-		sum = (sum & 0xffff) + (sum >> 16);
-
-	iph->check = ~sum;
-}
-
 static int generate_packet(struct xsk *xsk, __u16 dst_port)
 {
 	struct xsk_tx_metadata *meta;
@@ -192,7 +175,7 @@ static int generate_packet(struct xsk *xsk, __u16 dst_port)
 	iph->protocol = IPPROTO_UDP;
 	ASSERT_EQ(inet_pton(FAMILY, TX_ADDR, &iph->saddr), 1, "inet_pton(TX_ADDR)");
 	ASSERT_EQ(inet_pton(FAMILY, RX_ADDR, &iph->daddr), 1, "inet_pton(RX_ADDR)");
-	ip_csum(iph);
+	iph->check = build_ip_csum(iph);
 
 	udph->source = htons(UDP_SOURCE_PORT);
 	udph->dest = htons(dst_port);
@@ -368,9 +351,10 @@ void test_xdp_metadata(void)
 	struct xdp_metadata2 *bpf_obj2 = NULL;
 	struct xdp_metadata *bpf_obj = NULL;
 	struct bpf_program *new_prog, *prog;
+	struct bpf_devmap_val devmap_e = {};
+	struct bpf_map *prog_arr, *devmap;
 	struct nstoken *tok = NULL;
 	__u32 queue_id = QUEUE_ID;
-	struct bpf_map *prog_arr;
 	struct xsk tx_xsk = {};
 	struct xsk rx_xsk = {};
 	__u32 val, key = 0;
@@ -426,6 +410,13 @@ void test_xdp_metadata(void)
 	bpf_program__set_ifindex(prog, rx_ifindex);
 	bpf_program__set_flags(prog, BPF_F_XDP_DEV_BOUND_ONLY);
 
+	/* Make sure we can load a dev-bound program that performs
+	 * XDP_REDIRECT into a devmap.
+	 */
+	new_prog = bpf_object__find_program_by_name(bpf_obj->obj, "redirect");
+	bpf_program__set_ifindex(new_prog, rx_ifindex);
+	bpf_program__set_flags(new_prog, BPF_F_XDP_DEV_BOUND_ONLY);
+
 	if (!ASSERT_OK(xdp_metadata__load(bpf_obj), "load skeleton"))
 		goto out;
 
@@ -438,6 +429,18 @@ void test_xdp_metadata(void)
 	if (!ASSERT_ERR(bpf_map__update_elem(prog_arr, &key, sizeof(key),
 					     &val, sizeof(val), BPF_ANY),
 			"update prog_arr"))
+		goto out;
+
+	/* Make sure we can't add dev-bound programs to devmaps. */
+	devmap = bpf_object__find_map_by_name(bpf_obj->obj, "dev_map");
+	if (!ASSERT_OK_PTR(devmap, "no dev_map found"))
+		goto out;
+
+	devmap_e.bpf_prog.fd = val;
+	if (!ASSERT_ERR(bpf_map__update_elem(devmap, &key, sizeof(key),
+					     &devmap_e, sizeof(devmap_e),
+					     BPF_ANY),
+			"update dev_map"))
 		goto out;
 
 	/* Attach BPF program to RX interface. */

@@ -57,6 +57,13 @@ struct btree_update {
 	unsigned			took_gc_lock:1;
 
 	enum btree_id			btree_id;
+	struct bpos			node_start;
+	struct bpos			node_end;
+	enum btree_node_rewrite_reason	node_needed_rewrite;
+	u16				node_written;
+	u16				node_sectors;
+	u16				node_remaining;
+
 	unsigned			update_level_start;
 	unsigned			update_level_end;
 
@@ -144,7 +151,7 @@ static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 
 	EBUG_ON(!btree_node_locked(path, level));
 
-	if (bch2_btree_node_merging_disabled)
+	if (static_branch_unlikely(&bch2_btree_node_merging_disabled))
 		return 0;
 
 	b = path->l[level].b;
@@ -159,7 +166,7 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 					      unsigned level,
 					      unsigned flags)
 {
-	bch2_trans_verify_not_unlocked(trans);
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 
 	return  bch2_foreground_maybe_merge_sibling(trans, path, level, flags,
 						    btree_prev_sib) ?:
@@ -168,8 +175,18 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 }
 
 int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
-			    struct btree *, unsigned);
+			    struct btree *, unsigned, unsigned);
+int bch2_btree_node_rewrite_key(struct btree_trans *,
+				enum btree_id, unsigned,
+				struct bkey_i *, unsigned);
+int bch2_btree_node_rewrite_pos(struct btree_trans *,
+				enum btree_id, unsigned,
+				struct bpos, unsigned, unsigned);
+int bch2_btree_node_rewrite_key_get_iter(struct btree_trans *,
+					 struct btree *, unsigned);
+
 void bch2_btree_node_rewrite_async(struct bch_fs *, struct btree *);
+
 int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
 			       struct btree *, struct bkey_i *,
 			       unsigned, bool);
@@ -278,12 +295,12 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c, struct bt
 {
 	struct bset_tree *t = bset_tree_last(b);
 	struct btree_node_entry *bne = max(write_block(b),
-			(void *) btree_bkey_last(b, bset_tree_last(b)));
+			(void *) btree_bkey_last(b, t));
 	ssize_t remaining_space =
 		__bch2_btree_u64s_remaining(b, bne->keys.start);
 
 	if (unlikely(bset_written(b, bset(b, t)))) {
-		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))
+		if (b->written + block_sectors(c) <= btree_sectors(c))
 			return bne;
 	} else {
 		if (unlikely(bset_u64s(t) * sizeof(u64) > btree_write_set_buffer(b)) &&
@@ -334,6 +351,7 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *, struct jset_entry *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
 					struct jset_entry *, unsigned long);
 
+void bch2_async_btree_node_rewrites_flush(struct bch_fs *);
 void bch2_do_pending_node_rewrites(struct bch_fs *);
 void bch2_free_pending_node_rewrites(struct bch_fs *);
 

@@ -3131,7 +3131,7 @@ int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
 	writel(0, cqp->dev->hw_regs[IRDMA_CCQPSTATUS]);
 
 	ibdev_dbg(to_ibdev(cqp->dev),
-		  "WQE: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%pK] cqp[%p] polarity[x%04x]\n",
+		  "WQE: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%p] cqp[%p] polarity[x%04x]\n",
 		  cqp->sq_size, cqp->hw_sq_size, cqp->sq_base,
 		  (u64 *)(uintptr_t)cqp->sq_pa, cqp, cqp->polarity);
 	return 0;

@@ -16,6 +16,11 @@
 
 #include <linux/unaligned.h>
 
+/* SBS compliant registers */
+#define MAX172XX_TEMP1			0x34
+#define MAX172XX_INT_TEMP		0x35
+#define MAX172XX_TEMP2			0x3B
+
 /* Nonvolatile registers */
 #define MAX1720X_NXTABLE0		0x80
 #define MAX1720X_NRSENSE		0xCF	/* RSense in 10^-5 Ohm */
@@ -24,11 +29,17 @@
 /* ModelGauge m5 */
 #define MAX172XX_STATUS			0x00	/* Status */
 #define MAX172XX_STATUS_BAT_ABSENT	BIT(3)	/* Battery absent */
+#define MAX172XX_STATUS_IMX		BIT(6)	/* Maximum Current Alert Threshold Exceeded */
+#define MAX172XX_STATUS_VMN		BIT(8)	/* Minimum Voltage Alert Threshold Exceeded */
+#define MAX172XX_STATUS_TMN		BIT(9)	/* Minimum Temperature Alert Threshold Exceeded */
+#define MAX172XX_STATUS_VMX		BIT(12)	/* Maximum Voltage Alert Threshold Exceeded */
+#define MAX172XX_STATUS_TMX		BIT(13)	/* Maximum Temperature Alert Threshold Exceeded */
 #define MAX172XX_REPCAP			0x05	/* Average capacity */
 #define MAX172XX_REPSOC			0x06	/* Percentage of charge */
 #define MAX172XX_TEMP			0x08	/* Temperature */
 #define MAX172XX_CURRENT		0x0A	/* Actual current */
 #define MAX172XX_AVG_CURRENT		0x0B	/* Average current */
+#define MAX172XX_FULL_CAP		0x10	/* Calculated full capacity */
 #define MAX172XX_TTE			0x11	/* Time to empty */
 #define MAX172XX_AVG_TA			0x16	/* Average temperature */
 #define MAX172XX_CYCLES			0x17
@@ -108,15 +119,19 @@ static const struct regmap_config max1720x_regmap_cfg = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.rd_table = &max1720x_readable_regs,
 	.volatile_table = &max1720x_volatile_regs,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_range max1720x_nvmem_allow[] = {
+	regmap_reg_range(MAX172XX_TEMP1, MAX172XX_INT_TEMP),
+	regmap_reg_range(MAX172XX_TEMP2, MAX172XX_TEMP2),
 	regmap_reg_range(MAX1720X_NXTABLE0, MAX1720X_NDEVICE_NAME4),
 };
 
 static const struct regmap_range max1720x_nvmem_deny[] = {
-	regmap_reg_range(0x00, 0x7F),
+	regmap_reg_range(0x00, 0x33),
+	regmap_reg_range(0x36, 0x3A),
+	regmap_reg_range(0x3C, 0x7F),
 	regmap_reg_range(0xE0, 0xFF),
 };
 
@@ -240,6 +255,7 @@ static const struct nvmem_cell_info max1720x_nvmem_cells[] = {
 };
 
 static const enum power_supply_property max1720x_battery_props[] = {
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -250,6 +266,7 @@ static const enum power_supply_property max1720x_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
@@ -291,7 +308,7 @@ static int max172xx_temperature_to_ps(unsigned int reg)
 /*
  * Calculating current registers resolution:
  *
- * RSense stored in 10^-5 Ohm, so mesaurment voltage must be
+ * RSense stored in 10^-5 Ohm, so measurement voltage must be
  * in 10^-11 Volts for get current in uA.
  * 16 bit current reg fullscale +/-51.2mV is 102400 uV.
  * So: 102400 / 65535 * 10^5 = 156252
@@ -303,6 +320,43 @@ static int max172xx_current_to_voltage(unsigned int reg)
 	return val * 156252;
 }
 
+static int max172xx_battery_health(struct max1720x_device_info *info,
+				   unsigned int *health)
+{
+	unsigned int status;
+	int ret;
+
+	ret = regmap_read(info->regmap, MAX172XX_STATUS, &status);
+	if (ret < 0)
+		return ret;
+
+	if (status & MAX172XX_STATUS_VMN)
+		*health = POWER_SUPPLY_HEALTH_DEAD;
+	else if (status & MAX172XX_STATUS_VMX)
+		*health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	else if (status & MAX172XX_STATUS_TMN)
+		*health = POWER_SUPPLY_HEALTH_COLD;
+	else if (status & MAX172XX_STATUS_TMX)
+		*health = POWER_SUPPLY_HEALTH_OVERHEAT;
+	else if (status & MAX172XX_STATUS_IMX)
+		*health = POWER_SUPPLY_HEALTH_OVERCURRENT;
+	else
+		*health = POWER_SUPPLY_HEALTH_GOOD;
+
+	/* Clear events which are not self-clearing to detect next events */
+	if (status > 0 && status != MAX172XX_STATUS_IMX) {
+		ret = regmap_set_bits(info->regmap, MAX172XX_STATUS,
+				      MAX172XX_STATUS_VMN |
+				      MAX172XX_STATUS_VMX |
+				      MAX172XX_STATUS_TMN |
+				      MAX172XX_STATUS_TMX);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max1720x_battery_get_property(struct power_supply *psy,
 					 enum power_supply_property psp,
 					 union power_supply_propval *val)
@@ -312,6 +366,10 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 	int ret = 0;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_HEALTH:
+		ret = max172xx_battery_health(info, &reg_val);
+		val->intval = reg_val;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		/*
 		 * POWER_SUPPLY_PROP_PRESENT will always readable via
@@ -362,6 +420,10 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 		ret = regmap_read(info->regmap, MAX172XX_AVG_CURRENT, &reg_val);
 		val->intval = max172xx_current_to_voltage(reg_val) / info->rsense;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		ret = regmap_read(info->regmap, MAX172XX_FULL_CAP, &reg_val);
+		val->intval = max172xx_capacity_to_ps(reg_val);
+		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		ret = regmap_read(info->regmap, MAX172XX_DEV_NAME, &reg_val);
 		reg_val = FIELD_GET(MAX172XX_DEV_NAME_TYPE_MASK, reg_val);
@@ -381,6 +443,54 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 
 	return ret;
 }
+
+static int max1720x_read_temp(struct device *dev, u8 reg, char *buf)
+{
+	struct power_supply *psy = dev_get_drvdata(dev);
+	struct max1720x_device_info *info = power_supply_get_drvdata(psy);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(info->regmap_nv, reg, &val);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Temperature in degrees Celsius starting at absolute zero, -273C or
+	 * 0K with an LSb of 0.1C
+	 */
+	return sysfs_emit(buf, "%d\n", val - 2730);
+}
+
+static ssize_t temp_ain1_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	return max1720x_read_temp(dev, MAX172XX_TEMP1, buf);
+}
+
+static ssize_t temp_ain2_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	return max1720x_read_temp(dev, MAX172XX_TEMP2, buf);
+}
+
+static ssize_t temp_int_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return max1720x_read_temp(dev, MAX172XX_INT_TEMP, buf);
+}
+
+static DEVICE_ATTR_RO(temp_ain1);
+static DEVICE_ATTR_RO(temp_ain2);
+static DEVICE_ATTR_RO(temp_int);
+
+static struct attribute *max1720x_attrs[] = {
+	&dev_attr_temp_ain1.attr,
+	&dev_attr_temp_ain2.attr,
+	&dev_attr_temp_int.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(max1720x);
 
 static
 int max1720x_nvmem_reg_read(void *priv, unsigned int off, void *val, size_t len)
@@ -482,6 +592,7 @@ static int max1720x_probe(struct i2c_client *client)
 
 	psy_cfg.drv_data = info;
 	psy_cfg.fwnode = dev_fwnode(dev);
+	psy_cfg.attr_grp = max1720x_groups;
 	i2c_set_clientdata(client, info);
 	info->regmap = devm_regmap_init_i2c(client, &max1720x_regmap_cfg);
 	if (IS_ERR(info->regmap))

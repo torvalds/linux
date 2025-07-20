@@ -192,7 +192,7 @@ static void optc314_set_h_timing_div_manual_mode(struct timing_generator *optc, 
 }
 
 
-static struct timing_generator_funcs dcn314_tg_funcs = {
+static const struct timing_generator_funcs dcn314_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
@@ -255,6 +255,7 @@ static struct timing_generator_funcs dcn314_tg_funcs = {
 		.set_odm_combine = optc314_set_odm_combine,
 		.set_h_timing_div_manual_mode = optc314_set_h_timing_div_manual_mode,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.read_otg_state = optc31_read_otg_state,
 };
 
 void dcn314_timing_generator_init(struct optc *optc1)

@@ -63,4 +63,38 @@ extern void wake_q_add(struct wake_q_head *head, struct task_struct *task);
 extern void wake_q_add_safe(struct wake_q_head *head, struct task_struct *task);
 extern void wake_up_q(struct wake_q_head *head);
 
+/* Spin unlock helpers to unlock and call wake_up_q with preempt disabled */
+static inline
+void raw_spin_unlock_wake(raw_spinlock_t *lock, struct wake_q_head *wake_q)
+{
+	guard(preempt)();
+	raw_spin_unlock(lock);
+	if (wake_q) {
+		wake_up_q(wake_q);
+		wake_q_init(wake_q);
+	}
+}
+
+static inline
+void raw_spin_unlock_irq_wake(raw_spinlock_t *lock, struct wake_q_head *wake_q)
+{
+	guard(preempt)();
+	raw_spin_unlock_irq(lock);
+	if (wake_q) {
+		wake_up_q(wake_q);
+		wake_q_init(wake_q);
+	}
+}
+
+static inline
+void raw_spin_unlock_irqrestore_wake(raw_spinlock_t *lock, unsigned long flags,
+				     struct wake_q_head *wake_q)
+{
+	guard(preempt)();
+	raw_spin_unlock_irqrestore(lock, flags);
+	if (wake_q) {
+		wake_up_q(wake_q);
+		wake_q_init(wake_q);
+	}
+}
 #endif /* _LINUX_SCHED_WAKE_Q_H */

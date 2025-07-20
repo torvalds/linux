@@ -12,6 +12,7 @@
 #include <linux/panic_notifier.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/utsname.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -78,7 +79,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "model name\t: UML\n");
 	seq_printf(m, "mode\t\t: skas\n");
 	seq_printf(m, "host\t\t: %s\n", host_info);
-	seq_printf(m, "fpu\t\t: %s\n", cpu_has(&boot_cpu_data, X86_FEATURE_FPU) ? "yes" : "no");
+	seq_printf(m, "fpu\t\t: %s\n", str_yes_no(cpu_has(&boot_cpu_data, X86_FEATURE_FPU)));
 	seq_printf(m, "flags\t\t:");
 	for (i = 0; i < 32*NCAPINTS; i++)
 		if (cpu_has(&boot_cpu_data, i) && (x86_cap_flags[i] != NULL))
@@ -264,7 +265,7 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
-static void parse_host_cpu_flags(char *line)
+static void __init parse_host_cpu_flags(char *line)
 {
 	int i;
 	for (i = 0; i < 32*NCAPINTS; i++) {
@@ -272,7 +273,8 @@ static void parse_host_cpu_flags(char *line)
 			set_cpu_cap(&boot_cpu_data, i);
 	}
 }
-static void parse_cache_line(char *line)
+
+static void __init parse_cache_line(char *line)
 {
 	long res;
 	char *to_parse = strstr(line, ":");
@@ -288,7 +290,7 @@ static void parse_cache_line(char *line)
 	}
 }
 
-static unsigned long get_top_address(char **envp)
+static unsigned long __init get_top_address(char **envp)
 {
 	unsigned long top_addr = (unsigned long) &top_addr;
 	int i;
@@ -376,16 +378,14 @@ int __init linux_main(int argc, char **argv, char **envp)
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
-
-	if (physmem_size + iomem_size > max_physmem) {
-		physmem_size = max_physmem - iomem_size;
+	if (physmem_size > max_physmem) {
+		physmem_size = max_physmem;
 		os_info("Physical memory size shrunk to %llu bytes\n",
 			physmem_size);
 	}
 
 	high_physmem = uml_physmem + physmem_size;
 	end_iomem = high_physmem + iomem_size;
-	high_memory = (void *) end_iomem;
 
 	start_vm = VMALLOC_START;
 
@@ -419,7 +419,6 @@ void __init setup_arch(char **cmdline_p)
 
 	stack_protections((unsigned long) init_task.stack);
 	setup_physmem(uml_physmem, uml_reserved, physmem_size);
-	mem_total_pages(physmem_size, iomem_size);
 	uml_dtb_init();
 	read_initrd();
 
@@ -440,25 +439,24 @@ void __init arch_cpu_finalize_init(void)
 	os_check_bugs();
 }
 
-void apply_seal_endbr(s32 *start, s32 *end, struct module *mod)
+void apply_seal_endbr(s32 *start, s32 *end)
 {
 }
 
-void apply_retpolines(s32 *start, s32 *end, struct module *mod)
+void apply_retpolines(s32 *start, s32 *end)
 {
 }
 
-void apply_returns(s32 *start, s32 *end, struct module *mod)
+void apply_returns(s32 *start, s32 *end)
 {
 }
 
 void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
-		   s32 *start_cfi, s32 *end_cfi, struct module *mod)
+		   s32 *start_cfi, s32 *end_cfi)
 {
 }
 
-void apply_alternatives(struct alt_instr *start, struct alt_instr *end,
-			struct module *mod)
+void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
 }
 
@@ -479,7 +477,7 @@ void *text_poke_copy(void *addr, const void *opcode, size_t len)
 	return text_poke(addr, opcode, len);
 }
 
-void text_poke_sync(void)
+void smp_text_poke_sync_each_cpu(void)
 {
 }
 

@@ -219,7 +219,7 @@ int
 tu102_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return r535_gr_new(&tu102_gr, device, type, inst, pgr);
+		return -ENODEV;
 
 	return gf100_gr_new_(tu102_gr_fwif, device, type, inst, pgr);
 }

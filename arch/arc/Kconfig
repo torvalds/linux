@@ -18,6 +18,7 @@ config ARC
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select ARCH_32BIT_OFF_T
 	select BUILDTIME_TABLE_SORT
+	select GENERIC_BUILTIN_DTB
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select DMA_DIRECT_REMAP
@@ -25,7 +26,6 @@ config ARC
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
-	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_IOREMAP
@@ -551,11 +551,11 @@ config ARC_DBG_JUMP_LABEL
 	  part of static keys (jump labels) related code.
 endif
 
-config ARC_BUILTIN_DTB_NAME
+config BUILTIN_DTB_NAME
 	string "Built in DTB"
+	default "nsim_700"
 	help
-	  Set the name of the DTB to embed in the vmlinux binary
-	  Leaving it blank selects the "nsim_700" dtb.
+	  Set the name of the DTB to embed in the vmlinux binary.
 
 endmenu	 # "ARC Architecture Configuration"
 

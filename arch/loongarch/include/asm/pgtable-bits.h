@@ -92,9 +92,16 @@
 #define PAGE_KERNEL_WUC __pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _PAGE_KERN |  _CACHE_WUC)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define _PAGE_IOREMAP		pgprot_val(PAGE_KERNEL_SUC)
+
+#define pgprot_nx pgprot_nx
+
+static inline pgprot_t pgprot_nx(pgprot_t _prot)
+{
+	return __pgprot(pgprot_val(_prot) | _PAGE_NO_EXEC);
+}
 
 #define pgprot_noncached pgprot_noncached
 
@@ -120,6 +127,6 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_PGTABLE_BITS_H */

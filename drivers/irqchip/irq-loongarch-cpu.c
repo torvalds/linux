@@ -100,7 +100,7 @@ static const struct irq_domain_ops loongarch_cpu_intc_irq_domain_ops = {
 static int __init cpuintc_of_init(struct device_node *of_node,
 				struct device_node *parent)
 {
-	cpuintc_handle = of_node_to_fwnode(of_node);
+	cpuintc_handle = of_fwnode_handle(of_node);
 
 	irq_domain = irq_domain_create_linear(cpuintc_handle, EXCCODE_INT_NUM,
 				&loongarch_cpu_intc_irq_domain_ops, NULL);

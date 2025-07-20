@@ -787,7 +787,8 @@ pack_runs:
 		if (err)
 			goto out;
 
-		attr = mi_find_attr(mi, NULL, type, name, name_len, &le->id);
+		attr = mi_find_attr(ni, mi, NULL, type, name, name_len,
+				    &le->id);
 		if (!attr) {
 			err = -EINVAL;
 			goto bad_inode;
@@ -1181,7 +1182,7 @@ repack:
 			goto out;
 		}
 
-		attr = mi_find_attr(mi, NULL, ATTR_DATA, NULL, 0, &le->id);
+		attr = mi_find_attr(ni, mi, NULL, ATTR_DATA, NULL, 0, &le->id);
 		if (!attr) {
 			err = -EINVAL;
 			goto out;
@@ -1406,7 +1407,7 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 	 */
 	if (!attr->non_res) {
 		if (vbo[1] + bytes_per_off > le32_to_cpu(attr->res.data_size)) {
-			ntfs_inode_err(&ni->vfs_inode, "is corrupted");
+			_ntfs_bad_inode(&ni->vfs_inode);
 			return -EINVAL;
 		}
 		addr = resident_data(attr);
@@ -1796,7 +1797,7 @@ repack:
 				goto out;
 			}
 
-			attr = mi_find_attr(mi, NULL, ATTR_DATA, NULL, 0,
+			attr = mi_find_attr(ni, mi, NULL, ATTR_DATA, NULL, 0,
 					    &le->id);
 			if (!attr) {
 				err = -EINVAL;
@@ -2041,8 +2042,8 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 				}
 
 				/* Look for required attribute. */
-				attr = mi_find_attr(mi, NULL, ATTR_DATA, NULL,
-						    0, &le->id);
+				attr = mi_find_attr(ni, mi, NULL, ATTR_DATA,
+						    NULL, 0, &le->id);
 				if (!attr) {
 					err = -EINVAL;
 					goto out;
@@ -2587,7 +2588,7 @@ int attr_force_nonresident(struct ntfs_inode *ni)
 
 	attr = ni_find_attr(ni, NULL, &le, ATTR_DATA, NULL, 0, NULL, &mi);
 	if (!attr) {
-		ntfs_bad_inode(&ni->vfs_inode, "no data attribute");
+		_ntfs_bad_inode(&ni->vfs_inode);
 		return -ENOENT;
 	}
 
@@ -2603,75 +2604,4 @@ int attr_force_nonresident(struct ntfs_inode *ni)
 	up_write(&ni->file.run_lock);
 
 	return err;
-}
-
-/*
- * Change the compression of data attribute
- */
-int attr_set_compress(struct ntfs_inode *ni, bool compr)
-{
-	struct ATTRIB *attr;
-	struct mft_inode *mi;
-
-	attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL, &mi);
-	if (!attr)
-		return -ENOENT;
-
-	if (is_attr_compressed(attr) == !!compr) {
-		/* Already required compressed state. */
-		return 0;
-	}
-
-	if (attr->non_res) {
-		u16 run_off;
-		u32 run_size;
-		char *run;
-
-		if (attr->nres.data_size) {
-			/*
-			 * There are rare cases when it possible to change
-			 * compress state without big changes.
-			 * TODO: Process these cases.
-			 */
-			return -EOPNOTSUPP;
-		}
-
-		run_off = le16_to_cpu(attr->nres.run_off);
-		run_size = le32_to_cpu(attr->size) - run_off;
-		run = Add2Ptr(attr, run_off);
-
-		if (!compr) {
-			/* remove field 'attr->nres.total_size'. */
-			memmove(run - 8, run, run_size);
-			run_off -= 8;
-		}
-
-		if (!mi_resize_attr(mi, attr, compr ? +8 : -8)) {
-			/*
-			 * Ignore rare case when there are no 8 bytes in record with attr.
-			 * TODO: split attribute.
-			 */
-			return -EOPNOTSUPP;
-		}
-
-		if (compr) {
-			/* Make a gap for 'attr->nres.total_size'. */
-			memmove(run + 8, run, run_size);
-			run_off += 8;
-			attr->nres.total_size = attr->nres.alloc_size;
-		}
-		attr->nres.run_off = cpu_to_le16(run_off);
-	}
-
-	/* Update data attribute flags. */
-	if (compr) {
-		attr->flags |= ATTR_FLAG_COMPRESSED;
-		attr->nres.c_unit = NTFS_LZNT_CUNIT;
-	} else {
-		attr->flags &= ~ATTR_FLAG_COMPRESSED;
-		attr->nres.c_unit = 0;
-	}
-	mi->dirty = true;
-
-	return 0;
 }

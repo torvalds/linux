@@ -272,6 +272,24 @@ static const struct pwrseq_qcom_wcn_pdata pwrseq_qca6390_of_data = {
 	.targets = pwrseq_qcom_wcn_targets,
 };
 
+static const char *const pwrseq_wcn6750_vregs[] = {
+	"vddaon",
+	"vddasd",
+	"vddpmu",
+	"vddrfa0p8",
+	"vddrfa1p2",
+	"vddrfa1p7",
+	"vddrfa2p2",
+};
+
+static const struct pwrseq_qcom_wcn_pdata pwrseq_wcn6750_of_data = {
+	.vregs = pwrseq_wcn6750_vregs,
+	.num_vregs = ARRAY_SIZE(pwrseq_wcn6750_vregs),
+	.pwup_delay_ms = 50,
+	.gpio_enable_delay_ms = 5,
+	.targets = pwrseq_qcom_wcn_targets,
+};
+
 static const char *const pwrseq_wcn6855_vregs[] = {
 	"vddio",
 	"vddaon",
@@ -378,6 +396,13 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ctx->bt_gpio),
 				     "Failed to get the Bluetooth enable GPIO\n");
 
+	/*
+	 * FIXME: This should actually be GPIOD_OUT_LOW, but doing so would
+	 * cause the WLAN power to be toggled, resulting in PCIe link down.
+	 * Since the PCIe controller driver is not handling link down currently,
+	 * the device becomes unusable. So we need to keep this workaround until
+	 * the link down handling is implemented in the controller driver.
+	 */
 	ctx->wlan_gpio = devm_gpiod_get_optional(dev, "wlan-enable",
 						 GPIOD_ASIS);
 	if (IS_ERR(ctx->wlan_gpio))
@@ -430,6 +455,10 @@ static const struct of_device_id pwrseq_qcom_wcn_of_match[] = {
 	{
 		.compatible = "qcom,wcn7850-pmu",
 		.data = &pwrseq_wcn7850_of_data,
+	},
+	{
+		.compatible = "qcom,wcn6750-pmu",
+		.data = &pwrseq_wcn6750_of_data,
 	},
 	{ }
 };

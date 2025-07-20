@@ -61,7 +61,6 @@ unsigned int rseq_size = -1U;
 unsigned int rseq_flags;
 
 static int rseq_ownership;
-static int rseq_reg_success;	/* At least one rseq registration has succeded. */
 
 /* Allocate a large area for the TLS. */
 #define RSEQ_THREAD_AREA_ALLOC_SIZE	1024
@@ -72,9 +71,20 @@ static int rseq_reg_success;	/* At least one rseq registration has succeded. */
 /* Original struct rseq allocation size is 32 bytes. */
 #define ORIG_RSEQ_ALLOC_SIZE		32
 
+/*
+ * Use a union to ensure we allocate a TLS area of 1024 bytes to accomodate an
+ * rseq registration that is larger than the current rseq ABI.
+ */
+union rseq_tls {
+	struct rseq_abi abi;
+	char dummy[RSEQ_THREAD_AREA_ALLOC_SIZE];
+};
+
 static
-__thread struct rseq_abi __rseq_abi __attribute__((tls_model("initial-exec"), aligned(RSEQ_THREAD_AREA_ALLOC_SIZE))) = {
-	.cpu_id = RSEQ_ABI_CPU_ID_UNINITIALIZED,
+__thread union rseq_tls __rseq __attribute__((tls_model("initial-exec"))) = {
+	.abi = {
+		.cpu_id = RSEQ_ABI_CPU_ID_UNINITIALIZED,
+	},
 };
 
 static int sys_rseq(struct rseq_abi *rseq_abi, uint32_t rseq_len,
@@ -88,7 +98,7 @@ static int sys_getcpu(unsigned *cpu, unsigned *node)
 	return syscall(__NR_getcpu, cpu, node, NULL);
 }
 
-int rseq_available(void)
+bool rseq_available(void)
 {
 	int rc;
 
@@ -97,9 +107,9 @@ int rseq_available(void)
 		abort();
 	switch (errno) {
 	case ENOSYS:
-		return 0;
+		return false;
 	case EINVAL:
-		return 1;
+		return true;
 	default:
 		abort();
 	}
@@ -150,16 +160,29 @@ int rseq_register_current_thread(void)
 		/* Treat libc's ownership as a successful registration. */
 		return 0;
 	}
-	rc = sys_rseq(&__rseq_abi, get_rseq_min_alloc_size(), 0, RSEQ_SIG);
+	rc = sys_rseq(&__rseq.abi, get_rseq_min_alloc_size(), 0, RSEQ_SIG);
 	if (rc) {
-		if (RSEQ_READ_ONCE(rseq_reg_success)) {
+		/*
+		 * After at least one thread has registered successfully
+		 * (rseq_size > 0), the registration of other threads should
+		 * never fail.
+		 */
+		if (RSEQ_READ_ONCE(rseq_size) > 0) {
 			/* Incoherent success/failure within process. */
 			abort();
 		}
 		return -1;
 	}
 	assert(rseq_current_cpu_raw() >= 0);
-	RSEQ_WRITE_ONCE(rseq_reg_success, 1);
+
+	/*
+	 * The first thread to register sets the rseq_size to mimic the libc
+	 * behavior.
+	 */
+	if (RSEQ_READ_ONCE(rseq_size) == 0) {
+		RSEQ_WRITE_ONCE(rseq_size, get_rseq_kernel_feature_size());
+	}
+
 	return 0;
 }
 
@@ -171,7 +194,7 @@ int rseq_unregister_current_thread(void)
 		/* Treat libc's ownership as a successful unregistration. */
 		return 0;
 	}
-	rc = sys_rseq(&__rseq_abi, get_rseq_min_alloc_size(), RSEQ_ABI_FLAG_UNREGISTER, RSEQ_SIG);
+	rc = sys_rseq(&__rseq.abi, get_rseq_min_alloc_size(), RSEQ_ABI_FLAG_UNREGISTER, RSEQ_SIG);
 	if (rc)
 		return -1;
 	return 0;
@@ -235,12 +258,18 @@ void rseq_init(void)
 		return;
 	}
 	rseq_ownership = 1;
-	if (!rseq_available()) {
-		rseq_size = 0;
-		return;
-	}
-	rseq_offset = (void *)&__rseq_abi - rseq_thread_pointer();
+
+	/* Calculate the offset of the rseq area from the thread pointer. */
+	rseq_offset = (void *)&__rseq.abi - rseq_thread_pointer();
+
+	/* rseq flags are deprecated, always set to 0. */
 	rseq_flags = 0;
+
+	/*
+	 * Set the size to 0 until at least one thread registers to mimic the
+	 * libc behavior.
+	 */
+	rseq_size = 0;
 }
 
 static __attribute__((destructor))

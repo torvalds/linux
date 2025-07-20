@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRM_CLIENT_LIB
+	tristate
+	depends on DRM
+	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
+	select FB_CORE if DRM_FBDEV_EMULATION
+	help
+	  This option enables the DRM client library and selects all
+	  modules and components according to the enabled clients.
+
+config DRM_CLIENT_SELECTION
+	tristate
+	depends on DRM
+	select DRM_CLIENT_LIB if DRM_CLIENT_LOG
+	select DRM_CLIENT_LIB if DRM_FBDEV_EMULATION
+	help
+	  Drivers that support in-kernel DRM clients have to select this
+	  option.
+
+config DRM_CLIENT_SETUP
+	bool
+	depends on DRM_CLIENT_SELECTION
+	help
+	  Enables the DRM client selection. DRM drivers that support the
+	  default clients should select DRM_CLIENT_SELECTION instead.
+
+menu "Supported DRM clients"
+	depends on DRM_CLIENT_SELECTION
+
+config DRM_FBDEV_EMULATION
+	bool "Enable legacy fbdev support for your modesetting driver"
+	depends on DRM_CLIENT_SELECTION
+	select DRM_CLIENT
+	select DRM_CLIENT_SETUP
+	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
+	default FB
+	help
+	  Choose this option if you have a need for the legacy fbdev
+	  support. Note that this support also provides the linux console
+	  support on top of your modesetting driver.
+
+	  If in doubt, say "Y".
+
+config DRM_FBDEV_OVERALLOC
+	int "Overallocation of the fbdev buffer"
+	depends on DRM_FBDEV_EMULATION
+	default 100
+	help
+	  Defines the fbdev buffer overallocation in percent. Default
+	  is 100. Typical values for double buffering will be 200,
+	  triple buffering 300.
+
+config DRM_FBDEV_LEAK_PHYS_SMEM
+	bool "Shamelessly allow leaking of fbdev physical address (DANGEROUS)"
+	depends on DRM_FBDEV_EMULATION && EXPERT
+	default n
+	help
+	  In order to keep user-space compatibility, we want in certain
+	  use-cases to keep leaking the fbdev physical address to the
+	  user-space program handling the fbdev buffer.
+	  This affects, not only, Amlogic, Allwinner or Rockchip devices
+	  with ARM Mali GPUs using a userspace Blob.
+	  This option is not supported by upstream developers and should be
+	  removed as soon as possible and be considered as a broken and
+	  legacy behaviour from a modern fbdev device driver.
+
+	  Please send any bug reports when using this to your proprietary
+	  software vendor that requires this.
+
+	  If in doubt, say "N" or spread the word to your closed source
+	  library vendor.
+
+config DRM_CLIENT_LOG
+	bool "Print the kernel boot message on the screen"
+	depends on DRM_CLIENT_SELECTION
+	select DRM_CLIENT
+	select DRM_CLIENT_SETUP
+	select DRM_DRAW
+	select FONT_SUPPORT
+	help
+	  This enable a drm logger, that will print the kernel messages to the
+	  screen until the userspace is ready to take over.
+
+	  If you only need logs, but no terminal, or if you prefer userspace
+	  terminal, say "Y".
+
+choice
+	prompt "Default DRM Client"
+	depends on DRM_CLIENT_SELECTION
+	depends on DRM_FBDEV_EMULATION || DRM_CLIENT_LOG
+	default DRM_CLIENT_DEFAULT_FBDEV
+	help
+	  Selects the default drm client.
+
+	  The selection made here can be overridden by using the kernel
+	  command line 'drm_client_lib.active=fbdev' option.
+
+config DRM_CLIENT_DEFAULT_FBDEV
+	bool "fbdev"
+	depends on DRM_FBDEV_EMULATION
+	help
+	  Use fbdev emulation as default drm client. This is needed to have
+	  fbcon on top of a drm driver.
+
+config DRM_CLIENT_DEFAULT_LOG
+	bool "log"
+	depends on DRM_CLIENT_LOG
+	help
+	  Use drm log as default drm client. This will display boot logs on the
+	  screen, but doesn't implement a full terminal. For that you will need
+	  a userspace terminal using drm/kms.
+
+endchoice
+
+config DRM_CLIENT_DEFAULT
+       string
+       depends on DRM_CLIENT
+       default "fbdev" if DRM_CLIENT_DEFAULT_FBDEV
+       default "log" if DRM_CLIENT_DEFAULT_LOG
+       default ""
+
+endmenu

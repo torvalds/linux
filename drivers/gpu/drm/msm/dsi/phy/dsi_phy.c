@@ -567,6 +567,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	  .data = &dsi_phy_14nm_8953_cfgs },
 	{ .compatible = "qcom,sm6125-dsi-phy-14nm",
 	  .data = &dsi_phy_14nm_2290_cfgs },
+	{ .compatible = "qcom,sm6150-dsi-phy-14nm",
+	  .data = &dsi_phy_14nm_6150_cfgs },
 #endif
 #ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
 	{ .compatible = "qcom,dsi-phy-10nm",
@@ -579,6 +581,10 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	  .data = &dsi_phy_7nm_cfgs },
 	{ .compatible = "qcom,dsi-phy-7nm-8150",
 	  .data = &dsi_phy_7nm_8150_cfgs },
+	{ .compatible = "qcom,sa8775p-dsi-phy-5nm",
+	  .data = &dsi_phy_5nm_8775p_cfgs },
+	{ .compatible = "qcom,sar2130p-dsi-phy-5nm",
+	  .data = &dsi_phy_5nm_sar2130p_cfgs },
 	{ .compatible = "qcom,sc7280-dsi-phy-7nm",
 	  .data = &dsi_phy_7nm_7280_cfgs },
 	{ .compatible = "qcom,sm6375-dsi-phy-7nm",

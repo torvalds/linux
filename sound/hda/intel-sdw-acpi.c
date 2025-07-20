@@ -11,8 +11,8 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/export.h>
-#include <linux/fwnode.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/soundwire/sdw_intel.h>
 #include <linux/string.h>
 
@@ -177,7 +177,7 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
  * sdw_intel_startup() is required for creation of devices and bus
  * startup
  */
-int sdw_intel_acpi_scan(acpi_handle *parent_handle,
+int sdw_intel_acpi_scan(acpi_handle parent_handle,
 			struct sdw_intel_acpi_info *info)
 {
 	acpi_status status;

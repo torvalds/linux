@@ -113,8 +113,8 @@
 			  "Headphones", "HPOR",
 			  "MIC2", "Mic Jack";
 		widgets = "Headphone", "Headphones", "Microphone", "Mic Jack";
-		hp-det-gpio = <&gpio 97 GPIO_ACTIVE_HIGH>;
-		mic-det-gpio = <&gpio 96 GPIO_ACTIVE_HIGH>;
+		hp-det-gpios = <&gpio 97 GPIO_ACTIVE_HIGH>;
+		mic-det-gpios = <&gpio 96 GPIO_ACTIVE_HIGH>;
 	};
 
 	soc {

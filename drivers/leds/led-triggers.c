@@ -34,7 +34,7 @@ trigger_relevant(struct led_classdev *led_cdev, struct led_trigger *trig)
 }
 
 ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr, char *buf,
+			  const struct bin_attribute *bin_attr, char *buf,
 			  loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -51,6 +51,11 @@ ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
 
 	if (sysfs_streq(buf, "none")) {
 		led_trigger_remove(led_cdev);
+		goto unlock;
+	}
+
+	if (sysfs_streq(buf, "default")) {
+		led_trigger_set_default(led_cdev);
 		goto unlock;
 	}
 
@@ -98,6 +103,9 @@ static int led_trigger_format(char *buf, size_t size,
 	int len = led_trigger_snprintf(buf, size, "%s",
 				       led_cdev->trigger ? "none" : "[none]");
 
+	if (led_cdev->default_trigger)
+		len += led_trigger_snprintf(buf + len, size - len, " default");
+
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		bool hit;
 
@@ -123,7 +131,7 @@ static int led_trigger_format(char *buf, size_t size,
  * copy it.
  */
 ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *attr, char *buf,
+			const struct bin_attribute *attr, char *buf,
 			loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -280,6 +288,11 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 
 	if (!led_cdev->default_trigger)
 		return;
+
+	if (!strcmp(led_cdev->default_trigger, "none")) {
+		led_trigger_remove(led_cdev);
+		return;
+	}
 
 	down_read(&triggers_list_lock);
 	down_write(&led_cdev->trigger_lock);

@@ -20,6 +20,7 @@ properties:
           - mediatek,mt8183-mdp3-rsz
       - items:
           - enum:
+              - mediatek,mt8188-mdp3-rsz
               - mediatek,mt8195-mdp3-rsz
           - const: mediatek,mt8183-mdp3-rsz
 

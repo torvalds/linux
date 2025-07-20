@@ -53,7 +53,7 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 	int ret = 0;
 
 	fd->entry_to_rb = kcalloc(uctxt->expected_count,
-				  sizeof(struct rb_node *),
+				  sizeof(*fd->entry_to_rb),
 				  GFP_KERNEL);
 	if (!fd->entry_to_rb)
 		return -ENOMEM;

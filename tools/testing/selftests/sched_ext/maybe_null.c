@@ -43,7 +43,7 @@ static enum scx_test_status run(void *ctx)
 
 struct scx_test maybe_null = {
 	.name = "maybe_null",
-	.description = "Verify if PTR_MAYBE_NULL work for .dispatch",
+	.description = "Verify if PTR_MAYBE_NULL works for .dispatch",
 	.run = run,
 };
 REGISTER_SCX_TEST(&maybe_null)

@@ -29,6 +29,20 @@ struct {
 } map_array_wo SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, struct test_val);
+} map_array_pcpu SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, struct test_val);
+} map_array SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 1);
 	__type(key, long long);
@@ -523,6 +537,195 @@ l0_%=:	exit;						\
 	  __imm(bpf_map_lookup_elem),
 	  __imm_addr(map_array_wo)
 	: __clobber_all);
+}
+
+SEC("socket")
+__description("valid map access into an array using constant without nullness")
+__success __retval(4) __log_level(2)
+__msg("mark_precise: frame0: regs= stack=-8 before {{[0-9]}}: ({{[a-f0-9]+}}) *(u32 *)(r10 -8) = {{(1|r[0-9])}}")
+unsigned int an_array_with_a_constant_no_nullness(void)
+{
+	/* Need 8-byte alignment for spill tracking */
+	__u32 __attribute__((aligned(8))) key = 1;
+	struct test_val *val;
+
+	val = bpf_map_lookup_elem(&map_array, &key);
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("valid multiple map access into an array using constant without nullness")
+__success __retval(8) __log_level(2)
+__msg("mark_precise: frame0: regs= stack=-8 before {{[0-9]}}: ({{[a-f0-9]+}}) *(u32 *)(r10 -16) = {{(0|r[0-9])}}")
+__msg("mark_precise: frame0: regs= stack=-8 before {{[0-9]}}: ({{[a-f0-9]+}}) *(u32 *)(r10 -8) = {{(1|r[0-9])}}")
+unsigned int multiple_array_with_a_constant_no_nullness(void)
+{
+	__u32 __attribute__((aligned(8))) key = 1;
+	__u32 __attribute__((aligned(8))) key2 = 0;
+	struct test_val *val, *val2;
+
+	val = bpf_map_lookup_elem(&map_array, &key);
+	val->index = offsetof(struct test_val, foo);
+
+	val2 = bpf_map_lookup_elem(&map_array, &key2);
+	val2->index = offsetof(struct test_val, foo);
+
+	return val->index + val2->index;
+}
+
+SEC("socket")
+__description("valid map access into an array using natural aligned 32-bit constant 0 without nullness")
+__success __retval(4)
+unsigned int an_array_with_a_32bit_constant_0_no_nullness(void)
+{
+	/* Unlike the above tests, 32-bit zeroing is precisely tracked even
+	 * if writes are not aligned to BPF_REG_SIZE. This tests that our
+	 * STACK_ZERO handling functions.
+	 */
+	struct test_val *val;
+	__u32 key = 0;
+
+	val = bpf_map_lookup_elem(&map_array, &key);
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("valid map access into a pcpu array using constant without nullness")
+__success __retval(4) __log_level(2)
+__msg("mark_precise: frame0: regs= stack=-8 before {{[0-9]}}: ({{[a-f0-9]+}}) *(u32 *)(r10 -8) = {{(1|r[0-9])}}")
+unsigned int a_pcpu_array_with_a_constant_no_nullness(void)
+{
+	__u32 __attribute__((aligned(8))) key = 1;
+	struct test_val *val;
+
+	val = bpf_map_lookup_elem(&map_array_pcpu, &key);
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("invalid map access into an array using constant without nullness")
+__failure __msg("R0 invalid mem access 'map_value_or_null'")
+unsigned int an_array_with_a_constant_no_nullness_out_of_bounds(void)
+{
+	/* Out of bounds */
+	__u32 __attribute__((aligned(8))) key = 3;
+	struct test_val *val;
+
+	val = bpf_map_lookup_elem(&map_array, &key);
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("invalid map access into an array using constant smaller than key_size")
+__failure __msg("R0 invalid mem access 'map_value_or_null'")
+unsigned int an_array_with_a_constant_too_small(void)
+{
+	__u32 __attribute__((aligned(8))) key;
+	struct test_val *val;
+
+	/* Mark entire key as STACK_MISC */
+	bpf_probe_read_user(&key, sizeof(key), NULL);
+
+	/* Spilling only the bottom byte results in a tnum const of 1.
+	 * We want to check that the verifier rejects it, as the spill is < 4B.
+	 */
+	*(__u8 *)&key = 1;
+	val = bpf_map_lookup_elem(&map_array, &key);
+
+	/* Should fail, as verifier cannot prove in-bound lookup */
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("invalid map access into an array using constant larger than key_size")
+__failure __msg("R0 invalid mem access 'map_value_or_null'")
+unsigned int an_array_with_a_constant_too_big(void)
+{
+	struct test_val *val;
+	__u64 key = 1;
+
+	/* Even if the constant value is < max_entries, if the spill size is
+	 * larger than the key size, the set bits may not be where we expect them
+	 * to be on different endian architectures.
+	 */
+	val = bpf_map_lookup_elem(&map_array, &key);
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("invalid elided lookup using const and non-const key")
+__failure __msg("R0 invalid mem access 'map_value_or_null'")
+unsigned int mixed_const_and_non_const_key_lookup(void)
+{
+	__u32 __attribute__((aligned(8))) key;
+	struct test_val *val;
+	__u32 rand;
+
+	rand = bpf_get_prandom_u32();
+	key = rand > 42 ? 1 : rand;
+	val = bpf_map_lookup_elem(&map_array, &key);
+
+	return val->index;
+}
+
+SEC("socket")
+__failure __msg("invalid read from stack R2 off=4096 size=4")
+__naked void key_lookup_at_invalid_fp(void)
+{
+	asm volatile ("					\
+	r1 = %[map_array] ll;				\
+	r2 = r10;					\
+	r2 += 4096;					\
+	call %[bpf_map_lookup_elem];			\
+	r0 = *(u64*)(r0 + 0);				\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_array)
+	: __clobber_all);
+}
+
+volatile __u32 __attribute__((aligned(8))) global_key;
+
+SEC("socket")
+__description("invalid elided lookup using non-stack key")
+__failure __msg("R0 invalid mem access 'map_value_or_null'")
+unsigned int non_stack_key_lookup(void)
+{
+	struct test_val *val;
+
+	global_key = 1;
+	val = bpf_map_lookup_elem(&map_array, (void *)&global_key);
+	val->index = offsetof(struct test_val, foo);
+
+	return val->index;
+}
+
+SEC("socket")
+__description("doesn't reject UINT64_MAX as s64 for irrelevant maps")
+__success __retval(42)
+unsigned int doesnt_reject_irrelevant_maps(void)
+{
+	__u64 key = 0xFFFFFFFFFFFFFFFF;
+	struct test_val *val;
+
+	val = bpf_map_lookup_elem(&map_hash_48b, &key);
+	if (val)
+		return val->index;
+
+	return 42;
 }
 
 char _license[] SEC("license") = "GPL";

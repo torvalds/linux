@@ -5,13 +5,13 @@
  *
  * ----
  *
- * Callers for this were originally written against a very simple synchronus
+ * Callers for this were originally written against a very simple synchronous
  * API.  This implementation reflects those simple callers.  Some day I'm sure
  * we'll need to move to a more robust posting/callback mechanism.
  *
  * Transmit calls pass in kernel virtual addresses and block copying this into
  * the socket's tx buffers via a usual blocking sendmsg.  They'll block waiting
- * for a failed socket to timeout.  TX callers can also pass in a poniter to an
+ * for a failed socket to timeout.  TX callers can also pass in a pointer to an
  * 'int' which gets filled with an errno off the wire in response to the
  * message they send.
  *
@@ -101,7 +101,7 @@ static struct socket *o2net_listen_sock;
  * o2net_wq.  teardown detaches the callbacks before destroying the workqueue.
  * quorum work is queued as sock containers are shutdown.. stop_listening
  * tears down all the node's sock containers, preventing future shutdowns
- * and queued quroum work, before canceling delayed quorum work and
+ * and queued quorum work, before canceling delayed quorum work and
  * destroying the work queue.
  */
 static struct workqueue_struct *o2net_wq;
@@ -724,7 +724,7 @@ static void o2net_shutdown_sc(struct work_struct *work)
 	if (o2net_unregister_callbacks(sc->sc_sock->sk, sc)) {
 		/* we shouldn't flush as we're in the thread, the
 		 * races with pending sc work structs are harmless */
-		del_timer_sync(&sc->sc_idle_timeout);
+		timer_delete_sync(&sc->sc_idle_timeout);
 		o2net_sc_cancel_delayed_work(sc, &sc->sc_keepalive_work);
 		sc_put(sc);
 		kernel_sock_shutdown(sc->sc_sock, SHUT_RDWR);
@@ -1419,7 +1419,7 @@ out:
 	return ret;
 }
 
-/* this work func is triggerd by data ready.  it reads until it can read no
+/* this work func is triggered by data ready.  it reads until it can read no
  * more.  it interprets 0, eof, as fatal.  if data_ready hits while we're doing
  * our work the work struct will be marked and we'll be called again. */
 static void o2net_rx_until_empty(struct work_struct *work)
@@ -1483,12 +1483,13 @@ static void o2net_sc_send_keep_req(struct work_struct *work)
 	sc_put(sc);
 }
 
-/* socket shutdown does a del_timer_sync against this as it tears down.
+/* socket shutdown does a timer_delete_sync against this as it tears down.
  * we can't start this timer until we've got to the point in sc buildup
  * where shutdown is going to be involved */
 static void o2net_idle_timer(struct timer_list *t)
 {
-	struct o2net_sock_container *sc = from_timer(sc, t, sc_idle_timeout);
+	struct o2net_sock_container *sc = timer_container_of(sc, t,
+							     sc_idle_timeout);
 	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
 #ifdef CONFIG_DEBUG_FS
 	unsigned long msecs = ktime_to_ms(ktime_get()) -

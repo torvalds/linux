@@ -369,6 +369,38 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 		m25p,fast-read;
+		label = "at91-qspi";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			at91bootstrap@0 {
+				label = "qspi1: at91bootstrap";
+				reg = <0x0 0x40000>;
+			};
+
+			bootloader@40000 {
+				label = "qspi1: u-boot";
+				reg = <0x40000 0x100000>;
+			};
+
+			bootloaderenv@140000 {
+				label = "qspi1: u-boot env";
+				reg = <0x140000 0x40000>;
+			};
+
+			dtb@180000 {
+				label = "qspi1: device tree";
+				reg = <0x180000 0x80000>;
+			};
+
+			kernel@200000 {
+				label = "qspi1: kernel";
+				reg = <0x200000 0x600000>;
+			};
+		};
 	};
 };
 

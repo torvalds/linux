@@ -148,6 +148,33 @@ config HID_APPLEIR
 
 	Say Y here if you want support for Apple infrared remote control.
 
+config HID_APPLETB_BL
+	tristate "Apple Touch Bar Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on X86 || COMPILE_TEST
+	help
+	  Say Y here if you want support for the backlight of Touch Bars on x86
+	  MacBook Pros.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-appletb-bl.
+
+config HID_APPLETB_KBD
+	tristate "Apple Touch Bar Keyboard Mode"
+	depends on USB_HID
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on INPUT
+	depends on X86 || COMPILE_TEST
+	select INPUT_SPARSEKMAP
+	select HID_APPLETB_BL
+	help
+	  Say Y here if you want support for the keyboard mode (escape,
+	  function, media and brightness keys) of Touch Bars on x86 MacBook
+	  Pros.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-appletb-kbd.
+
 config HID_ASUS
 	tristate "Asus"
 	depends on USB_HID
@@ -570,6 +597,8 @@ config HID_LED
 
 config HID_LENOVO
 	tristate "Lenovo / Thinkpad devices"
+	depends on ACPI
+	select ACPI_PLATFORM_PROFILE
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
@@ -601,6 +630,7 @@ config HID_LOGITECH
 	tristate "Logitech devices"
 	depends on USB_HID
 	depends on LEDS_CLASS
+	depends on LEDS_CLASS_MULTICOLOR
 	default !EXPERT
 	help
 	Support for Logitech devices that are not fully compliant with HID standard.
@@ -787,7 +817,7 @@ config HID_NINTENDO
 	Adds support for the Nintendo Switch Joy-Cons, NSO, Pro Controller.
 	All controllers support bluetooth, and the Pro Controller also supports
 	its USB mode. This also includes support for the Nintendo Switch Online
-	Controllers which include the Genesis, SNES, and N64 controllers.
+	Controllers which include the NES, Genesis, SNES, and N64 controllers.
 
 	To compile this driver as a module, choose M here: the
 	module will be called hid-nintendo.
@@ -1167,7 +1197,8 @@ config HID_TOPRE
 	tristate "Topre REALFORCE keyboards"
 	depends on HID
 	help
-	  Say Y for N-key rollover support on Topre REALFORCE R2 108/87 key keyboards.
+	  Say Y for N-key rollover support on Topre REALFORCE R2 108/87 key and
+          Topre REALFORCE R3S 87 key keyboards.
 
 config HID_THINGM
 	tristate "ThingM blink(1) USB RGB LED"
@@ -1216,6 +1247,20 @@ config HID_U2FZERO
 	  U2F Zero only supports blinking its LED, so this driver doesn't
 	  allow setting the brightness to anything but 1, which will
 	  trigger a single blink and immediately reset back to 0.
+
+config HID_UNIVERSAL_PIDFF
+	tristate "universal-pidff: extended USB PID driver compatibility and usage"
+	depends on USB_HID
+	depends on HID_PID
+	help
+	  Extended PID support for selected devices.
+
+	  Contains report fixups, extended usable button range and
+	  pidff quirk management to extend compatibility with slightly
+	  non-compliant USB PID devices and better fuzz/flat values for
+	  high precision direct drive devices.
+
+	  Supports Moza Racing, Cammus, VRS, FFBeast and more.
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
@@ -1374,10 +1419,6 @@ endmenu
 
 source "drivers/hid/bpf/Kconfig"
 
-endif # HID
-
-source "drivers/hid/usbhid/Kconfig"
-
 source "drivers/hid/i2c-hid/Kconfig"
 
 source "drivers/hid/intel-ish-hid/Kconfig"
@@ -1385,5 +1426,13 @@ source "drivers/hid/intel-ish-hid/Kconfig"
 source "drivers/hid/amd-sfh-hid/Kconfig"
 
 source "drivers/hid/surface-hid/Kconfig"
+
+source "drivers/hid/intel-thc-hid/Kconfig"
+
+endif # HID
+
+# USB support may be used with HID disabled
+
+source "drivers/hid/usbhid/Kconfig"
 
 endif # HID_SUPPORT

@@ -18,6 +18,14 @@
 #include "tidss_drv.h"
 #include "tidss_plane.h"
 
+void tidss_plane_error_irq(struct drm_plane *plane, u64 irqstatus)
+{
+	struct tidss_plane *tplane = to_tidss_plane(plane);
+
+	dev_err_ratelimited(plane->dev->dev, "Plane%u underflow (irq %llx)\n",
+			    tplane->hw_plane_id, irqstatus);
+}
+
 /* drm_plane_helper_funcs */
 
 static int tidss_plane_atomic_check(struct drm_plane *plane,
@@ -59,7 +67,7 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 
 	/*
 	 * The HW is only able to start drawing at subpixel boundary
-	 * (the two first checks bellow). At the end of a row the HW
+	 * (the two first checks below). At the end of a row the HW
 	 * can only jump integer number of subpixels forward to the
 	 * beginning of the next row. So we can only show picture with
 	 * integer subpixel width (the third check). However, after

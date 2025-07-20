@@ -57,6 +57,7 @@ enum adreno_family {
 #define ADRENO_QUIRK_HAS_HW_APRIV		BIT(3)
 #define ADRENO_QUIRK_HAS_CACHED_COHERENT	BIT(4)
 #define ADRENO_QUIRK_PREEMPTION			BIT(5)
+#define ADRENO_QUIRK_4GB_VA			BIT(6)
 
 /* Helper for formating the chip_id in the way that userspace tools like
  * crashdec expect.
@@ -104,7 +105,6 @@ struct adreno_info {
 	union {
 		const struct a6xx_info *a6xx;
 	};
-	u64 address_space_size;
 	/**
 	 * @speedbins: Optional table of fuse to speedbin mappings
 	 *
@@ -253,6 +253,8 @@ struct adreno_gpu {
 	bool gmu_is_wrapper;
 
 	bool has_ray_tracing;
+
+	u64 uche_trap_base;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -440,6 +442,11 @@ static inline int adreno_is_a621(const struct adreno_gpu *gpu)
 	return gpu->info->chip_ids[0] == 0x06020100;
 }
 
+static inline int adreno_is_a623(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x06020300;
+}
+
 static inline int adreno_is_a630(const struct adreno_gpu *gpu)
 {
 	return adreno_is_revn(gpu, 630);
@@ -559,6 +566,11 @@ static inline int adreno_is_a740_family(struct adreno_gpu *gpu)
 	       gpu->info->family == ADRENO_7XX_GEN3;
 }
 
+static inline int adreno_is_a750_family(struct adreno_gpu *gpu)
+{
+	return gpu->info->family == ADRENO_7XX_GEN3;
+}
+
 static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
 {
 	/* Update with non-fake (i.e. non-A702) Gen 7 GPUs */
@@ -566,6 +578,8 @@ static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
 	       adreno_is_a740_family(gpu);
 }
 
+/* Put vm_start above 32b to catch issues with not setting xyz_BASE_HI */
+#define ADRENO_VM_START 0x100000000ULL
 u64 adreno_private_address_space_size(struct msm_gpu *gpu);
 int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		     uint32_t param, uint64_t *value, uint32_t *len);
@@ -621,6 +635,8 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 int adreno_fault_handler(struct msm_gpu *gpu, unsigned long iova, int flags,
 			 struct adreno_smmu_fault_info *info, const char *block,
 			 u32 scratch[4]);
+
+void adreno_check_and_reenable_stall(struct adreno_gpu *gpu);
 
 int adreno_read_speedbin(struct device *dev, u32 *speedbin);
 

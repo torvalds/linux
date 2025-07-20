@@ -5,13 +5,12 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/property.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <linux/reset-controller.h>
 
 #include <dt-bindings/clock/qcom,dispcc-sc8280xp.h>
 
@@ -3114,7 +3113,7 @@ static const struct regmap_config disp_cc_sc8280xp_regmap_config = {
 	.fast_io = true,
 };
 
-static struct qcom_cc_desc disp0_cc_sc8280xp_desc = {
+static const struct qcom_cc_desc disp0_cc_sc8280xp_desc = {
 	.config = &disp_cc_sc8280xp_regmap_config,
 	.clks = disp0_cc_sc8280xp_clocks,
 	.num_clks = ARRAY_SIZE(disp0_cc_sc8280xp_clocks),
@@ -3124,7 +3123,7 @@ static struct qcom_cc_desc disp0_cc_sc8280xp_desc = {
 	.num_gdscs = ARRAY_SIZE(disp0_cc_sc8280xp_gdscs),
 };
 
-static struct qcom_cc_desc disp1_cc_sc8280xp_desc = {
+static const struct qcom_cc_desc disp1_cc_sc8280xp_desc = {
 	.config = &disp_cc_sc8280xp_regmap_config,
 	.clks = disp1_cc_sc8280xp_clocks,
 	.num_clks = ARRAY_SIZE(disp1_cc_sc8280xp_clocks),

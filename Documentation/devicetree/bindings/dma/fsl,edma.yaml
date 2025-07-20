@@ -26,9 +26,21 @@ properties:
           - fsl,imx93-edma3
           - fsl,imx93-edma4
           - fsl,imx95-edma5
+          - nxp,s32g2-edma
+      - items:
+          - enum:
+              - fsl,imx94-edma3
+          - const: fsl,imx93-edma3
+      - items:
+          - enum:
+              - fsl,imx94-edma5
+          - const: fsl,imx95-edma5
       - items:
           - const: fsl,ls1028a-edma
           - const: fsl,vf610-edma
+      - items:
+          - const: nxp,s32g3-edma
+          - const: nxp,s32g2-edma
 
   reg:
     minItems: 1
@@ -36,11 +48,11 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 64
+    maxItems: 65
 
   interrupt-names:
     minItems: 1
-    maxItems: 64
+    maxItems: 65
 
   "#dma-cells":
     description: |
@@ -220,6 +232,36 @@ allOf:
     else:
       properties:
         power-domains: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nxp,s32g2-edma
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: dmamux0
+            - const: dmamux1
+        interrupts:
+          minItems: 3
+          maxItems: 3
+        interrupt-names:
+          items:
+            - const: tx-0-15
+            - const: tx-16-31
+            - const: err
+        reg:
+          minItems: 3
+          maxItems: 3
+        "#dma-cells":
+          const: 2
+        dma-channels:
+          const: 32
 
 unevaluatedProperties: false
 

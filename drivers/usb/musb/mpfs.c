@@ -29,7 +29,7 @@ struct mpfs_glue {
 	struct clk *clk;
 };
 
-static struct musb_fifo_cfg mpfs_musb_mode_cfg[] = {
+static const struct musb_fifo_cfg mpfs_musb_mode_cfg[] = {
 	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
 	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
 	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 512, },
@@ -91,7 +91,8 @@ static void mpfs_musb_set_vbus(struct musb *musb, int is_on)
 
 static void otg_timer(struct timer_list *t)
 {
-	struct musb		*musb = from_timer(musb, t, dev_timer);
+	struct musb		*musb = timer_container_of(musb, t,
+							      dev_timer);
 	void __iomem		*mregs = musb->mregs;
 	u8			devctl;
 	unsigned long		flags;
@@ -165,7 +166,7 @@ static void __maybe_unused mpfs_musb_try_idle(struct musb *musb, unsigned long t
 				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
 			usb_otg_state_string(musb->xceiv->otg->state));
-		del_timer(&musb->dev_timer);
+		timer_delete(&musb->dev_timer);
 		last_timer = jiffies;
 		return;
 	}
@@ -232,7 +233,7 @@ static int mpfs_musb_init(struct musb *musb)
 
 static int mpfs_musb_exit(struct musb *musb)
 {
-	del_timer_sync(&musb->dev_timer);
+	timer_delete_sync(&musb->dev_timer);
 
 	return 0;
 }

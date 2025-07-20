@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/cavium,ebt3000-compact-flash.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cavium Compact Flash
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+description:
+  The Cavium Compact Flash device is connected to the Octeon Boot Bus, and is
+  thus a child of the Boot Bus device.  It can read and write industry standard
+  compact flash devices.
+
+properties:
+  compatible:
+    const: cavium,ebt3000-compact-flash
+
+  reg:
+    description: The base address of the CF chip select banks.
+    items:
+      - description: CF chip select bank 0
+      - description: CF chip select bank 1
+
+  cavium,bus-width:
+    description: The width of the connection to the CF devices.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [8, 16]
+
+  cavium,true-ide:
+    description: True IDE mode when present.
+    type: boolean
+
+  cavium,dma-engine-handle:
+    description: A phandle for the DMA Engine connected to this device.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <1>;
+
+        compact-flash@5,0 {
+            compatible = "cavium,ebt3000-compact-flash";
+            reg = <5 0 0x10000>, <6 0 0x10000>;
+            cavium,bus-width = <16>;
+            cavium,true-ide;
+            cavium,dma-engine-handle = <&dma0>;
+        };
+    };

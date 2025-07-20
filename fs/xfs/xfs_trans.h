@@ -122,7 +122,6 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
  * This is the structure maintained for every active transaction.
  */
 typedef struct xfs_trans {
-	unsigned int		t_magic;	/* magic number */
 	unsigned int		t_log_res;	/* amt of log space resvd */
 	unsigned int		t_log_count;	/* count for perm log res */
 	unsigned int		t_blk_res;	/* # of blocks resvd */

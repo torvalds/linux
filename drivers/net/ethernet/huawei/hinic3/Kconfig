@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Huawei driver configuration
+#
+
+config HINIC3
+	tristate "Huawei 3rd generation network adapters (HINIC3) support"
+	# Fields of HW and management structures are little endian and are
+	# currently not converted
+	depends on !CPU_BIG_ENDIAN
+	depends on X86 || ARM64 || COMPILE_TEST
+	depends on PCI_MSI && 64BIT
+	select AUXILIARY_BUS
+	select PAGE_POOL
+	help
+	  This driver supports HiNIC 3rd gen Network Adapter (HINIC3).
+	  The driver is supported on X86_64 and ARM64 little endian.
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called hinic3.

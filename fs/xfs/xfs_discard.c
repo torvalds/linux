@@ -90,7 +90,7 @@ xfs_discard_endio_work(
 
 /*
  * Queue up the actual completion to a thread to avoid IRQ-safe locking for
- * pagb_lock.
+ * eb_lock.
  */
 static void
 xfs_discard_endio(
@@ -101,24 +101,6 @@ xfs_discard_endio(
 	INIT_WORK(&extents->endio_work, xfs_discard_endio_work);
 	queue_work(xfs_discard_wq, &extents->endio_work);
 	bio_put(bio);
-}
-
-static inline struct block_device *
-xfs_group_bdev(
-	const struct xfs_group	*xg)
-{
-	struct xfs_mount	*mp = xg->xg_mount;
-
-	switch (xg->xg_type) {
-	case XG_TYPE_AG:
-		return mp->m_ddev_targp->bt_bdev;
-	case XG_TYPE_RTG:
-		return mp->m_rtdev_targp->bt_bdev;
-	default:
-		ASSERT(0);
-		break;
-	}
-	return NULL;
 }
 
 /*
@@ -138,11 +120,14 @@ xfs_discard_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, &extents->extent_list, list) {
-		trace_xfs_discard_extent(busyp->group, busyp->bno,
-				busyp->length);
+		struct xfs_group	*xg = busyp->group;
+		struct xfs_buftarg	*btp =
+			xfs_group_type_buftarg(xg->xg_mount, xg->xg_type);
 
-		error = __blkdev_issue_discard(xfs_group_bdev(busyp->group),
-				xfs_gbno_to_daddr(busyp->group, busyp->bno),
+		trace_xfs_discard_extent(xg, busyp->bno, busyp->length);
+
+		error = __blkdev_issue_discard(btp->bt_bdev,
+				xfs_gbno_to_daddr(xg, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_KERNEL, &bio);
 		if (error && error != -EOPNOTSUPP) {
@@ -167,6 +152,14 @@ xfs_discard_extents(
 	return error;
 }
 
+/*
+ * Care must be taken setting up the trim cursor as the perags may not have been
+ * initialised when the cursor is initialised. e.g. a clean mount which hasn't
+ * read in AGFs and the first operation run on the mounted fs is a trim. This
+ * can result in perag fields that aren't initialised until
+ * xfs_trim_gather_extents() calls xfs_alloc_read_agf() to lock down the AG for
+ * the free space search.
+ */
 struct xfs_trim_cur {
 	xfs_agblock_t	start;
 	xfs_extlen_t	count;
@@ -203,6 +196,14 @@ xfs_trim_gather_extents(
 	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (error)
 		goto out_trans_cancel;
+
+	/*
+	 * First time through tcur->count will not have been initialised as
+	 * pag->pagf_longest is not guaranteed to be valid before we read
+	 * the AGF buffer above.
+	 */
+	if (!tcur->count)
+		tcur->count = pag->pagf_longest;
 
 	if (tcur->by_bno) {
 		/* sub-AG discard request always starts at tcur->start */
@@ -350,7 +351,6 @@ xfs_trim_perag_extents(
 {
 	struct xfs_trim_cur	tcur = {
 		.start		= start,
-		.count		= pag->pagf_longest,
 		.end		= end,
 		.minlen		= minlen,
 	};
@@ -844,7 +844,8 @@ xfs_ioc_trim(
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (mp->m_rtdev_targp &&
+
+	if (mp->m_rtdev_targp && !xfs_has_zoned(mp) &&
 	    bdev_max_discard_sectors(mp->m_rtdev_targp->bt_bdev))
 		rt_bdev = mp->m_rtdev_targp->bt_bdev;
 	if (!bdev_max_discard_sectors(mp->m_ddev_targp->bt_bdev) && !rt_bdev)

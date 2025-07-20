@@ -103,6 +103,9 @@
 #define HDMI_ANA_CTL 0x7c
 #define REG_ANA_HDMI20_FIFO_EN BIT(16)
 
+#define HDMI_CTL_1 0xc4
+#define RG_HDMITX_PWR5V_O BIT(9)
+
 #define HDMI_CTL_3 0xcc
 #define REG_HDMITXPLL_DIV GENMASK(4, 0)
 #define REG_HDMITX_REF_XTAL_SEL BIT(7)

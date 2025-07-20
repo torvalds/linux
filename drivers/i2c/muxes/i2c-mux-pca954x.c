@@ -414,7 +414,7 @@ static irqreturn_t pca954x_irq_handler(int irq, void *dev_id)
 
 	pending = (ret >> PCA954X_IRQ_OFFSET) & (BIT(data->chip->nchans) - 1);
 	for_each_set_bit(i, &pending, data->chip->nchans)
-		handle_nested_irq(irq_linear_revmap(data->irq, i));
+		handle_nested_irq(irq_find_mapping(data->irq, i));
 
 	return IRQ_RETVAL(pending);
 }
@@ -442,9 +442,9 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 
 	raw_spin_lock_init(&data->lock);
 
-	data->irq = irq_domain_add_linear(client->dev.of_node,
-					  data->chip->nchans,
-					  &irq_domain_simple_ops, data);
+	data->irq = irq_domain_create_linear(of_fwnode_handle(client->dev.of_node),
+					     data->chip->nchans,
+					     &irq_domain_simple_ops, data);
 	if (!data->irq)
 		return -ENODEV;
 

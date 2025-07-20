@@ -260,8 +260,6 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 struct isp_device *omap3isp_get(struct isp_device *isp);
 void omap3isp_put(struct isp_device *isp);
 
-void omap3isp_print_status(struct isp_device *isp);
-
 void omap3isp_sbl_enable(struct isp_device *isp, enum isp_sbl_resource res);
 void omap3isp_sbl_disable(struct isp_device *isp, enum isp_sbl_resource res);
 

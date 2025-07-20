@@ -10,30 +10,19 @@
 #include <linux/irqflags.h>
 #include <linux/jump_label.h>
 
-/*
- * The compiler should not reorder volatile asm statements with respect to each
- * other: they should execute in program order. However GCC 4.9.x and 5.x have
- * a bug (which was fixed in 8.1, 7.3 and 6.5) where they might reorder
- * volatile asm. The write functions are not affected since they have memory
- * clobbers preventing reordering. To prevent reads from being reordered with
- * respect to writes, use a dummy memory operand.
- */
-
-#define __FORCE_ORDER "m"(*(unsigned int *)0x1000UL)
-
 void native_write_cr0(unsigned long val);
 
 static inline unsigned long native_read_cr0(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr0,%0\n\t" : "=r" (val) : __FORCE_ORDER);
+	asm volatile("mov %%cr0,%0" : "=r" (val));
 	return val;
 }
 
 static __always_inline unsigned long native_read_cr2(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr2,%0\n\t" : "=r" (val) : __FORCE_ORDER);
+	asm volatile("mov %%cr2,%0" : "=r" (val));
 	return val;
 }
 
@@ -42,14 +31,14 @@ static __always_inline void native_write_cr2(unsigned long val)
 	asm volatile("mov %0,%%cr2": : "r" (val) : "memory");
 }
 
-static inline unsigned long __native_read_cr3(void)
+static __always_inline unsigned long __native_read_cr3(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr3,%0\n\t" : "=r" (val) : __FORCE_ORDER);
+	asm volatile("mov %%cr3,%0" : "=r" (val));
 	return val;
 }
 
-static inline void native_write_cr3(unsigned long val)
+static __always_inline void native_write_cr3(unsigned long val)
 {
 	asm volatile("mov %0,%%cr3": : "r" (val) : "memory");
 }
@@ -66,10 +55,10 @@ static inline unsigned long native_read_cr4(void)
 	asm volatile("1: mov %%cr4, %0\n"
 		     "2:\n"
 		     _ASM_EXTABLE(1b, 2b)
-		     : "=r" (val) : "0" (0), __FORCE_ORDER);
+		     : "=r" (val) : "0" (0));
 #else
 	/* CR4 always exists on x86_64. */
-	asm volatile("mov %%cr4,%0\n\t" : "=r" (val) : __FORCE_ORDER);
+	asm volatile("mov %%cr4,%0" : "=r" (val));
 #endif
 	return val;
 }
@@ -115,7 +104,7 @@ static inline void wrpkru(u32 pkru)
 }
 #endif
 
-static __always_inline void native_wbinvd(void)
+static __always_inline void wbinvd(void)
 {
 	asm volatile("wbinvd": : :"memory");
 }
@@ -167,12 +156,6 @@ static inline void __write_cr4(unsigned long x)
 {
 	native_write_cr4(x);
 }
-
-static __always_inline void wbinvd(void)
-{
-	native_wbinvd();
-}
-
 #endif /* CONFIG_PARAVIRT_XXL */
 
 static __always_inline void clflush(volatile void *__p)
@@ -182,9 +165,8 @@ static __always_inline void clflush(volatile void *__p)
 
 static inline void clflushopt(volatile void *__p)
 {
-	alternative_io(".byte 0x3e; clflush %0",
-		       ".byte 0x66; clflush %0",
-		       X86_FEATURE_CLFLUSHOPT,
+	alternative_io("ds clflush %0",
+		       "clflushopt %0", X86_FEATURE_CLFLUSHOPT,
 		       "+m" (*(volatile char __force *)__p));
 }
 
@@ -192,14 +174,11 @@ static inline void clwb(volatile void *__p)
 {
 	volatile struct { char x[64]; } *p = __p;
 
-	asm volatile(ALTERNATIVE_2(
-		".byte 0x3e; clflush (%[pax])",
-		".byte 0x66; clflush (%[pax])", /* clflushopt (%%rax) */
-		X86_FEATURE_CLFLUSHOPT,
-		".byte 0x66, 0x0f, 0xae, 0x30",  /* clwb (%%rax) */
-		X86_FEATURE_CLWB)
-		: [p] "+m" (*p)
-		: [pax] "a" (p));
+	asm_inline volatile(ALTERNATIVE_2(
+		"ds clflush %0",
+		"clflushopt %0", X86_FEATURE_CLFLUSHOPT,
+		"clwb %0", X86_FEATURE_CLWB)
+		: "+m" (*p));
 }
 
 #ifdef CONFIG_X86_USER_SHADOW_STACK
@@ -217,7 +196,7 @@ fail:
 
 #define nop() asm volatile ("nop")
 
-static inline void serialize(void)
+static __always_inline void serialize(void)
 {
 	/* Instruction opcode for SERIALIZE; supported in binutils >= 2.35. */
 	asm volatile(".byte 0xf, 0x1, 0xe8" ::: "memory");

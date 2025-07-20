@@ -171,21 +171,28 @@ int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 int siw_query_port(struct ib_device *base_dev, u32 port,
 		   struct ib_port_attr *attr)
 {
-	struct siw_device *sdev = to_siw_dev(base_dev);
+	struct net_device *ndev;
 	int rv;
 
 	memset(attr, 0, sizeof(*attr));
 
 	rv = ib_get_eth_speed(base_dev, port, &attr->active_speed,
 			 &attr->active_width);
+	if (rv)
+		return rv;
+
+	ndev = ib_device_get_netdev(base_dev, SIW_PORT);
+	if (!ndev)
+		return -ENODEV;
+
 	attr->gid_tbl_len = 1;
 	attr->max_msg_sz = -1;
-	attr->max_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
-	attr->active_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
-	attr->phys_state = sdev->state == IB_PORT_ACTIVE ?
+	attr->max_mtu = ib_mtu_int_to_enum(ndev->max_mtu);
+	attr->active_mtu = ib_mtu_int_to_enum(READ_ONCE(ndev->mtu));
+	attr->state = ib_get_curr_port_state(ndev);
+	attr->phys_state = attr->state == IB_PORT_ACTIVE ?
 		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
-	attr->state = sdev->state;
 	/*
 	 * All zero
 	 *
@@ -199,6 +206,7 @@ int siw_query_port(struct ib_device *base_dev, u32 port,
 	 * attr->subnet_timeout = 0;
 	 * attr->init_type_repy = 0;
 	 */
+	dev_put(ndev);
 	return rv;
 }
 
@@ -505,21 +513,24 @@ int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr)
 {
 	struct siw_qp *qp;
-	struct siw_device *sdev;
+	struct net_device *ndev;
 
-	if (base_qp && qp_attr && qp_init_attr) {
+	if (base_qp && qp_attr && qp_init_attr)
 		qp = to_siw_qp(base_qp);
-		sdev = to_siw_dev(base_qp->device);
-	} else {
+	else
 		return -EINVAL;
-	}
+
+	ndev = ib_device_get_netdev(base_qp->device, SIW_PORT);
+	if (!ndev)
+		return -ENODEV;
+
 	qp_attr->qp_state = siw_qp_state_to_ib_qp_state[qp->attrs.state];
 	qp_attr->cap.max_inline_data = SIW_MAX_INLINE;
 	qp_attr->cap.max_send_wr = qp->attrs.sq_size;
 	qp_attr->cap.max_send_sge = qp->attrs.sq_max_sges;
 	qp_attr->cap.max_recv_wr = qp->attrs.rq_size;
 	qp_attr->cap.max_recv_sge = qp->attrs.rq_max_sges;
-	qp_attr->path_mtu = ib_mtu_int_to_enum(sdev->netdev->mtu);
+	qp_attr->path_mtu = ib_mtu_int_to_enum(READ_ONCE(ndev->mtu));
 	qp_attr->max_rd_atomic = qp->attrs.irq_size;
 	qp_attr->max_dest_rd_atomic = qp->attrs.orq_size;
 
@@ -534,6 +545,7 @@ int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 
 	qp_init_attr->cap = qp_attr->cap;
 
+	dev_put(ndev);
 	return 0;
 }
 
@@ -618,9 +630,6 @@ int siw_destroy_qp(struct ib_qp *base_qp, struct ib_udata *udata)
 		qp->cep = NULL;
 	}
 	up_write(&qp->state_lock);
-
-	kfree(qp->tx_ctx.mpa_crc_hd);
-	kfree(qp->rx_stream.mpa_crc_hd);
 
 	qp->scq = qp->rcq = NULL;
 
@@ -927,7 +936,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			rv = -EINVAL;
 			break;
 		}
-		siw_dbg_qp(qp, "opcode %d, flags 0x%x, wr_id 0x%pK\n",
+		siw_dbg_qp(qp, "opcode %d, flags 0x%x, wr_id 0x%p\n",
 			   sqe->opcode, sqe->flags,
 			   (void *)(uintptr_t)sqe->id);
 
@@ -1093,7 +1102,7 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		siw_dbg_qp(qp, "error %d\n", rv);
 		*bad_wr = wr;
 	}
-	return rv > 0 ? 0 : rv;
+	return rv;
 }
 
 int siw_destroy_cq(struct ib_cq *base_cq, struct ib_udata *udata)
@@ -1323,7 +1332,7 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	struct siw_device *sdev = to_siw_dev(pd->device);
 	int rv;
 
-	siw_dbg_pd(pd, "start: 0x%pK, va: 0x%pK, len: %llu\n",
+	siw_dbg_pd(pd, "start: 0x%p, va: 0x%p, len: %llu\n",
 		   (void *)(uintptr_t)start, (void *)(uintptr_t)rnic_va,
 		   (unsigned long long)len);
 
@@ -1516,7 +1525,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 		mem->len = base_mr->length;
 		mem->va = base_mr->iova;
 		siw_dbg_mem(mem,
-			"%llu bytes, start 0x%pK, %u SLE to %u entries\n",
+			"%llu bytes, start 0x%p, %u SLE to %u entries\n",
 			mem->len, (void *)(uintptr_t)mem->va, num_sle,
 			pbl->num_buf);
 	}

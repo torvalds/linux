@@ -22,18 +22,6 @@ static int physmem_fd = -1;
 unsigned long high_physmem;
 EXPORT_SYMBOL(high_physmem);
 
-void __init mem_total_pages(unsigned long physmem, unsigned long iomem)
-{
-	unsigned long phys_pages, iomem_pages, total_pages;
-
-	phys_pages  = physmem >> PAGE_SHIFT;
-	iomem_pages = iomem   >> PAGE_SHIFT;
-
-	total_pages = phys_pages + iomem_pages;
-
-	max_mapnr = total_pages;
-}
-
 void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 		int r, int w, int x)
 {

@@ -39,6 +39,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/string.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -754,7 +755,7 @@ static int snd_amd7930_pcm(struct snd_amd7930 *amd)
 
 	pcm->private_data = amd;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, amd->card->shortname);
+	strscpy(pcm->name, amd->card->shortname);
 	amd->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
@@ -874,7 +875,7 @@ static int snd_amd7930_mixer(struct snd_amd7930 *amd)
 		return -EINVAL;
 
 	card = amd->card;
-	strcpy(card->mixername, card->shortname);
+	strscpy(card->mixername, card->shortname);
 
 	for (idx = 0; idx < ARRAY_SIZE(amd7930_controls); idx++) {
 		if ((err = snd_ctl_add(card,
@@ -1007,8 +1008,8 @@ static int amd7930_sbus_probe(struct platform_device *op)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "AMD7930");
-	strcpy(card->shortname, "Sun AMD7930");
+	strscpy(card->driver, "AMD7930");
+	strscpy(card->shortname, "Sun AMD7930");
 	sprintf(card->longname, "%s at 0x%02lx:0x%08Lx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL,

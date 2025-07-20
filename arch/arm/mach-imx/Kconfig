@@ -6,6 +6,7 @@ menuconfig ARCH_MXC
 	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
+	select PINCTRL
 	select PM_OPP if PM
 	select SOC_BUS
 	select SRAM

@@ -163,7 +163,6 @@ reprobe:
 		page_no = 1;	/* force Empty message */
 	sis->max = page_no;
 	sis->pages = page_no - 1;
-	sis->highest_bit = page_no - 1;
 out:
 	return ret;
 bad_bmap:
@@ -238,9 +237,8 @@ static void swap_zeromap_folio_clear(struct folio *folio)
  * We may have stale swap cache pages in memory: notice
  * them here and get rid of the unnecessary final write.
  */
-int swap_writepage(struct page *page, struct writeback_control *wbc)
+int swap_writeout(struct folio *folio, struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
 	int ret;
 
 	if (folio_free_swap(folio)) {
@@ -639,10 +637,10 @@ void swap_read_folio(struct folio *folio, struct swap_iocb **plug)
 	if (swap_read_folio_zeromap(folio)) {
 		folio_unlock(folio);
 		goto finish;
-	} else if (zswap_load(folio)) {
-		folio_unlock(folio);
-		goto finish;
 	}
+
+	if (zswap_load(folio) != -ENOENT)
+		goto finish;
 
 	/* We have to read from slower devices. Increase zswap protection. */
 	zswap_folio_swapin(folio);

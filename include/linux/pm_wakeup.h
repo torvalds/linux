@@ -95,10 +95,6 @@ static inline void device_set_wakeup_path(struct device *dev)
 }
 
 /* drivers/base/power/wakeup.c */
-extern struct wakeup_source *wakeup_source_create(const char *name);
-extern void wakeup_source_destroy(struct wakeup_source *ws);
-extern void wakeup_source_add(struct wakeup_source *ws);
-extern void wakeup_source_remove(struct wakeup_source *ws);
 extern struct wakeup_source *wakeup_source_register(struct device *dev,
 						    const char *name);
 extern void wakeup_source_unregister(struct wakeup_source *ws);
@@ -128,17 +124,6 @@ static inline bool device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
 }
-
-static inline struct wakeup_source *wakeup_source_create(const char *name)
-{
-	return NULL;
-}
-
-static inline void wakeup_source_destroy(struct wakeup_source *ws) {}
-
-static inline void wakeup_source_add(struct wakeup_source *ws) {}
-
-static inline void wakeup_source_remove(struct wakeup_source *ws) {}
 
 static inline struct wakeup_source *wakeup_source_register(struct device *dev,
 							   const char *name)
@@ -205,17 +190,17 @@ static inline void device_set_awake_path(struct device *dev)
 
 static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 {
-	return pm_wakeup_ws_event(ws, msec, false);
+	pm_wakeup_ws_event(ws, msec, false);
 }
 
 static inline void pm_wakeup_event(struct device *dev, unsigned int msec)
 {
-	return pm_wakeup_dev_event(dev, msec, false);
+	pm_wakeup_dev_event(dev, msec, false);
 }
 
 static inline void pm_wakeup_hard_event(struct device *dev)
 {
-	return pm_wakeup_dev_event(dev, 0, true);
+	pm_wakeup_dev_event(dev, 0, true);
 }
 
 /**
@@ -238,6 +223,23 @@ static inline int device_init_wakeup(struct device *dev, bool enable)
 	device_wakeup_disable(dev);
 	device_set_wakeup_capable(dev, false);
 	return 0;
+}
+
+static void device_disable_wakeup(void *dev)
+{
+	device_init_wakeup(dev, false);
+}
+
+/**
+ * devm_device_init_wakeup - Resource managed device wakeup initialization.
+ * @dev: Device to handle.
+ *
+ * This function is the devm managed version of device_init_wakeup(dev, true).
+ */
+static inline int devm_device_init_wakeup(struct device *dev)
+{
+	device_init_wakeup(dev, true);
+	return devm_add_action_or_reset(dev, device_disable_wakeup, dev);
 }
 
 #endif /* _LINUX_PM_WAKEUP_H */

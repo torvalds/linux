@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __LINUX_FIB_RULES_H
-#define __LINUX_FIB_RULES_H
+#ifndef _UAPI__LINUX_FIB_RULES_H
+#define _UAPI__LINUX_FIB_RULES_H
 
 #include <linux/types.h>
 #include <linux/rtnetlink.h>
@@ -68,6 +68,11 @@ enum {
 	FRA_SPORT_RANGE, /* sport */
 	FRA_DPORT_RANGE, /* dport */
 	FRA_DSCP,	/* dscp */
+	FRA_FLOWLABEL,	/* flowlabel */
+	FRA_FLOWLABEL_MASK,	/* flowlabel mask */
+	FRA_SPORT_MASK,	/* sport mask */
+	FRA_DPORT_MASK,	/* dport mask */
+	FRA_DSCP_MASK,	/* dscp mask */
 	__FRA_MAX
 };
 

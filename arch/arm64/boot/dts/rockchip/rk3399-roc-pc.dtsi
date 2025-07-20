@@ -736,6 +736,7 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
+		vcc-supply = <&vcc3v3_sys>;
 	};
 };
 

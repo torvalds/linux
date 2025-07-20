@@ -1025,7 +1025,7 @@ static inline int hamachi_tx(struct net_device *dev)
 
 static void hamachi_timer(struct timer_list *t)
 {
-	struct hamachi_private *hmp = from_timer(hmp, t, timer);
+	struct hamachi_private *hmp = timer_container_of(hmp, t, timer);
 	struct net_device *dev = hmp->mii_if.dev;
 	void __iomem *ioaddr = hmp->base;
 	int next_tick = 10*HZ;
@@ -1712,7 +1712,7 @@ static int hamachi_close(struct net_device *dev)
 
 	free_irq(hmp->pci_dev->irq, dev);
 
-	del_timer_sync(&hmp->timer);
+	timer_delete_sync(&hmp->timer);
 
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {

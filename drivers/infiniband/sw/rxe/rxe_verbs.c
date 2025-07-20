@@ -41,11 +41,18 @@ static int rxe_query_port(struct ib_device *ibdev,
 			  u32 port_num, struct ib_port_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(ibdev);
+	struct net_device *ndev;
 	int err, ret;
 
 	if (port_num != 1) {
 		err = -EINVAL;
 		rxe_dbg_dev(rxe, "bad port_num = %d\n", port_num);
+		goto err_out;
+	}
+
+	ndev = rxe_ib_device_get_netdev(ibdev);
+	if (!ndev) {
+		err = -ENODEV;
 		goto err_out;
 	}
 
@@ -55,20 +62,34 @@ static int rxe_query_port(struct ib_device *ibdev,
 	ret = ib_get_eth_speed(ibdev, port_num, &attr->active_speed,
 			       &attr->active_width);
 
+	attr->state = ib_get_curr_port_state(ndev);
 	if (attr->state == IB_PORT_ACTIVE)
 		attr->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
-	else if (dev_get_flags(rxe->ndev) & IFF_UP)
+	else if (dev_get_flags(ndev) & IFF_UP)
 		attr->phys_state = IB_PORT_PHYS_STATE_POLLING;
 	else
 		attr->phys_state = IB_PORT_PHYS_STATE_DISABLED;
 
 	mutex_unlock(&rxe->usdev_lock);
 
+	dev_put(ndev);
 	return ret;
 
 err_out:
 	rxe_err_dev(rxe, "returned err = %d\n", err);
 	return err;
+}
+
+static int rxe_query_gid(struct ib_device *ibdev, u32 port, int idx,
+			 union ib_gid *gid)
+{
+	struct rxe_dev *rxe = to_rdev(ibdev);
+
+	/* subnet_prefix == interface_id == 0; */
+	memset(gid, 0, sizeof(*gid));
+	memcpy(gid->raw, rxe->raw_gid, ETH_ALEN);
+
+	return 0;
 }
 
 static int rxe_query_pkey(struct ib_device *ibdev,
@@ -688,7 +709,7 @@ static int validate_send_wr(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 		for (i = 0; i < ibwr->num_sge; i++)
 			length += ibwr->sg_list[i].length;
 
-		if (length > (1UL << 31)) {
+		if (length > RXE_PORT_MAX_MSG_SZ) {
 			rxe_err_qp(qp, "message length too long\n");
 			break;
 		}
@@ -972,8 +993,7 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 	for (i = 0; i < num_sge; i++)
 		length += ibwr->sg_list[i].length;
 
-	/* IBA max message size is 2^31 */
-	if (length >= (1UL<<31)) {
+	if (length > RXE_PORT_MAX_MSG_SZ) {
 		err = -EINVAL;
 		rxe_dbg("message length too long\n");
 		goto err_out;
@@ -1278,7 +1298,10 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd, u64 start,
 	mr->ibmr.pd = ibpd;
 	mr->ibmr.device = ibpd->device;
 
-	err = rxe_mr_init_user(rxe, start, length, access, mr);
+	if (access & IB_ACCESS_ON_DEMAND)
+		err = rxe_odp_mr_init_user(rxe, start, length, iova, access, mr);
+	else
+		err = rxe_mr_init_user(rxe, start, length, access, mr);
 	if (err) {
 		rxe_dbg_mr(mr, "reg_user_mr failed, err = %d\n", err);
 		goto err_cleanup;
@@ -1425,9 +1448,16 @@ static const struct attribute_group rxe_attr_group = {
 static int rxe_enable_driver(struct ib_device *ib_dev)
 {
 	struct rxe_dev *rxe = container_of(ib_dev, struct rxe_dev, ib_dev);
+	struct net_device *ndev;
+
+	ndev = rxe_ib_device_get_netdev(ib_dev);
+	if (!ndev)
+		return -ENODEV;
 
 	rxe_set_port_state(rxe);
-	dev_info(&rxe->ib_dev.dev, "added %s\n", netdev_name(rxe->ndev));
+	dev_info(&rxe->ib_dev.dev, "added %s\n", netdev_name(ndev));
+
+	dev_put(ndev);
 	return 0;
 }
 
@@ -1478,6 +1508,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.query_ah = rxe_query_ah,
 	.query_device = rxe_query_device,
 	.query_pkey = rxe_query_pkey,
+	.query_gid = rxe_query_gid,
 	.query_port = rxe_query_port,
 	.query_qp = rxe_query_qp,
 	.query_srq = rxe_query_srq,
@@ -1495,7 +1526,8 @@ static const struct ib_device_ops rxe_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_mw, rxe_mw, ibmw),
 };
 
-int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
+int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name,
+						struct net_device *ndev)
 {
 	int err;
 	struct ib_device *dev = &rxe->ib_dev;
@@ -1507,17 +1539,13 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	dev->num_comp_vectors = num_possible_cpus();
 	dev->local_dma_lkey = 0;
 	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
-			    rxe->ndev->dev_addr);
+			    rxe->raw_gid);
 
 	dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND) |
 				BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ);
 
 	ib_set_device_ops(dev, &rxe_dev_ops);
-	err = ib_device_set_netdev(&rxe->ib_dev, rxe->ndev, 1);
-	if (err)
-		return err;
-
-	err = rxe_icrc_init(rxe);
+	err = ib_device_set_netdev(&rxe->ib_dev, ndev, 1);
 	if (err)
 		return err;
 

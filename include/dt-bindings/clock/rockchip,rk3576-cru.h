@@ -589,4 +589,19 @@
 #define PCLK_EDP_S			569
 #define ACLK_KLAD			570
 
+/* SCMI clocks, use these when changing clocks through SCMI */
+#define SCMI_ARMCLK_L			10
+#define SCMI_ARMCLK_B			11
+#define SCMI_CLK_GPU			456
+
+/* IOC-controlled output clocks */
+#define CLK_SAI0_MCLKOUT_TO_IO		571
+#define CLK_SAI1_MCLKOUT_TO_IO		572
+#define CLK_SAI2_MCLKOUT_TO_IO		573
+#define CLK_SAI3_MCLKOUT_TO_IO		574
+#define CLK_SAI4_MCLKOUT_TO_IO		575
+#define CLK_SAI4_MCLKOUT_TO_IO		575
+#define CLK_FSPI0_TO_IO			576
+#define CLK_FSPI1_TO_IO			577
+
 #endif

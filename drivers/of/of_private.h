@@ -119,6 +119,8 @@ extern void *__unflatten_device_tree(const void *blob,
 			      void *(*dt_alloc)(u64 size, u64 align),
 			      bool detached);
 
+void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
+
 /**
  * General utilities for working with live trees.
  *
@@ -187,5 +189,34 @@ int fdt_scan_reserved_mem(void);
 void __init fdt_scan_reserved_mem_reg_nodes(void);
 
 bool of_fdt_device_is_available(const void *blob, unsigned long node);
+
+/* Max address size we deal with */
+#define OF_MAX_ADDR_CELLS	4
+#define OF_CHECK_ADDR_COUNT(na)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS)
+#define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
+
+/* Debug utility */
+#ifdef DEBUG
+static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na)
+{
+	pr_debug("%s", s);
+	while (na--)
+		pr_cont(" %08x", be32_to_cpu(*(addr++)));
+	pr_cont("\n");
+}
+#else
+static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na) { }
+#endif
+
+static inline bool is_pseudo_property(const char *prop_name)
+{
+	return !of_prop_cmp(prop_name, "name") ||
+		!of_prop_cmp(prop_name, "phandle") ||
+		!of_prop_cmp(prop_name, "linux,phandle");
+}
+
+#if IS_ENABLED(CONFIG_KUNIT)
+int __of_address_resource_bounds(struct resource *r, u64 start, u64 size);
+#endif
 
 #endif /* _LINUX_OF_PRIVATE_H */

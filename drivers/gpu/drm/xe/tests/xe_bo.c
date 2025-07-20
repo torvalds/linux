@@ -49,11 +49,18 @@ static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 			KUNIT_FAIL(test, "Failed to submit bo clear.\n");
 			return PTR_ERR(fence);
 		}
+
+		if (dma_fence_wait_timeout(fence, false, 5 * HZ) <= 0) {
+			dma_fence_put(fence);
+			KUNIT_FAIL(test, "Timeout while clearing bo.\n");
+			return  -ETIME;
+		}
+
 		dma_fence_put(fence);
 	}
 
 	/* Evict to system. CCS data should be copied. */
-	ret = xe_bo_evict(bo, true);
+	ret = xe_bo_evict(bo);
 	if (ret) {
 		KUNIT_FAIL(test, "Failed to evict bo.\n");
 		return ret;
@@ -245,7 +252,7 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 
 		for_each_gt(__gt, xe, id)
 			xe_gt_sanitize(__gt);
-		err = xe_bo_restore_kernel(xe);
+		err = xe_bo_restore_early(xe);
 		/*
 		 * Snapshotting the CTB and copying back a potentially old
 		 * version seems risky, depending on what might have been
@@ -257,17 +264,16 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 		 * however seems quite fragile not to also restart the GT. Try
 		 * to do that here by triggering a GT reset.
 		 */
-		for_each_gt(__gt, xe, id) {
-			xe_gt_reset_async(__gt);
-			flush_work(&__gt->reset.worker);
-		}
+		for_each_gt(__gt, xe, id)
+			xe_gt_reset(__gt);
+
 		if (err) {
 			KUNIT_FAIL(test, "restore kernel err=%pe\n",
 				   ERR_PTR(err));
 			goto cleanup_all;
 		}
 
-		err = xe_bo_restore_user(xe);
+		err = xe_bo_restore_late(xe);
 		if (err) {
 			KUNIT_FAIL(test, "restore user err=%pe\n", ERR_PTR(err));
 			goto cleanup_all;
@@ -508,8 +514,13 @@ static int shrink_test_run_device(struct xe_device *xe)
 		 * other way around, they may not be subject to swapping...
 		 */
 		if (alloced < purgeable) {
+			xe_ttm_tt_account_subtract(&xe_tt->ttm);
 			xe_tt->purgeable = true;
+			xe_ttm_tt_account_add(&xe_tt->ttm);
 			bo->ttm.priority = 0;
+			spin_lock(&bo->ttm.bdev->lru_lock);
+			ttm_bo_move_to_lru_tail(&bo->ttm);
+			spin_unlock(&bo->ttm.bdev->lru_lock);
 		} else {
 			int ret = shrink_test_fill_random(bo, &prng, link);
 
@@ -564,7 +575,6 @@ static int shrink_test_run_device(struct xe_device *xe)
 				if (ret == -EINTR)
 					intr = true;
 			} while (ret == -EINTR && !signal_pending(current));
-
 			if (!ret && !purgeable)
 				failed = shrink_test_verify(test, bo, count, &prng, link);
 
@@ -599,8 +609,6 @@ static void xe_bo_shrink_kunit(struct kunit *test)
 static struct kunit_case xe_bo_tests[] = {
 	KUNIT_CASE_PARAM(xe_ccs_migrate_kunit, xe_pci_live_device_gen_param),
 	KUNIT_CASE_PARAM(xe_bo_evict_kunit, xe_pci_live_device_gen_param),
-	KUNIT_CASE_PARAM_ATTR(xe_bo_shrink_kunit, xe_pci_live_device_gen_param,
-			      {.speed = KUNIT_SPEED_SLOW}),
 	{}
 };
 
@@ -611,3 +619,17 @@ struct kunit_suite xe_bo_test_suite = {
 	.init = xe_kunit_helper_xe_device_live_test_init,
 };
 EXPORT_SYMBOL_IF_KUNIT(xe_bo_test_suite);
+
+static struct kunit_case xe_bo_shrink_test[] = {
+	KUNIT_CASE_PARAM_ATTR(xe_bo_shrink_kunit, xe_pci_live_device_gen_param,
+			      {.speed = KUNIT_SPEED_SLOW}),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_bo_shrink_test_suite = {
+	.name = "xe_bo_shrink",
+	.test_cases = xe_bo_shrink_test,
+	.init = xe_kunit_helper_xe_device_live_test_init,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_bo_shrink_test_suite);

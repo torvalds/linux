@@ -63,14 +63,13 @@ struct mlx5hws_cmd_forward_tbl {
 	u8 type;
 	u32 ft_id;
 	u32 fg_id;
-	u32 refcount;
+	u32 refcount; /* protected by context ctrl lock */
 };
 
 struct mlx5hws_cmd_rtc_create_attr {
 	u32 pd;
 	u32 stc_base;
 	u32 ste_base;
-	u32 ste_offset;
 	u32 miss_ft_id;
 	bool fw_gen_wqe;
 	u8 update_index_mode;
@@ -258,9 +257,6 @@ int mlx5hws_cmd_flow_table_query(struct mlx5_core_dev *mdev,
 int mlx5hws_cmd_flow_table_destroy(struct mlx5_core_dev *mdev,
 				   u8 fw_ft_type, u32 table_id);
 
-void mlx5hws_cmd_alias_flow_table_destroy(struct mlx5_core_dev *mdev,
-					  u32 table_id);
-
 int mlx5hws_cmd_rtc_create(struct mlx5_core_dev *mdev,
 			   struct mlx5hws_cmd_rtc_create_attr *rtc_attr,
 			   u32 *rtc_id);
@@ -334,14 +330,6 @@ mlx5hws_cmd_forward_tbl_create(struct mlx5_core_dev *mdev,
 void mlx5hws_cmd_forward_tbl_destroy(struct mlx5_core_dev *mdev,
 				     struct mlx5hws_cmd_forward_tbl *tbl);
 
-int mlx5hws_cmd_alias_obj_create(struct mlx5_core_dev *mdev,
-				 struct mlx5hws_cmd_alias_obj_create_attr *alias_attr,
-				 u32 *obj_id);
-
-int mlx5hws_cmd_alias_obj_destroy(struct mlx5_core_dev *mdev,
-				  u16 obj_type,
-				  u32 obj_id);
-
 int mlx5hws_cmd_sq_modify_rdy(struct mlx5_core_dev *mdev, u32 sqn);
 
 int mlx5hws_cmd_query_caps(struct mlx5_core_dev *mdev,
@@ -351,9 +339,6 @@ void mlx5hws_cmd_set_attr_connect_miss_tbl(struct mlx5hws_context *ctx,
 					   u32 fw_ft_type,
 					   enum mlx5hws_table_type type,
 					   struct mlx5hws_cmd_ft_modify_attr *ft_attr);
-
-int mlx5hws_cmd_allow_other_vhca_access(struct mlx5_core_dev *mdev,
-					struct mlx5hws_cmd_allow_other_vhca_access_attr *attr);
 
 int mlx5hws_cmd_query_gvmi(struct mlx5_core_dev *mdev, bool other_function,
 			   u16 vport_number, u16 *gvmi);

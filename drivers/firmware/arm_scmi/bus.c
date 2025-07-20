@@ -17,6 +17,8 @@
 
 #include "common.h"
 
+#define SCMI_UEVENT_MODALIAS_FMT	"%s:%02x:%s"
+
 BLOCKING_NOTIFIER_HEAD(scmi_requested_devices_nh);
 EXPORT_SYMBOL_GPL(scmi_requested_devices_nh);
 
@@ -42,7 +44,7 @@ static atomic_t scmi_syspower_registered = ATOMIC_INIT(0);
  * This helper let an SCMI driver request specific devices identified by the
  * @id_table to be created for each active SCMI instance.
  *
- * The requested device name MUST NOT be already existent for any protocol;
+ * The requested device name MUST NOT be already existent for this protocol;
  * at first the freshly requested @id_table is annotated in the IDR table
  * @scmi_requested_devices and then the requested device is advertised to any
  * registered party via the @scmi_requested_devices_nh notification chain.
@@ -52,7 +54,6 @@ static atomic_t scmi_syspower_registered = ATOMIC_INIT(0);
 static int scmi_protocol_device_request(const struct scmi_device_id *id_table)
 {
 	int ret = 0;
-	unsigned int id = 0;
 	struct list_head *head, *phead = NULL;
 	struct scmi_requested_dev *rdev;
 
@@ -67,19 +68,13 @@ static int scmi_protocol_device_request(const struct scmi_device_id *id_table)
 	}
 
 	/*
-	 * Search for the matching protocol rdev list and then search
-	 * of any existent equally named device...fails if any duplicate found.
+	 * Find the matching protocol rdev list and then search of any
+	 * existent equally named device...fails if any duplicate found.
 	 */
 	mutex_lock(&scmi_requested_devices_mtx);
-	idr_for_each_entry(&scmi_requested_devices, head, id) {
-		if (!phead) {
-			/* A list found registered in the IDR is never empty */
-			rdev = list_first_entry(head, struct scmi_requested_dev,
-						node);
-			if (rdev->id_table->protocol_id ==
-			    id_table->protocol_id)
-				phead = head;
-		}
+	phead = idr_find(&scmi_requested_devices, id_table->protocol_id);
+	if (phead) {
+		head = phead;
 		list_for_each_entry(rdev, head, node) {
 			if (!strcmp(rdev->id_table->name, id_table->name)) {
 				pr_err("Ignoring duplicate request [%d] %s\n",
@@ -206,59 +201,58 @@ scmi_protocol_table_unregister(const struct scmi_device_id *id_table)
 		scmi_protocol_device_unrequest(entry);
 }
 
-static const struct scmi_device_id *
-scmi_dev_match_id(struct scmi_device *scmi_dev, const struct scmi_driver *scmi_drv)
+static int scmi_dev_match_by_id_table(struct scmi_device *scmi_dev,
+				      const struct scmi_device_id *id_table)
 {
-	const struct scmi_device_id *id = scmi_drv->id_table;
+	if (!id_table || !id_table->name)
+		return 0;
 
-	if (!id)
-		return NULL;
+	/* Always skip transport devices from matching */
+	for (; id_table->protocol_id && id_table->name; id_table++)
+		if (id_table->protocol_id == scmi_dev->protocol_id &&
+		    strncmp(scmi_dev->name, "__scmi_transport_device", 23) &&
+		    !strcmp(id_table->name, scmi_dev->name))
+			return 1;
+	return 0;
+}
 
-	for (; id->protocol_id; id++)
-		if (id->protocol_id == scmi_dev->protocol_id) {
-			if (!id->name)
-				return id;
-			else if (!strcmp(id->name, scmi_dev->name))
-				return id;
-		}
-
-	return NULL;
+static int scmi_dev_match_id(struct scmi_device *scmi_dev,
+			     const struct scmi_driver *scmi_drv)
+{
+	return scmi_dev_match_by_id_table(scmi_dev, scmi_drv->id_table);
 }
 
 static int scmi_dev_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct scmi_driver *scmi_drv = to_scmi_driver(drv);
 	struct scmi_device *scmi_dev = to_scmi_dev(dev);
-	const struct scmi_device_id *id;
 
-	id = scmi_dev_match_id(scmi_dev, scmi_drv);
-	if (id)
-		return 1;
-
-	return 0;
+	return scmi_dev_match_id(scmi_dev, scmi_drv);
 }
 
-static int scmi_match_by_id_table(struct device *dev, void *data)
+static int scmi_match_by_id_table(struct device *dev, const void *data)
 {
-	struct scmi_device *sdev = to_scmi_dev(dev);
-	struct scmi_device_id *id_table = data;
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+	const struct scmi_device_id *id_table = data;
 
-	return sdev->protocol_id == id_table->protocol_id &&
-		(id_table->name && !strcmp(sdev->name, id_table->name));
+	return scmi_dev_match_by_id_table(scmi_dev, id_table);
 }
 
 static struct scmi_device *scmi_child_dev_find(struct device *parent,
 					       int prot_id, const char *name)
 {
-	struct scmi_device_id id_table;
+	struct scmi_device_id id_table[2] = { 0 };
 	struct device *dev;
 
-	id_table.protocol_id = prot_id;
-	id_table.name = name;
+	id_table[0].protocol_id = prot_id;
+	id_table[0].name = name;
 
 	dev = device_find_child(parent, &id_table, scmi_match_by_id_table);
 	if (!dev)
 		return NULL;
+
+	/* Drop the refcnt bumped implicitly by device_find_child */
+	put_device(dev);
 
 	return to_scmi_dev(dev);
 }
@@ -283,11 +277,59 @@ static void scmi_dev_remove(struct device *dev)
 		scmi_drv->remove(scmi_dev);
 }
 
+static int scmi_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
+{
+	const struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return add_uevent_var(env, "MODALIAS=" SCMI_UEVENT_MODALIAS_FMT,
+			      dev_name(&scmi_dev->dev), scmi_dev->protocol_id,
+			      scmi_dev->name);
+}
+
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return sysfs_emit(buf, SCMI_UEVENT_MODALIAS_FMT,
+			  dev_name(&scmi_dev->dev), scmi_dev->protocol_id,
+			  scmi_dev->name);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static ssize_t protocol_id_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return sprintf(buf, "0x%02x\n", scmi_dev->protocol_id);
+}
+static DEVICE_ATTR_RO(protocol_id);
+
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return sprintf(buf, "%s\n", scmi_dev->name);
+}
+static DEVICE_ATTR_RO(name);
+
+static struct attribute *scmi_device_attributes_attrs[] = {
+	&dev_attr_protocol_id.attr,
+	&dev_attr_name.attr,
+	&dev_attr_modalias.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(scmi_device_attributes);
+
 const struct bus_type scmi_bus_type = {
 	.name =	"scmi_protocol",
 	.match = scmi_dev_match,
 	.probe = scmi_dev_probe,
 	.remove = scmi_dev_remove,
+	.uevent	= scmi_device_uevent,
+	.dev_groups = scmi_device_attributes_groups,
 };
 EXPORT_SYMBOL_GPL(scmi_bus_type);
 
@@ -417,6 +459,20 @@ put_dev:
 	return NULL;
 }
 
+static struct scmi_device *
+_scmi_device_create(struct device_node *np, struct device *parent,
+		    int protocol, const char *name)
+{
+	struct scmi_device *sdev;
+
+	sdev = __scmi_device_create(np, parent, protocol, name);
+	if (!sdev)
+		pr_err("(%s) Failed to create device for protocol 0x%x (%s)\n",
+		       of_node_full_name(parent->of_node), protocol, name);
+
+	return sdev;
+}
+
 /**
  * scmi_device_create  - A method to create one or more SCMI devices
  *
@@ -449,7 +505,7 @@ struct scmi_device *scmi_device_create(struct device_node *np,
 	struct scmi_device *scmi_dev = NULL;
 
 	if (name)
-		return __scmi_device_create(np, parent, protocol, name);
+		return _scmi_device_create(np, parent, protocol, name);
 
 	mutex_lock(&scmi_requested_devices_mtx);
 	phead = idr_find(&scmi_requested_devices, protocol);
@@ -463,18 +519,13 @@ struct scmi_device *scmi_device_create(struct device_node *np,
 	list_for_each_entry(rdev, phead, node) {
 		struct scmi_device *sdev;
 
-		sdev = __scmi_device_create(np, parent,
-					    rdev->id_table->protocol_id,
-					    rdev->id_table->name);
-		/* Report errors and carry on... */
+		sdev = _scmi_device_create(np, parent,
+					   rdev->id_table->protocol_id,
+					   rdev->id_table->name);
 		if (sdev)
 			scmi_dev = sdev;
-		else
-			pr_err("(%s) Failed to create device for protocol 0x%x (%s)\n",
-			       of_node_full_name(parent->of_node),
-			       rdev->id_table->protocol_id,
-			       rdev->id_table->name);
 	}
+
 	mutex_unlock(&scmi_requested_devices_mtx);
 
 	return scmi_dev;

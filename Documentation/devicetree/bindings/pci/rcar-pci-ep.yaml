@@ -73,21 +73,21 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/r8a774c0-sysc.h>
 
-     pcie0_ep: pcie-ep@fe000000 {
-            compatible = "renesas,r8a774c0-pcie-ep",
-                         "renesas,rcar-gen3-pcie-ep";
-            reg = <0xfe000000 0x80000>,
-                  <0xfe100000 0x100000>,
-                  <0xfe200000 0x200000>,
-                  <0x30000000 0x8000000>,
-                  <0x38000000 0x8000000>;
-            reg-names = "apb-base", "memory0", "memory1", "memory2", "memory3";
-            interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
-            resets = <&cpg 319>;
-            power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
-            clocks = <&cpg CPG_MOD 319>;
-            clock-names = "pcie";
-            max-functions = /bits/ 8 <1>;
+    pcie0_ep: pcie-ep@fe000000 {
+        compatible = "renesas,r8a774c0-pcie-ep",
+                     "renesas,rcar-gen3-pcie-ep";
+        reg = <0xfe000000 0x80000>,
+              <0xfe100000 0x100000>,
+              <0xfe200000 0x200000>,
+              <0x30000000 0x8000000>,
+              <0x38000000 0x8000000>;
+        reg-names = "apb-base", "memory0", "memory1", "memory2", "memory3";
+        interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+        resets = <&cpg 319>;
+        power-domains = <&sysc R8A774C0_PD_ALWAYS_ON>;
+        clocks = <&cpg CPG_MOD 319>;
+        clock-names = "pcie";
+        max-functions = /bits/ 8 <1>;
     };

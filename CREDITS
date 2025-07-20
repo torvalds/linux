@@ -20,6 +20,10 @@ N: Thomas Abraham
 E: thomas.ab@samsung.com
 D: Samsung pin controller driver
 
+N: Jose Abreu
+E: jose.abreu@synopsys.com
+D: Synopsys DesignWare XPCS MDIO/PCS driver.
+
 N: Dragos Acostachioaie
 E: dragos@iname.com
 W: http://www.arbornet.org/~dragos
@@ -312,6 +316,10 @@ S: USRA Center of Excellence in Space Data and Information Sciences
 S: Code 930.5, Goddard Space Flight Center
 S: Greenbelt, Maryland 20771
 S: USA
+
+N: Joel Becker
+E: jlbec@evilplan.org
+D: configfs
 
 N: Adam Belay
 E: ambx1@neo.rr.com
@@ -850,6 +858,10 @@ S: Romania
 N: John Crispin
 E: john@phrozen.org
 D: MediaTek MT7623 Gigabit ethernet support
+
+N: Conor Culhane
+E: conor.culhane@silvaco.com
+D: Silvaco I3C master driver
 
 N: Laurence Culhane
 E: loz@holmes.demon.co.uk
@@ -1428,6 +1440,10 @@ S: 8124 Constitution Apt. 7
 S: Sterling Heights, Michigan 48313
 S: USA
 
+N: Andy Gospodarek
+E: andy@greyhouse.net
+D: Maintenance and contributions to the network interface bonding driver.
+
 N: Wolfgang Grandegger
 E: wg@grandegger.com
 D: Controller Area Network (device drivers)
@@ -1812,6 +1828,10 @@ D: Author/maintainer of most DRM drivers (especially ATI, MGA)
 D: Core DRM templates, general DRM and 3D-related hacking
 S: No fixed address
 
+N: Woojung Huh
+E: woojung.huh@microchip.com
+D: Microchip LAN78XX USB Ethernet driver
+
 N: Kenn Humborg
 E: kenn@wombat.ie
 D: Mods to loop device to support sparse backing files
@@ -1883,6 +1903,7 @@ S: Czech Republic
 N: Seth Jennings
 E: sjenning@redhat.com
 D: Creation and maintenance of zswap
+D: Creation and maintenace of the zbud allocator
 
 N: Jeremy Kerr
 D: Maintainer of SPU File System
@@ -2050,6 +2071,10 @@ S: 660 Harvard Ave. #7
 S: Santa Clara, CA 95051
 S: USA
 
+N: Joonsoo Kim
+E: iamjoonsoo.kim@lge.com
+D: Slab allocators
+
 N: Kukjin Kim
 E: kgene@kernel.org
 D: Samsung S3C, S5P and Exynos ARM architectures
@@ -2175,6 +2200,10 @@ D: Various ACPI fixes, keeping correct battery state through suspend
 D: various lockdep annotations, autofs and other random bugfixes
 S: Prague, Czech Republic
 
+N: Ishizaki Kou
+E: kou.ishizaki@toshiba.co.jp
+D: Spidernet driver for PowerPC Cell platforms
+
 N: Gene Kozin
 E: 74604.152@compuserve.com
 W: https://www.sangoma.com
@@ -2184,6 +2213,9 @@ S: 7170 Warden Avenue, Unit 2
 S: Markham, Ontario
 S: L3R 8B2
 S: Canada
+
+N: Christian Krafft
+D: PowerPC Cell support
 
 N: Maxim Krasnyansky
 E: maxk@qualcomm.com
@@ -2304,7 +2336,7 @@ D: Author of the dialog utility, foundation
 D: for Menuconfig's lxdialog.
 
 N: Christoph Lameter
-E: christoph@lameter.com
+E: cl@gentwo.org
 D: Digiboard PC/Xe and PC/Xi, Digiboard EPCA
 D: NUMA support, Slab allocators, Page migration
 D: Scalability, Time subsystem
@@ -2376,6 +2408,10 @@ D: GDT Disk Array Controller/Storage RAID controller driver
 S: ICP vortex GmbH
 S: Neckarsulm
 S: Germany
+
+N: Geoff Levand
+E: geoff@infradead.org
+D: Spidernet driver for PowerPC Cell platforms
 
 N: Phil Lewis
 E: beans@bucket.ualr.edu
@@ -2503,11 +2539,9 @@ D: SLS distribution
 D: Initial implementation of VC's, pty's and select()
 
 N: Pavel Machek
-E: pavel@ucw.cz
+E: pavel@kernel.org
 P: 4096R/92DFCE96 4FA7 9EEF FCD4 C44F C585  B8C7 C060 2241 92DF CE96
-D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd,
-D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
-D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
+D: NBD, Sun4/330 port, USB, work on suspend-to-ram/disk,
 D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
 
@@ -2947,6 +2981,11 @@ S: 521 Pleasant Valley Road
 S: Potsdam, New York 13676
 S: USA
 
+N: Shannon Nelson
+E: sln@onemain.com
+D: Worked on several network drivers including
+D: ixgbe, i40e, ionic, pds_core, pds_vdpa, pds_fwctl
+
 N: Dave Neuer
 E: dave.neuer@pobox.com
 D: Helped implement support for Compaq's H31xx series iPAQs
@@ -3222,6 +3261,10 @@ D: Some PCI kernel support
 N: Rui Prior
 E: rprior@inescn.pt
 D: ATM device driver for NICStAR based cards
+
+N: Roopa Prabhu
+E: roopa@nvidia.com
+D: Bridge co-maintainer, vxlan and networking contributor
 
 N: Stefan Probst
 E: sp@caldera.de
@@ -3636,6 +3679,10 @@ S: 149 Union St.
 S: Kingston, Ontario
 S: Canada K7L 2P4
 
+N: Pravin B Shelar
+E: pshelar@ovn.org
+D: Open vSwitch maintenance and contributions
+
 N: John Shifflett
 E: john@geolog.com
 E: jshiffle@netcom.com
@@ -3778,6 +3825,7 @@ N: Dan Streetman
 E: ddstreet@ieee.org
 D: Maintenance and development of zswap
 D: Creation and maintenance of the zpool API
+D: Maintenace of the zbud allocator
 
 N: Drew Sullivan
 E: drew@ss.org
@@ -3935,6 +3983,10 @@ S: MIT Room E40-343
 S: 1 Amherst Street
 S: Cambridge, Massachusetts 02139
 S: USA
+
+N: Luben Tuikov
+E: Luben Tuikov <ltuikov89@gmail.com>
+D: Maintainer of the DRM GPU Scheduler
 
 N: Simmule Turner
 E: sturner@tele-tv.com
@@ -4301,6 +4353,7 @@ S: England
 N: Vitaly Wool
 E: vitaly.wool@konsulko.com
 D: Maintenance and development of zswap
+D: Maintenance and development of z3fold
 
 N: Chris Wright
 E: chrisw@sous-sol.org
@@ -4327,7 +4380,7 @@ D: Freescale Highspeed USB device driver
 D: Freescale QE SoC support and Ethernet driver
 S: B-1206 Jingmao Guojigongyu
 S: 16 Baliqiao Nanjie, Beijing 101100
-S: People's Repulic of China
+S: People's Republic of China
 
 N: Vlad Yasevich
 E: vyasevich@gmail.com

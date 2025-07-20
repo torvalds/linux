@@ -21,11 +21,11 @@
 /* Register offsets */
 #define REG_GEN3_IRQSTR		0x04
 #define REG_GEN3_IRQMSK		0x08
-#define REG_GEN3_IRQCTL		0x0C
+#define REG_GEN3_IRQCTL		0x0c
 #define REG_GEN3_IRQEN		0x10
 #define REG_GEN3_IRQTEMP1	0x14
 #define REG_GEN3_IRQTEMP2	0x18
-#define REG_GEN3_IRQTEMP3	0x1C
+#define REG_GEN3_IRQTEMP3	0x1c
 #define REG_GEN3_THCTR		0x20
 #define REG_GEN3_TEMP		0x28
 #define REG_GEN3_THCODE1	0x50
@@ -38,9 +38,9 @@
 #define REG_GEN4_THSFMON00	0x180
 #define REG_GEN4_THSFMON01	0x184
 #define REG_GEN4_THSFMON02	0x188
-#define REG_GEN4_THSFMON15	0x1BC
-#define REG_GEN4_THSFMON16	0x1C0
-#define REG_GEN4_THSFMON17	0x1C4
+#define REG_GEN4_THSFMON15	0x1bc
+#define REG_GEN4_THSFMON16	0x1c0
+#define REG_GEN4_THSFMON17	0x1c4
 
 /* IRQ{STR,MSK,EN} bits */
 #define IRQ_TEMP1		BIT(0)
@@ -57,21 +57,27 @@
 /* THSCP bits */
 #define THSCP_COR_PARA_VLD	(BIT(15) | BIT(14))
 
-#define CTEMP_MASK	0xFFF
+#define CTEMP_MASK	0xfff
 
 #define MCELSIUS(temp)	((temp) * 1000)
-#define GEN3_FUSE_MASK	0xFFF
-#define GEN4_FUSE_MASK	0xFFF
+#define GEN3_FUSE_MASK	0xfff
+#define GEN4_FUSE_MASK	0xfff
 
 #define TSC_MAX_NUM	5
 
 struct rcar_gen3_thermal_priv;
 
+struct rcar_gen3_thermal_fuse_info {
+	u32 ptat[3];
+	u32 thcode[3];
+	u32 mask;
+};
+
 struct rcar_thermal_info {
 	int scale;
 	int adj_below;
 	int adj_above;
-	void (*read_fuses)(struct rcar_gen3_thermal_priv *priv);
+	const struct rcar_gen3_thermal_fuse_info *fuses;
 };
 
 struct equation_set_coef {
@@ -253,59 +259,31 @@ static irqreturn_t rcar_gen3_thermal_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void rcar_gen3_thermal_read_fuses_gen3(struct rcar_gen3_thermal_priv *priv)
+static void rcar_gen3_thermal_fetch_fuses(struct rcar_gen3_thermal_priv *priv)
 {
-	unsigned int i;
+	const struct rcar_gen3_thermal_fuse_info *fuses = priv->info->fuses;
 
 	/*
 	 * Set the pseudo calibration points with fused values.
 	 * PTAT is shared between all TSCs but only fused for the first
 	 * TSC while THCODEs are fused for each TSC.
 	 */
-	priv->ptat[0] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_PTAT1) &
-		GEN3_FUSE_MASK;
-	priv->ptat[1] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_PTAT2) &
-		GEN3_FUSE_MASK;
-	priv->ptat[2] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_PTAT3) &
-		GEN3_FUSE_MASK;
+	priv->ptat[0] = rcar_gen3_thermal_read(priv->tscs[0], fuses->ptat[0])
+		& fuses->mask;
+	priv->ptat[1] = rcar_gen3_thermal_read(priv->tscs[0], fuses->ptat[1])
+		& fuses->mask;
+	priv->ptat[2] = rcar_gen3_thermal_read(priv->tscs[0], fuses->ptat[2])
+		& fuses->mask;
 
-	for (i = 0; i < priv->num_tscs; i++) {
+	for (unsigned int i = 0; i < priv->num_tscs; i++) {
 		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
 
-		tsc->thcode[0] = rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE1) &
-			GEN3_FUSE_MASK;
-		tsc->thcode[1] = rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE2) &
-			GEN3_FUSE_MASK;
-		tsc->thcode[2] = rcar_gen3_thermal_read(tsc, REG_GEN3_THCODE3) &
-			GEN3_FUSE_MASK;
-	}
-}
-
-static void rcar_gen3_thermal_read_fuses_gen4(struct rcar_gen3_thermal_priv *priv)
-{
-	unsigned int i;
-
-	/*
-	 * Set the pseudo calibration points with fused values.
-	 * PTAT is shared between all TSCs but only fused for the first
-	 * TSC while THCODEs are fused for each TSC.
-	 */
-	priv->ptat[0] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN4_THSFMON16) &
-		GEN4_FUSE_MASK;
-	priv->ptat[1] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN4_THSFMON17) &
-		GEN4_FUSE_MASK;
-	priv->ptat[2] = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN4_THSFMON15) &
-		GEN4_FUSE_MASK;
-
-	for (i = 0; i < priv->num_tscs; i++) {
-		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
-
-		tsc->thcode[0] = rcar_gen3_thermal_read(tsc, REG_GEN4_THSFMON01) &
-			GEN4_FUSE_MASK;
-		tsc->thcode[1] = rcar_gen3_thermal_read(tsc, REG_GEN4_THSFMON02) &
-			GEN4_FUSE_MASK;
-		tsc->thcode[2] = rcar_gen3_thermal_read(tsc, REG_GEN4_THSFMON00) &
-			GEN4_FUSE_MASK;
+		tsc->thcode[0] = rcar_gen3_thermal_read(tsc, fuses->thcode[0])
+			& fuses->mask;
+		tsc->thcode[1] = rcar_gen3_thermal_read(tsc, fuses->thcode[1])
+			& fuses->mask;
+		tsc->thcode[2] = rcar_gen3_thermal_read(tsc, fuses->thcode[2])
+			& fuses->mask;
 	}
 }
 
@@ -316,7 +294,7 @@ static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
 
 	/* If fuses are not set, fallback to pseudo values. */
 	thscp = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_THSCP);
-	if (!priv->info->read_fuses ||
+	if (!priv->info->fuses ||
 	    (thscp & THSCP_COR_PARA_VLD) != THSCP_COR_PARA_VLD) {
 		/* Default THCODE values in case FUSEs are not set. */
 		static const int thcodes[TSC_MAX_NUM][3] = {
@@ -342,7 +320,8 @@ static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
 		return false;
 	}
 
-	priv->info->read_fuses(priv);
+	rcar_gen3_thermal_fetch_fuses(priv);
+
 	return true;
 }
 
@@ -370,25 +349,37 @@ static void rcar_gen3_thermal_init(struct rcar_gen3_thermal_priv *priv,
 	usleep_range(1000, 2000);
 }
 
+static const struct rcar_gen3_thermal_fuse_info rcar_gen3_thermal_fuse_info_gen3 = {
+	.ptat = { REG_GEN3_PTAT1, REG_GEN3_PTAT2, REG_GEN3_PTAT3 },
+	.thcode = { REG_GEN3_THCODE1, REG_GEN3_THCODE2, REG_GEN3_THCODE3 },
+	.mask = GEN3_FUSE_MASK,
+};
+
+static const struct rcar_gen3_thermal_fuse_info rcar_gen3_thermal_fuse_info_gen4 = {
+	.ptat = { REG_GEN4_THSFMON16, REG_GEN4_THSFMON17, REG_GEN4_THSFMON15 },
+	.thcode = { REG_GEN4_THSFMON01, REG_GEN4_THSFMON02, REG_GEN4_THSFMON00 },
+	.mask = GEN4_FUSE_MASK,
+};
+
 static const struct rcar_thermal_info rcar_m3w_thermal_info = {
 	.scale = 157,
 	.adj_below = -41,
 	.adj_above = 116,
-	.read_fuses = rcar_gen3_thermal_read_fuses_gen3,
+	.fuses = &rcar_gen3_thermal_fuse_info_gen3,
 };
 
 static const struct rcar_thermal_info rcar_gen3_thermal_info = {
 	.scale = 167,
 	.adj_below = -41,
 	.adj_above = 126,
-	.read_fuses = rcar_gen3_thermal_read_fuses_gen3,
+	.fuses = &rcar_gen3_thermal_fuse_info_gen3,
 };
 
 static const struct rcar_thermal_info rcar_gen4_thermal_info = {
 	.scale = 167,
 	.adj_below = -41,
 	.adj_above = 126,
-	.read_fuses = rcar_gen3_thermal_read_fuses_gen4,
+	.fuses = &rcar_gen3_thermal_fuse_info_gen4,
 };
 
 static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {

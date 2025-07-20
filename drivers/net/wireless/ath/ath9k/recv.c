@@ -1042,8 +1042,8 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	if (!!(rxs->encoding == RX_ENC_HT)) {
 		/* MCS rates */
 
-		airtime += ath_pkt_duration(sc, rxs->rate_idx, len,
-					is_40, is_sgi, is_sp);
+		airtime += ath_pkt_duration(rxs->rate_idx, len,
+					    is_40, is_sgi, is_sp);
 	} else {
 
 		phy = IS_CCK_RATE(rs->rs_rate) ? WLAN_RC_PHY_CCK : WLAN_RC_PHY_OFDM;

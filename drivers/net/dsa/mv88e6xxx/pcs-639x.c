@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/mii.h>
+#include <linux/string_choices.h>
 
 #include "chip.h"
 #include "global2.h"
@@ -257,6 +258,7 @@ static int mv88e639x_sgmii_pcs_post_config(struct phylink_pcs *pcs,
 }
 
 static void mv88e639x_sgmii_pcs_get_state(struct phylink_pcs *pcs,
+					  unsigned int neg_mode,
 					  struct phylink_link_state *state)
 {
 	struct mv88e639x_pcs *mpcs = sgmii_pcs_to_mv88e639x_pcs(pcs);
@@ -395,6 +397,7 @@ static void mv88e639x_xg_pcs_disable(struct mv88e639x_pcs *mpcs)
 }
 
 static void mv88e639x_xg_pcs_get_state(struct phylink_pcs *pcs,
+				       unsigned int neg_mode,
 				       struct phylink_link_state *state)
 {
 	struct mv88e639x_pcs *mpcs = xg_pcs_to_mv88e639x_pcs(pcs);
@@ -562,9 +565,7 @@ static int mv88e6390_pcs_init(struct mv88e6xxx_chip *chip, int port)
 		return -ENOMEM;
 
 	mpcs->sgmii_pcs.ops = &mv88e639x_sgmii_pcs_ops;
-	mpcs->sgmii_pcs.neg_mode = true;
 	mpcs->xg_pcs.ops = &mv88e6390_xg_pcs_ops;
-	mpcs->xg_pcs.neg_mode = true;
 
 	if (chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6190X ||
 	    chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6390X)
@@ -748,7 +749,7 @@ static int mv88e6393x_sgmii_apply_2500basex_an(struct mv88e639x_pcs *mpcs,
 	if (err)
 		dev_err(mpcs->mdio.dev.parent,
 			"failed to %s 2500basex fix: %pe\n",
-			enable ? "enable" : "disable", ERR_PTR(err));
+			str_enable_disable(enable), ERR_PTR(err));
 
 	return err;
 }
@@ -889,6 +890,7 @@ static int mv88e6393x_xg_pcs_post_config(struct phylink_pcs *pcs,
 }
 
 static void mv88e6393x_xg_pcs_get_state(struct phylink_pcs *pcs,
+					unsigned int neg_mode,
 					struct phylink_link_state *state)
 {
 	struct mv88e639x_pcs *mpcs = xg_pcs_to_mv88e639x_pcs(pcs);
@@ -896,7 +898,7 @@ static void mv88e6393x_xg_pcs_get_state(struct phylink_pcs *pcs,
 	int err;
 
 	if (state->interface != PHY_INTERFACE_MODE_USXGMII)
-		return mv88e639x_xg_pcs_get_state(pcs, state);
+		return mv88e639x_xg_pcs_get_state(pcs, neg_mode, state);
 
 	state->link = false;
 
@@ -941,9 +943,7 @@ static int mv88e6393x_pcs_init(struct mv88e6xxx_chip *chip, int port)
 		return -ENOMEM;
 
 	mpcs->sgmii_pcs.ops = &mv88e6393x_sgmii_pcs_ops;
-	mpcs->sgmii_pcs.neg_mode = true;
 	mpcs->xg_pcs.ops = &mv88e6393x_xg_pcs_ops;
-	mpcs->xg_pcs.neg_mode = true;
 	mpcs->supports_5g = true;
 
 	err = mv88e6393x_erratum_4_6(mpcs);

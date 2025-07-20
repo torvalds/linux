@@ -19,7 +19,7 @@ struct dev_rot_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info quaternion;
 	struct {
-		s32 sampled_vals[4] __aligned(16);
+		s32 sampled_vals[4];
 		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
@@ -351,7 +351,7 @@ static const struct platform_device_id hid_dev_rot_ids[] = {
 		/* Geomagnetic orientation(AM) sensor */
 		.name = "HID-SENSOR-2000c1",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_dev_rot_ids);
 

@@ -34,6 +34,11 @@
 #include "xe_pm.h"
 #include "xe_trace_guc.h"
 
+static void receive_g2h(struct xe_guc_ct *ct);
+static void g2h_worker_func(struct work_struct *w);
+static void safe_mode_worker_func(struct work_struct *w);
+static void ct_exit_safe_mode(struct xe_guc_ct *ct);
+
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 enum {
 	/* Internal states, not error conditions */
@@ -54,6 +59,7 @@ enum {
 	CT_DEAD_PARSE_G2H_UNKNOWN,		/* 0x1000 */
 	CT_DEAD_PARSE_G2H_ORIGIN,		/* 0x2000 */
 	CT_DEAD_PARSE_G2H_TYPE,			/* 0x4000 */
+	CT_DEAD_CRASH,				/* 0x8000 */
 };
 
 static void ct_dead_worker_func(struct work_struct *w);
@@ -185,13 +191,10 @@ static void guc_ct_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc_ct *ct = arg;
 
+	ct_exit_safe_mode(ct);
 	destroy_workqueue(ct->g2h_wq);
 	xa_destroy(&ct->fence_lookup);
 }
-
-static void receive_g2h(struct xe_guc_ct *ct);
-static void g2h_worker_func(struct work_struct *w);
-static void safe_mode_worker_func(struct work_struct *w);
 
 static void primelockdep(struct xe_guc_ct *ct)
 {
@@ -237,7 +240,8 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ct_size(),
 					  XE_BO_FLAG_SYSTEM |
 					  XE_BO_FLAG_GGTT |
-					  XE_BO_FLAG_GGTT_INVALIDATE);
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_PINNED_NORESTORE);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -469,8 +473,10 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	 * after any existing dead state has been dumped.
 	 */
 	spin_lock_irq(&ct->dead.lock);
-	if (ct->dead.reason)
+	if (ct->dead.reason) {
 		ct->dead.reason |= (1 << CT_DEAD_STATE_REARM);
+		queue_work(system_unbound_wq, &ct->dead.worker);
+	}
 	spin_unlock_irq(&ct->dead.lock);
 #endif
 
@@ -510,6 +516,9 @@ void xe_guc_ct_disable(struct xe_guc_ct *ct)
  */
 void xe_guc_ct_stop(struct xe_guc_ct *ct)
 {
+	if (!xe_guc_ct_initialized(ct))
+		return;
+
 	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_STOPPED);
 	stop_g2h_handler(ct);
 }
@@ -707,7 +716,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	--len;
 	++action;
 
-	/* Write H2G ensuring visable before descriptor update */
+	/* Write H2G ensuring visible before descriptor update */
 	xe_map_memcpy_to(xe, &map, 0, cmd, H2G_CT_HEADERS * sizeof(u32));
 	xe_map_memcpy_to(xe, &map, H2G_CT_HEADERS * sizeof(u32), action, len * sizeof(u32));
 	xe_device_wmb(xe);
@@ -756,7 +765,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 	u16 seqno;
 	int ret;
 
-	xe_gt_assert(gt, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
+	xe_gt_assert(gt, xe_guc_ct_initialized(ct));
 	xe_gt_assert(gt, !g2h_len || !g2h_fence);
 	xe_gt_assert(gt, !num_g2h || !g2h_fence);
 	xe_gt_assert(gt, !g2h_len || num_g2h);
@@ -1017,7 +1026,6 @@ retry_same_fence:
 	}
 
 	ret = wait_event_timeout(ct->g2h_fence_wq, g2h_fence.done, HZ);
-
 	if (!ret) {
 		LNL_FLUSH_WORK(&ct->g2h_worker);
 		if (g2h_fence.done) {
@@ -1086,6 +1094,7 @@ int xe_guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	KUNIT_STATIC_STUB_REDIRECT(xe_guc_ct_send_recv, ct, action, len, response_buffer);
 	return guc_ct_send_recv(ct, action, len, response_buffer, false);
 }
+ALLOW_ERROR_INJECTION(xe_guc_ct_send_recv, ERRNO);
 
 int xe_guc_ct_send_recv_no_fail(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 *response_buffer)
@@ -1117,6 +1126,24 @@ static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
 		g2h_release_space(ct, len);
 	}
+
+	return 0;
+}
+
+static int guc_crash_process_msg(struct xe_guc_ct *ct, u32 action)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+
+	if (action == XE_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED)
+		xe_gt_err(gt, "GuC Crash dump notification\n");
+	else if (action == XE_GUC_ACTION_NOTIFY_EXCEPTION)
+		xe_gt_err(gt, "GuC Exception notification\n");
+	else
+		xe_gt_err(gt, "Unknown GuC crash notification: 0x%04X\n", action);
+
+	CT_DEAD(ct, NULL, CRASH);
+
+	kick_reset(ct);
 
 	return 0;
 }
@@ -1295,13 +1322,17 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case GUC_ACTION_GUC2PF_ADVERSE_EVENT:
 		ret = xe_gt_sriov_pf_monitor_process_guc2pf(gt, hxg, hxg_len);
 		break;
+	case XE_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED:
+	case XE_GUC_ACTION_NOTIFY_EXCEPTION:
+		ret = guc_crash_process_msg(ct, action);
+		break;
 	default:
 		xe_gt_err(gt, "unexpected G2H action 0x%04x\n", action);
 	}
 
 	if (ret) {
-		xe_gt_err(gt, "G2H action 0x%04x failed (%pe)\n",
-			  action, ERR_PTR(ret));
+		xe_gt_err(gt, "G2H action %#04x failed (%pe) len %u msg %*ph\n",
+			  action, ERR_PTR(ret), hxg_len, (int)sizeof(u32) * hxg_len, hxg);
 		CT_DEAD(ct, NULL, PROCESS_FAILED);
 	}
 
@@ -1318,7 +1349,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	u32 action;
 	u32 *hxg;
 
-	xe_gt_assert(gt, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
+	xe_gt_assert(gt, xe_guc_ct_initialized(ct));
 	lockdep_assert_held(&ct->fast_lock);
 
 	if (ct->state == XE_GUC_CT_STATE_DISABLED)
@@ -1359,7 +1390,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 		 * this function and nowhere else. Hence, they cannot be different
 		 * unless two g2h_read calls are running concurrently. Which is not
 		 * possible because it is guarded by ct->fast_lock. And yet, some
-		 * discrete platforms are reguarly hitting this error :(.
+		 * discrete platforms are regularly hitting this error :(.
 		 *
 		 * desc_head rolling backwards shouldn't cause any noticeable
 		 * problems - just a delay in GuC being allowed to proceed past that
@@ -1699,8 +1730,11 @@ void xe_guc_ct_snapshot_print(struct xe_guc_ct_snapshot *snapshot,
 		drm_printf(p, "\tg2h outstanding: %d\n",
 			   snapshot->g2h_outstanding);
 
-		if (snapshot->ctb)
-			xe_print_blob_ascii85(p, "CTB data", snapshot->ctb, 0, snapshot->ctb_size);
+		if (snapshot->ctb) {
+			drm_printf(p, "[CTB].length: 0x%zx\n", snapshot->ctb_size);
+			xe_print_blob_ascii85(p, "[CTB].data", '\n',
+					      snapshot->ctb, 0, snapshot->ctb_size);
+		}
 	} else {
 		drm_puts(p, "CT disabled\n");
 	}
@@ -1801,10 +1835,10 @@ static void ct_dead_print(struct xe_dead_ct *dead)
 		return;
 	}
 
-	drm_printf(&lp, "CTB is dead - reason=0x%X\n", dead->reason);
 
 	/* Can't generate a genuine core dump at this point, so just do the good bits */
 	drm_puts(&lp, "**** Xe Device Coredump ****\n");
+	drm_printf(&lp, "Reason: CTB is dead - 0x%X\n", dead->reason);
 	xe_device_snapshot_print(xe, &lp);
 
 	drm_printf(&lp, "**** GT #%d ****\n", gt->info.id);

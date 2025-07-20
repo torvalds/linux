@@ -99,18 +99,18 @@ MODULE_DESCRIPTION("Generic AES-CFB library");
 MODULE_AUTHOR("Ard Biesheuvel <ardb@kernel.org>");
 MODULE_LICENSE("GPL");
 
-#ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+#ifdef CONFIG_CRYPTO_SELFTESTS
 
 /*
  * Test code below. Vectors taken from crypto/testmgr.h
  */
 
 static struct {
-	u8	ptext[64];
-	u8	ctext[64];
+	u8	ptext[64] __nonstring;
+	u8	ctext[64] __nonstring;
 
-	u8	key[AES_MAX_KEY_SIZE];
-	u8	iv[AES_BLOCK_SIZE];
+	u8	key[AES_MAX_KEY_SIZE] __nonstring;
+	u8	iv[AES_BLOCK_SIZE] __nonstring;
 
 	int	klen;
 	int	len;

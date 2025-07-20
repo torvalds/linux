@@ -56,7 +56,7 @@ struct apple_rtkit_shmem {
  *                 context.
  */
 struct apple_rtkit_ops {
-	void (*crashed)(void *cookie);
+	void (*crashed)(void *cookie, const void *crashlog, size_t crashlog_size);
 	void (*recv_message)(void *cookie, u8 endpoint, u64 message);
 	bool (*recv_message_early)(void *cookie, u8 endpoint, u64 message);
 	int (*shmem_setup)(void *cookie, struct apple_rtkit_shmem *bfr);

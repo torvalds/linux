@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "DAMON Samples"
+
+config SAMPLE_DAMON_WSSE
+	bool "DAMON sample module for working set size estimation"
+	depends on DAMON && DAMON_VADDR
+	help
+	  This builds DAMON sample module for working set size estimation.
+
+	  The module receives a pid, monitor access to the virtual address
+	  space of the process, estimate working set size of the process, and
+	  repeatedly prints the size on the kernel log.
+
+	  If unsure, say N.
+
+config SAMPLE_DAMON_PRCL
+	bool "DAMON sample module for access-aware proactive reclamation"
+	depends on DAMON && DAMON_VADDR
+	help
+	  This builds DAMON sample module for access-aware proactive
+	  reclamation.
+
+	  The module receives a pid, monitor access to the virtual address
+	  space of the process, find memory regions that not accessed, and
+	  proactively reclaim the regions.
+
+	  If unsure, say N.
+
+config SAMPLE_DAMON_MTIER
+	bool "DAMON sample module for memory tiering"
+	depends on DAMON && DAMON_PADDR
+	help
+	  Thps builds DAMON sample module for memory tierign.
+
+	  The module assumes the system is constructed with two NUMA nodes,
+	  which seems as local and remote nodes to all CPUs.  For example,
+	  node0 is for DDR5 DRAMs connected via DIMM, while node1 is for DDR4
+	  DRAMs connected via CXL.
+
+	  If unsure, say N.
+
+endmenu

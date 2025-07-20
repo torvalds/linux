@@ -47,7 +47,7 @@ static void fdomain_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_device_id fdomain_pci_table[] = {
+static const struct pci_device_id fdomain_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_FD, PCI_DEVICE_ID_FD_36C70) },
 	{}
 };

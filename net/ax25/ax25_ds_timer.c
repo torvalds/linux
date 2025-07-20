@@ -44,7 +44,7 @@ void ax25_ds_setup_timer(ax25_dev *ax25_dev)
 void ax25_ds_del_timer(ax25_dev *ax25_dev)
 {
 	if (ax25_dev)
-		del_timer(&ax25_dev->dama.slave_timer);
+		timer_delete(&ax25_dev->dama.slave_timer);
 }
 
 void ax25_ds_set_timer(ax25_dev *ax25_dev)
@@ -64,7 +64,7 @@ void ax25_ds_set_timer(ax25_dev *ax25_dev)
 
 static void ax25_ds_timeout(struct timer_list *t)
 {
-	ax25_dev *ax25_dev = from_timer(ax25_dev, t, dama.slave_timer);
+	ax25_dev *ax25_dev = timer_container_of(ax25_dev, t, dama.slave_timer);
 	ax25_cb *ax25;
 
 	if (ax25_dev == NULL || !ax25_dev->dama.slave)

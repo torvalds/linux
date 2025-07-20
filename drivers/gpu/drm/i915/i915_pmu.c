@@ -28,9 +28,6 @@
 	 BIT(I915_SAMPLE_WAIT) | \
 	 BIT(I915_SAMPLE_SEMA))
 
-static cpumask_t i915_pmu_cpumask;
-static unsigned int i915_pmu_target_cpu = -1;
-
 static struct i915_pmu *event_to_pmu(struct perf_event *event)
 {
 	return container_of(event->pmu, struct i915_pmu, base);
@@ -111,11 +108,11 @@ static unsigned int config_bit(const u64 config)
 		return other_bit(config);
 }
 
-static u32 config_mask(const u64 config)
+static __always_inline u32 config_mask(const u64 config)
 {
 	unsigned int bit = config_bit(config);
 
-	if (__builtin_constant_p(config))
+	if (__builtin_constant_p(bit))
 		BUILD_BUG_ON(bit >
 			     BITS_PER_TYPE(typeof_member(struct i915_pmu,
 							 enable)) - 1);
@@ -124,7 +121,7 @@ static u32 config_mask(const u64 config)
 			     BITS_PER_TYPE(typeof_member(struct i915_pmu,
 							 enable)) - 1);
 
-	return BIT(config_bit(config));
+	return BIT(bit);
 }
 
 static bool is_engine_event(struct perf_event *event)
@@ -302,7 +299,7 @@ void i915_pmu_gt_parked(struct intel_gt *gt)
 {
 	struct i915_pmu *pmu = &gt->i915->pmu;
 
-	if (!pmu->base.event_init)
+	if (!pmu->registered)
 		return;
 
 	spin_lock_irq(&pmu->lock);
@@ -324,7 +321,7 @@ void i915_pmu_gt_unparked(struct intel_gt *gt)
 {
 	struct i915_pmu *pmu = &gt->i915->pmu;
 
-	if (!pmu->base.event_init)
+	if (!pmu->registered)
 		return;
 
 	spin_lock_irq(&pmu->lock);
@@ -626,7 +623,7 @@ static int i915_pmu_event_init(struct perf_event *event)
 	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	int ret;
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return -ENODEV;
 
 	if (event->attr.type != event->pmu->type)
@@ -640,10 +637,6 @@ static int i915_pmu_event_init(struct perf_event *event)
 		return -EOPNOTSUPP;
 
 	if (event->cpu < 0)
-		return -EINVAL;
-
-	/* only allow running on one cpu at a time */
-	if (!cpumask_test_cpu(event->cpu, &i915_pmu_cpumask))
 		return -EINVAL;
 
 	if (is_engine_event(event))
@@ -724,7 +717,7 @@ static void i915_pmu_event_read(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	u64 prev, new;
 
-	if (pmu->closed) {
+	if (!pmu->registered) {
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
@@ -850,7 +843,7 @@ static void i915_pmu_event_start(struct perf_event *event, int flags)
 {
 	struct i915_pmu *pmu = event_to_pmu(event);
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return;
 
 	i915_pmu_enable(event);
@@ -861,7 +854,7 @@ static void i915_pmu_event_stop(struct perf_event *event, int flags)
 {
 	struct i915_pmu *pmu = event_to_pmu(event);
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		goto out;
 
 	if (flags & PERF_EF_UPDATE)
@@ -877,7 +870,7 @@ static int i915_pmu_event_add(struct perf_event *event, int flags)
 {
 	struct i915_pmu *pmu = event_to_pmu(event);
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return -ENODEV;
 
 	if (flags & PERF_EF_START)
@@ -889,11 +882,6 @@ static int i915_pmu_event_add(struct perf_event *event, int flags)
 static void i915_pmu_event_del(struct perf_event *event, int flags)
 {
 	i915_pmu_event_stop(event, PERF_EF_UPDATE);
-}
-
-static int i915_pmu_event_event_idx(struct perf_event *event)
-{
-	return 0;
 }
 
 struct i915_str_attribute {
@@ -939,23 +927,6 @@ static ssize_t i915_pmu_event_show(struct device *dev,
 	eattr = container_of(attr, struct i915_ext_attribute, attr);
 	return sprintf(buf, "config=0x%lx\n", eattr->val);
 }
-
-static ssize_t cpumask_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return cpumap_print_to_pagebuf(true, buf, &i915_pmu_cpumask);
-}
-
-static DEVICE_ATTR_RO(cpumask);
-
-static struct attribute *i915_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static const struct attribute_group i915_pmu_cpumask_attr_group = {
-	.attrs = i915_cpumask_attrs,
-};
 
 #define __event(__counter, __name, __unit) \
 { \
@@ -1173,105 +1144,18 @@ static void free_event_attributes(struct i915_pmu *pmu)
 	pmu->pmu_attr = NULL;
 }
 
-static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
-{
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
-
-	GEM_BUG_ON(!pmu->base.event_init);
-
-	/* Select the first online CPU as a designated reader. */
-	if (cpumask_empty(&i915_pmu_cpumask))
-		cpumask_set_cpu(cpu, &i915_pmu_cpumask);
-
-	return 0;
-}
-
-static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
-{
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
-	unsigned int target = i915_pmu_target_cpu;
-
-	GEM_BUG_ON(!pmu->base.event_init);
-
-	/*
-	 * Unregistering an instance generates a CPU offline event which we must
-	 * ignore to avoid incorrectly modifying the shared i915_pmu_cpumask.
-	 */
-	if (pmu->closed)
-		return 0;
-
-	if (cpumask_test_and_clear_cpu(cpu, &i915_pmu_cpumask)) {
-		target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
-
-		/* Migrate events if there is a valid target */
-		if (target < nr_cpu_ids) {
-			cpumask_set_cpu(target, &i915_pmu_cpumask);
-			i915_pmu_target_cpu = target;
-		}
-	}
-
-	if (target < nr_cpu_ids && target != pmu->cpuhp.cpu) {
-		perf_pmu_migrate_context(&pmu->base, cpu, target);
-		pmu->cpuhp.cpu = target;
-	}
-
-	return 0;
-}
-
-static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
-
-int i915_pmu_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
-				      "perf/x86/intel/i915:online",
-				      i915_pmu_cpu_online,
-				      i915_pmu_cpu_offline);
-	if (ret < 0)
-		pr_notice("Failed to setup cpuhp state for i915 PMU! (%d)\n",
-			  ret);
-	else
-		cpuhp_slot = ret;
-
-	return 0;
-}
-
-void i915_pmu_exit(void)
-{
-	if (cpuhp_slot != CPUHP_INVALID)
-		cpuhp_remove_multi_state(cpuhp_slot);
-}
-
-static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
-{
-	if (cpuhp_slot == CPUHP_INVALID)
-		return -EINVAL;
-
-	return cpuhp_state_add_instance(cpuhp_slot, &pmu->cpuhp.node);
-}
-
-static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
-{
-	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.node);
-}
-
 void i915_pmu_register(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 	const struct attribute_group *attr_groups[] = {
 		&i915_pmu_format_attr_group,
 		&pmu->events_attr_group,
-		&i915_pmu_cpumask_attr_group,
 		NULL
 	};
-
 	int ret = -ENOMEM;
 
 	spin_lock_init(&pmu->lock);
-	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pmu->timer.function = i915_sample;
-	pmu->cpuhp.cpu = -1;
+	hrtimer_setup(&pmu->timer, i915_sample, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	init_rc6(pmu);
 
 	if (IS_DGFX(i915)) {
@@ -1300,30 +1184,25 @@ void i915_pmu_register(struct drm_i915_private *i915)
 
 	pmu->base.module	= THIS_MODULE;
 	pmu->base.task_ctx_nr	= perf_invalid_context;
+	pmu->base.scope		= PERF_PMU_SCOPE_SYS_WIDE;
 	pmu->base.event_init	= i915_pmu_event_init;
 	pmu->base.add		= i915_pmu_event_add;
 	pmu->base.del		= i915_pmu_event_del;
 	pmu->base.start		= i915_pmu_event_start;
 	pmu->base.stop		= i915_pmu_event_stop;
 	pmu->base.read		= i915_pmu_event_read;
-	pmu->base.event_idx	= i915_pmu_event_event_idx;
 
 	ret = perf_pmu_register(&pmu->base, pmu->name, -1);
 	if (ret)
 		goto err_groups;
 
-	ret = i915_pmu_register_cpuhp_state(pmu);
-	if (ret)
-		goto err_unreg;
+	pmu->registered = true;
 
 	return;
 
-err_unreg:
-	perf_pmu_unregister(&pmu->base);
 err_groups:
 	kfree(pmu->base.attr_groups);
 err_attr:
-	pmu->base.event_init = NULL;
 	free_event_attributes(pmu);
 err_name:
 	if (IS_DGFX(i915))
@@ -1336,23 +1215,15 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
-	if (!pmu->base.event_init)
+	if (!pmu->registered)
 		return;
 
-	/*
-	 * "Disconnect" the PMU callbacks - since all are atomic synchronize_rcu
-	 * ensures all currently executing ones will have exited before we
-	 * proceed with unregistration.
-	 */
-	pmu->closed = true;
-	synchronize_rcu();
+	/* Disconnect the PMU callbacks */
+	pmu->registered = false;
 
 	hrtimer_cancel(&pmu->timer);
 
-	i915_pmu_unregister_cpuhp_state(pmu);
-
 	perf_pmu_unregister(&pmu->base);
-	pmu->base.event_init = NULL;
 	kfree(pmu->base.attr_groups);
 	if (IS_DGFX(i915))
 		kfree(pmu->name);

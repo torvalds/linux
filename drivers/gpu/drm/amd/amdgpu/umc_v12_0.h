@@ -58,9 +58,22 @@
 
 /* column bits in SOC physical address */
 #define UMC_V12_0_PA_C2_BIT 15
+#define UMC_V12_0_PA_C3_BIT 16
 #define UMC_V12_0_PA_C4_BIT 21
 /* row bits in SOC physical address */
+#define UMC_V12_0_PA_R0_BIT 22
+#define UMC_V12_0_PA_R10_BIT 32
+#define UMC_V12_0_PA_R11_BIT 33
+#define UMC_V12_0_PA_R12_BIT 34
 #define UMC_V12_0_PA_R13_BIT 35
+/* channel bit in SOC physical address */
+#define UMC_V12_0_PA_CH4_BIT 12
+#define UMC_V12_0_PA_CH5_BIT 13
+/* bank bit in SOC physical address */
+#define UMC_V12_0_PA_B0_BIT 19
+#define UMC_V12_0_PA_B1_BIT 20
+/* row bits in MCA address */
+#define UMC_V12_0_MA_R0_BIT 10
 
 #define MCA_UMC_HWID_V12_0     0x96
 #define MCA_UMC_MCATYPE_V12_0  0x0
@@ -80,11 +93,6 @@
 #define MCA_IPID_2_SOCKET_ID(ipid) \
 	(((REG_GET_FIELD(ipid, MCMP1_IPIDT0, InstanceIdLo) & 0x1) << 2) | \
 	 (REG_GET_FIELD(ipid, MCMP1_IPIDT0, InstanceIdHi) & 0x03))
-
-#define UMC_V12_ADDR_MASK_BAD_COLS(addr) \
-	((addr) & ~((0x3ULL << UMC_V12_0_PA_C2_BIT) | \
-			(0x1ULL << UMC_V12_0_PA_C4_BIT) | \
-			(0x1ULL << UMC_V12_0_PA_R13_BIT)))
 
 bool umc_v12_0_is_deferred_error(struct amdgpu_device *adev, uint64_t mc_umc_status);
 bool umc_v12_0_is_uncorrectable_error(struct amdgpu_device *adev, uint64_t mc_umc_status);

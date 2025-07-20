@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <asm/asm-extable.h>
+#include <asm/machine.h>
 #include <asm/sclp.h>
 #include <asm/ebcdic.h>
 #include <asm/asm.h>
@@ -84,13 +85,6 @@ typedef unsigned int sclp_cmdw_t;
 #define GDS_KEY_SELFDEFTEXTMSG	0x31
 
 typedef u64 sccb_mask_t;
-
-struct sccb_header {
-	u16	length;
-	u8	function_code;
-	u8	control_mask[3];
-	u16	response_code;
-} __attribute__((packed));
 
 struct init_sccb {
 	struct sccb_header header;
@@ -196,7 +190,9 @@ struct read_info_sccb {
 	u8	byte_134;			/* 134 */
 	u8	cpudirq;		/* 135 */
 	u16	cbl;			/* 136-137 */
-	u8	_pad_138[EXT_SCCB_READ_SCP - 138];
+	u8	byte_138;		/* 138 */
+	u8	byte_139;		/* 139 */
+	u8	_pad_140[EXT_SCCB_READ_SCP - 140];
 } __packed __aligned(PAGE_SIZE);
 
 struct read_storage_sccb {
@@ -236,13 +232,6 @@ struct gds_subvector {
 struct gds_vector {
 	u16	length;
 	u16	gds_id;
-} __attribute__((packed));
-
-struct evbuf_header {
-	u16	length;
-	u8	type;
-	u8	flags;
-	u16	_reserved;
 } __attribute__((packed));
 
 struct sclp_req {
@@ -329,7 +318,7 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile(
+	asm_inline volatile(
 		"0:	.insn	rre,0xb2200000,%[cmd],%[sccb]\n" /* servc */
 		"1:	lhi	%[exc],0\n"
 		"2:\n"
@@ -354,21 +343,21 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 static inline unsigned char
 sclp_ascebc(unsigned char ch)
 {
-	return (MACHINE_IS_VM) ? _ascebc[ch] : _ascebc_500[ch];
+	return (machine_is_vm()) ? _ascebc[ch] : _ascebc_500[ch];
 }
 
 /* translate string from EBCDIC to ASCII */
 static inline void
 sclp_ebcasc_str(char *str, int nr)
 {
-	(MACHINE_IS_VM) ? EBCASC(str, nr) : EBCASC_500(str, nr);
+	(machine_is_vm()) ? EBCASC(str, nr) : EBCASC_500(str, nr);
 }
 
 /* translate string from ASCII to EBCDIC */
 static inline void
 sclp_ascebc_str(char *str, int nr)
 {
-	(MACHINE_IS_VM) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
+	(machine_is_vm()) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
 }
 
 static inline struct gds_vector *

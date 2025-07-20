@@ -1091,7 +1091,7 @@ static void usb_tx_callback(struct urb *urb)
  */
 static void imon_touch_display_timeout(struct timer_list *t)
 {
-	struct imon_context *ictx = from_timer(ictx, t, ttimer);
+	struct imon_context *ictx = timer_container_of(ictx, t, ttimer);
 
 	if (ictx->display_type != IMON_DISPLAY_TYPE_VGA)
 		return;
@@ -2534,7 +2534,7 @@ static void imon_disconnect(struct usb_interface *interface)
 		ictx->dev_present_intf1 = false;
 		usb_kill_urb(ictx->rx_urb_intf1);
 		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
-			del_timer_sync(&ictx->ttimer);
+			timer_delete_sync(&ictx->ttimer);
 			input_unregister_device(ictx->touch);
 		}
 		usb_put_dev(ictx->usbdev_intf1);

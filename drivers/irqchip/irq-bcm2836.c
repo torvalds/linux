@@ -325,7 +325,7 @@ static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
 
 	bcm2835_init_local_timer_frequency();
 
-	intc.domain = irq_domain_add_linear(node, LAST_IRQ + 1,
+	intc.domain = irq_domain_create_linear(of_fwnode_handle(node), LAST_IRQ + 1,
 					    &bcm2836_arm_irqchip_intc_ops,
 					    NULL);
 	if (!intc.domain)

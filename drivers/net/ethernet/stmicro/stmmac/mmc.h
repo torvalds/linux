@@ -139,4 +139,7 @@ struct stmmac_counters {
 	unsigned int mmc_rx_fpe_fragment_cntr;
 };
 
+extern const struct stmmac_mmc_ops dwmac_mmc_ops;
+extern const struct stmmac_mmc_ops dwxgmac_mmc_ops;
+
 #endif /* __MMC_H__ */

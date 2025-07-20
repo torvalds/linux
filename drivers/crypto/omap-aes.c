@@ -18,7 +18,6 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/engine.h>
 #include <crypto/internal/skcipher.h>
-#include <crypto/scatterwalk.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
@@ -272,9 +271,9 @@ static int omap_aes_crypt_dma(struct omap_aes_dev *dd,
 	int ret;
 
 	if (dd->pio_only) {
-		scatterwalk_start(&dd->in_walk, dd->in_sg);
+		dd->in_sg_offset = 0;
 		if (out_sg_len)
-			scatterwalk_start(&dd->out_walk, dd->out_sg);
+			dd->out_sg_offset = 0;
 
 		/* Enable DATAIN interrupt and let it take
 		   care of the rest */
@@ -871,21 +870,18 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 
 		BUG_ON(!dd->in_sg);
 
-		BUG_ON(_calc_walked(in) > dd->in_sg->length);
+		BUG_ON(dd->in_sg_offset > dd->in_sg->length);
 
-		src = sg_virt(dd->in_sg) + _calc_walked(in);
+		src = sg_virt(dd->in_sg) + dd->in_sg_offset;
 
 		for (i = 0; i < AES_BLOCK_WORDS; i++) {
 			omap_aes_write(dd, AES_REG_DATA_N(dd, i), *src);
-
-			scatterwalk_advance(&dd->in_walk, 4);
-			if (dd->in_sg->length == _calc_walked(in)) {
+			dd->in_sg_offset += 4;
+			if (dd->in_sg_offset == dd->in_sg->length) {
 				dd->in_sg = sg_next(dd->in_sg);
 				if (dd->in_sg) {
-					scatterwalk_start(&dd->in_walk,
-							  dd->in_sg);
-					src = sg_virt(dd->in_sg) +
-					      _calc_walked(in);
+					dd->in_sg_offset = 0;
+					src = sg_virt(dd->in_sg);
 				}
 			} else {
 				src++;
@@ -904,20 +900,18 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 
 		BUG_ON(!dd->out_sg);
 
-		BUG_ON(_calc_walked(out) > dd->out_sg->length);
+		BUG_ON(dd->out_sg_offset > dd->out_sg->length);
 
-		dst = sg_virt(dd->out_sg) + _calc_walked(out);
+		dst = sg_virt(dd->out_sg) + dd->out_sg_offset;
 
 		for (i = 0; i < AES_BLOCK_WORDS; i++) {
 			*dst = omap_aes_read(dd, AES_REG_DATA_N(dd, i));
-			scatterwalk_advance(&dd->out_walk, 4);
-			if (dd->out_sg->length == _calc_walked(out)) {
+			dd->out_sg_offset += 4;
+			if (dd->out_sg_offset == dd->out_sg->length) {
 				dd->out_sg = sg_next(dd->out_sg);
 				if (dd->out_sg) {
-					scatterwalk_start(&dd->out_walk,
-							  dd->out_sg);
-					dst = sg_virt(dd->out_sg) +
-					      _calc_walked(out);
+					dd->out_sg_offset = 0;
+					dst = sg_virt(dd->out_sg);
 				}
 			} else {
 				dst++;
@@ -1092,10 +1086,7 @@ static struct attribute *omap_aes_attrs[] = {
 	&dev_attr_fallback.attr,
 	NULL,
 };
-
-static const struct attribute_group omap_aes_attr_group = {
-	.attrs = omap_aes_attrs,
-};
+ATTRIBUTE_GROUPS(omap_aes);
 
 static int omap_aes_probe(struct platform_device *pdev)
 {
@@ -1221,12 +1212,6 @@ static int omap_aes_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = sysfs_create_group(&dev->kobj, &omap_aes_attr_group);
-	if (err) {
-		dev_err(dev, "could not create sysfs device attrs\n");
-		goto err_aead_algs;
-	}
-
 	return 0;
 err_aead_algs:
 	for (i = dd->pdata->aead_algs_info->registered - 1; i >= 0; i--) {
@@ -1283,8 +1268,6 @@ static void omap_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->done_task);
 	omap_aes_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
-
-	sysfs_remove_group(&dd->dev->kobj, &omap_aes_attr_group);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1310,6 +1293,7 @@ static struct platform_driver omap_aes_driver = {
 		.name	= "omap-aes",
 		.pm	= &omap_aes_pm_ops,
 		.of_match_table	= omap_aes_of_match,
+		.dev_groups = omap_aes_groups,
 	},
 };
 

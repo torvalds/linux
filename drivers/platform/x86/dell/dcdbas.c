@@ -163,7 +163,7 @@ static ssize_t smi_data_buf_size_store(struct device *dev,
 }
 
 static ssize_t smi_data_read(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr,
+			     const struct bin_attribute *bin_attr,
 			     char *buf, loff_t pos, size_t count)
 {
 	ssize_t ret;
@@ -176,7 +176,7 @@ static ssize_t smi_data_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t smi_data_write(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr,
+			      const struct bin_attribute *bin_attr,
 			      char *buf, loff_t pos, size_t count)
 {
 	ssize_t ret;
@@ -636,9 +636,9 @@ static struct notifier_block dcdbas_reboot_nb = {
 	.priority = INT_MIN
 };
 
-static DCDBAS_BIN_ATTR_RW(smi_data);
+static const BIN_ATTR_ADMIN_RW(smi_data, 0);
 
-static struct bin_attribute *dcdbas_bin_attrs[] = {
+static const struct bin_attribute *const dcdbas_bin_attrs[] = {
 	&bin_attr_smi_data,
 	NULL
 };
@@ -662,7 +662,7 @@ static struct attribute *dcdbas_dev_attrs[] = {
 
 static const struct attribute_group dcdbas_attr_group = {
 	.attrs = dcdbas_dev_attrs,
-	.bin_attrs = dcdbas_bin_attrs,
+	.bin_attrs_new = dcdbas_bin_attrs,
 };
 
 static int dcdbas_probe(struct platform_device *dev)

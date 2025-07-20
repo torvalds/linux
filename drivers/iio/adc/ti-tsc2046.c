@@ -157,7 +157,7 @@ struct tsc2046_adc_priv {
 		/* Scan data for each channel */
 		u16 data[TI_TSC2046_MAX_CHAN];
 		/* Timestamp */
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan_buf;
 
 	/*
@@ -418,8 +418,9 @@ static int tsc2046_adc_scan(struct iio_dev *indio_dev)
 	for (group = 0; group < priv->groups; group++)
 		priv->scan_buf.data[group] = tsc2046_adc_get_val(priv, group);
 
-	ret = iio_push_to_buffers_with_timestamp(indio_dev, &priv->scan_buf,
-						 iio_get_time_ns(indio_dev));
+	ret = iio_push_to_buffers_with_ts(indio_dev, &priv->scan_buf,
+					  sizeof(priv->scan_buf),
+					  iio_get_time_ns(indio_dev));
 	/* If the consumer is kfifo, we may get a EBUSY here - ignore it. */
 	if (ret < 0 && ret != -EBUSY) {
 		dev_err_ratelimited(dev, "Failed to push scan buffer %pe\n",
@@ -760,7 +761,6 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	if (!dcfg)
 		return -EINVAL;
 
-	spi->bits_per_word = 8;
 	spi->mode &= ~SPI_MODE_X_MASK;
 	spi->mode |= SPI_MODE_0;
 	ret = spi_setup(spi);
@@ -812,9 +812,7 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 
 	spin_lock_init(&priv->state_lock);
 	priv->state = TSC2046_STATE_SHUTDOWN;
-	hrtimer_init(&priv->trig_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL_SOFT);
-	priv->trig_timer.function = tsc2046_adc_timer;
+	hrtimer_setup(&priv->trig_timer, tsc2046_adc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
 
 	ret = devm_iio_trigger_register(dev, trig);
 	if (ret) {

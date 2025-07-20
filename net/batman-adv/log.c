@@ -13,7 +13,7 @@
 
 /**
  * batadv_debug_log() - Add debug log entry
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @fmt: format string
  *
  * Return: 0 on success or negative error number in case of failure

@@ -65,6 +65,35 @@ static inline long register_dtl(unsigned long cpu, unsigned long vpa)
 	return vpa_call(H_VPA_REG_DTL, cpu, vpa);
 }
 
+/*
+ * Invokes H_HTM hcall with parameters passed from htm_hcall_wrapper.
+ * flags: Set to hardwareTarget.
+ * target: Specifies target using node index, nodal chip index and core index.
+ * operation : action to perform ie configure, start, stop, deconfigure, trace
+ * based on the HTM type.
+ * param1, param2, param3: parameters for each action.
+ */
+static inline long htm_call(unsigned long flags, unsigned long target,
+               unsigned long operation, unsigned long param1,
+               unsigned long param2, unsigned long param3)
+{
+       return plpar_hcall_norets(H_HTM, flags, target, operation,
+                                 param1, param2, param3);
+}
+
+static inline long htm_hcall_wrapper(unsigned long flags, unsigned long nodeindex,
+               unsigned long nodalchipindex, unsigned long coreindexonchip,
+	       unsigned long type, unsigned long htm_op, unsigned long param1, unsigned long param2,
+	       unsigned long param3)
+{
+	return htm_call(H_HTM_FLAGS_HARDWARE_TARGET | flags,
+                       H_HTM_TARGET_NODE_INDEX(nodeindex) |
+                       H_HTM_TARGET_NODAL_CHIP_INDEX(nodalchipindex) |
+                       H_HTM_TARGET_CORE_INDEX_ON_CHIP(coreindexonchip),
+		       H_HTM_OP(htm_op) | H_HTM_TYPE(type),
+		       param1, param2, param3);
+}
+
 extern void vpa_init(int cpu);
 
 static inline long plpar_pte_enter(unsigned long flags,

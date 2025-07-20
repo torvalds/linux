@@ -678,8 +678,7 @@ void ntp_notify_cmos_timer(bool offset_set)
 
 static void __init ntp_init_cmos_sync(void)
 {
-	hrtimer_init(&sync_hrtimer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	sync_hrtimer.function = sync_timer_callback;
+	hrtimer_setup(&sync_hrtimer, sync_timer_callback, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 }
 #else /* CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC) */
 static inline void __init ntp_init_cmos_sync(void) { }

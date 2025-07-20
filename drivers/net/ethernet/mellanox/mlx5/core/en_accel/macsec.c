@@ -339,8 +339,12 @@ static int mlx5e_macsec_init_sa_fs(struct macsec_context *ctx,
 {
 	struct mlx5e_priv *priv = macsec_netdev_priv(ctx->netdev);
 	struct mlx5_macsec_fs *macsec_fs = priv->mdev->macsec_fs;
+	const struct macsec_tx_sc *tx_sc = &ctx->secy->tx_sc;
 	struct mlx5_macsec_rule_attrs rule_attrs;
 	union mlx5_macsec_rule *macsec_rule;
+
+	if (is_tx && tx_sc->encoding_sa != sa->assoc_num)
+		return 0;
 
 	rule_attrs.macsec_obj_id = sa->macsec_obj_id;
 	rule_attrs.sci = sa->sci;

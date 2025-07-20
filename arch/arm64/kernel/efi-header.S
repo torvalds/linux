@@ -28,7 +28,7 @@
 	.macro	__EFI_PE_HEADER
 #ifdef CONFIG_EFI
 	.set	.Lpe_header_offset, . - .L_head
-	.long	PE_MAGIC
+	.long	IMAGE_NT_SIGNATURE
 	.short	IMAGE_FILE_MACHINE_ARM64		// Machine
 	.short	.Lsection_count				// NumberOfSections
 	.long	0 					// TimeDateStamp
@@ -40,7 +40,7 @@
 		IMAGE_FILE_LINE_NUMS_STRIPPED		// Characteristics
 
 .Loptional_header:
-	.short	PE_OPT_MAGIC_PE32PLUS			// PE32+ format
+	.short	IMAGE_NT_OPTIONAL_HDR64_MAGIC		// PE32+ format
 	.byte	0x02					// MajorLinkerVersion
 	.byte	0x14					// MinorLinkerVersion
 	.long	__initdata_begin - .Lefi_header_end	// SizeOfCode
@@ -66,7 +66,7 @@
 	.long	.Lefi_header_end - .L_head		// SizeOfHeaders
 	.long	0					// CheckSum
 	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION		// Subsystem
-	.short	IMAGE_DLL_CHARACTERISTICS_NX_COMPAT	// DllCharacteristics
+	.short	IMAGE_DLLCHARACTERISTICS_NX_COMPAT	// DllCharacteristics
 	.quad	0					// SizeOfStackReserve
 	.quad	0					// SizeOfStackCommit
 	.quad	0					// SizeOfHeapReserve

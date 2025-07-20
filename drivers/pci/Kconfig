@@ -21,6 +21,7 @@ config GENERIC_PCI_IOMAP
 menuconfig PCI
 	bool "PCI support"
 	depends on HAVE_PCI
+	depends on MMU
 	help
 	  This option enables support for the PCI local bus, including
 	  support for PCI-X and the foundations for PCI Express support.
@@ -122,7 +123,10 @@ config PCI_ATS
 	bool
 
 config PCI_DOE
-	bool
+	bool "Enable PCI Data Object Exchange (DOE) support"
+	help
+	  Say Y here if you want be able to communicate with PCIe DOE
+	  mailboxes.
 
 config PCI_ECAM
 	bool
@@ -202,6 +206,12 @@ config PCI_P2PDMA
 	  it's hard to tell which support it at all, so at this time,
 	  P2P DMA transactions must be between devices behind the same root
 	  port.
+
+	  Enabling this option will reduce the entropy of x86 KASLR memory
+	  regions. For example - on a 46 bit system, the entropy goes down
+	  from 16 bits to 15 bits. The actual reduction in entropy depends
+	  on the physical address bits, on processor features, kernel config
+	  (5 level page table) and physical memory present on the system.
 
 	  If unsure, say N.
 

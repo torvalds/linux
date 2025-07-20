@@ -785,7 +785,7 @@ struct mlx5hws_definer_cache {
 
 struct mlx5hws_definer_cache_item {
 	struct mlx5hws_definer definer;
-	u32 refcount;
+	u32 refcount; /* protected by context ctrl lock */
 	struct list_head list_node;
 };
 
@@ -830,5 +830,7 @@ mlx5hws_definer_conv_match_params_to_compressed_fc(struct mlx5hws_context *ctx,
 						   u8 match_criteria_enable,
 						   u32 *match_param,
 						   int *fc_sz);
+
+const char *mlx5hws_definer_fname_to_str(enum mlx5hws_definer_fname fname);
 
 #endif /* HWS_DEFINER_H_ */

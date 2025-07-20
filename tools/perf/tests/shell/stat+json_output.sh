@@ -173,6 +173,19 @@ check_per_socket()
 	echo "[Success]"
 }
 
+check_metric_only()
+{
+	echo -n "Checking json output: metric only "
+	if [ "$(uname -m)" = "s390x" ] && ! grep '^facilities' /proc/cpuinfo  | grep -qw 67
+	then
+		echo "[Skip] CPU-measurement counter facility not installed"
+		return
+	fi
+	perf stat -j --metric-only -e instructions,cycles -o "${stat_output}" true
+	$PYTHON $pythonchecker --metric-only --file "${stat_output}"
+	echo "[Success]"
+}
+
 # The perf stat options for per-socket, per-core, per-die
 # and -A ( no_aggr mode ) uses the info fetched from this
 # directory: "/sys/devices/system/cpu/cpu*/topology". For
@@ -207,6 +220,7 @@ check_interval
 check_event
 check_per_thread
 check_per_node
+check_metric_only
 if [ $skip_test -ne 1 ]
 then
 	check_system_wide_no_aggr

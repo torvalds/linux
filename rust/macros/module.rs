@@ -48,7 +48,7 @@ impl<'a> ModInfoBuilder<'a> {
             )
         } else {
             // Loadable modules' modinfo strings go as-is.
-            format!("{field}={content}\0", field = field, content = content)
+            format!("{field}={content}\0")
         };
 
         write!(
@@ -56,8 +56,8 @@ impl<'a> ModInfoBuilder<'a> {
             "
                 {cfg}
                 #[doc(hidden)]
-                #[link_section = \".modinfo\"]
-                #[used]
+                #[cfg_attr(not(target_os = \"macos\"), link_section = \".modinfo\")]
+                #[used(compiler)]
                 pub static __{module}_{counter}: [u8; {length}] = *{string};
             ",
             cfg = if builtin {
@@ -95,6 +95,7 @@ struct ModuleInfo {
     license: String,
     name: String,
     author: Option<String>,
+    authors: Option<Vec<String>>,
     description: Option<String>,
     alias: Option<Vec<String>>,
     firmware: Option<Vec<String>>,
@@ -108,6 +109,7 @@ impl ModuleInfo {
             "type",
             "name",
             "author",
+            "authors",
             "description",
             "license",
             "alias",
@@ -124,10 +126,7 @@ impl ModuleInfo {
             };
 
             if seen_keys.contains(&key) {
-                panic!(
-                    "Duplicated key \"{}\". Keys can only be specified once.",
-                    key
-                );
+                panic!("Duplicated key \"{key}\". Keys can only be specified once.");
             }
 
             assert_eq!(expect_punct(it), ':');
@@ -136,14 +135,12 @@ impl ModuleInfo {
                 "type" => info.type_ = expect_ident(it),
                 "name" => info.name = expect_string_ascii(it),
                 "author" => info.author = Some(expect_string(it)),
+                "authors" => info.authors = Some(expect_string_array(it)),
                 "description" => info.description = Some(expect_string(it)),
                 "license" => info.license = expect_string_ascii(it),
                 "alias" => info.alias = Some(expect_string_array(it)),
                 "firmware" => info.firmware = Some(expect_string_array(it)),
-                _ => panic!(
-                    "Unknown key \"{}\". Valid keys are: {:?}.",
-                    key, EXPECTED_KEYS
-                ),
+                _ => panic!("Unknown key \"{key}\". Valid keys are: {EXPECTED_KEYS:?}."),
             }
 
             assert_eq!(expect_punct(it), ',');
@@ -155,7 +152,7 @@ impl ModuleInfo {
 
         for key in REQUIRED_KEYS {
             if !seen_keys.iter().any(|e| e == key) {
-                panic!("Missing required key \"{}\".", key);
+                panic!("Missing required key \"{key}\".");
             }
         }
 
@@ -167,10 +164,7 @@ impl ModuleInfo {
         }
 
         if seen_keys != ordered_keys {
-            panic!(
-                "Keys are not ordered as expected. Order them like: {:?}.",
-                ordered_keys
-            );
+            panic!("Keys are not ordered as expected. Order them like: {ordered_keys:?}.");
         }
 
         info
@@ -182,9 +176,16 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
     let info = ModuleInfo::parse(&mut it);
 
-    let mut modinfo = ModInfoBuilder::new(info.name.as_ref());
+    // Rust does not allow hyphens in identifiers, use underscore instead.
+    let ident = info.name.replace('-', "_");
+    let mut modinfo = ModInfoBuilder::new(ident.as_ref());
     if let Some(author) = info.author {
         modinfo.emit("author", &author);
+    }
+    if let Some(authors) = info.authors {
+        for author in authors {
+            modinfo.emit("author", &author);
+        }
     }
     if let Some(description) = info.description {
         modinfo.emit("description", &description);
@@ -216,23 +217,31 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             // SAFETY: `__this_module` is constructed by the kernel at load time and will not be
             // freed until the module is unloaded.
             #[cfg(MODULE)]
-            static THIS_MODULE: kernel::ThisModule = unsafe {{
+            static THIS_MODULE: ::kernel::ThisModule = unsafe {{
                 extern \"C\" {{
-                    static __this_module: kernel::types::Opaque<kernel::bindings::module>;
+                    static __this_module: ::kernel::types::Opaque<::kernel::bindings::module>;
                 }}
 
-                kernel::ThisModule::from_ptr(__this_module.get())
+                ::kernel::ThisModule::from_ptr(__this_module.get())
             }};
             #[cfg(not(MODULE))]
-            static THIS_MODULE: kernel::ThisModule = unsafe {{
-                kernel::ThisModule::from_ptr(core::ptr::null_mut())
+            static THIS_MODULE: ::kernel::ThisModule = unsafe {{
+                ::kernel::ThisModule::from_ptr(::core::ptr::null_mut())
             }};
+
+            /// The `LocalModule` type is the type of the module created by `module!`,
+            /// `module_pci_driver!`, `module_platform_driver!`, etc.
+            type LocalModule = {type_};
+
+            impl ::kernel::ModuleMetadata for {type_} {{
+                const NAME: &'static ::kernel::str::CStr = ::kernel::c_str!(\"{name}\");
+            }}
 
             // Double nested modules, since then nobody can access the public items inside.
             mod __module_init {{
                 mod __module_init {{
                     use super::super::{type_};
-                    use kernel::init::PinInit;
+                    use pin_init::PinInit;
 
                     /// The \"Rust loadable module\" mark.
                     //
@@ -240,11 +249,11 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     // key or a new section. For the moment, keep it simple.
                     #[cfg(MODULE)]
                     #[doc(hidden)]
-                    #[used]
+                    #[used(compiler)]
                     static __IS_RUST_MODULE: () = ();
 
-                    static mut __MOD: core::mem::MaybeUninit<{type_}> =
-                        core::mem::MaybeUninit::uninit();
+                    static mut __MOD: ::core::mem::MaybeUninit<{type_}> =
+                        ::core::mem::MaybeUninit::uninit();
 
                     // Loadable modules need to export the `{{init,cleanup}}_module` identifiers.
                     /// # Safety
@@ -255,7 +264,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     #[no_mangle]
                     #[link_section = \".init.text\"]
-                    pub unsafe extern \"C\" fn init_module() -> kernel::ffi::c_int {{
+                    pub unsafe extern \"C\" fn init_module() -> ::kernel::ffi::c_int {{
                         // SAFETY: This function is inaccessible to the outside due to the double
                         // module wrapping it. It is called exactly once by the C side via its
                         // unique name.
@@ -264,13 +273,14 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
                     #[cfg(MODULE)]
                     #[doc(hidden)]
-                    #[used]
+                    #[used(compiler)]
                     #[link_section = \".init.data\"]
                     static __UNIQUE_ID___addressable_init_module: unsafe extern \"C\" fn() -> i32 = init_module;
 
                     #[cfg(MODULE)]
                     #[doc(hidden)]
                     #[no_mangle]
+                    #[link_section = \".exit.text\"]
                     pub extern \"C\" fn cleanup_module() {{
                         // SAFETY:
                         // - This function is inaccessible to the outside due to the double
@@ -283,7 +293,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
                     #[cfg(MODULE)]
                     #[doc(hidden)]
-                    #[used]
+                    #[used(compiler)]
                     #[link_section = \".exit.data\"]
                     static __UNIQUE_ID___addressable_cleanup_module: extern \"C\" fn() = cleanup_module;
 
@@ -293,15 +303,16 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     #[cfg(not(CONFIG_HAVE_ARCH_PREL32_RELOCATIONS))]
                     #[doc(hidden)]
                     #[link_section = \"{initcall_section}\"]
-                    #[used]
-                    pub static __{name}_initcall: extern \"C\" fn() -> kernel::ffi::c_int = __{name}_init;
+                    #[used(compiler)]
+                    pub static __{ident}_initcall: extern \"C\" fn() ->
+                        ::kernel::ffi::c_int = __{ident}_init;
 
                     #[cfg(not(MODULE))]
                     #[cfg(CONFIG_HAVE_ARCH_PREL32_RELOCATIONS)]
-                    core::arch::global_asm!(
+                    ::core::arch::global_asm!(
                         r#\".section \"{initcall_section}\", \"a\"
-                        __{name}_initcall:
-                            .long   __{name}_init - .
+                        __{ident}_initcall:
+                            .long   __{ident}_init - .
                             .previous
                         \"#
                     );
@@ -309,7 +320,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     #[cfg(not(MODULE))]
                     #[doc(hidden)]
                     #[no_mangle]
-                    pub extern \"C\" fn __{name}_init() -> kernel::ffi::c_int {{
+                    pub extern \"C\" fn __{ident}_init() -> ::kernel::ffi::c_int {{
                         // SAFETY: This function is inaccessible to the outside due to the double
                         // module wrapping it. It is called exactly once by the C side via its
                         // placement above in the initcall section.
@@ -319,22 +330,22 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     #[cfg(not(MODULE))]
                     #[doc(hidden)]
                     #[no_mangle]
-                    pub extern \"C\" fn __{name}_exit() {{
+                    pub extern \"C\" fn __{ident}_exit() {{
                         // SAFETY:
                         // - This function is inaccessible to the outside due to the double
                         //   module wrapping it. It is called exactly once by the C side via its
                         //   unique name,
-                        // - furthermore it is only called after `__{name}_init` has returned `0`
-                        //   (which delegates to `__init`).
+                        // - furthermore it is only called after `__{ident}_init` has
+                        //   returned `0` (which delegates to `__init`).
                         unsafe {{ __exit() }}
                     }}
 
                     /// # Safety
                     ///
                     /// This function must only be called once.
-                    unsafe fn __init() -> kernel::ffi::c_int {{
+                    unsafe fn __init() -> ::kernel::ffi::c_int {{
                         let initer =
-                            <{type_} as kernel::InPlaceModule>::init(&super::super::THIS_MODULE);
+                            <{type_} as ::kernel::InPlaceModule>::init(&super::super::THIS_MODULE);
                         // SAFETY: No data race, since `__MOD` can only be accessed by this module
                         // and there only `__init` and `__exit` access it. These functions are only
                         // called once and `__exit` cannot be called before or during `__init`.
@@ -365,6 +376,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
         ",
         type_ = info.type_,
         name = info.name,
+        ident = ident,
         modinfo = modinfo.buffer,
         initcall_section = ".initcall6.init"
     )

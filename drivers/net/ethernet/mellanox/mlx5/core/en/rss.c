@@ -81,6 +81,11 @@ struct mlx5e_rss {
 	refcount_t refcnt;
 };
 
+bool mlx5e_rss_get_inner_ft_support(struct mlx5e_rss *rss)
+{
+	return rss->inner_ft_support;
+}
+
 void mlx5e_rss_params_indir_modify_actual_size(struct mlx5e_rss *rss, u32 num_channels)
 {
 	rss->indir.actual_table_size = mlx5e_rqt_size(rss->mdev, num_channels);
@@ -156,6 +161,7 @@ static void mlx5e_rss_params_init(struct mlx5e_rss *rss)
 {
 	enum mlx5_traffic_types tt;
 
+	rss->hash.symmetric = true;
 	rss->hash.hfunc = ETH_RSS_HASH_TOP;
 	netdev_rss_key_fill(rss->hash.toeplitz_hash_key,
 			    sizeof(rss->hash.toeplitz_hash_key));
@@ -449,6 +455,16 @@ u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 	return mlx5e_tir_get_tirn(tir);
 }
 
+u32 mlx5e_rss_get_rqtn(struct mlx5e_rss *rss)
+{
+	return mlx5e_rqt_get_rqtn(&rss->rqt);
+}
+
+bool mlx5e_rss_valid_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt, bool inner)
+{
+	return !!rss_get_tir(rss, tt, inner);
+}
+
 /* Fill the "tirn" output parameter.
  * Create the requested TIR if it's its first usage.
  */
@@ -551,7 +567,7 @@ inner_tir:
 	return final_err;
 }
 
-int mlx5e_rss_get_rxfh(struct mlx5e_rss *rss, u32 *indir, u8 *key, u8 *hfunc)
+int mlx5e_rss_get_rxfh(struct mlx5e_rss *rss, u32 *indir, u8 *key, u8 *hfunc, bool *symmetric)
 {
 	if (indir)
 		memcpy(indir, rss->indir.table,
@@ -564,11 +580,14 @@ int mlx5e_rss_get_rxfh(struct mlx5e_rss *rss, u32 *indir, u8 *key, u8 *hfunc)
 	if (hfunc)
 		*hfunc = rss->hash.hfunc;
 
+	if (symmetric)
+		*symmetric = rss->hash.symmetric;
+
 	return 0;
 }
 
 int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
-		       const u8 *key, const u8 *hfunc,
+		       const u8 *key, const u8 *hfunc, const bool *symmetric,
 		       u32 *rqns, u32 *vhca_ids, unsigned int num_rqns)
 {
 	bool changed_indir = false;
@@ -606,6 +625,11 @@ int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 
 		memcpy(rss->indir.table, indir,
 		       rss->indir.actual_table_size * sizeof(*rss->indir.table));
+	}
+
+	if (symmetric) {
+		rss->hash.symmetric = *symmetric;
+		changed_hash = true;
 	}
 
 	if (changed_indir && rss->enabled) {

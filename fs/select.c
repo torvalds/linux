@@ -630,7 +630,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
 
 	ret = -EINVAL;
-	if (n < 0)
+	if (unlikely(n < 0))
 		goto out_nofds;
 
 	/* max_fds can increase, so grab it once to avoid race */
@@ -786,7 +786,7 @@ static inline int get_sigset_argpack(struct sigset_argpack *to,
 	}
 	return 0;
 Efault:
-	user_access_end();
+	user_read_access_end();
 	return -EFAULT;
 }
 
@@ -857,7 +857,7 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 	int fd = pollfd->fd;
 	__poll_t mask, filter;
 
-	if (fd < 0)
+	if (unlikely(fd < 0))
 		return 0;
 
 	CLASS(fd, f)(fd);
@@ -1355,7 +1355,7 @@ static inline int get_compat_sigset_argpack(struct compat_sigset_argpack *to,
 	}
 	return 0;
 Efault:
-	user_access_end();
+	user_read_access_end();
 	return -EFAULT;
 }
 

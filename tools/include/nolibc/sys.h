@@ -4,27 +4,26 @@
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_SYS_H
 #define _NOLIBC_SYS_H
 
 #include "std.h"
 
 /* system includes */
-#include <asm/unistd.h>
-#include <asm/signal.h>  /* for SIGCHLD */
-#include <asm/ioctls.h>
-#include <asm/mman.h>
+#include <linux/unistd.h>
+#include <linux/signal.h>  /* for SIGCHLD */
+#include <linux/termios.h>
+#include <linux/mman.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
 #include <linux/auxvec.h>
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
-#include <linux/prctl.h>
-#include <linux/resource.h>
-#include <linux/utsname.h>
 
-#include "arch.h"
 #include "errno.h"
 #include "stdarg.h"
 #include "types.h"
@@ -301,9 +300,15 @@ void sys_exit(int status)
 }
 
 static __attribute__((noreturn,unused))
-void exit(int status)
+void _exit(int status)
 {
 	sys_exit(status);
+}
+
+static __attribute__((noreturn,unused))
+void exit(int status)
+{
+	_exit(status);
 }
 
 
@@ -489,27 +494,6 @@ int getpagesize(void)
 
 
 /*
- * int gettimeofday(struct timeval *tv, struct timezone *tz);
- */
-
-static __attribute__((unused))
-int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-#ifdef __NR_gettimeofday
-	return my_syscall2(__NR_gettimeofday, tv, tz);
-#else
-	return __nolibc_enosys(__func__, tv, tz);
-#endif
-}
-
-static __attribute__((unused))
-int gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-	return __sysret(sys_gettimeofday(tv, tz));
-}
-
-
-/*
  * uid_t getuid(void);
  */
 
@@ -529,22 +513,6 @@ uid_t getuid(void)
 	return sys_getuid();
 }
 
-
-/*
- * int ioctl(int fd, unsigned long req, void *value);
- */
-
-static __attribute__((unused))
-int sys_ioctl(int fd, unsigned long req, void *value)
-{
-	return my_syscall3(__NR_ioctl, fd, req, value);
-}
-
-static __attribute__((unused))
-int ioctl(int fd, unsigned long req, void *value)
-{
-	return __sysret(sys_ioctl(fd, req, value));
-}
 
 /*
  * int kill(pid_t pid, int signal);
@@ -601,9 +569,36 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 }
 
 static __attribute__((unused))
+int sys_llseek(int fd, unsigned long offset_high, unsigned long offset_low,
+	       __kernel_loff_t *result, int whence)
+{
+#ifdef __NR_llseek
+	return my_syscall5(__NR_llseek, fd, offset_high, offset_low, result, whence);
+#else
+	return __nolibc_enosys(__func__, fd, offset_high, offset_low, result, whence);
+#endif
+}
+
+static __attribute__((unused))
 off_t lseek(int fd, off_t offset, int whence)
 {
-	return __sysret(sys_lseek(fd, offset, whence));
+	__kernel_loff_t loff = 0;
+	off_t result;
+	int ret;
+
+	result = sys_lseek(fd, offset, whence);
+	if (result == -ENOSYS) {
+		/* Only exists on 32bit where nolibc off_t is also 32bit */
+		ret = sys_llseek(fd, 0, offset, &loff, whence);
+		if (ret < 0)
+			result = ret;
+		else if (loff != (off_t)loff)
+			result = -EOVERFLOW;
+		else
+			result = loff;
+	}
+
+	return __sysret(result);
 }
 
 
@@ -674,106 +669,6 @@ int mknod(const char *path, mode_t mode, dev_t dev)
 	return __sysret(sys_mknod(path, mode, dev));
 }
 
-#ifndef sys_mmap
-static __attribute__((unused))
-void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
-	       off_t offset)
-{
-	int n;
-
-#if defined(__NR_mmap2)
-	n = __NR_mmap2;
-	offset >>= 12;
-#else
-	n = __NR_mmap;
-#endif
-
-	return (void *)my_syscall6(n, addr, length, prot, flags, fd, offset);
-}
-#endif
-
-/* Note that on Linux, MAP_FAILED is -1 so we can use the generic __sysret()
- * which returns -1 upon error and still satisfy user land that checks for
- * MAP_FAILED.
- */
-
-static __attribute__((unused))
-void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
-{
-	void *ret = sys_mmap(addr, length, prot, flags, fd, offset);
-
-	if ((unsigned long)ret >= -4095UL) {
-		SET_ERRNO(-(long)ret);
-		ret = MAP_FAILED;
-	}
-	return ret;
-}
-
-static __attribute__((unused))
-int sys_munmap(void *addr, size_t length)
-{
-	return my_syscall2(__NR_munmap, addr, length);
-}
-
-static __attribute__((unused))
-int munmap(void *addr, size_t length)
-{
-	return __sysret(sys_munmap(addr, length));
-}
-
-/*
- * int mount(const char *source, const char *target,
- *           const char *fstype, unsigned long flags,
- *           const void *data);
- */
-static __attribute__((unused))
-int sys_mount(const char *src, const char *tgt, const char *fst,
-                     unsigned long flags, const void *data)
-{
-	return my_syscall5(__NR_mount, src, tgt, fst, flags, data);
-}
-
-static __attribute__((unused))
-int mount(const char *src, const char *tgt,
-          const char *fst, unsigned long flags,
-          const void *data)
-{
-	return __sysret(sys_mount(src, tgt, fst, flags, data));
-}
-
-
-/*
- * int open(const char *path, int flags[, mode_t mode]);
- */
-
-static __attribute__((unused))
-int sys_open(const char *path, int flags, mode_t mode)
-{
-#ifdef __NR_openat
-	return my_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
-#elif defined(__NR_open)
-	return my_syscall3(__NR_open, path, flags, mode);
-#else
-	return __nolibc_enosys(__func__, path, flags, mode);
-#endif
-}
-
-static __attribute__((unused))
-int open(const char *path, int flags, ...)
-{
-	mode_t mode = 0;
-
-	if (flags & O_CREAT) {
-		va_list args;
-
-		va_start(args, flags);
-		mode = va_arg(args, int);
-		va_end(args);
-	}
-
-	return __sysret(sys_open(path, flags, mode));
-}
-
 
 /*
  * int pipe2(int pipefd[2], int flags);
@@ -800,26 +695,6 @@ int pipe(int pipefd[2])
 
 
 /*
- * int prctl(int option, unsigned long arg2, unsigned long arg3,
- *                       unsigned long arg4, unsigned long arg5);
- */
-
-static __attribute__((unused))
-int sys_prctl(int option, unsigned long arg2, unsigned long arg3,
-		          unsigned long arg4, unsigned long arg5)
-{
-	return my_syscall5(__NR_prctl, option, arg2, arg3, arg4, arg5);
-}
-
-static __attribute__((unused))
-int prctl(int option, unsigned long arg2, unsigned long arg3,
-		      unsigned long arg4, unsigned long arg5)
-{
-	return __sysret(sys_prctl(option, arg2, arg3, arg4, arg5));
-}
-
-
-/*
  * int pivot_root(const char *new, const char *old);
  */
 
@@ -837,35 +712,6 @@ int pivot_root(const char *new, const char *old)
 
 
 /*
- * int poll(struct pollfd *fds, int nfds, int timeout);
- */
-
-static __attribute__((unused))
-int sys_poll(struct pollfd *fds, int nfds, int timeout)
-{
-#if defined(__NR_ppoll)
-	struct timespec t;
-
-	if (timeout >= 0) {
-		t.tv_sec  = timeout / 1000;
-		t.tv_nsec = (timeout % 1000) * 1000000;
-	}
-	return my_syscall5(__NR_ppoll, fds, nfds, (timeout >= 0) ? &t : NULL, NULL, 0);
-#elif defined(__NR_poll)
-	return my_syscall3(__NR_poll, fds, nfds, timeout);
-#else
-	return __nolibc_enosys(__func__, fds, nfds, timeout);
-#endif
-}
-
-static __attribute__((unused))
-int poll(struct pollfd *fds, int nfds, int timeout)
-{
-	return __sysret(sys_poll(fds, nfds, timeout));
-}
-
-
-/*
  * ssize_t read(int fd, void *buf, size_t count);
  */
 
@@ -879,61 +725,6 @@ static __attribute__((unused))
 ssize_t read(int fd, void *buf, size_t count)
 {
 	return __sysret(sys_read(fd, buf, count));
-}
-
-
-/*
- * int reboot(int cmd);
- * <cmd> is among LINUX_REBOOT_CMD_*
- */
-
-static __attribute__((unused))
-ssize_t sys_reboot(int magic1, int magic2, int cmd, void *arg)
-{
-	return my_syscall4(__NR_reboot, magic1, magic2, cmd, arg);
-}
-
-static __attribute__((unused))
-int reboot(int cmd)
-{
-	return __sysret(sys_reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, 0));
-}
-
-
-/*
- * int getrlimit(int resource, struct rlimit *rlim);
- * int setrlimit(int resource, const struct rlimit *rlim);
- */
-
-static __attribute__((unused))
-int sys_prlimit64(pid_t pid, int resource,
-		  const struct rlimit64 *new_limit, struct rlimit64 *old_limit)
-{
-	return my_syscall4(__NR_prlimit64, pid, resource, new_limit, old_limit);
-}
-
-static __attribute__((unused))
-int getrlimit(int resource, struct rlimit *rlim)
-{
-	struct rlimit64 rlim64;
-	int ret;
-
-	ret = __sysret(sys_prlimit64(0, resource, NULL, &rlim64));
-	rlim->rlim_cur = rlim64.rlim_cur;
-	rlim->rlim_max = rlim64.rlim_max;
-
-	return ret;
-}
-
-static __attribute__((unused))
-int setrlimit(int resource, const struct rlimit *rlim)
-{
-	struct rlimit64 rlim64 = {
-		.rlim_cur = rlim->rlim_cur,
-		.rlim_max = rlim->rlim_max,
-	};
-
-	return __sysret(sys_prlimit64(0, resource, &rlim64, NULL));
 }
 
 
@@ -981,6 +772,14 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 		t.tv_nsec = timeout->tv_usec * 1000;
 	}
 	return my_syscall6(__NR_pselect6, nfds, rfds, wfds, efds, timeout ? &t : NULL, NULL);
+#elif defined(__NR_pselect6_time64)
+	struct __kernel_timespec t;
+
+	if (timeout) {
+		t.tv_sec  = timeout->tv_sec;
+		t.tv_nsec = timeout->tv_usec * 1000;
+	}
+	return my_syscall6(__NR_pselect6_time64, nfds, rfds, wfds, efds, timeout ? &t : NULL, NULL);
 #else
 	return __nolibc_enosys(__func__, nfds, rfds, wfds, efds, timeout);
 #endif
@@ -1009,6 +808,16 @@ int setpgid(pid_t pid, pid_t pgid)
 	return __sysret(sys_setpgid(pid, pgid));
 }
 
+/*
+ * pid_t setpgrp(void)
+ */
+
+static __attribute__((unused))
+pid_t setpgrp(void)
+{
+	return setpgid(0, 0);
+}
+
 
 /*
  * pid_t setsid(void);
@@ -1024,62 +833,6 @@ static __attribute__((unused))
 pid_t setsid(void)
 {
 	return __sysret(sys_setsid());
-}
-
-/*
- * int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf);
- * int stat(const char *path, struct stat *buf);
- */
-
-static __attribute__((unused))
-int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
-{
-#ifdef __NR_statx
-	return my_syscall5(__NR_statx, fd, path, flags, mask, buf);
-#else
-	return __nolibc_enosys(__func__, fd, path, flags, mask, buf);
-#endif
-}
-
-static __attribute__((unused))
-int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
-{
-	return __sysret(sys_statx(fd, path, flags, mask, buf));
-}
-
-
-static __attribute__((unused))
-int stat(const char *path, struct stat *buf)
-{
-	struct statx statx;
-	long ret;
-
-	ret = __sysret(sys_statx(AT_FDCWD, path, AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
-	if (ret == -1)
-		return ret;
-
-	buf->st_dev          = ((statx.stx_dev_minor & 0xff)
-			       | (statx.stx_dev_major << 8)
-			       | ((statx.stx_dev_minor & ~0xff) << 12));
-	buf->st_ino          = statx.stx_ino;
-	buf->st_mode         = statx.stx_mode;
-	buf->st_nlink        = statx.stx_nlink;
-	buf->st_uid          = statx.stx_uid;
-	buf->st_gid          = statx.stx_gid;
-	buf->st_rdev         = ((statx.stx_rdev_minor & 0xff)
-			       | (statx.stx_rdev_major << 8)
-			       | ((statx.stx_rdev_minor & ~0xff) << 12));
-	buf->st_size         = statx.stx_size;
-	buf->st_blksize      = statx.stx_blksize;
-	buf->st_blocks       = statx.stx_blocks;
-	buf->st_atim.tv_sec  = statx.stx_atime.tv_sec;
-	buf->st_atim.tv_nsec = statx.stx_atime.tv_nsec;
-	buf->st_mtim.tv_sec  = statx.stx_mtime.tv_sec;
-	buf->st_mtim.tv_nsec = statx.stx_mtime.tv_nsec;
-	buf->st_ctim.tv_sec  = statx.stx_ctime.tv_sec;
-	buf->st_ctim.tv_nsec = statx.stx_ctime.tv_nsec;
-
-	return 0;
 }
 
 
@@ -1141,32 +894,6 @@ int umount2(const char *path, int flags)
 
 
 /*
- * int uname(struct utsname *buf);
- */
-
-struct utsname {
-	char sysname[65];
-	char nodename[65];
-	char release[65];
-	char version[65];
-	char machine[65];
-	char domainname[65];
-};
-
-static __attribute__((unused))
-int sys_uname(struct utsname *buf)
-{
-	return my_syscall1(__NR_uname, buf);
-}
-
-static __attribute__((unused))
-int uname(struct utsname *buf)
-{
-	return __sysret(sys_uname(buf));
-}
-
-
-/*
  * int unlink(const char *path);
  */
 
@@ -1186,42 +913,6 @@ static __attribute__((unused))
 int unlink(const char *path)
 {
 	return __sysret(sys_unlink(path));
-}
-
-
-/*
- * pid_t wait(int *status);
- * pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage);
- * pid_t waitpid(pid_t pid, int *status, int options);
- */
-
-static __attribute__((unused))
-pid_t sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
-{
-#ifdef __NR_wait4
-	return my_syscall4(__NR_wait4, pid, status, options, rusage);
-#else
-	return __nolibc_enosys(__func__, pid, status, options, rusage);
-#endif
-}
-
-static __attribute__((unused))
-pid_t wait(int *status)
-{
-	return __sysret(sys_wait4(-1, status, 0, NULL));
-}
-
-static __attribute__((unused))
-pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage)
-{
-	return __sysret(sys_wait4(pid, status, options, rusage));
-}
-
-
-static __attribute__((unused))
-pid_t waitpid(pid_t pid, int *status, int options)
-{
-	return __sysret(sys_wait4(pid, status, options, NULL));
 }
 
 
@@ -1257,8 +948,5 @@ int memfd_create(const char *name, unsigned int flags)
 {
 	return __sysret(sys_memfd_create(name, flags));
 }
-
-/* make sure to include all global symbols */
-#include "nolibc.h"
 
 #endif /* _NOLIBC_SYS_H */

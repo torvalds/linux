@@ -156,19 +156,52 @@ static int test__cpu_map_print(struct test_suite *test __maybe_unused, int subte
 	return 0;
 }
 
-static int test__cpu_map_merge(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
+static int __test__cpu_map_merge(const char *lhs, const char *rhs, int nr, const char *expected)
 {
-	struct perf_cpu_map *a = perf_cpu_map__new("4,2,1");
-	struct perf_cpu_map *b = perf_cpu_map__new("4,5,7");
-	struct perf_cpu_map *c = perf_cpu_map__merge(a, b);
+	struct perf_cpu_map *a = perf_cpu_map__new(lhs);
+	struct perf_cpu_map *b = perf_cpu_map__new(rhs);
 	char buf[100];
 
-	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(c) == 5);
-	cpu_map__snprint(c, buf, sizeof(buf));
-	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, "1-2,4-5,7"));
+	perf_cpu_map__merge(&a, b);
+	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(a) == nr);
+	cpu_map__snprint(a, buf, sizeof(buf));
+	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, expected));
 	perf_cpu_map__put(b);
-	perf_cpu_map__put(c);
+
+	/*
+	 * If 'b' is a superset of 'a', 'a' points to the same map with the
+	 * map 'b'. In this case, the owner 'b' has released the resource above
+	 * but 'a' still keeps the ownership, the reference counter should be 1.
+	 */
+	TEST_ASSERT_VAL("unexpected refcnt: bad result",
+			refcount_read(perf_cpu_map__refcnt(a)) == 1);
+
+	perf_cpu_map__put(a);
 	return 0;
+}
+
+static int test__cpu_map_merge(struct test_suite *test __maybe_unused,
+			       int subtest __maybe_unused)
+{
+	int ret;
+
+	ret = __test__cpu_map_merge("4,2,1", "4,5,7", 5, "1-2,4-5,7");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1-8", "6-9", 9, "1-9");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1-8,12-20", "6-9,15", 18, "1-9,12-20");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("4,2,1", "1", 3, "1-2,4");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1", "4,2,1", 3, "1-2,4");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1", "1", 1, "1");
+	return ret;
 }
 
 static int __test__cpu_map_intersect(const char *lhs, const char *rhs, int nr, const char *expected)
@@ -219,30 +252,29 @@ static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subte
 	struct perf_cpu_map *empty = perf_cpu_map__intersect(one, two);
 	struct perf_cpu_map *pair = perf_cpu_map__new("1-2");
 	struct perf_cpu_map *tmp;
-	struct perf_cpu_map *maps[] = {empty, any, one, two, pair};
+	struct perf_cpu_map **maps[] = {&empty, &any, &one, &two, &pair};
 
 	for (size_t i = 0; i < ARRAY_SIZE(maps); i++) {
 		/* Maps equal themself. */
-		TEST_ASSERT_VAL("equal", perf_cpu_map__equal(maps[i], maps[i]));
+		TEST_ASSERT_VAL("equal", perf_cpu_map__equal(*maps[i], *maps[i]));
 		for (size_t j = 0; j < ARRAY_SIZE(maps); j++) {
 			/* Maps dont't equal each other. */
 			if (i == j)
 				continue;
-			TEST_ASSERT_VAL("not equal", !perf_cpu_map__equal(maps[i], maps[j]));
+			TEST_ASSERT_VAL("not equal", !perf_cpu_map__equal(*maps[i], *maps[j]));
 		}
 	}
 
 	/* Maps equal made maps. */
-	tmp = perf_cpu_map__merge(perf_cpu_map__get(one), two);
-	TEST_ASSERT_VAL("pair", perf_cpu_map__equal(pair, tmp));
-	perf_cpu_map__put(tmp);
+	perf_cpu_map__merge(&two, one);
+	TEST_ASSERT_VAL("pair", perf_cpu_map__equal(pair, two));
 
 	tmp = perf_cpu_map__intersect(pair, one);
 	TEST_ASSERT_VAL("one", perf_cpu_map__equal(one, tmp));
 	perf_cpu_map__put(tmp);
 
 	for (size_t i = 0; i < ARRAY_SIZE(maps); i++)
-		perf_cpu_map__put(maps[i]);
+		perf_cpu_map__put(*maps[i]);
 
 	return TEST_OK;
 }

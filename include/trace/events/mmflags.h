@@ -13,7 +13,77 @@
  * Thus most bits set go first.
  */
 
+/* These define the values that are enums (the bits) */
+#define TRACE_GFP_FLAGS_GENERAL			\
+	TRACE_GFP_EM(DMA)			\
+	TRACE_GFP_EM(HIGHMEM)			\
+	TRACE_GFP_EM(DMA32)			\
+	TRACE_GFP_EM(MOVABLE)			\
+	TRACE_GFP_EM(RECLAIMABLE)		\
+	TRACE_GFP_EM(HIGH)			\
+	TRACE_GFP_EM(IO)			\
+	TRACE_GFP_EM(FS)			\
+	TRACE_GFP_EM(ZERO)			\
+	TRACE_GFP_EM(DIRECT_RECLAIM)		\
+	TRACE_GFP_EM(KSWAPD_RECLAIM)		\
+	TRACE_GFP_EM(WRITE)			\
+	TRACE_GFP_EM(NOWARN)			\
+	TRACE_GFP_EM(RETRY_MAYFAIL)		\
+	TRACE_GFP_EM(NOFAIL)			\
+	TRACE_GFP_EM(NORETRY)			\
+	TRACE_GFP_EM(MEMALLOC)			\
+	TRACE_GFP_EM(COMP)			\
+	TRACE_GFP_EM(NOMEMALLOC)		\
+	TRACE_GFP_EM(HARDWALL)			\
+	TRACE_GFP_EM(THISNODE)			\
+	TRACE_GFP_EM(ACCOUNT)			\
+	TRACE_GFP_EM(ZEROTAGS)
+
+#ifdef CONFIG_KASAN_HW_TAGS
+# define TRACE_GFP_FLAGS_KASAN			\
+	TRACE_GFP_EM(SKIP_ZERO)			\
+	TRACE_GFP_EM(SKIP_KASAN)
+#else
+# define TRACE_GFP_FLAGS_KASAN
+#endif
+
+#ifdef CONFIG_LOCKDEP
+# define TRACE_GFP_FLAGS_LOCKDEP		\
+	TRACE_GFP_EM(NOLOCKDEP)
+#else
+# define TRACE_GFP_FLAGS_LOCKDEP
+#endif
+
+#ifdef CONFIG_SLAB_OBJ_EXT
+# define TRACE_GFP_FLAGS_SLAB			\
+	TRACE_GFP_EM(NO_OBJ_EXT)
+#else
+# define TRACE_GFP_FLAGS_SLAB
+#endif
+
+#define TRACE_GFP_FLAGS				\
+	TRACE_GFP_FLAGS_GENERAL			\
+	TRACE_GFP_FLAGS_KASAN			\
+	TRACE_GFP_FLAGS_LOCKDEP			\
+	TRACE_GFP_FLAGS_SLAB
+
+#undef TRACE_GFP_EM
+#define TRACE_GFP_EM(a) TRACE_DEFINE_ENUM(___GFP_##a##_BIT);
+
+TRACE_GFP_FLAGS
+
+/* Just in case these are ever used */
+TRACE_DEFINE_ENUM(___GFP_UNUSED_BIT);
+TRACE_DEFINE_ENUM(___GFP_LAST_BIT);
+
 #define gfpflag_string(flag) {(__force unsigned long)flag, #flag}
+
+/*
+ * For the values that match the bits, use the TRACE_GFP_FLAGS
+ * which will allow any updates to be included automatically.
+ */
+#undef TRACE_GFP_EM
+#define TRACE_GFP_EM(a) gfpflag_string(__GFP_##a),
 
 #define __def_gfpflag_names			\
 	gfpflag_string(GFP_TRANSHUGE),		\
@@ -28,41 +98,13 @@
 	gfpflag_string(GFP_NOIO),		\
 	gfpflag_string(GFP_NOWAIT),		\
 	gfpflag_string(GFP_DMA),		\
-	gfpflag_string(__GFP_HIGHMEM),		\
 	gfpflag_string(GFP_DMA32),		\
-	gfpflag_string(__GFP_HIGH),		\
-	gfpflag_string(__GFP_IO),		\
-	gfpflag_string(__GFP_FS),		\
-	gfpflag_string(__GFP_NOWARN),		\
-	gfpflag_string(__GFP_RETRY_MAYFAIL),	\
-	gfpflag_string(__GFP_NOFAIL),		\
-	gfpflag_string(__GFP_NORETRY),		\
-	gfpflag_string(__GFP_COMP),		\
-	gfpflag_string(__GFP_ZERO),		\
-	gfpflag_string(__GFP_NOMEMALLOC),	\
-	gfpflag_string(__GFP_MEMALLOC),		\
-	gfpflag_string(__GFP_HARDWALL),		\
-	gfpflag_string(__GFP_THISNODE),		\
-	gfpflag_string(__GFP_RECLAIMABLE),	\
-	gfpflag_string(__GFP_MOVABLE),		\
-	gfpflag_string(__GFP_ACCOUNT),		\
-	gfpflag_string(__GFP_WRITE),		\
 	gfpflag_string(__GFP_RECLAIM),		\
-	gfpflag_string(__GFP_DIRECT_RECLAIM),	\
-	gfpflag_string(__GFP_KSWAPD_RECLAIM),	\
-	gfpflag_string(__GFP_ZEROTAGS)
-
-#ifdef CONFIG_KASAN_HW_TAGS
-#define __def_gfpflag_names_kasan ,			\
-	gfpflag_string(__GFP_SKIP_ZERO),		\
-	gfpflag_string(__GFP_SKIP_KASAN)
-#else
-#define __def_gfpflag_names_kasan
-#endif
+	TRACE_GFP_FLAGS				\
+	{ 0, NULL }
 
 #define show_gfp_flags(flags)						\
-	(flags) ? __print_flags(flags, "|",				\
-	__def_gfpflag_names __def_gfpflag_names_kasan			\
+	(flags) ? __print_flags(flags, "|", __def_gfpflag_names		\
 	) : "none"
 
 #ifdef CONFIG_MMU
@@ -116,7 +158,8 @@
 	DEF_PAGEFLAG_NAME(head),					\
 	DEF_PAGEFLAG_NAME(reclaim),					\
 	DEF_PAGEFLAG_NAME(swapbacked),					\
-	DEF_PAGEFLAG_NAME(unevictable)					\
+	DEF_PAGEFLAG_NAME(unevictable),					\
+	DEF_PAGEFLAG_NAME(dropbehind)					\
 IF_HAVE_PG_MLOCK(mlocked)						\
 IF_HAVE_PG_HWPOISON(hwpoison)						\
 IF_HAVE_PG_IDLE(idle)							\
@@ -129,9 +172,7 @@ IF_HAVE_PG_ARCH_3(arch_3)
 	__def_pageflag_names						\
 	) : "none"
 
-#if defined(CONFIG_X86)
-#define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
-#elif defined(CONFIG_PPC64)
+#if defined(CONFIG_PPC64)
 #define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
 #elif defined(CONFIG_PARISC)
 #define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}

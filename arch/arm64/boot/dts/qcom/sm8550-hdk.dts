@@ -945,6 +945,10 @@
 	status = "okay";
 };
 
+&iris {
+	status = "okay";
+};
+
 &gpi_dma1 {
 	status = "okay";
 };
@@ -1172,7 +1176,7 @@
 };
 
 &sleep_clk {
-	clock-frequency = <32000>;
+	clock-frequency = <32764>;
 };
 
 &swr0 {

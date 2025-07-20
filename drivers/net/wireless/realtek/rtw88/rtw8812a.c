@@ -868,6 +868,22 @@ static void rtw8812a_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
+static void rtw8812a_led_set(struct led_classdev *led,
+			     enum led_brightness brightness)
+{
+	struct rtw_dev *rtwdev = container_of(led, struct rtw_dev, led_cdev);
+	u8 ledcfg;
+
+	ledcfg = rtw_read8(rtwdev, REG_LED_CFG);
+	ledcfg &= BIT(6) | BIT(4);
+	ledcfg |= BIT(5);
+
+	if (brightness == LED_OFF)
+		ledcfg |= BIT(3);
+
+	rtw_write8(rtwdev, REG_LED_CFG, ledcfg);
+}
+
 static void rtw8812a_fill_txdesc_checksum(struct rtw_dev *rtwdev,
 					  struct rtw_tx_pkt_info *pkt_info,
 					  u8 *txdesc)
@@ -909,6 +925,7 @@ static const struct rtw_chip_ops rtw8812a_ops = {
 	.set_tx_power_index	= rtw88xxa_set_tx_power_index,
 	.cfg_ldo25		= rtw8812a_cfg_ldo25,
 	.efuse_grant		= rtw88xxa_efuse_grant,
+	.set_ampdu_factor	= NULL,
 	.false_alarm_statistics	= rtw88xxa_false_alarm_statistics,
 	.phy_calibration	= rtw8812a_phy_calibration,
 	.cck_pd_set		= rtw88xxa_phy_cck_pd_set,
@@ -916,6 +933,7 @@ static const struct rtw_chip_ops rtw8812a_ops = {
 	.config_bfee		= NULL,
 	.set_gid_table		= NULL,
 	.cfg_csi_rate		= NULL,
+	.led_set		= rtw8812a_led_set,
 	.fill_txdesc_checksum	= rtw8812a_fill_txdesc_checksum,
 	.coex_set_init		= rtw8812a_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
@@ -985,6 +1003,9 @@ static const struct rtw_rfe_def rtw8812a_rfe_defs[] = {
 	[1] = { .phy_pg_tbl	= &rtw8812a_bb_pg_tbl,
 		.txpwr_lmt_tbl	= &rtw8812a_txpwr_lmt_tbl,
 		.pwr_track_tbl	= &rtw8812a_rtw_pwr_track_tbl, },
+	[2] = { .phy_pg_tbl	= &rtw8812a_bb_pg_tbl,
+		.txpwr_lmt_tbl	= &rtw8812a_txpwr_lmt_tbl,
+		.pwr_track_tbl	= &rtw8812a_rtw_pwr_track_tbl, },
 	[3] = { .phy_pg_tbl	= &rtw8812a_bb_pg_rfe3_tbl,
 		.txpwr_lmt_tbl	= &rtw8812a_txpwr_lmt_tbl,
 		.pwr_track_tbl	= &rtw8812a_rtw_pwr_track_rfe3_tbl, },
@@ -1024,7 +1045,7 @@ const struct rtw_chip_info rtw8812a_hw_spec = {
 	.rx_buf_desc_sz = 8,
 	.phy_efuse_size = 512,
 	.log_efuse_size = 512,
-	.ptct_efuse_size = 96 + 1, /* TODO or just 18? */
+	.ptct_efuse_size = 0,
 	.txff_size = 131072,
 	.rxff_size = 16128,
 	.rsvd_drv_pg_num = 9,
@@ -1055,6 +1076,7 @@ const struct rtw_chip_info rtw8812a_hw_spec = {
 	.rfe_defs = rtw8812a_rfe_defs,
 	.rfe_defs_size = ARRAY_SIZE(rtw8812a_rfe_defs),
 	.rx_ldpc = false,
+	.amsdu_in_ampdu = true,
 	.hw_feature_report = false,
 	.c2h_ra_report_size = 4,
 	.old_datarate_fb_limit = true,

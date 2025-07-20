@@ -509,6 +509,10 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	if (ret)
 		return ret;
 
+	/* No CTXDMAs on Blackwell. */
+	if (core->chan.base.user.oclass >= GB202_DISP_CORE_CHANNEL_DMA)
+		return 0;
+
 	ret = nvif_object_ctor(&core->chan.base.user, "kmsCrcNtfyCtxDma",
 			       NV50_DISP_HANDLE_CRC_CTX(head, idx),
 			       NV_DMA_IN_MEMORY,

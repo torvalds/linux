@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "core.h"
 
@@ -522,7 +522,7 @@ enum hal_tlv_tag {
 	HAL_PHYRXHT_SIG_USR_SU					= 468 /* 0x1d4 */,
 	HAL_PHYRXHT_SIG_USR_MU_MIMO				= 469 /* 0x1d5 */,
 	HAL_PHYRX_GENERIC_U_SIG					= 470 /* 0x1d6 */,
-	HAL_PHYRX_GENERICHT_SIG					= 471 /* 0x1d7 */,
+	HAL_PHYRX_GENERIC_EHT_SIG				= 471 /* 0x1d7 */,
 	HAL_OVERWRITE_RESP_START				= 472 /* 0x1d8 */,
 	HAL_OVERWRITE_RESP_PREAMBLE_INFO			= 473 /* 0x1d9 */,
 	HAL_OVERWRITE_RESP_FRAME_INFO				= 474 /* 0x1da */,
@@ -579,9 +579,11 @@ struct hal_tlv_hdr {
 
 #define HAL_TLV_64_HDR_TAG		GENMASK(9, 1)
 #define HAL_TLV_64_HDR_LEN		GENMASK(21, 10)
+#define HAL_TLV_64_USR_ID		GENMASK(31, 26)
+#define HAL_TLV_64_ALIGN		8
 
 struct hal_tlv_64_hdr {
-	u64 tl;
+	__le64 tl;
 	u8 value[];
 } __packed;
 
@@ -705,7 +707,7 @@ enum hal_rx_msdu_desc_reo_dest_ind {
 #define RX_MSDU_DESC_INFO0_DECAP_FORMAT		GENMASK(30, 29)
 
 #define HAL_RX_MSDU_PKT_LENGTH_GET(val)		\
-	(u32_get_bits((val), RX_MSDU_DESC_INFO0_MSDU_LENGTH))
+	(le32_get_bits((val), RX_MSDU_DESC_INFO0_MSDU_LENGTH))
 
 struct rx_msdu_desc {
 	__le32 info0;
@@ -1006,6 +1008,10 @@ enum hal_reo_entr_rxdma_ecode {
 	HAL_REO_ENTR_RING_RXDMA_ECODE_FLOW_TIMEOUT_ERR,
 	HAL_REO_ENTR_RING_RXDMA_ECODE_FLUSH_REQUEST_ERR,
 	HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_FRAG_ERR,
+	HAL_REO_ENTR_RING_RXDMA_ECODE_MULTICAST_ECHO_ERR,
+	HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_MISMATCH_ERR,
+	HAL_REO_ENTR_RING_RXDMA_ECODE_UNAUTH_WDS_ERR,
+	HAL_REO_ENTR_RING_RXDMA_ECODE_GRPCAST_AMSDU_WDS_ERR,
 	HAL_REO_ENTR_RING_RXDMA_ECODE_MAX,
 };
 
@@ -1282,11 +1288,13 @@ enum hal_tcl_encap_type {
 	HAL_TCL_ENCAP_TYPE_NATIVE_WIFI,
 	HAL_TCL_ENCAP_TYPE_ETHERNET,
 	HAL_TCL_ENCAP_TYPE_802_3 = 3,
+	HAL_TCL_ENCAP_TYPE_MAX
 };
 
 enum hal_tcl_desc_type {
 	HAL_TCL_DESC_TYPE_BUFFER,
 	HAL_TCL_DESC_TYPE_EXT_DESC,
+	HAL_TCL_DESC_TYPE_MAX,
 };
 
 enum hal_wbm_htt_tx_comp_status {
@@ -1296,6 +1304,7 @@ enum hal_wbm_htt_tx_comp_status {
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_REINJ,
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_INSPECT,
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_MEC_NOTIFY,
+	HAL_WBM_REL_HTT_TX_COMP_STATUS_VDEVID_MISMATCH,
 	HAL_WBM_REL_HTT_TX_COMP_STATUS_MAX,
 };
 
@@ -1804,6 +1813,7 @@ enum hal_wbm_rel_src_module {
 	HAL_WBM_REL_SRC_MODULE_REO,
 	HAL_WBM_REL_SRC_MODULE_FW,
 	HAL_WBM_REL_SRC_MODULE_SW,
+	HAL_WBM_REL_SRC_MODULE_MAX,
 };
 
 enum hal_wbm_rel_desc_type {
@@ -1996,6 +2006,7 @@ struct hal_wbm_release_ring_cc_rx {
 #define HAL_WBM_RELEASE_INFO3_CONTINUATION		BIT(2)
 
 #define HAL_WBM_RELEASE_INFO5_LOOPING_COUNT		GENMASK(31, 28)
+#define HAL_ENCRYPT_TYPE_MAX 12
 
 struct hal_wbm_release_ring {
 	struct ath12k_buffer_addr buf_addr_info;
@@ -2966,9 +2977,8 @@ struct hal_mon_buf_ring {
 
 #define HAL_MON_DEST_COOKIE_BUF_ID      GENMASK(17, 0)
 
-#define HAL_MON_DEST_INFO0_END_OFFSET		GENMASK(15, 0)
-#define HAL_MON_DEST_INFO0_FLUSH_DETECTED	BIT(16)
-#define HAL_MON_DEST_INFO0_END_OF_PPDU		BIT(17)
+#define HAL_MON_DEST_INFO0_END_OFFSET		GENMASK(11, 0)
+#define HAL_MON_DEST_INFO0_END_REASON		GENMASK(17, 16)
 #define HAL_MON_DEST_INFO0_INITIATOR		BIT(18)
 #define HAL_MON_DEST_INFO0_EMPTY_DESC		BIT(19)
 #define HAL_MON_DEST_INFO0_RING_ID		GENMASK(27, 20)

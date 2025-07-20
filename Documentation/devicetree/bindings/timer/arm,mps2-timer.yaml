@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm,mps2-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM MPS2 timer
+
+maintainers:
+  - Vladimir Murzin <vladimir.murzin@arm.com>
+
+description:
+  The MPS2 platform has simple general-purpose 32 bits timers.
+
+properties:
+  compatible:
+    const: arm,mps2-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    description: Rate in Hz of the timer input clock
+
+oneOf:
+  - required: [clocks]
+  - required: [clock-frequency]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@40000000 {
+        compatible = "arm,mps2-timer";
+        reg = <0x40000000 0x1000>;
+        interrupts = <8>;
+        clocks = <&sysclk>;
+    };

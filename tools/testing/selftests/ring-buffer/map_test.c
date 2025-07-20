@@ -233,10 +233,16 @@ TEST_F(map, data_mmap)
 	ASSERT_NE(data, MAP_FAILED);
 	munmap(data, data_len);
 
-	/* Overflow the available subbufs by 1 */
+	/* Offset within ring-buffer bounds, mapping size overflow */
 	meta_len += desc->meta->subbuf_size * 2;
 	data = mmap(NULL, data_len, PROT_READ, MAP_SHARED,
 		    desc->cpu_fd, meta_len);
+	ASSERT_EQ(data, MAP_FAILED);
+
+	/* Offset outside ring-buffer bounds */
+	data_len = desc->meta->subbuf_size * desc->meta->nr_subbufs;
+	data = mmap(NULL, data_len, PROT_READ, MAP_SHARED,
+		    desc->cpu_fd, data_len + (desc->meta->subbuf_size * 2));
 	ASSERT_EQ(data, MAP_FAILED);
 
 	/* Verify meta-page padding */

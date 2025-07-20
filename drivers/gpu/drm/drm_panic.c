@@ -7,6 +7,7 @@
  */
 
 #include <linux/font.h>
+#include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/iosys-map.h>
 #include <linux/kdebug.h>
@@ -31,6 +32,7 @@
 #include <drm/drm_rect.h>
 
 #include "drm_crtc_internal.h"
+#include "drm_draw_internal.h"
 
 MODULE_AUTHOR("Jocelyn Falempe");
 MODULE_DESCRIPTION("DRM panic handler");
@@ -139,181 +141,8 @@ device_initcall(drm_panic_setup_logo);
 #endif
 
 /*
- * Color conversion
+ *  Blit & Fill functions
  */
-
-static u16 convert_xrgb8888_to_rgb565(u32 pix)
-{
-	return ((pix & 0x00F80000) >> 8) |
-	       ((pix & 0x0000FC00) >> 5) |
-	       ((pix & 0x000000F8) >> 3);
-}
-
-static u16 convert_xrgb8888_to_rgba5551(u32 pix)
-{
-	return ((pix & 0x00f80000) >> 8) |
-	       ((pix & 0x0000f800) >> 5) |
-	       ((pix & 0x000000f8) >> 2) |
-	       BIT(0); /* set alpha bit */
-}
-
-static u16 convert_xrgb8888_to_xrgb1555(u32 pix)
-{
-	return ((pix & 0x00f80000) >> 9) |
-	       ((pix & 0x0000f800) >> 6) |
-	       ((pix & 0x000000f8) >> 3);
-}
-
-static u16 convert_xrgb8888_to_argb1555(u32 pix)
-{
-	return BIT(15) | /* set alpha bit */
-	       ((pix & 0x00f80000) >> 9) |
-	       ((pix & 0x0000f800) >> 6) |
-	       ((pix & 0x000000f8) >> 3);
-}
-
-static u32 convert_xrgb8888_to_argb8888(u32 pix)
-{
-	return pix | GENMASK(31, 24); /* fill alpha bits */
-}
-
-static u32 convert_xrgb8888_to_xbgr8888(u32 pix)
-{
-	return ((pix & 0x00ff0000) >> 16) <<  0 |
-	       ((pix & 0x0000ff00) >>  8) <<  8 |
-	       ((pix & 0x000000ff) >>  0) << 16 |
-	       ((pix & 0xff000000) >> 24) << 24;
-}
-
-static u32 convert_xrgb8888_to_abgr8888(u32 pix)
-{
-	return ((pix & 0x00ff0000) >> 16) <<  0 |
-	       ((pix & 0x0000ff00) >>  8) <<  8 |
-	       ((pix & 0x000000ff) >>  0) << 16 |
-	       GENMASK(31, 24); /* fill alpha bits */
-}
-
-static u32 convert_xrgb8888_to_xrgb2101010(u32 pix)
-{
-	pix = ((pix & 0x000000FF) << 2) |
-	      ((pix & 0x0000FF00) << 4) |
-	      ((pix & 0x00FF0000) << 6);
-	return pix | ((pix >> 8) & 0x00300C03);
-}
-
-static u32 convert_xrgb8888_to_argb2101010(u32 pix)
-{
-	pix = ((pix & 0x000000FF) << 2) |
-	      ((pix & 0x0000FF00) << 4) |
-	      ((pix & 0x00FF0000) << 6);
-	return GENMASK(31, 30) /* set alpha bits */ | pix | ((pix >> 8) & 0x00300C03);
-}
-
-static u32 convert_xrgb8888_to_abgr2101010(u32 pix)
-{
-	pix = ((pix & 0x00FF0000) >> 14) |
-	      ((pix & 0x0000FF00) << 4) |
-	      ((pix & 0x000000FF) << 22);
-	return GENMASK(31, 30) /* set alpha bits */ | pix | ((pix >> 8) & 0x00300C03);
-}
-
-/*
- * convert_from_xrgb8888 - convert one pixel from xrgb8888 to the desired format
- * @color: input color, in xrgb8888 format
- * @format: output format
- *
- * Returns:
- * Color in the format specified, casted to u32.
- * Or 0 if the format is not supported.
- */
-static u32 convert_from_xrgb8888(u32 color, u32 format)
-{
-	switch (format) {
-	case DRM_FORMAT_RGB565:
-		return convert_xrgb8888_to_rgb565(color);
-	case DRM_FORMAT_RGBA5551:
-		return convert_xrgb8888_to_rgba5551(color);
-	case DRM_FORMAT_XRGB1555:
-		return convert_xrgb8888_to_xrgb1555(color);
-	case DRM_FORMAT_ARGB1555:
-		return convert_xrgb8888_to_argb1555(color);
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_XRGB8888:
-		return color;
-	case DRM_FORMAT_ARGB8888:
-		return convert_xrgb8888_to_argb8888(color);
-	case DRM_FORMAT_XBGR8888:
-		return convert_xrgb8888_to_xbgr8888(color);
-	case DRM_FORMAT_ABGR8888:
-		return convert_xrgb8888_to_abgr8888(color);
-	case DRM_FORMAT_XRGB2101010:
-		return convert_xrgb8888_to_xrgb2101010(color);
-	case DRM_FORMAT_ARGB2101010:
-		return convert_xrgb8888_to_argb2101010(color);
-	case DRM_FORMAT_ABGR2101010:
-		return convert_xrgb8888_to_abgr2101010(color);
-	default:
-		WARN_ONCE(1, "Can't convert to %p4cc\n", &format);
-		return 0;
-	}
-}
-
-/*
- * Blit & Fill
- */
-/* check if the pixel at coord x,y is 1 (foreground) or 0 (background) */
-static bool drm_panic_is_pixel_fg(const u8 *sbuf8, unsigned int spitch, int x, int y)
-{
-	return (sbuf8[(y * spitch) + x / 8] & (0x80 >> (x % 8))) != 0;
-}
-
-static void drm_panic_blit16(struct iosys_map *dmap, unsigned int dpitch,
-			     const u8 *sbuf8, unsigned int spitch,
-			     unsigned int height, unsigned int width,
-			     unsigned int scale, u16 fg16)
-{
-	unsigned int y, x;
-
-	for (y = 0; y < height; y++)
-		for (x = 0; x < width; x++)
-			if (drm_panic_is_pixel_fg(sbuf8, spitch, x / scale, y / scale))
-				iosys_map_wr(dmap, y * dpitch + x * sizeof(u16), u16, fg16);
-}
-
-static void drm_panic_blit24(struct iosys_map *dmap, unsigned int dpitch,
-			     const u8 *sbuf8, unsigned int spitch,
-			     unsigned int height, unsigned int width,
-			     unsigned int scale, u32 fg32)
-{
-	unsigned int y, x;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++) {
-			u32 off = y * dpitch + x * 3;
-
-			if (drm_panic_is_pixel_fg(sbuf8, spitch, x / scale, y / scale)) {
-				/* write blue-green-red to output in little endianness */
-				iosys_map_wr(dmap, off, u8, (fg32 & 0x000000FF) >> 0);
-				iosys_map_wr(dmap, off + 1, u8, (fg32 & 0x0000FF00) >> 8);
-				iosys_map_wr(dmap, off + 2, u8, (fg32 & 0x00FF0000) >> 16);
-			}
-		}
-	}
-}
-
-static void drm_panic_blit32(struct iosys_map *dmap, unsigned int dpitch,
-			     const u8 *sbuf8, unsigned int spitch,
-			     unsigned int height, unsigned int width,
-			     unsigned int scale, u32 fg32)
-{
-	unsigned int y, x;
-
-	for (y = 0; y < height; y++)
-		for (x = 0; x < width; x++)
-			if (drm_panic_is_pixel_fg(sbuf8, spitch, x / scale, y / scale))
-				iosys_map_wr(dmap, y * dpitch + x * sizeof(u32), u32, fg32);
-}
-
 static void drm_panic_blit_pixel(struct drm_scanout_buffer *sb, struct drm_rect *clip,
 				 const u8 *sbuf8, unsigned int spitch, unsigned int scale,
 				 u32 fg_color)
@@ -322,8 +151,92 @@ static void drm_panic_blit_pixel(struct drm_scanout_buffer *sb, struct drm_rect 
 
 	for (y = 0; y < drm_rect_height(clip); y++)
 		for (x = 0; x < drm_rect_width(clip); x++)
-			if (drm_panic_is_pixel_fg(sbuf8, spitch, x / scale, y / scale))
+			if (drm_draw_is_pixel_fg(sbuf8, spitch, x / scale, y / scale))
 				sb->set_pixel(sb, clip->x1 + x, clip->y1 + y, fg_color);
+}
+
+static void drm_panic_write_pixel16(void *vaddr, unsigned int offset, u16 color)
+{
+	u16 *p = vaddr + offset;
+
+	*p = color;
+}
+
+static void drm_panic_write_pixel24(void *vaddr, unsigned int offset, u32 color)
+{
+	u8 *p = vaddr + offset;
+
+	*p++ = color & 0xff;
+	color >>= 8;
+	*p++ = color & 0xff;
+	color >>= 8;
+	*p = color & 0xff;
+}
+
+static void drm_panic_write_pixel32(void *vaddr, unsigned int offset, u32 color)
+{
+	u32 *p = vaddr + offset;
+
+	*p = color;
+}
+
+static void drm_panic_write_pixel(void *vaddr, unsigned int offset, u32 color, unsigned int cpp)
+{
+	switch (cpp) {
+	case 2:
+		drm_panic_write_pixel16(vaddr, offset, color);
+		break;
+	case 3:
+		drm_panic_write_pixel24(vaddr, offset, color);
+		break;
+	case 4:
+		drm_panic_write_pixel32(vaddr, offset, color);
+		break;
+	default:
+		pr_debug_once("Can't blit with pixel width %d\n", cpp);
+	}
+}
+
+/*
+ * The scanout buffer pages are not mapped, so for each pixel,
+ * use kmap_local_page_try_from_panic() to map the page, and write the pixel.
+ * Try to keep the map from the previous pixel, to avoid too much map/unmap.
+ */
+static void drm_panic_blit_page(struct page **pages, unsigned int dpitch,
+				unsigned int cpp, const u8 *sbuf8,
+				unsigned int spitch, struct drm_rect *clip,
+				unsigned int scale, u32 fg32)
+{
+	unsigned int y, x;
+	unsigned int page = ~0;
+	unsigned int height = drm_rect_height(clip);
+	unsigned int width = drm_rect_width(clip);
+	void *vaddr = NULL;
+
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
+			if (drm_draw_is_pixel_fg(sbuf8, spitch, x / scale, y / scale)) {
+				unsigned int new_page;
+				unsigned int offset;
+
+				offset = (y + clip->y1) * dpitch + (x + clip->x1) * cpp;
+				new_page = offset >> PAGE_SHIFT;
+				offset = offset % PAGE_SIZE;
+				if (new_page != page) {
+					if (!pages[new_page])
+						continue;
+					if (vaddr)
+						kunmap_local(vaddr);
+					page = new_page;
+					vaddr = kmap_local_page_try_from_panic(pages[page]);
+				}
+				if (vaddr)
+					drm_panic_write_pixel(vaddr, offset, fg32, cpp);
+			}
+		}
+	}
+	if (vaddr)
+		kunmap_local(vaddr);
 }
 
 /*
@@ -349,65 +262,29 @@ static void drm_panic_blit(struct drm_scanout_buffer *sb, struct drm_rect *clip,
 	if (sb->set_pixel)
 		return drm_panic_blit_pixel(sb, clip, sbuf8, spitch, scale, fg_color);
 
+	if (sb->pages)
+		return drm_panic_blit_page(sb->pages, sb->pitch[0], sb->format->cpp[0],
+					   sbuf8, spitch, clip, scale, fg_color);
+
 	map = sb->map[0];
 	iosys_map_incr(&map, clip->y1 * sb->pitch[0] + clip->x1 * sb->format->cpp[0]);
 
 	switch (sb->format->cpp[0]) {
 	case 2:
-		drm_panic_blit16(&map, sb->pitch[0], sbuf8, spitch,
-				 drm_rect_height(clip), drm_rect_width(clip), scale, fg_color);
+		drm_draw_blit16(&map, sb->pitch[0], sbuf8, spitch,
+				drm_rect_height(clip), drm_rect_width(clip), scale, fg_color);
 	break;
 	case 3:
-		drm_panic_blit24(&map, sb->pitch[0], sbuf8, spitch,
-				 drm_rect_height(clip), drm_rect_width(clip), scale, fg_color);
+		drm_draw_blit24(&map, sb->pitch[0], sbuf8, spitch,
+				drm_rect_height(clip), drm_rect_width(clip), scale, fg_color);
 	break;
 	case 4:
-		drm_panic_blit32(&map, sb->pitch[0], sbuf8, spitch,
-				 drm_rect_height(clip), drm_rect_width(clip), scale, fg_color);
+		drm_draw_blit32(&map, sb->pitch[0], sbuf8, spitch,
+				drm_rect_height(clip), drm_rect_width(clip), scale, fg_color);
 	break;
 	default:
 		WARN_ONCE(1, "Can't blit with pixel width %d\n", sb->format->cpp[0]);
 	}
-}
-
-static void drm_panic_fill16(struct iosys_map *dmap, unsigned int dpitch,
-			     unsigned int height, unsigned int width,
-			     u16 color)
-{
-	unsigned int y, x;
-
-	for (y = 0; y < height; y++)
-		for (x = 0; x < width; x++)
-			iosys_map_wr(dmap, y * dpitch + x * sizeof(u16), u16, color);
-}
-
-static void drm_panic_fill24(struct iosys_map *dmap, unsigned int dpitch,
-			     unsigned int height, unsigned int width,
-			     u32 color)
-{
-	unsigned int y, x;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++) {
-			unsigned int off = y * dpitch + x * 3;
-
-			/* write blue-green-red to output in little endianness */
-			iosys_map_wr(dmap, off, u8, (color & 0x000000FF) >> 0);
-			iosys_map_wr(dmap, off + 1, u8, (color & 0x0000FF00) >> 8);
-			iosys_map_wr(dmap, off + 2, u8, (color & 0x00FF0000) >> 16);
-		}
-	}
-}
-
-static void drm_panic_fill32(struct iosys_map *dmap, unsigned int dpitch,
-			     unsigned int height, unsigned int width,
-			     u32 color)
-{
-	unsigned int y, x;
-
-	for (y = 0; y < height; y++)
-		for (x = 0; x < width; x++)
-			iosys_map_wr(dmap, y * dpitch + x * sizeof(u32), u32, color);
 }
 
 static void drm_panic_fill_pixel(struct drm_scanout_buffer *sb,
@@ -419,6 +296,35 @@ static void drm_panic_fill_pixel(struct drm_scanout_buffer *sb,
 	for (y = 0; y < drm_rect_height(clip); y++)
 		for (x = 0; x < drm_rect_width(clip); x++)
 			sb->set_pixel(sb, clip->x1 + x, clip->y1 + y, color);
+}
+
+static void drm_panic_fill_page(struct page **pages, unsigned int dpitch,
+				unsigned int cpp, struct drm_rect *clip,
+				u32 color)
+{
+	unsigned int y, x;
+	unsigned int page = ~0;
+	void *vaddr = NULL;
+
+	for (y = clip->y1; y < clip->y2; y++) {
+		for (x = clip->x1; x < clip->x2; x++) {
+			unsigned int new_page;
+			unsigned int offset;
+
+			offset = y * dpitch + x * cpp;
+			new_page = offset >> PAGE_SHIFT;
+			offset = offset % PAGE_SIZE;
+			if (new_page != page) {
+				if (vaddr)
+					kunmap_local(vaddr);
+				page = new_page;
+				vaddr = kmap_local_page_try_from_panic(pages[page]);
+			}
+			drm_panic_write_pixel(vaddr, offset, color, cpp);
+		}
+	}
+	if (vaddr)
+		kunmap_local(vaddr);
 }
 
 /*
@@ -437,30 +343,29 @@ static void drm_panic_fill(struct drm_scanout_buffer *sb, struct drm_rect *clip,
 	if (sb->set_pixel)
 		return drm_panic_fill_pixel(sb, clip, color);
 
+	if (sb->pages)
+		return drm_panic_fill_page(sb->pages, sb->pitch[0], sb->format->cpp[0],
+					   clip, color);
+
 	map = sb->map[0];
 	iosys_map_incr(&map, clip->y1 * sb->pitch[0] + clip->x1 * sb->format->cpp[0]);
 
 	switch (sb->format->cpp[0]) {
 	case 2:
-		drm_panic_fill16(&map, sb->pitch[0], drm_rect_height(clip),
-				 drm_rect_width(clip), color);
+		drm_draw_fill16(&map, sb->pitch[0], drm_rect_height(clip),
+				drm_rect_width(clip), color);
 	break;
 	case 3:
-		drm_panic_fill24(&map, sb->pitch[0], drm_rect_height(clip),
-				 drm_rect_width(clip), color);
+		drm_draw_fill24(&map, sb->pitch[0], drm_rect_height(clip),
+				drm_rect_width(clip), color);
 	break;
 	case 4:
-		drm_panic_fill32(&map, sb->pitch[0], drm_rect_height(clip),
-				 drm_rect_width(clip), color);
+		drm_draw_fill32(&map, sb->pitch[0], drm_rect_height(clip),
+				drm_rect_width(clip), color);
 	break;
 	default:
 		WARN_ONCE(1, "Can't fill with pixel width %d\n", sb->format->cpp[0]);
 	}
-}
-
-static const u8 *get_char_bitmap(const struct font_desc *font, char c, size_t font_pitch)
-{
-	return font->data + (c * font->height) * font_pitch;
 }
 
 static unsigned int get_max_line_len(const struct drm_panic_line *lines, int len)
@@ -501,7 +406,7 @@ static void draw_txt_rectangle(struct drm_scanout_buffer *sb,
 			rec.x1 += (drm_rect_width(clip) - (line_len * font->width)) / 2;
 
 		for (j = 0; j < line_len; j++) {
-			src = get_char_bitmap(font, msg[i].txt[j], font_pitch);
+			src = drm_draw_get_char_bitmap(font, msg[i].txt[j], font_pitch);
 			rec.x2 = rec.x1 + font->width;
 			drm_panic_blit(sb, &rec, src, font_pitch, 1, color);
 			rec.x1 += font->width;
@@ -533,8 +438,10 @@ static void drm_panic_logo_draw(struct drm_scanout_buffer *sb, struct drm_rect *
 
 static void draw_panic_static_user(struct drm_scanout_buffer *sb)
 {
-	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
-	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
+	u32 fg_color = drm_draw_color_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR,
+						    sb->format->format);
+	u32 bg_color = drm_draw_color_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR,
+						    sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen, r_logo, r_msg;
 	unsigned int msg_width, msg_height;
@@ -600,8 +507,10 @@ static int draw_line_with_wrap(struct drm_scanout_buffer *sb, const struct font_
  */
 static void draw_panic_static_kmsg(struct drm_scanout_buffer *sb)
 {
-	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
-	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
+	u32 fg_color = drm_draw_color_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR,
+						    sb->format->format);
+	u32 bg_color = drm_draw_color_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR,
+						    sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen = DRM_RECT_INIT(0, 0, sb->width, sb->height);
 	struct kmsg_dump_iter iter;
@@ -699,11 +608,6 @@ static void drm_panic_qr_exit(void)
 	stream.workspace = NULL;
 }
 
-extern size_t drm_panic_qr_max_data_size(u8 version, size_t url_len);
-
-extern u8 drm_panic_qr_generate(const char *url, u8 *data, size_t data_len, size_t data_size,
-				u8 *tmp, size_t tmp_size);
-
 static int drm_panic_get_qr_code_url(u8 **qr_image)
 {
 	struct kmsg_dump_iter iter;
@@ -712,7 +616,7 @@ static int drm_panic_get_qr_code_url(u8 **qr_image)
 	char *kmsg;
 	int max_qr_data_size, url_len;
 
-	url_len = snprintf(url, sizeof(url), CONFIG_DRM_PANIC_SCREEN_QR_CODE_URL "?a=%s&v=%s&zl=",
+	url_len = snprintf(url, sizeof(url), CONFIG_DRM_PANIC_SCREEN_QR_CODE_URL "?a=%s&v=%s&z=",
 			   utsname()->machine, utsname()->release);
 
 	max_qr_data_size = drm_panic_qr_max_data_size(panic_qr_version, url_len);
@@ -791,8 +695,10 @@ static int drm_panic_get_qr_code(u8 **qr_image)
  */
 static int _draw_panic_static_qr_code(struct drm_scanout_buffer *sb)
 {
-	u32 fg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR, sb->format->format);
-	u32 bg_color = convert_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR, sb->format->format);
+	u32 fg_color = drm_draw_color_from_xrgb8888(CONFIG_DRM_PANIC_FOREGROUND_COLOR,
+						    sb->format->format);
+	u32 bg_color = drm_draw_color_from_xrgb8888(CONFIG_DRM_PANIC_BACKGROUND_COLOR,
+						    sb->format->format);
 	const struct font_desc *font = get_default_font(sb->width, sb->height, NULL, NULL);
 	struct drm_rect r_screen, r_logo, r_msg, r_qr, r_qr_canvas;
 	unsigned int max_qr_size, scale;
@@ -878,7 +784,7 @@ static bool drm_panic_is_format_supported(const struct drm_format_info *format)
 {
 	if (format->num_planes != 1)
 		return false;
-	return convert_from_xrgb8888(0xffffff, format->format) != 0;
+	return drm_draw_color_from_xrgb8888(0xffffff, format->format) != 0;
 }
 
 static void draw_panic_dispatch(struct drm_scanout_buffer *sb)
@@ -925,16 +831,24 @@ static void draw_panic_plane(struct drm_plane *plane, const char *description)
 	if (!drm_panic_trylock(plane->dev, flags))
 		return;
 
-	drm_panic_set_description(description);
-
 	ret = plane->helper_private->get_scanout_buffer(plane, &sb);
 
-	if (!ret && drm_panic_is_format_supported(sb.format)) {
-		draw_panic_dispatch(&sb);
-		if (plane->helper_private->panic_flush)
-			plane->helper_private->panic_flush(plane);
-	}
+	if (ret || !drm_panic_is_format_supported(sb.format))
+		goto unlock;
+
+	/* One of these should be set, or it can't draw pixels */
+	if (!sb.set_pixel && !sb.pages && iosys_map_is_null(&sb.map[0]))
+		goto unlock;
+
+	drm_panic_set_description(description);
+
+	draw_panic_dispatch(&sb);
+	if (plane->helper_private->panic_flush)
+		plane->helper_private->panic_flush(plane);
+
 	drm_panic_clear_description();
+
+unlock:
 	drm_panic_unlock(plane->dev, flags);
 }
 

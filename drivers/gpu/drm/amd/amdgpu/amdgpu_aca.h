@@ -71,12 +71,21 @@ struct ras_query_context;
 #define ACA_ERROR_CE_MASK		BIT_MASK(ACA_ERROR_TYPE_CE)
 #define ACA_ERROR_DEFERRED_MASK		BIT_MASK(ACA_ERROR_TYPE_DEFERRED)
 
+#define mmSMNAID_AID0_MCA_SMU		0x03b30400	/* SMN AID AID0 */
+#define mmSMNAID_XCD0_MCA_SMU		0x36430400	/* SMN AID XCD0 */
+#define mmSMNAID_XCD1_MCA_SMU		0x38430400	/* SMN AID XCD1 */
+#define mmSMNXCD_XCD0_MCA_SMU		0x40430400	/* SMN XCD XCD0 */
+
+#define ACA_BANK_ERR_IS_DEFFERED(bank)                                \
+	(ACA_REG__STATUS__POISON((bank)->regs[ACA_REG_IDX_STATUS]) || \
+	 ACA_REG__STATUS__DEFERRED((bank)->regs[ACA_REG_IDX_STATUS]))
+
 enum aca_reg_idx {
 	ACA_REG_IDX_CTL			= 0,
 	ACA_REG_IDX_STATUS		= 1,
 	ACA_REG_IDX_ADDR		= 2,
 	ACA_REG_IDX_MISC0		= 3,
-	ACA_REG_IDX_CONFG		= 4,
+	ACA_REG_IDX_CONFIG		= 4,
 	ACA_REG_IDX_IPID		= 5,
 	ACA_REG_IDX_SYND		= 6,
 	ACA_REG_IDX_DESTAT		= 8,
@@ -103,19 +112,31 @@ enum aca_error_type {
 };
 
 enum aca_smu_type {
+	ACA_SMU_TYPE_INVALID = -1,
 	ACA_SMU_TYPE_UE = 0,
 	ACA_SMU_TYPE_CE,
 	ACA_SMU_TYPE_COUNT,
 };
 
+struct aca_hwip {
+	int hwid;
+	int mcatype;
+};
+
 struct aca_bank {
-	enum aca_smu_type type;
+	enum aca_error_type aca_err_type;
+	enum aca_smu_type smu_err_type;
 	u64 regs[ACA_MAX_REGS_COUNT];
 };
 
 struct aca_bank_node {
 	struct aca_bank bank;
 	struct list_head node;
+};
+
+struct aca_banks {
+	int nr_banks;
+	struct list_head list;
 };
 
 struct aca_bank_info {

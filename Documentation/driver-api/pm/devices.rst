@@ -358,7 +358,7 @@ the phases are: ``prepare``, ``suspend``, ``suspend_late``, ``suspend_noirq``.
 	is probed against the device in question by passing them to the
 	:c:func:`dev_pm_set_driver_flags` helper function.]  If the first of
 	these flags is set, the PM core will not apply the direct-complete
-	procedure described above to the given device and, consequenty, to any
+	procedure described above to the given device and, consequently, to any
 	of its ancestors.  The second flag, when set, informs the middle layer
 	code (bus types, device types, PM domains, classes) that it should take
 	the return value of the ``->prepare`` callback provided by the driver

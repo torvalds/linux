@@ -14,7 +14,6 @@ struct drm_connector_state;
 struct drm_crtc;
 struct drm_crtc_state;
 struct drm_device;
-struct drm_i915_private;
 struct drm_property;
 struct intel_atomic_state;
 struct intel_connector;

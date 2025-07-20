@@ -25,6 +25,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <nouveau_bo.h>
 
+#include <nvif/class.h>
 #include <nvif/if0014.h>
 #include <nvif/pushc37b.h>
 

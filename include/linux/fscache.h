@@ -498,9 +498,6 @@ static inline void fscache_end_operation(struct netfs_cache_resources *cres)
  *
  *	NETFS_READ_HOLE_IGNORE - Just try to read (may return a short read).
  *
- *	NETFS_READ_HOLE_CLEAR - Seek for data, clearing the part of the buffer
- *				skipped over, then do as for IGNORE.
- *
  *	NETFS_READ_HOLE_FAIL - Give ENODATA if we encounter a hole.
  */
 static inline
@@ -628,7 +625,7 @@ static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
 					 term_func, term_func_priv,
 					 using_pgpriv2, caching);
 	else if (term_func)
-		term_func(term_func_priv, -ENOBUFS, false);
+		term_func(term_func_priv, -ENOBUFS);
 
 }
 

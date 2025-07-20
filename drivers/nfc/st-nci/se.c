@@ -257,7 +257,7 @@ static void st_nci_hci_admin_event_received(struct nci_dev *ndev,
 	case ST_NCI_EVT_HOT_PLUG:
 		if (info->se_info.se_active) {
 			if (!ST_NCI_EVT_HOT_PLUG_IS_INHIBITED(skb)) {
-				del_timer_sync(&info->se_info.se_active_timer);
+				timer_delete_sync(&info->se_info.se_active_timer);
 				info->se_info.se_active = false;
 				complete(&info->se_info.req_completion);
 			} else {
@@ -282,7 +282,7 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 
 	switch (event) {
 	case ST_NCI_EVT_TRANSMIT_DATA:
-		del_timer_sync(&info->se_info.bwi_timer);
+		timer_delete_sync(&info->se_info.bwi_timer);
 		info->se_info.bwi_active = false;
 		info->se_info.cb(info->se_info.cb_context,
 				 skb->data, skb->len, 0);
@@ -415,7 +415,7 @@ void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 
 		if (ndev->hci_dev->count_pipes ==
 		    ndev->hci_dev->expected_pipes) {
-			del_timer_sync(&info->se_info.se_active_timer);
+			timer_delete_sync(&info->se_info.se_active_timer);
 			info->se_info.se_active = false;
 			ndev->hci_dev->count_pipes = 0;
 			complete(&info->se_info.req_completion);
@@ -696,7 +696,8 @@ static void st_nci_se_wt_timeout(struct timer_list *t)
 	 */
 	/* hardware reset managed through VCC_UICC_OUT power supply */
 	u8 param = 0x01;
-	struct st_nci_info *info = from_timer(info, t, se_info.bwi_timer);
+	struct st_nci_info *info = timer_container_of(info, t,
+						      se_info.bwi_timer);
 
 	info->se_info.bwi_active = false;
 
@@ -714,8 +715,8 @@ static void st_nci_se_wt_timeout(struct timer_list *t)
 
 static void st_nci_se_activation_timeout(struct timer_list *t)
 {
-	struct st_nci_info *info = from_timer(info, t,
-					      se_info.se_active_timer);
+	struct st_nci_info *info = timer_container_of(info, t,
+						      se_info.se_active_timer);
 
 	info->se_info.se_active = false;
 
@@ -751,9 +752,9 @@ void st_nci_se_deinit(struct nci_dev *ndev)
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
 	if (info->se_info.bwi_active)
-		del_timer_sync(&info->se_info.bwi_timer);
+		timer_delete_sync(&info->se_info.bwi_timer);
 	if (info->se_info.se_active)
-		del_timer_sync(&info->se_info.se_active_timer);
+		timer_delete_sync(&info->se_info.se_active_timer);
 
 	info->se_info.se_active = false;
 	info->se_info.bwi_active = false;

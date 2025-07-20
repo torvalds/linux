@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2025 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *****************************************************************************/
 
@@ -341,7 +341,7 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx)
 {
 	int ret;
-	struct iwl_rxon_cmd *active = (void *)&ctx->active;
+	struct iwl_rxon_cmd *active = (void *)(uintptr_t)&ctx->active;
 
 	if (ctx->ctxid == IWL_RXON_CTX_BSS) {
 		ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
@@ -441,7 +441,7 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx)
 {
 	int ret;
-	struct iwl_rxon_cmd *active = (void *)&ctx->active;
+	struct iwl_rxon_cmd *active = (void *)(uintptr_t)&ctx->active;
 
 	/* RXON timing must be before associated RXON */
 	if (ctx->ctxid == IWL_RXON_CTX_BSS) {
@@ -1023,7 +1023,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
-	struct iwl_rxon_cmd *active = (void *)&ctx->active;
+	struct iwl_rxon_cmd *active = (void *)(uintptr_t)&ctx->active;
 	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
 	int ret;
 

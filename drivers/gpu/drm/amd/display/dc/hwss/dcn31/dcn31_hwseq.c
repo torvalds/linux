@@ -396,6 +396,11 @@ void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
 	else if (pipe_ctx->stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->update_dp_info_packets_sdp_line_num)
+			pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->update_dp_info_packets_sdp_line_num(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				&pipe_ctx->stream_res.encoder_info_frame);
+
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->update_dp_info_packets(
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
 				&pipe_ctx->stream_res.encoder_info_frame);
@@ -521,9 +526,15 @@ static void dcn31_reset_back_end_for_pipe(
 
 	link = pipe_ctx->stream->link;
 
+	if (dc->hwseq)
+		dc->hwseq->wa_state.skip_blank_stream = false;
+
 	if ((!pipe_ctx->stream->dpms_off || link->link_status.link_active) &&
-		(link->connector_signal == SIGNAL_TYPE_EDP))
+		(link->connector_signal == SIGNAL_TYPE_EDP)) {
 		dc->hwss.blank_stream(pipe_ctx);
+		if (dc->hwseq)
+			dc->hwseq->wa_state.skip_blank_stream = true;
+	}
 
 	pipe_ctx->stream_res.tg->funcs->set_dsc_config(
 			pipe_ctx->stream_res.tg,
@@ -538,9 +549,7 @@ static void dcn31_reset_back_end_for_pipe(
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 
-	if (pipe_ctx->stream_res.tg->funcs->set_drr)
-		pipe_ctx->stream_res.tg->funcs->set_drr(
-				pipe_ctx->stream_res.tg, NULL);
+	set_drr_and_clear_adjust_pending(pipe_ctx, pipe_ctx->stream, NULL);
 
 	/* DPMS may already disable or */
 	/* dpms_off status is incorrect due to fastboot
@@ -567,7 +576,8 @@ static void dcn31_reset_back_end_for_pipe(
 			pipe_ctx->stream_res.audio = NULL;
 		}
 	}
-
+	if (dc->hwseq)
+		dc->hwseq->wa_state.skip_blank_stream = false;
 	pipe_ctx->stream = NULL;
 	DC_LOG_DEBUG("Reset back end for pipe %d, tg:%d\n",
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
@@ -616,7 +626,8 @@ void dcn31_reset_hw_ctx_wrap(
 	}
 
 	/* New dc_state in the process of being applied to hardware. */
-	link_enc_cfg_set_transient_mode(dc, dc->current_state, context);
+	if (!dc->config.unify_link_enc_assignment)
+		link_enc_cfg_set_transient_mode(dc, dc->current_state, context);
 }
 
 void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)

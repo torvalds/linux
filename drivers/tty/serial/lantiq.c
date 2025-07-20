@@ -773,10 +773,8 @@ static int fetch_irq_intel(struct device *dev, struct ltq_uart_port *ltq_port)
 	int ret;
 
 	ret = platform_get_irq(to_platform_device(dev), 0);
-	if (ret < 0) {
-		dev_err(dev, "failed to fetch IRQ for serial port\n");
+	if (ret < 0)
 		return ret;
-	}
 	ltq_port->common_irq = ret;
 	port->irq = ret;
 

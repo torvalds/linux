@@ -31,9 +31,6 @@ struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 
 bool perf_mem_record[PERF_MEM_EVENTS__MAX] = { 0 };
 
-static char mem_loads_name[100];
-static char mem_stores_name[100];
-
 struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i)
 {
 	if (i >= PERF_MEM_EVENTS__MAX || !pmu)
@@ -81,7 +78,8 @@ int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu)
 	return num;
 }
 
-static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
+static const char *perf_pmu__mem_events_name(struct perf_pmu *pmu, int i,
+					     char *buf, size_t buf_size)
 {
 	struct perf_mem_event *e;
 
@@ -96,31 +94,31 @@ static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
 		if (e->ldlat) {
 			if (!e->aux_event) {
 				/* ARM and Most of Intel */
-				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+				scnprintf(buf, buf_size,
 					  e->name, pmu->name,
 					  perf_mem_events__loads_ldlat);
 			} else {
 				/* Intel with mem-loads-aux event */
-				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+				scnprintf(buf, buf_size,
 					  e->name, pmu->name, pmu->name,
 					  perf_mem_events__loads_ldlat);
 			}
 		} else {
 			if (!e->aux_event) {
 				/* AMD and POWER */
-				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+				scnprintf(buf, buf_size,
 					  e->name, pmu->name);
-			} else
+			} else {
 				return NULL;
+			}
 		}
-
-		return mem_loads_name;
+		return buf;
 	}
 
 	if (i == PERF_MEM_EVENTS__STORE) {
-		scnprintf(mem_stores_name, sizeof(mem_stores_name),
+		scnprintf(buf, buf_size,
 			  e->name, pmu->name);
-		return mem_stores_name;
+		return buf;
 	}
 
 	return NULL;
@@ -189,7 +187,7 @@ static bool perf_pmu__mem_events_supported(const char *mnt, struct perf_pmu *pmu
 	if (!e->event_name)
 		return true;
 
-	scnprintf(path, PATH_MAX, "%s/devices/%s/events/%s", mnt, pmu->name, e->event_name);
+	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/events/%s", mnt, pmu->name, e->event_name);
 
 	return !stat(path, &st);
 }
@@ -238,52 +236,69 @@ void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 	int j;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		char buf[128];
 		struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 		fprintf(stderr, "%-*s%-*s%s",
 			e->tag ? 13 : 0,
 			e->tag ? : "",
 			e->tag && verbose > 0 ? 25 : 0,
-			e->tag && verbose > 0 ? perf_pmu__mem_events_name(j, pmu) : "",
+			e->tag && verbose > 0
+			? perf_pmu__mem_events_name(pmu, j, buf, sizeof(buf))
+			: "",
 			e->supported ? ": available\n" : "");
 	}
 }
 
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr, char **event_name_storage_out)
 {
 	const char *mnt = sysfs__mount();
 	struct perf_pmu *pmu = NULL;
-	struct perf_mem_event *e;
 	int i = *argv_nr;
-	const char *s;
-	char *copy;
 	struct perf_cpu_map *cpu_map = NULL;
+	size_t event_name_storage_size =
+		perf_pmu__mem_events_num_mem_pmus(NULL) * PERF_MEM_EVENTS__MAX * 128;
+	size_t event_name_storage_remaining = event_name_storage_size;
+	char *event_name_storage = malloc(event_name_storage_size);
+	char *event_name_storage_ptr = event_name_storage;
 
+	if (!event_name_storage)
+		return -ENOMEM;
+
+	*event_name_storage_out = NULL;
 	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
 		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-			e = perf_pmu__mem_events_ptr(pmu, j);
+			const char *s;
+			struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
+			int ret;
 
 			if (!perf_mem_record[j])
 				continue;
 
 			if (!e->supported) {
+				char buf[128];
+
 				pr_err("failed: event '%s' not supported\n",
-					perf_pmu__mem_events_name(j, pmu));
+					perf_pmu__mem_events_name(pmu, j, buf, sizeof(buf)));
+				free(event_name_storage);
 				return -1;
 			}
 
-			s = perf_pmu__mem_events_name(j, pmu);
+			s = perf_pmu__mem_events_name(pmu, j, event_name_storage_ptr,
+						      event_name_storage_remaining);
 			if (!s || !perf_pmu__mem_events_supported(mnt, pmu, e))
 				continue;
 
-			copy = strdup(s);
-			if (!copy)
-				return -1;
-
 			rec_argv[i++] = "-e";
-			rec_argv[i++] = copy;
+			rec_argv[i++] = event_name_storage_ptr;
+			event_name_storage_remaining -= strlen(event_name_storage_ptr) + 1;
+			event_name_storage_ptr += strlen(event_name_storage_ptr) + 1;
 
-			cpu_map = perf_cpu_map__merge(cpu_map, pmu->cpus);
+			ret = perf_cpu_map__merge(&cpu_map, pmu->cpus);
+			if (ret < 0) {
+				free(event_name_storage);
+				return ret;
+			}
 		}
 	}
 
@@ -298,6 +313,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 	}
 
 	*argv_nr = i;
+	*event_name_storage_out = event_name_storage;
 	return 0;
 }
 
@@ -661,7 +677,10 @@ do {				\
 			if (lvl & P(LVL, LFB)) stats->ld_fbhit++;
 			if (lvl & P(LVL, L1 )) stats->ld_l1hit++;
 			if (lvl & P(LVL, L2)) {
-				stats->ld_l2hit++;
+				if (snoop & P(SNOOP, HITM))
+					HITM_INC(lcl_hitm);
+				else
+					stats->ld_l2hit++;
 
 				if (snoopx & P(SNOOPX, PEER))
 					PEER_INC(lcl_peer);
@@ -779,4 +798,182 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->blk_addr		+= add->blk_addr;
 	stats->nomap		+= add->nomap;
 	stats->noparse		+= add->noparse;
+}
+
+/*
+ * It returns an index in hist_entry->mem_stat array for the given val which
+ * represents a data-src based on the mem_stat_type.
+ */
+int mem_stat_index(const enum mem_stat_type mst, const u64 val)
+{
+	union perf_mem_data_src src = {
+		.val = val,
+	};
+
+	switch (mst) {
+	case PERF_MEM_STAT_OP:
+		switch (src.mem_op) {
+		case PERF_MEM_OP_LOAD:
+			return MEM_STAT_OP_LOAD;
+		case PERF_MEM_OP_STORE:
+			return MEM_STAT_OP_STORE;
+		case PERF_MEM_OP_LOAD | PERF_MEM_OP_STORE:
+			return MEM_STAT_OP_LDST;
+		default:
+			if (src.mem_op & PERF_MEM_OP_PFETCH)
+				return MEM_STAT_OP_PFETCH;
+			if (src.mem_op & PERF_MEM_OP_EXEC)
+				return MEM_STAT_OP_EXEC;
+			return MEM_STAT_OP_OTHER;
+		}
+	case PERF_MEM_STAT_CACHE:
+		switch (src.mem_lvl_num) {
+		case PERF_MEM_LVLNUM_L1:
+			return MEM_STAT_CACHE_L1;
+		case PERF_MEM_LVLNUM_L2:
+			return MEM_STAT_CACHE_L2;
+		case PERF_MEM_LVLNUM_L3:
+			return MEM_STAT_CACHE_L3;
+		case PERF_MEM_LVLNUM_L4:
+			return MEM_STAT_CACHE_L4;
+		case PERF_MEM_LVLNUM_LFB:
+			return MEM_STAT_CACHE_L1_BUF;
+		case PERF_MEM_LVLNUM_L2_MHB:
+			return MEM_STAT_CACHE_L2_BUF;
+		default:
+			return MEM_STAT_CACHE_OTHER;
+		}
+	case PERF_MEM_STAT_MEMORY:
+		switch (src.mem_lvl_num) {
+		case PERF_MEM_LVLNUM_MSC:
+			return MEM_STAT_MEMORY_MSC;
+		case PERF_MEM_LVLNUM_RAM:
+			return MEM_STAT_MEMORY_RAM;
+		case PERF_MEM_LVLNUM_UNC:
+			return MEM_STAT_MEMORY_UNC;
+		case PERF_MEM_LVLNUM_CXL:
+			return MEM_STAT_MEMORY_CXL;
+		case PERF_MEM_LVLNUM_IO:
+			return MEM_STAT_MEMORY_IO;
+		case PERF_MEM_LVLNUM_PMEM:
+			return MEM_STAT_MEMORY_PMEM;
+		default:
+			return MEM_STAT_MEMORY_OTHER;
+		}
+	case PERF_MEM_STAT_SNOOP:
+		switch (src.mem_snoop) {
+		case PERF_MEM_SNOOP_HIT:
+			return MEM_STAT_SNOOP_HIT;
+		case PERF_MEM_SNOOP_HITM:
+			return MEM_STAT_SNOOP_HITM;
+		case PERF_MEM_SNOOP_MISS:
+			return MEM_STAT_SNOOP_MISS;
+		default:
+			return MEM_STAT_SNOOP_OTHER;
+		}
+	case PERF_MEM_STAT_DTLB:
+		switch (src.mem_dtlb) {
+		case PERF_MEM_TLB_L1 | PERF_MEM_TLB_HIT:
+			return MEM_STAT_DTLB_L1_HIT;
+		case PERF_MEM_TLB_L2 | PERF_MEM_TLB_HIT:
+			return MEM_STAT_DTLB_L2_HIT;
+		case PERF_MEM_TLB_L1 | PERF_MEM_TLB_L2 | PERF_MEM_TLB_HIT:
+			return MEM_STAT_DTLB_ANY_HIT;
+		default:
+			if (src.mem_dtlb & PERF_MEM_TLB_MISS)
+				return MEM_STAT_DTLB_MISS;
+			return MEM_STAT_DTLB_OTHER;
+		}
+	default:
+		break;
+	}
+	return -1;
+}
+
+/* To align output, returned string should be shorter than MEM_STAT_PRINT_LEN */
+const char *mem_stat_name(const enum mem_stat_type mst, const int idx)
+{
+	switch (mst) {
+	case PERF_MEM_STAT_OP:
+		switch (idx) {
+		case MEM_STAT_OP_LOAD:
+			return "Load";
+		case MEM_STAT_OP_STORE:
+			return "Store";
+		case MEM_STAT_OP_LDST:
+			return "Ld+St";
+		case MEM_STAT_OP_PFETCH:
+			return "Pfetch";
+		case MEM_STAT_OP_EXEC:
+			return "Exec";
+		case MEM_STAT_OP_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_CACHE:
+		switch (idx) {
+		case MEM_STAT_CACHE_L1:
+			return "L1";
+		case MEM_STAT_CACHE_L2:
+			return "L2";
+		case MEM_STAT_CACHE_L3:
+			return "L3";
+		case MEM_STAT_CACHE_L4:
+			return "L4";
+		case MEM_STAT_CACHE_L1_BUF:
+			return "L1-buf";
+		case MEM_STAT_CACHE_L2_BUF:
+			return "L2-buf";
+		case MEM_STAT_CACHE_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_MEMORY:
+		switch (idx) {
+		case MEM_STAT_MEMORY_RAM:
+			return "RAM";
+		case MEM_STAT_MEMORY_MSC:
+			return "MSC";
+		case MEM_STAT_MEMORY_UNC:
+			return "Uncach";
+		case MEM_STAT_MEMORY_CXL:
+			return "CXL";
+		case MEM_STAT_MEMORY_IO:
+			return "IO";
+		case MEM_STAT_MEMORY_PMEM:
+			return "PMEM";
+		case MEM_STAT_MEMORY_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_SNOOP:
+		switch (idx) {
+		case MEM_STAT_SNOOP_HIT:
+			return "Hit";
+		case MEM_STAT_SNOOP_HITM:
+			return "HitM";
+		case MEM_STAT_SNOOP_MISS:
+			return "Miss";
+		case MEM_STAT_SNOOP_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_DTLB:
+		switch (idx) {
+		case MEM_STAT_DTLB_L1_HIT:
+			return "L1-Hit";
+		case MEM_STAT_DTLB_L2_HIT:
+			return "L2-Hit";
+		case MEM_STAT_DTLB_ANY_HIT:
+			return "L?-Hit";
+		case MEM_STAT_DTLB_MISS:
+			return "Miss";
+		case MEM_STAT_DTLB_OTHER:
+		default:
+			return "Other";
+		}
+	default:
+		break;
+	}
+	return "N/A";
 }

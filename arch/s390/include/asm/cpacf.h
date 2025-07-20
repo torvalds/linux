@@ -649,18 +649,30 @@ static inline void cpacf_trng(u8 *ucbuf, unsigned long ucbuf_len,
  *		 instruction
  * @func: the function code passed to PCC; see CPACF_KM_xxx defines
  * @param: address of parameter block; see POP for details on each func
+ *
+ * Returns the condition code, this is
+ * 0 - cc code 0 (normal completion)
+ * 1 - cc code 1 (protected key wkvp mismatch or src operand out of range)
+ * 2 - cc code 2 (something invalid, scalar multiply infinity, ...)
+ * Condition code 3 (partial completion) is handled within the asm code
+ * and never returned.
  */
-static inline void cpacf_pcc(unsigned long func, void *param)
+static inline int cpacf_pcc(unsigned long func, void *param)
 {
+	int cc;
+
 	asm volatile(
 		"	lgr	0,%[fc]\n"
 		"	lgr	1,%[pba]\n"
 		"0:	.insn	rre,%[opc] << 16,0,0\n" /* PCC opcode */
 		"	brc	1,0b\n" /* handle partial completion */
-		:
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
 		: [fc] "d" (func), [pba] "d" ((unsigned long)param),
 		  [opc] "i" (CPACF_PCC)
-		: "cc", "memory", "0", "1");
+		: CC_CLOBBER_LIST("memory", "0", "1"));
+
+	return CC_TRANSFORM(cc);
 }
 
 /**

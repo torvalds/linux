@@ -257,7 +257,7 @@ rdData[0]);
 			ret = -EBUSY;
 		}
 		if (ret) {
-			del_timer_sync(&hdw->encoder_run_timer);
+			timer_delete_sync(&hdw->encoder_run_timer);
 			hdw->state_encoder_ok = 0;
 			pvr2_trace(PVR2_TRACE_STBITS,
 				   "State bit %s <-- %s",

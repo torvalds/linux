@@ -218,6 +218,8 @@ static inline void pwm_init_state(const struct pwm_device *pwm,
  *
  * pwm_get_state(pwm, &state);
  * duty = pwm_get_relative_duty_cycle(&state, 100);
+ *
+ * Returns: rounded relative duty cycle multiplied by @scale
  */
 static inline unsigned int
 pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
@@ -244,8 +246,8 @@ pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
  * pwm_set_relative_duty_cycle(&state, 50, 100);
  * pwm_apply_might_sleep(pwm, &state);
  *
- * This functions returns -EINVAL if @duty_cycle and/or @scale are
- * inconsistent (@scale == 0 or @duty_cycle > @scale).
+ * Returns: 0 on success or ``-EINVAL`` if @duty_cycle and/or @scale are
+ * inconsistent (@scale == 0 or @duty_cycle > @scale)
  */
 static inline int
 pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
@@ -347,12 +349,29 @@ struct pwm_chip {
 	struct pwm_device pwms[] __counted_by(npwm);
 };
 
+/**
+ * pwmchip_supports_waveform() - checks if the given chip supports waveform callbacks
+ * @chip: The pwm_chip to test
+ *
+ * Returns: true iff the pwm chip support the waveform functions like
+ * pwm_set_waveform_might_sleep() and pwm_round_waveform_might_sleep()
+ */
+static inline bool pwmchip_supports_waveform(struct pwm_chip *chip)
+{
+	/*
+	 * only check for .write_waveform(). If that is available,
+	 * .round_waveform_tohw() and .round_waveform_fromhw() asserted to be
+	 * available, too, in pwmchip_add().
+	 */
+	return chip->ops->write_waveform != NULL;
+}
+
 static inline struct device *pwmchip_parent(const struct pwm_chip *chip)
 {
 	return chip->dev.parent;
 }
 
-static inline void *pwmchip_get_drvdata(struct pwm_chip *chip)
+static inline void *pwmchip_get_drvdata(const struct pwm_chip *chip)
 {
 	return dev_get_drvdata(&chip->dev);
 }
@@ -362,7 +381,7 @@ static inline void pwmchip_set_drvdata(struct pwm_chip *chip, void *data)
 	dev_set_drvdata(&chip->dev, data);
 }
 
-#if IS_ENABLED(CONFIG_PWM)
+#if IS_REACHABLE(CONFIG_PWM)
 
 /* PWM consumer APIs */
 int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf);
@@ -644,7 +663,7 @@ struct pwm_lookup {
 	PWM_LOOKUP_WITH_MODULE(_provider, _index, _dev_id, _con_id, _period, \
 			       _polarity, NULL)
 
-#if IS_ENABLED(CONFIG_PWM)
+#if IS_REACHABLE(CONFIG_PWM)
 void pwm_add_table(struct pwm_lookup *table, size_t num);
 void pwm_remove_table(struct pwm_lookup *table, size_t num);
 #else

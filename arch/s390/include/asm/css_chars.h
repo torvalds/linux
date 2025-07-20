@@ -25,7 +25,7 @@ struct css_general_char {
 	u64 : 2;
 
 	u64 : 3;
-	u64 aif_osa : 1; /* bit 67 */
+	u64 aif_qdio : 1;/* bit 67 */
 	u64 : 12;
 	u64 eadm_rf : 1; /* bit 80 */
 	u64 : 1;

@@ -287,8 +287,7 @@ static void gate_setup_timer(struct tcf_gate *gact, u64 basetime,
 	gact->param.tcfg_basetime = basetime;
 	gact->param.tcfg_clockid = clockid;
 	gact->tk_offset = tko;
-	hrtimer_init(&gact->hitimer, clockid, HRTIMER_MODE_ABS_SOFT);
-	gact->hitimer.function = gate_timer_func;
+	hrtimer_setup(&gact->hitimer, gate_timer_func, clockid, HRTIMER_MODE_ABS_SOFT);
 }
 
 static int tcf_gate_init(struct net *net, struct nlattr *nla,

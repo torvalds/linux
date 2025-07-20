@@ -5,6 +5,7 @@
 
 #include <linux/types.h>
 #include "adf_accel_devices.h"
+#include "adf_common_drv.h"
 
 #define ADF_GEN2_ERRSOU3 (0x3A000 + 0x0C)
 #define ADF_GEN2_ERRSOU5 (0x3A000 + 0xD8)

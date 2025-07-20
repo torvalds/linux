@@ -2400,7 +2400,7 @@ static void tx_macro_remove(struct platform_device *pdev)
 	lpass_macro_pds_exit(tx->pds);
 }
 
-static int __maybe_unused tx_macro_runtime_suspend(struct device *dev)
+static int tx_macro_runtime_suspend(struct device *dev)
 {
 	struct tx_macro *tx = dev_get_drvdata(dev);
 
@@ -2414,7 +2414,7 @@ static int __maybe_unused tx_macro_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tx_macro_runtime_resume(struct device *dev)
+static int tx_macro_runtime_resume(struct device *dev)
 {
 	struct tx_macro *tx = dev_get_drvdata(dev);
 	int ret;
@@ -2450,7 +2450,7 @@ err_npl:
 }
 
 static const struct dev_pm_ops tx_macro_pm_ops = {
-	SET_RUNTIME_PM_OPS(tx_macro_runtime_suspend, tx_macro_runtime_resume, NULL)
+	RUNTIME_PM_OPS(tx_macro_runtime_suspend, tx_macro_runtime_resume, NULL)
 };
 
 static const struct tx_macro_data lpass_ver_9 = {
@@ -2531,7 +2531,7 @@ static struct platform_driver tx_macro_driver = {
 		.name = "tx_macro",
 		.of_match_table = tx_macro_dt_match,
 		.suppress_bind_attrs = true,
-		.pm = &tx_macro_pm_ops,
+		.pm = pm_ptr(&tx_macro_pm_ops),
 	},
 	.probe = tx_macro_probe,
 	.remove = tx_macro_remove,

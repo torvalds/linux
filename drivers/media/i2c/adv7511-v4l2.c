@@ -1370,9 +1370,9 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 	case V4L2_COLORSPACE_BT2020:
 		c = HDMI_COLORIMETRY_EXTENDED;
 		if (y && format->format.ycbcr_enc == V4L2_YCBCR_ENC_BT2020_CONST_LUM)
-			ec = 5; /* Not yet available in hdmi.h */
+			ec = HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM;
 		else
-			ec = 6; /* Not yet available in hdmi.h */
+			ec = HDMI_EXTENDED_COLORIMETRY_BT2020;
 		break;
 	default:
 		break;
@@ -1664,7 +1664,9 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 		if (!err) {
 			adv7511_dbg_dump_edid(2, debug, sd, segment, &state->edid.data[segment * 256]);
 			if (segment == 0) {
-				state->edid.blocks = state->edid.data[0x7e] + 1;
+				state->edid.blocks =
+					v4l2_num_edid_blocks(state->edid.data,
+							     EDID_MAX_SEGM * 2);
 				v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n",
 					 __func__, state->edid.blocks);
 			}
@@ -1682,7 +1684,7 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 		/* one more segment read ok */
 		state->edid.segments = segment + 1;
 		v4l2_ctrl_s_ctrl(state->have_edid0_ctrl, 0x1);
-		if (((state->edid.data[0x7e] >> 1) + 1) > state->edid.segments) {
+		if (state->edid.blocks > state->edid.segments * 2) {
 			/* Request next EDID segment */
 			v4l2_dbg(1, debug, sd, "%s: request segment %d\n", __func__, state->edid.segments);
 			adv7511_wr(sd, 0xc9, 0xf);

@@ -9,6 +9,8 @@
 #ifndef __SOUND_SOC_INTEL_AVS_REGS_H
 #define __SOUND_SOC_INTEL_AVS_REGS_H
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/iopoll.h>
 #include <linux/sizes.h>
 
 #define AZX_PCIREG_PGCTL		0x44
@@ -33,6 +35,8 @@
 #define AVS_ADSPCS_CSTALL_MASK(cm)	((cm) << 8)
 #define AVS_ADSPCS_SPA_MASK(cm)		((cm) << 16)
 #define AVS_ADSPCS_CPA_MASK(cm)		((cm) << 24)
+#define AVS_ADSPCS_INTERVAL_US		500
+#define AVS_ADSPCS_TIMEOUT_US		10000
 #define AVS_MAIN_CORE_MASK		BIT(0)
 
 #define AVS_ADSP_HIPCCTL_BUSY		BIT(0)
@@ -65,16 +69,52 @@
 #define CNL_ADSP_HIPCIDR_BUSY		BIT(31)
 #define CNL_ADSP_HIPCIDA_DONE		BIT(31)
 
+/* MTL Intel HOST Inter-Processor Communication Registers */
+#define MTL_HfIPC_BASE			0x73000
+#define MTL_REG_HfIPCxTDR		(MTL_HfIPC_BASE + 0x200)
+#define MTL_REG_HfIPCxTDA		(MTL_HfIPC_BASE + 0x204)
+#define MTL_REG_HfIPCxIDR		(MTL_HfIPC_BASE + 0x210)
+#define MTL_REG_HfIPCxIDA		(MTL_HfIPC_BASE + 0x214)
+#define MTL_REG_HfIPCxCTL		(MTL_HfIPC_BASE + 0x228)
+#define MTL_REG_HfIPCxTDD		(MTL_HfIPC_BASE + 0x300)
+#define MTL_REG_HfIPCxIDD		(MTL_HfIPC_BASE + 0x380)
+
+#define MTL_HfIPCxTDR_BUSY		BIT(31)
+#define MTL_HfIPCxTDA_BUSY		BIT(31)
+#define MTL_HfIPCxIDR_BUSY		BIT(31)
+#define MTL_HfIPCxIDA_DONE		BIT(31)
+
+#define MTL_HfFLV_BASE			0x162000
+#define MTL_REG_HfFLGP(x, y)		(MTL_HfFLV_BASE + 0x1200 + (x) * 0x20 + (y) * 0x08)
+#define LNL_REG_HfDFR(x)		(0x160200 + (x) * 0x8)
+
+#define MTL_DWICTL_BASE			0x1800
+#define MTL_DWICTL_REG_INTENL		(MTL_DWICTL_BASE + 0x0)
+#define MTL_DWICTL_REG_FINALSTATUSL	(MTL_DWICTL_BASE + 0x30)
+
+#define MTL_HfPMCCU_BASE		0x1D00
+#define MTL_REG_HfCLKCTL		(MTL_HfPMCCU_BASE + 0x10)
+#define MTL_REG_HfPWRCTL		(MTL_HfPMCCU_BASE + 0x18)
+#define MTL_REG_HfPWRSTS		(MTL_HfPMCCU_BASE + 0x1C)
+#define MTL_REG_HfPWRCTL2		(MTL_HfPMCCU_BASE + 0x20)
+#define MTL_REG_HfPWRSTS2		(MTL_HfPMCCU_BASE + 0x24)
+#define MTL_HfPWRCTL_WPDSPHPxPG		BIT(0)
+#define MTL_HfPWRSTS_DSPHPxPGS		BIT(0)
+#define MTL_HfPWRCTL2_WPDSPHPxPG	BIT(0)
+#define MTL_HfPWRSTS2_DSPHPxPGS		BIT(0)
+
 /* Intel HD Audio SRAM windows base addresses */
 #define SKL_ADSP_SRAM_BASE_OFFSET	0x8000
 #define SKL_ADSP_SRAM_WINDOW_SIZE	0x2000
 #define APL_ADSP_SRAM_BASE_OFFSET	0x80000
 #define APL_ADSP_SRAM_WINDOW_SIZE	0x20000
+#define MTL_ADSP_SRAM_BASE_OFFSET	0x180000
+#define MTL_ADSP_SRAM_WINDOW_SIZE	0x8000
 
 /* Constants used when accessing SRAM, space shared with firmware */
-#define AVS_FW_REG_BASE(adev)		((adev)->spec->sram->base_offset)
+#define AVS_FW_REG_BASE(adev)		((adev)->spec->hipc->sts_offset)
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
-#define AVS_FW_REG_ERROR_CODE(adev)	(AVS_FW_REG_BASE(adev) + 0x4)
+#define AVS_FW_REG_ERROR(adev)		(AVS_FW_REG_BASE(adev) + 0x4)
 
 #define AVS_WINDOW_CHUNK_SIZE		SZ_4K
 #define AVS_FW_REGS_SIZE		AVS_WINDOW_CHUNK_SIZE
@@ -97,5 +137,48 @@
 	(avs_sram_addr(adev, AVS_UPLINK_WINDOW) + AVS_FW_REGS_SIZE)
 #define avs_downlink_addr(adev) \
 	avs_sram_addr(adev, AVS_DOWNLINK_WINDOW)
+
+#define snd_hdac_adsp_writeb(adev, reg, value) \
+	snd_hdac_reg_writeb(&(adev)->base.core, (adev)->dsp_ba + (reg), value)
+#define snd_hdac_adsp_readb(adev, reg) \
+	snd_hdac_reg_readb(&(adev)->base.core, (adev)->dsp_ba + (reg))
+#define snd_hdac_adsp_writew(adev, reg, value) \
+	snd_hdac_reg_writew(&(adev)->base.core, (adev)->dsp_ba + (reg), value)
+#define snd_hdac_adsp_readw(adev, reg) \
+	snd_hdac_reg_readw(&(adev)->base.core, (adev)->dsp_ba + (reg))
+#define snd_hdac_adsp_writel(adev, reg, value) \
+	snd_hdac_reg_writel(&(adev)->base.core, (adev)->dsp_ba + (reg), value)
+#define snd_hdac_adsp_readl(adev, reg) \
+	snd_hdac_reg_readl(&(adev)->base.core, (adev)->dsp_ba + (reg))
+#define snd_hdac_adsp_writeq(adev, reg, value) \
+	snd_hdac_reg_writeq(&(adev)->base.core, (adev)->dsp_ba + (reg), value)
+#define snd_hdac_adsp_readq(adev, reg) \
+	snd_hdac_reg_readq(&(adev)->base.core, (adev)->dsp_ba + (reg))
+
+#define snd_hdac_adsp_updateb(adev, reg, mask, val) \
+	snd_hdac_adsp_writeb(adev, reg, \
+			(snd_hdac_adsp_readb(adev, reg) & ~(mask)) | (val))
+#define snd_hdac_adsp_updatew(adev, reg, mask, val) \
+	snd_hdac_adsp_writew(adev, reg, \
+			(snd_hdac_adsp_readw(adev, reg) & ~(mask)) | (val))
+#define snd_hdac_adsp_updatel(adev, reg, mask, val) \
+	snd_hdac_adsp_writel(adev, reg, \
+			(snd_hdac_adsp_readl(adev, reg) & ~(mask)) | (val))
+#define snd_hdac_adsp_updateq(adev, reg, mask, val) \
+	snd_hdac_adsp_writeq(adev, reg, \
+			(snd_hdac_adsp_readq(adev, reg) & ~(mask)) | (val))
+
+#define snd_hdac_adsp_readb_poll(adev, reg, val, cond, delay_us, timeout_us) \
+	readb_poll_timeout((adev)->dsp_ba + (reg), val, cond, \
+			   delay_us, timeout_us)
+#define snd_hdac_adsp_readw_poll(adev, reg, val, cond, delay_us, timeout_us) \
+	readw_poll_timeout((adev)->dsp_ba + (reg), val, cond, \
+			   delay_us, timeout_us)
+#define snd_hdac_adsp_readl_poll(adev, reg, val, cond, delay_us, timeout_us) \
+	readl_poll_timeout((adev)->dsp_ba + (reg), val, cond, \
+			   delay_us, timeout_us)
+#define snd_hdac_adsp_readq_poll(adev, reg, val, cond, delay_us, timeout_us) \
+	readq_poll_timeout((adev)->dsp_ba + (reg), val, cond, \
+			   delay_us, timeout_us)
 
 #endif /* __SOUND_SOC_INTEL_AVS_REGS_H */

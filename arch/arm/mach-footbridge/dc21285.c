@@ -135,7 +135,7 @@ static struct timer_list perr_timer;
 
 static void dc21285_enable_error(struct timer_list *timer)
 {
-	del_timer(timer);
+	timer_delete(timer);
 
 	if (timer == &serr_timer)
 		enable_irq(IRQ_PCI_SERR);

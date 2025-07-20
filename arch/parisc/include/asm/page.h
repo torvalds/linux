@@ -8,7 +8,7 @@
 
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/types.h>
 #include <asm/cache.h>
@@ -93,7 +93,7 @@ typedef struct __physmem_range {
 extern physmem_range_t pmem_ranges[];
 extern int npmem_ranges;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /* WARNING: The definitions below must match exactly to sizeof(pte_t)
  * etc
@@ -139,7 +139,7 @@ extern int npmem_ranges;
 #define KERNEL_BINARY_TEXT_START	(__PAGE_OFFSET + 0x100000)
 
 /* These macros don't work for 64-bit C code -- don't allow in C at all */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #   define PA(x)	((x)-__PAGE_OFFSET)
 #   define VA(x)	((x)+__PAGE_OFFSET)
 #endif

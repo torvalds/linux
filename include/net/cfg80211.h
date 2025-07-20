@@ -7,7 +7,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/ethtool.h>
@@ -127,6 +127,8 @@ struct wiphy;
  *	even if it is otherwise disabled.
  * @IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP: Allow using this channel for AP operation
  *	with very low power (VLP), even if otherwise set to NO_IR.
+ * @IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY: Allow activity on a 20 MHz channel,
+ *	even if otherwise set to NO_IR.
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED			= BIT(0),
@@ -155,6 +157,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT	= BIT(23),
 	IEEE80211_CHAN_CAN_MONITOR		= BIT(24),
 	IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP	= BIT(25),
+	IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY     = BIT(26),
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
@@ -1006,6 +1009,17 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *chandef1,
 int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width);
 
 /**
+ * cfg80211_chandef_get_width - return chandef width in MHz
+ * @c: chandef to return bandwidth for
+ * Return: channel width in MHz for the given chandef; note that it returns
+ *	80 for 80+80 configurations
+ */
+static inline int cfg80211_chandef_get_width(const struct cfg80211_chan_def *c)
+{
+	return nl80211_chan_width_to_mhz(c->width);
+}
+
+/**
  * cfg80211_chandef_valid - check if a channel definition is valid
  * @chandef: the channel definition to check
  * Return: %true if the channel definition is valid. %false otherwise.
@@ -1081,43 +1095,6 @@ int cfg80211_chandef_primary(const struct cfg80211_chan_def *chandef,
  * Returns: 0 if sent the channel definition to msg, < 0 on error
  **/
 int nl80211_send_chandef(struct sk_buff *msg, const struct cfg80211_chan_def *chandef);
-
-/**
- * ieee80211_chanwidth_rate_flags - return rate flags for channel width
- * @width: the channel width of the channel
- *
- * In some channel types, not all rates may be used - for example CCK
- * rates may not be used in 5/10 MHz channels.
- *
- * Returns: rate flags which apply for this channel width
- */
-static inline enum ieee80211_rate_flags
-ieee80211_chanwidth_rate_flags(enum nl80211_chan_width width)
-{
-	switch (width) {
-	case NL80211_CHAN_WIDTH_5:
-		return IEEE80211_RATE_SUPPORTS_5MHZ;
-	case NL80211_CHAN_WIDTH_10:
-		return IEEE80211_RATE_SUPPORTS_10MHZ;
-	default:
-		break;
-	}
-	return 0;
-}
-
-/**
- * ieee80211_chandef_rate_flags - returns rate flags for a channel
- * @chandef: channel definition for the channel
- *
- * See ieee80211_chanwidth_rate_flags().
- *
- * Returns: rate flags which apply for this channel
- */
-static inline enum ieee80211_rate_flags
-ieee80211_chandef_rate_flags(struct cfg80211_chan_def *chandef)
-{
-	return ieee80211_chanwidth_rate_flags(chandef->width);
-}
 
 /**
  * ieee80211_chandef_max_power - maximum transmission power for the chandef
@@ -1286,11 +1263,13 @@ struct cfg80211_crypto_settings {
  * struct cfg80211_mbssid_config - AP settings for multi bssid
  *
  * @tx_wdev: pointer to the transmitted interface in the MBSSID set
+ * @tx_link_id: link ID of the transmitted profile in an MLD.
  * @index: index of this AP in the multi bssid group.
  * @ema: set to true if the beacons should be sent out in EMA mode.
  */
 struct cfg80211_mbssid_config {
 	struct wireless_dev *tx_wdev;
+	u8 tx_link_id;
 	u8 index;
 	bool ema;
 };
@@ -1756,6 +1735,9 @@ struct cfg80211_ttlm_params {
  * @supported_oper_classes_len: number of supported operating classes
  * @support_p2p_ps: information if station supports P2P PS mechanism
  * @airtime_weight: airtime scheduler weight for this station
+ * @eml_cap_present: Specifies if EML capabilities field (@eml_cap) is
+ *	present/updated
+ * @eml_cap: EML capabilities of this station
  * @link_sta_params: link related params.
  */
 struct station_parameters {
@@ -1780,6 +1762,8 @@ struct station_parameters {
 	u8 supported_oper_classes_len;
 	int support_p2p_ps;
 	u16 airtime_weight;
+	bool eml_cap_present;
+	u16 eml_cap;
 	struct link_station_parameters link_sta_params;
 };
 
@@ -2045,9 +2029,6 @@ struct cfg80211_tid_stats {
  * @assoc_at: bootime (ns) of the last association
  * @rx_bytes: bytes (size of MPDUs) received from this station
  * @tx_bytes: bytes (size of MPDUs) transmitted to this station
- * @llid: mesh local link id
- * @plid: mesh peer link id
- * @plink_state: mesh peer link state
  * @signal: The signal strength, type depends on the wiphy's signal_type.
  *	For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
  * @signal_avg: Average signal strength, type depends on the wiphy's signal_type.
@@ -2067,14 +2048,20 @@ struct cfg80211_tid_stats {
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
+ * @beacon_loss_count: Number of times beacon loss event has triggered.
  * @assoc_req_ies: IEs from (Re)Association Request.
  *	This is used only when in AP mode with drivers that do not use
  *	user space MLME/SME implementation. The information is provided for
  *	the cfg80211_new_sta() calls to notify user space of the IEs.
  * @assoc_req_ies_len: Length of assoc_req_ies buffer in octets.
  * @sta_flags: station flags mask & values
- * @beacon_loss_count: Number of times beacon loss event has triggered.
  * @t_offset: Time offset of the station relative to this host.
+ * @llid: mesh local link id
+ * @plid: mesh peer link id
+ * @plink_state: mesh peer link state
+ * @connected_to_gate: true if mesh STA has a path to mesh gate
+ * @connected_to_as: true if mesh STA has a path to authentication server
+ * @airtime_link_metric: mesh airtime link metric.
  * @local_pm: local mesh STA power save mode
  * @peer_pm: peer mesh STA power save mode
  * @nonpeer_pm: non-peer mesh STA power save mode
@@ -2083,7 +2070,6 @@ struct cfg80211_tid_stats {
  * @rx_beacon: number of beacons received from this peer
  * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
  *	from this peer
- * @connected_to_gate: true if mesh STA has a path to mesh gate
  * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
  * @tx_duration: aggregate PPDU duration(usecs) for all the frames to a peer
  * @airtime_weight: current airtime scheduling weight
@@ -2097,8 +2083,6 @@ struct cfg80211_tid_stats {
  * @fcs_err_count: number of packets (MPDUs) received from this station with
  *	an FCS error. This counter should be incremented only when TA of the
  *	received packet with an FCS error matches the peer MAC address.
- * @airtime_link_metric: mesh airtime link metric.
- * @connected_to_as: true if mesh STA has a path to authentication server
  * @mlo_params_valid: Indicates @assoc_link_id and @mld_addr fields are filled
  *	by driver. Drivers use this only in cfg80211_new_sta() calls when AP
  *	MLD's MLME/SME is offload to driver. Drivers won't fill this
@@ -2125,9 +2109,6 @@ struct station_info {
 	u64 assoc_at;
 	u64 rx_bytes;
 	u64 tx_bytes;
-	u16 llid;
-	u16 plid;
-	u8 plink_state;
 	s8 signal;
 	s8 signal_avg;
 
@@ -2147,35 +2128,37 @@ struct station_info {
 
 	int generation;
 
+	u32 beacon_loss_count;
+
 	const u8 *assoc_req_ies;
 	size_t assoc_req_ies_len;
 
-	u32 beacon_loss_count;
 	s64 t_offset;
+	u16 llid;
+	u16 plid;
+	u8 plink_state;
+	u8 connected_to_gate;
+	u8 connected_to_as;
+	u32 airtime_link_metric;
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	u32 expected_throughput;
 
+	u16 airtime_weight;
+
+	s8 ack_signal;
+	s8 avg_ack_signal;
+	struct cfg80211_tid_stats *pertid;
+
 	u64 tx_duration;
 	u64 rx_duration;
 	u64 rx_beacon;
 	u8 rx_beacon_signal_avg;
-	u8 connected_to_gate;
-
-	struct cfg80211_tid_stats *pertid;
-	s8 ack_signal;
-	s8 avg_ack_signal;
-
-	u16 airtime_weight;
 
 	u32 rx_mpdu_count;
 	u32 fcs_err_count;
-
-	u32 airtime_link_metric;
-
-	u8 connected_to_as;
 
 	bool mlo_params_valid;
 	u8 assoc_link_id;
@@ -2265,7 +2248,7 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * @MONITOR_FLAG_PLCPFAIL: pass frames with bad PLCP
  * @MONITOR_FLAG_CONTROL: pass control frames
  * @MONITOR_FLAG_OTHER_BSS: disable BSSID filtering
- * @MONITOR_FLAG_COOK_FRAMES: report frames after processing
+ * @MONITOR_FLAG_COOK_FRAMES: deprecated, will unconditionally be refused
  * @MONITOR_FLAG_ACTIVE: active monitor, ACKs frames on its MAC address
  * @MONITOR_FLAG_SKIP_TX: do not pass locally transmitted frames
  */
@@ -2707,7 +2690,7 @@ struct cfg80211_scan_request {
 	s8 tsf_report_link_id;
 
 	/* keep last */
-	struct ieee80211_channel *channels[] __counted_by(n_channels);
+	struct ieee80211_channel *channels[];
 };
 
 static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
@@ -2947,6 +2930,7 @@ struct cfg80211_bss_ies {
  * @nontrans_list: list of non-transmitted BSS, if this is a transmitted one
  *	(multi-BSSID support)
  * @signal: signal strength value (type depends on the wiphy's signal_type)
+ * @ts_boottime: timestamp of the last BSS update in nanoseconds since boot
  * @chains: bitmask for filled values in @chain_signal.
  * @chain_signal: per-chain signal strength of last received BSS in dBm.
  * @bssid_index: index in the multiple BSS set
@@ -2970,6 +2954,8 @@ struct cfg80211_bss {
 	struct list_head nontrans_list;
 
 	s32 signal;
+
+	u64 ts_boottime;
 
 	u16 beacon_interval;
 	u16 capability;
@@ -3023,6 +3009,10 @@ static inline const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 id)
  *
  * @bss: The BSS to authenticate with, the callee must obtain a reference
  *	to it if it needs to keep it.
+ * @supported_selectors: List of selectors that should be assumed to be
+ *	supported by the station.
+ *	SAE_H2E must be assumed supported if set to %NULL.
+ * @supported_selectors_len: Length of supported_selectors in octets.
  * @auth_type: Authentication type (algorithm)
  * @ie: Extra IEs to add to Authentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
@@ -3045,6 +3035,8 @@ struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
+	const u8 *supported_selectors;
+	u8 supported_selectors_len;
 	enum nl80211_auth_type auth_type;
 	const u8 *key;
 	u8 key_len;
@@ -3072,6 +3064,19 @@ struct cfg80211_assoc_link {
 	size_t elems_len;
 	bool disabled;
 	int error;
+};
+
+/**
+ * struct cfg80211_ml_reconf_req - MLO link reconfiguration request
+ * @add_links: data for links to add, see &struct cfg80211_assoc_link
+ * @rem_links: bitmap of links to remove
+ * @ext_mld_capa_ops: extended MLD capabilities and operations set by
+ *	userspace for the ML reconfiguration action frame
+ */
+struct cfg80211_ml_reconf_req {
+	struct cfg80211_assoc_link add_links[IEEE80211_MLD_MAX_NUM_LINKS];
+	u16 rem_links;
+	u16 ext_mld_capa_ops;
 };
 
 /**
@@ -3124,6 +3129,10 @@ enum cfg80211_assoc_req_flags {
  *	included in the Current AP address field of the Reassociation Request
  *	frame.
  * @flags:  See &enum cfg80211_assoc_req_flags
+ * @supported_selectors: supported BSS selectors in IEEE 802.11 format
+ *	(or %NULL for no change).
+ *	If %NULL, then support for SAE_H2E should be assumed.
+ * @supported_selectors_len: number of supported BSS selectors
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
@@ -3142,6 +3151,8 @@ enum cfg80211_assoc_req_flags {
  *	the link on which the association request should be sent
  * @ap_mld_addr: AP MLD address in case of MLO association request,
  *	valid iff @link_id >= 0
+ * @ext_mld_capa_ops: extended MLD capabilities and operations set by
+ *	userspace for the association
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -3150,6 +3161,8 @@ struct cfg80211_assoc_request {
 	struct cfg80211_crypto_settings crypto;
 	bool use_mfp;
 	u32 flags;
+	const u8 *supported_selectors;
+	u8 supported_selectors_len;
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
 	struct ieee80211_vht_cap vht_capa, vht_capa_mask;
@@ -3160,6 +3173,7 @@ struct cfg80211_assoc_request {
 	struct cfg80211_assoc_link links[IEEE80211_MLD_MAX_NUM_LINKS];
 	const u8 *ap_mld_addr;
 	s8 link_id;
+	u16 ext_mld_capa_ops;
 };
 
 /**
@@ -4582,8 +4596,18 @@ struct mgmt_frame_regs {
  *
  * @set_hw_timestamp: Enable/disable HW timestamping of TM/FTM frames.
  * @set_ttlm: set the TID to link mapping.
+ * @set_epcs: Enable/Disable EPCS for station mode.
  * @get_radio_mask: get bitmask of radios in use.
  *	(invoked with the wiphy mutex held)
+ * @assoc_ml_reconf: Request a non-AP MLO connection to perform ML
+ *	reconfiguration, i.e., add and/or remove links to/from the
+ *	association using ML reconfiguration action frames. Successfully added
+ *	links will be added to the set of valid links. Successfully removed
+ *	links will be removed from the set of valid links. The driver must
+ *	indicate removed links by calling cfg80211_links_removed() and added
+ *	links by calling cfg80211_mlo_reconf_add_done(). When calling
+ *	cfg80211_mlo_reconf_add_done() the bss pointer must be given for each
+ *	link for which MLO reconfiguration 'add' operation was requested.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -4733,7 +4757,7 @@ struct cfg80211_ops {
 	int	(*set_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
 				enum nl80211_tx_power_setting type, int mbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
-				int *dbm);
+				unsigned int link_id, int *dbm);
 
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
@@ -4947,6 +4971,10 @@ struct cfg80211_ops {
 	int	(*set_ttlm)(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_ttlm_params *params);
 	u32	(*get_radio_mask)(struct wiphy *wiphy, struct net_device *dev);
+	int     (*assoc_ml_reconf)(struct wiphy *wiphy, struct net_device *dev,
+				   struct cfg80211_ml_reconf_req *req);
+	int	(*set_epcs)(struct wiphy *wiphy, struct net_device *dev,
+			    bool val);
 };
 
 /*
@@ -5957,7 +5985,7 @@ int wiphy_register(struct wiphy *wiphy);
  * @wiphy: the wiphy to check the locking on
  * @p: The pointer to read, prior to dereferencing
  *
- * Return the value of the specified RCU-protected pointer, but omit the
+ * Return: the value of the specified RCU-protected pointer, but omit the
  * READ_ONCE(), because caller holds the wiphy mutex used for updates.
  */
 #define wiphy_dereference(wiphy, p)				\
@@ -6030,6 +6058,10 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
 	__release(&wiphy->mtx);
 	mutex_unlock(&wiphy->mtx);
 }
+
+DEFINE_GUARD(wiphy, struct wiphy *,
+	     mutex_lock(&_T->mtx),
+	     mutex_unlock(&_T->mtx))
 
 struct wiphy_work;
 typedef void (*wiphy_work_func_t)(struct wiphy *, struct wiphy_work *);
@@ -9701,6 +9733,40 @@ static inline int cfg80211_color_change_notify(struct net_device *dev,
 void cfg80211_links_removed(struct net_device *dev, u16 link_mask);
 
 /**
+ * struct cfg80211_mlo_reconf_done_data - MLO reconfiguration data
+ * @buf: MLO Reconfiguration Response frame (header + body)
+ * @len: length of the frame data
+ * @added_links: BIT mask of links successfully added to the association
+ * @links: per-link information indexed by link ID
+ * @links.bss: the BSS that MLO reconfiguration was requested for, ownership of
+ *      the pointer moves to cfg80211 in the call to
+ *      cfg80211_mlo_reconf_add_done().
+ *
+ * The BSS pointer must be set for each link for which 'add' operation was
+ * requested in the assoc_ml_reconf callback.
+ */
+struct cfg80211_mlo_reconf_done_data {
+	const u8 *buf;
+	size_t len;
+	u16 added_links;
+	struct {
+		struct cfg80211_bss *bss;
+		u8 *addr;
+	} links[IEEE80211_MLD_MAX_NUM_LINKS];
+};
+
+/**
+ * cfg80211_mlo_reconf_add_done - Notify about MLO reconfiguration result
+ * @dev: network device.
+ * @data: MLO reconfiguration done data, &struct cfg80211_mlo_reconf_done_data
+ *
+ * Inform cfg80211 and the userspace that processing of ML reconfiguration
+ * request to add links to the association is done.
+ */
+void cfg80211_mlo_reconf_add_done(struct net_device *dev,
+				  struct cfg80211_mlo_reconf_done_data *data);
+
+/**
  * cfg80211_schedule_channels_check - schedule regulatory check if needed
  * @wdev: the wireless device to check
  *
@@ -9709,6 +9775,13 @@ void cfg80211_links_removed(struct net_device *dev, u16 link_mask);
  * hold anymore.
  */
 void cfg80211_schedule_channels_check(struct wireless_dev *wdev);
+
+/**
+ * cfg80211_epcs_changed - Notify about a change in EPCS state
+ * @netdev: the wireless device whose EPCS state changed
+ * @enabled: set to true if EPCS was enabled, otherwise set to false.
+ */
+void cfg80211_epcs_changed(struct net_device *netdev, bool enabled);
 
 #ifdef CONFIG_CFG80211_DEBUGFS
 /**

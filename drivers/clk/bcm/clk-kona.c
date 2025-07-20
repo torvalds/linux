@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/clk-provider.h>
+#include <linux/string_choices.h>
 
 /*
  * "Policies" affect the frequencies of bus clocks provided by a
@@ -50,24 +51,6 @@ static inline u32 bitfield_replace(u32 reg_val, u32 shift, u32 width, u32 val)
 static inline u64 scaled_div_value(struct bcm_clk_div *div, u32 reg_div)
 {
 	return (u64)reg_div + ((u64)1 << div->u.s.frac_width);
-}
-
-/*
- * Build a scaled divider value as close as possible to the
- * given whole part (div_value) and fractional part (expressed
- * in billionths).
- */
-u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value, u32 billionths)
-{
-	u64 combined;
-
-	BUG_ON(!div_value);
-	BUG_ON(billionths >= BILLION);
-
-	combined = (u64)div_value * BILLION + billionths;
-	combined <<= div->u.s.frac_width;
-
-	return DIV_ROUND_CLOSEST_ULL(combined, BILLION);
 }
 
 /* The scaled minimum divisor representable by a divider */
@@ -502,7 +485,7 @@ static int clk_gate(struct ccu_data *ccu, const char *name,
 		return 0;
 
 	pr_err("%s: failed to %s gate for %s\n", __func__,
-		enable ? "enable" : "disable", name);
+		str_enable_disable(enable), name);
 
 	return -EIO;
 }

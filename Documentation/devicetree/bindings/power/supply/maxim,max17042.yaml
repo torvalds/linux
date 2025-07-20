@@ -19,6 +19,7 @@ properties:
       - maxim,max17047
       - maxim,max17050
       - maxim,max17055
+      - maxim,max77705-battery
       - maxim,max77849-battery
 
   reg:

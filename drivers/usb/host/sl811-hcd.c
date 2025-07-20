@@ -48,6 +48,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/prefetch.h>
+#include <linux/string_choices.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -98,7 +99,7 @@ static void port_power(struct sl811 *sl811, int is_on)
 	if (sl811->board && sl811->board->port_power) {
 		/* switch VBUS, at 500mA unless hub power budget gets set */
 		dev_dbg(hcd->self.controller, "power %s\n",
-			is_on ? "on" : "off");
+			str_on_off(is_on));
 		sl811->board->port_power(hcd->self.controller, is_on);
 	}
 
@@ -1123,7 +1124,7 @@ sl811h_hub_descriptor (
 static void
 sl811h_timer(struct timer_list *t)
 {
-	struct sl811 	*sl811 = from_timer(sl811, t, timer);
+	struct sl811 	*sl811 = timer_container_of(sl811, t, timer);
 	unsigned long	flags;
 	u8		irqstat;
 	u8		signaling = sl811->ctrl1 & SL11H_CTL1MASK_FORCE;
@@ -1514,7 +1515,7 @@ sl811h_stop(struct usb_hcd *hcd)
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 	unsigned long	flags;
 
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 
 	spin_lock_irqsave(&sl811->lock, flags);
 	port_power(sl811, 0);

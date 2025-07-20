@@ -81,6 +81,28 @@
 #define __is_constexpr(x) \
 	(sizeof(int) == sizeof(*(8 ? ((void *)((long)(x) * 0l)) : (int *)8)))
 
+/*
+ * Similar to statically_true() but produces a constant expression
+ *
+ * To be used in conjunction with macros, such as BUILD_BUG_ON_ZERO(),
+ * which require their input to be a constant expression and for which
+ * statically_true() would otherwise fail.
+ *
+ * This is a trade-off: const_true() requires all its operands to be
+ * compile time constants. Else, it would always returns false even on
+ * the most trivial cases like:
+ *
+ *   true || non_const_var
+ *
+ * On the opposite, statically_true() is able to fold more complex
+ * tautologies and will return true on expressions such as:
+ *
+ *   !(non_const_var * 8 % 4)
+ *
+ * For the general case, statically_true() is better.
+ */
+#define const_true(x) __builtin_choose_expr(__is_constexpr(x), x, false)
+
 #ifdef __ANDROID__
 /*
  * FIXME: Big hammer to get rid of tons of:
@@ -220,6 +242,14 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 /* Make the optimizer believe the variable can be manipulated arbitrarily. */
 #define OPTIMIZER_HIDE_VAR(var)						\
 	__asm__ ("" : "=r" (var) : "0" (var))
+#endif
+
+#ifndef __BUILD_BUG_ON_ZERO_MSG
+#if defined(__clang__)
+#define __BUILD_BUG_ON_ZERO_MSG(e, msg, ...) ((int)(sizeof(struct { int:(-!!(e)); })))
+#else
+#define __BUILD_BUG_ON_ZERO_MSG(e, msg, ...) ((int)sizeof(struct {_Static_assert(!(e), msg);}))
+#endif
 #endif
 
 #endif /* __ASSEMBLY__ */

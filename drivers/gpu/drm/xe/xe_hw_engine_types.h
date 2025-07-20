@@ -106,7 +106,7 @@ struct xe_hw_engine_class_intf {
  * Contains all the hardware engine state for physical instances.
  */
 struct xe_hw_engine {
-	/** @gt: graphics tile this hw engine belongs to */
+	/** @gt: GT structure this hw engine belongs to */
 	struct xe_gt *gt;
 	/** @name: name of this hw engine */
 	const char *name;
@@ -165,8 +165,6 @@ enum xe_hw_engine_snapshot_source_id {
 struct xe_hw_engine_snapshot {
 	/** @name: name of the hw engine */
 	char *name;
-	/** @source: Data source, either manual or GuC */
-	enum xe_hw_engine_snapshot_source_id source;
 	/** @hwe: hw engine */
 	struct xe_hw_engine *hwe;
 	/** @logical_instance: logical instance of this hw engine */

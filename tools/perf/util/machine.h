@@ -50,6 +50,12 @@ struct machine {
 		u64	  text_start;
 		u64	  text_end;
 	} sched, lock, traceiter, trace;
+	/*
+	 * The current parallelism level (number of threads that run on CPUs).
+	 * This value can be less than 1, or larger than the total number
+	 * of CPUs, if events are poorly ordered.
+	 */
+	int		  parallelism;
 	pid_t		  *current_tid;
 	size_t		  current_tid_sz;
 	union { /* Tool specific area */
@@ -165,6 +171,7 @@ void machines__set_comm_exec(struct machines *machines, bool comm_exec);
 
 struct machine *machine__new_host(void);
 struct machine *machine__new_kallsyms(void);
+struct machine *machine__new_live(bool kernel_maps, pid_t pid);
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
 void machine__delete_threads(struct machine *machine);
@@ -265,8 +272,6 @@ int machine__create_kernel_maps(struct machine *machine);
 int machines__create_kernel_maps(struct machines *machines, pid_t pid);
 int machines__create_guest_kernel_maps(struct machines *machines);
 void machines__destroy_kernel_maps(struct machines *machines);
-
-size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
 
 typedef int (*machine__dso_t)(struct dso *dso, struct machine *machine, void *priv);
 

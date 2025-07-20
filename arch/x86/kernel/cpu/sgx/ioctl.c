@@ -3,6 +3,7 @@
 
 #include <asm/mman.h>
 #include <asm/sgx.h>
+#include <crypto/sha2.h>
 #include <linux/mman.h>
 #include <linux/delay.h>
 #include <linux/file.h>
@@ -63,6 +64,13 @@ static int sgx_encl_create(struct sgx_encl *encl, struct sgx_secs *secs)
 	unsigned long encl_size;
 	struct file *backing;
 	long ret;
+
+	/*
+	 * ECREATE would detect this too, but checking here also ensures
+	 * that the 'encl_size' calculations below can never overflow.
+	 */
+	if (!is_power_of_2(secs->size))
+		return -EINVAL;
 
 	va_page = sgx_encl_grow(encl, true);
 	if (IS_ERR(va_page))
@@ -456,31 +464,6 @@ static long sgx_ioc_enclave_add_pages(struct sgx_encl *encl, void __user *arg)
 	return ret;
 }
 
-static int __sgx_get_key_hash(struct crypto_shash *tfm, const void *modulus,
-			      void *hash)
-{
-	SHASH_DESC_ON_STACK(shash, tfm);
-
-	shash->tfm = tfm;
-
-	return crypto_shash_digest(shash, modulus, SGX_MODULUS_SIZE, hash);
-}
-
-static int sgx_get_key_hash(const void *modulus, void *hash)
-{
-	struct crypto_shash *tfm;
-	int ret;
-
-	tfm = crypto_alloc_shash("sha256", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	ret = __sgx_get_key_hash(tfm, modulus, hash);
-
-	crypto_free_shash(tfm);
-	return ret;
-}
-
 static int sgx_encl_init(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
 			 void *token)
 {
@@ -516,9 +499,7 @@ static int sgx_encl_init(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
 	    sgx_xfrm_reserved_mask)
 		return -EINVAL;
 
-	ret = sgx_get_key_hash(sigstruct->modulus, mrsigner);
-	if (ret)
-		return ret;
+	sha256(sigstruct->modulus, SGX_MODULUS_SIZE, (u8 *)mrsigner);
 
 	mutex_lock(&encl->lock);
 

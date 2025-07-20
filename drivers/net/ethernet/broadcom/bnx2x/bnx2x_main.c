@@ -5783,7 +5783,7 @@ void bnx2x_drv_pulse(struct bnx2x *bp)
 
 static void bnx2x_timer(struct timer_list *t)
 {
-	struct bnx2x *bp = from_timer(bp, t, timer);
+	struct bnx2x *bp = timer_container_of(bp, t, timer);
 
 	if (!netif_running(bp->dev))
 		return;
@@ -14140,7 +14140,7 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bnx2x_tx_disable(bp);
 	netdev_reset_tc(bp->dev);
 
-	del_timer_sync(&bp->timer);
+	timer_delete_sync(&bp->timer);
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 

@@ -354,7 +354,6 @@ static int __init z2_init(void)
 	tag_set.nr_maps = 1;
 	tag_set.queue_depth = 16;
 	tag_set.numa_node = NUMA_NO_NODE;
-	tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ret = blk_mq_alloc_tag_set(&tag_set);
 	if (ret)
 		goto out_unregister_blkdev;

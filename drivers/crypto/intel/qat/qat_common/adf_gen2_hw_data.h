@@ -88,5 +88,6 @@ void adf_gen2_get_arb_info(struct arb_info *arb_info);
 void adf_gen2_enable_ints(struct adf_accel_dev *accel_dev);
 u32 adf_gen2_get_accel_cap(struct adf_accel_dev *accel_dev);
 void adf_gen2_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
+void adf_gen2_init_dc_ops(struct adf_dc_ops *dc_ops);
 
 #endif

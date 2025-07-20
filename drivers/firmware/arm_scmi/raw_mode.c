@@ -671,11 +671,13 @@ static int scmi_do_xfer_raw_start(struct scmi_raw_mode_info *raw,
  * @len: Length of the message in @buf.
  * @chan_id: The channel ID to use.
  * @async: A flag stating if an asynchronous command is required.
+ * @poll: A flag stating if a polling transmission is required.
  *
  * Return: 0 on Success
  */
 static int scmi_raw_message_send(struct scmi_raw_mode_info *raw,
-				 void *buf, size_t len, u8 chan_id, bool async)
+				 void *buf, size_t len, u8 chan_id,
+				 bool async, bool poll)
 {
 	int ret;
 	struct scmi_xfer *xfer;
@@ -683,6 +685,16 @@ static int scmi_raw_message_send(struct scmi_raw_mode_info *raw,
 	ret = scmi_xfer_raw_get_init(raw, buf, len, &xfer);
 	if (ret)
 		return ret;
+
+	if (poll) {
+		if (is_transport_polling_capable(raw->desc)) {
+			xfer->hdr.poll_completion = true;
+		} else {
+			dev_err(raw->handle->dev,
+				"Failed to send RAW message - Polling NOT supported\n");
+			return -EINVAL;
+		}
+	}
 
 	ret = scmi_do_xfer_raw_start(raw, xfer, chan_id, async);
 	if (ret)
@@ -801,7 +813,7 @@ static ssize_t scmi_dbg_raw_mode_common_read(struct file *filp,
 static ssize_t scmi_dbg_raw_mode_common_write(struct file *filp,
 					      const char __user *buf,
 					      size_t count, loff_t *ppos,
-					      bool async)
+					      bool async, bool poll)
 {
 	int ret;
 	struct scmi_dbg_raw_data *rd = filp->private_data;
@@ -831,7 +843,7 @@ static ssize_t scmi_dbg_raw_mode_common_write(struct file *filp,
 	}
 
 	ret = scmi_raw_message_send(rd->raw, rd->tx.buf, rd->tx_size,
-				    rd->chan_id, async);
+				    rd->chan_id, async, poll);
 
 	/* Reset ppos for next message ... */
 	rd->tx_size = 0;
@@ -875,7 +887,8 @@ static ssize_t scmi_dbg_raw_mode_message_write(struct file *filp,
 					       const char __user *buf,
 					       size_t count, loff_t *ppos)
 {
-	return scmi_dbg_raw_mode_common_write(filp, buf, count, ppos, false);
+	return scmi_dbg_raw_mode_common_write(filp, buf, count, ppos,
+					      false, false);
 }
 
 static __poll_t scmi_dbg_raw_mode_message_poll(struct file *filp,
@@ -886,10 +899,8 @@ static __poll_t scmi_dbg_raw_mode_message_poll(struct file *filp,
 
 static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 {
-	u8 id;
 	struct scmi_raw_mode_info *raw;
 	struct scmi_dbg_raw_data *rd;
-	const char *id_str = filp->f_path.dentry->d_parent->d_name.name;
 
 	if (!inode->i_private)
 		return -ENODEV;
@@ -915,8 +926,8 @@ static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Grab channel ID from debugfs entry naming if any */
-	if (!kstrtou8(id_str, 16, &id))
-		rd->chan_id = id;
+	/* not set - reassing 0 we already had after kzalloc() */
+	rd->chan_id = debugfs_get_aux_num(filp);
 
 	rd->raw = raw;
 	filp->private_data = rd;
@@ -966,7 +977,8 @@ static ssize_t scmi_dbg_raw_mode_message_async_write(struct file *filp,
 						     const char __user *buf,
 						     size_t count, loff_t *ppos)
 {
-	return scmi_dbg_raw_mode_common_write(filp, buf, count, ppos, true);
+	return scmi_dbg_raw_mode_common_write(filp, buf, count, ppos,
+					      true, false);
 }
 
 static const struct file_operations scmi_dbg_raw_mode_message_async_fops = {
@@ -974,6 +986,40 @@ static const struct file_operations scmi_dbg_raw_mode_message_async_fops = {
 	.release = scmi_dbg_raw_mode_release,
 	.read = scmi_dbg_raw_mode_message_read,
 	.write = scmi_dbg_raw_mode_message_async_write,
+	.poll = scmi_dbg_raw_mode_message_poll,
+	.owner = THIS_MODULE,
+};
+
+static ssize_t scmi_dbg_raw_mode_message_poll_write(struct file *filp,
+						    const char __user *buf,
+						    size_t count, loff_t *ppos)
+{
+	return scmi_dbg_raw_mode_common_write(filp, buf, count, ppos,
+					      false, true);
+}
+
+static const struct file_operations scmi_dbg_raw_mode_message_poll_fops = {
+	.open = scmi_dbg_raw_mode_open,
+	.release = scmi_dbg_raw_mode_release,
+	.read = scmi_dbg_raw_mode_message_read,
+	.write = scmi_dbg_raw_mode_message_poll_write,
+	.poll = scmi_dbg_raw_mode_message_poll,
+	.owner = THIS_MODULE,
+};
+
+static ssize_t scmi_dbg_raw_mode_message_poll_async_write(struct file *filp,
+							  const char __user *buf,
+							  size_t count, loff_t *ppos)
+{
+	return scmi_dbg_raw_mode_common_write(filp, buf, count, ppos,
+					      true, true);
+}
+
+static const struct file_operations scmi_dbg_raw_mode_message_poll_async_fops = {
+	.open = scmi_dbg_raw_mode_open,
+	.release = scmi_dbg_raw_mode_release,
+	.read = scmi_dbg_raw_mode_message_read,
+	.write = scmi_dbg_raw_mode_message_poll_async_write,
 	.poll = scmi_dbg_raw_mode_message_poll,
 	.owner = THIS_MODULE,
 };
@@ -1201,6 +1247,12 @@ void *scmi_raw_mode_init(const struct scmi_handle *handle,
 	debugfs_create_file("message_async", 0600, raw->dentry, raw,
 			    &scmi_dbg_raw_mode_message_async_fops);
 
+	debugfs_create_file("message_poll", 0600, raw->dentry, raw,
+			    &scmi_dbg_raw_mode_message_poll_fops);
+
+	debugfs_create_file("message_poll_async", 0600, raw->dentry, raw,
+			    &scmi_dbg_raw_mode_message_poll_async_fops);
+
 	debugfs_create_file("notification", 0400, raw->dentry, raw,
 			    &scmi_dbg_raw_mode_notification_fops);
 
@@ -1225,11 +1277,21 @@ void *scmi_raw_mode_init(const struct scmi_handle *handle,
 			snprintf(cdir, 8, "0x%02X", channels[i]);
 			chd = debugfs_create_dir(cdir, top_chans);
 
-			debugfs_create_file("message", 0600, chd, raw,
+			debugfs_create_file_aux_num("message", 0600, chd,
+					    raw, channels[i],
 					    &scmi_dbg_raw_mode_message_fops);
 
-			debugfs_create_file("message_async", 0600, chd, raw,
+			debugfs_create_file_aux_num("message_async", 0600, chd,
+					    raw, channels[i],
 					    &scmi_dbg_raw_mode_message_async_fops);
+
+			debugfs_create_file_aux_num("message_poll", 0600, chd,
+						    raw, channels[i],
+						    &scmi_dbg_raw_mode_message_poll_fops);
+
+			debugfs_create_file_aux_num("message_poll_async", 0600,
+						    chd, raw, channels[i],
+						    &scmi_dbg_raw_mode_message_poll_async_fops);
 		}
 	}
 

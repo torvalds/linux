@@ -29,7 +29,7 @@
 static inline pgd_t*
 pgd_alloc(struct mm_struct *mm)
 {
-	return (pgd_t*) __get_free_page(GFP_KERNEL | __GFP_ZERO);
+	return __pgd_alloc(mm, 0);
 }
 
 static inline void ptes_clear(pte_t *ptep)

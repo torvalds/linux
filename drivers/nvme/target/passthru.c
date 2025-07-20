@@ -99,7 +99,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 
 	/*
 	 * The passthru NVMe driver may have a limit on the number of segments
-	 * which depends on the host's memory fragementation. To solve this,
+	 * which depends on the host's memory fragmentation. To solve this,
 	 * ensure mdts is limited to the pages equal to the number of segments.
 	 */
 	max_hw_sectors = min_not_zero(pctrl->max_segments << PAGE_SECTORS_SHIFT,
@@ -261,6 +261,7 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 {
 	struct scatterlist *sg;
 	struct bio *bio;
+	int ret = -EINVAL;
 	int i;
 
 	if (req->sg_cnt > BIO_MAX_VECS)
@@ -277,16 +278,19 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 	}
 
 	for_each_sg(req->sg, sg, req->sg_cnt, i) {
-		if (bio_add_pc_page(rq->q, bio, sg_page(sg), sg->length,
-				    sg->offset) < sg->length) {
-			nvmet_req_bio_put(req, bio);
-			return -EINVAL;
-		}
+		if (bio_add_page(bio, sg_page(sg), sg->length, sg->offset) <
+				sg->length)
+			goto out_bio_put;
 	}
 
-	blk_rq_bio_prep(rq, bio, req->sg_cnt);
-
+	ret = blk_rq_append_bio(rq, bio);
+	if (ret)
+		goto out_bio_put;
 	return 0;
+
+out_bio_put:
+	nvmet_req_bio_put(req, bio);
+	return ret;
 }
 
 static void nvmet_passthru_execute_cmd(struct nvmet_req *req)

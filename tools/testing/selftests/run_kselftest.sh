@@ -3,7 +3,14 @@
 #
 # Run installed kselftest tests.
 #
-BASE_DIR=$(realpath $(dirname $0))
+
+# Fallback to readlink if realpath is not available
+if which realpath > /dev/null; then
+        BASE_DIR=$(realpath $(dirname $0))
+else
+        BASE_DIR=$(readlink -f $(dirname $0))
+fi
+
 cd $BASE_DIR
 TESTS="$BASE_DIR"/kselftest-list.txt
 if [ ! -r "$TESTS" ] ; then
@@ -21,7 +28,7 @@ usage()
 	cat <<EOF
 Usage: $0 [OPTIONS]
   -s | --summary		Print summary with detailed log in output.log (conflict with -p)
-  -p | --per_test_log		Print test log in /tmp with each test name (conflict with -s)
+  -p | --per-test-log		Print test log in /tmp with each test name (conflict with -s)
   -t | --test COLLECTION:TEST	Run TEST from COLLECTION
   -c | --collection COLLECTION	Run all tests from COLLECTION
   -l | --list			List the available collection:test entries

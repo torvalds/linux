@@ -97,7 +97,7 @@ static int leases_enable = 1;
 static int lease_break_time = 45;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table locks_sysctls[] = {
+static const struct ctl_table locks_sysctls[] = {
 	{
 		.procname	= "leases-enable",
 		.data		= &leases_enable,

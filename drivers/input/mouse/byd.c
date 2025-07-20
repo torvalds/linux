@@ -251,7 +251,7 @@ static void byd_report_input(struct psmouse *psmouse)
 
 static void byd_clear_touch(struct timer_list *t)
 {
-	struct byd_data *priv = from_timer(priv, t, timer);
+	struct byd_data *priv = timer_container_of(priv, t, timer);
 	struct psmouse *psmouse = priv->psmouse;
 
 	guard(serio_pause_rx)(psmouse->ps2dev.serio);
@@ -425,7 +425,7 @@ static void byd_disconnect(struct psmouse *psmouse)
 	struct byd_data *priv = psmouse->private;
 
 	if (priv) {
-		del_timer(&priv->timer);
+		timer_delete(&priv->timer);
 		kfree(psmouse->private);
 		psmouse->private = NULL;
 	}

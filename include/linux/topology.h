@@ -29,6 +29,7 @@
 
 #include <linux/arch_topology.h>
 #include <linux/cpumask.h>
+#include <linux/nodemask.h>
 #include <linux/bitops.h>
 #include <linux/mmzone.h>
 #include <linux/smp.h>
@@ -38,10 +39,6 @@
 #ifndef nr_cpus_node
 #define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
 #endif
-
-#define for_each_node_with_cpus(node)			\
-	for_each_online_node(node)			\
-		if (nr_cpus_node(node))
 
 int arch_update_cpu_topology(void);
 
@@ -240,6 +237,29 @@ static inline const struct cpumask *cpu_smt_mask(int cpu)
 }
 #endif
 
+#ifndef topology_is_primary_thread
+
+static inline bool topology_is_primary_thread(unsigned int cpu)
+{
+	/*
+	 * When disabling SMT, the primary thread of the SMT will remain
+	 * enabled/active. Architectures that have a special primary thread
+	 * (e.g. x86) need to override this function. Otherwise the first
+	 * thread in the SMT can be made the primary thread.
+	 *
+	 * The sibling cpumask of an offline CPU always contains the CPU
+	 * itself on architectures using the implementation of
+	 * CONFIG_GENERIC_ARCH_TOPOLOGY for building their topology.
+	 * Other architectures not using CONFIG_GENERIC_ARCH_TOPOLOGY for
+	 * building their topology have to check whether to use this default
+	 * implementation or to override it.
+	 */
+	return cpu == cpumask_first(topology_sibling_cpumask(cpu));
+}
+#define topology_is_primary_thread topology_is_primary_thread
+
+#endif
+
 static inline const struct cpumask *cpu_cpu_mask(int cpu)
 {
 	return cpumask_of_node(cpu_to_node(cpu));
@@ -262,6 +282,36 @@ sched_numa_hop_mask(unsigned int node, unsigned int hops)
 #endif	/* CONFIG_NUMA */
 
 /**
+ * for_each_node_numadist() - iterate over nodes in increasing distance
+ *			      order, starting from a given node
+ * @node: the iteration variable and the starting node.
+ * @unvisited: a nodemask to keep track of the unvisited nodes.
+ *
+ * This macro iterates over NUMA node IDs in increasing distance from the
+ * starting @node and yields MAX_NUMNODES when all the nodes have been
+ * visited.
+ *
+ * Note that by the time the loop completes, the @unvisited nodemask will
+ * be fully cleared, unless the loop exits early.
+ *
+ * The difference between for_each_node() and for_each_node_numadist() is
+ * that the former allows to iterate over nodes in numerical order, whereas
+ * the latter iterates over nodes in increasing order of distance.
+ *
+ * This complexity of this iterator is O(N^2), where N represents the
+ * number of nodes, as each iteration involves scanning all nodes to
+ * find the one with the shortest distance.
+ *
+ * Requires rcu_lock to be held.
+ */
+#define for_each_node_numadist(node, unvisited)					\
+	for (int __start = (node),						\
+	     (node) = nearest_node_nodemask((__start), &(unvisited));		\
+	     (node) < MAX_NUMNODES;						\
+	     node_clear((node), (unvisited)),					\
+	     (node) = nearest_node_nodemask((__start), &(unvisited)))
+
+/**
  * for_each_numa_hop_mask - iterate over cpumasks of increasing NUMA distance
  *                          from a given node.
  * @mask: the iteration variable.
@@ -278,5 +328,14 @@ sched_numa_hop_mask(unsigned int node, unsigned int hops)
 		     cpu_online_mask,					       \
 	     !IS_ERR_OR_NULL(mask);					       \
 	     __hops++)
+
+DECLARE_PER_CPU(unsigned long, cpu_scale);
+
+static inline unsigned long topology_get_cpu_scale(int cpu)
+{
+	return per_cpu(cpu_scale, cpu);
+}
+
+void topology_set_cpu_scale(unsigned int cpu, unsigned long capacity);
 
 #endif /* _LINUX_TOPOLOGY_H */

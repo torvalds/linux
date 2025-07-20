@@ -19,14 +19,8 @@ quiet_cmd_relocs = RELOCS  $(OUT_RELOCS)/relocs.S
 	mkdir -p $(OUT_RELOCS); \
 	$(CMD_RELOCS) $@ > $(OUT_RELOCS)/relocs.S
 
-quiet_cmd_strip_relocs = RSTRIP  $@
-      cmd_strip_relocs = \
-	$(OBJCOPY) --remove-section='.rel.*' --remove-section='.rel__*' \
-		   --remove-section='.rela.*' --remove-section='.rela__*' $@
-
-vmlinux: FORCE
+vmlinux.unstripped: FORCE
 	$(call cmd,relocs)
-	$(call cmd,strip_relocs)
 
 clean:
 	@rm -f $(OUT_RELOCS)/relocs.S

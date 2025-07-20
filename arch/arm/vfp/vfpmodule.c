@@ -168,7 +168,7 @@ static void vfp_thread_copy(struct thread_info *thread)
 /*
  * When this function is called with the following 'cmd's, the following
  * is true while this function is being run:
- *  THREAD_NOFTIFY_SWTICH:
+ *  THREAD_NOTIFY_SWITCH:
  *   - the previously running thread will not be scheduled onto another CPU.
  *   - the next thread to be run (v) will not be running on another CPU.
  *   - thread->cpu is the local CPU number
@@ -877,6 +877,7 @@ void kernel_neon_begin(void)
 	 * the kernel mode NEON register contents never need to be preserved.
 	 */
 	BUG_ON(in_hardirq());
+	BUG_ON(irqs_disabled());
 	cpu = __smp_processor_id();
 
 	fpexc = fmrx(FPEXC) | FPEXC_EN;

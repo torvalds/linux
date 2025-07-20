@@ -161,6 +161,15 @@ static void __init of_unittest_find_node_by_name(void)
 		 "option alias path test, subcase #1 failed\n");
 	of_node_put(np);
 
+	np = of_find_node_opts_by_path("testcase-alias/phandle-tests/consumer-a:testaliasoption",
+				       &options);
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && name && !strcmp("/testcase-data/phandle-tests/consumer-a", name) &&
+		 !strcmp("testaliasoption", options),
+		 "option alias path test, subcase #2 failed\n");
+	of_node_put(np);
+	kfree(name);
+
 	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
 	unittest(np, "NULL option alias path test failed\n");
 	of_node_put(np);
@@ -1380,6 +1389,7 @@ static void __init of_unittest_bus_3cell_ranges(void)
 static void __init of_unittest_reg(void)
 {
 	struct device_node *np;
+	struct resource res;
 	int ret;
 	u64 addr, size;
 
@@ -1396,6 +1406,19 @@ static void __init of_unittest_reg(void)
 		np, addr);
 
 	of_node_put(np);
+
+	np = of_find_node_by_path("/testcase-data/platform-tests-2/node/test-device@100");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	ret = of_address_to_resource(np, 0, &res);
+	unittest(ret == -EINVAL, "of_address_to_resource(%pOF) expected error on untranslatable address\n",
+		 np);
+
+	of_node_put(np);
+
 }
 
 struct of_unittest_expected_res {
@@ -1630,6 +1653,72 @@ static void __init of_unittest_parse_interrupts_extended(void)
 	}
 	of_node_put(np);
 }
+
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+static void __init of_unittest_irq_refcount(void)
+{
+	struct of_phandle_args args;
+	struct device_node *intc0, *int_ext0;
+	struct device_node *int2, *intc_intmap0;
+	unsigned int ref_c0, ref_c1, ref_c2;
+	int rc;
+	bool passed;
+
+	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
+		return;
+
+	intc0 = of_find_node_by_path("/testcase-data/interrupts/intc0");
+	int_ext0 = of_find_node_by_path("/testcase-data/interrupts/interrupts-extended0");
+	intc_intmap0 = of_find_node_by_path("/testcase-data/interrupts/intc-intmap0");
+	int2 = of_find_node_by_path("/testcase-data/interrupts/interrupts2");
+	if (!intc0 || !int_ext0 || !intc_intmap0 || !int2) {
+		pr_err("missing testcase data\n");
+		goto out;
+	}
+
+	/* Test refcount for API of_irq_parse_one() */
+	passed = true;
+	ref_c0 = OF_KREF_READ(intc0);
+	ref_c1 = ref_c0 + 1;
+	memset(&args, 0, sizeof(args));
+	rc = of_irq_parse_one(int_ext0, 0, &args);
+	ref_c2 = OF_KREF_READ(intc0);
+	of_node_put(args.np);
+
+	passed &= !rc;
+	passed &= (args.np == intc0);
+	passed &= (args.args_count == 1);
+	passed &= (args.args[0] == 1);
+	passed &= (ref_c1 == ref_c2);
+	unittest(passed, "IRQ refcount case #1 failed, original(%u) expected(%u) got(%u)\n",
+		 ref_c0, ref_c1, ref_c2);
+
+	/* Test refcount for API of_irq_parse_raw() */
+	passed = true;
+	ref_c0 = OF_KREF_READ(intc_intmap0);
+	ref_c1 = ref_c0 + 1;
+	memset(&args, 0, sizeof(args));
+	rc = of_irq_parse_one(int2, 0, &args);
+	ref_c2 = OF_KREF_READ(intc_intmap0);
+	of_node_put(args.np);
+
+	passed &= !rc;
+	passed &= (args.np == intc_intmap0);
+	passed &= (args.args_count == 1);
+	passed &= (args.args[0] == 2);
+	passed &= (ref_c1 == ref_c2);
+	unittest(passed, "IRQ refcount case #2 failed, original(%u) expected(%u) got(%u)\n",
+		 ref_c0, ref_c1, ref_c2);
+
+out:
+	of_node_put(int2);
+	of_node_put(intc_intmap0);
+	of_node_put(int_ext0);
+	of_node_put(intc0);
+}
+#else
+static inline void __init of_unittest_irq_refcount(void) { }
+#endif
 
 static const struct of_device_id match_node_table[] = {
 	{ .data = "A", .name = "name0", }, /* Name alone is lowest priority */
@@ -1940,15 +2029,16 @@ static int __init unittest_data_add(void)
 	rc = of_resolve_phandles(unittest_data_node);
 	if (rc) {
 		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
-		of_overlay_mutex_unlock();
-		return -EINVAL;
+		rc = -EINVAL;
+		goto unlock;
 	}
 
 	/* attach the sub-tree to live tree */
 	if (!of_root) {
 		pr_warn("%s: no live tree to attach sub-tree\n", __func__);
 		kfree(unittest_data);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto unlock;
 	}
 
 	EXPECT_BEGIN(KERN_INFO,
@@ -1967,9 +2057,10 @@ static int __init unittest_data_add(void)
 	EXPECT_END(KERN_INFO,
 		   "Duplicate name in testcase-data, renamed to \"duplicate-name#1\"");
 
+unlock:
 	of_overlay_mutex_unlock();
 
-	return 0;
+	return rc;
 }
 
 #ifdef CONFIG_OF_OVERLAY
@@ -3666,13 +3757,7 @@ static struct device_node *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
-	void *ptr = memblock_alloc(size, align);
-
-	if (!ptr)
-		panic("%s: Failed to allocate %llu bytes align=0x%llx\n",
-		      __func__, size, align);
-
-	return ptr;
+	return memblock_alloc_or_panic(size, align);
 }
 
 /*
@@ -4307,6 +4392,7 @@ static int __init of_unittest(void)
 	of_unittest_changeset_prop();
 	of_unittest_parse_interrupts();
 	of_unittest_parse_interrupts_extended();
+	of_unittest_irq_refcount();
 	of_unittest_dma_get_max_cpu_address();
 	of_unittest_parse_dma_ranges();
 	of_unittest_pci_dma_ranges();

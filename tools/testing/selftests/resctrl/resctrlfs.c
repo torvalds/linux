@@ -13,6 +13,8 @@
 
 #include "resctrl.h"
 
+int snc_unreliable;
+
 static int find_resctrl_mount(char *buffer)
 {
 	FILE *mounts;
@@ -157,6 +159,98 @@ int get_domain_id(const char *resource, int cpu_no, int *domain_id)
 }
 
 /*
+ * Count number of CPUs in a /sys bitmap
+ */
+static unsigned int count_sys_bitmap_bits(char *name)
+{
+	FILE *fp = fopen(name, "r");
+	int count = 0, c;
+
+	if (!fp)
+		return 0;
+
+	while ((c = fgetc(fp)) != EOF) {
+		if (!isxdigit(c))
+			continue;
+		switch (c) {
+		case 'f':
+			count++;
+			fallthrough;
+		case '7': case 'b': case 'd': case 'e':
+			count++;
+			fallthrough;
+		case '3': case '5': case '6': case '9': case 'a': case 'c':
+			count++;
+			fallthrough;
+		case '1': case '2': case '4': case '8':
+			count++;
+			break;
+		}
+	}
+	fclose(fp);
+
+	return count;
+}
+
+static bool cpus_offline_empty(void)
+{
+	char offline_cpus_str[64];
+	FILE *fp;
+
+	fp = fopen("/sys/devices/system/cpu/offline", "r");
+	if (!fp) {
+		ksft_perror("Could not open /sys/devices/system/cpu/offline");
+		return 0;
+	}
+
+	if (fscanf(fp, "%63s", offline_cpus_str) < 0) {
+		if (!errno) {
+			fclose(fp);
+			return 1;
+		}
+		ksft_perror("Could not read /sys/devices/system/cpu/offline");
+	}
+
+	fclose(fp);
+
+	return 0;
+}
+
+/*
+ * Detect SNC by comparing #CPUs in node0 with #CPUs sharing LLC with CPU0.
+ * If any CPUs are offline declare the detection as unreliable.
+ */
+int snc_nodes_per_l3_cache(void)
+{
+	int node_cpus, cache_cpus;
+	static int snc_mode;
+
+	if (!snc_mode) {
+		snc_mode = 1;
+		if (!cpus_offline_empty()) {
+			ksft_print_msg("Runtime SNC detection unreliable due to offline CPUs.\n");
+			ksft_print_msg("Setting SNC mode to disabled.\n");
+			snc_unreliable = 1;
+			return snc_mode;
+		}
+		node_cpus = count_sys_bitmap_bits("/sys/devices/system/node/node0/cpumap");
+		cache_cpus = count_sys_bitmap_bits("/sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_map");
+
+		if (!node_cpus || !cache_cpus) {
+			ksft_print_msg("Could not determine Sub-NUMA Cluster mode.\n");
+			snc_unreliable = 1;
+			return snc_mode;
+		}
+		snc_mode = cache_cpus / node_cpus;
+
+		if (snc_mode > 1)
+			ksft_print_msg("SNC-%d mode discovered.\n", snc_mode);
+	}
+
+	return snc_mode;
+}
+
+/*
  * get_cache_size - Get cache size for a specified CPU
  * @cpu_no:	CPU number
  * @cache_type:	Cache level L2/L3
@@ -211,6 +305,17 @@ int get_cache_size(int cpu_no, const char *cache_type, unsigned long *cache_size
 			break;
 	}
 
+	/*
+	 * The amount of cache represented by each bit in the masks
+	 * in the schemata file is reduced by a factor equal to SNC
+	 * nodes per L3 cache.
+	 * E.g. on a SNC-2 system with a 100MB L3 cache a test that
+	 * allocates memory from its local SNC node (default behavior
+	 * without using libnuma) will only see 50 MB llc_occupancy
+	 * with a fully populated L3 mask in the schemata file.
+	 */
+	if (cache_num == 3)
+		*cache_size /= snc_nodes_per_l3_cache();
 	return 0;
 }
 
@@ -851,4 +956,36 @@ unsigned int count_bits(unsigned long n)
 	}
 
 	return count;
+}
+
+/**
+ * snc_kernel_support - Check for existence of mon_sub_L3_00 file that indicates
+ * SNC resctrl support on the kernel side.
+ *
+ * Return: 0 if not supported, 1 if SNC is disabled or SNC discovery is
+ * unreliable or SNC is both enabled and supported.
+ */
+int snc_kernel_support(void)
+{
+	char node_path[PATH_MAX];
+	struct stat statbuf;
+	int ret;
+
+	ret = snc_nodes_per_l3_cache();
+	/*
+	 * If SNC is disabled then its kernel support isn't important. If SNC
+	 * got disabled because the discovery process was unreliable the
+	 * snc_unreliable variable was set. It can be used to verify the SNC
+	 * discovery reliability elsewhere in the selftest.
+	 */
+	if (ret == 1)
+		return ret;
+
+	snprintf(node_path, sizeof(node_path), "%s/%s", RESCTRL_PATH,
+		 "mon_data/mon_L3_00/mon_sub_L3_00");
+
+	if (!stat(node_path, &statbuf))
+		return 1;
+
+	return 0;
 }

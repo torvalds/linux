@@ -656,7 +656,7 @@ static int uli526x_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* deleted timer */
-	del_timer_sync(&db->timer);
+	timer_delete_sync(&db->timer);
 
 	/* Reset & stop ULI526X board */
 	uw32(DCR0, ULI526X_RESET);
@@ -1014,7 +1014,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 
 static void uli526x_timer(struct timer_list *t)
 {
-	struct uli526x_board_info *db = from_timer(db, t, timer);
+	struct uli526x_board_info *db = timer_container_of(db, t, timer);
 	struct net_device *dev = pci_get_drvdata(db->pdev);
 	struct uli_phy_ops *phy = &db->phy;
 	void __iomem *ioaddr = db->ioaddr;

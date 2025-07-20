@@ -352,7 +352,7 @@ static void mxcmci_dma_callback(void *data)
 	struct mxcmci_host *host = data;
 	u32 stat;
 
-	del_timer(&host->watchdog);
+	timer_delete(&host->watchdog);
 
 	stat = mxcmci_readl(host, MMC_REG_STATUS);
 
@@ -737,7 +737,7 @@ static irqreturn_t mxcmci_irq(int irq, void *devid)
 		mxcmci_cmd_done(host, stat);
 
 	if (mxcmci_use_dma(host) && (stat & STATUS_WRITE_OP_DONE)) {
-		del_timer(&host->watchdog);
+		timer_delete(&host->watchdog);
 		mxcmci_data_done(host, stat);
 	}
 
@@ -955,7 +955,7 @@ static bool filter(struct dma_chan *chan, void *param)
 
 static void mxcmci_watchdog(struct timer_list *t)
 {
-	struct mxcmci_host *host = from_timer(host, t, watchdog);
+	struct mxcmci_host *host = timer_container_of(host, t, watchdog);
 	struct mmc_request *req = host->req;
 	unsigned int stat = mxcmci_readl(host, MMC_REG_STATUS);
 
@@ -995,7 +995,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	struct mxcmci_host *host;
 	struct resource *res;
 	int ret = 0, irq;
-	bool dat3_card_detect = false;
+	bool dat3_card_detect;
 	dma_cap_mask_t mask;
 	struct imxmmc_platform_data *pdata = pdev->dev.platform_data;
 
@@ -1048,9 +1048,9 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	if (pdata)
 		dat3_card_detect = pdata->dat3_card_detect;
-	else if (mmc_card_is_removable(mmc)
-			&& !of_property_read_bool(pdev->dev.of_node, "cd-gpios"))
-		dat3_card_detect = true;
+	else
+		dat3_card_detect = mmc_card_is_removable(mmc) &&
+				   !of_property_present(pdev->dev.of_node, "cd-gpios");
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)

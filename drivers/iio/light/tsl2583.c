@@ -922,7 +922,7 @@ static const struct i2c_device_id tsl2583_idtable[] = {
 	{ "tsl2580", 0 },
 	{ "tsl2581", 1 },
 	{ "tsl2583", 2 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsl2583_idtable);
 
@@ -930,7 +930,7 @@ static const struct of_device_id tsl2583_of_match[] = {
 	{ .compatible = "amstaos,tsl2580", },
 	{ .compatible = "amstaos,tsl2581", },
 	{ .compatible = "amstaos,tsl2583", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, tsl2583_of_match);
 

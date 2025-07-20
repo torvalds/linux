@@ -47,7 +47,7 @@ Description:
 		midi1_first_group	The first UMP Group number for MIDI 1.0 (0-15)
 		midi1_num_groups	The number of groups for MIDI 1.0 (0-16)
 		ui_hint			0: unknown, 1: receiver, 2: sender, 3: both
-		midi_ci_verison		Supported MIDI-CI version number (8 bit)
+		midi_ci_version		Supported MIDI-CI version number (8 bit)
 		is_midi1		Legacy MIDI 1.0 device (0, 1 or 2)
 		sysex8_streams		Max number of SysEx8 streams (8 bit)
 		active			Active FB flag (0 or 1)

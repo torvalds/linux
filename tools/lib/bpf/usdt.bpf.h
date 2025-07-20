@@ -108,6 +108,38 @@ int bpf_usdt_arg_cnt(struct pt_regs *ctx)
 	return spec->arg_cnt;
 }
 
+/* Returns the size in bytes of the #*arg_num* (zero-indexed) USDT argument.
+ * Returns negative error if argument is not found or arg_num is invalid.
+ */
+static __always_inline
+int bpf_usdt_arg_size(struct pt_regs *ctx, __u64 arg_num)
+{
+	struct __bpf_usdt_arg_spec *arg_spec;
+	struct __bpf_usdt_spec *spec;
+	int spec_id;
+
+	spec_id = __bpf_usdt_spec_id(ctx);
+	if (spec_id < 0)
+		return -ESRCH;
+
+	spec = bpf_map_lookup_elem(&__bpf_usdt_specs, &spec_id);
+	if (!spec)
+		return -ESRCH;
+
+	if (arg_num >= BPF_USDT_MAX_ARG_CNT)
+		return -ENOENT;
+	barrier_var(arg_num);
+	if (arg_num >= spec->arg_cnt)
+		return -ENOENT;
+
+	arg_spec = &spec->args[arg_num];
+
+	/* arg_spec->arg_bitshift = 64 - arg_sz * 8
+	 * so: arg_sz = (64 - arg_spec->arg_bitshift) / 8
+	 */
+	return (unsigned int)(64 - arg_spec->arg_bitshift) / 8;
+}
+
 /* Fetch USDT argument #*arg_num* (zero-indexed) and put its value into *res.
  * Returns 0 on success; negative error, otherwise.
  * On error *res is guaranteed to be set to zero.

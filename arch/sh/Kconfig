@@ -648,10 +648,11 @@ endmenu
 
 menu "Boot options"
 
-config USE_BUILTIN_DTB
+config BUILTIN_DTB
 	bool "Use builtin DTB"
 	default n
 	depends on SH_DEVICE_TREE
+	select GENERIC_BUILTIN_DTB
 	help
 	  Link a device tree blob for particular hardware into the kernel,
 	  suppressing use of the DTB pointer provided by the bootloader.
@@ -659,10 +660,10 @@ config USE_BUILTIN_DTB
 	  not capable of providing a DTB to the kernel, or for experimental
 	  hardware without stable device tree bindings.
 
-config BUILTIN_DTB_SOURCE
+config BUILTIN_DTB_NAME
 	string "Source file for builtin DTB"
 	default ""
-	depends on USE_BUILTIN_DTB
+	depends on BUILTIN_DTB
 	help
 	  Base name (without suffix, relative to arch/sh/boot/dts) for the
 	  a DTS file that will be used to produce the DTB linked into the

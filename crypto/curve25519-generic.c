@@ -82,7 +82,7 @@ static void __exit curve25519_exit(void)
 	crypto_unregister_kpp(&curve25519_alg);
 }
 
-subsys_initcall(curve25519_init);
+module_init(curve25519_init);
 module_exit(curve25519_exit);
 
 MODULE_ALIAS_CRYPTO("curve25519");

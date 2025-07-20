@@ -183,4 +183,4 @@ even better as a code comment.
 A good code comment is wonderful, but even better is the comment that didn't
 need to exist because the code was so straightforward as to be obvious;
 organized into small clean and tidy modules, with clear and descriptive names
-for functions and variable, where every line of code has a clear purpose.
+for functions and variables, where every line of code has a clear purpose.

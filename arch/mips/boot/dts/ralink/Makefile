@@ -10,5 +10,3 @@ dtb-$(CONFIG_SOC_MT7621) += \
 	mt7621-gnubee-gb-pc1.dtb \
 	mt7621-gnubee-gb-pc2.dtb \
 	mt7621-tplink-hc220-g5-v1.dtb
-
-obj-$(CONFIG_BUILTIN_DTB)	+= $(addsuffix .o, $(dtb-y))

@@ -319,7 +319,7 @@ static int pcan_usb_write_mode(struct peak_usb_device *dev, u8 onoff)
  */
 static void pcan_usb_restart(struct timer_list *t)
 {
-	struct pcan_usb *pdev = from_timer(pdev, t, restart_timer);
+	struct pcan_usb *pdev = timer_container_of(pdev, t, restart_timer);
 	struct peak_usb_device *dev = &pdev->dev;
 
 	/* notify candev and netdev */

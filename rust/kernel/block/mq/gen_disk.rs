@@ -129,7 +129,7 @@ impl GenDiskBuilder {
             get_unique_id: None,
             // TODO: Set to THIS_MODULE. Waiting for const_refs_to_static feature to
             // be merged (unstable in rustc 1.78 which is staged for linux 6.10)
-            // https://github.com/rust-lang/rust/issues/119618
+            // <https://github.com/rust-lang/rust/issues/119618>
             owner: core::ptr::null_mut(),
             pr_ops: core::ptr::null_mut(),
             free_disk: None,
@@ -174,9 +174,9 @@ impl GenDiskBuilder {
 ///
 /// # Invariants
 ///
-///  - `gendisk` must always point to an initialized and valid `struct gendisk`.
-///  - `gendisk` was added to the VFS through a call to
-///     `bindings::device_add_disk`.
+/// - `gendisk` must always point to an initialized and valid `struct gendisk`.
+/// - `gendisk` was added to the VFS through a call to
+///   `bindings::device_add_disk`.
 pub struct GenDisk<T: Operations> {
     _tagset: Arc<TagSet<T>>,
     gendisk: *mut bindings::gendisk,

@@ -185,8 +185,20 @@ static void test_fork_exec(void)
 	}
 }
 
+static bool pwrite_wrapper(int fd, void *buf, size_t count, const char *msg)
+{
+	int ret = pwrite(fd, buf, count, 0);
+
+	if (ret != count) {
+		ksft_perror(msg);
+		return false;
+	}
+	return true;
+}
+
 static void test_tagged_addr_abi_sysctl(void)
 {
+	char *err_pwrite_msg = "failed to write to /proc/sys/abi/tagged_addr_disabled\n";
 	char value;
 	int fd;
 
@@ -200,14 +212,18 @@ static void test_tagged_addr_abi_sysctl(void)
 	}
 
 	value = '1';
-	pwrite(fd, &value, 1, 0);
-	ksft_test_result(set_tagged_addr_ctrl(min_pmlen, true) == -EINVAL,
-			 "sysctl disabled\n");
+	if (!pwrite_wrapper(fd, &value, 1, "write '1'"))
+		ksft_test_result_fail(err_pwrite_msg);
+	else
+		ksft_test_result(set_tagged_addr_ctrl(min_pmlen, true) == -EINVAL,
+				 "sysctl disabled\n");
 
 	value = '0';
-	pwrite(fd, &value, 1, 0);
-	ksft_test_result(set_tagged_addr_ctrl(min_pmlen, true) == 0,
-			 "sysctl enabled\n");
+	if (!pwrite_wrapper(fd, &value, 1, "write '0'"))
+		ksft_test_result_fail(err_pwrite_msg);
+	else
+		ksft_test_result(set_tagged_addr_ctrl(min_pmlen, true) == 0,
+				 "sysctl enabled\n");
 
 	set_tagged_addr_ctrl(0, false);
 

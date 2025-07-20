@@ -162,7 +162,7 @@ static void enable(struct dce_mem_input *mem_input110)
 
 static void program_tiling(
 	struct dce_mem_input *mem_input110,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
 	uint32_t value = 0;
@@ -523,7 +523,7 @@ static const unsigned int dvmm_Hw_Setting_Linear[4][9] = {
 
 /* Helper to get table entry from surface info */
 static const unsigned int *get_dvmm_hw_setting(
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		enum surface_pixel_format format,
 		bool chroma)
 {
@@ -563,7 +563,7 @@ static const unsigned int *get_dvmm_hw_setting(
 static void dce_mem_input_v_program_pte_vm(
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation)
 {
 	struct dce_mem_input *mem_input110 = TO_DCE_MEM_INPUT(mem_input);
@@ -636,7 +636,7 @@ static void dce_mem_input_v_program_pte_vm(
 static void dce_mem_input_v_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,

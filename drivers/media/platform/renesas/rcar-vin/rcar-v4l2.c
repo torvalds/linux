@@ -88,19 +88,19 @@ static const struct rvin_video_format rvin_formats[] = {
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
-		.bpp			= 4,
+		.bpp			= 2,
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SGBRG10,
-		.bpp			= 4,
+		.bpp			= 2,
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SGRBG10,
-		.bpp			= 4,
+		.bpp			= 2,
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SRGGB10,
-		.bpp			= 4,
+		.bpp			= 2,
 	},
 };
 
@@ -161,9 +161,6 @@ static u32 rvin_format_bytesperline(struct rvin_dev *vin,
 		break;
 	}
 
-	if (V4L2_FIELD_IS_SEQUENTIAL(pix->field))
-		align = 0x80;
-
 	return ALIGN(pix->width, align) * fmt->bpp;
 }
 
@@ -194,8 +191,6 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
 	case V4L2_FIELD_ALTERNATE:
-	case V4L2_FIELD_SEQ_TB:
-	case V4L2_FIELD_SEQ_BT:
 		break;
 	default:
 		pix->field = RVIN_DEFAULT_FIELD;
@@ -504,8 +499,6 @@ static int rvin_remote_rectangle(struct rvin_dev *vin, struct v4l2_rect *rect)
 		case V4L2_FIELD_INTERLACED_TB:
 		case V4L2_FIELD_INTERLACED_BT:
 		case V4L2_FIELD_INTERLACED:
-		case V4L2_FIELD_SEQ_TB:
-		case V4L2_FIELD_SEQ_BT:
 			rect->height *= 2;
 			break;
 		}
@@ -591,8 +584,8 @@ static int rvin_s_selection(struct file *file, void *fh,
 
 		vin->crop = s->r = r;
 
-		vin_dbg(vin, "Cropped %dx%d@%d:%d of %dx%d\n",
-			r.width, r.height, r.left, r.top,
+		vin_dbg(vin, "Cropped (%d,%d)/%ux%u of %dx%d\n",
+			r.left, r.top, r.width, r.height,
 			max_rect.width, max_rect.height);
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
@@ -616,8 +609,8 @@ static int rvin_s_selection(struct file *file, void *fh,
 
 		vin->compose = s->r = r;
 
-		vin_dbg(vin, "Compose %dx%d@%d:%d in %dx%d\n",
-			r.width, r.height, r.left, r.top,
+		vin_dbg(vin, "Compose (%d,%d)/%ux%u in %dx%d\n",
+			r.left, r.top, r.width, r.height,
 			vin->format.width, vin->format.height);
 		break;
 	default:

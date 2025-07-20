@@ -1277,7 +1277,10 @@ enum ionic_xcvr_pid {
 	IONIC_XCVR_PID_SFP_25GBASE_CR_S  = 3,
 	IONIC_XCVR_PID_SFP_25GBASE_CR_L  = 4,
 	IONIC_XCVR_PID_SFP_25GBASE_CR_N  = 5,
-
+	IONIC_XCVR_PID_QSFP_50G_CR2_FC   = 6,
+	IONIC_XCVR_PID_QSFP_50G_CR2      = 7,
+	IONIC_XCVR_PID_QSFP_200G_CR4     = 8,
+	IONIC_XCVR_PID_QSFP_400G_CR4     = 9,
 	/* Fiber */
 	IONIC_XCVR_PID_QSFP_100G_AOC    = 50,
 	IONIC_XCVR_PID_QSFP_100G_ACC    = 51,
@@ -1303,6 +1306,15 @@ enum ionic_xcvr_pid {
 	IONIC_XCVR_PID_SFP_25GBASE_ACC  = 71,
 	IONIC_XCVR_PID_SFP_10GBASE_T    = 72,
 	IONIC_XCVR_PID_SFP_1000BASE_T   = 73,
+	IONIC_XCVR_PID_QSFP_200G_AOC    = 74,
+	IONIC_XCVR_PID_QSFP_200G_FR4    = 75,
+	IONIC_XCVR_PID_QSFP_200G_DR4    = 76,
+	IONIC_XCVR_PID_QSFP_200G_SR4    = 77,
+	IONIC_XCVR_PID_QSFP_200G_ACC    = 78,
+	IONIC_XCVR_PID_QSFP_400G_FR4    = 79,
+	IONIC_XCVR_PID_QSFP_400G_DR4    = 80,
+	IONIC_XCVR_PID_QSFP_400G_SR4    = 81,
+	IONIC_XCVR_PID_QSFP_400G_VR4    = 82,
 };
 
 /**
@@ -1404,6 +1416,8 @@ struct ionic_xcvr_status {
  */
 union ionic_port_config {
 	struct {
+#define IONIC_SPEED_400G	400000	/* 400G in Mbps */
+#define IONIC_SPEED_200G	200000	/* 200G in Mbps */
 #define IONIC_SPEED_100G	100000	/* 100G in Mbps */
 #define IONIC_SPEED_50G		50000	/* 50G in Mbps */
 #define IONIC_SPEED_40G		40000	/* 40G in Mbps */
@@ -2825,6 +2839,10 @@ union ionic_port_identity {
  * @status:          Port status data
  * @stats:           Port statistics data
  * @mgmt_stats:      Port management statistics data
+ * @sprom_epage:     Extended Transceiver sprom
+ * @sprom_page1:     Extended Transceiver sprom, page 1
+ * @sprom_page2:     Extended Transceiver sprom, page 2
+ * @sprom_page17:    Extended Transceiver sprom, page 17
  * @rsvd:            reserved byte(s)
  * @pb_stats:        uplink pb drop stats
  */
@@ -2835,8 +2853,17 @@ struct ionic_port_info {
 		struct ionic_port_stats      stats;
 		struct ionic_mgmt_port_stats mgmt_stats;
 	};
-	/* room for pb_stats to start at 2k offset */
-	u8                          rsvd[760];
+	union {
+		u8     sprom_epage[384];
+		struct {
+			u8 sprom_page1[128];
+			u8 sprom_page2[128];
+			u8 sprom_page17[128];
+		};
+	};
+	u8     rsvd[376];
+
+	/* pb_stats must start at 2k offset */
 	struct ionic_port_pb_stats  pb_stats;
 };
 
@@ -3209,7 +3236,11 @@ union ionic_adminq_comp {
 #define IONIC_BAR0_INTR_CTRL_OFFSET		0x2000
 #define IONIC_DEV_CMD_DONE			0x00000001
 
-#define IONIC_ASIC_TYPE_CAPRI			0
+#define IONIC_ASIC_TYPE_NONE			0
+#define IONIC_ASIC_TYPE_CAPRI			1
+#define IONIC_ASIC_TYPE_ELBA			2
+#define IONIC_ASIC_TYPE_GIGLIO			3
+#define IONIC_ASIC_TYPE_SALINA			4
 
 /**
  * struct ionic_doorbell - Doorbell register layout

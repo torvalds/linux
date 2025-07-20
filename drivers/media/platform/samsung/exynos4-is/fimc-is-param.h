@@ -994,7 +994,6 @@ void fimc_is_set_initial_params(struct fimc_is *is);
 unsigned int __get_pending_param_count(struct fimc_is *is);
 
 int  __is_hw_update_params(struct fimc_is *is);
-void __is_get_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf);
 void __is_set_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf);
 void __is_set_sensor(struct fimc_is *is, int fps);
 void __is_set_isp_aa_ae(struct fimc_is *is);

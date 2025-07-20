@@ -330,6 +330,9 @@ enum {
 	GLF_UNLOCKED			= 16, /* Wait for glock to be unlocked */
 	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
 	GLF_VERIFY_DELETE		= 18, /* iopen glocks only */
+	GLF_PENDING_REPLY		= 19,
+	GLF_DEFER_DELETE		= 20, /* iopen glocks only */
+	GLF_CANCELING			= 21,
 };
 
 struct gfs2_glock {
@@ -376,7 +379,6 @@ enum {
 	GIF_SW_PAGED		= 3,
 	GIF_FREE_VFS_INODE      = 5,
 	GIF_GLOP_PENDING	= 6,
-	GIF_DEFER_DELETE	= 7,
 };
 
 struct gfs2_inode {
@@ -793,7 +795,7 @@ struct gfs2_sbd {
 
 	/* Log stuff */
 
-	struct address_space sd_aspace;
+	struct inode *sd_inode;
 
 	spinlock_t sd_log_lock;
 
@@ -848,6 +850,13 @@ struct gfs2_sbd {
 	struct dentry *debugfs_dir;    /* debugfs directory */
 	unsigned long sd_glock_dqs_held;
 };
+
+#define GFS2_BAD_INO 1
+
+static inline struct address_space *gfs2_aspace(struct gfs2_sbd *sdp)
+{
+	return sdp->sd_inode->i_mapping;
+}
 
 static inline void gfs2_glstats_inc(struct gfs2_glock *gl, int which)
 {

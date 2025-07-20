@@ -522,7 +522,7 @@ static void sierra_net_kevent(struct work_struct *work)
 						" stopping sync timer",
 						hh.msgspecific.byte);
 				/* Got sync resp - stop timer & clear mask */
-				del_timer_sync(&priv->sync_timer);
+				timer_delete_sync(&priv->sync_timer);
 				clear_bit(SIERRA_NET_TIMER_EXPIRY,
 					  &priv->kevent_flags);
 				break;
@@ -573,7 +573,7 @@ static void sierra_net_defer_kevent(struct usbnet *dev, int work)
  */
 static void sierra_sync_timer(struct timer_list *t)
 {
-	struct sierra_net_data *priv = from_timer(priv, t, sync_timer);
+	struct sierra_net_data *priv = timer_container_of(priv, t, sync_timer);
 	struct usbnet *dev = priv->usbnet;
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);
@@ -687,6 +687,10 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (status < 0) {
 		dev_err(&dev->udev->dev, "Error in usbnet_get_endpoints (%d)",
 			status);
+		return -ENODEV;
+	}
+	if (!dev->status) {
+		dev_err(&dev->udev->dev, "No status endpoint found");
 		return -ENODEV;
 	}
 	/* Initialize sierra private data */

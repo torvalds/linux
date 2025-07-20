@@ -31,14 +31,13 @@ static int aic3x_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regmap_config config;
-	const struct i2c_device_id *id = i2c_match_id(aic3x_i2c_id, i2c);
 
 	config = aic3x_regmap;
 	config.reg_bits = 8;
 	config.val_bits = 8;
 
 	regmap = devm_regmap_init_i2c(i2c, &config);
-	return aic3x_probe(&i2c->dev, regmap, id->driver_data);
+	return aic3x_probe(&i2c->dev, regmap, (uintptr_t)i2c_get_match_data(i2c));
 }
 
 static void aic3x_i2c_remove(struct i2c_client *i2c)

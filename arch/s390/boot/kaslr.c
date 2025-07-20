@@ -32,7 +32,7 @@ struct prng_parm {
 static int check_prng(void)
 {
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG)) {
-		boot_printk("KASLR disabled: CPU has no PRNG\n");
+		boot_warn("KASLR disabled: CPU has no PRNG\n");
 		return 0;
 	}
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
@@ -168,7 +168,7 @@ static unsigned long iterate_valid_positions(unsigned long size, unsigned long a
  * cannot have chains.
  *
  * On the other hand, "dynamic" or "repetitive" allocations are done via
- * physmem_alloc_top_down(). These allocations are tightly packed together
+ * physmem_alloc_or_die(). These allocations are tightly packed together
  * top down from the end of online memory. physmem_alloc_pos represents
  * current position where those allocations start.
  *

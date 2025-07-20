@@ -5,15 +5,14 @@
  * and format the required data.
  */
 
-#define ASM_OFFSETS_C
-
 #include <linux/kbuild.h>
-#include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
-#include <linux/ftrace.h>
+#include <linux/ftrace_regs.h>
+#include <asm/kvm_host_types.h>
 #include <asm/stacktrace.h>
+#include <asm/ptrace.h>
 
 int main(void)
 {
@@ -49,8 +48,8 @@ int main(void)
 	OFFSET(__PT_R14, pt_regs, gprs[14]);
 	OFFSET(__PT_R15, pt_regs, gprs[15]);
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
+	OFFSET(__PT_INT_CODE, pt_regs, int_code);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
-	OFFSET(__PT_CR1, pt_regs, cr1);
 	OFFSET(__PT_LAST_BREAK, pt_regs, last_break);
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
@@ -76,7 +75,8 @@ int main(void)
 	OFFSET(__LC_EXT_CPU_ADDR, lowcore, ext_cpu_addr);
 	OFFSET(__LC_EXT_INT_CODE, lowcore, ext_int_code);
 	OFFSET(__LC_PGM_ILC, lowcore, pgm_ilc);
-	OFFSET(__LC_PGM_INT_CODE, lowcore, pgm_code);
+	OFFSET(__LC_PGM_CODE, lowcore, pgm_code);
+	OFFSET(__LC_PGM_INT_CODE, lowcore, pgm_int_code);
 	OFFSET(__LC_DATA_EXC_CODE, lowcore, data_exc_code);
 	OFFSET(__LC_MON_CLASS_NR, lowcore, mon_class_num);
 	OFFSET(__LC_PER_CODE, lowcore, per_code);
@@ -122,7 +122,6 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_TIMER, lowcore, last_update_timer);
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
-	OFFSET(__LC_BOOT_CLOCK, lowcore, boot_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
@@ -175,12 +174,6 @@ int main(void)
 	DEFINE(OLDMEM_SIZE, PARMAREA + offsetof(struct parmarea, oldmem_size));
 	DEFINE(COMMAND_LINE, PARMAREA + offsetof(struct parmarea, command_line));
 	DEFINE(MAX_COMMAND_LINE_SIZE, PARMAREA + offsetof(struct parmarea, max_command_line_size));
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	/* function graph return value tracing */
-	OFFSET(__FGRAPH_RET_GPR2, fgraph_ret_regs, gpr2);
-	OFFSET(__FGRAPH_RET_FP, fgraph_ret_regs, fp);
-	DEFINE(__FGRAPH_RET_SIZE, sizeof(struct fgraph_ret_regs));
-#endif
 	OFFSET(__FTRACE_REGS_PT_REGS, __arch_ftrace_regs, regs);
 	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct __arch_ftrace_regs));
 

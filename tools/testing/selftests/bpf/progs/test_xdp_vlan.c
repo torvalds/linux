@@ -102,8 +102,8 @@ bool parse_eth_frame(struct ethhdr *eth, void *data_end, struct parse_pkt *pkt)
 #define TESTVLAN 4011 /* 0xFAB */
 // #define TO_VLAN  4000 /* 0xFA0 (hint 0xOA0 = 160) */
 
-SEC("xdp_drop_vlan_4011")
-int  xdp_prognum0(struct xdp_md *ctx)
+SEC("xdp")
+int xdp_drop_vlan_4011(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -144,8 +144,8 @@ Load prog with ip tool:
 /* Changing VLAN to zero, have same practical effect as removing the VLAN. */
 #define TO_VLAN	0
 
-SEC("xdp_vlan_change")
-int  xdp_prognum1(struct xdp_md *ctx)
+SEC("xdp")
+int xdp_vlan_change(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -178,8 +178,8 @@ int  xdp_prognum1(struct xdp_md *ctx)
 #endif
 #define VLAN_HDR_SZ	4	/* bytes */
 
-SEC("xdp_vlan_remove_outer")
-int  xdp_prognum2(struct xdp_md *ctx)
+SEC("xdp")
+int xdp_vlan_remove_outer(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -224,8 +224,8 @@ void shift_mac_4bytes_32bit(void *data)
 	p[1] = p[0];
 }
 
-SEC("xdp_vlan_remove_outer2")
-int  xdp_prognum3(struct xdp_md *ctx)
+SEC("xdp")
+int xdp_vlan_remove_outer2(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -254,8 +254,8 @@ int  xdp_prognum3(struct xdp_md *ctx)
  * The TC-clsact eBPF programs (currently) need to be attach via TC commands
  */
 
-SEC("tc_vlan_push")
-int _tc_progA(struct __sk_buff *ctx)
+SEC("tc")
+int tc_vlan_push(struct __sk_buff *ctx)
 {
 	bpf_skb_vlan_push(ctx, bpf_htons(ETH_P_8021Q), TESTVLAN);
 

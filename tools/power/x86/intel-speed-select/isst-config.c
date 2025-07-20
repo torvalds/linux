@@ -16,7 +16,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.20";
+static const char *version_str = "v1.23";
 
 static const int supported_api_ver = 3;
 static struct isst_if_platform_info isst_platform_info;
@@ -26,6 +26,7 @@ static FILE *outf;
 
 static int cpu_model;
 static int cpu_stepping;
+static int extended_family;
 
 #define MAX_CPUS_IN_ONE_REQ 512
 static short max_target_cpus;
@@ -46,8 +47,9 @@ static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
 static int cgroupv2;
+static int max_pkg_id;
 static int max_die_id;
-static int max_punit_id;
+static int max_die_id_package_0;
 
 /* clos related */
 static int current_clos = -1;
@@ -142,6 +144,14 @@ int is_icx_platform(void)
 	return 0;
 }
 
+static int is_dmr_plus_platform(void)
+{
+	if (extended_family == 0x04)
+		return 1;
+
+	return 0;
+}
+
 static int update_cpu_model(void)
 {
 	unsigned int ebx, ecx, edx;
@@ -149,6 +159,7 @@ static int update_cpu_model(void)
 
 	__cpuid(1, fms, ebx, ecx, edx);
 	family = (fms >> 8) & 0xf;
+	extended_family = (fms >> 20) & 0x0f;
 	cpu_model = (fms >> 4) & 0xf;
 	if (family == 6 || family == 0xf)
 		cpu_model += ((fms >> 16) & 0xf) << 4;
@@ -557,6 +568,8 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 		if (id.pkg < 0 || id.die < 0 || id.punit < 0)
 			continue;
 
+		id.die = id.die % (max_die_id_package_0 + 1);
+
 		valid_mask[id.pkg][id.die] = 1;
 
 		if (cpus[id.pkg][id.die][id.punit] == -1)
@@ -564,11 +577,11 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 	}
 
 	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
-		if (max_die_id == max_punit_id) {
+		if (max_die_id > max_pkg_id) {
 			for (k = 0; k < MAX_PUNIT_PER_DIE && k < MAX_DIE_PER_PACKAGE; k++) {
 				id.cpu = cpus[i][k][k];
 				id.pkg = i;
-				id.die = k;
+				id.die = get_physical_die_id(id.cpu);
 				id.punit = k;
 				if (isst_is_punit_valid(&id))
 					callback(&id, arg1, arg2, arg3, arg4);
@@ -586,7 +599,10 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 			for (k = 0; k < MAX_PUNIT_PER_DIE; k++) {
 				id.cpu = cpus[i][j][k];
 				id.pkg = i;
-				id.die = j;
+				if (id.cpu >= 0)
+					id.die = get_physical_die_id(id.cpu);
+				else
+					id.die = id.pkg;
 				id.punit = k;
 				if (isst_is_punit_valid(&id))
 					callback(&id, arg1, arg2, arg3, arg4);
@@ -788,6 +804,8 @@ static void create_cpu_map(void)
 		cpu_map[i].die_id = die_id;
 		cpu_map[i].core_id = core_id;
 
+		if (max_pkg_id < pkg_id)
+			max_pkg_id = pkg_id;
 
 		punit_id = 0;
 
@@ -812,8 +830,8 @@ static void create_cpu_map(void)
 		if (max_die_id < die_id)
 			max_die_id = die_id;
 
-		if (max_punit_id < cpu_map[i].punit_id)
-			max_punit_id = cpu_map[i].punit_id;
+		if (!pkg_id && max_die_id_package_0 < die_id)
+			max_die_id_package_0 = die_id;
 
 		debug_printf(
 			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",
@@ -1509,7 +1527,8 @@ display_result:
 		usleep(2000);
 
 		/* Adjusting uncore freq */
-		isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
+		if (!is_dmr_plus_platform())
+			isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
 
 		fprintf(stderr, "Option is set to online/offline\n");
 		ctdp_level.core_cpumask_size =

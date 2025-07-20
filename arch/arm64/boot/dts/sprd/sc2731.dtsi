@@ -94,17 +94,17 @@
 			nvmem-cells = <&adc_big_scale>, <&adc_small_scale>;
 		};
 
-		fuel-gauge@a00 {
+		pmic_fgu: fuel-gauge@a00 {
 			compatible = "sprd,sc2731-fgu";
 			reg = <0xa00>;
-			bat-detect-gpio = <&pmic_eic 9 GPIO_ACTIVE_HIGH>;
+			battery-detect-gpios = <&pmic_eic 9 GPIO_ACTIVE_HIGH>;
 			io-channels = <&pmic_adc 3>, <&pmic_adc 6>;
 			io-channel-names = "bat-temp", "charge-vol";
-			monitored-battery = <&bat>;
 			nvmem-cell-names = "fgu_calib";
 			nvmem-cells = <&fgu_calib>;
 			interrupt-parent = <&sc2731_pmic>;
 			interrupts = <4>;
+			status = "disabled";
 		};
 
 		vibrator@ec8 {

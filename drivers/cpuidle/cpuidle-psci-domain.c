@@ -43,7 +43,7 @@ static int psci_pd_power_off(struct generic_pm_domain *pd)
 
 	/* OSI mode is enabled, set the corresponding domain state. */
 	pd_state = state->data;
-	psci_set_domain_state(*pd_state);
+	psci_set_domain_state(pd, pd->state_idx, *pd_state);
 
 	return 0;
 }
@@ -72,6 +72,7 @@ static int psci_pd_init(struct device_node *np, bool use_osi)
 	 */
 	if (use_osi) {
 		pd->power_off = psci_pd_power_off;
+		pd->flags |= GENPD_FLAG_ACTIVE_WAKEUP;
 		if (IS_ENABLED(CONFIG_PREEMPT_RT))
 			pd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
 	} else {

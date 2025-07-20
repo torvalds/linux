@@ -2133,9 +2133,9 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
 			 * there may be other finalized records beyond that
 			 * need to be printed for a panic situation. If this
 			 * is the panic CPU, skip this
-			 * non-existent/non-finalized record unless it is
-			 * at or beyond the head, in which case it is not
-			 * possible to continue.
+			 * non-existent/non-finalized record unless non-panic
+			 * CPUs are still running and their debugging is
+			 * explicitly enabled.
 			 *
 			 * Note that new messages printed on panic CPU are
 			 * finalized when we are here. The only exception
@@ -2143,10 +2143,13 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
 			 * But it would have the sequence number returned
 			 * by "prb_next_reserve_seq() - 1".
 			 */
-			if (this_cpu_in_panic() && ((*seq + 1) < prb_next_reserve_seq(rb)))
+			if (this_cpu_in_panic() &&
+			    (!debug_non_panic_cpus || legacy_allow_panic_sync) &&
+			    ((*seq + 1) < prb_next_reserve_seq(rb))) {
 				(*seq)++;
-			else
+			} else {
 				return false;
+			}
 		}
 	}
 

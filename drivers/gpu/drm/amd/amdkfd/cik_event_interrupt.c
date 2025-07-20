@@ -91,7 +91,6 @@ static void cik_event_interrupt_wq(struct kfd_node *dev,
 	const struct cik_ih_ring_entry *ihre =
 			(const struct cik_ih_ring_entry *)ih_ring_entry;
 	uint32_t context_id = ihre->data & 0xfffffff;
-	unsigned int vmid  = (ihre->ring_id & 0x0000ff00) >> 8;
 	u32 pasid = (ihre->ring_id & 0xffff0000) >> 16;
 
 	if (pasid == 0)
@@ -107,20 +106,26 @@ static void cik_event_interrupt_wq(struct kfd_node *dev,
 		kfd_signal_hw_exception_event(pasid);
 	else if (ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
 		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) {
+		struct kfd_process_device *pdd = NULL;
 		struct kfd_vm_fault_info info;
+		struct kfd_process *p;
 
 		kfd_smi_event_update_vmfault(dev, pasid);
-		kfd_dqm_evict_pasid(dev->dqm, pasid);
+		p = kfd_lookup_process_by_pasid(pasid, &pdd);
+		if (!pdd)
+			return;
+
+		kfd_evict_process_device(pdd);
 
 		memset(&info, 0, sizeof(info));
 		amdgpu_amdkfd_gpuvm_get_vm_fault_info(dev->adev, &info);
-		if (!info.page_addr && !info.status)
+		if (!info.page_addr && !info.status) {
+			kfd_unref_process(p);
 			return;
+		}
 
-		if (info.vmid == vmid)
-			kfd_signal_vm_fault_event(dev, pasid, &info, NULL);
-		else
-			kfd_signal_vm_fault_event(dev, pasid, NULL, NULL);
+		kfd_signal_vm_fault_event(pdd, &info, NULL);
+		kfd_unref_process(p);
 	}
 }
 

@@ -196,7 +196,7 @@ will see the assembler code for the routine shown, but if your kernel has
 debug symbols the C code will also be available. (Debug symbols can be enabled
 in the kernel hacking menu of the menu configuration.) For example::
 
-    $ objdump -r -S -l --disassemble net/dccp/ipv4.o
+    $ objdump -r -S -l --disassemble net/ipv4/tcp.o
 
 .. note::
 
@@ -368,12 +368,3 @@ processed by ``klogd``::
 	Aug 29 09:51:01 blizard kernel: Call Trace: [oops:_oops_ioctl+48/80] [_sys_ioctl+254/272] [_system_call+82/128]
 	Aug 29 09:51:01 blizard kernel: Code: c7 00 05 00 00 00 eb 08 90 90 90 90 90 90 90 90 89 ec 5d c3
 
----------------------------------------------------------------------------
-
-::
-
-  Dr. G.W. Wettstein           Oncology Research Div. Computing Facility
-  Roger Maris Cancer Center    INTERNET: greg@wind.rmcc.com
-  820 4th St. N.
-  Fargo, ND  58122
-  Phone: 701-234-7556

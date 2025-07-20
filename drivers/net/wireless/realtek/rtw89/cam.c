@@ -6,6 +6,7 @@
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
+#include "ps.h"
 
 static struct sk_buff *
 rtw89_cam_get_sec_key_cmd(struct rtw89_dev *rtwdev,
@@ -135,8 +136,8 @@ again:
 }
 
 static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
-					  struct rtw89_sec_cam_entry *sec_cam,
-					  struct ieee80211_key_conf *key,
+					  const struct rtw89_sec_cam_entry *sec_cam,
+					  const struct ieee80211_key_conf *key,
 					  u8 *key_idx)
 {
 	u8 idx;
@@ -246,8 +247,8 @@ static int __rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 static int __rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 				      struct rtw89_vif_link *rtwvif_link,
 				      struct rtw89_sta_link *rtwsta_link,
-				      struct ieee80211_key_conf *key,
-				      struct rtw89_sec_cam_entry *sec_cam)
+				      const struct ieee80211_key_conf *key,
+				      const struct rtw89_sec_cam_entry *sec_cam)
 {
 	struct rtw89_addr_cam_entry *addr_cam;
 	u8 key_idx = 0;
@@ -286,6 +287,22 @@ static int __rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+int rtw89_cam_attach_link_sec_cam(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link,
+				  u8 sec_cam_idx)
+{
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+	const struct rtw89_sec_cam_entry *sec_cam;
+
+	sec_cam = cam_info->sec_entries[sec_cam_idx];
+	if (!sec_cam)
+		return -ENOENT;
+
+	return __rtw89_cam_attach_sec_cam(rtwdev, rtwvif_link, rtwsta_link,
+					  sec_cam->key_conf, sec_cam);
+}
+
 static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta,
@@ -305,6 +322,9 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 	}
 
 	rtwvif = vif_to_rtwvif(vif);
+
+	if (rtwsta)
+		clear_bit(sec_cam->sec_cam_idx, rtwsta->pairwise_sec_cam_map);
 
 	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
 		rtwsta_link = rtwsta ? rtwsta->links[link_id] : NULL;
@@ -369,6 +389,8 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 			return ret;
 	}
 
+	set_bit(sec_cam->sec_cam_idx, rtwsta->pairwise_sec_cam_map);
+
 	return 0;
 }
 
@@ -410,6 +432,9 @@ static int rtw89_cam_sec_key_install(struct rtw89_dev *rtwdev,
 	sec_cam->len = RTW89_SEC_CAM_LEN;
 	sec_cam->ext_key = ext_key;
 	memcpy(sec_cam->key, key->key, key->keylen);
+
+	sec_cam->key_conf = key;
+
 	ret = rtw89_cam_send_sec_key_cmd(rtwdev, sec_cam);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to send sec key cmd: %d\n", ret);
@@ -445,12 +470,24 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 	bool ext_key = false;
 	int ret;
 
+	if (ieee80211_vif_is_mld(vif) && !chip->hw_mlo_bmc_crypto &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return -EOPNOTSUPP;
+
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
+		rtw89_leave_ips_by_hwflags(rtwdev);
 		hw_key_type = RTW89_SEC_KEY_TYPE_WEP40;
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
+		rtw89_leave_ips_by_hwflags(rtwdev);
 		hw_key_type = RTW89_SEC_KEY_TYPE_WEP104;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (!chip->hw_tkip_crypto)
+			return -EOPNOTSUPP;
+		hw_key_type = RTW89_SEC_KEY_TYPE_TKIP;
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		hw_key_type = RTW89_SEC_KEY_TYPE_CCMP128;

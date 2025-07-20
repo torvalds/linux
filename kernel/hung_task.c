@@ -22,6 +22,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/sysctl.h>
+#include <linux/hung_task.h>
 
 #include <trace/events/sched.h>
 
@@ -93,6 +94,75 @@ static struct notifier_block panic_block = {
 	.notifier_call = hung_task_panic,
 };
 
+
+#ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
+static void debug_show_blocker(struct task_struct *task)
+{
+	struct task_struct *g, *t;
+	unsigned long owner, blocker, blocker_type;
+
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "No rcu lock held");
+
+	blocker = READ_ONCE(task->blocker);
+	if (!blocker)
+		return;
+
+	blocker_type = hung_task_get_blocker_type(blocker);
+
+	switch (blocker_type) {
+	case BLOCKER_TYPE_MUTEX:
+		owner = mutex_get_owner(
+			(struct mutex *)hung_task_blocker_to_lock(blocker));
+		break;
+	case BLOCKER_TYPE_SEM:
+		owner = sem_last_holder(
+			(struct semaphore *)hung_task_blocker_to_lock(blocker));
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+
+	if (unlikely(!owner)) {
+		switch (blocker_type) {
+		case BLOCKER_TYPE_MUTEX:
+			pr_err("INFO: task %s:%d is blocked on a mutex, but the owner is not found.\n",
+			       task->comm, task->pid);
+			break;
+		case BLOCKER_TYPE_SEM:
+			pr_err("INFO: task %s:%d is blocked on a semaphore, but the last holder is not found.\n",
+			       task->comm, task->pid);
+			break;
+		}
+		return;
+	}
+
+	/* Ensure the owner information is correct. */
+	for_each_process_thread(g, t) {
+		if ((unsigned long)t != owner)
+			continue;
+
+		switch (blocker_type) {
+		case BLOCKER_TYPE_MUTEX:
+			pr_err("INFO: task %s:%d is blocked on a mutex likely owned by task %s:%d.\n",
+			       task->comm, task->pid, t->comm, t->pid);
+			break;
+		case BLOCKER_TYPE_SEM:
+			pr_err("INFO: task %s:%d blocked on a semaphore likely last held by task %s:%d\n",
+			       task->comm, task->pid, t->comm, t->pid);
+			break;
+		}
+		sched_show_task(t);
+		return;
+	}
+}
+#else
+static inline void debug_show_blocker(struct task_struct *task)
+{
+}
+#endif
+
 static void check_hung_task(struct task_struct *t, unsigned long timeout)
 {
 	unsigned long switch_count = t->nvcsw + t->nivcsw;
@@ -147,9 +217,12 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 			print_tainted(), init_utsname()->release,
 			(int)strcspn(init_utsname()->version, " "),
 			init_utsname()->version);
+		if (t->flags & PF_POSTCOREDUMP)
+			pr_err("      Blocked by coredump.\n");
 		pr_err("\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
 			" disables this message.\n");
 		sched_show_task(t);
+		debug_show_blocker(t);
 		hung_task_show_lock = true;
 
 		if (sysctl_hung_task_all_cpu_backtrace)
@@ -272,7 +345,7 @@ static int proc_dohung_task_timeout_secs(const struct ctl_table *table, int writ
  * and hung_task_check_interval_secs
  */
 static const unsigned long hung_task_timeout_max = (LONG_MAX / HZ);
-static struct ctl_table hung_task_sysctls[] = {
+static const struct ctl_table hung_task_sysctls[] = {
 #ifdef CONFIG_SMP
 	{
 		.procname	= "hung_task_all_cpu_backtrace",

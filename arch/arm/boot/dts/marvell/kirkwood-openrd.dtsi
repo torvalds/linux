@@ -53,7 +53,7 @@
 			cd-gpios = <&gpio0 29 9>;
 		};
 		gpio@10100 {
-			p28 {
+			p28-hog {
 				gpio-hog;
 				gpios = <28 GPIO_ACTIVE_HIGH>;
 				/*
@@ -71,7 +71,7 @@
 			};
 		};
 		gpio@10140 {
-			p2 {
+			p2-hog {
 				gpio-hog;
 				gpios = <2 GPIO_ACTIVE_HIGH>;
 				/*

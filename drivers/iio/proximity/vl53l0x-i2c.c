@@ -94,8 +94,8 @@ static irqreturn_t vl53l0x_trigger_handler(int irq, void *priv)
 		return -EREMOTEIO;
 
 	data->scan.chan = get_unaligned_be16(&buffer[10]);
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    iio_get_time_ns(indio_dev));
 
 	iio_trigger_notify_done(indio_dev->trig);
 	vl53l0x_clear_irq(data);

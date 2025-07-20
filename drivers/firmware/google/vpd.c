@@ -56,7 +56,7 @@ static struct vpd_section ro_vpd;
 static struct vpd_section rw_vpd;
 
 static ssize_t vpd_attrib_read(struct file *filp, struct kobject *kobp,
-			       struct bin_attribute *bin_attr, char *buf,
+			       const struct bin_attribute *bin_attr, char *buf,
 			       loff_t pos, size_t count)
 {
 	struct vpd_attrib_info *info = bin_attr->private;
@@ -121,7 +121,7 @@ static int vpd_section_attrib_add(const u8 *key, u32 key_len,
 	info->bin_attr.attr.name = info->key;
 	info->bin_attr.attr.mode = 0444;
 	info->bin_attr.size = value_len;
-	info->bin_attr.read = vpd_attrib_read;
+	info->bin_attr.read_new = vpd_attrib_read;
 	info->bin_attr.private = info;
 
 	info->value = value;
@@ -156,7 +156,7 @@ static void vpd_section_attrib_destroy(struct vpd_section *sec)
 }
 
 static ssize_t vpd_section_read(struct file *filp, struct kobject *kobp,
-				struct bin_attribute *bin_attr, char *buf,
+				const struct bin_attribute *bin_attr, char *buf,
 				loff_t pos, size_t count)
 {
 	struct vpd_section *sec = bin_attr->private;
@@ -201,7 +201,7 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 	sec->bin_attr.attr.name = sec->raw_name;
 	sec->bin_attr.attr.mode = 0444;
 	sec->bin_attr.size = size;
-	sec->bin_attr.read = vpd_section_read;
+	sec->bin_attr.read_new = vpd_section_read;
 	sec->bin_attr.private = sec;
 
 	err = sysfs_create_bin_file(vpd_kobj, &sec->bin_attr);

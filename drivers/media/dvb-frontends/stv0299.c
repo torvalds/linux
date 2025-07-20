@@ -250,7 +250,7 @@ static int stv0299_get_symbolrate (struct stv0299_state* state)
 	offset /= 128;
 
 	dprintk ("%s : srate = %i\n", __func__, srate);
-	dprintk ("%s : ofset = %i\n", __func__, offset);
+	dprintk ("%s : offset = %i\n", __func__, offset);
 
 	srate += offset;
 

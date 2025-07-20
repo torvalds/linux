@@ -183,6 +183,7 @@ enum atom_dgpu_vram_type {
   ATOM_DGPU_VRAM_TYPE_HBM2E = 0x61,
   ATOM_DGPU_VRAM_TYPE_GDDR6 = 0x70,
   ATOM_DGPU_VRAM_TYPE_HBM3 = 0x80,
+	ATOM_DGPU_VRAM_TYPE_HBM3E = 0x81,
 };
 
 enum atom_dp_vs_preemph_def{
@@ -1300,12 +1301,17 @@ struct atom_ext_display_path
 
 //usCaps
 enum ext_display_path_cap_def {
-	EXT_DISPLAY_PATH_CAPS__HBR2_DISABLE =           0x0001,
-	EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN =         0x0002,
-	EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK =          0x007C,
-	EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204 =      (0x01 << 2), //PI redriver chip
-	EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT = (0x02 << 2), //TI retimer chip
-	EXT_DISPLAY_PATH_CAPS__HDMI20_PARADE_PS175 =    (0x03 << 2)  //Parade DP->HDMI recoverter chip
+  EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK =		0x007E,
+  AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK =		0x007E,
+  AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN =		(0x01 << 1),
+  AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204 =	(0x02 << 1),
+  AMD_EXT_DISPLAY_PATH_CAPS__DP_EARLY_8B10B_TPS2 =	(0x03 << 1),
+  AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT =	(0x04 << 1),
+  AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_PARADE_PS175 =	(0x06 << 1),
+  EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN =		(0x07 << 1),
+  EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204 =		(0x08 << 1),   //PI redriver chip
+  EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT =	(0x09 << 1),   //TI retimer chip
+  EXT_DISPLAY_PATH_CAPS__AMD_INTERNAL =		(0x0a << 1),   //AMD internal customer chip placeholder
 };
 
 struct atom_external_display_connection_info
@@ -1708,7 +1714,7 @@ enum atom_system_vbiosmisc_def{
 
 // gpucapinfo
 enum atom_system_gpucapinf_def{
-  SYS_INFO_GPUCAPS__ENABEL_DFS_BYPASS  = 0x10,
+  SYS_INFO_GPUCAPS__ENABLE_DFS_BYPASS  = 0x10,
 };
 
 //dpphy_override

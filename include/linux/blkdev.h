@@ -182,7 +182,6 @@ struct gendisk {
 	struct list_head slave_bdevs;
 #endif
 	struct timer_rand_state *random;
-	atomic_t sync_io;		/* RAID */
 	struct disk_events *ev;
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -196,10 +195,11 @@ struct gendisk {
 	unsigned int		zone_capacity;
 	unsigned int		last_zone_capacity;
 	unsigned long __rcu	*conv_zones_bitmap;
-	unsigned int            zone_wplugs_hash_bits;
-	spinlock_t              zone_wplugs_lock;
+	unsigned int		zone_wplugs_hash_bits;
+	atomic_t		nr_zone_wplugs;
+	spinlock_t		zone_wplugs_lock;
 	struct mempool_s	*zone_wplugs_pool;
-	struct hlist_head       *zone_wplugs_hash;
+	struct hlist_head	*zone_wplugs_hash;
 	struct workqueue_struct *zone_wplugs_wq;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -217,6 +217,8 @@ struct gendisk {
 	 * devices that do not have multiple independent access ranges.
 	 */
 	struct blk_independent_access_ranges *ia_ranges;
+
+	struct mutex rqos_state_mutex;	/* rqos state change mutex */
 };
 
 /**
@@ -267,10 +269,21 @@ static inline dev_t disk_devt(struct gendisk *disk)
 	return MKDEV(disk->major, disk->first_minor);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+/*
+ * We should strive for 1 << (PAGE_SHIFT + MAX_PAGECACHE_ORDER)
+ * however we constrain this to what we can validate and test.
+ */
+#define BLK_MAX_BLOCK_SIZE      SZ_64K
+#else
+#define BLK_MAX_BLOCK_SIZE      PAGE_SIZE
+#endif
+
+
 /* blk_validate_limits() validates bsize, so drivers don't usually need to */
 static inline int blk_validate_block_size(unsigned long bsize)
 {
-	if (bsize < 512 || bsize > PAGE_SIZE || !is_power_of_2(bsize))
+	if (bsize < 512 || bsize > BLK_MAX_BLOCK_SIZE || !is_power_of_2(bsize))
 		return -EINVAL;
 
 	return 0;
@@ -324,15 +337,12 @@ typedef unsigned int __bitwise blk_features_t;
 /* skip this queue in blk_mq_(un)quiesce_tagset */
 #define BLK_FEAT_SKIP_TAGSET_QUIESCE	((__force blk_features_t)(1u << 13))
 
-/* bounce all highmem pages */
-#define BLK_FEAT_BOUNCE_HIGH		((__force blk_features_t)(1u << 14))
-
 /* undocumented magic for bcache */
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
 
-/* stacked device can/does support atomic writes */
-#define BLK_FEAT_ATOMIC_WRITES_STACKED \
+/* atomic writes enabled */
+#define BLK_FEAT_ATOMIC_WRITES \
 	((__force blk_features_t)(1u << 16))
 
 /*
@@ -340,7 +350,7 @@ typedef unsigned int __bitwise blk_features_t;
  */
 #define BLK_FEAT_INHERIT_MASK \
 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
-	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH | \
+	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | \
 	 BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE)
 
 /* internal flags in queue_limits.flags */
@@ -367,6 +377,7 @@ struct queue_limits {
 	unsigned int		max_sectors;
 	unsigned int		max_user_sectors;
 	unsigned int		max_segment_size;
+	unsigned int		min_segment_size;
 	unsigned int		physical_block_size;
 	unsigned int		logical_block_size;
 	unsigned int		alignment_offset;
@@ -396,6 +407,9 @@ struct queue_limits {
 	unsigned short		max_segments;
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
+
+	unsigned short		max_write_streams;
+	unsigned int		write_stream_granularity;
 
 	unsigned int		max_open_zones;
 	unsigned int		max_active_zones;
@@ -560,8 +574,22 @@ struct request_queue {
 	struct blk_flush_queue	*fq;
 	struct list_head	flush_list;
 
+	/*
+	 * Protects against I/O scheduler switching, particularly when updating
+	 * q->elevator. Since the elevator update code path may also modify q->
+	 * nr_requests and wbt latency, this lock also protects the sysfs attrs
+	 * nr_requests and wbt_lat_usec. Additionally the nr_hw_queues update
+	 * may modify hctx tags, reserved-tags and cpumask, so this lock also
+	 * helps protect the hctx sysfs/debugfs attrs. To ensure proper locking
+	 * order during an elevator or nr_hw_queue update, first freeze the
+	 * queue, then acquire ->elevator_lock.
+	 */
+	struct mutex		elevator_lock;
+
 	struct mutex		sysfs_lock;
-	struct mutex		sysfs_dir_lock;
+	/*
+	 * Protects queue limits and also sysfs attribute read_ahead_kb.
+	 */
 	struct mutex		limits_lock;
 
 	/*
@@ -581,6 +609,12 @@ struct request_queue {
 #ifdef CONFIG_LOCKDEP
 	struct task_struct	*mq_freeze_owner;
 	int			mq_freeze_owner_depth;
+	/*
+	 * Records disk & queue state in current context, used in unfreeze
+	 * queue
+	 */
+	bool			mq_freeze_disk_dead;
+	bool			mq_freeze_queue_dying;
 #endif
 	wait_queue_head_t	mq_freeze_wq;
 	/*
@@ -599,8 +633,6 @@ struct request_queue {
 	 * Serializes all debugfs metadata operations using the above dentries.
 	 */
 	struct mutex		debugfs_mutex;
-
-	bool			mq_sysfs_init_done;
 };
 
 /* Keep blk_queue_flag_name[] in sync with the definitions below */
@@ -618,6 +650,8 @@ enum {
 	QUEUE_FLAG_RQ_ALLOC_TIME,	/* record rq->alloc_time_ns */
 	QUEUE_FLAG_HCTX_ACTIVE,		/* at least one blk-mq hctx is active */
 	QUEUE_FLAG_SQ_SCHED,		/* single queue style io dispatch */
+	QUEUE_FLAG_DISABLE_WBT_DEF,	/* for sched to disable/enable wbt */
+	QUEUE_FLAG_NO_ELV_SWITCH,	/* can't switch elevator any more */
 	QUEUE_FLAG_MAX
 };
 
@@ -653,6 +687,10 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 #define blk_queue_sq_sched(q)	test_bit(QUEUE_FLAG_SQ_SCHED, &(q)->queue_flags)
 #define blk_queue_skip_tagset_quiesce(q) \
 	((q)->limits.features & BLK_FEAT_SKIP_TAGSET_QUIESCE)
+#define blk_queue_disable_wbt(q)	\
+	test_bit(QUEUE_FLAG_DISABLE_WBT_DEF, &(q)->queue_flags)
+#define blk_queue_no_elv_switch(q)	\
+	test_bit(QUEUE_FLAG_NO_ELV_SWITCH, &(q)->queue_flags)
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
@@ -686,33 +724,11 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 		(q->limits.features & BLK_FEAT_ZONED);
 }
 
-#ifdef CONFIG_BLK_DEV_ZONED
-static inline unsigned int disk_nr_zones(struct gendisk *disk)
-{
-	return disk->nr_zones;
-}
-bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
-#else /* CONFIG_BLK_DEV_ZONED */
-static inline unsigned int disk_nr_zones(struct gendisk *disk)
-{
-	return 0;
-}
-static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
-{
-	return false;
-}
-#endif /* CONFIG_BLK_DEV_ZONED */
-
 static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
 {
 	if (!blk_queue_is_zoned(disk->queue))
 		return 0;
 	return sector >> ilog2(disk->queue->limits.chunk_sectors);
-}
-
-static inline unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	return disk_nr_zones(bdev->bd_disk);
 }
 
 static inline unsigned int bdev_max_open_zones(struct block_device *bdev)
@@ -819,6 +835,51 @@ static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
 {
 	return bdev_nr_sectors(sb->s_bdev) >>
 		(sb->s_blocksize_bits - SECTOR_SHIFT);
+}
+
+#ifdef CONFIG_BLK_DEV_ZONED
+static inline unsigned int disk_nr_zones(struct gendisk *disk)
+{
+	return disk->nr_zones;
+}
+bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
+
+/**
+ * disk_zone_capacity - returns the zone capacity of zone containing @sector
+ * @disk:	disk to work with
+ * @sector:	sector number within the querying zone
+ *
+ * Returns the zone capacity of a zone containing @sector. @sector can be any
+ * sector in the zone.
+ */
+static inline unsigned int disk_zone_capacity(struct gendisk *disk,
+					      sector_t sector)
+{
+	sector_t zone_sectors = disk->queue->limits.chunk_sectors;
+
+	if (sector + zone_sectors >= get_capacity(disk))
+		return disk->last_zone_capacity;
+	return disk->zone_capacity;
+}
+static inline unsigned int bdev_zone_capacity(struct block_device *bdev,
+					      sector_t pos)
+{
+	return disk_zone_capacity(bdev->bd_disk, pos);
+}
+#else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int disk_nr_zones(struct gendisk *disk)
+{
+	return 0;
+}
+static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
+{
+	return false;
+}
+#endif /* CONFIG_BLK_DEV_ZONED */
+
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	return disk_nr_zones(bdev->bd_disk);
 }
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
@@ -938,8 +999,7 @@ static inline unsigned int blk_boundary_sectors_left(sector_t offset,
  * the caller can modify.  The caller must call queue_limits_commit_update()
  * to finish the update.
  *
- * Context: process context.  The caller must have frozen the queue or ensured
- * that there is outstanding I/O by other means.
+ * Context: process context.
  */
 static inline struct queue_limits
 queue_limits_start_update(struct request_queue *q)
@@ -947,6 +1007,8 @@ queue_limits_start_update(struct request_queue *q)
 	mutex_lock(&q->limits_lock);
 	return q->limits;
 }
+int queue_limits_commit_update_frozen(struct request_queue *q,
+		struct queue_limits *lim);
 int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim);
 int queue_limits_set(struct request_queue *q, struct queue_limits *lim);
@@ -1238,6 +1300,13 @@ static inline unsigned int bdev_max_segments(struct block_device *bdev)
 	return queue_max_segments(bdev_get_queue(bdev));
 }
 
+static inline unsigned short bdev_max_write_streams(struct block_device *bdev)
+{
+	if (bdev_is_partition(bdev))
+		return 0;
+	return bdev_limits(bdev)->max_write_streams;
+}
+
 static inline unsigned queue_logical_block_size(const struct request_queue *q)
 {
 	return q->limits.logical_block_size;
@@ -1390,6 +1459,13 @@ static inline bool bdev_is_zone_start(struct block_device *bdev,
 				      sector_t sector)
 {
 	return bdev_offset_from_zone_start(bdev, sector) == 0;
+}
+
+/* Check whether @sector is a multiple of the zone size. */
+static inline bool bdev_is_zone_aligned(struct block_device *bdev,
+					sector_t sector)
+{
+	return bdev_is_zone_start(bdev, sector);
 }
 
 /**
@@ -1587,6 +1663,7 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 	return bio_end_io_acct_remapped(bio, start_time, bio->bi_bdev);
 }
 
+int bdev_validate_blocksize(struct block_device *bdev, int block_size);
 int set_blocksize(struct file *file, int size);
 
 int lookup_bdev(const char *pathname, dev_t *dev);
@@ -1643,10 +1720,6 @@ int bd_prepare_to_claim(struct block_device *bdev, void *holder,
 		const struct blk_holder_ops *hops);
 void bd_abort_claiming(struct block_device *bdev, void *holder);
 
-/* just for blk-cgroup, don't use elsewhere */
-struct block_device *blkdev_get_no_open(dev_t dev);
-void blkdev_put_no_open(struct block_device *bdev);
-
 struct block_device *I_BDEV(struct inode *inode);
 struct block_device *file_bdev(struct file *bdev_file);
 bool disk_live(struct gendisk *disk);
@@ -1658,7 +1731,7 @@ int sync_blockdev(struct block_device *bdev);
 int sync_blockdev_range(struct block_device *bdev, loff_t lstart, loff_t lend);
 int sync_blockdev_nowait(struct block_device *bdev);
 void sync_bdevs(bool wait);
-void bdev_statx(struct path *, struct kstat *, u32);
+void bdev_statx(const struct path *path, struct kstat *stat, u32 request_mask);
 void printk_all_partitions(void);
 int __init early_lookup_bdev(const char *pathname, dev_t *dev);
 #else
@@ -1676,8 +1749,8 @@ static inline int sync_blockdev_nowait(struct block_device *bdev)
 static inline void sync_bdevs(bool wait)
 {
 }
-static inline void bdev_statx(struct path *path, struct kstat *stat,
-				u32 request_mask)
+static inline void bdev_statx(const struct path *path, struct kstat *stat,
+		u32 request_mask)
 {
 }
 static inline void printk_all_partitions(void)
@@ -1699,6 +1772,15 @@ struct io_comp_batch {
 	void (*complete)(struct io_comp_batch *);
 };
 
+static inline bool blk_atomic_write_start_sect_aligned(sector_t sector,
+						struct queue_limits *limits)
+{
+	unsigned int alignment = max(limits->atomic_write_hw_unit_min,
+				limits->atomic_write_hw_boundary);
+
+	return IS_ALIGNED(sector, alignment >> SECTOR_SHIFT);
+}
+
 static inline bool bdev_can_atomic_write(struct block_device *bdev)
 {
 	struct request_queue *bd_queue = bdev->bd_queue;
@@ -1707,15 +1789,9 @@ static inline bool bdev_can_atomic_write(struct block_device *bdev)
 	if (!limits->atomic_write_unit_min)
 		return false;
 
-	if (bdev_is_partition(bdev)) {
-		sector_t bd_start_sect = bdev->bd_start_sect;
-		unsigned int alignment =
-			max(limits->atomic_write_unit_min,
-			    limits->atomic_write_hw_boundary);
-
-		if (!IS_ALIGNED(bd_start_sect, alignment >> SECTOR_SHIFT))
-			return false;
-	}
+	if (bdev_is_partition(bdev))
+		return blk_atomic_write_start_sect_aligned(bdev->bd_start_sect,
+							limits);
 
 	return true;
 }

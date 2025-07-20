@@ -291,6 +291,10 @@ Example::
   # arch/x86/kernel/Makefile
   extra-y	+= vmlinux.lds
 
+extra-y is now deprecated because this is equivalent to:
+
+  always-$(KBUILD_BUILTIN) += vmlinux.lds
+
 $(extra-y) should only contain targets needed for vmlinux.
 
 Kbuild skips extra-y when vmlinux is apparently not a final goal.
@@ -318,9 +322,6 @@ ccflags-y, asflags-y and ldflags-y
   These three flags apply only to the kbuild makefile in which they
   are assigned. They are used for all the normal cc, as and ld
   invocations happening during a recursive build.
-  Note: Flags with the same behaviour were previously named:
-  EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
-  They are still supported but their usage is deprecated.
 
   ccflags-y specifies options for compiling with $(CC).
 
@@ -628,10 +629,10 @@ gcc-min-version
 
   Example::
 
-    cflags-$(call gcc-min-version, 70100) := -foo
+    cflags-$(call gcc-min-version, 110100) := -foo
 
   In this example, cflags-y will be assigned the value -foo if $(CC) is gcc and
-  $(CONFIG_GCC_VERSION) is >= 7.1.
+  $(CONFIG_GCC_VERSION) is >= 11.1.
 
 clang-min-version
   clang-min-version tests if the value of $(CONFIG_CLANG_VERSION) is greater
@@ -669,6 +670,20 @@ cc-cross-prefix
                     CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu-)
             endif
     endif
+
+$(RUSTC) support functions
+--------------------------
+
+rustc-min-version
+  rustc-min-version tests if the value of $(CONFIG_RUSTC_VERSION) is greater
+  than or equal to the provided value and evaluates to y if so.
+
+  Example::
+
+    rustflags-$(call rustc-min-version, 108500) := -Cfoo
+
+  In this example, rustflags-y will be assigned the value -Cfoo if
+  $(CONFIG_RUSTC_VERSION) is >= 1.85.0.
 
 $(LD) support functions
 -----------------------

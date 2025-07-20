@@ -4,6 +4,16 @@
 
 #include <linux/netdevice.h>
 
+/**
+ * struct netdev_config - queue-related configuration for a netdev
+ * @hds_thresh:		HDS Threshold value.
+ * @hds_config:		HDS value from userspace.
+ */
+struct netdev_config {
+	u32	hds_thresh;
+	u8	hds_config;
+};
+
 /* See the netdev.yaml spec for definition of each statistic */
 struct netdev_queue_stats_rx {
 	u64 bytes;
@@ -13,6 +23,7 @@ struct netdev_queue_stats_rx {
 	u64 hw_drops;
 	u64 hw_drop_overruns;
 
+	u64 csum_complete;
 	u64 csum_unnecessary;
 	u64 csum_none;
 	u64 csum_bad;
@@ -74,9 +85,11 @@ struct netdev_queue_stats_tx {
  * for some of the events is not maintained, and reliable "total" cannot
  * be provided).
  *
+ * Ops are called under the instance lock if netdev_need_ops_lock()
+ * returns true, otherwise under rtnl_lock.
  * Device drivers can assume that when collecting total device stats,
  * the @get_base_stats and subsequent per-queue calls are performed
- * "atomically" (without releasing the rtnl_lock).
+ * "atomically" (without releasing the relevant lock).
  *
  * Device drivers are encouraged to reset the per-queue statistics when
  * number of queues change. This is because the primary use case for
@@ -91,6 +104,12 @@ struct netdev_stat_ops {
 			       struct netdev_queue_stats_rx *rx,
 			       struct netdev_queue_stats_tx *tx);
 };
+
+void netdev_stat_queue_sum(struct net_device *netdev,
+			   int rx_start, int rx_end,
+			   struct netdev_queue_stats_rx *rx_sum,
+			   int tx_start, int tx_end,
+			   struct netdev_queue_stats_tx *tx_sum);
 
 /**
  * struct netdev_queue_mgmt_ops - netdev ops for queue management
@@ -107,6 +126,10 @@ struct netdev_stat_ops {
  *
  * @ndo_queue_stop:	Stop the RX queue at the specified index. The stopped
  *			queue's memory is written at the specified address.
+ *
+ * Note that @ndo_queue_mem_alloc and @ndo_queue_mem_free may be called while
+ * the interface is closed. @ndo_queue_start and @ndo_queue_stop will only
+ * be called for an interface which is open.
  */
 struct netdev_queue_mgmt_ops {
 	size_t			ndo_queue_mem_size;
@@ -265,27 +288,27 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
 
 #define netif_subqueue_try_stop(dev, idx, get_desc, start_thrs)		\
 	({								\
-		struct netdev_queue *txq;				\
+		struct netdev_queue *_txq;				\
 									\
-		txq = netdev_get_tx_queue(dev, idx);			\
-		netif_txq_try_stop(txq, get_desc, start_thrs);		\
+		_txq = netdev_get_tx_queue(dev, idx);			\
+		netif_txq_try_stop(_txq, get_desc, start_thrs);		\
 	})
 
 #define netif_subqueue_maybe_stop(dev, idx, get_desc, stop_thrs, start_thrs) \
 	({								\
-		struct netdev_queue *txq;				\
+		struct netdev_queue *_txq;				\
 									\
-		txq = netdev_get_tx_queue(dev, idx);			\
-		netif_txq_maybe_stop(txq, get_desc, stop_thrs, start_thrs); \
+		_txq = netdev_get_tx_queue(dev, idx);			\
+		netif_txq_maybe_stop(_txq, get_desc, stop_thrs, start_thrs); \
 	})
 
 #define netif_subqueue_completed_wake(dev, idx, pkts, bytes,		\
 				      get_desc, start_thrs)		\
 	({								\
-		struct netdev_queue *txq;				\
+		struct netdev_queue *_txq;				\
 									\
-		txq = netdev_get_tx_queue(dev, idx);			\
-		netif_txq_completed_wake(txq, pkts, bytes,		\
+		_txq = netdev_get_tx_queue(dev, idx);			\
+		netif_txq_completed_wake(_txq, pkts, bytes,		\
 					 get_desc, start_thrs);		\
 	})
 

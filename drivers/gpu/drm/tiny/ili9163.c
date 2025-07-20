@@ -7,8 +7,8 @@
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -118,7 +118,6 @@ static struct drm_driver ili9163_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9163",
 	.desc			= "Ilitek ILI9163",
-	.date			= "20210208",
 	.major			= 1,
 	.minor			= 0,
 };

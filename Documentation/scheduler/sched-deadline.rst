@@ -591,12 +591,13 @@ Deadline Task Scheduling
 
  The system wide settings are configured under the /proc virtual file system.
 
- For now the -rt knobs are used for -deadline admission control and the
- -deadline runtime is accounted against the -rt runtime. We realize that this
- isn't entirely desirable; however, it is better to have a small interface for
- now, and be able to change it easily later. The ideal situation (see 5.) is to
- run -rt tasks from a -deadline server; in which case the -rt bandwidth is a
- direct subset of dl_bw.
+ For now the -rt knobs are used for -deadline admission control and with
+ CONFIG_RT_GROUP_SCHED the -deadline runtime is accounted against the (root)
+ -rt runtime. With !CONFIG_RT_GROUP_SCHED the knob only serves for the -dl
+ admission control. We realize that this isn't entirely desirable; however, it
+ is better to have a small interface for now, and be able to change it easily
+ later. The ideal situation (see 5.) is to run -rt tasks from a -deadline
+ server; in which case the -rt bandwidth is a direct subset of dl_bw.
 
  This means that, for a root_domain comprising M CPUs, -deadline tasks
  can be created while the sum of their bandwidths stays below:

@@ -72,7 +72,7 @@ static struct tgfx {
 
 static void tgfx_timer(struct timer_list *t)
 {
-	struct tgfx *tgfx = from_timer(tgfx, t, timer);
+	struct tgfx *tgfx = timer_container_of(tgfx, t, timer);
 	struct input_dev *dev;
 	int data1, data2, i;
 
@@ -124,7 +124,7 @@ static void tgfx_close(struct input_dev *dev)
 	guard(mutex)(&tgfx->sem);
 
 	if (!--tgfx->used) {
-		del_timer_sync(&tgfx->timer);
+		timer_delete_sync(&tgfx->timer);
 		parport_write_control(tgfx->pd->port, 0x00);
 		parport_release(tgfx->pd);
 	}

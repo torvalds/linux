@@ -49,24 +49,10 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "C7 residency percent per package",
-        "MetricExpr": "cstate_pkg@c7\\-residency@ / TSC",
-        "MetricGroup": "Power",
-        "MetricName": "C7_Pkg_Residency",
-        "ScaleUnit": "100%"
-    },
-    {
         "BriefDescription": "C8 residency percent per package",
         "MetricExpr": "cstate_pkg@c8\\-residency@ / TSC",
         "MetricGroup": "Power",
         "MetricName": "C8_Pkg_Residency",
-        "ScaleUnit": "100%"
-    },
-    {
-        "BriefDescription": "C9 residency percent per package",
-        "MetricExpr": "cstate_pkg@c9\\-residency@ / TSC",
-        "MetricGroup": "Power",
-        "MetricName": "C9_Pkg_Residency",
         "ScaleUnit": "100%"
     },
     {
@@ -321,6 +307,11 @@
         "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l2hit"
     },
     {
+        "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss doesn't hit in the L2",
+        "MetricExpr": "100 * (MEM_BOUND_STALLS.IFETCH_LLC_HIT + MEM_BOUND_STALLS.IFETCH_DRAM_HIT) / MEM_BOUND_STALLS.IFETCH",
+        "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l2miss"
+    },
+    {
         "BriefDescription": "Percentage of ifetch miss bound stalls, where the ifetch miss hits in the L3",
         "MetricExpr": "100 * MEM_BOUND_STALLS.IFETCH_LLC_HIT / MEM_BOUND_STALLS.IFETCH",
         "MetricName": "tma_info_ifetch_miss_bound_%_ifetchmissbound_with_l3hit"
@@ -335,6 +326,12 @@
         "MetricExpr": "100 * MEM_BOUND_STALLS.LOAD_L2_HIT / MEM_BOUND_STALLS.LOAD",
         "MetricGroup": "load_store_bound",
         "MetricName": "tma_info_load_miss_bound_%_loadmissbound_with_l2hit"
+    },
+    {
+        "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that subsequently misses in the L2",
+        "MetricExpr": "100 * (MEM_BOUND_STALLS.LOAD_LLC_HIT + MEM_BOUND_STALLS.LOAD_DRAM_HIT) / MEM_BOUND_STALLS.LOAD",
+        "MetricGroup": "load_store_bound",
+        "MetricName": "tma_info_load_miss_bound_%_loadmissbound_with_l2miss"
     },
     {
         "BriefDescription": "Percentage of memory bound stalls where retirement is stalled due to an L1 miss that hit the L3",
@@ -459,7 +456,7 @@
     {
         "BriefDescription": "Percentage of time that the core is stalled due to a TPAUSE or UMWAIT instruction",
         "MetricExpr": "100 * SERIALIZATION.C01_MS_SCB / (5 * CPU_CLK_UNHALTED.CORE)",
-        "MetricName": "tma_info_serialization _%_tpause_cycles"
+        "MetricName": "tma_info_serialization_%_tpause_cycles"
     },
     {
         "BriefDescription": "Average CPU Utilization",
@@ -471,6 +468,12 @@
         "MetricExpr": "cpu@CPU_CLK_UNHALTED.CORE_P@k / CPU_CLK_UNHALTED.CORE",
         "MetricGroup": "Summary",
         "MetricName": "tma_info_system_kernel_utilization"
+    },
+    {
+        "BriefDescription": "PerfMon Event Multiplexing accuracy indicator",
+        "MetricExpr": "CPU_CLK_UNHALTED.CORE_P / CPU_CLK_UNHALTED.CORE",
+        "MetricName": "tma_info_system_mux",
+        "MetricThreshold": "tma_info_system_mux > 1.1 | tma_info_system_mux < 0.9"
     },
     {
         "BriefDescription": "Average Frequency Utilization relative nominal frequency",

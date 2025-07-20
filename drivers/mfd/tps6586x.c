@@ -363,7 +363,7 @@ static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 		new_irq_base = 0;
 	}
 
-	tps6586x->irq_domain = irq_domain_add_simple(tps6586x->dev->of_node,
+	tps6586x->irq_domain = irq_domain_create_simple(of_fwnode_handle(tps6586x->dev->of_node),
 				irq_num, new_irq_base, &tps6586x_domain_ops,
 				tps6586x);
 	if (!tps6586x->irq_domain) {

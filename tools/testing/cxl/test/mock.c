@@ -228,16 +228,16 @@ int __wrap_cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_hdm_decode_init, "CXL");
 
-int __wrap_cxl_dvsec_rr_decode(struct device *dev, struct cxl_port *port,
+int __wrap_cxl_dvsec_rr_decode(struct cxl_dev_state *cxlds,
 			       struct cxl_endpoint_dvsec_info *info)
 {
 	int rc = 0, index;
 	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
 
-	if (ops && ops->is_mock_dev(dev))
+	if (ops && ops->is_mock_dev(cxlds->dev))
 		rc = 0;
 	else
-		rc = cxl_dvsec_rr_decode(dev, port, info);
+		rc = cxl_dvsec_rr_decode(cxlds, info);
 	put_cxl_mock_ops(index);
 
 	return rc;
@@ -312,5 +312,6 @@ void __wrap_cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device 
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dport_init_ras_reporting, "CXL");
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("cxl_test: emulation module");
 MODULE_IMPORT_NS("ACPI");
 MODULE_IMPORT_NS("CXL");

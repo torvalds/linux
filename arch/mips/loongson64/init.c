@@ -128,7 +128,7 @@ void __init prom_init(void)
 	}
 
 	/* init base address of io space */
-	set_io_port_base(PCI_IOBASE);
+	set_io_port_base((unsigned long)PCI_IOBASE);
 
 	if (loongson_sysconf.early_config)
 		loongson_sysconf.early_config();
@@ -178,7 +178,7 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode, resource_size_
 		return -EINVAL;
 	}
 
-	vaddr = PCI_IOBASE + range->io_start;
+	vaddr = (unsigned long)PCI_IOBASE + range->io_start;
 
 	vmap_page_range(vaddr, vaddr + size, hw_start, pgprot_device(PAGE_KERNEL));
 

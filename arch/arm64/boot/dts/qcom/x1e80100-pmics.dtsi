@@ -110,7 +110,7 @@
 			};
 		};
 
-		pmc8380-6-thermal {
+		pmc8380_6_thermal: pmc8380-6-thermal {
 			polling-delay-passive = <100>;
 
 			thermal-sensors = <&pmc8380_6_temp_alarm>;
@@ -223,8 +223,8 @@
 			reg = <0x6100>, <0x6200>;
 			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x62 0x1 IRQ_TYPE_EDGE_RISING>;
-			/* Not yet sure what blocks access */
-			status = "reserved";
+			qcom,no-alarm; /* alarm owned by ADSP */
+			qcom,uefi-rtc-info;
 		};
 
 		pmk8550_sdam_2: nvram@7100 {
@@ -491,6 +491,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		status = "disabled";
+
 		smb2360_0_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";
 			reg = <0xfd00>;
@@ -503,6 +505,8 @@
 		reg = <0xa SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		status = "disabled";
 
 		smb2360_1_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";

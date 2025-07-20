@@ -39,7 +39,7 @@ struct max1118 {
 	/* Ensure natural alignment of buffer elements */
 	struct {
 		u8 channels[2];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 
 	u8 data __aligned(IIO_DMA_MINALIGN);
@@ -188,8 +188,8 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 		adc->scan.channels[i] = ret;
 		i++;
 	}
-	iio_push_to_buffers_with_timestamp(indio_dev, &adc->scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &adc->scan, sizeof(adc->scan),
+				    iio_get_time_ns(indio_dev));
 out:
 	mutex_unlock(&adc->lock);
 

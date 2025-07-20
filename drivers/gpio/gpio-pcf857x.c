@@ -5,6 +5,8 @@
  * Copyright (C) 2007 David Brownell
  */
 
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -272,11 +274,10 @@ static const struct irq_chip pcf857x_irq_chip = {
 
 static int pcf857x_probe(struct i2c_client *client)
 {
+	struct gpio_desc *reset_gpio;
 	struct pcf857x *gpio;
 	unsigned int n_latch = 0;
 	int status;
-
-	device_property_read_u32(&client->dev, "lines-initial-states", &n_latch);
 
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
@@ -296,6 +297,30 @@ static int pcf857x_probe(struct i2c_client *client)
 	gpio->chip.direction_input	= pcf857x_input;
 	gpio->chip.direction_output	= pcf857x_output;
 	gpio->chip.ngpio		= (uintptr_t)i2c_get_match_data(client);
+
+	reset_gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return dev_err_probe(&client->dev, PTR_ERR(reset_gpio),
+				     "failed to get reset GPIO\n");
+
+	if (reset_gpio) {
+		/* Reset already held with devm_gpiod_get_optional with GPIOD_OUT_HIGH */
+		fsleep(4); /* tw(rst) > 4us */
+		gpiod_set_value_cansleep(reset_gpio, 0);
+		fsleep(100); /* trst > 100uS */
+
+		/*
+		 * Performing a reset means "The PCA9670 registers and I2C-bus
+		 * state machine will be held in their default state until the
+		 * RESET input is once again HIGH".
+		 *
+		 * This is the same as writing 1 for all pins, which is the same
+		 * as n_latch=0, the default value of the variable.
+		 */
+	} else {
+		device_property_read_u32(&client->dev, "lines-initial-states",
+					 &n_latch);
+	}
 
 	/* NOTE:  the OnSemi jlc1562b is also largely compatible with
 	 * these parts, notably for output.  It has a low-resolution

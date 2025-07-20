@@ -30,9 +30,7 @@
 #include "nouveau_bo.h"
 #include "nouveau_chan.h"
 
-int nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
-void nv50_dma_push(struct nouveau_channel *, u64 addr, u32 length,
-		   bool no_prefetch);
+int nouveau_dma_wait(struct nouveau_channel *, int size);
 
 /*
  * There's a hw race condition where you can't jump to your PUT offset,
@@ -67,7 +65,7 @@ RING_SPACE(struct nouveau_channel *chan, int size)
 {
 	int ret;
 
-	ret = nouveau_dma_wait(chan, 1, size);
+	ret = nouveau_dma_wait(chan, size);
 	if (ret)
 		return ret;
 
@@ -94,12 +92,7 @@ FIRE_RING(struct nouveau_channel *chan)
 		return;
 	chan->accel_done = true;
 
-	if (chan->dma.ib_max) {
-		nv50_dma_push(chan, chan->push.addr + (chan->dma.put << 2),
-			      (chan->dma.cur - chan->dma.put) << 2, false);
-	} else {
-		WRITE_PUT(chan->dma.cur);
-	}
+	WRITE_PUT(chan->dma.cur);
 
 	chan->dma.put = chan->dma.cur;
 }

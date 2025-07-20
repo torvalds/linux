@@ -7,15 +7,12 @@
 #include <unistd.h>
 #include <inttypes.h>
 
+#include "compress.h"
 #include "dso.h"
 #include "map.h"
 #include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
-#include "demangle-cxx.h"
-#include "demangle-ocaml.h"
-#include "demangle-java.h"
-#include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
 #include "debug.h"
@@ -276,60 +273,6 @@ static int elf_read_program_header(Elf *elf, u64 vaddr, GElf_Phdr *phdr)
 
 	/* Not found any valid program header */
 	return -1;
-}
-
-static bool want_demangle(bool is_kernel_sym)
-{
-	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
-}
-
-/*
- * Demangle C++ function signature, typically replaced by demangle-cxx.cpp
- * version.
- */
-__weak char *cxx_demangle_sym(const char *str __maybe_unused, bool params __maybe_unused,
-			      bool modifiers __maybe_unused)
-{
-#ifdef HAVE_LIBBFD_SUPPORT
-	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
-
-	return bfd_demangle(NULL, str, flags);
-#elif defined(HAVE_CPLUS_DEMANGLE_SUPPORT)
-	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
-
-	return cplus_demangle(str, flags);
-#else
-	return NULL;
-#endif
-}
-
-static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
-{
-	char *demangled = NULL;
-
-	/*
-	 * We need to figure out if the object was created from C++ sources
-	 * DWARF DW_compile_unit has this, but we don't always have access
-	 * to it...
-	 */
-	if (!want_demangle(dso__kernel(dso) || kmodule))
-		return demangled;
-
-	demangled = cxx_demangle_sym(elf_name, verbose > 0, verbose > 0);
-	if (demangled == NULL) {
-		demangled = ocaml_demangle_sym(elf_name);
-		if (demangled == NULL) {
-			demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
-		}
-	}
-	else if (rust_is_mangled(demangled))
-		/*
-		    * Input to Rust demangling is the BFD-demangled
-		    * name which it Rust-demangles in place.
-		    */
-		rust_demangle_sym(demangled);
-
-	return demangled;
 }
 
 struct rel_info {
@@ -617,7 +560,7 @@ static bool get_plt_got_name(GElf_Shdr *shdr, size_t i,
 	/* Get the associated symbol */
 	gelf_getsym(di->dynsym_data, vr->sym_idx, &sym);
 	sym_name = elf_sym__name(&sym, di->dynstr_data);
-	demangled = demangle_sym(di->dso, 0, sym_name);
+	demangled = dso__demangle_sym(di->dso, /*kmodule=*/0, sym_name);
 	if (demangled != NULL)
 		sym_name = demangled;
 
@@ -815,7 +758,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		gelf_getsym(syms, get_rel_symidx(&ri, idx), &sym);
 
 		elf_name = elf_sym__name(&sym, symstrs);
-		demangled = demangle_sym(dso, 0, elf_name);
+		demangled = dso__demangle_sym(dso, /*kmodule=*/0, elf_name);
 		if (demangled)
 			elf_name = demangled;
 		if (*elf_name)
@@ -842,11 +785,6 @@ out_elf_end:
 	pr_debug("%s: problems reading %s PLT info.\n",
 		 __func__, dso__long_name(dso));
 	return 0;
-}
-
-char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
-{
-	return demangle_sym(dso, kmodule, elf_name);
 }
 
 /*
@@ -1171,33 +1109,6 @@ out:
 
 #endif
 
-static int dso__swap_init(struct dso *dso, unsigned char eidata)
-{
-	static unsigned int const endian = 1;
-
-	dso__set_needs_swap(dso, DSO_SWAP__NO);
-
-	switch (eidata) {
-	case ELFDATA2LSB:
-		/* We are big endian, DSO is little endian. */
-		if (*(unsigned char const *)&endian != 1)
-			dso__set_needs_swap(dso, DSO_SWAP__YES);
-		break;
-
-	case ELFDATA2MSB:
-		/* We are little endian, DSO is big endian. */
-		if (*(unsigned char const *)&endian != 0)
-			dso__set_needs_swap(dso, DSO_SWAP__YES);
-		break;
-
-	default:
-		pr_err("unrecognized DSO data encoding %d\n", eidata);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -1226,6 +1137,81 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 	       ehdr.e_type == ET_DYN;
 }
 
+static Elf *read_gnu_debugdata(struct dso *dso, Elf *elf, const char *name, int *fd_ret)
+{
+	Elf *elf_embedded;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Scn *scn;
+	Elf_Data *scn_data;
+	FILE *wrapped;
+	size_t shndx;
+	char temp_filename[] = "/tmp/perf.gnu_debugdata.elf.XXXXXX";
+	int ret, temp_fd;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		return NULL;
+	}
+
+	scn = elf_section_by_name(elf, &ehdr, &shdr, ".gnu_debugdata", &shndx);
+	if (!scn) {
+		*dso__load_errno(dso) = -ENOENT;
+		return NULL;
+	}
+
+	if (shdr.sh_type == SHT_NOBITS) {
+		pr_debug("%s: .gnu_debugdata of ELF file %s has no data.\n", __func__, name);
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		return NULL;
+	}
+
+	scn_data = elf_rawdata(scn, NULL);
+	if (!scn_data) {
+		pr_debug("%s: error reading .gnu_debugdata of %s: %s\n", __func__,
+			 name, elf_errmsg(-1));
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		return NULL;
+	}
+
+	wrapped = fmemopen(scn_data->d_buf, scn_data->d_size, "r");
+	if (!wrapped) {
+		pr_debug("%s: fmemopen: %s\n", __func__, strerror(errno));
+		*dso__load_errno(dso) = -errno;
+		return NULL;
+	}
+
+	temp_fd = mkstemp(temp_filename);
+	if (temp_fd < 0) {
+		pr_debug("%s: mkstemp: %s\n", __func__, strerror(errno));
+		*dso__load_errno(dso) = -errno;
+		fclose(wrapped);
+		return NULL;
+	}
+	unlink(temp_filename);
+
+	ret = lzma_decompress_stream_to_file(wrapped, temp_fd);
+	fclose(wrapped);
+	if (ret < 0) {
+		*dso__load_errno(dso) = -errno;
+		close(temp_fd);
+		return NULL;
+	}
+
+	elf_embedded = elf_begin(temp_fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (!elf_embedded) {
+		pr_debug("%s: error reading .gnu_debugdata of %s: %s\n", __func__,
+			 name, elf_errmsg(-1));
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		close(temp_fd);
+		return NULL;
+	}
+	pr_debug("%s: using .gnu_debugdata of %s\n", __func__, name);
+	*fd_ret = temp_fd;
+	return elf_embedded;
+}
+
 int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		 enum dso_binary_type type)
 {
@@ -1252,6 +1238,19 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
 		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
 		goto out_close;
+	}
+
+	if (type == DSO_BINARY_TYPE__GNU_DEBUGDATA) {
+		int new_fd;
+		Elf *embedded = read_gnu_debugdata(dso, elf, name, &new_fd);
+
+		if (!embedded)
+			goto out_close;
+
+		elf_end(elf);
+		close(fd);
+		fd = new_fd;
+		elf = embedded;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
@@ -1669,6 +1668,12 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				continue;
 		}
 
+		/* Reject RISCV ELF "mapping symbols" */
+		if (ehdr.e_machine == EM_RISCV) {
+			if (elf_name[0] == '$' && strchr("dx", elf_name[1]))
+				continue;
+		}
+
 		if (runtime_ss->opdsec && sym.st_shndx == runtime_ss->opdidx) {
 			u32 offset = sym.st_value - syms_ss->opdshdr.sh_addr;
 			u64 *opd = opddata->d_buf + offset;
@@ -1776,7 +1781,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			}
 		}
 
-		demangled = demangle_sym(dso, kmodule, elf_name);
+		demangled = dso__demangle_sym(dso, kmodule, elf_name);
 		if (demangled != NULL)
 			elf_name = demangled;
 
@@ -1852,10 +1857,23 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 					     kmodule, 1);
 		if (err < 0)
 			return err;
-		err += nr;
+		nr += err;
 	}
 
-	return err;
+	/*
+	 * The .gnu_debugdata is a special situation: it contains a symbol
+	 * table, but the runtime file may also contain dynsym entries which are
+	 * not present there. We need to load both.
+	 */
+	if (syms_ss->type == DSO_BINARY_TYPE__GNU_DEBUGDATA && runtime_ss->dynsym) {
+		err = dso__load_sym_internal(dso, map, runtime_ss, runtime_ss,
+					     kmodule, 1);
+		if (err < 0)
+			return err;
+		nr += err;
+	}
+
+	return nr;
 }
 
 static int elf_read_maps(Elf *elf, bool exe, mapfn_t mapfn, void *data)

@@ -41,7 +41,7 @@
 #ifdef CONFIG_PM_SLEEP
 /* store MBOX context across system-wide suspend/resume transitions */
 struct th1520_mbox_context {
-	u32 intr_mask[TH_1520_MBOX_CHANS - 1];
+	u32 intr_mask[TH_1520_MBOX_CHANS];
 };
 #endif
 
@@ -387,8 +387,10 @@ static void __iomem *th1520_map_mmio(struct platform_device *pdev,
 
 	mapped = devm_ioremap(&pdev->dev, res->start + offset,
 			      resource_size(res) - offset);
-	if (IS_ERR(mapped))
+	if (!mapped) {
 		dev_err(&pdev->dev, "Failed to map resource: %s\n", res_name);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	return mapped;
 }

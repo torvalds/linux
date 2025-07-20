@@ -677,12 +677,28 @@
 		#size-cells = <0>;
 		#gpio-cells = <2>;
 
+		gpio-line-names =
+		"ext-vref-sel","","presence-hdd-bp5-n","presence-hdd-bp6-n",
+		"","bmc-riser-en-n","bmc-ocp1-en-n","bmc-ocp0-en-n",
+		"","","","",
+		"","","","";
+
 		bmc-ocp0-en-hog {
 			gpio-hog;
 			gpios = <7 GPIO_ACTIVE_LOW>;
 			output-high;
 			line-name = "bmc-ocp0-en-n";
 		};
+	};
+
+	fan-controller0@20 {
+		compatible = "maxim,max31790";
+		reg = <0x20>;
+	};
+
+	fan-controller1@2f {
+		compatible = "maxim,max31790";
+		reg = <0x2f>;
 	};
 };
 
@@ -958,7 +974,7 @@
 			"fan-fault","psu-fault",
 			"","",
 			"","",
-			"","",
+			"gpi0","gpi1",
 			"","",
 			"","",
 			"","",

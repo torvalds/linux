@@ -614,24 +614,29 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	writel_relaxed(ETH_P_8021Q, &cpsw->regs->vlan_ltype);
 }
 
-static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
+int cpsw_hwtstamp_set(struct net_device *dev,
+		      struct kernel_hwtstamp_config *cfg,
+		      struct netlink_ext_ack *extack)
 {
 	struct cpsw_priv *priv = netdev_priv(dev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	struct hwtstamp_config cfg;
+
+	/* This will only execute if dev->see_all_hwtstamp_requests is set */
+	if (cfg->source != HWTSTAMP_SOURCE_NETDEV) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Switch mode only supports MAC timestamping");
+		return -EOPNOTSUPP;
+	}
 
 	if (cpsw->version != CPSW_VERSION_1 &&
 	    cpsw->version != CPSW_VERSION_2 &&
 	    cpsw->version != CPSW_VERSION_3)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
-
-	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
+	if (cfg->tx_type != HWTSTAMP_TX_OFF && cfg->tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
 
-	switch (cfg.rx_filter) {
+	switch (cfg->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		priv->rx_ts_enabled = 0;
 		break;
@@ -651,13 +656,13 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		priv->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		cfg->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	default:
 		return -ERANGE;
 	}
 
-	priv->tx_ts_enabled = cfg.tx_type == HWTSTAMP_TX_ON;
+	priv->tx_ts_enabled = cfg->tx_type == HWTSTAMP_TX_ON;
 
 	switch (cpsw->version) {
 	case CPSW_VERSION_1:
@@ -671,64 +676,39 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		WARN_ON(1);
 	}
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	return 0;
 }
 
-static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+int cpsw_hwtstamp_get(struct net_device *dev,
+		      struct kernel_hwtstamp_config *cfg)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(dev);
 	struct cpsw_priv *priv = netdev_priv(dev);
-	struct hwtstamp_config cfg;
 
 	if (cpsw->version != CPSW_VERSION_1 &&
 	    cpsw->version != CPSW_VERSION_2 &&
 	    cpsw->version != CPSW_VERSION_3)
 		return -EOPNOTSUPP;
 
-	cfg.flags = 0;
-	cfg.tx_type = priv->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	cfg.rx_filter = priv->rx_ts_enabled;
+	cfg->tx_type = priv->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg->rx_filter = priv->rx_ts_enabled;
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	return 0;
 }
 #else
-static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+int cpsw_hwtstamp_get(struct net_device *dev,
+		      struct kernel_hwtstamp_config *cfg)
 {
 	return -EOPNOTSUPP;
 }
 
-static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
+int cpsw_hwtstamp_set(struct net_device *dev,
+		      struct kernel_hwtstamp_config *cfg,
+		      struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
 #endif /*CONFIG_TI_CPTS*/
-
-int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
-{
-	struct cpsw_priv *priv = netdev_priv(dev);
-	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
-	struct phy_device *phy;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	phy = cpsw->slaves[slave_no].phy;
-
-	if (!phy_has_hwtstamp(phy)) {
-		switch (cmd) {
-		case SIOCSHWTSTAMP:
-			return cpsw_hwtstamp_set(dev, req);
-		case SIOCGHWTSTAMP:
-			return cpsw_hwtstamp_get(dev, req);
-		}
-	}
-
-	if (phy)
-		return phy_mii_ioctl(phy, req, cmd);
-
-	return -EOPNOTSUPP;
-}
 
 int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 {

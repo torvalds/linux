@@ -3965,7 +3965,7 @@ static int hfi1_stop_tid_reap_timer(struct rvt_qp *qp)
 
 	lockdep_assert_held(&qp->s_lock);
 	if (qpriv->s_flags & HFI1_R_TID_RSC_TIMER) {
-		rval = del_timer(&qpriv->s_tid_timer);
+		rval = timer_delete(&qpriv->s_tid_timer);
 		qpriv->s_flags &= ~HFI1_R_TID_RSC_TIMER;
 	}
 	return rval;
@@ -3975,13 +3975,13 @@ void hfi1_del_tid_reap_timer(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *qpriv = qp->priv;
 
-	del_timer_sync(&qpriv->s_tid_timer);
+	timer_delete_sync(&qpriv->s_tid_timer);
 	qpriv->s_flags &= ~HFI1_R_TID_RSC_TIMER;
 }
 
 static void hfi1_tid_timeout(struct timer_list *t)
 {
-	struct hfi1_qp_priv *qpriv = from_timer(qpriv, t, s_tid_timer);
+	struct hfi1_qp_priv *qpriv = timer_container_of(qpriv, t, s_tid_timer);
 	struct rvt_qp *qp = qpriv->owner;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	unsigned long flags;
@@ -4781,7 +4781,7 @@ static int hfi1_stop_tid_retry_timer(struct rvt_qp *qp)
 
 	lockdep_assert_held(&qp->s_lock);
 	if (priv->s_flags & HFI1_S_TID_RETRY_TIMER) {
-		rval = del_timer(&priv->s_tid_retry_timer);
+		rval = timer_delete(&priv->s_tid_retry_timer);
 		priv->s_flags &= ~HFI1_S_TID_RETRY_TIMER;
 	}
 	return rval;
@@ -4791,13 +4791,14 @@ void hfi1_del_tid_retry_timer(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	del_timer_sync(&priv->s_tid_retry_timer);
+	timer_delete_sync(&priv->s_tid_retry_timer);
 	priv->s_flags &= ~HFI1_S_TID_RETRY_TIMER;
 }
 
 static void hfi1_tid_retry_timeout(struct timer_list *t)
 {
-	struct hfi1_qp_priv *priv = from_timer(priv, t, s_tid_retry_timer);
+	struct hfi1_qp_priv *priv = timer_container_of(priv, t,
+						       s_tid_retry_timer);
 	struct rvt_qp *qp = priv->owner;
 	struct rvt_swqe *wqe;
 	unsigned long flags;

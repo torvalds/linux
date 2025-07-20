@@ -15,14 +15,14 @@ KBUILD_CFLAGS_MODULE += -fPIC
 KBUILD_AFLAGS	+= -m64
 KBUILD_CFLAGS	+= -m64
 KBUILD_CFLAGS	+= -fPIC
-LDFLAGS_vmlinux	:= -no-pie --emit-relocs --discard-none
+LDFLAGS_vmlinux	:= $(call ld-option,-no-pie)
 extra_tools	:= relocs
 aflags_dwarf	:= -Wa,-gdwarf-2
 KBUILD_AFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -D__ASSEMBLY__
 ifndef CONFIG_AS_IS_LLVM
 KBUILD_AFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),$(aflags_dwarf))
 endif
-KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2 -mpacked-stack
+KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2 -mpacked-stack -std=gnu11
 KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
 KBUILD_CFLAGS_DECOMPRESSOR += -D__DECOMPRESSOR
 KBUILD_CFLAGS_DECOMPRESSOR += -fno-delete-null-pointer-checks -msoft-float -mbackchain
@@ -48,6 +48,7 @@ mflags-$(CONFIG_MARCH_Z13)    := -march=z13
 mflags-$(CONFIG_MARCH_Z14)    := -march=z14
 mflags-$(CONFIG_MARCH_Z15)    := -march=z15
 mflags-$(CONFIG_MARCH_Z16)    := -march=z16
+mflags-$(CONFIG_MARCH_Z17)    := -march=z17
 
 export CC_FLAGS_MARCH := $(mflags-y)
 
@@ -61,6 +62,7 @@ cflags-$(CONFIG_MARCH_Z13_TUNE)		+= -mtune=z13
 cflags-$(CONFIG_MARCH_Z14_TUNE)		+= -mtune=z14
 cflags-$(CONFIG_MARCH_Z15_TUNE)		+= -mtune=z15
 cflags-$(CONFIG_MARCH_Z16_TUNE)		+= -mtune=z16
+cflags-$(CONFIG_MARCH_Z17_TUNE)		+= -mtune=z17
 
 cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 
@@ -71,15 +73,6 @@ cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 
 KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
 KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
-
-ifneq ($(call cc-option,-mstack-size=8192 -mstack-guard=128),)
-  CC_FLAGS_CHECK_STACK := -mstack-size=$(STACK_SIZE)
-  ifeq ($(call cc-option,-mstack-size=8192),)
-    CC_FLAGS_CHECK_STACK += -mstack-guard=$(CONFIG_STACK_GUARD)
-  endif
-  export CC_FLAGS_CHECK_STACK
-  cflags-$(CONFIG_CHECK_STACK) += $(CC_FLAGS_CHECK_STACK)
-endif
 
 ifdef CONFIG_EXPOLINE
   ifdef CONFIG_EXPOLINE_EXTERN

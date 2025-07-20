@@ -53,6 +53,10 @@
 
 #define SMU_13_VCLK_SHIFT		16
 
+#define SMUQ10_TO_UINT(x) ((x) >> 10)
+#define SMUQ10_FRAC(x) ((x) & 0x3ff)
+#define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
+
 extern const int pmfw_decoded_link_speed[5];
 extern const int pmfw_decoded_link_width[7];
 
@@ -107,6 +111,8 @@ struct smu_13_0_dpm_context {
 	struct smu_13_0_dpm_tables  dpm_tables;
 	uint32_t                    workload_policy_mask;
 	uint32_t                    dcef_min_ds_clk;
+	uint64_t                    caps;
+	uint32_t                    board_volt;
 };
 
 enum smu_13_0_power_state {
@@ -157,8 +163,6 @@ int smu_v13_0_notify_memory_pool_location(struct smu_context *smu);
 int smu_v13_0_system_features_control(struct smu_context *smu,
 				      bool en);
 
-int smu_v13_0_init_display_count(struct smu_context *smu, uint32_t count);
-
 int smu_v13_0_set_allowed_mask(struct smu_context *smu);
 
 int smu_v13_0_notify_display_change(struct smu_context *smu);
@@ -177,13 +181,6 @@ int smu_v13_0_enable_thermal_alert(struct smu_context *smu);
 int smu_v13_0_disable_thermal_alert(struct smu_context *smu);
 
 int smu_v13_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value);
-
-int smu_v13_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
-
-int
-smu_v13_0_display_clock_voltage_request(struct smu_context *smu,
-					struct pp_display_clock_request
-					*clock_req);
 
 uint32_t
 smu_v13_0_get_fan_control_mode(struct smu_context *smu);
@@ -220,11 +217,6 @@ int smu_v13_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 
 int smu_v13_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
 					  uint32_t min, uint32_t max, bool automatic);
-
-int smu_v13_0_set_hard_freq_limited_range(struct smu_context *smu,
-					  enum smu_clk_type clk_type,
-					  uint32_t min,
-					  uint32_t max);
 
 int smu_v13_0_set_performance_level(struct smu_context *smu,
 				    enum amd_dpm_forced_level level);
@@ -303,5 +295,8 @@ int smu_v13_0_set_wbrf_exclusion_ranges(struct smu_context *smu,
 int smu_v13_0_get_boot_freq_by_index(struct smu_context *smu,
 				     enum smu_clk_type clk_type,
 				     uint32_t *value);
+
+void smu_v13_0_interrupt_work(struct smu_context *smu);
+void smu_v13_0_reset_custom_level(struct smu_context *smu);
 #endif
 #endif

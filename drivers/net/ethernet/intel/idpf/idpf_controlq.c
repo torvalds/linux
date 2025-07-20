@@ -96,7 +96,7 @@ static void idpf_ctlq_init_rxq_bufs(struct idpf_ctlq_info *cq)
  */
 static void idpf_ctlq_shutdown(struct idpf_hw *hw, struct idpf_ctlq_info *cq)
 {
-	mutex_lock(&cq->cq_lock);
+	spin_lock(&cq->cq_lock);
 
 	/* free ring buffers and the ring itself */
 	idpf_ctlq_dealloc_ring_res(hw, cq);
@@ -104,8 +104,7 @@ static void idpf_ctlq_shutdown(struct idpf_hw *hw, struct idpf_ctlq_info *cq)
 	/* Set ring_size to 0 to indicate uninitialized queue */
 	cq->ring_size = 0;
 
-	mutex_unlock(&cq->cq_lock);
-	mutex_destroy(&cq->cq_lock);
+	spin_unlock(&cq->cq_lock);
 }
 
 /**
@@ -173,7 +172,7 @@ int idpf_ctlq_add(struct idpf_hw *hw,
 
 	idpf_ctlq_init_regs(hw, cq, is_rxq);
 
-	mutex_init(&cq->cq_lock);
+	spin_lock_init(&cq->cq_lock);
 
 	list_add(&cq->cq_list, &hw->cq_list_head);
 
@@ -272,7 +271,7 @@ int idpf_ctlq_send(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 	int err = 0;
 	int i;
 
-	mutex_lock(&cq->cq_lock);
+	spin_lock(&cq->cq_lock);
 
 	/* Ensure there are enough descriptors to send all messages */
 	num_desc_avail = IDPF_CTLQ_DESC_UNUSED(cq);
@@ -332,7 +331,7 @@ int idpf_ctlq_send(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 	wr32(hw, cq->reg.tail, cq->next_to_use);
 
 err_unlock:
-	mutex_unlock(&cq->cq_lock);
+	spin_unlock(&cq->cq_lock);
 
 	return err;
 }
@@ -364,7 +363,7 @@ int idpf_ctlq_clean_sq(struct idpf_ctlq_info *cq, u16 *clean_count,
 	if (*clean_count > cq->ring_size)
 		return -EBADR;
 
-	mutex_lock(&cq->cq_lock);
+	spin_lock(&cq->cq_lock);
 
 	ntc = cq->next_to_clean;
 
@@ -375,6 +374,9 @@ int idpf_ctlq_clean_sq(struct idpf_ctlq_info *cq, u16 *clean_count,
 		desc = IDPF_CTLQ_DESC(cq, ntc);
 		if (!(le16_to_cpu(desc->flags) & IDPF_CTLQ_FLAG_DD))
 			break;
+
+		/* Ensure no other fields are read until DD flag is checked */
+		dma_rmb();
 
 		/* strip off FW internal code */
 		desc_err = le16_to_cpu(desc->ret_val) & 0xff;
@@ -394,7 +396,7 @@ int idpf_ctlq_clean_sq(struct idpf_ctlq_info *cq, u16 *clean_count,
 
 	cq->next_to_clean = ntc;
 
-	mutex_unlock(&cq->cq_lock);
+	spin_unlock(&cq->cq_lock);
 
 	/* Return number of descriptors actually cleaned */
 	*clean_count = i;
@@ -432,7 +434,7 @@ int idpf_ctlq_post_rx_buffs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 	if (*buff_count > 0)
 		buffs_avail = true;
 
-	mutex_lock(&cq->cq_lock);
+	spin_lock(&cq->cq_lock);
 
 	if (tbp >= cq->ring_size)
 		tbp = 0;
@@ -521,7 +523,7 @@ post_buffs_out:
 		wr32(hw, cq->reg.tail, cq->next_to_post);
 	}
 
-	mutex_unlock(&cq->cq_lock);
+	spin_unlock(&cq->cq_lock);
 
 	/* return the number of buffers that were not posted */
 	*buff_count = *buff_count - i;
@@ -549,7 +551,7 @@ int idpf_ctlq_recv(struct idpf_ctlq_info *cq, u16 *num_q_msg,
 	u16 i;
 
 	/* take the lock before we start messing with the ring */
-	mutex_lock(&cq->cq_lock);
+	spin_lock(&cq->cq_lock);
 
 	ntc = cq->next_to_clean;
 
@@ -562,6 +564,9 @@ int idpf_ctlq_recv(struct idpf_ctlq_info *cq, u16 *num_q_msg,
 
 		if (!(flags & IDPF_CTLQ_FLAG_DD))
 			break;
+
+		/* Ensure no other fields are read until DD flag is checked */
+		dma_rmb();
 
 		q_msg[i].vmvf_type = (flags &
 				      (IDPF_CTLQ_FLAG_FTYPE_VM |
@@ -608,7 +613,7 @@ int idpf_ctlq_recv(struct idpf_ctlq_info *cq, u16 *num_q_msg,
 
 	cq->next_to_clean = ntc;
 
-	mutex_unlock(&cq->cq_lock);
+	spin_unlock(&cq->cq_lock);
 
 	*num_q_msg = i;
 	if (*num_q_msg == 0)

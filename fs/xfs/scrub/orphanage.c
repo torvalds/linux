@@ -153,8 +153,7 @@ xrep_orphanage_create(
 
 	/* Try to find the orphanage directory. */
 	inode_lock_nested(root_inode, I_MUTEX_PARENT);
-	orphanage_dentry = lookup_one_len(ORPHANAGE, root_dentry,
-			strlen(ORPHANAGE));
+	orphanage_dentry = lookup_noperm(&QSTR(ORPHANAGE), root_dentry);
 	if (IS_ERR(orphanage_dentry)) {
 		error = PTR_ERR(orphanage_dentry);
 		goto out_unlock_root;
@@ -167,10 +166,11 @@ xrep_orphanage_create(
 	 * directory to control access to a file we put in here.
 	 */
 	if (d_really_is_negative(orphanage_dentry)) {
-		error = vfs_mkdir(&nop_mnt_idmap, root_inode, orphanage_dentry,
-				0750);
-		if (error)
-			goto out_dput_orphanage;
+		orphanage_dentry = vfs_mkdir(&nop_mnt_idmap, root_inode,
+					     orphanage_dentry, 0750);
+		error = PTR_ERR(orphanage_dentry);
+		if (IS_ERR(orphanage_dentry))
+			goto out_unlock_root;
 	}
 
 	/* Not a directory? Bail out. */
@@ -444,7 +444,7 @@ xrep_adoption_check_dcache(
 	if (!d_orphanage)
 		return 0;
 
-	d_child = d_hash_and_lookup(d_orphanage, &qname);
+	d_child = try_lookup_noperm(&qname, d_orphanage);
 	if (d_child) {
 		trace_xrep_adoption_check_child(sc->mp, d_child);
 
@@ -481,7 +481,7 @@ xrep_adoption_zap_dcache(
 	if (!d_orphanage)
 		return;
 
-	d_child = d_hash_and_lookup(d_orphanage, &qname);
+	d_child = try_lookup_noperm(&qname, d_orphanage);
 	while (d_child != NULL) {
 		trace_xrep_adoption_invalidate_child(sc->mp, d_child);
 

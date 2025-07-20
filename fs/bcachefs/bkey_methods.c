@@ -21,14 +21,14 @@
 #include "xattr.h"
 
 const char * const bch2_bkey_types[] = {
-#define x(name, nr) #name,
+#define x(name, nr, ...) #name,
 	BCH_BKEY_TYPES()
 #undef x
 	NULL
 };
 
 static int deleted_key_validate(struct bch_fs *c, struct bkey_s_c k,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	return 0;
 }
@@ -42,7 +42,7 @@ static int deleted_key_validate(struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int empty_val_key_validate(struct bch_fs *c, struct bkey_s_c k,
-				 enum bch_validate_flags flags)
+				  struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -59,7 +59,7 @@ fsck_err:
 })
 
 static int key_type_cookie_validate(struct bch_fs *c, struct bkey_s_c k,
-				    enum bch_validate_flags flags)
+				    struct bkey_validate_context from)
 {
 	return 0;
 }
@@ -83,7 +83,7 @@ static void key_type_cookie_to_text(struct printbuf *out, struct bch_fs *c,
 })
 
 static int key_type_inline_data_validate(struct bch_fs *c, struct bkey_s_c k,
-					 enum bch_validate_flags flags)
+					 struct bkey_validate_context from)
 {
 	return 0;
 }
@@ -115,7 +115,7 @@ static bool key_type_set_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_
 })
 
 const struct bkey_ops bch2_bkey_ops[] = {
-#define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
+#define x(name, nr, ...) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
 	BCH_BKEY_TYPES()
 #undef x
 };
@@ -124,7 +124,7 @@ const struct bkey_ops bch2_bkey_null_ops = {
 };
 
 int bch2_bkey_val_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	if (test_bit(BCH_FS_no_invalid_checks, &c->flags))
 		return 0;
@@ -140,7 +140,7 @@ int bch2_bkey_val_validate(struct bch_fs *c, struct bkey_s_c k,
 	if (!ops->key_validate)
 		return 0;
 
-	ret = ops->key_validate(c, k, flags);
+	ret = ops->key_validate(c, k, from);
 fsck_err:
 	return ret;
 }
@@ -155,15 +155,22 @@ static u64 bch2_key_types_allowed[] = {
 #undef x
 };
 
+static const enum bch_bkey_type_flags bch2_bkey_type_flags[] = {
+#define x(name, nr, flags)	[KEY_TYPE_##name] = flags,
+	BCH_BKEY_TYPES()
+#undef x
+};
+
 const char *bch2_btree_node_type_str(enum btree_node_type type)
 {
 	return type == BKEY_TYPE_btree ? "internal btree node" : bch2_btree_id_str(type - 1);
 }
 
 int __bch2_bkey_validate(struct bch_fs *c, struct bkey_s_c k,
-			 enum btree_node_type type,
-			 enum bch_validate_flags flags)
+			 struct bkey_validate_context from)
 {
+	enum btree_node_type type = __btree_node_type(from.level, from.btree);
+
 	if (test_bit(BCH_FS_no_invalid_checks, &c->flags))
 		return 0;
 
@@ -176,8 +183,18 @@ int __bch2_bkey_validate(struct bch_fs *c, struct bkey_s_c k,
 	if (type >= BKEY_TYPE_NR)
 		return 0;
 
-	bkey_fsck_err_on(k.k->type < KEY_TYPE_MAX &&
-			 (type == BKEY_TYPE_btree || (flags & BCH_VALIDATE_commit)) &&
+	enum bch_bkey_type_flags bkey_flags = k.k->type < KEY_TYPE_MAX
+		? bch2_bkey_type_flags[k.k->type]
+		: 0;
+
+	bool strict_key_type_allowed =
+		(from.flags & BCH_VALIDATE_commit) ||
+		type == BKEY_TYPE_btree ||
+		(from.btree < BTREE_ID_NR &&
+		 (bkey_flags & BKEY_TYPE_strict_btree_checks));
+
+	bkey_fsck_err_on(strict_key_type_allowed &&
+			 k.k->type < KEY_TYPE_MAX &&
 			 !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type)),
 			 c, bkey_invalid_type_for_btree,
 			 "invalid key type for btree %s (%s)",
@@ -228,15 +245,15 @@ fsck_err:
 }
 
 int bch2_bkey_validate(struct bch_fs *c, struct bkey_s_c k,
-		      enum btree_node_type type,
-		      enum bch_validate_flags flags)
+		       struct bkey_validate_context from)
 {
-	return __bch2_bkey_validate(c, k, type, flags) ?:
-		bch2_bkey_val_validate(c, k, flags);
+	return __bch2_bkey_validate(c, k, from) ?:
+		bch2_bkey_val_validate(c, k, from);
 }
 
 int bch2_bkey_in_btree_node(struct bch_fs *c, struct btree *b,
-			    struct bkey_s_c k, enum bch_validate_flags flags)
+			    struct bkey_s_c k,
+			    struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -339,7 +356,7 @@ bool bch2_bkey_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 	return ops->key_merge &&
 		bch2_bkey_maybe_mergable(l.k, r.k) &&
 		(u64) l.k->size + r.k->size <= KEY_SIZE_MAX &&
-		!bch2_key_merging_disabled &&
+		!static_branch_unlikely(&bch2_key_merging_disabled) &&
 		ops->key_merge(c, l, r);
 }
 

@@ -5,7 +5,7 @@
 #include <linux/objtool.h>
 #include <asm/orc_types.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 .macro UNWIND_HINT_UNDEFINED
 	UNWIND_HINT type=UNWIND_HINT_TYPE_UNDEFINED
@@ -23,6 +23,14 @@
 	UNWIND_HINT sp_reg=ORC_REG_SP type=UNWIND_HINT_TYPE_CALL
 .endm
 
-#endif /* __ASSEMBLY__ */
+#else /* !__ASSEMBLER__ */
+
+#define UNWIND_HINT_SAVE \
+	UNWIND_HINT(UNWIND_HINT_TYPE_SAVE, 0, 0, 0)
+
+#define UNWIND_HINT_RESTORE \
+	UNWIND_HINT(UNWIND_HINT_TYPE_RESTORE, 0, 0, 0)
+
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_LOONGARCH_UNWIND_HINTS_H */

@@ -17,6 +17,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,qcs615-rpmh-clk
       - qcom,qdu1000-rpmh-clk
       - qcom,sa8775p-rpmh-clk
       - qcom,sar2130p-rpmh-clk
@@ -37,6 +38,7 @@ properties:
       - qcom,sm8450-rpmh-clk
       - qcom,sm8550-rpmh-clk
       - qcom,sm8650-rpmh-clk
+      - qcom,sm8750-rpmh-clk
       - qcom,x1e80100-rpmh-clk
 
   clocks:

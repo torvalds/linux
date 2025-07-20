@@ -16,6 +16,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - invensense,iam20380
           - invensense,iam20680
           - invensense,icm20608
           - invensense,icm20609

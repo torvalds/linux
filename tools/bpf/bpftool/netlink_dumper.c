@@ -45,7 +45,7 @@ static int do_xdp_dump_one(struct nlattr *attr, unsigned int ifindex,
 	NET_START_OBJECT;
 	if (name)
 		NET_DUMP_STR("devname", "%s", name);
-	NET_DUMP_UINT("ifindex", "(%d)", ifindex);
+	NET_DUMP_UINT("ifindex", "(%u)", ifindex);
 
 	if (mode == XDP_ATTACHED_MULTI) {
 		if (json_output) {
@@ -74,7 +74,7 @@ int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb)
 	if (!tb[IFLA_XDP])
 		return 0;
 
-	return do_xdp_dump_one(tb[IFLA_XDP], ifinfo->ifi_index,
+	return do_xdp_dump_one(tb[IFLA_XDP], (unsigned int)ifinfo->ifi_index,
 			       libbpf_nla_getattr_str(tb[IFLA_IFNAME]));
 }
 
@@ -168,7 +168,7 @@ int do_filter_dump(struct tcmsg *info, struct nlattr **tb, const char *kind,
 		NET_START_OBJECT;
 		if (devname[0] != '\0')
 			NET_DUMP_STR("devname", "%s", devname);
-		NET_DUMP_UINT("ifindex", "(%u)", ifindex);
+		NET_DUMP_UINT("ifindex", "(%u)", (unsigned int)ifindex);
 		NET_DUMP_STR("kind", " %s", kind);
 		ret = do_bpf_filter_dump(tb[TCA_OPTIONS]);
 		NET_END_OBJECT_FINAL;

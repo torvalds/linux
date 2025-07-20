@@ -87,6 +87,15 @@ panic_on_corruption
     Panic the device when a corrupted block is discovered. This option is
     not compatible with ignore_corruption and restart_on_corruption.
 
+restart_on_error
+    Restart the system when an I/O error is detected.
+    This option can be combined with the restart_on_corruption option.
+
+panic_on_error
+    Panic the device when an I/O error is detected. This option is
+    not compatible with the restart_on_error option but can be combined
+    with the panic_on_corruption option.
+
 ignore_zero_blocks
     Do not verify blocks that are expected to contain zeroes and always return
     zeroes instead. This may be useful if the partition contains unused blocks
@@ -142,8 +151,15 @@ root_hash_sig_key_desc <key_description>
     already in the secondary trusted keyring.
 
 try_verify_in_tasklet
-    If verity hashes are in cache, verify data blocks in kernel tasklet instead
-    of workqueue. This option can reduce IO latency.
+    If verity hashes are in cache and the IO size does not exceed the limit,
+    verify data blocks in bottom half instead of workqueue. This option can
+    reduce IO latency. The size limits can be configured via
+    /sys/module/dm_verity/parameters/use_bh_bytes. The four parameters
+    correspond to limits for IOPRIO_CLASS_NONE, IOPRIO_CLASS_RT,
+    IOPRIO_CLASS_BE and IOPRIO_CLASS_IDLE in turn.
+    For example:
+    <none>,<rt>,<be>,<idle>
+    4096,4096,4096,4096
 
 Theory of operation
 ===================

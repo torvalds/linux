@@ -168,11 +168,6 @@ async_xor_offs(struct page *dest, unsigned int offset,
 		int src_cnt, size_t len, struct async_submit_ctl *submit);
 
 struct dma_async_tx_descriptor *
-async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
-	      int src_cnt, size_t len, enum sum_check_flags *result,
-	      struct async_submit_ctl *submit);
-
-struct dma_async_tx_descriptor *
 async_xor_val_offs(struct page *dest, unsigned int offset,
 		struct page **src_list, unsigned int *src_offset,
 		int src_cnt, size_t len, enum sum_check_flags *result,

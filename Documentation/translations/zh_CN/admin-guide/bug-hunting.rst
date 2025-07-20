@@ -188,7 +188,7 @@ objdump
 编行。如果没有调试符号，您将看到所示例程的汇编程序代码，但是如果内核有调试
 符号，C代码也将可见（调试符号可以在内核配置菜单的hacking项中启用）。例如::
 
-    $ objdump -r -S -l --disassemble net/dccp/ipv4.o
+    $ objdump -r -S -l --disassemble net/ipv4/tcp.o
 
 .. note::
 
@@ -329,12 +329,3 @@ sysklogd发行版附带了一个补丁，它修改了 ``modules-2.0.0`` 包，�
 	Aug 29 09:51:01 blizard kernel: Call Trace: [oops:_oops_ioctl+48/80] [_sys_ioctl+254/272] [_system_call+82/128]
 	Aug 29 09:51:01 blizard kernel: Code: c7 00 05 00 00 00 eb 08 90 90 90 90 90 90 90 90 89 ec 5d c3
 
----------------------------------------------------------------------------
-
-::
-
-  Dr. G.W. Wettstein           Oncology Research Div. Computing Facility
-  Roger Maris Cancer Center    INTERNET: greg@wind.rmcc.com
-  820 4th St. N.
-  Fargo, ND  58122
-  Phone: 701-234-7556

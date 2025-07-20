@@ -124,8 +124,6 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		return ret;
 
 	card->dev = &pdev->dev;
-	if (!snd_soc_acpi_sof_parent(&pdev->dev))
-		card->disable_route_checks = true;
 
 	if (mach->mach_params.dmic_num > 0) {
 		card->components = devm_kasprintf(card->dev, GFP_KERNEL,

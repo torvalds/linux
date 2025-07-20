@@ -39,38 +39,12 @@ static inline u64 sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t
 	for (_b = (_buckets)->b + (_buckets)->first_bucket;	\
 	     _b < (_buckets)->b + (_buckets)->nbuckets; _b++)
 
-/*
- * Ugly hack alert:
- *
- * We need to cram a spinlock in a single byte, because that's what we have left
- * in struct bucket, and we care about the size of these - during fsck, we need
- * in memory state for every single bucket on every device.
- *
- * We used to do
- *   while (xchg(&b->lock, 1) cpu_relax();
- * but, it turns out not all architectures support xchg on a single byte.
- *
- * So now we use bit_spin_lock(), with fun games since we can't burn a whole
- * ulong for this - we just need to make sure the lock bit always ends up in the
- * first byte.
- */
-
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define BUCKET_LOCK_BITNR	0
-#else
-#define BUCKET_LOCK_BITNR	(BITS_PER_LONG - 1)
-#endif
-
-union ulong_byte_assert {
-	ulong	ulong;
-	u8	byte;
-};
-
 static inline void bucket_unlock(struct bucket *b)
 {
 	BUILD_BUG_ON(!((union ulong_byte_assert) { .ulong = 1UL << BUCKET_LOCK_BITNR }).byte);
 
 	clear_bit_unlock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+	smp_mb__after_atomic();
 	wake_up_bit((void *) &b->lock, BUCKET_LOCK_BITNR);
 }
 
@@ -82,16 +56,15 @@ static inline void bucket_lock(struct bucket *b)
 
 static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
-	return genradix_ptr(&ca->buckets_gc, b);
+	return bucket_valid(ca, b)
+		? genradix_ptr(&ca->buckets_gc, b)
+		: NULL;
 }
 
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 {
 	return rcu_dereference_check(ca->bucket_gens,
-				     !ca->fs ||
-				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->state_lock) ||
-				     lockdep_is_held(&ca->bucket_lock));
+				     lockdep_is_held(&ca->fs->state_lock));
 }
 
 static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
@@ -111,10 +84,8 @@ static inline int bucket_gen_get_rcu(struct bch_dev *ca, size_t b)
 
 static inline int bucket_gen_get(struct bch_dev *ca, size_t b)
 {
-	rcu_read_lock();
-	int ret = bucket_gen_get_rcu(ca, b);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return bucket_gen_get_rcu(ca, b);
 }
 
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
@@ -168,9 +139,7 @@ static inline int gen_cmp(u8 a, u8 b)
 
 static inline int gen_after(u8 a, u8 b)
 {
-	int r = gen_cmp(a, b);
-
-	return r > 0 ? r : 0;
+	return max(0, gen_cmp(a, b));
 }
 
 static inline int dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
@@ -185,10 +154,8 @@ static inline int dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_
  */
 static inline int dev_ptr_stale(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
 {
-	rcu_read_lock();
-	int ret = dev_ptr_stale_rcu(ca, ptr);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return dev_ptr_stale_rcu(ca, ptr);
 }
 
 /* Device usage: */
@@ -202,7 +169,16 @@ static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 	return ret;
 }
 
-void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage *);
+void bch2_dev_usage_full_read_fast(struct bch_dev *, struct bch_dev_usage_full *);
+static inline struct bch_dev_usage_full bch2_dev_usage_full_read(struct bch_dev *ca)
+{
+	struct bch_dev_usage_full ret;
+
+	bch2_dev_usage_full_read_fast(ca, &ret);
+	return ret;
+}
+
+void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage_full *);
 
 static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_watermark watermark)
 {
@@ -237,7 +213,7 @@ static inline u64 dev_buckets_free(struct bch_dev *ca,
 				   enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
-		     usage.d[BCH_DATA_free].buckets -
+		     usage.buckets[BCH_DATA_free]-
 		     ca->nr_open_buckets -
 		     bch2_dev_buckets_reserved(ca, watermark));
 }
@@ -247,10 +223,10 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 					  enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
-		       usage.d[BCH_DATA_free].buckets
-		     + usage.d[BCH_DATA_cached].buckets
-		     + usage.d[BCH_DATA_need_gc_gens].buckets
-		     + usage.d[BCH_DATA_need_discard].buckets
+		       usage.buckets[BCH_DATA_free]
+		     + usage.buckets[BCH_DATA_cached]
+		     + usage.buckets[BCH_DATA_need_gc_gens]
+		     + usage.buckets[BCH_DATA_need_discard]
 		     - ca->nr_open_buckets
 		     - bch2_dev_buckets_reserved(ca, watermark));
 }
@@ -262,11 +238,6 @@ static inline u64 dev_buckets_available(struct bch_dev *ca,
 }
 
 /* Filesystem usage: */
-
-static inline unsigned dev_usage_u64s(void)
-{
-	return sizeof(struct bch_dev_usage) / sizeof(u64);
-}
 
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
@@ -308,26 +279,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *,
 				    enum btree_iter_update_trigger_flags);
 int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
-static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
-{
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
-	u64 b_offset	= bucket_to_sector(ca, b);
-	u64 b_end	= bucket_to_sector(ca, b + 1);
-	unsigned i;
-
-	if (!b)
-		return true;
-
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
-		u64 end = offset + (1 << layout->sb_max_size_bits);
-
-		if (!(offset >= b_end || end <= b_offset))
-			return true;
-	}
-
-	return false;
-}
+bool bch2_is_superblock_bucket(struct bch_dev *, u64);
 
 static inline const char *bch2_data_type_str(enum bch_data_type type)
 {

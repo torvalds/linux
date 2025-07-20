@@ -947,7 +947,7 @@ static const struct mmc_host_ops wbsd_ops = {
 
 static void wbsd_reset_ignore(struct timer_list *t)
 {
-	struct wbsd_host *host = from_timer(host, t, ignore_timer);
+	struct wbsd_host *host = timer_container_of(host, t, ignore_timer);
 
 	BUG_ON(host == NULL);
 
@@ -1261,7 +1261,7 @@ static void wbsd_free_mmc(struct device *dev)
 	host = mmc_priv(mmc);
 	BUG_ON(host == NULL);
 
-	del_timer_sync(&host->ignore_timer);
+	timer_delete_sync(&host->ignore_timer);
 
 	mmc_free_host(mmc);
 }

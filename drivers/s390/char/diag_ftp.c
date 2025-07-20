@@ -106,7 +106,7 @@ static int diag_ftp_2c4(struct diag_ftp_ldfpl *fpl,
 	int rc;
 
 	diag_stat_inc(DIAG_STAT_X2C4);
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[addr],%[cmd],0x2c4\n"
 		"0:	j	2f\n"
 		"1:	la	%[rc],%[err]\n"
@@ -159,7 +159,7 @@ ssize_t diag_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 		goto out;
 	}
 
-	len = strscpy(ldfpl->fident, ftp->fname, sizeof(ldfpl->fident));
+	len = strscpy(ldfpl->fident, ftp->fname);
 	if (len < 0) {
 		len = -EINVAL;
 		goto out_free;

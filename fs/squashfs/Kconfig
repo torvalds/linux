@@ -5,8 +5,8 @@ config SQUASHFS
 	help
 	  Saying Y here includes support for SquashFS 4.0 (a Compressed
 	  Read-Only File System).  Squashfs is a highly compressed read-only
-	  filesystem for Linux.  It uses zlib, lzo or xz compression to
-	  compress both files, inodes and directories.  Inodes in the system
+	  filesystem for Linux.  It uses zlib, lz4, lzo, xz or zstd compression
+	  to compress both files, inodes and directories.  Inodes in the system
 	  are very small and all blocks are packed to minimise data overhead.
 	  Block sizes greater than 4K are supported up to a maximum of 1 Mbytes
 	  (default block size 128K).  SquashFS 4.0 supports 64 bit filesystems
@@ -16,7 +16,7 @@ config SQUASHFS
 	  Squashfs is intended for general read-only filesystem use, for
 	  archival use (i.e. in cases where a .tar.gz file may be used), and in
 	  embedded systems where low overhead is needed.  Further information
-	  and tools are available from http://squashfs.sourceforge.net.
+	  and tools are available from github.com/plougher/squashfs-tools.
 
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
@@ -148,6 +148,27 @@ config SQUASHFS_XATTR
 	  the kernel or by users (see the attr(5) manual page).
 
 	  If unsure, say N.
+
+config SQUASHFS_COMP_CACHE_FULL
+	bool "Enable full caching of compressed blocks"
+	depends on SQUASHFS
+	default n
+	help
+	  This option enables caching of all compressed blocks, Without caching,
+	  repeated reads of the same files trigger excessive disk I/O, significantly
+	  reducinng performance in workloads like fio-based benchmarks.
+
+	  For example, fio tests (iodepth=1, numjobs=1, ioengine=psync) show:
+	   With caching: IOPS=2223, BW=278MiB/s (291MB/s)
+	   Without caching: IOPS=815, BW=102MiB/s (107MB/s)
+
+	  Enabling this option restores performance to pre-regression levels by
+	  caching all compressed blocks in the page cache, reducing disk I/O for
+	  repeated reads. However, this increases memory usage, which may be a
+	  concern in memory-constrained environments.
+
+	  Enable this option if your workload involves frequent repeated reads and
+	  memory usage is not a limiting factor. If unsure, say N.
 
 config SQUASHFS_ZLIB
 	bool "Include support for ZLIB compressed file systems"

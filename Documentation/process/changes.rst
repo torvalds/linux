@@ -29,13 +29,13 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
-GNU C                  5.1              gcc --version
+GNU C                  8.1              gcc --version
 Clang/LLVM (optional)  13.0.1           clang --version
 Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
 GNU make               4.0              make --version
 bash                   4.2              bash --version
-binutils               2.25             ld -v
+binutils               2.30             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.16             pahole --version
@@ -58,12 +58,11 @@ mcelog                 0.6              mcelog --version
 iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
-Sphinx\ [#f1]_         2.4.4            sphinx-build --version
-cpio                   any              cpio --version
+Sphinx\ [#f1]_         3.4.3            sphinx-build --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
 mkimage (optional)     2017.01          mkimage --version
-Python (optional)      3.5.x            python3 --version
+Python (optional)      3.9.x            python3 --version
 GNU AWK (optional)     5.1.0            gawk --version
 ====================== ===============  ========================================
 
@@ -117,7 +116,7 @@ Bash 4.2 or newer is needed.
 Binutils
 --------
 
-Binutils 2.25 or newer is needed to build the kernel.
+Binutils 2.30 or newer is needed to build the kernel.
 
 pkg-config
 ----------
@@ -535,11 +534,6 @@ mcelog
 ------
 
 - <https://www.mcelog.org/>
-
-cpio
-----
-
-- <https://www.gnu.org/software/cpio/>
 
 Networking
 **********

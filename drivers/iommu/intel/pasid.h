@@ -47,7 +47,6 @@ struct pasid_entry {
 /* The representative of a PASID table */
 struct pasid_table {
 	void			*table;		/* pasid table pointer */
-	int			order;		/* page order of pasid table */
 	u32			max_pasid;	/* max pasid */
 };
 
@@ -71,6 +70,12 @@ get_pasid_table_from_pde(struct pasid_dir_entry *pde)
 static inline bool pasid_pte_is_present(struct pasid_entry *pte)
 {
 	return READ_ONCE(pte->val[0]) & PASID_PTE_PRESENT;
+}
+
+/* Get FPD(Fault Processing Disable) bit of a PASID table entry */
+static inline bool pasid_pte_is_fault_disabled(struct pasid_entry *pte)
+{
+	return READ_ONCE(pte->val[0]) & PASID_PTE_FPD;
 }
 
 /* Get PGTT field of a PASID table entry */

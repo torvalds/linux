@@ -328,9 +328,13 @@ The ext4 superblock is laid out as follows in
      - s_checksum_type
      - Metadata checksum algorithm type. The only valid value is 1 (crc32c).
    * - 0x176
-     - __le16
-     - s_reserved_pad
-     -
+     - \_\_u8
+     - s\_encryption\_level
+     - Versioning level for encryption.
+   * - 0x177
+     - \_\_u8
+     - s\_reserved\_pad
+     - Padding to next 32bits.
    * - 0x178
      - __le64
      - s_kbytes_written
@@ -466,9 +470,13 @@ The ext4 superblock is laid out as follows in
      - s_last_error_time_hi
      - Upper 8 bits of the s_last_error_time field.
    * - 0x27A
-     - __u8
-     - s_pad[2]
-     - Zero padding.
+     - \_\_u8
+     - s\_first\_error\_errcode
+     -
+   * - 0x27B
+     - \_\_u8
+     - s\_last\_error\_errcode
+     -
    * - 0x27C
      - __le16
      - s_encoding

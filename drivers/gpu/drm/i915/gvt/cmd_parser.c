@@ -1286,6 +1286,7 @@ static int gen8_decode_mi_display_flip(struct parser_exec_state *s,
 		struct mi_display_flip_command_info *info)
 {
 	struct drm_i915_private *dev_priv = s->engine->i915;
+	struct intel_display *display = &dev_priv->display;
 	struct plane_code_mapping gen8_plane_code[] = {
 		[0] = {PIPE_A, PLANE_A, PRIMARY_A_FLIP_DONE},
 		[1] = {PIPE_B, PLANE_A, PRIMARY_B_FLIP_DONE},
@@ -1314,9 +1315,9 @@ static int gen8_decode_mi_display_flip(struct parser_exec_state *s,
 	info->async_flip = ((dword2 & GENMASK(1, 0)) == 0x1);
 
 	if (info->plane == PLANE_A) {
-		info->ctrl_reg = DSPCNTR(dev_priv, info->pipe);
-		info->stride_reg = DSPSTRIDE(dev_priv, info->pipe);
-		info->surf_reg = DSPSURF(dev_priv, info->pipe);
+		info->ctrl_reg = DSPCNTR(display, info->pipe);
+		info->stride_reg = DSPSTRIDE(display, info->pipe);
+		info->surf_reg = DSPSURF(display, info->pipe);
 	} else if (info->plane == PLANE_B) {
 		info->ctrl_reg = SPRCTL(info->pipe);
 		info->stride_reg = SPRSTRIDE(info->pipe);
@@ -1332,6 +1333,7 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 		struct mi_display_flip_command_info *info)
 {
 	struct drm_i915_private *dev_priv = s->engine->i915;
+	struct intel_display *display = &dev_priv->display;
 	struct intel_vgpu *vgpu = s->vgpu;
 	u32 dword0 = cmd_val(s, 0);
 	u32 dword1 = cmd_val(s, 1);
@@ -1380,9 +1382,9 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 	info->surf_val = (dword2 & GENMASK(31, 12)) >> 12;
 	info->async_flip = ((dword2 & GENMASK(1, 0)) == 0x1);
 
-	info->ctrl_reg = DSPCNTR(dev_priv, info->pipe);
-	info->stride_reg = DSPSTRIDE(dev_priv, info->pipe);
-	info->surf_reg = DSPSURF(dev_priv, info->pipe);
+	info->ctrl_reg = DSPCNTR(display, info->pipe);
+	info->stride_reg = DSPSTRIDE(display, info->pipe);
+	info->surf_reg = DSPSURF(display, info->pipe);
 
 	return 0;
 }
@@ -1419,6 +1421,7 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 		struct mi_display_flip_command_info *info)
 {
 	struct drm_i915_private *dev_priv = s->engine->i915;
+	struct intel_display *display = &dev_priv->display;
 	struct intel_vgpu *vgpu = s->vgpu;
 
 	set_mask_bits(&vgpu_vreg_t(vgpu, info->surf_reg), GENMASK(31, 12),
@@ -1436,7 +1439,7 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 	}
 
 	if (info->plane == PLANE_PRIMARY)
-		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(dev_priv, info->pipe))++;
+		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(display, info->pipe))++;
 
 	if (info->async_flip)
 		intel_vgpu_trigger_virtual_event(vgpu, info->event);
@@ -1903,7 +1906,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		s->vgpu->gtt.ggtt_mm : s->workload->shadow_mm;
 	unsigned long start_offset = 0;
 
-	/* get the start gm address of the batch buffer */
+	/* Get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
 	if (gma == INTEL_GVT_INVALID_ADDR)
 		return -EFAULT;
@@ -1918,15 +1921,16 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	bb->ppgtt = (s->buf_addr_type == GTT_BUFFER) ? false : true;
 
-	/* the start_offset stores the batch buffer's start gma's
-	 * offset relative to page boundary. so for non-privileged batch
+	/*
+	 * The start_offset stores the batch buffer's start gma's
+	 * offset relative to page boundary. So for non-privileged batch
 	 * buffer, the shadowed gem object holds exactly the same page
-	 * layout as original gem object. This is for the convience of
+	 * layout as original gem object. This is for the convenience of
 	 * replacing the whole non-privilged batch buffer page to this
-	 * shadowed one in PPGTT at the same gma address. (this replacing
+	 * shadowed one in PPGTT at the same gma address. (This replacing
 	 * action is not implemented yet now, but may be necessary in
 	 * future).
-	 * for prileged batch buffer, we just change start gma address to
+	 * For prileged batch buffer, we just change start gma address to
 	 * that of shadowed page.
 	 */
 	if (bb->ppgtt)
@@ -1973,7 +1977,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	/*
 	 * ip_va saves the virtual address of the shadow batch buffer, while
 	 * ip_gma saves the graphics address of the original batch buffer.
-	 * As the shadow batch buffer is just a copy from the originial one,
+	 * As the shadow batch buffer is just a copy from the original one,
 	 * it should be right to use shadow batch buffer'va and original batch
 	 * buffer's gma in pair. After all, we don't want to pin the shadow
 	 * buffer here (too early).

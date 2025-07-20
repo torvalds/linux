@@ -822,8 +822,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct acpi_device *device;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
-	struct resource *iomem;
-	resource_size_t len;
 	size_t priv_size;
 	int quirks = 0;
 	int err;
@@ -843,17 +841,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	if (sdhci_acpi_byt_defer(dev))
 		return -EPROBE_DEFER;
-
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem)
-		return -ENOMEM;
-
-	len = resource_size(iomem);
-	if (len < 0x100)
-		dev_err(dev, "Invalid iomem size!\n");
-
-	if (!devm_request_mem_region(dev, iomem->start, len, dev_name(dev)))
-		return -ENOMEM;
 
 	priv_size = slot ? slot->priv_size : 0;
 	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host) + priv_size);
@@ -876,10 +863,9 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	host->ioaddr = devm_ioremap(dev, iomem->start,
-					    resource_size(iomem));
-	if (host->ioaddr == NULL) {
-		err = -ENOMEM;
+	host->ioaddr = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(host->ioaddr)) {
+		err = PTR_ERR(host->ioaddr);
 		goto err_free;
 	}
 

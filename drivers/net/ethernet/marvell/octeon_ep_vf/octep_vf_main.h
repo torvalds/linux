@@ -246,10 +246,16 @@ struct octep_vf_device {
 	/* Pointers to Octeon Tx queues */
 	struct octep_vf_iq *iq[OCTEP_VF_MAX_IQ];
 
+	/* Per iq stats */
+	struct octep_vf_iq_stats stats_iq[OCTEP_VF_MAX_IQ];
+
 	/* Rx queues (OQ: Output Queue) */
 	u16 num_oqs;
 	/* Pointers to Octeon Rx queues */
 	struct octep_vf_oq *oq[OCTEP_VF_MAX_OQ];
+
+	/* Per oq stats */
+	struct octep_vf_oq_stats stats_oq[OCTEP_VF_MAX_OQ];
 
 	/* Hardware port number of the PCIe interface */
 	u16 pcie_port;
@@ -313,8 +319,6 @@ static inline u16 OCTEP_VF_MINOR_REV(struct octep_vf_device *oct)
 
 #define octep_vf_read_csr64(octep_vf_dev, reg_off)         \
 	readq((octep_vf_dev)->mmio.hw_addr + (reg_off))
-
-extern struct workqueue_struct *octep_vf_wq;
 
 int octep_vf_device_setup(struct octep_vf_device *oct);
 int octep_vf_setup_iqs(struct octep_vf_device *oct);

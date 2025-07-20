@@ -659,10 +659,12 @@ static int arp_xmit_finish(struct net *net, struct sock *sk, struct sk_buff *skb
  */
 void arp_xmit(struct sk_buff *skb)
 {
+	rcu_read_lock();
 	/* Send it off, maybe filter it using firewalling first.  */
 	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT,
-		dev_net(skb->dev), NULL, skb, NULL, skb->dev,
+		dev_net_rcu(skb->dev), NULL, skb, NULL, skb->dev,
 		arp_xmit_finish);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(arp_xmit);
 
@@ -1062,8 +1064,8 @@ static int arp_req_set_proxy(struct net *net, struct net_device *dev, int on)
 		IPV4_DEVCONF_ALL(net, PROXY_ARP) = on;
 		return 0;
 	}
-	if (__in_dev_get_rtnl(dev)) {
-		IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, on);
+	if (__in_dev_get_rtnl_net(dev)) {
+		IN_DEV_CONF_SET(__in_dev_get_rtnl_net(dev), PROXY_ARP, on);
 		return 0;
 	}
 	return -ENXIO;
@@ -1075,7 +1077,7 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 	__be32 mask = ((struct sockaddr_in *)&r->arp_netmask)->sin_addr.s_addr;
 
 	if (!dev && (r->arp_flags & ATF_COM)) {
-		dev = dev_getbyhwaddr_rcu(net, r->arp_ha.sa_family,
+		dev = dev_getbyhwaddr(net, r->arp_ha.sa_family,
 				      r->arp_ha.sa_data);
 		if (!dev)
 			return -ENODEV;
@@ -1293,14 +1295,14 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 
 	switch (cmd) {
 	case SIOCDARP:
-		rtnl_lock();
+		rtnl_net_lock(net);
 		err = arp_req_delete(net, &r);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
 		break;
 	case SIOCSARP:
-		rtnl_lock();
+		rtnl_net_lock(net);
 		err = arp_req_set(net, &r);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
 		break;
 	case SIOCGARP:
 		rcu_read_lock();

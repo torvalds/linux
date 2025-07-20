@@ -10,9 +10,9 @@
 #include <rdma/restrack.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
-#include <crypto/hash.h>
 #include <linux/crc32.h>
 #include <linux/crc32c.h>
+#include <linux/unaligned.h>
 
 #include <rdma/siw-abi.h>
 #include "iwarp.h"
@@ -46,6 +46,9 @@
  */
 #define SIW_IRQ_MAXBURST_SQ_ACTIVE 4
 
+/* There is always only a port 1 per siw device */
+#define SIW_PORT 1
+
 struct siw_dev_cap {
 	int max_qp;
 	int max_qp_wr;
@@ -69,15 +72,11 @@ struct siw_pd {
 
 struct siw_device {
 	struct ib_device base_dev;
-	struct net_device *netdev;
 	struct siw_dev_cap attrs;
 
 	u32 vendor_part_id;
 	int numa_node;
 	char raw_gid[ETH_ALEN];
-
-	/* physical port state (only one port per device) */
-	enum ib_port_state state;
 
 	spinlock_t lock;
 
@@ -290,7 +289,8 @@ struct siw_rx_stream {
 
 	union iwarp_hdr hdr;
 	struct mpa_trailer trailer;
-	struct shash_desc *mpa_crc_hd;
+	u32 mpa_crc;
+	bool mpa_crc_enabled;
 
 	/*
 	 * For each FPDU, main RX loop runs through 3 stages:
@@ -391,7 +391,8 @@ struct siw_iwarp_tx {
 	int burst;
 	int bytes_unsent; /* ddp payload bytes */
 
-	struct shash_desc *mpa_crc_hd;
+	u32 mpa_crc;
+	bool mpa_crc_enabled;
 
 	u8 do_crc : 1; /* do crc for segment */
 	u8 use_sendpage : 1; /* send w/o copy */
@@ -497,7 +498,6 @@ extern u_char mpa_version;
 extern const bool peer_to_peer;
 extern struct task_struct *siw_tx_thread[];
 
-extern struct crypto_shash *siw_crypto_shash;
 extern struct iwarp_msg_info iwarp_pktinfo[RDMAP_TERMINATE + 1];
 
 /* QP general functions */
@@ -669,29 +669,33 @@ static inline struct siw_sqe *irq_alloc_free(struct siw_qp *qp)
 	return NULL;
 }
 
-static inline __wsum siw_csum_update(const void *buff, int len, __wsum sum)
+static inline void siw_crc_init(u32 *crc)
 {
-	return (__force __wsum)crc32c((__force __u32)sum, buff, len);
+	*crc = ~0;
 }
 
-static inline __wsum siw_csum_combine(__wsum csum, __wsum csum2, int offset,
-				      int len)
+static inline void siw_crc_update(u32 *crc, const void *data, size_t len)
 {
-	return (__force __wsum)__crc32c_le_combine((__force __u32)csum,
-						   (__force __u32)csum2, len);
+	*crc = crc32c(*crc, data, len);
+}
+
+static inline void siw_crc_final(u32 *crc, u8 out[4])
+{
+	put_unaligned_le32(~*crc, out);
+}
+
+static inline void siw_crc_oneshot(const void *data, size_t len, u8 out[4])
+{
+	u32 crc;
+
+	siw_crc_init(&crc);
+	siw_crc_update(&crc, data, len);
+	return siw_crc_final(&crc, out);
 }
 
 static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)
 {
-	const struct skb_checksum_ops siw_cs_ops = {
-		.update = siw_csum_update,
-		.combine = siw_csum_combine,
-	};
-	__wsum crc = *(u32 *)shash_desc_ctx(srx->mpa_crc_hd);
-
-	crc = __skb_checksum(srx->skb, srx->skb_offset, len, crc,
-			     &siw_cs_ops);
-	*(u32 *)shash_desc_ctx(srx->mpa_crc_hd) = crc;
+	srx->mpa_crc = skb_crc32c(srx->skb, srx->skb_offset, len, srx->mpa_crc);
 }
 
 #define siw_dbg(ibdev, fmt, ...)                                               \
@@ -714,7 +718,7 @@ static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)
 		  "MEM[0x%08x] %s: " fmt, mem->stag, __func__, ##__VA_ARGS__)
 
 #define siw_dbg_cep(cep, fmt, ...)                                             \
-	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%pK] %s: " fmt,                 \
+	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%p] %s: " fmt,                 \
 		  cep, __func__, ##__VA_ARGS__)
 
 void siw_cq_flush(struct siw_cq *cq);

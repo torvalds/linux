@@ -23,6 +23,7 @@ properties:
     items:
       - enum:
           - qcom,pm6150l-flash-led
+          - qcom,pm660l-flash-led
           - qcom,pm8150c-flash-led
           - qcom,pm8150l-flash-led
           - qcom,pm8350c-flash-led

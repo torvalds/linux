@@ -31,12 +31,6 @@ iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(struct notifier_block *nb)
 {
 	return 0;
 }
-
-static inline
-int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
 #endif
 
 #endif /* __I915_IOSF_MBI_H__ */

@@ -98,7 +98,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 void
 ccw_device_timeout(struct timer_list *t)
 {
-	struct ccw_device_private *priv = from_timer(priv, t, timer);
+	struct ccw_device_private *priv = timer_container_of(priv, t, timer);
 	struct ccw_device *cdev = priv->cdev;
 
 	spin_lock_irq(cdev->ccwlock);
@@ -115,7 +115,7 @@ void
 ccw_device_set_timeout(struct ccw_device *cdev, int expires)
 {
 	if (expires == 0)
-		del_timer(&cdev->private->timer);
+		timer_delete(&cdev->private->timer);
 	else
 		mod_timer(&cdev->private->timer, jiffies + expires);
 }

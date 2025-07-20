@@ -132,13 +132,13 @@ out:
 	return rc;
 }
 
-static inline int mls_context_cmp(const struct context *c1,
-				  const struct context *c2)
+static inline bool mls_context_equal(const struct context *c1,
+				     const struct context *c2)
 {
 	return ((c1->range.level[0].sens == c2->range.level[0].sens) &&
-		ebitmap_cmp(&c1->range.level[0].cat, &c2->range.level[0].cat) &&
+		ebitmap_equal(&c1->range.level[0].cat, &c2->range.level[0].cat) &&
 		(c1->range.level[1].sens == c2->range.level[1].sens) &&
-		ebitmap_cmp(&c1->range.level[1].cat, &c2->range.level[1].cat));
+		ebitmap_equal(&c1->range.level[1].cat, &c2->range.level[1].cat));
 }
 
 static inline void mls_context_destroy(struct context *c)
@@ -188,15 +188,15 @@ static inline void context_destroy(struct context *c)
 	mls_context_destroy(c);
 }
 
-static inline int context_cmp(const struct context *c1,
-			      const struct context *c2)
+static inline bool context_equal(const struct context *c1,
+				 const struct context *c2)
 {
 	if (c1->len && c2->len)
 		return (c1->len == c2->len && !strcmp(c1->str, c2->str));
 	if (c1->len || c2->len)
 		return 0;
 	return ((c1->user == c2->user) && (c1->role == c2->role) &&
-		(c1->type == c2->type) && mls_context_cmp(c1, c2));
+		(c1->type == c2->type) && mls_context_equal(c1, c2));
 }
 
 u32 context_compute_hash(const struct context *c);

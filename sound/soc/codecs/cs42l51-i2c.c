@@ -13,9 +13,9 @@
 
 #include "cs42l51.h"
 
-static struct i2c_device_id cs42l51_i2c_id[] = {
-	{"cs42l51"},
-	{}
+static const struct i2c_device_id cs42l51_i2c_id[] = {
+	{ "cs42l51" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs42l51_i2c_id);
 
@@ -40,7 +40,7 @@ static void cs42l51_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct dev_pm_ops cs42l51_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cs42l51_suspend, cs42l51_resume)
+	SYSTEM_SLEEP_PM_OPS(cs42l51_suspend, cs42l51_resume)
 };
 
 static struct i2c_driver cs42l51_i2c_driver = {

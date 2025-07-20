@@ -711,7 +711,7 @@ Description:	This file shows the thin provisioning type. This is one of
 
 		The file is read only.
 
-What:		/sys/class/scsi_device/*/device/unit_descriptor/physical_memory_resourse_count
+What:		/sys/class/scsi_device/*/device/unit_descriptor/physical_memory_resource_count
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
 Description:	This file shows the total physical memory resources. This is
@@ -1558,4 +1558,130 @@ Description:
 		Host Capabilities register group: manufacturer ID register.
 		Symbol - HCMID. This file shows the UFSHCD manufacturer id.
 		The Manufacturer ID is defined by JEDEC in JEDEC-JEP106.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/critical_health
+What:		/sys/bus/platform/devices/*.ufs/critical_health
+Date:		February 2025
+Contact:	Avri Altman <avri.altman@wdc.com>
+Description:	Report the number of times a critical health event has been
+		reported by a UFS device. Further insight into the specific
+		issue can be gained by reading one of: bPreEOLInfo,
+		bDeviceLifeTimeEstA, bDeviceLifeTimeEstB,
+		bWriteBoosterBufferLifeTimeEst, and bRPMBLifeTimeEst.
+
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/clkscale_enable
+What:		/sys/bus/platform/devices/*.ufs/clkscale_enable
+Date:		January 2025
+Contact:	Ziqi Chen <quic_ziqichen@quicinc.com>
+Description:
+		This attribute shows whether the UFS clock scaling is enabled or not.
+		And it can be used to enable/disable the clock scaling by writing
+		1 or 0 to this attribute.
+
+		The attribute is read/write.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/clkgate_enable
+What:		/sys/bus/platform/devices/*.ufs/clkgate_enable
+Date:		January 2025
+Contact:	Ziqi Chen <quic_ziqichen@quicinc.com>
+Description:
+		This attribute shows whether the UFS clock gating is enabled or not.
+		And it can be used to enable/disable the clock gating by writing
+		1 or 0 to this attribute.
+
+		The attribute is read/write.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/clkgate_delay_ms
+What:		/sys/bus/platform/devices/*.ufs/clkgate_delay_ms
+Date:		January 2025
+Contact:	Ziqi Chen <quic_ziqichen@quicinc.com>
+Description:
+		This attribute shows and sets the number of milliseconds of idle time
+		before the UFS driver starts to perform clock gating. This can
+		prevent the UFS from frequently performing clock gating/ungating.
+
+		The attribute is read/write.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_lvl_exception_count
+What:		/sys/bus/platform/devices/*.ufs/device_lvl_exception_count
+Date:		March 2025
+Contact:	Bao D. Nguyen <quic_nguyenb@quicinc.com>
+Description:
+		This attribute is applicable to ufs devices compliant to the
+		JEDEC specifications version 4.1 or later. The
+		device_lvl_exception_count is a counter indicating the number of
+		times the device level exceptions have occurred since the last
+		time this variable is reset.  Writing a 0 value to this
+		attribute will reset the device_lvl_exception_count.  If the
+		device_lvl_exception_count reads a positive value, the user
+		application should read the device_lvl_exception_id attribute to
+		know more information about the exception.
+
+		The attribute is read/write.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_lvl_exception_id
+What:		/sys/bus/platform/devices/*.ufs/device_lvl_exception_id
+Date:		March 2025
+Contact:	Bao D. Nguyen <quic_nguyenb@quicinc.com>
+Description:
+		Reading the device_lvl_exception_id returns the
+		qDeviceLevelExceptionID attribute of the ufs device JEDEC
+		specification version 4.1. The definition of the
+		qDeviceLevelExceptionID is the ufs device vendor specific
+		implementation.  Refer to the device manufacturer datasheet for
+		more information on the meaning of the qDeviceLevelExceptionID
+		attribute value.
+
+		The attribute is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/wb_resize_enable
+What:		/sys/bus/platform/devices/*.ufs/wb_resize_enable
+Date:		April 2025
+Contact:	Huan Tang <tanghuan@vivo.com>
+Description:
+		The host can enable the WriteBooster buffer resize by setting this
+		attribute.
+
+		========  ======================================
+		idle      There is no resize operation
+		decrease  Decrease WriteBooster buffer size
+		increase  Increase WriteBooster buffer size
+		========  ======================================
+
+		The file is write only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_resize_hint
+What:		/sys/bus/platform/devices/*.ufs/attributes/wb_resize_hint
+Date:		April 2025
+Contact:	Huan Tang <tanghuan@vivo.com>
+Description:
+		wb_resize_hint indicates hint information about which type of resize
+		for WriteBooster buffer is recommended by the device.
+
+		=========  ======================================
+		keep       Recommend keep the buffer size
+		decrease   Recommend to decrease the buffer size
+		increase   Recommend to increase the buffer size
+		=========  ======================================
+
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_resize_status
+What:		/sys/bus/platform/devices/*.ufs/attributes/wb_resize_status
+Date:		April 2025
+Contact:	Huan Tang <tanghuan@vivo.com>
+Description:
+		The host can check the resize operation status of the WriteBooster
+		buffer by reading this attribute.
+
+		================  ========================================
+		idle              Resize operation is not issued
+		in_progress       Resize operation in progress
+		complete_success  Resize operation completed successfully
+		general_failure   Resize operation general failure
+		================  ========================================
+
 		The file is read only.

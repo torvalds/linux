@@ -41,8 +41,8 @@
  *      - added definitions for various XOR hashing policies
  */
 
-#ifndef _LINUX_IF_BONDING_H
-#define _LINUX_IF_BONDING_H
+#ifndef _UAPI_LINUX_IF_BONDING_H
+#define _UAPI_LINUX_IF_BONDING_H
 
 #include <linux/if.h>
 #include <linux/types.h>
@@ -152,4 +152,4 @@ enum {
 };
 #define BOND_3AD_STAT_MAX (__BOND_3AD_STAT_MAX - 1)
 
-#endif /* _LINUX_IF_BONDING_H */
+#endif /* _UAPI_LINUX_IF_BONDING_H */

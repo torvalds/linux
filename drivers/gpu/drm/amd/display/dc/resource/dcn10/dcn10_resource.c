@@ -23,6 +23,7 @@
  *
  */
 
+#include "core_status.h"
 #include "dm_services.h"
 #include "dc.h"
 
@@ -1125,7 +1126,7 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
-static bool dcn10_validate_bandwidth(
+static enum dc_status dcn10_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
@@ -1136,7 +1137,7 @@ static bool dcn10_validate_bandwidth(
 	voltage_supported = dcn_validate_bandwidth(dc, context, fast_validate);
 	DC_FP_END();
 
-	return voltage_supported;
+	return voltage_supported ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
@@ -1245,6 +1246,10 @@ struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
 			if (link->ep_type == DISPLAY_ENDPOINT_PHY && pool->stream_enc[i]->id ==
 					link->link_enc->preferred_engine)
 				return pool->stream_enc[i];
+
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && pool->stream_enc[i]->id ==
+					link->dpia_preferred_eng_id)
+				return pool->stream_enc[i];
 		}
 	}
 
@@ -1256,6 +1261,11 @@ struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
 		return pool->stream_enc[j];
 
 	return NULL;
+}
+
+unsigned int dcn10_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
+{
+	return pipe_ctx->pipe_dlg_param.vstartup_start;
 }
 
 static const struct dc_cap_funcs cap_funcs = {
@@ -1272,7 +1282,8 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
 	.patch_unknown_plane_state = dcn10_patch_unknown_plane_state,
-	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
+	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)

@@ -14,6 +14,7 @@
 
 #include "vsp1.h"
 #include "vsp1_dl.h"
+#include "vsp1_entity.h"
 #include "vsp1_pipe.h"
 #include "vsp1_uds.h"
 
@@ -177,6 +178,8 @@ static void uds_try_format(struct vsp1_uds *uds,
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
 
+		vsp1_entity_adjust_color_space(fmt);
+
 		fmt->width = clamp(fmt->width, UDS_MIN_SIZE, UDS_MAX_SIZE);
 		fmt->height = clamp(fmt->height, UDS_MIN_SIZE, UDS_MAX_SIZE);
 		break;
@@ -186,6 +189,11 @@ static void uds_try_format(struct vsp1_uds *uds,
 		format = v4l2_subdev_state_get_format(sd_state, UDS_PAD_SINK);
 		fmt->code = format->code;
 
+		fmt->colorspace = format->colorspace;
+		fmt->xfer_func = format->xfer_func;
+		fmt->ycbcr_enc = format->ycbcr_enc;
+		fmt->quantization = format->quantization;
+
 		uds_output_limits(format->width, &minimum, &maximum);
 		fmt->width = clamp(fmt->width, minimum, maximum);
 		uds_output_limits(format->height, &minimum, &maximum);
@@ -194,7 +202,6 @@ static void uds_try_format(struct vsp1_uds *uds,
 	}
 
 	fmt->field = V4L2_FIELD_NONE;
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
 static int uds_set_format(struct v4l2_subdev *subdev,

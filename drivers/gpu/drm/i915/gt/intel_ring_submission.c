@@ -26,6 +26,7 @@
 #include "shmem_utils.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
+#include "intel_gt_print.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -230,13 +231,18 @@ static int xcs_resume(struct intel_engine_cs *engine)
 
 	set_pp_dir(engine);
 
-	/* First wake the ring up to an empty/idle ring */
-	for ((kt) = ktime_get() + (2 * NSEC_PER_MSEC);
+	/*
+	 * First wake the ring up to an empty/idle ring.
+	 * Use 50ms of delay to let the engine write successfully
+	 * for all platforms. Experimented with different values and
+	 * determined that 50ms works best based on testing.
+	 */
+	for ((kt) = ktime_get() + (50 * NSEC_PER_MSEC);
 			ktime_before(ktime_get(), (kt)); cpu_relax()) {
 		/*
 		 * In case of resets fails because engine resumes from
 		 * incorrect RING_HEAD and then GPU may be then fed
-		 * to invalid instrcutions, which may lead to unrecoverable
+		 * to invalid instructions, which may lead to unrecoverable
 		 * hang. So at first write doesn't succeed then try again.
 		 */
 		ENGINE_WRITE_FW(engine, RING_HEAD, ring->head);
@@ -282,16 +288,16 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	return 0;
 
 err:
-	drm_err(&engine->i915->drm,
-		"%s initialization failed; "
-		"ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
-		engine->name,
-		ENGINE_READ(engine, RING_CTL),
-		ENGINE_READ(engine, RING_CTL) & RING_VALID,
-		ENGINE_READ(engine, RING_HEAD), ring->head,
-		ENGINE_READ(engine, RING_TAIL), ring->tail,
-		ENGINE_READ(engine, RING_START),
-		i915_ggtt_offset(ring->vma));
+	gt_err(engine->gt, "%s initialization failed\n", engine->name);
+	ENGINE_TRACE(engine,
+		     "ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
+		     ENGINE_READ(engine, RING_CTL),
+		     ENGINE_READ(engine, RING_CTL) & RING_VALID,
+		     ENGINE_READ(engine, RING_HEAD), ring->head,
+		     ENGINE_READ(engine, RING_TAIL), ring->tail,
+		     ENGINE_READ(engine, RING_START),
+		     i915_ggtt_offset(ring->vma));
+	GEM_TRACE_DUMP();
 	return -EIO;
 }
 
@@ -359,7 +365,13 @@ static void reset_prepare(struct intel_engine_cs *engine)
 			     ENGINE_READ_FW(engine, RING_HEAD),
 			     ENGINE_READ_FW(engine, RING_TAIL),
 			     ENGINE_READ_FW(engine, RING_START));
-		if (!stop_ring(engine)) {
+		/*
+		 * Sometimes engine head failed to set to zero even after writing into it.
+		 * Use wait_for_atomic() with 20ms delay to let engine resumes from
+		 * correct RING_HEAD. Experimented different values and determined
+		 * that 20ms works best based on testing.
+		 */
+		if (wait_for_atomic((!stop_ring(engine) == 0), 20)) {
 			drm_err(&engine->i915->drm,
 				"failed to set %s head to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
@@ -598,7 +610,6 @@ static int ring_context_alloc(struct intel_context *ce)
 	/* One ringbuffer to rule them all */
 	GEM_BUG_ON(!engine->legacy.ring);
 	ce->ring = engine->legacy.ring;
-	ce->timeline = intel_timeline_get(engine->legacy.timeline);
 
 	GEM_BUG_ON(ce->state);
 	if (engine->context_size) {
@@ -610,6 +621,8 @@ static int ring_context_alloc(struct intel_context *ce)
 
 		ce->state = vma;
 	}
+
+	ce->timeline = intel_timeline_get(engine->legacy.timeline);
 
 	return 0;
 }

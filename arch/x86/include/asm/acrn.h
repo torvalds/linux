@@ -25,7 +25,7 @@ void acrn_remove_intr_handler(void);
 static inline u32 acrn_cpuid_base(void)
 {
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-		return hypervisor_cpuid_base("ACRNACRNACRN", 0);
+		return cpuid_base_hypervisor("ACRNACRNACRN", 0);
 
 	return 0;
 }

@@ -10,6 +10,7 @@
 #include <asm/cmdline.h>
 #include <asm/traps.h>
 #include <asm/cpu.h>
+#include <asm/msr.h>
 
 enum split_lock_detect_state {
 	sld_off = 0,
@@ -49,7 +50,7 @@ static unsigned int sysctl_sld_mitigate = 1;
 static DEFINE_SEMAPHORE(buslock_sem, 1);
 
 #ifdef CONFIG_PROC_SYSCTL
-static struct ctl_table sld_sysctls[] = {
+static const struct ctl_table sld_sysctls[] = {
 	{
 		.procname       = "split_lock_mitigate",
 		.data           = &sysctl_sld_mitigate,
@@ -95,15 +96,15 @@ static bool split_lock_verify_msr(bool on)
 {
 	u64 ctrl, tmp;
 
-	if (rdmsrl_safe(MSR_TEST_CTRL, &ctrl))
+	if (rdmsrq_safe(MSR_TEST_CTRL, &ctrl))
 		return false;
 	if (on)
 		ctrl |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 	else
 		ctrl &= ~MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
-	if (wrmsrl_safe(MSR_TEST_CTRL, ctrl))
+	if (wrmsrq_safe(MSR_TEST_CTRL, ctrl))
 		return false;
-	rdmsrl(MSR_TEST_CTRL, tmp);
+	rdmsrq(MSR_TEST_CTRL, tmp);
 	return ctrl == tmp;
 }
 
@@ -137,7 +138,7 @@ static void __init __split_lock_setup(void)
 		return;
 	}
 
-	rdmsrl(MSR_TEST_CTRL, msr_test_ctrl_cache);
+	rdmsrq(MSR_TEST_CTRL, msr_test_ctrl_cache);
 
 	if (!split_lock_verify_msr(true)) {
 		pr_info("MSR access failed: Disabled\n");
@@ -145,7 +146,7 @@ static void __init __split_lock_setup(void)
 	}
 
 	/* Restore the MSR to its cached value. */
-	wrmsrl(MSR_TEST_CTRL, msr_test_ctrl_cache);
+	wrmsrq(MSR_TEST_CTRL, msr_test_ctrl_cache);
 
 	setup_force_cpu_cap(X86_FEATURE_SPLIT_LOCK_DETECT);
 }
@@ -162,7 +163,7 @@ static void sld_update_msr(bool on)
 	if (on)
 		test_ctrl_val |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 
-	wrmsrl(MSR_TEST_CTRL, test_ctrl_val);
+	wrmsrq(MSR_TEST_CTRL, test_ctrl_val);
 }
 
 void split_lock_init(void)
@@ -192,7 +193,33 @@ static void __split_lock_reenable(struct work_struct *work)
 {
 	sld_update_msr(true);
 }
-static DECLARE_DELAYED_WORK(sl_reenable, __split_lock_reenable);
+/*
+ * In order for each CPU to schedule its delayed work independently of the
+ * others, delayed work struct must be per-CPU. This is not required when
+ * sysctl_sld_mitigate is enabled because of the semaphore that limits
+ * the number of simultaneously scheduled delayed works to 1.
+ */
+static DEFINE_PER_CPU(struct delayed_work, sl_reenable);
+
+/*
+ * Per-CPU delayed_work can't be statically initialized properly because
+ * the struct address is unknown. Thus per-CPU delayed_work structures
+ * have to be initialized during kernel initialization and after calling
+ * setup_per_cpu_areas().
+ */
+static int __init setup_split_lock_delayed_work(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct delayed_work *work = per_cpu_ptr(&sl_reenable, cpu);
+
+		INIT_DELAYED_WORK(work, __split_lock_reenable);
+	}
+
+	return 0;
+}
+pure_initcall(setup_split_lock_delayed_work);
 
 /*
  * If a CPU goes offline with pending delayed work to re-enable split lock
@@ -215,13 +242,14 @@ static void split_lock_warn(unsigned long ip)
 {
 	struct delayed_work *work;
 	int cpu;
+	unsigned int saved_sld_mitigate = READ_ONCE(sysctl_sld_mitigate);
 
 	if (!current->reported_split_lock)
 		pr_warn_ratelimited("#AC: %s/%d took a split_lock trap at address: 0x%lx\n",
 				    current->comm, current->pid, ip);
 	current->reported_split_lock = 1;
 
-	if (sysctl_sld_mitigate) {
+	if (saved_sld_mitigate) {
 		/*
 		 * misery factor #1:
 		 * sleep 10ms before trying to execute split lock.
@@ -234,12 +262,10 @@ static void split_lock_warn(unsigned long ip)
 		 */
 		if (down_interruptible(&buslock_sem) == -EINTR)
 			return;
-		work = &sl_reenable_unlock;
-	} else {
-		work = &sl_reenable;
 	}
 
 	cpu = get_cpu();
+	work = saved_sld_mitigate ? &sl_reenable_unlock : per_cpu_ptr(&sl_reenable, cpu);
 	schedule_delayed_work_on(cpu, work, 2);
 
 	/* Disable split lock detection on this CPU to make progress */
@@ -272,7 +298,7 @@ void bus_lock_init(void)
 	if (!boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT))
 		return;
 
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, val);
+	rdmsrq(MSR_IA32_DEBUGCTLMSR, val);
 
 	if ((boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT) &&
 	    (sld_state == sld_warn || sld_state == sld_fatal)) ||
@@ -286,7 +312,7 @@ void bus_lock_init(void)
 		val |= DEBUGCTLMSR_BUS_LOCK_DETECT;
 	}
 
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, val);
+	wrmsrq(MSR_IA32_DEBUGCTLMSR, val);
 }
 
 bool handle_user_split_lock(struct pt_regs *regs, long error_code)
@@ -350,7 +376,7 @@ static void __init split_lock_setup(struct cpuinfo_x86 *c)
 	 * MSR_IA32_CORE_CAPS_SPLIT_LOCK_DETECT is.  All CPUs that set
 	 * it have split lock detection.
 	 */
-	rdmsrl(MSR_IA32_CORE_CAPS, ia32_core_caps);
+	rdmsrq(MSR_IA32_CORE_CAPS, ia32_core_caps);
 	if (ia32_core_caps & MSR_IA32_CORE_CAPS_SPLIT_LOCK_DETECT)
 		goto supported;
 

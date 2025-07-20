@@ -251,6 +251,7 @@ static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
 		error = filemap_fdatawait(inode->i_mapping);
 		if (error)
 			goto out;
+		truncate_inode_pages(inode->i_mapping, 0);
 		if (new_flags & GFS2_DIF_JDATA)
 			gfs2_ordered_del_inode(ip);
 	}
@@ -819,7 +820,7 @@ static ssize_t gfs2_file_direct_read(struct kiocb *iocb, struct iov_iter *to,
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 *
 	 * Unlike generic_file_read_iter, for reads, iomap_dio_rw can trigger
@@ -884,7 +885,7 @@ static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 *
 	 * For writes, iomap_dio_rw only triggers manual page faults, so we
@@ -956,7 +957,7 @@ static ssize_t gfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 */
 
@@ -1023,7 +1024,7 @@ static ssize_t gfs2_file_buffered_write(struct kiocb *iocb,
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 */
 

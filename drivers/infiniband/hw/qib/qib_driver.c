@@ -659,8 +659,8 @@ int qib_set_lid(struct qib_pportdata *ppd, u32 lid, u8 lmc)
 
 static void qib_run_led_override(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = from_timer(ppd, t,
-						    led_override_timer);
+	struct qib_pportdata *ppd = timer_container_of(ppd, t,
+						       led_override_timer);
 	struct qib_devdata *dd = ppd->dd;
 	int timeoff;
 	int ph_idx;
@@ -768,7 +768,7 @@ int qib_reset_device(int unit)
 		ppd = dd->pport + pidx;
 		if (atomic_read(&ppd->led_override_timer_active)) {
 			/* Need to stop LED timer, _then_ shut off LEDs */
-			del_timer_sync(&ppd->led_override_timer);
+			timer_delete_sync(&ppd->led_override_timer);
 			atomic_set(&ppd->led_override_timer_active, 0);
 		}
 

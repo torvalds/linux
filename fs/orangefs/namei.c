@@ -300,8 +300,8 @@ out:
 	return ret;
 }
 
-static int orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-			  struct dentry *dentry, umode_t mode)
+static struct dentry *orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				     struct dentry *dentry, umode_t mode)
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
@@ -312,7 +312,7 @@ static int orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_MKDIR);
 	if (!new_op)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	new_op->upcall.req.mkdir.parent_refn = parent->refn;
 
@@ -366,7 +366,7 @@ static int orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	__orangefs_setattr(dir, &iattr);
 out:
 	op_release(new_op);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int orangefs_rename(struct mnt_idmap *idmap,

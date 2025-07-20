@@ -78,7 +78,7 @@ enum cxusb_table_index {
 	NR__cxusb_table_index
 };
 
-static struct usb_device_id cxusb_table[];
+static const struct usb_device_id cxusb_table[];
 
 int cxusb_ctrl_msg(struct dvb_usb_device *d,
 		   u8 cmd, const u8 *wbuf, int wlen, u8 *rbuf, int rlen)
@@ -119,9 +119,8 @@ static void cxusb_gpio_tuner(struct dvb_usb_device *d, int onoff)
 
 	o[0] = GPIO_TUNER;
 	o[1] = onoff;
-	cxusb_ctrl_msg(d, CMD_GPIO_WRITE, o, 2, &i, 1);
 
-	if (i != 0x01)
+	if (!cxusb_ctrl_msg(d, CMD_GPIO_WRITE, o, 2, &i, 1) && i != 0x01)
 		dev_info(&d->udev->dev, "gpio_write failed.\n");
 
 	st->gpio_write_state[GPIO_TUNER] = onoff;
@@ -287,7 +286,7 @@ static u32 cxusb_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm cxusb_i2c_algo = {
+static const struct i2c_algorithm cxusb_i2c_algo = {
 	.master_xfer   = cxusb_i2c_xfer,
 	.functionality = cxusb_i2c_func,
 };
@@ -1692,7 +1691,7 @@ static void cxusb_disconnect(struct usb_interface *intf)
 	dvb_usb_device_exit(intf);
 }
 
-static struct usb_device_id cxusb_table[] = {
+static const struct usb_device_id cxusb_table[] = {
 	DVB_USB_DEV(MEDION, MEDION_MD95700),
 	DVB_USB_DEV(DVICO, DVICO_BLUEBIRD_LG064F_COLD),
 	DVB_USB_DEV(DVICO, DVICO_BLUEBIRD_LG064F_WARM),

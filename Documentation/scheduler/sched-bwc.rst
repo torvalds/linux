@@ -59,7 +59,7 @@ At the same time, we can say that the worst case deadline miss, will be
 \Sum e_i; that is, there is a bounded tardiness (under the assumption
 that x+e is indeed WCET).
 
-The interferenece when using burst is valued by the possibilities for
+The interference when using burst is valued by the possibilities for
 missing the deadline and the average WCET. Test results showed that when
 there many cgroups or CPU is under utilized, the interference is
 limited. More details are shown in:

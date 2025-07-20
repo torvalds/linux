@@ -28,6 +28,7 @@
 
 #define RAS_TABLE_VER_V1           0x00010000
 #define RAS_TABLE_VER_V2_1         0x00021000
+#define RAS_TABLE_VER_V3           0x00030000
 
 struct amdgpu_device;
 
@@ -81,6 +82,17 @@ struct amdgpu_ras_eeprom_control {
 	/* Number of records in the table.
 	 */
 	u32 ras_num_recs;
+
+	/* the bad page number is ras_num_recs or
+	 * ras_num_recs * umc.retire_unit
+	 */
+	u32 ras_num_bad_pages;
+
+	/* Number of records store mca address */
+	u32 ras_num_mca_recs;
+
+	/* Number of records store physical address */
+	u32 ras_num_pa_recs;
 
 	/* First record index to read, 0-based.
 	 * Range is [0, num_recs-1]. This is
@@ -144,6 +156,8 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 uint32_t amdgpu_ras_eeprom_max_record_count(struct amdgpu_ras_eeprom_control *control);
 
 void amdgpu_ras_debugfs_set_ret_size(struct amdgpu_ras_eeprom_control *control);
+
+int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control);
 
 extern const struct file_operations amdgpu_ras_debugfs_eeprom_size_ops;
 extern const struct file_operations amdgpu_ras_debugfs_eeprom_table_ops;

@@ -60,7 +60,7 @@
 //!     type Pointer = Arc<MyStruct>;
 //!
 //!     fn run(this: Arc<MyStruct>) {
-//!         pr_info!("The value is: {}", this.value);
+//!         pr_info!("The value is: {}\n", this.value);
 //!     }
 //! }
 //!
@@ -69,6 +69,7 @@
 //! fn print_later(val: Arc<MyStruct>) {
 //!     let _ = workqueue::system().enqueue(val);
 //! }
+//! # print_later(MyStruct::new(42).unwrap());
 //! ```
 //!
 //! The following example shows how multiple `work_struct` fields can be used:
@@ -107,7 +108,7 @@
 //!     type Pointer = Arc<MyStruct>;
 //!
 //!     fn run(this: Arc<MyStruct>) {
-//!         pr_info!("The value is: {}", this.value_1);
+//!         pr_info!("The value is: {}\n", this.value_1);
 //!     }
 //! }
 //!
@@ -115,7 +116,7 @@
 //!     type Pointer = Arc<MyStruct>;
 //!
 //!     fn run(this: Arc<MyStruct>) {
-//!         pr_info!("The second value is: {}", this.value_2);
+//!         pr_info!("The second value is: {}\n", this.value_2);
 //!     }
 //! }
 //!
@@ -126,6 +127,8 @@
 //! fn print_2_later(val: Arc<MyStruct>) {
 //!     let _ = workqueue::system().enqueue::<Arc<MyStruct>, 2>(val);
 //! }
+//! # print_1_later(MyStruct::new(24, 25).unwrap());
+//! # print_2_later(MyStruct::new(41, 42).unwrap());
 //! ```
 //!
 //! C header: [`include/linux/workqueue.h`](srctree/include/linux/workqueue.h)
@@ -366,7 +369,7 @@ unsafe impl<T: ?Sized, const ID: u64> Sync for Work<T, ID> {}
 impl<T: ?Sized, const ID: u64> Work<T, ID> {
     /// Creates a new instance of [`Work`].
     #[inline]
-    pub fn new(name: &'static CStr, key: &'static LockClassKey) -> impl PinInit<Self>
+    pub fn new(name: &'static CStr, key: Pin<&'static LockClassKey>) -> impl PinInit<Self>
     where
         T: WorkItem<ID>,
     {
@@ -426,51 +429,28 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
 ///
 /// # Safety
 ///
-/// The [`OFFSET`] constant must be the offset of a field in `Self` of type [`Work<T, ID>`]. The
-/// methods on this trait must have exactly the behavior that the definitions given below have.
+/// The methods [`raw_get_work`] and [`work_container_of`] must return valid pointers and must be
+/// true inverses of each other; that is, they must satisfy the following invariants:
+/// - `work_container_of(raw_get_work(ptr)) == ptr` for any `ptr: *mut Self`.
+/// - `raw_get_work(work_container_of(ptr)) == ptr` for any `ptr: *mut Work<T, ID>`.
 ///
 /// [`impl_has_work!`]: crate::impl_has_work
-/// [`OFFSET`]: HasWork::OFFSET
+/// [`raw_get_work`]: HasWork::raw_get_work
+/// [`work_container_of`]: HasWork::work_container_of
 pub unsafe trait HasWork<T, const ID: u64 = 0> {
-    /// The offset of the [`Work<T, ID>`] field.
-    const OFFSET: usize;
-
-    /// Returns the offset of the [`Work<T, ID>`] field.
-    ///
-    /// This method exists because the [`OFFSET`] constant cannot be accessed if the type is not
-    /// [`Sized`].
-    ///
-    /// [`OFFSET`]: HasWork::OFFSET
-    #[inline]
-    fn get_work_offset(&self) -> usize {
-        Self::OFFSET
-    }
-
     /// Returns a pointer to the [`Work<T, ID>`] field.
     ///
     /// # Safety
     ///
     /// The provided pointer must point at a valid struct of type `Self`.
-    #[inline]
-    unsafe fn raw_get_work(ptr: *mut Self) -> *mut Work<T, ID> {
-        // SAFETY: The caller promises that the pointer is valid.
-        unsafe { (ptr as *mut u8).add(Self::OFFSET) as *mut Work<T, ID> }
-    }
+    unsafe fn raw_get_work(ptr: *mut Self) -> *mut Work<T, ID>;
 
     /// Returns a pointer to the struct containing the [`Work<T, ID>`] field.
     ///
     /// # Safety
     ///
     /// The pointer must point at a [`Work<T, ID>`] field in a struct of type `Self`.
-    #[inline]
-    unsafe fn work_container_of(ptr: *mut Work<T, ID>) -> *mut Self
-    where
-        Self: Sized,
-    {
-        // SAFETY: The caller promises that the pointer points at a field of the right type in the
-        // right kind of struct.
-        unsafe { (ptr as *mut u8).sub(Self::OFFSET) as *mut Self }
-    }
+    unsafe fn work_container_of(ptr: *mut Work<T, ID>) -> *mut Self;
 }
 
 /// Used to safely implement the [`HasWork<T, ID>`] trait.
@@ -501,14 +481,21 @@ macro_rules! impl_has_work {
         // SAFETY: The implementation of `raw_get_work` only compiles if the field has the right
         // type.
         unsafe impl$(<$($generics)+>)? $crate::workqueue::HasWork<$work_type $(, $id)?> for $self {
-            const OFFSET: usize = ::core::mem::offset_of!(Self, $field) as usize;
-
             #[inline]
             unsafe fn raw_get_work(ptr: *mut Self) -> *mut $crate::workqueue::Work<$work_type $(, $id)?> {
                 // SAFETY: The caller promises that the pointer is not dangling.
                 unsafe {
                     ::core::ptr::addr_of_mut!((*ptr).$field)
                 }
+            }
+
+            #[inline]
+            unsafe fn work_container_of(
+                ptr: *mut $crate::workqueue::Work<$work_type $(, $id)?>,
+            ) -> *mut Self {
+                // SAFETY: The caller promises that the pointer points at a field of the right type
+                // in the right kind of struct.
+                unsafe { $crate::container_of!(ptr, Self, $field) }
             }
         }
     )*};
@@ -519,7 +506,15 @@ impl_has_work! {
     impl{T} HasWork<Self> for ClosureWork<T> { self.work }
 }
 
-// SAFETY: TODO.
+// SAFETY: The `__enqueue` implementation in RawWorkItem uses a `work_struct` initialized with the
+// `run` method of this trait as the function pointer because:
+//   - `__enqueue` gets the `work_struct` from the `Work` field, using `T::raw_get_work`.
+//   - The only safe way to create a `Work` object is through `Work::new`.
+//   - `Work::new` makes sure that `T::Pointer::run` is passed to `init_work_with_key`.
+//   - Finally `Work` and `RawWorkItem` guarantee that the correct `Work` field
+//     will be used because of the ID const generic bound. This makes sure that `T::raw_get_work`
+//     uses the correct offset for the `Work` field, and `Work::new` picks the correct
+//     implementation of `WorkItemPointer` for `Arc<T>`.
 unsafe impl<T, const ID: u64> WorkItemPointer<ID> for Arc<T>
 where
     T: WorkItem<ID, Pointer = Self>,
@@ -537,7 +532,13 @@ where
     }
 }
 
-// SAFETY: TODO.
+// SAFETY: The `work_struct` raw pointer is guaranteed to be valid for the duration of the call to
+// the closure because we get it from an `Arc`, which means that the ref count will be at least 1,
+// and we don't drop the `Arc` ourselves. If `queue_work_on` returns true, it is further guaranteed
+// to be valid until a call to the function pointer in `work_struct` because we leak the memory it
+// points to, and only reclaim it if the closure returns false, or in `WorkItemPointer::run`, which
+// is what the function pointer in the `work_struct` must be pointing to, according to the safety
+// requirements of `WorkItemPointer`.
 unsafe impl<T, const ID: u64> RawWorkItem<ID> for Arc<T>
 where
     T: WorkItem<ID, Pointer = Self>,
@@ -685,4 +686,22 @@ pub fn system_power_efficient() -> &'static Queue {
 pub fn system_freezable_power_efficient() -> &'static Queue {
     // SAFETY: `system_freezable_power_efficient_wq` is a C global, always available.
     unsafe { Queue::from_raw(bindings::system_freezable_power_efficient_wq) }
+}
+
+/// Returns the system bottom halves work queue (`system_bh_wq`).
+///
+/// It is similar to the one returned by [`system`] but for work items which
+/// need to run from a softirq context.
+pub fn system_bh() -> &'static Queue {
+    // SAFETY: `system_bh_wq` is a C global, always available.
+    unsafe { Queue::from_raw(bindings::system_bh_wq) }
+}
+
+/// Returns the system bottom halves high-priority work queue (`system_bh_highpri_wq`).
+///
+/// It is similar to the one returned by [`system_bh`] but for work items which
+/// require higher scheduling priority.
+pub fn system_bh_highpri() -> &'static Queue {
+    // SAFETY: `system_bh_highpri_wq` is a C global, always available.
+    unsafe { Queue::from_raw(bindings::system_bh_highpri_wq) }
 }

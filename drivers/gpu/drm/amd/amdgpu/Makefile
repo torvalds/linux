@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2017-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -65,7 +65,8 @@ amdgpu-y += amdgpu_device.o amdgpu_doorbell_mgr.o amdgpu_kms.o \
 	amdgpu_umc.o smu_v11_0_i2c.o amdgpu_fru_eeprom.o amdgpu_rap.o \
 	amdgpu_fw_attestation.o amdgpu_securedisplay.o \
 	amdgpu_eeprom.o amdgpu_mca.o amdgpu_psp_ta.o amdgpu_lsdma.o \
-	amdgpu_ring_mux.o amdgpu_xcp.o amdgpu_seq64.o amdgpu_aca.o amdgpu_dev_coredump.o
+	amdgpu_ring_mux.o amdgpu_xcp.o amdgpu_seq64.o amdgpu_aca.o amdgpu_dev_coredump.o \
+	amdgpu_cper.o amdgpu_userq_fence.o amdgpu_eviction_fence.o
 
 amdgpu-$(CONFIG_PROC_FS) += amdgpu_fdinfo.o
 
@@ -105,7 +106,7 @@ amdgpu-y += \
 
 # add UMC block
 amdgpu-y += \
-	umc_v6_0.o umc_v6_1.o umc_v6_7.o umc_v8_7.o umc_v8_10.o umc_v12_0.o
+	umc_v6_0.o umc_v6_1.o umc_v6_7.o umc_v8_7.o umc_v8_10.o umc_v12_0.o umc_v8_14.o
 
 # add IH block
 amdgpu-y += \
@@ -173,7 +174,10 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_mes.o \
 	mes_v11_0.o \
-	mes_v12_0.o
+	mes_v12_0.o \
+
+# add GFX userqueue support
+amdgpu-y += mes_userqueue.o
 
 # add UVD block
 amdgpu-y += \
@@ -200,6 +204,7 @@ amdgpu-y += \
 	vcn_v4_0_3.o \
 	vcn_v4_0_5.o \
 	vcn_v5_0_0.o \
+	vcn_v5_0_1.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
@@ -208,7 +213,8 @@ amdgpu-y += \
 	jpeg_v4_0.o \
 	jpeg_v4_0_3.o \
 	jpeg_v4_0_5.o \
-	jpeg_v5_0_0.o
+	jpeg_v5_0_0.o \
+	jpeg_v5_0_1.o
 
 # add VPE block
 amdgpu-y += \
@@ -250,6 +256,8 @@ amdgpu-y += \
 # add amdkfd interfaces
 amdgpu-y += amdgpu_amdkfd.o
 
+# add gfx usermode queue
+amdgpu-y += amdgpu_userq.o
 
 ifneq ($(CONFIG_HSA_AMD),)
 AMDKFD_PATH := ../amdkfd

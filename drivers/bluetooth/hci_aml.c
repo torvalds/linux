@@ -313,8 +313,7 @@ static int aml_download_firmware(struct hci_dev *hdev, const char *fw_name)
 		goto exit;
 
 exit:
-	if (firmware)
-		release_firmware(firmware);
+	release_firmware(firmware);
 	return ret;
 }
 
@@ -425,7 +424,7 @@ static int aml_check_bdaddr(struct hci_dev *hdev)
 
 	if (!bacmp(&paddr->bdaddr, AML_BDADDR_DEFAULT)) {
 		bt_dev_info(hdev, "amlbt using default bdaddr (%pM)", &paddr->bdaddr);
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_INVALID_BDADDR);
 	}
 
 exit:

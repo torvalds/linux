@@ -33,7 +33,7 @@ struct mgmt_mesh_tx {
 struct mgmt_pending_cmd {
 	struct list_head list;
 	u16 opcode;
-	int index;
+	struct hci_dev *hdev;
 	void *param;
 	size_t param_len;
 	struct sock *sk;
@@ -54,11 +54,7 @@ int mgmt_cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 
 struct mgmt_pending_cmd *mgmt_pending_find(unsigned short channel, u16 opcode,
 					   struct hci_dev *hdev);
-struct mgmt_pending_cmd *mgmt_pending_find_data(unsigned short channel,
-						u16 opcode,
-						struct hci_dev *hdev,
-						const void *data);
-void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev,
+void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev, bool remove,
 			  void (*cb)(struct mgmt_pending_cmd *cmd, void *data),
 			  void *data);
 struct mgmt_pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,

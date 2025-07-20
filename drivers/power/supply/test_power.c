@@ -37,6 +37,9 @@ static int battery_charge_counter	= -1000;
 static int battery_current		= -1600;
 static enum power_supply_charge_behaviour battery_charge_behaviour =
 	POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO;
+static enum power_supply_charge_type battery_charge_types =
+	POWER_SUPPLY_CHARGE_TYPE_STANDARD;
+static bool battery_extension;
 
 static bool module_initialized;
 
@@ -86,7 +89,7 @@ static int test_power_get_battery_property(struct power_supply *psy,
 		val->intval = battery_status;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
+		val->intval = battery_charge_types;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = battery_health;
@@ -128,6 +131,9 @@ static int test_power_get_battery_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
 		val->intval = battery_charge_behaviour;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPES:
+		val->intval = battery_charge_types;
+		break;
 	default:
 		pr_info("%s: some properties deliberately report errors.\n",
 			__func__);
@@ -139,7 +145,7 @@ static int test_power_get_battery_property(struct power_supply *psy,
 static int test_power_battery_property_is_writeable(struct power_supply *psy,
 						    enum power_supply_property psp)
 {
-	return psp == POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR;
+	return psp == POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR || psp == POWER_SUPPLY_PROP_CHARGE_TYPES;
 }
 
 static int test_power_set_battery_property(struct power_supply *psy,
@@ -154,6 +160,14 @@ static int test_power_set_battery_property(struct power_supply *psy,
 			return -EINVAL;
 		}
 		battery_charge_behaviour = val->intval;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPES:
+		if (val->intval < 0 ||
+		    val->intval >= BITS_PER_TYPE(typeof(psy->desc->charge_types)) ||
+		    !(BIT(val->intval) & psy->desc->charge_types)) {
+			return -EINVAL;
+		}
+		battery_charge_types = val->intval;
 		break;
 	default:
 		return -EINVAL;
@@ -187,6 +201,7 @@ static enum power_supply_property test_power_battery_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
+	POWER_SUPPLY_PROP_CHARGE_TYPES,
 };
 
 static char *test_power_ac_supplied_to[] = {
@@ -213,7 +228,10 @@ static const struct power_supply_desc test_power_desc[] = {
 		.property_is_writeable = test_power_battery_property_is_writeable,
 		.charge_behaviours = BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO)
 				   | BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)
+				   | BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE_AWAKE)
 				   | BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE),
+		.charge_types = BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD)
+				   | BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE)
 	},
 	[TEST_USB] = {
 		.name = "test_usb",
@@ -238,6 +256,87 @@ static const struct power_supply_config test_power_configs[] = {
 	},
 };
 
+static int test_power_battery_extmanufacture_year = 1234;
+static int test_power_battery_exttemp_max = 1000;
+static const enum power_supply_property test_power_battery_extprops[] = {
+	POWER_SUPPLY_PROP_MANUFACTURE_YEAR,
+	POWER_SUPPLY_PROP_TEMP_MAX,
+};
+
+static int test_power_battery_extget_property(struct power_supply *psy,
+					      const struct power_supply_ext *ext,
+					      void *ext_data,
+					      enum power_supply_property psp,
+					      union power_supply_propval *val)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_MANUFACTURE_YEAR:
+		val->intval = test_power_battery_extmanufacture_year;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_MAX:
+		val->intval = test_power_battery_exttemp_max;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int test_power_battery_extset_property(struct power_supply *psy,
+					      const struct power_supply_ext *ext,
+					      void *ext_data,
+					      enum power_supply_property psp,
+					      const union power_supply_propval *val)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_MANUFACTURE_YEAR:
+		test_power_battery_extmanufacture_year = val->intval;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_MAX:
+		test_power_battery_exttemp_max = val->intval;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int test_power_battery_extproperty_is_writeable(struct power_supply *psy,
+						       const struct power_supply_ext *ext,
+						       void *ext_data,
+						       enum power_supply_property psp)
+{
+	return true;
+}
+
+static const struct power_supply_ext test_power_battery_ext = {
+	.name			= "test_power",
+	.properties		= test_power_battery_extprops,
+	.num_properties		= ARRAY_SIZE(test_power_battery_extprops),
+	.get_property		= test_power_battery_extget_property,
+	.set_property		= test_power_battery_extset_property,
+	.property_is_writeable	= test_power_battery_extproperty_is_writeable,
+};
+
+static void test_power_configure_battery_extension(bool enable)
+{
+	struct power_supply *psy;
+
+	psy = test_power_supplies[TEST_BATTERY];
+
+	if (enable) {
+		if (power_supply_register_extension(psy, &test_power_battery_ext, &psy->dev,
+						    NULL)) {
+			pr_err("registering battery extension failed\n");
+			return;
+		}
+	} else {
+		power_supply_unregister_extension(psy, &test_power_battery_ext);
+	}
+
+	battery_extension = enable;
+}
+
 static int __init test_power_init(void)
 {
 	int i;
@@ -257,6 +356,8 @@ static int __init test_power_init(void)
 			goto failed;
 		}
 	}
+
+	test_power_configure_battery_extension(true);
 
 	module_initialized = true;
 	return 0;
@@ -524,6 +625,26 @@ static int param_set_battery_current(const char *key,
 
 #define param_get_battery_current param_get_int
 
+static int param_set_battery_extension(const char *key,
+				       const struct kernel_param *kp)
+{
+	bool prev_battery_extension;
+	int ret;
+
+	prev_battery_extension = battery_extension;
+
+	ret = param_set_bool(key, kp);
+	if (ret)
+		return ret;
+
+	if (prev_battery_extension != battery_extension)
+		test_power_configure_battery_extension(battery_extension);
+
+	return 0;
+}
+
+#define param_get_battery_extension param_get_bool
+
 static const struct kernel_param_ops param_ops_ac_online = {
 	.set = param_set_ac_online,
 	.get = param_get_ac_online,
@@ -574,6 +695,11 @@ static const struct kernel_param_ops param_ops_battery_current = {
 	.get = param_get_battery_current,
 };
 
+static const struct kernel_param_ops param_ops_battery_extension = {
+	.set = param_set_battery_extension,
+	.get = param_get_battery_extension,
+};
+
 #define param_check_ac_online(name, p) __param_check(name, p, void);
 #define param_check_usb_online(name, p) __param_check(name, p, void);
 #define param_check_battery_status(name, p) __param_check(name, p, void);
@@ -584,6 +710,7 @@ static const struct kernel_param_ops param_ops_battery_current = {
 #define param_check_battery_voltage(name, p) __param_check(name, p, void);
 #define param_check_battery_charge_counter(name, p) __param_check(name, p, void);
 #define param_check_battery_current(name, p) __param_check(name, p, void);
+#define param_check_battery_extension(name, p) __param_check(name, p, void);
 
 
 module_param(ac_online, ac_online, 0644);
@@ -620,6 +747,9 @@ MODULE_PARM_DESC(battery_charge_counter,
 
 module_param(battery_current, battery_current, 0644);
 MODULE_PARM_DESC(battery_current, "battery current (milliampere)");
+
+module_param(battery_extension, battery_extension, 0644);
+MODULE_PARM_DESC(battery_extension, "battery extension");
 
 MODULE_DESCRIPTION("Power supply driver for testing");
 MODULE_AUTHOR("Anton Vorontsov <cbouatmailru@gmail.com>");

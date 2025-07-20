@@ -157,7 +157,7 @@ EXPORT_SYMBOL(snd_mpu401_uart_interrupt_tx);
  */
 static void snd_mpu401_uart_timer(struct timer_list *t)
 {
-	struct snd_mpu401 *mpu = from_timer(mpu, t, timer);
+	struct snd_mpu401 *mpu = timer_container_of(mpu, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mpu->timer_lock, flags);
@@ -197,7 +197,7 @@ static void snd_mpu401_uart_remove_timer (struct snd_mpu401 *mpu, int input)
 		mpu->timer_invoked &= input ? ~MPU401_MODE_INPUT_TIMER :
 			~MPU401_MODE_OUTPUT_TIMER;
 		if (! mpu->timer_invoked)
-			del_timer(&mpu->timer);
+			timer_delete(&mpu->timer);
 	}
 	spin_unlock_irqrestore (&mpu->timer_lock, flags);
 }

@@ -857,7 +857,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_GMAC_CON, 5, 1, MFLAGS),
 	MUXGRF(CLK_GMAC_SRC, "clk_gmac_src", mux_clk_gmac_src_p, CLK_SET_RATE_PARENT |
 			CLK_SET_RATE_NO_REPARENT,
-			RV1126_GRF_IOFUNC_CON1, 12, 1, MFLAGS),
+			RV1126_GRF_IOFUNC_CON1, 12, 1, MFLAGS, grf_type_sys),
 
 	GATE(CLK_GMAC_REF, "clk_gmac_ref", "clk_gmac_src", 0,
 			RV1126_CLKGATE_CON(20), 7, GFLAGS),

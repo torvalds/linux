@@ -71,7 +71,7 @@ __printf(2, 3);
 /**
  * _batadv_dbg() - Store debug output with(out) rate limiting
  * @type: type of debug message
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @ratelimited: whether output should be rate limited
  * @fmt: format string
  * @arg: variable arguments
@@ -97,7 +97,7 @@ static inline void _batadv_dbg(int type __always_unused,
 /**
  * batadv_dbg() - Store debug output without rate limiting
  * @type: type of debug message
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @arg: format string and variable arguments
  */
 #define batadv_dbg(type, bat_priv, arg...) \
@@ -106,7 +106,7 @@ static inline void _batadv_dbg(int type __always_unused,
 /**
  * batadv_dbg_ratelimited() - Store debug output with rate limiting
  * @type: type of debug message
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @arg: format string and variable arguments
  */
 #define batadv_dbg_ratelimited(type, bat_priv, arg...) \
@@ -114,7 +114,7 @@ static inline void _batadv_dbg(int type __always_unused,
 
 /**
  * batadv_info() - Store message in debug buffer and print it to kmsg buffer
- * @net_dev: the soft interface net device
+ * @net_dev: the mesh interface net device
  * @fmt: format string
  * @arg: variable arguments
  */
@@ -128,7 +128,7 @@ static inline void _batadv_dbg(int type __always_unused,
 
 /**
  * batadv_err() - Store error in debug buffer and print it to kmsg buffer
- * @net_dev: the soft interface net device
+ * @net_dev: the mesh interface net device
  * @fmt: format string
  * @arg: variable arguments
  */

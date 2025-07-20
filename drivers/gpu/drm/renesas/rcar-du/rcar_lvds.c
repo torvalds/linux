@@ -582,9 +582,8 @@ EXPORT_SYMBOL_GPL(rcar_lvds_pclk_disable);
  */
 
 static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_bridge_state *old_bridge_state)
+				    struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 
@@ -596,7 +595,7 @@ static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_bridge_state *old_bridge_state)
+				     struct drm_atomic_state *state)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
@@ -635,6 +634,7 @@ static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
 }
 
 static int rcar_lvds_attach(struct drm_bridge *bridge,
+			    struct drm_encoder *encoder,
 			    enum drm_bridge_attach_flags flags)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
@@ -642,7 +642,7 @@ static int rcar_lvds_attach(struct drm_bridge *bridge,
 	if (!lvds->next_bridge)
 		return 0;
 
-	return drm_bridge_attach(bridge->encoder, lvds->next_bridge, bridge,
+	return drm_bridge_attach(encoder, lvds->next_bridge, bridge,
 				 flags);
 }
 

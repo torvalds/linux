@@ -256,8 +256,8 @@ static int __init sp_intc_init_dt(struct device_node *node, struct device_node *
 		writel_relaxed(~0, REG_INTR_CLEAR + i * 4);
 	}
 
-	sp_intc.domain = irq_domain_add_linear(node, SP_INTC_NR_IRQS,
-					       &sp_intc_dm_ops, &sp_intc);
+	sp_intc.domain = irq_domain_create_linear(of_fwnode_handle(node), SP_INTC_NR_IRQS,
+						  &sp_intc_dm_ops, &sp_intc);
 	if (!sp_intc.domain) {
 		ret = -ENOMEM;
 		goto out_unmap1;

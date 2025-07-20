@@ -11,6 +11,7 @@
 #include <drm/drm_module.h>
 
 #include "xe_drv.h"
+#include "xe_configfs.h"
 #include "xe_hw_fence.h"
 #include "xe_pci.h"
 #include "xe_pm.h"
@@ -19,11 +20,15 @@
 
 struct xe_modparam xe_modparam = {
 	.probe_display = true,
-	.guc_log_level = 5,
+	.guc_log_level = IS_ENABLED(CONFIG_DRM_XE_DEBUG) ? 3 : 1,
 	.force_probe = CONFIG_DRM_XE_FORCE_PROBE,
 	.wedged_mode = 1,
+	.svm_notifier_size = 512,
 	/* the rest are 0 by default */
 };
+
+module_param_named(svm_notifier_size, xe_modparam.svm_notifier_size, uint, 0600);
+MODULE_PARM_DESC(svm_notifier_size, "Set the svm notifier size(in MiB), must be power of 2");
 
 module_param_named_unsafe(force_execlist, xe_modparam.force_execlist, bool, 0444);
 MODULE_PARM_DESC(force_execlist, "Force Execlist submission");
@@ -31,8 +36,8 @@ MODULE_PARM_DESC(force_execlist, "Force Execlist submission");
 module_param_named(probe_display, xe_modparam.probe_display, bool, 0444);
 MODULE_PARM_DESC(probe_display, "Probe display HW, otherwise it's left untouched (default: true)");
 
-module_param_named(vram_bar_size, xe_modparam.force_vram_bar_size, uint, 0600);
-MODULE_PARM_DESC(vram_bar_size, "Set the vram bar size(in MiB)");
+module_param_named(vram_bar_size, xe_modparam.force_vram_bar_size, int, 0600);
+MODULE_PARM_DESC(vram_bar_size, "Set the vram bar size (in MiB) - <0=disable-resize, 0=max-needed-size[default], >0=force-size");
 
 module_param_named(guc_log_level, xe_modparam.guc_log_level, int, 0600);
 MODULE_PARM_DESC(guc_log_level, "GuC firmware logging level (0=disable, 1..5=enable with verbosity min..max)");
@@ -77,13 +82,13 @@ struct init_funcs {
 	void (*exit)(void);
 };
 
-static void xe_dummy_exit(void)
-{
-}
-
 static const struct init_funcs init_funcs[] = {
 	{
 		.init = xe_check_nomodeset,
+	},
+	{
+		.init = xe_configfs_init,
+		.exit = xe_configfs_exit,
 	},
 	{
 		.init = xe_hw_fence_module_init,
@@ -103,7 +108,6 @@ static const struct init_funcs init_funcs[] = {
 	},
 	{
 		.init = xe_pm_module_init,
-		.exit = xe_dummy_exit,
 	},
 };
 

@@ -1,187 +1,163 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ *  Various common functions used by the framebuffer drawing code
+ *
+ *	Copyright (C)  2025 Zsolt Kajtar (soci@c64.rulez.org)
+ */
 #ifndef _FB_DRAW_H
 #define _FB_DRAW_H
 
-#include <asm/types.h>
-#include <linux/fb.h>
-#include <linux/bug.h>
+/* swap bytes in a long, independent of word size */
+#define swab_long _swab_long(BITS_PER_LONG)
+#define _swab_long(x) __swab_long(x)
+#define __swab_long(x) swab##x
 
-    /*
-     *  Compose two values, using a bitmask as decision value
-     *  This is equivalent to (a & mask) | (b & ~mask)
-     */
-
-static inline unsigned long
-comp(unsigned long a, unsigned long b, unsigned long mask)
+/* move the address pointer by the number of words */
+static inline void fb_address_move_long(struct fb_address *adr, int offset)
 {
-    return ((a ^ b) & mask) ^ b;
+	adr->address += offset * (BITS_PER_LONG / BITS_PER_BYTE);
 }
 
-    /*
-     *  Create a pattern with the given pixel's color
-     */
-
-#if BITS_PER_LONG == 64
-static inline unsigned long
-pixel_to_pat( u32 bpp, u32 pixel)
+/* move the address pointer forward with the number of bits */
+static inline void fb_address_forward(struct fb_address *adr, unsigned int offset)
 {
-	switch (bpp) {
-	case 1:
-		return 0xfffffffffffffffful*pixel;
-	case 2:
-		return 0x5555555555555555ul*pixel;
-	case 4:
-		return 0x1111111111111111ul*pixel;
-	case 8:
-		return 0x0101010101010101ul*pixel;
-	case 12:
-		return 0x1001001001001001ul*pixel;
-	case 16:
-		return 0x0001000100010001ul*pixel;
-	case 24:
-		return 0x0001000001000001ul*pixel;
-	case 32:
-		return 0x0000000100000001ul*pixel;
-	default:
-		WARN(1, "pixel_to_pat(): unsupported pixelformat %d\n", bpp);
-		return 0;
-    }
+	unsigned int bits = (unsigned int)adr->bits + offset;
+
+	adr->bits = bits & (BITS_PER_LONG - 1u);
+	adr->address += (bits & ~(BITS_PER_LONG - 1u)) / BITS_PER_BYTE;
 }
+
+/* move the address pointer backwards with the number of bits */
+static inline void fb_address_backward(struct fb_address *adr, unsigned int offset)
+{
+	int bits = adr->bits - (int)offset;
+
+	adr->bits = bits & (BITS_PER_LONG - 1);
+	if (bits < 0)
+		adr->address -= (adr->bits - bits) / BITS_PER_BYTE;
+	else
+		adr->address += (bits - adr->bits) / BITS_PER_BYTE;
+}
+
+/* compose pixels based on mask */
+static inline unsigned long fb_comp(unsigned long set, unsigned long unset, unsigned long mask)
+{
+	return ((set ^ unset) & mask) ^ unset;
+}
+
+/* framebuffer read-modify-write access for replacing bits in the mask */
+static inline void fb_modify_offset(unsigned long val, unsigned long mask,
+				    int offset, const struct fb_address *dst)
+{
+	fb_write_offset(fb_comp(val, fb_read_offset(offset, dst), mask), offset, dst);
+}
+
+/*
+ * get current palette, if applicable for visual
+ *
+ * The pseudo color table entries (and colors) are right justified and in the
+ * same byte order as it's expected to be placed into a native ordered
+ * framebuffer memory. What that means:
+ *
+ * Expected bytes in framebuffer memory (in native order):
+ * RR GG BB RR GG BB RR GG BB ...
+ *
+ * Pseudo palette entry on little endian arch:
+ * RR | GG << 8 | BB << 16
+ *
+ * Pseudo palette entry on a big endian arch:
+ * RR << 16 | GG << 8 | BB
+ */
+static inline const u32 *fb_palette(struct fb_info *info)
+{
+	return (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+		info->fix.visual == FB_VISUAL_DIRECTCOLOR) ? info->pseudo_palette : NULL;
+}
+
+/* move pixels right on screen when framebuffer is in native order */
+static inline unsigned long fb_right(unsigned long value, int index)
+{
+#ifdef __LITTLE_ENDIAN
+	return value << index;
 #else
-static inline unsigned long
-pixel_to_pat( u32 bpp, u32 pixel)
-{
-	switch (bpp) {
-	case 1:
-		return 0xfffffffful*pixel;
-	case 2:
-		return 0x55555555ul*pixel;
-	case 4:
-		return 0x11111111ul*pixel;
-	case 8:
-		return 0x01010101ul*pixel;
-	case 12:
-		return 0x01001001ul*pixel;
-	case 16:
-		return 0x00010001ul*pixel;
-	case 24:
-		return 0x01000001ul*pixel;
-	case 32:
-		return 0x00000001ul*pixel;
-	default:
-		WARN(1, "pixel_to_pat(): unsupported pixelformat %d\n", bpp);
-		return 0;
-    }
-}
+	return value >> index;
 #endif
+}
 
-#ifdef CONFIG_FB_CFB_REV_PIXELS_IN_BYTE
-#if BITS_PER_LONG == 64
-#define REV_PIXELS_MASK1 0x5555555555555555ul
-#define REV_PIXELS_MASK2 0x3333333333333333ul
-#define REV_PIXELS_MASK4 0x0f0f0f0f0f0f0f0ful
+/* move pixels left on screen when framebuffer is in native order */
+static inline unsigned long fb_left(unsigned long value, int index)
+{
+#ifdef __LITTLE_ENDIAN
+	return value >> index;
 #else
-#define REV_PIXELS_MASK1 0x55555555ul
-#define REV_PIXELS_MASK2 0x33333333ul
-#define REV_PIXELS_MASK4 0x0f0f0f0ful
+	return value << index;
 #endif
-
-static inline unsigned long fb_rev_pixels_in_long(unsigned long val,
-						  u32 bswapmask)
-{
-	if (bswapmask & 1)
-		val = comp(val >> 1, val << 1, REV_PIXELS_MASK1);
-	if (bswapmask & 2)
-		val = comp(val >> 2, val << 2, REV_PIXELS_MASK2);
-	if (bswapmask & 3)
-		val = comp(val >> 4, val << 4, REV_PIXELS_MASK4);
-	return val;
 }
 
-static inline u32 fb_shifted_pixels_mask_u32(struct fb_info *p, u32 index,
-					     u32 bswapmask)
-{
-	u32 mask;
+/* reversal options */
+struct fb_reverse {
+	bool byte, pixel;
+};
 
-	if (!bswapmask) {
-		mask = FB_SHIFT_HIGH(p, ~(u32)0, index);
-	} else {
-		mask = 0xff << FB_LEFT_POS(p, 8);
-		mask = FB_SHIFT_LOW(p, mask, index & (bswapmask)) & mask;
-		mask = FB_SHIFT_HIGH(p, mask, index & ~(bswapmask));
-#if defined(__i386__) || defined(__x86_64__)
-		/* Shift argument is limited to 0 - 31 on x86 based CPU's */
-		if(index + bswapmask < 32)
+/* reverse bits of each byte in a long */
+static inline unsigned long fb_reverse_bits_long(unsigned long val)
+{
+#if defined(CONFIG_HAVE_ARCH_BITREVERSE) && BITS_PER_LONG == 32
+	return bitrev8x4(val);
+#else
+	val = fb_comp(val >> 1, val << 1, ~0UL / 3);
+	val = fb_comp(val >> 2, val << 2, ~0UL / 5);
+	return fb_comp(val >> 4, val << 4, ~0UL / 17);
 #endif
-			mask |= FB_SHIFT_HIGH(p, ~(u32)0,
-					(index + bswapmask) & ~(bswapmask));
-	}
-	return mask;
 }
 
-static inline unsigned long fb_shifted_pixels_mask_long(struct fb_info *p,
-							u32 index,
-							u32 bswapmask)
+/* apply byte and bit reversals as necessary */
+static inline unsigned long fb_reverse_long(unsigned long val,
+					    struct fb_reverse reverse)
 {
-	unsigned long mask;
+	if (reverse.pixel)
+		val = fb_reverse_bits_long(val);
+	return reverse.byte ? swab_long(val) : val;
+}
 
-	if (!bswapmask) {
-		mask = FB_SHIFT_HIGH(p, ~0UL, index);
-	} else {
-		mask = 0xff << FB_LEFT_POS(p, 8);
-		mask = FB_SHIFT_LOW(p, mask, index & (bswapmask)) & mask;
-		mask = FB_SHIFT_HIGH(p, mask, index & ~(bswapmask));
-#if defined(__i386__) || defined(__x86_64__)
-		/* Shift argument is limited to 0 - 31 on x86 based CPU's */
-		if(index + bswapmask < BITS_PER_LONG)
+/* calculate a pixel mask for the given reversal */
+static inline unsigned long fb_pixel_mask(int index, struct fb_reverse reverse)
+{
+#ifdef FB_REV_PIXELS_IN_BYTE
+	if (reverse.byte)
+		return reverse.pixel ? fb_left(~0UL, index) : swab_long(fb_right(~0UL, index));
+	else
+		return reverse.pixel ? swab_long(fb_left(~0UL, index)) : fb_right(~0UL, index);
+#else
+	return reverse.byte ? swab_long(fb_right(~0UL, index)) : fb_right(~0UL, index);
 #endif
-			mask |= FB_SHIFT_HIGH(p, ~0UL,
-					(index + bswapmask) & ~(bswapmask));
-	}
-	return mask;
 }
 
 
-static inline u32 fb_compute_bswapmask(struct fb_info *info)
+/*
+ * initialise reversals based on info
+ *
+ * Normally the first byte is the low byte on little endian and in the high
+ * on big endian. If it's the other way around then that's reverse byte order.
+ *
+ * Normally the first pixel is the LSB on little endian and the MSB on big
+ * endian. If that's not the case that's reverse pixel order.
+ */
+static inline struct fb_reverse fb_reverse_init(struct fb_info *info)
 {
-	u32 bswapmask = 0;
-	unsigned bpp = info->var.bits_per_pixel;
-
-	if ((bpp < 8) && (info->var.nonstd & FB_NONSTD_REV_PIX_IN_B)) {
-		/*
-		 * Reversed order of pixel layout in bytes
-		 * works only for 1, 2 and 4 bpp
-		 */
-		bswapmask = 7 - bpp + 1;
-	}
-	return bswapmask;
-}
-
-#else /* CONFIG_FB_CFB_REV_PIXELS_IN_BYTE */
-
-static inline unsigned long fb_rev_pixels_in_long(unsigned long val,
-						  u32 bswapmask)
-{
-	return val;
-}
-
-#define fb_shifted_pixels_mask_u32(p, i, b) FB_SHIFT_HIGH((p), ~(u32)0, (i))
-#define fb_shifted_pixels_mask_long(p, i, b) FB_SHIFT_HIGH((p), ~0UL, (i))
-#define fb_compute_bswapmask(...) 0
-
-#endif  /* CONFIG_FB_CFB_REV_PIXELS_IN_BYTE */
-
-#define cpu_to_le_long _cpu_to_le_long(BITS_PER_LONG)
-#define _cpu_to_le_long(x) __cpu_to_le_long(x)
-#define __cpu_to_le_long(x) cpu_to_le##x
-
-#define le_long_to_cpu _le_long_to_cpu(BITS_PER_LONG)
-#define _le_long_to_cpu(x) __le_long_to_cpu(x)
-#define __le_long_to_cpu(x) le##x##_to_cpu
-
-static inline unsigned long rolx(unsigned long word, unsigned int shift, unsigned int x)
-{
-	return (word << shift) | (word >> (x - shift));
+	struct fb_reverse reverse;
+#ifdef __LITTLE_ENDIAN
+	reverse.byte = fb_be_math(info) != 0;
+#else
+	reverse.byte = fb_be_math(info) == 0;
+#endif
+#ifdef FB_REV_PIXELS_IN_BYTE
+	reverse.pixel = info->var.bits_per_pixel < BITS_PER_BYTE
+		&& (info->var.nonstd & FB_NONSTD_REV_PIX_IN_B);
+#else
+	reverse.pixel = false;
+#endif
+	return reverse;
 }
 
 #endif /* FB_DRAW_H */

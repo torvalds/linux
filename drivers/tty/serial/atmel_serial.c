@@ -700,7 +700,7 @@ static void atmel_disable_ms(struct uart_port *port)
 
 	atmel_port->ms_irq_enabled = false;
 
-	mctrl_gpio_disable_ms(atmel_port->gpios);
+	mctrl_gpio_disable_ms_no_sync(atmel_port->gpios);
 
 	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS))
 		idr |= ATMEL_US_CTSIC;
@@ -1266,8 +1266,8 @@ chan_err:
 
 static void atmel_uart_timer_callback(struct timer_list *t)
 {
-	struct atmel_uart_port *atmel_port = from_timer(atmel_port, t,
-							uart_timer);
+	struct atmel_uart_port *atmel_port = timer_container_of(atmel_port, t,
+								uart_timer);
 	struct uart_port *port = &atmel_port->uart;
 
 	if (!atomic_read(&atmel_port->tasklet_shutdown)) {
@@ -1727,26 +1727,16 @@ static void atmel_init_property(struct atmel_uart_port *atmel_port,
 
 	/* DMA/PDC usage specification */
 	if (of_property_read_bool(np, "atmel,use-dma-rx")) {
-		if (of_property_read_bool(np, "dmas")) {
-			atmel_port->use_dma_rx  = true;
-			atmel_port->use_pdc_rx  = false;
-		} else {
-			atmel_port->use_dma_rx  = false;
-			atmel_port->use_pdc_rx  = true;
-		}
+		atmel_port->use_dma_rx = of_property_present(np, "dmas");
+		atmel_port->use_pdc_rx = !atmel_port->use_dma_rx;
 	} else {
 		atmel_port->use_dma_rx  = false;
 		atmel_port->use_pdc_rx  = false;
 	}
 
 	if (of_property_read_bool(np, "atmel,use-dma-tx")) {
-		if (of_property_read_bool(np, "dmas")) {
-			atmel_port->use_dma_tx  = true;
-			atmel_port->use_pdc_tx  = false;
-		} else {
-			atmel_port->use_dma_tx  = false;
-			atmel_port->use_pdc_tx  = true;
-		}
+		atmel_port->use_dma_tx = of_property_present(np, "dmas");
+		atmel_port->use_pdc_tx = !atmel_port->use_dma_tx;
 	} else {
 		atmel_port->use_dma_tx  = false;
 		atmel_port->use_pdc_tx  = false;
@@ -2027,7 +2017,7 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Prevent any tasklets being scheduled during
 	 * cleanup
 	 */
-	del_timer_sync(&atmel_port->uart_timer);
+	timer_delete_sync(&atmel_port->uart_timer);
 
 	/* Make sure that no interrupt is on the fly */
 	synchronize_irq(port->irq);

@@ -222,7 +222,7 @@ The CCIR - I uses the PAL colorsystem, and is used in Great Britain, Hong Kong,
 Ireland, Nigeria, South Africa.
 
 The CCIR - N uses the PAL colorsystem and PAL frame size but the NTSC framerate,
-and is used in Argentinia, Uruguay, an a few others
+and is used in Argentina, Uruguay, an a few others
 
 We do not talk about how the audio is broadcast !
 

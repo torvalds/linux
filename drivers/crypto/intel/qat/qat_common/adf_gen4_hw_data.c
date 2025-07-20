@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+#include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <asm/div64.h>
 #include "adf_accel_devices.h"
@@ -8,6 +9,8 @@
 #include "adf_fw_config.h"
 #include "adf_gen4_hw_data.h"
 #include "adf_gen4_pm.h"
+#include "icp_qat_fw_comp.h"
+#include "icp_qat_hw_20_comp.h"
 
 u32 adf_gen4_get_accel_mask(struct adf_hw_device_data *self)
 {
@@ -134,36 +137,18 @@ int adf_gen4_init_device(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_device);
 
-static inline void adf_gen4_unpack_ssm_wdtimer(u64 value, u32 *upper,
-					       u32 *lower)
-{
-	*lower = lower_32_bits(value);
-	*upper = upper_32_bits(value);
-}
-
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u64 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
 	u64 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
-	u32 ssm_wdt_pke_high = 0;
-	u32 ssm_wdt_pke_low = 0;
-	u32 ssm_wdt_high = 0;
-	u32 ssm_wdt_low = 0;
 
-	/* Convert 64bit WDT timer value into 32bit values for
-	 * mmio write to 32bit CSRs.
-	 */
-	adf_gen4_unpack_ssm_wdtimer(timer_val, &ssm_wdt_high, &ssm_wdt_low);
-	adf_gen4_unpack_ssm_wdtimer(timer_val_pke, &ssm_wdt_pke_high,
-				    &ssm_wdt_pke_low);
+	/* Enable watchdog timer for sym and dc */
+	ADF_CSR_WR64_LO_HI(pmisc_addr, ADF_SSMWDTL_OFFSET, ADF_SSMWDTH_OFFSET, timer_val);
 
-	/* Enable WDT for sym and dc */
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTL_OFFSET, ssm_wdt_low);
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTH_OFFSET, ssm_wdt_high);
-	/* Enable WDT for pke */
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEL_OFFSET, ssm_wdt_pke_low);
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEH_OFFSET, ssm_wdt_pke_high);
+	/* Enable watchdog timer for pke */
+	ADF_CSR_WR64_LO_HI(pmisc_addr, ADF_SSMWDTPKEL_OFFSET, ADF_SSMWDTPKEH_OFFSET,
+			   timer_val_pke);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_set_ssm_wdtimer);
 
@@ -265,17 +250,28 @@ static bool is_single_service(int service_id)
 	case SVC_SYM:
 	case SVC_ASYM:
 		return true;
-	case SVC_CY:
-	case SVC_CY2:
-	case SVC_DCC:
-	case SVC_ASYM_DC:
-	case SVC_DC_ASYM:
-	case SVC_SYM_DC:
-	case SVC_DC_SYM:
 	default:
 		return false;
 	}
 }
+
+bool adf_gen4_services_supported(unsigned long mask)
+{
+	unsigned long num_svc = hweight_long(mask);
+
+	if (mask >= BIT(SVC_BASE_COUNT))
+		return false;
+
+	switch (num_svc) {
+	case ADF_ONE_SERVICE:
+		return true;
+	case ADF_TWO_SERVICES:
+		return !test_bit(SVC_DCC, &mask);
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(adf_gen4_services_supported);
 
 int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 {
@@ -669,3 +665,71 @@ int adf_gen4_bank_state_restore(struct adf_accel_dev *accel_dev, u32 bank_number
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_bank_state_restore);
+
+static int adf_gen4_build_comp_block(void *ctx, enum adf_dc_algo algo)
+{
+	struct icp_qat_fw_comp_req *req_tmpl = ctx;
+	struct icp_qat_fw_comp_req_hdr_cd_pars *cd_pars = &req_tmpl->cd_pars;
+	struct icp_qat_hw_comp_20_config_csr_upper hw_comp_upper_csr = { };
+	struct icp_qat_hw_comp_20_config_csr_lower hw_comp_lower_csr = { };
+	struct icp_qat_fw_comn_req_hdr *header = &req_tmpl->comn_hdr;
+	u32 upper_val;
+	u32 lower_val;
+
+	switch (algo) {
+	case QAT_DEFLATE:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DYNAMIC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	hw_comp_lower_csr.skip_ctrl = ICP_QAT_HW_COMP_20_BYTE_SKIP_3BYTE_LITERAL;
+	hw_comp_lower_csr.algo = ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_ILZ77;
+	hw_comp_lower_csr.lllbd = ICP_QAT_HW_COMP_20_LLLBD_CTRL_LLLBD_ENABLED;
+	hw_comp_lower_csr.sd = ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_1;
+	hw_comp_lower_csr.hash_update = ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_DONT_ALLOW;
+	hw_comp_lower_csr.edmm = ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_ENABLED;
+	hw_comp_upper_csr.nice = ICP_QAT_HW_COMP_20_CONFIG_CSR_NICE_PARAM_DEFAULT_VAL;
+	hw_comp_upper_csr.lazy = ICP_QAT_HW_COMP_20_CONFIG_CSR_LAZY_PARAM_DEFAULT_VAL;
+
+	upper_val = ICP_QAT_FW_COMP_20_BUILD_CONFIG_UPPER(hw_comp_upper_csr);
+	lower_val = ICP_QAT_FW_COMP_20_BUILD_CONFIG_LOWER(hw_comp_lower_csr);
+
+	cd_pars->u.sl.comp_slice_cfg_word[0] = lower_val;
+	cd_pars->u.sl.comp_slice_cfg_word[1] = upper_val;
+
+	return 0;
+}
+
+static int adf_gen4_build_decomp_block(void *ctx, enum adf_dc_algo algo)
+{
+	struct icp_qat_fw_comp_req *req_tmpl = ctx;
+	struct icp_qat_hw_decomp_20_config_csr_lower hw_decomp_lower_csr = { };
+	struct icp_qat_fw_comp_req_hdr_cd_pars *cd_pars = &req_tmpl->cd_pars;
+	struct icp_qat_fw_comn_req_hdr *header = &req_tmpl->comn_hdr;
+	u32 lower_val;
+
+	switch (algo) {
+	case QAT_DEFLATE:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DECOMPRESS;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	hw_decomp_lower_csr.algo = ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_DEFLATE;
+	lower_val = ICP_QAT_FW_DECOMP_20_BUILD_CONFIG_LOWER(hw_decomp_lower_csr);
+
+	cd_pars->u.sl.comp_slice_cfg_word[0] = lower_val;
+	cd_pars->u.sl.comp_slice_cfg_word[1] = 0;
+
+	return 0;
+}
+
+void adf_gen4_init_dc_ops(struct adf_dc_ops *dc_ops)
+{
+	dc_ops->build_comp_block = adf_gen4_build_comp_block;
+	dc_ops->build_decomp_block = adf_gen4_build_decomp_block;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_init_dc_ops);

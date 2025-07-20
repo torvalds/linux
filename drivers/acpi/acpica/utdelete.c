@@ -404,7 +404,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 				  object, object->common.type,
 				  acpi_ut_get_object_type_name(object),
 				  new_count));
-		message = "Incremement";
+		message = "Increment";
 		break;
 
 	case REF_DECREMENT:

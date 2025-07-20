@@ -21,6 +21,7 @@ properties:
       - mediatek,mt8195_mt6359_rt1019_rt5682
       - mediatek,mt8195_mt6359_rt1011_rt5682
       - mediatek,mt8195_mt6359_max98390_rt5682
+      - mediatek,mt8195_mt6359
 
   model:
     $ref: /schemas/types.yaml#/definitions/string
@@ -44,6 +45,8 @@ properties:
         - Right Spk
 
         # Sources
+        - Headphone L
+        - Headphone R
         - Headset Mic
         - HPOL
         - HPOR
@@ -88,6 +91,7 @@ patternProperties:
       link-name:
         description: Indicates dai-link name and PCM stream name
         enum:
+          - DL_SRC_BE
           - DPTX_BE
           - ETDM1_IN_BE
           - ETDM2_IN_BE

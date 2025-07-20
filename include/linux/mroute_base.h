@@ -146,9 +146,9 @@ struct mr_mfc {
 			unsigned long last_assert;
 			int minvif;
 			int maxvif;
-			unsigned long bytes;
-			unsigned long pkt;
-			unsigned long wrong_if;
+			atomic_long_t bytes;
+			atomic_long_t pkt;
+			atomic_long_t wrong_if;
 			unsigned long lastuse;
 			unsigned char ttls[MAXVIFS];
 			refcount_t refcount;
@@ -261,6 +261,11 @@ struct mr_table {
 	bool			mroute_do_wrvifwhole;
 	int			mroute_reg_vif_num;
 };
+
+static inline bool mr_can_free_table(struct net *net)
+{
+	return !check_net(net) || !net_initialized(net);
+}
 
 #ifdef CONFIG_IP_MROUTE_COMMON
 void vif_device_init(struct vif_device *v,

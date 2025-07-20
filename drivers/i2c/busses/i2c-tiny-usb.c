@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 
 /* include interfaces to usb layer */
@@ -71,7 +72,7 @@ static int usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 		dev_dbg(&adapter->dev,
 			"  %d: %s (flags %d) %d bytes to 0x%02x\n",
-			i, pmsg->flags & I2C_M_RD ? "read" : "write",
+			i, str_read_write(pmsg->flags & I2C_M_RD),
 			pmsg->flags, pmsg->len, pmsg->addr);
 
 		/* and directly send the message */
@@ -137,6 +138,11 @@ out:
 	kfree(pfunc);
 	return ret;
 }
+
+/* prevent invalid 0-length usb_control_msg */
+static const struct i2c_adapter_quirks usb_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN_READ,
+};
 
 /* This is the actual algorithm we define */
 static const struct i2c_algorithm usb_algorithm = {
@@ -246,6 +252,7 @@ static int i2c_tiny_usb_probe(struct usb_interface *interface,
 	/* setup i2c adapter description */
 	dev->adapter.owner = THIS_MODULE;
 	dev->adapter.class = I2C_CLASS_HWMON;
+	dev->adapter.quirks = &usb_quirks;
 	dev->adapter.algo = &usb_algorithm;
 	dev->adapter.algo_data = dev;
 	snprintf(dev->adapter.name, sizeof(dev->adapter.name),

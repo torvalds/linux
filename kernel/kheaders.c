@@ -29,25 +29,12 @@ asm (
 extern char kernel_headers_data[];
 extern char kernel_headers_data_end[];
 
-static ssize_t
-ikheaders_read(struct file *file,  struct kobject *kobj,
-	       struct bin_attribute *bin_attr,
-	       char *buf, loff_t off, size_t len)
-{
-	memcpy(buf, &kernel_headers_data[off], len);
-	return len;
-}
-
-static struct bin_attribute kheaders_attr __ro_after_init = {
-	.attr = {
-		.name = "kheaders.tar.xz",
-		.mode = 0444,
-	},
-	.read = &ikheaders_read,
-};
+static struct bin_attribute kheaders_attr __ro_after_init =
+	__BIN_ATTR_SIMPLE_RO(kheaders.tar.xz, 0444);
 
 static int __init ikheaders_init(void)
 {
+	kheaders_attr.private = kernel_headers_data;
 	kheaders_attr.size = (kernel_headers_data_end -
 			      kernel_headers_data);
 	return sysfs_create_bin_file(kernel_kobj, &kheaders_attr);

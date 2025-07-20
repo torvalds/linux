@@ -80,7 +80,6 @@ struct vfio_domain {
 	struct iommu_domain	*domain;
 	struct list_head	next;
 	struct list_head	group_list;
-	bool			fgsp : 1;	/* Fine-grained super pages */
 	bool			enforce_cache_coherency : 1;
 };
 
@@ -103,9 +102,9 @@ struct vfio_dma {
 struct vfio_batch {
 	struct page		**pages;	/* for pin_user_pages_remote */
 	struct page		*fallback_page; /* if pages alloc fails */
-	int			capacity;	/* length of pages array */
-	int			size;		/* of batch currently */
-	int			offset;		/* of next entry in pages */
+	unsigned int		capacity;	/* length of pages array */
+	unsigned int		size;		/* of batch currently */
+	unsigned int		offset;		/* of next entry in pages */
 };
 
 struct vfio_iommu_group {
@@ -293,7 +292,7 @@ static int vfio_dma_bitmap_alloc_all(struct vfio_iommu *iommu, size_t pgsize)
 			struct rb_node *p;
 
 			for (p = rb_prev(n); p; p = rb_prev(p)) {
-				struct vfio_dma *dma = rb_entry(n,
+				struct vfio_dma *dma = rb_entry(p,
 							struct vfio_dma, node);
 
 				vfio_dma_bitmap_free(dma);
@@ -471,12 +470,12 @@ static int put_pfn(unsigned long pfn, int prot)
 
 #define VFIO_BATCH_MAX_CAPACITY (PAGE_SIZE / sizeof(struct page *))
 
-static void vfio_batch_init(struct vfio_batch *batch)
+static void __vfio_batch_init(struct vfio_batch *batch, bool single)
 {
 	batch->size = 0;
 	batch->offset = 0;
 
-	if (unlikely(disable_hugepages))
+	if (single || unlikely(disable_hugepages))
 		goto fallback;
 
 	batch->pages = (struct page **) __get_free_page(GFP_KERNEL);
@@ -489,6 +488,16 @@ static void vfio_batch_init(struct vfio_batch *batch)
 fallback:
 	batch->pages = &batch->fallback_page;
 	batch->capacity = 1;
+}
+
+static void vfio_batch_init(struct vfio_batch *batch)
+{
+	__vfio_batch_init(batch, false);
+}
+
+static void vfio_batch_init_single(struct vfio_batch *batch)
+{
+	__vfio_batch_init(batch, true);
 }
 
 static void vfio_batch_unpin(struct vfio_batch *batch, struct vfio_dma *dma)
@@ -510,7 +519,7 @@ static void vfio_batch_fini(struct vfio_batch *batch)
 
 static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 			    unsigned long vaddr, unsigned long *pfn,
-			    bool write_fault)
+			    unsigned long *addr_mask, bool write_fault)
 {
 	struct follow_pfnmap_args args = { .vma = vma, .address = vaddr };
 	int ret;
@@ -534,10 +543,12 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 			return ret;
 	}
 
-	if (write_fault && !args.writable)
+	if (write_fault && !args.writable) {
 		ret = -EFAULT;
-	else
+	} else {
 		*pfn = args.pfn;
+		*addr_mask = args.addr_mask;
+	}
 
 	follow_pfnmap_end(&args);
 	return ret;
@@ -545,25 +556,33 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 
 /*
  * Returns the positive number of pfns successfully obtained or a negative
- * error code.
+ * error code.  The initial pfn is stored in the pfn arg.  For page-backed
+ * pfns, the provided batch is also updated to indicate the filled pages and
+ * initial offset.  For VM_PFNMAP pfns, only the returned number of pfns and
+ * returned initial pfn are provided; subsequent pfns are contiguous.
  */
-static int vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
-			  long npages, int prot, unsigned long *pfn,
-			  struct page **pages)
+static long vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
+			   unsigned long npages, int prot, unsigned long *pfn,
+			   struct vfio_batch *batch)
 {
+	unsigned long pin_pages = min_t(unsigned long, npages, batch->capacity);
 	struct vm_area_struct *vma;
 	unsigned int flags = 0;
-	int ret;
+	long ret;
 
 	if (prot & IOMMU_WRITE)
 		flags |= FOLL_WRITE;
 
 	mmap_read_lock(mm);
-	ret = pin_user_pages_remote(mm, vaddr, npages, flags | FOLL_LONGTERM,
-				    pages, NULL);
+	ret = pin_user_pages_remote(mm, vaddr, pin_pages, flags | FOLL_LONGTERM,
+				    batch->pages, NULL);
 	if (ret > 0) {
-		*pfn = page_to_pfn(pages[0]);
+		*pfn = page_to_pfn(batch->pages[0]);
+		batch->size = ret;
+		batch->offset = 0;
 		goto done;
+	} else if (!ret) {
+		ret = -EFAULT;
 	}
 
 	vaddr = untagged_addr_remote(mm, vaddr);
@@ -572,15 +591,22 @@ retry:
 	vma = vma_lookup(mm, vaddr);
 
 	if (vma && vma->vm_flags & VM_PFNMAP) {
-		ret = follow_fault_pfn(vma, mm, vaddr, pfn, prot & IOMMU_WRITE);
+		unsigned long addr_mask;
+
+		ret = follow_fault_pfn(vma, mm, vaddr, pfn, &addr_mask,
+				       prot & IOMMU_WRITE);
 		if (ret == -EAGAIN)
 			goto retry;
 
 		if (!ret) {
-			if (is_invalid_reserved_pfn(*pfn))
-				ret = 1;
-			else
+			if (is_invalid_reserved_pfn(*pfn)) {
+				unsigned long epfn;
+
+				epfn = (*pfn | (~addr_mask >> PAGE_SHIFT)) + 1;
+				ret = min_t(long, npages, epfn - *pfn);
+			} else {
 				ret = -EFAULT;
+			}
 		}
 	}
 done:
@@ -594,7 +620,7 @@ done:
  * first page and all consecutive pages with the same locking.
  */
 static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-				  long npage, unsigned long *pfn_base,
+				  unsigned long npage, unsigned long *pfn_base,
 				  unsigned long limit, struct vfio_batch *batch)
 {
 	unsigned long pfn;
@@ -616,32 +642,42 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 		*pfn_base = 0;
 	}
 
+	if (unlikely(disable_hugepages))
+		npage = 1;
+
 	while (npage) {
 		if (!batch->size) {
 			/* Empty batch, so refill it. */
-			long req_pages = min_t(long, npage, batch->capacity);
-
-			ret = vaddr_get_pfns(mm, vaddr, req_pages, dma->prot,
-					     &pfn, batch->pages);
+			ret = vaddr_get_pfns(mm, vaddr, npage, dma->prot,
+					     &pfn, batch);
 			if (ret < 0)
 				goto unpin_out;
-
-			batch->size = ret;
-			batch->offset = 0;
 
 			if (!*pfn_base) {
 				*pfn_base = pfn;
 				rsvd = is_invalid_reserved_pfn(*pfn_base);
 			}
+
+			/* Handle pfnmap */
+			if (!batch->size) {
+				if (pfn != *pfn_base + pinned || !rsvd)
+					goto out;
+
+				pinned += ret;
+				npage -= ret;
+				vaddr += (PAGE_SIZE * ret);
+				iova += (PAGE_SIZE * ret);
+				continue;
+			}
 		}
 
 		/*
-		 * pfn is preset for the first iteration of this inner loop and
-		 * updated at the end to handle a VM_PFNMAP pfn.  In that case,
-		 * batch->pages isn't valid (there's no struct page), so allow
-		 * batch->pages to be touched only when there's more than one
-		 * pfn to check, which guarantees the pfns are from a
-		 * !VM_PFNMAP vma.
+		 * pfn is preset for the first iteration of this inner loop
+		 * due to the fact that vaddr_get_pfns() needs to provide the
+		 * initial pfn for pfnmaps.  Therefore to reduce redundancy,
+		 * the next pfn is fetched at the end of the loop.
+		 * A PageReserved() page could still qualify as page backed
+		 * and rsvd here, and therefore continues to use the batch.
 		 */
 		while (true) {
 			if (pfn != *pfn_base + pinned ||
@@ -676,21 +712,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 
 			pfn = page_to_pfn(batch->pages[batch->offset]);
 		}
-
-		if (unlikely(disable_hugepages))
-			break;
 	}
 
 out:
 	ret = vfio_lock_acct(dma, lock_acct, false);
 
 unpin_out:
-	if (batch->size == 1 && !batch->offset) {
-		/* May be a VM_PFNMAP pfn, which the batch can't remember. */
-		put_pfn(pfn, dma->prot);
-		batch->size = 0;
-	}
-
 	if (ret < 0) {
 		if (pinned && !rsvd) {
 			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
@@ -705,7 +732,7 @@ unpin_out:
 }
 
 static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
-				    unsigned long pfn, long npage,
+				    unsigned long pfn, unsigned long npage,
 				    bool do_accounting)
 {
 	long unlocked = 0, locked = 0;
@@ -728,7 +755,7 @@ static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
 static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 				  unsigned long *pfn_base, bool do_accounting)
 {
-	struct page *pages[1];
+	struct vfio_batch batch;
 	struct mm_struct *mm;
 	int ret;
 
@@ -736,7 +763,9 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 	if (!mmget_not_zero(mm))
 		return -ENODEV;
 
-	ret = vaddr_get_pfns(mm, vaddr, 1, dma->prot, pfn_base, pages);
+	vfio_batch_init_single(&batch);
+
+	ret = vaddr_get_pfns(mm, vaddr, 1, dma->prot, pfn_base, &batch);
 	if (ret != 1)
 		goto out;
 
@@ -755,6 +784,7 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 	}
 
 out:
+	vfio_batch_fini(&batch);
 	mmput(mm);
 	return ret;
 }
@@ -1064,8 +1094,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma,
 		 * may require hardware cache flushing, try to find the
 		 * largest contiguous physical memory chunk to unmap.
 		 */
-		for (len = PAGE_SIZE;
-		     !domain->fgsp && iova + len < end; len += PAGE_SIZE) {
+		for (len = PAGE_SIZE; iova + len < end; len += PAGE_SIZE) {
 			next = iommu_iova_to_phys(domain->domain, iova + len);
 			if (next != phys + len)
 				break;
@@ -1802,49 +1831,6 @@ unwind:
 	return ret;
 }
 
-/*
- * We change our unmap behavior slightly depending on whether the IOMMU
- * supports fine-grained superpages.  IOMMUs like AMD-Vi will use a superpage
- * for practically any contiguous power-of-two mapping we give it.  This means
- * we don't need to look for contiguous chunks ourselves to make unmapping
- * more efficient.  On IOMMUs with coarse-grained super pages, like Intel VT-d
- * with discrete 2M/1G/512G/1T superpages, identifying contiguous chunks
- * significantly boosts non-hugetlbfs mappings and doesn't seem to hurt when
- * hugetlbfs is in use.
- */
-static void vfio_test_domain_fgsp(struct vfio_domain *domain, struct list_head *regions)
-{
-	int ret, order = get_order(PAGE_SIZE * 2);
-	struct vfio_iova *region;
-	struct page *pages;
-	dma_addr_t start;
-
-	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
-	if (!pages)
-		return;
-
-	list_for_each_entry(region, regions, list) {
-		start = ALIGN(region->start, PAGE_SIZE * 2);
-		if (start >= region->end || (region->end - start < PAGE_SIZE * 2))
-			continue;
-
-		ret = iommu_map(domain->domain, start, page_to_phys(pages), PAGE_SIZE * 2,
-				IOMMU_READ | IOMMU_WRITE | IOMMU_CACHE,
-				GFP_KERNEL_ACCOUNT);
-		if (!ret) {
-			size_t unmapped = iommu_unmap(domain->domain, start, PAGE_SIZE);
-
-			if (unmapped == PAGE_SIZE)
-				iommu_unmap(domain->domain, start + PAGE_SIZE, PAGE_SIZE);
-			else
-				domain->fgsp = true;
-		}
-		break;
-	}
-
-	__free_pages(pages, order);
-}
-
 static struct vfio_iommu_group *find_iommu_group(struct vfio_domain *domain,
 						 struct iommu_group *iommu_group)
 {
@@ -2282,8 +2268,6 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 				goto out_domain;
 		}
 	}
-
-	vfio_test_domain_fgsp(domain, &iova_copy);
 
 	/* replay mappings on new domains */
 	ret = vfio_iommu_replay(iommu, domain);

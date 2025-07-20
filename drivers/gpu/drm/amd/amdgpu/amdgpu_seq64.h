@@ -32,13 +32,14 @@
 struct amdgpu_seq64 {
 	struct amdgpu_bo *sbo;
 	u32 num_sem;
+	u64 gpu_addr;
 	u64 *cpu_base_addr;
 	DECLARE_BITMAP(used, AMDGPU_MAX_SEQ64_SLOTS);
 };
 
 void amdgpu_seq64_fini(struct amdgpu_device *adev);
 int amdgpu_seq64_init(struct amdgpu_device *adev);
-int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *gpu_addr, u64 **cpu_addr);
+int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 *gpu_addr, u64 **cpu_addr);
 void amdgpu_seq64_free(struct amdgpu_device *adev, u64 gpu_addr);
 int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		     struct amdgpu_bo_va **bo_va);

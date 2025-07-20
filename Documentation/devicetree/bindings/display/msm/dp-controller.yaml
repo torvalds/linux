@@ -8,6 +8,7 @@ title: MSM Display Port Controller
 
 maintainers:
   - Kuogee Hsieh <quic_khsieh@quicinc.com>
+  - Abhinav Kumar <quic_abhinavk@quicinc.com>
 
 description: |
   Device tree bindings for DisplayPort host controller for MSM targets
@@ -30,6 +31,7 @@ properties:
           - qcom,sm8650-dp
       - items:
           - enum:
+              - qcom,sar2130p-dp
               - qcom,sm6350-dp
               - qcom,sm8150-dp
               - qcom,sm8250-dp

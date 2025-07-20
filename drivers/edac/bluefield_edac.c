@@ -199,8 +199,10 @@ static void bluefield_gather_report_ecc(struct mem_ctl_info *mci,
 	 * error without the detailed information.
 	 */
 	err = bluefield_edac_readl(priv, MLXBF_SYNDROM, &dram_syndrom);
-	if (err)
+	if (err) {
 		dev_err(priv->dev, "DRAM syndrom read failed.\n");
+		return;
+	}
 
 	serr = FIELD_GET(MLXBF_SYNDROM__SERR, dram_syndrom);
 	derr = FIELD_GET(MLXBF_SYNDROM__DERR, dram_syndrom);
@@ -213,20 +215,26 @@ static void bluefield_gather_report_ecc(struct mem_ctl_info *mci,
 	}
 
 	err = bluefield_edac_readl(priv, MLXBF_ADD_INFO, &dram_additional_info);
-	if (err)
+	if (err) {
 		dev_err(priv->dev, "DRAM additional info read failed.\n");
+		return;
+	}
 
 	err_prank = FIELD_GET(MLXBF_ADD_INFO__ERR_PRANK, dram_additional_info);
 
 	ecc_dimm = (err_prank >= 2 && priv->dimm_ranks[0] <= 2) ? 1 : 0;
 
 	err = bluefield_edac_readl(priv, MLXBF_ERR_ADDR_0, &edea0);
-	if (err)
+	if (err) {
 		dev_err(priv->dev, "Error addr 0 read failed.\n");
+		return;
+	}
 
 	err = bluefield_edac_readl(priv, MLXBF_ERR_ADDR_1, &edea1);
-	if (err)
+	if (err) {
 		dev_err(priv->dev, "Error addr 1 read failed.\n");
+		return;
+	}
 
 	ecc_dimm_addr = ((u64)edea1 << 32) | edea0;
 
@@ -250,8 +258,10 @@ static void bluefield_edac_check(struct mem_ctl_info *mci)
 		return;
 
 	err = bluefield_edac_readl(priv, MLXBF_ECC_CNT, &ecc_count);
-	if (err)
+	if (err) {
 		dev_err(priv->dev, "ECC count read failed.\n");
+		return;
+	}
 
 	single_error_count = FIELD_GET(MLXBF_ECC_CNT__SERR_CNT, ecc_count);
 	double_error_count = FIELD_GET(MLXBF_ECC_CNT__DERR_CNT, ecc_count);

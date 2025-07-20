@@ -105,49 +105,49 @@ struct __guc_capture_parsed_output {
  *     3. Incorrect order will trigger XE_WARN.
  */
 #define COMMON_XELP_BASE_GLOBAL \
-	{ FORCEWAKE_GT,			REG_32BIT,	0,	0,	"FORCEWAKE_GT"}
+	{ FORCEWAKE_GT,			REG_32BIT,	0,	0,	0,	"FORCEWAKE_GT"}
 
 #define COMMON_BASE_ENGINE_INSTANCE \
-	{ RING_HWSTAM(0),		REG_32BIT,	0,	0,	"HWSTAM"}, \
-	{ RING_HWS_PGA(0),		REG_32BIT,	0,	0,	"RING_HWS_PGA"}, \
-	{ RING_HEAD(0),			REG_32BIT,	0,	0,	"RING_HEAD"}, \
-	{ RING_TAIL(0),			REG_32BIT,	0,	0,	"RING_TAIL"}, \
-	{ RING_CTL(0),			REG_32BIT,	0,	0,	"RING_CTL"}, \
-	{ RING_MI_MODE(0),		REG_32BIT,	0,	0,	"RING_MI_MODE"}, \
-	{ RING_MODE(0),			REG_32BIT,	0,	0,	"RING_MODE"}, \
-	{ RING_ESR(0),			REG_32BIT,	0,	0,	"RING_ESR"}, \
-	{ RING_EMR(0),			REG_32BIT,	0,	0,	"RING_EMR"}, \
-	{ RING_EIR(0),			REG_32BIT,	0,	0,	"RING_EIR"}, \
-	{ RING_IMR(0),			REG_32BIT,	0,	0,	"RING_IMR"}, \
-	{ RING_IPEHR(0),		REG_32BIT,	0,	0,	"IPEHR"}, \
-	{ RING_INSTDONE(0),		REG_32BIT,	0,	0,	"RING_INSTDONE"}, \
-	{ INDIRECT_RING_STATE(0),	REG_32BIT,	0,	0,	"INDIRECT_RING_STATE"}, \
-	{ RING_ACTHD(0),		REG_64BIT_LOW_DW, 0,	0,	NULL}, \
-	{ RING_ACTHD_UDW(0),		REG_64BIT_HI_DW, 0,	0,	"ACTHD"}, \
-	{ RING_BBADDR(0),		REG_64BIT_LOW_DW, 0,	0,	NULL}, \
-	{ RING_BBADDR_UDW(0),		REG_64BIT_HI_DW, 0,	0,	"RING_BBADDR"}, \
-	{ RING_START(0),		REG_64BIT_LOW_DW, 0,	0,	NULL}, \
-	{ RING_START_UDW(0),		REG_64BIT_HI_DW, 0,	0,	"RING_START"}, \
-	{ RING_DMA_FADD(0),		REG_64BIT_LOW_DW, 0,	0,	NULL}, \
-	{ RING_DMA_FADD_UDW(0),		REG_64BIT_HI_DW, 0,	0,	"RING_DMA_FADD"}, \
-	{ RING_EXECLIST_STATUS_LO(0),	REG_64BIT_LOW_DW, 0,	0,	NULL}, \
-	{ RING_EXECLIST_STATUS_HI(0),	REG_64BIT_HI_DW, 0,	0,	"RING_EXECLIST_STATUS"}, \
-	{ RING_EXECLIST_SQ_CONTENTS_LO(0), REG_64BIT_LOW_DW, 0,	0,	NULL}, \
-	{ RING_EXECLIST_SQ_CONTENTS_HI(0), REG_64BIT_HI_DW, 0,	0,	"RING_EXECLIST_SQ_CONTENTS"}
+	{ RING_HWSTAM(0),		REG_32BIT,	0,	0,	0,	"HWSTAM"}, \
+	{ RING_HWS_PGA(0),		REG_32BIT,	0,	0,	0,	"RING_HWS_PGA"}, \
+	{ RING_HEAD(0),			REG_32BIT,	0,	0,	0,	"RING_HEAD"}, \
+	{ RING_TAIL(0),			REG_32BIT,	0,	0,	0,	"RING_TAIL"}, \
+	{ RING_CTL(0),			REG_32BIT,	0,	0,	0,	"RING_CTL"}, \
+	{ RING_MI_MODE(0),		REG_32BIT,	0,	0,	0,	"RING_MI_MODE"}, \
+	{ RING_MODE(0),			REG_32BIT,	0,	0,	0,	"RING_MODE"}, \
+	{ RING_ESR(0),			REG_32BIT,	0,	0,	0,	"RING_ESR"}, \
+	{ RING_EMR(0),			REG_32BIT,	0,	0,	0,	"RING_EMR"}, \
+	{ RING_EIR(0),			REG_32BIT,	0,	0,	0,	"RING_EIR"}, \
+	{ RING_IMR(0),			REG_32BIT,	0,	0,	0,	"RING_IMR"}, \
+	{ RING_IPEHR(0),		REG_32BIT,	0,	0,	0,	"IPEHR"}, \
+	{ RING_INSTDONE(0),		REG_32BIT,	0,	0,	0,	"RING_INSTDONE"}, \
+	{ INDIRECT_RING_STATE(0),	REG_32BIT,	0,	0,	0,	"INDIRECT_RING_STATE"}, \
+	{ RING_ACTHD(0),		REG_64BIT_LOW_DW, 0,	0,	0,	NULL}, \
+	{ RING_ACTHD_UDW(0),		REG_64BIT_HI_DW, 0,	0,	0,	"ACTHD"}, \
+	{ RING_BBADDR(0),		REG_64BIT_LOW_DW, 0,	0,	0,	NULL}, \
+	{ RING_BBADDR_UDW(0),		REG_64BIT_HI_DW, 0,	0,	0,	"RING_BBADDR"}, \
+	{ RING_START(0),		REG_64BIT_LOW_DW, 0,	0,	0,	NULL}, \
+	{ RING_START_UDW(0),		REG_64BIT_HI_DW, 0,	0,	0,	"RING_START"}, \
+	{ RING_DMA_FADD(0),		REG_64BIT_LOW_DW, 0,	0,	0,	NULL}, \
+	{ RING_DMA_FADD_UDW(0),		REG_64BIT_HI_DW, 0,	0,	0,	"RING_DMA_FADD"}, \
+	{ RING_EXECLIST_STATUS_LO(0),	REG_64BIT_LOW_DW, 0,	0,	0,	NULL}, \
+	{ RING_EXECLIST_STATUS_HI(0),	REG_64BIT_HI_DW, 0,	0,	0,	"RING_EXECLIST_STATUS"}, \
+	{ RING_EXECLIST_SQ_CONTENTS_LO(0), REG_64BIT_LOW_DW, 0,	0,	0,	NULL}, \
+	{ RING_EXECLIST_SQ_CONTENTS_HI(0), REG_64BIT_HI_DW, 0,	0,	0,	"RING_EXECLIST_SQ_CONTENTS"}
 
 #define COMMON_XELP_RC_CLASS \
-	{ RCU_MODE,			REG_32BIT,	0,	0,	"RCU_MODE"}
+	{ RCU_MODE,			REG_32BIT,	0,	0,	0,	"RCU_MODE"}
 
 #define COMMON_XELP_RC_CLASS_INSTDONE \
-	{ SC_INSTDONE,			REG_32BIT,	0,	0,	"SC_INSTDONE"}, \
-	{ SC_INSTDONE_EXTRA,		REG_32BIT,	0,	0,	"SC_INSTDONE_EXTRA"}, \
-	{ SC_INSTDONE_EXTRA2,		REG_32BIT,	0,	0,	"SC_INSTDONE_EXTRA2"}
+	{ SC_INSTDONE,			REG_32BIT,	0,	0,	0,	"SC_INSTDONE"}, \
+	{ SC_INSTDONE_EXTRA,		REG_32BIT,	0,	0,	0,	"SC_INSTDONE_EXTRA"}, \
+	{ SC_INSTDONE_EXTRA2,		REG_32BIT,	0,	0,	0,	"SC_INSTDONE_EXTRA2"}
 
 #define XELP_VEC_CLASS_REGS \
-	{ SFC_DONE(0),			0,	0,	0,	"SFC_DONE[0]"}, \
-	{ SFC_DONE(1),			0,	0,	0,	"SFC_DONE[1]"}, \
-	{ SFC_DONE(2),			0,	0,	0,	"SFC_DONE[2]"}, \
-	{ SFC_DONE(3),			0,	0,	0,	"SFC_DONE[3]"}
+	{ SFC_DONE(0),			0,	0,	0,	0,	"SFC_DONE[0]"}, \
+	{ SFC_DONE(1),			0,	0,	0,	0,	"SFC_DONE[1]"}, \
+	{ SFC_DONE(2),			0,	0,	0,	0,	"SFC_DONE[2]"}, \
+	{ SFC_DONE(3),			0,	0,	0,	0,	"SFC_DONE[3]"}
 
 /* XE_LP Global */
 static const struct __guc_mmio_reg_descr xe_lp_global_regs[] = {
@@ -352,15 +352,16 @@ static const struct __ext_steer_reg xehpg_extregs[] = {
 
 static void __fill_ext_reg(struct __guc_mmio_reg_descr *ext,
 			   const struct __ext_steer_reg *extlist,
-			   int slice_id, int subslice_id)
+			   u32 dss_id, u16 slice_id, u16 subslice_id)
 {
 	if (!ext || !extlist)
 		return;
 
 	ext->reg = XE_REG(extlist->reg.__reg.addr);
 	ext->flags = FIELD_PREP(GUC_REGSET_STEERING_NEEDED, 1);
-	ext->flags = FIELD_PREP(GUC_REGSET_STEERING_GROUP, slice_id);
+	ext->flags |= FIELD_PREP(GUC_REGSET_STEERING_GROUP, slice_id);
 	ext->flags |= FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, subslice_id);
+	ext->dss_id = dss_id;
 	ext->regname = extlist->name;
 }
 
@@ -397,7 +398,7 @@ static void guc_capture_alloc_steered_lists(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	u16 slice, subslice;
-	int iter, i, total = 0;
+	int dss, i, total = 0;
 	const struct __guc_mmio_reg_descr_group *lists = guc->capture->reglists;
 	const struct __guc_mmio_reg_descr_group *list;
 	struct __guc_mmio_reg_descr_group *extlists;
@@ -454,15 +455,15 @@ static void guc_capture_alloc_steered_lists(struct xe_guc *guc)
 
 	/* For steering registers, the list is generated at run-time */
 	extarray = (struct __guc_mmio_reg_descr *)extlists[0].list;
-	for_each_dss_steering(iter, gt, slice, subslice) {
+	for_each_dss_steering(dss, gt, slice, subslice) {
 		for (i = 0; i < ARRAY_SIZE(xe_extregs); ++i) {
-			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
+			__fill_ext_reg(extarray, &xe_extregs[i], dss, slice, subslice);
 			++extarray;
 		}
 
 		if (has_xehpg_extregs)
 			for (i = 0; i < ARRAY_SIZE(xehpg_extregs); ++i) {
-				__fill_ext_reg(extarray, &xehpg_extregs[i], slice, subslice);
+				__fill_ext_reg(extarray, &xehpg_extregs[i], dss, slice, subslice);
 				++extarray;
 			}
 	}
@@ -1672,18 +1673,16 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
 {
 	struct xe_gt *gt = snapshot->hwe->gt;
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_guc *guc = &gt->uc.guc;
 	struct xe_devcoredump *devcoredump = &xe->devcoredump;
 	struct xe_devcoredump_snapshot *devcore_snapshot = &devcoredump->snapshot;
 	struct gcap_reg_list_info *reginfo = NULL;
 	u32 i, last_value = 0;
-	bool is_ext, low32_ready = false;
+	bool low32_ready = false;
 
 	if (!list || !list->list || list->num_regs == 0)
 		return;
 	XE_WARN_ON(!devcore_snapshot->matched_node);
 
-	is_ext = list == guc->capture->extlists;
 	reginfo = &devcore_snapshot->matched_node->reginfo[type];
 
 	/*
@@ -1749,17 +1748,12 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
 			 */
 			XE_WARN_ON(low32_ready);
 
-			if (is_ext) {
-				int dss, group, instance;
-
-				group = FIELD_GET(GUC_REGSET_STEERING_GROUP, reg_desc->flags);
-				instance = FIELD_GET(GUC_REGSET_STEERING_INSTANCE, reg_desc->flags);
-				dss = xe_gt_mcr_steering_info_to_dss_id(gt, group, instance);
-
-				drm_printf(p, "\t%s[%u]: 0x%08x\n", reg_desc->regname, dss, value);
-			} else {
+			if (FIELD_GET(GUC_REGSET_STEERING_NEEDED, reg_desc->flags))
+				drm_printf(p, "\t%s[%u]: 0x%08x\n", reg_desc->regname,
+					   reg_desc->dss_id, value);
+			else
 				drm_printf(p, "\t%s: 0x%08x\n", reg_desc->regname, value);
-			}
+
 			break;
 		}
 	}
@@ -1806,7 +1800,6 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 	if (!devcore_snapshot->matched_node)
 		return;
 
-	xe_gt_assert(gt, snapshot->source <= XE_ENGINE_CAPTURE_SOURCE_GUC);
 	xe_gt_assert(gt, snapshot->hwe);
 
 	capture_class = xe_engine_class_to_guc_capture_class(snapshot->hwe->class);
@@ -1815,7 +1808,8 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 		   snapshot->name ? snapshot->name : "",
 		   snapshot->logical_instance);
 	drm_printf(p, "\tCapture_source: %s\n",
-		   snapshot->source == XE_ENGINE_CAPTURE_SOURCE_GUC ? "GuC" : "Manual");
+		   devcore_snapshot->matched_node->source == XE_ENGINE_CAPTURE_SOURCE_GUC ?
+		   "GuC" : "Manual");
 	drm_printf(p, "\tCoverage: %s\n", grptype[devcore_snapshot->matched_node->is_partial]);
 	drm_printf(p, "\tForcewake: domain 0x%x, ref %d\n",
 		   snapshot->forcewake.domain, snapshot->forcewake.ref);
@@ -1840,29 +1834,24 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 }
 
 /**
- * xe_guc_capture_get_matching_and_lock - Matching GuC capture for the job.
- * @job: The job object.
+ * xe_guc_capture_get_matching_and_lock - Matching GuC capture for the queue.
+ * @q: The exec queue object
  *
- * Search within the capture outlist for the job, could be used for check if
- * GuC capture is ready for the job.
+ * Search within the capture outlist for the queue, could be used for check if
+ * GuC capture is ready for the queue.
  * If found, the locked boolean of the node will be flagged.
  *
  * Returns: found guc-capture node ptr else NULL
  */
 struct __guc_capture_parsed_output *
-xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
+xe_guc_capture_get_matching_and_lock(struct xe_exec_queue *q)
 {
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
-	struct xe_exec_queue *q;
 	struct xe_device *xe;
 	u16 guc_class = GUC_LAST_ENGINE_CLASS + 1;
 	struct xe_devcoredump_snapshot *ss;
 
-	if (!job)
-		return NULL;
-
-	q = job->q;
 	if (!q || !q->gt)
 		return NULL;
 
@@ -1874,7 +1863,7 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 	if (ss->matched_node && ss->matched_node->source == XE_ENGINE_CAPTURE_SOURCE_GUC)
 		return ss->matched_node;
 
-	/* Find hwe for the job */
+	/* Find hwe for the queue */
 	for_each_hw_engine(hwe, q->gt, id) {
 		if (hwe != q->hwe)
 			continue;
@@ -1906,17 +1895,16 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 }
 
 /**
- * xe_engine_snapshot_capture_for_job - Take snapshot of associated engine
- * @job: The job object
+ * xe_engine_snapshot_capture_for_queue - Take snapshot of associated engine
+ * @q: The exec queue object
  *
  * Take snapshot of associated HW Engine
  *
  * Returns: None.
  */
 void
-xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
+xe_engine_snapshot_capture_for_queue(struct xe_exec_queue *q)
 {
-	struct xe_exec_queue *q = job->q;
 	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_devcoredump *coredump = &xe->devcoredump;
 	struct xe_hw_engine *hwe;
@@ -1934,11 +1922,12 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 		}
 
 		if (!coredump->snapshot.hwe[id]) {
-			coredump->snapshot.hwe[id] = xe_hw_engine_snapshot_capture(hwe, job);
+			coredump->snapshot.hwe[id] =
+				xe_hw_engine_snapshot_capture(hwe, q);
 		} else {
 			struct __guc_capture_parsed_output *new;
 
-			new = xe_guc_capture_get_matching_and_lock(job);
+			new = xe_guc_capture_get_matching_and_lock(q);
 			if (new) {
 				struct xe_guc *guc =  &q->gt->uc.guc;
 
@@ -1960,7 +1949,7 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 }
 
 /*
- * xe_guc_capture_put_matched_nodes - Cleanup macthed nodes
+ * xe_guc_capture_put_matched_nodes - Cleanup matched nodes
  * @guc: The GuC object
  *
  * Free matched node and all nodes with the equal guc_id from

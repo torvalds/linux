@@ -33,6 +33,12 @@ static const struct of_device_id mux_mmio_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mux_mmio_dt_ids);
 
+static const struct regmap_config mux_mmio_regmap_cfg = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
 static int mux_mmio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -40,6 +46,7 @@ static int mux_mmio_probe(struct platform_device *pdev)
 	struct regmap_field **fields;
 	struct mux_chip *mux_chip;
 	struct regmap *regmap;
+	void __iomem *base;
 	int num_fields;
 	int ret;
 	int i;
@@ -47,7 +54,11 @@ static int mux_mmio_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "mmio-mux")) {
 		regmap = syscon_node_to_regmap(np->parent);
 	} else {
-		regmap = device_node_to_regmap(np);
+		base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(base))
+			regmap = ERR_PTR(-ENODEV);
+		else
+			regmap = regmap_init_mmio(dev, base, &mux_mmio_regmap_cfg);
 		/* Fallback to checking the parent node on "real" errors. */
 		if (IS_ERR(regmap) && regmap != ERR_PTR(-EPROBE_DEFER)) {
 			regmap = dev_get_regmap(dev->parent, NULL);
@@ -107,7 +118,7 @@ static int mux_mmio_probe(struct platform_device *pdev)
 		fields[i] = devm_regmap_field_alloc(dev, regmap, field);
 		if (IS_ERR(fields[i])) {
 			ret = PTR_ERR(fields[i]);
-			dev_err(dev, "bitfield %d: failed allocate: %d\n",
+			dev_err(dev, "bitfield %d: failed to allocate: %d\n",
 				i, ret);
 			return ret;
 		}

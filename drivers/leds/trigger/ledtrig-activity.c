@@ -32,8 +32,8 @@ struct activity_data {
 
 static void led_activity_function(struct timer_list *t)
 {
-	struct activity_data *activity_data = from_timer(activity_data, t,
-							 timer);
+	struct activity_data *activity_data = timer_container_of(activity_data,
+								 t, timer);
 	struct led_classdev *led_cdev = activity_data->led_cdev;
 	unsigned int target;
 	unsigned int usage;
@@ -156,7 +156,7 @@ static ssize_t led_invert_show(struct device *dev,
 {
 	struct activity_data *activity_data = led_trigger_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", activity_data->invert);
+	return sprintf(buf, "%d\n", activity_data->invert);
 }
 
 static ssize_t led_invert_store(struct device *dev,

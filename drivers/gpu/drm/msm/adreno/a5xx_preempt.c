@@ -79,7 +79,8 @@ static struct msm_ringbuffer *get_next_ring(struct msm_gpu *gpu)
 
 static void a5xx_preempt_timer(struct timer_list *t)
 {
-	struct a5xx_gpu *a5xx_gpu = from_timer(a5xx_gpu, t, preempt_timer);
+	struct a5xx_gpu *a5xx_gpu = timer_container_of(a5xx_gpu, t,
+						       preempt_timer);
 	struct msm_gpu *gpu = &a5xx_gpu->base.base;
 	struct drm_device *dev = gpu->dev;
 
@@ -182,7 +183,7 @@ void a5xx_preempt_irq(struct msm_gpu *gpu)
 		return;
 
 	/* Delete the preemption watchdog timer */
-	del_timer(&a5xx_gpu->preempt_timer);
+	timer_delete(&a5xx_gpu->preempt_timer);
 
 	/*
 	 * The hardware should be setting CP_CONTEXT_SWITCH_CNTL to zero before

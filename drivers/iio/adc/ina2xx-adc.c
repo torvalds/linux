@@ -150,7 +150,7 @@ struct ina2xx_chip_info {
 	/* data buffer needs space for channel data and timestamp */
 	struct {
 		u16 chan[4];
-		u64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 
@@ -766,7 +766,7 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 		chip->scan.chan[i++] = val;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &chip->scan, time);
+	iio_push_to_buffers_with_ts(indio_dev, &chip->scan, sizeof(chip->scan), time);
 
 	return 0;
 };

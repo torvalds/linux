@@ -207,12 +207,11 @@ static int pwm_gpio_probe(struct platform_device *pdev)
 	chip->ops = &pwm_gpio_ops;
 	chip->atomic = true;
 
-	hrtimer_init(&gpwm->gpio_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_setup(&gpwm->gpio_timer, pwm_gpio_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+
 	ret = devm_add_action_or_reset(dev, pwm_gpio_disable_hrtimer, gpwm);
 	if (ret)
 		return ret;
-
-	gpwm->gpio_timer.function = pwm_gpio_timer;
 
 	ret = pwmchip_add(chip);
 	if (ret < 0)

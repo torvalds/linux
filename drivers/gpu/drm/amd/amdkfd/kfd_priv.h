@@ -32,7 +32,7 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
-#include <linux/kfd_ioctl.h>
+#include <uapi/linux/kfd_ioctl.h>
 #include <linux/idr.h>
 #include <linux/kfifo.h>
 #include <linux/seq_file.h>
@@ -207,7 +207,8 @@ enum cache_policy {
 #define KFD_SUPPORT_XNACK_PER_PROCESS(dev)\
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)))
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) ||	\
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)))
 
 struct kfd_node;
 
@@ -273,7 +274,6 @@ struct kfd_node {
 
 	/* Interrupts */
 	struct kfifo ih_fifo;
-	struct workqueue_struct *ih_wq;
 	struct work_struct interrupt_work;
 	spinlock_t interrupt_lock;
 
@@ -289,7 +289,6 @@ struct kfd_node {
 
 	/* Global GWS resource shared between processes */
 	void *gws;
-	bool gws_debug_workaround;
 
 	/* Clients watching SMI events */
 	struct list_head smi_clients;
@@ -365,6 +364,8 @@ struct kfd_dev {
 
 	struct kfd_node *nodes[MAX_KFD_NODES];
 	unsigned int num_nodes;
+
+	struct workqueue_struct *ih_wq;
 
 	/* Kernel doorbells for KFD device */
 	struct amdgpu_bo *doorbells;
@@ -849,6 +850,8 @@ struct kfd_process_device {
 
 	/* Tracks queue reset status */
 	bool has_reset_queue;
+
+	u32 pasid;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -907,8 +910,6 @@ struct kfd_process {
 
 	/* We want to receive a notification when the mm_struct is destroyed */
 	struct mmu_notifier mmu_notifier;
-
-	u32 pasid;
 
 	/*
 	 * Array of kfd_process_device pointers,
@@ -1002,6 +1003,9 @@ struct kfd_process {
 	struct semaphore runtime_enable_sema;
 	bool is_runtime_retry;
 	struct kfd_runtime_info runtime_info;
+
+	/* if gpu page fault sent to KFD */
+	bool gpu_page_fault;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -1034,7 +1038,8 @@ void kfd_process_destroy_wq(void);
 void kfd_cleanup_processes(void);
 struct kfd_process *kfd_create_process(struct task_struct *thread);
 struct kfd_process *kfd_get_process(const struct task_struct *task);
-struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
+struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid,
+						 struct kfd_process_device **pdd);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
@@ -1086,8 +1091,6 @@ struct kfd_process *kfd_lookup_process_by_pid(struct pid *pid);
 /* PASIDs */
 int kfd_pasid_init(void);
 void kfd_pasid_exit(void);
-bool kfd_set_pasid_limit(unsigned int new_limit);
-unsigned int kfd_get_pasid_limit(void);
 u32 kfd_pasid_alloc(void);
 void kfd_pasid_free(u32 pasid);
 
@@ -1137,7 +1140,6 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
 						uint32_t proximity_domain);
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
-struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t node_id,
 					uint32_t vmid)
 {
@@ -1150,7 +1152,8 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 	uint32_t i;
 
 	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4))
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 5, 0))
 		return dev->nodes[0];
 
 	for (i = 0; i < dev->num_nodes; i++)
@@ -1331,7 +1334,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
-int kfd_dqm_evict_pasid(struct device_queue_manager *dqm, u32 pasid);
+int kfd_evict_process_device(struct kfd_process_device *pdd);
 int kfd_dqm_suspend_bad_queue_mes(struct kfd_node *knode, u32 pasid, u32 doorbell_id);
 
 /* Process Queue Manager */
@@ -1360,8 +1363,6 @@ int pqm_update_mqd(struct process_queue_manager *pqm, unsigned int qid,
 			struct mqd_update_info *minfo);
 int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws);
-struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
-						unsigned int qid);
 struct queue *pqm_get_user_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,
@@ -1388,6 +1389,24 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 #define KFD_FENCE_COMPLETED (100)
 #define KFD_FENCE_INIT   (10)
 
+/**
+ * enum kfd_config_dequeue_wait_counts_cmd - Command for configuring
+ *  dequeue wait counts.
+ *
+ * @KFD_DEQUEUE_WAIT_INIT: Set optimized dequeue wait counts for a
+ *	certain ASICs. For these ASICs, this is default value used by RESET
+ * @KFD_DEQUEUE_WAIT_RESET: Reset dequeue wait counts to the optimized value
+ *	for certain ASICs. For others set it to default hardware reset value
+ * @KFD_DEQUEUE_WAIT_SET_SCH_WAVE: Set context switch latency wait
+ *
+ */
+enum kfd_config_dequeue_wait_counts_cmd {
+	KFD_DEQUEUE_WAIT_INIT = 1,
+	KFD_DEQUEUE_WAIT_RESET = 2,
+	KFD_DEQUEUE_WAIT_SET_SCH_WAVE = 3
+};
+
+
 struct packet_manager {
 	struct device_queue_manager *dqm;
 	struct kernel_queue *priv_queue;
@@ -1413,8 +1432,8 @@ struct packet_manager_funcs {
 	int (*unmap_queues)(struct packet_manager *pm, uint32_t *buffer,
 			enum kfd_unmap_queues_filter mode,
 			uint32_t filter_param, bool reset);
-	int (*set_grace_period)(struct packet_manager *pm, uint32_t *buffer,
-			uint32_t grace_period);
+	int (*config_dequeue_wait_counts)(struct packet_manager *pm, uint32_t *buffer,
+			enum kfd_config_dequeue_wait_counts_cmd cmd, uint32_t value);
 	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
 			uint64_t fence_address,	uint64_t fence_value);
 	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
@@ -1425,7 +1444,7 @@ struct packet_manager_funcs {
 	int set_resources_size;
 	int map_queues_size;
 	int unmap_queues_size;
-	int set_grace_period_size;
+	int config_dequeue_wait_counts_size;
 	int query_status_size;
 	int release_mem_size;
 };
@@ -1448,7 +1467,9 @@ int pm_send_unmap_queue(struct packet_manager *pm,
 
 void pm_release_ib(struct packet_manager *pm);
 
-int pm_update_grace_period(struct packet_manager *pm, uint32_t grace_period);
+int pm_config_dequeue_wait_counts(struct packet_manager *pm,
+			enum kfd_config_dequeue_wait_counts_cmd cmd,
+			uint32_t wait_counts_config);
 
 /* Following PM funcs can be shared among VI and AI */
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);
@@ -1486,7 +1507,9 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 int kfd_get_num_events(struct kfd_process *p);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
-void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+void kfd_signal_vm_fault_event_with_userptr(struct kfd_process *p, uint64_t gpu_va);
+
+void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 				struct kfd_vm_fault_info *info,
 				struct kfd_hsa_memory_exception_data *data);
 
@@ -1560,10 +1583,15 @@ int kfd_debugfs_hang_hws(struct kfd_node *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
 int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
+void kfd_debugfs_add_process(struct kfd_process *p);
+void kfd_debugfs_remove_process(struct kfd_process *p);
+
 #else
 
 static inline void kfd_debugfs_init(void) {}
 static inline void kfd_debugfs_fini(void) {}
+static inline void kfd_debugfs_add_process(struct kfd_process *p) {}
+static inline void kfd_debugfs_remove_process(struct kfd_process *p) {}
 
 #endif
 

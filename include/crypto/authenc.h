@@ -28,5 +28,7 @@ struct crypto_authenc_keys {
 
 int crypto_authenc_extractkeys(struct crypto_authenc_keys *keys, const u8 *key,
 			       unsigned int keylen);
+int crypto_krb5enc_extractkeys(struct crypto_authenc_keys *keys, const u8 *key,
+			       unsigned int keylen);
 
 #endif	/* _CRYPTO_AUTHENC_H */

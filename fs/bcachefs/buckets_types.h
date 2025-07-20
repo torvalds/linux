@@ -7,6 +7,33 @@
 
 #define BUCKET_JOURNAL_SEQ_BITS		16
 
+/*
+ * Ugly hack alert:
+ *
+ * We need to cram a spinlock in a single byte, because that's what we have left
+ * in struct bucket, and we care about the size of these - during fsck, we need
+ * in memory state for every single bucket on every device.
+ *
+ * We used to do
+ *   while (xchg(&b->lock, 1) cpu_relax();
+ * but, it turns out not all architectures support xchg on a single byte.
+ *
+ * So now we use bit_spin_lock(), with fun games since we can't burn a whole
+ * ulong for this - we just need to make sure the lock bit always ends up in the
+ * first byte.
+ */
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define BUCKET_LOCK_BITNR	0
+#else
+#define BUCKET_LOCK_BITNR	(BITS_PER_LONG - 1)
+#endif
+
+union ulong_byte_assert {
+	ulong	ulong;
+	u8	byte;
+};
+
 struct bucket {
 	u8			lock;
 	u8			gen_valid:1;
@@ -24,10 +51,15 @@ struct bucket_gens {
 	u16			first_bucket;
 	size_t			nbuckets;
 	size_t			nbuckets_minus_first;
-	u8			b[];
+	u8			b[] __counted_by(nbuckets);
 };
 
+/* Only info on bucket countns: */
 struct bch_dev_usage {
+	u64			buckets[BCH_DATA_NR];
+};
+
+struct bch_dev_usage_full {
 	struct bch_dev_usage_type {
 		u64		buckets;
 		u64		sectors; /* _compressed_ sectors: */

@@ -364,7 +364,6 @@ static const struct of_device_id twl6030_of_match[] __maybe_unused = {
 
 int twl6030_init_irq(struct device *dev, int irq_num)
 {
-	struct			device_node *node = dev->of_node;
 	int			nr_irqs;
 	int			status;
 	u8			mask[3];
@@ -412,8 +411,8 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 	twl6030_irq->irq_mapping_tbl = of_id->data;
 
 	twl6030_irq->irq_domain =
-		irq_domain_add_linear(node, nr_irqs,
-				      &twl6030_irq_domain_ops, twl6030_irq);
+		irq_domain_create_linear(of_fwnode_handle(dev->of_node), nr_irqs,
+					 &twl6030_irq_domain_ops, twl6030_irq);
 	if (!twl6030_irq->irq_domain) {
 		dev_err(dev, "Can't add irq_domain\n");
 		return -ENOMEM;

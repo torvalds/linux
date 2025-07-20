@@ -32,7 +32,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/hwmon.h>

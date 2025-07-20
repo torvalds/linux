@@ -150,13 +150,7 @@ static int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 				   struct page **pgpl)
 {
 	struct super_block *sb = rq->sb;
-	struct z_erofs_stream_dctx dctx = {
-		.rq = rq,
-		.inpages = PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT,
-		.outpages = PAGE_ALIGN(rq->pageofs_out + rq->outputsize)
-				>> PAGE_SHIFT,
-		.no = -1, .ni = 0,
-	};
+	struct z_erofs_stream_dctx dctx = { .rq = rq, .no = -1, .ni = 0 };
 	struct xz_buf buf = {};
 	struct z_erofs_lzma *strm;
 	enum xz_ret xz_err;

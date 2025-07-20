@@ -387,12 +387,12 @@ static const struct snd_soc_component_driver zl38_component_dev = {
 	.endianness		= 1,
 };
 
-static void chip_gpio_set(struct gpio_chip *c, unsigned int offset, int val)
+static int chip_gpio_set(struct gpio_chip *c, unsigned int offset, int val)
 {
 	struct regmap *regmap = gpiochip_get_data(c);
 	unsigned int mask = BIT(offset);
 
-	regmap_update_bits(regmap, REG_GPIO_DAT, mask, val ? mask : 0);
+	return regmap_update_bits(regmap, REG_GPIO_DAT, mask, val ? mask : 0);
 }
 
 static int chip_gpio_get(struct gpio_chip *c, unsigned int offset)
@@ -422,8 +422,12 @@ chip_direction_output(struct gpio_chip *c, unsigned int offset, int val)
 {
 	struct regmap *regmap = gpiochip_get_data(c);
 	unsigned int mask = BIT(offset);
+	int ret;
 
-	chip_gpio_set(c, offset, val);
+	ret = chip_gpio_set(c, offset, val);
+	if (ret)
+		return ret;
+
 	return regmap_update_bits(regmap, REG_GPIO_DIR, mask, mask);
 }
 
@@ -436,7 +440,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input = chip_direction_input,
 	.direction_output = chip_direction_output,
 	.get = chip_gpio_get,
-	.set = chip_gpio_set,
+	.set_rv = chip_gpio_set,
 
 	.can_sleep = true,
 };

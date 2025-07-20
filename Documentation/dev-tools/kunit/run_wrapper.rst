@@ -182,6 +182,8 @@ via UML. To run tests on qemu, by default it requires two flags:
   is ignored), the tests will run via UML. Non-UML architectures,
   for example: i386, x86_64, arm and so on; run on qemu.
 
+  ``--arch help`` lists all valid ``--arch`` values.
+
 - ``--cross_compile``: Specifies the Kbuild toolchain. It passes the
   same argument as passed to the ``CROSS_COMPILE`` variable used by
   Kbuild. As a reminder, this will be the prefix for the toolchain

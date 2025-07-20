@@ -12,6 +12,7 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
+#include <linux/spi/spi.h>
 #include <sound/cs-amp-lib.h>
 
 #define CS35L56_DEVID					0x0000000
@@ -61,6 +62,7 @@
 #define CS35L56_IRQ1_MASK_8				0x000E0AC
 #define CS35L56_IRQ1_MASK_18				0x000E0D4
 #define CS35L56_IRQ1_MASK_20				0x000E0DC
+#define CS35L56_DSP_MBOX_1_RAW				0x0011000
 #define CS35L56_DSP_VIRTUAL1_MBOX_1			0x0011020
 #define CS35L56_DSP_VIRTUAL1_MBOX_2			0x0011024
 #define CS35L56_DSP_VIRTUAL1_MBOX_3			0x0011028
@@ -69,6 +71,8 @@
 #define CS35L56_DSP_VIRTUAL1_MBOX_6			0x0011034
 #define CS35L56_DSP_VIRTUAL1_MBOX_7			0x0011038
 #define CS35L56_DSP_VIRTUAL1_MBOX_8			0x001103C
+#define CS35L56_DIE_STS1				0x0017040
+#define CS35L56_DIE_STS2				0x0017044
 #define CS35L56_DSP_RESTRICT_STS1			0x00190F0
 #define CS35L56_DSP1_XMEM_PACKED_0			0x2000000
 #define CS35L56_DSP1_XMEM_PACKED_6143			0x2005FFC
@@ -101,6 +105,15 @@
 #define CS35L56_DSP1_YMEM_UNPACKED24_6141		0x3405FF4
 #define CS35L56_DSP1_PMEM_0				0x3800000
 #define CS35L56_DSP1_PMEM_5114				0x3804FE8
+
+#define CS35L63_DSP1_FW_VER				CS35L56_DSP1_FW_VER
+#define CS35L63_DSP1_HALO_STATE				0x280396C
+#define CS35L63_DSP1_PM_CUR_STATE			0x28042C8
+#define CS35L63_PROTECTION_STATUS			0x340009C
+#define CS35L63_TRANSDUCER_ACTUAL_PS			0x34000F4
+#define CS35L63_MAIN_RENDER_USER_MUTE			0x3400020
+#define CS35L63_MAIN_RENDER_USER_VOLUME			0x3400028
+#define CS35L63_MAIN_POSTURE_NUMBER			0x3400068
 
 /* DEVID */
 #define CS35L56_DEVID_MASK				0x00FFFFFF
@@ -224,6 +237,7 @@
 #define CS35L56_HALO_STATE_SHUTDOWN			1
 #define CS35L56_HALO_STATE_BOOT_DONE			2
 
+#define CS35L56_MBOX_CMD_PING				0x0A000000
 #define CS35L56_MBOX_CMD_AUDIO_PLAY			0x0B000001
 #define CS35L56_MBOX_CMD_AUDIO_PAUSE			0x0B000002
 #define CS35L56_MBOX_CMD_AUDIO_REINIT			0x0B000003
@@ -254,6 +268,27 @@
 #define CS35L56_NUM_BULK_SUPPLIES			3
 #define CS35L56_NUM_DSP_REGIONS				5
 
+/* Additional margin for SYSTEM_RESET to control port ready on SPI */
+#define CS35L56_SPI_RESET_TO_PORT_READY_US (CS35L56_CONTROL_PORT_READY_US + 2500)
+
+struct cs35l56_spi_payload {
+	__be32	addr;
+	__be16	pad;
+	__be32	value;
+} __packed;
+static_assert(sizeof(struct cs35l56_spi_payload) == 10);
+
+struct cs35l56_fw_reg {
+	unsigned int fw_ver;
+	unsigned int halo_state;
+	unsigned int pm_cur_stat;
+	unsigned int prot_sts;
+	unsigned int transducer_actual_ps;
+	unsigned int user_mute;
+	unsigned int user_volume;
+	unsigned int posture_number;
+};
+
 struct cs35l56_base {
 	struct device *dev;
 	struct regmap *regmap;
@@ -269,6 +304,8 @@ struct cs35l56_base {
 	s8 cal_index;
 	struct cirrus_amp_cal_data cal_data;
 	struct gpio_desc *reset_gpio;
+	struct cs35l56_spi_payload *spi_payload_buf;
+	const struct cs35l56_fw_reg *fw_reg;
 };
 
 static inline bool cs35l56_is_otp_register(unsigned int reg)
@@ -276,9 +313,31 @@ static inline bool cs35l56_is_otp_register(unsigned int reg)
 	return (reg >> 16) == 3;
 }
 
+static inline int cs35l56_init_config_for_spi(struct cs35l56_base *cs35l56,
+					      struct spi_device *spi)
+{
+	cs35l56->spi_payload_buf = devm_kzalloc(&spi->dev,
+						sizeof(*cs35l56->spi_payload_buf),
+						GFP_KERNEL | GFP_DMA);
+	if (!cs35l56->spi_payload_buf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline bool cs35l56_is_spi(struct cs35l56_base *cs35l56)
+{
+	return IS_ENABLED(CONFIG_SPI_MASTER) && !!cs35l56->spi_payload_buf;
+}
+
 extern const struct regmap_config cs35l56_regmap_i2c;
 extern const struct regmap_config cs35l56_regmap_spi;
 extern const struct regmap_config cs35l56_regmap_sdw;
+extern const struct regmap_config cs35l63_regmap_i2c;
+extern const struct regmap_config cs35l63_regmap_sdw;
+
+extern const struct cs35l56_fw_reg cs35l56_fw_reg;
+extern const struct cs35l56_fw_reg cs35l63_fw_reg;
 
 extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
 
@@ -301,6 +360,7 @@ void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_ds
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base);
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version);
+void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_bclk_freq_id(unsigned int freq);

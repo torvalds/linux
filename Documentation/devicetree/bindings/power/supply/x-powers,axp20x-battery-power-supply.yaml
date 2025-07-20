@@ -14,9 +14,6 @@ maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Sebastian Reichel <sre@kernel.org>
 
-allOf:
-  - $ref: power-supply.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -35,7 +32,24 @@ properties:
       this gauge.
     $ref: /schemas/types.yaml#/definitions/phandle
 
+  x-powers,no-thermistor:
+    type: boolean
+    description: Indicates that no thermistor is connected to the TS pin
+
 required:
   - compatible
+
+allOf:
+  - $ref: power-supply.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - x-powers,axp717-battery-power-supply
+    then:
+      properties:
+        x-powers,no-thermistor: false
 
 additionalProperties: false

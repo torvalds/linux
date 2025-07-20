@@ -21,8 +21,8 @@ config INTEL_TCC
 
 config X86_PKG_TEMP_THERMAL
 	tristate "X86 package temperature thermal driver"
-	depends on X86_THERMAL_VECTOR
-	select THERMAL_GOV_USER_SPACE
+	depends on X86_THERMAL_VECTOR && NET
+	select THERMAL_NETLINK
 	select INTEL_TCC
 	default m
 	help

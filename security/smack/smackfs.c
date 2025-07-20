@@ -41,7 +41,9 @@ enum smk_inos {
 	SMK_AMBIENT	= 7,	/* internet ambient label */
 	SMK_NET4ADDR	= 8,	/* single label hosts */
 	SMK_ONLYCAP	= 9,	/* the only "capable" label */
+#ifdef CONFIG_AUDIT
 	SMK_LOGGING	= 10,	/* logging */
+#endif /* CONFIG_AUDIT */
 	SMK_LOAD_SELF	= 11,	/* task specific rules */
 	SMK_ACCESSES	= 12,	/* access policy */
 	SMK_MAPPED	= 13,	/* CIPSO level indicating mapped label */
@@ -165,7 +167,7 @@ static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 #define SMK_LOADLEN	(SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSLEN)
 
 /*
- * Stricly for CIPSO level manipulation.
+ * Strictly for CIPSO level manipulation.
  * Set the category bit number in a smack label sized buffer.
  */
 static inline void smack_catset_bit(unsigned int cat, char *catsetp)
@@ -562,6 +564,7 @@ static void smk_seq_stop(struct seq_file *s, void *v)
 
 static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 {
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
 	/*
 	 * Don't show any rules with label names too long for
 	 * interface file (/smack/load or /smack/load2)
@@ -575,28 +578,11 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	if (srp->smk_access == 0)
 		return;
 
-	seq_printf(s, "%s %s",
+	smack_str_from_perm(acc, srp->smk_access);
+	seq_printf(s, "%s %s %s\n",
 		   srp->smk_subject->smk_known,
-		   srp->smk_object->smk_known);
-
-	seq_putc(s, ' ');
-
-	if (srp->smk_access & MAY_READ)
-		seq_putc(s, 'r');
-	if (srp->smk_access & MAY_WRITE)
-		seq_putc(s, 'w');
-	if (srp->smk_access & MAY_EXEC)
-		seq_putc(s, 'x');
-	if (srp->smk_access & MAY_APPEND)
-		seq_putc(s, 'a');
-	if (srp->smk_access & MAY_TRANSMUTE)
-		seq_putc(s, 't');
-	if (srp->smk_access & MAY_LOCK)
-		seq_putc(s, 'l');
-	if (srp->smk_access & MAY_BRINGUP)
-		seq_putc(s, 'b');
-
-	seq_putc(s, '\n');
+		   srp->smk_object->smk_known,
+		   acc);
 }
 
 /*
@@ -828,7 +814,7 @@ static int smk_open_cipso(struct inode *inode, struct file *file)
 static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos, int format)
 {
-	struct netlbl_lsm_catmap *old_cat, *new_cat = NULL;
+	struct netlbl_lsm_catmap *old_cat;
 	struct smack_known *skp;
 	struct netlbl_lsm_secattr ncats;
 	char mapcatset[SMK_CIPSOLEN];
@@ -915,22 +901,15 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 
 		smack_catset_bit(cat, mapcatset);
 	}
-	ncats.flags = 0;
-	if (catlen == 0) {
-		ncats.attr.mls.cat = NULL;
-		ncats.attr.mls.lvl = maplevel;
-		new_cat = netlbl_catmap_alloc(GFP_ATOMIC);
-		if (new_cat)
-			new_cat->next = ncats.attr.mls.cat;
-		ncats.attr.mls.cat = new_cat;
-		skp->smk_netlabel.flags &= ~(1U << 3);
-		rc = 0;
-	} else {
-		rc = smk_netlbl_mls(maplevel, mapcatset, &ncats, SMK_CIPSOLEN);
-	}
+
+	rc = smk_netlbl_mls(maplevel, mapcatset, &ncats, SMK_CIPSOLEN);
 	if (rc >= 0) {
 		old_cat = skp->smk_netlabel.attr.mls.cat;
 		rcu_assign_pointer(skp->smk_netlabel.attr.mls.cat, ncats.attr.mls.cat);
+		if (ncats.attr.mls.cat)
+			skp->smk_netlabel.flags |= NETLBL_SECATTR_MLS_CAT;
+		else
+			skp->smk_netlabel.flags &= ~(u32)NETLBL_SECATTR_MLS_CAT;
 		skp->smk_netlabel.attr.mls.lvl = ncats.attr.mls.lvl;
 		synchronize_rcu();
 		netlbl_catmap_free(old_cat);
@@ -1098,13 +1077,12 @@ static int smk_open_net4addr(struct inode *inode, struct file *file)
 }
 
 /**
- * smk_net4addr_insert
+ * smk_net4addr_insert - insert a new entry into the net4addrs list
  * @new : netlabel to insert
  *
- * This helper insert netlabel in the smack_net4addrs list
+ * This helper inserts netlabel in the smack_net4addrs list
  * sorted by netmask length (longest to smallest)
- * locked by &smk_net4addr_lock in smk_write_net4addr
- *
+ * locked by &smk_net4addr_lock in smk_write_net4addr.
  */
 static void smk_net4addr_insert(struct smk_net4addr *new)
 {
@@ -1361,13 +1339,12 @@ static int smk_open_net6addr(struct inode *inode, struct file *file)
 }
 
 /**
- * smk_net6addr_insert
+ * smk_net6addr_insert - insert a new entry into the net6addrs list
  * @new : entry to insert
  *
  * This inserts an entry in the smack_net6addrs list
  * sorted by netmask length (longest to smallest)
- * locked by &smk_net6addr_lock in smk_write_net6addr
- *
+ * locked by &smk_net6addr_lock in smk_write_net6addr.
  */
 static void smk_net6addr_insert(struct smk_net6addr *new)
 {
@@ -2149,6 +2126,7 @@ static const struct file_operations smk_unconfined_ops = {
 };
 #endif /* CONFIG_SECURITY_SMACK_BRINGUP */
 
+#ifdef CONFIG_AUDIT
 /**
  * smk_read_logging - read() for /smack/logging
  * @filp: file pointer, not actually used
@@ -2213,6 +2191,7 @@ static const struct file_operations smk_logging_ops = {
 	.write		= smk_write_logging,
 	.llseek		= default_llseek,
 };
+#endif /* CONFIG_AUDIT */
 
 /*
  * Seq_file read operations for /smack/load-self
@@ -2899,8 +2878,10 @@ static int smk_fill_super(struct super_block *sb, struct fs_context *fc)
 			"netlabel", &smk_net4addr_ops, S_IRUGO|S_IWUSR},
 		[SMK_ONLYCAP] = {
 			"onlycap", &smk_onlycap_ops, S_IRUGO|S_IWUSR},
+#ifdef CONFIG_AUDIT
 		[SMK_LOGGING] = {
 			"logging", &smk_logging_ops, S_IRUGO|S_IWUSR},
+#endif /* CONFIG_AUDIT */
 		[SMK_LOAD_SELF] = {
 			"load-self", &smk_load_self_ops, S_IRUGO|S_IWUGO},
 		[SMK_ACCESSES] = {

@@ -18,9 +18,9 @@ struct dma_fence_chain;
  * struct xe_job_ptrs - Per hw engine instance data
  */
 struct xe_job_ptrs {
-	/** @lrc_fence: Pre-allocated uinitialized lrc fence.*/
+	/** @lrc_fence: Pre-allocated uninitialized lrc fence.*/
 	struct dma_fence *lrc_fence;
-	/** @chain_fence: Pre-allocated ninitialized fence chain node. */
+	/** @chain_fence: Pre-allocated uninitialized fence chain node. */
 	struct dma_fence_chain *chain_fence;
 	/** @batch_addr: Batch buffer address. */
 	u64 batch_addr;
@@ -56,6 +56,8 @@ struct xe_sched_job {
 	u32 migrate_flush_flags;
 	/** @ring_ops_flush_tlb: The ring ops need to flush TLB before payload. */
 	bool ring_ops_flush_tlb;
+	/** @ggtt: mapped in ggtt. */
+	bool ggtt;
 	/** @ptrs: per instance pointers. */
 	struct xe_job_ptrs ptrs[];
 };

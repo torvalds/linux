@@ -118,12 +118,11 @@ int serdev_device_add(struct serdev_device *serdev)
 
 	err = device_add(&serdev->dev);
 	if (err < 0) {
-		dev_err(&serdev->dev, "Can't add %s, status %pe\n",
-			dev_name(&serdev->dev), ERR_PTR(err));
+		dev_err(&serdev->dev, "Failed to add serdev: %d\n", err);
 		goto err_clear_serdev;
 	}
 
-	dev_dbg(&serdev->dev, "device %s registered\n", dev_name(&serdev->dev));
+	dev_dbg(&serdev->dev, "serdev registered successfully\n");
 
 	return 0;
 
@@ -315,17 +314,6 @@ void serdev_device_write_flush(struct serdev_device *serdev)
 	ctrl->ops->write_flush(ctrl);
 }
 EXPORT_SYMBOL_GPL(serdev_device_write_flush);
-
-int serdev_device_write_room(struct serdev_device *serdev)
-{
-	struct serdev_controller *ctrl = serdev->ctrl;
-
-	if (!ctrl || !ctrl->ops->write_room)
-		return 0;
-
-	return serdev->ctrl->ops->write_room(ctrl);
-}
-EXPORT_SYMBOL_GPL(serdev_device_write_room);
 
 unsigned int serdev_device_set_baudrate(struct serdev_device *serdev, unsigned int speed)
 {
@@ -794,8 +782,7 @@ int serdev_controller_add(struct serdev_controller *ctrl)
 		goto err_rpm_disable;
 	}
 
-	dev_dbg(&ctrl->dev, "serdev%d registered: dev:%p\n",
-		ctrl->nr, &ctrl->dev);
+	dev_dbg(&ctrl->dev, "serdev controller registered: dev:%p\n", &ctrl->dev);
 	return 0;
 
 err_rpm_disable:

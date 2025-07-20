@@ -113,19 +113,9 @@ static const struct hwmon_ops aq_hwmon_ops = {
 	.read_string = aq_hwmon_read_string,
 };
 
-static u32 aq_hwmon_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_LABEL,
-	HWMON_T_INPUT | HWMON_T_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info aq_hwmon_temp = {
-	.type = hwmon_temp,
-	.config = aq_hwmon_temp_config,
-};
-
 static const struct hwmon_channel_info * const aq_hwmon_info[] = {
-	&aq_hwmon_temp,
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL),
 	NULL,
 };
 

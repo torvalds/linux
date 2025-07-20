@@ -47,10 +47,6 @@ config GENERIC_IRQ_INJECTION
 config HARDIRQS_SW_RESEND
        bool
 
-# Edge style eoi based handler (cell)
-config IRQ_EDGE_EOI_HANDLER
-       bool
-
 # Generic configurable interrupt chip implementation
 config GENERIC_IRQ_CHIP
        bool
@@ -96,6 +92,7 @@ config GENERIC_MSI_IRQ
 	bool
 	select IRQ_DOMAIN_HIERARCHY
 
+# irqchip drivers should select this if they call iommu_dma_prepare_msi()
 config IRQ_MSI_IOMMU
 	bool
 
@@ -140,6 +137,12 @@ config GENERIC_IRQ_DEBUGFS
 	  developers and debugging of hard to diagnose interrupt problems.
 
 	  If you don't know what to do here, say N.
+
+# Clear forwarded VM interrupts during kexec.
+# This option ensures the kernel clears active states for interrupts
+# forwarded to virtual machines (VMs) during a machine kexec.
+config GENERIC_IRQ_KEXEC_CLEAR_VM_FORWARD
+	bool
 
 endmenu
 

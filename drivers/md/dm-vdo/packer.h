@@ -46,7 +46,7 @@ struct compressed_block {
 
 /*
  * Each packer_bin holds an incomplete batch of data_vios that only partially fill a compressed
- * block. The bins are kept in a ring sorted by the amount of unused space so the first bin with
+ * block. The bins are kept in a list sorted by the amount of unused space so the first bin with
  * enough space to hold a newly-compressed data_vio can easily be found. When the bin fills up or
  * is flushed, the first uncanceled data_vio in the bin is selected to be the agent for that bin.
  * Upon entering the packer, each data_vio already has its compressed data in the first slot of the

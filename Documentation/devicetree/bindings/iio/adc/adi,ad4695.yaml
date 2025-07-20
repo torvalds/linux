@@ -84,6 +84,10 @@ properties:
     description: The Reset Input (RESET). Should be configured GPIO_ACTIVE_LOW.
     maxItems: 1
 
+  pwms:
+    description: PWM signal connected to the CNV pin.
+    maxItems: 1
+
   interrupts:
     minItems: 1
     items:
@@ -105,6 +109,15 @@ properties:
     description: |
       The first cell is the GPn number: 0 to 3.
       The second cell takes standard GPIO flags.
+
+  '#trigger-source-cells':
+    description: |
+      First cell indicates the output signal: 0 = BUSY, 1 = ALERT.
+      Second cell indicates which GPn pin is used: 0, 2 or 3.
+
+      For convenience, macros for these values are available in
+      dt-bindings/iio/adc/adi,ad4695.h.
+    const: 2
 
   "#address-cells":
     const: 1
@@ -134,8 +147,9 @@ patternProperties:
         description:
           Describes the common mode channel for single channels. 0xFF is REFGND
           and OxFE is COM. Macros are available for these values in
-          dt-bindings/iio/adi,ad4695.h. Values 1 to 15 correspond to INx inputs.
-          Only odd numbered INx inputs can be used as common mode channels.
+          dt-bindings/iio/adc/adi,ad4695.h. Values 1 to 15 correspond to INx
+          inputs. Only odd numbered INx inputs can be used as common mode
+          channels.
         enum: [1, 3, 5, 7, 9, 11, 13, 15, 0xFE, 0xFF]
         default: 0xFF
 
@@ -209,7 +223,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    #include <dt-bindings/iio/adi,ad4695.h>
+    #include <dt-bindings/iio/adc/adi,ad4695.h>
 
     spi {
         #address-cells = <1>;

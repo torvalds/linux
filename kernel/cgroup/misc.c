@@ -24,6 +24,10 @@ static const char *const misc_res_name[] = {
 	/* AMD SEV-ES ASIDs resource */
 	"sev_es",
 #endif
+#ifdef CONFIG_INTEL_TDX_HOST
+	/* Intel TDX HKIDs resource */
+	"tdx",
+#endif
 };
 
 /* Root misc cgroup */
@@ -66,22 +70,6 @@ static inline bool valid_type(enum misc_res_type type)
 {
 	return type >= 0 && type < MISC_CG_RES_TYPES;
 }
-
-/**
- * misc_cg_res_total_usage() - Get the current total usage of the resource.
- * @type: misc res type.
- *
- * Context: Any context.
- * Return: Current total usage of the resource.
- */
-u64 misc_cg_res_total_usage(enum misc_res_type type)
-{
-	if (valid_type(type))
-		return atomic64_read(&root_cg.res[type].usage);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(misc_cg_res_total_usage);
 
 /**
  * misc_cg_set_capacity() - Set the capacity of the misc cgroup res.

@@ -14,7 +14,7 @@
 #define CPACF_QUERY(name, instruction)						\
 static ssize_t name##_query_raw_read(struct file *fp,				\
 				     struct kobject *kobj,			\
-				     struct bin_attribute *attr,		\
+				     const struct bin_attribute *attr,		\
 				     char *buf, loff_t offs,			\
 				     size_t count)				\
 {										\
@@ -24,7 +24,7 @@ static ssize_t name##_query_raw_read(struct file *fp,				\
 		return -EOPNOTSUPP;						\
 	return memory_read_from_buffer(buf, count, &offs, &mask, sizeof(mask));	\
 }										\
-static BIN_ATTR_RO(name##_query_raw, sizeof(cpacf_mask_t))
+static const BIN_ATTR_RO(name##_query_raw, sizeof(cpacf_mask_t))
 
 CPACF_QUERY(km, KM);
 CPACF_QUERY(kmc, KMC);
@@ -40,20 +40,20 @@ CPACF_QUERY(prno, PRNO);
 CPACF_QUERY(kma, KMA);
 CPACF_QUERY(kdsa, KDSA);
 
-#define CPACF_QAI(name, instruction)				\
-static ssize_t name##_query_auth_info_raw_read(			\
-	struct file *fp, struct kobject *kobj,			\
-	struct bin_attribute *attr, char *buf, loff_t offs,	\
-	size_t count)						\
-{								\
-	cpacf_qai_t qai;					\
-								\
-	if (!cpacf_qai(CPACF_##instruction, &qai))		\
-		return -EOPNOTSUPP;				\
-	return memory_read_from_buffer(buf, count, &offs, &qai, \
-					sizeof(qai));		\
-}								\
-static BIN_ATTR_RO(name##_query_auth_info_raw, sizeof(cpacf_qai_t))
+#define CPACF_QAI(name, instruction)					\
+static ssize_t name##_query_auth_info_raw_read(				\
+	struct file *fp, struct kobject *kobj,				\
+	const struct bin_attribute *attr, char *buf, loff_t offs,	\
+	size_t count)							\
+{									\
+	cpacf_qai_t qai;						\
+									\
+	if (!cpacf_qai(CPACF_##instruction, &qai))			\
+		return -EOPNOTSUPP;					\
+	return memory_read_from_buffer(buf, count, &offs, &qai,		\
+					sizeof(qai));			\
+}									\
+static const BIN_ATTR_RO(name##_query_auth_info_raw, sizeof(cpacf_qai_t))
 
 CPACF_QAI(km, KM);
 CPACF_QAI(kmc, KMC);
@@ -69,7 +69,7 @@ CPACF_QAI(prno, PRNO);
 CPACF_QAI(kma, KMA);
 CPACF_QAI(kdsa, KDSA);
 
-static struct bin_attribute *cpacf_attrs[] = {
+static const struct bin_attribute *const cpacf_attrs[] = {
 	&bin_attr_km_query_raw,
 	&bin_attr_kmc_query_raw,
 	&bin_attr_kimd_query_raw,
@@ -101,7 +101,7 @@ static struct bin_attribute *cpacf_attrs[] = {
 
 static const struct attribute_group cpacf_attr_grp = {
 	.name = "cpacf",
-	.bin_attrs = cpacf_attrs,
+	.bin_attrs_new = cpacf_attrs,
 };
 
 static int __init cpacf_init(void)

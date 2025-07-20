@@ -22,8 +22,8 @@ struct fsl_mc_child_objs {
 	struct fsl_mc_obj_desc *child_array;
 };
 
-static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
-				struct fsl_mc_obj_desc *obj_desc)
+static bool fsl_mc_device_match(const struct fsl_mc_device *mc_dev,
+				const struct fsl_mc_obj_desc *obj_desc)
 {
 	return mc_dev->obj_desc.id == obj_desc->id &&
 	       strcmp(mc_dev->obj_desc.type, obj_desc->type) == 0;
@@ -112,9 +112,9 @@ void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 }
 EXPORT_SYMBOL_GPL(dprc_remove_devices);
 
-static int __fsl_mc_device_match(struct device *dev, void *data)
+static int __fsl_mc_device_match(struct device *dev, const void *data)
 {
-	struct fsl_mc_obj_desc *obj_desc = data;
+	const struct fsl_mc_obj_desc *obj_desc = data;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
 	return fsl_mc_device_match(mc_dev, obj_desc);
@@ -805,8 +805,6 @@ int dprc_cleanup(struct fsl_mc_device *mc_dev)
 		fsl_mc_cleanup_irq_pool(mc_dev);
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 	}
-
-	fsl_mc_cleanup_all_resource_pools(mc_dev);
 
 	/* if this step fails we cannot go further with cleanup as there is no way of
 	 * communicating with the firmware

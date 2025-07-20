@@ -94,10 +94,10 @@ pub mod flags {
     ///
     /// A lower watermark is applied to allow access to "atomic reserves". The current
     /// implementation doesn't support NMI and few other strict non-preemptive contexts (e.g.
-    /// raw_spin_lock). The same applies to [`GFP_NOWAIT`].
+    /// `raw_spin_lock`). The same applies to [`GFP_NOWAIT`].
     pub const GFP_ATOMIC: Flags = Flags(bindings::GFP_ATOMIC);
 
-    /// Typical for kernel-internal allocations. The caller requires ZONE_NORMAL or a lower zone
+    /// Typical for kernel-internal allocations. The caller requires `ZONE_NORMAL` or a lower zone
     /// for direct access but can direct reclaim.
     pub const GFP_KERNEL: Flags = Flags(bindings::GFP_KERNEL);
 
@@ -123,7 +123,7 @@ pub mod flags {
 /// [`Allocator`] is designed to be implemented as a ZST; [`Allocator`] functions do not operate on
 /// an object instance.
 ///
-/// In order to be able to support `#[derive(SmartPointer)]` later on, we need to avoid a design
+/// In order to be able to support `#[derive(CoercePointee)]` later on, we need to avoid a design
 /// that requires an `Allocator` to be instantiated, hence its functions must not contain any kind
 /// of `self` parameter.
 ///

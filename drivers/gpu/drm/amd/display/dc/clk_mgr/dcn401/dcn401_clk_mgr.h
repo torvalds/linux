@@ -90,6 +90,7 @@ enum dcn401_clk_mgr_block_sequence_func {
 	CLK_MGR401_UPDATE_DTBCLK_DTO,
 	CLK_MGR401_UPDATE_DENTIST,
 	CLK_MGR401_UPDATE_PSR_WAIT_LOOP,
+	CLK_MGR401_UPDATE_SUBVP_HARDMINS,
 };
 
 struct dcn401_clk_mgr_block_sequence {

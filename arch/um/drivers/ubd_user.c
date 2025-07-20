@@ -25,9 +25,9 @@
 
 static struct pollfd kernel_pollfd;
 
-int start_io_thread(unsigned long sp, int *fd_out)
+int start_io_thread(struct os_helper_thread **td_out, int *fd_out)
 {
-	int pid, fds[2], err;
+	int fds[2], err;
 
 	err = os_pipe(fds, 1, 1);
 	if(err < 0){
@@ -41,20 +41,20 @@ int start_io_thread(unsigned long sp, int *fd_out)
 	*fd_out = fds[1];
 
 	err = os_set_fd_block(*fd_out, 0);
-	err = os_set_fd_block(kernel_fd, 0);
+	err |= os_set_fd_block(kernel_fd, 0);
 	if (err) {
 		printk("start_io_thread - failed to set nonblocking I/O.\n");
 		goto out_close;
 	}
 
-	pid = clone(io_thread, (void *) sp, CLONE_FILES | CLONE_VM, NULL);
-	if(pid < 0){
-		err = -errno;
-		printk("start_io_thread - clone failed : errno = %d\n", errno);
+	err = os_run_helper_thread(td_out, io_thread, NULL);
+	if (err < 0) {
+		printk("%s - failed to run helper thread, err = %d\n",
+		       __func__, -err);
 		goto out_close;
 	}
 
-	return(pid);
+	return 0;
 
  out_close:
 	os_close_file(fds[0]);

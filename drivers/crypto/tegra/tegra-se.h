@@ -24,6 +24,7 @@
 #define SE_STREAM_ID					0x90
 
 #define SE_SHA_CFG					0x4004
+#define SE_SHA_IN_ADDR					0x400c
 #define SE_SHA_KEY_ADDR					0x4094
 #define SE_SHA_KEY_DATA					0x4098
 #define SE_SHA_KEYMANIFEST				0x409c
@@ -340,12 +341,14 @@
 #define SE_CRYPTO_CTR_REG_COUNT			4
 #define SE_MAX_KEYSLOT				15
 #define SE_MAX_MEM_ALLOC			SZ_4M
-#define SE_AES_BUFLEN				0x8000
-#define SE_SHA_BUFLEN				0x2000
+
+#define TEGRA_AES_RESERVED_KSLT			14
+#define TEGRA_XTS_RESERVED_KSLT			15
 
 #define SHA_FIRST	BIT(0)
-#define SHA_UPDATE	BIT(1)
-#define SHA_FINAL	BIT(2)
+#define SHA_INIT	BIT(1)
+#define SHA_UPDATE	BIT(2)
+#define SHA_FINAL	BIT(3)
 
 /* Security Engine operation modes */
 enum se_aes_alg {
@@ -420,6 +423,7 @@ struct tegra_se {
 	struct host1x_client client;
 	struct host1x_channel *channel;
 	struct tegra_se_cmdbuf *cmdbuf;
+	struct tegra_se_cmdbuf *keybuf;
 	struct crypto_engine *engine;
 	struct host1x_syncpt *syncpt;
 	struct device *dev;
@@ -501,8 +505,33 @@ void tegra_deinit_aes(struct tegra_se *se);
 void tegra_deinit_hash(struct tegra_se *se);
 int tegra_key_submit(struct tegra_se *se, const u8 *key,
 		     u32 keylen, u32 alg, u32 *keyid);
+
+int tegra_key_submit_reserved(struct tegra_se *se, const u8 *key,
+			      u32 keylen, u32 alg, u32 *keyid);
+
 void tegra_key_invalidate(struct tegra_se *se, u32 keyid, u32 alg);
-int tegra_se_host1x_submit(struct tegra_se *se, u32 size);
+void tegra_key_invalidate_reserved(struct tegra_se *se, u32 keyid, u32 alg);
+int tegra_se_host1x_submit(struct tegra_se *se, struct tegra_se_cmdbuf *cmdbuf, u32 size);
+
+static inline int tegra_key_submit_reserved_aes(struct tegra_se *se, const u8 *key,
+						u32 keylen, u32 alg, u32 *keyid)
+{
+	*keyid = TEGRA_AES_RESERVED_KSLT;
+	return tegra_key_submit_reserved(se, key, keylen, alg, keyid);
+}
+
+static inline int tegra_key_submit_reserved_xts(struct tegra_se *se, const u8 *key,
+						u32 keylen, u32 alg, u32 *keyid)
+{
+	*keyid = TEGRA_XTS_RESERVED_KSLT;
+	return tegra_key_submit_reserved(se, key, keylen, alg, keyid);
+}
+
+static inline bool tegra_key_is_reserved(u32 keyid)
+{
+	return ((keyid == TEGRA_AES_RESERVED_KSLT) ||
+		(keyid == TEGRA_XTS_RESERVED_KSLT));
+}
 
 /* HOST1x OPCODES */
 static inline u32 host1x_opcode_setpayload(unsigned int payload)

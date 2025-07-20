@@ -16,29 +16,25 @@
 
 #include "hw.h"
 #include "hw-ops.h"
+#include <linux/sort.h>
 #include <linux/export.h>
 
 /* Common calibration code */
 
+static int rcmp_i16(const void *x, const void *y)
+{
+	/* Sort in reverse order. */
+	return *(int16_t *)y - *(int16_t *)x;
+}
 
 static int16_t ath9k_hw_get_nf_hist_mid(int16_t *nfCalBuffer)
 {
-	int16_t nfval;
-	int16_t sort[ATH9K_NF_CAL_HIST_MAX];
-	int i, j;
+	int16_t nfcal[ATH9K_NF_CAL_HIST_MAX];
 
-	for (i = 0; i < ATH9K_NF_CAL_HIST_MAX; i++)
-		sort[i] = nfCalBuffer[i];
+	memcpy(nfcal, nfCalBuffer, sizeof(nfcal));
+	sort(nfcal, ATH9K_NF_CAL_HIST_MAX, sizeof(int16_t), rcmp_i16, NULL);
 
-	for (i = 0; i < ATH9K_NF_CAL_HIST_MAX - 1; i++) {
-		for (j = 1; j < ATH9K_NF_CAL_HIST_MAX - i; j++) {
-			if (sort[j] > sort[j - 1])
-				swap(sort[j], sort[j - 1]);
-		}
-	}
-	nfval = sort[(ATH9K_NF_CAL_HIST_MAX - 1) >> 1];
-
-	return nfval;
+	return nfcal[(ATH9K_NF_CAL_HIST_MAX - 1) >> 1];
 }
 
 static struct ath_nf_limits *ath9k_hw_get_nf_limits(struct ath_hw *ah,

@@ -495,7 +495,7 @@ static int do_act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 	spin_lock_bh(&csk->lock);
 	if (csk->retry_timer.function) {
-		del_timer(&csk->retry_timer);
+		timer_delete(&csk->retry_timer);
 		csk->retry_timer.function = NULL;
 	}
 
@@ -547,7 +547,7 @@ static int act_open_rpl_status_to_errno(int status)
 
 static void act_open_retry_timer(struct timer_list *t)
 {
-	struct cxgbi_sock *csk = from_timer(csk, t, retry_timer);
+	struct cxgbi_sock *csk = timer_container_of(csk, t, retry_timer);
 	struct sk_buff *skb;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,

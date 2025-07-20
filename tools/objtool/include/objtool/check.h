@@ -34,6 +34,8 @@ struct alt_group {
 	 * This is shared with the other alt_groups in the same alternative.
 	 */
 	struct cfi_state **cfi;
+
+	bool ignore;
 };
 
 #define INSN_CHUNK_BITS		8
@@ -54,7 +56,6 @@ struct instruction {
 
 	u32 idx			: INSN_CHUNK_BITS,
 	    dead_end		: 1,
-	    ignore		: 1,
 	    ignore_alts		: 1,
 	    hint		: 1,
 	    save		: 1,
@@ -71,7 +72,10 @@ struct instruction {
 	struct instruction *first_jump_src;
 	union {
 		struct symbol *_call_dest;
-		struct reloc *_jump_table;
+		struct {
+			struct reloc *_jump_table;
+			unsigned long _jump_table_size;
+		};
 	};
 	struct alternative *alts;
 	struct symbol *sym;

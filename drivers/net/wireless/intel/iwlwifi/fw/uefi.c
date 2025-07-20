@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2021-2024 Intel Corporation
+ * Copyright(c) 2021-2025 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -13,9 +13,12 @@
 #include <linux/efi.h>
 #include "fw/runtime.h"
 
-#define IWL_EFI_VAR_GUID EFI_GUID(0x92daaf2f, 0xc02b, 0x455b,	\
-				  0xb2, 0xec, 0xf5, 0xa3,	\
-				  0x59, 0x4f, 0x4a, 0xea)
+#define IWL_EFI_WIFI_GUID	EFI_GUID(0x92daaf2f, 0xc02b, 0x455b,	\
+					 0xb2, 0xec, 0xf5, 0xa3,	\
+					 0x59, 0x4f, 0x4a, 0xea)
+#define IWL_EFI_WIFI_BT_GUID	EFI_GUID(0xe65d8884, 0xd4af, 0x4b20,	\
+					 0x8d, 0x03, 0x77, 0x2e,	\
+					 0xcc, 0x3d, 0xa5, 0x31)
 
 struct iwl_uefi_pnvm_mem_desc {
 	__le32 addr;
@@ -61,7 +64,7 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 
 	*len = 0;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_OEM_PNVM_NAME, &IWL_EFI_VAR_GUID,
+	data = iwl_uefi_get_variable(IWL_UEFI_OEM_PNVM_NAME, &IWL_EFI_WIFI_GUID,
 				     &package_size);
 	if (IS_ERR(data)) {
 		IWL_DEBUG_FW(trans,
@@ -76,18 +79,18 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 	return data;
 }
 
-static
-void *iwl_uefi_get_verified_variable(struct iwl_trans *trans,
-				     efi_char16_t *uefi_var_name,
-				     char *var_name,
-				     unsigned int expected_size,
-				     unsigned long *size)
+static void *
+iwl_uefi_get_verified_variable_guid(struct iwl_trans *trans,
+				    efi_guid_t *guid,
+				    efi_char16_t *uefi_var_name,
+				    char *var_name,
+				    unsigned int expected_size,
+				    unsigned long *size)
 {
 	void *var;
 	unsigned long var_size;
 
-	var = iwl_uefi_get_variable(uefi_var_name, &IWL_EFI_VAR_GUID,
-				    &var_size);
+	var = iwl_uefi_get_variable(uefi_var_name, guid, &var_size);
 
 	if (IS_ERR(var)) {
 		IWL_DEBUG_RADIO(trans,
@@ -110,6 +113,18 @@ void *iwl_uefi_get_verified_variable(struct iwl_trans *trans,
 	if (size)
 		*size = var_size;
 	return var;
+}
+
+static void *
+iwl_uefi_get_verified_variable(struct iwl_trans *trans,
+			       efi_char16_t *uefi_var_name,
+			       char *var_name,
+			       unsigned int expected_size,
+			       unsigned long *size)
+{
+	return iwl_uefi_get_verified_variable_guid(trans, &IWL_EFI_WIFI_GUID,
+						   uefi_var_name, var_name,
+						   expected_size, size);
 }
 
 int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
@@ -204,7 +219,8 @@ done:
 
 int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 				const u8 *data, size_t len,
-				struct iwl_pnvm_image *pnvm_data)
+				struct iwl_pnvm_image *pnvm_data,
+				__le32 sku_id[3])
 {
 	const struct iwl_ucode_tlv *tlv;
 
@@ -226,23 +242,23 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 		}
 
 		if (tlv_type == IWL_UCODE_TLV_PNVM_SKU) {
-			const struct iwl_sku_id *sku_id =
+			const struct iwl_sku_id *tlv_sku_id =
 				(const void *)(data + sizeof(*tlv));
 
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",
 				     tlv_len);
 			IWL_DEBUG_FW(trans, "sku_id 0x%0x 0x%0x 0x%0x\n",
-				     le32_to_cpu(sku_id->data[0]),
-				     le32_to_cpu(sku_id->data[1]),
-				     le32_to_cpu(sku_id->data[2]));
+				     le32_to_cpu(tlv_sku_id->data[0]),
+				     le32_to_cpu(tlv_sku_id->data[1]),
+				     le32_to_cpu(tlv_sku_id->data[2]));
 
 			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 			len -= ALIGN(tlv_len, 4);
 
-			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
-			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
-			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
+			if (sku_id[0] == tlv_sku_id->data[0] &&
+			    sku_id[1] == tlv_sku_id->data[1] &&
+			    sku_id[2] == tlv_sku_id->data[2]) {
 				int ret = iwl_uefi_reduce_power_section(trans,
 								    data, len,
 								    pnvm_data);
@@ -295,11 +311,12 @@ static int iwl_uefi_step_parse(struct uefi_cnv_common_step_data *common_step_dat
 	if (common_step_data->revision != 1)
 		return -EINVAL;
 
-	trans->mbx_addr_0_step = (u32)common_step_data->revision |
+	trans->conf.mbx_addr_0_step =
+		(u32)common_step_data->revision |
 		(u32)common_step_data->cnvi_eq_channel << 8 |
 		(u32)common_step_data->cnvr_eq_channel << 16 |
 		(u32)common_step_data->radio1 << 24;
-	trans->mbx_addr_1_step = (u32)common_step_data->radio2;
+	trans->conf.mbx_addr_1_step = (u32)common_step_data->radio2;
 	return 0;
 }
 
@@ -308,11 +325,12 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 	struct uefi_cnv_common_step_data *data;
 	int ret;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
-	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_STEP_NAME,
-					      "STEP", sizeof(*data), NULL);
+	data = iwl_uefi_get_verified_variable_guid(trans, &IWL_EFI_WIFI_BT_GUID,
+						   IWL_UEFI_STEP_NAME,
+						   "STEP", sizeof(*data), NULL);
 	if (IS_ERR(data))
 		return;
 
@@ -386,11 +404,14 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 
 	memcpy(fwrt->uats_table.offset_map, uats_data->offset_map,
 	       sizeof(fwrt->uats_table.offset_map));
+
+	fwrt->uats_valid = true;
+
 	return 0;
 }
 
-int iwl_uefi_get_uats_table(struct iwl_trans *trans,
-			    struct iwl_fw_runtime *fwrt)
+void iwl_uefi_get_uats_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_uats_data *data;
 	int ret;
@@ -398,17 +419,12 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UATS_NAME,
 					      "UATS", sizeof(*data), NULL);
 	if (IS_ERR(data))
-		return -EINVAL;
+		return;
 
 	ret = iwl_uefi_uats_parse(data, fwrt);
-	if (ret < 0) {
+	if (ret < 0)
 		IWL_DEBUG_FW(trans, "Cannot read UATS table. rev is invalid\n");
-		kfree(data);
-		return ret;
-	}
-
 	kfree(data);
-	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
 
@@ -538,13 +554,14 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 		goto out;
 	}
 
-	fwrt->ppag_ver = data->revision;
+	fwrt->ppag_bios_rev = data->revision;
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
-						   fwrt->ppag_ver);
+						   fwrt->ppag_bios_rev);
 
 	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
 	memcpy(&fwrt->ppag_chains, &data->ppag_chains,
 	       sizeof(data->ppag_chains));
+	fwrt->ppag_bios_source = BIOS_SOURCE_UEFI;
 out:
 	kfree(data);
 	return ret;
@@ -554,27 +571,31 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *tas_data)
 {
 	struct uefi_cnv_var_wtas *uefi_tas;
-	int ret = 0, enabled, i;
+	int ret, enabled;
 
 	uefi_tas = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WTAS_NAME,
 						  "WTAS", sizeof(*uefi_tas), NULL);
 	if (IS_ERR(uefi_tas))
 		return -EINVAL;
 
-	if (uefi_tas->revision != IWL_UEFI_WTAS_REVISION) {
+	if (uefi_tas->revision < IWL_UEFI_MIN_WTAS_REVISION ||
+	    uefi_tas->revision > IWL_UEFI_MAX_WTAS_REVISION) {
 		ret = -EINVAL;
 		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WTAS revision:%d\n",
 				uefi_tas->revision);
 		goto out;
 	}
 
-	enabled = iwl_parse_tas_selection(fwrt, tas_data,
-					  uefi_tas->tas_selection);
-	if (!enabled) {
-		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
-		ret = 0;
-		goto out;
-	}
+	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
+			uefi_tas->tas_selection);
+
+	enabled = uefi_tas->tas_selection & IWL_WTAS_ENABLED_MSK;
+	tas_data->table_source = BIOS_SOURCE_UEFI;
+	tas_data->table_revision = uefi_tas->revision;
+	tas_data->tas_selection = uefi_tas->tas_selection;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS %s enabled\n",
+			enabled ? "is" : "not");
 
 	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n",
 			uefi_tas->revision);
@@ -584,15 +605,16 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		ret = -EINVAL;
 		goto out;
 	}
-	tas_data->block_list_size = cpu_to_le32(uefi_tas->black_list_size);
+
+	tas_data->block_list_size = uefi_tas->black_list_size;
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", uefi_tas->black_list_size);
 
-	for (i = 0; i < uefi_tas->black_list_size; i++) {
-		tas_data->block_list_array[i] =
-			cpu_to_le32(uefi_tas->black_list[i]);
+	for (u8 i = 0; i < uefi_tas->black_list_size; i++) {
+		tas_data->block_list_array[i] = uefi_tas->black_list[i];
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n",
 				uefi_tas->black_list[i]);
 	}
+	ret = enabled;
 out:
 	kfree(uefi_tas);
 	return ret;
@@ -657,14 +679,16 @@ int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
 	struct uefi_cnv_var_eckv *data;
 	int ret = 0;
 
-	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_ECKV_NAME,
-					      "ECKV", sizeof(*data), NULL);
+	data = iwl_uefi_get_verified_variable_guid(fwrt->trans,
+						   &IWL_EFI_WIFI_BT_GUID,
+						   IWL_UEFI_ECKV_NAME,
+						   "ECKV", sizeof(*data), NULL);
 	if (IS_ERR(data))
 		return -EINVAL;
 
 	if (data->revision != IWL_UEFI_ECKV_REVISION) {
 		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDD revision:%d\n",
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI ECKV revision:%d\n",
 				data->revision);
 		goto out;
 	}
@@ -724,6 +748,10 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 	}
 
 	*value = data->functions[func];
+
+	IWL_DEBUG_RADIO(fwrt,
+			"UEFI: DSM func=%d: value=%d\n", func, *value);
+
 	ret = 0;
 out:
 	kfree(data);
@@ -758,3 +786,57 @@ int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)
 	return puncturing;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_puncturing);
+
+int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	struct uefi_cnv_wlan_dsbr_data *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable_guid(fwrt->trans,
+						   &IWL_EFI_WIFI_BT_GUID,
+						   IWL_UEFI_DSBR_NAME, "DSBR",
+						   sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_DSBR_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI DSBR revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*value = data->config;
+	IWL_DEBUG_RADIO(fwrt, "Loaded DSBR config from UEFI value: 0x%x\n",
+			*value);
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_wpfc_data *data __free(kfree);
+	struct iwl_phy_specific_cfg *filters = &fwrt->phy_filters;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WPFC_NAME,
+					      "WPFC", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != 0) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WPFC revision:%d\n",
+			data->revision);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) !=
+		     ARRAY_SIZE(data->chains));
+
+	for (int i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
+		filters->filter_cfg_chains[i] = cpu_to_le32(data->chains[i]);
+		IWL_DEBUG_RADIO(fwrt, "WPFC: chain %d: %u\n", i, data->chains[i]);
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC config from UEFI\n");
+	return 0;
+}

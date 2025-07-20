@@ -79,6 +79,7 @@ static inline gfn_t kvm_mmu_max_gfn(void)
 u8 kvm_mmu_get_max_tdp_level(void);
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask);
+void kvm_mmu_set_mmio_spte_value(struct kvm *kvm, u64 mmio_value);
 void kvm_mmu_set_me_spte_mask(u64 me_value, u64 me_mask);
 void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only);
 
@@ -104,6 +105,18 @@ void kvm_mmu_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
+	if (kvm_check_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu))
+		kvm_mmu_free_obsolete_roots(vcpu);
+
+	/*
+	 * Checking root.hpa is sufficient even when KVM has mirror root.
+	 * We can have either:
+	 * (1) mirror_root_hpa = INVALID_PAGE, root.hpa = INVALID_PAGE
+	 * (2) mirror_root_hpa = root,         root.hpa = INVALID_PAGE
+	 * (3) mirror_root_hpa = root1,        root.hpa = root2
+	 * We don't ever have:
+	 *     mirror_root_hpa = INVALID_PAGE, root.hpa = root
+	 */
 	if (likely(vcpu->arch.mmu->root.hpa != INVALID_PAGE))
 		return 0;
 
@@ -126,7 +139,7 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvm_get_active_cr3_lam_bits(struct kvm_vcpu *vcpu)
 {
-	if (!guest_can_use(vcpu, X86_FEATURE_LAM))
+	if (!guest_cpu_cap_has(vcpu, X86_FEATURE_LAM))
 		return 0;
 
 	return kvm_read_cr3(vcpu) & (X86_CR3_LAM_U48 | X86_CR3_LAM_U57);
@@ -222,7 +235,7 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return -(u32)fault & errcode;
 }
 
-bool kvm_mmu_may_ignore_guest_pat(void);
+bool kvm_mmu_may_ignore_guest_pat(struct kvm *kvm);
 
 int kvm_mmu_post_init_vm(struct kvm *kvm);
 void kvm_mmu_pre_destroy_vm(struct kvm *kvm);
@@ -243,6 +256,9 @@ extern bool tdp_mmu_enabled;
 #else
 #define tdp_mmu_enabled false
 #endif
+
+bool kvm_tdp_mmu_gpa_is_mapped(struct kvm_vcpu *vcpu, u64 gpa);
+int kvm_tdp_map_page(struct kvm_vcpu *vcpu, gpa_t gpa, u64 error_code, u8 *level);
 
 static inline bool kvm_memslots_have_rmaps(struct kvm *kvm)
 {
@@ -286,5 +302,27 @@ static inline gpa_t kvm_translate_gpa(struct kvm_vcpu *vcpu,
 	if (mmu != &vcpu->arch.nested_mmu)
 		return gpa;
 	return translate_nested_gpa(vcpu, gpa, access, exception);
+}
+
+static inline bool kvm_has_mirrored_tdp(const struct kvm *kvm)
+{
+	return kvm->arch.vm_type == KVM_X86_TDX_VM;
+}
+
+static inline gfn_t kvm_gfn_direct_bits(const struct kvm *kvm)
+{
+	return kvm->arch.gfn_direct_bits;
+}
+
+static inline bool kvm_is_addr_direct(struct kvm *kvm, gpa_t gpa)
+{
+	gpa_t gpa_direct_bits = gfn_to_gpa(kvm_gfn_direct_bits(kvm));
+
+	return !gpa_direct_bits || (gpa & gpa_direct_bits);
+}
+
+static inline bool kvm_is_gfn_alias(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn & kvm_gfn_direct_bits(kvm);
 }
 #endif

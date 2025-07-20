@@ -56,6 +56,7 @@ extern void rpc_xprt_switch_add_xprt(struct rpc_xprt_switch *xps,
 		struct rpc_xprt *xprt);
 extern void rpc_xprt_switch_remove_xprt(struct rpc_xprt_switch *xps,
 		struct rpc_xprt *xprt, bool offline);
+extern struct rpc_xprt *rpc_xprt_switch_get_main_xprt(struct rpc_xprt_switch *xps);
 
 extern void xprt_iter_init(struct rpc_xprt_iter *xpi,
 		struct rpc_xprt_switch *xps);
@@ -75,7 +76,6 @@ extern struct rpc_xprt_switch *xprt_iter_xchg_switch(
 		struct rpc_xprt_switch *newswitch);
 
 extern struct rpc_xprt *xprt_iter_xprt(struct rpc_xprt_iter *xpi);
-extern struct rpc_xprt *xprt_iter_get_xprt(struct rpc_xprt_iter *xpi);
 extern struct rpc_xprt *xprt_iter_get_next(struct rpc_xprt_iter *xpi);
 
 extern bool rpc_xprt_switch_has_addr(struct rpc_xprt_switch *xps,

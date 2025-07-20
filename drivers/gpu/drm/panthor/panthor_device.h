@@ -9,6 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/io-pgtable.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 
@@ -156,6 +157,17 @@ struct panthor_device {
 
 		/** @pending: Set to true if a reset is pending. */
 		atomic_t pending;
+
+		/**
+		 * @fast: True if the post_reset logic can proceed with a fast reset.
+		 *
+		 * A fast reset is just a reset where the driver doesn't reload the FW sections.
+		 *
+		 * Any time the firmware is properly suspended, a fast reset can take place.
+		 * On the other hand, if the halt operation failed, the driver will reload
+		 * all FW sections to make sure we start from a fresh state.
+		 */
+		bool fast;
 	} reset;
 
 	/** @pm: Power management related data. */
@@ -180,6 +192,9 @@ struct panthor_device {
 		 * is suspended.
 		 */
 		struct page *dummy_latest_flush;
+
+		/** @recovery_needed: True when a resume attempt failed. */
+		atomic_t recovery_needed;
 	} pm;
 
 	/** @profile_mask: User-set profiling flags for job accounting. */
@@ -190,6 +205,17 @@ struct panthor_device {
 
 	/** @fast_rate: Maximum device clock frequency. Set by DVFS */
 	unsigned long fast_rate;
+
+#ifdef CONFIG_DEBUG_FS
+	/** @gems: Device-wide list of GEM objects owned by at least one file. */
+	struct {
+		/** @gems.lock: Protects the device-wide list of GEM objects. */
+		struct mutex lock;
+
+		/** @node: Used to keep track of all the device's DRM objects */
+		struct list_head node;
+	} gems;
+#endif
 };
 
 struct panthor_gpu_usage {
@@ -242,6 +268,28 @@ int panthor_device_mmap_io(struct panthor_device *ptdev,
 
 int panthor_device_resume(struct device *dev);
 int panthor_device_suspend(struct device *dev);
+
+static inline int panthor_device_resume_and_get(struct panthor_device *ptdev)
+{
+	int ret = pm_runtime_resume_and_get(ptdev->base.dev);
+
+	/* If the resume failed, we need to clear the runtime_error, which
+	 * can done by forcing the RPM state to suspended. If multiple
+	 * threads called panthor_device_resume_and_get(), we only want
+	 * one of them to update the state, hence the cmpxchg. Note that a
+	 * thread might enter panthor_device_resume_and_get() and call
+	 * pm_runtime_resume_and_get() after another thread had attempted
+	 * to resume and failed. This means we will end up with an error
+	 * without even attempting a resume ourselves. The only risk here
+	 * is to report an error when the second resume attempt might have
+	 * succeeded. Given resume errors are not expected, this is probably
+	 * something we can live with.
+	 */
+	if (ret && atomic_cmpxchg(&ptdev->pm.recovery_needed, 1, 0) == 1)
+		pm_runtime_set_suspended(ptdev->base.dev);
+
+	return ret;
+}
 
 enum drm_panthor_exception_type {
 	DRM_PANTHOR_EXCEPTION_OK = 0x00,
@@ -345,8 +393,6 @@ static irqreturn_t panthor_ ## __name ## _irq_threaded_handler(int irq, void *da
 												\
 		if (!status)									\
 			break;									\
-												\
-		gpu_write(ptdev, __reg_prefix ## _INT_CLEAR, status);				\
 												\
 		__handler(ptdev, status);							\
 		ret = IRQ_HANDLED;								\

@@ -130,7 +130,7 @@ static int __init hyperv_prepare_irq_remapping(void)
 	    x86_init.hyper.msi_ext_dest_id())
 		return -ENODEV;
 
-	if (hv_root_partition) {
+	if (hv_root_partition()) {
 		name = "HYPERV-ROOT-IR";
 		ops = &hyperv_root_ir_domain_ops;
 	} else {
@@ -151,7 +151,7 @@ static int __init hyperv_prepare_irq_remapping(void)
 		return -ENOMEM;
 	}
 
-	if (hv_root_partition)
+	if (hv_root_partition())
 		return 0; /* The rest is only relevant to guests */
 
 	/*
@@ -164,8 +164,8 @@ static int __init hyperv_prepare_irq_remapping(void)
 	 * max cpu affinity for IOAPIC irqs. Scan cpu 0-255 and set cpu
 	 * into ioapic_max_cpumask if its APIC ID is less than 256.
 	 */
-	for (i = min_t(unsigned int, num_possible_cpus() - 1, 255); i >= 0; i--)
-		if (cpu_physical_id(i) < 256)
+	for (i = min_t(unsigned int, nr_cpu_ids - 1, 255); i >= 0; i--)
+		if (cpu_possible(i) && cpu_physical_id(i) < 256)
 			cpumask_set_cpu(i, &ioapic_max_cpumask);
 
 	return 0;
@@ -193,15 +193,13 @@ struct hyperv_root_ir_data {
 static void
 hyperv_root_ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 {
-	u64 status;
-	u32 vector;
-	struct irq_cfg *cfg;
-	int ioapic_id;
-	const struct cpumask *affinity;
-	int cpu;
-	struct hv_interrupt_entry entry;
 	struct hyperv_root_ir_data *data = irq_data->chip_data;
+	struct hv_interrupt_entry entry;
+	const struct cpumask *affinity;
 	struct IO_APIC_route_entry e;
+	struct irq_cfg *cfg;
+	int cpu, ioapic_id;
+	u32 vector;
 
 	cfg = irqd_cfg(irq_data);
 	affinity = irq_data_get_effective_affinity_mask(irq_data);
@@ -214,23 +212,16 @@ hyperv_root_ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 	    && data->entry.ioapic_rte.as_uint64) {
 		entry = data->entry;
 
-		status = hv_unmap_ioapic_interrupt(ioapic_id, &entry);
-
-		if (status != HV_STATUS_SUCCESS)
-			pr_debug("%s: unexpected unmap status %lld\n", __func__, status);
+		(void)hv_unmap_ioapic_interrupt(ioapic_id, &entry);
 
 		data->entry.ioapic_rte.as_uint64 = 0;
 		data->entry.source = 0; /* Invalid source */
 	}
 
 
-	status = hv_map_ioapic_interrupt(ioapic_id, data->is_level, cpu,
-					vector, &entry);
-
-	if (status != HV_STATUS_SUCCESS) {
-		pr_err("%s: map hypercall failed, status %lld\n", __func__, status);
+	if (hv_map_ioapic_interrupt(ioapic_id, data->is_level, cpu,
+				    vector, &entry))
 		return;
-	}
 
 	data->entry = entry;
 
@@ -322,10 +313,10 @@ static void hyperv_root_irq_remapping_free(struct irq_domain *domain,
 			data = irq_data->chip_data;
 			e = &data->entry;
 
-			if (e->source == HV_DEVICE_TYPE_IOAPIC
-			      && e->ioapic_rte.as_uint64)
-				hv_unmap_ioapic_interrupt(data->ioapic_id,
-							&data->entry);
+			if (e->source == HV_DEVICE_TYPE_IOAPIC &&
+			    e->ioapic_rte.as_uint64)
+				(void)hv_unmap_ioapic_interrupt(data->ioapic_id,
+								&data->entry);
 
 			kfree(data);
 		}

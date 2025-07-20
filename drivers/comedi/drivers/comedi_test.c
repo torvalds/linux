@@ -197,7 +197,8 @@ static unsigned short fake_waveform(struct comedi_device *dev,
  */
 static void waveform_ai_timer(struct timer_list *t)
 {
-	struct waveform_private *devpriv = from_timer(devpriv, t, ai_timer);
+	struct waveform_private *devpriv = timer_container_of(devpriv, t,
+							      ai_timer);
 	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
@@ -418,9 +419,9 @@ static int waveform_ai_cancel(struct comedi_device *dev,
 	spin_unlock_bh(&dev->spinlock);
 	if (in_softirq()) {
 		/* Assume we were called from the timer routine itself. */
-		del_timer(&devpriv->ai_timer);
+		timer_delete(&devpriv->ai_timer);
 	} else {
-		del_timer_sync(&devpriv->ai_timer);
+		timer_delete_sync(&devpriv->ai_timer);
 	}
 	return 0;
 }
@@ -444,7 +445,8 @@ static int waveform_ai_insn_read(struct comedi_device *dev,
  */
 static void waveform_ao_timer(struct timer_list *t)
 {
-	struct waveform_private *devpriv = from_timer(devpriv, t, ao_timer);
+	struct waveform_private *devpriv = timer_container_of(devpriv, t,
+							      ao_timer);
 	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
@@ -628,9 +630,9 @@ static int waveform_ao_cancel(struct comedi_device *dev,
 	spin_unlock_bh(&dev->spinlock);
 	if (in_softirq()) {
 		/* Assume we were called from the timer routine itself. */
-		del_timer(&devpriv->ao_timer);
+		timer_delete(&devpriv->ao_timer);
 	} else {
-		del_timer_sync(&devpriv->ao_timer);
+		timer_delete_sync(&devpriv->ao_timer);
 	}
 	return 0;
 }
@@ -790,9 +792,9 @@ static void waveform_detach(struct comedi_device *dev)
 {
 	struct waveform_private *devpriv = dev->private;
 
-	if (devpriv) {
-		del_timer_sync(&devpriv->ai_timer);
-		del_timer_sync(&devpriv->ao_timer);
+	if (devpriv && dev->n_subdevices) {
+		timer_delete_sync(&devpriv->ai_timer);
+		timer_delete_sync(&devpriv->ao_timer);
 	}
 }
 

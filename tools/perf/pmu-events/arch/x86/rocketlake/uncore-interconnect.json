@@ -39,16 +39,6 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "Number of all coherent Data Read entries. Doesn't include prefetches",
-        "Counter": "1",
-        "EventCode": "0x81",
-        "EventName": "UNC_ARB_REQ_TRK_REQUEST.DRD",
-        "Experimental": "1",
-        "PerPkg": "1",
-        "UMask": "0x2",
-        "Unit": "ARB"
-    },
-    {
         "BriefDescription": "Each cycle counts number of all outgoing valid entries in ReqTrk. Such entry is defined as valid from its allocation in ReqTrk until deallocation. Accounts for Coherent and non-coherent traffic.",
         "Counter": "0",
         "EventCode": "0x80",

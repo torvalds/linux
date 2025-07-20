@@ -89,7 +89,7 @@ int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
-					 struct hwtstamp_config *config)
+					 struct kernel_hwtstamp_config *config)
 {
 	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
@@ -169,42 +169,38 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 }
 
 int mv88e6xxx_port_hwtstamp_set(struct dsa_switch *ds, int port,
-				struct ifreq *ifr)
+				struct kernel_hwtstamp_config *config,
+				struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
-	struct hwtstamp_config config;
 	int err;
 
 	if (!chip->info->ptp_support)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = mv88e6xxx_set_hwtstamp_config(chip, port, &config);
+	err = mv88e6xxx_set_hwtstamp_config(chip, port, config);
 	if (err)
 		return err;
 
 	/* Save the chosen configuration to be returned later. */
-	memcpy(&ps->tstamp_config, &config, sizeof(config));
+	ps->tstamp_config = *config;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 int mv88e6xxx_port_hwtstamp_get(struct dsa_switch *ds, int port,
-				struct ifreq *ifr)
+				struct kernel_hwtstamp_config *config)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
-	struct hwtstamp_config *config = &ps->tstamp_config;
 
 	if (!chip->info->ptp_support)
 		return -EOPNOTSUPP;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
-		-EFAULT : 0;
+	*config = ps->tstamp_config;
+
+	return 0;
 }
 
 /* Returns a pointer to the PTP header if the caller should time stamp,

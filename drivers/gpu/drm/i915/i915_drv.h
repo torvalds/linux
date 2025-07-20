@@ -49,8 +49,6 @@
 #include "gt/intel_workarounds.h"
 #include "gt/uc/intel_uc.h"
 
-#include "soc/intel_pch.h"
-
 #include "i915_drm_client.h"
 #include "i915_gem.h"
 #include "i915_gpu_error.h"
@@ -99,14 +97,6 @@ struct i915_dsm {
 	 * functions and similarly removed from the accessible range.
 	 */
 	resource_size_t usable_size;
-};
-
-struct i915_suspend_saved_registers {
-	u32 saveDSPARB;
-	u32 saveSWF0[16];
-	u32 saveSWF1[16];
-	u32 saveSWF3[3];
-	u16 saveGCDGMBUS;
 };
 
 #define MAX_L3_SLICES 2
@@ -232,13 +222,19 @@ struct drm_i915_private {
 	};
 	unsigned int engine_uabi_class_count[I915_LAST_UABI_ENGINE_CLASS + 1];
 
-	/* protects the irq masks */
-	spinlock_t irq_lock;
 	bool irqs_enabled;
+
+	/* LPT/WPT IOSF sideband protection */
+	struct mutex sbi_lock;
+
+	/* VLV/CHV IOSF sideband */
+	struct {
+		struct mutex lock; /* protect sideband access */
+		struct pm_qos_request qos;
+	} vlv_iosf_sb;
 
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
-	struct pm_qos_request sb_qos;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask;
@@ -272,10 +268,6 @@ struct drm_i915_private {
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
 
-	/* PCH chipset type */
-	enum intel_pch pch_type;
-	unsigned short pch_id;
-
 	unsigned long gem_quirks;
 
 	struct i915_gem_mm mm;
@@ -291,7 +283,6 @@ struct drm_i915_private {
 	struct i915_gpu_error gpu_error;
 
 	u32 suspend_count;
-	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state *vlv_s0ix_state;
 
 	struct dram_info {
@@ -307,6 +298,8 @@ struct drm_i915_private {
 			INTEL_DRAM_DDR5,
 			INTEL_DRAM_LPDDR5,
 			INTEL_DRAM_GDDR,
+			INTEL_DRAM_GDDR_ECC,
+			__INTEL_DRAM_TYPE_MAX,
 		} type;
 		u8 num_qgv_points;
 		u8 num_psf_gv_points;
@@ -550,6 +543,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G11)
 #define IS_DG2_G12(i915) \
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G12)
+#define IS_DG2_D(i915) \
+	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_D)
 #define IS_RAPTORLAKE_S(i915) \
 	IS_SUBPLATFORM(i915, INTEL_ALDERLAKE_S, INTEL_SUBPLATFORM_RPL)
 #define IS_ALDERLAKE_P_N(i915) \

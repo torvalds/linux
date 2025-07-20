@@ -830,7 +830,7 @@ static int isl1208_setup_irq(struct i2c_client *client, int irq)
 					isl1208_driver.driver.name,
 					client);
 	if (!rc) {
-		device_init_wakeup(&client->dev, 1);
+		device_init_wakeup(&client->dev, true);
 		enable_irq_wake(irq);
 	} else {
 		dev_err(&client->dev,

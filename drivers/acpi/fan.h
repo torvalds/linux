@@ -19,6 +19,7 @@
 	{"INTC1063", }, /* Fan for Meteor Lake generation */ \
 	{"INTC106A", }, /* Fan for Lunar Lake generation */ \
 	{"INTC10A2", }, /* Fan for Raptor Lake generation */ \
+	{"INTC10D6", }, /* Fan for Panther Lake generation */ \
 	{"PNP0C0B", } /* Generic ACPI fan */
 
 #define ACPI_FPS_NAME_LEN	20
@@ -48,6 +49,7 @@ struct acpi_fan_fst {
 
 struct acpi_fan {
 	bool acpi4;
+	bool has_fst;
 	struct acpi_fan_fif fif;
 	struct acpi_fan_fps *fps;
 	int fps_count;

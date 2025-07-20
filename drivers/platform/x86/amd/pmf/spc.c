@@ -16,6 +16,46 @@
 #include "pmf.h"
 
 #ifdef CONFIG_AMD_PMF_DEBUG
+static const char *platform_type_as_str(u16 platform_type)
+{
+	switch (platform_type) {
+	case CLAMSHELL:
+		return "CLAMSHELL";
+	case FLAT:
+		return "FLAT";
+	case TENT:
+		return "TENT";
+	case STAND:
+		return "STAND";
+	case TABLET:
+		return "TABLET";
+	case BOOK:
+		return "BOOK";
+	case PRESENTATION:
+		return "PRESENTATION";
+	case PULL_FWD:
+		return "PULL_FWD";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static const char *laptop_placement_as_str(u16 device_state)
+{
+	switch (device_state) {
+	case ON_TABLE:
+		return "ON_TABLE";
+	case ON_LAP_MOTION:
+		return "ON_LAP_MOTION";
+	case IN_BAG:
+		return "IN_BAG";
+	case OUT_OF_BAG:
+		return "OUT_OF_BAG";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static const char *ta_slider_as_str(unsigned int state)
 {
 	switch (state) {
@@ -47,11 +87,37 @@ void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *
 	dev_dbg(dev->dev, "LID State: %s\n", in->ev_info.lid_state ? "close" : "open");
 	dev_dbg(dev->dev, "User Presence: %s\n", in->ev_info.user_present ? "Present" : "Away");
 	dev_dbg(dev->dev, "Ambient Light: %d\n", in->ev_info.ambient_light);
+	dev_dbg(dev->dev, "Platform type: %s\n", platform_type_as_str(in->ev_info.platform_type));
+	dev_dbg(dev->dev, "Laptop placement: %s\n",
+		laptop_placement_as_str(in->ev_info.device_state));
+	dev_dbg(dev->dev, "Custom BIOS input1: %u\n", in->ev_info.bios_input1);
+	dev_dbg(dev->dev, "Custom BIOS input2: %u\n", in->ev_info.bios_input2);
 	dev_dbg(dev->dev, "==== TA inputs END ====\n");
 }
 #else
 void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in) {}
 #endif
+
+static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
+					   struct ta_pmf_enact_table *in)
+{
+	if (!pdev->req.pending_req)
+		return;
+
+	switch (pdev->req.pending_req) {
+	case BIT(NOTIFY_CUSTOM_BIOS_INPUT1):
+		in->ev_info.bios_input1 = pdev->req.custom_policy[APMF_SMARTPC_CUSTOM_BIOS_INPUT1];
+		break;
+	case BIT(NOTIFY_CUSTOM_BIOS_INPUT2):
+		in->ev_info.bios_input2 = pdev->req.custom_policy[APMF_SMARTPC_CUSTOM_BIOS_INPUT2];
+		break;
+	default:
+		dev_dbg(pdev->dev, "Invalid preq for BIOS input: 0x%x\n", pdev->req.pending_req);
+	}
+
+	/* Clear pending requests after handling */
+	memset(&pdev->req, 0, sizeof(pdev->req));
+}
 
 static void amd_pmf_get_c0_residency(u16 *core_res, size_t size, struct ta_pmf_enact_table *in)
 {
@@ -153,12 +219,14 @@ static int amd_pmf_get_slider_info(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 
 	switch (dev->current_profile) {
 	case PLATFORM_PROFILE_PERFORMANCE:
+	case PLATFORM_PROFILE_BALANCED_PERFORMANCE:
 		val = TA_BEST_PERFORMANCE;
 		break;
 	case PLATFORM_PROFILE_BALANCED:
 		val = TA_BETTER_PERFORMANCE;
 		break;
 	case PLATFORM_PROFILE_LOW_POWER:
+	case PLATFORM_PROFILE_QUIET:
 		val = TA_BEST_BATTERY;
 		break;
 	default:
@@ -190,6 +258,14 @@ static void amd_pmf_get_sensor_info(struct amd_pmf_dev *dev, struct ta_pmf_enact
 	} else {
 		dev_dbg(dev->dev, "HPD is not enabled/detected\n");
 	}
+
+	/* Get SRA (Secondary Accelerometer) data */
+	if (!amd_get_sfh_info(&sfh_info, MT_SRA)) {
+		in->ev_info.platform_type = sfh_info.platform_type;
+		in->ev_info.device_state = sfh_info.laptop_placement;
+	} else {
+		dev_dbg(dev->dev, "SRA is not enabled/detected\n");
+	}
 }
 
 void amd_pmf_populate_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in)
@@ -201,4 +277,5 @@ void amd_pmf_populate_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_tab
 	amd_pmf_get_battery_info(dev, in);
 	amd_pmf_get_slider_info(dev, in);
 	amd_pmf_get_sensor_info(dev, in);
+	amd_pmf_get_custom_bios_inputs(dev, in);
 }

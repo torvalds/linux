@@ -528,7 +528,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	 * being wake-capable; if it didn't, do that here.
 	 */
 	if (!device_can_wakeup(&pdev->dev))
-		device_init_wakeup(&pdev->dev, 1);
+		device_init_wakeup(&pdev->dev, true);
 
 	if (at91_rtc_config->has_correction)
 		rtc->ops = &sama5d4_rtc_ops;
@@ -654,4 +654,3 @@ module_platform_driver_probe(at91_rtc_driver, at91_rtc_probe);
 MODULE_AUTHOR("Rick Bronson");
 MODULE_DESCRIPTION("RTC driver for Atmel AT91RM9200");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:at91_rtc");

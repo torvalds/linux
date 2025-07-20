@@ -8,17 +8,20 @@
 #ifndef __TURRIS_OMNIA_MCU_H
 #define __TURRIS_OMNIA_MCU_H
 
-#include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/gpio/driver.h>
 #include <linux/hw_random.h>
 #include <linux/if_ether.h>
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/workqueue.h>
-#include <asm/byteorder.h>
-#include <linux/unaligned.h>
+
+enum {
+	OMNIA_MCU_CRYPTO_PUBLIC_KEY_LEN	= 1 + 32,
+	OMNIA_MCU_CRYPTO_SIGNATURE_LEN	= 64,
+};
 
 struct i2c_client;
 struct rtc_device;
@@ -58,6 +61,12 @@ struct rtc_device;
  * @wdt:			watchdog driver structure
  * @trng:			RNG driver structure
  * @trng_entropy_ready:		RNG entropy ready completion
+ * @msg_signed:			message signed completion
+ * @sign_lock:			mutex to protect message signing state
+ * @sign_requested:		flag indicating that message signing was requested but not completed
+ * @sign_err:			message signing error number, filled in interrupt handler
+ * @signature:			message signing signature, filled in interrupt handler
+ * @board_public_key:		board public key, if stored in MCU
  */
 struct omnia_mcu {
 	struct i2c_client *client;
@@ -91,141 +100,33 @@ struct omnia_mcu {
 	struct hwrng trng;
 	struct completion trng_entropy_ready;
 #endif
+
+#ifdef CONFIG_TURRIS_OMNIA_MCU_KEYCTL
+	struct completion msg_signed;
+	struct mutex sign_lock;
+	bool sign_requested;
+	int sign_err;
+	u8 signature[OMNIA_MCU_CRYPTO_SIGNATURE_LEN];
+	u8 board_public_key[OMNIA_MCU_CRYPTO_PUBLIC_KEY_LEN];
+#endif
 };
 
-int omnia_cmd_write_read(const struct i2c_client *client,
-			 void *cmd, unsigned int cmd_len,
-			 void *reply, unsigned int reply_len);
-
-static inline int omnia_cmd_write(const struct i2c_client *client, void *cmd,
-				  unsigned int len)
-{
-	return omnia_cmd_write_read(client, cmd, len, NULL, 0);
-}
-
-static inline int omnia_cmd_write_u8(const struct i2c_client *client, u8 cmd,
-				     u8 val)
-{
-	u8 buf[2] = { cmd, val };
-
-	return omnia_cmd_write(client, buf, sizeof(buf));
-}
-
-static inline int omnia_cmd_write_u16(const struct i2c_client *client, u8 cmd,
-				      u16 val)
-{
-	u8 buf[3];
-
-	buf[0] = cmd;
-	put_unaligned_le16(val, &buf[1]);
-
-	return omnia_cmd_write(client, buf, sizeof(buf));
-}
-
-static inline int omnia_cmd_write_u32(const struct i2c_client *client, u8 cmd,
-				      u32 val)
-{
-	u8 buf[5];
-
-	buf[0] = cmd;
-	put_unaligned_le32(val, &buf[1]);
-
-	return omnia_cmd_write(client, buf, sizeof(buf));
-}
-
-static inline int omnia_cmd_read(const struct i2c_client *client, u8 cmd,
-				 void *reply, unsigned int len)
-{
-	return omnia_cmd_write_read(client, &cmd, 1, reply, len);
-}
-
-static inline unsigned int
-omnia_compute_reply_length(unsigned long mask, bool interleaved,
-			   unsigned int offset)
-{
-	if (!mask)
-		return 0;
-
-	return ((__fls(mask) >> 3) << interleaved) + 1 + offset;
-}
-
-/* Returns 0 on success */
-static inline int omnia_cmd_read_bits(const struct i2c_client *client, u8 cmd,
-				      unsigned long bits, unsigned long *dst)
-{
-	__le32 reply;
-	int err;
-
-	if (!bits) {
-		*dst = 0;
-		return 0;
-	}
-
-	err = omnia_cmd_read(client, cmd, &reply,
-			     omnia_compute_reply_length(bits, false, 0));
-	if (err)
-		return err;
-
-	*dst = le32_to_cpu(reply) & bits;
-
-	return 0;
-}
-
-static inline int omnia_cmd_read_bit(const struct i2c_client *client, u8 cmd,
-				     unsigned long bit)
-{
-	unsigned long reply;
-	int err;
-
-	err = omnia_cmd_read_bits(client, cmd, bit, &reply);
-	if (err)
-		return err;
-
-	return !!reply;
-}
-
-static inline int omnia_cmd_read_u32(const struct i2c_client *client, u8 cmd,
-				     u32 *dst)
-{
-	__le32 reply;
-	int err;
-
-	err = omnia_cmd_read(client, cmd, &reply, sizeof(reply));
-	if (err)
-		return err;
-
-	*dst = le32_to_cpu(reply);
-
-	return 0;
-}
-
-static inline int omnia_cmd_read_u16(const struct i2c_client *client, u8 cmd,
-				     u16 *dst)
-{
-	__le16 reply;
-	int err;
-
-	err = omnia_cmd_read(client, cmd, &reply, sizeof(reply));
-	if (err)
-		return err;
-
-	*dst = le16_to_cpu(reply);
-
-	return 0;
-}
-
-static inline int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd,
-				    u8 *reply)
-{
-	return omnia_cmd_read(client, cmd, reply, sizeof(*reply));
-}
-
 #ifdef CONFIG_TURRIS_OMNIA_MCU_GPIO
-extern const u8 omnia_int_to_gpio_idx[32];
 extern const struct attribute_group omnia_mcu_gpio_group;
 int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu);
+int omnia_mcu_request_irq(struct omnia_mcu *mcu, u32 spec,
+			  irq_handler_t thread_fn, const char *devname);
 #else
 static inline int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_TURRIS_OMNIA_MCU_KEYCTL
+int omnia_mcu_register_keyctl(struct omnia_mcu *mcu);
+#else
+static inline int omnia_mcu_register_keyctl(struct omnia_mcu *mcu)
 {
 	return 0;
 }

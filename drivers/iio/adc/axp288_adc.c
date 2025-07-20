@@ -110,7 +110,7 @@ static const struct iio_map axp288_adc_default_maps[] = {
 	IIO_MAP("BATT_CHG_I", "axp288-chrg", "axp288-chrg-curr"),
 	IIO_MAP("BATT_DISCHRG_I", "axp288-chrg", "axp288-chrg-d-curr"),
 	IIO_MAP("BATT_V", "axp288-batt", "axp288-batt-volt"),
-	{},
+	{ }
 };
 
 static int axp288_adc_read_channel(int *val, unsigned long address,
@@ -207,7 +207,7 @@ static const struct dmi_system_id axp288_adc_ts_bias_override[] = {
 		},
 		.driver_data = (void *)(uintptr_t)AXP288_ADC_TS_BIAS_80UA,
 	},
-	{}
+	{ }
 };
 
 static int axp288_adc_initialize(struct axp288_adc_info *info)

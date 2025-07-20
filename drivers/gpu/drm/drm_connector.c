@@ -33,6 +33,7 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_utils.h>
 
+#include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/uaccess.h>
 
@@ -218,11 +219,11 @@ void drm_connector_free_work_fn(struct work_struct *work)
 	}
 }
 
-static int __drm_connector_init(struct drm_device *dev,
-				struct drm_connector *connector,
-				const struct drm_connector_funcs *funcs,
-				int connector_type,
-				struct i2c_adapter *ddc)
+static int drm_connector_init_only(struct drm_device *dev,
+				   struct drm_connector *connector,
+				   const struct drm_connector_funcs *funcs,
+				   int connector_type,
+				   struct i2c_adapter *ddc)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
@@ -273,12 +274,15 @@ static int __drm_connector_init(struct drm_device *dev,
 	/* provide ddc symlink in sysfs */
 	connector->ddc = ddc;
 
+	INIT_LIST_HEAD(&connector->head);
 	INIT_LIST_HEAD(&connector->global_connector_list_entry);
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	mutex_init(&connector->mutex);
+	mutex_init(&connector->eld_mutex);
 	mutex_init(&connector->edid_override_mutex);
 	mutex_init(&connector->hdmi.infoframes.lock);
+	mutex_init(&connector->hdmi_audio.lock);
 	connector->edid_blob_ptr = NULL;
 	connector->epoch_counter = 0;
 	connector->tile_blob_ptr = NULL;
@@ -287,14 +291,6 @@ static int __drm_connector_init(struct drm_device *dev,
 		DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
 	drm_connector_get_cmdline_mode(connector);
-
-	/* We should add connectors at the end to avoid upsetting the connector
-	 * index too much.
-	 */
-	spin_lock_irq(&config->connector_list_lock);
-	list_add_tail(&connector->head, &config->connector_list);
-	config->num_connector++;
-	spin_unlock_irq(&config->connector_list_lock);
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
 	    connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
@@ -332,6 +328,54 @@ out_put:
 	return ret;
 }
 
+static void drm_connector_add(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (drm_WARN_ON(dev, !list_empty(&connector->head)))
+		return;
+
+	spin_lock_irq(&config->connector_list_lock);
+	list_add_tail(&connector->head, &config->connector_list);
+	config->num_connector++;
+	spin_unlock_irq(&config->connector_list_lock);
+}
+
+static void drm_connector_remove(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	/*
+	 * For dynamic connectors drm_connector_cleanup() can call this function
+	 * before the connector is registered and added to the list.
+	 */
+	if (list_empty(&connector->head))
+		return;
+
+	spin_lock_irq(&dev->mode_config.connector_list_lock);
+	list_del_init(&connector->head);
+	dev->mode_config.num_connector--;
+	spin_unlock_irq(&dev->mode_config.connector_list_lock);
+}
+
+static int drm_connector_init_and_add(struct drm_device *dev,
+				      struct drm_connector *connector,
+				      const struct drm_connector_funcs *funcs,
+				      int connector_type,
+				      struct i2c_adapter *ddc)
+{
+	int ret;
+
+	ret = drm_connector_init_only(dev, connector, funcs, connector_type, ddc);
+	if (ret)
+		return ret;
+
+	drm_connector_add(connector);
+
+	return 0;
+}
+
 /**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
@@ -361,9 +405,50 @@ int drm_connector_init(struct drm_device *dev,
 	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
 		return -EINVAL;
 
-	return __drm_connector_init(dev, connector, funcs, connector_type, NULL);
+	return drm_connector_init_and_add(dev, connector, funcs, connector_type, NULL);
 }
 EXPORT_SYMBOL(drm_connector_init);
+
+/**
+ * drm_connector_dynamic_init - Init a preallocated dynamic connector
+ * @dev: DRM device
+ * @connector: the connector to init
+ * @funcs: callbacks for this connector
+ * @connector_type: user visible type of the connector
+ * @ddc: pointer to the associated ddc adapter
+ *
+ * Initialises a preallocated dynamic connector. Connectors should be
+ * subclassed as part of driver connector objects. The connector
+ * structure should not be allocated with devm_kzalloc().
+ *
+ * Drivers should call this for dynamic connectors which can be hotplugged
+ * after drm_dev_register() has been called already, e.g. DP MST connectors.
+ * For all other - static - connectors, drivers should call one of the
+ * drm_connector_init*()/drmm_connector_init*() functions.
+ *
+ * After calling this function the drivers must call
+ * drm_connector_dynamic_register().
+ *
+ * To remove the connector the driver must call drm_connector_unregister()
+ * followed by drm_connector_put(). Putting the last reference will call the
+ * driver's &drm_connector_funcs.destroy hook, which in turn must call
+ * drm_connector_cleanup() and free the connector structure.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_dynamic_init(struct drm_device *dev,
+			       struct drm_connector *connector,
+			       const struct drm_connector_funcs *funcs,
+			       int connector_type,
+			       struct i2c_adapter *ddc)
+{
+	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
+		return -EINVAL;
+
+	return drm_connector_init_only(dev, connector, funcs, connector_type, ddc);
+}
+EXPORT_SYMBOL(drm_connector_dynamic_init);
 
 /**
  * drm_connector_init_with_ddc - Init a preallocated connector
@@ -398,7 +483,7 @@ int drm_connector_init_with_ddc(struct drm_device *dev,
 	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
 		return -EINVAL;
 
-	return __drm_connector_init(dev, connector, funcs, connector_type, ddc);
+	return drm_connector_init_and_add(dev, connector, funcs, connector_type, ddc);
 }
 EXPORT_SYMBOL(drm_connector_init_with_ddc);
 
@@ -442,7 +527,7 @@ int drmm_connector_init(struct drm_device *dev,
 	if (drm_WARN_ON(dev, funcs && funcs->destroy))
 		return -EINVAL;
 
-	ret = __drm_connector_init(dev, connector, funcs, connector_type, ddc);
+	ret = drm_connector_init_and_add(dev, connector, funcs, connector_type, ddc);
 	if (ret)
 		return ret;
 
@@ -505,6 +590,9 @@ int drmm_connector_hdmi_init(struct drm_device *dev,
 		return -EINVAL;
 
 	if (!supported_formats || !(supported_formats & BIT(HDMI_COLORSPACE_RGB)))
+		return -EINVAL;
+
+	if (connector->ycbcr_420_allowed != !!(supported_formats & BIT(HDMI_COLORSPACE_YUV420)))
 		return -EINVAL;
 
 	if (!(max_bpc == 8 || max_bpc == 10 || max_bpc == 12))
@@ -631,6 +719,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		    DRM_CONNECTOR_REGISTERED))
 		drm_connector_unregister(connector);
 
+	platform_device_unregister(connector->hdmi_audio.codec_pdev);
+
 	if (connector->privacy_screen) {
 		drm_privacy_screen_put(connector->privacy_screen);
 		connector->privacy_screen = NULL;
@@ -659,16 +749,15 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	connector->name = NULL;
 	fwnode_handle_put(connector->fwnode);
 	connector->fwnode = NULL;
-	spin_lock_irq(&dev->mode_config.connector_list_lock);
-	list_del(&connector->head);
-	dev->mode_config.num_connector--;
-	spin_unlock_irq(&dev->mode_config.connector_list_lock);
+
+	drm_connector_remove(connector);
 
 	WARN_ON(connector->state && !connector->funcs->atomic_destroy_state);
 	if (connector->state && connector->funcs->atomic_destroy_state)
 		connector->funcs->atomic_destroy_state(connector,
 						       connector->state);
 
+	mutex_destroy(&connector->hdmi_audio.lock);
 	mutex_destroy(&connector->hdmi.infoframes.lock);
 	mutex_destroy(&connector->mutex);
 
@@ -683,13 +772,16 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  * drm_connector_register - register a connector
  * @connector: the connector to register
  *
- * Register userspace interfaces for a connector. Only call this for connectors
- * which can be hotplugged after drm_dev_register() has been called already,
- * e.g. DP MST connectors. All other connectors will be registered automatically
- * when calling drm_dev_register().
+ * Register userspace interfaces for a connector. Drivers shouldn't call this
+ * function. Static connectors will be registered automatically by DRM core
+ * from drm_dev_register(), dynamic connectors (MST) should be registered by
+ * drivers calling drm_connector_dynamic_register().
  *
  * When the connector is no longer available, callers must call
  * drm_connector_unregister().
+ *
+ * Note: Existing uses of this function in drivers should be a nop already and
+ * are scheduled to be removed.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -750,12 +842,43 @@ unlock:
 EXPORT_SYMBOL(drm_connector_register);
 
 /**
+ * drm_connector_dynamic_register - register a dynamic connector
+ * @connector: the connector to register
+ *
+ * Register userspace interfaces for a connector. Only call this for connectors
+ * initialized by calling drm_connector_dynamic_init(). All other connectors
+ * will be registered automatically when calling drm_dev_register().
+ *
+ * When the connector is no longer available the driver must call
+ * drm_connector_unregister().
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_dynamic_register(struct drm_connector *connector)
+{
+	/* Was the connector inited already? */
+	if (WARN_ON(!(connector->funcs && connector->funcs->destroy)))
+		return -EINVAL;
+
+	drm_connector_add(connector);
+
+	return drm_connector_register(connector);
+}
+EXPORT_SYMBOL(drm_connector_dynamic_register);
+
+/**
  * drm_connector_unregister - unregister a connector
  * @connector: the connector to unregister
  *
- * Unregister userspace interfaces for a connector. Only call this for
- * connectors which have been registered explicitly by calling
- * drm_connector_register().
+ * Unregister userspace interfaces for a connector. Drivers should call this
+ * for dynamic connectors (MST) only, which were registered explicitly by
+ * calling drm_connector_dynamic_register(). All other - static - connectors
+ * will be unregistered automatically by DRM core and drivers shouldn't call
+ * this function for those.
+ *
+ * Note: Existing uses of this function in drivers for static connectors
+ * should be a nop already and are scheduled to be removed.
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
@@ -1303,6 +1426,10 @@ EXPORT_SYMBOL(drm_hdmi_connector_get_output_format_name);
  * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
  * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
  * 	implemented in the DRM core.
+ *
+ * 	On atomic drivers any DPMS setproperty ioctl where the value does not
+ * 	change is completely skipped, otherwise a full atomic commit will occur.
+ * 	On legacy drivers the exact behavior is driver specific.
  *
  * 	Note that this property cannot be set through the MODE_ATOMIC ioctl,
  * 	userspace must use "ACTIVE" on the CRTC instead.

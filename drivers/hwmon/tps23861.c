@@ -114,7 +114,6 @@ struct tps23861_data {
 	struct regmap *regmap;
 	u32 shunt_resistor;
 	struct i2c_client *client;
-	struct dentry *debugfs_dir;
 };
 
 static const struct regmap_config tps23861_regmap_config = {
@@ -503,25 +502,6 @@ static int tps23861_port_status_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(tps23861_port_status);
 
-static void tps23861_init_debugfs(struct tps23861_data *data,
-				  struct device *hwmon_dev)
-{
-	const char *debugfs_name;
-
-	debugfs_name = devm_kasprintf(&data->client->dev, GFP_KERNEL, "%s-%s",
-				      data->client->name, dev_name(hwmon_dev));
-	if (!debugfs_name)
-		return;
-
-	data->debugfs_dir = debugfs_create_dir(debugfs_name, NULL);
-
-	debugfs_create_file("port_status",
-			    0400,
-			    data->debugfs_dir,
-			    data,
-			    &tps23861_port_status_fops);
-}
-
 static int tps23861_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -562,16 +542,10 @@ static int tps23861_probe(struct i2c_client *client)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	tps23861_init_debugfs(data, hwmon_dev);
+	debugfs_create_file("port_status", 0400, client->debugfs, data,
+			    &tps23861_port_status_fops);
 
 	return 0;
-}
-
-static void tps23861_remove(struct i2c_client *client)
-{
-	struct tps23861_data *data = i2c_get_clientdata(client);
-
-	debugfs_remove_recursive(data->debugfs_dir);
 }
 
 static const struct of_device_id __maybe_unused tps23861_of_match[] = {
@@ -582,7 +556,6 @@ MODULE_DEVICE_TABLE(of, tps23861_of_match);
 
 static struct i2c_driver tps23861_driver = {
 	.probe			= tps23861_probe,
-	.remove			= tps23861_remove,
 	.driver = {
 		.name		= "tps23861",
 		.of_match_table	= of_match_ptr(tps23861_of_match),

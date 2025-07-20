@@ -254,6 +254,7 @@ static const struct ad_sigma_delta_info ad7791_sigma_delta_info = {
 	.addr_shift = 4,
 	.read_mask = BIT(3),
 	.irq_flags = IRQF_TRIGGER_FALLING,
+	.num_resetclks = 32,
 };
 
 static int ad7791_read_raw(struct iio_dev *indio_dev,
@@ -309,15 +310,11 @@ static int ad7791_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int ad7791_write_raw(struct iio_dev *indio_dev,
+static int __ad7791_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int val, int val2, long mask)
 {
 	struct ad7791_state *st = iio_priv(indio_dev);
-	int ret, i;
-
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	int i;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -327,22 +324,31 @@ static int ad7791_write_raw(struct iio_dev *indio_dev,
 				break;
 		}
 
-		if (i == ARRAY_SIZE(ad7791_sample_freq_avail)) {
-			ret = -EINVAL;
-			break;
-		}
+		if (i == ARRAY_SIZE(ad7791_sample_freq_avail))
+			return -EINVAL;
 
 		st->filter &= ~AD7791_FILTER_RATE_MASK;
 		st->filter |= i;
 		ad_sd_write_reg(&st->sd, AD7791_REG_FILTER,
 				sizeof(st->filter),
 				st->filter);
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
+}
 
-	iio_device_release_direct_mode(indio_dev);
+static int ad7791_write_raw(struct iio_dev *indio_dev,
+	struct iio_chan_spec const *chan, int val, int val2, long mask)
+{
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __ad7791_write_raw(indio_dev, chan, val, val2, mask);
+
+	iio_device_release_direct(indio_dev);
 	return ret;
 }
 
@@ -458,7 +464,7 @@ static const struct spi_device_id ad7791_spi_ids[] = {
 	{ "ad7789", AD7789 },
 	{ "ad7790", AD7790 },
 	{ "ad7791", AD7791 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7791_spi_ids);
 

@@ -12,7 +12,7 @@
 
 /**
  * xe_gt_stats_incr - Increments the specified stats counter
- * @gt: graphics tile
+ * @gt: GT structure
  * @id: xe_gt_stats_id type id that needs to be incremented
  * @incr: value to be incremented with
  *
@@ -23,16 +23,19 @@ void xe_gt_stats_incr(struct xe_gt *gt, const enum xe_gt_stats_id id, int incr)
 	if (id >= __XE_GT_STATS_NUM_IDS)
 		return;
 
-	atomic_add(incr, &gt->stats.counters[id]);
+	atomic64_add(incr, &gt->stats.counters[id]);
 }
 
 static const char *const stat_description[__XE_GT_STATS_NUM_IDS] = {
+	"svm_pagefault_count",
 	"tlb_inval_count",
+	"vma_pagefault_count",
+	"vma_pagefault_kb",
 };
 
 /**
  * xe_gt_stats_print_info - Print the GT stats
- * @gt: graphics tile
+ * @gt: GT structure
  * @p: drm_printer where it will be printed out.
  *
  * This prints out all the available GT stats.
@@ -42,8 +45,8 @@ int xe_gt_stats_print_info(struct xe_gt *gt, struct drm_printer *p)
 	enum xe_gt_stats_id id;
 
 	for (id = 0; id < __XE_GT_STATS_NUM_IDS; ++id)
-		drm_printf(p, "%s: %d\n", stat_description[id],
-			   atomic_read(&gt->stats.counters[id]));
+		drm_printf(p, "%s: %lld\n", stat_description[id],
+			   atomic64_read(&gt->stats.counters[id]));
 
 	return 0;
 }

@@ -658,7 +658,8 @@ static const struct rq_qos_ops blkcg_iolatency_ops = {
 
 static void blkiolatency_timer_fn(struct timer_list *t)
 {
-	struct blk_iolatency *blkiolat = from_timer(blkiolat, t, timer);
+	struct blk_iolatency *blkiolat = timer_container_of(blkiolat, t,
+							    timer);
 	struct blkcg_gq *blkg;
 	struct cgroup_subsys_state *pos_css;
 	u64 now = blk_time_get_ns();
@@ -749,9 +750,11 @@ static void blkiolatency_enable_work_fn(struct work_struct *work)
 	 */
 	enabled = atomic_read(&blkiolat->enable_cnt);
 	if (enabled != blkiolat->enabled) {
-		blk_mq_freeze_queue(blkiolat->rqos.disk->queue);
+		unsigned int memflags;
+
+		memflags = blk_mq_freeze_queue(blkiolat->rqos.disk->queue);
 		blkiolat->enabled = enabled;
-		blk_mq_unfreeze_queue(blkiolat->rqos.disk->queue);
+		blk_mq_unfreeze_queue(blkiolat->rqos.disk->queue, memflags);
 	}
 }
 

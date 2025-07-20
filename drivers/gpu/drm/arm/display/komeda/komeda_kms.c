@@ -63,7 +63,6 @@ static const struct drm_driver komeda_kms_driver = {
 	.fops = &komeda_cma_fops,
 	.name = "komeda",
 	.desc = "Arm Komeda Display Processor driver",
-	.date = "20181101",
 	.major = 0,
 	.minor = 1,
 };

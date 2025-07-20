@@ -104,7 +104,7 @@ void test_kmem_cache_iter(void)
 		goto destroy;
 
 	memset(buf, 0, sizeof(buf));
-	while (read(iter_fd, buf, sizeof(buf) > 0)) {
+	while (read(iter_fd, buf, sizeof(buf)) > 0) {
 		/* Read out all contents */
 		printf("%s", buf);
 	}

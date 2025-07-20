@@ -337,8 +337,9 @@ static void a5psw_port_rx_block_set(struct a5psw *a5psw, int port, bool block)
 static void a5psw_flooding_set_resolution(struct a5psw *a5psw, int port,
 					  bool set)
 {
-	u8 offsets[] = {A5PSW_UCAST_DEF_MASK, A5PSW_BCAST_DEF_MASK,
-			A5PSW_MCAST_DEF_MASK};
+	static const u8 offsets[] = {
+		A5PSW_UCAST_DEF_MASK, A5PSW_BCAST_DEF_MASK, A5PSW_MCAST_DEF_MASK
+	};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(offsets); i++)
@@ -1248,17 +1249,15 @@ static int a5psw_probe(struct platform_device *pdev)
 	if (ret)
 		goto clk_disable;
 
-	mdio = of_get_child_by_name(dev->of_node, "mdio");
-	if (of_device_is_available(mdio)) {
+	mdio = of_get_available_child_by_name(dev->of_node, "mdio");
+	if (mdio) {
 		ret = a5psw_probe_mdio(a5psw, mdio);
+		of_node_put(mdio);
 		if (ret) {
-			of_node_put(mdio);
 			dev_err(dev, "Failed to register MDIO: %d\n", ret);
 			goto hclk_disable;
 		}
 	}
-
-	of_node_put(mdio);
 
 	ds = &a5psw->ds;
 	ds->dev = dev;

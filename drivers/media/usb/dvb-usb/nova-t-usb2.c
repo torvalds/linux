@@ -165,7 +165,7 @@ enum {
 	HAUPPAUGE_WINTV_NOVA_T_USB2_WARM,
 };
 
-static struct usb_device_id nova_t_table[] = {
+static const struct usb_device_id nova_t_table[] = {
 	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_NOVA_T_USB2_COLD),
 	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_NOVA_T_USB2_WARM),
 	{ }

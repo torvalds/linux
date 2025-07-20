@@ -104,7 +104,7 @@ extern int kdb_initial_cpu;
 #define KDB_NOENVVALUE	(-6)
 #define KDB_NOTIMP	(-7)
 #define KDB_ENVFULL	(-8)
-#define KDB_ENVBUFFULL	(-9)
+#define KDB_KMALLOCFAILED	(-9)
 #define KDB_TOOMANYBPT	(-10)
 #define KDB_TOOMANYDBREGS (-11)
 #define KDB_DUPBPT	(-12)
@@ -139,9 +139,6 @@ extern const char *kdb_diemsg;
 					  * not use keyboard */
 
 extern unsigned int kdb_flags;	/* Global flags, see kdb_state for per cpu state */
-
-extern void kdb_save_flags(void);
-extern void kdb_restore_flags(void);
 
 #define KDB_FLAG(flag)		(kdb_flags & KDB_FLAG_##flag)
 #define KDB_FLAG_SET(flag)	((void)(kdb_flags |= KDB_FLAG_##flag))

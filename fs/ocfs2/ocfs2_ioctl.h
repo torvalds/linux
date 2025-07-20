@@ -215,7 +215,7 @@ struct ocfs2_move_extents {
 							   movement less likely
 							   to fail, may make fs
 							   even more fragmented */
-#define OCFS2_MOVE_EXT_FL_COMPLETE	(0x00000004)	/* Move or defragmenation
+#define OCFS2_MOVE_EXT_FL_COMPLETE	(0x00000004)	/* Move or defragmentation
 							   completely gets done.
 							 */
 

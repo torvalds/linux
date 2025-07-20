@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+struct drm_connector_state;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -17,7 +18,7 @@ struct intel_link_bw_limits;
 
 int intel_dp_mst_encoder_init(struct intel_digital_port *dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *dig_port);
-int intel_dp_mst_encoder_active_links(struct intel_digital_port *dig_port);
+int intel_dp_mst_active_streams(struct intel_dp *intel_dp);
 bool intel_dp_mst_is_master_trans(const struct intel_crtc_state *crtc_state);
 bool intel_dp_mst_is_slave_trans(const struct intel_crtc_state *crtc_state);
 bool intel_dp_mst_source_support(struct intel_dp *intel_dp);
@@ -29,5 +30,10 @@ bool intel_dp_mst_crtc_needs_modeset(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc);
 void intel_dp_mst_prepare_probe(struct intel_dp *intel_dp);
 bool intel_dp_mst_verify_dpcd_state(struct intel_dp *intel_dp);
+
+int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
+				   struct intel_crtc_state *crtc_state,
+				   struct drm_connector_state *conn_state,
+				   int min_bpp_x16, int max_bpp_x16, int bpp_step_x16, bool dsc);
 
 #endif /* __INTEL_DP_MST_H__ */

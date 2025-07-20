@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/pegatron,chagall-ec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Pegatron Chagall EC
+
+maintainers:
+  - Svyatoslav Ryhel <clamor95@gmail.com>
+
+description:
+  Pegatron Chagall EC is based on an 8-bit programmable microcontroller from
+  Infineon/Cypress Semiconductor, it communicates over I2C and is used in the
+  Pegatron Chagall tablet for fuel gauge and battery control functions.
+
+$ref: /schemas/power/supply/power-supply.yaml
+
+properties:
+  compatible:
+    const: pegatron,chagall-ec
+
+  reg:
+    maxItems: 1
+
+  monitored-battery: true
+  power-supplies: true
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        embedded-controller@10 {
+            compatible = "pegatron,chagall-ec";
+            reg = <0x10>;
+
+            monitored-battery = <&battery>;
+            power-supplies = <&mains>;
+        };
+    };
+...

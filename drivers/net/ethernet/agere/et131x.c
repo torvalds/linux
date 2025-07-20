@@ -3076,7 +3076,8 @@ err_out:
  */
 static void et131x_error_timer_handler(struct timer_list *t)
 {
-	struct et131x_adapter *adapter = from_timer(adapter, t, error_timer);
+	struct et131x_adapter *adapter = timer_container_of(adapter, t,
+							    error_timer);
 	struct phy_device *phydev = adapter->netdev->phydev;
 
 	if (et1310_in_phy_coma(adapter)) {
@@ -3639,7 +3640,7 @@ static int et131x_close(struct net_device *netdev)
 	free_irq(adapter->pdev->irq, netdev);
 
 	/* Stop the error timer */
-	return del_timer_sync(&adapter->error_timer);
+	return timer_delete_sync(&adapter->error_timer);
 }
 
 /* et131x_set_packet_filter - Configures the Rx Packet filtering */

@@ -116,7 +116,7 @@ static void dccg401_wait_for_dentist_change_done(
 	REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, 1, 50, 2000);
 }
 
-static void dccg401_get_pixel_rate_div(
+void dccg401_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
 		uint32_t *tmds_div,
@@ -154,7 +154,7 @@ static void dccg401_get_pixel_rate_div(
 	*tmds_div = val_tmds_div == 0 ? PIXEL_RATE_DIV_BY_2 : PIXEL_RATE_DIV_BY_4;
 }
 
-static void dccg401_set_pixel_rate_div(
+void dccg401_set_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
 		enum pixel_rate_div tmds_div,
@@ -209,7 +209,7 @@ static void dccg401_set_pixel_rate_div(
 }
 
 
-static void dccg401_set_dtbclk_p_src(
+void dccg401_set_dtbclk_p_src(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		uint32_t otg_inst)
@@ -348,7 +348,7 @@ void dccg401_set_physymclk(
 	}
 }
 
-static void dccg401_get_dccg_ref_freq(struct dccg *dccg,
+void dccg401_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,
 		unsigned int *dccg_ref_freq_inKhz)
 {
@@ -378,7 +378,7 @@ static void dccg401_otg_drop_pixel(struct dccg *dccg,
 			OTG_DROP_PIXEL[otg_inst], 1);
 }
 
-static void dccg401_enable_symclk32_le(
+void dccg401_enable_symclk32_le(
 		struct dccg *dccg,
 		int hpo_le_inst,
 		enum phyd32clk_clock_source phyd32clk)
@@ -429,7 +429,7 @@ static void dccg401_enable_symclk32_le(
 	}
 }
 
-static void dccg401_disable_symclk32_le(
+void dccg401_disable_symclk32_le(
 		struct dccg *dccg,
 		int hpo_le_inst)
 {
@@ -531,7 +531,7 @@ static void dccg401_enable_dpstreamclk(struct dccg *dccg, int otg_inst, int dp_h
 			DPSTREAMCLK_ROOT_GATE_DISABLE, 1);
 }
 
-static void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
+void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -574,7 +574,7 @@ static void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
 	}
 }
 
-static void dccg401_set_dpstreamclk(
+void dccg401_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		int otg_inst,
@@ -587,7 +587,7 @@ static void dccg401_set_dpstreamclk(
 		dccg401_enable_dpstreamclk(dccg, otg_inst, dp_hpo_inst);
 }
 
-static void dccg401_set_dp_dto(
+void dccg401_set_dp_dto(
 		struct dccg *dccg,
 		const struct dp_dto_params *params)
 {
@@ -727,7 +727,7 @@ void dccg401_init(struct dccg *dccg)
 	}
 }
 
-static void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst)
+void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -763,7 +763,7 @@ static void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst)
 	}
 }
 
-static void dccg401_set_ref_dscclk(struct dccg *dccg,
+void dccg401_set_ref_dscclk(struct dccg *dccg,
 				uint32_t dsc_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
@@ -798,7 +798,7 @@ static void dccg401_set_ref_dscclk(struct dccg *dccg,
 	}
 }
 
-static void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
+void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -834,7 +834,7 @@ static void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst
 	}
 }
 
-static void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
+void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 

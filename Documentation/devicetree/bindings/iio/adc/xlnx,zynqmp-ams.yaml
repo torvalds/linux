@@ -193,7 +193,6 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
 
     bus {
         #address-cells = <2>;
@@ -204,7 +203,7 @@ examples:
             interrupt-parent = <&gic>;
             interrupts = <0 56 4>;
             reg = <0x0 0xffa50000 0x0 0x800>;
-            clocks = <&zynqmp_clk AMS_REF>;
+            clocks = <&zynqmp_clk 70>;
             #address-cells = <1>;
             #size-cells = <1>;
             #io-channel-cells = <1>;

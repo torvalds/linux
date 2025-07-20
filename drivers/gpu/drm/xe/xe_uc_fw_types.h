@@ -92,7 +92,7 @@ struct xe_uc_fw {
 		const enum xe_uc_fw_status status;
 		/**
 		 * @__status: private firmware load status - only to be used
-		 * by firmware laoding code
+		 * by firmware loading code
 		 */
 		enum xe_uc_fw_status __status;
 	};

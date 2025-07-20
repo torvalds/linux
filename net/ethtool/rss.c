@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <net/netdev_lock.h>
+
 #include "netlink.h"
 #include "common.h"
 
@@ -107,6 +109,8 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	u32 total_size, indir_bytes;
 	u8 *rss_config;
 
+	data->no_key_fields = !dev->ethtool_ops->rxfh_per_ctx_key;
+
 	ctx = xa_load(&dev->ethtool->rss_ctx, request->rss_context);
 	if (!ctx)
 		return -ENOENT;
@@ -153,7 +157,6 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 		if (!ops->cap_rss_ctx_supported && !ops->create_rxfh_context)
 			return -EOPNOTSUPP;
 
-		data->no_key_fields = !ops->rxfh_per_ctx_key;
 		return rss_prepare_ctx(request, dev, data, info);
 	}
 
@@ -344,7 +347,9 @@ int ethnl_rss_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		if (ctx->match_ifindex && ctx->match_ifindex != ctx->ifindex)
 			break;
 
+		netdev_lock_ops(dev);
 		ret = rss_dump_one_dev(skb, cb, dev);
+		netdev_unlock_ops(dev);
 		if (ret)
 			break;
 	}

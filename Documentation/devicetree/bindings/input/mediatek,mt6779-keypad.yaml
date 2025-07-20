@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Mediatek's Keypad Controller
 
 maintainers:
-  - Mattijs Korpershoek <mkorpershoek@baylibre.com>
+  - Mattijs Korpershoek <mkorpershoek@kernel.org>
 
 allOf:
   - $ref: /schemas/input/matrix-keymap.yaml#
@@ -26,6 +26,9 @@ properties:
       - items:
           - enum:
               - mediatek,mt6873-keypad
+              - mediatek,mt8183-keypad
+              - mediatek,mt8365-keypad
+              - mediatek,mt8516-keypad
           - const: mediatek,mt6779-keypad
 
   reg:

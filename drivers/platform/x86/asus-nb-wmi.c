@@ -50,7 +50,8 @@ MODULE_PARM_DESC(tablet_mode_sw, "Tablet mode detect: -1:auto 0:disable 1:kbd-do
 static struct quirk_entry *quirks;
 static bool atkbd_reports_vol_keys;
 
-static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port)
+static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port,
+			      void *context)
 {
 	static bool extended_e0;
 	static bool extended_e1;
@@ -526,6 +527,15 @@ static const struct dmi_system_id asus_quirks[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "UX8406MA"),
+		},
+		.driver_data = &quirk_asus_zenbook_duo_kbd,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUS Zenbook Duo UX8406CA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "UX8406CA"),
 		},
 		.driver_data = &quirk_asus_zenbook_duo_kbd,
 	},

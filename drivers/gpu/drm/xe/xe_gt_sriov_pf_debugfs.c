@@ -51,26 +51,17 @@ static unsigned int extract_vfid(struct dentry *d)
  *      /sys/kernel/debug/dri/0/
  *      ├── gt0
  *      │   ├── pf
- *      │   │   ├── ggtt_available
- *      │   │   ├── ggtt_provisioned
  *      │   │   ├── contexts_provisioned
  *      │   │   ├── doorbells_provisioned
  *      │   │   ├── runtime_registers
  *      │   │   ├── negotiated_versions
  *      │   │   ├── adverse_events
+ *      ├── gt1
+ *      │   ├── pf
+ *      │   │   ├── ...
  */
 
 static const struct drm_info_list pf_info[] = {
-	{
-		"ggtt_available",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_config_print_available_ggtt,
-	},
-	{
-		"ggtt_provisioned",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_config_print_ggtt,
-	},
 	{
 		"contexts_provisioned",
 		.show = xe_gt_debugfs_simple_show,
@@ -80,11 +71,6 @@ static const struct drm_info_list pf_info[] = {
 		"doorbells_provisioned",
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_pf_config_print_dbs,
-	},
-	{
-		"lmem_provisioned",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_config_print_lmem,
 	},
 	{
 		"runtime_registers",
@@ -100,6 +86,42 @@ static const struct drm_info_list pf_info[] = {
 		"adverse_events",
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_pf_monitor_print_events,
+	},
+};
+
+/*
+ *      /sys/kernel/debug/dri/0/
+ *      ├── gt0
+ *      │   ├── pf
+ *      │   │   ├── ggtt_available
+ *      │   │   ├── ggtt_provisioned
+ */
+
+static const struct drm_info_list pf_ggtt_info[] = {
+	{
+		"ggtt_available",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_config_print_available_ggtt,
+	},
+	{
+		"ggtt_provisioned",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_config_print_ggtt,
+	},
+};
+
+/*
+ *      /sys/kernel/debug/dri/0/
+ *      ├── gt0
+ *      │   ├── pf
+ *      │   │   ├── lmem_provisioned
+ */
+
+static const struct drm_info_list pf_lmem_info[] = {
+	{
+		"lmem_provisioned",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_config_print_lmem,
 	},
 };
 
@@ -164,6 +186,7 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *      │   │   ├── contexts_spare
  *      │   │   ├── exec_quantum_ms
  *      │   │   ├── preempt_timeout_us
+ *      │   │   ├── sched_priority
  *      │   ├── vf1
  *      │   │   ├── ggtt_quota
  *      │   │   ├── lmem_quota
@@ -171,6 +194,7 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *      │   │   ├── contexts_quota
  *      │   │   ├── exec_quantum_ms
  *      │   │   ├── preempt_timeout_us
+ *      │   │   ├── sched_priority
  */
 
 #define DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(CONFIG, TYPE, FORMAT)		\
@@ -209,6 +233,7 @@ DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(ctxs, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(dbs, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(exec_quantum, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(preempt_timeout, u32, "%llu\n");
+DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(sched_priority, u32, "%llu\n");
 
 /*
  *      /sys/kernel/debug/dri/0/
@@ -295,6 +320,8 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 				   &exec_quantum_fops);
 	debugfs_create_file_unsafe("preempt_timeout_us", 0644, parent, parent,
 				   &preempt_timeout_fops);
+	debugfs_create_file_unsafe("sched_priority", 0644, parent, parent,
+				   &sched_priority_fops);
 
 	/* register all threshold attributes */
 #define register_threshold_attribute(TAG, NAME, ...) \
@@ -527,6 +554,16 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 	pfdentry->d_inode->i_private = gt;
 
 	drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), pfdentry, minor);
+	if (!xe_gt_is_media_type(gt)) {
+		drm_debugfs_create_files(pf_ggtt_info,
+					 ARRAY_SIZE(pf_ggtt_info),
+					 pfdentry, minor);
+		if (IS_DGFX(gt_to_xe(gt)))
+			drm_debugfs_create_files(pf_lmem_info,
+						 ARRAY_SIZE(pf_lmem_info),
+						 pfdentry, minor);
+	}
+
 	pf_add_policy_attrs(gt, pfdentry);
 	pf_add_config_attrs(gt, pfdentry, PFID);
 

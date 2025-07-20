@@ -23,14 +23,14 @@ perf-y += tracepoints/
 
 ifdef SHELLCHECK
   SHELL_TESTS := $(wildcard trace/beauty/*.sh)
-  TEST_LOGS := $(SHELL_TESTS:trace/beauty/%=%.shellcheck_log)
+  SHELL_TEST_LOGS := $(SHELL_TESTS:trace/beauty/%=%.shellcheck_log)
 else
   SHELL_TESTS :=
-  TEST_LOGS :=
+  SHELL_TEST_LOGS :=
 endif
 
 $(OUTPUT)%.shellcheck_log: %
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,test)shellcheck -s bash -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-y += $(TEST_LOGS)
+perf-y += $(SHELL_TEST_LOGS)

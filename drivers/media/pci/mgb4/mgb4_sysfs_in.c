@@ -333,7 +333,7 @@ static ssize_t hsync_width_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vin_dev *vindev = video_get_drvdata(vdev);
 	u32 sig = mgb4_read_reg(&vindev->mgbdev->video,
-				vindev->config->regs.signal);
+				vindev->config->regs.hsync);
 
 	return sprintf(buf, "%u\n", (sig & 0x00FF0000) >> 16);
 }
@@ -344,7 +344,7 @@ static ssize_t vsync_width_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vin_dev *vindev = video_get_drvdata(vdev);
 	u32 sig = mgb4_read_reg(&vindev->mgbdev->video,
-				vindev->config->regs.signal2);
+				vindev->config->regs.vsync);
 
 	return sprintf(buf, "%u\n", (sig & 0x00FF0000) >> 16);
 }
@@ -355,7 +355,7 @@ static ssize_t hback_porch_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vin_dev *vindev = video_get_drvdata(vdev);
 	u32 sig = mgb4_read_reg(&vindev->mgbdev->video,
-				vindev->config->regs.signal);
+				vindev->config->regs.hsync);
 
 	return sprintf(buf, "%u\n", (sig & 0x0000FF00) >> 8);
 }
@@ -366,7 +366,7 @@ static ssize_t hfront_porch_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vin_dev *vindev = video_get_drvdata(vdev);
 	u32 sig = mgb4_read_reg(&vindev->mgbdev->video,
-				vindev->config->regs.signal);
+				vindev->config->regs.hsync);
 
 	return sprintf(buf, "%u\n", (sig & 0x000000FF));
 }
@@ -377,7 +377,7 @@ static ssize_t vback_porch_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vin_dev *vindev = video_get_drvdata(vdev);
 	u32 sig = mgb4_read_reg(&vindev->mgbdev->video,
-				vindev->config->regs.signal2);
+				vindev->config->regs.vsync);
 
 	return sprintf(buf, "%u\n", (sig & 0x0000FF00) >> 8);
 }
@@ -388,7 +388,7 @@ static ssize_t vfront_porch_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vin_dev *vindev = video_get_drvdata(vdev);
 	u32 sig = mgb4_read_reg(&vindev->mgbdev->video,
-				vindev->config->regs.signal2);
+				vindev->config->regs.vsync);
 
 	return sprintf(buf, "%u\n", (sig & 0x000000FF));
 }

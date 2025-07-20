@@ -198,7 +198,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	ath9k_htc_stop_ani(priv);
 	ieee80211_stop_queues(priv->hw);
 
-	del_timer_sync(&priv->tx.cleanup_timer);
+	timer_delete_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -260,7 +260,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	ath9k_htc_ps_wakeup(priv);
 
 	ath9k_htc_stop_ani(priv);
-	del_timer_sync(&priv->tx.cleanup_timer);
+	timer_delete_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -997,7 +997,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw, bool suspend)
 
 	tasklet_kill(&priv->rx_tasklet);
 
-	del_timer_sync(&priv->tx.cleanup_timer);
+	timer_delete_sync(&priv->tx.cleanup_timer);
 	ath9k_htc_tx_drain(priv);
 	ath9k_wmi_event_drain(priv);
 

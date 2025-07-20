@@ -169,11 +169,16 @@ generic_file_llseek_size(struct file *file, loff_t offset, int whence,
 
 	if (whence == SEEK_CUR) {
 		/*
-		 * f_lock protects against read/modify/write race with
-		 * other SEEK_CURs. Note that parallel writes and reads
-		 * behave like SEEK_SET.
+		 * If the file requires locking via f_pos_lock we know
+		 * that mutual exclusion for SEEK_CUR on the same file
+		 * is guaranteed. If the file isn't locked, we take
+		 * f_lock to protect against f_pos races with other
+		 * SEEK_CURs.
 		 */
-		guard(spinlock)(&file->f_lock);
+		if (file_seek_cur_needs_f_lock(file)) {
+			guard(spinlock)(&file->f_lock);
+			return vfs_setpos(file, file->f_pos + offset, maxsize);
+		}
 		return vfs_setpos(file, file->f_pos + offset, maxsize);
 	}
 
@@ -327,7 +332,9 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 	struct inode *inode = file_inode(file);
 	loff_t retval;
 
-	inode_lock(inode);
+	retval = inode_lock_killable(inode);
+	if (retval)
+		return retval;
 	switch (whence) {
 		case SEEK_END:
 			offset += i_size_read(inode);

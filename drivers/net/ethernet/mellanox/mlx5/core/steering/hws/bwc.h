@@ -8,24 +8,37 @@
 #define MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP 1
 #define MLX5HWS_BWC_MATCHER_REHASH_PERCENT_TH 70
 #define MLX5HWS_BWC_MATCHER_REHASH_BURST_TH 32
-#define MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM 255
+
+/* Max number of AT attach operations for the same matcher.
+ * When the limit is reached, a larger buffer is allocated for the ATs.
+ */
+#define MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM 8
 
 #define MLX5HWS_BWC_MAX_ACTS 16
 
+#define MLX5HWS_BWC_POLLING_TIMEOUT 60
+
+struct mlx5hws_bwc_matcher_complex_data;
 struct mlx5hws_bwc_matcher {
 	struct mlx5hws_matcher *matcher;
 	struct mlx5hws_match_template *mt;
-	struct mlx5hws_action_template *at[MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM];
+	struct mlx5hws_action_template **at;
+	struct mlx5hws_bwc_matcher_complex_data *complex;
+	struct mlx5hws_bwc_matcher *complex_first_bwc_matcher;
 	u8 num_of_at;
-	u16 priority;
+	u8 size_of_at_array;
 	u8 size_log;
-	u32 num_of_rules; /* atomically accessed */
+	u32 priority;
+	atomic_t num_of_rules;
+	atomic_t rehash_required;
 	struct list_head *rules;
 };
 
 struct mlx5hws_bwc_rule {
 	struct mlx5hws_bwc_matcher *bwc_matcher;
 	struct mlx5hws_rule *rule;
+	struct mlx5hws_bwc_rule *isolated_bwc_rule;
+	struct mlx5hws_bwc_complex_rule_hash_node *complex_hash_node;
 	u16 bwc_queue_idx;
 	struct list_head list_node;
 };
@@ -57,12 +70,19 @@ void mlx5hws_bwc_rule_fill_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 				u32 flow_source,
 				struct mlx5hws_rule_attr *rule_attr);
 
+int mlx5hws_bwc_queue_poll(struct mlx5hws_context *ctx,
+			   u16 queue_id,
+			   u32 *pending_rules,
+			   bool drain);
+
 static inline u16 mlx5hws_bwc_queues(struct mlx5hws_context *ctx)
 {
 	/* Besides the control queue, half of the queues are
-	 * reguler HWS queues, and the other half are BWC queues.
+	 * regular HWS queues, and the other half are BWC queues.
 	 */
-	return (ctx->queues - 1) / 2;
+	if (mlx5hws_context_bwc_supported(ctx))
+		return (ctx->queues - 1) / 2;
+	return 0;
 }
 
 static inline u16 mlx5hws_bwc_get_queue_id(struct mlx5hws_context *ctx, u16 idx)

@@ -46,6 +46,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/clk.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
@@ -1404,16 +1405,18 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 
 	dma_ctrl_write(chan, XILINX_DMA_REG_DMACR, reg);
 
-	j = chan->desc_submitcount;
-	reg = dma_read(chan, XILINX_DMA_REG_PARK_PTR);
-	if (chan->direction == DMA_MEM_TO_DEV) {
-		reg &= ~XILINX_DMA_PARK_PTR_RD_REF_MASK;
-		reg |= j << XILINX_DMA_PARK_PTR_RD_REF_SHIFT;
-	} else {
-		reg &= ~XILINX_DMA_PARK_PTR_WR_REF_MASK;
-		reg |= j << XILINX_DMA_PARK_PTR_WR_REF_SHIFT;
+	if (config->park) {
+		j = chan->desc_submitcount;
+		reg = dma_read(chan, XILINX_DMA_REG_PARK_PTR);
+		if (chan->direction == DMA_MEM_TO_DEV) {
+			reg &= ~XILINX_DMA_PARK_PTR_RD_REF_MASK;
+			reg |= j << XILINX_DMA_PARK_PTR_RD_REF_SHIFT;
+		} else {
+			reg &= ~XILINX_DMA_PARK_PTR_WR_REF_MASK;
+			reg |= j << XILINX_DMA_PARK_PTR_WR_REF_SHIFT;
+		}
+		dma_write(chan, XILINX_DMA_REG_PARK_PTR, reg);
 	}
-	dma_write(chan, XILINX_DMA_REG_PARK_PTR, reg);
 
 	/* Start the hardware */
 	xilinx_dma_start(chan);
@@ -2906,6 +2909,8 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		return -EINVAL;
 	}
 
+	xdev->common.directions |= chan->direction;
+
 	/* Request the interrupt */
 	chan->irq = of_irq_get(node, chan->tdest);
 	if (chan->irq < 0)
@@ -2938,7 +2943,7 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 			    XILINX_DMA_DMASR_SG_MASK)
 			chan->has_sg = true;
 		dev_dbg(chan->dev, "ch %d: SG %s\n", chan->id,
-			chan->has_sg ? "enabled" : "disabled");
+			str_enabled_disabled(chan->has_sg));
 	}
 
 	/* Initialize the tasklet */
@@ -3111,6 +3116,8 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+	dma_set_max_seg_size(xdev->dev, xdev->max_buffer_len);
 
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		xdev->has_axistream_connected =

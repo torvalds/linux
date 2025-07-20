@@ -109,9 +109,9 @@ static char *get_dname(struct dentry *dentry)
 	return name;
 }
 
-static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
-				 struct inode *inode, struct dentry *dentry,
-				 umode_t mode)
+static struct dentry *tracefs_syscall_mkdir(struct mnt_idmap *idmap,
+					    struct inode *inode, struct dentry *dentry,
+					    umode_t mode)
 {
 	struct tracefs_inode *ti;
 	char *name;
@@ -119,7 +119,7 @@ static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 
 	name = get_dname(dentry);
 	if (!name)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * This is a new directory that does not take the default of
@@ -141,7 +141,7 @@ static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 
 	kfree(name);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
@@ -457,7 +457,8 @@ static void tracefs_d_release(struct dentry *dentry)
 		eventfs_d_release(dentry);
 }
 
-static int tracefs_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int tracefs_d_revalidate(struct inode *inode, const struct qstr *name,
+				struct dentry *dentry, unsigned int flags)
 {
 	struct eventfs_inode *ei = dentry->d_fsdata;
 
@@ -554,7 +555,7 @@ struct dentry *tracefs_start_creating(const char *name, struct dentry *parent)
 	if (unlikely(IS_DEADDIR(d_inode(parent))))
 		dentry = ERR_PTR(-ENOENT);
 	else
-		dentry = lookup_one_len(name, parent, strlen(name));
+		dentry = lookup_noperm(&QSTR(name), parent);
 	if (!IS_ERR(dentry) && d_inode(dentry)) {
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);

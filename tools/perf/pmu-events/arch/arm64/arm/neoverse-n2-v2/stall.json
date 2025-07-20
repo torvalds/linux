@@ -1,7 +1,7 @@
 [
     {
         "ArchStdEvent": "STALL_FRONTEND",
-        "PublicDescription": "Counts cycles when frontend could not send any micro-operations to the rename stage because of frontend resource stalls caused by fetch memory latency or branch prediction flow stalls. All the frontend slots were empty during the cycle when this event counts."
+        "PublicDescription": "Counts cycles when frontend could not send any micro-operations to the rename stage because of frontend resource stalls caused by fetch memory latency or branch prediction flow stalls. STALL_FRONTEND_SLOTS counts SLOTS during the cycle when this event counts."
     },
     {
         "ArchStdEvent": "STALL_BACKEND",
@@ -9,11 +9,11 @@
     },
     {
         "ArchStdEvent": "STALL",
-        "PublicDescription": "Counts cycles when no operations are sent to the rename unit from the frontend or from the rename unit to the backend for any reason (either frontend or backend stall)."
+        "PublicDescription": "Counts cycles when no operations are sent to the rename unit from the frontend or from the rename unit to the backend for any reason (either frontend or backend stall). This event is the sum of STALL_FRONTEND and STALL_BACKEND"
     },
     {
         "ArchStdEvent": "STALL_SLOT_BACKEND",
-        "PublicDescription": "Counts slots per cycle in which no operations are sent from the rename unit to the backend due to backend resource constraints."
+        "PublicDescription": "Counts slots per cycle in which no operations are sent from the rename unit to the backend due to backend resource constraints. STALL_BACKEND counts during the cycle when STALL_SLOT_BACKEND counts at least 1."
     },
     {
         "ArchStdEvent": "STALL_SLOT_FRONTEND",
@@ -21,7 +21,7 @@
     },
     {
         "ArchStdEvent": "STALL_SLOT",
-        "PublicDescription": "Counts slots per cycle in which no operations are sent to the rename unit from the frontend or from the rename unit to the backend for any reason (either frontend or backend stall)."
+        "PublicDescription": "Counts slots per cycle in which no operations are sent to the rename unit from the frontend or from the rename unit to the backend for any reason (either frontend or backend stall). STALL_SLOT is the sum of STALL_SLOT_FRONTEND and STALL_SLOT_BACKEND."
     },
     {
         "ArchStdEvent": "STALL_BACKEND_MEM",

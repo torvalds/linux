@@ -102,6 +102,8 @@ static struct rxrpc_peer *rxrpc_lookup_peer_local_rcu(struct rxrpc_local *local,
  */
 static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 {
+	unsigned int max_data;
+
 	/* wind down the local interface MTU */
 	if (mtu > 0 && peer->if_mtu == 65535 && mtu < peer->if_mtu)
 		peer->if_mtu = mtu;
@@ -120,11 +122,15 @@ static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 		}
 	}
 
-	if (mtu < peer->mtu) {
-		spin_lock(&peer->lock);
-		peer->mtu = mtu;
-		peer->maxdata = peer->mtu - peer->hdrsize;
-		spin_unlock(&peer->lock);
+	max_data = max_t(int, mtu - peer->hdrsize, 500);
+	if (max_data < peer->max_data) {
+		if (peer->pmtud_good > max_data)
+			peer->pmtud_good = max_data;
+		if (peer->pmtud_bad > max_data + 1)
+			peer->pmtud_bad = max_data + 1;
+
+		trace_rxrpc_pmtud_reduce(peer, 0, max_data, rxrpc_pmtud_reduce_icmp);
+		peer->max_data = max_data;
 	}
 }
 
@@ -157,6 +163,13 @@ void rxrpc_input_error(struct rxrpc_local *local, struct sk_buff *skb)
 	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP &&
 	     serr->ee.ee_type == ICMP_DEST_UNREACH &&
 	     serr->ee.ee_code == ICMP_FRAG_NEEDED)) {
+		rxrpc_adjust_mtu(peer, serr->ee.ee_info);
+		goto out;
+	}
+
+	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6 &&
+	     serr->ee.ee_type == ICMPV6_PKT_TOOBIG &&
+	     serr->ee.ee_code == 0)) {
 		rxrpc_adjust_mtu(peer, serr->ee.ee_info);
 		goto out;
 	}
@@ -205,23 +218,23 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, struct sk_buff *skb,
 	struct rxrpc_call *call;
 	HLIST_HEAD(error_targets);
 
-	spin_lock(&peer->lock);
+	spin_lock_irq(&peer->lock);
 	hlist_move_list(&peer->error_targets, &error_targets);
 
 	while (!hlist_empty(&error_targets)) {
 		call = hlist_entry(error_targets.first,
 				   struct rxrpc_call, error_link);
 		hlist_del_init(&call->error_link);
-		spin_unlock(&peer->lock);
+		spin_unlock_irq(&peer->lock);
 
 		rxrpc_see_call(call, rxrpc_call_see_distribute_error);
 		rxrpc_set_call_completion(call, compl, 0, -err);
-		rxrpc_input_call_event(call, skb);
+		rxrpc_input_call_event(call);
 
-		spin_lock(&peer->lock);
+		spin_lock_irq(&peer->lock);
 	}
 
-	spin_unlock(&peer->lock);
+	spin_unlock_irq(&peer->lock);
 }
 
 /*
@@ -238,7 +251,7 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 	bool use;
 	int slot;
 
-	spin_lock(&rxnet->peer_hash_lock);
+	spin_lock_bh(&rxnet->peer_hash_lock);
 
 	while (!list_empty(collector)) {
 		peer = list_entry(collector->next,
@@ -249,7 +262,7 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 			continue;
 
 		use = __rxrpc_use_local(peer->local, rxrpc_local_use_peer_keepalive);
-		spin_unlock(&rxnet->peer_hash_lock);
+		spin_unlock_bh(&rxnet->peer_hash_lock);
 
 		if (use) {
 			keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
@@ -269,17 +282,17 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 			 */
 			slot += cursor;
 			slot &= mask;
-			spin_lock(&rxnet->peer_hash_lock);
+			spin_lock_bh(&rxnet->peer_hash_lock);
 			list_add_tail(&peer->keepalive_link,
 				      &rxnet->peer_keepalive[slot & mask]);
-			spin_unlock(&rxnet->peer_hash_lock);
+			spin_unlock_bh(&rxnet->peer_hash_lock);
 			rxrpc_unuse_local(peer->local, rxrpc_local_unuse_peer_keepalive);
 		}
 		rxrpc_put_peer(peer, rxrpc_peer_put_keepalive);
-		spin_lock(&rxnet->peer_hash_lock);
+		spin_lock_bh(&rxnet->peer_hash_lock);
 	}
 
-	spin_unlock(&rxnet->peer_hash_lock);
+	spin_unlock_bh(&rxnet->peer_hash_lock);
 }
 
 /*
@@ -309,7 +322,7 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 	 * second; the bucket at cursor + 1 goes at now + 1s and so
 	 * on...
 	 */
-	spin_lock(&rxnet->peer_hash_lock);
+	spin_lock_bh(&rxnet->peer_hash_lock);
 	list_splice_init(&rxnet->peer_keepalive_new, &collector);
 
 	stop = cursor + ARRAY_SIZE(rxnet->peer_keepalive);
@@ -321,7 +334,7 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 	}
 
 	base = now;
-	spin_unlock(&rxnet->peer_hash_lock);
+	spin_unlock_bh(&rxnet->peer_hash_lock);
 
 	rxnet->peer_keepalive_base = base;
 	rxnet->peer_keepalive_cursor = cursor;
@@ -346,4 +359,85 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 		timer_reduce(&rxnet->peer_keepalive_timer, jiffies + delay);
 
 	_leave("");
+}
+
+/*
+ * Do path MTU probing.
+ */
+void rxrpc_input_probe_for_pmtud(struct rxrpc_connection *conn, rxrpc_serial_t acked_serial,
+				 bool sendmsg_fail)
+{
+	struct rxrpc_peer *peer = conn->peer;
+	unsigned int max_data = peer->max_data;
+	int good, trial, bad, jumbo;
+
+	good  = peer->pmtud_good;
+	trial = peer->pmtud_trial;
+	bad   = peer->pmtud_bad;
+	if (good >= bad - 1) {
+		conn->pmtud_probe = 0;
+		peer->pmtud_lost = false;
+		return;
+	}
+
+	if (!peer->pmtud_probing)
+		goto send_probe;
+
+	if (sendmsg_fail || after(acked_serial, conn->pmtud_probe)) {
+		/* Retry a lost probe. */
+		if (!peer->pmtud_lost) {
+			trace_rxrpc_pmtud_lost(conn, acked_serial);
+			conn->pmtud_probe = 0;
+			peer->pmtud_lost = true;
+			goto send_probe;
+		}
+
+		/* The probed size didn't seem to get through. */
+		bad = trial;
+		peer->pmtud_bad = bad;
+		if (bad <= max_data)
+			max_data = bad - 1;
+	} else {
+		/* It did get through. */
+		good = trial;
+		peer->pmtud_good = good;
+		if (good > max_data)
+			max_data = good;
+	}
+
+	max_data = umin(max_data, peer->ackr_max_data);
+	if (max_data != peer->max_data)
+		peer->max_data = max_data;
+
+	jumbo = max_data + sizeof(struct rxrpc_jumbo_header);
+	jumbo /= RXRPC_JUMBO_SUBPKTLEN;
+	peer->pmtud_jumbo = jumbo;
+
+	trace_rxrpc_pmtud_rx(conn, acked_serial);
+	conn->pmtud_probe = 0;
+	peer->pmtud_lost = false;
+
+	if (good < RXRPC_JUMBO(2) && bad > RXRPC_JUMBO(2))
+		trial = RXRPC_JUMBO(2);
+	else if (good < RXRPC_JUMBO(4) && bad > RXRPC_JUMBO(4))
+		trial = RXRPC_JUMBO(4);
+	else if (good < RXRPC_JUMBO(3) && bad > RXRPC_JUMBO(3))
+		trial = RXRPC_JUMBO(3);
+	else if (good < RXRPC_JUMBO(6) && bad > RXRPC_JUMBO(6))
+		trial = RXRPC_JUMBO(6);
+	else if (good < RXRPC_JUMBO(5) && bad > RXRPC_JUMBO(5))
+		trial = RXRPC_JUMBO(5);
+	else if (good < RXRPC_JUMBO(8) && bad > RXRPC_JUMBO(8))
+		trial = RXRPC_JUMBO(8);
+	else if (good < RXRPC_JUMBO(7) && bad > RXRPC_JUMBO(7))
+		trial = RXRPC_JUMBO(7);
+	else
+		trial = (good + bad) / 2;
+	peer->pmtud_trial = trial;
+
+	if (good >= bad)
+		return;
+
+send_probe:
+	peer->pmtud_pending = true;
 }

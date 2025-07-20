@@ -250,6 +250,9 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_allocate_pool(type, size, buffer)		\
 	((type), (size), efi64_zero_upper(buffer))
 
+#define __efi64_argmap_locate_handle_buffer(type, proto, key, num, buf)	\
+	((type), (proto), (key), efi64_zero_upper(num), efi64_zero_upper(buf))
+
 #define __efi64_argmap_create_event(type, tpl, f, c, event)		\
 	((type), (tpl), (f), (c), efi64_zero_upper(event))
 

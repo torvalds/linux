@@ -17,6 +17,7 @@
 #include "context.h"
 #include "table.h"
 #include "send.h"
+#include "action_ste_pool.h"
 #include "rule.h"
 #include "cmd.h"
 #include "action.h"
@@ -39,7 +40,6 @@
 #define mlx5hws_dbg(ctx, arg...) mlx5_core_dbg((ctx)->mdev, ##arg)
 
 #define MLX5HWS_TABLE_TYPE_BASE 2
-#define MLX5HWS_ACTION_STE_IDX_ANY 0
 
 static inline bool is_mem_zero(const u8 *mem, size_t size)
 {

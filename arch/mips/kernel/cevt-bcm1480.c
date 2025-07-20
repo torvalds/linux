@@ -103,7 +103,7 @@ void sb1480_clockevent_init(void)
 
 	BUG_ON(cpu > 3);	/* Only have 4 general purpose timers */
 
-	sprintf(name, "bcm1480-counter-%d", cpu);
+	sprintf(name, "bcm1480-counter-%u", cpu);
 	cd->name		= name;
 	cd->features		= CLOCK_EVT_FEAT_PERIODIC |
 				  CLOCK_EVT_FEAT_ONESHOT;

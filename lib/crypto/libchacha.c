@@ -12,7 +12,7 @@
 #include <crypto/algapi.h> // for crypto_xor_cpy
 #include <crypto/chacha.h>
 
-void chacha_crypt_generic(u32 *state, u8 *dst, const u8 *src,
+void chacha_crypt_generic(struct chacha_state *state, u8 *dst, const u8 *src,
 			  unsigned int bytes, int nrounds)
 {
 	/* aligned to potentially speed up crypto_xor() */

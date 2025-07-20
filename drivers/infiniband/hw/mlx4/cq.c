@@ -150,8 +150,12 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev,
 		return PTR_ERR(*umem);
 
 	shift = mlx4_ib_umem_calc_optimal_mtt_size(*umem, 0, &n);
-	err = mlx4_mtt_init(dev->dev, n, shift, &buf->mtt);
+	if (shift < 0) {
+		err = shift;
+		goto err_buf;
+	}
 
+	err = mlx4_mtt_init(dev->dev, n, shift, &buf->mtt);
 	if (err)
 		goto err_buf;
 

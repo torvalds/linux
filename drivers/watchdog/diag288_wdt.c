@@ -27,26 +27,14 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
+#include <asm/diag288.h>
 #include <asm/diag.h>
 #include <linux/io.h>
 
 #define MAX_CMDLEN 240
 #define DEFAULT_CMD "SYSTEM RESTART"
-
-#define MIN_INTERVAL 15     /* Minimal time supported by diag88 */
-#define MAX_INTERVAL 3600   /* One hour should be enough - pure estimation */
-
-#define WDT_DEFAULT_TIMEOUT 30
-
-/* Function codes - init, change, cancel */
-#define WDT_FUNC_INIT 0
-#define WDT_FUNC_CHANGE 1
-#define WDT_FUNC_CANCEL 2
-#define WDT_FUNC_CONCEAL 0x80000000
-
-/* Action codes for LPAR watchdog */
-#define LPARWDT_RESTART 0
 
 static char wdt_cmd[MAX_CMDLEN] = DEFAULT_CMD;
 static bool conceal_on;
@@ -74,22 +62,8 @@ static char *cmd_buf;
 static int diag288(unsigned int func, unsigned int timeout,
 		   unsigned long action, unsigned int len)
 {
-	union register_pair r1 = { .even = func, .odd = timeout, };
-	union register_pair r3 = { .even = action, .odd = len, };
-	int err;
-
 	diag_stat_inc(DIAG_STAT_X288);
-
-	err = -EINVAL;
-	asm volatile(
-		"	diag	%[r1],%[r3],0x288\n"
-		"0:	la	%[err],0\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: [err] "+d" (err)
-		: [r1] "d" (r1.pair), [r3] "d" (r3.pair)
-		: "cc", "memory");
-	return err;
+	return __diag288(func, timeout, action, len);
 }
 
 static int diag288_str(unsigned int func, unsigned int timeout, char *cmd)
@@ -110,7 +84,7 @@ static int wdt_start(struct watchdog_device *dev)
 	int ret;
 	unsigned int func;
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
 		ret = diag288_str(func, dev->timeout, wdt_cmd);
@@ -136,7 +110,7 @@ static int wdt_ping(struct watchdog_device *dev)
 	int ret;
 	unsigned int func;
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		/*
 		 * It seems to be ok to z/VM to use the init function to
 		 * retrigger the watchdog. On LPAR WDT_FUNC_CHANGE must
@@ -188,34 +162,14 @@ static struct watchdog_device wdt_dev = {
 
 static int __init diag288_init(void)
 {
-	int ret;
-
 	watchdog_set_nowayout(&wdt_dev, nowayout_info);
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		cmd_buf = kmalloc(MAX_CMDLEN, GFP_KERNEL);
 		if (!cmd_buf) {
 			pr_err("The watchdog cannot be initialized\n");
 			return -ENOMEM;
 		}
-
-		ret = diag288_str(WDT_FUNC_INIT, MIN_INTERVAL, "BEGIN");
-		if (ret != 0) {
-			pr_err("The watchdog cannot be initialized\n");
-			kfree(cmd_buf);
-			return -EINVAL;
-		}
-	} else {
-		if (diag288(WDT_FUNC_INIT, WDT_DEFAULT_TIMEOUT,
-			    LPARWDT_RESTART, 0)) {
-			pr_err("The watchdog cannot be initialized\n");
-			return -EINVAL;
-		}
-	}
-
-	if (diag288(WDT_FUNC_CANCEL, 0, 0, 0)) {
-		pr_err("The watchdog cannot be deactivated\n");
-		return -EINVAL;
 	}
 
 	return watchdog_register_device(&wdt_dev);
@@ -227,5 +181,5 @@ static void __exit diag288_exit(void)
 	kfree(cmd_buf);
 }
 
-module_init(diag288_init);
+module_cpu_feature_match(S390_CPU_FEATURE_D288, diag288_init);
 module_exit(diag288_exit);

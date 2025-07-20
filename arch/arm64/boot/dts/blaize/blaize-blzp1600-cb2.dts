@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (c) 2024 Blaize, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "blaize-blzp1600-som.dtsi"
+
+/ {
+	model = "Blaize BLZP1600 SoM1600P CB2 Development Board";
+
+	compatible = "blaize,blzp1600-cb2", "blaize,blzp1600";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200";
+	};
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&i2c3 {
+	clock-frequency = <100000>;
+	status = "okay";
+
+	gpio_expander: gpio@74 {
+		compatible = "ti,tca9539";
+		reg = <0x74>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "RSP_PIN_7",	/* GPIO_0 */
+				  "RSP_PIN_11",	/* GPIO_1 */
+				  "RSP_PIN_13",	/* GPIO_2 */
+				  "RSP_PIN_15",	/* GPIO_3 */
+				  "RSP_PIN_27",	/* GPIO_4 */
+				  "RSP_PIN_29",	/* GPIO_5 */
+				  "RSP_PIN_31",	/* GPIO_6 */
+				  "RSP_PIN_33",	/* GPIO_7 */
+				  "RSP_PIN_37",	/* GPIO_8 */
+				  "RSP_PIN_16",	/* GPIO_9 */
+				  "RSP_PIN_18",	/* GPIO_10 */
+				  "RSP_PIN_22",	/* GPIO_11 */
+				  "RSP_PIN_28",	/* GPIO_12 */
+				  "RSP_PIN_32",	/* GPIO_13 */
+				  "RSP_PIN_36",	/* GPIO_14 */
+				  "TP31";	/* GPIO_15 */
+	};
+
+	gpio_expander_m2: gpio@75 {
+		compatible = "ti,tca9539";
+		reg = <0x75>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "M2_W_DIS1_N",	/* GPIO_0 */
+				  "M2_W_DIS2_N",	/* GPIO_1 */
+				  "M2_UART_WAKE_N",	/* GPIO_2 */
+				  "M2_COEX3",		/* GPIO_3 */
+				  "M2_COEX_RXD",	/* GPIO_4 */
+				  "M2_COEX_TXD",	/* GPIO_5 */
+				  "M2_VENDOR_PIN40",	/* GPIO_6 */
+				  "M2_VENDOR_PIN42",	/* GPIO_7 */
+				  "M2_VENDOR_PIN38",	/* GPIO_8 */
+				  "M2_SDIO_RST_N",	/* GPIO_9 */
+				  "M2_SDIO_WAKE_N",	/* GPIO_10 */
+				  "M2_PETN1",		/* GPIO_11 */
+				  "M2_PERP1",		/* GPIO_12 */
+				  "M2_PERN1",		/* GPIO_13 */
+				  "UIM_SWP",		/* GPIO_14 */
+				  "UART1_TO_RSP";	/* GPIO_15 */
+	};
+};
+
+&gpio0 {
+	status = "okay";
+	gpio-line-names = "PERST_N",		/* GPIO_0 */
+			  "LM96063_ALERT_N",	/* GPIO_1 */
+			  "INA3221_PV",		/* GPIO_2 */
+			  "INA3221_CRIT",	/* GPIO_3 */
+			  "INA3221_WARN",	/* GPIO_4 */
+			  "INA3221_TC",		/* GPIO_5 */
+			  "QSPI0_RST_N",	/* GPIO_6 */
+			  "LM96063_TCRIT_N",	/* GPIO_7 */
+			  "DSI_TCH_INT",	/* GPIO_8 */
+			  "DSI_RST",		/* GPIO_9 */
+			  "DSI_BL",		/* GPIO_10 */
+			  "DSI_INT",		/* GPIO_11 */
+			  "ETH_RST",		/* GPIO_12 */
+			  "CSI0_RST",		/* GPIO_13 */
+			  "CSI0_PWDN",		/* GPIO_14 */
+			  "CSI1_RST",		/* GPIO_15 */
+			  "CSI1_PWDN",		/* GPIO_16 */
+			  "CSI2_RST",		/* GPIO_17 */
+			  "CSI2_PWDN",		/* GPIO_18 */
+			  "CSI3_RST",		/* GPIO_19 */
+			  "CSI3_PWDN",		/* GPIO_20 */
+			  "ADAC_RST",		/* GPIO_21 */
+			  "SD_SW_VDD",		/* GPIO_22 */
+			  "SD_PON_VDD",		/* GPIO_23 */
+			  "GPIO_EXP_INT",	/* GPIO_24 */
+			  "BOARD_ID_0",		/* GPIO_25 */
+			  "SDIO1_SW_VDD",	/* GPIO_26 */
+			  "SDIO1_PON_VDD",	/* GPIO_27 */
+			  "SDIO2_SW_VDD",	/* GPIO_28 */
+			  "SDIO2_PON_VDD",	/* GPIO_29 */
+			  "BOARD_ID_1",		/* GPIO_30 */
+			  "BOARD_ID_2";		/* GPIO_31 */
+};

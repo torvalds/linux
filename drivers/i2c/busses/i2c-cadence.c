@@ -1231,12 +1231,12 @@ static int cdns_unreg_slave(struct i2c_client *slave)
 #endif
 
 static const struct i2c_algorithm cdns_i2c_algo = {
-	.master_xfer	= cdns_i2c_master_xfer,
-	.master_xfer_atomic = cdns_i2c_master_xfer_atomic,
-	.functionality	= cdns_i2c_func,
+	.xfer = cdns_i2c_master_xfer,
+	.xfer_atomic = cdns_i2c_master_xfer_atomic,
+	.functionality = cdns_i2c_func,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	.reg_slave	= cdns_reg_slave,
-	.unreg_slave	= cdns_unreg_slave,
+	.reg_slave = cdns_reg_slave,
+	.unreg_slave = cdns_unreg_slave,
 #endif
 };
 
@@ -1541,7 +1541,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	snprintf(id->adap.name, sizeof(id->adap.name),
 		 "Cadence I2C at %08lx", (unsigned long)r_mem->start);
 
-	id->clk = devm_clk_get(&pdev->dev, NULL);
+	id->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(id->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(id->clk),
 				     "input clock not found.\n");
@@ -1551,16 +1551,10 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(id->reset),
 				     "Failed to request reset.\n");
 
-	ret = clk_prepare_enable(id->clk);
-	if (ret)
-		dev_err(&pdev->dev, "Unable to enable clock.\n");
-
 	ret = reset_control_deassert(id->reset);
-	if (ret) {
-		dev_err_probe(&pdev->dev, ret,
-			      "Failed to de-assert reset.\n");
-		goto err_clk_dis;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to de-assert reset.\n");
 
 	pm_runtime_set_autosuspend_delay(id->dev, CNDS_I2C_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(id->dev);
@@ -1615,11 +1609,9 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 
 err_clk_notifier_unregister:
 	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
-	reset_control_assert(id->reset);
-err_clk_dis:
-	clk_disable_unprepare(id->clk);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
+	reset_control_assert(id->reset);
 	return ret;
 }
 
@@ -1642,7 +1634,6 @@ static void cdns_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&id->adap);
 	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
 	reset_control_assert(id->reset);
-	clk_disable_unprepare(id->clk);
 }
 
 static struct platform_driver cdns_i2c_drv = {

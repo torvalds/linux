@@ -87,9 +87,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 		return;
 	}
 
-	if (gem->import_attach)
-		drm_prime_gem_destroy(gem, nvbo->bo.sg);
-
 	ttm_bo_put(&nvbo->bo);
 
 	pm_runtime_mark_last_busy(dev);
@@ -853,8 +850,8 @@ revalidate:
 		}
 	}
 
-	if (chan->dma.ib_max) {
-		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
+	if (chan->user.oclass >= NV50_CHANNEL_GPFIFO) {
+		ret = nvif_chan_gpfifo_wait(&chan->chan, req->nr_push + 1, 16);
 		if (ret) {
 			NV_PRINTK(err, cli, "nv50cal_space: %d\n", ret);
 			goto out;
@@ -867,8 +864,10 @@ revalidate:
 			u32 length = push[i].length & ~NOUVEAU_GEM_PUSHBUF_NO_PREFETCH;
 			bool no_prefetch = push[i].length & NOUVEAU_GEM_PUSHBUF_NO_PREFETCH;
 
-			nv50_dma_push(chan, addr, length, no_prefetch);
+			nvif_chan_gpfifo_push(&chan->chan, addr, length, no_prefetch);
 		}
+
+		nvif_chan_gpfifo_post(&chan->chan);
 	} else
 	if (drm->client.device.info.chipset >= 0x25) {
 		ret = PUSH_WAIT(&chan->chan.push, req->nr_push * 2);
@@ -961,7 +960,7 @@ out_prevalid:
 	u_free(push);
 
 out_next:
-	if (chan->dma.ib_max) {
+	if (chan->user.oclass >= NV50_CHANNEL_GPFIFO) {
 		req->suffix0 = 0x00000000;
 		req->suffix1 = 0x00000000;
 	} else

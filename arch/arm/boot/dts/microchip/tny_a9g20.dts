@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tny_a9g20.dts - Device Tree file for Caloa TNY A9G20 board
+ * tny_a9g20.dts - Device Tree file for Calao TNY A9G20 board
  *
  * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  */

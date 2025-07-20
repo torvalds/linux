@@ -1261,7 +1261,7 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 
 static void m66592_timer(struct timer_list *t)
 {
-	struct m66592 *m66592 = from_timer(m66592, t, timer);
+	struct m66592 *m66592 = timer_container_of(m66592, t, timer);
 	unsigned long flags;
 	u16 tmp;
 

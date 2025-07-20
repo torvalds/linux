@@ -328,7 +328,8 @@ static int tda10048_set_wref(struct dvb_frontend *fe, u32 sample_freq_hz,
 			     u32 bw)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
-	u64 t, z;
+	u64 t;
+	u32 z;
 
 	dprintk(1, "%s()\n", __func__);
 
@@ -341,6 +342,11 @@ static int tda10048_set_wref(struct dvb_frontend *fe, u32 sample_freq_hz,
 	/* t *= 2147483648 on 32bit platforms */
 	t *= (2048 * 1024);
 	t *= 1024;
+
+	/*
+	 * Sample frequency is typically 55 MHz, with a theoretical maximum of
+	 * 69 MHz. With a 32 bit z we have enough accuracy for up to 613 MHz.
+	 */
 	z = 7 * sample_freq_hz;
 	do_div(t, z);
 	t += 5;

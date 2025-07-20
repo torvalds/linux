@@ -12,6 +12,7 @@
 #include "blk-mq-debugfs.h"
 
 struct blk_mq_debugfs_attr;
+extern struct static_key_false block_rq_qos;
 
 enum rq_qos_id {
 	RQ_QOS_WBT,
@@ -112,31 +113,33 @@ void __rq_qos_queue_depth_changed(struct rq_qos *rqos);
 
 static inline void rq_qos_cleanup(struct request_queue *q, struct bio *bio)
 {
-	if (q->rq_qos)
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos)
 		__rq_qos_cleanup(q->rq_qos, bio);
 }
 
 static inline void rq_qos_done(struct request_queue *q, struct request *rq)
 {
-	if (q->rq_qos && !blk_rq_is_passthrough(rq))
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos &&
+	    !blk_rq_is_passthrough(rq))
 		__rq_qos_done(q->rq_qos, rq);
 }
 
 static inline void rq_qos_issue(struct request_queue *q, struct request *rq)
 {
-	if (q->rq_qos)
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos)
 		__rq_qos_issue(q->rq_qos, rq);
 }
 
 static inline void rq_qos_requeue(struct request_queue *q, struct request *rq)
 {
-	if (q->rq_qos)
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos)
 		__rq_qos_requeue(q->rq_qos, rq);
 }
 
 static inline void rq_qos_done_bio(struct bio *bio)
 {
-	if (bio->bi_bdev && (bio_flagged(bio, BIO_QOS_THROTTLED) ||
+	if (static_branch_unlikely(&block_rq_qos) &&
+	    bio->bi_bdev && (bio_flagged(bio, BIO_QOS_THROTTLED) ||
 			     bio_flagged(bio, BIO_QOS_MERGED))) {
 		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 		if (q->rq_qos)
@@ -146,7 +149,7 @@ static inline void rq_qos_done_bio(struct bio *bio)
 
 static inline void rq_qos_throttle(struct request_queue *q, struct bio *bio)
 {
-	if (q->rq_qos) {
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos) {
 		bio_set_flag(bio, BIO_QOS_THROTTLED);
 		__rq_qos_throttle(q->rq_qos, bio);
 	}
@@ -155,14 +158,14 @@ static inline void rq_qos_throttle(struct request_queue *q, struct bio *bio)
 static inline void rq_qos_track(struct request_queue *q, struct request *rq,
 				struct bio *bio)
 {
-	if (q->rq_qos)
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos)
 		__rq_qos_track(q->rq_qos, rq, bio);
 }
 
 static inline void rq_qos_merge(struct request_queue *q, struct request *rq,
 				struct bio *bio)
 {
-	if (q->rq_qos) {
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos) {
 		bio_set_flag(bio, BIO_QOS_MERGED);
 		__rq_qos_merge(q->rq_qos, rq, bio);
 	}
@@ -170,7 +173,7 @@ static inline void rq_qos_merge(struct request_queue *q, struct request *rq,
 
 static inline void rq_qos_queue_depth_changed(struct request_queue *q)
 {
-	if (q->rq_qos)
+	if (static_branch_unlikely(&block_rq_qos) && q->rq_qos)
 		__rq_qos_queue_depth_changed(q->rq_qos);
 }
 

@@ -7,6 +7,7 @@
 #define ICP_QAT_AC_C62X_DEV_TYPE   0x01000000
 #define ICP_QAT_AC_C3XXX_DEV_TYPE  0x02000000
 #define ICP_QAT_AC_4XXX_A_DEV_TYPE 0x08000000
+#define ICP_QAT_AC_6XXX_DEV_TYPE   0x80000000
 #define ICP_QAT_UCLO_MAX_AE       17
 #define ICP_QAT_UCLO_MAX_CTX      8
 #define ICP_QAT_UCLO_MAX_UIMAGE   (ICP_QAT_UCLO_MAX_AE * ICP_QAT_UCLO_MAX_CTX)
@@ -43,7 +44,6 @@
 #define ICP_QAT_SUOF_OBJS "SUF_OBJS"
 #define ICP_QAT_SUOF_IMAG "SUF_IMAG"
 #define ICP_QAT_SIMG_AE_INIT_SEQ_LEN    (50 * sizeof(unsigned long long))
-#define ICP_QAT_SIMG_AE_INSTS_LEN       (0x4000 * sizeof(unsigned long long))
 
 #define DSS_FWSK_MODULUS_LEN    384 /* RSA3K */
 #define DSS_FWSK_EXPONENT_LEN   4
@@ -75,19 +75,27 @@
 						DSS_SIGNATURE_LEN : \
 						CSS_SIGNATURE_LEN)
 
-#define ICP_QAT_CSS_AE_IMG_LEN     (sizeof(struct icp_qat_simg_ae_mode) + \
-				    ICP_QAT_SIMG_AE_INIT_SEQ_LEN +         \
-				    ICP_QAT_SIMG_AE_INSTS_LEN)
-#define ICP_QAT_CSS_AE_SIMG_LEN(handle) (sizeof(struct icp_qat_css_hdr) + \
-					ICP_QAT_CSS_FWSK_PUB_LEN(handle) + \
-					ICP_QAT_CSS_SIGNATURE_LEN(handle) + \
-					ICP_QAT_CSS_AE_IMG_LEN)
 #define ICP_QAT_AE_IMG_OFFSET(handle) (sizeof(struct icp_qat_css_hdr) + \
 					ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
 					ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
 					ICP_QAT_CSS_SIGNATURE_LEN(handle))
 #define ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN    0x40000
 #define ICP_QAT_CSS_RSA3K_MAX_IMAGE_LEN    0x30000
+
+/* All lengths below are in bytes */
+#define ICP_QAT_DUALSIGN_OPAQUE_HDR_LEN		12
+#define ICP_QAT_DUALSIGN_OPAQUE_HDR_ALIGN_LEN	16
+#define ICP_QAT_DUALSIGN_OPAQUE_DATA_LEN	3540
+#define ICP_QAT_DUALSIGN_XMSS_PUBKEY_LEN	64
+#define ICP_QAT_DUALSIGN_XMSS_SIG_LEN		2692
+#define ICP_QAT_DUALSIGN_XMSS_SIG_ALIGN_LEN	2696
+#define ICP_QAT_DUALSIGN_MISC_INFO_LEN		16
+#define ICP_QAT_DUALSIGN_FW_TYPE_LEN		7
+#define ICP_QAT_DUALSIGN_MODULE_TYPE		0x14
+#define ICP_QAT_DUALSIGN_HDR_LEN		0x375
+#define ICP_QAT_DUALSIGN_HDR_VER		0x40001
+#define ICP_QAT_DUALSIGN_HDR_LEN_OFFSET		4
+#define ICP_QAT_DUALSIGN_HDR_VER_OFFSET		8
 
 #define ICP_QAT_CTX_MODE(ae_mode) ((ae_mode) & 0xf)
 #define ICP_QAT_NN_MODE(ae_mode) (((ae_mode) >> 0x4) & 0xf)
@@ -404,8 +412,6 @@ struct icp_qat_suof_img_hdr {
 	char          *simg_buf;
 	unsigned long simg_len;
 	char          *css_header;
-	char          *css_key;
-	char          *css_signature;
 	char          *css_simg;
 	unsigned long simg_size;
 	unsigned int  ae_num;
@@ -450,6 +456,13 @@ struct icp_qat_fw_auth_desc {
 	unsigned int   img_ae_init_data_low;
 	unsigned int   img_ae_insts_high;
 	unsigned int   img_ae_insts_low;
+	unsigned int   cpp_mask;
+	unsigned int   reserved;
+	unsigned int   xmss_pubkey_high;
+	unsigned int   xmss_pubkey_low;
+	unsigned int   xmss_sig_high;
+	unsigned int   xmss_sig_low;
+	unsigned int   reserved2[2];
 };
 
 struct icp_qat_auth_chunk {

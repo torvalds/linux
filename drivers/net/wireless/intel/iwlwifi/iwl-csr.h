@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -107,6 +107,13 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+#define CSR_IPC_STATE		(CSR_BASE + 0x110)
+#define CSR_IPC_STATE_RESET	0x00000030
+#define CSR_IPC_STATE_RESET_NONE		0
+#define CSR_IPC_STATE_RESET_SW_READY		1
+#define CSR_IPC_STATE_RESET_TOP_READY		2
+#define CSR_IPC_STATE_RESET_TOP_FOLLOWER	3
+
 #define CSR_IPC_SLEEP_CONTROL	(CSR_BASE + 0x114)
 #define CSR_IPC_SLEEP_CONTROL_SUSPEND	0x3
 #define CSR_IPC_SLEEP_CONTROL_RESUME	0
@@ -148,6 +155,7 @@
  * during a error FW error.
  */
 #define CSR_FUNC_SCRATCH_INIT_VALUE		(0x01010101)
+#define CSR_FUNC_SCRATCH_POWER_OFF_MASK		0xFFFF
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
 #define CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH	(0x0000000F)
@@ -167,13 +175,15 @@
 #define CSR_HW_IF_CONFIG_REG_POS_PHY_DASH	(12)
 #define CSR_HW_IF_CONFIG_REG_POS_PHY_STEP	(14)
 
-#define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A	(0x00080000)
-#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM	(0x00200000)
-#define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY	(0x00400000) /* PCI_OWN_SEM */
-#define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000) /* ME_OWN */
-#define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000) /* WAKE_ME */
-#define CSR_HW_IF_CONFIG_REG_ENABLE_PME		  (0x10000000)
-#define CSR_HW_IF_CONFIG_REG_PERSIST_MODE	  (0x40000000) /* PERSISTENCE */
+#define CSR_HW_IF_CONFIG_REG_HAP_WAKE			0x00080000
+/* NOTE: EEPROM_OWN_SEM is no longer defined for new HW */
+#define CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM		0x00200000
+#define CSR_HW_IF_CONFIG_REG_PCI_OWN_SET		0x00400000
+#define CSR_HW_IF_CONFIG_REG_IAMT_UP			0x01000000
+#define CSR_HW_IF_CONFIG_REG_ME_OWN			0x02000000
+#define CSR_HW_IF_CONFIG_REG_WAKE_ME			0x08000000
+#define CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN	0x10000000
+#define CSR_HW_IF_CONFIG_REG_PERSISTENCE		0x40000000
 
 #define CSR_MBOX_SET_REG_OS_ALIVE		BIT(5)
 
@@ -191,17 +201,19 @@
 #define CSR_INT_BIT_RF_KILL      (1 << 7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
 #define CSR_INT_BIT_CT_KILL      (1 << 6)  /* Critical temp (chip too hot) rfkill */
 #define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses */
+#define CSR_INT_BIT_RESET_DONE   (1 << 2)  /* reset handshake with firmware is done */
 #define CSR_INT_BIT_WAKEUP       (1 << 1)  /* NIC controller waking up (pwr mgmt) */
 #define CSR_INT_BIT_ALIVE        (1 << 0)  /* uCode interrupts once it initializes */
 
-#define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX   | \
-				 CSR_INT_BIT_HW_ERR  | \
-				 CSR_INT_BIT_FH_TX   | \
-				 CSR_INT_BIT_SW_ERR  | \
-				 CSR_INT_BIT_RF_KILL | \
-				 CSR_INT_BIT_SW_RX   | \
-				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE   | \
+#define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX	| \
+				 CSR_INT_BIT_HW_ERR	| \
+				 CSR_INT_BIT_FH_TX	| \
+				 CSR_INT_BIT_SW_ERR	| \
+				 CSR_INT_BIT_RF_KILL	| \
+				 CSR_INT_BIT_SW_RX	| \
+				 CSR_INT_BIT_WAKEUP	| \
+				 CSR_INT_BIT_RESET_DONE	| \
+				 CSR_INT_BIT_ALIVE	| \
 				 CSR_INT_BIT_RX_PERIODIC)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
@@ -351,7 +363,6 @@ enum {
 #define CSR_HW_RF_ID_TYPE_HRCDB		(0x00109F00)
 #define CSR_HW_RF_ID_TYPE_GF		(0x0010D000)
 #define CSR_HW_RF_ID_TYPE_GF4		(0x0010E000)
-#define CSR_HW_RF_ID_TYPE_MS		(0x00111000)
 #define CSR_HW_RF_ID_TYPE_FM		(0x00112000)
 #define CSR_HW_RF_ID_TYPE_WP		(0x00113000)
 
@@ -639,7 +650,7 @@ enum msix_hw_int_causes {
  *                     HW address related registers                          *
  *****************************************************************************/
 
-#define CSR_ADDR_BASE(trans)			((trans)->cfg->mac_addr_from_csr)
+#define CSR_ADDR_BASE(trans)			((trans)->mac_cfg->base->mac_addr_from_csr)
 #define CSR_MAC_ADDR0_OTP(trans)		(CSR_ADDR_BASE(trans) + 0x00)
 #define CSR_MAC_ADDR1_OTP(trans)		(CSR_ADDR_BASE(trans) + 0x04)
 #define CSR_MAC_ADDR0_STRAP(trans)		(CSR_ADDR_BASE(trans) + 0x08)

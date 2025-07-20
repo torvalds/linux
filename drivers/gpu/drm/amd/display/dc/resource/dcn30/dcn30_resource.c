@@ -1891,8 +1891,6 @@ static int get_refresh_rate(struct dc_state *context)
 
 	/* check if refresh rate at least 120hz */
 	timing = &context->streams[0]->timing;
-	if (timing == NULL)
-		return 0;
 
 	h_v_total = timing->h_total * timing->v_total;
 	if (h_v_total == 0)
@@ -2037,7 +2035,7 @@ void dcn30_calculate_wm_and_dlg(
 	DC_FP_END();
 }
 
-bool dcn30_validate_bandwidth(struct dc *dc,
+enum dc_status dcn30_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -2047,7 +2045,8 @@ bool dcn30_validate_bandwidth(struct dc *dc,
 
 	int vlevel = 0;
 	int pipe_cnt = 0;
-	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	display_e2e_pipe_params_st *pipes = kcalloc(dc->res_pool->pipe_count,
+			sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();
@@ -2093,7 +2092,7 @@ validate_out:
 
 	BW_VAL_TRACE_FINISH();
 
-	return out;
+	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -2250,6 +2249,7 @@ static const struct resource_funcs dcn30_res_pool_funcs = {
 	.update_bw_bounding_box = dcn30_update_bw_bounding_box,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn30_get_panel_config_defaults,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 #define CTX ctx

@@ -176,9 +176,10 @@ static bool recalc_sigpending_tsk(struct task_struct *t)
 
 void recalc_sigpending(void)
 {
-	if (!recalc_sigpending_tsk(current) && !freezing(current))
-		clear_thread_flag(TIF_SIGPENDING);
-
+	if (!recalc_sigpending_tsk(current) && !freezing(current)) {
+		if (unlikely(test_thread_flag(TIF_SIGPENDING)))
+			clear_thread_flag(TIF_SIGPENDING);
+	}
 }
 EXPORT_SYMBOL(recalc_sigpending);
 
@@ -2007,11 +2008,22 @@ void posixtimer_send_sigqueue(struct k_itimer *tmr)
 
 		if (!list_empty(&q->list)) {
 			/*
-			 * If task group is exiting with the signal already pending,
-			 * wait for __exit_signal() to do its job. Otherwise if
-			 * ignored, it's not supposed to be queued. Try to survive.
+			 * The signal was ignored and blocked. The timer
+			 * expiry queued it because blocked signals are
+			 * queued independent of the ignored state.
+			 *
+			 * The unblocking set SIGPENDING, but the signal
+			 * was not yet dequeued from the pending list.
+			 * So prepare_signal() sees unblocked and ignored,
+			 * which ends up here. Leave it queued like a
+			 * regular signal.
+			 *
+			 * The same happens when the task group is exiting
+			 * and the signal is already queued.
+			 * prepare_signal() treats SIGNAL_GROUP_EXIT as
+			 * ignored independent of its queued state. This
+			 * gets cleaned up in __exit_signal().
 			 */
-			WARN_ON_ONCE(!(t->signal->flags & SIGNAL_GROUP_EXIT));
 			goto out;
 		}
 
@@ -2046,17 +2058,25 @@ void posixtimer_send_sigqueue(struct k_itimer *tmr)
 		goto out;
 	}
 
-	/* This should never happen and leaks a reference count */
-	if (WARN_ON_ONCE(!hlist_unhashed(&tmr->ignored_list)))
-		hlist_del_init(&tmr->ignored_list);
-
 	if (unlikely(!list_empty(&q->list))) {
 		/* This holds a reference count already */
 		result = TRACE_SIGNAL_ALREADY_PENDING;
 		goto out;
 	}
 
-	posixtimer_sigqueue_getref(q);
+	/*
+	 * If the signal is on the ignore list, it got blocked after it was
+	 * ignored earlier. But nothing lifted the ignore. Move it back to
+	 * the pending list to be consistent with the regular signal
+	 * handling. This already holds a reference count.
+	 *
+	 * If it's not on the ignore list acquire a reference count.
+	 */
+	if (likely(hlist_unhashed(&tmr->ignored_list)))
+		posixtimer_sigqueue_getref(q);
+	else
+		hlist_del_init(&tmr->ignored_list);
+
 	posixtimer_queue_sigqueue(q, t, tmr->it_pid_type);
 	result = TRACE_SIGNAL_DELIVERED;
 out:
@@ -2073,7 +2093,7 @@ static inline void posixtimer_sig_ignore(struct task_struct *tsk, struct sigqueu
 	 * from a non-periodic timer, then just drop the reference
 	 * count. Otherwise queue it on the ignored list.
 	 */
-	if (tmr->it_signal && tmr->it_sig_periodic)
+	if (posixtimer_valid(tmr) && tmr->it_sig_periodic)
 		hlist_add_head(&tmr->ignored_list, &tsk->signal->ignored_posix_timers);
 	else
 		posixtimer_putref(tmr);
@@ -2160,12 +2180,9 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 
 	WARN_ON_ONCE(!tsk->ptrace &&
 	       (tsk->group_leader != tsk || !thread_group_empty(tsk)));
-	/*
-	 * tsk is a group leader and has no threads, wake up the
-	 * non-PIDFD_THREAD waiters.
-	 */
-	if (thread_group_empty(tsk))
-		do_notify_pidfd(tsk);
+
+	/* ptraced, or group-leader without sub-threads */
+	do_notify_pidfd(tsk);
 
 	if (sig != SIGCHLD) {
 		/*
@@ -3990,56 +4007,12 @@ static struct pid *pidfd_to_pid(const struct file *file)
 	(PIDFD_SIGNAL_THREAD | PIDFD_SIGNAL_THREAD_GROUP | \
 	 PIDFD_SIGNAL_PROCESS_GROUP)
 
-/**
- * sys_pidfd_send_signal - Signal a process through a pidfd
- * @pidfd:  file descriptor of the process
- * @sig:    signal to send
- * @info:   signal info
- * @flags:  future flags
- *
- * Send the signal to the thread group or to the individual thread depending
- * on PIDFD_THREAD.
- * In the future extension to @flags may be used to override the default scope
- * of @pidfd.
- *
- * Return: 0 on success, negative errno on failure
- */
-SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
-		siginfo_t __user *, info, unsigned int, flags)
+static int do_pidfd_send_signal(struct pid *pid, int sig, enum pid_type type,
+				siginfo_t __user *info, unsigned int flags)
 {
-	int ret;
-	struct pid *pid;
 	kernel_siginfo_t kinfo;
-	enum pid_type type;
-
-	/* Enforce flags be set to 0 until we add an extension. */
-	if (flags & ~PIDFD_SEND_SIGNAL_FLAGS)
-		return -EINVAL;
-
-	/* Ensure that only a single signal scope determining flag is set. */
-	if (hweight32(flags & PIDFD_SEND_SIGNAL_FLAGS) > 1)
-		return -EINVAL;
-
-	CLASS(fd, f)(pidfd);
-	if (fd_empty(f))
-		return -EBADF;
-
-	/* Is this a pidfd? */
-	pid = pidfd_to_pid(fd_file(f));
-	if (IS_ERR(pid))
-		return PTR_ERR(pid);
-
-	if (!access_pidfd_pidns(pid))
-		return -EINVAL;
 
 	switch (flags) {
-	case 0:
-		/* Infer scope from the type of pidfd. */
-		if (fd_file(f)->f_flags & PIDFD_THREAD)
-			type = PIDTYPE_PID;
-		else
-			type = PIDTYPE_TGID;
-		break;
 	case PIDFD_SIGNAL_THREAD:
 		type = PIDTYPE_PID;
 		break;
@@ -4052,6 +4025,8 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	}
 
 	if (info) {
+		int ret;
+
 		ret = copy_siginfo_from_user_any(&kinfo, info);
 		if (unlikely(ret))
 			return ret;
@@ -4069,8 +4044,71 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 
 	if (type == PIDTYPE_PGID)
 		return kill_pgrp_info(sig, &kinfo, pid);
-	else
-		return kill_pid_info_type(sig, &kinfo, pid, type);
+
+	return kill_pid_info_type(sig, &kinfo, pid, type);
+}
+
+/**
+ * sys_pidfd_send_signal - Signal a process through a pidfd
+ * @pidfd:  file descriptor of the process
+ * @sig:    signal to send
+ * @info:   signal info
+ * @flags:  future flags
+ *
+ * Send the signal to the thread group or to the individual thread depending
+ * on PIDFD_THREAD.
+ * In the future extension to @flags may be used to override the default scope
+ * of @pidfd.
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
+		siginfo_t __user *, info, unsigned int, flags)
+{
+	struct pid *pid;
+	enum pid_type type;
+
+	/* Enforce flags be set to 0 until we add an extension. */
+	if (flags & ~PIDFD_SEND_SIGNAL_FLAGS)
+		return -EINVAL;
+
+	/* Ensure that only a single signal scope determining flag is set. */
+	if (hweight32(flags & PIDFD_SEND_SIGNAL_FLAGS) > 1)
+		return -EINVAL;
+
+	switch (pidfd) {
+	case PIDFD_SELF_THREAD:
+		pid = get_task_pid(current, PIDTYPE_PID);
+		type = PIDTYPE_PID;
+		break;
+	case PIDFD_SELF_THREAD_GROUP:
+		pid = get_task_pid(current, PIDTYPE_TGID);
+		type = PIDTYPE_TGID;
+		break;
+	default: {
+		CLASS(fd, f)(pidfd);
+		if (fd_empty(f))
+			return -EBADF;
+
+		/* Is this a pidfd? */
+		pid = pidfd_to_pid(fd_file(f));
+		if (IS_ERR(pid))
+			return PTR_ERR(pid);
+
+		if (!access_pidfd_pidns(pid))
+			return -EINVAL;
+
+		/* Infer scope from the type of pidfd. */
+		if (fd_file(f)->f_flags & PIDFD_THREAD)
+			type = PIDTYPE_PID;
+		else
+			type = PIDTYPE_TGID;
+
+		return do_pidfd_send_signal(pid, sig, type, info, flags);
+	}
+	}
+
+	return do_pidfd_send_signal(pid, sig, type, info, flags);
 }
 
 static int
@@ -4931,7 +4969,7 @@ static inline void siginfo_buildtime_checks(void)
 }
 
 #if defined(CONFIG_SYSCTL)
-static struct ctl_table signal_debug_table[] = {
+static const struct ctl_table signal_debug_table[] = {
 #ifdef CONFIG_SYSCTL_EXCEPTION_TRACE
 	{
 		.procname	= "exception-trace",
@@ -4943,9 +4981,20 @@ static struct ctl_table signal_debug_table[] = {
 #endif
 };
 
+static const struct ctl_table signal_table[] = {
+	{
+		.procname	= "print-fatal-signals",
+		.data		= &print_fatal_signals,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+};
+
 static int __init init_signal_sysctls(void)
 {
 	register_sysctl_init("debug", signal_debug_table);
+	register_sysctl_init("kernel", signal_table);
 	return 0;
 }
 early_initcall(init_signal_sysctls);

@@ -1355,6 +1355,8 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 	void __iomem *reg;
 	unsigned long pending;
 
+	chained_irq_enter(chip, desc);
+
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < vg->chip.ngpio; base += 32) {
 		reg = byt_gpio_reg(vg, base, BYT_INT_STAT_REG);
@@ -1369,7 +1371,8 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 		for_each_set_bit(pin, &pending, 32)
 			generic_handle_domain_irq(vg->chip.irq.domain, base + pin);
 	}
-	chip->irq_eoi(data);
+
+	chained_irq_exit(chip, desc);
 }
 
 static bool byt_direct_irq_sanity_check(struct intel_pinctrl *vg, int pin, u32 conf0)
@@ -1557,15 +1560,13 @@ static int byt_set_soc_data(struct intel_pinctrl *vg,
 	vg->soc = soc;
 
 	vg->ncommunities = vg->soc->ncommunities;
-	vg->communities = devm_kcalloc(vg->dev, vg->ncommunities,
-				       sizeof(*vg->communities), GFP_KERNEL);
+	vg->communities = devm_kmemdup_array(vg->dev, vg->soc->communities, vg->ncommunities,
+					     sizeof(*vg->soc->communities), GFP_KERNEL);
 	if (!vg->communities)
 		return -ENOMEM;
 
 	for (i = 0; i < vg->soc->ncommunities; i++) {
 		struct intel_community *comm = vg->communities + i;
-
-		*comm = vg->soc->communities[i];
 
 		comm->pad_regs = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(comm->pad_regs))

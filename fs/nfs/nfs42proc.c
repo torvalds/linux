@@ -21,6 +21,8 @@
 
 #define NFSDBG_FACILITY NFSDBG_PROC
 static int nfs42_do_offload_cancel_async(struct file *dst, nfs4_stateid *std);
+static int nfs42_proc_offload_status(struct file *file, nfs4_stateid *stateid,
+				     u64 *copied);
 
 static void nfs42_set_netaddr(struct file *filep, struct nfs42_netaddr *naddr)
 {
@@ -144,7 +146,8 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
 	if (err == -EOPNOTSUPP)
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_ALLOCATE;
+		NFS_SERVER(inode)->caps &= ~(NFS_CAP_ALLOCATE |
+					     NFS_CAP_ZERO_RANGE);
 
 	inode_unlock(inode);
 	return err;
@@ -167,10 +170,48 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	if (err == 0)
 		truncate_pagecache_range(inode, offset, (offset + len) -1);
 	if (err == -EOPNOTSUPP)
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_DEALLOCATE;
+		NFS_SERVER(inode)->caps &= ~(NFS_CAP_DEALLOCATE |
+					     NFS_CAP_ZERO_RANGE);
 
 	inode_unlock(inode);
 	return err;
+}
+
+int nfs42_proc_zero_range(struct file *filep, loff_t offset, loff_t len)
+{
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_ZERO_RANGE],
+	};
+	struct inode *inode = file_inode(filep);
+	int err;
+
+	if (!nfs_server_capable(inode, NFS_CAP_ZERO_RANGE))
+		return -EOPNOTSUPP;
+
+	inode_lock(inode);
+
+	err = nfs42_proc_fallocate(&msg, filep, offset, len);
+	if (err == 0)
+		truncate_pagecache_range(inode, offset, (offset + len) -1);
+	if (err == -EOPNOTSUPP)
+		NFS_SERVER(inode)->caps &= ~NFS_CAP_ZERO_RANGE;
+
+	inode_unlock(inode);
+	return err;
+}
+
+static void nfs4_copy_dequeue_callback(struct nfs_server *dst_server,
+				       struct nfs_server *src_server,
+				       struct nfs4_copy_state *copy)
+{
+	spin_lock(&dst_server->nfs_client->cl_lock);
+	list_del_init(&copy->copies);
+	spin_unlock(&dst_server->nfs_client->cl_lock);
+	if (dst_server != src_server) {
+		spin_lock(&src_server->nfs_client->cl_lock);
+		list_del_init(&copy->src_copies);
+		spin_unlock(&src_server->nfs_client->cl_lock);
+	}
 }
 
 static int handle_async_copy(struct nfs42_copy_res *res,
@@ -182,9 +223,12 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 			     bool *restart)
 {
 	struct nfs4_copy_state *copy, *tmp_copy = NULL, *iter;
-	int status = NFS4_OK;
 	struct nfs_open_context *dst_ctx = nfs_file_open_context(dst);
 	struct nfs_open_context *src_ctx = nfs_file_open_context(src);
+	struct nfs_client *clp = dst_server->nfs_client;
+	unsigned long timeout = 3 * HZ;
+	int status = NFS4_OK;
+	u64 copied;
 
 	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_KERNEL);
 	if (!copy)
@@ -222,15 +266,12 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 		spin_unlock(&src_server->nfs_client->cl_lock);
 	}
 
-	status = wait_for_completion_interruptible(&copy->completion);
-	spin_lock(&dst_server->nfs_client->cl_lock);
-	list_del_init(&copy->copies);
-	spin_unlock(&dst_server->nfs_client->cl_lock);
-	if (dst_server != src_server) {
-		spin_lock(&src_server->nfs_client->cl_lock);
-		list_del_init(&copy->src_copies);
-		spin_unlock(&src_server->nfs_client->cl_lock);
-	}
+wait:
+	status = wait_for_completion_interruptible_timeout(&copy->completion,
+							   timeout);
+	if (!status)
+		goto timeout;
+	nfs4_copy_dequeue_callback(dst_server, src_server, copy);
 	if (status == -ERESTARTSYS) {
 		goto out_cancel;
 	} else if (copy->flags || copy->error == NFS4ERR_PARTNER_NO_AUTH) {
@@ -240,6 +281,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	}
 out:
 	res->write_res.count = copy->count;
+	/* Copy out the updated write verifier provided by CB_OFFLOAD. */
 	memcpy(&res->write_res.verifier, &copy->verf, sizeof(copy->verf));
 	status = -copy->error;
 
@@ -250,6 +292,39 @@ out_cancel:
 	nfs42_do_offload_cancel_async(dst, &copy->stateid);
 	if (!nfs42_files_from_same_server(src, dst))
 		nfs42_do_offload_cancel_async(src, src_stateid);
+	goto out_free;
+timeout:
+	timeout <<= 1;
+	if (timeout > (clp->cl_lease_time >> 1))
+		timeout = clp->cl_lease_time >> 1;
+	status = nfs42_proc_offload_status(dst, &copy->stateid, &copied);
+	if (status == -EINPROGRESS)
+		goto wait;
+	nfs4_copy_dequeue_callback(dst_server, src_server, copy);
+	switch (status) {
+	case 0:
+		/* The server recognized the copy stateid, so it hasn't
+		 * rebooted. Don't overwrite the verifier returned in the
+		 * COPY result. */
+		res->write_res.count = copied;
+		goto out_free;
+	case -EREMOTEIO:
+		/* COPY operation failed on the server. */
+		status = -EOPNOTSUPP;
+		res->write_res.count = copied;
+		goto out_free;
+	case -EBADF:
+		/* Server did not recognize the copy stateid. It has
+		 * probably restarted and lost the plot. */
+		res->write_res.count = 0;
+		status = -EOPNOTSUPP;
+		break;
+	case -EOPNOTSUPP:
+		/* RFC 7862 REQUIREs server to support OFFLOAD_STATUS when
+		 * it has signed up for an async COPY, so server is not
+		 * spec-compliant. */
+		res->write_res.count = 0;
+	}
 	goto out_free;
 }
 
@@ -498,15 +573,15 @@ out_put_src_lock:
 	return err;
 }
 
-struct nfs42_offloadcancel_data {
+struct nfs42_offload_data {
 	struct nfs_server *seq_server;
 	struct nfs42_offload_status_args args;
 	struct nfs42_offload_status_res res;
 };
 
-static void nfs42_offload_cancel_prepare(struct rpc_task *task, void *calldata)
+static void nfs42_offload_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs42_offloadcancel_data *data = calldata;
+	struct nfs42_offload_data *data = calldata;
 
 	nfs4_setup_sequence(data->seq_server->nfs_client,
 				&data->args.osa_seq_args,
@@ -515,7 +590,7 @@ static void nfs42_offload_cancel_prepare(struct rpc_task *task, void *calldata)
 
 static void nfs42_offload_cancel_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs42_offloadcancel_data *data = calldata;
+	struct nfs42_offload_data *data = calldata;
 
 	trace_nfs4_offload_cancel(&data->args, task->tk_status);
 	nfs41_sequence_done(task, &data->res.osr_seq_res);
@@ -525,22 +600,22 @@ static void nfs42_offload_cancel_done(struct rpc_task *task, void *calldata)
 		rpc_restart_call_prepare(task);
 }
 
-static void nfs42_free_offloadcancel_data(void *data)
+static void nfs42_offload_release(void *data)
 {
 	kfree(data);
 }
 
 static const struct rpc_call_ops nfs42_offload_cancel_ops = {
-	.rpc_call_prepare = nfs42_offload_cancel_prepare,
+	.rpc_call_prepare = nfs42_offload_prepare,
 	.rpc_call_done = nfs42_offload_cancel_done,
-	.rpc_release = nfs42_free_offloadcancel_data,
+	.rpc_release = nfs42_offload_release,
 };
 
 static int nfs42_do_offload_cancel_async(struct file *dst,
 					 nfs4_stateid *stateid)
 {
 	struct nfs_server *dst_server = NFS_SERVER(file_inode(dst));
-	struct nfs42_offloadcancel_data *data = NULL;
+	struct nfs42_offload_data *data = NULL;
 	struct nfs_open_context *ctx = nfs_file_open_context(dst);
 	struct rpc_task *task;
 	struct rpc_message msg = {
@@ -552,14 +627,14 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 		.rpc_message = &msg,
 		.callback_ops = &nfs42_offload_cancel_ops,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_MOVEABLE,
 	};
 	int status;
 
 	if (!(dst_server->caps & NFS_CAP_OFFLOAD_CANCEL))
 		return -EOPNOTSUPP;
 
-	data = kzalloc(sizeof(struct nfs42_offloadcancel_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct nfs42_offload_data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -579,6 +654,108 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	if (status == -ENOTSUPP)
 		dst_server->caps &= ~NFS_CAP_OFFLOAD_CANCEL;
 	rpc_put_task(task);
+	return status;
+}
+
+static int
+_nfs42_proc_offload_status(struct nfs_server *server, struct file *file,
+			   struct nfs42_offload_data *data)
+{
+	struct nfs_open_context *ctx = nfs_file_open_context(file);
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_OFFLOAD_STATUS],
+		.rpc_argp	= &data->args,
+		.rpc_resp	= &data->res,
+		.rpc_cred	= ctx->cred,
+	};
+	int status;
+
+	status = nfs4_call_sync(server->client, server, &msg,
+				&data->args.osa_seq_args,
+				&data->res.osr_seq_res, 1);
+	trace_nfs4_offload_status(&data->args, status);
+	switch (status) {
+	case 0:
+		break;
+
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_BAD_STATEID:
+	case -NFS4ERR_OLD_STATEID:
+		/*
+		 * Server does not recognize the COPY stateid. CB_OFFLOAD
+		 * could have purged it, or server might have rebooted.
+		 * Since COPY stateids don't have an associated inode,
+		 * avoid triggering state recovery.
+		 */
+		status = -EBADF;
+		break;
+	case -NFS4ERR_NOTSUPP:
+	case -ENOTSUPP:
+	case -EOPNOTSUPP:
+		server->caps &= ~NFS_CAP_OFFLOAD_STATUS;
+		status = -EOPNOTSUPP;
+		break;
+	}
+
+	return status;
+}
+
+/**
+ * nfs42_proc_offload_status - Poll completion status of an async copy operation
+ * @dst: handle of file being copied into
+ * @stateid: copy stateid (from async COPY result)
+ * @copied: OUT: number of bytes copied so far
+ *
+ * Return values:
+ *   %0: Server returned an NFS4_OK completion status
+ *   %-EINPROGRESS: Server returned no completion status
+ *   %-EREMOTEIO: Server returned an error completion status
+ *   %-EBADF: Server did not recognize the copy stateid
+ *   %-EOPNOTSUPP: Server does not support OFFLOAD_STATUS
+ *   %-ERESTARTSYS: Wait interrupted by signal
+ *
+ * Other negative errnos indicate the client could not complete the
+ * request.
+ */
+static int
+nfs42_proc_offload_status(struct file *dst, nfs4_stateid *stateid, u64 *copied)
+{
+	struct inode *inode = file_inode(dst);
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs4_exception exception = {
+		.inode = inode,
+	};
+	struct nfs42_offload_data *data;
+	int status;
+
+	if (!(server->caps & NFS_CAP_OFFLOAD_STATUS))
+		return -EOPNOTSUPP;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	data->seq_server = server;
+	data->args.osa_src_fh = NFS_FH(inode);
+	memcpy(&data->args.osa_stateid, stateid,
+		sizeof(data->args.osa_stateid));
+	exception.stateid = &data->args.osa_stateid;
+	do {
+		status = _nfs42_proc_offload_status(server, dst, data);
+		if (status == -EOPNOTSUPP)
+			goto out;
+		status = nfs4_handle_exception(server, status, &exception);
+	} while (exception.retry);
+	if (status)
+		goto out;
+
+	*copied = data->res.osr_count;
+	if (!data->res.complete_count)
+		status = -EINPROGRESS;
+	else if (data->res.osr_complete != NFS_OK)
+		status = -EREMOTEIO;
+
+out:
+	kfree(data);
 	return status;
 }
 
@@ -861,7 +1038,7 @@ int nfs42_proc_layoutstats_generic(struct nfs_server *server,
 		.rpc_message = &msg,
 		.callback_ops = &nfs42_layoutstat_ops,
 		.callback_data = data,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_MOVEABLE,
 	};
 	struct rpc_task *task;
 
@@ -1016,7 +1193,7 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 	struct rpc_task_setup task_setup = {
 		.rpc_message = &msg,
 		.callback_ops = &nfs42_layouterror_ops,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_MOVEABLE,
 	};
 	unsigned int i;
 

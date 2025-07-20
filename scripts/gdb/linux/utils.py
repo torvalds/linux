@@ -11,6 +11,11 @@
 # This work is licensed under the terms of the GNU GPL version 2.
 #
 
+import contextlib
+import dataclasses
+import re
+import typing
+
 import gdb
 
 
@@ -195,7 +200,7 @@ def get_gdbserver_type():
 
     def probe_kgdb():
         try:
-            thread_info = gdb.execute("info thread 2", to_string=True)
+            thread_info = gdb.execute("info thread 1", to_string=True)
             return "shadowCPU" in thread_info
         except gdb.error:
             return False
@@ -216,3 +221,53 @@ def gdb_eval_or_none(expresssion):
         return gdb.parse_and_eval(expresssion)
     except gdb.error:
         return None
+
+
+@contextlib.contextmanager
+def qemu_phy_mem_mode():
+    connection = gdb.selected_inferior().connection
+    orig = connection.send_packet("qqemu.PhyMemMode")
+    if orig not in b"01":
+        raise gdb.error("Unexpected qemu.PhyMemMode")
+    orig = orig.decode()
+    if connection.send_packet("Qqemu.PhyMemMode:1") != b"OK":
+        raise gdb.error("Failed to set qemu.PhyMemMode")
+    try:
+        yield
+    finally:
+        if connection.send_packet("Qqemu.PhyMemMode:" + orig) != b"OK":
+            raise gdb.error("Failed to restore qemu.PhyMemMode")
+
+
+@dataclasses.dataclass
+class VmCore:
+    kerneloffset: typing.Optional[int]
+
+
+def parse_vmcore(s):
+    match = re.search(r"KERNELOFFSET=([0-9a-f]+)", s)
+    if match is None:
+        kerneloffset = None
+    else:
+        kerneloffset = int(match.group(1), 16)
+    return VmCore(kerneloffset=kerneloffset)
+
+
+def get_vmlinux():
+    vmlinux = 'vmlinux'
+    for obj in gdb.objfiles():
+        if (obj.filename.endswith('vmlinux') or
+            obj.filename.endswith('vmlinux.debug')):
+            vmlinux = obj.filename
+    return vmlinux
+
+
+@contextlib.contextmanager
+def pagination_off():
+    show_pagination = gdb.execute("show pagination", to_string=True)
+    pagination = show_pagination.endswith("on.\n")
+    gdb.execute("set pagination off")
+    try:
+        yield
+    finally:
+        gdb.execute("set pagination %s" % ("on" if pagination else "off"))

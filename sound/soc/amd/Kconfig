@@ -105,7 +105,7 @@ config SND_SOC_AMD_ACP6x
 config SND_SOC_AMD_YC_MACH
 	tristate "AMD YC support for DMIC"
 	select SND_SOC_DMIC
-	depends on SND_SOC_AMD_ACP6x
+	depends on SND_SOC_AMD_ACP6x && ACPI
 	help
 	  This option enables machine driver for Yellow Carp platform
 	  using dmic. ACP IP has PDM Decoder block with DMA controller.
@@ -161,15 +161,15 @@ config SND_SOC_AMD_SOUNDWIRE
 	  If unsure select "N".
 
 config SND_SOC_AMD_PS
-        tristate "AMD Audio Coprocessor-v6.3 Pink Sardine support"
+        tristate "AMD Audio Coprocessor-v6.3/v7.0/v7.1 support"
 	select SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
 	select SND_SOC_ACPI_AMD_MATCH
         depends on X86 && PCI && ACPI
         help
-          This option enables Audio Coprocessor i.e ACP v6.3 support on
-          AMD Pink sardine platform. By enabling this flag build will be
-          triggered for ACP PCI driver, ACP PDM DMA driver, ACP SoundWire
-          DMA driver.
+	  This option enables Audio Coprocessor i.e ACP6.3/ACP7.0/ACP7.1
+	  variants support. By enabling this flag build will be triggered
+	  for ACP PCI driver, ACP PDM DMA driver, ACP SoundWire DMA
+	  driver.
           Say m if you have such a device.
           If unsure select "N".
 

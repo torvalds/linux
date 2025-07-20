@@ -23,9 +23,11 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_throttle.h"
 #include "xe_guc_ads.h"
+#include "xe_guc_buf.h"
 #include "xe_guc_capture.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_db_mgr.h"
+#include "xe_guc_engine_activity.h"
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
@@ -44,7 +46,15 @@ static u32 guc_bo_ggtt_addr(struct xe_guc *guc,
 			    struct xe_bo *bo)
 {
 	struct xe_device *xe = guc_to_xe(guc);
-	u32 addr = xe_bo_ggtt_addr(bo);
+	u32 addr;
+
+	/*
+	 * For most BOs, the address on the allocating tile is fine. However for
+	 * some, e.g. G2G CTB, the address on a specific tile is required as it
+	 * might be different for each tile. So, just always ask for the address
+	 * on the target GuC.
+	 */
+	addr = __xe_bo_ggtt_addr(bo, gt_to_tile(guc_to_gt(guc))->id);
 
 	/* GuC addresses above GUC_GGTT_TOP don't map through the GTT */
 	xe_assert(xe, addr >= xe_wopcm_size(guc_to_xe(guc)));
@@ -139,6 +149,34 @@ static u32 guc_ctl_ads_flags(struct xe_guc *guc)
 	return flags;
 }
 
+static bool needs_wa_dual_queue(struct xe_gt *gt)
+{
+	/*
+	 * The DUAL_QUEUE_WA tells the GuC to not allow concurrent submissions
+	 * on RCS and CCSes with different address spaces, which on DG2 is
+	 * required as a WA for an HW bug.
+	 */
+	if (XE_WA(gt, 22011391025))
+		return true;
+
+	/*
+	 * On newer platforms, the HW has been updated to not allow parallel
+	 * execution of different address spaces, so the RCS/CCS will stall the
+	 * context switch if one of the other RCS/CCSes is busy with a different
+	 * address space. While functionally correct, having a submission
+	 * stalled on the HW limits the GuC ability to shuffle things around and
+	 * can cause complications if the non-stalled submission runs for a long
+	 * time, because the GuC doesn't know that the stalled submission isn't
+	 * actually running and might declare it as hung. Therefore, we enable
+	 * the DUAL_QUEUE_WA on all newer platforms on GTs that have CCS engines
+	 * to move management back to the GuC.
+	 */
+	if (CCS_MASK(gt) && GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270)
+		return true;
+
+	return false;
+}
+
 static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -151,7 +189,7 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_WA(gt, 14014475959))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
-	if (XE_WA(gt, 22011391025))
+	if (needs_wa_dual_queue(gt))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
@@ -244,6 +282,294 @@ static void guc_write_params(struct xe_guc *guc)
 		xe_mmio_write32(&gt->mmio, SOFT_SCRATCH(1 + i), guc->params[i]);
 }
 
+static int guc_action_register_g2g_buffer(struct xe_guc *guc, u32 type, u32 dst_tile, u32 dst_dev,
+					  u32 desc_addr, u32 buff_addr, u32 size)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 action[] = {
+		XE_GUC_ACTION_REGISTER_G2G,
+		FIELD_PREP(XE_G2G_REGISTER_SIZE, size / SZ_4K - 1) |
+		FIELD_PREP(XE_G2G_REGISTER_TYPE, type) |
+		FIELD_PREP(XE_G2G_REGISTER_TILE, dst_tile) |
+		FIELD_PREP(XE_G2G_REGISTER_DEVICE, dst_dev),
+		desc_addr,
+		buff_addr,
+	};
+
+	xe_assert(xe, (type == XE_G2G_TYPE_IN) || (type == XE_G2G_TYPE_OUT));
+	xe_assert(xe, !(size % SZ_4K));
+
+	return xe_guc_ct_send_block(&guc->ct, action, ARRAY_SIZE(action));
+}
+
+static int guc_action_deregister_g2g_buffer(struct xe_guc *guc, u32 type, u32 dst_tile, u32 dst_dev)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 action[] = {
+		XE_GUC_ACTION_DEREGISTER_G2G,
+		FIELD_PREP(XE_G2G_DEREGISTER_TYPE, type) |
+		FIELD_PREP(XE_G2G_DEREGISTER_TILE, dst_tile) |
+		FIELD_PREP(XE_G2G_DEREGISTER_DEVICE, dst_dev),
+	};
+
+	xe_assert(xe, (type == XE_G2G_TYPE_IN) || (type == XE_G2G_TYPE_OUT));
+
+	return xe_guc_ct_send_block(&guc->ct, action, ARRAY_SIZE(action));
+}
+
+#define G2G_DEV(gt)	(((gt)->info.type == XE_GT_TYPE_MAIN) ? 0 : 1)
+
+#define G2G_BUFFER_SIZE (SZ_4K)
+#define G2G_DESC_SIZE (64)
+#define G2G_DESC_AREA_SIZE (SZ_4K)
+
+/*
+ * Generate a unique id for each bi-directional CTB for each pair of
+ * near and far tiles/devices. The id can then be used as an index into
+ * a single allocation that is sub-divided into multiple CTBs.
+ *
+ * For example, with two devices per tile and two tiles, the table should
+ * look like:
+ *           Far <tile>.<dev>
+ *         0.0   0.1   1.0   1.1
+ * N 0.0  --/-- 00/01 02/03 04/05
+ * e 0.1  01/00 --/-- 06/07 08/09
+ * a 1.0  03/02 07/06 --/-- 10/11
+ * r 1.1  05/04 09/08 11/10 --/--
+ *
+ * Where each entry is Rx/Tx channel id.
+ *
+ * So GuC #3 (tile 1, dev 1) talking to GuC #2 (tile 1, dev 0) would
+ * be reading from channel #11 and writing to channel #10. Whereas,
+ * GuC #2 talking to GuC #3 would be read on #10 and write to #11.
+ */
+static unsigned int g2g_slot(u32 near_tile, u32 near_dev, u32 far_tile, u32 far_dev,
+			     u32 type, u32 max_inst, bool have_dev)
+{
+	u32 near = near_tile, far = far_tile;
+	u32 idx = 0, x, y, direction;
+	int i;
+
+	if (have_dev) {
+		near = (near << 1) | near_dev;
+		far = (far << 1) | far_dev;
+	}
+
+	/* No need to send to one's self */
+	if (far == near)
+		return -1;
+
+	if (far > near) {
+		/* Top right table half */
+		x = far;
+		y = near;
+
+		/* T/R is 'forwards' direction */
+		direction = type;
+	} else {
+		/* Bottom left table half */
+		x = near;
+		y = far;
+
+		/* B/L is 'backwards' direction */
+		direction = (1 - type);
+	}
+
+	/* Count the rows prior to the target */
+	for (i = y; i > 0; i--)
+		idx += max_inst - i;
+
+	/* Count this row up to the target */
+	idx += (x - 1 - y);
+
+	/* Slots are in Rx/Tx pairs */
+	idx *= 2;
+
+	/* Pick Rx/Tx direction */
+	idx += direction;
+
+	return idx;
+}
+
+static int guc_g2g_register(struct xe_guc *near_guc, struct xe_gt *far_gt, u32 type, bool have_dev)
+{
+	struct xe_gt *near_gt = guc_to_gt(near_guc);
+	struct xe_device *xe = gt_to_xe(near_gt);
+	struct xe_bo *g2g_bo;
+	u32 near_tile = gt_to_tile(near_gt)->id;
+	u32 near_dev = G2G_DEV(near_gt);
+	u32 far_tile = gt_to_tile(far_gt)->id;
+	u32 far_dev = G2G_DEV(far_gt);
+	u32 max = xe->info.gt_count;
+	u32 base, desc, buf;
+	int slot;
+
+	/* G2G is not allowed between different cards */
+	xe_assert(xe, xe == gt_to_xe(far_gt));
+
+	g2g_bo = near_guc->g2g.bo;
+	xe_assert(xe, g2g_bo);
+
+	slot = g2g_slot(near_tile, near_dev, far_tile, far_dev, type, max, have_dev);
+	xe_assert(xe, slot >= 0);
+
+	base = guc_bo_ggtt_addr(near_guc, g2g_bo);
+	desc = base + slot * G2G_DESC_SIZE;
+	buf = base + G2G_DESC_AREA_SIZE + slot * G2G_BUFFER_SIZE;
+
+	xe_assert(xe, (desc - base + G2G_DESC_SIZE) <= G2G_DESC_AREA_SIZE);
+	xe_assert(xe, (buf - base + G2G_BUFFER_SIZE) <= g2g_bo->size);
+
+	return guc_action_register_g2g_buffer(near_guc, type, far_tile, far_dev,
+					      desc, buf, G2G_BUFFER_SIZE);
+}
+
+static void guc_g2g_deregister(struct xe_guc *guc, u32 far_tile, u32 far_dev, u32 type)
+{
+	guc_action_deregister_g2g_buffer(guc, type, far_tile, far_dev);
+}
+
+static u32 guc_g2g_size(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int count = xe->info.gt_count;
+	u32 num_channels = (count * (count - 1)) / 2;
+
+	xe_assert(xe, num_channels * XE_G2G_TYPE_LIMIT * G2G_DESC_SIZE <= G2G_DESC_AREA_SIZE);
+
+	return num_channels * XE_G2G_TYPE_LIMIT * G2G_BUFFER_SIZE + G2G_DESC_AREA_SIZE;
+}
+
+static bool xe_guc_g2g_wanted(struct xe_device *xe)
+{
+	/* Can't do GuC to GuC communication if there is only one GuC */
+	if (xe->info.gt_count <= 1)
+		return false;
+
+	/* No current user */
+	return false;
+}
+
+static int guc_g2g_alloc(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_bo *bo;
+	u32 g2g_size;
+
+	if (guc->g2g.bo)
+		return 0;
+
+	if (gt->info.id != 0) {
+		struct xe_gt *root_gt = xe_device_get_gt(xe, 0);
+		struct xe_guc *root_guc = &root_gt->uc.guc;
+		struct xe_bo *bo;
+
+		bo = xe_bo_get(root_guc->g2g.bo);
+		if (!bo)
+			return -ENODEV;
+
+		guc->g2g.bo = bo;
+		guc->g2g.owned = false;
+		return 0;
+	}
+
+	g2g_size = guc_g2g_size(guc);
+	bo = xe_managed_bo_create_pin_map(xe, tile, g2g_size,
+					  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+					  XE_BO_FLAG_GGTT |
+					  XE_BO_FLAG_GGTT_ALL |
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_PINNED_NORESTORE);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
+
+	xe_map_memset(xe, &bo->vmap, 0, 0, g2g_size);
+	guc->g2g.bo = bo;
+	guc->g2g.owned = true;
+
+	return 0;
+}
+
+static void guc_g2g_fini(struct xe_guc *guc)
+{
+	if (!guc->g2g.bo)
+		return;
+
+	/* Unpinning the owned object is handled by generic shutdown */
+	if (!guc->g2g.owned)
+		xe_bo_put(guc->g2g.bo);
+
+	guc->g2g.bo = NULL;
+}
+
+static int guc_g2g_start(struct xe_guc *guc)
+{
+	struct xe_gt *far_gt, *gt = guc_to_gt(guc);
+	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int i, j;
+	int t, err;
+	bool have_dev;
+
+	if (!guc->g2g.bo) {
+		int ret;
+
+		ret = guc_g2g_alloc(guc);
+		if (ret)
+			return ret;
+	}
+
+	/* GuC interface will need extending if more GT device types are ever created. */
+	xe_gt_assert(gt, (gt->info.type == XE_GT_TYPE_MAIN) || (gt->info.type == XE_GT_TYPE_MEDIA));
+
+	/* Channel numbering depends on whether there are multiple GTs per tile */
+	have_dev = xe->info.gt_count > xe->info.tile_count;
+
+	for_each_gt(far_gt, xe, i) {
+		u32 far_tile, far_dev;
+
+		if (far_gt->info.id == gt->info.id)
+			continue;
+
+		far_tile = gt_to_tile(far_gt)->id;
+		far_dev = G2G_DEV(far_gt);
+
+		for (t = 0; t < XE_G2G_TYPE_LIMIT; t++) {
+			err = guc_g2g_register(guc, far_gt, t, have_dev);
+			if (err) {
+				while (--t >= 0)
+					guc_g2g_deregister(guc, far_tile, far_dev, t);
+				goto err_deregister;
+			}
+		}
+	}
+
+	return 0;
+
+err_deregister:
+	for_each_gt(far_gt, xe, j) {
+		u32 tile, dev;
+
+		if (far_gt->info.id == gt->info.id)
+			continue;
+
+		if (j >= i)
+			break;
+
+		tile = gt_to_tile(far_gt)->id;
+		dev = G2G_DEV(far_gt);
+
+		for (t = 0; t < XE_G2G_TYPE_LIMIT; t++)
+			guc_g2g_deregister(guc, tile, dev, t);
+	}
+
+	return err;
+}
+
 static void guc_fini_hw(void *arg)
 {
 	struct xe_guc *guc = arg;
@@ -253,6 +579,8 @@ static void guc_fini_hw(void *arg)
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	xe_uc_fini_hw(&guc_to_gt(guc)->uc);
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+
+	guc_g2g_fini(guc);
 }
 
 /**
@@ -418,12 +746,29 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 	if (ret)
 		return ret;
 
+	ret = xe_guc_engine_activity_init(guc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_buf_cache_init(&guc->buf);
+	if (ret)
+		return ret;
+
 	return xe_guc_ads_init_post_hwconfig(&guc->ads);
 }
 
 int xe_guc_post_load_init(struct xe_guc *guc)
 {
+	int ret;
+
 	xe_guc_ads_populate_post_load(&guc->ads);
+
+	if (xe_guc_g2g_wanted(guc_to_xe(guc))) {
+		ret = guc_g2g_start(guc);
+		if (ret)
+			return ret;
+	}
+
 	guc->submission_state.enabled = true;
 
 	return 0;
@@ -945,7 +1290,6 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 
 	BUILD_BUG_ON(VF_SW_FLAG_COUNT != MED_VF_SW_FLAG_COUNT);
 
-	xe_assert(xe, !xe_guc_ct_enabled(&guc->ct));
 	xe_assert(xe, len);
 	xe_assert(xe, len <= VF_SW_FLAG_COUNT);
 	xe_assert(xe, len <= MED_VF_SW_FLAG_COUNT);
@@ -1050,6 +1394,7 @@ proto:
 	/* Use data from the GuC response as our return value */
 	return FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, header);
 }
+ALLOW_ERROR_INJECTION(xe_guc_mmio_send_recv, ERRNO);
 
 int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
 {
@@ -1099,10 +1444,21 @@ int xe_guc_self_cfg64(struct xe_guc *guc, u16 key, u64 val)
 	return guc_self_cfg(guc, key, 2, val);
 }
 
+static void xe_guc_sw_0_irq_handler(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		xe_gt_sriov_vf_migrated_event_handler(gt);
+}
+
 void xe_guc_irq_handler(struct xe_guc *guc, const u16 iir)
 {
 	if (iir & GUC_INTR_GUC2HOST)
 		xe_guc_ct_irq_handler(&guc->ct);
+
+	if (iir & GUC_INTR_SW_INT_0)
+		xe_guc_sw_0_irq_handler(guc);
 }
 
 void xe_guc_sanitize(struct xe_guc *guc)
@@ -1142,14 +1498,6 @@ void xe_guc_stop(struct xe_guc *guc)
 
 int xe_guc_start(struct xe_guc *guc)
 {
-	if (!IS_SRIOV_VF(guc_to_xe(guc))) {
-		int err;
-
-		err = xe_guc_pc_start(&guc->pc);
-		xe_gt_WARN(guc_to_gt(guc), err, "Failed to start GuC PC: %pe\n",
-			   ERR_PTR(err));
-	}
-
 	return xe_guc_submit_start(guc);
 }
 
@@ -1162,29 +1510,31 @@ void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 
 	xe_uc_fw_print(&guc->fw, p);
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
-		return;
+	if (!IS_SRIOV_VF(gt_to_xe(gt))) {
+		fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+		if (!fw_ref)
+			return;
 
-	status = xe_mmio_read32(&gt->mmio, GUC_STATUS);
+		status = xe_mmio_read32(&gt->mmio, GUC_STATUS);
 
-	drm_printf(p, "\nGuC status 0x%08x:\n", status);
-	drm_printf(p, "\tBootrom status = 0x%x\n",
-		   REG_FIELD_GET(GS_BOOTROM_MASK, status));
-	drm_printf(p, "\tuKernel status = 0x%x\n",
-		   REG_FIELD_GET(GS_UKERNEL_MASK, status));
-	drm_printf(p, "\tMIA Core status = 0x%x\n",
-		   REG_FIELD_GET(GS_MIA_MASK, status));
-	drm_printf(p, "\tLog level = %d\n",
-		   xe_guc_log_get_level(&guc->log));
+		drm_printf(p, "\nGuC status 0x%08x:\n", status);
+		drm_printf(p, "\tBootrom status = 0x%x\n",
+			   REG_FIELD_GET(GS_BOOTROM_MASK, status));
+		drm_printf(p, "\tuKernel status = 0x%x\n",
+			   REG_FIELD_GET(GS_UKERNEL_MASK, status));
+		drm_printf(p, "\tMIA Core status = 0x%x\n",
+			   REG_FIELD_GET(GS_MIA_MASK, status));
+		drm_printf(p, "\tLog level = %d\n",
+			   xe_guc_log_get_level(&guc->log));
 
-	drm_puts(p, "\nScratch registers:\n");
-	for (i = 0; i < SOFT_SCRATCH_COUNT; i++) {
-		drm_printf(p, "\t%2d: \t0x%x\n",
-			   i, xe_mmio_read32(&gt->mmio, SOFT_SCRATCH(i)));
+		drm_puts(p, "\nScratch registers:\n");
+		for (i = 0; i < SOFT_SCRATCH_COUNT; i++) {
+			drm_printf(p, "\t%2d: \t0x%x\n",
+				   i, xe_mmio_read32(&gt->mmio, SOFT_SCRATCH(i)));
+		}
+
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	}
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	drm_puts(p, "\n");
 	xe_guc_ct_print(&guc->ct, p, false);

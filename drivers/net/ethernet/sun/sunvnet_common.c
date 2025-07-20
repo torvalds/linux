@@ -1044,7 +1044,7 @@ static inline void vnet_free_skbs(struct sk_buff *skb)
 
 void sunvnet_clean_timer_expire_common(struct timer_list *t)
 {
-	struct vnet_port *port = from_timer(port, t, clean_timer);
+	struct vnet_port *port = timer_container_of(port, t, clean_timer);
 	struct sk_buff *freeskbs;
 	unsigned pending;
 
@@ -1058,7 +1058,7 @@ void sunvnet_clean_timer_expire_common(struct timer_list *t)
 		(void)mod_timer(&port->clean_timer,
 				jiffies + VNET_CLEAN_TIMEOUT);
 	 else
-		del_timer(&port->clean_timer);
+		timer_delete(&port->clean_timer);
 }
 EXPORT_SYMBOL_GPL(sunvnet_clean_timer_expire_common);
 
@@ -1513,7 +1513,7 @@ out_dropped:
 		(void)mod_timer(&port->clean_timer,
 				jiffies + VNET_CLEAN_TIMEOUT);
 	else if (port)
-		del_timer(&port->clean_timer);
+		timer_delete(&port->clean_timer);
 	rcu_read_unlock();
 	dev_kfree_skb(skb);
 	vnet_free_skbs(freeskbs);
@@ -1707,7 +1707,7 @@ EXPORT_SYMBOL_GPL(sunvnet_port_free_tx_bufs_common);
 
 void vnet_port_reset(struct vnet_port *port)
 {
-	del_timer(&port->clean_timer);
+	timer_delete(&port->clean_timer);
 	sunvnet_port_free_tx_bufs_common(port);
 	port->rmtu = 0;
 	port->tso = (port->vsw == 0);  /* no tso in vsw, misbehaves in bridge */

@@ -291,7 +291,7 @@
 	/* SMB_BMC_MGMT_LVC3 */
 	status = "okay";
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c64";
 		reg = <0x50>;
 		pagesize = <32>;

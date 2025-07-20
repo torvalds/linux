@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -751,7 +751,7 @@ static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
 					      u32 id, s8 link_id)
 {
 	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, link_id);
-	struct iwl_mvm_session_prot_cmd cmd = {
+	struct iwl_session_prot_cmd cmd = {
 		.id_and_color = cpu_to_le32(mac_link_id),
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.conf_id = cpu_to_le32(id),
@@ -775,11 +775,13 @@ static void iwl_mvm_roc_rm_cmd(struct iwl_mvm *mvm, u32 activity)
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.activity = cpu_to_le32(activity),
 	};
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0);
+	u16 cmd_len = ver < 6 ? sizeof(struct iwl_roc_req_v5) : sizeof(roc_cmd);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0,
-				   sizeof(roc_cmd), &roc_cmd);
+				   cmd_len, &roc_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Couldn't send the ROC_CMD: %d\n", ret);
 }
@@ -955,7 +957,7 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mvm_session_prot_notif *notif = (void *)pkt->data;
+	struct iwl_session_prot_notif *notif = (void *)pkt->data;
 	unsigned int ver =
 		iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
 					SESSION_PROTECTION_NOTIF, 2);
@@ -1030,6 +1032,8 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 		/* End TE, notify mac80211 */
 		mvmvif->time_event_data.id = SESSION_PROTECT_CONF_MAX_ID;
 		mvmvif->time_event_data.link_id = -1;
+		/* set the bit so the ROC cleanup will actually clean up */
+		set_bit(IWL_MVM_STATUS_ROC_P2P_RUNNING, &mvm->status);
 		iwl_mvm_roc_finished(mvm);
 		ieee80211_remain_on_channel_expired(mvm->hw);
 	} else if (le32_to_cpu(notif->start)) {
@@ -1105,6 +1109,8 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 		.activity = cpu_to_le32(activity),
 		.sta_id = cpu_to_le32(mvm->aux_sta.sta_id),
 	};
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0);
+	u16 cmd_len = ver < 6 ? sizeof(struct iwl_roc_req_v5) : sizeof(roc_req);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1134,7 +1140,7 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 	memcpy(roc_req.node_addr, vif->addr, ETH_ALEN);
 
 	res = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD),
-				   0, sizeof(roc_req), &roc_req);
+				   0, cmd_len, &roc_req);
 	if (!res)
 		mvmvif->roc_activity = activity;
 
@@ -1148,7 +1154,7 @@ iwl_mvm_start_p2p_roc_session_protection(struct iwl_mvm *mvm,
 					 enum ieee80211_roc_type type)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_session_prot_cmd cmd = {
+	struct iwl_session_prot_cmd cmd = {
 		.id_and_color =
 			cpu_to_le32(iwl_mvm_get_session_prot_id(mvm, vif, 0)),
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
@@ -1417,7 +1423,7 @@ static bool iwl_mvm_session_prot_notif(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_mvm *mvm =
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
-	struct iwl_mvm_session_prot_notif *resp;
+	struct iwl_session_prot_notif *resp;
 	int resp_len = iwl_rx_packet_payload_len(pkt);
 
 	if (WARN_ON(pkt->hdr.cmd != SESSION_PROTECTION_NOTIF ||
@@ -1449,7 +1455,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	const u16 notif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF) };
 	struct iwl_notification_wait wait_notif;
 	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, (s8)link_id);
-	struct iwl_mvm_session_prot_cmd cmd = {
+	struct iwl_session_prot_cmd cmd = {
 		.id_and_color = cpu_to_le32(mac_link_id),
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 		.conf_id = cpu_to_le32(SESSION_PROTECT_CONF_ASSOC),

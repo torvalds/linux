@@ -43,7 +43,7 @@
 				       "gpio64", "gpio65", "gpio66",
 				       "gpio67", "gpio68", "gpio69";
 				function = "qpic";
-                        };
+			};
 		};
 
 		serial@78af000 {

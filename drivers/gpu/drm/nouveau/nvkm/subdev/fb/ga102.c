@@ -25,7 +25,7 @@
 #include <subdev/gsp.h>
 #include <engine/nvdec.h>
 
-static u64
+u64
 ga102_fb_vidmem_size(struct nvkm_fb *fb)
 {
 	return (u64)nvkm_rd32(fb->subdev.device, 0x1183a4) << 20;

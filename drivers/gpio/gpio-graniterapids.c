@@ -116,7 +116,7 @@ static int gnr_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	return !!(dw & GNR_CFG_DW_RXSTATE);
 }
 
-static void gnr_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
+static int gnr_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	u32 clear = 0;
 	u32 set = 0;
@@ -126,7 +126,7 @@ static void gnr_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 	else
 		clear = GNR_CFG_DW_TXSTATE;
 
-	gnr_gpio_configure_line(gc, gpio, clear, set);
+	return gnr_gpio_configure_line(gc, gpio, clear, set);
 }
 
 static int gnr_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
@@ -159,7 +159,7 @@ static const struct gpio_chip gnr_gpio_chip = {
 	.owner		  = THIS_MODULE,
 	.request	  = gnr_gpio_request,
 	.get		  = gnr_gpio_get,
-	.set		  = gnr_gpio_set,
+	.set_rv		  = gnr_gpio_set,
 	.get_direction    = gnr_gpio_get_direction,
 	.direction_input  = gnr_gpio_direction_input,
 	.direction_output = gnr_gpio_direction_output,

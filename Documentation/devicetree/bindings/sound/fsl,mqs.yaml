@@ -23,8 +23,13 @@ properties:
       - fsl,imx8qm-mqs
       - fsl,imx8qxp-mqs
       - fsl,imx93-mqs
+      - fsl,imx943-aonmix-mqs
+      - fsl,imx943-wakeupmix-mqs
       - fsl,imx95-aonmix-mqs
       - fsl,imx95-netcmix-mqs
+
+  "#sound-dai-cells":
+    const: 0
 
   clocks:
     minItems: 1
@@ -47,12 +52,17 @@ properties:
   resets:
     maxItems: 1
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - clocks
   - clock-names
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -84,7 +94,7 @@ allOf:
       required:
         - gpr
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

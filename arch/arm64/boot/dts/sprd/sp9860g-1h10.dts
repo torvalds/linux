@@ -71,8 +71,8 @@
 		compatible = "simple-battery";
 		charge-full-design-microamp-hours = <1900000>;
 		charge-term-current-microamp = <120000>;
-		constant_charge_voltage_max_microvolt = <4350000>;
-		internal-resistance-micro-ohms = <250000>;
+		constant-charge-voltage-max-microvolt = <4350000>;
+		factory-internal-resistance-micro-ohms = <250000>;
 		ocv-capacity-celsius = <20>;
 		ocv-capacity-table-0 = <4185000 100>, <4113000 95>, <4066000 90>,
 			<4022000 85>, <3983000 80>, <3949000 75>,
@@ -82,6 +82,11 @@
 			<3765000 25>, <3752000 20>, <3724000 15>,
 			<3680000 10>, <3605000 5>, <3400000 0>;
 	};
+};
+
+&pmic_fgu {
+	monitored-battery = <&bat>;
+	status = "okay";
 };
 
 &uart0 {

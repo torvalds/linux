@@ -190,6 +190,7 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	set_cpu_asid_mask(c, asid_mask);
 
 	config = read_csr_prcfg1();
+	c->timerbits = (config & CSR_CONF1_TMRBITS) >> CSR_CONF1_TMRBITS_SHIFT;
 	c->ksave_mask = GENMASK((config & CSR_CONF1_KSNUM) - 1, 0);
 	c->ksave_mask &= ~(EXC_KSAVE_MASK | PERCPU_KSAVE_MASK | KVM_KSAVE_MASK);
 

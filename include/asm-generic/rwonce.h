@@ -79,10 +79,18 @@ unsigned long __read_once_word_nocheck(const void *addr)
 	(typeof(x))__read_once_word_nocheck(&(x));			\
 })
 
-static __no_kasan_or_inline
+static __no_sanitize_or_inline
 unsigned long read_word_at_a_time(const void *addr)
 {
+	/* open-coded instrument_read(addr, 1) */
 	kasan_check_read(addr, 1);
+	kcsan_check_read(addr, 1);
+
+	/*
+	 * This load can race with concurrent stores to out-of-bounds memory,
+	 * but READ_ONCE() can't be used because it requires higher alignment
+	 * than plain loads in arm64 builds with LTO.
+	 */
 	return *(unsigned long *)addr;
 }
 

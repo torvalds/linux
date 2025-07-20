@@ -48,7 +48,6 @@ Contents:
    ax25
    bonding
    cdc_mbim
-   dccp
    dctcp
    devmem
    dns_resolver
@@ -63,6 +62,7 @@ Contents:
    gtp
    ila
    ioam6-sysctl
+   iou-zcrx
    ip_dynaddr
    ipsec
    ip-sysctl
@@ -86,6 +86,7 @@ Contents:
    netdevices
    netfilter-sysctl
    netif-msg
+   netmem
    nexthop-group-resilient
    nf_conntrack-sysctl
    nf_flowtable

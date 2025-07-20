@@ -5,7 +5,7 @@
  *  Copyright (C) 2007-2008 Yan Burman
  *  Copyright (C) 2008-2009 Eric Piel
  */
-#include <linux/platform_device.h>
+#include <linux/device/faux.h>
 #include <linux/input.h>
 #include <linux/regulator/consumer.h>
 #include <linux/miscdevice.h>
@@ -282,7 +282,7 @@ struct lis3lv02d {
 					*/
 
 	struct input_dev	*idev;     /* input device */
-	struct platform_device	*pdev;     /* platform device */
+	struct faux_device	*fdev;     /* faux device */
 	struct regulator_bulk_data regulators[2];
 	atomic_t		count;     /* interrupt count after last read */
 	union axis_conversion	ac;        /* hw -> logical axis */

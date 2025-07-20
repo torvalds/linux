@@ -630,8 +630,8 @@ static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
 static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 					  const char *name)
 {
-	struct qstr q = QSTR_INIT(name, strlen(name));
-	struct dentry *dentry = d_hash_and_lookup(parent, &q);
+	struct qstr q = QSTR(name);
+	struct dentry *dentry = try_lookup_noperm(&q, parent);
 	if (!dentry) {
 		dentry = d_alloc(parent, &q);
 		if (!dentry)
@@ -658,7 +658,7 @@ static void __rpc_depopulate(struct dentry *parent,
 	for (i = start; i < eof; i++) {
 		name.name = files[i].name;
 		name.len = strlen(files[i].name);
-		dentry = d_hash_and_lookup(parent, &name);
+		dentry = try_lookup_noperm(&name, parent);
 
 		if (dentry == NULL)
 			continue;
@@ -1190,8 +1190,7 @@ static const struct rpc_filelist files[] = {
 struct dentry *rpc_d_lookup_sb(const struct super_block *sb,
 			       const unsigned char *dir_name)
 {
-	struct qstr dir = QSTR_INIT(dir_name, strlen(dir_name));
-	return d_hash_and_lookup(sb->s_root, &dir);
+	return try_lookup_noperm(&QSTR(dir_name), sb->s_root);
 }
 EXPORT_SYMBOL_GPL(rpc_d_lookup_sb);
 
@@ -1300,11 +1299,9 @@ rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 	struct dentry *gssd_dentry;
 	struct dentry *clnt_dentry = NULL;
 	struct dentry *pipe_dentry = NULL;
-	struct qstr q = QSTR_INIT(files[RPCAUTH_gssd].name,
-				  strlen(files[RPCAUTH_gssd].name));
 
 	/* We should never get this far if "gssd" doesn't exist */
-	gssd_dentry = d_hash_and_lookup(root, &q);
+	gssd_dentry = try_lookup_noperm(&QSTR(files[RPCAUTH_gssd].name), root);
 	if (!gssd_dentry)
 		return ERR_PTR(-ENOENT);
 
@@ -1314,9 +1311,8 @@ rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 		goto out;
 	}
 
-	q.name = gssd_dummy_clnt_dir[0].name;
-	q.len = strlen(gssd_dummy_clnt_dir[0].name);
-	clnt_dentry = d_hash_and_lookup(gssd_dentry, &q);
+	clnt_dentry = try_lookup_noperm(&QSTR(gssd_dummy_clnt_dir[0].name),
+					  gssd_dentry);
 	if (!clnt_dentry) {
 		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
 		pipe_dentry = ERR_PTR(-ENOENT);

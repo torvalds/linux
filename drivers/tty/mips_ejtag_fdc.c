@@ -683,7 +683,8 @@ static irqreturn_t mips_ejtag_fdc_isr(int irq, void *dev_id)
  */
 static void mips_ejtag_fdc_tty_timer(struct timer_list *t)
 {
-	struct mips_ejtag_fdc_tty *priv = from_timer(priv, t, poll_timer);
+	struct mips_ejtag_fdc_tty *priv = timer_container_of(priv, t,
+						             poll_timer);
 
 	mips_ejtag_fdc_handle(priv);
 	if (!priv->removing)
@@ -1031,7 +1032,7 @@ err_stop_irq:
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
+		timer_delete_sync(&priv->poll_timer);
 	}
 	kthread_stop(priv->thread);
 err_destroy_ports:
@@ -1061,7 +1062,7 @@ static int mips_ejtag_fdc_tty_cpu_down(struct mips_cdmm_device *dev)
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
+		timer_delete_sync(&priv->poll_timer);
 	}
 	kthread_stop(priv->thread);
 
@@ -1154,7 +1155,7 @@ static char kgdbfdc_rbuf[4];
 
 /* write buffer to allow compaction */
 static unsigned int kgdbfdc_wbuflen;
-static char kgdbfdc_wbuf[4];
+static u8 kgdbfdc_wbuf[4];
 
 static void __iomem *kgdbfdc_setup(void)
 {
@@ -1215,7 +1216,7 @@ static int kgdbfdc_read_char(void)
 /* push an FDC word from write buffer to TX FIFO */
 static void kgdbfdc_push_one(void)
 {
-	const char *bufs[1] = { kgdbfdc_wbuf };
+	const u8 *bufs[1] = { kgdbfdc_wbuf };
 	struct fdc_word word;
 	void __iomem *regs;
 	unsigned int i;

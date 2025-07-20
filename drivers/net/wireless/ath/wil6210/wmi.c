@@ -933,7 +933,7 @@ static void wmi_evt_scan_complete(struct wil6210_vif *vif, int id,
 		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", status);
 		wil_dbg_misc(wil, "Complete scan_request 0x%p aborted %d\n",
 			     vif->scan_request, info.aborted);
-		del_timer_sync(&vif->scan_timer);
+		timer_delete_sync(&vif->scan_timer);
 		cfg80211_scan_done(vif->scan_request, &info);
 		if (vif->mid == 0)
 			wil->radio_wdev = wil->main_ndev->ieee80211_ptr;
@@ -1023,7 +1023,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 			mutex_unlock(&wil->mutex);
 			return;
 		}
-		del_timer_sync(&vif->connect_timer);
+		timer_delete_sync(&vif->connect_timer);
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
 		if (wil->sta[evt->cid].status != wil_sta_unused) {
@@ -1814,7 +1814,7 @@ wmi_evt_reassoc_status(struct wil6210_vif *vif, int id, void *d, int len)
 	wil->sta[cid].stats.ft_roams++;
 	ether_addr_copy(wil->sta[cid].addr, vif->bss->bssid);
 	mutex_unlock(&wil->mutex);
-	del_timer_sync(&vif->connect_timer);
+	timer_delete_sync(&vif->connect_timer);
 
 	cfg80211_ref_bss(wiphy, vif->bss);
 	freq = ieee80211_channel_to_frequency(ch, NL80211_BAND_60GHZ);

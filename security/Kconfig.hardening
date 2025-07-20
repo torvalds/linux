@@ -1,22 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Kernel hardening options"
 
-config GCC_PLUGIN_STRUCTLEAK
-	bool
-	help
-	  While the kernel is built with warnings enabled for any missed
-	  stack variable initializations, this warning is silenced for
-	  anything passed by reference to another function, under the
-	  occasionally misguided assumption that the function will do
-	  the initialization. As this regularly leads to exploitable
-	  flaws, this plugin is available to identify and zero-initialize
-	  such variables, depending on the chosen level of coverage.
-
-	  This plugin was originally ported from grsecurity/PaX. More
-	  information at:
-	   * https://grsecurity.net/
-	   * https://pax.grsecurity.net/
-
 menu "Memory initialization"
 
 config CC_HAS_AUTO_VAR_INIT_PATTERN
@@ -36,7 +20,6 @@ config CC_HAS_AUTO_VAR_INIT_ZERO
 
 choice
 	prompt "Initialize kernel stack variables at function entry"
-	default GCC_PLUGIN_STRUCTLEAK_BYREF_ALL if COMPILE_TEST && GCC_PLUGINS
 	default INIT_STACK_ALL_PATTERN if COMPILE_TEST && CC_HAS_AUTO_VAR_INIT_PATTERN
 	default INIT_STACK_ALL_ZERO if CC_HAS_AUTO_VAR_INIT_ZERO
 	default INIT_STACK_NONE
@@ -60,55 +43,6 @@ choice
 		  classes of uninitialized stack variable exploits
 		  and information exposures.
 
-	config GCC_PLUGIN_STRUCTLEAK_USER
-		bool "zero-init structs marked for userspace (weak)"
-		# Plugin can be removed once the kernel only supports GCC 12+
-		depends on GCC_PLUGINS && !CC_HAS_AUTO_VAR_INIT_ZERO
-		select GCC_PLUGIN_STRUCTLEAK
-		help
-		  Zero-initialize any structures on the stack containing
-		  a __user attribute. This can prevent some classes of
-		  uninitialized stack variable exploits and information
-		  exposures, like CVE-2013-2141:
-		  https://git.kernel.org/linus/b9e146d8eb3b9eca
-
-	config GCC_PLUGIN_STRUCTLEAK_BYREF
-		bool "zero-init structs passed by reference (strong)"
-		# Plugin can be removed once the kernel only supports GCC 12+
-		depends on GCC_PLUGINS && !CC_HAS_AUTO_VAR_INIT_ZERO
-		depends on !(KASAN && KASAN_STACK)
-		select GCC_PLUGIN_STRUCTLEAK
-		help
-		  Zero-initialize any structures on the stack that may
-		  be passed by reference and had not already been
-		  explicitly initialized. This can prevent most classes
-		  of uninitialized stack variable exploits and information
-		  exposures, like CVE-2017-1000410:
-		  https://git.kernel.org/linus/06e7e776ca4d3654
-
-		  As a side-effect, this keeps a lot of variables on the
-		  stack that can otherwise be optimized out, so combining
-		  this with CONFIG_KASAN_STACK can lead to a stack overflow
-		  and is disallowed.
-
-	config GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
-		bool "zero-init everything passed by reference (very strong)"
-		# Plugin can be removed once the kernel only supports GCC 12+
-		depends on GCC_PLUGINS && !CC_HAS_AUTO_VAR_INIT_ZERO
-		depends on !(KASAN && KASAN_STACK)
-		select GCC_PLUGIN_STRUCTLEAK
-		help
-		  Zero-initialize any stack variables that may be passed
-		  by reference and had not already been explicitly
-		  initialized. This is intended to eliminate all classes
-		  of uninitialized stack variable exploits and information
-		  exposures.
-
-		  As a side-effect, this keeps a lot of variables on the
-		  stack that can otherwise be optimized out, so combining
-		  this with CONFIG_KASAN_STACK can lead to a stack overflow
-		  and is disallowed.
-
 	config INIT_STACK_ALL_PATTERN
 		bool "pattern-init everything (strongest)"
 		depends on CC_HAS_AUTO_VAR_INIT_PATTERN
@@ -127,6 +61,7 @@ choice
 		  repeating for all types and padding except float and double
 		  which use 0xFF repeating (-NaN). Clang on 32-bit uses 0xFF
 		  repeating for all types and padding.
+		  GCC uses 0xFE repeating for all types, and zero for padding.
 
 	config INIT_STACK_ALL_ZERO
 		bool "zero-init everything (strongest and safest)"
@@ -146,16 +81,6 @@ choice
 		  initialization.
 
 endchoice
-
-config GCC_PLUGIN_STRUCTLEAK_VERBOSE
-	bool "Report forcefully initialized variables"
-	depends on GCC_PLUGIN_STRUCTLEAK
-	depends on !COMPILE_TEST	# too noisy
-	help
-	  This option will cause a warning to be printed each time the
-	  structleak plugin finds a variable it thinks needs to be
-	  initialized. Since not all existing initializers are detected
-	  by the plugin, this can produce false positive warnings.
 
 config GCC_PLUGIN_STACKLEAK
 	bool "Poison kernel stack before returning from syscalls"
@@ -276,6 +201,39 @@ config ZERO_CALL_USED_REGS
 	  workloads. Image size growth depends on architecture, and should
 	  be evaluated for suitability. For example, x86_64 grows by less
 	  than 1%, and arm64 grows by about 5%.
+
+endmenu
+
+menu "Bounds checking"
+
+config FORTIFY_SOURCE
+	bool "Harden common str/mem functions against buffer overflows"
+	depends on ARCH_HAS_FORTIFY_SOURCE
+	# https://github.com/llvm/llvm-project/issues/53645
+	depends on !X86_32 || !CC_IS_CLANG || CLANG_VERSION >= 160000
+	help
+	  Detect overflows of buffers in common string and memory functions
+	  where the compiler can determine and validate the buffer sizes.
+
+config HARDENED_USERCOPY
+	bool "Harden memory copies between kernel and userspace"
+	imply STRICT_DEVMEM
+	help
+	  This option checks for obviously wrong memory regions when
+	  copying memory to/from the kernel (via copy_to_user() and
+	  copy_from_user() functions) by rejecting memory ranges that
+	  are larger than the specified heap object, span multiple
+	  separately allocated pages, are not on the process stack,
+	  or are part of the kernel text. This prevents entire classes
+	  of heap overflow exploits and similar kernel memory exposures.
+
+config HARDENED_USERCOPY_DEFAULT_ON
+	bool "Harden memory copies by default"
+	depends on HARDENED_USERCOPY
+	default HARDENED_USERCOPY
+	help
+	  This has the effect of setting "hardened_usercopy=on" on the kernel
+	  command line. This can be disabled with "hardened_usercopy=off".
 
 endmenu
 

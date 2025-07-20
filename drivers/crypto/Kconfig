@@ -180,6 +180,7 @@ config CRYPTO_PAES_S390
 	depends on PKEY
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
+	select CRYPTO_ENGINE
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms for use with protected key.
@@ -199,23 +200,6 @@ config S390_PRNG
 	  pseudo-random-number device through the char device /dev/prandom.
 
 	  It is available as of z9.
-
-config CRYPTO_DEV_NIAGARA2
-	tristate "Niagara2 Stream Processing Unit driver"
-	select CRYPTO_LIB_DES
-	select CRYPTO_SKCIPHER
-	select CRYPTO_HASH
-	select CRYPTO_MD5
-	select CRYPTO_SHA1
-	select CRYPTO_SHA256
-	depends on SPARC64
-	help
-	  Each core of a Niagara2 processor contains a Stream
-	  Processing Unit, which itself contains several cryptographic
-	  sub-units.  One set provides the Modular Arithmetic Unit,
-	  used for SSL offload.  The other set provides the Cipher
-	  Group, which can perform encryption, decryption, hashing,
-	  checksumming, and raw copies.
 
 config CRYPTO_DEV_SL3516
 	tristate "Storlink SL3516 crypto offloader"
@@ -547,13 +531,6 @@ source "drivers/crypto/cavium/nitrox/Kconfig"
 source "drivers/crypto/marvell/Kconfig"
 source "drivers/crypto/intel/Kconfig"
 
-config CRYPTO_DEV_CAVIUM_ZIP
-	tristate "Cavium ZIP driver"
-	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	help
-	  Select this option if you want to enable compression/decompression
-	  acceleration on Cavium's ARM based SoCs
-
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -872,5 +849,6 @@ config CRYPTO_DEV_SA2UL
 
 source "drivers/crypto/aspeed/Kconfig"
 source "drivers/crypto/starfive/Kconfig"
+source "drivers/crypto/inside-secure/eip93/Kconfig"
 
 endif # CRYPTO_HW

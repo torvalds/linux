@@ -99,10 +99,10 @@ static int dump_tcp6_sock(struct seq_file *seq, struct tcp6_sock *tp,
 	    icsk->icsk_pending == ICSK_TIME_REO_TIMEOUT ||
 	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
 		timer_active = 1;
-		timer_expires = icsk->icsk_timeout;
+		timer_expires = icsk->icsk_retransmit_timer.expires;
 	} else if (icsk->icsk_pending == ICSK_TIME_PROBE0) {
 		timer_active = 4;
-		timer_expires = icsk->icsk_timeout;
+		timer_expires = icsk->icsk_retransmit_timer.expires;
 	} else if (timer_pending(&sp->sk_timer)) {
 		timer_active = 2;
 		timer_expires = sp->sk_timer.expires;

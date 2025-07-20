@@ -112,6 +112,7 @@ void bch2_printbuf_tabstop_pop(struct printbuf *);
 int bch2_printbuf_tabstop_push(struct printbuf *, unsigned);
 
 void bch2_printbuf_indent_add(struct printbuf *, unsigned);
+void bch2_printbuf_indent_add_nextline(struct printbuf *, unsigned);
 void bch2_printbuf_indent_sub(struct printbuf *, unsigned);
 
 void bch2_prt_newline(struct printbuf *);
@@ -138,6 +139,14 @@ void bch2_prt_bitflags_vector(struct printbuf *, const char * const[],
 	.buf	= _buf,					\
 	.size	= _size,				\
 })
+
+static inline struct printbuf bch2_printbuf_init(void)
+{
+	return PRINTBUF;
+}
+
+DEFINE_CLASS(printbuf, struct printbuf,
+	     bch2_printbuf_exit(&_T), bch2_printbuf_init(), void)
 
 /*
  * Returns size remaining of output buffer:
@@ -251,16 +260,23 @@ static inline void prt_hex_byte_upper(struct printbuf *out, u8 byte)
 	printbuf_nul_terminate_reserved(out);
 }
 
+static inline void printbuf_reset_keep_tabstops(struct printbuf *buf)
+{
+	buf->pos		= 0;
+	buf->allocation_failure	= 0;
+	buf->last_newline	= 0;
+	buf->last_field		= 0;
+	buf->indent		= 0;
+	buf->cur_tabstop	= 0;
+}
+
 /**
  * printbuf_reset - re-use a printbuf without freeing and re-initializing it:
  */
 static inline void printbuf_reset(struct printbuf *buf)
 {
-	buf->pos		= 0;
-	buf->allocation_failure	= 0;
-	buf->indent		= 0;
+	printbuf_reset_keep_tabstops(buf);
 	buf->nr_tabstops	= 0;
-	buf->cur_tabstop	= 0;
 }
 
 /**

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/string.h>
@@ -23,6 +24,9 @@ static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {
 	int i;
 	int ret = fprintf(fp, "            ");
+
+	if (left_margin > USHRT_MAX)
+		left_margin = USHRT_MAX;
 
 	for (i = 0; i < left_margin; i++)
 		ret += fprintf(fp, " ");
@@ -639,45 +643,58 @@ static int hists__fprintf_hierarchy_headers(struct hists *hists,
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
 	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
 	const char *sep = symbol_conf.field_sep;
 
 	indent = hists->nr_hpp_node;
-
-	/* preserve max indent depth for column headers */
-	print_hierarchy_indent(sep, indent, " ", fp);
 
 	/* the first hpp_list_node is for overhead columns */
 	fmt_node = list_first_entry(&hists->hpp_formats,
 				    struct perf_hpp_list_node, list);
 
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
-		fmt->header(fmt, hpp, hists, 0, NULL);
-		fprintf(fp, "%s%s", hpp->buf, sep ?: "  ");
-	}
+	for (int line = 0; line < hpp_list->nr_header_lines; line++) {
+		/* first # is displayed one level up */
+		if (line)
+			fprintf(fp, "# ");
 
-	/* combine sort headers with ' / ' */
-	first_node = true;
-	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
-		if (!first_node)
-			header_width += fprintf(fp, " / ");
-		first_node = false;
+		/* preserve max indent depth for column headers */
+		print_hierarchy_indent(sep, indent, " ", fp);
 
-		first_col = true;
 		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
-			if (perf_hpp__should_skip(fmt, hists))
-				continue;
-
-			if (!first_col)
-				header_width += fprintf(fp, "+");
-			first_col = false;
-
-			fmt->header(fmt, hpp, hists, 0, NULL);
-
-			header_width += fprintf(fp, "%s", strim(hpp->buf));
+			fmt->header(fmt, hpp, hists, line, NULL);
+			fprintf(fp, "%s%s", hpp->buf, sep ?: "  ");
 		}
+
+		if (line < hpp_list->nr_header_lines - 1)
+			goto next_line;
+
+		/* combine sort headers with ' / ' */
+		first_node = true;
+		list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
+			if (!first_node)
+				header_width += fprintf(fp, " / ");
+			first_node = false;
+
+			first_col = true;
+			perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+				if (perf_hpp__should_skip(fmt, hists))
+					continue;
+
+				if (!first_col)
+					header_width += fprintf(fp, "+");
+				first_col = false;
+
+				fmt->header(fmt, hpp, hists, line, NULL);
+
+				header_width += fprintf(fp, "%s", strim(hpp->buf));
+			}
+		}
+
+next_line:
+		fprintf(fp, "\n");
 	}
 
-	fprintf(fp, "\n# ");
+	fprintf(fp, "# ");
 
 	/* preserve max indent depth for initial dots */
 	print_hierarchy_indent(sep, indent, dots, fp);

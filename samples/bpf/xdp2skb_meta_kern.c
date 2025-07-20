@@ -63,7 +63,6 @@ SEC("tc_mark")
 int _tc_mark(struct __sk_buff *ctx)
 {
 	void *data      = (void *)(unsigned long)ctx->data;
-	void *data_end  = (void *)(unsigned long)ctx->data_end;
 	void *data_meta = (void *)(unsigned long)ctx->data_meta;
 	struct meta_info *meta = data_meta;
 

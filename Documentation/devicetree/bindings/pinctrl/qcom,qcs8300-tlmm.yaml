@@ -106,7 +106,7 @@ examples:
         interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
         gpio-controller;
         #gpio-cells = <2>;
-        gpio-ranges = <&tlmm 0 0 133>;
+        gpio-ranges = <&tlmm 0 0 134>;
         interrupt-controller;
         #interrupt-cells = <2>;
 

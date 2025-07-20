@@ -184,11 +184,11 @@ static int gxp_i2c_unreg_slave(struct i2c_client *slave)
 #endif
 
 static const struct i2c_algorithm gxp_i2c_algo = {
-	.master_xfer   = gxp_i2c_master_xfer,
+	.xfer = gxp_i2c_master_xfer,
 	.functionality = gxp_i2c_func,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	.reg_slave     = gxp_i2c_reg_slave,
-	.unreg_slave   = gxp_i2c_unreg_slave,
+	.reg_slave = gxp_i2c_reg_slave,
+	.unreg_slave = gxp_i2c_unreg_slave,
 #endif
 };
 

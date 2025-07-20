@@ -365,7 +365,7 @@ static const struct musb_platform_ops mtk_musb_ops = {
 #define MTK_MUSB_MAX_EP_NUM	8
 #define MTK_MUSB_RAM_BITS	11
 
-static struct musb_fifo_cfg mtk_musb_mode_cfg[] = {
+static const struct musb_fifo_cfg mtk_musb_mode_cfg[] = {
 	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
 	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
 	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 512, },

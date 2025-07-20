@@ -492,7 +492,7 @@ static int axp717_usb_power_set_input_current_limit(struct axp20x_usb_power *pow
 
 	if (power->max_input_cur && (intval > power->max_input_cur)) {
 		dev_warn(power->dev,
-			 "reqested current %d clamped to max current %d\n",
+			 "requested current %d clamped to max current %d\n",
 			 intval, power->max_input_cur);
 		intval = power->max_input_cur;
 	}
@@ -1011,7 +1011,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	psy_cfg.drv_data = power;
 
 	power->supply = devm_power_supply_register(&pdev->dev,

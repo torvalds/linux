@@ -20,7 +20,7 @@
 		@ is accepted as an EFI binary. Booting via the UEFI stub
 		@ will not execute those instructions, but the ARM/Linux
 		@ boot protocol does, so we need some NOPs here.
-		.inst	MZ_MAGIC | (0xe225 << 16)	@ eor r5, r5, 0x4d000
+		.inst	IMAGE_DOS_SIGNATURE | (0xe225 << 16) @ eor r5, r5, 0x4d000
 		eor	r5, r5, 0x4d000			@ undo previous insn
 #else
 		__nop
@@ -43,7 +43,7 @@
 		.long	pe_header - start		@ Offset to the PE header.
 
 pe_header:
-		.long	PE_MAGIC
+		.long	IMAGE_NT_SIGNATURE
 
 coff_header:
 		.short	IMAGE_FILE_MACHINE_THUMB	@ Machine
@@ -60,7 +60,7 @@ coff_header:
 #define __pecoff_code_size (__pecoff_data_start - __efi_start)
 
 optional_header:
-		.short	PE_OPT_MAGIC_PE32		@ PE32 format
+		.short	IMAGE_NT_OPTIONAL_HDR32_MAGIC	@ PE32 format
 		.byte	0x02				@ MajorLinkerVersion
 		.byte	0x14				@ MinorLinkerVersion
 		.long	__pecoff_code_size		@ SizeOfCode

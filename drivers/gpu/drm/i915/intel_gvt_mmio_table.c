@@ -5,9 +5,11 @@
 
 #include "display/bxt_dpio_phy_regs.h"
 #include "display/i9xx_plane_regs.h"
+#include "display/i9xx_wm_regs.h"
 #include "display/intel_audio_regs.h"
 #include "display/intel_backlight_regs.h"
 #include "display/intel_color_regs.h"
+#include "display/intel_crt_regs.h"
 #include "display/intel_cursor_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
@@ -16,8 +18,10 @@
 #include "display/intel_fbc_regs.h"
 #include "display/intel_fdi_regs.h"
 #include "display/intel_lvds_regs.h"
+#include "display/intel_pfit_regs.h"
 #include "display/intel_psr_regs.h"
 #include "display/intel_sprite_regs.h"
+#include "display/intel_vga_regs.h"
 #include "display/skl_universal_plane_regs.h"
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
@@ -1258,7 +1262,7 @@ static int iterate_bxt_mmio(struct intel_gvt_mmio_table_iter *iter)
 
 /**
  * intel_gvt_iterate_mmio_table - Iterate the GVT MMIO table
- * @iter: the interator
+ * @iter: the iterator
  *
  * This function is called for iterating the GVT MMIO table when i915 is
  * taking the snapshot of the HW and GVT is building MMIO tracking table.

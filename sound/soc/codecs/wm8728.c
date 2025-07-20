@@ -128,7 +128,7 @@ static int wm8728_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	/* The hardware only support full slave mode */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;

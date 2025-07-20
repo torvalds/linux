@@ -38,7 +38,8 @@ int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu);
 bool is_mem_loads_aux_event(struct evsel *leader);
 
 void perf_pmu__mem_events_list(struct perf_pmu *pmu);
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr);
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
+				 char **event_name_storage_out);
 
 int perf_mem__tlb_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
 int perf_mem__lvl_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
@@ -87,5 +88,62 @@ struct c2c_stats {
 struct hist_entry;
 int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi);
 void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add);
+
+enum mem_stat_type {
+	PERF_MEM_STAT_OP,
+	PERF_MEM_STAT_CACHE,
+	PERF_MEM_STAT_MEMORY,
+	PERF_MEM_STAT_SNOOP,
+	PERF_MEM_STAT_DTLB,
+};
+
+#define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
+
+enum mem_stat_op {
+	MEM_STAT_OP_LOAD,
+	MEM_STAT_OP_STORE,
+	MEM_STAT_OP_LDST,
+	MEM_STAT_OP_PFETCH,
+	MEM_STAT_OP_EXEC,
+	MEM_STAT_OP_OTHER,
+};
+
+enum mem_stat_cache {
+	MEM_STAT_CACHE_L1,
+	MEM_STAT_CACHE_L2,
+	MEM_STAT_CACHE_L3,
+	MEM_STAT_CACHE_L4,
+	MEM_STAT_CACHE_L1_BUF,
+	MEM_STAT_CACHE_L2_BUF,
+	MEM_STAT_CACHE_OTHER,
+};
+
+enum mem_stat_memory {
+	MEM_STAT_MEMORY_RAM,
+	MEM_STAT_MEMORY_MSC,
+	MEM_STAT_MEMORY_UNC,
+	MEM_STAT_MEMORY_CXL,
+	MEM_STAT_MEMORY_IO,
+	MEM_STAT_MEMORY_PMEM,
+	MEM_STAT_MEMORY_OTHER,
+};
+
+enum mem_stat_snoop {
+	MEM_STAT_SNOOP_HIT,
+	MEM_STAT_SNOOP_HITM,
+	MEM_STAT_SNOOP_MISS,
+	MEM_STAT_SNOOP_OTHER,
+};
+
+enum mem_stat_dtlb {
+	MEM_STAT_DTLB_L1_HIT,
+	MEM_STAT_DTLB_L2_HIT,
+	MEM_STAT_DTLB_ANY_HIT,
+	MEM_STAT_DTLB_MISS,
+	MEM_STAT_DTLB_OTHER,
+};
+
+int mem_stat_index(const enum mem_stat_type mst, const u64 data_src);
+const char *mem_stat_name(const enum mem_stat_type mst, const int idx);
 
 #endif /* __PERF_MEM_EVENTS_H */

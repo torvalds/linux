@@ -6,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
+#include <linux/completion.h>
 #include <linux/usb.h>
 #include <linux/timer.h>
 #include <linux/compiler_attributes.h>
@@ -115,7 +115,7 @@ enum xfer_abort_type {
 #define INTERRUPT_BUF_LEN 8
 
 struct agilent_82357a_urb_ctx {
-	struct semaphore complete;
+	struct completion complete;
 	unsigned timed_out : 1;
 };
 

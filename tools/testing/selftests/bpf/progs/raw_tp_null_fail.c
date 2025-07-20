@@ -8,7 +8,7 @@
 char _license[] SEC("license") = "GPL";
 
 /* Ensure module parameter has PTR_MAYBE_NULL */
-SEC("tp_btf/bpf_testmod_test_raw_tp_null")
+SEC("tp_btf/bpf_testmod_test_raw_tp_null_tp")
 __failure __msg("R1 invalid mem access 'trusted_ptr_or_null_'")
 int test_raw_tp_null_bpf_testmod_test_raw_tp_null_arg_1(void *ctx) {
     asm volatile("r1 = *(u64 *)(r1 +0); r1 = *(u64 *)(r1 +0);" ::: __clobber_all);

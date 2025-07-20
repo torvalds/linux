@@ -8,6 +8,7 @@
 #include <linux/wait.h>
 #include <linux/rcu_sync.h>
 #include <linux/lockdep.h>
+#include <linux/cleanup.h>
 
 struct percpu_rw_semaphore {
 	struct rcu_sync		rss;
@@ -42,9 +43,10 @@ is_static struct percpu_rw_semaphore name = {				\
 #define DEFINE_STATIC_PERCPU_RWSEM(name)	\
 	__DEFINE_PERCPU_RWSEM(name, static)
 
-extern bool __percpu_down_read(struct percpu_rw_semaphore *, bool);
+extern bool __percpu_down_read(struct percpu_rw_semaphore *, bool, bool);
 
-static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
+static inline void percpu_down_read_internal(struct percpu_rw_semaphore *sem,
+					     bool freezable)
 {
 	might_sleep();
 
@@ -62,12 +64,23 @@ static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
 	if (likely(rcu_sync_is_idle(&sem->rss)))
 		this_cpu_inc(*sem->read_count);
 	else
-		__percpu_down_read(sem, false); /* Unconditional memory barrier */
+		__percpu_down_read(sem, false, freezable); /* Unconditional memory barrier */
 	/*
 	 * The preempt_enable() prevents the compiler from
 	 * bleeding the critical section out.
 	 */
 	preempt_enable();
+}
+
+static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
+{
+	percpu_down_read_internal(sem, false);
+}
+
+static inline void percpu_down_read_freezable(struct percpu_rw_semaphore *sem,
+					      bool freeze)
+{
+	percpu_down_read_internal(sem, freeze);
 }
 
 static inline bool percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
@@ -81,7 +94,7 @@ static inline bool percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
 	if (likely(rcu_sync_is_idle(&sem->rss)))
 		this_cpu_inc(*sem->read_count);
 	else
-		ret = __percpu_down_read(sem, true); /* Unconditional memory barrier */
+		ret = __percpu_down_read(sem, true, false); /* Unconditional memory barrier */
 	preempt_enable();
 	/*
 	 * The barrier() from preempt_enable() prevents the compiler from
@@ -124,6 +137,13 @@ static inline void percpu_up_read(struct percpu_rw_semaphore *sem)
 extern bool percpu_is_read_locked(struct percpu_rw_semaphore *);
 extern void percpu_down_write(struct percpu_rw_semaphore *);
 extern void percpu_up_write(struct percpu_rw_semaphore *);
+
+DEFINE_GUARD(percpu_read, struct percpu_rw_semaphore *,
+	     percpu_down_read(_T), percpu_up_read(_T))
+DEFINE_GUARD_COND(percpu_read, _try, percpu_down_read_trylock(_T))
+
+DEFINE_GUARD(percpu_write, struct percpu_rw_semaphore *,
+	     percpu_down_write(_T), percpu_up_write(_T))
 
 static inline bool percpu_is_write_locked(struct percpu_rw_semaphore *sem)
 {

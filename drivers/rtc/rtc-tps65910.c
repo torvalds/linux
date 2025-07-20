@@ -418,7 +418,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->irq = irq;
 	if (irq != -1) {
 		if (device_property_present(tps65910->dev, "wakeup-source"))
-			device_init_wakeup(&pdev->dev, 1);
+			device_init_wakeup(&pdev->dev, true);
 		else
 			device_set_wakeup_capable(&pdev->dev, 1);
 	} else {

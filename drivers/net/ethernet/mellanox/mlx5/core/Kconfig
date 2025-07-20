@@ -31,6 +31,7 @@ config MLX5_CORE_EN
 	bool "Mellanox 5th generation network adapters (ConnectX series) Ethernet support"
 	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE
 	select PAGE_POOL
+	select PAGE_POOL_STATS
 	select DIMLIB
 	help
 	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
@@ -80,8 +81,8 @@ config MLX5_BRIDGE
 	default y
 	help
 	  mlx5 ConnectX offloads support for Ethernet Bridging (BRIDGE).
-	  Enable adding representors of mlx5 uplink and VF ports to Bridge and
-	  offloading rules for traffic between such ports. Supports VLANs (trunk and
+	  Enable offloading FDB rules from a bridge device containing
+	  representors of mlx5 uplink and VF ports. Supports VLANs (trunk and
 	  access modes).
 
 config MLX5_CLS_ACT

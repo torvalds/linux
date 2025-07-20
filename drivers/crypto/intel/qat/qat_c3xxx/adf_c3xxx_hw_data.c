@@ -5,7 +5,6 @@
 #include <adf_clock.h>
 #include <adf_common_drv.h>
 #include <adf_gen2_config.h>
-#include <adf_gen2_dc.h>
 #include <adf_gen2_hw_csr_data.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
@@ -22,13 +21,12 @@ static const u32 thrd_to_arb_map[ADF_C3XXX_MAX_ACCELENGINES] = {
 static struct adf_hw_device_class c3xxx_class = {
 	.name = ADF_C3XXX_DEVICE_NAME,
 	.type = DEV_C3XXX,
-	.instances = 0
 };
 
 static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
+	u32 fuses = self->fuses[ADF_FUSECTL0];
 	u32 straps = self->straps;
-	u32 fuses = self->fuses;
 	u32 accel;
 
 	accel = ~(fuses | straps) >> ADF_C3XXX_ACCELERATORS_REG_OFFSET;
@@ -39,8 +37,8 @@ static u32 get_accel_mask(struct adf_hw_device_data *self)
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
+	u32 fuses = self->fuses[ADF_FUSECTL0];
 	u32 straps = self->straps;
-	u32 fuses = self->fuses;
 	unsigned long disabled;
 	u32 ae_disable;
 	int accel;

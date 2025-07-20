@@ -1,0 +1,25 @@
+/*
+	$1: 	dev_t
+	$2: 	RWBS
+	$3:     strlen($2)
+*/
+BEGIN {
+	@last_rw[$1, str($2)] = 0;
+}
+tracepoint:block:block_rq_complete
+{
+	$dev = $1;
+	if ((int64)args.dev == $1 && !strncmp(args.rwbs, str($2), $3)) {
+		$last = @last_rw[$dev, str($2)];
+		if ((uint64)args.sector != $last) {
+			printf("io_out_of_order: exp %llu actual %llu\n",
+				args.sector, $last);
+		}
+		@last_rw[$dev, str($2)] = (args.sector + args.nr_sector);
+	}
+	@ios = count();
+}
+
+END {
+	clear(@last_rw);
+}

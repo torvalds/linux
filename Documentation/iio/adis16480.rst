@@ -12,7 +12,10 @@ This driver supports Analog Device's IMUs on SPI bus.
 * `ADIS16375 <https://www.analog.com/ADIS16375>`_
 * `ADIS16480 <https://www.analog.com/ADIS16480>`_
 * `ADIS16485 <https://www.analog.com/ADIS16485>`_
+* `ADIS16486 <https://www.analog.com/ADIS16486>`_
+* `ADIS16487 <https://www.analog.com/ADIS16487>`_
 * `ADIS16488 <https://www.analog.com/ADIS16488>`_
+* `ADIS16489 <https://www.analog.com/ADIS16489>`_
 * `ADIS16490 <https://www.analog.com/ADIS16490>`_
 * `ADIS16495 <https://www.analog.com/ADIS16495>`_
 * `ADIS16497 <https://www.analog.com/ADIS16497>`_

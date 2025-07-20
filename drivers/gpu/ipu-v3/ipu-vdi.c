@@ -150,17 +150,6 @@ void ipu_vdi_setup(struct ipu_vdi *vdi, u32 code, int xres, int yres)
 }
 EXPORT_SYMBOL_GPL(ipu_vdi_setup);
 
-void ipu_vdi_unsetup(struct ipu_vdi *vdi)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&vdi->lock, flags);
-	ipu_vdi_write(vdi, 0, VDI_FSIZE);
-	ipu_vdi_write(vdi, 0, VDI_C);
-	spin_unlock_irqrestore(&vdi->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ipu_vdi_unsetup);
-
 int ipu_vdi_enable(struct ipu_vdi *vdi)
 {
 	unsigned long flags;

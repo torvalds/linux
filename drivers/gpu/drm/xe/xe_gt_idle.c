@@ -69,6 +69,8 @@ static u64 get_residency_ms(struct xe_gt_idle *gtidle, u64 cur_residency)
 {
 	u64 delta, overflow_residency, prev_residency;
 
+	lockdep_assert_held(&gtidle->lock);
+
 	overflow_residency = BIT_ULL(32);
 
 	/*
@@ -122,10 +124,12 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 	if (!xe_gt_is_media_type(gt))
 		gtidle->powergate_enable |= RENDER_POWERGATE_ENABLE;
 
-	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
-		if ((gt->info.engine_mask & BIT(i)))
-			gtidle->powergate_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
-						     VDN_MFXVDENC_POWERGATE_ENABLE(j));
+	if (xe->info.platform != XE_DG1) {
+		for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
+			if ((gt->info.engine_mask & BIT(i)))
+				gtidle->powergate_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
+							     VDN_MFXVDENC_POWERGATE_ENABLE(j));
+		}
 	}
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
@@ -245,9 +249,10 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
-static ssize_t name_show(struct device *dev,
-			 struct device_attribute *attr, char *buff)
+static ssize_t name_show(struct kobject *kobj,
+			 struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	ssize_t ret;
@@ -258,11 +263,12 @@ static ssize_t name_show(struct device *dev,
 
 	return ret;
 }
-static DEVICE_ATTR_RO(name);
+static struct kobj_attribute name_attr = __ATTR_RO(name);
 
-static ssize_t idle_status_show(struct device *dev,
-				struct device_attribute *attr, char *buff)
+static ssize_t idle_status_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	enum xe_gt_idle_state state;
@@ -273,27 +279,42 @@ static ssize_t idle_status_show(struct device *dev,
 
 	return sysfs_emit(buff, "%s\n", gt_idle_state_to_string(state));
 }
-static DEVICE_ATTR_RO(idle_status);
+static struct kobj_attribute idle_status_attr = __ATTR_RO(idle_status);
 
-static ssize_t idle_residency_ms_show(struct device *dev,
-				      struct device_attribute *attr, char *buff)
+u64 xe_gt_idle_residency_msec(struct xe_gt_idle *gtidle)
 {
+	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
+	u64 residency;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&gtidle->lock, flags);
+	residency = get_residency_ms(gtidle, gtidle->idle_residency(pc));
+	raw_spin_unlock_irqrestore(&gtidle->lock, flags);
+
+	return residency;
+}
+
+
+static ssize_t idle_residency_ms_show(struct kobject *kobj,
+				      struct kobj_attribute *attr, char *buff)
+{
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	u64 residency;
 
 	xe_pm_runtime_get(pc_to_xe(pc));
-	residency = gtidle->idle_residency(pc);
+	residency = xe_gt_idle_residency_msec(gtidle);
 	xe_pm_runtime_put(pc_to_xe(pc));
 
-	return sysfs_emit(buff, "%llu\n", get_residency_ms(gtidle, residency));
+	return sysfs_emit(buff, "%llu\n", residency);
 }
-static DEVICE_ATTR_RO(idle_residency_ms);
+static struct kobj_attribute idle_residency_attr = __ATTR_RO(idle_residency_ms);
 
 static const struct attribute *gt_idle_attrs[] = {
-	&dev_attr_name.attr,
-	&dev_attr_idle_status.attr,
-	&dev_attr_idle_residency_ms.attr,
+	&name_attr.attr,
+	&idle_status_attr.attr,
+	&idle_residency_attr.attr,
 	NULL,
 };
 
@@ -328,6 +349,8 @@ int xe_gt_idle_init(struct xe_gt_idle *gtidle)
 	kobj = kobject_create_and_add("gtidle", gt->sysfs);
 	if (!kobj)
 		return -ENOMEM;
+
+	raw_spin_lock_init(&gtidle->lock);
 
 	if (xe_gt_is_media_type(gt)) {
 		snprintf(gtidle->name, sizeof(gtidle->name), "gt%d-mc", gt->info.id);

@@ -2502,7 +2502,7 @@ static int snd_ice1712_create(struct snd_card *card,
 	pci_write_config_word(ice->pci, 0x42, 0x0006);
 	snd_ice1712_proc_init(ice);
 
-	err = pci_request_regions(pci, "ICE1712");
+	err = pcim_request_all_regions(pci, "ICE1712");
 	if (err < 0)
 		return err;
 	ice->port = pci_resource_start(pci, 0);

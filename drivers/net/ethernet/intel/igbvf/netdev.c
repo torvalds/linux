@@ -1592,7 +1592,7 @@ void igbvf_down(struct igbvf_adapter *adapter)
 
 	igbvf_irq_disable(adapter);
 
-	del_timer_sync(&adapter->watchdog_timer);
+	timer_delete_sync(&adapter->watchdog_timer);
 
 	/* record the stats before reset*/
 	igbvf_update_stats(adapter);
@@ -1900,7 +1900,8 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
  **/
 static void igbvf_watchdog(struct timer_list *t)
 {
-	struct igbvf_adapter *adapter = from_timer(adapter, t, watchdog_timer);
+	struct igbvf_adapter *adapter = timer_container_of(adapter, t,
+							   watchdog_timer);
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
@@ -2912,7 +2913,7 @@ static void igbvf_remove(struct pci_dev *pdev)
 	 * disable it from being rescheduled.
 	 */
 	set_bit(__IGBVF_DOWN, &adapter->state);
-	del_timer_sync(&adapter->watchdog_timer);
+	timer_delete_sync(&adapter->watchdog_timer);
 
 	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);

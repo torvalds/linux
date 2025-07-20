@@ -263,17 +263,17 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 
 	movl	%edx, %edi
 	movl    $1024, %ecx
-	rep ; movsl
+	rep movsl
 
 	movl	%ebp, %edi
 	movl	%eax, %esi
 	movl	$1024, %ecx
-	rep ; movsl
+	rep movsl
 
 	movl	%eax, %edi
 	movl	%edx, %esi
 	movl	$1024, %ecx
-	rep ; movsl
+	rep movsl
 
 	lea	PAGE_SIZE(%ebp), %esi
 	jmp     0b

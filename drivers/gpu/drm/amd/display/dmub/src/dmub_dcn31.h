@@ -251,7 +251,7 @@ void dmub_dcn31_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 
 uint32_t dmub_dcn31_get_current_time(struct dmub_srv *dmub);
 
-void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub);
 
 bool dmub_dcn31_should_detect(struct dmub_srv *dmub);
 

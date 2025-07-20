@@ -653,8 +653,9 @@ void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc, struct dc_lin
 		if (!query_dp_alt_from_dmub(enc, &cmd))
 			return;
 
-		if (cmd.query_dp_alt.data.is_usb &&
-		    cmd.query_dp_alt.data.is_dp4 == 0)
+		if (cmd.query_dp_alt.data.is_dp_alt_disable == 0 &&
+				cmd.query_dp_alt.data.is_usb &&
+				cmd.query_dp_alt.data.is_dp4 == 0)
 			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
 
 		return;

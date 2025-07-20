@@ -105,9 +105,17 @@ static int sdw_drv_probe(struct device *dev)
 	if (ret)
 		return ret;
 
+	ret = ida_alloc_max(&slave->bus->slave_ida, SDW_FW_MAX_DEVICES, GFP_KERNEL);
+	if (ret < 0) {
+		dev_err(dev, "Failed to allocated ID: %d\n", ret);
+		return ret;
+	}
+	slave->index = ret;
+
 	ret = drv->probe(slave, id);
 	if (ret) {
 		dev_pm_domain_detach(dev, false);
+		ida_free(&slave->bus->slave_ida, slave->index);
 		return ret;
 	}
 
@@ -167,15 +175,14 @@ static int sdw_drv_remove(struct device *dev)
 
 	slave->probed = false;
 
-	if (slave->prop.use_domain_irq)
-		sdw_irq_dispose_mapping(slave);
-
 	mutex_unlock(&slave->sdw_dev_lock);
 
 	if (drv->remove)
 		ret = drv->remove(slave);
 
 	dev_pm_domain_detach(dev, false);
+
+	ida_free(&slave->bus->slave_ida, slave->index);
 
 	return ret;
 }

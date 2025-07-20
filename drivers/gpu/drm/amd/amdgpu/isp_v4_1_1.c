@@ -25,6 +25,7 @@
  *
  */
 
+#include <linux/gpio/machine.h>
 #include "amdgpu.h"
 #include "isp_v4_1_1.h"
 
@@ -39,38 +40,71 @@ static const unsigned int isp_4_1_1_int_srcid[MAX_ISP411_INT_SRC] = {
 	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT16
 };
 
+static struct gpiod_lookup_table isp_gpio_table = {
+	.dev_id = "amd_isp_capture",
+	.table = {
+		GPIO_LOOKUP("AMDI0030:00", 85, "enable_isp", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table isp_sensor_gpio_table = {
+	.dev_id = "i2c-ov05c10",
+	.table = {
+		GPIO_LOOKUP("amdisp-pinctrl", 0, "enable", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 {
 	struct amdgpu_device *adev = isp->adev;
 	int idx, int_idx, num_res, r;
+	u8 isp_dev_hid[ACPI_ID_LEN];
 	u64 isp_base;
 
 	if (adev->rmmio_size == 0 || adev->rmmio_size < 0x5289)
 		return -EINVAL;
 
+	r = amdgpu_acpi_get_isp4_dev_hid(&isp_dev_hid);
+	if (r) {
+		drm_dbg(&adev->ddev, "Invalid isp platform detected (%d)", r);
+		/* allow GPU init to progress */
+		return 0;
+	}
+
+	/* add GPIO resources required for OMNI5C10 sensor */
+	if (!strcmp("OMNI5C10", isp_dev_hid)) {
+		gpiod_add_lookup_table(&isp_gpio_table);
+		gpiod_add_lookup_table(&isp_sensor_gpio_table);
+	}
+
 	isp_base = adev->rmmio_base;
 
-	isp->isp_cell = kcalloc(2, sizeof(struct mfd_cell), GFP_KERNEL);
+	isp->isp_cell = kcalloc(3, sizeof(struct mfd_cell), GFP_KERNEL);
 	if (!isp->isp_cell) {
 		r = -ENOMEM;
-		DRM_ERROR("%s: isp mfd cell alloc failed\n", __func__);
+		drm_err(&adev->ddev,
+			"%s: isp mfd cell alloc failed\n", __func__);
 		goto failure;
 	}
 
-	num_res = MAX_ISP411_MEM_RES + MAX_ISP411_SENSOR_RES + MAX_ISP411_INT_SRC;
+	num_res = MAX_ISP411_MEM_RES + MAX_ISP411_INT_SRC;
 
 	isp->isp_res = kcalloc(num_res, sizeof(struct resource),
 			       GFP_KERNEL);
 	if (!isp->isp_res) {
 		r = -ENOMEM;
-		DRM_ERROR("%s: isp mfd res alloc failed\n", __func__);
+		drm_err(&adev->ddev,
+			"%s: isp mfd res alloc failed\n", __func__);
 		goto failure;
 	}
 
 	isp->isp_pdata = kzalloc(sizeof(*isp->isp_pdata), GFP_KERNEL);
 	if (!isp->isp_pdata) {
 		r = -ENOMEM;
-		DRM_ERROR("%s: isp platform data alloc failed\n", __func__);
+		drm_err(&adev->ddev,
+			"%s: isp platform data alloc failed\n", __func__);
 		goto failure;
 	}
 
@@ -89,14 +123,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_res[1].start = isp_base + ISP411_PHY0_OFFSET;
 	isp->isp_res[1].end = isp_base + ISP411_PHY0_OFFSET + ISP411_PHY0_SIZE;
 
-	isp->isp_res[2].name = "isp_4_1_1_sensor0_reg";
-	isp->isp_res[2].flags = IORESOURCE_MEM;
-	isp->isp_res[2].start = isp_base + ISP411_GPIO_SENSOR0_OFFSET;
-	isp->isp_res[2].end = isp_base + ISP411_GPIO_SENSOR0_OFFSET +
-			      ISP411_GPIO_SENSOR0_SIZE;
-
-	for (idx = MAX_ISP411_MEM_RES + MAX_ISP411_SENSOR_RES, int_idx = 0;
-	     idx < num_res; idx++, int_idx++) {
+	for (idx = MAX_ISP411_MEM_RES, int_idx = 0; idx < num_res; idx++, int_idx++) {
 		isp->isp_res[idx].name = "isp_4_1_1_irq";
 		isp->isp_res[idx].flags = IORESOURCE_IRQ;
 		isp->isp_res[idx].start =
@@ -111,10 +138,12 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[0].platform_data = isp->isp_pdata;
 	isp->isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
 
+	/* initialize isp i2c platform data */
 	isp->isp_i2c_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
 	if (!isp->isp_i2c_res) {
 		r = -ENOMEM;
-		DRM_ERROR("%s: isp mfd res alloc failed\n", __func__);
+		drm_err(&adev->ddev,
+			"%s: isp mfd res alloc failed\n", __func__);
 		goto failure;
 	}
 
@@ -129,9 +158,31 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[1].platform_data = isp->isp_pdata;
 	isp->isp_cell[1].pdata_size = sizeof(struct isp_platform_data);
 
-	r = mfd_add_hotplug_devices(isp->parent, isp->isp_cell, 2);
+	/* initialize isp gpiochip platform data */
+	isp->isp_gpio_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
+	if (!isp->isp_gpio_res) {
+		r = -ENOMEM;
+		drm_err(&adev->ddev,
+			"%s: isp gpio res alloc failed\n", __func__);
+		goto failure;
+	}
+
+	isp->isp_gpio_res[0].name = "isp_gpio_reg";
+	isp->isp_gpio_res[0].flags = IORESOURCE_MEM;
+	isp->isp_gpio_res[0].start = isp_base + ISP411_GPIO_SENSOR_OFFSET;
+	isp->isp_gpio_res[0].end = isp_base + ISP411_GPIO_SENSOR_OFFSET +
+				   ISP411_GPIO_SENSOR_SIZE;
+
+	isp->isp_cell[2].name = "amdisp-pinctrl";
+	isp->isp_cell[2].num_resources = 1;
+	isp->isp_cell[2].resources = &isp->isp_gpio_res[0];
+	isp->isp_cell[2].platform_data = isp->isp_pdata;
+	isp->isp_cell[2].pdata_size = sizeof(struct isp_platform_data);
+
+	r = mfd_add_hotplug_devices(isp->parent, isp->isp_cell, 3);
 	if (r) {
-		DRM_ERROR("%s: add mfd hotplug device failed\n", __func__);
+		drm_err(&adev->ddev,
+			"%s: add mfd hotplug device failed\n", __func__);
 		goto failure;
 	}
 
@@ -143,6 +194,7 @@ failure:
 	kfree(isp->isp_res);
 	kfree(isp->isp_cell);
 	kfree(isp->isp_i2c_res);
+	kfree(isp->isp_gpio_res);
 
 	return r;
 }
@@ -155,6 +207,7 @@ static int isp_v4_1_1_hw_fini(struct amdgpu_isp *isp)
 	kfree(isp->isp_cell);
 	kfree(isp->isp_pdata);
 	kfree(isp->isp_i2c_res);
+	kfree(isp->isp_gpio_res);
 
 	return 0;
 }

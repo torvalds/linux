@@ -361,7 +361,7 @@ static int aml_rtc_probe(struct platform_device *pdev)
 				     "failed to get_enable rtc sys clk\n");
 	aml_rtc_init(rtc);
 
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
 	platform_set_drvdata(pdev, rtc);
 
 	rtc->rtc_dev = devm_rtc_allocate_device(dev);
@@ -391,7 +391,7 @@ static int aml_rtc_probe(struct platform_device *pdev)
 	return 0;
 err_clk:
 	clk_disable_unprepare(rtc->sys_clk);
-	device_init_wakeup(dev, 0);
+	device_init_wakeup(dev, false);
 
 	return ret;
 }
@@ -426,7 +426,7 @@ static void aml_rtc_remove(struct platform_device *pdev)
 	struct aml_rtc_data *rtc = dev_get_drvdata(&pdev->dev);
 
 	clk_disable_unprepare(rtc->sys_clk);
-	device_init_wakeup(&pdev->dev, 0);
+	device_init_wakeup(&pdev->dev, false);
 }
 
 static const struct aml_rtc_config a5_rtc_config = {

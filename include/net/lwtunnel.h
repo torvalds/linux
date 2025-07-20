@@ -206,6 +206,7 @@ static inline int lwtunnel_valid_encap_type(u16 encap_type,
 	NL_SET_ERR_MSG(extack, "CONFIG_LWTUNNEL is not enabled in this kernel");
 	return -EOPNOTSUPP;
 }
+
 static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len,
 						 struct netlink_ext_ack *extack)
 {

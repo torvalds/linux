@@ -94,64 +94,63 @@ bool mce_gen_pool_empty(void)
 	return llist_empty(&mce_event_llist);
 }
 
-int mce_gen_pool_add(struct mce_hw_err *err)
+bool mce_gen_pool_add(struct mce_hw_err *err)
 {
 	struct mce_evt_llist *node;
 
 	if (filter_mce(&err->m))
-		return -EINVAL;
+		return false;
 
 	if (!mce_evt_pool)
-		return -EINVAL;
+		return false;
 
 	node = (void *)gen_pool_alloc(mce_evt_pool, sizeof(*node));
 	if (!node) {
 		pr_warn_ratelimited("MCE records pool full!\n");
-		return -ENOMEM;
+		return false;
 	}
 
 	memcpy(&node->err, err, sizeof(*err));
 	llist_add(&node->llnode, &mce_event_llist);
 
-	return 0;
+	return true;
 }
 
-static int mce_gen_pool_create(void)
+static bool mce_gen_pool_create(void)
 {
 	int mce_numrecords, mce_poolsz, order;
 	struct gen_pool *gpool;
-	int ret = -ENOMEM;
 	void *mce_pool;
 
 	order = order_base_2(sizeof(struct mce_evt_llist));
 	gpool = gen_pool_create(order, -1);
 	if (!gpool)
-		return ret;
+		return false;
 
 	mce_numrecords = max(MCE_MIN_ENTRIES, num_possible_cpus() * MCE_PER_CPU);
 	mce_poolsz = mce_numrecords * (1 << order);
 	mce_pool = kmalloc(mce_poolsz, GFP_KERNEL);
 	if (!mce_pool) {
 		gen_pool_destroy(gpool);
-		return ret;
+		return false;
 	}
-	ret = gen_pool_add(gpool, (unsigned long)mce_pool, mce_poolsz, -1);
-	if (ret) {
+
+	if (gen_pool_add(gpool, (unsigned long)mce_pool, mce_poolsz, -1)) {
 		gen_pool_destroy(gpool);
 		kfree(mce_pool);
-		return ret;
+		return false;
 	}
 
 	mce_evt_pool = gpool;
 
-	return ret;
+	return true;
 }
 
-int mce_gen_pool_init(void)
+bool mce_gen_pool_init(void)
 {
 	/* Just init mce_gen_pool once. */
 	if (mce_evt_pool)
-		return 0;
+		return true;
 
 	return mce_gen_pool_create();
 }

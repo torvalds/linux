@@ -1548,9 +1548,8 @@ static int tc_edp_stream_disable(struct tc_data *tc)
 	return 0;
 }
 
-static void
-tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
-			    struct drm_bridge_state *old_bridge_state)
+static void tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state)
 
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
@@ -1564,9 +1563,8 @@ tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 }
 
-static void
-tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
@@ -1576,9 +1574,8 @@ tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
 		dev_err(tc->dev, "main link stream stop error: %d\n", ret);
 }
 
-static void
-tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
-			    struct drm_bridge_state *old_bridge_state)
+static void tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
@@ -1603,9 +1600,8 @@ tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 }
 
-static void
-tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
@@ -1799,6 +1795,7 @@ static const struct drm_connector_funcs tc_connector_funcs = {
 };
 
 static int tc_dpi_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
@@ -1811,6 +1808,7 @@ static int tc_dpi_bridge_attach(struct drm_bridge *bridge,
 }
 
 static int tc_edp_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
@@ -2587,7 +2585,7 @@ static void tc_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc358767_i2c_ids[] = {
-	{ "tc358767", 0 },
+	{ "tc358767" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc358767_i2c_ids);

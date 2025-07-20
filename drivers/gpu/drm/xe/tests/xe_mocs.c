@@ -46,8 +46,11 @@ static void read_l3cc_table(struct xe_gt *gt,
 	unsigned int fw_ref, i;
 	u32 reg_val;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	KUNIT_ASSERT_NE_MSG(test, fw_ref, 0, "Forcewake Failed.\n");
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
+		KUNIT_ASSERT_TRUE_MSG(test, true, "Forcewake Failed.\n");
+	}
 
 	for (i = 0; i < info->num_mocs_regs; i++) {
 		if (!(i & 1)) {
@@ -58,7 +61,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 
 			mocs_dbg(gt, "reg_val=0x%x\n", reg_val);
 		} else {
-			/* Just re-use value read on previous iteration */
+			/* Just reuse value read on previous iteration */
 			reg_val >>= 16;
 		}
 
@@ -162,8 +165,7 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 		if (flags & HAS_LNCF_MOCS)
 			read_l3cc_table(gt, &mocs.table);
 
-		xe_gt_reset_async(gt);
-		flush_work(&gt->reset.worker);
+		xe_gt_reset(gt);
 
 		kunit_info(test, "mocs_reset_test after reset\n");
 		if (flags & HAS_GLOBAL_MOCS)

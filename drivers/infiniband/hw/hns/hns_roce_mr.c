@@ -38,6 +38,7 @@
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
+#include "hns_roce_trace.h"
 
 static u32 hw_index_to_key(int ind)
 {
@@ -159,6 +160,7 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
+	trace_hns_mr(mr);
 	if (mr->type != MR_TYPE_FRMR)
 		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr);
 	else
@@ -814,11 +816,6 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	for (i = 0, mapped_cnt = 0; i < mtr->hem_cfg.region_count &&
 	     mapped_cnt < page_cnt; i++) {
 		r = &mtr->hem_cfg.region[i];
-		/* if hopnum is 0, no need to map pages in this region */
-		if (!r->hopnum) {
-			mapped_cnt += r->count;
-			continue;
-		}
 
 		if (r->offset + r->count > page_cnt) {
 			ret = -EINVAL;
@@ -1003,7 +1000,7 @@ static bool is_buf_attr_valid(struct hns_roce_dev *hr_dev,
 	if (attr->region_count > ARRAY_SIZE(attr->region) ||
 	    attr->region_count < 1 || attr->page_shift < HNS_HW_PAGE_SHIFT) {
 		ibdev_err(ibdev,
-			  "invalid buf attr, region count %d, page shift %u.\n",
+			  "invalid buf attr, region count %u, page shift %u.\n",
 			  attr->region_count, attr->page_shift);
 		return false;
 	}
@@ -1151,6 +1148,7 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
 
+	trace_hns_buf_attr(buf_attr);
 	/* The caller has its own buffer list and invokes the hns_roce_mtr_map()
 	 * to finish the MTT configuration.
 	 */

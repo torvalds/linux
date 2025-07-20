@@ -27,6 +27,7 @@
 #include <linux/acpi.h>
 #include <acpi/video.h>
 #include <linux/uaccess.h>
+#include <linux/string_choices.h>
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"
@@ -610,16 +611,28 @@ acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 	return 0;
 }
 
+/**
+ * acpi_video_device_EDID() - Get EDID from ACPI _DDC
+ * @device: video output device (LCD, CRT, ..)
+ * @edid: address for returned EDID pointer
+ * @length: _DDC length to request (must be a multiple of 128)
+ *
+ * Get EDID from ACPI _DDC. On success, a pointer to the EDID data is written
+ * to the @edid address, and the length of the EDID is returned. The caller is
+ * responsible for freeing the edid pointer.
+ *
+ * Return the length of EDID (positive value) on success or error (negative
+ * value).
+ */
 static int
-acpi_video_device_EDID(struct acpi_video_device *device,
-		       union acpi_object **edid, int length)
+acpi_video_device_EDID(struct acpi_video_device *device, void **edid, int length)
 {
-	int status;
+	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
-
+	int ret;
 
 	*edid = NULL;
 
@@ -636,16 +649,24 @@ acpi_video_device_EDID(struct acpi_video_device *device,
 
 	obj = buffer.pointer;
 
-	if (obj && obj->type == ACPI_TYPE_BUFFER)
-		*edid = obj;
-	else {
+	/*
+	 * Some buggy implementations incorrectly return the EDID buffer in an ACPI package.
+	 * In this case, extract the buffer from the package.
+	 */
+	if (obj && obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 1)
+		obj = &obj->package.elements[0];
+
+	if (obj && obj->type == ACPI_TYPE_BUFFER) {
+		*edid = kmemdup(obj->buffer.pointer, obj->buffer.length, GFP_KERNEL);
+		ret = *edid ? obj->buffer.length : -ENOMEM;
+	} else {
 		acpi_handle_debug(device->dev->handle,
 				 "Invalid _DDC data for length %d\n", length);
-		status = -EFAULT;
-		kfree(obj);
+		ret = -EFAULT;
 	}
 
-	return status;
+	kfree(buffer.pointer);
+	return ret;
 }
 
 /* bus */
@@ -1435,9 +1456,7 @@ int acpi_video_get_edid(struct acpi_device *device, int type, int device_id,
 {
 	struct acpi_video_bus *video;
 	struct acpi_video_device *video_device;
-	union acpi_object *buffer = NULL;
-	acpi_status status;
-	int i, length;
+	int i, length, ret;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
@@ -1477,16 +1496,10 @@ int acpi_video_get_edid(struct acpi_device *device, int type, int device_id,
 		}
 
 		for (length = 512; length > 0; length -= 128) {
-			status = acpi_video_device_EDID(video_device, &buffer,
-							length);
-			if (ACPI_SUCCESS(status))
-				break;
+			ret = acpi_video_device_EDID(video_device, edid, length);
+			if (ret > 0)
+				return ret;
 		}
-		if (!length)
-			continue;
-
-		*edid = buffer->buffer.pointer;
-		return length;
 	}
 
 	return -ENODEV;
@@ -2034,9 +2047,9 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
 	pr_info("%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
 	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
-	       video->flags.multihead ? "yes" : "no",
-	       video->flags.rom ? "yes" : "no",
-	       video->flags.post ? "yes" : "no");
+	       str_yes_no(video->flags.multihead),
+	       str_yes_no(video->flags.rom),
+	       str_yes_no(video->flags.post));
 	mutex_lock(&video_list_lock);
 	list_add_tail(&video->entry, &video_bus_head);
 	mutex_unlock(&video_list_lock);

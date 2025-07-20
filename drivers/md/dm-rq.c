@@ -217,10 +217,10 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (req_op(clone) == REQ_OP_DISCARD &&
 		    !clone->q->limits.max_discard_sectors)
-			disable_discard(tio->md);
+			blk_queue_disable_discard(tio->md->queue);
 		else if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
 			 !clone->q->limits.max_write_zeroes_sectors)
-			disable_write_zeroes(tio->md);
+			blk_queue_disable_write_zeroes(tio->md->queue);
 	}
 
 	switch (r) {
@@ -547,7 +547,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	md->tag_set->ops = &dm_mq_ops;
 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
 	md->tag_set->numa_node = md->numa_node_id;
-	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_STACKING;
+	md->tag_set->flags = BLK_MQ_F_STACKING;
 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
 	md->tag_set->driver_data = md;
 

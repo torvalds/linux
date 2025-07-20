@@ -46,7 +46,9 @@
 		.out_bit = 1,                                         \
 		.intr_enable_bit = 0,                                 \
 		.intr_status_bit = 0,                                 \
-		.intr_target_bit = 5,                                 \
+		.intr_wakeup_present_bit = 6,                         \
+		.intr_wakeup_enable_bit = 7,                          \
+		.intr_target_bit = 8,                                 \
 		.intr_target_kpss_val = 3,                            \
 		.intr_raw_status_bit = 4,                             \
 		.intr_polarity_bit = 1,                               \
@@ -1709,7 +1711,6 @@ static struct platform_driver sm8750_tlmm_driver = {
 		.of_match_table = sm8750_tlmm_of_match,
 	},
 	.probe = sm8750_tlmm_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init sm8750_tlmm_init(void)

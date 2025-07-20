@@ -7,11 +7,22 @@
  *
  */
 
-#ifndef _NET_TIMESTAMPING_H
-#define _NET_TIMESTAMPING_H
+#ifndef _UAPI_NET_TIMESTAMPING_H
+#define _UAPI_NET_TIMESTAMPING_H
 
 #include <linux/types.h>
 #include <linux/socket.h>   /* for SO_TIMESTAMPING */
+
+/*
+ * Possible type of hwtstamp provider. Mainly "precise" the default one
+ * is for IEEE 1588 quality and "approx" is for NICs DMA point.
+ */
+enum hwtstamp_provider_qualifier {
+	HWTSTAMP_PROVIDER_QUALIFIER_PRECISE,
+	HWTSTAMP_PROVIDER_QUALIFIER_APPROX,
+
+	HWTSTAMP_PROVIDER_QUALIFIER_CNT,
+};
 
 /* SO_TIMESTAMPING flags */
 enum {
@@ -33,8 +44,9 @@ enum {
 	SOF_TIMESTAMPING_BIND_PHC = (1 << 15),
 	SOF_TIMESTAMPING_OPT_ID_TCP = (1 << 16),
 	SOF_TIMESTAMPING_OPT_RX_FILTER = (1 << 17),
+	SOF_TIMESTAMPING_TX_COMPLETION = (1 << 18),
 
-	SOF_TIMESTAMPING_LAST = SOF_TIMESTAMPING_OPT_RX_FILTER,
+	SOF_TIMESTAMPING_LAST = SOF_TIMESTAMPING_TX_COMPLETION,
 	SOF_TIMESTAMPING_MASK = (SOF_TIMESTAMPING_LAST - 1) |
 				 SOF_TIMESTAMPING_LAST
 };
@@ -47,7 +59,8 @@ enum {
 #define SOF_TIMESTAMPING_TX_RECORD_MASK	(SOF_TIMESTAMPING_TX_HARDWARE | \
 					 SOF_TIMESTAMPING_TX_SOFTWARE | \
 					 SOF_TIMESTAMPING_TX_SCHED | \
-					 SOF_TIMESTAMPING_TX_ACK)
+					 SOF_TIMESTAMPING_TX_ACK | \
+					 SOF_TIMESTAMPING_TX_COMPLETION)
 
 /**
  * struct so_timestamping - SO_TIMESTAMPING parameter
@@ -203,4 +216,4 @@ struct sock_txtime {
 	__u32			flags;	/* as defined by enum txtime_flags */
 };
 
-#endif /* _NET_TIMESTAMPING_H */
+#endif /* _UAPI_NET_TIMESTAMPING_H */

@@ -59,9 +59,6 @@ extern struct workqueue_struct *ib_comp_unbound_wq;
 
 struct ib_ucq_object;
 
-__printf(3, 4) __cold
-void ibdev_printk(const char *level, const struct ib_device *ibdev,
-		  const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_emerg(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
@@ -317,17 +314,19 @@ enum ib_atomic_cap {
 };
 
 enum ib_odp_general_cap_bits {
-	IB_ODP_SUPPORT		= 1 << 0,
-	IB_ODP_SUPPORT_IMPLICIT = 1 << 1,
+	IB_ODP_SUPPORT		= IB_UVERBS_ODP_SUPPORT,
+	IB_ODP_SUPPORT_IMPLICIT = IB_UVERBS_ODP_SUPPORT_IMPLICIT,
 };
 
 enum ib_odp_transport_cap_bits {
-	IB_ODP_SUPPORT_SEND	= 1 << 0,
-	IB_ODP_SUPPORT_RECV	= 1 << 1,
-	IB_ODP_SUPPORT_WRITE	= 1 << 2,
-	IB_ODP_SUPPORT_READ	= 1 << 3,
-	IB_ODP_SUPPORT_ATOMIC	= 1 << 4,
-	IB_ODP_SUPPORT_SRQ_RECV	= 1 << 5,
+	IB_ODP_SUPPORT_SEND	= IB_UVERBS_ODP_SUPPORT_SEND,
+	IB_ODP_SUPPORT_RECV	= IB_UVERBS_ODP_SUPPORT_RECV,
+	IB_ODP_SUPPORT_WRITE	= IB_UVERBS_ODP_SUPPORT_WRITE,
+	IB_ODP_SUPPORT_READ	= IB_UVERBS_ODP_SUPPORT_READ,
+	IB_ODP_SUPPORT_ATOMIC	= IB_UVERBS_ODP_SUPPORT_ATOMIC,
+	IB_ODP_SUPPORT_SRQ_RECV	= IB_UVERBS_ODP_SUPPORT_SRQ_RECV,
+	IB_ODP_SUPPORT_FLUSH	= IB_UVERBS_ODP_SUPPORT_FLUSH,
+	IB_ODP_SUPPORT_ATOMIC_WRITE	= IB_UVERBS_ODP_SUPPORT_ATOMIC_WRITE,
 };
 
 struct ib_odp_caps {
@@ -521,6 +520,23 @@ enum ib_port_state {
 	IB_PORT_ACTIVE		= 4,
 	IB_PORT_ACTIVE_DEFER	= 5
 };
+
+static inline const char *__attribute_const__
+ib_port_state_to_str(enum ib_port_state state)
+{
+	const char * const states[] = {
+		[IB_PORT_NOP] = "NOP",
+		[IB_PORT_DOWN] = "DOWN",
+		[IB_PORT_INIT] = "INIT",
+		[IB_PORT_ARMED] = "ARMED",
+		[IB_PORT_ACTIVE] = "ACTIVE",
+		[IB_PORT_ACTIVE_DEFER] = "ACTIVE_DEFER",
+	};
+
+	if (state < ARRAY_SIZE(states))
+		return states[state];
+	return "UNKNOWN";
+}
 
 enum ib_port_phys_state {
 	IB_PORT_PHYS_STATE_SLEEP = 1,
@@ -1516,6 +1532,7 @@ struct ib_ucontext {
 	struct ib_uverbs_file  *ufile;
 
 	struct ib_rdmacg_object	cg_obj;
+	u64 enabled_caps;
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
@@ -2177,6 +2194,7 @@ struct ib_port_cache {
 	struct ib_gid_table   *gid;
 	u8                     lmc;
 	enum ib_port_state     port_state;
+	enum ib_port_state     last_port_state;
 };
 
 struct ib_port_immutable {
@@ -2256,7 +2274,9 @@ struct rdma_netdev_alloc_params {
 
 struct ib_odp_counters {
 	atomic64_t faults;
+	atomic64_t faults_handled;
 	atomic64_t invalidations;
+	atomic64_t invalidations_handled;
 	atomic64_t prefetch;
 };
 
@@ -2626,12 +2646,13 @@ struct ib_device_ops {
 	 * @counter - The counter to be bound. If counter->id is zero then
 	 *   the driver needs to allocate a new counter and set counter->id
 	 */
-	int (*counter_bind_qp)(struct rdma_counter *counter, struct ib_qp *qp);
+	int (*counter_bind_qp)(struct rdma_counter *counter, struct ib_qp *qp,
+			       u32 port);
 	/**
 	 * counter_unbind_qp - Unbind the qp from the dynamically-allocated
 	 *   counter and bind it onto the default one
 	 */
-	int (*counter_unbind_qp)(struct ib_qp *qp);
+	int (*counter_unbind_qp)(struct ib_qp *qp, u32 port);
 	/**
 	 * counter_dealloc -De-allocate the hw counter
 	 */
@@ -2646,6 +2667,11 @@ struct ib_device_ops {
 	 * counter_update_stats - Query the stats value of this counter
 	 */
 	int (*counter_update_stats)(struct rdma_counter *counter);
+
+	/**
+	 * counter_init - Initialize the driver specific rdma counter struct.
+	 */
+	void (*counter_init)(struct rdma_counter *counter);
 
 	/**
 	 * Allows rdma drivers to add their own restrack attributes
@@ -2681,6 +2707,13 @@ struct ib_device_ops {
 	 */
 	void (*ufile_hw_cleanup)(struct ib_uverbs_file *ufile);
 
+	/**
+	 * report_port_event - Drivers need to implement this if they have
+	 * some private stuff to handle when link status changes.
+	 */
+	void (*report_port_event)(struct ib_device *ibdev,
+				  struct net_device *ndev, unsigned long event);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_counters);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
@@ -2691,6 +2724,7 @@ struct ib_device_ops {
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 	DECLARE_RDMA_OBJ_SIZE(ib_xrcd);
+	DECLARE_RDMA_OBJ_SIZE(rdma_counter);
 };
 
 struct ib_core_device {
@@ -2743,6 +2777,7 @@ struct ib_device {
 	 * It is a NULL terminated array.
 	 */
 	const struct attribute_group	*groups[4];
+	u8				hw_stats_attr_index;
 
 	u64			     uverbs_cmd_mask;
 
@@ -4469,6 +4504,17 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 			 unsigned int port);
 struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 					u32 port);
+int ib_query_netdev_port(struct ib_device *ibdev, struct net_device *ndev,
+			 u32 *port);
+
+static inline enum ib_port_state ib_get_curr_port_state(struct net_device *net_dev)
+{
+	return (netif_running(net_dev) && netif_carrier_ok(net_dev)) ?
+		IB_PORT_ACTIVE : IB_PORT_DOWN;
+}
+
+void ib_dispatch_port_state_event(struct ib_device *ibdev,
+				  struct net_device *ndev);
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *init_attr);
 int ib_destroy_wq_user(struct ib_wq *wq, struct ib_udata *udata);
@@ -4746,7 +4792,14 @@ void roce_del_all_netdev_gids(struct ib_device *ib_dev,
 
 struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile);
 
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs);
+#else
+static inline int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
+{
+	return 0;
+}
+#endif
 
 struct net_device *rdma_alloc_netdev(struct ib_device *device, u32 port_num,
 				     enum rdma_netdev_t type, const char *name,

@@ -9,6 +9,7 @@
 #include "events_stats.h"
 #include "evsel.h"
 #include "map_symbol.h"
+#include "mem-events.h"
 #include "mutex.h"
 #include "sample.h"
 #include "spark.h"
@@ -31,17 +32,22 @@ enum hist_filter {
 	HIST_FILTER__HOST,
 	HIST_FILTER__SOCKET,
 	HIST_FILTER__C2C,
+	HIST_FILTER__PARALLELISM,
 };
+
+typedef u16 filter_mask_t;
 
 enum hist_column {
 	HISTC_SYMBOL,
 	HISTC_TIME,
 	HISTC_DSO,
 	HISTC_THREAD,
+	HISTC_TGID,
 	HISTC_COMM,
 	HISTC_CGROUP_ID,
 	HISTC_CGROUP,
 	HISTC_PARENT,
+	HISTC_PARALLELISM,
 	HISTC_CPU,
 	HISTC_SOCKET,
 	HISTC_SRCLINE,
@@ -96,6 +102,13 @@ enum hist_column {
 struct thread;
 struct dso;
 
+#define MEM_STAT_LEN  8
+
+struct he_mem_stat {
+	/* meaning of entries depends on enum mem_stat_type */
+	u64			entries[MEM_STAT_LEN];
+};
+
 struct hists {
 	struct rb_root_cached	entries_in_array[2];
 	struct rb_root_cached	*entries_in;
@@ -105,10 +118,13 @@ struct hists {
 	u64			nr_non_filtered_entries;
 	u64			callchain_period;
 	u64			callchain_non_filtered_period;
+	u64			callchain_latency;
+	u64			callchain_non_filtered_latency;
 	struct thread		*thread_filter;
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
 	const char		*symbol_filter_str;
+	unsigned long		*parallelism_filter;
 	struct mutex		lock;
 	struct hists_stats	stats;
 	u64			event_stream;
@@ -118,6 +134,9 @@ struct hists {
 	struct perf_hpp_list	*hpp_list;
 	struct list_head	hpp_formats;
 	int			nr_hpp_node;
+	int			nr_mem_stats;
+	enum mem_stat_type	*mem_stat_types;
+	struct he_mem_stat	*mem_stat_total;
 };
 
 #define hists__has(__h, __f) (__h)->hpp_list->__f
@@ -165,6 +184,12 @@ struct res_sample {
 
 struct he_stat {
 	u64			period;
+	/*
+	 * Period re-scaled from CPU time to wall-clock time (divided by the
+	 * parallelism at the time of the sample). This represents effect of
+	 * the event on latency rather than CPU consumption.
+	 */
+	u64			latency;
 	u64			period_sys;
 	u64			period_us;
 	u64			period_guest_sys;
@@ -219,6 +244,7 @@ struct hist_entry {
 	} pairs;
 	struct he_stat		stat;
 	struct he_stat		*stat_acc;
+	struct he_mem_stat	*mem_stat;
 	struct map_symbol	ms;
 	struct thread		*thread;
 	struct comm		*comm;
@@ -226,15 +252,16 @@ struct hist_entry {
 	u64			cgroup;
 	u64			ip;
 	u64			transaction;
-	s32			socket;
-	s32			cpu;
 	u64			code_page_size;
 	u64			weight;
 	u64			ins_lat;
 	u64			p_stage_cyc;
+	s32			socket;
+	s32			cpu;
+	int			parallelism;
+	int			mem_type_off;
 	u8			cpumode;
 	u8			depth;
-	int			mem_type_off;
 	struct simd_flags	simd_flags;
 
 	/* We are added by hists__add_dummy_entry. */
@@ -242,7 +269,7 @@ struct hist_entry {
 	bool			leaf;
 
 	char			level;
-	u8			filtered;
+	filter_mask_t		filtered;
 
 	u16			callchain_size;
 	union {
@@ -342,8 +369,6 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 struct perf_hpp;
 struct perf_hpp_fmt;
 
-int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
-int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__transaction_len(void);
 int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
@@ -370,6 +395,7 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 struct hist_entry *hists__get_entry(struct hists *hists, int idx);
 
 u64 hists__total_period(struct hists *hists);
+u64 hists__total_latency(struct hists *hists);
 void hists__reset_stats(struct hists *hists);
 void hists__inc_stats(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *hists);
@@ -386,11 +412,13 @@ void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
 void hists__filter_by_socket(struct hists *hists);
+void hists__filter_by_parallelism(struct hists *hists);
 
 static inline bool hists__has_filter(struct hists *hists)
 {
 	return hists->thread_filter || hists->dso_filter ||
-		hists->symbol_filter_str || (hists->socket_filter > -1);
+		hists->symbol_filter_str || (hists->socket_filter > -1) ||
+		hists->parallelism_filter;
 }
 
 u16 hists__col_len(struct hists *hists, enum hist_column col);
@@ -452,6 +480,9 @@ struct perf_hpp {
 	bool skip;
 };
 
+typedef int64_t (*perf_hpp_fmt_cmp_t)(
+	struct perf_hpp_fmt *, struct hist_entry *, struct hist_entry *);
+
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -463,12 +494,9 @@ struct perf_hpp_fmt {
 		     struct hist_entry *he);
 	int (*entry)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hist_entry *he);
-	int64_t (*cmp)(struct perf_hpp_fmt *fmt,
-		       struct hist_entry *a, struct hist_entry *b);
-	int64_t (*collapse)(struct perf_hpp_fmt *fmt,
-			    struct hist_entry *a, struct hist_entry *b);
-	int64_t (*sort)(struct perf_hpp_fmt *fmt,
-			struct hist_entry *a, struct hist_entry *b);
+	perf_hpp_fmt_cmp_t cmp;
+	perf_hpp_fmt_cmp_t collapse;
+	perf_hpp_fmt_cmp_t sort;
 	bool (*equal)(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 	void (*free)(struct perf_hpp_fmt *fmt);
 
@@ -549,27 +577,37 @@ extern struct perf_hpp_fmt perf_hpp__format[];
 enum {
 	/* Matches perf_hpp__format array. */
 	PERF_HPP__OVERHEAD,
+	PERF_HPP__LATENCY,
 	PERF_HPP__OVERHEAD_SYS,
 	PERF_HPP__OVERHEAD_US,
 	PERF_HPP__OVERHEAD_GUEST_SYS,
 	PERF_HPP__OVERHEAD_GUEST_US,
 	PERF_HPP__OVERHEAD_ACC,
+	PERF_HPP__LATENCY_ACC,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
 	PERF_HPP__WEIGHT1,
 	PERF_HPP__WEIGHT2,
 	PERF_HPP__WEIGHT3,
+	PERF_HPP__MEM_STAT_OP,
+	PERF_HPP__MEM_STAT_CACHE,
+	PERF_HPP__MEM_STAT_MEMORY,
+	PERF_HPP__MEM_STAT_SNOOP,
+	PERF_HPP__MEM_STAT_DTLB,
 
 	PERF_HPP__MAX_INDEX
 };
 
 void perf_hpp__init(void);
-void perf_hpp__cancel_cumulate(void);
+void perf_hpp__cancel_cumulate(struct evlist *evlist);
+void perf_hpp__cancel_latency(struct evlist *evlist);
 void perf_hpp__setup_output_field(struct perf_hpp_list *list);
 void perf_hpp__reset_output_field(struct perf_hpp_list *list);
 void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
 int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 				  struct evlist *evlist);
+int perf_hpp__alloc_mem_stats(struct perf_hpp_list *list,
+			      struct evlist *evlist);
 
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
@@ -582,6 +620,7 @@ bool perf_hpp__is_thread_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_comm_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_dso_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_sym_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_parallelism_entry(struct perf_hpp_fmt *fmt);
 
 struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt);
 
@@ -608,6 +647,7 @@ void hists__reset_column_width(struct hists *hists);
 enum perf_hpp_fmt_type {
 	PERF_HPP_FMT_TYPE__RAW,
 	PERF_HPP_FMT_TYPE__PERCENT,
+	PERF_HPP_FMT_TYPE__LATENCY,
 	PERF_HPP_FMT_TYPE__AVERAGE,
 };
 
@@ -623,6 +663,9 @@ int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		 struct hist_entry *he, hpp_field_fn get_field,
 		 const char *fmtstr, hpp_snprint_fn print_fn,
 		 enum perf_hpp_fmt_type fmtype);
+int hpp__fmt_mem_stat(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct hist_entry *he, enum mem_stat_type mst,
+		      const char *fmtstr, hpp_snprint_fn print_fn);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {

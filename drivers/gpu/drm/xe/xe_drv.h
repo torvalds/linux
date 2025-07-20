@@ -9,8 +9,7 @@
 #include <drm/drm_drv.h>
 
 #define DRIVER_NAME		"xe"
-#define DRIVER_DESC		"Intel Xe Graphics"
-#define DRIVER_DATE		"20201103"
+#define DRIVER_DESC		"Intel Xe2 Graphics"
 
 /* Interface history:
  *

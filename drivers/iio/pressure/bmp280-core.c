@@ -46,6 +46,7 @@
 #include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -1002,7 +1003,7 @@ static int bmp280_preinit(struct bmp280_data *data)
 	 * after resetting, the device uses the complete power-on sequence so
 	 * it needs to wait for the defined start-up time.
 	 */
-	fsleep(data->start_up_time);
+	fsleep(data->start_up_time_us);
 
 	ret = regmap_read(data->regmap, BMP280_REG_STATUS, &reg);
 	if (ret)
@@ -1105,9 +1106,13 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	u32 adc_temp, adc_press, comp_press;
-	s32 t_fine, comp_temp;
-	s32 *chans = (s32 *)data->sensor_data;
+	u32 adc_temp, adc_press;
+	s32 t_fine;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		aligned_s64 timestamp;
+	} buffer;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1127,7 +1132,7 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_temp = bmp280_compensate_temp(data, adc_temp);
+	buffer.comp_temp = bmp280_compensate_temp(data, adc_temp);
 
 	/* Pressure calculations */
 	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, get_unaligned_be24(&data->buf[0]));
@@ -1137,13 +1142,10 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 	}
 
 	t_fine = bmp280_calc_t_fine(data, adc_temp);
-	comp_press = bmp280_compensate_press(data, adc_press, t_fine);
+	buffer.comp_press = bmp280_compensate_press(data, adc_press, t_fine);
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1161,7 +1163,7 @@ const struct bmp280_chip_info bmp280_chip_info = {
 	.chip_id = bmp280_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp280_chip_ids),
 	.regmap_config = &bmp280_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp280_channels,
 	.num_channels = ARRAY_SIZE(bmp280_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -1225,10 +1227,18 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	u32 adc_temp, adc_press, adc_humidity, comp_press, comp_humidity;
-	s32 t_fine, comp_temp;
-	s32 *chans = (s32 *)data->sensor_data;
+	u32 adc_temp, adc_press, adc_humidity;
+	s32 t_fine;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		u32 comp_humidity;
+		aligned_s64 timestamp;
+	} buffer;
 	int ret;
+
+	/* Don't leak uninitialized stack to userspace. */
+	memset(&buffer, 0, sizeof(buffer));
 
 	guard(mutex)(&data->lock);
 
@@ -1247,7 +1257,7 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_temp = bmp280_compensate_temp(data, adc_temp);
+	buffer.comp_temp = bmp280_compensate_temp(data, adc_temp);
 
 	/* Pressure calculations */
 	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, get_unaligned_be24(&data->buf[0]));
@@ -1257,7 +1267,7 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 	}
 
 	t_fine = bmp280_calc_t_fine(data, adc_temp);
-	comp_press = bmp280_compensate_press(data, adc_press, t_fine);
+	buffer.comp_press = bmp280_compensate_press(data, adc_press, t_fine);
 
 	/* Humidity calculations */
 	adc_humidity = get_unaligned_be16(&data->buf[6]);
@@ -1267,14 +1277,11 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_humidity = bme280_compensate_humidity(data, adc_humidity, t_fine);
+	buffer.comp_humidity = bme280_compensate_humidity(data, adc_humidity,
+							  t_fine);
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-	chans[2] = comp_humidity;
-
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1347,7 +1354,7 @@ const struct bmp280_chip_info bme280_chip_info = {
 	.chip_id = bme280_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bme280_chip_ids),
 	.regmap_config = &bme280_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bme280_channels,
 	.num_channels = ARRAY_SIZE(bme280_channels),
 	.avail_scan_masks = bme280_avail_scan_masks,
@@ -1414,7 +1421,7 @@ static int bmp380_cmd(struct bmp280_data *data, u8 cmd)
 		return ret;
 	}
 	/* Wait for 2ms for command to be processed */
-	usleep_range(data->start_up_time, data->start_up_time + 100);
+	fsleep(data->start_up_time_us);
 	/* Check for command processing error */
 	ret = regmap_read(data->regmap, BMP380_REG_ERROR, &reg);
 	if (ret) {
@@ -1806,7 +1813,7 @@ static int bmp380_chip_config(struct bmp280_data *data)
 		 * formula in datasheet section 3.9.2 with an offset of ~+15%
 		 * as it seen as well in table 3.9.1.
 		 */
-		msleep(150);
+		fsleep(150 * USEC_PER_MSEC);
 
 		/* Check config error flag */
 		ret = regmap_read(data->regmap, BMP380_REG_ERROR, &tmp);
@@ -1899,9 +1906,13 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	u32 adc_temp, adc_press, comp_press;
-	s32 t_fine, comp_temp;
-	s32 *chans = (s32 *)data->sensor_data;
+	u32 adc_temp, adc_press;
+	s32 t_fine;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		aligned_s64 timestamp;
+	} buffer;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1921,7 +1932,7 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_temp = bmp380_compensate_temp(data, adc_temp);
+	buffer.comp_temp = bmp380_compensate_temp(data, adc_temp);
 
 	/* Pressure calculations */
 	adc_press = get_unaligned_le24(&data->buf[0]);
@@ -1931,13 +1942,10 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 	}
 
 	t_fine = bmp380_calc_t_fine(data, adc_temp);
-	comp_press = bmp380_compensate_press(data, adc_press, t_fine);
+	buffer.comp_press = bmp380_compensate_press(data, adc_press, t_fine);
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1957,7 +1965,7 @@ const struct bmp280_chip_info bmp380_chip_info = {
 	.num_chip_id = ARRAY_SIZE(bmp380_chip_ids),
 	.regmap_config = &bmp380_regmap_config,
 	.spi_read_extra_byte = true,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp380_channels,
 	.num_channels = ARRAY_SIZE(bmp380_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -2006,7 +2014,8 @@ static int bmp580_soft_reset(struct bmp280_data *data)
 		dev_err(data->dev, "failed to send reset command to device\n");
 		return ret;
 	}
-	usleep_range(2000, 2500);
+	/* From datasheet's table 4: electrical characteristics */
+	fsleep(2000);
 
 	/* Dummy read of chip_id */
 	ret = regmap_read(data->regmap, BMP580_REG_CHIP_ID, &reg);
@@ -2208,7 +2217,7 @@ static int bmp580_nvmem_read_impl(void *priv, unsigned int offset, void *val,
 		goto exit;
 	}
 	/* Wait standby transition time */
-	usleep_range(2500, 3000);
+	fsleep(2500);
 
 	while (bytes >= sizeof(*dst)) {
 		addr = bmp580_nvmem_addrs[offset / sizeof(*dst)];
@@ -2274,7 +2283,7 @@ static int bmp580_nvmem_write_impl(void *priv, unsigned int offset, void *val,
 		goto exit;
 	}
 	/* Wait standby transition time */
-	usleep_range(2500, 3000);
+	fsleep(2500);
 
 	while (bytes >= sizeof(*buf)) {
 		addr = bmp580_nvmem_addrs[offset / sizeof(*buf)];
@@ -2458,7 +2467,7 @@ static int bmp580_chip_config(struct bmp280_data *data)
 		return ret;
 	}
 	/* From datasheet's table 4: electrical characteristics */
-	usleep_range(2500, 3000);
+	fsleep(2500);
 
 	/* Set default DSP mode settings */
 	reg_val = FIELD_PREP(BMP580_DSP_COMP_MASK, BMP580_DSP_PRESS_TEMP_COMP_EN) |
@@ -2607,7 +2616,12 @@ static irqreturn_t bmp580_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	int ret, offset;
+	struct {
+		__le32 comp_temp;
+		__le32 comp_press;
+		aligned_s64 timestamp;
+	} buffer;
+	int ret;
 
 	guard(mutex)(&data->lock);
 
@@ -2619,18 +2633,14 @@ static irqreturn_t bmp580_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	offset = 0;
-
 	/* Pressure calculations */
-	memcpy(&data->sensor_data[offset], &data->buf[3], 3);
-
-	offset += sizeof(s32);
+	memcpy(&buffer.comp_press, &data->buf[3], 3);
 
 	/* Temperature calculations */
-	memcpy(&data->sensor_data[offset], &data->buf[0], 3);
+	memcpy(&buffer.comp_temp, &data->buf[0], 3);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -2649,7 +2659,7 @@ const struct bmp280_chip_info bmp580_chip_info = {
 	.chip_id = bmp580_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp580_chip_ids),
 	.regmap_config = &bmp580_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp580_channels,
 	.num_channels = ARRAY_SIZE(bmp580_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -2720,7 +2730,7 @@ static int bmp180_wait_for_eoc(struct bmp280_data *data, u8 ctrl_meas)
 			delay_us =
 				conversion_time_max[data->oversampling_press];
 
-		usleep_range(delay_us, delay_us + 1000);
+		fsleep(delay_us);
 	}
 
 	ret = regmap_read(data->regmap, BMP280_REG_CTRL_MEAS, &ctrl);
@@ -2951,25 +2961,26 @@ static irqreturn_t bmp180_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	int ret, comp_temp, comp_press;
-	s32 *chans = (s32 *)data->sensor_data;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		aligned_s64 timestamp;
+	} buffer;
+	int ret;
 
 	guard(mutex)(&data->lock);
 
-	ret = bmp180_read_temp(data, &comp_temp);
+	ret = bmp180_read_temp(data, &buffer.comp_temp);
 	if (ret)
 		goto out;
 
 
-	ret = bmp180_read_press(data, &comp_press);
+	ret = bmp180_read_press(data, &buffer.comp_press);
 	if (ret)
 		goto out;
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -2988,7 +2999,7 @@ const struct bmp280_chip_info bmp180_chip_info = {
 	.chip_id = bmp180_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp180_chip_ids),
 	.regmap_config = &bmp180_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp280_channels,
 	.num_channels = ARRAY_SIZE(bmp280_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -3066,7 +3077,7 @@ const struct bmp280_chip_info bmp085_chip_info = {
 	.chip_id = bmp180_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp180_chip_ids),
 	.regmap_config = &bmp180_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp280_channels,
 	.num_channels = ARRAY_SIZE(bmp280_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -3175,7 +3186,7 @@ int bmp280_common_probe(struct device *dev,
 	data->oversampling_temp = chip_info->oversampling_temp_default;
 	data->iir_filter_coeff = chip_info->iir_filter_coeff_default;
 	data->sampling_freq = chip_info->sampling_freq_default;
-	data->start_up_time = chip_info->start_up_time;
+	data->start_up_time_us = chip_info->start_up_time_us;
 
 	/* Bring up regulators */
 	regulator_bulk_set_supply_names(data->supplies,
@@ -3201,7 +3212,7 @@ int bmp280_common_probe(struct device *dev,
 		return ret;
 
 	/* Wait to make sure we started up properly */
-	usleep_range(data->start_up_time, data->start_up_time + 100);
+	fsleep(data->start_up_time_us);
 
 	/* Bring chip out of reset if there is an assigned GPIO line */
 	gpiod = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
@@ -3287,7 +3298,7 @@ int bmp280_common_probe(struct device *dev,
 	 * Set autosuspend to two orders of magnitude larger than the
 	 * start-up time.
 	 */
-	pm_runtime_set_autosuspend_delay(dev, data->start_up_time / 10);
+	pm_runtime_set_autosuspend_delay(dev, data->start_up_time_us / 10);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_put(dev);
 
@@ -3306,7 +3317,7 @@ static int bmp280_runtime_suspend(struct device *dev)
 
 	data->chip_info->set_mode(data, BMP280_SLEEP);
 
-	fsleep(data->start_up_time);
+	fsleep(data->start_up_time_us);
 	return regulator_bulk_disable(BMP280_NUM_SUPPLIES, data->supplies);
 }
 
@@ -3320,7 +3331,7 @@ static int bmp280_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	usleep_range(data->start_up_time, data->start_up_time + 100);
+	fsleep(data->start_up_time_us);
 
 	ret = data->chip_info->chip_config(data);
 	if (ret)

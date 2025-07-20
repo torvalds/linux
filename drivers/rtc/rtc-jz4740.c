@@ -367,7 +367,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
 
 	ret = dev_pm_set_wake_irq(dev, irq);
 	if (ret)
@@ -437,4 +437,3 @@ module_platform_driver(jz4740_rtc_driver);
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RTC driver for the JZ4740 SoC\n");
-MODULE_ALIAS("platform:jz4740-rtc");

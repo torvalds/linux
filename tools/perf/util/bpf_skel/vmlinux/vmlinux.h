@@ -195,4 +195,21 @@ struct bpf_perf_event_data_kern {
  */
 struct rq {};
 
+struct kmem_cache {
+	const char *name;
+} __attribute__((preserve_access_index));
+
+struct bpf_iter__kmem_cache {
+	struct kmem_cache *s;
+} __attribute__((preserve_access_index));
+
+struct zone {
+	spinlock_t lock;
+} __attribute__((preserve_access_index));
+
+struct pglist_data {
+	struct zone node_zones[6]; /* value for all possible config */
+	int nr_zones;
+} __attribute__((preserve_access_index));
+
 #endif // __VMLINUX_H

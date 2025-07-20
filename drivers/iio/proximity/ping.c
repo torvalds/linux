@@ -268,7 +268,7 @@ static const struct iio_chan_spec ping_chan_spec[] = {
 static const struct of_device_id of_ping_match[] = {
 	{ .compatible = "parallax,ping", .data = &pa_ping_cfg },
 	{ .compatible = "parallax,laserping", .data = &pa_laser_ping_cfg },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, of_ping_match);

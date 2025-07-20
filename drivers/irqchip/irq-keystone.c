@@ -141,17 +141,10 @@ static int keystone_irq_probe(struct platform_device *pdev)
 	if (!kirq)
 		return -ENOMEM;
 
-	kirq->devctrl_regs =
-		syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
+	kirq->devctrl_regs = syscon_regmap_lookup_by_phandle_args(np, "ti,syscon-dev",
+								  1, &kirq->devctrl_offset);
 	if (IS_ERR(kirq->devctrl_regs))
 		return PTR_ERR(kirq->devctrl_regs);
-
-	ret = of_property_read_u32_index(np, "ti,syscon-dev", 1,
-					 &kirq->devctrl_offset);
-	if (ret) {
-		dev_err(dev, "couldn't read the devctrl_offset offset!\n");
-		return ret;
-	}
 
 	kirq->irq = platform_get_irq(pdev, 0);
 	if (kirq->irq < 0)
@@ -164,8 +157,8 @@ static int keystone_irq_probe(struct platform_device *pdev)
 	kirq->chip.irq_mask	= keystone_irq_setmask;
 	kirq->chip.irq_unmask	= keystone_irq_unmask;
 
-	kirq->irqd = irq_domain_add_linear(np, KEYSTONE_N_IRQ,
-					   &keystone_irq_ops, kirq);
+	kirq->irqd = irq_domain_create_linear(of_fwnode_handle(np), KEYSTONE_N_IRQ,
+					      &keystone_irq_ops, kirq);
 	if (!kirq->irqd) {
 		dev_err(dev, "IRQ domain registration failed\n");
 		return -ENODEV;

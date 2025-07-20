@@ -347,7 +347,7 @@ again.
 
    [:ref:`details<uninstall>`]
 
-.. _submit_improvements:
+.. _submit_improvements_qbtl:
 
 Did you run into trouble following any of the above steps that is not cleared up
 by the reference section below? Or do you have ideas how to improve the text?
@@ -733,7 +733,7 @@ can easily happen that your self-built kernel will lack modules for tasks you
 did not perform before utilizing this make target. That's because those tasks
 require kernel modules that are normally autoloaded when you perform that task
 for the first time; if you didn't perform that task at least once before using
-localmodonfig, the latter will thus assume these modules are superfluous and
+localmodconfig, the latter will thus assume these modules are superfluous and
 disable them.
 
 You can try to avoid this by performing typical tasks that often will autoload
@@ -1070,7 +1070,7 @@ complicated, and harder to follow.
 
 That being said: this of course is a balancing act. Hence, if you think an
 additional use-case is worth describing, suggest it to the maintainers of this
-document, as :ref:`described above <submit_improvements>`.
+document, as :ref:`described above <submit_improvements_qbtl>`.
 
 
 ..

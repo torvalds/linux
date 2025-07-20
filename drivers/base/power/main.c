@@ -63,6 +63,7 @@ static LIST_HEAD(dpm_noirq_list);
 static DEFINE_MUTEX(dpm_list_mtx);
 static pm_message_t pm_transition;
 
+static DEFINE_MUTEX(async_wip_mtx);
 static int async_error;
 
 static const char *pm_verb(int event)
@@ -249,7 +250,7 @@ static int dpm_wait_fn(struct device *dev, void *async_ptr)
 
 static void dpm_wait_for_children(struct device *dev, bool async)
 {
-       device_for_each_child(dev, &async, dpm_wait_fn);
+	device_for_each_child(dev, &async, dpm_wait_fn);
 }
 
 static void dpm_wait_for_suppliers(struct device *dev, bool async)
@@ -496,6 +497,7 @@ struct dpm_watchdog {
 	struct device		*dev;
 	struct task_struct	*tsk;
 	struct timer_list	timer;
+	bool			fatal;
 };
 
 #define DECLARE_DPM_WATCHDOG_ON_STACK(wd) \
@@ -511,12 +513,24 @@ struct dpm_watchdog {
  */
 static void dpm_watchdog_handler(struct timer_list *t)
 {
-	struct dpm_watchdog *wd = from_timer(wd, t, timer);
+	struct dpm_watchdog *wd = timer_container_of(wd, t, timer);
+	struct timer_list *timer = &wd->timer;
+	unsigned int time_left;
 
-	dev_emerg(wd->dev, "**** DPM device timeout ****\n");
-	show_stack(wd->tsk, NULL, KERN_EMERG);
-	panic("%s %s: unrecoverable failure\n",
-		dev_driver_string(wd->dev), dev_name(wd->dev));
+	if (wd->fatal) {
+		dev_emerg(wd->dev, "**** DPM device timeout ****\n");
+		show_stack(wd->tsk, NULL, KERN_EMERG);
+		panic("%s %s: unrecoverable failure\n",
+			dev_driver_string(wd->dev), dev_name(wd->dev));
+	}
+
+	time_left = CONFIG_DPM_WATCHDOG_TIMEOUT - CONFIG_DPM_WATCHDOG_WARNING_TIMEOUT;
+	dev_warn(wd->dev, "**** DPM device timeout after %u seconds; %u seconds until panic ****\n",
+		 CONFIG_DPM_WATCHDOG_WARNING_TIMEOUT, time_left);
+	show_stack(wd->tsk, NULL, KERN_WARNING);
+
+	wd->fatal = true;
+	mod_timer(timer, jiffies + HZ * time_left);
 }
 
 /**
@@ -530,10 +544,11 @@ static void dpm_watchdog_set(struct dpm_watchdog *wd, struct device *dev)
 
 	wd->dev = dev;
 	wd->tsk = current;
+	wd->fatal = CONFIG_DPM_WATCHDOG_TIMEOUT == CONFIG_DPM_WATCHDOG_WARNING_TIMEOUT;
 
 	timer_setup_on_stack(timer, dpm_watchdog_handler, 0);
 	/* use same timeout value for both suspend and resume */
-	timer->expires = jiffies + HZ * CONFIG_DPM_WATCHDOG_TIMEOUT;
+	timer->expires = jiffies + HZ * CONFIG_DPM_WATCHDOG_WARNING_TIMEOUT;
 	add_timer(timer);
 }
 
@@ -545,8 +560,8 @@ static void dpm_watchdog_clear(struct dpm_watchdog *wd)
 {
 	struct timer_list *timer = &wd->timer;
 
-	del_timer_sync(timer);
-	destroy_timer_on_stack(timer);
+	timer_delete_sync(timer);
+	timer_destroy_on_stack(timer);
 }
 #else
 #define DECLARE_DPM_WATCHDOG_ON_STACK(wd)
@@ -583,28 +598,75 @@ static bool is_async(struct device *dev)
 		&& !pm_trace_is_enabled();
 }
 
-static bool dpm_async_fn(struct device *dev, async_func_t func)
+static bool __dpm_async(struct device *dev, async_func_t func)
 {
-	reinit_completion(&dev->power.completion);
+	if (dev->power.work_in_progress)
+		return true;
 
-	if (is_async(dev)) {
-		dev->power.async_in_progress = true;
+	if (!is_async(dev))
+		return false;
 
-		get_device(dev);
+	dev->power.work_in_progress = true;
 
-		if (async_schedule_dev_nocall(func, dev))
-			return true;
+	get_device(dev);
 
-		put_device(dev);
-	}
-	/*
-	 * Because async_schedule_dev_nocall() above has returned false or it
-	 * has not been called at all, func() is not running and it is safe to
-	 * update the async_in_progress flag without extra synchronization.
-	 */
-	dev->power.async_in_progress = false;
+	if (async_schedule_dev_nocall(func, dev))
+		return true;
+
+	put_device(dev);
+
 	return false;
 }
+
+static bool dpm_async_fn(struct device *dev, async_func_t func)
+{
+	guard(mutex)(&async_wip_mtx);
+
+	return __dpm_async(dev, func);
+}
+
+static int dpm_async_with_cleanup(struct device *dev, void *fn)
+{
+	guard(mutex)(&async_wip_mtx);
+
+	if (!__dpm_async(dev, fn))
+		dev->power.work_in_progress = false;
+
+	return 0;
+}
+
+static void dpm_async_resume_children(struct device *dev, async_func_t func)
+{
+	/*
+	 * Prevent racing with dpm_clear_async_state() during initial list
+	 * walks in dpm_noirq_resume_devices(), dpm_resume_early(), and
+	 * dpm_resume().
+	 */
+	guard(mutex)(&dpm_list_mtx);
+
+	/*
+	 * Start processing "async" children of the device unless it's been
+	 * started already for them.
+	 *
+	 * This could have been done for the device's "async" consumers too, but
+	 * they either need to wait for their parents or the processing has
+	 * already started for them after their parents were processed.
+	 */
+	device_for_each_child(dev, func, dpm_async_with_cleanup);
+}
+
+static void dpm_clear_async_state(struct device *dev)
+{
+	reinit_completion(&dev->power.completion);
+	dev->power.work_in_progress = false;
+}
+
+static bool dpm_root_device(struct device *dev)
+{
+	return !dev->parent;
+}
+
+static void async_resume_noirq(void *data, async_cookie_t cookie);
 
 /**
  * device_resume_noirq - Execute a "noirq resume" callback for given device.
@@ -642,12 +704,12 @@ static void device_resume_noirq(struct device *dev, pm_message_t state, bool asy
 	 * so change its status accordingly.
 	 *
 	 * Otherwise, the device is going to be resumed, so set its PM-runtime
-	 * status to "active", but do that only if DPM_FLAG_SMART_SUSPEND is set
-	 * to avoid confusing drivers that don't use it.
+	 * status to "active" unless its power.smart_suspend flag is clear, in
+	 * which case it is not necessary to update its PM-runtime status.
 	 */
 	if (skip_resume)
 		pm_runtime_set_suspended(dev);
-	else if (dev_pm_skip_suspend(dev))
+	else if (dev_pm_smart_suspend(dev))
 		pm_runtime_set_active(dev);
 
 	if (dev->pm_domain) {
@@ -689,6 +751,8 @@ Out:
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async noirq" : " noirq", error);
 	}
+
+	dpm_async_resume_children(dev, async_resume_noirq);
 }
 
 static void async_resume_noirq(void *data, async_cookie_t cookie)
@@ -712,17 +776,20 @@ static void dpm_noirq_resume_devices(pm_message_t state)
 	mutex_lock(&dpm_list_mtx);
 
 	/*
-	 * Trigger the resume of "async" devices upfront so they don't have to
-	 * wait for the "non-async" ones they don't depend on.
+	 * Start processing "async" root devices upfront so they don't wait for
+	 * the "sync" devices they don't depend on.
 	 */
-	list_for_each_entry(dev, &dpm_noirq_list, power.entry)
-		dpm_async_fn(dev, async_resume_noirq);
+	list_for_each_entry(dev, &dpm_noirq_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_root_device(dev))
+			dpm_async_with_cleanup(dev, async_resume_noirq);
+	}
 
 	while (!list_empty(&dpm_noirq_list)) {
 		dev = to_device(dpm_noirq_list.next);
 		list_move_tail(&dev->power.entry, &dpm_late_early_list);
 
-		if (!dev->power.async_in_progress) {
+		if (!dpm_async_fn(dev, async_resume_noirq)) {
 			get_device(dev);
 
 			mutex_unlock(&dpm_list_mtx);
@@ -757,6 +824,8 @@ void dpm_resume_noirq(pm_message_t state)
 	resume_device_irqs();
 	device_wakeup_disarm_wake_irqs();
 }
+
+static void async_resume_early(void *data, async_cookie_t cookie);
 
 /**
  * device_resume_early - Execute an "early resume" callback for given device.
@@ -825,6 +894,8 @@ Out:
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async early" : " early", error);
 	}
+
+	dpm_async_resume_children(dev, async_resume_early);
 }
 
 static void async_resume_early(void *data, async_cookie_t cookie)
@@ -852,17 +923,20 @@ void dpm_resume_early(pm_message_t state)
 	mutex_lock(&dpm_list_mtx);
 
 	/*
-	 * Trigger the resume of "async" devices upfront so they don't have to
-	 * wait for the "non-async" ones they don't depend on.
+	 * Start processing "async" root devices upfront so they don't wait for
+	 * the "sync" devices they don't depend on.
 	 */
-	list_for_each_entry(dev, &dpm_late_early_list, power.entry)
-		dpm_async_fn(dev, async_resume_early);
+	list_for_each_entry(dev, &dpm_late_early_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_root_device(dev))
+			dpm_async_with_cleanup(dev, async_resume_early);
+	}
 
 	while (!list_empty(&dpm_late_early_list)) {
 		dev = to_device(dpm_late_early_list.next);
 		list_move_tail(&dev->power.entry, &dpm_suspended_list);
 
-		if (!dev->power.async_in_progress) {
+		if (!dpm_async_fn(dev, async_resume_early)) {
 			get_device(dev);
 
 			mutex_unlock(&dpm_list_mtx);
@@ -894,6 +968,8 @@ void dpm_resume_start(pm_message_t state)
 }
 EXPORT_SYMBOL_GPL(dpm_resume_start);
 
+static void async_resume(void *data, async_cookie_t cookie);
+
 /**
  * device_resume - Execute "resume" callbacks for given device.
  * @dev: Device to handle.
@@ -913,8 +989,20 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 	if (dev->power.syscore)
 		goto Complete;
 
+	if (!dev->power.is_suspended)
+		goto Complete;
+
+	dev->power.is_suspended = false;
+
 	if (dev->power.direct_complete) {
-		/* Match the pm_runtime_disable() in __device_suspend(). */
+		/*
+		 * Allow new children to be added under the device after this
+		 * point if it has no PM callbacks.
+		 */
+		if (dev->power.no_pm_callbacks)
+			dev->power.is_prepared = false;
+
+		/* Match the pm_runtime_disable() in device_suspend(). */
 		pm_runtime_enable(dev);
 		goto Complete;
 	}
@@ -930,9 +1018,6 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 	 * a resumed device, even if the device hasn't been completed yet.
 	 */
 	dev->power.is_prepared = false;
-
-	if (!dev->power.is_suspended)
-		goto Unlock;
 
 	if (dev->pm_domain) {
 		info = "power domain ";
@@ -971,9 +1056,7 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 
  End:
 	error = dpm_run_callback(callback, dev, state, info);
-	dev->power.is_suspended = false;
 
- Unlock:
 	device_unlock(dev);
 	dpm_watchdog_clear(&wd);
 
@@ -987,6 +1070,8 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async" : "", error);
 	}
+
+	dpm_async_resume_children(dev, async_resume);
 }
 
 static void async_resume(void *data, async_cookie_t cookie)
@@ -1018,17 +1103,20 @@ void dpm_resume(pm_message_t state)
 	mutex_lock(&dpm_list_mtx);
 
 	/*
-	 * Trigger the resume of "async" devices upfront so they don't have to
-	 * wait for the "non-async" ones they don't depend on.
+	 * Start processing "async" root devices upfront so they don't wait for
+	 * the "sync" devices they don't depend on.
 	 */
-	list_for_each_entry(dev, &dpm_suspended_list, power.entry)
-		dpm_async_fn(dev, async_resume);
+	list_for_each_entry(dev, &dpm_suspended_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_root_device(dev))
+			dpm_async_with_cleanup(dev, async_resume);
+	}
 
 	while (!list_empty(&dpm_suspended_list)) {
 		dev = to_device(dpm_suspended_list.next);
 		list_move_tail(&dev->power.entry, &dpm_prepared_list);
 
-		if (!dev->power.async_in_progress) {
+		if (!dpm_async_fn(dev, async_resume)) {
 			get_device(dev);
 
 			mutex_unlock(&dpm_list_mtx);
@@ -1093,6 +1181,8 @@ static void device_complete(struct device *dev, pm_message_t state)
 	device_unlock(dev);
 
 out:
+	/* If enabling runtime PM for the device is blocked, unblock it. */
+	pm_runtime_unblock(dev);
 	pm_runtime_put(dev);
 }
 
@@ -1147,12 +1237,64 @@ void dpm_complete(pm_message_t state)
 void dpm_resume_end(pm_message_t state)
 {
 	dpm_resume(state);
+	pm_restore_gfp_mask();
 	dpm_complete(state);
 }
 EXPORT_SYMBOL_GPL(dpm_resume_end);
 
 
 /*------------------------- Suspend routines -------------------------*/
+
+static bool dpm_leaf_device(struct device *dev)
+{
+	struct device *child;
+
+	lockdep_assert_held(&dpm_list_mtx);
+
+	child = device_find_any_child(dev);
+	if (child) {
+		put_device(child);
+
+		return false;
+	}
+
+	return true;
+}
+
+static void dpm_async_suspend_parent(struct device *dev, async_func_t func)
+{
+	guard(mutex)(&dpm_list_mtx);
+
+	/*
+	 * If the device is suspended asynchronously and the parent's callback
+	 * deletes both the device and the parent itself, the parent object may
+	 * be freed while this function is running, so avoid that by checking
+	 * if the device has been deleted already as the parent cannot be
+	 * deleted before it.
+	 */
+	if (!device_pm_initialized(dev))
+		return;
+
+	/* Start processing the device's parent if it is "async". */
+	if (dev->parent)
+		dpm_async_with_cleanup(dev->parent, func);
+}
+
+static void dpm_async_suspend_complete_all(struct list_head *device_list)
+{
+	struct device *dev;
+
+	guard(mutex)(&async_wip_mtx);
+
+	list_for_each_entry_reverse(dev, device_list, power.entry) {
+		/*
+		 * In case the device is being waited for and async processing
+		 * has not started for it yet, let the waiters make progress.
+		 */
+		if (!dev->power.work_in_progress)
+			complete_all(&dev->power.completion);
+	}
+}
 
 /**
  * resume_event - Return a "resume" message for given "suspend" sleep state.
@@ -1190,6 +1332,8 @@ static void dpm_superior_set_must_resume(struct device *dev)
 
 	device_links_read_unlock(idx);
 }
+
+static void async_suspend_noirq(void *data, async_cookie_t cookie);
 
 /**
  * device_suspend_noirq - Execute a "noirq suspend" callback for given device.
@@ -1254,14 +1398,13 @@ Skip:
 	dev->power.is_noirq_suspended = true;
 
 	/*
-	 * Skipping the resume of devices that were in use right before the
-	 * system suspend (as indicated by their PM-runtime usage counters)
-	 * would be suboptimal.  Also resume them if doing that is not allowed
-	 * to be skipped.
+	 * Devices must be resumed unless they are explicitly allowed to be left
+	 * in suspend, but even in that case skipping the resume of devices that
+	 * were in use right before the system suspend (as indicated by their
+	 * runtime PM usage counters and child counters) would be suboptimal.
 	 */
-	if (atomic_read(&dev->power.usage_count) > 1 ||
-	    !(dev_pm_test_driver_flags(dev, DPM_FLAG_MAY_SKIP_RESUME) &&
-	      dev->power.may_skip_resume))
+	if (!(dev_pm_test_driver_flags(dev, DPM_FLAG_MAY_SKIP_RESUME) &&
+	      dev->power.may_skip_resume) || !pm_runtime_need_not_resume(dev))
 		dev->power.must_resume = true;
 
 	if (dev->power.must_resume)
@@ -1270,7 +1413,13 @@ Skip:
 Complete:
 	complete_all(&dev->power.completion);
 	TRACE_SUSPEND(error);
-	return error;
+
+	if (error || async_error)
+		return error;
+
+	dpm_async_suspend_parent(dev, async_suspend_noirq);
+
+	return 0;
 }
 
 static void async_suspend_noirq(void *data, async_cookie_t cookie)
@@ -1284,6 +1433,7 @@ static void async_suspend_noirq(void *data, async_cookie_t cookie)
 static int dpm_noirq_suspend_devices(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
+	struct device *dev;
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend_noirq"), state.event, true);
@@ -1293,8 +1443,18 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 
 	mutex_lock(&dpm_list_mtx);
 
+	/*
+	 * Start processing "async" leaf devices upfront so they don't need to
+	 * wait for the "sync" devices they don't depend on.
+	 */
+	list_for_each_entry_reverse(dev, &dpm_late_early_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_leaf_device(dev))
+			dpm_async_with_cleanup(dev, async_suspend_noirq);
+	}
+
 	while (!list_empty(&dpm_late_early_list)) {
-		struct device *dev = to_device(dpm_late_early_list.prev);
+		dev = to_device(dpm_late_early_list.prev);
 
 		list_move(&dev->power.entry, &dpm_noirq_list);
 
@@ -1311,8 +1471,15 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 
 		mutex_lock(&dpm_list_mtx);
 
-		if (error || async_error)
+		if (error || async_error) {
+			dpm_async_suspend_complete_all(&dpm_late_early_list);
+			/*
+			 * Move all devices to the target list to resume them
+			 * properly.
+			 */
+			list_splice_init(&dpm_late_early_list, &dpm_noirq_list);
 			break;
+		}
 	}
 
 	mutex_unlock(&dpm_list_mtx);
@@ -1365,6 +1532,8 @@ static void dpm_propagate_wakeup_to_parent(struct device *dev)
 	spin_unlock_irq(&parent->power.lock);
 }
 
+static void async_suspend_late(void *data, async_cookie_t cookie);
+
 /**
  * device_suspend_late - Execute a "late suspend" callback for given device.
  * @dev: Device to handle.
@@ -1382,6 +1551,10 @@ static int device_suspend_late(struct device *dev, pm_message_t state, bool asyn
 	TRACE_DEVICE(dev);
 	TRACE_SUSPEND(0);
 
+	/*
+	 * Disable runtime PM for the device without checking if there is a
+	 * pending resume request for it.
+	 */
 	__pm_runtime_disable(dev, false);
 
 	dpm_wait_for_subordinate(dev, async);
@@ -1437,7 +1610,13 @@ Skip:
 Complete:
 	TRACE_SUSPEND(error);
 	complete_all(&dev->power.completion);
-	return error;
+
+	if (error || async_error)
+		return error;
+
+	dpm_async_suspend_parent(dev, async_suspend_late);
+
+	return 0;
 }
 
 static void async_suspend_late(void *data, async_cookie_t cookie)
@@ -1455,6 +1634,7 @@ static void async_suspend_late(void *data, async_cookie_t cookie)
 int dpm_suspend_late(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
+	struct device *dev;
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend_late"), state.event, true);
@@ -1466,8 +1646,18 @@ int dpm_suspend_late(pm_message_t state)
 
 	mutex_lock(&dpm_list_mtx);
 
+	/*
+	 * Start processing "async" leaf devices upfront so they don't need to
+	 * wait for the "sync" devices they don't depend on.
+	 */
+	list_for_each_entry_reverse(dev, &dpm_suspended_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_leaf_device(dev))
+			dpm_async_with_cleanup(dev, async_suspend_late);
+	}
+
 	while (!list_empty(&dpm_suspended_list)) {
-		struct device *dev = to_device(dpm_suspended_list.prev);
+		dev = to_device(dpm_suspended_list.prev);
 
 		list_move(&dev->power.entry, &dpm_late_early_list);
 
@@ -1484,8 +1674,15 @@ int dpm_suspend_late(pm_message_t state)
 
 		mutex_lock(&dpm_list_mtx);
 
-		if (error || async_error)
+		if (error || async_error) {
+			dpm_async_suspend_complete_all(&dpm_suspended_list);
+			/*
+			 * Move all devices to the target list to resume them
+			 * properly.
+			 */
+			list_splice_init(&dpm_suspended_list, &dpm_late_early_list);
 			break;
+		}
 	}
 
 	mutex_unlock(&dpm_list_mtx);
@@ -1574,6 +1771,8 @@ static void dpm_clear_superiors_direct_complete(struct device *dev)
 	device_links_read_unlock(idx);
 }
 
+static void async_suspend(void *data, async_cookie_t cookie);
+
 /**
  * device_suspend - Execute "suspend" callbacks for given device.
  * @dev: Device to handle.
@@ -1628,6 +1827,7 @@ static int device_suspend(struct device *dev, pm_message_t state, bool async)
 			pm_runtime_disable(dev);
 			if (pm_runtime_status_suspended(dev)) {
 				pm_dev_dbg(dev, state, "direct-complete ");
+				dev->power.is_suspended = true;
 				goto Complete;
 			}
 
@@ -1702,7 +1902,13 @@ static int device_suspend(struct device *dev, pm_message_t state, bool async)
 
 	complete_all(&dev->power.completion);
 	TRACE_SUSPEND(error);
-	return error;
+
+	if (error || async_error)
+		return error;
+
+	dpm_async_suspend_parent(dev, async_suspend);
+
+	return 0;
 }
 
 static void async_suspend(void *data, async_cookie_t cookie)
@@ -1720,6 +1926,7 @@ static void async_suspend(void *data, async_cookie_t cookie)
 int dpm_suspend(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
+	struct device *dev;
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend"), state.event, true);
@@ -1733,8 +1940,18 @@ int dpm_suspend(pm_message_t state)
 
 	mutex_lock(&dpm_list_mtx);
 
+	/*
+	 * Start processing "async" leaf devices upfront so they don't need to
+	 * wait for the "sync" devices they don't depend on.
+	 */
+	list_for_each_entry_reverse(dev, &dpm_prepared_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_leaf_device(dev))
+			dpm_async_with_cleanup(dev, async_suspend);
+	}
+
 	while (!list_empty(&dpm_prepared_list)) {
-		struct device *dev = to_device(dpm_prepared_list.prev);
+		dev = to_device(dpm_prepared_list.prev);
 
 		list_move(&dev->power.entry, &dpm_suspended_list);
 
@@ -1751,8 +1968,15 @@ int dpm_suspend(pm_message_t state)
 
 		mutex_lock(&dpm_list_mtx);
 
-		if (error || async_error)
+		if (error || async_error) {
+			dpm_async_suspend_complete_all(&dpm_prepared_list);
+			/*
+			 * Move all devices to the target list to resume them
+			 * properly.
+			 */
+			list_splice_init(&dpm_prepared_list, &dpm_suspended_list);
 			break;
+		}
 	}
 
 	mutex_unlock(&dpm_list_mtx);
@@ -1769,6 +1993,46 @@ int dpm_suspend(pm_message_t state)
 	return error;
 }
 
+static bool device_prepare_smart_suspend(struct device *dev)
+{
+	struct device_link *link;
+	bool ret = true;
+	int idx;
+
+	/*
+	 * The "smart suspend" feature is enabled for devices whose drivers ask
+	 * for it and for devices without PM callbacks.
+	 *
+	 * However, if "smart suspend" is not enabled for the device's parent
+	 * or any of its suppliers that take runtime PM into account, it cannot
+	 * be enabled for the device either.
+	 */
+	if (!dev->power.no_pm_callbacks &&
+	    !dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
+		return false;
+
+	if (dev->parent && !dev_pm_smart_suspend(dev->parent) &&
+	    !dev->parent->power.ignore_children && !pm_runtime_blocked(dev->parent))
+		return false;
+
+	idx = device_links_read_lock();
+
+	list_for_each_entry_rcu_locked(link, &dev->links.suppliers, c_node) {
+		if (!(link->flags & DL_FLAG_PM_RUNTIME))
+			continue;
+
+		if (!dev_pm_smart_suspend(link->supplier) &&
+		    !pm_runtime_blocked(link->supplier)) {
+			ret = false;
+			break;
+		}
+	}
+
+	device_links_read_unlock(idx);
+
+	return ret;
+}
+
 /**
  * device_prepare - Prepare a device for system power transition.
  * @dev: Device to handle.
@@ -1780,6 +2044,7 @@ int dpm_suspend(pm_message_t state)
 static int device_prepare(struct device *dev, pm_message_t state)
 {
 	int (*callback)(struct device *) = NULL;
+	bool smart_suspend;
 	int ret = 0;
 
 	/*
@@ -1789,6 +2054,13 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	 * it again during the complete phase.
 	 */
 	pm_runtime_get_noresume(dev);
+	/*
+	 * If runtime PM is disabled for the device at this point and it has
+	 * never been enabled so far, it should not be enabled until this system
+	 * suspend-resume cycle is complete, so prepare to trigger a warning on
+	 * subsequent attempts to enable it.
+	 */
+	smart_suspend = !pm_runtime_block_if_disabled(dev);
 
 	if (dev->power.syscore)
 		return 0;
@@ -1823,6 +2095,13 @@ unlock:
 		pm_runtime_put(dev);
 		return ret;
 	}
+	/* Do not enable "smart suspend" for devices with disabled runtime PM. */
+	if (smart_suspend)
+		smart_suspend = device_prepare_smart_suspend(dev);
+
+	spin_lock_irq(&dev->power.lock);
+
+	dev->power.smart_suspend = smart_suspend;
 	/*
 	 * A positive return value from ->prepare() means "this device appears
 	 * to be runtime-suspended and its state is fine, so if it really is
@@ -1830,11 +2109,12 @@ unlock:
 	 * will do the same thing with all of its descendants".  This only
 	 * applies to suspend transitions, however.
 	 */
-	spin_lock_irq(&dev->power.lock);
 	dev->power.direct_complete = state.event == PM_EVENT_SUSPEND &&
 		(ret > 0 || dev->power.no_pm_callbacks) &&
 		!dev_pm_test_driver_flags(dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+
 	spin_unlock_irq(&dev->power.lock);
+
 	return 0;
 }
 
@@ -1916,8 +2196,10 @@ int dpm_suspend_start(pm_message_t state)
 	error = dpm_prepare(state);
 	if (error)
 		dpm_save_failed_step(SUSPEND_PREPARE);
-	else
+	else {
+		pm_restrict_gfp_mask();
 		error = dpm_suspend(state);
+	}
 
 	dpm_show_time(starttime, state, error, "start");
 	return error;
@@ -1998,6 +2280,5 @@ void device_pm_check_callbacks(struct device *dev)
 
 bool dev_pm_skip_suspend(struct device *dev)
 {
-	return dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) &&
-		pm_runtime_status_suspended(dev);
+	return dev_pm_smart_suspend(dev) && pm_runtime_status_suspended(dev);
 }

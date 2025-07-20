@@ -11,7 +11,7 @@
 
 #define DSP_CTRL_DISABLED_ALL		0
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* clobbers r5 register */
 .macro DSP_EARLY_INIT

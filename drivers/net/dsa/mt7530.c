@@ -32,47 +32,15 @@ static struct mt753x_pcs *pcs_to_mt753x_pcs(struct phylink_pcs *pcs)
 
 /* String, offset, and register size in bytes if different from 4 bytes */
 static const struct mt7530_mib_desc mt7530_mib[] = {
-	MIB_DESC(1, 0x00, "TxDrop"),
-	MIB_DESC(1, 0x04, "TxCrcErr"),
-	MIB_DESC(1, 0x08, "TxUnicast"),
-	MIB_DESC(1, 0x0c, "TxMulticast"),
-	MIB_DESC(1, 0x10, "TxBroadcast"),
-	MIB_DESC(1, 0x14, "TxCollision"),
-	MIB_DESC(1, 0x18, "TxSingleCollision"),
-	MIB_DESC(1, 0x1c, "TxMultipleCollision"),
-	MIB_DESC(1, 0x20, "TxDeferred"),
-	MIB_DESC(1, 0x24, "TxLateCollision"),
-	MIB_DESC(1, 0x28, "TxExcessiveCollistion"),
-	MIB_DESC(1, 0x2c, "TxPause"),
-	MIB_DESC(1, 0x30, "TxPktSz64"),
-	MIB_DESC(1, 0x34, "TxPktSz65To127"),
-	MIB_DESC(1, 0x38, "TxPktSz128To255"),
-	MIB_DESC(1, 0x3c, "TxPktSz256To511"),
-	MIB_DESC(1, 0x40, "TxPktSz512To1023"),
-	MIB_DESC(1, 0x44, "Tx1024ToMax"),
-	MIB_DESC(2, 0x48, "TxBytes"),
-	MIB_DESC(1, 0x60, "RxDrop"),
-	MIB_DESC(1, 0x64, "RxFiltering"),
-	MIB_DESC(1, 0x68, "RxUnicast"),
-	MIB_DESC(1, 0x6c, "RxMulticast"),
-	MIB_DESC(1, 0x70, "RxBroadcast"),
-	MIB_DESC(1, 0x74, "RxAlignErr"),
-	MIB_DESC(1, 0x78, "RxCrcErr"),
-	MIB_DESC(1, 0x7c, "RxUnderSizeErr"),
-	MIB_DESC(1, 0x80, "RxFragErr"),
-	MIB_DESC(1, 0x84, "RxOverSzErr"),
-	MIB_DESC(1, 0x88, "RxJabberErr"),
-	MIB_DESC(1, 0x8c, "RxPause"),
-	MIB_DESC(1, 0x90, "RxPktSz64"),
-	MIB_DESC(1, 0x94, "RxPktSz65To127"),
-	MIB_DESC(1, 0x98, "RxPktSz128To255"),
-	MIB_DESC(1, 0x9c, "RxPktSz256To511"),
-	MIB_DESC(1, 0xa0, "RxPktSz512To1023"),
-	MIB_DESC(1, 0xa4, "RxPktSz1024ToMax"),
-	MIB_DESC(2, 0xa8, "RxBytes"),
-	MIB_DESC(1, 0xb0, "RxCtrlDrop"),
-	MIB_DESC(1, 0xb4, "RxIngressDrop"),
-	MIB_DESC(1, 0xb8, "RxArlDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_DROP, "TxDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_CRC_ERR, "TxCrcErr"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_COLLISION, "TxCollision"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_DROP, "RxDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_FILTERING, "RxFiltering"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_CRC_ERR, "RxCrcErr"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_CTRL_DROP, "RxCtrlDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_INGRESS_DROP, "RxIngressDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_ARL_DROP, "RxArlDrop"),
 };
 
 static void
@@ -790,23 +758,33 @@ mt7530_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 }
 
 static void
+mt7530_read_port_stats(struct mt7530_priv *priv, int port,
+		       u32 offset, u8 size, uint64_t *data)
+{
+	u32 val, reg = MT7530_PORT_MIB_COUNTER(port) + offset;
+
+	val = mt7530_read(priv, reg);
+	*data = val;
+
+	if (size == 2) {
+		val = mt7530_read(priv, reg + 4);
+		*data |= (u64)val << 32;
+	}
+}
+
+static void
 mt7530_get_ethtool_stats(struct dsa_switch *ds, int port,
 			 uint64_t *data)
 {
 	struct mt7530_priv *priv = ds->priv;
 	const struct mt7530_mib_desc *mib;
-	u32 reg, i;
-	u64 hi;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mt7530_mib); i++) {
 		mib = &mt7530_mib[i];
-		reg = MT7530_PORT_MIB_COUNTER(port) + mib->offset;
 
-		data[i] = mt7530_read(priv, reg);
-		if (mib->size == 2) {
-			hi = mt7530_read(priv, reg + 4);
-			data[i] |= hi << 32;
-		}
+		mt7530_read_port_stats(priv, port, mib->offset, mib->size,
+				       data + i);
 	}
 }
 
@@ -817,6 +795,172 @@ mt7530_get_sset_count(struct dsa_switch *ds, int port, int sset)
 		return 0;
 
 	return ARRAY_SIZE(mt7530_mib);
+}
+
+static void mt7530_get_eth_mac_stats(struct dsa_switch *ds, int port,
+				     struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	/* MIB counter doesn't provide a FramesTransmittedOK but instead
+	 * provide stats for Unicast, Broadcast and Multicast frames separately.
+	 * To simulate a global frame counter, read Unicast and addition Multicast
+	 * and Broadcast later
+	 */
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_UNICAST, 1,
+			       &mac_stats->FramesTransmittedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_SINGLE_COLLISION, 1,
+			       &mac_stats->SingleCollisionFrames);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTIPLE_COLLISION, 1,
+			       &mac_stats->MultipleCollisionFrames);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNICAST, 1,
+			       &mac_stats->FramesReceivedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BYTES, 2,
+			       &mac_stats->OctetsTransmittedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_ALIGN_ERR, 1,
+			       &mac_stats->AlignmentErrors);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_DEFERRED, 1,
+			       &mac_stats->FramesWithDeferredXmissions);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_LATE_COLLISION, 1,
+			       &mac_stats->LateCollisions);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_EXCESSIVE_COLLISION, 1,
+			       &mac_stats->FramesAbortedDueToXSColls);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BYTES, 2,
+			       &mac_stats->OctetsReceivedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTICAST, 1,
+			       &mac_stats->MulticastFramesXmittedOK);
+	mac_stats->FramesTransmittedOK += mac_stats->MulticastFramesXmittedOK;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BROADCAST, 1,
+			       &mac_stats->BroadcastFramesXmittedOK);
+	mac_stats->FramesTransmittedOK += mac_stats->BroadcastFramesXmittedOK;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_MULTICAST, 1,
+			       &mac_stats->MulticastFramesReceivedOK);
+	mac_stats->FramesReceivedOK += mac_stats->MulticastFramesReceivedOK;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BROADCAST, 1,
+			       &mac_stats->BroadcastFramesReceivedOK);
+	mac_stats->FramesReceivedOK += mac_stats->BroadcastFramesReceivedOK;
+}
+
+static const struct ethtool_rmon_hist_range mt7530_rmon_ranges[] = {
+	{ 0, 64 },
+	{ 65, 127 },
+	{ 128, 255 },
+	{ 256, 511 },
+	{ 512, 1023 },
+	{ 1024, MT7530_MAX_MTU },
+	{}
+};
+
+static void mt7530_get_rmon_stats(struct dsa_switch *ds, int port,
+				  struct ethtool_rmon_stats *rmon_stats,
+				  const struct ethtool_rmon_hist_range **ranges)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNDER_SIZE_ERR, 1,
+			       &rmon_stats->undersize_pkts);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_OVER_SZ_ERR, 1,
+			       &rmon_stats->oversize_pkts);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_FRAG_ERR, 1,
+			       &rmon_stats->fragments);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_JABBER_ERR, 1,
+			       &rmon_stats->jabbers);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_64, 1,
+			       &rmon_stats->hist[0]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_65_TO_127, 1,
+			       &rmon_stats->hist[1]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_128_TO_255, 1,
+			       &rmon_stats->hist[2]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_256_TO_511, 1,
+			       &rmon_stats->hist[3]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_512_TO_1023, 1,
+			       &rmon_stats->hist[4]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_1024_TO_MAX, 1,
+			       &rmon_stats->hist[5]);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_64, 1,
+			       &rmon_stats->hist_tx[0]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_65_TO_127, 1,
+			       &rmon_stats->hist_tx[1]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_128_TO_255, 1,
+			       &rmon_stats->hist_tx[2]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_256_TO_511, 1,
+			       &rmon_stats->hist_tx[3]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_512_TO_1023, 1,
+			       &rmon_stats->hist_tx[4]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_1024_TO_MAX, 1,
+			       &rmon_stats->hist_tx[5]);
+
+	*ranges = mt7530_rmon_ranges;
+}
+
+static void mt7530_get_stats64(struct dsa_switch *ds, int port,
+			       struct rtnl_link_stats64 *storage)
+{
+	struct mt7530_priv *priv = ds->priv;
+	uint64_t data;
+
+	/* MIB counter doesn't provide a FramesTransmittedOK but instead
+	 * provide stats for Unicast, Broadcast and Multicast frames separately.
+	 * To simulate a global frame counter, read Unicast and addition Multicast
+	 * and Broadcast later
+	 */
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNICAST, 1,
+			       &storage->rx_packets);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_MULTICAST, 1,
+			       &storage->multicast);
+	storage->rx_packets += storage->multicast;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BROADCAST, 1,
+			       &data);
+	storage->rx_packets += data;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_UNICAST, 1,
+			       &storage->tx_packets);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTICAST, 1,
+			       &data);
+	storage->tx_packets += data;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BROADCAST, 1,
+			       &data);
+	storage->tx_packets += data;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BYTES, 2,
+			       &storage->rx_bytes);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BYTES, 2,
+			       &storage->tx_bytes);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_DROP, 1,
+			       &storage->rx_dropped);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_DROP, 1,
+			       &storage->tx_dropped);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_CRC_ERR, 1,
+			       &storage->rx_crc_errors);
+}
+
+static void mt7530_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
+				      struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PAUSE, 1,
+			       &ctrl_stats->MACControlFramesTransmitted);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PAUSE, 1,
+			       &ctrl_stats->MACControlFramesReceived);
 }
 
 static int
@@ -1154,7 +1298,7 @@ mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 	 * is affine to the inbound user port.
 	 */
 	if (priv->id == ID_MT7531 || priv->id == ID_MT7988 ||
-	    priv->id == ID_EN7581)
+	    priv->id == ID_EN7581 || priv->id == ID_AN7583)
 		mt7530_set(priv, MT7531_CFC, MT7531_CPU_PMAP(BIT(port)));
 
 	/* CPU port gets connected to all user ports of
@@ -2050,131 +2194,6 @@ mt7530_setup_gpio(struct mt7530_priv *priv)
 }
 #endif /* CONFIG_GPIOLIB */
 
-static irqreturn_t
-mt7530_irq_thread_fn(int irq, void *dev_id)
-{
-	struct mt7530_priv *priv = dev_id;
-	bool handled = false;
-	u32 val;
-	int p;
-
-	mt7530_mutex_lock(priv);
-	val = mt7530_mii_read(priv, MT7530_SYS_INT_STS);
-	mt7530_mii_write(priv, MT7530_SYS_INT_STS, val);
-	mt7530_mutex_unlock(priv);
-
-	for (p = 0; p < MT7530_NUM_PHYS; p++) {
-		if (BIT(p) & val) {
-			unsigned int irq;
-
-			irq = irq_find_mapping(priv->irq_domain, p);
-			handle_nested_irq(irq);
-			handled = true;
-		}
-	}
-
-	return IRQ_RETVAL(handled);
-}
-
-static void
-mt7530_irq_mask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable &= ~BIT(d->hwirq);
-}
-
-static void
-mt7530_irq_unmask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable |= BIT(d->hwirq);
-}
-
-static void
-mt7530_irq_bus_lock(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	mt7530_mutex_lock(priv);
-}
-
-static void
-mt7530_irq_bus_sync_unlock(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
-	mt7530_mutex_unlock(priv);
-}
-
-static struct irq_chip mt7530_irq_chip = {
-	.name = KBUILD_MODNAME,
-	.irq_mask = mt7530_irq_mask,
-	.irq_unmask = mt7530_irq_unmask,
-	.irq_bus_lock = mt7530_irq_bus_lock,
-	.irq_bus_sync_unlock = mt7530_irq_bus_sync_unlock,
-};
-
-static int
-mt7530_irq_map(struct irq_domain *domain, unsigned int irq,
-	       irq_hw_number_t hwirq)
-{
-	irq_set_chip_data(irq, domain->host_data);
-	irq_set_chip_and_handler(irq, &mt7530_irq_chip, handle_simple_irq);
-	irq_set_nested_thread(irq, true);
-	irq_set_noprobe(irq);
-
-	return 0;
-}
-
-static const struct irq_domain_ops mt7530_irq_domain_ops = {
-	.map = mt7530_irq_map,
-	.xlate = irq_domain_xlate_onecell,
-};
-
-static void
-mt7988_irq_mask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable &= ~BIT(d->hwirq);
-	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
-}
-
-static void
-mt7988_irq_unmask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable |= BIT(d->hwirq);
-	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
-}
-
-static struct irq_chip mt7988_irq_chip = {
-	.name = KBUILD_MODNAME,
-	.irq_mask = mt7988_irq_mask,
-	.irq_unmask = mt7988_irq_unmask,
-};
-
-static int
-mt7988_irq_map(struct irq_domain *domain, unsigned int irq,
-	       irq_hw_number_t hwirq)
-{
-	irq_set_chip_data(irq, domain->host_data);
-	irq_set_chip_and_handler(irq, &mt7988_irq_chip, handle_simple_irq);
-	irq_set_nested_thread(irq, true);
-	irq_set_noprobe(irq);
-
-	return 0;
-}
-
-static const struct irq_domain_ops mt7988_irq_domain_ops = {
-	.map = mt7988_irq_map,
-	.xlate = irq_domain_xlate_onecell,
-};
-
 static void
 mt7530_setup_mdio_irq(struct mt7530_priv *priv)
 {
@@ -2191,49 +2210,72 @@ mt7530_setup_mdio_irq(struct mt7530_priv *priv)
 	}
 }
 
+static const struct regmap_irq mt7530_irqs[] = {
+	REGMAP_IRQ_REG_LINE(0, 32),  /* PHY0_LC */
+	REGMAP_IRQ_REG_LINE(1, 32),  /* PHY1_LC */
+	REGMAP_IRQ_REG_LINE(2, 32),  /* PHY2_LC */
+	REGMAP_IRQ_REG_LINE(3, 32),  /* PHY3_LC */
+	REGMAP_IRQ_REG_LINE(4, 32),  /* PHY4_LC */
+	REGMAP_IRQ_REG_LINE(5, 32),  /* PHY5_LC */
+	REGMAP_IRQ_REG_LINE(6, 32),  /* PHY6_LC */
+	REGMAP_IRQ_REG_LINE(16, 32), /* MAC_PC */
+	REGMAP_IRQ_REG_LINE(17, 32), /* BMU */
+	REGMAP_IRQ_REG_LINE(18, 32), /* MIB */
+	REGMAP_IRQ_REG_LINE(22, 32), /* ARL_COL_FULL_COL */
+	REGMAP_IRQ_REG_LINE(23, 32), /* ARL_COL_FULL */
+	REGMAP_IRQ_REG_LINE(24, 32), /* ARL_TBL_ERR */
+	REGMAP_IRQ_REG_LINE(25, 32), /* ARL_PKT_QERR */
+	REGMAP_IRQ_REG_LINE(26, 32), /* ARL_EQ_ERR */
+	REGMAP_IRQ_REG_LINE(27, 32), /* ARL_PKT_BC */
+	REGMAP_IRQ_REG_LINE(28, 32), /* ARL_SEC_IG1X */
+	REGMAP_IRQ_REG_LINE(29, 32), /* ARL_SEC_VLAN */
+	REGMAP_IRQ_REG_LINE(30, 32), /* ARL_SEC_TAG */
+	REGMAP_IRQ_REG_LINE(31, 32), /* ACL */
+};
+
+static const struct regmap_irq_chip mt7530_regmap_irq_chip = {
+	.name = KBUILD_MODNAME,
+	.status_base = MT7530_SYS_INT_STS,
+	.unmask_base = MT7530_SYS_INT_EN,
+	.ack_base = MT7530_SYS_INT_STS,
+	.init_ack_masked = true,
+	.irqs = mt7530_irqs,
+	.num_irqs = ARRAY_SIZE(mt7530_irqs),
+	.num_regs = 1,
+};
+
 static int
 mt7530_setup_irq(struct mt7530_priv *priv)
 {
+	struct regmap_irq_chip_data *irq_data;
 	struct device *dev = priv->dev;
 	struct device_node *np = dev->of_node;
-	int ret;
+	int irq, ret;
 
 	if (!of_property_read_bool(np, "interrupt-controller")) {
 		dev_info(dev, "no interrupt support\n");
 		return 0;
 	}
 
-	priv->irq = of_irq_get(np, 0);
-	if (priv->irq <= 0) {
-		dev_err(dev, "failed to get parent IRQ: %d\n", priv->irq);
-		return priv->irq ? : -EINVAL;
-	}
-
-	if (priv->id == ID_MT7988 || priv->id == ID_EN7581)
-		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
-							 &mt7988_irq_domain_ops,
-							 priv);
-	else
-		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
-							 &mt7530_irq_domain_ops,
-							 priv);
-
-	if (!priv->irq_domain) {
-		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+	irq = of_irq_get(np, 0);
+	if (irq <= 0) {
+		dev_err(dev, "failed to get parent IRQ: %d\n", irq);
+		return irq ? : -EINVAL;
 	}
 
 	/* This register must be set for MT7530 to properly fire interrupts */
 	if (priv->id == ID_MT7530 || priv->id == ID_MT7621)
 		mt7530_set(priv, MT7530_TOP_SIG_CTRL, TOP_SIG_CTRL_NORMAL);
 
-	ret = request_threaded_irq(priv->irq, NULL, mt7530_irq_thread_fn,
-				   IRQF_ONESHOT, KBUILD_MODNAME, priv);
-	if (ret) {
-		irq_domain_remove(priv->irq_domain);
-		dev_err(dev, "failed to request IRQ: %d\n", ret);
+	ret = devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),
+					      priv->regmap, irq,
+					      IRQF_ONESHOT,
+					      0, &mt7530_regmap_irq_chip,
+					      &irq_data);
+	if (ret)
 		return ret;
-	}
+
+	priv->irq_domain = regmap_irq_get_domain(irq_data);
 
 	return 0;
 }
@@ -2251,26 +2293,6 @@ mt7530_free_mdio_irq(struct mt7530_priv *priv)
 			irq_dispose_mapping(irq);
 		}
 	}
-}
-
-static void
-mt7530_free_irq_common(struct mt7530_priv *priv)
-{
-	free_irq(priv->irq, priv);
-	irq_domain_remove(priv->irq_domain);
-}
-
-static void
-mt7530_free_irq(struct mt7530_priv *priv)
-{
-	struct device_node *mnp, *np = priv->dev->of_node;
-
-	mnp = of_get_child_by_name(np, "mdio");
-	if (!mnp)
-		mt7530_free_mdio_irq(priv);
-	of_node_put(mnp);
-
-	mt7530_free_irq_common(priv);
 }
 
 static int
@@ -2307,13 +2329,13 @@ mt7530_setup_mdio(struct mt7530_priv *priv)
 	bus->parent = dev;
 	bus->phy_mask = ~ds->phys_mii_mask;
 
-	if (priv->irq && !mnp)
+	if (priv->irq_domain && !mnp)
 		mt7530_setup_mdio_irq(priv);
 
 	ret = devm_of_mdiobus_register(dev, bus, mnp);
 	if (ret) {
 		dev_err(dev, "failed to register MDIO bus: %d\n", ret);
-		if (priv->irq && !mnp)
+		if (priv->irq_domain && !mnp)
 			mt7530_free_mdio_irq(priv);
 	}
 
@@ -2541,6 +2563,9 @@ mt7531_setup_common(struct dsa_switch *ds)
 	struct mt7530_priv *priv = ds->priv;
 	int ret, i;
 
+	ds->assisted_learning_on_cpu_port = true;
+	ds->mtu_enforcement_ingress = true;
+
 	mt753x_trap_frames(priv);
 
 	/* Enable and reset MIB counters */
@@ -2586,12 +2611,18 @@ mt7531_setup_common(struct dsa_switch *ds)
 	/* Allow mirroring frames received on the local port (monitor port). */
 	mt7530_set(priv, MT753X_AGC, LOCAL_EN);
 
+	/* Enable Special Tag for rx frames */
+	if (priv->id == ID_EN7581 || priv->id == ID_AN7583)
+		mt7530_write(priv, MT753X_CPORT_SPTAG_CFG,
+			     CPORT_SW2FE_STAG_EN | CPORT_FE2SW_STAG_EN);
+
 	/* Flush the FDB table */
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, NULL);
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	/* Setup VLAN ID 0 for VLAN-unaware bridges */
+	return mt7530_setup_vlan0(priv);
 }
 
 static int
@@ -2686,14 +2717,6 @@ mt7531_setup(struct dsa_switch *ds)
 	ret = mt7531_setup_common(ds);
 	if (ret)
 		return ret;
-
-	/* Setup VLAN ID 0 for VLAN-unaware bridges */
-	ret = mt7530_setup_vlan0(priv);
-	if (ret)
-		return ret;
-
-	ds->assisted_learning_on_cpu_port = true;
-	ds->mtu_enforcement_ingress = true;
 
 	return 0;
 }
@@ -2957,27 +2980,60 @@ static void mt753x_phylink_mac_link_up(struct phylink_config *config,
 			mcr |= PMCR_FORCE_RX_FC_EN;
 	}
 
-	if (mode == MLO_AN_PHY && phydev && phy_init_eee(phydev, false) >= 0) {
-		switch (speed) {
-		case SPEED_1000:
-		case SPEED_2500:
-			mcr |= PMCR_FORCE_EEE1G;
-			break;
-		case SPEED_100:
-			mcr |= PMCR_FORCE_EEE100;
-			break;
-		}
-	}
-
 	mt7530_set(priv, MT753X_PMCR_P(dp->index), mcr);
+}
+
+static void mt753x_phylink_mac_disable_tx_lpi(struct phylink_config *config)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mt7530_priv *priv = dp->ds->priv;
+
+	mt7530_clear(priv, MT753X_PMCR_P(dp->index),
+		     PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100);
+}
+
+static int mt753x_phylink_mac_enable_tx_lpi(struct phylink_config *config,
+					    u32 timer, bool tx_clock_stop)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mt7530_priv *priv = dp->ds->priv;
+	u32 val;
+
+	/* If the timer is zero, then set LPI_MODE_EN, which allows the
+	 * system to enter LPI mode immediately rather than waiting for
+	 * the LPI threshold.
+	 */
+	if (!timer)
+		val = LPI_MODE_EN;
+	else if (FIELD_FIT(LPI_THRESH_MASK, timer))
+		val = FIELD_PREP(LPI_THRESH_MASK, timer);
+	else
+		val = LPI_THRESH_MASK;
+
+	mt7530_rmw(priv, MT753X_PMEEECR_P(dp->index),
+		   LPI_THRESH_MASK | LPI_MODE_EN, val);
+
+	mt7530_set(priv, MT753X_PMCR_P(dp->index),
+		   PMCR_FORCE_EEE1G | PMCR_FORCE_EEE100);
+
+	return 0;
 }
 
 static void mt753x_phylink_get_caps(struct dsa_switch *ds, int port,
 				    struct phylink_config *config)
 {
 	struct mt7530_priv *priv = ds->priv;
+	u32 eeecr;
 
 	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE;
+
+	config->lpi_capabilities = MAC_100FD | MAC_1000FD | MAC_2500FD;
+
+	eeecr = mt7530_read(priv, MT753X_PMEEECR_P(port));
+	/* tx_lpi_timer should be in microseconds. The time units for
+	 * LPI threshold are unspecified.
+	 */
+	config->lpi_timer_default = FIELD_GET(LPI_THRESH_MASK, eeecr);
 
 	priv->info->mac_port_get_caps(ds, port, config);
 }
@@ -2994,7 +3050,7 @@ static int mt753x_pcs_validate(struct phylink_pcs *pcs,
 	return 0;
 }
 
-static void mt7530_pcs_get_state(struct phylink_pcs *pcs,
+static void mt7530_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 				 struct phylink_link_state *state)
 {
 	struct mt7530_priv *priv = pcs_to_mt753x_pcs(pcs)->priv;
@@ -3063,54 +3119,30 @@ mt753x_setup(struct dsa_switch *ds)
 		return ret;
 
 	ret = mt7530_setup_mdio(priv);
-	if (ret && priv->irq)
-		mt7530_free_irq_common(priv);
 	if (ret)
 		return ret;
 
 	/* Initialise the PCS devices */
 	for (i = 0; i < priv->ds->num_ports; i++) {
 		priv->pcs[i].pcs.ops = priv->info->pcs_ops;
-		priv->pcs[i].pcs.neg_mode = true;
 		priv->pcs[i].priv = priv;
 		priv->pcs[i].port = i;
 	}
 
-	if (priv->create_sgmii) {
+	if (priv->create_sgmii)
 		ret = priv->create_sgmii(priv);
-		if (ret && priv->irq)
-			mt7530_free_irq(priv);
-	}
+
+	if (ret && priv->irq_domain)
+		mt7530_free_mdio_irq(priv);
 
 	return ret;
-}
-
-static int mt753x_get_mac_eee(struct dsa_switch *ds, int port,
-			      struct ethtool_keee *e)
-{
-	struct mt7530_priv *priv = ds->priv;
-	u32 eeecr = mt7530_read(priv, MT753X_PMEEECR_P(port));
-
-	e->tx_lpi_enabled = !(eeecr & LPI_MODE_EN);
-	e->tx_lpi_timer = LPI_THRESH_GET(eeecr);
-
-	return 0;
 }
 
 static int mt753x_set_mac_eee(struct dsa_switch *ds, int port,
 			      struct ethtool_keee *e)
 {
-	struct mt7530_priv *priv = ds->priv;
-	u32 set, mask = LPI_THRESH_MASK | LPI_MODE_EN;
-
 	if (e->tx_lpi_timer > 0xFFF)
 		return -EINVAL;
-
-	set = LPI_THRESH_SET(e->tx_lpi_timer);
-	if (!e->tx_lpi_enabled)
-		/* Force LPI Mode without a delay */
-		set |= LPI_MODE_EN;
-	mt7530_rmw(priv, MT753X_PMEEECR_P(port), mask, set);
 
 	return 0;
 }
@@ -3204,6 +3236,16 @@ static int mt7988_setup(struct dsa_switch *ds)
 	reset_control_deassert(priv->rstc);
 	usleep_range(20, 50);
 
+	/* AN7583 require additional tweak to CONN_CFG */
+	if (priv->id == ID_AN7583)
+		mt7530_rmw(priv, AN7583_GEPHY_CONN_CFG,
+			   AN7583_CSR_DPHY_CKIN_SEL |
+			   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
+			   AN7583_CSR_ETHER_AFE_PWD,
+			   AN7583_CSR_DPHY_CKIN_SEL |
+			   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
+			   FIELD_PREP(AN7583_CSR_ETHER_AFE_PWD, 0));
+
 	/* Reset the switch PHYs */
 	mt7530_write(priv, MT7530_SYS_CTRL, SYS_CTRL_PHY_RST);
 
@@ -3217,6 +3259,10 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_strings		= mt7530_get_strings,
 	.get_ethtool_stats	= mt7530_get_ethtool_stats,
 	.get_sset_count		= mt7530_get_sset_count,
+	.get_eth_mac_stats	= mt7530_get_eth_mac_stats,
+	.get_rmon_stats		= mt7530_get_rmon_stats,
+	.get_eth_ctrl_stats	= mt7530_get_eth_ctrl_stats,
+	.get_stats64		= mt7530_get_stats64,
 	.set_ageing_time	= mt7530_set_ageing_time,
 	.port_enable		= mt7530_port_enable,
 	.port_disable		= mt7530_port_disable,
@@ -3238,7 +3284,7 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_mirror_add	= mt753x_port_mirror_add,
 	.port_mirror_del	= mt753x_port_mirror_del,
 	.phylink_get_caps	= mt753x_phylink_get_caps,
-	.get_mac_eee		= mt753x_get_mac_eee,
+	.support_eee		= dsa_supports_eee,
 	.set_mac_eee		= mt753x_set_mac_eee,
 	.conduit_state_change	= mt753x_conduit_state_change,
 	.port_setup_tc		= mt753x_setup_tc,
@@ -3250,6 +3296,8 @@ static const struct phylink_mac_ops mt753x_phylink_mac_ops = {
 	.mac_config	= mt753x_phylink_mac_config,
 	.mac_link_down	= mt753x_phylink_mac_link_down,
 	.mac_link_up	= mt753x_phylink_mac_link_up,
+	.mac_disable_tx_lpi = mt753x_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi = mt753x_phylink_mac_enable_tx_lpi,
 };
 
 const struct mt753x_info mt753x_table[] = {
@@ -3306,6 +3354,16 @@ const struct mt753x_info mt753x_table[] = {
 		.phy_write_c45 = mt7531_ind_c45_phy_write,
 		.mac_port_get_caps = en7581_mac_port_get_caps,
 	},
+	[ID_AN7583] = {
+		.id = ID_AN7583,
+		.pcs_ops = &mt7530_pcs_ops,
+		.sw_setup = mt7988_setup,
+		.phy_read_c22 = mt7531_ind_c22_phy_read,
+		.phy_write_c22 = mt7531_ind_c22_phy_write,
+		.phy_read_c45 = mt7531_ind_c45_phy_read,
+		.phy_write_c45 = mt7531_ind_c45_phy_write,
+		.mac_port_get_caps = en7581_mac_port_get_caps,
+	},
 };
 EXPORT_SYMBOL_GPL(mt753x_table);
 
@@ -3343,8 +3401,8 @@ EXPORT_SYMBOL_GPL(mt7530_probe_common);
 void
 mt7530_remove_common(struct mt7530_priv *priv)
 {
-	if (priv->irq)
-		mt7530_free_irq(priv);
+	if (priv->irq_domain)
+		mt7530_free_mdio_irq(priv);
 
 	dsa_unregister_switch(priv->ds);
 

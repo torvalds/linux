@@ -147,6 +147,8 @@ config IXGBE
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select MDIO
+	select NET_DEVLINK
+	select PLDMFW
 	select PHYLIB
 	help
 	  This driver supports Intel(R) 10GbE PCI Express family of
@@ -264,6 +266,7 @@ config I40EVF
 	tristate "Intel(R) Ethernet Adaptive Virtual Function support"
 	select IAVF
 	depends on PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  This driver supports virtual functions for Intel XL710,
 	  X710, X722, XXV710, and all devices advertising support for
@@ -292,6 +295,7 @@ config ICE
 	select DIMLIB
 	select LIBIE
 	select NET_DEVLINK
+	select PACKING
 	select PLDMFW
 	select DPLL
 	help
@@ -335,7 +339,7 @@ config ICE_SWITCHDEV
 config ICE_HWTS
 	bool "Support HW cross-timestamp on platforms with PTM support"
 	default y
-	depends on ICE && X86
+	depends on ICE && X86 && PCIE_PTM
 	help
 	  Say Y to enable hardware supported cross-timestamping on platforms
 	  with PCIe PTM support. The cross-timestamp is available through
@@ -365,6 +369,7 @@ config IGC
 	default n
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on ETHTOOL_NETLINK
 	help
 	  This driver supports Intel(R) Ethernet Controller I225-LM/I225-V
 	  family of adapters.

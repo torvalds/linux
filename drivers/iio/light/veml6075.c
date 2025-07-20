@@ -195,13 +195,17 @@ static int veml6075_read_uv_direct(struct veml6075_data *data, int chan,
 
 static int veml6075_read_int_time_index(struct veml6075_data *data)
 {
-	int ret, conf;
+	int ret, conf, int_index;
 
 	ret = regmap_read(data->regmap, VEML6075_CMD_CONF, &conf);
 	if (ret < 0)
 		return ret;
 
-	return FIELD_GET(VEML6075_CONF_IT, conf);
+	int_index = FIELD_GET(VEML6075_CONF_IT, conf);
+	if (int_index >= ARRAY_SIZE(veml6075_it_ms))
+		return -EINVAL;
+
+	return int_index;
 }
 
 static int veml6075_read_int_time_ms(struct veml6075_data *data, int *val)
@@ -454,7 +458,7 @@ MODULE_DEVICE_TABLE(i2c, veml6075_id);
 
 static const struct of_device_id veml6075_of_match[] = {
 	{ .compatible = "vishay,veml6075" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, veml6075_of_match);
 

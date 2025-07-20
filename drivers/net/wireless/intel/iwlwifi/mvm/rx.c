@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -490,8 +490,6 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (!(rate_n_flags & RATE_MCS_CCK_MSK_V1) &&
 	    rate_n_flags & RATE_MCS_SGI_MSK_V1)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
-		rx_status->enc_flags |= RX_ENC_FLAG_HT_GF;
 	if (rate_n_flags & RATE_MCS_LDPC_MSK_V1)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
@@ -789,6 +787,8 @@ static void iwl_mvm_handle_per_phy_stats(struct iwl_mvm *mvm,
 			continue;
 		mvm->phy_ctxts[i].channel_load_by_us =
 			le32_to_cpu(per_phy[i].channel_load_by_us);
+		mvm->phy_ctxts[i].channel_load_not_by_us =
+			le32_to_cpu(per_phy[i].channel_load_not_by_us);
 	}
 }
 
@@ -962,6 +962,9 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 #define SEC_LINK_MIN_TX 3000
 #define SEC_LINK_MIN_RX 400
 
+/* Accept a ~20% short window to avoid issues due to jitter */
+#define IWL_MVM_TPT_MIN_COUNT_WINDOW (IWL_MVM_TPT_COUNT_WINDOW_SEC * HZ * 4 / 5)
+
 static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 {
 	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
@@ -971,6 +974,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 	unsigned long sec_link_tx = 0, sec_link_rx = 0;
 	u8 sec_link_tx_perc, sec_link_rx_perc;
 	u8 sec_link;
+	bool skip = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -995,7 +999,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 	sec_link = mvmvif->link[sec_link]->fw_link_id;
 
 	/* Sum up RX and TX MPDUs from the different queues/links */
-	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
+	for (int q = 0; q < mvm->trans->info.num_rxqs; q++) {
 		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
 
 		/* The link IDs that doesn't exist will contain 0 */
@@ -1010,11 +1014,23 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 		/*
 		 * In EMLSR we have statistics every 5 seconds, so we can reset
 		 * the counters upon every statistics notification.
+		 * The FW sends the notification regularly, but it will be
+		 * misaligned at the start. Skipping the measurement if it is
+		 * short will synchronize us.
 		 */
+		if (jiffies - mvmsta->mpdu_counters[q].window_start <
+		    IWL_MVM_TPT_MIN_COUNT_WINDOW)
+			skip = true;
+		mvmsta->mpdu_counters[q].window_start = jiffies;
 		memset(mvmsta->mpdu_counters[q].per_link, 0,
 		       sizeof(mvmsta->mpdu_counters[q].per_link));
 
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
+	}
+
+	if (skip) {
+		IWL_DEBUG_INFO(mvm, "MPDU statistics window was short\n");
+		return;
 	}
 
 	IWL_DEBUG_INFO(mvm, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",

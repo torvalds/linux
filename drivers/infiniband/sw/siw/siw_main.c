@@ -59,7 +59,6 @@ u_char mpa_version = MPA_REVISION_2;
 const bool peer_to_peer;
 
 struct task_struct *siw_tx_thread[NR_CPUS];
-struct crypto_shash *siw_crypto_shash;
 
 static int siw_device_register(struct siw_device *sdev, const char *name)
 {
@@ -287,7 +286,6 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 		return NULL;
 
 	base_dev = &sdev->base_dev;
-	sdev->netdev = netdev;
 
 	if (netdev->addr_len) {
 		memcpy(sdev->raw_gid, netdev->dev_addr,
@@ -380,16 +378,6 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 	sdev = to_siw_dev(base_dev);
 
 	switch (event) {
-	case NETDEV_UP:
-		sdev->state = IB_PORT_ACTIVE;
-		siw_port_event(sdev, 1, IB_EVENT_PORT_ACTIVE);
-		break;
-
-	case NETDEV_DOWN:
-		sdev->state = IB_PORT_DOWN;
-		siw_port_event(sdev, 1, IB_EVENT_PORT_ERR);
-		break;
-
 	case NETDEV_REGISTER:
 		/*
 		 * Device registration now handled only by
@@ -407,12 +395,8 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 		siw_port_event(sdev, 1, IB_EVENT_LID_CHANGE);
 		break;
 	/*
-	 * Todo: Below netdev events are currently not handled.
+	 * All other events are not handled
 	 */
-	case NETDEV_CHANGEMTU:
-	case NETDEV_CHANGE:
-		break;
-
 	default:
 		break;
 	}
@@ -442,12 +426,6 @@ static int siw_newlink(const char *basedev_name, struct net_device *netdev)
 	sdev = siw_device_create(netdev);
 	if (sdev) {
 		dev_dbg(&netdev->dev, "siw: new device\n");
-
-		if (netif_running(netdev) && netif_carrier_ok(netdev))
-			sdev->state = IB_PORT_ACTIVE;
-		else
-			sdev->state = IB_PORT_DOWN;
-
 		ib_mark_name_assigned_by_user(&sdev->base_dev);
 		rv = siw_device_register(sdev, basedev_name);
 		if (rv)
@@ -488,20 +466,7 @@ static __init int siw_init_module(void)
 		rv = -ENOMEM;
 		goto out_error;
 	}
-	/*
-	 * Locate CRC32 algorithm. If unsuccessful, fail
-	 * loading siw only, if CRC is required.
-	 */
-	siw_crypto_shash = crypto_alloc_shash("crc32c", 0, 0);
-	if (IS_ERR(siw_crypto_shash)) {
-		pr_info("siw: Loading CRC32c failed: %ld\n",
-			PTR_ERR(siw_crypto_shash));
-		siw_crypto_shash = NULL;
-		if (mpa_crc_required) {
-			rv = -EOPNOTSUPP;
-			goto out_error;
-		}
-	}
+
 	rv = register_netdevice_notifier(&siw_netdev_nb);
 	if (rv)
 		goto out_error;
@@ -513,9 +478,6 @@ static __init int siw_init_module(void)
 
 out_error:
 	siw_stop_tx_threads();
-
-	if (siw_crypto_shash)
-		crypto_free_shash(siw_crypto_shash);
 
 	pr_info("SoftIWARP attach failed. Error: %d\n", rv);
 
@@ -536,9 +498,6 @@ static void __exit siw_exit_module(void)
 	siw_cm_exit();
 
 	siw_destroy_cpulist(siw_cpu_info.num_nodes);
-
-	if (siw_crypto_shash)
-		crypto_free_shash(siw_crypto_shash);
 
 	pr_info("SoftiWARP detached\n");
 }

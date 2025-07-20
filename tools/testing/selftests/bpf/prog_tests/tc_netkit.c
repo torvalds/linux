@@ -14,9 +14,15 @@
 #include "netlink_helpers.h"
 #include "tc_helpers.h"
 
+#define NETKIT_HEADROOM	32
+#define NETKIT_TAILROOM	8
+
 #define MARK		42
 #define PRIO		0xeb9f
 #define ICMP_ECHO	8
+
+#define FLAG_ADJUST_ROOM (1 << 0)
+#define FLAG_SAME_NETNS  (1 << 1)
 
 struct icmphdr {
 	__u8		type;
@@ -35,7 +41,7 @@ struct iplink_req {
 };
 
 static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
-			 bool same_netns, int scrub, int peer_scrub)
+			 int scrub, int peer_scrub, __u32 flags)
 {
 	struct rtnl_handle rth = { .fd = -1 };
 	struct iplink_req req = {};
@@ -63,6 +69,10 @@ static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
 	addattr32(&req.n, sizeof(req), IFLA_NETKIT_SCRUB, scrub);
 	addattr32(&req.n, sizeof(req), IFLA_NETKIT_PEER_SCRUB, peer_scrub);
 	addattr32(&req.n, sizeof(req), IFLA_NETKIT_MODE, mode);
+	if (flags & FLAG_ADJUST_ROOM) {
+		addattr16(&req.n, sizeof(req), IFLA_NETKIT_HEADROOM, NETKIT_HEADROOM);
+		addattr16(&req.n, sizeof(req), IFLA_NETKIT_TAILROOM, NETKIT_TAILROOM);
+	}
 	addattr_nest_end(&req.n, data);
 	addattr_nest_end(&req.n, linkinfo);
 
@@ -87,7 +97,7 @@ static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
 				 " addr ee:ff:bb:cc:aa:dd"),
 				 "set hwaddress");
 	}
-	if (same_netns) {
+	if (flags & FLAG_SAME_NETNS) {
 		ASSERT_OK(system("ip link set dev " netkit_peer " up"),
 				 "up peer");
 		ASSERT_OK(system("ip addr add dev " netkit_peer " 10.0.0.2/24"),
@@ -184,8 +194,8 @@ void serial_test_tc_netkit_basic(void)
 	int err, ifindex;
 
 	err = create_netkit(NETKIT_L2, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false, NETKIT_SCRUB_DEFAULT,
-			    NETKIT_SCRUB_DEFAULT);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -299,8 +309,8 @@ static void serial_test_tc_netkit_multi_links_target(int mode, int target)
 	int err, ifindex;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false, NETKIT_SCRUB_DEFAULT,
-			    NETKIT_SCRUB_DEFAULT);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -428,8 +438,8 @@ static void serial_test_tc_netkit_multi_opts_target(int mode, int target)
 	int err, ifindex;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false, NETKIT_SCRUB_DEFAULT,
-			    NETKIT_SCRUB_DEFAULT);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -543,8 +553,8 @@ void serial_test_tc_netkit_device(void)
 	int err, ifindex, ifindex2;
 
 	err = create_netkit(NETKIT_L3, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, true, NETKIT_SCRUB_DEFAULT,
-			    NETKIT_SCRUB_DEFAULT);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, FLAG_SAME_NETNS);
 	if (err)
 		return;
 
@@ -655,8 +665,8 @@ static void serial_test_tc_netkit_neigh_links_target(int mode, int target)
 	int err, ifindex;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false, NETKIT_SCRUB_DEFAULT,
-			    NETKIT_SCRUB_DEFAULT);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -733,8 +743,8 @@ static void serial_test_tc_netkit_pkt_type_mode(int mode)
 	struct bpf_link *link;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, true, NETKIT_SCRUB_DEFAULT,
-			    NETKIT_SCRUB_DEFAULT);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, FLAG_SAME_NETNS);
 	if (err)
 		return;
 
@@ -799,7 +809,7 @@ void serial_test_tc_netkit_pkt_type(void)
 	serial_test_tc_netkit_pkt_type_mode(NETKIT_L3);
 }
 
-static void serial_test_tc_netkit_scrub_type(int scrub)
+static void serial_test_tc_netkit_scrub_type(int scrub, bool room)
 {
 	LIBBPF_OPTS(bpf_netkit_opts, optl);
 	struct test_tc_link *skel;
@@ -807,7 +817,8 @@ static void serial_test_tc_netkit_scrub_type(int scrub)
 	int err, ifindex;
 
 	err = create_netkit(NETKIT_L2, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false, scrub, scrub);
+			    &ifindex, scrub, scrub,
+			    room ? FLAG_ADJUST_ROOM : 0);
 	if (err)
 		return;
 
@@ -842,6 +853,8 @@ static void serial_test_tc_netkit_scrub_type(int scrub)
 	ASSERT_EQ(skel->bss->seen_tc8, true, "seen_tc8");
 	ASSERT_EQ(skel->bss->mark, scrub == NETKIT_SCRUB_NONE ? MARK : 0, "mark");
 	ASSERT_EQ(skel->bss->prio, scrub == NETKIT_SCRUB_NONE ? PRIO : 0, "prio");
+	ASSERT_EQ(skel->bss->headroom, room ? NETKIT_HEADROOM : 0, "headroom");
+	ASSERT_EQ(skel->bss->tailroom, room ? NETKIT_TAILROOM : 0, "tailroom");
 cleanup:
 	test_tc_link__destroy(skel);
 
@@ -852,6 +865,6 @@ cleanup:
 
 void serial_test_tc_netkit_scrub(void)
 {
-	serial_test_tc_netkit_scrub_type(NETKIT_SCRUB_DEFAULT);
-	serial_test_tc_netkit_scrub_type(NETKIT_SCRUB_NONE);
+	serial_test_tc_netkit_scrub_type(NETKIT_SCRUB_DEFAULT, false);
+	serial_test_tc_netkit_scrub_type(NETKIT_SCRUB_NONE, true);
 }

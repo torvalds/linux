@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -2988,12 +2988,8 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	clear_bit(NLP_LOGO_SND, &ndlp->nlp_flag);
-	spin_lock_irq(&ndlp->lock);
-	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+	if (test_and_clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags))
 		wake_up_waiter = 1;
-		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-	}
-	spin_unlock_irq(&ndlp->lock);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO cmpl:       status:x%x/x%x did:x%x",
@@ -3034,19 +3030,6 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Call state machine. This will unregister the rpi if needed. */
 	lpfc_disc_state_machine(vport, ndlp, cmdiocb, NLP_EVT_CMPL_LOGO);
-
-	if (skip_recovery)
-		goto out;
-
-	/* The driver sets this flag for an NPIV instance that doesn't want to
-	 * log into the remote port.
-	 */
-	if (test_bit(NLP_TARGET_REMOVE, &ndlp->nlp_flag)) {
-		clear_bit(NLP_NPR_2B_DISC, &ndlp->nlp_flag);
-		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-					NLP_EVT_DEVICE_RM);
-		goto out_rsrc_free;
-	}
 
 out:
 	/* At this point, the LOGO processing is complete. NOTE: For a
@@ -3091,7 +3074,7 @@ out:
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_DEVICE_RM);
 	}
-out_rsrc_free:
+
 	/* Driver is done with the I/O. */
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
@@ -4350,7 +4333,7 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 
 	if (!test_and_clear_bit(NLP_DELAY_TMO, &nlp->nlp_flag))
 		return;
-	del_timer_sync(&nlp->nlp_delayfunc);
+	timer_delete_sync(&nlp->nlp_delayfunc);
 	nlp->nlp_last_elscmd = 0;
 	if (!list_empty(&nlp->els_retry_evt.evt_listp)) {
 		list_del_init(&nlp->els_retry_evt.evt_listp);
@@ -4395,7 +4378,8 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 void
 lpfc_els_retry_delay(struct timer_list *t)
 {
-	struct lpfc_nodelist *ndlp = from_timer(ndlp, t, nlp_delayfunc);
+	struct lpfc_nodelist *ndlp = timer_container_of(ndlp, t,
+							nlp_delayfunc);
 	struct lpfc_vport *vport = ndlp->vport;
 	struct lpfc_hba   *phba = vport->phba;
 	unsigned long flags;
@@ -4448,7 +4432,7 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 	 * firing and before processing the timer, cancel the
 	 * nlp_delayfunc.
 	 */
-	del_timer_sync(&ndlp->nlp_delayfunc);
+	timer_delete_sync(&ndlp->nlp_delayfunc);
 	retry = ndlp->nlp_retry;
 	ndlp->nlp_retry = 0;
 
@@ -4583,6 +4567,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int link_reset = 0, rc;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
+	u8 rsn_code_exp = 0;
 
 
 	/* Note: cmd_dmabuf may be 0 for internal driver abort
@@ -4798,11 +4783,22 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			break;
 
 		case LSRJT_LOGICAL_BSY:
+			rsn_code_exp = stat.un.b.lsRjtRsnCodeExp;
 			if ((cmd == ELS_CMD_PLOGI) ||
 			    (cmd == ELS_CMD_PRLI) ||
 			    (cmd == ELS_CMD_NVMEPRLI)) {
 				delay = 1000;
 				maxretry = 48;
+
+				/* An authentication LS_RJT reason code
+				 * explanation means some error in the
+				 * security settings end-to-end.  Reduce
+				 * the retry count to allow lpfc to clear
+				 * RSCN mode and not race with dev_loss.
+				 */
+				if (cmd == ELS_CMD_PLOGI &&
+				    rsn_code_exp == LSEXP_AUTH_REQ)
+					maxretry = 8;
 			} else if (cmd == ELS_CMD_FDISC) {
 				/* FDISC retry policy */
 				maxretry = 48;
@@ -4831,6 +4827,20 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					      "0820 FLOGI (x%x). "
 					      "BBCredit Not Supported\n",
 					      stat.un.lsRjtError);
+			} else if (cmd == ELS_CMD_PLOGI) {
+				rsn_code_exp = stat.un.b.lsRjtRsnCodeExp;
+
+				/* An authentication LS_RJT reason code
+				 * explanation means some error in the
+				 * security settings end-to-end.  Reduce
+				 * the retry count to allow lpfc to clear
+				 * RSCN mode and not race with dev_loss.
+				 */
+				if (rsn_code_exp == LSEXP_AUTH_REQ) {
+					delay = 1000;
+					retry = 1;
+					maxretry = 8;
+				}
 			}
 			break;
 
@@ -8036,8 +8046,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			if (test_bit(FC_DISC_TMO, &vport->fc_flag)) {
 				tmo = ((phba->fc_ratov * 3) + 3);
 				mod_timer(&vport->fc_disctmo,
-					  jiffies +
-					  msecs_to_jiffies(1000 * tmo));
+					  jiffies + secs_to_jiffies(tmo));
 			}
 			return 0;
 		}
@@ -8072,7 +8081,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		if (test_bit(FC_DISC_TMO, &vport->fc_flag)) {
 			tmo = ((phba->fc_ratov * 3) + 3);
 			mod_timer(&vport->fc_disctmo,
-				  jiffies + msecs_to_jiffies(1000 * tmo));
+				  jiffies + secs_to_jiffies(tmo));
 		}
 		if ((rscn_cnt < FC_MAX_HOLD_RSCN) &&
 		    !test_bit(FC_RSCN_DISCOVERY, &vport->fc_flag)) {
@@ -9377,7 +9386,7 @@ out:
 void
 lpfc_els_timeout(struct timer_list *t)
 {
-	struct lpfc_vport *vport = from_timer(vport, t, els_tmofunc);
+	struct lpfc_vport *vport = timer_container_of(vport, t, els_tmofunc);
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t tmo_posted;
 	unsigned long iflag;
@@ -9502,7 +9511,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	if (!list_empty(&pring->txcmplq))
 		if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 			mod_timer(&vport->els_tmofunc,
-				  jiffies + msecs_to_jiffies(1000 * timeout));
+				  jiffies + secs_to_jiffies(timeout));
 }
 
 /**
@@ -9560,17 +9569,15 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	mbx_tmo_err = test_bit(MBX_TMO_ERR, &phba->bit_flags);
 	/* First we need to issue aborts to outstanding cmds on txcmpl */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "2243 iotag = 0x%x cmd_flag = 0x%x "
-				 "ulp_command = 0x%x this_vport %x "
-				 "sli_flag = 0x%x\n",
-				 piocb->iotag, piocb->cmd_flag,
-				 get_job_cmnd(phba, piocb),
-				 (piocb->vport == vport),
-				 phba->sli.sli_flag);
-
 		if (piocb->vport != vport)
 			continue;
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "2243 iotag = 0x%x cmd_flag = 0x%x "
+				 "ulp_command = 0x%x sli_flag = 0x%x\n",
+				 piocb->iotag, piocb->cmd_flag,
+				 get_job_cmnd(phba, piocb),
+				 phba->sli.sli_flag);
 
 		if ((phba->sli.sli_flag & LPFC_SLI_ACTIVE) && !mbx_tmo_err) {
 			if (piocb->cmd_flag & LPFC_IO_LIBDFC)
@@ -10411,8 +10418,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			}
 		}
 
-		clear_bit(NLP_TARGET_REMOVE, &ndlp->nlp_flag);
-
 		lpfc_disc_state_machine(vport, ndlp, elsiocb,
 					NLP_EVT_RCV_PLOGI);
 
@@ -10892,7 +10897,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 				 "3334 Delay fc port discovery for %d secs\n",
 				 phba->fc_ratov);
 		mod_timer(&vport->delayed_disc_tmo,
-			jiffies + msecs_to_jiffies(1000 * phba->fc_ratov));
+			jiffies + secs_to_jiffies(phba->fc_ratov));
 		return;
 	}
 
@@ -11149,7 +11154,7 @@ lpfc_retry_pport_discovery(struct lpfc_hba *phba)
 	if (!ndlp)
 		return;
 
-	mod_timer(&ndlp->nlp_delayfunc, jiffies + msecs_to_jiffies(1000));
+	mod_timer(&ndlp->nlp_delayfunc, jiffies + secs_to_jiffies(1));
 	set_bit(NLP_DELAY_TMO, &ndlp->nlp_flag);
 	ndlp->nlp_last_elscmd = ELS_CMD_FLOGI;
 	phba->pport->port_state = LPFC_FLOGI;
@@ -11498,15 +11503,13 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_can_disctmo(vport);
 	}
 
-	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+	if (test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags)) {
 		/* Wake up lpfc_vport_delete if waiting...*/
 		if (ndlp->logo_waitq)
 			wake_up(ndlp->logo_waitq);
 		clear_bit(NLP_ISSUE_LOGO, &ndlp->nlp_flag);
 		clear_bit(NLP_LOGO_SND, &ndlp->nlp_flag);
-		spin_lock_irq(&ndlp->lock);
-		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-		spin_unlock_irq(&ndlp->lock);
+		clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags);
 	}
 
 	/* Safe to release resources now. */
@@ -11592,7 +11595,8 @@ err:
 void
 lpfc_fabric_block_timeout(struct timer_list *t)
 {
-	struct lpfc_hba  *phba = from_timer(phba, t, fabric_block_timer);
+	struct lpfc_hba  *phba = timer_container_of(phba, t,
+						    fabric_block_timer);
 	unsigned long iflags;
 	uint32_t tmo_posted;
 

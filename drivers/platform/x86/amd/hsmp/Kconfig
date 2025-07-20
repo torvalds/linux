@@ -7,11 +7,12 @@ config AMD_HSMP
 	tristate
 
 menu "AMD HSMP Driver"
-	depends on AMD_NB || COMPILE_TEST
+	depends on AMD_NODE || COMPILE_TEST
 
 config AMD_HSMP_ACPI
 	tristate "AMD HSMP ACPI device driver"
 	depends on ACPI
+	depends on HWMON || !HWMON
 	select AMD_HSMP
 	help
 	  Host System Management Port (HSMP) interface is a mailbox interface
@@ -29,6 +30,7 @@ config AMD_HSMP_ACPI
 
 config AMD_HSMP_PLAT
 	tristate "AMD HSMP platform device driver"
+	depends on HWMON || !HWMON
 	select AMD_HSMP
 	help
 	  Host System Management Port (HSMP) interface is a mailbox interface

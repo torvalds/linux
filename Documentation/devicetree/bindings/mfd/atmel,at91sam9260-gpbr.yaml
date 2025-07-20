@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/atmel,at91sam9260-gpbr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip AT91 General Purpose Backup Registers
+
+maintainers:
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
+
+description:
+  The system controller embeds 256 bits of General Purpose Backup
+  registers organized as 8 32-bit registers.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - atmel,at91sam9260-gpbr
+              - microchip,sama7d65-gpbr
+          - const: syscon
+      - items:
+          - enum:
+              - microchip,sam9x60-gpbr
+              - microchip,sam9x7-gpbr
+          - const: atmel,at91sam9260-gpbr
+          - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    syscon@fffffd50 {
+        compatible = "atmel,at91sam9260-gpbr", "syscon";
+        reg = <0xfffffd50 0x10>;
+    };

@@ -126,7 +126,7 @@ struct user_datum {
 
 /* Sensitivity attributes */
 struct level_datum {
-	struct mls_level *level; /* sensitivity and associated categories */
+	struct mls_level level; /* sensitivity and associated categories */
 	unsigned char isalias; /* is this sensitivity an alias for another? */
 };
 
@@ -144,7 +144,7 @@ struct range_trans {
 
 /* Boolean data type */
 struct cond_bool_datum {
-	__u32 value; /* internal type value */
+	u32 value; /* internal type value */
 	int state;
 };
 
@@ -312,14 +312,19 @@ struct policydb {
 	u32 process_trans_perms;
 } __randomize_layout;
 
+struct policy_file {
+	char *data;
+	size_t len;
+};
+
 extern void policydb_destroy(struct policydb *p);
 extern int policydb_load_isids(struct policydb *p, struct sidtab *s);
 extern int policydb_context_isvalid(struct policydb *p, struct context *c);
 extern int policydb_class_isvalid(struct policydb *p, unsigned int class);
 extern int policydb_type_isvalid(struct policydb *p, unsigned int type);
 extern int policydb_role_isvalid(struct policydb *p, unsigned int role);
-extern int policydb_read(struct policydb *p, void *fp);
-extern int policydb_write(struct policydb *p, void *fp);
+extern int policydb_read(struct policydb *p, struct policy_file *fp);
+extern int policydb_write(struct policydb *p, struct policy_file *fp);
 
 extern struct filename_trans_datum *
 policydb_filenametr_search(struct policydb *p, struct filename_trans_key *key);
@@ -342,14 +347,9 @@ policydb_roletr_search(struct policydb *p, struct role_trans_key *key);
 #define POLICYDB_MAGIC	SELINUX_MAGIC
 #define POLICYDB_STRING "SE Linux"
 
-struct policy_file {
-	char *data;
-	size_t len;
-};
-
 struct policy_data {
 	struct policydb *p;
-	void *fp;
+	struct policy_file *fp;
 };
 
 static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
@@ -385,6 +385,8 @@ static inline char *sym_name(struct policydb *p, unsigned int sym_num,
 {
 	return p->sym_val_to_name[sym_num][element_nr];
 }
+
+extern int str_read(char **strp, gfp_t flags, struct policy_file *fp, u32 len);
 
 extern u16 string_to_security_class(struct policydb *p, const char *name);
 extern u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name);

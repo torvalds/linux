@@ -148,7 +148,6 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 		"lla  gp, __global_pointer$\n"
 		".option pop\n"
 		"mv   a0, sp\n"           /* save stack pointer to a0, as arg1 of _start_c */
-		"andi sp, a0, -16\n"      /* sp must be 16-byte aligned                    */
 		"call _start_c\n"         /* transfer to c runtime                         */
 	);
 	__nolibc_entrypoint_epilogue();

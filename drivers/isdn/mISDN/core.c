@@ -294,20 +294,6 @@ get_Bprotocol4mask(u_int m)
 	return NULL;
 }
 
-struct Bprotocol *
-get_Bprotocol4id(u_int id)
-{
-	u_int	m;
-
-	if (id < ISDN_P_B_START || id > 63) {
-		printk(KERN_WARNING "%s id not in range  %d\n",
-		       __func__, id);
-		return NULL;
-	}
-	m = 1 << (id & ISDN_P_B_MASK);
-	return get_Bprotocol4mask(m);
-}
-
 int
 mISDN_register_Bprotocol(struct Bprotocol *bp)
 {

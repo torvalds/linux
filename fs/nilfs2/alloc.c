@@ -21,6 +21,8 @@
  * nilfs_palloc_groups_per_desc_block - get the number of groups that a group
  *					descriptor block can maintain
  * @inode: inode of metadata file using this allocator
+ *
+ * Return: Number of groups that a group descriptor block can maintain.
  */
 static inline unsigned long
 nilfs_palloc_groups_per_desc_block(const struct inode *inode)
@@ -32,6 +34,8 @@ nilfs_palloc_groups_per_desc_block(const struct inode *inode)
 /**
  * nilfs_palloc_groups_count - get maximum number of groups
  * @inode: inode of metadata file using this allocator
+ *
+ * Return: Maximum number of groups.
  */
 static inline unsigned long
 nilfs_palloc_groups_count(const struct inode *inode)
@@ -43,6 +47,8 @@ nilfs_palloc_groups_count(const struct inode *inode)
  * nilfs_palloc_init_blockgroup - initialize private variables for allocator
  * @inode: inode of metadata file using this allocator
  * @entry_size: size of the persistent object
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 {
@@ -78,6 +84,9 @@ int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry (e.g. inode number)
  * @offset: pointer to store offset number in the group
+ *
+ * Return: Number of the group that contains the entry with the index
+ * specified by @nr.
  */
 static unsigned long nilfs_palloc_group(const struct inode *inode, __u64 nr,
 					unsigned long *offset)
@@ -93,8 +102,8 @@ static unsigned long nilfs_palloc_group(const struct inode *inode, __u64 nr,
  * @inode: inode of metadata file using this allocator
  * @group: group number
  *
- * nilfs_palloc_desc_blkoff() returns block offset of the descriptor
- * block which contains a descriptor of the specified group.
+ * Return: Index number in the metadata file of the descriptor block of
+ * the group specified by @group.
  */
 static unsigned long
 nilfs_palloc_desc_blkoff(const struct inode *inode, unsigned long group)
@@ -111,6 +120,9 @@ nilfs_palloc_desc_blkoff(const struct inode *inode, unsigned long group)
  *
  * nilfs_palloc_bitmap_blkoff() returns block offset of the bitmap
  * block used to allocate/deallocate entries in the specified group.
+ *
+ * Return: Index number in the metadata file of the bitmap block of
+ * the group specified by @group.
  */
 static unsigned long
 nilfs_palloc_bitmap_blkoff(const struct inode *inode, unsigned long group)
@@ -125,6 +137,8 @@ nilfs_palloc_bitmap_blkoff(const struct inode *inode, unsigned long group)
  * nilfs_palloc_group_desc_nfrees - get the number of free entries in a group
  * @desc: pointer to descriptor structure for the group
  * @lock: spin lock protecting @desc
+ *
+ * Return: Number of free entries written in the group descriptor @desc.
  */
 static unsigned long
 nilfs_palloc_group_desc_nfrees(const struct nilfs_palloc_group_desc *desc,
@@ -143,6 +157,9 @@ nilfs_palloc_group_desc_nfrees(const struct nilfs_palloc_group_desc *desc,
  * @desc: pointer to descriptor structure for the group
  * @lock: spin lock protecting @desc
  * @n: delta to be added
+ *
+ * Return: Number of free entries after adjusting the group descriptor
+ * @desc.
  */
 static u32
 nilfs_palloc_group_desc_add_entries(struct nilfs_palloc_group_desc *desc,
@@ -161,6 +178,9 @@ nilfs_palloc_group_desc_add_entries(struct nilfs_palloc_group_desc *desc,
  * nilfs_palloc_entry_blkoff - get block offset of an entry block
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry (e.g. inode number)
+ *
+ * Return: Index number in the metadata file of the block containing
+ * the entry specified by @nr.
  */
 static unsigned long
 nilfs_palloc_entry_blkoff(const struct inode *inode, __u64 nr)
@@ -238,6 +258,12 @@ static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
  * @blkoff: block offset
  * @prev: nilfs_bh_assoc struct of the last used buffer
  * @lock: spin lock protecting @prev
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- Non-existent block.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
 				     struct nilfs_bh_assoc *prev,
@@ -258,6 +284,8 @@ static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
  * @group: group number
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_get_desc_block(struct inode *inode,
 				       unsigned long group,
@@ -277,6 +305,8 @@ static int nilfs_palloc_get_desc_block(struct inode *inode,
  * @group: group number
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_get_bitmap_block(struct inode *inode,
 					 unsigned long group,
@@ -294,6 +324,8 @@ static int nilfs_palloc_get_bitmap_block(struct inode *inode,
  * nilfs_palloc_delete_bitmap_block - delete a bitmap block
  * @inode: inode of metadata file using this allocator
  * @group: group number
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_delete_bitmap_block(struct inode *inode,
 					    unsigned long group)
@@ -312,6 +344,8 @@ static int nilfs_palloc_delete_bitmap_block(struct inode *inode,
  * @nr: serial number of the entry (e.g. inode number)
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
 				 int create, struct buffer_head **bhp)
@@ -328,6 +362,8 @@ int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
  * nilfs_palloc_delete_entry_block - delete an entry block
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_delete_entry_block(struct inode *inode, __u64 nr)
 {
@@ -397,6 +433,9 @@ size_t nilfs_palloc_entry_offset(const struct inode *inode, __u64 nr,
  * @bsize: size in bits
  * @lock: spin lock protecting @bitmap
  * @wrap: whether to wrap around
+ *
+ * Return: Offset number within the group of the found free entry, or
+ * %-ENOSPC if not found.
  */
 static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
 					    unsigned long target,
@@ -438,6 +477,9 @@ static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
  * @inode: inode of metadata file using this allocator
  * @curr: current group number
  * @max: maximum number of groups
+ *
+ * Return: Number of remaining descriptors (= groups) managed by the descriptor
+ * block.
  */
 static unsigned long
 nilfs_palloc_rest_groups_in_desc_block(const struct inode *inode,
@@ -453,6 +495,8 @@ nilfs_palloc_rest_groups_in_desc_block(const struct inode *inode,
  * nilfs_palloc_count_desc_blocks - count descriptor blocks number
  * @inode: inode of metadata file using this allocator
  * @desc_blocks: descriptor blocks number [out]
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_count_desc_blocks(struct inode *inode,
 					    unsigned long *desc_blocks)
@@ -473,6 +517,8 @@ static int nilfs_palloc_count_desc_blocks(struct inode *inode,
  *					MDT file growing
  * @inode: inode of metadata file using this allocator
  * @desc_blocks: known current descriptor blocks count
+ *
+ * Return: true if a group can be added in the metadata file, false if not.
  */
 static inline bool nilfs_palloc_mdt_file_can_grow(struct inode *inode,
 						    unsigned long desc_blocks)
@@ -487,6 +533,12 @@ static inline bool nilfs_palloc_mdt_file_can_grow(struct inode *inode,
  * @inode: inode of metadata file using this allocator
  * @nused: current number of used entries
  * @nmaxp: max number of entries [out]
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-ERANGE	- Number of entries in use is out of range.
  */
 int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
 {
@@ -518,6 +570,13 @@ int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
  * @inode: inode of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the allocation
  * @wrap: whether to wrap around
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-ENOSPC	- Entries exhausted (No entries available for allocation).
+ * * %-EROFS	- Read only filesystem
  */
 int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 				     struct nilfs_palloc_req *req, bool wrap)
@@ -710,6 +769,8 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
  * nilfs_palloc_prepare_free_entry - prepare to deallocate a persistent object
  * @inode: inode of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the removal
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_prepare_free_entry(struct inode *inode,
 				    struct nilfs_palloc_req *req)
@@ -754,6 +815,8 @@ void nilfs_palloc_abort_free_entry(struct inode *inode,
  * @inode: inode of metadata file using this allocator
  * @entry_nrs: array of entry numbers to be deallocated
  * @nitems: number of entries stored in @entry_nrs
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 {

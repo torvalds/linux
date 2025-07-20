@@ -4,13 +4,9 @@ config FS_VERITY
 	bool "FS Verity (read-only file-based authenticity protection)"
 	select CRYPTO
 	select CRYPTO_HASH_INFO
-	# SHA-256 is implied as it's intended to be the default hash algorithm.
+	# SHA-256 is selected as it's intended to be the default hash algorithm.
 	# To avoid bloat, other wanted algorithms must be selected explicitly.
-	# Note that CRYPTO_SHA256 denotes the generic C implementation, but
-	# some architectures provided optimized implementations of the same
-	# algorithm that may be used instead. In this case, CRYPTO_SHA256 may
-	# be omitted even if SHA-256 is being used.
-	imply CRYPTO_SHA256
+	select CRYPTO_SHA256
 	help
 	  This option enables fs-verity.  fs-verity is the dm-verity
 	  mechanism implemented at the file level.  On supported

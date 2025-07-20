@@ -26,7 +26,7 @@ pub use new_mutex;
 /// Since it may block, [`Mutex`] needs to be used with care in atomic contexts.
 ///
 /// Instances of [`Mutex`] need a lock class and to be pinned. The recommended way to create such
-/// instances is with the [`pin_init`](crate::pin_init) and [`new_mutex`] macros.
+/// instances is with the [`pin_init`](pin_init::pin_init) and [`new_mutex`] macros.
 ///
 /// # Examples
 ///
@@ -86,6 +86,14 @@ pub use new_mutex;
 /// [`struct mutex`]: srctree/include/linux/mutex.h
 pub type Mutex<T> = super::Lock<T, MutexBackend>;
 
+/// A [`Guard`] acquired from locking a [`Mutex`].
+///
+/// This is simply a type alias for a [`Guard`] returned from locking a [`Mutex`]. It will unlock
+/// the [`Mutex`] upon being dropped.
+///
+/// [`Guard`]: super::Guard
+pub type MutexGuard<'a, T> = super::Guard<'a, T, MutexBackend>;
+
 /// A kernel `struct mutex` lock backend.
 pub struct MutexBackend;
 
@@ -125,5 +133,10 @@ unsafe impl super::Backend for MutexBackend {
         } else {
             None
         }
+    }
+
+    unsafe fn assert_is_held(ptr: *mut Self::State) {
+        // SAFETY: The `ptr` pointer is guaranteed to be valid and initialized before use.
+        unsafe { bindings::mutex_assert_is_held(ptr) }
     }
 }

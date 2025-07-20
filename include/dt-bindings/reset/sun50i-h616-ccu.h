@@ -67,5 +67,8 @@
 #define RST_BUS_HDCP		58
 #define RST_BUS_KEYADC		59
 #define RST_BUS_GPADC		60
+#define RST_BUS_TCON_LCD0	61
+#define RST_BUS_TCON_LCD1	62
+#define RST_BUS_LVDS		63
 
 #endif /* _DT_BINDINGS_RESET_SUN50I_H616_H_ */

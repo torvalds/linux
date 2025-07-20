@@ -31,3 +31,23 @@ Date:		August 2015
 KernelVersion:	4.2
 Description:
 		Show the information about the EC software and hardware.
+
+What:		/sys/class/chromeos/cros_ec/usbpdmuxinfo
+Date:		February 2025
+Description:
+		Show PD mux status for each typec port with following flags:
+		- "USB": USB connected
+		- "DP": DP connected
+		- "POLARITY": CC line Polarity inverted
+		- "HPD_IRQ": Hot Plug Detect interrupt is asserted
+		- "HPD_LVL": Hot Plug Detect level is asserted
+		- "SAFE": DP is in safe mode
+		- "TBT": TBT enabled
+		- "USB4": USB4 enabled
+
+What:		/sys/class/chromeos/cros_ec/ap_mode_entry
+Date:		February 2025
+Description:
+		Show if the AP mode entry EC feature is supported.
+		It indicates whether the EC waits for direction from the AP
+		to enter Type-C altmodes or USB4 mode.

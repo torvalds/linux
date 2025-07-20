@@ -216,7 +216,7 @@ static void n64joy_close(struct input_dev *dev)
 	guard(mutex)(&priv->n64joy_mutex);
 
 	if (!--priv->n64joy_opened)
-		del_timer_sync(&priv->timer);
+		timer_delete_sync(&priv->timer);
 }
 
 static const u64 __initconst scandata[] ____cacheline_aligned = {

@@ -152,20 +152,6 @@ config INPUT_EVDEV
 	  To compile this driver as a module, choose M here: the
 	  module will be called evdev.
 
-config INPUT_EVBUG
-	tristate "Event debugging"
-	help
-	  Say Y here if you have a problem with the input subsystem and
-	  want all events (keypresses, mouse movements), to be output to
-	  the system log. While this is useful for debugging, it's also
-	  a security threat - your keypresses include your passwords, of
-	  course.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called evbug.
-
 config INPUT_KUNIT_TEST
 	tristate "KUnit tests for Input" if !KUNIT_ALL_TESTS
 	depends on INPUT && KUNIT

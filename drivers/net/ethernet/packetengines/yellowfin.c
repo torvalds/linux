@@ -652,7 +652,7 @@ err_free_irq:
 
 static void yellowfin_timer(struct timer_list *t)
 {
-	struct yellowfin_private *yp = from_timer(yp, t, timer);
+	struct yellowfin_private *yp = timer_container_of(yp, t, timer);
 	struct net_device *dev = pci_get_drvdata(yp->pci_dev);
 	void __iomem *ioaddr = yp->base;
 	int next_tick = 60*HZ;
@@ -1222,7 +1222,7 @@ static int yellowfin_close(struct net_device *dev)
 	iowrite32(0x80000000, ioaddr + RxCtrl);
 	iowrite32(0x80000000, ioaddr + TxCtrl);
 
-	del_timer(&yp->timer);
+	timer_delete(&yp->timer);
 
 #if defined(__i386__)
 	if (yellowfin_debug > 2) {

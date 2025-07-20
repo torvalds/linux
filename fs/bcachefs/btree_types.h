@@ -139,6 +139,7 @@ struct btree {
 };
 
 #define BCH_BTREE_CACHE_NOT_FREED_REASONS()	\
+	x(cache_reserve)			\
 	x(lock_intent)				\
 	x(lock_write)				\
 	x(dirty)				\
@@ -257,9 +258,6 @@ struct btree_node_iter {
  *
  * BTREE_TRIGGER_insert - @new is entering the btree
  * BTREE_TRIGGER_overwrite - @old is leaving the btree
- *
- * BTREE_TRIGGER_bucket_invalidate - signal from bucket invalidate path to alloc
- * trigger
  */
 #define BTREE_TRIGGER_FLAGS()			\
 	x(norun)				\
@@ -269,8 +267,7 @@ struct btree_node_iter {
 	x(gc)					\
 	x(insert)				\
 	x(overwrite)				\
-	x(is_root)				\
-	x(bucket_invalidate)
+	x(is_root)
 
 enum {
 #define x(n) BTREE_ITER_FLAG_BIT_##n,
@@ -367,7 +364,6 @@ static inline unsigned long btree_path_ip_allocated(struct btree_path *path)
  * @nodes_intent_locked	- bitmask indicating which locks are intent locks
  */
 struct btree_iter {
-	struct btree_trans	*trans;
 	btree_path_idx_t	path;
 	btree_path_idx_t	update_path;
 	btree_path_idx_t	key_cache_path;
@@ -423,6 +419,7 @@ static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b)
 
 struct btree_insert_entry {
 	unsigned		flags;
+	u8			sort_order;
 	u8			bkey_type;
 	enum btree_id		btree_id:8;
 	u8			level:4;
@@ -477,6 +474,18 @@ struct btree_trans_paths {
 	struct btree_path	paths[];
 };
 
+struct trans_kmalloc_trace {
+	unsigned long		ip;
+	size_t			bytes;
+};
+typedef DARRAY(struct trans_kmalloc_trace) darray_trans_kmalloc_trace;
+
+struct btree_trans_subbuf {
+	u16			base;
+	u16			u64s;
+	u16			size;;
+};
+
 struct btree_trans {
 	struct bch_fs		*c;
 
@@ -488,6 +497,10 @@ struct btree_trans {
 	void			*mem;
 	unsigned		mem_top;
 	unsigned		mem_bytes;
+	unsigned		realloc_bytes_required;
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_trans_kmalloc_trace trans_kmalloc_trace;
+#endif
 
 	btree_path_idx_t	nr_sorted;
 	btree_path_idx_t	nr_paths;
@@ -509,10 +522,16 @@ struct btree_trans {
 	bool			notrace_relock_fail:1;
 	enum bch_errcode	restarted:16;
 	u32			restart_count;
+#ifdef CONFIG_BCACHEFS_INJECT_TRANSACTION_RESTARTS
+	u32			restart_count_this_trans;
+#endif
 
 	u64			last_begin_time;
 	unsigned long		last_begin_ip;
 	unsigned long		last_restarted_ip;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	bch_stacktrace		last_restarted_trace;
+#endif
 	unsigned long		last_unlock_ip;
 	unsigned long		srcu_lock_time;
 
@@ -522,9 +541,8 @@ struct btree_trans {
 	int			srcu_idx;
 
 	/* update path: */
-	u16			journal_entries_u64s;
-	u16			journal_entries_size;
-	struct jset_entry	*journal_entries;
+	struct btree_trans_subbuf journal_entries;
+	struct btree_trans_subbuf accounting;
 
 	struct btree_trans_commit_hook *hooks;
 	struct journal_entry_pin *journal_pin;
@@ -537,6 +555,8 @@ struct btree_trans {
 
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
+
+	__BKEY_PADDED(btree_path_down, BKEY_BTREE_PTR_VAL_U64s_MAX);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -598,6 +618,9 @@ enum btree_write_type {
 	x(dying)							\
 	x(fake)								\
 	x(need_rewrite)							\
+	x(need_rewrite_error)						\
+	x(need_rewrite_degraded)					\
+	x(need_rewrite_ptr_written_zero)				\
 	x(never_write)							\
 	x(pinned)
 
@@ -622,6 +645,32 @@ static inline void clear_btree_node_ ## flag(struct btree *b)		\
 BTREE_FLAGS()
 #undef x
 
+#define BTREE_NODE_REWRITE_REASON()					\
+	x(none)								\
+	x(unknown)							\
+	x(error)							\
+	x(degraded)							\
+	x(ptr_written_zero)
+
+enum btree_node_rewrite_reason {
+#define x(n)	BTREE_NODE_REWRITE_##n,
+	BTREE_NODE_REWRITE_REASON()
+#undef x
+};
+
+static inline enum btree_node_rewrite_reason btree_node_rewrite_reason(struct btree *b)
+{
+	if (btree_node_need_rewrite_ptr_written_zero(b))
+		return BTREE_NODE_REWRITE_ptr_written_zero;
+	if (btree_node_need_rewrite_degraded(b))
+		return BTREE_NODE_REWRITE_degraded;
+	if (btree_node_need_rewrite_error(b))
+		return BTREE_NODE_REWRITE_error;
+	if (btree_node_need_rewrite(b))
+		return BTREE_NODE_REWRITE_unknown;
+	return BTREE_NODE_REWRITE_none;
+}
+
 static inline struct btree_write *btree_current_write(struct btree *b)
 {
 	return b->writes + btree_node_write_idx(b);
@@ -641,13 +690,13 @@ static inline struct bset_tree *bset_tree_last(struct btree *b)
 static inline void *
 __btree_node_offset_to_ptr(const struct btree *b, u16 offset)
 {
-	return (void *) ((u64 *) b->data + 1 + offset);
+	return (void *) ((u64 *) b->data + offset);
 }
 
 static inline u16
 __btree_node_ptr_to_offset(const struct btree *b, const void *p)
 {
-	u16 ret = (u64 *) p - 1 - (u64 *) b->data;
+	u16 ret = (u64 *) p - (u64 *) b->data;
 
 	EBUG_ON(__btree_node_offset_to_ptr(b, ret) != p);
 	return ret;
@@ -787,53 +836,76 @@ static inline bool btree_node_type_has_triggers(enum btree_node_type type)
 	return BIT_ULL(type) & BTREE_NODE_TYPE_HAS_TRIGGERS;
 }
 
-static inline bool btree_node_type_is_extents(enum btree_node_type type)
-{
-	const u64 mask = 0
-#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_ID_EXTENTS)) << (nr + 1))
-	BCH_BTREE_IDS()
-#undef x
-	;
-
-	return BIT_ULL(type) & mask;
-}
-
 static inline bool btree_id_is_extents(enum btree_id btree)
 {
-	return btree_node_type_is_extents(__btree_node_type(0, btree));
-}
-
-static inline bool btree_type_has_snapshots(enum btree_id id)
-{
 	const u64 mask = 0
-#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_ID_SNAPSHOTS)) << nr)
+#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_IS_extents)) << nr)
 	BCH_BTREE_IDS()
 #undef x
 	;
 
-	return BIT_ULL(id) & mask;
+	return BIT_ULL(btree) & mask;
 }
 
-static inline bool btree_type_has_snapshot_field(enum btree_id id)
+static inline bool btree_node_type_is_extents(enum btree_node_type type)
+{
+	return type != BKEY_TYPE_btree && btree_id_is_extents(type - 1);
+}
+
+static inline bool btree_type_has_snapshots(enum btree_id btree)
 {
 	const u64 mask = 0
-#define x(name, nr, flags, ...)	|((!!((flags) & (BTREE_ID_SNAPSHOT_FIELD|BTREE_ID_SNAPSHOTS))) << nr)
+#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_IS_snapshots)) << nr)
 	BCH_BTREE_IDS()
 #undef x
 	;
 
-	return BIT_ULL(id) & mask;
+	return BIT_ULL(btree) & mask;
 }
 
-static inline bool btree_type_has_ptrs(enum btree_id id)
+static inline bool btree_type_has_snapshot_field(enum btree_id btree)
 {
 	const u64 mask = 0
-#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_ID_DATA)) << nr)
+#define x(name, nr, flags, ...)	|((!!((flags) & (BTREE_IS_snapshot_field|BTREE_IS_snapshots))) << nr)
 	BCH_BTREE_IDS()
 #undef x
 	;
 
-	return BIT_ULL(id) & mask;
+	return BIT_ULL(btree) & mask;
+}
+
+static inline bool btree_type_has_ptrs(enum btree_id btree)
+{
+	const u64 mask = 0
+#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_IS_data)) << nr)
+	BCH_BTREE_IDS()
+#undef x
+	;
+
+	return BIT_ULL(btree) & mask;
+}
+
+static inline bool btree_type_uses_write_buffer(enum btree_id btree)
+{
+	const u64 mask = 0
+#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_IS_write_buffer)) << nr)
+	BCH_BTREE_IDS()
+#undef x
+	;
+
+	return BIT_ULL(btree) & mask;
+}
+
+static inline u8 btree_trigger_order(enum btree_id btree)
+{
+	switch (btree) {
+	case BTREE_ID_alloc:
+		return U8_MAX;
+	case BTREE_ID_stripes:
+		return U8_MAX - 1;
+	default:
+		return btree;
+	}
 }
 
 struct btree_root {

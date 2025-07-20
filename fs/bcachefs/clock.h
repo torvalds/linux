@@ -4,6 +4,7 @@
 
 void bch2_io_timer_add(struct io_clock *, struct io_timer *);
 void bch2_io_timer_del(struct io_clock *, struct io_timer *);
+unsigned long bch2_kthread_io_clock_wait_once(struct io_clock *, u64, unsigned long);
 void bch2_kthread_io_clock_wait(struct io_clock *, u64, unsigned long);
 
 void __bch2_increment_clock(struct io_clock *, u64);

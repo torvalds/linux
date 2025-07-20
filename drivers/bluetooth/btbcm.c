@@ -135,7 +135,7 @@ int btbcm_check_bdaddr(struct hci_dev *hdev)
 		if (btbcm_set_bdaddr_from_efi(hdev) != 0) {
 			bt_dev_info(hdev, "BCM: Using default device address (%pMR)",
 				    &bda->bdaddr);
-			set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+			hci_set_quirk(hdev, HCI_QUIRK_INVALID_BDADDR);
 		}
 	}
 
@@ -467,7 +467,7 @@ static int btbcm_print_controller_features(struct hci_dev *hdev)
 
 	/* Read DMI and disable broken Read LE Min/Max Tx Power */
 	if (dmi_first_match(disable_broken_read_transmit_power))
-		set_bit(HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER);
 
 	return 0;
 }
@@ -553,6 +553,9 @@ static const char *btbcm_get_board_name(struct device *dev)
 
 	/* get rid of any '/' in the compatible string */
 	board_type = devm_kstrdup(dev, tmp, GFP_KERNEL);
+	if (!board_type)
+		return NULL;
+
 	strreplace(board_type, '/', '-');
 
 	return board_type;
@@ -703,7 +706,7 @@ int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud_m
 
 	btbcm_check_bdaddr(hdev);
 
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+	hci_set_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER);
 
 	return 0;
 }
@@ -766,7 +769,7 @@ int btbcm_setup_apple(struct hci_dev *hdev)
 		kfree_skb(skb);
 	}
 
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+	hci_set_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER);
 
 	return 0;
 }

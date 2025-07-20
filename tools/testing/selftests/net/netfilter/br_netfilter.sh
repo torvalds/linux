@@ -13,6 +13,12 @@ source lib.sh
 
 checktool "nft --version" "run test without nft tool"
 
+read t < /proc/sys/kernel/tainted
+if [ "$t" -ne 0 ];then
+	echo SKIP: kernel is tainted
+	exit $ksft_skip
+fi
+
 cleanup() {
 	cleanup_all_ns
 }
@@ -53,9 +59,6 @@ bcast_ping()
 		fi
 	done
 }
-
-ip netns exec "$ns0" sysctl -q net.ipv4.conf.all.rp_filter=0
-ip netns exec "$ns0" sysctl -q net.ipv4.conf.default.rp_filter=0
 
 if ! ip link add veth1 netns "$ns0" type veth peer name eth0 netns "$ns1"; then
 	echo "SKIP: Can't create veth device"
@@ -165,6 +168,7 @@ if [ "$t" -eq 0 ];then
 	echo PASS: kernel not tainted
 else
 	echo ERROR: kernel is tainted
+	dmesg
 	ret=1
 fi
 

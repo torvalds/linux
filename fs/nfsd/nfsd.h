@@ -44,24 +44,14 @@ bool nfsd_support_version(int vers);
 #include "stats.h"
 
 /*
- * Maximum blocksizes supported by daemon under various circumstances.
+ * Default and maximum payload size (NFS READ or WRITE), in bytes.
+ * The default is historical, and the maximum is an implementation
+ * limit.
  */
-#define NFSSVC_MAXBLKSIZE       RPCSVC_MAXPAYLOAD
-/* NFSv2 is limited by the protocol specification, see RFC 1094 */
-#define NFSSVC_MAXBLKSIZE_V2    (8*1024)
-
-
-/*
- * Largest number of bytes we need to allocate for an NFS
- * call or reply.  Used to control buffer sizes.  We use
- * the length of v3 WRITE, READDIR and READDIR replies
- * which are an RPC header, up to 26 XDR units of reply
- * data, and some page data.
- *
- * Note that accuracy here doesn't matter too much as the
- * size is rounded up to a page size when allocating space.
- */
-#define NFSD_BUFSIZE            ((RPC_MAX_HEADER_WITH_AUTH+26)*XDR_UNIT + NFSSVC_MAXBLKSIZE)
+enum {
+	NFSSVC_DEFBLKSIZE       = 1 * 1024 * 1024,
+	NFSSVC_MAXBLKSIZE       = RPCSVC_MAXPAYLOAD,
+};
 
 struct readdir_cd {
 	__be32			err;	/* 0, nfserr, or nfserr_eof */
@@ -88,9 +78,6 @@ struct nfsd_genl_rqstp {
 extern struct svc_program	nfsd_programs[];
 extern const struct svc_version	nfsd_version2, nfsd_version3, nfsd_version4;
 extern struct mutex		nfsd_mutex;
-extern spinlock_t		nfsd_drc_lock;
-extern unsigned long		nfsd_drc_max_mem;
-extern unsigned long		nfsd_drc_mem_used;
 extern atomic_t			nfsd_th_cnt;		/* number of available threads */
 
 extern const struct seq_operations nfs_exports_op;
@@ -158,6 +145,16 @@ int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change
 void nfsd_reset_versions(struct nfsd_net *nn);
 int nfsd_create_serv(struct net *net);
 void nfsd_destroy_serv(struct net *net);
+
+#ifdef CONFIG_DEBUG_FS
+void nfsd_debugfs_init(void);
+void nfsd_debugfs_exit(void);
+#else
+static inline void nfsd_debugfs_init(void) {}
+static inline void nfsd_debugfs_exit(void) {}
+#endif
+
+extern bool nfsd_disable_splice_read __read_mostly;
 
 extern int nfsd_max_blksize;
 
@@ -458,7 +455,10 @@ enum {
 	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
 	FATTR4_WORD2_MODE_UMASK | \
 	NFSD4_2_SECURITY_ATTRS | \
-	FATTR4_WORD2_XATTR_SUPPORT)
+	FATTR4_WORD2_XATTR_SUPPORT | \
+	FATTR4_WORD2_TIME_DELEG_ACCESS | \
+	FATTR4_WORD2_TIME_DELEG_MODIFY | \
+	FATTR4_WORD2_OPEN_ARGUMENTS)
 
 extern const u32 nfsd_suppattrs[3][3];
 
@@ -528,7 +528,10 @@ static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
 #endif
 #define NFSD_WRITEABLE_ATTRS_WORD2 \
 	(FATTR4_WORD2_MODE_UMASK \
-	| MAYBE_FATTR4_WORD2_SECURITY_LABEL)
+	| MAYBE_FATTR4_WORD2_SECURITY_LABEL \
+	| FATTR4_WORD2_TIME_DELEG_ACCESS \
+	| FATTR4_WORD2_TIME_DELEG_MODIFY \
+	)
 
 #define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
 	NFSD_WRITEABLE_ATTRS_WORD0

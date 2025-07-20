@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2008 Intel Corporation
  */
 
@@ -39,7 +38,7 @@
  * Since neither of this applies for new tiling layouts on modern platforms like
  * W, Ys and Yf tiling GEM only allows object tiling to be set to X or Y tiled.
  * Anything else can be handled in userspace entirely without the kernel's
- * invovlement.
+ * involvement.
  */
 
 /**

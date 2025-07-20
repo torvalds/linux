@@ -154,6 +154,7 @@ static int isl28022_read_current(struct device *dev, u32 attr, long *val)
 	struct isl28022_data *data = dev_get_drvdata(dev);
 	unsigned int regval;
 	int err;
+	u16 sign_bit;
 
 	switch (attr) {
 	case hwmon_curr_input:
@@ -161,8 +162,9 @@ static int isl28022_read_current(struct device *dev, u32 attr, long *val)
 				  ISL28022_REG_CURRENT, &regval);
 		if (err < 0)
 			return err;
-		*val = ((long)regval * 1250L * (long)data->gain) /
-			(long)data->shunt;
+		sign_bit = (regval >> 15) & 0x01;
+		*val = (((long)(((u16)regval) & 0x7FFF) - (sign_bit * 32768)) *
+			1250L * (long)data->gain) / (long)data->shunt;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -301,7 +303,7 @@ static const struct regmap_config isl28022_regmap_config = {
 	.writeable_reg = isl28022_is_writeable_reg,
 	.volatile_reg = isl28022_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -323,26 +325,6 @@ static int shunt_voltage_show(struct seq_file *seqf, void *unused)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(shunt_voltage);
-
-static struct dentry *isl28022_debugfs_root;
-
-static void isl28022_debugfs_remove(void *res)
-{
-	debugfs_remove_recursive(res);
-}
-
-static void isl28022_debugfs_init(struct i2c_client *client, struct isl28022_data *data)
-{
-	char name[16];
-	struct dentry *debugfs;
-
-	scnprintf(name, sizeof(name), "%d-%04hx", client->adapter->nr, client->addr);
-
-	debugfs = debugfs_create_dir(name, isl28022_debugfs_root);
-	debugfs_create_file("shunt_voltage", 0444, debugfs, data, &shunt_voltage_fops);
-
-	devm_add_action_or_reset(&client->dev, isl28022_debugfs_remove, debugfs);
-}
 
 /*
  * read property values and make consistency checks.
@@ -475,7 +457,7 @@ static int isl28022_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	isl28022_debugfs_init(client, data);
+	debugfs_create_file("shunt_voltage", 0444, client->debugfs, data, &shunt_voltage_fops);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 data, &isl28022_chip_info, NULL);
@@ -486,7 +468,7 @@ static int isl28022_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isl28022_ids[] = {
-	{ "isl28022", 0},
+	{ "isl28022" },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, isl28022_ids);
@@ -505,30 +487,7 @@ static struct i2c_driver isl28022_driver = {
 	.probe	= isl28022_probe,
 	.id_table	= isl28022_ids,
 };
-
-static int __init
-isl28022_init(void)
-{
-	int err;
-
-	isl28022_debugfs_root = debugfs_create_dir("isl28022", NULL);
-	err = i2c_add_driver(&isl28022_driver);
-	if (!err)
-		return 0;
-
-	debugfs_remove_recursive(isl28022_debugfs_root);
-	return err;
-}
-
-static void __exit
-isl28022_exit(void)
-{
-	i2c_del_driver(&isl28022_driver);
-	debugfs_remove_recursive(isl28022_debugfs_root);
-}
-
-module_init(isl28022_init);
-module_exit(isl28022_exit);
+module_i2c_driver(isl28022_driver);
 
 MODULE_AUTHOR("Carsten Spieß <mail@carsten-spiess.de>");
 MODULE_DESCRIPTION("ISL28022 driver");

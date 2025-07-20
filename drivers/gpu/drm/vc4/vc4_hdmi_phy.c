@@ -125,6 +125,48 @@
 #define VC4_HDMI_RM_FORMAT_SHIFT_SHIFT			24
 #define VC4_HDMI_RM_FORMAT_SHIFT_MASK			VC4_MASK(25, 24)
 
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_BG_PWRUP	BIT(8)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_LDO_PWRUP	BIT(7)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_BIAS_PWRUP	BIT(6)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_RNDGEN_PWRUP	BIT(4)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_CK_PWRUP	BIT(3)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_2_PWRUP	BIT(2)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_1_PWRUP	BIT(1)
+#define VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_0_PWRUP	BIT(0)
+
+#define VC6_HDMI_TX_PHY_PLL_REFCLK_REFCLK_SEL_CMOS	BIT(13)
+#define VC6_HDMI_TX_PHY_PLL_REFCLK_REFFRQ_MASK		VC4_MASK(9, 0)
+
+#define VC6_HDMI_TX_PHY_PLL_POST_KDIV_CLK0_SEL_MASK	VC4_MASK(3, 2)
+#define VC6_HDMI_TX_PHY_PLL_POST_KDIV_KDIV_MASK		VC4_MASK(1, 0)
+
+#define VC6_HDMI_TX_PHY_PLL_VCOCLK_DIV_VCODIV_EN	BIT(10)
+#define VC6_HDMI_TX_PHY_PLL_VCOCLK_DIV_VCODIV_MASK	VC4_MASK(9, 0)
+
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_CTL_MASK	VC4_MASK(31, 28)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_ENABLE_MASK		VC4_MASK(27, 27)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_RATE_CTL_MASK	VC4_MASK(26, 26)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_POST_TAP_EN_MASK	VC4_MASK(25, 25)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_LDMOS_BIAS_CTL_MASK	VC4_MASK(24, 23)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_COM_MODE_LDMOS_EN_MASK	VC4_MASK(22, 22)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EDGE_SEL_MASK		VC4_MASK(21, 21)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_HS_EN_MASK	VC4_MASK(20, 20)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_TERM_CTL_MASK		VC4_MASK(19, 18)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_EN_MASK	VC4_MASK(17, 17)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_EN_MASK	VC4_MASK(16, 16)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_CTL_MASK	VC4_MASK(15, 12)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_HS_EN_MASK	VC4_MASK(11, 11)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_MAIN_TAP_CURRENT_SELECT_MASK	VC4_MASK(10, 8)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_POST_TAP_CURRENT_SELECT_MASK	VC4_MASK(7, 5)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_LOADING_MASK	VC4_MASK(4, 3)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_DRIVING_MASK	VC4_MASK(2, 1)
+#define VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_PRE_TAP_EN_MASK	VC4_MASK(0, 0)
+
+#define VC6_HDMI_TX_PHY_PLL_RESET_CTL_PLL_PLLPOST_RESETB	BIT(1)
+#define VC6_HDMI_TX_PHY_PLL_RESET_CTL_PLL_RESETB	BIT(0)
+
+#define VC6_HDMI_TX_PHY_PLL_POWERUP_CTL_PLL_PWRUP	BIT(0)
+
 #define OSCILLATOR_FREQUENCY	54000000
 
 void vc4_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
@@ -557,4 +599,602 @@ void vc5_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi)
 		   HDMI_READ(HDMI_TX_PHY_POWERDOWN_CTL) |
 		   VC4_HDMI_TX_PHY_POWERDOWN_CTL_RNDGEN_PWRDN);
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+}
+
+#define VC6_VCO_MIN_FREQ	(8ULL * 1000 * 1000 * 1000)
+#define VC6_VCO_MAX_FREQ	(12ULL * 1000 * 1000 * 1000)
+
+static unsigned long long
+vc6_phy_get_vco_freq(unsigned long long tmds_rate, unsigned int *vco_div)
+{
+	unsigned int min_div;
+	unsigned int max_div;
+	unsigned int div;
+
+	div = 0;
+	while (tmds_rate * div * 10 < VC6_VCO_MIN_FREQ)
+		div++;
+	min_div = div;
+
+	while (tmds_rate * (div + 1) * 10 < VC6_VCO_MAX_FREQ)
+		div++;
+	max_div = div;
+
+	div = min_div + (max_div - min_div) / 2;
+
+	*vco_div = div;
+	return tmds_rate * div * 10;
+}
+
+struct vc6_phy_lane_settings {
+	unsigned int ext_current_ctl:4;
+	unsigned int ffe_enable:1;
+	unsigned int slew_rate_ctl:1;
+	unsigned int ffe_post_tap_en:1;
+	unsigned int ldmos_bias_ctl:2;
+	unsigned int com_mode_ldmos_en:1;
+	unsigned int edge_sel:1;
+	unsigned int ext_current_src_hs_en:1;
+	unsigned int term_ctl:2;
+	unsigned int ext_current_src_en:1;
+	unsigned int int_current_src_en:1;
+	unsigned int int_current_ctl:4;
+	unsigned int int_current_src_hs_en:1;
+	unsigned int main_tap_current_select:3;
+	unsigned int post_tap_current_select:3;
+	unsigned int slew_ctl_slow_loading:2;
+	unsigned int slew_ctl_slow_driving:2;
+	unsigned int ffe_pre_tap_en:1;
+};
+
+struct vc6_phy_settings {
+	unsigned long long min_rate;
+	unsigned long long max_rate;
+	struct vc6_phy_lane_settings channel[3];
+	struct vc6_phy_lane_settings clock;
+};
+
+static const struct vc6_phy_settings vc6_hdmi_phy_settings[] = {
+	{
+		0, 222000000,
+		{
+			{
+				/* 200mA */
+				.ext_current_ctl = 8,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* 200mA */
+				.int_current_ctl = 8,
+
+				/* 17.6 mA */
+				.main_tap_current_select = 7,
+			},
+			{
+				/* 200mA */
+				.ext_current_ctl = 8,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* 200mA */
+				.int_current_ctl = 8,
+
+				/* 17.6 mA */
+				.main_tap_current_select = 7,
+			},
+			{
+				/* 200mA */
+				.ext_current_ctl = 8,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* 200mA */
+				.int_current_ctl = 8,
+
+				/* 17.6 mA */
+				.main_tap_current_select = 7,
+			},
+		},
+		{
+			/* 200mA */
+			.ext_current_ctl = 8,
+
+			/* 0.85V */
+			.ldmos_bias_ctl = 1,
+
+			/* Enable External Current Source */
+			.ext_current_src_en = 1,
+
+			/* 200mA */
+			.int_current_ctl = 8,
+
+			/* 17.6 mA */
+			.main_tap_current_select = 7,
+		},
+	},
+	{
+		222000001, 297000000,
+		{
+			{
+				/* 200mA and 180mA ?! */
+				.ext_current_ctl = 12,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* 100 Ohm */
+				.term_ctl = 1,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* Enable Internal Current Source */
+				.int_current_src_en = 1,
+			},
+			{
+				/* 200mA and 180mA ?! */
+				.ext_current_ctl = 12,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* 100 Ohm */
+				.term_ctl = 1,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* Enable Internal Current Source */
+				.int_current_src_en = 1,
+			},
+			{
+				/* 200mA and 180mA ?! */
+				.ext_current_ctl = 12,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* 100 Ohm */
+				.term_ctl = 1,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* Enable Internal Current Source */
+				.int_current_src_en = 1,
+			},
+		},
+		{
+			/* 200mA and 180mA ?! */
+			.ext_current_ctl = 12,
+
+			/* 0.85V */
+			.ldmos_bias_ctl = 1,
+
+			/* 100 Ohm */
+			.term_ctl = 1,
+
+			/* Enable External Current Source */
+			.ext_current_src_en = 1,
+
+			/* Enable Internal Current Source */
+			.int_current_src_en = 1,
+
+			/* Internal Current Source Half Swing Enable*/
+			.int_current_src_hs_en = 1,
+		},
+	},
+	{
+		297000001, 597000044,
+		{
+			{
+				/* 200mA */
+				.ext_current_ctl = 8,
+
+				/* Normal Slew Rate Control */
+				.slew_rate_ctl = 1,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* 50 Ohms */
+				.term_ctl = 3,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* Enable Internal Current Source */
+				.int_current_src_en = 1,
+
+				/* 200mA */
+				.int_current_ctl = 8,
+
+				/* 17.6 mA */
+				.main_tap_current_select = 7,
+			},
+			{
+				/* 200mA */
+				.ext_current_ctl = 8,
+
+				/* Normal Slew Rate Control */
+				.slew_rate_ctl = 1,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* 50 Ohms */
+				.term_ctl = 3,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* Enable Internal Current Source */
+				.int_current_src_en = 1,
+
+				/* 200mA */
+				.int_current_ctl = 8,
+
+				/* 17.6 mA */
+				.main_tap_current_select = 7,
+			},
+			{
+				/* 200mA */
+				.ext_current_ctl = 8,
+
+				/* Normal Slew Rate Control */
+				.slew_rate_ctl = 1,
+
+				/* 0.85V */
+				.ldmos_bias_ctl = 1,
+
+				/* 50 Ohms */
+				.term_ctl = 3,
+
+				/* Enable External Current Source */
+				.ext_current_src_en = 1,
+
+				/* Enable Internal Current Source */
+				.int_current_src_en = 1,
+
+				/* 200mA */
+				.int_current_ctl = 8,
+
+				/* 17.6 mA */
+				.main_tap_current_select = 7,
+			},
+		},
+		{
+			/* 200mA */
+			.ext_current_ctl = 8,
+
+			/* Normal Slew Rate Control */
+			.slew_rate_ctl = 1,
+
+			/* 0.85V */
+			.ldmos_bias_ctl = 1,
+
+			/* External Current Source Half Swing Enable*/
+			.ext_current_src_hs_en = 1,
+
+			/* 50 Ohms */
+			.term_ctl = 3,
+
+			/* Enable External Current Source */
+			.ext_current_src_en = 1,
+
+			/* Enable Internal Current Source */
+			.int_current_src_en = 1,
+
+			/* 200mA */
+			.int_current_ctl = 8,
+
+			/* Internal Current Source Half Swing Enable*/
+			.int_current_src_hs_en = 1,
+
+			/* 17.6 mA */
+			.main_tap_current_select = 7,
+		},
+	},
+};
+
+static const struct vc6_phy_settings *
+vc6_phy_get_settings(unsigned long long tmds_rate)
+{
+	unsigned int count = ARRAY_SIZE(vc6_hdmi_phy_settings);
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		const struct vc6_phy_settings *s = &vc6_hdmi_phy_settings[i];
+
+		if (tmds_rate >= s->min_rate && tmds_rate <= s->max_rate)
+			return s;
+	}
+
+	/*
+	 * If the pixel clock exceeds our max setting, try the max
+	 * setting anyway.
+	 */
+	return &vc6_hdmi_phy_settings[count - 1];
+}
+
+static const struct vc6_phy_lane_settings *
+vc6_phy_get_channel_settings(enum vc4_hdmi_phy_channel chan,
+			     unsigned long long tmds_rate)
+{
+	const struct vc6_phy_settings *settings = vc6_phy_get_settings(tmds_rate);
+
+	if (chan == PHY_LANE_CK)
+		return &settings->clock;
+
+	return &settings->channel[chan];
+}
+
+static void vc6_hdmi_reset_phy(struct vc4_hdmi *vc4_hdmi)
+{
+	lockdep_assert_held(&vc4_hdmi->hw_lock);
+
+	HDMI_WRITE(HDMI_TX_PHY_RESET_CTL, 0);
+	HDMI_WRITE(HDMI_TX_PHY_POWERUP_CTL, 0);
+}
+
+void vc6_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
+		       struct drm_connector_state *conn_state)
+{
+	const struct vc6_phy_lane_settings *chan0_settings;
+	const struct vc6_phy_lane_settings *chan1_settings;
+	const struct vc6_phy_lane_settings *chan2_settings;
+	const struct vc6_phy_lane_settings *clock_settings;
+	const struct vc4_hdmi_variant *variant = vc4_hdmi->variant;
+	unsigned long long pixel_freq = conn_state->hdmi.tmds_char_rate;
+	unsigned long long vco_freq;
+	unsigned char word_sel;
+	unsigned long flags;
+	unsigned int vco_div;
+
+	vco_freq = vc6_phy_get_vco_freq(pixel_freq, &vco_div);
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
+
+	vc6_hdmi_reset_phy(vc4_hdmi);
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_0, 0x810c6000);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_1, 0x00b8c451);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_2, 0x46402e31);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_3, 0x00b8c005);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_4, 0x42410261);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_5, 0xcc021001);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_6, 0xc8301c80);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_7, 0xb0804444);
+	HDMI_WRITE(HDMI_TX_PHY_PLL_MISC_8, 0xf80f8000);
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_REFCLK,
+		   VC6_HDMI_TX_PHY_PLL_REFCLK_REFCLK_SEL_CMOS |
+		   VC4_SET_FIELD(54, VC6_HDMI_TX_PHY_PLL_REFCLK_REFFRQ));
+
+	HDMI_WRITE(HDMI_TX_PHY_RESET_CTL, 0x7f);
+
+	HDMI_WRITE(HDMI_RM_OFFSET,
+		   VC4_HDMI_RM_OFFSET_ONLY |
+		   VC4_SET_FIELD(phy_get_rm_offset(vco_freq),
+				 VC4_HDMI_RM_OFFSET_OFFSET));
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_VCOCLK_DIV,
+		   VC6_HDMI_TX_PHY_PLL_VCOCLK_DIV_VCODIV_EN |
+		   VC4_SET_FIELD(vco_div,
+				 VC6_HDMI_TX_PHY_PLL_VCOCLK_DIV_VCODIV));
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_CFG,
+		   VC4_SET_FIELD(0, VC4_HDMI_TX_PHY_PLL_CFG_PDIV));
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_POST_KDIV,
+		   VC4_SET_FIELD(2, VC6_HDMI_TX_PHY_PLL_POST_KDIV_CLK0_SEL) |
+		   VC4_SET_FIELD(1, VC6_HDMI_TX_PHY_PLL_POST_KDIV_KDIV));
+
+	chan0_settings =
+		vc6_phy_get_channel_settings(variant->phy_lane_mapping[PHY_LANE_0],
+					     pixel_freq);
+	HDMI_WRITE(HDMI_TX_PHY_CTL_0,
+		   VC4_SET_FIELD(chan0_settings->ext_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_CTL) |
+		   VC4_SET_FIELD(chan0_settings->ffe_enable,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_ENABLE) |
+		   VC4_SET_FIELD(chan0_settings->slew_rate_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_RATE_CTL) |
+		   VC4_SET_FIELD(chan0_settings->ffe_post_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_POST_TAP_EN) |
+		   VC4_SET_FIELD(chan0_settings->ldmos_bias_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_LDMOS_BIAS_CTL) |
+		   VC4_SET_FIELD(chan0_settings->com_mode_ldmos_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_COM_MODE_LDMOS_EN) |
+		   VC4_SET_FIELD(chan0_settings->edge_sel,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EDGE_SEL) |
+		   VC4_SET_FIELD(chan0_settings->ext_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(chan0_settings->term_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_TERM_CTL) |
+		   VC4_SET_FIELD(chan0_settings->ext_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(chan0_settings->int_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(chan0_settings->int_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_CTL) |
+		   VC4_SET_FIELD(chan0_settings->int_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(chan0_settings->main_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_MAIN_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(chan0_settings->post_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_POST_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(chan0_settings->slew_ctl_slow_loading,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_LOADING) |
+		   VC4_SET_FIELD(chan0_settings->slew_ctl_slow_driving,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_DRIVING) |
+		   VC4_SET_FIELD(chan0_settings->ffe_pre_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_PRE_TAP_EN));
+
+	chan1_settings =
+		vc6_phy_get_channel_settings(variant->phy_lane_mapping[PHY_LANE_1],
+					     pixel_freq);
+	HDMI_WRITE(HDMI_TX_PHY_CTL_1,
+		   VC4_SET_FIELD(chan1_settings->ext_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_CTL) |
+		   VC4_SET_FIELD(chan1_settings->ffe_enable,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_ENABLE) |
+		   VC4_SET_FIELD(chan1_settings->slew_rate_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_RATE_CTL) |
+		   VC4_SET_FIELD(chan1_settings->ffe_post_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_POST_TAP_EN) |
+		   VC4_SET_FIELD(chan1_settings->ldmos_bias_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_LDMOS_BIAS_CTL) |
+		   VC4_SET_FIELD(chan1_settings->com_mode_ldmos_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_COM_MODE_LDMOS_EN) |
+		   VC4_SET_FIELD(chan1_settings->edge_sel,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EDGE_SEL) |
+		   VC4_SET_FIELD(chan1_settings->ext_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(chan1_settings->term_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_TERM_CTL) |
+		   VC4_SET_FIELD(chan1_settings->ext_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(chan1_settings->int_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(chan1_settings->int_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_CTL) |
+		   VC4_SET_FIELD(chan1_settings->int_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(chan1_settings->main_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_MAIN_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(chan1_settings->post_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_POST_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(chan1_settings->slew_ctl_slow_loading,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_LOADING) |
+		   VC4_SET_FIELD(chan1_settings->slew_ctl_slow_driving,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_DRIVING) |
+		   VC4_SET_FIELD(chan1_settings->ffe_pre_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_PRE_TAP_EN));
+
+	chan2_settings =
+		vc6_phy_get_channel_settings(variant->phy_lane_mapping[PHY_LANE_2],
+					     pixel_freq);
+	HDMI_WRITE(HDMI_TX_PHY_CTL_2,
+		   VC4_SET_FIELD(chan2_settings->ext_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_CTL) |
+		   VC4_SET_FIELD(chan2_settings->ffe_enable,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_ENABLE) |
+		   VC4_SET_FIELD(chan2_settings->slew_rate_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_RATE_CTL) |
+		   VC4_SET_FIELD(chan2_settings->ffe_post_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_POST_TAP_EN) |
+		   VC4_SET_FIELD(chan2_settings->ldmos_bias_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_LDMOS_BIAS_CTL) |
+		   VC4_SET_FIELD(chan2_settings->com_mode_ldmos_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_COM_MODE_LDMOS_EN) |
+		   VC4_SET_FIELD(chan2_settings->edge_sel,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EDGE_SEL) |
+		   VC4_SET_FIELD(chan2_settings->ext_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(chan2_settings->term_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_TERM_CTL) |
+		   VC4_SET_FIELD(chan2_settings->ext_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(chan2_settings->int_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(chan2_settings->int_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_CTL) |
+		   VC4_SET_FIELD(chan2_settings->int_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(chan2_settings->main_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_MAIN_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(chan2_settings->post_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_POST_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(chan2_settings->slew_ctl_slow_loading,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_LOADING) |
+		   VC4_SET_FIELD(chan2_settings->slew_ctl_slow_driving,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_DRIVING) |
+		   VC4_SET_FIELD(chan2_settings->ffe_pre_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_PRE_TAP_EN));
+
+	clock_settings =
+		vc6_phy_get_channel_settings(variant->phy_lane_mapping[PHY_LANE_CK],
+					     pixel_freq);
+	HDMI_WRITE(HDMI_TX_PHY_CTL_CK,
+		   VC4_SET_FIELD(clock_settings->ext_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_CTL) |
+		   VC4_SET_FIELD(clock_settings->ffe_enable,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_ENABLE) |
+		   VC4_SET_FIELD(clock_settings->slew_rate_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_RATE_CTL) |
+		   VC4_SET_FIELD(clock_settings->ffe_post_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_POST_TAP_EN) |
+		   VC4_SET_FIELD(clock_settings->ldmos_bias_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_LDMOS_BIAS_CTL) |
+		   VC4_SET_FIELD(clock_settings->com_mode_ldmos_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_COM_MODE_LDMOS_EN) |
+		   VC4_SET_FIELD(clock_settings->edge_sel,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EDGE_SEL) |
+		   VC4_SET_FIELD(clock_settings->ext_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(clock_settings->term_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_TERM_CTL) |
+		   VC4_SET_FIELD(clock_settings->ext_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_EXT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(clock_settings->int_current_src_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_EN) |
+		   VC4_SET_FIELD(clock_settings->int_current_ctl,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_CTL) |
+		   VC4_SET_FIELD(clock_settings->int_current_src_hs_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_INT_CURRENT_SRC_HS_EN) |
+		   VC4_SET_FIELD(clock_settings->main_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_MAIN_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(clock_settings->post_tap_current_select,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_POST_TAP_CURRENT_SELECT) |
+		   VC4_SET_FIELD(clock_settings->slew_ctl_slow_loading,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_LOADING) |
+		   VC4_SET_FIELD(clock_settings->slew_ctl_slow_driving,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_SLEW_CTL_SLOW_DRIVING) |
+		   VC4_SET_FIELD(clock_settings->ffe_pre_tap_en,
+				 VC6_HDMI_TX_PHY_HDMI_CTRL_CHX_FFE_PRE_TAP_EN));
+
+	if (pixel_freq >= 340000000)
+		word_sel = 3;
+	else
+		word_sel = 0;
+	HDMI_WRITE(HDMI_TX_PHY_TMDS_CLK_WORD_SEL, word_sel);
+
+	HDMI_WRITE(HDMI_TX_PHY_POWERUP_CTL,
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_BG_PWRUP |
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_LDO_PWRUP |
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_BIAS_PWRUP |
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_CK_PWRUP |
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_2_PWRUP |
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_1_PWRUP |
+		   VC6_HDMI_TX_PHY_HDMI_POWERUP_CTL_TX_0_PWRUP);
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_POWERUP_CTL,
+		   VC6_HDMI_TX_PHY_PLL_POWERUP_CTL_PLL_PWRUP);
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_RESET_CTL,
+		   HDMI_READ(HDMI_TX_PHY_PLL_RESET_CTL) &
+		   ~VC6_HDMI_TX_PHY_PLL_RESET_CTL_PLL_RESETB);
+
+	HDMI_WRITE(HDMI_TX_PHY_PLL_RESET_CTL,
+		   HDMI_READ(HDMI_TX_PHY_PLL_RESET_CTL) |
+		   VC6_HDMI_TX_PHY_PLL_RESET_CTL_PLL_RESETB);
+
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+}
+
+void vc6_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi)
+{
 }

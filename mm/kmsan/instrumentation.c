@@ -312,13 +312,9 @@ EXPORT_SYMBOL(__msan_unpoison_alloca);
 void __msan_warning(u32 origin);
 void __msan_warning(u32 origin)
 {
-	if (!kmsan_enabled || kmsan_in_runtime())
-		return;
-	kmsan_enter_runtime();
 	kmsan_report(origin, /*address*/ NULL, /*size*/ 0,
 		     /*off_first*/ 0, /*off_last*/ 0, /*user_addr*/ NULL,
 		     REASON_ANY);
-	kmsan_leave_runtime();
 }
 EXPORT_SYMBOL(__msan_warning);
 

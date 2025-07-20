@@ -197,6 +197,9 @@ static int dlm_check_protocol_and_dlm_running(unsigned int x)
 		break;
 	case 1:
 		/* SCTP */
+		if (!IS_ENABLED(CONFIG_IP_SCTP))
+			return -EOPNOTSUPP;
+
 		break;
 	default:
 		return -EINVAL;
@@ -935,7 +938,7 @@ int dlm_comm_seq(int nodeid, uint32_t *seq, bool locked)
 		mutex_unlock(&clusters_root.subsys.su_mutex);
 	}
 	if (!cm)
-		return -EEXIST;
+		return -ENOENT;
 
 	*seq = cm->seq;
 	put_comm(cm);

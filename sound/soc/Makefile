@@ -21,6 +21,10 @@ ifneq ($(CONFIG_SND_SOC_UTILS_KUNIT_TEST),)
 obj-$(CONFIG_SND_SOC_UTILS_KUNIT_TEST) += soc-utils-test.o
 endif
 
+ifneq ($(CONFIG_SND_SOC_OPS_KUNIT_TEST),)
+obj-$(CONFIG_SND_SOC_OPS_KUNIT_TEST) += soc-ops-test.o
+endif
+
 ifneq ($(CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM),)
 snd-soc-core-y += soc-generic-dmaengine-pcm.o
 endif
@@ -34,6 +38,8 @@ snd-soc-acpi-y := soc-acpi.o
 endif
 
 obj-$(CONFIG_SND_SOC_ACPI) += snd-soc-acpi.o
+
+obj-$(CONFIG_SND_SOC_USB) += soc-usb.o
 
 obj-$(CONFIG_SND_SOC)	+= snd-soc-core.o
 obj-$(CONFIG_SND_SOC)	+= codecs/

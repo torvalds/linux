@@ -8,6 +8,7 @@
  */
 
 #include <linux/array_size.h>
+#include <linux/cleanup.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -19,7 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
+#include <linux/string.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <sound/core.h>
@@ -415,21 +416,12 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 		(struct soc_bytes_ext *)kctl->private_value;
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
-	void *scratch;
-	int ret = 0;
+	void *scratch __free(kvfree) = vmemdup_user(bytes, size);
 
-	scratch = vmalloc(size);
-	if (!scratch)
-		return -ENOMEM;
+	if (IS_ERR(scratch))
+		return PTR_ERR(scratch);
 
-	if (copy_from_user(scratch, bytes, size))
-		ret = -EFAULT;
-	else
-		ret = cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, scratch, size);
-
-	vfree(scratch);
-
-	return ret;
+	return cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, scratch, size);
 }
 
 static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
@@ -718,12 +710,10 @@ static void wm_adsp_release_firmware_files(struct wm_adsp *dsp,
 					   const struct firmware *coeff_firmware,
 					   char *coeff_filename)
 {
-	if (wmfw_firmware)
-		release_firmware(wmfw_firmware);
+	release_firmware(wmfw_firmware);
 	kfree(wmfw_filename);
 
-	if (coeff_firmware)
-		release_firmware(coeff_firmware);
+	release_firmware(coeff_firmware);
 	kfree(coeff_filename);
 }
 
@@ -785,7 +775,7 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 	return ret;
 }
 
-static const char *cirrus_dir = "cirrus/";
+static const char * const cirrus_dir = "cirrus/";
 static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 					  const struct firmware **wmfw_firmware,
 					  char **wmfw_filename,
@@ -793,16 +783,19 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 					  char **coeff_filename)
 {
 	const char *system_name = dsp->system_name;
-	const char *asoc_component_prefix = dsp->component->name_prefix;
+	const char *suffix = dsp->component->name_prefix;
 	int ret = 0;
 
-	if (system_name && asoc_component_prefix) {
+	if (dsp->fwf_suffix)
+		suffix = dsp->fwf_suffix;
+
+	if (system_name && suffix) {
 		if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
 						   cirrus_dir, system_name,
-						   asoc_component_prefix, "wmfw")) {
+						   suffix, "wmfw")) {
 			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
 						      cirrus_dir, system_name,
-						      asoc_component_prefix, "bin");
+						      suffix, "bin");
 			return 0;
 		}
 	}
@@ -811,10 +804,10 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 		if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
 						   cirrus_dir, system_name,
 						   NULL, "wmfw")) {
-			if (asoc_component_prefix)
+			if (suffix)
 				wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
 							      cirrus_dir, system_name,
-							      asoc_component_prefix, "bin");
+							      suffix, "bin");
 
 			if (!*coeff_firmware)
 				wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
@@ -826,10 +819,10 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 
 	/* Check system-specific bin without wmfw before falling back to generic */
 	if (dsp->wmfw_optional && system_name) {
-		if (asoc_component_prefix)
+		if (suffix)
 			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
 						      cirrus_dir, system_name,
-						      asoc_component_prefix, "bin");
+						      suffix, "bin");
 
 		if (!*coeff_firmware)
 			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
@@ -860,7 +853,7 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 	adsp_err(dsp, "Failed to request firmware <%s>%s-%s-%s<-%s<%s>>.wmfw\n",
 		 cirrus_dir, dsp->part,
 		 dsp->fwf_name ? dsp->fwf_name : dsp->cs_dsp.name,
-		 wm_adsp_fw[dsp->fw].file, system_name, asoc_component_prefix);
+		 wm_adsp_fw[dsp->fw].file, system_name, suffix);
 
 	return -ENOENT;
 }
@@ -1007,11 +1000,17 @@ int wm_adsp_power_up(struct wm_adsp *dsp, bool load_firmware)
 			return ret;
 	}
 
+	if (dsp->bin_mandatory && !coeff_firmware) {
+		ret = -ENOENT;
+		goto err;
+	}
+
 	ret = cs_dsp_power_up(&dsp->cs_dsp,
 			      wmfw_firmware, wmfw_filename,
 			      coeff_firmware, coeff_filename,
 			      wm_adsp_fw_text[dsp->fw]);
 
+err:
 	wm_adsp_release_firmware_files(dsp,
 				       wmfw_firmware, wmfw_filename,
 				       coeff_firmware, coeff_filename);

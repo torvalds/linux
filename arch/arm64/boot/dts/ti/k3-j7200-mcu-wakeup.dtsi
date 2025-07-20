@@ -184,6 +184,13 @@
 			reg = <0x4040 0x4>;
 			#phy-cells = <1>;
 		};
+
+		spi1_linkdis: mux-controller@4060 {
+			compatible = "reg-mux";
+			reg = <0x4060 0x4>;
+			#mux-control-cells = <1>;
+			mux-reg-masks = <0x0 0x1>;
+		};
 	};
 
 	wkup_conf: bus@43000000 {

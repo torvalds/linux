@@ -22,7 +22,7 @@ struct process_timer {
 
 static void process_timeout(struct timer_list *t)
 {
-	struct process_timer *timeout = from_timer(timeout, t, timer);
+	struct process_timer *timeout = timer_container_of(timeout, t, timer);
 
 	wake_up_process(timeout->task);
 }
@@ -97,10 +97,10 @@ signed long __sched schedule_timeout(signed long timeout)
 	timer.timer.expires = expire;
 	add_timer(&timer.timer);
 	schedule();
-	del_timer_sync(&timer.timer);
+	timer_delete_sync(&timer.timer);
 
 	/* Remove the timer from the object tracker */
-	destroy_timer_on_stack(&timer.timer);
+	timer_destroy_on_stack(&timer.timer);
 
 	timeout = expire - jiffies;
 

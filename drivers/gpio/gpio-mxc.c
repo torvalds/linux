@@ -490,8 +490,14 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	port->gc.request = mxc_gpio_request;
 	port->gc.free = mxc_gpio_free;
 	port->gc.to_irq = mxc_gpio_to_irq;
-	port->gc.base = (pdev->id < 0) ? of_alias_get_id(np, "gpio") * 32 :
-					     pdev->id * 32;
+	/*
+	 * Driver is DT-only, so a fixed base needs only be maintained for legacy
+	 * userspace with sysfs interface.
+	 */
+	if (IS_ENABLED(CONFIG_GPIO_SYSFS))
+		port->gc.base = of_alias_get_id(np, "gpio") * 32;
+	else /* silence boot time warning */
+		port->gc.base = -1;
 
 	err = devm_gpiochip_add_data(&pdev->dev, &port->gc, port);
 	if (err)
@@ -503,7 +509,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		goto out_bgio;
 	}
 
-	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
+	port->domain = irq_domain_create_legacy(of_fwnode_handle(np), 32, irq_base, 0,
 					     &irq_domain_simple_ops, NULL);
 	if (!port->domain) {
 		err = -ENODEV;

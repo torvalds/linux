@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sizes.h>
@@ -328,11 +329,16 @@ static void dwcmshc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	sdhci_request(mmc, mrq);
 }
 
-static void dwcmshc_phy_1_8v_init(struct sdhci_host *host)
+static void dwcmshc_phy_init(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	u32 rxsel = PHY_PAD_RXSEL_3V3;
 	u32 val;
+
+	if (priv->flags & FLAG_IO_FIXED_1V8 ||
+		host->mmc->ios.timing & MMC_SIGNAL_VOLTAGE_180)
+		rxsel = PHY_PAD_RXSEL_1V8;
 
 	/* deassert phy reset & set tx drive strength */
 	val = PHY_CNFG_RSTN_DEASSERT;
@@ -353,7 +359,7 @@ static void dwcmshc_phy_1_8v_init(struct sdhci_host *host)
 	sdhci_writeb(host, val, PHY_SDCLKDL_CNFG_R);
 
 	/* configure phy pads */
-	val = PHY_PAD_RXSEL_1V8;
+	val = rxsel;
 	val |= FIELD_PREP(PHY_PAD_WEAKPULL_MASK, PHY_PAD_WEAKPULL_PULLUP);
 	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P);
 	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N);
@@ -365,65 +371,22 @@ static void dwcmshc_phy_1_8v_init(struct sdhci_host *host)
 	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N);
 	sdhci_writew(host, val, PHY_CLKPAD_CNFG_R);
 
-	val = PHY_PAD_RXSEL_1V8;
+	val = rxsel;
 	val |= FIELD_PREP(PHY_PAD_WEAKPULL_MASK, PHY_PAD_WEAKPULL_PULLDOWN);
 	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P);
 	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N);
 	sdhci_writew(host, val, PHY_STBPAD_CNFG_R);
 
 	/* enable data strobe mode */
-	sdhci_writeb(host, FIELD_PREP(PHY_DLLDL_CNFG_SLV_INPSEL_MASK, PHY_DLLDL_CNFG_SLV_INPSEL),
-		     PHY_DLLDL_CNFG_R);
+	if (rxsel == PHY_PAD_RXSEL_1V8) {
+		u8 sel = FIELD_PREP(PHY_DLLDL_CNFG_SLV_INPSEL_MASK, PHY_DLLDL_CNFG_SLV_INPSEL);
+
+		sdhci_writeb(host, sel, PHY_DLLDL_CNFG_R);
+	}
 
 	/* enable phy dll */
 	sdhci_writeb(host, PHY_DLL_CTRL_ENABLE, PHY_DLL_CTRL_R);
-}
 
-static void dwcmshc_phy_3_3v_init(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	u32 val;
-
-	/* deassert phy reset & set tx drive strength */
-	val = PHY_CNFG_RSTN_DEASSERT;
-	val |= FIELD_PREP(PHY_CNFG_PAD_SP_MASK, PHY_CNFG_PAD_SP);
-	val |= FIELD_PREP(PHY_CNFG_PAD_SN_MASK, PHY_CNFG_PAD_SN);
-	sdhci_writel(host, val, PHY_CNFG_R);
-
-	/* disable delay line */
-	sdhci_writeb(host, PHY_SDCLKDL_CNFG_UPDATE, PHY_SDCLKDL_CNFG_R);
-
-	/* set delay line */
-	sdhci_writeb(host, priv->delay_line, PHY_SDCLKDL_DC_R);
-	sdhci_writeb(host, PHY_DLL_CNFG2_JUMPSTEP, PHY_DLL_CNFG2_R);
-
-	/* enable delay lane */
-	val = sdhci_readb(host, PHY_SDCLKDL_CNFG_R);
-	val &= ~(PHY_SDCLKDL_CNFG_UPDATE);
-	sdhci_writeb(host, val, PHY_SDCLKDL_CNFG_R);
-
-	/* configure phy pads */
-	val = PHY_PAD_RXSEL_3V3;
-	val |= FIELD_PREP(PHY_PAD_WEAKPULL_MASK, PHY_PAD_WEAKPULL_PULLUP);
-	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P);
-	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N);
-	sdhci_writew(host, val, PHY_CMDPAD_CNFG_R);
-	sdhci_writew(host, val, PHY_DATAPAD_CNFG_R);
-	sdhci_writew(host, val, PHY_RSTNPAD_CNFG_R);
-
-	val = FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P);
-	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N);
-	sdhci_writew(host, val, PHY_CLKPAD_CNFG_R);
-
-	val = PHY_PAD_RXSEL_3V3;
-	val |= FIELD_PREP(PHY_PAD_WEAKPULL_MASK, PHY_PAD_WEAKPULL_PULLDOWN);
-	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P);
-	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N);
-	sdhci_writew(host, val, PHY_STBPAD_CNFG_R);
-
-	/* enable phy dll */
-	sdhci_writeb(host, PHY_DLL_CTRL_ENABLE, PHY_DLL_CTRL_R);
 }
 
 static void th1520_sdhci_set_phy(struct sdhci_host *host)
@@ -433,11 +396,7 @@ static void th1520_sdhci_set_phy(struct sdhci_host *host)
 	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
 	u16 emmc_ctrl;
 
-	/* Before power on, set PHY configs */
-	if (priv->flags & FLAG_IO_FIXED_1V8)
-		dwcmshc_phy_1_8v_init(host);
-	else
-		dwcmshc_phy_3_3v_init(host);
+	dwcmshc_phy_init(host);
 
 	if ((host->mmc->caps2 & emmc_caps) == emmc_caps) {
 		emmc_ctrl = sdhci_readw(host, priv->vendor_specific_area1 + DWCMSHC_EMMC_CONTROL);
@@ -785,6 +744,29 @@ static void dwcmshc_rk35xx_postinit(struct sdhci_host *host, struct dwcmshc_priv
 		host->mmc->caps2 &= ~(MMC_CAP2_HS200 | MMC_CAP2_HS400);
 		host->mmc->caps &= ~(MMC_CAP_3_3V_DDR | MMC_CAP_1_8V_DDR);
 	}
+}
+
+static void dwcmshc_rk3576_postinit(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
+{
+	struct device *dev = mmc_dev(host->mmc);
+	int ret;
+
+	/*
+	 * This works around the design of the RK3576's power domains, which
+	 * makes the PD_NVM power domain, which the sdhci controller on the
+	 * RK3576 is in, never come back the same way once it's run-time
+	 * suspended once. This can happen during early kernel boot if no driver
+	 * is using either PD_NVM or its child power domain PD_SDGMAC for a
+	 * short moment, leading to it being turned off to save power. By
+	 * keeping it on, sdhci suspending won't lead to PD_NVM becoming a
+	 * candidate for getting turned off.
+	 */
+	ret = dev_pm_genpd_rpm_always_on(dev, true);
+	if (ret && ret != -EOPNOTSUPP)
+		dev_warn(dev, "failed to set PD rpm always on, SoC may hang later: %pe\n",
+			 ERR_PTR(ret));
+
+	dwcmshc_rk35xx_postinit(host, dwc_priv);
 }
 
 static int th1520_execute_tuning(struct sdhci_host *host, u32 opcode)
@@ -1163,7 +1145,7 @@ static const struct sdhci_ops sdhci_dwcmshc_th1520_ops = {
 	.get_max_clock		= dwcmshc_get_max_clock,
 	.reset			= th1520_sdhci_reset,
 	.adma_write_desc	= dwcmshc_adma_write_desc,
-	.voltage_switch		= dwcmshc_phy_1_8v_init,
+	.voltage_switch		= dwcmshc_phy_init,
 	.platform_execute_tuning = th1520_execute_tuning,
 };
 
@@ -1216,6 +1198,18 @@ static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk35xx_pdata = {
 	},
 	.init = dwcmshc_rk35xx_init,
 	.postinit = dwcmshc_rk35xx_postinit,
+};
+
+static const struct dwcmshc_pltfm_data sdhci_dwcmshc_rk3576_pdata = {
+	.pdata = {
+		.ops = &sdhci_dwcmshc_rk35xx_ops,
+		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+	},
+	.init = dwcmshc_rk35xx_init,
+	.postinit = dwcmshc_rk3576_postinit,
 };
 
 static const struct dwcmshc_pltfm_data sdhci_dwcmshc_th1520_pdata = {
@@ -1315,6 +1309,10 @@ static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk3588-dwcmshc",
 		.data = &sdhci_dwcmshc_rk35xx_pdata,
+	},
+	{
+		.compatible = "rockchip,rk3576-dwcmshc",
+		.data = &sdhci_dwcmshc_rk3576_pdata,
 	},
 	{
 		.compatible = "rockchip,rk3568-dwcmshc",

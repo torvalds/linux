@@ -60,7 +60,7 @@
 #define USER_PSW_MASK (WIDE_PSW | PSW_T | PSW_N | PSW_X | PSW_B | PSW_V | PSW_CB)
 #define USER_PSW      (PSW_C | PSW_Q | PSW_P | PSW_D | PSW_I)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* The program status word as bitfields.  */
 struct pa_psw {
@@ -99,6 +99,6 @@ struct pa_psw {
 #define pa_psw(task) ((struct pa_psw *) ((char *) (task) + TASK_PT_PSW))
 #endif
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif

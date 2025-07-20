@@ -21,6 +21,7 @@
 #include <linux/ioport.h>
 #include <linux/refcount.h>
 #include <linux/pgtable.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/page.h>
 #include <asm/ebcdic.h>
@@ -255,7 +256,7 @@ segment_type (char* name)
 	int rc;
 	struct dcss_segment seg;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return -ENOSYS;
 
 	dcss_mkname(name, seg.dcss_name);
@@ -418,7 +419,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
 	struct dcss_segment *seg;
 	int rc;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return -ENOSYS;
 
 	mutex_lock(&dcss_lock);
@@ -529,6 +530,14 @@ segment_modify_shared (char *name, int do_nonshared)
 	return rc;
 }
 
+static void __dcss_diag_purge_on_cpu_0(void *data)
+{
+	struct dcss_segment *seg = (struct dcss_segment *)data;
+	unsigned long dummy;
+
+	dcss_diag(&purgeseg_scode, seg->dcss_name, &dummy, &dummy);
+}
+
 /*
  * Decrease the use count of a DCSS segment and remove
  * it from the address space if nobody is using it
@@ -537,10 +546,9 @@ segment_modify_shared (char *name, int do_nonshared)
 void
 segment_unload(char *name)
 {
-	unsigned long dummy;
 	struct dcss_segment *seg;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return;
 
 	mutex_lock(&dcss_lock);
@@ -555,7 +563,14 @@ segment_unload(char *name)
 	kfree(seg->res);
 	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
-	dcss_diag(&purgeseg_scode, seg->dcss_name, &dummy, &dummy);
+	/*
+	 * Workaround for z/VM issue, where calling the DCSS unload diag on
+	 * a non-IPL CPU would cause bogus sclp maximum memory detection on
+	 * next IPL.
+	 * IPL CPU 0 cannot be set offline, so the dcss_diag() call can
+	 * directly be scheduled to that CPU.
+	 */
+	smp_call_function_single(0, __dcss_diag_purge_on_cpu_0, seg, 1);
 	kfree(seg);
 out_unlock:
 	mutex_unlock(&dcss_lock);
@@ -572,7 +587,7 @@ segment_save(char *name)
 	char cmd2[80];
 	int i, response;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return;
 
 	mutex_lock(&dcss_lock);

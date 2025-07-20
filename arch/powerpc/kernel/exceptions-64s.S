@@ -2537,27 +2537,8 @@ EXC_REAL_NONE(0x1000, 0x100)
 EXC_VIRT_NONE(0x5000, 0x100)
 EXC_REAL_NONE(0x1100, 0x100)
 EXC_VIRT_NONE(0x5100, 0x100)
-
-#ifdef CONFIG_CBE_RAS
-INT_DEFINE_BEGIN(cbe_system_error)
-	IVEC=0x1200
-	IHSRR=1
-INT_DEFINE_END(cbe_system_error)
-
-EXC_REAL_BEGIN(cbe_system_error, 0x1200, 0x100)
-	GEN_INT_ENTRY cbe_system_error, virt=0
-EXC_REAL_END(cbe_system_error, 0x1200, 0x100)
-EXC_VIRT_NONE(0x5200, 0x100)
-EXC_COMMON_BEGIN(cbe_system_error_common)
-	GEN_COMMON cbe_system_error
-	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	CFUNC(cbe_system_error_exception)
-	b	interrupt_return_hsrr
-
-#else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1200, 0x100)
 EXC_VIRT_NONE(0x5200, 0x100)
-#endif
 
 /**
  * Interrupt 0x1300 - Instruction Address Breakpoint Interrupt.
@@ -2708,26 +2689,8 @@ EXC_COMMON_BEGIN(denorm_exception_common)
 	b	interrupt_return_hsrr
 
 
-#ifdef CONFIG_CBE_RAS
-INT_DEFINE_BEGIN(cbe_maintenance)
-	IVEC=0x1600
-	IHSRR=1
-INT_DEFINE_END(cbe_maintenance)
-
-EXC_REAL_BEGIN(cbe_maintenance, 0x1600, 0x100)
-	GEN_INT_ENTRY cbe_maintenance, virt=0
-EXC_REAL_END(cbe_maintenance, 0x1600, 0x100)
-EXC_VIRT_NONE(0x5600, 0x100)
-EXC_COMMON_BEGIN(cbe_maintenance_common)
-	GEN_COMMON cbe_maintenance
-	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	CFUNC(cbe_maintenance_exception)
-	b	interrupt_return_hsrr
-
-#else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1600, 0x100)
 EXC_VIRT_NONE(0x5600, 0x100)
-#endif
 
 
 INT_DEFINE_BEGIN(altivec_assist)
@@ -2755,26 +2718,8 @@ EXC_COMMON_BEGIN(altivec_assist_common)
 	b	interrupt_return_srr
 
 
-#ifdef CONFIG_CBE_RAS
-INT_DEFINE_BEGIN(cbe_thermal)
-	IVEC=0x1800
-	IHSRR=1
-INT_DEFINE_END(cbe_thermal)
-
-EXC_REAL_BEGIN(cbe_thermal, 0x1800, 0x100)
-	GEN_INT_ENTRY cbe_thermal, virt=0
-EXC_REAL_END(cbe_thermal, 0x1800, 0x100)
-EXC_VIRT_NONE(0x5800, 0x100)
-EXC_COMMON_BEGIN(cbe_thermal_common)
-	GEN_COMMON cbe_thermal
-	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	CFUNC(cbe_thermal_exception)
-	b	interrupt_return_hsrr
-
-#else /* CONFIG_CBE_RAS */
 EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
-#endif
 
 
 #ifdef CONFIG_PPC_WATCHDOG

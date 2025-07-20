@@ -64,12 +64,12 @@ struct thp_settings {
 
 int read_file(const char *path, char *buf, size_t buflen);
 int write_file(const char *path, const char *buf, size_t buflen);
-const unsigned long read_num(const char *path);
+unsigned long read_num(const char *path);
 void write_num(const char *path, unsigned long num);
 
 int thp_read_string(const char *name, const char * const strings[]);
 void thp_write_string(const char *name, const char *val);
-const unsigned long thp_read_num(const char *name);
+unsigned long thp_read_num(const char *name);
 void thp_write_num(const char *name, unsigned long num);
 
 void thp_write_settings(struct thp_settings *settings);

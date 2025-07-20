@@ -74,6 +74,7 @@
 #define ACP_RMB_PCI_ID				0x6F
 #define ACP63_PCI_ID				0x63
 #define ACP70_PCI_ID				0x70
+#define ACP71_PCI_ID				0x71
 
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_VGH				0x1645
@@ -109,9 +110,11 @@
 #define ACP_SDW0_IRQ_MASK			BIT(21)
 #define ACP_SDW1_IRQ_MASK			BIT(2)
 #define SDW_ACPI_ADDR_ACP63			5
+#define SDW_ACPI_ADDR_ACP70			SDW_ACPI_ADDR_ACP63
 #define ACP_DEFAULT_SRAM_LENGTH			0x00080000
 #define ACP_SRAM_PAGE_COUNT			128
 #define ACP6X_SDW_MAX_MANAGER_COUNT		2
+#define ACP70_SDW_MAX_MANAGER_COUNT		ACP6X_SDW_MAX_MANAGER_COUNT
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -197,7 +200,6 @@ struct acp_dsp_stream {
 
 struct sof_amd_acp_desc {
 	const char *name;
-	unsigned int host_bridge_id;
 	u32 pgfsm_base;
 	u32 ext_intr_enb;
 	u32 ext_intr_cntl;
@@ -220,6 +222,7 @@ struct sof_amd_acp_desc {
 struct acp_quirk_entry {
 	bool signed_fw_image;
 	bool skip_iram_dram_size_mod;
+	bool post_fw_run_delay;
 };
 
 /* Common device data struct for ACP devices */
@@ -255,12 +258,15 @@ struct acp_dev_data {
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
-	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
 	bool is_dram_in_use;
 	bool is_sram_in_use;
 	bool sdw_en_stat;
+	/* acp70_sdw0_wake_event flag set to true when wake irq asserted for SW0 instance */
+	bool acp70_sdw0_wake_event;
+	/* acp70_sdw1_wake_event flag set to true when wake irq asserted for SW1 instance */
+	bool acp70_sdw1_wake_event;
 	unsigned int pci_rev;
 };
 

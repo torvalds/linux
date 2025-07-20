@@ -2151,8 +2151,8 @@ static u32 stm32f7_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm stm32f7_i2c_algo = {
-	.master_xfer = stm32f7_i2c_xfer,
-	.master_xfer_atomic = stm32f7_i2c_xfer_atomic,
+	.xfer = stm32f7_i2c_xfer,
+	.xfer_atomic = stm32f7_i2c_xfer_atomic,
 	.smbus_xfer = stm32f7_i2c_smbus_xfer,
 	.functionality = stm32f7_i2c_func,
 	.reg_slave = stm32f7_i2c_reg_slave,

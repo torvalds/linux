@@ -24,29 +24,10 @@
 
 #define SCLP_ATYPE_PCI				2
 
-#define SCLP_ERRNOTIFY_AQ_RESET			0
-#define SCLP_ERRNOTIFY_AQ_REPAIR		1
-#define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
-#define SCLP_ERRNOTIFY_AQ_OPTICS_DATA		3
-
 static DEFINE_MUTEX(sclp_pci_mutex);
 static struct sclp_register sclp_pci_event = {
 	.send_mask = EVTYP_ERRNOTIFY_MASK,
 };
-
-struct err_notify_evbuf {
-	struct evbuf_header header;
-	u8 action;
-	u8 atype;
-	u32 fh;
-	u32 fid;
-	u8 data[];
-} __packed;
-
-struct err_notify_sccb {
-	struct sccb_header header;
-	struct err_notify_evbuf evbuf;
-} __packed;
 
 struct pci_cfg_sccb {
 	struct sccb_header header;

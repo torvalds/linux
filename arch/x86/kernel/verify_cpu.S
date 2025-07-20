@@ -29,7 +29,11 @@
  */
 
 #include <asm/cpufeatures.h>
+#include <asm/cpufeaturemasks.h>
 #include <asm/msr-index.h>
+
+#define SSE_MASK	\
+	(REQUIRED_MASK0 & ((1<<(X86_FEATURE_XMM & 31)) | (1<<(X86_FEATURE_XMM2 & 31))))
 
 SYM_FUNC_START_LOCAL(verify_cpu)
 	pushf				# Save caller passed flags

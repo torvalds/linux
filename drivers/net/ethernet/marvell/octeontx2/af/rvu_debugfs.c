@@ -553,6 +553,7 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 	u64 lmt_addr, val, tbl_base;
 	int pf, vf, num_vfs, hw_vfs;
 	void __iomem *lmt_map_base;
+	int apr_pfs, apr_vfs;
 	int buf_size = 10240;
 	size_t off = 0;
 	int index = 0;
@@ -568,8 +569,12 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 		return -ENOMEM;
 
 	tbl_base = rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_MAP_BASE);
+	val  = rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_CFG);
+	apr_vfs = 1 << (val & 0xF);
+	apr_pfs = 1 << ((val >> 4) & 0x7);
 
-	lmt_map_base = ioremap_wc(tbl_base, 128 * 1024);
+	lmt_map_base = ioremap_wc(tbl_base, apr_pfs * apr_vfs *
+				  LMT_MAPTBL_ENTRY_SIZE);
 	if (!lmt_map_base) {
 		dev_err(rvu->dev, "Failed to setup lmt map table mapping!!\n");
 		kfree(buf);
@@ -591,7 +596,7 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 		off += scnprintf(&buf[off], buf_size - 1 - off, "PF%d  \t\t\t",
 				    pf);
 
-		index = pf * rvu->hw->total_vfs * LMT_MAPTBL_ENTRY_SIZE;
+		index = pf * apr_vfs * LMT_MAPTBL_ENTRY_SIZE;
 		off += scnprintf(&buf[off], buf_size - 1 - off, " 0x%llx\t\t",
 				 (tbl_base + index));
 		lmt_addr = readq(lmt_map_base + index);
@@ -604,7 +609,7 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 		/* Reading num of VFs per PF */
 		rvu_get_pf_numvfs(rvu, pf, &num_vfs, &hw_vfs);
 		for (vf = 0; vf < num_vfs; vf++) {
-			index = (pf * rvu->hw->total_vfs * 16) +
+			index = (pf * apr_vfs * LMT_MAPTBL_ENTRY_SIZE) +
 				((vf + 1)  * LMT_MAPTBL_ENTRY_SIZE);
 			off += scnprintf(&buf[off], buf_size - 1 - off,
 					    "PF%d:VF%d  \t\t", pf, vf);
@@ -917,19 +922,18 @@ static void print_npa_qsize(struct seq_file *m, struct rvu_pfvf *pfvf)
 /* The 'qsize' entry dumps current Aura/Pool context Qsize
  * and each context's current enable/disable status in a bitmap.
  */
-static int rvu_dbg_qsize_display(struct seq_file *filp, void *unsused,
+static int rvu_dbg_qsize_display(struct seq_file *s, void *unsused,
 				 int blktype)
 {
-	void (*print_qsize)(struct seq_file *filp,
+	void (*print_qsize)(struct seq_file *s,
 			    struct rvu_pfvf *pfvf) = NULL;
-	struct dentry *current_dir;
 	struct rvu_pfvf *pfvf;
 	struct rvu *rvu;
 	int qsize_id;
 	u16 pcifunc;
 	int blkaddr;
 
-	rvu = filp->private;
+	rvu = s->private;
 	switch (blktype) {
 	case BLKTYPE_NPA:
 		qsize_id = rvu->rvu_dbg.npa_qsize_id;
@@ -945,32 +949,28 @@ static int rvu_dbg_qsize_display(struct seq_file *filp, void *unsused,
 		return -EINVAL;
 	}
 
-	if (blktype == BLKTYPE_NPA) {
+	if (blktype == BLKTYPE_NPA)
 		blkaddr = BLKADDR_NPA;
-	} else {
-		current_dir = filp->file->f_path.dentry->d_parent;
-		blkaddr = (!strcmp(current_dir->d_name.name, "nix1") ?
-				   BLKADDR_NIX1 : BLKADDR_NIX0);
-	}
+	else
+		blkaddr = debugfs_get_aux_num(s->file);
 
 	if (!rvu_dbg_is_valid_lf(rvu, blkaddr, qsize_id, &pcifunc))
 		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
-	print_qsize(filp, pfvf);
+	print_qsize(s, pfvf);
 
 	return 0;
 }
 
-static ssize_t rvu_dbg_qsize_write(struct file *filp,
+static ssize_t rvu_dbg_qsize_write(struct file *file,
 				   const char __user *buffer, size_t count,
 				   loff_t *ppos, int blktype)
 {
 	char *blk_string = (blktype == BLKTYPE_NPA) ? "npa" : "nix";
-	struct seq_file *seqfile = filp->private_data;
+	struct seq_file *seqfile = file->private_data;
 	char *cmd_buf, *cmd_buf_tmp, *subtoken;
 	struct rvu *rvu = seqfile->private;
-	struct dentry *current_dir;
 	int blkaddr;
 	u16 pcifunc;
 	int ret, lf;
@@ -996,13 +996,10 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 		goto qsize_write_done;
 	}
 
-	if (blktype == BLKTYPE_NPA) {
+	if (blktype == BLKTYPE_NPA)
 		blkaddr = BLKADDR_NPA;
-	} else {
-		current_dir = filp->f_path.dentry->d_parent;
-		blkaddr = (!strcmp(current_dir->d_name.name, "nix1") ?
-				   BLKADDR_NIX1 : BLKADDR_NIX0);
-	}
+	else
+		blkaddr = debugfs_get_aux_num(file);
 
 	if (!rvu_dbg_is_valid_lf(rvu, blkaddr, lf, &pcifunc)) {
 		ret = -EINVAL;
@@ -2704,8 +2701,8 @@ static void rvu_dbg_nix_init(struct rvu *rvu, int blkaddr)
 			    &rvu_dbg_nix_ndc_tx_hits_miss_fops);
 	debugfs_create_file("ndc_rx_hits_miss", 0600, rvu->rvu_dbg.nix, nix_hw,
 			    &rvu_dbg_nix_ndc_rx_hits_miss_fops);
-	debugfs_create_file("qsize", 0600, rvu->rvu_dbg.nix, rvu,
-			    &rvu_dbg_nix_qsize_fops);
+	debugfs_create_file_aux_num("qsize", 0600, rvu->rvu_dbg.nix, rvu,
+			    blkaddr, &rvu_dbg_nix_qsize_fops);
 	debugfs_create_file("ingress_policer_ctx", 0600, rvu->rvu_dbg.nix, nix_hw,
 			    &rvu_dbg_nix_band_prof_ctx_fops);
 	debugfs_create_file("ingress_policer_rsrc", 0600, rvu->rvu_dbg.nix, nix_hw,
@@ -2854,28 +2851,14 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 	return err;
 }
 
-static int rvu_dbg_derive_lmacid(struct seq_file *filp, int *lmac_id)
+static int rvu_dbg_derive_lmacid(struct seq_file *s)
 {
-	struct dentry *current_dir;
-	char *buf;
-
-	current_dir = filp->file->f_path.dentry->d_parent;
-	buf = strrchr(current_dir->d_name.name, 'c');
-	if (!buf)
-		return -EINVAL;
-
-	return kstrtoint(buf + 1, 10, lmac_id);
+	return debugfs_get_aux_num(s->file);
 }
 
-static int rvu_dbg_cgx_stat_display(struct seq_file *filp, void *unused)
+static int rvu_dbg_cgx_stat_display(struct seq_file *s, void *unused)
 {
-	int lmac_id, err;
-
-	err = rvu_dbg_derive_lmacid(filp, &lmac_id);
-	if (!err)
-		return cgx_print_stats(filp, lmac_id);
-
-	return err;
+	return cgx_print_stats(s, rvu_dbg_derive_lmacid(s));
 }
 
 RVU_DEBUG_SEQ_FOPS(cgx_stat, cgx_stat_display, NULL);
@@ -2933,15 +2916,9 @@ static int cgx_print_dmac_flt(struct seq_file *s, int lmac_id)
 	return 0;
 }
 
-static int rvu_dbg_cgx_dmac_flt_display(struct seq_file *filp, void *unused)
+static int rvu_dbg_cgx_dmac_flt_display(struct seq_file *s, void *unused)
 {
-	int err, lmac_id;
-
-	err = rvu_dbg_derive_lmacid(filp, &lmac_id);
-	if (!err)
-		return cgx_print_dmac_flt(filp, lmac_id);
-
-	return err;
+	return cgx_print_dmac_flt(s, rvu_dbg_derive_lmacid(s));
 }
 
 RVU_DEBUG_SEQ_FOPS(cgx_dmac_flt, cgx_dmac_flt_display, NULL);
@@ -2980,10 +2957,10 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 			rvu->rvu_dbg.lmac =
 				debugfs_create_dir(dname, rvu->rvu_dbg.cgx);
 
-			debugfs_create_file("stats", 0600, rvu->rvu_dbg.lmac,
-					    cgx, &rvu_dbg_cgx_stat_fops);
-			debugfs_create_file("mac_filter", 0600,
-					    rvu->rvu_dbg.lmac, cgx,
+			debugfs_create_file_aux_num("stats", 0600, rvu->rvu_dbg.lmac,
+					    cgx, lmac_id, &rvu_dbg_cgx_stat_fops);
+			debugfs_create_file_aux_num("mac_filter", 0600,
+					    rvu->rvu_dbg.lmac, cgx, lmac_id,
 					    &rvu_dbg_cgx_dmac_flt_fops);
 		}
 	}

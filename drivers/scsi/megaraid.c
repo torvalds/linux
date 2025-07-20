@@ -855,8 +855,8 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			return scb;
 
 #if MEGA_HAVE_CLUSTERING
-		case RESERVE:
-		case RELEASE:
+		case RESERVE_6:
+		case RELEASE_6:
 
 			/*
 			 * Do we support clustering and is the support enabled
@@ -875,7 +875,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			}
 
 			scb->raw_mbox[0] = MEGA_CLUSTER_CMD;
-			scb->raw_mbox[2] = ( *cmd->cmnd == RESERVE ) ?
+			scb->raw_mbox[2] = *cmd->cmnd == RESERVE_6 ?
 				MEGA_RESERVE_LD : MEGA_RELEASE_LD;
 
 			scb->raw_mbox[3] = ldrv_num;
@@ -1618,8 +1618,8 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 			 * failed or the input parameter is invalid
 			 */
 			if( status == 1 &&
-				(cmd->cmnd[0] == RESERVE ||
-					 cmd->cmnd[0] == RELEASE) ) {
+			    (cmd->cmnd[0] == RESERVE_6 ||
+			     cmd->cmnd[0] == RELEASE_6) ) {
 
 				cmd->result |= (DID_ERROR << 16) |
 					SAM_STAT_RESERVATION_CONFLICT;
@@ -4551,7 +4551,7 @@ megaraid_shutdown(struct pci_dev *pdev)
 	__megaraid_shutdown(adapter);
 }
 
-static struct pci_device_id megaraid_pci_tbl[] = {
+static const struct pci_device_id megaraid_pci_tbl[] = {
 	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID2,

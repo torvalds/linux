@@ -818,7 +818,7 @@ int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc)
 		return -EINVAL;
 
 	/* Allocate a kthread for asynchronous hw submit handler. */
-	video->kworker = kthread_create_worker(0, "UVCG");
+	video->kworker = kthread_run_worker(0, "UVCG");
 	if (IS_ERR(video->kworker)) {
 		uvcg_err(&video->uvc->func, "failed to create UVCG kworker\n");
 		return PTR_ERR(video->kworker);

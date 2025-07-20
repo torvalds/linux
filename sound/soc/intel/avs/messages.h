@@ -102,6 +102,8 @@ struct avs_tlv {
 } __packed;
 static_assert(sizeof(struct avs_tlv) == 8);
 
+#define avs_tlv_size(tlv) struct_size(tlv, value, (tlv)->length / 4)
+
 enum avs_module_msg_type {
 	AVS_MOD_INIT_INSTANCE = 0,
 	AVS_MOD_LARGE_CONFIG_GET = 3,
@@ -451,6 +453,8 @@ enum avs_fw_cfg_params {
 	AVS_FW_CFG_RESERVED,
 	AVS_FW_CFG_POWER_GATING_POLICY,
 	AVS_FW_CFG_ASSERT_MODE,
+	AVS_FW_CFG_RESERVED2,
+	AVS_FW_CFG_BUS_HARDWARE_ID,
 };
 
 struct avs_fw_cfg {
@@ -475,7 +479,14 @@ struct avs_fw_cfg {
 	u32 power_gating_policy;
 };
 
+struct avs_bus_hwid {
+	u32 device;
+	u32 subsystem;
+	u8 revision;
+};
+
 int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg);
+int avs_ipc_set_fw_config(struct avs_dev *adev, size_t num_tlvs, ...);
 
 enum avs_hw_cfg_params {
 	AVS_HW_CFG_AVS_VER,
@@ -643,6 +654,9 @@ int avs_ipc_set_system_time(struct avs_dev *adev);
 #define AVS_INTELWOV_MOD_UUID \
 	GUID_INIT(0xEC774FA9, 0x28D3, 0x424A, 0x90, 0xE4, 0x69, 0xF9, 0x84, 0xF1, 0xEE, 0xB7)
 
+#define AVS_WOVHOSTM_MOD_UUID \
+	GUID_INIT(0xF9ED62B7, 0x092E, 0x4A90, 0x8F, 0x4D, 0x82, 0xDA, 0xA8, 0xB3, 0x8F, 0x3B)
+
 /* channel map */
 enum avs_channel_index {
 	AVS_CHANNEL_LEFT = 0,
@@ -685,8 +699,9 @@ enum avs_sample_type {
 	AVS_SAMPLE_TYPE_FLOAT = 4,
 };
 
-#define AVS_CHANNELS_MAX	8
+#define AVS_COEFF_CHANNELS_MAX	8
 #define AVS_ALL_CHANNELS_MASK	UINT_MAX
+#define AVS_CHANNELS_MAX	16
 
 struct avs_audio_format {
 	u32 sampling_freq;
@@ -774,6 +789,33 @@ union avs_gtw_attributes {
 } __packed;
 static_assert(sizeof(union avs_gtw_attributes) == 4);
 
+#define AVS_GTW_DMA_CONFIG_ID	0x1000
+#define AVS_DMA_METHOD_HDA	1
+
+struct avs_dma_device_stream_channel_map {
+	u32 device_address;
+	u32 channel_map;
+} __packed;
+static_assert(sizeof(struct avs_dma_device_stream_channel_map) == 8);
+
+struct avs_dma_stream_channel_map {
+	u32 device_count;
+	struct avs_dma_device_stream_channel_map map[16];
+} __packed;
+static_assert(sizeof(struct avs_dma_stream_channel_map) == 132);
+
+struct avs_dma_cfg {
+	u8 dma_method;
+	u8 pre_allocated;
+	u16 rsvd;
+	u32 dma_channel_id;
+	u32 stream_id;
+	struct avs_dma_stream_channel_map map;
+	u32 config_size;
+	u8 config[] __counted_by(config_size);
+} __packed;
+static_assert(sizeof(struct avs_dma_cfg) == 148);
+
 struct avs_copier_gtw_cfg {
 	union avs_connector_node_id node_id;
 	u32 dma_buffer_size;
@@ -802,6 +844,15 @@ struct avs_volume_cfg {
 } __packed;
 static_assert(sizeof(struct avs_volume_cfg) == 24);
 
+struct avs_mute_cfg {
+	u32 channel_id;
+	u32 mute;
+	u32 curve_type;
+	u32 reserved; /* alignment */
+	u64 curve_duration;
+} __packed;
+static_assert(sizeof(struct avs_mute_cfg) == 24);
+
 struct avs_peakvol_cfg {
 	struct avs_modcfg_base base;
 	struct avs_volume_cfg vols[];
@@ -825,7 +876,7 @@ struct avs_updown_mixer_cfg {
 	struct avs_modcfg_base base;
 	u32 out_channel_config;
 	u32 coefficients_select;
-	s32 coefficients[AVS_CHANNELS_MAX];
+	s32 coefficients[AVS_COEFF_CHANNELS_MAX];
 	u32 channel_map;
 } __packed;
 static_assert(sizeof(struct avs_updown_mixer_cfg) == 84);
@@ -859,8 +910,7 @@ static_assert(sizeof(struct avs_aec_cfg) == 92);
 struct avs_asrc_cfg {
 	struct avs_modcfg_base base;
 	u32 out_freq;
-	u32 rsvd0:1;
-	u32 mode:1;
+	u32 mode:2;
 	u32 rsvd2:2;
 	u32 disable_jitter_buffer:1;
 	u32 rsvd3:27;
@@ -873,7 +923,19 @@ struct avs_wov_cfg {
 } __packed;
 static_assert(sizeof(struct avs_wov_cfg) == 44);
 
+struct avs_whm_cfg {
+	struct avs_modcfg_base base;
+	/* Audio format for output pin 0 */
+	struct avs_audio_format ref_fmt;
+	struct avs_audio_format out_fmt;
+	u32 wake_tick_period;
+	struct avs_copier_gtw_cfg gtw_cfg;
+} __packed;
+static_assert(sizeof(struct avs_whm_cfg) == 108);
+
 /* Module runtime parameters */
+
+#define AVS_VENDOR_CONFIG	0xFF
 
 enum avs_copier_runtime_param {
 	AVS_COPIER_SET_SINK_FORMAT = 2,
@@ -893,6 +955,7 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 
 enum avs_peakvol_runtime_param {
 	AVS_PEAKVOL_VOLUME = 0,
+	AVS_PEAKVOL_MUTE = 3,
 };
 
 enum avs_audio_curve_type {
@@ -900,10 +963,18 @@ enum avs_audio_curve_type {
 	AVS_AUDIO_CURVE_WINDOWS_FADE = 1,
 };
 
-int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
-			       struct avs_volume_cfg *vol);
 int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
 			       struct avs_volume_cfg **vols, size_t *num_vols);
+int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg *vol);
+int avs_ipc_peakvol_set_volumes(struct avs_dev *adev, u16 module_id, u8 instance_id,
+				struct avs_volume_cfg *vols, size_t num_vols);
+int avs_ipc_peakvol_get_mute(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     struct avs_mute_cfg **mutes, size_t *num_mutes);
+int avs_ipc_peakvol_set_mute(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     struct avs_mute_cfg *mute);
+int avs_ipc_peakvol_set_mutes(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			      struct avs_mute_cfg *mutes, size_t num_mutes);
 
 #define AVS_PROBE_INST_ID	0
 

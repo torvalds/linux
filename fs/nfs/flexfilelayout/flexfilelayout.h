@@ -83,6 +83,7 @@ struct nfs4_ff_layout_mirror {
 	nfs4_stateid			stateid;
 	const struct cred __rcu		*ro_cred;
 	const struct cred __rcu		*rw_cred;
+	struct nfs_file_localio		nfl;
 	refcount_t			ref;
 	spinlock_t			lock;
 	unsigned long			flags;

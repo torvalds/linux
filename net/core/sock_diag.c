@@ -264,8 +264,6 @@ static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	switch (nlh->nlmsg_type) {
 	case TCPDIAG_GETSOCK:
-	case DCCPDIAG_GETSOCK:
-
 		if (!rcu_access_pointer(inet_rcv_compat))
 			sock_load_diag_module(AF_INET, 0);
 

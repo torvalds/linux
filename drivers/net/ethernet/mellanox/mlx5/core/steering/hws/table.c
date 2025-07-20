@@ -37,6 +37,7 @@ static void hws_table_set_cap_attr(struct mlx5hws_table *tbl,
 }
 
 static int hws_table_up_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
+__must_hold(&tbl->ctx->ctrl_lock)
 {
 	struct mlx5hws_cmd_ft_create_attr ft_attr = {0};
 	struct mlx5hws_cmd_set_fte_attr fte_attr = {0};
@@ -48,8 +49,8 @@ static int hws_table_up_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
 	if (tbl->type != MLX5HWS_TABLE_TYPE_FDB)
 		return 0;
 
-	if (ctx->common_res[tbl_type].default_miss) {
-		ctx->common_res[tbl_type].default_miss->refcount++;
+	if (ctx->common_res.default_miss) {
+		ctx->common_res.default_miss->refcount++;
 		return 0;
 	}
 
@@ -70,29 +71,28 @@ static int hws_table_up_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
 		return -EINVAL;
 	}
 
-	/* ctx->ctrl_lock must be held here */
-	ctx->common_res[tbl_type].default_miss = default_miss;
-	ctx->common_res[tbl_type].default_miss->refcount++;
+	ctx->common_res.default_miss = default_miss;
+	ctx->common_res.default_miss->refcount++;
 
 	return 0;
 }
 
 /* Called under ctx->ctrl_lock */
 static void hws_table_down_default_fdb_miss_tbl(struct mlx5hws_table *tbl)
+__must_hold(&tbl->ctx->ctrl_lock)
 {
 	struct mlx5hws_cmd_forward_tbl *default_miss;
 	struct mlx5hws_context *ctx = tbl->ctx;
-	u8 tbl_type = tbl->type;
 
 	if (tbl->type != MLX5HWS_TABLE_TYPE_FDB)
 		return;
 
-	default_miss = ctx->common_res[tbl_type].default_miss;
+	default_miss = ctx->common_res.default_miss;
 	if (--default_miss->refcount)
 		return;
 
 	mlx5hws_cmd_forward_tbl_destroy(ctx->mdev, default_miss);
-	ctx->common_res[tbl_type].default_miss = NULL;
+	ctx->common_res.default_miss = NULL;
 }
 
 static int hws_table_connect_to_default_miss_tbl(struct mlx5hws_table *tbl, u32 ft_id)
@@ -342,10 +342,10 @@ int mlx5hws_table_ft_set_next_rtc(struct mlx5hws_context *ctx,
 	return mlx5hws_cmd_flow_table_modify(ctx->mdev, &ft_attr, ft_id);
 }
 
-static int hws_table_ft_set_next_ft(struct mlx5hws_context *ctx,
-				    u32 ft_id,
-				    u32 fw_ft_type,
-				    u32 next_ft_id)
+int mlx5hws_table_ft_set_next_ft(struct mlx5hws_context *ctx,
+				 u32 ft_id,
+				 u32 fw_ft_type,
+				 u32 next_ft_id)
 {
 	struct mlx5hws_cmd_ft_modify_attr ft_attr = {0};
 
@@ -389,10 +389,10 @@ int mlx5hws_table_connect_to_miss_table(struct mlx5hws_table *src_tbl,
 	if (dst_tbl) {
 		if (list_empty(&dst_tbl->matchers_list)) {
 			/* Connect src_tbl last_ft to dst_tbl start anchor */
-			ret = hws_table_ft_set_next_ft(src_tbl->ctx,
-						       last_ft_id,
-						       src_tbl->fw_ft_type,
-						       dst_tbl->ft_id);
+			ret = mlx5hws_table_ft_set_next_ft(src_tbl->ctx,
+							   last_ft_id,
+							   src_tbl->fw_ft_type,
+							   dst_tbl->ft_id);
 			if (ret)
 				return ret;
 
@@ -478,15 +478,9 @@ int mlx5hws_table_set_default_miss(struct mlx5hws_table *tbl,
 	if (old_miss_tbl)
 		list_del_init(&tbl->default_miss.next);
 
-	old_miss_tbl = tbl->default_miss.miss_tbl;
-	if (old_miss_tbl)
-		list_del_init(&old_miss_tbl->default_miss.head);
-
 	if (miss_tbl)
 		list_add(&tbl->default_miss.next, &miss_tbl->default_miss.head);
 
-	mutex_unlock(&ctx->ctrl_lock);
-	return 0;
 out:
 	mutex_unlock(&ctx->ctrl_lock);
 	return ret;

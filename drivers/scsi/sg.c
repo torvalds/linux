@@ -1639,7 +1639,7 @@ MODULE_PARM_DESC(allow_dio, "allow direct I/O (default: 0 (disallow))");
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 
-static struct ctl_table sg_sysctls[] = {
+static const struct ctl_table sg_sysctls[] = {
 	{
 		.procname	= "sg-big-buff",
 		.data		= &sg_big_buff,
@@ -1658,8 +1658,7 @@ static void register_sg_sysctls(void)
 
 static void unregister_sg_sysctls(void)
 {
-	if (hdr)
-		unregister_sysctl_table(hdr);
+	unregister_sysctl_table(hdr);
 }
 #else
 #define register_sg_sysctls() do { } while (0)

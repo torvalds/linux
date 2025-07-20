@@ -42,8 +42,6 @@ int mtk_memif_set_addr(struct mtk_base_afe *afe, int id,
 		       size_t dma_bytes);
 int mtk_memif_set_channel(struct mtk_base_afe *afe,
 			  int id, unsigned int channel);
-int mtk_memif_set_rate(struct mtk_base_afe *afe,
-		       int id, unsigned int rate);
 int mtk_memif_set_rate_substream(struct snd_pcm_substream *substream,
 				 int id, unsigned int rate);
 int mtk_memif_set_format(struct mtk_base_afe *afe,

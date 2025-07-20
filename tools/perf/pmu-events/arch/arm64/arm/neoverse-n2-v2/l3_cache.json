@@ -9,11 +9,11 @@
     },
     {
         "ArchStdEvent": "L3D_CACHE",
-        "PublicDescription": "Counts level 3 cache accesses. level 3 cache is a unified cache for data and instruction accesses. Accesses are for misses in the lower level caches or translation resolutions due to accesses."
+        "PublicDescription": "Counts level 3 cache accesses. Level 3 cache is a unified cache for data and instruction accesses. Accesses are for misses in the lower level caches or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L3D_CACHE_RD",
-        "PublicDescription": "TBD"
+        "PublicDescription": "Counts level 3 cache accesses caused by any memory read operation. Level 3 cache is a unified cache for data and instruction accesses. Accesses are for misses in the lower level caches or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L3D_CACHE_LMISS_RD",

@@ -9,6 +9,7 @@
 #ifndef __ARCH_X86_KVM_XEN_H__
 #define __ARCH_X86_KVM_XEN_H__
 
+#include <asm/xen/cpuid.h>
 #include <asm/xen/hypervisor.h>
 
 #ifdef CONFIG_KVM_XEN
@@ -35,7 +36,6 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe,
 int kvm_xen_setup_evtchn(struct kvm *kvm,
 			 struct kvm_kernel_irq_routing_entry *e,
 			 const struct kvm_irq_routing_entry *ue);
-void kvm_xen_update_tsc_info(struct kvm_vcpu *vcpu);
 
 static inline void kvm_xen_sw_enable_lapic(struct kvm_vcpu *vcpu)
 {
@@ -50,16 +50,32 @@ static inline void kvm_xen_sw_enable_lapic(struct kvm_vcpu *vcpu)
 		kvm_xen_inject_vcpu_vector(vcpu);
 }
 
+static inline bool kvm_xen_is_tsc_leaf(struct kvm_vcpu *vcpu, u32 function)
+{
+	return static_branch_unlikely(&kvm_xen_enabled.key) &&
+	       vcpu->arch.xen.cpuid.base &&
+	       function <= vcpu->arch.xen.cpuid.limit &&
+	       function == (vcpu->arch.xen.cpuid.base | XEN_CPUID_LEAF(3));
+}
+
 static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
 {
 	return static_branch_unlikely(&kvm_xen_enabled.key) &&
-		kvm->arch.xen_hvm_config.msr;
+		kvm->arch.xen.hvm_config.msr;
+}
+
+static inline bool kvm_xen_is_hypercall_page_msr(struct kvm *kvm, u32 msr)
+{
+	if (!static_branch_unlikely(&kvm_xen_enabled.key))
+		return false;
+
+	return msr && msr == kvm->arch.xen.hvm_config.msr;
 }
 
 static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {
 	return static_branch_unlikely(&kvm_xen_enabled.key) &&
-		(kvm->arch.xen_hvm_config.flags &
+		(kvm->arch.xen.hvm_config.flags &
 		 KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL);
 }
 
@@ -124,6 +140,11 @@ static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
 	return false;
 }
 
+static inline bool kvm_xen_is_hypercall_page_msr(struct kvm *kvm, u32 msr)
+{
+	return false;
+}
+
 static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {
 	return false;
@@ -157,8 +178,9 @@ static inline bool kvm_xen_timer_enabled(struct kvm_vcpu *vcpu)
 	return false;
 }
 
-static inline void kvm_xen_update_tsc_info(struct kvm_vcpu *vcpu)
+static inline bool kvm_xen_is_tsc_leaf(struct kvm_vcpu *vcpu, u32 function)
 {
+	return false;
 }
 #endif
 

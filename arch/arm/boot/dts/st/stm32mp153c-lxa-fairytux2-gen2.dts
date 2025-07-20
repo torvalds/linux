@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
+/*
+ * Copyright (C) 2024 Leonard Göhrs, Pengutronix
+ */
+
+/dts-v1/;
+
+#include "stm32mp153c-lxa-fairytux2.dtsi"
+
+/ {
+	model = "Linux Automation GmbH FairyTux 2 Gen 2";
+	compatible = "lxa,stm32mp153c-fairytux2-gen2", "oct,stm32mp153x-osd32", "st,stm32mp153";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-left {
+			label = "USER_BTN1";
+			linux,code = <KEY_ESC>;
+			gpios = <&gpioi 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+
+		button-right {
+			label = "USER_BTN2";
+			linux,code = <KEY_HOME>;
+			gpios = <&gpioe 9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+	};
+};
+
+&gpiof {
+	gpio-line-names = "", "", "", "", "",				/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "", "", "", "",				/* 10 */
+			  "";						/* 15 */
+};
+
+&gpioh {
+	gpio-line-names = "", "", "", "", "LCD_RESET",			/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "", "GPIO1", "GPIO_INT", "",		/* 10 */
+			  "";						/* 15 */
+};
+
+&gpioi {
+	gpio-line-names = "GPIO2", "", "", "", "",			/*  0 */
+			  "", "", "", "ETH_", "",			/*  5 */
+			  "", "USER_BTN1";				/* 10 */
+};
+
+&i2c1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c1_pins_b>;
+	pinctrl-1 = <&i2c1_sleep_pins_b>;
+	status = "okay";
+
+	io_board_gpio: gpio@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpioh>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		pinctrl-names = "default";
+		pinctrl-0 = <&board_tca6408_pins>;
+		#interrupt-cells = <2>;
+		vcc-supply = <&v3v3_hdmi>;
+		gpio-line-names = "LED1_GA_YK", "LED2_GA_YK", "LED1_GK_YA", "USB_CC_ALERT",
+				  "RS485_EN", "RS485_120R", "USB_CC_RESET", "CAN_120R";
+	};
+
+	usb_c: typec@28 {
+		compatible = "st,stusb1600";
+		reg = <0x28>;
+		interrupt-parent = <&io_board_gpio>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		vdd-supply = <&reg_5v>;
+		vsys-supply = <&v3v3_hdmi>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			power-role = "dual";
+			typec-power-opmode = "default";
+
+			port {
+				con_usbotg_hs_ep: endpoint {
+					remote-endpoint = <&usbotg_hs_ep>;
+				};
+			};
+		};
+	};
+
+	temperature-sensor@48 {
+		compatible = "national,lm75a";
+		reg = <0x48>;
+		/*
+		 * The sensor itself is powered by a voltage divider from the
+		 * always-on 5V supply.
+		 * The required pull-up resistors however are on v3v3_hdmi.
+		 */
+		vs-supply = <&v3v3_hdmi>;
+	};
+
+	io_board_eeprom: eeprom@56 {
+		compatible = "atmel,24c04";
+		reg = <0x56>;
+		vcc-supply = <&v3v3_hdmi>;
+	};
+};
+
+&rtc {
+	status = "okay";
+};
+
+&led_controller_io {
+	led-2 {
+		color = <LED_COLOR_ID_ORANGE>;
+		function = LED_FUNCTION_ACTIVITY;
+		gpios = <&io_board_gpio 1 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&usart3 {
+	rts-gpios = <&gpiod 12 GPIO_ACTIVE_LOW>;
+	cts-gpios = <&gpiod 11 GPIO_ACTIVE_LOW>;
+};
+
+&usbotg_hs {
+	usb-role-switch;
+
+	port {
+		usbotg_hs_ep: endpoint {
+			remote-endpoint = <&con_usbotg_hs_ep>;
+		};
+	};
+};
+
+&pinctrl {
+	board_tca6408_pins: stusb1600-0 {
+		pins {
+			pinmux = <STM32_PINMUX('H', 13, GPIO)>;
+			bias-pull-up;
+		};
+	};
+};

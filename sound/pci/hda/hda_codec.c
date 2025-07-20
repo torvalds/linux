@@ -1732,37 +1732,6 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hda_ctl_add);
 
 /**
- * snd_hda_add_nid - Assign a NID to a control element
- * @codec: HD-audio codec
- * @kctl: the control element to assign
- * @index: index to kctl
- * @nid: corresponding NID (optional)
- *
- * Add the given control element to an array inside the codec instance.
- * This function is used when #snd_hda_ctl_add cannot be used for 1:1
- * NID:KCTL mapping - for example "Capture Source" selector.
- */
-int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
-		    unsigned int index, hda_nid_t nid)
-{
-	struct hda_nid_item *item;
-
-	if (nid > 0) {
-		item = snd_array_new(&codec->nids);
-		if (!item)
-			return -ENOMEM;
-		item->kctl = kctl;
-		item->index = index;
-		item->nid = nid;
-		return 0;
-	}
-	codec_err(codec, "no NID for mapping control %s:%d:%d\n",
-		  kctl->id.name, kctl->id.index, index);
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(snd_hda_add_nid);
-
-/**
  * snd_hda_ctls_clear - Clear all controls assigned to the given codec
  * @codec: HD-audio codec
  */
@@ -2470,7 +2439,9 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 				break;
 			id = kctl->id;
 			id.index = spdif_index;
-			snd_ctl_rename_id(codec->card, &kctl->id, &id);
+			err = snd_ctl_rename_id(codec->card, &kctl->id, &id);
+			if (err < 0)
+				return err;
 		}
 		bus->primary_dig_out_type = HDA_PCM_TYPE_HDMI;
 	}
@@ -3037,8 +3008,7 @@ const struct dev_pm_ops hda_codec_driver_pm = {
 	.thaw = pm_sleep_ptr(hda_codec_pm_thaw),
 	.poweroff = pm_sleep_ptr(hda_codec_pm_suspend),
 	.restore = pm_sleep_ptr(hda_codec_pm_restore),
-	.runtime_suspend = pm_ptr(hda_codec_runtime_suspend),
-	.runtime_resume = pm_ptr(hda_codec_runtime_resume),
+	RUNTIME_PM_OPS(hda_codec_runtime_suspend, hda_codec_runtime_resume, NULL)
 };
 
 /* suspend the codec at shutdown; called from driver's shutdown callback */

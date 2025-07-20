@@ -262,7 +262,7 @@ static int snd_cs5535audio_create(struct snd_card *card,
 	cs5535au->pci = pci;
 	cs5535au->irq = -1;
 
-	err = pci_request_regions(pci, "CS5535 Audio");
+	err = pcim_request_all_regions(pci, "CS5535 Audio");
 	if (err < 0)
 		return err;
 

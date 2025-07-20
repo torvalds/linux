@@ -207,7 +207,7 @@ TRACE_EVENT_RCU(rcu_exp_grace_period,
 		__entry->gpevent = gpevent;
 	),
 
-	TP_printk("%s %ld %s",
+	TP_printk("%s %#lx %s",
 		  __entry->rcuname, __entry->gpseq, __entry->gpevent)
 );
 
@@ -558,40 +558,6 @@ TRACE_EVENT_RCU(rcu_segcb_stats,
 			  __entry->seglen[0], __entry->seglen[1], __entry->seglen[2], __entry->seglen[3],
 			  __entry->gp_seq[0], __entry->gp_seq[1], __entry->gp_seq[2], __entry->gp_seq[3])
 
-);
-
-/*
- * Tracepoint for the registration of a single RCU callback of the special
- * kvfree() form.  The first argument is the RCU type, the second argument
- * is a pointer to the RCU callback, the third argument is the offset
- * of the callback within the enclosing RCU-protected data structure,
- * the fourth argument is the number of lazy callbacks queued, and the
- * fifth argument is the total number of callbacks queued.
- */
-TRACE_EVENT_RCU(rcu_kvfree_callback,
-
-	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset,
-		 long qlen),
-
-	TP_ARGS(rcuname, rhp, offset, qlen),
-
-	TP_STRUCT__entry(
-		__field(const char *, rcuname)
-		__field(void *, rhp)
-		__field(unsigned long, offset)
-		__field(long, qlen)
-	),
-
-	TP_fast_assign(
-		__entry->rcuname = rcuname;
-		__entry->rhp = rhp;
-		__entry->offset = offset;
-		__entry->qlen = qlen;
-	),
-
-	TP_printk("%s rhp=%p func=%ld %ld",
-		  __entry->rcuname, __entry->rhp, __entry->offset,
-		  __entry->qlen)
 );
 
 /*

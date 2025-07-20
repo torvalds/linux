@@ -111,7 +111,7 @@ int nr_t1timer_running(struct sock *sk)
 
 static void nr_heartbeat_expiry(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 	struct nr_sock *nr = nr_sk(sk);
 
 	bh_lock_sock(sk);
@@ -152,7 +152,7 @@ out:
 
 static void nr_t2timer_expiry(struct timer_list *t)
 {
-	struct nr_sock *nr = from_timer(nr, t, t2timer);
+	struct nr_sock *nr = timer_container_of(nr, t, t2timer);
 	struct sock *sk = &nr->sock;
 
 	bh_lock_sock(sk);
@@ -166,7 +166,7 @@ static void nr_t2timer_expiry(struct timer_list *t)
 
 static void nr_t4timer_expiry(struct timer_list *t)
 {
-	struct nr_sock *nr = from_timer(nr, t, t4timer);
+	struct nr_sock *nr = timer_container_of(nr, t, t4timer);
 	struct sock *sk = &nr->sock;
 
 	bh_lock_sock(sk);
@@ -177,7 +177,7 @@ static void nr_t4timer_expiry(struct timer_list *t)
 
 static void nr_idletimer_expiry(struct timer_list *t)
 {
-	struct nr_sock *nr = from_timer(nr, t, idletimer);
+	struct nr_sock *nr = timer_container_of(nr, t, idletimer);
 	struct sock *sk = &nr->sock;
 
 	bh_lock_sock(sk);
@@ -206,7 +206,7 @@ static void nr_idletimer_expiry(struct timer_list *t)
 
 static void nr_t1timer_expiry(struct timer_list *t)
 {
-	struct nr_sock *nr = from_timer(nr, t, t1timer);
+	struct nr_sock *nr = timer_container_of(nr, t, t1timer);
 	struct sock *sk = &nr->sock;
 
 	bh_lock_sock(sk);

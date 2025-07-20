@@ -46,13 +46,13 @@ unsigned int rxrpc_rx_window_size = 255;
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
  * made by gluing normal packets together that we're willing to handle.
  */
-unsigned int rxrpc_rx_mtu = 5692;
+unsigned int rxrpc_rx_mtu = RXRPC_JUMBO(46);
 
 /*
  * The maximum number of fragments in a received jumbo packet that we tell the
  * sender that we're willing to handle.
  */
-unsigned int rxrpc_rx_jumbo_max = 4;
+unsigned int rxrpc_rx_jumbo_max = 46;
 
 #ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
 /*

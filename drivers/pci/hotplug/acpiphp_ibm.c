@@ -84,7 +84,7 @@ static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status);
 static void ibm_handle_events(acpi_handle handle, u32 event, void *context);
 static int ibm_get_table_from_acpi(char **bufp);
 static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *bin_attr,
+				   const struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size);
 static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		u32 lvl, void *context, void **rv);
@@ -98,7 +98,7 @@ static struct bin_attribute ibm_apci_table_attr __ro_after_init = {
 		    .name = "apci_table",
 		    .mode = S_IRUGO,
 	    },
-	    .read = ibm_read_apci_table,
+	    .read_new = ibm_read_apci_table,
 	    .write = NULL,
 };
 static struct acpiphp_attention_info ibm_attention_info =
@@ -353,7 +353,7 @@ read_table_done:
  * our solution is to only allow reading the table in all at once.
  */
 static ssize_t ibm_read_apci_table(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *bin_attr,
+				   const struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size)
 {
 	int bytes_read = -EINVAL;

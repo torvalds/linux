@@ -24,6 +24,6 @@ CLEANDIRS = $(SUBDIRS:%=clean-%)
 
 clean: $(CLEANDIRS)
 $(CLEANDIRS):
-	$(call QUIET_CLEAN, test-$(@:clean-%=%)) $(Q)$(MAKE) -C $(@:clean-%=%) clean >/dev/null
+	$(call QUIET_CLEAN, test-$(@:clean-%=%)) $(MAKE) -C $(@:clean-%=%) clean >/dev/null
 
 .PHONY: all clean $(SUBDIRS) $(CLEANDIRS) $(INSTALLDIRS)

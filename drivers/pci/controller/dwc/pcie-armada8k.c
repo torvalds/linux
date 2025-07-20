@@ -139,7 +139,7 @@ static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
 	return ret;
 }
 
-static int armada8k_pcie_link_up(struct dw_pcie *pci)
+static bool armada8k_pcie_link_up(struct dw_pcie *pci)
 {
 	u32 reg;
 	u32 mask = PCIE_GLB_STS_RDLH_LINK_UP | PCIE_GLB_STS_PHY_LINK_UP;
@@ -147,10 +147,10 @@ static int armada8k_pcie_link_up(struct dw_pcie *pci)
 	reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_STATUS_REG);
 
 	if ((reg & mask) == mask)
-		return 1;
+		return true;
 
 	dev_dbg(pci->dev, "No link detected (Global-Status: 0x%08x).\n", reg);
-	return 0;
+	return false;
 }
 
 static int armada8k_pcie_start_link(struct dw_pcie *pci)

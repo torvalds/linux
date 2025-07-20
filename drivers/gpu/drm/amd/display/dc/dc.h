@@ -46,8 +46,6 @@
 
 #include "dmub/inc/dmub_cmd.h"
 
-#include "spl/dc_spl_types.h"
-
 struct abm_save_restore;
 
 /* forward declaration */
@@ -55,14 +53,21 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.310"
+#define DC_VER "3.2.334"
 
-#define MAX_SURFACES 3
+/**
+ * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
+ */
+#define MAX_SURFACES 4
+/**
+ * MAX_PLANES - representative of the upper bound of planes that are supported by the HW
+ */
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
-#define MAX_HOST_ROUTERS_NUM 2
+#define MAX_HOST_ROUTERS_NUM 3
+#define MAX_DPIA_PER_HOST_ROUTER 2
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -245,6 +250,7 @@ struct dc_caps {
 	uint32_t i2c_speed_in_khz_hdcp;
 	uint32_t dmdata_alloc_size;
 	unsigned int max_cursor_size;
+	unsigned int max_buffered_cursor_size;
 	unsigned int max_video_width;
 	/*
 	 * max video plane width that can be safely assumed to be always
@@ -278,6 +284,7 @@ struct dc_caps {
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
+	bool fused_io_supported;
 	uint32_t max_otg_num;
 	uint32_t max_cab_allocation_bytes;
 	uint32_t cache_line_size;
@@ -299,6 +306,8 @@ struct dc_caps {
 	/* Conservative limit for DCC cases which require ODM4:1 to support*/
 	uint32_t dcc_plane_width_limit;
 	struct dc_scl_caps scl_caps;
+	uint8_t num_of_host_routers;
+	uint8_t num_of_dpias_per_host_router;
 };
 
 struct dc_bug_wa {
@@ -443,6 +452,7 @@ struct dc_config {
 	bool enable_windowed_mpo_odm;
 	bool forceHBR2CP2520; // Used for switching between test patterns TPS4 and CP2520
 	uint32_t allow_edp_hotplug_detection;
+	bool skip_riommu_prefetch_wa;
 	bool clamp_min_dcfclk;
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
@@ -463,6 +473,7 @@ struct dc_config {
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
 	unsigned int disable_ips_in_vpb;
+	bool disable_ips_in_dpms_off;
 	bool usb4_bw_alloc_support;
 	bool allow_0_dtb_clk;
 	bool use_assr_psp_message;
@@ -471,6 +482,8 @@ struct dc_config {
 	bool disable_hbr_audio_dp2;
 	bool consolidated_dpia_dp_lt;
 	bool set_pipe_unlock_order;
+	bool enable_dpia_pre_training;
+	bool unify_link_enc_assignment;
 };
 
 enum visual_confirm {
@@ -487,6 +500,9 @@ enum visual_confirm {
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 	VISUAL_CONFIRM_FAMS2 = 19,
 	VISUAL_CONFIRM_HW_CURSOR = 20,
+	VISUAL_CONFIRM_VABC = 21,
+	VISUAL_CONFIRM_DCC = 22,
+	VISUAL_CONFIRM_EXPLICIT = 0x80000000,
 };
 
 enum dc_psr_power_opts {
@@ -628,6 +644,8 @@ struct dc_clocks {
 	int bw_dispclk_khz;
 	int idle_dramclk_khz;
 	int idle_fclk_khz;
+	int subvp_prefetch_dramclk_khz;
+	int subvp_prefetch_fclk_khz;
 };
 
 struct dc_bw_validation_profile {
@@ -772,7 +790,9 @@ union dpia_debug_options {
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
 		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
-		uint32_t reserved:25;
+		uint32_t enable_dpia_pre_training:1; /* bit 7 */
+		uint32_t unify_link_enc_assignment:1; /* bit 8 */
+		uint32_t reserved:24;
 	} bits;
 	uint32_t raw;
 };
@@ -888,6 +908,9 @@ struct dc_debug_options {
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
 	bool disable_min_fclk;
+
+	bool hdcp_lc_force_fw_enable;
+	bool hdcp_lc_enable_sw_fallback;
 
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
@@ -1055,8 +1078,8 @@ struct dc_debug_options {
 	bool dml21_force_pstate_method;
 	uint32_t dml21_force_pstate_method_values[MAX_PIPES];
 	uint32_t dml21_disable_pstate_method_mask;
+	union fw_assisted_mclk_switch_version fams_version;
 	union dmub_fams2_global_feature_config fams2_config;
-	bool enable_legacy_clock_update;
 	unsigned int force_cositing;
 	unsigned int disable_spl;
 	unsigned int force_easf;
@@ -1070,6 +1093,8 @@ struct dc_debug_options {
 	bool skip_full_updated_if_possible;
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
+	bool force_subvp_df_throttle;
+	uint32_t acpi_transition_bitmasks[MAX_PIPES];
 };
 
 
@@ -1300,7 +1325,7 @@ struct dc_plane_state {
 	struct rect clip_rect;
 
 	struct plane_size plane_size;
-	union dc_tiling_info tiling_info;
+	struct dc_tiling_info tiling_info;
 
 	struct dc_plane_dcc_param dcc;
 
@@ -1371,7 +1396,7 @@ struct dc_plane_state {
 
 struct dc_plane_info {
 	struct plane_size plane_size;
-	union dc_tiling_info tiling_info;
+	struct dc_tiling_info tiling_info;
 	struct dc_plane_dcc_param dcc;
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
@@ -1398,250 +1423,16 @@ struct dc_scratch_space {
 	 * store current value in plane states so we can still recover
 	 * a valid current state during dc update.
 	 */
-	struct dc_plane_state plane_states[MAX_SURFACE_NUM];
+	struct dc_plane_state plane_states[MAX_SURFACES];
 
 	struct dc_stream_state stream_state;
 };
 
-struct dc {
-	struct dc_debug_options debug;
-	struct dc_versions versions;
-	struct dc_caps caps;
-	struct dc_cap_funcs cap_funcs;
-	struct dc_config config;
-	struct dc_bounding_box_overrides bb_overrides;
-	struct dc_bug_wa work_arounds;
-	struct dc_context *ctx;
-	struct dc_phy_addr_space_config vm_pa_config;
-
-	uint8_t link_count;
-	struct dc_link *links[MAX_LINKS];
-	struct link_service *link_srv;
-
-	struct dc_state *current_state;
-	struct resource_pool *res_pool;
-
-	struct clk_mgr *clk_mgr;
-
-	/* Display Engine Clock levels */
-	struct dm_pp_clock_levels sclk_lvls;
-
-	/* Inputs into BW and WM calculations. */
-	struct bw_calcs_dceip *bw_dceip;
-	struct bw_calcs_vbios *bw_vbios;
-	struct dcn_soc_bounding_box *dcn_soc;
-	struct dcn_ip_params *dcn_ip;
-	struct display_mode_lib dml;
-
-	/* HW functions */
-	struct hw_sequencer_funcs hwss;
-	struct dce_hwseq *hwseq;
-
-	/* Require to optimize clocks and bandwidth for added/removed planes */
-	bool optimized_required;
-	bool wm_optimized_required;
-	bool idle_optimizations_allowed;
-	bool enable_c20_dtm_b0;
-
-	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
-
-	/* FBC compressor */
-	struct compressor *fbc_compressor;
-
-	struct dc_debug_data debug_data;
-	struct dpcd_vendor_signature vendor_signature;
-
-	const char *build_id;
-	struct vm_helper *vm_helper;
-
-	uint32_t *dcn_reg_offsets;
-	uint32_t *nbio_reg_offsets;
-	uint32_t *clk_reg_offsets;
-
-	/* Scratch memory */
-	struct {
-		struct {
-			/*
-			 * For matching clock_limits table in driver with table
-			 * from PMFW.
-			 */
-			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
-		} update_bw_bounding_box;
-		struct dc_scratch_space current_state;
-		struct dc_scratch_space new_state;
-		struct dc_stream_state temp_stream; // Used so we don't need to allocate stream on the stack
-		bool pipes_to_unlock_first[MAX_PIPES]; /* Any of the pipes indicated here should be unlocked first */
-	} scratch;
-
-	struct dml2_configuration_options dml2_options;
-	struct dml2_configuration_options dml2_tmp;
-	enum dc_acpi_cm_power_state power_state;
-
-};
-
-struct dc_scaling_info {
-	struct rect src_rect;
-	struct rect dst_rect;
-	struct rect clip_rect;
-	struct scaling_taps scaling_quality;
-};
-
-struct dc_fast_update {
-	const struct dc_flip_addrs *flip_addr;
-	const struct dc_gamma *gamma;
-	const struct colorspace_transform *gamut_remap_matrix;
-	const struct dc_csc_transform *input_csc_color_matrix;
-	const struct fixed31_32 *coeff_reduction_factor;
-	struct dc_transfer_func *out_transfer_func;
-	struct dc_csc_transform *output_csc_transform;
-	const struct dc_csc_transform *cursor_csc_color_matrix;
-};
-
-struct dc_surface_update {
-	struct dc_plane_state *surface;
-
-	/* isr safe update parameters.  null means no updates */
-	const struct dc_flip_addrs *flip_addr;
-	const struct dc_plane_info *plane_info;
-	const struct dc_scaling_info *scaling_info;
-	struct fixed31_32 hdr_mult;
-	/* following updates require alloc/sleep/spin that is not isr safe,
-	 * null means no updates
-	 */
-	const struct dc_gamma *gamma;
-	const struct dc_transfer_func *in_transfer_func;
-
-	const struct dc_csc_transform *input_csc_color_matrix;
-	const struct fixed31_32 *coeff_reduction_factor;
-	const struct dc_transfer_func *func_shaper;
-	const struct dc_3dlut *lut3d_func;
-	const struct dc_transfer_func *blend_tf;
-	const struct colorspace_transform *gamut_remap_matrix;
-	/*
-	 * Color Transformations for pre-blend MCM (Shaper, 3DLUT, 1DLUT)
-	 *
-	 * change cm2_params.component_settings: Full update
-	 * change cm2_params.cm2_luts: Fast update
-	 */
-	const struct dc_cm2_parameters *cm2_params;
-	const struct dc_csc_transform *cursor_csc_color_matrix;
-	unsigned int sdr_white_level_nits;
-};
-
-/*
- * Create a new surface with default parameters;
- */
-void dc_gamma_retain(struct dc_gamma *dc_gamma);
-void dc_gamma_release(struct dc_gamma **dc_gamma);
-struct dc_gamma *dc_create_gamma(void);
-
-void dc_transfer_func_retain(struct dc_transfer_func *dc_tf);
-void dc_transfer_func_release(struct dc_transfer_func *dc_tf);
-struct dc_transfer_func *dc_create_transfer_func(void);
-
-struct dc_3dlut *dc_create_3dlut_func(void);
-void dc_3dlut_func_release(struct dc_3dlut *lut);
-void dc_3dlut_func_retain(struct dc_3dlut *lut);
-
-void dc_post_update_surfaces_to_stream(
-		struct dc *dc);
-
-#include "dc_stream.h"
-
-/**
- * struct dc_validation_set - Struct to store surface/stream associations for validation
- */
-struct dc_validation_set {
-	/**
-	 * @stream: Stream state properties
-	 */
-	struct dc_stream_state *stream;
-
-	/**
-	 * @plane_states: Surface state
-	 */
-	struct dc_plane_state *plane_states[MAX_SURFACES];
-
-	/**
-	 * @plane_count: Total of active planes
-	 */
-	uint8_t plane_count;
-};
-
-bool dc_validate_boot_timing(const struct dc *dc,
-				const struct dc_sink *sink,
-				struct dc_crtc_timing *crtc_timing);
-
-enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
-
-void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
-
-enum dc_status dc_validate_with_context(struct dc *dc,
-					const struct dc_validation_set set[],
-					int set_count,
-					struct dc_state *context,
-					bool fast_validate);
-
-bool dc_set_generic_gpio_for_stereo(bool enable,
-		struct gpio_service *gpio_service);
-
-/*
- * fast_validate: we return after determining if we can support the new state,
- * but before we populate the programming info
- */
-enum dc_status dc_validate_global_state(
-		struct dc *dc,
-		struct dc_state *new_ctx,
-		bool fast_validate);
-
-bool dc_acquire_release_mpc_3dlut(
-		struct dc *dc, bool acquire,
-		struct dc_stream_state *stream,
-		struct dc_3dlut **lut,
-		struct dc_transfer_func **shaper);
-
-bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
-void get_audio_check(struct audio_info *aud_modes,
-	struct audio_check *aud_chk);
-
-bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_count);
-void populate_fast_updates(struct dc_fast_update *fast_update,
-		struct dc_surface_update *srf_updates,
-		int surface_count,
-		struct dc_stream_update *stream_update);
-/*
- * Set up streams and links associated to drive sinks
- * The streams parameter is an absolute set of all active streams.
- *
- * After this call:
- *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
- */
-enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params *params);
-
-
-struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
-		struct dc_stream_state *stream,
-		int mpcc_inst);
-
-
-uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
-
-void dc_set_disable_128b_132b_stream_overhead(bool disable);
-
-/* The function returns minimum bandwidth required to drive a given timing
- * return - minimum required timing bandwidth in kbps.
- */
-uint32_t dc_bandwidth_in_kbps_from_timing(
-		const struct dc_crtc_timing *timing,
-		const enum dc_link_encoding_format link_encoding);
-
-/* Link Interfaces */
 /*
  * A link contains one or more sinks and their connected status.
  * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
  */
-struct dc_link {
+ struct dc_link {
 	struct dc_sink *remote_sinks[MAX_SINKS_PER_LINK];
 	unsigned int sink_count;
 	struct dc_sink *local_sink;
@@ -1650,6 +1441,7 @@ struct dc_link {
 	enum signal_type connector_signal;
 	enum dc_irq_source irq_source_hpd;
 	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
+	enum dc_irq_source irq_source_read_request;/* Read Request */
 
 	bool is_hpd_filter_disabled;
 	bool dp_ss_off;
@@ -1780,7 +1572,9 @@ struct dc_link {
 		bool dongle_mode_timing_override;
 		bool blank_stream_on_ocs_change;
 		bool read_dpcd204h_on_irq_hpd;
+		bool force_dp_ffe_preset;
 	} wa_flags;
+	union dc_dp_ffe_preset forced_dp_ffe_preset;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
 	struct dc_link_status link_status;
@@ -1792,12 +1586,248 @@ struct dc_link {
 
 	struct dc_panel_config panel_config;
 	struct phy_state phy_state;
+	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
 	enum backlight_control_type backlight_control_type;
 };
 
+struct dc {
+	struct dc_debug_options debug;
+	struct dc_versions versions;
+	struct dc_caps caps;
+	struct dc_cap_funcs cap_funcs;
+	struct dc_config config;
+	struct dc_bounding_box_overrides bb_overrides;
+	struct dc_bug_wa work_arounds;
+	struct dc_context *ctx;
+	struct dc_phy_addr_space_config vm_pa_config;
+
+	uint8_t link_count;
+	struct dc_link *links[MAX_LINKS];
+	uint8_t lowest_dpia_link_index;
+	struct link_service *link_srv;
+
+	struct dc_state *current_state;
+	struct resource_pool *res_pool;
+
+	struct clk_mgr *clk_mgr;
+
+	/* Display Engine Clock levels */
+	struct dm_pp_clock_levels sclk_lvls;
+
+	/* Inputs into BW and WM calculations. */
+	struct bw_calcs_dceip *bw_dceip;
+	struct bw_calcs_vbios *bw_vbios;
+	struct dcn_soc_bounding_box *dcn_soc;
+	struct dcn_ip_params *dcn_ip;
+	struct display_mode_lib dml;
+
+	/* HW functions */
+	struct hw_sequencer_funcs hwss;
+	struct dce_hwseq *hwseq;
+
+	/* Require to optimize clocks and bandwidth for added/removed planes */
+	bool optimized_required;
+	bool wm_optimized_required;
+	bool idle_optimizations_allowed;
+	bool enable_c20_dtm_b0;
+
+	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
+
+	/* FBC compressor */
+	struct compressor *fbc_compressor;
+
+	struct dc_debug_data debug_data;
+	struct dpcd_vendor_signature vendor_signature;
+
+	const char *build_id;
+	struct vm_helper *vm_helper;
+
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
+
+	/* Scratch memory */
+	struct {
+		struct {
+			/*
+			 * For matching clock_limits table in driver with table
+			 * from PMFW.
+			 */
+			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+		} update_bw_bounding_box;
+		struct dc_scratch_space current_state;
+		struct dc_scratch_space new_state;
+		struct dc_stream_state temp_stream; // Used so we don't need to allocate stream on the stack
+		struct dc_link temp_link;
+		bool pipes_to_unlock_first[MAX_PIPES]; /* Any of the pipes indicated here should be unlocked first */
+	} scratch;
+
+	struct dml2_configuration_options dml2_options;
+	struct dml2_configuration_options dml2_tmp;
+	enum dc_acpi_cm_power_state power_state;
+
+};
+
+struct dc_scaling_info {
+	struct rect src_rect;
+	struct rect dst_rect;
+	struct rect clip_rect;
+	struct scaling_taps scaling_quality;
+};
+
+struct dc_fast_update {
+	const struct dc_flip_addrs *flip_addr;
+	const struct dc_gamma *gamma;
+	const struct colorspace_transform *gamut_remap_matrix;
+	const struct dc_csc_transform *input_csc_color_matrix;
+	const struct fixed31_32 *coeff_reduction_factor;
+	struct dc_transfer_func *out_transfer_func;
+	struct dc_csc_transform *output_csc_transform;
+	const struct dc_csc_transform *cursor_csc_color_matrix;
+};
+
+struct dc_surface_update {
+	struct dc_plane_state *surface;
+
+	/* isr safe update parameters.  null means no updates */
+	const struct dc_flip_addrs *flip_addr;
+	const struct dc_plane_info *plane_info;
+	const struct dc_scaling_info *scaling_info;
+	struct fixed31_32 hdr_mult;
+	/* following updates require alloc/sleep/spin that is not isr safe,
+	 * null means no updates
+	 */
+	const struct dc_gamma *gamma;
+	const struct dc_transfer_func *in_transfer_func;
+
+	const struct dc_csc_transform *input_csc_color_matrix;
+	const struct fixed31_32 *coeff_reduction_factor;
+	const struct dc_transfer_func *func_shaper;
+	const struct dc_3dlut *lut3d_func;
+	const struct dc_transfer_func *blend_tf;
+	const struct colorspace_transform *gamut_remap_matrix;
+	/*
+	 * Color Transformations for pre-blend MCM (Shaper, 3DLUT, 1DLUT)
+	 *
+	 * change cm2_params.component_settings: Full update
+	 * change cm2_params.cm2_luts: Fast update
+	 */
+	const struct dc_cm2_parameters *cm2_params;
+	const struct dc_csc_transform *cursor_csc_color_matrix;
+	unsigned int sdr_white_level_nits;
+	struct dc_bias_and_scale bias_and_scale;
+};
+
+/*
+ * Create a new surface with default parameters;
+ */
+void dc_gamma_retain(struct dc_gamma *dc_gamma);
+void dc_gamma_release(struct dc_gamma **dc_gamma);
+struct dc_gamma *dc_create_gamma(void);
+
+void dc_transfer_func_retain(struct dc_transfer_func *dc_tf);
+void dc_transfer_func_release(struct dc_transfer_func *dc_tf);
+struct dc_transfer_func *dc_create_transfer_func(void);
+
+struct dc_3dlut *dc_create_3dlut_func(void);
+void dc_3dlut_func_release(struct dc_3dlut *lut);
+void dc_3dlut_func_retain(struct dc_3dlut *lut);
+
+void dc_post_update_surfaces_to_stream(
+		struct dc *dc);
+
+#include "dc_stream.h"
+
+/**
+ * struct dc_validation_set - Struct to store surface/stream associations for validation
+ */
+struct dc_validation_set {
+	/**
+	 * @stream: Stream state properties
+	 */
+	struct dc_stream_state *stream;
+
+	/**
+	 * @plane_states: Surface state
+	 */
+	struct dc_plane_state *plane_states[MAX_SURFACES];
+
+	/**
+	 * @plane_count: Total of active planes
+	 */
+	uint8_t plane_count;
+};
+
+bool dc_validate_boot_timing(const struct dc *dc,
+				const struct dc_sink *sink,
+				struct dc_crtc_timing *crtc_timing);
+
+enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
+
+enum dc_status dc_validate_with_context(struct dc *dc,
+					const struct dc_validation_set set[],
+					int set_count,
+					struct dc_state *context,
+					bool fast_validate);
+
+bool dc_set_generic_gpio_for_stereo(bool enable,
+		struct gpio_service *gpio_service);
+
+/*
+ * fast_validate: we return after determining if we can support the new state,
+ * but before we populate the programming info
+ */
+enum dc_status dc_validate_global_state(
+		struct dc *dc,
+		struct dc_state *new_ctx,
+		bool fast_validate);
+
+bool dc_acquire_release_mpc_3dlut(
+		struct dc *dc, bool acquire,
+		struct dc_stream_state *stream,
+		struct dc_3dlut **lut,
+		struct dc_transfer_func **shaper);
+
+bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *aud_chk);
+
+bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_count);
+void populate_fast_updates(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update);
+/*
+ * Set up streams and links associated to drive sinks
+ * The streams parameter is an absolute set of all active streams.
+ *
+ * After this call:
+ *   Phy, Encoder, Timing Generator are programmed and enabled.
+ *   New streams are enabled with blank stream; no memory read.
+ */
+enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params *params);
+
+
+struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
+		struct dc_stream_state *stream,
+		int mpcc_inst);
+
+
+uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
+
+void dc_set_disable_128b_132b_stream_overhead(bool disable);
+
+/* The function returns minimum bandwidth required to drive a given timing
+ * return - minimum required timing bandwidth in kbps.
+ */
+uint32_t dc_bandwidth_in_kbps_from_timing(
+		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding);
+
+/* Link Interfaces */
 /* Return an enumerated dc_link.
  * dc_link order is constant and determined at
  * boot time.  They cannot be created or destroyed.
@@ -1939,6 +1969,9 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result);
 
+struct ddc_service *
+dc_get_oem_i2c_device(struct dc *dc);
+
 bool dc_is_oem_i2c_device_present(
 	struct dc *dc,
 	size_t slave_address
@@ -2018,6 +2051,24 @@ bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
 uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_setting);
+
+struct dp_audio_bandwidth_params {
+	const struct dc_crtc_timing *crtc_timing;
+	enum dp_link_encoding link_encoding;
+	uint32_t channel_count;
+	uint32_t sample_rate_hz;
+};
+
+/* The function calculates the minimum size of hblank (in bytes) needed to
+ * support the specified channel count and sample rate combination, given the
+ * link encoding and timing to be used. This calculation is not supported
+ * for 8b/10b SST.
+ *
+ * return - min hblank size in bytes, 0 if 8b/10b SST.
+ */
+uint32_t dc_link_required_hblank_size_bytes(
+	const struct dc_link *link,
+	struct dp_audio_bandwidth_params *audio_params);
 
 /* The function takes a snapshot of current link resource allocation state
  * @dc: pointer to dc of the dm calling this
@@ -2316,19 +2367,6 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
 
 /*
- * Handle function for when the status of the Request above is complete.
- * We will find out the result of allocating on CM and update structs.
- *
- * @link: pointer to the dc_link struct instance
- * @bw: Allocated or Estimated BW depending on the result
- * @result: Response type
- *
- * return: none
- */
-void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
-		uint8_t bw, uint8_t result);
-
-/*
  * Handle the USB4 BW Allocation related functionality here:
  * Plug => Try to allocate max bw from timing parameters supported by the sink
  * Unplug => de-allocate bw
@@ -2336,9 +2374,8 @@ void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
  * @link: pointer to the dc_link struct instance
  * @peak_bw: Peak bw used by the link/sink
  *
- * return: allocated bw else return 0
  */
-int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
+void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw);
 
 /*
@@ -2378,6 +2415,13 @@ struct dc_sink_dsc_caps {
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
+struct dc_sink_hblank_expansion_caps {
+	// 'true' if these are virtual DPCD's HBlank expansion caps (immediately upstream of sink in MST topology),
+	// 'false' if they are sink's HBlank expansion caps
+	bool is_virtual_dpcd_hblank_expansion;
+	struct hblank_expansion_dpcd_caps dpcd_caps;
+};
+
 struct dc_sink_fec_caps {
 	bool is_rx_fec_supported;
 	bool is_topology_fec_supported;
@@ -2404,6 +2448,7 @@ struct dc_sink {
 	struct scdc_caps scdc_caps;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
+	struct dc_sink_hblank_expansion_caps hblank_expansion_caps;
 
 	bool is_vsc_sdp_colorimetry_supported;
 
@@ -2554,13 +2599,23 @@ struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state 
 
 unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
 
+bool dc_get_host_router_index(const struct dc_link *link, unsigned int *host_router_index);
+
 /* DSC Interfaces */
 #include "dc_dsc.h"
+
+void dc_get_visual_confirm_for_stream(
+	struct dc *dc,
+	struct dc_stream_state *stream_state,
+	struct tg_color *color);
 
 /* Disable acc mode Interfaces */
 void dc_disable_accelerated_mode(struct dc *dc);
 
 bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 		       struct dc_stream_state *new_stream);
+
+bool dc_is_cursor_limit_pending(struct dc *dc);
+bool dc_can_clear_cursor_limit(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

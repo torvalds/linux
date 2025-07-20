@@ -116,10 +116,8 @@
 #  hs-2->hs-1 |IPv6 DA=fcff:4::e|SRH SIDs=fcff:3::e,fcff:1::d2|eth|...| (i.b)
 #
 
-# Kselftest framework requirement - SKIP code is 4.
-readonly ksft_skip=4
+source lib.sh
 
-readonly RDMSUFF="$(mktemp -u XXXXXXXX)"
 readonly DUMMY_DEVNAME="dum0"
 readonly RT2HS_DEVNAME="veth-hs"
 readonly HS_VETH_NAME="veth0"
@@ -199,32 +197,18 @@ test_command_or_ksft_skip()
 	fi
 }
 
-get_nodename()
-{
-	local name="$1"
-
-	echo "${name}-${RDMSUFF}"
-}
-
 get_rtname()
 {
 	local rtid="$1"
 
-	get_nodename "rt-${rtid}"
+	echo "rt_${rtid}"
 }
 
 get_hsname()
 {
 	local hsid="$1"
 
-	get_nodename "hs-${hsid}"
-}
-
-__create_namespace()
-{
-	local name="$1"
-
-	ip netns add "${name}"
+	echo "hs_${hsid}"
 }
 
 create_router()
@@ -233,8 +217,7 @@ create_router()
 	local nsname
 
 	nsname="$(get_rtname "${rtid}")"
-
-	__create_namespace "${nsname}"
+	setup_ns "${nsname}"
 }
 
 create_host()
@@ -243,28 +226,12 @@ create_host()
 	local nsname
 
 	nsname="$(get_hsname "${hsid}")"
-
-	__create_namespace "${nsname}"
+	setup_ns "${nsname}"
 }
 
 cleanup()
 {
-	local nsname
-	local i
-
-	# destroy routers
-	for i in ${ROUTERS}; do
-		nsname="$(get_rtname "${i}")"
-
-		ip netns del "${nsname}" &>/dev/null || true
-	done
-
-	# destroy hosts
-	for i in ${HOSTS}; do
-		nsname="$(get_hsname "${i}")"
-
-		ip netns del "${nsname}" &>/dev/null || true
-	done
+	cleanup_all_ns
 
 	# check whether the setup phase was completed successfully or not. In
 	# case of an error during the setup phase of the testing environment,
@@ -285,10 +252,10 @@ add_link_rt_pairs()
 	local nsname
 	local neigh_nsname
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	for neigh in ${rt_neighs}; do
-		neigh_nsname="$(get_rtname "${neigh}")"
+		eval neigh_nsname=\${$(get_rtname "${neigh}")}
 
 		ip link add "veth-rt-${rt}-${neigh}" netns "${nsname}" \
 			type veth peer name "veth-rt-${neigh}-${rt}" \
@@ -320,7 +287,7 @@ setup_rt_networking()
 	local devname
 	local neigh
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	for neigh in ${rt_neighs}; do
 		devname="veth-rt-${rt}-${neigh}"
@@ -341,9 +308,6 @@ setup_rt_networking()
 	ip netns exec "${nsname}" sysctl -wq net.ipv6.conf.all.accept_dad=0
 	ip netns exec "${nsname}" sysctl -wq net.ipv6.conf.default.accept_dad=0
 	ip netns exec "${nsname}" sysctl -wq net.ipv6.conf.all.forwarding=1
-
-	ip netns exec "${nsname}" sysctl -wq net.ipv4.conf.all.rp_filter=0
-	ip netns exec "${nsname}" sysctl -wq net.ipv4.conf.default.rp_filter=0
 	ip netns exec "${nsname}" sysctl -wq net.ipv4.ip_forward=1
 }
 
@@ -357,7 +321,7 @@ setup_rt_local_sids()
 	local nsname
 	local neigh
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	for neigh in ${rt_neighs}; do
 		devname="veth-rt-${rt}-${neigh}"
@@ -407,7 +371,7 @@ __setup_rt_policy()
 	local policy=''
 	local n
 
-	nsname="$(get_rtname "${encap_rt}")"
+	eval nsname=\${$(get_rtname "${encap_rt}")}
 
 	for n in ${end_rts}; do
 		policy="${policy}${VPN_LOCATOR_SERVICE}:${n}::${END_FUNC},"
@@ -446,7 +410,7 @@ setup_decap()
 	local rt="$1"
 	local nsname
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	# Local End.DX2 behavior
 	ip -netns "${nsname}" -6 route \
@@ -463,8 +427,8 @@ setup_hs()
 	local hsname
 	local rtname
 
-	hsname="$(get_hsname "${hs}")"
-	rtname="$(get_rtname "${rt}")"
+	eval hsname=\${$(get_hsname "${hs}")}
+	eval rtname=\${$(get_rtname "${rt}")}
 
 	ip netns exec "${hsname}" sysctl -wq net.ipv6.conf.all.accept_dad=0
 	ip netns exec "${hsname}" sysctl -wq net.ipv6.conf.default.accept_dad=0
@@ -486,11 +450,6 @@ setup_hs()
 		add "${IPv4_HS_NETWORK}.254/24" dev "${RT2HS_DEVNAME}"
 
 	ip -netns "${rtname}" link set "${RT2HS_DEVNAME}" up
-
-	# disable the rp_filter otherwise the kernel gets confused about how
-	# to route decap ipv4 packets.
-	ip netns exec "${rtname}" \
-		sysctl -wq net.ipv4.conf."${RT2HS_DEVNAME}".rp_filter=0
 }
 
 # set an auto-generated mac address
@@ -508,7 +467,7 @@ set_mac_address()
 	local ifname="$4"
 	local nsname
 
-	nsname=$(get_nodename "${nodename}")
+	eval nsname=\${${nodename}}
 
 	ip -netns "${nsname}" link set dev "${ifname}" down
 
@@ -532,7 +491,7 @@ set_host_l2peer()
 	local hssrc_name
 	local ipaddr
 
-	hssrc_name="$(get_hsname "${hssrc}")"
+	eval hssrc_name=\${$(get_hsname "${hssrc}")}
 
 	if [ "${proto}" -eq 6 ]; then
 		ipaddr="${ipprefix}::${hsdst}"
@@ -562,7 +521,7 @@ setup_l2vpn()
 	local rtdst="${hsdst}"
 
 	# set fixed mac for source node and the neigh MAC address
-	set_mac_address "hs-${hssrc}" "${hssrc}" "${hssrc}" "${HS_VETH_NAME}"
+	set_mac_address "hs_${hssrc}" "${hssrc}" "${hssrc}" "${HS_VETH_NAME}"
 	set_host_l2peer "${hssrc}" "${hsdst}" "${IPv6_HS_NETWORK}" 6
 	set_host_l2peer "${hssrc}" "${hsdst}" "${IPv4_HS_NETWORK}" 4
 
@@ -570,7 +529,7 @@ setup_l2vpn()
 	# to the mac address of the remote peer (L2 VPN destination host).
 	# Otherwise, traffic coming from the source host is dropped at the
 	# ingress router.
-	set_mac_address "rt-${rtsrc}" "${hsdst}" 254 "${RT2HS_DEVNAME}"
+	set_mac_address "rt_${rtsrc}" "${hsdst}" 254 "${RT2HS_DEVNAME}"
 
 	# set the SRv6 Policies at the ingress router
 	setup_rt_policy_ipv6 "${hsdst}" "${rtsrc}" "${end_rts}" "${rtdst}" \
@@ -647,7 +606,7 @@ check_rt_connectivity()
 	local prefix
 	local rtsrc_nsname
 
-	rtsrc_nsname="$(get_rtname "${rtsrc}")"
+	eval rtsrc_nsname=\${$(get_rtname "${rtsrc}")}
 
 	prefix="$(get_network_prefix "${rtsrc}" "${rtdst}")"
 
@@ -670,7 +629,7 @@ check_hs_ipv6_connectivity()
 	local hsdst="$2"
 	local hssrc_nsname
 
-	hssrc_nsname="$(get_hsname "${hssrc}")"
+	eval hssrc_nsname=\${$(get_hsname "${hssrc}")}
 
 	ip netns exec "${hssrc_nsname}" ping -c 1 -W "${PING_TIMEOUT_SEC}" \
 		"${IPv6_HS_NETWORK}::${hsdst}" >/dev/null 2>&1
@@ -682,7 +641,7 @@ check_hs_ipv4_connectivity()
 	local hsdst="$2"
 	local hssrc_nsname
 
-	hssrc_nsname="$(get_hsname "${hssrc}")"
+	eval hssrc_nsname=\${$(get_hsname "${hssrc}")}
 
 	ip netns exec "${hssrc_nsname}" ping -c 1 -W "${PING_TIMEOUT_SEC}" \
 		"${IPv4_HS_NETWORK}.${hsdst}" >/dev/null 2>&1

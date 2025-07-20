@@ -234,7 +234,7 @@ Before jumping into the kernel, the following conditions must be met:
 
   - If the kernel is entered at EL1:
 
-      - ICC.SRE_EL2.Enable (bit 3) must be initialised to 0b1
+      - ICC_SRE_EL2.Enable (bit 3) must be initialised to 0b1
       - ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b1.
 
   - The DT or ACPI tables must describe a GICv3 interrupt controller.
@@ -287,6 +287,12 @@ Before jumping into the kernel, the following conditions must be met:
   - If EL3 is present and the kernel is entered at EL2:
 
     - SCR_EL3.FGTEn (bit 27) must be initialised to 0b1.
+
+  For CPUs with the Fine Grained Traps 2 (FEAT_FGT2) extension present:
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.FGTEn2 (bit 59) must be initialised to 0b1.
 
   For CPUs with support for HCRX_EL2 (FEAT_HCX) present:
 
@@ -382,6 +388,22 @@ Before jumping into the kernel, the following conditions must be met:
 
     - SMCR_EL2.EZT0 (bit 30) must be initialised to 0b1.
 
+  For CPUs with the Performance Monitors Extension (FEAT_PMUv3p9):
+
+ - If EL3 is present:
+
+    - MDCR_EL3.EnPM2 (bit 7) must be initialised to 0b1.
+
+ - If the kernel is entered at EL1 and EL2 is present:
+
+    - HDFGRTR2_EL2.nPMICNTR_EL0 (bit 2) must be initialised to 0b1.
+    - HDFGRTR2_EL2.nPMICFILTR_EL0 (bit 3) must be initialised to 0b1.
+    - HDFGRTR2_EL2.nPMUACR_EL1 (bit 4) must be initialised to 0b1.
+
+    - HDFGWTR2_EL2.nPMICNTR_EL0 (bit 2) must be initialised to 0b1.
+    - HDFGWTR2_EL2.nPMICFILTR_EL0 (bit 3) must be initialised to 0b1.
+    - HDFGWTR2_EL2.nPMUACR_EL1 (bit 4) must be initialised to 0b1.
+
   For CPUs with Memory Copy and Memory Set instructions (FEAT_MOPS):
 
   - If the kernel is entered at EL1 and EL2 is present:
@@ -448,6 +470,18 @@ Before jumping into the kernel, the following conditions must be met:
     - HFGWTR_EL2.nGCS_EL1 (bit 53) must be initialised to 0b1.
 
     - HFGWTR_EL2.nGCS_EL0 (bit 52) must be initialised to 0b1.
+
+ - For CPUs with debug architecture i.e FEAT_Debugv8pN (all versions):
+
+ - If EL3 is present:
+
+   - MDCR_EL3.TDA (bit 9) must be initialized to 0b0
+
+ - For CPUs with FEAT_PMUv3:
+
+ - If EL3 is present:
+
+   - MDCR_EL3.TPM (bit 6) must be initialized to 0b0
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

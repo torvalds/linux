@@ -224,7 +224,7 @@ static unsigned long aio_nr;		/* current system wide number of aio requests */
 static unsigned long aio_max_nr = 0x10000; /* system wide maximum number of aio requests */
 /*----end sysctl variables---*/
 #ifdef CONFIG_SYSCTL
-static struct ctl_table aio_sysctls[] = {
+static const struct ctl_table aio_sysctls[] = {
 	{
 		.procname	= "aio-nr",
 		.data		= &aio_nr,
@@ -1511,6 +1511,7 @@ static int aio_prep_rw(struct kiocb *req, const struct iocb *iocb, int rw_type)
 {
 	int ret;
 
+	req->ki_write_stream = 0;
 	req->ki_complete = aio_complete_rw;
 	req->private = NULL;
 	req->ki_pos = iocb->aio_offset;

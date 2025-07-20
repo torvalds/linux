@@ -163,11 +163,10 @@ static void default_print_event(void *ps, const char *topic, const char *pmu_nam
 	} else
 		fputc('\n', fp);
 
-	if (long_desc && print_state->long_desc) {
-		fprintf(fp, "%*s", 8, "[");
-		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
-		fprintf(fp, "]\n");
-	} else if (desc && print_state->desc) {
+	if (long_desc && print_state->long_desc)
+		desc = long_desc;
+
+	if (desc && (print_state->desc || print_state->long_desc)) {
 		char *desc_with_unit = NULL;
 		int desc_len = -1;
 
@@ -198,7 +197,8 @@ static void default_print_metric(void *ps,
 				const char *long_desc,
 				const char *expr,
 				const char *threshold,
-				const char *unit __maybe_unused)
+				const char *unit __maybe_unused,
+				const char *pmu_name __maybe_unused)
 {
 	struct print_state *print_state = ps;
 	FILE *fp = print_state->fp;
@@ -434,7 +434,8 @@ static void json_print_event(void *ps, const char *topic, const char *pmu_name,
 static void json_print_metric(void *ps __maybe_unused, const char *group,
 			      const char *name, const char *desc,
 			      const char *long_desc, const char *expr,
-			      const char *threshold, const char *unit)
+			      const char *threshold, const char *unit,
+			      const char *pmu_name)
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
@@ -484,6 +485,12 @@ static void json_print_metric(void *ps __maybe_unused, const char *group,
 				   long_desc);
 		need_sep = true;
 	}
+	if (pmu_name) {
+		fix_escape_fprintf(fp, &buf, "%s\t\"Unit\": \"%S\"",
+				   need_sep ? ",\n" : "",
+				   pmu_name);
+		need_sep = true;
+	}
 	fprintf(fp, "%s}", need_sep ? "\n" : "");
 	strbuf_release(&buf);
 }
@@ -528,7 +535,7 @@ int cmd_list(int argc, const char **argv)
 		OPT_BOOLEAN('d', "desc", &default_ps.desc,
 			    "Print extra event descriptions. --no-desc to not print."),
 		OPT_BOOLEAN('v', "long-desc", &default_ps.long_desc,
-			    "Print longer event descriptions."),
+			    "Print longer event descriptions and all similar PMUs with alphanumeric suffixes."),
 		OPT_BOOLEAN(0, "details", &default_ps.detailed,
 			    "Print information on the perf event names and expressions used internally by events."),
 		OPT_STRING('o', "output", &output_path, "file", "output file name"),

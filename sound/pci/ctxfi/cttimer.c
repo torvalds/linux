@@ -62,7 +62,7 @@ struct ct_timer {
 
 static void ct_systimer_callback(struct timer_list *t)
 {
-	struct ct_timer_instance *ti = from_timer(ti, t, timer);
+	struct ct_timer_instance *ti = timer_container_of(ti, t, timer);
 	struct snd_pcm_substream *substream = ti->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ct_atc_pcm *apcm = ti->apcm;
@@ -112,14 +112,14 @@ static void ct_systimer_stop(struct ct_timer_instance *ti)
 
 	spin_lock_irqsave(&ti->lock, flags);
 	ti->running = 0;
-	del_timer(&ti->timer);
+	timer_delete(&ti->timer);
 	spin_unlock_irqrestore(&ti->lock, flags);
 }
 
 static void ct_systimer_prepare(struct ct_timer_instance *ti)
 {
 	ct_systimer_stop(ti);
-	try_to_del_timer_sync(&ti->timer);
+	timer_delete_sync_try(&ti->timer);
 }
 
 #define ct_systimer_free	ct_systimer_prepare

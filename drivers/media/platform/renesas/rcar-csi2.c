@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -15,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
+#include <linux/units.h>
 
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
@@ -183,17 +185,19 @@ struct rcar_csi2;
 #define V4H_CORE_DIG_IOCTRL_RW_AFE_CB_CTRL_2_REG(n)	(0x23840 + ((n) * 2)) /* n = 0 - 11 */
 #define V4H_CORE_DIG_RW_COMMON_REG(n)			(0x23880 + ((n) * 2)) /* n = 0 - 15 */
 #define V4H_CORE_DIG_ANACTRL_RW_COMMON_ANACTRL_REG(n)	(0x239e0 + ((n) * 2)) /* n = 0 - 3 */
-#define V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG		0x2a400
 #define V4H_CORE_DIG_CLANE_1_RW_HS_TX_6_REG		0x2a60c
 
 /* V4H C-PHY */
 #define V4H_CORE_DIG_RW_TRIO0_REG(n)			(0x22100 + ((n) * 2)) /* n = 0 - 3 */
 #define V4H_CORE_DIG_RW_TRIO1_REG(n)			(0x22500 + ((n) * 2)) /* n = 0 - 3 */
 #define V4H_CORE_DIG_RW_TRIO2_REG(n)			(0x22900 + ((n) * 2)) /* n = 0 - 3 */
+#define V4H_CORE_DIG_CLANE_0_RW_CFG_0_REG		0x2a000
 #define V4H_CORE_DIG_CLANE_0_RW_LP_0_REG		0x2a080
 #define V4H_CORE_DIG_CLANE_0_RW_HS_RX_REG(n)		(0x2a100 + ((n) * 2)) /* n = 0 - 6 */
+#define V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG		0x2a400
 #define V4H_CORE_DIG_CLANE_1_RW_LP_0_REG		0x2a480
 #define V4H_CORE_DIG_CLANE_1_RW_HS_RX_REG(n)		(0x2a500 + ((n) * 2)) /* n = 0 - 6 */
+#define V4H_CORE_DIG_CLANE_2_RW_CFG_0_REG		0x2a800
 #define V4H_CORE_DIG_CLANE_2_RW_LP_0_REG		0x2a880
 #define V4H_CORE_DIG_CLANE_2_RW_HS_RX_REG(n)		(0x2a900 + ((n) * 2)) /* n = 0 - 6 */
 
@@ -635,6 +639,10 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 		.datatype = MIPI_CSI2_DT_YUV422_8B,
 		.bpp = 20,
 	}, {
+		.code = MEDIA_BUS_FMT_Y8_1X8,
+		.datatype = MIPI_CSI2_DT_RAW8,
+		.bpp = 8,
+	}, {
 		.code = MEDIA_BUS_FMT_Y10_1X10,
 		.datatype = MIPI_CSI2_DT_RAW10,
 		.bpp = 10,
@@ -655,9 +663,37 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 		.datatype = MIPI_CSI2_DT_RAW8,
 		.bpp = 8,
 	}, {
-		.code = MEDIA_BUS_FMT_Y8_1X8,
-		.datatype = MIPI_CSI2_DT_RAW8,
-		.bpp = 8,
+		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
 	},
 };
 
@@ -671,6 +707,21 @@ static const struct rcar_csi2_format *rcsi2_code_to_fmt(unsigned int code)
 
 	return NULL;
 }
+
+struct rcsi2_cphy_line_order {
+	enum v4l2_mbus_csi2_cphy_line_orders_type order;
+	u16 cfg;
+	u16 ctrl29;
+};
+
+static const struct rcsi2_cphy_line_order rcsi2_cphy_line_orders[] = {
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_ABC, .cfg = 0x0, .ctrl29 = 0x0 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_ACB, .cfg = 0xa, .ctrl29 = 0x1 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_BAC, .cfg = 0xc, .ctrl29 = 0x1 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_BCA, .cfg = 0x5, .ctrl29 = 0x0 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_CAB, .cfg = 0x3, .ctrl29 = 0x0 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_CBA, .cfg = 0x9, .ctrl29 = 0x1 }
+};
 
 enum rcar_csi2_pads {
 	RCAR_CSI2_SINK,
@@ -722,6 +773,7 @@ struct rcar_csi2 {
 	bool cphy;
 	unsigned short lanes;
 	unsigned char lane_swap[4];
+	enum v4l2_mbus_csi2_cphy_line_orders_type line_orders[3];
 };
 
 static inline struct rcar_csi2 *sd_to_csi2(struct v4l2_subdev *sd)
@@ -754,9 +806,22 @@ static void rcsi2_write(struct rcar_csi2 *priv, unsigned int reg, u32 data)
 	iowrite32(data, priv->base + reg);
 }
 
+static u16 rcsi2_read16(struct rcar_csi2 *priv, unsigned int reg)
+{
+	return ioread16(priv->base + reg);
+}
+
 static void rcsi2_write16(struct rcar_csi2 *priv, unsigned int reg, u16 data)
 {
 	iowrite16(data, priv->base + reg);
+}
+
+static void rcsi2_modify16(struct rcar_csi2 *priv, unsigned int reg, u16 data, u16 mask)
+{
+	u16 val;
+
+	val = rcsi2_read16(priv, reg) & ~mask;
+	rcsi2_write16(priv, reg, val | data);
 }
 
 static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
@@ -890,7 +955,7 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 			   unsigned int lanes)
 {
 	struct v4l2_subdev *source;
-	struct v4l2_ctrl *ctrl;
+	s64 freq;
 	u64 mbps;
 
 	if (!priv->remote)
@@ -898,21 +963,17 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 
 	source = priv->remote;
 
-	/* Read the pixel rate control from remote. */
-	ctrl = v4l2_ctrl_find(source->ctrl_handler, V4L2_CID_PIXEL_RATE);
-	if (!ctrl) {
-		dev_err(priv->dev, "no pixel rate control in subdev %s\n",
-			source->name);
-		return -EINVAL;
+	freq = v4l2_get_link_freq(source->ctrl_handler, bpp, 2 * lanes);
+	if (freq < 0) {
+		int ret = (int)freq;
+
+		dev_err(priv->dev, "failed to get link freq for %s: %d\n",
+			source->name, ret);
+
+		return ret;
 	}
 
-	/*
-	 * Calculate the phypll in mbps.
-	 * link_freq = (pixel_rate * bits_per_sample) / (2 * nr_of_lanes)
-	 * bps = link_freq * 2
-	 */
-	mbps = v4l2_ctrl_g_ctrl_int64(ctrl) * bpp;
-	do_div(mbps, lanes * 1000000);
+	mbps = div_u64(freq * 2, MEGA);
 
 	/* Adjust for C-PHY, divide by 2.8. */
 	if (priv->cphy)
@@ -1014,15 +1075,9 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv,
 			vcdt2 |= vcdt_part << ((i % 2) * 16);
 	}
 
-	if (fmt->field == V4L2_FIELD_ALTERNATE) {
+	if (fmt->field == V4L2_FIELD_ALTERNATE)
 		fld = FLD_DET_SEL(1) | FLD_FLD_EN4 | FLD_FLD_EN3 | FLD_FLD_EN2
 			| FLD_FLD_EN;
-
-		if (fmt->height == 240)
-			fld |= FLD_FLD_NUM(0);
-		else
-			fld |= FLD_FLD_NUM(1);
-	}
 
 	/*
 	 * Get the number of active data lanes inspecting the remote mbus
@@ -1112,6 +1167,26 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv,
 	return 0;
 }
 
+static void rsci2_set_line_order(struct rcar_csi2 *priv,
+				 enum v4l2_mbus_csi2_cphy_line_orders_type order,
+				 unsigned int cfgreg, unsigned int ctrlreg)
+{
+	const struct rcsi2_cphy_line_order *info = NULL;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(rcsi2_cphy_line_orders); i++) {
+		if (rcsi2_cphy_line_orders[i].order == order) {
+			info = &rcsi2_cphy_line_orders[i];
+			break;
+		}
+	}
+
+	if (!info)
+		return;
+
+	rcsi2_modify16(priv, cfgreg, info->cfg, 0x000f);
+	rcsi2_modify16(priv, ctrlreg, info->ctrl29, 0x0100);
+}
+
 static int rcsi2_wait_phy_start_v4h(struct rcar_csi2 *priv, u32 match)
 {
 	unsigned int timeout;
@@ -1189,12 +1264,18 @@ static int rcsi2_c_phy_setting_v4h(struct rcar_csi2 *priv, int msps)
 	rcsi2_write16(priv, V4H_CORE_DIG_RW_TRIO1_REG(1), conf->trio1);
 	rcsi2_write16(priv, V4H_CORE_DIG_RW_TRIO2_REG(1), conf->trio1);
 
-	/*
-	 * Configure pin-swap.
-	 * TODO: This registers is not documented yet, the values should depend
-	 * on the 'clock-lanes' and 'data-lanes' devicetree properties.
-	 */
-	rcsi2_write16(priv, V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG, 0xf5);
+	/* Configure data line order. */
+	rsci2_set_line_order(priv, priv->line_orders[0],
+			     V4H_CORE_DIG_CLANE_0_RW_CFG_0_REG,
+			     V4H_CORE_DIG_IOCTRL_RW_AFE_LANE0_CTRL_2_REG(9));
+	rsci2_set_line_order(priv, priv->line_orders[1],
+			     V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG,
+			     V4H_CORE_DIG_IOCTRL_RW_AFE_LANE1_CTRL_2_REG(9));
+	rsci2_set_line_order(priv, priv->line_orders[2],
+			     V4H_CORE_DIG_CLANE_2_RW_CFG_0_REG,
+			     V4H_CORE_DIG_IOCTRL_RW_AFE_LANE2_CTRL_2_REG(9));
+
+	/* TODO: This registers is not documented. */
 	rcsi2_write16(priv, V4H_CORE_DIG_CLANE_1_RW_HS_TX_6_REG, 0x5000);
 
 	/* Leave Shutdown mode */
@@ -1349,15 +1430,15 @@ static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
 	static const struct phtw_value step2[] = {
 		{ .data = 0x00, .code = 0x00 },
 		{ .data = 0x80, .code = 0xe0 },
-		{ .data = 0x01, .code = 0xe1 },
+		{ .data = 0x31, .code = 0xe1 },
 		{ .data = 0x06, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x08, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x0a, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x0c, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x01, .code = 0x00 },
 		{ .data = 0x31, .code = 0xaa },
 		{ .data = 0x05, .code = 0x00 },
@@ -1368,6 +1449,11 @@ static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
 		{ .data = 0x05, .code = 0x09 },
 		{ .data = 0x0b, .code = 0x00 },
 		{ .data = 0x05, .code = 0x09 },
+	};
+
+	static const struct phtw_value step3[] = {
+		{ .data = 0x01, .code = 0x00 },
+		{ .data = 0x06, .code = 0xab },
 	};
 
 	if (priv->info->hsfreqrange) {
@@ -1400,7 +1486,7 @@ static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
 			return ret;
 	}
 
-	return ret;
+	return rcsi2_phtw_write_array(priv, step3, ARRAY_SIZE(step3));
 }
 
 static int rcsi2_start_receiver_v4m(struct rcar_csi2 *priv,
@@ -1485,7 +1571,8 @@ static int rcsi2_start(struct rcar_csi2 *priv, struct v4l2_subdev_state *state)
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(priv->remote, video, s_stream, 1);
+	ret = v4l2_subdev_enable_streams(priv->remote, priv->remote_pad,
+					 BIT_ULL(0));
 	if (ret) {
 		rcsi2_enter_standby(priv);
 		return ret;
@@ -1497,31 +1584,50 @@ static int rcsi2_start(struct rcar_csi2 *priv, struct v4l2_subdev_state *state)
 static void rcsi2_stop(struct rcar_csi2 *priv)
 {
 	rcsi2_enter_standby(priv);
-	v4l2_subdev_call(priv->remote, video, s_stream, 0);
+	v4l2_subdev_disable_streams(priv->remote, priv->remote_pad, BIT_ULL(0));
 }
 
-static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
+static int rcsi2_enable_streams(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state, u32 source_pad,
+				u64 source_streams_mask)
 {
 	struct rcar_csi2 *priv = sd_to_csi2(sd);
-	struct v4l2_subdev_state *state;
 	int ret = 0;
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
 
 	if (!priv->remote)
 		return -ENODEV;
 
-	state = v4l2_subdev_lock_and_get_active_state(&priv->subdev);
-
-	if (enable && priv->stream_count == 0) {
+	if (priv->stream_count == 0) {
 		ret = rcsi2_start(priv, state);
 		if (ret)
-			goto out;
-	} else if (!enable && priv->stream_count == 1) {
-		rcsi2_stop(priv);
+			return ret;
 	}
 
-	priv->stream_count += enable ? 1 : -1;
-out:
-	v4l2_subdev_unlock_state(state);
+	priv->stream_count += 1;
+
+	return ret;
+}
+
+static int rcsi2_disable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state,
+				 u32 source_pad, u64 source_streams_mask)
+{
+	struct rcar_csi2 *priv = sd_to_csi2(sd);
+	int ret = 0;
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
+
+	if (!priv->remote)
+		return -ENODEV;
+
+	if (priv->stream_count == 1)
+		rcsi2_stop(priv);
+
+	priv->stream_count -= 1;
 
 	return ret;
 }
@@ -1548,17 +1654,15 @@ static int rcsi2_set_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct v4l2_subdev_video_ops rcar_csi2_video_ops = {
-	.s_stream = rcsi2_s_stream,
-};
-
 static const struct v4l2_subdev_pad_ops rcar_csi2_pad_ops = {
+	.enable_streams = rcsi2_enable_streams,
+	.disable_streams = rcsi2_disable_streams,
+
 	.set_fmt = rcsi2_set_pad_format,
 	.get_fmt = v4l2_subdev_get_fmt,
 };
 
 static const struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
-	.video	= &rcar_csi2_video_ops,
 	.pad	= &rcar_csi2_pad_ops,
 };
 
@@ -1731,6 +1835,9 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 			return -EINVAL;
 		}
 	}
+
+	for (i = 0; i < ARRAY_SIZE(priv->line_orders); i++)
+		priv->line_orders[i] = vep->bus.mipi_csi2.line_orders[i];
 
 	return 0;
 }

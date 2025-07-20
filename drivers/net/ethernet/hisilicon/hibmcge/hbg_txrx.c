@@ -38,8 +38,14 @@ static int hbg_dma_map(struct hbg_buffer *buffer)
 	buffer->skb_dma = dma_map_single(&priv->pdev->dev,
 					 buffer->skb->data, buffer->skb_len,
 					 buffer_to_dma_dir(buffer));
-	if (unlikely(dma_mapping_error(&priv->pdev->dev, buffer->skb_dma)))
+	if (unlikely(dma_mapping_error(&priv->pdev->dev, buffer->skb_dma))) {
+		if (buffer->dir == HBG_DIR_RX)
+			priv->stats.rx_dma_err_cnt++;
+		else
+			priv->stats.tx_dma_err_cnt++;
+
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -195,6 +201,173 @@ static int hbg_napi_tx_recycle(struct napi_struct *napi, int budget)
 	return packet_done;
 }
 
+static bool hbg_rx_check_l3l4_error(struct hbg_priv *priv,
+				    struct hbg_rx_desc *desc,
+				    struct sk_buff *skb)
+{
+	bool rx_checksum_offload = !!(priv->netdev->features & NETIF_F_RXCSUM);
+
+	skb->ip_summed = rx_checksum_offload ?
+			 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
+
+	if (likely(!FIELD_GET(HBG_RX_DESC_W4_L3_ERR_CODE_M, desc->word4) &&
+		   !FIELD_GET(HBG_RX_DESC_W4_L4_ERR_CODE_M, desc->word4)))
+		return true;
+
+	switch (FIELD_GET(HBG_RX_DESC_W4_L3_ERR_CODE_M, desc->word4)) {
+	case HBG_L3_OK:
+		break;
+	case HBG_L3_WRONG_HEAD:
+		priv->stats.rx_desc_l3_wrong_head_cnt++;
+		return false;
+	case HBG_L3_CSUM_ERR:
+		skb->ip_summed = CHECKSUM_NONE;
+		priv->stats.rx_desc_l3_csum_err_cnt++;
+
+		/* Don't drop packets on csum validation failure,
+		 * suggest by Jakub
+		 */
+		break;
+	case HBG_L3_LEN_ERR:
+		priv->stats.rx_desc_l3_len_err_cnt++;
+		return false;
+	case HBG_L3_ZERO_TTL:
+		priv->stats.rx_desc_l3_zero_ttl_cnt++;
+		return false;
+	default:
+		priv->stats.rx_desc_l3_other_cnt++;
+		return false;
+	}
+
+	switch (FIELD_GET(HBG_RX_DESC_W4_L4_ERR_CODE_M, desc->word4)) {
+	case HBG_L4_OK:
+		break;
+	case HBG_L4_WRONG_HEAD:
+		priv->stats.rx_desc_l4_wrong_head_cnt++;
+		return false;
+	case HBG_L4_LEN_ERR:
+		priv->stats.rx_desc_l4_len_err_cnt++;
+		return false;
+	case HBG_L4_CSUM_ERR:
+		skb->ip_summed = CHECKSUM_NONE;
+		priv->stats.rx_desc_l4_csum_err_cnt++;
+
+		/* Don't drop packets on csum validation failure,
+		 * suggest by Jakub
+		 */
+		break;
+	case HBG_L4_ZERO_PORT_NUM:
+		priv->stats.rx_desc_l4_zero_port_num_cnt++;
+		return false;
+	default:
+		priv->stats.rx_desc_l4_other_cnt++;
+		return false;
+	}
+
+	return true;
+}
+
+static void hbg_update_rx_ip_protocol_stats(struct hbg_priv *priv,
+					    struct hbg_rx_desc *desc)
+{
+	if (unlikely(!FIELD_GET(HBG_RX_DESC_W4_IP_TCP_UDP_M, desc->word4))) {
+		priv->stats.rx_desc_no_ip_pkt_cnt++;
+		return;
+	}
+
+	if (unlikely(FIELD_GET(HBG_RX_DESC_W4_IP_VERSION_ERR_B, desc->word4))) {
+		priv->stats.rx_desc_ip_ver_err_cnt++;
+		return;
+	}
+
+	/* 0:ipv4, 1:ipv6 */
+	if (FIELD_GET(HBG_RX_DESC_W4_IP_VERSION_B, desc->word4))
+		priv->stats.rx_desc_ipv6_pkt_cnt++;
+	else
+		priv->stats.rx_desc_ipv4_pkt_cnt++;
+
+	switch (FIELD_GET(HBG_RX_DESC_W4_IP_TCP_UDP_M, desc->word4)) {
+	case HBG_IP_PKT:
+		priv->stats.rx_desc_ip_pkt_cnt++;
+		if (FIELD_GET(HBG_RX_DESC_W4_OPT_B, desc->word4))
+			priv->stats.rx_desc_ip_opt_pkt_cnt++;
+		if (FIELD_GET(HBG_RX_DESC_W4_FRAG_B, desc->word4))
+			priv->stats.rx_desc_frag_cnt++;
+
+		if (FIELD_GET(HBG_RX_DESC_W4_ICMP_B, desc->word4))
+			priv->stats.rx_desc_icmp_pkt_cnt++;
+		else if (FIELD_GET(HBG_RX_DESC_W4_IPSEC_B, desc->word4))
+			priv->stats.rx_desc_ipsec_pkt_cnt++;
+		break;
+	case HBG_TCP_PKT:
+		priv->stats.rx_desc_tcp_pkt_cnt++;
+		break;
+	case HBG_UDP_PKT:
+		priv->stats.rx_desc_udp_pkt_cnt++;
+		break;
+	default:
+		priv->stats.rx_desc_no_ip_pkt_cnt++;
+		break;
+	}
+}
+
+static void hbg_update_rx_protocol_stats(struct hbg_priv *priv,
+					 struct hbg_rx_desc *desc)
+{
+	if (unlikely(!FIELD_GET(HBG_RX_DESC_W4_IDX_MATCH_B, desc->word4))) {
+		priv->stats.rx_desc_key_not_match_cnt++;
+		return;
+	}
+
+	if (FIELD_GET(HBG_RX_DESC_W4_BRD_CST_B, desc->word4))
+		priv->stats.rx_desc_broadcast_pkt_cnt++;
+	else if (FIELD_GET(HBG_RX_DESC_W4_MUL_CST_B, desc->word4))
+		priv->stats.rx_desc_multicast_pkt_cnt++;
+
+	if (FIELD_GET(HBG_RX_DESC_W4_VLAN_FLAG_B, desc->word4))
+		priv->stats.rx_desc_vlan_pkt_cnt++;
+
+	if (FIELD_GET(HBG_RX_DESC_W4_ARP_B, desc->word4)) {
+		priv->stats.rx_desc_arp_pkt_cnt++;
+		return;
+	} else if (FIELD_GET(HBG_RX_DESC_W4_RARP_B, desc->word4)) {
+		priv->stats.rx_desc_rarp_pkt_cnt++;
+		return;
+	}
+
+	hbg_update_rx_ip_protocol_stats(priv, desc);
+}
+
+static bool hbg_rx_pkt_check(struct hbg_priv *priv, struct hbg_rx_desc *desc,
+			     struct sk_buff *skb)
+{
+	if (unlikely(FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, desc->word2) >
+		     priv->dev_specs.max_frame_len)) {
+		priv->stats.rx_desc_pkt_len_err_cnt++;
+		return false;
+	}
+
+	if (unlikely(FIELD_GET(HBG_RX_DESC_W2_PORT_NUM_M, desc->word2) !=
+		     priv->dev_specs.mac_id ||
+		     FIELD_GET(HBG_RX_DESC_W4_DROP_B, desc->word4))) {
+		priv->stats.rx_desc_drop++;
+		return false;
+	}
+
+	if (unlikely(FIELD_GET(HBG_RX_DESC_W4_L2_ERR_B, desc->word4))) {
+		priv->stats.rx_desc_l2_err_cnt++;
+		return false;
+	}
+
+	if (unlikely(!hbg_rx_check_l3l4_error(priv, desc, skb))) {
+		priv->stats.rx_desc_l3l4_err_cnt++;
+		return false;
+	}
+
+	hbg_update_rx_protocol_stats(priv, desc);
+	return true;
+}
+
 static int hbg_rx_fill_one_buffer(struct hbg_priv *priv)
 {
 	struct hbg_ring *ring = &priv->rx_ring;
@@ -257,8 +430,12 @@ static int hbg_napi_rx_poll(struct napi_struct *napi, int budget)
 		rx_desc = (struct hbg_rx_desc *)buffer->skb->data;
 		pkt_len = FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, rx_desc->word2);
 
-		hbg_dma_unmap(buffer);
+		if (unlikely(!hbg_rx_pkt_check(priv, rx_desc, buffer->skb))) {
+			hbg_buffer_free(buffer);
+			goto next_buffer;
+		}
 
+		hbg_dma_unmap(buffer);
 		skb_reserve(buffer->skb, HBG_PACKET_HEAD_SIZE + NET_IP_ALIGN);
 		skb_put(buffer->skb, pkt_len);
 		buffer->skb->protocol = eth_type_trans(buffer->skb,

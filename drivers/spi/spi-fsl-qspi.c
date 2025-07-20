@@ -264,14 +264,14 @@ static const struct fsl_qspi_devtype_data ls2080a_data = {
 struct fsl_qspi {
 	void __iomem *iobase;
 	void __iomem *ahb_addr;
-	u32 memmap_phy;
-	struct clk *clk, *clk_en;
-	struct device *dev;
-	struct completion c;
 	const struct fsl_qspi_devtype_data *devtype_data;
 	struct mutex lock;
+	struct completion c;
+	struct clk *clk, *clk_en;
 	struct pm_qos_request pm_qos_req;
+	struct device *dev;
 	int selected;
+	u32 memmap_phy;
 };
 
 static inline int needs_swap_endian(struct fsl_qspi *q)
@@ -522,9 +522,10 @@ static void fsl_qspi_invalidate(struct fsl_qspi *q)
 	qspi_writel(q, reg, q->iobase + QUADSPI_MCR);
 }
 
-static void fsl_qspi_select_mem(struct fsl_qspi *q, struct spi_device *spi)
+static void fsl_qspi_select_mem(struct fsl_qspi *q, struct spi_device *spi,
+				const struct spi_mem_op *op)
 {
-	unsigned long rate = spi->max_speed_hz;
+	unsigned long rate = op->max_freq;
 	int ret;
 
 	if (q->selected == spi_get_chipselect(spi, 0))
@@ -652,7 +653,7 @@ static int fsl_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	fsl_qspi_readl_poll_tout(q, base + QUADSPI_SR, (QUADSPI_SR_IP_ACC_MASK |
 				 QUADSPI_SR_AHB_ACC_MASK), 10, 1000);
 
-	fsl_qspi_select_mem(q, mem->spi);
+	fsl_qspi_select_mem(q, mem->spi, op);
 
 	if (needs_amba_base_offset(q))
 		addr_offset = q->memmap_phy;
@@ -839,6 +840,28 @@ static const struct spi_controller_mem_ops fsl_qspi_mem_ops = {
 	.get_name = fsl_qspi_get_name,
 };
 
+static const struct spi_controller_mem_caps fsl_qspi_mem_caps = {
+	.per_op_freq = true,
+};
+
+static void fsl_qspi_disable(void *data)
+{
+	struct fsl_qspi *q = data;
+
+	/* disable the hardware */
+	qspi_writel(q, QUADSPI_MCR_MDIS_MASK, q->iobase + QUADSPI_MCR);
+	qspi_writel(q, 0x0, q->iobase + QUADSPI_RSER);
+}
+
+static void fsl_qspi_cleanup(void *data)
+{
+	struct fsl_qspi *q = data;
+
+	fsl_qspi_clk_disable_unprep(q);
+
+	mutex_destroy(&q->lock);
+}
+
 static int fsl_qspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
@@ -848,7 +871,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	struct fsl_qspi *q;
 	int ret;
 
-	ctlr = spi_alloc_host(&pdev->dev, sizeof(*q));
+	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*q));
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -858,106 +881,78 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	q = spi_controller_get_devdata(ctlr);
 	q->dev = dev;
 	q->devtype_data = of_device_get_match_data(dev);
-	if (!q->devtype_data) {
-		ret = -ENODEV;
-		goto err_put_ctrl;
-	}
+	if (!q->devtype_data)
+		return -ENODEV;
 
 	platform_set_drvdata(pdev, q);
 
 	/* find the resources */
 	q->iobase = devm_platform_ioremap_resource_byname(pdev, "QuadSPI");
-	if (IS_ERR(q->iobase)) {
-		ret = PTR_ERR(q->iobase);
-		goto err_put_ctrl;
-	}
+	if (IS_ERR(q->iobase))
+		return PTR_ERR(q->iobase);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"QuadSPI-memory");
-	if (!res) {
-		ret = -EINVAL;
-		goto err_put_ctrl;
-	}
+	if (!res)
+		return -EINVAL;
 	q->memmap_phy = res->start;
 	/* Since there are 4 cs, map size required is 4 times ahb_buf_size */
 	q->ahb_addr = devm_ioremap(dev, q->memmap_phy,
 				   (q->devtype_data->ahb_buf_size * 4));
-	if (!q->ahb_addr) {
-		ret = -ENOMEM;
-		goto err_put_ctrl;
-	}
+	if (!q->ahb_addr)
+		return -ENOMEM;
 
 	/* find the clocks */
 	q->clk_en = devm_clk_get(dev, "qspi_en");
-	if (IS_ERR(q->clk_en)) {
-		ret = PTR_ERR(q->clk_en);
-		goto err_put_ctrl;
-	}
+	if (IS_ERR(q->clk_en))
+		return PTR_ERR(q->clk_en);
 
 	q->clk = devm_clk_get(dev, "qspi");
-	if (IS_ERR(q->clk)) {
-		ret = PTR_ERR(q->clk);
-		goto err_put_ctrl;
-	}
+	if (IS_ERR(q->clk))
+		return PTR_ERR(q->clk);
+
+	mutex_init(&q->lock);
 
 	ret = fsl_qspi_clk_prep_enable(q);
 	if (ret) {
 		dev_err(dev, "can not enable the clock\n");
-		goto err_put_ctrl;
+		return ret;
 	}
+
+	ret = devm_add_action_or_reset(dev, fsl_qspi_cleanup, q);
+	if (ret)
+		return ret;
 
 	/* find the irq */
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto err_disable_clk;
+		return ret;
 
 	ret = devm_request_irq(dev, ret,
 			fsl_qspi_irq_handler, 0, pdev->name, q);
 	if (ret) {
 		dev_err(dev, "failed to request irq: %d\n", ret);
-		goto err_disable_clk;
+		return ret;
 	}
-
-	mutex_init(&q->lock);
 
 	ctlr->bus_num = -1;
 	ctlr->num_chipselect = 4;
 	ctlr->mem_ops = &fsl_qspi_mem_ops;
+	ctlr->mem_caps = &fsl_qspi_mem_caps;
 
 	fsl_qspi_default_setup(q);
 
 	ctlr->dev.of_node = np;
 
+	ret = devm_add_action_or_reset(dev, fsl_qspi_disable, q);
+	if (ret)
+		return ret;
+
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret)
-		goto err_destroy_mutex;
+		return ret;
 
 	return 0;
-
-err_destroy_mutex:
-	mutex_destroy(&q->lock);
-
-err_disable_clk:
-	fsl_qspi_clk_disable_unprep(q);
-
-err_put_ctrl:
-	spi_controller_put(ctlr);
-
-	dev_err(dev, "Freescale QuadSPI probe failed\n");
-	return ret;
-}
-
-static void fsl_qspi_remove(struct platform_device *pdev)
-{
-	struct fsl_qspi *q = platform_get_drvdata(pdev);
-
-	/* disable the hardware */
-	qspi_writel(q, QUADSPI_MCR_MDIS_MASK, q->iobase + QUADSPI_MCR);
-	qspi_writel(q, 0x0, q->iobase + QUADSPI_RSER);
-
-	fsl_qspi_clk_disable_unprep(q);
-
-	mutex_destroy(&q->lock);
 }
 
 static int fsl_qspi_suspend(struct device *dev)
@@ -997,7 +992,6 @@ static struct platform_driver fsl_qspi_driver = {
 		.pm =   &fsl_qspi_pm_ops,
 	},
 	.probe          = fsl_qspi_probe,
-	.remove		= fsl_qspi_remove,
 };
 module_platform_driver(fsl_qspi_driver);
 

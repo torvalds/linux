@@ -2,10 +2,18 @@
 
 /dts-v1/;
 
-#include "mt7988a.dtsi"
+#include "mt7988a-bananapi-bpi-r4.dtsi"
 
 / {
 	compatible = "bananapi,bpi-r4", "mediatek,mt7988a";
-	model = "Banana Pi BPI-R4";
+	model = "Banana Pi BPI-R4 (2x SFP+)";
 	chassis-type = "embedded";
+};
+
+&pca9545 {
+	i2c_sfp2: i2c@2 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <2>;
+	};
 };

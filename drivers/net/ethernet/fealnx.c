@@ -1074,7 +1074,7 @@ static void allocate_rx_buffers(struct net_device *dev)
 
 static void netdev_timer(struct timer_list *t)
 {
-	struct netdev_private *np = from_timer(np, t, timer);
+	struct netdev_private *np = timer_container_of(np, t, timer);
 	struct net_device *dev = np->mii.dev;
 	void __iomem *ioaddr = np->mem;
 	int old_crvalue = np->crvalue;
@@ -1163,7 +1163,7 @@ static void enable_rxtx(struct net_device *dev)
 
 static void reset_timer(struct timer_list *t)
 {
-	struct netdev_private *np = from_timer(np, t, reset_timer);
+	struct netdev_private *np = timer_container_of(np, t, reset_timer);
 	struct net_device *dev = np->mii.dev;
 	unsigned long flags;
 
@@ -1900,8 +1900,8 @@ static int netdev_close(struct net_device *dev)
 	/* Stop the chip's Tx and Rx processes. */
 	stop_nic_rxtx(ioaddr, 0);
 
-	del_timer_sync(&np->timer);
-	del_timer_sync(&np->reset_timer);
+	timer_delete_sync(&np->timer);
+	timer_delete_sync(&np->reset_timer);
 
 	free_irq(np->pci_dev->irq, dev);
 

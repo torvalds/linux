@@ -36,7 +36,7 @@ nvkm_uvfn_map(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_vfn *vfn = nvkm_uvfn(object)->vfn;
 	struct nvkm_device *device = vfn->subdev.device;
 
-	*addr = device->func->resource_addr(device, 0) + vfn->addr.user;
+	*addr = device->func->resource_addr(device, NVKM_BAR0_PRI) + vfn->addr.user;
 	*size = vfn->func->user.size;
 	*type = NVKM_OBJECT_MAP_IO;
 	return 0;

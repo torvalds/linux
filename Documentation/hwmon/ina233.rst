@@ -1,0 +1,75 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver ina233
+====================
+
+Supported chips:
+
+  * TI INA233
+
+    Prefix: 'ina233'
+
+  * Datasheet
+
+    Publicly available at the TI website : https://www.ti.com/lit/ds/symlink/ina233.pdf
+
+Author: Leo Yang <leo.yang.sy0@gmail.com>
+
+Usage Notes
+-----------
+
+The shunt resistor value can be configured by a device tree property;
+see Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml for details.
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for TI INA233.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+The driver provides the following attributes for input voltage:
+
+**in1_input**
+
+**in1_label**
+
+**in1_max**
+
+**in1_max_alarm**
+
+**in1_min**
+
+**in1_min_alarm**
+
+The driver provides the following attributes for shunt voltage:
+
+**in2_input**
+
+**in2_label**
+
+The driver provides the following attributes for output voltage:
+
+**in3_input**
+
+**in3_label**
+
+**in3_alarm**
+
+The driver provides the following attributes for output current:
+
+**curr1_input**
+
+**curr1_label**
+
+**curr1_max**
+
+**curr1_max_alarm**
+
+The driver provides the following attributes for input power:
+
+**power1_input**
+
+**power1_label**

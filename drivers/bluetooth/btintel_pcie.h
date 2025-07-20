@@ -12,10 +12,19 @@
 #define BTINTEL_PCIE_CSR_HW_REV_REG		(BTINTEL_PCIE_CSR_BASE + 0x028)
 #define BTINTEL_PCIE_CSR_RF_ID_REG		(BTINTEL_PCIE_CSR_BASE + 0x09C)
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_REG		(BTINTEL_PCIE_CSR_BASE + 0x108)
+#define BTINTEL_PCIE_CSR_IPC_CONTROL_REG	(BTINTEL_PCIE_CSR_BASE + 0x10C)
+#define BTINTEL_PCIE_CSR_IPC_STATUS_REG		(BTINTEL_PCIE_CSR_BASE + 0x110)
 #define BTINTEL_PCIE_CSR_IPC_SLEEP_CTL_REG	(BTINTEL_PCIE_CSR_BASE + 0x114)
 #define BTINTEL_PCIE_CSR_CI_ADDR_LSB_REG	(BTINTEL_PCIE_CSR_BASE + 0x118)
 #define BTINTEL_PCIE_CSR_CI_ADDR_MSB_REG	(BTINTEL_PCIE_CSR_BASE + 0x11C)
 #define BTINTEL_PCIE_CSR_IMG_RESPONSE_REG	(BTINTEL_PCIE_CSR_BASE + 0x12C)
+#define BTINTEL_PCIE_CSR_MBOX_1_REG		(BTINTEL_PCIE_CSR_BASE + 0x170)
+#define BTINTEL_PCIE_CSR_MBOX_2_REG		(BTINTEL_PCIE_CSR_BASE + 0x174)
+#define BTINTEL_PCIE_CSR_MBOX_3_REG		(BTINTEL_PCIE_CSR_BASE + 0x178)
+#define BTINTEL_PCIE_CSR_MBOX_4_REG		(BTINTEL_PCIE_CSR_BASE + 0x17C)
+#define BTINTEL_PCIE_CSR_MBOX_STATUS_REG	(BTINTEL_PCIE_CSR_BASE + 0x180)
+#define BTINTEL_PCIE_PRPH_DEV_ADDR_REG		(BTINTEL_PCIE_CSR_BASE + 0x440)
+#define BTINTEL_PCIE_PRPH_DEV_RD_REG		(BTINTEL_PCIE_CSR_BASE + 0x458)
 #define BTINTEL_PCIE_CSR_HBUS_TARG_WRPTR	(BTINTEL_PCIE_CSR_BASE + 0x460)
 
 /* BTINTEL_PCIE_CSR Function Control Register */
@@ -23,6 +32,12 @@
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT		(BIT(6))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_INIT		(BIT(7))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_ACCESS_STS	(BIT(20))
+
+#define BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_ACCESS_REQ	(BIT(21))
+/* Stop MAC Access disconnection request */
+#define BTINTEL_PCIE_CSR_FUNC_CTRL_STOP_MAC_ACCESS_DIS	(BIT(22))
+#define BTINTEL_PCIE_CSR_FUNC_CTRL_XTAL_CLK_REQ		(BIT(23))
+
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_BUS_MASTER_STS	(BIT(28))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_BUS_MASTER_DISCON	(BIT(29))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_SW_RESET		(BIT(31))
@@ -33,6 +48,9 @@
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_OPFW		(BIT(2))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_ROM_LOCKDOWN	(BIT(10))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_IML_LOCKDOWN	(BIT(11))
+#define BTINTEL_PCIE_CSR_BOOT_STAGE_DEVICE_ERR		(BIT(12))
+#define BTINTEL_PCIE_CSR_BOOT_STAGE_ABORT_HANDLER	(BIT(13))
+#define BTINTEL_PCIE_CSR_BOOT_STAGE_DEVICE_HALTED	(BIT(14))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_MAC_ACCESS_ON	(BIT(16))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_ALIVE		(BIT(23))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_D3_STATE_READY	(BIT(24))
@@ -48,6 +66,30 @@
 #define BTINTEL_PCIE_CSR_MSIX_IVAR_BASE		(BTINTEL_PCIE_CSR_MSIX_BASE + 0x0880)
 #define BTINTEL_PCIE_CSR_MSIX_IVAR(cause)	(BTINTEL_PCIE_CSR_MSIX_IVAR_BASE + (cause))
 
+/* IOSF Debug Register */
+#define BTINTEL_PCIE_DBGC_BASE_ADDR			(0xf3800300)
+#define BTINTEL_PCIE_DBGC_CUR_DBGBUFF_STATUS		(BTINTEL_PCIE_DBGC_BASE_ADDR + 0x1C)
+#define BTINTEL_PCIE_DBGC_DBGBUFF_WRAP_ARND		(BTINTEL_PCIE_DBGC_BASE_ADDR + 0x2C)
+
+#define BTINTEL_PCIE_DBG_IDX_BIT_MASK		0x0F
+#define BTINTEL_PCIE_DBGC_DBG_BUF_IDX(data)	(((data) >> 24) & BTINTEL_PCIE_DBG_IDX_BIT_MASK)
+#define BTINTEL_PCIE_DBG_OFFSET_BIT_MASK	0xFFFFFF
+
+/* The DRAM buffer count, each buffer size, and
+ * fragment buffer size
+ */
+#define BTINTEL_PCIE_DBGC_BUFFER_COUNT		16
+#define BTINTEL_PCIE_DBGC_BUFFER_SIZE		(256 * 1024) /* 256 KB */
+
+#define BTINTEL_PCIE_DBGC_FRAG_VERSION		1
+#define BTINTEL_PCIE_DBGC_FRAG_BUFFER_COUNT	BTINTEL_PCIE_DBGC_BUFFER_COUNT
+
+/* Magic number(4), version(4), size of payload length(4) */
+#define BTINTEL_PCIE_DBGC_FRAG_HEADER_SIZE	12
+
+/* Num of alloc Dbg buff (4) + (LSB(4), MSB(4), Size(4)) for each buffer */
+#define BTINTEL_PCIE_DBGC_FRAG_PAYLOAD_SIZE	196
+
 /* Causes for the FH register interrupts */
 enum msix_fh_int_causes {
 	BTINTEL_PCIE_MSIX_FH_INT_CAUSES_0	= BIT(0),	/* cause 0 */
@@ -57,6 +99,8 @@ enum msix_fh_int_causes {
 /* Causes for the HW register interrupts */
 enum msix_hw_int_causes {
 	BTINTEL_PCIE_MSIX_HW_INT_CAUSES_GP0	= BIT(0),	/* cause 32 */
+	BTINTEL_PCIE_MSIX_HW_INT_CAUSES_GP1	= BIT(1),	/* cause 33 */
+	BTINTEL_PCIE_MSIX_HW_INT_CAUSES_HWEXP	= BIT(3),	/* cause 35 */
 };
 
 /* PCIe device states
@@ -69,6 +113,33 @@ enum {
 	BTINTEL_PCIE_STATE_D3_HOT = 2,
 	BTINTEL_PCIE_STATE_D3_COLD = 3,
 };
+
+enum {
+	BTINTEL_PCIE_CORE_HALTED,
+	BTINTEL_PCIE_HWEXP_INPROGRESS,
+	BTINTEL_PCIE_COREDUMP_INPROGRESS
+};
+
+enum btintel_pcie_tlv_type {
+	BTINTEL_CNVI_BT,
+	BTINTEL_WRITE_PTR,
+	BTINTEL_WRAP_CTR,
+	BTINTEL_TRIGGER_REASON,
+	BTINTEL_FW_SHA,
+	BTINTEL_CNVR_TOP,
+	BTINTEL_CNVI_TOP,
+	BTINTEL_DUMP_TIME,
+	BTINTEL_FW_BUILD,
+};
+
+/* causes for the MBOX interrupts */
+enum msix_mbox_int_causes {
+	BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX1 = BIT(0), /* cause MBOX1 */
+	BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX2 = BIT(1), /* cause MBOX2 */
+	BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX3 = BIT(2), /* cause MBOX3 */
+	BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX4 = BIT(3), /* cause MBOX4 */
+};
+
 #define BTINTEL_PCIE_MSIX_NON_AUTO_CLEAR_CAUSE	BIT(7)
 
 /* Minimum and Maximum number of MSI-X Vector
@@ -83,8 +154,11 @@ enum {
 /* Default interrupt timeout in msec */
 #define BTINTEL_DEFAULT_INTR_TIMEOUT_MS	3000
 
-/* The number of descriptors in TX/RX queues */
-#define BTINTEL_DESCS_COUNT	16
+/* The number of descriptors in TX queues */
+#define BTINTEL_PCIE_TX_DESCS_COUNT	32
+
+/* The number of descriptors in RX queues */
+#define BTINTEL_PCIE_RX_DESCS_COUNT	64
 
 /* Number of Queue for TX and RX
  * It indicates the index of the IA(Index Array)
@@ -105,9 +179,6 @@ enum {
 
 /* Doorbell vector for TFD */
 #define BTINTEL_PCIE_TX_DB_VEC	0
-
-/* Number of pending RX requests for downlink */
-#define BTINTEL_PCIE_RX_MAX_QUEUE	6
 
 /* Doorbell vector for FRBD */
 #define BTINTEL_PCIE_RX_DB_VEC	513
@@ -325,6 +396,37 @@ struct rxq {
 	struct data_buf	*bufs;
 };
 
+/* Structure for DRAM Buffer
+ * @count: Number of descriptors
+ * @buf: Array of data_buf structure
+ */
+struct btintel_pcie_dbgc {
+	u16		count;
+
+	void		*frag_v_addr;
+	dma_addr_t	frag_p_addr;
+	u16		frag_size;
+
+	dma_addr_t	buf_p_addr;
+	void		*buf_v_addr;
+	struct data_buf *bufs;
+};
+
+struct btintel_pcie_dump_header {
+	const char	*driver_name;
+	u32		cnvi_top;
+	u32		cnvr_top;
+	u16		fw_timestamp;
+	u8		fw_build_type;
+	u32		fw_build_num;
+	u32		fw_git_sha1;
+	u32		cnvi_bt;
+	u32		write_ptr;
+	u32		wrap_ctr;
+	u16		trigger_reason;
+	int		state;
+};
+
 /* struct btintel_pcie_data
  * @pdev: pci device
  * @hdev: hdev device
@@ -405,6 +507,8 @@ struct btintel_pcie_data {
 	struct txq	txq;
 	struct rxq	rxq;
 	u32	alive_intr_ctxt;
+	struct btintel_pcie_dbgc	dbgc;
+	struct btintel_pcie_dump_header dmp_hdr;
 };
 
 static inline u32 btintel_pcie_rd_reg32(struct btintel_pcie_data *data,
@@ -444,3 +548,11 @@ static inline void btintel_pcie_clr_reg_bits(struct btintel_pcie_data *data,
 	r &= ~bits;
 	iowrite32(r, data->base_addr + offset);
 }
+
+static inline u32 btintel_pcie_rd_dev_mem(struct btintel_pcie_data *data,
+					  u32 addr)
+{
+	btintel_pcie_wr_reg32(data, BTINTEL_PCIE_PRPH_DEV_ADDR_REG, addr);
+	return btintel_pcie_rd_reg32(data, BTINTEL_PCIE_PRPH_DEV_RD_REG);
+}
+

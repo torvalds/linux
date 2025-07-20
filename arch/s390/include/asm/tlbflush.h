@@ -2,9 +2,11 @@
 #ifndef _S390_TLBFLUSH_H
 #define _S390_TLBFLUSH_H
 
+#include <linux/cpufeature.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
+#include <asm/machine.h>
 
 /*
  * Flush all TLB entries on the local CPU.
@@ -22,7 +24,7 @@ static inline void __tlb_flush_idte(unsigned long asce)
 	unsigned long opt;
 
 	opt = IDTE_PTOA;
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		opt |= IDTE_GUEST_ASCE;
 	/* Global TLB flush for the mm */
 	asm volatile("idte 0,%1,%0" : : "a" (opt), "a" (asce) : "cc");
@@ -52,7 +54,7 @@ static inline void __tlb_flush_mm(struct mm_struct *mm)
 	cpumask_copy(mm_cpumask(mm), &mm->context.cpu_attach_mask);
 	barrier();
 	gmap_asce = READ_ONCE(mm->context.gmap_asce);
-	if (MACHINE_HAS_IDTE && gmap_asce != -1UL) {
+	if (cpu_has_idte() && gmap_asce != -1UL) {
 		if (gmap_asce)
 			__tlb_flush_idte(gmap_asce);
 		__tlb_flush_idte(mm->context.asce);
@@ -66,7 +68,7 @@ static inline void __tlb_flush_mm(struct mm_struct *mm)
 
 static inline void __tlb_flush_kernel(void)
 {
-	if (MACHINE_HAS_IDTE)
+	if (cpu_has_idte())
 		__tlb_flush_idte(init_mm.context.asce);
 	else
 		__tlb_flush_global();

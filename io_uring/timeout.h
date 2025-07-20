@@ -8,19 +8,6 @@ struct io_timeout_data {
 	u32				flags;
 };
 
-struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
-					    struct io_kiocb *link);
-
-static inline struct io_kiocb *io_disarm_linked_timeout(struct io_kiocb *req)
-{
-	struct io_kiocb *link = req->link;
-
-	if (link && link->opcode == IORING_OP_LINK_TIMEOUT)
-		return __io_disarm_linked_timeout(req, link);
-
-	return NULL;
-}
-
 __cold void io_flush_timeouts(struct io_ring_ctx *ctx);
 struct io_cancel_data;
 int io_timeout_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd);

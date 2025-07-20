@@ -37,8 +37,8 @@ ip_no_pmtu_disc - INTEGER
 	Mode 3 is a hardened pmtu discover mode. The kernel will only
 	accept fragmentation-needed errors if the underlying protocol
 	can verify them besides a plain socket lookup. Current
-	protocols for which pmtu events will be honored are TCP, SCTP
-	and DCCP as they verify e.g. the sequence number or the
+	protocols for which pmtu events will be honored are TCP and
+	SCTP as they verify e.g. the sequence number or the
 	association. This mode should not be enabled globally but is
 	only intended to secure e.g. name servers in namespaces where
 	TCP path mtu must still work but path MTU information of other
@@ -705,6 +705,8 @@ tcp_retries2 - INTEGER
 	seconds and is a lower bound for the effective timeout.
 	TCP will effectively time out at the first RTO which exceeds the
 	hypothetical timeout.
+	If tcp_rto_max_ms is decreased, it is recommended to also
+	change tcp_retries2.
 
 	RFC 1122 recommends at least 100 seconds for the timeout,
 	which corresponds to a value of at least 8.
@@ -733,7 +735,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
 	case this value is ignored.
-	Default: between 131072 and 6MB, depending on RAM size.
+	Default: between 131072 and 32MB, depending on RAM size.
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
@@ -1000,6 +1002,20 @@ tcp_tw_reuse - INTEGER
 
 	Default: 2
 
+tcp_tw_reuse_delay - UNSIGNED INTEGER
+        The delay in milliseconds before a TIME-WAIT socket can be reused by a
+        new connection, if TIME-WAIT socket reuse is enabled. The actual reuse
+        threshold is within [N, N+1] range, where N is the requested delay in
+        milliseconds, to ensure the delay interval is never shorter than the
+        configured value.
+
+        This setting contains an assumption about the other TCP timestamp clock
+        tick interval. It should not be set to a value lower than the peer's
+        clock tick for PAWS (Protection Against Wrapped Sequence numbers)
+        mechanism work correctly for the reused connection.
+
+        Default: 1000 (milliseconds)
+
 tcp_window_scaling - BOOLEAN
 	Enable window scaling as defined in RFC1323.
 
@@ -1083,7 +1099,7 @@ tcp_limit_output_bytes - INTEGER
 	limits the number of bytes on qdisc or device to reduce artificial
 	RTT/cwnd and reduce bufferbloat.
 
-	Default: 1048576 (16 * 65536)
+	Default: 4194304 (4 MB)
 
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
@@ -1213,8 +1229,8 @@ tcp_pingpong_thresh - INTEGER
 tcp_rto_min_us - INTEGER
 	Minimal TCP retransmission timeout (in microseconds). Note that the
 	rto_min route option has the highest precedence for configuring this
-	setting, followed by the TCP_BPF_RTO_MIN socket option, followed by
-	this tcp_rto_min_us sysctl.
+	setting, followed by the TCP_BPF_RTO_MIN and TCP_RTO_MIN_US socket
+	options, followed by this tcp_rto_min_us sysctl.
 
 	The recommended practice is to use a value less or equal to 200000
 	microseconds.
@@ -1222,6 +1238,17 @@ tcp_rto_min_us - INTEGER
 	Possible Values: 1 - INT_MAX
 
 	Default: 200000
+
+tcp_rto_max_ms - INTEGER
+	Maximal TCP retransmission timeout (in ms).
+	Note that TCP_RTO_MAX_MS socket option has higher precedence.
+
+	When changing tcp_rto_max_ms, it is important to understand
+	that tcp_retries2 might need a change.
+
+	Possible Values: 1000 - 120,000
+
+	Default: 120,000
 
 UDP variables
 =============

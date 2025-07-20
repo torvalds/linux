@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2024-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -10,7 +10,7 @@
 #include "fw/api/tx.h"
 #include "fw/api/phy-ctxt.h"
 
-#define IWL_MVM_TDLS_STA_COUNT	4
+#define IWL_TDLS_STA_COUNT	4
 
 /* Type of TDLS request */
 enum iwl_tdls_channel_switch_type {
@@ -50,7 +50,7 @@ struct iwl_tdls_channel_switch_timing {
  */
 struct iwl_tdls_channel_switch_frame {
 	__le32 switch_time_offset;
-	struct iwl_tx_cmd tx_cmd;
+	struct iwl_tx_cmd_v6 tx_cmd;
 	u8 data[IWL_TDLS_CH_SW_FRAME_MAX_SIZE];
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_FRAME_API_S_VER_1 */
 
@@ -128,10 +128,10 @@ struct iwl_tdls_config_cmd {
 	u8 tdls_peer_count;
 	u8 tx_to_ap_tid;
 	__le16 tx_to_ap_ssn;
-	struct iwl_tdls_sta_info sta_info[IWL_MVM_TDLS_STA_COUNT];
+	struct iwl_tdls_sta_info sta_info[IWL_TDLS_STA_COUNT];
 
 	__le32 pti_req_data_offset;
-	struct iwl_tx_cmd pti_req_tx_cmd;
+	struct iwl_tx_cmd_v6 pti_req_tx_cmd;
 	u8 pti_req_template[];
 } __packed; /* TDLS_CONFIG_CMD_API_S_VER_1 */
 
@@ -155,7 +155,7 @@ struct iwl_tdls_config_sta_info_res {
  */
 struct iwl_tdls_config_res {
 	__le32 tx_to_ap_last_seq;
-	struct iwl_tdls_config_sta_info_res sta_info[IWL_MVM_TDLS_STA_COUNT];
+	struct iwl_tdls_config_sta_info_res sta_info[IWL_TDLS_STA_COUNT];
 } __packed; /* TDLS_CONFIG_RSP_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_tdls_h__ */

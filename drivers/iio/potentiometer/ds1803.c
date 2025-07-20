@@ -231,7 +231,7 @@ static const struct of_device_id ds1803_dt_ids[] = {
 	{ .compatible = "maxim,ds1803-050", .data = &ds1803_cfg[DS1803_050] },
 	{ .compatible = "maxim,ds1803-100", .data = &ds1803_cfg[DS1803_100] },
 	{ .compatible = "maxim,ds3502", .data = &ds1803_cfg[DS3502] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ds1803_dt_ids);
 
@@ -240,7 +240,7 @@ static const struct i2c_device_id ds1803_id[] = {
 	{ "ds1803-050", (kernel_ulong_t)&ds1803_cfg[DS1803_050] },
 	{ "ds1803-100", (kernel_ulong_t)&ds1803_cfg[DS1803_100] },
 	{ "ds3502", (kernel_ulong_t)&ds1803_cfg[DS3502] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1803_id);
 

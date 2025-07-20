@@ -1067,7 +1067,6 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	int inlen, err, eqn;
 	void *cqc, *in;
 	__be64 *pas;
-	int vector;
 	u32 i;
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
@@ -1096,8 +1095,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	if (!in)
 		goto err_cqwq;
 
-	vector = raw_smp_processor_id() % mlx5_comp_vectors_max(mdev);
-	err = mlx5_comp_eqn_get(mdev, vector, &eqn);
+	err = mlx5_comp_eqn_get(mdev, 0, &eqn);
 	if (err) {
 		kvfree(in);
 		goto err_cqwq;
@@ -1332,37 +1330,4 @@ void mlx5dr_send_ring_free(struct mlx5dr_domain *dmn,
 	kfree(send_ring->buf);
 	kfree(send_ring->sync_buff);
 	kfree(send_ring);
-}
-
-int mlx5dr_send_ring_force_drain(struct mlx5dr_domain *dmn)
-{
-	struct mlx5dr_send_ring *send_ring = dmn->send_ring;
-	struct postsend_info send_info = {};
-	u8 data[DR_STE_SIZE];
-	int num_of_sends_req;
-	int ret;
-	int i;
-
-	/* Sending this amount of requests makes sure we will get drain */
-	num_of_sends_req = send_ring->signal_th * TH_NUMS_TO_DRAIN / 2;
-
-	/* Send fake requests forcing the last to be signaled */
-	send_info.write.addr = (uintptr_t)data;
-	send_info.write.length = DR_STE_SIZE;
-	send_info.write.lkey = 0;
-	/* Using the sync_mr in order to write/read */
-	send_info.remote_addr = (uintptr_t)send_ring->sync_mr->addr;
-	send_info.rkey = send_ring->sync_mr->mkey;
-
-	for (i = 0; i < num_of_sends_req; i++) {
-		ret = dr_postsend_icm_data(dmn, &send_info);
-		if (ret)
-			return ret;
-	}
-
-	spin_lock(&send_ring->lock);
-	ret = dr_handle_pending_wc(dmn, send_ring);
-	spin_unlock(&send_ring->lock);
-
-	return ret;
 }

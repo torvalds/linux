@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2024, Intel Corporation.
+
+menu "Intel THC HID Support"
+	depends on X86_64 && PCI
+
+config INTEL_THC_HID
+	tristate "Intel Touch Host Controller"
+	depends on ACPI
+	help
+	  THC (Touch Host Controller) is the name of the IP block in PCH that
+	  interfaces with Touch Devices (ex: touchscreen, touchpad etc.). It
+	  is comprised of 3 key functional blocks: A natively half-duplex
+	  Quad I/O capable SPI master; a low latency I2C interface to support
+	  HIDI2C compliant devices; a hardware sequencer with Read/Write DMA
+	  capability to system memory.
+
+	  Say Y/M here if you want to support Intel THC. If unsure, say N.
+
+config INTEL_QUICKSPI
+	tristate "Intel QuickSPI driver based on Intel Touch Host Controller"
+	depends on INTEL_THC_HID
+	help
+	  Intel QuickSPI, based on Touch Host Controller (THC), implements
+	  HIDSPI (HID over SPI) protocol. It configures THC to work at SPI
+	  mode, and controls THC hardware sequencer to accelerate HIDSPI
+	  transaction flow.
+
+	  Say Y/M here if you want to support Intel QuickSPI. If unsure, say N.
+
+config INTEL_QUICKI2C
+	tristate "Intel QuickI2C driver based on Intel Touch Host Controller"
+	depends on INTEL_THC_HID
+	help
+	  Intel QuickI2C, uses Touch Host Controller (THC) hardware, implements
+	  HIDI2C (HID over I2C) protocol. It configures THC to work in I2C
+	  mode, and controls THC hardware sequencer to accelerate HIDI2C
+	  transaction flow.
+
+	  Say Y/M here if you want to support Intel QuickI2C. If unsure, say N.
+
+endmenu

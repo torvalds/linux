@@ -30,7 +30,7 @@ struct p9_sbe_occ {
 #define to_p9_sbe_occ(x)	container_of((x), struct p9_sbe_occ, occ)
 
 static ssize_t ffdc_read(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *battr, char *buf, loff_t pos,
+			 const struct bin_attribute *battr, char *buf, loff_t pos,
 			 size_t count)
 {
 	ssize_t rc = 0;
@@ -48,7 +48,7 @@ static ssize_t ffdc_read(struct file *filp, struct kobject *kobj,
 
 	return rc;
 }
-static BIN_ATTR_RO(ffdc, OCC_MAX_RESP_WORDS * 4);
+static const BIN_ATTR_RO(ffdc, OCC_MAX_RESP_WORDS * 4);
 
 static bool p9_sbe_occ_save_ffdc(struct p9_sbe_occ *ctx, const void *resp,
 				 size_t resp_len)

@@ -44,7 +44,7 @@ static int test_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	timeout = rtc_tm_to_time64(&alrm->time) - ktime_get_real_seconds();
 	timeout -= rtd->offset;
 
-	del_timer(&rtd->alarm);
+	timer_delete(&rtd->alarm);
 
 	expires = jiffies + timeout * HZ;
 	if (expires > U32_MAX)
@@ -86,7 +86,7 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	if (enable)
 		add_timer(&rtd->alarm);
 	else
-		del_timer(&rtd->alarm);
+		timer_delete(&rtd->alarm);
 
 	return 0;
 }
@@ -107,7 +107,7 @@ static const struct rtc_class_ops test_rtc_ops = {
 
 static void test_rtc_alarm_handler(struct timer_list *t)
 {
-	struct rtc_test_data *rtd = from_timer(rtd, t, alarm);
+	struct rtc_test_data *rtd = timer_container_of(rtd, t, alarm);
 
 	rtc_update_irq(rtd->rtc, 1, RTC_AF | RTC_IRQF);
 }
@@ -132,7 +132,7 @@ static int test_probe(struct platform_device *plat_dev)
 		break;
 	default:
 		rtd->rtc->ops = &test_rtc_ops;
-		device_init_wakeup(&plat_dev->dev, 1);
+		device_init_wakeup(&plat_dev->dev, true);
 	}
 
 	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);

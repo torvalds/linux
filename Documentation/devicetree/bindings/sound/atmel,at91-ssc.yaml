@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/atmel,at91-ssc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel Serial Synchronous Serial (SSC)
+
+maintainers:
+  - Andrei Simion <andrei.simion@microchip.com>
+
+description:
+  The Atmel Synchronous Serial Controller (SSC) provides a versatile
+  synchronous communication link for audio and telecom applications,
+  supporting protocols like I2S, Short Frame Sync, and Long Frame Sync.
+
+properties:
+  compatible:
+    enum:
+      - atmel,at91rm9200-ssc
+      - atmel,at91sam9g45-ssc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: pclk
+
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+  atmel,clk-from-rk-pin:
+    description:
+      Specify the clock source for the SSC (Synchronous Serial Controller)
+      when operating in slave mode. By default, the clock is sourced from
+      the TK pin.
+    type: boolean
+
+  "#sound-dai-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - atmel,at91sam9g45-ssc
+    then:
+      required:
+        - dmas
+        - dma-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/at91.h>
+    #include <dt-bindings/dma/at91.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    ssc@100000 {
+       compatible = "atmel,at91sam9g45-ssc";
+       reg = <0x100000 0x4000>;
+       interrupts = <28 IRQ_TYPE_LEVEL_HIGH 5>;
+       dmas = <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+                     AT91_XDMAC_DT_PERID(38))>,
+              <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+                     AT91_XDMAC_DT_PERID(39))>;
+       dma-names = "tx", "rx";
+       clocks = <&pmc PMC_TYPE_PERIPHERAL 28>;
+       clock-names = "pclk";
+       #sound-dai-cells = <0>;
+    };
+
+    ssc@c00000 {
+      compatible = "atmel,at91rm9200-ssc";
+      reg = <0xc00000 0x4000>;
+      interrupts = <14 IRQ_TYPE_LEVEL_HIGH 5>;
+      clocks = <&pmc PMC_TYPE_PERIPHERAL 14>;
+      clock-names = "pclk";
+    };

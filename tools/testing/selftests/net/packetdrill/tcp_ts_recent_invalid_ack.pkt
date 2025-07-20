@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test that we reject TS val updates on a packet with invalid ACK sequence
+
+`./defaults.sh
+`
+
+// Create a socket.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+// Establish a connection.
+  +.1 < S 0:0(0) win 20000 <mss 1000,sackOK,TS val 100 ecr 0>
+   +0 > S. 0:0(0) ack 1 <mss 1460,sackOK,TS val 100 ecr 100>
+  +.1 < . 1:1(0) ack 1 win 20000 <nop,nop,TS val 200 ecr 100>
+   +0 accept(3, ..., ...) = 4
+
+// bad packet with high tsval (its ACK sequence is above our sndnxt)
+   +0 < F. 1:1(0) ack 9999 win 20000 <nop,nop,TS val 200000 ecr 100>
+
+
+   +0 < . 1:1001(1000) ack 1 win 20000 <nop,nop,TS val 201 ecr 100>
+   +0 > . 1:1(0) ack 1001 <nop,nop,TS val 200 ecr 201>

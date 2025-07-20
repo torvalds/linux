@@ -47,6 +47,36 @@
 	};
 };
 
+&nfc0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	nand@0 {
+		reg = <0>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "nand-fsbl-uboot";
+				reg = <0x0 0x1000000>;
+			};
+			partition@1000000 {
+				label = "nand-linux";
+				reg = <0x1000000 0x2000000>;
+			};
+			partition@3000000 {
+				label = "nand-rootfs";
+				reg = <0x3000000 0x200000>;
+			};
+		};
+	};
+};
+
+&smcc {
+	status = "okay";
+};
+
 &spi0 {
 	status = "okay";
 	num-cs = <4>;
@@ -54,6 +84,7 @@
 };
 
 &uart1 {
+	bootph-all;
 	status = "okay";
 };
 

@@ -92,12 +92,12 @@ struct rtas_function {
  * Per-function locks for sequence-based RTAS functions.
  */
 static DEFINE_MUTEX(rtas_ibm_activate_firmware_lock);
-static DEFINE_MUTEX(rtas_ibm_get_dynamic_sensor_state_lock);
-static DEFINE_MUTEX(rtas_ibm_get_indices_lock);
 static DEFINE_MUTEX(rtas_ibm_lpar_perftools_lock);
-static DEFINE_MUTEX(rtas_ibm_physical_attestation_lock);
-static DEFINE_MUTEX(rtas_ibm_set_dynamic_indicator_lock);
+DEFINE_MUTEX(rtas_ibm_physical_attestation_lock);
 DEFINE_MUTEX(rtas_ibm_get_vpd_lock);
+DEFINE_MUTEX(rtas_ibm_get_indices_lock);
+DEFINE_MUTEX(rtas_ibm_set_dynamic_indicator_lock);
+DEFINE_MUTEX(rtas_ibm_get_dynamic_sensor_state_lock);
 
 static struct rtas_function rtas_function_table[] __ro_after_init = {
 	[RTAS_FNIDX__CHECK_EXCEPTION] = {
@@ -797,66 +797,6 @@ void __init udbg_init_rtas_panel(void)
 {
 	udbg_putc = call_rtas_display_status_delay;
 }
-
-#ifdef CONFIG_UDBG_RTAS_CONSOLE
-
-/* If you think you're dying before early_init_dt_scan_rtas() does its
- * work, you can hard code the token values for your firmware here and
- * hardcode rtas.base/entry etc.
- */
-static unsigned int rtas_putchar_token = RTAS_UNKNOWN_SERVICE;
-static unsigned int rtas_getchar_token = RTAS_UNKNOWN_SERVICE;
-
-static void udbg_rtascon_putc(char c)
-{
-	int tries;
-
-	if (!rtas.base)
-		return;
-
-	/* Add CRs before LFs */
-	if (c == '\n')
-		udbg_rtascon_putc('\r');
-
-	/* if there is more than one character to be displayed, wait a bit */
-	for (tries = 0; tries < 16; tries++) {
-		if (rtas_call(rtas_putchar_token, 1, 1, NULL, c) == 0)
-			break;
-		udelay(1000);
-	}
-}
-
-static int udbg_rtascon_getc_poll(void)
-{
-	int c;
-
-	if (!rtas.base)
-		return -1;
-
-	if (rtas_call(rtas_getchar_token, 0, 2, &c))
-		return -1;
-
-	return c;
-}
-
-static int udbg_rtascon_getc(void)
-{
-	int c;
-
-	while ((c = udbg_rtascon_getc_poll()) == -1)
-		;
-
-	return c;
-}
-
-
-void __init udbg_init_rtas_console(void)
-{
-	udbg_putc = udbg_rtascon_putc;
-	udbg_getc = udbg_rtascon_getc;
-	udbg_getc_poll = udbg_rtascon_getc_poll;
-}
-#endif /* CONFIG_UDBG_RTAS_CONSOLE */
 
 void rtas_progress(char *s, unsigned short hex)
 {
@@ -2134,21 +2074,6 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 		rtas.entry = *entryp;
 		rtas.size = *sizep;
 	}
-
-#ifdef CONFIG_UDBG_RTAS_CONSOLE
-	basep = of_get_flat_dt_prop(node, "put-term-char", NULL);
-	if (basep)
-		rtas_putchar_token = *basep;
-
-	basep = of_get_flat_dt_prop(node, "get-term-char", NULL);
-	if (basep)
-		rtas_getchar_token = *basep;
-
-	if (rtas_putchar_token != RTAS_UNKNOWN_SERVICE &&
-	    rtas_getchar_token != RTAS_UNKNOWN_SERVICE)
-		udbg_init_rtas_console();
-
-#endif
 
 	/* break now */
 	return 1;

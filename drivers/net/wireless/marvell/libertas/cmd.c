@@ -453,46 +453,6 @@ out:
 }
 
 /**
- *  lbs_get_snmp_mib - Get an SNMP MIB value
- *
- *  @priv:	A pointer to &struct lbs_private structure
- *  @oid:	The OID to retrieve from the firmware
- *  @out_val:	Location for the returned value
- *
- *  returns:	0 on success, error on failure
- */
-int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val)
-{
-	struct cmd_ds_802_11_snmp_mib cmd;
-	int ret;
-
-	memset(&cmd, 0, sizeof (cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_GET);
-	cmd.oid = cpu_to_le16(oid);
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_SNMP_MIB, &cmd);
-	if (ret)
-		goto out;
-
-	switch (le16_to_cpu(cmd.bufsize)) {
-	case sizeof(u8):
-		*out_val = cmd.value[0];
-		break;
-	case sizeof(u16):
-		*out_val = le16_to_cpu(*((__le16 *)(&cmd.value)));
-		break;
-	default:
-		lbs_deb_cmd("SNMP_CMD: (get) unhandled OID 0x%x size %d\n",
-		            oid, le16_to_cpu(cmd.bufsize));
-		break;
-	}
-
-out:
-	return ret;
-}
-
-/**
  *  lbs_get_tx_power - Get the min, max, and current TX power
  *
  *  @priv:	A pointer to &struct lbs_private structure
@@ -520,31 +480,6 @@ int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 		if (maxlevel)
 			*maxlevel = cmd.maxlevel;
 	}
-
-	return ret;
-}
-
-/**
- *  lbs_set_tx_power - Set the TX power
- *
- *  @priv:	A pointer to &struct lbs_private structure
- *  @dbm:	The desired power level in dBm
- *
- *  returns: 	   	0 on success, error on failure
- */
-int lbs_set_tx_power(struct lbs_private *priv, s16 dbm)
-{
-	struct cmd_ds_802_11_rf_tx_power cmd;
-	int ret;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_SET);
-	cmd.curlevel = cpu_to_le16(dbm);
-
-	lbs_deb_cmd("SET_RF_TX_POWER: %d dBm\n", dbm);
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_TX_POWER, &cmd);
 
 	return ret;
 }
@@ -968,10 +903,6 @@ static void lbs_submit_command(struct lbs_private *priv,
 	}
 
 	if (command == CMD_802_11_DEEP_SLEEP) {
-		if (priv->is_auto_deep_sleep_enabled) {
-			priv->wakeup_dev_required = 1;
-			priv->dnld_sent = 0;
-		}
 		priv->is_deep_sleep = 1;
 		lbs_complete_command(priv, cmdnode, 0);
 	} else {
@@ -1440,70 +1371,6 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 }
 
 
-/**
- * lbs_set_tpc_cfg - Configures the transmission power control functionality
- *
- * @priv:	A pointer to &struct lbs_private structure
- * @enable:	Transmission power control enable
- * @p0:		Power level when link quality is good (dBm).
- * @p1:		Power level when link quality is fair (dBm).
- * @p2:		Power level when link quality is poor (dBm).
- * @usesnr:	Use Signal to Noise Ratio in TPC
- *
- * returns:	0 on success
- */
-int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
-		int8_t p2, int usesnr)
-{
-	struct cmd_ds_802_11_tpc_cfg cmd;
-	int ret;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_SET);
-	cmd.enable = !!enable;
-	cmd.usesnr = !!usesnr;
-	cmd.P0 = p0;
-	cmd.P1 = p1;
-	cmd.P2 = p2;
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_TPC_CFG, &cmd);
-
-	return ret;
-}
-
-/**
- * lbs_set_power_adapt_cfg - Configures the power adaptation settings
- *
- * @priv:	A pointer to &struct lbs_private structure
- * @enable:	Power adaptation enable
- * @p0:		Power level for 1, 2, 5.5 and 11 Mbps (dBm).
- * @p1:		Power level for 6, 9, 12, 18, 22, 24 and 36 Mbps (dBm).
- * @p2:		Power level for 48 and 54 Mbps (dBm).
- *
- * returns:	0 on Success
- */
-
-int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,
-		int8_t p1, int8_t p2)
-{
-	struct cmd_ds_802_11_pa_cfg cmd;
-	int ret;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_SET);
-	cmd.enable = !!enable;
-	cmd.P0 = p0;
-	cmd.P1 = p1;
-	cmd.P2 = p2;
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_PA_CFG , &cmd);
-
-	return ret;
-}
-
-
 struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
 	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
@@ -1520,12 +1387,10 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	/* No commands are allowed in Deep Sleep until we toggle the GPIO
 	 * to wake up the card and it has signaled that it's ready.
 	 */
-	if (!priv->is_auto_deep_sleep_enabled) {
-		if (priv->is_deep_sleep) {
-			lbs_deb_cmd("command not allowed in deep sleep\n");
-			cmdnode = ERR_PTR(-EBUSY);
-			goto done;
-		}
+	if (priv->is_deep_sleep) {
+		lbs_deb_cmd("command not allowed in deep sleep\n");
+		cmdnode = ERR_PTR(-EBUSY);
+		goto done;
 	}
 
 	cmdnode = lbs_get_free_cmd_node(priv);

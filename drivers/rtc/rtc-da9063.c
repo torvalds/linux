@@ -194,26 +194,17 @@ static void da9063_tm_to_data(struct rtc_time *tm, u8 *data,
 				config->rtc_count_year_mask;
 }
 
-static int da9063_rtc_stop_alarm(struct device *dev)
+static int da9063_rtc_alarm_irq_enable(struct device *dev,
+				       unsigned int enabled)
 {
 	struct da9063_compatible_rtc *rtc = dev_get_drvdata(dev);
 	const struct da9063_compatible_rtc_regmap *config = rtc->config;
+	u8 set_bit = enabled ? config->rtc_alarm_on_mask : 0;
 
 	return regmap_update_bits(rtc->regmap,
 				  config->rtc_alarm_year_reg,
 				  config->rtc_alarm_on_mask,
-				  0);
-}
-
-static int da9063_rtc_start_alarm(struct device *dev)
-{
-	struct da9063_compatible_rtc *rtc = dev_get_drvdata(dev);
-	const struct da9063_compatible_rtc_regmap *config = rtc->config;
-
-	return regmap_update_bits(rtc->regmap,
-				  config->rtc_alarm_year_reg,
-				  config->rtc_alarm_on_mask,
-				  config->rtc_alarm_on_mask);
+				  set_bit);
 }
 
 static int da9063_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -312,7 +303,7 @@ static int da9063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	da9063_tm_to_data(&alrm->time, data, rtc);
 
-	ret = da9063_rtc_stop_alarm(dev);
+	ret = da9063_rtc_alarm_irq_enable(dev, 0);
 	if (ret < 0) {
 		dev_err(dev, "Failed to stop alarm: %d\n", ret);
 		return ret;
@@ -330,7 +321,7 @@ static int da9063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	da9063_data_to_tm(data, &rtc->alarm_time, rtc);
 
 	if (alrm->enabled) {
-		ret = da9063_rtc_start_alarm(dev);
+		ret = da9063_rtc_alarm_irq_enable(dev, 1);
 		if (ret < 0) {
 			dev_err(dev, "Failed to start alarm: %d\n", ret);
 			return ret;
@@ -338,15 +329,6 @@ static int da9063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	}
 
 	return ret;
-}
-
-static int da9063_rtc_alarm_irq_enable(struct device *dev,
-				       unsigned int enabled)
-{
-	if (enabled)
-		return da9063_rtc_start_alarm(dev);
-	else
-		return da9063_rtc_stop_alarm(dev);
 }
 
 static irqreturn_t da9063_alarm_event(int irq, void *data)
@@ -513,4 +495,3 @@ module_platform_driver(da9063_rtc_driver);
 MODULE_AUTHOR("S Twiss <stwiss.opensource@diasemi.com>");
 MODULE_DESCRIPTION("Real time clock device driver for Dialog DA9063");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DA9063_DRVNAME_RTC);

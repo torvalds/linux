@@ -524,7 +524,6 @@ static int tng_pinctrl_probe(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct tng_family *families;
 	struct tng_pinctrl *tp;
-	size_t families_len;
 	void __iomem *regs;
 	unsigned int i;
 
@@ -543,8 +542,8 @@ static int tng_pinctrl_probe(struct platform_device *pdev,
 	 * Make a copy of the families which we can use to hold pointers
 	 * to the registers.
 	 */
-	families_len = size_mul(sizeof(*families), tp->nfamilies);
-	families = devm_kmemdup(dev, tp->families, families_len, GFP_KERNEL);
+	families = devm_kmemdup_array(dev, tp->families, tp->nfamilies,
+				      sizeof(*tp->families), GFP_KERNEL);
 	if (!families)
 		return -ENOMEM;
 

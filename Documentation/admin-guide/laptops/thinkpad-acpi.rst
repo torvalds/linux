@@ -445,8 +445,10 @@ event	code	Key		Notes
 0x1008	0x07	FN+F8		IBM: toggle screen expand
 				Lenovo: configure UltraNav,
 				or toggle screen expand.
-				On newer platforms (2024+)
-				replaced by 0x131f (see below)
+				On 2024 platforms replaced by
+				0x131f (see below) and on newer
+				platforms (2025 +) keycode is
+				replaced by 0x1401 (see below).
 
 0x1009	0x08	FN+F9		-
 
@@ -506,9 +508,11 @@ event	code	Key		Notes
 
 0x1019	0x18	unknown
 
-0x131f	...	FN+F8	        Platform Mode change.
+0x131f	...	FN+F8		Platform Mode change (2024 systems).
 				Implemented in driver.
 
+0x1401	...	FN+F8		Platform Mode change (2025 + systems).
+				Implemented in driver.
 ...	...	...
 
 0x1020	0x1F	unknown

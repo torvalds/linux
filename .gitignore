@@ -22,6 +22,7 @@
 *.dtb.S
 *.dtbo.S
 *.dwo
+*.dylib
 *.elf
 *.gcno
 *.gcda
@@ -39,6 +40,7 @@
 *.o
 *.o.*
 *.patch
+*.pyc
 *.rmeta
 *.rpm
 *.rsi
@@ -64,6 +66,7 @@ modules.order
 /vmlinux.32
 /vmlinux.map
 /vmlinux.symvers
+/vmlinux.unstripped
 /vmlinux-gdb.py
 /vmlinuz
 /System.map

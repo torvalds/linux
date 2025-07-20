@@ -3,21 +3,23 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/xarray.h>
+#include <net/busy_poll.h>
 #include <net/net_debug.h>
 #include <net/netdev_rx_queue.h>
 #include <net/page_pool/helpers.h>
 #include <net/page_pool/types.h>
+#include <net/page_pool/memory_provider.h>
 #include <net/sock.h>
 
-#include "devmem.h"
 #include "page_pool_priv.h"
 #include "netdev-genl-gen.h"
 
 static DEFINE_XARRAY_FLAGS(page_pools, XA_FLAGS_ALLOC1);
-/* Protects: page_pools, netdevice->page_pools, pool->slow.netdev, pool->user.
+/* Protects: page_pools, netdevice->page_pools, pool->p.napi, pool->slow.netdev,
+ *	pool->user.
  * Ordering: inside rtnl_lock
  */
-static DEFINE_MUTEX(page_pools_lock);
+DEFINE_MUTEX(page_pools_lock);
 
 /* Page pools are only reachable from user space (via netlink) if they are
  * linked to a netdev at creation time. Following page pool "visibility"
@@ -214,8 +216,8 @@ static int
 page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 		  const struct genl_info *info)
 {
-	struct net_devmem_dmabuf_binding *binding = pool->mp_priv;
 	size_t inflight, refsz;
+	unsigned int napi_id;
 	void *hdr;
 
 	hdr = genlmsg_iput(rsp, info);
@@ -229,8 +231,10 @@ page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 	    nla_put_u32(rsp, NETDEV_A_PAGE_POOL_IFINDEX,
 			pool->slow.netdev->ifindex))
 		goto err_cancel;
-	if (pool->user.napi_id &&
-	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_NAPI_ID, pool->user.napi_id))
+
+	napi_id = pool->p.napi ? READ_ONCE(pool->p.napi->napi_id) : 0;
+	if (napi_id_valid(napi_id) &&
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_NAPI_ID, napi_id))
 		goto err_cancel;
 
 	inflight = page_pool_inflight(pool, false);
@@ -244,7 +248,7 @@ page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 			 pool->user.detach_time))
 		goto err_cancel;
 
-	if (binding && nla_put_u32(rsp, NETDEV_A_PAGE_POOL_DMABUF, binding->id))
+	if (pool->mp_ops && pool->mp_ops->nl_fill(pool->mp_priv, rsp, NULL))
 		goto err_cancel;
 
 	genlmsg_end(rsp, hdr);
@@ -319,8 +323,6 @@ int page_pool_list(struct page_pool *pool)
 	if (pool->slow.netdev) {
 		hlist_add_head(&pool->user.list,
 			       &pool->slow.netdev->page_pools);
-		pool->user.napi_id = pool->p.napi ? pool->p.napi->napi_id : 0;
-
 		netdev_nl_page_pool_event(pool, NETDEV_CMD_PAGE_POOL_ADD_NTF);
 	}
 
@@ -353,7 +355,7 @@ void page_pool_unlist(struct page_pool *pool)
 int page_pool_check_memory_provider(struct net_device *dev,
 				    struct netdev_rx_queue *rxq)
 {
-	struct net_devmem_dmabuf_binding *binding = rxq->mp_params.mp_priv;
+	void *binding = rxq->mp_params.mp_priv;
 	struct page_pool *pool;
 	struct hlist_node *n;
 

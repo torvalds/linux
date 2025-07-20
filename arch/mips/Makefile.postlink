@@ -22,7 +22,7 @@ quiet_cmd_relocs = RELOCS  $@
 
 # `@true` prevents complaint when there is nothing to be done
 
-vmlinux: FORCE
+vmlinux vmlinux.unstripped: FORCE
 	@true
 ifeq ($(CONFIG_CPU_LOONGSON3_WORKAROUNDS),y)
 	$(call if_changed,ls3_llsc)

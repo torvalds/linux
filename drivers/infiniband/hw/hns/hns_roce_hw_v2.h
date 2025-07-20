@@ -34,6 +34,7 @@
 #define _HNS_ROCE_HW_V2_H
 
 #include <linux/bitops.h>
+#include "hnae3.h"
 
 #define HNS_ROCE_V2_MAX_RC_INL_INN_SZ		32
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
@@ -230,6 +231,8 @@ enum hns_roce_opcode_type {
 };
 
 #define HNS_ROCE_OPC_POST_MB_TIMEOUT 35000
+#define HNS_ROCE_OPC_POST_MB_TRY_CNT 8
+#define HNS_ROCE_OPC_POST_MB_RETRY_GAP_MSEC 5
 struct hns_roce_cmdq_tx_timeout_map {
 	u16 opcode;
 	u32 tx_timeout;

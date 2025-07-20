@@ -63,8 +63,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx);
 
 bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
-struct ips_ono_region_state dcn401_read_ono_state(struct dc *dc,
-						  uint8_t region);
 void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
 		const struct pipe_ctx *top_pipe_to_program);
 
@@ -95,6 +93,28 @@ void dcn401_reset_back_end_for_pipe(
 void dcn401_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
+void dcn401_program_pipe(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct dc_state *context);
 void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx);
-
+void dcn401_program_front_end_for_ctx(struct dc *dc, struct dc_state *context);
+void dcn401_post_unlock_program_front_end(struct dc *dc, struct dc_state *context);
+bool dcn401_update_bandwidth(struct dc *dc, struct dc_state *context);
+void dcn401_detect_pipe_changes(
+	struct dc_state *old_state,
+	struct dc_state *new_state,
+	struct pipe_ctx *old_pipe,
+	struct pipe_ctx *new_pipe);
+void dcn401_plane_atomic_power_down(struct dc *dc,
+		struct dpp *dpp,
+		struct hubp *hubp);
+bool dcn401_program_rmcm_luts(
+	struct hubp *hubp,
+	struct pipe_ctx *pipe_ctx,
+	enum dc_cm2_transfer_func_source lut3d_src,
+	struct dc_cm2_func_luts *mcm_luts,
+	struct mpc *mpc,
+	bool lut_bank_a,
+	int mpcc_id);
 #endif /* __DC_HWSS_DCN401_H__ */

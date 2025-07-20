@@ -5,9 +5,13 @@
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/phy_link_topology.h>
+#include <net/netdev_queues.h>
 
 #include "netlink.h"
 #include "common.h"
+#include "../core/dev.h"
+
 
 const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_SG_BIT] =               "tx-scatter-gather",
@@ -32,6 +36,7 @@ const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
 	[NETIF_F_GSO_ROBUST_BIT] =       "tx-gso-robust",
 	[NETIF_F_TSO_ECN_BIT] =          "tx-tcp-ecn-segmentation",
+	[NETIF_F_GSO_ACCECN_BIT] =	 "tx-tcp-accecn-segmentation",
 	[NETIF_F_TSO_MANGLEID_BIT] =	 "tx-tcp-mangleid-segmentation",
 	[NETIF_F_TSO6_BIT] =             "tx-tcp6-segmentation",
 	[NETIF_F_FSO_BIT] =              "tx-fcoe-segmentation",
@@ -210,6 +215,24 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(10, T1S, Half),
 	__DEFINE_LINK_MODE_NAME(10, T1S_P2MP, Half),
 	__DEFINE_LINK_MODE_NAME(10, T1BRR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, CR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, KR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, DR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, DR_2, Full),
+	__DEFINE_LINK_MODE_NAME(200000, SR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, VR, Full),
+	__DEFINE_LINK_MODE_NAME(400000, CR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, KR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, DR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, DR2_2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, SR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, VR2, Full),
+	__DEFINE_LINK_MODE_NAME(800000, CR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, KR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, DR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, DR4_2, Full),
+	__DEFINE_LINK_MODE_NAME(800000, SR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, VR4, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -218,8 +241,11 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_CR4		4
 #define __LINK_MODE_LANES_CR8		8
 #define __LINK_MODE_LANES_DR		1
+#define __LINK_MODE_LANES_DR_2		1
 #define __LINK_MODE_LANES_DR2		2
+#define __LINK_MODE_LANES_DR2_2		2
 #define __LINK_MODE_LANES_DR4		4
+#define __LINK_MODE_LANES_DR4_2		4
 #define __LINK_MODE_LANES_DR8		8
 #define __LINK_MODE_LANES_KR		1
 #define __LINK_MODE_LANES_KR2		2
@@ -248,6 +274,9 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_T1L		1
 #define __LINK_MODE_LANES_T1S		1
 #define __LINK_MODE_LANES_T1S_P2MP	1
+#define __LINK_MODE_LANES_VR		1
+#define __LINK_MODE_LANES_VR2		2
+#define __LINK_MODE_LANES_VR4		4
 #define __LINK_MODE_LANES_VR8		8
 #define __LINK_MODE_LANES_DR8_2		8
 #define __LINK_MODE_LANES_T1BRR		1
@@ -375,8 +404,27 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(10, T1S, Half),
 	__DEFINE_LINK_MODE_PARAMS(10, T1S_P2MP, Half),
 	__DEFINE_LINK_MODE_PARAMS(10, T1BRR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, CR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, KR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, DR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, DR_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, SR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, VR, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, CR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, KR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, DR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, DR2_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, SR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, VR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, CR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, KR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, DR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, DR4_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, SR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, VR4, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_params) == __ETHTOOL_LINK_MODE_MASK_NBITS);
+EXPORT_SYMBOL_GPL(link_mode_params);
 
 const char netif_msg_class_names[][ETH_GSTRING_LEN] = {
 	[NETIF_MSG_DRV_BIT]		= "drv",
@@ -428,6 +476,7 @@ const char sof_timestamping_names[][ETH_GSTRING_LEN] = {
 	[const_ilog2(SOF_TIMESTAMPING_BIND_PHC)]     = "bind-phc",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_ID_TCP)]   = "option-id-tcp",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_RX_FILTER)] = "option-rx-filter",
+	[const_ilog2(SOF_TIMESTAMPING_TX_COMPLETION)] = "tx-completion",
 };
 static_assert(ARRAY_SIZE(sof_timestamping_names) == __SOF_TIMESTAMPING_CNT);
 
@@ -458,6 +507,11 @@ const char ts_rx_filter_names[][ETH_GSTRING_LEN] = {
 	[HWTSTAMP_FILTER_NTP_ALL]		= "ntp-all",
 };
 static_assert(ARRAY_SIZE(ts_rx_filter_names) == __HWTSTAMP_FILTER_CNT);
+
+const char ts_flags_names[][ETH_GSTRING_LEN] = {
+	[const_ilog2(HWTSTAMP_FLAG_BONDED_PHC_INDEX)] = "bonded-phc-index",
+};
+static_assert(ARRAY_SIZE(ts_flags_names) == __HWTSTAMP_FLAG_CNT);
 
 const char udp_tunnel_type_names[][ETH_GSTRING_LEN] = {
 	[ETHTOOL_UDP_TUNNEL_TYPE_VXLAN]		= "vxlan",
@@ -763,25 +817,191 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 	return 0;
 }
 
-int __ethtool_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
+void ethtool_ringparam_get_cfg(struct net_device *dev,
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kparam,
+			       struct netlink_ext_ack *extack)
 {
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-	struct phy_device *phydev = dev->phydev;
-	int err = 0;
+	memset(param, 0, sizeof(*param));
+	memset(kparam, 0, sizeof(*kparam));
 
+	param->cmd = ETHTOOL_GRINGPARAM;
+	dev->ethtool_ops->get_ringparam(dev, param, kparam, extack);
+
+	/* Driver gives us current state, we want to return current config */
+	kparam->tcp_data_split = dev->cfg->hds_config;
+	kparam->hds_thresh = dev->cfg->hds_thresh;
+}
+
+static void ethtool_init_tsinfo(struct kernel_ethtool_ts_info *info)
+{
 	memset(info, 0, sizeof(*info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
 	info->phc_index = -1;
+}
 
-	if (phy_is_default_hwtstamp(phydev) && phy_has_tsinfo(phydev))
-		err = phy_ts_info(phydev, info);
-	else if (ops->get_ts_info)
-		err = ops->get_ts_info(dev, info);
+int ethtool_net_get_ts_info_by_phc(struct net_device *dev,
+				   struct kernel_ethtool_ts_info *info,
+				   struct hwtstamp_provider_desc *hwprov_desc)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	int err;
+
+	if (!ops->get_ts_info)
+		return -ENODEV;
+
+	/* Does ptp comes from netdev */
+	ethtool_init_tsinfo(info);
+	info->phc_qualifier = hwprov_desc->qualifier;
+	err = ops->get_ts_info(dev, info);
+	if (err)
+		return err;
+
+	if (info->phc_index == hwprov_desc->index &&
+	    net_support_hwtstamp_qualifier(dev, hwprov_desc->qualifier))
+		return 0;
+
+	return -ENODEV;
+}
+
+struct phy_device *
+ethtool_phy_get_ts_info_by_phc(struct net_device *dev,
+			       struct kernel_ethtool_ts_info *info,
+			       struct hwtstamp_provider_desc *hwprov_desc)
+{
+	int err;
+
+	/* Only precise qualifier is supported in phydev */
+	if (hwprov_desc->qualifier != HWTSTAMP_PROVIDER_QUALIFIER_PRECISE)
+		return ERR_PTR(-ENODEV);
+
+	/* Look in the phy topology */
+	if (dev->link_topo) {
+		struct phy_device_node *pdn;
+		unsigned long phy_index;
+
+		xa_for_each(&dev->link_topo->phys, phy_index, pdn) {
+			if (!phy_has_tsinfo(pdn->phy))
+				continue;
+
+			ethtool_init_tsinfo(info);
+			err = phy_ts_info(pdn->phy, info);
+			if (err)
+				return ERR_PTR(err);
+
+			if (info->phc_index == hwprov_desc->index)
+				return pdn->phy;
+		}
+		return ERR_PTR(-ENODEV);
+	}
+
+	/* Look on the dev->phydev */
+	if (phy_has_tsinfo(dev->phydev)) {
+		ethtool_init_tsinfo(info);
+		err = phy_ts_info(dev->phydev, info);
+		if (err)
+			return ERR_PTR(err);
+
+		if (info->phc_index == hwprov_desc->index)
+			return dev->phydev;
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+
+int ethtool_get_ts_info_by_phc(struct net_device *dev,
+			       struct kernel_ethtool_ts_info *info,
+			       struct hwtstamp_provider_desc *hwprov_desc)
+{
+	int err;
+
+	err = ethtool_net_get_ts_info_by_phc(dev, info, hwprov_desc);
+	if (err == -ENODEV) {
+		struct phy_device *phy;
+
+		phy = ethtool_phy_get_ts_info_by_phc(dev, info, hwprov_desc);
+		if (IS_ERR(phy))
+			return PTR_ERR(phy);
+
+		/* Report the phc source only if we have a real
+		 * phc source with an index.
+		 */
+		if (info->phc_index >= 0) {
+			info->phc_source = HWTSTAMP_SOURCE_PHYLIB;
+			info->phc_phyindex = phy->phyindex;
+		}
+		err = 0;
+	} else if (!err && info->phc_index >= 0) {
+		info->phc_source = HWTSTAMP_SOURCE_NETDEV;
+	}
 
 	info->so_timestamping |= SOF_TIMESTAMPING_RX_SOFTWARE |
 				 SOF_TIMESTAMPING_SOFTWARE;
 
 	return err;
+}
+
+int __ethtool_get_ts_info(struct net_device *dev,
+			  struct kernel_ethtool_ts_info *info)
+{
+	struct hwtstamp_provider *hwprov;
+	int err = 0;
+
+	rcu_read_lock();
+	hwprov = rcu_dereference(dev->hwprov);
+	/* No provider specified, use default behavior */
+	if (!hwprov) {
+		const struct ethtool_ops *ops = dev->ethtool_ops;
+		struct phy_device *phydev = dev->phydev;
+
+		ethtool_init_tsinfo(info);
+		if (phy_is_default_hwtstamp(phydev) &&
+		    phy_has_tsinfo(phydev)) {
+			err = phy_ts_info(phydev, info);
+			/* Report the phc source only if we have a real
+			 * phc source with an index.
+			 */
+			if (!err && info->phc_index >= 0) {
+				info->phc_source = HWTSTAMP_SOURCE_PHYLIB;
+				info->phc_phyindex = phydev->phyindex;
+			}
+		} else if (ops->get_ts_info) {
+			err = ops->get_ts_info(dev, info);
+			if (!err && info->phc_index >= 0)
+				info->phc_source = HWTSTAMP_SOURCE_NETDEV;
+		}
+
+		info->so_timestamping |= SOF_TIMESTAMPING_RX_SOFTWARE |
+					 SOF_TIMESTAMPING_SOFTWARE;
+
+		rcu_read_unlock();
+		return err;
+	}
+
+	err = ethtool_get_ts_info_by_phc(dev, info, &hwprov->desc);
+	rcu_read_unlock();
+	return err;
+}
+
+bool net_support_hwtstamp_qualifier(struct net_device *dev,
+				    enum hwtstamp_provider_qualifier qualifier)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!ops)
+		return false;
+
+	/* Return true with precise qualifier and with NIC without
+	 * qualifier description to not break the old behavior.
+	 */
+	if (!ops->supported_hwtstamp_qualifiers &&
+	    qualifier == HWTSTAMP_PROVIDER_QUALIFIER_PRECISE)
+		return true;
+
+	if (ops->supported_hwtstamp_qualifiers & BIT(qualifier))
+		return true;
+
+	return false;
 }
 
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)

@@ -245,4 +245,73 @@ int lock_global_subprog_call2(struct __sk_buff *ctx)
 	return ret;
 }
 
+int __noinline
+global_subprog_int(int i)
+{
+	if (i)
+		bpf_printk("%p", &i);
+	return i;
+}
+
+int __noinline
+global_sleepable_helper_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user(&i, sizeof(i), NULL);
+	return i;
+}
+
+int __noinline
+global_sleepable_kfunc_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user_str(&i, sizeof(i), NULL, 0);
+	global_subprog_int(i);
+	return i;
+}
+
+int __noinline
+global_subprog_calling_sleepable_global(int i)
+{
+	if (!i)
+		global_sleepable_kfunc_subprog(i);
+	return i;
+}
+
+SEC("?syscall")
+int lock_global_sleepable_helper_subprog(struct __sk_buff *ctx)
+{
+	int ret = 0;
+
+	bpf_spin_lock(&lockA);
+	if (ctx->mark == 42)
+		ret = global_sleepable_helper_subprog(ctx->mark);
+	bpf_spin_unlock(&lockA);
+	return ret;
+}
+
+SEC("?syscall")
+int lock_global_sleepable_kfunc_subprog(struct __sk_buff *ctx)
+{
+	int ret = 0;
+
+	bpf_spin_lock(&lockA);
+	if (ctx->mark == 42)
+		ret = global_sleepable_kfunc_subprog(ctx->mark);
+	bpf_spin_unlock(&lockA);
+	return ret;
+}
+
+SEC("?syscall")
+int lock_global_sleepable_subprog_indirect(struct __sk_buff *ctx)
+{
+	int ret = 0;
+
+	bpf_spin_lock(&lockA);
+	if (ctx->mark == 42)
+		ret = global_subprog_calling_sleepable_global(ctx->mark);
+	bpf_spin_unlock(&lockA);
+	return ret;
+}
+
 char _license[] SEC("license") = "GPL";

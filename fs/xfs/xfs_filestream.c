@@ -304,11 +304,9 @@ xfs_filestream_create_association(
 	 * for us, so all we need to do here is take another active reference to
 	 * the perag for the cached association.
 	 *
-	 * If we fail to store the association, we need to drop the fstrms
-	 * counter as well as drop the perag reference we take here for the
-	 * item. We do not need to return an error for this failure - as long as
-	 * we return a referenced AG, the allocation can still go ahead just
-	 * fine.
+	 * If we fail to store the association, we do not need to return an
+	 * error for this failure - as long as we return a referenced AG, the
+	 * allocation can still go ahead just fine.
 	 */
 	item = kmalloc(sizeof(*item), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!item)
@@ -316,14 +314,9 @@ xfs_filestream_create_association(
 
 	atomic_inc(&pag_group(args->pag)->xg_active_ref);
 	item->pag = args->pag;
-	error = xfs_mru_cache_insert(mp->m_filestream, pino, &item->mru);
-	if (error)
-		goto out_free_item;
+	xfs_mru_cache_insert(mp->m_filestream, pino, &item->mru);
 	return 0;
 
-out_free_item:
-	xfs_perag_rele(item->pag);
-	kfree(item);
 out_put_fstrms:
 	atomic_dec(&args->pag->pagf_fstrms);
 	return 0;

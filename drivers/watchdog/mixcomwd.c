@@ -141,7 +141,7 @@ static int mixcomwd_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 	else {
 		if (mixcomwd_timer_alive) {
-			del_timer(&mixcomwd_timer);
+			timer_delete(&mixcomwd_timer);
 			mixcomwd_timer_alive = 0;
 		}
 	}
@@ -295,7 +295,7 @@ static void __exit mixcomwd_exit(void)
 	if (!nowayout) {
 		if (mixcomwd_timer_alive) {
 			pr_warn("I quit now, hardware will probably reboot!\n");
-			del_timer_sync(&mixcomwd_timer);
+			timer_delete_sync(&mixcomwd_timer);
 			mixcomwd_timer_alive = 0;
 		}
 	}

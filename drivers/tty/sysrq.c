@@ -712,7 +712,8 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 
 static void sysrq_do_reset(struct timer_list *t)
 {
-	struct sysrq_state *state = from_timer(state, t, keyreset_timer);
+	struct sysrq_state *state = timer_container_of(state, t,
+						       keyreset_timer);
 
 	state->reset_requested = true;
 
@@ -743,7 +744,7 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 		 */
 		if (value && state->reset_seq_cnt) {
 			state->reset_canceled = true;
-			del_timer(&state->keyreset_timer);
+			timer_delete(&state->keyreset_timer);
 		}
 	} else if (value == 0) {
 		/*
@@ -751,7 +752,7 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 		 * to be pressed and held for the reset timeout
 		 * to hold.
 		 */
-		del_timer(&state->keyreset_timer);
+		timer_delete(&state->keyreset_timer);
 
 		if (--state->reset_seq_cnt == 0)
 			state->reset_canceled = false;

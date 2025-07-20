@@ -158,11 +158,9 @@
     64...71 72...79 80...87 88...95  96..103 104.111 112.119 120.127
 */
 
-/*	A slow generic version of gf_mul, implemented for lle and bbe
+/*	A slow generic version of gf_mul, implemented for lle
  * 	It multiplies a and b and puts the result in a */
 void gf128mul_lle(be128 *a, const be128 *b);
-
-void gf128mul_bbe(be128 *a, const be128 *b);
 
 /*
  * The following functions multiply a field element by x in
@@ -224,9 +222,7 @@ struct gf128mul_4k {
 };
 
 struct gf128mul_4k *gf128mul_init_4k_lle(const be128 *g);
-struct gf128mul_4k *gf128mul_init_4k_bbe(const be128 *g);
 void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t);
-void gf128mul_4k_bbe(be128 *a, const struct gf128mul_4k *t);
 void gf128mul_x8_ble(le128 *r, const le128 *x);
 static inline void gf128mul_free_4k(struct gf128mul_4k *t)
 {

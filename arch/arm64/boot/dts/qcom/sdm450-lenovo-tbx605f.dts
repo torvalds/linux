@@ -46,6 +46,18 @@
 		};
 	};
 
+	backlight: gpio-backlight {
+		compatible = "gpio-backlight";
+
+		gpios = <&tlmm 16 GPIO_ACTIVE_HIGH>;
+
+		default-on;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&backlight_enable_active>;
+		pinctrl-1 = <&backlight_enable_sleep>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		key-volume-up {
@@ -61,6 +73,49 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm8953_s3>;
+	vddio-supply = <&pm8953_l6>;
+
+	status = "okay";
+
+	panel@0 {
+		compatible = "boe,tv101wum-ll2";
+		reg = <0>;
+
+		vsp-supply = <&lab>;
+		vsn-supply = <&ibb>;
+		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+
+		backlight = <&backlight>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reset_active>;
+		pinctrl-1 = <&panel_reset_sleep>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vcca-supply = <&pm8953_l3>;
+
+	status = "okay";
 };
 
 &hsusb_phy {
@@ -88,6 +143,18 @@
 		touchscreen-size-x = <1200>;
 		touchscreen-size-y = <1920>;
 	};
+};
+
+&ibb {
+	regulator-min-microvolt = <4600000>;
+	regulator-max-microvolt = <6000000>;
+	qcom,discharge-resistor-kohms = <32>;
+};
+
+&lab {
+	regulator-min-microvolt = <4600000>;
+	regulator-max-microvolt = <6000000>;
+	qcom,soft-start-us = <800>;
 };
 
 &pm8953_resin {
@@ -236,6 +303,36 @@
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <135 4>;
+
+	backlight_enable_active: backlight-enable-active-state {
+		pins = "gpio16";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	backlight_enable_sleep: backlight-enable-sleep-state {
+		pins = "gpio16";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	panel_reset_active: panel-reset-active-state {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	panel_reset_sleep: panel-reset-sleep-state {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 
 	ts_int_active: ts-int-active-state {
 		pins = "gpio65";

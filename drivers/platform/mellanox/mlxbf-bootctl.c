@@ -91,6 +91,7 @@ static const char * const mlxbf_rsh_log_level[] = {
 static DEFINE_MUTEX(icm_ops_lock);
 static DEFINE_MUTEX(os_up_lock);
 static DEFINE_MUTEX(mfg_ops_lock);
+static DEFINE_MUTEX(rtc_ops_lock);
 
 /*
  * Objects are stored within the MFG partition per type.
@@ -177,7 +178,7 @@ static ssize_t post_reset_wdog_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t post_reset_wdog_store(struct device *dev,
@@ -206,7 +207,7 @@ static ssize_t mlxbf_bootctl_show(int smc_op, char *buf)
 	if (action < 0)
 		return action;
 
-	return sprintf(buf, "%s\n", mlxbf_bootctl_action_to_string(action));
+	return sysfs_emit(buf, "%s\n", mlxbf_bootctl_action_to_string(action));
 }
 
 static int mlxbf_bootctl_store(int smc_op, const char *buf, size_t count)
@@ -274,14 +275,14 @@ static ssize_t lifecycle_state_show(struct device *dev,
 	 * due to using the test bits.
 	 */
 	if (test_state) {
-		return sprintf(buf, "%s(test)\n",
+		return sysfs_emit(buf, "%s(test)\n",
 			       mlxbf_bootctl_lifecycle_states[lc_state]);
 	} else if (use_dev_key &&
 		   (lc_state == MLXBF_BOOTCTL_SB_LIFECYCLE_GA_SECURE)) {
-		return sprintf(buf, "Secured (development)\n");
+		return sysfs_emit(buf, "Secured (development)\n");
 	}
 
-	return sprintf(buf, "%s\n", mlxbf_bootctl_lifecycle_states[lc_state]);
+	return sysfs_emit(buf, "%s\n", mlxbf_bootctl_lifecycle_states[lc_state]);
 }
 
 static ssize_t secure_boot_fuse_state_show(struct device *dev,
@@ -332,9 +333,9 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 			else
 				status = valid ? "Invalid" : "Free";
 		}
-		buf_len += sprintf(buf + buf_len, "%d:%s ", key, status);
+		buf_len += sysfs_emit_at(buf, buf_len, "%d:%s ", key, status);
 	}
-	buf_len += sprintf(buf + buf_len, "\n");
+	buf_len += sysfs_emit_at(buf, buf_len, "\n");
 
 	return buf_len;
 }
@@ -487,6 +488,23 @@ static ssize_t large_icm_store(struct device *dev,
 	mutex_unlock(&icm_ops_lock);
 
 	return res.a0 ? -EPERM : count;
+}
+
+static ssize_t rtc_battery_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct arm_smccc_res res;
+
+	mutex_lock(&rtc_ops_lock);
+	arm_smccc_smc(MLNX_HANDLE_GET_RTC_LOW_BATT, 0, 0, 0, 0,
+		      0, 0, 0, &res);
+	mutex_unlock(&rtc_ops_lock);
+
+	if (res.a0)
+		return -EPERM;
+
+	return sysfs_emit(buf, "0x%lx\n", res.a1);
 }
 
 static ssize_t os_up_store(struct device *dev,
@@ -906,6 +924,7 @@ static DEVICE_ATTR_RW(sn);
 static DEVICE_ATTR_RW(uuid);
 static DEVICE_ATTR_RW(rev);
 static DEVICE_ATTR_WO(mfg_lock);
+static DEVICE_ATTR_RO(rtc_battery);
 
 static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_post_reset_wdog.attr,
@@ -925,6 +944,7 @@ static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_uuid.attr,
 	&dev_attr_rev.attr,
 	&dev_attr_mfg_lock.attr,
+	&dev_attr_rtc_battery.attr,
 	NULL
 };
 
@@ -939,7 +959,7 @@ MODULE_DEVICE_TABLE(acpi, mlxbf_bootctl_acpi_ids);
 
 static ssize_t mlxbf_bootctl_bootfifo_read(struct file *filp,
 					   struct kobject *kobj,
-					   struct bin_attribute *bin_attr,
+					   const struct bin_attribute *bin_attr,
 					   char *buf, loff_t pos,
 					   size_t count)
 {
@@ -971,9 +991,9 @@ static ssize_t mlxbf_bootctl_bootfifo_read(struct file *filp,
 	return p - buf;
 }
 
-static struct bin_attribute mlxbf_bootctl_bootfifo_sysfs_attr = {
+static const struct bin_attribute mlxbf_bootctl_bootfifo_sysfs_attr = {
 	.attr = { .name = "bootfifo", .mode = 0400 },
-	.read = mlxbf_bootctl_bootfifo_read,
+	.read_new = mlxbf_bootctl_bootfifo_read,
 };
 
 static bool mlxbf_bootctl_guid_match(const guid_t *guid,

@@ -8,15 +8,15 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 #include <linux/i2c.h>
 #include <linux/i3c/device.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #define	DRIVER_NAME "tmp108"
@@ -331,6 +331,10 @@ static int tmp108_common_probe(struct device *dev, struct regmap *regmap, char *
 	u32 config;
 	int err;
 
+	err = devm_regulator_get_enable(dev, "vcc");
+	if (err)
+		return dev_err_probe(dev, err, "Failed to enable regulator\n");
+
 	tmp108 = devm_kzalloc(dev, sizeof(*tmp108), GFP_KERNEL);
 	if (!tmp108)
 		return -ENOMEM;
@@ -417,25 +421,24 @@ static int tmp108_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(tmp108_dev_pm_ops, tmp108_suspend, tmp108_resume);
 
 static const struct i2c_device_id tmp108_i2c_ids[] = {
+	{ "p3t1085" },
 	{ "tmp108" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp108_i2c_ids);
 
-#ifdef CONFIG_OF
 static const struct of_device_id tmp108_of_ids[] = {
 	{ .compatible = "nxp,p3t1085", },
 	{ .compatible = "ti,tmp108", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tmp108_of_ids);
-#endif
 
 static struct i2c_driver tmp108_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.pm	= pm_sleep_ptr(&tmp108_dev_pm_ops),
-		.of_match_table = of_match_ptr(tmp108_of_ids),
+		.of_match_table = tmp108_of_ids,
 	},
 	.probe		= tmp108_probe,
 	.id_table	= tmp108_i2c_ids,

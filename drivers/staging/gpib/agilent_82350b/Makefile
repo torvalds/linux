@@ -1,2 +1,2 @@
 
-obj-m += agilent_82350b.o
+obj-$(CONFIG_GPIB_AGILENT_82350B) += agilent_82350b.o

@@ -140,6 +140,7 @@ struct mlx5hws_send_engine {
 	u16 used_entries;
 	u16 num_entries;
 	bool err;
+	bool error_cqe_printed;
 	struct mutex lock; /* Protects the send engine */
 };
 
@@ -188,12 +189,6 @@ mlx5hws_send_add_new_dep_wqe(struct mlx5hws_send_engine *queue);
 void mlx5hws_send_abort_new_dep_wqe(struct mlx5hws_send_engine *queue);
 
 void mlx5hws_send_all_dep_wqe(struct mlx5hws_send_engine *queue);
-
-void mlx5hws_send_queue_close(struct mlx5hws_send_engine *queue);
-
-int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
-			    struct mlx5hws_send_engine *queue,
-			    u16 queue_size);
 
 void mlx5hws_send_queues_close(struct mlx5hws_context *ctx);
 

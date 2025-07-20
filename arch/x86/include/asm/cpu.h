@@ -12,7 +12,6 @@
 #ifndef CONFIG_SMP
 #define cpu_physical_id(cpu)			boot_cpu_physical_apicid
 #define cpu_acpi_id(cpu)			0
-#define safe_smp_processor_id()			0
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -50,20 +49,6 @@ static inline void split_lock_init(void) {}
 static inline void bus_lock_init(void) {}
 #endif
 
-#ifdef CONFIG_CPU_SUP_INTEL
-u8 get_this_hybrid_cpu_type(void);
-u32 get_this_hybrid_cpu_native_id(void);
-#else
-static inline u8 get_this_hybrid_cpu_type(void)
-{
-	return 0;
-}
-
-static inline u32 get_this_hybrid_cpu_native_id(void)
-{
-	return 0;
-}
-#endif
 #ifdef CONFIG_IA32_FEAT_CTL
 void init_ia32_feat_ctl(struct cpuinfo_x86 *c);
 #else

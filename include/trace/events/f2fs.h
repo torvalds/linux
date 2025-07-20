@@ -1119,11 +1119,11 @@ TRACE_EVENT(f2fs_reserve_new_blocks,
 		(unsigned long long)__entry->count)
 );
 
-DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
+DECLARE_EVENT_CLASS(f2fs__submit_folio_bio,
 
-	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+	TP_PROTO(struct folio *folio, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, fio),
+	TP_ARGS(folio, fio),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -1138,9 +1138,9 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= page_file_mapping(page)->host->i_sb->s_dev;
-		__entry->ino		= page_file_mapping(page)->host->i_ino;
-		__entry->index		= page->index;
+		__entry->dev		= folio->mapping->host->i_sb->s_dev;
+		__entry->ino		= folio->mapping->host->i_ino;
+		__entry->index		= folio->index;
 		__entry->old_blkaddr	= fio->old_blkaddr;
 		__entry->new_blkaddr	= fio->new_blkaddr;
 		__entry->op		= fio->op;
@@ -1149,7 +1149,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->type		= fio->type;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
+	TP_printk("dev = (%d,%d), ino = %lu, folio_index = 0x%lx, "
 		"oldaddr = 0x%llx, newaddr = 0x%llx, rw = %s(%s), type = %s_%s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
@@ -1160,22 +1160,22 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		show_block_type(__entry->type))
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
+DEFINE_EVENT_CONDITION(f2fs__submit_folio_bio, f2fs_submit_folio_bio,
 
-	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+	TP_PROTO(struct folio *folio, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, fio),
+	TP_ARGS(folio, fio),
 
-	TP_CONDITION(page->mapping)
+	TP_CONDITION(folio->mapping)
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_write,
+DEFINE_EVENT_CONDITION(f2fs__submit_folio_bio, f2fs_submit_folio_write,
 
-	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+	TP_PROTO(struct folio *folio, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, fio),
+	TP_ARGS(folio, fio),
 
-	TP_CONDITION(page->mapping)
+	TP_CONDITION(folio->mapping)
 );
 
 DECLARE_EVENT_CLASS(f2fs__bio,
@@ -1322,12 +1322,11 @@ DECLARE_EVENT_CLASS(f2fs__folio,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= folio_file_mapping(folio)->host->i_sb->s_dev;
-		__entry->ino	= folio_file_mapping(folio)->host->i_ino;
+		__entry->dev	= folio->mapping->host->i_sb->s_dev;
+		__entry->ino	= folio->mapping->host->i_ino;
 		__entry->type	= type;
-		__entry->dir	=
-			S_ISDIR(folio_file_mapping(folio)->host->i_mode);
-		__entry->index	= folio_index(folio);
+		__entry->dir	= S_ISDIR(folio->mapping->host->i_mode);
+		__entry->index	= folio->index;
 		__entry->dirty	= folio_test_dirty(folio);
 		__entry->uptodate = folio_test_uptodate(folio);
 	),
@@ -1473,7 +1472,6 @@ TRACE_EVENT(f2fs_writepages,
 		__field(char,	for_kupdate)
 		__field(char,	for_background)
 		__field(char,	tagged_writepages)
-		__field(char,	for_reclaim)
 		__field(char,	range_cyclic)
 		__field(char,	for_sync)
 	),
@@ -1492,14 +1490,13 @@ TRACE_EVENT(f2fs_writepages,
 		__entry->for_kupdate	= wbc->for_kupdate;
 		__entry->for_background	= wbc->for_background;
 		__entry->tagged_writepages	= wbc->tagged_writepages;
-		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
 		__entry->for_sync	= wbc->for_sync;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, nr_to_write %ld, "
 		"skipped %ld, start %lld, end %lld, wb_idx %lu, sync_mode %d, "
-		"kupdate %u background %u tagged %u reclaim %u cyclic %u sync %u",
+		"kupdate %u background %u tagged %u cyclic %u sync %u",
 		show_dev_ino(__entry),
 		show_block_type(__entry->type),
 		show_file_type(__entry->dir),
@@ -1512,7 +1509,6 @@ TRACE_EVENT(f2fs_writepages,
 		__entry->for_kupdate,
 		__entry->for_background,
 		__entry->tagged_writepages,
-		__entry->for_reclaim,
 		__entry->range_cyclic,
 		__entry->for_sync)
 );

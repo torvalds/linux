@@ -10,9 +10,10 @@
 #define DML2_MAX_PLANES 8
 #define DML2_MAX_DCN_PIPES 8
 #define DML2_MAX_MCACHES 8 // assume plane is going to be supported by a max of 8 mcaches
+#define DML2_MAX_WRITEBACK 3
 
 enum dml2_swizzle_mode {
-	dml2_sw_linear,
+	dml2_sw_linear, // SW_LINEAR accepts 256 byte aligned pitch and also 128 byte aligned pitch if DCC is not enabled
 	dml2_sw_256b_2d,
 	dml2_sw_4kb_2d,
 	dml2_sw_64kb_2d,
@@ -24,7 +25,8 @@ enum dml2_swizzle_mode {
 	dml2_gfx11_sw_64kb_d_x,
 	dml2_gfx11_sw_64kb_r_x,
 	dml2_gfx11_sw_256kb_d_x,
-	dml2_gfx11_sw_256kb_r_x
+	dml2_gfx11_sw_256kb_r_x,
+
 };
 
 enum dml2_source_format_class {
@@ -38,7 +40,13 @@ enum dml2_source_format_class {
 	dml2_rgbe_alpha = 9,
 	dml2_rgbe = 10,
 	dml2_mono_8 = 11,
-	dml2_mono_16 = 12
+	dml2_mono_16 = 12,
+	dml2_422_planar_8 = 13,
+	dml2_422_planar_10 = 14,
+	dml2_422_planar_12 = 15,
+	dml2_422_packed_8 = 16,
+	dml2_422_packed_10 = 17,
+	dml2_422_packed_12 = 18
 };
 
 enum dml2_rotation_angle {
@@ -121,15 +129,6 @@ enum dml2_dsc_enable_option {
 	dml2_dsc_enable_if_necessary = 2
 };
 
-enum dml2_pstate_support_method {
-	dml2_pstate_method_uninitialized,
-	dml2_pstate_method_not_supported,
-	dml2_pstate_method_vactive,
-	dml2_pstate_method_vblank,
-	dml2_pstate_method_svp,
-	dml2_pstate_method_drr
-};
-
 enum dml2_tdlut_addressing_mode {
 	dml2_tdlut_sw_linear = 0,
 	dml2_tdlut_simple_linear = 1
@@ -167,7 +166,7 @@ struct dml2_surface_cfg {
 	enum dml2_swizzle_mode tiling;
 
 	struct {
-		unsigned long pitch;
+		unsigned long pitch; // In elements, two pixels per element in 422 packed format
 		unsigned long width;
 		unsigned long height;
 	} plane0;
@@ -287,22 +286,23 @@ struct dml2_link_output_cfg {
 	bool validate_output; // Do not validate the link configuration for this display stream.
 };
 
-struct dml2_writeback_cfg {
-	bool enable;
+struct dml2_writeback_info {
 	enum dml2_source_format_class pixel_format;
-	unsigned int active_writebacks_per_surface;
+	unsigned long input_width;
+	unsigned long input_height;
+	unsigned long output_width;
+	unsigned long output_height;
+	unsigned long v_taps;
+	unsigned long h_taps;
+	unsigned long v_taps_chroma;
+	unsigned long h_taps_chroma;
+	double h_ratio;
+	double v_ratio;
+};
 
-	struct {
-		bool enabled;
-		unsigned long input_width;
-		unsigned long input_height;
-		unsigned long output_width;
-		unsigned long output_height;
-		unsigned long v_taps;
-		unsigned long h_taps;
-		double h_ratio;
-		double v_ratio;
-	} scaling_info;
+struct dml2_writeback_cfg {
+	unsigned int active_writebacks_per_stream;
+	struct dml2_writeback_info writeback_stream[DML2_MAX_WRITEBACK];
 };
 
 struct dml2_plane_parameters {
@@ -385,6 +385,7 @@ struct dml2_plane_parameters {
 		long reserved_vblank_time_ns;
 		unsigned int max_vactive_det_fill_delay_us; // 0 = no reserved time, +ve = explicit max delay
 		unsigned int gpuvm_min_page_size_kbytes;
+		unsigned int hostvm_min_page_size_kbytes;
 
 		enum dml2_svp_mode_override legacy_svp_config; //TODO remove in favor of svp_config
 

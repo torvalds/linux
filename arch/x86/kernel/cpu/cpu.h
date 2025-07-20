@@ -33,14 +33,6 @@ struct cpu_dev {
 #endif
 };
 
-struct _tlb_table {
-	unsigned char descriptor;
-	char tlb_type;
-	unsigned int entries;
-	/* unsigned int ways; */
-	char info[128];
-};
-
 #define cpu_dev_register(cpu_devX) \
 	static const struct cpu_dev *const __cpu_dev_##cpu_devX __used \
 	__section(".x86_cpu_dev.init") = \
@@ -82,6 +74,15 @@ extern void check_null_seg_clears_base(struct cpuinfo_x86 *c);
 
 void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, u16 die_id);
 void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c);
+
+#if defined(CONFIG_AMD_NB) && defined(CONFIG_SYSFS)
+struct amd_northbridge *amd_init_l3_cache(int index);
+#else
+static inline struct amd_northbridge *amd_init_l3_cache(int index)
+{
+	return NULL;
+}
+#endif
 
 unsigned int aperfmperf_get_khz(int cpu);
 void cpu_select_mitigations(void);

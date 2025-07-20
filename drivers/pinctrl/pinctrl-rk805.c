@@ -325,26 +325,26 @@ static int rk805_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(val & pci->pin_cfg[offset].val_msk);
 }
 
-static void rk805_gpio_set(struct gpio_chip *chip,
-			   unsigned int offset,
-			   int value)
+static int rk805_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct rk805_pctrl_info *pci = gpiochip_get_data(chip);
-	int ret;
 
-	ret = regmap_update_bits(pci->rk808->regmap,
-				 pci->pin_cfg[offset].reg,
-				 pci->pin_cfg[offset].val_msk,
-				 value ? pci->pin_cfg[offset].val_msk : 0);
-	if (ret)
-		dev_err(pci->dev, "set gpio%d value %d failed\n",
-			offset, value);
+	return regmap_update_bits(pci->rk808->regmap,
+				  pci->pin_cfg[offset].reg,
+				  pci->pin_cfg[offset].val_msk,
+				  value ? pci->pin_cfg[offset].val_msk : 0);
 }
 
 static int rk805_gpio_direction_output(struct gpio_chip *chip,
 				       unsigned int offset, int value)
 {
-	rk805_gpio_set(chip, offset, value);
+	int ret;
+
+	ret = rk805_gpio_set(chip, offset, value);
+	if (ret)
+		return ret;
+
 	return pinctrl_gpio_direction_output(chip, offset);
 }
 
@@ -378,7 +378,7 @@ static const struct gpio_chip rk805_gpio_chip = {
 	.free			= gpiochip_generic_free,
 	.get_direction		= rk805_gpio_get_direction,
 	.get			= rk805_gpio_get,
-	.set			= rk805_gpio_set,
+	.set_rv			= rk805_gpio_set,
 	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= rk805_gpio_direction_output,
 	.can_sleep		= true,

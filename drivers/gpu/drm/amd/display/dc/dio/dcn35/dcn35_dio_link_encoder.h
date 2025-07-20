@@ -144,4 +144,45 @@ bool dcn35_is_dig_enabled(struct link_encoder *enc);
 enum signal_type dcn35_get_dig_mode(struct link_encoder *enc);
 void dcn35_link_encoder_setup(struct link_encoder *enc, enum signal_type signal);
 
+/*
+ * Enable DP transmitter and its encoder.
+ */
+void dcn35_link_encoder_enable_dp_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	enum clock_source_id clock_source);
+
+/*
+ * Enable DP transmitter and its encoder in MST mode.
+ */
+void dcn35_link_encoder_enable_dp_mst_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	enum clock_source_id clock_source);
+
+/*
+ * Disable transmitter and its encoder.
+ */
+void dcn35_link_encoder_disable_output(
+	struct link_encoder *enc,
+	enum signal_type signal);
+
+/*
+ * Enable DP transmitter and its encoder for dpia port.
+ */
+void dcn35_link_encoder_enable_dpia_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	uint8_t dpia_id,
+	uint8_t digmode,
+	uint8_t fec_rdy);
+
+/*
+ * Disable transmitter and its encoder for dpia port.
+ */
+void dcn35_link_encoder_disable_dpia_output(
+	struct link_encoder *enc,
+	uint8_t dpia_id,
+	uint8_t digmode);
+
 #endif /* __DC_LINK_ENCODER__DCN35_H__ */

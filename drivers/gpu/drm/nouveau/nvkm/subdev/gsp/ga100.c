@@ -39,29 +39,27 @@ ga100_gsp_flcn = {
 };
 
 static const struct nvkm_gsp_func
-ga100_gsp_r535_113_01 = {
+ga100_gsp = {
 	.flcn = &ga100_gsp_flcn,
 	.fwsec = &tu102_gsp_fwsec,
 
 	.sig_section = ".fwsignature_ga100",
 
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
-
 	.booter.ctor = tu102_gsp_booter_ctor,
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
+	.init = tu102_gsp_init,
+	.fini = tu102_gsp_fini,
 	.reset = tu102_gsp_reset,
 
-	.rm = &r535_gsp_rm,
+	.rm.gpu = &ga100_gpu,
 };
 
 static struct nvkm_gsp_fwif
 ga100_gsps[] = {
-	{  0,  r535_gsp_load, &ga100_gsp_r535_113_01, "535.113.01" },
+	{  1, tu102_gsp_load, &ga100_gsp, &r570_rm_tu102, "570.144" },
+	{  0, tu102_gsp_load, &ga100_gsp, &r535_rm_tu102, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };
@@ -72,3 +70,6 @@ ga100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	return nvkm_gsp_new_(ga100_gsps, device, type, inst, pgsp);
 }
+
+NVKM_GSP_FIRMWARE_BOOTER(ga100, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ga100, 570.144);

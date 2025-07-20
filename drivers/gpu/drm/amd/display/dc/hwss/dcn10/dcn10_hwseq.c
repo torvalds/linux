@@ -94,6 +94,128 @@ static void print_microsec(struct dc_context *dc_ctx,
 			us_x10 % frac);
 }
 
+/*
+ * Delay until we passed busy-until-point to which we can
+ * do necessary locking/programming on consecutive full updates
+ */
+void dcn10_wait_for_pipe_update_if_needed(struct dc *dc, struct pipe_ctx *pipe_ctx, bool is_surface_update_only)
+{
+	struct crtc_position position;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	unsigned int vpos, frame_count;
+	uint32_t vupdate_start, vupdate_end, vblank_start;
+	unsigned int lines_to_vupdate, us_to_vupdate;
+	unsigned int us_per_line, us_vupdate;
+
+	if (!pipe_ctx->stream ||
+		!pipe_ctx->stream_res.tg ||
+		!pipe_ctx->stream_res.stream_enc)
+		return;
+
+	if (pipe_ctx->prev_odm_pipe &&
+				pipe_ctx->stream)
+		return;
+
+	if (!pipe_ctx->wait_is_required)
+		return;
+
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	if (tg->funcs->is_tg_enabled && !tg->funcs->is_tg_enabled(tg))
+		return;
+
+	dc->hwss.calc_vupdate_position(dc, pipe_ctx, &vupdate_start,
+						&vupdate_end);
+
+	dc->hwss.get_position(&pipe_ctx, 1, &position);
+	vpos = position.vertical_count;
+
+	frame_count = tg->funcs->get_frame_count(tg);
+
+	if (frame_count - pipe_ctx->wait_frame_count > 2)
+		return;
+
+	vblank_start = pipe_ctx->pipe_dlg_param.vblank_start;
+
+	if (vpos >= vupdate_start && vupdate_start >= vblank_start)
+		lines_to_vupdate = stream->timing.v_total - vpos + vupdate_start;
+	else
+		lines_to_vupdate = vupdate_start - vpos;
+
+	us_per_line =
+		stream->timing.h_total * 10000u / stream->timing.pix_clk_100hz;
+	us_to_vupdate = lines_to_vupdate * us_per_line;
+
+	if (vupdate_end < vupdate_start)
+		vupdate_end += stream->timing.v_total;
+
+	if (lines_to_vupdate > stream->timing.v_total - vupdate_end + vupdate_start)
+		us_to_vupdate = 0;
+
+	us_vupdate = (vupdate_end - vupdate_start + 1) * us_per_line;
+
+	if (is_surface_update_only && us_to_vupdate + us_vupdate > 200) {
+		//surface updates come in at high irql
+		pipe_ctx->wait_is_required = true;
+		return;
+	}
+
+	fsleep(us_to_vupdate + us_vupdate);
+
+	//clear
+	pipe_ctx->next_vupdate = 0;
+	pipe_ctx->wait_frame_count = 0;
+	pipe_ctx->wait_is_required = false;
+}
+
+/*
+ * On pipe unlock and programming, indicate pipe will be busy
+ * until some frame and line (vupdate), this is required for consecutive
+ * full updates, need to wait for updates
+ * to latch to try and program the next update
+ */
+void dcn10_set_wait_for_update_needed_for_pipe(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	uint32_t vupdate_start, vupdate_end;
+	struct crtc_position position;
+	unsigned int vpos, cur_frame;
+
+	if (!pipe_ctx->stream ||
+		!pipe_ctx->stream_res.tg ||
+		!pipe_ctx->stream_res.stream_enc)
+		return;
+
+	dc->hwss.get_position(&pipe_ctx, 1, &position);
+	vpos = position.vertical_count;
+
+	dc->hwss.calc_vupdate_position(dc, pipe_ctx, &vupdate_start,
+						&vupdate_end);
+
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	struct optc *optc1 = DCN10TG_FROM_TG(tg);
+
+	ASSERT(optc1->max_frame_count != 0);
+
+	if (tg->funcs->is_tg_enabled && !tg->funcs->is_tg_enabled(tg))
+		return;
+
+	pipe_ctx->next_vupdate = vupdate_start;
+
+	cur_frame = tg->funcs->get_frame_count(tg);
+
+	if (vpos < vupdate_start) {
+		pipe_ctx->wait_frame_count = cur_frame;
+	} else {
+		if (cur_frame + 1 > optc1->max_frame_count)
+			pipe_ctx->wait_frame_count = cur_frame + 1 - optc1->max_frame_count;
+		else
+			pipe_ctx->wait_frame_count = cur_frame + 1;
+	}
+
+	pipe_ctx->wait_is_required = true;
+}
+
 void dcn10_lock_all_pipes(struct dc *dc,
 	struct dc_state *context,
 	bool lock)
@@ -415,7 +537,8 @@ void dcn10_log_hw_state(struct dc *dc,
 		struct timing_generator *tg = pool->timing_generators[i];
 		struct dcn_otg_state s = {0};
 		/* Read shared OTG state registers for all DCNx */
-		optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+		if (tg->funcs->read_otg_state)
+			tg->funcs->read_otg_state(tg, &s);
 
 		/*
 		 * For DCN2 and greater, a register on the OPP is used to
@@ -1112,9 +1235,7 @@ static void dcn10_reset_back_end_for_pipe(
 		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
 		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
-		if (pipe_ctx->stream_res.tg->funcs->set_drr)
-			pipe_ctx->stream_res.tg->funcs->set_drr(
-					pipe_ctx->stream_res.tg, NULL);
+		set_drr_and_clear_adjust_pending(pipe_ctx, pipe_ctx->stream, NULL);
 		if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 	}
@@ -1286,6 +1407,7 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 		if (hws->funcs.hubp_pg_control)
 			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
 
+		hubp->funcs->hubp_reset(hubp);
 		dpp->funcs->dpp_reset(dpp);
 
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
@@ -1447,6 +1569,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		/* Disable on the current state so the new one isn't cleared. */
 		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
+		hubp->funcs->hubp_reset(hubp);
 		dpp->funcs->dpp_reset(dpp);
 
 		pipe_ctx->stream_res.tg = tg;
@@ -1990,20 +2113,11 @@ static void delay_cursor_until_vupdate(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	dc->hwss.get_position(&pipe_ctx, 1, &position);
 	vpos = position.vertical_count;
 
-	/* Avoid wraparound calculation issues */
-	vupdate_start += stream->timing.v_total;
-	vupdate_end += stream->timing.v_total;
-	vpos += stream->timing.v_total;
-
 	if (vpos <= vupdate_start) {
 		/* VPOS is in VACTIVE or back porch. */
 		lines_to_vupdate = vupdate_start - vpos;
-	} else if (vpos > vupdate_end) {
-		/* VPOS is in the front porch. */
-		return;
 	} else {
-		/* VPOS is in VUPDATE. */
-		lines_to_vupdate = 0;
+		lines_to_vupdate = stream->timing.v_total - vpos + vupdate_start;
 	}
 
 	/* Calculate time until VUPDATE in microseconds. */
@@ -2011,13 +2125,18 @@ static void delay_cursor_until_vupdate(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		stream->timing.h_total * 10000u / stream->timing.pix_clk_100hz;
 	us_to_vupdate = lines_to_vupdate * us_per_line;
 
+	/* Stall out until the cursor update completes. */
+	if (vupdate_end < vupdate_start)
+		vupdate_end += stream->timing.v_total;
+
+	/* Position is in the range of vupdate start and end*/
+	if (lines_to_vupdate > stream->timing.v_total - vupdate_end + vupdate_start)
+		us_to_vupdate = 0;
+
 	/* 70 us is a conservative estimate of cursor update time*/
 	if (us_to_vupdate > 70)
 		return;
 
-	/* Stall out until the cursor update completes. */
-	if (vupdate_end < vupdate_start)
-		vupdate_end += stream->timing.v_total;
 	us_vupdate = (vupdate_end - vupdate_start + 1) * us_per_line;
 	udelay(us_to_vupdate + us_vupdate);
 }
@@ -2667,7 +2786,6 @@ void dcn10_update_visual_confirm_color(struct dc *dc,
 	struct mpc *mpc = dc->res_pool->mpc;
 
 	if (mpc->funcs->set_bg_color) {
-		memcpy(&pipe_ctx->plane_state->visual_confirm_color, &(pipe_ctx->visual_confirm_color), sizeof(struct tg_color));
 		mpc->funcs->set_bg_color(mpc, &(pipe_ctx->visual_confirm_color), mpcc_id);
 	}
 }
@@ -3219,8 +3337,7 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 		struct timing_generator *tg = pipe_ctx[i]->stream_res.tg;
 
 		if ((tg != NULL) && tg->funcs) {
-			if (tg->funcs->set_drr)
-				tg->funcs->set_drr(tg, &params);
+			set_drr_and_clear_adjust_pending(pipe_ctx[i], pipe_ctx[i]->stream, &params);
 			if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 				if (tg->funcs->set_static_screen_control)
 					tg->funcs->set_static_screen_control(
@@ -3429,52 +3546,6 @@ void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 	hubbub->funcs->update_dchub(hubbub, dh_data);
 }
 
-static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
-{
-	struct pipe_ctx *test_pipe, *split_pipe;
-	const struct scaler_data *scl_data = &pipe_ctx->plane_res.scl_data;
-	struct rect r1 = scl_data->recout, r2, r2_half;
-	int r1_r = r1.x + r1.width, r1_b = r1.y + r1.height, r2_r, r2_b;
-	int cur_layer = pipe_ctx->plane_state->layer_index;
-
-	/**
-	 * Disable the cursor if there's another pipe above this with a
-	 * plane that contains this pipe's viewport to prevent double cursor
-	 * and incorrect scaling artifacts.
-	 */
-	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
-	     test_pipe = test_pipe->top_pipe) {
-		// Skip invisible layer and pipe-split plane on same layer
-		if (!test_pipe->plane_state ||
-		    !test_pipe->plane_state->visible ||
-		    test_pipe->plane_state->layer_index == cur_layer)
-			continue;
-
-		r2 = test_pipe->plane_res.scl_data.recout;
-		r2_r = r2.x + r2.width;
-		r2_b = r2.y + r2.height;
-
-		/**
-		 * There is another half plane on same layer because of
-		 * pipe-split, merge together per same height.
-		 */
-		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
-		     split_pipe = split_pipe->top_pipe)
-			if (split_pipe->plane_state->layer_index == test_pipe->plane_state->layer_index) {
-				r2_half = split_pipe->plane_res.scl_data.recout;
-				r2.x = (r2_half.x < r2.x) ? r2_half.x : r2.x;
-				r2.width = r2.width + r2_half.width;
-				r2_r = r2.x + r2.width;
-				break;
-			}
-
-		if (r1.x >= r2.x && r1.y >= r2.y && r1_r <= r2_r && r1_b <= r2_b)
-			return true;
-	}
-
-	return false;
-}
-
 void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
@@ -3574,7 +3645,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 		pos_cpy.enable = false;
 
-	if (pos_cpy.enable && dcn10_can_pipe_disable_cursor(pipe_ctx))
+	if (pos_cpy.enable && resource_can_pipe_disable_cursor(pipe_ctx))
 		pos_cpy.enable = false;
 
 
@@ -3966,4 +4037,33 @@ void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits)
 		if (!s->blank_en)
 			dcc_en_bits[i] = s->dcc_en ? 1 : 0;
 	}
+}
+
+/**
+ * dcn10_reset_surface_dcc_and_tiling - Set DCC and tiling in DCN to their disable mode.
+ *
+ * @pipe_ctx: Pointer to the pipe context structure.
+ * @plane_state: Surface state
+ * @clear_tiling: If true set tiling to Linear, otherwise does not change tiling
+ *
+ * This function is responsible for call the HUBP block to disable DCC and set
+ * tiling to the linear mode.
+ */
+void dcn10_reset_surface_dcc_and_tiling(struct pipe_ctx *pipe_ctx,
+					struct dc_plane_state *plane_state,
+					bool clear_tiling)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+
+	if (!hubp)
+		return;
+
+	/* if framebuffer is tiled, disable tiling */
+	if (clear_tiling && hubp->funcs->hubp_clear_tiling)
+		hubp->funcs->hubp_clear_tiling(hubp);
+
+	/* force page flip to see the new content of the framebuffer */
+	hubp->funcs->hubp_program_surface_flip_and_addr(hubp,
+							&plane_state->address,
+							true);
 }

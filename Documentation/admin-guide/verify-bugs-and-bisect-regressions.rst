@@ -267,7 +267,7 @@ culprit might be known already. For further details on what actually qualifies
 as a regression check out Documentation/admin-guide/reporting-regressions.rst.
 
 If you run into any problems while following this guide or have ideas how to
-improve it, :ref:`please let the kernel developers know <submit_improvements>`.
+improve it, :ref:`please let the kernel developers know <submit_improvements_vbbr>`.
 
 .. _introprep_bissbs:
 
@@ -1055,7 +1055,7 @@ follow these instructions.
 
 [:ref:`details <introoptional_bisref>`]
 
-.. _submit_improvements:
+.. _submit_improvements_vbbr:
 
 Conclusion
 ----------
@@ -1431,7 +1431,7 @@ can easily happen that your self-built kernels will lack modules for tasks you
 did not perform at least once before utilizing this make target. That happens
 when a task requires kernel modules which are only autoloaded when you execute
 it for the first time. So when you never performed that task since starting your
-kernel the modules will not have been loaded -- and from localmodonfig's point
+kernel the modules will not have been loaded -- and from localmodconfig's point
 of view look superfluous, which thus disables them to reduce the amount of code
 to be compiled.
 

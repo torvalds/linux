@@ -44,8 +44,8 @@ examples:
         #size-cells = <0>;
 
         tmp117@48 {
-             compatible = "ti,tmp117";
-             reg = <0x48>;
-             vcc-supply = <&pmic_reg_3v3>;
+            compatible = "ti,tmp117";
+            reg = <0x48>;
+            vcc-supply = <&pmic_reg_3v3>;
         };
     };

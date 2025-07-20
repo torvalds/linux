@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HAL_RX_H
@@ -19,11 +19,8 @@ struct hal_rx_wbm_rel_info {
 	bool hw_cc_done;
 };
 
-#define HAL_INVALID_PEERID 0xffff
+#define HAL_INVALID_PEERID	0x3fff
 #define VHT_SIG_SU_NSS_MASK 0x7
-
-#define HAL_RX_MAX_MCS 12
-#define HAL_RX_MAX_NSS 8
 
 #define HAL_RX_MPDU_INFO_PN_GET_BYTE1(__val) \
 	le32_get_bits((__val), GENMASK(7, 0))
@@ -71,6 +68,8 @@ enum hal_rx_preamble {
 	HAL_RX_PREAMBLE_11N,
 	HAL_RX_PREAMBLE_11AC,
 	HAL_RX_PREAMBLE_11AX,
+	HAL_RX_PREAMBLE_11BA,
+	HAL_RX_PREAMBLE_11BE,
 	HAL_RX_PREAMBLE_MAX,
 };
 
@@ -108,9 +107,13 @@ enum hal_rx_mon_status {
 	HAL_RX_MON_STATUS_PPDU_NOT_DONE,
 	HAL_RX_MON_STATUS_PPDU_DONE,
 	HAL_RX_MON_STATUS_BUF_DONE,
+	HAL_RX_MON_STATUS_BUF_ADDR,
+	HAL_RX_MON_STATUS_MPDU_START,
+	HAL_RX_MON_STATUS_MPDU_END,
+	HAL_RX_MON_STATUS_MSDU_END,
 };
 
-#define HAL_RX_MAX_MPDU		256
+#define HAL_RX_MAX_MPDU				1024
 #define HAL_RX_NUM_WORDS_PER_PPDU_BITMAP	(HAL_RX_MAX_MPDU >> 5)
 
 struct hal_rx_user_status {
@@ -143,9 +146,42 @@ struct hal_rx_user_status {
 	u32 mpdu_fcs_ok_bitmap[HAL_RX_NUM_WORDS_PER_PPDU_BITMAP];
 	u32 mpdu_ok_byte_count;
 	u32 mpdu_err_byte_count;
+	bool ampdu_present;
+	u16 ampdu_id;
 };
 
 #define HAL_MAX_UL_MU_USERS	37
+
+struct hal_rx_u_sig_info {
+	bool ul_dl;
+	u8 bw;
+	u8 ppdu_type_comp_mode;
+	u8 eht_sig_mcs;
+	u8 num_eht_sig_sym;
+	struct ieee80211_radiotap_eht_usig usig;
+};
+
+#define HAL_RX_MON_MAX_AGGR_SIZE	128
+
+struct hal_rx_tlv_aggr_info {
+	bool in_progress;
+	u16 cur_len;
+	u16 tlv_tag;
+	u8 buf[HAL_RX_MON_MAX_AGGR_SIZE];
+};
+
+struct hal_rx_radiotap_eht {
+	__le32 known;
+	__le32 data[9];
+};
+
+#define EHT_MAX_USER_INFO	4
+
+struct hal_rx_eht_info {
+	u8 num_user_info;
+	struct hal_rx_radiotap_eht eht;
+	u32 user_info[EHT_MAX_USER_INFO];
+};
 
 struct hal_rx_mon_ppdu_info {
 	u32 ppdu_id;
@@ -227,10 +263,15 @@ struct hal_rx_mon_ppdu_info {
 	u8 addr4[ETH_ALEN];
 	struct hal_rx_user_status userstats[HAL_MAX_UL_MU_USERS];
 	u8 userid;
-	u16 ampdu_id[HAL_MAX_UL_MU_USERS];
 	bool first_msdu_in_mpdu;
 	bool is_ampdu;
 	u8 medium_prot_type;
+	bool ppdu_continuation;
+	bool eht_usig;
+	struct hal_rx_u_sig_info u_sig_info;
+	bool is_eht;
+	struct hal_rx_eht_info eht_info;
+	struct hal_rx_tlv_aggr_info tlv_aggr;
 };
 
 #define HAL_RX_PPDU_START_INFO0_PPDU_ID			GENMASK(15, 0)
@@ -245,6 +286,8 @@ struct hal_rx_ppdu_start {
 	__le32 rsvd[2];
 } __packed;
 
+#define HAL_RX_PPDU_END_USER_STATS_INFO0_PEER_ID		GENMASK(13, 0)
+#define HAL_RX_PPDU_END_USER_STATS_INFO0_DEVICE_ID		GENMASK(15, 14)
 #define HAL_RX_PPDU_END_USER_STATS_INFO0_MPDU_CNT_FCS_ERR	GENMASK(26, 16)
 
 #define HAL_RX_PPDU_END_USER_STATS_INFO1_MPDU_CNT_FCS_OK	GENMASK(10, 0)
@@ -299,6 +342,7 @@ struct hal_rx_ppdu_end_user_stats_ext {
 	__le32 info4;
 	__le32 info5;
 	__le32 info6;
+	__le32 rsvd;
 } __packed;
 
 #define HAL_RX_HT_SIG_INFO_INFO0_MCS		GENMASK(6, 0)
@@ -395,11 +439,9 @@ struct hal_rx_he_sig_a_su_info {
 #define HAL_RX_HE_SIG_A_MU_DL_INFO0_DOPPLER_INDICATION	BIT(25)
 
 #define HAL_RX_HE_SIG_A_MU_DL_INFO1_TXOP_DURATION	GENMASK(6, 0)
-#define HAL_RX_HE_SIG_A_MU_DL_INFO1_CODING		BIT(7)
 #define HAL_RX_HE_SIG_A_MU_DL_INFO1_NUM_LTF_SYMB	GENMASK(10, 8)
 #define HAL_RX_HE_SIG_A_MU_DL_INFO1_LDPC_EXTRA		BIT(11)
 #define HAL_RX_HE_SIG_A_MU_DL_INFO1_STBC		BIT(12)
-#define HAL_RX_HE_SIG_A_MU_DL_INFO1_TXBF		BIT(10)
 #define HAL_RX_HE_SIG_A_MU_DL_INFO1_PKT_EXT_FACTOR	GENMASK(14, 13)
 #define HAL_RX_HE_SIG_A_MU_DL_INFO1_PKT_EXT_PE_DISAM	BIT(15)
 
@@ -425,7 +467,7 @@ struct hal_rx_he_sig_b2_mu_info {
 
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_ID	GENMASK(10, 0)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_NSTS	GENMASK(13, 11)
-#define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_TXBF	BIT(19)
+#define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_TXBF	BIT(14)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_MCS	GENMASK(18, 15)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_DCM	BIT(19)
 #define HAL_RX_HE_SIG_B2_OFDMA_INFO_INFO0_STA_CODING	BIT(20)
@@ -453,7 +495,8 @@ struct hal_rx_phyrx_rssi_legacy_info {
 } __packed;
 
 #define HAL_RX_MPDU_START_INFO0_PPDU_ID			GENMASK(31, 16)
-#define HAL_RX_MPDU_START_INFO1_PEERID			GENMASK(31, 16)
+#define HAL_RX_MPDU_START_INFO1_PEERID			GENMASK(29, 16)
+#define HAL_RX_MPDU_START_INFO1_DEVICE_ID		GENMASK(31, 30)
 #define HAL_RX_MPDU_START_INFO2_MPDU_LEN		GENMASK(13, 0)
 struct hal_rx_mpdu_start {
 	__le32 rsvd0[9];
@@ -464,11 +507,23 @@ struct hal_rx_mpdu_start {
 	__le32 rsvd2[16];
 } __packed;
 
+struct hal_rx_msdu_end {
+	__le32 info0;
+	__le32 rsvd0[9];
+	__le16 info00;
+	__le16 info01;
+	__le32 rsvd00[8];
+	__le32 info1;
+	__le32 rsvd1[10];
+	__le32 info2;
+	__le32 rsvd2;
+} __packed;
+
 #define HAL_RX_PPDU_END_DURATION	GENMASK(23, 0)
 struct hal_rx_ppdu_end_duration {
 	__le32 rsvd0[9];
 	__le32 info0;
-	__le32 rsvd1[4];
+	__le32 rsvd1[18];
 } __packed;
 
 struct hal_rx_rxpcu_classification_overview {
@@ -483,6 +538,7 @@ struct hal_rx_msdu_desc_info {
 #define HAL_RX_NUM_MSDU_DESC 6
 struct hal_rx_msdu_list {
 	struct hal_rx_msdu_desc_info msdu_info[HAL_RX_NUM_MSDU_DESC];
+	u64 paddr[HAL_RX_NUM_MSDU_DESC];
 	u32 sw_cookie[HAL_RX_NUM_MSDU_DESC];
 	u8 rbm[HAL_RX_NUM_MSDU_DESC];
 };
@@ -639,6 +695,395 @@ struct hal_rx_resp_req_info {
 #define HAL_RX_MPDU_ERR_MPDU_LEN		BIT(6)
 #define HAL_RX_MPDU_ERR_UNENCRYPTED_FRAME	BIT(7)
 
+#define HAL_RX_PHY_CMN_USER_INFO0_GI		GENMASK(17, 16)
+
+struct hal_phyrx_common_user_info {
+	__le32 rsvd[2];
+	__le32 info0;
+	__le32 rsvd1;
+} __packed;
+
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_SPATIAL_REUSE	GENMASK(3, 0)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_GI_LTF		GENMASK(5, 4)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_NUM_LTF_SYM	GENMASK(8, 6)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_NSS		GENMASK(10, 7)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_BEAMFORMED		BIT(11)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_DISREGARD		GENMASK(13, 12)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_CRC		GENMASK(17, 14)
+
+struct hal_eht_sig_ndp_cmn_eb {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_SPATIAL_REUSE		GENMASK(3, 0)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_GI_LTF			GENMASK(5, 4)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_NUM_LTF_SYM		GENMASK(8, 6)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_LDPC_EXTA_SYM		BIT(9)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_PRE_FEC_PAD_FACTOR	GENMASK(11, 10)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_DISAMBIGUITY		BIT(12)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_DISREGARD			GENMASK(16, 13)
+
+struct hal_eht_sig_usig_overflow {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_STA_ID	GENMASK(10, 0)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_MCS	GENMASK(14, 11)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_VALIDATE	BIT(15)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_NSS	GENMASK(19, 16)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_BEAMFORMED	BIT(20)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_CODING	BIT(21)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_CRC	GENMASK(25, 22)
+
+struct hal_eht_sig_non_mu_mimo {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_STA_ID		GENMASK(10, 0)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_MCS		GENMASK(14, 11)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_CODING		BIT(15)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_SPATIAL_CODING	GENMASK(22, 16)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_CRC		GENMASK(26, 23)
+
+struct hal_eht_sig_mu_mimo {
+	__le32 info0;
+} __packed;
+
+union hal_eht_sig_user_field {
+	struct hal_eht_sig_mu_mimo mu_mimo;
+	struct hal_eht_sig_non_mu_mimo n_mu_mimo;
+};
+
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_SPATIAL_REUSE		GENMASK(3, 0)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_GI_LTF			GENMASK(5, 4)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_NUM_LTF_SYM		GENMASK(8, 6)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_LDPC_EXTA_SYM		BIT(9)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_PRE_FEC_PAD_FACTOR	GENMASK(11, 10)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_DISAMBIGUITY		BIT(12)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_DISREGARD		GENMASK(16, 13)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_NUM_USERS		GENMASK(19, 17)
+
+struct hal_eht_sig_non_ofdma_cmn_eb {
+	__le32 info0;
+	union hal_eht_sig_user_field user_field;
+} __packed;
+
+#define HAL_RX_EHT_SIG_OFDMA_EB1_SPATIAL_REUSE		GENMASK_ULL(3, 0)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_GI_LTF			GENMASK_ULL(5, 4)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_NUM_LFT_SYM		GENMASK_ULL(8, 6)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_LDPC_EXTRA_SYM		BIT(9)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_PRE_FEC_PAD_FACTOR	GENMASK_ULL(11, 10)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_PRE_DISAMBIGUITY	BIT(12)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_DISREGARD		GENMASK_ULL(16, 13)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_RU_ALLOC_1_1		GENMASK_ULL(25, 17)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_RU_ALLOC_1_2		GENMASK_ULL(34, 26)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_CRC			GENMASK_ULL(30, 27)
+
+struct hal_eht_sig_ofdma_cmn_eb1 {
+	__le64 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_1		GENMASK_ULL(8, 0)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_2		GENMASK_ULL(17, 9)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_3		GENMASK_ULL(26, 18)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_4		GENMASK_ULL(35, 27)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_5		GENMASK_ULL(44, 36)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_6		GENMASK_ULL(53, 45)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_MCS			GNEMASK_ULL(57, 54)
+
+struct hal_eht_sig_ofdma_cmn_eb2 {
+	__le64 info0;
+} __packed;
+
+struct hal_eht_sig_ofdma_cmn_eb {
+	struct hal_eht_sig_ofdma_cmn_eb1 eb1;
+	struct hal_eht_sig_ofdma_cmn_eb2 eb2;
+	union hal_eht_sig_user_field user_field;
+} __packed;
+
+enum hal_eht_bw {
+	HAL_EHT_BW_20,
+	HAL_EHT_BW_40,
+	HAL_EHT_BW_80,
+	HAL_EHT_BW_160,
+	HAL_EHT_BW_320_1,
+	HAL_EHT_BW_320_2,
+};
+
+#define HAL_RX_USIG_CMN_INFO0_PHY_VERSION	GENMASK(2, 0)
+#define HAL_RX_USIG_CMN_INFO0_BW		GENMASK(5, 3)
+#define HAL_RX_USIG_CMN_INFO0_UL_DL		BIT(6)
+#define HAL_RX_USIG_CMN_INFO0_BSS_COLOR		GENMASK(12, 7)
+#define HAL_RX_USIG_CMN_INFO0_TXOP		GENMASK(19, 13)
+#define HAL_RX_USIG_CMN_INFO0_DISREGARD		GENMASK(25, 20)
+#define HAL_RX_USIG_CMN_INFO0_VALIDATE		BIT(26)
+
+struct hal_mon_usig_cmn {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_USIG_TB_INFO0_PPDU_TYPE_COMP_MODE	GENMASK(1, 0)
+#define HAL_RX_USIG_TB_INFO0_VALIDATE			BIT(2)
+#define HAL_RX_USIG_TB_INFO0_SPATIAL_REUSE_1		GENMASK(6, 3)
+#define HAL_RX_USIG_TB_INFO0_SPATIAL_REUSE_2		GENMASK(10, 7)
+#define HAL_RX_USIG_TB_INFO0_DISREGARD_1		GENMASK(15, 11)
+#define HAL_RX_USIG_TB_INFO0_CRC			GENMASK(19, 16)
+#define HAL_RX_USIG_TB_INFO0_TAIL			GENMASK(25, 20)
+#define HAL_RX_USIG_TB_INFO0_RX_INTEG_CHECK_PASS	BIT(31)
+
+struct hal_mon_usig_tb {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_USIG_MU_INFO0_PPDU_TYPE_COMP_MODE	GENMASK(1, 0)
+#define HAL_RX_USIG_MU_INFO0_VALIDATE_1			BIT(2)
+#define HAL_RX_USIG_MU_INFO0_PUNC_CH_INFO		GENMASK(7, 3)
+#define HAL_RX_USIG_MU_INFO0_VALIDATE_2			BIT(8)
+#define HAL_RX_USIG_MU_INFO0_EHT_SIG_MCS		GENMASK(10, 9)
+#define HAL_RX_USIG_MU_INFO0_NUM_EHT_SIG_SYM		GENMASK(15, 11)
+#define HAL_RX_USIG_MU_INFO0_CRC			GENMASK(20, 16)
+#define HAL_RX_USIG_MU_INFO0_TAIL			GENMASK(26, 21)
+#define HAL_RX_USIG_MU_INFO0_RX_INTEG_CHECK_PASS	BIT(31)
+
+struct hal_mon_usig_mu {
+	__le32 info0;
+} __packed;
+
+union hal_mon_usig_non_cmn {
+	struct hal_mon_usig_tb tb;
+	struct hal_mon_usig_mu mu;
+};
+
+struct hal_mon_usig_hdr {
+	struct hal_mon_usig_cmn cmn;
+	union hal_mon_usig_non_cmn non_cmn;
+} __packed;
+
+#define HAL_RX_USR_INFO0_PHY_PPDU_ID		GENMASK(15, 0)
+#define HAL_RX_USR_INFO0_USR_RSSI		GENMASK(23, 16)
+#define HAL_RX_USR_INFO0_PKT_TYPE		GENMASK(27, 24)
+#define HAL_RX_USR_INFO0_STBC			BIT(28)
+#define HAL_RX_USR_INFO0_RECEPTION_TYPE		GENMASK(31, 29)
+
+#define HAL_RX_USR_INFO1_MCS			GENMASK(3, 0)
+#define HAL_RX_USR_INFO1_SGI			GENMASK(5, 4)
+#define HAL_RX_USR_INFO1_HE_RANGING_NDP		BIT(6)
+#define HAL_RX_USR_INFO1_MIMO_SS_BITMAP		GENMASK(15, 8)
+#define HAL_RX_USR_INFO1_RX_BW			GENMASK(18, 16)
+#define HAL_RX_USR_INFO1_DL_OFMDA_USR_IDX	GENMASK(31, 24)
+
+#define HAL_RX_USR_INFO2_DL_OFDMA_CONTENT_CHAN	BIT(0)
+#define HAL_RX_USR_INFO2_NSS			GENMASK(10, 8)
+#define HAL_RX_USR_INFO2_STREAM_OFFSET		GENMASK(13, 11)
+#define HAL_RX_USR_INFO2_STA_DCM		BIT(14)
+#define HAL_RX_USR_INFO2_LDPC			BIT(15)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_0		GENMASK(19, 16)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_1		GENMASK(23, 20)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_2		GENMASK(27, 24)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_3		GENMASK(31, 28)
+
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_0	GENMASK(5, 0)
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_1	GENMASK(13, 8)
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_2	GENMASK(21, 16)
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_3	GENMASK(29, 24)
+
+struct hal_receive_user_info {
+	__le32 info0;
+	__le32 info1;
+	__le32 info2;
+	__le32 info3;
+	__le32 user_fd_rssi_seg0;
+	__le32 user_fd_rssi_seg1;
+	__le32 user_fd_rssi_seg2;
+	__le32 user_fd_rssi_seg3;
+} __packed;
+
+enum hal_mon_reception_type {
+	HAL_RECEPTION_TYPE_SU,
+	HAL_RECEPTION_TYPE_DL_MU_MIMO,
+	HAL_RECEPTION_TYPE_DL_MU_OFMA,
+	HAL_RECEPTION_TYPE_DL_MU_OFDMA_MIMO,
+	HAL_RECEPTION_TYPE_UL_MU_MIMO,
+	HAL_RECEPTION_TYPE_UL_MU_OFDMA,
+	HAL_RECEPTION_TYPE_UL_MU_OFDMA_MIMO,
+};
+
+/* Different allowed RU in 11BE */
+#define HAL_EHT_RU_26		0ULL
+#define HAL_EHT_RU_52		1ULL
+#define HAL_EHT_RU_78		2ULL
+#define HAL_EHT_RU_106		3ULL
+#define HAL_EHT_RU_132		4ULL
+#define HAL_EHT_RU_242		5ULL
+#define HAL_EHT_RU_484		6ULL
+#define HAL_EHT_RU_726		7ULL
+#define HAL_EHT_RU_996		8ULL
+#define HAL_EHT_RU_996x2	9ULL
+#define HAL_EHT_RU_996x3	10ULL
+#define HAL_EHT_RU_996x4	11ULL
+#define HAL_EHT_RU_NONE		15ULL
+#define HAL_EHT_RU_INVALID	31ULL
+/* MRUs spanning above 80Mhz
+ * HAL_EHT_RU_996_484 = HAL_EHT_RU_484 + HAL_EHT_RU_996 + 4 (reserved)
+ */
+#define HAL_EHT_RU_996_484	18ULL
+#define HAL_EHT_RU_996x2_484	28ULL
+#define HAL_EHT_RU_996x3_484	40ULL
+#define HAL_EHT_RU_996_484_242	23ULL
+
+#define NUM_RU_BITS_PER80	16
+#define NUM_RU_BITS_PER20	4
+
+/* Different per_80Mhz band in 320Mhz bandwidth */
+#define HAL_80_0	0
+#define HAL_80_1	1
+#define HAL_80_2	2
+#define HAL_80_3	3
+
+#define HAL_RU_80MHZ(num_band)		((num_band) * NUM_RU_BITS_PER80)
+#define HAL_RU_20MHZ(idx_per_80)	((idx_per_80) * NUM_RU_BITS_PER20)
+
+#define HAL_RU_SHIFT(num_band, idx_per_80)	\
+		(HAL_RU_80MHZ(num_band) + HAL_RU_20MHZ(idx_per_80))
+
+#define HAL_RU(ru, num_band, idx_per_80)	\
+		((u64)(ru) << HAL_RU_SHIFT(num_band, idx_per_80))
+
+/* MRU-996+484 */
+#define HAL_EHT_RU_996_484_0	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_1, 0))
+#define HAL_EHT_RU_996_484_1	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_1, 0))
+#define HAL_EHT_RU_996_484_2	(HAL_RU(HAL_EHT_RU_996, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1))
+#define HAL_EHT_RU_996_484_3	(HAL_RU(HAL_EHT_RU_996, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0))
+#define HAL_EHT_RU_996_484_4	(HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_3, 0))
+#define HAL_EHT_RU_996_484_5	(HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_3, 0))
+#define HAL_EHT_RU_996_484_6	(HAL_RU(HAL_EHT_RU_996, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 1))
+#define HAL_EHT_RU_996_484_7	(HAL_RU(HAL_EHT_RU_996, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 0))
+
+/* MRU-996x2+484 */
+#define HAL_EHT_RU_996x2_484_0	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_1	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_2	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_3	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_4	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1))
+#define HAL_EHT_RU_996x2_484_5	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_6	(HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_7	(HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_8	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_9	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_10	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 1))
+#define HAL_EHT_RU_996x2_484_11	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 0))
+
+/* MRU-996x3+484 */
+#define HAL_EHT_RU_996x3_484_0	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_1	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_2	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_3	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_4	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_5	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_6	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 1))
+#define HAL_EHT_RU_996x3_484_7	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 0))
+
+#define HAL_RU_PER80(ru_per80, num_80mhz, ru_idx_per80mhz) \
+			(HAL_RU(ru_per80, num_80mhz, ru_idx_per80mhz))
+
+#define RU_INVALID		0
+#define RU_26			1
+#define RU_52			2
+#define RU_106			4
+#define RU_242			9
+#define RU_484			18
+#define RU_996			37
+#define RU_2X996		74
+#define RU_3X996		111
+#define RU_4X996		148
+#define RU_52_26		(RU_52 + RU_26)
+#define RU_106_26		(RU_106 + RU_26)
+#define RU_484_242		(RU_484 + RU_242)
+#define RU_996_484		(RU_996 + RU_484)
+#define RU_996_484_242		(RU_996 + RU_484_242)
+#define RU_2X996_484		(RU_2X996 + RU_484)
+#define RU_3X996_484		(RU_3X996 + RU_484)
+
+enum ath12k_eht_ru_size {
+	ATH12K_EHT_RU_26,
+	ATH12K_EHT_RU_52,
+	ATH12K_EHT_RU_106,
+	ATH12K_EHT_RU_242,
+	ATH12K_EHT_RU_484,
+	ATH12K_EHT_RU_996,
+	ATH12K_EHT_RU_996x2,
+	ATH12K_EHT_RU_996x4,
+	ATH12K_EHT_RU_52_26,
+	ATH12K_EHT_RU_106_26,
+	ATH12K_EHT_RU_484_242,
+	ATH12K_EHT_RU_996_484,
+	ATH12K_EHT_RU_996_484_242,
+	ATH12K_EHT_RU_996x2_484,
+	ATH12K_EHT_RU_996x3,
+	ATH12K_EHT_RU_996x3_484,
+
+	/* Keep last */
+	ATH12K_EHT_RU_INVALID,
+};
+
+#define HAL_RX_RU_ALLOC_TYPE_MAX	ATH12K_EHT_RU_INVALID
+
 static inline
 enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
 {
@@ -659,6 +1104,9 @@ enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
 		break;
 	case RU_996:
 		ret = NL80211_RATE_INFO_HE_RU_ALLOC_996;
+		break;
+	case RU_2X996:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
 		break;
 	case RU_26:
 		fallthrough;
@@ -694,8 +1142,8 @@ void ath12k_hal_rx_msdu_link_info_get(struct hal_rx_msdu_link *link, u32 *num_ms
 				      u32 *msdu_cookies,
 				      enum hal_rx_buf_return_buf_manager *rbm);
 void ath12k_hal_rx_msdu_link_desc_set(struct ath12k_base *ab,
-				      struct hal_wbm_release_ring *dst_desc,
-				      struct hal_wbm_release_ring *src_desc,
+				      struct hal_wbm_release_ring *desc,
+				      struct ath12k_buffer_addr *buf_addr_info,
 				      enum hal_wbm_rel_bm_act action);
 void ath12k_hal_rx_buf_addr_info_set(struct ath12k_buffer_addr *binfo,
 				     dma_addr_t paddr, u32 cookie, u8 manager);
@@ -710,5 +1158,12 @@ int ath12k_hal_wbm_desc_parse_err(struct ath12k_base *ab, void *desc,
 void ath12k_hal_rx_reo_ent_paddr_get(struct ath12k_base *ab,
 				     struct ath12k_buffer_addr *buff_addr,
 				     dma_addr_t *paddr, u32 *cookie);
+void ath12k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr, u32 *sw_cookie,
+					 struct ath12k_buffer_addr **pp_buf_addr,
+					 u8 *rbm, u32 *msdu_cnt);
+void ath12k_hal_rx_msdu_list_get(struct ath12k *ar,
+				 struct hal_rx_msdu_link *link_desc,
+				 struct hal_rx_msdu_list *msdu_list,
+				 u16 *num_msdus);
 
 #endif

@@ -84,7 +84,7 @@ enum dma_transfer_direction {
 	DMA_TRANS_NONE,
 };
 
-/**
+/*
  * Interleaved Transfer Request
  * ----------------------------
  * A chunk is collection of contiguous bytes to be transferred.
@@ -223,7 +223,7 @@ enum sum_check_bits {
 };
 
 /**
- * enum pq_check_flags - result of async_{xor,pq}_zero_sum operations
+ * enum sum_check_flags - result of async_{xor,pq}_zero_sum operations
  * @SUM_CHECK_P_RESULT - 1 if xor zero sum error, 0 otherwise
  * @SUM_CHECK_Q_RESULT - 1 if reed-solomon zero sum error, 0 otherwise
  */
@@ -286,7 +286,7 @@ typedef struct { DECLARE_BITMAP(bits, DMA_TX_TYPE_END); } dma_cap_mask_t;
  *	pointer to the engine's metadata area
  *   4. Read out the metadata from the pointer
  *
- * Note: the two mode is not compatible and clients must use one mode for a
+ * Warning: the two modes are not compatible and clients must use one mode for a
  * descriptor.
  */
 enum dma_desc_metadata_mode {
@@ -594,9 +594,13 @@ struct dma_descriptor_metadata_ops {
  * @phys: physical address of the descriptor
  * @chan: target channel for this operation
  * @tx_submit: accept the descriptor, assign ordered cookie and mark the
+ * @desc_free: driver's callback function to free a resusable descriptor
+ *	after completion
  * descriptor pending. To be pushed on .issue_pending() call
  * @callback: routine to call after this operation is complete
+ * @callback_result: error result from a DMA transaction
  * @callback_param: general parameter to pass to the callback routine
+ * @unmap: hook for generic DMA unmap data
  * @desc_metadata_mode: core managed metadata mode to protect mixed use of
  *	DESC_METADATA_CLIENT or DESC_METADATA_ENGINE. Otherwise
  *	DESC_METADATA_NONE
@@ -827,12 +831,14 @@ struct dma_filter {
  * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_memset_sg: prepares a memset operation over a scatter list
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
+ * @device_prep_peripheral_dma_vec: prepares a scatter-gather DMA transfer,
+ *	where the address and size of each segment is located in one entry of
+ *	the dma_vec array.
  * @device_prep_slave_sg: prepares a slave dma operation
  * @device_prep_dma_cyclic: prepare a cyclic dma operation suitable for audio.
  *	The function takes a buffer of size buf_len. The callback function will
  *	be called after period_len bytes have been transferred.
  * @device_prep_interleaved_dma: Transfer expression in a generic way.
- * @device_prep_dma_imm_data: DMA's 8 byte immediate data to the dst address
  * @device_caps: May be used to override the generic DMA slave capabilities
  *	with per-channel specific ones
  * @device_config: Pushes a new configuration to a channel, return 0 or an error
@@ -934,9 +940,6 @@ struct dma_device {
 		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_interleaved_dma)(
 		struct dma_chan *chan, struct dma_interleaved_template *xt,
-		unsigned long flags);
-	struct dma_async_tx_descriptor *(*device_prep_dma_imm_data)(
-		struct dma_chan *chan, dma_addr_t dst, u64 data,
 		unsigned long flags);
 
 	void (*device_caps)(struct dma_chan *chan, struct dma_slave_caps *caps);
@@ -1632,14 +1635,14 @@ static inline struct dma_chan
 {
 	struct dma_chan *chan;
 
-	chan = dma_request_slave_channel(dev, name);
-	if (chan)
+	chan = dma_request_chan(dev, name);
+	if (!IS_ERR(chan))
 		return chan;
 
 	if (!fn || !fn_param)
 		return NULL;
 
-	return __dma_request_channel(&mask, fn, fn_param, NULL);
+	return dma_request_channel(mask, fn, fn_param);
 }
 
 static inline char *

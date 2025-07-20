@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/brcm,spum-crypto.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom SPU Crypto Offload
+
+maintainers:
+  - Rob Rice <rob.rice@broadcom.com>
+
+description:
+  The Broadcom Secure Processing Unit (SPU) hardware supports symmetric
+  cryptographic offload for Broadcom SoCs. A SoC may have multiple SPU hardware
+  blocks.
+
+properties:
+  compatible:
+    enum:
+      - brcm,spum-crypto
+      - brcm,spu2-crypto
+      - brcm,spu2-v2-crypto     # enhanced SPU2 hardware features like SHA3 and Rabin Fingerprint support
+      - brcm,spum-nsp-crypto    # Northstar Plus variant of the SPU-M hardware
+
+  reg:
+    maxItems: 1
+
+  mboxes:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    crypto@612d0000 {
+        compatible = "brcm,spum-crypto";
+        reg = <0x612d0000 0x900>;
+        mboxes = <&pdc0 0>;
+    };

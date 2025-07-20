@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test shifting of newly-SACKed ranges onto the previous already-SACKed skb.
+// This variant tests non-FACK SACK with SACKs coming in the order
+// 2 6 8 3 9, to test what happens when we get a new SACKed range
+// (for packet 3) that is on the right of an existing SACKed range
+// (for packet 2).
+
+`./defaults.sh`
+
+// Establish a connection and send 10 MSS.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 1024
+   +0 accept(3, ..., ...) = 4
+
+   +0 write(4, ..., 10000) = 10000
+   +0 > P. 1:10001(10000) ack 1
+
+  +.1 < . 1:1(0) ack 1 win 257 <sack 2001:3001,nop,nop>
++.001 < . 1:1(0) ack 1 win 257 <sack 2001:3001 6001:7001,nop,nop>
++.001 < . 1:1(0) ack 1 win 257 <sack 2001:3001 6001:7001 8001:9001,nop,nop>
+
+// 3 SACKed packets, so we enter Fast Recovery.
+   +0 > . 1:1001(1000) ack 1
+   +0 %{ assert tcpi_ca_state == TCP_CA_Recovery, tcpi_ca_state }%
+   +0 %{ assert tcpi_lost == 6, tcpi_lost }%
+
+// SACK for 3001:4001.
+// This SACK for an adjacent range causes the sender to
+// shift the newly-SACKed range onto the previous skb.
++.007 < . 1:1(0) ack 1 win 257 <sack 2001:4001 6001:7001 8001:9001,nop,nop>
+   +0 > . 1001:2001(1000) ack 1
+   +0 %{ assert tcpi_lost == 5, tcpi_lost }%
+   +0 %{ assert tcpi_reordering == 6, tcpi_reordering }%   // 8001:9001 -> 3001:4001 is 6
+
+// SACK for 9001:10001.
+ +.01 < . 1:1(0) ack 1 win 257 <sack 2001:4001 6001:7001 8001:10001,nop,nop>
+   +0 %{ assert tcpi_lost == 5, tcpi_lost }%
+
+// ACK for 1:1001 as packets from t=0.303 arrive.
++.083 < . 1:1(0) ack 1001 win 257 <sack 2001:4001 6001:7001 8001:10001,nop,nop>
+   +0 %{ assert tcpi_lost == 4,tcpi_lost }%
+
+// ACK for 1:4001 as packets from t=0.310 arrive.
++.017 < . 1:1(0) ack 4001 win 257 <sack 6001:7001 8001:10001,nop,nop>
+   +0 %{ assert tcpi_lost == 3,tcpi_lost }%
+
+// ACK for 1:7001 as packets from t=0.320 arrive.
+ +.01 < . 1:1(0) ack 7001 win 257 <sack 8001:10001,nop,nop>
+
+// ACK for all data as packets from t=0.403 arrive.
+  +.1 < . 1:1(0) ack 10001 win 257
+   +0 %{
+assert tcpi_ca_state == TCP_CA_Open, tcpi_ca_state
+assert tcpi_unacked == 0, tcpi_unacked
+assert tcpi_sacked == 0, tcpi_sacked
+assert tcpi_lost == 0, tcpi_lost
+assert tcpi_retrans == 0, tcpi_retrans
+}%

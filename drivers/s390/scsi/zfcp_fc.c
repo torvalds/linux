@@ -537,6 +537,11 @@ static void zfcp_fc_adisc_handler(void *data)
 	/* port is still good, nothing to do */
  out:
 	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	/*
+	 * port ref comes from get_device() in zfcp_fc_test_link() and
+	 * work item zfcp_fc_link_test_work() passes ref via
+	 * zfcp_fc_adisc() to here, if zfcp_fc_adisc() could send ADISC
+	 */
 	put_device(&port->dev);
 	kmem_cache_free(zfcp_fc_req_cache, fc_req);
 }
@@ -603,7 +608,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 
 	retval = zfcp_fc_adisc(port);
 	if (retval == 0)
-		return;
+		return; /* port ref passed to zfcp_fc_adisc(), no put here */
 
 	/* send of ADISC was not possible */
 	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);

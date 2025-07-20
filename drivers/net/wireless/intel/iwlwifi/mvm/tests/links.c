@@ -262,7 +262,7 @@ static const struct valid_link_pair_case {
 		.desc = "LB + HB, no BT.",
 		.chan_a = &chan_2ghz,
 		.chan_b = &chan_5ghz,
-		.valid = false,
+		.valid = true,
 	},
 	{
 		.desc = "LB + HB, with BT.",

@@ -40,7 +40,7 @@ The '$HOME/.perfconfig' file is used to store a per-user configuration.
 The file '$(sysconfdir)/perfconfig' can be used to
 store a system-wide default configuration.
 
-One an disable reading config files by setting the PERF_CONFIG environment
+One can disable reading config files by setting the PERF_CONFIG environment
 variable to /dev/null, or provide an alternate config file by setting that
 variable.
 
@@ -707,6 +707,10 @@ intel-pt.*::
 		branches decoded without consuming any trace packets. If
 		the maximum is exceeded there will be a "Never-ending loop"
 		error. The default is 100000.
+
+	intel-pt.all-switch-events::
+		If the user has permission to do so, always record all context
+		switch events on all CPUs.
 
 auxtrace.*::
 

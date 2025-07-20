@@ -118,6 +118,7 @@
  *   nla_nest_start(skb, type)		start a nested attribute
  *   nla_nest_end(skb, nla)		finalize a nested attribute
  *   nla_nest_cancel(skb, nla)		cancel nested attribute construction
+ *   nla_put_empty_nest(skb, type)	create an empty nest
  *
  * Attribute Length Calculations:
  *   nla_attr_size(payload)		length of attribute w/o padding
@@ -320,7 +321,13 @@ enum nla_policy_validation {
  *    All other            Unused - but note that it's a union
  *
  * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
+ *    NLA_U8, NLA_U16,
+ *    NLA_U32, NLA_U64,
+ *    NLA_S8, NLA_S16,
+ *    NLA_S32, NLA_S64,
+ *    NLA_MSECS,
  *    NLA_BINARY           Validation function called for the attribute.
+ *
  *    All other            Unused - but note that it's a union
  *
  * Example:
@@ -611,6 +618,22 @@ static inline int nlmsg_len(const struct nlmsghdr *nlh)
 }
 
 /**
+ * nlmsg_payload - message payload if the data fits in the len
+ * @nlh: netlink message header
+ * @len: struct length
+ *
+ * Returns: The netlink message payload/data if the length is sufficient,
+ * otherwise NULL.
+ */
+static inline void *nlmsg_payload(const struct nlmsghdr *nlh, size_t len)
+{
+	if (nlh->nlmsg_len < nlmsg_msg_size(len))
+		return NULL;
+
+	return nlmsg_data(nlh);
+}
+
+/**
  * nlmsg_attrdata - head of attributes data
  * @nlh: netlink message header
  * @hdrlen: length of family specific header
@@ -649,7 +672,7 @@ static inline int nlmsg_ok(const struct nlmsghdr *nlh, int remaining)
  * @nlh: netlink message header
  * @remaining: number of bytes remaining in message stream
  *
- * Returns the next netlink message in the message stream and
+ * Returns: the next netlink message in the message stream and
  * decrements remaining by the size of the current message.
  */
 static inline struct nlmsghdr *
@@ -676,7 +699,7 @@ nlmsg_next(const struct nlmsghdr *nlh, int *remaining)
  * exceeding maxtype will be rejected, policy must be specified, attributes
  * will be validated in the strictest way possible.
  *
- * Returns 0 on success or a negative error code.
+ * Returns: 0 on success or a negative error code.
  */
 static inline int nla_parse(struct nlattr **tb, int maxtype,
 			    const struct nlattr *head, int len,
@@ -701,7 +724,7 @@ static inline int nla_parse(struct nlattr **tb, int maxtype,
  * exceeding maxtype will be ignored and attributes from the policy are not
  * always strictly validated (only for new attributes).
  *
- * Returns 0 on success or a negative error code.
+ * Returns: 0 on success or a negative error code.
  */
 static inline int nla_parse_deprecated(struct nlattr **tb, int maxtype,
 				       const struct nlattr *head, int len,
@@ -726,7 +749,7 @@ static inline int nla_parse_deprecated(struct nlattr **tb, int maxtype,
  * exceeding maxtype will be rejected as well as trailing data, but the
  * policy is not completely strictly validated (only for new attributes).
  *
- * Returns 0 on success or a negative error code.
+ * Returns: 0 on success or a negative error code.
  */
 static inline int nla_parse_deprecated_strict(struct nlattr **tb, int maxtype,
 					      const struct nlattr *head,
@@ -833,7 +856,7 @@ nlmsg_parse_deprecated_strict(const struct nlmsghdr *nlh, int hdrlen,
  * @hdrlen: length of family specific header
  * @attrtype: type of attribute to look for
  *
- * Returns the first attribute which matches the specified type.
+ * Returns: the first attribute which matches the specified type.
  */
 static inline struct nlattr *nlmsg_find_attr(const struct nlmsghdr *nlh,
 					     int hdrlen, int attrtype)
@@ -854,7 +877,7 @@ static inline struct nlattr *nlmsg_find_attr(const struct nlmsghdr *nlh,
  * specified policy. Validation is done in liberal mode.
  * See documentation of struct nla_policy for more details.
  *
- * Returns 0 on success or a negative error code.
+ * Returns: 0 on success or a negative error code.
  */
 static inline int nla_validate_deprecated(const struct nlattr *head, int len,
 					  int maxtype,
@@ -877,7 +900,7 @@ static inline int nla_validate_deprecated(const struct nlattr *head, int len,
  * specified policy. Validation is done in strict mode.
  * See documentation of struct nla_policy for more details.
  *
- * Returns 0 on success or a negative error code.
+ * Returns: 0 on success or a negative error code.
  */
 static inline int nla_validate(const struct nlattr *head, int len, int maxtype,
 			       const struct nla_policy *policy,
@@ -914,7 +937,7 @@ static inline int nlmsg_validate_deprecated(const struct nlmsghdr *nlh,
  * nlmsg_report - need to report back to application?
  * @nlh: netlink message header
  *
- * Returns 1 if a report back to the application is requested.
+ * Returns: 1 if a report back to the application is requested.
  */
 static inline int nlmsg_report(const struct nlmsghdr *nlh)
 {
@@ -925,7 +948,7 @@ static inline int nlmsg_report(const struct nlmsghdr *nlh)
  * nlmsg_seq - return the seq number of netlink message
  * @nlh: netlink message header
  *
- * Returns 0 if netlink message is NULL
+ * Returns: 0 if netlink message is NULL
  */
 static inline u32 nlmsg_seq(const struct nlmsghdr *nlh)
 {
@@ -952,7 +975,7 @@ static inline u32 nlmsg_seq(const struct nlmsghdr *nlh)
  * @payload: length of message payload
  * @flags: message flags
  *
- * Returns NULL if the tailroom of the skb is insufficient to store
+ * Returns: NULL if the tailroom of the skb is insufficient to store
  * the message header and payload.
  */
 static inline struct nlmsghdr *nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
@@ -971,7 +994,7 @@ static inline struct nlmsghdr *nlmsg_put(struct sk_buff *skb, u32 portid, u32 se
  *
  * Append data to an existing nlmsg, used when constructing a message
  * with multiple fixed-format headers (which is rare).
- * Returns NULL if the tailroom of the skb is insufficient to store
+ * Returns: NULL if the tailroom of the skb is insufficient to store
  * the extra payload.
  */
 static inline void *nlmsg_append(struct sk_buff *skb, u32 size)
@@ -993,7 +1016,7 @@ static inline void *nlmsg_append(struct sk_buff *skb, u32 size)
  * @payload: length of message payload
  * @flags: message flags
  *
- * Returns NULL if the tailroom of the skb is insufficient to store
+ * Returns: NULL if the tailroom of the skb is insufficient to store
  * the message header and payload.
  */
 static inline struct nlmsghdr *nlmsg_put_answer(struct sk_buff *skb,
@@ -1050,7 +1073,7 @@ static inline void nlmsg_end(struct sk_buff *skb, struct nlmsghdr *nlh)
  * nlmsg_get_pos - return current position in netlink message
  * @skb: socket buffer the message is stored in
  *
- * Returns a pointer to the current tail of the message.
+ * Returns: a pointer to the current tail of the message.
  */
 static inline void *nlmsg_get_pos(struct sk_buff *skb)
 {
@@ -1276,7 +1299,7 @@ static inline int nla_ok(const struct nlattr *nla, int remaining)
  * @nla: netlink attribute
  * @remaining: number of bytes remaining in attribute stream
  *
- * Returns the next netlink attribute in the attribute stream and
+ * Returns: the next netlink attribute in the attribute stream and
  * decrements remaining by the size of the current attribute.
  */
 static inline struct nlattr *nla_next(const struct nlattr *nla, int *remaining)
@@ -1292,7 +1315,7 @@ static inline struct nlattr *nla_next(const struct nlattr *nla, int *remaining)
  * @nla: attribute containing the nested attributes
  * @attrtype: type of attribute to look for
  *
- * Returns the first attribute which matches the specified type.
+ * Returns: the first attribute which matches the specified type.
  */
 static inline struct nlattr *
 nla_find_nested(const struct nlattr *nla, int attrtype)
@@ -2091,7 +2114,7 @@ static inline int nla_get_flag(const struct nlattr *nla)
  * nla_get_msecs - return payload of msecs attribute
  * @nla: msecs netlink attribute
  *
- * Returns the number of milliseconds in jiffies.
+ * Returns: the number of milliseconds in jiffies.
  */
 static inline unsigned long nla_get_msecs(const struct nlattr *nla)
 {
@@ -2183,7 +2206,7 @@ static inline void *nla_memdup_noprof(const struct nlattr *src, gfp_t gfp)
  * marked their nest attributes with NLA_F_NESTED flag. New APIs should use
  * nla_nest_start() which sets the flag.
  *
- * Returns the container attribute or NULL on error
+ * Returns: the container attribute or NULL on error
  */
 static inline struct nlattr *nla_nest_start_noflag(struct sk_buff *skb,
 						   int attrtype)
@@ -2204,7 +2227,7 @@ static inline struct nlattr *nla_nest_start_noflag(struct sk_buff *skb,
  * Unlike nla_nest_start_noflag(), mark the nest attribute with NLA_F_NESTED
  * flag. This is the preferred function to use in new code.
  *
- * Returns the container attribute or NULL on error
+ * Returns: the container attribute or NULL on error
  */
 static inline struct nlattr *nla_nest_start(struct sk_buff *skb, int attrtype)
 {
@@ -2219,7 +2242,7 @@ static inline struct nlattr *nla_nest_start(struct sk_buff *skb, int attrtype)
  * Corrects the container attribute header to include the all
  * appended attributes.
  *
- * Returns the total data length of the skb.
+ * Returns: the total data length of the skb.
  */
 static inline int nla_nest_end(struct sk_buff *skb, struct nlattr *start)
 {
@@ -2241,6 +2264,20 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
 }
 
 /**
+ * nla_put_empty_nest - Create an empty nest
+ * @skb: socket buffer the message is stored in
+ * @attrtype: attribute type of the container
+ *
+ * This function is a helper for creating empty nests.
+ *
+ * Returns: 0 when successful or -EMSGSIZE on failure.
+ */
+static inline int nla_put_empty_nest(struct sk_buff *skb, int attrtype)
+{
+	return nla_nest_start(skb, attrtype) ? 0 : -EMSGSIZE;
+}
+
+/**
  * __nla_validate_nested - Validate a stream of nested attributes
  * @start: container attribute
  * @maxtype: maximum attribute type to be expected
@@ -2252,7 +2289,7 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  * specified policy. Attributes with a type exceeding maxtype will be
  * ignored. See documentation of struct nla_policy for more details.
  *
- * Returns 0 on success or a negative error code.
+ * Returns: 0 on success or a negative error code.
  */
 static inline int __nla_validate_nested(const struct nlattr *start, int maxtype,
 					const struct nla_policy *policy,
@@ -2285,7 +2322,7 @@ nla_validate_nested_deprecated(const struct nlattr *start, int maxtype,
  * nla_need_padding_for_64bit - test 64-bit alignment of the next attribute
  * @skb: socket buffer the message is stored in
  *
- * Return true if padding is needed to align the next attribute (nla_data()) to
+ * Return: true if padding is needed to align the next attribute (nla_data()) to
  * a 64-bit aligned area.
  */
 static inline bool nla_need_padding_for_64bit(struct sk_buff *skb)
@@ -2312,7 +2349,7 @@ static inline bool nla_need_padding_for_64bit(struct sk_buff *skb)
  * This will only be done in architectures which do not have
  * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS defined.
  *
- * Returns zero on success or a negative error code.
+ * Returns: zero on success or a negative error code.
  */
 static inline int nla_align_64bit(struct sk_buff *skb, int padattr)
 {

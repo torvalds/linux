@@ -7,7 +7,7 @@
 
 #define IDT_ALIGN	(8 * (1 + HAS_KERNEL_IBT))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/entry-common.h>
 #include <linux/hardirq.h>
 
@@ -474,7 +474,7 @@ static inline void fred_install_sysvec(unsigned int vector, const idtentry_t fun
 		idt_install_sysvec(vector, asm_##function);		\
 }
 
-#else /* !__ASSEMBLY__ */
+#else /* !__ASSEMBLER__ */
 
 /*
  * The ASM variants for DECLARE_IDTENTRY*() which emit the ASM entry stubs.
@@ -579,7 +579,7 @@ SYM_CODE_START(spurious_entries_start)
 SYM_CODE_END(spurious_entries_start)
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * The actual entry points. Note that DECLARE_IDTENTRY*() serves two

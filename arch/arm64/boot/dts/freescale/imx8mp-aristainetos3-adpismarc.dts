@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Heiko Schocher <hs@denx.de>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "imx8mp-aristainetos3a-som-v1.dtsi"
+
+&{/} {
+	model = "Aristainetos3 ADLink PI SMARC carrier";
+	compatible = "abb,imx8mp-aristanetos3-adpismarc",
+		     "abb,imx8mp-aristanetos3-som",
+		     "fsl,imx8mp";
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&i2c2 {
+	gpio8: pinctrl@3e {
+		compatible = "semtech,sx1509q";
+		reg = <0x3e>;
+
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		semtech,probe-reset;
+		gpio-controller;
+		interrupt-controller;
+		interrupt-parent = <&gpio6>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+};

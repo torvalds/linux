@@ -351,7 +351,7 @@ static int db9_saturn(int mode, struct parport *port, struct input_dev *devs[])
 
 static void db9_timer(struct timer_list *t)
 {
-	struct db9 *db9 = from_timer(db9, t, timer);
+	struct db9 *db9 = timer_container_of(db9, t, timer);
 	struct parport *port = db9->pd->port;
 	struct input_dev *dev = db9->dev[0];
 	struct input_dev *dev2 = db9->dev[1];
@@ -531,7 +531,7 @@ static void db9_close(struct input_dev *dev)
 	guard(mutex)(&db9->mutex);
 
 	if (!--db9->used) {
-		del_timer_sync(&db9->timer);
+		timer_delete_sync(&db9->timer);
 		parport_write_control(port, 0x00);
 		parport_data_forward(port);
 		parport_release(db9->pd);

@@ -79,7 +79,7 @@ static int intel_epb_save(void)
 {
 	u64 epb;
 
-	rdmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
+	rdmsrq(MSR_IA32_ENERGY_PERF_BIAS, epb);
 	/*
 	 * Ensure that saved_epb will always be nonzero after this write even if
 	 * the EPB value read from the MSR is 0.
@@ -94,7 +94,7 @@ static void intel_epb_restore(void)
 	u64 val = this_cpu_read(saved_epb);
 	u64 epb;
 
-	rdmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
+	rdmsrq(MSR_IA32_ENERGY_PERF_BIAS, epb);
 	if (val) {
 		val &= EPB_MASK;
 	} else {
@@ -111,7 +111,7 @@ static void intel_epb_restore(void)
 			pr_warn_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
 		}
 	}
-	wrmsrl(MSR_IA32_ENERGY_PERF_BIAS, (epb & ~EPB_MASK) | val);
+	wrmsrq(MSR_IA32_ENERGY_PERF_BIAS, (epb & ~EPB_MASK) | val);
 }
 
 static struct syscore_ops intel_epb_syscore_ops = {
@@ -135,7 +135,7 @@ static ssize_t energy_perf_bias_show(struct device *dev,
 	u64 epb;
 	int ret;
 
-	ret = rdmsrl_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
+	ret = rdmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
 	if (ret < 0)
 		return ret;
 
@@ -157,11 +157,11 @@ static ssize_t energy_perf_bias_store(struct device *dev,
 	else if (kstrtou64(buf, 0, &val) || val > MAX_EPB)
 		return -EINVAL;
 
-	ret = rdmsrl_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
+	ret = rdmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
 	if (ret < 0)
 		return ret;
 
-	ret = wrmsrl_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS,
+	ret = wrmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS,
 			    (epb & ~EPB_MASK) | val);
 	if (ret < 0)
 		return ret;

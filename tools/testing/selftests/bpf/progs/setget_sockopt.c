@@ -61,6 +61,9 @@ static const struct sockopt_test sol_tcp_tests[] = {
 	{ .opt = TCP_NOTSENT_LOWAT, .new = 1314, .expected = 1314, },
 	{ .opt = TCP_BPF_SOCK_OPS_CB_FLAGS, .new = BPF_SOCK_OPS_ALL_CB_FLAGS,
 	  .expected = BPF_SOCK_OPS_ALL_CB_FLAGS, },
+	{ .opt = TCP_BPF_DELACK_MAX, .new = 30000, .expected = 30000, },
+	{ .opt = TCP_BPF_RTO_MIN, .new = 30000, .expected = 30000, },
+	{ .opt = TCP_RTO_MAX_MS, .new = 2000, .expected = 2000, },
 	{ .opt = 0, },
 };
 
@@ -80,6 +83,14 @@ struct loop_ctx {
 	struct sock *sk;
 };
 
+static bool sk_is_tcp(struct sock *sk)
+{
+	return (sk->__sk_common.skc_family == AF_INET ||
+		sk->__sk_common.skc_family == AF_INET6) &&
+		sk->sk_type == SOCK_STREAM &&
+		sk->sk_protocol == IPPROTO_TCP;
+}
+
 static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 				 const struct sockopt_test *t,
 				 int level)
@@ -87,6 +98,9 @@ static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 	int old, tmp, new, opt = t->opt;
 
 	opt = t->opt;
+
+	if (opt == SO_TXREHASH && !sk_is_tcp(sk))
+		return 0;
 
 	if (bpf_getsockopt(ctx, level, opt, &old, sizeof(old)))
 		return 1;

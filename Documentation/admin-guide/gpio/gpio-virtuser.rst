@@ -92,7 +92,7 @@ struct. The first two take string values as arguments:
 Activating GPIO consumers
 -------------------------
 
-Once the confiuration is complete, the ``'live'`` attribute must be set to 1 in
+Once the configuration is complete, the ``'live'`` attribute must be set to 1 in
 order to instantiate the consumer. It can be set back to 0 to destroy the
 virtual device. The module will synchronously wait for the new simulated device
 to be successfully probed and if this doesn't happen, writing to ``'live'`` will

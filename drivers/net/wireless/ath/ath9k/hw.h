@@ -282,7 +282,7 @@ enum ath9k_hw_caps {
  * an exact user defined pattern or de-authentication/disassoc pattern.
  * @ATH9K_HW_WOW_PATTERN_MATCH_DWORD: device requires the first four
  * bytes of the pattern for user defined pattern, de-authentication and
- * disassociation patterns for all types of possible frames recieved
+ * disassociation patterns for all types of possible frames received
  * of those types.
  */
 
@@ -1066,7 +1066,7 @@ u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
-u32 ath9k_hw_get_tsf_offset(struct timespec64 *last, struct timespec64 *cur);
+u32 ath9k_hw_get_tsf_offset(ktime_t last, ktime_t cur);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, bool set);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
 u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);

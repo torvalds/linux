@@ -28,7 +28,7 @@
 
 #include <nvif/class.h>
 
-static const u8 *
+const u8 *
 tu102_mmu_kind(struct nvkm_mmu *mmu, int *count, u8 *invalid)
 {
 	static const u8

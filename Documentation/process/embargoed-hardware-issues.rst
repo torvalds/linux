@@ -290,7 +290,7 @@ an involved disclosed party. The current ambassadors list:
   AMD		Tom Lendacky <thomas.lendacky@amd.com>
   Ampere	Darren Hart <darren@os.amperecomputing.com>
   ARM		Catalin Marinas <catalin.marinas@arm.com>
-  IBM Power	Michael Ellerman <ellerman@au.ibm.com>
+  IBM Power	Madhavan Srinivasan <maddy@linux.ibm.com>
   IBM Z		Christian Borntraeger <borntraeger@de.ibm.com>
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <quic_tsoni@quicinc.com>
@@ -308,7 +308,7 @@ an involved disclosed party. The current ambassadors list:
 
   Google	Kees Cook <keescook@chromium.org>
 
-  LLVM		Nick Desaulniers <ndesaulniers@google.com>
+  LLVM		Nick Desaulniers <nick.desaulniers+lkml@gmail.com>
   ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please

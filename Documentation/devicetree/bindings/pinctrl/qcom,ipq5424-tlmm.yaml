@@ -79,8 +79,8 @@ $defs:
                 qdss_cti_trig_out_b0, qdss_cti_trig_in_b1, qdss_cti_trig_out_b1,
                 qdss_traceclk_a, qdss_tracectl_a, qdss_tracedata_a, qspi_clk,
                 qspi_cs, qspi_data, resout, rx0, rx1, rx2, sdc_clk, sdc_cmd,
-                sdc_data, spi0, spi1, spi10, spi11, tsens_max, uart0, uart1,
-                wci_txd, wci_rxd, wsi_clk, wsi_data ]
+                sdc_data, spi0_cs, spi0_clk, spi0_miso, spi0_mosi, spi1, spi10,
+                spi11, tsens_max, uart0, uart1, wci_txd, wci_rxd, wsi_clk, wsi_data ]
 
     required:
       - pins

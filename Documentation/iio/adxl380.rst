@@ -94,7 +94,7 @@ apply the following formula:
 Where _offset and _scale are device attributes. If no _offset attribute is
 present, simply assume its value is 0.
 
-The adis16475 driver offers data for 2 types of channels, the table below shows
+The ADXL380 driver offers data for 2 types of channels, the table below shows
 the measurement units for the processed value, which are defined by the IIO
 framework:
 

@@ -5,7 +5,7 @@
  * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
  *
  * This file is a stub providing documentation for what functions
- * asm-ARCH/syscall.h files need to define.  Most arch definitions
+ * arch/ARCH/include/asm/syscall.h files need to define.  Most arch definitions
  * will be simple inlines.
  *
  * All of these functions expect to be called with no locks,
@@ -36,6 +36,20 @@ struct pt_regs;
  * It's only valid to call this when @task is known to be blocked.
  */
 int syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
+
+/**
+ * syscall_set_nr - change the system call a task is executing
+ * @task:	task of interest, must be blocked
+ * @regs:	task_pt_regs() of @task
+ * @nr:		system call number
+ *
+ * Changes the system call number @task is about to execute.
+ *
+ * It's only valid to call this when @task is stopped for tracing on
+ * entry to a system call, due to %SYSCALL_WORK_SYSCALL_TRACE or
+ * %SYSCALL_WORK_SYSCALL_AUDIT.
+ */
+void syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr);
 
 /**
  * syscall_rollback - roll back registers after an aborted system call
@@ -116,6 +130,22 @@ void syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
  */
 void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 			   unsigned long *args);
+
+/**
+ * syscall_set_arguments - change system call parameter value
+ * @task:	task of interest, must be in system call entry tracing
+ * @regs:	task_pt_regs() of @task
+ * @args:	array of argument values to store
+ *
+ * Changes 6 arguments to the system call.
+ * The first argument gets value @args[0], and so on.
+ *
+ * It's only valid to call this when @task is stopped for tracing on
+ * entry to a system call, due to %SYSCALL_WORK_SYSCALL_TRACE or
+ * %SYSCALL_WORK_SYSCALL_AUDIT.
+ */
+void syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
+			   const unsigned long *args);
 
 /**
  * syscall_get_arch - return the AUDIT_ARCH for the current system call

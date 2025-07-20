@@ -313,10 +313,6 @@ void r5c_handle_cached_data_endio(struct r5conf *conf,
 		if (sh->dev[i].written) {
 			set_bit(R5_UPTODATE, &sh->dev[i].flags);
 			r5c_return_dev_pending_writes(conf, &sh->dev[i]);
-			conf->mddev->bitmap_ops->endwrite(conf->mddev,
-					sh->sector, RAID5_STRIPE_SECTORS(conf),
-					!test_bit(STRIPE_DEGRADED, &sh->state),
-					false);
 		}
 	}
 }
@@ -718,7 +714,7 @@ static void r5l_submit_current_io(struct r5l_log *log)
 
 	block = page_address(io->meta_page);
 	block->meta_size = cpu_to_le32(io->meta_offset);
-	crc = crc32c_le(log->uuid_checksum, block, PAGE_SIZE);
+	crc = crc32c(log->uuid_checksum, block, PAGE_SIZE);
 	block->checksum = cpu_to_le32(crc);
 
 	log->current_io = NULL;
@@ -1023,10 +1019,10 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 		/* checksum is already calculated in last run */
 		if (test_bit(STRIPE_LOG_TRAPPED, &sh->state))
 			continue;
-		addr = kmap_atomic(sh->dev[i].page);
-		sh->dev[i].log_checksum = crc32c_le(log->uuid_checksum,
-						    addr, PAGE_SIZE);
-		kunmap_atomic(addr);
+		addr = kmap_local_page(sh->dev[i].page);
+		sh->dev[i].log_checksum = crc32c(log->uuid_checksum,
+						 addr, PAGE_SIZE);
+		kunmap_local(addr);
 	}
 	parity_pages = 1 + !!(sh->qd_idx >= 0);
 	data_pages = write_disks - parity_pages;
@@ -1745,7 +1741,7 @@ static int r5l_recovery_read_meta_block(struct r5l_log *log,
 	    le64_to_cpu(mb->position) != ctx->pos)
 		return -EINVAL;
 
-	crc = crc32c_le(log->uuid_checksum, mb, PAGE_SIZE);
+	crc = crc32c(log->uuid_checksum, mb, PAGE_SIZE);
 	if (stored_crc != crc)
 		return -EINVAL;
 
@@ -1784,8 +1780,7 @@ static int r5l_log_write_empty_meta_block(struct r5l_log *log, sector_t pos,
 		return -ENOMEM;
 	r5l_recovery_create_empty_meta_block(log, page, pos, seq);
 	mb = page_address(page);
-	mb->checksum = cpu_to_le32(crc32c_le(log->uuid_checksum,
-					     mb, PAGE_SIZE));
+	mb->checksum = cpu_to_le32(crc32c(log->uuid_checksum, mb, PAGE_SIZE));
 	if (!sync_page_io(log->rdev, pos, PAGE_SIZE, page, REQ_OP_WRITE |
 			  REQ_SYNC | REQ_FUA, false)) {
 		__free_page(page);
@@ -1979,9 +1974,9 @@ r5l_recovery_verify_data_checksum(struct r5l_log *log,
 	u32 checksum;
 
 	r5l_recovery_read_page(log, ctx, page, log_offset);
-	addr = kmap_atomic(page);
-	checksum = crc32c_le(log->uuid_checksum, addr, PAGE_SIZE);
-	kunmap_atomic(addr);
+	addr = kmap_local_page(page);
+	checksum = crc32c(log->uuid_checksum, addr, PAGE_SIZE);
+	kunmap_local(addr);
 	return (le32_to_cpu(log_checksum) == checksum) ? 0 : -EINVAL;
 }
 
@@ -2381,11 +2376,11 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 				payload->size = cpu_to_le32(BLOCK_SECTORS);
 				payload->location = cpu_to_le64(
 					raid5_compute_blocknr(sh, i, 0));
-				addr = kmap_atomic(dev->page);
+				addr = kmap_local_page(dev->page);
 				payload->checksum[0] = cpu_to_le32(
-					crc32c_le(log->uuid_checksum, addr,
-						  PAGE_SIZE));
-				kunmap_atomic(addr);
+					crc32c(log->uuid_checksum, addr,
+					       PAGE_SIZE));
+				kunmap_local(addr);
 				sync_page_io(log->rdev, write_pos, PAGE_SIZE,
 					     dev->page, REQ_OP_WRITE, false);
 				write_pos = r5l_ring_add(log, write_pos,
@@ -2396,8 +2391,8 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 			}
 		}
 		mb->meta_size = cpu_to_le32(offset);
-		mb->checksum = cpu_to_le32(crc32c_le(log->uuid_checksum,
-						     mb, PAGE_SIZE));
+		mb->checksum = cpu_to_le32(crc32c(log->uuid_checksum,
+						  mb, PAGE_SIZE));
 		sync_page_io(log->rdev, ctx->pos, PAGE_SIZE, page,
 			     REQ_OP_WRITE | REQ_SYNC | REQ_FUA, false);
 		sh->log_start = ctx->pos;
@@ -2888,10 +2883,10 @@ int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)
 
 		if (!test_bit(R5_Wantwrite, &sh->dev[i].flags))
 			continue;
-		addr = kmap_atomic(sh->dev[i].page);
-		sh->dev[i].log_checksum = crc32c_le(log->uuid_checksum,
-						    addr, PAGE_SIZE);
-		kunmap_atomic(addr);
+		addr = kmap_local_page(sh->dev[i].page);
+		sh->dev[i].log_checksum = crc32c(log->uuid_checksum,
+						 addr, PAGE_SIZE);
+		kunmap_local(addr);
 		pages++;
 	}
 	WARN_ON(pages == 0);
@@ -2973,7 +2968,7 @@ static int r5l_load_log(struct r5l_log *log)
 	}
 	stored_crc = le32_to_cpu(mb->checksum);
 	mb->checksum = 0;
-	expected_crc = crc32c_le(log->uuid_checksum, mb, PAGE_SIZE);
+	expected_crc = crc32c(log->uuid_checksum, mb, PAGE_SIZE);
 	if (stored_crc != expected_crc) {
 		create_super = true;
 		goto create;
@@ -3081,8 +3076,8 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 		return -ENOMEM;
 	log->rdev = rdev;
 	log->need_cache_flush = bdev_write_cache(rdev->bdev);
-	log->uuid_checksum = crc32c_le(~0, rdev->mddev->uuid,
-				       sizeof(rdev->mddev->uuid));
+	log->uuid_checksum = crc32c(~0, rdev->mddev->uuid,
+				    sizeof(rdev->mddev->uuid));
 
 	mutex_init(&log->io_mutex);
 

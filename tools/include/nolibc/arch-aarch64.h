@@ -146,7 +146,6 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 {
 	__asm__ volatile (
 		"mov x0, sp\n"          /* save stack pointer to x0, as arg1 of _start_c */
-		"and sp, x0, -16\n"     /* sp must be 16-byte aligned in the callee      */
 		"bl  _start_c\n"        /* transfer to c runtime                         */
 	);
 	__nolibc_entrypoint_epilogue();

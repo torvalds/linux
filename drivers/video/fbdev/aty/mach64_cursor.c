@@ -6,7 +6,6 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include "../core/fb_draw.h"
 
 #include <asm/io.h>
 
@@ -56,6 +55,12 @@
  * CUR_OFFSET must be adjusted to a point to the appropriate line in the cursor
  * definitation and CUR_VERT_POSN must be saturated to zero.
  */
+
+/* compose pixels based on mask */
+static inline unsigned long comp(unsigned long set, unsigned long unset, unsigned long mask)
+{
+	return ((set ^ unset) & mask) ^ unset;
+}
 
     /*
      *  Hardware Cursor support.

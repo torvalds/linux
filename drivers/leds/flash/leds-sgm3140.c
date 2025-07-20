@@ -55,7 +55,7 @@ static int sgm3140_strobe_set(struct led_classdev_flash *fled_cdev, bool state)
 		mod_timer(&priv->powerdown_timer,
 			  jiffies + usecs_to_jiffies(priv->timeout));
 	} else {
-		del_timer_sync(&priv->powerdown_timer);
+		timer_delete_sync(&priv->powerdown_timer);
 		gpiod_set_value_cansleep(priv->enable_gpio, 0);
 		gpiod_set_value_cansleep(priv->flash_gpio, 0);
 		ret = regulator_disable(priv->vin_regulator);
@@ -117,7 +117,7 @@ static int sgm3140_brightness_set(struct led_classdev *led_cdev,
 		gpiod_set_value_cansleep(priv->flash_gpio, 0);
 		gpiod_set_value_cansleep(priv->enable_gpio, 1);
 	} else {
-		del_timer_sync(&priv->powerdown_timer);
+		timer_delete_sync(&priv->powerdown_timer);
 		gpiod_set_value_cansleep(priv->flash_gpio, 0);
 		gpiod_set_value_cansleep(priv->enable_gpio, 0);
 		ret = regulator_disable(priv->vin_regulator);
@@ -135,7 +135,7 @@ static int sgm3140_brightness_set(struct led_classdev *led_cdev,
 
 static void sgm3140_powerdown_timer(struct timer_list *t)
 {
-	struct sgm3140 *priv = from_timer(priv, t, powerdown_timer);
+	struct sgm3140 *priv = timer_container_of(priv, t, powerdown_timer);
 
 	gpiod_set_value(priv->enable_gpio, 0);
 	gpiod_set_value(priv->flash_gpio, 0);
@@ -285,7 +285,7 @@ static void sgm3140_remove(struct platform_device *pdev)
 {
 	struct sgm3140 *priv = platform_get_drvdata(pdev);
 
-	del_timer_sync(&priv->powerdown_timer);
+	timer_delete_sync(&priv->powerdown_timer);
 
 	v4l2_flash_release(priv->v4l2_flash);
 }

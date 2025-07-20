@@ -973,11 +973,6 @@ qla4_82xx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 	unsigned long off;
 	unsigned offset, n;
 
-	struct crb_addr_pair {
-		long addr;
-		long data;
-	};
-
 	/* Halt all the indiviual PEGs and other blocks of the ISP */
 	qla4_82xx_rom_lock(ha);
 

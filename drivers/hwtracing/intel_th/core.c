@@ -857,8 +857,9 @@ static irqreturn_t intel_th_irq(int irq, void *data)
 /**
  * intel_th_alloc() - allocate a new Intel TH device and its subdevices
  * @dev:	parent device
+ * @drvdata:	data private to the driver
  * @devres:	resources indexed by th_mmio_idx
- * @irq:	irq number
+ * @ndevres:	number of entries in the @devres resources
  */
 struct intel_th *
 intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,

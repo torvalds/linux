@@ -3,10 +3,12 @@
 snd-soc-rockchip-i2s-y := rockchip_i2s.o
 snd-soc-rockchip-i2s-tdm-y := rockchip_i2s_tdm.o
 snd-soc-rockchip-pdm-y := rockchip_pdm.o
+snd-soc-rockchip-sai-y := rockchip_sai.o
 snd-soc-rockchip-spdif-y := rockchip_spdif.o
 
 obj-$(CONFIG_SND_SOC_ROCKCHIP_I2S) += snd-soc-rockchip-i2s.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_PDM) += snd-soc-rockchip-pdm.o
+obj-$(CONFIG_SND_SOC_ROCKCHIP_SAI) += snd-soc-rockchip-sai.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_SPDIF) += snd-soc-rockchip-spdif.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_I2S_TDM) += snd-soc-rockchip-i2s-tdm.o
 

@@ -116,19 +116,15 @@ static bool dsa_port_can_configure_learning(struct dsa_port *dp)
 
 bool dsa_port_supports_hwtstamp(struct dsa_port *dp)
 {
+	struct kernel_hwtstamp_config config = {};
 	struct dsa_switch *ds = dp->ds;
-	struct ifreq ifr = {};
 	int err;
 
 	if (!ds->ops->port_hwtstamp_get || !ds->ops->port_hwtstamp_set)
 		return false;
 
-	/* "See through" shim implementations of the "get" method.
-	 * Since we can't cook up a complete ioctl request structure, this will
-	 * fail in copy_to_user() with -EFAULT, which hopefully is enough to
-	 * detect a valid implementation.
-	 */
-	err = ds->ops->port_hwtstamp_get(ds, dp->index, &ifr);
+	/* "See through" shim implementations of the "get" method. */
+	err = ds->ops->port_hwtstamp_get(ds, dp->index, &config);
 	return err != -EOPNOTSUPP;
 }
 
@@ -1574,6 +1570,22 @@ void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 	cpu_dp->rcv = tag_ops->rcv;
 	cpu_dp->tag_ops = tag_ops;
 }
+
+/* dsa_supports_eee - indicate that EEE is supported
+ * @ds: pointer to &struct dsa_switch
+ * @port: port index
+ *
+ * A default implementation for the .support_eee() DSA operations member,
+ * which drivers can use to indicate that they support EEE on all of their
+ * user ports.
+ *
+ * Returns: true
+ */
+bool dsa_supports_eee(struct dsa_switch *ds, int port)
+{
+	return true;
+}
+EXPORT_SYMBOL_GPL(dsa_supports_eee);
 
 static void dsa_port_phylink_mac_config(struct phylink_config *config,
 					unsigned int mode,

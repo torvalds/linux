@@ -324,7 +324,7 @@ config SENSORS_K8TEMP
 
 config SENSORS_K10TEMP
 	tristate "AMD Family 10h+ temperature sensor"
-	depends on X86 && PCI && AMD_NB
+	depends on X86 && PCI && AMD_NODE
 	help
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
@@ -334,6 +334,26 @@ config SENSORS_K10TEMP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called k10temp.
+
+config SENSORS_KBATT
+	tristate "KEBA battery controller support"
+	depends on KEBA_CP500
+	help
+	  This driver supports the battery monitoring controller found in
+	  KEBA system FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kbatt.
+
+config SENSORS_KFAN
+	tristate "KEBA fan controller support"
+	depends on KEBA_CP500
+	help
+	  This driver supports the fan controller found in KEBA system
+	  FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kfan.
 
 config SENSORS_FAM15H_POWER
 	tristate "AMD Family 15h processor power"
@@ -413,7 +433,7 @@ config SENSORS_ASPEED
 	  will be called aspeed_pwm_tacho.
 
 config SENSORS_ASPEED_G6
-	tristate "ASPEED g6 PWM and Fan tach driver"
+	tristate "ASPEED G6 PWM and Fan tach driver"
 	depends on ARCH_ASPEED || COMPILE_TEST
 	depends on PWM
 	help
@@ -421,7 +441,7 @@ config SENSORS_ASPEED_G6
 	  controllers.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called aspeed_pwm_tacho.
+	  will be called aspeed_g6_pwm_tach.
 
 config SENSORS_ATXP1
 	tristate "Attansic ATXP1 VID controller"
@@ -462,6 +482,16 @@ config SENSORS_BT1_PVT_ALARMS
 	  performed on demand from the user-space. If this config is enabled
 	  the data conversion will be periodically performed and the data will be
 	  saved in the internal driver cache.
+
+config SENSORS_CGBC
+	tristate "Congatec Board Controller Sensors"
+	depends on MFD_CGBC
+	help
+	  Enable sensors support for the Congatec Board Controller. It has
+	  temperature, voltage, current and fan sensors.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cgbc-hwmon.
 
 config SENSORS_CHIPCAP2
 	tristate "Amphenol ChipCap 2 relative humidity and temperature sensor"
@@ -788,6 +818,17 @@ config SENSORS_HS3001
 
 	  This driver can also be built as a module. If so, the module
 	  will be called hs3001.
+
+config SENSORS_HTU31
+	tristate "Measurement Specialties HTU31 humidity and temperature sensor"
+	depends on I2C
+	select CRC8
+	help
+	  If you say yes here you get support for the HTU31 humidity
+	  and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called htu31.
 
 config SENSORS_IBMAEM
 	tristate "IBM Active Energy Manager temperature/power sensors and control"
@@ -1287,6 +1328,15 @@ config SENSORS_MAX31790
 	  This driver can also be built as a module. If so, the module
 	  will be called max31790.
 
+config SENSORS_MAX77705
+	tristate "MAX77705 current and voltage sensor"
+	depends on MFD_MAX77705
+	help
+	  If you say yes here you get support for MAX77705 sensors connected with I2C.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max77705-hwmon.
+
 config SENSORS_MC34VR500
 	tristate "NXP MC34VR500 hardware monitoring driver"
 	depends on I2C
@@ -1412,7 +1462,9 @@ config SENSORS_LM73
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
+	depends on I3C || !I3C
 	select REGMAP_I2C
+	select REGMAP_I3C if I3C
 	help
 	  If you say yes here you get support for one common type of
 	  temperature sensor chip, with models including:
@@ -1517,7 +1569,7 @@ config SENSORS_LM90
 	  MAX6657, MAX6658, MAX6659, MAX6680, MAX6681, MAX6692, MAX6695,
 	  MAX6696,
 	  ON Semiconductor NCT1008, NCT210, NCT72, NCT214, NCT218,
-	  Winbond/Nuvoton W83L771W/G/AWG/ASG,
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG, NCT7716, NCT7717 and NCT7718,
 	  Philips NE1618, SA56004, GMT G781, Texas Instruments TMP451 and TMP461
 	  sensor chips.
 
@@ -1623,7 +1675,7 @@ config SENSORS_NTC_THERMISTOR
 	  B57891S0103 from EPCOS.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called ntc-thermistor.
+	  will be called ntc_thermistor.
 
 config SENSORS_NCT6683
 	tristate "Nuvoton NCT6683D"
@@ -1772,17 +1824,6 @@ config SENSORS_NZXT_SMART2
 
 source "drivers/hwmon/occ/Kconfig"
 
-config SENSORS_OXP
-	tristate "OneXPlayer EC fan control"
-	depends on ACPI_EC
-	depends on X86
-	help
-		If you say yes here you get support for fan readings and control over
-		OneXPlayer handheld devices. Only OneXPlayer mini AMD handheld variant
-		boards are supported.
-
-		Can also be built as a module. In that case it will be called oxp-sensors.
-
 config SENSORS_PCF8591
 	tristate "Philips PCF8591 ADC/DAC"
 	depends on I2C
@@ -1822,6 +1863,18 @@ config SENSORS_PWM_FAN
 	  This driver can also be built as a module. If so, the module
 	  will be called pwm-fan.
 
+config SENSORS_QNAP_MCU_HWMON
+	tristate "QNAP MCU hardware monitoring"
+	depends on MFD_QNAP_MCU
+	depends on THERMAL || THERMAL=n
+	help
+	  Say yes here to enable support for fan and temperature sensor
+	  connected to a QNAP MCU, as found in a number of QNAP network
+	  attached storage devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called qnap-mcu-hwmon.
+
 config SENSORS_RASPBERRYPI_HWMON
 	tristate "Raspberry Pi voltage monitor"
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
@@ -1851,16 +1904,6 @@ config SENSORS_SBTSI
 
 	  This driver can also be built as a module. If so, the module will
 	  be called sbtsi_temp.
-
-config SENSORS_SBRMI
-	tristate "Emulated SB-RMI sensor"
-	depends on I2C
-	help
-	  If you say yes here you get support for emulated RMI
-	  sensors on AMD SoCs with APML interface connected to a BMC device.
-
-	  This driver can also be built as a module. If so, the module will
-	  be called sbrmi.
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."

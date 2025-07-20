@@ -60,7 +60,7 @@ struct ens160_data {
 	struct mutex mutex;
 	struct {
 		__le16 chans[2];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan __aligned(IIO_DMA_MINALIGN);
 	u8 fw_version[3];
 	__le16 buf;
@@ -100,25 +100,35 @@ static const struct iio_chan_spec ens160_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
-static int ens160_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val, int *val2, long mask)
+static int __ens160_read_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     int *val)
 {
 	struct ens160_data *data = iio_priv(indio_dev);
 	int ret;
 
+	guard(mutex)(&data->mutex);
+	ret = regmap_bulk_read(data->regmap, chan->address,
+			       &data->buf, sizeof(data->buf));
+	if (ret)
+		return ret;
+	*val = le16_to_cpu(data->buf);
+	return IIO_VAL_INT;
+}
+
+static int ens160_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan,
+			   int *val, int *val2, long mask)
+{
+	int ret;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			guard(mutex)(&data->mutex);
-			ret = regmap_bulk_read(data->regmap, chan->address,
-					       &data->buf, sizeof(data->buf));
-			if (ret)
-				return ret;
-			*val = le16_to_cpu(data->buf);
-			return IIO_VAL_INT;
-		}
-		unreachable();
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = __ens160_read_raw(indio_dev, chan, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->channel2) {
 		case IIO_MOD_CO2:
@@ -257,8 +267,8 @@ static irqreturn_t ens160_trigger_handler(int irq, void *p)
 	if (ret)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    pf->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 

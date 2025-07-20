@@ -16,6 +16,7 @@
 #include <linux/sprintf.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/sched/clock.h>
 #include <trace/events/error_report.h>
 
@@ -184,7 +185,7 @@ static void print_diff_canary(unsigned long address, size_t bytes_to_show,
 
 static const char *get_access_type(bool is_write)
 {
-	return is_write ? "write" : "read";
+	return str_write_read(is_write);
 }
 
 void kfence_report_error(unsigned long address, bool is_write, struct pt_regs *regs,

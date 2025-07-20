@@ -2619,7 +2619,8 @@ err_qdio_bufs:
 
 static void qeth_tx_completion_timer(struct timer_list *timer)
 {
-	struct qeth_qdio_out_q *queue = from_timer(queue, timer, timer);
+	struct qeth_qdio_out_q *queue = timer_container_of(queue, timer,
+							   timer);
 
 	napi_schedule(&queue->napi);
 	QETH_TXQ_STAT_INC(queue, completion_timer);
@@ -7050,14 +7051,16 @@ int qeth_open(struct net_device *dev)
 	card->data.state = CH_STATE_UP;
 	netif_tx_start_all_queues(dev);
 
-	local_bh_disable();
 	qeth_for_each_output_queue(card, queue, i) {
 		netif_napi_add_tx(dev, &queue->napi, qeth_tx_poll);
 		napi_enable(&queue->napi);
+	}
+	napi_enable(&card->napi);
+
+	local_bh_disable();
+	qeth_for_each_output_queue(card, queue, i) {
 		napi_schedule(&queue->napi);
 	}
-
-	napi_enable(&card->napi);
 	napi_schedule(&card->napi);
 	/* kick-start the NAPI softirq: */
 	local_bh_enable();
@@ -7086,7 +7089,7 @@ int qeth_stop(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	qeth_for_each_output_queue(card, queue, i) {
-		del_timer_sync(&queue->timer);
+		timer_delete_sync(&queue->timer);
 		/* Queues may get re-allocated, so remove the NAPIs. */
 		netif_napi_del(&queue->napi);
 	}

@@ -143,8 +143,8 @@ static int get_timings(struct mgb4_vin_dev *vindev,
 
 	u32 status = mgb4_read_reg(video, regs->status);
 	u32 pclk = mgb4_read_reg(video, regs->pclk);
-	u32 signal = mgb4_read_reg(video, regs->signal);
-	u32 signal2 = mgb4_read_reg(video, regs->signal2);
+	u32 hsync = mgb4_read_reg(video, regs->hsync);
+	u32 vsync = mgb4_read_reg(video, regs->vsync);
 	u32 resolution = mgb4_read_reg(video, regs->resolution);
 
 	if (!(status & (1U << 2)))
@@ -161,12 +161,12 @@ static int get_timings(struct mgb4_vin_dev *vindev,
 	if (status & (1U << 13))
 		timings->bt.polarities |= V4L2_DV_VSYNC_POS_POL;
 	timings->bt.pixelclock = pclk * 1000;
-	timings->bt.hsync = (signal & 0x00FF0000) >> 16;
-	timings->bt.vsync = (signal2 & 0x00FF0000) >> 16;
-	timings->bt.hbackporch = (signal & 0x0000FF00) >> 8;
-	timings->bt.hfrontporch = signal & 0x000000FF;
-	timings->bt.vbackporch = (signal2 & 0x0000FF00) >> 8;
-	timings->bt.vfrontporch = signal2 & 0x000000FF;
+	timings->bt.hsync = (hsync & 0x00FF0000) >> 16;
+	timings->bt.vsync = (vsync & 0x00FF0000) >> 16;
+	timings->bt.hbackporch = (hsync & 0x0000FF00) >> 8;
+	timings->bt.hfrontporch = hsync & 0x000000FF;
+	timings->bt.vbackporch = (vsync & 0x0000FF00) >> 8;
+	timings->bt.vfrontporch = vsync & 0x000000FF;
 
 	return 0;
 }
@@ -641,7 +641,14 @@ static int vidioc_query_dv_timings(struct file *file, void *fh,
 static int vidioc_enum_dv_timings(struct file *file, void *fh,
 				  struct v4l2_enum_dv_timings *timings)
 {
-	return v4l2_enum_dv_timings_cap(timings, &video_timings_cap, NULL, NULL);
+	struct mgb4_vin_dev *vindev = video_drvdata(file);
+
+	if (timings->index != 0)
+		return -EINVAL;
+	if (get_timings(vindev, &timings->timings) < 0)
+		return -ENODATA;
+
+	return 0;
 }
 
 static int vidioc_dv_timings_cap(struct file *file, void *fh,
@@ -749,14 +756,14 @@ static void signal_change(struct work_struct *work)
 	u32 width = resolution >> 16;
 	u32 height = resolution & 0xFFFF;
 
+	static const struct v4l2_event ev = {
+		.type = V4L2_EVENT_SOURCE_CHANGE,
+		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+	};
+
+	v4l2_event_queue(&vindev->vdev, &ev);
+
 	if (timings->width != width || timings->height != height) {
-		static const struct v4l2_event ev = {
-			.type = V4L2_EVENT_SOURCE_CHANGE,
-			.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
-		};
-
-		v4l2_event_queue(&vindev->vdev, &ev);
-
 		if (vb2_is_streaming(&vindev->queue))
 			vb2_queue_error(&vindev->queue);
 	}
@@ -864,9 +871,9 @@ static void create_debugfs(struct mgb4_vin_dev *vindev)
 	vindev->regs[5].name = "PCLK_FREQUENCY";
 	vindev->regs[5].offset = vindev->config->regs.pclk;
 	vindev->regs[6].name = "VIDEO_PARAMS_1";
-	vindev->regs[6].offset = vindev->config->regs.signal;
+	vindev->regs[6].offset = vindev->config->regs.hsync;
 	vindev->regs[7].name = "VIDEO_PARAMS_2";
-	vindev->regs[7].offset = vindev->config->regs.signal2;
+	vindev->regs[7].offset = vindev->config->regs.vsync;
 	vindev->regs[8].name = "PADDING_PIXELS";
 	vindev->regs[8].offset = vindev->config->regs.padding;
 	if (has_timeperframe(video)) {

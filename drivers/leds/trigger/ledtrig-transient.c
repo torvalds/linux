@@ -32,7 +32,7 @@ struct transient_trig_data {
 static void transient_timer_function(struct timer_list *t)
 {
 	struct transient_trig_data *transient_data =
-		from_timer(transient_data, t, timer);
+		timer_container_of(transient_data, t, timer);
 	struct led_classdev *led_cdev = transient_data->led_cdev;
 
 	transient_data->activate = 0;
@@ -66,7 +66,7 @@ static ssize_t transient_activate_store(struct device *dev,
 
 	/* cancel the running timer */
 	if (state == 0 && transient_data->activate == 1) {
-		del_timer(&transient_data->timer);
+		timer_delete(&transient_data->timer);
 		transient_data->activate = state;
 		led_set_brightness_nosleep(led_cdev,
 					transient_data->restore_state);

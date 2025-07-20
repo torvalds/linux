@@ -8,6 +8,7 @@
 #include "intel_gpu_commands.h"
 #include "intel_gt_requests.h"
 #include "intel_ring.h"
+#include "intel_rps.h"
 #include "selftest_rc6.h"
 
 #include "selftests/i915_random.h"
@@ -32,12 +33,22 @@ int live_rc6_manual(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_rc6 *rc6 = &gt->rc6;
-	u64 rc0_power, rc6_power;
+	struct intel_rps *rps = &gt->rps;
 	intel_wakeref_t wakeref;
+	u64 rc0_sample_energy[2];
+	u64 rc6_sample_energy[2];
+	u64 sleep_time = 1000;
+	u32 rc0_freq = 0;
+	u32 rc6_freq = 0;
+	u64 rc0_power;
+	u64 rc6_power;
 	bool has_power;
+	u64 threshold;
 	ktime_t dt;
 	u64 res[2];
 	int err = 0;
+	u64 diff;
+
 
 	/*
 	 * Our claim is that we can "encourage" the GPU to enter rc6 at will.
@@ -56,16 +67,18 @@ int live_rc6_manual(void *arg)
 
 	/* Force RC6 off for starters */
 	__intel_rc6_disable(rc6);
-	msleep(1); /* wakeup is not immediate, takes about 100us on icl */
+	/* wakeup is not immediate, takes about 100us on icl */
+	usleep_range(1000, 2000);
 
 	res[0] = rc6_residency(rc6);
 
 	dt = ktime_get();
-	rc0_power = librapl_energy_uJ();
-	msleep(1000);
-	rc0_power = librapl_energy_uJ() - rc0_power;
+	rc0_sample_energy[0] = librapl_energy_uJ();
+	msleep(sleep_time);
+	rc0_sample_energy[1] = librapl_energy_uJ() - rc0_sample_energy[0];
 	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
+	rc0_freq = intel_rps_read_actual_frequency_fw(rps);
 	if ((res[1] - res[0]) >> 10) {
 		pr_err("RC6 residency increased by %lldus while disabled for 1000ms!\n",
 		       (res[1] - res[0]) >> 10);
@@ -74,10 +87,15 @@ int live_rc6_manual(void *arg)
 	}
 
 	if (has_power) {
-		rc0_power = div64_u64(NSEC_PER_SEC * rc0_power,
+		rc0_power = div64_u64(NSEC_PER_SEC * rc0_sample_energy[1],
 				      ktime_to_ns(dt));
+
 		if (!rc0_power) {
-			pr_err("No power measured while in RC0\n");
+			if (rc0_freq)
+				pr_debug("No power measured while in RC0! GPU Freq: %uMHz in RC0\n",
+					 rc0_freq);
+			else
+				pr_err("No power and freq measured while in RC0\n");
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -89,9 +107,10 @@ int live_rc6_manual(void *arg)
 	res[0] = rc6_residency(rc6);
 	intel_uncore_forcewake_flush(rc6_to_uncore(rc6), FORCEWAKE_ALL);
 	dt = ktime_get();
-	rc6_power = librapl_energy_uJ();
-	msleep(100);
-	rc6_power = librapl_energy_uJ() - rc6_power;
+	rc6_sample_energy[0] = librapl_energy_uJ();
+	msleep(sleep_time);
+	rc6_freq = intel_rps_read_actual_frequency_fw(rps);
+	rc6_sample_energy[1] = librapl_energy_uJ() - rc6_sample_energy[0];
 	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
 	if (res[1] == res[0]) {
@@ -103,12 +122,24 @@ int live_rc6_manual(void *arg)
 	}
 
 	if (has_power) {
-		rc6_power = div64_u64(NSEC_PER_SEC * rc6_power,
+		rc6_power = div64_u64(NSEC_PER_SEC * rc6_sample_energy[1],
 				      ktime_to_ns(dt));
-		pr_info("GPU consumed %llduW in RC0 and %llduW in RC6\n",
+		pr_info("GPU consumed %lluuW in RC0 and %lluuW in RC6\n",
 			rc0_power, rc6_power);
+
 		if (2 * rc6_power > rc0_power) {
-			pr_err("GPU leaked energy while in RC6!\n");
+			pr_err("GPU leaked energy while in RC6!\n"
+			       "GPU Freq: %uMHz in RC6 and %uMHz in RC0\n"
+			       "RC0 energy before & after sleep respectively: %lluuJ %lluuJ\n"
+			       "RC6 energy before & after sleep respectively: %lluuJ %lluuJ\n",
+			       rc6_freq, rc0_freq, rc0_sample_energy[0], rc0_sample_energy[1],
+			       rc6_sample_energy[0], rc6_sample_energy[1]);
+
+			diff = res[1] - res[0];
+			threshold = (9 * NSEC_PER_MSEC * sleep_time) / 10;
+			if (diff < threshold)
+				pr_err("Did not enter RC6 properly, RC6 start residency=%lluns, RC6 end residency=%lluns\n",
+				       res[0], res[1]);
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -211,7 +242,7 @@ int live_rc6_ctx_wa(void *arg)
 				i915_reset_engine_count(error, engine);
 			const u32 *res;
 
-			/* Use a sacrifical context */
+			/* Use a sacrificial context */
 			ce = intel_context_create(engine);
 			if (IS_ERR(ce)) {
 				err = PTR_ERR(ce);

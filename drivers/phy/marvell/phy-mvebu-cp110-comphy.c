@@ -422,7 +422,7 @@ static int mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 	/* wait until clocks are ready */
 	mdelay(1);
 
-	/* exlicitly disable 40B, the bits isn't clear on reset */
+	/* explicitly disable 40B, the bits isn't clear on reset */
 	regmap_read(priv->regmap, MVEBU_COMPHY_CONF6(lane->id), &val);
 	val &= ~MVEBU_COMPHY_CONF6_40B;
 	regmap_write(priv->regmap, MVEBU_COMPHY_CONF6(lane->id), val);

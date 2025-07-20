@@ -26,7 +26,7 @@ config POWER_RESET_AT91_POWEROFF
 config POWER_RESET_AT91_RESET
 	tristate "Atmel AT91 reset driver"
 	depends on ARCH_AT91
-	default SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
+	default SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAM9X7 || SOC_SAMA5
 	help
 	  This driver supports restart for Atmel AT91SAM9 and SAMA5
 	  SoCs
@@ -34,7 +34,7 @@ config POWER_RESET_AT91_RESET
 config POWER_RESET_AT91_SAMA5D2_SHDWC
 	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
 	depends on ARCH_AT91
-	default SOC_SAM9X60 || SOC_SAMA5
+	default SOC_SAM9X60 || SOC_SAM9X7 || SOC_SAMA5
 	help
 	  This driver supports the alternate shutdown controller for some Atmel
 	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
@@ -215,6 +215,19 @@ config POWER_RESET_ST
 	depends on ARCH_STI
 	help
 	  Reset support for STMicroelectronics boards.
+
+config POWER_RESET_TORADEX_EC
+	tristate "Toradex Embedded Controller power-off and reset driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports power-off and reset for SMARC Toradex SoMs,
+	  for example the SMARC iMX8MP and SMARC iMX95, using Toradex
+	  Embedded Controller (EC).
+
+	  Say Y here if you have a Toradex SMARC SoM.
+
+	  If unsure, say N.
 
 config POWER_RESET_TPS65086
 	bool "TPS65086 restart driver"

@@ -137,7 +137,8 @@ static struct sctp_association *sctp_association_init(
 		= 5 * asoc->rto_max;
 
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
-	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] = sp->autoclose * HZ;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
+		(unsigned long)sp->autoclose * HZ;
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
@@ -361,7 +362,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	 * on our state.
 	 */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		if (del_timer(&asoc->timers[i]))
+		if (timer_delete(&asoc->timers[i]))
 			sctp_association_put(asoc);
 	}
 
@@ -733,24 +734,6 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	}
 
 	return peer;
-}
-
-/* Delete a transport address from an association.  */
-void sctp_assoc_del_peer(struct sctp_association *asoc,
-			 const union sctp_addr *addr)
-{
-	struct list_head	*pos;
-	struct list_head	*temp;
-	struct sctp_transport	*transport;
-
-	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
-		transport = list_entry(pos, struct sctp_transport, transports);
-		if (sctp_cmp_addr_exact(addr, &transport->ipaddr)) {
-			/* Do book keeping for removing the peer and free it. */
-			sctp_assoc_rm_peer(asoc, transport);
-			break;
-		}
-	}
 }
 
 /* Lookup a transport by address. */
@@ -1520,7 +1503,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 
 		/* Stop the SACK timer.  */
 		timer = &asoc->timers[SCTP_EVENT_TIMEOUT_SACK];
-		if (del_timer(timer))
+		if (timer_delete(timer))
 			sctp_association_put(asoc);
 	}
 }

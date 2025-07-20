@@ -248,41 +248,35 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->axi_clk = devm_clk_get(dev, "s_axi_aclk");
+	ctx->axi_clk = devm_clk_get_enabled(dev, "s_axi_aclk");
 	if (IS_ERR(ctx->axi_clk)) {
 		ret = PTR_ERR(ctx->axi_clk);
 		dev_err(dev, "failed to get s_axi_aclk(%d)\n", ret);
 		return ret;
 	}
-	ret = clk_prepare_enable(ctx->axi_clk);
-	if (ret) {
-		dev_err(dev, "failed to enable s_axi_aclk(%d)\n", ret);
-		return ret;
-	}
 
 	ctx->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ctx->base)) {
-		ret = PTR_ERR(ctx->base);
-		goto clk_err;
-	}
+	if (IS_ERR(ctx->base))
+		return PTR_ERR(ctx->base);
+
 	ret = of_property_read_u32(node, "xlnx,spdif-mode", &ctx->mode);
 	if (ret < 0) {
 		dev_err(dev, "cannot get SPDIF mode\n");
-		goto clk_err;
+		return ret;
 	}
 	if (ctx->mode) {
 		dai_drv = &xlnx_spdif_tx_dai;
 	} else {
 		ret = platform_get_irq(pdev, 0);
 		if (ret < 0)
-			goto clk_err;
+			return ret;
+
 		ret = devm_request_irq(dev, ret,
 				       xlnx_spdifrx_irq_handler,
 				       0, "XLNX_SPDIF_RX", ctx);
 		if (ret) {
 			dev_err(dev, "spdif rx irq request failed\n");
-			ret = -ENODEV;
-			goto clk_err;
+			return -ENODEV;
 		}
 
 		init_waitqueue_head(&ctx->chsts_q);
@@ -292,7 +286,7 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(node, "xlnx,aud_clk_i", &ctx->aclk);
 	if (ret < 0) {
 		dev_err(dev, "cannot get aud_clk_i value\n");
-		goto clk_err;
+		return ret;
 	}
 
 	dev_set_drvdata(dev, ctx);
@@ -301,22 +295,13 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 					      dai_drv, 1);
 	if (ret) {
 		dev_err(dev, "SPDIF component registration failed\n");
-		goto clk_err;
+		return ret;
 	}
 
 	writel(XSPDIF_SOFT_RESET_VALUE, ctx->base + XSPDIF_SOFT_RESET_REG);
 	dev_info(dev, "%s DAI registered\n", dai_drv->name);
 
-clk_err:
-	clk_disable_unprepare(ctx->axi_clk);
-	return ret;
-}
-
-static void xlnx_spdif_remove(struct platform_device *pdev)
-{
-	struct spdif_dev_data *ctx = dev_get_drvdata(&pdev->dev);
-
-	clk_disable_unprepare(ctx->axi_clk);
+	return 0;
 }
 
 static struct platform_driver xlnx_spdif_driver = {
@@ -325,7 +310,6 @@ static struct platform_driver xlnx_spdif_driver = {
 		.of_match_table = xlnx_spdif_of_match,
 	},
 	.probe = xlnx_spdif_probe,
-	.remove = xlnx_spdif_remove,
 };
 module_platform_driver(xlnx_spdif_driver);
 

@@ -104,6 +104,7 @@ int torture_stutter_init(int s, int sgap);
 /* Initialization and cleanup. */
 bool torture_init_begin(char *ttype, int v);
 void torture_init_end(void);
+unsigned long get_torture_init_jiffies(void);
 bool torture_cleanup_begin(void);
 void torture_cleanup_end(void);
 bool torture_must_stop(void);
@@ -130,7 +131,7 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 #endif
 
 #if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
-long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool dowarn);
 #endif
 
 #endif /* __LINUX_TORTURE_H */

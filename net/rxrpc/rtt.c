@@ -12,22 +12,22 @@
 #include "ar-internal.h"
 
 #define RXRPC_RTO_MAX	(120 * USEC_PER_SEC)
-#define RXRPC_TIMEOUT_INIT ((unsigned int)(1 * MSEC_PER_SEC)) /* RFC6298 2.1 initial RTO value */
+#define RXRPC_TIMEOUT_INIT ((unsigned int)(1 * USEC_PER_SEC)) /* RFC6298 2.1 initial RTO value */
 #define rxrpc_jiffies32 ((u32)jiffies)		/* As rxrpc_jiffies32 */
 
-static u32 rxrpc_rto_min_us(struct rxrpc_peer *peer)
+static u32 rxrpc_rto_min_us(struct rxrpc_call *call)
 {
 	return 200;
 }
 
-static u32 __rxrpc_set_rto(const struct rxrpc_peer *peer)
+static u32 __rxrpc_set_rto(const struct rxrpc_call *call)
 {
-	return (peer->srtt_us >> 3) + peer->rttvar_us;
+	return (call->srtt_us >> 3) + call->rttvar_us;
 }
 
 static u32 rxrpc_bound_rto(u32 rto)
 {
-	return min(rto, RXRPC_RTO_MAX);
+	return clamp(200000, rto + 100000, RXRPC_RTO_MAX);
 }
 
 /*
@@ -40,10 +40,10 @@ static u32 rxrpc_bound_rto(u32 rto)
  * To save cycles in the RFC 1323 implementation it was better to break
  * it up into three procedures. -- erics
  */
-static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
+static void rxrpc_rtt_estimator(struct rxrpc_call *call, long sample_rtt_us)
 {
 	long m = sample_rtt_us; /* RTT */
-	u32 srtt = peer->srtt_us;
+	u32 srtt = call->srtt_us;
 
 	/*	The following amusing code comes from Jacobson's
 	 *	article in SIGCOMM '88.  Note that rtt and mdev
@@ -66,7 +66,7 @@ static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
 		srtt += m;		/* rtt = 7/8 rtt + 1/8 new */
 		if (m < 0) {
 			m = -m;		/* m is now abs(error) */
-			m -= (peer->mdev_us >> 2);   /* similar update on mdev */
+			m -= (call->mdev_us >> 2);   /* similar update on mdev */
 			/* This is similar to one of Eifel findings.
 			 * Eifel blocks mdev updates when rtt decreases.
 			 * This solution is a bit different: we use finer gain
@@ -78,31 +78,31 @@ static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
 			if (m > 0)
 				m >>= 3;
 		} else {
-			m -= (peer->mdev_us >> 2);   /* similar update on mdev */
+			m -= (call->mdev_us >> 2);   /* similar update on mdev */
 		}
 
-		peer->mdev_us += m;		/* mdev = 3/4 mdev + 1/4 new */
-		if (peer->mdev_us > peer->mdev_max_us) {
-			peer->mdev_max_us = peer->mdev_us;
-			if (peer->mdev_max_us > peer->rttvar_us)
-				peer->rttvar_us = peer->mdev_max_us;
+		call->mdev_us += m;		/* mdev = 3/4 mdev + 1/4 new */
+		if (call->mdev_us > call->mdev_max_us) {
+			call->mdev_max_us = call->mdev_us;
+			if (call->mdev_max_us > call->rttvar_us)
+				call->rttvar_us = call->mdev_max_us;
 		}
 	} else {
 		/* no previous measure. */
 		srtt = m << 3;		/* take the measured time to be rtt */
-		peer->mdev_us = m << 1;	/* make sure rto = 3*rtt */
-		peer->rttvar_us = max(peer->mdev_us, rxrpc_rto_min_us(peer));
-		peer->mdev_max_us = peer->rttvar_us;
+		call->mdev_us = m << 1;	/* make sure rto = 3*rtt */
+		call->rttvar_us = umax(call->mdev_us, rxrpc_rto_min_us(call));
+		call->mdev_max_us = call->rttvar_us;
 	}
 
-	peer->srtt_us = max(1U, srtt);
+	call->srtt_us = umax(srtt, 1);
 }
 
 /*
  * Calculate rto without backoff.  This is the second half of Van Jacobson's
  * routine referred to above.
  */
-static void rxrpc_set_rto(struct rxrpc_peer *peer)
+static void rxrpc_set_rto(struct rxrpc_call *call)
 {
 	u32 rto;
 
@@ -113,7 +113,7 @@ static void rxrpc_set_rto(struct rxrpc_peer *peer)
 	 *    is invisible. Actually, Linux-2.4 also generates erratic
 	 *    ACKs in some circumstances.
 	 */
-	rto = __rxrpc_set_rto(peer);
+	rto = __rxrpc_set_rto(call);
 
 	/* 2. Fixups made earlier cannot be right.
 	 *    If we do not estimate RTO correctly without them,
@@ -124,61 +124,73 @@ static void rxrpc_set_rto(struct rxrpc_peer *peer)
 	/* NOTE: clamping at RXRPC_RTO_MIN is not required, current algo
 	 * guarantees that rto is higher.
 	 */
-	peer->rto_us = rxrpc_bound_rto(rto);
+	call->rto_us = rxrpc_bound_rto(rto);
 }
 
-static void rxrpc_ack_update_rtt(struct rxrpc_peer *peer, long rtt_us)
+static void rxrpc_update_rtt_min(struct rxrpc_call *call, ktime_t resp_time, long rtt_us)
+{
+	/* Window size 5mins in approx usec (ipv4.sysctl_tcp_min_rtt_wlen) */
+	u32 wlen_us = 5ULL * NSEC_PER_SEC / 1024;
+
+	minmax_running_min(&call->min_rtt, wlen_us, resp_time / 1024,
+			   (u32)rtt_us ? : jiffies_to_usecs(1));
+}
+
+static void rxrpc_ack_update_rtt(struct rxrpc_call *call, ktime_t resp_time, long rtt_us)
 {
 	if (rtt_us < 0)
 		return;
 
-	//rxrpc_update_rtt_min(peer, rtt_us);
-	rxrpc_rtt_estimator(peer, rtt_us);
-	rxrpc_set_rto(peer);
+	/* Update RACK min RTT [RFC8985 6.1 Step 1]. */
+	rxrpc_update_rtt_min(call, resp_time, rtt_us);
 
-	/* RFC6298: only reset backoff on valid RTT measurement. */
-	peer->backoff = 0;
+	rxrpc_rtt_estimator(call, rtt_us);
+	rxrpc_set_rto(call);
+
+	/* Only reset backoff on valid RTT measurement [RFC6298]. */
+	call->backoff = 0;
 }
 
 /*
  * Add RTT information to cache.  This is called in softirq mode and has
- * exclusive access to the peer RTT data.
+ * exclusive access to the call RTT data.
  */
-void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
+void rxrpc_call_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 			int rtt_slot,
 			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
 			ktime_t send_time, ktime_t resp_time)
 {
-	struct rxrpc_peer *peer = call->peer;
 	s64 rtt_us;
 
 	rtt_us = ktime_to_us(ktime_sub(resp_time, send_time));
 	if (rtt_us < 0)
 		return;
 
-	spin_lock(&peer->rtt_input_lock);
-	rxrpc_ack_update_rtt(peer, rtt_us);
-	if (peer->rtt_count < 3)
-		peer->rtt_count++;
-	spin_unlock(&peer->rtt_input_lock);
+	rxrpc_ack_update_rtt(call, resp_time, rtt_us);
+	if (call->rtt_count < 3)
+		call->rtt_count++;
+	call->rtt_taken++;
+
+	WRITE_ONCE(call->peer->recent_srtt_us, call->srtt_us / 8);
+	WRITE_ONCE(call->peer->recent_rto_us, call->rto_us);
 
 	trace_rxrpc_rtt_rx(call, why, rtt_slot, send_serial, resp_serial,
-			   peer->srtt_us >> 3, peer->rto_us);
+			   rtt_us, call->srtt_us, call->rto_us);
 }
 
 /*
  * Get the retransmission timeout to set in nanoseconds, backing it off each
  * time we retransmit.
  */
-ktime_t rxrpc_get_rto_backoff(struct rxrpc_peer *peer, bool retrans)
+ktime_t rxrpc_get_rto_backoff(struct rxrpc_call *call, bool retrans)
 {
 	u64 timo_us;
-	u32 backoff = READ_ONCE(peer->backoff);
+	u32 backoff = READ_ONCE(call->backoff);
 
-	timo_us = peer->rto_us;
+	timo_us = call->rto_us;
 	timo_us <<= backoff;
 	if (retrans && timo_us * 2 <= RXRPC_RTO_MAX)
-		WRITE_ONCE(peer->backoff, backoff + 1);
+		WRITE_ONCE(call->backoff, backoff + 1);
 
 	if (timo_us < 1)
 		timo_us = 1;
@@ -186,10 +198,11 @@ ktime_t rxrpc_get_rto_backoff(struct rxrpc_peer *peer, bool retrans)
 	return ns_to_ktime(timo_us * NSEC_PER_USEC);
 }
 
-void rxrpc_peer_init_rtt(struct rxrpc_peer *peer)
+void rxrpc_call_init_rtt(struct rxrpc_call *call)
 {
-	peer->rto_us	= RXRPC_TIMEOUT_INIT;
-	peer->mdev_us	= RXRPC_TIMEOUT_INIT;
-	peer->backoff	= 0;
-	//minmax_reset(&peer->rtt_min, rxrpc_jiffies32, ~0U);
+	call->rtt_last_req = KTIME_MIN;
+	call->rto_us	= RXRPC_TIMEOUT_INIT;
+	call->mdev_us	= RXRPC_TIMEOUT_INIT;
+	call->backoff	= 0;
+	//minmax_reset(&call->rtt_min, rxrpc_jiffies32, ~0U);
 }

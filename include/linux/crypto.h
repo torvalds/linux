@@ -13,7 +13,8 @@
 #define _LINUX_CRYPTO_H
 
 #include <linux/completion.h>
-#include <linux/refcount.h>
+#include <linux/errno.h>
+#include <linux/refcount_types.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -22,7 +23,6 @@
  */
 #define CRYPTO_ALG_TYPE_MASK		0x0000000f
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
-#define CRYPTO_ALG_TYPE_COMPRESS	0x00000002
 #define CRYPTO_ALG_TYPE_AEAD		0x00000003
 #define CRYPTO_ALG_TYPE_LSKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_SKCIPHER	0x00000005
@@ -48,6 +48,15 @@
  * algorithm of the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
+
+/*
+ * Set if the algorithm data structure should be duplicated into
+ * kmalloc memory before registration.  This is useful for hardware
+ * that can be disconnected at will.  Do not use this if the data
+ * structure is embedded into a bigger one.  Duplicate the overall
+ * data structure in the driver in that case.
+ */
+#define CRYPTO_ALG_DUP_FIRST		0x00000200
 
 /*
  * Set if the algorithm has passed automated run-time testing.  Note that
@@ -124,6 +133,11 @@
  */
 #define CRYPTO_ALG_FIPS_INTERNAL	0x00020000
 
+/* Set if the algorithm supports virtual addresses. */
+#define CRYPTO_ALG_REQ_VIRT		0x00040000
+
+/* The high bits 0xff000000 are reserved for type-specific flags. */
+
 /*
  * Transform masks and values (for crt_flags).
  */
@@ -133,6 +147,7 @@
 #define CRYPTO_TFM_REQ_FORBID_WEAK_KEYS	0x00000100
 #define CRYPTO_TFM_REQ_MAY_SLEEP	0x00000200
 #define CRYPTO_TFM_REQ_MAY_BACKLOG	0x00000400
+#define CRYPTO_TFM_REQ_ON_STACK		0x00000800
 
 /*
  * Miscellaneous stuff.
@@ -239,26 +254,7 @@ struct cipher_alg {
 	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
-/**
- * struct compress_alg - compression/decompression algorithm
- * @coa_compress: Compress a buffer of specified length, storing the resulting
- *		  data in the specified buffer. Return the length of the
- *		  compressed data in dlen.
- * @coa_decompress: Decompress the source buffer, storing the uncompressed
- *		    data in the specified buffer. The length of the data is
- *		    returned in dlen.
- *
- * All fields are mandatory.
- */
-struct compress_alg {
-	int (*coa_compress)(struct crypto_tfm *tfm, const u8 *src,
-			    unsigned int slen, u8 *dst, unsigned int *dlen);
-	int (*coa_decompress)(struct crypto_tfm *tfm, const u8 *src,
-			      unsigned int slen, u8 *dst, unsigned int *dlen);
-};
-
 #define cra_cipher	cra_u.cipher
-#define cra_compress	cra_u.compress
 
 /**
  * struct crypto_alg - definition of a cryptograpic cipher algorithm
@@ -291,6 +287,7 @@ struct compress_alg {
  *		   to the alignmask of the algorithm being used, in order to
  *		   avoid the API having to realign them.  Note: the alignmask is
  *		   not supported for hash algorithms and is always 0 for them.
+ * @cra_reqsize: Size of the request context for this algorithm.
  * @cra_priority: Priority of this transformation implementation. In case
  *		  multiple transformations with same @cra_name are available to
  *		  the Crypto API, the kernel will use the one with highest
@@ -309,27 +306,16 @@ struct compress_alg {
  *	      transformation types. There are multiple options, such as
  *	      &crypto_skcipher_type, &crypto_ahash_type, &crypto_rng_type.
  *	      This field might be empty. In that case, there are no common
- *	      callbacks. This is the case for: cipher, compress, shash.
+ *	      callbacks. This is the case for: cipher.
  * @cra_u: Callbacks implementing the transformation. This is a union of
  *	   multiple structures. Depending on the type of transformation selected
  *	   by @cra_type and @cra_flags above, the associated structure must be
  *	   filled with callbacks. This field might be empty. This is the case
  *	   for ahash, shash.
- * @cra_init: Initialize the cryptographic transformation object. This function
- *	      is used to initialize the cryptographic transformation object.
- *	      This function is called only once at the instantiation time, right
- *	      after the transformation context was allocated. In case the
- *	      cryptographic hardware has some special requirements which need to
- *	      be handled by software, this function shall check for the precise
- *	      requirement of the transformation and put any software fallbacks
- *	      in place.
- * @cra_exit: Deinitialize the cryptographic transformation object. This is a
- *	      counterpart to @cra_init, used to remove various changes set in
- *	      @cra_init.
+ * @cra_init: Deprecated, do not use.
+ * @cra_exit: Deprecated, do not use.
  * @cra_u.cipher: Union member which contains a single-block symmetric cipher
  *		  definition. See @struct @cipher_alg.
- * @cra_u.compress: Union member which contains a (de)compression algorithm.
- *		    See @struct @compress_alg.
  * @cra_module: Owner of this transformation implementation. Set to THIS_MODULE
  * @cra_list: internally used
  * @cra_users: internally used
@@ -348,6 +334,7 @@ struct crypto_alg {
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
 	unsigned int cra_alignmask;
+	unsigned int cra_reqsize;
 
 	int cra_priority;
 	refcount_t cra_refcnt;
@@ -359,7 +346,6 @@ struct crypto_alg {
 
 	union {
 		struct cipher_alg cipher;
-		struct compress_alg compress;
 	} cra_u;
 
 	int (*cra_init)(struct crypto_tfm *tfm);
@@ -425,16 +411,14 @@ struct crypto_tfm {
 	u32 crt_flags;
 
 	int node;
-	
+
+	struct crypto_tfm *fb;
+
 	void (*exit)(struct crypto_tfm *tfm);
-	
+
 	struct crypto_alg *__crt_alg;
 
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
-};
-
-struct crypto_comp {
-	struct crypto_tfm base;
 };
 
 /* 
@@ -472,6 +456,11 @@ static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_alignmask;
 }
 
+static inline unsigned int crypto_tfm_alg_reqsize(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_reqsize;
+}
+
 static inline u32 crypto_tfm_get_flags(struct crypto_tfm *tfm)
 {
 	return tfm->crt_flags;
@@ -493,52 +482,45 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 	return __alignof__(tfm->__crt_ctx);
 }
 
-static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)
+static inline bool crypto_tfm_is_async(struct crypto_tfm *tfm)
 {
-	return (struct crypto_comp *)tfm;
+	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_ASYNC;
 }
 
-static inline struct crypto_comp *crypto_alloc_comp(const char *alg_name,
-						    u32 type, u32 mask)
+static inline bool crypto_req_on_stack(struct crypto_async_request *req)
 {
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_COMPRESS;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return __crypto_comp_cast(crypto_alloc_base(alg_name, type, mask));
+	return req->flags & CRYPTO_TFM_REQ_ON_STACK;
 }
 
-static inline struct crypto_tfm *crypto_comp_tfm(struct crypto_comp *tfm)
+static inline void crypto_request_set_callback(
+	struct crypto_async_request *req, u32 flags,
+	crypto_completion_t compl, void *data)
 {
-	return &tfm->base;
+	u32 keep = CRYPTO_TFM_REQ_ON_STACK;
+
+	req->complete = compl;
+	req->data = data;
+	req->flags &= keep;
+	req->flags |= flags & ~keep;
 }
 
-static inline void crypto_free_comp(struct crypto_comp *tfm)
+static inline void crypto_request_set_tfm(struct crypto_async_request *req,
+					  struct crypto_tfm *tfm)
 {
-	crypto_free_tfm(crypto_comp_tfm(tfm));
+	req->tfm = tfm;
+	req->flags &= ~CRYPTO_TFM_REQ_ON_STACK;
 }
 
-static inline int crypto_has_comp(const char *alg_name, u32 type, u32 mask)
+struct crypto_async_request *crypto_request_clone(
+	struct crypto_async_request *req, size_t total, gfp_t gfp);
+
+static inline void crypto_stack_request_init(struct crypto_async_request *req,
+					     struct crypto_tfm *tfm)
 {
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_COMPRESS;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return crypto_has_alg(alg_name, type, mask);
+	req->flags = 0;
+	crypto_request_set_tfm(req, tfm);
+	req->flags |= CRYPTO_TFM_REQ_ON_STACK;
 }
-
-static inline const char *crypto_comp_name(struct crypto_comp *tfm)
-{
-	return crypto_tfm_alg_name(crypto_comp_tfm(tfm));
-}
-
-int crypto_comp_compress(struct crypto_comp *tfm,
-			 const u8 *src, unsigned int slen,
-			 u8 *dst, unsigned int *dlen);
-
-int crypto_comp_decompress(struct crypto_comp *tfm,
-			   const u8 *src, unsigned int slen,
-			   u8 *dst, unsigned int *dlen);
 
 #endif	/* _LINUX_CRYPTO_H */
 

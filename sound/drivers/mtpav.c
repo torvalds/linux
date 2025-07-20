@@ -388,7 +388,7 @@ static void snd_mtpav_input_trigger(struct snd_rawmidi_substream *substream, int
 static void snd_mtpav_output_timer(struct timer_list *t)
 {
 	unsigned long flags;
-	struct mtpav *chip = from_timer(chip, t, timer);
+	struct mtpav *chip = timer_container_of(chip, t, timer);
 	int p;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -412,7 +412,7 @@ static void snd_mtpav_add_output_timer(struct mtpav *chip)
 /* spinlock held! */
 static void snd_mtpav_remove_output_timer(struct mtpav *chip)
 {
-	del_timer(&chip->timer);
+	timer_delete(&chip->timer);
 }
 
 /*

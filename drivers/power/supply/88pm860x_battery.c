@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/power_supply.h>
+#include <linux/string_choices.h>
 #include <linux/mfd/88pm860x.h>
 #include <linux/delay.h>
 
@@ -503,8 +504,7 @@ static void pm860x_init_battery(struct pm860x_battery_info *info)
 	data = pm860x_reg_read(info->i2c, PM8607_POWER_UP_LOG);
 	bat_remove = data & BAT_WU_LOG;
 
-	dev_dbg(info->dev, "battery wake up? %s\n",
-		bat_remove != 0 ? "yes" : "no");
+	dev_dbg(info->dev, "battery wake up? %s\n", str_yes_no(bat_remove));
 
 	/* restore SOC from RTC domain register */
 	if (bat_remove == 0) {

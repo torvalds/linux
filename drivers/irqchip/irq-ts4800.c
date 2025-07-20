@@ -52,7 +52,7 @@ static void ts4800_irq_print_chip(struct irq_data *d, struct seq_file *p)
 {
 	struct ts4800_irq_data *data = irq_data_get_irq_chip_data(d);
 
-	seq_printf(p, "%s", dev_name(&data->pdev->dev));
+	seq_puts(p, dev_name(&data->pdev->dev));
 }
 
 static const struct irq_chip ts4800_chip = {
@@ -125,7 +125,7 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	data->domain = irq_domain_add_linear(node, 8, &ts4800_ic_ops, data);
+	data->domain = irq_domain_create_linear(of_fwnode_handle(node), 8, &ts4800_ic_ops, data);
 	if (!data->domain) {
 		dev_err(&pdev->dev, "cannot add IRQ domain\n");
 		return -ENOMEM;

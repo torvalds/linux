@@ -375,7 +375,7 @@ enum {
 	VISIONPLUS_VP7020_WARM,
 };
 
-static struct usb_device_id vp702x_usb_table[] = {
+static const struct usb_device_id vp702x_usb_table[] = {
 	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7021_COLD),
 //	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7020_COLD),
 //	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7020_WARM),

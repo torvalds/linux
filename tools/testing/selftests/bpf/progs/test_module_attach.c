@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "../bpf_testmod/bpf_testmod.h"
+#include "../test_kmods/bpf_testmod.h"
 
 __u32 raw_tp_read_sz = 0;
 
@@ -19,7 +19,7 @@ int BPF_PROG(handle_raw_tp,
 
 __u32 raw_tp_bare_write_sz = 0;
 
-SEC("raw_tp/bpf_testmod_test_write_bare")
+SEC("raw_tp/bpf_testmod_test_write_bare_tp")
 int BPF_PROG(handle_raw_tp_bare,
 	     struct task_struct *task, struct bpf_testmod_test_write_ctx *write_ctx)
 {
@@ -31,7 +31,7 @@ int raw_tp_writable_bare_in_val = 0;
 int raw_tp_writable_bare_early_ret = 0;
 int raw_tp_writable_bare_out_val = 0;
 
-SEC("raw_tp.w/bpf_testmod_test_writable_bare")
+SEC("raw_tp.w/bpf_testmod_test_writable_bare_tp")
 int BPF_PROG(handle_raw_tp_writable_bare,
 	     struct bpf_testmod_test_writable_ctx *writable)
 {
@@ -117,7 +117,7 @@ int BPF_PROG(handle_fexit_ret, int arg, struct file *ret)
 
 	bpf_probe_read_kernel(&buf, 8, ret);
 	bpf_probe_read_kernel(&buf, 8, (char *)ret + 256);
-	*(volatile long long *)ret;
+	*(volatile int *)ret;
 	*(volatile int *)&ret->f_mode;
 	return 0;
 }

@@ -47,6 +47,8 @@
 /* Default filter format */
 #define ARM_CSPMU_FORMAT_FILTER_ATTR	\
 	ARM_CSPMU_FORMAT_ATTR(filter, "config1:0-31")
+#define ARM_CSPMU_FORMAT_FILTER2_ATTR	\
+	ARM_CSPMU_FORMAT_ATTR(filter2, "config2:0-31")
 
 /*
  * This is the default event number for cycle count, if supported, since the
@@ -64,6 +66,53 @@
 
 /* The cycle counter, if implemented, is located at counter[31]. */
 #define ARM_CSPMU_CYCLE_CNTR_IDX	31
+
+/*
+ * CoreSight PMU Arch register offsets.
+ */
+#define PMEVCNTR_LO			0x0
+#define PMEVCNTR_HI			0x4
+#define PMEVTYPER			0x400
+#define PMCCFILTR			0x47C
+#define PMEVFILT2R			0x800
+#define PMEVFILTR			0xA00
+#define PMCNTENSET			0xC00
+#define PMCNTENCLR			0xC20
+#define PMINTENSET			0xC40
+#define PMINTENCLR			0xC60
+#define PMOVSCLR			0xC80
+#define PMOVSSET			0xCC0
+#define PMIMPDEF			0xD80
+#define PMCFGR				0xE00
+#define PMCR				0xE04
+#define PMIIDR				0xE08
+
+/* PMCFGR register field */
+#define PMCFGR_NCG			GENMASK(31, 28)
+#define PMCFGR_HDBG			BIT(24)
+#define PMCFGR_TRO			BIT(23)
+#define PMCFGR_SS			BIT(22)
+#define PMCFGR_FZO			BIT(21)
+#define PMCFGR_MSI			BIT(20)
+#define PMCFGR_UEN			BIT(19)
+#define PMCFGR_NA			BIT(17)
+#define PMCFGR_EX			BIT(16)
+#define PMCFGR_CCD			BIT(15)
+#define PMCFGR_CC			BIT(14)
+#define PMCFGR_SIZE			GENMASK(13, 8)
+#define PMCFGR_N			GENMASK(7, 0)
+
+/* PMCR register field */
+#define PMCR_TRO			BIT(11)
+#define PMCR_HDBG			BIT(10)
+#define PMCR_FZO			BIT(9)
+#define PMCR_NA				BIT(8)
+#define PMCR_DP				BIT(5)
+#define PMCR_X				BIT(4)
+#define PMCR_D				BIT(3)
+#define PMCR_C				BIT(2)
+#define PMCR_P				BIT(1)
+#define PMCR_E				BIT(0)
 
 /* PMIIDR register field */
 #define ARM_CSPMU_PMIIDR_IMPLEMENTER	GENMASK(11, 0)
@@ -103,11 +152,11 @@ struct arm_cspmu_impl_ops {
 	bool (*is_cycle_counter_event)(const struct perf_event *event);
 	/* Decode event type/id from configs */
 	u32 (*event_type)(const struct perf_event *event);
-	/* Decode filter value from configs */
-	u32 (*event_filter)(const struct perf_event *event);
-	/* Set event filter */
+	/* Set event filters */
+	void (*set_cc_filter)(struct arm_cspmu *cspmu,
+			      const struct perf_event *event);
 	void (*set_ev_filter)(struct arm_cspmu *cspmu,
-			      struct hw_perf_event *hwc, u32 filter);
+			      const struct perf_event *event);
 	/* Implementation specific event validation */
 	int (*validate_event)(struct arm_cspmu *cspmu,
 			      struct perf_event *event);

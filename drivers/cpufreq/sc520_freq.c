@@ -21,7 +21,6 @@
 #include <linux/io.h>
 
 #include <asm/cpu_device_id.h>
-#include <asm/msr.h>
 
 #define MMCR_BASE	0xfffef000	/* The default base address */
 #define OFFS_CPUCTL	0x2   /* CPU Control Register */
@@ -92,7 +91,6 @@ static struct cpufreq_driver sc520_freq_driver = {
 	.target_index = sc520_freq_target,
 	.init	= sc520_freq_cpu_init,
 	.name	= "sc520_freq",
-	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id sc520_ids[] = {

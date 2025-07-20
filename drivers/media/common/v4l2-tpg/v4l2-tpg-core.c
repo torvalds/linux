@@ -2249,10 +2249,10 @@ void tpg_log_status(struct tpg_data *tpg)
 		tpg->src_width, tpg->src_height,
 		tpg_color_enc_str(tpg->color_enc));
 	pr_info("tpg field: %u\n", tpg->field);
-	pr_info("tpg crop: %ux%u@%dx%d\n", tpg->crop.width, tpg->crop.height,
-			tpg->crop.left, tpg->crop.top);
-	pr_info("tpg compose: %ux%u@%dx%d\n", tpg->compose.width, tpg->compose.height,
-			tpg->compose.left, tpg->compose.top);
+	pr_info("tpg crop: (%d,%d)/%ux%u\n", tpg->crop.left, tpg->crop.top,
+		tpg->crop.width, tpg->crop.height);
+	pr_info("tpg compose: (%d,%d)/%ux%u\n", tpg->compose.left, tpg->compose.top,
+		tpg->compose.width, tpg->compose.height);
 	pr_info("tpg colorspace: %d\n", tpg->colorspace);
 	pr_info("tpg transfer function: %d/%d\n", tpg->xfer_func, tpg->real_xfer_func);
 	if (tpg->color_enc == TGP_COLOR_ENC_HSV)

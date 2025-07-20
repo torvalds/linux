@@ -102,7 +102,7 @@ struct ads131e08_state {
 	struct completion completion;
 	struct {
 		u8 data[ADS131E08_NUM_DATA_BYTES_MAX];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} tmp_buf;
 
 	u8 tx_buf[3] __aligned(IIO_DMA_MINALIGN);
@@ -505,12 +505,11 @@ static int ads131e08_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = ads131e08_read_direct(indio_dev, channel, value);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret)
 			return ret;
 
@@ -551,12 +550,11 @@ static int ads131e08_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = ads131e08_set_data_rate(st, value);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 
 	default:
@@ -666,8 +664,8 @@ static irqreturn_t ads131e08_trigger_handler(int irq, void *private)
 		i++;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, st->tmp_buf.data,
-		iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &st->tmp_buf, sizeof(st->tmp_buf),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);

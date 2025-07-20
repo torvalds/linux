@@ -25,13 +25,6 @@ static void devm_pci_epc_release(struct device *dev, void *res)
 	pci_epc_destroy(epc);
 }
 
-static int devm_pci_epc_match(struct device *dev, void *res, void *match_data)
-{
-	struct pci_epc **epc = res;
-
-	return *epc == match_data;
-}
-
 /**
  * pci_epc_put() - release the PCI endpoint controller
  * @epc: epc returned by pci_epc_get()
@@ -60,26 +53,17 @@ struct pci_epc *pci_epc_get(const char *epc_name)
 	int ret = -EINVAL;
 	struct pci_epc *epc;
 	struct device *dev;
-	struct class_dev_iter iter;
 
-	class_dev_iter_init(&iter, &pci_epc_class, NULL, NULL);
-	while ((dev = class_dev_iter_next(&iter))) {
-		if (strcmp(epc_name, dev_name(dev)))
-			continue;
+	dev = class_find_device_by_name(&pci_epc_class, epc_name);
+	if (!dev)
+		goto err;
 
-		epc = to_pci_epc(dev);
-		if (!try_module_get(epc->ops->owner)) {
-			ret = -EINVAL;
-			goto err;
-		}
-
-		class_dev_iter_exit(&iter);
-		get_device(&epc->dev);
+	epc = to_pci_epc(dev);
+	if (try_module_get(epc->ops->owner))
 		return epc;
-	}
 
 err:
-	class_dev_iter_exit(&iter);
+	put_device(dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(pci_epc_get);
@@ -309,8 +293,6 @@ int pci_epc_get_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 	if (interrupt < 0)
 		return 0;
 
-	interrupt = 1 << interrupt;
-
 	return interrupt;
 }
 EXPORT_SYMBOL_GPL(pci_epc_get_msi);
@@ -320,28 +302,25 @@ EXPORT_SYMBOL_GPL(pci_epc_get_msi);
  * @epc: the EPC device on which MSI has to be configured
  * @func_no: the physical endpoint function number in the EPC device
  * @vfunc_no: the virtual endpoint function number in the physical function
- * @interrupts: number of MSI interrupts required by the EPF
+ * @nr_irqs: number of MSI interrupts required by the EPF
  *
  * Invoke to set the required number of MSI interrupts.
  */
-int pci_epc_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no, u8 interrupts)
+int pci_epc_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no, u8 nr_irqs)
 {
 	int ret;
-	u8 encode_int;
 
 	if (!pci_epc_function_is_valid(epc, func_no, vfunc_no))
 		return -EINVAL;
 
-	if (interrupts < 1 || interrupts > 32)
+	if (nr_irqs < 1 || nr_irqs > 32)
 		return -EINVAL;
 
 	if (!epc->ops->set_msi)
 		return 0;
 
-	encode_int = order_base_2(interrupts);
-
 	mutex_lock(&epc->lock);
-	ret = epc->ops->set_msi(epc, func_no, vfunc_no, encode_int);
+	ret = epc->ops->set_msi(epc, func_no, vfunc_no, nr_irqs);
 	mutex_unlock(&epc->lock);
 
 	return ret;
@@ -373,7 +352,7 @@ int pci_epc_get_msix(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 	if (interrupt < 0)
 		return 0;
 
-	return interrupt + 1;
+	return interrupt;
 }
 EXPORT_SYMBOL_GPL(pci_epc_get_msix);
 
@@ -382,29 +361,28 @@ EXPORT_SYMBOL_GPL(pci_epc_get_msix);
  * @epc: the EPC device on which MSI-X has to be configured
  * @func_no: the physical endpoint function number in the EPC device
  * @vfunc_no: the virtual endpoint function number in the physical function
- * @interrupts: number of MSI-X interrupts required by the EPF
+ * @nr_irqs: number of MSI-X interrupts required by the EPF
  * @bir: BAR where the MSI-X table resides
  * @offset: Offset pointing to the start of MSI-X table
  *
  * Invoke to set the required number of MSI-X interrupts.
  */
-int pci_epc_set_msix(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-		     u16 interrupts, enum pci_barno bir, u32 offset)
+int pci_epc_set_msix(struct pci_epc *epc, u8 func_no, u8 vfunc_no, u16 nr_irqs,
+		     enum pci_barno bir, u32 offset)
 {
 	int ret;
 
 	if (!pci_epc_function_is_valid(epc, func_no, vfunc_no))
 		return -EINVAL;
 
-	if (interrupts < 1 || interrupts > 2048)
+	if (nr_irqs < 1 || nr_irqs > 2048)
 		return -EINVAL;
 
 	if (!epc->ops->set_msix)
 		return 0;
 
 	mutex_lock(&epc->lock);
-	ret = epc->ops->set_msix(epc, func_no, vfunc_no, interrupts - 1, bir,
-				 offset);
+	ret = epc->ops->set_msix(epc, func_no, vfunc_no, nr_irqs, bir, offset);
 	mutex_unlock(&epc->lock);
 
 	return ret;
@@ -609,10 +587,24 @@ EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
 int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		    struct pci_epf_bar *epf_bar)
 {
-	int ret;
+	const struct pci_epc_features *epc_features;
+	enum pci_barno bar = epf_bar->barno;
 	int flags = epf_bar->flags;
+	int ret;
 
-	if (!pci_epc_function_is_valid(epc, func_no, vfunc_no))
+	epc_features = pci_epc_get_features(epc, func_no, vfunc_no);
+	if (!epc_features)
+		return -EINVAL;
+
+	if (epc_features->bar[bar].type == BAR_RESIZABLE &&
+	    (epf_bar->size < SZ_1M || (u64)epf_bar->size > (SZ_128G * 1024)))
+		return -EINVAL;
+
+	if (epc_features->bar[bar].type == BAR_FIXED &&
+	    (epc_features->bar[bar].fixed_size != epf_bar->size))
+		return -EINVAL;
+
+	if (!is_power_of_2(epf_bar->size))
 		return -EINVAL;
 
 	if ((epf_bar->barno == BAR_5 && flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ||
@@ -632,6 +624,33 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pci_epc_set_bar);
+
+/**
+ * pci_epc_bar_size_to_rebar_cap() - convert a size to the representation used
+ *				     by the Resizable BAR Capability Register
+ * @size: the size to convert
+ * @cap: where to store the result
+ *
+ * Returns 0 on success and a negative error code in case of error.
+ */
+int pci_epc_bar_size_to_rebar_cap(size_t size, u32 *cap)
+{
+	/*
+	 * As per PCIe r6.0, sec 7.8.6.2, min size for a resizable BAR is 1 MB,
+	 * thus disallow a requested BAR size smaller than 1 MB.
+	 * Disallow a requested BAR size larger than 128 TB.
+	 */
+	if (size < SZ_1M || (u64)size > (SZ_128G * 1024))
+		return -EINVAL;
+
+	*cap = ilog2(size) - ilog2(SZ_1M);
+
+	/* Sizes in REBAR_CAP start at BIT(4). */
+	*cap = BIT(*cap + 4);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_epc_bar_size_to_rebar_cap);
 
 /**
  * pci_epc_write_header() - write standard configuration header
@@ -929,24 +948,6 @@ void pci_epc_destroy(struct pci_epc *epc)
 	device_unregister(&epc->dev);
 }
 EXPORT_SYMBOL_GPL(pci_epc_destroy);
-
-/**
- * devm_pci_epc_destroy() - destroy the EPC device
- * @dev: device that wants to destroy the EPC
- * @epc: the EPC device that has to be destroyed
- *
- * Invoke to destroy the devres associated with this
- * pci_epc and destroy the EPC device.
- */
-void devm_pci_epc_destroy(struct device *dev, struct pci_epc *epc)
-{
-	int r;
-
-	r = devres_destroy(dev, devm_pci_epc_release, devm_pci_epc_match,
-			   epc);
-	dev_WARN_ONCE(dev, r, "couldn't find PCI EPC resource\n");
-}
-EXPORT_SYMBOL_GPL(devm_pci_epc_destroy);
 
 static void pci_epc_release(struct device *dev)
 {

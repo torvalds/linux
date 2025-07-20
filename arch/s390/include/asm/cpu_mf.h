@@ -171,7 +171,7 @@ static inline int qctri(struct cpumf_ctr_info *info)
 {
 	int rc = -EINVAL;
 
-	asm volatile (
+	asm_inline volatile (
 		"0:	qctri	%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
@@ -185,7 +185,7 @@ static inline int lcctl(u64 ctl)
 {
 	int cc;
 
-	asm volatile (
+	asm_inline volatile (
 		"	lcctl	%[ctl]\n"
 		CC_IPM(cc)
 		: CC_OUT(cc, cc)
@@ -200,7 +200,7 @@ static inline int __ecctr(u64 ctr, u64 *content)
 	u64 _content;
 	int cc;
 
-	asm volatile (
+	asm_inline volatile (
 		"	ecctr	%[_content],%[ctr]\n"
 		CC_IPM(cc)
 		: CC_OUT(cc, cc), [_content] "=d" (_content)

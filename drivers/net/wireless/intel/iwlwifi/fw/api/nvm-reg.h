@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -464,27 +464,76 @@ struct iwl_tas_config_cmd_v3 {
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
+ * enum iwl_tas_uhb_allowed_flags - per country TAS UHB allowed flags.
+ * @TAS_UHB_ALLOWED_CANADA: TAS UHB is allowed in Canada. This flag is valid
+ *	only when fw has %IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT capability.
+ */
+enum iwl_tas_uhb_allowed_flags {
+	TAS_UHB_ALLOWED_CANADA	= BIT(0),
+};
+
+/**
  * struct iwl_tas_config_cmd_v4 - configures the TAS
  * @override_tas_iec: indicates whether to override default value of IEC regulatory
  * @enable_tas_iec: in case override_tas_iec is set -
  *	indicates whether IEC regulatory is enabled or disabled
  * @usa_tas_uhb_allowed: if set, allow TAS UHB in the USA
- * @reserved: reserved
-*/
+ * @uhb_allowed_flags: see &enum iwl_tas_uhb_allowed_flags.
+ */
 struct iwl_tas_config_cmd_v4 {
 	u8 override_tas_iec;
 	u8 enable_tas_iec;
 	u8 usa_tas_uhb_allowed;
-	u8 reserved;
+	u8 uhb_allowed_flags;
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_4 */
 
-struct iwl_tas_config_cmd {
+struct iwl_tas_config_cmd_v2_v4 {
 	struct iwl_tas_config_cmd_common common;
 	union {
 		struct iwl_tas_config_cmd_v3 v3;
 		struct iwl_tas_config_cmd_v4 v4;
 	};
 };
+
+/**
+ * enum bios_source - source of bios data
+ * @BIOS_SOURCE_NONE: BIOS source is not defined
+ * @BIOS_SOURCE_ACPI: BIOS source is ACPI
+ * @BIOS_SOURCE_UEFI: BIOS source is UEFI
+ */
+enum bios_source {
+	BIOS_SOURCE_NONE,
+	BIOS_SOURCE_ACPI,
+	BIOS_SOURCE_UEFI,
+};
+
+/**
+ * struct bios_value_u32 - BIOS configuration.
+ * @table_source: see &enum bios_source
+ * @table_revision: table revision.
+ * @reserved: reserved
+ * @value: value in bios.
+ */
+struct bios_value_u32 {
+	u8 table_source;
+	u8 table_revision;
+	u8 reserved[2];
+	__le32 value;
+} __packed; /* BIOS_TABLE_SOURCE_U32_S_VER_1 */
+
+/**
+ * struct iwl_tas_config_cmd - configures the TAS.
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
+ * @reserved: reserved
+ * @tas_config_info: see @struct bios_value_u32
+ */
+struct iwl_tas_config_cmd {
+	__le16 block_list_size;
+	__le16 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
+	u8 reserved[2];
+	struct bios_value_u32 tas_config_info;
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_5 */
 
 /**
  * enum iwl_lari_config_masks - bit masks for the various LARI config operations
@@ -705,7 +754,7 @@ struct iwl_lari_config_change_cmd_v10 {
  *	according to the BIOS definitions.
  *	For LARI cmd version 11 - bits 0:4 are supported.
  *	For LARI cmd version 12 - bits 0:6 are supported and bits 7:31 are
- *	reserved. No need to mask out the reserved bits.
+ *	reserved.
  * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
  *	Each bit represents a set of channels in a specific band that should be
  *	disabled
@@ -738,6 +787,7 @@ struct iwl_lari_config_change_cmd {
 /* Activate UNII-1 (5.2GHz) for World Wide */
 #define ACTIVATE_5G2_IN_WW_MASK			BIT(4)
 #define CHAN_STATE_ACTIVE_BITMAP_CMD_V11	0x1F
+#define CHAN_STATE_ACTIVE_BITMAP_CMD_V12	0x7F
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete

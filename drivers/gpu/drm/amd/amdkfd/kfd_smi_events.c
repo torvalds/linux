@@ -163,10 +163,9 @@ static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 static bool kfd_smi_ev_enabled(pid_t pid, struct kfd_smi_client *client,
 			       unsigned int event)
 {
-	uint64_t all = KFD_SMI_EVENT_MASK_FROM_INDEX(KFD_SMI_EVENT_ALL_PROCESS);
 	uint64_t events = READ_ONCE(client->events);
 
-	if (pid && client->pid != pid && !(client->suser && (events & all)))
+	if (pid && client->pid != pid && !client->suser)
 		return false;
 
 	return events & KFD_SMI_EVENT_MASK_FROM_INDEX(event);
@@ -343,6 +342,27 @@ void kfd_smi_event_unmap_from_gpu(struct kfd_node *node, pid_t pid,
 	kfd_smi_event_add(pid, node, KFD_SMI_EVENT_UNMAP_FROM_GPU,
 			  KFD_EVENT_FMT_UNMAP_FROM_GPU(ktime_get_boottime_ns(),
 			  pid, address, last - address + 1, node->id, trigger));
+}
+
+void kfd_smi_event_process(struct kfd_process_device *pdd, bool start)
+{
+	struct amdgpu_task_info *task_info;
+	struct amdgpu_vm *avm;
+
+	if (!pdd->drm_priv)
+		return;
+
+	avm = drm_priv_to_vm(pdd->drm_priv);
+	task_info = amdgpu_vm_get_task_info_vm(avm);
+
+	if (task_info) {
+		kfd_smi_event_add(0, pdd->dev,
+				  start ? KFD_SMI_EVENT_PROCESS_START :
+				  KFD_SMI_EVENT_PROCESS_END,
+				  KFD_EVENT_FMT_PROCESS(task_info->pid,
+				  task_info->task_name));
+		amdgpu_vm_put_task_info(task_info);
+	}
 }
 
 int kfd_smi_event_open(struct kfd_node *dev, uint32_t *fd)

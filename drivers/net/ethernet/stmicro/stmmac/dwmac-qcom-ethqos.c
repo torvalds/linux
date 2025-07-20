@@ -106,12 +106,11 @@ struct qcom_ethqos {
 	struct platform_device *pdev;
 	void __iomem *rgmii_base;
 	void __iomem *mac_base;
-	int (*configure_func)(struct qcom_ethqos *ethqos);
+	int (*configure_func)(struct qcom_ethqos *ethqos, int speed);
 
 	unsigned int link_clk_rate;
 	struct clk *link_clk;
 	struct phy *serdes_phy;
-	unsigned int speed;
 	int serdes_speed;
 	phy_interface_t phy_mode;
 
@@ -169,30 +168,17 @@ static void rgmii_dump(void *priv)
 		rgmii_readl(ethqos, EMAC_SYSTEM_LOW_POWER_DEBUG));
 }
 
-/* Clock rates */
-#define RGMII_1000_NOM_CLK_FREQ			(250 * 1000 * 1000UL)
-#define RGMII_ID_MODE_100_LOW_SVS_CLK_FREQ	 (50 * 1000 * 1000UL)
-#define RGMII_ID_MODE_10_LOW_SVS_CLK_FREQ	  (5 * 1000 * 1000UL)
-
 static void
-ethqos_update_link_clk(struct qcom_ethqos *ethqos, unsigned int speed)
+ethqos_update_link_clk(struct qcom_ethqos *ethqos, int speed)
 {
+	long rate;
+
 	if (!phy_interface_mode_is_rgmii(ethqos->phy_mode))
 		return;
 
-	switch (speed) {
-	case SPEED_1000:
-		ethqos->link_clk_rate =  RGMII_1000_NOM_CLK_FREQ;
-		break;
-
-	case SPEED_100:
-		ethqos->link_clk_rate =  RGMII_ID_MODE_100_LOW_SVS_CLK_FREQ;
-		break;
-
-	case SPEED_10:
-		ethqos->link_clk_rate =  RGMII_ID_MODE_10_LOW_SVS_CLK_FREQ;
-		break;
-	}
+	rate = rgmii_clock(speed);
+	if (rate > 0)
+		ethqos->link_clk_rate = rate * 2;
 
 	clk_set_rate(ethqos->link_clk, ethqos->link_clk_rate);
 }
@@ -398,7 +384,7 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 	return 0;
 }
 
-static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
+static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 {
 	struct device *dev = &ethqos->pdev->dev;
 	int phase_shift;
@@ -425,7 +411,7 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 	rgmii_updatel(ethqos, RGMII_CONFIG_INTF_SEL,
 		      0, RGMII_IO_MACRO_CONFIG);
 
-	switch (ethqos->speed) {
+	switch (speed) {
 	case SPEED_1000:
 		rgmii_updatel(ethqos, RGMII_CONFIG_DDR_MODE,
 			      RGMII_CONFIG_DDR_MODE, RGMII_IO_MACRO_CONFIG);
@@ -545,14 +531,14 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 			      loopback, RGMII_IO_MACRO_CONFIG);
 		break;
 	default:
-		dev_err(dev, "Invalid speed %d\n", ethqos->speed);
+		dev_err(dev, "Invalid speed %d\n", speed);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos)
+static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos, int speed)
 {
 	struct device *dev = &ethqos->pdev->dev;
 	volatile unsigned int dll_lock;
@@ -575,7 +561,7 @@ static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos)
 		      SDCC_DLL_CONFIG_PDN, SDCC_HC_REG_DLL_CONFIG);
 
 	if (ethqos->has_emac_ge_3) {
-		if (ethqos->speed == SPEED_1000) {
+		if (speed == SPEED_1000) {
 			rgmii_writel(ethqos, 0x1800000, SDCC_TEST_CTL);
 			rgmii_writel(ethqos, 0x2C010800, SDCC_USR_CTL);
 			rgmii_writel(ethqos, 0xA001, SDCC_HC_REG_DLL_CONFIG2);
@@ -593,7 +579,7 @@ static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos)
 	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_PDN, 0,
 		      SDCC_HC_REG_DLL_CONFIG);
 
-	if (ethqos->speed != SPEED_100 && ethqos->speed != SPEED_10) {
+	if (speed != SPEED_100 && speed != SPEED_10) {
 		/* Set DLL_EN */
 		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_DLL_EN,
 			      SDCC_DLL_CONFIG_DLL_EN, SDCC_HC_REG_DLL_CONFIG);
@@ -620,10 +606,10 @@ static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos)
 			dev_err(dev, "Timeout while waiting for DLL lock\n");
 	}
 
-	if (ethqos->speed == SPEED_1000)
+	if (speed == SPEED_1000)
 		ethqos_dll_configure(ethqos);
 
-	ethqos_rgmii_macro_init(ethqos);
+	ethqos_rgmii_macro_init(ethqos, speed);
 
 	return 0;
 }
@@ -639,7 +625,7 @@ static void ethqos_set_serdes_speed(struct qcom_ethqos *ethqos, int speed)
 /* On interface toggle MAC registers gets reset.
  * Configure MAC block for SGMII on ethernet phy link up
  */
-static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
+static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos, int speed)
 {
 	struct net_device *dev = platform_get_drvdata(ethqos->pdev);
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -647,7 +633,7 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
 
 	val = readl(ethqos->mac_base + MAC_CTRL_REG);
 
-	switch (ethqos->speed) {
+	switch (speed) {
 	case SPEED_2500:
 		val &= ~ETHQOS_MAC_CTRL_PORT_SEL;
 		rgmii_updatel(ethqos, RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
@@ -686,27 +672,18 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
 	return val;
 }
 
-static void qcom_ethqos_speed_mode_2500(struct net_device *ndev, void *data)
+static int ethqos_configure(struct qcom_ethqos *ethqos, int speed)
 {
-	struct stmmac_priv *priv = netdev_priv(ndev);
-
-	priv->plat->max_speed = 2500;
-	priv->plat->phy_interface = PHY_INTERFACE_MODE_2500BASEX;
+	return ethqos->configure_func(ethqos, speed);
 }
 
-static int ethqos_configure(struct qcom_ethqos *ethqos)
-{
-	return ethqos->configure_func(ethqos);
-}
-
-static void ethqos_fix_mac_speed(void *priv, unsigned int speed, unsigned int mode)
+static void ethqos_fix_mac_speed(void *priv, int speed, unsigned int mode)
 {
 	struct qcom_ethqos *ethqos = priv;
 
 	qcom_ethqos_set_sgmii_loopback(ethqos, false);
-	ethqos->speed = speed;
 	ethqos_update_link_clk(ethqos, speed);
-	ethqos_configure(ethqos);
+	ethqos_configure(ethqos, speed);
 }
 
 static int qcom_ethqos_serdes_powerup(struct net_device *ndev, void *priv)
@@ -722,7 +699,7 @@ static int qcom_ethqos_serdes_powerup(struct net_device *ndev, void *priv)
 	if (ret)
 		return ret;
 
-	return phy_set_speed(ethqos->serdes_phy, ethqos->speed);
+	return phy_set_speed(ethqos->serdes_phy, ethqos->serdes_speed);
 }
 
 static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
@@ -777,7 +754,7 @@ static void ethqos_ptp_clk_freq_config(struct stmmac_priv *priv)
 		netdev_err(priv->dev, "Failed to max out clk_ptp_ref: %d\n", err);
 	plat_dat->clk_ptp_rate = clk_get_rate(plat_dat->clk_ptp_ref);
 
-	netdev_dbg(priv->dev, "PTP rate %d\n", plat_dat->clk_ptp_rate);
+	netdev_dbg(priv->dev, "PTP rate %lu\n", plat_dat->clk_ptp_rate);
 }
 
 static int qcom_ethqos_probe(struct platform_device *pdev)
@@ -807,9 +784,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (!ethqos)
 		return -ENOMEM;
 
-	ret = of_get_phy_mode(np, &ethqos->phy_mode);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get phy mode\n");
+	ethqos->phy_mode = plat_dat->phy_interface;
 	switch (ethqos->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
@@ -818,8 +793,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		ethqos->configure_func = ethqos_configure_rgmii;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
-		plat_dat->speed_mode_2500 = qcom_ethqos_speed_mode_2500;
-		fallthrough;
 	case PHY_INTERFACE_MODE_SGMII:
 		ethqos->configure_func = ethqos_configure_sgmii;
 		break;
@@ -862,7 +835,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ethqos->serdes_phy),
 				     "Failed to get serdes phy\n");
 
-	ethqos->speed = SPEED_1000;
 	ethqos->serdes_speed = SPEED_1000;
 	ethqos_update_link_clk(ethqos, SPEED_1000);
 	ethqos_set_func_clk_en(ethqos);

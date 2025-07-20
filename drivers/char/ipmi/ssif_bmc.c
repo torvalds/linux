@@ -209,7 +209,7 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t 
 	if (ret)
 		goto exit;
 
-	del_timer(&ssif_bmc->response_timer);
+	timer_delete(&ssif_bmc->response_timer);
 	ssif_bmc->response_timer_inited = false;
 
 	memcpy(&ssif_bmc->response, &msg, count);
@@ -292,13 +292,13 @@ static void complete_response(struct ssif_bmc_ctx *ssif_bmc)
 	ssif_bmc->nbytes_processed = 0;
 	ssif_bmc->remain_len = 0;
 	ssif_bmc->busy = false;
-	memset(&ssif_bmc->part_buf, 0, sizeof(struct ssif_part_buffer));
 	wake_up_all(&ssif_bmc->wait_queue);
 }
 
 static void response_timeout(struct timer_list *t)
 {
-	struct ssif_bmc_ctx *ssif_bmc = from_timer(ssif_bmc, t, response_timer);
+	struct ssif_bmc_ctx *ssif_bmc = timer_container_of(ssif_bmc, t,
+							   response_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ssif_bmc->lock, flags);
@@ -744,9 +744,11 @@ static void on_stop_event(struct ssif_bmc_ctx *ssif_bmc, u8 *val)
 			ssif_bmc->aborting = true;
 		}
 	} else if (ssif_bmc->state == SSIF_RES_SENDING) {
-		if (ssif_bmc->is_singlepart_read || ssif_bmc->block_num == 0xFF)
+		if (ssif_bmc->is_singlepart_read || ssif_bmc->block_num == 0xFF) {
+			memset(&ssif_bmc->part_buf, 0, sizeof(struct ssif_part_buffer));
 			/* Invalidate response buffer to denote it is sent */
 			complete_response(ssif_bmc);
+		}
 		ssif_bmc->state = SSIF_READY;
 	}
 

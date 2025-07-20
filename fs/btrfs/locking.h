@@ -189,7 +189,7 @@ static inline void btrfs_tree_read_lock(struct extent_buffer *eb)
 }
 
 void btrfs_tree_read_unlock(struct extent_buffer *eb);
-int btrfs_try_tree_read_lock(struct extent_buffer *eb);
+bool btrfs_try_tree_read_lock(struct extent_buffer *eb);
 struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
 struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root);
 struct extent_buffer *btrfs_try_read_lock_root_node(struct btrfs_root *root);
@@ -199,8 +199,13 @@ static inline void btrfs_assert_tree_write_locked(struct extent_buffer *eb)
 {
 	lockdep_assert_held_write(&eb->lock);
 }
+static inline void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
+{
+	lockdep_assert_held_read(&eb->lock);
+}
 #else
 static inline void btrfs_assert_tree_write_locked(struct extent_buffer *eb) { }
+static inline void btrfs_assert_tree_read_locked(struct extent_buffer *eb) { }
 #endif
 
 void btrfs_unlock_up_safe(struct btrfs_path *path, int level);

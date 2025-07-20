@@ -554,7 +554,7 @@ static const struct ltr_chip_info ltrf216a_chip_info = {
 static const struct i2c_device_id ltrf216a_id[] = {
 	{ "ltr308", .driver_data = (kernel_ulong_t)&ltr308_chip_info },
 	{ "ltrf216a", .driver_data = (kernel_ulong_t)&ltrf216a_chip_info },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltrf216a_id);
 
@@ -563,7 +563,7 @@ static const struct of_device_id ltrf216a_of_match[] = {
 	{ .compatible = "liteon,ltrf216a", .data = &ltrf216a_chip_info },
 	/* For Valve's Steamdeck device, an ACPI platform using PRP0001 */
 	{ .compatible = "ltr,ltrf216a", .data = &ltrf216a_chip_info },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltrf216a_of_match);
 

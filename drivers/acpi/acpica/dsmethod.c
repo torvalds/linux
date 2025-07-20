@@ -3,7 +3,7 @@
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
  *
- * Copyright (C) 2000 - 2023, Intel Corp.
+ * Copyright (C) 2000 - 2025, Intel Corp.
  *
  *****************************************************************************/
 
@@ -481,6 +481,13 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	obj_desc = acpi_ns_get_attached_object(method_node);
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_NULL_OBJECT);
+	}
+
+	if (this_walk_state->num_operands < obj_desc->method.param_count) {
+		ACPI_ERROR((AE_INFO, "Missing argument for method [%4.4s]",
+			    acpi_ut_get_node_name(method_node)));
+
+		return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
 	}
 
 	/* Init for new method, possibly wait on method mutex */

@@ -124,10 +124,7 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 	if (bmp->bitmap_from_slab)
 		bmp->bitmap = kzalloc(size, GFP_KERNEL);
 	else {
-		bmp->bitmap = memblock_alloc(size, SMP_CACHE_BYTES);
-		if (!bmp->bitmap)
-			panic("%s: Failed to allocate %u bytes\n", __func__,
-			      size);
+		bmp->bitmap = memblock_alloc_or_panic(size, SMP_CACHE_BYTES);
 		/* the bitmap won't be freed from memblock allocator */
 		kmemleak_not_leak(bmp->bitmap);
 	}

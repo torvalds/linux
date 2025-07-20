@@ -407,9 +407,29 @@ Description:
 
 		Access: Read, Write
 
+		Reading this returns the current active value, e.g. 'Standard'.
+		Check charge_types to get the values supported by the battery.
+
 		Valid values:
 			      "Unknown", "N/A", "Trickle", "Fast", "Standard",
 			      "Adaptive", "Custom", "Long Life", "Bypass"
+
+What:		/sys/class/power_supply/<supply_name>/charge_types
+Date:		December 2024
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Identical to charge_type but reading returns a list of supported
+		charge-types with the currently active type surrounded by square
+		brackets, e.g.: "Fast [Standard] Long_Life".
+
+		power_supply class devices may support both charge_type and
+		charge_types for backward compatibility. In this case both will
+		always have the same active value and the active value can be
+		changed by writing either property.
+
+		Note charge-types which contain a space such as "Long Life" will
+		have the space replaced by a '_' resulting in e.g. "Long_Life".
+		When writing charge-types both variants are accepted.
 
 What:		/sys/class/power_supply/<supply_name>/charge_term_current
 Date:		July 2014
@@ -433,10 +453,10 @@ Description:
 
 		Valid values:
 			      "Unknown", "Good", "Overheat", "Dead",
-			      "Over voltage", "Unspecified failure", "Cold",
+			      "Over voltage", "Under voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
 			      "Over current", "Calibration required", "Warm",
-			      "Cool", "Hot", "No battery"
+			      "Cool", "Hot", "No battery", "Blown fuse", "Cell imbalance"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017
@@ -488,11 +508,12 @@ Description:
 		Access: Read, Write
 
 		Valid values:
-			================ ====================================
-			auto:            Charge normally, respect thresholds
-			inhibit-charge:  Do not charge while AC is attached
-			force-discharge: Force discharge while AC is attached
-			================ ====================================
+			===================== ========================================
+			auto:                 Charge normally, respect thresholds
+			inhibit-charge:       Do not charge while AC is attached
+			inhibit-charge-awake: inhibit-charge only when device is awake
+			force-discharge:      Force discharge while AC is attached
+			===================== ========================================
 
 What:		/sys/class/power_supply/<supply_name>/technology
 Date:		May 2007
@@ -793,3 +814,55 @@ Description:
 
 		Access: Read
 		Valid values: 1-31
+
+What:		/sys/class/power_supply/<supply_name>/extensions/<extension_name>
+Date:		March 2025
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the extensions registered to the power supply.
+		Each entry is a link to the device which registered the extension.
+
+		Access: Read
+
+What:		/sys/class/power_supply/max8971-charger/fast_charge_timer
+Date:		May 2025
+KernelVersion:	6.15.0
+Contact:	Svyatoslav Ryhel <clamor95@gmail.com>
+Description:
+		This entry shows and sets the maximum time the max8971
+		charger operates in fast-charge mode. When the timer expires
+		the device will terminate fast-charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+
+		- 4 - 10 (hours), step by 1
+		- 0: disabled.
+
+What:		/sys/class/power_supply/max8971-charger/top_off_threshold_current
+Date:		May 2025
+KernelVersion:	6.15.0
+Contact:	Svyatoslav Ryhel <clamor95@gmail.com>
+Description:
+		This entry shows and sets the charging current threshold for
+		entering top-off charging mode. When charging current in fast
+		charge mode drops below this value, the charger will trigger
+		interrupt and start top-off charging mode.
+
+		Valid values:
+
+		- 50000 - 200000 (microamps), step by 50000 (rounded down)
+
+What:		/sys/class/power_supply/max8971-charger/top_off_timer
+Date:		May 2025
+KernelVersion:	6.15.0
+Contact:	Svyatoslav Ryhel <clamor95@gmail.com>
+Description:
+		This entry shows and sets the maximum time the max8971
+		charger operates in top-off charge mode. When the timer expires
+		the device will terminate top-off charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+
+		- 0 - 70 (minutes), step by 10 (rounded down)

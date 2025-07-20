@@ -11,14 +11,15 @@
 
 /* issue num suppressed message on exit */
 #define RATELIMIT_MSG_ON_RELEASE	BIT(0)
+#define RATELIMIT_INITIALIZED		BIT(1)
 
 struct ratelimit_state {
 	raw_spinlock_t	lock;		/* protect the state */
 
 	int		interval;
 	int		burst;
-	int		printed;
-	int		missed;
+	atomic_t	rs_n_left;
+	atomic_t	missed;
 	unsigned int	flags;
 	unsigned long	begin;
 };

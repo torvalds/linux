@@ -2081,17 +2081,13 @@ static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
 	switch (state) {
 	case BR_STATE_DISABLED:
 	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
 		/* From UM10944 description of DRPDTAG (why put this there?):
 		 * "Management traffic flows to the port regardless of the state
 		 * of the INGRESS flag". So BPDUs are still be allowed to pass.
 		 * At the moment no difference between DISABLED and BLOCKING.
 		 */
 		mac[port].ingress   = false;
-		mac[port].egress    = false;
-		mac[port].dyn_learn = false;
-		break;
-	case BR_STATE_LISTENING:
-		mac[port].ingress   = true;
 		mac[port].egress    = false;
 		mac[port].dyn_learn = false;
 		break;

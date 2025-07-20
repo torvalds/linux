@@ -85,8 +85,8 @@ Linux內核補丁提交檢查單
 17) 所有新的模塊參數都記錄在 ``MODULE_PARM_DESC()``
 
 18) 所有新的用戶空間接口都記錄在 ``Documentation/ABI/`` 中。有關詳細信息，
-    請參閱 ``Documentation/ABI/README`` 。更改用戶空間接口的補丁應該抄送
-    linux-api@vger.kernel.org。
+    請參閱 Documentation/admin-guide/abi.rst (或 ``Documentation/ABI/README``)。
+    更改用戶空間接口的補丁應該抄送 linux-api@vger.kernel.org\ 。
 
 19) 已通過至少注入slab和page分配失敗進行檢查。請參閱 ``Documentation/fault-injection/`` 。
     如果新代碼是實質性的，那麼添加子系統特定的故障注入可能是合適的。

@@ -717,7 +717,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
    problem where the adapter forgets its ethernet address. */
 static void atp_timed_checker(struct timer_list *t)
 {
-	struct net_local *lp = from_timer(lp, t, timer);
+	struct net_local *lp = timer_container_of(lp, t, timer);
 	struct net_device *dev = lp->dev;
 	long ioaddr = dev->base_addr;
 	int tickssofar = jiffies - lp->last_rx_time;
@@ -832,7 +832,7 @@ net_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	del_timer_sync(&lp->timer);
+	timer_delete_sync(&lp->timer);
 
 	/* Flush the Tx and disable Rx here. */
 	lp->addr_mode = CMR2h_OFF;

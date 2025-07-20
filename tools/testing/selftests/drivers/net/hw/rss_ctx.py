@@ -4,7 +4,8 @@
 import datetime
 import random
 import re
-from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ne, ksft_ge, ksft_lt, ksft_true
+from lib.py import ksft_run, ksft_pr, ksft_exit
+from lib.py import ksft_eq, ksft_ne, ksft_ge, ksft_in, ksft_lt, ksft_true, ksft_raises
 from lib.py import NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily
 from lib.py import KsftSkipEx, KsftFailEx
@@ -56,6 +57,14 @@ def require_ntuple(cfg):
         # ntuple is more of a capability than a config knob, don't bother
         # trying to enable it (until some driver actually needs it).
         raise KsftSkipEx("Ntuple filters not enabled on the device: " + str(features["ntuple-filters"]))
+
+
+def require_context_cnt(cfg, need_cnt):
+    # There's no good API to get the context count, so the tests
+    # which try to add a lot opportunisitically set the count they
+    # discovered. Careful with test ordering!
+    if need_cnt and cfg.context_cnt and cfg.context_cnt < need_cnt:
+        raise KsftSkipEx(f"Test requires at least {need_cnt} contexts, but device only has {cfg.context_cnt}")
 
 
 # Get Rx packet counts for all queues, as a simple list of integers
@@ -252,6 +261,7 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         try:
             # this targets queue 4, which doesn't exist
             ntuple2 = ethtool_create(cfg, "-N", flow)
+            defer(ethtool, f"-N {cfg.ifname} delete {ntuple2}")
         except CmdExitFailure:
             pass
         else:
@@ -259,7 +269,13 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         # change the table to target queues 0 and 2
         ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 1 0")
         # ntuple rule therefore targets queues 1 and 3
-        ntuple2 = ethtool_create(cfg, "-N", flow)
+        try:
+            ntuple2 = ethtool_create(cfg, "-N", flow)
+        except CmdExitFailure:
+            ksft_pr("Driver does not support rss + queue offset")
+            return
+
+        defer(ethtool, f"-N {cfg.ifname} delete {ntuple2}")
         # should replace existing filter
         ksft_eq(ntuple, ntuple2)
         _send_traffic_check(cfg, port, ctx_ref, { 'target': (1, 3),
@@ -376,7 +392,7 @@ def test_rss_context_dump(cfg):
 
     # Sanity-check the results
     for data in ctxs:
-        ksft_ne(set(data['indir']), {0}, "indir table is all zero")
+        ksft_ne(set(data.get('indir', [1])), {0}, "indir table is all zero")
         ksft_ne(set(data.get('hkey', [1])), {0}, "key is all zero")
 
         # More specific checks
@@ -449,6 +465,8 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
                 raise
             ksft_pr(f"Failed to create context {i + 1}, trying to test what we got")
             ctx_cnt = i
+            if cfg.context_cnt is None:
+                cfg.context_cnt = ctx_cnt
             break
 
         _rss_key_check(cfg, context=ctx_id)
@@ -504,8 +522,7 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
     """
 
     require_ntuple(cfg)
-
-    requested_ctx_cnt = ctx_cnt
+    require_context_cnt(cfg, 4)
 
     # Try to allocate more queues when necessary
     qcnt = len(_get_rx_cnts(cfg))
@@ -570,9 +587,6 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
     remove_ctx(-1)
     check_traffic()
 
-    if requested_ctx_cnt != ctx_cnt:
-        raise KsftSkipEx(f"Tested only {ctx_cnt} contexts, wanted {requested_ctx_cnt}")
-
 
 def test_rss_context_overlap(cfg, other_ctx=0):
     """
@@ -581,6 +595,8 @@ def test_rss_context_overlap(cfg, other_ctx=0):
     """
 
     require_ntuple(cfg)
+    if other_ctx:
+        require_context_cnt(cfg, 2)
 
     queue_cnt = len(_get_rx_cnts(cfg))
     if queue_cnt < 4:
@@ -640,6 +656,29 @@ def test_rss_context_overlap(cfg, other_ctx=0):
 
 def test_rss_context_overlap2(cfg):
     test_rss_context_overlap(cfg, True)
+
+
+def test_flow_add_context_missing(cfg):
+    """
+    Test that we are not allowed to add a rule pointing to an RSS context
+    which was never created.
+    """
+
+    require_ntuple(cfg)
+
+    # Find a context which doesn't exist
+    for ctx_id in range(1, 100):
+        try:
+            get_rss(cfg, context=ctx_id)
+        except CmdExitFailure:
+            break
+
+    with ksft_raises(CmdExitFailure) as cm:
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port 1234 context {ctx_id}"
+        ntuple_id = ethtool_create(cfg, "-N", flow)
+        ethtool(f"-N {cfg.ifname} delete {ntuple_id}")
+    if cm.exception:
+        ksft_in('Invalid argument', cm.exception.cmd.stderr)
 
 
 def test_delete_rss_context_busy(cfg):
@@ -708,8 +747,65 @@ def test_rss_ntuple_addition(cfg):
                                                           'noise' : (0,) })
 
 
+def test_rss_default_context_rule(cfg):
+    """
+    Allocate a port, direct this port to context 0, then create a new RSS
+    context and steer all TCP traffic to it (context 1).  Verify that:
+      * Traffic to the specific port continues to use queues of the main
+        context (0/1).
+      * Traffic to any other TCP port is redirected to the new context
+        (queues 2/3).
+    """
+
+    require_ntuple(cfg)
+
+    queue_cnt = len(_get_rx_cnts(cfg))
+    if queue_cnt < 4:
+        try:
+            ksft_pr(f"Increasing queue count {queue_cnt} -> 4")
+            ethtool(f"-L {cfg.ifname} combined 4")
+            defer(ethtool, f"-L {cfg.ifname} combined {queue_cnt}")
+        except Exception as exc:
+            raise KsftSkipEx("Not enough queues for the test") from exc
+
+    # Use queues 0 and 1 for the main context
+    ethtool(f"-X {cfg.ifname} equal 2")
+    defer(ethtool, f"-X {cfg.ifname} default")
+
+    # Create a new RSS context that uses queues 2 and 3
+    ctx_id = ethtool_create(cfg, "-X", "context new start 2 equal 2")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    # Generic low-priority rule: redirect all TCP traffic to the new context.
+    # Give it an explicit higher location number (lower priority).
+    flow_generic = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} context {ctx_id} loc 1"
+    ethtool(f"-N {cfg.ifname} {flow_generic}")
+    defer(ethtool, f"-N {cfg.ifname} delete 1")
+
+    # Specific high-priority rule for a random port that should stay on context 0.
+    # Assign loc 0 so it is evaluated before the generic rule.
+    port_main = rand_port()
+    flow_main = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port_main} context 0 loc 0"
+    ethtool(f"-N {cfg.ifname} {flow_main}")
+    defer(ethtool, f"-N {cfg.ifname} delete 0")
+
+    _ntuple_rule_check(cfg, 1, ctx_id)
+
+    # Verify that traffic matching the specific rule still goes to queues 0/1
+    _send_traffic_check(cfg, port_main, "context 0",
+                        { 'target': (0, 1),
+                          'empty' : (2, 3) })
+
+    # And that traffic for any other port is steered to the new context
+    port_other = rand_port()
+    _send_traffic_check(cfg, port_other, f"context {ctx_id}",
+                        { 'target': (2, 3),
+                          'noise' : (0, 1) })
+
+
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
+        cfg.context_cnt = None
         cfg.ethnl = EthtoolFamily()
         cfg.netdevnl = NetdevFamily()
 
@@ -719,7 +815,9 @@ def main() -> None:
                   test_rss_context_dump, test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
                   test_rss_context_out_of_order, test_rss_context4_create_with_cfg,
-                  test_delete_rss_context_busy, test_rss_ntuple_addition],
+                  test_flow_add_context_missing,
+                  test_delete_rss_context_busy, test_rss_ntuple_addition,
+                  test_rss_default_context_rule],
                  args=(cfg, ))
     ksft_exit()
 

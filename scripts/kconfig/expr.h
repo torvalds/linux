@@ -205,15 +205,26 @@ struct property {
 	for (st = sym->prop; st; st = st->next) \
 		if (st->text)
 
+enum menu_type {
+	M_CHOICE,  // "choice"
+	M_COMMENT, // "comment"
+	M_IF,      // "if"
+	M_MENU,    // "mainmenu", "menu", "menuconfig"
+	M_NORMAL,  // others, i.e., "config"
+};
+
 /*
  * Represents a node in the menu tree, as seen in e.g. menuconfig (though used
  * for all front ends). Each symbol, menu, etc. defined in the Kconfig files
  * gets a node. A symbol defined in multiple locations gets one node at each
  * location.
  *
+ * @type: type of the menu entry
  * @choice_members: list of choice members with priority.
  */
 struct menu {
+	enum menu_type type;
+
 	/* The next menu node at the same level */
 	struct menu *next;
 

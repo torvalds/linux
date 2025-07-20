@@ -1,0 +1,94 @@
+[
+    {
+        "ArchStdEvent": "STALL_FRONTEND",
+        "BriefDescription": "This event counts every cycle counted by the CPU_CYCLES event on that no operation was issued because there are no operations available to issue for this PE from the frontend."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND",
+        "BriefDescription": "This event counts every cycle counted by the CPU_CYCLES event on that no operation was issued because the backend is unable to accept any operations."
+    },
+    {
+        "ArchStdEvent": "STALL",
+        "BriefDescription": "This event counts every cycle that no instruction was dispatched from decode unit."
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT_BACKEND",
+        "BriefDescription": "This event counts every cycle that no instruction was dispatched from decode unit due to the backend."
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT_FRONTEND",
+        "BriefDescription": "This event counts every cycle that no instruction was dispatched from decode unit due to the frontend."
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT",
+        "BriefDescription": "This event counts every cycle that no instruction or operation Slot was dispatched from decode unit."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_MEM",
+        "BriefDescription": "This event counts every cycle that no instruction was dispatched from decode unit due to memory stall."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_MEMBOUND",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND when no instructions are delivered from the memory system."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_L1I",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND_MEMBOUND when there is a demand instruction miss in the first level of instruction cache."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_L2I",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND_MEMBOUND when there is a demand instruction miss in the second level of instruction cache."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_MEM",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND_MEMBOUND when there is a demand instruction miss in the last level of instruction cache within the PE clock domain or a non-cacheable instruction fetch in progress."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_CPUBOUND",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND when the frontend is stalled on a frontend processor resource, not including memory."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_FLOW",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND_CPUBOUND when the frontend is stalled on unavailability of prediction flow resources."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_FLUSH",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND_CPUBOUND when the frontend is recovering from a pipeline flush."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_RENAME",
+        "BriefDescription": "This event counts every cycle counted by STALL_FRONTEND_CPUBOUND when operations are available from the frontend but at least one is not ready to be sent to the backend because no rename register is available."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_MEMBOUND",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND when the backend is waiting for a memory access to complete."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_L1D",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_MEMBOUND when there is a demand data miss in L1D cache."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_L2D",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_MEMBOUND when there is a demand data miss in L2D cache."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_CPUBOUND",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND when the backend is stalled on a processor resource, not including memory."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_BUSY",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND when operations are available from the frontend but the backend is not able to accept an operation because an execution unit is busy."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_RENAME",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_CPUBOUND when operations are available from the frontend but at least one is not ready to be sent to the backend because no rename register is available."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_ATOMIC",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_MEMBOUND when the backend is processing an Atomic operation."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_MEMCPYSET",
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_MEMBOUND when the backend is processing a Memory Copy or Set instruction."
+    }
+]

@@ -3,6 +3,7 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 #include "uncore.h"
 #include "uncore_discovery.h"
 
@@ -150,7 +151,7 @@ u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *eve
 {
 	u64 count;
 
-	rdmsrl(event->hw.event_base, count);
+	rdmsrq(event->hw.event_base, count);
 
 	return count;
 }
@@ -305,17 +306,11 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 {
 	struct intel_uncore_box *box;
 	struct perf_event *event;
-	unsigned long flags;
 	int bit;
 
 	box = container_of(hrtimer, struct intel_uncore_box, hrtimer);
 	if (!box->n_active || box->cpu != smp_processor_id())
 		return HRTIMER_NORESTART;
-	/*
-	 * disable local interrupt to prevent uncore_pmu_event_start/stop
-	 * to interrupt the update process
-	 */
-	local_irq_save(flags);
 
 	/*
 	 * handle boxes with an active event list as opposed to active
@@ -328,8 +323,6 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 	for_each_set_bit(bit, box->active_mask, UNCORE_PMC_IDX_MAX)
 		uncore_perf_event_update(box, box->events[bit]);
 
-	local_irq_restore(flags);
-
 	hrtimer_forward_now(hrtimer, ns_to_ktime(box->hrtimer_duration));
 	return HRTIMER_RESTART;
 }
@@ -337,7 +330,7 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box)
 {
 	hrtimer_start(&box->hrtimer, ns_to_ktime(box->hrtimer_duration),
-		      HRTIMER_MODE_REL_PINNED);
+		      HRTIMER_MODE_REL_PINNED_HARD);
 }
 
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box)
@@ -347,8 +340,7 @@ void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box)
 
 static void uncore_pmu_init_hrtimer(struct intel_uncore_box *box)
 {
-	hrtimer_init(&box->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	box->hrtimer.function = uncore_pmu_hrtimer;
+	hrtimer_setup(&box->hrtimer, uncore_pmu_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
 }
 
 static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
@@ -745,7 +737,7 @@ static int uncore_pmu_event_init(struct perf_event *event)
 
 	pmu = uncore_event_to_pmu(event);
 	/* no device found for this pmu */
-	if (pmu->func_id < 0)
+	if (!pmu->registered)
 		return -ENOENT;
 
 	/* Sampling not supported yet */
@@ -992,7 +984,7 @@ static void uncore_types_exit(struct intel_uncore_type **types)
 		uncore_type_exit(*types);
 }
 
-static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
+static int __init uncore_type_init(struct intel_uncore_type *type)
 {
 	struct intel_uncore_pmu *pmus;
 	size_t size;
@@ -1005,7 +997,6 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 	size = uncore_max_dies() * sizeof(struct intel_uncore_box *);
 
 	for (i = 0; i < type->num_boxes; i++) {
-		pmus[i].func_id	= setid ? i : -1;
 		pmus[i].pmu_idx	= i;
 		pmus[i].type	= type;
 		pmus[i].boxes	= kzalloc(size, GFP_KERNEL);
@@ -1055,12 +1046,12 @@ err:
 }
 
 static int __init
-uncore_types_init(struct intel_uncore_type **types, bool setid)
+uncore_types_init(struct intel_uncore_type **types)
 {
 	int ret;
 
 	for (; *types; types++) {
-		ret = uncore_type_init(*types, setid);
+		ret = uncore_type_init(*types);
 		if (ret)
 			return ret;
 	}
@@ -1159,11 +1150,6 @@ static int uncore_pci_pmu_register(struct pci_dev *pdev,
 	box = uncore_alloc_box(type, NUMA_NO_NODE);
 	if (!box)
 		return -ENOMEM;
-
-	if (pmu->func_id < 0)
-		pmu->func_id = pdev->devfn;
-	else
-		WARN_ON_ONCE(pmu->func_id != pdev->devfn);
 
 	atomic_inc(&box->refcnt);
 	box->dieid = die;
@@ -1410,7 +1396,7 @@ static int __init uncore_pci_init(void)
 		goto err;
 	}
 
-	ret = uncore_types_init(uncore_pci_uncores, false);
+	ret = uncore_types_init(uncore_pci_uncores);
 	if (ret)
 		goto errtype;
 
@@ -1678,7 +1664,7 @@ static int __init uncore_cpu_init(void)
 {
 	int ret;
 
-	ret = uncore_types_init(uncore_msr_uncores, true);
+	ret = uncore_types_init(uncore_msr_uncores);
 	if (ret)
 		goto err;
 
@@ -1697,7 +1683,7 @@ static int __init uncore_mmio_init(void)
 	struct intel_uncore_type **types = uncore_mmio_uncores;
 	int ret;
 
-	ret = uncore_types_init(types, true);
+	ret = uncore_types_init(types);
 	if (ret)
 		goto err;
 
@@ -1910,6 +1896,7 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&adl_uncore_init),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	&gnr_uncore_init),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	&gnr_uncore_init),
+	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,	&gnr_uncore_init),
 	{},
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_uncore_match);

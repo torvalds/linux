@@ -44,6 +44,8 @@ struct mall_stream_config {
 	 */
 	enum mall_stream_type type;
 	struct dc_stream_state *paired_stream;	// master / slave stream
+	bool subvp_limit_cursor_size; /* stream has/is using subvp limiting hw cursor support */
+	bool cursor_size_limit_subvp; /* stream is using hw cursor config preventing subvp */
 };
 
 struct dc_stream_status {
@@ -56,7 +58,7 @@ struct dc_stream_status {
 	int plane_count;
 	int audio_inst;
 	struct timing_sync_info timing_sync_info;
-	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
+	struct dc_plane_state *plane_states[MAX_SURFACES];
 	bool is_abm_supported;
 	struct mall_stream_config mall_stream_config;
 	bool fpo_in_use;
@@ -447,10 +449,6 @@ enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream);
 
-bool dc_stream_warmup_writeback(struct dc *dc,
-		int num_dwb,
-		struct dc_writeback_info *wb_info);
-
 bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream);
 
 bool dc_stream_set_dynamic_metadata(struct dc *dc,
@@ -507,6 +505,11 @@ void program_cursor_position(
 	struct dc *dc,
 	struct dc_stream_state *stream);
 
+bool dc_stream_check_cursor_attributes(
+	const struct dc_stream_state *stream,
+	struct dc_state *state,
+	const struct dc_cursor_attributes *attributes);
+
 bool dc_stream_set_cursor_attributes(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes);
@@ -532,26 +535,29 @@ bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
 		struct dc_stream_state *stream,
 		uint32_t *refresh_rate);
 
-bool dc_stream_get_crtc_position(struct dc *dc,
-				 struct dc_stream_state **stream,
-				 int num_streams,
-				 unsigned int *v_pos,
-				 unsigned int *nom_v_pos);
-
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
 		struct rect *rect,
+		uint8_t phy_id,
 		bool is_stop);
+
+bool dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
+		struct crc_window *window,
+		uint8_t phy_id,
+		bool stop);
 #endif
 
 bool dc_stream_configure_crc(struct dc *dc,
 			     struct dc_stream_state *stream,
 			     struct crc_params *crc_window,
 			     bool enable,
-			     bool continuous);
+			     bool continuous,
+			     uint8_t idx,
+			     bool reset);
 
 bool dc_stream_get_crc(struct dc *dc,
 		       struct dc_stream_state *stream,
+		       uint8_t idx,
 		       uint32_t *r_cr,
 		       uint32_t *g_y,
 		       uint32_t *b_cb);
@@ -573,12 +579,6 @@ bool dc_stream_set_gamut_remap(struct dc *dc,
 bool dc_stream_program_csc_matrix(struct dc *dc,
 				  struct dc_stream_state *stream);
 
-bool dc_stream_get_crtc_position(struct dc *dc,
-				 struct dc_stream_state **stream,
-				 int num_streams,
-				 unsigned int *v_pos,
-				 unsigned int *nom_v_pos);
-
 struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 
 void dc_dmub_update_dirty_rect(struct dc *dc,
@@ -586,4 +586,8 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 			       struct dc_stream_state *stream,
 			       struct dc_surface_update *srf_updates,
 			       struct dc_state *context);
+
+bool dc_stream_is_cursor_limit_pending(struct dc *dc, struct dc_stream_state *stream);
+bool dc_stream_can_clear_cursor_limit(struct dc *dc, struct dc_stream_state *stream);
+
 #endif /* DC_STREAM_H_ */

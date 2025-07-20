@@ -212,6 +212,17 @@ pid>/``).
 This value defaults to 0.
 
 
+core_sort_vma
+=============
+
+The default coredump writes VMAs in address order. By setting
+``core_sort_vma`` to 1, VMAs will be written from smallest size
+to largest size. This is known to break at least elfutils, but
+can be handy when dealing with very large (and truncated)
+coredumps where the more useful debugging details are included
+in the smaller VMAs.
+
+
 core_uses_pid
 =============
 
@@ -1544,6 +1555,13 @@ constant ``FUTEX_TID_MASK`` (0x3fffffff).
 If a value outside of this range is written to ``threads-max`` an
 ``EINVAL`` error occurs.
 
+timer_migration
+===============
+
+When set to a non-zero value, attempt to migrate timers away from idle cpus to
+allow them to remain in low power states longer.
+
+Default is set (1).
 
 traceoff_on_warning
 ===================

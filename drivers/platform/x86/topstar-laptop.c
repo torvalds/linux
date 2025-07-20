@@ -296,8 +296,8 @@ static int topstar_acpi_add(struct acpi_device *device)
 	if (!topstar)
 		return -ENOMEM;
 
-	strcpy(acpi_device_name(device), "Topstar TPSACPI");
-	strcpy(acpi_device_class(device), TOPSTAR_LAPTOP_CLASS);
+	strscpy(acpi_device_name(device), "Topstar TPSACPI");
+	strscpy(acpi_device_class(device), TOPSTAR_LAPTOP_CLASS);
 	device->driver_data = topstar;
 	topstar->device = device;
 

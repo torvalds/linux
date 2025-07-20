@@ -30,16 +30,19 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
+#include <linux/vgaarb.h>
 #include <linux/wait.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>
 
 #include "virtgpu_drv.h"
+
+#define PCI_DEVICE_ID_VIRTIO_GPU 0x1050
 
 static const struct drm_driver driver;
 
@@ -125,6 +128,14 @@ static void virtio_gpu_remove(struct virtio_device *vdev)
 	drm_dev_put(dev);
 }
 
+static void virtio_gpu_shutdown(struct virtio_device *vdev)
+{
+	/*
+	 * drm does its own synchronization on shutdown.
+	 * Do nothing here, opt out of device reset.
+	 */
+}
+
 static void virtio_gpu_config_changed(struct virtio_device *vdev)
 {
 	struct drm_device *dev = vdev->priv;
@@ -159,10 +170,47 @@ static struct virtio_driver virtio_gpu_driver = {
 	.id_table = id_table,
 	.probe = virtio_gpu_probe,
 	.remove = virtio_gpu_remove,
+	.shutdown = virtio_gpu_shutdown,
 	.config_changed = virtio_gpu_config_changed
 };
 
-module_virtio_driver(virtio_gpu_driver);
+static int __init virtio_gpu_driver_init(void)
+{
+	struct pci_dev *pdev;
+	int ret;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_REDHAT_QUMRANET,
+			      PCI_DEVICE_ID_VIRTIO_GPU,
+			      NULL);
+	if (pdev && pci_is_vga(pdev)) {
+		ret = vga_get_interruptible(pdev,
+			VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
+		if (ret) {
+			pci_dev_put(pdev);
+			return ret;
+		}
+	}
+
+	ret = register_virtio_driver(&virtio_gpu_driver);
+
+	if (pdev) {
+		if (pci_is_vga(pdev))
+			vga_put(pdev,
+				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
+
+		pci_dev_put(pdev);
+	}
+
+	return ret;
+}
+
+static void __exit virtio_gpu_driver_exit(void)
+{
+	unregister_virtio_driver(&virtio_gpu_driver);
+}
+
+module_init(virtio_gpu_driver_init);
+module_exit(virtio_gpu_driver_exit);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio GPU driver");
@@ -184,7 +232,6 @@ static const struct drm_driver driver = {
 	.postclose = virtio_gpu_driver_postclose,
 
 	.dumb_create = virtio_gpu_mode_dumb_create,
-	.dumb_map_offset = virtio_gpu_mode_dumb_mmap,
 
 	DRM_FBDEV_SHMEM_DRIVER_OPS,
 
@@ -202,7 +249,6 @@ static const struct drm_driver driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,

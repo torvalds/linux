@@ -27,7 +27,7 @@ static void guest_code(void)
 	GUEST_DONE();
 }
 
-static void guest_breakpoint_handler(struct ex_regs *regs)
+static void guest_breakpoint_handler(struct pt_regs *regs)
 {
 	WRITE_ONCE(sw_bp_addr, regs->epc);
 	regs->epc += 4;
@@ -60,7 +60,7 @@ int main(void)
 
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_DEBUG);
 
-	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.pc), &pc);
+	pc = vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.pc));
 	TEST_ASSERT_EQ(pc, LABEL_ADDRESS(sw_bp_1));
 
 	/* skip sw_bp_1 */

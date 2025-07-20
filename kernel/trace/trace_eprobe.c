@@ -478,7 +478,7 @@ static void eprobe_trigger_func(struct event_trigger_data *data,
 	__eprobe_trace_func(edata, rec);
 }
 
-static struct event_trigger_ops eprobe_trigger_ops = {
+static const struct event_trigger_ops eprobe_trigger_ops = {
 	.trigger		= eprobe_trigger_func,
 	.print			= eprobe_trigger_print,
 	.init			= eprobe_trigger_init,
@@ -507,8 +507,8 @@ static void eprobe_trigger_unreg_func(char *glob,
 
 }
 
-static struct event_trigger_ops *eprobe_trigger_get_ops(char *cmd,
-							char *param)
+static const struct event_trigger_ops *eprobe_trigger_get_ops(char *cmd,
+							      char *param)
 {
 	return &eprobe_trigger_ops;
 }
@@ -913,14 +913,16 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	}
 
 	if (argc - 2 > MAX_TRACE_ARGS) {
+		trace_probe_log_set_index(2);
+		trace_probe_log_err(0, TOO_MANY_ARGS);
 		ret = -E2BIG;
 		goto error;
 	}
 
-	mutex_lock(&event_mutex);
-	event_call = find_and_get_event(sys_name, sys_event);
-	ep = alloc_event_probe(group, event, event_call, argc - 2);
-	mutex_unlock(&event_mutex);
+	scoped_guard(mutex, &event_mutex) {
+		event_call = find_and_get_event(sys_name, sys_event);
+		ep = alloc_event_probe(group, event, event_call, argc - 2);
+	}
 
 	if (IS_ERR(ep)) {
 		ret = PTR_ERR(ep);
@@ -952,27 +954,28 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	if (ret < 0)
 		goto error;
 	init_trace_eprobe_call(ep);
-	mutex_lock(&event_mutex);
-	ret = trace_probe_register_event_call(&ep->tp);
-	if (ret) {
-		if (ret == -EEXIST) {
-			trace_probe_log_set_index(0);
-			trace_probe_log_err(0, EVENT_EXIST);
+	scoped_guard(mutex, &event_mutex) {
+		ret = trace_probe_register_event_call(&ep->tp);
+		if (ret) {
+			if (ret == -EEXIST) {
+				trace_probe_log_set_index(0);
+				trace_probe_log_err(0, EVENT_EXIST);
+			}
+			goto error;
 		}
-		mutex_unlock(&event_mutex);
-		goto error;
+		ret = dyn_event_add(&ep->devent, &ep->tp.event->call);
+		if (ret < 0) {
+			trace_probe_unregister_event_call(&ep->tp);
+			goto error;
+		}
 	}
-	ret = dyn_event_add(&ep->devent, &ep->tp.event->call);
-	if (ret < 0) {
-		trace_probe_unregister_event_call(&ep->tp);
-		mutex_unlock(&event_mutex);
-		goto error;
-	}
-	mutex_unlock(&event_mutex);
+	trace_probe_log_clear();
 	return ret;
+
 parse_error:
 	ret = -EINVAL;
 error:
+	trace_probe_log_clear();
 	trace_event_probe_cleanup(ep);
 	return ret;
 }

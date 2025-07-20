@@ -123,23 +123,6 @@ static int flexcop_dma_remap(struct flexcop_device *fc,
 	return 0;
 }
 
-int flexcop_dma_control_size_irq(struct flexcop_device *fc,
-		flexcop_dma_index_t no,
-		int onoff)
-{
-	flexcop_ibi_value v = fc->read_ibi_reg(fc, ctrl_208);
-
-	if (no & FC_DMA_1)
-		v.ctrl_208.DMA1_IRQ_Enable_sig = onoff;
-
-	if (no & FC_DMA_2)
-		v.ctrl_208.DMA2_IRQ_Enable_sig = onoff;
-
-	fc->write_ibi_reg(fc, ctrl_208, v);
-	return 0;
-}
-EXPORT_SYMBOL(flexcop_dma_control_size_irq);
-
 int flexcop_dma_control_timer_irq(struct flexcop_device *fc,
 		flexcop_dma_index_t no,
 		int onoff)

@@ -87,8 +87,7 @@ SYM_CODE_START(pvh_start_xen)
 	mov %ebx, %esi
 	movl rva(pvh_start_info_sz)(%ebp), %ecx
 	shr $2,%ecx
-	rep
-	movsl
+	rep movsl
 
 	leal rva(early_stack_end)(%ebp), %esp
 
@@ -173,10 +172,14 @@ SYM_CODE_START(pvh_start_xen)
 1:
 	UNWIND_HINT_END_OF_STACK
 
-	/* Set base address in stack canary descriptor. */
-	mov $MSR_GS_BASE,%ecx
-	leal canary(%rip), %eax
-	xor %edx, %edx
+	/*
+	 * Set up GSBASE.
+	 * Note that on SMP the boot CPU uses the init data section until
+	 * the per-CPU areas are set up.
+	 */
+	movl $MSR_GS_BASE,%ecx
+	xorl %eax, %eax
+	xorl %edx, %edx
 	wrmsr
 
 	/* Call xen_prepare_pvh() via the kernel virtual mapping */
@@ -238,8 +241,6 @@ SYM_DATA_START_LOCAL(gdt_start)
 SYM_DATA_END_LABEL(gdt_start, SYM_L_LOCAL, gdt_end)
 
 	.balign 16
-SYM_DATA_LOCAL(canary, .fill 48, 1, 0)
-
 SYM_DATA_START_LOCAL(early_stack)
 	.fill BOOT_STACK_SIZE, 1, 0
 SYM_DATA_END_LABEL(early_stack, SYM_L_LOCAL, early_stack_end)

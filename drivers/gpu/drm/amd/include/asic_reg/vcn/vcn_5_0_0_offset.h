@@ -1067,7 +1067,13 @@
 #define regVCN_FEATURES_BASE_IDX                                                                        1
 #define regUVD_GPUIOV_STATUS                                                                            0x0055
 #define regUVD_GPUIOV_STATUS_BASE_IDX                                                                   1
+#define regUVD_RAS_VCPU_VCODEC_STATUS                                                                   0x0057
+#define regUVD_RAS_VCPU_VCODEC_STATUS_BASE_IDX                                                          1
 #define regUVD_SCRATCH15                                                                                0x005c
+#define regUVD_RAS_JPEG0_STATUS                                                                         0x0059
+#define regUVD_RAS_JPEG0_STATUS_BASE_IDX                                                                1
+#define regUVD_RAS_JPEG1_STATUS                                                                         0x005a
+#define regUVD_RAS_JPEG1_STATUS_BASE_IDX                                                                1
 #define regUVD_SCRATCH15_BASE_IDX                                                                       1
 #define regUVD_VERSION                                                                                  0x005d
 #define regUVD_VERSION_BASE_IDX                                                                         1
@@ -1145,6 +1151,22 @@
 #define regUVD_RBC_RB_WPTR_BASE_IDX                                                                     1
 #define regUVD_DPG_LMA_CTL2                                                                             0x00bb
 #define regUVD_DPG_LMA_CTL2_BASE_IDX                                                                    1
+
+
+// addressBlock: uvd_mmsch_dec
+// base address: 0x20d2c
+#define regMMSCH_VF_VMID                                                                                0x054b
+#define regMMSCH_VF_VMID_BASE_IDX                                                                       1
+#define regMMSCH_VF_CTX_ADDR_LO                                                                         0x054c
+#define regMMSCH_VF_CTX_ADDR_LO_BASE_IDX                                                                1
+#define regMMSCH_VF_CTX_ADDR_HI                                                                         0x054d
+#define regMMSCH_VF_CTX_ADDR_HI_BASE_IDX                                                                1
+#define regMMSCH_VF_CTX_SIZE                                                                            0x054e
+#define regMMSCH_VF_CTX_SIZE_BASE_IDX                                                                   1
+#define regMMSCH_VF_MAILBOX_HOST                                                                        0x0552
+#define regMMSCH_VF_MAILBOX_HOST_BASE_IDX                                                               1
+#define regMMSCH_VF_MAILBOX_RESP                                                                        0x0553
+#define regMMSCH_VF_MAILBOX_RESP_BASE_IDX                                                               1
 
 
 // addressBlock: uvd_vcn_umsch_dec

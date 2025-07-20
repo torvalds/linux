@@ -423,7 +423,7 @@ Field descriptions:
 
 Event Example::
 
-   type=1422 audit(1653425529.927:53): policy_name="boot_verified" policy_version=0.0.0 policy_digest=sha256:820EEA5B40CA42B51F68962354BA083122A20BB846F26765076DD8EED7B8F4DB auid=4294967295 ses=4294967295 lsm=ipe res=1
+   type=1422 audit(1653425529.927:53): policy_name="boot_verified" policy_version=0.0.0 policy_digest=sha256:820EEA5B40CA42B51F68962354BA083122A20BB846F26765076DD8EED7B8F4DB auid=4294967295 ses=4294967295 lsm=ipe res=1 errno=0
    type=1300 audit(1653425529.927:53): arch=c000003e syscall=1 success=yes exit=2567 a0=3 a1=5596fcae1fb0 a2=a07 a3=2 items=0 ppid=184 pid=229 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts0 ses=4294967295 comm="python3" exe="/usr/bin/python3.10" key=(null)
    type=1327 audit(1653425529.927:53): PROCTITLE proctitle=707974686F6E3300746573742F6D61696E2E7079002D66002E2E
 
@@ -433,24 +433,55 @@ This record will always be emitted in conjunction with a ``AUDITSYSCALL`` record
 
 Field descriptions:
 
-+----------------+------------+-----------+---------------------------------------------------+
-| Field          | Value Type | Optional? | Description of Value                              |
-+================+============+===========+===================================================+
-| policy_name    | string     | No        | The policy_name                                   |
-+----------------+------------+-----------+---------------------------------------------------+
-| policy_version | string     | No        | The policy_version                                |
-+----------------+------------+-----------+---------------------------------------------------+
-| policy_digest  | string     | No        | The policy hash                                   |
-+----------------+------------+-----------+---------------------------------------------------+
-| auid           | integer    | No        | The login user ID                                 |
-+----------------+------------+-----------+---------------------------------------------------+
-| ses            | integer    | No        | The login session ID                              |
-+----------------+------------+-----------+---------------------------------------------------+
-| lsm            | string     | No        | The lsm name associated with the event            |
-+----------------+------------+-----------+---------------------------------------------------+
-| res            | integer    | No        | The result of the audited operation(success/fail) |
-+----------------+------------+-----------+---------------------------------------------------+
++----------------+------------+-----------+-------------------------------------------------------------+
+| Field          | Value Type | Optional? | Description of Value                                        |
++================+============+===========+=============================================================+
+| policy_name    | string     | Yes       | The policy_name                                             |
++----------------+------------+-----------+-------------------------------------------------------------+
+| policy_version | string     | Yes       | The policy_version                                          |
++----------------+------------+-----------+-------------------------------------------------------------+
+| policy_digest  | string     | Yes       | The policy hash                                             |
++----------------+------------+-----------+-------------------------------------------------------------+
+| auid           | integer    | No        | The login user ID                                           |
++----------------+------------+-----------+-------------------------------------------------------------+
+| ses            | integer    | No        | The login session ID                                        |
++----------------+------------+-----------+-------------------------------------------------------------+
+| lsm            | string     | No        | The lsm name associated with the event                      |
++----------------+------------+-----------+-------------------------------------------------------------+
+| res            | integer    | No        | The result of the audited operation(success/fail)           |
++----------------+------------+-----------+-------------------------------------------------------------+
+| errno          | integer    | No        | Error code from policy loading operations (see table below) |
++----------------+------------+-----------+-------------------------------------------------------------+
 
+Policy error codes (errno):
+
+The following table lists the error codes that may appear in the errno field while loading or updating the policy:
+
++----------------+--------------------------------------------------------+
+| Error Code     | Description                                            |
++================+========================================================+
+| 0              | Success                                                |
++----------------+--------------------------------------------------------+
+| -EPERM         | Insufficient permission                                |
++----------------+--------------------------------------------------------+
+| -EEXIST        | Same name policy already deployed                      |
++----------------+--------------------------------------------------------+
+| -EBADMSG       | Policy is invalid                                      |
++----------------+--------------------------------------------------------+
+| -ENOMEM        | Out of memory (OOM)                                    |
++----------------+--------------------------------------------------------+
+| -ERANGE        | Policy version number overflow                         |
++----------------+--------------------------------------------------------+
+| -EINVAL        | Policy version parsing error                           |
++----------------+--------------------------------------------------------+
+| -ENOKEY        | Key used to sign the IPE policy not found in keyring   |
++----------------+--------------------------------------------------------+
+| -EKEYREJECTED  | Policy signature verification failed                   |
++----------------+--------------------------------------------------------+
+| -ESTALE        | Attempting to update an IPE policy with older version  |
++----------------+--------------------------------------------------------+
+| -ENOENT        | Policy was deleted while updating                      |
++----------------+--------------------------------------------------------+
 
 1404 AUDIT_MAC_STATUS
 ^^^^^^^^^^^^^^^^^^^^^

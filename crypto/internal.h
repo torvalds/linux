@@ -33,6 +33,22 @@ struct crypto_larval {
 	bool test_started;
 };
 
+struct crypto_type {
+	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
+	unsigned int (*extsize)(struct crypto_alg *alg);
+	int (*init_tfm)(struct crypto_tfm *tfm);
+	void (*show)(struct seq_file *m, struct crypto_alg *alg);
+	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
+	void (*free)(struct crypto_instance *inst);
+	void (*destroy)(struct crypto_alg *alg);
+
+	unsigned int type;
+	unsigned int maskclear;
+	unsigned int maskset;
+	unsigned int tfmsize;
+	unsigned int algsize;
+};
+
 enum {
 	CRYPTOA_UNSPEC,
 	CRYPTOA_ALG,
@@ -51,8 +67,7 @@ extern struct blocking_notifier_head crypto_chain;
 
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
 
-#if !IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) || \
-    IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+#if !IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) || !IS_ENABLED(CONFIG_CRYPTO_SELFTESTS)
 static inline bool crypto_boot_test_finished(void)
 {
 	return true;
@@ -71,7 +86,7 @@ static inline void set_crypto_boot_test_finished(void)
 	static_branch_enable(&__crypto_boot_test_finished);
 }
 #endif /* !IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) ||
-	* IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+	* !IS_ENABLED(CONFIG_CRYPTO_SELFTESTS)
 	*/
 
 #ifdef CONFIG_PROC_FS
@@ -147,10 +162,12 @@ static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 	return alg;
 }
 
+void crypto_destroy_alg(struct crypto_alg *alg);
+
 static inline void crypto_alg_put(struct crypto_alg *alg)
 {
-	if (refcount_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
-		alg->cra_destroy(alg);
+	if (refcount_dec_and_test(&alg->cra_refcnt))
+		crypto_destroy_alg(alg);
 }
 
 static inline int crypto_tmpl_get(struct crypto_template *tmpl)

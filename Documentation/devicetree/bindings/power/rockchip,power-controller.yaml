@@ -40,6 +40,7 @@ properties:
       - rockchip,rk3366-power-controller
       - rockchip,rk3368-power-controller
       - rockchip,rk3399-power-controller
+      - rockchip,rk3562-power-controller
       - rockchip,rk3568-power-controller
       - rockchip,rk3576-power-controller
       - rockchip,rk3588-power-controller
@@ -131,6 +132,9 @@ $defs:
         description: |
           A number of phandles to clocks that need to be enabled
           while power domain switches state.
+
+      domain-supply:
+        description: domain regulator supply.
 
       pm_qos:
         $ref: /schemas/types.yaml#/definitions/phandle-array

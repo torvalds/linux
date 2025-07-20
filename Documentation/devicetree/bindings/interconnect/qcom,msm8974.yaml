@@ -50,13 +50,13 @@ additionalProperties: false
 
 examples:
   - |
-      #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/clock/qcom,rpmcc.h>
 
-      bimc: interconnect@fc380000 {
-              reg = <0xfc380000 0x6a000>;
-              compatible = "qcom,msm8974-bimc";
-              #interconnect-cells = <1>;
-              clock-names = "bus", "bus_a";
-              clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
-                       <&rpmcc RPM_SMD_BIMC_A_CLK>;
-      };
+    interconnect@fc380000 {
+        reg = <0xfc380000 0x6a000>;
+        compatible = "qcom,msm8974-bimc";
+        #interconnect-cells = <1>;
+        clock-names = "bus", "bus_a";
+        clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
+                 <&rpmcc RPM_SMD_BIMC_A_CLK>;
+    };

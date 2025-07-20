@@ -131,7 +131,7 @@ struct xe_reg_sr;
  * @ver_end__: Last graphics IP version to match
  *
  * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
- * inclusive on boths sides
+ * inclusive on both sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -169,7 +169,7 @@ struct xe_reg_sr;
  * @ver_end__: Last media IP version to match
  *
  * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
- * inclusive on boths sides
+ * inclusive on both sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -430,7 +430,7 @@ void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
 
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 			  const struct xe_rtp_entry_sr *entries,
-			  struct xe_reg_sr *sr);
+			  size_t n_entries, struct xe_reg_sr *sr);
 
 void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 		    const struct xe_rtp_entry *entries);
@@ -475,5 +475,16 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
  */
 bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 					 const struct xe_hw_engine *hwe);
+
+/*
+ * xe_rtp_match_not_sriov_vf - Match when not on SR-IOV VF device
+ *
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Returns: true if device is not VF, false otherwise.
+ */
+bool xe_rtp_match_not_sriov_vf(const struct xe_gt *gt,
+			       const struct xe_hw_engine *hwe);
 
 #endif

@@ -16,6 +16,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -176,6 +177,12 @@ struct as73211_data {
 #define AS73211_SCAN_MASK_ALL (    \
 	BIT(AS73211_SCAN_INDEX_TEMP) | \
 	AS73211_SCAN_MASK_COLOR)
+
+static const unsigned long as73211_scan_masks[] = {
+	AS73211_SCAN_MASK_COLOR,
+	AS73211_SCAN_MASK_ALL,
+	0
+};
 
 static const struct iio_chan_spec as73211_channels[] = {
 	{
@@ -412,18 +419,17 @@ static int as73211_read_raw(struct iio_dev *indio_dev, struct iio_chan_spec cons
 	case IIO_CHAN_INFO_RAW: {
 		int ret;
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = as73211_req_data(data);
 		if (ret < 0) {
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			return ret;
 		}
 
 		ret = i2c_smbus_read_word_data(data->client, chan->address);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 
@@ -511,6 +517,16 @@ static int _as73211_write_raw(struct iio_dev *indio_dev,
 	struct as73211_data *data = iio_priv(indio_dev);
 	int ret;
 
+	/* Need to switch to config mode ... */
+	if ((data->osr & AS73211_OSR_DOS_MASK) != AS73211_OSR_DOS_CONFIG) {
+		data->osr &= ~AS73211_OSR_DOS_MASK;
+		data->osr |= AS73211_OSR_DOS_CONFIG;
+
+		ret = i2c_smbus_write_byte_data(data->client, AS73211_REG_OSR, data->osr);
+		if (ret < 0)
+			return ret;
+	}
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ: {
 		int reg_bits, freq_kHz = val / HZ_PER_KHZ;  /* 1024, 2048, ... */
@@ -595,28 +611,14 @@ static int as73211_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec con
 	struct as73211_data *data = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret < 0)
-		goto error_unlock;
-
-	/* Need to switch to config mode ... */
-	if ((data->osr & AS73211_OSR_DOS_MASK) != AS73211_OSR_DOS_CONFIG) {
-		data->osr &= ~AS73211_OSR_DOS_MASK;
-		data->osr |= AS73211_OSR_DOS_CONFIG;
-
-		ret = i2c_smbus_write_byte_data(data->client, AS73211_REG_OSR, data->osr);
-		if (ret < 0)
-			goto error_release;
-	}
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = _as73211_write_raw(indio_dev, chan, val, val2, mask);
+	iio_device_release_direct(indio_dev);
 
-error_release:
-	iio_device_release_direct_mode(indio_dev);
-error_unlock:
-	mutex_unlock(&data->mutex);
 	return ret;
 }
 
@@ -636,7 +638,7 @@ static irqreturn_t as73211_trigger_handler(int irq __always_unused, void *p)
 	struct as73211_data *data = iio_priv(indio_dev);
 	struct {
 		__le16 chan[4];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	int data_result, ret;
 
@@ -672,9 +674,12 @@ static irqreturn_t as73211_trigger_handler(int irq __always_unused, void *p)
 
 		/* AS73211 starts reading at address 2 */
 		ret = i2c_master_recv(data->client,
-				(char *)&scan.chan[1], 3 * sizeof(scan.chan[1]));
+				(char *)&scan.chan[0], 3 * sizeof(scan.chan[0]));
 		if (ret < 0)
 			goto done;
+
+		/* Avoid pushing uninitialized data */
+		scan.chan[3] = 0;
 	}
 
 	if (data_result) {
@@ -682,9 +687,15 @@ static irqreturn_t as73211_trigger_handler(int irq __always_unused, void *p)
 		 * Saturate all channels (in case of overflows). Temperature channel
 		 * is not affected by overflows.
 		 */
-		scan.chan[1] = cpu_to_le16(U16_MAX);
-		scan.chan[2] = cpu_to_le16(U16_MAX);
-		scan.chan[3] = cpu_to_le16(U16_MAX);
+		if (*indio_dev->active_scan_mask == AS73211_SCAN_MASK_ALL) {
+			scan.chan[1] = cpu_to_le16(U16_MAX);
+			scan.chan[2] = cpu_to_le16(U16_MAX);
+			scan.chan[3] = cpu_to_le16(U16_MAX);
+		} else {
+			scan.chan[0] = cpu_to_le16(U16_MAX);
+			scan.chan[1] = cpu_to_le16(U16_MAX);
+			scan.chan[2] = cpu_to_le16(U16_MAX);
+		}
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &scan, iio_get_time_ns(indio_dev));
@@ -758,6 +769,7 @@ static int as73211_probe(struct i2c_client *client)
 	indio_dev->channels = data->spec_dev->channels;
 	indio_dev->num_channels = data->spec_dev->num_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->available_scan_masks = as73211_scan_masks;
 
 	ret = i2c_smbus_read_byte_data(data->client, AS73211_REG_OSR);
 	if (ret < 0)

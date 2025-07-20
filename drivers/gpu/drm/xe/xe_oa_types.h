@@ -15,7 +15,7 @@
 #include "regs/xe_reg_defs.h"
 #include "xe_hw_engine_types.h"
 
-#define XE_OA_BUFFER_SIZE SZ_16M
+#define DEFAULT_XE_OA_BUFFER_SIZE SZ_16M
 
 enum xe_oa_report_header {
 	HDR_32_BIT = 0,
@@ -138,9 +138,6 @@ struct xe_oa {
 	/** @metrics_idr: List of dynamic configurations (struct xe_oa_config) */
 	struct idr metrics_idr;
 
-	/** @ctx_oactxctrl_offset: offset of OACTXCONTROL register in context image */
-	u32 ctx_oactxctrl_offset[XE_ENGINE_CLASS_MAX];
-
 	/** @oa_formats: tracks all OA formats across platforms */
 	const struct xe_oa_format *oa_formats;
 
@@ -217,6 +214,9 @@ struct xe_oa_stream {
 
 	/** @pollin: Whether there is data available to read */
 	bool pollin;
+
+	/** @wait_num_reports: Number of reports to wait for before signalling pollin */
+	int wait_num_reports;
 
 	/** @periodic: Whether periodic sampling is currently enabled */
 	bool periodic;

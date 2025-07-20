@@ -125,7 +125,7 @@ void tw686x_enable_channel(struct tw686x_dev *dev, unsigned int channel)
  */
 static void tw686x_dma_delay(struct timer_list *t)
 {
-	struct tw686x_dev *dev = from_timer(dev, t, dma_delay_timer);
+	struct tw686x_dev *dev = timer_container_of(dev, t, dma_delay_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -373,7 +373,7 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 
 	tw686x_video_free(dev);
 	tw686x_audio_free(dev);
-	del_timer_sync(&dev->dma_delay_timer);
+	timer_delete_sync(&dev->dma_delay_timer);
 
 	pci_iounmap(pci_dev, dev->mmio);
 	pci_release_regions(pci_dev);

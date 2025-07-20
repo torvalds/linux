@@ -165,13 +165,13 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev, struct vivid_dev *ou
 	v4l2_rect_scale(&dev->loop_vid_cap, &dev->crop_cap, &dev->compose_cap);
 
 	dprintk(dev, 1,
-		"loop_vid_copy: %dx%d@%dx%d loop_vid_out: %dx%d@%dx%d loop_vid_cap: %dx%d@%dx%d\n",
-		dev->loop_vid_copy.width, dev->loop_vid_copy.height,
+		"loop_vid_copy: (%d,%d)/%ux%u loop_vid_out: (%d,%d)/%ux%u loop_vid_cap: (%d,%d)/%ux%u\n",
 		dev->loop_vid_copy.left, dev->loop_vid_copy.top,
-		dev->loop_vid_out.width, dev->loop_vid_out.height,
+		dev->loop_vid_copy.width, dev->loop_vid_copy.height,
 		dev->loop_vid_out.left, dev->loop_vid_out.top,
-		dev->loop_vid_cap.width, dev->loop_vid_cap.height,
-		dev->loop_vid_cap.left, dev->loop_vid_cap.top);
+		dev->loop_vid_out.width, dev->loop_vid_out.height,
+		dev->loop_vid_cap.left, dev->loop_vid_cap.top,
+		dev->loop_vid_cap.width, dev->loop_vid_cap.height);
 
 	v4l2_rect_intersect(&r_overlay, &r_fb, &r_overlay);
 
@@ -190,13 +190,13 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev, struct vivid_dev *ou
 	v4l2_rect_scale(&dev->loop_vid_overlay_cap, &dev->crop_cap, &dev->compose_cap);
 
 	dprintk(dev, 1,
-		"loop_fb_copy: %dx%d@%dx%d loop_vid_overlay: %dx%d@%dx%d loop_vid_overlay_cap: %dx%d@%dx%d\n",
-		dev->loop_fb_copy.width, dev->loop_fb_copy.height,
+		"loop_fb_copy: (%d,%d)/%ux%u loop_vid_overlay: (%d,%d)/%ux%u loop_vid_overlay_cap: (%d,%d)/%ux%u\n",
 		dev->loop_fb_copy.left, dev->loop_fb_copy.top,
-		dev->loop_vid_overlay.width, dev->loop_vid_overlay.height,
+		dev->loop_fb_copy.width, dev->loop_fb_copy.height,
 		dev->loop_vid_overlay.left, dev->loop_vid_overlay.top,
-		dev->loop_vid_overlay_cap.width, dev->loop_vid_overlay_cap.height,
-		dev->loop_vid_overlay_cap.left, dev->loop_vid_overlay_cap.top);
+		dev->loop_vid_overlay.width, dev->loop_vid_overlay.height,
+		dev->loop_vid_overlay_cap.left, dev->loop_vid_overlay_cap.top,
+		dev->loop_vid_overlay_cap.width, dev->loop_vid_overlay_cap.height);
 }
 
 static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
@@ -789,9 +789,14 @@ static int vivid_thread_vid_cap(void *data)
 			next_jiffies_since_start = jiffies_since_start;
 
 		wait_jiffies = next_jiffies_since_start - jiffies_since_start;
-		while (time_is_after_jiffies(cur_jiffies + wait_jiffies) &&
-		       !kthread_should_stop())
-			schedule();
+		if (!time_is_after_jiffies(cur_jiffies + wait_jiffies))
+			continue;
+
+		wait_queue_head_t wait;
+
+		init_waitqueue_head(&wait);
+		wait_event_interruptible_timeout(wait, kthread_should_stop(),
+					cur_jiffies + wait_jiffies - jiffies);
 	}
 	dprintk(dev, 1, "Video Capture Thread End\n");
 	return 0;

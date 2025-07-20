@@ -217,9 +217,6 @@ struct pp_atomfwctrl_smc_dpm_parameters {
 int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
 		uint32_t clock_type, uint32_t clock_value,
 		struct pp_atomfwctrl_clock_dividers_soc15 *dividers);
-int pp_atomfwctrl_enter_self_refresh(struct pp_hwmgr *hwmgr);
-bool pp_atomfwctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr, const uint32_t pin_id,
-		struct pp_atomfwctrl_gpio_pin_assignment *gpio_pin_assignment);
 
 int pp_atomfwctrl_get_voltage_table_v4(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 		uint8_t voltage_mode, struct pp_atomfwctrl_voltage_table *voltage_table);

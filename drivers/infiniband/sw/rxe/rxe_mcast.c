@@ -31,10 +31,19 @@
 static int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	unsigned char ll_addr[ETH_ALEN];
+	struct net_device *ndev;
+	int ret;
+
+	ndev = rxe_ib_device_get_netdev(&rxe->ib_dev);
+	if (!ndev)
+		return -ENODEV;
 
 	ipv6_eth_mc_map((struct in6_addr *)mgid->raw, ll_addr);
 
-	return dev_mc_add(rxe->ndev, ll_addr);
+	ret = dev_mc_add(ndev, ll_addr);
+	dev_put(ndev);
+
+	return ret;
 }
 
 /**
@@ -47,10 +56,19 @@ static int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid)
 static int rxe_mcast_del(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	unsigned char ll_addr[ETH_ALEN];
+	struct net_device *ndev;
+	int ret;
+
+	ndev = rxe_ib_device_get_netdev(&rxe->ib_dev);
+	if (!ndev)
+		return -ENODEV;
 
 	ipv6_eth_mc_map((struct in6_addr *)mgid->raw, ll_addr);
 
-	return dev_mc_del(rxe->ndev, ll_addr);
+	ret = dev_mc_del(ndev, ll_addr);
+	dev_put(ndev);
+
+	return ret;
 }
 
 /**

@@ -9,7 +9,6 @@ title: Qualcomm Technologies ath12k wireless devices (PCIe)
 
 maintainers:
   - Jeff Johnson <quic_jjohnson@quicinc.com>
-  - Kalle Valo <kvalo@kernel.org>
 
 description:
   Qualcomm Technologies IEEE 802.11be PCIe devices.
@@ -21,6 +20,12 @@ properties:
 
   reg:
     maxItems: 1
+
+  firmware-name:
+    maxItems: 1
+    description:
+      If present, a board or platform specific string used to lookup
+      usecase-specific firmware files for the device.
 
   vddaon-supply:
     description: VDD_AON supply regulator handle

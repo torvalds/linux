@@ -272,9 +272,9 @@ int mt6358_irq_init(struct mt6397_chip *chip)
 				     irqd->pmic_ints[i].en_reg_shift * j, 0);
 	}
 
-	chip->irq_domain = irq_domain_add_linear(chip->dev->of_node,
-						 irqd->num_pmic_irqs,
-						 &mt6358_irq_domain_ops, chip);
+	chip->irq_domain = irq_domain_create_linear(of_fwnode_handle(chip->dev->of_node),
+						    irqd->num_pmic_irqs,
+						    &mt6358_irq_domain_ops, chip);
 	if (!chip->irq_domain) {
 		dev_err(chip->dev, "Could not create IRQ domain\n");
 		return -ENODEV;

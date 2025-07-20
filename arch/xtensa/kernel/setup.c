@@ -55,7 +55,7 @@ extern int initrd_below_start_ok;
 #endif
 
 #ifdef CONFIG_USE_OF
-void *dtb_start = __dtb_start;
+static void *dtb_start __initdata = __dtb_start;
 #endif
 
 extern unsigned long loops_per_jiffy;

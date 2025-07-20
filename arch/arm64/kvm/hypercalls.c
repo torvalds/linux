@@ -15,6 +15,8 @@
 	GENMASK(KVM_REG_ARM_STD_HYP_BMAP_BIT_COUNT - 1, 0)
 #define KVM_ARM_SMCCC_VENDOR_HYP_FEATURES			\
 	GENMASK(KVM_REG_ARM_VENDOR_HYP_BMAP_BIT_COUNT - 1, 0)
+#define KVM_ARM_SMCCC_VENDOR_HYP_FEATURES_2			\
+	GENMASK(KVM_REG_ARM_VENDOR_HYP_BMAP_2_BIT_COUNT - 1, 0)
 
 static void kvm_ptp_get_time(struct kvm_vcpu *vcpu, u64 *val)
 {
@@ -268,6 +270,7 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 	u32 feature;
 	u8 action;
 	gpa_t gpa;
+	uuid_t uuid;
 
 	action = kvm_smccc_get_action(vcpu, func_id);
 	switch (action) {
@@ -353,13 +356,16 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 			val[0] = gpa;
 		break;
 	case ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID:
-		val[0] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_0;
-		val[1] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_1;
-		val[2] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_2;
-		val[3] = ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_3;
+		uuid = ARM_SMCCC_VENDOR_HYP_UID_KVM;
+		val[0] = smccc_uuid_to_reg(&uuid, 0);
+		val[1] = smccc_uuid_to_reg(&uuid, 1);
+		val[2] = smccc_uuid_to_reg(&uuid, 2);
+		val[3] = smccc_uuid_to_reg(&uuid, 3);
 		break;
 	case ARM_SMCCC_VENDOR_HYP_KVM_FEATURES_FUNC_ID:
 		val[0] = smccc_feat->vendor_hyp_bmap;
+		/* Function numbers 2-63 are reserved for pKVM for now */
+		val[2] = smccc_feat->vendor_hyp_bmap_2;
 		break;
 	case ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID:
 		kvm_ptp_get_time(vcpu, val);
@@ -387,6 +393,7 @@ static const u64 kvm_arm_fw_reg_ids[] = {
 	KVM_REG_ARM_STD_BMAP,
 	KVM_REG_ARM_STD_HYP_BMAP,
 	KVM_REG_ARM_VENDOR_HYP_BMAP,
+	KVM_REG_ARM_VENDOR_HYP_BMAP_2,
 };
 
 void kvm_arm_init_hypercalls(struct kvm *kvm)
@@ -497,6 +504,9 @@ int kvm_arm_get_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	case KVM_REG_ARM_VENDOR_HYP_BMAP:
 		val = READ_ONCE(smccc_feat->vendor_hyp_bmap);
 		break;
+	case KVM_REG_ARM_VENDOR_HYP_BMAP_2:
+		val = READ_ONCE(smccc_feat->vendor_hyp_bmap_2);
+		break;
 	default:
 		return -ENOENT;
 	}
@@ -526,6 +536,10 @@ static int kvm_arm_set_fw_reg_bmap(struct kvm_vcpu *vcpu, u64 reg_id, u64 val)
 	case KVM_REG_ARM_VENDOR_HYP_BMAP:
 		fw_reg_bmap = &smccc_feat->vendor_hyp_bmap;
 		fw_reg_features = KVM_ARM_SMCCC_VENDOR_HYP_FEATURES;
+		break;
+	case KVM_REG_ARM_VENDOR_HYP_BMAP_2:
+		fw_reg_bmap = &smccc_feat->vendor_hyp_bmap_2;
+		fw_reg_features = KVM_ARM_SMCCC_VENDOR_HYP_FEATURES_2;
 		break;
 	default:
 		return -ENOENT;
@@ -633,6 +647,7 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	case KVM_REG_ARM_STD_BMAP:
 	case KVM_REG_ARM_STD_HYP_BMAP:
 	case KVM_REG_ARM_VENDOR_HYP_BMAP:
+	case KVM_REG_ARM_VENDOR_HYP_BMAP_2:
 		return kvm_arm_set_fw_reg_bmap(vcpu, reg->id, val);
 	default:
 		return -ENOENT;

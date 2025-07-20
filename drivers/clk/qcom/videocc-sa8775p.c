@@ -512,7 +512,7 @@ static const struct regmap_config video_cc_sa8775p_regmap_config = {
 	.fast_io = true,
 };
 
-static struct qcom_cc_desc video_cc_sa8775p_desc = {
+static const struct qcom_cc_desc video_cc_sa8775p_desc = {
 	.config = &video_cc_sa8775p_regmap_config,
 	.clks = video_cc_sa8775p_clocks,
 	.num_clks = ARRAY_SIZE(video_cc_sa8775p_clocks),
@@ -523,6 +523,7 @@ static struct qcom_cc_desc video_cc_sa8775p_desc = {
 };
 
 static const struct of_device_id video_cc_sa8775p_match_table[] = {
+	{ .compatible = "qcom,qcs8300-videocc" },
 	{ .compatible = "qcom,sa8775p-videocc" },
 	{ }
 };
@@ -549,6 +550,13 @@ static int video_cc_sa8775p_probe(struct platform_device *pdev)
 
 	clk_lucid_evo_pll_configure(&video_pll0, regmap, &video_pll0_config);
 	clk_lucid_evo_pll_configure(&video_pll1, regmap, &video_pll1_config);
+
+	/*
+	 * Set mvs0c clock divider to div-3 to make the mvs0 and
+	 * mvs0c clocks to run at the same frequency on QCS8300
+	 */
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,qcs8300-videocc"))
+		regmap_write(regmap, video_cc_mvs0c_div2_div_clk_src.reg, 2);
 
 	/* Keep some clocks always enabled */
 	qcom_branch_set_clk_en(regmap, 0x80ec); /* VIDEO_CC_AHB_CLK */

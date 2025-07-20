@@ -138,14 +138,6 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 32, 0, 0 }, false, false, 1, 1, false },
-	{ V4L2_PIX_FMT_HSV24, MEDIA_BUS_FMT_AHSV8888_1X32,
-	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
-	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
-	  1, { 24, 0, 0 }, false, false, 1, 1, false },
-	{ V4L2_PIX_FMT_HSV32, MEDIA_BUS_FMT_AHSV8888_1X32,
-	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
-	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
-	  1, { 32, 0, 0 }, false, false, 1, 1, false },
 	{ V4L2_PIX_FMT_RGBX1010102, MEDIA_BUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_RGB10_RGB10A2_A2RGB10,
 	  VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS,
@@ -162,10 +154,6 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 16, 0, 0 }, false, false, 2, 1, false },
-	{ V4L2_PIX_FMT_VYUY, MEDIA_BUS_FMT_AYUV8_1X32,
-	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
-	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
-	  1, { 16, 0, 0 }, false, true, 2, 1, false },
 	{ V4L2_PIX_FMT_YUYV, MEDIA_BUS_FMT_AYUV8_1X32,
 	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
@@ -222,6 +210,24 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  1, { 32, 0, 0 }, false, false, 2, 1, false },
 };
 
+static const struct vsp1_format_info vsp1_video_gen2_formats[] = {
+	{ V4L2_PIX_FMT_VYUY, MEDIA_BUS_FMT_AYUV8_1X32,
+	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 16, 0, 0 }, false, true, 2, 1, false },
+};
+
+static const struct vsp1_format_info vsp1_video_hsit_formats[] = {
+	{ V4L2_PIX_FMT_HSV24, MEDIA_BUS_FMT_AHSV8888_1X32,
+	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 24, 0, 0 }, false, false, 1, 1, false },
+	{ V4L2_PIX_FMT_HSV32, MEDIA_BUS_FMT_AHSV8888_1X32,
+	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 32, 0, 0 }, false, false, 1, 1, false },
+};
+
 /**
  * vsp1_get_format_info - Retrieve format information for a 4CC
  * @vsp1: the VSP1 device
@@ -235,16 +241,6 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 {
 	unsigned int i;
 
-	/* Special case, the VYUY and HSV formats are supported on Gen2 only. */
-	if (vsp1->info->gen != 2) {
-		switch (fourcc) {
-		case V4L2_PIX_FMT_VYUY:
-		case V4L2_PIX_FMT_HSV24:
-		case V4L2_PIX_FMT_HSV32:
-			return NULL;
-		}
-	}
-
 	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
 		const struct vsp1_format_info *info = &vsp1_video_formats[i];
 
@@ -252,7 +248,155 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 			return info;
 	}
 
+	if (vsp1->info->gen == 2) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_gen2_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_gen2_formats[i];
+
+			if (info->fourcc == fourcc)
+				return info;
+		}
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_hsit_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_hsit_formats[i];
+
+			if (info->fourcc == fourcc)
+				return info;
+		}
+	}
+
 	return NULL;
+}
+
+/**
+ * vsp1_get_format_info_by_index - Enumerate format information
+ * @vsp1: the VSP1 device
+ * @index: the format index
+ * @code: media bus code to limit enumeration
+ *
+ * Return a pointer to the format information structure corresponding to the
+ * given index, or NULL if the index exceeds the supported formats list. If the
+ * @code parameter is not zero, only formats compatible with the media bus code
+ * will be enumerated.
+ */
+const struct vsp1_format_info *
+vsp1_get_format_info_by_index(struct vsp1_device *vsp1, unsigned int index,
+			      u32 code)
+{
+	unsigned int i;
+
+	if (!code) {
+		if (index < ARRAY_SIZE(vsp1_video_formats))
+			return &vsp1_video_formats[index];
+
+		if (vsp1->info->gen == 2) {
+			index -= ARRAY_SIZE(vsp1_video_formats);
+			if (index < ARRAY_SIZE(vsp1_video_gen2_formats))
+				return &vsp1_video_gen2_formats[index];
+		}
+
+		if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+			index -= ARRAY_SIZE(vsp1_video_gen2_formats);
+			if (index < ARRAY_SIZE(vsp1_video_hsit_formats))
+				return &vsp1_video_hsit_formats[index];
+		}
+
+		return NULL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
+		const struct vsp1_format_info *info = &vsp1_video_formats[i];
+
+		if (info->mbus == code) {
+			if (!index)
+				return info;
+			index--;
+		}
+	}
+
+	if (vsp1->info->gen == 2) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_gen2_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_gen2_formats[i];
+
+			if (info->mbus == code) {
+				if (!index)
+					return info;
+				index--;
+			}
+		}
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_hsit_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_hsit_formats[i];
+
+			if (info->mbus == code) {
+				if (!index)
+					return info;
+				index--;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * vsp1_adjust_color_space - Adjust color space fields in a format
+ * @code: the media bus code
+ * @colorspace: the colorspace
+ * @xfer_func: the transfer function
+ * @encoding: the encoding
+ * @quantization: the quantization
+ *
+ * This function adjusts all color space fields of a video device of subdev
+ * format structure, taking into account the requested format, requested color
+ * space and limitations of the VSP1. It should be used in the video device and
+ * subdev set format handlers.
+ *
+ * The colorspace and xfer_func fields are freely configurable, as they are out
+ * of scope for VSP processing. The encoding and quantization is hardcoded for
+ * non-YUV formats, and can be configured for YUV formats.
+ */
+void vsp1_adjust_color_space(u32 code, u32 *colorspace, u8 *xfer_func,
+			     u8 *encoding, u8 *quantization)
+{
+	if (*colorspace == V4L2_COLORSPACE_DEFAULT ||
+	    *colorspace >= V4L2_COLORSPACE_LAST)
+		*colorspace = code == MEDIA_BUS_FMT_AYUV8_1X32
+			    ? V4L2_COLORSPACE_SMPTE170M
+			    : V4L2_COLORSPACE_SRGB;
+
+	if (*xfer_func == V4L2_XFER_FUNC_DEFAULT ||
+	    *xfer_func >= V4L2_XFER_FUNC_LAST)
+		*xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(*colorspace);
+
+	switch (code) {
+	case MEDIA_BUS_FMT_ARGB8888_1X32:
+	default:
+		*encoding = V4L2_YCBCR_ENC_601;
+		*quantization = V4L2_QUANTIZATION_FULL_RANGE;
+		break;
+
+	case MEDIA_BUS_FMT_AHSV8888_1X32:
+		*encoding = V4L2_HSV_ENC_256;
+		*quantization = V4L2_QUANTIZATION_FULL_RANGE;
+		break;
+
+	case MEDIA_BUS_FMT_AYUV8_1X32:
+		if (*encoding != V4L2_YCBCR_ENC_601 &&
+		    *encoding != V4L2_YCBCR_ENC_709)
+			*encoding = V4L2_YCBCR_ENC_601;
+		if (*quantization != V4L2_QUANTIZATION_FULL_RANGE &&
+		    *quantization != V4L2_QUANTIZATION_LIM_RANGE)
+			*quantization = V4L2_QUANTIZATION_LIM_RANGE;
+		break;
+	}
 }
 
 /* -----------------------------------------------------------------------------
@@ -286,6 +430,7 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 	pipe->brx = NULL;
 	pipe->hgo = NULL;
 	pipe->hgt = NULL;
+	pipe->iif = NULL;
 	pipe->lif = NULL;
 	pipe->uds = NULL;
 }

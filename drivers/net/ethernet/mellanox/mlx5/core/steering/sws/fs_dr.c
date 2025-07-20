@@ -521,7 +521,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				goto free_actions;
 			}
 
-			id = dst->dest_attr.counter_id;
+			id = mlx5_fc_id(dst->dest_attr.counter);
 			tmp_action =
 				mlx5dr_action_create_flow_counter(id);
 			if (!tmp_action) {
@@ -833,15 +833,21 @@ static u32 mlx5_cmd_dr_get_capabilities(struct mlx5_flow_root_namespace *ns,
 	return steering_caps;
 }
 
-int mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat)
+int
+mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				      u32 *reformat_id)
 {
+	struct mlx5dr_action *dr_action;
+
 	switch (pkt_reformat->reformat_type) {
 	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
 	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
 	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
 	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
 	case MLX5_REFORMAT_TYPE_INSERT_HDR:
-		return mlx5dr_action_get_pkt_reformat_id(pkt_reformat->fs_dr_action.dr_action);
+		dr_action = pkt_reformat->fs_dr_action.dr_action;
+		*reformat_id = mlx5dr_action_get_pkt_reformat_id(dr_action);
+		return 0;
 	}
 	return -EOPNOTSUPP;
 }

@@ -34,8 +34,7 @@ SYM_FUNC_START(__memmove)
 	la	%r3,256(%r3)
 	brctg	%r0,.Lmemmove_forward_loop
 .Lmemmove_forward_remainder:
-	larl	%r5,.Lmemmove_mvc
-	ex	%r4,0(%r5)
+	exrl	%r4,.Lmemmove_mvc
 .Lmemmove_exit:
 	BR_EX	%r14
 .Lmemmove_reverse:
@@ -83,8 +82,7 @@ SYM_FUNC_START(__memset)
 	la	%r1,256(%r1)
 	brctg	%r3,.Lmemset_clear_loop
 .Lmemset_clear_remainder:
-	larl	%r3,.Lmemset_xc
-	ex	%r4,0(%r3)
+	exrl	%r4,.Lmemset_xc
 .Lmemset_exit:
 	BR_EX	%r14
 .Lmemset_fill:
@@ -102,8 +100,7 @@ SYM_FUNC_START(__memset)
 	brctg	%r5,.Lmemset_fill_loop
 .Lmemset_fill_remainder:
 	stc	%r3,0(%r1)
-	larl	%r5,.Lmemset_mvc
-	ex	%r4,0(%r5)
+	exrl	%r4,.Lmemset_mvc
 	BR_EX	%r14
 .Lmemset_fill_exit:
 	stc	%r3,0(%r1)
@@ -132,8 +129,7 @@ SYM_FUNC_START(__memcpy)
 	lgr	%r1,%r2
 	jnz	.Lmemcpy_loop
 .Lmemcpy_remainder:
-	larl	%r5,.Lmemcpy_mvc
-	ex	%r4,0(%r5)
+	exrl	%r4,.Lmemcpy_mvc
 .Lmemcpy_exit:
 	BR_EX	%r14
 .Lmemcpy_loop:
@@ -175,8 +171,7 @@ SYM_FUNC_START(__memset\bits)
 	brctg	%r5,.L__memset_loop\bits
 .L__memset_remainder\bits:
 	\insn	%r3,0(%r1)
-	larl	%r5,.L__memset_mvc\bits
-	ex	%r4,0(%r5)
+	exrl	%r4,.L__memset_mvc\bits
 	BR_EX	%r14
 .L__memset_store\bits:
 	\insn	%r3,0(%r2)

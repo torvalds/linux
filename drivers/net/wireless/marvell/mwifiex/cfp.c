@@ -150,10 +150,10 @@ static const u16 ac_mcs_rate_nss2[8][10] = {
 
 struct region_code_mapping {
 	u8 code;
-	u8 region[IEEE80211_COUNTRY_STRING_LEN];
+	u8 region[IEEE80211_COUNTRY_STRING_LEN] __nonstring;
 };
 
-static struct region_code_mapping region_code_mapping_t[] = {
+static const struct region_code_mapping region_code_mapping_t[] = {
 	{ 0x10, "US " }, /* US FCC */
 	{ 0x20, "CA " }, /* IC Canada */
 	{ 0x30, "FR " }, /* France */
@@ -165,7 +165,7 @@ static struct region_code_mapping region_code_mapping_t[] = {
 };
 
 /* This function converts integer code to region string */
-u8 *mwifiex_11d_code_2_region(u8 code)
+const u8 *mwifiex_11d_code_2_region(u8 code)
 {
 	u8 i;
 

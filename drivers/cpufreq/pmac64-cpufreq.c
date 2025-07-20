@@ -332,7 +332,6 @@ static struct cpufreq_driver g5_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= g5_cpufreq_target,
 	.get		= g5_cpufreq_get_speed,
-	.attr 		= cpufreq_generic_attr,
 };
 
 

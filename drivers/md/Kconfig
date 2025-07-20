@@ -61,6 +61,19 @@ config MD_BITMAP_FILE
 	  various kernel APIs and can only work with files on a file system not
 	  actually sitting on the MD device.
 
+config MD_LINEAR
+	tristate "Linear (append) mode"
+	depends on BLK_DEV_MD
+	help
+	  If you say Y here, then your multiple devices driver will be able to
+	  use the so-called linear mode, i.e. it will combine the hard disk
+	  partitions by simply appending one to the other.
+
+	  To compile this as a module, choose M here: the module
+	  will be called linear.
+
+	  If unsure, say Y.
+
 config MD_RAID0
 	tristate "RAID-0 (striping) mode"
 	depends on BLK_DEV_MD
@@ -126,7 +139,7 @@ config MD_RAID456
 	tristate "RAID-4/RAID-5/RAID-6 mode"
 	depends on BLK_DEV_MD
 	select RAID6_PQ
-	select LIBCRC32C
+	select CRC32
 	select ASYNC_MEMCPY
 	select ASYNC_XOR
 	select ASYNC_PQ
@@ -254,6 +267,7 @@ config DM_CRYPT
 	depends on BLK_DEV_DM
 	depends on (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
 	depends on (TRUSTED_KEYS || TRUSTED_KEYS=n)
+	select CRC32
 	select CRYPTO
 	select CRYPTO_CBC
 	select CRYPTO_ESSIV

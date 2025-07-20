@@ -75,7 +75,7 @@ In the above struct, dai’s are registered using names but you can pass
 either dai name or device tree node but not both. Also, names used here
 for cpu/codec/platform dais should be globally unique.
 
-Additionaly below example macro can be used to register cpu, codec and
+Additionally below example macro can be used to register cpu, codec and
 platform dai::
 
   SND_SOC_DAILINK_DEFS(wm2200_cpu_dsp,

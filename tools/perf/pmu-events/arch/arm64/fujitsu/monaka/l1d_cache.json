@@ -1,0 +1,113 @@
+[
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL",
+        "BriefDescription": "This event counts operations that cause a refill of the L1D cache. See L1D_CACHE_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE",
+        "BriefDescription": "This event counts operations that cause a cache access to the L1D cache. See L1D_CACHE of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WB",
+        "BriefDescription": "This event counts every write-back of data from the L1D cache. See L1D_CACHE_WB of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_LMISS_RD",
+        "BriefDescription": "This event counts operations that cause a refill of the L1D cache that incurs additional latency."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_RD",
+        "BriefDescription": "This event counts L1D CACHE caused by read access."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WR",
+        "BriefDescription": "This event counts L1D CACHE caused by write access."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD",
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by read access."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_WR",
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by write access."
+    },
+    {
+        "EventCode": "0x0200",
+        "EventName": "L1D_CACHE_DM",
+        "BriefDescription": "This event counts L1D_CACHE caused by demand access."
+    },
+    {
+        "EventCode": "0x0201",
+        "EventName": "L1D_CACHE_DM_RD",
+        "BriefDescription": "This event counts L1D_CACHE caused by demand read access."
+    },
+    {
+        "EventCode": "0x0202",
+        "EventName": "L1D_CACHE_DM_WR",
+        "BriefDescription": "This event counts L1D_CACHE caused by demand write access."
+    },
+    {
+        "EventCode": "0x0208",
+        "EventName": "L1D_CACHE_REFILL_DM",
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by demand access."
+    },
+    {
+        "EventCode": "0x0209",
+        "EventName": "L1D_CACHE_REFILL_DM_RD",
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by demand read access."
+    },
+    {
+        "EventCode": "0x020A",
+        "EventName": "L1D_CACHE_REFILL_DM_WR",
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by demand write access."
+    },
+    {
+        "EventCode": "0x020D",
+        "EventName": "L1D_CACHE_BTC",
+        "BriefDescription": "This event counts demand access that hits cache line with shared status and requests exclusive access in the Level 1 data cache, causing a coherence access to outside of the Level 1 caches of this PE."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_MISS",
+        "BriefDescription": "This event counts demand access that misses in the Level 1 data cache, causing an access to outside of the Level 1 caches of this PE."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_HWPRF",
+        "BriefDescription": "This event counts access counted by L1D_CACHE that is due to a hardware prefetch."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_HWPRF",
+        "BriefDescription": "This event counts hardware prefetch counted by L1D_CACHE_HWPRF that causes a refill of the Level 1 data cache from outside of the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_HIT_RD",
+        "BriefDescription": "This event counts demand read counted by L1D_CACHE_RD that hits in the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_HIT_WR",
+        "BriefDescription": "This event counts demand write counted by L1D_CACHE_WR that hits in the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_HIT",
+        "BriefDescription": "This event counts access counted by L1D_CACHE that hits in the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_LFB_HIT_RD",
+        "BriefDescription": "This event counts demand access counted by L1D_CACHE_HIT_RD that hits a cache line that is in the process of being loaded into the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_LFB_HIT_WR",
+        "BriefDescription": "This event counts demand access counted by L1D_CACHE_HIT_WR that hits a cache line that is in the process of being loaded into the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_PRF",
+        "BriefDescription": "This event counts fetch counted by either Level 1 data hardware prefetch or Level 1 data software prefetch."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_PRF",
+        "BriefDescription": "This event counts hardware prefetch counted by L1D_CACHE_PRF that causes a refill of the Level 1 data cache from outside of the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_PERCYC",
+        "BriefDescription": "The counter counts by the number of cache refills counted by L1D_CACHE_REFILL in progress on each Processor cycle."
+    }
+]

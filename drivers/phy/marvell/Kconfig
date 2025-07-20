@@ -29,7 +29,7 @@ config PHY_MVEBU_A3700_COMPHY
 	depends on ARCH_MVEBU || COMPILE_TEST
 	depends on OF
 	depends on HAVE_ARM_SMCCC
-	default y
+	default ARCH_MVEBU
 	select GENERIC_PHY
 	help
 	  This driver allows to control the comphy, a hardware block providing
@@ -40,7 +40,7 @@ config PHY_MVEBU_A3700_UTMI
 	tristate "Marvell A3700 UTMI driver"
 	depends on ARCH_MVEBU || COMPILE_TEST
 	depends on OF
-	default y
+	default ARCH_MVEBU
 	select GENERIC_PHY
 	help
 	  Enable this to support Marvell A3700 UTMI PHY driver.

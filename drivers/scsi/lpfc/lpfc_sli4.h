@@ -865,8 +865,6 @@ struct lpfc_sli4_hba {
 	struct lpfc_name wwpn;
 
 	uint32_t fw_func_mode;	/* FW function protocol mode */
-	uint32_t ulp0_mode;	/* ULP0 protocol mode */
-	uint32_t ulp1_mode;	/* ULP1 protocol mode */
 
 	/* Optimized Access Storage specific queues/structures */
 	uint64_t oas_next_lun;

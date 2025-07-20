@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/string_choices.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
@@ -759,15 +760,19 @@ static irqreturn_t irsd200_trigger_handler(int irq, void *pollf)
 {
 	struct iio_dev *indio_dev = ((struct iio_poll_func *)pollf)->indio_dev;
 	struct irsd200_data *data = iio_priv(indio_dev);
-	s64 buf[2] = {};
+	struct {
+		s16 channel;
+		aligned_s64 ts;
+	} scan;
 	int ret;
 
-	ret = irsd200_read_data(data, (s16 *)buf);
+	memset(&scan, 0, sizeof(scan));
+	ret = irsd200_read_data(data, &scan.channel);
 	if (ret)
 		goto end;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan),
+				    iio_get_time_ns(indio_dev));
 
 end:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -783,7 +788,7 @@ static int irsd200_set_trigger_state(struct iio_trigger *trig, bool state)
 	ret = regmap_field_write(data->regfields[IRS_REGF_INTR_DATA], state);
 	if (ret) {
 		dev_err(data->dev, "Could not %s data interrupt source (%d)\n",
-			state ? "enable" : "disable", ret);
+			str_enable_disable(state), ret);
 	}
 
 	return ret;
@@ -940,7 +945,7 @@ static const struct of_device_id irsd200_of_match[] = {
 	{
 		.compatible = "murata,irsd200",
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, irsd200_of_match);
 

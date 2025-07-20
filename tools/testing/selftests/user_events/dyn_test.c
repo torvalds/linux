@@ -127,6 +127,8 @@ static int parse_abi(int *check, const char *value)
 
 	close(fd);
 
+	wait_for_delete();
+
 	return ret;
 }
 

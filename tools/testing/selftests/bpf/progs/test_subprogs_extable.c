@@ -21,7 +21,7 @@ static __u64 test_cb(struct bpf_map *map, __u32 *key, __u64 *val, void *data)
 SEC("fexit/bpf_testmod_return_ptr")
 int BPF_PROG(handle_fexit_ret_subprogs, int arg, struct file *ret)
 {
-	*(volatile long *)ret;
+	*(volatile int *)ret;
 	*(volatile int *)&ret->f_mode;
 	bpf_for_each_map_elem(&test_array, test_cb, NULL, 0);
 	triggered++;
@@ -31,7 +31,7 @@ int BPF_PROG(handle_fexit_ret_subprogs, int arg, struct file *ret)
 SEC("fexit/bpf_testmod_return_ptr")
 int BPF_PROG(handle_fexit_ret_subprogs2, int arg, struct file *ret)
 {
-	*(volatile long *)ret;
+	*(volatile int *)ret;
 	*(volatile int *)&ret->f_mode;
 	bpf_for_each_map_elem(&test_array, test_cb, NULL, 0);
 	triggered++;
@@ -41,7 +41,7 @@ int BPF_PROG(handle_fexit_ret_subprogs2, int arg, struct file *ret)
 SEC("fexit/bpf_testmod_return_ptr")
 int BPF_PROG(handle_fexit_ret_subprogs3, int arg, struct file *ret)
 {
-	*(volatile long *)ret;
+	*(volatile int *)ret;
 	*(volatile int *)&ret->f_mode;
 	bpf_for_each_map_elem(&test_array, test_cb, NULL, 0);
 	triggered++;

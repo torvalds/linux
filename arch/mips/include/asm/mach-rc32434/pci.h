@@ -167,7 +167,7 @@ struct pci_msu {
 #define PCI_CFGA_DEV		0x0000f800
 #define PCI_CFGA_DEV_INTERN	0
 #define PCI_CFGA_BUS_BIT	16
-#define PCI CFGA_BUS		0x00ff0000
+#define PCI_CFGA_BUS		0x00ff0000
 #define PCI_CFGA_BUS_TYPE0	0
 #define PCI_CFGA_EN		(1 << 31)
 

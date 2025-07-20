@@ -6,6 +6,7 @@ menuconfig NET_DSA_MICROCHIP_KSZ_COMMON
 	select NET_DSA_TAG_NONE
 	select NET_IEEE8021Q_HELPERS
 	select DCB
+	select PCS_XPCS
 	help
 	  This driver adds support for Microchip KSZ8, KSZ9 and
 	  LAN937X series switch chips, being KSZ8863/8873,

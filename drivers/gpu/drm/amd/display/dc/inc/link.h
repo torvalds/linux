@@ -148,6 +148,10 @@ struct link_service {
 			const struct dc_stream_state *stream,
 			const unsigned int num_streams);
 
+	uint32_t (*dp_required_hblank_size_bytes)(
+		const struct dc_link *link,
+		struct dp_audio_bandwidth_params *audio_params);
+
 
 	/*************************** DPMS *************************************/
 	void (*set_dpms_on)(struct dc_state *state, struct pipe_ctx *pipe_ctx);
@@ -203,6 +207,9 @@ struct link_service {
 	bool (*dp_decide_link_settings)(
 		struct dc_stream_state *stream,
 		struct dc_link_settings *link_setting);
+	void (*dp_decide_tunnel_settings)(
+		struct dc_stream_state *stream,
+		struct dc_tunnel_settings *dp_tunnel_setting);
 	enum dp_link_encoding (*mst_decide_link_encoding_format)(
 			const struct dc_link *link);
 	bool (*edp_decide_link_settings)(struct dc_link *link,
@@ -214,10 +221,8 @@ struct link_service {
 
 
 	/*************************** DP DPIA/PHY ******************************/
-	int (*dpia_handle_usb4_bandwidth_allocation_for_link)(
+	void (*dpia_handle_usb4_bandwidth_allocation_for_link)(
 			struct dc_link *link, int peak_bw);
-	void (*dpia_handle_bw_alloc_response)(
-			struct dc_link *link, uint8_t bw, uint8_t result);
 	void (*dp_set_drive_settings)(
 		struct dc_link *link,
 		const struct link_resource *link_res,

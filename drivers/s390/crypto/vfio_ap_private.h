@@ -53,7 +53,7 @@ struct ap_matrix_dev {
 	struct mutex guests_lock; /* serializes access to each KVM guest */
 	struct mdev_parent parent;
 	struct mdev_type mdev_type;
-	struct mdev_type *mdev_types[1];
+	struct mdev_type *mdev_types;
 };
 
 extern struct ap_matrix_dev *matrix_dev;
@@ -105,6 +105,7 @@ struct ap_queue_table {
  * @mdev:	the mediated device
  * @qtable:	table of queues (struct vfio_ap_queue) assigned to the mdev
  * @req_trigger eventfd ctx for signaling userspace to return a device
+ * @cfg_chg_trigger eventfd ctx to signal AP config changed to userspace
  * @apm_add:	bitmap of APIDs added to the host's AP configuration
  * @aqm_add:	bitmap of APQIs added to the host's AP configuration
  * @adm_add:	bitmap of control domain numbers added to the host's AP
@@ -120,6 +121,7 @@ struct ap_matrix_mdev {
 	struct mdev_device *mdev;
 	struct ap_queue_table qtable;
 	struct eventfd_ctx *req_trigger;
+	struct eventfd_ctx *cfg_chg_trigger;
 	DECLARE_BITMAP(apm_add, AP_DEVICES);
 	DECLARE_BITMAP(aqm_add, AP_DOMAINS);
 	DECLARE_BITMAP(adm_add, AP_DOMAINS);

@@ -35,69 +35,19 @@ struct ines_priv {
 	u8 extend_mode_bits;
 };
 
-// interfaces
-extern gpib_interface_t ines_pci_interface;
-extern gpib_interface_t ines_pci_accel_interface;
-extern gpib_interface_t ines_pcmcia_interface;
-extern gpib_interface_t ines_pcmcia_accel_interface;
-extern gpib_interface_t ines_pcmcia_unaccel_interface;
-
-// interface functions
-int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
-int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length,
-	       int send_eoi, size_t *bytes_written);
-int ines_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
-		    int *end, size_t *bytes_read);
-int ines_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
-		     int send_eoi, size_t *bytes_written);
-int ines_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written);
-int ines_take_control(gpib_board_t *board, int synchronous);
-int ines_go_to_standby(gpib_board_t *board);
-void ines_request_system_control(gpib_board_t *board, int request_control);
-void ines_interface_clear(gpib_board_t *board, int assert);
-void ines_remote_enable(gpib_board_t *board, int enable);
-int ines_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits);
-void ines_disable_eos(gpib_board_t *board);
-unsigned int ines_update_status(gpib_board_t *board, unsigned int clear_mask);
-int ines_primary_address(gpib_board_t *board, unsigned int address);
-int ines_secondary_address(gpib_board_t *board, unsigned int address, int enable);
-int ines_parallel_poll(gpib_board_t *board, uint8_t *result);
-void ines_parallel_poll_configure(gpib_board_t *board, uint8_t config);
-void ines_parallel_poll_response(gpib_board_t *board, int ist);
-void ines_serial_poll_response(gpib_board_t *board, uint8_t status);
-uint8_t ines_serial_poll_status(gpib_board_t *board);
-int ines_line_status(const gpib_board_t *board);
-unsigned int ines_t1_delay(gpib_board_t *board, unsigned int nano_sec);
-void ines_return_to_local(gpib_board_t *board);
-
-// interrupt service routines
-irqreturn_t ines_pci_interrupt(int irq, void *arg);
-irqreturn_t ines_interrupt(gpib_board_t *board);
-
-// utility functions
-void ines_free_private(gpib_board_t *board);
-int ines_generic_attach(gpib_board_t *board);
-void ines_online(struct ines_priv *priv, const gpib_board_t *board, int use_accel);
-void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count);
-
 /* inb/outb wrappers */
 static inline unsigned int ines_inb(struct ines_priv *priv, unsigned int register_number)
 {
-	return inb((unsigned long)(priv->nec7210_priv.iobase) +
+	return inb(priv->nec7210_priv.iobase +
 		   register_number * priv->nec7210_priv.offset);
 }
 
 static inline void ines_outb(struct ines_priv *priv, unsigned int value,
 			     unsigned int register_number)
 {
-	outb(value, (unsigned long)(priv->nec7210_priv.iobase) +
+	outb(value, priv->nec7210_priv.iobase +
 	     register_number * priv->nec7210_priv.offset);
 }
-
-// pcmcia init/cleanup
-
-int ines_pcmcia_init_module(void);
-void ines_pcmcia_cleanup_module(void);
 
 enum ines_regs {
 	// read

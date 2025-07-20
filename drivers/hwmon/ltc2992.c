@@ -256,33 +256,38 @@ static int ltc2992_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask
 	return 0;
 }
 
-static void ltc2992_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int ltc2992_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct ltc2992_state *st = gpiochip_get_data(chip);
 	unsigned long gpio_ctrl;
-	int reg;
+	int reg, ret;
 
 	mutex_lock(&st->gpio_mutex);
 	reg = ltc2992_read_reg(st, ltc2992_gpio_addr_map[offset].ctrl, 1);
 	if (reg < 0) {
 		mutex_unlock(&st->gpio_mutex);
-		return;
+		return reg;
 	}
 
 	gpio_ctrl = reg;
 	assign_bit(ltc2992_gpio_addr_map[offset].ctrl_bit, &gpio_ctrl, value);
 
-	ltc2992_write_reg(st, ltc2992_gpio_addr_map[offset].ctrl, 1, gpio_ctrl);
+	ret = ltc2992_write_reg(st, ltc2992_gpio_addr_map[offset].ctrl, 1,
+				gpio_ctrl);
 	mutex_unlock(&st->gpio_mutex);
+
+	return ret;
 }
 
-static void ltc2992_gpio_set_multiple(struct gpio_chip *chip, unsigned long *mask,
-				      unsigned long *bits)
+static int ltc2992_gpio_set_multiple(struct gpio_chip *chip, unsigned long *mask,
+				     unsigned long *bits)
 {
 	struct ltc2992_state *st = gpiochip_get_data(chip);
 	unsigned long gpio_ctrl_io = 0;
 	unsigned long gpio_ctrl = 0;
 	unsigned int gpio_nr;
+	int ret;
 
 	for_each_set_bit(gpio_nr, mask, LTC2992_GPIO_NR) {
 		if (gpio_nr < 3)
@@ -293,9 +298,14 @@ static void ltc2992_gpio_set_multiple(struct gpio_chip *chip, unsigned long *mas
 	}
 
 	mutex_lock(&st->gpio_mutex);
-	ltc2992_write_reg(st, LTC2992_GPIO_IO_CTRL, 1, gpio_ctrl_io);
-	ltc2992_write_reg(st, LTC2992_GPIO_CTRL, 1, gpio_ctrl);
+	ret = ltc2992_write_reg(st, LTC2992_GPIO_IO_CTRL, 1, gpio_ctrl_io);
+	if (ret)
+		goto out;
+
+	ret = ltc2992_write_reg(st, LTC2992_GPIO_CTRL, 1, gpio_ctrl);
+out:
 	mutex_unlock(&st->gpio_mutex);
+	return ret;
 }
 
 static int ltc2992_config_gpio(struct ltc2992_state *st)
@@ -329,8 +339,8 @@ static int ltc2992_config_gpio(struct ltc2992_state *st)
 	st->gc.ngpio = ARRAY_SIZE(st->gpio_names);
 	st->gc.get = ltc2992_gpio_get;
 	st->gc.get_multiple = ltc2992_gpio_get_multiple;
-	st->gc.set = ltc2992_gpio_set;
-	st->gc.set_multiple = ltc2992_gpio_set_multiple;
+	st->gc.set_rv = ltc2992_gpio_set;
+	st->gc.set_multiple_rv = ltc2992_gpio_set_multiple;
 
 	ret = devm_gpiochip_add_data(&st->client->dev, &st->gc, st);
 	if (ret)

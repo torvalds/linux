@@ -831,7 +831,7 @@ next_atomic_cmd:
  */
 static void img_i2c_check_timer(struct timer_list *t)
 {
-	struct img_i2c *i2c = from_timer(i2c, t, check_timer);
+	struct img_i2c *i2c = timer_container_of(i2c, t, check_timer);
 	unsigned long flags;
 	unsigned int line_status;
 
@@ -1122,7 +1122,7 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 		time_left = wait_for_completion_timeout(&i2c->msg_complete,
 						      IMG_I2C_TIMEOUT);
-		del_timer_sync(&i2c->check_timer);
+		timer_delete_sync(&i2c->check_timer);
 
 		if (time_left == 0)
 			i2c->msg_status = -ETIMEDOUT;
@@ -1143,7 +1143,7 @@ static u32 img_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm img_i2c_algo = {
-	.master_xfer = img_i2c_xfer,
+	.xfer = img_i2c_xfer,
 	.functionality = img_i2c_func,
 };
 

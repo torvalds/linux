@@ -17,7 +17,7 @@
  * @attrib_id:		Attribute id for this attribute.
  * @report_id:		Report id in which this information resides.
  * @index:		Field index in the report.
- * @units:		Measurment unit for this attribute.
+ * @units:		Measurement unit for this attribute.
  * @unit_expo:		Exponent used in the data.
  * @size:		Size in bytes for data size.
  * @logical_minimum:	Logical minimum value for this attribute.
@@ -39,8 +39,8 @@ struct hid_sensor_hub_attribute_info {
  * struct sensor_hub_pending - Synchronous read pending information
  * @status:		Pending status true/false.
  * @ready:		Completion synchronization data.
- * @usage_id:		Usage id for physical device, E.g. Gyro usage id.
- * @attr_usage_id:	Usage Id of a field, E.g. X-AXIS for a gyro.
+ * @usage_id:		Usage id for physical device, e.g. gyro usage id.
+ * @attr_usage_id:	Usage Id of a field, e.g. X-axis for a gyro.
  * @raw_size:		Response size for a read request.
  * @raw_data:		Place holder for received response.
  */
@@ -104,10 +104,10 @@ struct hid_sensor_hub_callbacks {
 int sensor_hub_device_open(struct hid_sensor_hub_device *hsdev);
 
 /**
-* sensor_hub_device_clode() - Close hub device
+* sensor_hub_device_close() - Close hub device
 * @hsdev:	Hub device instance.
 *
-* Used to clode hid device for sensor hub.
+* Used to close hid device for sensor hub.
 */
 void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev);
 
@@ -128,12 +128,13 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 			struct hid_sensor_hub_callbacks *usage_callback);
 
 /**
-* sensor_hub_remove_callback() - Remove client callbacks
+* sensor_hub_remove_callback() - Remove client callback
 * @hsdev:	Hub device instance.
-* @usage_id:	Usage id of the client (E.g. 0x200076 for Gyro).
+* @usage_id:	Usage id of the client (e.g. 0x200076 for gyro).
 *
-* If there is a callback registred, this call will remove that
-* callbacks, so that it will stop data and event notifications.
+* Removes a previously registered callback for the given usage_id
+* and hsdev. Once removed, the client will no longer receive data or
+* event notifications.
 */
 int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 			u32 usage_id);

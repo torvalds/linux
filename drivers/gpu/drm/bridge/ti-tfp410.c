@@ -120,12 +120,13 @@ static void tfp410_hpd_callback(void *arg, enum drm_connector_status status)
 }
 
 static int tfp410_attach(struct drm_bridge *bridge,
+			 struct drm_encoder *encoder,
 			 enum drm_bridge_attach_flags flags)
 {
 	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
 	int ret;
 
-	ret = drm_bridge_attach(bridge->encoder, dvi->next_bridge, bridge,
+	ret = drm_bridge_attach(encoder, dvi->next_bridge, bridge,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret < 0)
 		return ret;
@@ -159,7 +160,7 @@ static int tfp410_attach(struct drm_bridge *bridge,
 	drm_display_info_set_bus_formats(&dvi->connector.display_info,
 					 &dvi->bus_format, 1);
 
-	drm_connector_attach_encoder(&dvi->connector, bridge->encoder);
+	drm_connector_attach_encoder(&dvi->connector, encoder);
 
 	return 0;
 }
@@ -435,7 +436,7 @@ static void tfp410_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tfp410_i2c_ids[] = {
-	{ "tfp410", 0 },
+	{ "tfp410" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tfp410_i2c_ids);

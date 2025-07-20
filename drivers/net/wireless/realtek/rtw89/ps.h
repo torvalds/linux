@@ -5,11 +5,11 @@
 #ifndef __RTW89_PS_H_
 #define __RTW89_PS_H_
 
-void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		     bool ps_mode);
 void rtw89_leave_lps(struct rtw89_dev *rtwdev);
 void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev);
-void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
+void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev);
 void rtw89_leave_ps_mode(struct rtw89_dev *rtwdev);
 void rtw89_enter_ips(struct rtw89_dev *rtwdev);
 void rtw89_leave_ips(struct rtw89_dev *rtwdev);
@@ -22,6 +22,9 @@ void rtw89_p2p_noa_renew(struct rtw89_vif_link *rtwvif_link);
 void rtw89_p2p_noa_append(struct rtw89_vif_link *rtwvif_link,
 			  const struct ieee80211_p2p_noa_desc *desc);
 u8 rtw89_p2p_noa_fetch(struct rtw89_vif_link *rtwvif_link, void **data);
+void rtw89_p2p_noa_once_init(struct rtw89_vif_link *rtwvif_link);
+void rtw89_p2p_noa_once_deinit(struct rtw89_vif_link *rtwvif_link);
+void rtw89_p2p_noa_once_recalc(struct rtw89_vif_link *rtwvif_link);
 
 static inline void rtw89_leave_ips_by_hwflags(struct rtw89_dev *rtwdev)
 {

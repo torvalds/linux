@@ -5,23 +5,23 @@
 #ifndef __ASM_VDSO_PROCESSOR_H
 #define __ASM_VDSO_PROCESSOR_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static __always_inline void rep_nop(void)
+/* PAUSE is a good thing to insert into busy-wait loops. */
+static __always_inline void native_pause(void)
 {
-	asm volatile("rep; nop" ::: "memory");
+	asm volatile("pause" ::: "memory");
 }
 
 static __always_inline void cpu_relax(void)
 {
-	rep_nop();
+	native_pause();
 }
 
 struct getcpu_cache;
 
 notrace long __vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_VDSO_PROCESSOR_H */

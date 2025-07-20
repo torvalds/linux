@@ -325,3 +325,15 @@ const struct clk_ops *starfive_jh71x0_clk_ops(u32 max)
 	return &jh71x0_clk_inv_ops;
 }
 EXPORT_SYMBOL_GPL(starfive_jh71x0_clk_ops);
+
+struct clk_hw *jh71x0_clk_get(struct of_phandle_args *clkspec, void *data)
+{
+	struct jh71x0_clk_priv *priv = data;
+	unsigned int idx = clkspec->args[0];
+
+	if (idx < priv->num_reg)
+		return &priv->reg[idx].hw;
+
+	return ERR_PTR(-EINVAL);
+}
+EXPORT_SYMBOL_GPL(jh71x0_clk_get);

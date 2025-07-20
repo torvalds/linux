@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 
+#include "phylib.h"
 #include "bcm-phy-lib.h"
 
 /* RDB per-port registers
@@ -883,7 +884,7 @@ static struct phy_driver bcm54140_drivers[] = {
 };
 module_phy_driver(bcm54140_drivers);
 
-static struct mdio_device_id __maybe_unused bcm54140_tbl[] = {
+static const struct mdio_device_id __maybe_unused bcm54140_tbl[] = {
 	{ PHY_ID_BCM54140, BCM54140_PHY_ID_MASK },
 	{ }
 };

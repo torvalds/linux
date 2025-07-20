@@ -349,7 +349,6 @@
 					 BMP280_NUM_TEMP_BYTES + \
 					 BME280_NUM_HUMIDITY_BYTES)
 
-#define BME280_NUM_MAX_CHANNELS		3
 /* Core exported structs */
 
 static const char *const bmp280_supply_names[] = {
@@ -434,7 +433,7 @@ struct bmp280_data {
 		struct bmp380_calib bmp380;
 	} calib;
 	struct regulator_bulk_data supplies[BMP280_NUM_SUPPLIES];
-	unsigned int start_up_time; /* in microseconds */
+	unsigned int start_up_time_us;
 
 	/* log of base 2 of oversampling rate */
 	u8 oversampling_press;
@@ -452,13 +451,6 @@ struct bmp280_data {
 	 */
 	int sampling_freq;
 
-	/*
-	 * Data to push to userspace triggered buffer. Up to 3 channels and
-	 * s64 timestamp, aligned.
-	 */
-	u8 sensor_data[ALIGN(sizeof(s32) * BME280_NUM_MAX_CHANNELS, sizeof(s64))
-		       + sizeof(s64)] __aligned(sizeof(s64));
-
 	/* Value to hold the current operation mode of the device */
 	enum bmp280_op_mode op_mode;
 
@@ -470,8 +462,8 @@ struct bmp280_data {
 		/* Sensor data buffer */
 		u8 buf[BME280_BURST_READ_BYTES];
 		/* Calibration data buffers */
-		__le16 bmp280_cal_buf[BMP280_CONTIGUOUS_CALIB_REGS / 2];
-		__be16 bmp180_cal_buf[BMP180_REG_CALIB_COUNT / 2];
+		__le16 bmp280_cal_buf[BMP280_CONTIGUOUS_CALIB_REGS / sizeof(__le16)];
+		__be16 bmp180_cal_buf[BMP180_REG_CALIB_COUNT / sizeof(__be16)];
 		u8 bme280_humid_cal_buf[BME280_CONTIGUOUS_CALIB_REGS];
 		u8 bmp380_cal_buf[BMP380_CALIB_REG_COUNT];
 		/* Miscellaneous, endianness-aware data buffers */
@@ -490,7 +482,7 @@ struct bmp280_chip_info {
 
 	const struct iio_chan_spec *channels;
 	int num_channels;
-	unsigned int start_up_time;
+	unsigned int start_up_time_us;
 	const unsigned long *avail_scan_masks;
 
 	const int *oversampling_temp_avail;

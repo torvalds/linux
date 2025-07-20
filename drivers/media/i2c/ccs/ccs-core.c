@@ -1354,8 +1354,10 @@ static int ccs_change_cci_addr(struct ccs_sensor *sensor)
 
 	client->addr = sensor->hwcfg.i2c_addr_dfl;
 
-	rval = ccs_write(sensor, CCI_ADDRESS_CTRL,
-			 sensor->hwcfg.i2c_addr_alt << 1);
+	rval = read_poll_timeout(ccs_write, rval, !rval, CCS_RESET_DELAY_US,
+				 CCS_RESET_TIMEOUT_US, false, sensor,
+				 CCI_ADDRESS_CTRL,
+				 sensor->hwcfg.i2c_addr_alt << 1);
 	if (rval)
 		return rval;
 
@@ -1575,44 +1577,38 @@ static int ccs_power_on(struct device *dev)
 		if (ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA)
 			sleep = SMIAPP_RESET_DELAY(sensor->hwcfg.ext_clk);
 		else
-			sleep = 5000;
+			sleep = CCS_RESET_DELAY_US;
 
 		usleep_range(sleep, sleep);
 	}
 
 	/*
-	 * Failures to respond to the address change command have been noticed.
-	 * Those failures seem to be caused by the sensor requiring a longer
-	 * boot time than advertised. An additional 10ms delay seems to work
-	 * around the issue, but the SMIA++ I2C write retry hack makes the delay
-	 * unnecessary. The failures need to be investigated to find a proper
-	 * fix, and a delay will likely need to be added here if the I2C write
-	 * retry hack is reverted before the root cause of the boot time issue
-	 * is found.
+	 * Some devices take longer than the spec-defined time to respond
+	 * after reset. Try until some time has passed before flagging it
+	 * an error.
 	 */
-
 	if (!sensor->reset && !sensor->xshutdown) {
-		u8 retry = 100;
 		u32 reset;
 
-		rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
+		rval = read_poll_timeout(ccs_write, rval, !rval,
+					 CCS_RESET_DELAY_US,
+					 CCS_RESET_TIMEOUT_US,
+					 false, sensor, SOFTWARE_RESET,
+					 CCS_SOFTWARE_RESET_ON);
 		if (rval < 0) {
 			dev_err(dev, "software reset failed\n");
 			goto out_cci_addr_fail;
 		}
 
-		do {
-			rval = ccs_read(sensor, SOFTWARE_RESET, &reset);
-			reset = !rval && reset == CCS_SOFTWARE_RESET_OFF;
-			if (reset)
-				break;
-
-			usleep_range(1000, 2000);
-		} while (--retry);
-
-		if (!reset) {
-			dev_err(dev, "software reset failed\n");
-			rval = -EIO;
+		rval = read_poll_timeout(ccs_read, rval,
+					 !rval &&
+						reset == CCS_SOFTWARE_RESET_OFF,
+					 CCS_RESET_DELAY_US,
+					 CCS_RESET_TIMEOUT_US, false, sensor,
+					 SOFTWARE_RESET, &reset);
+		if (rval < 0) {
+			dev_err_probe(dev, rval,
+				      "failed to respond after reset\n");
 			goto out_cci_addr_fail;
 		}
 	}
@@ -2857,10 +2853,6 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 		break;
 	}
 
-	if (i >= ARRAY_SIZE(ccs_module_idents))
-		dev_warn(&client->dev,
-			 "no quirks for this module; let's hope it's fully compliant\n");
-
 	dev_dbg(&client->dev, "the sensor is called %s\n", minfo->name);
 
 	return 0;
@@ -3131,8 +3123,6 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 
 	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 					&hwcfg->ext_clk);
-	if (rval)
-		dev_info(dev, "can't get clock-frequency\n");
 
 	dev_dbg(dev, "clk %u, mode %u\n", hwcfg->ext_clk,
 		hwcfg->csi_signalling_mode);
@@ -3335,9 +3325,11 @@ static int ccs_probe(struct i2c_client *client)
 
 	rval = request_firmware(&fw, filename, &client->dev);
 	if (!rval) {
-		ccs_data_parse(&sensor->sdata, fw->data, fw->size, &client->dev,
-			       true);
+		rval = ccs_data_parse(&sensor->sdata, fw->data, fw->size,
+				      &client->dev, true);
 		release_firmware(fw);
+		if (rval)
+			goto out_power_off;
 	}
 
 	if (!(ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA) ||
@@ -3351,9 +3343,11 @@ static int ccs_probe(struct i2c_client *client)
 
 		rval = request_firmware(&fw, filename, &client->dev);
 		if (!rval) {
-			ccs_data_parse(&sensor->mdata, fw->data, fw->size,
-				       &client->dev, true);
+			rval = ccs_data_parse(&sensor->mdata, fw->data,
+					      fw->size, &client->dev, true);
 			release_firmware(fw);
+			if (rval)
+				goto out_release_sdata;
 		}
 	}
 
@@ -3447,7 +3441,6 @@ static int ccs_probe(struct i2c_client *client)
 				CCS_LIM(sensor, NUM_OF_VT_LANES) + 1;
 			sensor->pll.op_lanes =
 				CCS_LIM(sensor, NUM_OF_OP_LANES) + 1;
-			sensor->pll.flags |= CCS_PLL_FLAG_LINK_DECOUPLED;
 		} else {
 			sensor->pll.vt_lanes = sensor->pll.csi2.lanes;
 			sensor->pll.op_lanes = sensor->pll.csi2.lanes;
@@ -3562,18 +3555,19 @@ static int ccs_probe(struct i2c_client *client)
 out_disable_runtime_pm:
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 
 out_cleanup:
 	ccs_cleanup(sensor);
+
+out_free_ccs_limits:
+	kfree(sensor->ccs_limits);
 
 out_release_mdata:
 	kvfree(sensor->mdata.backing);
 
 out_release_sdata:
 	kvfree(sensor->sdata.backing);
-
-out_free_ccs_limits:
-	kfree(sensor->ccs_limits);
 
 out_power_off:
 	ccs_power_off(&client->dev);
@@ -3591,9 +3585,10 @@ static void ccs_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(subdev);
 
 	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev))
+	if (!pm_runtime_status_suspended(&client->dev)) {
 		ccs_power_off(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+		pm_runtime_set_suspended(&client->dev);
+	}
 
 	for (i = 0; i < sensor->ssds_used; i++)
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);

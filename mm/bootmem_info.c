@@ -88,7 +88,9 @@ static void __init register_page_bootmem_info_section(unsigned long start_pfn)
 
 	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
 
-	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
+	if (!preinited_vmemmap_section(ms))
+		register_page_bootmem_memmap(section_nr, memmap,
+				PAGES_PER_SECTION);
 
 	usage = ms->usage;
 	page = virt_to_page(usage);

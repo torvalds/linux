@@ -2307,7 +2307,7 @@ int snd_ymfpci_create(struct snd_card *card,
 	chip->device_id = pci->device;
 	chip->rev = pci->revision;
 
-	err = pci_request_regions(pci, "YMFPCI");
+	err = pcim_request_all_regions(pci, "YMFPCI");
 	if (err < 0)
 		return err;
 

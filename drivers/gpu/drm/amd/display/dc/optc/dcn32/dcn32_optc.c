@@ -297,7 +297,7 @@ static void optc32_set_drr(
 	optc32_setup_manual_trigger(optc);
 }
 
-static struct timing_generator_funcs dcn32_tg_funcs = {
+static const struct timing_generator_funcs dcn32_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
@@ -364,6 +364,7 @@ static struct timing_generator_funcs dcn32_tg_funcs = {
 		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
 		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
 		.get_pipe_update_pending = optc3_get_pipe_update_pending,
+		.read_otg_state = optc31_read_otg_state,
 };
 
 void dcn32_timing_generator_init(struct optc *optc1)

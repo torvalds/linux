@@ -94,7 +94,7 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_validity++;
 	trace_kvm_s390_intercept_validity(vcpu, viwhy);
-	KVM_EVENT(3, "validity intercept 0x%x for pid %u (kvm 0x%pK)", viwhy,
+	KVM_EVENT(3, "validity intercept 0x%x for pid %u (kvm 0x%p)", viwhy,
 		  current->pid, vcpu->kvm);
 
 	/* do not warn on invalid runtime instrumentation mode */
@@ -367,7 +367,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 					      reg2, &srcaddr, GACC_FETCH, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
-	rc = gmap_fault(vcpu->arch.gmap, srcaddr, 0);
+	rc = kvm_s390_handle_dat_fault(vcpu, srcaddr, 0);
 	if (rc != 0)
 		return rc;
 
@@ -376,7 +376,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 					      reg1, &dstaddr, GACC_STORE, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
-	rc = gmap_fault(vcpu->arch.gmap, dstaddr, FAULT_FLAG_WRITE);
+	rc = kvm_s390_handle_dat_fault(vcpu, dstaddr, FOLL_WRITE);
 	if (rc != 0)
 		return rc;
 
@@ -544,12 +544,12 @@ static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 			  guest_uvcb->header.cmd);
 		return 0;
 	}
-	rc = gmap_make_secure(vcpu->arch.gmap, uvcb.gaddr, &uvcb);
+	rc = kvm_s390_pv_make_secure(vcpu->kvm, uvcb.gaddr, &uvcb);
 	/*
 	 * If the unpin did not succeed, the guest will exit again for the UVC
 	 * and we will retry the unpin.
 	 */
-	if (rc == -EINVAL)
+	if (rc == -EINVAL || rc == -ENXIO)
 		return 0;
 	/*
 	 * If we got -EAGAIN here, we simply return it. It will eventually
@@ -652,10 +652,8 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 		break;
 	case ICPT_PV_PREF:
 		rc = 0;
-		gmap_convert_to_secure(vcpu->arch.gmap,
-				       kvm_s390_get_prefix(vcpu));
-		gmap_convert_to_secure(vcpu->arch.gmap,
-				       kvm_s390_get_prefix(vcpu) + PAGE_SIZE);
+		kvm_s390_pv_convert_to_secure(vcpu->kvm, kvm_s390_get_prefix(vcpu));
+		kvm_s390_pv_convert_to_secure(vcpu->kvm, kvm_s390_get_prefix(vcpu) + PAGE_SIZE);
 		break;
 	default:
 		return -EOPNOTSUPP;

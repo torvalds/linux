@@ -29,7 +29,7 @@ const struct kobj_type of_node_ktype = {
 };
 
 static ssize_t of_node_property_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr, char *buf,
+				const struct bin_attribute *bin_attr, char *buf,
 				loff_t offset, size_t count)
 {
 	struct property *pp = container_of(bin_attr, struct property, attr);
@@ -77,7 +77,7 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 	pp->attr.attr.name = safe_name(&np->kobj, pp->name);
 	pp->attr.attr.mode = secure ? 0400 : 0444;
 	pp->attr.size = secure ? 0 : pp->length;
-	pp->attr.read = of_node_property_read;
+	pp->attr.read_new = of_node_property_read;
 
 	rc = sysfs_create_bin_file(&np->kobj, &pp->attr);
 	WARN(rc, "error adding attribute %s to node %pOF\n", pp->name, np);

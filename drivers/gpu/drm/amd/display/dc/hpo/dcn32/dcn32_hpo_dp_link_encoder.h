@@ -54,11 +54,15 @@
 	SE_SF(DP_DPHY_SYM320_DP_DPHY_SYM32_VC_RATE_CNTL0, STREAM_VC_RATE_Y, mask_sh),\
 	SE_SF(DP_DPHY_SYM320_DP_DPHY_SYM32_SAT_UPDATE, SAT_UPDATE, mask_sh)
 
+bool dcn32_hpo_dp_link_enc_is_in_alt_mode(struct hpo_dp_link_encoder *enc);
 void hpo_dp_link_encoder32_construct(struct dcn31_hpo_dp_link_encoder *enc31,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn31_hpo_dp_link_encoder_registers *hpo_le_regs,
 	const struct dcn31_hpo_dp_link_encoder_shift *hpo_le_shift,
 	const struct dcn31_hpo_dp_link_encoder_mask *hpo_le_mask);
+
+bool dcn32_hpo_dp_link_enc_is_in_alt_mode(
+		struct hpo_dp_link_encoder *enc);
 
 #endif   // __DAL_DCN32_HPO_DP_LINK_ENCODER_H__

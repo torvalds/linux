@@ -22,6 +22,7 @@ struct hdac_bus;
  * @shim_lock: mutex to handle access to shared SHIM registers
  * @shim_mask: global pointer to check SHIM register initialization
  * @clock_stop_quirks: mask defining requested behavior on pm_suspend
+ * @mic_privacy: ACE version supports microphone privacy
  * @link_mask: global mask needed for power-up/down sequences
  * @cdns: Cadence master descriptor
  * @list: used to walk-through all masters exposed by the same controller
@@ -42,10 +43,33 @@ struct sdw_intel_link_res {
 	struct mutex *shim_lock; /* protect shared registers */
 	u32 *shim_mask;
 	u32 clock_stop_quirks;
+	bool mic_privacy;
 	u32 link_mask;
 	struct sdw_cdns *cdns;
 	struct list_head list;
 	struct hdac_bus *hbus;
+};
+
+/**
+ * struct sdw_intel_bpt - SoundWire Intel BPT context
+ * @bpt_tx_stream: BPT TX stream
+ * @dmab_tx_bdl: BPT TX buffer descriptor list
+ * @bpt_rx_stream: BPT RX stream
+ * @dmab_rx_bdl: BPT RX buffer descriptor list
+ * @pdi0_buffer_size: PDI0 buffer size
+ * @pdi1_buffer_size: PDI1 buffer size
+ * @num_frames: number of frames
+ * @data_per_frame: data per frame
+ */
+struct sdw_intel_bpt {
+	struct hdac_ext_stream *bpt_tx_stream;
+	struct snd_dma_buffer dmab_tx_bdl;
+	struct hdac_ext_stream *bpt_rx_stream;
+	struct snd_dma_buffer dmab_rx_bdl;
+	unsigned int pdi0_buffer_size;
+	unsigned int pdi1_buffer_size;
+	unsigned int num_frames;
+	unsigned int data_per_frame;
 };
 
 struct sdw_intel {
@@ -53,6 +77,7 @@ struct sdw_intel {
 	int instance;
 	struct sdw_intel_link_res *link_res;
 	bool startup_done;
+	struct sdw_intel_bpt bpt_ctx;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif

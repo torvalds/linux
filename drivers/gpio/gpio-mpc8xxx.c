@@ -123,8 +123,11 @@ static irqreturn_t mpc8xxx_gpio_irq_cascade(int irq, void *data)
 static void mpc8xxx_irq_unmask(struct irq_data *d)
 {
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = irq_data_get_irq_chip_data(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	struct gpio_chip *gc = &mpc8xxx_gc->gc;
 	unsigned long flags;
+
+	gpiochip_enable_irq(gc, hwirq);
 
 	raw_spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
 
@@ -138,6 +141,7 @@ static void mpc8xxx_irq_unmask(struct irq_data *d)
 static void mpc8xxx_irq_mask(struct irq_data *d)
 {
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = irq_data_get_irq_chip_data(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	struct gpio_chip *gc = &mpc8xxx_gc->gc;
 	unsigned long flags;
 
@@ -148,6 +152,8 @@ static void mpc8xxx_irq_mask(struct irq_data *d)
 		& ~mpc_pin2mask(irqd_to_hwirq(d)));
 
 	raw_spin_unlock_irqrestore(&mpc8xxx_gc->lock, flags);
+
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void mpc8xxx_irq_ack(struct irq_data *d)
@@ -244,6 +250,8 @@ static struct irq_chip mpc8xxx_irq_chip = {
 	.irq_ack	= mpc8xxx_irq_ack,
 	/* this might get overwritten in mpc8xxx_probe() */
 	.irq_set_type	= mpc8xxx_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int mpc8xxx_gpio_irq_map(struct irq_domain *h, unsigned int irq,
@@ -285,6 +293,7 @@ static const struct mpc8xxx_gpio_devtype mpc8xxx_gpio_devtype_default = {
 };
 
 static const struct of_device_id mpc8xxx_gpio_ids[] = {
+	{ .compatible = "fsl,mpc8314-gpio", },
 	{ .compatible = "fsl,mpc8349-gpio", },
 	{ .compatible = "fsl,mpc8572-gpio", .data = &mpc8572_gpio_devtype, },
 	{ .compatible = "fsl,mpc8610-gpio", },
@@ -409,7 +418,9 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	device_init_wakeup(dev, true);
+	ret = devm_device_init_wakeup(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to init wakeup\n");
 
 	return 0;
 err:

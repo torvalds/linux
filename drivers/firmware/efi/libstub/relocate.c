@@ -23,14 +23,14 @@
 efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 				 unsigned long *addr, unsigned long min)
 {
-	struct efi_boot_memmap *map;
+	struct efi_boot_memmap *map __free(efi_pool) = NULL;
 	efi_status_t status;
 	unsigned long nr_pages;
 	int i;
 
 	status = efi_get_memory_map(&map, false);
 	if (status != EFI_SUCCESS)
-		goto fail;
+		return status;
 
 	/*
 	 * Enforce minimum alignment that EFI or Linux requires when
@@ -51,6 +51,9 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 		desc = efi_memdesc_ptr(m, map->desc_size, i);
 
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
+			continue;
+
+		if (desc->attribute & EFI_MEMORY_HOT_PLUGGABLE)
 			continue;
 
 		if (efi_soft_reserve_enabled() &&
@@ -79,11 +82,9 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 	}
 
 	if (i == map->map_size / map->desc_size)
-		status = EFI_NOT_FOUND;
+		return EFI_NOT_FOUND;
 
-	efi_bs_call(free_pool, map);
-fail:
-	return status;
+	return EFI_SUCCESS;
 }
 
 /**

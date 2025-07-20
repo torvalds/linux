@@ -190,7 +190,7 @@ const struct regmap_config bma400_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = BMA400_CMD_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.writeable_reg = bma400_is_writable_reg,
 	.volatile_reg = bma400_is_volatile_reg,
 };
@@ -1591,8 +1591,9 @@ static irqreturn_t bma400_trigger_handler(int irq, void *p)
 		data->buffer.temperature = temp;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data->buffer,
+				    sizeof(data->buffer),
+				    iio_get_time_ns(indio_dev));
 
 	mutex_unlock(&data->mutex);
 	iio_trigger_notify_done(indio_dev->trig);

@@ -12,114 +12,6 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
-/* Copies a block of memory to a device in an efficient manner.
- * Assumes the device can cope with 32-bit transfers.  If it can't,
- * don't use this function.
- */
-void memcpy_toio(volatile void __iomem *dst, const void *src, int count)
-{
-	if (((unsigned long)dst & 3) != ((unsigned long)src & 3))
-		goto bytecopy;
-	while ((unsigned long)dst & 3) {
-		writeb(*(char *)src, dst++);
-		src++;
-		count--;
-	}
-	while (count > 3) {
-		__raw_writel(*(u32 *)src, dst);
-		src += 4;
-		dst += 4;
-		count -= 4;
-	}
- bytecopy:
-	while (count--) {
-		writeb(*(char *)src, dst++);
-		src++;
-	}
-}
-
-/*
-** Copies a block of memory from a device in an efficient manner.
-** Assumes the device can cope with 32-bit transfers.  If it can't,
-** don't use this function.
-**
-** CR16 counts on C3000 reading 256 bytes from Symbios 896 RAM:
-**	27341/64    = 427 cyc per int
-**	61311/128   = 478 cyc per short
-**	122637/256  = 479 cyc per byte
-** Ergo bus latencies dominant (not transfer size).
-**      Minimize total number of transfers at cost of CPU cycles.
-**	TODO: only look at src alignment and adjust the stores to dest.
-*/
-void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
-{
-	/* first compare alignment of src/dst */ 
-	if ( (((unsigned long)dst ^ (unsigned long)src) & 1) || (count < 2) )
-		goto bytecopy;
-
-	if ( (((unsigned long)dst ^ (unsigned long)src) & 2) || (count < 4) )
-		goto shortcopy;
-
-	/* Then check for misaligned start address */
-	if ((unsigned long)src & 1) {
-		*(u8 *)dst = readb(src);
-		src++;
-		dst++;
-		count--;
-		if (count < 2) goto bytecopy;
-	}
-
-	if ((unsigned long)src & 2) {
-		*(u16 *)dst = __raw_readw(src);
-		src += 2;
-		dst += 2;
-		count -= 2;
-	}
-
-	while (count > 3) {
-		*(u32 *)dst = __raw_readl(src);
-		dst += 4;
-		src += 4;
-		count -= 4;
-	}
-
- shortcopy:
-	while (count > 1) {
-		*(u16 *)dst = __raw_readw(src);
-		src += 2;
-		dst += 2;
-		count -= 2;
-	}
-
- bytecopy:
-	while (count--) {
-		*(char *)dst = readb(src);
-		src++;
-		dst++;
-	}
-}
-
-/* Sets a block of memory on a device to a given value.
- * Assumes the device can cope with 32-bit transfers.  If it can't,
- * don't use this function.
- */
-void memset_io(volatile void __iomem *addr, unsigned char val, int count)
-{
-	u32 val32 = (val << 24) | (val << 16) | (val << 8) | val;
-	while ((unsigned long)addr & 3) {
-		writeb(val, addr++);
-		count--;
-	}
-	while (count > 3) {
-		__raw_writel(val32, addr);
-		addr += 4;
-		count -= 4;
-	}
-	while (count--) {
-		writeb(val, addr++);
-	}
-}
-
 /*
  * Read COUNT 8-bit bytes from port PORT into memory starting at
  * SRC.
@@ -170,15 +62,15 @@ void insw (unsigned long port, void *dst, unsigned long count)
 	unsigned char *p;
 
 	p = (unsigned char *)dst;
-	
+
 	if (!count)
 		return;
-	
+
 	switch (((unsigned long)p) & 0x3)
 	{
 	 case 0x00:			/* Buffer 32-bit aligned */
 		while (count>=2) {
-			
+
 			count -= 2;
 			l = cpu_to_le16(inw(port)) << 16;
 			l |= cpu_to_le16(inw(port));
@@ -189,13 +81,13 @@ void insw (unsigned long port, void *dst, unsigned long count)
 			*(unsigned short *)p = cpu_to_le16(inw(port));
 		}
 		break;
-	
+
 	 case 0x02:			/* Buffer 16-bit aligned */
 		*(unsigned short *)p = cpu_to_le16(inw(port));
 		p += 2;
 		count--;
 		while (count>=2) {
-			
+
 			count -= 2;
 			l = cpu_to_le16(inw(port)) << 16;
 			l |= cpu_to_le16(inw(port));
@@ -206,13 +98,13 @@ void insw (unsigned long port, void *dst, unsigned long count)
 			*(unsigned short *)p = cpu_to_le16(inw(port));
 		}
 		break;
-		
+
 	 case 0x01:			/* Buffer 8-bit aligned */
 	 case 0x03:
 		/* I don't bother with 32bit transfers
 		 * in this case, 16bit will have to do -- DE */
 		--count;
-		
+
 		l = cpu_to_le16(inw(port));
 		*p = l >> 8;
 		p++;
@@ -242,10 +134,10 @@ void insl (unsigned long port, void *dst, unsigned long count)
 	unsigned char *p;
 
 	p = (unsigned char *)dst;
-	
+
 	if (!count)
 		return;
-	
+
 	switch (((unsigned long) dst) & 0x3)
 	{
 	 case 0x00:			/* Buffer 32-bit aligned */
@@ -255,14 +147,14 @@ void insl (unsigned long port, void *dst, unsigned long count)
 			p += 4;
 		}
 		break;
-	
+
 	 case 0x02:			/* Buffer 16-bit aligned */
 		--count;
-		
+
 		l = cpu_to_le32(inl(port));
 		*(unsigned short *)p = l >> 16;
 		p += 2;
-		
+
 		while (count--)
 		{
 			l2 = cpu_to_le32(inl(port));
@@ -274,7 +166,7 @@ void insl (unsigned long port, void *dst, unsigned long count)
 		break;
 	 case 0x01:			/* Buffer 8-bit aligned */
 		--count;
-		
+
 		l = cpu_to_le32(inl(port));
 		*(unsigned char *)p = l >> 24;
 		p++;
@@ -291,7 +183,7 @@ void insl (unsigned long port, void *dst, unsigned long count)
 		break;
 	 case 0x03:			/* Buffer 8-bit aligned */
 		--count;
-		
+
 		l = cpu_to_le32(inl(port));
 		*p = l >> 24;
 		p++;
@@ -340,10 +232,10 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 	const unsigned char *p;
 
 	p = (const unsigned char *)src;
-	
+
 	if (!count)
 		return;
-	
+
 	switch (((unsigned long)p) & 0x3)
 	{
 	 case 0x00:			/* Buffer 32-bit aligned */
@@ -358,13 +250,13 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 			outw(le16_to_cpu(*(unsigned short*)p), port);
 		}
 		break;
-	
+
 	 case 0x02:			/* Buffer 16-bit aligned */
-		
+
 		outw(le16_to_cpu(*(unsigned short*)p), port);
 		p += 2;
 		count--;
-		
+
 		while (count>=2) {
 			count -= 2;
 			l = *(unsigned int *)p;
@@ -376,11 +268,11 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 			outw(le16_to_cpu(*(unsigned short *)p), port);
 		}
 		break;
-		
-	 case 0x01:			/* Buffer 8-bit aligned */	
+
+	 case 0x01:			/* Buffer 8-bit aligned */
 		/* I don't bother with 32bit transfers
 		 * in this case, 16bit will have to do -- DE */
-		
+
 		l  = *p << 8;
 		p++;
 		count--;
@@ -395,7 +287,7 @@ void outsw (unsigned long port, const void *src, unsigned long count)
 		l2 = *(unsigned char *)p;
 		outw (le16_to_cpu(l | l2>>8), port);
 		break;
-	
+
 	}
 }
 
@@ -412,10 +304,10 @@ void outsl (unsigned long port, const void *src, unsigned long count)
 	const unsigned char *p;
 
 	p = (const unsigned char *)src;
-	
+
 	if (!count)
 		return;
-	
+
 	switch (((unsigned long)p) & 0x3)
 	{
 	 case 0x00:			/* Buffer 32-bit aligned */
@@ -425,13 +317,13 @@ void outsl (unsigned long port, const void *src, unsigned long count)
 			p += 4;
 		}
 		break;
-	
+
 	 case 0x02:			/* Buffer 16-bit aligned */
 		--count;
-		
+
 		l = *(unsigned short *)p;
 		p += 2;
-		
+
 		while (count--)
 		{
 			l2 = *(unsigned int *)p;
@@ -462,7 +354,7 @@ void outsl (unsigned long port, const void *src, unsigned long count)
 		break;
 	 case 0x03:			/* Buffer 8-bit aligned */
 		--count;
-		
+
 		l = *p << 24;
 		p++;
 

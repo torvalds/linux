@@ -451,7 +451,7 @@ static struct page_info * __must_check find_page(struct vdo_page_cache *cache,
  * select_lru_page() - Determine which page is least recently used.
  *
  * Picks the least recently used from among the non-busy entries at the front of each of the lru
- * ring. Since whenever we mark a page busy we also put it to the end of the ring it is unlikely
+ * list. Since whenever we mark a page busy we also put it to the end of the list it is unlikely
  * that the entries at the front are busy unless the queue is very short, but not impossible.
  *
  * Return: A pointer to the info structure for a relevant page, or NULL if no such page can be
@@ -1544,7 +1544,7 @@ static void write_page_if_not_dirtied(struct vdo_waiter *waiter, void *context)
 
 static void return_to_pool(struct block_map_zone *zone, struct pooled_vio *vio)
 {
-	return_vio_to_pool(zone->vio_pool, vio);
+	return_vio_to_pool(vio);
 	check_for_drain_complete(zone);
 }
 
@@ -1837,7 +1837,7 @@ static void finish_block_map_page_load(struct vdo_completion *completion)
 
 	if (!vdo_copy_valid_page(vio->data, nonce, pbn, page))
 		vdo_format_block_map_page(page, nonce, pbn, false);
-	return_vio_to_pool(zone->vio_pool, pooled);
+	return_vio_to_pool(pooled);
 
 	/* Release our claim to the load and wake any waiters */
 	release_page_lock(data_vio, "load");
@@ -1851,10 +1851,9 @@ static void handle_io_error(struct vdo_completion *completion)
 	struct vio *vio = as_vio(completion);
 	struct pooled_vio *pooled = container_of(vio, struct pooled_vio, vio);
 	struct data_vio *data_vio = completion->parent;
-	struct block_map_zone *zone = pooled->context;
 
 	vio_record_metadata_io_error(vio);
-	return_vio_to_pool(zone->vio_pool, pooled);
+	return_vio_to_pool(pooled);
 	abort_load(data_vio, result);
 }
 
@@ -2499,7 +2498,7 @@ static void finish_cursor(struct cursor *cursor)
 	struct cursors *cursors = cursor->parent;
 	struct vdo_completion *completion = cursors->completion;
 
-	return_vio_to_pool(cursors->pool, vdo_forget(cursor->vio));
+	return_vio_to_pool(vdo_forget(cursor->vio));
 	if (--cursors->active_roots > 0)
 		return;
 
@@ -2746,7 +2745,7 @@ static int __must_check initialize_block_map_zone(struct block_map *map,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = make_vio_pool(vdo, BLOCK_MAP_VIO_POOL_SIZE,
+	result = make_vio_pool(vdo, BLOCK_MAP_VIO_POOL_SIZE, 1,
 			       zone->thread_id, VIO_TYPE_BLOCK_MAP_INTERIOR,
 			       VIO_PRIORITY_METADATA, zone, &zone->vio_pool);
 	if (result != VDO_SUCCESS)

@@ -507,7 +507,6 @@ static struct cpufreq_driver centrino_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= centrino_target,
 	.get		= get_cur_freq,
-	.attr		= cpufreq_generic_attr,
 };
 
 /*

@@ -122,6 +122,8 @@ properties:
   '#size-cells':
     const: 1
 
+  ranges: true
+
   big-endian: true
   little-endian: true
 
@@ -143,8 +145,7 @@ then:
   required:
     - syscon
 
-# FIXME: A parent bus may define timing properties
-additionalProperties: true
+unevaluatedProperties: false
 
 examples:
   - |

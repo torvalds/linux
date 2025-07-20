@@ -458,7 +458,7 @@
 			clks: ccm@73fd4000 {
 				compatible = "fsl,imx51-ccm";
 				reg = <0x73fd4000 0x4000>;
-				interrupts = <0 71 0x04 0 72 0x04>;
+				interrupts = <71>, <72>;
 				#clock-cells = <1>;
 			};
 		};
@@ -476,7 +476,7 @@
 			};
 
 			iim: efuse@83f98000 {
-				compatible = "fsl,imx51-iim", "fsl,imx27-iim", "syscon";
+				compatible = "fsl,imx51-iim";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks IMX5_CLK_IIM_GATE>;
@@ -595,7 +595,7 @@
 				status = "disabled";
 			};
 
-			nfc: nand@83fdb000 {
+			nfc: nand-controller@83fdb000 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				compatible = "fsl,imx51-nand";

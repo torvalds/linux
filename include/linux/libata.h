@@ -41,17 +41,6 @@
  */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
 
-
-#define ata_print_version_once(dev, version)			\
-({								\
-	static bool __print_once;				\
-								\
-	if (!__print_once) {					\
-		__print_once = true;				\
-		ata_print_version(dev, version);		\
-	}							\
-})
-
 /* defines only for the constants which don't work well as enums */
 #define ATA_TAG_POISON		0xfafbfcfdU
 
@@ -88,6 +77,7 @@ enum ata_quirks {
 	__ATA_QUIRK_MAX_SEC_1024,	/* Limit max sects to 1024 */
 	__ATA_QUIRK_MAX_TRIM_128M,	/* Limit max trim size to 128M */
 	__ATA_QUIRK_NO_NCQ_ON_ATI,	/* Disable NCQ on ATI chipset */
+	__ATA_QUIRK_NO_LPM_ON_ATI,	/* Disable LPM on ATI chipset */
 	__ATA_QUIRK_NO_ID_DEV_LOG,	/* Identify device log missing */
 	__ATA_QUIRK_NO_LOG_DIR,		/* Do not read log directory */
 	__ATA_QUIRK_NO_FUA,		/* Do not use FUA */
@@ -432,6 +422,7 @@ enum {
 	ATA_QUIRK_MAX_SEC_1024		= (1U << __ATA_QUIRK_MAX_SEC_1024),
 	ATA_QUIRK_MAX_TRIM_128M		= (1U << __ATA_QUIRK_MAX_TRIM_128M),
 	ATA_QUIRK_NO_NCQ_ON_ATI		= (1U << __ATA_QUIRK_NO_NCQ_ON_ATI),
+	ATA_QUIRK_NO_LPM_ON_ATI		= (1U << __ATA_QUIRK_NO_LPM_ON_ATI),
 	ATA_QUIRK_NO_ID_DEV_LOG		= (1U << __ATA_QUIRK_NO_ID_DEV_LOG),
 	ATA_QUIRK_NO_LOG_DIR		= (1U << __ATA_QUIRK_NO_LOG_DIR),
 	ATA_QUIRK_NO_FUA		= (1U << __ATA_QUIRK_NO_FUA),
@@ -1199,10 +1190,9 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
-extern int ata_scsi_slave_alloc(struct scsi_device *sdev);
-int ata_scsi_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim);
-extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
+extern int ata_scsi_sdev_init(struct scsi_device *sdev);
+int ata_scsi_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim);
+extern void ata_scsi_sdev_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth);
 extern int ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
@@ -1301,8 +1291,8 @@ extern struct ata_port *ata_port_alloc(struct ata_host *host);
 extern void ata_port_free(struct ata_port *ap);
 extern int ata_tport_add(struct device *parent, struct ata_port *ap);
 extern void ata_tport_delete(struct ata_port *ap);
-int ata_sas_device_configure(struct scsi_device *sdev, struct queue_limits *lim,
-		struct ata_port *ap);
+int ata_sas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim,
+			   struct ata_port *ap);
 extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
@@ -1362,7 +1352,7 @@ int ata_acpi_stm(struct ata_port *ap, const struct ata_acpi_gtm *stm);
 int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *stm);
 unsigned int ata_acpi_gtm_xfermask(struct ata_device *dev,
 				   const struct ata_acpi_gtm *gtm);
-int ata_acpi_cbl_80wire(struct ata_port *ap, const struct ata_acpi_gtm *gtm);
+int ata_acpi_cbl_pata_type(struct ata_port *ap);
 #else
 static inline const struct ata_acpi_gtm *ata_acpi_init_gtm(struct ata_port *ap)
 {
@@ -1387,10 +1377,9 @@ static inline unsigned int ata_acpi_gtm_xfermask(struct ata_device *dev,
 	return 0;
 }
 
-static inline int ata_acpi_cbl_80wire(struct ata_port *ap,
-				      const struct ata_acpi_gtm *gtm)
+static inline int ata_acpi_cbl_pata_type(struct ata_port *ap)
 {
-	return 0;
+	return ATA_CBL_PATA40;
 }
 #endif
 
@@ -1458,8 +1447,8 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.this_id		= ATA_SHT_THIS_ID,		\
 	.emulated		= ATA_SHT_EMULATED,		\
 	.proc_name		= drv_name,			\
-	.slave_alloc		= ata_scsi_slave_alloc,		\
-	.slave_destroy		= ata_scsi_slave_destroy,	\
+	.sdev_init		= ata_scsi_sdev_init,		\
+	.sdev_destroy		= ata_scsi_sdev_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
 	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
 	.max_sectors		= ATA_MAX_SECTORS_LBA48
@@ -1467,14 +1456,14 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 #define ATA_SUBBASE_SHT(drv_name)				\
 	__ATA_BASE_SHT(drv_name),				\
 	.can_queue		= ATA_DEF_QUEUE,		\
-	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
-	.device_configure	= ata_scsi_device_configure
+	.tag_alloc_policy_rr	= true,				\
+	.sdev_configure		= ata_scsi_sdev_configure
 
 #define ATA_SUBBASE_SHT_QD(drv_name, drv_qd)			\
 	__ATA_BASE_SHT(drv_name),				\
 	.can_queue		= drv_qd,			\
-	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
-	.device_configure	= ata_scsi_device_configure
+	.tag_alloc_policy_rr	= true,				\
+	.sdev_configure		= ata_scsi_sdev_configure
 
 #define ATA_BASE_SHT(drv_name)					\
 	ATA_SUBBASE_SHT(drv_name),				\
@@ -1592,7 +1581,11 @@ do {								\
 #define ata_dev_dbg(dev, fmt, ...)				\
 	ata_dev_printk(debug, dev, fmt, ##__VA_ARGS__)
 
-void ata_print_version(const struct device *dev, const char *version);
+static inline void ata_print_version_once(const struct device *dev,
+					  const char *version)
+{
+	dev_dbg_once(dev, "version %s\n", version);
+}
 
 /*
  * ata_eh_info helpers
@@ -1624,6 +1617,8 @@ static inline void ata_port_desc_misc(struct ata_port *ap, int irq)
 {
 	ata_port_desc(ap, "irq %d", irq);
 	ata_port_desc(ap, "lpm-pol %d", ap->target_lpm_policy);
+	if (ap->pflags & ATA_PFLAG_EXTERNAL)
+		ata_port_desc(ap, "ext");
 }
 
 static inline bool ata_tag_internal(unsigned int tag)

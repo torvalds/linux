@@ -39,7 +39,7 @@ properties:
 
   interrupts:
     maxItems: 1
-    
+
   richtek,mtp-sel-high:
     type: boolean
     description:
@@ -77,6 +77,7 @@ properties:
 
         properties:
           richtek,fixed-microvolt:
+            deprecated: true
             description: |
               This property can be used to set a fixed operating voltage that lies outside
               the range of the regulator's adjustable mode.

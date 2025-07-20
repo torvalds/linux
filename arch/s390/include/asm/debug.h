@@ -85,6 +85,10 @@ int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
 			 int area, debug_entry_t *entry,
 			 char *out_buf, size_t out_buf_size);
 
+#define DEBUG_SPRINTF_MAX_ARGS 10
+int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
+			    char *out_buf, size_t out_buf_size,
+			    const char *inbuf);
 struct debug_view {
 	char name[DEBUG_MAX_NAME_LEN];
 	debug_prolog_proc_t *prolog_proc;
@@ -113,6 +117,9 @@ debug_info_t *debug_register(const char *name, int pages, int nr_areas,
 debug_info_t *debug_register_mode(const char *name, int pages, int nr_areas,
 				  int buf_size, umode_t mode, uid_t uid,
 				  gid_t gid);
+
+ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
+		   char *buf, size_t buf_size, bool reverse);
 
 void debug_unregister(debug_info_t *id);
 

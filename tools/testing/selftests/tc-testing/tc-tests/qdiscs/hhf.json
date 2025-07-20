@@ -188,5 +188,27 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
         ]
+    },
+    {
+        "id": "385f",
+        "name": "HHF test qdisc limit trimming",
+        "category": ["qdisc", "hhf"],
+        "plugins": {"requires": ["nsPlugin", "scapyPlugin"]},
+        "setup": [
+            "$TC qdisc add dev $DEV1 handle 1: root hhf limit 10"
+        ],
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 10,
+                "packet": "Ether(type=0x800)/IP(src='10.0.0.10',dst='10.0.0.20')/TCP(sport=5000,dport=10)"
+            }
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DEV1 handle 1: root hhf limit 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc hhf 1: root refcnt [0-9]+ limit 1p.*hh_limit 2048 reset_timeout 40ms admit_bytes 128Kb evict_timeout 1s non_hh_weight 2",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DEV1 handle 1: root"]
     }
 ]

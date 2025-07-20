@@ -180,60 +180,6 @@ out:
 	return ret;
 }
 
-/*
- * This function is currently unused, but will be called when the
- * output/mem2mem device at the IDMAC input pad sends us a new
- * buffer. It kicks off the IDMAC read channels to bring in the
- * buffer fields from memory and begin the conversions.
- */
-static void __maybe_unused prepare_vdi_in_buffers(struct vdic_priv *priv,
-						  struct imx_media_buffer *curr)
-{
-	dma_addr_t prev_phys, curr_phys, next_phys;
-	struct imx_media_buffer *prev;
-	struct vb2_buffer *curr_vb, *prev_vb;
-	u32 fs = priv->field_size;
-	u32 is = priv->in_stride;
-
-	/* current input buffer is now previous */
-	priv->prev_in_buf = priv->curr_in_buf;
-	priv->curr_in_buf = curr;
-	prev = priv->prev_in_buf ? priv->prev_in_buf : curr;
-
-	prev_vb = &prev->vbuf.vb2_buf;
-	curr_vb = &curr->vbuf.vb2_buf;
-
-	switch (priv->fieldtype) {
-	case V4L2_FIELD_SEQ_TB:
-	case V4L2_FIELD_SEQ_BT:
-		prev_phys = vb2_dma_contig_plane_dma_addr(prev_vb, 0) + fs;
-		curr_phys = vb2_dma_contig_plane_dma_addr(curr_vb, 0);
-		next_phys = vb2_dma_contig_plane_dma_addr(curr_vb, 0) + fs;
-		break;
-	case V4L2_FIELD_INTERLACED_TB:
-	case V4L2_FIELD_INTERLACED_BT:
-	case V4L2_FIELD_INTERLACED:
-		prev_phys = vb2_dma_contig_plane_dma_addr(prev_vb, 0) + is;
-		curr_phys = vb2_dma_contig_plane_dma_addr(curr_vb, 0);
-		next_phys = vb2_dma_contig_plane_dma_addr(curr_vb, 0) + is;
-		break;
-	default:
-		/*
-		 * can't get here, priv->fieldtype can only be one of
-		 * the above. This is to quiet smatch errors.
-		 */
-		return;
-	}
-
-	ipu_cpmem_set_buffer(priv->vdi_in_ch_p, 0, prev_phys);
-	ipu_cpmem_set_buffer(priv->vdi_in_ch,   0, curr_phys);
-	ipu_cpmem_set_buffer(priv->vdi_in_ch_n, 0, next_phys);
-
-	ipu_idmac_select_buffer(priv->vdi_in_ch_p, 0);
-	ipu_idmac_select_buffer(priv->vdi_in_ch, 0);
-	ipu_idmac_select_buffer(priv->vdi_in_ch_n, 0);
-}
-
 static int setup_vdi_channel(struct vdic_priv *priv,
 			     struct ipuv3_channel *channel,
 			     dma_addr_t phys0, dma_addr_t phys1)

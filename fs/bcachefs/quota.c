@@ -60,7 +60,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_validate(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags)
+			struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -516,7 +516,7 @@ static int bch2_fs_quota_read_inode(struct btree_trans *trans,
 	bch2_quota_acct(c, bch_qid(&u), Q_INO, 1,
 			KEY_TYPE_QUOTA_NOCHECK);
 advance:
-	bch2_btree_iter_set_pos(iter, bpos_nosnap_successor(iter->pos));
+	bch2_btree_iter_set_pos(trans, iter, bpos_nosnap_successor(iter->pos));
 	return 0;
 }
 
@@ -527,7 +527,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	struct bch_sb_field_quota *sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
 		mutex_unlock(&c->sb_lock);
-		return -BCH_ERR_ENOSPC_sb_quota;
+		return bch_err_throw(c, ENOSPC_sb_quota);
 	}
 
 	bch2_sb_quota_read(c);
@@ -572,7 +572,7 @@ static int bch2_quota_enable(struct super_block	*sb, unsigned uflags)
 	mutex_lock(&c->sb_lock);
 	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
-		ret = -BCH_ERR_ENOSPC_sb_quota;
+		ret = bch_err_throw(c, ENOSPC_sb_quota);
 		goto unlock;
 	}
 
@@ -726,7 +726,7 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 	mutex_lock(&c->sb_lock);
 	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
-		ret = -BCH_ERR_ENOSPC_sb_quota;
+		ret = bch_err_throw(c, ENOSPC_sb_quota);
 		goto unlock;
 	}
 

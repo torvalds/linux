@@ -121,7 +121,7 @@ static void slidebar_mode_set(u8 mode)
 }
 
 static bool slidebar_i8042_filter(unsigned char data, unsigned char str,
-				  struct serio *port)
+				  struct serio *port, void *context)
 {
 	static bool extended = false;
 
@@ -219,7 +219,7 @@ static int __init ideapad_probe(struct platform_device* pdev)
 	input_set_capability(slidebar_input_dev, EV_ABS, ABS_X);
 	input_set_abs_params(slidebar_input_dev, ABS_X, 0, 0xff, 0, 0);
 
-	err = i8042_install_filter(slidebar_i8042_filter);
+	err = i8042_install_filter(slidebar_i8042_filter, NULL);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Failed to install i8042 filter: %d\n", err);

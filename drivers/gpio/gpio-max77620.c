@@ -223,20 +223,17 @@ static int max77620_gpio_set_debounce(struct max77620_gpio *mgpio,
 	return ret;
 }
 
-static void max77620_gpio_set(struct gpio_chip *gc, unsigned int offset,
-			      int value)
+static int max77620_gpio_set(struct gpio_chip *gc, unsigned int offset,
+			     int value)
 {
 	struct max77620_gpio *mgpio = gpiochip_get_data(gc);
 	u8 val;
-	int ret;
 
 	val = (value) ? MAX77620_CNFG_GPIO_OUTPUT_VAL_HIGH :
 				MAX77620_CNFG_GPIO_OUTPUT_VAL_LOW;
 
-	ret = regmap_update_bits(mgpio->rmap, GPIO_REG_ADDR(offset),
-				 MAX77620_CNFG_GPIO_OUTPUT_VAL_MASK, val);
-	if (ret < 0)
-		dev_err(mgpio->dev, "CNFG_GPIO_OUT update failed: %d\n", ret);
+	return regmap_update_bits(mgpio->rmap, GPIO_REG_ADDR(offset),
+				  MAX77620_CNFG_GPIO_OUTPUT_VAL_MASK, val);
 }
 
 static int max77620_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
@@ -314,7 +311,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.direction_input = max77620_gpio_dir_input;
 	mgpio->gpio_chip.get = max77620_gpio_get;
 	mgpio->gpio_chip.direction_output = max77620_gpio_dir_output;
-	mgpio->gpio_chip.set = max77620_gpio_set;
+	mgpio->gpio_chip.set_rv = max77620_gpio_set;
 	mgpio->gpio_chip.set_config = max77620_gpio_set_config;
 	mgpio->gpio_chip.ngpio = MAX77620_GPIO_NR;
 	mgpio->gpio_chip.can_sleep = 1;

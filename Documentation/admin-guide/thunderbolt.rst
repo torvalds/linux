@@ -28,7 +28,7 @@ should be a userspace tool that handles all the low-level details, keeps
 a database of the authorized devices and prompts users for new connections.
 
 More details about the sysfs interface for Thunderbolt devices can be
-found in ``Documentation/ABI/testing/sysfs-bus-thunderbolt``.
+found in Documentation/ABI/testing/sysfs-bus-thunderbolt.
 
 Those users who just want to connect any device without any sort of
 manual work can add following line to
@@ -295,6 +295,39 @@ information is missing.
 
 To recover from this mode, one needs to flash a valid NVM image to the
 host controller in the same way it is done in the previous chapter.
+
+Tunneling events
+----------------
+The driver sends ``KOBJ_CHANGE`` events to userspace when there is a
+tunneling change in the ``thunderbolt_domain``. The notification carries
+following environment variables::
+
+  TUNNEL_EVENT=<EVENT>
+  TUNNEL_DETAILS=0:12 <-> 1:20 (USB3)
+
+Possible values for ``<EVENT>`` are:
+
+  activated
+    The tunnel was activated (created).
+
+  changed
+    There is a change in this tunnel. For example bandwidth allocation was
+    changed.
+
+  deactivated
+    The tunnel was torn down.
+
+  low bandwidth
+    The tunnel is not getting optimal bandwidth.
+
+  insufficient bandwidth
+    There is not enough bandwidth for the current tunnel requirements.
+
+The ``TUNNEL_DETAILS`` is only provided if the tunnel is known. For
+example, in case of Firmware Connection Manager this is missing or does
+not provide full tunnel information. In case of Software Connection Manager
+this includes full tunnel details. The format currently matches what the
+driver uses when logging. This may change over time.
 
 Networking over Thunderbolt cable
 ---------------------------------

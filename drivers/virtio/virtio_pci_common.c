@@ -794,6 +794,46 @@ static int virtio_pci_sriov_configure(struct pci_dev *pci_dev, int num_vfs)
 	return num_vfs;
 }
 
+static void virtio_pci_reset_prepare(struct pci_dev *pci_dev)
+{
+	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
+	int ret = 0;
+
+	ret = virtio_device_reset_prepare(&vp_dev->vdev);
+	if (ret) {
+		if (ret != -EOPNOTSUPP)
+			dev_warn(&pci_dev->dev, "Reset prepare failure: %d",
+				 ret);
+		return;
+	}
+
+	if (pci_is_enabled(pci_dev))
+		pci_disable_device(pci_dev);
+}
+
+static void virtio_pci_reset_done(struct pci_dev *pci_dev)
+{
+	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
+	int ret;
+
+	if (pci_is_enabled(pci_dev))
+		return;
+
+	ret = pci_enable_device(pci_dev);
+	if (!ret) {
+		pci_set_master(pci_dev);
+		ret = virtio_device_reset_done(&vp_dev->vdev);
+	}
+
+	if (ret && ret != -EOPNOTSUPP)
+		dev_warn(&pci_dev->dev, "Reset done failure: %d", ret);
+}
+
+static const struct pci_error_handlers virtio_pci_err_handler = {
+	.reset_prepare  = virtio_pci_reset_prepare,
+	.reset_done     = virtio_pci_reset_done,
+};
+
 static struct pci_driver virtio_pci_driver = {
 	.name		= "virtio-pci",
 	.id_table	= virtio_pci_id_table,
@@ -803,6 +843,7 @@ static struct pci_driver virtio_pci_driver = {
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif
 	.sriov_configure = virtio_pci_sriov_configure,
+	.err_handler	= &virtio_pci_err_handler,
 };
 
 struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev)

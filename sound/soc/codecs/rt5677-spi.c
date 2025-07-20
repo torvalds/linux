@@ -365,8 +365,8 @@ static void rt5677_spi_copy_work(struct work_struct *work)
 		new_bytes -= copy_bytes;
 	}
 
-	delay = bytes_to_frames(runtime, period_bytes) / (runtime->rate / 1000);
-	schedule_delayed_work(&rt5677_dsp->copy_work, msecs_to_jiffies(delay));
+	delay = bytes_to_frames(runtime, period_bytes) / runtime->rate;
+	schedule_delayed_work(&rt5677_dsp->copy_work, secs_to_jiffies(delay));
 done:
 	mutex_unlock(&rt5677_dsp->dma_lock);
 }
@@ -617,7 +617,8 @@ static int rt5677_spi_probe(struct spi_device *spi)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5677_spi_acpi_id[] = {
-	{ "RT5677AA", 0 },
+	{ "10EC5677" },
+	{ "RT5677AA" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5677_spi_acpi_id);

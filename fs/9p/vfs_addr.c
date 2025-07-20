@@ -57,7 +57,9 @@ static void v9fs_issue_write(struct netfs_io_subrequest *subreq)
 	int err, len;
 
 	len = p9_client_write(fid, subreq->start, &subreq->io_iter, &err);
-	netfs_write_subrequest_terminated(subreq, len ?: err, false);
+	if (len > 0)
+		__set_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
+	netfs_write_subrequest_terminated(subreq, len ?: err);
 }
 
 /**
@@ -75,15 +77,18 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 
 	/* if we just extended the file size, any portion not in
 	 * cache won't be on server and is zeroes */
-	if (subreq->rreq->origin != NETFS_DIO_READ)
+	if (subreq->rreq->origin != NETFS_UNBUFFERED_READ &&
+	    subreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	if (pos + total >= i_size_read(rreq->inode))
 		__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
-
-	if (!err)
+	if (!err && total) {
 		subreq->transferred += total;
+		__set_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
+	}
 
-	netfs_read_subreq_terminated(subreq, err, false);
+	subreq->error = err;
+	netfs_read_subreq_terminated(subreq);
 }
 
 /**
@@ -160,4 +165,5 @@ const struct address_space_operations v9fs_addr_operations = {
 	.invalidate_folio	= netfs_invalidate_folio,
 	.direct_IO		= noop_direct_IO,
 	.writepages		= netfs_writepages,
+	.migrate_folio		= filemap_migrate_folio,
 };

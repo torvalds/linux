@@ -131,7 +131,7 @@ static void remove_board(struct controller *ctrl, bool safe_removal)
 			      INDICATOR_NOOP);
 
 	/* Don't carry LBMS indications across */
-	pcie_reset_lbms_count(ctrl->pcie->port);
+	pcie_reset_lbms(ctrl->pcie->port);
 }
 
 static int pciehp_enable_slot(struct controller *ctrl);

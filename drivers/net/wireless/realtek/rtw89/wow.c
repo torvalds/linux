@@ -604,6 +604,8 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 	struct ieee80211_key_conf *key;
 	u8 sz;
 
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	cipher_info = rtw89_cipher_alg_recognize(cipher);
 	sz = struct_size(rekey_conf, key, cipher_info->len);
 	rekey_conf = kmalloc(sz, GFP_KERNEL);
@@ -616,12 +618,10 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 	memcpy(rekey_conf->key, gtk,
 	       flex_array_size(rekey_conf, key, cipher_info->len));
 
-	/* ieee80211_gtk_rekey_add() will call set_key(), therefore we
-	 * need to unlock mutex
-	 */
-	mutex_unlock(&rtwdev->mutex);
-	key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
-	mutex_lock(&rtwdev->mutex);
+	if (ieee80211_vif_is_mld(wow_vif))
+		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, rtwvif_link->link_id);
+	else
+		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
 
 	kfree(rekey_conf);
 	if (IS_ERR(key)) {
@@ -691,9 +691,7 @@ static void rtw89_wow_leave_deep_ps(struct rtw89_dev *rtwdev)
 
 static void rtw89_wow_enter_deep_ps(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
-
-	__rtw89_enter_ps_mode(rtwdev, rtwvif_link);
+	__rtw89_enter_ps_mode(rtwdev);
 }
 
 static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
@@ -701,7 +699,7 @@ static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
 	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
 
 	if (rtw89_wow_mgd_linked(rtwdev))
-		rtw89_enter_lps(rtwdev, rtwvif_link, false);
+		rtw89_enter_lps(rtwdev, rtwvif_link->rtwvif, false);
 	else if (rtw89_wow_no_link(rtwdev))
 		rtw89_fw_h2c_fwips(rtwdev, rtwvif_link, true);
 }
@@ -1088,8 +1086,7 @@ static int rtw89_wow_set_wakeups(struct rtw89_dev *rtwdev,
 		rtw89_wow_init_pno(rtwdev, wowlan->nd_config);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		/* use the link on HW-0 to do wow flow */
-		rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+		rtwvif_link = rtw89_get_designated_link(rtwvif);
 		if (!rtwvif_link)
 			continue;
 

@@ -102,8 +102,6 @@ EXPORT_SYMBOL(ip4_datagram_connect);
 void ip4_datagram_release_cb(struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	const struct ip_options_rcu *inet_opt;
-	__be32 daddr = inet->inet_daddr;
 	struct dst_entry *dst;
 	struct flowi4 fl4;
 	struct rtable *rt;
@@ -115,14 +113,9 @@ void ip4_datagram_release_cb(struct sock *sk)
 		rcu_read_unlock();
 		return;
 	}
-	inet_opt = rcu_dereference(inet->inet_opt);
-	if (inet_opt && inet_opt->opt.srr)
-		daddr = inet_opt->opt.faddr;
-	rt = ip_route_output_ports(sock_net(sk), &fl4, sk, daddr,
-				   inet->inet_saddr, inet->inet_dport,
-				   inet->inet_sport, sk->sk_protocol,
-				   ip_sock_rt_tos(sk), sk->sk_bound_dev_if);
 
+	inet_sk_init_flowi4(inet, &fl4);
+	rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
 	dst = !IS_ERR(rt) ? &rt->dst : NULL;
 	sk_dst_set(sk, dst);
 

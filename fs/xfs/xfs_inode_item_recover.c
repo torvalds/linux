@@ -22,6 +22,8 @@
 #include "xfs_log_recover.h"
 #include "xfs_icache.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 STATIC void
 xlog_recover_inode_ra_pass2(
@@ -201,6 +203,7 @@ xfs_log_dinode_to_disk(
 		to->di_crtime = xfs_log_dinode_to_disk_ts(from,
 							  from->di_crtime);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
+		/* also covers the di_used_blocks union arm: */
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
 		to->di_ino = cpu_to_be64(from->di_ino);
 		to->di_lsn = cpu_to_be64(lsn);
@@ -260,6 +263,41 @@ xlog_dinode_verify_extent_counts(
 			"Bad inode 0x%llx, large extent counts %d, nextents 0x%llx, anextents 0x%x, nblocks 0x%llx",
 			ldip->di_ino, xfs_has_large_extent_counts(mp), nextents,
 			anextents, ldip->di_nblocks);
+		return -EFSCORRUPTED;
+	}
+
+	return 0;
+}
+
+static inline int
+xlog_recover_inode_dbroot(
+	struct xfs_mount	*mp,
+	void			*src,
+	unsigned int		len,
+	struct xfs_dinode	*dip)
+{
+	void			*dfork = XFS_DFORK_DPTR(dip);
+	unsigned int		dsize = XFS_DFORK_DSIZE(dip, mp);
+
+	switch (dip->di_format) {
+	case XFS_DINODE_FMT_BTREE:
+		xfs_bmbt_to_bmdr(mp, src, len, dfork, dsize);
+		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		switch (be16_to_cpu(dip->di_metatype)) {
+		case XFS_METAFILE_RTRMAP:
+			xfs_rtrmapbt_to_disk(mp, src, len, dfork, dsize);
+			return 0;
+		case XFS_METAFILE_RTREFCOUNT:
+			xfs_rtrefcountbt_to_disk(mp, src, len, dfork, dsize);
+			return 0;
+		default:
+			ASSERT(0);
+			return -EFSCORRUPTED;
+		}
+		break;
+	default:
+		ASSERT(0);
 		return -EFSCORRUPTED;
 	}
 
@@ -393,8 +431,9 @@ xlog_recover_inode_commit_pass2(
 
 
 	if (unlikely(S_ISREG(ldip->di_mode))) {
-		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
-		    (ldip->di_format != XFS_DINODE_FMT_BTREE)) {
+		if (ldip->di_format != XFS_DINODE_FMT_EXTENTS &&
+		    ldip->di_format != XFS_DINODE_FMT_BTREE &&
+		    ldip->di_format != XFS_DINODE_FMT_META_BTREE) {
 			XFS_CORRUPTION_ERROR(
 				"Bad log dinode data fork format for regular file",
 				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
@@ -475,9 +514,9 @@ xlog_recover_inode_commit_pass2(
 		break;
 
 	case XFS_ILOG_DBROOT:
-		xfs_bmbt_to_bmdr(mp, (struct xfs_btree_block *)src, len,
-				 (struct xfs_bmdr_block *)XFS_DFORK_DPTR(dip),
-				 XFS_DFORK_DSIZE(dip, mp));
+		error = xlog_recover_inode_dbroot(mp, src, len, dip);
+		if (error)
+			goto out_release;
 		break;
 
 	default:

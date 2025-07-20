@@ -126,7 +126,8 @@ KVM_DEV_ARM_VGIC_GRP_ITS_REGS
 ITS Restore Sequence:
 ---------------------
 
-The following ordering must be followed when restoring the GIC and the ITS:
+The following ordering must be followed when restoring the GIC, ITS, and
+KVM_IRQFD assignments:
 
 a) restore all guest memory and create vcpus
 b) restore all redistributors
@@ -138,6 +139,8 @@ d) restore the ITS in the following order:
      2. Restore all other ``GITS_`` registers, except GITS_CTLR!
      3. Load the ITS table data (KVM_DEV_ARM_ITS_RESTORE_TABLES)
      4. Restore GITS_CTLR
+
+e) restore KVM_IRQFD assignments for MSIs
 
 Then vcpus can be started.
 

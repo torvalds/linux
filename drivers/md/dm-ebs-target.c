@@ -390,6 +390,12 @@ static int ebs_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_REMAPPED;
 }
 
+static void ebs_postsuspend(struct dm_target *ti)
+{
+	struct ebs_c *ec = ti->private;
+	dm_bufio_client_reset(ec->bufio);
+}
+
 static void ebs_status(struct dm_target *ti, status_type_t type,
 		       unsigned int status_flags, char *result, unsigned int maxlen)
 {
@@ -409,7 +415,8 @@ static void ebs_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int ebs_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
+static int ebs_prepare_ioctl(struct dm_target *ti, struct block_device **bdev,
+			     unsigned int cmd, unsigned long arg, bool *forward)
 {
 	struct ebs_c *ec = ti->private;
 	struct dm_dev *dev = ec->dev;
@@ -442,11 +449,12 @@ static int ebs_iterate_devices(struct dm_target *ti,
 static struct target_type ebs_target = {
 	.name		 = "ebs",
 	.version	 = {1, 0, 1},
-	.features	 = DM_TARGET_PASSES_INTEGRITY,
+	.features	 = 0,
 	.module		 = THIS_MODULE,
 	.ctr		 = ebs_ctr,
 	.dtr		 = ebs_dtr,
 	.map		 = ebs_map,
+	.postsuspend	 = ebs_postsuspend,
 	.status		 = ebs_status,
 	.io_hints	 = ebs_io_hints,
 	.prepare_ioctl	 = ebs_prepare_ioctl,

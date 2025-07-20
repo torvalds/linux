@@ -372,12 +372,13 @@ EXPORT_SYMBOL_GPL(i2c_free_slave_host_notify_device);
  *  - Only works on systems with 1 to 8 memory slots
  */
 #if IS_ENABLED(CONFIG_DMI)
-void i2c_register_spd(struct i2c_adapter *adap)
+static void i2c_register_spd(struct i2c_adapter *adap, bool write_disabled)
 {
 	int n, slot_count = 0, dimm_count = 0;
 	u16 handle;
 	u8 common_mem_type = 0x0, mem_type;
 	u64 mem_size;
+	bool instantiate = true;
 	const char *name;
 
 	while ((handle = dmi_memdev_handle(slot_count)) != 0xffff) {
@@ -438,6 +439,7 @@ void i2c_register_spd(struct i2c_adapter *adap)
 	case 0x22:	/* DDR5 */
 	case 0x23:	/* LPDDR5 */
 		name = "spd5118";
+		instantiate = !write_disabled;
 		break;
 	default:
 		dev_info(&adap->dev,
@@ -461,6 +463,9 @@ void i2c_register_spd(struct i2c_adapter *adap)
 		addr_list[0] = 0x50 + n;
 		addr_list[1] = I2C_CLIENT_END;
 
+		if (!instantiate)
+			continue;
+
 		if (!IS_ERR(i2c_new_scanned_device(adap, &info, addr_list, NULL))) {
 			dev_info(&adap->dev,
 				 "Successfully instantiated SPD at 0x%hx\n",
@@ -469,7 +474,19 @@ void i2c_register_spd(struct i2c_adapter *adap)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(i2c_register_spd);
+
+void i2c_register_spd_write_disable(struct i2c_adapter *adap)
+{
+	i2c_register_spd(adap, true);
+}
+EXPORT_SYMBOL_GPL(i2c_register_spd_write_disable);
+
+void i2c_register_spd_write_enable(struct i2c_adapter *adap)
+{
+	i2c_register_spd(adap, false);
+}
+EXPORT_SYMBOL_GPL(i2c_register_spd_write_enable);
+
 #endif
 
 MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");

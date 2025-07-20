@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/elf.h>
 #include <linux/sched.h>
+#include <linux/sysctl.h>
 #include <linux/err.h>
 
 /*
@@ -29,6 +30,18 @@ static int __init vdso_setup(char *s)
 	return 1;
 }
 __setup("vdso=", vdso_setup);
+
+static const struct ctl_table vdso_table[] = {
+	{
+		.procname	= "vdso_enabled",
+		.data		= &vdso_enabled,
+		.maxlen		= sizeof(vdso_enabled),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+};
 
 /*
  * These symbols are defined by vsyscall.o to mark the bounds
@@ -57,6 +70,14 @@ int __init vsyscall_init(void)
 
 	return 0;
 }
+
+static int __init vm_sysctl_init(void)
+{
+       register_sysctl_init("vm", vdso_table);
+       return 0;
+}
+
+fs_initcall(vm_sysctl_init);
 
 /* Setup a VMA at program startup for the vsyscall page */
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)

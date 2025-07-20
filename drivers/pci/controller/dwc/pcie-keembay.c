@@ -101,7 +101,7 @@ static void keembay_pcie_ltssm_set(struct keembay_pcie *pcie, bool enable)
 	writel(val, pcie->apb_base + PCIE_REGS_PCIE_APP_CNTRL);
 }
 
-static int keembay_pcie_link_up(struct dw_pcie *pci)
+static bool keembay_pcie_link_up(struct dw_pcie *pci)
 {
 	struct keembay_pcie *pcie = dev_get_drvdata(pci->dev);
 	u32 val;

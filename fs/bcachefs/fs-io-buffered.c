@@ -110,11 +110,21 @@ static int readpage_bio_extend(struct btree_trans *trans,
 			if (!get_more)
 				break;
 
+			unsigned sectors_remaining = sectors_this_extent - bio_sectors(bio);
+
+			if (sectors_remaining < PAGE_SECTORS << mapping_min_folio_order(iter->mapping))
+				break;
+
+			unsigned order = ilog2(rounddown_pow_of_two(sectors_remaining) / PAGE_SECTORS);
+
+			/* ensure proper alignment */
+			order = min(order, __ffs(folio_offset|BIT(31)));
+
 			folio = xa_load(&iter->mapping->i_pages, folio_offset);
 			if (folio && !xa_is_value(folio))
 				break;
 
-			folio = filemap_alloc_folio(readahead_gfp_mask(iter->mapping), 0);
+			folio = filemap_alloc_folio(readahead_gfp_mask(iter->mapping), order);
 			if (!folio)
 				break;
 
@@ -149,12 +159,10 @@ static void bchfs_read(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_buf sk;
-	int flags = BCH_READ_RETRY_IF_STALE|
-		BCH_READ_MAY_PROMOTE;
+	int flags = BCH_READ_retry_if_stale|
+		BCH_READ_may_promote;
 	int ret = 0;
 
-	rbio->c = c;
-	rbio->start_time = local_clock();
 	rbio->subvol = inum.subvol;
 
 	bch2_bkey_buf_init(&sk);
@@ -164,7 +172,8 @@ static void bchfs_read(struct btree_trans *trans,
 			     BTREE_ITER_slots);
 	while (1) {
 		struct bkey_s_c k;
-		unsigned bytes, sectors, offset_into_extent;
+		unsigned bytes, sectors;
+		s64 offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
@@ -174,12 +183,12 @@ static void bchfs_read(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		bch2_btree_iter_set_pos(&iter,
+		bch2_btree_iter_set_pos(trans, &iter,
 				POS(inum.inum, rbio->bio.bi_iter.bi_sector));
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -197,7 +206,7 @@ static void bchfs_read(struct btree_trans *trans,
 
 		k = bkey_i_to_s_c(sk.k);
 
-		sectors = min(sectors, k.k->size - offset_into_extent);
+		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
 
 		if (readpages_iter) {
 			ret = readpage_bio_extend(trans, readpages_iter, &rbio->bio, sectors,
@@ -210,14 +219,29 @@ static void bchfs_read(struct btree_trans *trans,
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 
 		if (rbio->bio.bi_iter.bi_size == bytes)
-			flags |= BCH_READ_LAST_FRAGMENT;
+			flags |= BCH_READ_last_fragment;
 
 		bch2_bio_page_state_set(&rbio->bio, k);
 
 		bch2_read_extent(trans, rbio, iter.pos,
 				 data_btree, k, offset_into_extent, flags);
+		/*
+		 * Careful there's a landmine here if bch2_read_extent() ever
+		 * starts returning transaction restarts here.
+		 *
+		 * We've changed rbio->bi_iter.bi_size to be "bytes we can read
+		 * from this extent" with the swap call, and we restore it
+		 * below. That restore needs to come before checking for
+		 * errors.
+		 *
+		 * But unlike __bch2_read(), we use the rbio bvec iter, not one
+		 * on the stack, so we can't do the restore right after the
+		 * bch2_read_extent() call: we don't own that iterator anymore
+		 * if BCH_READ_last_fragment is set, since we may have submitted
+		 * that rbio instead of cloning it.
+		 */
 
-		if (flags & BCH_READ_LAST_FRAGMENT)
+		if (flags & BCH_READ_last_fragment)
 			break;
 
 		swap(rbio->bio.bi_iter.bi_size, bytes);
@@ -230,10 +254,13 @@ err:
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (ret) {
-		bch_err_inum_offset_ratelimited(c,
-				iter.pos.inode,
-				iter.pos.offset << 9,
-				"read error %i from btree lookup", ret);
+		struct printbuf buf = PRINTBUF;
+		lockrestart_do(trans,
+			bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter.pos.offset << 9));
+		prt_printf(&buf, "read error %i from btree lookup", ret);
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+
 		rbio->bio.bi_status = BLK_STS_IOERR;
 		bio_endio(&rbio->bio);
 	}
@@ -248,6 +275,7 @@ void bch2_readahead(struct readahead_control *ractl)
 	struct bch_io_opts opts;
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
+	struct blk_plug plug;
 
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
@@ -255,6 +283,16 @@ void bch2_readahead(struct readahead_control *ractl)
 	if (ret)
 		return;
 
+	/*
+	 * Besides being a general performance optimization, plugging helps with
+	 * avoiding btree transaction srcu warnings - submitting a bio can
+	 * block, and we don't want todo that with the transaction locked.
+	 *
+	 * However, plugged bios are submitted when we schedule; we ideally
+	 * would have our own scheduler hook to call unlock_long() before
+	 * scheduling.
+	 */
+	blk_start_plug(&plug);
 	bch2_pagecache_add_get(inode);
 
 	struct btree_trans *trans = bch2_trans_get(c);
@@ -266,12 +304,13 @@ void bch2_readahead(struct readahead_control *ractl)
 		struct bch_read_bio *rbio =
 			rbio_init(bio_alloc_bioset(NULL, n, REQ_OP_READ,
 						   GFP_KERNEL, &c->bio_read),
-				  opts);
+				  c,
+				  opts,
+				  bch2_readpages_end_io);
 
 		readpage_iter_advance(&readpages_iter);
 
 		rbio->bio.bi_iter.bi_sector = folio_sector(folio);
-		rbio->bio.bi_end_io = bch2_readpages_end_io;
 		BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
 		bchfs_read(trans, rbio, inode_inum(inode),
@@ -281,7 +320,7 @@ void bch2_readahead(struct readahead_control *ractl)
 	bch2_trans_put(trans);
 
 	bch2_pagecache_add_put(inode);
-
+	blk_finish_plug(&plug);
 	darray_exit(&readpages_iter.folios);
 }
 
@@ -296,8 +335,12 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_read_bio *rbio;
 	struct bch_io_opts opts;
+	struct blk_plug plug;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
+
+	BUG_ON(folio_test_uptodate(folio));
+	BUG_ON(folio_test_dirty(folio));
 
 	if (!bch2_folio_create(folio, GFP_KERNEL))
 		return -ENOMEM;
@@ -305,15 +348,17 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
 	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_KERNEL, &c->bio_read),
-			 opts);
+			 c,
+			 opts,
+			 bch2_read_single_folio_end_io);
 	rbio->bio.bi_private = &done;
-	rbio->bio.bi_end_io = bch2_read_single_folio_end_io;
-
 	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
 	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
 	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
+	blk_start_plug(&plug);
 	bch2_trans_run(c, (bchfs_read(trans, rbio, inode_inum(inode), NULL), 0));
+	blk_finish_plug(&plug);
 	wait_for_completion(&done);
 
 	ret = blk_status_to_errno(rbio->bio.bi_status);
@@ -349,16 +394,8 @@ struct bch_writepage_state {
 	struct bch_io_opts	opts;
 	struct bch_folio_sector	*tmp;
 	unsigned		tmp_sectors;
+	struct blk_plug		plug;
 };
-
-static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
-								  struct bch_inode_info *inode)
-{
-	struct bch_writepage_state ret = { 0 };
-
-	bch2_inode_opts_get(&ret.opts, c, &inode->ei_inode);
-	return ret;
-}
 
 /*
  * Determine when a writepage io is full. We have to limit writepage bios to a
@@ -400,7 +437,7 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 		}
 	}
 
-	if (io->op.flags & BCH_WRITE_WROTE_DATA_INLINE) {
+	if (io->op.flags & BCH_WRITE_wrote_data_inline) {
 		bio_for_each_folio_all(fi, bio) {
 			struct bch_folio *s;
 
@@ -605,15 +642,6 @@ do_io:
 		BUG_ON(!bio_add_folio(&w->io->op.wbio.bio, folio,
 				     sectors << 9, offset << 9));
 
-		/* Check for writing past i_size: */
-		WARN_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
-			  round_up(i_size, block_bytes(c)) &&
-			  !test_bit(BCH_FS_emergency_ro, &c->flags),
-			  "writing past i_size: %llu > %llu (unrounded %llu)\n",
-			  bio_end_sector(&w->io->op.wbio.bio) << 9,
-			  round_up(i_size, block_bytes(c)),
-			  i_size);
-
 		w->io->op.res.sectors += reserved_sectors;
 		w->io->op.i_sectors_delta -= dirty_sectors;
 		w->io->op.new_i_size = i_size;
@@ -630,17 +658,17 @@ do_io:
 int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct bch_fs *c = mapping->host->i_sb->s_fs_info;
-	struct bch_writepage_state w =
-		bch_writepage_state_init(c, to_bch_ei(mapping->host));
-	struct blk_plug plug;
-	int ret;
+	struct bch_writepage_state *w = kzalloc(sizeof(*w), GFP_NOFS|__GFP_NOFAIL);
 
-	blk_start_plug(&plug);
-	ret = write_cache_pages(mapping, wbc, __bch2_writepage, &w);
-	if (w.io)
-		bch2_writepage_do_io(&w);
-	blk_finish_plug(&plug);
-	kfree(w.tmp);
+	bch2_inode_opts_get(&w->opts, c, &to_bch_ei(mapping->host)->ei_inode);
+
+	blk_start_plug(&w->plug);
+	int ret = write_cache_pages(mapping, wbc, __bch2_writepage, w);
+	if (w->io)
+		bch2_writepage_do_io(w);
+	blk_finish_plug(&w->plug);
+	kfree(w->tmp);
+	kfree(w);
 	return bch2_err_class(ret);
 }
 
@@ -669,7 +697,7 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT,
 				    FGP_WRITEBEGIN | fgf_set_order(len),
 				    mapping_gfp_mask(mapping));
-	if (IS_ERR_OR_NULL(folio))
+	if (IS_ERR(folio))
 		goto err_unlock;
 
 	offset = pos - folio_pos(folio);

@@ -301,7 +301,6 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
  */
 static int zisofs_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
 	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	int err;
@@ -311,16 +310,15 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 		PAGE_SHIFT <= zisofs_block_shift ?
 		(1 << (zisofs_block_shift - PAGE_SHIFT)) : 0;
 	struct page **pages;
-	pgoff_t index = page->index, end_index;
+	pgoff_t index = folio->index, end_index;
 
 	end_index = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	/*
-	 * If this page is wholly outside i_size we just return zero;
+	 * If this folio is wholly outside i_size we just return zero;
 	 * do_generic_file_read() will handle this for us
 	 */
 	if (index >= end_index) {
-		SetPageUptodate(page);
-		unlock_page(page);
+		folio_end_read(folio, true);
 		return 0;
 	}
 
@@ -338,10 +336,10 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 	pages = kcalloc(max_t(unsigned int, zisofs_pages_per_cblock, 1),
 					sizeof(*pages), GFP_KERNEL);
 	if (!pages) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return -ENOMEM;
 	}
-	pages[full_page] = page;
+	pages[full_page] = &folio->page;
 
 	for (i = 0; i < pcount; i++, index++) {
 		if (i != full_page)

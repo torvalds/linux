@@ -53,12 +53,9 @@ enum rxe_device_param {
 					| IB_DEVICE_MEM_WINDOW
 					| IB_DEVICE_FLUSH_GLOBAL
 					| IB_DEVICE_FLUSH_PERSISTENT
-#ifdef CONFIG_64BIT
 					| IB_DEVICE_MEM_WINDOW_TYPE_2B
 					| IB_DEVICE_ATOMIC_WRITE,
-#else
-					| IB_DEVICE_MEM_WINDOW_TYPE_2B,
-#endif /* CONFIG_64BIT */
+
 	RXE_MAX_SGE			= 32,
 	RXE_MAX_WQE_SIZE		= sizeof(struct rxe_send_wqe) +
 					  sizeof(struct ib_sge) * RXE_MAX_SGE,
@@ -129,7 +126,7 @@ enum rxe_device_param {
 enum rxe_port_param {
 	RXE_PORT_GID_TBL_LEN		= 1024,
 	RXE_PORT_PORT_CAP_FLAGS		= IB_PORT_CM_SUP,
-	RXE_PORT_MAX_MSG_SZ		= 0x800000,
+	RXE_PORT_MAX_MSG_SZ		= (1UL << 31),
 	RXE_PORT_BAD_PKEY_CNTR		= 0,
 	RXE_PORT_QKEY_VIOL_CNTR		= 0,
 	RXE_PORT_LID			= 0,

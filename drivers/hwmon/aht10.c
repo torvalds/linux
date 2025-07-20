@@ -94,7 +94,7 @@ struct aht10_data {
 	unsigned int meas_size;
 };
 
-/**
+/*
  * aht10_init() - Initialize an AHT10/AHT20 chip
  * @data: the data associated with this AHT10/AHT20 chip
  * Return: 0 if successful, 1 if not
@@ -124,7 +124,7 @@ static int aht10_init(struct aht10_data *data)
 	return 0;
 }
 
-/**
+/*
  * aht10_polltime_expired() - check if the minimum poll interval has
  *                                  expired
  * @data: the data containing the time to compare
@@ -140,7 +140,7 @@ static int aht10_polltime_expired(struct aht10_data *data)
 
 DECLARE_CRC8_TABLE(crc8_table);
 
-/**
+/*
  * crc8_check() - check crc of the sensor's measurements
  * @raw_data: data frame received from sensor(including crc as the last byte)
  * @count: size of the data frame
@@ -155,7 +155,7 @@ static int crc8_check(u8 *raw_data, int count)
 	return crc8(crc8_table, raw_data, count, CRC8_INIT_VALUE);
 }
 
-/**
+/*
  * aht10_read_values() - read and parse the raw data from the AHT10/AHT20
  * @data: the struct aht10_data to use for the lock
  * Return: 0 if successful, 1 if not
@@ -214,7 +214,7 @@ static int aht10_read_values(struct aht10_data *data)
 	return 0;
 }
 
-/**
+/*
  * aht10_interval_write() - store the given minimum poll interval.
  * Return: 0 on success, -EINVAL if a value lower than the
  *         AHT10_MIN_POLL_INTERVAL is given
@@ -226,7 +226,7 @@ static ssize_t aht10_interval_write(struct aht10_data *data,
 	return 0;
 }
 
-/**
+/*
  * aht10_interval_read() - read the minimum poll interval
  *                            in milliseconds
  */
@@ -237,7 +237,7 @@ static ssize_t aht10_interval_read(struct aht10_data *data,
 	return 0;
 }
 
-/**
+/*
  * aht10_temperature1_read() - read the temperature in millidegrees
  */
 static int aht10_temperature1_read(struct aht10_data *data, long *val)
@@ -252,7 +252,7 @@ static int aht10_temperature1_read(struct aht10_data *data, long *val)
 	return 0;
 }
 
-/**
+/*
  * aht10_humidity1_read() - read the relative humidity in millipercent
  */
 static int aht10_humidity1_read(struct aht10_data *data, long *val)

@@ -1189,11 +1189,8 @@ static int fsl_esai_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops fsl_esai_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_esai_runtime_suspend,
-			   fsl_esai_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(fsl_esai_runtime_suspend, fsl_esai_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver fsl_esai_driver = {
@@ -1201,7 +1198,7 @@ static struct platform_driver fsl_esai_driver = {
 	.remove = fsl_esai_remove,
 	.driver = {
 		.name = "fsl-esai-dai",
-		.pm = &fsl_esai_pm_ops,
+		.pm = pm_ptr(&fsl_esai_pm_ops),
 		.of_match_table = fsl_esai_dt_ids,
 	},
 };

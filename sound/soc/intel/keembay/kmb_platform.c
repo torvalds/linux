@@ -869,7 +869,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 
 	kmb_i2s->fifo_th = (1 << COMP1_FIFO_DEPTH(comp1_reg)) / 2;
 
-	kmb_i2s->use_pio = !(of_property_read_bool(np, "dmas"));
+	kmb_i2s->use_pio = !of_property_present(np, "dmas");
 
 	if (kmb_i2s->use_pio) {
 		irq = platform_get_irq_optional(pdev, 0);

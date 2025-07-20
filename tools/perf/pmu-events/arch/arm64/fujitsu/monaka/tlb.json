@@ -1,0 +1,362 @@
+[
+    {
+        "ArchStdEvent": "L1I_TLB_REFILL",
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I TLB. See L1I_TLB_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL",
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D TLB. See L1D_TLB_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D TLB. See L1D_TLB of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1I_TLB",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I TLB. See L1I_TLB of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_REFILL",
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D TLB. See L2D_TLB_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D TLB. See L2D_TLB of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK",
+        "BriefDescription": "This event counts data TLB access with at least one translation table walk."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK",
+        "BriefDescription": "This event counts instruction TLB access with at least one translation table walk."
+    },
+    {
+        "EventCode": "0x0C00",
+        "EventName": "L1I_TLB_4K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 4KB page."
+    },
+    {
+        "EventCode": "0x0C01",
+        "EventName": "L1I_TLB_64K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 64KB page."
+    },
+    {
+        "EventCode": "0x0C02",
+        "EventName": "L1I_TLB_2M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 2MB page."
+    },
+    {
+        "EventCode": "0x0C03",
+        "EventName": "L1I_TLB_32M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 32MB page."
+    },
+    {
+        "EventCode": "0x0C04",
+        "EventName": "L1I_TLB_512M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 512MB page."
+    },
+    {
+        "EventCode": "0x0C05",
+        "EventName": "L1I_TLB_1G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 1GB page."
+    },
+    {
+        "EventCode": "0x0C06",
+        "EventName": "L1I_TLB_16G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1I in 16GB page."
+    },
+    {
+        "EventCode": "0x0C08",
+        "EventName": "L1D_TLB_4K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 4KB page."
+    },
+    {
+        "EventCode": "0x0C09",
+        "EventName": "L1D_TLB_64K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 64KB page."
+    },
+    {
+        "EventCode": "0x0C0A",
+        "EventName": "L1D_TLB_2M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 2MB page."
+    },
+    {
+        "EventCode": "0x0C0B",
+        "EventName": "L1D_TLB_32M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 32MB page."
+    },
+    {
+        "EventCode": "0x0C0C",
+        "EventName": "L1D_TLB_512M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 512MB page."
+    },
+    {
+        "EventCode": "0x0C0D",
+        "EventName": "L1D_TLB_1G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 1GB page."
+    },
+    {
+        "EventCode": "0x0C0E",
+        "EventName": "L1D_TLB_16G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L1D in 16GB page."
+    },
+    {
+        "EventCode": "0x0C10",
+        "EventName": "L1I_TLB_REFILL_4K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 4KB page."
+    },
+    {
+        "EventCode": "0x0C11",
+        "EventName": "L1I_TLB_REFILL_64K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 64KB page."
+    },
+    {
+        "EventCode": "0x0C12",
+        "EventName": "L1I_TLB_REFILL_2M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 2MB page."
+    },
+    {
+        "EventCode": "0x0C13",
+        "EventName": "L1I_TLB_REFILL_32M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 32MB page."
+    },
+    {
+        "EventCode": "0x0C14",
+        "EventName": "L1I_TLB_REFILL_512M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 512MB page."
+    },
+    {
+        "EventCode": "0x0C15",
+        "EventName": "L1I_TLB_REFILL_1G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 1GB page."
+    },
+    {
+        "EventCode": "0x0C16",
+        "EventName": "L1I_TLB_REFILL_16G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 16GB page."
+    },
+    {
+        "EventCode": "0x0C18",
+        "EventName": "L1D_TLB_REFILL_4K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 4KB page."
+    },
+    {
+        "EventCode": "0x0C19",
+        "EventName": "L1D_TLB_REFILL_64K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 64KB page."
+    },
+    {
+        "EventCode": "0x0C1A",
+        "EventName": "L1D_TLB_REFILL_2M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 2MB page."
+    },
+    {
+        "EventCode": "0x0C1B",
+        "EventName": "L1D_TLB_REFILL_32M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 32MB page."
+    },
+    {
+        "EventCode": "0x0C1C",
+        "EventName": "L1D_TLB_REFILL_512M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 512MB page."
+    },
+    {
+        "EventCode": "0x0C1D",
+        "EventName": "L1D_TLB_REFILL_1G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 1GB page."
+    },
+    {
+        "EventCode": "0x0C1E",
+        "EventName": "L1D_TLB_REFILL_16G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 16GB page."
+    },
+    {
+        "EventCode": "0x0C20",
+        "EventName": "L2I_TLB_4K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 4KB page."
+    },
+    {
+        "EventCode": "0x0C21",
+        "EventName": "L2I_TLB_64K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 64KB page."
+    },
+    {
+        "EventCode": "0x0C22",
+        "EventName": "L2I_TLB_2M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 2MB page."
+    },
+    {
+        "EventCode": "0x0C23",
+        "EventName": "L2I_TLB_32M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 32MB page."
+    },
+    {
+        "EventCode": "0x0C24",
+        "EventName": "L2I_TLB_512M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 512MB page."
+    },
+    {
+        "EventCode": "0x0C25",
+        "EventName": "L2I_TLB_1G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 1GB page."
+    },
+    {
+        "EventCode": "0x0C26",
+        "EventName": "L2I_TLB_16G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I in 16GB page."
+    },
+    {
+        "EventCode": "0x0C28",
+        "EventName": "L2D_TLB_4K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 4KB page."
+    },
+    {
+        "EventCode": "0x0C29",
+        "EventName": "L2D_TLB_64K",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 64KB page."
+    },
+    {
+        "EventCode": "0x0C2A",
+        "EventName": "L2D_TLB_2M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 2MB page."
+    },
+    {
+        "EventCode": "0x0C2B",
+        "EventName": "L2D_TLB_32M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 32MB page."
+    },
+    {
+        "EventCode": "0x0C2C",
+        "EventName": "L2D_TLB_512M",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 512MB page."
+    },
+    {
+        "EventCode": "0x0C2D",
+        "EventName": "L2D_TLB_1G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 1GB page."
+    },
+    {
+        "EventCode": "0x0C2E",
+        "EventName": "L2D_TLB_16G",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2D in 16GB page."
+    },
+    {
+        "EventCode": "0x0C30",
+        "EventName": "L2I_TLB_REFILL_4K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2Iin 4KB page."
+    },
+    {
+        "EventCode": "0x0C31",
+        "EventName": "L2I_TLB_REFILL_64K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 64KB page."
+    },
+    {
+        "EventCode": "0x0C32",
+        "EventName": "L2I_TLB_REFILL_2M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 2MB page."
+    },
+    {
+        "EventCode": "0x0C33",
+        "EventName": "L2I_TLB_REFILL_32M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 32MB page."
+    },
+    {
+        "EventCode": "0x0C34",
+        "EventName": "L2I_TLB_REFILL_512M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 512MB page."
+    },
+    {
+        "EventCode": "0x0C35",
+        "EventName": "L2I_TLB_REFILL_1G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 1GB page."
+    },
+    {
+        "EventCode": "0x0C36",
+        "EventName": "L2I_TLB_REFILL_16G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 16GB page."
+    },
+    {
+        "EventCode": "0x0C38",
+        "EventName": "L2D_TLB_REFILL_4K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 4KB page."
+    },
+    {
+        "EventCode": "0x0C39",
+        "EventName": "L2D_TLB_REFILL_64K",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 64KB page."
+    },
+    {
+        "EventCode": "0x0C3A",
+        "EventName": "L2D_TLB_REFILL_2M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 2MB page."
+    },
+    {
+        "EventCode": "0x0C3B",
+        "EventName": "L2D_TLB_REFILL_32M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 32MB page."
+    },
+    {
+        "EventCode": "0x0C3C",
+        "EventName": "L2D_TLB_REFILL_512M",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 512MB page."
+    },
+    {
+        "EventCode": "0x0C3D",
+        "EventName": "L2D_TLB_REFILL_1G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 1GB page."
+    },
+    {
+        "EventCode": "0x0C3E",
+        "EventName": "L2D_TLB_REFILL_16G",
+        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 16GB page."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_PERCYC",
+        "BriefDescription": "This event counts the number of DTLB_WALK events in progress on each Processor cycle."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_PERCYC",
+        "BriefDescription": "This event counts the number of ITLB_WALK events in progress on each Processor cycle."
+    },
+    {
+        "ArchStdEvent": "DTLB_STEP",
+        "BriefDescription": "This event counts translation table walk access made by a refill of the data TLB."
+    },
+    {
+        "ArchStdEvent": "ITLB_STEP",
+        "BriefDescription": "This event counts translation table walk access made by a refill of the instruction TLB."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_LARGE",
+        "BriefDescription": "This event counts translation table walk counted by DTLB_WALK where the result of the walk yields a large page size."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_LARGE",
+        "BriefDescription": "This event counts translation table walk counted by ITLB_WALK where the result of the walk yields a large page size."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_SMALL",
+        "BriefDescription": "This event counts translation table walk counted by DTLB_WALK where the result of the walk yields a small page size."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_SMALL",
+        "BriefDescription": "This event counts translation table walk counted by ITLB_WALK where the result of the walk yields a small page size."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_BLOCK",
+        "BriefDescription": "This event counts translation table walk counted by DTLB_WALK where the result of the walk yields a Block."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_BLOCK",
+        "BriefDescription": "This event counts translation table walk counted by ITLB_WALK where the result of the walk yields a Block."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_PAGE",
+        "BriefDescription": "This event counts translation table walk counted by DTLB_WALK where the result of the walk yields a Page."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_PAGE",
+        "BriefDescription": "This event counts translation table walk counted by ITLB_WALK where the result of the walk yields a Page."
+    }
+]

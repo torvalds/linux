@@ -8,7 +8,7 @@ Network Devices, the Kernel, and You!
 Introduction
 ============
 The following is a random collection of documentation regarding
-network devices.
+network devices. It is intended for driver developers.
 
 struct net_device lifetime rules
 ================================
@@ -210,49 +210,55 @@ packets is preferred.
 struct net_device synchronization rules
 =======================================
 ndo_open:
-	Synchronization: rtnl_lock() semaphore.
+	Synchronization: rtnl_lock() semaphore. In addition, netdev instance
+	lock if the driver implements queue management or shaper API.
 	Context: process
 
 ndo_stop:
-	Synchronization: rtnl_lock() semaphore.
+	Synchronization: rtnl_lock() semaphore. In addition, netdev instance
+	lock if the driver implements queue management or shaper API.
 	Context: process
 	Note: netif_running() is guaranteed false
 
 ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
-	Context: process
 
-        This is only called by network subsystems internally,
-        not by user space calling ioctl as it was in before
-        linux-5.14.
+	This is only called by network subsystems internally,
+	not by user space calling ioctl as it was in before
+	linux-5.14.
 
 ndo_siocbond:
-        Synchronization: rtnl_lock() semaphore.
+	Synchronization: rtnl_lock() semaphore. In addition, netdev instance
+	lock if the driver implements queue management or shaper API.
         Context: process
 
-        Used by the bonding driver for the SIOCBOND family of
-        ioctl commands.
+	Used by the bonding driver for the SIOCBOND family of
+	ioctl commands.
 
 ndo_siocwandev:
-	Synchronization: rtnl_lock() semaphore.
+	Synchronization: rtnl_lock() semaphore. In addition, netdev instance
+	lock if the driver implements queue management or shaper API.
 	Context: process
 
 	Used by the drivers/net/wan framework to handle
 	the SIOCWANDEV ioctl with the if_settings structure.
 
 ndo_siocdevprivate:
-	Synchronization: rtnl_lock() semaphore.
+	Synchronization: rtnl_lock() semaphore. In addition, netdev instance
+	lock if the driver implements queue management or shaper API.
 	Context: process
 
 	This is used to implement SIOCDEVPRIVATE ioctl helpers.
 	These should not be added to new drivers, so don't use.
 
 ndo_eth_ioctl:
-	Synchronization: rtnl_lock() semaphore.
+	Synchronization: rtnl_lock() semaphore. In addition, netdev instance
+	lock if the driver implements queue management or shaper API.
 	Context: process
 
 ndo_get_stats:
-	Synchronization: rtnl_lock() semaphore, or RCU.
+	Synchronization: RCU (can be called concurrently with the stats
+	update path).
 	Context: atomic (can't sleep under RCU)
 
 ndo_start_xmit:
@@ -284,6 +290,16 @@ ndo_set_rx_mode:
 	Synchronization: netif_addr_lock spinlock.
 	Context: BHs disabled
 
+ndo_setup_tc:
+	``TC_SETUP_BLOCK`` and ``TC_SETUP_FT`` are running under NFT locks
+	(i.e. no ``rtnl_lock`` and no device instance lock). The rest of
+	``tc_setup_type`` types run under netdev instance lock if the driver
+	implements queue management or shaper API.
+
+Most ndo callbacks not specified in the list above are running
+under ``rtnl_lock``. In addition, netdev instance lock is taken as well if
+the driver implements queue management or shaper API.
+
 struct napi_struct synchronization rules
 ========================================
 napi->poll:
@@ -297,3 +313,106 @@ napi->poll:
 	Context:
 		 softirq
 		 will be called with interrupts disabled by netconsole.
+
+netdev instance lock
+====================
+
+Historically, all networking control operations were protected by a single
+global lock known as ``rtnl_lock``. There is an ongoing effort to replace this
+global lock with separate locks for each network namespace. Additionally,
+properties of individual netdev are increasingly protected by per-netdev locks.
+
+For device drivers that implement shaping or queue management APIs, all control
+operations will be performed under the netdev instance lock.
+Drivers can also explicitly request instance lock to be held during ops
+by setting ``request_ops_lock`` to true. Code comments and docs refer
+to drivers which have ops called under the instance lock as "ops locked".
+See also the documentation of the ``lock`` member of struct net_device.
+
+In the future, there will be an option for individual
+drivers to opt out of using ``rtnl_lock`` and instead perform their control
+operations directly under the netdev instance lock.
+
+Devices drivers are encouraged to rely on the instance lock where possible.
+
+For the (mostly software) drivers that need to interact with the core stack,
+there are two sets of interfaces: ``dev_xxx``/``netdev_xxx`` and ``netif_xxx``
+(e.g., ``dev_set_mtu`` and ``netif_set_mtu``). The ``dev_xxx``/``netdev_xxx``
+functions handle acquiring the instance lock themselves, while the
+``netif_xxx`` functions assume that the driver has already acquired
+the instance lock.
+
+struct net_device_ops
+---------------------
+
+``ndos`` are called without holding the instance lock for most drivers.
+
+"Ops locked" drivers will have most of the ``ndos`` invoked under
+the instance lock.
+
+struct ethtool_ops
+------------------
+
+Similarly to ``ndos`` the instance lock is only held for select drivers.
+For "ops locked" drivers all ethtool ops without exceptions should
+be called under the instance lock.
+
+struct netdev_stat_ops
+----------------------
+
+"qstat" ops are invoked under the instance lock for "ops locked" drivers,
+and under rtnl_lock for all other drivers.
+
+struct net_shaper_ops
+---------------------
+
+All net shaper callbacks are invoked while holding the netdev instance
+lock. ``rtnl_lock`` may or may not be held.
+
+Note that supporting net shapers automatically enables "ops locking".
+
+struct netdev_queue_mgmt_ops
+----------------------------
+
+All queue management callbacks are invoked while holding the netdev instance
+lock. ``rtnl_lock`` may or may not be held.
+
+Note that supporting struct netdev_queue_mgmt_ops automatically enables
+"ops locking".
+
+Notifiers and netdev instance lock
+----------------------------------
+
+For device drivers that implement shaping or queue management APIs,
+some of the notifiers (``enum netdev_cmd``) are running under the netdev
+instance lock.
+
+The following netdev notifiers are always run under the instance lock:
+* ``NETDEV_XDP_FEAT_CHANGE``
+
+For devices with locked ops, currently only the following notifiers are
+running under the lock:
+* ``NETDEV_CHANGE``
+* ``NETDEV_REGISTER``
+* ``NETDEV_UP``
+
+The following notifiers are running without the lock:
+* ``NETDEV_UNREGISTER``
+
+There are no clear expectations for the remaining notifiers. Notifiers not on
+the list may run with or without the instance lock, potentially even invoking
+the same notifier type with and without the lock from different code paths.
+The goal is to eventually ensure that all (or most, with a few documented
+exceptions) notifiers run under the instance lock. Please extend this
+documentation whenever you make explicit assumption about lock being held
+from a notifier.
+
+NETDEV_INTERNAL symbol namespace
+================================
+
+Symbols exported as NETDEV_INTERNAL can only be used in networking
+core and drivers which exclusively flow via the main networking list and trees.
+Note that the inverse is not true, most symbols outside of NETDEV_INTERNAL
+are not expected to be used by random code outside netdev either.
+Symbols may lack the designation because they predate the namespaces,
+or simply due to an oversight.

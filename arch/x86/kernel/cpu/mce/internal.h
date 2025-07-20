@@ -31,8 +31,8 @@ struct mce_evt_llist {
 
 void mce_gen_pool_process(struct work_struct *__unused);
 bool mce_gen_pool_empty(void);
-int mce_gen_pool_add(struct mce_hw_err *err);
-int mce_gen_pool_init(void);
+bool mce_gen_pool_add(struct mce_hw_err *err);
+bool mce_gen_pool_init(void);
 struct llist_node *mce_gen_pool_prepare_records(void);
 
 int mce_severity(struct mce *a, struct pt_regs *regs, char **msg, bool is_excp);
@@ -312,7 +312,7 @@ static __always_inline void pentium_machine_check(struct pt_regs *regs) {}
 static __always_inline void winchip_machine_check(struct pt_regs *regs) {}
 #endif
 
-noinstr u64 mce_rdmsrl(u32 msr);
+noinstr u64 mce_rdmsrq(u32 msr);
 
 static __always_inline u32 mca_msr_reg(int bank, enum mca_msr reg)
 {

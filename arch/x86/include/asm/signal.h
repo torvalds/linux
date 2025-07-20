@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_SIGNAL_H
 #define _ASM_X86_SIGNAL_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/linkage.h>
 
 /* Most things should be clean enough to redefine this at will, if care
@@ -28,9 +28,9 @@ typedef struct {
 #define SA_IA32_ABI	0x02000000u
 #define SA_X32_ABI	0x01000000u
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #include <uapi/asm/signal.h>
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define __ARCH_HAS_SA_RESTORER
 
@@ -101,5 +101,5 @@ struct pt_regs;
 
 #endif /* !__i386__ */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_X86_SIGNAL_H */

@@ -59,6 +59,10 @@ $ sudo make install
 -----------------------------------------------------------------------
 | man pages              | /usr/man                                   |
 -----------------------------------------------------------------------
+| systemd service        | /usr/lib/systemd/system                    |
+-----------------------------------------------------------------------
+| systemd support script | /usr/libexec                               |
+-----------------------------------------------------------------------
 
 To put it in other words it makes build results available system-wide,
 enabling any user to simply start using it without any additional steps
@@ -108,6 +112,10 @@ The files will be installed to the following dirs:
 | cpufreq-bench_plot.sh  | ${DESTDIR}/usr/bin                         |
 -----------------------------------------------------------------------
 | man pages              | ${DESTDIR}/usr/man                         |
+-----------------------------------------------------------------------
+| systemd service        | ${DESTDIR}/usr/lib/systemd/system          |
+-----------------------------------------------------------------------
+| systemd support script | ${DESTDIR}/usr/libexec                     |
 -----------------------------------------------------------------------
 
 If you look at the table for the default 'make' output dirs you will
@@ -172,6 +180,26 @@ cannot open shared object file: No such file or directory
 The issue is that binary cannot find the 'libcpupower' library. So, we
 shall point to the lib dir:
 sudo LD_LIBRARY_PATH=lib64/ ./bin/cpupower
+
+systemd service
+---------------
+
+A systemd service is also provided to run the cpupower utility at boot with
+settings read from a configuration file.
+
+If you want systemd to find the new service after the installation, the service
+unit must have been installed in one of the system unit search path directories
+(such as '/usr/lib/systemd/system/', which is the default location) and (unless
+you are willing to wait for the next reboot) you need to issue the following
+command:
+
+$ sudo systemctl daemon-reload
+
+If you want to enable this systemd service, edit '/etc/cpupower-service.conf'
+(uncommenting at least one of the options, depending on your preferences)
+and then issue the following command:
+
+$ sudo systemctl enable --now cpupower.service
 
 
 THANKS

@@ -637,13 +637,13 @@ static int ad5770r_probe(struct spi_device *spi)
 
 static const struct of_device_id ad5770r_of_id[] = {
 	{ .compatible = "adi,ad5770r", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5770r_of_id);
 
 static const struct spi_device_id ad5770r_id[] = {
 	{ "ad5770r", 0 },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5770r_id);
 

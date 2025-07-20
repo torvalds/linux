@@ -597,7 +597,7 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 
 	dev_dbg(dev, "%s is connected to io (%s)\n",
 		rsnd_mod_name(mod),
-		rsnd_io_is_play(io) ? "Playback" : "Capture");
+		snd_pcm_direction_name(io->substream->stream));
 
 	return 0;
 }
@@ -1482,8 +1482,13 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	int dai_i;
 
 	nr = rsnd_dai_of_node(priv, &is_graph);
+
+	/*
+	 * There is a case that it is used only for ADG (Sound Clock).
+	 * No DAI is not error
+	 */
 	if (!nr)
-		return -EINVAL;
+		return 0;
 
 	rdrv = devm_kcalloc(dev, nr, sizeof(*rdrv), GFP_KERNEL);
 	rdai = devm_kcalloc(dev, nr, sizeof(*rdai), GFP_KERNEL);
@@ -1767,20 +1772,6 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 
 int rsnd_kctrl_accept_anytime(struct rsnd_dai_stream *io)
 {
-	return 1;
-}
-
-int rsnd_kctrl_accept_runtime(struct rsnd_dai_stream *io)
-{
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	if (!runtime) {
-		dev_warn(dev, "Can't update kctrl when idle\n");
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -2073,7 +2064,7 @@ static void rsnd_remove(struct platform_device *pdev)
 		remove_func[i](priv);
 }
 
-static int __maybe_unused rsnd_suspend(struct device *dev)
+static int rsnd_suspend(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
@@ -2082,23 +2073,21 @@ static int __maybe_unused rsnd_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rsnd_resume(struct device *dev)
+static int rsnd_resume(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
-	rsnd_adg_clk_enable(priv);
-
-	return 0;
+	return rsnd_adg_clk_enable(priv);
 }
 
 static const struct dev_pm_ops rsnd_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rsnd_suspend, rsnd_resume)
+	SYSTEM_SLEEP_PM_OPS(rsnd_suspend, rsnd_resume)
 };
 
 static struct platform_driver rsnd_driver = {
 	.driver	= {
 		.name	= "rcar_sound",
-		.pm	= &rsnd_pm_ops,
+		.pm	= pm_ptr(&rsnd_pm_ops),
 		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,

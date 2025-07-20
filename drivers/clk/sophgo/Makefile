@@ -9,3 +9,5 @@ clk-sophgo-cv1800-y		+= clk-cv18xx-pll.o
 obj-$(CONFIG_CLK_SOPHGO_SG2042_CLKGEN)	+= clk-sg2042-clkgen.o
 obj-$(CONFIG_CLK_SOPHGO_SG2042_PLL)	+= clk-sg2042-pll.o
 obj-$(CONFIG_CLK_SOPHGO_SG2042_RPGATE)	+= clk-sg2042-rpgate.o
+obj-$(CONFIG_CLK_SOPHGO_SG2044)		+= clk-sg2044.o
+obj-$(CONFIG_CLK_SOPHGO_SG2044_PLL)	+= clk-sg2044-pll.o

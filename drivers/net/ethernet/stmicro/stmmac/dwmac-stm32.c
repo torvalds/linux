@@ -119,7 +119,7 @@ struct stm32_ops {
 	u32 syscfg_clr_off;
 };
 
-static int stm32_dwmac_clk_enable(struct stm32_dwmac *dwmac, bool resume)
+static int stm32_dwmac_clk_enable(struct stm32_dwmac *dwmac)
 {
 	int ret;
 
@@ -127,11 +127,9 @@ static int stm32_dwmac_clk_enable(struct stm32_dwmac *dwmac, bool resume)
 	if (ret)
 		goto err_clk_tx;
 
-	if (!dwmac->ops->clk_rx_enable_in_suspend || !resume) {
-		ret = clk_prepare_enable(dwmac->clk_rx);
-		if (ret)
-			goto err_clk_rx;
-	}
+	ret = clk_prepare_enable(dwmac->clk_rx);
+	if (ret)
+		goto err_clk_rx;
 
 	ret = clk_prepare_enable(dwmac->syscfg_clk);
 	if (ret)
@@ -148,15 +146,14 @@ static int stm32_dwmac_clk_enable(struct stm32_dwmac *dwmac, bool resume)
 err_clk_eth_ck:
 	clk_disable_unprepare(dwmac->syscfg_clk);
 err_syscfg_clk:
-	if (!dwmac->ops->clk_rx_enable_in_suspend || !resume)
-		clk_disable_unprepare(dwmac->clk_rx);
+	clk_disable_unprepare(dwmac->clk_rx);
 err_clk_rx:
 	clk_disable_unprepare(dwmac->clk_tx);
 err_clk_tx:
 	return ret;
 }
 
-static int stm32_dwmac_init(struct plat_stmmacenet_data *plat_dat, bool resume)
+static int stm32_dwmac_init(struct plat_stmmacenet_data *plat_dat)
 {
 	struct stm32_dwmac *dwmac = plat_dat->bsp_priv;
 	int ret;
@@ -167,7 +164,7 @@ static int stm32_dwmac_init(struct plat_stmmacenet_data *plat_dat, bool resume)
 			return ret;
 	}
 
-	return stm32_dwmac_clk_enable(dwmac, resume);
+	return stm32_dwmac_clk_enable(dwmac);
 }
 
 static int stm32mp1_select_ethck_external(struct plat_stmmacenet_data *plat_dat)
@@ -382,12 +379,10 @@ static int stm32mcu_set_mode(struct plat_stmmacenet_data *plat_dat)
 				 SYSCFG_MCU_ETH_MASK, val << 23);
 }
 
-static void stm32_dwmac_clk_disable(struct stm32_dwmac *dwmac, bool suspend)
+static void stm32_dwmac_clk_disable(struct stm32_dwmac *dwmac)
 {
 	clk_disable_unprepare(dwmac->clk_tx);
-	if (!dwmac->ops->clk_rx_enable_in_suspend || !suspend)
-		clk_disable_unprepare(dwmac->clk_rx);
-
+	clk_disable_unprepare(dwmac->clk_rx);
 	clk_disable_unprepare(dwmac->syscfg_clk);
 	if (dwmac->enable_eth_ck)
 		clk_disable_unprepare(dwmac->clk_eth_ck);
@@ -419,15 +414,10 @@ static int stm32_dwmac_parse_data(struct stm32_dwmac *dwmac,
 	}
 
 	/* Get mode register */
-	dwmac->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscon");
+	dwmac->regmap = syscon_regmap_lookup_by_phandle_args(np, "st,syscon",
+							     1, &dwmac->mode_reg);
 	if (IS_ERR(dwmac->regmap))
 		return PTR_ERR(dwmac->regmap);
-
-	err = of_property_read_u32_index(np, "st,syscon", 1, &dwmac->mode_reg);
-	if (err) {
-		dev_err(dev, "Can't get sysconfig mode offset (%d)\n", err);
-		return err;
-	}
 
 	if (dwmac->ops->is_mp2)
 		return 0;
@@ -543,20 +533,35 @@ static int stm32_dwmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	plat_dat->flags |= STMMAC_FLAG_EN_TX_LPI_CLK_PHY_CAP;
 	plat_dat->bsp_priv = dwmac;
 
-	ret = stm32_dwmac_init(plat_dat, false);
+	ret = stm32_dwmac_init(plat_dat);
 	if (ret)
 		return ret;
 
+	/* If this platform requires the clock to be running in suspend,
+	 * prepare and enable the receive clock an additional time to keep
+	 * it running.
+	 */
+	if (dwmac->ops->clk_rx_enable_in_suspend) {
+		ret = clk_prepare_enable(dwmac->clk_rx);
+		if (ret)
+			goto err_clk_disable;
+	}
+
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
-		goto err_clk_disable;
+		goto err_clk_disable_suspend;
 
 	return 0;
 
+err_clk_disable_suspend:
+	if (dwmac->ops->clk_rx_enable_in_suspend)
+		clk_disable_unprepare(dwmac->clk_rx);
+
 err_clk_disable:
-	stm32_dwmac_clk_disable(dwmac, false);
+	stm32_dwmac_clk_disable(dwmac);
 
 	return ret;
 }
@@ -569,7 +574,15 @@ static void stm32_dwmac_remove(struct platform_device *pdev)
 
 	stmmac_dvr_remove(&pdev->dev);
 
-	stm32_dwmac_clk_disable(dwmac, false);
+	/* If this platform requires the clock to be running in suspend,
+	 * we need to disable and unprepare the receive clock an additional
+	 * time to balance the extra clk_prepare_enable() in the probe
+	 * function.
+	 */
+	if (dwmac->ops->clk_rx_enable_in_suspend)
+		clk_disable_unprepare(dwmac->clk_rx);
+
+	stm32_dwmac_clk_disable(dwmac);
 
 	if (dwmac->irq_pwr_wakeup >= 0) {
 		dev_pm_clear_wake_irq(&pdev->dev);
@@ -600,7 +613,7 @@ static int stm32_dwmac_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	stm32_dwmac_clk_disable(dwmac, true);
+	stm32_dwmac_clk_disable(dwmac);
 
 	if (dwmac->ops->suspend)
 		ret = dwmac->ops->suspend(dwmac);
@@ -618,7 +631,7 @@ static int stm32_dwmac_resume(struct device *dev)
 	if (dwmac->ops->resume)
 		dwmac->ops->resume(dwmac);
 
-	ret = stm32_dwmac_init(priv->plat, true);
+	ret = stm32_dwmac_init(priv->plat);
 	if (ret)
 		return ret;
 

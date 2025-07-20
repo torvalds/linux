@@ -3779,7 +3779,7 @@ static void cas_shutdown(struct cas *cp)
 	/* Make us not-running to avoid timers respawning */
 	cp->hw_running = 0;
 
-	del_timer_sync(&cp->link_timer);
+	timer_delete_sync(&cp->link_timer);
 
 	/* Stop the reset task */
 #if 0
@@ -4021,7 +4021,7 @@ done:
 
 static void cas_link_timer(struct timer_list *t)
 {
-	struct cas *cp = from_timer(cp, t, link_timer);
+	struct cas *cp = timer_container_of(cp, t, link_timer);
 	int mask, pending = 0, reset = 0;
 	unsigned long flags;
 

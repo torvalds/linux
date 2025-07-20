@@ -48,6 +48,9 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link);
 /* Convert PHY repeater count read from DPCD uint8_t. */
 uint8_t dp_parse_lttpr_repeater_count(uint8_t lttpr_repeater_count);
 
+/* Calculate embedded LTTPR address offset for vendor-specific behaviour */
+uint32_t dp_get_closest_lttpr_offset(uint8_t lttpr_count);
+
 bool dp_is_sink_present(struct dc_link *link);
 
 bool dp_is_lttpr_present(struct dc_link *link);
@@ -67,6 +70,7 @@ bool dp_is_128b_132b_signal(struct pipe_ctx *pipe_ctx);
 /* Initialize output parameter lt_settings. */
 void dp_decide_training_settings(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting,
 	struct link_training_settings *lt_settings);
 

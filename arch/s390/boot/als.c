@@ -46,7 +46,7 @@ void print_missing_facilities(void)
 			 * z/VM adds a four character prefix.
 			 */
 			if (strlen(als_str) > 70) {
-				boot_printk("%s\n", als_str);
+				boot_emerg("%s\n", als_str);
 				*als_str = '\0';
 			}
 			u16_to_decimal(val_str, i * BITS_PER_LONG + j);
@@ -54,7 +54,7 @@ void print_missing_facilities(void)
 			first = 0;
 		}
 	}
-	boot_printk("%s\n", als_str);
+	boot_emerg("%s\n", als_str);
 }
 
 static void facility_mismatch(void)
@@ -62,10 +62,10 @@ static void facility_mismatch(void)
 	struct cpuid id;
 
 	get_cpu_id(&id);
-	boot_printk("The Linux kernel requires more recent processor hardware\n");
-	boot_printk("Detected machine-type number: %4x\n", id.machine);
+	boot_emerg("The Linux kernel requires more recent processor hardware\n");
+	boot_emerg("Detected machine-type number: %4x\n", id.machine);
 	print_missing_facilities();
-	boot_printk("See Principles of Operations for facility bits\n");
+	boot_emerg("See Principles of Operations for facility bits\n");
 	disabled_wait();
 }
 

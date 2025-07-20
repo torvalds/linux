@@ -7,5 +7,8 @@
 
 int adf_gen4_dev_config(struct adf_accel_dev *accel_dev);
 int adf_gen4_cfg_dev_init(struct adf_accel_dev *accel_dev);
+int adf_crypto_dev_config(struct adf_accel_dev *accel_dev);
+int adf_comp_dev_config(struct adf_accel_dev *accel_dev);
+int adf_no_dev_config(struct adf_accel_dev *accel_dev);
 
 #endif

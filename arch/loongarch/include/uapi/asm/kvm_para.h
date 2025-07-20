@@ -17,5 +17,6 @@
 #define  KVM_FEATURE_STEAL_TIME		2
 /* BIT 24 - 31 are features configurable by user space vmm */
 #define  KVM_FEATURE_VIRT_EXTIOI	24
+#define  KVM_FEATURE_USER_HCALL		25
 
 #endif /* _UAPI_ASM_KVM_PARA_H */

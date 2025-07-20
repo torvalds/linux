@@ -79,12 +79,6 @@ static void fbnic_mac_init_axi(struct fbnic_dev *fbd)
 	fbnic_init_readrq(fbd, FBNIC_QM_RNI_RBP_CTL, cls, readrq);
 	fbnic_init_mps(fbd, FBNIC_QM_RNI_RDE_CTL, cls, mps);
 	fbnic_init_mps(fbd, FBNIC_QM_RNI_RCM_CTL, cls, mps);
-
-	/* Enable XALI AR/AW outbound */
-	wr32(fbd, FBNIC_PUL_OB_TLP_HDR_AW_CFG,
-	     FBNIC_PUL_OB_TLP_HDR_AW_CFG_BME);
-	wr32(fbd, FBNIC_PUL_OB_TLP_HDR_AR_CFG,
-	     FBNIC_PUL_OB_TLP_HDR_AR_CFG_BME);
 }
 
 static void fbnic_mac_init_qm(struct fbnic_dev *fbd)
@@ -686,25 +680,72 @@ fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
 			    MAC_STAT_TX_BROADCAST);
 }
 
-static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id, long *val)
+static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
+				     long *val)
 {
-	struct fbnic_fw_completion fw_cmpl;
+	struct fbnic_fw_completion *fw_cmpl;
+	int err = 0, retries = 5;
 	s32 *sensor;
+
+	fw_cmpl = fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_TSENE_READ_RESP);
+	if (!fw_cmpl)
+		return -ENOMEM;
 
 	switch (id) {
 	case FBNIC_SENSOR_TEMP:
-		sensor = &fw_cmpl.tsene.millidegrees;
+		sensor = &fw_cmpl->u.tsene.millidegrees;
 		break;
 	case FBNIC_SENSOR_VOLTAGE:
-		sensor = &fw_cmpl.tsene.millivolts;
+		sensor = &fw_cmpl->u.tsene.millivolts;
 		break;
 	default:
-		return -EINVAL;
+		err = -EINVAL;
+		goto exit_free;
+	}
+
+	err = fbnic_fw_xmit_tsene_read_msg(fbd, fw_cmpl);
+	if (err) {
+		dev_err(fbd->dev,
+			"Failed to transmit TSENE read msg, err %d\n",
+			err);
+		goto exit_free;
+	}
+
+	/* Allow 2 seconds for reply, resend and try up to 5 times */
+	while (!wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+		retries--;
+
+		if (retries == 0) {
+			dev_err(fbd->dev,
+				"Timed out waiting for TSENE read\n");
+			err = -ETIMEDOUT;
+			goto exit_cleanup;
+		}
+
+		err = fbnic_fw_xmit_tsene_read_msg(fbd, NULL);
+		if (err) {
+			dev_err(fbd->dev,
+				"Failed to transmit TSENE read msg, err %d\n",
+				err);
+			goto exit_cleanup;
+		}
+	}
+
+	/* Handle error returned by firmware */
+	if (fw_cmpl->result) {
+		err = fw_cmpl->result;
+		dev_err(fbd->dev, "%s: Firmware returned error %d\n",
+			__func__, err);
+		goto exit_cleanup;
 	}
 
 	*val = *sensor;
+exit_cleanup:
+	fbnic_fw_clear_cmpl(fbd, fw_cmpl);
+exit_free:
+	fbnic_fw_put_cmpl(fw_cmpl);
 
-	return 0;
+	return err;
 }
 
 static const struct fbnic_mac fbnic_mac_asic = {

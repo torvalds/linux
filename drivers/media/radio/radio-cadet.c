@@ -284,7 +284,7 @@ static bool cadet_has_rds_data(struct cadet *dev)
 
 static void cadet_handler(struct timer_list *t)
 {
-	struct cadet *dev = from_timer(dev, t, readtimer);
+	struct cadet *dev = timer_container_of(dev, t, readtimer);
 
 	/* Service the RDS fifo */
 	if (mutex_trylock(&dev->lock)) {
@@ -471,7 +471,7 @@ static int cadet_release(struct file *file)
 
 	mutex_lock(&dev->lock);
 	if (v4l2_fh_is_singular_file(file) && dev->rdsstat) {
-		del_timer_sync(&dev->readtimer);
+		timer_delete_sync(&dev->readtimer);
 		dev->rdsstat = 0;
 	}
 	v4l2_fh_release(file);

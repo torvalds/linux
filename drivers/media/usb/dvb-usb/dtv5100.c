@@ -97,7 +97,7 @@ static u32 dtv5100_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dtv5100_i2c_algo = {
+static const struct i2c_algorithm dtv5100_i2c_algo = {
 	.master_xfer   = dtv5100_i2c_xfer,
 	.functionality = dtv5100_i2c_func,
 };
@@ -166,7 +166,7 @@ enum {
 	AME_DTV5100,
 };
 
-static struct usb_device_id dtv5100_table[] = {
+static const struct usb_device_id dtv5100_table[] = {
 	DVB_USB_DEV(AME, AME_DTV5100),
 	{ }
 };

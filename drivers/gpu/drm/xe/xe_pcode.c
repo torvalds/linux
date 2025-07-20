@@ -7,6 +7,7 @@
 
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/error-injection.h>
 
 #include <drm/drm_managed.h>
 
@@ -103,6 +104,17 @@ int xe_pcode_write_timeout(struct xe_tile *tile, u32 mbox, u32 data, int timeout
 
 	mutex_lock(&tile->pcode.lock);
 	err = pcode_mailbox_rw(tile, mbox, &data, NULL, timeout, false, false);
+	mutex_unlock(&tile->pcode.lock);
+
+	return err;
+}
+
+int xe_pcode_write64_timeout(struct xe_tile *tile, u32 mbox, u32 data0, u32 data1, int timeout)
+{
+	int err;
+
+	mutex_lock(&tile->pcode.lock);
+	err = pcode_mailbox_rw(tile, mbox, &data0, &data1, timeout, false, false);
 	mutex_unlock(&tile->pcode.lock);
 
 	return err;
@@ -217,7 +229,7 @@ out:
  *
  * It returns 0 on success, and -ERROR number on failure, -EINVAL if max
  * frequency is higher then the minimal, and other errors directly translated
- * from the PCODE Error returs:
+ * from the PCODE Error returns:
  * - -ENXIO: "Illegal Command"
  * - -ETIMEDOUT: "Timed out"
  * - -EINVAL: "Illegal Data"
@@ -323,3 +335,4 @@ int xe_pcode_probe_early(struct xe_device *xe)
 {
 	return xe_pcode_ready(xe, false);
 }
+ALLOW_ERROR_INJECTION(xe_pcode_probe_early, ERRNO); /* See xe_pci_probe */

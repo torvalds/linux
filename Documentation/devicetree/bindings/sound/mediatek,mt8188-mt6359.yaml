@@ -14,11 +14,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt8188-es8326
-      - mediatek,mt8188-mt6359-evb
-      - mediatek,mt8188-nau8825
-      - mediatek,mt8188-rt5682s
+    oneOf:
+      - enum:
+          - mediatek,mt8188-es8326
+          - mediatek,mt8188-mt6359-evb
+          - mediatek,mt8188-nau8825
+          - mediatek,mt8188-rt5682s
+      - items:
+          - const: mediatek,mt8390-mt6359-evk
+          - const: mediatek,mt8188-mt6359-evb
 
   audio-routing:
     description:
@@ -35,6 +39,14 @@ properties:
       The phandle of the MT8188 ADSP platform, which is the optional Audio DSP
       hardware that provides additional audio functionalities if present.
       The AFE will link to ADSP when the phandle is provided.
+
+  mediatek,accdet:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle to the MT6359 accessory detection block, which detects audio
+      jack insertion and removal. This property should only be present if the
+      accdet block is actually wired to the audio jack pins and to be used for
+      jack detection.
 
 patternProperties:
   "^dai-link-[0-9]+$":
@@ -56,6 +68,9 @@ patternProperties:
             - ETDM2_OUT_BE
             - ETDM3_OUT_BE
             - PCM1_BE
+            - DL_SRC_BE
+            - UL_SRC_BE
+            - DMIC_BE
 
       codec:
         description: Holds subnode which indicates codec dai.
@@ -81,10 +96,9 @@ patternProperties:
       mediatek,clk-provider:
         $ref: /schemas/types.yaml#/definitions/string
         description: Indicates dai-link clock master.
-        items:
-          enum:
-            - cpu
-            - codec
+        enum:
+          - cpu
+          - codec
 
     additionalProperties: false
 

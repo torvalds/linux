@@ -48,14 +48,14 @@ examples:
     #include <dt-bindings/iio/adc/ingenic,adc.h>
 
     simple_battery: battery {
-            compatible = "simple-battery";
-            voltage-min-design-microvolt = <3600000>;
-            voltage-max-design-microvolt = <4200000>;
+        compatible = "simple-battery";
+        voltage-min-design-microvolt = <3600000>;
+        voltage-max-design-microvolt = <4200000>;
     };
 
     ingenic-battery {
-            compatible = "ingenic,jz4740-battery";
-            io-channels = <&adc INGENIC_ADC_BATTERY>;
-            io-channel-names = "battery";
-            monitored-battery = <&simple_battery>;
+        compatible = "ingenic,jz4740-battery";
+        io-channels = <&adc INGENIC_ADC_BATTERY>;
+        io-channel-names = "battery";
+        monitored-battery = <&simple_battery>;
     };

@@ -76,6 +76,7 @@
 	ping_ipv4
 	ping_ipv6
     "}
+REQUIRE_TEAMD="yes"
 NUM_NETIFS=8
 : ${lib_dir:=.}
 source $lib_dir/lib.sh

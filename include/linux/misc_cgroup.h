@@ -18,6 +18,10 @@ enum misc_res_type {
 	/** @MISC_CG_RES_SEV_ES: AMD SEV-ES ASIDs resource */
 	MISC_CG_RES_SEV_ES,
 #endif
+#ifdef CONFIG_INTEL_TDX_HOST
+	/* Intel TDX HKIDs resource */
+	MISC_CG_RES_TDX,
+#endif
 	/** @MISC_CG_RES_TYPES: count of enum misc_res_type constants */
 	MISC_CG_RES_TYPES
 };
@@ -60,7 +64,6 @@ struct misc_cg {
 	struct misc_res res[MISC_CG_RES_TYPES];
 };
 
-u64 misc_cg_res_total_usage(enum misc_res_type type);
 int misc_cg_set_capacity(enum misc_res_type type, u64 capacity);
 int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg, u64 amount);
 void misc_cg_uncharge(enum misc_res_type type, struct misc_cg *cg, u64 amount);
@@ -103,11 +106,6 @@ static inline void put_misc_cg(struct misc_cg *cg)
 }
 
 #else /* !CONFIG_CGROUP_MISC */
-
-static inline u64 misc_cg_res_total_usage(enum misc_res_type type)
-{
-	return 0;
-}
 
 static inline int misc_cg_set_capacity(enum misc_res_type type, u64 capacity)
 {

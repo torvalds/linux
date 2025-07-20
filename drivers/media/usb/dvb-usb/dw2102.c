@@ -839,37 +839,37 @@ static u32 dw210x_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dw2102_i2c_algo = {
+static const struct i2c_algorithm dw2102_i2c_algo = {
 	.master_xfer = dw2102_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
-static struct i2c_algorithm dw2102_serit_i2c_algo = {
+static const struct i2c_algorithm dw2102_serit_i2c_algo = {
 	.master_xfer = dw2102_serit_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
-static struct i2c_algorithm dw2102_earda_i2c_algo = {
+static const struct i2c_algorithm dw2102_earda_i2c_algo = {
 	.master_xfer = dw2102_earda_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
-static struct i2c_algorithm dw2104_i2c_algo = {
+static const struct i2c_algorithm dw2104_i2c_algo = {
 	.master_xfer = dw2104_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
-static struct i2c_algorithm dw3101_i2c_algo = {
+static const struct i2c_algorithm dw3101_i2c_algo = {
 	.master_xfer = dw3101_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
-static struct i2c_algorithm s6x0_i2c_algo = {
+static const struct i2c_algorithm s6x0_i2c_algo = {
 	.master_xfer = s6x0_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
-static struct i2c_algorithm su3000_i2c_algo = {
+static const struct i2c_algorithm su3000_i2c_algo = {
 	.master_xfer = su3000_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
@@ -1836,7 +1836,7 @@ enum dw2102_table_entry {
 	TEVII_S662
 };
 
-static struct usb_device_id dw2102_table[] = {
+static const struct usb_device_id dw2102_table[] = {
 	DVB_USB_DEV(CYPRESS, CYPRESS_DW2102),
 	DVB_USB_DEV(CYPRESS, CYPRESS_DW2101),
 	DVB_USB_DEV(CYPRESS, CYPRESS_DW2104),

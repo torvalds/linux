@@ -534,7 +534,7 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 	 * of it aborting the next request.
 	 */
 	if (!timeout)
-		del_timer_sync(&mcdi->async_timer);
+		timer_delete_sync(&mcdi->async_timer);
 
 	spin_lock(&mcdi->async_lock);
 	async = list_first_entry(&mcdi->async_list,
@@ -609,7 +609,7 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 
 static void efx_mcdi_timeout_async(struct timer_list *t)
 {
-	struct efx_mcdi_iface *mcdi = from_timer(mcdi, t, async_timer);
+	struct efx_mcdi_iface *mcdi = timer_container_of(mcdi, t, async_timer);
 
 	efx_mcdi_complete_async(mcdi, true);
 }
@@ -1145,7 +1145,7 @@ void efx_siena_mcdi_flush_async(struct efx_nic *efx)
 	/* We must be in poll or fail mode so no more requests can be queued */
 	BUG_ON(mcdi->mode == MCDI_MODE_EVENTS);
 
-	del_timer_sync(&mcdi->async_timer);
+	timer_delete_sync(&mcdi->async_timer);
 
 	/* If a request is still running, make sure we give the MC
 	 * time to complete it so that the response won't overwrite our

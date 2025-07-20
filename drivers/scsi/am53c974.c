@@ -513,7 +513,7 @@ static void pci_esp_remove_one(struct pci_dev *pdev)
 	scsi_host_put(esp->host);
 }
 
-static struct pci_device_id am53c974_pci_tbl[] = {
+static const struct pci_device_id am53c974_pci_tbl[] = {
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_SCSI,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ }

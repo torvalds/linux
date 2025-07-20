@@ -63,8 +63,152 @@ bool dml2_core_utils_is_420(enum dml2_source_format_class source_format)
 	case dml2_mono_16:
 		val = 0;
 		break;
+	case dml2_422_planar_8:
+		val = 0;
+		break;
+	case dml2_422_planar_10:
+		val = 0;
+		break;
+	case dml2_422_planar_12:
+		val = 0;
+		break;
+	case dml2_422_packed_8:
+		val = 0;
+		break;
+	case dml2_422_packed_10:
+		val = 0;
+		break;
+	case dml2_422_packed_12:
+		val = 0;
+		break;
 	default:
-		DML2_ASSERT(0);
+		DML_ASSERT(0);
+		break;
+	}
+	return val;
+}
+
+bool dml2_core_utils_is_422_planar(enum dml2_source_format_class source_format)
+{
+	bool val = false;
+
+	switch (source_format) {
+	case dml2_444_8:
+		val = 0;
+		break;
+	case dml2_444_16:
+		val = 0;
+		break;
+	case dml2_444_32:
+		val = 0;
+		break;
+	case dml2_444_64:
+		val = 0;
+		break;
+	case dml2_420_8:
+		val = 0;
+		break;
+	case dml2_420_10:
+		val = 0;
+		break;
+	case dml2_420_12:
+		val = 0;
+		break;
+	case dml2_rgbe_alpha:
+		val = 0;
+		break;
+	case dml2_rgbe:
+		val = 0;
+		break;
+	case dml2_mono_8:
+		val = 0;
+		break;
+	case dml2_mono_16:
+		val = 0;
+		break;
+	case dml2_422_planar_8:
+		val = 1;
+		break;
+	case dml2_422_planar_10:
+		val = 1;
+		break;
+	case dml2_422_planar_12:
+		val = 1;
+		break;
+	case dml2_422_packed_8:
+		val = 0;
+		break;
+	case dml2_422_packed_10:
+		val = 0;
+		break;
+	case dml2_422_packed_12:
+		val = 0;
+		break;
+	default:
+		DML_ASSERT(0);
+		break;
+	}
+	return val;
+}
+
+bool dml2_core_utils_is_422_packed(enum dml2_source_format_class source_format)
+{
+	bool val = false;
+
+	switch (source_format) {
+	case dml2_444_8:
+		val = 0;
+		break;
+	case dml2_444_16:
+		val = 0;
+		break;
+	case dml2_444_32:
+		val = 0;
+		break;
+	case dml2_444_64:
+		val = 0;
+		break;
+	case dml2_420_8:
+		val = 0;
+		break;
+	case dml2_420_10:
+		val = 0;
+		break;
+	case dml2_420_12:
+		val = 0;
+		break;
+	case dml2_rgbe_alpha:
+		val = 0;
+		break;
+	case dml2_rgbe:
+		val = 0;
+		break;
+	case dml2_mono_8:
+		val = 0;
+		break;
+	case dml2_mono_16:
+		val = 0;
+		break;
+	case dml2_422_planar_8:
+		val = 0;
+		break;
+	case dml2_422_planar_10:
+		val = 0;
+		break;
+	case dml2_422_planar_12:
+		val = 0;
+		break;
+	case dml2_422_packed_8:
+		val = 1;
+		break;
+	case dml2_422_packed_10:
+		val = 1;
+		break;
+	case dml2_422_packed_12:
+		val = 1;
+		break;
+	default:
+		DML_ASSERT(0);
 		break;
 	}
 	return val;
@@ -72,104 +216,104 @@ bool dml2_core_utils_is_420(enum dml2_source_format_class source_format)
 
 void dml2_core_utils_print_mode_support_info(const struct dml2_core_internal_mode_support_info *support, bool fail_only)
 {
-	dml2_printf("DML: ===================================== \n");
-	dml2_printf("DML: DML_MODE_SUPPORT_INFO_ST\n");
+	DML_LOG_VERBOSE("DML: ===================================== \n");
+	DML_LOG_VERBOSE("DML: DML_MODE_SUPPORT_INFO_ST\n");
 	if (!fail_only || support->ScaleRatioAndTapsSupport == 0)
-		dml2_printf("DML: support: ScaleRatioAndTapsSupport = %d\n", support->ScaleRatioAndTapsSupport);
+		DML_LOG_VERBOSE("DML: support: ScaleRatioAndTapsSupport = %d\n", support->ScaleRatioAndTapsSupport);
 	if (!fail_only || support->SourceFormatPixelAndScanSupport == 0)
-		dml2_printf("DML: support: SourceFormatPixelAndScanSupport = %d\n", support->SourceFormatPixelAndScanSupport);
+		DML_LOG_VERBOSE("DML: support: SourceFormatPixelAndScanSupport = %d\n", support->SourceFormatPixelAndScanSupport);
 	if (!fail_only || support->ViewportSizeSupport == 0)
-		dml2_printf("DML: support: ViewportSizeSupport = %d\n", support->ViewportSizeSupport);
+		DML_LOG_VERBOSE("DML: support: ViewportSizeSupport = %d\n", support->ViewportSizeSupport);
 	if (!fail_only || support->LinkRateDoesNotMatchDPVersion == 1)
-		dml2_printf("DML: support: LinkRateDoesNotMatchDPVersion = %d\n", support->LinkRateDoesNotMatchDPVersion);
+		DML_LOG_VERBOSE("DML: support: LinkRateDoesNotMatchDPVersion = %d\n", support->LinkRateDoesNotMatchDPVersion);
 	if (!fail_only || support->LinkRateForMultistreamNotIndicated == 1)
-		dml2_printf("DML: support: LinkRateForMultistreamNotIndicated = %d\n", support->LinkRateForMultistreamNotIndicated);
+		DML_LOG_VERBOSE("DML: support: LinkRateForMultistreamNotIndicated = %d\n", support->LinkRateForMultistreamNotIndicated);
 	if (!fail_only || support->BPPForMultistreamNotIndicated == 1)
-		dml2_printf("DML: support: BPPForMultistreamNotIndicated = %d\n", support->BPPForMultistreamNotIndicated);
+		DML_LOG_VERBOSE("DML: support: BPPForMultistreamNotIndicated = %d\n", support->BPPForMultistreamNotIndicated);
 	if (!fail_only || support->MultistreamWithHDMIOreDP == 1)
-		dml2_printf("DML: support: MultistreamWithHDMIOreDP = %d\n", support->MultistreamWithHDMIOreDP);
+		DML_LOG_VERBOSE("DML: support: MultistreamWithHDMIOreDP = %d\n", support->MultistreamWithHDMIOreDP);
 	if (!fail_only || support->ExceededMultistreamSlots == 1)
-		dml2_printf("DML: support: ExceededMultistreamSlots = %d\n", support->ExceededMultistreamSlots);
+		DML_LOG_VERBOSE("DML: support: ExceededMultistreamSlots = %d\n", support->ExceededMultistreamSlots);
 	if (!fail_only || support->MSOOrODMSplitWithNonDPLink == 1)
-		dml2_printf("DML: support: MSOOrODMSplitWithNonDPLink = %d\n", support->MSOOrODMSplitWithNonDPLink);
+		DML_LOG_VERBOSE("DML: support: MSOOrODMSplitWithNonDPLink = %d\n", support->MSOOrODMSplitWithNonDPLink);
 	if (!fail_only || support->NotEnoughLanesForMSO == 1)
-		dml2_printf("DML: support: NotEnoughLanesForMSO = %d\n", support->NotEnoughLanesForMSO);
+		DML_LOG_VERBOSE("DML: support: NotEnoughLanesForMSO = %d\n", support->NotEnoughLanesForMSO);
 	if (!fail_only || support->P2IWith420 == 1)
-		dml2_printf("DML: support: P2IWith420 = %d\n", support->P2IWith420);
+		DML_LOG_VERBOSE("DML: support: P2IWith420 = %d\n", support->P2IWith420);
 	if (!fail_only || support->DSC422NativeNotSupported == 1)
-		dml2_printf("DML: support: DSC422NativeNotSupported = %d\n", support->DSC422NativeNotSupported);
+		DML_LOG_VERBOSE("DML: support: DSC422NativeNotSupported = %d\n", support->DSC422NativeNotSupported);
 	if (!fail_only || support->DSCSlicesODMModeSupported == 0)
-		dml2_printf("DML: support: DSCSlicesODMModeSupported = %d\n", support->DSCSlicesODMModeSupported);
+		DML_LOG_VERBOSE("DML: support: DSCSlicesODMModeSupported = %d\n", support->DSCSlicesODMModeSupported);
 	if (!fail_only || support->NotEnoughDSCUnits == 1)
-		dml2_printf("DML: support: NotEnoughDSCUnits = %d\n", support->NotEnoughDSCUnits);
+		DML_LOG_VERBOSE("DML: support: NotEnoughDSCUnits = %d\n", support->NotEnoughDSCUnits);
 	if (!fail_only || support->NotEnoughDSCSlices == 1)
-		dml2_printf("DML: support: NotEnoughDSCSlices = %d\n", support->NotEnoughDSCSlices);
+		DML_LOG_VERBOSE("DML: support: NotEnoughDSCSlices = %d\n", support->NotEnoughDSCSlices);
 	if (!fail_only || support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe == 1)
-		dml2_printf("DML: support: ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe = %d\n", support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe);
+		DML_LOG_VERBOSE("DML: support: ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe = %d\n", support->ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe);
 	if (!fail_only || support->InvalidCombinationOfMALLUseForPStateAndStaticScreen == 1)
-		dml2_printf("DML: support: InvalidCombinationOfMALLUseForPStateAndStaticScreen = %d\n", support->InvalidCombinationOfMALLUseForPStateAndStaticScreen);
+		DML_LOG_VERBOSE("DML: support: InvalidCombinationOfMALLUseForPStateAndStaticScreen = %d\n", support->InvalidCombinationOfMALLUseForPStateAndStaticScreen);
 	if (!fail_only || support->DSCCLKRequiredMoreThanSupported == 1)
-		dml2_printf("DML: support: DSCCLKRequiredMoreThanSupported = %d\n", support->DSCCLKRequiredMoreThanSupported);
+		DML_LOG_VERBOSE("DML: support: DSCCLKRequiredMoreThanSupported = %d\n", support->DSCCLKRequiredMoreThanSupported);
 	if (!fail_only || support->PixelsPerLinePerDSCUnitSupport == 0)
-		dml2_printf("DML: support: PixelsPerLinePerDSCUnitSupport = %d\n", support->PixelsPerLinePerDSCUnitSupport);
+		DML_LOG_VERBOSE("DML: support: PixelsPerLinePerDSCUnitSupport = %d\n", support->PixelsPerLinePerDSCUnitSupport);
 	if (!fail_only || support->DTBCLKRequiredMoreThanSupported == 1)
-		dml2_printf("DML: support: DTBCLKRequiredMoreThanSupported = %d\n", support->DTBCLKRequiredMoreThanSupported);
+		DML_LOG_VERBOSE("DML: support: DTBCLKRequiredMoreThanSupported = %d\n", support->DTBCLKRequiredMoreThanSupported);
 	if (!fail_only || support->InvalidCombinationOfMALLUseForPState == 1)
-		dml2_printf("DML: support: InvalidCombinationOfMALLUseForPState = %d\n", support->InvalidCombinationOfMALLUseForPState);
+		DML_LOG_VERBOSE("DML: support: InvalidCombinationOfMALLUseForPState = %d\n", support->InvalidCombinationOfMALLUseForPState);
 	if (!fail_only || support->ROBSupport == 0)
-		dml2_printf("DML: support: ROBSupport = %d\n", support->ROBSupport);
+		DML_LOG_VERBOSE("DML: support: ROBSupport = %d\n", support->ROBSupport);
 	if (!fail_only || support->OutstandingRequestsSupport == 0)
-		dml2_printf("DML: support: OutstandingRequestsSupport = %d\n", support->OutstandingRequestsSupport);
+		DML_LOG_VERBOSE("DML: support: OutstandingRequestsSupport = %d\n", support->OutstandingRequestsSupport);
 	if (!fail_only || support->OutstandingRequestsUrgencyAvoidance == 0)
-		dml2_printf("DML: support: OutstandingRequestsUrgencyAvoidance = %d\n", support->OutstandingRequestsUrgencyAvoidance);
+		DML_LOG_VERBOSE("DML: support: OutstandingRequestsUrgencyAvoidance = %d\n", support->OutstandingRequestsUrgencyAvoidance);
 	if (!fail_only || support->DISPCLK_DPPCLK_Support == 0)
-		dml2_printf("DML: support: DISPCLK_DPPCLK_Support = %d\n", support->DISPCLK_DPPCLK_Support);
+		DML_LOG_VERBOSE("DML: support: DISPCLK_DPPCLK_Support = %d\n", support->DISPCLK_DPPCLK_Support);
 	if (!fail_only || support->TotalAvailablePipesSupport == 0)
-		dml2_printf("DML: support: TotalAvailablePipesSupport = %d\n", support->TotalAvailablePipesSupport);
+		DML_LOG_VERBOSE("DML: support: TotalAvailablePipesSupport = %d\n", support->TotalAvailablePipesSupport);
 	if (!fail_only || support->NumberOfOTGSupport == 0)
-		dml2_printf("DML: support: NumberOfOTGSupport = %d\n", support->NumberOfOTGSupport);
+		DML_LOG_VERBOSE("DML: support: NumberOfOTGSupport = %d\n", support->NumberOfOTGSupport);
 	if (!fail_only || support->NumberOfHDMIFRLSupport == 0)
-		dml2_printf("DML: support: NumberOfHDMIFRLSupport = %d\n", support->NumberOfHDMIFRLSupport);
+		DML_LOG_VERBOSE("DML: support: NumberOfHDMIFRLSupport = %d\n", support->NumberOfHDMIFRLSupport);
 	if (!fail_only || support->NumberOfDP2p0Support == 0)
-		dml2_printf("DML: support: NumberOfDP2p0Support = %d\n", support->NumberOfDP2p0Support);
+		DML_LOG_VERBOSE("DML: support: NumberOfDP2p0Support = %d\n", support->NumberOfDP2p0Support);
 	if (!fail_only || support->EnoughWritebackUnits == 0)
-		dml2_printf("DML: support: EnoughWritebackUnits = %d\n", support->EnoughWritebackUnits);
+		DML_LOG_VERBOSE("DML: support: EnoughWritebackUnits = %d\n", support->EnoughWritebackUnits);
 	if (!fail_only || support->WritebackScaleRatioAndTapsSupport == 0)
-		dml2_printf("DML: support: WritebackScaleRatioAndTapsSupport = %d\n", support->WritebackScaleRatioAndTapsSupport);
+		DML_LOG_VERBOSE("DML: support: WritebackScaleRatioAndTapsSupport = %d\n", support->WritebackScaleRatioAndTapsSupport);
 	if (!fail_only || support->WritebackLatencySupport == 0)
-		dml2_printf("DML: support: WritebackLatencySupport = %d\n", support->WritebackLatencySupport);
+		DML_LOG_VERBOSE("DML: support: WritebackLatencySupport = %d\n", support->WritebackLatencySupport);
 	if (!fail_only || support->CursorSupport == 0)
-		dml2_printf("DML: support: CursorSupport = %d\n", support->CursorSupport);
+		DML_LOG_VERBOSE("DML: support: CursorSupport = %d\n", support->CursorSupport);
 	if (!fail_only || support->PitchSupport == 0)
-		dml2_printf("DML: support: PitchSupport = %d\n", support->PitchSupport);
+		DML_LOG_VERBOSE("DML: support: PitchSupport = %d\n", support->PitchSupport);
 	if (!fail_only || support->ViewportExceedsSurface == 1)
-		dml2_printf("DML: support: ViewportExceedsSurface = %d\n", support->ViewportExceedsSurface);
+		DML_LOG_VERBOSE("DML: support: ViewportExceedsSurface = %d\n", support->ViewportExceedsSurface);
 	if (!fail_only || support->PrefetchSupported == 0)
-		dml2_printf("DML: support: PrefetchSupported = %d\n", support->PrefetchSupported);
+		DML_LOG_VERBOSE("DML: support: PrefetchSupported = %d\n", support->PrefetchSupported);
 	if (!fail_only || support->EnoughUrgentLatencyHidingSupport == 0)
-		dml2_printf("DML: support: EnoughUrgentLatencyHidingSupport = %d\n", support->EnoughUrgentLatencyHidingSupport);
+		DML_LOG_VERBOSE("DML: support: EnoughUrgentLatencyHidingSupport = %d\n", support->EnoughUrgentLatencyHidingSupport);
 	if (!fail_only || support->AvgBandwidthSupport == 0)
-		dml2_printf("DML: support: AvgBandwidthSupport = %d\n", support->AvgBandwidthSupport);
+		DML_LOG_VERBOSE("DML: support: AvgBandwidthSupport = %d\n", support->AvgBandwidthSupport);
 	if (!fail_only || support->DynamicMetadataSupported == 0)
-		dml2_printf("DML: support: DynamicMetadataSupported = %d\n", support->DynamicMetadataSupported);
+		DML_LOG_VERBOSE("DML: support: DynamicMetadataSupported = %d\n", support->DynamicMetadataSupported);
 	if (!fail_only || support->VRatioInPrefetchSupported == 0)
-		dml2_printf("DML: support: VRatioInPrefetchSupported = %d\n", support->VRatioInPrefetchSupported);
-	if (!fail_only || support->PTEBufferSizeNotExceeded == 1)
-		dml2_printf("DML: support: PTEBufferSizeNotExceeded = %d\n", support->PTEBufferSizeNotExceeded);
-	if (!fail_only || support->DCCMetaBufferSizeNotExceeded == 1)
-		dml2_printf("DML: support: DCCMetaBufferSizeNotExceeded = %d\n", support->DCCMetaBufferSizeNotExceeded);
+		DML_LOG_VERBOSE("DML: support: VRatioInPrefetchSupported = %d\n", support->VRatioInPrefetchSupported);
+	if (!fail_only || support->PTEBufferSizeNotExceeded == 0)
+		DML_LOG_VERBOSE("DML: support: PTEBufferSizeNotExceeded = %d\n", support->PTEBufferSizeNotExceeded);
+	if (!fail_only || support->DCCMetaBufferSizeNotExceeded == 0)
+		DML_LOG_VERBOSE("DML: support: DCCMetaBufferSizeNotExceeded = %d\n", support->DCCMetaBufferSizeNotExceeded);
 	if (!fail_only || support->ExceededMALLSize == 1)
-		dml2_printf("DML: support: ExceededMALLSize = %d\n", support->ExceededMALLSize);
+		DML_LOG_VERBOSE("DML: support: ExceededMALLSize = %d\n", support->ExceededMALLSize);
 	if (!fail_only || support->g6_temp_read_support == 0)
-		dml2_printf("DML: support: g6_temp_read_support = %d\n", support->g6_temp_read_support);
+		DML_LOG_VERBOSE("DML: support: g6_temp_read_support = %d\n", support->g6_temp_read_support);
 	if (!fail_only || support->ImmediateFlipSupport == 0)
-		dml2_printf("DML: support: ImmediateFlipSupport = %d\n", support->ImmediateFlipSupport);
+		DML_LOG_VERBOSE("DML: support: ImmediateFlipSupport = %d\n", support->ImmediateFlipSupport);
 	if (!fail_only || support->LinkCapacitySupport == 0)
-		dml2_printf("DML: support: LinkCapacitySupport = %d\n", support->LinkCapacitySupport);
+		DML_LOG_VERBOSE("DML: support: LinkCapacitySupport = %d\n", support->LinkCapacitySupport);
 
 	if (!fail_only || support->ModeSupport == 0)
-		dml2_printf("DML: support: ModeSupport = %d\n", support->ModeSupport);
-	dml2_printf("DML: ===================================== \n");
+		DML_LOG_VERBOSE("DML: support: ModeSupport = %d\n", support->ModeSupport);
+	DML_LOG_VERBOSE("DML: ===================================== \n");
 }
 
 const char *dml2_core_utils_internal_soc_state_type_str(enum dml2_core_internal_soc_state_type dml2_core_internal_soc_state_type)
@@ -214,9 +358,9 @@ void dml2_core_utils_get_stream_output_bpp(double *out_bpp, const struct dml2_di
 			out_bpp[k] = 0;
 		}
 #ifdef __DML_VBA_DEBUG__
-		dml2_printf("DML::%s: k=%d bpc=%f\n", __func__, k, bpc);
-		dml2_printf("DML::%s: k=%d dsc.enable=%d\n", __func__, k, display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.dsc.enable);
-		dml2_printf("DML::%s: k=%d out_bpp=%f\n", __func__, k, out_bpp[k]);
+		DML_LOG_VERBOSE("DML::%s: k=%d bpc=%f\n", __func__, k, bpc);
+		DML_LOG_VERBOSE("DML::%s: k=%d dsc.enable=%d\n", __func__, k, display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.dsc.enable);
+		DML_LOG_VERBOSE("DML::%s: k=%d out_bpp=%f\n", __func__, k, out_bpp[k]);
 #endif
 	}
 }
@@ -247,7 +391,7 @@ unsigned int dml2_core_util_get_num_active_pipes(int unsigned num_planes, const 
 	}
 
 #ifdef __DML_VBA_DEBUG__
-	dml2_printf("DML::%s: num_active_pipes = %d\n", __func__, num_active_pipes);
+	DML_LOG_VERBOSE("DML::%s: num_active_pipes = %d\n", __func__, num_active_pipes);
 #endif
 	return num_active_pipes;
 }
@@ -280,38 +424,48 @@ bool dml2_core_utils_is_phantom_pipe(const struct dml2_plane_parameters *plane_c
 	return is_phantom;
 }
 
-unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode)
+unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
 {
-	switch (sw_mode) {
-	case (dml2_sw_linear):
-		return 256; break;
-	case (dml2_sw_256b_2d):
-		return 256; break;
-	case (dml2_sw_4kb_2d):
-		return 4096; break;
-	case (dml2_sw_64kb_2d):
-		return 65536; break;
-	case (dml2_sw_256kb_2d):
-		return 262144; break;
-	case (dml2_gfx11_sw_linear):
-		return 256; break;
-	case (dml2_gfx11_sw_64kb_d):
-		return 65536; break;
-	case (dml2_gfx11_sw_64kb_d_t):
-		return 65536; break;
-	case (dml2_gfx11_sw_64kb_d_x):
-		return 65536; break;
-	case (dml2_gfx11_sw_64kb_r_x):
-		return 65536; break;
-	case (dml2_gfx11_sw_256kb_d_x):
-		return 262144; break;
-	case (dml2_gfx11_sw_256kb_r_x):
-		return 262144; break;
-	default:
-		DML2_ASSERT(0);
+
+	if (sw_mode == dml2_sw_linear)
+		return 256;
+	else if (sw_mode == dml2_sw_256b_2d)
+		return 256;
+	else if (sw_mode == dml2_sw_4kb_2d)
+		return 4096;
+	else if (sw_mode == dml2_sw_64kb_2d)
+		return 65536;
+	else if (sw_mode == dml2_sw_256kb_2d)
+		return 262144;
+	else if (sw_mode == dml2_gfx11_sw_linear)
+		return 256;
+	else if (sw_mode == dml2_gfx11_sw_64kb_d)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_64kb_d_t)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_64kb_d_x)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_64kb_r_x)
+		return 65536;
+	else if (sw_mode == dml2_gfx11_sw_256kb_d_x)
+		return 262144;
+	else if (sw_mode == dml2_gfx11_sw_256kb_r_x)
+		return 262144;
+	else {
+		DML_ASSERT(0);
 		return 256;
 	};
 }
+
+bool dml2_core_utils_get_segment_horizontal_contiguous(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
+{
+	return (byte_per_pixel != 2);
+}
+
+bool dml2_core_utils_is_linear(enum dml2_swizzle_mode sw_mode)
+{
+	return (sw_mode == dml2_sw_linear || sw_mode == dml2_sw_linear_256b || sw_mode == dml2_linear_64elements);
+};
 
 
 bool dml2_core_utils_is_vertical_rotation(enum dml2_rotation_angle Scan)
@@ -325,7 +479,6 @@ bool dml2_core_utils_is_vertical_rotation(enum dml2_rotation_angle Scan)
 	return is_vert;
 }
 
-
 int unsigned dml2_core_utils_get_gfx_version(enum dml2_swizzle_mode sw_mode)
 {
 	int unsigned version = 0;
@@ -334,19 +487,19 @@ int unsigned dml2_core_utils_get_gfx_version(enum dml2_swizzle_mode sw_mode)
 		sw_mode == dml2_sw_256b_2d ||
 		sw_mode == dml2_sw_4kb_2d ||
 		sw_mode == dml2_sw_64kb_2d ||
-		sw_mode == dml2_sw_256kb_2d) {
+		sw_mode == dml2_sw_256kb_2d)
 		version = 12;
-	} else if (sw_mode == dml2_gfx11_sw_linear ||
+	else if (sw_mode == dml2_gfx11_sw_linear ||
 		sw_mode == dml2_gfx11_sw_64kb_d ||
 		sw_mode == dml2_gfx11_sw_64kb_d_t ||
 		sw_mode == dml2_gfx11_sw_64kb_d_x ||
 		sw_mode == dml2_gfx11_sw_64kb_r_x ||
 		sw_mode == dml2_gfx11_sw_256kb_d_x ||
-		sw_mode == dml2_gfx11_sw_256kb_r_x) {
+		sw_mode == dml2_gfx11_sw_256kb_r_x)
 		version = 11;
-	} else {
-		dml2_printf("ERROR: Invalid sw_mode setting! val=%u\n", sw_mode);
-		DML2_ASSERT(0);
+	else {
+		DML_LOG_VERBOSE("ERROR: Invalid sw_mode setting! val=%u\n", sw_mode);
+		DML_ASSERT(0);
 	}
 
 	return version;
@@ -358,7 +511,7 @@ unsigned int dml2_core_utils_get_qos_param_index(unsigned long uclk_freq_khz, co
 	unsigned int index = 0;
 
 	for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
-		dml2_printf("DML::%s: per_uclk_dpm_params[%d].minimum_uclk_khz = %d\n", __func__, i, per_uclk_dpm_params[i].minimum_uclk_khz);
+		DML_LOG_VERBOSE("DML::%s: per_uclk_dpm_params[%d].minimum_uclk_khz = %ld\n", __func__, i, per_uclk_dpm_params[i].minimum_uclk_khz);
 
 		if (i == 0)
 			index = 0;
@@ -371,8 +524,8 @@ unsigned int dml2_core_utils_get_qos_param_index(unsigned long uclk_freq_khz, co
 		}
 	}
 #if defined(__DML_VBA_DEBUG__)
-	dml2_printf("DML::%s: uclk_freq_khz = %d\n", __func__, uclk_freq_khz);
-	dml2_printf("DML::%s: index = %d\n", __func__, index);
+	DML_LOG_VERBOSE("DML::%s: uclk_freq_khz = %ld\n", __func__, uclk_freq_khz);
+	DML_LOG_VERBOSE("DML::%s: index = %d\n", __func__, index);
 #endif
 	return index;
 }
@@ -380,31 +533,32 @@ unsigned int dml2_core_utils_get_qos_param_index(unsigned long uclk_freq_khz, co
 unsigned int dml2_core_utils_get_active_min_uclk_dpm_index(unsigned long uclk_freq_khz, const struct dml2_soc_state_table *clk_table)
 {
 	unsigned int i;
-	bool clk_entry_found = 0;
+	bool clk_entry_found = false;
 
 	for (i = 0; i < clk_table->uclk.num_clk_values; i++) {
-		dml2_printf("DML::%s: clk_table.uclk.clk_values_khz[%d] = %d\n", __func__, i, clk_table->uclk.clk_values_khz[i]);
+		DML_LOG_VERBOSE("DML::%s: clk_table.uclk.clk_values_khz[%d] = %ld\n", __func__, i, clk_table->uclk.clk_values_khz[i]);
 
 		if (uclk_freq_khz == clk_table->uclk.clk_values_khz[i]) {
-			clk_entry_found = 1;
+			clk_entry_found = true;
 			break;
 		}
 	}
 
-	dml2_assert(clk_entry_found);
+	if (!clk_entry_found)
+		DML_ASSERT(clk_entry_found);
 #if defined(__DML_VBA_DEBUG__)
-	dml2_printf("DML::%s: uclk_freq_khz = %ld\n", __func__, uclk_freq_khz);
-	dml2_printf("DML::%s: index = %d\n", __func__, i);
+	DML_LOG_VERBOSE("DML::%s: uclk_freq_khz = %ld\n", __func__, uclk_freq_khz);
+	DML_LOG_VERBOSE("DML::%s: index = %d\n", __func__, i);
 #endif
 	return i;
 }
 
 bool dml2_core_utils_is_dual_plane(enum dml2_source_format_class source_format)
 {
-	bool ret_val = 0;
+	bool ret_val = false;
 
-	if ((source_format == dml2_420_12) || (source_format == dml2_420_8) || (source_format == dml2_420_10) || (source_format == dml2_rgbe_alpha))
-		ret_val = 1;
+	if (dml2_core_utils_is_420(source_format) || dml2_core_utils_is_422_planar(source_format) || (source_format == dml2_rgbe_alpha))
+		ret_val = true;
 
 	return ret_val;
 }

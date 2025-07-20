@@ -68,7 +68,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	}
 
 	/*
-	 * Check if there are pinctrl states at all. Note: we cant' use
+	 * Check if there are pinctrl states at all. Note: we can't use
 	 * devm_pinctrl_get_select() because we need to distinguish between
 	 * the -ENODEV from devm_pinctrl_get() and pinctrl_lookup_state().
 	 */
@@ -95,9 +95,9 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	priv->cur_chan = new_chan;
 
 	/* Now fill out current adapter structure. cur_chan must be up to date */
-	priv->algo.master_xfer = i2c_demux_master_xfer;
+	priv->algo.xfer = i2c_demux_master_xfer;
 	if (adap->algo->master_xfer_atomic)
-		priv->algo.master_xfer_atomic = i2c_demux_master_xfer;
+		priv->algo.xfer_atomic = i2c_demux_master_xfer;
 	priv->algo.functionality = i2c_demux_functionality;
 
 	snprintf(priv->cur_adap.name, sizeof(priv->cur_adap.name),
@@ -261,7 +261,9 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	pm_runtime_no_callbacks(&pdev->dev);
 
 	/* switch to first parent as active master */
-	i2c_demux_activate_master(priv, 0);
+	err = i2c_demux_activate_master(priv, 0);
+	if (err)
+		goto err_rollback;
 
 	err = device_create_file(&pdev->dev, &dev_attr_available_masters);
 	if (err)

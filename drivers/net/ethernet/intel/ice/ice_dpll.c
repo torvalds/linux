@@ -95,7 +95,7 @@ ice_dpll_pin_freq_set(struct ice_pf *pf, struct ice_dpll_pin *pin,
 	}
 	if (ret) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin freq:%u on pin:%u\n",
+				   "err:%d %s failed to set pin freq:%u on pin:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   freq, pin->idx);
@@ -322,7 +322,7 @@ ice_dpll_pin_enable(struct ice_hw *hw, struct ice_dpll_pin *pin,
 	}
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to enable %s pin:%u\n",
+				   "err:%d %s failed to enable %s pin:%u",
 				   ret, ice_aq_str(hw->adminq.sq_last_status),
 				   pin_type_name[pin_type], pin->idx);
 
@@ -367,7 +367,7 @@ ice_dpll_pin_disable(struct ice_hw *hw, struct ice_dpll_pin *pin,
 	}
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to disable %s pin:%u\n",
+				   "err:%d %s failed to disable %s pin:%u",
 				   ret, ice_aq_str(hw->adminq.sq_last_status),
 				   pin_type_name[pin_type], pin->idx);
 
@@ -479,7 +479,7 @@ ice_dpll_pin_state_update(struct ice_pf *pf, struct ice_dpll_pin *pin,
 err:
 	if (extack)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to update %s pin:%u\n",
+				   "err:%d %s failed to update %s pin:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   pin_type_name[pin_type], pin->idx);
@@ -518,7 +518,7 @@ ice_dpll_hw_input_prio_set(struct ice_pf *pf, struct ice_dpll *dpll,
 				      (u8)prio);
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin prio:%u on pin:%u\n",
+				   "err:%d %s failed to set pin prio:%u on pin:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   prio, pin->idx);
@@ -1004,7 +1004,7 @@ ice_dpll_pin_phase_adjust_set(const struct dpll_pin *pin, void *pin_priv,
 	mutex_unlock(&pf->dplls.lock);
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin phase_adjust:%d for pin:%u on dpll:%u\n",
+				   "err:%d %s failed to set pin phase_adjust:%d for pin:%u on dpll:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   phase_adjust, p->idx, d->dpll_idx);
@@ -1362,7 +1362,7 @@ ice_dpll_rclk_state_on_pin_set(const struct dpll_pin *pin, void *pin_priv,
 					 &p->freq);
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin state:%u for pin:%u on parent:%u\n",
+				   "err:%d %s failed to set pin state:%u for pin:%u on parent:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   state, p->idx, parent->idx);
@@ -2053,7 +2053,7 @@ static int ice_dpll_init_worker(struct ice_pf *pf)
 	struct kthread_worker *kworker;
 
 	kthread_init_delayed_work(&d->work, ice_dpll_periodic_work);
-	kworker = kthread_create_worker(0, "ice-dplls-%s",
+	kworker = kthread_run_worker(0, "ice-dplls-%s",
 					dev_name(ice_pf_to_dev(pf)));
 	if (IS_ERR(kworker))
 		return PTR_ERR(kworker);
@@ -2062,6 +2062,18 @@ static int ice_dpll_init_worker(struct ice_pf *pf)
 	kthread_queue_delayed_work(d->kworker, &d->work, 0);
 
 	return 0;
+}
+
+/**
+ * ice_dpll_phase_range_set - initialize phase adjust range helper
+ * @range: pointer to phase adjust range struct to be initialized
+ * @phase_adj: a value to be used as min(-)/max(+) boundary
+ */
+static void ice_dpll_phase_range_set(struct dpll_pin_phase_adjust_range *range,
+				     u32 phase_adj)
+{
+	range->min = -phase_adj;
+	range->max = phase_adj;
 }
 
 /**
@@ -2105,8 +2117,8 @@ static int ice_dpll_init_info_pins_generic(struct ice_pf *pf, bool input)
 	for (i = 0; i < pin_num; i++) {
 		pins[i].idx = i;
 		pins[i].prop.board_label = labels[i];
-		pins[i].prop.phase_range.min = phase_adj_max;
-		pins[i].prop.phase_range.max = -phase_adj_max;
+		ice_dpll_phase_range_set(&pins[i].prop.phase_range,
+					 phase_adj_max);
 		pins[i].prop.capabilities = cap;
 		pins[i].pf = pf;
 		ret = ice_dpll_pin_state_update(pf, &pins[i], pin_type, NULL);
@@ -2152,6 +2164,7 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 	struct ice_hw *hw = &pf->hw;
 	struct ice_dpll_pin *pins;
 	unsigned long caps;
+	u32 phase_adj_max;
 	u8 freq_supp_num;
 	bool input;
 
@@ -2159,11 +2172,13 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 	case ICE_DPLL_PIN_TYPE_INPUT:
 		pins = pf->dplls.inputs;
 		num_pins = pf->dplls.num_inputs;
+		phase_adj_max = pf->dplls.input_phase_adj_max;
 		input = true;
 		break;
 	case ICE_DPLL_PIN_TYPE_OUTPUT:
 		pins = pf->dplls.outputs;
 		num_pins = pf->dplls.num_outputs;
+		phase_adj_max = pf->dplls.output_phase_adj_max;
 		input = false;
 		break;
 	default:
@@ -2188,19 +2203,13 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 				return ret;
 			caps |= (DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE |
 				 DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE);
-			pins[i].prop.phase_range.min =
-				pf->dplls.input_phase_adj_max;
-			pins[i].prop.phase_range.max =
-				-pf->dplls.input_phase_adj_max;
 		} else {
-			pins[i].prop.phase_range.min =
-				pf->dplls.output_phase_adj_max;
-			pins[i].prop.phase_range.max =
-				-pf->dplls.output_phase_adj_max;
 			ret = ice_cgu_get_output_pin_state_caps(hw, i, &caps);
 			if (ret)
 				return ret;
 		}
+		ice_dpll_phase_range_set(&pins[i].prop.phase_range,
+					 phase_adj_max);
 		pins[i].prop.capabilities = caps;
 		ret = ice_dpll_pin_state_update(pf, &pins[i], pin_type, NULL);
 		if (ret)
@@ -2308,8 +2317,10 @@ static int ice_dpll_init_info(struct ice_pf *pf, bool cgu)
 	dp->dpll_idx = abilities.pps_dpll_idx;
 	d->num_inputs = abilities.num_inputs;
 	d->num_outputs = abilities.num_outputs;
-	d->input_phase_adj_max = le32_to_cpu(abilities.max_in_phase_adj);
-	d->output_phase_adj_max = le32_to_cpu(abilities.max_out_phase_adj);
+	d->input_phase_adj_max = le32_to_cpu(abilities.max_in_phase_adj) &
+		ICE_AQC_GET_CGU_MAX_PHASE_ADJ;
+	d->output_phase_adj_max = le32_to_cpu(abilities.max_out_phase_adj) &
+		ICE_AQC_GET_CGU_MAX_PHASE_ADJ;
 
 	alloc_size = sizeof(*d->inputs) * d->num_inputs;
 	d->inputs = kzalloc(alloc_size, GFP_KERNEL);

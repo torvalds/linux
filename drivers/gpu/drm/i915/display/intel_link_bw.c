@@ -4,11 +4,11 @@
  */
 
 #include <drm/drm_fixed.h>
-
-#include "i915_drv.h"
+#include <drm/drm_print.h>
 
 #include "intel_atomic.h"
 #include "intel_crtc.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_dp_tunnel.h"
@@ -222,7 +222,7 @@ assert_link_limit_change_valid(struct intel_display *display,
  * limits in @new_limits if there is a BW limitation.
  *
  * Returns:
- *   - 0 if the confugration is valid
+ *   - 0 if the configuration is valid
  *   - %-EAGAIN, if the configuration is invalid and @new_limits got updated
  *     with fallback values with which the configuration of all CRTCs
  *     in @state must be recomputed

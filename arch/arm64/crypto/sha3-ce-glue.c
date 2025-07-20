@@ -12,13 +12,13 @@
 #include <asm/hwcap.h>
 #include <asm/neon.h>
 #include <asm/simd.h>
-#include <linux/unaligned.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/simd.h>
 #include <crypto/sha3.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/unaligned.h>
 
 MODULE_DESCRIPTION("SHA3 secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
@@ -35,74 +35,55 @@ static int sha3_update(struct shash_desc *desc, const u8 *data,
 		       unsigned int len)
 {
 	struct sha3_state *sctx = shash_desc_ctx(desc);
-	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
+	struct crypto_shash *tfm = desc->tfm;
+	unsigned int bs, ds;
+	int blocks;
 
-	if (!crypto_simd_usable())
-		return crypto_sha3_update(desc, data, len);
+	ds = crypto_shash_digestsize(tfm);
+	bs = crypto_shash_blocksize(tfm);
+	blocks = len / bs;
+	len -= blocks * bs;
+	do {
+		int rem;
 
-	if ((sctx->partial + len) >= sctx->rsiz) {
-		int blocks;
-
-		if (sctx->partial) {
-			int p = sctx->rsiz - sctx->partial;
-
-			memcpy(sctx->buf + sctx->partial, data, p);
-			kernel_neon_begin();
-			sha3_ce_transform(sctx->st, sctx->buf, 1, digest_size);
-			kernel_neon_end();
-
-			data += p;
-			len -= p;
-			sctx->partial = 0;
-		}
-
-		blocks = len / sctx->rsiz;
-		len %= sctx->rsiz;
-
-		while (blocks) {
-			int rem;
-
-			kernel_neon_begin();
-			rem = sha3_ce_transform(sctx->st, data, blocks,
-						digest_size);
-			kernel_neon_end();
-			data += (blocks - rem) * sctx->rsiz;
-			blocks = rem;
-		}
-	}
-
-	if (len) {
-		memcpy(sctx->buf + sctx->partial, data, len);
-		sctx->partial += len;
-	}
-	return 0;
+		kernel_neon_begin();
+		rem = sha3_ce_transform(sctx->st, data, blocks, ds);
+		kernel_neon_end();
+		data += (blocks - rem) * bs;
+		blocks = rem;
+	} while (blocks);
+	return len;
 }
 
-static int sha3_final(struct shash_desc *desc, u8 *out)
+static int sha3_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
+		      u8 *out)
 {
 	struct sha3_state *sctx = shash_desc_ctx(desc);
-	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
+	struct crypto_shash *tfm = desc->tfm;
 	__le64 *digest = (__le64 *)out;
+	u8 block[SHA3_224_BLOCK_SIZE];
+	unsigned int bs, ds;
 	int i;
 
-	if (!crypto_simd_usable())
-		return crypto_sha3_final(desc, out);
+	ds = crypto_shash_digestsize(tfm);
+	bs = crypto_shash_blocksize(tfm);
+	memcpy(block, src, len);
 
-	sctx->buf[sctx->partial++] = 0x06;
-	memset(sctx->buf + sctx->partial, 0, sctx->rsiz - sctx->partial);
-	sctx->buf[sctx->rsiz - 1] |= 0x80;
+	block[len++] = 0x06;
+	memset(block + len, 0, bs - len);
+	block[bs - 1] |= 0x80;
 
 	kernel_neon_begin();
-	sha3_ce_transform(sctx->st, sctx->buf, 1, digest_size);
+	sha3_ce_transform(sctx->st, block, 1, ds);
 	kernel_neon_end();
+	memzero_explicit(block , sizeof(block));
 
-	for (i = 0; i < digest_size / 8; i++)
+	for (i = 0; i < ds / 8; i++)
 		put_unaligned_le64(sctx->st[i], digest++);
 
-	if (digest_size & 4)
+	if (ds & 4)
 		put_unaligned_le32(sctx->st[i], (__le32 *)digest);
 
-	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
 }
 
@@ -110,10 +91,11 @@ static struct shash_alg algs[] = { {
 	.digestsize		= SHA3_224_DIGEST_SIZE,
 	.init			= crypto_sha3_init,
 	.update			= sha3_update,
-	.final			= sha3_final,
-	.descsize		= sizeof(struct sha3_state),
+	.finup			= sha3_finup,
+	.descsize		= SHA3_STATE_SIZE,
 	.base.cra_name		= "sha3-224",
 	.base.cra_driver_name	= "sha3-224-ce",
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 	.base.cra_blocksize	= SHA3_224_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,
@@ -121,10 +103,11 @@ static struct shash_alg algs[] = { {
 	.digestsize		= SHA3_256_DIGEST_SIZE,
 	.init			= crypto_sha3_init,
 	.update			= sha3_update,
-	.final			= sha3_final,
-	.descsize		= sizeof(struct sha3_state),
+	.finup			= sha3_finup,
+	.descsize		= SHA3_STATE_SIZE,
 	.base.cra_name		= "sha3-256",
 	.base.cra_driver_name	= "sha3-256-ce",
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 	.base.cra_blocksize	= SHA3_256_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,
@@ -132,10 +115,11 @@ static struct shash_alg algs[] = { {
 	.digestsize		= SHA3_384_DIGEST_SIZE,
 	.init			= crypto_sha3_init,
 	.update			= sha3_update,
-	.final			= sha3_final,
-	.descsize		= sizeof(struct sha3_state),
+	.finup			= sha3_finup,
+	.descsize		= SHA3_STATE_SIZE,
 	.base.cra_name		= "sha3-384",
 	.base.cra_driver_name	= "sha3-384-ce",
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 	.base.cra_blocksize	= SHA3_384_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,
@@ -143,10 +127,11 @@ static struct shash_alg algs[] = { {
 	.digestsize		= SHA3_512_DIGEST_SIZE,
 	.init			= crypto_sha3_init,
 	.update			= sha3_update,
-	.final			= sha3_final,
-	.descsize		= sizeof(struct sha3_state),
+	.finup			= sha3_finup,
+	.descsize		= SHA3_STATE_SIZE,
 	.base.cra_name		= "sha3-512",
 	.base.cra_driver_name	= "sha3-512-ce",
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 	.base.cra_blocksize	= SHA3_512_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,

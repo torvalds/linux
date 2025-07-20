@@ -17,7 +17,8 @@ enum nec7210_chipset {
 	TNT5004,	// NI (minor differences to TNT4882)
 };
 
-/* nec7210 register numbers (might need to be multiplied by
+/*
+ * nec7210 register numbers (might need to be multiplied by
  * a board-dependent offset to get actually io address offset)
  */
 // write registers

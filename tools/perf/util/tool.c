@@ -43,8 +43,15 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 		decomp->size = decomp_last_rem;
 	}
 
-	src = (void *)event + sizeof(struct perf_record_compressed);
-	src_size = event->pack.header.size - sizeof(struct perf_record_compressed);
+	if (event->header.type == PERF_RECORD_COMPRESSED) {
+		src = (void *)event + sizeof(struct perf_record_compressed);
+		src_size = event->pack.header.size - sizeof(struct perf_record_compressed);
+	} else if (event->header.type == PERF_RECORD_COMPRESSED2) {
+		src = (void *)event + sizeof(struct perf_record_compressed2);
+		src_size = event->pack2.data_size;
+	} else {
+		return -1;
+	}
 
 	decomp_size = zstd_decompress_stream(session->active_decomp->zstd_decomp, src, src_size,
 				&(decomp->data[decomp_last_rem]), decomp_len - decomp_last_rem);

@@ -652,6 +652,7 @@ static struct snd_soc_dai_driver mt8188_memif_dai_driver[] = {
 
 static const struct snd_kcontrol_new o002_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I000 Switch", AFE_CONN2, 0, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I004 Switch", AFE_CONN2, 4, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I012 Switch", AFE_CONN2, 12, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I020 Switch", AFE_CONN2, 20, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I022 Switch", AFE_CONN2, 22, 1, 0),
@@ -662,6 +663,8 @@ static const struct snd_kcontrol_new o002_mix[] = {
 
 static const struct snd_kcontrol_new o003_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I001 Switch", AFE_CONN3, 1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I005 Switch", AFE_CONN3, 5, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I006 Switch", AFE_CONN3, 6, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I013 Switch", AFE_CONN3, 13, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I021 Switch", AFE_CONN3, 21, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I023 Switch", AFE_CONN3, 23, 1, 0),
@@ -672,6 +675,8 @@ static const struct snd_kcontrol_new o003_mix[] = {
 
 static const struct snd_kcontrol_new o004_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I000 Switch", AFE_CONN4, 0, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I006 Switch", AFE_CONN4, 6, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I008 Switch", AFE_CONN4, 8, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I014 Switch", AFE_CONN4, 14, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I024 Switch", AFE_CONN4, 24, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I074 Switch", AFE_CONN4_2, 10, 1, 0),
@@ -679,6 +684,8 @@ static const struct snd_kcontrol_new o004_mix[] = {
 
 static const struct snd_kcontrol_new o005_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I001 Switch", AFE_CONN5, 1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I007 Switch", AFE_CONN5, 7, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I010 Switch", AFE_CONN5, 10, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I015 Switch", AFE_CONN5, 15, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I025 Switch", AFE_CONN5, 25, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I075 Switch", AFE_CONN5_2, 11, 1, 0),
@@ -686,6 +693,7 @@ static const struct snd_kcontrol_new o005_mix[] = {
 
 static const struct snd_kcontrol_new o006_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I000 Switch", AFE_CONN6, 0, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I008 Switch", AFE_CONN6, 8, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I016 Switch", AFE_CONN6, 16, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I026 Switch", AFE_CONN6, 26, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I076 Switch", AFE_CONN6_2, 12, 1, 0),
@@ -693,18 +701,21 @@ static const struct snd_kcontrol_new o006_mix[] = {
 
 static const struct snd_kcontrol_new o007_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I001 Switch", AFE_CONN7, 1, 1, 0),
+	SOC_DAPM_SINGLE_AUTODISABLE("I009 Switch", AFE_CONN7, 9, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I017 Switch", AFE_CONN7, 17, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I027 Switch", AFE_CONN7, 27, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I077 Switch", AFE_CONN7_2, 13, 1, 0),
 };
 
 static const struct snd_kcontrol_new o008_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I010 Switch", AFE_CONN8, 10, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I018 Switch", AFE_CONN8, 18, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I028 Switch", AFE_CONN8, 28, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I078 Switch", AFE_CONN8_2, 14, 1, 0),
 };
 
 static const struct snd_kcontrol_new o009_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I011 Switch", AFE_CONN9, 11, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I019 Switch", AFE_CONN9, 19, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I029 Switch", AFE_CONN9, 29, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("I079 Switch", AFE_CONN9_2, 15, 1, 0),
@@ -1274,6 +1285,18 @@ static const struct snd_soc_dapm_route mt8188_memif_routes[] = {
 	{"O003", "I021 Switch", "I021"},
 	{"O002", "I070 Switch", "I070"},
 	{"O003", "I071 Switch", "I071"},
+
+	{"O002", "I004 Switch", "I004"},
+	{"O003", "I005 Switch", "I005"},
+	{"O003", "I006 Switch", "I006"},
+	{"O004", "I006 Switch", "I006"},
+	{"O004", "I008 Switch", "I008"},
+	{"O005", "I007 Switch", "I007"},
+	{"O005", "I010 Switch", "I010"},
+	{"O006", "I008 Switch", "I008"},
+	{"O007", "I009 Switch", "I009"},
+	{"O008", "I010 Switch", "I010"},
+	{"O009", "I011 Switch", "I011"},
 
 	{"O034", "I000 Switch", "I000"},
 	{"O035", "I001 Switch", "I001"},
@@ -2855,10 +2878,6 @@ static bool mt8188_is_volatile_reg(struct device *dev, unsigned int reg)
 	case AFE_DMIC3_SRC_DEBUG_MON0:
 	case AFE_DMIC3_UL_SRC_MON0:
 	case AFE_DMIC3_UL_SRC_MON1:
-	case DMIC_GAIN1_CUR:
-	case DMIC_GAIN2_CUR:
-	case DMIC_GAIN3_CUR:
-	case DMIC_GAIN4_CUR:
 	case ETDM_IN1_MONITOR:
 	case ETDM_IN2_MONITOR:
 	case ETDM_OUT1_MONITOR:
@@ -3076,6 +3095,7 @@ static int mt8188_dai_memif_register(struct mtk_base_afe *afe)
 typedef int (*dai_register_cb)(struct mtk_base_afe *);
 static const dai_register_cb dai_register_cbs[] = {
 	mt8188_dai_adda_register,
+	mt8188_dai_dmic_register,
 	mt8188_dai_etdm_register,
 	mt8188_dai_pcm_register,
 	mt8188_dai_memif_register,
@@ -3361,15 +3381,15 @@ static const struct of_device_id mt8188_afe_pcm_dt_match[] = {
 MODULE_DEVICE_TABLE(of, mt8188_afe_pcm_dt_match);
 
 static const struct dev_pm_ops mt8188_afe_pm_ops = {
-	SET_RUNTIME_PM_OPS(mt8188_afe_runtime_suspend,
-			   mt8188_afe_runtime_resume, NULL)
+	RUNTIME_PM_OPS(mt8188_afe_runtime_suspend,
+		       mt8188_afe_runtime_resume, NULL)
 };
 
 static struct platform_driver mt8188_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt8188-audio",
 		   .of_match_table = mt8188_afe_pcm_dt_match,
-		   .pm = &mt8188_afe_pm_ops,
+		   .pm = pm_ptr(&mt8188_afe_pm_ops),
 	},
 	.probe = mt8188_afe_pcm_dev_probe,
 };

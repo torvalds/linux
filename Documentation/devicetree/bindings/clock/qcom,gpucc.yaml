@@ -8,6 +8,7 @@ title: Qualcomm Graphics Clock & Reset Controller
 
 maintainers:
   - Taniya Das <quic_tdas@quicinc.com>
+  - Imran Shaik <quic_imrashai@quicinc.com>
 
 description: |
   Qualcomm graphics clock control module provides the clocks, resets and power
@@ -23,10 +24,12 @@ description: |
     include/dt-bindings/clock/qcom,gpucc-sm8150.h
     include/dt-bindings/clock/qcom,gpucc-sm8250.h
     include/dt-bindings/clock/qcom,gpucc-sm8350.h
+    include/dt-bindings/clock/qcom,qcs8300-gpucc.h
 
 properties:
   compatible:
     enum:
+      - qcom,qcs8300-gpucc
       - qcom,sdm845-gpucc
       - qcom,sa8775p-gpucc
       - qcom,sc7180-gpucc

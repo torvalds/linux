@@ -502,7 +502,7 @@ void optc2_get_last_used_drr_vtotal(struct timing_generator *optc, uint32_t *ref
 	REG_GET(OTG_DRR_CONTROL, OTG_V_TOTAL_LAST_USED_BY_DRR, refresh_rate);
 }
 
-static struct timing_generator_funcs dcn20_tg_funcs = {
+static const struct timing_generator_funcs dcn20_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
@@ -562,6 +562,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.get_hw_timing = optc1_get_hw_timing,
 		.align_vblanks = optc2_align_vblanks,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.read_otg_state = optc1_read_otg_state,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)

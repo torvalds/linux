@@ -84,6 +84,8 @@ struct vc4_perfmon {
 enum vc4_gen {
 	VC4_GEN_4,
 	VC4_GEN_5,
+	VC4_GEN_6_C,
+	VC4_GEN_6_D,
 };
 
 struct vc4_dev {
@@ -184,11 +186,6 @@ struct vc4_dev {
 	 */
 	struct vc4_perfmon *active_perfmon;
 
-	/* List of struct vc4_seqno_cb for callbacks to be made from a
-	 * workqueue when the given seqno is passed.
-	 */
-	struct list_head seqno_cb_list;
-
 	/* The memory used for storing binner tile alloc, tile state,
 	 * and overflow memory allocations.  This is freed when V3D
 	 * powers down.
@@ -245,16 +242,6 @@ struct vc4_dev {
 struct vc4_bo {
 	struct drm_gem_dma_object base;
 
-	/* seqno of the last job to render using this BO. */
-	uint64_t seqno;
-
-	/* seqno of the last job to use the RCL to write to this BO.
-	 *
-	 * Note that this doesn't include binner overflow memory
-	 * writes.
-	 */
-	uint64_t write_seqno;
-
 	bool t_format;
 
 	/* List entry for the BO's position in either
@@ -302,12 +289,6 @@ struct vc4_fence {
 #define to_vc4_fence(_fence)					\
 	container_of_const(_fence, struct vc4_fence, base)
 
-struct vc4_seqno_cb {
-	struct work_struct work;
-	uint64_t seqno;
-	void (*func)(struct vc4_seqno_cb *cb);
-};
-
 struct vc4_v3d {
 	struct vc4_dev *vc4;
 	struct platform_device *pdev;
@@ -315,6 +296,21 @@ struct vc4_v3d {
 	struct clk *clk;
 	struct debugfs_regset32 regset;
 };
+
+#define VC4_NUM_UPM_HANDLES 32
+struct vc4_upm_refcounts {
+	refcount_t refcount;
+
+	/* Allocation size */
+	size_t size;
+	/* Our allocation in UPM for prefetching. */
+	struct drm_mm_node upm;
+
+	/* Pointer back to the HVS structure */
+	struct vc4_hvs *hvs;
+};
+
+#define HVS_NUM_CHANNELS 3
 
 struct vc4_hvs {
 	struct vc4_dev *vc4;
@@ -324,6 +320,7 @@ struct vc4_hvs {
 	unsigned int dlist_mem_size;
 
 	struct clk *core_clk;
+	struct clk *disp_clk;
 
 	unsigned long max_core_rate;
 
@@ -331,8 +328,15 @@ struct vc4_hvs {
 	 * list.  Units are dwords.
 	 */
 	struct drm_mm dlist_mm;
+
 	/* Memory manager for the LBM memory used by HVS scaling. */
 	struct drm_mm lbm_mm;
+
+	/* Memory manager for the UPM memory used for prefetching. */
+	struct drm_mm upm_mm;
+	struct ida upm_handles;
+	struct vc4_upm_refcounts upm_refcounts[VC4_NUM_UPM_HANDLES + 1];
+
 	spinlock_t mm_lock;
 
 	struct drm_mm_node mitchell_netravali_filter;
@@ -355,6 +359,7 @@ struct vc4_hvs {
 };
 
 #define HVS_NUM_CHANNELS 3
+#define HVS_UBM_WORD_SIZE 256
 
 struct vc4_hvs_state {
 	struct drm_private_state base;
@@ -424,6 +429,12 @@ struct vc4_plane_state {
 	/* Our allocation in LBM for temporary storage during scaling. */
 	struct drm_mm_node lbm;
 
+	/* The Unified Pre-Fetcher Handle */
+	unsigned int upm_handle[DRM_FORMAT_MAX_PLANES];
+
+	/* Number of lines to pre-fetch */
+	unsigned int upm_buffer_lines;
+
 	/* Set when the plane has per-pixel alpha content or does not cover
 	 * the entire screen. This is a hint to the CRTC that it might need
 	 * to enable background color fill.
@@ -458,7 +469,8 @@ enum vc4_encoder_type {
 	VC4_ENCODER_TYPE_DSI1,
 	VC4_ENCODER_TYPE_SMI,
 	VC4_ENCODER_TYPE_DPI,
-	VC4_ENCODER_TYPE_TXP,
+	VC4_ENCODER_TYPE_TXP0,
+	VC4_ENCODER_TYPE_TXP1,
 };
 
 struct vc4_encoder {
@@ -505,7 +517,16 @@ struct vc4_crtc_data {
 	int hvs_output;
 };
 
-extern const struct vc4_crtc_data vc4_txp_crtc_data;
+struct vc4_txp_data {
+	struct vc4_crtc_data	base;
+	enum vc4_encoder_type encoder_type;
+	unsigned int high_addr_ptr_reg;
+	unsigned int has_byte_enable:1;
+	unsigned int size_minus_one:1;
+	unsigned int supports_40bit_addresses:1;
+};
+
+extern const struct vc4_txp_data bcm2835_txp_data;
 
 struct vc4_pv_data {
 	struct vc4_crtc_data	base;
@@ -527,6 +548,8 @@ extern const struct vc4_pv_data bcm2711_pv1_data;
 extern const struct vc4_pv_data bcm2711_pv2_data;
 extern const struct vc4_pv_data bcm2711_pv3_data;
 extern const struct vc4_pv_data bcm2711_pv4_data;
+extern const struct vc4_pv_data bcm2712_pv0_data;
+extern const struct vc4_pv_data bcm2712_pv1_data;
 
 struct vc4_crtc {
 	struct drm_crtc base;
@@ -637,6 +660,12 @@ struct vc4_crtc_state {
 		writel(val, hvs->regs + (offset));					\
 	} while (0)
 
+#define HVS_READ6(offset) \
+	HVS_READ(hvs->vc4->gen == VC4_GEN_6_C ? SCALER6_ ## offset : SCALER6D_ ## offset)
+
+#define HVS_WRITE6(offset, val) \
+	HVS_WRITE(hvs->vc4->gen == VC4_GEN_6_C ? SCALER6_ ## offset : SCALER6D_ ## offset, val)
+
 #define VC4_REG32(reg) { .name = #reg, .offset = reg }
 
 struct vc4_exec_info {
@@ -644,9 +673,6 @@ struct vc4_exec_info {
 
 	/* Sequence number for this bin/render job. */
 	uint64_t seqno;
-
-	/* Latest write_seqno of any BO that binning depends on. */
-	uint64_t bin_dep_seqno;
 
 	struct dma_fence *fence;
 
@@ -975,9 +1001,6 @@ void vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec);
 int vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno,
 		       uint64_t timeout_ns, bool interruptible);
 void vc4_job_handle_completed(struct vc4_dev *vc4);
-int vc4_queue_seqno_cb(struct drm_device *dev,
-		       struct vc4_seqno_cb *cb, uint64_t seqno,
-		       void (*func)(struct vc4_seqno_cb *cb));
 int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 

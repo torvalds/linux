@@ -50,11 +50,8 @@ static void __init sclp_early_facilities_detect(void)
 	sclp.has_aeni = !!(sccb->fac118 & 0x20);
 	sclp.has_aisi = !!(sccb->fac118 & 0x10);
 	sclp.has_zpci_lsi = !!(sccb->fac118 & 0x01);
-	if (sccb->fac85 & 0x02)
-		get_lowcore()->machine_flags |= MACHINE_FLAG_ESOP;
-	if (sccb->fac91 & 0x40)
-		get_lowcore()->machine_flags |= MACHINE_FLAG_TLB_GUEST;
 	sclp.has_diag204_bif = !!(sccb->fac98 & 0x80);
+	sclp.has_diag310 = !!(sccb->fac91 & 0x80);
 	if (sccb->cpuoff > 134) {
 		sclp.has_diag318 = !!(sccb->byte_134 & 0x80);
 		sclp.has_diag320 = !!(sccb->byte_134 & 0x04);
@@ -64,6 +61,8 @@ static void __init sclp_early_facilities_detect(void)
 		sclp.has_sipl = !!(sccb->cbl & 0x4000);
 		sclp.has_sipl_eckd = !!(sccb->cbl & 0x2000);
 	}
+	if (sccb->cpuoff > 139)
+		sclp.has_diag324 = !!(sccb->byte_139 & 0x80);
 	sclp.rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp.rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp.rzm <<= 20;
@@ -75,7 +74,7 @@ static void __init sclp_early_facilities_detect(void)
 		sclp.hamax = U64_MAX;
 
 	if (!sccb->hcpua) {
-		if (MACHINE_IS_VM)
+		if (machine_is_vm())
 			sclp.max_cores = 64;
 		else
 			sclp.max_cores = sccb->ncpurl;

@@ -47,7 +47,7 @@ struct amdgpu_iv_entry;
 #define AMDGPU_RAS_GPU_ERR_AID_ID(x)			AMDGPU_GET_REG_FIELD(x, 12, 11)
 #define AMDGPU_RAS_GPU_ERR_HBM_ID(x)			AMDGPU_GET_REG_FIELD(x, 14, 13)
 #define AMDGPU_RAS_GPU_ERR_DATA_ABORT(x)		AMDGPU_GET_REG_FIELD(x, 29, 29)
-#define AMDGPU_RAS_GPU_ERR_UNKNOWN(x)			AMDGPU_GET_REG_FIELD(x, 30, 30)
+#define AMDGPU_RAS_GPU_ERR_GENERIC(x)			AMDGPU_GET_REG_FIELD(x, 30, 30)
 
 #define AMDGPU_RAS_BOOT_STATUS_POLLING_LIMIT	100
 #define AMDGPU_RAS_BOOT_STEADY_STATUS		0xBA
@@ -65,7 +65,7 @@ struct amdgpu_iv_entry;
 
 /* Reserve 8 physical dram row for possible retirement.
  * In worst cases, it will lose 8 * 2MB memory in vram domain */
-#define AMDGPU_RAS_RESERVED_VRAM_SIZE	(16ULL << 20)
+#define AMDGPU_RAS_RESERVED_VRAM_SIZE_DEFAULT	(16ULL << 20)
 /* The high three bits indicates socketid */
 #define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
 
@@ -98,8 +98,10 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__JPEG,
 	AMDGPU_RAS_BLOCK__IH,
 	AMDGPU_RAS_BLOCK__MPIO,
+	AMDGPU_RAS_BLOCK__MMSCH,
 
-	AMDGPU_RAS_BLOCK__LAST
+	AMDGPU_RAS_BLOCK__LAST,
+	AMDGPU_RAS_BLOCK__ANY = -1
 };
 
 enum amdgpu_ras_mca_block {
@@ -482,6 +484,8 @@ struct ras_ecc_err {
 	uint64_t ipid;
 	uint64_t addr;
 	uint64_t pa_pfn;
+	/* save global channel index across all UMC instances */
+	uint32_t channel_idx;
 	struct ras_err_pages err_pages;
 };
 
@@ -558,8 +562,8 @@ struct amdgpu_ras {
 	struct ras_ecc_log_info  umc_ecc_log;
 	struct delayed_work page_retirement_dwork;
 
-	/* Fatal error detected flag */
-	atomic_t fed;
+	/* ras errors detected */
+	unsigned long ras_err_state;
 
 	/* RAS event manager */
 	struct ras_event_manager __event_mgr;
@@ -750,7 +754,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
-		struct eeprom_table_record *bps, int pages);
+		struct eeprom_table_record *bps, int pages, bool from_rom);
 
 int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 		unsigned long *new_cnt);
@@ -792,6 +796,12 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 		return TA_RAS_BLOCK__VCN;
 	case AMDGPU_RAS_BLOCK__JPEG:
 		return TA_RAS_BLOCK__JPEG;
+	case AMDGPU_RAS_BLOCK__IH:
+		return TA_RAS_BLOCK__IH;
+	case AMDGPU_RAS_BLOCK__MPIO:
+		return TA_RAS_BLOCK__MPIO;
+	case AMDGPU_RAS_BLOCK__MMSCH:
+		return TA_RAS_BLOCK__MMSCH;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
 		return TA_RAS_BLOCK__UMC;
@@ -952,6 +962,10 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 
 void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status);
 bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);
+void amdgpu_ras_set_err_poison(struct amdgpu_device *adev,
+			       enum amdgpu_ras_block block);
+void amdgpu_ras_clear_err_state(struct amdgpu_device *adev);
+bool amdgpu_ras_is_err_state(struct amdgpu_device *adev, int block);
 
 u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type);
 int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_type type,

@@ -179,7 +179,7 @@ void ctcmpc_dumpit(char *buf, int len)
 			ctcm_pr_debug("   %s (+%s) : %s  [%s]\n",
 					addr, boff, bhex, basc);
 			dup = 0;
-			strcpy(duphex, bhex);
+			strscpy(duphex, bhex);
 		} else
 			dup++;
 

@@ -96,7 +96,7 @@ static void __exit xxhash_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-subsys_initcall(xxhash_mod_init);
+module_init(xxhash_mod_init);
 module_exit(xxhash_mod_fini);
 
 MODULE_AUTHOR("Nikolay Borisov <nborisov@suse.com>");

@@ -38,6 +38,27 @@ instruction at all.
 only way to pass early-configuration-time parameters to it is via the kernel
 command line.
 
+Sysfs Interface
+===============
+
+The ``intel_idle`` driver exposes the following ``sysfs`` attributes in
+``/sys/devices/system/cpu/cpuidle/``:
+
+``intel_c1_demotion``
+	Enable or disable C1 demotion for all CPUs in the system. This file is
+	only exposed on platforms that support the C1 demotion feature and where
+	it was tested. Value 0 means that C1 demotion is disabled, value 1 means
+	that it is enabled. Write 0 or 1 to disable or enable C1 demotion for
+	all CPUs.
+
+	The C1 demotion feature involves the platform firmware demoting deep
+	C-state requests from the OS (e.g., C6 requests) to C1. The idea is that
+	firmware monitors CPU wake-up rate, and if it is higher than a
+	platform-specific threshold, the firmware demotes deep C-state requests
+	to C1. For example, Linux requests C6, but firmware noticed too many
+	wake-ups per second, and it keeps the CPU in C1. When the CPU stays in
+	C1 long enough, the platform promotes it back to C6. This may improve
+	some workloads' performance, but it may also increase power consumption.
 
 .. _intel-idle-enumeration-of-states:
 
@@ -192,11 +213,19 @@ even if they have been enumerated (see :ref:`cpu-pm-qos` in
 Documentation/admin-guide/pm/cpuidle.rst).
 Setting ``max_cstate`` to 0 causes the ``intel_idle`` initialization to fail.
 
-The ``no_acpi`` and ``use_acpi`` module parameters (recognized by ``intel_idle``
-if the kernel has been configured with ACPI support) can be set to make the
-driver ignore the system's ACPI tables entirely or use them for all of the
-recognized processor models, respectively (they both are unset by default and
-``use_acpi`` has no effect if ``no_acpi`` is set).
+The ``no_acpi``, ``use_acpi`` and ``no_native`` module parameters are
+recognized by ``intel_idle`` if the kernel has been configured with ACPI
+support.  In the case that ACPI is not configured these flags have no impact
+on functionality.
+
+``no_acpi`` - Do not use ACPI at all.  Only native mode is available, no
+ACPI mode.
+
+``use_acpi`` - No-op in ACPI mode, the driver will consult ACPI tables for
+C-states on/off status in native mode.
+
+``no_native`` - Work only in ACPI mode, no native mode available (ignore
+all custom tables).
 
 The value of the ``states_off`` module parameter (0 by default) represents a
 list of idle states to be disabled by default in the form of a bitmask.

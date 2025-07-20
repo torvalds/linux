@@ -18,8 +18,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
 
-#define PHYPARAM_REG	1
-#define PHYCTRL_REG	2
+#define PHYPARAM_REG	0
+#define PHYCTRL_REG	1
 
 /* Default PHY_SEL and REFCLKSEL configuration */
 #define STIH407_USB_PICOPHY_CTRL_PORT_CONF	0x6
@@ -91,8 +91,8 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct phy_provider *phy_provider;
+	unsigned int syscon_args[2];
 	struct phy *phy;
-	int ret;
 
 	phy_dev = devm_kzalloc(dev, sizeof(*phy_dev), GFP_KERNEL);
 	if (!phy_dev)
@@ -116,25 +116,15 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 	/* Reset port by default: only deassert it in phy init */
 	reset_control_assert(phy_dev->rstport);
 
-	phy_dev->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
+	phy_dev->regmap = syscon_regmap_lookup_by_phandle_args(np, "st,syscfg",
+							       2, syscon_args);
 	if (IS_ERR(phy_dev->regmap)) {
 		dev_err(dev, "No syscfg phandle specified\n");
 		return PTR_ERR(phy_dev->regmap);
 	}
 
-	ret = of_property_read_u32_index(np, "st,syscfg", PHYPARAM_REG,
-					&phy_dev->param);
-	if (ret) {
-		dev_err(dev, "can't get phyparam offset (%d)\n", ret);
-		return ret;
-	}
-
-	ret = of_property_read_u32_index(np, "st,syscfg", PHYCTRL_REG,
-					&phy_dev->ctrl);
-	if (ret) {
-		dev_err(dev, "can't get phyctrl offset (%d)\n", ret);
-		return ret;
-	}
+	phy_dev->param = syscon_args[PHYPARAM_REG];
+	phy_dev->ctrl = syscon_args[PHYCTRL_REG];
 
 	phy = devm_phy_create(dev, NULL, &stih407_usb2_picophy_data);
 	if (IS_ERR(phy)) {

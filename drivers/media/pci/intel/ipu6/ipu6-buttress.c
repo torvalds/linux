@@ -443,8 +443,8 @@ irqreturn_t ipu6_buttress_isr_threaded(int irq, void *isp_ptr)
 	return ret;
 }
 
-int ipu6_buttress_power(struct device *dev, struct ipu6_buttress_ctrl *ctrl,
-			bool on)
+int ipu6_buttress_power(struct device *dev,
+			const struct ipu6_buttress_ctrl *ctrl, bool on)
 {
 	struct ipu6_device *isp = to_ipu6_bus_device(dev)->isp;
 	u32 pwr_sts, val;
@@ -477,8 +477,6 @@ int ipu6_buttress_power(struct device *dev, struct ipu6_buttress_ctrl *ctrl,
 	if (ret)
 		dev_err(&isp->pdev->dev,
 			"Change power status timeout with 0x%x\n", val);
-
-	ctrl->started = !ret && on;
 
 	mutex_unlock(&isp->buttress.power_mutex);
 
@@ -847,10 +845,10 @@ int ipu6_buttress_init(struct ipu6_device *isp)
 	INIT_LIST_HEAD(&b->constraints);
 
 	isp->secure_mode = ipu6_buttress_get_secure_mode(isp);
-	dev_info(&isp->pdev->dev, "IPU6 in %s mode touch 0x%x mask 0x%x\n",
-		 isp->secure_mode ? "secure" : "non-secure",
-		 readl(isp->base + BUTTRESS_REG_SECURITY_TOUCH),
-		 readl(isp->base + BUTTRESS_REG_CAMERA_MASK));
+	dev_dbg(&isp->pdev->dev, "IPU6 in %s mode touch 0x%x mask 0x%x\n",
+		isp->secure_mode ? "secure" : "non-secure",
+		readl(isp->base + BUTTRESS_REG_SECURITY_TOUCH),
+		readl(isp->base + BUTTRESS_REG_CAMERA_MASK));
 
 	b->wdt_cached_value = readl(isp->base + BUTTRESS_REG_WDT);
 	writel(BUTTRESS_IRQS, isp->base + BUTTRESS_REG_ISR_CLEAR);

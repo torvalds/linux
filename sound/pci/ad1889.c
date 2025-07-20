@@ -626,7 +626,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 
 	reg = ad1889_readw(chip, AD_DS_WSMC);
 	snd_iprintf(buffer, "Wave output: %s\n",
-			(reg & AD_DS_WSMC_WAEN) ? "enabled" : "disabled");
+			str_enabled_disabled(reg & AD_DS_WSMC_WAEN));
 	snd_iprintf(buffer, "Wave Channels: %s\n",
 			(reg & AD_DS_WSMC_WAST) ? "stereo" : "mono");
 	snd_iprintf(buffer, "Wave Quality: %d-bit linear\n",
@@ -642,7 +642,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 				
 	
 	snd_iprintf(buffer, "Synthesis output: %s\n",
-			reg & AD_DS_WSMC_SYEN ? "enabled" : "disabled");
+			str_enabled_disabled(reg & AD_DS_WSMC_SYEN));
 	
 	/* SYRQ is at offset 4 */
 	tmp = (reg & AD_DS_WSMC_SYRQ) ?
@@ -654,7 +654,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 
 	reg = ad1889_readw(chip, AD_DS_RAMC);
 	snd_iprintf(buffer, "ADC input: %s\n",
-			(reg & AD_DS_RAMC_ADEN) ? "enabled" : "disabled");
+			str_enabled_disabled(reg & AD_DS_RAMC_ADEN));
 	snd_iprintf(buffer, "ADC Channels: %s\n",
 			(reg & AD_DS_RAMC_ADST) ? "stereo" : "mono");
 	snd_iprintf(buffer, "ADC Quality: %d-bit linear\n",
@@ -669,7 +669,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 			(reg & AD_DS_RAMC_ADST) ? "stereo" : "mono");
 	
 	snd_iprintf(buffer, "Resampler input: %s\n",
-			reg & AD_DS_RAMC_REEN ? "enabled" : "disabled");
+			str_enabled_disabled(reg & AD_DS_RAMC_REEN));
 			
 	/* RERQ is at offset 12 */
 	tmp = (reg & AD_DS_RAMC_RERQ) ?
@@ -810,12 +810,11 @@ snd_ad1889_create(struct snd_card *card, struct pci_dev *pci)
 	chip->irq = -1;
 
 	/* (1) PCI resource allocation */
-	err = pcim_iomap_regions(pci, 1 << 0, card->driver);
-	if (err < 0)
-		return err;
+	chip->iobase = pcim_iomap_region(pci, 0, card->driver);
+	if (IS_ERR(chip->iobase))
+		return PTR_ERR(chip->iobase);
 
 	chip->bar = pci_resource_start(pci, 0);
-	chip->iobase = pcim_iomap_table(pci)[0];
 	
 	pci_set_master(pci);
 

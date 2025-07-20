@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 ///
-/// Catch strings ending in newline with GENL_SET_ERR_MSG, NL_SET_ERR_MSG,
-/// NL_SET_ERR_MSG_MOD.
+/// Catch strings ending in newline with (GE)NL_SET_ERR_MSG*.
 ///
 // Confidence: Very High
 // Copyright: (C) 2020 Intel Corporation
@@ -17,7 +16,11 @@ expression e;
 constant m;
 position p;
 @@
-  \(GENL_SET_ERR_MSG\|NL_SET_ERR_MSG\|NL_SET_ERR_MSG_MOD\)(e,m@p)
+  \(GENL_SET_ERR_MSG\|GENL_SET_ERR_MSG_FMT\|NL_SET_ERR_MSG\|NL_SET_ERR_MSG_MOD\|
+  NL_SET_ERR_MSG_FMT\|NL_SET_ERR_MSG_FMT_MOD\|NL_SET_ERR_MSG_WEAK\|
+  NL_SET_ERR_MSG_WEAK_MOD\|NL_SET_ERR_MSG_ATTR_POL\|
+  NL_SET_ERR_MSG_ATTR_POL_FMT\|NL_SET_ERR_MSG_ATTR\|
+  NL_SET_ERR_MSG_ATTR_FMT\)(e,m@p,...)
 
 @script:python@
 m << r.m;
@@ -32,7 +35,7 @@ expression r.e;
 constant r.m;
 position r.p;
 @@
-  fname(e,m@p)
+  fname(e,m@p,...)
 
 //----------------------------------------------------------
 //  For context mode
@@ -43,7 +46,7 @@ identifier r1.fname;
 expression r.e;
 constant r.m;
 @@
-* fname(e,m)
+* fname(e,m,...)
 
 //----------------------------------------------------------
 //  For org mode

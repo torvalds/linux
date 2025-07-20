@@ -1021,25 +1021,25 @@ void kgd_gfx_v10_get_iq_wait_times(struct amdgpu_device *adev,
 	*wait_times = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2));
 }
 
-void kgd_gfx_v10_build_grace_period_packet_info(struct amdgpu_device *adev,
+void kgd_gfx_v10_build_dequeue_wait_counts_packet_info(struct amdgpu_device *adev,
 						uint32_t wait_times,
-						uint32_t grace_period,
+						uint32_t sch_wave,
+						uint32_t que_sleep,
 						uint32_t *reg_offset,
 						uint32_t *reg_data)
 {
 	*reg_data = wait_times;
 
-	/*
-	 * The CP cannont handle a 0 grace period input and will result in
-	 * an infinite grace period being set so set to 1 to prevent this.
-	 */
-	if (grace_period == 0)
-		grace_period = 1;
-
-	*reg_data = REG_SET_FIELD(*reg_data,
-			CP_IQ_WAIT_TIME2,
-			SCH_WAVE,
-			grace_period);
+	if (sch_wave)
+		*reg_data = REG_SET_FIELD(*reg_data,
+				CP_IQ_WAIT_TIME2,
+				SCH_WAVE,
+				sch_wave);
+	if (que_sleep)
+		*reg_data = REG_SET_FIELD(*reg_data,
+				CP_IQ_WAIT_TIME2,
+				QUE_SLEEP,
+				que_sleep);
 
 	*reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2);
 }
@@ -1084,6 +1084,12 @@ uint64_t kgd_gfx_v10_hqd_reset(struct amdgpu_device *adev,
 	return 0;
 }
 
+uint32_t kgd_gfx_v10_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
+					   int engine, int queue)
+{
+	return 0;
+}
+
 const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
@@ -1109,8 +1115,9 @@ const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.set_address_watch = kgd_gfx_v10_set_address_watch,
 	.clear_address_watch = kgd_gfx_v10_clear_address_watch,
 	.get_iq_wait_times = kgd_gfx_v10_get_iq_wait_times,
-	.build_grace_period_packet_info = kgd_gfx_v10_build_grace_period_packet_info,
+	.build_dequeue_wait_counts_packet_info = kgd_gfx_v10_build_dequeue_wait_counts_packet_info,
 	.program_trap_handler_settings = program_trap_handler_settings,
 	.hqd_get_pq_addr = kgd_gfx_v10_hqd_get_pq_addr,
-	.hqd_reset = kgd_gfx_v10_hqd_reset
+	.hqd_reset = kgd_gfx_v10_hqd_reset,
+	.hqd_sdma_get_doorbell = kgd_gfx_v10_hqd_sdma_get_doorbell
 };

@@ -7,9 +7,12 @@
 #ifndef _NOLIBC_CRT_H
 #define _NOLIBC_CRT_H
 
+#include "compiler.h"
+
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
+void _start(void);
 static void __stack_chk_init(void);
 static void exit(int);
 
@@ -22,7 +25,11 @@ extern void (*const __init_array_end[])(int, char **, char**) __attribute__((wea
 extern void (*const __fini_array_start[])(void) __attribute__((weak));
 extern void (*const __fini_array_end[])(void) __attribute__((weak));
 
+void _start_c(long *sp);
 __attribute__((weak,used))
+#if __nolibc_has_feature(undefined_behavior_sanitizer)
+	__attribute__((no_sanitize("function")))
+#endif
 void _start_c(long *sp)
 {
 	long argc;

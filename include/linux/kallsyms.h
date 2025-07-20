@@ -55,9 +55,8 @@ static inline void *dereference_symbol_descriptor(void *ptr)
 	if (is_ksym_addr((unsigned long)ptr))
 		return ptr;
 
-	preempt_disable();
+	guard(rcu)();
 	mod = __module_address((unsigned long)ptr);
-	preempt_enable();
 
 	if (mod)
 		ptr = dereference_module_function_descriptor(mod, ptr);

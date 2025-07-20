@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
+#include <linux/string_choices.h>
 #include "bus.h"
 
 static struct dentry *sdw_debugfs_root;
@@ -135,9 +136,10 @@ static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(sdw_slave_reg);
 
-#define MAX_CMD_BYTES 256
+#define MAX_CMD_BYTES (1024 * 1024)
 
 static int cmd;
+static int cmd_type;
 static u32 start_addr;
 static size_t num_bytes;
 static u8 read_buffer[MAX_CMD_BYTES];
@@ -153,13 +155,32 @@ static int set_command(void *data, u64 value)
 	/* Userspace changed the hardware state behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 
-	dev_dbg(&slave->dev, "command: %s\n", value ? "read" : "write");
+	dev_dbg(&slave->dev, "command: %s\n", str_read_write(value));
 	cmd = value;
 
 	return 0;
 }
 DEFINE_DEBUGFS_ATTRIBUTE(set_command_fops, NULL,
 			 set_command, "%llu\n");
+
+static int set_command_type(void *data, u64 value)
+{
+	struct sdw_slave *slave = data;
+
+	if (value > 1)
+		return -EINVAL;
+
+	/* Userspace changed the hardware state behind the kernel's back */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+	dev_dbg(&slave->dev, "command type: %s\n", value ? "BRA" : "Column0");
+
+	cmd_type = (int)value;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(set_command_type_fops, NULL,
+			 set_command_type, "%llu\n");
 
 static int set_start_address(void *data, u64 value)
 {
@@ -196,9 +217,28 @@ static int set_num_bytes(void *data, u64 value)
 DEFINE_DEBUGFS_ATTRIBUTE(set_num_bytes_fops, NULL,
 			 set_num_bytes, "%llu\n");
 
+static int do_bpt_sequence(struct sdw_slave *slave, bool write, u8 *buffer)
+{
+	struct sdw_bpt_msg msg = {0};
+
+	msg.addr = start_addr;
+	msg.len = num_bytes;
+	msg.dev_num = slave->dev_num;
+	if (write)
+		msg.flags = SDW_MSG_FLAG_WRITE;
+	else
+		msg.flags = SDW_MSG_FLAG_READ;
+	msg.buf = buffer;
+
+	return sdw_bpt_send_sync(slave->bus, slave, &msg);
+}
+
 static int cmd_go(void *data, u64 value)
 {
+	const struct firmware *fw = NULL;
 	struct sdw_slave *slave = data;
+	ktime_t start_t;
+	ktime_t finish_t;
 	int ret;
 
 	if (value != 1)
@@ -215,39 +255,51 @@ static int cmd_go(void *data, u64 value)
 		return ret;
 	}
 
-	/* Userspace changed the hardware state behind the kernel's back */
-	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
-
-	dev_dbg(&slave->dev, "starting command\n");
-
 	if (cmd == 0) {
-		const struct firmware *fw;
-
 		ret = request_firmware(&fw, firmware_file, &slave->dev);
 		if (ret < 0) {
 			dev_err(&slave->dev, "firmware %s not found\n", firmware_file);
 			goto out;
 		}
-
-		if (fw->size != num_bytes) {
+		if (fw->size < num_bytes) {
 			dev_err(&slave->dev,
-				"firmware %s: unexpected size %zd, desired %zd\n",
+				"firmware %s: firmware size %zd, desired %zd\n",
 				firmware_file, fw->size, num_bytes);
-			release_firmware(fw);
 			goto out;
 		}
-
-		ret = sdw_nwrite_no_pm(slave, start_addr, num_bytes, fw->data);
-		release_firmware(fw);
-	} else {
-		ret = sdw_nread_no_pm(slave, start_addr, num_bytes, read_buffer);
 	}
 
-	dev_dbg(&slave->dev, "command completed %d\n", ret);
+	/* Userspace changed the hardware state behind the kernel's back */
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+	dev_dbg(&slave->dev, "starting command\n");
+	start_t = ktime_get();
+
+	if (cmd == 0) {
+		if (cmd_type)
+			ret = do_bpt_sequence(slave, true, (u8 *)fw->data);
+		else
+			ret = sdw_nwrite_no_pm(slave, start_addr, num_bytes, fw->data);
+	} else {
+		memset(read_buffer, 0, sizeof(read_buffer));
+
+		if (cmd_type)
+			ret = do_bpt_sequence(slave, false, read_buffer);
+		else
+			ret = sdw_nread_no_pm(slave, start_addr, num_bytes, read_buffer);
+	}
+
+	finish_t = ktime_get();
 
 out:
+	if (fw)
+		release_firmware(fw);
+
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put(&slave->dev);
+
+	dev_dbg(&slave->dev, "command completed, num_byte %zu status %d, time %lld ms\n",
+		num_bytes, ret, div_u64(finish_t - start_t, NSEC_PER_MSEC));
 
 	return ret;
 }
@@ -290,6 +342,7 @@ void sdw_slave_debugfs_init(struct sdw_slave *slave)
 
 	/* interface to send arbitrary commands */
 	debugfs_create_file("command", 0200, d, slave, &set_command_fops);
+	debugfs_create_file("command_type", 0200, d, slave, &set_command_type_fops);
 	debugfs_create_file("start_address", 0200, d, slave, &set_start_address_fops);
 	debugfs_create_file("num_bytes", 0200, d, slave, &set_num_bytes_fops);
 	debugfs_create_file("go", 0200, d, slave, &cmd_go_fops);

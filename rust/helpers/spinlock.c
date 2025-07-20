@@ -30,3 +30,8 @@ int rust_helper_spin_trylock(spinlock_t *lock)
 {
 	return spin_trylock(lock);
 }
+
+void rust_helper_spin_assert_is_held(spinlock_t *lock)
+{
+	lockdep_assert_held(lock);
+}

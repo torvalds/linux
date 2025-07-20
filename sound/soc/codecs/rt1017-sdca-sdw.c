@@ -758,7 +758,7 @@ static const struct sdw_device_id rt1017_sdca_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt1017_sdca_id);
 
-static int __maybe_unused rt1017_sdca_dev_suspend(struct device *dev)
+static int rt1017_sdca_dev_suspend(struct device *dev)
 {
 	struct rt1017_sdca_priv *rt1017 = dev_get_drvdata(dev);
 
@@ -772,7 +772,7 @@ static int __maybe_unused rt1017_sdca_dev_suspend(struct device *dev)
 
 #define RT1017_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt1017_sdca_dev_resume(struct device *dev)
+static int rt1017_sdca_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt1017_sdca_priv *rt1017 = dev_get_drvdata(dev);
@@ -802,14 +802,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt1017_sdca_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt1017_sdca_dev_suspend, rt1017_sdca_dev_resume)
-	SET_RUNTIME_PM_OPS(rt1017_sdca_dev_suspend, rt1017_sdca_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt1017_sdca_dev_suspend, rt1017_sdca_dev_resume)
+	RUNTIME_PM_OPS(rt1017_sdca_dev_suspend, rt1017_sdca_dev_resume, NULL)
 };
 
 static struct sdw_driver rt1017_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt1017-sdca",
-		.pm = &rt1017_sdca_pm,
+		.pm = pm_ptr(&rt1017_sdca_pm),
 	},
 	.probe = rt1017_sdca_sdw_probe,
 	.remove = rt1017_sdca_sdw_remove,

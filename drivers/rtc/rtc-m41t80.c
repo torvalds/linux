@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -204,14 +205,14 @@ static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return flags;
 
 	if (flags & M41T80_FLAGS_OF) {
-		dev_err(&client->dev, "Oscillator failure, data is invalid.\n");
+		dev_err(&client->dev, "Oscillator failure, time may not be accurate, write time to RTC to fix it.\n");
 		return -EINVAL;
 	}
 
 	err = i2c_smbus_read_i2c_block_data(client, M41T80_REG_SSEC,
 					    sizeof(buf), buf);
 	if (err < 0) {
-		dev_err(&client->dev, "Unable to read date\n");
+		dev_dbg(&client->dev, "Unable to read date\n");
 		return err;
 	}
 
@@ -227,21 +228,31 @@ static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
+static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *in_tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
+	struct rtc_time tm = *in_tm;
 	unsigned char buf[8];
 	int err, flags;
+	time64_t time = 0;
 
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+	if (flags & M41T80_FLAGS_OF) {
+		/* add 4sec of oscillator stablize time otherwise we are behind 4sec */
+		time = rtc_tm_to_time64(&tm);
+		rtc_time64_to_tm(time + 4, &tm);
+	}
 	buf[M41T80_REG_SSEC] = 0;
-	buf[M41T80_REG_SEC] = bin2bcd(tm->tm_sec);
-	buf[M41T80_REG_MIN] = bin2bcd(tm->tm_min);
-	buf[M41T80_REG_HOUR] = bin2bcd(tm->tm_hour);
-	buf[M41T80_REG_DAY] = bin2bcd(tm->tm_mday);
-	buf[M41T80_REG_MON] = bin2bcd(tm->tm_mon + 1);
-	buf[M41T80_REG_YEAR] = bin2bcd(tm->tm_year - 100);
-	buf[M41T80_REG_WDAY] = tm->tm_wday;
+	buf[M41T80_REG_SEC] = bin2bcd(tm.tm_sec);
+	buf[M41T80_REG_MIN] = bin2bcd(tm.tm_min);
+	buf[M41T80_REG_HOUR] = bin2bcd(tm.tm_hour);
+	buf[M41T80_REG_DAY] = bin2bcd(tm.tm_mday);
+	buf[M41T80_REG_MON] = bin2bcd(tm.tm_mon + 1);
+	buf[M41T80_REG_YEAR] = bin2bcd(tm.tm_year - 100);
+	buf[M41T80_REG_WDAY] = tm.tm_wday;
 
 	/* If the square wave output is controlled in the weekday register */
 	if (clientdata->features & M41T80_FEATURE_SQ_ALT) {
@@ -257,20 +268,37 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	err = i2c_smbus_write_i2c_block_data(client, M41T80_REG_SSEC,
 					     sizeof(buf), buf);
 	if (err < 0) {
-		dev_err(&client->dev, "Unable to write to date registers\n");
+		dev_dbg(&client->dev, "Unable to write to date registers\n");
 		return err;
 	}
-
-	/* Clear the OF bit of Flags Register */
-	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
-	if (flags < 0)
-		return flags;
-
-	err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
-					flags & ~M41T80_FLAGS_OF);
-	if (err < 0) {
-		dev_err(&client->dev, "Unable to write flags register\n");
-		return err;
+	if (flags & M41T80_FLAGS_OF) {
+		/* OF cannot be immediately reset: oscillator has to be restarted. */
+		dev_warn(&client->dev, "OF bit is still set, kickstarting clock.\n");
+		err = i2c_smbus_write_byte_data(client, M41T80_REG_SEC, M41T80_SEC_ST);
+		if (err < 0) {
+			dev_dbg(&client->dev, "Can't set ST bit\n");
+			return err;
+		}
+		err = i2c_smbus_write_byte_data(client, M41T80_REG_SEC, flags & ~M41T80_SEC_ST);
+		if (err < 0) {
+			dev_dbg(&client->dev, "Can't clear ST bit\n");
+			return err;
+		}
+		/* oscillator must run for 4sec before we attempt to reset OF bit */
+		msleep(4000);
+		/* Clear the OF bit of Flags Register */
+		err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS, flags & ~M41T80_FLAGS_OF);
+		if (err < 0) {
+			dev_dbg(&client->dev, "Unable to write flags register\n");
+			return err;
+		}
+		flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+		if (flags < 0) {
+			return flags;
+		} else if (flags & M41T80_FLAGS_OF) {
+			dev_dbg(&client->dev, "Can't clear the OF bit check battery\n");
+			return err;
+		}
 	}
 
 	return err;
@@ -308,7 +336,7 @@ static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	retval = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, flags);
 	if (retval < 0) {
-		dev_err(dev, "Unable to enable alarm IRQ %d\n", retval);
+		dev_dbg(dev, "Unable to enable alarm IRQ %d\n", retval);
 		return retval;
 	}
 	return 0;
@@ -333,7 +361,7 @@ static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	err = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
 					ret & ~(M41T80_ALMON_AFE));
 	if (err < 0) {
-		dev_err(dev, "Unable to clear AFE bit\n");
+		dev_dbg(dev, "Unable to clear AFE bit\n");
 		return err;
 	}
 
@@ -347,7 +375,7 @@ static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
 					ret & ~(M41T80_FLAGS_AF));
 	if (err < 0) {
-		dev_err(dev, "Unable to clear AF bit\n");
+		dev_dbg(dev, "Unable to clear AF bit\n");
 		return err;
 	}
 

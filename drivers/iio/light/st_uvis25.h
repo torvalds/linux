@@ -30,7 +30,7 @@ struct st_uvis25_hw {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		u8 chan;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

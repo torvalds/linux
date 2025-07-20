@@ -28,6 +28,7 @@ struct wfx_hwbus_ops {
 	void (*lock)(void *bus_priv);
 	void (*unlock)(void *bus_priv);
 	size_t (*align_size)(void *bus_priv, size_t size);
+	void (*set_wakeup)(void *priv, bool enabled);
 };
 
 extern struct sdio_driver wfx_sdio_driver;

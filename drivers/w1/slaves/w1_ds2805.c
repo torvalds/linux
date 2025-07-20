@@ -92,7 +92,7 @@ static int w1_f0d_readblock(struct w1_slave *sl, int off, int count, char *buf)
 }
 
 static ssize_t w1_f0d_read_bin(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
+			       const struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -200,7 +200,7 @@ retry:
 }
 
 static ssize_t w1_f0d_write_bin(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
+				const struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -261,14 +261,14 @@ out_up:
 	return count;
 }
 
-static struct bin_attribute w1_f0d_bin_attr = {
+static const struct bin_attribute w1_f0d_bin_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = 0644,
 	},
 	.size = W1_F0D_EEPROM_SIZE,
-	.read = w1_f0d_read_bin,
-	.write = w1_f0d_write_bin,
+	.read_new = w1_f0d_read_bin,
+	.write_new = w1_f0d_write_bin,
 };
 
 static int w1_f0d_add_slave(struct w1_slave *sl)

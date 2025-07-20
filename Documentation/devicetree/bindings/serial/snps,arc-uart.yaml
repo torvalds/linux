@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/snps,arc-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys ARC UART
+
+maintainers:
+  - Vineet Gupta <vgupta@kernel.org>
+
+description:
+  Synopsys ARC UART is a non-standard UART used in some of the ARC FPGA boards.
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: snps,arc-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-frequency:
+    description: the input clock frequency for the UART
+
+  current-speed:
+    description: baud rate for UART
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-frequency
+  - current-speed
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    serial@c0fc1000 {
+        compatible = "snps,arc-uart";
+        reg = <0xc0fc1000 0x100>;
+        interrupts = <5>;
+        clock-frequency = <80000000>;
+        current-speed = <115200>;
+    };

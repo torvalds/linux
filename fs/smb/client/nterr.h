@@ -546,6 +546,7 @@ extern const struct nt_err_code_struct nt_errs[];
 #define NT_STATUS_TOO_MANY_LINKS 0xC0000000 | 0x0265
 #define NT_STATUS_QUOTA_LIST_INCONSISTENT 0xC0000000 | 0x0266
 #define NT_STATUS_FILE_IS_OFFLINE 0xC0000000 | 0x0267
+#define NT_STATUS_NOT_A_REPARSE_POINT 0xC0000000 | 0x0275
 #define NT_STATUS_NO_SUCH_JOB 0xC0000000 | 0xEDE	/* scheduler */
 
 #endif				/* _NTERR_H */

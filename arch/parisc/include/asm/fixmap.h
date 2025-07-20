@@ -39,7 +39,7 @@
 #define KERNEL_MAP_START	(GATEWAY_PAGE_SIZE)
 #define KERNEL_MAP_END		(FIXMAP_START)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 
 enum fixed_addresses {
@@ -59,6 +59,6 @@ extern void *parisc_vmalloc_start;
 void set_fixmap(enum fixed_addresses idx, phys_addr_t phys);
 void clear_fixmap(enum fixed_addresses idx);
 
-#endif /*__ASSEMBLY__*/
+#endif /*__ASSEMBLER__*/
 
 #endif /*_ASM_FIXMAP_H*/

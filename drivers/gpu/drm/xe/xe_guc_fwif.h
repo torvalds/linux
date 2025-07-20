@@ -17,6 +17,7 @@
 #define G2H_LEN_DW_TLB_INVALIDATE		3
 
 #define GUC_ID_MAX			65535
+#define GUC_ID_UNKNOWN			0xffffffff
 
 #define GUC_CONTEXT_DISABLE		0
 #define GUC_CONTEXT_ENABLE		1
@@ -205,6 +206,25 @@ struct guc_engine_usage_record {
 
 struct guc_engine_usage {
 	struct guc_engine_usage_record engines[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+} __packed;
+
+/* Engine Activity stats */
+struct guc_engine_activity {
+	u16 change_num;
+	u16 quanta_ratio;
+	u32 last_update_tick;
+	u64 active_ticks;
+} __packed;
+
+struct guc_engine_activity_data {
+	struct guc_engine_activity engine_activity[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+} __packed;
+
+struct guc_engine_activity_metadata {
+	u32 guc_tsc_frequency_hz;
+	u32 lag_latency_usec;
+	u32 global_change_num;
+	u32 reserved;
 } __packed;
 
 /* This action will be programmed in C1BC - SOFT_SCRATCH_15_REG */

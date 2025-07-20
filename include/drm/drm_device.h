@@ -21,6 +21,14 @@ struct inode;
 struct pci_dev;
 struct pci_controller;
 
+/*
+ * Recovery methods for wedged device in order of less to more side-effects.
+ * To be used with drm_dev_wedged_event() as recovery @method. Callers can
+ * use any one, multiple (or'd) or none depending on their needs.
+ */
+#define DRM_WEDGE_RECOVERY_NONE		BIT(0)	/* optional telemetry collection */
+#define DRM_WEDGE_RECOVERY_REBIND	BIT(1)	/* unbind + bind driver */
+#define DRM_WEDGE_RECOVERY_BUS_RESET	BIT(2)	/* unbind + reset bus device + bind */
 
 /**
  * enum switch_power_state - power state of drm device
@@ -55,6 +63,28 @@ struct drm_device {
 
 	/** @dev: Device structure of bus-device */
 	struct device *dev;
+
+	/**
+	 * @dma_dev:
+	 *
+	 * Device for DMA operations. Only required if the device @dev
+	 * cannot perform DMA by itself. Should be NULL otherwise. Call
+	 * drm_dev_dma_dev() to get the DMA device instead of using this
+	 * field directly. Call drm_dev_set_dma_dev() to set this field.
+	 *
+	 * DRM devices are sometimes bound to virtual devices that cannot
+	 * perform DMA by themselves. Drivers should set this field to the
+	 * respective DMA controller.
+	 *
+	 * Devices on USB and other peripheral busses also cannot perform
+	 * DMA by themselves. The @dma_dev field should point the bus
+	 * controller that does DMA on behalve of such a device. Required
+	 * for importing buffers via dma-buf.
+	 *
+	 * If set, the DRM core automatically releases the reference on the
+	 * device.
+	 */
+	struct device *dma_dev;
 
 	/**
 	 * @managed:
@@ -318,5 +348,24 @@ struct drm_device {
 	 */
 	struct dentry *debugfs_root;
 };
+
+void drm_dev_set_dma_dev(struct drm_device *dev, struct device *dma_dev);
+
+/**
+ * drm_dev_dma_dev - returns the DMA device for a DRM device
+ * @dev: DRM device
+ *
+ * Returns the DMA device of the given DRM device. By default, this
+ * the DRM device's parent. See drm_dev_set_dma_dev().
+ *
+ * Returns:
+ * A DMA-capable device for the DRM device.
+ */
+static inline struct device *drm_dev_dma_dev(struct drm_device *dev)
+{
+	if (dev->dma_dev)
+		return dev->dma_dev;
+	return dev->dev;
+}
 
 #endif

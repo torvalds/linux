@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2022, 2025 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -91,104 +91,6 @@ const char *iwl_rs_pretty_bw(int bw)
 }
 IWL_EXPORT_SYMBOL(iwl_rs_pretty_bw);
 
-static u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
-{
-	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
-	int idx;
-	bool ofdm = !(rate_n_flags & RATE_MCS_CCK_MSK_V1);
-	int offset = ofdm ? IWL_FIRST_OFDM_RATE : 0;
-	int last = ofdm ? IWL_RATE_COUNT_LEGACY : IWL_FIRST_OFDM_RATE;
-
-	for (idx = offset; idx < last; idx++)
-		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
-			return idx - offset;
-	return IWL_RATE_INVALID;
-}
-
-u32 iwl_new_rate_from_v1(u32 rate_v1)
-{
-	u32 rate_v2 = 0;
-	u32 dup = 0;
-
-	if (rate_v1 == 0)
-		return rate_v1;
-	/* convert rate */
-	if (rate_v1 & RATE_MCS_HT_MSK_V1) {
-		u32 nss = 0;
-
-		rate_v2 |= RATE_MCS_HT_MSK;
-		rate_v2 |=
-			rate_v1 & RATE_HT_MCS_RATE_CODE_MSK_V1;
-		nss = (rate_v1 & RATE_HT_MCS_MIMO2_MSK) >>
-			RATE_HT_MCS_NSS_POS_V1;
-		rate_v2 |= nss << RATE_MCS_NSS_POS;
-	} else if (rate_v1 & RATE_MCS_VHT_MSK_V1 ||
-		   rate_v1 & RATE_MCS_HE_MSK_V1) {
-		rate_v2 |= rate_v1 & RATE_VHT_MCS_RATE_CODE_MSK;
-
-		rate_v2 |= rate_v1 & RATE_MCS_NSS_MSK;
-
-		if (rate_v1 & RATE_MCS_HE_MSK_V1) {
-			u32 he_type_bits = rate_v1 & RATE_MCS_HE_TYPE_MSK_V1;
-			u32 he_type = he_type_bits >> RATE_MCS_HE_TYPE_POS_V1;
-			u32 he_106t = (rate_v1 & RATE_MCS_HE_106T_MSK_V1) >>
-				RATE_MCS_HE_106T_POS_V1;
-			u32 he_gi_ltf = (rate_v1 & RATE_MCS_HE_GI_LTF_MSK_V1) >>
-				RATE_MCS_HE_GI_LTF_POS;
-
-			if ((he_type_bits == RATE_MCS_HE_TYPE_SU ||
-			     he_type_bits == RATE_MCS_HE_TYPE_EXT_SU) &&
-			    he_gi_ltf == RATE_MCS_HE_SU_4_LTF)
-				/* the new rate have an additional bit to
-				 * represent the value 4 rather then using SGI
-				 * bit for this purpose - as it was done in the old
-				 * rate */
-				he_gi_ltf += (rate_v1 & RATE_MCS_SGI_MSK_V1) >>
-					RATE_MCS_SGI_POS_V1;
-
-			rate_v2 |= he_gi_ltf << RATE_MCS_HE_GI_LTF_POS;
-			rate_v2 |= he_type << RATE_MCS_HE_TYPE_POS;
-			rate_v2 |= he_106t << RATE_MCS_HE_106T_POS;
-			rate_v2 |= rate_v1 & RATE_HE_DUAL_CARRIER_MODE_MSK;
-			rate_v2 |= RATE_MCS_HE_MSK;
-		} else {
-			rate_v2 |= RATE_MCS_VHT_MSK;
-		}
-	/* if legacy format */
-	} else {
-		u32 legacy_rate = iwl_legacy_rate_to_fw_idx(rate_v1);
-
-		if (WARN_ON_ONCE(legacy_rate == IWL_RATE_INVALID))
-			legacy_rate = (rate_v1 & RATE_MCS_CCK_MSK_V1) ?
-				IWL_FIRST_CCK_RATE : IWL_FIRST_OFDM_RATE;
-
-		rate_v2 |= legacy_rate;
-		if (!(rate_v1 & RATE_MCS_CCK_MSK_V1))
-			rate_v2 |= RATE_MCS_LEGACY_OFDM_MSK;
-	}
-
-	/* convert flags */
-	if (rate_v1 & RATE_MCS_LDPC_MSK_V1)
-		rate_v2 |= RATE_MCS_LDPC_MSK;
-	rate_v2 |= (rate_v1 & RATE_MCS_CHAN_WIDTH_MSK_V1) |
-		(rate_v1 & RATE_MCS_ANT_AB_MSK) |
-		(rate_v1 & RATE_MCS_STBC_MSK) |
-		(rate_v1 & RATE_MCS_BF_MSK);
-
-	dup = (rate_v1 & RATE_MCS_DUP_MSK_V1) >> RATE_MCS_DUP_POS_V1;
-	if (dup) {
-		rate_v2 |= RATE_MCS_DUP_MSK;
-		rate_v2 |= dup << RATE_MCS_CHAN_WIDTH_POS;
-	}
-
-	if ((!(rate_v1 & RATE_MCS_HE_MSK_V1)) &&
-	    (rate_v1 & RATE_MCS_SGI_MSK_V1))
-		rate_v2 |= RATE_MCS_SGI_MSK;
-
-	return rate_v2;
-}
-IWL_EXPORT_SYMBOL(iwl_new_rate_from_v1);
-
 int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {
 	char *type;
@@ -197,37 +99,40 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	u32 bw = (rate & RATE_MCS_CHAN_WIDTH_MSK) >>
 		RATE_MCS_CHAN_WIDTH_POS;
 	u32 format = rate & RATE_MCS_MOD_TYPE_MSK;
+	int index = 0;
 	bool sgi;
 
-	if (format == RATE_MCS_CCK_MSK ||
-	    format == RATE_MCS_LEGACY_OFDM_MSK) {
-		int legacy_rate = rate & RATE_LEGACY_RATE_MSK;
-		int index = format == RATE_MCS_CCK_MSK ?
-			legacy_rate :
-			legacy_rate + IWL_FIRST_OFDM_RATE;
+	switch (format) {
+	case RATE_MCS_MOD_TYPE_LEGACY_OFDM:
+		index = IWL_FIRST_OFDM_RATE;
+		fallthrough;
+	case RATE_MCS_MOD_TYPE_CCK:
+		index += rate & RATE_LEGACY_RATE_MSK;
 
 		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps",
 				 iwl_rs_pretty_ant(ant),
 				 iwl_rate_mcs(index)->mbps);
+	case RATE_MCS_MOD_TYPE_VHT:
+		type = "VHT";
+		break;
+	case RATE_MCS_MOD_TYPE_HT:
+		type = "HT";
+		break;
+	case RATE_MCS_MOD_TYPE_HE:
+		type = "HE";
+		break;
+	case RATE_MCS_MOD_TYPE_EHT:
+		type = "EHT";
+		break;
+	default:
+		type = "Unknown"; /* shouldn't happen */
 	}
 
-	if (format ==  RATE_MCS_VHT_MSK)
-		type = "VHT";
-	else if (format ==  RATE_MCS_HT_MSK)
-		type = "HT";
-	else if (format == RATE_MCS_HE_MSK)
-		type = "HE";
-	else if (format == RATE_MCS_EHT_MSK)
-		type = "EHT";
-	else
-		type = "Unknown"; /* shouldn't happen */
-
-	mcs = format == RATE_MCS_HT_MSK ?
+	mcs = format == RATE_MCS_MOD_TYPE_HT ?
 		RATE_HT_MCS_INDEX(rate) :
 		rate & RATE_MCS_CODE_MSK;
-	nss = ((rate & RATE_MCS_NSS_MSK)
-	       >> RATE_MCS_NSS_POS) + 1;
-	sgi = format == RATE_MCS_HE_MSK ?
+	nss = u32_get_bits(rate, RATE_MCS_NSS_MSK);
+	sgi = format == RATE_MCS_MOD_TYPE_HE ?
 		iwl_he_is_sgi(rate) :
 		rate & RATE_MCS_SGI_MSK;
 

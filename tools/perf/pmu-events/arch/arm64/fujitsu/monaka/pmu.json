@@ -1,0 +1,10 @@
+[
+    {
+        "ArchStdEvent": "PMU_OVFS",
+        "BriefDescription": "This event counts the event generated each time one of the condition occurs described in Arm Architecture Reference Manual for A-profile architecture. This event is only for output to the trace unit."
+    },
+    {
+        "ArchStdEvent": "PMU_HOVFS",
+        "BriefDescription": "This event counts the event generated each time an event is counted by an event counter <n> and all of the condition occur described in Arm Architecture Reference Manual for A-profile architecture. This event is only for output to the trace unit."
+    }
+]

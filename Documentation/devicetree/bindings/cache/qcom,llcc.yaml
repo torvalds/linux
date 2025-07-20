@@ -20,6 +20,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,ipq5424-llcc
       - qcom,qcs615-llcc
       - qcom,qcs8300-llcc
       - qcom,qdu1000-llcc
@@ -39,14 +40,15 @@ properties:
       - qcom,sm8450-llcc
       - qcom,sm8550-llcc
       - qcom,sm8650-llcc
+      - qcom,sm8750-llcc
       - qcom,x1e80100-llcc
 
   reg:
-    minItems: 2
+    minItems: 1
     maxItems: 10
 
   reg-names:
-    minItems: 2
+    minItems: 1
     maxItems: 10
 
   interrupts:
@@ -66,6 +68,21 @@ required:
   - reg-names
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq5424-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+        reg-names:
+          items:
+            - const: llcc0_base
+
   - if:
       properties:
         compatible:
@@ -258,6 +275,7 @@ allOf:
               - qcom,sm8450-llcc
               - qcom,sm8550-llcc
               - qcom,sm8650-llcc
+              - qcom,sm8750-llcc
     then:
       properties:
         reg:

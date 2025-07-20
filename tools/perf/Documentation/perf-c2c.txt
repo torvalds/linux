@@ -54,8 +54,15 @@ RECORD OPTIONS
 
 -l::
 --ldlat::
-	Configure mem-loads latency. Supported on Intel and Arm64 processors
-	only. Ignored on other archs.
+	Configure mem-loads latency. Supported on Intel, Arm64 and some AMD
+	processors. Ignored on other archs.
+
+	On supported AMD processors:
+	- /sys/bus/event_source/devices/ibs_op/caps/ldlat file contains '1'.
+	- Supported latency values are 128 to 2048 (both inclusive).
+	- Latency value which is a multiple of 128 incurs a little less profiling
+	  overhead compared to other values.
+	- Load latency filtering is disabled by default.
 
 -k::
 --all-kernel::

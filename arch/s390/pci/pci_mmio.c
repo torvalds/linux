@@ -32,9 +32,11 @@ static inline int __pcistb_mio_inuser(
 		u64 len, u8 *status)
 {
 	int cc, exception;
+	bool sacf_flag;
 
 	exception = 1;
-	asm volatile (
+	sacf_flag = enable_sacf_uaccess();
+	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	.insn	rsy,0xeb00000000d4,%[len],%[ioaddr],%[src]\n"
 		"1:	lhi	%[exc],0\n"
@@ -44,6 +46,7 @@ static inline int __pcistb_mio_inuser(
 		: CC_OUT(cc, cc), [len] "+d" (len), [exc] "+d" (exception)
 		: [ioaddr] "a" (ioaddr), [src] "Q" (*((u8 __force *)src))
 		: CC_CLOBBER_LIST("memory"));
+	disable_sacf_uaccess(sacf_flag);
 	*status = len >> 24 & 0xff;
 	return exception ? -ENXIO : CC_TRANSFORM(cc);
 }
@@ -54,6 +57,7 @@ static inline int __pcistg_mio_inuser(
 {
 	union register_pair ioaddr_len = {.even = (u64 __force)ioaddr, .odd = ulen};
 	int cc, exception;
+	bool sacf_flag;
 	u64 val = 0;
 	u64 cnt = ulen;
 	u8 tmp;
@@ -64,7 +68,8 @@ static inline int __pcistg_mio_inuser(
 	 * address space. pcistg then uses the user mappings.
 	 */
 	exception = 1;
-	asm volatile (
+	sacf_flag = enable_sacf_uaccess();
+	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	llgc	%[tmp],0(%[src])\n"
 		"4:	sllg	%[val],%[val],8\n"
@@ -81,6 +86,7 @@ static inline int __pcistg_mio_inuser(
 		  CC_OUT(cc, cc), [ioaddr_len] "+&d" (ioaddr_len.pair)
 		:
 		: CC_CLOBBER_LIST("memory"));
+	disable_sacf_uaccess(sacf_flag);
 	*status = ioaddr_len.odd >> 24 & 0xff;
 
 	cc = exception ? -ENXIO : CC_TRANSFORM(cc);
@@ -175,8 +181,12 @@ SYSCALL_DEFINE3(s390_pci_mmio_write, unsigned long, mmio_addr,
 	args.address = mmio_addr;
 	args.vma = vma;
 	ret = follow_pfnmap_start(&args);
-	if (ret)
-		goto out_unlock_mmap;
+	if (ret) {
+		fixup_user_fault(current->mm, mmio_addr, FAULT_FLAG_WRITE, NULL);
+		ret = follow_pfnmap_start(&args);
+		if (ret)
+			goto out_unlock_mmap;
+	}
 
 	io_addr = (void __iomem *)((args.pfn << PAGE_SHIFT) |
 			(mmio_addr & ~PAGE_MASK));
@@ -200,6 +210,7 @@ static inline int __pcilg_mio_inuser(
 		u64 ulen, u8 *status)
 {
 	union register_pair ioaddr_len = {.even = (u64 __force)ioaddr, .odd = ulen};
+	bool sacf_flag;
 	u64 cnt = ulen;
 	int shift = ulen * 8;
 	int cc, exception;
@@ -211,7 +222,8 @@ static inline int __pcilg_mio_inuser(
 	 * user address @dst
 	 */
 	exception = 1;
-	asm volatile (
+	sacf_flag = enable_sacf_uaccess();
+	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	.insn	rre,0xb9d60000,%[val],%[ioaddr_len]\n"
 		"1:	lhi	%[exc],0\n"
@@ -232,10 +244,10 @@ static inline int __pcilg_mio_inuser(
 		: [ioaddr_len] "+&d" (ioaddr_len.pair), [exc] "+d" (exception),
 		  CC_OUT(cc, cc), [val] "=d" (val),
 		  [dst] "+a" (dst), [cnt] "+d" (cnt), [tmp] "=d" (tmp),
-		  [shift] "+d" (shift)
+		  [shift] "+a" (shift)
 		:
 		: CC_CLOBBER_LIST("memory"));
-
+	disable_sacf_uaccess(sacf_flag);
 	cc = exception ? -ENXIO : CC_TRANSFORM(cc);
 	/* did we write everything to the user space buffer? */
 	if (!cc && cnt != 0)
@@ -315,14 +327,18 @@ SYSCALL_DEFINE3(s390_pci_mmio_read, unsigned long, mmio_addr,
 	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
 		goto out_unlock_mmap;
 	ret = -EACCES;
-	if (!(vma->vm_flags & VM_WRITE))
+	if (!(vma->vm_flags & VM_READ))
 		goto out_unlock_mmap;
 
 	args.vma = vma;
 	args.address = mmio_addr;
 	ret = follow_pfnmap_start(&args);
-	if (ret)
-		goto out_unlock_mmap;
+	if (ret) {
+		fixup_user_fault(current->mm, mmio_addr, 0, NULL);
+		ret = follow_pfnmap_start(&args);
+		if (ret)
+			goto out_unlock_mmap;
+	}
 
 	io_addr = (void __iomem *)((args.pfn << PAGE_SHIFT) |
 			(mmio_addr & ~PAGE_MASK));

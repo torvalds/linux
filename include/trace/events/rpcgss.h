@@ -409,7 +409,7 @@ TRACE_EVENT(rpcgss_seqno,
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__entry->seqno = rqst->rq_seqno;
+		__entry->seqno = *rqst->rq_seqnos;
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x seqno=%u",
@@ -440,7 +440,7 @@ TRACE_EVENT(rpcgss_need_reencode,
 		__entry->client_id = task->tk_client->cl_clid;
 		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
 		__entry->seq_xmit = seq_xmit;
-		__entry->seqno = task->tk_rqstp->rq_seqno;
+		__entry->seqno = *task->tk_rqstp->rq_seqnos;
 		__entry->ret = ret;
 	),
 

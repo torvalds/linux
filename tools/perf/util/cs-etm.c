@@ -506,20 +506,27 @@ static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
 	evsel = evlist__event2evsel(session->evlist, event);
 	if (!evsel)
 		return -EINVAL;
+	perf_sample__init(&sample, /*all=*/false);
 	err = evsel__parse_sample(evsel, event, &sample);
 	if (err)
-		return err;
+		goto out;
 	cpu = sample.cpu;
 	if (cpu == -1) {
 		/* no CPU in the sample - possibly recorded with an old version of perf */
 		pr_err("CS_ETM: no CPU AUX_OUTPUT_HW_ID sample. Use compatible perf to record.");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
-	if (FIELD_GET(CS_AUX_HW_ID_MINOR_VERSION_MASK, hw_id) == 0)
-		return cs_etm__process_trace_id_v0(etm, cpu, hw_id);
+	if (FIELD_GET(CS_AUX_HW_ID_MINOR_VERSION_MASK, hw_id) == 0) {
+		err = cs_etm__process_trace_id_v0(etm, cpu, hw_id);
+		goto out;
+	}
 
-	return cs_etm__process_trace_id_v0_1(etm, cpu, hw_id);
+	err = cs_etm__process_trace_id_v0_1(etm, cpu, hw_id);
+out:
+	perf_sample__exit(&sample);
+	return err;
 }
 
 void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
@@ -1560,8 +1567,9 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	int ret = 0;
 	struct cs_etm_auxtrace *etm = etmq->etm;
 	union perf_event *event = tidq->event_buf;
-	struct perf_sample sample = {.ip = 0,};
+	struct perf_sample sample;
 
+	perf_sample__init(&sample, /*all=*/true);
 	event->sample.header.type = PERF_RECORD_SAMPLE;
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr, tidq->el);
 	event->sample.header.size = sizeof(struct perf_event_header);
@@ -1598,6 +1606,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 			"CS ETM Trace: failed to deliver instruction event, error %d\n",
 			ret);
 
+	perf_sample__exit(&sample);
 	return ret;
 }
 
@@ -3151,9 +3160,10 @@ static int cs_etm__queue_aux_records_cb(struct perf_session *session, union perf
 	evsel = evlist__event2evsel(session->evlist, event);
 	if (!evsel)
 		return -EINVAL;
+	perf_sample__init(&sample, /*all=*/false);
 	ret = evsel__parse_sample(evsel, event, &sample);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * Loop through the auxtrace index to find the buffer that matches up with this aux event.
@@ -3168,7 +3178,7 @@ static int cs_etm__queue_aux_records_cb(struct perf_session *session, union perf
 			 * 1 ('not found')
 			 */
 			if (ret != 1)
-				return ret;
+				goto out;
 		}
 	}
 
@@ -3178,7 +3188,10 @@ static int cs_etm__queue_aux_records_cb(struct perf_session *session, union perf
 	 */
 	pr_err("CS ETM: Couldn't find auxtrace buffer for aux_offset: %#"PRI_lx64
 	       " tid: %d cpu: %d\n", event->aux.aux_offset, sample.tid, sample.cpu);
-	return 0;
+	ret = 0;
+out:
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int cs_etm__queue_aux_records(struct perf_session *session)

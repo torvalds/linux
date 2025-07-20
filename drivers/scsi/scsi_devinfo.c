@@ -486,33 +486,6 @@ static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
 }
 
 /**
- * scsi_dev_info_list_del_keyed - remove one dev_info list entry.
- * @vendor:	vendor string
- * @model:	model (product) string
- * @key:	specify list to use
- *
- * Description:
- *	Remove and destroy one dev_info entry for @vendor, @model
- *	in list specified by @key.
- *
- * Returns: 0 OK, -error on failure.
- **/
-int scsi_dev_info_list_del_keyed(char *vendor, char *model,
-				 enum scsi_devinfo_key key)
-{
-	struct scsi_dev_info_list *found;
-
-	found = scsi_dev_info_list_find(vendor, model, key);
-	if (IS_ERR(found))
-		return PTR_ERR(found);
-
-	list_del(&found->dev_info_list);
-	kfree(found);
-	return 0;
-}
-EXPORT_SYMBOL(scsi_dev_info_list_del_keyed);
-
-/**
  * scsi_dev_info_list_add_str - parse dev_list and add to the scsi_dev_info_list.
  * @dev_list:	string of device flags to add
  *
@@ -863,7 +836,7 @@ int __init scsi_init_devinfo(void)
 		goto out;
 
 	for (i = 0; scsi_static_device_list[i].vendor; i++) {
-		error = scsi_dev_info_list_add(1 /* compatibile */,
+		error = scsi_dev_info_list_add(1 /* compatible */,
 				scsi_static_device_list[i].vendor,
 				scsi_static_device_list[i].model,
 				NULL,

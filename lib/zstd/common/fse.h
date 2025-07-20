@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */
 /* ******************************************************************
  * FSE : Finite State Entropy codec
  * Public Prototypes declaration
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * You can contact the author at :
  * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
@@ -11,8 +12,6 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
 ****************************************************************** */
-
-
 #ifndef FSE_H
 #define FSE_H
 
@@ -21,7 +20,6 @@
 *  Dependencies
 ******************************************/
 #include "zstd_deps.h"    /* size_t, ptrdiff_t */
-
 
 /*-*****************************************
 *  FSE_PUBLIC_API : control library symbols visibility
@@ -50,34 +48,6 @@
 FSE_PUBLIC_API unsigned FSE_versionNumber(void);   /*< library version number; to be used when checking dll version */
 
 
-/*-****************************************
-*  FSE simple functions
-******************************************/
-/*! FSE_compress() :
-    Compress content of buffer 'src', of size 'srcSize', into destination buffer 'dst'.
-    'dst' buffer must be already allocated. Compression runs faster is dstCapacity >= FSE_compressBound(srcSize).
-    @return : size of compressed data (<= dstCapacity).
-    Special values : if return == 0, srcData is not compressible => Nothing is stored within dst !!!
-                     if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression instead.
-                     if FSE_isError(return), compression failed (more details using FSE_getErrorName())
-*/
-FSE_PUBLIC_API size_t FSE_compress(void* dst, size_t dstCapacity,
-                             const void* src, size_t srcSize);
-
-/*! FSE_decompress():
-    Decompress FSE data from buffer 'cSrc', of size 'cSrcSize',
-    into already allocated destination buffer 'dst', of size 'dstCapacity'.
-    @return : size of regenerated data (<= maxDstSize),
-              or an error code, which can be tested using FSE_isError() .
-
-    ** Important ** : FSE_decompress() does not decompress non-compressible nor RLE data !!!
-    Why ? : making this distinction requires a header.
-    Header management is intentionally delegated to the user layer, which can better manage special cases.
-*/
-FSE_PUBLIC_API size_t FSE_decompress(void* dst,  size_t dstCapacity,
-                               const void* cSrc, size_t cSrcSize);
-
-
 /*-*****************************************
 *  Tool functions
 ******************************************/
@@ -86,20 +56,6 @@ FSE_PUBLIC_API size_t FSE_compressBound(size_t size);       /* maximum compresse
 /* Error Management */
 FSE_PUBLIC_API unsigned    FSE_isError(size_t code);        /* tells if a return value is an error code */
 FSE_PUBLIC_API const char* FSE_getErrorName(size_t code);   /* provides error code string (useful for debugging) */
-
-
-/*-*****************************************
-*  FSE advanced functions
-******************************************/
-/*! FSE_compress2() :
-    Same as FSE_compress(), but allows the selection of 'maxSymbolValue' and 'tableLog'
-    Both parameters can be defined as '0' to mean : use default value
-    @return : size of compressed data
-    Special values : if return == 0, srcData is not compressible => Nothing is stored within cSrc !!!
-                     if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression.
-                     if FSE_isError(return), it's an error code.
-*/
-FSE_PUBLIC_API size_t FSE_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 
 /*-*****************************************
@@ -161,8 +117,6 @@ FSE_PUBLIC_API size_t FSE_writeNCount (void* buffer, size_t bufferSize,
 /*! Constructor and Destructor of FSE_CTable.
     Note that FSE_CTable size depends on 'tableLog' and 'maxSymbolValue' */
 typedef unsigned FSE_CTable;   /* don't allocate that. It's only meant to be more restrictive than void* */
-FSE_PUBLIC_API FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog);
-FSE_PUBLIC_API void        FSE_freeCTable (FSE_CTable* ct);
 
 /*! FSE_buildCTable():
     Builds `ct`, which must be already allocated, using FSE_createCTable().
@@ -238,23 +192,7 @@ FSE_PUBLIC_API size_t FSE_readNCount_bmi2(short* normalizedCounter,
                            unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
                            const void* rBuffer, size_t rBuffSize, int bmi2);
 
-/*! Constructor and Destructor of FSE_DTable.
-    Note that its size depends on 'tableLog' */
 typedef unsigned FSE_DTable;   /* don't allocate that. It's just a way to be more restrictive than void* */
-FSE_PUBLIC_API FSE_DTable* FSE_createDTable(unsigned tableLog);
-FSE_PUBLIC_API void        FSE_freeDTable(FSE_DTable* dt);
-
-/*! FSE_buildDTable():
-    Builds 'dt', which must be already allocated, using FSE_createDTable().
-    return : 0, or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_buildDTable (FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
-
-/*! FSE_decompress_usingDTable():
-    Decompress compressed source `cSrc` of size `cSrcSize` using `dt`
-    into `dst` which must be already allocated.
-    @return : size of regenerated data (necessarily <= `dstCapacity`),
-              or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSE_DTable* dt);
 
 /*!
 Tutorial :
@@ -286,12 +224,10 @@ If there is an error, the function will return an error code, which can be teste
 
 #endif  /* FSE_H */
 
+
 #if !defined(FSE_H_FSE_STATIC_LINKING_ONLY)
 #define FSE_H_FSE_STATIC_LINKING_ONLY
-
-/* *** Dependency *** */
 #include "bitstream.h"
-
 
 /* *****************************************
 *  Static allocation
@@ -317,16 +253,6 @@ If there is an error, the function will return an error code, which can be teste
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
 /*< same as FSE_optimalTableLog(), which used `minus==2` */
 
-/* FSE_compress_wksp() :
- * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).
- * FSE_COMPRESS_WKSP_SIZE_U32() provides the minimum size required for `workSpace` as a table of FSE_CTable.
- */
-#define FSE_COMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue)   ( FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue) + ((maxTableLog > 12) ? (1 << (maxTableLog - 2)) : 1024) )
-size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
-
-size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
-/*< build a fake FSE_CTable, designed for a flat distribution, where each symbol uses nbBits */
-
 size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
 /*< build a fake FSE_CTable, designed to compress always the same symbolValue */
 
@@ -344,19 +270,11 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
 FSE_PUBLIC_API size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 /*< Same as FSE_buildDTable(), using an externally allocated `workspace` produced with `FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxSymbolValue)` */
 
-size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
-/*< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */
-
-size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
-/*< build a fake FSE_DTable, designed to always generate the same symbolValue */
-
-#define FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) (FSE_DTABLE_SIZE_U32(maxTableLog) + FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) + (FSE_MAX_SYMBOL_VALUE + 1) / 2 + 1)
+#define FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) (FSE_DTABLE_SIZE_U32(maxTableLog) + 1 + FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) + (FSE_MAX_SYMBOL_VALUE + 1) / 2 + 1)
 #define FSE_DECOMPRESS_WKSP_SIZE(maxTableLog, maxSymbolValue) (FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) * sizeof(unsigned))
-size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize);
-/*< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DECOMPRESS_WKSP_SIZE_U32(maxLog, maxSymbolValue)` */
-
 size_t FSE_decompress_wksp_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize, int bmi2);
-/*< Same as FSE_decompress_wksp() but with dynamic BMI2 support. Pass 1 if your CPU supports BMI2 or 0 if it doesn't. */
+/*< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DECOMPRESS_WKSP_SIZE_U32(maxLog, maxSymbolValue)`.
+ * Set bmi2 to 1 if your CPU supports BMI2 or 0 if it doesn't */
 
 typedef enum {
    FSE_repeat_none,  /*< Cannot use the previous table */
@@ -539,20 +457,20 @@ MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, un
     FSE_symbolCompressionTransform const symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
     const U16* const stateTable = (const U16*)(statePtr->stateTable);
     U32 const nbBitsOut  = (U32)((statePtr->value + symbolTT.deltaNbBits) >> 16);
-    BIT_addBits(bitC, statePtr->value, nbBitsOut);
+    BIT_addBits(bitC, (BitContainerType)statePtr->value, nbBitsOut);
     statePtr->value = stateTable[ (statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
 }
 
 MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePtr)
 {
-    BIT_addBits(bitC, statePtr->value, statePtr->stateLog);
+    BIT_addBits(bitC, (BitContainerType)statePtr->value, statePtr->stateLog);
     BIT_flushBits(bitC);
 }
 
 
 /* FSE_getMaxNbBits() :
  * Approximate maximum cost of a symbol, in bits.
- * Fractional get rounded up (i.e : a symbol with a normalized frequency of 3 gives the same result as a frequency of 2)
+ * Fractional get rounded up (i.e. a symbol with a normalized frequency of 3 gives the same result as a frequency of 2)
  * note 1 : assume symbolValue is valid (<= maxSymbolValue)
  * note 2 : if freq[symbolValue]==0, @return a fake cost of tableLog+1 bits */
 MEM_STATIC U32 FSE_getMaxNbBits(const void* symbolTTPtr, U32 symbolValue)
@@ -705,7 +623,4 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 
 #define FSE_TABLESTEP(tableSize) (((tableSize)>>1) + ((tableSize)>>3) + 3)
 
-
 #endif /* FSE_STATIC_LINKING_ONLY */
-
-

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/vmalloc.h>
+#include <asm/msr.h>
 #include <asm/sgx.h>
 #include "driver.h"
 #include "encl.h"
@@ -719,6 +720,8 @@ int arch_memory_failure(unsigned long pfn, int flags)
 		goto out;
 	}
 
+	sgx_unmark_page_reclaimable(page);
+
 	/*
 	 * TBD: Add additional plumbing to enable pre-emptive
 	 * action for asynchronous poison notification. Until
@@ -871,7 +874,7 @@ void sgx_update_lepubkeyhash(u64 *lepubkeyhash)
 	WARN_ON_ONCE(preemptible());
 
 	for (i = 0; i < 4; i++)
-		wrmsrl(MSR_IA32_SGXLEPUBKEYHASH0 + i, lepubkeyhash[i]);
+		wrmsrq(MSR_IA32_SGXLEPUBKEYHASH0 + i, lepubkeyhash[i]);
 }
 
 const struct file_operations sgx_provision_fops = {

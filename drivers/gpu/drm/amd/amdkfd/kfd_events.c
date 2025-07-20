@@ -727,7 +727,7 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 	 * to process context, kfd_process could attempt to exit while we are
 	 * running so the lookup function increments the process ref count.
 	 */
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid, NULL);
 
 	if (!p)
 		return; /* Presumably process exited. */
@@ -747,6 +747,16 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 		 */
 		uint64_t *slots = page_slots(p->signal_page);
 		uint32_t id;
+
+		/*
+		 * If id is valid but slot is not signaled, GPU may signal the same event twice
+		 * before driver have chance to process the first interrupt, then signal slot is
+		 * auto-reset after set_event wakeup the user space, just drop the second event as
+		 * the application only need wakeup once.
+		 */
+		if ((valid_id_bits > 31 || (1U << valid_id_bits) >= KFD_SIGNAL_EVENT_LIMIT) &&
+		    partial_id < KFD_SIGNAL_EVENT_LIMIT && slots[partial_id] == UNSIGNALED_EVENT_SLOT)
+			goto out_unlock;
 
 		if (valid_id_bits)
 			pr_debug_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
@@ -776,6 +786,7 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 		}
 	}
 
+out_unlock:
 	rcu_read_unlock();
 	kfd_unref_process(p);
 }
@@ -1128,8 +1139,8 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 
 	if (type == KFD_EVENT_TYPE_MEMORY) {
 		dev_warn(kfd_device,
-			"Sending SIGSEGV to process %d (pasid 0x%x)",
-				p->lead_thread->pid, p->pasid);
+			"Sending SIGSEGV to process pid %d",
+				p->lead_thread->pid);
 		send_sig(SIGSEGV, p->lead_thread, 0);
 	}
 
@@ -1137,13 +1148,13 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 	if (send_signal) {
 		if (send_sigterm) {
 			dev_warn(kfd_device,
-				"Sending SIGTERM to process %d (pasid 0x%x)",
-					p->lead_thread->pid, p->pasid);
+				"Sending SIGTERM to process pid %d",
+					p->lead_thread->pid);
 			send_sig(SIGTERM, p->lead_thread, 0);
 		} else {
 			dev_err(kfd_device,
-				"Process %d (pasid 0x%x) got unhandled exception",
-				p->lead_thread->pid, p->pasid);
+				"Process pid %d got unhandled exception",
+				p->lead_thread->pid);
 		}
 	}
 
@@ -1157,7 +1168,7 @@ void kfd_signal_hw_exception_event(u32 pasid)
 	 * to process context, kfd_process could attempt to exit while we are
 	 * running so the lookup function increments the process ref count.
 	 */
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid, NULL);
 
 	if (!p)
 		return; /* Presumably process exited. */
@@ -1166,22 +1177,39 @@ void kfd_signal_hw_exception_event(u32 pasid)
 	kfd_unref_process(p);
 }
 
-void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+void kfd_signal_vm_fault_event_with_userptr(struct kfd_process *p, uint64_t gpu_va)
+{
+	struct kfd_process_device *pdd;
+	struct kfd_hsa_memory_exception_data exception_data;
+	int i;
+
+	memset(&exception_data, 0, sizeof(exception_data));
+	exception_data.va = gpu_va;
+	exception_data.failure.NotPresent = 1;
+
+	// Send VM seg fault to all kfd process device
+	for (i = 0; i < p->n_pdds; i++) {
+		pdd = p->pdds[i];
+		exception_data.gpu_id = pdd->user_gpu_id;
+		kfd_evict_process_device(pdd);
+		kfd_signal_vm_fault_event(pdd, NULL, &exception_data);
+	}
+}
+
+void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 				struct kfd_vm_fault_info *info,
 				struct kfd_hsa_memory_exception_data *data)
 {
 	struct kfd_event *ev;
 	uint32_t id;
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_process *p = pdd->process;
 	struct kfd_hsa_memory_exception_data memory_exception_data;
 	int user_gpu_id;
 
-	if (!p)
-		return; /* Presumably process exited. */
-
-	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
+	user_gpu_id = kfd_process_get_user_gpu_id(p, pdd->dev->id);
 	if (unlikely(user_gpu_id == -EINVAL)) {
-		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n",
+			  pdd->dev->id);
 		return;
 	}
 
@@ -1218,7 +1246,6 @@ void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
 		}
 
 	rcu_read_unlock();
-	kfd_unref_process(p);
 }
 
 void kfd_signal_reset_event(struct kfd_node *dev)
@@ -1253,7 +1280,8 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 		}
 
 		if (unlikely(!pdd)) {
-			WARN_ONCE(1, "Could not get device data from pasid:0x%x\n", p->pasid);
+			WARN_ONCE(1, "Could not get device data from process pid:%d\n",
+				  p->lead_thread->pid);
 			continue;
 		}
 
@@ -1262,8 +1290,15 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 
 		if (dev->dqm->detect_hang_count) {
 			struct amdgpu_task_info *ti;
+			struct amdgpu_fpriv *drv_priv;
 
-			ti = amdgpu_vm_get_task_info_pasid(dev->adev, p->pasid);
+			if (unlikely(amdgpu_file_to_fpriv(pdd->drm_file, &drv_priv))) {
+				WARN_ONCE(1, "Could not get vm for device %x from pid:%d\n",
+					  dev->id, p->lead_thread->pid);
+				continue;
+			}
+
+			ti = amdgpu_vm_get_task_info_vm(&drv_priv->vm);
 			if (ti) {
 				dev_err(dev->adev->dev,
 					"Queues reset on process %s tid %d thread %s pid %d\n",
@@ -1300,7 +1335,7 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 
 void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 {
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid, NULL);
 	struct kfd_hsa_memory_exception_data memory_exception_data;
 	struct kfd_hsa_hw_exception_data hw_exception_data;
 	struct kfd_event *ev;
@@ -1315,6 +1350,7 @@ void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
 	if (unlikely(user_gpu_id == -EINVAL)) {
 		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		kfd_unref_process(p);
 		return;
 	}
 

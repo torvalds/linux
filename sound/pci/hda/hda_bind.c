@@ -18,10 +18,10 @@
 /*
  * find a matching codec id
  */
-static int hda_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
+static int hda_codec_match(struct hdac_device *dev, const struct hdac_driver *drv)
 {
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
-	struct hda_codec_driver *driver =
+	const struct hda_codec_driver *driver =
 		container_of(drv, struct hda_codec_driver, core);
 	const struct hda_device_id *list;
 	/* check probe_id instead of vendor_id if set */
@@ -44,7 +44,7 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
 
 	/* ignore unsol events during shutdown */
-	if (codec->bus->shutdown)
+	if (codec->card->shutdown || codec->bus->shutdown)
 		return;
 
 	/* ignore unsol events during system suspend/resume */
@@ -185,7 +185,7 @@ int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 	drv->core.driver.probe = hda_codec_driver_probe;
 	drv->core.driver.remove = hda_codec_driver_remove;
 	drv->core.driver.shutdown = hda_codec_driver_shutdown;
-	drv->core.driver.pm = &hda_codec_driver_pm;
+	drv->core.driver.pm = pm_ptr(&hda_codec_driver_pm);
 	drv->core.type = HDA_DEV_LEGACY;
 	drv->core.match = hda_codec_match;
 	drv->core.unsol_event = hda_codec_unsol_event;

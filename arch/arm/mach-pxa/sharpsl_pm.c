@@ -31,10 +31,10 @@
 /*
  * Constants
  */
-#define SHARPSL_CHARGE_ON_TIME_INTERVAL        (msecs_to_jiffies(1*60*1000))  /* 1 min */
-#define SHARPSL_CHARGE_FINISH_TIME             (msecs_to_jiffies(10*60*1000)) /* 10 min */
-#define SHARPSL_BATCHK_TIME                    (msecs_to_jiffies(15*1000))    /* 15 sec */
-#define SHARPSL_BATCHK_TIME_SUSPEND            (60*10)                        /* 10 min */
+#define SHARPSL_CHARGE_ON_TIME_INTERVAL        (secs_to_jiffies(60))
+#define SHARPSL_CHARGE_FINISH_TIME             (secs_to_jiffies(10*60))
+#define SHARPSL_BATCHK_TIME                    (secs_to_jiffies(15))
+#define SHARPSL_BATCHK_TIME_SUSPEND            (60*10) /* 10 min */
 
 #define SHARPSL_WAIT_CO_TIME                   15  /* 15 sec */
 #define SHARPSL_WAIT_DISCHARGE_ON              100 /* 100 msec */
@@ -913,8 +913,8 @@ static void sharpsl_pm_remove(struct platform_device *pdev)
 	if (sharpsl_pm.machinfo->exit)
 		sharpsl_pm.machinfo->exit();
 
-	del_timer_sync(&sharpsl_pm.chrg_full_timer);
-	del_timer_sync(&sharpsl_pm.ac_timer);
+	timer_delete_sync(&sharpsl_pm.chrg_full_timer);
+	timer_delete_sync(&sharpsl_pm.ac_timer);
 }
 
 static struct platform_driver sharpsl_pm_driver = {

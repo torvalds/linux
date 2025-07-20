@@ -204,7 +204,7 @@ static const struct reg_sequence rt1320_vc_blind_write[] = {
 	{ 0x3fc2bfc0, 0x03 },
 	{ 0x0000d486, 0x43 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x00 },
-	{ 0x1000db00, 0x04 },
+	{ 0x1000db00, 0x07 },
 	{ 0x1000db01, 0x00 },
 	{ 0x1000db02, 0x11 },
 	{ 0x1000db03, 0x00 },
@@ -225,6 +225,21 @@ static const struct reg_sequence rt1320_vc_blind_write[] = {
 	{ 0x1000db12, 0x00 },
 	{ 0x1000db13, 0x00 },
 	{ 0x1000db14, 0x45 },
+	{ 0x1000db15, 0x0d },
+	{ 0x1000db16, 0x01 },
+	{ 0x1000db17, 0x00 },
+	{ 0x1000db18, 0x00 },
+	{ 0x1000db19, 0xbf },
+	{ 0x1000db1a, 0x13 },
+	{ 0x1000db1b, 0x09 },
+	{ 0x1000db1c, 0x00 },
+	{ 0x1000db1d, 0x00 },
+	{ 0x1000db1e, 0x00 },
+	{ 0x1000db1f, 0x12 },
+	{ 0x1000db20, 0x09 },
+	{ 0x1000db21, 0x00 },
+	{ 0x1000db22, 0x00 },
+	{ 0x1000db23, 0x00 },
 	{ 0x0000d540, 0x01 },
 	{ 0x0000c081, 0xfc },
 	{ 0x0000f01e, 0x80 },
@@ -534,6 +549,9 @@ static int rt1320_read_prop(struct sdw_slave *slave)
 
 	/* set the timeout values */
 	prop->clk_stop_timeout = 64;
+
+	/* BIOS may set wake_capable. Make sure it is 0 as wake events are disabled. */
+	prop->wake_capable = 0;
 
 	return 0;
 }
@@ -1455,7 +1473,7 @@ static const struct sdw_device_id rt1320_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt1320_id);
 
-static int __maybe_unused rt1320_dev_suspend(struct device *dev)
+static int rt1320_dev_suspend(struct device *dev)
 {
 	struct rt1320_sdw_priv *rt1320 = dev_get_drvdata(dev);
 
@@ -1469,7 +1487,7 @@ static int __maybe_unused rt1320_dev_suspend(struct device *dev)
 
 #define RT1320_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt1320_dev_resume(struct device *dev)
+static int rt1320_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt1320_sdw_priv *rt1320 = dev_get_drvdata(dev);
@@ -1498,14 +1516,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt1320_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume)
-	SET_RUNTIME_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume)
+	RUNTIME_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume, NULL)
 };
 
 static struct sdw_driver rt1320_sdw_driver = {
 	.driver = {
 		.name = "rt1320-sdca",
-		.pm = &rt1320_pm,
+		.pm = pm_ptr(&rt1320_pm),
 	},
 	.probe = rt1320_sdw_probe,
 	.remove = rt1320_sdw_remove,

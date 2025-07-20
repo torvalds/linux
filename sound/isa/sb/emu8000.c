@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/emu8000.h>
 #include <sound/emu8000_reg.h>
@@ -1096,7 +1097,7 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (snd_seq_device_new(card, index, SNDRV_SEQ_DEV_ID_EMU8000,
 			       sizeof(struct snd_emu8000*), &awe) >= 0) {
-		strcpy(awe->name, "EMU-8000");
+		strscpy(awe->name, "EMU-8000");
 		*(struct snd_emu8000 **)SNDRV_SEQ_DEVICE_ARGPTR(awe) = hw;
 	}
 #else

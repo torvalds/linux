@@ -127,6 +127,7 @@ struct intel_pt {
 
 	bool single_pebs;
 	bool sample_pebs;
+	int pebs_data_src_fmt;
 	struct evsel *pebs_evsel;
 
 	u64 evt_sample_type;
@@ -175,6 +176,7 @@ enum switch_state {
 struct intel_pt_pebs_event {
 	struct evsel *evsel;
 	u64 id;
+	int data_src_fmt;
 };
 
 struct intel_pt_queue {
@@ -1764,12 +1766,13 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct dummy_branch_stack {
 		u64			nr;
 		u64			hw_idx;
 		struct branch_entry	entries;
 	} dummy_bs;
+	int ret;
 
 	if (pt->branches_filter && !(pt->branches_filter & ptq->flags))
 		return 0;
@@ -1777,6 +1780,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_b_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->branches_id;
@@ -1806,8 +1810,10 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 		ptq->last_br_cyc_cnt = ptq->ipc_cyc_cnt;
 	}
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
+	perf_sample__exit(&sample);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
 					    pt->branches_sample_type);
+	return ret;
 }
 
 static void intel_pt_prep_sample(struct intel_pt *pt,
@@ -1835,11 +1841,13 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->instructions_id;
@@ -1859,16 +1867,19 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 
 	ptq->last_insn_cnt = ptq->state->tot_insn_cnt;
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->instructions_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->instructions_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_cycle_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	u64 period = 0;
+	int ret;
 
 	if (ptq->sample_ipc)
 		period = ptq->ipc_cyc_cnt - ptq->last_cy_cyc_cnt;
@@ -1876,6 +1887,7 @@ static int intel_pt_synth_cycle_sample(struct intel_pt_queue *ptq)
 	if (!period || intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->cycles_id;
@@ -1887,25 +1899,31 @@ static int intel_pt_synth_cycle_sample(struct intel_pt_queue *ptq)
 	ptq->last_cy_insn_cnt = ptq->ipc_insn_cnt;
 	ptq->last_cy_cyc_cnt = ptq->ipc_cyc_cnt;
 
-	return intel_pt_deliver_synth_event(pt, event, &sample, pt->cycles_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample, pt->cycles_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_transaction_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->transactions_id;
 	sample.stream_id = ptq->pt->transactions_id;
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->transactions_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->transactions_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static void intel_pt_prep_p_sample(struct intel_pt *pt,
@@ -1953,15 +1971,17 @@ static int intel_pt_synth_cbr_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_cbr raw;
 	u32 flags;
+	int ret;
 
 	if (intel_pt_skip_cbr_event(pt))
 		return 0;
 
 	ptq->cbr_seen = ptq->state->cbr;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->cbr_id;
@@ -1975,20 +1995,24 @@ static int intel_pt_synth_cbr_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->pwr_events_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->pwr_events_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_psb_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_psb raw;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->psb_id;
@@ -2001,20 +2025,24 @@ static int intel_pt_synth_psb_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->pwr_events_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->pwr_events_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_mwait_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_mwait raw;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->mwait_id;
@@ -2026,20 +2054,24 @@ static int intel_pt_synth_mwait_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->pwr_events_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->pwr_events_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_pwre_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_pwre raw;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->pwre_id;
@@ -2051,20 +2083,24 @@ static int intel_pt_synth_pwre_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->pwr_events_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->pwr_events_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_exstop_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_exstop raw;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->exstop_id;
@@ -2076,20 +2112,24 @@ static int intel_pt_synth_exstop_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->pwr_events_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->pwr_events_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_pwrx raw;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->pwrx_id;
@@ -2101,8 +2141,10 @@ static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->pwr_events_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->pwr_events_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 /*
@@ -2232,19 +2274,160 @@ static void intel_pt_add_lbrs(struct branch_stack *br_stack,
 	}
 }
 
-static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evsel *evsel, u64 id)
+#define P(a, b) PERF_MEM_S(a, b)
+#define OP_LH (P(OP, LOAD) | P(LVL, HIT))
+#define LEVEL(x) P(LVLNUM, x)
+#define REM P(REMOTE, REMOTE)
+#define SNOOP_NONE_MISS (P(SNOOP, NONE) | P(SNOOP, MISS))
+
+#define PERF_PEBS_DATA_SOURCE_GRT_MAX	0x10
+#define PERF_PEBS_DATA_SOURCE_GRT_MASK	(PERF_PEBS_DATA_SOURCE_GRT_MAX - 1)
+
+/* Based on kernel __intel_pmu_pebs_data_source_grt() and pebs_data_source */
+static const u64 pebs_data_source_grt[PERF_PEBS_DATA_SOURCE_GRT_MAX] = {
+	P(OP, LOAD) | P(LVL, MISS) | LEVEL(L3) | P(SNOOP, NA),         /* L3 miss|SNP N/A */
+	OP_LH | P(LVL, L1)  | LEVEL(L1)  | P(SNOOP, NONE),             /* L1 hit|SNP None */
+	OP_LH | P(LVL, LFB) | LEVEL(LFB) | P(SNOOP, NONE),             /* LFB/MAB hit|SNP None */
+	OP_LH | P(LVL, L2)  | LEVEL(L2)  | P(SNOOP, NONE),             /* L2 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, NONE),             /* L3 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HIT),              /* L3 hit|SNP Hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HITM),             /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HITM),             /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOPX, FWD),             /* L3 hit|SNP Fwd */
+	OP_LH | P(LVL, REM_CCE1) | REM | LEVEL(L3) | P(SNOOP, HITM),   /* Remote L3 hit|SNP HitM */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | P(SNOOP, HIT),         /* RAM hit|SNP Hit */
+	OP_LH | P(LVL, REM_RAM1) | REM | LEVEL(L3) | P(SNOOP, HIT),    /* Remote L3 hit|SNP Hit */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | SNOOP_NONE_MISS,       /* RAM hit|SNP None or Miss */
+	OP_LH | P(LVL, REM_RAM1) | LEVEL(RAM) | REM | SNOOP_NONE_MISS, /* Remote RAM hit|SNP None or Miss */
+	OP_LH | P(LVL, IO)  | LEVEL(NA) | P(SNOOP, NONE),              /* I/O hit|SNP None */
+	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE),              /* Uncached hit|SNP None */
+};
+
+/* Based on kernel __intel_pmu_pebs_data_source_cmt() and pebs_data_source */
+static const u64 pebs_data_source_cmt[PERF_PEBS_DATA_SOURCE_GRT_MAX] = {
+	P(OP, LOAD) | P(LVL, MISS) | LEVEL(L3) | P(SNOOP, NA),       /* L3 miss|SNP N/A */
+	OP_LH | P(LVL, L1)  | LEVEL(L1)  | P(SNOOP, NONE),           /* L1 hit|SNP None */
+	OP_LH | P(LVL, LFB) | LEVEL(LFB) | P(SNOOP, NONE),           /* LFB/MAB hit|SNP None */
+	OP_LH | P(LVL, L2)  | LEVEL(L2)  | P(SNOOP, NONE),           /* L2 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, NONE),           /* L3 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, MISS),           /* L3 hit|SNP Hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HIT),            /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOPX, FWD),           /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HITM),           /* L3 hit|SNP Fwd */
+	OP_LH | P(LVL, REM_CCE1) | REM | LEVEL(L3) | P(SNOOP, HITM), /* Remote L3 hit|SNP HitM */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | P(SNOOP, NONE),      /* RAM hit|SNP Hit */
+	OP_LH | LEVEL(RAM) | REM | P(SNOOP, NONE),                   /* Remote L3 hit|SNP Hit */
+	OP_LH | LEVEL(RAM) | REM | P(SNOOPX, FWD),                   /* RAM hit|SNP None or Miss */
+	OP_LH | LEVEL(RAM) | REM | P(SNOOP, HITM),                   /* Remote RAM hit|SNP None or Miss */
+	OP_LH | P(LVL, IO)  | LEVEL(NA) | P(SNOOP, NONE),            /* I/O hit|SNP None */
+	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE),            /* Uncached hit|SNP None */
+};
+
+/* Based on kernel pebs_set_tlb_lock() */
+static inline void pebs_set_tlb_lock(u64 *val, bool tlb, bool lock)
+{
+	/*
+	 * TLB access
+	 * 0 = did not miss 2nd level TLB
+	 * 1 = missed 2nd level TLB
+	 */
+	if (tlb)
+		*val |= P(TLB, MISS) | P(TLB, L2);
+	else
+		*val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
+
+	/* locked prefix */
+	if (lock)
+		*val |= P(LOCK, LOCKED);
+}
+
+/* Based on kernel __grt_latency_data() */
+static u64 intel_pt_grt_latency_data(u8 dse, bool tlb, bool lock, bool blk,
+				     const u64 *pebs_data_source)
+{
+	u64 val;
+
+	dse &= PERF_PEBS_DATA_SOURCE_GRT_MASK;
+	val = pebs_data_source[dse];
+
+	pebs_set_tlb_lock(&val, tlb, lock);
+
+	if (blk)
+		val |= P(BLK, DATA);
+	else
+		val |= P(BLK, NA);
+
+	return val;
+}
+
+/* Default value for data source */
+#define PERF_MEM_NA (PERF_MEM_S(OP, NA)    |\
+		     PERF_MEM_S(LVL, NA)   |\
+		     PERF_MEM_S(SNOOP, NA) |\
+		     PERF_MEM_S(LOCK, NA)  |\
+		     PERF_MEM_S(TLB, NA)   |\
+		     PERF_MEM_S(LVLNUM, NA))
+
+enum DATA_SRC_FORMAT {
+	DATA_SRC_FORMAT_ERR  = -1,
+	DATA_SRC_FORMAT_NA   =  0,
+	DATA_SRC_FORMAT_GRT  =  1,
+	DATA_SRC_FORMAT_CMT  =  2,
+};
+
+/* Based on kernel grt_latency_data() and cmt_latency_data */
+static u64 intel_pt_get_data_src(u64 mem_aux_info, int data_src_fmt)
+{
+	switch (data_src_fmt) {
+	case DATA_SRC_FORMAT_GRT: {
+		union {
+			u64 val;
+			struct {
+				unsigned int dse:4;
+				unsigned int locked:1;
+				unsigned int stlb_miss:1;
+				unsigned int fwd_blk:1;
+				unsigned int reserved:25;
+			};
+		} x = {.val = mem_aux_info};
+		return intel_pt_grt_latency_data(x.dse, x.stlb_miss, x.locked, x.fwd_blk,
+						 pebs_data_source_grt);
+	}
+	case DATA_SRC_FORMAT_CMT: {
+		union {
+			u64 val;
+			struct {
+				unsigned int dse:5;
+				unsigned int locked:1;
+				unsigned int stlb_miss:1;
+				unsigned int fwd_blk:1;
+				unsigned int reserved:24;
+			};
+		} x = {.val = mem_aux_info};
+		return intel_pt_grt_latency_data(x.dse, x.stlb_miss, x.locked, x.fwd_blk,
+						 pebs_data_source_cmt);
+	}
+	default:
+		return PERF_MEM_NA;
+	}
+}
+
+static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evsel *evsel,
+					 u64 id, int data_src_fmt)
 {
 	const struct intel_pt_blk_items *items = &ptq->state->items;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	union perf_event *event = ptq->event_buf;
 	struct intel_pt *pt = ptq->pt;
 	u64 sample_type = evsel->core.attr.sample_type;
 	u8 cpumode;
-	u64 regs[8 * sizeof(sample.intr_regs.mask)];
+	u64 regs[8 * sizeof(sample.intr_regs->mask)];
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_a_sample(ptq, event, &sample);
 
 	sample.id = id;
@@ -2291,15 +2474,16 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 	     items->mask[INTEL_PT_XMM_POS])) {
 		u64 regs_mask = evsel->core.attr.sample_regs_intr;
 		u64 *pos;
+		struct regs_dump *intr_regs = perf_sample__intr_regs(&sample);
 
-		sample.intr_regs.abi = items->is_32_bit ?
+		intr_regs->abi = items->is_32_bit ?
 				       PERF_SAMPLE_REGS_ABI_32 :
 				       PERF_SAMPLE_REGS_ABI_64;
-		sample.intr_regs.regs = regs;
+		intr_regs->regs = regs;
 
-		pos = intel_pt_add_gp_regs(&sample.intr_regs, regs, items, regs_mask);
+		pos = intel_pt_add_gp_regs(intr_regs, regs, items, regs_mask);
 
-		intel_pt_add_xmm(&sample.intr_regs, pos, items, regs_mask);
+		intel_pt_add_xmm(intr_regs, pos, items, regs_mask);
 	}
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
@@ -2350,6 +2534,18 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 		}
 	}
 
+	if (sample_type & PERF_SAMPLE_DATA_SRC) {
+		if (items->has_mem_aux_info && data_src_fmt) {
+			if (data_src_fmt < 0) {
+				pr_err("Intel PT missing data_src info\n");
+				return -1;
+			}
+			sample.data_src = intel_pt_get_data_src(items->mem_aux_info, data_src_fmt);
+		} else {
+			sample.data_src = PERF_MEM_NA;
+		}
+	}
+
 	if (sample_type & PERF_SAMPLE_TRANSACTION && items->has_tsx_aux_info) {
 		u64 ax = items->has_rax ? items->rax : 0;
 		/* Refer kernel's intel_hsw_transaction() */
@@ -2361,16 +2557,19 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 		sample.transaction = txn;
 	}
 
-	return intel_pt_deliver_synth_event(pt, event, &sample, sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample, sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_single_pebs_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	struct evsel *evsel = pt->pebs_evsel;
+	int data_src_fmt = pt->pebs_data_src_fmt;
 	u64 id = evsel->core.id[0];
 
-	return intel_pt_do_synth_pebs_sample(ptq, evsel, id);
+	return intel_pt_do_synth_pebs_sample(ptq, evsel, id, data_src_fmt);
 }
 
 static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
@@ -2395,7 +2594,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 				       hw_id);
 			return intel_pt_synth_single_pebs_sample(ptq);
 		}
-		err = intel_pt_do_synth_pebs_sample(ptq, pe->evsel, pe->id);
+		err = intel_pt_do_synth_pebs_sample(ptq, pe->evsel, pe->id, pe->data_src_fmt);
 		if (err)
 			return err;
 	}
@@ -2407,16 +2606,17 @@ static int intel_pt_synth_events_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct {
 		struct perf_synth_intel_evt cfe;
 		struct perf_synth_intel_evd evd[INTEL_PT_MAX_EVDS];
 	} raw;
-	int i;
+	int i, ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id        = ptq->pt->evt_id;
@@ -2438,20 +2638,24 @@ static int intel_pt_synth_events_sample(struct intel_pt_queue *ptq)
 			  ptq->state->evd_cnt * sizeof(struct perf_synth_intel_evd);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->evt_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->evt_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_iflag_chg_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	union perf_event *event = ptq->event_buf;
-	struct perf_sample sample = { .ip = 0, };
+	struct perf_sample sample;
 	struct perf_synth_intel_iflag_chg raw;
+	int ret;
 
 	if (intel_pt_skip_event(pt))
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/true);
 	intel_pt_prep_p_sample(pt, ptq, event, &sample);
 
 	sample.id = ptq->pt->iflag_chg_id;
@@ -2471,8 +2675,10 @@ static int intel_pt_synth_iflag_chg_sample(struct intel_pt_queue *ptq)
 	sample.raw_size = perf_synth__raw_size(raw);
 	sample.raw_data = perf_synth__raw_data(&raw);
 
-	return intel_pt_deliver_synth_event(pt, event, &sample,
-					    pt->iflag_chg_sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   pt->iflag_chg_sample_type);
+	perf_sample__exit(&sample);
+	return ret;
 }
 
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
@@ -3355,6 +3561,49 @@ static int intel_pt_process_itrace_start(struct intel_pt *pt,
 					event->itrace_start.tid);
 }
 
+/*
+ * Events with data_src are identified by L1_Hit_Indication
+ * refer https://github.com/intel/perfmon
+ */
+static int intel_pt_data_src_fmt(struct intel_pt *pt, struct evsel *evsel)
+{
+	struct perf_env *env = pt->machine->env;
+	int fmt = DATA_SRC_FORMAT_NA;
+
+	if (!env->cpuid)
+		return DATA_SRC_FORMAT_ERR;
+
+	/*
+	 * PEBS-via-PT is only supported on E-core non-hybrid. Of those only
+	 * Gracemont and Crestmont have data_src. Check for:
+	 *	Alderlake N   (Gracemont)
+	 *	Sierra Forest (Crestmont)
+	 *	Grand Ridge   (Crestmont)
+	 */
+
+	if (!strncmp(env->cpuid, "GenuineIntel,6,190,", 19))
+		fmt = DATA_SRC_FORMAT_GRT;
+
+	if (!strncmp(env->cpuid, "GenuineIntel,6,175,", 19) ||
+	    !strncmp(env->cpuid, "GenuineIntel,6,182,", 19))
+		fmt = DATA_SRC_FORMAT_CMT;
+
+	if (fmt == DATA_SRC_FORMAT_NA)
+		return fmt;
+
+	/*
+	 * Only data_src events are:
+	 *	mem-loads	event=0xd0,umask=0x5
+	 *	mem-stores	event=0xd0,umask=0x6
+	 */
+	if (evsel->core.attr.type == PERF_TYPE_RAW &&
+	    ((evsel->core.attr.config & 0xffff) == 0x5d0 ||
+	     (evsel->core.attr.config & 0xffff) == 0x6d0))
+		return fmt;
+
+	return DATA_SRC_FORMAT_NA;
+}
+
 static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
 					     union perf_event *event,
 					     struct perf_sample *sample)
@@ -3375,6 +3624,7 @@ static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
 
 	ptq->pebs[hw_id].evsel = evsel;
 	ptq->pebs[hw_id].id = sample->id;
+	ptq->pebs[hw_id].data_src_fmt = intel_pt_data_src_fmt(pt, evsel);
 
 	return 0;
 }
@@ -3924,6 +4174,7 @@ static void intel_pt_setup_pebs_events(struct intel_pt *pt)
 			}
 			pt->single_pebs = true;
 			pt->sample_pebs = true;
+			pt->pebs_data_src_fmt = intel_pt_data_src_fmt(pt, evsel);
 			pt->pebs_evsel = evsel;
 		}
 	}

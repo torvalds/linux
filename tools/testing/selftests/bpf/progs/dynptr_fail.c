@@ -192,7 +192,7 @@ done:
 
 /* Can't add a dynptr to a map */
 SEC("?raw_tp")
-__failure __msg("invalid indirect read from stack")
+__failure __msg("invalid read from stack")
 int add_dynptr_to_map1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -210,7 +210,7 @@ int add_dynptr_to_map1(void *ctx)
 
 /* Can't add a struct with an embedded dynptr to a map */
 SEC("?raw_tp")
-__failure __msg("invalid indirect read from stack")
+__failure __msg("invalid read from stack")
 int add_dynptr_to_map2(void *ctx)
 {
 	struct test_info x;
@@ -398,7 +398,7 @@ int data_slice_missing_null_check2(void *ctx)
  * dynptr argument
  */
 SEC("?raw_tp")
-__failure __msg("invalid indirect read from stack")
+__failure __msg("invalid read from stack")
 int invalid_helper1(void *ctx)
 {
 	struct bpf_dynptr ptr;

@@ -196,7 +196,7 @@ static const struct iio_info npcm_adc_iio_info = {
 static const struct of_device_id npcm_adc_match[] = {
 	{ .compatible = "nuvoton,npcm750-adc", .data = &npxm7xx_adc_info},
 	{ .compatible = "nuvoton,npcm845-adc", .data = &npxm8xx_adc_info},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, npcm_adc_match);
 

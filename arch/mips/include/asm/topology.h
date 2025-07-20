@@ -16,6 +16,9 @@
 #define topology_core_id(cpu)			(cpu_core(&cpu_data[cpu]))
 #define topology_core_cpumask(cpu)		(&cpu_core_map[cpu])
 #define topology_sibling_cpumask(cpu)		(&cpu_sibling_map[cpu])
+
+extern struct cpumask __cpu_primary_thread_mask;
+#define cpu_primary_thread_mask ((const struct cpumask *)&__cpu_primary_thread_mask)
 #endif
 
 #endif /* __ASM_TOPOLOGY_H */

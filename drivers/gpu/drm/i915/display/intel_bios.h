@@ -24,7 +24,7 @@
 /*
  * Please use intel_vbt_defs.h for VBT private data, to hide and abstract away
  * the VBT from the rest of the driver. Add the parsed, clean data to struct
- * intel_vbt_data within struct drm_i915_private.
+ * intel_vbt_data within struct intel_display.
  */
 
 #ifndef _INTEL_BIOS_H_
@@ -49,14 +49,6 @@ enum intel_backlight_type {
 	INTEL_BACKLIGHT_PANEL_DRIVER_INTERFACE,
 	INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE,
 };
-
-struct edp_power_seq {
-	u16 t1_t3;
-	u16 t8;
-	u16 t9;
-	u16 t10;
-	u16 t11_t12;
-} __packed;
 
 /*
  * MIPI Sequence Block definitions

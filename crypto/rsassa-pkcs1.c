@@ -210,7 +210,7 @@ static int rsassa_pkcs1_sign(struct crypto_sig *tfm,
 		memset(dst, 0, pad_len);
 	}
 
-	return 0;
+	return ctx->key_size;
 }
 
 static int rsassa_pkcs1_verify(struct crypto_sig *tfm,
@@ -301,7 +301,7 @@ static unsigned int rsassa_pkcs1_key_size(struct crypto_sig *tfm)
 {
 	struct rsassa_pkcs1_ctx *ctx = crypto_sig_ctx(tfm);
 
-	return ctx->key_size;
+	return ctx->key_size * BITS_PER_BYTE;
 }
 
 static int rsassa_pkcs1_set_pub_key(struct crypto_sig *tfm,

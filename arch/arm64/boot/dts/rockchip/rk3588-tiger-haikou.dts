@@ -189,7 +189,11 @@
 	};
 };
 
-&hdptxphy_hdmi0 {
+&hdmi0_sound {
+	status = "okay";
+};
+
+&hdptxphy0 {
 	status = "okay";
 };
 
@@ -225,6 +229,10 @@
 };
 
 &i2s3_2ch {
+	status = "okay";
+};
+
+&i2s5_8ch {
 	status = "okay";
 };
 
@@ -310,8 +318,10 @@
 	status = "okay";
 };
 
+/* DB9 RS232/RS485 when SW2 in "UART1" mode */
 &uart5 {
 	rts-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
 &usbdp_phy0 {

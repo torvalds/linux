@@ -32,6 +32,11 @@
 #define VCN_VID_IP_ADDRESS                         0x0
 #define VCN_AON_IP_ADDRESS                         0x30000
 
+void vcn_v5_0_0_alloc_ip_dump(struct amdgpu_device *adev);
+void vcn_v5_0_0_print_ip_state(struct amdgpu_ip_block *ip_block,
+			       struct drm_printer *p);
+void vcn_v5_0_0_dump_ip_state(struct amdgpu_ip_block *ip_block);
+
 extern const struct amdgpu_ip_block_version vcn_v5_0_0_ip_block;
 
 #endif /* __VCN_V5_0_0_H__ */

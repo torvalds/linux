@@ -127,8 +127,8 @@ static int mcp_cmd_read_all(struct mcp2200 *mcp)
 	return mcp->status;
 }
 
-static void mcp_set_multiple(struct gpio_chip *gc, unsigned long *mask,
-			     unsigned long *bits)
+static int mcp_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+			    unsigned long *bits)
 {
 	struct mcp2200 *mcp = gpiochip_get_data(gc);
 	u8 value;
@@ -150,16 +150,20 @@ static void mcp_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 
 	if (status == sizeof(struct mcp_set_clear_outputs))
 		mcp->gpio_val = value;
+	else
+		status = -EIO;
 
 	mutex_unlock(&mcp->lock);
+
+	return status;
 }
 
-static void mcp_set(struct gpio_chip *gc, unsigned int gpio_nr, int value)
+static int mcp_set(struct gpio_chip *gc, unsigned int gpio_nr, int value)
 {
 	unsigned long mask = 1 << gpio_nr;
 	unsigned long bmap_value = value << gpio_nr;
 
-	mcp_set_multiple(gc, &mask, &bmap_value);
+	return mcp_set_multiple(gc, &mask, &bmap_value);
 }
 
 static int mcp_get_multiple(struct gpio_chip *gc, unsigned long *mask,
@@ -263,9 +267,10 @@ static int mcp_direction_output(struct gpio_chip *gc, unsigned int gpio_nr,
 	bmap_value = value << gpio_nr;
 
 	ret = mcp_set_direction(gc, gpio_nr, MCP2200_DIR_OUT);
-	if (!ret)
-		mcp_set_multiple(gc, &mask, &bmap_value);
-	return ret;
+	if (ret)
+		return ret;
+
+	return mcp_set_multiple(gc, &mask, &bmap_value);
 }
 
 static const struct gpio_chip template_chip = {
@@ -274,8 +279,8 @@ static const struct gpio_chip template_chip = {
 	.get_direction		= mcp_get_direction,
 	.direction_input	= mcp_direction_input,
 	.direction_output	= mcp_direction_output,
-	.set			= mcp_set,
-	.set_multiple		= mcp_set_multiple,
+	.set_rv			= mcp_set,
+	.set_multiple_rv	= mcp_set_multiple,
 	.get			= mcp_get,
 	.get_multiple		= mcp_get_multiple,
 	.base			= -1,

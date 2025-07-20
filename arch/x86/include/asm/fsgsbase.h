@@ -2,7 +2,7 @@
 #ifndef _ASM_FSGSBASE_H
 #define _ASM_FSGSBASE_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #ifdef CONFIG_X86_64
 
@@ -60,7 +60,7 @@ static inline unsigned long x86_fsbase_read_cpu(void)
 	if (boot_cpu_has(X86_FEATURE_FSGSBASE))
 		fsbase = rdfsbase();
 	else
-		rdmsrl(MSR_FS_BASE, fsbase);
+		rdmsrq(MSR_FS_BASE, fsbase);
 
 	return fsbase;
 }
@@ -70,7 +70,7 @@ static inline void x86_fsbase_write_cpu(unsigned long fsbase)
 	if (boot_cpu_has(X86_FEATURE_FSGSBASE))
 		wrfsbase(fsbase);
 	else
-		wrmsrl(MSR_FS_BASE, fsbase);
+		wrmsrq(MSR_FS_BASE, fsbase);
 }
 
 extern unsigned long x86_gsbase_read_cpu_inactive(void);
@@ -80,6 +80,6 @@ extern unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 
 #endif /* CONFIG_X86_64 */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_FSGSBASE_H */

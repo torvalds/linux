@@ -23,9 +23,7 @@
 
 #include <linux/backing-dev.h>
 #include <linux/sort.h>
-
-static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
-};
+#include <linux/string_choices.h>
 
 struct bch2_metadata_version {
 	u16		version;
@@ -41,7 +39,7 @@ static const struct bch2_metadata_version bch2_metadata_versions[] = {
 #undef x
 };
 
-void bch2_version_to_text(struct printbuf *out, unsigned v)
+void bch2_version_to_text(struct printbuf *out, enum bcachefs_metadata_version v)
 {
 	const char *str = "(unknown version)";
 
@@ -54,7 +52,7 @@ void bch2_version_to_text(struct printbuf *out, unsigned v)
 	prt_printf(out, "%u.%u: %s", BCH_VERSION_MAJOR(v), BCH_VERSION_MINOR(v), str);
 }
 
-unsigned bch2_latest_compatible_version(unsigned v)
+enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_metadata_version v)
 {
 	if (!BCH_VERSION_MAJOR(v))
 		return v;
@@ -66,6 +64,41 @@ unsigned bch2_latest_compatible_version(unsigned v)
 			v = bch2_metadata_versions[i].version;
 
 	return v;
+}
+
+int bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
+{
+	int ret = ((c->sb.features & BIT_ULL(BCH_FEATURE_incompat_version_field)) &&
+		   version <= c->sb.version_incompat_allowed)
+		? 0
+		: -BCH_ERR_may_not_use_incompat_feature;
+
+	mutex_lock(&c->sb_lock);
+	if (!ret) {
+		SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
+			max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));
+		bch2_write_super(c);
+	} else {
+		darray_for_each(c->incompat_versions_requested, i)
+			if (version == *i)
+				goto out;
+
+		darray_push(&c->incompat_versions_requested, version);
+		struct printbuf buf = PRINTBUF;
+		prt_str(&buf, "requested incompat feature ");
+		bch2_version_to_text(&buf, version);
+		prt_str(&buf, " currently not enabled, allowed up to ");
+		bch2_version_to_text(&buf, version);
+		prt_printf(&buf, "\n  set version_upgrade=incompat to enable");
+
+		bch_notice(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
+
+out:
+	mutex_unlock(&c->sb_lock);
+
+	return ret;
 }
 
 const char * const bch2_sb_fields[] = {
@@ -228,11 +261,11 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *sb,
 
 		/* XXX: we're not checking that offline device have enough space */
 
-		for_each_online_member(c, ca) {
+		for_each_online_member(c, ca, BCH_DEV_READ_REF_sb_field_resize) {
 			struct bch_sb_handle *dev_sb = &ca->disk_sb;
 
 			if (bch2_sb_realloc(dev_sb, le32_to_cpu(dev_sb->sb->u64s) + d)) {
-				percpu_ref_put(&ca->io_ref);
+				enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_sb_field_resize);
 				return NULL;
 			}
 		}
@@ -349,31 +382,38 @@ static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
 	return 0;
 }
 
-static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
-			    enum bch_validate_flags flags, struct printbuf *out)
+int bch2_sb_validate(struct bch_sb *sb, u64 read_offset,
+		     enum bch_validate_flags flags, struct printbuf *out)
 {
-	struct bch_sb *sb = disk_sb->sb;
-	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
-	u16 block_size;
 	int ret;
 
 	ret = bch2_sb_compatible(sb, out);
 	if (ret)
 		return ret;
 
-	if (sb->features[1] ||
-	    (le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR))) {
-		prt_printf(out, "Filesystem has incompatible features");
+	u64 incompat = le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR);
+	unsigned incompat_bit = 0;
+	if (incompat)
+		incompat_bit = __ffs64(incompat);
+	else if (sb->features[1])
+		incompat_bit = 64 + __ffs64(le64_to_cpu(sb->features[1]));
+
+	if (incompat_bit) {
+		prt_printf(out, "Filesystem has incompatible feature bit %u, highest supported %s (%u)",
+			   incompat_bit,
+			   bch2_sb_features[BCH_FEATURE_NR - 1],
+			   BCH_FEATURE_NR - 1);
 		return -BCH_ERR_invalid_sb_features;
 	}
 
-	block_size = le16_to_cpu(sb->block_size);
-
-	if (block_size > PAGE_SECTORS) {
-		prt_printf(out, "Block size too big (got %u, max %u)",
-		       block_size, PAGE_SECTORS);
-		return -BCH_ERR_invalid_sb_block_size;
+	if (BCH_VERSION_MAJOR(le16_to_cpu(sb->version)) > BCH_VERSION_MAJOR(bcachefs_metadata_version_current) ||
+	    BCH_SB_VERSION_INCOMPAT(sb) > bcachefs_metadata_version_current) {
+		prt_str(out, "Filesystem has incompatible version ");
+		bch2_version_to_text(out, le16_to_cpu(sb->version));
+		prt_str(out, ", current version ");
+		bch2_version_to_text(out, bcachefs_metadata_version_current);
+		return -BCH_ERR_invalid_sb_features;
 	}
 
 	if (bch2_is_zero(sb->user_uuid.b, sizeof(sb->user_uuid))) {
@@ -384,6 +424,13 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 	if (bch2_is_zero(sb->uuid.b, sizeof(sb->uuid))) {
 		prt_printf(out, "Bad internal UUID (got zeroes)");
 		return -BCH_ERR_invalid_sb_uuid;
+	}
+
+	if (!(flags & BCH_VALIDATE_write) &&
+	    le64_to_cpu(sb->offset) != read_offset) {
+		prt_printf(out, "Bad sb offset (got %llu, read from %llu)",
+			   le64_to_cpu(sb->offset), read_offset);
+		return -BCH_ERR_invalid_sb_offset;
 	}
 
 	if (!sb->nr_devices ||
@@ -406,6 +453,24 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 		return -BCH_ERR_invalid_sb_time_precision;
 	}
 
+	/* old versions didn't know to downgrade this field */
+	if (BCH_SB_VERSION_INCOMPAT_ALLOWED(sb) > le16_to_cpu(sb->version))
+		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(sb, le16_to_cpu(sb->version));
+
+	if (BCH_SB_VERSION_INCOMPAT(sb) > BCH_SB_VERSION_INCOMPAT_ALLOWED(sb)) {
+		prt_printf(out, "Invalid version_incompat ");
+		bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT(sb));
+		prt_str(out, " > incompat_allowed ");
+		bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT_ALLOWED(sb));
+		if (flags & BCH_VALIDATE_write)
+			return -BCH_ERR_invalid_sb_version;
+		else
+			SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(sb, BCH_SB_VERSION_INCOMPAT(sb));
+	}
+
+	if (sb->nr_devices > 1)
+		SET_BCH_SB_MULTI_DEVICE(sb, true);
+
 	if (!flags) {
 		/*
 		 * Been seeing a bug where these are getting inexplicably
@@ -426,13 +491,25 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 
 		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2)
 			SET_BCH_SB_PROMOTE_WHOLE_EXTENTS(sb, true);
+
+		if (!BCH_SB_WRITE_ERROR_TIMEOUT(sb))
+			SET_BCH_SB_WRITE_ERROR_TIMEOUT(sb, 30);
+
+		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_extent_flags &&
+		    !BCH_SB_CSUM_ERR_RETRY_NR(sb))
+			SET_BCH_SB_CSUM_ERR_RETRY_NR(sb, 3);
 	}
+
+#ifdef __KERNEL__
+	if (!BCH_SB_SHARD_INUMS_NBITS(sb))
+		SET_BCH_SB_SHARD_INUMS_NBITS(sb, ilog2(roundup_pow_of_two(num_online_cpus())));
+#endif
 
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
 		const struct bch_option *opt = bch2_opt_table + opt_id;
 
-		if (opt->get_sb != BCH2_NO_SB_OPT) {
-			u64 v = bch2_opt_from_sb(sb, opt_id);
+		if (opt->get_sb) {
+			u64 v = bch2_opt_from_sb(sb, opt_id, -1);
 
 			prt_printf(out, "Invalid option ");
 			ret = bch2_opt_validate(opt, v, out);
@@ -462,14 +539,17 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 		}
 	}
 
+	struct bch_sb_field *mi =
+		bch2_sb_field_get_id(sb, BCH_SB_FIELD_members_v2) ?:
+		bch2_sb_field_get_id(sb, BCH_SB_FIELD_members_v1);
+
 	/* members must be validated first: */
-	mi = bch2_sb_field_get(sb, members_v1);
 	if (!mi) {
 		prt_printf(out, "Invalid superblock: member info area missing");
 		return -BCH_ERR_invalid_sb_members_missing;
 	}
 
-	ret = bch2_sb_field_validate(sb, &mi->field, flags, out);
+	ret = bch2_sb_field_validate(sb, mi, flags, out);
 	if (ret)
 		return ret;
 
@@ -519,6 +599,9 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.uuid		= src->uuid;
 	c->sb.user_uuid		= src->user_uuid;
 	c->sb.version		= le16_to_cpu(src->version);
+	c->sb.version_incompat	= BCH_SB_VERSION_INCOMPAT(src);
+	c->sb.version_incompat_allowed
+				= BCH_SB_VERSION_INCOMPAT_ALLOWED(src);
 	c->sb.version_min	= le16_to_cpu(src->version_min);
 	c->sb.version_upgrade_complete = BCH_SB_VERSION_UPGRADE_COMPLETE(src);
 	c->sb.nr_devices	= src->nr_devices;
@@ -535,11 +618,15 @@ static void bch2_sb_update(struct bch_fs *c)
 
 	c->sb.features		= le64_to_cpu(src->features[0]);
 	c->sb.compat		= le64_to_cpu(src->compat[0]);
+	c->sb.multi_device	= BCH_SB_MULTI_DEVICE(src);
 
 	memset(c->sb.errors_silent, 0, sizeof(c->sb.errors_silent));
 
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(src, ext);
 	if (ext) {
+		c->sb.recovery_passes_required =
+			bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+
 		le_bitvector_to_cpu(c->sb.errors_silent, (void *) ext->errors_silent,
 				    sizeof(c->sb.errors_silent) * 8);
 		c->sb.btrees_lost_data = le64_to_cpu(ext->btrees_lost_data);
@@ -676,7 +763,8 @@ reread:
 	}
 
 	enum bch_csum_type csum_type = BCH_SB_CSUM_TYPE(sb->sb);
-	if (csum_type >= BCH_CSUM_NR) {
+	if (csum_type >= BCH_CSUM_NR ||
+	    bch2_csum_type_is_encryption(csum_type)) {
 		prt_printf(err, "unknown checksum type %llu", BCH_SB_CSUM_TYPE(sb->sb));
 		return -BCH_ERR_invalid_sb_csum_type;
 	}
@@ -708,7 +796,7 @@ retry:
 	memset(sb, 0, sizeof(*sb));
 	sb->mode	= BLK_OPEN_READ;
 	sb->have_bio	= true;
-	sb->holder	= kmalloc(1, GFP_KERNEL);
+	sb->holder	= kzalloc(sizeof(*sb->holder), GFP_KERNEL);
 	if (!sb->holder)
 		return -ENOMEM;
 
@@ -834,7 +922,7 @@ got_super:
 
 	sb->have_layout = true;
 
-	ret = bch2_sb_validate(sb, 0, &err);
+	ret = bch2_sb_validate(sb->sb, offset, 0, &err);
 	if (ret) {
 		bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 				path, err.buf);
@@ -871,19 +959,19 @@ static void write_super_endio(struct bio *bio)
 {
 	struct bch_dev *ca = bio->bi_private;
 
+	bch2_account_io_success_fail(ca, bio_data_dir(bio), !bio->bi_status);
+
 	/* XXX: return errors directly */
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca,
-			       bio_data_dir(bio)
-			       ? BCH_MEMBER_ERROR_write
-			       : BCH_MEMBER_ERROR_read,
-			       "superblock %s error: %s",
-			       bio_data_dir(bio) ? "write" : "read",
-			       bch2_blk_status_to_str(bio->bi_status)))
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca, "superblock %s error: %s",
+			       str_write_read(bio_data_dir(bio)),
+			       bch2_blk_status_to_str(bio->bi_status));
 		ca->sb_write_error = 1;
+	}
 
 	closure_put(&ca->fs->sb_write);
-	percpu_ref_put(&ca->io_ref);
+	enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 }
 
 static void read_back_super(struct bch_fs *c, struct bch_dev *ca)
@@ -891,16 +979,17 @@ static void read_back_super(struct bch_fs *c, struct bch_dev *ca)
 	struct bch_sb *sb = ca->disk_sb.sb;
 	struct bio *bio = ca->disk_sb.bio;
 
+	memset(ca->sb_read_scratch, 0, BCH_SB_READ_SCRATCH_BUF_SIZE);
+
 	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ|REQ_SYNC|REQ_META);
 	bio->bi_iter.bi_sector	= le64_to_cpu(sb->layout.sb_offset[0]);
 	bio->bi_end_io		= write_super_endio;
 	bio->bi_private		= ca;
-	bch2_bio_map(bio, ca->sb_read_scratch, PAGE_SIZE);
+	bch2_bio_map(bio, ca->sb_read_scratch, BCH_SB_READ_SCRATCH_BUF_SIZE);
 
-	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_sb],
-		     bio_sectors(bio));
+	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_sb], bio_sectors(bio));
 
-	percpu_ref_get(&ca->io_ref);
+	enumerated_ref_get(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	closure_bio_submit(bio, &c->sb_write);
 }
 
@@ -926,7 +1015,7 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 	this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_sb],
 		     bio_sectors(bio));
 
-	percpu_ref_get(&ca->io_ref);
+	enumerated_ref_get(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	closure_bio_submit(bio, &c->sb_write);
 }
 
@@ -943,7 +1032,7 @@ int bch2_write_super(struct bch_fs *c)
 
 	trace_and_count(c, write_super, c, _RET_IP_);
 
-	if (c->opts.very_degraded)
+	if (c->opts.degraded == BCH_DEGRADED_very)
 		degraded_flags |= BCH_FORCE_IF_LOST;
 
 	lockdep_assert_held(&c->sb_lock);
@@ -951,13 +1040,20 @@ int bch2_write_super(struct bch_fs *c)
 	closure_init_stack(cl);
 	memset(&sb_written, 0, sizeof(sb_written));
 
-	for_each_online_member(c, ca) {
+	/*
+	 * Note: we do writes to RO devices here, and we might want to change
+	 * that in the future.
+	 *
+	 * For now, we expect to be able to call write_super() when we're not
+	 * yet RW:
+	 */
+	for_each_online_member(c, ca, BCH_DEV_READ_REF_write_super) {
 		ret = darray_push(&online_devices, ca);
 		if (bch2_fs_fatal_err_on(ret, c, "%s: error allocating online devices", __func__)) {
-			percpu_ref_put(&ca->io_ref);
+			enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 			goto out;
 		}
-		percpu_ref_get(&ca->io_ref);
+		enumerated_ref_get(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	}
 
 	/* Make sure we're using the new magic numbers: */
@@ -990,7 +1086,7 @@ int bch2_write_super(struct bch_fs *c)
 	darray_for_each(online_devices, ca) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&(*ca)->disk_sb, BCH_VALIDATE_write, &err);
+		ret = bch2_sb_validate((*ca)->disk_sb.sb, 0, BCH_VALIDATE_write, &err);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			goto out;
@@ -1016,7 +1112,8 @@ int bch2_write_super(struct bch_fs *c)
 		prt_str(&buf, ")");
 		bch2_fs_fatal_error(c, ": %s", buf.buf);
 		printbuf_exit(&buf);
-		return -BCH_ERR_sb_not_downgraded;
+		ret = bch_err_throw(c, sb_not_downgraded);
+		goto out;
 	}
 
 	darray_for_each(online_devices, ca) {
@@ -1042,9 +1139,16 @@ int bch2_write_super(struct bch_fs *c)
 				": Superblock write was silently dropped! (seq %llu expected %llu)",
 				le64_to_cpu(ca->sb_read_scratch->seq),
 				ca->disk_sb.seq);
-			bch2_fs_fatal_error(c, "%s", buf.buf);
+
+			if (c->opts.errors != BCH_ON_ERROR_continue &&
+			    c->opts.errors != BCH_ON_ERROR_fix_safe) {
+				ret = bch_err_throw(c, erofs_sb_err);
+				bch2_fs_fatal_error(c, "%s", buf.buf);
+			} else {
+				bch_err(c, "%s", buf.buf);
+			}
+
 			printbuf_exit(&buf);
-			ret = -BCH_ERR_erofs_sb_err;
 		}
 
 		if (le64_to_cpu(ca->sb_read_scratch->seq) > ca->disk_sb.seq) {
@@ -1057,7 +1161,7 @@ int bch2_write_super(struct bch_fs *c)
 				ca->disk_sb.seq);
 			bch2_fs_fatal_error(c, "%s", buf.buf);
 			printbuf_exit(&buf);
-			ret = -BCH_ERR_erofs_sb_err;
+			ret = bch_err_throw(c, erofs_sb_err);
 		}
 	}
 
@@ -1111,12 +1215,12 @@ int bch2_write_super(struct bch_fs *c)
 				  !can_mount_with_written), c,
 		": Unable to write superblock to sufficient devices (from %ps)",
 		(void *) _RET_IP_))
-		ret = -1;
+		ret = bch_err_throw(c, erofs_sb_err);
 out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);
 	darray_for_each(online_devices, ca)
-		percpu_ref_put(&(*ca)->io_ref);
+		enumerated_ref_put(&(*ca)->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	darray_exit(&online_devices);
 	printbuf_exit(&err);
 	return ret;
@@ -1149,6 +1253,8 @@ bool bch2_check_version_downgrade(struct bch_fs *c)
 	 */
 	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
+	if (BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb) > bcachefs_metadata_version_current)
+		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb, bcachefs_metadata_version_current);
 	if (c->sb.version > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
 	if (c->sb.version_min > bcachefs_metadata_version_current)
@@ -1157,7 +1263,7 @@ bool bch2_check_version_downgrade(struct bch_fs *c)
 	return ret;
 }
 
-void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
+void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version, bool incompat)
 {
 	lockdep_assert_held(&c->sb_lock);
 
@@ -1166,7 +1272,37 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
 		bch2_sb_field_resize(&c->disk_sb, downgrade, 0);
 
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
+
+	if (incompat) {
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
+			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), new_version));
+	}
+}
+
+void bch2_sb_upgrade_incompat(struct bch_fs *c)
+{
+	mutex_lock(&c->sb_lock);
+	if (c->sb.version == c->sb.version_incompat_allowed)
+		goto unlock;
+
+	struct printbuf buf = PRINTBUF;
+
+	prt_str(&buf, "Now allowing incompatible features up to ");
+	bch2_version_to_text(&buf, c->sb.version);
+	prt_str(&buf, ", previously allowed up to ");
+	bch2_version_to_text(&buf, c->sb.version_incompat_allowed);
+	prt_newline(&buf);
+
+	bch_notice(c, "%s", buf.buf);
+	printbuf_exit(&buf);
+
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+	SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
+			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), c->sb.version));
+	bch2_write_super(c);
+unlock:
+	mutex_unlock(&c->sb_lock);
 }
 
 static int bch2_sb_ext_validate(struct bch_sb *sb, struct bch_sb_field *f,
@@ -1331,6 +1467,14 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	bch2_version_to_text(out, le16_to_cpu(sb->version));
 	prt_newline(out);
 
+	prt_printf(out, "Incompatible features allowed:\t");
+	bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT_ALLOWED(sb));
+	prt_newline(out);
+
+	prt_printf(out, "Incompatible features in use:\t");
+	bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT(sb));
+	prt_newline(out);
+
 	prt_printf(out, "Version upgrade complete:\t");
 	bch2_version_to_text(out, BCH_SB_VERSION_UPGRADE_COMPLETE(sb));
 	prt_newline(out);
@@ -1388,8 +1532,8 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		for (id = 0; id < bch2_opts_nr; id++) {
 			const struct bch_option *opt = bch2_opt_table + id;
 
-			if (opt->get_sb != BCH2_NO_SB_OPT) {
-				u64 v = bch2_opt_from_sb(sb, id);
+			if (opt->get_sb) {
+				u64 v = bch2_opt_from_sb(sb, id, -1);
 
 				prt_printf(out, "%s:\t", opt->attr.name);
 				bch2_opt_to_text(out, NULL, sb, opt, v,

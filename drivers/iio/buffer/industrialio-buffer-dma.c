@@ -624,7 +624,7 @@ out_unlock:
 
 /**
  * iio_dma_buffer_read() - DMA buffer read callback
- * @buffer: Buffer to read form
+ * @buffer: Buffer to read from
  * @n: Number of bytes to read
  * @user_buffer: Userspace buffer to copy the data to
  *
@@ -640,7 +640,7 @@ EXPORT_SYMBOL_NS_GPL(iio_dma_buffer_read, "IIO_DMA_BUFFER");
 
 /**
  * iio_dma_buffer_write() - DMA buffer write callback
- * @buffer: Buffer to read form
+ * @buffer: Buffer to write to
  * @n: Number of bytes to read
  * @user_buffer: Userspace buffer to copy the data from
  *

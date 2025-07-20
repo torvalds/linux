@@ -23,7 +23,7 @@ List of legacy properties and respective binding document
 
 1. "gpio-key,wakeup"		Documentation/devicetree/bindings/input/gpio-keys{,-polled}.txt
 2. "has-tpo"			Documentation/devicetree/bindings/rtc/rtc-opal.txt
-3. "linux,wakeup"		Documentation/devicetree/bindings/input/gpio-matrix-keypad.txt
+3. "linux,wakeup"		Documentation/devicetree/bindings/input/gpio-matrix-keypad.yaml
 				Documentation/devicetree/bindings/mfd/tc3589x.txt
 				Documentation/devicetree/bindings/input/touchscreen/ti,ads7843.yaml
 4. "linux,keypad-wakeup"	Documentation/devicetree/bindings/input/qcom,pm8921-keypad.yaml

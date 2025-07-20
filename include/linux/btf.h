@@ -76,6 +76,9 @@
 #define KF_ITER_DESTROY (1 << 10) /* kfunc implements BPF iter destructor */
 #define KF_RCU_PROTECTED (1 << 11) /* kfunc should be protected by rcu cs when they are invoked */
 #define KF_FASTCALL     (1 << 12) /* kfunc supports bpf_fastcall protocol */
+#define KF_ARENA_RET    (1 << 13) /* kfunc returns an arena pointer */
+#define KF_ARENA_ARG1   (1 << 14) /* kfunc takes an arena pointer as its first argument */
+#define KF_ARENA_ARG2   (1 << 15) /* kfunc takes an arena pointer as its second argument */
 
 /*
  * Tag marking a kernel function as a kfunc. This is meant to minimize the
@@ -353,6 +356,11 @@ static inline bool btf_type_is_scalar(const struct btf_type *t)
 	return btf_type_is_int(t) || btf_type_is_enum(t);
 }
 
+static inline bool btf_type_is_fwd(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_FWD;
+}
+
 static inline bool btf_type_is_typedef(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_TYPEDEF;
@@ -514,6 +522,7 @@ bool btf_param_match_suffix(const struct btf *btf,
 			    const char *suffix);
 int btf_ctx_arg_offset(const struct btf *btf, const struct btf_type *func_proto,
 		       u32 arg_no);
+u32 btf_ctx_arg_idx(struct btf *btf, const struct btf_type *func_proto, int off);
 
 struct bpf_verifier_log;
 

@@ -2,6 +2,7 @@
 // Copyright (c) 2024 Hisilicon Limited.
 
 #include <linux/phy.h>
+#include <linux/rtnetlink.h>
 #include "hbg_common.h"
 #include "hbg_hw.h"
 #include "hbg_mdio.h"
@@ -16,6 +17,8 @@
 
 #define HBG_MDIO_OP_TIMEOUT_US		(1 * 1000 * 1000)
 #define HBG_MDIO_OP_INTERVAL_US		(5 * 1000)
+
+#define HBG_NP_LINK_FAIL_RETRY_TIMES	5
 
 static void hbg_mdio_set_command(struct hbg_mac *mac, u32 cmd)
 {
@@ -114,6 +117,47 @@ static void hbg_mdio_init_hw(struct hbg_priv *priv)
 	hbg_mdio_set_command(mac, cmd);
 }
 
+static void hbg_flowctrl_cfg(struct hbg_priv *priv)
+{
+	struct phy_device *phydev = priv->mac.phydev;
+	bool rx_pause;
+	bool tx_pause;
+
+	if (!priv->mac.pause_autoneg)
+		return;
+
+	phy_get_pause(phydev, &tx_pause, &rx_pause);
+	hbg_hw_set_pause_enable(priv, tx_pause, rx_pause);
+}
+
+void hbg_fix_np_link_fail(struct hbg_priv *priv)
+{
+	struct device *dev = &priv->pdev->dev;
+
+	rtnl_lock();
+
+	if (priv->stats.np_link_fail_cnt >= HBG_NP_LINK_FAIL_RETRY_TIMES) {
+		dev_err(dev, "failed to fix the MAC link status\n");
+		priv->stats.np_link_fail_cnt = 0;
+		goto unlock;
+	}
+
+	if (!priv->mac.phydev->link)
+		goto unlock;
+
+	priv->stats.np_link_fail_cnt++;
+	dev_err(dev, "failed to link between MAC and PHY, try to fix...\n");
+
+	/* Replace phy_reset() with phy_stop() and phy_start(),
+	 * as suggested by Andrew.
+	 */
+	hbg_phy_stop(priv);
+	hbg_phy_start(priv);
+
+unlock:
+	rtnl_unlock();
+}
+
 static void hbg_phy_adjust_link(struct net_device *netdev)
 {
 	struct hbg_priv *priv = netdev_priv(netdev);
@@ -140,6 +184,7 @@ static void hbg_phy_adjust_link(struct net_device *netdev)
 			priv->mac.duplex = phydev->duplex;
 			priv->mac.autoneg = phydev->autoneg;
 			hbg_hw_adjust_link(priv, speed, phydev->duplex);
+			hbg_flowctrl_cfg(priv);
 		}
 
 		priv->mac.link_status = phydev->link;
@@ -168,6 +213,7 @@ static int hbg_phy_connect(struct hbg_priv *priv)
 		return ret;
 
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	phy_support_asym_pause(phydev);
 	phy_attached_info(phydev);
 
 	return 0;

@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cnxt,cx92755-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Conexant Digicolor SoCs Timer Controller
+
+maintainers:
+  - Baruch Siach <baruch@tkos.co.il>
+
+properties:
+  compatible:
+    const: cnxt,cx92755-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: Contains 8 interrupts, one for each timer
+    items:
+      - description: interrupt for timer 0
+      - description: interrupt for timer 1
+      - description: interrupt for timer 2
+      - description: interrupt for timer 3
+      - description: interrupt for timer 4
+      - description: interrupt for timer 5
+      - description: interrupt for timer 6
+      - description: interrupt for timer 7
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@f0000fc0 {
+      compatible = "cnxt,cx92755-timer";
+      reg = <0xf0000fc0 0x40>;
+      interrupts = <19>, <31>, <34>, <35>, <52>, <53>, <54>, <55>;
+      clocks = <&main_clk>;
+    };

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2024 Intel Corporation
+ * Copyright (C) 2019-2025 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -79,9 +79,9 @@ static void *iwl_acpi_get_object(struct device *dev, acpi_string method)
  * method (DSM) interface. The returned acpi object must be freed by calling
  * function.
  */
-static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-				     union acpi_object *args,
-				     const guid_t *guid)
+union acpi_object *iwl_acpi_get_dsm_object(struct device *dev, int rev,
+					   int func, union acpi_object *args,
+					   const guid_t *guid)
 {
 	union acpi_object *obj;
 
@@ -108,7 +108,7 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 				    size_t expected_size)
 {
 	union acpi_object *obj;
-	int ret = 0;
+	int ret;
 
 	obj = iwl_acpi_get_dsm_object(dev, rev, func, NULL, guid);
 	if (IS_ERR(obj)) {
@@ -123,8 +123,10 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 	} else if (obj->type == ACPI_TYPE_BUFFER) {
 		__le64 le_value = 0;
 
-		if (WARN_ON_ONCE(expected_size > sizeof(le_value)))
-			return -EINVAL;
+		if (WARN_ON_ONCE(expected_size > sizeof(le_value))) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		/* if the buffer size doesn't match the expected size */
 		if (obj->buffer.length != expected_size)
@@ -145,8 +147,9 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 	}
 
 	IWL_DEBUG_DEV_RADIO(dev,
-			    "ACPI: DSM method evaluated: func=%d, ret=%d\n",
-			    func, ret);
+			    "ACPI: DSM method evaluated: func=%d, value=%lld\n",
+			    func, *value);
+	ret = 0;
 out:
 	ACPI_FREE(obj);
 	return ret;
@@ -259,13 +262,14 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *tas_data)
 {
 	union acpi_object *wifi_pkg, *data;
-	int ret, tbl_rev, i, block_list_size, enabled;
+	int ret, tbl_rev, block_list_size, enabled;
+	u32 tas_selection;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* try to read wtas table revision 1 or revision 0*/
+	/* try to read wtas table */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WTAS_WIFI_DATA_SIZE,
 					 &tbl_rev);
@@ -274,27 +278,23 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 
-	if (tbl_rev == 1 && wifi_pkg->package.elements[1].type ==
-		ACPI_TYPE_INTEGER) {
-		u32 tas_selection =
-			(u32)wifi_pkg->package.elements[1].integer.value;
-
-		enabled = iwl_parse_tas_selection(fwrt, tas_data,
-						  tas_selection);
-
-	} else if (tbl_rev == 0 &&
-		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
-		enabled = !!wifi_pkg->package.elements[1].integer.value;
-	} else {
+	if (tbl_rev < 0 || tbl_rev > 2 ||
+	    wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	if (!enabled) {
-		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
-		ret = 0;
-		goto out_free;
-	}
+	tas_selection = (u32)wifi_pkg->package.elements[1].integer.value;
+	enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
+			tas_selection);
+	tas_data->table_source = BIOS_SOURCE_ACPI;
+	tas_data->table_revision = tbl_rev;
+	tas_data->tas_selection = tas_selection;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS %s enabled\n",
+			enabled ? "is" : "not");
 
 	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n", tbl_rev);
 	if (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER ||
@@ -305,13 +305,14 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		ret = -EINVAL;
 		goto out_free;
 	}
+
 	block_list_size = wifi_pkg->package.elements[2].integer.value;
-	tas_data->block_list_size = cpu_to_le32(block_list_size);
+	tas_data->block_list_size = block_list_size;
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
 
-	for (i = 0; i < block_list_size; i++) {
-		u32 country;
+	for (int i = 0; i < block_list_size; i++) {
+		u16 country;
 
 		if (wifi_pkg->package.elements[3 + i].type !=
 		    ACPI_TYPE_INTEGER) {
@@ -322,11 +323,11 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		tas_data->block_list_array[i] = cpu_to_le32(country);
+		tas_data->block_list_array[i] = country;
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
-	ret = 1;
+	ret = enabled;
 out_free:
 	kfree(data);
 	return ret;
@@ -846,12 +847,12 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* try to read ppag table rev 3, 2 or 1 (all have the same data size) */
+	/* try to read ppag table rev 1 to 4 (all have the same data size) */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 				ACPI_PPAG_WIFI_DATA_SIZE_V2, &tbl_rev);
 
 	if (!IS_ERR(wifi_pkg)) {
-		if (tbl_rev >= 1 && tbl_rev <= 3) {
+		if (tbl_rev >= 1 && tbl_rev <= 4) {
 			num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 			IWL_DEBUG_RADIO(fwrt,
 					"Reading PPAG table (tbl_rev=%d)\n",
@@ -881,7 +882,7 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	goto out_free;
 
 read_table:
-	fwrt->ppag_ver = tbl_rev;
+	fwrt->ppag_bios_rev = tbl_rev;
 	flags = &wifi_pkg->package.elements[1];
 
 	if (flags->type != ACPI_TYPE_INTEGER) {
@@ -890,7 +891,7 @@ read_table:
 	}
 
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(flags->integer.value,
-						   fwrt->ppag_ver);
+						   fwrt->ppag_bios_rev);
 
 	/*
 	 * read, verify gain values and save them into the PPAG table.
@@ -911,6 +912,7 @@ read_table:
 		}
 	}
 
+	fwrt->ppag_bios_source = BIOS_SOURCE_ACPI;
 	ret = 0;
 
 out_free:
@@ -918,40 +920,39 @@ out_free:
 	return ret;
 }
 
-void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
-			      struct iwl_phy_specific_cfg *filters)
+int iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt)
 {
+	struct iwl_phy_specific_cfg *filters = &fwrt->phy_filters;
 	struct iwl_phy_specific_cfg tmp = {};
-	union acpi_object *wifi_pkg, *data;
+	union acpi_object *wifi_pkg, *data __free(kfree);
 	int tbl_rev, i;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WPFC_METHOD);
 	if (IS_ERR(data))
-		return;
+		return PTR_ERR(data);
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WPFC_WIFI_DATA_SIZE,
 					 &tbl_rev);
 	if (IS_ERR(wifi_pkg))
-		goto out_free;
+		return PTR_ERR(wifi_pkg);
 
 	if (tbl_rev != 0)
-		goto out_free;
+		return -EINVAL;
 
 	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) !=
 		     ACPI_WPFC_WIFI_DATA_SIZE - 1);
 
 	for (i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
 		if (wifi_pkg->package.elements[i + 1].type != ACPI_TYPE_INTEGER)
-			goto out_free;
+			return -EINVAL;
 		tmp.filter_cfg_chains[i] =
 			cpu_to_le32(wifi_pkg->package.elements[i + 1].integer.value);
 	}
 
 	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC filter config from ACPI\n");
 	*filters = tmp;
-out_free:
-	kfree(data);
+	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_phy_filters);
 
@@ -1018,6 +1019,40 @@ int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 	*value = wifi_pkg->package.elements[1].integer.value &
 		 IWL_ACPI_WBEM_REV0_MASK;
 	IWL_DEBUG_RADIO(fwrt, "Loaded WBEM config from ACPI\n");
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}
+
+int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	union acpi_object *wifi_pkg, *data;
+	int ret = -ENOENT;
+	int tbl_rev;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_DSBR_METHOD);
+	if (IS_ERR(data))
+		return ret;
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_DSBR_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg))
+		goto out_free;
+
+	if (tbl_rev != ACPI_DSBR_WIFI_DATA_REV) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported ACPI DSBR revision:%d\n",
+				tbl_rev);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+		goto out_free;
+
+	*value = wifi_pkg->package.elements[1].integer.value;
+	IWL_DEBUG_RADIO(fwrt, "Loaded DSBR config from ACPI value: 0x%x\n",
+			*value);
 	ret = 0;
 out_free:
 	kfree(data);

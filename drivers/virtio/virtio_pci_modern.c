@@ -48,6 +48,7 @@ void vp_modern_avq_done(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 	struct virtio_pci_admin_vq *admin_vq = &vp_dev->admin_vq;
+	unsigned int status_size = sizeof(struct virtio_admin_cmd_status);
 	struct virtio_admin_cmd *cmd;
 	unsigned long flags;
 	unsigned int len;
@@ -56,7 +57,17 @@ void vp_modern_avq_done(struct virtqueue *vq)
 	do {
 		virtqueue_disable_cb(vq);
 		while ((cmd = virtqueue_get_buf(vq, &len))) {
-			cmd->result_sg_size = len;
+			/* If the number of bytes written by the device is less
+			 * than the size of struct virtio_admin_cmd_status, the
+			 * remaining status bytes will remain zero-initialized,
+			 * since the buffer was zeroed during allocation.
+			 * In this case, set the size of command_specific_result
+			 * to 0.
+			 */
+			if (len < status_size)
+				cmd->result_sg_size = 0;
+			else
+				cmd->result_sg_size = len - status_size;
 			complete(&cmd->completion);
 		}
 	} while (!virtqueue_enable_cb(vq));
@@ -247,7 +258,7 @@ virtio_pci_admin_cmd_dev_parts_objects_enable(struct virtio_device *virtio_dev)
 	sg_init_one(&data_sg, get_data, sizeof(*get_data));
 	sg_init_one(&result_sg, result, sizeof(*result));
 	cmd.opcode = cpu_to_le16(VIRTIO_ADMIN_CMD_DEVICE_CAP_GET);
-	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SRIOV);
+	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SELF);
 	cmd.data_sg = &data_sg;
 	cmd.result_sg = &result_sg;
 	ret = vp_modern_admin_cmd_exec(virtio_dev, &cmd);
@@ -305,7 +316,7 @@ static void virtio_pci_admin_cmd_cap_init(struct virtio_device *virtio_dev)
 
 	sg_init_one(&result_sg, data, sizeof(*data));
 	cmd.opcode = cpu_to_le16(VIRTIO_ADMIN_CMD_CAP_ID_LIST_QUERY);
-	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SRIOV);
+	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SELF);
 	cmd.result_sg = &result_sg;
 
 	ret = vp_modern_admin_cmd_exec(virtio_dev, &cmd);

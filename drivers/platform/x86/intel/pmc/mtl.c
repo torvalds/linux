@@ -10,7 +10,6 @@
 
 #include <linux/pci.h>
 #include "core.h"
-#include "../pmt/telemetry.h"
 
 /* PMC SSRAM PMT Telemetry GUIDS */
 #define SOCP_LPM_REQ_GUID	0x2625030
@@ -102,12 +101,12 @@ const struct pmc_bit_map mtl_socm_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_mtl_socm_pfear_map[] = {
+static const struct pmc_bit_map *ext_mtl_socm_pfear_map[] = {
 	mtl_socm_pfear_map,
 	NULL
 };
 
-const struct pmc_bit_map mtl_socm_ltr_show_map[] = {
+static const struct pmc_bit_map mtl_socm_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
 	{"SATA",		CNP_PMC_LTR_SATA},
@@ -141,7 +140,7 @@ const struct pmc_bit_map mtl_socm_ltr_show_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_clocksource_status_map[] = {
+static const struct pmc_bit_map mtl_socm_clocksource_status_map[] = {
 	{"AON2_OFF_STS",                 BIT(0)},
 	{"AON3_OFF_STS",                 BIT(1)},
 	{"AON4_OFF_STS",                 BIT(2)},
@@ -167,7 +166,7 @@ const struct pmc_bit_map mtl_socm_clocksource_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_power_gating_status_0_map[] = {
+static const struct pmc_bit_map mtl_socm_power_gating_status_0_map[] = {
 	{"PMC_PGD0_PG_STS",              BIT(0)},
 	{"DMI_PGD0_PG_STS",              BIT(1)},
 	{"ESPISPI_PGD0_PG_STS",          BIT(2)},
@@ -203,7 +202,7 @@ const struct pmc_bit_map mtl_socm_power_gating_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_power_gating_status_1_map[] = {
+static const struct pmc_bit_map mtl_socm_power_gating_status_1_map[] = {
 	{"USBR0_PGD0_PG_STS",            BIT(0)},
 	{"SUSRAM_PGD0_PG_STS",           BIT(1)},
 	{"SMT1_PGD0_PG_STS",             BIT(2)},
@@ -239,7 +238,7 @@ const struct pmc_bit_map mtl_socm_power_gating_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_power_gating_status_2_map[] = {
+static const struct pmc_bit_map mtl_socm_power_gating_status_2_map[] = {
 	{"PSF8_PGD0_PG_STS",             BIT(0)},
 	{"FIA_PGD0_PG_STS",              BIT(1)},
 	{"SOC_D2D_PGD1_PG_STS",          BIT(2)},
@@ -291,7 +290,7 @@ const struct pmc_bit_map mtl_socm_d3_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_d3_status_2_map[] = {
+static const struct pmc_bit_map mtl_socm_d3_status_2_map[] = {
 	{"GNA_D3_STS",                   BIT(0)},
 	{"CSMERTC_D3_STS",               BIT(1)},
 	{"SUSRAM_D3_STS",                BIT(2)},
@@ -310,7 +309,7 @@ const struct pmc_bit_map mtl_socm_d3_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_d3_status_3_map[] = {
+static const struct pmc_bit_map mtl_socm_d3_status_3_map[] = {
 	{"ESE_D3_STS",                   BIT(2)},
 	{"GBETSN_D3_STS",                BIT(13)},
 	{"THC0_D3_STS",                  BIT(14)},
@@ -353,7 +352,7 @@ const struct pmc_bit_map mtl_socm_vnn_req_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_socm_vnn_req_status_3_map[] = {
+static const struct pmc_bit_map mtl_socm_vnn_req_status_3_map[] = {
 	{"ESE_VNN_REQ_STS",              BIT(2)},
 	{"DTS0_VNN_REQ_STS",             BIT(7)},
 	{"GPIOCOM5_VNN_REQ_STS",         BIT(11)},
@@ -432,7 +431,7 @@ const struct pmc_bit_map mtl_socm_signal_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *mtl_socm_lpm_maps[] = {
+static const struct pmc_bit_map *mtl_socm_lpm_maps[] = {
 	mtl_socm_clocksource_status_map,
 	mtl_socm_power_gating_status_0_map,
 	mtl_socm_power_gating_status_1_map,
@@ -476,7 +475,7 @@ const struct pmc_reg_map mtl_socm_reg_map = {
 	.lpm_reg_index = MTL_LPM_REG_INDEX,
 };
 
-const struct pmc_bit_map mtl_ioep_pfear_map[] = {
+static const struct pmc_bit_map mtl_ioep_pfear_map[] = {
 	{"PMC_0",               BIT(0)},
 	{"OPI",                 BIT(1)},
 	{"TCSS",                BIT(2)},
@@ -563,12 +562,12 @@ const struct pmc_bit_map mtl_ioep_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_mtl_ioep_pfear_map[] = {
+static const struct pmc_bit_map *ext_mtl_ioep_pfear_map[] = {
 	mtl_ioep_pfear_map,
 	NULL
 };
 
-const struct pmc_bit_map mtl_ioep_ltr_show_map[] = {
+static const struct pmc_bit_map mtl_ioep_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
 	{"SATA",		CNP_PMC_LTR_SATA},
@@ -600,7 +599,7 @@ const struct pmc_bit_map mtl_ioep_ltr_show_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_clocksource_status_map[] = {
+static const struct pmc_bit_map mtl_ioep_clocksource_status_map[] = {
 	{"AON2_OFF_STS",                 BIT(0)},
 	{"AON3_OFF_STS",                 BIT(1)},
 	{"AON4_OFF_STS",                 BIT(2)},
@@ -623,7 +622,7 @@ const struct pmc_bit_map mtl_ioep_clocksource_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_power_gating_status_0_map[] = {
+static const struct pmc_bit_map mtl_ioep_power_gating_status_0_map[] = {
 	{"PMC_PGD0_PG_STS",              BIT(0)},
 	{"DMI_PGD0_PG_STS",              BIT(1)},
 	{"TCSS_PGD0_PG_STS",             BIT(2)},
@@ -650,7 +649,7 @@ const struct pmc_bit_map mtl_ioep_power_gating_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_power_gating_status_1_map[] = {
+static const struct pmc_bit_map mtl_ioep_power_gating_status_1_map[] = {
 	{"PSF9_PGD0_PG_STS",             BIT(0)},
 	{"MPFPW4_PGD0_PG_STS",           BIT(1)},
 	{"SBR0_PGD0_PG_STS",             BIT(8)},
@@ -668,7 +667,7 @@ const struct pmc_bit_map mtl_ioep_power_gating_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_power_gating_status_2_map[] = {
+static const struct pmc_bit_map mtl_ioep_power_gating_status_2_map[] = {
 	{"FIA_PGD0_PG_STS",              BIT(1)},
 	{"FIA_P_PGD0_PG_STS",            BIT(3)},
 	{"TAM_PGD0_PG_STS",              BIT(4)},
@@ -680,7 +679,7 @@ const struct pmc_bit_map mtl_ioep_power_gating_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_d3_status_0_map[] = {
+static const struct pmc_bit_map mtl_ioep_d3_status_0_map[] = {
 	{"SPF_D3_STS",                   BIT(0)},
 	{"SPA_D3_STS",                   BIT(12)},
 	{"SPB_D3_STS",                   BIT(13)},
@@ -691,43 +690,43 @@ const struct pmc_bit_map mtl_ioep_d3_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_d3_status_1_map[] = {
+static const struct pmc_bit_map mtl_ioep_d3_status_1_map[] = {
 	{"GBETSN1_D3_STS",               BIT(14)},
 	{"P2S_D3_STS",                   BIT(24)},
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_d3_status_2_map[] = {
+static const struct pmc_bit_map mtl_ioep_d3_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_d3_status_3_map[] = {
+static const struct pmc_bit_map mtl_ioep_d3_status_3_map[] = {
 	{"GBETSN_D3_STS",                BIT(13)},
 	{"ACE_D3_STS",                   BIT(23)},
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_vnn_req_status_0_map[] = {
+static const struct pmc_bit_map mtl_ioep_vnn_req_status_0_map[] = {
 	{"FIA_VNN_REQ_STS",              BIT(17)},
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_vnn_req_status_1_map[] = {
+static const struct pmc_bit_map mtl_ioep_vnn_req_status_1_map[] = {
 	{"DFXAGG_VNN_REQ_STS",           BIT(8)},
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_vnn_req_status_2_map[] = {
+static const struct pmc_bit_map mtl_ioep_vnn_req_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_vnn_req_status_3_map[] = {
+static const struct pmc_bit_map mtl_ioep_vnn_req_status_3_map[] = {
 	{"DTS0_VNN_REQ_STS",             BIT(7)},
 	{"DISP_VNN_REQ_STS",             BIT(19)},
 	{}
 };
 
-const struct pmc_bit_map mtl_ioep_vnn_misc_status_map[] = {
+static const struct pmc_bit_map mtl_ioep_vnn_misc_status_map[] = {
 	{"CPU_C10_REQ_STS",              BIT(0)},
 	{"TS_OFF_REQ_STS",               BIT(1)},
 	{"PNDE_MET_REQ_STS",             BIT(2)},
@@ -762,7 +761,7 @@ const struct pmc_bit_map mtl_ioep_vnn_misc_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *mtl_ioep_lpm_maps[] = {
+static const struct pmc_bit_map *mtl_ioep_lpm_maps[] = {
 	mtl_ioep_clocksource_status_map,
 	mtl_ioep_power_gating_status_0_map,
 	mtl_ioep_power_gating_status_1_map,
@@ -800,7 +799,7 @@ const struct pmc_reg_map mtl_ioep_reg_map = {
 	.lpm_reg_index = MTL_LPM_REG_INDEX,
 };
 
-const struct pmc_bit_map mtl_ioem_pfear_map[] = {
+static const struct pmc_bit_map mtl_ioem_pfear_map[] = {
 	{"PMC_0",               BIT(0)},
 	{"OPI",                 BIT(1)},
 	{"TCSS",                BIT(2)},
@@ -887,12 +886,12 @@ const struct pmc_bit_map mtl_ioem_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_mtl_ioem_pfear_map[] = {
+static const struct pmc_bit_map *ext_mtl_ioem_pfear_map[] = {
 	mtl_ioem_pfear_map,
 	NULL
 };
 
-const struct pmc_bit_map mtl_ioem_power_gating_status_1_map[] = {
+static const struct pmc_bit_map mtl_ioem_power_gating_status_1_map[] = {
 	{"PSF9_PGD0_PG_STS",                    BIT(0)},
 	{"MPFPW4_PGD0_PG_STS",                  BIT(1)},
 	{"SBR0_PGD0_PG_STS",                    BIT(8)},
@@ -909,7 +908,7 @@ const struct pmc_bit_map mtl_ioem_power_gating_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *mtl_ioem_lpm_maps[] = {
+static const struct pmc_bit_map *mtl_ioem_lpm_maps[] = {
 	mtl_ioep_clocksource_status_map,
 	mtl_ioep_power_gating_status_0_map,
 	mtl_ioem_power_gating_status_1_map,
@@ -927,7 +926,7 @@ const struct pmc_bit_map *mtl_ioem_lpm_maps[] = {
 	NULL
 };
 
-const struct pmc_reg_map mtl_ioem_reg_map = {
+static const struct pmc_reg_map mtl_ioem_reg_map = {
 	.regmap_length = MTL_IOE_PMC_MMIO_REG_LEN,
 	.pfear_sts = ext_mtl_ioem_pfear_map,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
@@ -947,23 +946,20 @@ const struct pmc_reg_map mtl_ioem_reg_map = {
 	.lpm_reg_index = MTL_LPM_REG_INDEX,
 };
 
-#define PMC_DEVID_SOCM	0x7e7f
-#define PMC_DEVID_IOEP	0x7ecf
-#define PMC_DEVID_IOEM	0x7ebf
 static struct pmc_info mtl_pmc_info_list[] = {
 	{
 		.guid	= SOCP_LPM_REQ_GUID,
-		.devid	= PMC_DEVID_SOCM,
+		.devid	= PMC_DEVID_MTL_SOCM,
 		.map	= &mtl_socm_reg_map,
 	},
 	{
 		.guid	= IOEP_LPM_REQ_GUID,
-		.devid	= PMC_DEVID_IOEP,
+		.devid	= PMC_DEVID_MTL_IOEP,
 		.map	= &mtl_ioep_reg_map,
 	},
 	{
 		.guid	= IOEM_LPM_REQ_GUID,
-		.devid	= PMC_DEVID_IOEM,
+		.devid	= PMC_DEVID_MTL_IOEM,
 		.map	= &mtl_ioem_reg_map
 	},
 	{}
@@ -990,39 +986,18 @@ static int mtl_resume(struct pmc_dev *pmcdev)
 	return cnl_resume(pmcdev);
 }
 
-int mtl_core_init(struct pmc_dev *pmcdev)
+static int mtl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 {
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
-	int ret;
-	int func = 2;
-	bool ssram_init = true;
-
 	mtl_d3_fixup();
-
-	pmcdev->suspend = cnl_suspend;
-	pmcdev->resume = mtl_resume;
-	pmcdev->regmap_list = mtl_pmc_info_list;
-
-	/*
-	 * If ssram init fails use legacy method to at least get the
-	 * primary PMC
-	 */
-	ret = pmc_core_ssram_init(pmcdev, func);
-	if (ret) {
-		ssram_init = false;
-		dev_warn(&pmcdev->pdev->dev,
-			 "ssram init failed, %d, using legacy init\n", ret);
-		pmc->map = &mtl_socm_reg_map;
-		ret = get_primary_reg_base(pmc);
-		if (ret)
-			return ret;
-	}
-
-	pmc_core_get_low_power_modes(pmcdev);
-	pmc_core_punit_pmt_init(pmcdev, MTL_PMT_DMU_GUID);
-
-	if (ssram_init)
-		return pmc_core_ssram_get_lpm_reqs(pmcdev);
-
-	return 0;
+	return generic_core_init(pmcdev, pmc_dev_info);
 }
+
+struct pmc_dev_info mtl_pmc_dev = {
+	.pci_func = 2,
+	.dmu_guid = MTL_PMT_DMU_GUID,
+	.regmap_list = mtl_pmc_info_list,
+	.map = &mtl_socm_reg_map,
+	.suspend = cnl_suspend,
+	.resume = mtl_resume,
+	.init = mtl_core_init,
+};

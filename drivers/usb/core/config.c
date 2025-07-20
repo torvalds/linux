@@ -9,6 +9,7 @@
 #include <linux/usb/quirks.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/device.h>
 #include <asm/byteorder.h>
 #include "usb.h"
@@ -17,12 +18,6 @@
 #define USB_MAXALTSETTING		128	/* Hard limit */
 
 #define USB_MAXCONFIG			8	/* Arbitrary limit */
-
-
-static inline const char *plural(int n)
-{
-	return (n == 1 ? "" : "s");
-}
 
 static int find_next_descriptor(unsigned char *buffer, int size,
     int dt1, int dt2, int *num_skipped)
@@ -67,6 +62,37 @@ static void usb_parse_ssp_isoc_endpoint_companion(struct device *ddev,
 		return;
 	}
 	memcpy(&ep->ssp_isoc_ep_comp, desc, USB_DT_SSP_ISOC_EP_COMP_SIZE);
+}
+
+static void usb_parse_eusb2_isoc_endpoint_companion(struct device *ddev,
+		int cfgno, int inum, int asnum, struct usb_host_endpoint *ep,
+		unsigned char *buffer, int size)
+{
+	struct usb_eusb2_isoc_ep_comp_descriptor *desc;
+	struct usb_descriptor_header *h;
+
+	/*
+	 * eUSB2 isochronous endpoint companion descriptor for this endpoint
+	 * shall be declared before the next endpoint or interface descriptor
+	 */
+	while (size >= USB_DT_EUSB2_ISOC_EP_COMP_SIZE) {
+		h = (struct usb_descriptor_header *)buffer;
+
+		if (h->bDescriptorType == USB_DT_EUSB2_ISOC_ENDPOINT_COMP) {
+			desc = (struct usb_eusb2_isoc_ep_comp_descriptor *)buffer;
+			ep->eusb2_isoc_ep_comp = *desc;
+			return;
+		}
+		if (h->bDescriptorType == USB_DT_ENDPOINT ||
+		    h->bDescriptorType == USB_DT_INTERFACE)
+			break;
+
+		buffer += h->bLength;
+		size -= h->bLength;
+	}
+
+	dev_notice(ddev, "No eUSB2 isoc ep %d companion for config %d interface %d altsetting %d\n",
+		   ep->desc.bEndpointAddress, cfgno, inum, asnum);
 }
 
 static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
@@ -263,8 +289,10 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	int n, i, j, retval;
 	unsigned int maxp;
 	const unsigned short *maxpacket_maxes;
+	u16 bcdUSB;
 
 	d = (struct usb_endpoint_descriptor *) buffer;
+	bcdUSB = le16_to_cpu(udev->descriptor.bcdUSB);
 	buffer += d->bLength;
 	size -= d->bLength;
 
@@ -279,7 +307,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 		goto skip_to_next_endpoint_or_interface_descriptor;
 	}
 
-	i = d->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	i = usb_endpoint_num(d);
 	if (i == 0) {
 		dev_notice(ddev, "config %d interface %d altsetting %d has an "
 		    "invalid descriptor for endpoint zero, skipping\n",
@@ -414,15 +442,17 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 
 	/*
 	 * Validate the wMaxPacketSize field.
-	 * Some devices have isochronous endpoints in altsetting 0;
-	 * the USB-2 spec requires such endpoints to have wMaxPacketSize = 0
-	 * (see the end of section 5.6.3), so don't warn about them.
+	 * eUSB2 devices (see USB 2.0 Double Isochronous IN ECN 9.6.6 Endpoint)
+	 * and devices with isochronous endpoints in altsetting 0 (see USB 2.0
+	 * end of section 5.6.3) have wMaxPacketSize = 0.
+	 * So don't warn about those.
 	 */
 	maxp = le16_to_cpu(endpoint->desc.wMaxPacketSize);
-	if (maxp == 0 && !(usb_endpoint_xfer_isoc(d) && asnum == 0)) {
+
+	if (maxp == 0 && bcdUSB != 0x0220 &&
+	    !(usb_endpoint_xfer_isoc(d) && asnum == 0))
 		dev_notice(ddev, "config %d interface %d altsetting %d endpoint 0x%X has invalid wMaxPacketSize 0\n",
 		    cfgno, inum, asnum, d->bEndpointAddress);
-	}
 
 	/* Find the highest legal maxpacket size for this endpoint */
 	i = 0;		/* additional transactions per microframe */
@@ -470,6 +500,12 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 				maxp);
 	}
 
+	/* Parse a possible eUSB2 periodic endpoint companion descriptor */
+	if (bcdUSB == 0x0220 && d->wMaxPacketSize == 0 &&
+	    (usb_endpoint_xfer_isoc(d) || usb_endpoint_xfer_int(d)))
+		usb_parse_eusb2_isoc_endpoint_companion(ddev, cfgno, inum, asnum,
+							endpoint, buffer, size);
+
 	/* Parse a possible SuperSpeed endpoint companion descriptor */
 	if (udev->speed >= USB_SPEED_SUPER)
 		usb_parse_ss_endpoint_companion(ddev, cfgno,
@@ -484,7 +520,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	retval = buffer - buffer0 + i;
 	if (n > 0)
 		dev_dbg(ddev, "skipped %d descriptor%s after %s\n",
-		    n, plural(n), "endpoint");
+		    n, str_plural(n), "endpoint");
 	return retval;
 
 skip_to_next_endpoint_or_interface_descriptor:
@@ -563,7 +599,7 @@ static int usb_parse_interface(struct device *ddev, int cfgno,
 	alt->extralen = i;
 	if (n > 0)
 		dev_dbg(ddev, "skipped %d descriptor%s after %s\n",
-		    n, plural(n), "interface");
+		    n, str_plural(n), "interface");
 	buffer += i;
 	size -= i;
 
@@ -605,7 +641,7 @@ static int usb_parse_interface(struct device *ddev, int cfgno,
 		dev_notice(ddev, "config %d interface %d altsetting %d has %d "
 		    "endpoint descriptor%s, different from the interface "
 		    "descriptor's value: %d\n",
-		    cfgno, inum, asnum, n, plural(n), num_ep_orig);
+		    cfgno, inum, asnum, n, str_plural(n), num_ep_orig);
 	return buffer - buffer0;
 
 skip_to_next_interface_descriptor:
@@ -664,7 +700,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 		if (size2 < sizeof(struct usb_descriptor_header)) {
 			dev_notice(ddev, "config %d descriptor has %d excess "
 			    "byte%s, ignoring\n",
-			    cfgno, size2, plural(size2));
+			    cfgno, size2, str_plural(size2));
 			break;
 		}
 
@@ -754,7 +790,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 	if (n != nintf)
 		dev_notice(ddev, "config %d has %d interface%s, different from "
 		    "the descriptor's value: %d\n",
-		    cfgno, n, plural(n), nintf_orig);
+		    cfgno, n, str_plural(n), nintf_orig);
 	else if (n == 0)
 		dev_notice(ddev, "config %d has no interfaces?\n", cfgno);
 	config->desc.bNumInterfaces = nintf = n;
@@ -798,7 +834,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 	config->extralen = i;
 	if (n > 0)
 		dev_dbg(ddev, "skipped %d descriptor%s after %s\n",
-		    n, plural(n), "configuration");
+		    n, str_plural(n), "configuration");
 	buffer += i;
 	size -= i;
 

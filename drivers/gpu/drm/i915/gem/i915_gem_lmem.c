@@ -48,31 +48,7 @@ bool i915_gem_object_is_lmem(struct drm_i915_gem_object *obj)
 	    i915_gem_object_evictable(obj))
 		assert_object_held(obj);
 #endif
-	return mr && (mr->type == INTEL_MEMORY_LOCAL ||
-		      mr->type == INTEL_MEMORY_STOLEN_LOCAL);
-}
-
-/**
- * __i915_gem_object_is_lmem - Whether the object is resident in
- * lmem while in the fence signaling critical path.
- * @obj: The object to check.
- *
- * This function is intended to be called from within the fence signaling
- * path where the fence, or a pin, keeps the object from being migrated. For
- * example during gpu reset or similar.
- *
- * Return: Whether the object is resident in lmem.
- */
-bool __i915_gem_object_is_lmem(struct drm_i915_gem_object *obj)
-{
-	struct intel_memory_region *mr = READ_ONCE(obj->mm.region);
-
-#ifdef CONFIG_LOCKDEP
-	GEM_WARN_ON(dma_resv_test_signaled(obj->base.resv, DMA_RESV_USAGE_BOOKKEEP) &&
-		    i915_gem_object_evictable(obj));
-#endif
-	return mr && (mr->type == INTEL_MEMORY_LOCAL ||
-		      mr->type == INTEL_MEMORY_STOLEN_LOCAL);
+	return mr && intel_memory_type_is_local(mr->type);
 }
 
 /**

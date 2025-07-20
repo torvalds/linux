@@ -26,8 +26,6 @@ static inline bool nospec_uses_trampoline(void)
 	return __is_defined(CC_USING_EXPOLINE) && !nospec_disable;
 }
 
-#ifdef CONFIG_EXPOLINE_EXTERN
-
 void __s390_indirect_jump_r1(void);
 void __s390_indirect_jump_r2(void);
 void __s390_indirect_jump_r3(void);
@@ -43,8 +41,6 @@ void __s390_indirect_jump_r12(void);
 void __s390_indirect_jump_r13(void);
 void __s390_indirect_jump_r14(void);
 void __s390_indirect_jump_r15(void);
-
-#endif
 
 #endif /* __ASSEMBLY__ */
 

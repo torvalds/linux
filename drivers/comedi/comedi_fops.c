@@ -1556,13 +1556,19 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	}
 
 	for (i = 0; i < n_insns; ++i) {
+		unsigned int n = insns[i].n;
+
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
-					   insns[i].n * sizeof(unsigned int))) {
+					   n * sizeof(unsigned int))) {
 				dev_dbg(dev->class_dev,
 					"copy_from_user failed\n");
 				ret = -EFAULT;
 				goto error;
+			}
+			if (n < MIN_SAMPLES) {
+				memset(&data[n], 0, (MIN_SAMPLES - n) *
+						    sizeof(unsigned int));
 			}
 		}
 		ret = parse_insn(dev, insns + i, data, file);
@@ -1570,7 +1576,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 			goto error;
 		if (insns[i].insn & INSN_MASK_READ) {
 			if (copy_to_user(insns[i].data, data,
-					 insns[i].n * sizeof(unsigned int))) {
+					 n * sizeof(unsigned int))) {
 				dev_dbg(dev->class_dev,
 					"copy_to_user failed\n");
 				ret = -EFAULT;
@@ -1587,6 +1593,16 @@ error:
 	if (ret < 0)
 		return ret;
 	return i;
+}
+
+#define MAX_INSNS   MAX_SAMPLES
+static int check_insnlist_len(struct comedi_device *dev, unsigned int n_insns)
+{
+	if (n_insns > MAX_INSNS) {
+		dev_dbg(dev->class_dev, "insnlist length too large\n");
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /*
@@ -1632,6 +1648,10 @@ static int do_insn_ioctl(struct comedi_device *dev,
 				   insn->n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
+		}
+		if (insn->n < MIN_SAMPLES) {
+			memset(&data[insn->n], 0,
+			       (MIN_SAMPLES - insn->n) * sizeof(unsigned int));
 		}
 	}
 	ret = parse_insn(dev, insn, data, file);
@@ -2239,6 +2259,9 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 			break;
 		}
+		rc = check_insnlist_len(dev, insnlist.n_insns);
+		if (rc)
+			break;
 		insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
 		if (!insns) {
 			rc = -ENOMEM;
@@ -2387,13 +2410,27 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		goto done;
 	}
 	if (bm->dma_dir != DMA_NONE) {
+		unsigned long vm_start = vma->vm_start;
+		unsigned long vm_end = vma->vm_end;
+
 		/*
-		 * DMA buffer was allocated as a single block.
-		 * Address is in page_list[0].
+		 * Buffer pages are not contiguous, so temporarily modify VMA
+		 * start and end addresses for each buffer page.
 		 */
-		buf = &bm->page_list[0];
-		retval = dma_mmap_coherent(bm->dma_hw_dev, vma, buf->virt_addr,
-					   buf->dma_addr, n_pages * PAGE_SIZE);
+		for (i = 0; i < n_pages; ++i) {
+			buf = &bm->page_list[i];
+			vma->vm_start = start;
+			vma->vm_end = start + PAGE_SIZE;
+			retval = dma_mmap_coherent(bm->dma_hw_dev, vma,
+						   buf->virt_addr,
+						   buf->dma_addr, PAGE_SIZE);
+			if (retval)
+				break;
+
+			start += PAGE_SIZE;
+		}
+		vma->vm_start = vm_start;
+		vma->vm_end = vm_end;
 	} else {
 		for (i = 0; i < n_pages; ++i) {
 			unsigned long pfn;
@@ -2407,19 +2444,18 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 			start += PAGE_SIZE;
 		}
+	}
 
 #ifdef CONFIG_MMU
-		/*
-		 * Leaving behind a partial mapping of a buffer we're about to
-		 * drop is unsafe, see remap_pfn_range_notrack().
-		 * We need to zap the range here ourselves instead of relying
-		 * on the automatic zapping in remap_pfn_range() because we call
-		 * remap_pfn_range() in a loop.
-		 */
-		if (retval)
-			zap_vma_ptes(vma, vma->vm_start, size);
+	/*
+	 * Leaving behind a partial mapping of a buffer we're about to drop is
+	 * unsafe, see remap_pfn_range_notrack().  We need to zap the range
+	 * here ourselves instead of relying on the automatic zapping in
+	 * remap_pfn_range() because we call remap_pfn_range() in a loop.
+	 */
+	if (retval)
+		zap_vma_ptes(vma, vma->vm_start, size);
 #endif
-	}
 
 	if (retval == 0) {
 		vma->vm_ops = &comedi_vm_ops;
@@ -2475,6 +2511,62 @@ done:
 	return mask;
 }
 
+static unsigned int comedi_buf_copy_to_user(struct comedi_subdevice *s,
+	void __user *dest, unsigned int src_offset, unsigned int n)
+{
+	struct comedi_buf_map *bm = s->async->buf_map;
+	struct comedi_buf_page *buf_page_list = bm->page_list;
+	unsigned int page = src_offset >> PAGE_SHIFT;
+	unsigned int offset = offset_in_page(src_offset);
+
+	while (n) {
+		unsigned int copy_amount = min(n, PAGE_SIZE - offset);
+		unsigned int uncopied;
+
+		uncopied = copy_to_user(dest, buf_page_list[page].virt_addr +
+					offset, copy_amount);
+		copy_amount -= uncopied;
+		n -= copy_amount;
+		if (uncopied)
+			break;
+
+		dest += copy_amount;
+		page++;
+		if (page == bm->n_pages)
+			page = 0;	/* buffer wraparound */
+		offset = 0;
+	}
+	return n;
+}
+
+static unsigned int comedi_buf_copy_from_user(struct comedi_subdevice *s,
+	unsigned int dst_offset, const void __user *src, unsigned int n)
+{
+	struct comedi_buf_map *bm = s->async->buf_map;
+	struct comedi_buf_page *buf_page_list = bm->page_list;
+	unsigned int page = dst_offset >> PAGE_SHIFT;
+	unsigned int offset = offset_in_page(dst_offset);
+
+	while (n) {
+		unsigned int copy_amount = min(n, PAGE_SIZE - offset);
+		unsigned int uncopied;
+
+		uncopied = copy_from_user(buf_page_list[page].virt_addr +
+					  offset, src, copy_amount);
+		copy_amount -= uncopied;
+		n -= copy_amount;
+		if (uncopied)
+			break;
+
+		src += copy_amount;
+		page++;
+		if (page == bm->n_pages)
+			page = 0;	/* buffer wraparound */
+		offset = 0;
+	}
+	return n;
+}
+
 static ssize_t comedi_write(struct file *file, const char __user *buf,
 			    size_t nbytes, loff_t *offset)
 {
@@ -2516,7 +2608,6 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	add_wait_queue(&async->wait_head, &wait);
 	while (count == 0 && !retval) {
 		unsigned int runflags;
-		unsigned int wp, n1, n2;
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -2555,14 +2646,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		}
 
 		set_current_state(TASK_RUNNING);
-		wp = async->buf_write_ptr;
-		n1 = min(n, async->prealloc_bufsz - wp);
-		n2 = n - n1;
-		m = copy_from_user(async->prealloc_buf + wp, buf, n1);
-		if (m)
-			m += n2;
-		else if (n2)
-			m = copy_from_user(async->prealloc_buf, buf + n1, n2);
+		m = comedi_buf_copy_from_user(s, async->buf_write_ptr, buf, n);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
@@ -2651,8 +2735,6 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 	add_wait_queue(&async->wait_head, &wait);
 	while (count == 0 && !retval) {
-		unsigned int rp, n1, n2;
-
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		m = comedi_buf_read_n_available(s);
@@ -2689,14 +2771,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		}
 
 		set_current_state(TASK_RUNNING);
-		rp = async->buf_read_ptr;
-		n1 = min(n, async->prealloc_bufsz - rp);
-		n2 = n - n1;
-		m = copy_to_user(buf, async->prealloc_buf + rp, n1);
-		if (m)
-			m += n2;
-		else if (n2)
-			m = copy_to_user(buf + n1, async->prealloc_buf, n2);
+		m = comedi_buf_copy_to_user(s, buf, async->buf_read_ptr, n);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
@@ -3090,6 +3165,9 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	if (copy_from_user(&insnlist32, compat_ptr(arg), sizeof(insnlist32)))
 		return -EFAULT;
 
+	rc = check_insnlist_len(dev, insnlist32.n_insns);
+	if (rc)
+		return rc;
 	insns = kcalloc(insnlist32.n_insns, sizeof(*insns), GFP_KERNEL);
 	if (!insns)
 		return -ENOMEM;

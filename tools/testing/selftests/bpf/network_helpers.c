@@ -21,7 +21,7 @@
 #include <linux/limits.h>
 
 #include <linux/ip.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <net/if.h>
 
@@ -446,6 +446,23 @@ char *ping_command(int family)
 	return "ping";
 }
 
+int append_tid(char *str, size_t sz)
+{
+	size_t end;
+
+	if (!str)
+		return -1;
+
+	end = strlen(str);
+	if (end + 8 > sz)
+		return -1;
+
+	sprintf(&str[end], "%07d", gettid());
+	str[end + 7] = '\0';
+
+	return 0;
+}
+
 int remove_netns(const char *name)
 {
 	char *cmd;
@@ -546,6 +563,34 @@ void close_netns(struct nstoken *token)
 		log_err("Failed to setns(orig_netns_fd)");
 	close(token->orig_netns_fd);
 	free(token);
+}
+
+int open_tuntap(const char *dev_name, bool need_mac)
+{
+	int err = 0;
+	struct ifreq ifr;
+	int fd = open("/dev/net/tun", O_RDWR);
+
+	if (!ASSERT_GE(fd, 0, "open(/dev/net/tun)"))
+		return -1;
+
+	ifr.ifr_flags = IFF_NO_PI | (need_mac ? IFF_TAP : IFF_TUN);
+	strncpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
+	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+
+	err = ioctl(fd, TUNSETIFF, &ifr);
+	if (!ASSERT_OK(err, "ioctl(TUNSETIFF)")) {
+		close(fd);
+		return -1;
+	}
+
+	err = fcntl(fd, F_SETFL, O_NONBLOCK);
+	if (!ASSERT_OK(err, "fcntl(O_NONBLOCK)")) {
+		close(fd);
+		return -1;
+	}
+
+	return fd;
 }
 
 int get_socket_local_port(int sock_fd)
@@ -733,6 +778,36 @@ struct tmonitor_ctx {
 	int pcap_fd;
 };
 
+static int __base_pr(const char *format, va_list args)
+{
+	return vfprintf(stdout, format, args);
+}
+
+static tm_print_fn_t __tm_pr = __base_pr;
+
+tm_print_fn_t traffic_monitor_set_print(tm_print_fn_t fn)
+{
+	tm_print_fn_t old_print_fn;
+
+	old_print_fn = __atomic_exchange_n(&__tm_pr, fn, __ATOMIC_RELAXED);
+
+	return old_print_fn;
+}
+
+void tm_print(const char *format, ...)
+{
+	tm_print_fn_t print_fn;
+	va_list args;
+
+	print_fn = __atomic_load_n(&__tm_pr, __ATOMIC_RELAXED);
+	if (!print_fn)
+		return;
+
+	va_start(args, format);
+	print_fn(format, args);
+	va_end(args);
+}
+
 /* Is this packet captured with a Ethernet protocol type? */
 static bool is_ethernet(const u_char *packet)
 {
@@ -750,7 +825,7 @@ static bool is_ethernet(const u_char *packet)
 	case 770: /* ARPHRD_FRAD */
 	case 778: /* ARPHDR_IPGRE */
 	case 803: /* ARPHRD_IEEE80211_RADIOTAP */
-		printf("Packet captured: arphdr_type=%d\n", arphdr_type);
+		tm_print("Packet captured: arphdr_type=%d\n", arphdr_type);
 		return false;
 	}
 	return true;
@@ -771,12 +846,13 @@ static const char *pkt_type_str(u16 pkt_type)
 	return "Unknown";
 }
 
+#define MAX_FLAGS_STRLEN 21
 /* Show the information of the transport layer in the packet */
 static void show_transport(const u_char *packet, u16 len, u32 ifindex,
 			   const char *src_addr, const char *dst_addr,
 			   u16 proto, bool ipv6, u8 pkt_type)
 {
-	char *ifname, _ifname[IF_NAMESIZE];
+	char *ifname, _ifname[IF_NAMESIZE], flags[MAX_FLAGS_STRLEN] = "";
 	const char *transport_str;
 	u16 src_port, dst_port;
 	struct udphdr *udp;
@@ -799,47 +875,39 @@ static void show_transport(const u_char *packet, u16 len, u32 ifindex,
 		dst_port = ntohs(tcp->dest);
 		transport_str = "TCP";
 	} else if (proto == IPPROTO_ICMP) {
-		printf("%-7s %-3s IPv4 %s > %s: ICMP, length %d, type %d, code %d\n",
-		       ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
-		       packet[0], packet[1]);
+		tm_print("%-7s %-3s IPv4 %s > %s: ICMP, length %d, type %d, code %d\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
+			 packet[0], packet[1]);
 		return;
 	} else if (proto == IPPROTO_ICMPV6) {
-		printf("%-7s %-3s IPv6 %s > %s: ICMPv6, length %d, type %d, code %d\n",
-		       ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
-		       packet[0], packet[1]);
+		tm_print("%-7s %-3s IPv6 %s > %s: ICMPv6, length %d, type %d, code %d\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
+			 packet[0], packet[1]);
 		return;
 	} else {
-		printf("%-7s %-3s %s %s > %s: protocol %d\n",
-		       ifname, pkt_type_str(pkt_type), ipv6 ? "IPv6" : "IPv4",
-		       src_addr, dst_addr, proto);
+		tm_print("%-7s %-3s %s %s > %s: protocol %d\n",
+			 ifname, pkt_type_str(pkt_type), ipv6 ? "IPv6" : "IPv4",
+			 src_addr, dst_addr, proto);
 		return;
 	}
 
 	/* TCP or UDP*/
 
-	flockfile(stdout);
+	if (proto == IPPROTO_TCP)
+		snprintf(flags, MAX_FLAGS_STRLEN, "%s%s%s%s",
+			 tcp->fin ? ", FIN" : "",
+			 tcp->syn ? ", SYN" : "",
+			 tcp->rst ? ", RST" : "",
+			 tcp->ack ? ", ACK" : "");
+
 	if (ipv6)
-		printf("%-7s %-3s IPv6 %s.%d > %s.%d: %s, length %d",
-		       ifname, pkt_type_str(pkt_type), src_addr, src_port,
-		       dst_addr, dst_port, transport_str, len);
+		tm_print("%-7s %-3s IPv6 %s.%d > %s.%d: %s, length %d%s\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, src_port,
+			 dst_addr, dst_port, transport_str, len, flags);
 	else
-		printf("%-7s %-3s IPv4 %s:%d > %s:%d: %s, length %d",
-		       ifname, pkt_type_str(pkt_type), src_addr, src_port,
-		       dst_addr, dst_port, transport_str, len);
-
-	if (proto == IPPROTO_TCP) {
-		if (tcp->fin)
-			printf(", FIN");
-		if (tcp->syn)
-			printf(", SYN");
-		if (tcp->rst)
-			printf(", RST");
-		if (tcp->ack)
-			printf(", ACK");
-	}
-
-	printf("\n");
-	funlockfile(stdout);
+		tm_print("%-7s %-3s IPv4 %s:%d > %s:%d: %s, length %d%s\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, src_port,
+			 dst_addr, dst_port, transport_str, len, flags);
 }
 
 static void show_ipv6_packet(const u_char *packet, u32 ifindex, u8 pkt_type)
@@ -954,8 +1022,8 @@ static void *traffic_monitor_thread(void *arg)
 				ifname = _ifname;
 			}
 
-			printf("%-7s %-3s Unknown network protocol type 0x%x\n",
-			       ifname, pkt_type_str(ptype), proto);
+			tm_print("%-7s %-3s Unknown network protocol type 0x%x\n",
+				 ifname, pkt_type_str(ptype), proto);
 		}
 	}
 
@@ -1155,8 +1223,9 @@ void traffic_monitor_stop(struct tmonitor_ctx *ctx)
 	write(ctx->wake_fd, &w, sizeof(w));
 	pthread_join(ctx->thread, NULL);
 
-	printf("Packet file: %s\n", strrchr(ctx->pkt_fname, '/') + 1);
+	tm_print("Packet file: %s\n", strrchr(ctx->pkt_fname, '/') + 1);
 
 	traffic_monitor_release(ctx);
 }
+
 #endif /* TRAFFIC_MONITOR */

@@ -14,16 +14,21 @@
 #include "intel_frontbuffer.h"
 #include "intel_plane_initial.h"
 
+void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
+{
+	intel_crtc_wait_for_next_vblank(crtc);
+}
+
 static bool
 intel_reuse_initial_plane_obj(struct intel_crtc *this,
 			      const struct intel_initial_plane_config plane_configs[],
 			      struct drm_framebuffer **fb,
 			      struct i915_vma **vma)
 {
-	struct drm_i915_private *i915 = to_i915(this->base.dev);
+	struct intel_display *display = to_intel_display(this);
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(&i915->drm, crtc) {
+	for_each_intel_crtc(display->drm, crtc) {
 		struct intel_plane *plane =
 			to_intel_plane(crtc->base.primary);
 		const struct intel_plane_state *plane_state =
@@ -47,51 +52,65 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 	return false;
 }
 
-static bool
-initial_plane_phys_lmem(struct drm_i915_private *i915,
-			struct intel_initial_plane_config *plane_config)
+static enum intel_memory_type
+initial_plane_memory_type(struct intel_display *display)
 {
-	gen8_pte_t __iomem *gte = to_gt(i915)->ggtt->gsm;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (display->platform.dgfx)
+		return INTEL_MEMORY_LOCAL;
+	else if (HAS_LMEMBAR_SMEM_STOLEN(i915))
+		return INTEL_MEMORY_STOLEN_LOCAL;
+	else
+		return INTEL_MEMORY_STOLEN_SYSTEM;
+}
+
+static bool
+initial_plane_phys(struct intel_display *display,
+		   struct intel_initial_plane_config *plane_config)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_memory_region *mem;
+	enum intel_memory_type mem_type;
+	bool is_present, is_local;
 	dma_addr_t dma_addr;
-	gen8_pte_t pte;
 	u32 base;
+
+	mem_type = initial_plane_memory_type(display);
+	mem = intel_memory_region_by_type(i915, mem_type);
+	if (!mem) {
+		drm_dbg_kms(display->drm,
+			    "Initial plane memory region (type %s) not initialized\n",
+			    intel_memory_type_str(mem_type));
+		return false;
+	}
 
 	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
 
-	gte += base / I915_GTT_PAGE_SIZE;
+	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
 
-	pte = ioread64(gte);
-	if (!(pte & GEN12_GGTT_PTE_LM)) {
-		drm_err(&i915->drm,
-			"Initial plane programming missing PTE_LM bit\n");
+	if (!is_present) {
+		drm_err(display->drm,
+			"Initial plane FB PTE not present\n");
 		return false;
 	}
 
-	dma_addr = pte & GEN12_GGTT_PTE_ADDR_MASK;
-
-	if (IS_DGFX(i915))
-		mem = i915->mm.regions[INTEL_REGION_LMEM_0];
-	else
-		mem = i915->mm.stolen_region;
-	if (!mem) {
-		drm_dbg_kms(&i915->drm,
-			    "Initial plane memory region not initialized\n");
+	if (intel_memory_type_is_local(mem->type) != is_local) {
+		drm_err(display->drm,
+			"Initial plane FB PTE unsuitable for %s\n",
+			mem->region.name);
 		return false;
 	}
 
-	/*
-	 * On lmem we don't currently expect this to
-	 * ever be placed in the stolen portion.
-	 */
 	if (dma_addr < mem->region.start || dma_addr > mem->region.end) {
-		drm_err(&i915->drm,
+		drm_err(display->drm,
 			"Initial plane programming using invalid range, dma_addr=%pa (%s [%pa-%pa])\n",
 			&dma_addr, mem->region.name, &mem->region.start, &mem->region.end);
 		return false;
 	}
 
-	drm_dbg(&i915->drm,
+	drm_dbg(display->drm,
 		"Using dma_addr=%pa, based on initial plane programming\n",
 		&dma_addr);
 
@@ -101,43 +120,11 @@ initial_plane_phys_lmem(struct drm_i915_private *i915,
 	return true;
 }
 
-static bool
-initial_plane_phys_smem(struct drm_i915_private *i915,
-			struct intel_initial_plane_config *plane_config)
-{
-	struct intel_memory_region *mem;
-	u32 base;
-
-	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
-
-	mem = i915->mm.stolen_region;
-	if (!mem) {
-		drm_dbg_kms(&i915->drm,
-			    "Initial plane memory region not initialized\n");
-		return false;
-	}
-
-	/* FIXME get and validate the dma_addr from the PTE */
-	plane_config->phys_base = base;
-	plane_config->mem = mem;
-
-	return true;
-}
-
-static bool
-initial_plane_phys(struct drm_i915_private *i915,
-		   struct intel_initial_plane_config *plane_config)
-{
-	if (IS_DGFX(i915) || HAS_LMEMBAR_SMEM_STOLEN(i915))
-		return initial_plane_phys_lmem(i915, plane_config);
-	else
-		return initial_plane_phys_smem(i915, plane_config);
-}
-
 static struct i915_vma *
-initial_plane_vma(struct drm_i915_private *i915,
+initial_plane_vma(struct intel_display *display,
 		  struct intel_initial_plane_config *plane_config)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_memory_region *mem;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node orig_mm = {};
@@ -149,7 +136,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (plane_config->size == 0)
 		return NULL;
 
-	if (!initial_plane_phys(i915, plane_config))
+	if (!initial_plane_phys(display, plane_config))
 		return NULL;
 
 	phys_base = plane_config->phys_base;
@@ -168,7 +155,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
 	    mem == i915->mm.stolen_region &&
 	    size * 2 > i915->dsm.usable_size) {
-		drm_dbg_kms(&i915->drm, "Initial FB size exceeds half of stolen, discarding\n");
+		drm_dbg_kms(display->drm, "Initial FB size exceeds half of stolen, discarding\n");
 		return NULL;
 	}
 
@@ -176,7 +163,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 					       I915_BO_ALLOC_USER |
 					       I915_BO_PREALLOC);
 	if (IS_ERR(obj)) {
-		drm_dbg_kms(&i915->drm, "Failed to preallocate initial FB in %s\n",
+		drm_dbg_kms(display->drm, "Failed to preallocate initial FB in %s\n",
 			    mem->region.name);
 		return NULL;
 	}
@@ -254,7 +241,7 @@ retry:
 	if (drm_mm_node_allocated(&orig_mm))
 		drm_mm_remove_node(&orig_mm);
 
-	drm_dbg_kms(&i915->drm,
+	drm_dbg_kms(display->drm,
 		    "Initial plane fb bound to 0x%x in the ggtt (original 0x%x)\n",
 		    i915_ggtt_offset(vma), plane_config->base);
 
@@ -271,8 +258,7 @@ static bool
 intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 			      struct intel_initial_plane_config *plane_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct i915_vma *vma;
@@ -284,13 +270,13 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	case I915_FORMAT_MOD_4_TILED:
 		break;
 	default:
-		drm_dbg(&dev_priv->drm,
+		drm_dbg(display->drm,
 			"Unsupported modifier for initial FB: 0x%llx\n",
 			fb->modifier);
 		return false;
 	}
 
-	vma = initial_plane_vma(dev_priv, plane_config);
+	vma = initial_plane_vma(display, plane_config);
 	if (!vma)
 		return false;
 
@@ -303,7 +289,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
 				   intel_bo_to_drm_bo(vma->obj), &mode_cmd)) {
-		drm_dbg_kms(&dev_priv->drm, "intel fb init failed\n");
+		drm_dbg_kms(display->drm, "intel fb init failed\n");
 		goto err_vma;
 	}
 
@@ -410,12 +396,12 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 		i915_vma_put(plane_config->vma);
 }
 
-void intel_initial_plane_config(struct drm_i915_private *i915)
+void intel_initial_plane_config(struct intel_display *display)
 {
 	struct intel_initial_plane_config plane_configs[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(&i915->drm, crtc) {
+	for_each_intel_crtc(display->drm, crtc) {
 		struct intel_initial_plane_config *plane_config =
 			&plane_configs[crtc->pipe];
 
@@ -429,7 +415,7 @@ void intel_initial_plane_config(struct drm_i915_private *i915)
 		 * can even allow for smooth boot transitions if the BIOS
 		 * fb is large enough for the active pipe configuration.
 		 */
-		i915->display.funcs.display->get_initial_plane_config(crtc, plane_config);
+		display->funcs.display->get_initial_plane_config(crtc, plane_config);
 
 		/*
 		 * If the fb is shared between multiple heads, we'll
@@ -437,8 +423,8 @@ void intel_initial_plane_config(struct drm_i915_private *i915)
 		 */
 		intel_find_initial_plane_obj(crtc, plane_configs);
 
-		if (i915->display.funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			intel_crtc_wait_for_next_vblank(crtc);
+		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
+			intel_plane_initial_vblank_wait(crtc);
 
 		plane_config_fini(plane_config);
 	}

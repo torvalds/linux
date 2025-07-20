@@ -15,6 +15,7 @@
 
 skip_if_no_perf_probe || exit 2
 skip_if_no_perf_trace || exit 2
+[ "$(id -u)" = 0 ] || exit 2
 
 . "$(dirname $0)"/lib/probe_vfs_getname.sh
 
@@ -24,9 +25,14 @@ trace_open_vfs_getname() {
 	grep -E " +[0-9]+\.[0-9]+ +\( +[0-9]+\.[0-9]+ ms\): +touch/[0-9]+ open(at)?\((dfd: +CWD, +)?filename: +\"?${file}\"?, +flags: CREAT\|NOCTTY\|NONBLOCK\|WRONLY, +mode: +IRUGO\|IWUGO\) += +[0-9]+$"
 }
 
-
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname
 err=$?
+
+if [ $err -eq 1 ] ; then
+        skip_if_no_debuginfo
+        err=$?
+fi
+
 if [ $err -ne 0 ] ; then
 	exit $err
 fi

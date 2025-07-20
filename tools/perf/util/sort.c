@@ -141,6 +141,43 @@ struct sort_entry sort_thread = {
 	.se_width_idx	= HISTC_THREAD,
 };
 
+/* --sort tgid */
+
+static int64_t
+sort__tgid_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return thread__pid(right->thread) - thread__pid(left->thread);
+}
+
+static int hist_entry__tgid_snprintf(struct hist_entry *he, char *bf,
+				       size_t size, unsigned int width)
+{
+	int tgid = thread__pid(he->thread);
+	const char *comm = NULL;
+
+	/* display comm of the thread-group leader */
+	if (thread__pid(he->thread) == thread__tid(he->thread)) {
+		comm = thread__comm_str(he->thread);
+	} else {
+		struct maps *maps = thread__maps(he->thread);
+		struct thread *leader = machine__find_thread(maps__machine(maps),
+							     tgid, tgid);
+		if (leader) {
+			comm = thread__comm_str(leader);
+			thread__put(leader);
+		}
+	}
+	width = max(7U, width) - 8;
+	return repsep_snprintf(bf, size, "%7d:%-*.*s", tgid, width, width, comm ?: "");
+}
+
+struct sort_entry sort_tgid = {
+	.se_header	= "   Tgid:Command",
+	.se_cmp		= sort__tgid_cmp,
+	.se_snprintf	= hist_entry__tgid_snprintf,
+	.se_width_idx	= HISTC_TGID,
+};
+
 /* --sort simd */
 
 static int64_t
@@ -892,6 +929,38 @@ struct sort_entry sort_cpu = {
 	.se_width_idx	= HISTC_CPU,
 };
 
+/* --sort parallelism */
+
+static int64_t
+sort__parallelism_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->parallelism - left->parallelism;
+}
+
+static int hist_entry__parallelism_filter(struct hist_entry *he, int type, const void *arg)
+{
+	const unsigned long *parallelism_filter = arg;
+
+	if (type != HIST_FILTER__PARALLELISM)
+		return -1;
+
+	return test_bit(he->parallelism, parallelism_filter);
+}
+
+static int hist_entry__parallelism_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%*d", width, he->parallelism);
+}
+
+struct sort_entry sort_parallelism = {
+	.se_header      = "Parallelism",
+	.se_cmp	        = sort__parallelism_cmp,
+	.se_filter	= hist_entry__parallelism_filter,
+	.se_snprintf    = hist_entry__parallelism_snprintf,
+	.se_width_idx	= HISTC_PARALLELISM,
+};
+
 /* --sort cgroup_id */
 
 static int64_t _sort__cgroup_dev_cmp(u64 left_dev, u64 right_dev)
@@ -1038,17 +1107,19 @@ static char *get_trace_output(struct hist_entry *he)
 		.data = he->raw_data,
 		.size = he->raw_size,
 	};
+	struct tep_event *tp_format;
 
 	evsel = hists_to_evsel(he->hists);
 
 	trace_seq_init(&seq);
-	if (symbol_conf.raw_trace) {
-		tep_print_fields(&seq, he->raw_data, he->raw_size,
-				 evsel->tp_format);
-	} else {
-		tep_print_event(evsel->tp_format->tep,
-				&seq, &rec, "%s", TEP_PRINT_INFO);
+	tp_format = evsel__tp_format(evsel);
+	if (tp_format) {
+		if (symbol_conf.raw_trace)
+			tep_print_fields(&seq, he->raw_data, he->raw_size, tp_format);
+		else
+			tep_print_event(tp_format->tep, &seq, &rec, "%s", TEP_PRINT_INFO);
 	}
+
 	/*
 	 * Trim the buffer, it starts at 4KB and we're not going to
 	 * add anything more to this buffer.
@@ -2369,44 +2440,19 @@ sort__typeoff_sort(struct hist_entry *left, struct hist_entry *right)
 	return left->mem_type_off - right->mem_type_off;
 }
 
-static void fill_member_name(char *buf, size_t sz, struct annotated_member *m,
-			     int offset, bool first)
-{
-	struct annotated_member *child;
-
-	if (list_empty(&m->children))
-		return;
-
-	list_for_each_entry(child, &m->children, node) {
-		if (child->offset <= offset && offset < child->offset + child->size) {
-			int len = 0;
-
-			/* It can have anonymous struct/union members */
-			if (child->var_name) {
-				len = scnprintf(buf, sz, "%s%s",
-						first ? "" : ".", child->var_name);
-				first = false;
-			}
-
-			fill_member_name(buf + len, sz - len, child, offset, first);
-			return;
-		}
-	}
-}
-
 static int hist_entry__typeoff_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width __maybe_unused)
 {
 	struct annotated_data_type *he_type = he->mem_type;
 	char buf[4096];
 
-	buf[0] = '\0';
-	if (list_empty(&he_type->self.children))
-		snprintf(buf, sizeof(buf), "no field");
-	else
-		fill_member_name(buf, sizeof(buf), &he_type->self,
-				 he->mem_type_off, true);
-	buf[4095] = '\0';
+	if (he_type == &unknown_type || he_type == &stackop_type ||
+	    he_type == &canary_type)
+		return repsep_snprintf(bf, size, "%s", he_type->self.type_name);
+
+	if (!annotated_data_type__get_member_name(he_type, buf, sizeof(buf),
+						  he->mem_type_off))
+		scnprintf(buf, sizeof(buf), "no field");
 
 	return repsep_snprintf(bf, size, "%s +%#x (%s)", he_type->self.type_name,
 			       he->mem_type_off, buf);
@@ -2499,6 +2545,7 @@ static void sort_dimension_add_dynamic_header(struct sort_dimension *sd)
 
 static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_PID, "pid", sort_thread),
+	DIM(SORT_TGID, "tgid", sort_tgid),
 	DIM(SORT_COMM, "comm", sort_comm),
 	DIM(SORT_DSO, "dso", sort_dso),
 	DIM(SORT_SYM, "symbol", sort_sym),
@@ -2532,6 +2579,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_ANNOTATE_DATA_TYPE_OFFSET, "typeoff", sort_type_offset),
 	DIM(SORT_SYM_OFFSET, "symoff", sort_sym_offset),
 	DIM(SORT_ANNOTATE_DATA_TYPE_CACHELINE, "typecln", sort_type_cacheline),
+	DIM(SORT_PARALLELISM, "parallelism", sort_parallelism),
 };
 
 #undef DIM
@@ -2587,17 +2635,22 @@ struct hpp_dimension {
 	const char		*name;
 	struct perf_hpp_fmt	*fmt;
 	int			taken;
+	int			was_taken;
+	int			mem_mode;
 };
 
 #define DIM(d, n) { .name = n, .fmt = &perf_hpp__format[d], }
+#define DIM_MEM(d, n) { .name = n, .fmt = &perf_hpp__format[d], .mem_mode = 1, }
 
 static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__OVERHEAD, "overhead"),
+	DIM(PERF_HPP__LATENCY, "latency"),
 	DIM(PERF_HPP__OVERHEAD_SYS, "overhead_sys"),
 	DIM(PERF_HPP__OVERHEAD_US, "overhead_us"),
 	DIM(PERF_HPP__OVERHEAD_GUEST_SYS, "overhead_guest_sys"),
 	DIM(PERF_HPP__OVERHEAD_GUEST_US, "overhead_guest_us"),
 	DIM(PERF_HPP__OVERHEAD_ACC, "overhead_children"),
+	DIM(PERF_HPP__LATENCY_ACC, "latency_children"),
 	DIM(PERF_HPP__SAMPLES, "sample"),
 	DIM(PERF_HPP__PERIOD, "period"),
 	DIM(PERF_HPP__WEIGHT1, "weight1"),
@@ -2607,8 +2660,15 @@ static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__WEIGHT2, "ins_lat"),
 	DIM(PERF_HPP__WEIGHT3, "retire_lat"),
 	DIM(PERF_HPP__WEIGHT3, "p_stage_cyc"),
+	/* used for output only when SORT_MODE__MEM */
+	DIM_MEM(PERF_HPP__MEM_STAT_OP, "op"),
+	DIM_MEM(PERF_HPP__MEM_STAT_CACHE, "cache"),
+	DIM_MEM(PERF_HPP__MEM_STAT_MEMORY, "memory"),
+	DIM_MEM(PERF_HPP__MEM_STAT_SNOOP, "snoop"),
+	DIM_MEM(PERF_HPP__MEM_STAT_DTLB, "dtlb"),
 };
 
+#undef DIM_MEM
 #undef DIM
 
 struct hpp_sort_entry {
@@ -2628,18 +2688,22 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 }
 
 static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct hists *hists, int line __maybe_unused,
+			      struct hists *hists, int line,
 			      int *span __maybe_unused)
 {
 	struct hpp_sort_entry *hse;
 	size_t len = fmt->user_len;
+	const char *hdr = "";
+
+	if (line == hists->hpp_list->nr_header_lines - 1)
+		hdr = fmt->name;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
 	if (!len)
 		len = hists__col_len(hists, hse->se->se_width_idx);
 
-	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, fmt->name);
+	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, hdr);
 }
 
 static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
@@ -2733,6 +2797,7 @@ MK_SORT_ENTRY_CHK(thread)
 MK_SORT_ENTRY_CHK(comm)
 MK_SORT_ENTRY_CHK(dso)
 MK_SORT_ENTRY_CHK(sym)
+MK_SORT_ENTRY_CHK(parallelism)
 
 
 static bool __sort__hpp_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
@@ -2870,9 +2935,10 @@ static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd,
 }
 
 static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
-					    struct perf_hpp_list *list)
+					    struct perf_hpp_list *list,
+					    int level)
 {
-	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, 0);
+	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, level);
 
 	if (hse == NULL)
 		return -1;
@@ -3293,9 +3359,8 @@ static int __dynamic_dimension__add(struct evsel *evsel,
 static int add_evsel_fields(struct evsel *evsel, bool raw_trace, int level)
 {
 	int ret;
-	struct tep_format_field *field;
-
-	field = evsel->tp_format->format.fields;
+	struct tep_event *tp_format = evsel__tp_format(evsel);
+	struct tep_format_field *field = tp_format ? tp_format->format.fields : NULL;
 	while (field) {
 		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
 		if (ret < 0)
@@ -3328,13 +3393,19 @@ static int add_all_matching_fields(struct evlist *evlist,
 {
 	int ret = -ESRCH;
 	struct evsel *evsel;
-	struct tep_format_field *field;
 
 	evlist__for_each_entry(evlist, evsel) {
+		struct tep_event *tp_format;
+		struct tep_format_field *field;
+
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
-		field = tep_find_any_field(evsel->tp_format, field_name);
+		tp_format = evsel__tp_format(evsel);
+		if (tp_format == NULL)
+			continue;
+
+		field = tep_find_any_field(tp_format, field_name);
 		if (field == NULL)
 			continue;
 
@@ -3416,7 +3487,9 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 	if (!strcmp(field_name, "*")) {
 		ret = add_evsel_fields(evsel, raw_trace, level);
 	} else {
-		struct tep_format_field *field = tep_find_any_field(evsel->tp_format, field_name);
+		struct tep_event *tp_format = evsel__tp_format(evsel);
+		struct tep_format_field *field =
+			tp_format ? tep_find_any_field(tp_format, field_name) : NULL;
 
 		if (field == NULL) {
 			pr_debug("Cannot find event field for %s.%s\n",
@@ -3468,17 +3541,19 @@ static int __hpp_dimension__add(struct hpp_dimension *hd,
 		return -1;
 
 	hd->taken = 1;
+	hd->was_taken = 1;
 	perf_hpp_list__register_sort_field(list, fmt);
 	return 0;
 }
 
 static int __sort_dimension__add_output(struct perf_hpp_list *list,
-					struct sort_dimension *sd)
+					struct sort_dimension *sd,
+					int level)
 {
 	if (sd->taken)
 		return 0;
 
-	if (__sort_dimension__add_hpp_output(sd, list) < 0)
+	if (__sort_dimension__add_hpp_output(sd, list, level) < 0)
 		return -1;
 
 	sd->taken = 1;
@@ -3486,14 +3561,15 @@ static int __sort_dimension__add_output(struct perf_hpp_list *list,
 }
 
 static int __hpp_dimension__add_output(struct perf_hpp_list *list,
-				       struct hpp_dimension *hd)
+				       struct hpp_dimension *hd,
+				       int level)
 {
 	struct perf_hpp_fmt *fmt;
 
 	if (hd->taken)
 		return 0;
 
-	fmt = __hpp_dimension__alloc_hpp(hd, 0);
+	fmt = __hpp_dimension__alloc_hpp(hd, level);
 	if (!fmt)
 		return -1;
 
@@ -3502,10 +3578,15 @@ static int __hpp_dimension__add_output(struct perf_hpp_list *list,
 	return 0;
 }
 
-int hpp_dimension__add_output(unsigned col)
+int hpp_dimension__add_output(unsigned col, bool implicit)
 {
+	struct hpp_dimension *hd;
+
 	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
+	hd = &hpp_sort_dimensions[col];
+	if (implicit && !hd->was_taken)
+		return 0;
+	return __hpp_dimension__add_output(&perf_hpp_list, hd, /*level=*/0);
 }
 
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
@@ -3574,15 +3655,6 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		return __sort_dimension__add(sd, list, level);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
-		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
-
-		if (strncasecmp(tok, hd->name, strlen(tok)))
-			continue;
-
-		return __hpp_dimension__add(hd, list, level);
-	}
-
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
 		struct sort_dimension *sd = &bstack_sort_dimensions[i];
 
@@ -3624,10 +3696,47 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		return 0;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
+		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
+
+		if (strncasecmp(tok, hd->name, strlen(tok)))
+			continue;
+
+		return __hpp_dimension__add(hd, list, level);
+	}
+
 	if (!add_dynamic_entry(evlist, tok, level))
 		return 0;
 
 	return -ESRCH;
+}
+
+/* This should match with sort_dimension__add() above */
+static bool is_hpp_sort_key(const char *key)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(arch_specific_sort_keys); i++) {
+		if (!strcmp(arch_specific_sort_keys[i], key) &&
+		    !arch_support_sort_key(key)) {
+			return false;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
+		struct sort_dimension *sd = &common_sort_dimensions[i];
+
+		if (sd->name && !strncasecmp(key, sd->name, strlen(key)))
+			return false;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
+		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
+
+		if (!strncasecmp(key, hd->name, strlen(key)))
+			return true;
+	}
+	return false;
 }
 
 static int setup_sort_list(struct perf_hpp_list *list, char *str,
@@ -3637,7 +3746,9 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 	int ret = 0;
 	int level = 0;
 	int next_level = 1;
+	int prev_level = 0;
 	bool in_group = false;
+	bool prev_was_hpp = false;
 
 	do {
 		tok = str;
@@ -3658,6 +3769,19 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 		}
 
 		if (*tok) {
+			if (is_hpp_sort_key(tok)) {
+				/* keep output (hpp) sort keys in the same level */
+				if (prev_was_hpp) {
+					bool next_same = (level == next_level);
+
+					level = prev_level;
+					next_level = next_same ? level : level+1;
+				}
+				prev_was_hpp = true;
+			} else {
+				prev_was_hpp = false;
+			}
+
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
 				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
@@ -3669,6 +3793,7 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 				ui__error("Unknown --sort key: `%s'", tok);
 				break;
 			}
+			prev_level = level;
 		}
 
 		level = next_level;
@@ -3764,10 +3889,24 @@ static char *setup_overhead(char *keys)
 	if (sort__mode == SORT_MODE__DIFF)
 		return keys;
 
-	keys = prefix_if_not_in("overhead", keys);
-
-	if (symbol_conf.cumulate_callchain)
-		keys = prefix_if_not_in("overhead_children", keys);
+	if (symbol_conf.prefer_latency) {
+		keys = prefix_if_not_in("overhead", keys);
+		keys = prefix_if_not_in("latency", keys);
+		if (symbol_conf.cumulate_callchain) {
+			keys = prefix_if_not_in("overhead_children", keys);
+			keys = prefix_if_not_in("latency_children", keys);
+		}
+	} else if (!keys || (!strstr(keys, "overhead") &&
+			!strstr(keys, "latency"))) {
+		if (symbol_conf.enable_latency)
+			keys = prefix_if_not_in("latency", keys);
+		keys = prefix_if_not_in("overhead", keys);
+		if (symbol_conf.cumulate_callchain) {
+			if (symbol_conf.enable_latency)
+				keys = prefix_if_not_in("latency_children", keys);
+			keys = prefix_if_not_in("overhead_children", keys);
+		}
+	}
 
 	return keys;
 }
@@ -3915,7 +4054,7 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-int output_field_add(struct perf_hpp_list *list, const char *tok)
+int output_field_add(struct perf_hpp_list *list, const char *tok, int *level)
 {
 	unsigned int i;
 
@@ -3928,8 +4067,17 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (!strcasecmp(tok, "weight"))
 			ui__warning("--fields weight shows the average value unlike in the --sort key.\n");
 
-		return __hpp_dimension__add_output(list, hd);
+		if (hd->mem_mode && sort__mode != SORT_MODE__MEMORY)
+			continue;
+
+		return __hpp_dimension__add_output(list, hd, *level);
 	}
+
+	/*
+	 * A non-output field will increase level so that it can be in a
+	 * different hierarchy.
+	 */
+	(*level)++;
 
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
@@ -3937,7 +4085,7 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		return __sort_dimension__add_output(list, sd);
+		return __sort_dimension__add_output(list, sd, *level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
@@ -3949,7 +4097,7 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (sort__mode != SORT_MODE__BRANCH)
 			return -EINVAL;
 
-		return __sort_dimension__add_output(list, sd);
+		return __sort_dimension__add_output(list, sd, *level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
@@ -3961,7 +4109,7 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
-		return __sort_dimension__add_output(list, sd);
+		return __sort_dimension__add_output(list, sd, *level);
 	}
 
 	return -ESRCH;
@@ -3971,10 +4119,11 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 {
 	char *tmp, *tok;
 	int ret = 0;
+	int level = 0;
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = output_field_add(list, tok);
+		ret = output_field_add(list, tok, &level);
 		if (ret == -EINVAL) {
 			ui__error("Invalid --fields key: `%s'", tok);
 			break;
@@ -4061,6 +4210,10 @@ int setup_sorting(struct evlist *evlist)
 		perf_hpp__init();
 
 	err = __setup_output_field();
+	if (err < 0)
+		return err;
+
+	err = perf_hpp__alloc_mem_stats(&perf_hpp_list, evlist);
 	if (err < 0)
 		return err;
 

@@ -757,7 +757,7 @@ int lbtf_process_rx_command(struct lbtf_private *priv)
 	}
 
 	/* Now we got response from FW, cancel the command timer */
-	del_timer(&priv->command_timer);
+	timer_delete(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 	if (priv->nr_retries)
 		priv->nr_retries = 0;

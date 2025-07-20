@@ -11,7 +11,9 @@
 
 #include "regs/xe_reg_defs.h"
 #include "xe_guc_ads_types.h"
+#include "xe_guc_buf_types.h"
 #include "xe_guc_ct_types.h"
+#include "xe_guc_engine_activity_types.h"
 #include "xe_guc_fwif.h"
 #include "xe_guc_log_types.h"
 #include "xe_guc_pc_types.h"
@@ -58,12 +60,23 @@ struct xe_guc {
 	struct xe_guc_ads ads;
 	/** @ct: GuC ct */
 	struct xe_guc_ct ct;
+	/** @buf: GuC Buffer Cache manager */
+	struct xe_guc_buf_cache buf;
 	/** @capture: the error-state-capture module's data and objects */
 	struct xe_guc_state_capture *capture;
 	/** @pc: GuC Power Conservation */
 	struct xe_guc_pc pc;
 	/** @dbm: GuC Doorbell Manager */
 	struct xe_guc_db_mgr dbm;
+
+	/** @g2g: GuC to GuC communication state */
+	struct {
+		/** @g2g.bo: Storage for GuC to GuC communication channels */
+		struct xe_bo *bo;
+		/** @g2g.owned: Is the BO owned by this GT or just mapped in */
+		bool owned;
+	} g2g;
+
 	/** @submission_state: GuC submission state */
 	struct {
 		/** @submission_state.idm: GuC context ID Manager */
@@ -76,9 +89,15 @@ struct xe_guc {
 		struct mutex lock;
 		/** @submission_state.enabled: submission is enabled */
 		bool enabled;
+		/**
+		 * @submission_state.initialized: mark when submission state is
+		 * even initialized - before that not even the lock is valid
+		 */
+		bool initialized;
 		/** @submission_state.fini_wq: submit fini wait queue */
 		wait_queue_head_t fini_wq;
 	} submission_state;
+
 	/** @hwconfig: Hardware config state */
 	struct {
 		/** @hwconfig.bo: buffer object of the hardware config */
@@ -89,6 +108,9 @@ struct xe_guc {
 
 	/** @relay: GuC Relay Communication used in SR-IOV */
 	struct xe_guc_relay relay;
+
+	/** @engine_activity: Device specific engine activity */
+	struct xe_guc_engine_activity engine_activity;
 
 	/**
 	 * @notify_reg: Register which is written to notify GuC of H2G messages

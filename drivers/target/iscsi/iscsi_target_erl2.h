@@ -9,8 +9,6 @@ struct iscsit_conn;
 struct iscsi_conn_recovery;
 struct iscsit_session;
 
-extern void iscsit_create_conn_recovery_datain_values(struct iscsit_cmd *, __be32);
-extern void iscsit_create_conn_recovery_dataout_values(struct iscsit_cmd *);
 extern struct iscsi_conn_recovery *iscsit_get_inactive_connection_recovery_entry(
 			struct iscsit_session *, u16);
 extern void iscsit_free_connection_recovery_entries(struct iscsit_session *);

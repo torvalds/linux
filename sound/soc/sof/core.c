@@ -607,7 +607,8 @@ static void sof_probe_work(struct work_struct *work)
 }
 
 static void
-sof_apply_profile_override(struct sof_loadable_file_profile *path_override)
+sof_apply_profile_override(struct sof_loadable_file_profile *path_override,
+			   struct snd_sof_pdata *plat_data)
 {
 	if (override_ipc_type >= 0 && override_ipc_type < SOF_IPC_TYPE_COUNT)
 		path_override->ipc_type = override_ipc_type;
@@ -619,8 +620,11 @@ sof_apply_profile_override(struct sof_loadable_file_profile *path_override)
 		path_override->fw_lib_path = override_lib_path;
 	if (override_tplg_path)
 		path_override->tplg_path = override_tplg_path;
-	if (override_tplg_filename)
+	if (override_tplg_filename) {
 		path_override->tplg_name = override_tplg_filename;
+		/* User requested a specific topology file and expect it to be loaded */
+		plat_data->disable_function_topology = true;
+	}
 }
 
 int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
@@ -654,7 +658,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		}
 	}
 
-	sof_apply_profile_override(&plat_data->ipc_file_profile_base);
+	sof_apply_profile_override(&plat_data->ipc_file_profile_base, plat_data);
 
 	/* Initialize sof_ops based on the initial selected IPC version */
 	ret = sof_init_sof_ops(sdev);

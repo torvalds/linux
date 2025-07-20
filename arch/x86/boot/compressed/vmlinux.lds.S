@@ -48,7 +48,7 @@ SECTIONS
 		*(.data)
 		*(.data.*)
 
-		/* Add 4 bytes of extra space for a CRC-32 checksum */
+		/* Add 4 bytes of extra space for the obsolete CRC-32 checksum */
 		. = ALIGN(. + 4, 0x200);
 		_edata = . ;
 	}

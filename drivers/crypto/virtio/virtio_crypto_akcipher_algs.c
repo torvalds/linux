@@ -21,12 +21,11 @@
 #include "virtio_crypto_common.h"
 
 struct virtio_crypto_rsa_ctx {
-	MPI n;
+	unsigned int key_size;
 };
 
 struct virtio_crypto_akcipher_ctx {
 	struct virtio_crypto *vcrypto;
-	struct crypto_akcipher *tfm;
 	bool session_valid;
 	__u64 session_id;
 	union {
@@ -36,8 +35,6 @@ struct virtio_crypto_akcipher_ctx {
 
 struct virtio_crypto_akcipher_request {
 	struct virtio_crypto_request base;
-	struct virtio_crypto_akcipher_ctx *akcipher_ctx;
-	struct akcipher_request *akcipher_req;
 	void *src_buf;
 	void *dst_buf;
 	uint32_t opcode;
@@ -69,7 +66,9 @@ static void virtio_crypto_dataq_akcipher_callback(struct virtio_crypto_request *
 {
 	struct virtio_crypto_akcipher_request *vc_akcipher_req =
 		container_of(vc_req, struct virtio_crypto_akcipher_request, base);
-	struct akcipher_request *akcipher_req;
+	struct akcipher_request *akcipher_req =
+		container_of((void *)vc_akcipher_req, struct akcipher_request,
+			     __ctx);
 	int error;
 
 	switch (vc_req->status) {
@@ -88,8 +87,7 @@ static void virtio_crypto_dataq_akcipher_callback(struct virtio_crypto_request *
 		break;
 	}
 
-	akcipher_req = vc_akcipher_req->akcipher_req;
-	/* actual length maybe less than dst buffer */
+	/* actual length may be less than dst buffer */
 	akcipher_req->dst_len = len - sizeof(vc_req->status);
 	sg_copy_from_buffer(akcipher_req->dst, sg_nents(akcipher_req->dst),
 			    vc_akcipher_req->dst_buf, akcipher_req->dst_len);
@@ -213,7 +211,8 @@ out:
 static int __virtio_crypto_akcipher_do_req(struct virtio_crypto_akcipher_request *vc_akcipher_req,
 		struct akcipher_request *req, struct data_queue *data_vq)
 {
-	struct virtio_crypto_akcipher_ctx *ctx = vc_akcipher_req->akcipher_ctx;
+	struct crypto_akcipher *atfm = crypto_akcipher_reqtfm(req);
+	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(atfm);
 	struct virtio_crypto_request *vc_req = &vc_akcipher_req->base;
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
 	struct virtio_crypto_op_data_req *req_data = vc_req->req_data;
@@ -273,7 +272,8 @@ static int virtio_crypto_rsa_do_req(struct crypto_engine *engine, void *vreq)
 	struct akcipher_request *req = container_of(vreq, struct akcipher_request, base);
 	struct virtio_crypto_akcipher_request *vc_akcipher_req = akcipher_request_ctx(req);
 	struct virtio_crypto_request *vc_req = &vc_akcipher_req->base;
-	struct virtio_crypto_akcipher_ctx *ctx = vc_akcipher_req->akcipher_ctx;
+	struct crypto_akcipher *atfm = crypto_akcipher_reqtfm(req);
+	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(atfm);
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
 	struct data_queue *data_vq = vc_req->dataq;
 	struct virtio_crypto_op_header *header;
@@ -319,8 +319,6 @@ static int virtio_crypto_rsa_req(struct akcipher_request *req, uint32_t opcode)
 
 	vc_req->dataq = data_vq;
 	vc_req->alg_cb = virtio_crypto_dataq_akcipher_callback;
-	vc_akcipher_req->akcipher_ctx = ctx;
-	vc_akcipher_req->akcipher_req = req;
 	vc_akcipher_req->opcode = opcode;
 
 	return crypto_transfer_akcipher_request_to_engine(data_vq->engine, req);
@@ -352,10 +350,7 @@ static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
 	int node = virtio_crypto_get_current_node();
 	uint32_t keytype;
 	int ret;
-
-	/* mpi_free will test n, just free it. */
-	mpi_free(rsa_ctx->n);
-	rsa_ctx->n = NULL;
+	MPI n;
 
 	if (private) {
 		keytype = VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PRIVATE;
@@ -368,9 +363,12 @@ static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
 	if (ret)
 		return ret;
 
-	rsa_ctx->n = mpi_read_raw_data(rsa_key.n, rsa_key.n_sz);
-	if (!rsa_ctx->n)
+	n = mpi_read_raw_data(rsa_key.n, rsa_key.n_sz);
+	if (!n)
 		return -ENOMEM;
+
+	rsa_ctx->key_size = mpi_get_size(n);
+	mpi_free(n);
 
 	if (!ctx->vcrypto) {
 		vcrypto = virtcrypto_get_dev_node(node, VIRTIO_CRYPTO_SERVICE_AKCIPHER,
@@ -442,15 +440,11 @@ static unsigned int virtio_crypto_rsa_max_size(struct crypto_akcipher *tfm)
 	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct virtio_crypto_rsa_ctx *rsa_ctx = &ctx->rsa_ctx;
 
-	return mpi_get_size(rsa_ctx->n);
+	return rsa_ctx->key_size;
 }
 
 static int virtio_crypto_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
-	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(tfm);
-
-	ctx->tfm = tfm;
-
 	akcipher_set_reqsize(tfm,
 			     sizeof(struct virtio_crypto_akcipher_request));
 
@@ -460,12 +454,9 @@ static int virtio_crypto_rsa_init_tfm(struct crypto_akcipher *tfm)
 static void virtio_crypto_rsa_exit_tfm(struct crypto_akcipher *tfm)
 {
 	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct virtio_crypto_rsa_ctx *rsa_ctx = &ctx->rsa_ctx;
 
 	virtio_crypto_alg_akcipher_close_session(ctx);
 	virtcrypto_dev_put(ctx->vcrypto);
-	mpi_free(rsa_ctx->n);
-	rsa_ctx->n = NULL;
 }
 
 static struct virtio_crypto_akcipher_algo virtio_crypto_akcipher_algs[] = {

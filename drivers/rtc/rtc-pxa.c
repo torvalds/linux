@@ -360,7 +360,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
 
 	return 0;
 }

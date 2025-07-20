@@ -67,6 +67,8 @@ int main(int argc, char *argv[])
 	time_t offset = 10;
 	int nsfd;
 
+	ksft_print_header();
+
 	ksft_set_plan(8);
 
 	fill_function_pointers();

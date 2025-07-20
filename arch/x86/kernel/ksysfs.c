@@ -28,19 +28,19 @@ static ssize_t version_show(struct kobject *kobj,
 static struct kobj_attribute boot_params_version_attr = __ATTR_RO(version);
 
 static ssize_t boot_params_data_read(struct file *fp, struct kobject *kobj,
-				     struct bin_attribute *bin_attr,
+				     const struct bin_attribute *bin_attr,
 				     char *buf, loff_t off, size_t count)
 {
 	memcpy(buf, (void *)&boot_params + off, count);
 	return count;
 }
 
-static struct bin_attribute boot_params_data_attr = {
+static const struct bin_attribute boot_params_data_attr = {
 	.attr = {
 		.name = "data",
 		.mode = S_IRUGO,
 	},
-	.read = boot_params_data_read,
+	.read_new = boot_params_data_read,
 	.size = sizeof(boot_params),
 };
 
@@ -49,14 +49,14 @@ static struct attribute *boot_params_version_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *boot_params_data_attrs[] = {
+static const struct bin_attribute *const boot_params_data_attrs[] = {
 	&boot_params_data_attr,
 	NULL,
 };
 
 static const struct attribute_group boot_params_attr_group = {
 	.attrs = boot_params_version_attrs,
-	.bin_attrs = boot_params_data_attrs,
+	.bin_attrs_new = boot_params_data_attrs,
 };
 
 static int kobj_to_setup_data_nr(struct kobject *kobj, int *nr)
@@ -172,7 +172,7 @@ static ssize_t type_show(struct kobject *kobj,
 
 static ssize_t setup_data_data_read(struct file *fp,
 				    struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
+				    const struct bin_attribute *bin_attr,
 				    char *buf,
 				    loff_t off, size_t count)
 {
@@ -250,7 +250,7 @@ static struct bin_attribute data_attr __ro_after_init = {
 		.name = "data",
 		.mode = S_IRUGO,
 	},
-	.read = setup_data_data_read,
+	.read_new = setup_data_data_read,
 };
 
 static struct attribute *setup_data_type_attrs[] = {
@@ -258,14 +258,14 @@ static struct attribute *setup_data_type_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *setup_data_data_attrs[] = {
+static const struct bin_attribute *const setup_data_data_attrs[] = {
 	&data_attr,
 	NULL,
 };
 
 static const struct attribute_group setup_data_attr_group = {
 	.attrs = setup_data_type_attrs,
-	.bin_attrs = setup_data_data_attrs,
+	.bin_attrs_new = setup_data_data_attrs,
 };
 
 static int __init create_setup_data_node(struct kobject *parent,

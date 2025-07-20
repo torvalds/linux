@@ -199,8 +199,8 @@ static void fm10k_start_service_event(struct fm10k_intfc *interface)
  **/
 static void fm10k_service_timer(struct timer_list *t)
 {
-	struct fm10k_intfc *interface = from_timer(interface, t,
-						   service_timer);
+	struct fm10k_intfc *interface = timer_container_of(interface, t,
+							   service_timer);
 
 	/* Reset the timer */
 	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
@@ -2245,7 +2245,7 @@ static void fm10k_remove(struct pci_dev *pdev)
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
 	struct net_device *netdev = interface->netdev;
 
-	del_timer_sync(&interface->service_timer);
+	timer_delete_sync(&interface->service_timer);
 
 	fm10k_stop_service_event(interface);
 	fm10k_stop_macvlan_task(interface);

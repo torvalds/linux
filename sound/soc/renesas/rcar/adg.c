@@ -19,6 +19,7 @@
 #define CLKOUT3	3
 #define CLKOUTMAX 4
 
+#define BRGCKR_31	(1 << 31)
 #define BRRx_MASK(x) (0x3FF & x)
 
 static struct rsnd_mod_ops adg_ops = {
@@ -30,6 +31,7 @@ static struct rsnd_mod_ops adg_ops = {
 #define ADG_HZ_SIZE	2
 
 struct rsnd_adg {
+	struct clk *adg;
 	struct clk *clkin[CLKINMAX];
 	struct clk *clkout[CLKOUTMAX];
 	struct clk *null_clk;
@@ -361,10 +363,13 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 
 	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
+	ckr = adg->ckr & ~BRGCKR_31;
 	if (0 == (rate % 8000))
-		ckr = 0x80000000; /* BRGB output = 48kHz */
-
-	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
+		ckr |= BRGCKR_31; /* use BRGB output = 48kHz */
+	if (ckr != adg->ckr) {
+		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
+		adg->ckr = ckr;
+	}
 
 	dev_dbg(dev, "CLKOUT is based on BRG%c (= %dHz)\n",
 		(ckr) ? 'B' : 'A',
@@ -374,14 +379,18 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 	return 0;
 }
 
-void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
+int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct clk *clk;
-	int i;
+	int ret = 0, i;
 
 	if (enable) {
+		ret = clk_prepare_enable(adg->adg);
+		if (ret < 0)
+			return ret;
+
 		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
 		rsnd_mod_write(adg_mod, BRRA,  adg->brga);
 		rsnd_mod_write(adg_mod, BRRB,  adg->brgb);
@@ -389,18 +398,37 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 
 	for_each_rsnd_clkin(clk, adg, i) {
 		if (enable) {
-			clk_prepare_enable(clk);
+			ret = clk_prepare_enable(clk);
 
 			/*
 			 * We shouldn't use clk_get_rate() under
 			 * atomic context. Let's keep it when
 			 * rsnd_adg_clk_enable() was called
 			 */
+			if (ret < 0)
+				break;
+
 			adg->clkin_rate[i] = clk_get_rate(clk);
 		} else {
-			clk_disable_unprepare(clk);
+			if (adg->clkin_rate[i])
+				clk_disable_unprepare(clk);
+
+			adg->clkin_rate[i] = 0;
 		}
 	}
+
+	/*
+	 * rsnd_adg_clk_enable() might return error (_disable() will not).
+	 * We need to rollback in such case
+	 */
+	if (ret < 0)
+		rsnd_adg_clk_disable(priv);
+
+	/* disable adg */
+	if (!enable)
+		clk_disable_unprepare(adg->adg);
+
+	return ret;
 }
 
 static struct clk *rsnd_adg_create_null_clk(struct rsnd_priv *priv,
@@ -456,6 +484,16 @@ static int rsnd_adg_get_clkin(struct rsnd_priv *priv)
 		clkin_size = ARRAY_SIZE(clkin_name_gen4);
 	}
 
+	/*
+	 * get adg
+	 * No "adg" is not error
+	 */
+	clk = devm_clk_get(dev, "adg");
+	if (IS_ERR_OR_NULL(clk))
+		clk = rsnd_adg_null_clk_get(priv);
+	adg->adg = clk;
+
+	/* get clkin */
 	for (i = 0; i < clkin_size; i++) {
 		clk = devm_clk_get(dev, clkin_name[i]);
 
@@ -668,6 +706,9 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	}
 
 rsnd_adg_get_clkout_end:
+	if (0 == (req_rate[0] % 8000))
+		ckr |= BRGCKR_31; /* use BRGB output = 48kHz */
+
 	adg->ckr = ckr;
 	adg->brga = brga;
 	adg->brgb = brgb;
@@ -753,7 +794,10 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 	if (ret)
 		return ret;
 
-	rsnd_adg_clk_enable(priv);
+	ret = rsnd_adg_clk_enable(priv);
+	if (ret)
+		return ret;
+
 	rsnd_adg_clk_dbg_info(priv, NULL);
 
 	return 0;

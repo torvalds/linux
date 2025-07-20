@@ -104,6 +104,7 @@ void start_clock_recovery_pattern_early(struct dc_link *link,
 
 void dp_decide_training_settings(
 		struct dc_link *link,
+		const struct link_resource *link_res,
 		const struct dc_link_settings *link_settings,
 		struct link_training_settings *lt_settings);
 
@@ -117,6 +118,7 @@ enum dc_dp_training_pattern decide_cr_training_pattern(
 		const struct dc_link_settings *link_settings);
 
 enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *link,
+		const struct link_resource *link_res,
 		const struct dc_link_settings *link_settings);
 
 enum lttpr_mode dp_decide_lttpr_mode(struct dc_link *link,

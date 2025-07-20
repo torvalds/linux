@@ -2,7 +2,7 @@
 Scheduler debugfs
 =================
 
-Booting a kernel with CONFIG_SCHED_DEBUG=y will give access to
+Booting a kernel with debugfs enabled will give access to
 scheduler specific debug files under /sys/kernel/debug/sched. Some of
 those files are described below.
 

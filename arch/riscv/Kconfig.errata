@@ -119,4 +119,15 @@ config ERRATA_THEAD_PMU
 
 	  If you don't know what to do here, say "Y".
 
+config ERRATA_THEAD_GHOSTWRITE
+	bool "Apply T-Head Ghostwrite errata"
+	depends on ERRATA_THEAD && RISCV_ISA_XTHEADVECTOR
+	default y
+	help
+	  The T-Head C9xx cores have a vulnerability in the xtheadvector
+	  instruction set. When this errata is enabled, the CPUs will be probed
+	  to determine if they are vulnerable and disable xtheadvector.
+
+	  If you don't know what to do here, say "Y".
+
 endmenu # "CPU errata selection"

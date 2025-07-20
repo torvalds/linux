@@ -230,7 +230,7 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 		gt_info(gt, "Invalid GSC firmware for MTL/ARL, got %d.%d.%d.%d but need 102.x.x.x",
 			gsc->release.major, gsc->release.minor,
 			gsc->release.patch, gsc->release.build);
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	if (min_ver.major) {

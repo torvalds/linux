@@ -81,11 +81,13 @@ Subsystem-specific APIs
    acpi/index
    backlight/lp855x-driver.rst
    clk
+   coco/index
    console
    crypto/index
    dmaengine/index
    dpll
    edac
+   extcon
    firmware/index
    fpga/index
    frame-buffer

@@ -248,6 +248,13 @@ struct pl011_dmatx_data {
 	bool			queued;
 };
 
+enum pl011_rs485_tx_state {
+	OFF,
+	WAIT_AFTER_RTS,
+	SEND,
+	WAIT_AFTER_SEND,
+};
+
 /*
  * We wrap our port structure around the generic uart_port.
  */
@@ -261,8 +268,11 @@ struct uart_amba_port {
 	unsigned int		fifosize;	/* vendor-specific */
 	unsigned int		fixed_baud;	/* vendor-set fixed baud rate */
 	char			type[12];
-	bool			rs485_tx_started;
-	unsigned int		rs485_tx_drain_interval; /* usecs */
+	ktime_t			rs485_tx_drain_interval; /* nano */
+	enum pl011_rs485_tx_state	rs485_tx_state;
+	struct hrtimer		trigger_start_tx;
+	struct hrtimer		trigger_stop_tx;
+	bool			console_line_ended;
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */
 	unsigned int		dmacr;		/* dma control reg */
@@ -1036,7 +1046,7 @@ static inline void pl011_dma_rx_stop(struct uart_amba_port *uap)
  */
 static void pl011_dma_rx_poll(struct timer_list *t)
 {
-	struct uart_amba_port *uap = from_timer(uap, t, dmarx.timer);
+	struct uart_amba_port *uap = timer_container_of(uap, t, dmarx.timer);
 	struct tty_port *port = &uap->port.state->port;
 	struct pl011_dmarx_data *dmarx = &uap->dmarx;
 	struct dma_chan *rxchan = uap->dmarx.chan;
@@ -1074,7 +1084,7 @@ static void pl011_dma_rx_poll(struct timer_list *t)
 
 		uap->dmarx.running = false;
 		dmaengine_terminate_all(rxchan);
-		del_timer(&uap->dmarx.timer);
+		timer_delete(&uap->dmarx.timer);
 	} else {
 		mod_timer(&uap->dmarx.timer,
 			  jiffies + msecs_to_jiffies(uap->dmarx.poll_rate));
@@ -1189,7 +1199,7 @@ static void pl011_dma_shutdown(struct uart_amba_port *uap)
 		pl011_dmabuf_free(uap->dmarx.chan, &uap->dmarx.dbuf_a, DMA_FROM_DEVICE);
 		pl011_dmabuf_free(uap->dmarx.chan, &uap->dmarx.dbuf_b, DMA_FROM_DEVICE);
 		if (uap->dmarx.poll_rate)
-			del_timer_sync(&uap->dmarx.timer);
+			timer_delete_sync(&uap->dmarx.timer);
 		uap->using_rx_dma = false;
 	}
 }
@@ -1260,29 +1270,30 @@ static inline bool pl011_dma_rx_running(struct uart_amba_port *uap)
 
 static void pl011_rs485_tx_stop(struct uart_amba_port *uap)
 {
-	/*
-	 * To be on the safe side only time out after twice as many iterations
-	 * as fifo size.
-	 */
-	const int MAX_TX_DRAIN_ITERS = uap->port.fifosize * 2;
 	struct uart_port *port = &uap->port;
-	int i = 0;
 	u32 cr;
 
-	/* Wait until hardware tx queue is empty */
-	while (!pl011_tx_empty(port)) {
-		if (i > MAX_TX_DRAIN_ITERS) {
-			dev_warn(port->dev,
-				 "timeout while draining hardware tx queue\n");
-			break;
+	if (uap->rs485_tx_state == SEND)
+		uap->rs485_tx_state = WAIT_AFTER_SEND;
+
+	if (uap->rs485_tx_state == WAIT_AFTER_SEND) {
+		/* Schedule hrtimer if tx queue not empty */
+		if (!pl011_tx_empty(port)) {
+			hrtimer_start(&uap->trigger_stop_tx,
+				      uap->rs485_tx_drain_interval,
+				      HRTIMER_MODE_REL);
+			return;
 		}
-
-		udelay(uap->rs485_tx_drain_interval);
-		i++;
+		if (port->rs485.delay_rts_after_send > 0) {
+			hrtimer_start(&uap->trigger_stop_tx,
+				      ms_to_ktime(port->rs485.delay_rts_after_send),
+				      HRTIMER_MODE_REL);
+			return;
+		}
+		/* Continue without any delay */
+	} else if (uap->rs485_tx_state == WAIT_AFTER_RTS) {
+		hrtimer_try_to_cancel(&uap->trigger_start_tx);
 	}
-
-	if (port->rs485.delay_rts_after_send)
-		mdelay(port->rs485.delay_rts_after_send);
 
 	cr = pl011_read(uap, REG_CR);
 
@@ -1296,7 +1307,7 @@ static void pl011_rs485_tx_stop(struct uart_amba_port *uap)
 	cr |= UART011_CR_RXE;
 	pl011_write(cr, uap, REG_CR);
 
-	uap->rs485_tx_started = false;
+	uap->rs485_tx_state = OFF;
 }
 
 static void pl011_stop_tx(struct uart_port *port)
@@ -1304,11 +1315,18 @@ static void pl011_stop_tx(struct uart_port *port)
 	struct uart_amba_port *uap =
 	    container_of(port, struct uart_amba_port, port);
 
+	if (port->rs485.flags & SER_RS485_ENABLED &&
+	    uap->rs485_tx_state == WAIT_AFTER_RTS) {
+		pl011_rs485_tx_stop(uap);
+		return;
+	}
+
 	uap->im &= ~UART011_TXIM;
 	pl011_write(uap->im, uap, REG_IMSC);
 	pl011_dma_tx_stop(uap);
 
-	if ((port->rs485.flags & SER_RS485_ENABLED) && uap->rs485_tx_started)
+	if (port->rs485.flags & SER_RS485_ENABLED &&
+	    uap->rs485_tx_state != OFF)
 		pl011_rs485_tx_stop(uap);
 }
 
@@ -1328,10 +1346,19 @@ static void pl011_rs485_tx_start(struct uart_amba_port *uap)
 	struct uart_port *port = &uap->port;
 	u32 cr;
 
+	if (uap->rs485_tx_state == WAIT_AFTER_RTS) {
+		uap->rs485_tx_state = SEND;
+		return;
+	}
+	if (uap->rs485_tx_state == WAIT_AFTER_SEND) {
+		hrtimer_try_to_cancel(&uap->trigger_stop_tx);
+		uap->rs485_tx_state = SEND;
+		return;
+	}
+	/* uap->rs485_tx_state == OFF */
 	/* Enable transmitter */
 	cr = pl011_read(uap, REG_CR);
 	cr |= UART011_CR_TXE;
-
 	/* Disable receiver if half-duplex */
 	if (!(port->rs485.flags & SER_RS485_RX_DURING_TX))
 		cr &= ~UART011_CR_RXE;
@@ -1343,10 +1370,14 @@ static void pl011_rs485_tx_start(struct uart_amba_port *uap)
 
 	pl011_write(cr, uap, REG_CR);
 
-	if (port->rs485.delay_rts_before_send)
-		mdelay(port->rs485.delay_rts_before_send);
-
-	uap->rs485_tx_started = true;
+	if (port->rs485.delay_rts_before_send > 0) {
+		uap->rs485_tx_state = WAIT_AFTER_RTS;
+		hrtimer_start(&uap->trigger_start_tx,
+			      ms_to_ktime(port->rs485.delay_rts_before_send),
+			      HRTIMER_MODE_REL);
+	} else {
+		uap->rs485_tx_state = SEND;
+	}
 }
 
 static void pl011_start_tx(struct uart_port *port)
@@ -1355,11 +1386,42 @@ static void pl011_start_tx(struct uart_port *port)
 	    container_of(port, struct uart_amba_port, port);
 
 	if ((uap->port.rs485.flags & SER_RS485_ENABLED) &&
-	    !uap->rs485_tx_started)
+	    uap->rs485_tx_state != SEND) {
 		pl011_rs485_tx_start(uap);
+		if (uap->rs485_tx_state == WAIT_AFTER_RTS)
+			return;
+	}
 
 	if (!pl011_dma_tx_start(uap))
 		pl011_start_tx_pio(uap);
+}
+
+static enum hrtimer_restart pl011_trigger_start_tx(struct hrtimer *t)
+{
+	struct uart_amba_port *uap =
+	    container_of(t, struct uart_amba_port, trigger_start_tx);
+	unsigned long flags;
+
+	uart_port_lock_irqsave(&uap->port, &flags);
+	if (uap->rs485_tx_state == WAIT_AFTER_RTS)
+		pl011_start_tx(&uap->port);
+	uart_port_unlock_irqrestore(&uap->port, flags);
+
+	return HRTIMER_NORESTART;
+}
+
+static enum hrtimer_restart pl011_trigger_stop_tx(struct hrtimer *t)
+{
+	struct uart_amba_port *uap =
+	    container_of(t, struct uart_amba_port, trigger_stop_tx);
+	unsigned long flags;
+
+	uart_port_lock_irqsave(&uap->port, &flags);
+	if (uap->rs485_tx_state == WAIT_AFTER_SEND)
+		pl011_rs485_tx_stop(uap);
+	uart_port_unlock_irqrestore(&uap->port, flags);
+
+	return HRTIMER_NORESTART;
 }
 
 static void pl011_stop_rx(struct uart_port *port)
@@ -1953,7 +2015,7 @@ static void pl011_shutdown(struct uart_port *port)
 
 	pl011_dma_shutdown(uap);
 
-	if ((port->rs485.flags & SER_RS485_ENABLED) && uap->rs485_tx_started)
+	if ((port->rs485.flags & SER_RS485_ENABLED && uap->rs485_tx_state != OFF))
 		pl011_rs485_tx_stop(uap);
 
 	free_irq(uap->port.irq, uap);
@@ -2098,7 +2160,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * with the given baud rate. We use this as the poll interval when we
 	 * wait for the tx queue to empty.
 	 */
-	uap->rs485_tx_drain_interval = DIV_ROUND_UP(bits * 1000 * 1000, baud);
+	uap->rs485_tx_drain_interval = ns_to_ktime(DIV_ROUND_UP(bits * NSEC_PER_SEC, baud));
 
 	pl011_setup_status_masks(port, termios);
 
@@ -2305,50 +2367,7 @@ static void pl011_console_putchar(struct uart_port *port, unsigned char ch)
 	while (pl011_read(uap, REG_FR) & UART01x_FR_TXFF)
 		cpu_relax();
 	pl011_write(ch, uap, REG_DR);
-}
-
-static void
-pl011_console_write(struct console *co, const char *s, unsigned int count)
-{
-	struct uart_amba_port *uap = amba_ports[co->index];
-	unsigned int old_cr = 0, new_cr;
-	unsigned long flags;
-	int locked = 1;
-
-	clk_enable(uap->clk);
-
-	if (oops_in_progress)
-		locked = uart_port_trylock_irqsave(&uap->port, &flags);
-	else
-		uart_port_lock_irqsave(&uap->port, &flags);
-
-	/*
-	 *	First save the CR then disable the interrupts
-	 */
-	if (!uap->vendor->always_enabled) {
-		old_cr = pl011_read(uap, REG_CR);
-		new_cr = old_cr & ~UART011_CR_CTSEN;
-		new_cr |= UART01x_CR_UARTEN | UART011_CR_TXE;
-		pl011_write(new_cr, uap, REG_CR);
-	}
-
-	uart_console_write(&uap->port, s, count, pl011_console_putchar);
-
-	/*
-	 *	Finally, wait for transmitter to become empty and restore the
-	 *	TCR. Allow feature register bits to be inverted to work around
-	 *	errata.
-	 */
-	while ((pl011_read(uap, REG_FR) ^ uap->vendor->inv_fr)
-						& uap->vendor->fr_busy)
-		cpu_relax();
-	if (!uap->vendor->always_enabled)
-		pl011_write(old_cr, uap, REG_CR);
-
-	if (locked)
-		uart_port_unlock_irqrestore(&uap->port, flags);
-
-	clk_disable(uap->clk);
+	uap->console_line_ended = (ch == '\n');
 }
 
 static void pl011_console_get_options(struct uart_amba_port *uap, int *baud,
@@ -2411,6 +2430,8 @@ static int pl011_console_setup(struct console *co, char *options)
 	if (ret)
 		return ret;
 
+	uap->console_line_ended = true;
+
 	if (dev_get_platdata(uap->port.dev)) {
 		struct amba_pl011_data *plat;
 
@@ -2455,7 +2476,7 @@ static int pl011_console_setup(struct console *co, char *options)
 static int pl011_console_match(struct console *co, char *name, int idx,
 			       char *options)
 {
-	unsigned char iotype;
+	enum uart_iotype iotype;
 	resource_size_t addr;
 	int i;
 
@@ -2494,14 +2515,105 @@ static int pl011_console_match(struct console *co, char *name, int idx,
 	return -ENODEV;
 }
 
+static void
+pl011_console_write_atomic(struct console *co, struct nbcon_write_context *wctxt)
+{
+	struct uart_amba_port *uap = amba_ports[co->index];
+	unsigned int old_cr = 0;
+
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
+
+	clk_enable(uap->clk);
+
+	if (!uap->vendor->always_enabled) {
+		old_cr = pl011_read(uap, REG_CR);
+		pl011_write((old_cr & ~UART011_CR_CTSEN) | (UART01x_CR_UARTEN | UART011_CR_TXE),
+				uap, REG_CR);
+	}
+
+	if (!uap->console_line_ended)
+		uart_console_write(&uap->port, "\n", 1, pl011_console_putchar);
+	uart_console_write(&uap->port, wctxt->outbuf, wctxt->len, pl011_console_putchar);
+
+	while ((pl011_read(uap, REG_FR) ^ uap->vendor->inv_fr) & uap->vendor->fr_busy)
+		cpu_relax();
+
+	if (!uap->vendor->always_enabled)
+		pl011_write(old_cr, uap, REG_CR);
+
+	clk_disable(uap->clk);
+
+	nbcon_exit_unsafe(wctxt);
+}
+
+static void
+pl011_console_write_thread(struct console *co, struct nbcon_write_context *wctxt)
+{
+	struct uart_amba_port *uap = amba_ports[co->index];
+	unsigned int old_cr = 0;
+
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
+
+	clk_enable(uap->clk);
+
+	if (!uap->vendor->always_enabled) {
+		old_cr = pl011_read(uap, REG_CR);
+		pl011_write((old_cr & ~UART011_CR_CTSEN) | (UART01x_CR_UARTEN | UART011_CR_TXE),
+				uap, REG_CR);
+	}
+
+	if (nbcon_exit_unsafe(wctxt)) {
+		int i;
+		unsigned int len = READ_ONCE(wctxt->len);
+
+		for (i = 0; i < len; i++) {
+			if (!nbcon_enter_unsafe(wctxt))
+				break;
+			uart_console_write(&uap->port, wctxt->outbuf + i, 1, pl011_console_putchar);
+			if (!nbcon_exit_unsafe(wctxt))
+				break;
+		}
+	}
+
+	while (!nbcon_enter_unsafe(wctxt))
+		nbcon_reacquire_nobuf(wctxt);
+
+	while ((pl011_read(uap, REG_FR) ^ uap->vendor->inv_fr) & uap->vendor->fr_busy)
+		cpu_relax();
+
+	if (!uap->vendor->always_enabled)
+		pl011_write(old_cr, uap, REG_CR);
+
+	clk_disable(uap->clk);
+
+	nbcon_exit_unsafe(wctxt);
+}
+
+static void
+pl011_console_device_lock(struct console *co, unsigned long *flags)
+{
+	__uart_port_lock_irqsave(&amba_ports[co->index]->port, flags);
+}
+
+static void
+pl011_console_device_unlock(struct console *co, unsigned long flags)
+{
+	__uart_port_unlock_irqrestore(&amba_ports[co->index]->port, flags);
+}
+
 static struct uart_driver amba_reg;
 static struct console amba_console = {
 	.name		= "ttyAMA",
-	.write		= pl011_console_write,
 	.device		= uart_console_device,
 	.setup		= pl011_console_setup,
 	.match		= pl011_console_match,
-	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
+	.write_atomic	= pl011_console_write_atomic,
+	.write_thread	= pl011_console_write_thread,
+	.device_lock	= pl011_console_device_lock,
+	.device_unlock	= pl011_console_device_unlock,
+	.flags		= CON_PRINTBUFFER | CON_ANYTIME | CON_NBCON,
 	.index		= -1,
 	.data		= &amba_reg,
 };
@@ -2806,6 +2918,10 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 			return -EINVAL;
 		}
 	}
+	hrtimer_setup(&uap->trigger_start_tx, pl011_trigger_start_tx, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
+	hrtimer_setup(&uap->trigger_stop_tx, pl011_trigger_stop_tx, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	ret = pl011_setup_port(&dev->dev, uap, &dev->res, portnr);
 	if (ret)
@@ -2935,7 +3051,7 @@ static const struct of_device_id sbsa_uart_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sbsa_uart_of_match);
 
-static const struct acpi_device_id __maybe_unused sbsa_uart_acpi_match[] = {
+static const struct acpi_device_id sbsa_uart_acpi_match[] = {
 	{ "ARMH0011", 0 },
 	{ "ARMHB000", 0 },
 	{},
@@ -2948,8 +3064,8 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
 	.driver	= {
 		.name	= "sbsa-uart",
 		.pm	= &pl011_dev_pm_ops,
-		.of_match_table = of_match_ptr(sbsa_uart_of_match),
-		.acpi_match_table = ACPI_PTR(sbsa_uart_acpi_match),
+		.of_match_table = sbsa_uart_of_match,
+		.acpi_match_table = sbsa_uart_acpi_match,
 		.suppress_bind_attrs = IS_BUILTIN(CONFIG_SERIAL_AMBA_PL011),
 	},
 };

@@ -90,7 +90,7 @@ static int mm8013_get_property(struct power_supply *psy,
 			       enum power_supply_property psp,
 			       union power_supply_propval *val)
 {
-	struct mm8013_chip *chip = psy->drv_data;
+	struct mm8013_chip *chip = power_supply_get_drvdata(psy);
 	int ret = 0;
 	u32 regval;
 
@@ -274,7 +274,7 @@ static int mm8013_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret, "MM8013 not found\n");
 
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 
 	psy = devm_power_supply_register(dev, &mm8013_desc, &psy_cfg);
 	if (IS_ERR(psy))

@@ -19,19 +19,10 @@
 #include <linux/iio/iio.h>
 
 #include "ad7606.h"
+#include "ad7606_bus_iface.h"
 
-static const struct iio_chan_spec ad7606b_bi_channels[] = {
-	AD7606_BI_CHANNEL(0),
-	AD7606_BI_CHANNEL(1),
-	AD7606_BI_CHANNEL(2),
-	AD7606_BI_CHANNEL(3),
-	AD7606_BI_CHANNEL(4),
-	AD7606_BI_CHANNEL(5),
-	AD7606_BI_CHANNEL(6),
-	AD7606_BI_CHANNEL(7),
-};
-
-static int ad7606_bi_update_scan_mode(struct iio_dev *indio_dev, const unsigned long *scan_mask)
+static int ad7606_par_bus_update_scan_mode(struct iio_dev *indio_dev,
+					   const unsigned long *scan_mask)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned int c, ret;
@@ -48,7 +39,8 @@ static int ad7606_bi_update_scan_mode(struct iio_dev *indio_dev, const unsigned 
 	return 0;
 }
 
-static int ad7606_bi_setup_iio_backend(struct device *dev, struct iio_dev *indio_dev)
+static int ad7606_par_bus_setup_iio_backend(struct device *dev,
+					    struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned int ret, c;
@@ -80,15 +72,34 @@ static int ad7606_bi_setup_iio_backend(struct device *dev, struct iio_dev *indio
 			return ret;
 	}
 
-	indio_dev->channels = ad7606b_bi_channels;
-	indio_dev->num_channels = 8;
-
 	return 0;
 }
 
+static int ad7606_par_bus_reg_read(struct ad7606_state *st, unsigned int addr)
+{
+	struct ad7606_platform_data *pdata = st->dev->platform_data;
+	int val, ret;
+
+	ret = pdata->bus_reg_read(st->back, addr, &val);
+	if (ret)
+		return ret;
+
+	return val;
+}
+
+static int ad7606_par_bus_reg_write(struct ad7606_state *st, unsigned int addr,
+				    unsigned int val)
+{
+	struct ad7606_platform_data *pdata = st->dev->platform_data;
+
+	return pdata->bus_reg_write(st->back, addr, val);
+}
+
 static const struct ad7606_bus_ops ad7606_bi_bops = {
-	.iio_backend_config = ad7606_bi_setup_iio_backend,
-	.update_scan_mode = ad7606_bi_update_scan_mode,
+	.iio_backend_config = ad7606_par_bus_setup_iio_backend,
+	.update_scan_mode = ad7606_par_bus_update_scan_mode,
+	.reg_read = ad7606_par_bus_reg_read,
+	.reg_write = ad7606_par_bus_reg_write,
 };
 
 static int ad7606_par16_read_block(struct device *dev,
@@ -211,6 +222,8 @@ static const struct platform_device_id ad7606_driver_ids[] = {
 	{ .name	= "ad7606-6", .driver_data = (kernel_ulong_t)&ad7606_6_info, },
 	{ .name	= "ad7606-8", .driver_data = (kernel_ulong_t)&ad7606_8_info, },
 	{ .name	= "ad7606b", .driver_data = (kernel_ulong_t)&ad7606b_info, },
+	{ .name = "ad7606c-16", .driver_data = (kernel_ulong_t)&ad7606c_16_info },
+	{ .name = "ad7606c-18", .driver_data = (kernel_ulong_t)&ad7606c_18_info },
 	{ .name	= "ad7607", .driver_data = (kernel_ulong_t)&ad7607_info, },
 	{ .name	= "ad7608", .driver_data = (kernel_ulong_t)&ad7608_info, },
 	{ .name	= "ad7609", .driver_data = (kernel_ulong_t)&ad7609_info, },
@@ -224,6 +237,8 @@ static const struct of_device_id ad7606_of_match[] = {
 	{ .compatible = "adi,ad7606-6", .data = &ad7606_6_info },
 	{ .compatible = "adi,ad7606-8", .data = &ad7606_8_info },
 	{ .compatible = "adi,ad7606b", .data = &ad7606b_info },
+	{ .compatible = "adi,ad7606c-16", .data = &ad7606c_16_info },
+	{ .compatible = "adi,ad7606c-18", .data = &ad7606c_18_info },
 	{ .compatible = "adi,ad7607", .data = &ad7607_info },
 	{ .compatible = "adi,ad7608", .data = &ad7608_info },
 	{ .compatible = "adi,ad7609", .data = &ad7609_info },
