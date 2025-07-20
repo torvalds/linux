@@ -141,6 +141,29 @@ def assert_schemes_committed(schemes, dump):
     for idx, scheme in enumerate(schemes):
         assert_scheme_committed(scheme, dump[idx])
 
+def assert_monitoring_attrs_committed(attrs, dump):
+    assert_true(dump['sample_interval'] == attrs.sample_us, 'sample_interval',
+                dump)
+    assert_true(dump['aggr_interval'] == attrs.aggr_us, 'aggr_interval', dump)
+    assert_true(dump['intervals_goal']['access_bp'] ==
+                attrs.intervals_goal.access_bp, 'access_bp',
+                dump['intervals_goal'])
+    assert_true(dump['intervals_goal']['aggrs'] == attrs.intervals_goal.aggrs,
+                'aggrs', dump['intervals_goal'])
+    assert_true(dump['intervals_goal']['min_sample_us'] ==
+                attrs.intervals_goal.min_sample_us, 'min_sample_us',
+                dump['intervals_goal'])
+    assert_true(dump['intervals_goal']['max_sample_us'] ==
+                attrs.intervals_goal.max_sample_us, 'max_sample_us',
+                dump['intervals_goal'])
+
+    assert_true(dump['ops_update_interval'] == attrs.update_us,
+                'ops_update_interval', dump)
+    assert_true(dump['min_nr_regions'] == attrs.min_nr_regions,
+                'min_nr_regions', dump)
+    assert_true(dump['max_nr_regions'] == attrs.max_nr_regions,
+                'max_nr_regions', dump)
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -163,23 +186,8 @@ def main():
         fail('number of contexts', status)
 
     ctx = status['contexts'][0]
-    attrs = ctx['attrs']
-    if attrs['sample_interval'] != 5000:
-        fail('sample interval', status)
-    if attrs['aggr_interval'] != 100000:
-        fail('aggr interval', status)
-    if attrs['ops_update_interval'] != 1000000:
-        fail('ops updte interval', status)
 
-    if attrs['intervals_goal'] != {
-            'access_bp': 0, 'aggrs': 0,
-            'min_sample_us': 0, 'max_sample_us': 0}:
-        fail('intervals goal')
-
-    if attrs['min_nr_regions'] != 10:
-        fail('min_nr_regions')
-    if attrs['max_nr_regions'] != 1000:
-        fail('max_nr_regions')
+    assert_monitoring_attrs_committed(_damon_sysfs.DamonAttrs(), ctx['attrs'])
 
     if ctx['adaptive_targets'] != [
             { 'pid': 0, 'nr_regions': 0, 'regions_list': []}]:
