@@ -212,10 +212,10 @@
 
 #define __free(_name)	__cleanup(__free_##_name)
 
-#define __get_and_null(p, nullvalue)   \
+#define __get_and_null(p, nullvalue)	    \
 	({                                  \
-		__auto_type __ptr = &(p);   \
-		__auto_type __val = *__ptr; \
+		auto __ptr = &(p);	    \
+		auto __val = *__ptr;	    \
 		*__ptr = nullvalue;         \
 		__val;                      \
 	})
