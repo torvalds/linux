@@ -45,6 +45,18 @@ def assert_watermarks_committed(watermarks, dump):
     assert_true(dump['mid'] == watermarks.mid, 'mid', dump)
     assert_true(dump['low'] == watermarks.low, 'low', dump)
 
+def assert_quota_committed(quota, dump):
+    assert_true(dump['reset_interval'] == quota.reset_interval_ms,
+                'reset_interval', dump)
+    assert_true(dump['ms'] == quota.ms, 'ms', dump)
+    assert_true(dump['sz'] == quota.sz, 'sz', dump)
+    # TODO: assert goals are committed
+    assert_true(dump['weight_sz'] == quota.weight_sz_permil, 'weight_sz', dump)
+    assert_true(dump['weight_nr_accesses'] == quota.weight_nr_accesses_permil,
+                'weight_nr_accesses', dump)
+    assert_true(
+            dump['weight_age'] == quota.weight_age_permil, 'weight_age', dump)
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -109,18 +121,15 @@ def main():
     if scheme['target_nid'] != -1:
         fail('damos target nid', status)
 
-    if scheme['quota'] != {
-            'reset_interval': 0,
-            'ms': 0,
-            'sz': 0,
-            'goals': [],
-            'esz': 0,
-            'weight_sz': 0,
-            'weight_nr_accesses': 0,
-            'weight_age': 0,
-            }:
-        fail('damos quota', status)
+    migrate_dests = scheme['migrate_dests']
+    if migrate_dests['nr_dests'] != 0:
+        fail('nr_dests', status)
+    if migrate_dests['node_id_arr'] != []:
+        fail('node_id_arr', status)
+    if migrate_dests['weight_arr'] != []:
+        fail('weight_arr', status)
 
+    assert_quota_committed(_damon_sysfs.DamosQuota(), scheme['quota'])
     assert_watermarks_committed(_damon_sysfs.DamosWatermarks(),
                                 scheme['wmarks'])
 
