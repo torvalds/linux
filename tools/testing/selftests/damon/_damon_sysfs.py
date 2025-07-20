@@ -93,14 +93,16 @@ class DamosQuotaGoal:
     metric = None
     target_value = None
     current_value = None
+    nid = None
     effective_bytes = None
     quota = None            # owner quota
     idx = None
 
-    def __init__(self, metric, target_value=10000, current_value=0):
+    def __init__(self, metric, target_value=10000, current_value=0, nid=0):
         self.metric = metric
         self.target_value = target_value
         self.current_value = current_value
+        self.nid = nid
 
     def sysfs_dir(self):
         return os.path.join(self.quota.sysfs_dir(), 'goals', '%d' % self.idx)
@@ -118,6 +120,10 @@ class DamosQuotaGoal:
                          self.current_value)
         if err is not None:
             return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'nid'), self.nid)
+        if err is not None:
+            return err
+
         return None
 
 class DamosQuota:
