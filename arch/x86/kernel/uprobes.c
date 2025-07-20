@@ -18,6 +18,7 @@
 #include <asm/processor.h>
 #include <asm/insn.h>
 #include <asm/mmu_context.h>
+#include <asm/nops.h>
 
 /* Post-execution fixups. */
 
@@ -702,7 +703,6 @@ static struct uprobe_trampoline *create_uprobe_trampoline(unsigned long vaddr)
 	return tramp;
 }
 
-__maybe_unused
 static struct uprobe_trampoline *get_uprobe_trampoline(unsigned long vaddr, bool *new)
 {
 	struct uprobes_state *state = &current->mm->uprobes_state;
@@ -891,6 +891,280 @@ static int __init arch_uprobes_init(void)
 
 late_initcall(arch_uprobes_init);
 
+enum {
+	EXPECT_SWBP,
+	EXPECT_CALL,
+};
+
+struct write_opcode_ctx {
+	unsigned long base;
+	int expect;
+};
+
+static int is_call_insn(uprobe_opcode_t *insn)
+{
+	return *insn == CALL_INSN_OPCODE;
+}
+
+/*
+ * Verification callback used by int3_update uprobe_write calls to make sure
+ * the underlying instruction is as expected - either int3 or call.
+ */
+static int verify_insn(struct page *page, unsigned long vaddr, uprobe_opcode_t *new_opcode,
+		       int nbytes, void *data)
+{
+	struct write_opcode_ctx *ctx = data;
+	uprobe_opcode_t old_opcode[5];
+
+	uprobe_copy_from_page(page, ctx->base, (uprobe_opcode_t *) &old_opcode, 5);
+
+	switch (ctx->expect) {
+	case EXPECT_SWBP:
+		if (is_swbp_insn(&old_opcode[0]))
+			return 1;
+		break;
+	case EXPECT_CALL:
+		if (is_call_insn(&old_opcode[0]))
+			return 1;
+		break;
+	}
+
+	return -1;
+}
+
+/*
+ * Modify multi-byte instructions by using INT3 breakpoints on SMP.
+ * We completely avoid using stop_machine() here, and achieve the
+ * synchronization using INT3 breakpoints and SMP cross-calls.
+ * (borrowed comment from smp_text_poke_batch_finish)
+ *
+ * The way it is done:
+ *   - Add an INT3 trap to the address that will be patched
+ *   - SMP sync all CPUs
+ *   - Update all but the first byte of the patched range
+ *   - SMP sync all CPUs
+ *   - Replace the first byte (INT3) by the first byte of the replacing opcode
+ *   - SMP sync all CPUs
+ */
+static int int3_update(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+		       unsigned long vaddr, char *insn, bool optimize)
+{
+	uprobe_opcode_t int3 = UPROBE_SWBP_INSN;
+	struct write_opcode_ctx ctx = {
+		.base = vaddr,
+	};
+	int err;
+
+	/*
+	 * Write int3 trap.
+	 *
+	 * The swbp_optimize path comes with breakpoint already installed,
+	 * so we can skip this step for optimize == true.
+	 */
+	if (!optimize) {
+		ctx.expect = EXPECT_CALL;
+		err = uprobe_write(auprobe, vma, vaddr, &int3, 1, verify_insn,
+				   true /* is_register */, false /* do_update_ref_ctr */,
+				   &ctx);
+		if (err)
+			return err;
+	}
+
+	smp_text_poke_sync_each_cpu();
+
+	/* Write all but the first byte of the patched range. */
+	ctx.expect = EXPECT_SWBP;
+	err = uprobe_write(auprobe, vma, vaddr + 1, insn + 1, 4, verify_insn,
+			   true /* is_register */, false /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		return err;
+
+	smp_text_poke_sync_each_cpu();
+
+	/*
+	 * Write first byte.
+	 *
+	 * The swbp_unoptimize needs to finish uprobe removal together
+	 * with ref_ctr update, using uprobe_write with proper flags.
+	 */
+	err = uprobe_write(auprobe, vma, vaddr, insn, 1, verify_insn,
+			   optimize /* is_register */, !optimize /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		return err;
+
+	smp_text_poke_sync_each_cpu();
+	return 0;
+}
+
+static int swbp_optimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+			 unsigned long vaddr, unsigned long tramp)
+{
+	u8 call[5];
+
+	__text_gen_insn(call, CALL_INSN_OPCODE, (const void *) vaddr,
+			(const void *) tramp, CALL_INSN_SIZE);
+	return int3_update(auprobe, vma, vaddr, call, true /* optimize */);
+}
+
+static int swbp_unoptimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+			   unsigned long vaddr)
+{
+	return int3_update(auprobe, vma, vaddr, auprobe->insn, false /* optimize */);
+}
+
+static int copy_from_vaddr(struct mm_struct *mm, unsigned long vaddr, void *dst, int len)
+{
+	unsigned int gup_flags = FOLL_FORCE|FOLL_SPLIT_PMD;
+	struct vm_area_struct *vma;
+	struct page *page;
+
+	page = get_user_page_vma_remote(mm, vaddr, gup_flags, &vma);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
+	uprobe_copy_from_page(page, vaddr, dst, len);
+	put_page(page);
+	return 0;
+}
+
+static bool __is_optimized(uprobe_opcode_t *insn, unsigned long vaddr)
+{
+	struct __packed __arch_relative_insn {
+		u8 op;
+		s32 raddr;
+	} *call = (struct __arch_relative_insn *) insn;
+
+	if (!is_call_insn(insn))
+		return false;
+	return __in_uprobe_trampoline(vaddr + 5 + call->raddr);
+}
+
+static int is_optimized(struct mm_struct *mm, unsigned long vaddr, bool *optimized)
+{
+	uprobe_opcode_t insn[5];
+	int err;
+
+	err = copy_from_vaddr(mm, vaddr, &insn, 5);
+	if (err)
+		return err;
+	*optimized = __is_optimized((uprobe_opcode_t *)&insn, vaddr);
+	return 0;
+}
+
+static bool should_optimize(struct arch_uprobe *auprobe)
+{
+	return !test_bit(ARCH_UPROBE_FLAG_OPTIMIZE_FAIL, &auprobe->flags) &&
+		test_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags);
+}
+
+int set_swbp(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+	     unsigned long vaddr)
+{
+	if (should_optimize(auprobe)) {
+		bool optimized = false;
+		int err;
+
+		/*
+		 * We could race with another thread that already optimized the probe,
+		 * so let's not overwrite it with int3 again in this case.
+		 */
+		err = is_optimized(vma->vm_mm, vaddr, &optimized);
+		if (err)
+			return err;
+		if (optimized)
+			return 0;
+	}
+	return uprobe_write_opcode(auprobe, vma, vaddr, UPROBE_SWBP_INSN,
+				   true /* is_register */);
+}
+
+int set_orig_insn(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+		  unsigned long vaddr)
+{
+	if (test_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags)) {
+		struct mm_struct *mm = vma->vm_mm;
+		bool optimized = false;
+		int err;
+
+		err = is_optimized(mm, vaddr, &optimized);
+		if (err)
+			return err;
+		if (optimized) {
+			err = swbp_unoptimize(auprobe, vma, vaddr);
+			WARN_ON_ONCE(err);
+			return err;
+		}
+	}
+	return uprobe_write_opcode(auprobe, vma, vaddr, *(uprobe_opcode_t *)&auprobe->insn,
+				   false /* is_register */);
+}
+
+static int __arch_uprobe_optimize(struct arch_uprobe *auprobe, struct mm_struct *mm,
+				  unsigned long vaddr)
+{
+	struct uprobe_trampoline *tramp;
+	struct vm_area_struct *vma;
+	bool new = false;
+	int err = 0;
+
+	vma = find_vma(mm, vaddr);
+	if (!vma)
+		return -EINVAL;
+	tramp = get_uprobe_trampoline(vaddr, &new);
+	if (!tramp)
+		return -EINVAL;
+	err = swbp_optimize(auprobe, vma, vaddr, tramp->vaddr);
+	if (WARN_ON_ONCE(err) && new)
+		destroy_uprobe_trampoline(tramp);
+	return err;
+}
+
+void arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
+{
+	struct mm_struct *mm = current->mm;
+	uprobe_opcode_t insn[5];
+
+	/*
+	 * Do not optimize if shadow stack is enabled, the return address hijack
+	 * code in arch_uretprobe_hijack_return_addr updates wrong frame when
+	 * the entry uprobe is optimized and the shadow stack crashes the app.
+	 */
+	if (shstk_is_enabled())
+		return;
+
+	if (!should_optimize(auprobe))
+		return;
+
+	mmap_write_lock(mm);
+
+	/*
+	 * Check if some other thread already optimized the uprobe for us,
+	 * if it's the case just go away silently.
+	 */
+	if (copy_from_vaddr(mm, vaddr, &insn, 5))
+		goto unlock;
+	if (!is_swbp_insn((uprobe_opcode_t*) &insn))
+		goto unlock;
+
+	/*
+	 * If we fail to optimize the uprobe we set the fail bit so the
+	 * above should_optimize will fail from now on.
+	 */
+	if (__arch_uprobe_optimize(auprobe, mm, vaddr))
+		set_bit(ARCH_UPROBE_FLAG_OPTIMIZE_FAIL, &auprobe->flags);
+
+unlock:
+	mmap_write_unlock(mm);
+}
+
+static bool can_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
+{
+	if (memcmp(&auprobe->insn, x86_nops[5], 5))
+		return false;
+	/* We can't do cross page atomic writes yet. */
+	return PAGE_SIZE - (vaddr & ~PAGE_MASK) >= 5;
+}
 #else /* 32-bit: */
 /*
  * No RIP-relative addressing on 32-bit
@@ -903,6 +1177,10 @@ static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
+}
+static bool can_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
+{
+	return false;
 }
 #endif /* CONFIG_X86_64 */
 
@@ -1269,6 +1547,9 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	ret = uprobe_init_insn(auprobe, &insn, is_64bit_mm(mm));
 	if (ret)
 		return ret;
+
+	if (can_optimize(auprobe, addr))
+		set_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags);
 
 	ret = branch_setup_xol_ops(auprobe, &insn);
 	if (ret != -ENOSYS)
