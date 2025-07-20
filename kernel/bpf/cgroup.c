@@ -707,11 +707,11 @@ static struct bpf_prog_list *get_prog_list(struct hlist_head *progs, struct bpf_
 	if (is_link) {
 		anchor_link = bpf_get_anchor_link(flags, id_or_fd);
 		if (IS_ERR(anchor_link))
-			return ERR_PTR(PTR_ERR(anchor_link));
+			return ERR_CAST(anchor_link);
 	} else if (is_id || id_or_fd) {
 		anchor_prog = bpf_get_anchor_prog(flags, id_or_fd);
 		if (IS_ERR(anchor_prog))
-			return ERR_PTR(PTR_ERR(anchor_prog));
+			return ERR_CAST(anchor_prog);
 	}
 
 	if (!anchor_prog && !anchor_link) {
