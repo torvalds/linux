@@ -894,13 +894,14 @@ void mlx5_ib_fs_remove_op_fc(struct mlx5_ib_dev *dev,
 			     struct mlx5_ib_op_fc *opfc,
 			     enum mlx5_ib_optional_counter_type type);
 
-int mlx5r_fs_bind_op_fc(struct ib_qp *qp, struct rdma_counter *counter,
-			u32 port);
+int mlx5r_fs_bind_op_fc(struct ib_qp *qp,
+			struct mlx5_fc *fc_arr[MLX5_IB_OPCOUNTER_MAX],
+			struct xarray *qpn_opfc_xa, u32 port);
 
-void mlx5r_fs_unbind_op_fc(struct ib_qp *qp, struct rdma_counter *counter);
+void mlx5r_fs_unbind_op_fc(struct ib_qp *qp, struct xarray *qpn_opfc_xa);
 
 void mlx5r_fs_destroy_fcs(struct mlx5_ib_dev *dev,
-			  struct rdma_counter *counter);
+			  struct mlx5_fc *fc_arr[MLX5_IB_OPCOUNTER_MAX]);
 
 struct mlx5_ib_multiport_info;
 
