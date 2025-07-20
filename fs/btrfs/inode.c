@@ -2015,7 +2015,7 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 	 * cleaered by the caller.
 	 */
 	if (ret < 0)
-		btrfs_cleanup_ordered_extents(inode, file_pos, end);
+		btrfs_cleanup_ordered_extents(inode, file_pos, len);
 	return ret;
 }
 
