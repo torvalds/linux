@@ -1037,7 +1037,7 @@ static int ath11k_mac_monitor_vdev_create(struct ath11k *ar)
 	struct ath11k_pdev *pdev = ar->pdev;
 	struct vdev_create_params param = {};
 	int bit, ret;
-	u8 tmp_addr[6] = {0};
+	u8 tmp_addr[6] = {};
 	u16 nss;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -3026,7 +3026,7 @@ static bool ath11k_mac_vif_recalc_sta_he_txbf(struct ath11k *ar,
 					      struct ieee80211_sta_he_cap *he_cap)
 {
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
-	struct ieee80211_he_cap_elem he_cap_elem = {0};
+	struct ieee80211_he_cap_elem he_cap_elem = {};
 	struct ieee80211_sta_he_cap *cap_band = NULL;
 	struct cfg80211_chan_def def;
 	u32 param = WMI_VDEV_PARAM_SET_HEMU_MODE;
@@ -3763,7 +3763,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		ath11k_recalculate_mgmt_rate(ar, vif, &def);
 
 	if (changed & BSS_CHANGED_TWT) {
-		struct wmi_twt_enable_params twt_params = {0};
+		struct wmi_twt_enable_params twt_params = {};
 
 		if (info->twt_requester || info->twt_responder) {
 			ath11k_wmi_fill_default_twt_params(&twt_params);
@@ -5323,7 +5323,7 @@ static struct ieee80211_sta_ht_cap
 ath11k_create_ht_cap(struct ath11k *ar, u32 ar_ht_cap, u32 rate_cap_rx_chainmask)
 {
 	int i;
-	struct ieee80211_sta_ht_cap ht_cap = {0};
+	struct ieee80211_sta_ht_cap ht_cap = {};
 	u32 ar_vht_cap = ar->pdev->cap.vht_cap;
 
 	if (!(ar_ht_cap & WMI_HT_CAP_ENABLED))
@@ -5490,7 +5490,7 @@ static struct ieee80211_sta_vht_cap
 ath11k_create_vht_cap(struct ath11k *ar, u32 rate_cap_tx_chainmask,
 		      u32 rate_cap_rx_chainmask)
 {
-	struct ieee80211_sta_vht_cap vht_cap = {0};
+	struct ieee80211_sta_vht_cap vht_cap = {};
 	u16 txmcs_map, rxmcs_map;
 	int i;
 
@@ -6159,7 +6159,7 @@ void ath11k_mac_drain_tx(struct ath11k *ar)
 
 static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 {
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	struct ath11k_base *ab = ar->ab;
 	int i, ret = 0;
 	u32 ring_id;
@@ -6678,7 +6678,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
-	struct vdev_create_params vdev_param = {0};
+	struct vdev_create_params vdev_param = {};
 	struct peer_create_params peer_param;
 	u32 param_id, param_value;
 	u16 nss;
@@ -10421,7 +10421,7 @@ int ath11k_mac_register(struct ath11k_base *ab)
 	struct ath11k_pdev *pdev;
 	int i;
 	int ret;
-	u8 mac_addr[ETH_ALEN] = {0};
+	u8 mac_addr[ETH_ALEN] = {};
 
 	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
 		return 0;

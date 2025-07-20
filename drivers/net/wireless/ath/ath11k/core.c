@@ -1393,7 +1393,7 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					   enum ath11k_bdf_name_type name_type)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
-	char variant[9 + ATH11K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
+	char variant[9 + ATH11K_QMI_BDF_EXT_STR_LENGTH] = {};
 
 	if (with_variant && ab->qmi.target.bdf_ext[0] != '\0')
 		scnprintf(variant, sizeof(variant), ",variant=%s",
