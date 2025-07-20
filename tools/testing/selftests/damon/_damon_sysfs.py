@@ -52,9 +52,9 @@ class DamosAccessPattern:
         if self.size is None:
             self.size = [0, 2**64 - 1]
         if self.nr_accesses is None:
-            self.nr_accesses = [0, 2**64 - 1]
+            self.nr_accesses = [0, 2**32 - 1]
         if self.age is None:
-            self.age = [0, 2**64 - 1]
+            self.age = [0, 2**32 - 1]
 
     def sysfs_dir(self):
         return os.path.join(self.scheme.sysfs_dir(), 'access_pattern')
