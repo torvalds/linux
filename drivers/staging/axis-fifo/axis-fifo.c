@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
 #include <linux/miscdevice.h>
+#include <linux/debugfs.h>
 
 /* ----------------------------
  *       driver parameters
@@ -43,6 +44,8 @@
 
 #define READ_BUF_SIZE 128U /* read buffer length in words */
 #define WRITE_BUF_SIZE 128U /* write buffer length in words */
+
+#define AXIS_FIFO_DEBUG_REG_NAME_MAX_LEN	4
 
 /* ----------------------------
  *     IP register offsets
@@ -137,6 +140,13 @@ struct axis_fifo {
 
 	struct device *dt_device; /* device created from the device tree */
 	struct miscdevice miscdev;
+
+	struct dentry *debugfs_dir;
+};
+
+struct axis_fifo_debug_reg {
+	const char * const name;
+	unsigned int offset;
 };
 
 /* ----------------------------
@@ -537,6 +547,37 @@ static const struct file_operations fops = {
 	.write = axis_fifo_write
 };
 
+static int axis_fifo_debugfs_regs_show(struct seq_file *m, void *p)
+{
+	static const struct axis_fifo_debug_reg regs[] = {
+		{"isr", XLLF_ISR_OFFSET},
+		{"ier", XLLF_IER_OFFSET},
+		{"tdfv", XLLF_TDFV_OFFSET},
+		{"rdfo", XLLF_RDFO_OFFSET},
+		{ /* Sentinel */ },
+	};
+	const struct axis_fifo_debug_reg *reg;
+	struct axis_fifo *fifo = m->private;
+
+	for (reg = regs; reg->name; ++reg) {
+		u32 val = ioread32(fifo->base_addr + reg->offset);
+
+		seq_printf(m, "%*s: 0x%08x\n", AXIS_FIFO_DEBUG_REG_NAME_MAX_LEN,
+			   reg->name, val);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(axis_fifo_debugfs_regs);
+
+static void axis_fifo_debugfs_init(struct axis_fifo *fifo)
+{
+	fifo->debugfs_dir = debugfs_create_dir(dev_name(fifo->dt_device), NULL);
+
+	debugfs_create_file("regs", 0444, fifo->debugfs_dir, fifo,
+			    &axis_fifo_debugfs_regs_fops);
+}
+
 /* read named property from the device tree */
 static int get_dts_property(struct axis_fifo *fifo,
 			    char *name, unsigned int *var)
@@ -708,6 +749,8 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto err_initial;
 
+	axis_fifo_debugfs_init(fifo);
+
 	return 0;
 
 err_initial:
@@ -720,6 +763,7 @@ static void axis_fifo_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct axis_fifo *fifo = dev_get_drvdata(dev);
 
+	debugfs_remove(fifo->debugfs_dir);
 	misc_deregister(&fifo->miscdev);
 	dev_set_drvdata(dev, NULL);
 }
