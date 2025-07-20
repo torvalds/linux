@@ -885,17 +885,6 @@ static int panthor_vm_flush_range(struct panthor_vm *vm, u64 iova, u64 size)
 	return ret;
 }
 
-/**
- * panthor_vm_flush_all() - Flush L2 caches for the entirety of a VM's AS
- * @vm: VM whose cache to flush
- *
- * Return: 0 on success, a negative error code if flush failed.
- */
-int panthor_vm_flush_all(struct panthor_vm *vm)
-{
-	return panthor_vm_flush_range(vm, vm->base.mm_start, vm->base.mm_range);
-}
-
 static int panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
 {
 	struct panthor_device *ptdev = vm->ptdev;
@@ -2270,7 +2259,7 @@ static enum drm_gpu_sched_stat
 panthor_vm_bind_timedout_job(struct drm_sched_job *sched_job)
 {
 	WARN(1, "VM_BIND ops are synchronous for now, there should be no timeout!");
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_RESET;
 }
 
 static const struct drm_sched_backend_ops panthor_vm_bind_ops = {

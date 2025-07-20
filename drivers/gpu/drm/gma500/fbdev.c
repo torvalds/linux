@@ -203,7 +203,10 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 		return PTR_ERR(backing);
 	obj = &backing->base;
 
-	fb = psb_framebuffer_create(dev, &mode_cmd, obj);
+	fb = psb_framebuffer_create(dev,
+				    drm_get_format_info(dev, mode_cmd.pixel_format,
+							mode_cmd.modifier[0]),
+				    &mode_cmd, obj);
 	if (IS_ERR(fb)) {
 		ret = PTR_ERR(fb);
 		goto err_drm_gem_object_put;

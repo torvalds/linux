@@ -295,7 +295,8 @@ nouveau_framebuffer_new(struct drm_device *dev,
 		kind = nvbo->kind;
 	}
 
-	info = drm_get_format_info(dev, mode_cmd);
+	info = drm_get_format_info(dev, mode_cmd->pixel_format,
+				   mode_cmd->modifier[0]);
 
 	for (i = 0; i < info->num_planes; i++) {
 		height = drm_format_info_plane_height(info,
@@ -320,7 +321,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
 
-	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, NULL, mode_cmd);
 	fb->obj[0] = gem;
 
 	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
@@ -332,6 +333,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
+				const struct drm_format_info *info,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_framebuffer *fb;

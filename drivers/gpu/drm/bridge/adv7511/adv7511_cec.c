@@ -346,8 +346,8 @@ static int adv7511_cec_parse_dt(struct device *dev, struct adv7511 *adv7511)
 	return 0;
 }
 
-int adv7511_cec_init(struct drm_connector *connector,
-		     struct drm_bridge *bridge)
+int adv7511_cec_init(struct drm_bridge *bridge,
+		     struct drm_connector *connector)
 {
 	struct adv7511 *adv7511 = bridge_to_adv7511(bridge);
 	struct device *dev = &adv7511->i2c_main->dev;

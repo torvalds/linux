@@ -447,7 +447,7 @@ hang is usually the most critical one which can result in consequential hangs or
 complete wedging.
 
 Task information
----------------
+----------------
 
 The information about which application (if any) was involved in the device
 wedging is useful for userspace if they want to notify the user about what
@@ -460,8 +460,8 @@ event string.
 
 The reliability of this information is driver and hardware specific, and should
 be taken with a caution regarding it's precision. To have a big picture of what
-really happened, the devcoredump file provides should have much more detailed
-information about the device state and about the event.
+really happened, the devcoredump file provides much more detailed information
+about the device state and about the event.
 
 Consumer prerequisites
 ----------------------

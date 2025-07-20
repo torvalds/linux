@@ -543,7 +543,8 @@ static int lt9611_regulator_enable(struct lt9611 *lt9611)
 	return 0;
 }
 
-static enum drm_connector_status lt9611_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+lt9611_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	unsigned int reg_val = 0;
@@ -936,8 +937,8 @@ lt9611_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static int lt9611_hdmi_audio_startup(struct drm_connector *connector,
-				     struct drm_bridge *bridge)
+static int lt9611_hdmi_audio_startup(struct drm_bridge *bridge,
+				     struct drm_connector *connector)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 
@@ -952,8 +953,8 @@ static int lt9611_hdmi_audio_startup(struct drm_connector *connector,
 	return 0;
 }
 
-static int lt9611_hdmi_audio_prepare(struct drm_connector *connector,
-				     struct drm_bridge *bridge,
+static int lt9611_hdmi_audio_prepare(struct drm_bridge *bridge,
+				     struct drm_connector *connector,
 				     struct hdmi_codec_daifmt *fmt,
 				     struct hdmi_codec_params *hparms)
 {
@@ -974,8 +975,8 @@ static int lt9611_hdmi_audio_prepare(struct drm_connector *connector,
 								       &hparms->cea);
 }
 
-static void lt9611_hdmi_audio_shutdown(struct drm_connector *connector,
-				       struct drm_bridge *bridge)
+static void lt9611_hdmi_audio_shutdown(struct drm_bridge *bridge,
+				       struct drm_connector *connector)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 

@@ -14,6 +14,7 @@
 
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
+			    const struct drm_format_info *info,
 			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct exynos_drm_gem **exynos_gem,
 			    int count);

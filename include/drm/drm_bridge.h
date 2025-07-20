@@ -660,7 +660,8 @@ struct drm_bridge_funcs {
 	 *
 	 * drm_connector_status indicating the bridge output status.
 	 */
-	enum drm_connector_status (*detect)(struct drm_bridge *bridge);
+	enum drm_connector_status (*detect)(struct drm_bridge *bridge,
+					    struct drm_connector *connector);
 
 	/**
 	 * @get_modes:
@@ -817,8 +818,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	int (*hdmi_audio_startup)(struct drm_connector *connector,
-				  struct drm_bridge *bridge);
+	int (*hdmi_audio_startup)(struct drm_bridge *bridge,
+				  struct drm_connector *connector);
 
 	/**
 	 * @hdmi_audio_prepare:
@@ -831,8 +832,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	int (*hdmi_audio_prepare)(struct drm_connector *connector,
-				  struct drm_bridge *bridge,
+	int (*hdmi_audio_prepare)(struct drm_bridge *bridge,
+				  struct drm_connector *connector,
 				  struct hdmi_codec_daifmt *fmt,
 				  struct hdmi_codec_params *hparms);
 
@@ -847,8 +848,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	void (*hdmi_audio_shutdown)(struct drm_connector *connector,
-				    struct drm_bridge *bridge);
+	void (*hdmi_audio_shutdown)(struct drm_bridge *bridge,
+				    struct drm_connector *connector);
 
 	/**
 	 * @hdmi_audio_mute_stream:
@@ -861,12 +862,12 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	int (*hdmi_audio_mute_stream)(struct drm_connector *connector,
-				      struct drm_bridge *bridge,
+	int (*hdmi_audio_mute_stream)(struct drm_bridge *bridge,
+				      struct drm_connector *connector,
 				      bool enable, int direction);
 
-	int (*hdmi_cec_init)(struct drm_connector *connector,
-			     struct drm_bridge *bridge);
+	int (*hdmi_cec_init)(struct drm_bridge *bridge,
+			     struct drm_connector *connector);
 
 	int (*hdmi_cec_enable)(struct drm_bridge *bridge, bool enable);
 
@@ -886,8 +887,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	int (*dp_audio_startup)(struct drm_connector *connector,
-				struct drm_bridge *bridge);
+	int (*dp_audio_startup)(struct drm_bridge *bridge,
+				struct drm_connector *connector);
 
 	/**
 	 * @dp_audio_prepare:
@@ -900,8 +901,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	int (*dp_audio_prepare)(struct drm_connector *connector,
-				struct drm_bridge *bridge,
+	int (*dp_audio_prepare)(struct drm_bridge *bridge,
+				struct drm_connector *connector,
 				struct hdmi_codec_daifmt *fmt,
 				struct hdmi_codec_params *hparms);
 
@@ -916,8 +917,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	void (*dp_audio_shutdown)(struct drm_connector *connector,
-				  struct drm_bridge *bridge);
+	void (*dp_audio_shutdown)(struct drm_bridge *bridge,
+				  struct drm_connector *connector);
 
 	/**
 	 * @dp_audio_mute_stream:
@@ -930,8 +931,8 @@ struct drm_bridge_funcs {
 	 * Returns:
 	 * 0 on success, a negative error code otherwise
 	 */
-	int (*dp_audio_mute_stream)(struct drm_connector *connector,
-				    struct drm_bridge *bridge,
+	int (*dp_audio_mute_stream)(struct drm_bridge *bridge,
+				    struct drm_connector *connector,
 				    bool enable, int direction);
 
 	/**
@@ -1382,7 +1383,8 @@ drm_atomic_helper_bridge_propagate_bus_fmt(struct drm_bridge *bridge,
 					u32 output_fmt,
 					unsigned int *num_input_fmts);
 
-enum drm_connector_status drm_bridge_detect(struct drm_bridge *bridge);
+enum drm_connector_status
+drm_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector);
 int drm_bridge_get_modes(struct drm_bridge *bridge,
 			 struct drm_connector *connector);
 const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,

@@ -45,12 +45,12 @@ struct msm_dp_audio *msm_dp_audio_get(struct platform_device *pdev,
  */
 void msm_dp_audio_put(struct msm_dp_audio *msm_dp_audio);
 
-int msm_dp_audio_prepare(struct drm_connector *connector,
-			 struct drm_bridge *bridge,
+int msm_dp_audio_prepare(struct drm_bridge *bridge,
+			 struct drm_connector *connector,
 			 struct hdmi_codec_daifmt *daifmt,
 			 struct hdmi_codec_params *params);
-void msm_dp_audio_shutdown(struct drm_connector *connector,
-			   struct drm_bridge *bridge);
+void msm_dp_audio_shutdown(struct drm_bridge *bridge,
+			   struct drm_connector *connector);
 
 #endif /* _DP_AUDIO_H_ */
 
