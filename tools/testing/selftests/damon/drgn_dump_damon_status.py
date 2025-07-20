@@ -117,6 +117,19 @@ def damos_watermarks_to_dict(watermarks):
         ['high', int], ['mid', int], ['low', int],
         ])
 
+def damos_migrate_dests_to_dict(dests):
+    nr_dests = int(dests.nr_dests)
+    node_id_arr = []
+    weight_arr = []
+    for i in range(nr_dests):
+        node_id_arr.append(int(dests.node_id_arr[i]))
+        weight_arr.append(int(dests.weight_arr[i]))
+    return {
+            'node_id_arr': node_id_arr,
+            'weight_arr': weight_arr,
+            'nr_dests': nr_dests,
+            }
+
 def scheme_to_dict(scheme):
     return to_dict(scheme, [
         ['pattern', damos_access_pattern_to_dict],
@@ -125,6 +138,7 @@ def scheme_to_dict(scheme):
         ['quota', damos_quota_to_dict],
         ['wmarks', damos_watermarks_to_dict],
         ['target_nid', int],
+        ['migrate_dests', damos_migrate_dests_to_dict],
         ])
 
 def schemes_to_list(schemes):
