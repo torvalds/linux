@@ -201,6 +201,96 @@ class DamosWatermarks:
         if err is not None:
             return err
 
+class DamosFilter:
+    type_ = None
+    matching = None
+    allow = None
+    memcg_path = None
+    addr_start = None
+    addr_end = None
+    target_idx = None
+    min_ = None
+    max_ = None
+    idx = None
+    filters = None  # owner filters
+
+    def __init__(self, type_='anon', matching=False, allow=False,
+                 memcg_path='', addr_start=0, addr_end=0, target_idx=0, min_=0,
+                 max_=0):
+        self.type_ = type_
+        self.matching = matching
+        self.allow = allow
+        self.memcg_path = memcg_path,
+        self.addr_start = addr_start
+        self.addr_end = addr_end
+        self.target_idx = target_idx
+        self.min_ = min_
+        self.max_ = max_
+
+    def sysfs_dir(self):
+        return os.path.join(self.filters.sysfs_dir(), '%d' % self.idx)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'type'), self.type_)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'matching'),
+                         self.matching)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'allow'), self.allow)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'memcg_path'),
+                         self.memcg_path)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'addr_start'),
+                         self.addr_start)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'addr_end'),
+                         self.addr_end)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'damon_target_idx'),
+                         self.target_idx)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'min'), self.min_)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'max'), self.max_)
+        if err is not None:
+            return err
+        return None
+
+class DamosFilters:
+    name = None
+    filters = None
+    scheme = None   # owner scheme
+
+    def __init__(self, name, filters=[]):
+        self.name = name
+        self.filters = filters
+        for idx, filter_ in enumerate(self.filters):
+            filter_.idx = idx
+            filter_.filters = self
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), self.name)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'nr_filters'),
+                         len(self.filters))
+        if err is not None:
+            return err
+        for filter_ in self.filters:
+            err = filter_.stage()
+            if err is not None:
+                return err
+        return None
+
 class DamosStats:
     nr_tried = None
     sz_tried = None
@@ -227,8 +317,10 @@ class Damos:
     access_pattern = None
     quota = None
     watermarks = None
+    core_filters = None
+    ops_filters = None
+    filters = None
     apply_interval_us = None
-    # todo: Support watermarks, stats
     idx = None
     context = None
     tried_bytes = None
@@ -237,6 +329,7 @@ class Damos:
 
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
                  quota=DamosQuota(), watermarks=DamosWatermarks(),
+                 core_filters=[], ops_filters=[], filters=[],
                  apply_interval_us=0):
         self.action = action
         self.access_pattern = access_pattern
@@ -245,6 +338,16 @@ class Damos:
         self.quota.scheme = self
         self.watermarks = watermarks
         self.watermarks.scheme = self
+
+        self.core_filters = DamosFilters(name='core_filters',
+                                         filters=core_filters)
+        self.core_filters.scheme = self
+        self.ops_filters = DamosFilters(name='ops_filters',
+                                         filters=ops_filters)
+        self.ops_filters.scheme = self
+        self.filters = DamosFilters(name='filters', filters=filters)
+        self.filters.scheme = self
+
         self.apply_interval_us = apply_interval_us
 
     def sysfs_dir(self):
@@ -271,9 +374,13 @@ class Damos:
         if err is not None:
             return err
 
-        # disable filters
-        err = write_file(
-                os.path.join(self.sysfs_dir(), 'filters', 'nr_filters'), '0')
+        err = self.core_filters.stage()
+        if err is not None:
+            return err
+        err = self.ops_filters.stage()
+        if err is not None:
+            return err
+        err = self.filters.stage()
         if err is not None:
             return err
 
