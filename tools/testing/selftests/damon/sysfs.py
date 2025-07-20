@@ -80,6 +80,42 @@ def assert_migrate_dests_committed(dests, dump):
         assert_true(dump['node_id_arr'][idx] == dest.id, 'node_id', dump)
         assert_true(dump['weight_arr'][idx] == dest.weight, 'weight', dump)
 
+def assert_access_pattern_committed(pattern, dump):
+    assert_true(dump['min_sz_region'] == pattern.size[0], 'min_sz_region',
+                dump)
+    assert_true(dump['max_sz_region'] == pattern.size[1], 'max_sz_region',
+                dump)
+    assert_true(dump['min_nr_accesses'] == pattern.nr_accesses[0],
+                'min_nr_accesses', dump)
+    assert_true(dump['max_nr_accesses'] == pattern.nr_accesses[1],
+                'max_nr_accesses', dump)
+    assert_true(dump['min_age_region'] == pattern.age[0], 'min_age_region',
+                dump)
+    assert_true(dump['max_age_region'] == pattern.age[1], 'miaxage_region',
+                dump)
+
+def assert_scheme_committed(scheme, dump):
+    assert_access_pattern_committed(scheme.access_pattern, dump['pattern'])
+    action_val = {
+            'willneed': 0,
+            'cold': 1,
+            'pageout': 2,
+            'hugepage': 3,
+            'nohugeapge': 4,
+            'lru_prio': 5,
+            'lru_deprio': 6,
+            'migrate_hot': 7,
+            'migrate_cold': 8,
+            'stat': 9,
+            }
+    assert_true(dump['action'] == action_val[scheme.action], 'action', dump)
+    assert_true(dump['apply_interval_us'] == scheme. apply_interval_us,
+                'apply_interval_us', dump)
+    assert_true(dump['target_nid'] == scheme.target_nid, 'target_nid', dump)
+    assert_migrate_dests_committed(scheme.dests, dump['migrate_dests'])
+    assert_quota_committed(scheme.quota, dump['quota'])
+    assert_watermarks_committed(scheme.watermarks, dump['wmarks'])
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -127,28 +163,7 @@ def main():
     if len(ctx['schemes']) != 1:
         fail('number of schemes', status)
 
-    scheme = ctx['schemes'][0]
-    if scheme['pattern'] != {
-            'min_sz_region': 0,
-            'max_sz_region': 2**64 - 1,
-            'min_nr_accesses': 0,
-            'max_nr_accesses': 2**32 - 1,
-            'min_age_region': 0,
-            'max_age_region': 2**32 - 1,
-            }:
-        fail('damos pattern', status)
-    if scheme['action'] != 9:   # stat
-        fail('damos action', status)
-    if scheme['apply_interval_us'] != 0:
-        fail('damos apply interval', status)
-    if scheme['target_nid'] != -1:
-        fail('damos target nid', status)
-
-    assert_migrate_dests_committed(_damon_sysfs.DamosDests(),
-                                   scheme['migrate_dests'])
-    assert_quota_committed(_damon_sysfs.DamosQuota(), scheme['quota'])
-    assert_watermarks_committed(_damon_sysfs.DamosWatermarks(),
-                                scheme['wmarks'])
+    assert_scheme_committed(_damon_sysfs.Damos(), ctx['schemes'][0])
 
     kdamonds.stop()
 
