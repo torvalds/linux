@@ -45,12 +45,28 @@ def assert_watermarks_committed(watermarks, dump):
     assert_true(dump['mid'] == watermarks.mid, 'mid', dump)
     assert_true(dump['low'] == watermarks.low, 'low', dump)
 
+def assert_quota_goal_committed(qgoal, dump):
+    metric_val = {
+            'user_input': 0,
+            'some_mem_psi_us': 1,
+            'node_mem_used_bp': 2,
+            'node_mem_free_bp': 3,
+            }
+    assert_true(dump['metric'] == metric_val[qgoal.metric], 'metric', dump)
+    assert_true(dump['target_value'] == qgoal.target_value, 'target_value',
+                dump)
+    if qgoal.metric == 'user_input':
+        assert_true(dump['current_value'] == qgoal.current_value,
+                    'current_value', dump)
+    assert_true(dump['nid'] == qgoal.nid, 'nid', dump)
+
 def assert_quota_committed(quota, dump):
     assert_true(dump['reset_interval'] == quota.reset_interval_ms,
                 'reset_interval', dump)
     assert_true(dump['ms'] == quota.ms, 'ms', dump)
     assert_true(dump['sz'] == quota.sz, 'sz', dump)
-    # TODO: assert goals are committed
+    for idx, qgoal in enumerate(quota.goals):
+        assert_quota_goal_committed(qgoal, dump['goals'][idx])
     assert_true(dump['weight_sz'] == quota.weight_sz_permil, 'weight_sz', dump)
     assert_true(dump['weight_nr_accesses'] == quota.weight_nr_accesses_permil,
                 'weight_nr_accesses', dump)
