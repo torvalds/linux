@@ -29,6 +29,22 @@ def fail(expectation, status):
     print(json.dumps(status, indent=4))
     exit(1)
 
+def assert_true(condition, expectation, status):
+    if condition is not True:
+        fail(expectation, status)
+
+def assert_watermarks_committed(watermarks, dump):
+    wmark_metric_val = {
+            'none': 0,
+            'free_mem_rate': 1,
+            }
+    assert_true(dump['metric'] == wmark_metric_val[watermarks.metric],
+                'metric', dump)
+    assert_true(dump['interval'] == watermarks.interval, 'interval', dump)
+    assert_true(dump['high'] == watermarks.high, 'high', dump)
+    assert_true(dump['mid'] == watermarks.mid, 'mid', dump)
+    assert_true(dump['low'] == watermarks.low, 'low', dump)
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -105,14 +121,8 @@ def main():
             }:
         fail('damos quota', status)
 
-    if scheme['wmarks'] != {
-            'metric': 0,
-            'interval': 0,
-            'high': 0,
-            'mid': 0,
-            'low': 0,
-            }:
-        fail('damos wmarks', status)
+    assert_watermarks_committed(_damon_sysfs.DamosWatermarks(),
+                                scheme['wmarks'])
 
     kdamonds.stop()
 
