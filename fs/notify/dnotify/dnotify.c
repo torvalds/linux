@@ -308,16 +308,16 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 		goto out_err;
 	}
 
+	error = file_f_owner_allocate(filp);
+	if (error)
+		goto out_err;
+
 	/* new fsnotify mark, we expect most fcntl calls to add a new mark */
 	new_dn_mark = kmem_cache_alloc(dnotify_mark_cache, GFP_KERNEL);
 	if (!new_dn_mark) {
 		error = -ENOMEM;
 		goto out_err;
 	}
-
-	error = file_f_owner_allocate(filp);
-	if (error)
-		goto out_err;
 
 	/* set up the new_fsn_mark and new_dn_mark */
 	new_fsn_mark = &new_dn_mark->fsn_mark;

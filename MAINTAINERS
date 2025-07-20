@@ -25909,6 +25909,8 @@ F:	fs/hostfs/
 
 USERSPACE COPYIN/COPYOUT (UIOVEC)
 M:	Alexander Viro <viro@zeniv.linux.org.uk>
+L:	linux-block@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	include/linux/uio.h
 F:	lib/iov_iter.c

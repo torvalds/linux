@@ -302,7 +302,7 @@ macro_rules! kunit_unsafe_test_suite {
                     is_init: false,
                 };
 
-            #[used]
+            #[used(compiler)]
             #[allow(unused_unsafe)]
             #[cfg_attr(not(target_os = "macos"), link_section = ".kunit_test_suites")]
             static mut KUNIT_TEST_SUITE_ENTRY: *const ::kernel::bindings::kunit_suite =

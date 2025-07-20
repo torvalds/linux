@@ -171,36 +171,33 @@ DEFINE_ATTR_LIST_EVENT(xfs_attr_leaf_list);
 DEFINE_ATTR_LIST_EVENT(xfs_attr_node_list);
 
 TRACE_EVENT(xfs_calc_atomic_write_unit_max,
-	TP_PROTO(struct xfs_mount *mp, unsigned int max_write,
-		 unsigned int max_ioend, unsigned int max_agsize,
-		 unsigned int max_rgsize),
-	TP_ARGS(mp, max_write, max_ioend, max_agsize, max_rgsize),
+	TP_PROTO(struct xfs_mount *mp, enum xfs_group_type type,
+		 unsigned int max_write, unsigned int max_ioend,
+		 unsigned int max_gsize, unsigned int awu_max),
+	TP_ARGS(mp, type, max_write, max_ioend, max_gsize, awu_max),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(enum xfs_group_type, type)
 		__field(unsigned int, max_write)
 		__field(unsigned int, max_ioend)
-		__field(unsigned int, max_agsize)
-		__field(unsigned int, max_rgsize)
-		__field(unsigned int, data_awu_max)
-		__field(unsigned int, rt_awu_max)
+		__field(unsigned int, max_gsize)
+		__field(unsigned int, awu_max)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
+		__entry->type = type;
 		__entry->max_write = max_write;
 		__entry->max_ioend = max_ioend;
-		__entry->max_agsize = max_agsize;
-		__entry->max_rgsize = max_rgsize;
-		__entry->data_awu_max = mp->m_groups[XG_TYPE_AG].awu_max;
-		__entry->rt_awu_max = mp->m_groups[XG_TYPE_RTG].awu_max;
+		__entry->max_gsize = max_gsize;
+		__entry->awu_max = awu_max;
 	),
-	TP_printk("dev %d:%d max_write %u max_ioend %u max_agsize %u max_rgsize %u data_awu_max %u rt_awu_max %u",
+	TP_printk("dev %d:%d %s max_write %u max_ioend %u max_gsize %u awu_max %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->max_write,
 		  __entry->max_ioend,
-		  __entry->max_agsize,
-		  __entry->max_rgsize,
-		  __entry->data_awu_max,
-		  __entry->rt_awu_max)
+		  __entry->max_gsize,
+		  __entry->awu_max)
 );
 
 TRACE_EVENT(xfs_calc_max_atomic_write_fsblocks,
