@@ -25,6 +25,11 @@ def to_dict(object, attr_name_converter):
         d[attr_name] = converter(getattr(object, attr_name))
     return d
 
+def ops_to_dict(ops):
+    return to_dict(ops, [
+        ['id', int],
+        ])
+
 def intervals_goal_to_dict(goal):
     return to_dict(goal, [
         ['access_bp', int],
@@ -148,6 +153,7 @@ def schemes_to_list(schemes):
 
 def damon_ctx_to_dict(ctx):
     return to_dict(ctx, [
+        ['ops', ops_to_dict],
         ['attrs', attrs_to_dict],
         ['adaptive_targets', targets_to_list],
         ['schemes', schemes_to_list],
