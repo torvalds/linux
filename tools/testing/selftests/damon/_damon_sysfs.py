@@ -319,6 +319,52 @@ class DamosFilters:
                 return err
         return None
 
+class DamosDest:
+    id = None
+    weight = None
+    idx = None
+    dests = None    # owner dests
+
+    def __init__(self, id=0, weight=0):
+        self.id = id
+        self.weight = weight
+
+    def sysfs_dir(self):
+        return os.path.join(self.dests.sysfs_dir(), '%d' % self.idx)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'id'), self.id)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'weight'), self.weight)
+        if err is not None:
+            return err
+        return None
+
+class DamosDests:
+    dests = None
+    scheme = None   # owner scheme
+
+    def __init__(self, dests=[]):
+        self.dests = dests
+        for idx, dest in enumerate(self.dests):
+            dest.idx = idx
+            dest.dests = self
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), 'dests')
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'nr_dests'),
+                         len(self.dests))
+        if err is not None:
+            return err
+        for dest in self.dests:
+            err = dest.stage()
+            if err is not None:
+                return err
+        return None
+
 class DamosStats:
     nr_tried = None
     sz_tried = None
@@ -349,6 +395,7 @@ class Damos:
     ops_filters = None
     filters = None
     apply_interval_us = None
+    dests = None
     idx = None
     context = None
     tried_bytes = None
@@ -358,7 +405,7 @@ class Damos:
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
                  quota=DamosQuota(), watermarks=DamosWatermarks(),
                  core_filters=[], ops_filters=[], filters=[],
-                 apply_interval_us=0):
+                 dests=DamosDests(), apply_interval_us=0):
         self.action = action
         self.access_pattern = access_pattern
         self.access_pattern.scheme = self
@@ -375,6 +422,9 @@ class Damos:
         self.ops_filters.scheme = self
         self.filters = DamosFilters(name='filters', filters=filters)
         self.filters.scheme = self
+
+        self.dests = dests
+        self.dests.scheme = self
 
         self.apply_interval_us = apply_interval_us
 
@@ -409,6 +459,10 @@ class Damos:
         if err is not None:
             return err
         err = self.filters.stage()
+        if err is not None:
+            return err
+
+        err = self.dests.stage()
         if err is not None:
             return err
 
