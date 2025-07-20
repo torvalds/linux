@@ -1022,8 +1022,8 @@ cleanup_all:
 	put_file_access(f);
 cleanup_file:
 	path_put(&f->f_path);
-	f->f_path.mnt = NULL;
-	f->f_path.dentry = NULL;
+	f->__f_path.mnt = NULL;
+	f->__f_path.dentry = NULL;
 	f->f_inode = NULL;
 	return error;
 }
@@ -1050,7 +1050,7 @@ int finish_open(struct file *file, struct dentry *dentry,
 {
 	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 
-	file->f_path.dentry = dentry;
+	file->__f_path.dentry = dentry;
 	return do_dentry_open(file, open);
 }
 EXPORT_SYMBOL(finish_open);
@@ -1071,7 +1071,7 @@ EXPORT_SYMBOL(finish_open);
  */
 int finish_no_open(struct file *file, struct dentry *dentry)
 {
-	file->f_path.dentry = dentry;
+	file->__f_path.dentry = dentry;
 	return 0;
 }
 EXPORT_SYMBOL(finish_no_open);
@@ -1091,7 +1091,7 @@ int vfs_open(const struct path *path, struct file *file)
 {
 	int ret;
 
-	file->f_path = *path;
+	file->__f_path = *path;
 	ret = do_dentry_open(file, NULL);
 	if (!ret) {
 		/*

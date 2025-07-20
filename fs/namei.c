@@ -3563,8 +3563,8 @@ static struct dentry *atomic_open(struct nameidata *nd, struct dentry *dentry,
 	if (nd->flags & LOOKUP_DIRECTORY)
 		open_flag |= O_DIRECTORY;
 
-	file->f_path.dentry = DENTRY_NOT_SET;
-	file->f_path.mnt = nd->path.mnt;
+	file->__f_path.dentry = DENTRY_NOT_SET;
+	file->__f_path.mnt = nd->path.mnt;
 	error = dir->i_op->atomic_open(dir, dentry, file,
 				       open_to_namei_flags(open_flag), mode);
 	d_lookup_done(dentry);
@@ -3932,8 +3932,8 @@ int vfs_tmpfile(struct mnt_idmap *idmap,
 	child = d_alloc(parentpath->dentry, &slash_name);
 	if (unlikely(!child))
 		return -ENOMEM;
-	file->f_path.mnt = parentpath->mnt;
-	file->f_path.dentry = child;
+	file->__f_path.mnt = parentpath->mnt;
+	file->__f_path.dentry = child;
 	mode = vfs_prepare_mode(idmap, dir, mode, mode, mode);
 	error = dir->i_op->tmpfile(idmap, dir, file, mode);
 	dput(child);
