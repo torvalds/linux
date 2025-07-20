@@ -1064,16 +1064,9 @@ EXPORT_SYMBOL_GPL(kvm_apic_match_dest);
 int kvm_vector_to_index(u32 vector, u32 dest_vcpus,
 		       const unsigned long *bitmap, u32 bitmap_size)
 {
-	u32 mod;
-	int i, idx = -1;
+	int idx = find_nth_bit(bitmap, bitmap_size, vector % dest_vcpus);
 
-	mod = vector % dest_vcpus;
-
-	for (i = 0; i <= mod; i++) {
-		idx = find_next_bit(bitmap, bitmap_size, idx + 1);
-		BUG_ON(idx == bitmap_size);
-	}
-
+	BUG_ON(idx >= bitmap_size);
 	return idx;
 }
 
