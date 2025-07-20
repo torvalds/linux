@@ -867,6 +867,71 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(rvu_pf_cgx_map, rvu_pf_cgx_map_display, NULL);
 
+static int rvu_dbg_rvu_fwdata_display(struct seq_file *s, void *unused)
+{
+	struct rvu *rvu = s->private;
+	struct rvu_fwdata *fwdata;
+	u8 mac[ETH_ALEN];
+	int count = 0, i;
+
+	if (!rvu->fwdata)
+		return -EAGAIN;
+
+	fwdata = rvu->fwdata;
+	seq_puts(s, "\nRVU Firmware Data:\n");
+	seq_puts(s, "\n\t\tPTP INFORMATION\n");
+	seq_puts(s, "\t\t===============\n");
+	seq_printf(s, "\t\texternal clockrate \t :%x\n",
+		   fwdata->ptp_ext_clk_rate);
+	seq_printf(s, "\t\texternal timestamp \t :%x\n",
+		   fwdata->ptp_ext_tstamp);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "\n\t\tSDP CHANNEL INFORMATION\n");
+	seq_puts(s, "\t\t=======================\n");
+	seq_printf(s, "\t\tValid \t\t\t :%x\n", fwdata->channel_data.valid);
+	seq_printf(s, "\t\tNode ID \t\t :%x\n",
+		   fwdata->channel_data.info.node_id);
+	seq_printf(s, "\t\tNumber of VFs  \t\t :%x\n",
+		   fwdata->channel_data.info.max_vfs);
+	seq_printf(s, "\t\tNumber of PF-Rings \t :%x\n",
+		   fwdata->channel_data.info.num_pf_rings);
+	seq_printf(s, "\t\tPF SRN \t\t\t :%x\n",
+		   fwdata->channel_data.info.pf_srn);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "\n\t\tPF-INDEX  MACADDRESS\n");
+	seq_puts(s, "\t\t====================\n");
+	for (i = 0; i < PF_MACNUM_MAX; i++) {
+		u64_to_ether_addr(fwdata->pf_macs[i], mac);
+		if (!is_zero_ether_addr(mac)) {
+			seq_printf(s, "\t\t  %d       %pM\n", i, mac);
+			count++;
+		}
+	}
+
+	if (!count)
+		seq_puts(s, "\t\tNo valid address found\n");
+
+	seq_puts(s, "\n\t\tVF-INDEX  MACADDRESS\n");
+	seq_puts(s, "\t\t====================\n");
+	count = 0;
+	for (i = 0; i < VF_MACNUM_MAX; i++) {
+		u64_to_ether_addr(fwdata->vf_macs[i], mac);
+		if (!is_zero_ether_addr(mac)) {
+			seq_printf(s, "\t\t  %d       %pM\n", i, mac);
+			count++;
+		}
+	}
+
+	if (!count)
+		seq_puts(s, "\t\tNo valid address found\n");
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(rvu_fwdata, rvu_fwdata_display, NULL);
+
 static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blkaddr, int lf,
 				u16 *pcifunc)
 {
@@ -2923,6 +2988,97 @@ static int rvu_dbg_cgx_dmac_flt_display(struct seq_file *s, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(cgx_dmac_flt, cgx_dmac_flt_display, NULL);
 
+static int cgx_print_fwdata(struct seq_file *s, int lmac_id)
+{
+	struct cgx_lmac_fwdata_s *fwdata;
+	void *cgxd = s->private;
+	struct phy_s *phy;
+	struct rvu *rvu;
+	int cgx_id, i;
+
+	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
+					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
+	if (!rvu)
+		return -ENODEV;
+
+	if (!rvu->fwdata)
+		return -EAGAIN;
+
+	cgx_id = cgx_get_cgxid(cgxd);
+
+	if (rvu->hw->lmac_per_cgx == CGX_LMACS_USX)
+		fwdata =  &rvu->fwdata->cgx_fw_data_usx[cgx_id][lmac_id];
+	else
+		fwdata =  &rvu->fwdata->cgx_fw_data[cgx_id][lmac_id];
+
+	seq_puts(s, "\nFIRMWARE SHARED:\n");
+	seq_puts(s, "\t\tSUPPORTED LINK INFORMATION\t\t\n");
+	seq_puts(s, "\t\t==========================\n");
+	seq_printf(s, "\t\t Link modes \t\t :%llx\n",
+		   fwdata->supported_link_modes);
+	seq_printf(s, "\t\t Autoneg \t\t :%llx\n", fwdata->supported_an);
+	seq_printf(s, "\t\t FEC \t\t\t :%llx\n", fwdata->supported_fec);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "\t\tADVERTISED LINK INFORMATION\t\t\n");
+	seq_puts(s, "\t\t==========================\n");
+	seq_printf(s, "\t\t Link modes \t\t :%llx\n",
+		   (u64)fwdata->advertised_link_modes);
+	seq_printf(s, "\t\t Autoneg \t\t :%x\n", fwdata->advertised_an);
+	seq_printf(s, "\t\t FEC \t\t\t :%llx\n", fwdata->advertised_fec);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "\t\tLMAC CONFIG\t\t\n");
+	seq_puts(s, "\t\t============\n");
+	seq_printf(s, "\t\t rw_valid  \t\t :%x\n",  fwdata->rw_valid);
+	seq_printf(s, "\t\t lmac_type \t\t :%x\n", fwdata->lmac_type);
+	seq_printf(s, "\t\t portm_idx \t\t :%x\n", fwdata->portm_idx);
+	seq_printf(s, "\t\t mgmt_port \t\t :%x\n", fwdata->mgmt_port);
+	seq_printf(s, "\t\t Link modes own \t :%llx\n",
+		   (u64)fwdata->advertised_link_modes_own);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "\n\t\tEEPROM DATA\n");
+	seq_puts(s, "\t\t===========\n");
+	seq_printf(s, "\t\t sff_id \t\t :%x\n", fwdata->sfp_eeprom.sff_id);
+	seq_puts(s, "\t\t data \t\t\t :\n");
+	seq_puts(s, "\t\t");
+	for (i = 0; i < SFP_EEPROM_SIZE; i++) {
+		seq_printf(s, "%x", fwdata->sfp_eeprom.buf[i]);
+		if ((i + 1) % 16 == 0) {
+			seq_puts(s, "\n");
+			seq_puts(s, "\t\t");
+		}
+	}
+	seq_puts(s, "\n");
+
+	phy = &fwdata->phy;
+	seq_puts(s, "\n\t\tPHY INFORMATION\n");
+	seq_puts(s, "\t\t===============\n");
+	seq_printf(s, "\t\t Mod type configurable \t\t :%x\n",
+		   phy->misc.can_change_mod_type);
+	seq_printf(s, "\t\t Mod type \t\t\t :%x\n", phy->misc.mod_type);
+	seq_printf(s, "\t\t Support FEC \t\t\t :%x\n", phy->misc.has_fec_stats);
+	seq_printf(s, "\t\t RSFEC corrected words \t\t :%x\n",
+		   phy->fec_stats.rsfec_corr_cws);
+	seq_printf(s, "\t\t RSFEC uncorrected words \t :%x\n",
+		   phy->fec_stats.rsfec_uncorr_cws);
+	seq_printf(s, "\t\t BRFEC corrected words \t\t :%x\n",
+		   phy->fec_stats.brfec_corr_blks);
+	seq_printf(s, "\t\t BRFEC uncorrected words \t :%x\n",
+		   phy->fec_stats.brfec_uncorr_blks);
+	seq_puts(s, "\n");
+
+	return 0;
+}
+
+static int rvu_dbg_cgx_fwdata_display(struct seq_file *s, void *unused)
+{
+	return cgx_print_fwdata(s, rvu_dbg_derive_lmacid(s));
+}
+
+RVU_DEBUG_SEQ_FOPS(cgx_fwdata, cgx_fwdata_display, NULL);
+
 static void rvu_dbg_cgx_init(struct rvu *rvu)
 {
 	struct mac_ops *mac_ops;
@@ -2962,6 +3118,9 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 			debugfs_create_file_aux_num("mac_filter", 0600,
 					    rvu->rvu_dbg.lmac, cgx, lmac_id,
 					    &rvu_dbg_cgx_dmac_flt_fops);
+			debugfs_create_file("fwdata", 0600,
+					    rvu->rvu_dbg.lmac, cgx,
+					    &rvu_dbg_cgx_fwdata_fops);
 		}
 	}
 }
@@ -3807,6 +3966,9 @@ void rvu_dbg_init(struct rvu *rvu)
 	if (!is_rvu_otx2(rvu))
 		debugfs_create_file("lmtst_map_table", 0444, rvu->rvu_dbg.root,
 				    rvu, &rvu_dbg_lmtst_map_table_fops);
+
+	debugfs_create_file("rvu_fwdata", 0444, rvu->rvu_dbg.root, rvu,
+			    &rvu_dbg_rvu_fwdata_fops);
 
 	if (!cgx_get_cgxcnt_max())
 		goto create;
