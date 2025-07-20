@@ -199,6 +199,59 @@ def main():
 
     assert_ctxs_committed(kdamonds.kdamonds[0].contexts, status['contexts'])
 
+    context = _damon_sysfs.DamonCtx(
+            monitoring_attrs=_damon_sysfs.DamonAttrs(
+                sample_us=100000, aggr_us=2000000,
+                intervals_goal=_damon_sysfs.IntervalsGoal(
+                    access_bp=400, aggrs=3, min_sample_us=5000,
+                    max_sample_us=10000000),
+                update_us=2000000),
+            schemes=[_damon_sysfs.Damos(
+                action='pageout',
+                access_pattern=_damon_sysfs.DamosAccessPattern(
+                    size=[4096, 2**10],
+                    nr_accesses=[3, 317],
+                    age=[5,71]),
+                quota=_damon_sysfs.DamosQuota(
+                    sz=100*1024*1024, ms=100,
+                    goals=[_damon_sysfs.DamosQuotaGoal(
+                        metric='node_mem_used_bp',
+                        target_value=9950,
+                        nid=1)],
+                    reset_interval_ms=1500,
+                    weight_sz_permil=20,
+                    weight_nr_accesses_permil=200,
+                    weight_age_permil=1000),
+                watermarks=_damon_sysfs.DamosWatermarks(
+                    metric = 'free_mem_rate', interval = 500000, # 500 ms
+                    high = 500, mid = 400, low = 50),
+                target_nid=1,
+                apply_interval_us=1000000,
+                dests=_damon_sysfs.DamosDests(
+                    dests=[_damon_sysfs.DamosDest(id=1, weight=30),
+                           _damon_sysfs.DamosDest(id=0, weight=70)]),
+                core_filters=[
+                    _damon_sysfs.DamosFilter(type_='addr', matching=True,
+                                             allow=False, addr_start=42,
+                                             addr_end=4242),
+                    ],
+                ops_filters=[
+                    _damon_sysfs.DamosFilter(type_='anon', matching=True,
+                                             allow=True),
+                    ],
+                )])
+    context.idx = 0
+    context.kdamond = kdamonds.kdamonds[0]
+    kdamonds.kdamonds[0].contexts = [context]
+    kdamonds.kdamonds[0].commit()
+
+    status, err = dump_damon_status_dict(kdamonds.kdamonds[0].pid)
+    if err is not None:
+        print(err)
+        exit(1)
+
+    assert_ctxs_committed(kdamonds.kdamonds[0].contexts, status['contexts'])
+
     kdamonds.stop()
 
 if __name__ == '__main__':
