@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/export.h>
 #include <asm/svm.h>
 #include <asm/sev.h>
 #include <asm/io.h>
