@@ -136,6 +136,11 @@ def assert_scheme_committed(scheme, dump):
     for idx, f in enumerate(scheme.ops_filters.filters):
         assert_filter_committed(f, dump['ops_filters'][idx])
 
+def assert_schemes_committed(schemes, dump):
+    assert_true(len(schemes) == len(dump), 'len_schemes', dump)
+    for idx, scheme in enumerate(schemes):
+        assert_scheme_committed(scheme, dump[idx])
+
 def main():
     kdamonds = _damon_sysfs.Kdamonds(
             [_damon_sysfs.Kdamond(
@@ -180,10 +185,7 @@ def main():
             { 'pid': 0, 'nr_regions': 0, 'regions_list': []}]:
         fail('adaptive targets', status)
 
-    if len(ctx['schemes']) != 1:
-        fail('number of schemes', status)
-
-    assert_scheme_committed(_damon_sysfs.Damos(), ctx['schemes'][0])
+    assert_schemes_committed([_damon_sysfs.Damos()], ctx['schemes'])
 
     kdamonds.stop()
 
