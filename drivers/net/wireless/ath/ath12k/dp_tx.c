@@ -225,7 +225,7 @@ int ath12k_dp_tx(struct ath12k *ar, struct ath12k_link_vif *arvif,
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_dp *dp = &ab->dp;
-	struct hal_tx_info ti = {0};
+	struct hal_tx_info ti = {};
 	struct ath12k_tx_desc_info *tx_desc;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath12k_skb_cb *skb_cb = ATH12K_SKB_CB(skb);
@@ -659,7 +659,7 @@ ath12k_dp_tx_process_htt_tx_complete(struct ath12k_base *ab, void *desc,
 				     struct ath12k_tx_desc_params *desc_params)
 {
 	struct htt_tx_wbm_completion *status_desc;
-	struct ath12k_dp_htt_wbm_tx_status ts = {0};
+	struct ath12k_dp_htt_wbm_tx_status ts = {};
 	enum hal_wbm_htt_tx_comp_status wbm_status;
 	u16 peer_id;
 
@@ -705,7 +705,7 @@ static void ath12k_dp_tx_update_txcompl(struct ath12k *ar, struct hal_tx_status 
 	struct ieee80211_sta *sta;
 	struct ath12k_sta *ahsta;
 	struct ath12k_link_sta *arsta;
-	struct rate_info txrate = {0};
+	struct rate_info txrate = {};
 	u16 rate, ru_tones;
 	u8 rate_idx = 0;
 	int ret;
@@ -1001,7 +1001,7 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 	int hal_ring_id = dp->tx_ring[ring_id].tcl_comp_ring.ring_id;
 	struct hal_srng *status_ring = &ab->hal.srng_list[hal_ring_id];
 	struct ath12k_tx_desc_info *tx_desc = NULL;
-	struct hal_tx_status ts = { 0 };
+	struct hal_tx_status ts = {};
 	struct ath12k_tx_desc_params desc_params;
 	struct dp_tx_ring *tx_ring = &dp->tx_ring[ring_id];
 	struct hal_wbm_release_ring *desc;
@@ -1571,7 +1571,7 @@ int ath12k_dp_tx_htt_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 {
 	struct ath12k_base *ab = ar->ab;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	int ret, ring_id, i;
 
 	tlv_filter.offset_valid = false;

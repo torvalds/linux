@@ -578,7 +578,7 @@ static int ath12k_ce_init_ring(struct ath12k_base *ab,
 			       struct ath12k_ce_ring *ce_ring,
 			       int ce_id, enum hal_ring_type type)
 {
-	struct hal_srng_params params = { 0 };
+	struct hal_srng_params params = {};
 	int ret;
 
 	params.ring_base_paddr = ce_ring->base_addr_ce_space;

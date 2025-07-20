@@ -671,7 +671,7 @@ static int ath12k_dp_reo_cmd_send(struct ath12k_base *ab, struct ath12k_dp_rx_ti
 static void ath12k_dp_reo_cache_flush(struct ath12k_base *ab,
 				      struct ath12k_dp_rx_tid *rx_tid)
 {
-	struct ath12k_hal_reo_cmd cmd = {0};
+	struct ath12k_hal_reo_cmd cmd = {};
 	unsigned long tot_desc_sz, desc_sz;
 	int ret;
 
@@ -828,7 +828,7 @@ static void ath12k_peer_rx_tid_qref_reset(struct ath12k_base *ab, u16 peer_id, u
 void ath12k_dp_rx_peer_tid_delete(struct ath12k *ar,
 				  struct ath12k_peer *peer, u8 tid)
 {
-	struct ath12k_hal_reo_cmd cmd = {0};
+	struct ath12k_hal_reo_cmd cmd = {};
 	struct ath12k_dp_rx_tid *rx_tid = &peer->rx_tid[tid];
 	int ret;
 
@@ -939,7 +939,7 @@ static int ath12k_peer_rx_tid_reo_update(struct ath12k *ar,
 					 u32 ba_win_sz, u16 ssn,
 					 bool update_ssn)
 {
-	struct ath12k_hal_reo_cmd cmd = {0};
+	struct ath12k_hal_reo_cmd cmd = {};
 	int ret;
 
 	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
@@ -1203,7 +1203,7 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 {
 	struct ath12k *ar = arvif->ar;
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_hal_reo_cmd cmd = {0};
+	struct ath12k_hal_reo_cmd cmd = {};
 	struct ath12k_peer *peer;
 	struct ath12k_dp_rx_tid *rx_tid;
 	u8 tid;
@@ -2734,7 +2734,7 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 						  int ring_id)
 {
 	struct ath12k_hw_group *ag = ab->ag;
-	struct ieee80211_rx_status rx_status = {0};
+	struct ieee80211_rx_status rx_status = {};
 	struct ath12k_skb_rxcb *rxcb;
 	struct sk_buff *msdu;
 	struct ath12k *ar;
@@ -3029,7 +3029,7 @@ static int ath12k_dp_rx_h_michael_mic(struct crypto_shash *tfm, u8 *key,
 				      size_t data_len, u8 *mic)
 {
 	SHASH_DESC_ON_STACK(desc, tfm);
-	u8 mic_hdr[16] = {0};
+	u8 mic_hdr[16] = {};
 	u8 tid = 0;
 	int ret;
 
@@ -3998,7 +3998,7 @@ static void ath12k_dp_rx_wbm_err(struct ath12k *ar,
 				 struct sk_buff_head *msdu_list)
 {
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	struct ieee80211_rx_status rxs = {0};
+	struct ieee80211_rx_status rxs = {};
 	struct ath12k_dp_rx_info rx_info;
 	bool drop = true;
 
@@ -4345,7 +4345,7 @@ void ath12k_dp_rx_pdev_free(struct ath12k_base *ab, int mac_id)
 int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	u32 ring_id;
 	int ret;
 	u32 hal_rx_desc_sz = ab->hal.hal_desc_sz;
@@ -4386,7 +4386,7 @@ int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab)
 int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	u32 ring_id;
 	int ret = 0;
 	u32 hal_rx_desc_sz = ab->hal.hal_desc_sz;

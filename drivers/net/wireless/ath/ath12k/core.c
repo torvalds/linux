@@ -218,7 +218,7 @@ static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 					   bool bus_type_mode, bool with_default)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
-	char variant[9 + ATH12K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
+	char variant[9 + ATH12K_QMI_BDF_EXT_STR_LENGTH] = {};
 
 	if (with_variant && ab->qmi.target.bdf_ext[0] != '\0')
 		scnprintf(variant, sizeof(variant), ",variant=%s",

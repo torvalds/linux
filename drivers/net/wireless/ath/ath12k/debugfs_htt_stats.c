@@ -2024,7 +2024,7 @@ ath12k_htt_print_stats_string_tlv(const void *tag_buf, u16 tag_len,
 	u8 i;
 	u16 index = 0;
 	u32 datum;
-	char data[ATH12K_HTT_MAX_STRING_LEN] = {0};
+	char data[ATH12K_HTT_MAX_STRING_LEN] = {};
 
 	tag_len = tag_len >> 2;
 
@@ -3081,7 +3081,7 @@ ath12k_htt_print_ul_mumimo_trig_stats(const void *tag_buf, u16 tag_len,
 				      struct debug_htt_stats_req *stats_req)
 {
 	const struct ath12k_htt_rx_ul_mumimo_trig_stats_tlv *htt_stats_buf = tag_buf;
-	char str_buf[ATH12K_HTT_MAX_STRING_LEN] = {0};
+	char str_buf[ATH12K_HTT_MAX_STRING_LEN] = {};
 	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
 	u32 len = stats_req->buf_len;
 	u8 *buf = stats_req->buf;
@@ -3642,7 +3642,7 @@ ath12k_htt_print_dlpager_stats_tlv(const void *tag_buf, u16 tag_len,
 	u8 *buf = stats_req->buf;
 	u8 pg_locked;
 	u8 pg_unlock;
-	char str_buf[ATH12K_HTT_MAX_STRING_LEN] = {0};
+	char str_buf[ATH12K_HTT_MAX_STRING_LEN] = {};
 
 	if (tag_len < sizeof(*stat_buf))
 		return;
@@ -5923,7 +5923,7 @@ static ssize_t ath12k_write_htt_stats_type(struct file *file,
 {
 	struct ath12k *ar = file->private_data;
 	enum ath12k_dbg_htt_ext_stats_type type;
-	unsigned int cfg_param[4] = {0};
+	unsigned int cfg_param[4] = {};
 	const int size = 32;
 	int num_args;
 
@@ -5973,7 +5973,7 @@ static int ath12k_debugfs_htt_stats_req(struct ath12k *ar)
 	enum ath12k_dbg_htt_ext_stats_type type = stats_req->type;
 	u64 cookie;
 	int ret, pdev_id;
-	struct htt_ext_stats_cfg_params cfg_params = { 0 };
+	struct htt_ext_stats_cfg_params cfg_params = {};
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -6112,7 +6112,7 @@ static ssize_t ath12k_write_htt_stats_reset(struct file *file,
 {
 	struct ath12k *ar = file->private_data;
 	enum ath12k_dbg_htt_ext_stats_type type;
-	struct htt_ext_stats_cfg_params cfg_params = { 0 };
+	struct htt_ext_stats_cfg_params cfg_params = {};
 	u8 param_pos;
 	int ret;
 
