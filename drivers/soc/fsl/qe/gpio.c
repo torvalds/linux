@@ -79,8 +79,8 @@ static int qe_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
-static void qe_gpio_set_multiple(struct gpio_chip *gc,
-				 unsigned long *mask, unsigned long *bits)
+static int qe_gpio_set_multiple(struct gpio_chip *gc,
+				unsigned long *mask, unsigned long *bits)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct qe_gpio_chip *qe_gc = gpiochip_get_data(gc);
@@ -104,6 +104,8 @@ static void qe_gpio_set_multiple(struct gpio_chip *gc,
 	iowrite32be(qe_gc->cpdata, &regs->cpdata);
 
 	spin_unlock_irqrestore(&qe_gc->lock, flags);
+
+	return 0;
 }
 
 static int qe_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
@@ -320,7 +322,7 @@ static int __init qe_add_gpiochips(void)
 		gc->direction_output = qe_gpio_dir_out;
 		gc->get = qe_gpio_get;
 		gc->set_rv = qe_gpio_set;
-		gc->set_multiple = qe_gpio_set_multiple;
+		gc->set_multiple_rv = qe_gpio_set_multiple;
 
 		ret = of_mm_gpiochip_add_data(np, mm_gc, qe_gc);
 		if (ret)
