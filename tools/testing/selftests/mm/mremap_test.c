@@ -610,6 +610,129 @@ out:
 				      inplace ? " [inplace]" : "");
 }
 
+static void mremap_move_multiple_vmas_split(unsigned int pattern_seed,
+					    unsigned long page_size,
+					    bool dont_unmap)
+{
+	char *test_name = "mremap move multiple vmas split";
+	int mremap_flags = MREMAP_FIXED | MREMAP_MAYMOVE;
+	const size_t size = 10 * page_size;
+	bool success = true;
+	char *ptr, *tgt_ptr;
+	int i;
+
+	if (dont_unmap)
+		mremap_flags |= MREMAP_DONTUNMAP;
+
+	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (ptr == MAP_FAILED) {
+		perror("mmap");
+		success = false;
+		goto out;
+	}
+
+	tgt_ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		       MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (tgt_ptr == MAP_FAILED) {
+		perror("mmap");
+		success = false;
+		goto out;
+	}
+	if (munmap(tgt_ptr, size)) {
+		perror("munmap");
+		success = false;
+		goto out_unmap;
+	}
+
+	/*
+	 * Unmap so we end up with:
+	 *
+	 *  0 1 2 3 4 5 6 7 8 9 10 offset in buffer
+	 * |**********| |*******|
+	 * |**********| |*******|
+	 *  0 1 2 3 4   5 6 7 8 9  pattern offset
+	 */
+	if (munmap(&ptr[5 * page_size], page_size)) {
+		perror("munmap");
+		success = false;
+		goto out_unmap;
+	}
+
+	/* Set up random patterns. */
+	srand(pattern_seed);
+	for (i = 0; i < 10; i++) {
+		int j;
+		char *buf = &ptr[i * page_size];
+
+		if (i == 5)
+			continue;
+
+		for (j = 0; j < page_size; j++)
+			buf[j] = rand();
+	}
+
+	/*
+	 * Move the below:
+	 *
+	 *      <------------->
+	 *  0 1 2 3 4 5 6 7 8 9 10 offset in buffer
+	 * |**********| |*******|
+	 * |**********| |*******|
+	 *  0 1 2 3 4   5 6 7 8 9  pattern offset
+	 *
+	 * Into:
+	 *
+	 * 0 1 2 3 4 5 6 7 offset in buffer
+	 * |*****| |*****|
+	 * |*****| |*****|
+	 * 2 3 4   5 6 7   pattern offset
+	 */
+	if (mremap(&ptr[2 * page_size], size - 3 * page_size, size - 3 * page_size,
+		   mremap_flags, tgt_ptr) == MAP_FAILED) {
+		perror("mremap");
+		success = false;
+		goto out_unmap;
+	}
+
+	/* Offset into random pattern. */
+	srand(pattern_seed);
+	for (i = 0; i < 2 * page_size; i++)
+		rand();
+
+	/* Check pattern. */
+	for (i = 0; i < 7; i++) {
+		int j;
+		char *buf = &tgt_ptr[i * page_size];
+
+		if (i == 3)
+			continue;
+
+		for (j = 0; j < page_size; j++) {
+			char chr = rand();
+
+			if (chr != buf[j]) {
+				ksft_print_msg("page %d offset %d corrupted, expected %d got %d\n",
+					       i, j, chr, buf[j]);
+				goto out_unmap;
+			}
+		}
+	}
+
+out_unmap:
+	if (munmap(tgt_ptr, size))
+		perror("munmap tgt");
+	if (munmap(ptr, size))
+		perror("munmap src");
+out:
+	if (success)
+		ksft_test_result_pass("%s%s\n", test_name,
+				      dont_unmap ? " [dontunnmap]" : "");
+	else
+		ksft_test_result_fail("%s%s\n", test_name,
+				      dont_unmap ? " [dontunnmap]" : "");
+}
+
 /* Returns the time taken for the remap on success else returns -1. */
 static long long remap_region(struct config c, unsigned int threshold_mb,
 			      char *rand_addr)
@@ -951,7 +1074,7 @@ int main(int argc, char **argv)
 	char *rand_addr;
 	size_t rand_size;
 	int num_expand_tests = 2;
-	int num_misc_tests = 6;
+	int num_misc_tests = 8;
 	struct test test_cases[MAX_TEST] = {};
 	struct test perf_test_cases[MAX_PERF_TEST];
 	int page_size;
@@ -1082,6 +1205,8 @@ int main(int argc, char **argv)
 	mremap_shrink_multiple_vmas(page_size, /* inplace= */false);
 	mremap_move_multiple_vmas(pattern_seed, page_size, /* dontunmap= */ false);
 	mremap_move_multiple_vmas(pattern_seed, page_size, /* dontunmap= */ true);
+	mremap_move_multiple_vmas_split(pattern_seed, page_size, /* dontunmap= */ false);
+	mremap_move_multiple_vmas_split(pattern_seed, page_size, /* dontunmap= */ true);
 
 	if (run_perf_tests) {
 		ksft_print_msg("\n%s\n",
