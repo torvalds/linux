@@ -4650,20 +4650,18 @@ u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type 
 	return id;
 }
 
-void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
+int amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
 		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 		enum ras_event_type type = RAS_EVENT_TYPE_FATAL;
-		u64 event_id;
+		u64 event_id = RAS_EVENT_INVALID_ID;
 
-		if (amdgpu_ras_mark_ras_event(adev, type)) {
-			dev_err(adev->dev,
-				"uncorrectable hardware error (ERREVENT_ATHUB_INTERRUPT) detected!\n");
-			return;
-		}
+		if (amdgpu_uniras_enabled(adev))
+			return 0;
 
-		event_id = amdgpu_ras_acquire_event_id(adev, type);
+		if (!amdgpu_ras_mark_ras_event(adev, type))
+			event_id = amdgpu_ras_acquire_event_id(adev, type);
 
 		RAS_EVENT_LOG(adev, event_id, "uncorrectable hardware error"
 			      "(ERREVENT_ATHUB_INTERRUPT) detected!\n");
@@ -4672,6 +4670,8 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 		amdgpu_ras_reset_gpu(adev);
 	}
+
+	return -EBUSY;
 }
 
 bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev)

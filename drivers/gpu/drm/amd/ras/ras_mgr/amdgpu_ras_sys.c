@@ -29,7 +29,12 @@
 static int amdgpu_ras_sys_detect_fatal_event(struct ras_core_context *ras_core, void *data)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+	int ret;
 	uint64_t seq_no;
+
+	ret = amdgpu_ras_global_ras_isr(adev);
+	if (ret)
+		return ret;
 
 	seq_no = amdgpu_ras_mgr_gen_ras_event_seqno(adev, RAS_SEQNO_TYPE_UE);
 	RAS_DEV_INFO(adev,
