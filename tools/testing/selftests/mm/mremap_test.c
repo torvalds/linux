@@ -523,6 +523,85 @@ out:
 		ksft_test_result_fail("%s\n", test_name);
 }
 
+static void mremap_shrink_multiple_vmas(unsigned long page_size,
+					bool inplace)
+{
+	char *test_name = "mremap shrink multiple vmas";
+	const size_t size = 10 * page_size;
+	bool success = true;
+	char *ptr, *tgt_ptr;
+	void *res;
+	int i;
+
+	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (ptr == MAP_FAILED) {
+		perror("mmap");
+		success = false;
+		goto out;
+	}
+
+	tgt_ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		       MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (tgt_ptr == MAP_FAILED) {
+		perror("mmap");
+		success = false;
+		goto out;
+	}
+	if (munmap(tgt_ptr, size)) {
+		perror("munmap");
+		success = false;
+		goto out_unmap;
+	}
+
+	/*
+	 * Unmap so we end up with:
+	 *
+	 *  0   2   4   6   8   10 offset in buffer
+	 * |*| |*| |*| |*| |*| |*|
+	 * |*| |*| |*| |*| |*| |*|
+	 */
+	for (i = 1; i < 10; i += 2) {
+		if (munmap(&ptr[i * page_size], page_size)) {
+			perror("munmap");
+			success = false;
+			goto out_unmap;
+		}
+	}
+
+	/*
+	 * Shrink in-place across multiple VMAs and gaps so we end up with:
+	 *
+	 *  0
+	 * |*|
+	 * |*|
+	 */
+	if (inplace)
+		res = mremap(ptr, size, page_size, 0);
+	else
+		res = mremap(ptr, size, page_size, MREMAP_MAYMOVE | MREMAP_FIXED,
+			     tgt_ptr);
+
+	if (res == MAP_FAILED) {
+		perror("mremap");
+		success = false;
+		goto out_unmap;
+	}
+
+out_unmap:
+	if (munmap(tgt_ptr, size))
+		perror("munmap tgt");
+	if (munmap(ptr, size))
+		perror("munmap src");
+out:
+	if (success)
+		ksft_test_result_pass("%s%s\n", test_name,
+				      inplace ? " [inplace]" : "");
+	else
+		ksft_test_result_fail("%s%s\n", test_name,
+				      inplace ? " [inplace]" : "");
+}
+
 /* Returns the time taken for the remap on success else returns -1. */
 static long long remap_region(struct config c, unsigned int threshold_mb,
 			      char *rand_addr)
@@ -864,7 +943,7 @@ int main(int argc, char **argv)
 	char *rand_addr;
 	size_t rand_size;
 	int num_expand_tests = 2;
-	int num_misc_tests = 3;
+	int num_misc_tests = 5;
 	struct test test_cases[MAX_TEST] = {};
 	struct test perf_test_cases[MAX_PERF_TEST];
 	int page_size;
@@ -992,6 +1071,8 @@ int main(int argc, char **argv)
 	mremap_move_within_range(pattern_seed, rand_addr);
 	mremap_move_1mb_from_start(pattern_seed, rand_addr);
 	mremap_move_multiple_vmas(pattern_seed, page_size);
+	mremap_shrink_multiple_vmas(page_size, /* inplace= */true);
+	mremap_shrink_multiple_vmas(page_size, /* inplace= */false);
 
 	if (run_perf_tests) {
 		ksft_print_msg("\n%s\n",
