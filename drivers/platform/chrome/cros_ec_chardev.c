@@ -31,11 +31,6 @@
 /* Arbitrary bounded size for the event queue */
 #define CROS_MAX_EVENT_LEN	PAGE_SIZE
 
-struct chardev_data {
-	struct cros_ec_dev *ec_dev;
-	struct miscdevice misc;
-};
-
 struct chardev_priv {
 	struct cros_ec_dev *ec_dev;
 	struct notifier_block notifier;
@@ -379,29 +374,28 @@ static int cros_ec_chardev_probe(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pdev->dev.parent);
 	struct cros_ec_platform *ec_platform = dev_get_platdata(ec_dev->dev);
-	struct chardev_data *data;
+	struct miscdevice *misc;
 
 	/* Create a char device: we want to create it anew */
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
+	misc = devm_kzalloc(&pdev->dev, sizeof(*misc), GFP_KERNEL);
+	if (!misc)
 		return -ENOMEM;
 
-	data->ec_dev = ec_dev;
-	data->misc.minor = MISC_DYNAMIC_MINOR;
-	data->misc.fops = &chardev_fops;
-	data->misc.name = ec_platform->ec_name;
-	data->misc.parent = pdev->dev.parent;
+	misc->minor = MISC_DYNAMIC_MINOR;
+	misc->fops = &chardev_fops;
+	misc->name = ec_platform->ec_name;
+	misc->parent = pdev->dev.parent;
 
-	dev_set_drvdata(&pdev->dev, data);
+	dev_set_drvdata(&pdev->dev, misc);
 
-	return misc_register(&data->misc);
+	return misc_register(misc);
 }
 
 static void cros_ec_chardev_remove(struct platform_device *pdev)
 {
-	struct chardev_data *data = dev_get_drvdata(&pdev->dev);
+	struct miscdevice *misc = dev_get_drvdata(&pdev->dev);
 
-	misc_deregister(&data->misc);
+	misc_deregister(misc);
 }
 
 static const struct platform_device_id cros_ec_chardev_id[] = {
