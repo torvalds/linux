@@ -2731,35 +2731,11 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	return ret;
 }
 
-/*
- * Correctly adjust the reserved bytes occupied by a log tree extent buffer
- */
-static int unaccount_log_buffer(struct btrfs_fs_info *fs_info, u64 start)
-{
-	struct btrfs_block_group *cache;
-
-	cache = btrfs_lookup_block_group(fs_info, start);
-	if (!cache) {
-		btrfs_err(fs_info, "unable to find block group for %llu", start);
-		return -ENOENT;
-	}
-
-	spin_lock(&cache->space_info->lock);
-	spin_lock(&cache->lock);
-	cache->reserved -= fs_info->nodesize;
-	cache->space_info->bytes_reserved -= fs_info->nodesize;
-	spin_unlock(&cache->lock);
-	spin_unlock(&cache->space_info->lock);
-
-	btrfs_put_block_group(cache);
-
-	return 0;
-}
-
 static int clean_log_buffer(struct btrfs_trans_handle *trans,
 			    struct extent_buffer *eb)
 {
-	int ret;
+	struct btrfs_fs_info *fs_info = eb->fs_info;
+	struct btrfs_block_group *bg;
 
 	btrfs_tree_lock(eb);
 	btrfs_clear_buffer_dirty(trans, eb);
@@ -2767,16 +2743,31 @@ static int clean_log_buffer(struct btrfs_trans_handle *trans,
 	btrfs_tree_unlock(eb);
 
 	if (trans) {
+		int ret;
+
 		ret = btrfs_pin_reserved_extent(trans, eb);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
-	ret = unaccount_log_buffer(eb->fs_info, eb->start);
-	if (ret)
-		btrfs_handle_fs_error(eb->fs_info, ret, NULL);
-	return ret;
+	bg = btrfs_lookup_block_group(fs_info, eb->start);
+	if (!bg) {
+		btrfs_err(fs_info, "unable to find block group for %llu", eb->start);
+		btrfs_handle_fs_error(fs_info, -ENOENT, NULL);
+		return -ENOENT;
+	}
+
+	spin_lock(&bg->space_info->lock);
+	spin_lock(&bg->lock);
+	bg->reserved -= fs_info->nodesize;
+	bg->space_info->bytes_reserved -= fs_info->nodesize;
+	spin_unlock(&bg->lock);
+	spin_unlock(&bg->space_info->lock);
+
+	btrfs_put_block_group(bg);
+
+	return 0;
 }
 
 static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
