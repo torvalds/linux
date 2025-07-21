@@ -630,14 +630,13 @@ struct mlx5e_dma_info {
 };
 
 struct mlx5e_shampo_hd {
-	u32 mkey;
 	struct mlx5e_frag_page *pages;
 	u32 hd_per_wq;
 	u16 hd_per_wqe;
 	unsigned long *bitmap;
 	u16 pi;
 	u16 ci;
-	__be32 key;
+	__be32 mkey_be;
 };
 
 struct mlx5e_hw_gro_data {
