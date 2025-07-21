@@ -289,9 +289,11 @@ static int kvm_trap_handle_gspr(struct kvm_vcpu *vcpu)
 	er = EMULATE_FAIL;
 	switch (((inst.word >> 24) & 0xff)) {
 	case 0x0: /* CPUCFG GSPR */
+		trace_kvm_exit_cpucfg(vcpu, KVM_TRACE_EXIT_CPUCFG);
 		er = kvm_emu_cpucfg(vcpu, inst);
 		break;
 	case 0x4: /* CSR{RD,WR,XCHG} GSPR */
+		trace_kvm_exit_csr(vcpu, KVM_TRACE_EXIT_CSR);
 		er = kvm_handle_csr(vcpu, inst);
 		break;
 	case 0x6: /* Cache, Idle and IOCSR GSPR */

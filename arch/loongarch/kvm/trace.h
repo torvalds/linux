@@ -46,11 +46,15 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 /* Further exit reasons */
 #define KVM_TRACE_EXIT_IDLE		64
 #define KVM_TRACE_EXIT_CACHE		65
+#define KVM_TRACE_EXIT_CPUCFG		66
+#define KVM_TRACE_EXIT_CSR		67
 
 /* Tracepoints for VM exits */
 #define kvm_trace_symbol_exit_types			\
 	{ KVM_TRACE_EXIT_IDLE,		"IDLE" },	\
-	{ KVM_TRACE_EXIT_CACHE,		"CACHE" }
+	{ KVM_TRACE_EXIT_CACHE,		"CACHE" },	\
+	{ KVM_TRACE_EXIT_CPUCFG,	"CPUCFG" },	\
+	{ KVM_TRACE_EXIT_CSR,		"CSR" }
 
 DECLARE_EVENT_CLASS(kvm_exit,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
@@ -79,6 +83,14 @@ DEFINE_EVENT(kvm_exit, kvm_exit_idle,
 	     TP_ARGS(vcpu, reason));
 
 DEFINE_EVENT(kvm_exit, kvm_exit_cache,
+	     TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
+	     TP_ARGS(vcpu, reason));
+
+DEFINE_EVENT(kvm_exit, kvm_exit_cpucfg,
+	     TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
+	     TP_ARGS(vcpu, reason));
+
+DEFINE_EVENT(kvm_exit, kvm_exit_csr,
 	     TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
 	     TP_ARGS(vcpu, reason));
 
