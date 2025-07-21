@@ -646,6 +646,12 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	u64 extent_end;
 	u64 start = key->offset;
 	u64 nbytes = 0;
+	u64 csum_start;
+	u64 csum_end;
+	LIST_HEAD(ordered_sums);
+	u64 offset;
+	unsigned long dest_offset;
+	struct btrfs_key ins;
 	struct btrfs_file_extent_item *item;
 	struct btrfs_inode *inode = NULL;
 	unsigned long size;
@@ -723,187 +729,180 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (found_type == BTRFS_FILE_EXTENT_REG ||
-	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
-		u64 csum_start;
-		u64 csum_end;
-		LIST_HEAD(ordered_sums);
-		u64 offset;
-		unsigned long dest_offset;
-		struct btrfs_key ins;
-
-		if (btrfs_file_extent_disk_bytenr(eb, item) == 0 &&
-		    btrfs_fs_incompat(fs_info, NO_HOLES))
-			goto update_inode;
-
-		ret = btrfs_insert_empty_item(trans, root, path, key,
-					      sizeof(*item));
-		if (ret) {
-			btrfs_abort_transaction(trans, ret);
-			goto out;
-		}
-		dest_offset = btrfs_item_ptr_offset(path->nodes[0],
-						    path->slots[0]);
-		copy_extent_buffer(path->nodes[0], eb, dest_offset,
-				(unsigned long)item,  sizeof(*item));
-
-		/*
-		 * We have an explicit hole and NO_HOLES is not enabled. We have
-		 * added the hole file extent item to the subvolume tree, so we
-		 * don't have anything else to do other than update the file
-		 * extent item range and update the inode item.
-		 */
-		if (btrfs_file_extent_disk_bytenr(eb, item) == 0) {
-			btrfs_release_path(path);
-			goto update_inode;
-		}
-
-		ins.objectid = btrfs_file_extent_disk_bytenr(eb, item);
-		ins.type = BTRFS_EXTENT_ITEM_KEY;
-		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
-		offset = key->offset - btrfs_file_extent_offset(eb, item);
-
-		/*
-		 * Manually record dirty extent, as here we did a shallow
-		 * file extent item copy and skip normal backref update,
-		 * but modifying extent tree all by ourselves.
-		 * So need to manually record dirty extent for qgroup,
-		 * as the owner of the file extent changed from log tree
-		 * (doesn't affect qgroup) to fs/file tree(affects qgroup)
-		 */
-		ret = btrfs_qgroup_trace_extent(trans,
-				btrfs_file_extent_disk_bytenr(eb, item),
-				btrfs_file_extent_disk_num_bytes(eb, item));
-		if (ret < 0) {
-			btrfs_abort_transaction(trans, ret);
-			goto out;
-		}
-
-		/*
-		 * Is this extent already allocated in the extent tree?
-		 * If so, just add a reference.
-		 */
-		ret = btrfs_lookup_data_extent(fs_info, ins.objectid, ins.offset);
-		if (ret < 0) {
-			btrfs_abort_transaction(trans, ret);
-			goto out;
-		} else if (ret == 0) {
-			struct btrfs_ref ref = {
-				.action = BTRFS_ADD_DELAYED_REF,
-				.bytenr = ins.objectid,
-				.num_bytes = ins.offset,
-				.owning_root = btrfs_root_id(root),
-				.ref_root = btrfs_root_id(root),
-			};
-
-			btrfs_init_data_ref(&ref, key->objectid, offset, 0, false);
-			ret = btrfs_inc_extent_ref(trans, &ref);
-			if (ret) {
-				btrfs_abort_transaction(trans, ret);
-				goto out;
-			}
-		} else {
-			/* Insert the extent pointer in the extent tree. */
-			ret = btrfs_alloc_logged_file_extent(trans, btrfs_root_id(root),
-							     key->objectid, offset, &ins);
-			if (ret) {
-				btrfs_abort_transaction(trans, ret);
-				goto out;
-			}
-		}
-
-		btrfs_release_path(path);
-
-		if (btrfs_file_extent_compression(eb, item)) {
-			csum_start = ins.objectid;
-			csum_end = csum_start + ins.offset;
-		} else {
-			csum_start = ins.objectid + btrfs_file_extent_offset(eb, item);
-			csum_end = csum_start + btrfs_file_extent_num_bytes(eb, item);
-		}
-
-		ret = btrfs_lookup_csums_list(root->log_root, csum_start, csum_end - 1,
-					      &ordered_sums, false);
-		if (ret < 0) {
-			btrfs_abort_transaction(trans, ret);
-			goto out;
-		}
-		ret = 0;
-		/*
-		 * Now delete all existing cums in the csum root that cover our
-		 * range. We do this because we can have an extent that is
-		 * completely referenced by one file extent item and partially
-		 * referenced by another file extent item (like after using the
-		 * clone or extent_same ioctls). In this case if we end up doing
-		 * the replay of the one that partially references the extent
-		 * first, and we do not do the csum deletion below, we can get 2
-		 * csum items in the csum tree that overlap each other. For
-		 * example, imagine our log has the two following file extent items:
-		 *
-		 * key (257 EXTENT_DATA 409600)
-		 *     extent data disk byte 12845056 nr 102400
-		 *     extent data offset 20480 nr 20480 ram 102400
-		 *
-		 * key (257 EXTENT_DATA 819200)
-		 *     extent data disk byte 12845056 nr 102400
-		 *     extent data offset 0 nr 102400 ram 102400
-		 *
-		 * Where the second one fully references the 100K extent that
-		 * starts at disk byte 12845056, and the log tree has a single
-		 * csum item that covers the entire range of the extent:
-		 *
-		 * key (EXTENT_CSUM EXTENT_CSUM 12845056) itemsize 100
-		 *
-		 * After the first file extent item is replayed, the csum tree
-		 * gets the following csum item:
-		 *
-		 * key (EXTENT_CSUM EXTENT_CSUM 12865536) itemsize 20
-		 *
-		 * Which covers the 20K sub-range starting at offset 20K of our
-		 * extent. Now when we replay the second file extent item, if we
-		 * do not delete existing csum items that cover any of its
-		 * blocks, we end up getting two csum items in our csum tree
-		 * that overlap each other:
-		 *
-		 * key (EXTENT_CSUM EXTENT_CSUM 12845056) itemsize 100
-		 * key (EXTENT_CSUM EXTENT_CSUM 12865536) itemsize 20
-		 *
-		 * Which is a problem, because after this anyone trying to
-		 * lookup up for the checksum of any block of our extent
-		 * starting at an offset of 40K or higher, will end up looking
-		 * at the second csum item only, which does not contain the
-		 * checksum for any block starting at offset 40K or higher of
-		 * our extent.
-		 */
-		while (!list_empty(&ordered_sums)) {
-			struct btrfs_ordered_sum *sums;
-			struct btrfs_root *csum_root;
-
-			sums = list_first_entry(&ordered_sums,
-						struct btrfs_ordered_sum, list);
-			csum_root = btrfs_csum_root(fs_info, sums->logical);
-			if (!ret) {
-				ret = btrfs_del_csums(trans, csum_root, sums->logical,
-						      sums->len);
-				if (ret)
-					btrfs_abort_transaction(trans, ret);
-			}
-			if (!ret) {
-				ret = btrfs_csum_file_blocks(trans, csum_root, sums);
-				if (ret)
-					btrfs_abort_transaction(trans, ret);
-			}
-			list_del(&sums->list);
-			kfree(sums);
-		}
-		if (ret)
-			goto out;
-	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
+	if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		/* inline extents are easy, we just overwrite them */
 		ret = overwrite_item(trans, root, path, eb, slot, key);
 		if (ret)
 			goto out;
+		goto update_inode;
 	}
+
+	/*
+	 * If not an inline extent, it can only be a regular or prealloc one.
+	 * We have checked that above and returned -EUCLEAN if not.
+	 */
+
+	/* A hole and NO_HOLES feature enabled, nothing else to do. */
+	if (btrfs_file_extent_disk_bytenr(eb, item) == 0 &&
+	    btrfs_fs_incompat(fs_info, NO_HOLES))
+		goto update_inode;
+
+	ret = btrfs_insert_empty_item(trans, root, path, key, sizeof(*item));
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
+	dest_offset = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
+	copy_extent_buffer(path->nodes[0], eb, dest_offset, (unsigned long)item,
+			   sizeof(*item));
+
+	/*
+	 * We have an explicit hole and NO_HOLES is not enabled. We have added
+	 * the hole file extent item to the subvolume tree, so we don't have
+	 * anything else to do other than update the file extent item range and
+	 * update the inode item.
+	 */
+	if (btrfs_file_extent_disk_bytenr(eb, item) == 0) {
+		btrfs_release_path(path);
+		goto update_inode;
+	}
+
+	ins.objectid = btrfs_file_extent_disk_bytenr(eb, item);
+	ins.type = BTRFS_EXTENT_ITEM_KEY;
+	ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
+	offset = key->offset - btrfs_file_extent_offset(eb, item);
+
+	/*
+	 * Manually record dirty extent, as here we did a shallow file extent
+	 * item copy and skip normal backref update, but modifying extent tree
+	 * all by ourselves. So need to manually record dirty extent for qgroup,
+	 * as the owner of the file extent changed from log tree (doesn't affect
+	 * qgroup) to fs/file tree (affects qgroup).
+	 */
+	ret = btrfs_qgroup_trace_extent(trans,
+					btrfs_file_extent_disk_bytenr(eb, item),
+					btrfs_file_extent_disk_num_bytes(eb, item));
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
+
+	/*
+	 * Is this extent already allocated in the extent tree?
+	 * If so, just add a reference.
+	 */
+	ret = btrfs_lookup_data_extent(fs_info, ins.objectid, ins.offset);
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	} else if (ret == 0) {
+		struct btrfs_ref ref = {
+			.action = BTRFS_ADD_DELAYED_REF,
+			.bytenr = ins.objectid,
+			.num_bytes = ins.offset,
+			.owning_root = btrfs_root_id(root),
+			.ref_root = btrfs_root_id(root),
+		};
+
+		btrfs_init_data_ref(&ref, key->objectid, offset, 0, false);
+		ret = btrfs_inc_extent_ref(trans, &ref);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+	} else {
+		/* Insert the extent pointer in the extent tree. */
+		ret = btrfs_alloc_logged_file_extent(trans, btrfs_root_id(root),
+						     key->objectid, offset, &ins);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
+	}
+
+	btrfs_release_path(path);
+
+	if (btrfs_file_extent_compression(eb, item)) {
+		csum_start = ins.objectid;
+		csum_end = csum_start + ins.offset;
+	} else {
+		csum_start = ins.objectid + btrfs_file_extent_offset(eb, item);
+		csum_end = csum_start + btrfs_file_extent_num_bytes(eb, item);
+	}
+
+	ret = btrfs_lookup_csums_list(root->log_root, csum_start, csum_end - 1,
+				      &ordered_sums, false);
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
+	ret = 0;
+	/*
+	 * Now delete all existing cums in the csum root that cover our range.
+	 * We do this because we can have an extent that is completely
+	 * referenced by one file extent item and partially referenced by
+	 * another file extent item (like after using the clone or extent_same
+	 * ioctls). In this case if we end up doing the replay of the one that
+	 * partially references the extent first, and we do not do the csum
+	 * deletion below, we can get 2 csum items in the csum tree that overlap
+	 * each other. For example, imagine our log has the two following file
+	 * extent items:
+	 *
+	 * key (257 EXTENT_DATA 409600)
+	 *     extent data disk byte 12845056 nr 102400
+	 *     extent data offset 20480 nr 20480 ram 102400
+	 *
+	 * key (257 EXTENT_DATA 819200)
+	 *     extent data disk byte 12845056 nr 102400
+	 *     extent data offset 0 nr 102400 ram 102400
+	 *
+	 * Where the second one fully references the 100K extent that starts at
+	 * disk byte 12845056, and the log tree has a single csum item that
+	 * covers the entire range of the extent:
+	 *
+	 * key (EXTENT_CSUM EXTENT_CSUM 12845056) itemsize 100
+	 *
+	 * After the first file extent item is replayed, the csum tree gets the
+	 * following csum item:
+	 *
+	 * key (EXTENT_CSUM EXTENT_CSUM 12865536) itemsize 20
+	 *
+	 * Which covers the 20K sub-range starting at offset 20K of our extent.
+	 * Now when we replay the second file extent item, if we do not delete
+	 * existing csum items that cover any of its blocks, we end up getting
+	 * two csum items in our csum tree that overlap each other:
+	 *
+	 * key (EXTENT_CSUM EXTENT_CSUM 12845056) itemsize 100
+	 * key (EXTENT_CSUM EXTENT_CSUM 12865536) itemsize 20
+	 *
+	 * Which is a problem, because after this anyone trying to lookup for
+	 * the checksum of any block of our extent starting at an offset of 40K
+	 * or higher, will end up looking at the second csum item only, which
+	 * does not contain the checksum for any block starting at offset 40K or
+	 * higher of our extent.
+	 */
+	while (!list_empty(&ordered_sums)) {
+		struct btrfs_ordered_sum *sums;
+		struct btrfs_root *csum_root;
+
+		sums = list_first_entry(&ordered_sums, struct btrfs_ordered_sum, list);
+		csum_root = btrfs_csum_root(fs_info, sums->logical);
+		if (!ret) {
+			ret = btrfs_del_csums(trans, csum_root, sums->logical,
+					      sums->len);
+			if (ret)
+				btrfs_abort_transaction(trans, ret);
+		}
+		if (!ret) {
+			ret = btrfs_csum_file_blocks(trans, csum_root, sums);
+			if (ret)
+				btrfs_abort_transaction(trans, ret);
+		}
+		list_del(&sums->list);
+		kfree(sums);
+	}
+	if (ret)
+		goto out;
 
 update_inode:
 	ret = btrfs_inode_set_file_extent_range(inode, start, extent_end - start);
