@@ -241,7 +241,8 @@ static int vcn_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	adev->vcn.supported_reset =
 		amdgpu_get_soft_full_reset_mask(&adev->vcn.inst[0].ring_enc[0]);
-	adev->vcn.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
+	if (!amdgpu_sriov_vf(adev))
+		adev->vcn.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_virt_alloc_mm_table(adev);
@@ -1975,19 +1976,14 @@ static int vcn_v4_0_ring_reset(struct amdgpu_ring *ring,
 	struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[ring->me];
 	int r;
 
-	if (!(adev->vcn.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
-	drm_sched_wqueue_stop(&ring->sched);
-	vcn_v4_0_stop(vinst);
-	vcn_v4_0_start(vinst);
-
-	r = amdgpu_ring_test_helper(ring);
+	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
+	r = vcn_v4_0_stop(vinst);
 	if (r)
 		return r;
-	amdgpu_fence_driver_force_completion(ring);
-	drm_sched_wqueue_start(&ring->sched);
-	return 0;
+	r = vcn_v4_0_start(vinst);
+	if (r)
+		return r;
+	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
 }
 
 static struct amdgpu_ring_funcs vcn_v4_0_unified_ring_vm_funcs = {

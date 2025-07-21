@@ -790,6 +790,13 @@ enum dmub_ips_rcg_disable_type {
 	DMUB_IPS_RCG_DISABLE = 3
 };
 
+enum dmub_ips_in_vpb_disable_type {
+	DMUB_IPS_VPB_RCG_ONLY = 0, // Legacy behaviour
+	DMUB_IPS_VPB_DISABLE_ALL = 1,
+	DMUB_IPS_VPB_ENABLE_IPS1_AND_RCG = 2,
+	DMUB_IPS_VPB_ENABLE_ALL = 3 // Enable IPS1 Z8, IPS1 and RCG
+};
+
 #define DMUB_IPS1_ALLOW_MASK 0x00000001
 #define DMUB_IPS2_ALLOW_MASK 0x00000002
 #define DMUB_IPS1_COMMIT_MASK 0x00000004
@@ -875,7 +882,7 @@ enum dmub_shared_state_feature_id {
 /**
  * struct dmub_shared_state_ips_fw - Firmware signals for IPS.
  */
-union dmub_shared_state_ips_fw_signals {
+ union dmub_shared_state_ips_fw_signals {
 	struct {
 		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 or IPS0 RCG */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
@@ -890,7 +897,7 @@ union dmub_shared_state_ips_fw_signals {
 /**
  * struct dmub_shared_state_ips_signals - Firmware signals for IPS.
  */
-union dmub_shared_state_ips_driver_signals {
+ union dmub_shared_state_ips_driver_signals {
 	struct {
 		uint32_t allow_pg : 1; /**< 1 if PG is allowed */
 		uint32_t allow_ips1 : 1; /**< 1 is IPS1 is allowed */
@@ -4041,6 +4048,14 @@ struct dmub_cmd_replay_copy_settings_data {
 	 */
 	uint8_t digbe_inst;
 	/**
+	 * @hpo_stream_enc_inst: HPO stream encoder instance
+	 */
+	uint8_t hpo_stream_enc_inst;
+	/**
+	 * @hpo_link_enc_inst: HPO link encoder instance
+	 */
+	uint8_t hpo_link_enc_inst;
+	/**
 	 * AUX HW instance.
 	 */
 	uint8_t aux_inst;
@@ -4084,6 +4099,11 @@ struct dmub_cmd_replay_copy_settings_data {
 	 * Use for AUX-less ALPM LFPS wake operation
 	 */
 	struct dmub_alpm_auxless_data auxless_alpm_data;
+
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -4139,6 +4159,18 @@ struct dmub_rb_cmd_replay_enable_data {
 	 * This does not support HDMI/DP2 for now.
 	 */
 	uint8_t phy_rate;
+	/**
+	 * @hpo_stream_enc_inst: HPO stream encoder instance
+	 */
+	uint8_t hpo_stream_enc_inst;
+	/**
+	 * @hpo_link_enc_inst: HPO link encoder instance
+	 */
+	uint8_t hpo_link_enc_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**

@@ -183,15 +183,16 @@ exit:
 
 static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 {
+	const struct software_node *amd_camera_node, *isp4_node;
 	struct amdgpu_device *adev = isp->adev;
+	struct acpi_device *acpi_dev;
 	int idx, int_idx, num_res, r;
-	u8 isp_dev_hid[ACPI_ID_LEN];
 	u64 isp_base;
 
 	if (adev->rmmio_size == 0 || adev->rmmio_size < 0x5289)
 		return -EINVAL;
 
-	r = amdgpu_acpi_get_isp4_dev_hid(&isp_dev_hid);
+	r = amdgpu_acpi_get_isp4_dev(&acpi_dev);
 	if (r) {
 		drm_dbg(&adev->ddev, "Invalid isp platform detected (%d)", r);
 		/* allow GPU init to progress */
@@ -199,7 +200,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	}
 
 	/* add GPIO resources required for OMNI5C10 sensor */
-	if (!strcmp("OMNI5C10", isp_dev_hid)) {
+	if (!strcmp("OMNI5C10", acpi_device_hid(acpi_dev))) {
 		gpiod_add_lookup_table(&isp_gpio_table);
 		gpiod_add_lookup_table(&isp_sensor_gpio_table);
 	}
@@ -241,6 +242,9 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 		goto failure;
 	}
 
+	amd_camera_node = (const struct software_node *)acpi_dev->driver_data;
+	isp4_node = software_node_find_by_name(amd_camera_node, "isp4");
+
 	/* initialize isp platform data */
 	isp->isp_pdata->adev = (void *)adev;
 	isp->isp_pdata->asic_type = adev->asic_type;
@@ -269,6 +273,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[0].num_resources = num_res;
 	isp->isp_cell[0].resources = &isp->isp_res[0];
 	isp->isp_cell[0].platform_data = isp->isp_pdata;
+	isp->isp_cell[0].swnode = isp4_node;
 	isp->isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp i2c platform data */

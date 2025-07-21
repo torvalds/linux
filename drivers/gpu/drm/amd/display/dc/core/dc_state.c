@@ -427,6 +427,8 @@ enum dc_status dc_state_remove_stream(
 		return DC_ERROR_UNEXPECTED;
 	}
 
+	dc_stream_release_3dlut_for_stream(dc, stream);
+
 	dc_stream_release(state->streams[i]);
 	state->stream_count--;
 

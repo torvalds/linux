@@ -132,7 +132,10 @@ static int jpeg_v3_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
+	adev->jpeg.supported_reset =
+		amdgpu_get_soft_full_reset_mask(adev->jpeg.inst[0].ring_dec);
+	if (!amdgpu_sriov_vf(adev))
+		adev->jpeg.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
 
 	return r;
@@ -561,15 +564,14 @@ static int jpeg_v3_0_ring_reset(struct amdgpu_ring *ring,
 {
 	int r;
 
-	drm_sched_wqueue_stop(&ring->sched);
-	jpeg_v3_0_stop(ring->adev);
-	jpeg_v3_0_start(ring->adev);
-	r = amdgpu_ring_test_helper(ring);
+	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
+	r = jpeg_v3_0_stop(ring->adev);
 	if (r)
 		return r;
-	amdgpu_fence_driver_force_completion(ring);
-	drm_sched_wqueue_start(&ring->sched);
-	return 0;
+	r = jpeg_v3_0_start(ring->adev);
+	if (r)
+		return r;
+	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
 }
 
 static const struct amd_ip_funcs jpeg_v3_0_ip_funcs = {

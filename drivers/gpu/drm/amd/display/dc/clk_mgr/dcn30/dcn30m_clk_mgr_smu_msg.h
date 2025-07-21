@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,27 +23,12 @@
  *
  */
 
-#ifndef __DC_HWSS_DCN314_H__
-#define __DC_HWSS_DCN314_H__
+#ifndef DAL_DC_DCN30M_CLK_MGR_SMU_MSG_H_
+#define DAL_DC_DCN30M_CLK_MGR_SMU_MSG_H_
 
-#include "hw_sequencer_private.h"
+#include "core_types.h"
 
-struct dc;
+struct clk_mgr_internal;
 
-void dcn314_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);
-
-void dcn314_dsc_pg_control(struct dce_hwseq *hws, unsigned int dsc_inst, bool power_on);
-
-void dcn314_enable_power_gating_plane(struct dce_hwseq *hws, bool enable);
-
-unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div);
-
-void dcn314_calculate_pix_rate_divider(struct dc *dc, struct dc_state *context, const struct dc_stream_state *stream);
-
-void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context, unsigned int current_pipe_idx);
-
-void dcn314_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, bool clock_on);
-
-void dcn314_disable_link_output(struct dc_link *link, const struct link_resource *link_res, enum signal_type signal);
-
-#endif /* __DC_HWSS_DCN314_H__ */
+uint32_t     dcn30m_smu_set_smart_mux_switch(struct clk_mgr_internal *clk_mgr, uint32_t pins_to_set);
+#endif /* DAL_DC_DCN30M_CLK_MGR_SMU_MSG_H_ */

@@ -291,4 +291,10 @@ bool dc_dmub_srv_ips_query_residency_info(const struct dc_context *ctx, uint8_t 
 					  struct dmub_ips_residency_info *driver_info,
 					  enum ips_residency_mode ips_mode);
 
+/**
+ * dc_dmub_srv_release_hw() - Notifies DMUB service that HW access is no longer required.
+ *
+ * @dc - pointer to DC object
+ */
+void dc_dmub_srv_release_hw(const struct dc *dc);
 #endif /* _DMUB_DC_SRV_H_ */
