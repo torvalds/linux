@@ -48,7 +48,7 @@ static int afs_split_string(char **pbuf, char *strv[], unsigned int maxstrv)
 		strv[count++] = p;
 
 		/* Skip over word */
-		while (!isspace(*p))
+		while (!isspace(*p) && *p)
 			p++;
 		if (!*p)
 			break;
