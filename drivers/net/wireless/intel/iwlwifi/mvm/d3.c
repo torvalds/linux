@@ -1954,6 +1954,7 @@ static bool iwl_mvm_gtk_rekey(struct iwl_wowlan_status_data *status,
 	DEFINE_RAW_FLEX(struct ieee80211_key_conf, conf, key,
 			WOWLAN_KEY_MAX_SIZE);
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+	u8 key_data[WOWLAN_KEY_MAX_SIZE];
 
 	conf->cipher = gtk_cipher;
 
@@ -1988,8 +1989,10 @@ static bool iwl_mvm_gtk_rekey(struct iwl_wowlan_status_data *status,
 				 conf->cipher, conf->keyidx);
 		memcpy(conf->key, status->gtk[i].key,
 		       sizeof(status->gtk[i].key));
+		memcpy(key_data, status->gtk[i].key, sizeof(status->gtk[i].key));
 
-		key = ieee80211_gtk_rekey_add(vif, conf, link_id);
+		key = ieee80211_gtk_rekey_add(vif, status->gtk[i].id, key_data,
+					      sizeof(key_data), link_id);
 		if (IS_ERR(key)) {
 			/* FW may send also the old keys */
 			if (PTR_ERR(key) == -EALREADY)
@@ -2021,6 +2024,7 @@ iwl_mvm_d3_igtk_bigtk_rekey_add(struct iwl_wowlan_status_data *status,
 	struct ieee80211_key_conf *key_config;
 	struct ieee80211_key_seq seq;
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+	u8 key[WOWLAN_KEY_MAX_SIZE];
 	s8 keyidx = key_data->id;
 
 	conf->cipher = cipher;
@@ -2050,7 +2054,10 @@ iwl_mvm_d3_igtk_bigtk_rekey_add(struct iwl_wowlan_status_data *status,
 	BUILD_BUG_ON(WOWLAN_KEY_MAX_SIZE < sizeof(key_data->key));
 	memcpy(conf->key, key_data->key, conf->keylen);
 
-	key_config = ieee80211_gtk_rekey_add(vif, conf, link_id);
+	memcpy(key, key_data->key, sizeof(key_data->key));
+
+	key_config = ieee80211_gtk_rekey_add(vif, keyidx, key, sizeof(key),
+					     link_id);
 	if (IS_ERR(key_config)) {
 		/* FW may send also the old keys */
 		return PTR_ERR(key_config) == -EALREADY;

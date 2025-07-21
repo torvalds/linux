@@ -762,6 +762,7 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 		.conf.keyidx = key_data->id,
 	};
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+	u8 key[WOWLAN_KEY_MAX_SIZE];
 
 	BUILD_BUG_ON(WLAN_KEY_LEN_CCMP != WLAN_KEY_LEN_GCMP);
 	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_CCMP);
@@ -803,7 +804,11 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 	}
 
 	memcpy(conf.conf.key, key_data->key, conf.conf.keylen);
-	key_config = ieee80211_gtk_rekey_add(vif, &conf.conf, link_id);
+
+	memcpy(key, key_data->key, sizeof(key_data->key));
+
+	key_config = ieee80211_gtk_rekey_add(vif, key_data->id, key,
+					     sizeof(key), link_id);
 	if (IS_ERR(key_config))
 		return;
 
