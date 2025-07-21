@@ -6,7 +6,7 @@
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright 2018-2020, 2022-2024  Intel Corporation
+ * Copyright 2018-2020, 2022-2025  Intel Corporation
  */
 
 #include <crypto/utils.h>
@@ -1353,31 +1353,6 @@ void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
 	}
 }
 EXPORT_SYMBOL_GPL(ieee80211_set_key_rx_seq);
-
-void ieee80211_remove_key(struct ieee80211_key_conf *keyconf)
-{
-	struct ieee80211_key *key;
-
-	key = container_of(keyconf, struct ieee80211_key, conf);
-
-	lockdep_assert_wiphy(key->local->hw.wiphy);
-
-	/*
-	 * if key was uploaded, we assume the driver will/has remove(d)
-	 * it, so adjust bookkeeping accordingly
-	 */
-	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
-		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
-
-		if (!(key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
-					 IEEE80211_KEY_FLAG_PUT_MIC_SPACE |
-					 IEEE80211_KEY_FLAG_RESERVE_TAILROOM)))
-			increment_tailroom_need_count(key->sdata);
-	}
-
-	ieee80211_key_free(key, false);
-}
-EXPORT_SYMBOL_GPL(ieee80211_remove_key);
 
 struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
