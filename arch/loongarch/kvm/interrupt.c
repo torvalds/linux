@@ -83,28 +83,11 @@ void kvm_deliver_intr(struct kvm_vcpu *vcpu)
 	unsigned long *pending = &vcpu->arch.irq_pending;
 	unsigned long *pending_clr = &vcpu->arch.irq_clear;
 
-	if (!(*pending) && !(*pending_clr))
-		return;
+	for_each_set_bit(priority, pending_clr, INT_IPI + 1)
+		kvm_irq_clear(vcpu, priority);
 
-	if (*pending_clr) {
-		priority = __ffs(*pending_clr);
-		while (priority <= INT_IPI) {
-			kvm_irq_clear(vcpu, priority);
-			priority = find_next_bit(pending_clr,
-					BITS_PER_BYTE * sizeof(*pending_clr),
-					priority + 1);
-		}
-	}
-
-	if (*pending) {
-		priority = __ffs(*pending);
-		while (priority <= INT_IPI) {
-			kvm_irq_deliver(vcpu, priority);
-			priority = find_next_bit(pending,
-					BITS_PER_BYTE * sizeof(*pending),
-					priority + 1);
-		}
-	}
+	for_each_set_bit(priority, pending, INT_IPI + 1)
+		kvm_irq_deliver(vcpu, priority);
 }
 
 int kvm_pending_timer(struct kvm_vcpu *vcpu)
