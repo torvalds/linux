@@ -414,12 +414,6 @@ u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5_core_dev *mdev,
 	return params->log_rq_mtu_frames - log_pkts_per_wqe;
 }
 
-u8 mlx5e_shampo_get_log_hd_entry_size(struct mlx5_core_dev *mdev,
-				      struct mlx5e_params *params)
-{
-	return order_base_2(DIV_ROUND_UP(MLX5E_RX_MAX_HEAD, MLX5E_SHAMPO_WQ_BASE_HEAD_ENTRY_SIZE));
-}
-
 static u8 mlx5e_shampo_get_log_pkt_per_rsrv(struct mlx5e_params *params)
 {
 	return order_base_2(DIV_ROUND_UP(MLX5E_SHAMPO_WQ_RESRV_SIZE,
@@ -928,7 +922,8 @@ int mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 			 log_max_num_of_packets_per_reservation,
 			 mlx5e_shampo_get_log_pkt_per_rsrv(params));
 		MLX5_SET(wq, wq, log_headers_entry_size,
-			 mlx5e_shampo_get_log_hd_entry_size(mdev, params));
+			 MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE -
+			 MLX5E_SHAMPO_WQ_BASE_HEAD_ENTRY_SIZE_SHIFT);
 		lro_timeout =
 			mlx5e_choose_lro_timeout(mdev,
 						 MLX5E_DEFAULT_SHAMPO_TIMEOUT);

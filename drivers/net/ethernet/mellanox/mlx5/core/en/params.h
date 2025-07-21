@@ -95,8 +95,6 @@ bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params,
 			       struct mlx5e_xsk_param *xsk);
-u8 mlx5e_shampo_get_log_hd_entry_size(struct mlx5_core_dev *mdev,
-				      struct mlx5e_params *params);
 u32 mlx5e_shampo_hd_per_wqe(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    struct mlx5e_rq_param *rq_param);
