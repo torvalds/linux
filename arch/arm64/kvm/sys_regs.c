@@ -2656,6 +2656,23 @@ static bool access_mdcr(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_ras(struct kvm_vcpu *vcpu,
+		       struct sys_reg_params *p,
+		       const struct sys_reg_desc *r)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	switch(reg_to_encoding(r)) {
+	default:
+		if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, IMP)) {
+			kvm_inject_undefined(vcpu);
+			return false;
+		}
+	}
+
+	return trap_raz_wi(vcpu, p, r);
+}
+
 /*
  * For historical (ahem ABI) reasons, KVM treated MIDR_EL1, REVIDR_EL1, and
  * AIDR_EL1 as "invariant" registers, meaning userspace cannot change them.
@@ -3003,14 +3020,14 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_AFSR1_EL1), access_vm_reg, reset_unknown, AFSR1_EL1 },
 	{ SYS_DESC(SYS_ESR_EL1), access_vm_reg, reset_unknown, ESR_EL1 },
 
-	{ SYS_DESC(SYS_ERRIDR_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERRSELR_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERXFR_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERXCTLR_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERXSTATUS_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERXADDR_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERXMISC0_EL1), trap_raz_wi },
-	{ SYS_DESC(SYS_ERXMISC1_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_ERRIDR_EL1), access_ras },
+	{ SYS_DESC(SYS_ERRSELR_EL1), access_ras },
+	{ SYS_DESC(SYS_ERXFR_EL1), access_ras },
+	{ SYS_DESC(SYS_ERXCTLR_EL1), access_ras },
+	{ SYS_DESC(SYS_ERXSTATUS_EL1), access_ras },
+	{ SYS_DESC(SYS_ERXADDR_EL1), access_ras },
+	{ SYS_DESC(SYS_ERXMISC0_EL1), access_ras },
+	{ SYS_DESC(SYS_ERXMISC1_EL1), access_ras },
 
 	MTE_REG(TFSR_EL1),
 	MTE_REG(TFSRE0_EL1),
