@@ -118,6 +118,28 @@ struct btintel_pcie_removal {
 static LIST_HEAD(btintel_pcie_recovery_list);
 static DEFINE_SPINLOCK(btintel_pcie_recovery_lock);
 
+static inline char *btintel_pcie_alivectxt_state2str(u32 alive_intr_ctxt)
+{
+	switch (alive_intr_ctxt) {
+	case BTINTEL_PCIE_ROM:
+		return "rom";
+	case BTINTEL_PCIE_FW_DL:
+		return "fw_dl";
+	case BTINTEL_PCIE_D0:
+		return "d0";
+	case BTINTEL_PCIE_D3:
+		return "d3";
+	case BTINTEL_PCIE_HCI_RESET:
+		return "hci_reset";
+	case BTINTEL_PCIE_INTEL_HCI_RESET1:
+		return "intel_reset1";
+	case BTINTEL_PCIE_INTEL_HCI_RESET2:
+		return "intel_reset2";
+	default:
+		return "unknown";
+	}
+}
+
 /* This function initializes the memory for DBGC buffers and formats the
  * DBGC fragment which consists header info and DBGC buffer's LSB, MSB and
  * size as the payload
@@ -318,16 +340,40 @@ static inline void btintel_pcie_dump_debug_registers(struct hci_dev *hdev)
 }
 
 static int btintel_pcie_send_sync(struct btintel_pcie_data *data,
-				  struct sk_buff *skb)
+				  struct sk_buff *skb, u32 pkt_type, u16 opcode)
 {
 	int ret;
 	u16 tfd_index;
+	u32 old_ctxt;
+	bool wait_on_alive = false;
+	struct hci_dev *hdev = data->hdev;
+
 	struct txq *txq = &data->txq;
 
 	tfd_index = data->ia.tr_hia[BTINTEL_PCIE_TXQ_NUM];
 
 	if (tfd_index > txq->count)
 		return -ERANGE;
+
+	/* Firmware raises alive interrupt on HCI_OP_RESET or
+	 * BTINTEL_HCI_OP_RESET
+	 */
+	wait_on_alive = (pkt_type == BTINTEL_PCIE_HCI_CMD_PKT &&
+		(opcode == BTINTEL_HCI_OP_RESET || opcode == HCI_OP_RESET));
+
+	if (wait_on_alive) {
+		data->gp0_received = false;
+		old_ctxt = data->alive_intr_ctxt;
+		data->alive_intr_ctxt =
+			(opcode == BTINTEL_HCI_OP_RESET ? BTINTEL_PCIE_INTEL_HCI_RESET1 :
+				BTINTEL_PCIE_HCI_RESET);
+		bt_dev_dbg(data->hdev, "sending cmd: 0x%4.4x alive context changed: %s  ->  %s",
+			   opcode, btintel_pcie_alivectxt_state2str(old_ctxt),
+			   btintel_pcie_alivectxt_state2str(data->alive_intr_ctxt));
+	}
+
+	memcpy(skb_push(skb, BTINTEL_PCIE_HCI_TYPE_LEN), &pkt_type,
+	       BTINTEL_PCIE_HCI_TYPE_LEN);
 
 	/* Prepare for TX. It updates the TFD with the length of data and
 	 * address of the DMA buffer, and copy the data to the DMA buffer
@@ -347,11 +393,24 @@ static int btintel_pcie_send_sync(struct btintel_pcie_data *data,
 	ret = wait_event_timeout(data->tx_wait_q, data->tx_wait_done,
 				 msecs_to_jiffies(BTINTEL_PCIE_TX_WAIT_TIMEOUT_MS));
 	if (!ret) {
-		bt_dev_err(data->hdev, "tx completion timeout");
+		bt_dev_err(data->hdev, "Timeout (%u ms) on tx completion",
+			   BTINTEL_PCIE_TX_WAIT_TIMEOUT_MS);
 		btintel_pcie_dump_debug_registers(data->hdev);
 		return -ETIME;
 	}
 
+	if (wait_on_alive) {
+		ret = wait_event_timeout(data->gp0_wait_q,
+					 data->gp0_received,
+					 msecs_to_jiffies(BTINTEL_DEFAULT_INTR_TIMEOUT_MS));
+		if (!ret) {
+			hdev->stat.err_tx++;
+			bt_dev_err(hdev, "Timeout (%u ms)  on alive interrupt, alive context: %s",
+				   BTINTEL_DEFAULT_INTR_TIMEOUT_MS,
+				   btintel_pcie_alivectxt_state2str(data->alive_intr_ctxt));
+			return  -ETIME;
+		}
+	}
 	return 0;
 }
 
@@ -828,28 +887,6 @@ static void btintel_pcie_wr_sleep_cntrl(struct btintel_pcie_data *data,
 {
 	bt_dev_dbg(data->hdev, "writing sleep_ctl_reg: 0x%8.8x", dxstate);
 	btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_IPC_SLEEP_CTL_REG, dxstate);
-}
-
-static inline char *btintel_pcie_alivectxt_state2str(u32 alive_intr_ctxt)
-{
-	switch (alive_intr_ctxt) {
-	case BTINTEL_PCIE_ROM:
-		return "rom";
-	case BTINTEL_PCIE_FW_DL:
-		return "fw_dl";
-	case BTINTEL_PCIE_D0:
-		return "d0";
-	case BTINTEL_PCIE_D3:
-		return "d3";
-	case BTINTEL_PCIE_HCI_RESET:
-		return "hci_reset";
-	case BTINTEL_PCIE_INTEL_HCI_RESET1:
-		return "intel_reset1";
-	case BTINTEL_PCIE_INTEL_HCI_RESET2:
-		return "intel_reset2";
-	default:
-		return "unknown";
-	}
 }
 
 static int btintel_pcie_read_device_mem(struct btintel_pcie_data *data,
@@ -1951,7 +1988,6 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 	__u16 opcode = ~0;
 	int ret;
 	u32 type;
-	u32 old_ctxt;
 
 	if (test_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags))
 		return -ENODEV;
@@ -1988,12 +2024,6 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 				btintel_pcie_inject_cmd_complete(hdev, opcode);
 		}
 
-		/* Firmware raises alive interrupt on HCI_OP_RESET or
-		 * BTINTEL_HCI_OP_RESET
-		 */
-		if (opcode == HCI_OP_RESET || opcode == BTINTEL_HCI_OP_RESET)
-			data->gp0_received = false;
-
 		hdev->stat.cmd_tx++;
 		break;
 	case HCI_ACLDATA_PKT:
@@ -2011,37 +2041,14 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 		bt_dev_err(hdev, "Unknown HCI packet type");
 		return -EILSEQ;
 	}
-	memcpy(skb_push(skb, BTINTEL_PCIE_HCI_TYPE_LEN), &type,
-	       BTINTEL_PCIE_HCI_TYPE_LEN);
 
-	ret = btintel_pcie_send_sync(data, skb);
+	ret = btintel_pcie_send_sync(data, skb, type, opcode);
 	if (ret) {
 		hdev->stat.err_tx++;
 		bt_dev_err(hdev, "Failed to send frame (%d)", ret);
 		goto exit_error;
 	}
 
-	if (type == BTINTEL_PCIE_HCI_CMD_PKT &&
-	    (opcode == HCI_OP_RESET || opcode == BTINTEL_HCI_OP_RESET)) {
-		old_ctxt = data->alive_intr_ctxt;
-		data->alive_intr_ctxt =
-			(opcode == BTINTEL_HCI_OP_RESET ? BTINTEL_PCIE_INTEL_HCI_RESET1 :
-				BTINTEL_PCIE_HCI_RESET);
-		bt_dev_dbg(data->hdev, "sent cmd: 0x%4.4x alive context changed: %s  ->  %s",
-			   opcode, btintel_pcie_alivectxt_state2str(old_ctxt),
-			   btintel_pcie_alivectxt_state2str(data->alive_intr_ctxt));
-		ret = wait_event_timeout(data->gp0_wait_q,
-					 data->gp0_received,
-					 msecs_to_jiffies(BTINTEL_DEFAULT_INTR_TIMEOUT_MS));
-		if (!ret) {
-			hdev->stat.err_tx++;
-			bt_dev_err(hdev, "Timeout on alive interrupt (%u ms). Alive context: %s",
-				   BTINTEL_DEFAULT_INTR_TIMEOUT_MS,
-				   btintel_pcie_alivectxt_state2str(data->alive_intr_ctxt));
-			ret = -ETIME;
-			goto exit_error;
-		}
-	}
 	hdev->stat.byte_tx += skb->len;
 	kfree_skb(skb);
 
