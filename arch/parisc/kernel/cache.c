@@ -841,7 +841,7 @@ void flush_cache_vmap(unsigned long start, unsigned long end)
 	}
 
 	vm = find_vm_area((void *)start);
-	if (WARN_ON_ONCE(!vm)) {
+	if (!vm) {
 		flush_cache_all();
 		return;
 	}
