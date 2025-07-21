@@ -268,7 +268,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 
 	link->irq.active = irq;
 
-	acpi_handle_debug(handle, "Link at IRQ %d \n", link->irq.active);
+	acpi_handle_debug(handle, "Link at IRQ %d\n", link->irq.active);
 
       end:
 	return result;
