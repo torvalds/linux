@@ -219,10 +219,11 @@ static int st7571_send_command_list(struct st7571_device *st7571,
 	return ret;
 }
 
-static inline u8 st7571_transform_xy(const char *p, int x, int y)
+static inline u8 st7571_transform_xy(const char *p, int x, int y, u8 bpp)
 {
 	int xrest = x % 8;
 	u8 result = 0;
+	u8 row_len = 16 * bpp;
 
 	/*
 	 * Transforms an (x, y) pixel coordinate into a vertical 8-bit
@@ -237,7 +238,7 @@ static inline u8 st7571_transform_xy(const char *p, int x, int y)
 
 	for (int i = 0; i < 8; i++) {
 		int row_idx = y + i;
-		u8 byte = p[row_idx * 16 + x];
+		u8 byte = p[row_idx * row_len + x];
 		u8 bit = (byte >> xrest) & 1;
 
 		result |= (bit << i);
@@ -304,11 +305,11 @@ static void st7571_prepare_buffer_grayscale(struct st7571_device *st7571,
 	struct iosys_map dst;
 
 	switch (fb->format->format) {
-	case DRM_FORMAT_XRGB8888: /* Only support XRGB8888 in monochrome mode */
-		dst_pitch = DIV_ROUND_UP(drm_rect_width(rect), 8);
+	case DRM_FORMAT_XRGB8888:
+		dst_pitch = DIV_ROUND_UP(drm_rect_width(rect), 4);
 		iosys_map_set_vaddr(&dst, st7571->hwbuf);
 
-		drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, vmap, fb, rect, fmtcnv_state);
+		drm_fb_xrgb8888_to_gray2(&dst, &dst_pitch, vmap, fb, rect, fmtcnv_state);
 		break;
 
 	case DRM_FORMAT_R1:
@@ -334,7 +335,7 @@ static int st7571_fb_update_rect_monochrome(struct drm_framebuffer *fb, struct d
 
 	for (int y = rect->y1; y < rect->y2; y += ST7571_PAGE_HEIGHT) {
 		for (int x = rect->x1; x < rect->x2; x++)
-			row[x] = st7571_transform_xy(st7571->hwbuf, x, y);
+			row[x] = st7571_transform_xy(st7571->hwbuf, x, y, 1);
 
 		st7571_set_position(st7571, rect->x1, y);
 
@@ -359,14 +360,13 @@ static int st7571_fb_update_rect_grayscale(struct drm_framebuffer *fb, struct dr
 	rect->y2 = min_t(unsigned int, round_up(rect->y2, ST7571_PAGE_HEIGHT), st7571->nlines);
 
 	switch (format) {
-	case DRM_FORMAT_XRGB8888:
-		/* Threated as monochrome (R1) */
-		fallthrough;
 	case DRM_FORMAT_R1:
-		x1 = rect->x1;
-		x2 = rect->x2;
+		x1 = rect->x1 * 1;
+		x2 = rect->x2 * 1;
 		break;
 	case DRM_FORMAT_R2:
+		fallthrough;
+	case DRM_FORMAT_XRGB8888:
 		x1 = rect->x1 * 2;
 		x2 = rect->x2 * 2;
 		break;
@@ -374,7 +374,7 @@ static int st7571_fb_update_rect_grayscale(struct drm_framebuffer *fb, struct dr
 
 	for (int y = rect->y1; y < rect->y2; y += ST7571_PAGE_HEIGHT) {
 		for (int x = x1; x < x2; x++)
-			row[x] = st7571_transform_xy(st7571->hwbuf, x, y);
+			row[x] = st7571_transform_xy(st7571->hwbuf, x, y, 2);
 
 		st7571_set_position(st7571, rect->x1, y);
 
@@ -395,7 +395,7 @@ static int st7571_fb_update_rect_grayscale(struct drm_framebuffer *fb, struct dr
 			 * For monochrome formats, write the same value twice to get
 			 * either a black or white pixel.
 			 */
-			if (format == DRM_FORMAT_R1 || format == DRM_FORMAT_XRGB8888)
+			if (format == DRM_FORMAT_R1)
 				regmap_bulk_write(st7571->regmap, ST7571_DATA_MODE, row + x, 1);
 		}
 	}
