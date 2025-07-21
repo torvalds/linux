@@ -234,6 +234,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH_SB_CASEFOLD,		false,				\
 	  NULL,		"Dirent lookups are casefolded")		\
+	x(casefold_disabled,			u8,			\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,		false,				\
+	  NULL,		"Disable casefolding filesystem wide")		\
 	x(inodes_32bit,			u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_BOOL(),							\

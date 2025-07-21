@@ -20,6 +20,7 @@
 #include <linux/of_fdt.h>
 #include <linux/page_ext.h>
 #include <linux/radix-tree.h>
+#include <linux/maple_tree.h>
 #include <linux/slab.h>
 #include <linux/threads.h>
 #include <linux/vmalloc.h>
@@ -92,6 +93,12 @@ LX_GDBPARSED(RADIX_TREE_INTERNAL_NODE)
 LX_GDBPARSED(RADIX_TREE_MAP_SIZE)
 LX_GDBPARSED(RADIX_TREE_MAP_SHIFT)
 LX_GDBPARSED(RADIX_TREE_MAP_MASK)
+
+/* linux/maple_tree.h */
+LX_VALUE(MAPLE_NODE_SLOTS)
+LX_VALUE(MAPLE_RANGE64_SLOTS)
+LX_VALUE(MAPLE_ARANGE64_SLOTS)
+LX_GDBPARSED(MAPLE_NODE_MASK)
 
 /* linux/vmalloc.h */
 LX_VALUE(VM_IOREMAP)

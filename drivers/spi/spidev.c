@@ -703,6 +703,7 @@ static const struct class spidev_class = {
  * spidev_dt_ids array below. Both arrays are kept in the same ordering.
  */
 static const struct spi_device_id spidev_spi_ids[] = {
+	{ .name = /* abb */ "spi-sensor" },
 	{ .name = /* cisco */ "spi-petra" },
 	{ .name = /* dh */ "dhcom-board" },
 	{ .name = /* elgin */ "jg10309-01" },
@@ -735,6 +736,7 @@ static int spidev_of_check(struct device *dev)
 }
 
 static const struct of_device_id spidev_dt_ids[] = {
+	{ .compatible = "abb,spi-sensor", .data = &spidev_of_check },
 	{ .compatible = "cisco,spi-petra", .data = &spidev_of_check },
 	{ .compatible = "dh,dhcom-board", .data = &spidev_of_check },
 	{ .compatible = "elgin,jg10309-01", .data = &spidev_of_check },

@@ -827,7 +827,7 @@ xfs_bmap_hw_atomic_write_possible(
 	/*
 	 * The ->iomap_begin caller should ensure this, but check anyway.
 	 */
-	return len <= xfs_inode_buftarg(ip)->bt_bdev_awu_max;
+	return len <= xfs_inode_buftarg(ip)->bt_awu_max;
 }
 
 static int

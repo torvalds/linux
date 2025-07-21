@@ -173,6 +173,8 @@ static void td_init_cpuid_entry2(struct kvm_cpuid_entry2 *entry, unsigned char i
 	tdx_clear_unsupported_cpuid(entry);
 }
 
+#define TDVMCALLINFO_SETUP_EVENT_NOTIFY_INTERRUPT	BIT(1)
+
 static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
 			     struct kvm_tdx_capabilities *caps)
 {
@@ -187,6 +189,9 @@ static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
 		return -EIO;
 
 	caps->cpuid.nent = td_conf->num_cpuid_config;
+
+	caps->user_tdvmcallinfo_1_r11 =
+		TDVMCALLINFO_SETUP_EVENT_NOTIFY_INTERRUPT;
 
 	for (i = 0; i < td_conf->num_cpuid_config; i++)
 		td_init_cpuid_entry2(&caps->cpuid.entries[i], i);
@@ -1530,6 +1535,27 @@ static int tdx_get_quote(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int tdx_setup_event_notify_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u64 vector = tdx->vp_enter_args.r12;
+
+	if (vector < 32 || vector > 255) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_TDX;
+	vcpu->run->tdx.flags = 0;
+	vcpu->run->tdx.nr = TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT;
+	vcpu->run->tdx.setup_event_notify.ret = TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED;
+	vcpu->run->tdx.setup_event_notify.vector = vector;
+
+	vcpu->arch.complete_userspace_io = tdx_complete_simple;
+
+	return 0;
+}
+
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
@@ -1541,6 +1567,8 @@ static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 		return tdx_get_td_vm_call_info(vcpu);
 	case TDVMCALL_GET_QUOTE:
 		return tdx_get_quote(vcpu);
+	case TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT:
+		return tdx_setup_event_notify_interrupt(vcpu);
 	default:
 		break;
 	}
@@ -2241,25 +2269,26 @@ static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
 	const struct tdx_sys_info_td_conf *td_conf = &tdx_sysinfo->td_conf;
 	struct kvm_tdx_capabilities __user *user_caps;
 	struct kvm_tdx_capabilities *caps = NULL;
+	u32 nr_user_entries;
 	int ret = 0;
 
 	/* flags is reserved for future use */
 	if (cmd->flags)
 		return -EINVAL;
 
-	caps = kmalloc(sizeof(*caps) +
+	caps = kzalloc(sizeof(*caps) +
 		       sizeof(struct kvm_cpuid_entry2) * td_conf->num_cpuid_config,
 		       GFP_KERNEL);
 	if (!caps)
 		return -ENOMEM;
 
 	user_caps = u64_to_user_ptr(cmd->data);
-	if (copy_from_user(caps, user_caps, sizeof(*caps))) {
+	if (get_user(nr_user_entries, &user_caps->cpuid.nent)) {
 		ret = -EFAULT;
 		goto out;
 	}
 
-	if (caps->cpuid.nent < td_conf->num_cpuid_config) {
+	if (nr_user_entries < td_conf->num_cpuid_config) {
 		ret = -E2BIG;
 		goto out;
 	}

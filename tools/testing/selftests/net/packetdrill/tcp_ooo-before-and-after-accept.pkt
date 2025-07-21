@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0
+
+--mss=1000
+
+`./defaults.sh
+sysctl -q net.ipv4.tcp_rmem="4096 131072 $((32*1024*1024))"`
+
+// Test that a not-yet-accepted socket does not change
+// its initial sk_rcvbuf (tcp_rmem[1]) when receiving ooo packets.
+
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1000,nop,nop,sackOK,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 10>
+  +.1 < . 1:1(0) ack 1 win 257
+  +0  < . 2001:41001(39000) ack 1 win 257
+  +0  > . 1:1(0) ack 1 <nop,nop,sack 2001:41001>
+  +0  < . 41001:101001(60000) ack 1 win 257
+  +0  > . 1:1(0) ack 1 <nop,nop,sack 2001:101001>
+  +0  < . 1:1001(1000) ack 1 win 257
+  +0  > . 1:1(0) ack 1001 <nop,nop,sack 2001:101001>
+  +0  < . 1001:2001(1000) ack 1 win 257
+  +0  > . 1:1(0) ack 101001
+
+  +0 accept(3, ..., ...) = 4
+
+  +0 %{ assert SK_MEMINFO_RCVBUF == 131072, SK_MEMINFO_RCVBUF }%
+
+  +0 close(4) = 0
+  +0 close(3) = 0
+
+// Test that ooo packets for accepted sockets do increase sk_rcvbuf
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1000,nop,nop,sackOK,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 10>
+  +.1 < . 1:1(0) ack 1 win 257
+
+   +0 accept(3, ..., ...) = 4
+
+  +0  < . 2001:41001(39000) ack 1 win 257
+  +0  > . 1:1(0) ack 1 <nop,nop,sack 2001:41001>
+  +0  < . 41001:101001(60000) ack 1 win 257
+  +0  > . 1:1(0) ack 1 <nop,nop,sack 2001:101001>
+
+  +0 %{ assert SK_MEMINFO_RCVBUF > 131072, SK_MEMINFO_RCVBUF }%
+
