@@ -1235,9 +1235,8 @@ bool power_supply_has_property(struct power_supply *psy,
 	return false;
 }
 
-int power_supply_get_property(struct power_supply *psy,
-			    enum power_supply_property psp,
-			    union power_supply_propval *val)
+static int __power_supply_get_property(struct power_supply *psy, enum power_supply_property psp,
+				       union power_supply_propval *val, bool use_extensions)
 {
 	struct power_supply_ext_registration *reg;
 
@@ -1247,10 +1246,14 @@ int power_supply_get_property(struct power_supply *psy,
 		return -ENODEV;
 	}
 
-	scoped_guard(rwsem_read, &psy->extensions_sem) {
-		power_supply_for_each_extension(reg, psy) {
-			if (power_supply_ext_has_property(reg->ext, psp))
+	if (use_extensions) {
+		scoped_guard(rwsem_read, &psy->extensions_sem) {
+			power_supply_for_each_extension(reg, psy) {
+				if (!power_supply_ext_has_property(reg->ext, psp))
+					continue;
+
 				return reg->ext->get_property(psy, reg->ext, reg->data, psp, val);
+			}
 		}
 	}
 
@@ -1261,20 +1264,49 @@ int power_supply_get_property(struct power_supply *psy,
 	else
 		return -EINVAL;
 }
+
+int power_supply_get_property(struct power_supply *psy, enum power_supply_property psp,
+			      union power_supply_propval *val)
+{
+	return __power_supply_get_property(psy, psp, val, true);
+}
 EXPORT_SYMBOL_GPL(power_supply_get_property);
 
-int power_supply_set_property(struct power_supply *psy,
-			    enum power_supply_property psp,
-			    const union power_supply_propval *val)
+/**
+ * power_supply_get_property_direct - Read a power supply property without checking for extensions
+ * @psy: The power supply
+ * @psp: The power supply property to read
+ * @val: The resulting value of the power supply property
+ *
+ * Read a power supply property without taking into account any power supply extensions registered
+ * on the given power supply. This is mostly useful for power supply extensions that want to access
+ * their own power supply as using power_supply_get_property() directly will result in a potential
+ * deadlock.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int power_supply_get_property_direct(struct power_supply *psy, enum power_supply_property psp,
+				     union power_supply_propval *val)
+{
+        return __power_supply_get_property(psy, psp, val, false);
+}
+EXPORT_SYMBOL_GPL(power_supply_get_property_direct);
+
+
+static int __power_supply_set_property(struct power_supply *psy, enum power_supply_property psp,
+				       const union power_supply_propval *val, bool use_extensions)
 {
 	struct power_supply_ext_registration *reg;
 
 	if (atomic_read(&psy->use_cnt) <= 0)
 		return -ENODEV;
 
-	scoped_guard(rwsem_read, &psy->extensions_sem) {
-		power_supply_for_each_extension(reg, psy) {
-			if (power_supply_ext_has_property(reg->ext, psp)) {
+	if (use_extensions) {
+		scoped_guard(rwsem_read, &psy->extensions_sem) {
+			power_supply_for_each_extension(reg, psy) {
+				if (!power_supply_ext_has_property(reg->ext, psp))
+					continue;
+
 				if (reg->ext->set_property)
 					return reg->ext->set_property(psy, reg->ext, reg->data,
 								      psp, val);
@@ -1289,7 +1321,33 @@ int power_supply_set_property(struct power_supply *psy,
 
 	return psy->desc->set_property(psy, psp, val);
 }
+
+int power_supply_set_property(struct power_supply *psy, enum power_supply_property psp,
+			      const union power_supply_propval *val)
+{
+	return __power_supply_set_property(psy, psp, val, true);
+}
 EXPORT_SYMBOL_GPL(power_supply_set_property);
+
+/**
+ * power_supply_set_property_direct - Write a power supply property without checking for extensions
+ * @psy: The power supply
+ * @psp: The power supply property to write
+ * @val: The value to write to the power supply property
+ *
+ * Write a power supply property without taking into account any power supply extensions registered
+ * on the given power supply. This is mostly useful for power supply extensions that want to access
+ * their own power supply as using power_supply_set_property() directly will result in a potential
+ * deadlock.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int power_supply_set_property_direct(struct power_supply *psy, enum power_supply_property psp,
+				     const union power_supply_propval *val)
+{
+	return __power_supply_set_property(psy, psp, val, false);
+}
+EXPORT_SYMBOL_GPL(power_supply_set_property_direct);
 
 int power_supply_property_is_writeable(struct power_supply *psy,
 					enum power_supply_property psp)

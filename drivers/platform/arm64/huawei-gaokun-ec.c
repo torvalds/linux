@@ -662,6 +662,7 @@ static void gaokun_aux_release(struct device *dev)
 {
 	struct auxiliary_device *adev = to_auxiliary_dev(dev);
 
+	of_node_put(dev->of_node);
 	kfree(adev);
 }
 
@@ -693,6 +694,7 @@ static int gaokun_aux_init(struct device *parent, const char *name,
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
+		of_node_put(adev->dev.of_node);
 		kfree(adev);
 		return ret;
 	}
