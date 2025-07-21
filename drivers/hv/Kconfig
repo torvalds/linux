@@ -9,7 +9,7 @@ config HYPERV
 	select PARAVIRT
 	select X86_HV_CALLBACK_VECTOR if X86
 	select OF_EARLY_FLATTREE if OF
-	select SYSFB if !HYPERV_VTL_MODE
+	select SYSFB if EFI && !HYPERV_VTL_MODE
 	help
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.

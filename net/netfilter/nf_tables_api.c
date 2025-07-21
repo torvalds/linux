@@ -9686,64 +9686,6 @@ struct nf_hook_ops *nft_hook_find_ops_rcu(const struct nft_hook *hook,
 }
 EXPORT_SYMBOL_GPL(nft_hook_find_ops_rcu);
 
-static void
-nf_tables_device_notify(const struct nft_table *table, int attr,
-			const char *name, const struct nft_hook *hook,
-			const struct net_device *dev, int event)
-{
-	struct net *net = dev_net(dev);
-	struct nlmsghdr *nlh;
-	struct sk_buff *skb;
-	u16 flags = 0;
-
-	if (!nfnetlink_has_listeners(net, NFNLGRP_NFT_DEV))
-		return;
-
-	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!skb)
-		goto err;
-
-	event = event == NETDEV_REGISTER ? NFT_MSG_NEWDEV : NFT_MSG_DELDEV;
-	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
-	nlh = nfnl_msg_put(skb, 0, 0, event, flags, table->family,
-			   NFNETLINK_V0, nft_base_seq(net));
-	if (!nlh)
-		goto err;
-
-	if (nla_put_string(skb, NFTA_DEVICE_TABLE, table->name) ||
-	    nla_put_string(skb, attr, name) ||
-	    nla_put(skb, NFTA_DEVICE_SPEC, hook->ifnamelen, hook->ifname) ||
-	    nla_put_string(skb, NFTA_DEVICE_NAME, dev->name))
-		goto err;
-
-	nlmsg_end(skb, nlh);
-	nfnetlink_send(skb, net, 0, NFNLGRP_NFT_DEV,
-		       nlmsg_report(nlh), GFP_KERNEL);
-	return;
-err:
-	if (skb)
-		kfree_skb(skb);
-	nfnetlink_set_err(net, 0, NFNLGRP_NFT_DEV, -ENOBUFS);
-}
-
-void
-nf_tables_chain_device_notify(const struct nft_chain *chain,
-			      const struct nft_hook *hook,
-			      const struct net_device *dev, int event)
-{
-	nf_tables_device_notify(chain->table, NFTA_DEVICE_CHAIN,
-				chain->name, hook, dev, event);
-}
-
-static void
-nf_tables_flowtable_device_notify(const struct nft_flowtable *ft,
-				  const struct nft_hook *hook,
-				  const struct net_device *dev, int event)
-{
-	nf_tables_device_notify(ft->table, NFTA_DEVICE_FLOWTABLE,
-				ft->name, hook, dev, event);
-}
-
 static int nft_flowtable_event(unsigned long event, struct net_device *dev,
 			       struct nft_flowtable *flowtable, bool changename)
 {
@@ -9791,7 +9733,6 @@ static int nft_flowtable_event(unsigned long event, struct net_device *dev,
 			list_add_tail_rcu(&ops->list, &hook->ops_list);
 			break;
 		}
-		nf_tables_flowtable_device_notify(flowtable, hook, dev, event);
 		break;
 	}
 	return 0;

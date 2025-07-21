@@ -568,9 +568,9 @@ static int __btree_err(int ret,
 		bch2_mark_btree_validate_failure(failed, ca->dev_idx);
 
 		struct extent_ptr_decoded pick;
-		have_retry = !bch2_bkey_pick_read_device(c,
+		have_retry = bch2_bkey_pick_read_device(c,
 					bkey_i_to_s_c(&b->key),
-					failed, &pick, -1);
+					failed, &pick, -1) == 1;
 	}
 
 	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_want_retry)
@@ -615,7 +615,6 @@ static int __btree_err(int ret,
 			goto out;
 		case -BCH_ERR_btree_node_read_err_bad_node:
 			prt_str(&out, ", ");
-			ret = __bch2_topology_error(c, &out);
 			break;
 		}
 
@@ -644,7 +643,6 @@ static int __btree_err(int ret,
 		goto out;
 	case -BCH_ERR_btree_node_read_err_bad_node:
 		prt_str(&out, ", ");
-		ret = __bch2_topology_error(c, &out);
 		break;
 	}
 print:
@@ -1297,9 +1295,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_bounce_free(c, btree_buf_bytes(b), used_mempool, sorted);
 
-	if (updated_range)
-		bch2_btree_node_drop_keys_outside_node(b);
-
 	i = &b->data->keys;
 	for (k = i->start; k != vstruct_last(i);) {
 		struct bkey tmp;
@@ -1337,15 +1332,45 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_node_reset_sib_u64s(b);
 
-	scoped_guard(rcu)
-		bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
-			struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
+	if (updated_range)
+		bch2_btree_node_drop_keys_outside_node(b);
 
-			if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw) {
-				set_btree_node_need_rewrite(b);
-				set_btree_node_need_rewrite_degraded(b);
+	/*
+	 * XXX:
+	 *
+	 * We deadlock if too many btree updates require node rewrites while
+	 * we're still in journal replay.
+	 *
+	 * This is because btree node rewrites generate more updates for the
+	 * interior updates (alloc, backpointers), and if those updates touch
+	 * new nodes and generate more rewrites - well, you see the problem.
+	 *
+	 * The biggest cause is that we don't use the btree write buffer (for
+	 * the backpointer updates - this needs some real thought on locking in
+	 * order to fix.
+	 *
+	 * The problem with this workaround (not doing the rewrite for degraded
+	 * nodes in journal replay) is that those degraded nodes persist, and we
+	 * don't want that (this is a real bug when a btree node write completes
+	 * with fewer replicas than we wanted and leaves a degraded node due to
+	 * device _removal_, i.e. the device went away mid write).
+	 *
+	 * It's less of a bug here, but still a problem because we don't yet
+	 * have a way of tracking degraded data - we another index (all
+	 * extents/btree nodes, by replicas entry) in order to fix properly
+	 * (re-replicate degraded data at the earliest possible time).
+	 */
+	if (c->recovery.passes_complete & BIT_ULL(BCH_RECOVERY_PASS_journal_replay)) {
+		scoped_guard(rcu)
+			bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
+				struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
+
+				if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw) {
+					set_btree_node_need_rewrite(b);
+					set_btree_node_need_rewrite_degraded(b);
+				}
 			}
-		}
+	}
 
 	if (!ptr_written) {
 		set_btree_node_need_rewrite(b);
@@ -1381,7 +1406,7 @@ static void btree_node_read_work(struct work_struct *work)
 		ret = bch2_bkey_pick_read_device(c,
 					bkey_i_to_s_c(&b->key),
 					&failed, &rb->pick, -1);
-		if (ret) {
+		if (ret <= 0) {
 			set_btree_node_read_error(b);
 			break;
 		}

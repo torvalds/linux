@@ -103,7 +103,7 @@ int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
 		return bch_err_throw(c, btree_need_topology_repair);
 	} else {
 		return bch2_run_explicit_recovery_pass(c, out, BCH_RECOVERY_PASS_check_topology, 0) ?:
-			bch_err_throw(c, btree_node_read_validate_error);
+			bch_err_throw(c, btree_need_topology_repair);
 	}
 }
 
@@ -633,7 +633,9 @@ err:
 	 * log_fsck_err()s: that would require us to track for every error type
 	 * which recovery pass corrects it, to get the fsck exit status correct:
 	 */
-	if (bch2_err_matches(ret, BCH_ERR_fsck_fix)) {
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+		/* nothing */
+	} else if (bch2_err_matches(ret, BCH_ERR_fsck_fix)) {
 		set_bit(BCH_FS_errors_fixed, &c->flags);
 	} else {
 		set_bit(BCH_FS_errors_not_fixed, &c->flags);

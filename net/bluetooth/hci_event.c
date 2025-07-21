@@ -908,8 +908,8 @@ static u8 hci_cc_read_local_ext_features(struct hci_dev *hdev, void *data,
 		return rp->status;
 
 	if (hdev->max_page < rp->max_page) {
-		if (test_bit(HCI_QUIRK_BROKEN_LOCAL_EXT_FEATURES_PAGE_2,
-			     &hdev->quirks))
+		if (hci_test_quirk(hdev,
+				   HCI_QUIRK_BROKEN_LOCAL_EXT_FEATURES_PAGE_2))
 			bt_dev_warn(hdev, "broken local ext features page 2");
 		else
 			hdev->max_page = rp->max_page;
@@ -936,7 +936,7 @@ static u8 hci_cc_read_buffer_size(struct hci_dev *hdev, void *data,
 	hdev->acl_pkts = __le16_to_cpu(rp->acl_max_pkt);
 	hdev->sco_pkts = __le16_to_cpu(rp->sco_max_pkt);
 
-	if (test_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks)) {
+	if (hci_test_quirk(hdev, HCI_QUIRK_FIXUP_BUFFER_SIZE)) {
 		hdev->sco_mtu  = 64;
 		hdev->sco_pkts = 8;
 	}
@@ -2150,40 +2150,6 @@ static u8 hci_cc_set_adv_param(struct hci_dev *hdev, void *data,
 	return rp->status;
 }
 
-static u8 hci_cc_set_ext_adv_param(struct hci_dev *hdev, void *data,
-				   struct sk_buff *skb)
-{
-	struct hci_rp_le_set_ext_adv_params *rp = data;
-	struct hci_cp_le_set_ext_adv_params *cp;
-	struct adv_info *adv_instance;
-
-	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
-
-	if (rp->status)
-		return rp->status;
-
-	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_EXT_ADV_PARAMS);
-	if (!cp)
-		return rp->status;
-
-	hci_dev_lock(hdev);
-	hdev->adv_addr_type = cp->own_addr_type;
-	if (!cp->handle) {
-		/* Store in hdev for instance 0 */
-		hdev->adv_tx_power = rp->tx_power;
-	} else {
-		adv_instance = hci_find_adv_instance(hdev, cp->handle);
-		if (adv_instance)
-			adv_instance->tx_power = rp->tx_power;
-	}
-	/* Update adv data as tx power is known now */
-	hci_update_adv_data(hdev, cp->handle);
-
-	hci_dev_unlock(hdev);
-
-	return rp->status;
-}
-
 static u8 hci_cc_read_rssi(struct hci_dev *hdev, void *data,
 			   struct sk_buff *skb)
 {
@@ -3005,7 +2971,7 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, void *data,
 		 * state to indicate completion.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
-		    !test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+		    !hci_test_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		goto unlock;
 	}
@@ -3024,7 +2990,7 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, void *data,
 		 * state to indicate completion.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
-		    !test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+		    !hci_test_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 	}
 
@@ -3648,8 +3614,7 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
 	/* We skip the WRITE_AUTH_PAYLOAD_TIMEOUT for ATS2851 based controllers
 	 * to avoid unexpected SMP command errors when pairing.
 	 */
-	if (test_bit(HCI_QUIRK_BROKEN_WRITE_AUTH_PAYLOAD_TIMEOUT,
-		     &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_BROKEN_WRITE_AUTH_PAYLOAD_TIMEOUT))
 		goto notify;
 
 	/* Set the default Authenticated Payload Timeout after
@@ -4164,8 +4129,6 @@ static const struct hci_cc {
 	HCI_CC(HCI_OP_LE_READ_NUM_SUPPORTED_ADV_SETS,
 	       hci_cc_le_read_num_adv_sets,
 	       sizeof(struct hci_rp_le_read_num_supported_adv_sets)),
-	HCI_CC(HCI_OP_LE_SET_EXT_ADV_PARAMS, hci_cc_set_ext_adv_param,
-	       sizeof(struct hci_rp_le_set_ext_adv_params)),
 	HCI_CC_STATUS(HCI_OP_LE_SET_EXT_ADV_ENABLE,
 		      hci_cc_le_set_ext_adv_enable),
 	HCI_CC_STATUS(HCI_OP_LE_SET_ADV_SET_RAND_ADDR,
@@ -5950,7 +5913,7 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	 * while we have an existing one in peripheral role.
 	 */
 	if (hdev->conn_hash.le_num_peripheral > 0 &&
-	    (test_bit(HCI_QUIRK_BROKEN_LE_STATES, &hdev->quirks) ||
+	    (hci_test_quirk(hdev, HCI_QUIRK_BROKEN_LE_STATES) ||
 	     !(hdev->le_states[3] & 0x10)))
 		return NULL;
 
@@ -6346,8 +6309,8 @@ static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, void *data,
 		evt_type = __le16_to_cpu(info->type) & LE_EXT_ADV_EVT_TYPE_MASK;
 		legacy_evt_type = ext_evt_type_to_legacy(hdev, evt_type);
 
-		if (test_bit(HCI_QUIRK_FIXUP_LE_EXT_ADV_REPORT_PHY,
-			     &hdev->quirks)) {
+		if (hci_test_quirk(hdev,
+				   HCI_QUIRK_FIXUP_LE_EXT_ADV_REPORT_PHY)) {
 			info->primary_phy &= 0x1f;
 			info->secondary_phy &= 0x1f;
 		}
@@ -7002,7 +6965,10 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 		bis->iso_qos.bcast.in.sdu = le16_to_cpu(ev->max_pdu);
 
 		if (!ev->status) {
+			bis->state = BT_CONNECTED;
 			set_bit(HCI_CONN_BIG_SYNC, &bis->flags);
+			hci_debugfs_create_conn(bis);
+			hci_conn_add_sysfs(bis);
 			hci_iso_setup_path(bis);
 		}
 	}

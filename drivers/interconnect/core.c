@@ -20,7 +20,7 @@
 
 #include "internal.h"
 
-#define ICC_DYN_ID_START 10000
+#define ICC_DYN_ID_START 100000
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -819,6 +819,9 @@ static struct icc_node *icc_node_create_nolock(int id)
 {
 	struct icc_node *node;
 
+	if (id >= ICC_DYN_ID_START)
+		return ERR_PTR(-EINVAL);
+
 	/* check if node already exists */
 	node = node_find(id);
 	if (node)
@@ -906,9 +909,34 @@ void icc_node_destroy(int id)
 		return;
 
 	kfree(node->links);
+	if (node->id >= ICC_DYN_ID_START)
+		kfree(node->name);
 	kfree(node);
 }
 EXPORT_SYMBOL_GPL(icc_node_destroy);
+
+/**
+ * icc_node_set_name() - set node name
+ * @node: node
+ * @provider: node provider
+ * @name: node name
+ *
+ * Return: 0 on success, or -ENOMEM on allocation failure
+ */
+int icc_node_set_name(struct icc_node *node, const struct icc_provider *provider, const char *name)
+{
+	if (node->id >= ICC_DYN_ID_START) {
+		node->name = kasprintf(GFP_KERNEL, "%s@%s", name,
+				       dev_name(provider->dev));
+		if (!node->name)
+			return -ENOMEM;
+	} else {
+		node->name = name;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(icc_node_set_name);
 
 /**
  * icc_link_nodes() - create link between two nodes
@@ -1037,10 +1065,6 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	}
 	node->avg_bw = node->init_avg;
 	node->peak_bw = node->init_peak;
-
-	if (node->id >= ICC_DYN_ID_START)
-		node->name = devm_kasprintf(provider->dev, GFP_KERNEL, "%s@%s",
-					    node->name, dev_name(provider->dev));
 
 	if (node->avg_bw || node->peak_bw) {
 		if (provider->pre_aggregate)

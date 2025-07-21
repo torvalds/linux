@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
+#include <linux/export.h>
 
 #include <net/mana/mana.h>
 

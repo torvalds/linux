@@ -240,7 +240,7 @@ reassess_streams:
 			}
 
 			/* Stall if the front is still undergoing I/O. */
-			if (test_bit(NETFS_SREQ_IN_PROGRESS, &front->flags)) {
+			if (netfs_check_subreq_in_progress(front)) {
 				notes |= HIT_PENDING;
 				break;
 			}
@@ -393,8 +393,10 @@ bool netfs_write_collection(struct netfs_io_request *wreq)
 		ictx->ops->invalidate_cache(wreq);
 	}
 
-	if (wreq->cleanup)
-		wreq->cleanup(wreq);
+	if ((wreq->origin == NETFS_UNBUFFERED_WRITE ||
+	     wreq->origin == NETFS_DIO_WRITE) &&
+	    !wreq->error)
+		netfs_update_i_size(ictx, &ictx->inode, wreq->start, wreq->transferred);
 
 	if (wreq->origin == NETFS_DIO_WRITE &&
 	    wreq->mapping->nrpages) {
@@ -419,9 +421,11 @@ bool netfs_write_collection(struct netfs_io_request *wreq)
 	if (wreq->iocb) {
 		size_t written = min(wreq->transferred, wreq->len);
 		wreq->iocb->ki_pos += written;
-		if (wreq->iocb->ki_complete)
+		if (wreq->iocb->ki_complete) {
+			trace_netfs_rreq(wreq, netfs_rreq_trace_ki_complete);
 			wreq->iocb->ki_complete(
 				wreq->iocb, wreq->error ? wreq->error : written);
+		}
 		wreq->iocb = VFS_PTR_POISON;
 	}
 
@@ -434,7 +438,7 @@ void netfs_write_collection_worker(struct work_struct *work)
 	struct netfs_io_request *rreq = container_of(work, struct netfs_io_request, work);
 
 	netfs_see_request(rreq, netfs_rreq_trace_see_work);
-	if (test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags)) {
+	if (netfs_check_rreq_in_progress(rreq)) {
 		if (netfs_write_collection(rreq))
 			/* Drop the ref from the IN_PROGRESS flag. */
 			netfs_put_request(rreq, netfs_rreq_trace_put_work_ip);

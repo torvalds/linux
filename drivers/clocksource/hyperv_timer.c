@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/acpi.h>
 #include <linux/hyperv.h>
+#include <linux/export.h>
 #include <clocksource/hyperv_timer.h>
 #include <hyperv/hvhdk.h>
 #include <asm/mshyperv.h>

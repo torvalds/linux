@@ -30,6 +30,7 @@ void bch2_btree_node_update_key_early(struct btree_trans *, enum btree_id, unsig
 void bch2_btree_cache_cannibalize_unlock(struct btree_trans *);
 int bch2_btree_cache_cannibalize_lock(struct btree_trans *, struct closure *);
 
+void __btree_node_data_free(struct btree *);
 struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *);
 struct btree *bch2_btree_node_mem_alloc(struct btree_trans *, bool);
 

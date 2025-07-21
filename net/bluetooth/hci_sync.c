@@ -393,7 +393,7 @@ static void le_scan_disable(struct work_struct *work)
 	if (hdev->discovery.type != DISCOV_TYPE_INTERLEAVED)
 		goto _return;
 
-	if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks)) {
+	if (hci_test_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY)) {
 		if (!test_bit(HCI_INQUIRY, &hdev->flags) &&
 		    hdev->discovery.state != DISCOVERY_RESOLVING)
 			goto discov_stopped;
@@ -1205,9 +1205,126 @@ static int hci_set_adv_set_random_addr_sync(struct hci_dev *hdev, u8 instance,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
+static int
+hci_set_ext_adv_params_sync(struct hci_dev *hdev, struct adv_info *adv,
+			    const struct hci_cp_le_set_ext_adv_params *cp,
+			    struct hci_rp_le_set_ext_adv_params *rp)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(*cp),
+			     cp, HCI_CMD_TIMEOUT);
+
+	/* If command return a status event, skb will be set to -ENODATA */
+	if (skb == ERR_PTR(-ENODATA))
+		return 0;
+
+	if (IS_ERR(skb)) {
+		bt_dev_err(hdev, "Opcode 0x%4.4x failed: %ld",
+			   HCI_OP_LE_SET_EXT_ADV_PARAMS, PTR_ERR(skb));
+		return PTR_ERR(skb);
+	}
+
+	if (skb->len != sizeof(*rp)) {
+		bt_dev_err(hdev, "Invalid response length for 0x%4.4x: %u",
+			   HCI_OP_LE_SET_EXT_ADV_PARAMS, skb->len);
+		kfree_skb(skb);
+		return -EIO;
+	}
+
+	memcpy(rp, skb->data, sizeof(*rp));
+	kfree_skb(skb);
+
+	if (!rp->status) {
+		hdev->adv_addr_type = cp->own_addr_type;
+		if (!cp->handle) {
+			/* Store in hdev for instance 0 */
+			hdev->adv_tx_power = rp->tx_power;
+		} else if (adv) {
+			adv->tx_power = rp->tx_power;
+		}
+	}
+
+	return rp->status;
+}
+
+static int hci_set_ext_adv_data_sync(struct hci_dev *hdev, u8 instance)
+{
+	DEFINE_FLEX(struct hci_cp_le_set_ext_adv_data, pdu, data, length,
+		    HCI_MAX_EXT_AD_LENGTH);
+	u8 len;
+	struct adv_info *adv = NULL;
+	int err;
+
+	if (instance) {
+		adv = hci_find_adv_instance(hdev, instance);
+		if (!adv || !adv->adv_data_changed)
+			return 0;
+	}
+
+	len = eir_create_adv_data(hdev, instance, pdu->data,
+				  HCI_MAX_EXT_AD_LENGTH);
+
+	pdu->length = len;
+	pdu->handle = adv ? adv->handle : instance;
+	pdu->operation = LE_SET_ADV_DATA_OP_COMPLETE;
+	pdu->frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EXT_ADV_DATA,
+				    struct_size(pdu, data, len), pdu,
+				    HCI_CMD_TIMEOUT);
+	if (err)
+		return err;
+
+	/* Update data if the command succeed */
+	if (adv) {
+		adv->adv_data_changed = false;
+	} else {
+		memcpy(hdev->adv_data, pdu->data, len);
+		hdev->adv_data_len = len;
+	}
+
+	return 0;
+}
+
+static int hci_set_adv_data_sync(struct hci_dev *hdev, u8 instance)
+{
+	struct hci_cp_le_set_adv_data cp;
+	u8 len;
+
+	memset(&cp, 0, sizeof(cp));
+
+	len = eir_create_adv_data(hdev, instance, cp.data, sizeof(cp.data));
+
+	/* There's nothing to do if the data hasn't changed */
+	if (hdev->adv_data_len == len &&
+	    memcmp(cp.data, hdev->adv_data, len) == 0)
+		return 0;
+
+	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+	hdev->adv_data_len = len;
+
+	cp.length = len;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_ADV_DATA,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+int hci_update_adv_data_sync(struct hci_dev *hdev, u8 instance)
+{
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
+		return 0;
+
+	if (ext_adv_capable(hdev))
+		return hci_set_ext_adv_data_sync(hdev, instance);
+
+	return hci_set_adv_data_sync(hdev, instance);
+}
+
 int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 {
 	struct hci_cp_le_set_ext_adv_params cp;
+	struct hci_rp_le_set_ext_adv_params rp;
 	bool connectable;
 	u32 flags;
 	bdaddr_t random_addr;
@@ -1228,7 +1345,7 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 	 * Command Disallowed error, so we must first disable the
 	 * instance if it is active.
 	 */
-	if (adv && !adv->pending) {
+	if (adv) {
 		err = hci_disable_ext_adv_instance_sync(hdev, instance);
 		if (err)
 			return err;
@@ -1316,8 +1433,12 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 		cp.secondary_phy = HCI_ADV_PHY_1M;
 	}
 
-	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EXT_ADV_PARAMS,
-				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = hci_set_ext_adv_params_sync(hdev, adv, &cp, &rp);
+	if (err)
+		return err;
+
+	/* Update adv data as tx power is known now */
+	err = hci_set_ext_adv_data_sync(hdev, cp.handle);
 	if (err)
 		return err;
 
@@ -1822,79 +1943,6 @@ int hci_le_terminate_big_sync(struct hci_dev *hdev, u8 handle, u8 reason)
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
-static int hci_set_ext_adv_data_sync(struct hci_dev *hdev, u8 instance)
-{
-	DEFINE_FLEX(struct hci_cp_le_set_ext_adv_data, pdu, data, length,
-		    HCI_MAX_EXT_AD_LENGTH);
-	u8 len;
-	struct adv_info *adv = NULL;
-	int err;
-
-	if (instance) {
-		adv = hci_find_adv_instance(hdev, instance);
-		if (!adv || !adv->adv_data_changed)
-			return 0;
-	}
-
-	len = eir_create_adv_data(hdev, instance, pdu->data,
-				  HCI_MAX_EXT_AD_LENGTH);
-
-	pdu->length = len;
-	pdu->handle = adv ? adv->handle : instance;
-	pdu->operation = LE_SET_ADV_DATA_OP_COMPLETE;
-	pdu->frag_pref = LE_SET_ADV_DATA_NO_FRAG;
-
-	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EXT_ADV_DATA,
-				    struct_size(pdu, data, len), pdu,
-				    HCI_CMD_TIMEOUT);
-	if (err)
-		return err;
-
-	/* Update data if the command succeed */
-	if (adv) {
-		adv->adv_data_changed = false;
-	} else {
-		memcpy(hdev->adv_data, pdu->data, len);
-		hdev->adv_data_len = len;
-	}
-
-	return 0;
-}
-
-static int hci_set_adv_data_sync(struct hci_dev *hdev, u8 instance)
-{
-	struct hci_cp_le_set_adv_data cp;
-	u8 len;
-
-	memset(&cp, 0, sizeof(cp));
-
-	len = eir_create_adv_data(hdev, instance, cp.data, sizeof(cp.data));
-
-	/* There's nothing to do if the data hasn't changed */
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
-		return 0;
-
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
-
-	cp.length = len;
-
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_ADV_DATA,
-				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
-}
-
-int hci_update_adv_data_sync(struct hci_dev *hdev, u8 instance)
-{
-	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-		return 0;
-
-	if (ext_adv_capable(hdev))
-		return hci_set_ext_adv_data_sync(hdev, instance);
-
-	return hci_set_adv_data_sync(hdev, instance);
-}
-
 int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 				   bool force)
 {
@@ -1970,13 +2018,10 @@ static int hci_clear_adv_sets_sync(struct hci_dev *hdev, struct sock *sk)
 static int hci_clear_adv_sync(struct hci_dev *hdev, struct sock *sk, bool force)
 {
 	struct adv_info *adv, *n;
-	int err = 0;
 
 	if (ext_adv_capable(hdev))
 		/* Remove all existing sets */
-		err = hci_clear_adv_sets_sync(hdev, sk);
-	if (ext_adv_capable(hdev))
-		return err;
+		return hci_clear_adv_sets_sync(hdev, sk);
 
 	/* This is safe as long as there is no command send while the lock is
 	 * held.
@@ -2004,13 +2049,11 @@ static int hci_clear_adv_sync(struct hci_dev *hdev, struct sock *sk, bool force)
 static int hci_remove_adv_sync(struct hci_dev *hdev, u8 instance,
 			       struct sock *sk)
 {
-	int err = 0;
+	int err;
 
 	/* If we use extended advertising, instance has to be removed first. */
 	if (ext_adv_capable(hdev))
-		err = hci_remove_ext_adv_instance_sync(hdev, instance, sk);
-	if (ext_adv_capable(hdev))
-		return err;
+		return hci_remove_ext_adv_instance_sync(hdev, instance, sk);
 
 	/* This is safe as long as there is no command send while the lock is
 	 * held.
@@ -2109,16 +2152,13 @@ int hci_read_tx_power_sync(struct hci_dev *hdev, __le16 handle, u8 type)
 int hci_disable_advertising_sync(struct hci_dev *hdev)
 {
 	u8 enable = 0x00;
-	int err = 0;
 
 	/* If controller is not advertising we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_ADV))
 		return 0;
 
 	if (ext_adv_capable(hdev))
-		err = hci_disable_ext_adv_instance_sync(hdev, 0x00);
-	if (ext_adv_capable(hdev))
-		return err;
+		return hci_disable_ext_adv_instance_sync(hdev, 0x00);
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_ADV_ENABLE,
 				     sizeof(enable), &enable, HCI_CMD_TIMEOUT);
@@ -2480,6 +2520,10 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 {
 	int err;
 	int old_state;
+
+	/* If controller is not advertising we are done. */
+	if (!hci_dev_test_flag(hdev, HCI_LE_ADV))
+		return 0;
 
 	/* If already been paused there is nothing to do. */
 	if (hdev->advertising_paused)
@@ -3543,7 +3587,7 @@ static void hci_dev_get_bd_addr_from_property(struct hci_dev *hdev)
 	if (ret < 0 || !bacmp(&ba, BDADDR_ANY))
 		return;
 
-	if (test_bit(HCI_QUIRK_BDADDR_PROPERTY_BROKEN, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_BDADDR_PROPERTY_BROKEN))
 		baswap(&hdev->public_addr, &ba);
 	else
 		bacpy(&hdev->public_addr, &ba);
@@ -3618,7 +3662,7 @@ static int hci_init0_sync(struct hci_dev *hdev)
 	bt_dev_dbg(hdev, "");
 
 	/* Reset */
-	if (!test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
+	if (!hci_test_quirk(hdev, HCI_QUIRK_RESET_ON_CLOSE)) {
 		err = hci_reset_sync(hdev);
 		if (err)
 			return err;
@@ -3631,7 +3675,7 @@ static int hci_unconf_init_sync(struct hci_dev *hdev)
 {
 	int err;
 
-	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_RAW_DEVICE))
 		return 0;
 
 	err = hci_init0_sync(hdev);
@@ -3674,7 +3718,7 @@ static int hci_read_local_cmds_sync(struct hci_dev *hdev)
 	 * supported commands.
 	 */
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1 &&
-	    !test_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks))
+	    !hci_test_quirk(hdev, HCI_QUIRK_BROKEN_LOCAL_COMMANDS))
 		return __hci_cmd_sync_status(hdev, HCI_OP_READ_LOCAL_COMMANDS,
 					     0, NULL, HCI_CMD_TIMEOUT);
 
@@ -3688,7 +3732,7 @@ static int hci_init1_sync(struct hci_dev *hdev)
 	bt_dev_dbg(hdev, "");
 
 	/* Reset */
-	if (!test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
+	if (!hci_test_quirk(hdev, HCI_QUIRK_RESET_ON_CLOSE)) {
 		err = hci_reset_sync(hdev);
 		if (err)
 			return err;
@@ -3751,7 +3795,7 @@ static int hci_set_event_filter_sync(struct hci_dev *hdev, u8 flt_type,
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return 0;
 
-	if (test_bit(HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL))
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -3778,7 +3822,7 @@ static int hci_clear_event_filter_sync(struct hci_dev *hdev)
 	 * a hci_set_event_filter_sync() call succeeds, but we do
 	 * the check both for parity and as a future reminder.
 	 */
-	if (test_bit(HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL))
 		return 0;
 
 	return hci_set_event_filter_sync(hdev, HCI_FLT_CLEAR_ALL, 0x00,
@@ -3802,7 +3846,7 @@ static int hci_write_sync_flowctl_sync(struct hci_dev *hdev)
 
 	/* Check if the controller supports SCO and HCI_OP_WRITE_SYNC_FLOWCTL */
 	if (!lmp_sco_capable(hdev) || !(hdev->commands[10] & BIT(4)) ||
-	    !test_bit(HCI_QUIRK_SYNC_FLOWCTL_SUPPORTED, &hdev->quirks))
+	    !hci_test_quirk(hdev, HCI_QUIRK_SYNC_FLOWCTL_SUPPORTED))
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -3877,7 +3921,7 @@ static int hci_write_inquiry_mode_sync(struct hci_dev *hdev)
 	u8 mode;
 
 	if (!lmp_inq_rssi_capable(hdev) &&
-	    !test_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks))
+	    !hci_test_quirk(hdev, HCI_QUIRK_FIXUP_INQUIRY_MODE))
 		return 0;
 
 	/* If Extended Inquiry Result events are supported, then
@@ -4067,7 +4111,7 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 	}
 
 	if (lmp_inq_rssi_capable(hdev) ||
-	    test_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_FIXUP_INQUIRY_MODE))
 		events[4] |= 0x02; /* Inquiry Result with RSSI */
 
 	if (lmp_ext_feat_capable(hdev))
@@ -4119,7 +4163,7 @@ static int hci_read_stored_link_key_sync(struct hci_dev *hdev)
 	struct hci_cp_read_stored_link_key cp;
 
 	if (!(hdev->commands[6] & 0x20) ||
-	    test_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_STORED_LINK_KEY))
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -4168,7 +4212,7 @@ static int hci_read_def_err_data_reporting_sync(struct hci_dev *hdev)
 {
 	if (!(hdev->commands[18] & 0x04) ||
 	    !(hdev->features[0][6] & LMP_ERR_DATA_REPORTING) ||
-	    test_bit(HCI_QUIRK_BROKEN_ERR_DATA_REPORTING, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_ERR_DATA_REPORTING))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_READ_DEF_ERR_DATA_REPORTING,
@@ -4182,7 +4226,7 @@ static int hci_read_page_scan_type_sync(struct hci_dev *hdev)
 	 * this command in the bit mask of supported commands.
 	 */
 	if (!(hdev->commands[13] & 0x01) ||
-	    test_bit(HCI_QUIRK_BROKEN_READ_PAGE_SCAN_TYPE, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_READ_PAGE_SCAN_TYPE))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_READ_PAGE_SCAN_TYPE,
@@ -4377,7 +4421,7 @@ static int hci_le_read_adv_tx_power_sync(struct hci_dev *hdev)
 static int hci_le_read_tx_power_sync(struct hci_dev *hdev)
 {
 	if (!(hdev->commands[38] & 0x80) ||
-	    test_bit(HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_READ_TRANSMIT_POWER,
@@ -4420,7 +4464,7 @@ static int hci_le_set_rpa_timeout_sync(struct hci_dev *hdev)
 	__le16 timeout = cpu_to_le16(hdev->rpa_timeout);
 
 	if (!(hdev->commands[35] & 0x04) ||
-	    test_bit(HCI_QUIRK_BROKEN_SET_RPA_TIMEOUT, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_SET_RPA_TIMEOUT))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_RPA_TIMEOUT,
@@ -4565,7 +4609,7 @@ static int hci_delete_stored_link_key_sync(struct hci_dev *hdev)
 	 * just disable this command.
 	 */
 	if (!(hdev->commands[6] & 0x80) ||
-	    test_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_STORED_LINK_KEY))
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -4691,7 +4735,7 @@ static int hci_set_err_data_report_sync(struct hci_dev *hdev)
 
 	if (!(hdev->commands[18] & 0x08) ||
 	    !(hdev->features[0][6] & LMP_ERR_DATA_REPORTING) ||
-	    test_bit(HCI_QUIRK_BROKEN_ERR_DATA_REPORTING, &hdev->quirks))
+	    hci_test_quirk(hdev, HCI_QUIRK_BROKEN_ERR_DATA_REPORTING))
 		return 0;
 
 	if (enabled == hdev->err_data_reporting)
@@ -4904,7 +4948,7 @@ static int hci_dev_setup_sync(struct hci_dev *hdev)
 	size_t i;
 
 	if (!hci_dev_test_flag(hdev, HCI_SETUP) &&
-	    !test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks))
+	    !hci_test_quirk(hdev, HCI_QUIRK_NON_PERSISTENT_SETUP))
 		return 0;
 
 	bt_dev_dbg(hdev, "");
@@ -4915,7 +4959,7 @@ static int hci_dev_setup_sync(struct hci_dev *hdev)
 		ret = hdev->setup(hdev);
 
 	for (i = 0; i < ARRAY_SIZE(hci_broken_table); i++) {
-		if (test_bit(hci_broken_table[i].quirk, &hdev->quirks))
+		if (hci_test_quirk(hdev, hci_broken_table[i].quirk))
 			bt_dev_warn(hdev, "%s", hci_broken_table[i].desc);
 	}
 
@@ -4923,10 +4967,10 @@ static int hci_dev_setup_sync(struct hci_dev *hdev)
 	 * BD_ADDR invalid before creating the HCI device or in
 	 * its setup callback.
 	 */
-	invalid_bdaddr = test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) ||
-			 test_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
+	invalid_bdaddr = hci_test_quirk(hdev, HCI_QUIRK_INVALID_BDADDR) ||
+			 hci_test_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY);
 	if (!ret) {
-		if (test_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks) &&
+		if (hci_test_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY) &&
 		    !bacmp(&hdev->public_addr, BDADDR_ANY))
 			hci_dev_get_bd_addr_from_property(hdev);
 
@@ -4948,7 +4992,7 @@ static int hci_dev_setup_sync(struct hci_dev *hdev)
 	 * In case any of them is set, the controller has to
 	 * start up as unconfigured.
 	 */
-	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) ||
+	if (hci_test_quirk(hdev, HCI_QUIRK_EXTERNAL_CONFIG) ||
 	    invalid_bdaddr)
 		hci_dev_set_flag(hdev, HCI_UNCONFIGURED);
 
@@ -5008,7 +5052,7 @@ static int hci_dev_init_sync(struct hci_dev *hdev)
 	 * then they need to be reprogrammed after the init procedure
 	 * completed.
 	 */
-	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	if (hci_test_quirk(hdev, HCI_QUIRK_NON_PERSISTENT_DIAG) &&
 	    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 	    hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) && hdev->set_diag)
 		ret = hdev->set_diag(hdev, true);
@@ -5265,7 +5309,7 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	/* Reset device */
 	skb_queue_purge(&hdev->cmd_q);
 	atomic_set(&hdev->cmd_cnt, 1);
-	if (test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks) &&
+	if (hci_test_quirk(hdev, HCI_QUIRK_RESET_ON_CLOSE) &&
 	    !auto_off && !hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
 		set_bit(HCI_INIT, &hdev->flags);
 		hci_reset_sync(hdev);
@@ -5449,7 +5493,7 @@ static int hci_disconnect_sync(struct hci_dev *hdev, struct hci_conn *conn,
 {
 	struct hci_cp_disconnect cp;
 
-	if (test_bit(HCI_CONN_BIG_CREATED, &conn->flags)) {
+	if (conn->type == BIS_LINK) {
 		/* This is a BIS connection, hci_conn_del will
 		 * do the necessary cleanup.
 		 */
@@ -5915,7 +5959,7 @@ static int hci_active_scan_sync(struct hci_dev *hdev, uint16_t interval)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 
 	if (hci_is_adv_monitoring(hdev) ||
-	    (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks) &&
+	    (hci_test_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER) &&
 	    hdev->discovery.result_filtering)) {
 		/* Duplicate filter should be disabled when some advertisement
 		 * monitor is activated, otherwise AdvMon can only receive one
@@ -5978,8 +6022,7 @@ int hci_start_discovery_sync(struct hci_dev *hdev)
 		 * and LE scanning are done sequentially with separate
 		 * timeouts.
 		 */
-		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
-			     &hdev->quirks)) {
+		if (hci_test_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY)) {
 			timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
 			/* During simultaneous discovery, we double LE scan
 			 * interval. We must leave some time for the controller
@@ -6056,7 +6099,7 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 	/* Some fake CSR controllers lock up after setting this type of
 	 * filter, so avoid sending the request altogether.
 	 */
-	if (test_bit(HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL))
 		return 0;
 
 	/* Always clear event filter when starting */
@@ -6277,6 +6320,7 @@ static int hci_le_ext_directed_advertising_sync(struct hci_dev *hdev,
 						struct hci_conn *conn)
 {
 	struct hci_cp_le_set_ext_adv_params cp;
+	struct hci_rp_le_set_ext_adv_params rp;
 	int err;
 	bdaddr_t random_addr;
 	u8 own_addr_type;
@@ -6318,8 +6362,12 @@ static int hci_le_ext_directed_advertising_sync(struct hci_dev *hdev,
 	if (err)
 		return err;
 
-	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EXT_ADV_PARAMS,
-				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	err = hci_set_ext_adv_params_sync(hdev, NULL, &cp, &rp);
+	if (err)
+		return err;
+
+	/* Update adv data as tx power is known now */
+	err = hci_set_ext_adv_data_sync(hdev, cp.handle);
 	if (err)
 		return err;
 
@@ -6766,8 +6814,8 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 		return 0;
 	}
 
-	/* No privacy so use a public address. */
-	*own_addr_type = ADDR_LE_DEV_PUBLIC;
+	/* No privacy, use the current address */
+	hci_copy_identity_address(hdev, rand_addr, own_addr_type);
 
 	return 0;
 }

@@ -2654,7 +2654,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	/* Devices that are marked for raw-only usage are unconfigured
 	 * and should not be included in normal operation.
 	 */
-	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_RAW_DEVICE))
 		hci_dev_set_flag(hdev, HCI_UNCONFIGURED);
 
 	/* Mark Remote Wakeup connection flag as supported if driver has wakeup
@@ -2784,7 +2784,7 @@ int hci_register_suspend_notifier(struct hci_dev *hdev)
 	int ret = 0;
 
 	if (!hdev->suspend_notifier.notifier_call &&
-	    !test_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks)) {
+	    !hci_test_quirk(hdev, HCI_QUIRK_NO_SUSPEND_NOTIFIER)) {
 		hdev->suspend_notifier.notifier_call = hci_suspend_notifier;
 		ret = register_pm_notifier(&hdev->suspend_notifier);
 	}
