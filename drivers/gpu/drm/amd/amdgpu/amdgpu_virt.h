@@ -325,6 +325,8 @@ struct amdgpu_virt {
 	/* Spinlock to protect access to the RLCG register interface */
 	spinlock_t rlcg_reg_lock;
 
+	struct mutex access_req_mutex;
+
 	union amd_sriov_ras_caps ras_en_caps;
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
 	struct amdgpu_virt_ras ras;
