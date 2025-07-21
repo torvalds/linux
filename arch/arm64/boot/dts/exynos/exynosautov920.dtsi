@@ -455,6 +455,26 @@
 				samsung,uart-fifosize = <256>;
 				status = "disabled";
 			};
+
+			spi_0: spi@10880000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10880000 0x30>;
+				interrupts = <GIC_SPI 764 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI00_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 1>, <&pdma0 0>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <256>;
+				status = "disabled";
+			};
 		};
 
 		usi_1: usi@108a00c0 {
@@ -482,6 +502,26 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI01_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <256>;
+				status = "disabled";
+			};
+
+			spi_1: spi@108a0000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x108a0000 0x30>;
+				interrupts = <GIC_SPI 766 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi1_bus &spi1_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI01_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 3>, <&pdma0 2>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <256>;
 				status = "disabled";
 			};
 		};
@@ -513,6 +553,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_2: spi@108c0000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x108c0000 0x30>;
+				interrupts = <GIC_SPI 768 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_bus &spi2_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI02_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 5>, <&pdma0 4>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_3: usi@108e00c0 {
@@ -540,6 +600,26 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI03_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_3: spi@108e0000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x108e0000 0x30>;
+				interrupts = <GIC_SPI 770 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi3_bus &spi3_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI03_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 7>, <&pdma0 6>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -571,6 +651,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_4: spi@10900000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10900000 0x30>;
+				interrupts = <GIC_SPI 772 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi4_bus &spi4_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI04_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 9>, <&pdma0 8>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_5: usi@109200c0 {
@@ -598,6 +698,26 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI05_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_5: spi@10920000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10920000 0x30>;
+				interrupts = <GIC_SPI 774 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi5_bus &spi5_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI05_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 11>, <&pdma0 10>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -629,6 +749,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_6: spi@10940000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10940000 0x30>;
+				interrupts = <GIC_SPI 776 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi6_bus &spi6_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI06_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 13>, <&pdma0 12>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_7: usi@109600c0 {
@@ -656,6 +796,26 @@
 					 <&cmu_peric0 CLK_DOUT_PERIC0_USI07_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_7: spi@10960000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10960000 0x30>;
+				interrupts = <GIC_SPI 778 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi7_bus &spi7_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI07_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 15>, <&pdma0 14>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -687,6 +847,27 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_8: spi@10980000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10980000 0x30>;
+				interrupts = <GIC_SPI 780 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi8_bus &spi8_cs_func>;
+				clocks = <&cmu_peric0 CLK_MOUT_PERIC0_NOC_USER>,
+					 <&cmu_peric0 CLK_DOUT_PERIC0_USI08_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma0 17>, <&pdma0 16>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
+
 		};
 
 		pwm: pwm@109b0000 {
@@ -752,6 +933,26 @@
 				samsung,uart-fifosize = <256>;
 				status = "disabled";
 			};
+
+			spi_9: spi@10c80000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10c80000 0x30>;
+				interrupts = <GIC_SPI 787 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi9_bus &spi9_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI09_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 1>, <&pdma1 0>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <256>;
+				status = "disabled";
+			};
 		};
 
 		usi_10: usi@10ca00c0 {
@@ -779,6 +980,26 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI10_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_10: spi@10ca0000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10ca0000 0x30>;
+				interrupts = <GIC_SPI 789 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi10_bus &spi10_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI10_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 3>, <&pdma1 2>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -810,6 +1031,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_11: spi@10cc0000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10cc0000 0x30>;
+				interrupts = <GIC_SPI 791 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi11_bus &spi11_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI11_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 5>, <&pdma1 4>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_12: usi@10ce00c0 {
@@ -837,6 +1078,26 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI12_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_12: spi@10ce0000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10ce0000 0x30>;
+				interrupts = <GIC_SPI 793 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi12_bus &spi12_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI12_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 7>, <&pdma1 6>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -868,6 +1129,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_13: spi@10d00000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10d00000 0x30>;
+				interrupts = <GIC_SPI 795 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi13_bus &spi13_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI13_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 9>, <&pdma1 8>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_14: usi@10d200c0 {
@@ -895,6 +1176,26 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI14_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_14: spi@10d20000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10d20000 0x30>;
+				interrupts = <GIC_SPI 797 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi14_bus &spi14_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI14_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 11>, <&pdma1 10>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -926,6 +1227,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_15: spi@10d40000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10d40000 0x30>;
+				interrupts = <GIC_SPI 799 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi15_bus &spi15_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI15_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 13>, <&pdma1 12>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_16: usi@10d600c0 {
@@ -955,6 +1276,26 @@
 				samsung,uart-fifosize = <64>;
 				status = "disabled";
 			};
+
+			spi_16: spi@10d60000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10d60000 0x30>;
+				interrupts = <GIC_SPI 801 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi16_bus &spi16_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI16_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 15>, <&pdma1 14>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
+				status = "disabled";
+			};
 		};
 
 		usi_17: usi@10d800c0 {
@@ -982,6 +1323,26 @@
 					 <&cmu_peric1 CLK_DOUT_PERIC1_USI17_USI>;
 				clock-names = "uart", "clk_uart_baud0";
 				samsung,uart-fifosize = <64>;
+				status = "disabled";
+			};
+
+			spi_17: spi@10d80000 {
+				compatible = "samsung,exynosautov920-spi",
+					     "samsung,exynos850-spi";
+				reg = <0x10d80000 0x30>;
+				interrupts = <GIC_SPI 803 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi17_bus &spi17_cs_func>;
+				clocks = <&cmu_peric1 CLK_MOUT_PERIC1_NOC_USER>,
+					 <&cmu_peric1 CLK_DOUT_PERIC1_USI17_USI>;
+				clock-names = "spi", "spi_busclk0";
+				samsung,spi-src-clk = <0>;
+				dmas = <&pdma1 17>, <&pdma1 16>;
+				dma-names = "tx", "rx";
+				num-cs = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fifo-depth = <64>;
 				status = "disabled";
 			};
 		};
@@ -1046,6 +1407,23 @@
 			compatible = "samsung,exynosautov920-pinctrl";
 			reg = <0x16450000 0x10000>;
 			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_hsi2: clock-controller@16b00000 {
+			compatible = "samsung,exynosautov920-cmu-hsi2";
+			reg = <0x16b00000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_HSI2_NOC>,
+				 <&cmu_top DOUT_CLKCMU_HSI2_NOC_UFS>,
+				 <&cmu_top DOUT_CLKCMU_HSI2_UFS_EMBD>,
+				 <&cmu_top DOUT_CLKCMU_HSI2_ETHERNET>;
+			clock-names = "oscclk",
+				      "noc",
+				      "ufs",
+				      "embd",
+				      "ethernet";
 		};
 
 		pinctrl_hsi2: pinctrl@16c10000 {
