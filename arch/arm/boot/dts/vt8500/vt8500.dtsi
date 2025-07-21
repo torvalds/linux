@@ -11,18 +11,14 @@
 	compatible = "via,vt8500";
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,arm926ej-s";
+			reg = <0x0>;
 		};
-	};
-
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x0>;
 	};
 
 	aliases {
@@ -126,7 +122,7 @@
 			interrupts = <43>;
 		};
 
-		fb: fb@d8050800 {
+		fb: lcd-controller@d800e400 {
 			compatible = "via,vt8500-fb";
 			reg = <0xd800e400 0x400>;
 			interrupts = <12>;
