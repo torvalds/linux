@@ -406,13 +406,18 @@ static bool is_multiple_vma_range_ok(unsigned int pattern_seed,
 }
 
 static void mremap_move_multiple_vmas(unsigned int pattern_seed,
-				      unsigned long page_size)
+				      unsigned long page_size,
+				      bool dont_unmap)
 {
+	int mremap_flags = MREMAP_FIXED | MREMAP_MAYMOVE;
 	char *test_name = "mremap move multiple vmas";
 	const size_t size = 11 * page_size;
 	bool success = true;
 	char *ptr, *tgt_ptr;
 	int i;
+
+	if (dont_unmap)
+		mremap_flags |= MREMAP_DONTUNMAP;
 
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -467,8 +472,7 @@ static void mremap_move_multiple_vmas(unsigned int pattern_seed,
 	}
 
 	/* First, just move the whole thing. */
-	if (mremap(ptr, size, size,
-		   MREMAP_MAYMOVE | MREMAP_FIXED, tgt_ptr) == MAP_FAILED) {
+	if (mremap(ptr, size, size, mremap_flags, tgt_ptr) == MAP_FAILED) {
 		perror("mremap");
 		success = false;
 		goto out_unmap;
@@ -480,9 +484,10 @@ static void mremap_move_multiple_vmas(unsigned int pattern_seed,
 	}
 
 	/* Move next to itself. */
-	if (mremap(tgt_ptr, size, size,
-		   MREMAP_MAYMOVE | MREMAP_FIXED, &tgt_ptr[size]) == MAP_FAILED) {
+	if (mremap(tgt_ptr, size, size, mremap_flags,
+		   &tgt_ptr[size]) == MAP_FAILED) {
 		perror("mremap");
+		success = false;
 		goto out_unmap;
 	}
 	/* Check that the move is ok. */
@@ -500,8 +505,9 @@ static void mremap_move_multiple_vmas(unsigned int pattern_seed,
 	}
 	/* Move and overwrite. */
 	if (mremap(&tgt_ptr[size], size, size,
-		   MREMAP_MAYMOVE | MREMAP_FIXED, tgt_ptr) == MAP_FAILED) {
+		   mremap_flags, tgt_ptr) == MAP_FAILED) {
 		perror("mremap");
+		success = false;
 		goto out_unmap;
 	}
 	/* Check that the move is ok. */
@@ -518,9 +524,11 @@ out_unmap:
 
 out:
 	if (success)
-		ksft_test_result_pass("%s\n", test_name);
+		ksft_test_result_pass("%s%s\n", test_name,
+				      dont_unmap ? " [dontunnmap]" : "");
 	else
-		ksft_test_result_fail("%s\n", test_name);
+		ksft_test_result_fail("%s%s\n", test_name,
+				      dont_unmap ? " [dontunnmap]" : "");
 }
 
 static void mremap_shrink_multiple_vmas(unsigned long page_size,
@@ -943,7 +951,7 @@ int main(int argc, char **argv)
 	char *rand_addr;
 	size_t rand_size;
 	int num_expand_tests = 2;
-	int num_misc_tests = 5;
+	int num_misc_tests = 6;
 	struct test test_cases[MAX_TEST] = {};
 	struct test perf_test_cases[MAX_PERF_TEST];
 	int page_size;
@@ -1070,9 +1078,10 @@ int main(int argc, char **argv)
 
 	mremap_move_within_range(pattern_seed, rand_addr);
 	mremap_move_1mb_from_start(pattern_seed, rand_addr);
-	mremap_move_multiple_vmas(pattern_seed, page_size);
 	mremap_shrink_multiple_vmas(page_size, /* inplace= */true);
 	mremap_shrink_multiple_vmas(page_size, /* inplace= */false);
+	mremap_move_multiple_vmas(pattern_seed, page_size, /* dontunmap= */ false);
+	mremap_move_multiple_vmas(pattern_seed, page_size, /* dontunmap= */ true);
 
 	if (run_perf_tests) {
 		ksft_print_msg("\n%s\n",
