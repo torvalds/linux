@@ -594,7 +594,6 @@ static int entity_parse_mu(struct device *dev,
 {
 	struct sdca_control *control;
 	struct snd_kcontrol_new *kctl;
-	int cn;
 	int i;
 
 	if (!entity->num_sources) {
@@ -611,18 +610,11 @@ static int entity_parse_mu(struct device *dev,
 		dev_warn(dev, "%s: unexpected access layer: %x\n",
 			 entity->label, control->layers);
 
-	if (entity->num_sources != hweight64(control->cn_list)) {
-		dev_err(dev, "%s: mismatched control and sources\n", entity->label);
-		return -EINVAL;
-	}
-
 	kctl = devm_kcalloc(dev, entity->num_sources, sizeof(*kctl), GFP_KERNEL);
 	if (!kctl)
 		return -ENOMEM;
 
-	i = 0;
-	for_each_set_bit(cn, (unsigned long *)&control->cn_list,
-			 BITS_PER_TYPE(control->cn_list)) {
+	for (i = 0; i < entity->num_sources; i++) {
 		const char *control_name;
 		struct soc_mixer_control *mc;
 
@@ -647,7 +639,6 @@ static int entity_parse_mu(struct device *dev,
 		kctl[i].info = snd_soc_info_volsw;
 		kctl[i].get = snd_soc_dapm_get_volsw;
 		kctl[i].put = snd_soc_dapm_put_volsw;
-		i++;
 	}
 
 	(*widget)->id = snd_soc_dapm_mixer;
