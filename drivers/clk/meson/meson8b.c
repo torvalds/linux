@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 
-#include "meson8b.h"
 #include "clk-regmap.h"
 #include "meson-clkc-utils.h"
 #include "clk-pll.h"
@@ -24,6 +23,72 @@
 
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
+
+/*
+ * Clock controller register offsets
+ *
+ * Register offsets from the HardKernel[0] data sheet must be multiplied
+ * by 4 before adding them to the base address to get the right value
+ *
+ * [0] https://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
+ */
+#define HHI_GP_PLL_CNTL			0x40
+#define HHI_GP_PLL_CNTL2		0x44
+#define HHI_GP_PLL_CNTL3		0x48
+#define HHI_GP_PLL_CNTL4		0x4C
+#define HHI_GP_PLL_CNTL5		0x50
+#define HHI_VIID_CLK_DIV		0x128
+#define HHI_VIID_CLK_CNTL		0x12c
+#define HHI_GCLK_MPEG0			0x140
+#define HHI_GCLK_MPEG1			0x144
+#define HHI_GCLK_MPEG2			0x148
+#define HHI_GCLK_OTHER			0x150
+#define HHI_GCLK_AO			0x154
+#define HHI_SYS_CPU_CLK_CNTL1		0x15c
+#define HHI_VID_CLK_DIV			0x164
+#define HHI_MPEG_CLK_CNTL		0x174
+#define HHI_AUD_CLK_CNTL		0x178
+#define HHI_VID_CLK_CNTL		0x17c
+#define HHI_AUD_CLK_CNTL2		0x190
+#define HHI_VID_CLK_CNTL2		0x194
+#define HHI_VID_DIVIDER_CNTL		0x198
+#define HHI_SYS_CPU_CLK_CNTL0		0x19c
+#define HHI_MALI_CLK_CNTL		0x1b0
+#define HHI_VPU_CLK_CNTL		0x1bc
+#define HHI_HDMI_CLK_CNTL		0x1cc
+#define HHI_VDEC_CLK_CNTL		0x1e0
+#define HHI_VDEC2_CLK_CNTL		0x1e4
+#define HHI_VDEC3_CLK_CNTL		0x1e8
+#define HHI_NAND_CLK_CNTL		0x25c
+#define HHI_MPLL_CNTL			0x280
+#define HHI_SYS_PLL_CNTL		0x300
+#define HHI_VID_PLL_CNTL		0x320
+#define HHI_VID_PLL_CNTL2		0x324
+#define HHI_VID_PLL_CNTL3		0x328
+#define HHI_VID_PLL_CNTL4		0x32c
+#define HHI_VID_PLL_CNTL5		0x330
+#define HHI_VID_PLL_CNTL6		0x334
+#define HHI_VID2_PLL_CNTL		0x380
+#define HHI_VID2_PLL_CNTL2		0x384
+#define HHI_VID2_PLL_CNTL3		0x388
+#define HHI_VID2_PLL_CNTL4		0x38c
+#define HHI_VID2_PLL_CNTL5		0x390
+#define HHI_VID2_PLL_CNTL6		0x394
+
+/*
+ * MPLL register offeset taken from the S905 datasheet. Vendor kernel source
+ * confirm these are the same for the S805.
+ */
+#define HHI_MPLL_CNTL			0x280
+#define HHI_MPLL_CNTL2			0x284
+#define HHI_MPLL_CNTL3			0x288
+#define HHI_MPLL_CNTL4			0x28c
+#define HHI_MPLL_CNTL5			0x290
+#define HHI_MPLL_CNTL6			0x294
+#define HHI_MPLL_CNTL7			0x298
+#define HHI_MPLL_CNTL8			0x29c
+#define HHI_MPLL_CNTL9			0x2a0
+#define HHI_MPLL_CNTL10			0x2a4
 
 struct meson8b_clk_reset {
 	struct reset_controller_dev reset;
@@ -3407,202 +3472,6 @@ static struct clk_hw *meson8m2_hw_clks[] = {
 	[CLKID_HDMI_PLL_DCO_IN]	    = &hdmi_pll_dco_in.hw,
 };
 
-static struct clk_regmap *const meson8b_clk_regmaps[] = {
-	&meson8b_clk81,
-	&meson8b_ddr,
-	&meson8b_dos,
-	&meson8b_isa,
-	&meson8b_pl301,
-	&meson8b_periphs,
-	&meson8b_spicc,
-	&meson8b_i2c,
-	&meson8b_sar_adc,
-	&meson8b_smart_card,
-	&meson8b_rng0,
-	&meson8b_uart0,
-	&meson8b_sdhc,
-	&meson8b_stream,
-	&meson8b_async_fifo,
-	&meson8b_sdio,
-	&meson8b_abuf,
-	&meson8b_hiu_iface,
-	&meson8b_assist_misc,
-	&meson8b_spi,
-	&meson8b_i2s_spdif,
-	&meson8b_eth,
-	&meson8b_demux,
-	&meson8b_aiu_glue,
-	&meson8b_iec958,
-	&meson8b_i2s_out,
-	&meson8b_amclk,
-	&meson8b_aififo2,
-	&meson8b_mixer,
-	&meson8b_mixer_iface,
-	&meson8b_adc,
-	&meson8b_blkmv,
-	&meson8b_aiu,
-	&meson8b_uart1,
-	&meson8b_g2d,
-	&meson8b_usb0,
-	&meson8b_usb1,
-	&meson8b_reset,
-	&meson8b_nand,
-	&meson8b_dos_parser,
-	&meson8b_usb,
-	&meson8b_vdin1,
-	&meson8b_ahb_arb0,
-	&meson8b_efuse,
-	&meson8b_boot_rom,
-	&meson8b_ahb_data_bus,
-	&meson8b_ahb_ctrl_bus,
-	&meson8b_hdmi_intr_sync,
-	&meson8b_hdmi_pclk,
-	&meson8b_usb1_ddr_bridge,
-	&meson8b_usb0_ddr_bridge,
-	&meson8b_mmc_pclk,
-	&meson8b_dvin,
-	&meson8b_uart2,
-	&meson8b_sana,
-	&meson8b_vpu_intr,
-	&meson8b_sec_ahb_ahb3_bridge,
-	&meson8b_clk81_a9,
-	&meson8b_vclk2_venci0,
-	&meson8b_vclk2_venci1,
-	&meson8b_vclk2_vencp0,
-	&meson8b_vclk2_vencp1,
-	&meson8b_gclk_venci_int,
-	&meson8b_gclk_vencp_int,
-	&meson8b_dac_clk,
-	&meson8b_aoclk_gate,
-	&meson8b_iec958_gate,
-	&meson8b_enc480p,
-	&meson8b_rng1,
-	&meson8b_gclk_vencl_int,
-	&meson8b_vclk2_venclmcc,
-	&meson8b_vclk2_vencl,
-	&meson8b_vclk2_other,
-	&meson8b_edp,
-	&meson8b_ao_media_cpu,
-	&meson8b_ao_ahb_sram,
-	&meson8b_ao_ahb_bus,
-	&meson8b_ao_iface,
-	&meson8b_mpeg_clk_div,
-	&meson8b_mpeg_clk_sel,
-	&meson8b_mpll0,
-	&meson8b_mpll1,
-	&meson8b_mpll2,
-	&meson8b_mpll0_div,
-	&meson8b_mpll1_div,
-	&meson8b_mpll2_div,
-	&meson8b_fixed_pll,
-	&meson8b_sys_pll,
-	&meson8b_cpu_in_sel,
-	&meson8b_cpu_scale_div,
-	&meson8b_cpu_scale_out_sel,
-	&meson8b_cpu_clk,
-	&meson8b_mpll_prediv,
-	&meson8b_fclk_div2,
-	&meson8b_fclk_div3,
-	&meson8b_fclk_div4,
-	&meson8b_fclk_div5,
-	&meson8b_fclk_div7,
-	&meson8b_nand_clk_sel,
-	&meson8b_nand_clk_div,
-	&meson8b_nand_clk_gate,
-	&meson8b_fixed_pll_dco,
-	&meson8b_hdmi_pll_dco,
-	&meson8b_sys_pll_dco,
-	&meson8b_apb_clk_sel,
-	&meson8b_apb_clk_gate,
-	&meson8b_periph_clk_sel,
-	&meson8b_periph_clk_gate,
-	&meson8b_axi_clk_sel,
-	&meson8b_axi_clk_gate,
-	&meson8b_l2_dram_clk_sel,
-	&meson8b_l2_dram_clk_gate,
-	&meson8b_hdmi_pll_lvds_out,
-	&meson8b_hdmi_pll_hdmi_out,
-	&meson8b_vid_pll_in_sel,
-	&meson8b_vid_pll_in_en,
-	&meson8b_vid_pll_pre_div,
-	&meson8b_vid_pll_post_div,
-	&meson8b_vid_pll,
-	&meson8b_vid_pll_final_div,
-	&meson8b_vclk_in_sel,
-	&meson8b_vclk_in_en,
-	&meson8b_vclk_en,
-	&meson8b_vclk_div1_gate,
-	&meson8b_vclk_div2_div_gate,
-	&meson8b_vclk_div4_div_gate,
-	&meson8b_vclk_div6_div_gate,
-	&meson8b_vclk_div12_div_gate,
-	&meson8b_vclk2_in_sel,
-	&meson8b_vclk2_clk_in_en,
-	&meson8b_vclk2_clk_en,
-	&meson8b_vclk2_div1_gate,
-	&meson8b_vclk2_div2_div_gate,
-	&meson8b_vclk2_div4_div_gate,
-	&meson8b_vclk2_div6_div_gate,
-	&meson8b_vclk2_div12_div_gate,
-	&meson8b_cts_enct_sel,
-	&meson8b_cts_enct,
-	&meson8b_cts_encp_sel,
-	&meson8b_cts_encp,
-	&meson8b_cts_enci_sel,
-	&meson8b_cts_enci,
-	&meson8b_hdmi_tx_pixel_sel,
-	&meson8b_hdmi_tx_pixel,
-	&meson8b_cts_encl_sel,
-	&meson8b_cts_encl,
-	&meson8b_cts_vdac0_sel,
-	&meson8b_cts_vdac0,
-	&meson8b_hdmi_sys_sel,
-	&meson8b_hdmi_sys_div,
-	&meson8b_hdmi_sys,
-	&meson8b_mali_0_sel,
-	&meson8b_mali_0_div,
-	&meson8b_mali_0,
-	&meson8b_mali_1_sel,
-	&meson8b_mali_1_div,
-	&meson8b_mali_1,
-	&meson8b_mali,
-	&meson8m2_gp_pll_dco,
-	&meson8m2_gp_pll,
-	&meson8b_vpu_0_sel,
-	&meson8m2_vpu_0_sel,
-	&meson8b_vpu_0_div,
-	&meson8b_vpu_0,
-	&meson8b_vpu_1_sel,
-	&meson8m2_vpu_1_sel,
-	&meson8b_vpu_1_div,
-	&meson8b_vpu_1,
-	&meson8b_vpu,
-	&meson8b_vdec_1_sel,
-	&meson8b_vdec_1_1_div,
-	&meson8b_vdec_1_1,
-	&meson8b_vdec_1_2_div,
-	&meson8b_vdec_1_2,
-	&meson8b_vdec_1,
-	&meson8b_vdec_hcodec_sel,
-	&meson8b_vdec_hcodec_div,
-	&meson8b_vdec_hcodec,
-	&meson8b_vdec_2_sel,
-	&meson8b_vdec_2_div,
-	&meson8b_vdec_2,
-	&meson8b_vdec_hevc_sel,
-	&meson8b_vdec_hevc_div,
-	&meson8b_vdec_hevc_en,
-	&meson8b_vdec_hevc,
-	&meson8b_cts_amclk,
-	&meson8b_cts_amclk_sel,
-	&meson8b_cts_amclk_div,
-	&meson8b_cts_mclk_i958_sel,
-	&meson8b_cts_mclk_i958_div,
-	&meson8b_cts_mclk_i958,
-	&meson8b_cts_i958,
-	&meson8b_vid_pll_lvds_en,
-};
-
 static const struct meson8b_clk_reset_line {
 	u32 reg;
 	u8 bit_idx;
@@ -3818,10 +3687,6 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 		       __func__, ret);
 		return;
 	}
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(meson8b_clk_regmaps); i++)
-		meson8b_clk_regmaps[i]->map = map;
 
 	/*
 	 * register all clks and start with the first used ID (which is
