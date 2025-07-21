@@ -177,6 +177,7 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 					      VL_SERVICE, AFS_VL_PORT);
 		if (IS_ERR(vllist)) {
 			ret = PTR_ERR(vllist);
+			vllist = NULL;
 			goto parse_failed;
 		}
 
