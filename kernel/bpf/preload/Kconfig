@@ -1,8 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config USERMODE_DRIVER
-	bool
-	default n
-
 menuconfig BPF_PRELOAD
 	bool "Preload BPF file system with kernel specific program and map iterators"
 	depends on BPF
