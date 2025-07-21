@@ -301,6 +301,14 @@
 			};
 		};
 
+		prng: rng@e3000 {
+			compatible = "qcom,prng-ee";
+			reg = <0x000e3000 0x1000>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+			status = "disabled";
+		};
+
 		tsens: thermal-sensor@4a9000 {
 			compatible = "qcom,ipq5018-tsens", "qcom,tsens-v1";
 			reg = <0x004a9000 0x1000>,
