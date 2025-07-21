@@ -14,7 +14,6 @@
 #include "raid5.h"
 #include "raid10.h"
 #include "md-bitmap.h"
-#include "dm-core.h"
 
 #include <linux/device-mapper.h>
 
@@ -3309,7 +3308,7 @@ size_check:
 
 	/* Disable/enable discard support on raid set. */
 	configure_discard_support(rs);
-	rs->md.dm_gendisk = ti->table->md->disk;
+	rs->md.dm_gendisk = dm_disk(dm_table_get_md(ti->table));
 
 	mddev_unlock(&rs->md);
 	return 0;
