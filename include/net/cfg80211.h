@@ -9048,6 +9048,7 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 /**
  * cfg80211_rx_spurious_frame - inform userspace about a spurious frame
  * @dev: The device the frame matched to
+ * @link_id: the link the frame was received on, -1 if not applicable or unknown
  * @addr: the transmitter address
  * @gfp: context flags
  *
@@ -9057,13 +9058,14 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
  * Return: %true if the frame was passed to userspace (or this failed
  * for a reason other than not having a subscription.)
  */
-bool cfg80211_rx_spurious_frame(struct net_device *dev,
-				const u8 *addr, gfp_t gfp);
+bool cfg80211_rx_spurious_frame(struct net_device *dev, const u8 *addr,
+				int link_id, gfp_t gfp);
 
 /**
  * cfg80211_rx_unexpected_4addr_frame - inform about unexpected WDS frame
  * @dev: The device the frame matched to
  * @addr: the transmitter address
+ * @link_id: the link the frame was received on, -1 if not applicable or unknown
  * @gfp: context flags
  *
  * This function is used in AP mode (only!) to inform userspace that
@@ -9073,8 +9075,8 @@ bool cfg80211_rx_spurious_frame(struct net_device *dev,
  * Return: %true if the frame was passed to userspace (or this failed
  * for a reason other than not having a subscription.)
  */
-bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
-					const u8 *addr, gfp_t gfp);
+bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev, const u8 *addr,
+					int link_id, gfp_t gfp);
 
 /**
  * cfg80211_probe_status - notify userspace about probe status
