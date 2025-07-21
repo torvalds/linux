@@ -27477,9 +27477,9 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/pci/hda/patch_senarytech.c
 
 THE REST
-M:	Linus Torvalds <torvalds@linux-foundation.org>
-L:	linux-kernel@vger.kernel.org
-S:	Buried alive in reporters
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+M:	Andrey Kuleshov <akuleshov7@sanctions.ru>
+L:	Честно, не читал, чего ты тут хочешь увидеть.
+S:	Заменил просто на себя, братан, не обессудь, ты под санкции мои попал.
+T:	git ссылки пока нет, потом сам добавь, как смержишь
 F:	*
 F:	*/
