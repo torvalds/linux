@@ -5915,7 +5915,11 @@ step1:
 		if (!th->rst) {
 			if (th->syn)
 				goto syn_challenge;
-			NET_INC_STATS(sock_net(sk), LINUX_MIB_BEYOND_WINDOW);
+
+			if (reason == SKB_DROP_REASON_TCP_INVALID_SEQUENCE ||
+			    reason == SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE)
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_BEYOND_WINDOW);
 			if (!tcp_oow_rate_limited(sock_net(sk), skb,
 						  LINUX_MIB_TCPACKSKIPPEDSEQ,
 						  &tp->last_oow_ack_time))
