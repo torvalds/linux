@@ -2807,6 +2807,7 @@ fc_flush_work(struct Scsi_Host *shost)
 /**
  * fc_queue_devloss_work - Schedule work for the fc_host devloss workqueue.
  * @shost:	Pointer to Scsi_Host bound to fc_host.
+ * @rport:	rport associated with the devloss work
  * @work:	Work to queue for execution.
  * @delay:	jiffies to delay the work queuing
  *
@@ -2832,6 +2833,7 @@ fc_queue_devloss_work(struct Scsi_Host *shost, struct fc_rport *rport,
 /**
  * fc_flush_devloss - Flush a fc_host's devloss workqueue.
  * @shost:	Pointer to Scsi_Host bound to fc_host.
+ * @rport:	rport associated with the devloss work
  */
 static void
 fc_flush_devloss(struct Scsi_Host *shost, struct fc_rport *rport)
