@@ -111,25 +111,6 @@ void eiointc_set_irq(struct loongarch_eiointc *s, int irq, int level)
 	spin_unlock_irqrestore(&s->lock, flags);
 }
 
-static inline void eiointc_enable_irq(struct kvm_vcpu *vcpu,
-		struct loongarch_eiointc *s, int index, u8 mask, int level)
-{
-	u8 val;
-	int irq;
-
-	val = mask & s->isr.reg_u8[index];
-	irq = ffs(val);
-	while (irq != 0) {
-		/*
-		 * enable bit change from 0 to 1,
-		 * need to update irq by pending bits
-		 */
-		eiointc_update_irq(s, irq - 1 + index * 8, level);
-		val &= ~BIT(irq - 1);
-		irq = ffs(val);
-	}
-}
-
 static int loongarch_eiointc_read(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
 				gpa_t addr, unsigned long *val)
 {
@@ -222,7 +203,7 @@ static int loongarch_eiointc_write(struct kvm_vcpu *vcpu,
 				struct loongarch_eiointc *s,
 				gpa_t addr, u64 value, u64 field_mask)
 {
-	int i, index, irq, bits, ret = 0;
+	int index, irq, ret = 0;
 	u8 cpu;
 	u64 data, old, mask;
 	gpa_t offset;
@@ -257,18 +238,20 @@ static int loongarch_eiointc_write(struct kvm_vcpu *vcpu,
 		 * update irq when isr is set.
 		 */
 		data = s->enable.reg_u64[index] & ~old & s->isr.reg_u64[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 8 + i, mask, 1);
+		while (data) {
+			irq = __ffs(data);
+			eiointc_update_irq(s, irq + index * 64, 1);
+			data &= ~BIT_ULL(irq);
 		}
 		/*
 		 * 0: disable irq.
 		 * update irq when isr is set.
 		 */
 		data = ~s->enable.reg_u64[index] & old & s->isr.reg_u64[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 8 + i, mask, 0);
+		while (data) {
+			irq = __ffs(data);
+			eiointc_update_irq(s, irq + index * 64, 0);
+			data &= ~BIT_ULL(irq);
 		}
 		break;
 	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
@@ -285,12 +268,10 @@ static int loongarch_eiointc_write(struct kvm_vcpu *vcpu,
 		/* write 1 to clear interrupt */
 		s->coreisr.reg_u64[cpu][index] = old & ~data;
 		data &= old;
-		bits = sizeof(data) * 8;
-		irq = find_first_bit((void *)&data, bits);
-		while (irq < bits) {
-			eiointc_update_irq(s, irq + index * bits, 0);
-			bitmap_clear((void *)&data, irq, 1);
-			irq = find_first_bit((void *)&data, bits);
+		while (data) {
+			irq = __ffs(data);
+			eiointc_update_irq(s, irq + index * 64, 0);
+			data &= ~BIT_ULL(irq);
 		}
 		break;
 	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
