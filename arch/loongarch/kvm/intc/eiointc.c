@@ -173,7 +173,7 @@ static int kvm_eiointc_read(struct kvm_vcpu *vcpu,
 
 	offset = addr & 0x7;
 	addr -= offset;
-	vcpu->kvm->stat.eiointc_read_exits++;
+	vcpu->stat.eiointc_read_exits++;
 	spin_lock_irqsave(&eiointc->lock, flags);
 	ret = loongarch_eiointc_read(vcpu, eiointc, addr, &data);
 	spin_unlock_irqrestore(&eiointc->lock, flags);
@@ -307,7 +307,7 @@ static int kvm_eiointc_write(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
-	vcpu->kvm->stat.eiointc_write_exits++;
+	vcpu->stat.eiointc_write_exits++;
 	spin_lock_irqsave(&eiointc->lock, flags);
 	switch (len) {
 	case 1:
