@@ -12188,9 +12188,8 @@ F:	drivers/dma/idxd/*
 F:	include/uapi/linux/idxd.h
 
 INTEL IN FIELD SCAN (IFS) DEVICE
-M:	Jithu Joseph <jithu.joseph@intel.com>
+M:	Tony Luck <tony.luck@intel.com>
 R:	Ashok Raj <ashok.raj.linux@gmail.com>
-R:	Tony Luck <tony.luck@intel.com>
 S:	Maintained
 F:	drivers/platform/x86/intel/ifs
 F:	include/trace/events/intel_ifs.h
@@ -12530,8 +12529,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 F:	drivers/net/wireless/intel/iwlwifi/
 
 INTEL WMI SLIM BOOTLOADER (SBL) FIRMWARE UPDATE DRIVER
-M:	Jithu Joseph <jithu.joseph@intel.com>
-S:	Maintained
+S:	Orphan
 W:	https://slimbootloader.github.io/security/firmware-update.html
 F:	drivers/platform/x86/intel/wmi/sbl-fw-update.c
 
