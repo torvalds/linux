@@ -738,7 +738,7 @@ void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring)
 }
 
 
-/**
+/*
  * Kernel queue reset handling
  *
  * The driver can reset individual queues for most engines, but those queues
