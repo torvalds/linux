@@ -48,14 +48,6 @@
 		pwms = <&pwm2 0 5000 0>;
 	};
 
-	reg_rst_eth2: regulator-rst-eth2 {
-		compatible = "regulator-fixed";
-		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-always-on;
-		regulator-name = "rst-usb-eth2";
-	};
-
 	reg_vdd_5v: regulator-5v {
 		compatible = "regulator-fixed";
 		regulator-always-on;
