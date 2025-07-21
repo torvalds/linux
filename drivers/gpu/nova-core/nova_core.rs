@@ -2,11 +2,16 @@
 
 //! Nova Core GPU Driver
 
+mod dma;
 mod driver;
+mod falcon;
+mod fb;
 mod firmware;
+mod gfw;
 mod gpu;
 mod regs;
 mod util;
+mod vbios;
 
 pub(crate) const MODULE_NAME: &kernel::str::CStr = <LocalModule as kernel::ModuleMetadata>::NAME;
 
