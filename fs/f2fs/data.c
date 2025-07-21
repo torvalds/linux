@@ -1550,9 +1550,13 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
 	unsigned int start_pgofs;
 	int bidx = 0;
 	bool is_hole;
+	bool lfs_dio_write;
 
 	if (!maxblocks)
 		return 0;
+
+	lfs_dio_write = (flag == F2FS_GET_BLOCK_DIO && f2fs_lfs_mode(sbi) &&
+				map->m_may_create);
 
 	if (!map->m_may_create && f2fs_map_blocks_cached(inode, map, flag))
 		goto out;
@@ -1600,7 +1604,7 @@ next_block:
 	/* use out-place-update for direct IO under LFS mode */
 	if (map->m_may_create && (is_hole ||
 		(flag == F2FS_GET_BLOCK_DIO && f2fs_lfs_mode(sbi) &&
-		!f2fs_is_pinned_file(inode)))) {
+		!f2fs_is_pinned_file(inode) && map->m_last_pblk != blkaddr))) {
 		if (unlikely(f2fs_cp_error(sbi))) {
 			err = -EIO;
 			goto sync_out;
@@ -1684,10 +1688,15 @@ next_block:
 
 		if (map->m_multidev_dio)
 			map->m_bdev = FDEV(bidx).bdev;
+
+		if (lfs_dio_write)
+			map->m_last_pblk = NULL_ADDR;
 	} else if (map_is_mergeable(sbi, map, blkaddr, flag, bidx, ofs)) {
 		ofs++;
 		map->m_len++;
 	} else {
+		if (lfs_dio_write && !f2fs_is_pinned_file(inode))
+			map->m_last_pblk = blkaddr;
 		goto sync_out;
 	}
 
@@ -1710,14 +1719,6 @@ skip:
 			goto sync_out;
 		}
 		dn.ofs_in_node = end_offset;
-	}
-
-	if (flag == F2FS_GET_BLOCK_DIO && f2fs_lfs_mode(sbi) &&
-	    map->m_may_create) {
-		/* the next block to be allocated may not be contiguous. */
-		if (GET_SEGOFF_FROM_SEG0(sbi, blkaddr) % BLKS_PER_SEC(sbi) ==
-		    CAP_BLKS_PER_SEC(sbi) - 1)
-			goto sync_out;
 	}
 
 	if (pgofs >= end)
@@ -4162,7 +4163,7 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 			    unsigned int flags, struct iomap *iomap,
 			    struct iomap *srcmap)
 {
-	struct f2fs_map_blocks map = {};
+	struct f2fs_map_blocks map = { NULL, };
 	pgoff_t next_pgofs = 0;
 	int err;
 
@@ -4171,6 +4172,10 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	map.m_next_pgofs = &next_pgofs;
 	map.m_seg_type = f2fs_rw_hint_to_seg_type(F2FS_I_SB(inode),
 						inode->i_write_hint);
+	if (flags & IOMAP_WRITE && iomap->private) {
+		map.m_last_pblk = (unsigned long)iomap->private;
+		iomap->private = NULL;
+	}
 
 	/*
 	 * If the blocks being overwritten are already allocated,
@@ -4209,6 +4214,9 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		iomap->flags |= IOMAP_F_MERGED;
 		iomap->bdev = map.m_bdev;
 		iomap->addr = F2FS_BLK_TO_BYTES(map.m_pblk);
+
+		if (flags & IOMAP_WRITE && map.m_last_pblk)
+			iomap->private = (void *)map.m_last_pblk;
 	} else {
 		if (flags & IOMAP_WRITE)
 			return -ENOTBLK;
