@@ -187,11 +187,6 @@ static inline void arch_cpu_finalize_init(void) { }
 
 void play_idle_precise(u64 duration_ns, u64 latency_ns);
 
-static inline void play_idle(unsigned long duration_us)
-{
-	play_idle_precise(duration_us * NSEC_PER_USEC, U64_MAX);
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 void cpuhp_report_idle_dead(void);
 #else
