@@ -13365,16 +13365,12 @@ ath12k_mac_setup_radio_iface_comb(struct ath12k *ar,
 	comb[0].beacon_int_infra_match = true;
 	comb[0].beacon_int_min_gcd = 100;
 
-	if (ar->ab->hw_params->single_pdev_only) {
-		comb[0].num_different_channels = 2;
-	} else {
-		comb[0].num_different_channels = 1;
-		comb[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-						BIT(NL80211_CHAN_WIDTH_20) |
-						BIT(NL80211_CHAN_WIDTH_40) |
-						BIT(NL80211_CHAN_WIDTH_80) |
-						BIT(NL80211_CHAN_WIDTH_160);
-	}
+	comb[0].num_different_channels = 1;
+	comb[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				      BIT(NL80211_CHAN_WIDTH_20) |
+				      BIT(NL80211_CHAN_WIDTH_40) |
+				      BIT(NL80211_CHAN_WIDTH_80) |
+				      BIT(NL80211_CHAN_WIDTH_160);
 
 	return 0;
 }
@@ -13457,24 +13453,41 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k_hw *ah)
 	struct ieee80211_iface_combination *combinations, *comb;
 	struct wiphy *wiphy = ah->hw->wiphy;
 	struct wiphy_radio *radio;
+	int n_combinations = 1;
 	struct ath12k *ar;
 	int i, ret;
 
-	combinations = kzalloc(sizeof(*combinations), GFP_KERNEL);
-	if (!combinations)
-		return -ENOMEM;
-
 	if (ah->num_radio == 1) {
-		ret = ath12k_mac_setup_radio_iface_comb(&ah->radio[0],
-							combinations);
+		ar = &ah->radio[0];
+
+		if (ar->ab->hw_params->single_pdev_only)
+			n_combinations = 2;
+
+		combinations = kcalloc(n_combinations, sizeof(*combinations),
+				       GFP_KERNEL);
+		if (!combinations)
+			return -ENOMEM;
+
+		ret = ath12k_mac_setup_radio_iface_comb(ar, combinations);
 		if (ret) {
 			ath12k_hw_warn(ah, "failed to setup radio interface combinations for one radio: %d",
 				       ret);
 			goto err_free_combinations;
 		}
 
+		if (ar->ab->hw_params->single_pdev_only) {
+			comb = combinations + 1;
+			memcpy(comb, combinations, sizeof(*comb));
+			comb->num_different_channels = 2;
+			comb->radar_detect_widths = 0;
+		}
+
 		goto out;
 	}
+
+	combinations = kcalloc(n_combinations, sizeof(*combinations), GFP_KERNEL);
+	if (!combinations)
+		return -ENOMEM;
 
 	/* there are multiple radios */
 
@@ -13518,7 +13531,7 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k_hw *ah)
 
 out:
 	wiphy->iface_combinations = combinations;
-	wiphy->n_iface_combinations = 1;
+	wiphy->n_iface_combinations = n_combinations;
 
 	return 0;
 
