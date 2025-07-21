@@ -1061,7 +1061,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn init_callback(ptr: *mut bindings::cpufreq_policy) -> kernel::ffi::c_int {
+    unsafe extern "C" fn init_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1094,7 +1094,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn online_callback(ptr: *mut bindings::cpufreq_policy) -> kernel::ffi::c_int {
+    unsafe extern "C" fn online_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1109,9 +1109,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn offline_callback(
-        ptr: *mut bindings::cpufreq_policy,
-    ) -> kernel::ffi::c_int {
+    unsafe extern "C" fn offline_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1126,9 +1124,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn suspend_callback(
-        ptr: *mut bindings::cpufreq_policy,
-    ) -> kernel::ffi::c_int {
+    unsafe extern "C" fn suspend_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1143,7 +1139,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn resume_callback(ptr: *mut bindings::cpufreq_policy) -> kernel::ffi::c_int {
+    unsafe extern "C" fn resume_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1171,9 +1167,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn verify_callback(
-        ptr: *mut bindings::cpufreq_policy_data,
-    ) -> kernel::ffi::c_int {
+    unsafe extern "C" fn verify_callback(ptr: *mut bindings::cpufreq_policy_data) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1188,9 +1182,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn setpolicy_callback(
-        ptr: *mut bindings::cpufreq_policy,
-    ) -> kernel::ffi::c_int {
+    unsafe extern "C" fn setpolicy_callback(ptr: *mut bindings::cpufreq_policy) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1207,9 +1199,9 @@ impl<T: Driver> Registration<T> {
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn target_callback(
         ptr: *mut bindings::cpufreq_policy,
-        target_freq: u32,
-        relation: u32,
-    ) -> kernel::ffi::c_int {
+        target_freq: c_uint,
+        relation: c_uint,
+    ) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1226,8 +1218,8 @@ impl<T: Driver> Registration<T> {
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn target_index_callback(
         ptr: *mut bindings::cpufreq_policy,
-        index: u32,
-    ) -> kernel::ffi::c_int {
+        index: c_uint,
+    ) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1249,8 +1241,8 @@ impl<T: Driver> Registration<T> {
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn fast_switch_callback(
         ptr: *mut bindings::cpufreq_policy,
-        target_freq: u32,
-    ) -> kernel::ffi::c_uint {
+        target_freq: c_uint,
+    ) -> c_uint {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.
         let policy = unsafe { Policy::from_raw_mut(ptr) };
@@ -1263,10 +1255,10 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     unsafe extern "C" fn adjust_perf_callback(
-        cpu: u32,
-        min_perf: usize,
-        target_perf: usize,
-        capacity: usize,
+        cpu: c_uint,
+        min_perf: c_ulong,
+        target_perf: c_ulong,
+        capacity: c_ulong,
     ) {
         // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
         let cpu_id = unsafe { CpuId::from_u32_unchecked(cpu) };
@@ -1284,8 +1276,8 @@ impl<T: Driver> Registration<T> {
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn get_intermediate_callback(
         ptr: *mut bindings::cpufreq_policy,
-        index: u32,
-    ) -> kernel::ffi::c_uint {
+        index: c_uint,
+    ) -> c_uint {
         // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
         // lifetime of `policy`.
         let policy = unsafe { Policy::from_raw_mut(ptr) };
@@ -1305,8 +1297,8 @@ impl<T: Driver> Registration<T> {
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn target_intermediate_callback(
         ptr: *mut bindings::cpufreq_policy,
-        index: u32,
-    ) -> kernel::ffi::c_int {
+        index: c_uint,
+    ) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
@@ -1325,7 +1317,7 @@ impl<T: Driver> Registration<T> {
     /// # Safety
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
-    unsafe extern "C" fn get_callback(cpu: u32) -> kernel::ffi::c_uint {
+    unsafe extern "C" fn get_callback(cpu: c_uint) -> c_uint {
         // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
         let cpu_id = unsafe { CpuId::from_u32_unchecked(cpu) };
 
@@ -1351,7 +1343,7 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
-    unsafe extern "C" fn bios_limit_callback(cpu: i32, limit: *mut u32) -> kernel::ffi::c_int {
+    unsafe extern "C" fn bios_limit_callback(cpu: c_int, limit: *mut c_uint) -> c_int {
         // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
         let cpu_id = unsafe { CpuId::from_i32_unchecked(cpu) };
 
@@ -1371,8 +1363,8 @@ impl<T: Driver> Registration<T> {
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn set_boost_callback(
         ptr: *mut bindings::cpufreq_policy,
-        state: i32,
-    ) -> kernel::ffi::c_int {
+        state: c_int,
+    ) -> c_int {
         from_result(|| {
             // SAFETY: The `ptr` is guaranteed to be valid by the contract with the C code for the
             // lifetime of `policy`.
