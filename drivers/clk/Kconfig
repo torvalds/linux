@@ -88,6 +88,15 @@ config COMMON_CLK_RK808
 	  These multi-function devices have two fixed-rate oscillators, clocked at 32KHz each.
 	  Clkout1 is always on, Clkout2 can off by control register.
 
+config COMMON_CLK_RP1
+	tristate "Raspberry Pi RP1-based clock support"
+	depends on MISC_RP1 || COMPILE_TEST
+	default MISC_RP1
+	help
+	  Enable common clock framework support for Raspberry Pi RP1.
+	  This multi-function device has 3 main PLLs and several clock
+	  generators to drive the internal sub-peripherals.
+
 config COMMON_CLK_HI655X
 	tristate "Clock driver for Hi655x" if EXPERT
 	depends on (MFD_HI655X_PMIC || COMPILE_TEST)
