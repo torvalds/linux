@@ -130,134 +130,8 @@ static inline void eiointc_enable_irq(struct kvm_vcpu *vcpu,
 	}
 }
 
-static int loongarch_eiointc_readb(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, void *val)
-{
-	int index, ret = 0;
-	u8 data = 0;
-	gpa_t offset;
-
-	offset = addr - EIOINTC_BASE;
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = offset - EIOINTC_NODETYPE_START;
-		data = s->nodetype.reg_u8[index];
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		index = offset - EIOINTC_IPMAP_START;
-		data = s->ipmap.reg_u8[index];
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = offset - EIOINTC_ENABLE_START;
-		data = s->enable.reg_u8[index];
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		index = offset - EIOINTC_BOUNCE_START;
-		data = s->bounce.reg_u8[index];
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = offset - EIOINTC_COREISR_START;
-		data = s->coreisr.reg_u8[vcpu->vcpu_id][index];
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		index = offset - EIOINTC_COREMAP_START;
-		data = s->coremap.reg_u8[index];
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	*(u8 *)val = data;
-
-	return ret;
-}
-
-static int loongarch_eiointc_readw(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, void *val)
-{
-	int index, ret = 0;
-	u16 data = 0;
-	gpa_t offset;
-
-	offset = addr - EIOINTC_BASE;
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START) >> 1;
-		data = s->nodetype.reg_u16[index];
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		index = (offset - EIOINTC_IPMAP_START) >> 1;
-		data = s->ipmap.reg_u16[index];
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START) >> 1;
-		data = s->enable.reg_u16[index];
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		index = (offset - EIOINTC_BOUNCE_START) >> 1;
-		data = s->bounce.reg_u16[index];
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START) >> 1;
-		data = s->coreisr.reg_u16[vcpu->vcpu_id][index];
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		index = (offset - EIOINTC_COREMAP_START) >> 1;
-		data = s->coremap.reg_u16[index];
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	*(u16 *)val = data;
-
-	return ret;
-}
-
-static int loongarch_eiointc_readl(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, void *val)
-{
-	int index, ret = 0;
-	u32 data = 0;
-	gpa_t offset;
-
-	offset = addr - EIOINTC_BASE;
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START) >> 2;
-		data = s->nodetype.reg_u32[index];
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		index = (offset - EIOINTC_IPMAP_START) >> 2;
-		data = s->ipmap.reg_u32[index];
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START) >> 2;
-		data = s->enable.reg_u32[index];
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		index = (offset - EIOINTC_BOUNCE_START) >> 2;
-		data = s->bounce.reg_u32[index];
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START) >> 2;
-		data = s->coreisr.reg_u32[vcpu->vcpu_id][index];
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		index = (offset - EIOINTC_COREMAP_START) >> 2;
-		data = s->coremap.reg_u32[index];
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	*(u32 *)val = data;
-
-	return ret;
-}
-
-static int loongarch_eiointc_readq(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, void *val)
+static int loongarch_eiointc_read(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
+				gpa_t addr, unsigned long *val)
 {
 	int index, ret = 0;
 	u64 data = 0;
@@ -293,7 +167,7 @@ static int loongarch_eiointc_readq(struct kvm_vcpu *vcpu, struct loongarch_eioin
 		ret = -EINVAL;
 		break;
 	}
-	*(u64 *)val = data;
+	*val = data;
 
 	return ret;
 }
@@ -303,7 +177,7 @@ static int kvm_eiointc_read(struct kvm_vcpu *vcpu,
 			gpa_t addr, int len, void *val)
 {
 	int ret = -EINVAL;
-	unsigned long flags;
+	unsigned long flags, data, offset;
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
@@ -316,25 +190,32 @@ static int kvm_eiointc_read(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
+	offset = addr & 0x7;
+	addr -= offset;
 	vcpu->kvm->stat.eiointc_read_exits++;
 	spin_lock_irqsave(&eiointc->lock, flags);
+	ret = loongarch_eiointc_read(vcpu, eiointc, addr, &data);
+	spin_unlock_irqrestore(&eiointc->lock, flags);
+	if (ret)
+		return ret;
+
+	data = data >> (offset * 8);
 	switch (len) {
 	case 1:
-		ret = loongarch_eiointc_readb(vcpu, eiointc, addr, val);
+		*(long *)val = (s8)data;
 		break;
 	case 2:
-		ret = loongarch_eiointc_readw(vcpu, eiointc, addr, val);
+		*(long *)val = (s16)data;
 		break;
 	case 4:
-		ret = loongarch_eiointc_readl(vcpu, eiointc, addr, val);
+		*(long *)val = (s32)data;
 		break;
 	default:
-		ret = loongarch_eiointc_readq(vcpu, eiointc, addr, val);
+		*(long *)val = (long)data;
 		break;
 	}
-	spin_unlock_irqrestore(&eiointc->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int loongarch_eiointc_writeb(struct kvm_vcpu *vcpu,
