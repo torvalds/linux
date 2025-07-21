@@ -58,6 +58,9 @@ struct sev_device {
 	bool snp_initialized;
 
 	struct sev_user_data_status sev_plat_status;
+
+	struct sev_user_data_snp_status snp_plat_status;
+	struct snp_feature_info snp_feat_info_0;
 };
 
 int sev_dev_init(struct psp_device *psp);
