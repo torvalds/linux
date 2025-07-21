@@ -3606,6 +3606,9 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 	if (!con || amdgpu_sriov_vf(adev))
 		return 0;
 
+	if (amdgpu_uniras_enabled(adev))
+		return 0;
+
 	control = &con->eeprom_control;
 	ret = amdgpu_ras_eeprom_init(control);
 	control->is_eeprom_valid = !ret;
