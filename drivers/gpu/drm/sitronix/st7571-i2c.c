@@ -386,10 +386,10 @@ static int st7571_fb_update_rect_grayscale(struct drm_framebuffer *fb, struct dr
 			 * even if the format is monochrome.
 			 *
 			 * The bit values maps to the following grayscale:
-			 * 0 0 = White
-			 * 0 1 = Light gray
-			 * 1 0 = Dark gray
-			 * 1 1 = Black
+			 * 0 0 = Black
+			 * 0 1 = Dark gray
+			 * 1 0 = Light gray
+			 * 1 1 = White
 			 *
 			 * For monochrome formats, write the same value twice to get
 			 * either a black or white pixel.
