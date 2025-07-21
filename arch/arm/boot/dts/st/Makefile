@@ -72,7 +72,8 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157c-odyssey.dtb \
 	stm32mp157c-osd32mp1-red.dtb \
 	stm32mp157c-phycore-stm32mp1-3.dtb \
-	stm32mp157c-ultra-fly-sbc.dtb
+	stm32mp157c-ultra-fly-sbc.dtb \
+	stm32mp157f-dk2.dtb
 dtb-$(CONFIG_ARCH_U8500) += \
 	ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
