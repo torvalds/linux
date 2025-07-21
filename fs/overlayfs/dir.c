@@ -117,8 +117,9 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 		if (!IS_ERR(whiteout))
 			return whiteout;
 		if (PTR_ERR(whiteout) != -EMLINK) {
-			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%i)\n",
-				ofs->whiteout->d_inode->i_nlink, err);
+			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%lu)\n",
+				ofs->whiteout->d_inode->i_nlink,
+				PTR_ERR(whiteout));
 			ofs->no_shared_whiteout = true;
 		}
 	}
