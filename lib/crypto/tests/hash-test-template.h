@@ -398,7 +398,7 @@ static void run_irq_test(struct kunit *test, bool (*func)(void *),
 	 */
 	hrtimer_setup_on_stack(&state.timer, hash_irq_test_timer_func,
 			       CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
-	INIT_WORK(&state.bh_work, hash_irq_test_bh_work_func);
+	INIT_WORK_ONSTACK(&state.bh_work, hash_irq_test_bh_work_func);
 
 	/* Run for up to max_iterations or 1 second, whichever comes first. */
 	end_jiffies = jiffies + HZ;
