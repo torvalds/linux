@@ -377,8 +377,7 @@ static void io_free_rbuf_ring(struct io_zcrx_ifq *ifq)
 
 static void io_zcrx_free_area(struct io_zcrx_area *area)
 {
-	if (area->ifq)
-		io_zcrx_unmap_area(area->ifq, area);
+	io_zcrx_unmap_area(area->ifq, area);
 	io_release_area_mem(&area->mem);
 
 	if (area->mem.account_pages)
@@ -411,6 +410,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	area = kzalloc(sizeof(*area), GFP_KERNEL);
 	if (!area)
 		goto err;
+	area->ifq = ifq;
 
 	ret = io_import_area(ifq, &area->mem, area_reg);
 	if (ret)
@@ -445,7 +445,6 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	}
 
 	area->free_count = nr_iovs;
-	area->ifq = ifq;
 	/* we're only supporting one area per ifq for now */
 	area->area_id = 0;
 	area_reg->rq_area_token = (u64)area->area_id << IORING_ZCRX_AREA_SHIFT;
