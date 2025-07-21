@@ -41,6 +41,10 @@ struct rocket_device *rocket_device_init(struct platform_device *pdev,
 	if (err)
 		return ERR_PTR(err);
 
+	err = devm_mutex_init(dev, &rdev->sched_lock);
+	if (err)
+		return ERR_PTR(-ENOMEM);
+
 	err = drm_dev_register(ddev, 0);
 	if (err)
 		return ERR_PTR(err);

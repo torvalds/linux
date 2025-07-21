@@ -12,6 +12,7 @@
 #include <linux/reset.h>
 
 #include "rocket_core.h"
+#include "rocket_job.h"
 
 int rocket_core_init(struct rocket_core *core)
 {
@@ -57,6 +58,10 @@ int rocket_core_init(struct rocket_core *core)
 
 	core->iommu_group = iommu_group_get(dev);
 
+	err = rocket_job_init(core);
+	if (err)
+		return err;
+
 	pm_runtime_use_autosuspend(dev);
 
 	/*
@@ -70,6 +75,10 @@ int rocket_core_init(struct rocket_core *core)
 	pm_runtime_enable(dev);
 
 	err = pm_runtime_get_sync(dev);
+	if (err) {
+		rocket_job_fini(core);
+		return err;
+	}
 
 	version = rocket_pc_readl(core, VERSION);
 	version += rocket_pc_readl(core, VERSION_NUM) & 0xffff;
@@ -88,6 +97,7 @@ void rocket_core_fini(struct rocket_core *core)
 	pm_runtime_disable(core->dev);
 	iommu_group_put(core->iommu_group);
 	core->iommu_group = NULL;
+	rocket_job_fini(core);
 }
 
 void rocket_core_reset(struct rocket_core *core)

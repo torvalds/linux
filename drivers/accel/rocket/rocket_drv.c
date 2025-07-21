@@ -15,6 +15,7 @@
 
 #include "rocket_drv.h"
 #include "rocket_gem.h"
+#include "rocket_job.h"
 
 /*
  * Facade device, used to expose a single DRM device to userspace, that
@@ -97,8 +98,16 @@ rocket_open(struct drm_device *dev, struct drm_file *file)
 	drm_mm_init(&rocket_priv->mm, start, end - start + 1);
 	mutex_init(&rocket_priv->mm_lock);
 
+	ret = rocket_job_open(rocket_priv);
+	if (ret)
+		goto err_mm_takedown;
+
 	return 0;
 
+err_mm_takedown:
+	mutex_destroy(&rocket_priv->mm_lock);
+	drm_mm_takedown(&rocket_priv->mm);
+	rocket_iommu_domain_put(rocket_priv->domain);
 err_free:
 	kfree(rocket_priv);
 err_put_mod:
@@ -111,6 +120,7 @@ rocket_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct rocket_file_priv *rocket_priv = file->driver_priv;
 
+	rocket_job_close(rocket_priv);
 	mutex_destroy(&rocket_priv->mm_lock);
 	drm_mm_takedown(&rocket_priv->mm);
 	rocket_iommu_domain_put(rocket_priv->domain);
@@ -123,6 +133,7 @@ static const struct drm_ioctl_desc rocket_drm_driver_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKET_##n, rocket_ioctl_##func, 0)
 
 	ROCKET_IOCTL(CREATE_BO, create_bo),
+	ROCKET_IOCTL(SUBMIT, submit),
 };
 
 DEFINE_DRM_ACCEL_FOPS(rocket_accel_driver_fops);
@@ -229,6 +240,9 @@ static int rocket_device_runtime_suspend(struct device *dev)
 
 	if (core < 0)
 		return -ENODEV;
+
+	if (!rocket_job_is_idle(&rdev->cores[core]))
+		return -EBUSY;
 
 	clk_bulk_disable_unprepare(ARRAY_SIZE(rdev->cores[core].clks), rdev->cores[core].clks);
 
