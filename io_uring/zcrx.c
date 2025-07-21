@@ -199,15 +199,13 @@ static int io_import_umem(struct io_zcrx_ifq *ifq,
 
 	mem->account_pages = io_count_account_pages(pages, nr_pages);
 	ret = io_account_mem(ifq->ctx, mem->account_pages);
-	if (ret < 0) {
+	if (ret < 0)
 		mem->account_pages = 0;
-		return ret;
-	}
 
 	mem->pages = pages;
 	mem->nr_folios = nr_pages;
 	mem->size = area_reg->len;
-	return 0;
+	return ret;
 }
 
 static void io_release_area_mem(struct io_zcrx_mem *mem)
