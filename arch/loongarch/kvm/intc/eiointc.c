@@ -989,7 +989,7 @@ static int kvm_eiointc_create(struct kvm_device *dev, u32 type)
 {
 	int ret;
 	struct loongarch_eiointc *s;
-	struct kvm_io_device *device, *device1;
+	struct kvm_io_device *device;
 	struct kvm *kvm = dev->kvm;
 
 	/* eiointc has been created */
@@ -1017,10 +1017,10 @@ static int kvm_eiointc_create(struct kvm_device *dev, u32 type)
 		return ret;
 	}
 
-	device1 = &s->device_vext;
-	kvm_iodevice_init(device1, &kvm_eiointc_virt_ops);
+	device = &s->device_vext;
+	kvm_iodevice_init(device, &kvm_eiointc_virt_ops);
 	ret = kvm_io_bus_register_dev(kvm, KVM_IOCSR_BUS,
-			EIOINTC_VIRT_BASE, EIOINTC_VIRT_SIZE, device1);
+			EIOINTC_VIRT_BASE, EIOINTC_VIRT_SIZE, device);
 	if (ret < 0) {
 		kvm_io_bus_unregister_dev(kvm, KVM_IOCSR_BUS, &s->device);
 		kfree(s);
