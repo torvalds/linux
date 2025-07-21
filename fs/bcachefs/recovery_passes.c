@@ -360,7 +360,7 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 		!(r->passes_complete & BIT_ULL(pass));
 	bool ratelimit = flags & RUN_RECOVERY_PASS_ratelimit;
 
-	if (!(in_recovery && (flags & RUN_RECOVERY_PASS_nopersistent))) {
+	if (!(flags & RUN_RECOVERY_PASS_nopersistent)) {
 		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 		__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
 	}

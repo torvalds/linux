@@ -1912,7 +1912,6 @@ static void wx_configure_rx_ring(struct wx *wx,
 				 struct wx_ring *ring)
 {
 	u16 reg_idx = ring->reg_idx;
-	union wx_rx_desc *rx_desc;
 	u64 rdba = ring->dma;
 	u32 rxdctl;
 
@@ -1942,9 +1941,9 @@ static void wx_configure_rx_ring(struct wx *wx,
 	memset(ring->rx_buffer_info, 0,
 	       sizeof(struct wx_rx_buffer) * ring->count);
 
-	/* initialize Rx descriptor 0 */
-	rx_desc = WX_RX_DESC(ring, 0);
-	rx_desc->wb.upper.length = 0;
+	/* reset ntu and ntc to place SW in sync with hardware */
+	ring->next_to_clean = 0;
+	ring->next_to_use = 0;
 
 	/* enable receive descriptor ring */
 	wr32m(wx, WX_PX_RR_CFG(reg_idx),
@@ -2778,6 +2777,8 @@ void wx_update_stats(struct wx *wx)
 		hwstats->fdirmiss += rd32(wx, WX_RDB_FDIR_MISS);
 	}
 
+	/* qmprc is not cleared on read, manual reset it */
+	hwstats->qmprc = 0;
 	for (i = wx->num_vfs * wx->num_rx_queues_per_pool;
 	     i < wx->mac.max_rx_queues; i++)
 		hwstats->qmprc += rd32(wx, WX_PX_MPRC(i));

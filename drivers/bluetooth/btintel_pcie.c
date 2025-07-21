@@ -2081,9 +2081,9 @@ static int btintel_pcie_setup_internal(struct hci_dev *hdev)
 	}
 
 	/* Apply the common HCI quirks for Intel device */
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
-	set_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks);
+	hci_set_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER);
+	hci_set_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY);
+	hci_set_quirk(hdev, HCI_QUIRK_NON_PERSISTENT_DIAG);
 
 	/* Set up the quality report callback for Intel devices */
 	hdev->set_quality_report = btintel_set_quality_report;
@@ -2123,7 +2123,7 @@ static int btintel_pcie_setup_internal(struct hci_dev *hdev)
 		 *
 		 * All TLV based devices support WBS
 		 */
-		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev,

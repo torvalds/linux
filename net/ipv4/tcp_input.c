@@ -5181,7 +5181,9 @@ end:
 		skb_condense(skb);
 		skb_set_owner_r(skb, sk);
 	}
-	tcp_rcvbuf_grow(sk);
+	/* do not grow rcvbuf for not-yet-accepted or orphaned sockets. */
+	if (sk->sk_socket)
+		tcp_rcvbuf_grow(sk);
 }
 
 static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb,

@@ -13,6 +13,7 @@
 
 #include <linux/dcache.h>
 
+#ifdef CONFIG_UNICODE
 int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
 		  const struct qstr *str, struct qstr *out_cf)
 {
@@ -33,6 +34,7 @@ int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
 	*out_cf = (struct qstr) QSTR_INIT(buf, ret);
 	return 0;
 }
+#endif
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
 {
@@ -254,6 +256,7 @@ int bch2_dirent_init_name(struct bch_fs *c,
 		if (!bch2_fs_casefold_enabled(c))
 			return -EOPNOTSUPP;
 
+#ifdef CONFIG_UNICODE
 		memcpy(&dirent->v.d_cf_name_block.d_names[0], name->name, name->len);
 
 		char *cf_out = &dirent->v.d_cf_name_block.d_names[name->len];
@@ -279,6 +282,7 @@ int bch2_dirent_init_name(struct bch_fs *c,
 		dirent->v.d_cf_name_block.d_cf_name_len = cpu_to_le16(cf_len);
 
 		EBUG_ON(bch2_dirent_get_casefold_name(dirent_i_to_s_c(dirent)).len != cf_len);
+#endif
 	}
 
 	unsigned u64s = dirent_val_u64s(name->len, cf_len);

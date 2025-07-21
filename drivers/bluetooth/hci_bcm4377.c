@@ -1435,7 +1435,7 @@ static int bcm4377_check_bdaddr(struct bcm4377_data *bcm4377)
 
 	bda = (struct hci_rp_read_bd_addr *)skb->data;
 	if (!bcm4377_is_valid_bdaddr(bcm4377, &bda->bdaddr))
-		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &bcm4377->hdev->quirks);
+		hci_set_quirk(bcm4377->hdev, HCI_QUIRK_USE_BDADDR_PROPERTY);
 
 	kfree_skb(skb);
 	return 0;
@@ -2389,13 +2389,13 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hdev->setup = bcm4377_hci_setup;
 
 	if (bcm4377->hw->broken_mws_transport_config)
-		set_bit(HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG);
 	if (bcm4377->hw->broken_ext_scan)
-		set_bit(HCI_QUIRK_BROKEN_EXT_SCAN, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_EXT_SCAN);
 	if (bcm4377->hw->broken_le_coded)
-		set_bit(HCI_QUIRK_BROKEN_LE_CODED, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_LE_CODED);
 	if (bcm4377->hw->broken_le_ext_adv_report_phy)
-		set_bit(HCI_QUIRK_FIXUP_LE_EXT_ADV_REPORT_PHY, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_FIXUP_LE_EXT_ADV_REPORT_PHY);
 
 	pci_set_drvdata(pdev, bcm4377);
 	hci_set_drvdata(hdev, bcm4377);

@@ -48,6 +48,7 @@ config MUX_GPIO
 config MUX_MMIO
 	tristate "MMIO/Regmap register bitfield-controlled Multiplexer"
 	depends on OF
+	select REGMAP_MMIO
 	help
 	  MMIO/Regmap register bitfield-controlled Multiplexer controller.
 
