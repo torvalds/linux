@@ -4247,7 +4247,128 @@ static const struct tegra_pmc_soc tegra234_pmc_soc = {
 	.has_single_mmio_aperture = false,
 };
 
+static const struct tegra_pmc_regs tegra264_pmc_regs = {
+	.scratch0 = 0x684,
+	.rst_status = 0x4,
+	.rst_source_shift = 0x2,
+	.rst_source_mask = 0x1fc,
+	.rst_level_shift = 0x0,
+	.rst_level_mask = 0x3,
+};
+
+static const char * const tegra264_reset_sources[] = {
+	"SYS_RESET_N",		/* 0x0 */
+	"CSDC_RTC_XTAL",
+	"VREFRO_POWER_BAD",
+	"SCPM_SOC_XTAL",
+	"SCPM_RTC_XTAL",
+	"FMON_32K",
+	"FMON_OSC",
+	"POD_RTC",
+	"POD_IO",		/* 0x8 */
+	"POD_PLUS_IO_SPLL",
+	"POD_PLUS_SOC",
+	"VMON_PLUS_UV",
+	"VMON_PLUS_OV",
+	"FUSECRC_FAULT",
+	"OSC_FAULT",
+	"BPMP_BOOT_FAULT",
+	"SCPM_BPMP_CORE_CLK",	/* 0x10 */
+	"SCPM_PSC_SE_CLK",
+	"VMON_SOC_MIN",
+	"VMON_SOC_MAX",
+	"VMON_MSS_MIN",
+	"VMON_MSS_MAX",
+	"POD_PLUS_IO_VMON",
+	"NVJTAG_SEL_MONITOR",
+	"NV_THERM_FAULT",	/* 0x18 */
+	"FSI_THERM_FAULT",
+	"PSC_SW",
+	"SCPM_OESP_SE_CLK",
+	"SCPM_SB_SE_CLK",
+	"POD_CPU",
+	"POD_GPU",
+	"DCLS_GPU",
+	"POD_MSS",		/* 0x20 */
+	"FMON_FSI",
+	"POD_FSI",
+	"VMON_FSI_MIN",
+	"VMON_FSI_MAX",
+	"VMON_CPU0_MIN",
+	"VMON_CPU0_MAX",
+	"BPMP_FMON",
+	"AO_WDT_POR",		/* 0x28 */
+	"BPMP_WDT_POR",
+	"AO_TKE_WDT_POR",
+	"RCE0_WDT_POR",
+	"RCE1_WDT_POR",
+	"DCE_WDT_POR",
+	"FSI_R5_WDT_POR",
+	"FSI_R52_0_WDT_POR",
+	"FSI_R52_1_WDT_POR",	/* 0x30 */
+	"FSI_R52_2_WDT_POR",
+	"FSI_R52_3_WDT_POR",
+	"TOP_0_WDT_POR",
+	"TOP_1_WDT_POR",
+	"TOP_2_WDT_POR",
+	"APE_C0_WDT_POR",
+	"APE_C1_WDT_POR",
+	"GPU_TKE_WDT_POR",	/* 0x38 */
+	"PSC_WDT_POR",
+	"OESP_WDT_POR",
+	"SB_WDT_POR",
+	"SW_MAIN",
+	"L0L1_RST_OUT_N",
+	"FSI_HSM",
+	"CSITE_SW",
+	"AO_WDT_DBG",		/* 0x40 */
+	"BPMP_WDT_DBG",
+	"AO_TKE_WDT_DBG",
+	"RCE0_WDT_DBG",
+	"RCE1_WDT_DBG",
+	"DCE_WDT_DBG",
+	"FSI_R5_WDT_DBG",
+	"FSI_R52_0_WDT_DBG",
+	"FSI_R52_1_WDT_DBG",	/* 0x48 */
+	"FSI_R52_2_WDT_DBG",
+	"FSI_R52_3_WDT_DBG",
+	"TOP_0_WDT_DBG",
+	"TOP_1_WDT_DBG",
+	"TOP_2_WDT_DBG",
+	"APE_C0_WDT_DBG",
+	"APE_C1_WDT_DBG",
+	"PSC_WDT_DBG",		/* 0x50 */
+	"OESP_WDT_DBG",
+	"SB_WDT_DBG",
+	"TSC_0_WDT_DBG",
+	"TSC_1_WDT_DBG",
+	"L2_RST_OUT_N",
+	"SC7"
+};
+
+static const struct tegra_wake_event tegra264_wake_events[] = {
+};
+
+static const struct tegra_pmc_soc tegra264_pmc_soc = {
+	.has_impl_33v_pwr = true,
+	.regs = &tegra264_pmc_regs,
+	.init = tegra186_pmc_init,
+	.setup_irq_polarity = tegra186_pmc_setup_irq_polarity,
+	.set_wake_filters = tegra186_pmc_set_wake_filters,
+	.irq_set_wake = tegra186_pmc_irq_set_wake,
+	.irq_set_type = tegra186_pmc_irq_set_type,
+	.reset_sources = tegra264_reset_sources,
+	.num_reset_sources = ARRAY_SIZE(tegra264_reset_sources),
+	.reset_levels = tegra186_reset_levels,
+	.num_reset_levels = ARRAY_SIZE(tegra186_reset_levels),
+	.wake_events = tegra264_wake_events,
+	.num_wake_events = ARRAY_SIZE(tegra264_wake_events),
+	.max_wake_events = 128,
+	.max_wake_vectors = 4,
+};
+
 static const struct of_device_id tegra_pmc_match[] = {
+	{ .compatible = "nvidia,tegra264-pmc", .data = &tegra264_pmc_soc },
 	{ .compatible = "nvidia,tegra234-pmc", .data = &tegra234_pmc_soc },
 	{ .compatible = "nvidia,tegra194-pmc", .data = &tegra194_pmc_soc },
 	{ .compatible = "nvidia,tegra186-pmc", .data = &tegra186_pmc_soc },
