@@ -125,8 +125,7 @@ int init_dell_smbios_smm(void)
 	if (ret)
 		goto fail_platform_device_add;
 
-	ret = dell_smbios_register_device(&platform_device->dev,
-					  &dell_smbios_smm_call);
+	ret = dell_smbios_register_device(&platform_device->dev, 0, &dell_smbios_smm_call);
 	if (ret)
 		goto fail_register;
 
