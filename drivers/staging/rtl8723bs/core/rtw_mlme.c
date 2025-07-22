@@ -1092,8 +1092,6 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 	struct wlan_network	*pcur_wlan = NULL, *ptarget_wlan = NULL;
 	unsigned int		the_same_macaddr = false;
 
-	rtw_get_encrypt_decrypt_from_registrypriv(adapter);
-
 	the_same_macaddr = !memcmp(pnetwork->network.mac_address, cur_network->network.mac_address, ETH_ALEN);
 
 	pnetwork->network.length = get_wlan_bssid_ex_sz(&pnetwork->network);
@@ -2093,10 +2091,6 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 
 	/* notes: translate ie_length & length after assign the length to cmdsz in createbss_cmd(); */
 	/* pdev_network->ie_length = cpu_to_le32(sz); */
-}
-
-void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter)
-{
 }
 
 /* the function is at passive_level */
