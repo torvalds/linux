@@ -64,9 +64,10 @@ properties:
 
   compatible:
     oneOf:
-      - const: nvidia,tegra186-hsp
-      - const: nvidia,tegra194-hsp
-      - const: nvidia,tegra264-hsp
+      - enum:
+          - nvidia,tegra186-hsp
+          - nvidia,tegra194-hsp
+          - nvidia,tegra264-hsp
       - items:
           - const: nvidia,tegra234-hsp
           - const: nvidia,tegra194-hsp
@@ -76,13 +77,32 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 9
+    maxItems: 17
 
   interrupt-names:
     oneOf:
       # shared interrupts are optional
       - items:
           - const: doorbell
+
+      - items:
+          - const: doorbell
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
 
       - items:
           - const: doorbell

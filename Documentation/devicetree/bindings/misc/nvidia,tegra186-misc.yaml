@@ -20,6 +20,7 @@ properties:
       - nvidia,tegra186-misc
       - nvidia,tegra194-misc
       - nvidia,tegra234-misc
+      - nvidia,tegra264-misc
 
   reg:
     items:
