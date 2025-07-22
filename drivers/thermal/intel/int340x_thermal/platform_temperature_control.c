@@ -38,6 +38,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <linux/pci.h>
 #include "processor_thermal_device.h"
 
@@ -49,14 +50,16 @@ struct mmio_reg {
 };
 
 #define MAX_ATTR_GROUP_NAME_LEN	32
-#define PTC_MAX_ATTRS		3
+#define PTC_MAX_ATTRS		4
 
 struct ptc_data {
 	u32 offset;
+	struct pci_dev *pdev;
 	struct attribute_group ptc_attr_group;
 	struct attribute *ptc_attrs[PTC_MAX_ATTRS];
 	struct device_attribute temperature_target_attr;
 	struct device_attribute enable_attr;
+	struct device_attribute thermal_tolerance_attr;
 	char group_name[MAX_ATTR_GROUP_NAME_LEN];
 };
 
@@ -78,6 +81,7 @@ static u32 ptc_offsets[PTC_MAX_INSTANCES] = {0x5B20, 0x5B28, 0x5B30};
 static const char * const ptc_strings[] = {
 	"temperature_target",
 	"enable",
+	"thermal_tolerance",
 	NULL
 };
 
@@ -177,6 +181,8 @@ PTC_SHOW(temperature_target);
 PTC_STORE(temperature_target);
 PTC_SHOW(enable);
 PTC_STORE(enable);
+PTC_SHOW(thermal_tolerance);
+PTC_STORE(thermal_tolerance);
 
 #define ptc_init_attribute(_name)\
 	do {\
@@ -193,9 +199,11 @@ static int ptc_create_groups(struct pci_dev *pdev, int instance, struct ptc_data
 
 	ptc_init_attribute(temperature_target);
 	ptc_init_attribute(enable);
+	ptc_init_attribute(thermal_tolerance);
 
 	data->ptc_attrs[index++] = &data->temperature_target_attr.attr;
 	data->ptc_attrs[index++] = &data->enable_attr.attr;
+	data->ptc_attrs[index++] = &data->thermal_tolerance_attr.attr;
 	data->ptc_attrs[index] = NULL;
 
 	snprintf(data->group_name, MAX_ATTR_GROUP_NAME_LEN,
@@ -209,6 +217,63 @@ static int ptc_create_groups(struct pci_dev *pdev, int instance, struct ptc_data
 }
 
 static struct ptc_data ptc_instance[PTC_MAX_INSTANCES];
+static struct dentry *ptc_debugfs;
+
+#define PTC_TEMP_OVERRIDE_ENABLE_INDEX	4
+#define PTC_TEMP_OVERRIDE_INDEX		5
+
+static ssize_t ptc_temperature_write(struct file *file, const char __user *data,
+				     size_t count, loff_t *ppos)
+{
+	struct ptc_data *ptc_instance = file->private_data;
+	struct pci_dev *pdev = ptc_instance->pdev;
+	char buf[32];
+	ssize_t len;
+	u32 value;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, data, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtouint(buf, 0, &value))
+		return -EINVAL;
+
+	if (ptc_mmio_regs[PTC_TEMP_OVERRIDE_INDEX].units)
+		value /= ptc_mmio_regs[PTC_TEMP_OVERRIDE_INDEX].units;
+
+	if (value > ptc_mmio_regs[PTC_TEMP_OVERRIDE_INDEX].mask)
+		return -EINVAL;
+
+	if (!value) {
+		ptc_mmio_write(pdev, ptc_instance->offset, PTC_TEMP_OVERRIDE_ENABLE_INDEX, 0);
+	} else {
+		ptc_mmio_write(pdev, ptc_instance->offset, PTC_TEMP_OVERRIDE_INDEX, value);
+		ptc_mmio_write(pdev, ptc_instance->offset, PTC_TEMP_OVERRIDE_ENABLE_INDEX, 1);
+	}
+
+	return count;
+}
+
+static const struct file_operations ptc_fops = {
+	.open = simple_open,
+	.write = ptc_temperature_write,
+	.llseek = generic_file_llseek,
+};
+
+static void ptc_create_debugfs(void)
+{
+	ptc_debugfs = debugfs_create_dir("platform_temperature_control", NULL);
+
+	debugfs_create_file("temperature_0",  0200, ptc_debugfs,  &ptc_instance[0], &ptc_fops);
+	debugfs_create_file("temperature_1",  0200, ptc_debugfs,  &ptc_instance[1], &ptc_fops);
+	debugfs_create_file("temperature_2",  0200, ptc_debugfs,  &ptc_instance[2], &ptc_fops);
+}
+
+static void ptc_delete_debugfs(void)
+{
+	debugfs_remove_recursive(ptc_debugfs);
+}
 
 int proc_thermal_ptc_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv)
 {
@@ -217,8 +282,11 @@ int proc_thermal_ptc_add(struct pci_dev *pdev, struct proc_thermal_device *proc_
 
 		for (i = 0; i < PTC_MAX_INSTANCES; i++) {
 			ptc_instance[i].offset = ptc_offsets[i];
+			ptc_instance[i].pdev = pdev;
 			ptc_create_groups(pdev, i, &ptc_instance[i]);
 		}
+
+		ptc_create_debugfs();
 	}
 
 	return 0;
@@ -234,6 +302,8 @@ void proc_thermal_ptc_remove(struct pci_dev *pdev)
 
 		for (i = 0; i < PTC_MAX_INSTANCES; i++)
 			sysfs_remove_group(&pdev->dev.kobj, &ptc_instance[i].ptc_attr_group);
+
+		ptc_delete_debugfs();
 	}
 }
 EXPORT_SYMBOL_GPL(proc_thermal_ptc_remove);
