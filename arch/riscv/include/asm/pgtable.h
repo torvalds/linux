@@ -203,6 +203,7 @@ extern struct pt_alloc_ops pt_ops __meminitdata;
 
 #define PAGE_TABLE		__pgprot(_PAGE_TABLE)
 
+#define _PAGE_KERNEL_NC ((_PAGE_KERNEL & ~_PAGE_MTMASK) | _PAGE_NOCACHE)
 #define _PAGE_IOREMAP	((_PAGE_KERNEL & ~_PAGE_MTMASK) | _PAGE_IO)
 #define PAGE_KERNEL_IO		__pgprot(_PAGE_IOREMAP)
 
