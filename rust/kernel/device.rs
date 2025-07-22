@@ -15,23 +15,130 @@ use crate::c_str;
 
 pub mod property;
 
-/// A reference-counted device.
+/// The core representation of a device in the kernel's driver model.
 ///
-/// This structure represents the Rust abstraction for a C `struct device`. This implementation
-/// abstracts the usage of an already existing C `struct device` within Rust code that we get
-/// passed from the C side.
+/// This structure represents the Rust abstraction for a C `struct device`. A [`Device`] can either
+/// exist as temporary reference (see also [`Device::from_raw`]), which is only valid within a
+/// certain scope or as [`ARef<Device>`], owning a dedicated reference count.
 ///
-/// An instance of this abstraction can be obtained temporarily or permanent.
+/// # Device Types
 ///
-/// A temporary one is bound to the lifetime of the C `struct device` pointer used for creation.
-/// A permanent instance is always reference-counted and hence not restricted by any lifetime
-/// boundaries.
+/// A [`Device`] can represent either a bus device or a class device.
 ///
-/// For subsystems it is recommended to create a permanent instance to wrap into a subsystem
-/// specific device structure (e.g. `pci::Device`). This is useful for passing it to drivers in
-/// `T::probe()`, such that a driver can store the `ARef<Device>` (equivalent to storing a
-/// `struct device` pointer in a C driver) for arbitrary purposes, e.g. allocating DMA coherent
-/// memory.
+/// ## Bus Devices
+///
+/// A bus device is a [`Device`] that is associated with a physical or virtual bus. Examples of
+/// buses include PCI, USB, I2C, and SPI. Devices attached to a bus are registered with a specific
+/// bus type, which facilitates matching devices with appropriate drivers based on IDs or other
+/// identifying information. Bus devices are visible in sysfs under `/sys/bus/<bus-name>/devices/`.
+///
+/// ## Class Devices
+///
+/// A class device is a [`Device`] that is associated with a logical category of functionality
+/// rather than a physical bus. Examples of classes include block devices, network interfaces, sound
+/// cards, and input devices. Class devices are grouped under a common class and exposed to
+/// userspace via entries in `/sys/class/<class-name>/`.
+///
+/// # Device Context
+///
+/// [`Device`] references are generic over a [`DeviceContext`], which represents the type state of
+/// a [`Device`].
+///
+/// As the name indicates, this type state represents the context of the scope the [`Device`]
+/// reference is valid in. For instance, the [`Bound`] context guarantees that the [`Device`] is
+/// bound to a driver for the entire duration of the existence of a [`Device<Bound>`] reference.
+///
+/// Other [`DeviceContext`] types besides [`Bound`] are [`Normal`], [`Core`] and [`CoreInternal`].
+///
+/// Unless selected otherwise [`Device`] defaults to the [`Normal`] [`DeviceContext`], which by
+/// itself has no additional requirements.
+///
+/// It is always up to the caller of [`Device::from_raw`] to select the correct [`DeviceContext`]
+/// type for the corresponding scope the [`Device`] reference is created in.
+///
+/// All [`DeviceContext`] types other than [`Normal`] are intended to be used with
+/// [bus devices](#bus-devices) only.
+///
+/// # Implementing Bus Devices
+///
+/// This section provides a guideline to implement bus specific devices, such as [`pci::Device`] or
+/// [`platform::Device`].
+///
+/// A bus specific device should be defined as follows.
+///
+/// ```ignore
+/// #[repr(transparent)]
+/// pub struct Device<Ctx: device::DeviceContext = device::Normal>(
+///     Opaque<bindings::bus_device_type>,
+///     PhantomData<Ctx>,
+/// );
+/// ```
+///
+/// Since devices are reference counted, [`AlwaysRefCounted`] should be implemented for `Device`
+/// (i.e. `Device<Normal>`). Note that [`AlwaysRefCounted`] must not be implemented for any other
+/// [`DeviceContext`], since all other device context types are only valid within a certain scope.
+///
+/// In order to be able to implement the [`DeviceContext`] dereference hierarchy, bus device
+/// implementations should call the [`impl_device_context_deref`] macro as shown below.
+///
+/// ```ignore
+/// // SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s
+/// // generic argument.
+/// kernel::impl_device_context_deref!(unsafe { Device });
+/// ```
+///
+/// In order to convert from a any [`Device<Ctx>`] to [`ARef<Device>`], bus devices can implement
+/// the following macro call.
+///
+/// ```ignore
+/// kernel::impl_device_context_into_aref!(Device);
+/// ```
+///
+/// Bus devices should also implement the following [`AsRef`] implementation, such that users can
+/// easily derive a generic [`Device`] reference.
+///
+/// ```ignore
+/// impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Device<Ctx> {
+///     fn as_ref(&self) -> &device::Device<Ctx> {
+///         ...
+///     }
+/// }
+/// ```
+///
+/// # Implementing Class Devices
+///
+/// Class device implementations require less infrastructure and depend slightly more on the
+/// specific subsystem.
+///
+/// An example implementation for a class device could look like this.
+///
+/// ```ignore
+/// #[repr(C)]
+/// pub struct Device<T: class::Driver> {
+///     dev: Opaque<bindings::class_device_type>,
+///     data: T::Data,
+/// }
+/// ```
+///
+/// This class device uses the sub-classing pattern to embed the driver's private data within the
+/// allocation of the class device. For this to be possible the class device is generic over the
+/// class specific `Driver` trait implementation.
+///
+/// Just like any device, class devices are reference counted and should hence implement
+/// [`AlwaysRefCounted`] for `Device`.
+///
+/// Class devices should also implement the following [`AsRef`] implementation, such that users can
+/// easily derive a generic [`Device`] reference.
+///
+/// ```ignore
+/// impl<T: class::Driver> AsRef<device::Device> for Device<T> {
+///     fn as_ref(&self) -> &device::Device {
+///         ...
+///     }
+/// }
+/// ```
+///
+/// An example for a class device implementation is [`drm::Device`].
 ///
 /// # Invariants
 ///
@@ -42,6 +149,12 @@ pub mod property;
 ///
 /// `bindings::device::release` is valid to be called from any thread, hence `ARef<Device>` can be
 /// dropped from any thread.
+///
+/// [`AlwaysRefCounted`]: kernel::types::AlwaysRefCounted
+/// [`drm::Device`]: kernel::drm::Device
+/// [`impl_device_context_deref`]: kernel::impl_device_context_deref
+/// [`pci::Device`]: kernel::pci::Device
+/// [`platform::Device`]: kernel::platform::Device
 #[repr(transparent)]
 pub struct Device<Ctx: DeviceContext = Normal>(Opaque<bindings::device>, PhantomData<Ctx>);
 
