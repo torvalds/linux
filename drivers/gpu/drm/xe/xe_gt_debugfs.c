@@ -134,6 +134,33 @@ static int sa_info(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
+static int sa_info_vf_ccs(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_sa_manager *bb_pool;
+	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
+
+	if (!IS_VF_CCS_READY(gt_to_xe(gt)))
+		return 0;
+
+	xe_pm_runtime_get(gt_to_xe(gt));
+
+	for_each_ccs_rw_ctx(ctx_id) {
+		bb_pool = tile->sriov.vf.ccs[ctx_id].mem.ccs_bb_pool;
+		if (!bb_pool)
+			break;
+
+		drm_printf(p, "ccs %s bb suballoc info\n", ctx_id ? "write" : "read");
+		drm_printf(p, "-------------------------\n");
+		drm_suballoc_dump_debug_info(&bb_pool->base, p, bb_pool->gpu_addr);
+		drm_puts(p, "\n");
+	}
+
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
 static int topology(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_pm_runtime_get(gt_to_xe(gt));
@@ -303,6 +330,13 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{"hwconfig", .show = xe_gt_debugfs_simple_show, .data = hwconfig},
 };
 
+/*
+ * only for GT debugfs files which are valid on VF. Not valid on PF.
+ */
+static const struct drm_info_list vf_only_debugfs_list[] = {
+	{"sa_info_vf_ccs", .show = xe_gt_debugfs_simple_show, .data = sa_info_vf_ccs},
+};
+
 /* everything else should be added here */
 static const struct drm_info_list pf_only_debugfs_list[] = {
 	{"hw_engines", .show = xe_gt_debugfs_simple_show, .data = hw_engines},
@@ -424,6 +458,11 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 		drm_debugfs_create_files(pf_only_debugfs_list,
 					 ARRAY_SIZE(pf_only_debugfs_list),
 					 root, minor);
+	else
+		drm_debugfs_create_files(vf_only_debugfs_list,
+					 ARRAY_SIZE(vf_only_debugfs_list),
+					 root, minor);
+
 
 	xe_uc_debugfs_register(&gt->uc, root);
 
