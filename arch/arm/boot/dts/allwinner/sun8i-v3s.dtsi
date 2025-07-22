@@ -411,6 +411,15 @@
 				function = "i2c1";
 			};
 
+			/omit-if-no-ref/
+			lcd_rgb666_pe_pins: lcd-rgb666-pe-pins {
+				pins = "PE0", "PE1", "PE2", "PE3", "PE4", "PE5",
+				       "PE6", "PE7", "PE8", "PE9", "PE10", "PE11",
+				       "PE12", "PE13", "PE14", "PE15", "PE16", "PE17",
+				       "PE18", "PE19", "PE23", "PE24";
+				function = "lcd";
+			};
+
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB8", "PB9";
 				function = "uart0";

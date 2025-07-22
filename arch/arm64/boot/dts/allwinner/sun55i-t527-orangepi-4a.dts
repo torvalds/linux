@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR MIT)
-// Copyright (C) 2024 Arm Ltd.
+/*
+ * Copyright (C) 2025 Chen-Yu Tsai <wens@csie.org>
+ */
 
 /dts-v1/;
 
 #include "sun55i-a523.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 
 / {
-	model = "Avaota A1";
-	compatible = "yuzukihd,avaota-a1", "allwinner,sun55i-t527";
+	model = "OrangePi 4A";
+	compatible = "xunlong,orangepi-4a", "allwinner,sun55i-t527";
 
 	aliases {
-		ethernet0 = &emac0;
 		serial0 = &uart0;
 	};
 
@@ -27,33 +29,61 @@
 		clock-output-names = "ext_osc32k";
 	};
 
-	reg_vcc12v: vcc12v {
-		/* DC input jack */
-		compatible = "regulator-fixed";
-		regulator-name = "vcc-12v";
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
+	leds {
+		compatible = "gpio-leds";
+
+		/* PWM capable pin, but PWM isn't supported yet. */
+		led {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&pio 3 20 GPIO_ACTIVE_HIGH>; /* PD20 */
+		};
 	};
 
-	reg_vcc5v: vcc5v {
-		/* board wide 5V supply from the 12V->5V regulator */
+	wifi_pwrseq: pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&r_pio 1 1 GPIO_ACTIVE_LOW>; /* PM1 */
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clock-names = "ext_clock";
+	};
+
+	reg_otg_vbus: regulator-otg-vbus {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc-5v";
+		regulator-name = "otg-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&reg_vcc12v>;
-		regulator-always-on;
+		vin-supply = <&reg_vcc5v>;
+		gpio = <&r_pio 0 4 GPIO_ACTIVE_HIGH>;	/* PL4 */
+		enable-active-high;
 	};
 
-	reg_usb_vbus: vbus {
+	reg_pcie_vcc3v3: regulator-pcie-vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-pcie-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_vcc5v>;
+		gpio = <&r_pio 0 8 GPIO_ACTIVE_HIGH>;	/* PL8 */
+		enable-active-high;
+	};
+
+	reg_usb_vbus: regulator-usb-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&reg_vcc5v>;
-		gpio = <&pio 8 12 GPIO_ACTIVE_HIGH>;	/* PI12 */
+		gpio = <&r_pio 0 12 GPIO_ACTIVE_HIGH>;	/* PL12 */
 		enable-active-high;
+	};
+
+	reg_vcc5v: regulator-vcc5v {
+		/* board wide 5V supply from USB type-C port */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
 	};
 };
 
@@ -65,27 +95,9 @@
 	status = "okay";
 };
 
-&emac0 {
-	phy-mode = "rgmii-id";
-	phy-handle = <&ext_rgmii_phy>;
-	phy-supply = <&reg_dcdc4>;
-
-	allwinner,tx-delay-ps = <100>;
-	allwinner,rx-delay-ps = <300>;
-
-	status = "okay";
-};
-
 &gpu {
 	mali-supply = <&reg_dcdc2>;
 	status = "okay";
-};
-
-&mdio0 {
-	ext_rgmii_phy: ethernet-phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <1>;
-	};
 };
 
 &mmc0 {
@@ -93,6 +105,23 @@
 	cd-gpios = <&pio 5 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PF6 */
 	bus-width = <4>;
 	status = "okay";
+};
+
+&mmc1 {
+	bus-width = <4>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	non-removable;
+	vmmc-supply = <&reg_dldo1_323>;
+	vqmmc-supply = <&reg_bldo1>;
+	status = "okay";
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm4329-fmac";
+		reg = <1>;
+		interrupt-parent = <&r_pio>;
+		interrupts = <1 0 IRQ_TYPE_LEVEL_LOW>; /* PM0 */
+		interrupt-names = "host-wake";
+	};
 };
 
 &mmc2 {
@@ -117,14 +146,14 @@
 &pio {
 	vcc-pb-supply = <&reg_cldo3>;	/* via VCC-IO */
 	vcc-pc-supply = <&reg_cldo1>;
-	vcc-pd-supply = <&reg_dcdc4>;
-	vcc-pe-supply = <&reg_dcdc4>;
-	vcc-pf-supply = <&reg_cldo3>;	/* actually switchable */
+	vcc-pd-supply = <&reg_cldo3>;
+	vcc-pe-supply = <&reg_aldo2>;
+	vcc-pf-supply = <&reg_cldo3>;	/* VCC-IO for 3.3v; VCC-MCSI for 1.8v */
 	vcc-pg-supply = <&reg_bldo1>;
 	vcc-ph-supply = <&reg_cldo3>;	/* via VCC-IO */
-	vcc-pi-supply = <&reg_dcdc4>;
-	vcc-pj-supply = <&reg_dcdc4>;
-	vcc-pk-supply = <&reg_bldo3>;
+	vcc-pi-supply = <&reg_cldo3>;
+	vcc-pj-supply = <&reg_cldo1>;
+	vcc-pk-supply = <&reg_cldo1>;
 };
 
 &r_i2c0 {
@@ -135,8 +164,7 @@
 		reg = <0x35>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&nmi_intc 0 IRQ_TYPE_LEVEL_LOW>;
 
 		vin1-supply = <&reg_vcc5v>;
 		vin2-supply = <&reg_vcc5v>;
@@ -166,22 +194,26 @@
 				regulator-always-on;
 				regulator-min-microvolt = <1160000>;
 				regulator-max-microvolt = <1160000>;
-				regulator-name = "vdd-dram";
+				regulator-name = "vcc-dram";
 			};
 
 			reg_dcdc4: dcdc4 {
+				/* feeds 3.3V pin on GPIO header */
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vdd-io";
 			};
 
-			reg_aldo1: aldo1 {
-				/* not connected */
+			aldo1 {
+				/* not actually connected */
+				regulator-name = "avdd-csi";
 			};
 
 			reg_aldo2: aldo2 {
-				/* not connected */
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcc-pe";
 			};
 
 			reg_aldo3: aldo3 {
@@ -189,7 +221,7 @@
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc-pl-pm";
+				regulator-name = "vcc-pl-usb";
 			};
 
 			reg_aldo4: aldo4 {
@@ -202,46 +234,50 @@
 			reg_bldo1: bldo1 {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc-pg-wifi-lvds";
+				regulator-name = "vcc-pg-wifi";
 			};
 
 			reg_bldo2: bldo2 {
 				regulator-always-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc-dram-1v8";
+				regulator-name = "vcc-pm-lpddr";
 			};
 
-			reg_bldo3: bldo3 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc-cvp-pk-vid1v8";
+			bldo3 {
+				/* not actually connected */
+				regulator-name = "afvcc-csi";
 			};
 
-			reg_bldo4: bldo4 {
-				/* not connected */
+			bldo4 {
+				/* not actually connected */
+				regulator-name = "dvdd-csi";
 			};
 
 			reg_cldo1: cldo1 {
+				regulator-always-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc-pc";
+				regulator-name = "vcc-cvp-pc-lvds-mcsi-pk-efuse-pcie-edp-1v8";
 			};
 
 			reg_cldo2: cldo2 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-name = "vcc-efuse";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc3v3-csi";
 			};
 
 			reg_cldo3: cldo3 {
+				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc-io-mmc-spi-ana";
+				regulator-name = "vcc-io-mmc-nand-pd-pi-usb";
 			};
 
 			reg_cldo4: cldo4 {
-				/* not connected */
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc-3v3-phy1-lcd";
 			};
 
 			reg_cpusldo: cpusldo {
@@ -249,7 +285,7 @@
 				regulator-always-on;
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <900000>;
-				regulator-name = "vdd-cpus";
+				regulator-name = "vdd-cpus-usb-0v9";
 			};
 		};
 	};
@@ -259,8 +295,6 @@
 		reg = <0x36>;
 		#interrupt-cells = <1>;
 		interrupt-controller;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		status = "okay";
 
 		vin1-supply = <&reg_vcc5v>;
@@ -268,19 +302,25 @@
 		vin3-supply = <&reg_vcc5v>;
 
 		regulators {
-			aldo1 {
-				/* not connected */
+			reg_aldo1_323: aldo1 {
+				/* less capable and shares load with dldo1 */
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc-wifi";
 			};
 
-			dldo1 {
-				/* not connected */
+			reg_dldo1_323: dldo1 {
+				/* more capable and shares load with aldo1 */
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc-wifi2";
 			};
 
 			/* Supplies the "big" cluster (1.8 GHz cores) */
 			reg_dcdc1_323: dcdc1 {
 				regulator-always-on;
 				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt = <1160000>;
+				regulator-max-microvolt = <1150000>;
 				regulator-name = "vdd-cpub";
 			};
 
@@ -303,7 +343,7 @@
  *
  *	vcc-pl-supply = <&reg_aldo3>;
  */
-	vcc-pm-supply = <&reg_aldo3>;
+	vcc-pm-supply = <&reg_bldo2>;
 };
 
 &uart0 {
@@ -312,21 +352,39 @@
 	status = "okay";
 };
 
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clock-names = "lpo";
+		vbat-supply = <&reg_aldo1_323>;
+		vddio-supply = <&reg_bldo1>;
+		device-wakeup-gpios = <&r_pio 1 3 GPIO_ACTIVE_HIGH>; /* PM3 */
+		host-wakeup-gpios = <&r_pio 1 4 GPIO_ACTIVE_HIGH>; /* PM4 */
+		shutdown-gpios = <&r_pio 1 2 GPIO_ACTIVE_HIGH>; /* PM2 */
+	};
+};
+
 &usb_otg {
-	 /*
-	  * The CC pins of the USB-C port have two pull-down resistors
-	  * connected to GND, which fixes this port to a peripheral role.
-	  * There is a regulator, controlled by a GPIO, to provide VBUS power
-	  * to the port, and a VBUSDET GPIO, to detect externally provided
-	  * power, but without the CC pins there is no real way to do a
-	  * runtime role detection.
-	  */
-	dr_mode = "peripheral";
+	/*
+	 * The OTG controller is connected to one of the type-A ports.
+	 * There is a regulator, controlled by a GPIO, to provide VBUS power
+	 * to the port, and a VBUSDET GPIO, to detect externally provided
+	 * power. But without ID or CC pins there is no real way to do a
+	 * runtime role detection.
+	 */
+	dr_mode = "host";
 	status = "okay";
 };
 
 &usbphy {
-	usb0_vbus-supply = <&reg_usb_vbus>;
-	usb0_vbus_det-gpios = <&pio 8 13 GPIO_ACTIVE_HIGH>; /* PI13 */
+	usb0_vbus-supply = <&reg_otg_vbus>;
+	usb0_vbus_det-gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
+	usb1_vbus-supply = <&reg_usb_vbus>;
 	status = "okay";
 };

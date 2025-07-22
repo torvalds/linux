@@ -341,15 +341,11 @@ properties:
           - const: allwinner,i12-tvbox
           - const: allwinner,sun7i-a20
 
-      - description: ICnova A20 ADB4006
+      - description: ICnova A20
         items:
-          - const: incircuit,icnova-a20-adb4006
-          - const: incircuit,icnova-a20
-          - const: allwinner,sun7i-a20
-
-      - description: ICNova A20 SWAC
-        items:
-          - const: incircuit,icnova-a20-swac
+          - enum:
+              - incircuit,icnova-a20-adb4006
+              - incircuit,icnova-a20-swac
           - const: incircuit,icnova-a20
           - const: allwinner,sun7i-a20
 
@@ -760,21 +756,12 @@ properties:
           - const: pine64,pinebook
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PinePhone Developer Batch (1.0)
+      - description: Pine64 PinePhone
         items:
-          - const: pine64,pinephone-1.0
-          - const: pine64,pinephone
-          - const: allwinner,sun50i-a64
-
-      - description: Pine64 PinePhone Braveheart (1.1)
-        items:
-          - const: pine64,pinephone-1.1
-          - const: pine64,pinephone
-          - const: allwinner,sun50i-a64
-
-      - description: Pine64 PinePhone (1.2)
-        items:
-          - const: pine64,pinephone-1.2
+          - enum:
+              - pine64,pinephone-1.0 # Developer Batch (1.0)
+              - pine64,pinephone-1.1 # Braveheart (1.1)
+              - pine64,pinephone-1.2
           - const: pine64,pinephone
           - const: allwinner,sun50i-a64
 
@@ -995,6 +982,11 @@ properties:
         items:
           - const: xunlong,orangepi-3
           - const: allwinner,sun50i-h6
+
+      - description: Xunlong OrangePi 4A
+        items:
+          - const: xunlong,orangepi-4a
+          - const: allwinner,sun55i-t527
 
       - description: Xunlong OrangePi Lite
         items:
