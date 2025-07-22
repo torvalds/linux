@@ -311,28 +311,75 @@ unsafe impl Send for Device {}
 // synchronization in `struct device`.
 unsafe impl Sync for Device {}
 
-/// Marker trait for the context of a bus specific device.
+/// Marker trait for the context or scope of a bus specific device.
 ///
-/// Some functions of a bus specific device should only be called from a certain context, i.e. bus
-/// callbacks, such as `probe()`.
+/// [`DeviceContext`] is a marker trait for types representing the context of a bus specific
+/// [`Device`].
 ///
-/// This is the marker trait for structures representing the context of a bus specific device.
+/// The specific device context types are: [`CoreInternal`], [`Core`], [`Bound`] and [`Normal`].
+///
+/// [`DeviceContext`] types are hierarchical, which means that there is a strict hierarchy that
+/// defines which [`DeviceContext`] type can be derived from another. For instance, any
+/// [`Device<Core>`] can dereference to a [`Device<Bound>`].
+///
+/// The following enumeration illustrates the dereference hierarchy of [`DeviceContext`] types.
+///
+/// - [`CoreInternal`] => [`Core`] => [`Bound`] => [`Normal`]
+///
+/// Bus devices can automatically implement the dereference hierarchy by using
+/// [`impl_device_context_deref`].
+///
+/// Note that the guarantee for a [`Device`] reference to have a certain [`DeviceContext`] comes
+/// from the specific scope the [`Device`] reference is valid in.
+///
+/// [`impl_device_context_deref`]: kernel::impl_device_context_deref
 pub trait DeviceContext: private::Sealed {}
 
-/// The [`Normal`] context is the context of a bus specific device when it is not an argument of
-/// any bus callback.
+/// The [`Normal`] context is the default [`DeviceContext`] of any [`Device`].
+///
+/// The normal context does not indicate any specific context. Any `Device<Ctx>` is also a valid
+/// [`Device<Normal>`]. It is the only [`DeviceContext`] for which it is valid to implement
+/// [`AlwaysRefCounted`] for.
+///
+/// [`AlwaysRefCounted`]: kernel::types::AlwaysRefCounted
 pub struct Normal;
 
-/// The [`Core`] context is the context of a bus specific device when it is supplied as argument of
-/// any of the bus callbacks, such as `probe()`.
+/// The [`Core`] context is the context of a bus specific device when it appears as argument of
+/// any bus specific callback, such as `probe()`.
+///
+/// The core context indicates that the [`Device<Core>`] reference's scope is limited to the bus
+/// callback it appears in. It is intended to be used for synchronization purposes. Bus device
+/// implementations can implement methods for [`Device<Core>`], such that they can only be called
+/// from bus callbacks.
 pub struct Core;
 
-/// Semantically the same as [`Core`] but reserved for internal usage of the corresponding bus
+/// Semantically the same as [`Core`], but reserved for internal usage of the corresponding bus
 /// abstraction.
+///
+/// The internal core context is intended to be used in exactly the same way as the [`Core`]
+/// context, with the difference that this [`DeviceContext`] is internal to the corresponding bus
+/// abstraction.
+///
+/// This context mainly exists to share generic [`Device`] infrastructure that should only be called
+/// from bus callbacks with bus abstractions, but without making them accessible for drivers.
 pub struct CoreInternal;
 
-/// The [`Bound`] context is the context of a bus specific device reference when it is guaranteed to
-/// be bound for the duration of its lifetime.
+/// The [`Bound`] context is the [`DeviceContext`] of a bus specific device when it is guaranteed to
+/// be bound to a driver.
+///
+/// The bound context indicates that for the entire duration of the lifetime of a [`Device<Bound>`]
+/// reference, the [`Device`] is guaranteed to be bound to a driver.
+///
+/// Some APIs, such as [`dma::CoherentAllocation`] or [`Devres`] rely on the [`Device`] to be bound,
+/// which can be proven with the [`Bound`] device context.
+///
+/// Any abstraction that can guarantee a scope where the corresponding bus device is bound, should
+/// provide a [`Device<Bound>`] reference to its users for this scope. This allows users to benefit
+/// from optimizations for accessing device resources, see also [`Devres::access`].
+///
+/// [`Devres`]: kernel::devres::Devres
+/// [`Devres::access`]: kernel::devres::Devres::access
+/// [`dma::CoherentAllocation`]: kernel::dma::CoherentAllocation
 pub struct Bound;
 
 mod private {
