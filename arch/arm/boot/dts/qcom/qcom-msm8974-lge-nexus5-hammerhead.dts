@@ -12,6 +12,7 @@
 	chassis-type = "handset";
 
 	aliases {
+		mmc0 = &sdhc_1;
 		serial0 = &blsp1_uart1;
 		serial1 = &blsp2_uart4;
 	};
@@ -598,7 +599,7 @@
 	pinctrl-0 = <&sdc2_on>;
 	pinctrl-1 = <&sdc2_off>;
 
-	bcrmf@1 {
+	wifi@1 {
 		compatible = "brcm,bcm4339-fmac", "brcm,bcm4329-fmac";
 		reg = <1>;
 

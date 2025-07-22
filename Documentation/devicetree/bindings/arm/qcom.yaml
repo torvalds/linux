@@ -209,6 +209,7 @@ properties:
               - samsung,hlte
               - sony,xperia-amami
               - sony,xperia-honami
+              - sony,xperia-togari
           - const: qcom,msm8974
 
       - items:
