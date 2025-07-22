@@ -853,18 +853,6 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: dl-rate-tc-bws
-      -
-        name: rate-tc-index
-        type: u8
-        checks:
-          max: rate-tc-index-max
-      -
-        name: rate-tc-bw
-        type: u32
-        doc: |
-             Specifies the bandwidth share assigned to the Traffic Class.
-             The bandwidth for the traffic class is determined
-             in proportion to the sum of the shares of all configured classes.
   -
     name: dl-dev-stats
     subset-of: devlink
@@ -1271,12 +1259,20 @@ attribute-sets:
         type: flag
   -
     name: dl-rate-tc-bws
-    subset-of: devlink
+    name-prefix: devlink-rate-tc-attr-
     attributes:
       -
-        name: rate-tc-index
+        name: index
+        type: u8
+        checks:
+          max: rate-tc-index-max
       -
-        name: rate-tc-bw
+        name: bw
+        type: u32
+        doc: |
+             Specifies the bandwidth share assigned to the Traffic Class.
+             The bandwidth for the traffic class is determined
+             in proportion to the sum of the shares of all configured classes.
 
 operations:
   enum-model: directional

@@ -635,8 +635,6 @@ enum devlink_attr {
 	DEVLINK_ATTR_REGION_DIRECT,		/* flag */
 
 	DEVLINK_ATTR_RATE_TC_BWS,		/* nested */
-	DEVLINK_ATTR_RATE_TC_INDEX,		/* u8 */
-	DEVLINK_ATTR_RATE_TC_BW,		/* u32 */
 
 	/* Add new attributes above here, update the spec in
 	 * Documentation/netlink/specs/devlink.yaml and re-generate
@@ -645,6 +643,15 @@ enum devlink_attr {
 
 	__DEVLINK_ATTR_MAX,
 	DEVLINK_ATTR_MAX = __DEVLINK_ATTR_MAX - 1
+};
+
+enum devlink_rate_tc_attr {
+	DEVLINK_RATE_TC_ATTR_UNSPEC,
+	DEVLINK_RATE_TC_ATTR_INDEX,		/* u8 */
+	DEVLINK_RATE_TC_ATTR_BW,		/* u32 */
+
+	__DEVLINK_RATE_TC_ATTR_MAX,
+	DEVLINK_RATE_TC_ATTR_MAX = __DEVLINK_RATE_TC_ATTR_MAX - 1
 };
 
 /* Mapping between internal resource described by the field and system
