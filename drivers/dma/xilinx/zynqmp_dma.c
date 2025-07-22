@@ -1173,9 +1173,9 @@ static void zynqmp_dma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&zdev->common);
 
 	zynqmp_dma_chan_remove(zdev->chan);
-	pm_runtime_disable(zdev->dev);
-	if (!pm_runtime_enabled(zdev->dev))
+	if (pm_runtime_active(zdev->dev))
 		zynqmp_dma_runtime_suspend(zdev->dev);
+	pm_runtime_disable(zdev->dev);
 }
 
 static const struct of_device_id zynqmp_dma_of_match[] = {
@@ -1193,6 +1193,7 @@ static struct platform_driver zynqmp_dma_driver = {
 	},
 	.probe = zynqmp_dma_probe,
 	.remove = zynqmp_dma_remove,
+	.shutdown = zynqmp_dma_remove,
 };
 
 module_platform_driver(zynqmp_dma_driver);
