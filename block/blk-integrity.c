@@ -83,7 +83,21 @@ int blk_get_meta_cap(struct block_device *bdev, unsigned int cmd,
 	if (meta_cap.lbmd_opaque_size && !bi->pi_offset)
 		meta_cap.lbmd_opaque_offset = bi->pi_tuple_size;
 
-	meta_cap.lbmd_guard_tag_type = bi->csum_type;
+	switch (bi->csum_type) {
+	case BLK_INTEGRITY_CSUM_NONE:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_NONE;
+		break;
+	case BLK_INTEGRITY_CSUM_IP:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_IP;
+		break;
+	case BLK_INTEGRITY_CSUM_CRC:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_CRC16_T10DIF;
+		break;
+	case BLK_INTEGRITY_CSUM_CRC64:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_CRC64_NVME;
+		break;
+	}
+
 	if (bi->csum_type != BLK_INTEGRITY_CSUM_NONE)
 		meta_cap.lbmd_app_tag_size = 2;
 
