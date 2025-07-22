@@ -72,7 +72,7 @@ to manage each performance update behavior. ::
   Lowest non-        |                       |                         |                       |
   linear perf ------>+-----------------------+                         +-----------------------+
                      |                       |                         |                       |
-                     |                       |       Lowest perf  ---->|                       |
+                     |                       |          Min perf  ---->|                       |
                      |                       |                         |                       |
   Lowest perf ------>+-----------------------+                         +-----------------------+
                      |                       |                         |                       |
