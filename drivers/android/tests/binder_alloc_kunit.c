@@ -15,6 +15,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/seq_buf.h>
 #include <linux/sizes.h>
 
 #include "../binder_alloc.h"
@@ -107,40 +108,33 @@ static const char *const buf_end_align_type_strs[LOOP_END] = {
 };
 
 struct binder_alloc_test_case_info {
+	char alignments[ALIGNMENTS_BUFLEN];
+	struct seq_buf alignments_sb;
 	size_t *buffer_sizes;
 	int *free_sequence;
-	char alignments[ALIGNMENTS_BUFLEN];
 	bool front_pages;
 };
 
-static void stringify_free_seq(struct kunit *test, int *seq, char *buf,
-			       size_t buf_len)
+static void stringify_free_seq(struct kunit *test, int *seq, struct seq_buf *sb)
 {
-	size_t bytes = 0;
 	int i;
 
-	for (i = 0; i < BUFFER_NUM; i++) {
-		bytes += snprintf(buf + bytes, buf_len - bytes, "[%d]", seq[i]);
-		if (bytes >= buf_len)
-			break;
-	}
-	KUNIT_EXPECT_LT(test, bytes, buf_len);
+	for (i = 0; i < BUFFER_NUM; i++)
+		seq_buf_printf(sb, "[%d]", seq[i]);
+
+	KUNIT_EXPECT_FALSE(test, seq_buf_has_overflowed(sb));
 }
 
 static void stringify_alignments(struct kunit *test, int *alignments,
-				 char *buf, size_t buf_len)
+				 struct seq_buf *sb)
 {
-	size_t bytes = 0;
 	int i;
 
-	for (i = 0; i < BUFFER_NUM; i++) {
-		bytes += snprintf(buf + bytes, buf_len - bytes, "[ %d:%s ]", i,
-				  buf_end_align_type_strs[alignments[i]]);
-		if (bytes >= buf_len)
-			break;
-	}
+	for (i = 0; i < BUFFER_NUM; i++)
+		seq_buf_printf(sb, "[ %d:%s ]", i,
+			       buf_end_align_type_strs[alignments[i]]);
 
-	KUNIT_EXPECT_LT(test, bytes, buf_len);
+	KUNIT_EXPECT_FALSE(test, seq_buf_has_overflowed(sb));
 }
 
 static bool check_buffer_pages_allocated(struct kunit *test,
@@ -311,19 +305,20 @@ static void permute_frees(struct kunit *test, struct binder_alloc *alloc,
 	int i;
 
 	if (index == BUFFER_NUM) {
-		char freeseq_buf[FREESEQ_BUFLEN];
+		DECLARE_SEQ_BUF(freeseq_sb, FREESEQ_BUFLEN);
 
 		case_failed = binder_alloc_test_alloc_free(test, alloc, tc, end);
 		*runs += 1;
 		*failures += case_failed;
 
 		if (case_failed || PRINT_ALL_CASES) {
-			stringify_free_seq(test, tc->free_sequence, freeseq_buf,
-					   FREESEQ_BUFLEN);
+			stringify_free_seq(test, tc->free_sequence,
+					   &freeseq_sb);
 			kunit_err(test, "case %lu: [%s] | %s - %s - %s", *runs,
 				  case_failed ? "FAILED" : "PASSED",
 				  tc->front_pages ? "front" : "back ",
-				  tc->alignments, freeseq_buf);
+				  seq_buf_str(&tc->alignments_sb),
+				  seq_buf_str(&freeseq_sb));
 		}
 
 		return;
@@ -383,8 +378,9 @@ static void gen_buf_offsets(struct kunit *test, struct binder_alloc *alloc,
 	if (index == BUFFER_NUM) {
 		struct binder_alloc_test_case_info tc = {0};
 
-		stringify_alignments(test, alignments, tc.alignments,
-				     ALIGNMENTS_BUFLEN);
+		seq_buf_init(&tc.alignments_sb, tc.alignments,
+			     ALIGNMENTS_BUFLEN);
+		stringify_alignments(test, alignments, &tc.alignments_sb);
 
 		gen_buf_sizes(test, alloc, &tc, end_offset, runs, failures);
 		return;
