@@ -86,19 +86,6 @@ struct xe_migrate {
  */
 #define MAX_PTE_PER_SDI 0x1FEU
 
-/**
- * xe_tile_migrate_exec_queue() - Get this tile's migrate exec queue.
- * @tile: The tile.
- *
- * Returns the default migrate exec queue of this tile.
- *
- * Return: The default migrate exec queue
- */
-struct xe_exec_queue *xe_tile_migrate_exec_queue(struct xe_tile *tile)
-{
-	return tile->migrate->q;
-}
-
 static void xe_migrate_fini(void *arg)
 {
 	struct xe_migrate *m = arg;
@@ -1100,6 +1087,17 @@ int xe_migrate_ccs_rw_copy(struct xe_migrate *m,
 
 err_ret:
 	return err;
+}
+
+/**
+ * xe_get_migrate_exec_queue() - Get the execution queue from migrate context.
+ * @migrate: Migrate context.
+ *
+ * Return: Pointer to execution queue on success, error on failure
+ */
+struct xe_exec_queue *xe_migrate_exec_queue(struct xe_migrate *migrate)
+{
+	return migrate->q;
 }
 
 static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,

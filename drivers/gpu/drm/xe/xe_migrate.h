@@ -120,6 +120,7 @@ int xe_migrate_ccs_rw_copy(struct xe_migrate *m,
 			   enum xe_sriov_vf_ccs_rw_ctxs read_write);
 
 struct xe_lrc *xe_migrate_lrc(struct xe_migrate *migrate);
+struct xe_exec_queue *xe_migrate_exec_queue(struct xe_migrate *migrate);
 int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 			     unsigned long offset, void *buf, int len,
 			     int write);
@@ -140,6 +141,4 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 			   struct xe_migrate_pt_update *pt_update);
 
 void xe_migrate_wait(struct xe_migrate *m);
-
-struct xe_exec_queue *xe_tile_migrate_exec_queue(struct xe_tile *tile);
 #endif

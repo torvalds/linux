@@ -8,6 +8,9 @@
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_exec_queue_types.h"
+#include "xe_guc_submit.h"
+#include "xe_lrc.h"
 #include "xe_migrate.h"
 #include "xe_sa.h"
 #include "xe_sriov_printk.h"
@@ -163,6 +166,85 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_tile_vf_ccs *ctx)
 	return 0;
 }
 
+static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
+{
+	struct xe_lrc *lrc = xe_migrate_lrc(ctx->migrate);
+	u64 addr = ctx->mem.ccs_bb_pool->gpu_addr;
+	u32 dw[10], i = 0;
+
+	dw[i++] = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	dw[i++] = MI_BATCH_BUFFER_START | XE_INSTR_NUM_DW(3);
+	dw[i++] = lower_32_bits(addr);
+	dw[i++] = upper_32_bits(addr);
+	dw[i++] = MI_NOOP;
+	dw[i++] = MI_NOOP;
+
+	xe_lrc_write_ring(lrc, dw, i * sizeof(u32));
+	xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
+}
+
+static int register_save_restore_context(struct xe_migrate *m,
+					 enum xe_sriov_vf_ccs_rw_ctxs ctx_id)
+{
+	int err = -EINVAL;
+	int ctx_type;
+
+	switch (ctx_id) {
+	case XE_SRIOV_VF_CCS_READ_CTX:
+		ctx_type = GUC_CONTEXT_COMPRESSION_SAVE;
+		break;
+	case XE_SRIOV_VF_CCS_WRITE_CTX:
+		ctx_type = GUC_CONTEXT_COMPRESSION_RESTORE;
+		break;
+	default:
+		return err;
+	}
+
+	xe_guc_register_exec_queue(xe_migrate_exec_queue(m), ctx_type);
+	return 0;
+}
+
+/**
+ * xe_sriov_vf_ccs_register_context - Register read/write contexts with guc.
+ * @xe: the &xe_device to register contexts on.
+ *
+ * This function registers read and write contexts with Guc. Re-registration
+ * is needed whenever resuming from pm runtime suspend.
+ *
+ * Return: 0 on success. Negative error code on failure.
+ */
+int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
+{
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
+	struct xe_tile_vf_ccs *ctx;
+	int err;
+
+	if (!IS_VF_CCS_READY(xe))
+		return 0;
+
+	for_each_ccs_rw_ctx(ctx_id) {
+		ctx = &tile->sriov.vf.ccs[ctx_id];
+		err = register_save_restore_context(ctx->migrate, ctx_id);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
+static void xe_sriov_vf_ccs_fini(void *arg)
+{
+	struct xe_tile_vf_ccs *ctx = arg;
+	struct xe_lrc *lrc = xe_migrate_lrc(ctx->migrate);
+
+	/*
+	 * Make TAIL = HEAD in the ring so that no issues are seen if Guc
+	 * submits this context to HW on VF pause after unbinding device.
+	 */
+	xe_lrc_set_ring_tail(lrc, xe_lrc_ring_head(lrc));
+}
+
 /**
  * xe_sriov_vf_ccs_init - Setup LRCA for save & restore.
  * @xe: the &xe_device to start recovery on
@@ -198,6 +280,16 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 		err = alloc_bb_pool(tile, ctx);
 		if (err)
 			goto err_ret;
+
+		ccs_rw_update_ring(ctx);
+
+		err = register_save_restore_context(ctx->migrate, ctx_id);
+		if (err)
+			goto err_ret;
+
+		err = devm_add_action_or_reset(xe->drm.dev,
+					       xe_sriov_vf_ccs_fini,
+					       ctx);
 	}
 
 	xe->sriov.vf.ccs.initialized = 1;
