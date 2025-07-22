@@ -8,6 +8,10 @@ import subprocess
 import _damon_sysfs
 
 def dump_damon_status_dict(pid):
+    try:
+        subprocess.check_output(['which', 'drgn'], stderr=subprocess.DEVNULL)
+    except:
+        return None, 'drgn not found'
     file_dir = os.path.dirname(os.path.abspath(__file__))
     dump_script = os.path.join(file_dir, 'drgn_dump_damon_status.py')
     rc = subprocess.call(['drgn', dump_script, pid, 'damon_dump_output'],
@@ -40,6 +44,7 @@ def main():
     status, err = dump_damon_status_dict(kdamonds.kdamonds[0].pid)
     if err is not None:
         print(err)
+        kdamonds.stop()
         exit(1)
 
     if len(status['contexts']) != 1:
