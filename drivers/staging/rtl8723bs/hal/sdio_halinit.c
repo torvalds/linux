@@ -1094,10 +1094,6 @@ static void _ReadPROMContent(struct adapter *padapter)
 	_ReadEfuseInfo8723BS(padapter);
 }
 
-static void _InitOtherVariable(struct adapter *Adapter)
-{
-}
-
 /*  */
 /* 	Description: */
 /* 		Read HW adapter information by E-Fuse or EEPROM according CR9346 reported. */
@@ -1122,7 +1118,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	_EfuseCellSel(padapter);
 	_ReadRFType(padapter);
 	_ReadPROMContent(padapter);
-	_InitOtherVariable(padapter);
 
 	if (!padapter->hw_init_completed) {
 		rtw_write8(padapter, 0x67, 0x00); /*  for BT, Switch Ant control to BT */
