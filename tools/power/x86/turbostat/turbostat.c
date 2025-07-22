@@ -2080,8 +2080,6 @@ struct pkg_data {
 	 ((node_no) * topo.cores_per_node) +				\
 	 (core_no))
 
-#define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
-
 /*
  * The accumulated sum of MSR is defined as a monotonic
  * increasing MSR, it will be accumulated periodically,
@@ -2345,16 +2343,15 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 				for (thread_no = 0; thread_no < topo.threads_per_core; ++thread_no) {
 					struct thread_data *t;
 					struct core_data *c;
-					struct pkg_data *p;
+
 					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
 
 					if (cpu_is_not_allowed(t->cpu_id))
 						continue;
 
 					c = GET_CORE(core_base, core_no, node_no, pkg_no);
-					p = GET_PKG(pkg_base, pkg_no);
 
-					retval |= func(t, c, p);
+					retval |= func(t, c, &pkg_base[pkg_no]);
 				}
 			}
 		}
@@ -6119,7 +6116,6 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 				for (thread_no = 0; thread_no < topo.threads_per_core; ++thread_no) {
 					struct thread_data *t, *t2;
 					struct core_data *c, *c2;
-					struct pkg_data *p, *p2;
 
 					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
 
@@ -6131,10 +6127,7 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 					c = GET_CORE(core_base, core_no, node_no, pkg_no);
 					c2 = GET_CORE(core_base2, core_no, node_no, pkg_no);
 
-					p = GET_PKG(pkg_base, pkg_no);
-					p2 = GET_PKG(pkg_base2, pkg_no);
-
-					retval |= func(t, c, p, t2, c2, p2);
+					retval |= func(t, c, &pkg_base[pkg_no], t2, c2, &pkg_base2[pkg_no]);
 				}
 			}
 		}
@@ -9342,7 +9335,6 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 	int thread_id = cpus[cpu_id].thread_id;
 	struct thread_data *t;
 	struct core_data *c;
-	struct pkg_data *p;
 
 	/* Workaround for systems where physical_node_id==-1
 	 * and logical_node_id==(-1 - topo.num_cpus)
@@ -9352,18 +9344,17 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 
 	t = GET_THREAD(thread_base, thread_id, core_id, node_id, pkg_id);
 	c = GET_CORE(core_base, core_id, node_id, pkg_id);
-	p = GET_PKG(pkg_base, pkg_id);
 
 	t->cpu_id = cpu_id;
 	if (!cpu_is_not_allowed(cpu_id)) {
 		if (c->base_cpu < 0)
 			c->base_cpu = t->cpu_id;
-		if (p->base_cpu < 0)
-			p->base_cpu = t->cpu_id;
+		if (pkg_base[pkg_id].base_cpu < 0)
+			pkg_base[pkg_id].base_cpu = t->cpu_id;
 	}
 
 	c->core_id = core_id;
-	p->package_id = pkg_id;
+	pkg_base[pkg_id].package_id = pkg_id;
 }
 
 int initialize_counters(int cpu_id)
