@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Test cases for binder allocator code
+ * Test cases for binder allocator code.
+ *
+ * Copyright 2025 Google LLC.
+ * Author: Tiffany Yang <ynaffit@google.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
