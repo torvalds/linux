@@ -314,6 +314,8 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 			    &nsim_dev->fw_update_status);
 	debugfs_create_u32("fw_update_overwrite_mask", 0600, nsim_dev->ddir,
 			    &nsim_dev->fw_update_overwrite_mask);
+	debugfs_create_u32("fw_update_flash_chunk_time_ms", 0600, nsim_dev->ddir,
+			   &nsim_dev->fw_update_flash_chunk_time_ms);
 	debugfs_create_u32("max_macs", 0600, nsim_dev->ddir,
 			   &nsim_dev->max_macs);
 	debugfs_create_bool("test1", 0600, nsim_dev->ddir,
@@ -1015,9 +1017,9 @@ static int nsim_dev_info_get(struct devlink *devlink,
 						    DEVLINK_INFO_VERSION_TYPE_COMPONENT);
 }
 
-#define NSIM_DEV_FLASH_SIZE 500000
+#define NSIM_DEV_FLASH_SIZE 50000
 #define NSIM_DEV_FLASH_CHUNK_SIZE 1000
-#define NSIM_DEV_FLASH_CHUNK_TIME_MS 10
+#define NSIM_DEV_FLASH_CHUNK_TIME_MS_DEFAULT 100
 
 static int nsim_dev_flash_update(struct devlink *devlink,
 				 struct devlink_flash_update_params *params,
@@ -1041,7 +1043,7 @@ static int nsim_dev_flash_update(struct devlink *devlink,
 							   params->component,
 							   i * NSIM_DEV_FLASH_CHUNK_SIZE,
 							   NSIM_DEV_FLASH_SIZE);
-		msleep(NSIM_DEV_FLASH_CHUNK_TIME_MS);
+		msleep(nsim_dev->fw_update_flash_chunk_time_ms ?: 1);
 	}
 
 	if (nsim_dev->fw_update_status) {
@@ -1585,6 +1587,7 @@ int nsim_drv_probe(struct nsim_bus_dev *nsim_bus_dev)
 	INIT_LIST_HEAD(&nsim_dev->port_list);
 	nsim_dev->fw_update_status = true;
 	nsim_dev->fw_update_overwrite_mask = 0;
+	nsim_dev->fw_update_flash_chunk_time_ms = NSIM_DEV_FLASH_CHUNK_TIME_MS_DEFAULT;
 	nsim_dev->max_macs = NSIM_DEV_MAX_MACS_DEFAULT;
 	nsim_dev->test1 = NSIM_DEV_TEST1_DEFAULT;
 	spin_lock_init(&nsim_dev->fa_cookie_lock);

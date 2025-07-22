@@ -40,6 +40,8 @@ fw_flash_test()
 		return
 	fi
 
+	echo "10"> $DEBUGFS_DIR/fw_update_flash_chunk_time_ms
+
 	devlink dev flash $DL_HANDLE file $DUMMYFILE
 	check_err $? "Failed to flash with status updates on"
 
