@@ -312,13 +312,9 @@ static struct configfs_subsystem xe_configfs = {
 static struct xe_config_device *configfs_find_group(struct pci_dev *pdev)
 {
 	struct config_item *item;
-	char name[64];
-
-	snprintf(name, sizeof(name), "%04x:%02x:%02x.%x", pci_domain_nr(pdev->bus),
-		 pdev->bus->number, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
 	mutex_lock(&xe_configfs.su_mutex);
-	item = config_group_find_item(&xe_configfs.su_group, name);
+	item = config_group_find_item(&xe_configfs.su_group, pci_name(pdev));
 	mutex_unlock(&xe_configfs.su_mutex);
 
 	if (!item)
