@@ -22831,7 +22831,10 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vbabka/slab.git
 F:	Documentation/admin-guide/mm/slab.rst
 F:	Documentation/mm/slab.rst
+F:	include/linux/mempool.h
 F:	include/linux/slab.h
+F:	mm/failslab.c
+F:	mm/mempool.c
 F:	mm/slab.h
 F:	mm/slab_common.c
 F:	mm/slub.c
