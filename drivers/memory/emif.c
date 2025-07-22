@@ -39,6 +39,7 @@
  *				are two devices attached to this EMIF, this
  *				value is the maximum of the two temperature
  *				levels.
+ * @lpmode:			Chosen low power mode
  * @node:			node in the device list
  * @base:			base address of memory-mapped IO registers.
  * @dev:			device pointer.

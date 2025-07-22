@@ -46,7 +46,7 @@ static int stm32_omm_set_amcr(struct device *dev, bool set)
 	struct regmap *syscfg_regmap;
 	struct device_node *node;
 	struct resource res, res1;
-	u32 amcr_base, amcr_mask;
+	unsigned int syscon_args[2];
 	int ret, idx;
 	unsigned int i, amcr, read_amcr;
 
@@ -98,29 +98,20 @@ static int stm32_omm_set_amcr(struct device *dev, bool set)
 		of_node_put(node);
 	}
 
-	syscfg_regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "st,syscfg-amcr");
+	syscfg_regmap = syscon_regmap_lookup_by_phandle_args(dev->of_node, "st,syscfg-amcr",
+							     2, syscon_args);
 	if (IS_ERR(syscfg_regmap))
 		return dev_err_probe(dev, PTR_ERR(syscfg_regmap),
 				     "Failed to get st,syscfg-amcr property\n");
 
-	ret = of_property_read_u32_index(dev->of_node, "st,syscfg-amcr", 1,
-					 &amcr_base);
-	if (ret)
-		return ret;
-
-	ret = of_property_read_u32_index(dev->of_node, "st,syscfg-amcr", 2,
-					 &amcr_mask);
-	if (ret)
-		return ret;
-
 	amcr = mm_ospi2_size / SZ_64M;
 
 	if (set)
-		regmap_update_bits(syscfg_regmap, amcr_base, amcr_mask, amcr);
+		regmap_update_bits(syscfg_regmap, syscon_args[0], syscon_args[1], amcr);
 
 	/* read AMCR and check coherency with memory-map areas defined in DT */
-	regmap_read(syscfg_regmap, amcr_base, &read_amcr);
-	read_amcr = read_amcr >> (ffs(amcr_mask) - 1);
+	regmap_read(syscfg_regmap, syscon_args[0], &read_amcr);
+	read_amcr = read_amcr >> (ffs(syscon_args[1]) - 1);
 
 	if (amcr != read_amcr) {
 		dev_err(dev, "AMCR value not coherent with DT memory-map areas\n");
