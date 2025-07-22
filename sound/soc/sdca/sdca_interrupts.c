@@ -144,7 +144,7 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 	struct snd_soc_card *card = component->card;
 	struct rw_semaphore *rwsem = &card->snd_card->controls_rwsem;
 	struct snd_kcontrol *kctl = interrupt->priv;
-	struct snd_ctl_elem_value ucontrol;
+	struct snd_ctl_elem_value *ucontrol __free(kfree) = NULL;
 	struct soc_enum *soc_enum;
 	unsigned int reg, val;
 	int ret;
@@ -204,10 +204,14 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 
 	dev_dbg(dev, "%s: %#x\n", interrupt->name, val);
 
-	ucontrol.value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
+	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
+	if (!ucontrol)
+		return IRQ_NONE;
+
+	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
 
 	down_write(rwsem);
-	ret = kctl->put(kctl, &ucontrol);
+	ret = kctl->put(kctl, ucontrol);
 	up_write(rwsem);
 	if (ret < 0) {
 		dev_err(dev, "failed to update selected mode: %d\n", ret);
