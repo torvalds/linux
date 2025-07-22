@@ -5,6 +5,7 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "instructions/xe_gpu_commands.h"
+#include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_migrate.h"
@@ -205,4 +206,70 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 
 err_ret:
 	return err;
+}
+
+/**
+ * xe_sriov_vf_ccs_attach_bo - Insert CCS read write commands in the BO.
+ * @bo: the &buffer object to which batch buffer commands will be added.
+ *
+ * This function shall be called only by VF. It inserts the PTEs and copy
+ * command instructions in the BO by calling xe_migrate_ccs_rw_copy()
+ * function.
+ *
+ * Returns: 0 if successful, negative error code on failure.
+ */
+int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
+	struct xe_migrate *migrate;
+	struct xe_tile *tile;
+	struct xe_bb *bb;
+	int err = 0;
+
+	if (!IS_VF_CCS_READY(xe))
+		return 0;
+
+	tile = xe_device_get_root_tile(xe);
+
+	for_each_ccs_rw_ctx(ctx_id) {
+		bb = bo->bb_ccs[ctx_id];
+		/* bb should be NULL here. Assert if not NULL */
+		xe_assert(xe, !bb);
+
+		migrate = tile->sriov.vf.ccs[ctx_id].migrate;
+		err = xe_migrate_ccs_rw_copy(migrate, bo, ctx_id);
+	}
+	return err;
+}
+
+/**
+ * xe_sriov_vf_ccs_detach_bo - Remove CCS read write commands from the BO.
+ * @bo: the &buffer object from which batch buffer commands will be removed.
+ *
+ * This function shall be called only by VF. It removes the PTEs and copy
+ * command instructions from the BO. Make sure to update the BB with MI_NOOP
+ * before freeing.
+ *
+ * Returns: 0 if successful.
+ */
+int xe_sriov_vf_ccs_detach_bo(struct xe_bo *bo)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
+	struct xe_bb *bb;
+
+	if (!IS_VF_CCS_READY(xe))
+		return 0;
+
+	for_each_ccs_rw_ctx(ctx_id) {
+		bb = bo->bb_ccs[ctx_id];
+		if (!bb)
+			continue;
+
+		memset(bb->cs, MI_NOOP, bb->len * sizeof(u32));
+		xe_bb_free(bb, NULL);
+		bo->bb_ccs[ctx_id] = NULL;
+	}
+	return 0;
 }
