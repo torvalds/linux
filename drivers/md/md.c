@@ -1415,13 +1415,13 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *freshest, stru
 			mddev->layout = -1;
 
 		if (sb->state & (1<<MD_SB_CLEAN))
-			mddev->recovery_cp = MaxSector;
+			mddev->resync_offset = MaxSector;
 		else {
 			if (sb->events_hi == sb->cp_events_hi &&
 				sb->events_lo == sb->cp_events_lo) {
-				mddev->recovery_cp = sb->recovery_cp;
+				mddev->resync_offset = sb->resync_offset;
 			} else
-				mddev->recovery_cp = 0;
+				mddev->resync_offset = 0;
 		}
 
 		memcpy(mddev->uuid+0, &sb->set_uuid0, 4);
@@ -1547,13 +1547,13 @@ static void super_90_sync(struct mddev *mddev, struct md_rdev *rdev)
 	mddev->minor_version = sb->minor_version;
 	if (mddev->in_sync)
 	{
-		sb->recovery_cp = mddev->recovery_cp;
+		sb->resync_offset = mddev->resync_offset;
 		sb->cp_events_hi = (mddev->events>>32);
 		sb->cp_events_lo = (u32)mddev->events;
-		if (mddev->recovery_cp == MaxSector)
+		if (mddev->resync_offset == MaxSector)
 			sb->state = (1<< MD_SB_CLEAN);
 	} else
-		sb->recovery_cp = 0;
+		sb->resync_offset = 0;
 
 	sb->layout = mddev->layout;
 	sb->chunk_size = mddev->chunk_sectors << 9;
@@ -1901,7 +1901,7 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *freshest, struc
 		mddev->bitmap_info.default_space = (4096-1024) >> 9;
 		mddev->reshape_backwards = 0;
 
-		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
+		mddev->resync_offset = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
 
 		mddev->max_disks =  (4096-256)/2;
@@ -2087,7 +2087,7 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 	sb->utime = cpu_to_le64((__u64)mddev->utime);
 	sb->events = cpu_to_le64(mddev->events);
 	if (mddev->in_sync)
-		sb->resync_offset = cpu_to_le64(mddev->recovery_cp);
+		sb->resync_offset = cpu_to_le64(mddev->resync_offset);
 	else if (test_bit(MD_JOURNAL_CLEAN, &mddev->flags))
 		sb->resync_offset = cpu_to_le64(MaxSector);
 	else
@@ -2767,7 +2767,7 @@ repeat:
 	/* If this is just a dirty<->clean transition, and the array is clean
 	 * and 'events' is odd, we can roll back to the previous clean state */
 	if (nospares
-	    && (mddev->in_sync && mddev->recovery_cp == MaxSector)
+	    && (mddev->in_sync && mddev->resync_offset == MaxSector)
 	    && mddev->can_decrease_events
 	    && mddev->events != 1) {
 		mddev->events--;
@@ -4303,9 +4303,9 @@ __ATTR(chunk_size, S_IRUGO|S_IWUSR, chunk_size_show, chunk_size_store);
 static ssize_t
 resync_start_show(struct mddev *mddev, char *page)
 {
-	if (mddev->recovery_cp == MaxSector)
+	if (mddev->resync_offset == MaxSector)
 		return sprintf(page, "none\n");
-	return sprintf(page, "%llu\n", (unsigned long long)mddev->recovery_cp);
+	return sprintf(page, "%llu\n", (unsigned long long)mddev->resync_offset);
 }
 
 static ssize_t
@@ -4331,7 +4331,7 @@ resync_start_store(struct mddev *mddev, const char *buf, size_t len)
 		err = -EBUSY;
 
 	if (!err) {
-		mddev->recovery_cp = n;
+		mddev->resync_offset = n;
 		if (mddev->pers)
 			set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
 	}
@@ -6423,7 +6423,7 @@ static void md_clean(struct mddev *mddev)
 	mddev->external_size = 0;
 	mddev->dev_sectors = 0;
 	mddev->raid_disks = 0;
-	mddev->recovery_cp = 0;
+	mddev->resync_offset = 0;
 	mddev->resync_min = 0;
 	mddev->resync_max = MaxSector;
 	mddev->reshape_position = MaxSector;
@@ -7368,9 +7368,9 @@ int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info)
 	 * openned
 	 */
 	if (info->state & (1<<MD_SB_CLEAN))
-		mddev->recovery_cp = MaxSector;
+		mddev->resync_offset = MaxSector;
 	else
-		mddev->recovery_cp = 0;
+		mddev->resync_offset = 0;
 	mddev->persistent    = ! info->not_persistent;
 	mddev->external	     = 0;
 
@@ -8309,7 +8309,7 @@ static int status_resync(struct seq_file *seq, struct mddev *mddev)
 				seq_printf(seq, "\tresync=REMOTE");
 			return 1;
 		}
-		if (mddev->recovery_cp < MaxSector) {
+		if (mddev->resync_offset < MaxSector) {
 			seq_printf(seq, "\tresync=PENDING");
 			return 1;
 		}
@@ -8952,7 +8952,7 @@ static sector_t md_sync_position(struct mddev *mddev, enum sync_action action)
 		return mddev->resync_min;
 	case ACTION_RESYNC:
 		if (!mddev->bitmap)
-			return mddev->recovery_cp;
+			return mddev->resync_offset;
 		return 0;
 	case ACTION_RESHAPE:
 		/*
@@ -9190,8 +9190,8 @@ void md_do_sync(struct md_thread *thread)
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed = j;
 			if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
-			    j > mddev->recovery_cp)
-				mddev->recovery_cp = j;
+			    j > mddev->resync_offset)
+				mddev->resync_offset = j;
 			update_time = jiffies;
 			set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
 			sysfs_notify_dirent_safe(mddev->sysfs_completed);
@@ -9311,19 +9311,19 @@ void md_do_sync(struct md_thread *thread)
 	    mddev->curr_resync > MD_RESYNC_ACTIVE) {
 		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 			if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
-				if (mddev->curr_resync >= mddev->recovery_cp) {
+				if (mddev->curr_resync >= mddev->resync_offset) {
 					pr_debug("md: checkpointing %s of %s.\n",
 						 desc, mdname(mddev));
 					if (test_bit(MD_RECOVERY_ERROR,
 						&mddev->recovery))
-						mddev->recovery_cp =
+						mddev->resync_offset =
 							mddev->curr_resync_completed;
 					else
-						mddev->recovery_cp =
+						mddev->resync_offset =
 							mddev->curr_resync;
 				}
 			} else
-				mddev->recovery_cp = MaxSector;
+				mddev->resync_offset = MaxSector;
 		} else {
 			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery))
 				mddev->curr_resync = MaxSector;
@@ -9539,7 +9539,7 @@ static bool md_choose_sync_action(struct mddev *mddev, int *spares)
 	}
 
 	/* Check if resync is in progress. */
-	if (mddev->recovery_cp < MaxSector) {
+	if (mddev->resync_offset < MaxSector) {
 		remove_spares(mddev, NULL);
 		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 		clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
@@ -9720,7 +9720,7 @@ void md_check_recovery(struct mddev *mddev)
 		test_bit(MD_RECOVERY_DONE, &mddev->recovery) ||
 		(mddev->external == 0 && mddev->safemode == 1) ||
 		(mddev->safemode == 2
-		 && !mddev->in_sync && mddev->recovery_cp == MaxSector)
+		 && !mddev->in_sync && mddev->resync_offset == MaxSector)
 		))
 		return;
 
