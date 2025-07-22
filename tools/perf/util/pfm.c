@@ -47,10 +47,6 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 	p_orig = p = strdup(str);
 	if (!p)
 		return -1;
-	/*
-	 * force loading of the PMU list
-	 */
-	perf_pmus__scan(NULL);
 
 	for (q = p; strsep(&p, ",{}"); q = p) {
 		sep = p ? str + (p - p_orig - 1) : "";
