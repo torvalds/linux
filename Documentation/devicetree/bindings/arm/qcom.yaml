@@ -233,6 +233,11 @@ properties:
 
       - items:
           - enum:
+              - longcheer,l9360
+          - const: qcom,msm8976
+
+      - items:
+          - enum:
               - acer,a1-724
               - alcatel,idol347
               - asus,z00l

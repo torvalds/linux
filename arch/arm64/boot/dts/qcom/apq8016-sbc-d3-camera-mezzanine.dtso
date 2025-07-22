@@ -5,10 +5,12 @@
  */
 
 /dts-v1/;
+/plugin/;
 
-#include "apq8016-sbc.dts"
+#include <dt-bindings/clock/qcom,gcc-msm8916.h>
+#include <dt-bindings/gpio/gpio.h>
 
-/ {
+&{/} {
 	camera_vdddo_1v8: regulator-camera-vdddo {
 		compatible = "regulator-fixed";
 		regulator-name = "camera_vdddo";
@@ -38,6 +40,9 @@
 	status = "okay";
 
 	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		port@0 {
 			reg = <0>;
 			csiphy0_ep: endpoint {
@@ -53,6 +58,9 @@
 };
 
 &cci_i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	camera@3b {
 		compatible = "ovti,ov5640";
 		reg = <0x3b>;
