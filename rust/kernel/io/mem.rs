@@ -40,8 +40,8 @@ impl<'a> IoRequest<'a> {
     ///
     /// # Examples
     ///
-    /// The following example uses a [`platform::Device`] for illustration
-    /// purposes.
+    /// The following example uses a [`kernel::platform::Device`] for
+    /// illustration purposes.
     ///
     /// ```no_run
     /// use kernel::{bindings, c_str, platform, of, device::Core};
@@ -98,8 +98,8 @@ impl<'a> IoRequest<'a> {
     ///
     /// # Examples
     ///
-    /// The following example uses a [`platform::Device`] for illustration
-    /// purposes.
+    /// The following example uses a [`kernel::platform::Device`] for
+    /// illustration purposes.
     ///
     /// ```no_run
     /// use kernel::{bindings, c_str, platform, of, device::Core};
