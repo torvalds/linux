@@ -121,10 +121,8 @@ void print_header(int topology_depth)
 	switch (topology_depth) {
 	case TOPOLOGY_DEPTH_PKG:
 		printf(" PKG|");
-		break;
 	case TOPOLOGY_DEPTH_CORE:
 		printf("CORE|");
-		break;
 	case	TOPOLOGY_DEPTH_CPU:
 		printf(" CPU|");
 		break;
@@ -167,10 +165,8 @@ void print_results(int topology_depth, int cpu)
 	switch (topology_depth) {
 	case TOPOLOGY_DEPTH_PKG:
 		printf("%4d|", cpu_top.core_info[cpu].pkg);
-		break;
 	case TOPOLOGY_DEPTH_CORE:
 		printf("%4d|", cpu_top.core_info[cpu].core);
-		break;
 	case TOPOLOGY_DEPTH_CPU:
 		printf("%4d|", cpu_top.core_info[cpu].cpu);
 		break;
