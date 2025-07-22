@@ -200,6 +200,7 @@ properties:
       - qcom,kryo385
       - qcom,kryo465
       - qcom,kryo468
+      - qcom,kryo470
       - qcom,kryo485
       - qcom,kryo560
       - qcom,kryo570
