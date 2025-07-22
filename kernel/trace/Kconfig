@@ -53,6 +53,12 @@ config HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 config HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS
 	bool
 
+config HAVE_EXTRA_IPI_TRACEPOINTS
+	bool
+	help
+	 For architectures that use ipi_raise, ipi_entry and ipi_exit
+	 tracepoints.
+
 config HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	bool
 	help
