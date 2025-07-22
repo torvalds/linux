@@ -177,7 +177,8 @@ unsafe impl Sync for Resource {}
 ///
 /// They can be combined with the operators `|`, `&`, and `!`.
 ///
-/// Values can be used from the [`flags`] module.
+/// Values can be used from the associated constants such as
+/// [`Flags::IORESOURCE_IO`].
 #[derive(Clone, Copy, PartialEq)]
 pub struct Flags(c_ulong);
 
