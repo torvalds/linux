@@ -828,6 +828,30 @@ void mipi_dsi_generic_write_multi(struct mipi_dsi_multi_context *ctx,
 EXPORT_SYMBOL(mipi_dsi_generic_write_multi);
 
 /**
+ * mipi_dsi_dual_generic_write_multi() - mipi_dsi_generic_write_multi() for
+ * two dsi channels, one after the other
+ * @ctx: Context for multiple DSI transactions
+ * @dsi1: First dsi channel to write buffer to
+ * @dsi2: Second dsi channel to write buffer to
+ * @payload: Buffer containing the payload
+ * @size: Size of payload buffer
+ *
+ * A wrapper around mipi_dsi_generic_write_multi() that allows the user to
+ * conveniently write to two dsi channels, one after the other.
+ */
+void mipi_dsi_dual_generic_write_multi(struct mipi_dsi_multi_context *ctx,
+				       struct mipi_dsi_device *dsi1,
+				       struct mipi_dsi_device *dsi2,
+				       const void *payload, size_t size)
+{
+	ctx->dsi = dsi1;
+	mipi_dsi_generic_write_multi(ctx, payload, size);
+	ctx->dsi = dsi2;
+	mipi_dsi_generic_write_multi(ctx, payload, size);
+}
+EXPORT_SYMBOL(mipi_dsi_dual_generic_write_multi);
+
+/**
  * mipi_dsi_generic_read() - receive data using a generic read packet
  * @dsi: DSI peripheral device
  * @params: buffer containing the request parameters
@@ -1005,6 +1029,30 @@ void mipi_dsi_dcs_write_buffer_multi(struct mipi_dsi_multi_context *ctx,
 	}
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_write_buffer_multi);
+
+/**
+ * mipi_dsi_dual_dcs_write_buffer_multi - mipi_dsi_dcs_write_buffer_multi() for
+ * two dsi channels, one after the other
+ * @ctx: Context for multiple DSI transactions
+ * @dsi1: First dsi channel to write buffer to
+ * @dsi2: Second dsi channel to write buffer to
+ * @data: Buffer containing data to be transmitted
+ * @len: Size of transmission buffer
+ *
+ * A wrapper around mipi_dsi_dcs_write_buffer_multi() that allows the user to
+ * conveniently write to two dsi channels, one after the other.
+ */
+void mipi_dsi_dual_dcs_write_buffer_multi(struct mipi_dsi_multi_context *ctx,
+					  struct mipi_dsi_device *dsi1,
+					  struct mipi_dsi_device *dsi2,
+					  const void *data, size_t len)
+{
+	ctx->dsi = dsi1;
+	mipi_dsi_dcs_write_buffer_multi(ctx, data, len);
+	ctx->dsi = dsi2;
+	mipi_dsi_dcs_write_buffer_multi(ctx, data, len);
+}
+EXPORT_SYMBOL(mipi_dsi_dual_dcs_write_buffer_multi);
 
 /**
  * mipi_dsi_dcs_write() - send DCS write command
