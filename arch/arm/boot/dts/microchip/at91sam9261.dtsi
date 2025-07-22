@@ -655,8 +655,8 @@
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c_bitbang>;
-		gpios = <&pioA 7 GPIO_ACTIVE_HIGH>, /* sda */
-			<&pioA 8 GPIO_ACTIVE_HIGH>; /* scl */
+		sda-gpios = <&pioA 7 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&pioA 8 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */

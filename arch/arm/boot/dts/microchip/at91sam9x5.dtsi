@@ -933,9 +933,8 @@
 
 	i2c-gpio-0 {
 		compatible = "i2c-gpio";
-		gpios = <&pioA 30 GPIO_ACTIVE_HIGH /* sda */
-			 &pioA 31 GPIO_ACTIVE_HIGH /* scl */
-			>;
+		sda-gpios = <&pioA 30 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&pioA 31 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
@@ -948,9 +947,8 @@
 
 	i2c-gpio-1 {
 		compatible = "i2c-gpio";
-		gpios = <&pioC 0 GPIO_ACTIVE_HIGH /* sda */
-			 &pioC 1 GPIO_ACTIVE_HIGH /* scl */
-			>;
+		sda-gpios = <&pioC 0 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&pioC 1 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
@@ -963,9 +961,8 @@
 
 	i2c-gpio-2 {
 		compatible = "i2c-gpio";
-		gpios = <&pioB 4 GPIO_ACTIVE_HIGH /* sda */
-			 &pioB 5 GPIO_ACTIVE_HIGH /* scl */
-			>;
+		sda-gpios = <&pioB 4 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&pioB 5 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */

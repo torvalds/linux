@@ -45,11 +45,13 @@
 	clocks {
 		slow_xtal: clock-slowxtal {
 			compatible = "fixed-clock";
+			clock-output-names = "slow_xtal";
 			#clock-cells = <0>;
 		};
 
 		main_xtal: clock-mainxtal {
 			compatible = "fixed-clock";
+			clock-output-names = "main_xtal";
 			#clock-cells = <0>;
 		};
 	};
@@ -983,6 +985,32 @@
 			status = "disabled";
 		};
 
+		hlcdc: hlcdc@f8038000 {
+			compatible = "microchip,sam9x75-xlcdc";
+			reg = <0xf8038000 0x4000>;
+			interrupts = <25 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 25>, <&pmc PMC_TYPE_GCK 25>, <&clk32k 1>;
+			clock-names = "periph_clk", "sys_clk", "slow_clk";
+			status = "disabled";
+
+			display-controller {
+				compatible = "atmel,hlcdc-display-controller";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+			};
+
+			pwm {
+				compatible = "atmel,hlcdc-pwm";
+				#pwm-cells = <3>;
+			};
+		};
+
 		flx9: flexcom@f8040000 {
 			compatible = "microchip,sam9x7-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xf8040000 0x200>;
@@ -1085,6 +1113,15 @@
 				atmel,fifo-size = <16>;
 				status = "disabled";
 			};
+		};
+
+		lvds_controller: lvds-controller@f8060000 {
+			compatible = "microchip,sam9x75-lvds";
+			reg = <0xf8060000 0x100>;
+			interrupts = <56 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 56>;
+			clock-names = "pclk";
+			status = "disabled";
 		};
 
 		matrix: matrix@ffffde00 {
