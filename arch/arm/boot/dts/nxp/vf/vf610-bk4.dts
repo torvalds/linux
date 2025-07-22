@@ -458,7 +458,7 @@
 		>;
 	};
 
-	pinctrl_gpio_spi: pinctrl-gpio-spi {
+	pinctrl_gpio_spi: pinctrl-gpio-spigrp {
 		fsl,pins = <
 			VF610_PAD_PTB18__GPIO_40        0x1183
 			VF610_PAD_PTD10__GPIO_89        0x1183
