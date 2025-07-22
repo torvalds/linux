@@ -8521,7 +8521,7 @@ static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 static unsigned long
 ieee80211_latest_active_link_conn_timeout(struct ieee80211_sub_if_data *sdata)
 {
-	unsigned long latest_timeout;
+	unsigned long latest_timeout = jiffies;
 	unsigned int link_id;
 	struct sta_info *sta;
 
@@ -8554,8 +8554,7 @@ ieee80211_latest_active_link_conn_timeout(struct ieee80211_sub_if_data *sdata)
 		 * is still active, and it is scheduled to fire at
 		 * the latest possible timeout.
 		 */
-		if (time_is_after_jiffies(timeout) &&
-		    time_after(timeout, latest_timeout))
+		if (time_after(timeout, latest_timeout))
 			latest_timeout = timeout;
 	}
 
@@ -8579,7 +8578,7 @@ static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 	 * If latest timeout is after now, then update timer to fire at
 	 * the later date, but do not actually probe at this time.
 	 */
-	if (latest_timeout) {
+	if (time_is_after_jiffies(latest_timeout)) {
 		mod_timer(&ifmgd->conn_mon_timer,
 			  round_jiffies_up(latest_timeout));
 		return;
