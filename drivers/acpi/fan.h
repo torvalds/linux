@@ -20,6 +20,7 @@
 	{"INTC106A", }, /* Fan for Lunar Lake generation */ \
 	{"INTC10A2", }, /* Fan for Raptor Lake generation */ \
 	{"INTC10D6", }, /* Fan for Panther Lake generation */ \
+	{"INTC10FE", }, /* Fan for Wildcat Lake generation */ \
 	{"PNP0C0B", } /* Generic ACPI fan */
 
 #define ACPI_FPS_NAME_LEN	20
