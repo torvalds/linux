@@ -254,7 +254,7 @@
 			};
 		};
 
-		emmc: sdhci@2200000 {
+		emmc: mmc@2200000 {
 			compatible = "mobileye,eyeq-sd4hc", "cdns,sd4hc";
 			reg = <0 0x2200000 0x0 0x1000>;
 			interrupt-parent = <&gic>;

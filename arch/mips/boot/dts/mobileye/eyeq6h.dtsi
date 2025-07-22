@@ -109,7 +109,7 @@
 			clock-names = "ref";
 		};
 
-		emmc: sdhci@d8010000 {
+		emmc: mmc@d8010000 {
 			compatible = "mobileye,eyeq-sd4hc", "cdns,sd4hc";
 			reg = <0 0xd8010000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
