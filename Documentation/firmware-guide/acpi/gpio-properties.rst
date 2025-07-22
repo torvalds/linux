@@ -92,8 +92,8 @@ and polarity settings. The table below shows the expectations:
 |             | Low         | as low, assuming active                       |
 +-------------+-------------+-----------------------------------------------+
 
-That said, for our above example the both GPIOs, since the bias setting
-is explicit and _DSD is present, will be treated as active with a high
+That said, for our above example, since the bias setting is explicit and
+_DSD is present, both GPIOs will be treated as active with a high
 polarity and Linux will configure the pins in this state until a driver
 reprograms them differently.
 
