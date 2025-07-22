@@ -779,7 +779,7 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
  * them safe for use with non-coherent DMA.
  *
  * A number of drivers also use this on buffers that include a 64-bit timestamp
- * that is used with iio_push_to_buffer_with_ts(). Therefore, in the case where
+ * that is used with iio_push_to_buffers_with_ts(). Therefore, in the case where
  * DMA alignment is not sufficient for proper timestamp alignment, we align to
  * 8 bytes instead.
  */
@@ -794,7 +794,7 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
  * @name: identifier name of the buffer
  * @count: number of elements in the buffer
  *
- * Declares a buffer that is safe to use with iio_push_to_buffer_with_ts(). In
+ * Declares a buffer that is safe to use with iio_push_to_buffers_with_ts(). In
  * addition to allocating enough space for @count elements of @type, it also
  * allocates space for a s64 timestamp at the end of the buffer and ensures
  * proper alignment of the timestamp.
