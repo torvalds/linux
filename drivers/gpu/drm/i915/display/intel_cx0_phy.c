@@ -3240,11 +3240,10 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
-	bool enable = intel_alpm_is_alpm_aux_less(enc_to_intel_dp(encoder),
-						  crtc_state);
 	int i;
 
-	if (DISPLAY_VER(display) < 20)
+	if (DISPLAY_VER(display) < 20 ||
+	    !intel_alpm_is_alpm_aux_less(enc_to_intel_dp(encoder), crtc_state))
 		return;
 
 	for (i = 0; i < 4; i++) {
@@ -3256,8 +3255,7 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 
 		intel_cx0_rmw(encoder, lane_mask, PHY_CMN1_CONTROL(tx, 0),
 			      CONTROL0_MAC_TRANSMIT_LFPS,
-			      enable ? CONTROL0_MAC_TRANSMIT_LFPS : 0,
-			      MB_WRITE_COMMITTED);
+			      CONTROL0_MAC_TRANSMIT_LFPS, MB_WRITE_COMMITTED);
 	}
 }
 
