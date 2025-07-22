@@ -1046,7 +1046,7 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 
 		if (link->replay_settings.config.alpm_mode == DC_ALPM_AUXLESS) {
 			alpm_config.bits.ALPM_MODE_SEL = 1;
-			alpm_config.bits.ACDS_PERIOD_DURATION = 1;
+			alpm_config.bits.ACDS_PERIOD_DURATION = 0;
 		}
 
 		dm_helpers_dp_write_dpcd(
