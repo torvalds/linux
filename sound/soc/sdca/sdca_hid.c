@@ -24,7 +24,7 @@ static int sdwhid_parse(struct hid_device *hid)
 	unsigned int rsize;
 	int ret;
 
-	rsize = entity->hide.hid_desc.rpt_desc.wDescriptorLength;
+	rsize = le16_to_cpu(entity->hide.hid_desc.rpt_desc.wDescriptorLength);
 
 	if (!rsize || rsize > HID_MAX_DESCRIPTOR_SIZE) {
 		dev_err(&hid->dev, "invalid size of report descriptor (%u)\n", rsize);
