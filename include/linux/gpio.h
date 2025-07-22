@@ -13,6 +13,11 @@
 #define __LINUX_GPIO_H
 
 #include <linux/types.h>
+#ifdef CONFIG_GPIOLIB
+#include <linux/gpio/consumer.h>
+#endif
+
+#ifdef CONFIG_GPIOLIB_LEGACY
 
 struct device;
 
@@ -22,9 +27,6 @@ struct device;
 #define GPIOF_OUT_INIT_HIGH	((0 << 0) | (1 << 1))
 
 #ifdef CONFIG_GPIOLIB
-
-#include <linux/gpio/consumer.h>
-
 /*
  * "valid" GPIO numbers are nonnegative and may be passed to
  * setup routines like gpio_request().  Only some valid numbers
@@ -170,5 +172,5 @@ static inline int devm_gpio_request_one(struct device *dev, unsigned gpio,
 }
 
 #endif /* ! CONFIG_GPIOLIB */
-
+#endif /* CONFIG_GPIOLIB_LEGACY */
 #endif /* __LINUX_GPIO_H */

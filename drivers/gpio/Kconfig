@@ -14,6 +14,9 @@ menuconfig GPIOLIB
 
 if GPIOLIB
 
+config GPIOLIB_LEGACY
+	def_bool y
+
 config GPIOLIB_FASTPATH_LIMIT
 	int "Maximum number of GPIOs for fast path"
 	range 32 512
