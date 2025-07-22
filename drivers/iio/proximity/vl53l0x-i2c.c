@@ -57,11 +57,6 @@ struct vl53l0x_data {
 	struct regulator *vdd_supply;
 	struct gpio_desc *reset_gpio;
 	struct iio_trigger *trig;
-
-	struct {
-		u16 chan;
-		aligned_s64 timestamp;
-	} scan;
 };
 
 static int vl53l0x_clear_irq(struct vl53l0x_data *data)
@@ -84,6 +79,10 @@ static irqreturn_t vl53l0x_trigger_handler(int irq, void *priv)
 	struct vl53l0x_data *data = iio_priv(indio_dev);
 	u8 buffer[12];
 	int ret;
+	struct {
+		u16 chan;
+		aligned_s64 timestamp;
+	} scan = { };
 
 	ret = i2c_smbus_read_i2c_block_data(data->client,
 					VL_REG_RESULT_RANGE_STATUS,
@@ -93,8 +92,8 @@ static irqreturn_t vl53l0x_trigger_handler(int irq, void *priv)
 	else if (ret != 12)
 		return -EREMOTEIO;
 
-	data->scan.chan = get_unaligned_be16(&buffer[10]);
-	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+	scan.chan = get_unaligned_be16(&buffer[10]);
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan),
 				    iio_get_time_ns(indio_dev));
 
 	iio_trigger_notify_done(indio_dev->trig);
