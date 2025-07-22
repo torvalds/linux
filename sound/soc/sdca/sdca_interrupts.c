@@ -419,7 +419,9 @@ struct sdca_interrupt_info *sdca_irq_allocate(struct device *dev,
 
 	info->irq_chip = sdca_irq_chip;
 
-	devm_mutex_init(dev, &info->irq_lock);
+	ret = devm_mutex_init(dev, &info->irq_lock);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = devm_regmap_add_irq_chip(dev, regmap, irq, IRQF_ONESHOT, 0,
 				       &info->irq_chip, &info->irq_data);
