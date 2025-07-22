@@ -275,6 +275,7 @@ int v4l2_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
 #define V4L2_DEBUGFS_IF_AUDIO	BIT(1)
 #define V4L2_DEBUGFS_IF_SPD	BIT(2)
 #define V4L2_DEBUGFS_IF_HDMI	BIT(3)
+#define V4L2_DEBUGFS_IF_DRM	BIT(4)
 
 typedef ssize_t (*v4l2_debugfs_if_read_t)(u32 type, void *priv,
 					  struct file *filp, char __user *ubuf,
