@@ -361,7 +361,7 @@ static bool imx_should_bind(struct thermal_zone_device *tz,
 	return trip->type == THERMAL_TRIP_PASSIVE;
 }
 
-static struct thermal_zone_device_ops imx_tz_ops = {
+static const struct thermal_zone_device_ops imx_tz_ops = {
 	.should_bind = imx_should_bind,
 	.get_temp = imx_get_temp,
 	.change_mode = imx_change_mode,
