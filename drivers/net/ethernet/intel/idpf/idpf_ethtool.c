@@ -3,6 +3,7 @@
 
 #include "idpf.h"
 #include "idpf_ptp.h"
+#include "idpf_virtchnl.h"
 
 /**
  * idpf_get_rxnfc - command to get RX flow classification rules
@@ -13,26 +14,312 @@
  * Returns Success if the command is supported.
  */
 static int idpf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
-			  u32 __always_unused *rule_locs)
+			  u32 *rule_locs)
 {
+	struct idpf_netdev_priv *np = netdev_priv(netdev);
+	struct idpf_vport_user_config_data *user_config;
+	struct idpf_fsteer_fltr *f;
 	struct idpf_vport *vport;
+	unsigned int cnt = 0;
+	int err = 0;
 
 	idpf_vport_ctrl_lock(netdev);
 	vport = idpf_netdev_to_vport(netdev);
+	user_config = &np->adapter->vport_config[np->vport_idx]->user_config;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
 		cmd->data = vport->num_rxq;
-		idpf_vport_ctrl_unlock(netdev);
-
-		return 0;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = user_config->num_fsteer_fltrs;
+		cmd->data = idpf_fsteer_max_rules(vport);
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = -EINVAL;
+		list_for_each_entry(f, &user_config->flow_steer_list, list)
+			if (f->loc == cmd->fs.location) {
+				cmd->fs.ring_cookie = f->q_index;
+				err = 0;
+				break;
+			}
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		cmd->data = idpf_fsteer_max_rules(vport);
+		list_for_each_entry(f, &user_config->flow_steer_list, list) {
+			if (cnt == cmd->rule_cnt) {
+				err = -EMSGSIZE;
+				break;
+			}
+			rule_locs[cnt] = f->loc;
+			cnt++;
+		}
+		if (!err)
+			cmd->rule_cnt = user_config->num_fsteer_fltrs;
+		break;
 	default:
 		break;
 	}
 
 	idpf_vport_ctrl_unlock(netdev);
 
-	return -EOPNOTSUPP;
+	return err;
+}
+
+static void idpf_fsteer_fill_ipv4(struct virtchnl2_proto_hdrs *hdrs,
+				  struct ethtool_rx_flow_spec *fsp)
+{
+	struct iphdr *iph;
+
+	hdrs->proto_hdr[0].hdr_type = cpu_to_le32(VIRTCHNL2_PROTO_HDR_IPV4);
+
+	iph = (struct iphdr *)hdrs->proto_hdr[0].buffer_spec;
+	iph->saddr = fsp->h_u.tcp_ip4_spec.ip4src;
+	iph->daddr = fsp->h_u.tcp_ip4_spec.ip4dst;
+
+	iph = (struct iphdr *)hdrs->proto_hdr[0].buffer_mask;
+	iph->saddr = fsp->m_u.tcp_ip4_spec.ip4src;
+	iph->daddr = fsp->m_u.tcp_ip4_spec.ip4dst;
+}
+
+static void idpf_fsteer_fill_udp(struct virtchnl2_proto_hdrs *hdrs,
+				 struct ethtool_rx_flow_spec *fsp,
+				 bool v4)
+{
+	struct udphdr *udph, *udpm;
+
+	hdrs->proto_hdr[1].hdr_type = cpu_to_le32(VIRTCHNL2_PROTO_HDR_UDP);
+
+	udph = (struct udphdr *)hdrs->proto_hdr[1].buffer_spec;
+	udpm = (struct udphdr *)hdrs->proto_hdr[1].buffer_mask;
+
+	if (v4) {
+		udph->source = fsp->h_u.udp_ip4_spec.psrc;
+		udph->dest = fsp->h_u.udp_ip4_spec.pdst;
+		udpm->source = fsp->m_u.udp_ip4_spec.psrc;
+		udpm->dest = fsp->m_u.udp_ip4_spec.pdst;
+	} else {
+		udph->source = fsp->h_u.udp_ip6_spec.psrc;
+		udph->dest = fsp->h_u.udp_ip6_spec.pdst;
+		udpm->source = fsp->m_u.udp_ip6_spec.psrc;
+		udpm->dest = fsp->m_u.udp_ip6_spec.pdst;
+	}
+}
+
+static void idpf_fsteer_fill_tcp(struct virtchnl2_proto_hdrs *hdrs,
+				 struct ethtool_rx_flow_spec *fsp,
+				 bool v4)
+{
+	struct tcphdr *tcph, *tcpm;
+
+	hdrs->proto_hdr[1].hdr_type = cpu_to_le32(VIRTCHNL2_PROTO_HDR_TCP);
+
+	tcph = (struct tcphdr *)hdrs->proto_hdr[1].buffer_spec;
+	tcpm = (struct tcphdr *)hdrs->proto_hdr[1].buffer_mask;
+
+	if (v4) {
+		tcph->source = fsp->h_u.tcp_ip4_spec.psrc;
+		tcph->dest = fsp->h_u.tcp_ip4_spec.pdst;
+		tcpm->source = fsp->m_u.tcp_ip4_spec.psrc;
+		tcpm->dest = fsp->m_u.tcp_ip4_spec.pdst;
+	} else {
+		tcph->source = fsp->h_u.tcp_ip6_spec.psrc;
+		tcph->dest = fsp->h_u.tcp_ip6_spec.pdst;
+		tcpm->source = fsp->m_u.tcp_ip6_spec.psrc;
+		tcpm->dest = fsp->m_u.tcp_ip6_spec.pdst;
+	}
+}
+
+/**
+ * idpf_add_flow_steer - add a Flow Steering filter
+ * @netdev: network interface device structure
+ * @cmd: command to add Flow Steering filter
+ *
+ * Return: 0 on success and negative values for failure
+ */
+static int idpf_add_flow_steer(struct net_device *netdev,
+			       struct ethtool_rxnfc *cmd)
+{
+	struct idpf_fsteer_fltr *fltr, *parent = NULL, *f;
+	struct idpf_netdev_priv *np = netdev_priv(netdev);
+	struct idpf_vport_user_config_data *user_config;
+	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
+	struct virtchnl2_flow_rule_add_del *rule;
+	struct idpf_vport_config *vport_config;
+	struct virtchnl2_rule_action_set *acts;
+	struct virtchnl2_flow_rule_info *info;
+	struct virtchnl2_proto_hdrs *hdrs;
+	struct idpf_vport *vport;
+	u32 flow_type, q_index;
+	u16 num_rxq;
+	int err;
+
+	vport = idpf_netdev_to_vport(netdev);
+	vport_config = vport->adapter->vport_config[np->vport_idx];
+	user_config = &vport_config->user_config;
+	num_rxq = user_config->num_req_rx_qs;
+
+	flow_type = fsp->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
+	if (flow_type != fsp->flow_type)
+		return -EINVAL;
+
+	if (!idpf_sideband_action_ena(vport, fsp) ||
+	    !idpf_sideband_flow_type_ena(vport, flow_type))
+		return -EOPNOTSUPP;
+
+	if (user_config->num_fsteer_fltrs > idpf_fsteer_max_rules(vport))
+		return -ENOSPC;
+
+	q_index = fsp->ring_cookie;
+	if (q_index >= num_rxq)
+		return -EINVAL;
+
+	rule = kzalloc(struct_size(rule, rule_info, 1), GFP_KERNEL);
+	if (!rule)
+		return -ENOMEM;
+
+	rule->vport_id = cpu_to_le32(vport->vport_id);
+	rule->count = cpu_to_le32(1);
+	info = &rule->rule_info[0];
+	info->rule_id = cpu_to_le32(fsp->location);
+
+	hdrs = &info->rule_cfg.proto_hdrs;
+	hdrs->tunnel_level = 0;
+	hdrs->count = cpu_to_le32(2);
+
+	acts = &info->rule_cfg.action_set;
+	acts->count = cpu_to_le32(1);
+	acts->actions[0].action_type = cpu_to_le32(VIRTCHNL2_ACTION_QUEUE);
+	acts->actions[0].act_conf.q_id = cpu_to_le32(q_index);
+
+	switch (flow_type) {
+	case UDP_V4_FLOW:
+		idpf_fsteer_fill_ipv4(hdrs, fsp);
+		idpf_fsteer_fill_udp(hdrs, fsp, true);
+		break;
+	case TCP_V4_FLOW:
+		idpf_fsteer_fill_ipv4(hdrs, fsp);
+		idpf_fsteer_fill_tcp(hdrs, fsp, true);
+		break;
+	default:
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = idpf_add_del_fsteer_filters(vport->adapter, rule,
+					  VIRTCHNL2_OP_ADD_FLOW_RULE);
+	if (err)
+		goto out;
+
+	if (info->status != cpu_to_le32(VIRTCHNL2_FLOW_RULE_SUCCESS)) {
+		err = -EIO;
+		goto out;
+	}
+
+	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
+	if (!fltr) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	fltr->loc = fsp->location;
+	fltr->q_index = q_index;
+	list_for_each_entry(f, &user_config->flow_steer_list, list) {
+		if (f->loc >= fltr->loc)
+			break;
+		parent = f;
+	}
+
+	parent ? list_add(&fltr->list, &parent->list) :
+		 list_add(&fltr->list, &user_config->flow_steer_list);
+
+	user_config->num_fsteer_fltrs++;
+
+out:
+	kfree(rule);
+	return err;
+}
+
+/**
+ * idpf_del_flow_steer - delete a Flow Steering filter
+ * @netdev: network interface device structure
+ * @cmd: command to add Flow Steering filter
+ *
+ * Return: 0 on success and negative values for failure
+ */
+static int idpf_del_flow_steer(struct net_device *netdev,
+			       struct ethtool_rxnfc *cmd)
+{
+	struct idpf_netdev_priv *np = netdev_priv(netdev);
+	struct idpf_vport_user_config_data *user_config;
+	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
+	struct virtchnl2_flow_rule_add_del *rule;
+	struct idpf_vport_config *vport_config;
+	struct virtchnl2_flow_rule_info *info;
+	struct idpf_fsteer_fltr *f, *iter;
+	struct idpf_vport *vport;
+	int err;
+
+	vport = idpf_netdev_to_vport(netdev);
+	vport_config = vport->adapter->vport_config[np->vport_idx];
+	user_config = &vport_config->user_config;
+
+	if (!idpf_sideband_action_ena(vport, fsp))
+		return -EOPNOTSUPP;
+
+	rule = kzalloc(struct_size(rule, rule_info, 1), GFP_KERNEL);
+	if (!rule)
+		return -ENOMEM;
+
+	rule->vport_id = cpu_to_le32(vport->vport_id);
+	rule->count = cpu_to_le32(1);
+	info = &rule->rule_info[0];
+	info->rule_id = cpu_to_le32(fsp->location);
+
+	err = idpf_add_del_fsteer_filters(vport->adapter, rule,
+					  VIRTCHNL2_OP_DEL_FLOW_RULE);
+	if (err)
+		goto out;
+
+	if (info->status != cpu_to_le32(VIRTCHNL2_FLOW_RULE_SUCCESS)) {
+		err = -EIO;
+		goto out;
+	}
+
+	list_for_each_entry_safe(f, iter,
+				 &user_config->flow_steer_list, list) {
+		if (f->loc == fsp->location) {
+			list_del(&f->list);
+			kfree(f);
+			user_config->num_fsteer_fltrs--;
+			goto out;
+		}
+	}
+	err = -EINVAL;
+
+out:
+	kfree(rule);
+	return err;
+}
+
+static int idpf_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	int ret = -EOPNOTSUPP;
+
+	idpf_vport_ctrl_lock(netdev);
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = idpf_add_flow_steer(netdev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = idpf_del_flow_steer(netdev, cmd);
+		break;
+	default:
+		break;
+	}
+
+	idpf_vport_ctrl_unlock(netdev);
+	return ret;
 }
 
 /**
@@ -1090,12 +1377,14 @@ static int idpf_get_per_q_coalesce(struct net_device *netdev, u32 q_num,
 /**
  * __idpf_set_q_coalesce - set ITR values for specific queue
  * @ec: ethtool structure from user to update ITR settings
+ * @q_coal: per queue coalesce settings
  * @qv: queue vector for which itr values has to be set
  * @is_rxq: is queue type rx
  *
  * Returns 0 on success, negative otherwise.
  */
 static int __idpf_set_q_coalesce(const struct ethtool_coalesce *ec,
+				 struct idpf_q_coalesce *q_coal,
 				 struct idpf_q_vector *qv, bool is_rxq)
 {
 	u32 use_adaptive_coalesce, coalesce_usecs;
@@ -1139,20 +1428,25 @@ static int __idpf_set_q_coalesce(const struct ethtool_coalesce *ec,
 
 	if (is_rxq) {
 		qv->rx_itr_value = coalesce_usecs;
+		q_coal->rx_coalesce_usecs = coalesce_usecs;
 		if (use_adaptive_coalesce) {
 			qv->rx_intr_mode = IDPF_ITR_DYNAMIC;
+			q_coal->rx_intr_mode = IDPF_ITR_DYNAMIC;
 		} else {
 			qv->rx_intr_mode = !IDPF_ITR_DYNAMIC;
-			idpf_vport_intr_write_itr(qv, qv->rx_itr_value,
-						  false);
+			q_coal->rx_intr_mode = !IDPF_ITR_DYNAMIC;
+			idpf_vport_intr_write_itr(qv, coalesce_usecs, false);
 		}
 	} else {
 		qv->tx_itr_value = coalesce_usecs;
+		q_coal->tx_coalesce_usecs = coalesce_usecs;
 		if (use_adaptive_coalesce) {
 			qv->tx_intr_mode = IDPF_ITR_DYNAMIC;
+			q_coal->tx_intr_mode = IDPF_ITR_DYNAMIC;
 		} else {
 			qv->tx_intr_mode = !IDPF_ITR_DYNAMIC;
-			idpf_vport_intr_write_itr(qv, qv->tx_itr_value, true);
+			q_coal->tx_intr_mode = !IDPF_ITR_DYNAMIC;
+			idpf_vport_intr_write_itr(qv, coalesce_usecs, true);
 		}
 	}
 
@@ -1165,6 +1459,7 @@ static int __idpf_set_q_coalesce(const struct ethtool_coalesce *ec,
 /**
  * idpf_set_q_coalesce - set ITR values for specific queue
  * @vport: vport associated to the queue that need updating
+ * @q_coal: per queue coalesce settings
  * @ec: coalesce settings to program the device with
  * @q_num: update ITR/INTRL (coalesce) settings for this queue number/index
  * @is_rxq: is queue type rx
@@ -1172,6 +1467,7 @@ static int __idpf_set_q_coalesce(const struct ethtool_coalesce *ec,
  * Return 0 on success, and negative on failure
  */
 static int idpf_set_q_coalesce(const struct idpf_vport *vport,
+			       struct idpf_q_coalesce *q_coal,
 			       const struct ethtool_coalesce *ec,
 			       int q_num, bool is_rxq)
 {
@@ -1180,7 +1476,7 @@ static int idpf_set_q_coalesce(const struct idpf_vport *vport,
 	qv = is_rxq ? idpf_find_rxq_vec(vport, q_num) :
 		      idpf_find_txq_vec(vport, q_num);
 
-	if (qv && __idpf_set_q_coalesce(ec, qv, is_rxq))
+	if (qv && __idpf_set_q_coalesce(ec, q_coal, qv, is_rxq))
 		return -EINVAL;
 
 	return 0;
@@ -1201,8 +1497,12 @@ static int idpf_set_coalesce(struct net_device *netdev,
 			     struct netlink_ext_ack *extack)
 {
 	struct idpf_netdev_priv *np = netdev_priv(netdev);
+	struct idpf_vport_user_config_data *user_config;
+	struct idpf_q_coalesce *q_coal;
 	struct idpf_vport *vport;
 	int i, err = 0;
+
+	user_config = &np->adapter->vport_config[np->vport_idx]->user_config;
 
 	idpf_vport_ctrl_lock(netdev);
 	vport = idpf_netdev_to_vport(netdev);
@@ -1211,13 +1511,15 @@ static int idpf_set_coalesce(struct net_device *netdev,
 		goto unlock_mutex;
 
 	for (i = 0; i < vport->num_txq; i++) {
-		err = idpf_set_q_coalesce(vport, ec, i, false);
+		q_coal = &user_config->q_coalesce[i];
+		err = idpf_set_q_coalesce(vport, q_coal, ec, i, false);
 		if (err)
 			goto unlock_mutex;
 	}
 
 	for (i = 0; i < vport->num_rxq; i++) {
-		err = idpf_set_q_coalesce(vport, ec, i, true);
+		q_coal = &user_config->q_coalesce[i];
+		err = idpf_set_q_coalesce(vport, q_coal, ec, i, true);
 		if (err)
 			goto unlock_mutex;
 	}
@@ -1239,20 +1541,25 @@ unlock_mutex:
 static int idpf_set_per_q_coalesce(struct net_device *netdev, u32 q_num,
 				   struct ethtool_coalesce *ec)
 {
+	struct idpf_netdev_priv *np = netdev_priv(netdev);
+	struct idpf_vport_user_config_data *user_config;
+	struct idpf_q_coalesce *q_coal;
 	struct idpf_vport *vport;
 	int err;
 
 	idpf_vport_ctrl_lock(netdev);
 	vport = idpf_netdev_to_vport(netdev);
+	user_config = &np->adapter->vport_config[np->vport_idx]->user_config;
+	q_coal = &user_config->q_coalesce[q_num];
 
-	err = idpf_set_q_coalesce(vport, ec, q_num, false);
+	err = idpf_set_q_coalesce(vport, q_coal, ec, q_num, false);
 	if (err) {
 		idpf_vport_ctrl_unlock(netdev);
 
 		return err;
 	}
 
-	err = idpf_set_q_coalesce(vport, ec, q_num, true);
+	err = idpf_set_q_coalesce(vport, q_coal, ec, q_num, true);
 
 	idpf_vport_ctrl_unlock(netdev);
 
@@ -1394,6 +1701,7 @@ static const struct ethtool_ops idpf_ethtool_ops = {
 	.get_sset_count		= idpf_get_sset_count,
 	.get_channels		= idpf_get_channels,
 	.get_rxnfc		= idpf_get_rxnfc,
+	.set_rxnfc		= idpf_set_rxnfc,
 	.get_rxfh_key_size	= idpf_get_rxfh_key_size,
 	.get_rxfh_indir_size	= idpf_get_rxfh_indir_size,
 	.get_rxfh		= idpf_get_rxfh,

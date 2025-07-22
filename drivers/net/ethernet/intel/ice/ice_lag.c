@@ -823,6 +823,48 @@ cp_free:
 }
 
 /**
+ * ice_lag_prepare_vf_reset - helper to adjust vf lag for reset
+ * @lag: lag struct for interface that owns VF
+ *
+ * Context: must be called with the lag_mutex lock held.
+ *
+ * Return: active lport value or ICE_LAG_INVALID_PORT if nothing moved.
+ */
+u8 ice_lag_prepare_vf_reset(struct ice_lag *lag)
+{
+	u8 pri_prt, act_prt;
+
+	if (lag && lag->bonded && lag->primary && lag->upper_netdev) {
+		pri_prt = lag->pf->hw.port_info->lport;
+		act_prt = lag->active_port;
+		if (act_prt != pri_prt && act_prt != ICE_LAG_INVALID_PORT) {
+			ice_lag_move_vf_nodes_cfg(lag, act_prt, pri_prt);
+			return act_prt;
+		}
+	}
+
+	return ICE_LAG_INVALID_PORT;
+}
+
+/**
+ * ice_lag_complete_vf_reset - helper for lag after reset
+ * @lag: lag struct for primary interface
+ * @act_prt: which port should be active for lag
+ *
+ * Context: must be called while holding the lag_mutex.
+ */
+void ice_lag_complete_vf_reset(struct ice_lag *lag, u8 act_prt)
+{
+	u8 pri_prt;
+
+	if (lag && lag->bonded && lag->primary &&
+	    act_prt != ICE_LAG_INVALID_PORT) {
+		pri_prt = lag->pf->hw.port_info->lport;
+		ice_lag_move_vf_nodes_cfg(lag, pri_prt, act_prt);
+	}
+}
+
+/**
  * ice_lag_info_event - handle NETDEV_BONDING_INFO event
  * @lag: LAG info struct
  * @ptr: opaque data pointer
