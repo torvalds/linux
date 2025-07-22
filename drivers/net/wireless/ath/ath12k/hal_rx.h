@@ -695,7 +695,8 @@ struct hal_rx_resp_req_info {
 #define HAL_RX_MPDU_ERR_MPDU_LEN		BIT(6)
 #define HAL_RX_MPDU_ERR_UNENCRYPTED_FRAME	BIT(7)
 
-#define HAL_RX_PHY_CMN_USER_INFO0_GI		GENMASK(17, 16)
+#define HAL_RX_CMN_USR_INFO0_CP_SETTING			GENMASK(17, 16)
+#define HAL_RX_CMN_USR_INFO0_LTF_SIZE			GENMASK(19, 18)
 
 struct hal_phyrx_common_user_info {
 	__le32 rsvd[2];
