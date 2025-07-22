@@ -77,7 +77,9 @@ static int erofs_init_inode_xattrs(struct inode *inode)
 	}
 
 	it.buf = __EROFS_BUF_INITIALIZER;
-	erofs_init_metabuf(&it.buf, sb);
+	ret = erofs_init_metabuf(&it.buf, sb, erofs_inode_in_metabox(inode));
+	if (ret)
+		goto out_unlock;
 	it.pos = erofs_iloc(inode) + vi->inode_isize;
 
 	/* read in shared xattr array (non-atomic, see kmalloc below) */
@@ -326,6 +328,9 @@ static int erofs_xattr_iter_inline(struct erofs_xattr_iter *it,
 		return -ENODATA;
 	}
 
+	ret = erofs_init_metabuf(&it->buf, it->sb, erofs_inode_in_metabox(inode));
+	if (ret)
+		return ret;
 	remaining = vi->xattr_isize - xattr_header_sz;
 	it->pos = erofs_iloc(inode) + vi->inode_isize + xattr_header_sz;
 
@@ -361,12 +366,17 @@ static int erofs_xattr_iter_shared(struct erofs_xattr_iter *it,
 	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = it->sb;
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
-	unsigned int i;
-	int ret = -ENODATA;
+	unsigned int i = 0;
+	int ret;
 
-	for (i = 0; i < vi->xattr_shared_count; ++i) {
+	ret = erofs_init_metabuf(&it->buf, sb,
+				 erofs_sb_has_shared_ea_in_metabox(sbi));
+	if (ret)
+		return ret;
+
+	while (i < vi->xattr_shared_count) {
 		it->pos = erofs_pos(sb, sbi->xattr_blkaddr) +
-				vi->xattr_shared_xattrs[i] * sizeof(__le32);
+				vi->xattr_shared_xattrs[i++] * sizeof(__le32);
 		it->kaddr = erofs_bread(&it->buf, it->pos, true);
 		if (IS_ERR(it->kaddr))
 			return PTR_ERR(it->kaddr);
@@ -378,7 +388,7 @@ static int erofs_xattr_iter_shared(struct erofs_xattr_iter *it,
 		if ((getxattr && ret != -ENODATA) || (!getxattr && ret))
 			break;
 	}
-	return ret;
+	return i ? ret : -ENODATA;
 }
 
 int erofs_getxattr(struct inode *inode, int index, const char *name,
@@ -413,7 +423,6 @@ int erofs_getxattr(struct inode *inode, int index, const char *name,
 
 	it.sb = inode->i_sb;
 	it.buf = __EROFS_BUF_INITIALIZER;
-	erofs_init_metabuf(&it.buf, it.sb);
 	it.buffer = buffer;
 	it.buffer_size = buffer_size;
 	it.buffer_ofs = 0;
@@ -439,7 +448,6 @@ ssize_t erofs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 	it.sb = dentry->d_sb;
 	it.buf = __EROFS_BUF_INITIALIZER;
-	erofs_init_metabuf(&it.buf, it.sb);
 	it.dentry = dentry;
 	it.buffer = buffer;
 	it.buffer_size = buffer_size;
@@ -485,7 +493,7 @@ int erofs_xattr_prefixes_init(struct super_block *sb)
 	if (sbi->packed_inode)
 		buf.mapping = sbi->packed_inode->i_mapping;
 	else
-		erofs_init_metabuf(&buf, sb);
+		(void)erofs_init_metabuf(&buf, sb, false);
 
 	for (i = 0; i < sbi->xattr_prefix_count; i++) {
 		void *ptr = erofs_read_metadata(sb, &buf, &pos, &len);
