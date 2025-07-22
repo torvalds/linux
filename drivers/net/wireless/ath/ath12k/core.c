@@ -37,6 +37,36 @@ static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_li
 
 static DEFINE_MUTEX(ath12k_hw_group_mutex);
 
+static const struct
+ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
+[ATH12K_QMI_MEMORY_MODE_DEFAULT] = {
+		.num_vdevs = 17,
+		.max_client_single = 512,
+		.max_client_dbs = 128,
+		.max_client_dbs_sbs = 128,
+		.dp_params = {
+			.tx_comp_ring_size = 32768,
+			.rxdma_monitor_buf_ring_size = 4096,
+			.rxdma_monitor_dst_ring_size = 8092,
+			.num_pool_tx_desc = 32768,
+			.rx_desc_count = 12288,
+		},
+	},
+[ATH12K_QMI_MEMORY_MODE_LOW_512_M] = {
+		.num_vdevs = 9,
+		.max_client_single = 128,
+		.max_client_dbs = 64,
+		.max_client_dbs_sbs = 64,
+		.dp_params = {
+			.tx_comp_ring_size = 16384,
+			.rxdma_monitor_buf_ring_size = 256,
+			.rxdma_monitor_dst_ring_size = 512,
+			.num_pool_tx_desc = 16384,
+			.rx_desc_count = 6144,
+		},
+	},
+};
+
 static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 {
 	struct ath12k *ar;
@@ -188,7 +218,7 @@ static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 					   bool bus_type_mode, bool with_default)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
-	char variant[9 + ATH12K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
+	char variant[9 + ATH12K_QMI_BDF_EXT_STR_LENGTH] = {};
 
 	if (with_variant && ab->qmi.target.bdf_ext[0] != '\0')
 		scnprintf(variant, sizeof(variant), ",variant=%s",
@@ -593,28 +623,15 @@ exit:
 u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab)
 {
 	if (ab->num_radios == 2)
-		return TARGET_NUM_STATIONS_DBS;
-	else if (ab->num_radios == 3)
-		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
-	return TARGET_NUM_STATIONS_SINGLE;
+		return TARGET_NUM_STATIONS(ab, DBS);
+	if (ab->num_radios == 3)
+		return TARGET_NUM_STATIONS(ab, DBS_SBS);
+	return TARGET_NUM_STATIONS(ab, SINGLE);
 }
 
 u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
 {
-	if (ab->num_radios == 2)
-		return TARGET_NUM_PEERS_PDEV_DBS;
-	else if (ab->num_radios == 3)
-		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
-	return TARGET_NUM_PEERS_PDEV_SINGLE;
-}
-
-u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab)
-{
-	if (ab->num_radios == 2)
-		return TARGET_NUM_TIDS(DBS);
-	else if (ab->num_radios == 3)
-		return TARGET_NUM_TIDS(DBS_SBS);
-	return TARGET_NUM_TIDS(SINGLE);
+	return ath12k_core_get_max_station_per_radio(ab) + TARGET_NUM_VDEVS(ab);
 }
 
 struct reserved_mem *ath12k_core_get_reserved_mem(struct ath12k_base *ab,
@@ -1332,7 +1349,7 @@ exit:
 
 static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 {
-	int ret;
+	int ret, total_vdev;
 
 	mutex_lock(&ab->core_lock);
 	ath12k_dp_pdev_free(ab);
@@ -1343,8 +1360,8 @@ static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 
 	ath12k_dp_free(ab);
 	ath12k_hal_srng_deinit(ab);
-
-	ab->free_vdev_map = (1LL << (ab->num_radios * TARGET_NUM_VDEVS)) - 1;
+	total_vdev = ab->num_radios * TARGET_NUM_VDEVS(ab);
+	ab->free_vdev_map = (1LL << total_vdev) - 1;
 
 	ret = ath12k_hal_srng_init(ab);
 	if (ret)
@@ -1475,7 +1492,7 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 			complete(&ar->vdev_setup_done);
 			complete(&ar->vdev_delete_done);
 			complete(&ar->bss_survey_done);
-			complete(&ar->regd_update_completed);
+			complete_all(&ar->regd_update_completed);
 
 			wake_up(&ar->dp.tx_empty_waitq);
 			idr_for_each(&ar->txmgmt_idr,
@@ -1711,8 +1728,23 @@ static void ath12k_core_reset(struct work_struct *work)
 	mutex_unlock(&ag->mutex);
 }
 
+enum ath12k_qmi_mem_mode ath12k_core_get_memory_mode(struct ath12k_base *ab)
+{
+	unsigned long total_ram;
+	struct sysinfo si;
+
+	si_meminfo(&si);
+	total_ram = si.totalram * si.mem_unit;
+
+	if (total_ram < SZ_512M)
+		return ATH12K_QMI_MEMORY_MODE_LOW_512_M;
+
+	return ATH12K_QMI_MEMORY_MODE_DEFAULT;
+}
+
 int ath12k_core_pre_init(struct ath12k_base *ab)
 {
+	const struct ath12k_mem_profile_based_param *param;
 	int ret;
 
 	ret = ath12k_hw_init(ab);
@@ -1721,6 +1753,8 @@ int ath12k_core_pre_init(struct ath12k_base *ab)
 		return ret;
 	}
 
+	param = &ath12k_mem_profile_based_param[ab->target_mem_mode];
+	ab->profile_param = param;
 	ath12k_fw_map(ab);
 
 	return 0;

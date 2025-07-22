@@ -513,7 +513,7 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 out:
 	/*
 	 * An optimization to bypass reading the IRQ status registers
-	 * unecessarily which can re-wake the target, if upper layers
+	 * unnecessarily which can re-wake the target, if upper layers
 	 * determine that we are in a low-throughput mode, we can rely on
 	 * taking another interrupt rather than re-checking the status
 	 * registers which can re-wake the target.

@@ -14,6 +14,7 @@
 #include "hw.h"
 #include "mhi.h"
 #include "dp_rx.h"
+#include "peer.h"
 
 static const guid_t wcn7850_uuid = GUID_INIT(0xf634f534, 0x6147, 0x11ec,
 					     0x90, 0xd6, 0x02, 0x42,
@@ -49,6 +50,12 @@ static bool ath12k_dp_srng_is_comp_ring_qcn9274(int ring_num)
 	return false;
 }
 
+static bool ath12k_is_frame_link_agnostic_qcn9274(struct ath12k_link_vif *arvif,
+						  struct ieee80211_mgmt *mgmt)
+{
+	return ieee80211_is_action(mgmt->frame_control);
+}
+
 static int ath12k_hw_mac_id_to_pdev_id_wcn7850(const struct ath12k_hw_params *hw,
 					       int mac_id)
 {
@@ -74,6 +81,52 @@ static bool ath12k_dp_srng_is_comp_ring_wcn7850(int ring_num)
 	return false;
 }
 
+static bool ath12k_is_addba_resp_action_code(struct ieee80211_mgmt *mgmt)
+{
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return false;
+
+	if (mgmt->u.action.category != WLAN_CATEGORY_BACK)
+		return false;
+
+	if (mgmt->u.action.u.addba_resp.action_code != WLAN_ACTION_ADDBA_RESP)
+		return false;
+
+	return true;
+}
+
+static bool ath12k_is_frame_link_agnostic_wcn7850(struct ath12k_link_vif *arvif,
+						  struct ieee80211_mgmt *mgmt)
+{
+	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
+	struct ath12k_hw *ah = ath12k_ar_to_ah(arvif->ar);
+	struct ath12k_base *ab = arvif->ar->ab;
+	__le16 fc = mgmt->frame_control;
+
+	spin_lock_bh(&ab->base_lock);
+	if (!ath12k_peer_find_by_addr(ab, mgmt->da) &&
+	    !ath12k_peer_ml_find(ah, mgmt->da)) {
+		spin_unlock_bh(&ab->base_lock);
+		return false;
+	}
+	spin_unlock_bh(&ab->base_lock);
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		return arvif->is_up &&
+		       (vif->valid_links == vif->active_links) &&
+		       !ieee80211_is_probe_req(fc) &&
+		       !ieee80211_is_auth(fc) &&
+		       !ieee80211_is_deauth(fc) &&
+		       !ath12k_is_addba_resp_action_code(mgmt);
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		return !(ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc) ||
+			 ieee80211_is_assoc_resp(fc) || ieee80211_is_reassoc_resp(fc) ||
+			 ath12k_is_addba_resp_action_code(mgmt));
+
+	return false;
+}
+
 static const struct ath12k_hw_ops qcn9274_ops = {
 	.get_hw_mac_from_pdev_id = ath12k_hw_qcn9274_mac_from_pdev_id,
 	.mac_id_to_pdev_id = ath12k_hw_mac_id_to_pdev_id_qcn9274,
@@ -81,6 +134,7 @@ static const struct ath12k_hw_ops qcn9274_ops = {
 	.rxdma_ring_sel_config = ath12k_dp_rxdma_ring_sel_config_qcn9274,
 	.get_ring_selector = ath12k_hw_get_ring_selector_qcn9274,
 	.dp_srng_is_tx_comp_ring = ath12k_dp_srng_is_comp_ring_qcn9274,
+	.is_frame_link_agnostic = ath12k_is_frame_link_agnostic_qcn9274,
 };
 
 static const struct ath12k_hw_ops wcn7850_ops = {
@@ -90,6 +144,7 @@ static const struct ath12k_hw_ops wcn7850_ops = {
 	.rxdma_ring_sel_config = ath12k_dp_rxdma_ring_sel_config_wcn7850,
 	.get_ring_selector = ath12k_hw_get_ring_selector_wcn7850,
 	.dp_srng_is_tx_comp_ring = ath12k_dp_srng_is_comp_ring_wcn7850,
+	.is_frame_link_agnostic = ath12k_is_frame_link_agnostic_wcn7850,
 };
 
 #define ATH12K_TX_RING_MASK_0 0x1

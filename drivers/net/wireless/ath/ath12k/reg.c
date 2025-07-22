@@ -426,6 +426,29 @@ ath12k_map_fw_dfs_region(enum ath12k_dfs_region dfs_region)
 	}
 }
 
+static u32 ath12k_get_bw_reg_flags(u16 max_bw)
+{
+	switch (max_bw) {
+	case 20:
+		return NL80211_RRF_NO_HT40 |
+			NL80211_RRF_NO_80MHZ |
+			NL80211_RRF_NO_160MHZ |
+			NL80211_RRF_NO_320MHZ;
+	case 40:
+		return NL80211_RRF_NO_80MHZ |
+			NL80211_RRF_NO_160MHZ |
+			NL80211_RRF_NO_320MHZ;
+	case 80:
+		return NL80211_RRF_NO_160MHZ |
+			NL80211_RRF_NO_320MHZ;
+	case 160:
+		return NL80211_RRF_NO_320MHZ;
+	case 320:
+	default:
+		return 0;
+	}
+}
+
 static u32 ath12k_map_fw_reg_flags(u16 reg_flags)
 {
 	u32 flags = 0;
@@ -704,7 +727,7 @@ ath12k_reg_build_regd(struct ath12k_base *ab,
 			reg_rule = reg_info->reg_rules_2g_ptr + i;
 			max_bw = min_t(u16, reg_rule->max_bw,
 				       reg_info->max_bw_2g);
-			flags = 0;
+			flags = ath12k_get_bw_reg_flags(reg_info->max_bw_2g);
 			ath12k_reg_update_freq_range(&ab->reg_freq_2ghz, reg_rule);
 		} else if (reg_info->num_5g_reg_rules &&
 			   (j < reg_info->num_5g_reg_rules)) {
@@ -718,13 +741,15 @@ ath12k_reg_build_regd(struct ath12k_base *ab,
 			 * BW correction if required and applies flags as
 			 * per other BW rule flags we pass from here
 			 */
-			flags = NL80211_RRF_AUTO_BW;
+			flags = NL80211_RRF_AUTO_BW |
+				ath12k_get_bw_reg_flags(reg_info->max_bw_5g);
 			ath12k_reg_update_freq_range(&ab->reg_freq_5ghz, reg_rule);
 		} else if (reg_info->is_ext_reg_event && reg_6ghz_number &&
 			   (k < reg_6ghz_number)) {
 			reg_rule = reg_rule_6ghz + k++;
 			max_bw = min_t(u16, reg_rule->max_bw, max_bw_6ghz);
-			flags = NL80211_RRF_AUTO_BW;
+			flags = NL80211_RRF_AUTO_BW |
+				ath12k_get_bw_reg_flags(max_bw_6ghz);
 			if (reg_rule->psd_flag)
 				flags |= NL80211_RRF_PSD;
 			ath12k_reg_update_freq_range(&ab->reg_freq_6ghz, reg_rule);
