@@ -1196,8 +1196,6 @@ static void StopTxBeacon(struct adapter *padapter)
 	rtw_write8(padapter, REG_TBTT_PROHIBIT+1, 0x64);
 	pHalData->RegReg542 &= ~BIT(0);
 	rtw_write8(padapter, REG_TBTT_PROHIBIT+2, pHalData->RegReg542);
-
-	CheckFwRsvdPageContent(padapter);  /*  2010.06.23. Added by tynli. */
 }
 
 static void _BeaconFunctionEnable(struct adapter *padapter, u8 Enable, u8 Linked)
