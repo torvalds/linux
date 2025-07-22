@@ -5,6 +5,7 @@
 API level tests for RSS (mostly Netlink vs IOCTL).
 """
 
+import errno
 import glob
 import random
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_is, ksft_ne, ksft_raises
@@ -388,6 +389,78 @@ def test_rxfh_fields_ntf(cfg):
     ksft_eq(ntf["name"], "rss-ntf")
     ksft_ne(ntf["msg"]["flow-hash"]["tcp4"], change)
     ksft_eq(next(ethnl.poll_ntf(duration=0.01), None), None)
+
+
+def test_rss_ctx_add(cfg):
+    """ Test creating an additional RSS context via Netlink """
+
+    _require_2qs(cfg)
+
+    # Test basic creation
+    ctx = cfg.ethnl.rss_create_act({"header": {"dev-index": cfg.ifindex}})
+    d = defer(ethtool, f"-X {cfg.ifname} context {ctx.get('context')} delete")
+    ksft_ne(ctx.get("context", 0), 0)
+    ksft_ne(set(ctx.get("indir", [0])), {0},
+            comment="Driver should init the indirection table")
+
+    # Try requesting the ID we just got allocated
+    with ksft_raises(NlError) as cm:
+        ctx = cfg.ethnl.rss_create_act({
+            "header": {"dev-index": cfg.ifindex},
+            "context": ctx.get("context"),
+        })
+        ethtool(f"-X {cfg.ifname} context {ctx.get('context')} delete")
+    d.exec()
+    ksft_eq(cm.exception.nl_msg.error, -errno.EBUSY)
+
+    # Test creating with a specified RSS table, and context ID
+    ctx_id = ctx.get("context")
+    ctx = cfg.ethnl.rss_create_act({
+        "header": {"dev-index": cfg.ifindex},
+        "context": ctx_id,
+        "indir": [1],
+    })
+    ethtool(f"-X {cfg.ifname} context {ctx.get('context')} delete")
+    ksft_eq(ctx.get("context"), ctx_id)
+    ksft_eq(set(ctx.get("indir", [0])), {1})
+
+
+def test_rss_ctx_ntf(cfg):
+    """ Test notifications for creating additional RSS contexts """
+
+    ethnl = EthtoolFamily()
+    ethnl.ntf_subscribe("monitor")
+
+    # Create / delete via Netlink
+    ctx = cfg.ethnl.rss_create_act({"header": {"dev-index": cfg.ifindex}})
+    cfg.ethnl.rss_delete_act({
+        "header": {"dev-index": cfg.ifindex},
+        "context": ctx["context"],
+    })
+
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    if ntf is None:
+        raise KsftFailEx("[NL] No notification after context creation")
+    ksft_eq(ntf["name"], "rss-create-ntf")
+    ksft_eq(ctx, ntf["msg"])
+
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    if ntf is None:
+        raise KsftFailEx("[NL] No notification after context deletion")
+    ksft_eq(ntf["name"], "rss-delete-ntf")
+
+    # Create / deleve via IOCTL
+    ctx_id = _ethtool_create(cfg, "--disable-netlink -X", "context new")
+    ethtool(f"--disable-netlink -X {cfg.ifname} context {ctx_id} delete")
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    if ntf is None:
+        raise KsftFailEx("[IOCTL] No notification after context creation")
+    ksft_eq(ntf["name"], "rss-create-ntf")
+
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    if ntf is None:
+        raise KsftFailEx("[IOCTL] No notification after context deletion")
+    ksft_eq(ntf["name"], "rss-delete-ntf")
 
 
 def main() -> None:
