@@ -220,6 +220,7 @@ struct mana_ib_query_adapter_caps_req {
 enum mana_ib_adapter_features {
 	MANA_IB_FEATURE_CLIENT_ERROR_CQE_SUPPORT = BIT(4),
 	MANA_IB_FEATURE_DEV_COUNTERS_SUPPORT = BIT(5),
+	MANA_IB_FEATURE_MULTI_PORTS_SUPPORT = BIT(6),
 };
 
 struct mana_ib_query_adapter_caps_resp {
