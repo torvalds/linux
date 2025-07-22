@@ -2438,15 +2438,12 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 	 * that are active
 	 */
 	for (i = 0; i < conf->copies; i++) {
-		int d;
-
 		tbio = r10_bio->devs[i].repl_bio;
 		if (!tbio || !tbio->bi_end_io)
 			continue;
 		if (r10_bio->devs[i].bio->bi_end_io != end_sync_write
 		    && r10_bio->devs[i].bio != fbio)
 			bio_copy_data(tbio, fbio);
-		d = r10_bio->devs[i].devnum;
 		atomic_inc(&r10_bio->remaining);
 		submit_bio_noacct(tbio);
 	}
