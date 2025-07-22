@@ -2637,6 +2637,11 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			.size = AMDGPU_GPU_PAGE_SIZE,
 			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
+
+		if (amdgpu_ras_check_critical_address(adev,
+			data->bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+			continue;
+
 		status = amdgpu_vram_mgr_query_page_status(&adev->mman.vram_mgr,
 				data->bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT);
 		if (status == -EBUSY)
@@ -5355,6 +5360,9 @@ int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn)
 	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
 	uint64_t start = pfn << AMDGPU_GPU_PAGE_SHIFT;
 	int ret = 0;
+
+	if (amdgpu_ras_check_critical_address(adev, start))
+		return 0;
 
 	mutex_lock(&con->page_rsv_lock);
 	ret = amdgpu_vram_mgr_query_page_status(mgr, start);
