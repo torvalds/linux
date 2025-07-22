@@ -369,7 +369,7 @@ static void sdma_v7_1_inst_gfx_stop(struct amdgpu_device *adev,
 	u32 rb_cntl, ib_cntl;
 	int i;
 
-	for (i = 0; i < NUM_XCC(inst_mask); i++) {
+	for_each_inst(i, inst_mask) {
 		rb_cntl = RREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_QUEUE0_RB_CNTL));
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_SDMA_QUEUE0_RB_CNTL, RB_ENABLE, 0);
 		WREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_QUEUE0_RB_CNTL), rb_cntl);
@@ -436,7 +436,7 @@ static void sdma_v7_1_inst_enable(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	for (i = 0; i < NUM_XCC(inst_mask); i++) {
+	for_each_inst(i, inst_mask) {
 		mcu_cntl = RREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_MCU_CNTL));
 		mcu_cntl = REG_SET_FIELD(mcu_cntl, SDMA0_SDMA_MCU_CNTL, HALT, enable ? 0 : 1);
 		WREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_MCU_CNTL), mcu_cntl);
@@ -617,7 +617,7 @@ static int sdma_v7_1_inst_gfx_resume(struct amdgpu_device *adev,
 {
 	int i, r;
 
-	for (i = 0; i < NUM_XCC(inst_mask); i++) {
+	for_each_inst(i, inst_mask) {
 		r = sdma_v7_1_gfx_resume_instance(adev, i, false);
 		if (r)
 			return r;
@@ -647,7 +647,7 @@ static void sdma_v7_1_inst_free_ucode_buffer(struct amdgpu_device *adev,
 {
 	int i;
 
-	for (i = 0; i < NUM_XCC(inst_mask); i++) {
+	for_each_inst(i, inst_mask) {
 		amdgpu_bo_free_kernel(&adev->sdma.instance[i].sdma_fw_obj,
 				      &adev->sdma.instance[i].sdma_fw_gpu_addr,
 				      (void **)&adev->sdma.instance[i].sdma_fw_ptr);
@@ -686,7 +686,7 @@ static int sdma_v7_1_inst_load_microcode(struct amdgpu_device *adev,
 			le32_to_cpu(hdr->ucode_offset_bytes));
 	fw_size = le32_to_cpu(hdr->ucode_size_bytes);
 
-	for (i = 0; i < NUM_XCC(inst_mask); i++) {
+	for_each_inst(i, inst_mask) {
 		r = amdgpu_bo_create_reserved(adev, fw_size,
 					      PAGE_SIZE,
 					      AMDGPU_GEM_DOMAIN_VRAM,
@@ -744,10 +744,10 @@ static int sdma_v7_1_soft_reset(struct amdgpu_ip_block *ip_block)
 	u32 tmp;
 	int i;
 
-	inst_mask = adev->sdma.sdma_mask;
+	inst_mask = GENMASK(NUM_XCC(adev->sdma.sdma_mask) - 1, 0);
 	sdma_v7_1_inst_gfx_stop(adev, inst_mask);
 
-	for (i = 0; i < NUM_XCC(inst_mask); i++) {
+	for_each_inst(i, inst_mask) {
 		//tmp = RREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_FREEZE));
 		//tmp |= SDMA0_SDMA_FREEZE__FREEZE_MASK;
 		//WREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_FREEZE), tmp);
@@ -1357,8 +1357,11 @@ static int sdma_v7_1_sw_fini(struct amdgpu_ip_block *ip_block)
 static int sdma_v7_1_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	uint32_t inst_mask;
 
-	return sdma_v7_1_inst_start(adev, adev->sdma.sdma_mask);
+	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
+
+	return sdma_v7_1_inst_start(adev, inst_mask);
 }
 
 static int sdma_v7_1_hw_fini(struct amdgpu_ip_block *ip_block)
