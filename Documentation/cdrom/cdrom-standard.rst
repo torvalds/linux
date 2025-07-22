@@ -273,7 +273,6 @@ The drive-specific, minor-like information that is registered with
 	__u8 media_written;			/*  dirty flag, DVD+RW bookkeeping */
 	unsigned short mmc3_profile;		/*  current MMC3 profile */
 	int for_data;				/*  unknown:TBD */
-	int (*exit)(struct cdrom_device_info *);/*  unknown:TBD */
 	int mrw_mode_page;			/*  which MRW mode page is in use */
   };
 
