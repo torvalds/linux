@@ -3239,6 +3239,7 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
+	intel_wakeref_t wakeref;
 	int i;
 	u8 owned_lane_mask;
 
@@ -3247,6 +3248,9 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 		return;
 
 	owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
+
+	wakeref = intel_cx0_phy_transaction_begin(encoder);
+
 	for (i = 0; i < 4; i++) {
 		int tx = i % 2 + 1;
 		u8 lane_mask = i < 2 ? INTEL_CX0_LANE0 : INTEL_CX0_LANE1;
@@ -3258,6 +3262,8 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 			      CONTROL0_MAC_TRANSMIT_LFPS,
 			      CONTROL0_MAC_TRANSMIT_LFPS, MB_WRITE_COMMITTED);
 	}
+
+	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
 
 static u8 cx0_power_control_disable_val(struct intel_encoder *encoder)
