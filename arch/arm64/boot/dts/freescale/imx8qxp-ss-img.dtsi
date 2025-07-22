@@ -4,10 +4,94 @@
  *	Dong Aisheng <aisheng.dong@nxp.com>
  */
 
+&csi1_pxl_lpcg {
+	status = "disabled";
+};
+
+&csi1_core_lpcg {
+	status = "disabled";
+};
+
+&csi1_esc_lpcg {
+	status = "disabled";
+};
+
+&gpio0_mipi_csi1 {
+	status = "disabled";
+};
+
+&i2c_mipi_csi1 {
+	status = "disabled";
+};
+
+&irqsteer_csi1 {
+	status = "disabled";
+};
+
+&isi {
+	compatible = "fsl,imx8qxp-isi";
+	reg = <0x58100000 0x60000>;
+	interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&pdma0_lpcg IMX_LPCG_CLK_0>,
+		 <&pdma1_lpcg IMX_LPCG_CLK_0>,
+		 <&pdma2_lpcg IMX_LPCG_CLK_0>,
+		 <&pdma3_lpcg IMX_LPCG_CLK_0>,
+		 <&pdma4_lpcg IMX_LPCG_CLK_0>,
+		 <&pdma5_lpcg IMX_LPCG_CLK_0>;
+	clock-names = "per0", "per1", "per2", "per3", "per4", "per5";
+	power-domains = <&pd IMX_SC_R_ISI_CH0>,
+			<&pd IMX_SC_R_ISI_CH1>,
+			<&pd IMX_SC_R_ISI_CH2>,
+			<&pd IMX_SC_R_ISI_CH3>,
+			<&pd IMX_SC_R_ISI_CH4>,
+			<&pd IMX_SC_R_ISI_CH5>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@2 {
+			reg = <2>;
+
+			isi_in_2: endpoint {
+				remote-endpoint = <&mipi_csi0_out>;
+			};
+		};
+	};
+};
+
+&mipi_csi_0 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+		};
+
+		port@1 {
+			reg = <1>;
+
+			mipi_csi0_out: endpoint {
+				remote-endpoint = <&isi_in_2>;
+			};
+		};
+	};
+};
+
 &jpegdec {
 	compatible = "nxp,imx8qxp-jpgdec";
 };
 
 &jpegenc {
 	compatible = "nxp,imx8qxp-jpgenc";
+};
+
+&mipi_csi_1 {
+	status = "disabled";
 };
