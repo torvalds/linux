@@ -15,10 +15,7 @@
 #include <linux/refcount.h>
 
 union inet_addr {
-	__u32		all[4];
 	__be32		ip;
-	__be32		ip6[4];
-	struct in_addr	in;
 	struct in6_addr	in6;
 };
 
