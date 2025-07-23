@@ -1833,12 +1833,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(mvm->vif_id_to_mac[mvmvif->id], vif);
 
-	/* Currently not much to do for NAN */
-	if (vif->type == NL80211_IFTYPE_NAN) {
-		ret = 0;
-		goto out;
-	}
-
 	/*
 	 * The AP binding flow can be done only after the beacon
 	 * template is configured (which happens only in the mac80211
