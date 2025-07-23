@@ -439,8 +439,7 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 		return;
 
 	err = xe_gt_tlb_invalidation_ggtt(gt);
-	if (err)
-		drm_warn(&gt_to_xe(gt)->drm, "xe_gt_tlb_invalidation_ggtt error=%d", err);
+	xe_gt_WARN(gt, err, "Failed to invalidate GGTT (%pe)", ERR_PTR(err));
 }
 
 static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
