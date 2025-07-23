@@ -81,17 +81,7 @@ The ZA matrix is square with each side having as many bytes as a streaming
 mode SVE vector.
 
 
-3.  Sharing of streaming and non-streaming mode SVE state
----------------------------------------------------------
-
-It is implementation defined which if any parts of the SVE state are shared
-between streaming and non-streaming modes.  When switching between modes
-via software interfaces such as ptrace if no register content is provided as
-part of switching no state will be assumed to be shared and everything will
-be zeroed.
-
-
-4.  System call behaviour
+3.  System call behaviour
 -------------------------
 
 * On syscall PSTATE.ZA is preserved, if PSTATE.ZA==1 then the contents of the
@@ -112,7 +102,7 @@ be zeroed.
   exceptions for execve() described in section 6.
 
 
-5.  Signal handling
+4.  Signal handling
 -------------------
 
 * Signal handlers are invoked with PSTATE.SM=0, PSTATE.ZA=0, and TPIDR2_EL0=0.
