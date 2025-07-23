@@ -11,6 +11,7 @@
 #include <string.h>
 #include <errno.h>
 #include <endian.h>
+#include <assert.h>
 
 #include <linux/bootconfig.h>
 
@@ -363,7 +364,12 @@ static int delete_xbc(const char *path)
 
 static int apply_xbc(const char *path, const char *xbc_path)
 {
-	char *buf, *data, *p;
+	struct {
+		uint32_t size;
+		uint32_t csum;
+		char magic[BOOTCONFIG_MAGIC_LEN];
+	} footer;
+	char *buf, *data;
 	size_t total_size;
 	struct stat stat;
 	const char *msg;
@@ -433,17 +439,13 @@ static int apply_xbc(const char *path, const char *xbc_path)
 	size += pad;
 
 	/* Add a footer */
-	p = data + size;
-	*(uint32_t *)p = htole32(size);
-	p += sizeof(uint32_t);
+	footer.size = htole32(size);
+	footer.csum = htole32(csum);
+	memcpy(footer.magic, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
+	static_assert(sizeof(footer) == BOOTCONFIG_FOOTER_SIZE);
+	memcpy(data + size, &footer, BOOTCONFIG_FOOTER_SIZE);
 
-	*(uint32_t *)p = htole32(csum);
-	p += sizeof(uint32_t);
-
-	memcpy(p, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
-	p += BOOTCONFIG_MAGIC_LEN;
-
-	total_size = p - data;
+	total_size = size + BOOTCONFIG_FOOTER_SIZE;
 
 	ret = write(fd, data, total_size);
 	if (ret < total_size) {
