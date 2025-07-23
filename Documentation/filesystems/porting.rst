@@ -1249,3 +1249,15 @@ Using try_lookup_noperm() will require linux/namei.h to be included.
 
 Calling conventions for ->d_automount() have changed; we should *not* grab
 an extra reference to new mount - it should be returned with refcount 1.
+
+---
+
+**highly recommended**
+
+The file operations mmap() callback is deprecated in favour of
+mmap_prepare(). This passes a pointer to a vm_area_desc to the callback
+rather than a VMA, as the VMA at this stage is not yet valid.
+
+The vm_area_desc provides the minimum required information for a filesystem
+to initialise state upon memory mapping of a file-backed region, and output
+parameters for the file system to set this state.
