@@ -1448,7 +1448,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
-	/* Release phy lock to allow ftgmac100_reset to aquire it, keeping lock
+	/* Release phy lock to allow ftgmac100_reset to acquire it, keeping lock
 	 * order consistent to prevent dead lock.
 	 */
 	if (netdev->phydev)

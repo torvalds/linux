@@ -149,7 +149,7 @@ static const struct ice_cgu_pin_desc ice_e823_zl_cgu_outputs[] = {
  *                    |    8 bit s    | |    32 bits    |
  *                    +---------------+ +---------------+
  *
- * The increment value is added to the GLSTYN_TIME_R and GLSTYN_TIME_L
+ * The increment value is added to the GLTSYN_TIME_R and GLTSYN_TIME_L
  * registers every clock source tick. Depending on the specific device
  * configuration, the clock source frequency could be one of a number of
  * values.

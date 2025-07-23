@@ -1768,7 +1768,7 @@ static bool bnx2x_trylock_hw_lock(struct bnx2x *bp, u32 resource)
  * @bp:	driver handle
  *
  * Returns the recovery leader resource id according to the engine this function
- * belongs to. Currently only only 2 engines is supported.
+ * belongs to. Currently only 2 engines is supported.
  */
 static int bnx2x_get_leader_lock_resource(struct bnx2x *bp)
 {

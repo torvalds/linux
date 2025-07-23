@@ -550,7 +550,7 @@ static int i40e_ptp_enable_pin(struct i40e_pf *pf, unsigned int chan,
 	pins.gpio_4 = pf->ptp_pins->gpio_4;
 
 	/* To turn on the pin - find the corresponding one based on
-	 * the given index. To to turn the function off - find
+	 * the given index. To turn the function off - find
 	 * which pin had it assigned. Don't use ptp_find_pin here
 	 * because it tries to lock the pincfg_mux which is locked by
 	 * ptp_pin_store() that calls here.

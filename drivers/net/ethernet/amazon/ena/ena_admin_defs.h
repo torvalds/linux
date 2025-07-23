@@ -986,7 +986,7 @@ struct ena_admin_feature_rss_ind_table {
 	struct ena_admin_rss_ind_table_entry inline_entry;
 };
 
-/* When hint value is 0, driver should use it's own predefined value */
+/* When hint value is 0, driver should use its own predefined value */
 struct ena_admin_ena_hw_hints {
 	/* value in ms */
 	u16 mmio_read_timeout;

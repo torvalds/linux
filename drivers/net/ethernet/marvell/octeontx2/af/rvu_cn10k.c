@@ -155,7 +155,7 @@ int rvu_mbox_handler_lmtst_tbl_setup(struct rvu *rvu,
 	int err = 0;
 	u64 val;
 
-	/* Check if PF_FUNC wants to use it's own local memory as LMTLINE
+	/* Check if PF_FUNC wants to use its own local memory as LMTLINE
 	 * region, if so, convert that IOVA to physical address and
 	 * populate LMT table with that address
 	 */

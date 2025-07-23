@@ -1445,7 +1445,7 @@ static int fbnic_set_channels(struct net_device *netdev,
 	standalone = ch->rx_count + ch->tx_count;
 
 	/* Limits for standalone queues:
-	 *  - each queue has it's own NAPI (num_napi >= rx + tx + combined)
+	 *  - each queue has its own NAPI (num_napi >= rx + tx + combined)
 	 *  - combining queues (combined not 0, rx or tx must be 0)
 	 */
 	if ((ch->rx_count && ch->tx_count && ch->combined_count) ||

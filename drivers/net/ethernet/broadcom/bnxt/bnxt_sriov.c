@@ -1125,7 +1125,7 @@ static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 		/* There are two cases:
 		 * 1.If firmware spec < 0x10202,VF MAC address is not forwarded
 		 *   to the PF and so it doesn't have to match
-		 * 2.Allow VF to modify it's own MAC when PF has not assigned a
+		 * 2.Allow VF to modify its own MAC when PF has not assigned a
 		 *   valid MAC address and firmware spec >= 0x10202
 		 */
 		mac_ok = true;

@@ -490,7 +490,7 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev)
 	desc_num = reg_num / HCLGE_REG_NUM_PER_DESC + 1;
 
 	/* This may be called inside atomic sections,
-	 * so GFP_ATOMIC is more suitalbe here
+	 * so GFP_ATOMIC is more suitable here
 	 */
 	desc = kcalloc(desc_num, sizeof(struct hclge_desc), GFP_ATOMIC);
 	if (!desc)

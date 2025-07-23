@@ -5050,7 +5050,7 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 				    (ltdefs->rx_apad1.ltype_match << 4) |
 				    ltdefs->rx_apad1.ltype_mask);
 
-			/* Receive ethertype defination register defines layer
+			/* Receive ethertype definition register defines layer
 			 * information in NPC_RESULT_S to identify the Ethertype
 			 * location in L2 header. Used for Ethertype overwriting
 			 * in inline IPsec flow.

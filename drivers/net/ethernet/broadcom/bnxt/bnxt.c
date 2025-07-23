@@ -16974,7 +16974,7 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 	bnxt_free_ctx_mem(bp, false);
 	netdev_unlock(netdev);
 
-	/* Request a slot slot reset. */
+	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 

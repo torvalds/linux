@@ -1243,9 +1243,9 @@ static int bnx2x_get_eeprom_len(struct net_device *dev)
  * pf B succeeds in taking the same lock since they are from the same port.
  * pf A takes the per pf misc lock. Performs eeprom access.
  * pf A finishes. Unlocks the per pf misc lock.
- * Pf B takes the lock and proceeds to perform it's own access.
+ * Pf B takes the lock and proceeds to perform its own access.
  * pf A unlocks the per port lock, while pf B is still working (!).
- * mcp takes the per port lock and corrupts pf B's access (and/or has it's own
+ * mcp takes the per port lock and corrupts pf B's access (and/or has its own
  * access corrupted by pf B)
  */
 static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)

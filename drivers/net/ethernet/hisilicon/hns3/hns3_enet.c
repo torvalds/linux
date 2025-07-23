@@ -2110,7 +2110,7 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 	 */
 	if (test_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state) && num &&
 	    !ring->pending_buf && num <= HNS3_MAX_PUSH_BD_NUM && doorbell) {
-		/* This smp_store_release() pairs with smp_load_aquire() in
+		/* This smp_store_release() pairs with smp_load_acquire() in
 		 * hns3_nic_reclaim_desc(). Ensure that the BD valid bit
 		 * is updated.
 		 */
@@ -2126,7 +2126,7 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 		return;
 	}
 
-	/* This smp_store_release() pairs with smp_load_aquire() in
+	/* This smp_store_release() pairs with smp_load_acquire() in
 	 * hns3_nic_reclaim_desc(). Ensure that the BD valid bit is updated.
 	 */
 	smp_store_release(&ring->last_to_use, ring->next_to_use);

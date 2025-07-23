@@ -5825,7 +5825,7 @@ static int niu_init_mac(struct niu *np)
 	/* This looks hookey but the RX MAC reset we just did will
 	 * undo some of the state we setup in niu_init_tx_mac() so we
 	 * have to call it again.  In particular, the RX MAC reset will
-	 * set the XMAC_MAX register back to it's default value.
+	 * set the XMAC_MAX register back to its default value.
 	 */
 	niu_init_tx_mac(np);
 	niu_enable_tx_mac(np, 1);

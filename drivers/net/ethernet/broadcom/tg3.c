@@ -16610,7 +16610,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 			tg3_flag_set(tp, PCIX_TARGET_HWBUG);
 
-			/* The chip can have it's power management PCI config
+			/* The chip can have its power management PCI config
 			 * space registers clobbered due to this bug.
 			 * So explicitly force the chip into D0 here.
 			 */
