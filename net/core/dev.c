@@ -7029,7 +7029,23 @@ int netif_set_threaded(struct net_device *dev, bool threaded)
 
 	return err;
 }
-EXPORT_SYMBOL(netif_set_threaded);
+
+/**
+ * netif_threaded_enable() - enable threaded NAPIs
+ * @dev: net_device instance
+ *
+ * Enable threaded mode for the NAPI instances of the device. This may be useful
+ * for devices where multiple NAPI instances get scheduled by a single
+ * interrupt. Threaded NAPI allows moving the NAPI processing to cores other
+ * than the core where IRQ is mapped.
+ *
+ * This function should be called before @dev is registered.
+ */
+void netif_threaded_enable(struct net_device *dev)
+{
+	WARN_ON_ONCE(netif_set_threaded(dev, true));
+}
+EXPORT_SYMBOL(netif_threaded_enable);
 
 /**
  * netif_queue_set_napi - Associate queue with the napi

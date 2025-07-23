@@ -589,7 +589,7 @@ static inline bool napi_complete(struct napi_struct *n)
 	return napi_complete_done(n, 0);
 }
 
-int netif_set_threaded(struct net_device *dev, bool threaded);
+void netif_threaded_enable(struct net_device *dev);
 int dev_set_threaded(struct net_device *dev, bool threaded);
 
 void napi_disable(struct napi_struct *n);
