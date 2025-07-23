@@ -1015,8 +1015,6 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (n_active > 1) {
 		struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
-		iwl_mld_leave_omi_bw_reduction(mld);
-
 		/* Indicate to mac80211 that EML is enabled */
 		vif->driver_flags |= IEEE80211_VIF_EML_ACTIVE;
 		mld_vif->emlsr.last_entry_ts = jiffies;
@@ -1211,20 +1209,6 @@ iwl_mld_mac80211_link_info_changed_sta(struct iwl_mld *mld,
 	 */
 	if (changes & (BSS_CHANGED_CQM | BSS_CHANGED_BEACON_INFO))
 		iwl_mld_enable_beacon_filter(mld, link_conf, false);
-
-	/* If we have used OMI before to reduce bandwidth to 80 MHz and then
-	 * increased to 160 MHz again, and then the AP changes to 320 MHz, it
-	 * will think that we're limited to 160 MHz right now. Update it by
-	 * requesting a new OMI bandwidth.
-	 */
-	if (changes & BSS_CHANGED_BANDWIDTH) {
-		enum ieee80211_sta_rx_bandwidth bw;
-
-		bw = ieee80211_chan_width_to_rx_bw(link_conf->chanreq.oper.width);
-
-		iwl_mld_omi_ap_changed_bw(mld, link_conf, bw);
-
-	}
 
 	if (changes & BSS_CHANGED_BANDWIDTH)
 		iwl_mld_retry_emlsr(mld, vif);
@@ -1429,30 +1413,6 @@ iwl_mld_mac80211_sched_scan_stop(struct ieee80211_hw *hw,
 }
 
 static void
-iwl_mld_restart_complete_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	struct ieee80211_bss_conf *link_conf;
-	struct iwl_mld *mld = data;
-	int link_id;
-
-	for_each_vif_active_link(vif, link_conf, link_id) {
-		enum ieee80211_sta_rx_bandwidth bw;
-		struct iwl_mld_link *mld_link;
-
-		mld_link = wiphy_dereference(mld->wiphy,
-					     mld_vif->link[link_id]);
-
-		if (WARN_ON_ONCE(!mld_link))
-			continue;
-
-		bw = mld_link->rx_omi.bw_in_progress;
-		if (bw)
-			iwl_mld_change_link_omi_bw(mld, link_conf, bw);
-	}
-}
-
-static void
 iwl_mld_mac80211_reconfig_complete(struct ieee80211_hw *hw,
 				   enum ieee80211_reconfig_type reconfig_type)
 {
@@ -1462,11 +1422,6 @@ iwl_mld_mac80211_reconfig_complete(struct ieee80211_hw *hw,
 	case IEEE80211_RECONFIG_TYPE_RESTART:
 		mld->fw_status.in_hw_restart = false;
 		iwl_mld_send_recovery_cmd(mld, ERROR_RECOVERY_END_OF_RECOVERY);
-
-		ieee80211_iterate_interfaces(mld->hw,
-					     IEEE80211_IFACE_ITER_NORMAL,
-					     iwl_mld_restart_complete_vif, mld);
-
 		iwl_trans_finish_sw_reset(mld->trans);
 		/* no need to lock, adding in parallel would schedule too */
 		if (!list_empty(&mld->txqs_to_add))
@@ -1689,18 +1644,6 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 			if (tdls_count >= IWL_TDLS_STA_COUNT)
 				return -EBUSY;
 		}
-
-		/*
-		 * If this is the first STA (i.e. the AP) it won't do
-		 * anything, otherwise must leave for any new STA on
-		 * any other interface, or for TDLS, etc.
-		 * Need to call this _before_ adding the STA so it can
-		 * look up the one STA to use to ask mac80211 to leave
-		 * OMI; in the unlikely event that adding the new STA
-		 * then fails we'll just re-enter OMI later (via the
-		 * statistics notification handling.)
-		 */
-		iwl_mld_leave_omi_bw_reduction(mld);
 
 		ret = iwl_mld_add_sta(mld, sta, vif, STATION_TYPE_PEER);
 		if (ret)

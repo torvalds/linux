@@ -36,11 +36,9 @@ struct iwl_probe_resp_data {
  * @he_ru_2mhz_block: 26-tone RU OFDMA transmissions should be blocked.
  * @igtk: fw can only have one IGTK at a time, whereas mac80211 can have two.
  *	This tracks the one IGTK that currently exists in FW.
- * @vif: the vif this link belongs to
  * @bcast_sta: station used for broadcast packets. Used in AP, GO and IBSS.
  * @mcast_sta: station used for multicast packets. Used in AP, GO and IBSS.
  * @mon_sta: station used for TX injection in monitor interface.
- * @link_id: over the air link ID
  * @average_beacon_energy: average beacon energy for beacons received during
  *	client connections
  * @ap_early_keys: The firmware cannot install keys before bcast/mcast STAs,
@@ -49,14 +47,6 @@ struct iwl_probe_resp_data {
  * @silent_deactivation: next deactivation needs to be silent.
  * @probe_resp_data: data from FW notification to store NOA related data to be
  *	inserted into probe response.
- * @rx_omi: data for BW reduction with OMI
- * @rx_omi.bw_in_progress: update is in progress (indicates target BW)
- * @rx_omi.exit_ts: timestamp of last exit
- * @rx_omi.finished_work: work for the delayed reaction to the firmware saying
- *	the change was applied, and for then applying a new mode if it was
- *	updated while waiting for firmware/AP settle delay.
- * @rx_omi.desired_bw: desired bandwidth
- * @rx_omi.last_max_bw: last maximum BW used by firmware, for AP BW changes
  */
 struct iwl_mld_link {
 	struct rcu_head rcu_head;
@@ -71,19 +61,9 @@ struct iwl_mld_link {
 		struct ieee80211_key_conf *igtk;
 	);
 	/* And here fields that survive a fw restart */
-	struct ieee80211_vif *vif;
 	struct iwl_mld_int_sta bcast_sta;
 	struct iwl_mld_int_sta mcast_sta;
 	struct iwl_mld_int_sta mon_sta;
-	u8 link_id;
-
-	struct {
-		struct wiphy_delayed_work finished_work;
-		unsigned long exit_ts;
-		enum ieee80211_sta_rx_bandwidth bw_in_progress,
-						desired_bw,
-						last_max_bw;
-	} rx_omi;
 
 	/* we can only have 2 GTK + 2 IGTK + 2 BIGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[6];
@@ -123,9 +103,6 @@ int iwl_mld_activate_link(struct iwl_mld *mld,
 			  struct ieee80211_bss_conf *link);
 void iwl_mld_deactivate_link(struct iwl_mld *mld,
 			     struct ieee80211_bss_conf *link);
-int iwl_mld_change_link_omi_bw(struct iwl_mld *mld,
-			       struct ieee80211_bss_conf *link,
-			       enum ieee80211_sta_rx_bandwidth bw);
 int iwl_mld_change_link_in_fw(struct iwl_mld *mld,
 			      struct ieee80211_bss_conf *link, u32 changes);
 void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
@@ -145,13 +122,6 @@ unsigned int iwl_mld_get_chan_load(struct iwl_mld *mld,
 int iwl_mld_get_chan_load_by_others(struct iwl_mld *mld,
 				    struct ieee80211_bss_conf *link_conf,
 				    bool expect_active_link);
-void iwl_mld_handle_omi_status_notif(struct iwl_mld *mld,
-				     struct iwl_rx_packet *pkt);
-void iwl_mld_leave_omi_bw_reduction(struct iwl_mld *mld);
-void iwl_mld_check_omi_bw_reduction(struct iwl_mld *mld);
-void iwl_mld_omi_ap_changed_bw(struct iwl_mld *mld,
-			       struct ieee80211_bss_conf *link_conf,
-			       enum ieee80211_sta_rx_bandwidth bw);
 
 void iwl_mld_handle_beacon_filter_notif(struct iwl_mld *mld,
 					struct iwl_rx_packet *pkt);

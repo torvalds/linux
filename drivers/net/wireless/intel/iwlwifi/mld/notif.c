@@ -78,13 +78,6 @@ static bool iwl_mld_cancel_##name##_notif(struct iwl_mld *mld,			\
 				  u8: (notif)->id_member);			\
 }
 
-static bool iwl_mld_always_cancel(struct iwl_mld *mld,
-				  struct iwl_rx_packet *pkt,
-				  u32 obj_id)
-{
-	return true;
-}
-
 /* Currently only defined for the RX_HANDLER_SIZES options. Use this for
  * notifications that belong to a specific object, and that should be
  * canceled when the object is removed
@@ -350,8 +343,6 @@ CMD_VERSIONS(time_msmt_notif,
 	     CMD_VER_ENTRY(1, iwl_time_msmt_notify))
 CMD_VERSIONS(time_sync_confirm_notif,
 	     CMD_VER_ENTRY(1, iwl_time_msmt_cfm_notify))
-CMD_VERSIONS(omi_status_notif,
-	     CMD_VER_ENTRY(2, iwl_omi_send_status_notif))
 CMD_VERSIONS(ftm_resp_notif, CMD_VER_ENTRY(10, iwl_tof_range_rsp_ntfy))
 CMD_VERSIONS(beacon_filter_notif, CMD_VER_ENTRY(2, iwl_beacon_filter_notif))
 
@@ -369,7 +360,6 @@ DEFINE_SIMPLE_CANCELLATION(probe_resp_data, iwl_probe_resp_data_notif,
 			   mac_id)
 DEFINE_SIMPLE_CANCELLATION(uapsd_misbehaving_ap, iwl_uapsd_misbehaving_ap_notif,
 			   mac_id)
-#define iwl_mld_cancel_omi_status_notif iwl_mld_always_cancel
 DEFINE_SIMPLE_CANCELLATION(ftm_resp, iwl_tof_range_rsp_ntfy, request_id)
 DEFINE_SIMPLE_CANCELLATION(beacon_filter, iwl_beacon_filter_notif, link_id)
 
@@ -466,8 +456,6 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 	RX_HANDLER_NO_OBJECT(LEGACY_GROUP,
 			     WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION,
 			     time_sync_confirm_notif, RX_HANDLER_ASYNC)
-	RX_HANDLER_OF_LINK(DATA_PATH_GROUP, OMI_SEND_STATUS_NOTIF,
-			   omi_status_notif)
 	RX_HANDLER_OF_LINK(DATA_PATH_GROUP, BEACON_FILTER_IN_NOTIF,
 			   beacon_filter_notif)
 	RX_HANDLER_OF_FTM_REQ(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
