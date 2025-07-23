@@ -227,14 +227,14 @@ def main() -> None:
         query_nic_features(cfg)
 
         test_info = (
-            # name,       v4/v6  ethtool_feature              tun:(type,     args)
-            ("",            "4", "tx-tcp-segmentation",           None),
-            ("",            "6", "tx-tcp6-segmentation",          None),
-            ("vxlan",       "4", "tx-udp_tnl-segmentation",       ("vxlan",  "id 100 dstport 4789 noudpcsum")),
-            ("vxlan",       "6", "tx-udp_tnl-segmentation",       ("vxlan",  "id 100 dstport 4789 udp6zerocsumtx udp6zerocsumrx")),
-            ("vxlan_csum",   "", "tx-udp_tnl-csum-segmentation",  ("vxlan",  "id 100 dstport 4789 udpcsum")),
-            ("gre",         "4", "tx-gre-segmentation",           ("gre",    "")),
-            ("gre",         "6", "tx-gre-segmentation",           ("ip6gre", "")),
+            # name,       v4/v6  ethtool_feature               tun:(type, args, inner ip versions)
+            ("",           "4", "tx-tcp-segmentation",         None),
+            ("",           "6", "tx-tcp6-segmentation",        None),
+            ("vxlan",      "4", "tx-udp_tnl-segmentation",     ("vxlan", "id 100 dstport 4789 noudpcsum", ("4", "6"))),
+            ("vxlan",      "6", "tx-udp_tnl-segmentation",     ("vxlan", "id 100 dstport 4789 udp6zerocsumtx udp6zerocsumrx", ("4", "6"))),
+            ("vxlan_csum", "", "tx-udp_tnl-csum-segmentation", ("vxlan", "id 100 dstport 4789 udpcsum", ("4", "6"))),
+            ("gre",        "4", "tx-gre-segmentation",         ("gre",   "", ("4", "6"))),
+            ("gre",        "6", "tx-gre-segmentation",         ("ip6gre","", ("4", "6"))),
         )
 
         cases = []
@@ -244,11 +244,13 @@ def main() -> None:
                 if info[1] and outer_ipver != info[1]:
                     continue
 
-                cases.append(test_builder(info[0], cfg, outer_ipver, info[2],
-                                          tun=info[3], inner_ipver="4"))
                 if info[3]:
-                    cases.append(test_builder(info[0], cfg, outer_ipver, info[2],
-                                              tun=info[3], inner_ipver="6"))
+                    cases += [
+                        test_builder(info[0], cfg, outer_ipver, info[2], info[3], inner_ipver)
+                        for inner_ipver in info[3][2]
+                    ]
+                else:
+                    cases.append(test_builder(info[0], cfg, outer_ipver, info[2], None, outer_ipver))
 
         ksft_run(cases=cases, args=(cfg, ))
     ksft_exit()
