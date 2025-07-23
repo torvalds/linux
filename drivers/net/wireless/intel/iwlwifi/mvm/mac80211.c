@@ -5,6 +5,7 @@
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #include <linux/kernel.h>
+#include <linux/fips.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -461,7 +462,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		IWL_ERR(mvm,
 			"iwlmvm doesn't allow to disable BT Coex, check bt_coex_active module parameter\n");
 
-	ieee80211_hw_set(hw, MFP_CAPABLE);
+	if (!fips_enabled)
+		ieee80211_hw_set(hw, MFP_CAPABLE);
+
 	mvm->ciphers[hw->wiphy->n_cipher_suites] = WLAN_CIPHER_SUITE_AES_CMAC;
 	hw->wiphy->n_cipher_suites++;
 	if (iwl_mvm_has_new_rx_api(mvm)) {
@@ -485,12 +488,17 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->pmsr_capa = &iwl_mvm_pmsr_capa;
 	}
 
-	if (sec_key_ver &&
+	/*
+	 * beacon protection must be handled by firmware,
+	 * so cannot be done with fips_enabled
+	 */
+	if (!fips_enabled && sec_key_ver &&
 	    fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_BIGTK_TX_SUPPORT))
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_BEACON_PROTECTION);
-	else if (fw_has_capa(&mvm->fw->ucode_capa,
+	else if (!fips_enabled &&
+		 fw_has_capa(&mvm->fw->ucode_capa,
 			     IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT))
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT);
@@ -730,7 +738,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 #ifdef CONFIG_PM_SLEEP
 	if ((unified || mvm->fw->img[IWL_UCODE_WOWLAN].num_sec) &&
-	    device_can_wakeup(mvm->trans->dev)) {
+	    device_can_wakeup(mvm->trans->dev) && !fips_enabled) {
 		mvm->wowlan.flags |= WIPHY_WOWLAN_MAGIC_PKT |
 				     WIPHY_WOWLAN_DISCONNECT |
 				     WIPHY_WOWLAN_EAP_IDENTITY_REQ |

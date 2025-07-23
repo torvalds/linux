@@ -5,6 +5,7 @@
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #include <linux/types.h>
+#include <linux/fips.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/etherdevice.h>
@@ -543,16 +544,22 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 	else
 		vht_cap->cap |= IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN;
 
+	/*
+	 * With fips_enabled crypto is done by software, so the HW cannot
+	 * split up A-MSDUs and the real limit that was set applies.
+	 * Note that EHT doesn't honour this (HE copies the VHT value),
+	 * but EHT is also entirely disabled for fips_enabled.
+	 */
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
-		if (trans->mac_cfg->mq_rx_supported)
+		if (trans->mac_cfg->mq_rx_supported && !fips_enabled)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
 			vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 		break;
 	case IWL_AMSDU_2K:
-		if (trans->mac_cfg->mq_rx_supported)
+		if (trans->mac_cfg->mq_rx_supported && !fips_enabled)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
@@ -909,7 +916,9 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	bool slow_pcie = (!trans->mac_cfg->integrated &&
 			  trans->info.pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB);
 
-	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be)
+	/* EHT needs WPA3/MFP so cannot do it for fips_enabled */
+	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be ||
+	    fips_enabled)
 		iftype_data->eht_cap.has_eht = false;
 
 	/* Advertise an A-MPDU exponent extension based on
@@ -1197,11 +1206,19 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  NL80211_BAND_6GHZ);
 
-	if (data->sku_cap_11ax_enable && !iwlwifi_mod_params.disable_11ax)
+	/*
+	 * 6 GHz requires WPA3 which requires MFP, which FW cannot do
+	 * when fips_enabled, so don't advertise any 6 GHz channels to
+	 * avoid spending time on scanning those channels and perhaps
+	 * even finding APs there that cannot be used.
+	 */
+	if (!fips_enabled && data->sku_cap_11ax_enable &&
+	    !iwlwifi_mod_params.disable_11ax)
 		iwl_init_he_hw_capab(trans, data, sband, tx_chains, rx_chains,
 				     fw);
 	else
 		sband->n_channels = 0;
+
 	if (n_channels != n_used)
 		IWL_ERR_DEV(dev, "NVM: used only %d of %d channels\n",
 			    n_used, n_channels);

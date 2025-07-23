@@ -4,6 +4,7 @@
  */
 
 #include <net/mac80211.h>
+#include <linux/fips.h>
 #include <linux/ip.h>
 
 #include "mld.h"
@@ -156,6 +157,9 @@ static void iwl_mld_hw_set_security(struct iwl_mld *mld)
 		WLAN_CIPHER_SUITE_BIP_GMAC_256
 	};
 
+	if (fips_enabled)
+		return;
+
 	hw->wiphy->n_cipher_suites = ARRAY_SIZE(mld_ciphers);
 	hw->wiphy->cipher_suites = mld_ciphers;
 
@@ -178,6 +182,9 @@ static void iwl_mld_hw_set_pm(struct iwl_mld *mld)
 	struct wiphy *wiphy = mld->wiphy;
 
 	if (!device_can_wakeup(mld->trans->dev))
+		return;
+
+	if (fips_enabled)
 		return;
 
 	mld->wowlan.flags |= WIPHY_WOWLAN_MAGIC_PKT |
@@ -284,9 +291,11 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 			WIPHY_FLAG_SUPPORTS_TDLS |
 			WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK;
 
+	/* For fips_enabled, don't support WiFi7 due to WPA3/MFP requirements */
 	if (mld->nvm_data->sku_cap_11be_enable &&
 	    !iwlwifi_mod_params.disable_11ax &&
-	    !iwlwifi_mod_params.disable_11be)
+	    !iwlwifi_mod_params.disable_11be &&
+	    !fips_enabled)
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
 
 	/* the firmware uses u8 for num of iterations, but 0xff is saved for
