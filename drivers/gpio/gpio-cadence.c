@@ -12,7 +12,6 @@
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
-#include <linux/gpio/driver.h>
 #include <linux/gpio/generic.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
