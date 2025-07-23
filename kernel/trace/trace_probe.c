@@ -13,8 +13,8 @@
 
 #include <linux/bpf.h>
 #include <linux/fs.h>
-#include "trace_btf.h"
 
+#include "trace_btf.h"
 #include "trace_probe.h"
 
 #undef C

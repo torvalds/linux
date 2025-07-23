@@ -4,7 +4,6 @@
  * Copyright (C) 2022 Google LLC.
  */
 #define pr_fmt(fmt)	"trace_fprobe: " fmt
-#include <asm/ptrace.h>
 
 #include <linux/fprobe.h>
 #include <linux/list.h>
@@ -14,6 +13,8 @@
 #include <linux/security.h>
 #include <linux/tracepoint.h>
 #include <linux/uaccess.h>
+
+#include <asm/ptrace.h>
 
 #include "trace_dynevent.h"
 #include "trace_probe.h"

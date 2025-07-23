@@ -9,19 +9,19 @@
 
 #include <linux/bpf-cgroup.h>
 #include <linux/cleanup.h>
-#include <linux/security.h>
-#include <linux/module.h>
-#include <linux/uaccess.h>
-#include <linux/rculist.h>
 #include <linux/error-injection.h>
+#include <linux/module.h>
+#include <linux/rculist.h>
+#include <linux/security.h>
+#include <linux/uaccess.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 
 #include "trace_dynevent.h"
 #include "trace_kprobe_selftest.h"
 #include "trace_probe.h"
-#include "trace_probe_tmpl.h"
 #include "trace_probe_kernel.h"
+#include "trace_probe_tmpl.h"
 
 #define KPROBE_EVENT_SYSTEM "kprobes"
 #define KRETPROBE_MAXACTIVE_MAX 4096

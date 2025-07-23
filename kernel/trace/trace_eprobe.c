@@ -9,14 +9,14 @@
  * Copyright (C) 2021, VMware Inc, Tzvetomir Stoyanov tz.stoyanov@gmail.com>
  *
  */
+#include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/ftrace.h>
 
 #include "trace_dynevent.h"
 #include "trace_probe.h"
-#include "trace_probe_tmpl.h"
 #include "trace_probe_kernel.h"
+#include "trace_probe_tmpl.h"
 
 #define EPROBE_EVENT_SYSTEM "eprobes"
 

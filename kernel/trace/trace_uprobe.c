@@ -8,16 +8,16 @@
 #define pr_fmt(fmt)	"trace_uprobe: " fmt
 
 #include <linux/bpf-cgroup.h>
-#include <linux/security.h>
 #include <linux/ctype.h>
+#include <linux/filter.h>
 #include <linux/module.h>
+#include <linux/namei.h>
+#include <linux/percpu.h>
+#include <linux/rculist.h>
+#include <linux/security.h>
+#include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/uprobes.h>
-#include <linux/namei.h>
-#include <linux/string.h>
-#include <linux/rculist.h>
-#include <linux/filter.h>
-#include <linux/percpu.h>
 
 #include "trace_dynevent.h"
 #include "trace_probe.h"
