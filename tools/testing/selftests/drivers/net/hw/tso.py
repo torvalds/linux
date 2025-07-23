@@ -119,14 +119,29 @@ def build_tunnel(cfg, outer_ipver, tun_info):
     return remote_v4, remote_v6
 
 
+def restore_wanted_features(cfg):
+    features_cmd = ""
+    for feature in cfg.hw_features:
+        setting = "on" if feature in cfg.wanted_features else "off"
+        features_cmd += f" {feature} {setting}"
+    try:
+        ethtool(f"-K {cfg.ifname} {features_cmd}")
+    except Exception as e:
+        ksft_pr(f"WARNING: failure restoring wanted features: {e}")
+
+
 def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
     """Construct specific tests from the common template."""
     def f(cfg):
         cfg.require_ipver(outer_ipver)
+        defer(restore_wanted_features, cfg)
 
         if not cfg.have_stat_super_count and \
            not cfg.have_stat_wire_count:
             raise KsftSkipEx(f"Device does not support LSO queue stats")
+
+        if feature not in cfg.hw_features:
+            raise KsftSkipEx(f"Device does not support {feature}")
 
         ipver = outer_ipver
         if tun:
@@ -138,12 +153,12 @@ def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
 
         tun_partial = tun and tun[1]
         # Tunnel which can silently fall back to gso-partial
-        has_gso_partial = tun and 'tx-gso-partial' in cfg.features
+        has_gso_partial = tun and 'tx-gso-partial' in cfg.hw_features
 
         # For TSO4 via partial we need mangleid
         if ipver == "4" and feature in cfg.partial_features:
             ksft_pr("Testing with mangleid enabled")
-            if 'tx-tcp-mangleid-segmentation' not in cfg.features:
+            if 'tx-tcp-mangleid-segmentation' not in cfg.hw_features:
                 ethtool(f"-K {cfg.ifname} tx-tcp-mangleid-segmentation on")
                 defer(ethtool, f"-K {cfg.ifname} tx-tcp-mangleid-segmentation off")
 
@@ -161,11 +176,8 @@ def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
                            should_lso=tun_partial)
 
         # Full feature enabled.
-        if feature in cfg.features:
-            ethtool(f"-K {cfg.ifname} {feature} on")
-            run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso=True)
-        else:
-            raise KsftXfailEx(f"Device does not support {feature}")
+        ethtool(f"-K {cfg.ifname} {feature} on")
+        run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso=True)
 
     f.__name__ = name + ((outer_ipver + "_") if tun else "") + "ipv" + inner_ipver
     return f
@@ -176,22 +188,38 @@ def query_nic_features(cfg) -> None:
     cfg.have_stat_super_count = False
     cfg.have_stat_wire_count = False
 
-    cfg.features = set()
     features = cfg.ethnl.features_get({"header": {"dev-index": cfg.ifindex}})
-    for f in features["active"]["bits"]["bit"]:
-        cfg.features.add(f["name"])
+
+    cfg.wanted_features = set()
+    for f in features["wanted"]["bits"]["bit"]:
+        cfg.wanted_features.add(f["name"])
+
+    cfg.hw_features = set()
+    hw_all_features_cmd = ""
+    for f in features["hw"]["bits"]["bit"]:
+        if f.get("value", False):
+            feature = f["name"]
+            cfg.hw_features.add(feature)
+            hw_all_features_cmd += f" {feature} on"
+    try:
+        ethtool(f"-K {cfg.ifname} {hw_all_features_cmd}")
+    except Exception as e:
+        ksft_pr(f"WARNING: failure enabling all hw features: {e}")
+        ksft_pr("partial gso feature detection may be impacted")
 
     # Check which features are supported via GSO partial
     cfg.partial_features = set()
-    if 'tx-gso-partial' in cfg.features:
+    if 'tx-gso-partial' in cfg.hw_features:
         ethtool(f"-K {cfg.ifname} tx-gso-partial off")
 
         no_partial = set()
         features = cfg.ethnl.features_get({"header": {"dev-index": cfg.ifindex}})
         for f in features["active"]["bits"]["bit"]:
             no_partial.add(f["name"])
-        cfg.partial_features = cfg.features - no_partial
+        cfg.partial_features = cfg.hw_features - no_partial
         ethtool(f"-K {cfg.ifname} tx-gso-partial on")
+
+    restore_wanted_features(cfg)
 
     stats = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)
     if stats:
