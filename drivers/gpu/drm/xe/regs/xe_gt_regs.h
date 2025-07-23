@@ -42,7 +42,7 @@
 #define FORCEWAKE_ACK_GSC			XE_REG(0xdf8)
 #define FORCEWAKE_ACK_GT_MTL			XE_REG(0xdfc)
 
-#define MCFG_MCR_SELECTOR			XE_REG(0xfd0)
+#define STEER_SEMAPHORE				XE_REG(0xfd0)
 #define MTL_MCR_SELECTOR			XE_REG(0xfd4)
 #define SF_MCR_SELECTOR				XE_REG(0xfd8)
 #define MCR_SELECTOR				XE_REG(0xfdc)
