@@ -603,8 +603,7 @@ cdns_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
 	struct cdns_dsi *dsi = input_to_dsi(input);
 	struct cdns_dsi_output *output = &dsi->output;
-	struct cdns_dsi_cfg dsi_cfg;
-	int bpp, ret;
+	int bpp;
 
 	/*
 	 * VFP_DSI should be less than VFP_DPI and VFP_DSI should be at
@@ -621,10 +620,6 @@ cdns_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 	bpp = mipi_dsi_pixel_format_to_bpp(output->dev->format);
 	if ((mode->hdisplay * bpp) % 32)
 		return MODE_H_ILLEGAL;
-
-	ret = cdns_dsi_check_conf(dsi, mode, &dsi_cfg);
-	if (ret)
-		return MODE_BAD;
 
 	return MODE_OK;
 }
