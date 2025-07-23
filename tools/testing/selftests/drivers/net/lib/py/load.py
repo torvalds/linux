@@ -7,7 +7,7 @@ from lib.py import ksft_pr, cmd, ip, rand_port, wait_port_listen
 
 class GenerateTraffic:
     def __init__(self, env, port=None):
-        env.require_cmd("iperf3", remote=True)
+        env.require_cmd("iperf3", local=True, remote=True)
 
         self.env = env
 
