@@ -1235,18 +1235,18 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 	 *  FETCHARG:TYPE : use TYPE instead of unsigned long.
 	 */
 	struct trace_fprobe *tf __free(free_trace_fprobe) = NULL;
-	struct module *mod __free(module_put) = NULL;
-	int i, new_argc = 0, ret = 0;
-	bool is_return = false;
-	char *symbol __free(kfree) = NULL;
 	const char *event = NULL, *group = FPROBE_EVENT_SYSTEM;
+	struct module *mod __free(module_put) = NULL;
 	const char **new_argv __free(kfree) = NULL;
-	char buf[MAX_EVENT_NAME_LEN];
-	char gbuf[MAX_EVENT_NAME_LEN];
-	char sbuf[KSYM_NAME_LEN];
-	char abuf[MAX_BTF_ARGS_LEN];
+	char *symbol __free(kfree) = NULL;
+	char *ebuf __free(kfree) = NULL;
+	char *gbuf __free(kfree) = NULL;
+	char *sbuf __free(kfree) = NULL;
+	char *abuf __free(kfree) = NULL;
 	char *dbuf __free(kfree) = NULL;
+	int i, new_argc = 0, ret = 0;
 	bool is_tracepoint = false;
+	bool is_return = false;
 
 	if ((argv[0][0] != 'f' && argv[0][0] != 't') || argc < 2)
 		return -ECANCELED;
@@ -1274,6 +1274,9 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 
 	trace_probe_log_set_index(0);
 	if (event) {
+		gbuf = kmalloc(MAX_EVENT_NAME_LEN, GFP_KERNEL);
+		if (!gbuf)
+			return -ENOMEM;
 		ret = traceprobe_parse_event_name(&event, &group, gbuf,
 						  event - argv[0]);
 		if (ret)
@@ -1281,15 +1284,18 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 	}
 
 	if (!event) {
+		ebuf = kmalloc(MAX_EVENT_NAME_LEN, GFP_KERNEL);
+		if (!ebuf)
+			return -ENOMEM;
 		/* Make a new event name */
 		if (is_tracepoint)
-			snprintf(buf, MAX_EVENT_NAME_LEN, "%s%s",
+			snprintf(ebuf, MAX_EVENT_NAME_LEN, "%s%s",
 				 isdigit(*symbol) ? "_" : "", symbol);
 		else
-			snprintf(buf, MAX_EVENT_NAME_LEN, "%s__%s", symbol,
+			snprintf(ebuf, MAX_EVENT_NAME_LEN, "%s__%s", symbol,
 				 is_return ? "exit" : "entry");
-		sanitize_event_name(buf);
-		event = buf;
+		sanitize_event_name(ebuf);
+		event = ebuf;
 	}
 
 	if (is_return)
@@ -1305,13 +1311,20 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 		ctx->flags |= TPARG_FL_TPOINT;
 		mod = NULL;
 		tpoint = find_tracepoint(symbol, &mod);
-		if (tpoint)
+		if (tpoint) {
+			sbuf = kmalloc(KSYM_NAME_LEN, GFP_KERNEL);
+			if (!sbuf)
+				return -ENOMEM;
 			ctx->funcname = kallsyms_lookup((unsigned long)tpoint->probestub,
 							NULL, NULL, NULL, sbuf);
+		}
 	}
 	if (!ctx->funcname)
 		ctx->funcname = symbol;
 
+	abuf = kmalloc(MAX_BTF_ARGS_LEN, GFP_KERNEL);
+	if (!abuf)
+		return -ENOMEM;
 	argc -= 2; argv += 2;
 	new_argv = traceprobe_expand_meta_args(argc, argv, &new_argc,
 					       abuf, MAX_BTF_ARGS_LEN, ctx);
