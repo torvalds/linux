@@ -85,6 +85,10 @@ definitions:
     name: qstats-scope
     type: flags
     entries: [queue]
+  -
+    name: napi-threaded
+    type: enum
+    entries: [disabled, enabled]
 
 attribute-sets:
   -
@@ -286,11 +290,10 @@ attribute-sets:
       -
         name: threaded
         doc: Whether the NAPI is configured to operate in threaded polling
-             mode. If this is set to 1 then the NAPI context operates in
-             threaded polling mode.
-        type: uint
-        checks:
-          max: 1
+             mode. If this is set to enabled then the NAPI context operates
+             in threaded polling mode.
+        type: u32
+        enum: napi-threaded
   -
     name: xsk-info
     attributes: []

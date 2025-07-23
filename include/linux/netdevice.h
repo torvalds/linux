@@ -369,7 +369,7 @@ struct napi_config {
 	u64 irq_suspend_timeout;
 	u32 defer_hard_irqs;
 	cpumask_t affinity_mask;
-	bool threaded;
+	u8 threaded;
 	unsigned int napi_id;
 };
 
@@ -590,7 +590,8 @@ static inline bool napi_complete(struct napi_struct *n)
 }
 
 void netif_threaded_enable(struct net_device *dev);
-int dev_set_threaded(struct net_device *dev, bool threaded);
+int dev_set_threaded(struct net_device *dev,
+		     enum netdev_napi_threaded threaded);
 
 void napi_disable(struct napi_struct *n);
 void napi_disable_locked(struct napi_struct *n);
@@ -1872,6 +1873,7 @@ enum netdev_reg_state {
  * 	@addr_len:		Hardware address length
  *	@upper_level:		Maximum depth level of upper devices.
  *	@lower_level:		Maximum depth level of lower devices.
+ *	@threaded:		napi threaded state.
  *	@neigh_priv_len:	Used in neigh_alloc()
  * 	@dev_id:		Used to differentiate devices that share
  * 				the same link layer address
@@ -2010,8 +2012,6 @@ enum netdev_reg_state {
  *	@proto_down:	protocol port state information can be sent to the
  *			switch driver and used to set the phys state of the
  *			switch port.
- *
- *	@threaded:	napi threaded mode is enabled
  *
  *	@irq_affinity_auto: driver wants the core to store and re-assign the IRQ
  *			    affinity. Set by netif_enable_irq_affinity(), then
@@ -2248,6 +2248,7 @@ struct net_device {
 	unsigned char		addr_len;
 	unsigned char		upper_level;
 	unsigned char		lower_level;
+	u8			threaded;
 
 	unsigned short		neigh_priv_len;
 	unsigned short          dev_id;
@@ -2429,7 +2430,6 @@ struct net_device {
 	struct sfp_bus		*sfp_bus;
 	struct lock_class_key	*qdisc_tx_busylock;
 	bool			proto_down;
-	bool			threaded;
 	bool			irq_affinity_auto;
 	bool			rx_cpu_rmap_auto;
 

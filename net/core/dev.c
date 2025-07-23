@@ -6963,7 +6963,8 @@ static void napi_stop_kthread(struct napi_struct *napi)
 	napi->thread = NULL;
 }
 
-int napi_set_threaded(struct napi_struct *napi, bool threaded)
+int napi_set_threaded(struct napi_struct *napi,
+		      enum netdev_napi_threaded threaded)
 {
 	if (threaded) {
 		if (!napi->thread) {
@@ -6988,7 +6989,8 @@ int napi_set_threaded(struct napi_struct *napi, bool threaded)
 	return 0;
 }
 
-int netif_set_threaded(struct net_device *dev, bool threaded)
+int netif_set_threaded(struct net_device *dev,
+		       enum netdev_napi_threaded threaded)
 {
 	struct napi_struct *napi;
 	int err = 0;
@@ -7000,7 +7002,7 @@ int netif_set_threaded(struct net_device *dev, bool threaded)
 			if (!napi->thread) {
 				err = napi_kthread_create(napi);
 				if (err) {
-					threaded = false;
+					threaded = NETDEV_NAPI_THREADED_DISABLED;
 					break;
 				}
 			}
@@ -7043,7 +7045,7 @@ int netif_set_threaded(struct net_device *dev, bool threaded)
  */
 void netif_threaded_enable(struct net_device *dev)
 {
-	WARN_ON_ONCE(netif_set_threaded(dev, true));
+	WARN_ON_ONCE(netif_set_threaded(dev, NETDEV_NAPI_THREADED_ENABLED));
 }
 EXPORT_SYMBOL(netif_threaded_enable);
 
@@ -7360,7 +7362,7 @@ void netif_napi_add_weight_locked(struct net_device *dev,
 	 * threaded mode will not be enabled in napi_enable().
 	 */
 	if (dev->threaded && napi_kthread_create(napi))
-		dev->threaded = false;
+		dev->threaded = NETDEV_NAPI_THREADED_DISABLED;
 	netif_napi_set_irq_locked(napi, -1);
 }
 EXPORT_SYMBOL(netif_napi_add_weight_locked);

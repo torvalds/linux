@@ -315,14 +315,19 @@ static inline void napi_set_irq_suspend_timeout(struct napi_struct *n,
 	WRITE_ONCE(n->irq_suspend_timeout, timeout);
 }
 
-static inline bool napi_get_threaded(struct napi_struct *n)
+static inline enum netdev_napi_threaded napi_get_threaded(struct napi_struct *n)
 {
-	return test_bit(NAPI_STATE_THREADED, &n->state);
+	if (test_bit(NAPI_STATE_THREADED, &n->state))
+		return NETDEV_NAPI_THREADED_ENABLED;
+
+	return NETDEV_NAPI_THREADED_DISABLED;
 }
 
-int napi_set_threaded(struct napi_struct *n, bool threaded);
+int napi_set_threaded(struct napi_struct *n,
+		      enum netdev_napi_threaded threaded);
 
-int netif_set_threaded(struct net_device *dev, bool threaded);
+int netif_set_threaded(struct net_device *dev,
+		       enum netdev_napi_threaded threaded);
 
 int rps_cpumask_housekeeping(struct cpumask *mask);
 
