@@ -952,7 +952,7 @@ static const struct dlm_lockspace_ops ocfs2_ls_ops = {
 static int user_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 {
 	version_unlock(conn);
-	dlm_release_lockspace(conn->cc_lockspace, 2);
+	dlm_release_lockspace(conn->cc_lockspace, DLM_RELEASE_NORMAL);
 	conn->cc_lockspace = NULL;
 	ocfs2_live_connection_drop(conn->cc_private);
 	conn->cc_private = NULL;

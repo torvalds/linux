@@ -671,19 +671,20 @@ int dlm_new_user_lockspace(const char *name, const char *cluster,
    This is because there may be LKBs queued as ASTs that have been unlinked
    from their RSBs and are pending deletion once the AST has been delivered */
 
-static int lockspace_busy(struct dlm_ls *ls, int force)
+static int lockspace_busy(struct dlm_ls *ls, int release_option)
 {
 	struct dlm_lkb *lkb;
 	unsigned long id;
 	int rv = 0;
 
 	read_lock_bh(&ls->ls_lkbxa_lock);
-	if (force == 0) {
+	if (release_option == DLM_RELEASE_NO_LOCKS) {
 		xa_for_each(&ls->ls_lkbxa, id, lkb) {
 			rv = 1;
 			break;
 		}
-	} else if (force == 1) {
+	} else if (release_option == DLM_RELEASE_UNUSED) {
+		/* TODO: handle this UNUSED option as NO_LOCKS in later patch */
 		xa_for_each(&ls->ls_lkbxa, id, lkb) {
 			if (lkb->lkb_nodeid == 0 &&
 			    lkb->lkb_grmode != DLM_LOCK_IV) {
@@ -698,11 +699,11 @@ static int lockspace_busy(struct dlm_ls *ls, int force)
 	return rv;
 }
 
-static int release_lockspace(struct dlm_ls *ls, int force)
+static int release_lockspace(struct dlm_ls *ls, int release_option)
 {
 	int busy, rv;
 
-	busy = lockspace_busy(ls, force);
+	busy = lockspace_busy(ls, release_option);
 
 	spin_lock_bh(&lslist_lock);
 	if (ls->ls_create_count == 1) {
@@ -730,7 +731,8 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	dlm_device_deregister(ls);
 
-	if (force != 3 && dlm_user_daemon_available())
+	if (release_option != DLM_RELEASE_NO_EVENT &&
+	    dlm_user_daemon_available())
 		do_uevent(ls, 0);
 
 	dlm_recoverd_stop(ls);
@@ -782,11 +784,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
  * lockspace must continue to function as usual, participating in recoveries,
  * until this returns.
  *
- * Force has 4 possible values:
- * 0 - don't destroy lockspace if it has any LKBs
- * 1 - destroy lockspace if it has remote LKBs but not if it has local LKBs
- * 2 - destroy lockspace regardless of LKBs
- * 3 - destroy lockspace as part of a forced shutdown
+ * See DLM_RELEASE defines for release_option values and their meaning.
  */
 
 int dlm_release_lockspace(void *lockspace, int force)
