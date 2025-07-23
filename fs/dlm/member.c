@@ -478,7 +478,8 @@ static void dlm_lsop_recover_prep(struct dlm_ls *ls)
 	ls->ls_ops->recover_prep(ls->ls_ops_arg);
 }
 
-static void dlm_lsop_recover_slot(struct dlm_ls *ls, struct dlm_member *memb)
+static void dlm_lsop_recover_slot(struct dlm_ls *ls, struct dlm_member *memb,
+				  unsigned int release_recover)
 {
 	struct dlm_slot slot;
 	uint32_t seq;
@@ -495,7 +496,7 @@ static void dlm_lsop_recover_slot(struct dlm_ls *ls, struct dlm_member *memb)
 
 	error = dlm_comm_seq(memb->nodeid, &seq, false);
 
-	if (!error && seq == memb->comm_seq)
+	if (!release_recover && !error && seq == memb->comm_seq)
 		return;
 
 	slot.nodeid = memb->nodeid;
@@ -552,6 +553,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	struct dlm_member *memb, *safe;
 	struct dlm_config_node *node;
 	int i, error, neg = 0, low = -1;
+	unsigned int release_recover;
 
 	/* previously removed members that we've not finished removing need to
 	 * count as a negative change so the "neg" recovery steps will happen
@@ -572,8 +574,12 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		if (node && !node->new && !node->gone)
 			continue;
 
+		release_recover = 0;
+
 		if (node->gone) {
-			log_rinfo(ls, "remove member %d", memb->nodeid);
+			release_recover = node->release_recover;
+			log_rinfo(ls, "remove member %d%s", memb->nodeid,
+				  release_recover ? " (release_recover)" : "");
 		} else {
 			/* removed and re-added */
 			log_rinfo(ls, "remove member %d comm_seq %u %u",
@@ -584,7 +590,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		list_move(&memb->list, &ls->ls_nodes_gone);
 		remove_remote_member(memb->nodeid);
 		ls->ls_num_nodes--;
-		dlm_lsop_recover_slot(ls, memb);
+		dlm_lsop_recover_slot(ls, memb, release_recover);
 	}
 
 	/* add new members to ls_nodes */

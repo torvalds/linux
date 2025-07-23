@@ -738,7 +738,7 @@ static int release_lockspace(struct dlm_ls *ls, int release_option)
 
 	if (release_option != DLM_RELEASE_NO_EVENT &&
 	    dlm_user_daemon_available())
-		do_uevent(ls, 0, 0);
+		do_uevent(ls, 0, (release_option == DLM_RELEASE_RECOVER));
 
 	dlm_recoverd_stop(ls);
 

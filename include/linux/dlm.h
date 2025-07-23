@@ -103,11 +103,16 @@ int dlm_new_lockspace(const char *name, const char *cluster,
  *   a leave event to the cluster manager, so other nodes will
  *   not be notified that the node should be removed from the
  *   list of lockspace members.
+ *
+ * DLM_RELEASE_RECOVER like DLM_RELEASE_NORMAL, but the remaining
+ *   nodes will handle the removal of the node as if the node
+ *   had failed, e.g. the recover_slot() callback would be used.
  */
 #define DLM_RELEASE_NO_LOCKS		0
 #define DLM_RELEASE_UNUSED		1
 #define DLM_RELEASE_NORMAL		2
 #define DLM_RELEASE_NO_EVENT		3
+#define DLM_RELEASE_RECOVER		4
 
 /*
  * dlm_release_lockspace
