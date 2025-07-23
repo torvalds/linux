@@ -2154,8 +2154,6 @@ static ssize_t fuse_iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 	loff_t offset = offset_in_folio(folio, pos);
 
 	WARN_ON_ONCE(!data);
-	/* len will always be page aligned */
-	WARN_ON_ONCE(len & (PAGE_SIZE - 1));
 
 	if (!data->ff) {
 		data->ff = fuse_write_file_get(fi);
