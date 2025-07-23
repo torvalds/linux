@@ -514,14 +514,15 @@ out:
  */
 static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 {
+	if (error)
+		submit_unpin_objects(submit);
+
 	if (submit->exec.objects)
 		drm_exec_fini(&submit->exec);
 
-	if (error) {
-		submit_unpin_objects(submit);
-		/* job wasn't enqueued to scheduler, so early retirement: */
+	/* if job wasn't enqueued to scheduler, early retirement: */
+	if (error)
 		msm_submit_retire(submit);
-	}
 }
 
 void msm_submit_retire(struct msm_gem_submit *submit)
