@@ -264,9 +264,6 @@ static void ish_shutdown(struct pci_dev *pdev)
 
 static struct device __maybe_unused *ish_resume_device;
 
-/* 50ms to get resume response */
-#define WAIT_FOR_RESUME_ACK_MS		50
-
 /**
  * ish_resume_handler() - Work function to complete resume
  * @work:	work struct
