@@ -534,6 +534,12 @@ static inline void gro_normal_list(struct gro_node *gro)
 	gro->rx_count = 0;
 }
 
+static inline void gro_flush_normal(struct gro_node *gro, bool flush_old)
+{
+	gro_flush(gro, flush_old);
+	gro_normal_list(gro);
+}
+
 /* Queue one GRO_NORMAL SKB up for list processing. If batch size exceeded,
  * pass the whole batch up to the stack.
  */
