@@ -275,9 +275,8 @@ class Type(SpecAttr):
     def _setter_lines(self, ri, member, presence):
         raise Exception(f"Setter not implemented for class type {self.type}")
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var="req"):
         ref = (ref if ref else []) + [self.c_name]
-        var = "req"
         member = f"{var}->{'.'.join(ref)}"
 
         local_vars = []
@@ -332,7 +331,7 @@ class TypeUnused(Type):
     def attr_get(self, ri, var, first):
         pass
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var=None):
         pass
 
 
@@ -355,7 +354,7 @@ class TypePad(Type):
     def attr_policy(self, cw):
         pass
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var=None):
         pass
 
 
@@ -695,13 +694,14 @@ class TypeNest(Type):
                       f"parg.data = &{var}->{self.c_name};"]
         return get_lines, init_lines, None
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var="req"):
         ref = (ref if ref else []) + [self.c_name]
 
         for _, attr in ri.family.pure_nested_structs[self.nested_attrs].member_list():
             if attr.is_recursive():
                 continue
-            attr.setter(ri, self.nested_attrs, direction, deref=deref, ref=ref)
+            attr.setter(ri, self.nested_attrs, direction, deref=deref, ref=ref,
+                        var=var)
 
 
 class TypeMultiAttr(Type):
@@ -2561,6 +2561,13 @@ def print_type_full(ri, struct):
         print_alloc_wrapper(ri, "", struct)
         ri.cw.nl()
         free_rsp_nested_prototype(ri)
+        ri.cw.nl()
+
+        # Name conflicts are too hard to deal with with the current code base,
+        # they are very rare so don't bother printing setters in that case.
+        if ri.ku_space == 'user' and not ri.type_name_conflict:
+            for _, attr in struct.member_list():
+                attr.setter(ri, ri.attr_set, "", var="obj")
         ri.cw.nl()
 
 
