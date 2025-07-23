@@ -344,10 +344,15 @@ get_event_field(struct fetch_insn *code, void *rec)
 			val = *(unsigned int *)addr;
 		break;
 	default:
-		if (field->is_signed)
-			val = *(long *)addr;
-		else
-			val = *(unsigned long *)addr;
+		if (field->size == sizeof(long)) {
+			if (field->is_signed)
+				val = *(long *)addr;
+			else
+				val = *(unsigned long *)addr;
+			break;
+		}
+		/* This is an array, point to the addr itself */
+		val = (unsigned long)addr;
 		break;
 	}
 	return val;
