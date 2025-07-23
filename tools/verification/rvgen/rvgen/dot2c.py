@@ -152,28 +152,30 @@ class Dot2c(Automata):
         max_state_name = max(self.states, key = len).__len__()
         return max(max_state_name, self.invalid_state_str.__len__())
 
-    def __get_state_string_length(self):
-        maxlen = self.__get_max_strlen_of_states() + self.enum_suffix.__len__()
-        return "%" + str(maxlen) + "s"
-
     def get_aut_init_function(self):
         nr_states = self.states.__len__()
         nr_events = self.events.__len__()
         buff = []
 
-        strformat = self.__get_state_string_length()
-
+        maxlen = self.__get_max_strlen_of_states() + len(self.enum_suffix)
+        tab_braces = 2 * 8 + 2 + 1  # "\t\t{ " ... "}"
+        comma_space = 2  # ", " count last comma here
+        linetoolong = tab_braces + (maxlen + comma_space) * nr_events > self.line_length
         for x in range(nr_states):
-            line = "\t\t{ "
+            line = "\t\t{\n" if linetoolong else "\t\t{ "
             for y in range(nr_events):
                 next_state = self.function[x][y]
                 if next_state != self.invalid_state_str:
                     next_state = self.function[x][y] + self.enum_suffix
 
-                if y != nr_events-1:
-                    line = line + strformat % next_state + ", "
+                if linetoolong:
+                    line += "\t\t\t%s" % next_state
                 else:
-                    line = line + strformat % next_state + " },"
+                    line += "%*s" % (maxlen, next_state)
+                if y != nr_events-1:
+                    line += ",\n" if linetoolong else ", "
+                else:
+                    line += "\n\t\t}," if linetoolong else " },"
             buff.append(line)
 
         return self.__buff_to_string(buff)
