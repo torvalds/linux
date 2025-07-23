@@ -1384,14 +1384,17 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 
 static int trace_fprobe_create_cb(int argc, const char *argv[])
 {
-	struct traceprobe_parse_context ctx = {
-		.flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE,
-	};
+	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	int ret;
 
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE,
+
 	trace_probe_log_init("trace_fprobe", argc, argv);
-	ret = trace_fprobe_create_internal(argc, argv, &ctx);
-	traceprobe_finish_parse(&ctx);
+	ret = trace_fprobe_create_internal(argc, argv, ctx);
 	trace_probe_log_clear();
 	return ret;
 }

@@ -1065,14 +1065,18 @@ static int trace_kprobe_create_internal(int argc, const char *argv[],
 
 static int trace_kprobe_create_cb(int argc, const char *argv[])
 {
-	struct traceprobe_parse_context ctx = { .flags = TPARG_FL_KERNEL };
+	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	int ret;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->flags = TPARG_FL_KERNEL;
 
 	trace_probe_log_init("trace_kprobe", argc, argv);
 
-	ret = trace_kprobe_create_internal(argc, argv, &ctx);
+	ret = trace_kprobe_create_internal(argc, argv, ctx);
 
-	traceprobe_finish_parse(&ctx);
 	trace_probe_log_clear();
 	return ret;
 }
