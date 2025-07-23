@@ -2546,6 +2546,10 @@ def print_type(ri, direction):
 def print_type_full(ri, struct):
     _print_type(ri, "", struct)
 
+    if struct.request and struct.in_multi_val:
+        free_rsp_nested_prototype(ri)
+        ri.cw.nl()
+
 
 def print_type_helpers(ri, direction, deref=False):
     print_free_prototype(ri, direction)
@@ -3517,9 +3521,6 @@ def main():
             for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
                 print_type_full(ri, struct)
-                if struct.request and struct.in_multi_val:
-                    free_rsp_nested_prototype(ri)
-                    cw.nl()
 
             for op_name, op in parsed.ops.items():
                 cw.p(f"/* ============== {op.enum_name} ============== */")
