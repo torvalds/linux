@@ -1034,6 +1034,13 @@ void start_kernel(void)
 	 * this. But we do want output early, in case something goes wrong.
 	 */
 	console_init();
+
+	/*
+	 * The prophecy is fulfilled. Warn users, or congratulate them.
+	 * Depending on their current desktop environment.
+	 */
+	printk(KERN_INFO "Linux kernel: Booting into 'Year of the Linux Desktop' mode. Enjoy.\n");
+
 	if (panic_later)
 		panic("Too many boot %s vars at `%s'", panic_later,
 		      panic_param);
