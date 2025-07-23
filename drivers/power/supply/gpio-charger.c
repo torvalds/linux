@@ -79,7 +79,8 @@ static int set_charge_current_limit(struct gpio_charger *gpio_charger, int val)
 
 	for (i = 0; i < ndescs; i++) {
 		bool val = (mapping.gpiodata >> i) & 1;
-		gpiod_set_value_cansleep(gpios[ndescs-i-1], val);
+
+		gpiod_set_value_cansleep(gpios[ndescs - i - 1], val);
 	}
 
 	gpio_charger->charge_current_limit = mapping.limit_ua;
@@ -226,14 +227,14 @@ static int init_charge_current_limit(struct device *dev,
 	gpio_charger->current_limit_map_size = len / 2;
 
 	len = device_property_read_u32_array(dev, "charge-current-limit-mapping",
-		(u32*) gpio_charger->current_limit_map, len);
+		(u32 *) gpio_charger->current_limit_map, len);
 	if (len < 0)
 		return len;
 
 	set_def_limit = !device_property_read_u32(dev,
 						  "charge-current-limit-default-microamp",
 						  &def_limit);
-	for (i=0; i < gpio_charger->current_limit_map_size; i++) {
+	for (i = 0; i < gpio_charger->current_limit_map_size; i++) {
 		if (gpio_charger->current_limit_map[i].limit_ua > cur_limit) {
 			dev_err(dev, "charge-current-limit-mapping not sorted by current in descending order\n");
 			return -EINVAL;
