@@ -850,7 +850,7 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device)
 
 	pcm->private_data = ice;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "ICE1712 consumer");
+	strscpy(pcm->name, "ICE1712 consumer");
 	ice->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -875,7 +875,7 @@ static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device)
 
 	pcm->private_data = ice;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "ICE1712 consumer (DS)");
+	strscpy(pcm->name, "ICE1712 consumer (DS)");
 	ice->pcm_ds = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1216,7 +1216,7 @@ static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device)
 
 	pcm->private_data = ice;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "ICE1712 multi");
+	strscpy(pcm->name, "ICE1712 multi");
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &ice->pci->dev, 256*1024, 256*1024);
@@ -2559,8 +2559,8 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 		return err;
 	ice = card->private_data;
 
-	strcpy(card->driver, "ICE1712");
-	strcpy(card->shortname, "ICEnsemble ICE1712");
+	strscpy(card->driver, "ICE1712");
+	strscpy(card->shortname, "ICEnsemble ICE1712");
 
 	err = snd_ice1712_create(card, pci, model[dev], omni[dev],
 				 cs8427_timeout[dev], dxr_enable[dev]);
@@ -2570,9 +2570,9 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 	for (tbl = card_tables; *tbl; tbl++) {
 		for (c = *tbl; c->subvendor; c++) {
 			if (c->subvendor == ice->eeprom.subvendor) {
-				strcpy(card->shortname, c->name);
+				strscpy(card->shortname, c->name);
 				if (c->driver) /* specific driver? */
-					strcpy(card->driver, c->driver);
+					strscpy(card->driver, c->driver);
 				if (c->chip_init) {
 					err = c->chip_init(ice);
 					if (err < 0)

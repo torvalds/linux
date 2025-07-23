@@ -573,7 +573,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, "p16v");
+	strscpy(pcm->name, "p16v");
 	emu->pcm_p16v = pcm;
 	emu->p16v_interrupt = snd_p16v_interrupt;
 

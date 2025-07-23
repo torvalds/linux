@@ -24,7 +24,6 @@
 #include <sound/hda_i915.h>
 #include <sound/pcm_drm_eld.h>
 #include <sound/hda_chmap.h>
-#include "../../hda/local.h"
 #include "hdac_hdmi.h"
 
 #define NAME_SIZE	32
@@ -221,8 +220,8 @@ static int hdac_hdmi_get_port_len(struct hdac_device *hdev, hda_nid_t nid)
 	unsigned int caps;
 	unsigned int type, param;
 
-	caps = get_wcaps(hdev, nid);
-	type = get_wcaps_type(caps);
+	caps = snd_hdac_get_wcaps(hdev, nid);
+	type = snd_hdac_get_wcaps_type(caps);
 
 	if (!(caps & AC_WCAP_DIGITAL) || (type != AC_WID_PIN))
 		return 0;
@@ -492,10 +491,10 @@ static int hdac_hdmi_query_port_connlist(struct hdac_device *hdev,
 					struct hdac_hdmi_pin *pin,
 					struct hdac_hdmi_port *port)
 {
-	if (!(get_wcaps(hdev, pin->nid) & AC_WCAP_CONN_LIST)) {
+	if (!(snd_hdac_get_wcaps(hdev, pin->nid) & AC_WCAP_CONN_LIST)) {
 		dev_warn(&hdev->dev,
 			"HDMI: pin %d wcaps %#x does not support connection list\n",
-			pin->nid, get_wcaps(hdev, pin->nid));
+			pin->nid, snd_hdac_get_wcaps(hdev, pin->nid));
 		return -EINVAL;
 	}
 
@@ -660,8 +659,8 @@ hdac_hdmi_query_cvt_params(struct hdac_device *hdev, struct hdac_hdmi_cvt *cvt)
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(hdev);
 	int err;
 
-	chans = get_wcaps(hdev, cvt->nid);
-	chans = get_wcaps_channels(chans);
+	chans = snd_hdac_get_wcaps(hdev, cvt->nid);
+	chans = snd_hdac_get_wcaps_channels(chans);
 
 	cvt->params.channels_min = 2;
 
@@ -743,7 +742,7 @@ static void hdac_hdmi_set_power_state(struct hdac_device *hdev,
 	int count;
 	unsigned int state;
 
-	if (get_wcaps(hdev, nid) & AC_WCAP_POWER) {
+	if (snd_hdac_get_wcaps(hdev, nid) & AC_WCAP_POWER) {
 		if (!snd_hdac_check_power_state(hdev, nid, pwr_state)) {
 			for (count = 0; count < 10; count++) {
 				snd_hdac_codec_read(hdev, nid, 0,
@@ -761,7 +760,7 @@ static void hdac_hdmi_set_power_state(struct hdac_device *hdev,
 static void hdac_hdmi_set_amp(struct hdac_device *hdev,
 				   hda_nid_t nid, int val)
 {
-	if (get_wcaps(hdev, nid) & AC_WCAP_OUT_AMP)
+	if (snd_hdac_get_wcaps(hdev, nid) & AC_WCAP_OUT_AMP)
 		snd_hdac_codec_write(hdev, nid, 0,
 					AC_VERB_SET_AMP_GAIN_MUTE, val);
 }
@@ -1648,8 +1647,8 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_device *hdev,
 		unsigned int caps;
 		unsigned int type;
 
-		caps = get_wcaps(hdev, nid);
-		type = get_wcaps_type(caps);
+		caps = snd_hdac_get_wcaps(hdev, nid);
+		type = snd_hdac_get_wcaps_type(caps);
 
 		if (!(caps & AC_WCAP_DIGITAL))
 			continue;

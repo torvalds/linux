@@ -192,14 +192,14 @@ static int snd_card_als100_probe(int dev,
 	acard->chip = chip;
 
 	if (pid->driver_data == SB_HW_DT019X) {
-		strcpy(card->driver, "DT-019X");
-		strcpy(card->shortname, "Diamond Tech. DT-019X");
+		strscpy(card->driver, "DT-019X");
+		strscpy(card->shortname, "Diamond Tech. DT-019X");
 		snprintf(card->longname, sizeof(card->longname),
 			 "Diamond Tech. DT-019X, %s at 0x%lx, irq %d, dma %d",
 			 chip->name, chip->port, irq[dev], dma8[dev]);
 	} else {
-		strcpy(card->driver, "ALS100");
-		strcpy(card->shortname, "Avance Logic ALS100");
+		strscpy(card->driver, "ALS100");
+		strscpy(card->shortname, "Avance Logic ALS100");
 		snprintf(card->longname, sizeof(card->longname),
 			 "Avance Logic ALS100, %s at 0x%lx, irq %d, dma %d&%d",
 			 chip->name, chip->port, irq[dev], dma8[dev],

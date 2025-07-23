@@ -825,8 +825,8 @@ static int uaudio_sideband_notifier(struct usb_interface *intf,
 		}
 	}
 
-	mutex_unlock(&qdev_mutex);
 	mutex_unlock(&chip->mutex);
+	mutex_unlock(&qdev_mutex);
 
 	return 0;
 }
@@ -1865,8 +1865,8 @@ static void qc_usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 
 	/* Device has already been cleaned up, or never populated */
 	if (!dev->chip) {
-		mutex_unlock(&qdev_mutex);
 		mutex_unlock(&chip->mutex);
+		mutex_unlock(&qdev_mutex);
 		return;
 	}
 
@@ -1921,8 +1921,8 @@ static void qc_usb_audio_offload_suspend(struct usb_interface *intf,
 
 	uaudio_send_disconnect_ind(chip);
 
-	mutex_unlock(&qdev_mutex);
 	mutex_unlock(&chip->mutex);
+	mutex_unlock(&qdev_mutex);
 }
 
 static struct snd_usb_platform_ops offload_ops = {

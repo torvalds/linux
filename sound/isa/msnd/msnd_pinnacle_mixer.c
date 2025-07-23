@@ -299,7 +299,7 @@ int snd_msndmix_new(struct snd_card *card)
 	if (snd_BUG_ON(!chip))
 		return -EINVAL;
 	spin_lock_init(&chip->mixer_lock);
-	strcpy(card->mixername, "MSND Pinnacle Mixer");
+	strscpy(card->mixername, "MSND Pinnacle Mixer");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_msnd_controls); idx++) {
 		err = snd_ctl_add(card,

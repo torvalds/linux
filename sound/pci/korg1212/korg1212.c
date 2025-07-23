@@ -2249,7 +2249,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 
 	korg1212->pcm->private_data = korg1212;
         korg1212->pcm->private_free = snd_korg1212_free_pcm;
-        strcpy(korg1212->pcm->name, "korg1212");
+        strscpy(korg1212->pcm->name, "korg1212");
 
         snd_pcm_set_ops(korg1212->pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_korg1212_playback_ops);
         
@@ -2298,8 +2298,8 @@ snd_korg1212_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto error;
 
-	strcpy(card->driver, "korg1212");
-	strcpy(card->shortname, "korg1212");
+	strscpy(card->driver, "korg1212");
+	strscpy(card->shortname, "korg1212");
 	sprintf(card->longname, "%s at 0x%lx, irq %d", card->shortname,
 		korg1212->iomem, korg1212->irq);
 

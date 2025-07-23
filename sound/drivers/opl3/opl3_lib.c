@@ -245,7 +245,7 @@ static int snd_opl3_timer1_init(struct snd_opl3 * opl3, int timer_no)
 	tid.subdevice = 0;
 	err = snd_timer_new(opl3->card, "AdLib timer #1", &tid, &timer);
 	if (err >= 0) {
-		strcpy(timer->name, "AdLib timer #1");
+		strscpy(timer->name, "AdLib timer #1");
 		timer->private_data = opl3;
 		timer->hw = snd_opl3_timer1;
 	}
@@ -266,7 +266,7 @@ static int snd_opl3_timer2_init(struct snd_opl3 * opl3, int timer_no)
 	tid.subdevice = 0;
 	err = snd_timer_new(opl3->card, "AdLib timer #2", &tid, &timer);
 	if (err >= 0) {
-		strcpy(timer->name, "AdLib timer #2");
+		strscpy(timer->name, "AdLib timer #2");
 		timer->private_data = opl3;
 		timer->hw = snd_opl3_timer2;
 	}
@@ -497,18 +497,18 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 	if (device == 0)
 		hw->oss_type = SNDRV_OSS_DEVICE_TYPE_DMFM;
 #endif
-	strcpy(hw->name, hw->id);
+	strscpy(hw->name, hw->id);
 	switch (opl3->hardware & OPL3_HW_MASK) {
 	case OPL3_HW_OPL2:
-		strcpy(hw->name, "OPL2 FM");
+		strscpy(hw->name, "OPL2 FM");
 		hw->iface = SNDRV_HWDEP_IFACE_OPL2;
 		break;
 	case OPL3_HW_OPL3:
-		strcpy(hw->name, "OPL3 FM");
+		strscpy(hw->name, "OPL3 FM");
 		hw->iface = SNDRV_HWDEP_IFACE_OPL3;
 		break;
 	case OPL3_HW_OPL4:
-		strcpy(hw->name, "OPL4 FM");
+		strscpy(hw->name, "OPL4 FM");
 		hw->iface = SNDRV_HWDEP_IFACE_OPL4;
 		break;
 	}
@@ -524,7 +524,7 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (snd_seq_device_new(card, seq_device, SNDRV_SEQ_DEV_ID_OPL3,
 			       sizeof(struct snd_opl3 *), &opl3->seq_dev) >= 0) {
-		strcpy(opl3->seq_dev->name, hw->name);
+		strscpy(opl3->seq_dev->name, hw->name);
 		*(struct snd_opl3 **)SNDRV_SEQ_DEVICE_ARGPTR(opl3->seq_dev) = opl3;
 	}
 #endif

@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if SND_HDA
+
+config SND_HDA_GENERIC_LEDS
+       bool
+
+config SND_HDA_CODEC_ANALOG
+	tristate "Build Analog Devices HD-audio codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include Analog Devices HD-audio codec support in
+	  snd-hda-intel driver, such as AD1986A.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_ANALOG=m
+
+config SND_HDA_CODEC_SIGMATEL
+	tristate "Build IDT/Sigmatel HD-audio codec support"
+	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
+	help
+	  Say Y or M here to include IDT (Sigmatel) HD-audio codec support in
+	  snd-hda-intel driver, such as STAC9200.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_SIGMATEL=m
+
+config SND_HDA_CODEC_VIA
+	tristate "Build VIA HD-audio codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include VIA HD-audio codec support in
+	  snd-hda-intel driver, such as VT1708.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_VIA=m
+
+config SND_HDA_CODEC_CONEXANT
+	tristate "Build Conexant HD-audio codec support"
+	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
+	help
+	  Say Y or M here to include Conexant HD-audio codec support in
+	  snd-hda-intel driver, such as CX20549.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CONEXANT=m
+
+config SND_HDA_CODEC_SENARYTECH
+	tristate "Build Senarytech HD-audio codec support"
+	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
+	help
+	  Say Y or M here to include Senarytech HD-audio codec support in
+	  snd-hda-intel driver, such as SN6186.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_SENARYTECH=m
+
+config SND_HDA_CODEC_CA0110
+	tristate "Build Creative CA0110-IBG codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include Creative CA0110-IBG codec support in
+	  snd-hda-intel driver, found on some Creative X-Fi cards.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CA0110=m
+
+config SND_HDA_CODEC_CA0132
+	tristate "Build Creative CA0132 codec support"
+	help
+	  Say Y or M here to include Creative CA0132 codec support in
+	  snd-hda-intel driver.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CA0132=m
+
+config SND_HDA_CODEC_CA0132_DSP
+	bool "Support new DSP code for CA0132 codec"
+	depends on SND_HDA_CODEC_CA0132
+	default y
+	select SND_HDA_DSP_LOADER
+	select FW_LOADER
+	help
+	  Say Y here to enable the DSP for Creative CA0132 for extended
+	  features like equalizer or echo cancellation.
+
+	  Note that this option requires the external firmware file
+	  (ctefx.bin).
+
+config SND_HDA_CODEC_CMEDIA
+	tristate "Build C-Media HD-audio codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include C-Media HD-audio codec support in
+	  snd-hda-intel driver, such as CMI9880.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CMEDIA=m
+
+config SND_HDA_CODEC_CM9825
+	tristate "Build C-Media CM9825 HD-audio codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include C-Media CM9825 HD-audio codec support in
+	  snd-hda-intel driver
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CM9825=m
+
+config SND_HDA_CODEC_SI3054
+	tristate "Build Silicon Labs 3054 HD-modem codec support"
+	help
+	  Say Y or M here to include Silicon Labs 3054 HD-modem codec
+	  (and compatibles) support in snd-hda-intel driver.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_SI3054=m
+
+config SND_HDA_GENERIC
+	tristate "Enable generic HD-audio codec parser"
+	select SND_CTL_LED if SND_HDA_GENERIC_LEDS
+	select LEDS_CLASS if SND_HDA_GENERIC_LEDS
+	help
+	  Say Y or M here to enable the generic HD-audio codec parser
+	  in snd-hda-intel driver.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_GENERIC=m
+
+source "sound/hda/codecs/realtek/Kconfig"
+source "sound/hda/codecs/cirrus/Kconfig"
+source "sound/hda/codecs/hdmi/Kconfig"
+source "sound/hda/codecs/side-codecs/Kconfig"
+
+endif # SND_HDA

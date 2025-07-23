@@ -90,9 +90,9 @@ get_hardware_info(struct snd_efw *efw)
 		 (hwinfo->arm_version >> 16) & 0xff);
 	efw->firmware_version = hwinfo->arm_version;
 
-	strcpy(efw->card->driver, "Fireworks");
-	strcpy(efw->card->shortname, hwinfo->model_name);
-	strcpy(efw->card->mixername, hwinfo->model_name);
+	strscpy(efw->card->driver, "Fireworks");
+	strscpy(efw->card->shortname, hwinfo->model_name);
+	strscpy(efw->card->mixername, hwinfo->model_name);
 	scnprintf(efw->card->longname, sizeof(efw->card->longname),
 		  "%s %s v%s, GUID %08x%08x at %s, S%d",
 		  hwinfo->vendor_name, hwinfo->model_name, version,

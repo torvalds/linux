@@ -287,7 +287,7 @@ int ca_midi_init(void *dev_id, struct snd_ca_midi *midi, int device, char *name)
 	spin_lock_init(&midi->input_lock);
 	spin_lock_init(&midi->output_lock);
 
-	strcpy(rmidi->name, name);
+	strscpy(rmidi->name, name);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &ca_midi_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &ca_midi_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT |

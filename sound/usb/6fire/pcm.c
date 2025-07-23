@@ -640,7 +640,7 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	}
 
 	pcm->private_data = rt;
-	strcpy(pcm->name, "DMX 6Fire USB");
+	strscpy(pcm->name, "DMX 6Fire USB");
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pcm_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcm_ops);
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
