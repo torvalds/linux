@@ -238,6 +238,33 @@ static void devinfo_no_mac_cfg_dups(struct kunit *test)
 	}
 }
 
+static void devinfo_api_range(struct kunit *test)
+{
+	/* Check that all iwl_mac_cfg's have either both min and max set, or neither */
+	for (int i = 0; iwl_hw_card_ids[i].vendor; i++) {
+		const struct iwl_mac_cfg *mac_cfg =
+			(void *)iwl_hw_card_ids[i].driver_data;
+		const struct iwl_family_base_params *base = mac_cfg->base;
+
+		KUNIT_EXPECT_EQ_MSG(test, !!base->ucode_api_min,
+				    !!base->ucode_api_max,
+				    "%ps: ucode_api_min (%u) and ucode_api_min (%u) should be both set or neither.\n",
+				    base, base->ucode_api_min,
+				    base->ucode_api_max);
+	}
+
+	/* Check the same for the iwl_rf_cfg's */
+	for (int i = 0; i < iwl_dev_info_table_size; i++) {
+		const struct iwl_rf_cfg *rf_cfg = iwl_dev_info_table[i].cfg;
+
+		KUNIT_EXPECT_EQ_MSG(test, !!rf_cfg->ucode_api_min,
+				    !!rf_cfg->ucode_api_max,
+				    "%ps: ucode_api_min (%u) and ucode_api_min (%u) should be both set or neither.\n",
+				    rf_cfg, rf_cfg->ucode_api_min,
+				    rf_cfg->ucode_api_max);
+	}
+}
+
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
 	KUNIT_CASE(devinfo_discrete_match),
@@ -248,6 +275,7 @@ static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_check_killer_subdev),
 	KUNIT_CASE(devinfo_pci_ids),
 	KUNIT_CASE(devinfo_no_mac_cfg_dups),
+	KUNIT_CASE(devinfo_api_range),
 	{}
 };
 

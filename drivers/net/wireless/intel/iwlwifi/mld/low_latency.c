@@ -224,9 +224,6 @@ void iwl_mld_vif_update_low_latency(struct iwl_mld *mld,
 		return;
 	}
 
-	if (low_latency)
-		iwl_mld_leave_omi_bw_reduction(mld);
-
 	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_P2P_CLIENT)
 		return;
 

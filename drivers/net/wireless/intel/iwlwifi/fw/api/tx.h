@@ -181,8 +181,8 @@ enum iwl_tx_offload_assist_flags_pos {
 
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
- * struct iwl_tx_cmd_v6 - TX command struct to FW
- * ( TX_CMD = 0x1c )
+ * struct iwl_tx_cmd_v6_params - parameters of the TX
+ *
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
  * @tx_flags: combination of TX_CMD_FLG_*, see &enum iwl_tx_flags
@@ -205,8 +205,6 @@ enum iwl_tx_offload_assist_flags_pos {
  * @tid_tspec: TID/tspec
  * @pm_frame_timeout: PM TX frame timeout
  * @reserved4: reserved
- * @payload: payload (same as @hdr)
- * @hdr: 802.11 header (same as @payload)
  *
  * The byte count (both len and next_frame_len) includes MAC header
  * (24/26/30/32 bytes)
@@ -217,11 +215,8 @@ enum iwl_tx_offload_assist_flags_pos {
  * It does not include post-MAC padding, i.e.,
  * MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.
  * Range of len: 14-2342 bytes.
- *
- * After the struct fields the MAC header is placed, plus any padding,
- * and then the actial payload.
  */
-struct iwl_tx_cmd_v6 {
+struct iwl_tx_cmd_v6_params {
 	__le16 len;
 	__le16 offload_assist;
 	__le32 tx_flags;
@@ -245,10 +240,20 @@ struct iwl_tx_cmd_v6 {
 	u8 tid_tspec;
 	__le16 pm_frame_timeout;
 	__le16 reserved4;
-	union {
-		DECLARE_FLEX_ARRAY(u8, payload);
-		DECLARE_FLEX_ARRAY(struct ieee80211_hdr, hdr);
-	};
+} __packed; /* TX_CMD_API_S_VER_6 */
+
+/**
+ * struct iwl_tx_cmd_v6 - TX command struct to FW
+ * ( TX_CMD = 0x1c )
+ * @params: parameters of the TX, see &struct iwl_tx_cmd_v6_tx_params
+ * @hdr: 802.11 header
+ *
+ * After &params, the MAC header is placed, plus any padding,
+ * and then the actual payload.
+ */
+struct iwl_tx_cmd_v6 {
+	struct iwl_tx_cmd_v6_params params;
+	struct ieee80211_hdr hdr[];
 } __packed; /* TX_CMD_API_S_VER_6 */
 
 struct iwl_dram_sec_info {
@@ -748,7 +753,7 @@ struct iwl_compressed_ba_notif {
  * @frame: the template of the beacon frame
  */
 struct iwl_mac_beacon_cmd_v6 {
-	struct iwl_tx_cmd_v6 tx;
+	struct iwl_tx_cmd_v6_params tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;
@@ -767,7 +772,7 @@ struct iwl_mac_beacon_cmd_v6 {
  * @frame: the template of the beacon frame
  */
 struct iwl_mac_beacon_cmd_v7 {
-	struct iwl_tx_cmd_v6 tx;
+	struct iwl_tx_cmd_v6_params tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;

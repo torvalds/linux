@@ -148,12 +148,12 @@ out:
  * Sets most of the Tx cmd's fields
  */
 void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
-			struct iwl_tx_cmd_v6 *tx_cmd,
+			struct iwl_tx_cmd_v6_params *tx_cmd_params,
 			struct ieee80211_tx_info *info, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
-	u32 tx_flags = le32_to_cpu(tx_cmd->tx_flags);
+	u32 tx_flags = le32_to_cpu(tx_cmd_params->tx_flags);
 	u32 len = skb->len + FCS_LEN;
 	bool amsdu = false;
 	u8 ac;
@@ -173,7 +173,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (ieee80211_is_data_qos(fc)) {
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
-		tx_cmd->tid_tspec = qc[0] & 0xf;
+		tx_cmd_params->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL;
 		amsdu = *qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 	} else if (ieee80211_is_back_req(fc)) {
@@ -182,17 +182,17 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		u16 ssn = le16_to_cpu(bar->start_seq_num);
 
 		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
-		tx_cmd->tid_tspec = (control &
+		tx_cmd_params->tid_tspec = (control &
 				     IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
 			IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
-		WARN_ON_ONCE(tx_cmd->tid_tspec >= IWL_MAX_TID_COUNT);
-		iwl_mvm_bar_check_trigger(mvm, bar->ra, tx_cmd->tid_tspec,
+		WARN_ON_ONCE(tx_cmd_params->tid_tspec >= IWL_MAX_TID_COUNT);
+		iwl_mvm_bar_check_trigger(mvm, bar->ra, tx_cmd_params->tid_tspec,
 					  ssn);
 	} else {
 		if (ieee80211_is_data(fc))
-			tx_cmd->tid_tspec = IWL_TID_NON_QOS;
+			tx_cmd_params->tid_tspec = IWL_TID_NON_QOS;
 		else
-			tx_cmd->tid_tspec = IWL_MAX_TID_COUNT;
+			tx_cmd_params->tid_tspec = IWL_MAX_TID_COUNT;
 
 		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 			tx_flags |= TX_CMD_FLG_SEQ_CTL;
@@ -201,8 +201,8 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	/* Default to 0 (BE) when tid_spec is set to IWL_MAX_TID_COUNT */
-	if (tx_cmd->tid_tspec < IWL_MAX_TID_COUNT)
-		ac = tid_to_mac80211_ac[tx_cmd->tid_tspec];
+	if (tx_cmd_params->tid_tspec < IWL_MAX_TID_COUNT)
+		ac = tid_to_mac80211_ac[tx_cmd_params->tid_tspec];
 	else
 		ac = tid_to_mac80211_ac[0];
 
@@ -211,20 +211,20 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (ieee80211_is_mgmt(fc)) {
 		if (ieee80211_is_assoc_req(fc) || ieee80211_is_reassoc_req(fc))
-			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_ASSOC);
+			tx_cmd_params->pm_frame_timeout = cpu_to_le16(PM_FRAME_ASSOC);
 		else if (ieee80211_is_action(fc))
-			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
+			tx_cmd_params->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
 		else
-			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
+			tx_cmd_params->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
 
 		/* The spec allows Action frames in A-MPDU, we don't support
 		 * it
 		 */
 		WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_AMPDU);
 	} else if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO) {
-		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
+		tx_cmd_params->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
 	} else {
-		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
+		tx_cmd_params->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
 	}
 
 	if (ieee80211_is_data(fc) && len > mvm->rts_threshold &&
@@ -236,13 +236,13 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    ieee80211_action_contains_tpc(skb))
 		tx_flags |= TX_CMD_FLG_WRITE_TX_POWER;
 
-	tx_cmd->tx_flags = cpu_to_le32(tx_flags);
+	tx_cmd_params->tx_flags = cpu_to_le32(tx_flags);
 	/* Total # bytes to be transmitted - PCIe code will adjust for A-MSDU */
-	tx_cmd->len = cpu_to_le16((u16)skb->len);
-	tx_cmd->life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
-	tx_cmd->sta_id = sta_id;
+	tx_cmd_params->len = cpu_to_le16((u16)skb->len);
+	tx_cmd_params->life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
+	tx_cmd_params->sta_id = sta_id;
 
-	tx_cmd->offload_assist =
+	tx_cmd_params->offload_assist =
 		cpu_to_le16(iwl_mvm_tx_csum(mvm, skb, info, amsdu));
 }
 
@@ -395,22 +395,23 @@ static __le32 iwl_mvm_get_tx_rate_n_flags(struct iwl_mvm *mvm,
 /*
  * Sets the fields in the Tx cmd that are rate related
  */
-void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd_v6 *tx_cmd,
-			    struct ieee80211_tx_info *info,
-			    struct ieee80211_sta *sta, __le16 fc)
+void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
+			     struct iwl_tx_cmd_v6_params *tx_cmd_params,
+			     struct ieee80211_tx_info *info,
+			     struct ieee80211_sta *sta, __le16 fc)
 {
 	/* Set retry limit on RTS packets */
-	tx_cmd->rts_retry_limit = IWL_RTS_DFAULT_RETRY_LIMIT;
+	tx_cmd_params->rts_retry_limit = IWL_RTS_DFAULT_RETRY_LIMIT;
 
 	/* Set retry limit on DATA packets and Probe Responses*/
 	if (ieee80211_is_probe_resp(fc)) {
-		tx_cmd->data_retry_limit = IWL_MGMT_DFAULT_RETRY_LIMIT;
-		tx_cmd->rts_retry_limit =
-			min(tx_cmd->data_retry_limit, tx_cmd->rts_retry_limit);
+		tx_cmd_params->data_retry_limit = IWL_MGMT_DFAULT_RETRY_LIMIT;
+		tx_cmd_params->rts_retry_limit =
+			min(tx_cmd_params->data_retry_limit, tx_cmd_params->rts_retry_limit);
 	} else if (ieee80211_is_back_req(fc)) {
-		tx_cmd->data_retry_limit = IWL_BAR_DFAULT_RETRY_LIMIT;
+		tx_cmd_params->data_retry_limit = IWL_BAR_DFAULT_RETRY_LIMIT;
 	} else {
-		tx_cmd->data_retry_limit = IWL_DEFAULT_TX_RETRY;
+		tx_cmd_params->data_retry_limit = IWL_DEFAULT_TX_RETRY;
 	}
 
 	/*
@@ -423,17 +424,17 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd_v6 *tx_cmd,
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		if (mvmsta->sta_state >= IEEE80211_STA_AUTHORIZED) {
-			tx_cmd->initial_rate_index = 0;
-			tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
+			tx_cmd_params->initial_rate_index = 0;
+			tx_cmd_params->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
 			return;
 		}
 	} else if (ieee80211_is_back_req(fc)) {
-		tx_cmd->tx_flags |=
+		tx_cmd_params->tx_flags |=
 			cpu_to_le32(TX_CMD_FLG_ACK | TX_CMD_FLG_BAR);
 	}
 
 	/* Set the rate in the TX cmd */
-	tx_cmd->rate_n_flags = iwl_mvm_get_tx_rate_n_flags(mvm, info, sta, fc);
+	tx_cmd_params->rate_n_flags = iwl_mvm_get_tx_rate_n_flags(mvm, info, sta, fc);
 }
 
 static inline void iwl_mvm_set_tx_cmd_pn(struct ieee80211_tx_info *info,
@@ -458,7 +459,7 @@ static inline void iwl_mvm_set_tx_cmd_pn(struct ieee80211_tx_info *info,
  */
 static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 				      struct ieee80211_tx_info *info,
-				      struct iwl_tx_cmd_v6 *tx_cmd,
+				      struct iwl_tx_cmd_v6_params *tx_cmd_params,
 				      struct sk_buff *skb_frag,
 				      int hdrlen)
 {
@@ -469,26 +470,26 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
-		iwl_mvm_set_tx_cmd_ccmp(info, tx_cmd);
+		iwl_mvm_set_tx_cmd_ccmp(info, tx_cmd_params);
 		iwl_mvm_set_tx_cmd_pn(info, crypto_hdr);
 		break;
 
 	case WLAN_CIPHER_SUITE_TKIP:
-		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
+		tx_cmd_params->sec_ctl = TX_CMD_SEC_TKIP;
 		pn = atomic64_inc_return(&keyconf->tx_pn);
 		ieee80211_tkip_add_iv(crypto_hdr, keyconf, pn);
-		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
+		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd_params->key);
 		break;
 
 	case WLAN_CIPHER_SUITE_WEP104:
-		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
+		tx_cmd_params->sec_ctl |= TX_CMD_SEC_KEY128;
 		fallthrough;
 	case WLAN_CIPHER_SUITE_WEP40:
-		tx_cmd->sec_ctl |= TX_CMD_SEC_WEP |
+		tx_cmd_params->sec_ctl |= TX_CMD_SEC_WEP |
 			((keyconf->keyidx << TX_CMD_SEC_WEP_KEY_IDX_POS) &
 			  TX_CMD_SEC_WEP_KEY_IDX_MSK);
 
-		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
+		memcpy(&tx_cmd_params->key[3], keyconf->key, keyconf->keylen);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
@@ -501,12 +502,12 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 		 * one.
 		 * Need to handle this.
 		 */
-		tx_cmd->sec_ctl |= type | TX_CMD_SEC_KEY_FROM_TABLE;
-		tx_cmd->key[0] = keyconf->hw_key_idx;
+		tx_cmd_params->sec_ctl |= type | TX_CMD_SEC_KEY_FROM_TABLE;
+		tx_cmd_params->key[0] = keyconf->hw_key_idx;
 		iwl_mvm_set_tx_cmd_pn(info, crypto_hdr);
 		break;
 	default:
-		tx_cmd->sec_ctl |= TX_CMD_SEC_EXT;
+		tx_cmd_params->sec_ctl |= TX_CMD_SEC_EXT;
 	}
 }
 
@@ -636,11 +637,11 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	tx_cmd = (struct iwl_tx_cmd_v6 *)dev_cmd->payload;
 
 	if (info->control.hw_key)
-		iwl_mvm_set_tx_cmd_crypto(mvm, info, tx_cmd, skb, hdrlen);
+		iwl_mvm_set_tx_cmd_crypto(mvm, info, &tx_cmd->params, skb, hdrlen);
 
-	iwl_mvm_set_tx_cmd(mvm, skb, tx_cmd, info, sta_id);
+	iwl_mvm_set_tx_cmd(mvm, skb, &tx_cmd->params, info, sta_id);
 
-	iwl_mvm_set_tx_cmd_rate(mvm, tx_cmd, info, sta, hdr->frame_control);
+	iwl_mvm_set_tx_cmd_rate(mvm, &tx_cmd->params, info, sta, hdr->frame_control);
 
 	/* Copy MAC header from skb into command buffer */
 	iwl_mvm_copy_hdr(tx_cmd->hdr, hdr, hdrlen, addr3_override);
