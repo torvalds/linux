@@ -2489,7 +2489,7 @@ static const struct clk_parent_data g12a_sd_emmc_clk0_parent_data[] = {
 	/*
 	 * Following these parent clocks, we should also have had mpll2, mpll3
 	 * and gp0_pll but these clocks are too precious to be used here. All
-	 * the necessary rates for MMC and NAND operation can be acheived using
+	 * the necessary rates for MMC and NAND operation can be achieved using
 	 * g12a_ee_core or fclk_div clocks
 	 */
 };
@@ -3753,8 +3753,8 @@ static struct clk_regmap g12a_mipi_dsi_pxclk_sel = {
 };
 
 /*
- * FIXME: Force as bypass by forcing a single /1 table entry, and doensn't on boot value
- * when setting a clock whith this node in the clock path, but doesn't garantee the divider
+ * FIXME: Force as bypass by forcing a single /1 table entry, and doesn't on boot value
+ * when setting a clock with this node in the clock path, but doesn't guarantee the divider
  * is at /1 at boot until a rate is set.
  */
 static const struct clk_div_table g12a_mipi_dsi_pxclk_div_table[] = {

@@ -711,7 +711,7 @@ struct clk_hw *imx_clk_scu_alloc_dev(const char *name,
 	if (ret)
 		goto put_device;
 
-	/* For API backwards compatiblilty, simply return NULL for success */
+	/* For API backwards compatibility, simply return NULL for success */
 	return NULL;
 
 put_device:

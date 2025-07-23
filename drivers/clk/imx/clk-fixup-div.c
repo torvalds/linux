@@ -18,7 +18,7 @@
  * @fixup: a hook to fixup the write value
  *
  * The imx fixup divider clock is a subclass of basic clk_divider
- * with an addtional fixup hook.
+ * with an additional fixup hook.
  */
 struct clk_fixup_div {
 	struct clk_divider divider;

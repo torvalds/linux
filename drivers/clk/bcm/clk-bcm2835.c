@@ -1555,7 +1555,7 @@ static const char *const bcm2835_clock_osc_parents[] = {
 	.parents = bcm2835_clock_osc_parents,				\
 	__VA_ARGS__)
 
-/* main peripherial parent mux */
+/* main peripheral parent mux */
 static const char *const bcm2835_clock_per_parents[] = {
 	"gnd",
 	"xosc",

@@ -172,7 +172,7 @@ again:
 		}
 	}
 
-	/* Lets see if we find a better setting in fractional mode */
+	/* Let's see if we find a better setting in fractional mode */
 	if (fract_shift == 0) {
 		fract_shift = 3;
 		goto again;

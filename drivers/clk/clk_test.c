@@ -292,7 +292,7 @@ static void clk_test_set_set_get_rate(struct kunit *test)
 }
 
 /*
- * Test that clk_round_rate and clk_set_rate are consitent and will
+ * Test that clk_round_rate and clk_set_rate are consistent and will
  * return the same frequency.
  */
 static void clk_test_round_set_get_rate(struct kunit *test)
