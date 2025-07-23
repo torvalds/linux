@@ -210,6 +210,7 @@ static const char *hw_id_names[HW_ID_MAX] = {
 	[MP0_HWID]		= "MP0",
 	[VPE_HWID]		= "VPE",
 	[ATU_HWID]		= "ATU",
+	[AIGC_HWID]		= "AIGC",
 };
 
 static int hw_id_map[MAX_HWIP] = {
