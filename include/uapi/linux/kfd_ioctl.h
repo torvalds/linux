@@ -149,6 +149,8 @@ struct kfd_dbg_device_info_entry {
 	__u32 num_xcc;
 	__u32 capability;
 	__u32 debug_prop;
+	__u32 capability2;
+	__u32 pad;
 };
 
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */

@@ -1108,6 +1108,7 @@ int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
 		device_info.num_xcc = NUM_XCC(pdd->dev->xcc_mask);
 		device_info.capability = topo_dev->node_props.capability;
 		device_info.debug_prop = topo_dev->node_props.debug_prop;
+		device_info.capability2 = topo_dev->node_props.capability2;
 
 		if (exception_clear_mask)
 			pdd->exception_status &= ~exception_clear_mask;
