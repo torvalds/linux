@@ -262,6 +262,13 @@ static const struct iwl_hcmd_names iwl_mld_data_path_names[] = {
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search
  */
+static const struct iwl_hcmd_names iwl_mld_scan_names[] = {
+	HCMD_NAME(CHANNEL_SURVEY_NOTIF),
+};
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
 static const struct iwl_hcmd_names iwl_mld_location_names[] = {
 	HCMD_NAME(TOF_RANGE_REQ_CMD),
 	HCMD_NAME(TOF_RANGE_RESPONSE_NOTIF),
@@ -310,6 +317,7 @@ const struct iwl_hcmd_arr iwl_mld_groups[] = {
 	[SYSTEM_GROUP] = HCMD_ARR(iwl_mld_system_names),
 	[MAC_CONF_GROUP] = HCMD_ARR(iwl_mld_mac_conf_names),
 	[DATA_PATH_GROUP] = HCMD_ARR(iwl_mld_data_path_names),
+	[SCAN_GROUP] = HCMD_ARR(iwl_mld_scan_names),
 	[LOCATION_GROUP] = HCMD_ARR(iwl_mld_location_names),
 	[REGULATORY_AND_NVM_GROUP] = HCMD_ARR(iwl_mld_reg_and_nvm_names),
 	[DEBUG_GROUP] = HCMD_ARR(iwl_mld_debug_names),
@@ -507,6 +515,7 @@ iwl_op_mode_mld_stop(struct iwl_op_mode *op_mode)
 
 	kfree(mld->nvm_data);
 	kfree(mld->scan.cmd);
+	kfree(mld->channel_survey);
 	kfree(mld->error_recovery_buf);
 	kfree(mld->mcast_filter_cmd);
 

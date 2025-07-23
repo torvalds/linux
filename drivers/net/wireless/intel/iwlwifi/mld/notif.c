@@ -295,6 +295,8 @@ CMD_VERSIONS(scan_complete_notif,
 	     CMD_VER_ENTRY(1, iwl_umac_scan_complete))
 CMD_VERSIONS(scan_iter_complete_notif,
 	     CMD_VER_ENTRY(2, iwl_umac_scan_iter_complete_notif))
+CMD_VERSIONS(channel_survey_notif,
+	     CMD_VER_ENTRY(1, iwl_umac_scan_channel_survey_notif))
 CMD_VERSIONS(mfuart_notif,
 	     CMD_VER_ENTRY(2, iwl_mfuart_load_notif))
 CMD_VERSIONS(update_mcc,
@@ -414,6 +416,10 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 			     RX_HANDLER_SYNC)
 	RX_HANDLER_NO_VAL(LEGACY_GROUP, MATCH_FOUND_NOTIFICATION,
 			  match_found_notif, RX_HANDLER_SYNC)
+
+	RX_HANDLER_NO_OBJECT(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
+			     channel_survey_notif,
+			     RX_HANDLER_ASYNC)
 
 	RX_HANDLER_NO_OBJECT(STATISTICS_GROUP, STATISTICS_OPER_NOTIF,
 			     stats_oper_notif, RX_HANDLER_ASYNC)

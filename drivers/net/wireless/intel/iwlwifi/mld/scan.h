@@ -30,6 +30,12 @@ void iwl_mld_handle_match_found_notif(struct iwl_mld *mld,
 void iwl_mld_handle_scan_complete_notif(struct iwl_mld *mld,
 					struct iwl_rx_packet *pkt);
 
+int iwl_mld_mac80211_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey);
+
+void iwl_mld_handle_channel_survey_notif(struct iwl_mld *mld,
+					 struct iwl_rx_packet *pkt);
+
 #define WFA_TPC_IE_LEN 9
 
 static inline int iwl_mld_scan_max_template_size(void)
@@ -131,6 +137,37 @@ struct iwl_mld_scan {
 	unsigned long last_6ghz_passive_jiffies;
 	unsigned long last_start_time_jiffies;
 	u64 last_mlo_scan_time;
+};
+
+/**
+ * struct iwl_mld_survey_channel - per-channel survey information
+ *
+ * Driver version of &struct survey_info with just the data we want to report.
+ *
+ * @time: time in ms the radio was on the channel
+ * @time_busy: time in ms the channel was sensed busy
+ * @noise: channel noise in dBm
+ */
+struct iwl_mld_survey_channel {
+	u32 time;
+	u32 time_busy;
+	s8 noise;
+};
+
+/**
+ * struct iwl_mld_survey - survey information
+ *
+ * Survey information for all available channels.
+ *
+ * @bands: per-band array for per-channel survey data, points into @channels
+ * @n_channels: Number of @channels entries that are allocated
+ * @channels: per-channel information
+ */
+struct iwl_mld_survey {
+	struct iwl_mld_survey_channel *bands[NUM_NL80211_BANDS];
+
+	int n_channels;
+	struct iwl_mld_survey_channel channels[] __counted_by(n_channels);
 };
 
 #endif /* __iwl_mld_scan_h__ */

@@ -2675,6 +2675,7 @@ const struct ieee80211_ops iwl_mld_hw_ops = {
 	.mgd_complete_tx = iwl_mld_mac_mgd_complete_tx,
 	.sta_state = iwl_mld_mac80211_sta_state,
 	.sta_statistics = iwl_mld_mac80211_sta_statistics,
+	.get_survey = iwl_mld_mac80211_get_survey,
 	.flush = iwl_mld_mac80211_flush,
 	.flush_sta = iwl_mld_mac80211_flush_sta,
 	.ampdu_action = iwl_mld_mac80211_ampdu_action,
