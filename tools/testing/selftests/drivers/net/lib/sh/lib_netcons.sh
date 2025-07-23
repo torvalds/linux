@@ -281,6 +281,11 @@ function check_for_dependencies() {
 		exit "${ksft_skip}"
 	fi
 
+	if [ ! -f /proc/net/if_inet6 ]; then
+		echo "SKIP: IPv6 not configured. Check if CONFIG_IPV6 is enabled" >&2
+		exit "${ksft_skip}"
+	fi
+
 	if [ ! -f "${NSIM_DEV_SYS_NEW}" ]; then
 		echo "SKIP: file ${NSIM_DEV_SYS_NEW} does not exist. Check if CONFIG_NETDEVSIM is enabled" >&2
 		exit "${ksft_skip}"
