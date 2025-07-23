@@ -1257,13 +1257,10 @@ static inline bool mptcp_try_fallback(struct sock *ssk, int fb_mib)
 	return true;
 }
 
-#define pr_fallback(a) pr_debug("%s:fallback to TCP (msk=%p)\n", __func__, a)
-
 static inline void mptcp_early_fallback(struct mptcp_sock *msk,
 					struct mptcp_subflow_context *subflow,
 					int fb_mib)
 {
-	pr_fallback(msk);
 	subflow->request_mptcp = 0;
 	WARN_ON_ONCE(!__mptcp_try_fallback(msk, fb_mib));
 }

@@ -1167,7 +1167,6 @@ static void mptcp_update_infinite_map(struct mptcp_sock *msk,
 	}
 
 	mptcp_subflow_ctx(ssk)->send_infinite_map = 0;
-	pr_fallback(msk);
 }
 
 #define MPTCP_MAX_GSO_SIZE (GSO_LEGACY_MAX_SIZE - (MAX_TCP_HEADER + 1))
