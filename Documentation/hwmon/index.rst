@@ -167,6 +167,7 @@ Hardware Monitoring Kernel Drivers
    max77705
    max8688
    mc13783-adc
+   mc33xs2410_hwmon
    mc34vr500
    mcp3021
    menf21bmc
