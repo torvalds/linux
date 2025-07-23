@@ -186,12 +186,17 @@ static struct kobj_type dlm_ktype = {
 
 static struct kset *dlm_kset;
 
-static int do_uevent(struct dlm_ls *ls, int in)
+static int do_uevent(struct dlm_ls *ls, int in, unsigned int release_recover)
 {
-	if (in)
+	char message[512] = {};
+	char *envp[] = { message, NULL };
+
+	if (in) {
 		kobject_uevent(&ls->ls_kobj, KOBJ_ONLINE);
-	else
-		kobject_uevent(&ls->ls_kobj, KOBJ_OFFLINE);
+	} else {
+		snprintf(message, 511, "RELEASE_RECOVER=%u", release_recover);
+		kobject_uevent_env(&ls->ls_kobj, KOBJ_OFFLINE, envp);
+	}
 
 	log_rinfo(ls, "%s the lockspace group...", in ? "joining" : "leaving");
 
@@ -575,7 +580,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	   current lockspace members are (via configfs) and then tells the
 	   lockspace to start running (via sysfs) in dlm_ls_start(). */
 
-	error = do_uevent(ls, 1);
+	error = do_uevent(ls, 1, 0);
 	if (error < 0)
 		goto out_recoverd;
 
@@ -592,7 +597,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	return 0;
 
  out_members:
-	do_uevent(ls, 0);
+	do_uevent(ls, 0, 0);
 	dlm_clear_members(ls);
 	kfree(ls->ls_node_array);
  out_recoverd:
@@ -733,7 +738,7 @@ static int release_lockspace(struct dlm_ls *ls, int release_option)
 
 	if (release_option != DLM_RELEASE_NO_EVENT &&
 	    dlm_user_daemon_available())
-		do_uevent(ls, 0);
+		do_uevent(ls, 0, 0);
 
 	dlm_recoverd_stop(ls);
 
