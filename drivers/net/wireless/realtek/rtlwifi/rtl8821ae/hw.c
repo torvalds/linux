@@ -1026,7 +1026,7 @@ static void _rtl8821ae_hw_configure(struct ieee80211_hw *hw)
 	/*Set retry limit*/
 	rtl_write_word(rtlpriv, REG_RL, 0x0707);
 
-	/* Set Data / Response auto rate fallack retry count*/
+	/* Set Data / Response auto rate fallback retry count*/
 	rtl_write_dword(rtlpriv, REG_DARFRC, 0x01000000);
 	rtl_write_dword(rtlpriv, REG_DARFRC + 4, 0x07060504);
 	rtl_write_dword(rtlpriv, REG_RARFRC, 0x01000000);
@@ -1295,12 +1295,12 @@ static bool _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 		rtl_write_byte(rtlpriv, REG_CR, 0xFF);
 
 		/* We should init LLT & RQPN and
-		 * prepare Tx/Rx descrptor address later
+		 * prepare Tx/Rx descriptor address later
 		 * because MAC function is reset.*/
 	}
 
 	/* 7. Restore PCIe autoload down bit */
-	/* 8812AE does not has the defination. */
+	/* 8812AE does not have the definition. */
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8821AE) {
 		/* write 0xF8 bit[17] = 1'b1 */
 		tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2);
@@ -1308,7 +1308,7 @@ static bool _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 		rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2, tmp);
 	}
 
-	/* In MAC power on state, BB and RF maybe in ON state,
+	/* In MAC power on state, BB and RF may be in ON state,
 	 * if we release TRx DMA here.
 	 * it will cause packets to be started to Tx/Rx,
 	 * so we release Tx/Rx DMA later.*/
@@ -1713,7 +1713,7 @@ static bool _rtl8821ae_wowlan_initialize_adapter(struct ieee80211_hw *hw)
 	_rtl8821ae_get_wakeup_reason(hw);
 
 	/* Patch Pcie Rx DMA hang after S3/S4 several times.
-	 * The root cause has not be found. */
+	 * The root cause has not been found. */
 	if (_rtl8821ae_check_pcie_dma_hang(hw))
 		_rtl8821ae_reset_pcie_interface_dma(hw, true, false);
 
@@ -1926,7 +1926,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 	rtl8821ae_phy_mac_config(hw);
 	/* because last function modify RCR, so we update
 	 * rcr var here, or TP will unstable for receive_config
-	 * is wrong, RX RCR_ACRC32 will cause TP unstabel & Rx
+	 * is wrong, RX RCR_ACRC32 will cause TP unstable & Rx
 	 * RCR_APP_ICV will cause mac80211 unassoc for cisco 1252
 	rtlpci->receive_config = rtl_read_dword(rtlpriv, REG_RCR);
 	rtlpci->receive_config &= ~(RCR_ACRC32 | RCR_AICV);
@@ -2332,7 +2332,7 @@ void rtl8821ae_card_disable(struct ieee80211_hw *hw)
 		if (_rtl8821ae_dynamic_rqpn(hw, 0xE0, 0x3, 0x80c20d0d))
 			rtlhal->re_init_llt_table = true;
 
-		/* 3 <2> Set Fw releted H2C cmd. */
+		/* 3 <2> Set Fw related H2C cmd. */
 
 		/* Set WoWLAN related security information. */
 		rtl8821ae_set_fw_global_info_cmd(hw);
@@ -2357,8 +2357,8 @@ void rtl8821ae_card_disable(struct ieee80211_hw *hw)
 
 		/* 3 <3> Hw Configutations */
 
-		/* Wait untill Rx DMA Finished before host sleep.
-		 * FW Pause Rx DMA may happens when received packet doing dma.
+		/* Wait until Rx DMA Finished before host sleep.
+		 * FW Pause Rx DMA may happen when received packet doing DMA.
 		 */
 		rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL, BIT(2));
 
@@ -3927,7 +3927,7 @@ void rtl8821ae_resume(struct ieee80211_hw *hw)
 {
 }
 
-/* Turn on AAP (RCR:bit 0) for promicuous mode. */
+/* Turn on AAP (RCR:bit 0) for promiscuous mode. */
 void rtl8821ae_allow_all_destaddr(struct ieee80211_hw *hw,
 	bool allow_all_da, bool write_into_reg)
 {
@@ -3964,7 +3964,7 @@ void rtl8821ae_add_wowlan_pattern(struct ieee80211_hw *hw,
 
 	/* RX page size = 128 byte */
 	offset = MAX_RX_DMA_BUFFER_SIZE_8812 / 128;
-	/* We should start from the boundry */
+	/* We should start from the boundary */
 	cam_start = offset * 128;
 
 	/* Enable Rx packet buffer access. */

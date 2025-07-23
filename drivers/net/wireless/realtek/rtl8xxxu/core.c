@@ -1163,7 +1163,7 @@ static void rtl8xxxu_start_tx_beacon(struct rtl8xxxu_priv *priv)
 
 
 /*
- * The rtl8723a has 3 channel groups for it's efuse settings. It only
+ * The rtl8723a has 3 channel groups for its efuse settings. It only
  * supports the 2.4GHz band, so channels 1 - 14:
  *  group 0: channels 1 - 3
  *  group 1: channels 4 - 9

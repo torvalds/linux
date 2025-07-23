@@ -3332,7 +3332,7 @@ void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 	 * us to stop a hw_scan when it's already stopped.  This can
 	 * happen, for instance, if we stopped the scan ourselves,
 	 * called ieee80211_scan_completed() and the userspace called
-	 * cancel scan scan before ieee80211_scan_work() could run.
+	 * cancel scan before ieee80211_scan_work() could run.
 	 * To handle that, simply return if the scan is not running.
 	*/
 	if (mvm->scan_status & IWL_MVM_SCAN_REGULAR)
@@ -4345,7 +4345,7 @@ int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	 * us to stop a sched_scan when it's already stopped.  This
 	 * can happen, for instance, if we stopped the scan ourselves,
 	 * called ieee80211_sched_scan_stopped() and the userspace called
-	 * stop sched scan scan before ieee80211_sched_scan_stopped_work()
+	 * stop sched scan before ieee80211_sched_scan_stopped_work()
 	 * could run.  To handle this, simply return if the scan is
 	 * not running.
 	*/

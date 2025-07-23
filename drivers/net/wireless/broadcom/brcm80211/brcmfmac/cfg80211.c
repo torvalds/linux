@@ -3878,7 +3878,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	brcmf_dbg(SCAN, "Enter\n");
 
 	if (e->datalen < (sizeof(*pfn_result) + sizeof(*netinfo))) {
-		brcmf_dbg(SCAN, "Event data to small. Ignore\n");
+		brcmf_dbg(SCAN, "Event data too small. Ignore\n");
 		return 0;
 	}
 
@@ -4046,7 +4046,7 @@ brcmf_wowl_nd_results(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
 	brcmf_dbg(SCAN, "Enter\n");
 
 	if (e->datalen < (sizeof(*pfn_result) + sizeof(*netinfo))) {
-		brcmf_dbg(SCAN, "Event data to small. Ignore\n");
+		brcmf_dbg(SCAN, "Event data too small. Ignore\n");
 		return 0;
 	}
 
@@ -4308,7 +4308,7 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 		brcmf_set_mpc(ifp, 1);
 
 	} else {
-		/* Configure WOWL paramaters */
+		/* Configure WOWL parameters */
 		brcmf_configure_wowl(cfg, ifp, wowl);
 
 		/* Prevent disassociation due to inactivity with keep-alive */

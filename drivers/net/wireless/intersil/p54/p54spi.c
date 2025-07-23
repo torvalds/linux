@@ -32,7 +32,7 @@ MODULE_FIRMWARE("3826.eeprom");
 
 /* gpios should be handled in board files and provided via platform data,
  * but because it's currently impossible for p54spi to have a header file
- * in include/linux, let's use module paramaters for now
+ * in include/linux, let's use module parameters for now
  */
 
 static int p54spi_gpio_power = 97;
@@ -155,7 +155,7 @@ static int p54spi_request_firmware(struct ieee80211_hw *dev)
 	struct p54s_priv *priv = dev->priv;
 	int ret;
 
-	/* FIXME: should driver use it's own struct device? */
+	/* FIXME: should driver use its own struct device? */
 	ret = request_firmware(&priv->firmware, "3826.arm", &priv->spi->dev);
 
 	if (ret < 0) {
