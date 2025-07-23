@@ -1121,9 +1121,11 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 		put_pages(obj);
 	}
 
-	if (msm_obj->flags & MSM_BO_NO_SHARE) {
+	if (obj->resv != &obj->_resv) {
 		struct drm_gem_object *r_obj =
 			container_of(obj->resv, struct drm_gem_object, _resv);
+
+		WARN_ON(!(msm_obj->flags & MSM_BO_NO_SHARE));
 
 		/* Drop reference we hold to shared resv obj: */
 		drm_gem_object_put(r_obj);
