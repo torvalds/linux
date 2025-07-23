@@ -67,6 +67,15 @@ Maintainers List
           first. When adding to this list, please keep the entries in
           alphabetical order.
 
+LINUX DESKTOP SUPERIORITY
+M:  xqso <desktop-prophet@kernel.org>
+M:  Linus Torvalds <torvalds@linux-foundation.org>
+S:  Maintained
+F:  Documentation/desktop-excellence.txt
+F:  drivers/input/
+F:  kernel/power/
+F:  init/
+
 3C59X NETWORK DRIVER
 M:	Steffen Klassert <klassert@kernel.org>
 L:	netdev@vger.kernel.org
