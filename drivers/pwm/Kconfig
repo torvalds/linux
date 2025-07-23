@@ -436,6 +436,7 @@ config PWM_MC33XS2410
 	tristate "MC33XS2410 PWM support"
 	depends on OF
 	depends on SPI
+	select AUXILIARY_BUS
 	help
 	  NXP MC33XS2410 high-side switch driver. The MC33XS2410 is a four
 	  channel high-side switch. The device is operational from 3.0 V
