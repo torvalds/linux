@@ -371,10 +371,11 @@ EXPORT_SYMBOL_GPL(ufshcd_disable_irq);
  */
 static void ufshcd_enable_intr(struct ufs_hba *hba, u32 intrs)
 {
-	u32 set = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
+	u32 old_val = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
+	u32 new_val = old_val | intrs;
 
-	set |= intrs;
-	ufshcd_writel(hba, set, REG_INTERRUPT_ENABLE);
+	if (new_val != old_val)
+		ufshcd_writel(hba, new_val, REG_INTERRUPT_ENABLE);
 }
 
 /**
@@ -384,10 +385,11 @@ static void ufshcd_enable_intr(struct ufs_hba *hba, u32 intrs)
  */
 static void ufshcd_disable_intr(struct ufs_hba *hba, u32 intrs)
 {
-	u32 set = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
+	u32 old_val = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
+	u32 new_val = old_val & ~intrs;
 
-	set &= ~intrs;
-	ufshcd_writel(hba, set, REG_INTERRUPT_ENABLE);
+	if (new_val != old_val)
+		ufshcd_writel(hba, new_val, REG_INTERRUPT_ENABLE);
 }
 
 static void ufshcd_configure_wb(struct ufs_hba *hba)
