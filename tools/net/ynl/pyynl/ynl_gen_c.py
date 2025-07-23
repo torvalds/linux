@@ -1879,7 +1879,9 @@ def rdir(direction):
 def op_prefix(ri, direction, deref=False):
     suffix = f"_{ri.type_name}"
 
-    if not ri.op_mode or ri.op_mode == 'do':
+    if not ri.op_mode:
+        pass
+    elif ri.op_mode == 'do':
         suffix += f"{direction_to_suffix[direction]}"
     else:
         if direction == 'request':
