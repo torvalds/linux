@@ -236,10 +236,9 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		mac = "sc";
 		break;
 	case IWL_CFG_MAC_TYPE_SC2:
-		mac = "sc2";
-		break;
+	/* Uses the same firmware as SC2 */
 	case IWL_CFG_MAC_TYPE_SC2F:
-		mac = "sc2f";
+		mac = "sc2";
 		break;
 	case IWL_CFG_MAC_TYPE_BR:
 		mac = "br";
