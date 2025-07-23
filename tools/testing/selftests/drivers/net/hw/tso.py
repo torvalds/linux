@@ -102,7 +102,7 @@ def build_tunnel(cfg, outer_ipver, tun_info):
     remote_addr = cfg.remote_addr_v[outer_ipver]
 
     tun_type = tun_info[0]
-    tun_arg  = tun_info[2]
+    tun_arg  = tun_info[1]
     ip(f"link add {tun_type}-ksft type {tun_type} {tun_arg} local {local_addr} remote {remote_addr} dev {cfg.ifname}")
     defer(ip, f"link del {tun_type}-ksft")
     ip(f"link set dev {tun_type}-ksft up")
@@ -151,29 +151,17 @@ def test_builder(name, cfg, outer_ipver, feature, tun=None, inner_ipver=None):
             remote_v4 = cfg.remote_addr_v["4"]
             remote_v6 = cfg.remote_addr_v["6"]
 
-        tun_partial = tun and tun[1]
-        # Tunnel which can silently fall back to gso-partial
-        has_gso_partial = tun and 'tx-gso-partial' in cfg.hw_features
-
-        # For TSO4 via partial we need mangleid
-        if ipver == "4" and feature in cfg.partial_features:
-            ksft_pr("Testing with mangleid enabled")
-            if 'tx-tcp-mangleid-segmentation' not in cfg.hw_features:
-                ethtool(f"-K {cfg.ifname} tx-tcp-mangleid-segmentation on")
-                defer(ethtool, f"-K {cfg.ifname} tx-tcp-mangleid-segmentation off")
-
         # First test without the feature enabled.
         ethtool(f"-K {cfg.ifname} {feature} off")
-        if has_gso_partial:
-            ethtool(f"-K {cfg.ifname} tx-gso-partial off")
         run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso=False)
 
-        # Now test with the feature enabled.
-        # For compatible tunnels only - just GSO partial, not specific feature.
-        if has_gso_partial:
+        ethtool(f"-K {cfg.ifname} tx-gso-partial off")
+        ethtool(f"-K {cfg.ifname} tx-tcp-mangleid-segmentation off")
+        if feature in cfg.partial_features:
             ethtool(f"-K {cfg.ifname} tx-gso-partial on")
-            run_one_stream(cfg, ipver, remote_v4, remote_v6,
-                           should_lso=tun_partial)
+            if ipver == "4":
+                ksft_pr("Testing with mangleid enabled")
+                ethtool(f"-K {cfg.ifname} tx-tcp-mangleid-segmentation on")
 
         # Full feature enabled.
         ethtool(f"-K {cfg.ifname} {feature} on")
@@ -239,13 +227,14 @@ def main() -> None:
         query_nic_features(cfg)
 
         test_info = (
-            # name,       v4/v6  ethtool_feature              tun:(type,    partial, args)
+            # name,       v4/v6  ethtool_feature              tun:(type,     args)
             ("",            "4", "tx-tcp-segmentation",           None),
             ("",            "6", "tx-tcp6-segmentation",          None),
-            ("vxlan",        "", "tx-udp_tnl-segmentation",       ("vxlan",  True,  "id 100 dstport 4789 noudpcsum")),
-            ("vxlan_csum",   "", "tx-udp_tnl-csum-segmentation",  ("vxlan",  False, "id 100 dstport 4789 udpcsum")),
-            ("gre",         "4", "tx-gre-segmentation",           ("gre",    False,  "")),
-            ("gre",         "6", "tx-gre-segmentation",           ("ip6gre", False,  "")),
+            ("vxlan",       "4", "tx-udp_tnl-segmentation",       ("vxlan",  "id 100 dstport 4789 noudpcsum")),
+            ("vxlan",       "6", "tx-udp_tnl-segmentation",       ("vxlan",  "id 100 dstport 4789 udp6zerocsumtx udp6zerocsumrx")),
+            ("vxlan_csum",   "", "tx-udp_tnl-csum-segmentation",  ("vxlan",  "id 100 dstport 4789 udpcsum")),
+            ("gre",         "4", "tx-gre-segmentation",           ("gre",    "")),
+            ("gre",         "6", "tx-gre-segmentation",           ("ip6gre", "")),
         )
 
         cases = []
