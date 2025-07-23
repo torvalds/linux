@@ -74,8 +74,7 @@ static struct rv_monitor rv_%%MODEL_NAME%% = {
 
 static int __init register_%%MODEL_NAME%%(void)
 {
-	rv_register_monitor(&rv_%%MODEL_NAME%%, %%PARENT%%);
-	return 0;
+	return rv_register_monitor(&rv_%%MODEL_NAME%%, %%PARENT%%);
 }
 
 static void __exit unregister_%%MODEL_NAME%%(void)
