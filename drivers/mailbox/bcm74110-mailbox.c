@@ -651,6 +651,6 @@ static struct platform_driver bcm74110_mbox_driver = {
 };
 module_platform_driver(bcm74110_mbox_driver);
 
-MODULE_AUTHOR("Justin Chen <justin.chen@braodcom.com>");
+MODULE_AUTHOR("Justin Chen <justin.chen@broadcom.com>");
 MODULE_DESCRIPTION("BCM74110 mailbox driver");
 MODULE_LICENSE("GPL");
