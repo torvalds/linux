@@ -649,40 +649,28 @@ void iwl_mld_omi_ap_changed_bw(struct iwl_mld *mld,
 void iwl_mld_handle_omi_status_notif(struct iwl_mld *mld,
 				     struct iwl_rx_packet *pkt)
 {
-	int ver = iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
-					  OMI_SEND_STATUS_NOTIF, 1);
+	const struct iwl_omi_send_status_notif *notif = (const void *)pkt->data;
 	struct ieee80211_link_sta *link_sta;
 	struct iwl_mld_link *mld_link;
+	struct iwl_mld_vif *mld_vif;
 	struct ieee80211_vif *vif;
+	u32 sta_id;
 
-	if (ver == 2) {
-		const struct iwl_omi_send_status_notif *notif =
-			(const void *)pkt->data;
-		u32 sta_id = le32_to_cpu(notif->sta_id);
-		struct iwl_mld_vif *mld_vif;
+	sta_id = le32_to_cpu(notif->sta_id);
 
-		if (IWL_FW_CHECK(mld, sta_id >= mld->fw->ucode_capa.num_stations,
-				 "Invalid station %d\n", sta_id))
-			return;
+	if (IWL_FW_CHECK(mld, sta_id >= mld->fw->ucode_capa.num_stations,
+			 "Invalid station %d\n", sta_id))
+		return;
 
-		link_sta = wiphy_dereference(mld->wiphy,
-					     mld->fw_id_to_link_sta[sta_id]);
-		if (IWL_FW_CHECK(mld, !link_sta, "Station does not exist\n"))
-			return;
+	link_sta = wiphy_dereference(mld->wiphy, mld->fw_id_to_link_sta[sta_id]);
+	if (IWL_FW_CHECK(mld, !link_sta, "Station does not exist\n"))
+		return;
 
-		vif = iwl_mld_sta_from_mac80211(link_sta->sta)->vif;
-		mld_vif = iwl_mld_vif_from_mac80211(vif);
+	vif = iwl_mld_sta_from_mac80211(link_sta->sta)->vif;
+	mld_vif = iwl_mld_vif_from_mac80211(vif);
 
-		mld_link = iwl_mld_link_dereference_check(mld_vif,
-							  link_sta->link_id);
-		if (WARN(!mld_link, "Link %d does not exist\n",
-			 link_sta->link_id))
-			return;
-	} else {
-		vif = iwl_mld_get_omi_bw_reduction_pointers(mld, &link_sta,
-							    &mld_link);
-	}
-	if (IWL_FW_CHECK(mld, !vif, "unexpected OMI notification\n"))
+	mld_link = iwl_mld_link_dereference_check(mld_vif, link_sta->link_id);
+	if (WARN(!mld_link, "Link %d does not exist\n", link_sta->link_id))
 		return;
 
 	if (IWL_FW_CHECK(mld, !mld_link->rx_omi.bw_in_progress,
