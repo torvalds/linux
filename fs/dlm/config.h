@@ -17,8 +17,10 @@
 struct dlm_config_node {
 	int nodeid;
 	int weight;
+	bool gone;
 	int new;
 	uint32_t comm_seq;
+	unsigned int release_recover;
 };
 
 extern const struct rhashtable_params dlm_rhash_rsb_params;

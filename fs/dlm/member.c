@@ -569,10 +569,10 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 
 	list_for_each_entry_safe(memb, safe, &ls->ls_nodes, list) {
 		node = find_config_node(rv, memb->nodeid);
-		if (node && !node->new)
+		if (node && !node->new && !node->gone)
 			continue;
 
-		if (!node) {
+		if (node->gone) {
 			log_rinfo(ls, "remove member %d", memb->nodeid);
 		} else {
 			/* removed and re-added */
@@ -591,6 +591,9 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 
 	for (i = 0; i < rv->nodes_count; i++) {
 		node = &rv->nodes[i];
+		if (node->gone)
+			continue;
+
 		if (dlm_is_member(ls, node->nodeid))
 			continue;
 		error = dlm_add_member(ls, node);
