@@ -209,31 +209,8 @@ method fills in is the "s_op" field.  This is a pointer to a "struct
 super_operations" which describes the next level of the filesystem
 implementation.
 
-Usually, a filesystem uses one of the generic mount() implementations
-and provides a fill_super() callback instead.  The generic variants are:
-
-``mount_bdev``
-	mount a filesystem residing on a block device
-
-``mount_nodev``
-	mount a filesystem that is not backed by a device
-
-``mount_single``
-	mount a filesystem which shares the instance between all mounts
-
-A fill_super() callback implementation has the following arguments:
-
-``struct super_block *sb``
-	the superblock structure.  The callback must initialize this
-	properly.
-
-``void *data``
-	arbitrary mount options, usually comes as an ASCII string (see
-	"Mount Options" section)
-
-``int silent``
-	whether or not to be silent on error
-
+For more information on mounting (and the new mount API), see
+Documentation/filesystems/mount_api.rst.
 
 The Superblock Object
 =====================
