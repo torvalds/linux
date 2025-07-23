@@ -21,6 +21,7 @@ ALL_TESTS="
 	kci_test_vrf
 	kci_test_encap
 	kci_test_macsec
+	kci_test_macsec_vlan
 	kci_test_ipsec
 	kci_test_ipsec_offload
 	kci_test_fdb_get
@@ -570,6 +571,41 @@ kci_test_macsec()
 	fi
 
 	end_test "PASS: macsec"
+}
+
+# Test __dev_set_rx_mode call from dev_uc_add under addr_list_lock spinlock.
+# Make sure __dev_set_promiscuity is not grabbing (sleeping) netdev instance
+# lock.
+# https://lore.kernel.org/netdev/2aff4342b0f5b1539c02ffd8df4c7e58dd9746e7.camel@nvidia.com/
+kci_test_macsec_vlan()
+{
+	msname="test_macsec1"
+	vlanname="test_vlan1"
+	local ret=0
+	run_cmd_grep "^Usage: ip macsec" ip macsec help
+	if [ $? -ne 0 ]; then
+		end_test "SKIP: macsec: iproute2 too old"
+		return $ksft_skip
+	fi
+	run_cmd ip link add link "$devdummy" "$msname" type macsec port 42 encrypt on
+	if [ $ret -ne 0 ];then
+		end_test "FAIL: can't add macsec interface, skipping test"
+		return 1
+	fi
+
+	run_cmd ip link set dev "$msname" up
+	ip link add link "$msname" name "$vlanname" type vlan id 1
+	ip link set dev "$vlanname" address 00:11:22:33:44:88
+	ip link set dev "$vlanname" up
+	run_cmd ip link del dev "$vlanname"
+	run_cmd ip link del dev "$msname"
+
+	if [ $ret -ne 0 ];then
+		end_test "FAIL: macsec_vlan"
+		return 1
+	fi
+
+	end_test "PASS: macsec_vlan"
 }
 
 #-------------------------------------------------------------------
