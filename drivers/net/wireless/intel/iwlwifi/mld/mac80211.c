@@ -1918,6 +1918,10 @@ iwl_mld_mac80211_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
+		if (!iwl_enable_rx_ampdu()) {
+			ret = -EINVAL;
+			break;
+		}
 		ret = iwl_mld_ampdu_rx_start(mld, sta, tid, ssn, buf_size,
 					     timeout);
 		break;
