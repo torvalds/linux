@@ -115,8 +115,8 @@ Entering or exiting guest mode is very similar to syscalls. From the host
 kernel point of view the CPU goes off into user space when entering the
 guest and returns to the kernel on exit.
 
-kvm_guest_enter_irqoff() is a KVM-specific variant of exit_to_user_mode()
-and kvm_guest_exit_irqoff() is the KVM variant of enter_from_user_mode().
+guest_state_enter_irqoff() is a KVM-specific variant of exit_to_user_mode()
+and guest_state_exit_irqoff() is the KVM variant of enter_from_user_mode().
 The state operations have the same ordering.
 
 Task work handling is done separately for guest at the boundary of the
