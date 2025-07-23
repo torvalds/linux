@@ -5549,6 +5549,10 @@ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	/* Do nothing if our queues are empty. */
+	if (!atomic_read(&sk->sk_rmem_alloc))
+		return -1;
+
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_PRUNECALLED);
 
 	if (!tcp_can_ingest(sk, in_skb))
@@ -5911,7 +5915,11 @@ step1:
 		if (!th->rst) {
 			if (th->syn)
 				goto syn_challenge;
-			NET_INC_STATS(sock_net(sk), LINUX_MIB_BEYOND_WINDOW);
+
+			if (reason == SKB_DROP_REASON_TCP_INVALID_SEQUENCE ||
+			    reason == SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE)
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_BEYOND_WINDOW);
 			if (!tcp_oow_rate_limited(sock_net(sk), skb,
 						  LINUX_MIB_TCPACKSKIPPEDSEQ,
 						  &tp->last_oow_ack_time))
