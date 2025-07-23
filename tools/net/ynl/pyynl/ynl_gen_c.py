@@ -2472,11 +2472,22 @@ def free_arg_name(direction):
     return 'obj'
 
 
-def print_alloc_wrapper(ri, direction):
+def print_alloc_wrapper(ri, direction, struct=None):
     name = op_prefix(ri, direction)
-    ri.cw.write_func_prot(f'static inline struct {name} *', f"{name}_alloc", [f"void"])
+    struct_name = name
+    if ri.type_name_conflict:
+        struct_name += '_'
+
+    args = ["void"]
+    cnt = "1"
+    if struct and struct.in_multi_val:
+        args = ["unsigned int n"]
+        cnt = "n"
+
+    ri.cw.write_func_prot(f'static inline struct {struct_name} *',
+                          f"{name}_alloc", args)
     ri.cw.block_start()
-    ri.cw.p(f'return calloc(1, sizeof(struct {name}));')
+    ri.cw.p(f'return calloc({cnt}, sizeof(struct {struct_name}));')
     ri.cw.block_end()
 
 
@@ -2547,6 +2558,8 @@ def print_type_full(ri, struct):
     _print_type(ri, "", struct)
 
     if struct.request and struct.in_multi_val:
+        print_alloc_wrapper(ri, "", struct)
+        ri.cw.nl()
         free_rsp_nested_prototype(ri)
         ri.cw.nl()
 
