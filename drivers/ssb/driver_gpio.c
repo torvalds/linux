@@ -267,12 +267,14 @@ static int ssb_gpio_extif_get_value(struct gpio_chip *chip, unsigned int gpio)
 	return !!ssb_extif_gpio_in(&bus->extif, 1 << gpio);
 }
 
-static void ssb_gpio_extif_set_value(struct gpio_chip *chip, unsigned int gpio,
-				     int value)
+static int ssb_gpio_extif_set_value(struct gpio_chip *chip, unsigned int gpio,
+				    int value)
 {
 	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_extif_gpio_out(&bus->extif, 1 << gpio, value ? 1 << gpio : 0);
+
+	return 0;
 }
 
 static int ssb_gpio_extif_direction_input(struct gpio_chip *chip,
@@ -420,7 +422,7 @@ static int ssb_gpio_extif_init(struct ssb_bus *bus)
 	chip->label		= "ssb_extif_gpio";
 	chip->owner		= THIS_MODULE;
 	chip->get		= ssb_gpio_extif_get_value;
-	chip->set		= ssb_gpio_extif_set_value;
+	chip->set_rv		= ssb_gpio_extif_set_value;
 	chip->direction_input	= ssb_gpio_extif_direction_input;
 	chip->direction_output	= ssb_gpio_extif_direction_output;
 #if IS_ENABLED(CONFIG_SSB_EMBEDDED)
