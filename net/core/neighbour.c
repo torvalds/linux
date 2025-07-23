@@ -368,6 +368,43 @@ static void pneigh_queue_purge(struct sk_buff_head *list, struct net *net,
 	}
 }
 
+static void neigh_flush_one(struct neighbour *n)
+{
+	hlist_del_rcu(&n->hash);
+	hlist_del_rcu(&n->dev_list);
+
+	write_lock(&n->lock);
+
+	neigh_del_timer(n);
+	neigh_mark_dead(n);
+
+	if (refcount_read(&n->refcnt) != 1) {
+		/* The most unpleasant situation.
+		 * We must destroy neighbour entry,
+		 * but someone still uses it.
+		 *
+		 * The destroy will be delayed until
+		 * the last user releases us, but
+		 * we must kill timers etc. and move
+		 * it to safe state.
+		 */
+		__skb_queue_purge(&n->arp_queue);
+		n->arp_queue_len_bytes = 0;
+		WRITE_ONCE(n->output, neigh_blackhole);
+
+		if (n->nud_state & NUD_VALID)
+			n->nud_state = NUD_NOARP;
+		else
+			n->nud_state = NUD_NONE;
+
+		neigh_dbg(2, "neigh %p is stray\n", n);
+	}
+
+	write_unlock(&n->lock);
+
+	neigh_cleanup_and_release(n);
+}
+
 static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev,
 			    bool skip_perm)
 {
@@ -381,32 +418,24 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev,
 		if (skip_perm && n->nud_state & NUD_PERMANENT)
 			continue;
 
-		hlist_del_rcu(&n->hash);
-		hlist_del_rcu(&n->dev_list);
-		write_lock(&n->lock);
-		neigh_del_timer(n);
-		neigh_mark_dead(n);
-		if (refcount_read(&n->refcnt) != 1) {
-			/* The most unpleasant situation.
-			 * We must destroy neighbour entry,
-			 * but someone still uses it.
-			 *
-			 * The destroy will be delayed until
-			 * the last user releases us, but
-			 * we must kill timers etc. and move
-			 * it to safe state.
-			 */
-			__skb_queue_purge(&n->arp_queue);
-			n->arp_queue_len_bytes = 0;
-			WRITE_ONCE(n->output, neigh_blackhole);
-			if (n->nud_state & NUD_VALID)
-				n->nud_state = NUD_NOARP;
-			else
-				n->nud_state = NUD_NONE;
-			neigh_dbg(2, "neigh %p is stray\n", n);
-		}
-		write_unlock(&n->lock);
-		neigh_cleanup_and_release(n);
+		neigh_flush_one(n);
+	}
+}
+
+static void neigh_flush_table(struct neigh_table *tbl)
+{
+	struct neigh_hash_table *nht;
+	int i;
+
+	nht = rcu_dereference_protected(tbl->nht,
+					lockdep_is_held(&tbl->lock));
+
+	for (i = 0; i < (1 << nht->hash_shift); i++) {
+		struct hlist_node *tmp;
+		struct neighbour *n;
+
+		neigh_for_each_in_bucket_safe(n, tmp, &nht->hash_heads[i])
+			neigh_flush_one(n);
 	}
 }
 
@@ -422,7 +451,12 @@ static int __neigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 			  bool skip_perm)
 {
 	write_lock_bh(&tbl->lock);
-	neigh_flush_dev(tbl, dev, skip_perm);
+	if (likely(dev)) {
+		neigh_flush_dev(tbl, dev, skip_perm);
+	} else {
+		DEBUG_NET_WARN_ON_ONCE(skip_perm);
+		neigh_flush_table(tbl);
+	}
 	pneigh_ifdown_and_unlock(tbl, dev);
 	pneigh_queue_purge(&tbl->proxy_queue, dev ? dev_net(dev) : NULL,
 			   tbl->family);
