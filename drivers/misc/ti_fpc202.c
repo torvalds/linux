@@ -284,7 +284,7 @@ static int fpc202_probe_port(struct fpc202_priv *priv, struct device_node *i2c_h
 
 	desc.chan_id = port_id;
 	desc.parent = dev;
-	desc.bus_handle = of_node_to_fwnode(i2c_handle);
+	desc.bus_handle = of_fwnode_handle(i2c_handle);
 	desc.num_aliases = FPC202_ALIASES_PER_PORT;
 
 	fpc202_fill_alias_table(priv->client, aliases, port_id);
