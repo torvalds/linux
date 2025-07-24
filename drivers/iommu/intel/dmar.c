@@ -935,13 +935,10 @@ void __init detect_intel_iommu(void)
 		pci_request_acs();
 	}
 
-#ifdef CONFIG_X86
 	if (!ret) {
 		x86_init.iommu.iommu_init = intel_iommu_init;
 		x86_platform.iommu_shutdown = intel_iommu_shutdown;
 	}
-
-#endif
 
 	if (dmar_tbl) {
 		acpi_put_table(dmar_tbl);
