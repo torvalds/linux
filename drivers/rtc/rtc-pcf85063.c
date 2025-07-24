@@ -528,53 +528,6 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 }
 #endif
 
-static const struct pcf85063_config config_pcf85063 = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x0a,
-	},
-};
-
-static const struct pcf85063_config config_pcf85063tp = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x0a,
-	},
-};
-
-static const struct pcf85063_config config_pcf85063a = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x11,
-	},
-	.has_alarms = 1,
-};
-
-static const struct pcf85063_config config_rv8263 = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x11,
-	},
-	.has_alarms = 1,
-	.force_cap_7000 = 1,
-};
-
-static const struct pcf85063_config config_rv8063 = {
-	.regmap = {
-		.reg_bits = 8,
-		.val_bits = 8,
-		.max_register = 0x11,
-		.read_flag_mask = BIT(7) | BIT(5),
-		.write_flag_mask = BIT(5),
-	},
-	.has_alarms = 1,
-	.force_cap_7000 = 1,
-};
-
 static int pcf85063_probe(struct device *dev, struct regmap *regmap, int irq,
 			  const struct pcf85063_config *config)
 {
@@ -671,6 +624,41 @@ static int pcf85063_probe(struct device *dev, struct regmap *regmap, int irq,
 
 #if IS_ENABLED(CONFIG_I2C)
 
+static const struct pcf85063_config config_pcf85063 = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x0a,
+	},
+};
+
+static const struct pcf85063_config config_pcf85063tp = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x0a,
+	},
+};
+
+static const struct pcf85063_config config_pcf85063a = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
+	},
+	.has_alarms = 1,
+};
+
+static const struct pcf85063_config config_rv8263 = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
+	},
+	.has_alarms = 1,
+	.force_cap_7000 = 1,
+};
+
 static const struct i2c_device_id pcf85063_ids[] = {
 	{ "pca85073a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
 	{ "pcf85063", .driver_data = (kernel_ulong_t)&config_pcf85063 },
@@ -742,6 +730,18 @@ static void pcf85063_unregister_driver(void)
 #endif /* IS_ENABLED(CONFIG_I2C) */
 
 #if IS_ENABLED(CONFIG_SPI_MASTER)
+
+static const struct pcf85063_config config_rv8063 = {
+	.regmap = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x11,
+		.read_flag_mask = BIT(7) | BIT(5),
+		.write_flag_mask = BIT(5),
+	},
+	.has_alarms = 1,
+	.force_cap_7000 = 1,
+};
 
 static const struct spi_device_id rv8063_id[] = {
 	{ "rv8063" },
