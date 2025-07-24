@@ -359,7 +359,7 @@ config MMC_SDHCI_S3C
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
-	  often referrered to as the HSMMC block in some of the Samsung
+	  often referred to as the HSMMC block in some of the Samsung
 	  S3C6410, S5Pv210 and Exynos (Exynso4210, Exynos4412) SoCs.
 
 	  If you have a controller with this interface (thereforeyou build for
@@ -401,7 +401,7 @@ config MMC_SDHCI_SPEAR
 	depends on OF
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
-	  often referrered to as the HSMMC block in some of the ST SPEAR range
+	  often referred to as the HSMMC block in some of the ST SPEAR range
 	  of SoC
 
 	  If you have a controller with this interface, say Y or M here.
