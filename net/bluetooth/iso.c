@@ -1347,7 +1347,7 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 		bacpy(&sa->iso_bdaddr, &iso_pi(sk)->dst);
 		sa->iso_bdaddr_type = iso_pi(sk)->dst_type;
 
-		if (hcon && hcon->type == BIS_LINK) {
+		if (hcon && (hcon->type == BIS_LINK || hcon->type == PA_LINK)) {
 			sa->iso_bc->bc_sid = iso_pi(sk)->bc_sid;
 			sa->iso_bc->bc_num_bis = iso_pi(sk)->bc_num_bis;
 			memcpy(sa->iso_bc->bc_bis, iso_pi(sk)->bc_bis,
