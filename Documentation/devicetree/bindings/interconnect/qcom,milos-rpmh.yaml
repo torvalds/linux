@@ -1,14 +1,13 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/interconnect/qcom,sm8650-rpmh.yaml#
+$id: http://devicetree.org/schemas/interconnect/qcom,milos-rpmh.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm RPMh Network-On-Chip Interconnect on SM8650
+title: Qualcomm RPMh Network-On-Chip Interconnect on Milos SoC
 
 maintainers:
-  - Abel Vesa <abel.vesa@linaro.org>
-  - Neil Armstrong <neil.armstrong@linaro.org>
+  - Luca Weiss <luca.weiss@fairphone.com>
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
@@ -18,25 +17,23 @@ description: |
   least one RPMh device child node pertaining to their RSC and each provider
   can map to multiple RPMh resources.
 
-  See also: include/dt-bindings/interconnect/qcom,sm8650-rpmh.h
+  See also: include/dt-bindings/interconnect/qcom,milos-rpmh.h
 
 properties:
   compatible:
     enum:
-      - qcom,sm8650-aggre1-noc
-      - qcom,sm8650-aggre2-noc
-      - qcom,sm8650-clk-virt
-      - qcom,sm8650-cnoc-main
-      - qcom,sm8650-config-noc
-      - qcom,sm8650-gem-noc
-      - qcom,sm8650-lpass-ag-noc
-      - qcom,sm8650-lpass-lpiaon-noc
-      - qcom,sm8650-lpass-lpicx-noc
-      - qcom,sm8650-mc-virt
-      - qcom,sm8650-mmss-noc
-      - qcom,sm8650-nsp-noc
-      - qcom,sm8650-pcie-anoc
-      - qcom,sm8650-system-noc
+      - qcom,milos-aggre1-noc
+      - qcom,milos-aggre2-noc
+      - qcom,milos-clk-virt
+      - qcom,milos-cnoc-cfg
+      - qcom,milos-cnoc-main
+      - qcom,milos-gem-noc
+      - qcom,milos-lpass-ag-noc
+      - qcom,milos-mc-virt
+      - qcom,milos-mmss-noc
+      - qcom,milos-nsp-noc
+      - qcom,milos-pcie-anoc
+      - qcom,milos-system-noc
 
   reg:
     maxItems: 1
@@ -55,8 +52,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-clk-virt
-              - qcom,sm8650-mc-virt
+              - qcom,milos-clk-virt
+              - qcom,milos-mc-virt
     then:
       properties:
         reg: false
@@ -69,7 +66,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-pcie-anoc
+              - qcom,milos-pcie-anoc
     then:
       properties:
         clocks:
@@ -82,20 +79,20 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-aggre1-noc
+              - qcom,milos-aggre1-noc
     then:
       properties:
         clocks:
           items:
-            - description: aggre UFS PHY AXI clock
             - description: aggre USB3 PRIM AXI clock
+            - description: aggre UFS PHY AXI clock
 
   - if:
       properties:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-aggre2-noc
+              - qcom,milos-aggre2-noc
     then:
       properties:
         clocks:
@@ -107,9 +104,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,sm8650-aggre1-noc
-              - qcom,sm8650-aggre2-noc
-              - qcom,sm8650-pcie-anoc
+              - qcom,milos-aggre1-noc
+              - qcom,milos-aggre2-noc
+              - qcom,milos-pcie-anoc
     then:
       required:
         - clocks
@@ -121,16 +118,19 @@ unevaluatedProperties: false
 
 examples:
   - |
-    clk_virt: interconnect-0 {
-      compatible = "qcom,sm8650-clk-virt";
-      #interconnect-cells = <2>;
-      qcom,bcm-voters = <&apps_bcm_voter>;
+    #include <dt-bindings/clock/qcom,milos-gcc.h>
+
+    interconnect-0 {
+        compatible = "qcom,milos-clk-virt";
+        #interconnect-cells = <2>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
     };
 
-    aggre1_noc: interconnect@16e0000 {
-      compatible = "qcom,sm8650-aggre1-noc";
-      reg = <0x016e0000 0x14400>;
-      #interconnect-cells = <2>;
-      clocks = <&gcc_phy_axi_clk>, <&gcc_prim_axi_clk>;
-      qcom,bcm-voters = <&apps_bcm_voter>;
+    interconnect@16e0000 {
+        compatible = "qcom,milos-aggre1-noc";
+        reg = <0x016e0000 0x16400>;
+        #interconnect-cells = <2>;
+        clocks = <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
+                 <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
     };

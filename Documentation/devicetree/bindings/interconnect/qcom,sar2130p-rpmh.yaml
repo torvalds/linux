@@ -18,7 +18,7 @@ description: |
   least one RPMh device child node pertaining to their RSC and each provider
   can map to multiple RPMh resources.
 
-  See also:: include/dt-bindings/interconnect/qcom,sar2130p-rpmh.h
+  See also: include/dt-bindings/interconnect/qcom,sar2130p-rpmh.h
 
 properties:
   compatible:

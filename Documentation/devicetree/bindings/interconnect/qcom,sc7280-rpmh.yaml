@@ -14,7 +14,7 @@ description: |
   RPMh interconnect providers support system bandwidth requirements through
   RPMh hardware accelerators known as Bus Clock Manager (BCM).
 
-  See also:: include/dt-bindings/interconnect/qcom,sc7280.h
+  See also: include/dt-bindings/interconnect/qcom,sc7280.h
 
 properties:
   compatible:
