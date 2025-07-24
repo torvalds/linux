@@ -128,10 +128,12 @@ allOf:
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
     adc: adc@12d10000 {
         compatible = "samsung,exynos-adc-v1";
         reg = <0x12d10000 0x100>;
-        interrupts = <0 106 0>;
+        interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
         #io-channel-cells = <1>;
 
         clocks = <&clock 303>;
@@ -152,11 +154,12 @@ examples:
 
   - |
     #include <dt-bindings/clock/exynos3250.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     adc@126c0000 {
         compatible = "samsung,exynos3250-adc";
         reg = <0x126c0000 0x100>;
-        interrupts = <0 137 0>;
+        interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
         #io-channel-cells = <1>;
 
         clocks = <&cmu CLK_TSADC>,
