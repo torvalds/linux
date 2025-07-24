@@ -5,6 +5,7 @@
 #ifndef __ASSEMBLER__
 
 #include <asm/barrier.h>
+#include <asm/errata_list.h>
 #include <asm/insn-def.h>
 
 static inline void cpu_relax(void)
@@ -19,7 +20,7 @@ static inline void cpu_relax(void)
 	 * Reduce instruction retirement.
 	 * This assumes the PC changes.
 	 */
-	__asm__ __volatile__ (RISCV_PAUSE);
+	ALT_RISCV_PAUSE();
 	barrier();
 }
 

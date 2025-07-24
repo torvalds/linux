@@ -23,6 +23,7 @@
 #include <linux/kfence.h>
 #include <linux/execmem.h>
 
+#include <asm/alternative.h>
 #include <asm/fixmap.h>
 #include <asm/io.h>
 #include <asm/kasan.h>

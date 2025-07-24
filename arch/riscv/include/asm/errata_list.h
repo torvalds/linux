@@ -5,12 +5,12 @@
 #ifndef ASM_ERRATA_LIST_H
 #define ASM_ERRATA_LIST_H
 
-#include <asm/alternative.h>
 #include <asm/csr.h>
 #include <asm/insn-def.h>
 #include <asm/hwcap.h>
 #include <asm/vendorid_list.h>
 #include <asm/errata_list_vendors.h>
+#include <asm/vendor_extensions/mips.h>
 
 #ifdef __ASSEMBLER__
 
@@ -41,6 +41,17 @@ asm(ALTERNATIVE("sfence.vma %0", "sfence.vma", SIFIVE_VENDOR_ID,	\
 asm(ALTERNATIVE("sfence.vma %0, %1", "sfence.vma", SIFIVE_VENDOR_ID,	\
 		ERRATA_SIFIVE_CIP_1200, CONFIG_ERRATA_SIFIVE_CIP_1200)	\
 		: : "r" (addr), "r" (asid) : "memory")
+
+#define ALT_RISCV_PAUSE()					\
+asm(ALTERNATIVE(	\
+		RISCV_PAUSE, /* Original RISC‑V pause insn */	\
+		MIPS_PAUSE, /* Replacement for MIPS P8700 */	\
+		MIPS_VENDOR_ID, /* Vendor ID to match */	\
+		ERRATA_MIPS_P8700_PAUSE_OPCODE, /* patch_id */	\
+		CONFIG_ERRATA_MIPS_P8700_PAUSE_OPCODE)	\
+	: /* no outputs */	\
+	: /* no inputs */	\
+	: "memory")
 
 /*
  * _val is marked as "will be overwritten", so need to set it to 0

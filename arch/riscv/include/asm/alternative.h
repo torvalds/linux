@@ -48,6 +48,9 @@ struct alt_entry {
 void andes_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 			     unsigned long archid, unsigned long impid,
 			     unsigned int stage);
+void mips_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
+			    unsigned long archid, unsigned long impid,
+			    unsigned int stage);
 void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 			      unsigned long archid, unsigned long impid,
 			      unsigned int stage);

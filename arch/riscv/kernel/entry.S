@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 
+#include <asm/alternative-macros.h>
 #include <asm/asm.h>
 #include <asm/csr.h>
 #include <asm/scs.h>

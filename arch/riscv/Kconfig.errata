@@ -21,6 +21,29 @@ config ERRATA_ANDES_CMO
 
 	  If you don't know what to do here, say "Y".
 
+config ERRATA_MIPS
+	bool "MIPS errata"
+	depends on RISCV_ALTERNATIVE
+	help
+	  All MIPS errata Kconfig depend on this Kconfig. Disabling
+	  this Kconfig will disable all MIPS errata. Please say "Y"
+	  here if your platform uses MIPS CPU cores.
+
+	  Otherwise, please say "N" here to avoid unnecessary overhead.
+
+config ERRATA_MIPS_P8700_PAUSE_OPCODE
+	bool "Fix the PAUSE Opcode for MIPS P8700"
+	depends on ERRATA_MIPS && 64BIT
+	default n
+	help
+	   The RISCV MIPS P8700 uses a different opcode for PAUSE.
+	   It is a 'hint' encoding of the SLLI instruction,
+	   with rd=0, rs1=0 and imm=5. It will behave as a NOP
+	   instruction if no additional behavior beyond that of
+	   SLLI is implemented.
+
+	   If you are not using the P8700 processor, say n.
+
 config ERRATA_SIFIVE
 	bool "SiFive errata"
 	depends on RISCV_ALTERNATIVE
