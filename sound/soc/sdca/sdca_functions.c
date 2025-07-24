@@ -211,7 +211,7 @@ static int find_sdca_init_table(struct device *dev,
 	} else if (num_init_writes % sizeof(*raw) != 0) {
 		dev_err(dev, "%pfwP: init table size invalid\n", function_node);
 		return -EINVAL;
-	} else if (num_init_writes > SDCA_MAX_INIT_COUNT) {
+	} else if ((num_init_writes / sizeof(*raw)) > SDCA_MAX_INIT_COUNT) {
 		dev_err(dev, "%pfwP: maximum init table size exceeded\n", function_node);
 		return -EINVAL;
 	}

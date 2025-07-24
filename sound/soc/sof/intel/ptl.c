@@ -117,6 +117,7 @@ const struct sof_intel_dsp_desc ptl_chip_info = {
 	.read_sdw_lcount =  hda_sdw_check_lcount_ext,
 	.check_sdw_irq = lnl_dsp_check_sdw_irq,
 	.check_sdw_wakeen_irq = lnl_sdw_check_wakeen_irq,
+	.sdw_process_wakeen = hda_sdw_process_wakeen_common,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.check_mic_privacy_irq = sof_ptl_check_mic_privacy_irq,
 	.process_mic_privacy = sof_ptl_process_mic_privacy,
