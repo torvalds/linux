@@ -40,6 +40,15 @@ struct b53_mmap_priv {
 	const struct b53_phy_info *phy_info;
 };
 
+static const u32 bcm6318_ephy_offsets[] = {4, 5, 6, 7};
+
+static const struct b53_phy_info bcm6318_ephy_info = {
+	.ephy_enable_mask = BIT(0) | BIT(4) | BIT(8) | BIT(12) | BIT(16),
+	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm6318_ephy_offsets) - 1), 0),
+	.ephy_bias_bit = 24,
+	.ephy_offset = bcm6318_ephy_offsets,
+};
+
 static const u32 bcm63268_ephy_offsets[] = {4, 9, 14};
 
 static const struct b53_phy_info bcm63268_ephy_info = {
@@ -334,7 +343,11 @@ static int b53_mmap_probe(struct platform_device *pdev)
 
 	priv->gpio_ctrl = syscon_regmap_lookup_by_phandle(np, "brcm,gpio-ctrl");
 	if (!IS_ERR(priv->gpio_ctrl)) {
-		if (pdata->chip_id == BCM63268_DEVICE_ID)
+		if (pdata->chip_id == BCM6318_DEVICE_ID ||
+		    pdata->chip_id == BCM6328_DEVICE_ID ||
+		    pdata->chip_id == BCM6362_DEVICE_ID)
+			priv->phy_info = &bcm6318_ephy_info;
+		else if (pdata->chip_id == BCM63268_DEVICE_ID)
 			priv->phy_info = &bcm63268_ephy_info;
 	}
 
