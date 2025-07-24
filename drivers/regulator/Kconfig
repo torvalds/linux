@@ -1203,7 +1203,7 @@ config REGULATOR_RT4801
 	  The device supports two regulators (DSVP/DSVN).
 
 config REGULATOR_RT4803
-	tristate "Richtek RT4803 boost regualtor"
+	tristate "Richtek RT4803 boost regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help
