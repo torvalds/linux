@@ -5699,7 +5699,7 @@ int amdgpu_device_link_reset(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "GPU link reset\n");
 
-	if (!adev->pcie_reset_ctx.occurs_dpc)
+	if (!amdgpu_reset_in_dpc(adev))
 		ret = amdgpu_dpm_link_reset(adev);
 
 	if (ret)
@@ -6150,7 +6150,7 @@ static void amdgpu_device_recovery_prepare(struct amdgpu_device *adev,
 			list_add_tail(&tmp_adev->reset_list, device_list);
 			if (adev->shutdown)
 				tmp_adev->shutdown = true;
-			if (adev->pcie_reset_ctx.occurs_dpc)
+			if (amdgpu_reset_in_dpc(adev))
 				tmp_adev->pcie_reset_ctx.in_link_reset = true;
 		}
 		if (!list_is_first(&adev->reset_list, device_list))
@@ -6226,9 +6226,8 @@ static void amdgpu_device_halt_activities(struct amdgpu_device *adev,
 		drm_client_dev_suspend(adev_to_drm(tmp_adev), false);
 
 		/* disable ras on ALL IPs */
-		if (!need_emergency_restart &&
-		      (!adev->pcie_reset_ctx.occurs_dpc) &&
-		      amdgpu_device_ip_need_full_reset(tmp_adev))
+		if (!need_emergency_restart && !amdgpu_reset_in_dpc(adev) &&
+		    amdgpu_device_ip_need_full_reset(tmp_adev))
 			amdgpu_ras_suspend(tmp_adev);
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -6256,10 +6255,10 @@ static int amdgpu_device_asic_reset(struct amdgpu_device *adev,
 
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	list_for_each_entry(tmp_adev, device_list, reset_list) {
-		if (adev->pcie_reset_ctx.occurs_dpc)
+		if (amdgpu_reset_in_dpc(adev))
 			tmp_adev->no_hw_access = true;
 		r = amdgpu_device_pre_asic_reset(tmp_adev, reset_context);
-		if (adev->pcie_reset_ctx.occurs_dpc)
+		if (amdgpu_reset_in_dpc(adev))
 			tmp_adev->no_hw_access = false;
 		/*TODO Should we stop ?*/
 		if (r) {
@@ -6901,7 +6900,7 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 
 		if (hive)
 			mutex_lock(&hive->hive_lock);
-		adev->pcie_reset_ctx.occurs_dpc = true;
+		amdgpu_reset_set_dpc_status(adev, true);
 		memset(&reset_context, 0, sizeof(reset_context));
 		INIT_LIST_HEAD(&device_list);
 
@@ -7064,7 +7063,7 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 	amdgpu_device_sched_resume(&device_list, NULL, NULL);
 	amdgpu_device_gpu_resume(adev, &device_list, false);
 	amdgpu_device_recovery_put_reset_lock(adev, &device_list);
-	adev->pcie_reset_ctx.occurs_dpc = false;
+	amdgpu_reset_set_dpc_status(adev, false);
 
 	if (hive) {
 		mutex_unlock(&hive->hive_lock);
