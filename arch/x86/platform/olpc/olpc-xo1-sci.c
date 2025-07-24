@@ -9,7 +9,7 @@
 
 #include <linux/cs5535.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
