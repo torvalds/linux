@@ -454,7 +454,7 @@ SYM_FUNC_START(__cpu_setup)
 	dsb	nsh
 
 	msr	cpacr_el1, xzr			// Reset cpacr_el1
-	mov	x1, #1 << 12			// Reset mdscr_el1 and disable
+	mov	x1, MDSCR_EL1_TDCC		// Reset mdscr_el1 and disable
 	msr	mdscr_el1, x1			// access to the DCC from EL0
 	reset_pmuserenr_el0 x1			// Disable PMU access from EL0
 	reset_amuserenr_el0 x1			// Disable AMU access from EL0

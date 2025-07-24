@@ -12,6 +12,10 @@
 
 #include "kselftest.h"
 
+#ifndef AT_HWCAP3
+#define AT_HWCAP3 29
+#endif
+
 static int set_tagged_addr_ctrl(int val)
 {
 	int ret;
