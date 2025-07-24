@@ -1243,7 +1243,7 @@ config HID_U2FZERO
 
 	  U2F Zero supports custom commands for blinking the LED
 	  and getting data from the internal hardware RNG.
-	  The internal hardware can be used to feed the enthropy pool.
+	  The internal hardware can be used to feed the entropy pool.
 
 	  U2F Zero only supports blinking its LED, so this driver doesn't
 	  allow setting the brightness to anything but 1, which will
