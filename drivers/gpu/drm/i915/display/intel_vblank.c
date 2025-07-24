@@ -724,9 +724,9 @@ int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
 			break;
 
 		if (!timeout) {
-			drm_err(display->drm,
-				"Potential atomic update failure on pipe %c\n",
-				pipe_name(crtc->pipe));
+			drm_dbg_kms(display->drm,
+				    "Potential atomic update failure on pipe %c\n",
+				    pipe_name(crtc->pipe));
 			break;
 		}
 
