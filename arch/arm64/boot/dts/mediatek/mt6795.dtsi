@@ -427,6 +427,7 @@
 			clocks = <&infracfg CLK_INFRA_M4U>;
 			clock-names = "bclk";
 			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_LOW>;
+			mediatek,infracfg = <&infracfg>;
 			mediatek,larbs = <&larb0 &larb1 &larb2 &larb3>;
 			power-domains = <&spm MT6795_POWER_DOMAIN_MM>;
 			#iommu-cells = <1>;
