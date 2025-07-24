@@ -138,7 +138,7 @@
 
 		};
 
-		sysirq: intpol-controller@c53a650 {
+		sysirq: interrupt-controller@c53a650 {
 			compatible = "mediatek,mt6779-sysirq",
 				     "mediatek,mt6577-sysirq";
 			interrupt-controller;
