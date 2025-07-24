@@ -12,6 +12,7 @@
 #include <drm/drm_file.h>
 #include <uapi/drm/xe_drm.h>
 
+#include "xe_dep_scheduler.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_class_sysfs.h"
@@ -39,6 +40,12 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 
 static void __xe_exec_queue_free(struct xe_exec_queue *q)
 {
+	int i;
+
+	for (i = 0; i < XE_EXEC_QUEUE_TLB_INVAL_COUNT; ++i)
+		if (q->tlb_inval[i].dep_scheduler)
+			xe_dep_scheduler_fini(q->tlb_inval[i].dep_scheduler);
+
 	if (xe_exec_queue_uses_pxp(q))
 		xe_pxp_exec_queue_remove(gt_to_xe(q->gt)->pxp, q);
 	if (q->vm)
@@ -48,6 +55,39 @@ static void __xe_exec_queue_free(struct xe_exec_queue *q)
 		xe_file_put(q->xef);
 
 	kfree(q);
+}
+
+static int alloc_dep_schedulers(struct xe_device *xe, struct xe_exec_queue *q)
+{
+	struct xe_tile *tile = gt_to_tile(q->gt);
+	int i;
+
+	for (i = 0; i < XE_EXEC_QUEUE_TLB_INVAL_COUNT; ++i) {
+		struct xe_dep_scheduler *dep_scheduler;
+		struct xe_gt *gt;
+		struct workqueue_struct *wq;
+
+		if (i == XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT)
+			gt = tile->primary_gt;
+		else
+			gt = tile->media_gt;
+
+		if (!gt)
+			continue;
+
+		wq = gt->tlb_invalidation.job_wq;
+
+#define MAX_TLB_INVAL_JOBS	16	/* Picking a reasonable value */
+		dep_scheduler = xe_dep_scheduler_create(xe, wq, q->name,
+							MAX_TLB_INVAL_JOBS);
+		if (IS_ERR(dep_scheduler))
+			return PTR_ERR(dep_scheduler);
+
+		q->tlb_inval[i].dep_scheduler = dep_scheduler;
+	}
+#undef MAX_TLB_INVAL_JOBS
+
+	return 0;
 }
 
 static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
@@ -93,6 +133,14 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
 	else
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_NORMAL;
+
+	if (q->flags & (EXEC_QUEUE_FLAG_MIGRATE | EXEC_QUEUE_FLAG_VM)) {
+		err = alloc_dep_schedulers(xe, q);
+		if (err) {
+			__xe_exec_queue_free(q);
+			return ERR_PTR(err);
+		}
+	}
 
 	if (vm)
 		q->vm = xe_vm_get(vm);
