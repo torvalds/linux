@@ -2554,20 +2554,6 @@ static void __reg_deduce_mixed_bounds(struct bpf_reg_state *reg)
 	reg->smin_value = max_t(s64, reg->smin_value, new_smin);
 	reg->smax_value = min_t(s64, reg->smax_value, new_smax);
 
-	/* if s32 can be treated as valid u32 range, we can use it as well */
-	if ((u32)reg->s32_min_value <= (u32)reg->s32_max_value) {
-		/* s32 -> u64 tightening */
-		new_umin = (reg->umin_value & ~0xffffffffULL) | (u32)reg->s32_min_value;
-		new_umax = (reg->umax_value & ~0xffffffffULL) | (u32)reg->s32_max_value;
-		reg->umin_value = max_t(u64, reg->umin_value, new_umin);
-		reg->umax_value = min_t(u64, reg->umax_value, new_umax);
-		/* s32 -> s64 tightening */
-		new_smin = (reg->smin_value & ~0xffffffffULL) | (u32)reg->s32_min_value;
-		new_smax = (reg->smax_value & ~0xffffffffULL) | (u32)reg->s32_max_value;
-		reg->smin_value = max_t(s64, reg->smin_value, new_smin);
-		reg->smax_value = min_t(s64, reg->smax_value, new_smax);
-	}
-
 	/* Here we would like to handle a special case after sign extending load,
 	 * when upper bits for a 64-bit range are all 1s or all 0s.
 	 *
