@@ -11458,6 +11458,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/i3c/cdns,i3c-master.yaml
 F:	drivers/i3c/master/i3c-master-cdns.c
 
+I3C DRIVER FOR RENESAS
+M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
+M:	Tommaso Merciai <tommaso.merciai.xr@bp.renesas.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/i3c/renesas,i3c.yaml
+F:	drivers/i3c/master/renesas-i3c.c
+
 I3C DRIVER FOR SYNOPSYS DESIGNWARE
 S:	Orphan
 F:	Documentation/devicetree/bindings/i3c/snps,dw-i3c-master.yaml
