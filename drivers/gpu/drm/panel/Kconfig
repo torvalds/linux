@@ -982,7 +982,7 @@ config DRM_PANEL_STARTEK_KD070FHFID015
 	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to enable support for STARTEK KD070FHFID015 DSI panel
-	  based on RENESAS-R69429 controller. The pannel is a 7-inch TFT LCD display
+	  based on RENESAS-R69429 controller. The panel is a 7-inch TFT LCD display
 	  with a resolution of 1024 x 600 pixels. It provides a MIPI DSI interface to
 	  the host, a built-in LED backlight and touch controller.
 
