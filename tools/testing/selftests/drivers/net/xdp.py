@@ -13,7 +13,7 @@ from enum import Enum
 
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_ne, ksft_pr
 from lib.py import KsftFailEx, NetDrvEpEnv, EthtoolFamily, NlError
-from lib.py import bkg, cmd, rand_port
+from lib.py import bkg, cmd, rand_port, wait_port_listen
 from lib.py import ip, bpftool, defer
 
 
@@ -70,6 +70,7 @@ def _exchg_udp(cfg, port, test_string):
     tx_udp_cmd = f"echo -n {test_string} | socat -t 2 -u STDIN UDP:{cfg.baddr}:{port}"
 
     with bkg(rx_udp_cmd, exit_wait=True) as nc:
+        wait_port_listen(port, proto="udp")
         cmd(tx_udp_cmd, host=cfg.remote, shell=True)
 
     return nc.stdout.strip()
@@ -310,6 +311,7 @@ def test_xdp_native_tx_mb(cfg):
     tx_udp = f"echo {test_string} | socat -t 2 -u STDIN UDP:{cfg.baddr}:{port}"
 
     with bkg(rx_udp, host=cfg.remote, exit_wait=True) as rnc:
+        wait_port_listen(port, proto="udp", host=cfg.remote)
         cmd(tx_udp, host=cfg.remote, shell=True)
 
     stats = _get_stats(prog_info['maps']['map_xdp_stats'])
