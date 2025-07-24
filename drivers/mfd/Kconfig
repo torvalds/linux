@@ -2003,7 +2003,7 @@ config MFD_TIMBERDALE
 	multifunction device which exposes numerous platform devices.
 
 	The timberdale FPGA can be found on the Intel Atom development board
-	for in-vehicle infontainment, called Russellville.
+	for in-vehicle infotainment, called Russellville.
 
 config MFD_TC3589X
 	bool "Toshiba TC35892 and variants"
