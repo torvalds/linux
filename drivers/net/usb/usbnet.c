@@ -1013,6 +1013,13 @@ int usbnet_get_link_ksettings_internal(struct net_device *net,
 	else
 		cmd->base.speed = SPEED_UNKNOWN;
 
+	/* The standard "Universal Serial Bus Class Definitions
+	 * for Communications Devices v1.2" does not specify
+	 * anything about duplex status.
+	 * So set it DUPLEX_UNKNOWN instead of default DUPLEX_HALF.
+	 */
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_get_link_ksettings_internal);
