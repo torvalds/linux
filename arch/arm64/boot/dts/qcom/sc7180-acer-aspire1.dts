@@ -438,9 +438,6 @@
 };
 
 &mdss_dp {
-	vdda-1p2-supply = <&vreg_l3c_1p2>;
-	vdda-0p9-supply = <&vreg_l4a_0p8>;
-
 	status = "okay";
 };
 
