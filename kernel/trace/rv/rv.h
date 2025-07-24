@@ -41,7 +41,6 @@ struct rv_monitor_def {
 	struct rv_reactor_def	*rdef;
 	bool			reacting;
 #endif
-	bool			task_monitor;
 };
 
 struct dentry *get_monitors_root(void);
