@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "Spreadtrum"
+
 config SND_SOC_SPRD
 	tristate "SoC Audio for the Spreadtrum SoC chips"
 	depends on ARCH_SPRD || COMPILE_TEST
@@ -14,3 +16,5 @@ config SND_SOC_SPRD_MCDT
 	  Say y here to enable multi-channel data transfer support. It
 	  is used for sound stream transmission between audio subsystem
 	  and other AP/CP subsystem.
+
+endmenu

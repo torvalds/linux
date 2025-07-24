@@ -46,6 +46,7 @@ struct asoc_sdw_codec_info;
 struct asoc_sdw_dai_info {
 	const bool direction[2]; /* playback & capture support */
 	const char *dai_name;
+	const char *component_name;
 	const int dai_type;
 	const int dailink[2]; /* dailink id for each direction */
 	const struct snd_kcontrol_new *controls;

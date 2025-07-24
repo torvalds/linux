@@ -8,12 +8,12 @@
 
 #include <sound/soc-acpi.h>
 
-struct snd_soc_acpi_codecs amp_rt1019 = {
+static struct snd_soc_acpi_codecs amp_rt1019 = {
 	.num_codecs = 1,
 	.codecs = {"10EC1019"}
 };
 
-struct snd_soc_acpi_codecs amp_max = {
+static struct snd_soc_acpi_codecs amp_max = {
 	.num_codecs = 1,
 	.codecs = {"MX98360A"}
 };

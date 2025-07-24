@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "Broadcom"
+
 config SND_BCM2835_SOC_I2S
 	tristate "SoC Audio support for the Broadcom BCM2835 I2S module"
 	depends on ARCH_BCM2835 || COMPILE_TEST
@@ -26,3 +28,5 @@ config SND_BCM63XX_I2S_WHISTLER
 	  DSL/PON chips (bcm63158, bcm63178)
 
 	  If you don't know what to do here, say N
+
+endmenu

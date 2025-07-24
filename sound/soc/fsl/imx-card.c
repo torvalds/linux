@@ -513,7 +513,6 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	struct device_node *platform = NULL;
 	struct device_node *codec = NULL;
 	struct device_node *cpu = NULL;
-	struct device_node *np;
 	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
 	struct dai_link_data *link_data;
@@ -552,11 +551,10 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	link = card->dai_link;
 	link_data = data->link_data;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_node_scoped(dev->of_node, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
-			ret = -ENOMEM;
-			goto err_put_np;
+			return -ENOMEM;
 		}
 
 		link->cpus	= &dlc[0];
@@ -567,8 +565,8 @@ static int imx_card_parse_of(struct imx_card_data *data)
 
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
-			dev_err(card->dev, "error getting codec dai_link name\n");
-			goto err_put_np;
+			return dev_err_probe(card->dev, ret,
+					     "error getting codec dai_link name\n");
 		}
 
 		cpu = of_get_child_by_name(np, "cpu");
@@ -725,8 +723,7 @@ err:
 	of_node_put(cpu);
 	of_node_put(codec);
 	of_node_put(platform);
-err_put_np:
-	of_node_put(np);
+
 	return ret;
 }
 

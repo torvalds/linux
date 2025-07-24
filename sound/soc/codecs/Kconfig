@@ -238,6 +238,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1320_SDW
 	imply SND_SOC_RT9120
 	imply SND_SOC_RT9123
+	imply SND_SOC_RTQ9124
 	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
@@ -263,9 +264,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2764
 	imply SND_SOC_TAS2770
 	imply SND_SOC_TAS2780
-	imply SND_SOC_TAS2781_COMLIB
-	imply SND_SOC_TAS2781_COMLIB_I2C
-	imply SND_SOC_TAS2781_FMWLIB
 	imply SND_SOC_TAS2781_I2C
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
@@ -1857,6 +1855,14 @@ config SND_SOC_RT9123P
 	help
 	  Enable support for the HW control mode of Richtek RT9123P 3.2W mono
 	  Class-D audio amplifier.
+
+config SND_SOC_RTQ9124
+	tristate "Richtek RTQ9124 Mono Class-D Amplifier"
+	depends on I2C
+	select REGMAP
+	help
+	  Enable support for Richtek RTQ9124 1x30W digital input automotive
+	  audio amplifier with current sense and real-time load diagnostics.
 
 config SND_SOC_RTQ9128
 	tristate "Richtek RTQ9128 45W Digital Input Amplifier"

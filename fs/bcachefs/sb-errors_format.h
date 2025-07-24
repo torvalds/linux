@@ -314,7 +314,7 @@ enum bch_fsck_flags {
 	x(accounting_mismatch,					272,	FSCK_AUTOFIX)	\
 	x(accounting_replicas_not_marked,			273,	0)		\
 	x(accounting_to_invalid_device,				289,	0)		\
-	x(invalid_btree_id,					274,	0)		\
+	x(invalid_btree_id,					274,	FSCK_AUTOFIX)		\
 	x(alloc_key_io_time_bad,				275,	0)		\
 	x(alloc_key_fragmentation_lru_wrong,			276,	FSCK_AUTOFIX)	\
 	x(accounting_key_junk_at_end,				277,	FSCK_AUTOFIX)	\

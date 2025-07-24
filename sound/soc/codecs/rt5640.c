@@ -193,7 +193,7 @@ static bool rt5640_volatile_register(struct device *dev, unsigned int reg)
 	case RT5640_PRIV_DATA:
 	case RT5640_PGM_REG_ARR1:
 	case RT5640_PGM_REG_ARR3:
-	case RT5640_DUMMY2:
+	case RT5640_GCTL2:
 	case RT5640_VENDOR_ID:
 	case RT5640_VENDOR_ID1:
 	case RT5640_VENDOR_ID2:
@@ -325,8 +325,8 @@ static bool rt5640_readable_register(struct device *dev, unsigned int reg)
 	case RT5640_HP_CALIB2:
 	case RT5640_SV_ZCD1:
 	case RT5640_SV_ZCD2:
-	case RT5640_DUMMY1:
-	case RT5640_DUMMY2:
+	case RT5640_GCTL1:
+	case RT5640_GCTL2:
 	case RT5640_DUMMY3:
 	case RT5640_VENDOR_ID:
 	case RT5640_VENDOR_ID1:
@@ -423,7 +423,7 @@ static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	SOC_DOUBLE_TLV("ADC Capture Volume", RT5640_ADC_DIG_VOL,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
-	SOC_DOUBLE("Mono ADC Capture Switch", RT5640_DUMMY1,
+	SOC_DOUBLE("Mono ADC Capture Switch", RT5640_GCTL1,
 		RT5640_M_MONO_ADC_L_SFT, RT5640_M_MONO_ADC_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("Mono ADC Capture Volume", RT5640_ADC_DATA,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
@@ -1969,7 +1969,7 @@ static int rt5640_set_bias_level(struct snd_soc_component *component,
 			snd_soc_component_update_bits(component, RT5640_PWR_ANLG1,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2);
-			snd_soc_component_update_bits(component, RT5640_DUMMY1,
+			snd_soc_component_update_bits(component, RT5640_GCTL1,
 						0x1, 0x1);
 			snd_soc_component_update_bits(component, RT5640_MICBIAS,
 						0x0030, 0x0030);
@@ -1979,7 +1979,7 @@ static int rt5640_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_OFF:
 		snd_soc_component_write(component, RT5640_DEPOP_M1, 0x0004);
 		snd_soc_component_write(component, RT5640_DEPOP_M2, 0x1100);
-		snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x1, 0);
+		snd_soc_component_update_bits(component, RT5640_GCTL1, 0x1, 0);
 		snd_soc_component_write(component, RT5640_PWR_DIG1, 0x0000);
 		snd_soc_component_write(component, RT5640_PWR_DIG2, 0x0000);
 		snd_soc_component_write(component, RT5640_PWR_VOL, 0x0000);
@@ -2328,12 +2328,12 @@ static void rt5640_jack_work(struct work_struct *work)
 			jack_type |= SND_JACK_MICROPHONE;
 
 		/* headphone jack */
-		val = snd_soc_component_read(component, RT5640_DUMMY2);
+		val = snd_soc_component_read(component, RT5640_GCTL2);
 		hda_hp_plugged = !(val & (0x1 << 11));
 		dev_dbg(component->dev, "headphone jack status %d\n",
 			hda_hp_plugged);
 
-		snd_soc_component_update_bits(component, RT5640_DUMMY2,
+		snd_soc_component_update_bits(component, RT5640_GCTL2,
 			(0x1 << 10), !hda_hp_plugged << 10);
 
 		if (hda_hp_plugged)
@@ -2504,7 +2504,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
 		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
 
-	snd_soc_component_write(component, RT5640_DUMMY1, 0x3f41);
+	snd_soc_component_write(component, RT5640_GCTL1, 0x3f41);
 
 	rt5640_set_ovcd_params(component);
 
@@ -2519,7 +2519,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 			snd_soc_component_write(component, RT5640_IRQ_CTRL1,
 				RT5640_IRQ_JD_NOR);
 		else if (rt5640->jd_src == RT5640_JD_SRC_JD2_IN4N)
-			snd_soc_component_update_bits(component, RT5640_DUMMY2,
+			snd_soc_component_update_bits(component, RT5640_GCTL2,
 				RT5640_IRQ_JD2_MASK | RT5640_JD2_MASK,
 				RT5640_IRQ_JD2_NOR | RT5640_JD2_EN);
 	} else {
@@ -2527,7 +2527,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 			snd_soc_component_write(component, RT5640_IRQ_CTRL1,
 				RT5640_IRQ_JD_NOR | RT5640_JD_P_INV);
 		else if (rt5640->jd_src == RT5640_JD_SRC_JD2_IN4N)
-			snd_soc_component_update_bits(component, RT5640_DUMMY2,
+			snd_soc_component_update_bits(component, RT5640_GCTL2,
 				RT5640_IRQ_JD2_MASK | RT5640_JD2_P_MASK |
 				RT5640_JD2_MASK,
 				RT5640_IRQ_JD2_NOR | RT5640_JD2_P_INV |
@@ -2596,7 +2596,7 @@ static void rt5640_enable_hda_jack_detect(
 	snd_soc_component_write(component, RT5640_IRQ_CTRL1, RT5640_IRQ_JD_NOR);
 
 	/* Select JD2 for Headphone */
-	snd_soc_component_update_bits(component, RT5640_DUMMY2, 0x1100, 0x1100);
+	snd_soc_component_update_bits(component, RT5640_GCTL2, 0x1100, 0x1100);
 
 	/* Selecting GPIO01 as an interrupt */
 	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL1,
@@ -2606,7 +2606,7 @@ static void rt5640_enable_hda_jack_detect(
 	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
 		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
 
-	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x400, 0x0);
+	snd_soc_component_update_bits(component, RT5640_GCTL1, 0x400, 0x0);
 
 	snd_soc_component_update_bits(component, RT5640_PWR_ANLG1,
 		RT5640_PWR_VREF2 | RT5640_PWR_MB | RT5640_PWR_BG,
@@ -2668,7 +2668,7 @@ static int rt5640_probe(struct snd_soc_component *component)
 
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 
-	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x0301, 0x0301);
+	snd_soc_component_update_bits(component, RT5640_GCTL1, 0x0301, 0x0301);
 	snd_soc_component_update_bits(component, RT5640_MICBIAS, 0x0030, 0x0030);
 	snd_soc_component_update_bits(component, RT5640_DSP_PATH2, 0xfc00, 0x0c00);
 
@@ -2719,7 +2719,7 @@ static int rt5640_probe(struct snd_soc_component *component)
 					      RT5640_IN_DF2, RT5640_IN_DF2);
 
 	if (device_property_read_bool(component->dev, "realtek,lout-differential"))
-		snd_soc_component_update_bits(component, RT5640_DUMMY1,
+		snd_soc_component_update_bits(component, RT5640_GCTL1,
 					      RT5640_EN_LOUT_DF, RT5640_EN_LOUT_DF);
 
 	if (device_property_read_u32(component->dev, "realtek,dmic1-data-pin",
@@ -2829,12 +2829,12 @@ static int rt5640_resume(struct snd_soc_component *component)
 	if (rt5640->jack) {
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
 			snd_soc_component_update_bits(component,
-				RT5640_DUMMY2, 0x1100, 0x1100);
+				RT5640_GCTL2, 0x1100, 0x1100);
 		} else {
 			if (rt5640->jd_inverted) {
 				if (rt5640->jd_src == RT5640_JD_SRC_JD2_IN4N)
 					snd_soc_component_update_bits(
-						component, RT5640_DUMMY2,
+						component, RT5640_GCTL2,
 						RT5640_IRQ_JD2_MASK |
 						RT5640_JD2_MASK,
 						RT5640_IRQ_JD2_NOR |
@@ -2843,7 +2843,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 			} else {
 				if (rt5640->jd_src == RT5640_JD_SRC_JD2_IN4N)
 					snd_soc_component_update_bits(
-						component, RT5640_DUMMY2,
+						component, RT5640_GCTL2,
 						RT5640_IRQ_JD2_MASK |
 						RT5640_JD2_P_MASK |
 						RT5640_JD2_MASK,
@@ -3014,6 +3014,11 @@ static int rt5640_i2c_probe(struct i2c_client *i2c)
 
 	regmap_read(rt5640->regmap, RT5640_VENDOR_ID2, &val);
 	if (val != RT5640_DEVICE_ID) {
+		usleep_range(60000, 100000);
+		regmap_read(rt5640->regmap, RT5640_VENDOR_ID2, &val);
+	}
+
+	if (val != RT5640_DEVICE_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5640/39\n", val);
 		return -ENODEV;
@@ -3026,7 +3031,7 @@ static int rt5640_i2c_probe(struct i2c_client *i2c)
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
 
-	regmap_update_bits(rt5640->regmap, RT5640_DUMMY1,
+	regmap_update_bits(rt5640->regmap, RT5640_GCTL1,
 				RT5640_MCLK_DET, RT5640_MCLK_DET);
 
 	rt5640->hp_mute = true;

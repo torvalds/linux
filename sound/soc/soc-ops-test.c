@@ -481,22 +481,27 @@ static void soc_ops_test_access(struct kunit *test)
 		.private_data = &priv->component,
 		.private_value = (unsigned long)&param->mc,
 	};
-	struct snd_ctl_elem_value result;
 	unsigned int val;
 	int ret;
+	/* it is too large struct. use kzalloc() */
+	struct snd_ctl_elem_value *result;
+
+	result = kzalloc(sizeof(*result), GFP_KERNEL);
+	if (!result)
+		return;
 
 	ret = regmap_write(priv->component.regmap, 0x0, param->init);
 	KUNIT_ASSERT_FALSE(test, ret);
 	ret = regmap_write(priv->component.regmap, 0x1, param->init);
 	KUNIT_ASSERT_FALSE(test, ret);
 
-	result.value.integer.value[0] = param->lctl;
-	result.value.integer.value[1] = param->rctl;
+	result->value.integer.value[0] = param->lctl;
+	result->value.integer.value[1] = param->rctl;
 
-	ret = param->put(&kctl, &result);
+	ret = param->put(&kctl, result);
 	KUNIT_ASSERT_EQ(test, ret, param->ret);
 	if (ret < 0)
-		return;
+		goto end;
 
 	ret = regmap_read(priv->component.regmap, 0x0, &val);
 	KUNIT_ASSERT_FALSE(test, ret);
@@ -506,17 +511,19 @@ static void soc_ops_test_access(struct kunit *test)
 	KUNIT_ASSERT_FALSE(test, ret);
 	KUNIT_EXPECT_EQ(test, val, (param->init & ~param->rmask) | param->rreg);
 
-	result.value.integer.value[0] = 0;
-	result.value.integer.value[1] = 0;
+	result->value.integer.value[0] = 0;
+	result->value.integer.value[1] = 0;
 
-	ret = param->get(&kctl, &result);
+	ret = param->get(&kctl, result);
 	KUNIT_ASSERT_GE(test, ret, 0);
 
-	KUNIT_EXPECT_EQ(test, result.value.integer.value[0], param->lctl);
+	KUNIT_EXPECT_EQ(test, result->value.integer.value[0], param->lctl);
 	if (param->layout != SOC_OPS_TEST_SINGLE)
-		KUNIT_EXPECT_EQ(test, result.value.integer.value[1], param->rctl);
+		KUNIT_EXPECT_EQ(test, result->value.integer.value[1], param->rctl);
 	else
-		KUNIT_EXPECT_EQ(test, result.value.integer.value[1], 0);
+		KUNIT_EXPECT_EQ(test, result->value.integer.value[1], 0);
+end:
+	kfree(result);
 }
 
 KUNIT_ARRAY_PARAM(all_info_tests, all_info_test_params, info_test_desc);

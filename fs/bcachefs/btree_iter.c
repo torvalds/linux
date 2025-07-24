@@ -2189,7 +2189,7 @@ void btree_trans_peek_prev_journal(struct btree_trans *trans,
 	struct btree_path *path = btree_iter_path(trans, iter);
 	struct bkey_i *next_journal =
 		bch2_btree_journal_peek_prev(trans, iter, search_key,
-				k->k ? k->k->p : path_l(path)->b->key.k.p);
+				k->k ? k->k->p : path_l(path)->b->data->min_key);
 
 	if (next_journal) {
 		iter->k = next_journal->k;

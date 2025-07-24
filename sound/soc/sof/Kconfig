@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig SND_SOC_SOF_TOPLEVEL
-	bool "Sound Open Firmware Support"
+	bool "Sound Open Firmware (SOF) platforms"
 	help
 	  This adds support for Sound Open Firmware (SOF). SOF is free and
 	  generic open source audio DSP firmware for multiple devices.

@@ -16,7 +16,7 @@
 #include <sound/tlv.h>
 #include "max98520.h"
 
-static struct reg_default max98520_reg[] = {
+static const struct reg_default max98520_reg[] = {
 	{MAX98520_R2000_SW_RESET, 0x00},
 	{MAX98520_R2001_STATUS_1, 0x00},
 	{MAX98520_R2002_STATUS_2, 0x00},

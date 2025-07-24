@@ -14,9 +14,6 @@
 //
 
 #include <linux/crc8.h>
-#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
-#include <linux/debugfs.h>
-#endif
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
