@@ -53,9 +53,14 @@ bool vgic_supports_direct_msis(struct kvm *kvm)
 	return kvm_vgic_global_state.has_gicv4 && vgic_has_its(kvm);
 }
 
-bool vgic_supports_direct_sgis(struct kvm *kvm)
+bool system_supports_direct_sgis(void)
 {
 	return kvm_vgic_global_state.has_gicv4_1 && gic_cpuif_has_vsgi();
+}
+
+bool vgic_supports_direct_sgis(struct kvm *kvm)
+{
+	return kvm->arch.vgic.nassgicap;
 }
 
 /*
@@ -163,8 +168,18 @@ static int vgic_mmio_uaccess_write_v3_misc(struct kvm_vcpu *vcpu,
 
 	switch (addr & 0x0c) {
 	case GICD_TYPER2:
-		if (val != vgic_mmio_read_v3_misc(vcpu, addr, len))
+		reg = vgic_mmio_read_v3_misc(vcpu, addr, len);
+
+		if (reg == val)
+			return 0;
+		if (vgic_initialized(vcpu->kvm))
+			return -EBUSY;
+		if ((reg ^ val) & ~GICD_TYPER2_nASSGIcap)
 			return -EINVAL;
+		if (!system_supports_direct_sgis() && val)
+			return -EINVAL;
+
+		dist->nassgicap = val & GICD_TYPER2_nASSGIcap;
 		return 0;
 	case GICD_IIDR:
 		reg = vgic_mmio_read_v3_misc(vcpu, addr, len);

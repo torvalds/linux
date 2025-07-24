@@ -369,12 +369,21 @@ void vgic_its_invalidate_all_caches(struct kvm *kvm);
 int vgic_its_inv_lpi(struct kvm *kvm, struct vgic_irq *irq);
 int vgic_its_invall(struct kvm_vcpu *vcpu);
 
+bool system_supports_direct_sgis(void);
 bool vgic_supports_direct_msis(struct kvm *kvm);
 bool vgic_supports_direct_sgis(struct kvm *kvm);
 
 static inline bool vgic_supports_direct_irqs(struct kvm *kvm)
 {
-	return vgic_supports_direct_msis(kvm) || vgic_supports_direct_sgis(kvm);
+	/*
+	 * Deliberately conflate vLPI and vSGI support on GICv4.1 hardware,
+	 * indirectly allowing userspace to control whether or not vPEs are
+	 * allocated for the VM.
+	 */
+	if (system_supports_direct_sgis())
+		return vgic_supports_direct_sgis(kvm);
+
+	return vgic_supports_direct_msis(kvm);
 }
 
 int vgic_v4_init(struct kvm *kvm);
