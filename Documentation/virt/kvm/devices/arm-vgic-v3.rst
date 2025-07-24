@@ -78,6 +78,8 @@ Groups:
     -ENXIO   The group or attribute is unknown/unsupported for this device
              or hardware support is missing.
     -EFAULT  Invalid user pointer for attr->addr.
+    -EBUSY   Attempt to write a register that is read-only after
+             initialization
     =======  =============================================================
 
 
@@ -120,12 +122,27 @@ Groups:
     Note that distributor fields are not banked, but return the same value
     regardless of the mpidr used to access the register.
 
+    Userspace is allowed to write the following register fields prior to
+    initialization of the VGIC:
+
+      =====================
+      GICD_IIDR.Revision
+      GICD_TYPER2.nASSGIcap
+      =====================
+
+
     GICD_IIDR.Revision is updated when the KVM implementation is changed in a
     way directly observable by the guest or userspace.  Userspace should read
     GICD_IIDR from KVM and write back the read value to confirm its expected
     behavior is aligned with the KVM implementation.  Userspace should set
     GICD_IIDR before setting any other registers to ensure the expected
     behavior.
+
+
+    GICD_TYPER2.nASSGIcap allows userspace to control the support of SGIs
+    without an active state. At VGIC creation the field resets to the
+    maximum capability of the system. Userspace is expected to read the field
+    to determine the supported value(s) before writing to the field.
 
 
     The GICD_STATUSR and GICR_STATUSR registers are architecturally defined such
