@@ -230,8 +230,18 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 }
 
 static bool gmc_v12_1_get_vmid_pasid_mapping_info(struct amdgpu_device *adev,
-						  uint8_t vmid, uint16_t *p_pasid)
+						  uint8_t vmid, uint8_t inst,
+						  uint16_t *p_pasid)
 {
+	uint16_t index;
+
+	if (inst/4)
+		index = 0xA + inst%4;
+	else
+		index = 0x2 + inst%4;
+
+	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX), index);
+
 	*p_pasid = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT) + vmid) & 0xffff;
 
 	return !!(*p_pasid);
@@ -350,7 +360,7 @@ static void gmc_v12_1_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	for (vmid = 1; vmid < 16; vmid++) {
 		bool valid;
 
-		valid = gmc_v12_1_get_vmid_pasid_mapping_info(adev, vmid,
+		valid = gmc_v12_1_get_vmid_pasid_mapping_info(adev, vmid, inst,
 							      &queried);
 		if (!valid || queried != pasid)
 			continue;
