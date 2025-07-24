@@ -972,8 +972,6 @@ void intel_hpd_cancel_work(struct intel_display *display)
 
 	spin_lock_irq(&display->irq.lock);
 
-	drm_WARN_ON(display->drm, get_blocked_hpd_pin_mask(display));
-
 	display->hotplug.long_hpd_pin_mask = 0;
 	display->hotplug.short_hpd_pin_mask = 0;
 	display->hotplug.event_bits = 0;

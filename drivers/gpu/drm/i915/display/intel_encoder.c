@@ -8,6 +8,7 @@
 #include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_encoder.h"
+#include "intel_hotplug.h"
 
 static void intel_encoder_link_check_work_fn(struct work_struct *work)
 {
@@ -35,6 +36,28 @@ void intel_encoder_link_check_queue_work(struct intel_encoder *encoder, int dela
 
 	mod_delayed_work(display->wq.unordered,
 			 &encoder->link_check_work, msecs_to_jiffies(delay_ms));
+}
+
+void intel_encoder_unblock_all_hpds(struct intel_display *display)
+{
+	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(display))
+		return;
+
+	for_each_intel_encoder(display->drm, encoder)
+		intel_hpd_unblock(encoder);
+}
+
+void intel_encoder_block_all_hpds(struct intel_display *display)
+{
+	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(display))
+		return;
+
+	for_each_intel_encoder(display->drm, encoder)
+		intel_hpd_block(encoder);
 }
 
 void intel_encoder_suspend_all(struct intel_display *display)
