@@ -689,6 +689,9 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 
 	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 
+	if (dev->ops->phy_enable)
+		dev->ops->phy_enable(dev, port);
+
 	if (dev->ops->irq_enable)
 		ret = dev->ops->irq_enable(dev, port);
 	if (ret)
@@ -726,6 +729,9 @@ void b53_disable_port(struct dsa_switch *ds, int port)
 	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), &reg);
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+
+	if (dev->ops->phy_disable)
+		dev->ops->phy_disable(dev, port);
 
 	if (dev->ops->irq_disable)
 		dev->ops->irq_disable(dev, port);
