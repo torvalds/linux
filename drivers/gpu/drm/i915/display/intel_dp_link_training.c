@@ -1609,6 +1609,8 @@ out:
 		intel_dp_program_link_training_pattern(intel_dp, crtc_state,
 						       DP_PHY_DPRX, DP_TRAINING_PATTERN_2);
 
+	intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
+
 	return passed;
 }
 
