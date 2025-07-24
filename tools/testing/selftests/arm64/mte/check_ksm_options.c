@@ -106,7 +106,7 @@ static int check_madvise_options(int mem_type, int mode, int mapping)
 		return err;
 	}
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, false);
 	ptr = mte_allocate_memory(TEST_UNIT * page_sz, mem_type, mapping, true);
 	if (check_allocated_memory(ptr, TEST_UNIT * page_sz, mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;

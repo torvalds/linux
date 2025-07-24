@@ -44,7 +44,7 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 
 	err = KSFT_PASS;
 	len = 2 * page_sz;
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, false);
 	fd = create_temp_file();
 	if (fd == -1)
 		return KSFT_FAIL;

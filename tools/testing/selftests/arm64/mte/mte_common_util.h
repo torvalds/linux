@@ -38,6 +38,7 @@ struct mte_fault_cxt {
 
 extern struct mte_fault_cxt cur_mte_cxt;
 extern bool mtefar_support;
+extern bool mtestonly_support;
 
 /* MTE utility functions */
 void mte_default_handler(int signum, siginfo_t *si, void *uc);
@@ -60,7 +61,7 @@ void *mte_insert_atag(void *ptr);
 void *mte_clear_atag(void *ptr);
 int mte_default_setup(void);
 void mte_restore_setup(void);
-int mte_switch_mode(int mte_option, unsigned long incl_mask);
+int mte_switch_mode(int mte_option, unsigned long incl_mask, bool stonly);
 void mte_initialize_current_context(int mode, uintptr_t ptr, ssize_t range);
 
 /* Common utility functions */

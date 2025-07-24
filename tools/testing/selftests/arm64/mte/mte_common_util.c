@@ -28,8 +28,10 @@
 
 struct mte_fault_cxt cur_mte_cxt;
 bool mtefar_support;
+bool mtestonly_support;
 static unsigned int mte_cur_mode;
 static unsigned int mte_cur_pstate_tco;
+static bool mte_cur_stonly;
 
 void mte_default_handler(int signum, siginfo_t *si, void *uc)
 {
@@ -314,7 +316,7 @@ void mte_initialize_current_context(int mode, uintptr_t ptr, ssize_t range)
 		cur_mte_cxt.trig_si_code = 0;
 }
 
-int mte_switch_mode(int mte_option, unsigned long incl_mask)
+int mte_switch_mode(int mte_option, unsigned long incl_mask, bool stonly)
 {
 	unsigned long en = 0;
 
@@ -346,6 +348,9 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 		break;
 	}
 
+	if (mtestonly_support && stonly)
+		en |= PR_MTE_STORE_ONLY;
+
 	en |= (incl_mask << PR_MTE_TAG_SHIFT);
 	/* Enable address tagging ABI, mte error reporting mode and tag inclusion mask. */
 	if (prctl(PR_SET_TAGGED_ADDR_CTRL, en, 0, 0, 0) != 0) {
@@ -370,6 +375,9 @@ int mte_default_setup(void)
 
 	mtefar_support = !!(hwcaps3 & HWCAP3_MTE_FAR);
 
+	if (hwcaps3 & HWCAP3_MTE_STORE_ONLY)
+		mtestonly_support = true;
+
 	/* Get current mte mode */
 	ret = prctl(PR_GET_TAGGED_ADDR_CTRL, en, 0, 0, 0);
 	if (ret < 0) {
@@ -383,6 +391,8 @@ int mte_default_setup(void)
 	else if (ret & PR_MTE_TCF_NONE)
 		mte_cur_mode = MTE_NONE_ERR;
 
+	mte_cur_stonly = (ret & PR_MTE_STORE_ONLY) ? true : false;
+
 	mte_cur_pstate_tco = mte_get_pstate_tco();
 	/* Disable PSTATE.TCO */
 	mte_disable_pstate_tco();
@@ -391,7 +401,7 @@ int mte_default_setup(void)
 
 void mte_restore_setup(void)
 {
-	mte_switch_mode(mte_cur_mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mte_cur_mode, MTE_ALLOW_NON_ZERO_TAG, mte_cur_stonly);
 	if (mte_cur_pstate_tco == MT_PSTATE_TCO_EN)
 		mte_enable_pstate_tco();
 	else if (mte_cur_pstate_tco == MT_PSTATE_TCO_DIS)

@@ -35,6 +35,11 @@ enum mte_mem_check_type {
 	CHECK_CLEAR_PROT_MTE = 2,
 };
 
+enum mte_tag_op_type {
+	TAG_OP_ALL = 0,
+	TAG_OP_STONLY = 1,
+};
+
 struct check_mmap_testcase {
 	int check_type;
 	int mem_type;
@@ -42,8 +47,12 @@ struct check_mmap_testcase {
 	int mapping;
 	int tag_check;
 	int atag_check;
+	int tag_op;
 	bool enable_tco;
 };
+
+#define TAG_OP_ALL		0
+#define TAG_OP_STONLY		1
 
 static size_t page_size;
 static int sizes[] = {
@@ -51,8 +60,11 @@ static int sizes[] = {
 	/* page size - 1*/ 0, /* page_size */ 0, /* page size + 1 */ 0
 };
 
-static int check_mte_memory(char *ptr, int size, int mode, int tag_check, int atag_check)
+static int check_mte_memory(char *ptr, int size, int mode,
+		int tag_check,int atag_check, int tag_op)
 {
+	char buf[MT_GRANULE_SIZE];
+
 	if (!mtefar_support && atag_check == ATAG_CHECK_ON)
 		return KSFT_SKIP;
 
@@ -81,16 +93,34 @@ static int check_mte_memory(char *ptr, int size, int mode, int tag_check, int at
 	if (cur_mte_cxt.fault_valid == true && tag_check == TAG_CHECK_OFF)
 		return KSFT_FAIL;
 
+	if (tag_op == TAG_OP_STONLY) {
+		mte_initialize_current_context(mode, (uintptr_t)ptr, -UNDERFLOW);
+		memcpy(buf, ptr - UNDERFLOW, MT_GRANULE_SIZE);
+		mte_wait_after_trig();
+		if (cur_mte_cxt.fault_valid == true)
+			return KSFT_FAIL;
+
+		mte_initialize_current_context(mode, (uintptr_t)ptr, size + OVERFLOW);
+		memcpy(buf, ptr + size, MT_GRANULE_SIZE);
+		mte_wait_after_trig();
+		if (cur_mte_cxt.fault_valid == true)
+			return KSFT_FAIL;
+	}
+
 	return KSFT_PASS;
 }
 
-static int check_anonymous_memory_mapping(int mem_type, int mode, int mapping, int tag_check, int atag_check)
+static int check_anonymous_memory_mapping(int mem_type, int mode, int mapping,
+		int tag_check, int atag_check, int tag_op)
 {
 	char *ptr, *map_ptr;
 	int run, result, map_size;
 	int item = ARRAY_SIZE(sizes);
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	if (tag_op == TAG_OP_STONLY && !mtestonly_support)
+		return KSFT_SKIP;
+
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, tag_op);
 	for (run = 0; run < item; run++) {
 		map_size = sizes[run] + OVERFLOW + UNDERFLOW;
 		map_ptr = (char *)mte_allocate_memory(map_size, mem_type, mapping, false);
@@ -106,7 +136,7 @@ static int check_anonymous_memory_mapping(int mem_type, int mode, int mapping, i
 			munmap((void *)map_ptr, map_size);
 			return KSFT_FAIL;
 		}
-		result = check_mte_memory(ptr, sizes[run], mode, tag_check, atag_check);
+		result = check_mte_memory(ptr, sizes[run], mode, tag_check, atag_check, tag_op);
 		mte_clear_tags((void *)ptr, sizes[run]);
 		mte_free_memory((void *)map_ptr, map_size, mem_type, false);
 		if (result != KSFT_PASS)
@@ -115,14 +145,18 @@ static int check_anonymous_memory_mapping(int mem_type, int mode, int mapping, i
 	return KSFT_PASS;
 }
 
-static int check_file_memory_mapping(int mem_type, int mode, int mapping, int tag_check, int atag_check)
+static int check_file_memory_mapping(int mem_type, int mode, int mapping,
+		int tag_check, int atag_check, int tag_op)
 {
 	char *ptr, *map_ptr;
 	int run, fd, map_size;
 	int total = ARRAY_SIZE(sizes);
 	int result = KSFT_PASS;
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	if (tag_op == TAG_OP_STONLY && !mtestonly_support)
+		return KSFT_SKIP;
+
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, tag_op);
 	for (run = 0; run < total; run++) {
 		fd = create_temp_file();
 		if (fd == -1)
@@ -144,7 +178,7 @@ static int check_file_memory_mapping(int mem_type, int mode, int mapping, int ta
 			close(fd);
 			return KSFT_FAIL;
 		}
-		result = check_mte_memory(ptr, sizes[run], mode, tag_check, atag_check);
+		result = check_mte_memory(ptr, sizes[run], mode, tag_check, atag_check, tag_op);
 		mte_clear_tags((void *)ptr, sizes[run]);
 		munmap((void *)map_ptr, map_size);
 		close(fd);
@@ -161,7 +195,7 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping, int at
 	int total = ARRAY_SIZE(sizes);
 
 	prot_flag = PROT_READ | PROT_WRITE;
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, false);
 	for (run = 0; run < total; run++) {
 		map_size = sizes[run] + OVERFLOW + UNDERFLOW;
 		ptr = (char *)mte_allocate_memory_tag_range(sizes[run], mem_type, mapping,
@@ -177,10 +211,10 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping, int at
 			ksft_print_msg("FAIL: mprotect not ignoring clear PROT_MTE property\n");
 			return KSFT_FAIL;
 		}
-		result = check_mte_memory(ptr, sizes[run], mode, TAG_CHECK_ON, atag_check);
+		result = check_mte_memory(ptr, sizes[run], mode, TAG_CHECK_ON, atag_check, TAG_OP_ALL);
 		mte_free_memory_tag_range((void *)ptr, sizes[run], mem_type, UNDERFLOW, OVERFLOW);
 		if (result != KSFT_PASS)
-			return KSFT_FAIL;
+			return result;
 
 		fd = create_temp_file();
 		if (fd == -1)
@@ -201,7 +235,7 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping, int at
 			close(fd);
 			return KSFT_FAIL;
 		}
-		result = check_mte_memory(ptr, sizes[run], mode, TAG_CHECK_ON, atag_check);
+		result = check_mte_memory(ptr, sizes[run], mode, TAG_CHECK_ON, atag_check, TAG_OP_ALL);
 		mte_free_memory_tag_range((void *)ptr, sizes[run], mem_type, UNDERFLOW, OVERFLOW);
 		close(fd);
 		if (result != KSFT_PASS)
@@ -219,6 +253,7 @@ const char *format_test_name(struct check_mmap_testcase *tc)
 	const char *mapping_str;
 	const char *tag_check_str;
 	const char *atag_check_str;
+	const char *tag_op_str;
 
 	switch (tc->check_type) {
 	case CHECK_ANON_MEM:
@@ -303,6 +338,23 @@ const char *format_test_name(struct check_mmap_testcase *tc)
 	         check_type_str, mapping_str, sync_str, mem_type_str,
 	         tag_check_str, atag_check_str);
 
+	switch (tc->tag_op) {
+	case TAG_OP_ALL:
+		tag_op_str = "";
+		break;
+	case TAG_OP_STONLY:
+		tag_op_str = " / store-only";
+		break;
+	default:
+		assert(0);
+		break;
+	}
+
+	snprintf(test_name, TEST_NAME_MAX,
+	         "Check %s with %s mapping, %s mode, %s memory and %s (%s%s)\n",
+	         check_type_str, mapping_str, sync_str, mem_type_str,
+	         tag_check_str, atag_check_str, tag_op_str);
+
 	return test_name;
 }
 
@@ -318,6 +370,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_OFF,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = true,
 		},
 		{
@@ -327,6 +380,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_OFF,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = true,
 		},
 		{
@@ -336,6 +390,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_OFF,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -345,6 +400,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_OFF,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -354,6 +410,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -363,6 +420,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -372,6 +430,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -381,6 +440,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -390,6 +450,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -399,6 +460,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -408,6 +470,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -417,6 +480,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -426,6 +490,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -435,6 +500,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -444,6 +510,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -453,6 +520,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -462,6 +530,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -471,6 +540,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -480,6 +550,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -489,6 +560,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -498,6 +570,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -507,6 +580,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -516,6 +590,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -525,6 +600,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -534,6 +610,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -543,6 +620,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -552,6 +630,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -561,6 +640,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -570,6 +650,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -579,6 +660,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_SHARED,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -588,6 +670,257 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_OFF,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_ANON_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MPROTECT,
+			.mte_sync = MTE_SYNC_ERR,
+			.mapping = MAP_SHARED,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
+			.enable_tco = false,
+		},
+		{
+			.check_type = CHECK_FILE_MEM,
+			.mem_type = USE_MMAP,
+			.mte_sync = MTE_ASYNC_ERR,
+			.mapping = MAP_PRIVATE,
+			.tag_check = TAG_CHECK_ON,
+			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_STONLY,
 			.enable_tco = false,
 		},
 		{
@@ -597,6 +930,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 		{
@@ -606,6 +940,7 @@ int main(int argc, char *argv[])
 			.mapping = MAP_PRIVATE,
 			.tag_check = TAG_CHECK_ON,
 			.atag_check = ATAG_CHECK_ON,
+			.tag_op = TAG_OP_ALL,
 			.enable_tco = false,
 		},
 	};
@@ -643,7 +978,8 @@ int main(int argc, char *argv[])
 								     test_cases[i].mte_sync,
 								     test_cases[i].mapping,
 								     test_cases[i].tag_check,
-								     test_cases[i].atag_check),
+								     test_cases[i].atag_check,
+								     test_cases[i].tag_op),
 				      format_test_name(&test_cases[i]));
 			break;
 		case CHECK_FILE_MEM:
@@ -651,7 +987,8 @@ int main(int argc, char *argv[])
 							        test_cases[i].mte_sync,
 							        test_cases[i].mapping,
 							        test_cases[i].tag_check,
-							        test_cases[i].atag_check),
+							        test_cases[i].atag_check,
+								test_cases[i].tag_op),
 				      format_test_name(&test_cases[i]));
 			break;
 		case CHECK_CLEAR_PROT_MTE:
