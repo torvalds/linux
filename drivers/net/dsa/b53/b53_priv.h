@@ -73,6 +73,10 @@ enum {
 	BCM53125_DEVICE_ID = 0x53125,
 	BCM53128_DEVICE_ID = 0x53128,
 	BCM63XX_DEVICE_ID = 0x6300,
+	BCM6318_DEVICE_ID = 0x6318,
+	BCM6328_DEVICE_ID = 0x6328,
+	BCM6362_DEVICE_ID = 0x6362,
+	BCM6368_DEVICE_ID = 0x6368,
 	BCM63268_DEVICE_ID = 0x63268,
 	BCM53010_DEVICE_ID = 0x53010,
 	BCM53011_DEVICE_ID = 0x53011,
@@ -220,12 +224,17 @@ static inline int is531x5(struct b53_device *dev)
 static inline int is63xx(struct b53_device *dev)
 {
 	return dev->chip_id == BCM63XX_DEVICE_ID ||
+		dev->chip_id == BCM6318_DEVICE_ID ||
+		dev->chip_id == BCM6328_DEVICE_ID ||
+		dev->chip_id == BCM6362_DEVICE_ID ||
+		dev->chip_id == BCM6368_DEVICE_ID ||
 		dev->chip_id == BCM63268_DEVICE_ID;
 }
 
-static inline int is63268(struct b53_device *dev)
+static inline int is6318_268(struct b53_device *dev)
 {
-	return dev->chip_id == BCM63268_DEVICE_ID;
+	return dev->chip_id == BCM6318_DEVICE_ID ||
+		dev->chip_id == BCM63268_DEVICE_ID;
 }
 
 static inline int is5301x(struct b53_device *dev)

@@ -348,16 +348,16 @@ static const struct of_device_id b53_mmap_of_table[] = {
 		.data = (void *)BCM63XX_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6318-switch",
-		.data = (void *)BCM63268_DEVICE_ID,
+		.data = (void *)BCM6318_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6328-switch",
-		.data = (void *)BCM63XX_DEVICE_ID,
+		.data = (void *)BCM6328_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6362-switch",
-		.data = (void *)BCM63XX_DEVICE_ID,
+		.data = (void *)BCM6362_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6368-switch",
-		.data = (void *)BCM63XX_DEVICE_ID,
+		.data = (void *)BCM6368_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm63268-switch",
 		.data = (void *)BCM63268_DEVICE_ID,

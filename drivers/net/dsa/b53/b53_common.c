@@ -1410,7 +1410,7 @@ static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
 	b53_read8(dev, B53_CTRL_PAGE, B53_RGMII_CTRL_P(port), &rgmii_ctrl);
 	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
 
-	if (is63268(dev))
+	if (is6318_268(dev))
 		rgmii_ctrl |= RGMII_CTRL_MII_OVERRIDE;
 
 	rgmii_ctrl |= RGMII_CTRL_ENABLE_GMII;
@@ -2775,19 +2775,6 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.jumbo_size_reg = B53_JUMBO_MAX_SIZE_63XX,
 	},
 	{
-		.chip_id = BCM63268_DEVICE_ID,
-		.dev_name = "BCM63268",
-		.vlans = 4096,
-		.enabled_ports = 0, /* pdata must provide them */
-		.arl_bins = 4,
-		.arl_buckets = 1024,
-		.imp_port = 8,
-		.vta_regs = B53_VTA_REGS_63XX,
-		.duplex_reg = B53_DUPLEX_STAT_63XX,
-		.jumbo_pm_reg = B53_JUMBO_PORT_MASK_63XX,
-		.jumbo_size_reg = B53_JUMBO_MAX_SIZE_63XX,
-	},
-	{
 		.chip_id = BCM53010_DEVICE_ID,
 		.dev_name = "BCM53010",
 		.vlans = 4096,
@@ -2936,13 +2923,17 @@ static const struct b53_chip_data b53_switch_chips[] = {
 
 static int b53_switch_init(struct b53_device *dev)
 {
+	u32 chip_id = dev->chip_id;
 	unsigned int i;
 	int ret;
+
+	if (is63xx(dev))
+		chip_id = BCM63XX_DEVICE_ID;
 
 	for (i = 0; i < ARRAY_SIZE(b53_switch_chips); i++) {
 		const struct b53_chip_data *chip = &b53_switch_chips[i];
 
-		if (chip->chip_id == dev->chip_id) {
+		if (chip->chip_id == chip_id) {
 			if (!dev->enabled_ports)
 				dev->enabled_ports = chip->enabled_ports;
 			dev->name = chip->dev_name;
