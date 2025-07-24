@@ -21,13 +21,32 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/b53.h>
 
 #include "b53_priv.h"
 
+struct b53_phy_info {
+	u32 ephy_enable_mask;
+	u32 ephy_port_mask;
+	u32 ephy_bias_bit;
+	const u32 *ephy_offset;
+};
+
 struct b53_mmap_priv {
 	void __iomem *regs;
+	struct regmap *gpio_ctrl;
+	const struct b53_phy_info *phy_info;
+};
+
+static const u32 bcm63268_ephy_offsets[] = {4, 9, 14};
+
+static const struct b53_phy_info bcm63268_ephy_info = {
+	.ephy_enable_mask = GENMASK(4, 0),
+	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm63268_ephy_offsets) - 1), 0),
+	.ephy_bias_bit = 24,
+	.ephy_offset = bcm63268_ephy_offsets,
 };
 
 static int b53_mmap_read8(struct b53_device *dev, u8 page, u8 reg, u8 *val)
@@ -312,6 +331,12 @@ static int b53_mmap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->regs = pdata->regs;
+
+	priv->gpio_ctrl = syscon_regmap_lookup_by_phandle(np, "brcm,gpio-ctrl");
+	if (!IS_ERR(priv->gpio_ctrl)) {
+		if (pdata->chip_id == BCM63268_DEVICE_ID)
+			priv->phy_info = &bcm63268_ephy_info;
+	}
 
 	dev = b53_switch_alloc(&pdev->dev, &b53_mmap_ops, priv);
 	if (!dev)
