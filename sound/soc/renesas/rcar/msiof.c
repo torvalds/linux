@@ -30,55 +30,14 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/spi/sh_msiof.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
 
-/* register */
-#define SITMDR1		0x00
-#define SITMDR2		0x04
-#define SITMDR3		0x08
-#define SIRMDR1		0x10
-#define SIRMDR2		0x14
-#define SIRMDR3		0x18
-#define SICTR		0x28
-#define SISTR		0x40
-#define SIIER		0x44
-#define SITFDR		0x50
-#define SIRFDR		0x60
-
-/* SITMDR1/ SIRMDR1 */
-#define PCON		(1 << 30)		/* Transfer Signal Connection */
-#define SYNCMD_LR	(3 << 28)		/* L/R mode */
-#define SYNCAC		(1 << 25)		/* Sync Polarity (Active-low) */
-#define DTDL_1		(1 << 20)		/* 1-clock-cycle delay */
-#define TXSTP		(1 <<  0)		/* Transmission/Reception Stop on FIFO */
-
-/* SITMDR2 and SIRMDR2 */
-#define BITLEN1(x)	(((x) - 1) << 24)	/* Data Size (8-32 bits) */
-#define GRP		(1 << 30)		/* Group count */
-
-/* SICTR */
-#define TEDG		(1 << 27)		/* Transmit Timing (1 = falling edge) */
-#define REDG		(1 << 26)		/* Receive  Timing (1 = rising  edge) */
-#define TXE		(1 <<  9)		/* Transmit Enable */
-#define RXE		(1 <<  8)		/* Receive Enable */
-
 /* SISTR */
-#define TFSERR		(1 << 21)		/* Transmit Frame Synchronization Error */
-#define TFOVF		(1 << 20)		/* Transmit FIFO Overflow */
-#define TFUDF		(1 << 19)		/* Transmit FIFO Underflow */
-#define RFSERR		(1 <<  5)		/* Receive Frame Synchronization Error */
-#define RFUDF		(1 <<  4)		/* Receive FIFO Underflow */
-#define RFOVF		(1 <<  3)		/* Receive FIFO Overflow */
-#define SISTR_ERR_TX	(TFSERR | TFOVF | TFUDF)
-#define SISTR_ERR_RX	(RFSERR | RFOVF | RFUDF)
+#define SISTR_ERR_TX	(SISTR_TFSERR | SISTR_TFOVF | SISTR_TFUDF)
+#define SISTR_ERR_RX	(SISTR_RFSERR | SISTR_RFOVF | SISTR_RFUDF)
 #define SISTR_ERR	(SISTR_ERR_TX | SISTR_ERR_RX)
-
-/* SIIER */
-#define TDMAE		(1 << 31)		/* Transmit Data DMA Transfer Req. Enable */
-#define TDREQE		(1 << 28)		/* Transmit Data Transfer Request Enable */
-#define RDMAE		(1 << 15)		/* Receive Data DMA Transfer Req. Enable */
-#define RDREQE		(1 << 12)		/* Receive Data Transfer Request Enable */
 
 /*
  * The data on memory in 24bit case is located at <right> side
@@ -174,42 +133,45 @@ static int msiof_hw_start(struct snd_soc_component *component,
 
 	/* SITMDRx */
 	if (is_play) {
-		val = PCON | SYNCMD_LR | SYNCAC | TXSTP;
+		val = SITMDR1_PCON |
+		      FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR) |
+		      SIMDR1_SYNCAC | SIMDR1_XXSTP;
 		if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
-			val |= DTDL_1;
+			val |= FIELD_PREP(SIMDR1_DTDL, 1);
 
 		msiof_write(priv, SITMDR1, val);
 
-		val = BITLEN1(width);
-		msiof_write(priv, SITMDR2, val | GRP);
+		val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
+		msiof_write(priv, SITMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
 		msiof_write(priv, SITMDR3, val);
 
 	}
 	/* SIRMDRx */
 	else {
-		val = SYNCMD_LR | SYNCAC;
+		val = FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR) |
+		      SIMDR1_SYNCAC;
 		if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
-			val |= DTDL_1;
+			val |= FIELD_PREP(SIMDR1_DTDL, 1);
 
 		msiof_write(priv, SIRMDR1, val);
 
-		val = BITLEN1(width);
-		msiof_write(priv, SIRMDR2, val | GRP);
+		val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
+		msiof_write(priv, SIRMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
 		msiof_write(priv, SIRMDR3, val);
 	}
 
 	/* SIIER */
 	if (is_play)
-		val = TDREQE | TDMAE | SISTR_ERR_TX;
+		val = SIIER_TDREQE | SIIER_TDMAE | SISTR_ERR_TX;
 	else
-		val = RDREQE | RDMAE | SISTR_ERR_RX;
+		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, val);
 
 	/* SICTR */
 	if (is_play)
-		val = TXE | TEDG;
+		val = SICTR_TXE | SICTR_TEDG;
 	else
-		val = RXE | REDG;
+		val = SICTR_RXE | SICTR_REDG;
 	msiof_update_and_wait(priv, SICTR, val, val, val);
 
 	msiof_status_clear(priv);
@@ -230,9 +192,9 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 
 	/* SIIER */
 	if (is_play)
-		val = TDREQE | TDMAE | SISTR_ERR_TX;
+		val = SIIER_TDREQE | SIIER_TDMAE | SISTR_ERR_TX;
 	else
-		val = RDREQE | RDMAE | SISTR_ERR_RX;
+		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, 0);
 
 	/* Stop DMAC */
@@ -240,9 +202,9 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 
 	/* SICTR */
 	if (is_play)
-		val = TXE;
+		val = SICTR_TXE;
 	else
-		val = RXE;
+		val = SICTR_RXE;
 	msiof_update_and_wait(priv, SICTR, val, 0, 0);
 
 	/* indicate error status if exist */
@@ -478,22 +440,22 @@ static irqreturn_t msiof_interrupt(int irq, void *data)
 	substream = priv->substream[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream && (sistr & SISTR_ERR_TX)) {
 		// snd_pcm_stop_xrun(substream);
-		if (sistr & TFSERR)
+		if (sistr & SISTR_TFSERR)
 			priv->err_syc[SNDRV_PCM_STREAM_PLAYBACK]++;
-		if (sistr & TFOVF)
+		if (sistr & SISTR_TFOVF)
 			priv->err_ovf[SNDRV_PCM_STREAM_PLAYBACK]++;
-		if (sistr & TFUDF)
+		if (sistr & SISTR_TFUDF)
 			priv->err_udf[SNDRV_PCM_STREAM_PLAYBACK]++;
 	}
 
 	substream = priv->substream[SNDRV_PCM_STREAM_CAPTURE];
 	if (substream && (sistr & SISTR_ERR_RX)) {
 		// snd_pcm_stop_xrun(substream);
-		if (sistr & RFSERR)
+		if (sistr & SISTR_RFSERR)
 			priv->err_syc[SNDRV_PCM_STREAM_CAPTURE]++;
-		if (sistr & RFOVF)
+		if (sistr & SISTR_RFOVF)
 			priv->err_ovf[SNDRV_PCM_STREAM_CAPTURE]++;
-		if (sistr & RFUDF)
+		if (sistr & SISTR_RFUDF)
 			priv->err_udf[SNDRV_PCM_STREAM_CAPTURE]++;
 	}
 

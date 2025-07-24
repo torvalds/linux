@@ -1237,6 +1237,7 @@ void dpm_complete(pm_message_t state)
 void dpm_resume_end(pm_message_t state)
 {
 	dpm_resume(state);
+	pm_restore_gfp_mask();
 	dpm_complete(state);
 }
 EXPORT_SYMBOL_GPL(dpm_resume_end);
@@ -2176,8 +2177,10 @@ int dpm_suspend_start(pm_message_t state)
 	error = dpm_prepare(state);
 	if (error)
 		dpm_save_failed_step(SUSPEND_PREPARE);
-	else
+	else {
+		pm_restrict_gfp_mask();
 		error = dpm_suspend(state);
+	}
 
 	dpm_show_time(starttime, state, error, "start");
 	return error;

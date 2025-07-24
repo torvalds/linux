@@ -1025,15 +1025,17 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 	}
 
 #ifdef CONFIG_UNICODE
-	/* Default encoding until we can potentially have more as an option. */
-	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
-	if (IS_ERR(c->cf_encoding)) {
-		printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
-			unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-			unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-			unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
-		ret = -EINVAL;
-		goto err;
+	if (bch2_fs_casefold_enabled(c)) {
+		/* Default encoding until we can potentially have more as an option. */
+		c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
+		if (IS_ERR(c->cf_encoding)) {
+			printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
+			       unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			       unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			       unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 #else
 	if (c->sb.features & BIT_ULL(BCH_FEATURE_casefolding)) {
@@ -1160,12 +1162,11 @@ int bch2_fs_start(struct bch_fs *c)
 
 	print_mount_opts(c);
 
-#ifdef CONFIG_UNICODE
-	bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
-		 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-		 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-		 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
-#endif
+	if (c->cf_encoding)
+		bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
+			 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
 
 	if (!bch2_fs_may_start(c))
 		return bch_err_throw(c, insufficient_devices_to_start);

@@ -924,7 +924,7 @@ void rxrpc_send_response(struct rxrpc_connection *conn, struct sk_buff *response
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(response);
 	struct scatterlist sg[16];
-	struct bio_vec bvec[16];
+	struct bio_vec *bvec = conn->local->bvec;
 	struct msghdr msg;
 	size_t len = sp->resp.len;
 	__be32 wserial;
@@ -938,6 +938,9 @@ void rxrpc_send_response(struct rxrpc_connection *conn, struct sk_buff *response
 	if (ret < 0)
 		goto fail;
 	nr_sg = ret;
+	ret = -EIO;
+	if (WARN_ON_ONCE(nr_sg > ARRAY_SIZE(conn->local->bvec)))
+		goto fail;
 
 	for (int i = 0; i < nr_sg; i++)
 		bvec_set_page(&bvec[i], sg_page(&sg[i]), sg[i].length, sg[i].offset);

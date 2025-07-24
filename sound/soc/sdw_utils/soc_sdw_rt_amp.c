@@ -195,12 +195,6 @@ int asoc_sdw_rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc
 
 	rt_amp_map = get_codec_name_and_route(dai, codec_name);
 
-	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s spk:%s",
-					  card->components, codec_name);
-	if (!card->components)
-		return -ENOMEM;
-
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (strstr(codec_dai->component->name_prefix, "-1"))
 			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map, 2);

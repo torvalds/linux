@@ -59,7 +59,8 @@ static inline void dirent_copy_target(struct bkey_i_dirent *dst,
 	dst->v.d_type = src.v->d_type;
 }
 
-int bch2_dirent_init_name(struct bkey_i_dirent *,
+int bch2_dirent_init_name(struct bch_fs *,
+			  struct bkey_i_dirent *,
 			  const struct bch_hash_info *,
 			  const struct qstr *,
 			  const struct qstr *);

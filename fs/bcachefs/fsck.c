@@ -12,6 +12,7 @@
 #include "fs.h"
 #include "fsck.h"
 #include "inode.h"
+#include "io_misc.h"
 #include "keylist.h"
 #include "namei.h"
 #include "recovery_passes.h"
@@ -1919,33 +1920,11 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 					"extent type past end of inode %llu:%u, i_size %llu\n%s",
 					i->inode.bi_inum, i->inode.bi_snapshot, i->inode.bi_size,
 					(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-				struct bkey_i *whiteout = bch2_trans_kmalloc(trans, sizeof(*whiteout));
-				ret = PTR_ERR_OR_ZERO(whiteout);
-				if (ret)
-					goto err;
-
-				bkey_init(&whiteout->k);
-				whiteout->k.p = SPOS(k.k->p.inode,
-						     last_block,
-						     i->inode.bi_snapshot);
-				bch2_key_resize(&whiteout->k,
-						min(KEY_SIZE_MAX & (~0 << c->block_bits),
-						    U64_MAX - whiteout->k.p.offset));
-
-
-				/*
-				 * Need a normal (not BTREE_ITER_all_snapshots)
-				 * iterator, if we're deleting in a different
-				 * snapshot and need to emit a whiteout
-				 */
-				struct btree_iter iter2;
-				bch2_trans_iter_init(trans, &iter2, BTREE_ID_extents,
-						     bkey_start_pos(&whiteout->k),
-						     BTREE_ITER_intent);
-				ret =   bch2_btree_iter_traverse(trans, &iter2) ?:
-					bch2_trans_update(trans, &iter2, whiteout,
-						BTREE_UPDATE_internal_snapshot_node);
-				bch2_trans_iter_exit(trans, &iter2);
+				ret = bch2_fpunch_snapshot(trans,
+							   SPOS(i->inode.bi_inum,
+								last_block,
+								i->inode.bi_snapshot),
+							   POS(i->inode.bi_inum, U64_MAX));
 				if (ret)
 					goto err;
 
@@ -2302,9 +2281,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	dir->first_this_inode = false;
 
-#ifdef CONFIG_UNICODE
 	hash_info->cf_encoding = bch2_inode_casefold(c, &i->inode) ? c->cf_encoding : NULL;
-#endif
 
 	ret = bch2_str_hash_check_key(trans, s, &bch2_dirent_hash_desc, hash_info,
 				      iter, k, need_second_pass);
@@ -2819,7 +2796,7 @@ static int check_path_loop(struct btree_trans *trans, struct bkey_s_c inode_k)
 				ret = remove_backpointer(trans, &inode);
 				bch_err_msg(c, ret, "removing dirent");
 				if (ret)
-					break;
+					goto out;
 
 				ret = reattach_inode(trans, &inode);
 				bch_err_msg(c, ret, "reattaching inode %llu", inode.bi_inum);

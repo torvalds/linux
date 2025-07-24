@@ -24,7 +24,10 @@ setup_basenet()
 	ip -netns "${NS0}" address add dev lo 2001:db8::10/64 nodad
 }
 
-# Check if network device has an IPv6 link-local address assigned.
+# Check the IPv6 configuration of a network device.
+#
+# We currently check the generation of the link-local IPv6 address and the
+# creation of the ff00::/8 multicast route.
 #
 # Parameters:
 #
@@ -35,7 +38,7 @@ setup_basenet()
 #         a link-local address)
 #   * $4: The user visible name for the scenario being tested
 #
-check_ipv6_ll_addr()
+check_ipv6_device_config()
 {
 	local DEV="$1"
 	local EXTRA_MATCH="$2"
@@ -45,7 +48,11 @@ check_ipv6_ll_addr()
 	RET=0
 	set +e
 	ip -netns "${NS0}" -6 address show dev "${DEV}" scope link | grep "fe80::" | grep -q "${EXTRA_MATCH}"
-	check_err_fail "${XRET}" $? ""
+	check_err_fail "${XRET}" $? "IPv6 link-local address generation"
+
+	ip -netns "${NS0}" -6 route show table local type multicast ff00::/8 proto kernel | grep -q "${DEV}"
+	check_err_fail 0 $? "IPv6 multicast route creation"
+
 	log_test "${MSG}"
 	set -e
 }
@@ -102,20 +109,20 @@ test_gre_device()
 		;;
 	esac
 
-	# Check that IPv6 link-local address is generated when device goes up
+	# Check the IPv6 device configuration when it goes up
 	ip netns exec "${NS0}" sysctl -qw net.ipv6.conf.gretest.addr_gen_mode="${ADDR_GEN_MODE}"
 	ip -netns "${NS0}" link set dev gretest up
-	check_ipv6_ll_addr gretest "${MATCH_REGEXP}" "${XRET}" "config: ${MSG}"
+	check_ipv6_device_config gretest "${MATCH_REGEXP}" "${XRET}" "config: ${MSG}"
 
 	# Now disable link-local address generation
 	ip -netns "${NS0}" link set dev gretest down
 	ip netns exec "${NS0}" sysctl -qw net.ipv6.conf.gretest.addr_gen_mode=1
 	ip -netns "${NS0}" link set dev gretest up
 
-	# Check that link-local address generation works when re-enabled while
-	# the device is already up
+	# Check the IPv6 device configuration when link-local address
+	# generation is re-enabled while the device is already up
 	ip netns exec "${NS0}" sysctl -qw net.ipv6.conf.gretest.addr_gen_mode="${ADDR_GEN_MODE}"
-	check_ipv6_ll_addr gretest "${MATCH_REGEXP}" "${XRET}" "update: ${MSG}"
+	check_ipv6_device_config gretest "${MATCH_REGEXP}" "${XRET}" "update: ${MSG}"
 
 	ip -netns "${NS0}" link del dev gretest
 }
@@ -126,7 +133,7 @@ test_gre4()
 	local MODE
 
 	for GRE_TYPE in "gre" "gretap"; do
-		printf "\n####\nTesting IPv6 link-local address generation on ${GRE_TYPE} devices\n####\n\n"
+		printf "\n####\nTesting IPv6 configuration of ${GRE_TYPE} devices\n####\n\n"
 
 		for MODE in "eui64" "none" "stable-privacy" "random"; do
 			test_gre_device "${GRE_TYPE}" 192.0.2.10 192.0.2.11 "${MODE}"
@@ -142,7 +149,7 @@ test_gre6()
 	local MODE
 
 	for GRE_TYPE in "ip6gre" "ip6gretap"; do
-		printf "\n####\nTesting IPv6 link-local address generation on ${GRE_TYPE} devices\n####\n\n"
+		printf "\n####\nTesting IPv6 configuration of ${GRE_TYPE} devices\n####\n\n"
 
 		for MODE in "eui64" "none" "stable-privacy" "random"; do
 			test_gre_device "${GRE_TYPE}" 2001:db8::10 2001:db8::11 "${MODE}"

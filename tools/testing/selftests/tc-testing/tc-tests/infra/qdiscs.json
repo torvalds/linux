@@ -635,5 +635,42 @@
             "$TC qdisc del dev $DUMMY handle 1:0 root",
             "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
         ]
+    },
+    {
+        "id": "d74b",
+        "name": "Test use-after-free with DRR/NETEM/BLACKHOLE chain",
+        "category": [
+            "qdisc",
+            "hfsc",
+            "drr",
+            "netem",
+            "blackhole"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.11.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: drr",
+            "$TC filter add dev $DUMMY parent 1: basic classid 1:1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 drr",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: hfsc def 1",
+            "$TC class add dev $DUMMY parent 2: classid 2:1 hfsc rt m1 8 d 1 m2 0",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3: netem",
+            "$TC qdisc add dev $DUMMY parent 3:1 handle 4: blackhole",
+            "ping -c1 -W0.01 -I $DUMMY 10.10.11.11 || true",
+            "$TC class del dev $DUMMY classid 1:1"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -I $DUMMY 10.10.11.11",
+        "expExitCode": "1",
+        "verifyCmd": "$TC -j class ls dev $DUMMY classid 1:1",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle 1: drr"
+        ]
     }
 ]

@@ -28,15 +28,6 @@ int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_
 	struct snd_soc_card *card = rtd->card;
 	int ret;
 
-	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s spk:mx%04x",
-					  card->components, maxim_part_id);
-	if (!card->components)
-		return -ENOMEM;
-
-	dev_dbg(card->dev, "soundwire maxim card components assigned : %s\n",
-		card->components);
-
 	ret = snd_soc_dapm_add_routes(&card->dapm, max_98373_dapm_routes, 2);
 	if (ret)
 		dev_err(rtd->dev, "failed to add first SPK map: %d\n", ret);

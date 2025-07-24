@@ -1075,7 +1075,6 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
-	struct device_node *np;
 	int is_play = rsnd_io_is_play(io);
 	int i;
 
@@ -1094,7 +1093,7 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 		if (!node)
 			break;
 
-		for_each_child_of_node(ssiu_np, np) {
+		for_each_child_of_node_scoped(ssiu_np, np) {
 			if (np == node) {
 				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
 				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
@@ -1154,21 +1153,18 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np;
 	int i;
 
 	if (!node)
 		return;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		struct rsnd_mod *mod;
 
 		i = rsnd_node_fixed_index(dev, np, name, i);
-		if (i < 0) {
-			of_node_put(np);
+		if (i < 0)
 			break;
-		}
 
 		mod = mod_get(priv, i);
 
@@ -1217,16 +1213,13 @@ int rsnd_node_fixed_index(struct device *dev, struct device_node *node, char *na
 int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np;
 	int i;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		i = rsnd_node_fixed_index(dev, np, name, i);
-		if (i < 0) {
-			of_node_put(np);
+		if (i < 0)
 			return 0;
-		}
 		i++;
 	}
 
@@ -1250,7 +1243,7 @@ static int rsnd_dai_of_node(struct rsnd_priv *priv, int *is_graph)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
-	struct device_node *ports, *node;
+	struct device_node *node;
 	int nr = 0;
 	int i = 0;
 
@@ -1270,7 +1263,7 @@ static int rsnd_dai_of_node(struct rsnd_priv *priv, int *is_graph)
 
 	of_node_put(node);
 
-	for_each_child_of_node(np, node) {
+	for_each_child_of_node_scoped(np, node) {
 		if (!of_node_name_eq(node, RSND_NODE_DAI))
 			continue;
 
@@ -1279,7 +1272,6 @@ static int rsnd_dai_of_node(struct rsnd_priv *priv, int *is_graph)
 		i++;
 		if (i >= RSND_MAX_COMPONENT) {
 			dev_info(dev, "reach to max component\n");
-			of_node_put(node);
 			break;
 		}
 	}
@@ -1290,7 +1282,7 @@ audio_graph:
 	/*
 	 * Audio-Graph-Card
 	 */
-	for_each_child_of_node(np, ports) {
+	for_each_child_of_node_scoped(np, ports) {
 		node = rsnd_pick_endpoint_node_for_ports(ports, np);
 		if (!node)
 			continue;
@@ -1299,7 +1291,6 @@ audio_graph:
 		i++;
 		if (i >= RSND_MAX_COMPONENT) {
 			dev_info(dev, "reach to max component\n");
-			of_node_put(ports);
 			break;
 		}
 	}
@@ -1505,10 +1496,9 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	dai_i = 0;
 	if (is_graph) {
 		struct device_node *dai_np_port;
-		struct device_node *ports;
 		struct device_node *dai_np;
 
-		for_each_child_of_node(np, ports) {
+		for_each_child_of_node_scoped(np, ports) {
 			dai_np_port = rsnd_pick_endpoint_node_for_ports(ports, np);
 			if (!dai_np_port)
 				continue;
@@ -1525,14 +1515,11 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 			}
 		}
 	} else {
-		struct device_node *node;
-		struct device_node *dai_np;
-
-		for_each_child_of_node(np, node) {
+		for_each_child_of_node_scoped(np, node) {
 			if (!of_node_name_eq(node, RSND_NODE_DAI))
 				continue;
 
-			for_each_child_of_node(node, dai_np) {
+			for_each_child_of_node_scoped(node, dai_np) {
 				__rsnd_dai_probe(priv, dai_np, np, dai_i, dai_i);
 				if (!rsnd_is_gen1(priv) && !rsnd_is_gen2(priv)) {
 					rdai = rsnd_rdai_get(priv, dai_i);

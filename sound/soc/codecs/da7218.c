@@ -3033,7 +3033,7 @@ static const struct snd_soc_component_driver soc_component_dev_da7218 = {
  * Regmap configs
  */
 
-static struct reg_default da7218_reg_defaults[] = {
+static const struct reg_default da7218_reg_defaults[] = {
 	{ DA7218_SYSTEM_ACTIVE, 0x00 },
 	{ DA7218_CIF_CTRL, 0x00 },
 	{ DA7218_SPARE1, 0x00 },

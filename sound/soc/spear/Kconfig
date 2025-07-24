@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "ST SPEAr"
+
 config SND_SPEAR_SOC
 	tristate
 	select SND_SOC_GENERIC_DMAENGINE_PCM
@@ -8,3 +10,5 @@ config SND_SPEAR_SPDIF_OUT
 
 config SND_SPEAR_SPDIF_IN
 	tristate
+
+endmenu

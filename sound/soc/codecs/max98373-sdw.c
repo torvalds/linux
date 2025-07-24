@@ -26,7 +26,7 @@ static const u32 max98373_sdw_cache_reg[] = {
 	MAX98373_R20B6_BDE_CUR_STATE_READBACK,
 };
 
-static struct reg_default max98373_reg[] = {
+static const struct reg_default max98373_reg[] = {
 	{MAX98373_R0040_SCP_INIT_STAT_1, 0x00},
 	{MAX98373_R0041_SCP_INIT_MASK_1, 0x00},
 	{MAX98373_R0042_SCP_INIT_STAT_2, 0x00},
@@ -458,7 +458,6 @@ static int max98373_io_init(struct sdw_slave *slave)
 	max98373->first_hw_init = true;
 	max98373->hw_init = true;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
