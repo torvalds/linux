@@ -496,6 +496,13 @@ struct ras_ecc_log_info {
 	uint64_t	prev_de_queried_count;
 };
 
+struct ras_critical_region {
+	struct list_head node;
+	struct amdgpu_bo *bo;
+	uint64_t start;
+	uint64_t size;
+};
+
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
@@ -575,6 +582,10 @@ struct amdgpu_ras {
 	char init_task_comm[TASK_COMM_LEN];
 
 	int bad_page_num;
+
+	struct list_head critical_region_head;
+	struct mutex critical_region_lock;
+
 };
 
 struct ras_fs_data {
@@ -978,6 +989,9 @@ int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_
 				     const void *caller);
 
 int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn);
+
+int amdgpu_ras_add_critical_region(struct amdgpu_device *adev, struct amdgpu_bo *bo);
+bool amdgpu_ras_check_critical_address(struct amdgpu_device *adev, uint64_t addr);
 
 int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
 		enum amdgpu_ras_block block, uint16_t pasid,
