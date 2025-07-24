@@ -1073,6 +1073,7 @@ struct dc_debug_options {
 	unsigned int force_mall_ss_num_ways;
 	bool alloc_extra_way_for_cursor;
 	uint32_t subvp_extra_lines;
+	bool disable_force_pstate_allow_on_hw_release;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
