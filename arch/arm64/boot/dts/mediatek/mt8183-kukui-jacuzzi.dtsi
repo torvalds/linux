@@ -93,11 +93,6 @@
 	};
 };
 
-&dsi0 {
-	status = "okay";
-	/delete-node/panel@0;
-};
-
 &dsi_out {
 	remote-endpoint = <&anx7625_in>;
 };
