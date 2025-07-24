@@ -1297,6 +1297,13 @@ int bpf_jit_get_func_addr(const struct bpf_prog *prog,
 	return 0;
 }
 
+const char *bpf_jit_get_prog_name(struct bpf_prog *prog)
+{
+	if (prog->aux->ksym.prog)
+		return prog->aux->ksym.name;
+	return prog->aux->name;
+}
+
 static int bpf_jit_blind_insn(const struct bpf_insn *from,
 			      const struct bpf_insn *aux,
 			      struct bpf_insn *to_buff,
