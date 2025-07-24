@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <drm/drm_managed.h>
+
 #include "xe_gt_tlb_invalidation.h"
 
 #include "abi/guc_actions_abi.h"
@@ -122,6 +124,12 @@ int xe_gt_tlb_invalidation_init_early(struct xe_gt *gt)
 	spin_lock_init(&gt->tlb_invalidation.lock);
 	INIT_DELAYED_WORK(&gt->tlb_invalidation.fence_tdr,
 			  xe_gt_tlb_fence_timeout);
+
+	gt->tlb_invalidation.job_wq =
+		drmm_alloc_ordered_workqueue(&gt_to_xe(gt)->drm, "gt-tbl-inval-job-wq",
+					     WQ_MEM_RECLAIM);
+	if (IS_ERR(gt->tlb_invalidation.job_wq))
+		return PTR_ERR(gt->tlb_invalidation.job_wq);
 
 	return 0;
 }
