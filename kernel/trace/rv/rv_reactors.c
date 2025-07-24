@@ -70,12 +70,12 @@
  */
 static LIST_HEAD(rv_reactors_list);
 
-static struct rv_reactor_def *get_reactor_rdef_by_name(char *name)
+static struct rv_reactor *get_reactor_rdef_by_name(char *name)
 {
-	struct rv_reactor_def *r;
+	struct rv_reactor *r;
 
 	list_for_each_entry(r, &rv_reactors_list, list) {
-		if (strcmp(name, r->reactor->name) == 0)
+		if (strcmp(name, r->name) == 0)
 			return r;
 	}
 	return NULL;
@@ -86,9 +86,9 @@ static struct rv_reactor_def *get_reactor_rdef_by_name(char *name)
  */
 static int reactors_show(struct seq_file *m, void *p)
 {
-	struct rv_reactor_def *rea_def = p;
+	struct rv_reactor *reactor = p;
 
-	seq_printf(m, "%s\n", rea_def->reactor->name);
+	seq_printf(m, "%s\n", reactor->name);
 	return 0;
 }
 
@@ -139,12 +139,12 @@ static const struct file_operations available_reactors_ops = {
 static int monitor_reactor_show(struct seq_file *m, void *p)
 {
 	struct rv_monitor *mon = m->private;
-	struct rv_reactor_def *rdef = p;
+	struct rv_reactor *reactor = p;
 
-	if (mon->rdef == rdef)
-		seq_printf(m, "[%s]\n", rdef->reactor->name);
+	if (mon->reactor == reactor)
+		seq_printf(m, "[%s]\n", reactor->name);
 	else
-		seq_printf(m, "%s\n", rdef->reactor->name);
+		seq_printf(m, "%s\n", reactor->name);
 	return 0;
 }
 
@@ -159,13 +159,13 @@ static const struct seq_operations monitor_reactors_seq_ops = {
 };
 
 static void monitor_swap_reactors_single(struct rv_monitor *mon,
-					 struct rv_reactor_def *rdef,
+					 struct rv_reactor *reactor,
 					 bool reacting, bool nested)
 {
 	bool monitor_enabled;
 
 	/* nothing to do */
-	if (mon->rdef == rdef)
+	if (mon->reactor == reactor)
 		return;
 
 	monitor_enabled = mon->enabled;
@@ -173,12 +173,12 @@ static void monitor_swap_reactors_single(struct rv_monitor *mon,
 		rv_disable_monitor(mon);
 
 	/* swap reactor's usage */
-	mon->rdef->counter--;
-	rdef->counter++;
+	mon->reactor->counter--;
+	reactor->counter++;
 
-	mon->rdef = rdef;
+	mon->reactor = reactor;
 	mon->reacting = reacting;
-	mon->react = rdef->reactor->react;
+	mon->react = reactor->react;
 
 	/* enable only once if iterating through a container */
 	if (monitor_enabled && !nested)
@@ -186,7 +186,7 @@ static void monitor_swap_reactors_single(struct rv_monitor *mon,
 }
 
 static void monitor_swap_reactors(struct rv_monitor *mon,
-				  struct rv_reactor_def *rdef, bool reacting)
+				  struct rv_reactor *reactor, bool reacting)
 {
 	struct rv_monitor *p = mon;
 
@@ -194,7 +194,7 @@ static void monitor_swap_reactors(struct rv_monitor *mon,
 		list_for_each_entry_continue(p, &rv_monitors_list, list) {
 			if (p->parent != mon)
 				break;
-			monitor_swap_reactors_single(p, rdef, reacting, true);
+			monitor_swap_reactors_single(p, reactor, reacting, true);
 		}
 	/*
 	 * This call enables and disables the monitor if they were active.
@@ -202,7 +202,7 @@ static void monitor_swap_reactors(struct rv_monitor *mon,
 	 * All nested monitors are enabled also if they were off, we may refine
 	 * this logic in the future.
 	 */
-	monitor_swap_reactors_single(mon, rdef, reacting, false);
+	monitor_swap_reactors_single(mon, reactor, reacting, false);
 }
 
 static ssize_t
@@ -211,7 +211,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 {
 	char buff[MAX_RV_REACTOR_NAME_SIZE + 2];
 	struct rv_monitor *mon;
-	struct rv_reactor_def *rdef;
+	struct rv_reactor *reactor;
 	struct seq_file *seq_f;
 	int retval = -EINVAL;
 	bool enable;
@@ -243,16 +243,16 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 
 	retval = -EINVAL;
 
-	list_for_each_entry(rdef, &rv_reactors_list, list) {
-		if (strcmp(ptr, rdef->reactor->name) != 0)
+	list_for_each_entry(reactor, &rv_reactors_list, list) {
+		if (strcmp(ptr, reactor->name) != 0)
 			continue;
 
-		if (rdef == get_reactor_rdef_by_name("nop"))
+		if (strcmp(reactor->name, "nop"))
 			enable = false;
 		else
 			enable = true;
 
-		monitor_swap_reactors(mon, rdef, enable);
+		monitor_swap_reactors(mon, reactor, enable);
 
 		retval = count;
 		break;
@@ -299,23 +299,16 @@ static const struct file_operations monitor_reactors_ops = {
 
 static int __rv_register_reactor(struct rv_reactor *reactor)
 {
-	struct rv_reactor_def *r;
+	struct rv_reactor *r;
 
 	list_for_each_entry(r, &rv_reactors_list, list) {
-		if (strcmp(reactor->name, r->reactor->name) == 0) {
+		if (strcmp(reactor->name, r->name) == 0) {
 			pr_info("Reactor %s is already registered\n", reactor->name);
 			return -EINVAL;
 		}
 	}
 
-	r = kzalloc(sizeof(struct rv_reactor_def), GFP_KERNEL);
-	if (!r)
-		return -ENOMEM;
-
-	r->reactor = reactor;
-	r->counter = 0;
-
-	list_add_tail(&r->list, &rv_reactors_list);
+	list_add_tail(&reactor->list, &rv_reactors_list);
 
 	return 0;
 }
@@ -350,26 +343,19 @@ int rv_register_reactor(struct rv_reactor *reactor)
  */
 int rv_unregister_reactor(struct rv_reactor *reactor)
 {
-	struct rv_reactor_def *ptr, *next;
 	int ret = 0;
 
 	mutex_lock(&rv_interface_lock);
 
-	list_for_each_entry_safe(ptr, next, &rv_reactors_list, list) {
-		if (strcmp(reactor->name, ptr->reactor->name) == 0) {
-
-			if (!ptr->counter) {
-				list_del(&ptr->list);
-			} else {
-				printk(KERN_WARNING
-				       "rv: the rv_reactor %s is in use by %d monitor(s)\n",
-				       ptr->reactor->name, ptr->counter);
-				printk(KERN_WARNING "rv: the rv_reactor %s cannot be removed\n",
-				       ptr->reactor->name);
-				ret = -EBUSY;
-				break;
-			}
-		}
+	if (!reactor->counter) {
+		list_del(&reactor->list);
+	} else {
+		printk(KERN_WARNING
+		       "rv: the rv_reactor %s is in use by %d monitor(s)\n",
+		       reactor->name, reactor->counter);
+		printk(KERN_WARNING "rv: the rv_reactor %s cannot be removed\n",
+		       reactor->name);
+		ret = -EBUSY;
 	}
 
 	mutex_unlock(&rv_interface_lock);
@@ -469,8 +455,8 @@ int reactor_populate_monitor(struct rv_monitor *mon)
 	/*
 	 * Configure as the rv_nop reactor.
 	 */
-	mon->rdef = get_reactor_rdef_by_name("nop");
-	mon->rdef->counter++;
+	mon->reactor = get_reactor_rdef_by_name("nop");
+	mon->reactor->counter++;
 	mon->reacting = false;
 
 	return 0;
@@ -483,8 +469,8 @@ int reactor_populate_monitor(struct rv_monitor *mon)
 void reactor_cleanup_monitor(struct rv_monitor *mon)
 {
 	lockdep_assert_held(&rv_interface_lock);
-	mon->rdef->counter--;
-	WARN_ON_ONCE(mon->rdef->counter < 0);
+	mon->reactor->counter--;
+	WARN_ON_ONCE(mon->reactor->counter < 0);
 }
 
 /*

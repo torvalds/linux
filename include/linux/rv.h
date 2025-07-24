@@ -90,6 +90,9 @@ struct rv_reactor {
 	const char		*name;
 	const char		*description;
 	__printf(1, 2) void	(*react)(const char *msg, ...);
+	struct list_head	list;
+	/* protected by the monitor interface lock */
+	int			counter;
 };
 #endif
 
@@ -101,7 +104,7 @@ struct rv_monitor {
 	void			(*disable)(void);
 	void			(*reset)(void);
 #ifdef CONFIG_RV_REACTORS
-	struct rv_reactor_def	*rdef;
+	struct rv_reactor	*reactor;
 	__printf(1, 2) void	(*react)(const char *msg, ...);
 	bool			reacting;
 #endif

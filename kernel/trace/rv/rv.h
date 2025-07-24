@@ -23,15 +23,6 @@ struct rv_interface {
 extern struct mutex rv_interface_lock;
 extern struct list_head rv_monitors_list;
 
-#ifdef CONFIG_RV_REACTORS
-struct rv_reactor_def {
-	struct list_head	list;
-	struct rv_reactor	*reactor;
-	/* protected by the monitor interface lock */
-	int			counter;
-};
-#endif
-
 struct dentry *get_monitors_root(void);
 int rv_disable_monitor(struct rv_monitor *mon);
 int rv_enable_monitor(struct rv_monitor *mon);
