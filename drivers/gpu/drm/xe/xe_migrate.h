@@ -14,6 +14,7 @@ struct ttm_resource;
 
 struct xe_bo;
 struct xe_gt;
+struct xe_gt_tlb_inval_job;
 struct xe_exec_queue;
 struct xe_migrate;
 struct xe_migrate_pt_update;
@@ -91,6 +92,14 @@ struct xe_migrate_pt_update {
 	struct xe_vma_ops *vops;
 	/** @job: The job if a GPU page-table update. NULL otherwise */
 	struct xe_sched_job *job;
+	/**
+	 * @ijob: The GT TLB invalidation job for primary tile. NULL otherwise
+	 */
+	struct xe_gt_tlb_inval_job *ijob;
+	/**
+	 * @mjob: The GT TLB invalidation job for media tile. NULL otherwise
+	 */
+	struct xe_gt_tlb_inval_job *mjob;
 	/** @tile_id: Tile ID of the update */
 	u8 tile_id;
 };
