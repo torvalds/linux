@@ -4716,8 +4716,8 @@ static struct arm_smmu_device *arm_smmu_impl_probe(struct arm_smmu_device *smmu)
 
 	ops = new_smmu->impl_ops;
 	if (ops) {
-		/* vsmmu_size and vsmmu_init ops must be paired */
-		if (WARN_ON(!ops->vsmmu_size != !ops->vsmmu_init)) {
+		/* get_viommu_size and vsmmu_init ops must be paired */
+		if (WARN_ON(!ops->get_viommu_size != !ops->vsmmu_init)) {
 			ret = -EINVAL;
 			goto err_remove;
 		}
