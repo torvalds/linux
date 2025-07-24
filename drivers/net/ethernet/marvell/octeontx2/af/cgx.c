@@ -1706,9 +1706,9 @@ static int cgx_lmac_init(struct cgx *cgx)
 {
 	u8 max_dmac_filters;
 	struct lmac *lmac;
+	int err, filter;
+	unsigned int i;
 	u64 lmac_list;
-	int i, err;
-	int filter;
 
 	/* lmac_list specifies which lmacs are enabled
 	 * when bit n is set to 1, LMAC[n] is enabled
@@ -1734,7 +1734,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 			err = -ENOMEM;
 			goto err_lmac_free;
 		}
-		sprintf(lmac->name, "cgx_fwi_%d_%d", cgx->cgx_id, i);
+		sprintf(lmac->name, "cgx_fwi_%u_%u", cgx->cgx_id, i);
 		if (cgx->mac_ops->non_contiguous_serdes_lane) {
 			lmac->lmac_id = __ffs64(lmac_list);
 			lmac_list   &= ~BIT_ULL(lmac->lmac_id);
