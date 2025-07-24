@@ -1516,7 +1516,7 @@ static int bq2415x_power_supply_init(struct bq2415x_device *bq)
 
 	ret = bq2415x_detect_revision(bq);
 	if (ret < 0)
-		strcpy(revstr, "unknown");
+		strscpy(revstr, "unknown", sizeof(revstr));
 	else
 		sprintf(revstr, "1.%d", ret);
 
