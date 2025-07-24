@@ -26,23 +26,23 @@ patternProperties:
 
     unevaluatedProperties: false
 
-  "^ldo-v(avdd32aud|auxa32)$":
+  "^ldo-(avdd32aud|vauxa32)$":
     type: object
     $ref: regulator.yaml#
 
     properties:
       regulator-name:
-        pattern: "^v(avdd32aud|auxa32)$"
+        pattern: "^(avdd32_aud|vauxa32)$"
 
     unevaluatedProperties: false
 
-  "^ldo-v(dig18|emc33|ibr|mc|mch|mipi|rtc|sram|usb10)$":
+  "^ldo-v(dig18|emc33|ibr|mc|mch|mipi|rtc|sim1|sim2|sram|usb10)$":
     type: object
     $ref: regulator.yaml#
 
     properties:
       regulator-name:
-        pattern: "^v(dig18|emc33|ibr|mc|mch|mipi|rtc|sram|usb10)$"
+        pattern: "^v(dig18|emc33|ibr|mc|mch|mipi|rtc|sim1|sim2|sram|usb)$"
 
     unevaluatedProperties: false
 
@@ -52,7 +52,7 @@ patternProperties:
 
     properties:
       regulator-name:
-        pattern: "^vcam(a|af|d|io)$"
+        pattern: "^vcam(a|_af|d|io)$"
 
     unevaluatedProperties: false
 
@@ -75,7 +75,7 @@ patternProperties:
 
     properties:
       regulator-name:
-        pattern: "^vgp[12]$"
+        pattern: "^vgp[1234]$"
 
     required:
       - regulator-name
