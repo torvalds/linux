@@ -123,7 +123,7 @@ config HID_SENSOR_MAGNETOMETER_3D
 	select IIO_BUFFER
 	select HID_SENSOR_IIO_COMMON
 	select HID_SENSOR_IIO_TRIGGER
-	tristate "HID Magenetometer 3D"
+	tristate "HID Magnetometer 3D"
 	help
 	  Say yes here to build support for the HID SENSOR
 	  Magnetometer 3D.
