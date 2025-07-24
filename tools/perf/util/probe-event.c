@@ -502,7 +502,7 @@ static struct debuginfo *open_from_debuginfod(struct dso *dso, struct nsinfo *ns
 	if (!c)
 		return NULL;
 
-	build_id__sprintf(dso__bid(dso), sbuild_id);
+	build_id__snprintf(dso__bid(dso), sbuild_id, sizeof(sbuild_id));
 	fd = debuginfod_find_debuginfo(c, (const unsigned char *)sbuild_id,
 					0, &path);
 	if (fd >= 0)
@@ -1089,7 +1089,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	}
 	if (dinfo->build_id) {
 		build_id__init(&bid, dinfo->build_id, BUILD_ID_SIZE);
-		build_id__sprintf(&bid, sbuild_id);
+		build_id__snprintf(&bid, sbuild_id, sizeof(sbuild_id));
 	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {

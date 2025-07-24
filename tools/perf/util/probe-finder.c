@@ -859,7 +859,7 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 		comp_dir = cu_get_comp_dir(&pf->cu_die);
 		if (pf->dbg->build_id) {
 			build_id__init(&bid, pf->dbg->build_id, BUILD_ID_SIZE);
-			build_id__sprintf(&bid, sbuild_id);
+			build_id__snprintf(&bid, sbuild_id, sizeof(sbuild_id));
 		}
 		ret = find_source_path(pf->fname, sbuild_id, comp_dir, &fpath);
 		if (ret < 0) {
