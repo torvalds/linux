@@ -285,7 +285,6 @@
 	i2c0: i2c@11007000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <0>;
 		reg = <0 0x11007000 0 0x1000>,
 		      <0 0x11000100 0 0x80>;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_LOW>;
@@ -301,7 +300,6 @@
 	i2c1: i2c@11008000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <1>;
 		reg = <0 0x11008000 0 0x1000>,
 		      <0 0x11000180 0 0x80>;
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_LOW>;
@@ -317,7 +315,6 @@
 	i2c8: i2c@11009000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <8>;
 		reg = <0 0x11009000 0 0x1000>,
 		      <0 0x11000200 0 0x80>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_LOW>;
@@ -334,7 +331,6 @@
 	i2c9: i2c@1100d000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <9>;
 		reg = <0 0x1100d000 0 0x1000>,
 		      <0 0x11000280 0 0x80>;
 		interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_LOW>;
@@ -351,7 +347,6 @@
 	i2c6: i2c@1100e000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <6>;
 		reg = <0 0x1100e000 0 0x1000>,
 		      <0 0x11000500 0 0x80>;
 		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_LOW>;
@@ -367,7 +362,6 @@
 	i2c7: i2c@11010000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <7>;
 		reg = <0 0x11010000 0 0x1000>,
 		      <0 0x11000580 0 0x80>;
 		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_LOW>;
@@ -383,7 +377,6 @@
 	i2c4: i2c@11011000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <4>;
 		reg = <0 0x11011000 0 0x1000>,
 		      <0 0x11000300 0 0x80>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_LOW>;
@@ -399,7 +392,6 @@
 	i2c2: i2c@11013000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <2>;
 		reg = <0 0x11013000 0 0x1000>,
 		      <0 0x11000400 0 0x80>;
 		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_LOW>;
@@ -416,7 +408,6 @@
 	i2c3: i2c@11014000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <3>;
 		reg = <0 0x11014000 0 0x1000>,
 		      <0 0x11000480 0 0x80>;
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_LOW>;
@@ -433,7 +424,6 @@
 	i2c5: i2c@1101c000 {
 		compatible = "mediatek,mt6797-i2c",
 			     "mediatek,mt6577-i2c";
-		id = <5>;
 		reg = <0 0x1101c000 0 0x1000>,
 		      <0 0x11000380 0 0x80>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_LOW>;
