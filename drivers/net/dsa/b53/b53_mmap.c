@@ -24,8 +24,11 @@
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/b53.h>
+#include <linux/regmap.h>
 
 #include "b53_priv.h"
+
+#define BCM63XX_EPHY_REG 0x3C
 
 struct b53_phy_info {
 	u32 ephy_enable_mask;
@@ -38,6 +41,7 @@ struct b53_mmap_priv {
 	void __iomem *regs;
 	struct regmap *gpio_ctrl;
 	const struct b53_phy_info *phy_info;
+	u32 phys_enabled;
 };
 
 static const u32 bcm6318_ephy_offsets[] = {4, 5, 6, 7};
@@ -266,6 +270,50 @@ static int b53_mmap_phy_write16(struct b53_device *dev, int addr, int reg,
 	return -EIO;
 }
 
+static int bcm63xx_ephy_set(struct b53_device *dev, int port, bool enable)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	const struct b53_phy_info *info = priv->phy_info;
+	struct regmap *gpio_ctrl = priv->gpio_ctrl;
+	u32 mask, val;
+
+	if (enable) {
+		mask = (info->ephy_enable_mask << info->ephy_offset[port])
+				| BIT(info->ephy_bias_bit);
+		val = 0;
+	} else {
+		mask = (info->ephy_enable_mask << info->ephy_offset[port]);
+		if (!((priv->phys_enabled & ~BIT(port)) & info->ephy_port_mask))
+			mask |= BIT(info->ephy_bias_bit);
+		val = mask;
+	}
+	return regmap_update_bits(gpio_ctrl, BCM63XX_EPHY_REG, mask, val);
+}
+
+static void b53_mmap_phy_enable(struct b53_device *dev, int port)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	int ret = 0;
+
+	if (priv->phy_info && (BIT(port) & priv->phy_info->ephy_port_mask))
+		ret = bcm63xx_ephy_set(dev, port, true);
+
+	if (!ret)
+		priv->phys_enabled |= BIT(port);
+}
+
+static void b53_mmap_phy_disable(struct b53_device *dev, int port)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	int ret = 0;
+
+	if (priv->phy_info && (BIT(port) & priv->phy_info->ephy_port_mask))
+		ret = bcm63xx_ephy_set(dev, port, false);
+
+	if (!ret)
+		priv->phys_enabled &= ~BIT(port);
+}
+
 static const struct b53_io_ops b53_mmap_ops = {
 	.read8 = b53_mmap_read8,
 	.read16 = b53_mmap_read16,
@@ -279,6 +327,8 @@ static const struct b53_io_ops b53_mmap_ops = {
 	.write64 = b53_mmap_write64,
 	.phy_read16 = b53_mmap_phy_read16,
 	.phy_write16 = b53_mmap_phy_write16,
+	.phy_enable = b53_mmap_phy_enable,
+	.phy_disable = b53_mmap_phy_disable,
 };
 
 static int b53_mmap_probe_of(struct platform_device *pdev,
