@@ -2558,7 +2558,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 {
 	int i, err = -1;
 	struct perf_cpu_map *map;
-	int nr_cpus = min(session->header.env.nr_cpus_avail, MAX_NR_CPUS);
+	int nr_cpus = min(perf_session__env(session)->nr_cpus_avail, MAX_NR_CPUS);
 	struct perf_cpu cpu;
 
 	for (i = 0; i < PERF_TYPE_MAX; ++i) {
@@ -2746,4 +2746,9 @@ int perf_session__dsos_hit_all(struct perf_session *session)
 	}
 
 	return 0;
+}
+
+struct perf_env *perf_session__env(struct perf_session *session)
+{
+	return &session->header.env;
 }

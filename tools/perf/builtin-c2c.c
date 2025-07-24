@@ -2267,14 +2267,15 @@ static int setup_nodes(struct perf_session *session)
 	int node, idx;
 	struct perf_cpu cpu;
 	int *cpu2node;
+	struct perf_env *env = perf_session__env(session);
 
 	if (c2c.node_info > 2)
 		c2c.node_info = 2;
 
-	c2c.nodes_cnt = session->header.env.nr_numa_nodes;
-	c2c.cpus_cnt  = session->header.env.nr_cpus_avail;
+	c2c.nodes_cnt = env->nr_numa_nodes;
+	c2c.cpus_cnt  = env->nr_cpus_avail;
 
-	n = session->header.env.numa_nodes;
+	n = env->numa_nodes;
 	if (!n)
 		return -EINVAL;
 
@@ -3030,6 +3031,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	};
 	int err = 0;
 	const char *output_str, *sort_str = NULL;
+	struct perf_env *env;
 
 	argc = parse_options(argc, argv, options, report_c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -3072,14 +3074,14 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_debug("Error creating perf session\n");
 		goto out;
 	}
-
+	env = perf_session__env(session);
 	/*
 	 * Use the 'tot' as default display type if user doesn't specify it;
 	 * since Arm64 platform doesn't support HITMs flag, use 'peer' as the
 	 * default display type.
 	 */
 	if (!display) {
-		if (!strcmp(perf_env__arch(&session->header.env), "arm64"))
+		if (!strcmp(perf_env__arch(env), "arm64"))
 			display = "peer";
 		else
 			display = "tot";
@@ -3109,7 +3111,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out_session;
 	}
 
-	err = mem2node__init(&c2c.mem2node, &session->header.env);
+	err = mem2node__init(&c2c.mem2node, env);
 	if (err)
 		goto out_session;
 
@@ -3117,7 +3119,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (err)
 		goto out_mem2node;
 
-	if (symbol__init(&session->header.env) < 0)
+	if (symbol__init(env) < 0)
 		goto out_mem2node;
 
 	/* No pipe support at the moment. */

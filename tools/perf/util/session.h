@@ -208,4 +208,6 @@ int perf_event__process_finished_round(const struct perf_tool *tool,
 				       union perf_event *event,
 				       struct ordered_events *oe);
 
+struct perf_env *perf_session__env(struct perf_session *session);
+
 #endif /* __PERF_SESSION_H */

@@ -4701,7 +4701,7 @@ static int trace__replay(struct trace *trace)
 	if (trace->opts.target.tid)
 		symbol_conf.tid_list_str = strdup(trace->opts.target.tid);
 
-	if (symbol__init(&session->header.env) < 0)
+	if (symbol__init(perf_session__env(session)) < 0)
 		goto out;
 
 	trace->host = &session->machines.host;
