@@ -361,12 +361,11 @@
 };
 
 &mdss0_dp2 {
-	data-lanes = <0 1 2 3>;
-
 	status = "okay";
 };
 
 &mdss0_dp2_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&edp0_connector_in>;
 };
 
@@ -378,12 +377,11 @@
 };
 
 &mdss0_dp3 {
-	data-lanes = <0 1 2 3>;
-
 	status = "okay";
 };
 
 &mdss0_dp3_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&edp1_connector_in>;
 };
 
@@ -399,12 +397,11 @@
 };
 
 &mdss1_dp0 {
-	data-lanes = <0 1 2 3>;
-
 	status = "okay";
 };
 
 &mdss1_dp0_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&dp2_connector_in>;
 };
 
@@ -416,12 +413,11 @@
 };
 
 &mdss1_dp1 {
-	data-lanes = <0 1 2 3>;
-
 	status = "okay";
 };
 
 &mdss1_dp1_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&dp3_connector_in>;
 };
 
@@ -433,12 +429,11 @@
 };
 
 &mdss1_dp2 {
-	data-lanes = <0 1 2 3>;
-
 	status = "okay";
 };
 
 &mdss1_dp2_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&edp2_connector_in>;
 };
 
@@ -450,12 +445,11 @@
 };
 
 &mdss1_dp3 {
-	data-lanes = <0 1 2 3>;
-
 	status = "okay";
 };
 
 &mdss1_dp3_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&edp3_connector_in>;
 };
 

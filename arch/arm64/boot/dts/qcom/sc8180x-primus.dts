@@ -531,8 +531,6 @@
 };
 
 &mdss_edp {
-	data-lanes = <0 1 2 3>;
-
 	pinctrl-names = "default";
 	pinctrl-0 = <&edp_hpd_active>;
 
@@ -554,6 +552,7 @@
 };
 
 &mdss_edp_out {
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&auo_b133han05_in>;
 };
 
