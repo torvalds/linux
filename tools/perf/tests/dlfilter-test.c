@@ -353,9 +353,8 @@ static int test__dlfilter_test(struct test_data *td)
 		return test_result("Failed to find program symbols", TEST_FAIL);
 
 	pr_debug("Creating new host machine structure\n");
-	td->machine = machine__new_host();
 	perf_env__init(&host_env);
-	td->machine->env = &host_env;
+	td->machine = machine__new_host(&host_env);
 
 	td->fd = creat(td->perf_data_file_name, 0644);
 	if (td->fd < 0)

@@ -5,6 +5,7 @@
 #include <limits.h>
 #include "debug.h"
 #include "dso.h"
+#include "env.h"
 #include "machine.h"
 #include "thread.h"
 #include "symbol.h"
@@ -13,15 +14,18 @@
 #include "tests.h"
 
 struct test_info {
+	struct perf_env host_env;
 	struct machine *machine;
 	struct thread *thread;
 };
 
 static int init_test_info(struct test_info *ti)
 {
-	ti->machine = machine__new_host();
+	perf_env__init(&ti->host_env);
+	ti->machine = machine__new_host(&ti->host_env);
 	if (!ti->machine) {
 		pr_debug("machine__new_host() failed!\n");
+		perf_env__exit(&ti->host_env);
 		return TEST_FAIL;
 	}
 
@@ -29,6 +33,7 @@ static int init_test_info(struct test_info *ti)
 	ti->thread = machine__findnew_thread(ti->machine, 100, 100);
 	if (!ti->thread) {
 		pr_debug("machine__findnew_thread() failed!\n");
+		perf_env__exit(&ti->host_env);
 		return TEST_FAIL;
 	}
 
@@ -39,6 +44,7 @@ static void exit_test_info(struct test_info *ti)
 {
 	thread__put(ti->thread);
 	machine__delete(ti->machine);
+	perf_env__exit(&ti->host_env);
 }
 
 struct dso_map {

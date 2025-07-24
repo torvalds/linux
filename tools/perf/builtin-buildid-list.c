@@ -45,11 +45,14 @@ static int buildid__map_cb(struct map *map, void *arg __maybe_unused)
 
 static void buildid__show_kernel_maps(void)
 {
+	struct perf_env host_env;
 	struct machine *machine;
 
-	machine = machine__new_host();
+	perf_env__init(&host_env);
+	machine = machine__new_host(&host_env);
 	machine__for_each_kernel_map(machine, buildid__map_cb, NULL);
 	machine__delete(machine);
+	perf_env__exit(&host_env);
 }
 
 static int sysfs__fprintf_build_id(FILE *fp)

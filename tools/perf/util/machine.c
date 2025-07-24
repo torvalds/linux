@@ -129,7 +129,7 @@ out:
 	return 0;
 }
 
-static struct machine *__machine__new_host(bool kernel_maps)
+static struct machine *__machine__new_host(struct perf_env *host_env, bool kernel_maps)
 {
 	struct machine *machine = malloc(sizeof(*machine));
 
@@ -142,13 +142,13 @@ static struct machine *__machine__new_host(bool kernel_maps)
 		free(machine);
 		return NULL;
 	}
-	machine->env = &perf_env;
+	machine->env = host_env;
 	return machine;
 }
 
-struct machine *machine__new_host(void)
+struct machine *machine__new_host(struct perf_env *host_env)
 {
-	return __machine__new_host(/*kernel_maps=*/true);
+	return __machine__new_host(host_env, /*kernel_maps=*/true);
 }
 
 static int mmap_handler(const struct perf_tool *tool __maybe_unused,
@@ -168,9 +168,9 @@ static int machine__init_live(struct machine *machine, pid_t pid)
 						  mmap_handler, machine, true);
 }
 
-struct machine *machine__new_live(bool kernel_maps, pid_t pid)
+struct machine *machine__new_live(struct perf_env *host_env, bool kernel_maps, pid_t pid)
 {
-	struct machine *machine = __machine__new_host(kernel_maps);
+	struct machine *machine = __machine__new_host(host_env, kernel_maps);
 
 	if (!machine)
 		return NULL;
@@ -182,9 +182,9 @@ struct machine *machine__new_live(bool kernel_maps, pid_t pid)
 	return machine;
 }
 
-struct machine *machine__new_kallsyms(void)
+struct machine *machine__new_kallsyms(struct perf_env *host_env)
 {
-	struct machine *machine = machine__new_host();
+	struct machine *machine = machine__new_host(host_env);
 	/*
 	 * FIXME:
 	 * 1) We should switch to machine__load_kallsyms(), i.e. not explicitly

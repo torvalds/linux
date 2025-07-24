@@ -140,6 +140,7 @@ struct syscall_fmt {
 };
 
 struct trace {
+	struct perf_env		host_env;
 	struct perf_tool	tool;
 	struct {
 		/** Sorted sycall numbers used by the trace. */
@@ -1977,17 +1978,24 @@ static char *trace__machine__resolve_kernel_addr(void *vmachine, unsigned long l
 	return machine__resolve_kernel_addr(vmachine, addrp, modp);
 }
 
-static int trace__symbols_init(struct trace *trace, struct evlist *evlist)
+static int trace__symbols_init(struct trace *trace, int argc, const char **argv,
+			       struct evlist *evlist)
 {
 	int err = symbol__init(NULL);
 
 	if (err)
 		return err;
 
-	trace->host = machine__new_host();
-	if (trace->host == NULL)
-		return -ENOMEM;
+	perf_env__init(&trace->host_env);
+	err = perf_env__set_cmdline(&trace->host_env, argc, argv);
+	if (err)
+		goto out;
 
+	trace->host = machine__new_host(&trace->host_env);
+	if (trace->host == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 	thread__set_priv_destructor(thread_trace__delete);
 
 	err = trace_event__register_resolver(trace->host, trace__machine__resolve_kernel_addr);
@@ -1998,9 +2006,10 @@ static int trace__symbols_init(struct trace *trace, struct evlist *evlist)
 					    evlist->core.threads, trace__tool_process,
 					    true, false, 1);
 out:
-	if (err)
+	if (err) {
+		perf_env__exit(&trace->host_env);
 		symbol__exit();
-
+	}
 	return err;
 }
 
@@ -2009,6 +2018,7 @@ static void trace__symbols__exit(struct trace *trace)
 	machine__exit(trace->host);
 	trace->host = NULL;
 
+	perf_env__exit(&trace->host_env);
 	symbol__exit();
 }
 
@@ -4428,7 +4438,7 @@ create_maps:
 		goto out_delete_evlist;
 	}
 
-	err = trace__symbols_init(trace, evlist);
+	err = trace__symbols_init(trace, argc, argv, evlist);
 	if (err < 0) {
 		fprintf(trace->output, "Problems initializing symbol libraries!\n");
 		goto out_delete_evlist;

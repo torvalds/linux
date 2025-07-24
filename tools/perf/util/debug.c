@@ -17,6 +17,7 @@
 #include "addr_location.h"
 #include "color.h"
 #include "debug.h"
+#include "env.h"
 #include "event.h"
 #include "machine.h"
 #include "map.h"
@@ -309,8 +310,12 @@ void __dump_stack(FILE *file, void **stackdump, size_t stackdump_size)
 {
 	/* TODO: async safety. printf, malloc, etc. aren't safe inside a signal handler. */
 	pid_t pid = getpid();
-	struct machine *machine = machine__new_live(/*kernel_maps=*/false, pid);
+	struct machine *machine;
 	struct thread *thread = NULL;
+	struct perf_env host_env;
+
+	perf_env__init(&host_env);
+	machine = machine__new_live(&host_env, /*kernel_maps=*/false, pid);
 
 	if (machine)
 		thread = machine__find_thread(machine, pid, pid);
@@ -323,6 +328,7 @@ void __dump_stack(FILE *file, void **stackdump, size_t stackdump_size)
 		 */
 		backtrace_symbols_fd(stackdump, stackdump_size, fileno(file));
 		machine__delete(machine);
+		perf_env__exit(&host_env);
 		return;
 	}
 #endif
@@ -349,6 +355,7 @@ void __dump_stack(FILE *file, void **stackdump, size_t stackdump_size)
 	}
 	thread__put(thread);
 	machine__delete(machine);
+	perf_env__exit(&host_env);
 }
 
 /* Obtain a backtrace and print it to stdout. */
