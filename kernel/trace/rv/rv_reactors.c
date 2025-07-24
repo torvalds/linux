@@ -172,10 +172,6 @@ static void monitor_swap_reactors_single(struct rv_monitor *mon,
 	if (monitor_enabled)
 		rv_disable_monitor(mon);
 
-	/* swap reactor's usage */
-	mon->reactor->counter--;
-	reactor->counter++;
-
 	mon->reactor = reactor;
 	mon->reacting = reacting;
 	mon->react = reactor->react;
@@ -343,23 +339,10 @@ int rv_register_reactor(struct rv_reactor *reactor)
  */
 int rv_unregister_reactor(struct rv_reactor *reactor)
 {
-	int ret = 0;
-
 	mutex_lock(&rv_interface_lock);
-
-	if (!reactor->counter) {
-		list_del(&reactor->list);
-	} else {
-		printk(KERN_WARNING
-		       "rv: the rv_reactor %s is in use by %d monitor(s)\n",
-		       reactor->name, reactor->counter);
-		printk(KERN_WARNING "rv: the rv_reactor %s cannot be removed\n",
-		       reactor->name);
-		ret = -EBUSY;
-	}
-
+	list_del(&reactor->list);
 	mutex_unlock(&rv_interface_lock);
-	return ret;
+	return 0;
 }
 
 /*
@@ -456,21 +439,9 @@ int reactor_populate_monitor(struct rv_monitor *mon)
 	 * Configure as the rv_nop reactor.
 	 */
 	mon->reactor = get_reactor_rdef_by_name("nop");
-	mon->reactor->counter++;
 	mon->reacting = false;
 
 	return 0;
-}
-
-/**
- * reactor_cleanup_monitor - cleanup a monitor reference
- * @mon:       the monitor.
- */
-void reactor_cleanup_monitor(struct rv_monitor *mon)
-{
-	lockdep_assert_held(&rv_interface_lock);
-	mon->reactor->counter--;
-	WARN_ON_ONCE(mon->reactor->counter < 0);
 }
 
 /*

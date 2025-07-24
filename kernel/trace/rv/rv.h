@@ -31,17 +31,11 @@ bool rv_is_nested_monitor(struct rv_monitor *mon);
 
 #ifdef CONFIG_RV_REACTORS
 int reactor_populate_monitor(struct rv_monitor *mon);
-void reactor_cleanup_monitor(struct rv_monitor *mon);
 int init_rv_reactors(struct dentry *root_dir);
 #else
 static inline int reactor_populate_monitor(struct rv_monitor *mon)
 {
 	return 0;
-}
-
-static inline void reactor_cleanup_monitor(struct rv_monitor *mon)
-{
-	return;
 }
 
 static inline int init_rv_reactors(struct dentry *root_dir)

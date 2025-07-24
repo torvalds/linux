@@ -769,7 +769,6 @@ static const struct file_operations monitoring_on_fops = {
 
 static void destroy_monitor_dir(struct rv_monitor *mon)
 {
-	reactor_cleanup_monitor(mon);
 	rv_remove(mon->root_d);
 }
 

@@ -91,8 +91,6 @@ struct rv_reactor {
 	const char		*description;
 	__printf(1, 2) void	(*react)(const char *msg, ...);
 	struct list_head	list;
-	/* protected by the monitor interface lock */
-	int			counter;
 };
 #endif
 
