@@ -39,6 +39,9 @@ nvif_chan_gpfifo_post(struct nvif_chan *chan)
 	const u32 pbptr = (chan->push.cur - map) + chan->func->gpfifo.post_size;
 	const u32 gpptr = (chan->gpfifo.cur + 1) & chan->gpfifo.max;
 
+	if (!chan->func->gpfifo.post)
+		return 0;
+
 	return chan->func->gpfifo.post(chan, gpptr, pbptr);
 }
 
