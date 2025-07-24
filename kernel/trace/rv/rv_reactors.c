@@ -138,10 +138,10 @@ static const struct file_operations available_reactors_ops = {
  */
 static int monitor_reactor_show(struct seq_file *m, void *p)
 {
-	struct rv_monitor_def *mdef = m->private;
+	struct rv_monitor *mon = m->private;
 	struct rv_reactor_def *rdef = p;
 
-	if (mdef->rdef == rdef)
+	if (mon->rdef == rdef)
 		seq_printf(m, "[%s]\n", rdef->reactor->name);
 	else
 		seq_printf(m, "%s\n", rdef->reactor->name);
@@ -158,41 +158,41 @@ static const struct seq_operations monitor_reactors_seq_ops = {
 	.show	= monitor_reactor_show
 };
 
-static void monitor_swap_reactors_single(struct rv_monitor_def *mdef,
+static void monitor_swap_reactors_single(struct rv_monitor *mon,
 					 struct rv_reactor_def *rdef,
 					 bool reacting, bool nested)
 {
 	bool monitor_enabled;
 
 	/* nothing to do */
-	if (mdef->rdef == rdef)
+	if (mon->rdef == rdef)
 		return;
 
-	monitor_enabled = mdef->monitor->enabled;
+	monitor_enabled = mon->enabled;
 	if (monitor_enabled)
-		rv_disable_monitor(mdef);
+		rv_disable_monitor(mon);
 
 	/* swap reactor's usage */
-	mdef->rdef->counter--;
+	mon->rdef->counter--;
 	rdef->counter++;
 
-	mdef->rdef = rdef;
-	mdef->reacting = reacting;
-	mdef->monitor->react = rdef->reactor->react;
+	mon->rdef = rdef;
+	mon->reacting = reacting;
+	mon->react = rdef->reactor->react;
 
 	/* enable only once if iterating through a container */
 	if (monitor_enabled && !nested)
-		rv_enable_monitor(mdef);
+		rv_enable_monitor(mon);
 }
 
-static void monitor_swap_reactors(struct rv_monitor_def *mdef,
+static void monitor_swap_reactors(struct rv_monitor *mon,
 				  struct rv_reactor_def *rdef, bool reacting)
 {
-	struct rv_monitor_def *p = mdef;
+	struct rv_monitor *p = mon;
 
-	if (rv_is_container_monitor(mdef))
+	if (rv_is_container_monitor(mon))
 		list_for_each_entry_continue(p, &rv_monitors_list, list) {
-			if (p->parent != mdef->monitor)
+			if (p->parent != mon)
 				break;
 			monitor_swap_reactors_single(p, rdef, reacting, true);
 		}
@@ -202,7 +202,7 @@ static void monitor_swap_reactors(struct rv_monitor_def *mdef,
 	 * All nested monitors are enabled also if they were off, we may refine
 	 * this logic in the future.
 	 */
-	monitor_swap_reactors_single(mdef, rdef, reacting, false);
+	monitor_swap_reactors_single(mon, rdef, reacting, false);
 }
 
 static ssize_t
@@ -210,7 +210,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 		      size_t count, loff_t *ppos)
 {
 	char buff[MAX_RV_REACTOR_NAME_SIZE + 2];
-	struct rv_monitor_def *mdef;
+	struct rv_monitor *mon;
 	struct rv_reactor_def *rdef;
 	struct seq_file *seq_f;
 	int retval = -EINVAL;
@@ -237,7 +237,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 	 * See monitor_reactors_open()
 	 */
 	seq_f = file->private_data;
-	mdef = seq_f->private;
+	mon = seq_f->private;
 
 	mutex_lock(&rv_interface_lock);
 
@@ -252,7 +252,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 		else
 			enable = true;
 
-		monitor_swap_reactors(mdef, rdef, enable);
+		monitor_swap_reactors(mon, rdef, enable);
 
 		retval = count;
 		break;
@@ -268,7 +268,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
  */
 static int monitor_reactors_open(struct inode *inode, struct file *file)
 {
-	struct rv_monitor_def *mdef = inode->i_private;
+	struct rv_monitor *mon = inode->i_private;
 	struct seq_file *seq_f;
 	int ret;
 
@@ -284,7 +284,7 @@ static int monitor_reactors_open(struct inode *inode, struct file *file)
 	/*
 	 * Copy the create file "private" data to the seq_file private data.
 	 */
-	seq_f->private = mdef;
+	seq_f->private = mon;
 
 	return 0;
 };
@@ -454,37 +454,37 @@ static const struct file_operations reacting_on_fops = {
 
 /**
  * reactor_populate_monitor - creates per monitor reactors file
- * @mdef:	monitor's definition.
+ * @mon:	The monitor.
  *
  * Returns 0 if successful, error otherwise.
  */
-int reactor_populate_monitor(struct rv_monitor_def *mdef)
+int reactor_populate_monitor(struct rv_monitor *mon)
 {
 	struct dentry *tmp;
 
-	tmp = rv_create_file("reactors", RV_MODE_WRITE, mdef->root_d, mdef, &monitor_reactors_ops);
+	tmp = rv_create_file("reactors", RV_MODE_WRITE, mon->root_d, mon, &monitor_reactors_ops);
 	if (!tmp)
 		return -ENOMEM;
 
 	/*
 	 * Configure as the rv_nop reactor.
 	 */
-	mdef->rdef = get_reactor_rdef_by_name("nop");
-	mdef->rdef->counter++;
-	mdef->reacting = false;
+	mon->rdef = get_reactor_rdef_by_name("nop");
+	mon->rdef->counter++;
+	mon->reacting = false;
 
 	return 0;
 }
 
 /**
  * reactor_cleanup_monitor - cleanup a monitor reference
- * @mdef:       monitor's definition.
+ * @mon:       the monitor.
  */
-void reactor_cleanup_monitor(struct rv_monitor_def *mdef)
+void reactor_cleanup_monitor(struct rv_monitor *mon)
 {
 	lockdep_assert_held(&rv_interface_lock);
-	mdef->rdef->counter--;
-	WARN_ON_ONCE(mdef->rdef->counter < 0);
+	mon->rdef->counter--;
+	WARN_ON_ONCE(mon->rdef->counter < 0);
 }
 
 /*

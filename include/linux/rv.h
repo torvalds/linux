@@ -7,6 +7,9 @@
 #ifndef _LINUX_RV_H
 #define _LINUX_RV_H
 
+#include <linux/types.h>
+#include <linux/list.h>
+
 #define MAX_DA_NAME_LEN	32
 
 #ifdef CONFIG_RV
@@ -98,8 +101,13 @@ struct rv_monitor {
 	void			(*disable)(void);
 	void			(*reset)(void);
 #ifdef CONFIG_RV_REACTORS
+	struct rv_reactor_def	*rdef;
 	__printf(1, 2) void	(*react)(const char *msg, ...);
+	bool			reacting;
 #endif
+	struct list_head	list;
+	struct rv_monitor	*parent;
+	struct dentry		*root_d;
 };
 
 bool rv_monitoring_on(void);
