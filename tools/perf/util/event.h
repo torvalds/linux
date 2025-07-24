@@ -391,9 +391,6 @@ extern unsigned int proc_map_timeout;
 #define PAGE_SIZE_NAME_LEN	32
 char *get_page_size_name(u64 size, char *str);
 
-const char *arch_perf_header_entry(const char *se_header);
-int arch_support_sort_key(const char *sort_key);
-
 static inline bool perf_event_header__cpumode_is_guest(u8 cpumode)
 {
 	return cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
