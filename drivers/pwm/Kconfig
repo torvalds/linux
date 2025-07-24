@@ -536,7 +536,7 @@ config PWM_PXA
 	  will be called pwm-pxa.
 
 config PWM_RASPBERRYPI_POE
-	tristate "Raspberry Pi Firwmware PoE Hat PWM support"
+	tristate "Raspberry Pi Firmware PoE Hat PWM support"
 	# Make sure not 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
 	# happen when COMPILE_TEST=y, hence the added !RASPBERRYPI_FIRMWARE.
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
