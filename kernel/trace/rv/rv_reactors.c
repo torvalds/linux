@@ -160,7 +160,7 @@ static const struct seq_operations monitor_reactors_seq_ops = {
 
 static void monitor_swap_reactors_single(struct rv_monitor *mon,
 					 struct rv_reactor *reactor,
-					 bool reacting, bool nested)
+					 bool nested)
 {
 	bool monitor_enabled;
 
@@ -173,7 +173,6 @@ static void monitor_swap_reactors_single(struct rv_monitor *mon,
 		rv_disable_monitor(mon);
 
 	mon->reactor = reactor;
-	mon->reacting = reacting;
 	mon->react = reactor->react;
 
 	/* enable only once if iterating through a container */
@@ -181,8 +180,7 @@ static void monitor_swap_reactors_single(struct rv_monitor *mon,
 		rv_enable_monitor(mon);
 }
 
-static void monitor_swap_reactors(struct rv_monitor *mon,
-				  struct rv_reactor *reactor, bool reacting)
+static void monitor_swap_reactors(struct rv_monitor *mon, struct rv_reactor *reactor)
 {
 	struct rv_monitor *p = mon;
 
@@ -190,7 +188,7 @@ static void monitor_swap_reactors(struct rv_monitor *mon,
 		list_for_each_entry_continue(p, &rv_monitors_list, list) {
 			if (p->parent != mon)
 				break;
-			monitor_swap_reactors_single(p, reactor, reacting, true);
+			monitor_swap_reactors_single(p, reactor, true);
 		}
 	/*
 	 * This call enables and disables the monitor if they were active.
@@ -198,7 +196,7 @@ static void monitor_swap_reactors(struct rv_monitor *mon,
 	 * All nested monitors are enabled also if they were off, we may refine
 	 * this logic in the future.
 	 */
-	monitor_swap_reactors_single(mon, reactor, reacting, false);
+	monitor_swap_reactors_single(mon, reactor, false);
 }
 
 static ssize_t
@@ -210,7 +208,6 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 	struct rv_reactor *reactor;
 	struct seq_file *seq_f;
 	int retval = -EINVAL;
-	bool enable;
 	char *ptr;
 	int len;
 
@@ -243,12 +240,7 @@ monitor_reactors_write(struct file *file, const char __user *user_buf,
 		if (strcmp(ptr, reactor->name) != 0)
 			continue;
 
-		if (strcmp(reactor->name, "nop"))
-			enable = false;
-		else
-			enable = true;
-
-		monitor_swap_reactors(mon, reactor, enable);
+		monitor_swap_reactors(mon, reactor);
 
 		retval = count;
 		break;
@@ -439,7 +431,6 @@ int reactor_populate_monitor(struct rv_monitor *mon)
 	 * Configure as the rv_nop reactor.
 	 */
 	mon->reactor = get_reactor_rdef_by_name("nop");
-	mon->reacting = false;
 
 	return 0;
 }

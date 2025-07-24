@@ -104,7 +104,6 @@ struct rv_monitor {
 #ifdef CONFIG_RV_REACTORS
 	struct rv_reactor	*reactor;
 	__printf(1, 2) void	(*react)(const char *msg, ...);
-	bool			reacting;
 #endif
 	struct list_head	list;
 	struct rv_monitor	*parent;
