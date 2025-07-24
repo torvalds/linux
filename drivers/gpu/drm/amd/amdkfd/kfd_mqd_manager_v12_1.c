@@ -363,6 +363,12 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 
 	m->sdmax_rlcx_dummy_reg = SDMA_RLC_DUMMY_DEFAULT;
 
+	/* Allow context switch so we don't cross-process starve with a massive
+	* command buffer of long-running SDMA commands
+	* sdmax_rlcx_ib_cntl represent SDMA_QUEUE0_IB_CNTL register
+	*/
+	m->sdmax_rlcx_ib_cntl |= SDMA0_SDMA_QUEUE0_IB_CNTL__SWITCH_INSIDE_IB_MASK;
+
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 
