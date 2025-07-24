@@ -587,15 +587,17 @@ static int perf_event__repipe_mmap2(const struct perf_tool *tool,
 				struct perf_sample *sample,
 				struct machine *machine)
 {
-	struct dso_id id;
-	struct dso_id *dso_id = NULL;
+	struct dso_id id = dso_id_empty;
 
-	if (!(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		build_id__init(&id.build_id, event->mmap2.build_id, event->mmap2.build_id_size);
+	} else {
 		id.maj = event->mmap2.maj;
 		id.min = event->mmap2.min;
 		id.ino = event->mmap2.ino;
 		id.ino_generation = event->mmap2.ino_generation;
-		dso_id = &id;
+		id.mmap2_valid = true;
+		id.mmap2_ino_generation_valid = true;
 	}
 
 	return perf_event__repipe_common_mmap(
@@ -603,7 +605,7 @@ static int perf_event__repipe_mmap2(const struct perf_tool *tool,
 		event->mmap2.pid, event->mmap2.tid,
 		event->mmap2.start, event->mmap2.len, event->mmap2.pgoff,
 		event->mmap2.flags, event->mmap2.prot,
-		event->mmap2.filename, dso_id,
+		event->mmap2.filename, &id,
 		perf_event__process_mmap2);
 }
 
@@ -671,19 +673,20 @@ static int perf_event__repipe_tracing_data(struct perf_session *session,
 static int dso__read_build_id(struct dso *dso)
 {
 	struct nscookie nsc;
+	struct build_id bid = { .size = 0, };
 
 	if (dso__has_build_id(dso))
 		return 0;
 
 	mutex_lock(dso__lock(dso));
 	nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
-	if (filename__read_build_id(dso__long_name(dso), dso__bid(dso)) > 0)
-		dso__set_has_build_id(dso);
+	if (filename__read_build_id(dso__long_name(dso), &bid) > 0)
+		dso__set_build_id(dso, &bid);
 	else if (dso__nsinfo(dso)) {
 		char *new_name = dso__filename_with_chroot(dso, dso__long_name(dso));
 
-		if (new_name && filename__read_build_id(new_name, dso__bid(dso)) > 0)
-			dso__set_has_build_id(dso);
+		if (new_name && filename__read_build_id(new_name, &bid) > 0)
+			dso__set_build_id(dso, &bid);
 		free(new_name);
 	}
 	nsinfo__mountns_exit(&nsc);
@@ -732,23 +735,26 @@ static bool perf_inject__lookup_known_build_id(struct perf_inject *inject,
 					       struct dso *dso)
 {
 	struct str_node *pos;
-	int bid_len;
 
 	strlist__for_each_entry(pos, inject->known_build_ids) {
+		struct build_id bid;
 		const char *build_id, *dso_name;
+		size_t bid_len;
 
 		build_id = skip_spaces(pos->s);
 		dso_name = strchr(build_id, ' ');
 		bid_len = dso_name - pos->s;
+		if (bid_len > sizeof(bid.data))
+			bid_len = sizeof(bid.data);
 		dso_name = skip_spaces(dso_name);
 		if (strcmp(dso__long_name(dso), dso_name))
 			continue;
-		for (int ix = 0; 2 * ix + 1 < bid_len; ++ix) {
-			dso__bid(dso)->data[ix] = (hex(build_id[2 * ix]) << 4 |
-						  hex(build_id[2 * ix + 1]));
+		for (size_t ix = 0; 2 * ix + 1 < bid_len; ++ix) {
+			bid.data[ix] = (hex(build_id[2 * ix]) << 4 |
+					hex(build_id[2 * ix + 1]));
 		}
-		dso__bid(dso)->size = bid_len / 2;
-		dso__set_has_build_id(dso);
+		bid.size = bid_len / 2;
+		dso__set_build_id(dso, &bid);
 		return true;
 	}
 	return false;

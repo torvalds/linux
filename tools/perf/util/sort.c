@@ -1746,22 +1746,27 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (rc)
 		return rc;
 	/*
-	 * Addresses with no major/minor numbers are assumed to be
+	 * Addresses with no major/minor numbers or build ID are assumed to be
 	 * anonymous in userspace.  Sort those on pid then address.
 	 *
 	 * The kernel and non-zero major/minor mapped areas are
 	 * assumed to be unity mapped.  Sort those on address.
 	 */
+	if (left->cpumode != PERF_RECORD_MISC_KERNEL && (map__flags(l_map) & MAP_SHARED) == 0) {
+		const struct dso_id *dso_id = dso__id_const(l_dso);
 
-	if ((left->cpumode != PERF_RECORD_MISC_KERNEL) &&
-	    (!(map__flags(l_map) & MAP_SHARED)) && !dso__id(l_dso)->maj && !dso__id(l_dso)->min &&
-	     !dso__id(l_dso)->ino && !dso__id(l_dso)->ino_generation) {
-		/* userspace anonymous */
+		if (!dso_id->mmap2_valid)
+			dso_id = dso__id_const(r_dso);
 
-		if (thread__pid(left->thread) > thread__pid(right->thread))
-			return -1;
-		if (thread__pid(left->thread) < thread__pid(right->thread))
-			return 1;
+		if (!build_id__is_defined(&dso_id->build_id) &&
+		    (!dso_id->mmap2_valid || (dso_id->maj == 0 && dso_id->min == 0))) {
+			/* userspace anonymous */
+
+			if (thread__pid(left->thread) > thread__pid(right->thread))
+				return -1;
+			if (thread__pid(left->thread) < thread__pid(right->thread))
+				return 1;
+		}
 	}
 
 addr:
@@ -1786,6 +1791,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 	if (he->mem_info) {
 		struct map *map = mem_info__daddr(he->mem_info)->ms.map;
 		struct dso *dso = map ? map__dso(map) : NULL;
+		const struct dso_id *dso_id = dso ? dso__id_const(dso) : &dso_id_empty;
 
 		addr = cl_address(mem_info__daddr(he->mem_info)->al_addr, chk_double_cl);
 		ms = &mem_info__daddr(he->mem_info)->ms;
@@ -1794,8 +1800,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 		if ((he->cpumode != PERF_RECORD_MISC_KERNEL) &&
 		     map && !(map__prot(map) & PROT_EXEC) &&
 		     (map__flags(map) & MAP_SHARED) &&
-		     (dso__id(dso)->maj || dso__id(dso)->min || dso__id(dso)->ino ||
-		      dso__id(dso)->ino_generation))
+		     (!dso_id->mmap2_valid || (dso_id->maj == 0 && dso_id->min == 0)))
 			level = 's';
 		else if (!map)
 			level = 'X';

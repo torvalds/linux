@@ -96,8 +96,8 @@ static int create_map(struct test_info *ti, char *filename, struct map **map_p)
 	dso__put(dso);
 
 	/* Create a dummy map at 0x100000 */
-	*map_p = map__new(ti->machine, 0x100000, 0xffffffff, 0, NULL,
-			  PROT_EXEC, 0, NULL, filename, ti->thread);
+	*map_p = map__new(ti->machine, 0x100000, 0xffffffff, 0, &dso_id_empty,
+			  PROT_EXEC, /*flags=*/0, filename, ti->thread);
 	if (!*map_p) {
 		pr_debug("Failed to create map!");
 		return TEST_FAIL;

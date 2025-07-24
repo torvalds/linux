@@ -861,17 +861,24 @@ static int maps__fprintf_task_cb(struct map *map, void *data)
 	struct maps__fprintf_task_args *args = data;
 	const struct dso *dso = map__dso(map);
 	u32 prot = map__prot(map);
+	const struct dso_id *dso_id = dso__id_const(dso);
 	int ret;
+	char buf[SBUILD_ID_SIZE];
+
+	if (dso_id->mmap2_valid)
+		snprintf(buf, sizeof(buf), "%" PRIu64, dso_id->ino);
+	else
+		build_id__snprintf(&dso_id->build_id, buf, sizeof(buf));
 
 	ret = fprintf(args->fp,
-		"%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
+		"%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %s %s\n",
 		args->indent, "", map__start(map), map__end(map),
 		prot & PROT_READ ? 'r' : '-',
 		prot & PROT_WRITE ? 'w' : '-',
 		prot & PROT_EXEC ? 'x' : '-',
 		map__flags(map) ? 's' : 'p',
 		map__pgoff(map),
-		dso__id_const(dso)->ino, dso__name(dso));
+		buf, dso__name(dso));
 
 	if (ret < 0)
 		return ret;

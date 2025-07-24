@@ -251,7 +251,7 @@ char *__dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 	if (!dso__has_build_id(dso))
 		return NULL;
 
-	build_id__snprintf(dso__bid_const(dso), sbuild_id, sizeof(sbuild_id));
+	build_id__snprintf(dso__bid(dso), sbuild_id, sizeof(sbuild_id));
 	linkname = build_id_cache__linkname(sbuild_id, NULL, 0);
 	if (!linkname)
 		return NULL;
@@ -334,7 +334,7 @@ static int machine__write_buildid_table_cb(struct dso *dso, void *data)
 	}
 
 	in_kernel = dso__kernel(dso) || is_kernel_module(name, PERF_RECORD_MISC_CPUMODE_UNKNOWN);
-	return write_buildid(name, name_len, dso__bid(dso), args->machine->pid,
+	return write_buildid(name, name_len, &dso__id(dso)->build_id, args->machine->pid,
 			     in_kernel ? args->kmisc : args->umisc, args->fd);
 }
 
