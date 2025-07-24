@@ -5828,6 +5828,7 @@ int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context)
 		amdgpu_set_init_level(tmp_adev, init_level);
 		if (full_reset) {
 			/* post card */
+			amdgpu_reset_set_dpc_status(tmp_adev, false);
 			amdgpu_ras_clear_err_state(tmp_adev);
 			r = amdgpu_device_asic_init(tmp_adev);
 			if (r) {
@@ -6883,11 +6884,6 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 
 	dev_info(adev->dev, "PCI error: detected callback!!\n");
 
-	if (!amdgpu_dpm_is_link_reset_supported(adev)) {
-		dev_warn(adev->dev, "No support for XGMI hive yet...\n");
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-
 	adev->pci_channel_state = state;
 
 	switch (state) {
@@ -6897,10 +6893,23 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 	case pci_channel_io_frozen:
 		/* Fatal error, prepare for slot reset */
 		dev_info(adev->dev, "pci_channel_io_frozen: state(%d)!!\n", state);
+		if (hive) {
+			/* Hive devices should be able to support FW based
+			 * link reset on other devices, if not return.
+			 */
+			if (!amdgpu_dpm_is_link_reset_supported(adev)) {
+				dev_warn(adev->dev,
+					 "No support for XGMI hive yet...\n");
+				return PCI_ERS_RESULT_DISCONNECT;
+			}
+			/* Set dpc status only if device is part of hive
+			 * Non-hive devices should be able to recover after
+			 * link reset.
+			 */
+			amdgpu_reset_set_dpc_status(adev, true);
 
-		if (hive)
 			mutex_lock(&hive->hive_lock);
-		amdgpu_reset_set_dpc_status(adev, true);
+		}
 		memset(&reset_context, 0, sizeof(reset_context));
 		INIT_LIST_HEAD(&device_list);
 
@@ -7063,7 +7072,6 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 	amdgpu_device_sched_resume(&device_list, NULL, NULL);
 	amdgpu_device_gpu_resume(adev, &device_list, false);
 	amdgpu_device_recovery_put_reset_lock(adev, &device_list);
-	amdgpu_reset_set_dpc_status(adev, false);
 
 	if (hive) {
 		mutex_unlock(&hive->hive_lock);
