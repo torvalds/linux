@@ -333,8 +333,10 @@ static void dw_i2c_plat_remove(struct platform_device *pdev)
 	i2c_dw_disable(dev);
 
 	pm_runtime_dont_use_autosuspend(device);
-	pm_runtime_put_sync(device);
+	pm_runtime_put_noidle(device);
 	dw_i2c_plat_pm_cleanup(dev);
+
+	i2c_dw_prepare_clk(dev, false);
 
 	i2c_dw_remove_lock_support(dev);
 
