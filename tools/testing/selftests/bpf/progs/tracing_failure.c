@@ -18,3 +18,9 @@ int BPF_PROG(test_spin_unlock, struct bpf_spin_lock *lock)
 {
 	return 0;
 }
+
+SEC("?fentry/__rcu_read_lock")
+int BPF_PROG(tracing_deny)
+{
+	return 0;
+}
