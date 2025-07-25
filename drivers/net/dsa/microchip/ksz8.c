@@ -3,6 +3,7 @@
  * Microchip KSZ8XXX series switch driver
  *
  * It supports the following switches:
+ * - KSZ8463
  * - KSZ8863, KSZ8873 aka KSZ88X3
  * - KSZ8895, KSZ8864 aka KSZ8895 family
  * - KSZ8794, KSZ8795, KSZ8765 aka KSZ87XX
@@ -41,7 +42,8 @@ static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 			 bool set)
 {
-	regmap_update_bits(ksz_regmap_8(dev), PORT_CTRL_ADDR(port, offset),
+	regmap_update_bits(ksz_regmap_8(dev),
+			   dev->dev_ops->get_port_addr(port, offset),
 			   bits, set ? bits : 0);
 }
 
@@ -194,6 +196,7 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 	case KSZ8794_CHIP_ID:
 	case KSZ8765_CHIP_ID:
 		return ksz8795_change_mtu(dev, frame_size);
+	case KSZ8463_CHIP_ID:
 	case KSZ88X3_CHIP_ID:
 	case KSZ8864_CHIP_ID:
 	case KSZ8895_CHIP_ID:
@@ -1945,6 +1948,84 @@ void ksz8_get_caps(struct ksz_device *dev, int port,
 u32 ksz8_get_port_addr(int port, int offset)
 {
 	return PORT_CTRL_ADDR(port, offset);
+}
+
+u32 ksz8463_get_port_addr(int port, int offset)
+{
+	return offset + 0x18 * port;
+}
+
+static u16 ksz8463_get_phy_addr(u16 phy, u16 reg, u16 offset)
+{
+	return offset + reg * 2 + phy * (P2MBCR - P1MBCR);
+}
+
+int ksz8463_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
+{
+	u16 sw_reg = 0;
+	u16 data = 0;
+	int ret;
+
+	if (phy > 1)
+		return -ENOSPC;
+	switch (reg) {
+	case MII_PHYSID1:
+		sw_reg = ksz8463_get_phy_addr(phy, 0, PHY1IHR);
+		break;
+	case MII_PHYSID2:
+		sw_reg = ksz8463_get_phy_addr(phy, 0, PHY1ILR);
+		break;
+	case MII_BMCR:
+	case MII_BMSR:
+	case MII_ADVERTISE:
+	case MII_LPA:
+		sw_reg = ksz8463_get_phy_addr(phy, reg, P1MBCR);
+		break;
+	case MII_TPISTATUS:
+		/* This register holds the PHY interrupt status for simulated
+		 * Micrel KSZ PHY.
+		 */
+		data = 0x0505;
+		break;
+	default:
+		break;
+	}
+	if (sw_reg) {
+		ret = ksz_read16(dev, sw_reg, &data);
+		if (ret)
+			return ret;
+	}
+	*val = data;
+
+	return 0;
+}
+
+int ksz8463_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
+{
+	u16 sw_reg = 0;
+	int ret;
+
+	if (phy > 1)
+		return -ENOSPC;
+
+	/* No write to fiber port. */
+	if (dev->ports[phy].fiber)
+		return 0;
+	switch (reg) {
+	case MII_BMCR:
+	case MII_ADVERTISE:
+		sw_reg = ksz8463_get_phy_addr(phy, reg, P1MBCR);
+		break;
+	default:
+		break;
+	}
+	if (sw_reg) {
+		ret = ksz_write16(dev, sw_reg, val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 int ksz8_switch_init(struct ksz_device *dev)
