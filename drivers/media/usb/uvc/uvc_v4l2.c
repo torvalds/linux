@@ -329,14 +329,12 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * developers test their webcams with the Linux driver as well as with
 	 * the Windows driver).
 	 */
-	mutex_lock(&stream->mutex);
 	if (stream->dev->quirks & UVC_QUIRK_PROBE_EXTRAFIELDS)
 		probe->dwMaxVideoFrameSize =
 			stream->ctrl.dwMaxVideoFrameSize;
 
 	/* Probe the device. */
 	ret = uvc_probe_video(stream, probe);
-	mutex_unlock(&stream->mutex);
 	if (ret < 0)
 		return ret;
 
@@ -395,19 +393,15 @@ static int uvc_ioctl_g_fmt(struct file *file, void *priv,
 	struct uvc_streaming *stream = handle->stream;
 	const struct uvc_format *format;
 	const struct uvc_frame *frame;
-	int ret = 0;
 
 	if (fmt->type != stream->type)
 		return -EINVAL;
 
-	mutex_lock(&stream->mutex);
 	format = stream->cur_format;
 	frame = stream->cur_frame;
 
-	if (format == NULL || frame == NULL) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!format || !frame)
+		return -EINVAL;
 
 	fmt->fmt.pix.pixelformat = format->fcc;
 	fmt->fmt.pix.width = frame->wWidth;
@@ -419,9 +413,7 @@ static int uvc_ioctl_g_fmt(struct file *file, void *priv,
 	fmt->fmt.pix.xfer_func = format->xfer_func;
 	fmt->fmt.pix.ycbcr_enc = format->ycbcr_enc;
 
-done:
-	mutex_unlock(&stream->mutex);
-	return ret;
+	return 0;
 }
 
 static int uvc_ioctl_s_fmt(struct file *file, void *priv,
@@ -441,19 +433,14 @@ static int uvc_ioctl_s_fmt(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&stream->mutex);
-	if (vb2_is_busy(&stream->queue.queue)) {
-		ret = -EBUSY;
-		goto done;
-	}
+	if (vb2_is_busy(&stream->queue.queue))
+		return -EBUSY;
 
 	stream->ctrl = probe;
 	stream->cur_format = format;
 	stream->cur_frame = frame;
 
-done:
-	mutex_unlock(&stream->mutex);
-	return ret;
+	return 0;
 }
 
 static int uvc_ioctl_g_parm(struct file *file, void *priv,
@@ -466,10 +453,7 @@ static int uvc_ioctl_g_parm(struct file *file, void *priv,
 	if (parm->type != stream->type)
 		return -EINVAL;
 
-	mutex_lock(&stream->mutex);
 	numerator = stream->ctrl.dwFrameInterval;
-	mutex_unlock(&stream->mutex);
-
 	denominator = 10000000;
 	v4l2_simplify_fraction(&numerator, &denominator, 8, 333);
 
@@ -519,12 +503,8 @@ static int uvc_ioctl_s_parm(struct file *file, void *priv,
 	uvc_dbg(stream->dev, FORMAT, "Setting frame interval to %u/%u (%u)\n",
 		timeperframe.numerator, timeperframe.denominator, interval);
 
-	mutex_lock(&stream->mutex);
-
-	if (uvc_queue_streaming(&stream->queue)) {
-		mutex_unlock(&stream->mutex);
+	if (uvc_queue_streaming(&stream->queue))
 		return -EBUSY;
-	}
 
 	format = stream->cur_format;
 	frame = stream->cur_frame;
@@ -556,14 +536,11 @@ static int uvc_ioctl_s_parm(struct file *file, void *priv,
 
 	/* Probe the device with the new settings. */
 	ret = uvc_probe_video(stream, &probe);
-	if (ret < 0) {
-		mutex_unlock(&stream->mutex);
+	if (ret < 0)
 		return ret;
-	}
 
 	stream->ctrl = probe;
 	stream->cur_frame = frame;
-	mutex_unlock(&stream->mutex);
 
 	/* Return the actual frame period. */
 	timeperframe.numerator = probe.dwFrameInterval;
@@ -940,10 +917,8 @@ static int uvc_ioctl_g_selection(struct file *file, void *priv,
 
 	sel->r.left = 0;
 	sel->r.top = 0;
-	mutex_lock(&stream->mutex);
 	sel->r.width = stream->cur_frame->wWidth;
 	sel->r.height = stream->cur_frame->wHeight;
-	mutex_unlock(&stream->mutex);
 
 	return 0;
 }

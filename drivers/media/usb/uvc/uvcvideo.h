@@ -469,12 +469,6 @@ struct uvc_streaming {
 	const struct uvc_format *cur_format;
 	const struct uvc_frame *cur_frame;
 
-	/*
-	 * Protect access to ctrl, cur_format, cur_frame and hardware video
-	 * probe control.
-	 */
-	struct mutex mutex;
-
 	/* Buffers queue. */
 	unsigned int frozen : 1;
 	struct uvc_video_queue queue;

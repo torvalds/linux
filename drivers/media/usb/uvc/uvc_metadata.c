@@ -99,16 +99,12 @@ static int uvc_meta_v4l2_set_format(struct file *file, void *priv,
 	 * Metadata buffers would still be perfectly parseable, but it's more
 	 * consistent and cleaner to disallow that.
 	 */
-	mutex_lock(&stream->mutex);
-
 	if (vb2_is_busy(&stream->meta.queue.queue))
-		ret = -EBUSY;
-	else
-		stream->meta.format = fmt->dataformat;
+		return -EBUSY;
 
-	mutex_unlock(&stream->mutex);
+	stream->meta.format = fmt->dataformat;
 
-	return ret;
+	return 0;
 }
 
 static int uvc_meta_v4l2_enum_formats(struct file *file, void *priv,

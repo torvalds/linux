@@ -183,8 +183,6 @@ static void uvc_stream_delete(struct uvc_streaming *stream)
 	if (stream->async_wq)
 		destroy_workqueue(stream->async_wq);
 
-	mutex_destroy(&stream->mutex);
-
 	usb_put_intf(stream->intf);
 
 	kfree(stream->formats);
@@ -200,8 +198,6 @@ static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)
 		return NULL;
-
-	mutex_init(&stream->mutex);
 
 	stream->dev = dev;
 	stream->intf = usb_get_intf(intf);
