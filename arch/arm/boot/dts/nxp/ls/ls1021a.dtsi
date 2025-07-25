@@ -707,6 +707,7 @@
 
 		enet0: ethernet@2d10000 {
 			compatible = "fsl,etsec2";
+			reg = <0x0 0x2d10000 0x0 0x5000>;
 			device_type = "network";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -737,6 +738,7 @@
 
 		enet1: ethernet@2d50000 {
 			compatible = "fsl,etsec2";
+			reg = <0x0 0x2d50000 0x0 0x5000>;
 			device_type = "network";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -766,6 +768,7 @@
 
 		enet2: ethernet@2d90000 {
 			compatible = "fsl,etsec2";
+			reg = <0x0 0x2d90000 0x0 0x5000>;
 			device_type = "network";
 			#address-cells = <2>;
 			#size-cells = <2>;
