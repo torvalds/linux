@@ -96,67 +96,96 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct amdgpu_ras_eeprom_control *control = &con->eeprom_control;
 	unsigned int error_query_mode;
 	int ret = 0;
 	unsigned long err_count;
 
 	amdgpu_ras_get_error_query_mode(adev, &error_query_mode);
 
+	err_data->err_addr =
+		kcalloc(adev->umc.max_ras_err_cnt_per_query,
+			sizeof(struct eeprom_table_record), GFP_KERNEL);
+
+	/* still call query_ras_error_address to clear error status
+	 * even NOMEM error is encountered
+	 */
+	if (!err_data->err_addr)
+		dev_warn(adev->dev,
+			"Failed to alloc memory for umc error address record!\n");
+	else
+		err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
+
 	mutex_lock(&con->page_retirement_lock);
-	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
-	if (ret == -EOPNOTSUPP &&
-	    error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY) {
-		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
-		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count)
-		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count(adev, ras_error_status);
+	if (!amdgpu_ras_smu_eeprom_supported(adev)) {
+		ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
+		if (ret == -EOPNOTSUPP &&
+		    error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY) {
+			if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
+			    adev->umc.ras->ras_block.hw_ops->query_ras_error_count)
+				adev->umc.ras->ras_block.hw_ops->query_ras_error_count(adev,
+								ras_error_status);
 
-		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
-		    adev->umc.ras->ras_block.hw_ops->query_ras_error_address &&
-		    adev->umc.max_ras_err_cnt_per_query) {
-			err_data->err_addr =
-				kcalloc(adev->umc.max_ras_err_cnt_per_query,
-					sizeof(struct eeprom_table_record), GFP_KERNEL);
+			if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
+			    adev->umc.ras->ras_block.hw_ops->query_ras_error_address &&
+			    adev->umc.max_ras_err_cnt_per_query) {
+				err_data->err_addr =
+					kcalloc(adev->umc.max_ras_err_cnt_per_query,
+						sizeof(struct eeprom_table_record), GFP_KERNEL);
 
-			/* still call query_ras_error_address to clear error status
-			 * even NOMEM error is encountered
-			 */
-			if(!err_data->err_addr)
-				dev_warn(adev->dev, "Failed to alloc memory for "
-						"umc error address record!\n");
-			else
-				err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
+				/* still call query_ras_error_address to clear error status
+				 * even NOMEM error is encountered
+				 */
+				if (!err_data->err_addr)
+					dev_warn(adev->dev,
+						"Failed to alloc memory for umc error address record!\n");
+				else
+					err_data->err_addr_len =
+						adev->umc.max_ras_err_cnt_per_query;
 
-			/* umc query_ras_error_address is also responsible for clearing
-			 * error status
-			 */
-			adev->umc.ras->ras_block.hw_ops->query_ras_error_address(adev, ras_error_status);
+				/* umc query_ras_error_address is also responsible for clearing
+				 * error status
+				 */
+				adev->umc.ras->ras_block.hw_ops->query_ras_error_address(adev,
+								ras_error_status);
+			}
+		} else if (error_query_mode == AMDGPU_RAS_FIRMWARE_ERROR_QUERY ||
+		    (!ret && error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY)) {
+			if (adev->umc.ras &&
+			    adev->umc.ras->ecc_info_query_ras_error_count)
+				adev->umc.ras->ecc_info_query_ras_error_count(adev,
+								ras_error_status);
+
+			if (adev->umc.ras &&
+			    adev->umc.ras->ecc_info_query_ras_error_address &&
+			    adev->umc.max_ras_err_cnt_per_query) {
+				err_data->err_addr =
+					kcalloc(adev->umc.max_ras_err_cnt_per_query,
+						sizeof(struct eeprom_table_record), GFP_KERNEL);
+
+				/* still call query_ras_error_address to clear error status
+				 * even NOMEM error is encountered
+				 */
+				if (!err_data->err_addr)
+					dev_warn(adev->dev,
+						"Failed to alloc memory for umc error address record!\n");
+				else
+					err_data->err_addr_len =
+						adev->umc.max_ras_err_cnt_per_query;
+
+				/* umc query_ras_error_address is also responsible for clearing
+				 * error status
+				 */
+				adev->umc.ras->ecc_info_query_ras_error_address(adev,
+								ras_error_status);
+			}
 		}
-	} else if (error_query_mode == AMDGPU_RAS_FIRMWARE_ERROR_QUERY ||
-	    (!ret && error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY)) {
-		if (adev->umc.ras &&
-		    adev->umc.ras->ecc_info_query_ras_error_count)
-		    adev->umc.ras->ecc_info_query_ras_error_count(adev, ras_error_status);
-
-		if (adev->umc.ras &&
-		    adev->umc.ras->ecc_info_query_ras_error_address &&
-		    adev->umc.max_ras_err_cnt_per_query) {
-			err_data->err_addr =
-				kcalloc(adev->umc.max_ras_err_cnt_per_query,
-					sizeof(struct eeprom_table_record), GFP_KERNEL);
-
-			/* still call query_ras_error_address to clear error status
-			 * even NOMEM error is encountered
-			 */
-			if(!err_data->err_addr)
-				dev_warn(adev->dev, "Failed to alloc memory for "
-						"umc error address record!\n");
-			else
-				err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
-
-			/* umc query_ras_error_address is also responsible for clearing
-			 * error status
-			 */
-			adev->umc.ras->ecc_info_query_ras_error_address(adev, ras_error_status);
+	} else {
+		if (!amdgpu_ras_eeprom_update_record_num(control)) {
+			err_data->err_addr_cnt = err_data->de_count =
+				control->ras_num_recs -	control->ras_num_recs_old;
+			amdgpu_ras_eeprom_read_idx(control, err_data->err_addr,
+				control->ras_num_recs_old, err_data->de_count);
 		}
 	}
 
@@ -166,7 +195,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 		if ((amdgpu_bad_page_threshold != 0) &&
 			err_data->err_addr_cnt) {
 			amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
-						err_data->err_addr_cnt, false);
+				err_data->err_addr_cnt, amdgpu_ras_smu_eeprom_supported(adev));
 			amdgpu_ras_save_bad_pages(adev, &err_count);
 
 			amdgpu_dpm_send_hbm_bad_pages_num(adev,

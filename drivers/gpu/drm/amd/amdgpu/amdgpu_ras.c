@@ -3300,7 +3300,13 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
-	unit_num = data->count / adev->umc.retire_unit - control->ras_num_recs;
+	if (amdgpu_ras_smu_eeprom_supported(adev))
+		unit_num = control->ras_num_recs -
+			control->ras_num_recs_old;
+	else
+		unit_num = data->count / adev->umc.retire_unit -
+			control->ras_num_recs;
+
 	save_count = con->bad_page_num - control->ras_num_bad_pages;
 	mutex_unlock(&con->recovery_lock);
 
