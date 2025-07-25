@@ -480,7 +480,7 @@ static int bcm74110_mbox_send_data(struct mbox_chan *chan, void *data)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return bcm74110_mbox_tx_msg(chan_priv->mbox, msg);
 }
@@ -560,7 +560,7 @@ static struct mbox_chan *bcm74110_mbox_of_xlate(struct mbox_controller *cntrl,
 	default:
 		dev_err(dev, "Invalid channel type: %d\n", type);
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	return &cntrl->chans[type];
 }
