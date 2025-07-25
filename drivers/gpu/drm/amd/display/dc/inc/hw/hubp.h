@@ -306,6 +306,8 @@ struct hubp_funcs {
 	int (*hubp_get_3dlut_fl_done)(struct hubp *hubp);
 	void (*hubp_program_3dlut_fl_config)(struct hubp *hubp, struct hubp_fl_3dlut_config *cfg);
 	void (*hubp_clear_tiling)(struct hubp *hubp);
+	uint32_t (*hubp_get_current_read_line)(struct hubp *hubp);
+	uint32_t (*hubp_get_det_config_error)(struct hubp *hubp);
 };
 
 #endif

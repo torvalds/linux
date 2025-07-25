@@ -1819,6 +1819,23 @@ struct dc_surface_update {
 	struct dc_bias_and_scale bias_and_scale;
 };
 
+struct dc_underflow_debug_data {
+	uint32_t otg_inst;
+	uint32_t otg_underflow;
+	uint32_t h_position;
+	uint32_t v_position;
+	uint32_t otg_frame_count;
+	struct dc_underflow_per_hubp_debug_data {
+		uint32_t hubp_underflow;
+		uint32_t hubp_in_blank;
+		uint32_t hubp_readline;
+		uint32_t det_config_error;
+	} hubps[MAX_PIPES];
+	uint32_t curr_det_sizes[MAX_PIPES];
+	uint32_t target_det_sizes[MAX_PIPES];
+	uint32_t compbuf_config_error;
+};
+
 /*
  * Create a new surface with default parameters;
  */
@@ -2712,5 +2729,18 @@ bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 
 bool dc_is_cursor_limit_pending(struct dc *dc);
 bool dc_can_clear_cursor_limit(struct dc *dc);
+
+/**
+ * dc_get_underflow_debug_data_for_otg() - Retrieve underflow debug data.
+ *
+ * @dc: Pointer to the display core context.
+ * @primary_otg_inst: Instance index of the primary OTG that underflowed.
+ * @out_data: Pointer to a dc_underflow_debug_data struct to be filled with debug information.
+ *
+ * This function collects and logs underflow-related HW states when underflow happens,
+ * including OTG underflow status, current read positions, frame count, and per-HUBP debug data.
+ * The results are stored in the provided out_data structure for further analysis or logging.
+ */
+void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst, struct dc_underflow_debug_data *out_data);
 
 #endif /* DC_INTERFACE_H_ */
