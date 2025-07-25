@@ -1760,6 +1760,17 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 					   KSZ8463_REG_DSP_CTRL_6,
 					   COPPER_RECEIVE_ADJUSTMENT, 0);
 		}
+
+		/* Turn off PTP function as the switch's proprietary way of
+		 * handling timestamp is not supported in current Linux PTP
+		 * stack implementation.
+		 */
+		regmap_update_bits(ksz_regmap_16(dev),
+				   KSZ8463_PTP_MSG_CONF1,
+				   PTP_ENABLE, 0);
+		regmap_update_bits(ksz_regmap_16(dev),
+				   KSZ8463_PTP_CLK_CTRL,
+				   PTP_CLK_ENABLE, 0);
 	}
 }
 
