@@ -878,7 +878,7 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 	unsigned int n, p;
 	int handled = 0;
 
-	switch (le16_to_cpu(dev->udev->descriptor.idVendor)) {
+	switch (le16_to_cpu(udev->descriptor.idVendor)) {
 	case 0x046d:		/* Logitech */
 		if (buffer[1] != 0x41 || buffer[2] != 0x01)
 			break;
