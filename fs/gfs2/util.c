@@ -330,19 +330,13 @@ void gfs2_withdraw_func(struct work_struct *work)
 	if (lm->lm_unmount)
 		lm->lm_unmount(sdp, false);
 	fs_err(sdp, "file system withdrawn\n");
-	clear_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
 }
 
 void gfs2_withdraw(struct gfs2_sbd *sdp)
 {
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
-		unsigned long old = READ_ONCE(sdp->sd_flags), new;
-
-		do {
-			if (old & BIT(SDF_WITHDRAWN))
-				return;
-			new = old | BIT(SDF_WITHDRAWN) | BIT(SDF_WITHDRAW_IN_PROG);
-		} while (unlikely(!try_cmpxchg(&sdp->sd_flags, &old, new)));
+		if (test_and_set_bit(SDF_WITHDRAWN, &sdp->sd_flags))
+			return;
 
 		dump_stack();
 		/*
@@ -353,6 +347,7 @@ void gfs2_withdraw(struct gfs2_sbd *sdp)
 			return;
 		fs_err(sdp, "about to withdraw this file system\n");
 		schedule_work(&sdp->sd_withdraw_work);
+		return;
 	}
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
