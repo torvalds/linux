@@ -347,8 +347,6 @@ struct gpio_irq_chip {
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @get_multiple: reads values for multiple signals defined by "mask" and
  *	stores them in "bits", returns 0 on success or negative error
- * @set: **DEPRECATED** - please use set_rv() instead
- * @set_multiple: **DEPRECATED** - please use set_multiple_rv() instead
  * @set_rv: assigns output value for signal "offset", returns 0 on success or
  *          negative error value
  * @set_multiple_rv: assigns output values for multiple signals defined by
@@ -443,11 +441,6 @@ struct gpio_chip {
 	int			(*get)(struct gpio_chip *gc,
 						unsigned int offset);
 	int			(*get_multiple)(struct gpio_chip *gc,
-						unsigned long *mask,
-						unsigned long *bits);
-	void			(*set)(struct gpio_chip *gc,
-						unsigned int offset, int value);
-	void			(*set_multiple)(struct gpio_chip *gc,
 						unsigned long *mask,
 						unsigned long *bits);
 	int			(*set_rv)(struct gpio_chip *gc,
