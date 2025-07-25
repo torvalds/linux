@@ -12,6 +12,7 @@
  *    distinguish between ERROR_WARNING and ERROR_ACTIVE.
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
@@ -67,6 +68,8 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_rt;
 #define CMD_SET_BUSPARAMS_RESP			85
 #define CMD_GET_CAPABILITIES_REQ		95
 #define CMD_GET_CAPABILITIES_RESP		96
+#define CMD_LED_ACTION_REQ			101
+#define CMD_LED_ACTION_RESP			102
 #define CMD_RX_MESSAGE				106
 #define CMD_MAP_CHANNEL_REQ			200
 #define CMD_MAP_CHANNEL_RESP			201
@@ -217,6 +220,22 @@ struct kvaser_cmd_get_busparams_res {
 	u8 reserved[20];
 } __packed;
 
+/* The device has two LEDs per CAN channel
+ * The LSB of action field controls the state:
+ *   0 = ON
+ *   1 = OFF
+ * The remaining bits of action field is the LED index
+ */
+#define KVASER_USB_HYDRA_LED_IDX_MASK GENMASK(31, 1)
+#define KVASER_USB_HYDRA_LED_YELLOW_CH0_IDX 3
+#define KVASER_USB_HYDRA_LEDS_PER_CHANNEL 2
+struct kvaser_cmd_led_action_req {
+	u8 action;
+	u8 padding;
+	__le16 duration_ms;
+	u8 reserved[24];
+} __packed;
+
 /* Ctrl modes */
 #define KVASER_USB_HYDRA_CTRLMODE_NORMAL	0x01
 #define KVASER_USB_HYDRA_CTRLMODE_LISTEN	0x02
@@ -298,6 +317,8 @@ struct kvaser_cmd {
 		struct kvaser_cmd_set_busparams set_busparams_req;
 		struct kvaser_cmd_get_busparams_req get_busparams_req;
 		struct kvaser_cmd_get_busparams_res get_busparams_res;
+
+		struct kvaser_cmd_led_action_req led_action_req;
 
 		struct kvaser_cmd_chip_state_event chip_state_event;
 
@@ -1390,6 +1411,7 @@ static void kvaser_usb_hydra_handle_cmd_std(const struct kvaser_usb *dev,
 	/* Ignored commands */
 	case CMD_SET_BUSPARAMS_RESP:
 	case CMD_SET_BUSPARAMS_FD_RESP:
+	case CMD_LED_ACTION_RESP:
 		break;
 
 	default:
@@ -1946,6 +1968,36 @@ static int kvaser_usb_hydra_get_capabilities(struct kvaser_usb *dev)
 	return 0;
 }
 
+static int kvaser_usb_hydra_set_led(struct kvaser_usb_net_priv *priv,
+				    enum kvaser_usb_led_state state,
+				    u16 duration_ms)
+{
+	struct kvaser_usb *dev = priv->dev;
+	struct kvaser_cmd *cmd;
+	size_t cmd_len;
+	int ret;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->header.cmd_no = CMD_LED_ACTION_REQ;
+	cmd_len = kvaser_usb_hydra_cmd_size(cmd);
+	kvaser_usb_hydra_set_cmd_dest_he(cmd, dev->card_data.hydra.sysdbg_he);
+	kvaser_usb_hydra_set_cmd_transid(cmd, kvaser_usb_hydra_get_next_transid(dev));
+
+	cmd->led_action_req.duration_ms = cpu_to_le16(duration_ms);
+	cmd->led_action_req.action = state |
+				     FIELD_PREP(KVASER_USB_HYDRA_LED_IDX_MASK,
+						KVASER_USB_HYDRA_LED_YELLOW_CH0_IDX +
+						KVASER_USB_HYDRA_LEDS_PER_CHANNEL * priv->channel);
+
+	ret = kvaser_usb_send_cmd(dev, cmd, cmd_len);
+	kfree(cmd);
+
+	return ret;
+}
+
 static int kvaser_usb_hydra_set_opt_mode(const struct kvaser_usb_net_priv *priv)
 {
 	struct kvaser_usb *dev = priv->dev;
@@ -2149,6 +2201,7 @@ const struct kvaser_usb_dev_ops kvaser_usb_hydra_dev_ops = {
 	.dev_get_software_details = kvaser_usb_hydra_get_software_details,
 	.dev_get_card_info = kvaser_usb_hydra_get_card_info,
 	.dev_get_capabilities = kvaser_usb_hydra_get_capabilities,
+	.dev_set_led = kvaser_usb_hydra_set_led,
 	.dev_set_opt_mode = kvaser_usb_hydra_set_opt_mode,
 	.dev_start_chip = kvaser_usb_hydra_start_chip,
 	.dev_stop_chip = kvaser_usb_hydra_stop_chip,

@@ -54,6 +54,11 @@ enum kvaser_usb_leaf_family {
 	KVASER_USBCAN,
 };
 
+enum kvaser_usb_led_state {
+	KVASER_USB_LED_ON = 0,
+	KVASER_USB_LED_OFF = 1,
+};
+
 #define KVASER_USB_HYDRA_MAX_CMD_LEN		128
 struct kvaser_usb_dev_card_data_hydra {
 	u8 channel_to_he[KVASER_USB_MAX_NET_DEVICES];
@@ -149,6 +154,7 @@ struct kvaser_usb_net_priv {
  * @dev_get_software_details:	get software details
  * @dev_get_card_info:		get card info
  * @dev_get_capabilities:	discover device capabilities
+ * @dev_set_led:		turn on/off device LED
  *
  * @dev_set_opt_mode:		set ctrlmod
  * @dev_start_chip:		start the CAN controller
@@ -176,6 +182,9 @@ struct kvaser_usb_dev_ops {
 	int (*dev_get_software_details)(struct kvaser_usb *dev);
 	int (*dev_get_card_info)(struct kvaser_usb *dev);
 	int (*dev_get_capabilities)(struct kvaser_usb *dev);
+	int (*dev_set_led)(struct kvaser_usb_net_priv *priv,
+			   enum kvaser_usb_led_state state,
+			   u16 duration_ms);
 	int (*dev_set_opt_mode)(const struct kvaser_usb_net_priv *priv);
 	int (*dev_start_chip)(struct kvaser_usb_net_priv *priv);
 	int (*dev_stop_chip)(struct kvaser_usb_net_priv *priv);
