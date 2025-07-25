@@ -33,13 +33,12 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 				struct iov_iter *to)
 {
 	ssize_t rc;
-	const struct path *path;
 	struct file *file = iocb->ki_filp;
 
 	rc = generic_file_read_iter(iocb, to);
 	if (rc >= 0) {
-		path = ecryptfs_dentry_to_lower_path(file->f_path.dentry);
-		touch_atime(path);
+		struct path path = ecryptfs_lower_path(file->f_path.dentry);
+		touch_atime(&path);
 	}
 	return rc;
 }
@@ -59,12 +58,11 @@ static ssize_t ecryptfs_splice_read_update_atime(struct file *in, loff_t *ppos,
 						 size_t len, unsigned int flags)
 {
 	ssize_t rc;
-	const struct path *path;
 
 	rc = filemap_splice_read(in, ppos, pipe, len, flags);
 	if (rc >= 0) {
-		path = ecryptfs_dentry_to_lower_path(in->f_path.dentry);
-		touch_atime(path);
+		struct path path = ecryptfs_lower_path(in->f_path.dentry);
+		touch_atime(&path);
 	}
 	return rc;
 }
@@ -283,6 +281,7 @@ static int ecryptfs_dir_open(struct inode *inode, struct file *file)
 	 * ecryptfs_lookup() */
 	struct ecryptfs_file_info *file_info;
 	struct file *lower_file;
+	struct path path;
 
 	/* Released in ecryptfs_release or end of function if failure */
 	file_info = kmem_cache_zalloc(ecryptfs_file_info_cache, GFP_KERNEL);
@@ -292,8 +291,8 @@ static int ecryptfs_dir_open(struct inode *inode, struct file *file)
 				"Error attempting to allocate memory\n");
 		return -ENOMEM;
 	}
-	lower_file = dentry_open(ecryptfs_dentry_to_lower_path(ecryptfs_dentry),
-				 file->f_flags, current_cred());
+	path = ecryptfs_lower_path(ecryptfs_dentry);
+	lower_file = dentry_open(&path, file->f_flags, current_cred());
 	if (IS_ERR(lower_file)) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "
