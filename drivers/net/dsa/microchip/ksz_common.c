@@ -2951,6 +2951,7 @@ static int ksz_parse_drive_strength(struct ksz_device *dev);
 static int ksz_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	u16 storm_mask, storm_rate;
 	struct dsa_port *dp;
 	struct ksz_port *p;
 	const u16 *regs;
@@ -2980,10 +2981,14 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* set broadcast storm protection 10% rate */
+	storm_mask = BROADCAST_STORM_RATE;
+	storm_rate = (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
+	if (ksz_is_ksz8463(dev)) {
+		storm_mask = swab16(storm_mask);
+		storm_rate = swab16(storm_rate);
+	}
 	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
-			   BROADCAST_STORM_RATE,
-			   (BROADCAST_STORM_VALUE *
-			   BROADCAST_STORM_PROT_RATE) / 100);
+			   storm_mask, storm_rate);
 
 	dev->dev_ops->config_cpu_port(ds);
 
@@ -4221,6 +4226,17 @@ static int ksz_ets_band_to_queue(struct tc_ets_qopt_offload_replace_params *p,
 	return p->bands - 1 - band;
 }
 
+static u8 ksz8463_tc_ctrl(int port, int queue)
+{
+	u8 reg;
+
+	reg = 0xC8 + port * 4;
+	reg += ((3 - queue) / 2) * 2;
+	reg++;
+	reg -= (queue & 1);
+	return reg;
+}
+
 /**
  * ksz88x3_tc_ets_add - Configure ETS (Enhanced Transmission Selection)
  *                      for a port on KSZ88x3 switch
@@ -4256,6 +4272,8 @@ static int ksz88x3_tc_ets_add(struct ksz_device *dev, int port,
 		 * port/queue
 		 */
 		reg = KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue);
+		if (ksz_is_ksz8463(dev))
+			reg = ksz8463_tc_ctrl(port, queue);
 
 		/* Clear WFQ enable bit to select strict priority scheduling */
 		ret = ksz_rmw8(dev, reg, KSZ8873_TXQ_WFQ_ENABLE, 0);
@@ -4291,6 +4309,8 @@ static int ksz88x3_tc_ets_del(struct ksz_device *dev, int port)
 		 * port/queue
 		 */
 		reg = KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue);
+		if (ksz_is_ksz8463(dev))
+			reg = ksz8463_tc_ctrl(port, queue);
 
 		/* Set WFQ enable bit to revert back to default scheduling
 		 * mode
@@ -4438,7 +4458,7 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	int ret;
 
-	if (is_ksz8(dev) && !ksz_is_ksz88x3(dev))
+	if (is_ksz8(dev) && !(ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev)))
 		return -EOPNOTSUPP;
 
 	if (qopt->parent != TC_H_ROOT) {
@@ -4452,13 +4472,13 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 		if (ret)
 			return ret;
 
-		if (ksz_is_ksz88x3(dev))
+		if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
 			return ksz88x3_tc_ets_add(dev, port,
 						  &qopt->replace_params);
 		else
 			return ksz_tc_ets_add(dev, port, &qopt->replace_params);
 	case TC_ETS_DESTROY:
-		if (ksz_is_ksz88x3(dev))
+		if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
 			return ksz88x3_tc_ets_del(dev, port);
 		else
 			return ksz_tc_ets_del(dev, port);
