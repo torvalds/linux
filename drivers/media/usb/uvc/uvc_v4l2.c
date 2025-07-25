@@ -576,7 +576,7 @@ static int uvc_v4l2_open(struct file *file)
 	if (!handle)
 		return -ENOMEM;
 
-	v4l2_fh_init(&handle->vfh, &stream->vdev);
+	v4l2_fh_init(&handle->vfh, &stream->queue.vdev);
 	v4l2_fh_add(&handle->vfh, file);
 	handle->chain = stream->chain;
 	handle->stream = stream;

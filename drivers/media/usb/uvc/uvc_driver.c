@@ -1954,11 +1954,11 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 	list_for_each_entry(stream, &dev->streams, list) {
 		/* Nothing to do here, continue. */
-		if (!video_is_registered(&stream->vdev))
+		if (!video_is_registered(&stream->queue.vdev))
 			continue;
 
-		vb2_video_unregister_device(&stream->vdev);
-		vb2_video_unregister_device(&stream->meta.vdev);
+		vb2_video_unregister_device(&stream->queue.vdev);
+		vb2_video_unregister_device(&stream->meta.queue.vdev);
 
 		/*
 		 * Now both vdevs are not streaming and all the ioctls will
@@ -1980,12 +1980,12 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 int uvc_register_video_device(struct uvc_device *dev,
 			      struct uvc_streaming *stream,
-			      struct video_device *vdev,
 			      struct uvc_video_queue *queue,
 			      enum v4l2_buf_type type,
 			      const struct v4l2_file_operations *fops,
 			      const struct v4l2_ioctl_ops *ioctl_ops)
 {
+	struct video_device *vdev = &queue->vdev;
 	int ret;
 
 	/* Initialize the video buffers queue. */
@@ -2067,9 +2067,9 @@ static int uvc_register_video(struct uvc_device *dev,
 	uvc_debugfs_init_stream(stream);
 
 	/* Register the device with V4L. */
-	return uvc_register_video_device(dev, stream, &stream->vdev,
-					 &stream->queue, stream->type,
-					 &uvc_fops, &uvc_ioctl_ops);
+	return uvc_register_video_device(dev, stream, &stream->queue,
+					 stream->type, &uvc_fops,
+					 &uvc_ioctl_ops);
 }
 
 /*
@@ -2105,7 +2105,7 @@ static int uvc_register_terms(struct uvc_device *dev,
 		 */
 		uvc_meta_register(stream);
 
-		term->vdev = &stream->vdev;
+		term->vdev = &stream->queue.vdev;
 	}
 
 	return 0;

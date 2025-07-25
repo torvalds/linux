@@ -328,6 +328,7 @@ struct uvc_buffer {
 #define UVC_QUEUE_DISCONNECTED		(1 << 0)
 
 struct uvc_video_queue {
+	struct video_device vdev;
 	struct vb2_queue queue;
 	struct mutex mutex;			/*
 						 * Serializes vb2_queue and
@@ -450,7 +451,6 @@ struct uvc_urb {
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
-	struct video_device vdev;
 	struct uvc_video_chain *chain;
 	atomic_t active;
 
@@ -477,7 +477,6 @@ struct uvc_streaming {
 		       struct uvc_buffer *meta_buf);
 
 	struct {
-		struct video_device vdev;
 		struct uvc_video_queue queue;
 		u32 format;
 	} meta;
@@ -732,7 +731,6 @@ int uvc_meta_register(struct uvc_streaming *stream);
 
 int uvc_register_video_device(struct uvc_device *dev,
 			      struct uvc_streaming *stream,
-			      struct video_device *vdev,
 			      struct uvc_video_queue *queue,
 			      enum v4l2_buf_type type,
 			      const struct v4l2_file_operations *fops,

@@ -226,12 +226,11 @@ static int uvc_meta_detect_msxu(struct uvc_device *dev)
 int uvc_meta_register(struct uvc_streaming *stream)
 {
 	struct uvc_device *dev = stream->dev;
-	struct video_device *vdev = &stream->meta.vdev;
 	struct uvc_video_queue *queue = &stream->meta.queue;
 
 	stream->meta.format = V4L2_META_FMT_UVC;
 
-	return uvc_register_video_device(dev, stream, vdev, queue,
+	return uvc_register_video_device(dev, stream, queue,
 					 V4L2_BUF_TYPE_META_CAPTURE,
 					 &uvc_meta_fops, &uvc_meta_ioctl_ops);
 }
