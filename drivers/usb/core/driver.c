@@ -1886,66 +1886,77 @@ void usb_autopm_get_interface_no_resume(struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usb_autopm_get_interface_no_resume);
 
-/* Internal routine to check whether we may autosuspend a device. */
+/*
+ * Modification: Added check for HID mouse interfaces to prevent autosuspend.
+ * Problem: External mouse experiences frequent/permanent autosuspend and non-smooth movement.
+ * Solution: Return -EBUSY when a HID mouse interface is found to block autosuspend.
+ */
 static int autosuspend_check(struct usb_device *udev)
 {
-	int			w, i;
-	struct usb_interface	*intf;
+    int            w, i;
+    struct usb_interface    *intf;
 
-	if (udev->state == USB_STATE_NOTATTACHED)
-		return -ENODEV;
+    if (udev->state == USB_STATE_NOTATTACHED)
+        return -ENODEV;
 
-	/* Fail if autosuspend is disabled, or any interfaces are in use, or
-	 * any interface drivers require remote wakeup but it isn't available.
-	 */
-	w = 0;
-	if (udev->actconfig) {
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-			intf = udev->actconfig->interface[i];
+    /* Fail if autosuspend is disabled, or any interfaces are in use, or
+     * any interface drivers require remote wakeup but it isn't available.
+     */
+    w = 0;
+    if (udev->actconfig) {
+        for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
+            intf = udev->actconfig->interface[i];
 
-			/* We don't need to check interfaces that are
-			 * disabled for runtime PM.  Either they are unbound
-			 * or else their drivers don't support autosuspend
-			 * and so they are permanently active.
-			 */
-			if (intf->dev.power.disable_depth)
-				continue;
-			if (atomic_read(&intf->dev.power.usage_count) > 0)
-				return -EBUSY;
-			w |= intf->needs_remote_wakeup;
+            /* don't need to check interfaces that are
+             * disabled for runtime PM.  Either they are unbound
+             * or else their drivers don't support autosuspend
+             * and so they are permanently active.
+             */
+            if (intf->dev.power.disable_depth)
+                continue;
+            if (atomic_read(&intf->dev.power.usage_count) > 0)
+                return -EBUSY;
+            w |= intf->needs_remote_wakeup;
 
-			/* Don't allow autosuspend if the device will need
-			 * a reset-resume and any of its interface drivers
-			 * doesn't include support or needs remote wakeup.
-			 */
-			if (udev->quirks & USB_QUIRK_RESET_RESUME) {
-				struct usb_driver *driver;
+            /* Don't allow autosuspend if the device will need
+             * a reset-resume and any of its interface drivers
+             * doesn't include support or needs remote wakeup.
+             */
+            if (udev->quirks & USB_QUIRK_RESET_RESUME) {
+                struct usb_driver *driver;
 
-				driver = to_usb_driver(intf->dev.driver);
-				if (!driver->reset_resume ||
-						intf->needs_remote_wakeup)
-					return -EOPNOTSUPP;
-			}
-		}
-	}
-	if (w && !device_can_wakeup(&udev->dev)) {
-		dev_dbg(&udev->dev, "remote wakeup needed for autosuspend\n");
-		return -EOPNOTSUPP;
-	}
+                driver = to_usb_driver(intf->dev.driver);
+                if (!driver->reset_resume ||
+                        intf->needs_remote_wakeup)
+                    return -EOPNOTSUPP;
+            }
 
-	/*
-	 * If the device is a direct child of the root hub and the HCD
-	 * doesn't handle wakeup requests, don't allow autosuspend when
-	 * wakeup is needed.
-	 */
-	if (w && udev->parent == udev->bus->root_hub &&
-			bus_to_hcd(udev->bus)->cant_recv_wakeups) {
-		dev_dbg(&udev->dev, "HCD doesn't handle wakeup requests\n");
-		return -EOPNOTSUPP;
-	}
+            /* Begin change: Prevent autosuspend for HID mouse interfaces */
+            if (intf->cur_altsetting->desc.bInterfaceClass == USB_CLASS_HID &&
+                intf->cur_altsetting->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_MOUSE) {
+                return -EBUSY;
+            }
+            /* End change */
+        }
+    }
+    if (w && !device_can_wakeup(&udev->dev)) {
+        dev_dbg(&udev->dev, "remote wakeup needed for autosuspend\n");
+        return -EOPNOTSUPP;
+    }
 
-	udev->do_remote_wakeup = w;
-	return 0;
+    /*
+     * If the device is a direct child of the root hub and the HCD
+     * doesn't handle wakeup requests, don't allow autosuspend when
+     * wakeup is needed.
+     */
+    if (w && udev->parent == udev->bus->root_hub &&
+            bus_to_hcd(udev->bus)->cant_recv_wakeups) {
+        dev_dbg(&udev->dev, "HCD doesn't handle wakeup requests\n");
+        return -EOPNOTSUPP;
+    }
+
+    udev->do_remote_wakeup = w;
+    return 0;
 }
 
 int usb_runtime_suspend(struct device *dev)
