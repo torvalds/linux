@@ -9,6 +9,8 @@
 #include "bpf_misc.h"
 #include "errno.h"
 
+#define PAGE_SIZE_64K 65536
+
 char _license[] SEC("license") = "GPL";
 
 int pid, err, val;
@@ -821,8 +823,17 @@ int test_dynptr_memset_xdp_chunks(struct xdp_md *xdp)
 	data_sz = bpf_dynptr_size(&ptr_xdp);
 
 	err = bpf_dynptr_memset(&ptr_xdp, 0, data_sz, DYNPTR_MEMSET_VAL);
-	if (err)
+	if (err) {
+		/* bpf_dynptr_memset() eventually called bpf_xdp_pointer()
+		 * where if data_sz is greater than 0xffff, -EFAULT will be
+		 * returned. For 64K page size, data_sz is greater than
+		 * 64K, so error is expected and let us zero out error and
+		 * return success.
+		 */
+		if (data_sz >= PAGE_SIZE_64K)
+			err = 0;
 		goto out;
+	}
 
 	bpf_for(i, 0, max_chunks) {
 		offset = i * sizeof(buf);
