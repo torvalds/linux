@@ -6852,16 +6852,20 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *parent = dentry->d_parent;
 
 		ret = btrfs_update_inode(trans, BTRFS_I(inode));
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			goto fail;
+		}
 		if (inode->i_nlink == 1) {
 			/*
 			 * If new hard link count is 1, it's a file created
 			 * with open(2) O_TMPFILE flag.
 			 */
 			ret = btrfs_orphan_del(trans, BTRFS_I(inode));
-			if (ret)
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
 				goto fail;
+			}
 		}
 		d_instantiate(dentry, inode);
 		btrfs_log_new_name(trans, old_dentry, NULL, 0, parent);
