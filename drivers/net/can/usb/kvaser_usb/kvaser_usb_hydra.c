@@ -114,7 +114,7 @@ struct kvaser_cmd_card_info {
 	__le32 clock_res;
 	__le32 mfg_date;
 	__le32 ean[2];
-	u8 hw_version;
+	u8 hw_revision;
 	u8 usb_mode;
 	u8 hw_type;
 	u8 reserved0;
@@ -1918,6 +1918,10 @@ static int kvaser_usb_hydra_get_card_info(struct kvaser_usb *dev)
 	err = kvaser_usb_hydra_wait_cmd(dev, CMD_GET_CARD_INFO_RESP, &cmd);
 	if (err)
 		return err;
+	dev->ean[1] = le32_to_cpu(cmd.card_info.ean[1]);
+	dev->ean[0] = le32_to_cpu(cmd.card_info.ean[0]);
+	dev->serial_number = le32_to_cpu(cmd.card_info.serial_number);
+	dev->hw_revision = cmd.card_info.hw_revision;
 
 	dev->nchannels = cmd.card_info.nchannels;
 	if (dev->nchannels > KVASER_USB_MAX_NET_DEVICES)

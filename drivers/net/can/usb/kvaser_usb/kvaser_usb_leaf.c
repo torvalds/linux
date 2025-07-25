@@ -138,7 +138,7 @@ struct kvaser_cmd_cardinfo {
 	__le32 padding0;
 	__le32 clock_resolution;
 	__le32 mfgdate;
-	u8 ean[8];
+	__le32 ean[2];
 	u8 hw_revision;
 	union {
 		struct {
@@ -854,6 +854,10 @@ static int kvaser_usb_leaf_get_card_info(struct kvaser_usb *dev)
 	    (dev->driver_info->family == KVASER_USBCAN &&
 	     dev->nchannels > MAX_USBCAN_NET_DEVICES))
 		return -EINVAL;
+	dev->ean[1] = le32_to_cpu(cmd.u.cardinfo.ean[1]);
+	dev->ean[0] = le32_to_cpu(cmd.u.cardinfo.ean[0]);
+	dev->serial_number = le32_to_cpu(cmd.u.cardinfo.serial_number);
+	dev->hw_revision = cmd.u.cardinfo.hw_revision;
 
 	return 0;
 }

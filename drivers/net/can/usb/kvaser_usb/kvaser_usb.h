@@ -111,7 +111,10 @@ struct kvaser_usb {
 	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
 	struct usb_anchor rx_submitted;
 
+	u32 ean[2];
+	u32 serial_number;
 	struct kvaser_usb_fw_version fw_version;
+	u8 hw_revision;
 	unsigned int nchannels;
 	/* @max_tx_urbs: Firmware-reported maximum number of outstanding,
 	 * not yet ACKed, transmissions on this device. This value is
