@@ -1839,6 +1839,7 @@ static int kvaser_usb_hydra_get_software_details(struct kvaser_usb *dev)
 	size_t cmd_len;
 	int err;
 	u32 flags;
+	u32 fw_version;
 	struct kvaser_usb_dev_card_data *card_data = &dev->card_data;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -1863,7 +1864,10 @@ static int kvaser_usb_hydra_get_software_details(struct kvaser_usb *dev)
 	if (err)
 		goto end;
 
-	dev->fw_version = le32_to_cpu(cmd->sw_detail_res.sw_version);
+	fw_version = le32_to_cpu(cmd->sw_detail_res.sw_version);
+	dev->fw_version.major = FIELD_GET(KVASER_USB_SW_VERSION_MAJOR_MASK, fw_version);
+	dev->fw_version.minor = FIELD_GET(KVASER_USB_SW_VERSION_MINOR_MASK, fw_version);
+	dev->fw_version.build = FIELD_GET(KVASER_USB_SW_VERSION_BUILD_MASK, fw_version);
 	flags = le32_to_cpu(cmd->sw_detail_res.sw_flags);
 
 	if (flags & KVASER_USB_HYDRA_SW_FLAG_FW_BAD) {
