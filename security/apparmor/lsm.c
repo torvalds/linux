@@ -179,10 +179,8 @@ static int apparmor_capget(const struct task_struct *target, kernel_cap_t *effec
 		struct label_it i;
 
 		label_for_each_confined(i, label, profile) {
-			struct aa_ruleset *rules;
 			kernel_cap_t allowed;
 
-			rules = profile->label.rules[0];
 			allowed = aa_profile_capget(profile);
 			*effective = cap_intersect(*effective, allowed);
 			*permitted = cap_intersect(*permitted, allowed);
