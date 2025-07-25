@@ -103,8 +103,8 @@ int xe_hw_engine_setup_groups(struct xe_gt *gt)
 			break;
 		case XE_ENGINE_CLASS_OTHER:
 			break;
-		default:
-			drm_warn(&xe->drm, "NOT POSSIBLE");
+		case XE_ENGINE_CLASS_MAX:
+			xe_gt_assert(gt, false);
 		}
 	}
 
