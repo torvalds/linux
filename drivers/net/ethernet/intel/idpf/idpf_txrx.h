@@ -118,10 +118,6 @@ do {								\
 	((((txq)->next_to_clean > (txq)->next_to_use) ? 0 : (txq)->desc_count) + \
 	(txq)->next_to_clean - (txq)->next_to_use - 1)
 
-#define IDPF_TX_BUF_RSV_UNUSED(txq)	((txq)->stash->buf_stack.top)
-#define IDPF_TX_BUF_RSV_LOW(txq)	(IDPF_TX_BUF_RSV_UNUSED(txq) < \
-					 (txq)->desc_count >> 2)
-
 #define IDPF_TX_COMPLQ_OVERFLOW_THRESH(txcq)	((txcq)->desc_count >> 1)
 /* Determine the absolute number of completions pending, i.e. the number of
  * completions that are expected to arrive on the TX completion queue.
@@ -130,12 +126,6 @@ do {								\
 	(((txq)->num_completions_pending >= (txq)->complq->num_completions ? \
 	0 : U32_MAX) + \
 	(txq)->num_completions_pending - (txq)->complq->num_completions)
-
-#define IDPF_TX_SPLITQ_COMPL_TAG_WIDTH	16
-/* Adjust the generation for the completion tag and wrap if necessary */
-#define IDPF_TX_ADJ_COMPL_TAG_GEN(txq) \
-	((++(txq)->compl_tag_cur_gen) >= (txq)->compl_tag_gen_max ? \
-	0 : (txq)->compl_tag_cur_gen)
 
 #define IDPF_TXBUF_NULL			U32_MAX
 
@@ -153,18 +143,6 @@ union idpf_tx_flex_desc {
 };
 
 #define idpf_tx_buf libeth_sqe
-
-/**
- * struct idpf_buf_lifo - LIFO for managing OOO completions
- * @top: Used to know how many buffers are left
- * @size: Total size of LIFO
- * @bufs: Backing array
- */
-struct idpf_buf_lifo {
-	u16 top;
-	u16 size;
-	struct idpf_tx_stash **bufs;
-};
 
 /**
  * struct idpf_tx_offload_params - Offload parameters for a given packet
@@ -477,17 +455,6 @@ struct idpf_tx_queue_stats {
 #define IDPF_DIM_DEFAULT_PROFILE_IX		1
 
 /**
- * struct idpf_txq_stash - Tx buffer stash for Flow-based scheduling mode
- * @buf_stack: Stack of empty buffers to store buffer info for out of order
- *	       buffer completions. See struct idpf_buf_lifo
- * @sched_buf_hash: Hash table to store buffers
- */
-struct idpf_txq_stash {
-	struct idpf_buf_lifo buf_stack;
-	DECLARE_HASHTABLE(sched_buf_hash, 12);
-} ____cacheline_aligned;
-
-/**
  * struct idpf_rx_queue - software structure representing a receive queue
  * @rx: universal receive descriptor array
  * @single_buf: buffer descriptor array in singleq
@@ -631,11 +598,7 @@ libeth_cacheline_set_assert(struct idpf_rx_queue, 64,
  *		   only once at the end of the cleaning routine.
  * @clean_budget: singleq only, queue cleaning budget
  * @cleaned_pkts: Number of packets cleaned for the above said case
- * @stash: Tx buffer stash for Flow-based scheduling mode
  * @refillq: Pointer to refill queue
- * @compl_tag_bufid_m: Completion tag buffer id mask
- * @compl_tag_cur_gen: Used to keep track of current completion tag generation
- * @compl_tag_gen_max: To determine when compl_tag_cur_gen should be reset
  * @cached_tstamp_caps: Tx timestamp capabilities negotiated with the CP
  * @tstamp_task: Work that handles Tx timestamp read
  * @stats_sync: See struct u64_stats_sync
@@ -666,7 +629,6 @@ struct idpf_tx_queue {
 	u16 desc_count;
 
 	u16 tx_min_pkt_len;
-	u16 compl_tag_gen_s;
 
 	struct net_device *netdev;
 	__cacheline_group_end_aligned(read_mostly);
@@ -683,12 +645,7 @@ struct idpf_tx_queue {
 	};
 	u16 cleaned_pkts;
 
-	struct idpf_txq_stash *stash;
 	struct idpf_sw_queue *refillq;
-
-	u16 compl_tag_bufid_m;
-	u16 compl_tag_cur_gen;
-	u16 compl_tag_gen_max;
 
 	struct idpf_ptp_vport_tx_tstamp_caps *cached_tstamp_caps;
 	struct work_struct *tstamp_task;
@@ -707,7 +664,7 @@ struct idpf_tx_queue {
 	__cacheline_group_end_aligned(cold);
 };
 libeth_cacheline_set_assert(struct idpf_tx_queue, 64,
-			    120 + sizeof(struct u64_stats_sync),
+			    104 + sizeof(struct u64_stats_sync),
 			    32);
 
 /**
@@ -918,7 +875,6 @@ struct idpf_rxq_group {
  * @vport: Vport back pointer
  * @num_txq: Number of TX queues associated
  * @txqs: Array of TX queue pointers
- * @stashes: array of OOO stashes for the queues
  * @complq: Associated completion queue pointer, split queue only
  * @num_completions_pending: Total number of completions pending for the
  *			     completion queue, acculumated for all TX queues
@@ -933,7 +889,6 @@ struct idpf_txq_group {
 
 	u16 num_txq;
 	struct idpf_tx_queue *txqs[IDPF_LARGE_MAX_Q];
-	struct idpf_txq_stash *stashes;
 
 	struct idpf_compl_queue *complq;
 

@@ -8,47 +8,11 @@
 #include "idpf_ptp.h"
 #include "idpf_virtchnl.h"
 
-struct idpf_tx_stash {
-	struct hlist_node hlist;
-	struct libeth_sqe buf;
-};
-
 #define idpf_tx_buf_next(buf)		(*(u32 *)&(buf)->priv)
-#define idpf_tx_buf_compl_tag(buf)	(*(u32 *)&(buf)->priv)
 LIBETH_SQE_CHECK_PRIV(u32);
 
 static bool idpf_chk_linearize(struct sk_buff *skb, unsigned int max_bufs,
 			       unsigned int count);
-
-/**
- * idpf_buf_lifo_push - push a buffer pointer onto stack
- * @stack: pointer to stack struct
- * @buf: pointer to buf to push
- *
- * Returns 0 on success, negative on failure
- **/
-static int idpf_buf_lifo_push(struct idpf_buf_lifo *stack,
-			      struct idpf_tx_stash *buf)
-{
-	if (unlikely(stack->top == stack->size))
-		return -ENOSPC;
-
-	stack->bufs[stack->top++] = buf;
-
-	return 0;
-}
-
-/**
- * idpf_buf_lifo_pop - pop a buffer pointer from stack
- * @stack: pointer to stack struct
- **/
-static struct idpf_tx_stash *idpf_buf_lifo_pop(struct idpf_buf_lifo *stack)
-{
-	if (unlikely(!stack->top))
-		return NULL;
-
-	return stack->bufs[--stack->top];
-}
 
 /**
  * idpf_tx_timeout - Respond to a Tx Hang
@@ -78,14 +42,11 @@ void idpf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 static void idpf_tx_buf_rel_all(struct idpf_tx_queue *txq)
 {
 	struct libeth_sq_napi_stats ss = { };
-	struct idpf_buf_lifo *buf_stack;
-	struct idpf_tx_stash *stash;
 	struct libeth_cq_pp cp = {
 		.dev	= txq->dev,
 		.ss	= &ss,
 	};
-	struct hlist_node *tmp;
-	u32 i, tag;
+	u32 i;
 
 	/* Buffers already cleared, nothing to do */
 	if (!txq->tx_buf)
@@ -97,33 +58,6 @@ static void idpf_tx_buf_rel_all(struct idpf_tx_queue *txq)
 
 	kfree(txq->tx_buf);
 	txq->tx_buf = NULL;
-
-	if (!idpf_queue_has(FLOW_SCH_EN, txq))
-		return;
-
-	buf_stack = &txq->stash->buf_stack;
-	if (!buf_stack->bufs)
-		return;
-
-	/*
-	 * If a Tx timeout occurred, there are potentially still bufs in the
-	 * hash table, free them here.
-	 */
-	hash_for_each_safe(txq->stash->sched_buf_hash, tag, tmp, stash,
-			   hlist) {
-		if (!stash)
-			continue;
-
-		libeth_tx_complete(&stash->buf, &cp);
-		hash_del(&stash->hlist);
-		idpf_buf_lifo_push(buf_stack, stash);
-	}
-
-	for (i = 0; i < buf_stack->size; i++)
-		kfree(buf_stack->bufs[i]);
-
-	kfree(buf_stack->bufs);
-	buf_stack->bufs = NULL;
 }
 
 /**
@@ -199,9 +133,6 @@ static void idpf_tx_desc_rel_all(struct idpf_vport *vport)
  */
 static int idpf_tx_buf_alloc_all(struct idpf_tx_queue *tx_q)
 {
-	struct idpf_buf_lifo *buf_stack;
-	int i;
-
 	/* Allocate book keeping buffers only. Buffers to be supplied to HW
 	 * are allocated by kernel network stack and received as part of skb
 	 */
@@ -213,29 +144,6 @@ static int idpf_tx_buf_alloc_all(struct idpf_tx_queue *tx_q)
 			       GFP_KERNEL);
 	if (!tx_q->tx_buf)
 		return -ENOMEM;
-
-	if (!idpf_queue_has(FLOW_SCH_EN, tx_q))
-		return 0;
-
-	buf_stack = &tx_q->stash->buf_stack;
-
-	/* Initialize tx buf stack for out-of-order completions if
-	 * flow scheduling offload is enabled
-	 */
-	buf_stack->bufs = kcalloc(tx_q->desc_count, sizeof(*buf_stack->bufs),
-				  GFP_KERNEL);
-	if (!buf_stack->bufs)
-		return -ENOMEM;
-
-	buf_stack->size = tx_q->desc_count;
-	buf_stack->top = tx_q->desc_count;
-
-	for (i = 0; i < tx_q->desc_count; i++) {
-		buf_stack->bufs[i] = kzalloc(sizeof(*buf_stack->bufs[i]),
-					     GFP_KERNEL);
-		if (!buf_stack->bufs[i])
-			return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -350,8 +258,6 @@ static int idpf_tx_desc_alloc_all(struct idpf_vport *vport)
 	for (i = 0; i < vport->num_txq_grp; i++) {
 		for (j = 0; j < vport->txq_grps[i].num_txq; j++) {
 			struct idpf_tx_queue *txq = vport->txq_grps[i].txqs[j];
-			u8 gen_bits = 0;
-			u16 bufidx_mask;
 
 			err = idpf_tx_desc_alloc(vport, txq);
 			if (err) {
@@ -360,34 +266,6 @@ static int idpf_tx_desc_alloc_all(struct idpf_vport *vport)
 					i);
 				goto err_out;
 			}
-
-			if (!idpf_is_queue_model_split(vport->txq_model))
-				continue;
-
-			txq->compl_tag_cur_gen = 0;
-
-			/* Determine the number of bits in the bufid
-			 * mask and add one to get the start of the
-			 * generation bits
-			 */
-			bufidx_mask = txq->desc_count - 1;
-			while (bufidx_mask >> 1) {
-				txq->compl_tag_gen_s++;
-				bufidx_mask = bufidx_mask >> 1;
-			}
-			txq->compl_tag_gen_s++;
-
-			gen_bits = IDPF_TX_SPLITQ_COMPL_TAG_WIDTH -
-							txq->compl_tag_gen_s;
-			txq->compl_tag_gen_max = GETMAXVAL(gen_bits);
-
-			/* Set bufid mask based on location of first
-			 * gen bit; it cannot simply be the descriptor
-			 * ring size-1 since we can have size values
-			 * where not all of those bits are set.
-			 */
-			txq->compl_tag_bufid_m =
-				GETMAXVAL(txq->compl_tag_gen_s);
 		}
 
 		if (!idpf_is_queue_model_split(vport->txq_model))
@@ -1042,9 +920,6 @@ static void idpf_txq_group_rel(struct idpf_vport *vport)
 
 		kfree(txq_grp->complq);
 		txq_grp->complq = NULL;
-
-		if (flow_sch_en)
-			kfree(txq_grp->stashes);
 	}
 	kfree(vport->txq_grps);
 	vport->txq_grps = NULL;
@@ -1405,7 +1280,6 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport, u16 num_txq)
 	for (i = 0; i < vport->num_txq_grp; i++) {
 		struct idpf_txq_group *tx_qgrp = &vport->txq_grps[i];
 		struct idpf_adapter *adapter = vport->adapter;
-		struct idpf_txq_stash *stashes;
 		int j;
 
 		tx_qgrp->vport = vport;
@@ -1416,15 +1290,6 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport, u16 num_txq)
 						   GFP_KERNEL);
 			if (!tx_qgrp->txqs[j])
 				goto err_alloc;
-		}
-
-		if (split && flow_sch_en) {
-			stashes = kcalloc(num_txq, sizeof(*stashes),
-					  GFP_KERNEL);
-			if (!stashes)
-				goto err_alloc;
-
-			tx_qgrp->stashes = stashes;
 		}
 
 		for (j = 0; j < tx_qgrp->num_txq; j++) {
@@ -1445,11 +1310,6 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport, u16 num_txq)
 
 			if (!flow_sch_en)
 				continue;
-
-			if (split) {
-				q->stash = &stashes[j];
-				hash_init(q->stash->sched_buf_hash);
-			}
 
 			idpf_queue_set(FLOW_SCH_EN, q);
 
@@ -1742,87 +1602,6 @@ static void idpf_tx_read_tstamp(struct idpf_tx_queue *txq, struct sk_buff *skb)
 	spin_unlock_bh(&tx_tstamp_caps->status_lock);
 }
 
-/**
- * idpf_tx_clean_stashed_bufs - clean bufs that were stored for
- * out of order completions
- * @txq: queue to clean
- * @compl_tag: completion tag of packet to clean (from completion descriptor)
- * @cleaned: pointer to stats struct to track cleaned packets/bytes
- * @budget: Used to determine if we are in netpoll
- */
-static void idpf_tx_clean_stashed_bufs(struct idpf_tx_queue *txq,
-				       u16 compl_tag,
-				       struct libeth_sq_napi_stats *cleaned,
-				       int budget)
-{
-	struct idpf_tx_stash *stash;
-	struct hlist_node *tmp_buf;
-	struct libeth_cq_pp cp = {
-		.dev	= txq->dev,
-		.ss	= cleaned,
-		.napi	= budget,
-	};
-
-	/* Buffer completion */
-	hash_for_each_possible_safe(txq->stash->sched_buf_hash, stash, tmp_buf,
-				    hlist, compl_tag) {
-		if (unlikely(idpf_tx_buf_compl_tag(&stash->buf) != compl_tag))
-			continue;
-
-		hash_del(&stash->hlist);
-
-		if (stash->buf.type == LIBETH_SQE_SKB &&
-		    (skb_shinfo(stash->buf.skb)->tx_flags & SKBTX_IN_PROGRESS))
-			idpf_tx_read_tstamp(txq, stash->buf.skb);
-
-		libeth_tx_complete(&stash->buf, &cp);
-
-		/* Push shadow buf back onto stack */
-		idpf_buf_lifo_push(&txq->stash->buf_stack, stash);
-	}
-}
-
-/**
- * idpf_stash_flow_sch_buffers - store buffer parameters info to be freed at a
- * later time (only relevant for flow scheduling mode)
- * @txq: Tx queue to clean
- * @tx_buf: buffer to store
- */
-static int idpf_stash_flow_sch_buffers(struct idpf_tx_queue *txq,
-				       struct idpf_tx_buf *tx_buf)
-{
-	struct idpf_tx_stash *stash;
-
-	if (unlikely(tx_buf->type <= LIBETH_SQE_CTX))
-		return 0;
-
-	stash = idpf_buf_lifo_pop(&txq->stash->buf_stack);
-	if (unlikely(!stash)) {
-		net_err_ratelimited("%s: No out-of-order TX buffers left!\n",
-				    netdev_name(txq->netdev));
-
-		return -ENOMEM;
-	}
-
-	/* Store buffer params in shadow buffer */
-	stash->buf.skb = tx_buf->skb;
-	stash->buf.bytes = tx_buf->bytes;
-	stash->buf.packets = tx_buf->packets;
-	stash->buf.type = tx_buf->type;
-	stash->buf.nr_frags = tx_buf->nr_frags;
-	dma_unmap_addr_set(&stash->buf, dma, dma_unmap_addr(tx_buf, dma));
-	dma_unmap_len_set(&stash->buf, len, dma_unmap_len(tx_buf, len));
-	idpf_tx_buf_compl_tag(&stash->buf) = idpf_tx_buf_compl_tag(tx_buf);
-
-	/* Add buffer to buf_hash table to be freed later */
-	hash_add(txq->stash->sched_buf_hash, &stash->hlist,
-		 idpf_tx_buf_compl_tag(&stash->buf));
-
-	tx_buf->type = LIBETH_SQE_EMPTY;
-
-	return 0;
-}
-
 #define idpf_tx_splitq_clean_bump_ntc(txq, ntc, desc, buf)	\
 do {								\
 	if (unlikely(++(ntc) == (txq)->desc_count)) {		\
@@ -1850,14 +1629,8 @@ do {								\
  * Separate packet completion events will be reported on the completion queue,
  * and the buffers will be cleaned separately. The stats are not updated from
  * this function when using flow-based scheduling.
- *
- * Furthermore, in flow scheduling mode, check to make sure there are enough
- * reserve buffers to stash the packet. If there are not, return early, which
- * will leave next_to_clean pointing to the packet that failed to be stashed.
- *
- * Return: false in the scenario above, true otherwise.
  */
-static bool idpf_tx_splitq_clean(struct idpf_tx_queue *tx_q, u16 end,
+static void idpf_tx_splitq_clean(struct idpf_tx_queue *tx_q, u16 end,
 				 int napi_budget,
 				 struct libeth_sq_napi_stats *cleaned,
 				 bool descs_only)
@@ -1871,12 +1644,11 @@ static bool idpf_tx_splitq_clean(struct idpf_tx_queue *tx_q, u16 end,
 		.napi	= napi_budget,
 	};
 	struct idpf_tx_buf *tx_buf;
-	bool clean_complete = true;
 
 	if (descs_only) {
 		/* Bump ring index to mark as cleaned. */
 		tx_q->next_to_clean = end;
-		return true;
+		return;
 	}
 
 	tx_desc = &tx_q->flex_tx[ntc];
@@ -1897,52 +1669,23 @@ static bool idpf_tx_splitq_clean(struct idpf_tx_queue *tx_q, u16 end,
 			break;
 
 		eop_idx = tx_buf->rs_idx;
+		libeth_tx_complete(tx_buf, &cp);
 
-		if (descs_only) {
-			if (IDPF_TX_BUF_RSV_UNUSED(tx_q) < tx_buf->nr_frags) {
-				clean_complete = false;
-				goto tx_splitq_clean_out;
-			}
+		/* unmap remaining buffers */
+		while (ntc != eop_idx) {
+			idpf_tx_splitq_clean_bump_ntc(tx_q, ntc,
+						      tx_desc, tx_buf);
 
-			idpf_stash_flow_sch_buffers(tx_q, tx_buf);
-
-			while (ntc != eop_idx) {
-				idpf_tx_splitq_clean_bump_ntc(tx_q, ntc,
-							      tx_desc, tx_buf);
-				idpf_stash_flow_sch_buffers(tx_q, tx_buf);
-			}
-		} else {
+			/* unmap any remaining paged data */
 			libeth_tx_complete(tx_buf, &cp);
-
-			/* unmap remaining buffers */
-			while (ntc != eop_idx) {
-				idpf_tx_splitq_clean_bump_ntc(tx_q, ntc,
-							      tx_desc, tx_buf);
-
-				/* unmap any remaining paged data */
-				libeth_tx_complete(tx_buf, &cp);
-			}
 		}
 
 fetch_next_txq_desc:
 		idpf_tx_splitq_clean_bump_ntc(tx_q, ntc, tx_desc, tx_buf);
 	}
 
-tx_splitq_clean_out:
 	tx_q->next_to_clean = ntc;
-
-	return clean_complete;
 }
-
-#define idpf_tx_clean_buf_ring_bump_ntc(txq, ntc, buf)	\
-do {							\
-	(buf)++;					\
-	(ntc)++;					\
-	if (unlikely((ntc) == (txq)->desc_count)) {	\
-		buf = (txq)->tx_buf;			\
-		ntc = 0;				\
-	}						\
-} while (0)
 
 /**
  * idpf_tx_clean_bufs - clean flow scheduling TX queue buffers
@@ -1954,7 +1697,7 @@ do {							\
  * Clean all buffers associated with the packet starting at buf_id. Returns the
  * byte/segment count for the cleaned packet.
  */
-static bool idpf_tx_clean_bufs(struct idpf_tx_queue *txq, u32 buf_id,
+static void idpf_tx_clean_bufs(struct idpf_tx_queue *txq, u32 buf_id,
 			       struct libeth_sq_napi_stats *cleaned,
 			       int budget)
 {
@@ -1981,8 +1724,6 @@ static bool idpf_tx_clean_bufs(struct idpf_tx_queue *txq, u32 buf_id,
 		libeth_tx_complete(tx_buf, &cp);
 		idpf_post_buf_refill(txq->refillq, buf_id);
 	}
-
-	return true;
 }
 
 /**
@@ -2001,22 +1742,17 @@ static void idpf_tx_handle_rs_completion(struct idpf_tx_queue *txq,
 					 struct libeth_sq_napi_stats *cleaned,
 					 int budget)
 {
-	u16 compl_tag;
+	/* RS completion contains queue head for queue based scheduling or
+	 * completion tag for flow based scheduling.
+	 */
+	u16 rs_compl_val = le16_to_cpu(desc->q_head_compl_tag.q_head);
 
 	if (!idpf_queue_has(FLOW_SCH_EN, txq)) {
-		u16 head = le16_to_cpu(desc->q_head_compl_tag.q_head);
-
-		idpf_tx_splitq_clean(txq, head, budget, cleaned, false);
+		idpf_tx_splitq_clean(txq, rs_compl_val, budget, cleaned, false);
 		return;
 	}
 
-	compl_tag = le16_to_cpu(desc->q_head_compl_tag.compl_tag);
-
-	/* If we didn't clean anything on the ring, this packet must be
-	 * in the hash table. Go clean it there.
-	 */
-	if (!idpf_tx_clean_bufs(txq, compl_tag, cleaned, budget))
-		idpf_tx_clean_stashed_bufs(txq, compl_tag, cleaned, budget);
+	idpf_tx_clean_bufs(txq, rs_compl_val, cleaned, budget);
 }
 
 /**
@@ -2133,8 +1869,7 @@ fetch_next_desc:
 		/* Update BQL */
 		nq = netdev_get_tx_queue(tx_q->netdev, tx_q->idx);
 
-		dont_wake = !complq_ok || IDPF_TX_BUF_RSV_LOW(tx_q) ||
-			    np->state != __IDPF_VPORT_UP ||
+		dont_wake = !complq_ok || np->state != __IDPF_VPORT_UP ||
 			    !netif_carrier_ok(tx_q->netdev);
 		/* Check if the TXQ needs to and can be restarted */
 		__netif_txq_completed_wake(nq, tx_q->cleaned_pkts, tx_q->cleaned_bytes,
@@ -2205,7 +1940,6 @@ static int idpf_txq_has_room(struct idpf_tx_queue *tx_q, u32 descs_needed,
 	if (IDPF_DESC_UNUSED(tx_q) < descs_needed ||
 	    IDPF_TX_COMPLQ_PENDING(tx_q->txq_grp) >
 		IDPF_TX_COMPLQ_OVERFLOW_THRESH(tx_q->txq_grp->complq) ||
-	    IDPF_TX_BUF_RSV_LOW(tx_q) ||
 	    idpf_tx_splitq_get_free_bufs(tx_q->refillq) < bufs_needed)
 		return 0;
 	return 1;
@@ -2329,10 +2063,8 @@ static unsigned int idpf_tx_splitq_bump_ntu(struct idpf_tx_queue *txq, u16 ntu)
 {
 	ntu++;
 
-	if (ntu == txq->desc_count) {
+	if (ntu == txq->desc_count)
 		ntu = 0;
-		txq->compl_tag_cur_gen = IDPF_TX_ADJ_COMPL_TAG_GEN(txq);
-	}
 
 	return ntu;
 }
@@ -2514,8 +2246,6 @@ static void idpf_tx_splitq_map(struct idpf_tx_queue *tx_q,
 			if (unlikely(++i == tx_q->desc_count)) {
 				tx_desc = &tx_q->flex_tx[0];
 				i = 0;
-				tx_q->compl_tag_cur_gen =
-					IDPF_TX_ADJ_COMPL_TAG_GEN(tx_q);
 			} else {
 				tx_desc++;
 			}
@@ -2546,7 +2276,6 @@ static void idpf_tx_splitq_map(struct idpf_tx_queue *tx_q,
 		if (unlikely(++i == tx_q->desc_count)) {
 			tx_desc = &tx_q->flex_tx[0];
 			i = 0;
-			tx_q->compl_tag_cur_gen = IDPF_TX_ADJ_COMPL_TAG_GEN(tx_q);
 		} else {
 			tx_desc++;
 		}
@@ -2980,10 +2709,9 @@ static netdev_tx_t idpf_tx_splitq_frame(struct sk_buff *skb,
 
 		tx_params.dtype = IDPF_TX_DESC_DTYPE_FLEX_FLOW_SCHE;
 		tx_params.eop_cmd = IDPF_TXD_FLEX_FLOW_CMD_EOP;
-		/* Set the RE bit to catch any packets that may have not been
-		 * stashed during RS completion cleaning. MIN_GAP is set to
-		 * MIN_RING size to ensure it will be set at least once each
-		 * time around the ring.
+		/* Set the RE bit to periodically "clean" the descriptor ring.
+		 * MIN_GAP is set to MIN_RING size to ensure it will be set at
+		 * least once each time around the ring.
 		 */
 		if (idpf_tx_splitq_need_re(tx_q)) {
 			tx_params.eop_cmd |= IDPF_TXD_FLEX_FLOW_CMD_RE;
