@@ -25,7 +25,8 @@ check "verify help page" \
 check "verify -s/--stack" \
 	"timerlat top -s 3 -T 10 -t" 2 "Blocking thread stack trace"
 check "verify -P/--priority" \
-	"timerlat top -P F:1 -c 0 -d 10s -q"
+	"timerlat top -P F:1 -c 0 -d 10s -q -T 1 --on-threshold shell,command=\"tests/scripts/check-priority.sh timerlatu/ SCHED_FIFO 1\"" \
+	2 "Priorities are set correctly"
 check "test in nanoseconds" \
 	"timerlat top -i 2 -c 0 -n -d 10s" 2 "ns"
 check "set the automatic trace mode" \

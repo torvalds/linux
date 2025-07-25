@@ -69,7 +69,7 @@ check() {
 			# Add rtla output and exit code as comments in case of failure
 			echo "$result" | col -b | while read line; do echo "# $line"; done
 			printf "#\n# exit code %s\n" $exitcode
-			[ -n "$expected_output" ] && \
+			[ -n "$expected_output" ] && [ $grep_result -ne 0 ] && \
 				printf "# Output match failed: \"%s\"\n" "$expected_output"
 		fi
 	fi
