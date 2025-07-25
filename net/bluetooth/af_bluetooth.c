@@ -364,6 +364,13 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			put_cmsg(msg, SOL_BLUETOOTH, BT_SCM_PKT_STATUS,
 				 sizeof(pkt_status), &pkt_status);
 		}
+
+		if (test_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags)) {
+			u16 pkt_seqnum = hci_skb_pkt_seqnum(skb);
+
+			put_cmsg(msg, SOL_BLUETOOTH, BT_SCM_PKT_SEQNUM,
+				 sizeof(pkt_seqnum), &pkt_seqnum);
+		}
 	}
 
 	skb_free_datagram(sk, skb);

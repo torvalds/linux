@@ -1256,11 +1256,9 @@ struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		if (addr_type == irk->addr_type &&
 		    bacmp(bdaddr, &irk->bdaddr) == 0) {
 			irk_to_return = irk;
-			goto done;
+			break;
 		}
 	}
-
-done:
 
 	if (irk_to_return && hci_is_blocked_key(hdev, HCI_BLOCKED_KEY_TYPE_IRK,
 						irk_to_return->val)) {
@@ -2938,12 +2936,14 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	case HCI_ACLDATA_PKT:
 		/* Detect if ISO packet has been sent as ACL */
 		if (hci_conn_num(hdev, CIS_LINK) ||
-		    hci_conn_num(hdev, BIS_LINK)) {
+		    hci_conn_num(hdev, BIS_LINK) ||
+			hci_conn_num(hdev, PA_LINK)) {
 			__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
 			__u8 type;
 
 			type = hci_conn_lookup_type(hdev, hci_handle(handle));
-			if (type == CIS_LINK || type == BIS_LINK)
+			if (type == CIS_LINK || type == BIS_LINK ||
+			    type == PA_LINK)
 				hci_skb_pkt_type(skb) = HCI_ISODATA_PKT;
 		}
 		break;
@@ -3398,6 +3398,7 @@ static inline void hci_quote_sent(struct hci_conn *conn, int num, int *quote)
 		break;
 	case CIS_LINK:
 	case BIS_LINK:
+	case PA_LINK:
 		cnt = hdev->iso_mtu ? hdev->iso_cnt :
 			hdev->le_mtu ? hdev->le_cnt : hdev->acl_cnt;
 		break;
@@ -3411,7 +3412,7 @@ static inline void hci_quote_sent(struct hci_conn *conn, int num, int *quote)
 }
 
 static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
-				     __u8 type2, int *quote)
+				     int *quote)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_conn *conn = NULL, *c;
@@ -3423,7 +3424,7 @@ static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(c, &h->list, list) {
-		if ((c->type != type && c->type != type2) ||
+		if (c->type != type ||
 		    skb_queue_empty(&c->data_q))
 			continue;
 
@@ -3627,7 +3628,7 @@ static void hci_sched_sco(struct hci_dev *hdev, __u8 type)
 	else
 		cnt = &hdev->sco_cnt;
 
-	while (*cnt && (conn = hci_low_sent(hdev, type, type, &quote))) {
+	while (*cnt && (conn = hci_low_sent(hdev, type, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
 			hci_send_conn_frame(hdev, conn, skb);
@@ -3746,8 +3747,8 @@ static void hci_sched_le(struct hci_dev *hdev)
 		hci_prio_recalculate(hdev, LE_LINK);
 }
 
-/* Schedule CIS */
-static void hci_sched_iso(struct hci_dev *hdev)
+/* Schedule iso */
+static void hci_sched_iso(struct hci_dev *hdev, __u8 type)
 {
 	struct hci_conn *conn;
 	struct sk_buff *skb;
@@ -3755,14 +3756,12 @@ static void hci_sched_iso(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	if (!hci_conn_num(hdev, CIS_LINK) &&
-	    !hci_conn_num(hdev, BIS_LINK))
+	if (!hci_conn_num(hdev, type))
 		return;
 
 	cnt = hdev->iso_pkts ? &hdev->iso_cnt :
 		hdev->le_pkts ? &hdev->le_cnt : &hdev->acl_cnt;
-	while (*cnt && (conn = hci_low_sent(hdev, CIS_LINK, BIS_LINK,
-					    &quote))) {
+	while (*cnt && (conn = hci_low_sent(hdev, type, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
 			hci_send_conn_frame(hdev, conn, skb);
@@ -3787,7 +3786,9 @@ static void hci_tx_work(struct work_struct *work)
 		/* Schedule queues and send stuff to HCI driver */
 		hci_sched_sco(hdev, SCO_LINK);
 		hci_sched_sco(hdev, ESCO_LINK);
-		hci_sched_iso(hdev);
+		hci_sched_iso(hdev, CIS_LINK);
+		hci_sched_iso(hdev, BIS_LINK);
+		hci_sched_iso(hdev, PA_LINK);
 		hci_sched_acl(hdev);
 		hci_sched_le(hdev);
 	}

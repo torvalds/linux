@@ -693,7 +693,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 
 	/* Loop from the end of the firmware parsing instructions, until
 	 * we find an instruction that identifies the "project ID" for the
-	 * hardware supported by this firwmare file.
+	 * hardware supported by this firmware file.
 	 * Once we have that, we double-check that project_id is suitable
 	 * for the hardware we are working with.
 	 */

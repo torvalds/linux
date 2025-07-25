@@ -555,7 +555,7 @@ int btintel_parse_version_tlv(struct hci_dev *hdev,
 	/* Consume Command Complete Status field */
 	skb_pull(skb, 1);
 
-	/* Event parameters contatin multiple TLVs. Read each of them
+	/* Event parameters contain multiple TLVs. Read each of them
 	 * and only keep the required data. Also, it use existing legacy
 	 * version field like hw_platform, hw_variant, and fw_variant
 	 * to keep the existing setup flow
@@ -889,7 +889,7 @@ int btintel_send_intel_reset(struct hci_dev *hdev, u32 boot_param)
 
 	params.boot_param = cpu_to_le32(boot_param);
 
-	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(params), &params,
+	skb = __hci_cmd_sync(hdev, BTINTEL_HCI_OP_RESET, sizeof(params), &params,
 			     HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "Failed to send Intel Reset command");
@@ -1287,7 +1287,7 @@ static void btintel_reset_to_bootloader(struct hci_dev *hdev)
 	params.boot_option = 0x00;
 	params.boot_param = cpu_to_le32(0x00000000);
 
-	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(params),
+	skb = __hci_cmd_sync(hdev, BTINTEL_HCI_OP_RESET, sizeof(params),
 			     &params, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "FW download error recovery failed (%ld)",
