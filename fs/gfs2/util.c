@@ -199,16 +199,6 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	iput(inode);
 	sdp->sd_jdesc->jd_inode = NULL;
 	/*
-	 * Wait until the journal inode's glock is freed. This allows try locks
-	 * on other nodes to be successful, otherwise we remain the owner of
-	 * the glock as far as dlm is concerned.
-	 */
-	if (i_gl->gl_ops->go_unlocked) {
-		set_bit(GLF_UNLOCKED, &i_gl->gl_flags);
-		wait_on_bit(&i_gl->gl_flags, GLF_UNLOCKED, TASK_UNINTERRUPTIBLE);
-	}
-
-	/*
 	 * Dequeue the "live" glock, but keep a reference so it's never freed.
 	 */
 	gfs2_glock_hold(live_gl);

@@ -639,24 +639,6 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 }
 
 /**
- * inode_go_unlocked - wake up anyone waiting for dlm's unlock ast
- * @gl: glock being unlocked
- *
- * For now, this is only used for the journal inode glock. In withdraw
- * situations, we need to wait for the glock to be unlocked so that we know
- * other nodes may proceed with recovery / journal replay.
- */
-static void inode_go_unlocked(struct gfs2_glock *gl)
-{
-	/* Note that we cannot reference gl_object because it's already set
-	 * to NULL by this point in its lifecycle. */
-	if (!test_bit(GLF_UNLOCKED, &gl->gl_flags))
-		return;
-	clear_bit_unlock(GLF_UNLOCKED, &gl->gl_flags);
-	wake_up_bit(&gl->gl_flags, GLF_UNLOCKED);
-}
-
-/**
  * nondisk_go_callback - used to signal when a node did a withdraw
  * @gl: the nondisk glock
  * @remote: true if this came from a different cluster node
@@ -718,7 +700,6 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
 	.go_flags = GLOF_ASPACE | GLOF_LVB,
-	.go_unlocked = inode_go_unlocked,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
