@@ -218,6 +218,7 @@ my $patchcheck_type;
 my $patchcheck_start;
 my $patchcheck_cherry;
 my $patchcheck_end;
+my $patchcheck_skip;
 
 my $build_time;
 my $install_time;
@@ -382,6 +383,7 @@ my %option_map = (
     "PATCHCHECK_START"		=> \$patchcheck_start,
     "PATCHCHECK_CHERRY"		=> \$patchcheck_cherry,
     "PATCHCHECK_END"		=> \$patchcheck_end,
+    "PATCHCHECK_SKIP"		=> \$patchcheck_skip,
 );
 
 # Options may be used by other options, record them.
@@ -3537,9 +3539,35 @@ sub patchcheck {
 	@list = reverse @list;
     }
 
+    my %skip_list;
+    my $will_skip = 0;
+
+    if (defined($patchcheck_skip)) {
+	foreach my $s (split /\s+/, $patchcheck_skip) {
+	    $s = `git log --pretty=oneline $s~1..$s`;
+	    $s =~ s/^(\S+).*/$1/;
+	    chomp $s;
+	    $skip_list{$s} = 1;
+	    $will_skip++;
+	}
+    }
+
     doprint("Going to test the following commits:\n");
     foreach my $l (@list) {
+	my $sha1 = $l;
+	$sha1 =~ s/^([[:xdigit:]]+).*/$1/;
+	next if (defined($skip_list{$sha1}));
 	doprint "$l\n";
+    }
+
+    if ($will_skip) {
+	doprint("\nSkipping the following commits:\n");
+	foreach my $l (@list) {
+	    my $sha1 = $l;
+	    $sha1 =~ s/^([[:xdigit:]]+).*/$1/;
+	    next if (!defined($skip_list{$sha1}));
+	    doprint "$l\n";
+	}
     }
 
     my $save_clean = $noclean;
@@ -3555,6 +3583,11 @@ sub patchcheck {
     foreach my $item (@list) {
 	my $sha1 = $item;
 	$sha1 =~ s/^([[:xdigit:]]+).*/$1/;
+
+	if (defined($skip_list{$sha1})) {
+	    doprint "\nSkipping \"$item\"\n\n";
+	    next;
+	}
 
 	doprint "\nProcessing commit \"$item\"\n\n";
 
