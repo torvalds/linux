@@ -526,12 +526,10 @@ static struct netdev_queue_id *create_queues(void)
 	struct netdev_queue_id *queues;
 	size_t i = 0;
 
-	queues = calloc(num_queues, sizeof(*queues));
+	queues = netdev_queue_id_alloc(num_queues);
 	for (i = 0; i < num_queues; i++) {
-		queues[i]._present.type = 1;
-		queues[i]._present.id = 1;
-		queues[i].type = NETDEV_QUEUE_TYPE_RX;
-		queues[i].id = start_queue + i;
+		netdev_queue_id_set_type(&queues[i], NETDEV_QUEUE_TYPE_RX);
+		netdev_queue_id_set_id(&queues[i], start_queue + i);
 	}
 
 	return queues;
