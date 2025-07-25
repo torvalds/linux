@@ -44,6 +44,10 @@ struct adf_accel_dev;
 	(ADF_TL_DEV_REG_OFF(slice##_slices[0], qat_gen) +	\
 	offsetof(struct adf_##qat_gen##_tl_slice_data_regs, reg))
 
+#define ADF_TL_CMDQ_REG_OFF(slice, reg, qat_gen)        \
+	(ADF_TL_DEV_REG_OFF(slice##_cmdq[0], qat_gen) + \
+	 offsetof(struct adf_##qat_gen##_tl_cmdq_data_regs, reg))
+
 #define ADF_TL_RP_REG_OFF(reg, qat_gen)					\
 	(ADF_TL_DATA_REG_OFF(tl_ring_pairs_data_regs[0], qat_gen) +	\
 	offsetof(struct adf_##qat_gen##_tl_ring_pair_data_regs, reg))

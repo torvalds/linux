@@ -28,19 +28,23 @@ struct dentry;
 struct adf_tl_hw_data {
 	size_t layout_sz;
 	size_t slice_reg_sz;
+	size_t cmdq_reg_sz;
 	size_t rp_reg_sz;
 	size_t msg_cnt_off;
 	const struct adf_tl_dbg_counter *dev_counters;
 	const struct adf_tl_dbg_counter *sl_util_counters;
 	const struct adf_tl_dbg_counter *sl_exec_counters;
+	const struct adf_tl_dbg_counter **cmdq_counters;
 	const struct adf_tl_dbg_counter *rp_counters;
 	u8 num_hbuff;
 	u8 cpp_ns_per_cycle;
 	u8 bw_units_to_bytes;
 	u8 num_dev_counters;
 	u8 num_rp_counters;
+	u8 num_cmdq_counters;
 	u8 max_rp;
 	u8 max_sl_cnt;
+	struct icp_qat_fw_init_admin_slice_cnt multiplier;
 };
 
 struct adf_telemetry {
@@ -69,6 +73,7 @@ struct adf_telemetry {
 	struct mutex wr_lock;
 	struct delayed_work work_ctx;
 	struct icp_qat_fw_init_admin_slice_cnt slice_cnt;
+	struct icp_qat_fw_init_admin_slice_cnt cmdq_cnt;
 };
 
 #ifdef CONFIG_DEBUG_FS
