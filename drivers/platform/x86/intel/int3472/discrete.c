@@ -142,10 +142,18 @@ struct int3472_gpio_map {
 };
 
 static const struct int3472_gpio_map int3472_gpio_map[] = {
-	/* mt9m114 designs declare a powerdown pin which controls the regulators */
-	{ "INT33F0", INT3472_GPIO_TYPE_POWERDOWN, INT3472_GPIO_TYPE_POWER_ENABLE, false, "vdd" },
-	/* ov7251 driver / DT-bindings expect "enable" as con_id for reset */
-	{ "INT347E", INT3472_GPIO_TYPE_RESET, INT3472_GPIO_TYPE_RESET, false, "enable" },
+	{	/* mt9m114 designs declare a powerdown pin which controls the regulators */
+		.hid = "INT33F0",
+		.type_from = INT3472_GPIO_TYPE_POWERDOWN,
+		.type_to = INT3472_GPIO_TYPE_POWER_ENABLE,
+		.con_id = "vdd",
+	},
+	{	/* ov7251 driver / DT-bindings expect "enable" as con_id for reset */
+		.hid = "INT347E",
+		.type_from = INT3472_GPIO_TYPE_RESET,
+		.type_to = INT3472_GPIO_TYPE_RESET,
+		.con_id = "enable",
+	},
 };
 
 static void int3472_get_con_id_and_polarity(struct int3472_discrete_device *int3472, u8 *type,
