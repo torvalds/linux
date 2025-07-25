@@ -97,7 +97,7 @@ static inline struct bio_vec rq_integrity_vec(struct request *rq)
 static inline int blk_get_meta_cap(struct block_device *bdev, unsigned int cmd,
 				   struct logical_block_metadata_cap __user *argp)
 {
-	return -EOPNOTSUPP;
+	return -ENOIOCTLCMD;
 }
 static inline int blk_rq_count_integrity_sg(struct request_queue *q,
 					    struct bio *b)
