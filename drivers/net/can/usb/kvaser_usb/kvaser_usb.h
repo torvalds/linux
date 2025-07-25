@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/usb.h>
+#include <net/devlink.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -225,6 +226,8 @@ struct kvaser_usb_dev_cfg {
 
 extern const struct kvaser_usb_dev_ops kvaser_usb_hydra_dev_ops;
 extern const struct kvaser_usb_dev_ops kvaser_usb_leaf_dev_ops;
+
+extern const struct devlink_ops kvaser_usb_devlink_ops;
 
 void kvaser_usb_unlink_tx_urbs(struct kvaser_usb_net_priv *priv);
 
