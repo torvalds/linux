@@ -718,8 +718,6 @@
 			dma-coherent;
 
 			queue-group@2d10000 {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d10000 0x0 0x1000>;
 				interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
@@ -727,8 +725,6 @@
 			};
 
 			queue-group@2d14000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d14000 0x0 0x1000>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
@@ -748,8 +744,6 @@
 			dma-coherent;
 
 			queue-group@2d50000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d50000 0x0 0x1000>;
 				interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
@@ -757,8 +751,6 @@
 			};
 
 			queue-group@2d54000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d54000 0x0 0x1000>;
 				interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
@@ -778,8 +770,6 @@
 			dma-coherent;
 
 			queue-group@2d90000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d90000 0x0 0x1000>;
 				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
@@ -787,8 +777,6 @@
 			};
 
 			queue-group@2d94000  {
-				#address-cells = <2>;
-				#size-cells = <2>;
 				reg = <0x0 0x2d94000 0x0 0x1000>;
 				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
