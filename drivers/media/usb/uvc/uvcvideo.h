@@ -665,7 +665,7 @@ extern unsigned int uvc_hw_timestamps_param;
 #define uvc_dbg(_dev, flag, fmt, ...)					\
 do {									\
 	if (uvc_dbg_param & UVC_DBG_##flag)				\
-		dev_printk(KERN_DEBUG, &(_dev)->udev->dev, fmt,		\
+		dev_printk(KERN_DEBUG, &(_dev)->intf->dev, fmt,		\
 			   ##__VA_ARGS__);				\
 } while (0)
 
@@ -678,7 +678,7 @@ do {									\
 #define uvc_warn_once(_dev, warn, fmt, ...)				\
 do {									\
 	if (!test_and_set_bit(warn, &(_dev)->warnings))			\
-		dev_info(&(_dev)->udev->dev, fmt, ##__VA_ARGS__);	\
+		dev_info(&(_dev)->intf->dev, fmt, ##__VA_ARGS__);	\
 } while (0)
 
 /* --------------------------------------------------------------------------

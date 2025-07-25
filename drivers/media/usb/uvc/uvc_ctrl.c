@@ -1619,7 +1619,7 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		}
 
 		if (ret == -EIO) {
-			dev_warn_ratelimited(&chain->dev->udev->dev,
+			dev_warn_ratelimited(&chain->dev->intf->dev,
 					     "UVC non compliance: Error %d querying master control %x (%s)\n",
 					     ret, master_map->id,
 					     uvc_map_get_name(master_map));
@@ -1643,7 +1643,7 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 
 	ret = __uvc_queryctrl_boundaries(chain, ctrl, mapping, v4l2_ctrl);
 	if (ret && !mapping->disabled) {
-		dev_warn(&chain->dev->udev->dev,
+		dev_warn(&chain->dev->intf->dev,
 			 "UVC non compliance: permanently disabling control %x (%s), due to error %d\n",
 			 mapping->id, uvc_map_get_name(mapping), ret);
 		mapping->disabled = true;
@@ -1858,7 +1858,7 @@ static int uvc_ctrl_set_handle(struct uvc_control *ctrl, struct uvc_fh *handle)
 	lockdep_assert_held(&handle->chain->ctrl_mutex);
 
 	if (ctrl->handle) {
-		dev_warn_ratelimited(&handle->stream->dev->udev->dev,
+		dev_warn_ratelimited(&handle->stream->dev->intf->dev,
 				     "UVC non compliance: Setting an async control with a pending operation.");
 
 		if (ctrl->handle == handle)
@@ -1956,7 +1956,7 @@ static void uvc_ctrl_status_event_work(struct work_struct *work)
 	w->urb->interval = dev->int_ep->desc.bInterval;
 	ret = usb_submit_urb(w->urb, GFP_KERNEL);
 	if (ret < 0)
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"Failed to resubmit status URB (%d).\n", ret);
 }
 
@@ -2895,7 +2895,7 @@ int uvc_ctrl_restore_values(struct uvc_device *dev)
 			if (!ctrl->initialized || !ctrl->modified ||
 			    (ctrl->info.flags & UVC_CTRL_FLAG_RESTORE) == 0)
 				continue;
-			dev_dbg(&dev->udev->dev,
+			dev_dbg(&dev->intf->dev,
 				"restoring control %pUl/%u/%u\n",
 				ctrl->info.entity, ctrl->info.index,
 				ctrl->info.selector);
