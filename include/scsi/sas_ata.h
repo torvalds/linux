@@ -15,10 +15,17 @@
 
 #ifdef CONFIG_SCSI_SAS_ATA
 
-static inline int dev_is_sata(struct domain_device *dev)
+static inline bool dev_is_sata(struct domain_device *dev)
 {
-	return dev->dev_type == SAS_SATA_DEV || dev->dev_type == SAS_SATA_PM ||
-	       dev->dev_type == SAS_SATA_PM_PORT || dev->dev_type == SAS_SATA_PENDING;
+	switch (dev->dev_type) {
+	case SAS_SATA_DEV:
+	case SAS_SATA_PENDING:
+	case SAS_SATA_PM:
+	case SAS_SATA_PM_PORT:
+		return true;
+	default:
+		return false;
+	}
 }
 
 int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy);
@@ -49,9 +56,9 @@ static inline void sas_ata_disabled_notice(void)
 	pr_notice_once("ATA device seen but CONFIG_SCSI_SAS_ATA=N\n");
 }
 
-static inline int dev_is_sata(struct domain_device *dev)
+static inline bool dev_is_sata(struct domain_device *dev)
 {
-	return 0;
+	return false;
 }
 static inline int sas_ata_init(struct domain_device *dev)
 {
