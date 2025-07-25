@@ -917,7 +917,7 @@
 			ranges = <0x0 0x0 0x10010000 0x10000>;
 		};
 
-		qdma: dma-controller@8390000 {
+		qdma: dma-controller@8388000 {
 			compatible = "fsl,ls1021a-qdma";
 			reg = <0x0 0x8388000 0x0 0x1000>, /* Controller regs */
 			      <0x0 0x8389000 0x0 0x1000>, /* Status regs */
