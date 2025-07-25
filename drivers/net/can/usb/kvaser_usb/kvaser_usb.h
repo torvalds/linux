@@ -101,12 +101,12 @@ struct kvaser_usb {
 	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
 	struct usb_anchor rx_submitted;
 
+	u32 fw_version;
+	unsigned int nchannels;
 	/* @max_tx_urbs: Firmware-reported maximum number of outstanding,
 	 * not yet ACKed, transmissions on this device. This value is
 	 * also used as a sentinel for marking free tx contexts.
 	 */
-	u32 fw_version;
-	unsigned int nchannels;
 	unsigned int max_tx_urbs;
 	struct kvaser_usb_dev_card_data card_data;
 
