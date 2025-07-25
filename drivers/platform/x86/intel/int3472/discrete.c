@@ -157,6 +157,13 @@ static const struct int3472_gpio_map int3472_gpio_map[] = {
 		.type_to = INT3472_GPIO_TYPE_RESET,
 		.con_id = "enable",
 	},
+	{	/* ov08x40's handshake pin needs a 45 ms delay on some HP laptops */
+		.hid = "OVTI08F4",
+		.type_from = INT3472_GPIO_TYPE_HANDSHAKE,
+		.type_to = INT3472_GPIO_TYPE_HANDSHAKE,
+		.con_id = "dvdd",
+		.enable_time_us = 45 * USEC_PER_MSEC,
+	},
 };
 
 static void int3472_get_con_id_and_polarity(struct int3472_discrete_device *int3472, u8 *type,
