@@ -1290,9 +1290,8 @@ i40e_set_vsi_promisc(struct i40e_vf *vf, u16 seid, bool multi_enable,
 
 			dev_err(&pf->pdev->dev,
 				"VF %d failed to set multicast promiscuous mode err %pe aq_err %s\n",
-				vf->vf_id,
-				ERR_PTR(aq_ret),
-				i40e_aq_str(&pf->hw, aq_err));
+				vf->vf_id, ERR_PTR(aq_ret),
+				libie_aq_str(aq_err));
 
 			return aq_ret;
 		}
@@ -1306,9 +1305,8 @@ i40e_set_vsi_promisc(struct i40e_vf *vf, u16 seid, bool multi_enable,
 
 			dev_err(&pf->pdev->dev,
 				"VF %d failed to set unicast promiscuous mode err %pe aq_err %s\n",
-				vf->vf_id,
-				ERR_PTR(aq_ret),
-				i40e_aq_str(&pf->hw, aq_err));
+				vf->vf_id, ERR_PTR(aq_ret),
+				libie_aq_str(aq_err));
 		}
 
 		return aq_ret;
@@ -1323,9 +1321,8 @@ i40e_set_vsi_promisc(struct i40e_vf *vf, u16 seid, bool multi_enable,
 
 			dev_err(&pf->pdev->dev,
 				"VF %d failed to set multicast promiscuous mode err %pe aq_err %s\n",
-				vf->vf_id,
-				ERR_PTR(aq_ret),
-				i40e_aq_str(&pf->hw, aq_err));
+				vf->vf_id, ERR_PTR(aq_ret),
+				libie_aq_str(aq_err));
 
 			if (!aq_tmp)
 				aq_tmp = aq_ret;
@@ -1339,9 +1336,8 @@ i40e_set_vsi_promisc(struct i40e_vf *vf, u16 seid, bool multi_enable,
 
 			dev_err(&pf->pdev->dev,
 				"VF %d failed to set unicast promiscuous mode err %pe aq_err %s\n",
-				vf->vf_id,
-				ERR_PTR(aq_ret),
-				i40e_aq_str(&pf->hw, aq_err));
+				vf->vf_id, ERR_PTR(aq_ret),
+				libie_aq_str(aq_err));
 
 			if (!aq_tmp)
 				aq_tmp = aq_ret;
@@ -3748,8 +3744,7 @@ static void i40e_del_all_cloud_filters(struct i40e_vf *vf)
 			dev_err(&pf->pdev->dev,
 				"VF %d: Failed to delete cloud filter, err %pe aq_err %s\n",
 				vf->vf_id, ERR_PTR(ret),
-				i40e_aq_str(&pf->hw,
-					    pf->hw.aq.asq_last_status));
+				libie_aq_str(pf->hw.aq.asq_last_status));
 
 		hlist_del(&cfilter->cloud_node);
 		kfree(cfilter);
@@ -3851,7 +3846,7 @@ static int i40e_vc_del_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		dev_err(&pf->pdev->dev,
 			"VF %d: Failed to delete cloud filter, err %pe aq_err %s\n",
 			vf->vf_id, ERR_PTR(ret),
-			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+			libie_aq_str(pf->hw.aq.asq_last_status));
 		goto err;
 	}
 
@@ -3987,7 +3982,7 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		dev_err(&pf->pdev->dev,
 			"VF %d: Failed to add cloud filter, err %pe aq_err %s\n",
 			vf->vf_id, ERR_PTR(aq_ret),
-			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+			libie_aq_str(pf->hw.aq.asq_last_status));
 		goto err_free;
 	}
 

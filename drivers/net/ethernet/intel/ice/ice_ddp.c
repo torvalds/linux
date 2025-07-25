@@ -1101,16 +1101,16 @@ struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
 	return &bld->buf;
 }
 
-static enum ice_ddp_state ice_map_aq_err_to_ddp_state(enum ice_aq_err aq_err)
+static enum ice_ddp_state ice_map_aq_err_to_ddp_state(enum libie_aq_err aq_err)
 {
 	switch (aq_err) {
-	case ICE_AQ_RC_ENOSEC:
-	case ICE_AQ_RC_EBADSIG:
+	case LIBIE_AQ_RC_ENOSEC:
+	case LIBIE_AQ_RC_EBADSIG:
 		return ICE_DDP_PKG_FILE_SIGNATURE_INVALID;
-	case ICE_AQ_RC_ESVN:
+	case LIBIE_AQ_RC_ESVN:
 		return ICE_DDP_PKG_FILE_REVISION_TOO_LOW;
-	case ICE_AQ_RC_EBADMAN:
-	case ICE_AQ_RC_EBADBUF:
+	case LIBIE_AQ_RC_EBADMAN:
+	case LIBIE_AQ_RC_EBADBUF:
 		return ICE_DDP_PKG_LOAD_ERROR;
 	default:
 		return ICE_DDP_PKG_ERR;
@@ -1180,7 +1180,7 @@ ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 		    u32 *error_info, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_download_pkg *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	if (error_offset)
@@ -1188,9 +1188,9 @@ ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 	if (error_info)
 		*error_info = 0;
 
-	cmd = &desc.params.download_pkg;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_download_pkg);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	if (last_buf)
 		cmd->flags |= ICE_AQC_DOWNLOAD_PKG_LAST_BUF;
@@ -1259,7 +1259,7 @@ static enum ice_ddp_state ice_ddp_send_hunk(struct ice_ddp_send_ctx *ctx,
 	struct ice_buf_hdr *prev_hunk = ctx->hdr;
 	struct ice_hw *hw = ctx->hw;
 	bool prev_was_last = !hunk;
-	enum ice_aq_err aq_err;
+	enum libie_aq_err aq_err;
 	u32 offset, info;
 	int attempt, err;
 
@@ -1278,7 +1278,8 @@ static enum ice_ddp_state ice_ddp_send_hunk(struct ice_ddp_send_ctx *ctx,
 					  prev_was_last, &offset, &info, NULL);
 
 		aq_err = hw->adminq.sq_last_status;
-		if (aq_err != ICE_AQ_RC_ENOSEC && aq_err != ICE_AQ_RC_EBADSIG)
+		if (aq_err != LIBIE_AQ_RC_ENOSEC &&
+		    aq_err != LIBIE_AQ_RC_EBADSIG)
 			break;
 	}
 
@@ -1537,7 +1538,7 @@ ice_post_dwnld_pkg_actions(struct ice_hw *hw)
 static enum ice_ddp_state
 ice_download_pkg_with_sig_seg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 {
-	enum ice_aq_err aq_err = hw->adminq.sq_last_status;
+	enum libie_aq_err aq_err = hw->adminq.sq_last_status;
 	enum ice_ddp_state state = ICE_DDP_PKG_ERR;
 	struct ice_ddp_send_ctx ctx = { .hw = hw };
 	int status;
@@ -1687,7 +1688,7 @@ static int ice_aq_get_pkg_info_list(struct ice_hw *hw,
 				    struct ice_aqc_get_pkg_info_resp *pkg_info,
 				    u16 buf_size, struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_pkg_info_list);
 
@@ -1711,7 +1712,7 @@ static int ice_aq_update_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 			     u32 *error_info, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_download_pkg *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	if (error_offset)
@@ -1719,9 +1720,9 @@ static int ice_aq_update_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 	if (error_info)
 		*error_info = 0;
 
-	cmd = &desc.params.download_pkg;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_update_pkg);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	if (last_buf)
 		cmd->flags |= ICE_AQC_DOWNLOAD_PKG_LAST_BUF;
@@ -1753,10 +1754,10 @@ static int ice_aq_update_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 int ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 			  u16 buf_size, struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_upload_section);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	return ice_aq_send_cmd(hw, &desc, pkg_buf, buf_size, cd);
 }
@@ -2335,10 +2336,10 @@ ice_get_set_tx_topo(struct ice_hw *hw, u8 *buf, u16 buf_size,
 		    struct ice_sq_cd *cd, u8 *flags, bool set)
 {
 	struct ice_aqc_get_set_tx_topo *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
-	cmd = &desc.params.get_set_tx_topo;
+	cmd = libie_aq_raw(&desc);
 	if (set) {
 		ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_tx_topo);
 		cmd->set_flags = ICE_AQC_TX_TOPO_FLAGS_ISSUED;
@@ -2347,14 +2348,14 @@ ice_get_set_tx_topo(struct ice_hw *hw, u8 *buf, u16 buf_size,
 			cmd->set_flags |= ICE_AQC_TX_TOPO_FLAGS_SRC_RAM |
 					  ICE_AQC_TX_TOPO_FLAGS_LOAD_NEW;
 
-		desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+		desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 	} else {
 		ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_tx_topo);
 		cmd->get_flags = ICE_AQC_TX_TOPO_GET_RAM;
 
 		if (hw->mac_type == ICE_MAC_E810 ||
 		    hw->mac_type == ICE_MAC_GENERIC)
-			desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+			desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 	}
 
 	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
@@ -2362,7 +2363,7 @@ ice_get_set_tx_topo(struct ice_hw *hw, u8 *buf, u16 buf_size,
 		return status;
 	/* read the return flag values (first byte) for get operation */
 	if (!set && flags)
-		*flags = desc.params.get_set_tx_topo.set_flags;
+		*flags = cmd->set_flags;
 
 	return 0;
 }

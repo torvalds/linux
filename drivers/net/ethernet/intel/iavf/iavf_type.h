@@ -19,7 +19,7 @@
 
 /* forward declaration */
 struct iavf_hw;
-typedef void (*IAVF_ADMINQ_CALLBACK)(struct iavf_hw *, struct iavf_aq_desc *);
+typedef void (*IAVF_ADMINQ_CALLBACK)(struct iavf_hw *, struct libie_aq_desc *);
 
 /* Data type manipulation macros. */
 

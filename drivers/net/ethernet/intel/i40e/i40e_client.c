@@ -682,9 +682,7 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
 	if (err) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't get PF vsi config, err %pe aq_err %s\n",
-			 ERR_PTR(err),
-			 i40e_aq_str(&pf->hw,
-				     pf->hw.aq.asq_last_status));
+			 ERR_PTR(err), libie_aq_str(pf->hw.aq.asq_last_status));
 		return -ENOENT;
 	}
 
@@ -711,8 +709,7 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
 			dev_info(&pf->pdev->dev,
 				 "update VSI ctxt for PE failed, err %pe aq_err %s\n",
 				 ERR_PTR(err),
-				 i40e_aq_str(&pf->hw,
-					     pf->hw.aq.asq_last_status));
+				 libie_aq_str(pf->hw.aq.asq_last_status));
 		}
 	}
 	return err;
