@@ -6321,8 +6321,9 @@ errout:
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		     unsigned int nlm_flags)
 {
-	struct sk_buff *skb;
 	struct net *net = info->nl_net;
+	struct sk_buff *skb;
+	size_t sz;
 	u32 seq;
 	int err;
 
@@ -6330,17 +6331,21 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 	seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 
 	rcu_read_lock();
-
-	skb = nlmsg_new(rt6_nlmsg_size(rt), GFP_ATOMIC);
+	sz = rt6_nlmsg_size(rt);
+retry:
+	skb = nlmsg_new(sz, GFP_ATOMIC);
 	if (!skb)
 		goto errout;
 
 	err = rt6_fill_node(net, skb, rt, NULL, NULL, NULL, 0,
 			    event, info->portid, seq, nlm_flags);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
-		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
+		/* -EMSGSIZE implies needed space grew under us. */
+		if (err == -EMSGSIZE) {
+			sz = max(rt6_nlmsg_size(rt), sz << 1);
+			goto retry;
+		}
 		goto errout;
 	}
 
