@@ -116,9 +116,21 @@ static inline bool rtw_wow_has_mgd_features(struct rtw89_dev *rtwdev)
 	return !bitmap_empty(rtw_wow->flags, RTW89_WOW_FLAG_NUM);
 }
 
+void __rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);
+
+static inline
+void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (likely(!ieee80211_is_assoc_req(hdr->frame_control)))
+		return;
+
+	__rtw89_wow_parse_akm(rtwdev, skb);
+}
+
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);
 int rtw89_wow_resume(struct rtw89_dev *rtwdev);
-void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);
 #else
 static inline
 void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)

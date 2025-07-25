@@ -473,8 +473,8 @@ enum ath10k_hw_cc_wraparound_type {
 	 */
 	ATH10K_HW_CC_WRAP_SHIFTED_ALL = 1,
 
-	/* Each hw counter wrapsaround independently. When the
-	 * counter overflows the repestive counter is right shifted
+	/* Each hw counter wraps around independently. When the
+	 * counter overflows the respective counter is right shifted
 	 * by 1, i.e reset to 0x7fffffff, and other counters will be
 	 * running unaffected. In this type of wraparound, it should
 	 * be possible to report accurate Rx busy time unlike the
@@ -837,7 +837,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define TARGET_10_4_NUM_TDLS_BUFFER_STA		1
 #define TARGET_10_4_NUM_TDLS_SLEEP_STA		1
 
-/* Maximum number of Copy Engine's supported */
+/* Maximum number of Copy Engines supported */
 #define CE_COUNT_MAX 12
 
 /* Number of Copy Engines supported */
@@ -1134,7 +1134,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define RTC_STATE_V_GET(x) (((x) & RTC_STATE_V_MASK) >> RTC_STATE_V_LSB)
 
 /* Register definitions for first generation ath10k cards. These cards include
- * a mac thich has a register allocation similar to ath9k and at least some
+ * a mac which has a register allocation similar to ath9k and at least some
  * registers including the ones relevant for modifying the coverage class are
  * identical to the ath9k definitions.
  * These registers are usually managed by the ath10k firmware. However by

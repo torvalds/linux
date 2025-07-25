@@ -497,7 +497,7 @@ static u8 ath11k_htc_get_credit_allocation(struct ath11k_htc *htc,
 static int ath11k_htc_setup_target_buffer_assignments(struct ath11k_htc *htc)
 {
 	struct ath11k_htc_svc_tx_credits *serv_entry;
-	u32 svc_id[] = {
+	static const u32 svc_id[] = {
 		ATH11K_HTC_SVC_ID_WMI_CONTROL,
 		ATH11K_HTC_SVC_ID_WMI_CONTROL_MAC1,
 		ATH11K_HTC_SVC_ID_WMI_CONTROL_MAC2,

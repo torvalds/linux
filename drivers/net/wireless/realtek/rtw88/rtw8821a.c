@@ -865,6 +865,7 @@ static const struct rtw_chip_ops rtw8821a_ops = {
 	.query_phy_status	= rtw8821a_query_phy_status,
 	.set_channel		= rtw88xxa_set_channel,
 	.mac_init		= NULL,
+	.mac_postinit		= NULL,
 	.read_rf		= rtw88xxa_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_antenna		= NULL,

@@ -938,7 +938,7 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 
 		/*
 		 * if an AC has bundling disabled and no tx bundling
-		 * has occured continously for a certain number of TX,
+		 * has occurred continuously for a certain number of TX,
 		 * enable tx bundling for this AC
 		 */
 		if (!bundle_sent) {

@@ -3596,7 +3596,7 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 
 	switch (crash_type) {
 	case RTW89_DBG_SIM_CPU_EXCEPTION:
-		if (!RTW89_CHK_FW_FEATURE(CRASH_TRIGGER, &rtwdev->fw))
+		if (!RTW89_CHK_FW_FEATURE_GROUP(CRASH_TRIGGER, &rtwdev->fw))
 			return -EOPNOTSUPP;
 		sim = rtw89_fw_h2c_trigger_cpu_exception;
 		break;

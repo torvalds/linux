@@ -160,6 +160,7 @@
  *	device
  * @addresses: device MAC addresses.
  * @scan: instance of the scan object
+ * @channel_survey: channel survey information collected during scan
  * @wowlan: WoWLAN support data.
  * @debug_max_sleep: maximum sleep time in D3 (for debug purposes)
  * @led: the led device
@@ -253,6 +254,7 @@ struct iwl_mld {
 
 	struct mac_address addresses[IWL_MLD_MAX_ADDRESSES];
 	struct iwl_mld_scan scan;
+	struct iwl_mld_survey *channel_survey;
 #ifdef CONFIG_PM_SLEEP
 	struct wiphy_wowlan_support wowlan;
 	u32 debug_max_sleep;

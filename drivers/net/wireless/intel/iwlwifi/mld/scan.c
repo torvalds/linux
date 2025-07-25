@@ -4,6 +4,8 @@
  */
 #include <linux/crc32.h>
 
+#include "iwl-utils.h"
+
 #include "mld.h"
 #include "scan.h"
 #include "hcmd.h"
@@ -482,7 +484,9 @@ iwl_mld_scan_get_cmd_gen_flags(struct iwl_mld *mld,
 static u8
 iwl_mld_scan_get_cmd_gen_flags2(struct iwl_mld *mld,
 				struct iwl_mld_scan_params *params,
-				struct ieee80211_vif *vif, u16 gen_flags)
+				struct ieee80211_vif *vif,
+				enum iwl_mld_scan_status scan_status,
+				u16 gen_flags)
 {
 	u8 flags = 0;
 
@@ -493,6 +497,17 @@ iwl_mld_scan_get_cmd_gen_flags2(struct iwl_mld *mld,
 
 	if (params->scan_6ghz)
 		flags |= IWL_UMAC_SCAN_GEN_PARAMS_FLAGS2_DONT_TOGGLE_ANT;
+
+	/* For AP interfaces, request survey data for regular scans and if
+	 * it is supported. For non-AP interfaces, EBS will be enabled and
+	 * the results may be missing information for some channels.
+	 */
+	if (scan_status == IWL_MLD_SCAN_REGULAR &&
+	    ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_AP &&
+	    gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE &&
+	    iwl_fw_lookup_notif_ver(mld->fw, SCAN_GROUP,
+				    CHANNEL_SURVEY_NOTIF, 0) >= 1)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS2_COLLECT_CHANNEL_STATS;
 
 	return flags;
 }
@@ -544,6 +559,7 @@ iwl_mld_scan_cmd_set_gen_params(struct iwl_mld *mld,
 	u16 gen_flags = iwl_mld_scan_get_cmd_gen_flags(mld, params, vif,
 						       scan_status);
 	u8 gen_flags2 = iwl_mld_scan_get_cmd_gen_flags2(mld, params, vif,
+							scan_status,
 							gen_flags);
 
 	IWL_DEBUG_SCAN(mld, "General: flags=0x%x, flags2=0x%x\n",
@@ -1752,6 +1768,11 @@ int iwl_mld_regular_scan_start(struct iwl_mld *mld, struct ieee80211_vif *vif,
 			       struct cfg80211_scan_request *req,
 			       struct ieee80211_scan_ies *ies)
 {
+	/* Clear survey data when starting the first part of a regular scan */
+	if (req->first_part && mld->channel_survey)
+		memset(mld->channel_survey->channels, 0,
+		       sizeof(mld->channel_survey->channels[0]) *
+		       mld->channel_survey->n_channels);
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		iwl_mld_emlsr_block_tmp_non_bss(mld);
@@ -2024,4 +2045,137 @@ int iwl_mld_alloc_scan_cmd(struct iwl_mld *mld)
 	mld->scan.cmd_size = scan_cmd_size;
 
 	return 0;
+}
+
+static int iwl_mld_chanidx_from_phy(struct iwl_mld *mld,
+				    enum nl80211_band band,
+				    u16 phy_chan_num)
+{
+	struct ieee80211_supported_band *sband = mld->wiphy->bands[band];
+
+	if (WARN_ON_ONCE(!sband))
+		return -EINVAL;
+
+	for (int chan_idx = 0; chan_idx < sband->n_channels; chan_idx++) {
+		struct ieee80211_channel *channel = &sband->channels[chan_idx];
+
+		if (channel->hw_value == phy_chan_num)
+			return chan_idx;
+	}
+
+	return -EINVAL;
+}
+
+void iwl_mld_handle_channel_survey_notif(struct iwl_mld *mld,
+					 struct iwl_rx_packet *pkt)
+{
+	const struct iwl_umac_scan_channel_survey_notif *notif =
+		(void *)pkt->data;
+	struct iwl_mld_survey_channel *info;
+	enum nl80211_band band;
+	int chan_idx;
+
+	if (!mld->channel_survey) {
+		size_t n_channels = 0;
+
+		for (band = 0; band < NUM_NL80211_BANDS; band++) {
+			if (!mld->wiphy->bands[band])
+				continue;
+
+			n_channels += mld->wiphy->bands[band]->n_channels;
+		}
+
+		mld->channel_survey = kzalloc(struct_size(mld->channel_survey,
+							  channels, n_channels),
+							  GFP_KERNEL);
+
+		if (!mld->channel_survey)
+			return;
+
+		mld->channel_survey->n_channels = n_channels;
+		n_channels = 0;
+		for (band = 0; band < NUM_NL80211_BANDS; band++) {
+			if (!mld->wiphy->bands[band])
+				continue;
+
+			mld->channel_survey->bands[band] =
+				&mld->channel_survey->channels[n_channels];
+			n_channels += mld->wiphy->bands[band]->n_channels;
+		}
+	}
+
+	band = iwl_mld_phy_band_to_nl80211(le32_to_cpu(notif->band));
+	chan_idx = iwl_mld_chanidx_from_phy(mld, band,
+					    le32_to_cpu(notif->channel));
+	if (WARN_ON_ONCE(chan_idx < 0))
+		return;
+
+	IWL_DEBUG_SCAN(mld, "channel survey received for freq %d\n",
+		       mld->wiphy->bands[band]->channels[chan_idx].center_freq);
+
+	info = &mld->channel_survey->bands[band][chan_idx];
+
+	/* Times are all in ms */
+	info->time = le32_to_cpu(notif->active_time);
+	info->time_busy = le32_to_cpu(notif->busy_time);
+	info->noise =
+		iwl_average_neg_dbm(notif->noise, ARRAY_SIZE(notif->noise));
+}
+
+int iwl_mld_mac80211_get_survey(struct ieee80211_hw *hw, int idx,
+				struct survey_info *survey)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+	int curr_idx = 0;
+
+	if (!mld->channel_survey)
+		return -ENOENT;
+
+	/* Iterate bands/channels to find the requested index.
+	 * Logically this returns the entry with index "idx" from a flattened
+	 * survey result array that only contains channels with information.
+	 * The current index into this flattened array is tracked in curr_idx.
+	 */
+	for (enum nl80211_band band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *sband =
+			mld->wiphy->bands[band];
+
+		if (!sband)
+			continue;
+
+		for (int per_band_idx = 0;
+		     per_band_idx < sband->n_channels;
+		     per_band_idx++) {
+			struct iwl_mld_survey_channel *info =
+				&mld->channel_survey->bands[band][per_band_idx];
+
+			/* Skip entry entirely, it was not reported/scanned,
+			 * do not increase curr_idx for this entry.
+			 */
+			if (!info->time)
+				continue;
+
+			/* Search did not reach the requested entry yet,
+			 * increment curr_idx and continue.
+			 */
+			if (idx != curr_idx) {
+				curr_idx++;
+				continue;
+			}
+
+			/* Found (the next) channel to report */
+			survey->channel = &sband->channels[per_band_idx];
+			survey->filled = SURVEY_INFO_TIME |
+					 SURVEY_INFO_TIME_BUSY;
+			survey->time = info->time;
+			survey->time_busy = info->time_busy;
+			survey->noise = info->noise;
+			if (survey->noise < 0)
+				survey->filled |= SURVEY_INFO_NOISE_DBM;
+
+			return 0;
+		}
+	}
+
+	return -ENOENT;
 }

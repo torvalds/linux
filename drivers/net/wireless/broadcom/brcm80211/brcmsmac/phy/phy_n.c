@@ -19713,11 +19713,6 @@ u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih)
 	return (u8) rxen_bits;
 }
 
-bool wlc_phy_n_txpower_ipa_ison(struct brcms_phy *pi)
-{
-	return PHY_IPA(pi);
-}
-
 void wlc_phy_cal_init_nphy(struct brcms_phy *pi)
 {
 }
@@ -25825,10 +25820,8 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 
 		if (mphase) {
 			cal_cnt = pi->mphase_txcal_cmdidx;
-			if ((cal_cnt + pi->mphase_txcal_numcmds) < max_cal_cmds)
-				num_cals = cal_cnt + pi->mphase_txcal_numcmds;
-			else
-				num_cals = max_cal_cmds;
+			num_cals = min(cal_cnt + pi->mphase_txcal_numcmds,
+				       max_cal_cmds);
 		} else {
 			cal_cnt = 0;
 			num_cals = max_cal_cmds;
@@ -28576,18 +28569,4 @@ void wlc_phy_stay_in_carriersearch_nphy(struct brcms_phy *pi, bool enable)
 			wlc_phy_clip_det_nphy(pi, 1, pi->clip_state);
 		}
 	}
-}
-
-void wlc_nphy_deaf_mode(struct brcms_phy *pi, bool mode)
-{
-	wlapi_suspend_mac_and_wait(pi->sh->physhim);
-
-	if (mode) {
-		if (pi->nphy_deaf_count == 0)
-			wlc_phy_stay_in_carriersearch_nphy(pi, true);
-	} else if (pi->nphy_deaf_count > 0) {
-		wlc_phy_stay_in_carriersearch_nphy(pi, false);
-	}
-
-	wlapi_enable_mac(pi->sh->physhim);
 }

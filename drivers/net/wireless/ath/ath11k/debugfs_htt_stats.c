@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/vmalloc.h>
@@ -375,7 +376,7 @@ static inline void htt_print_hw_stats_intr_misc_tlv(const void *tag_buf,
 	u8 *buf = stats_req->buf;
 	u32 len = stats_req->buf_len;
 	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
-	char hw_intr_name[HTT_STATS_MAX_HW_INTR_NAME_LEN + 1] = {0};
+	char hw_intr_name[HTT_STATS_MAX_HW_INTR_NAME_LEN + 1] = {};
 
 	len += scnprintf(buf + len, buf_len - len, "HTT_HW_STATS_INTR_MISC_TLV:\n");
 	memcpy(hw_intr_name, &(htt_stats_buf->hw_intr_name[0]),
@@ -402,7 +403,7 @@ htt_print_hw_stats_wd_timeout_tlv(const void *tag_buf,
 	u8 *buf = stats_req->buf;
 	u32 len = stats_req->buf_len;
 	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
-	char hw_module_name[HTT_STATS_MAX_HW_MODULE_NAME_LEN + 1] = {0};
+	char hw_module_name[HTT_STATS_MAX_HW_MODULE_NAME_LEN + 1] = {};
 
 	len += scnprintf(buf + len, buf_len - len, "HTT_HW_STATS_WD_TIMEOUT_TLV:\n");
 	memcpy(hw_module_name, &(htt_stats_buf->hw_module_name[0]),
@@ -514,7 +515,7 @@ static inline void htt_print_tx_tid_stats_tlv(const void *tag_buf,
 	u8 *buf = stats_req->buf;
 	u32 len = stats_req->buf_len;
 	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
-	char tid_name[MAX_HTT_TID_NAME + 1] = {0};
+	char tid_name[MAX_HTT_TID_NAME + 1] = {};
 
 	len += scnprintf(buf + len, buf_len - len, "HTT_TX_TID_STATS_TLV:\n");
 	memcpy(tid_name, &(htt_stats_buf->tid_name[0]), MAX_HTT_TID_NAME);
@@ -567,7 +568,7 @@ static inline void htt_print_tx_tid_stats_v1_tlv(const void *tag_buf,
 	u8 *buf = stats_req->buf;
 	u32 len = stats_req->buf_len;
 	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
-	char tid_name[MAX_HTT_TID_NAME + 1] = {0};
+	char tid_name[MAX_HTT_TID_NAME + 1] = {};
 
 	len += scnprintf(buf + len, buf_len - len, "HTT_TX_TID_STATS_V1_TLV:\n");
 	memcpy(tid_name, &(htt_stats_buf->tid_name[0]), MAX_HTT_TID_NAME);
@@ -624,7 +625,7 @@ static inline void htt_print_rx_tid_stats_tlv(const void *tag_buf,
 	u8 *buf = stats_req->buf;
 	u32 len = stats_req->buf_len;
 	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
-	char tid_name[MAX_HTT_TID_NAME + 1] = {0};
+	char tid_name[MAX_HTT_TID_NAME + 1] = {};
 
 	len += scnprintf(buf + len, buf_len - len, "HTT_RX_TID_STATS_TLV:\n");
 	len += scnprintf(buf + len, buf_len - len, "sw_peer_id = %lu\n",
@@ -4712,7 +4713,7 @@ int ath11k_debugfs_htt_stats_req(struct ath11k *ar)
 	u8 type = stats_req->type;
 	u64 cookie = 0;
 	int ret, pdev_id = ar->pdev->pdev_id;
-	struct htt_ext_stats_cfg_params cfg_params = { 0 };
+	struct htt_ext_stats_cfg_params cfg_params = {};
 
 	init_completion(&stats_req->cmpln);
 
@@ -4852,7 +4853,7 @@ static ssize_t ath11k_write_htt_stats_reset(struct file *file,
 {
 	struct ath11k *ar = file->private_data;
 	u8 type;
-	struct htt_ext_stats_cfg_params cfg_params = { 0 };
+	struct htt_ext_stats_cfg_params cfg_params = {};
 	int ret;
 
 	ret = kstrtou8_from_user(user_buf, count, 0, &type);

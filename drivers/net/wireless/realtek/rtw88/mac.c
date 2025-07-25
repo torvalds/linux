@@ -1409,3 +1409,13 @@ int rtw_mac_init(struct rtw_dev *rtwdev)
 
 	return 0;
 }
+
+int rtw_mac_postinit(struct rtw_dev *rtwdev)
+{
+	const struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (!chip->ops->mac_postinit)
+		return 0;
+
+	return chip->ops->mac_postinit(rtwdev);
+}

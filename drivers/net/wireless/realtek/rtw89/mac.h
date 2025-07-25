@@ -6,6 +6,7 @@
 #define __RTW89_MAC_H__
 
 #include "core.h"
+#include "fw.h"
 #include "reg.h"
 
 #define MAC_MEM_DUMP_PAGE_SIZE_AX 0x40000
@@ -924,6 +925,7 @@ struct rtw89_mac_size_set {
 	const struct rtw89_dle_size wde_size18;
 	const struct rtw89_dle_size wde_size19;
 	const struct rtw89_dle_size wde_size23;
+	const struct rtw89_dle_size wde_size25;
 	const struct rtw89_dle_size ple_size0;
 	const struct rtw89_dle_size ple_size0_v1;
 	const struct rtw89_dle_size ple_size3_v1;
@@ -933,6 +935,8 @@ struct rtw89_mac_size_set {
 	const struct rtw89_dle_size ple_size9;
 	const struct rtw89_dle_size ple_size18;
 	const struct rtw89_dle_size ple_size19;
+	const struct rtw89_dle_size ple_size32;
+	const struct rtw89_dle_size ple_size33;
 	const struct rtw89_wde_quota wde_qt0;
 	const struct rtw89_wde_quota wde_qt0_v1;
 	const struct rtw89_wde_quota wde_qt4;
@@ -941,6 +945,7 @@ struct rtw89_mac_size_set {
 	const struct rtw89_wde_quota wde_qt17;
 	const struct rtw89_wde_quota wde_qt18;
 	const struct rtw89_wde_quota wde_qt23;
+	const struct rtw89_wde_quota wde_qt25;
 	const struct rtw89_ple_quota ple_qt0;
 	const struct rtw89_ple_quota ple_qt1;
 	const struct rtw89_ple_quota ple_qt4;
@@ -955,6 +960,10 @@ struct rtw89_mac_size_set {
 	const struct rtw89_ple_quota ple_qt57;
 	const struct rtw89_ple_quota ple_qt58;
 	const struct rtw89_ple_quota ple_qt59;
+	const struct rtw89_ple_quota ple_qt72;
+	const struct rtw89_ple_quota ple_qt73;
+	const struct rtw89_ple_quota ple_qt74;
+	const struct rtw89_ple_quota ple_qt75;
 	const struct rtw89_ple_quota ple_qt_52a_wow;
 	const struct rtw89_ple_quota ple_qt_52b_wow;
 	const struct rtw89_ple_quota ple_qt_52bt_wow;
@@ -1574,5 +1583,29 @@ void rtw89_fwdl_secure_idmem_share_mode(struct rtw89_dev *rtwdev, u8 mode)
 		return;
 
 	return mac->fwdl_secure_idmem_share_mode(rtwdev, mode);
+}
+
+static inline
+int rtw89_mac_scan_offload(struct rtw89_dev *rtwdev,
+			   struct rtw89_scan_option *option,
+			   struct rtw89_vif_link *rtwvif_link,
+			   bool wowlan)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	int ret;
+
+	ret = mac->scan_offload(rtwdev, option, rtwvif_link, wowlan);
+
+	if (option->enable) {
+		/*
+		 * At this point, new scan request is acknowledged by firmware,
+		 * so scan events of previous scan request become obsoleted.
+		 * Purge the queued scan events to prevent interference to
+		 * current new request.
+		 */
+		rtw89_fw_c2h_purge_obsoleted_scan_events(rtwdev);
+	}
+
+	return ret;
 }
 #endif

@@ -12,7 +12,7 @@ maintainers:
 description: |
   This node provides properties for configuring the ath9k wireless device.
   The node is expected to be specified as a child node of the PCI controller
-  to which the wireless chip is connected.
+  or AHB bus to which the wireless chip is connected.
 
 allOf:
   - $ref: ieee80211.yaml#
@@ -35,6 +35,12 @@ properties:
       - pci168c,0034  # AR9462
       - pci168c,0036  # AR9565
       - pci168c,0037  # AR1111 and AR9485
+      - qca,ar9130-wifi
+      - qca,ar9330-wifi
+      - qca,ar9340-wifi
+      - qca,qca9530-wifi
+      - qca,qca9550-wifi
+      - qca,qca9560-wifi
 
   reg:
     maxItems: 1
@@ -86,5 +92,15 @@ examples:
         reg = <0x8800 0 0 0 0>;
         nvmem-cells = <&macaddr_art_c>, <&cal_art_1000>;
         nvmem-cell-names = "mac-address", "calibration";
+      };
+    };
+  - |
+    ahb {
+      #address-cells = <1>;
+      #size-cells = <1>;
+      wifi@180c0000 {
+        compatible = "qca,ar9130-wifi";
+        reg = <0x180c0000 0x230000>;
+        interrupts = <2>;
       };
     };
