@@ -611,11 +611,12 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 	struct bpf_dynptr ptr_buf, ptr_xdp;
 	char data[] = "qwertyuiopasdfghjkl";
 	char buf[32] = {'\0'};
-	__u32 len = sizeof(data);
+	__u32 len = sizeof(data), xdp_data_size;
 	int i, chunks = 200;
 
 	/* ptr_xdp is backed by non-contiguous memory */
 	bpf_dynptr_from_xdp(xdp, 0, &ptr_xdp);
+	xdp_data_size = bpf_dynptr_size(&ptr_xdp);
 	bpf_ringbuf_reserve_dynptr(&ringbuf, len * chunks, 0, &ptr_buf);
 
 	/* Destination dynptr is backed by non-contiguous memory */
@@ -673,7 +674,7 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 			goto out;
 	}
 
-	if (bpf_dynptr_copy(&ptr_xdp, 2000, &ptr_xdp, 0, len * chunks) != -E2BIG)
+	if (bpf_dynptr_copy(&ptr_xdp, xdp_data_size - 3000, &ptr_xdp, 0, len * chunks) != -E2BIG)
 		err = 1;
 
 out:
