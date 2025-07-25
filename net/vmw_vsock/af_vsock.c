@@ -1028,11 +1028,6 @@ static int vsock_getname(struct socket *sock,
 		vm_addr = &vsk->local_addr;
 	}
 
-	if (!vm_addr) {
-		err = -EINVAL;
-		goto out;
-	}
-
 	/* sys_getsockname() and sys_getpeername() pass us a
 	 * MAX_SOCK_ADDR-sized buffer and don't set addr_len.  Unfortunately
 	 * that macro is defined in socket.c instead of .h, so we hardcode its
