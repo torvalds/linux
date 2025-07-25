@@ -758,6 +758,16 @@ config NETFILTER_XTABLES_COMPAT
 
 	   If unsure, say N.
 
+config NETFILTER_XTABLES_LEGACY
+	bool "Netfilter legacy tables support"
+	depends on !PREEMPT_RT
+	help
+	  Say Y here if you still require support for legacy tables. This is
+	  required by the legacy tools (iptables-legacy) and is not needed if
+	  you use iptables over nftables (iptables-nft).
+	  Legacy support is not limited to IP, it also includes EBTABLES and
+	  ARPTABLES.
+
 comment "Xtables combined modules"
 
 config NETFILTER_XT_MARK

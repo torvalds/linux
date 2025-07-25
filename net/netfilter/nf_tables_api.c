@@ -8895,11 +8895,12 @@ static int nft_flowtable_parse_hook(const struct nft_ctx *ctx,
 
 	list_for_each_entry(hook, &flowtable_hook->list, list) {
 		list_for_each_entry(ops, &hook->ops_list, list) {
-			ops->pf		= NFPROTO_NETDEV;
-			ops->hooknum	= flowtable_hook->num;
-			ops->priority	= flowtable_hook->priority;
-			ops->priv	= &flowtable->data;
-			ops->hook	= flowtable->data.type->hook;
+			ops->pf			= NFPROTO_NETDEV;
+			ops->hooknum		= flowtable_hook->num;
+			ops->priority		= flowtable_hook->priority;
+			ops->priv		= &flowtable->data;
+			ops->hook		= flowtable->data.type->hook;
+			ops->hook_ops_type	= NF_HOOK_OP_NFT_FT;
 		}
 	}
 
@@ -9727,12 +9728,13 @@ static int nft_flowtable_event(unsigned long event, struct net_device *dev,
 			if (!ops)
 				return 1;
 
-			ops->pf		= NFPROTO_NETDEV;
-			ops->hooknum	= flowtable->hooknum;
-			ops->priority	= flowtable->data.priority;
-			ops->priv	= &flowtable->data;
-			ops->hook	= flowtable->data.type->hook;
-			ops->dev	= dev;
+			ops->pf			= NFPROTO_NETDEV;
+			ops->hooknum		= flowtable->hooknum;
+			ops->priority		= flowtable->data.priority;
+			ops->priv		= &flowtable->data;
+			ops->hook		= flowtable->data.type->hook;
+			ops->hook_ops_type	= NF_HOOK_OP_NFT_FT;
+			ops->dev		= dev;
 			if (nft_register_flowtable_ops(dev_net(dev),
 						       flowtable, ops)) {
 				kfree(ops);
