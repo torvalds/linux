@@ -368,7 +368,8 @@ void netdev_state_change(struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_state_change);
 
-int dev_set_threaded(struct net_device *dev, bool threaded)
+int dev_set_threaded(struct net_device *dev,
+		     enum netdev_napi_threaded threaded)
 {
 	int ret;
 
