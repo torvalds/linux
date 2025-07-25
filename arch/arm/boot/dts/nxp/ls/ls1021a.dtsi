@@ -944,10 +944,9 @@
 			#power-domain-cells = <0>;
 		};
 
-		ftm_alarm0: timer0@29d0000 {
+		ftm_alarm0: rtc@29d0000 {
 			compatible = "fsl,ls1021a-ftm-alarm";
 			reg = <0x0 0x29d0000 0x0 0x10000>;
-			reg-names = "ftm";
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x20000000>;
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			big-endian;
