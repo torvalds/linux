@@ -163,7 +163,7 @@ struct spisg_device {
 
 static int spi_delay_to_sclk(u32 slck_speed_hz, struct spi_delay *delay)
 {
-	u32 ns;
+	s32 ns;
 
 	if (!delay)
 		return 0;
