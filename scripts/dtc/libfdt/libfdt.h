@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define FDT_FIRST_SUPPORTED_VERSION	0x02
-#define FDT_LAST_COMPATIBLE_VERSION 0x10
+#define FDT_LAST_COMPATIBLE_VERSION	0x10
 #define FDT_LAST_SUPPORTED_VERSION	0x11
 
 /* Error codes: informative error codes */
@@ -263,16 +263,16 @@ int fdt_next_subnode(const void *fdt, int offset);
 		struct fdt_header *fdth = (struct fdt_header *)fdt; \
 		fdth->name = cpu_to_fdt32(val); \
 	}
-fdt_set_hdr_(magic);
-fdt_set_hdr_(totalsize);
-fdt_set_hdr_(off_dt_struct);
-fdt_set_hdr_(off_dt_strings);
-fdt_set_hdr_(off_mem_rsvmap);
-fdt_set_hdr_(version);
-fdt_set_hdr_(last_comp_version);
-fdt_set_hdr_(boot_cpuid_phys);
-fdt_set_hdr_(size_dt_strings);
-fdt_set_hdr_(size_dt_struct);
+fdt_set_hdr_(magic)
+fdt_set_hdr_(totalsize)
+fdt_set_hdr_(off_dt_struct)
+fdt_set_hdr_(off_dt_strings)
+fdt_set_hdr_(off_mem_rsvmap)
+fdt_set_hdr_(version)
+fdt_set_hdr_(last_comp_version)
+fdt_set_hdr_(boot_cpuid_phys)
+fdt_set_hdr_(size_dt_strings)
+fdt_set_hdr_(size_dt_struct)
 #undef fdt_set_hdr_
 
 /**
@@ -285,7 +285,7 @@ size_t fdt_header_size(const void *fdt);
 
 /**
  * fdt_header_size_ - internal function to get header size from a version number
- * @version: devicetree version number
+ * @version: device tree version number
  *
  * Return: size of DTB header in bytes
  */
@@ -554,7 +554,7 @@ int fdt_path_offset_namelen(const void *fdt, const char *path, int namelen);
  *	-FDT_ERR_BADPATH, given path does not begin with '/' and the first
  *		component is not a valid alias
  *	-FDT_ERR_NOTFOUND, if the requested node does not exist
- *      -FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADMAGIC,
  *	-FDT_ERR_BADVERSION,
  *	-FDT_ERR_BADSTATE,
  *	-FDT_ERR_BADSTRUCTURE,
@@ -599,7 +599,7 @@ const char *fdt_get_name(const void *fdt, int nodeoffset, int *lenp);
  *	structure block offset of the property (>=0), on success
  *	-FDT_ERR_NOTFOUND, if the requested node has no properties
  *	-FDT_ERR_BADOFFSET, if nodeoffset did not point to an FDT_BEGIN_NODE tag
- *      -FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADMAGIC,
  *	-FDT_ERR_BADVERSION,
  *	-FDT_ERR_BADSTATE,
  *	-FDT_ERR_BADSTRUCTURE,
@@ -620,7 +620,7 @@ int fdt_first_property_offset(const void *fdt, int nodeoffset);
  *	structure block offset of the next property (>=0), on success
  *	-FDT_ERR_NOTFOUND, if the given property is the last in its node
  *	-FDT_ERR_BADOFFSET, if nodeoffset did not point to an FDT_PROP tag
- *      -FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADMAGIC,
  *	-FDT_ERR_BADVERSION,
  *	-FDT_ERR_BADSTATE,
  *	-FDT_ERR_BADSTRUCTURE,
@@ -712,6 +712,13 @@ const struct fdt_property *fdt_get_property_namelen(const void *fdt,
 						    int nodeoffset,
 						    const char *name,
 						    int namelen, int *lenp);
+static inline struct fdt_property *
+fdt_get_property_namelen_w(void *fdt, int nodeoffset, const char *name,
+			   int namelen, int *lenp)
+{
+	return (struct fdt_property *)(uintptr_t)fdt_get_property_namelen(
+		fdt, nodeoffset, name, namelen, lenp);
+}
 #endif
 
 /**
@@ -764,7 +771,7 @@ static inline struct fdt_property *fdt_get_property_w(void *fdt, int nodeoffset,
  * to within the device blob itself, not a copy of the value).  If
  * lenp is non-NULL, the length of the property value is also
  * returned, in the integer pointed to by lenp.  If namep is non-NULL,
- * the property's namne will also be returned in the char * pointed to
+ * the property's name will also be returned in the char * pointed to
  * by namep (this will be a pointer to within the device tree's string
  * block, not a new copy of the name).
  *
@@ -772,7 +779,7 @@ static inline struct fdt_property *fdt_get_property_w(void *fdt, int nodeoffset,
  *	pointer to the property's value
  *		if lenp is non-NULL, *lenp contains the length of the property
  *		value (>=0)
- *		if namep is non-NULL *namep contiains a pointer to the property
+ *		if namep is non-NULL *namep contains a pointer to the property
  *		name.
  *	NULL, on error
  *		if lenp is non-NULL, *lenp contains an error code (<0):
@@ -866,7 +873,7 @@ uint32_t fdt_get_phandle(const void *fdt, int nodeoffset);
 /**
  * fdt_get_alias_namelen - get alias based on substring
  * @fdt: pointer to the device tree blob
- * @name: name of the alias th look up
+ * @name: name of the alias to look up
  * @namelen: number of characters of name to consider
  *
  * Identical to fdt_get_alias(), but only examine the first @namelen
@@ -883,7 +890,7 @@ const char *fdt_get_alias_namelen(const void *fdt,
 /**
  * fdt_get_alias - retrieve the path referenced by a given alias
  * @fdt: pointer to the device tree blob
- * @name: name of the alias th look up
+ * @name: name of the alias to look up
  *
  * fdt_get_alias() retrieves the value of a given alias.  That is, the
  * value of the property named @name in the node /aliases.
@@ -1259,8 +1266,8 @@ const char *fdt_stringlist_get(const void *fdt, int nodeoffset,
  *
  * returns:
  *	0 <= n < FDT_MAX_NCELLS, on success
- *      2, if the node has no #address-cells property
- *      -FDT_ERR_BADNCELLS, if the node has a badly formatted or invalid
+ *	2, if the node has no #address-cells property
+ *	-FDT_ERR_BADNCELLS, if the node has a badly formatted or invalid
  *		#address-cells property
  *	-FDT_ERR_BADMAGIC,
  *	-FDT_ERR_BADVERSION,
@@ -1280,8 +1287,8 @@ int fdt_address_cells(const void *fdt, int nodeoffset);
  *
  * returns:
  *	0 <= n < FDT_MAX_NCELLS, on success
- *      1, if the node has no #size-cells property
- *      -FDT_ERR_BADNCELLS, if the node has a badly formatted or invalid
+ *	1, if the node has no #size-cells property
+ *	-FDT_ERR_BADNCELLS, if the node has a badly formatted or invalid
  *		#size-cells property
  *	-FDT_ERR_BADMAGIC,
  *	-FDT_ERR_BADVERSION,
@@ -1562,7 +1569,7 @@ static inline int fdt_property_cell(void *fdt, const char *name, uint32_t val)
  * @fdt: pointer to the device tree blob
  * @name: name of property to add
  * @len: length of property value in bytes
- * @valp: returns a pointer to where where the value should be placed
+ * @valp: returns a pointer to where the value should be placed
  *
  * returns:
  *	0, on success
@@ -1660,6 +1667,38 @@ int fdt_del_mem_rsv(void *fdt, int n);
 int fdt_set_name(void *fdt, int nodeoffset, const char *name);
 
 /**
+ * fdt_setprop_namelen - create or change a property
+ * @fdt: pointer to the device tree blob
+ * @nodeoffset: offset of the node whose property to change
+ * @name: name of the property to change
+ * @namelen: length of the name
+ * @val: pointer to data to set the property value to
+ * @len: length of the property value
+ *
+ * fdt_setprop_namelen() sets the value of the named property in the given
+ * node to the given value and length, creating the property if it
+ * does not already exist.
+ *
+ * This function may insert or delete data from the blob, and will
+ * therefore change the offsets of some existing nodes.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, there is insufficient free space in the blob to
+ *		contain the new property value
+ *	-FDT_ERR_BADOFFSET, nodeoffset did not point to FDT_BEGIN_NODE tag
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_TRUNCATED, standard meanings
+ */
+int fdt_setprop_namelen(void *fdt, int nodeoffset, const char *name,
+			int namelen, const void *val, int len);
+
+/**
  * fdt_setprop - create or change a property
  * @fdt: pointer to the device tree blob
  * @nodeoffset: offset of the node whose property to change
@@ -1687,18 +1726,23 @@ int fdt_set_name(void *fdt, int nodeoffset, const char *name);
  *	-FDT_ERR_BADLAYOUT,
  *	-FDT_ERR_TRUNCATED, standard meanings
  */
-int fdt_setprop(void *fdt, int nodeoffset, const char *name,
-		const void *val, int len);
+static inline int fdt_setprop(void *fdt, int nodeoffset, const char *name,
+			      const void *val, int len)
+{
+	return fdt_setprop_namelen(fdt, nodeoffset, name, strlen(name), val,
+				   len);
+}
 
 /**
- * fdt_setprop_placeholder - allocate space for a property
+ * fdt_setprop_placeholder_namelen - allocate space for a property
  * @fdt: pointer to the device tree blob
  * @nodeoffset: offset of the node whose property to change
  * @name: name of the property to change
+ * @namelen: length of the name
  * @len: length of the property value
  * @prop_data: return pointer to property data
  *
- * fdt_setprop_placeholer() allocates the named property in the given node.
+ * fdt_setprop_placeholder_namelen() allocates the named property in the given node.
  * If the property exists it is resized. In either case a pointer to the
  * property data is returned.
  *
@@ -1718,8 +1762,44 @@ int fdt_setprop(void *fdt, int nodeoffset, const char *name,
  *	-FDT_ERR_BADLAYOUT,
  *	-FDT_ERR_TRUNCATED, standard meanings
  */
-int fdt_setprop_placeholder(void *fdt, int nodeoffset, const char *name,
-			    int len, void **prop_data);
+int fdt_setprop_placeholder_namelen(void *fdt, int nodeoffset, const char *name,
+				    int namelen, int len, void **prop_data);
+
+/**
+ * fdt_setprop_placeholder - allocate space for a property
+ * @fdt: pointer to the device tree blob
+ * @nodeoffset: offset of the node whose property to change
+ * @name: name of the property to change
+ * @len: length of the property value
+ * @prop_data: return pointer to property data
+ *
+ * fdt_setprop_placeholder() allocates the named property in the given node.
+ * If the property exists it is resized. In either case a pointer to the
+ * property data is returned.
+ *
+ * This function may insert or delete data from the blob, and will
+ * therefore change the offsets of some existing nodes.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, there is insufficient free space in the blob to
+ *		contain the new property value
+ *	-FDT_ERR_BADOFFSET, nodeoffset did not point to FDT_BEGIN_NODE tag
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_TRUNCATED, standard meanings
+ */
+static inline int fdt_setprop_placeholder(void *fdt, int nodeoffset,
+					  const char *name, int len,
+					  void **prop_data)
+{
+	return fdt_setprop_placeholder_namelen(fdt, nodeoffset, name,
+					       strlen(name), len, prop_data);
+}
 
 /**
  * fdt_setprop_u32 - set a property to a 32-bit integer
@@ -1839,6 +1919,38 @@ static inline int fdt_setprop_cell(void *fdt, int nodeoffset, const char *name,
 #define fdt_setprop_string(fdt, nodeoffset, name, str) \
 	fdt_setprop((fdt), (nodeoffset), (name), (str), strlen(str)+1)
 
+/**
+ * fdt_setprop_namelen_string - set a property to a string value
+ * @fdt: pointer to the device tree blob
+ * @nodeoffset: offset of the node whose property to change
+ * @name: name of the property to change
+ * @namelen: number of characters of name to consider
+ * @str: string value for the property
+ *
+ * fdt_setprop_namelen_string() sets the value of the named property in the
+ * given node to the given string value (using the length of the
+ * string to determine the new length of the property), or creates a
+ * new property with that value if it does not already exist.
+ *
+ * This function may insert or delete data from the blob, and will
+ * therefore change the offsets of some existing nodes.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, there is insufficient free space in the blob to
+ *		contain the new property value
+ *	-FDT_ERR_BADOFFSET, nodeoffset did not point to FDT_BEGIN_NODE tag
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_BADLAYOUT,
+ *	-FDT_ERR_TRUNCATED, standard meanings
+ */
+#define fdt_setprop_namelen_string(fdt, nodeoffset, name, namelen, str)    \
+	fdt_setprop_namelen((fdt), (nodeoffset), (name), (namelen), (str), \
+			    strlen(str) + 1)
 
 /**
  * fdt_setprop_empty - set a property to an empty value
@@ -2059,7 +2171,7 @@ int fdt_appendprop_addrrange(void *fdt, int parent, int nodeoffset,
  * @nodeoffset: offset of the node whose property to nop
  * @name: name of the property to nop
  *
- * fdt_del_property() will delete the given property.
+ * fdt_delprop() will delete the given property.
  *
  * This function will delete data from the blob, and will therefore
  * change the offsets of some existing nodes.
@@ -2111,8 +2223,7 @@ int fdt_add_subnode_namelen(void *fdt, int parentoffset,
  * change the offsets of some existing nodes.
  *
  * returns:
- *	structure block offset of the created nodeequested subnode (>=0), on
- *		success
+ *	structure block offset of the created subnode (>=0), on success
  *	-FDT_ERR_NOTFOUND, if the requested subnode does not exist
  *	-FDT_ERR_BADOFFSET, if parentoffset did not point to an FDT_BEGIN_NODE
  *		tag
@@ -2122,7 +2233,7 @@ int fdt_add_subnode_namelen(void *fdt, int parentoffset,
  *		blob to contain the new node
  *	-FDT_ERR_NOSPACE
  *	-FDT_ERR_BADLAYOUT
- *      -FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADMAGIC,
  *	-FDT_ERR_BADVERSION,
  *	-FDT_ERR_BADSTATE,
  *	-FDT_ERR_BADSTRUCTURE,
@@ -2167,7 +2278,7 @@ int fdt_del_node(void *fdt, int nodeoffset);
  * returns:
  *	0, on success
  *	-FDT_ERR_NOSPACE, there's not enough space in the base device tree
- *	-FDT_ERR_NOTFOUND, the overlay points to some inexistant nodes or
+ *	-FDT_ERR_NOTFOUND, the overlay points to some nonexistent nodes or
  *		properties in the base DT
  *	-FDT_ERR_BADPHANDLE,
  *	-FDT_ERR_BADOVERLAY,

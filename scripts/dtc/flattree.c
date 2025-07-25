@@ -503,7 +503,7 @@ void dt_to_asm(FILE *f, struct dt_info *dti, int version)
 	 * Reserve map entries.
 	 * Align the reserve map to a doubleword boundary.
 	 * Each entry is an (address, size) pair of u64 values.
-	 * Always supply a zero-sized temination entry.
+	 * Always supply a zero-sized termination entry.
 	 */
 	asm_emit_align(f, 8);
 	emit_label(f, symprefix, "reserve_map");
