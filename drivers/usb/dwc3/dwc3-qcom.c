@@ -764,11 +764,14 @@ static void dwc3_qcom_remove(struct platform_device *pdev)
 	struct dwc3 *dwc = platform_get_drvdata(pdev);
 	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
 
+	if (pm_runtime_resume_and_get(qcom->dev) < 0)
+		return;
+
 	dwc3_core_remove(&qcom->dwc);
-
 	clk_bulk_disable_unprepare(qcom->num_clocks, qcom->clks);
-
 	dwc3_qcom_interconnect_exit(qcom);
+
+	pm_runtime_put_noidle(qcom->dev);
 }
 
 static int dwc3_qcom_pm_suspend(struct device *dev)
@@ -873,6 +876,7 @@ MODULE_DEVICE_TABLE(of, dwc3_qcom_of_match);
 static struct platform_driver dwc3_qcom_driver = {
 	.probe		= dwc3_qcom_probe,
 	.remove		= dwc3_qcom_remove,
+	.shutdown	= dwc3_qcom_remove,
 	.driver		= {
 		.name	= "dwc3-qcom",
 		.pm	= pm_ptr(&dwc3_qcom_dev_pm_ops),
