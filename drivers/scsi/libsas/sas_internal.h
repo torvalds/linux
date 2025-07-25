@@ -44,7 +44,7 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr);
 int sas_discover_root_expander(struct domain_device *dev);
 
 int sas_ex_revalidate_domain(struct domain_device *dev);
-void sas_unregister_domain_devices(struct asd_sas_port *port, int gone);
+void sas_unregister_domain_devices(struct asd_sas_port *port, bool gone);
 void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port);
 void sas_discover_event(struct asd_sas_port *port, enum discover_event ev);
 
@@ -70,7 +70,7 @@ void sas_enable_revalidation(struct sas_ha_struct *ha);
 void sas_queue_deferred_work(struct sas_ha_struct *ha);
 void __sas_drain_work(struct sas_ha_struct *ha);
 
-void sas_deform_port(struct asd_sas_phy *phy, int gone);
+void sas_deform_port(struct asd_sas_phy *phy, bool gone);
 
 void sas_porte_bytes_dmaed(struct work_struct *work);
 void sas_porte_broadcast_rcvd(struct work_struct *work);
