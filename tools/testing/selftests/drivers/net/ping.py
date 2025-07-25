@@ -30,7 +30,7 @@ def _test_v6(cfg) -> None:
     cmd("ping -s 65000 -c 1 -W0.5 " + cfg.addr_v["6"], host=cfg.remote)
 
 def _test_tcp(cfg) -> None:
-    cfg.require_cmd("socat", remote=True)
+    cfg.require_cmd("socat", local=False, remote=True)
 
     port = rand_port()
     listen_cmd = f"socat -{cfg.addr_ipver} -t 2 -u TCP-LISTEN:{port},reuseport STDOUT"

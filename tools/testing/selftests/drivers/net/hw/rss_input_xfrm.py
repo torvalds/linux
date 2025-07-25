@@ -32,7 +32,7 @@ def test_rss_input_xfrm(cfg, ipver):
     if multiprocessing.cpu_count() < 2:
         raise KsftSkipEx("Need at least two CPUs to test symmetric RSS hash")
 
-    cfg.require_cmd("socat", remote=True)
+    cfg.require_cmd("socat", local=False, remote=True)
 
     if not hasattr(socket, "SO_INCOMING_CPU"):
         raise KsftSkipEx("socket.SO_INCOMING_CPU was added in Python 3.11")

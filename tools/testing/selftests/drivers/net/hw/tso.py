@@ -34,7 +34,7 @@ def tcp_sock_get_retrans(sock):
 
 
 def run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso):
-    cfg.require_cmd("socat", remote=True)
+    cfg.require_cmd("socat", local=False, remote=True)
 
     port = rand_port()
     listen_cmd = f"socat -{ipver} -t 2 -u TCP-LISTEN:{port},reuseport /dev/null,ignoreeof"
