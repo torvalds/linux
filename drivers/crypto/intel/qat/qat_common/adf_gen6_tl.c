@@ -57,6 +57,10 @@ static const struct adf_tl_dbg_counter dev_counters[] = {
 	/* Maximum uTLB used. */
 	ADF_TL_COUNTER(AT_MAX_UTLB_USED_NAME, ADF_TL_SIMPLE_COUNT,
 		       ADF_GEN6_TL_DEV_REG_OFF(reg_tl_at_max_utlb_used)),
+	/* Ring Empty average[ns] across all rings */
+	ADF_TL_COUNTER_LATENCY(RE_ACC_NAME, ADF_TL_COUNTER_NS_AVG,
+			       ADF_GEN6_TL_DEV_REG_OFF(reg_tl_re_acc),
+			       ADF_GEN6_TL_DEV_REG_OFF(reg_tl_re_cnt)),
 };
 
 /* Accelerator utilization counters */
@@ -122,6 +126,10 @@ static const struct adf_tl_dbg_counter rp_counters[] = {
 	/* Payload DevTLB miss rate. */
 	ADF_TL_COUNTER(AT_PAYLD_DTLB_MISS_NAME, ADF_TL_SIMPLE_COUNT,
 		       ADF_GEN6_TL_RP_REG_OFF(reg_tl_at_payld_devtlb_miss)),
+	/* Ring Empty average[ns]. */
+	ADF_TL_COUNTER_LATENCY(RE_ACC_NAME, ADF_TL_COUNTER_NS_AVG,
+			       ADF_GEN6_TL_RP_REG_OFF(reg_tl_re_acc),
+			       ADF_GEN6_TL_RP_REG_OFF(reg_tl_re_cnt)),
 };
 
 void adf_gen6_init_tl_data(struct adf_tl_hw_data *tl_data)

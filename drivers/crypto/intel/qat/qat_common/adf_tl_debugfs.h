@@ -17,6 +17,7 @@ struct adf_accel_dev;
 #define LAT_ACC_NAME		"gp_lat_acc_avg"
 #define BW_IN_NAME		"bw_in"
 #define BW_OUT_NAME		"bw_out"
+#define RE_ACC_NAME		"re_acc_avg"
 #define PAGE_REQ_LAT_NAME	"at_page_req_lat_avg"
 #define AT_TRANS_LAT_NAME	"at_trans_lat_avg"
 #define AT_MAX_UTLB_USED_NAME	"at_max_tlb_used"

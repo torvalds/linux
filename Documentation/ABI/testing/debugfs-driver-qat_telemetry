@@ -57,6 +57,7 @@ Description:	(RO) Reports device telemetry counters.
 		gp_lat_acc_avg		average get to put latency [ns]
 		bw_in			PCIe, write bandwidth [Mbps]
 		bw_out			PCIe, read bandwidth [Mbps]
+		re_acc_avg		average ring empty time [ns]
 		at_page_req_lat_avg	Address Translator(AT), average page
 					request latency [ns]
 		at_trans_lat_avg	AT, average page translation latency [ns]
