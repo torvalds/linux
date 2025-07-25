@@ -21,15 +21,17 @@ export RTLA_NO_BPF=$option
 
 # Basic tests
 check "verify help page" \
-	"timerlat --help"
+	"timerlat --help" 0 "timerlat version"
 check "verify -s/--stack" \
-	"timerlat top -s 3 -T 10 -t" 2
+	"timerlat top -s 3 -T 10 -t" 2 "Blocking thread stack trace"
 check "verify -P/--priority" \
 	"timerlat top -P F:1 -c 0 -d 10s -q"
 check "test in nanoseconds" \
-	"timerlat top -i 2 -c 0 -n -d 10s" 2
+	"timerlat top -i 2 -c 0 -n -d 10s" 2 "ns"
 check "set the automatic trace mode" \
-	"timerlat top -a 5 --dump-tasks" 2
+	"timerlat top -a 5" 2 "analyzing it"
+check "dump tasks" \
+	"timerlat top -a 5 --dump-tasks" 2 "Printing CPU tasks"
 check "print the auto-analysis if hits the stop tracing condition" \
 	"timerlat top --aa-only 5" 2
 check "disable auto-analysis" \
@@ -37,7 +39,7 @@ check "disable auto-analysis" \
 check "verify -c/--cpus" \
 	"timerlat hist -c 0 -d 10s"
 check "hist test in nanoseconds" \
-	"timerlat hist -i 2 -c 0 -n -d 10s" 2
+	"timerlat hist -i 2 -c 0 -n -d 10s" 2 "ns"
 
 # Actions tests
 check "trace output through -t" \
