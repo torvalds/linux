@@ -12,10 +12,10 @@ menuconfig GPIOLIB
 
 	  If unsure, say N.
 
-if GPIOLIB
-
 config GPIOLIB_LEGACY
 	def_bool y
+
+if GPIOLIB
 
 config GPIOLIB_FASTPATH_LIMIT
 	int "Maximum number of GPIOs for fast path"
