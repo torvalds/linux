@@ -4523,7 +4523,7 @@ static bool kvm_esr_cp10_id_to_sys64(u64 esr, struct sys_reg_params *params)
 		return true;
 
 	kvm_pr_unimpl("Unhandled cp10 register %s: %u\n",
-		      params->is_write ? "write" : "read", reg_id);
+		      str_write_read(params->is_write), reg_id);
 	return false;
 }
 
