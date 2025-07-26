@@ -1813,7 +1813,7 @@ static u64 sanitise_id_aa64pfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 		val |= SYS_FIELD_PREP_ENUM(ID_AA64PFR0_EL1, CSV3, IMP);
 	}
 
-	if (kvm_vgic_global_state.type == VGIC_V3) {
+	if (vgic_is_v3(vcpu->kvm)) {
 		val &= ~ID_AA64PFR0_EL1_GIC_MASK;
 		val |= SYS_FIELD_PREP_ENUM(ID_AA64PFR0_EL1, GIC, IMP);
 	}
@@ -1953,6 +1953,14 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 	if (!FIELD_GET(ID_AA64PFR0_EL1_EL0, user_val) ||
 	    !FIELD_GET(ID_AA64PFR0_EL1_EL1, user_val) ||
 	    (vcpu_has_nv(vcpu) && !FIELD_GET(ID_AA64PFR0_EL1_EL2, user_val)))
+		return -EINVAL;
+
+	/*
+	 * If we are running on a GICv5 host and support FEAT_GCIE_LEGACY, then
+	 * we support GICv3. Fail attempts to do anything but set that to IMP.
+	 */
+	if (vgic_is_v3_compat(vcpu->kvm) &&
+	    FIELD_GET(ID_AA64PFR0_EL1_GIC_MASK, user_val) != ID_AA64PFR0_EL1_GIC_IMP)
 		return -EINVAL;
 
 	return set_id_reg(vcpu, rd, user_val);

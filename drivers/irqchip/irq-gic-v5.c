@@ -13,6 +13,7 @@
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v5.h>
+#include <linux/irqchip/arm-vgic-info.h>
 
 #include <asm/cpufeature.h>
 #include <asm/exception.h>
@@ -222,6 +223,12 @@ static void gicv5_hwirq_eoi(u32 hwirq_id, u8 hwirq_type)
 
 static void gicv5_ppi_irq_eoi(struct irq_data *d)
 {
+	/* Skip deactivate for forwarded PPI interrupts */
+	if (irqd_is_forwarded_to_vcpu(d)) {
+		gic_insn(0, CDEOI);
+		return;
+	}
+
 	gicv5_hwirq_eoi(d->hwirq, GICV5_HWIRQ_TYPE_PPI);
 }
 
@@ -503,6 +510,16 @@ static bool gicv5_ppi_irq_is_level(irq_hw_number_t hwirq)
 	return !!(read_ppi_sysreg_s(hwirq, PPI_HM) & bit);
 }
 
+static int gicv5_ppi_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
+{
+	if (vcpu)
+		irqd_set_forwarded_to_vcpu(d);
+	else
+		irqd_clr_forwarded_to_vcpu(d);
+
+	return 0;
+}
+
 static const struct irq_chip gicv5_ppi_irq_chip = {
 	.name			= "GICv5-PPI",
 	.irq_mask		= gicv5_ppi_irq_mask,
@@ -510,6 +527,7 @@ static const struct irq_chip gicv5_ppi_irq_chip = {
 	.irq_eoi		= gicv5_ppi_irq_eoi,
 	.irq_get_irqchip_state	= gicv5_ppi_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gicv5_ppi_irq_set_irqchip_state,
+	.irq_set_vcpu_affinity	= gicv5_ppi_irq_set_vcpu_affinity,
 	.flags			= IRQCHIP_SKIP_SET_WAKE	  |
 				  IRQCHIP_MASK_ON_SUSPEND,
 };
@@ -1041,6 +1059,36 @@ static void gicv5_set_cpuif_idbits(void)
 	}
 }
 
+#ifdef CONFIG_KVM
+static struct gic_kvm_info gic_v5_kvm_info __initdata;
+
+static bool __init gicv5_cpuif_has_gcie_legacy(void)
+{
+	u64 idr0 = read_sysreg_s(SYS_ICC_IDR0_EL1);
+	return !!FIELD_GET(ICC_IDR0_EL1_GCIE_LEGACY, idr0);
+}
+
+static void __init gic_of_setup_kvm_info(struct device_node *node)
+{
+	gic_v5_kvm_info.type = GIC_V5;
+	gic_v5_kvm_info.has_gcie_v3_compat = gicv5_cpuif_has_gcie_legacy();
+
+	/* GIC Virtual CPU interface maintenance interrupt */
+	gic_v5_kvm_info.no_maint_irq_mask = false;
+	gic_v5_kvm_info.maint_irq = irq_of_parse_and_map(node, 0);
+	if (!gic_v5_kvm_info.maint_irq) {
+		pr_warn("cannot find GICv5 virtual CPU interface maintenance interrupt\n");
+		return;
+	}
+
+	vgic_set_kvm_info(&gic_v5_kvm_info);
+}
+#else
+static inline void __init gic_of_setup_kvm_info(struct device_node *node)
+{
+}
+#endif // CONFIG_KVM
+
 static int __init gicv5_of_init(struct device_node *node, struct device_node *parent)
 {
 	int ret = gicv5_irs_of_probe(node);
@@ -1072,6 +1120,8 @@ static int __init gicv5_of_init(struct device_node *node, struct device_node *pa
 	gicv5_smp_init();
 
 	gicv5_irs_its_probe();
+
+	gic_of_setup_kvm_info(node);
 
 	return 0;
 
