@@ -5,6 +5,7 @@ config ZL3073X
 	depends on NET
 	select DPLL
 	select NET_DEVLINK
+	select REGMAP
 	help
 	  This driver supports Microchip Azurite family DPLL/PTP/SyncE
 	  devices that support up to 5 independent DPLL channels,
