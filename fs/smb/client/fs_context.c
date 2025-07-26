@@ -1489,12 +1489,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->password2 = NULL;
 		if (strlen(param->string) == 0)
 			break;
-
-		ctx->password2 = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->password2 == NULL) {
-			cifs_errorf(fc, "OOM when copying password2 string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->password2 = no_free_ptr(param->string);
 		break;
 	case Opt_ip:
 		if (strlen(param->string) == 0) {
