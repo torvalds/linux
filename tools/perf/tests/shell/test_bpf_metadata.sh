@@ -1,7 +1,7 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# BPF metadata collection test
 #
-# BPF metadata collection test.
+# SPDX-License-Identifier: GPL-2.0
 
 set -e
 
