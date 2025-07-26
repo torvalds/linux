@@ -745,8 +745,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		error = gfs2_glock_nq_num(sdp, sdp->sd_lockstruct.ls_jid,
 					  &gfs2_journal_glops,
 					  LM_ST_EXCLUSIVE,
-					  LM_FLAG_RECOVER |
-					  GL_NOCACHE | GL_NOPID,
+					  LM_FLAG_RECOVER | GL_NOPID,
 					  &sdp->sd_journal_gh);
 		if (error) {
 			fs_err(sdp, "can't acquire journal glock: %d\n", error);
@@ -821,13 +820,10 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 fail_statfs:
 	uninit_statfs(sdp);
 fail_jinode_gh:
-	/* A withdraw may have done dq/uninit so now we need to check it */
-	if (!sdp->sd_args.ar_spectator &&
-	    gfs2_holder_initialized(&sdp->sd_jinode_gh))
+	if (!sdp->sd_args.ar_spectator)
 		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
 fail_journal_gh:
-	if (!sdp->sd_args.ar_spectator &&
-	    gfs2_holder_initialized(&sdp->sd_journal_gh))
+	if (!sdp->sd_args.ar_spectator)
 		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
 fail_jindex:
 	gfs2_jindex_free(sdp);
