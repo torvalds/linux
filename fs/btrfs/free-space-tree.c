@@ -4,9 +4,11 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/sched/mm.h>
 #include "messages.h"
 #include "ctree.h"
+#include <linux/sched/mm.h>
 #include "disk-io.h"
 #include "locking.h"
 #include "free-space-tree.h"
@@ -17,54 +19,36 @@
 #include "extent-tree.h"
 #include "root-tree.h"
 
-static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
-					struct btrfs_block_group *block_group,
-					struct btrfs_path *path);
+#define BTRFS_FREE_SPACE_THRESHOLD_HYSTERESIS 100
 
-static struct btrfs_root *btrfs_free_space_root(
-				struct btrfs_block_group *block_group)
+static void set_free_space_tree_thresholds(struct btrfs_block_group *cache)
 {
-	struct btrfs_key key = {
-		.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID,
-		.type = BTRFS_ROOT_ITEM_KEY,
-		.offset = 0,
-	};
+	struct btrfs_fs_info *fs_info = cache->fs_info;
+	u64 bitmap_range, num_bitmaps, bitmap_size, total_bitmap_size;
 
-	if (btrfs_fs_incompat(block_group->fs_info, EXTENT_TREE_V2))
-		key.offset = block_group->global_root_id;
-	return btrfs_global_root(block_group->fs_info, &key);
-}
+	if (WARN_ON(cache->length == 0)) {
+		btrfs_warn(fs_info,
+			"block group %llu length is zero", cache->start);
+		return;
+	}
 
-void set_free_space_tree_thresholds(struct btrfs_block_group *cache)
-{
-	u32 bitmap_range;
-	size_t bitmap_size;
-	u64 num_bitmaps, total_bitmap_size;
+	bitmap_range = (u64)fs_info->sectorsize * BTRFS_FREE_SPACE_BITMAP_BITS;
 
-	if (WARN_ON(cache->length == 0))
-		btrfs_warn(cache->fs_info, "block group %llu length is zero",
-			   cache->start);
-
-	/*
-	 * We convert to bitmaps when the disk space required for using extents
-	 * exceeds that required for using bitmaps.
-	 */
-	bitmap_range = cache->fs_info->sectorsize * BTRFS_FREE_SPACE_BITMAP_BITS;
 	num_bitmaps = div_u64(cache->length + bitmap_range - 1, bitmap_range);
-	bitmap_size = sizeof(struct btrfs_item) + BTRFS_FREE_SPACE_BITMAP_SIZE;
-	total_bitmap_size = num_bitmaps * bitmap_size;
-	cache->bitmap_high_thresh = div_u64(total_bitmap_size,
-					    sizeof(struct btrfs_item));
 
-	/*
-	 * We allow for a small buffer between the high threshold and low
-	 * threshold to avoid thrashing back and forth between the two formats.
-	 */
-	if (cache->bitmap_high_thresh > 100)
-		cache->bitmap_low_thresh = cache->bitmap_high_thresh - 100;
-	else
-		cache->bitmap_low_thresh = 0;
+	bitmap_size = sizeof(struct btrfs_item) + BTRFS_FREE_SPACE_BITMAP_SIZE;
+
+	total_bitmap_size = num_bitmaps * bitmap_size;
+
+	cache->bitmap_high_thresh = div_u64(
+		total_bitmap_size, sizeof(struct btrfs_item));
+
+	cache->bitmap_low_thresh = clamp(
+		cache->bitmap_high_thresh - BTRFS_FREE_SPACE_THRESHOLD_HYSTERESIS,
+		0ULL,
+		cache->bitmap_high_thresh);
 }
+
 
 static int add_new_free_space_info(struct btrfs_trans_handle *trans,
 				   struct btrfs_block_group *block_group,
