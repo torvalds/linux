@@ -52,6 +52,12 @@ static struct feature_id_reg feat_id_regs[] = {
 		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
 		16,
 		1
+	},
+	{
+		KVM_ARM64_SYS_REG(SYS_SCTLR2_EL1),
+		KVM_ARM64_SYS_REG(SYS_ID_AA64MMFR3_EL1),
+		ID_AA64MMFR3_EL1_SCTLRX_SHIFT,
+		ID_AA64MMFR3_EL1_SCTLRX_IMP
 	}
 };
 
@@ -469,6 +475,7 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 0, 1, 0, 0),	/* SCTLR_EL1 */
 	ARM64_SYS_REG(3, 0, 1, 0, 1),	/* ACTLR_EL1 */
 	ARM64_SYS_REG(3, 0, 1, 0, 2),	/* CPACR_EL1 */
+	KVM_ARM64_SYS_REG(SYS_SCTLR2_EL1),
 	ARM64_SYS_REG(3, 0, 2, 0, 0),	/* TTBR0_EL1 */
 	ARM64_SYS_REG(3, 0, 2, 0, 1),	/* TTBR1_EL1 */
 	ARM64_SYS_REG(3, 0, 2, 0, 2),	/* TCR_EL1 */
