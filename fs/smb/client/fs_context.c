@@ -1532,11 +1532,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
 		if (strncasecmp(param->string, "default", 7) != 0) {
 			kfree(ctx->iocharset);
-			ctx->iocharset = kstrdup(param->string, GFP_KERNEL);
-			if (ctx->iocharset == NULL) {
-				cifs_errorf(fc, "OOM when copying iocharset string\n");
-				goto cifs_parse_mount_err;
-			}
+			ctx->iocharset = no_free_ptr(param->string);
 		}
 		/* if iocharset not set then load_nls_default
 		 * is used by caller
