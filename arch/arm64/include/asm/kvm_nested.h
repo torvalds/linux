@@ -299,6 +299,7 @@ struct s1_walk_info {
 	bool			pan;
 	bool	     		be;
 	bool	     		s2;
+	bool			pa52bit;
 };
 
 struct s1_walk_result {
