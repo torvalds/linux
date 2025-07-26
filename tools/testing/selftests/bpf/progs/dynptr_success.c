@@ -9,6 +9,8 @@
 #include "bpf_misc.h"
 #include "errno.h"
 
+#define PAGE_SIZE_64K 65536
+
 char _license[] SEC("license") = "GPL";
 
 int pid, err, val;
@@ -611,11 +613,12 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 	struct bpf_dynptr ptr_buf, ptr_xdp;
 	char data[] = "qwertyuiopasdfghjkl";
 	char buf[32] = {'\0'};
-	__u32 len = sizeof(data);
+	__u32 len = sizeof(data), xdp_data_size;
 	int i, chunks = 200;
 
 	/* ptr_xdp is backed by non-contiguous memory */
 	bpf_dynptr_from_xdp(xdp, 0, &ptr_xdp);
+	xdp_data_size = bpf_dynptr_size(&ptr_xdp);
 	bpf_ringbuf_reserve_dynptr(&ringbuf, len * chunks, 0, &ptr_buf);
 
 	/* Destination dynptr is backed by non-contiguous memory */
@@ -673,7 +676,7 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 			goto out;
 	}
 
-	if (bpf_dynptr_copy(&ptr_xdp, 2000, &ptr_xdp, 0, len * chunks) != -E2BIG)
+	if (bpf_dynptr_copy(&ptr_xdp, xdp_data_size - 3000, &ptr_xdp, 0, len * chunks) != -E2BIG)
 		err = 1;
 
 out:
@@ -820,8 +823,17 @@ int test_dynptr_memset_xdp_chunks(struct xdp_md *xdp)
 	data_sz = bpf_dynptr_size(&ptr_xdp);
 
 	err = bpf_dynptr_memset(&ptr_xdp, 0, data_sz, DYNPTR_MEMSET_VAL);
-	if (err)
+	if (err) {
+		/* bpf_dynptr_memset() eventually called bpf_xdp_pointer()
+		 * where if data_sz is greater than 0xffff, -EFAULT will be
+		 * returned. For 64K page size, data_sz is greater than
+		 * 64K, so error is expected and let us zero out error and
+		 * return success.
+		 */
+		if (data_sz >= PAGE_SIZE_64K)
+			err = 0;
 		goto out;
+	}
 
 	bpf_for(i, 0, max_chunks) {
 		offset = i * sizeof(buf);

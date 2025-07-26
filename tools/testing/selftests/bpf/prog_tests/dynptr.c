@@ -51,6 +51,8 @@ static struct {
 	{"test_copy_from_user_task_str_dynptr", SETUP_SYSCALL_SLEEP},
 };
 
+#define PAGE_SIZE_64K 65536
+
 static void verify_success(const char *prog_name, enum test_setup_type setup_type)
 {
 	char user_data[384] = {[0 ... 382] = 'a', '\0'};
@@ -146,13 +148,17 @@ static void verify_success(const char *prog_name, enum test_setup_type setup_typ
 	}
 	case SETUP_XDP_PROG:
 	{
-		char data[5000];
+		char data[90000];
 		int err, prog_fd;
 		LIBBPF_OPTS(bpf_test_run_opts, opts,
 			    .data_in = &data,
-			    .data_size_in = sizeof(data),
 			    .repeat = 1,
 		);
+
+		if (getpagesize() == PAGE_SIZE_64K)
+			opts.data_size_in = sizeof(data);
+		else
+			opts.data_size_in = 5000;
 
 		prog_fd = bpf_program__fd(prog);
 		err = bpf_prog_test_run_opts(prog_fd, &opts);
