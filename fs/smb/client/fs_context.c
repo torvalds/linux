@@ -1512,11 +1512,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		}
 
 		kfree(ctx->domainname);
-		ctx->domainname = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->domainname == NULL) {
-			cifs_errorf(fc, "OOM when copying domainname string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->domainname = no_free_ptr(param->string);
 		cifs_dbg(FYI, "Domain name set\n");
 		break;
 	case Opt_srcaddr:
