@@ -4557,7 +4557,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
  *   . if (scalar cond K|scalar)
  *   .  helper_call(.., scalar, ...) where ARG_CONST is expected
  *   backtrack through the verifier states and mark all registers and
- *   stack slots with spilled constants that these scalar regisers
+ *   stack slots with spilled constants that these scalar registers
  *   should be precise.
  * . during state pruning two registers (or spilled stack slots)
  *   are equivalent if both are not precise.
@@ -18489,7 +18489,7 @@ static void clean_verifier_state(struct bpf_verifier_env *env,
 /* the parentage chains form a tree.
  * the verifier states are added to state lists at given insn and
  * pushed into state stack for future exploration.
- * when the verifier reaches bpf_exit insn some of the verifer states
+ * when the verifier reaches bpf_exit insn some of the verifier states
  * stored in the state lists have their final liveness state already,
  * but a lot of states will get revised from liveness point of view when
  * the verifier explores other branches.
@@ -19205,7 +19205,7 @@ static bool is_iter_next_insn(struct bpf_verifier_env *env, int insn_idx)
  * terminology) calls specially: as opposed to bounded BPF loops, it *expects*
  * states to match, which otherwise would look like an infinite loop. So while
  * iter_next() calls are taken care of, we still need to be careful and
- * prevent erroneous and too eager declaration of "ininite loop", when
+ * prevent erroneous and too eager declaration of "infinite loop", when
  * iterators are involved.
  *
  * Here's a situation in pseudo-BPF assembly form:
@@ -19247,7 +19247,7 @@ static bool is_iter_next_insn(struct bpf_verifier_env *env, int insn_idx)
  *
  * This approach allows to keep infinite loop heuristic even in the face of
  * active iterator. E.g., C snippet below is and will be detected as
- * inifintely looping:
+ * infinitely looping:
  *
  *   struct bpf_iter_num it;
  *   int *p, x;
@@ -24488,7 +24488,7 @@ static int compute_scc(struct bpf_verifier_env *env)
 	 *        if pre[i] == 0:
 	 *            recur(i)
 	 *
-	 * Below implementation replaces explicit recusion with array 'dfs'.
+	 * Below implementation replaces explicit recursion with array 'dfs'.
 	 */
 	for (i = 0; i < insn_cnt; i++) {
 		if (pre[i])
