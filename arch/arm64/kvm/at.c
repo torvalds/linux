@@ -28,6 +28,8 @@ static int get_ia_size(struct s1_walk_info *wi)
 /* Return true if the IPA is out of the OA range */
 static bool check_output_size(u64 ipa, struct s1_walk_info *wi)
 {
+	if (wi->pa52bit)
+		return wi->max_oa_bits < 52 && (ipa & GENMASK_ULL(51, wi->max_oa_bits));
 	return wi->max_oa_bits < 48 && (ipa & GENMASK_ULL(47, wi->max_oa_bits));
 }
 
@@ -301,6 +303,16 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	x = 3 + ia_bits - ((3 - wi->sl) * stride + wi->pgshift);
 
 	wi->baddr = ttbr & TTBRx_EL1_BADDR;
+	if (wi->pa52bit) {
+		/*
+		 * Force the alignment on 64 bytes for top-level tables
+		 * smaller than 8 entries, since TTBR.BADDR[5:2] are used to
+		 * store bits [51:48] of the first level of lookup.
+		 */
+		x = max(x, 6);
+
+		wi->baddr |= FIELD_GET(GENMASK_ULL(5, 2), ttbr) << 48;
+	}
 
 	/* R_VPBBF */
 	if (check_output_size(wi->baddr, wi))
