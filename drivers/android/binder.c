@@ -3063,6 +3063,8 @@ static void binder_transaction(struct binder_proc *proc,
 	t->flags = tr->flags;
 	t->priority = task_nice(current);
 	t->work.type = BINDER_WORK_TRANSACTION;
+	t->is_async = !reply && (tr->flags & TF_ONE_WAY);
+	t->is_reply = reply;
 	if (!reply && !(tr->flags & TF_ONE_WAY))
 		t->from = thread;
 
@@ -3708,7 +3710,6 @@ static void binder_transaction(struct binder_proc *proc,
 		 * the target replies (or there is an error).
 		 */
 		binder_enqueue_deferred_thread_work_ilocked(thread, tcomplete);
-		t->need_reply = 1;
 		t->from_parent = thread->transaction_stack;
 		thread->transaction_stack = t;
 		binder_inner_proc_unlock(proc);
@@ -6320,13 +6321,13 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
 	spin_lock(&t->lock);
 	to_proc = t->to_proc;
 	seq_printf(m,
-		   "%s %d: %pK from %d:%d to %d:%d code %x flags %x pri %ld r%d elapsed %lldms",
+		   "%s %d: %pK from %d:%d to %d:%d code %x flags %x pri %ld a%d r%d elapsed %lldms",
 		   prefix, t->debug_id, t,
 		   t->from_pid,
 		   t->from_tid,
 		   to_proc ? to_proc->pid : 0,
 		   t->to_thread ? t->to_thread->pid : 0,
-		   t->code, t->flags, t->priority, t->need_reply,
+		   t->code, t->flags, t->priority, t->is_async, t->is_reply,
 		   ktime_ms_delta(current_time, t->start_time));
 	spin_unlock(&t->lock);
 
