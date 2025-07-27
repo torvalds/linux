@@ -150,6 +150,30 @@ functions, so that one follows the other. The auto-sleep function puts the
 sensor into sleep mode when inactivity is detected, reducing power consumption
 to the sub-12.5 Hz rate.
 
+The inactivity time is configurable between 1 and 255 seconds. In addition to
+inactivity detection, the sensor also supports free-fall detection, which, from
+the IIO perspective, is treated as a fall in magnitude across all axes. In
+sensor terms, free-fall is defined using an inactivity period ranging from 0.000
+to 1.000 seconds.
+
+The driver behaves as follows:
+* If the configured inactivity period is 1 second or more, the driver uses the
+  sensor's inactivity register. This allows the event to be linked with
+  activity detection, use auto-sleep, and be either AC- or DC-coupled.
+
+* If the inactivity period is less than 1 second, the event is treated as plain
+  inactivity or free-fall detection. In this case, auto-sleep and coupling
+  (AC/DC) are not applied.
+
+* If an inactivity time of 0 seconds is configured, the driver selects a
+  heuristically determined default period (greater than 1 second) to optimize
+  power consumption. This also uses the inactivity register.
+
+Note: According to the datasheet, the optimal ODR for detecting activity,
+or inactivity (or when operating with the free-fall register) should fall within
+the range of 12.5 Hz to 400 Hz. The recommended free-fall threshold is between
+300 mg and 600 mg (register values 0x05 to 0x09).
+
 In DC-coupled mode, the current acceleration magnitude is directly compared to
 the values in the THRESH_ACT and THRESH_INACT registers to determine activity or
 inactivity. In contrast, AC-coupled activity detection uses the acceleration
