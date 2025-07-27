@@ -3490,6 +3490,11 @@
 			};
 		};
 
+		rng: rng@10c3000 {
+			compatible = "qcom,sm8650-trng", "qcom,trng";
+			reg = <0 0x010c3000 0 0x1000>;
+		};
+
 		cnoc_main: interconnect@1500000 {
 			compatible = "qcom,sm8650-cnoc-main";
 			reg = <0 0x01500000 0 0x14080>;
@@ -3559,11 +3564,6 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
 			#interconnect-cells = <2>;
-		};
-
-		rng: rng@10c3000 {
-			compatible = "qcom,sm8650-trng", "qcom,trng";
-			reg = <0 0x010c3000 0 0x1000>;
 		};
 
 		pcie0: pcie@1c00000 {
@@ -3926,38 +3926,6 @@
 			status = "disabled";
 		};
 
-		cryptobam: dma-controller@1dc4000 {
-			compatible = "qcom,bam-v1.7.0";
-			reg = <0 0x01dc4000 0 0x28000>;
-
-			interrupts = <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH 0>;
-
-			#dma-cells = <1>;
-
-			iommus = <&apps_smmu 0x480 0>,
-				 <&apps_smmu 0x481 0>;
-
-			qcom,ee = <0>;
-			qcom,num-ees = <4>;
-			num-channels = <20>;
-			qcom,controlled-remotely;
-		};
-
-		crypto: crypto@1dfa000 {
-			compatible = "qcom,sm8650-qce", "qcom,sm8150-qce", "qcom,qce";
-			reg = <0 0x01dfa000 0 0x6000>;
-
-			interconnects = <&aggre2_noc MASTER_CRYPTO QCOM_ICC_TAG_ALWAYS
-					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
-			interconnect-names = "memory";
-
-			dmas = <&cryptobam 4>, <&cryptobam 5>;
-			dma-names = "rx", "tx";
-
-			iommus = <&apps_smmu 0x480 0>,
-				 <&apps_smmu 0x481 0>;
-		};
-
 		ufs_mem_phy: phy@1d80000 {
 			compatible = "qcom,sm8650-qmp-ufs-phy";
 			reg = <0 0x01d80000 0 0x2000>;
@@ -4077,6 +4045,38 @@
 			reg = <0 0x01d88000 0 0x18000>;
 
 			clocks = <&gcc GCC_UFS_PHY_ICE_CORE_CLK>;
+		};
+
+		cryptobam: dma-controller@1dc4000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0 0x01dc4000 0 0x28000>;
+
+			interrupts = <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			#dma-cells = <1>;
+
+			iommus = <&apps_smmu 0x480 0>,
+				 <&apps_smmu 0x481 0>;
+
+			qcom,ee = <0>;
+			qcom,num-ees = <4>;
+			num-channels = <20>;
+			qcom,controlled-remotely;
+		};
+
+		crypto: crypto@1dfa000 {
+			compatible = "qcom,sm8650-qce", "qcom,sm8150-qce", "qcom,qce";
+			reg = <0 0x01dfa000 0 0x6000>;
+
+			interconnects = <&aggre2_noc MASTER_CRYPTO QCOM_ICC_TAG_ALWAYS
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+			interconnect-names = "memory";
+
+			dmas = <&cryptobam 4>, <&cryptobam 5>;
+			dma-names = "rx", "tx";
+
+			iommus = <&apps_smmu 0x480 0>,
+				 <&apps_smmu 0x481 0>;
 		};
 
 		tcsr_mutex: hwlock@1f40000 {
@@ -4962,6 +4962,170 @@
 			};
 		};
 
+		usb_1_hsphy: phy@88e3000 {
+			compatible = "qcom,sm8650-snps-eusb2-phy",
+				     "qcom,sm8550-snps-eusb2-phy";
+			reg = <0 0x088e3000 0 0x154>;
+
+			clocks = <&tcsr TCSR_USB2_CLKREF_EN>;
+			clock-names = "ref";
+
+			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		usb_dp_qmpphy: phy@88e8000 {
+			compatible = "qcom,sm8650-qmp-usb3-dp-phy";
+			reg = <0 0x088e8000 0 0x3000>;
+
+			clocks = <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
+				 <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
+			clock-names = "aux",
+				      "ref",
+				      "com_aux",
+				      "usb3_pipe";
+
+			resets = <&gcc GCC_USB3_PHY_PRIM_BCR>,
+				 <&gcc GCC_USB3_DP_PHY_PRIM_BCR>;
+			reset-names = "phy",
+				      "common";
+
+			power-domains = <&gcc USB3_PHY_GDSC>;
+
+			#clock-cells = <1>;
+			#phy-cells = <1>;
+
+			orientation-switch;
+
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_dp_qmpphy_out: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					usb_dp_qmpphy_usb_ss_in: endpoint {
+						remote-endpoint = <&usb_1_dwc3_ss>;
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_dp_qmpphy_dp_in: endpoint {
+						remote-endpoint = <&mdss_dp0_out>;
+					};
+				};
+			};
+		};
+
+		usb_1: usb@a600000 {
+			compatible = "qcom,sm8650-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a600000 0 0xfc100>;
+
+			interrupts-extended = <&intc GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH 0>,
+					      <&intc GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH 0>,
+					      <&intc GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH 0>,
+					      <&pdc 14 IRQ_TYPE_EDGE_RISING>,
+					      <&pdc 15 IRQ_TYPE_EDGE_RISING>,
+					      <&pdc 17 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
+					  "hs_phy_irq",
+					  "dp_hs_phy_irq",
+					  "dm_hs_phy_irq",
+					  "ss_phy_irq";
+
+			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
+				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
+				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+				 <&tcsr TCSR_USB3_CLKREF_EN>;
+			clock-names = "cfg_noc",
+				      "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi",
+				      "xo";
+
+			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
+			assigned-clock-rates = <19200000>, <200000000>;
+
+			resets = <&gcc GCC_USB30_PRIM_BCR>;
+
+			phys = <&usb_1_hsphy>,
+			       <&usb_dp_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			interconnects = <&aggre1_noc MASTER_USB3_0 QCOM_ICC_TAG_ALWAYS
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &config_noc SLAVE_USB3_0 QCOM_ICC_TAG_ACTIVE_ONLY>;
+			interconnect-names = "usb-ddr",
+					     "apps-usb";
+
+			iommus = <&apps_smmu 0x40 0>;
+
+			power-domains = <&gcc USB30_PRIM_GDSC>;
+			required-opps = <&rpmhpd_opp_nom>;
+
+			snps,hird-threshold = /bits/ 8 <0x0>;
+			snps,usb2-gadget-lpm-disable;
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+			snps,is-utmi-l1-suspend;
+			snps,usb3_lpm_capable;
+			snps,usb2-lpm-disable;
+			snps,has-lpm-erratum;
+			tx-fifo-resize;
+
+			dma-coherent;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_1_dwc3_hs: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					usb_1_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_dp_qmpphy_usb_ss_in>;
+					};
+				};
+			};
+		};
+
 		iris: video-codec@aa00000 {
 			compatible = "qcom,sm8650-iris";
 			reg = <0 0x0aa00000 0 0xf0000>;
@@ -5578,170 +5742,6 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
-		};
-
-		usb_1_hsphy: phy@88e3000 {
-			compatible = "qcom,sm8650-snps-eusb2-phy",
-				     "qcom,sm8550-snps-eusb2-phy";
-			reg = <0 0x088e3000 0 0x154>;
-
-			clocks = <&tcsr TCSR_USB2_CLKREF_EN>;
-			clock-names = "ref";
-
-			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
-
-			#phy-cells = <0>;
-
-			status = "disabled";
-		};
-
-		usb_dp_qmpphy: phy@88e8000 {
-			compatible = "qcom,sm8650-qmp-usb3-dp-phy";
-			reg = <0 0x088e8000 0 0x3000>;
-
-			clocks = <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
-				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>,
-				 <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
-			clock-names = "aux",
-				      "ref",
-				      "com_aux",
-				      "usb3_pipe";
-
-			resets = <&gcc GCC_USB3_PHY_PRIM_BCR>,
-				 <&gcc GCC_USB3_DP_PHY_PRIM_BCR>;
-			reset-names = "phy",
-				      "common";
-
-			power-domains = <&gcc USB3_PHY_GDSC>;
-
-			#clock-cells = <1>;
-			#phy-cells = <1>;
-
-			orientation-switch;
-
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-
-					usb_dp_qmpphy_out: endpoint {
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-
-					usb_dp_qmpphy_usb_ss_in: endpoint {
-						remote-endpoint = <&usb_1_dwc3_ss>;
-					};
-				};
-
-				port@2 {
-					reg = <2>;
-
-					usb_dp_qmpphy_dp_in: endpoint {
-						remote-endpoint = <&mdss_dp0_out>;
-					};
-				};
-			};
-		};
-
-		usb_1: usb@a600000 {
-			compatible = "qcom,sm8650-dwc3", "qcom,snps-dwc3";
-			reg = <0 0x0a600000 0 0xfc100>;
-
-			interrupts-extended = <&intc GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&intc GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&intc GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&pdc 14 IRQ_TYPE_EDGE_RISING>,
-					      <&pdc 15 IRQ_TYPE_EDGE_RISING>,
-					      <&pdc 17 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "dwc_usb3",
-					  "pwr_event",
-					  "hs_phy_irq",
-					  "dp_hs_phy_irq",
-					  "dm_hs_phy_irq",
-					  "ss_phy_irq";
-
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
-				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
-				 <&tcsr TCSR_USB3_CLKREF_EN>;
-			clock-names = "cfg_noc",
-				      "core",
-				      "iface",
-				      "sleep",
-				      "mock_utmi",
-				      "xo";
-
-			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
-					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
-			assigned-clock-rates = <19200000>, <200000000>;
-
-			resets = <&gcc GCC_USB30_PRIM_BCR>;
-
-			phys = <&usb_1_hsphy>,
-			       <&usb_dp_qmpphy QMP_USB43DP_USB3_PHY>;
-			phy-names = "usb2-phy",
-				    "usb3-phy";
-
-			interconnects = <&aggre1_noc MASTER_USB3_0 QCOM_ICC_TAG_ALWAYS
-					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
-					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
-					 &config_noc SLAVE_USB3_0 QCOM_ICC_TAG_ACTIVE_ONLY>;
-			interconnect-names = "usb-ddr",
-					     "apps-usb";
-
-			iommus = <&apps_smmu 0x40 0>;
-
-			power-domains = <&gcc USB30_PRIM_GDSC>;
-			required-opps = <&rpmhpd_opp_nom>;
-
-			snps,hird-threshold = /bits/ 8 <0x0>;
-			snps,usb2-gadget-lpm-disable;
-			snps,dis_u2_susphy_quirk;
-			snps,dis_enblslpm_quirk;
-			snps,dis-u1-entry-quirk;
-			snps,dis-u2-entry-quirk;
-			snps,is-utmi-l1-suspend;
-			snps,usb3_lpm_capable;
-			snps,usb2-lpm-disable;
-			snps,has-lpm-erratum;
-			tx-fifo-resize;
-
-			dma-coherent;
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-
-					usb_1_dwc3_hs: endpoint {
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-
-					usb_1_dwc3_ss: endpoint {
-						remote-endpoint = <&usb_dp_qmpphy_usb_ss_in>;
-					};
-				};
-			};
 		};
 
 		pdc: interrupt-controller@b220000 {
