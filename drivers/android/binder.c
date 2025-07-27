@@ -3042,6 +3042,30 @@ static void binder_transaction(struct binder_proc *proc,
 	binder_set_extended_error(&thread->ee, t_debug_id, BR_OK, 0);
 	binder_inner_proc_unlock(proc);
 
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (!t) {
+		binder_txn_error("%d:%d cannot allocate transaction\n",
+				 thread->pid, proc->pid);
+		return_error = BR_FAILED_REPLY;
+		return_error_param = -ENOMEM;
+		return_error_line = __LINE__;
+		goto err_alloc_t_failed;
+	}
+	INIT_LIST_HEAD(&t->fd_fixups);
+	binder_stats_created(BINDER_STAT_TRANSACTION);
+	spin_lock_init(&t->lock);
+	t->debug_id = t_debug_id;
+	t->start_time = t_start_time;
+	t->from_pid = proc->pid;
+	t->from_tid = thread->pid;
+	t->sender_euid = task_euid(proc->tsk);
+	t->code = tr->code;
+	t->flags = tr->flags;
+	t->priority = task_nice(current);
+	t->work.type = BINDER_WORK_TRANSACTION;
+	if (!reply && !(tr->flags & TF_ONE_WAY))
+		t->from = thread;
+
 	if (reply) {
 		binder_inner_proc_lock(proc);
 		in_reply_to = thread->transaction_stack;
@@ -3228,23 +3252,12 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		binder_inner_proc_unlock(proc);
 	}
+
+	t->to_proc = target_proc;
+	t->to_thread = target_thread;
 	if (target_thread)
 		e->to_thread = target_thread->pid;
 	e->to_proc = target_proc->pid;
-
-	/* TODO: reuse incoming transaction for reply */
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
-	if (t == NULL) {
-		binder_txn_error("%d:%d cannot allocate transaction\n",
-			thread->pid, proc->pid);
-		return_error = BR_FAILED_REPLY;
-		return_error_param = -ENOMEM;
-		return_error_line = __LINE__;
-		goto err_alloc_t_failed;
-	}
-	INIT_LIST_HEAD(&t->fd_fixups);
-	binder_stats_created(BINDER_STAT_TRANSACTION);
-	spin_lock_init(&t->lock);
 
 	tcomplete = kzalloc(sizeof(*tcomplete), GFP_KERNEL);
 	if (tcomplete == NULL) {
@@ -3256,9 +3269,6 @@ static void binder_transaction(struct binder_proc *proc,
 		goto err_alloc_tcomplete_failed;
 	}
 	binder_stats_created(BINDER_STAT_TRANSACTION_COMPLETE);
-
-	t->debug_id = t_debug_id;
-	t->start_time = t_start_time;
 
 	if (reply)
 		binder_debug(BINDER_DEBUG_TRANSACTION,
@@ -3274,19 +3284,6 @@ static void binder_transaction(struct binder_proc *proc,
 			     target_proc->pid, target_node->debug_id,
 			     (u64)tr->data_size, (u64)tr->offsets_size,
 			     (u64)extra_buffers_size);
-
-	if (!reply && !(tr->flags & TF_ONE_WAY))
-		t->from = thread;
-	else
-		t->from = NULL;
-	t->from_pid = proc->pid;
-	t->from_tid = thread->pid;
-	t->sender_euid = task_euid(proc->tsk);
-	t->to_proc = target_proc;
-	t->to_thread = target_thread;
-	t->code = tr->code;
-	t->flags = tr->flags;
-	t->priority = task_nice(current);
 
 	if (target_node && target_node->txn_security_ctx) {
 		u32 secid;
@@ -3684,7 +3681,6 @@ static void binder_transaction(struct binder_proc *proc,
 		tcomplete->type = BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT;
 	else
 		tcomplete->type = BINDER_WORK_TRANSACTION_COMPLETE;
-	t->work.type = BINDER_WORK_TRANSACTION;
 
 	if (reply) {
 		binder_enqueue_thread_work(thread, tcomplete);
@@ -3783,9 +3779,6 @@ err_get_secctx_failed:
 err_alloc_tcomplete_failed:
 	if (trace_binder_txn_latency_free_enabled())
 		binder_txn_latency_free(t);
-	kfree(t);
-	binder_stats_deleted(BINDER_STAT_TRANSACTION);
-err_alloc_t_failed:
 err_bad_todo_list:
 err_bad_call_stack:
 err_empty_call_stack:
@@ -3795,6 +3788,9 @@ err_invalid_target_handle:
 		binder_dec_node(target_node, 1, 0);
 		binder_dec_node_tmpref(target_node);
 	}
+	kfree(t);
+	binder_stats_deleted(BINDER_STAT_TRANSACTION);
+err_alloc_t_failed:
 
 	binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
 		     "%d:%d transaction %s to %d:%d failed %d/%d/%d, code %u size %lld-%lld line %d\n",
