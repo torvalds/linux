@@ -192,6 +192,6 @@ Gamepads report the following events:
 
 - Profile:
 
-  Some pads provide a multi-value profile selection switch.  An example is the
-  XBox Adaptive and the XBox Elite 2 controllers.  When the active profile is
-  switched, its newly selected value is emitted as an ABS_PROFILE event.
+  Some pads provide a multi-value profile selection switch. Examples include
+  the Xbox Adaptive and the Xbox Elite 2 controllers. When the active profile
+  is switched, its newly selected value is emitted as an ABS_PROFILE event.
