@@ -3363,7 +3363,6 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 					      page_retirement_dwork.work);
 	struct amdgpu_device *adev = con->adev;
 	struct ras_err_data err_data;
-	unsigned long err_cnt;
 
 	/* If gpu reset is ongoing, delay retiring the bad pages */
 	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev)) {
@@ -3375,12 +3374,8 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	amdgpu_ras_error_data_init(&err_data);
 
 	amdgpu_umc_handle_bad_pages(adev, &err_data);
-	err_cnt = err_data.err_addr_cnt;
 
 	amdgpu_ras_error_data_fini(&err_data);
-
-	if (err_cnt && amdgpu_ras_is_rma(adev))
-		amdgpu_ras_reset_gpu(adev);
 
 	amdgpu_ras_schedule_retirement_dwork(con,
 			AMDGPU_RAS_RETIRE_PAGE_INTERVAL);
@@ -3435,6 +3430,9 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 	if (total_detect_count)
 		schedule_delayed_work(&ras->page_retirement_dwork, 0);
 
+	if (amdgpu_ras_is_rma(adev) && atomic_cmpxchg(&ras->rma_in_recovery, 0, 1) == 0)
+		amdgpu_ras_reset_gpu(adev);
+
 	return 0;
 }
 
@@ -3470,6 +3468,12 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 		reset_flags |= msg.reset;
 	}
 
+	/*
+	 * Try to ensure poison creation handler is completed first
+	 * to set rma if bad page exceed threshold.
+	 */
+	flush_delayed_work(&con->page_retirement_dwork);
+
 	/* for RMA, amdgpu_ras_poison_creation_handler will trigger gpu reset */
 	if (reset_flags && !amdgpu_ras_is_rma(adev)) {
 		if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE1_RESET)
@@ -3478,8 +3482,6 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 		else
 			reset = reset_flags;
-
-		flush_delayed_work(&con->page_retirement_dwork);
 
 		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
@@ -3648,6 +3650,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info)
 	mutex_init(&con->recovery_lock);
 	INIT_WORK(&con->recovery_work, amdgpu_ras_do_recovery);
 	atomic_set(&con->in_recovery, 0);
+	atomic_set(&con->rma_in_recovery, 0);
 	con->eeprom_control.bad_channel_bitmap = 0;
 
 	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count(&con->eeprom_control);
