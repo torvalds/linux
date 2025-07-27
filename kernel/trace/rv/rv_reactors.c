@@ -86,7 +86,7 @@ static struct rv_reactor *get_reactor_rdef_by_name(char *name)
  */
 static int reactors_show(struct seq_file *m, void *p)
 {
-	struct rv_reactor *reactor = p;
+	struct rv_reactor *reactor = container_of(p, struct rv_reactor, list);
 
 	seq_printf(m, "%s\n", reactor->name);
 	return 0;
@@ -139,7 +139,7 @@ static const struct file_operations available_reactors_ops = {
 static int monitor_reactor_show(struct seq_file *m, void *p)
 {
 	struct rv_monitor *mon = m->private;
-	struct rv_reactor *reactor = p;
+	struct rv_reactor *reactor = container_of(p, struct rv_reactor, list);
 
 	if (mon->reactor == reactor)
 		seq_printf(m, "[%s]\n", reactor->name);
