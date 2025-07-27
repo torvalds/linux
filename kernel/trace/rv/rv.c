@@ -458,7 +458,7 @@ out_remove_root:
  */
 static int monitors_show(struct seq_file *m, void *p)
 {
-	struct rv_monitor *mon = p;
+	struct rv_monitor *mon = container_of(p, struct rv_monitor, list);
 
 	if (mon->parent)
 		seq_printf(m, "%s:%s\n", mon->parent->name, mon->name);
