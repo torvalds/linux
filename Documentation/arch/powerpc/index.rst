@@ -36,6 +36,7 @@ powerpc
     vas-api
     vcpudispatch_stats
     vmemmap_dedup
+    htm
 
     features
 
