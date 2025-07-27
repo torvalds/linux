@@ -56,6 +56,29 @@ static bool has_52bit_pa(struct kvm_vcpu *vcpu, struct s1_walk_info *wi, u64 tcr
 	return (tcr & (wi->regime == TR_EL2 ? TCR_EL2_DS : TCR_DS));
 }
 
+static u64 desc_to_oa(struct s1_walk_info *wi, u64 desc)
+{
+	u64 addr;
+
+	if (!wi->pa52bit)
+		return desc & GENMASK_ULL(47, wi->pgshift);
+
+	switch (BIT(wi->pgshift)) {
+	case SZ_4K:
+	case SZ_16K:
+		addr = desc & GENMASK_ULL(49, wi->pgshift);
+		addr |= FIELD_GET(KVM_PTE_ADDR_51_50_LPA2, desc) << 50;
+		break;
+	case SZ_64K:
+	default:	    /* IMPDEF: treat any other value as 64k */
+		addr = desc & GENMASK_ULL(47, wi->pgshift);
+		addr |= FIELD_GET(KVM_PTE_ADDR_51_48, desc) << 48;
+		break;
+	}
+
+	return addr;
+}
+
 /* Return the translation regime that applies to an AT instruction */
 static enum trans_regime compute_translation_regime(struct kvm_vcpu *vcpu, u32 op)
 {
@@ -402,7 +425,7 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 			wr->PXNTable |= FIELD_GET(PMD_TABLE_PXN, desc);
 		}
 
-		baddr = desc & GENMASK_ULL(47, wi->pgshift);
+		baddr = desc_to_oa(wi, desc);
 
 		/* Check for out-of-range OA */
 		if (check_output_size(baddr, wi))
@@ -431,7 +454,8 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 			goto transfault;
 	}
 
-	if (check_output_size(desc & GENMASK(47, va_bottom), wi))
+	baddr = desc_to_oa(wi, desc);
+	if (check_output_size(baddr & GENMASK(52, va_bottom), wi))
 		goto addrsz;
 
 	if (!(desc & PTE_AF)) {
@@ -444,7 +468,7 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	wr->failed = false;
 	wr->level = level;
 	wr->desc = desc;
-	wr->pa = desc & GENMASK(47, va_bottom);
+	wr->pa = baddr & GENMASK(52, va_bottom);
 	wr->pa |= va & GENMASK_ULL(va_bottom - 1, 0);
 
 	wr->nG = (wi->regime != TR_EL2) && (desc & PTE_NG);
