@@ -402,6 +402,43 @@ TRACE_EVENT(binder_return,
 			  "unknown")
 );
 
+TRACE_EVENT(binder_netlink_report,
+	TP_PROTO(const char *context,
+		 struct binder_transaction *t,
+		 u32 data_size,
+		 u32 error),
+	TP_ARGS(context, t, data_size, error),
+	TP_STRUCT__entry(
+		__field(const char *, context)
+		__field(u32, error)
+		__field(int, from_pid)
+		__field(int, from_tid)
+		__field(int, to_pid)
+		__field(int, to_tid)
+		__field(bool, is_reply)
+		__field(unsigned int, flags)
+		__field(unsigned int, code)
+		__field(size_t, data_size)
+	),
+	TP_fast_assign(
+		__entry->context = context;
+		__entry->error = error;
+		__entry->from_pid = t->from_pid;
+		__entry->from_tid = t->from_tid;
+		__entry->to_pid = t->to_proc ? t->to_proc->pid : 0;
+		__entry->to_tid = t->to_thread ? t->to_thread->pid : 0;
+		__entry->is_reply = t->is_reply;
+		__entry->flags = t->flags;
+		__entry->code = t->code;
+		__entry->data_size = data_size;
+	),
+	TP_printk("from %d:%d to %d:%d context=%s error=%d is_reply=%d flags=0x%x code=0x%x size=%zu",
+		  __entry->from_pid, __entry->from_tid,
+		  __entry->to_pid, __entry->to_tid,
+		  __entry->context, __entry->error, __entry->is_reply,
+		  __entry->flags, __entry->code, __entry->data_size)
+);
+
 #endif /* _BINDER_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

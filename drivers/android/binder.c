@@ -3014,6 +3014,8 @@ static void binder_netlink_report(struct binder_proc *proc,
 				BINDER_NLGRP_REPORT))
 		return;
 
+	trace_binder_netlink_report(context, t, data_size, error);
+
 	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
 		return;
