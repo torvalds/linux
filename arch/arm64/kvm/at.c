@@ -188,6 +188,12 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	if (!tbi && (u64)sign_extend64(va, 55) != va)
 		goto addrsz;
 
+	wi->sh = (wi->regime == TR_EL2 ?
+		  FIELD_GET(TCR_EL2_SH0_MASK, tcr) :
+		  (va55 ?
+		   FIELD_GET(TCR_SH1_MASK, tcr) :
+		   FIELD_GET(TCR_SH0_MASK, tcr)));
+
 	va = (u64)sign_extend64(va, 55);
 
 	/* Let's put the MMU disabled case aside immediately */
@@ -697,19 +703,34 @@ static u8 combine_s1_s2_attr(u8 s1, u8 s2)
 #define ATTR_OSH	0b10
 #define ATTR_ISH	0b11
 
-static u8 compute_sh(u8 attr, u64 desc)
+static u8 compute_final_sh(u8 attr, u8 sh)
 {
-	u8 sh;
-
 	/* Any form of device, as well as NC has SH[1:0]=0b10 */
 	if (MEMATTR_IS_DEVICE(attr) || attr == MEMATTR(NC, NC))
 		return ATTR_OSH;
 
-	sh = FIELD_GET(PTE_SHARED, desc);
 	if (sh == ATTR_RSV)		/* Reserved, mapped to NSH */
 		sh = ATTR_NSH;
 
 	return sh;
+}
+
+static u8 compute_s1_sh(struct s1_walk_info *wi, struct s1_walk_result *wr,
+			u8 attr)
+{
+	u8 sh;
+
+	/*
+	 * non-52bit and LPA have their basic shareability described in the
+	 * descriptor. LPA2 gets it from the corresponding field in TCR,
+	 * conveniently recorded in the walk info.
+	 */
+	if (!wi->pa52bit || BIT(wi->pgshift) == SZ_64K)
+		sh = FIELD_GET(KVM_PTE_LEAF_ATTR_LO_S1_SH, wr->desc);
+	else
+		sh = wi->sh;
+
+	return compute_final_sh(attr, sh);
 }
 
 static u8 combine_sh(u8 s1_sh, u8 s2_sh)
@@ -725,7 +746,7 @@ static u8 combine_sh(u8 s1_sh, u8 s2_sh)
 static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 			   struct kvm_s2_trans *tr)
 {
-	u8 s1_parattr, s2_memattr, final_attr;
+	u8 s1_parattr, s2_memattr, final_attr, s2_sh;
 	u64 par;
 
 	/* If S2 has failed to translate, report the damage */
@@ -798,11 +819,13 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 	    !MEMATTR_IS_DEVICE(final_attr))
 		final_attr = MEMATTR(NC, NC);
 
+	s2_sh = FIELD_GET(KVM_PTE_LEAF_ATTR_LO_S2_SH, tr->desc);
+
 	par  = FIELD_PREP(SYS_PAR_EL1_ATTR, final_attr);
 	par |= tr->output & GENMASK(47, 12);
 	par |= FIELD_PREP(SYS_PAR_EL1_SH,
 			  combine_sh(FIELD_GET(SYS_PAR_EL1_SH, s1_par),
-				     compute_sh(final_attr, tr->desc)));
+				     compute_final_sh(final_attr, s2_sh)));
 
 	return par;
 }
@@ -856,7 +879,7 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		par |= FIELD_PREP(SYS_PAR_EL1_ATTR, mair);
 		par |= wr->pa & GENMASK_ULL(47, 12);
 
-		sh = compute_sh(mair, wr->desc);
+		sh = compute_s1_sh(wi, wr, mair);
 		par |= FIELD_PREP(SYS_PAR_EL1_SH, sh);
 	}
 
