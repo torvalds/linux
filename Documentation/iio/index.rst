@@ -33,6 +33,7 @@ Industrial I/O Kernel Drivers
    adis16550
    adxl313
    adxl380
+   adxl345
    bno055
    ep93xx_adc
    opt4060
