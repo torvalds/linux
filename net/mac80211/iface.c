@@ -1150,6 +1150,8 @@ static void ieee80211_sdata_init(struct ieee80211_local *local,
 {
 	sdata->local = local;
 
+	INIT_LIST_HEAD(&sdata->key_list);
+
 	/*
 	 * Initialize the default link, so we can use link_id 0 for non-MLD,
 	 * and that continues to work for non-MLD-aware drivers that use just
@@ -2209,8 +2211,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	ieee80211_sdata_init(local, sdata);
 
 	ieee80211_init_frag_cache(&sdata->frags);
-
-	INIT_LIST_HEAD(&sdata->key_list);
 
 	wiphy_delayed_work_init(&sdata->dec_tailroom_needed_wk,
 				ieee80211_delayed_tailroom_dec);

@@ -2364,6 +2364,21 @@ int xe_gt_sriov_pf_config_restore(struct xe_gt *gt, unsigned int vfid,
 	return err;
 }
 
+static int pf_push_self_config(struct xe_gt *gt)
+{
+	int err;
+
+	err = pf_push_full_vf_config(gt, PFID);
+	if (err) {
+		xe_gt_sriov_err(gt, "Failed to push self configuration (%pe)\n",
+				ERR_PTR(err));
+		return err;
+	}
+
+	xe_gt_sriov_dbg_verbose(gt, "self configuration completed\n");
+	return 0;
+}
+
 static void fini_config(void *arg)
 {
 	struct xe_gt *gt = arg;
@@ -2387,8 +2402,16 @@ static void fini_config(void *arg)
 int xe_gt_sriov_pf_config_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_PF(xe));
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_push_self_config(gt);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	if (err)
+		return err;
 
 	return devm_add_action_or_reset(xe->drm.dev, fini_config, gt);
 }
@@ -2406,6 +2429,10 @@ void xe_gt_sriov_pf_config_restart(struct xe_gt *gt)
 {
 	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
 	unsigned int fail = 0, skip = 0;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	pf_push_self_config(gt);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
 	for (n = 1; n <= total_vfs; n++) {
 		if (xe_gt_sriov_pf_config_is_empty(gt, n))

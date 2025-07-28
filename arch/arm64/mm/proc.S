@@ -518,7 +518,6 @@ alternative_else_nop_endif
 	msr	REG_PIR_EL1, x0
 
 	orr	tcr2, tcr2, TCR2_EL1_PIE
-	msr	REG_TCR2_EL1, x0
 
 .Lskip_indirection:
 

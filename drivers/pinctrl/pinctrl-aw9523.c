@@ -784,7 +784,7 @@ static int aw9523_init_gpiochip(struct aw9523 *awi, unsigned int npins)
 	gc->set_config = gpiochip_generic_config;
 	gc->parent = dev;
 	gc->owner = THIS_MODULE;
-	gc->can_sleep = false;
+	gc->can_sleep = true;
 
 	return 0;
 }

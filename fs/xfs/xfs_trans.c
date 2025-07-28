@@ -742,8 +742,10 @@ xfs_trans_free_items(
 
 	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
 		xfs_trans_del_item(lip);
-		if (abort)
+		if (abort) {
+			trace_xfs_trans_free_abort(lip);
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);
+		}
 		if (lip->li_ops->iop_release)
 			lip->li_ops->iop_release(lip);
 	}

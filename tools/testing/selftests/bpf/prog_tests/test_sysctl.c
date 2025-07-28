@@ -1,22 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Facebook
 
-#include <fcntl.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include <linux/filter.h>
-
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include <bpf/bpf_endian.h>
-#include "bpf_util.h"
+#include "test_progs.h"
 #include "cgroup_helpers.h"
-#include "testing_helpers.h"
 
 #define CG_PATH			"/foo"
 #define MAX_INSNS		512
@@ -1608,26 +1594,19 @@ static int run_tests(int cgfd)
 	return fails ? -1 : 0;
 }
 
-int main(int argc, char **argv)
+void test_sysctl(void)
 {
-	int cgfd = -1;
-	int err = 0;
+	int cgfd;
 
 	cgfd = cgroup_setup_and_join(CG_PATH);
-	if (cgfd < 0)
-		goto err;
+	if (!ASSERT_OK_FD(cgfd < 0, "create_cgroup"))
+		goto out;
 
-	/* Use libbpf 1.0 API mode */
-	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+	if (!ASSERT_OK(run_tests(cgfd), "run_tests"))
+		goto out;
 
-	if (run_tests(cgfd))
-		goto err;
-
-	goto out;
-err:
-	err = -1;
 out:
 	close(cgfd);
 	cleanup_cgroup_environment();
-	return err;
+	return;
 }

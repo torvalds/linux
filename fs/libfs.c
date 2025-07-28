@@ -1649,12 +1649,10 @@ struct inode *alloc_anon_inode(struct super_block *s)
 	 */
 	inode->i_state = I_DIRTY;
 	/*
-	 * Historically anonymous inodes didn't have a type at all and
-	 * userspace has come to rely on this. Internally they're just
-	 * regular files but S_IFREG is masked off when reporting
-	 * information to userspace.
+	 * Historically anonymous inodes don't have a type at all and
+	 * userspace has come to rely on this.
 	 */
-	inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
+	inode->i_mode = S_IRUSR | S_IWUSR;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_flags |= S_PRIVATE | S_ANON_INODE;

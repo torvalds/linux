@@ -1480,7 +1480,6 @@ int kvm_vm_ioctl_get_reg_writable_masks(struct kvm *kvm,
 					struct reg_mask_range *range);
 
 /* Guest/host FPSIMD coordination helpers */
-int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu);

@@ -417,6 +417,8 @@ int xe_gt_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	xe_mocs_init_early(gt);
+
 	return 0;
 }
 
@@ -630,17 +632,15 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_gt_pagefault_init(gt);
-	if (err)
-		return err;
-
-	xe_mocs_init_early(gt);
-
 	err = xe_gt_sysfs_init(gt);
 	if (err)
 		return err;
 
 	err = gt_fw_domain_init(gt);
+	if (err)
+		return err;
+
+	err = xe_gt_pagefault_init(gt);
 	if (err)
 		return err;
 
@@ -838,6 +838,9 @@ static int gt_reset(struct xe_gt *gt)
 		err = -ETIMEDOUT;
 		goto err_out;
 	}
+
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
+		xe_gt_sriov_pf_stop_prepare(gt);
 
 	xe_uc_gucrc_disable(&gt->uc);
 	xe_uc_stop_prepare(&gt->uc);

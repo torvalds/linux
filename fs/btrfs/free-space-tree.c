@@ -1115,11 +1115,21 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot_for_read(extent_root, &key, path, 1, 0);
 	if (ret < 0)
 		goto out_locked;
-	ASSERT(ret == 0);
+	/*
+	 * If ret is 1 (no key found), it means this is an empty block group,
+	 * without any extents allocated from it and there's no block group
+	 * item (key BTRFS_BLOCK_GROUP_ITEM_KEY) located in the extent tree
+	 * because we are using the block group tree feature, so block group
+	 * items are stored in the block group tree. It also means there are no
+	 * extents allocated for block groups with a start offset beyond this
+	 * block group's end offset (this is the last, highest, block group).
+	 */
+	if (!btrfs_fs_compat_ro(trans->fs_info, BLOCK_GROUP_TREE))
+		ASSERT(ret == 0);
 
 	start = block_group->start;
 	end = block_group->start + block_group->length;
-	while (1) {
+	while (ret == 0) {
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 
 		if (key.type == BTRFS_EXTENT_ITEM_KEY ||
@@ -1149,8 +1159,6 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 		ret = btrfs_next_item(extent_root, path);
 		if (ret < 0)
 			goto out_locked;
-		if (ret)
-			break;
 	}
 	if (start < end) {
 		ret = __add_to_free_space_tree(trans, block_group, path2,
@@ -1233,6 +1241,7 @@ static int clear_free_space_tree(struct btrfs_trans_handle *trans,
 {
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
+	struct rb_node *node;
 	int nr;
 	int ret;
 
@@ -1259,6 +1268,16 @@ static int clear_free_space_tree(struct btrfs_trans_handle *trans,
 			return ret;
 
 		btrfs_release_path(path);
+	}
+
+	node = rb_first_cached(&trans->fs_info->block_group_cache_tree);
+	while (node) {
+		struct btrfs_block_group *bg;
+
+		bg = rb_entry(node, struct btrfs_block_group, cache_node);
+		clear_bit(BLOCK_GROUP_FLAG_FREE_SPACE_ADDED, &bg->runtime_flags);
+		node = rb_next(node);
+		cond_resched();
 	}
 
 	return 0;
@@ -1350,12 +1369,18 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 
 		block_group = rb_entry(node, struct btrfs_block_group,
 				       cache_node);
+
+		if (test_bit(BLOCK_GROUP_FLAG_FREE_SPACE_ADDED,
+			     &block_group->runtime_flags))
+			goto next;
+
 		ret = populate_free_space_tree(trans, block_group);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			btrfs_end_transaction(trans);
 			return ret;
 		}
+next:
 		if (btrfs_should_end_transaction(trans)) {
 			btrfs_end_transaction(trans);
 			trans = btrfs_start_transaction(free_space_root, 1);
@@ -1381,6 +1406,29 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 	int ret;
 
 	clear_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &block_group->runtime_flags);
+
+	/*
+	 * While rebuilding the free space tree we may allocate new metadata
+	 * block groups while modifying the free space tree.
+	 *
+	 * Because during the rebuild (at btrfs_rebuild_free_space_tree()) we
+	 * can use multiple transactions, every time btrfs_end_transaction() is
+	 * called at btrfs_rebuild_free_space_tree() we finish the creation of
+	 * new block groups by calling btrfs_create_pending_block_groups(), and
+	 * that in turn calls us, through add_block_group_free_space(), to add
+	 * a free space info item and a free space extent item for the block
+	 * group.
+	 *
+	 * Then later btrfs_rebuild_free_space_tree() may find such new block
+	 * groups and processes them with populate_free_space_tree(), which can
+	 * fail with EEXIST since there are already items for the block group in
+	 * the free space tree. Notice that we say "may find" because a new
+	 * block group may be added to the block groups rbtree in a node before
+	 * or after the block group currently being processed by the rebuild
+	 * process. So signal the rebuild process to skip such new block groups
+	 * if it finds them.
+	 */
+	set_bit(BLOCK_GROUP_FLAG_FREE_SPACE_ADDED, &block_group->runtime_flags);
 
 	ret = add_new_free_space_info(trans, block_group, path);
 	if (ret)
