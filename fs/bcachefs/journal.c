@@ -1082,6 +1082,7 @@ static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct jou
 
 			if (open && !*blocked) {
 				__bch2_journal_block(j);
+				s.v = atomic64_read_acquire(&j->reservations.counter);
 				*blocked = true;
 			}
 

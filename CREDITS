@@ -1397,6 +1397,10 @@ N: Thomas Gleixner
 E: tglx@linutronix.de
 D: NAND flash hardware support, JFFS2 on NAND flash
 
+N: Jérôme Glisse
+E: jglisse@redhat.com
+D: HMM - Heterogeneous Memory Management
+
 N: Richard E. Gooch
 E: rgooch@atnf.csiro.au
 D: parent process death signal to children
