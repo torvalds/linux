@@ -24,12 +24,12 @@ static void handle_sched_set_state(void *data, struct task_struct *tsk, int stat
 	da_handle_start_event_sco(sched_set_state_sco);
 }
 
-static void handle_schedule_entry(void *data, bool preempt, unsigned long ip)
+static void handle_schedule_entry(void *data, bool preempt)
 {
 	da_handle_event_sco(schedule_entry_sco);
 }
 
-static void handle_schedule_exit(void *data, bool is_switch, unsigned long ip)
+static void handle_schedule_exit(void *data, bool is_switch)
 {
 	da_handle_start_event_sco(schedule_exit_sco);
 }

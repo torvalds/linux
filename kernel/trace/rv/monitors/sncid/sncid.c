@@ -30,12 +30,12 @@ static void handle_irq_enable(void *data, unsigned long ip, unsigned long parent
 	da_handle_start_event_sncid(irq_enable_sncid);
 }
 
-static void handle_schedule_entry(void *data, bool preempt, unsigned long ip)
+static void handle_schedule_entry(void *data, bool preempt)
 {
 	da_handle_start_event_sncid(schedule_entry_sncid);
 }
 
-static void handle_schedule_exit(void *data, bool is_switch, unsigned long ip)
+static void handle_schedule_exit(void *data, bool is_switch)
 {
 	da_handle_start_event_sncid(schedule_exit_sncid);
 }

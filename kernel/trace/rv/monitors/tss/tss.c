@@ -27,12 +27,12 @@ static void handle_sched_switch(void *data, bool preempt,
 	da_handle_event_tss(sched_switch_tss);
 }
 
-static void handle_schedule_entry(void *data, bool preempt, unsigned long ip)
+static void handle_schedule_entry(void *data, bool preempt)
 {
 	da_handle_event_tss(schedule_entry_tss);
 }
 
-static void handle_schedule_exit(void *data, bool is_switch, unsigned long ip)
+static void handle_schedule_exit(void *data, bool is_switch)
 {
 	da_handle_start_event_tss(schedule_exit_tss);
 }
