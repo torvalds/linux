@@ -1982,8 +1982,8 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 		em = btrfs_create_io_em(inode, file_pos, &nocow_args->file_extent,
 					BTRFS_ORDERED_PREALLOC);
 		if (IS_ERR(em)) {
-			btrfs_unlock_extent(&inode->io_tree, file_pos, end, cached);
-			return PTR_ERR(em);
+			ret = PTR_ERR(em);
+			goto error;
 		}
 		btrfs_free_extent_map(em);
 	}
@@ -1995,8 +1995,8 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 	if (IS_ERR(ordered)) {
 		if (is_prealloc)
 			btrfs_drop_extent_map_range(inode, file_pos, end, false);
-		btrfs_unlock_extent(&inode->io_tree, file_pos, end, cached);
-		return PTR_ERR(ordered);
+		ret = PTR_ERR(ordered);
+		goto error;
 	}
 
 	if (btrfs_is_data_reloc_root(inode->root))
@@ -2008,23 +2008,25 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 		ret = btrfs_reloc_clone_csums(ordered);
 	btrfs_put_ordered_extent(ordered);
 
+	if (ret < 0)
+		goto error;
 	extent_clear_unlock_delalloc(inode, file_pos, end, locked_folio, cached,
 				     EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_CLEAR_DATA_RESV,
 				     PAGE_UNLOCK | PAGE_SET_ORDERED);
-	/*
-	 * On error, we need to cleanup the ordered extents we created.
-	 *
-	 * We do not clear the folio Dirty flags because they are set and
-	 * cleaered by the caller.
-	 */
-	if (ret < 0) {
-		btrfs_cleanup_ordered_extents(inode, file_pos, len);
-		btrfs_err(inode->root->fs_info,
-			  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %d",
-			  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
-			  file_pos, len, ret);
-	}
+	return ret;
+
+error:
+	btrfs_cleanup_ordered_extents(inode, file_pos, len);
+	extent_clear_unlock_delalloc(inode, file_pos, end, locked_folio, cached,
+				     EXTENT_LOCKED | EXTENT_DELALLOC |
+				     EXTENT_CLEAR_DATA_RESV,
+				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
+				     PAGE_END_WRITEBACK);
+	btrfs_err(inode->root->fs_info,
+		  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %d",
+		  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
+		  file_pos, len, ret);
 	return ret;
 }
 
@@ -2046,8 +2048,12 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	/*
 	 * If not 0, represents the inclusive end of the last fallback_to_cow()
 	 * range. Only for error handling.
+	 *
+	 * The same for nocow_end, it's to avoid double cleaning up the range
+	 * already cleaned by nocow_one_range().
 	 */
 	u64 cow_end = 0;
+	u64 nocow_end = 0;
 	u64 cur_offset = start;
 	int ret;
 	bool check_prev = true;
@@ -2222,8 +2228,10 @@ must_cow:
 				      &nocow_args, cur_offset,
 				      extent_type == BTRFS_FILE_EXTENT_PREALLOC);
 		btrfs_dec_nocow_writers(nocow_bg);
-		if (ret < 0)
+		if (ret < 0) {
+			nocow_end = cur_offset + nocow_args.file_extent.num_bytes - 1;
 			goto error;
+		}
 		cur_offset = extent_end;
 	}
 	btrfs_release_path(path);
@@ -2250,12 +2258,22 @@ error:
 		 *    start           cur_offset               end
 		 *    |   OE cleanup  |       Untouched        |
 		 *
-		 * We finished a fallback_to_cow() or nocow_one_range() call, but
-		 * failed to check the next range.
+		 * We finished a fallback_to_cow() or nocow_one_range() call,
+		 * but failed to check the next range.
+		 *
+		 * or
+		 *    start           cur_offset   nocow_end   end
+		 *    |   OE cleanup  |   Skip     | Untouched |
+		 *
+		 * nocow_one_range() failed, the range [cur_offset, nocow_end] is
+		 * alread cleaned up.
 		 */
 		oe_cleanup_start = start;
 		oe_cleanup_len = cur_offset - start;
-		untouched_start = cur_offset;
+		if (nocow_end)
+			untouched_start = nocow_end + 1;
+		else
+			untouched_start = cur_offset;
 		untouched_len = end + 1 - untouched_start;
 	} else if (cow_start != (u64)-1 && cow_end == 0) {
 		/*
