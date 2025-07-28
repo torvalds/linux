@@ -602,15 +602,16 @@ struct dentry *find_next_child(struct dentry *parent, struct dentry *prev)
 }
 EXPORT_SYMBOL(find_next_child);
 
-void simple_recursive_removal(struct dentry *dentry,
-                              void (*callback)(struct dentry *))
+static void __simple_recursive_removal(struct dentry *dentry,
+                              void (*callback)(struct dentry *),
+			      bool locked)
 {
 	struct dentry *this = dget(dentry);
 	while (true) {
 		struct dentry *victim = NULL, *child;
 		struct inode *inode = this->d_inode;
 
-		inode_lock(inode);
+		inode_lock_nested(inode, I_MUTEX_CHILD);
 		if (d_is_dir(this))
 			inode->i_flags |= S_DEAD;
 		while ((child = find_next_child(this, victim)) == NULL) {
@@ -622,15 +623,13 @@ void simple_recursive_removal(struct dentry *dentry,
 			victim = this;
 			this = this->d_parent;
 			inode = this->d_inode;
-			inode_lock(inode);
+			if (!locked || victim != dentry)
+				inode_lock_nested(inode, I_MUTEX_CHILD);
 			if (simple_positive(victim)) {
 				d_invalidate(victim);	// avoid lost mounts
-				if (d_is_dir(victim))
-					fsnotify_rmdir(inode, victim);
-				else
-					fsnotify_unlink(inode, victim);
 				if (callback)
 					callback(victim);
+				fsnotify_delete(inode, d_inode(victim), victim);
 				dput(victim);		// unpin it
 			}
 			if (victim == dentry) {
@@ -638,7 +637,8 @@ void simple_recursive_removal(struct dentry *dentry,
 						      inode_set_ctime_current(inode));
 				if (d_is_dir(dentry))
 					drop_nlink(inode);
-				inode_unlock(inode);
+				if (!locked)
+					inode_unlock(inode);
 				dput(dentry);
 				return;
 			}
@@ -647,7 +647,21 @@ void simple_recursive_removal(struct dentry *dentry,
 		this = child;
 	}
 }
+
+void simple_recursive_removal(struct dentry *dentry,
+                              void (*callback)(struct dentry *))
+{
+	return __simple_recursive_removal(dentry, callback, false);
+}
 EXPORT_SYMBOL(simple_recursive_removal);
+
+/* caller holds parent directory with I_MUTEX_PARENT */
+void locked_recursive_removal(struct dentry *dentry,
+                              void (*callback)(struct dentry *))
+{
+	return __simple_recursive_removal(dentry, callback, true);
+}
+EXPORT_SYMBOL(locked_recursive_removal);
 
 static const struct super_operations simple_super_operations = {
 	.statfs		= simple_statfs,

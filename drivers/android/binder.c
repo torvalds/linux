@@ -6128,7 +6128,7 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	debugfs_remove(proc->debugfs_entry);
 
 	if (proc->binderfs_entry) {
-		binderfs_remove_file(proc->binderfs_entry);
+		simple_recursive_removal(proc->binderfs_entry, NULL);
 		proc->binderfs_entry = NULL;
 	}
 
