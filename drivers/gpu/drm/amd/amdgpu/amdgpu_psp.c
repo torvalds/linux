@@ -2631,7 +2631,7 @@ skip_pin_bo:
 	return 0;
 }
 
-static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
+int amdgpu_psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 			   enum psp_gfx_fw_type *type)
 {
 	switch (ucode->ucode_id) {
@@ -2919,10 +2919,9 @@ static int psp_prep_load_ip_fw_cmd_buf(struct psp_context *psp,
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
 	cmd->cmd.cmd_load_ip_fw.fw_size = ucode->ucode_size;
 
-	ret = psp_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
+	ret = psp_get_fw_type(psp, ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
 	if (ret)
 		dev_err(psp->adev->dev, "Unknown firmware type\n");
-
 	return ret;
 }
 
