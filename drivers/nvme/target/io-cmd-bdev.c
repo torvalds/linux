@@ -69,7 +69,7 @@ static void nvmet_bdev_ns_enable_integrity(struct nvmet_ns *ns)
 		return;
 
 	if (bi->csum_type == BLK_INTEGRITY_CSUM_CRC) {
-		ns->metadata_size = bi->tuple_size;
+		ns->metadata_size = bi->metadata_size;
 		if (bi->flags & BLK_INTEGRITY_REF_TAG)
 			ns->pi_type = NVME_NS_DPS_PI_TYPE1;
 		else
