@@ -7133,14 +7133,19 @@ static irqreturn_t ufshcd_threaded_intr(int irq, void *__hba)
 static irqreturn_t ufshcd_intr(int irq, void *__hba)
 {
 	struct ufs_hba *hba = __hba;
+	u32 intr_status, enabled_intr_status;
 
 	/* Move interrupt handling to thread when MCQ & ESI are not enabled */
 	if (!hba->mcq_enabled || !hba->mcq_esi_enabled)
 		return IRQ_WAKE_THREAD;
 
+	intr_status = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
+	enabled_intr_status = intr_status & ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
+
+	ufshcd_writel(hba, intr_status, REG_INTERRUPT_STATUS);
+
 	/* Directly handle interrupts since MCQ ESI handlers does the hard job */
-	return ufshcd_sl_intr(hba, ufshcd_readl(hba, REG_INTERRUPT_STATUS) &
-				   ufshcd_readl(hba, REG_INTERRUPT_ENABLE));
+	return ufshcd_sl_intr(hba, enabled_intr_status);
 }
 
 static int ufshcd_clear_tm_cmd(struct ufs_hba *hba, int tag)
