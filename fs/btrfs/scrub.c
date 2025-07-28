@@ -556,7 +556,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
-		btrfs_warn_in_rcu(fs_info,
+		btrfs_warn(fs_info,
 "scrub: %s at logical %llu on dev %s, physical %llu root %llu inode %llu offset %llu length %u links %u (path: %s)",
 				  swarn->errstr, swarn->logical,
 				  btrfs_dev_name(swarn->dev),
@@ -570,7 +570,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
 	return 0;
 
 err:
-	btrfs_warn_in_rcu(fs_info,
+	btrfs_warn(fs_info,
 			  "scrub: %s at logical %llu on dev %s, physical %llu root %llu inode %llu offset %llu: path resolving failed with ret=%d",
 			  swarn->errstr, swarn->logical,
 			  btrfs_dev_name(swarn->dev),
@@ -596,7 +596,7 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 
 	/* Super block error, no need to search extent tree. */
 	if (is_super) {
-		btrfs_warn_in_rcu(fs_info, "scrub: %s on device %s, physical %llu",
+		btrfs_warn(fs_info, "scrub: %s on device %s, physical %llu",
 				  errstr, btrfs_dev_name(dev), physical);
 		return;
 	}
@@ -637,7 +637,7 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 			}
 			if (ret > 0)
 				break;
-			btrfs_warn_in_rcu(fs_info,
+			btrfs_warn(fs_info,
 "scrub: %s at logical %llu on dev %s, physical %llu: metadata %s (level %d) in tree %llu",
 				errstr, swarn.logical, btrfs_dev_name(dev),
 				swarn.physical, (ref_level ? "node" : "leaf"),
@@ -1045,12 +1045,12 @@ skip:
 		 */
 		if (repaired) {
 			if (dev) {
-				btrfs_err_rl_in_rcu(fs_info,
+				btrfs_err_rl(fs_info,
 		"scrub: fixed up error at logical %llu on dev %s physical %llu",
 					    stripe->logical, btrfs_dev_name(dev),
 					    physical);
 			} else {
-				btrfs_err_rl_in_rcu(fs_info,
+				btrfs_err_rl(fs_info,
 			   "scrub: fixed up error at logical %llu on mirror %u",
 					    stripe->logical, stripe->mirror_num);
 			}
@@ -1059,12 +1059,12 @@ skip:
 
 		/* The remaining are all for unrepaired. */
 		if (dev) {
-			btrfs_err_rl_in_rcu(fs_info,
+			btrfs_err_rl(fs_info,
 "scrub: unable to fixup (regular) error at logical %llu on dev %s physical %llu",
 					    stripe->logical, btrfs_dev_name(dev),
 					    physical);
 		} else {
-			btrfs_err_rl_in_rcu(fs_info,
+			btrfs_err_rl(fs_info,
 	  "scrub: unable to fixup (regular) error at logical %llu on mirror %u",
 					    stripe->logical, stripe->mirror_num);
 		}
@@ -1806,7 +1806,7 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			struct btrfs_io_context *bioc = NULL;
 			const u64 logical = stripe->logical +
 					    (i << fs_info->sectorsize_bits);
-			int err;
+			int ret;
 
 			io_stripe.rst_search_commit_root = true;
 			stripe_len = (nr_sectors - i) << fs_info->sectorsize_bits;
@@ -1814,11 +1814,11 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			 * For RST cases, we need to manually split the bbio to
 			 * follow the RST boundary.
 			 */
-			err = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+			ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
 					      &stripe_len, &bioc, &io_stripe, &mirror);
 			btrfs_put_bioc(bioc);
-			if (err < 0) {
-				if (err != -ENODATA) {
+			if (ret < 0) {
+				if (ret != -ENODATA) {
 					/*
 					 * Earlier btrfs_get_raid_extent_offset()
 					 * returned -ENODATA, which means there's
@@ -3057,7 +3057,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (!is_dev_replace && !readonly &&
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 			"scrub: devid %llu: filesystem on %s is not writable",
 				 devid, btrfs_dev_name(dev));
 		ret = -EROFS;

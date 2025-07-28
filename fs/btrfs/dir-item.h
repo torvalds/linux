@@ -14,7 +14,7 @@ struct btrfs_inode;
 struct btrfs_root;
 struct btrfs_trans_handle;
 
-int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
+int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir_ino,
 			  const struct fscrypt_str *name);
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  const struct fscrypt_str *name, struct btrfs_inode *dir,
