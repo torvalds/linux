@@ -102,10 +102,7 @@ int ceph_fscrypt_prepare_context(struct inode *dir, struct inode *inode,
 				 struct ceph_acl_sec_ctx *as);
 void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 				struct ceph_acl_sec_ctx *as);
-int ceph_encode_encrypted_dname(struct inode *parent, struct qstr *d_name,
-				char *buf);
-int ceph_encode_encrypted_fname(struct inode *parent, struct dentry *dentry,
-				char *buf);
+int ceph_encode_encrypted_dname(struct inode *parent, char *buf, int len);
 
 static inline int ceph_fname_alloc_buffer(struct inode *parent,
 					  struct fscrypt_str *fname)
@@ -194,17 +191,10 @@ static inline void ceph_fscrypt_as_ctx_to_req(struct ceph_mds_request *req,
 {
 }
 
-static inline int ceph_encode_encrypted_dname(struct inode *parent,
-					      struct qstr *d_name, char *buf)
+static inline int ceph_encode_encrypted_dname(struct inode *parent, char *buf,
+					      int len)
 {
-	memcpy(buf, d_name->name, d_name->len);
-	return d_name->len;
-}
-
-static inline int ceph_encode_encrypted_fname(struct inode *parent,
-					      struct dentry *dentry, char *buf)
-{
-	return -EOPNOTSUPP;
+	return len;
 }
 
 static inline int ceph_fname_alloc_buffer(struct inode *parent,
