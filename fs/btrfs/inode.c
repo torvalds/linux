@@ -1534,10 +1534,11 @@ out_unlock:
 		btrfs_qgroup_free_data(inode, NULL, start + cur_alloc_size,
 				       end - start - cur_alloc_size + 1, NULL);
 	}
-	btrfs_err_rl(fs_info,
-		     "%s failed, root=%llu inode=%llu start=%llu len=%llu: %d",
-		     __func__, btrfs_root_id(inode->root),
-		     btrfs_ino(inode), orig_start, end + 1 - orig_start, ret);
+	btrfs_err(fs_info,
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%llu: %d",
+		  __func__, btrfs_root_id(inode->root),
+		  btrfs_ino(inode), orig_start, end + 1 - orig_start,
+		  start, cur_alloc_size, ret);
 	return ret;
 }
 
@@ -1969,8 +1970,8 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 			   u64 file_pos, bool is_prealloc)
 {
 	struct btrfs_ordered_extent *ordered;
-	u64 len = nocow_args->file_extent.num_bytes;
-	u64 end = file_pos + len - 1;
+	const u64 len = nocow_args->file_extent.num_bytes;
+	const u64 end = file_pos + len - 1;
 	int ret = 0;
 
 	btrfs_lock_extent(&inode->io_tree, file_pos, end, cached);
@@ -2017,8 +2018,13 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 	 * We do not clear the folio Dirty flags because they are set and
 	 * cleaered by the caller.
 	 */
-	if (ret < 0)
+	if (ret < 0) {
 		btrfs_cleanup_ordered_extents(inode, file_pos, len);
+		btrfs_err(inode->root->fs_info,
+			  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %d",
+			  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
+			  file_pos, len, ret);
+	}
 	return ret;
 }
 
@@ -2306,10 +2312,11 @@ error:
 		btrfs_qgroup_free_data(inode, NULL, untouched_start, untouched_len, NULL);
 	}
 	btrfs_free_path(path);
-	btrfs_err_rl(fs_info,
-		     "%s failed, root=%llu inode=%llu start=%llu len=%llu: %d",
-		     __func__, btrfs_root_id(inode->root),
-		     btrfs_ino(inode), start, end + 1 - start, ret);
+	btrfs_err(fs_info,
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu oe_cleanup=%llu oe_cleanup_len=%llu untouched_start=%llu untouched_len=%llu: %d",
+		  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
+		  start, end + 1 - start, cur_offset, oe_cleanup_start, oe_cleanup_len,
+		  untouched_start, untouched_len, ret);
 	return ret;
 }
 
