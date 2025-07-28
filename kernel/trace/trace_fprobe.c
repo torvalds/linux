@@ -1404,7 +1404,7 @@ static int trace_fprobe_create_cb(int argc, const char *argv[])
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE,
+	ctx->flags = TPARG_FL_KERNEL | TPARG_FL_FPROBE;
 
 	trace_probe_log_init("trace_fprobe", argc, argv);
 	ret = trace_fprobe_create_internal(argc, argv, ctx);
