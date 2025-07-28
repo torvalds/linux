@@ -2367,6 +2367,15 @@ struct super_operations {
 				  struct shrink_control *);
 	long (*free_cached_objects)(struct super_block *,
 				    struct shrink_control *);
+	/*
+	 * If a filesystem can support graceful removal of a device and
+	 * continue read-write operations, implement this callback.
+	 *
+	 * Return 0 if the filesystem can continue read-write.
+	 * Non-zero return value or no such callback means the fs will be shutdown
+	 * as usual.
+	 */
+	int (*remove_bdev)(struct super_block *sb, struct block_device *bdev);
 	void (*shutdown)(struct super_block *sb);
 };
 
