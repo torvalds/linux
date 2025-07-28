@@ -36,8 +36,8 @@
 static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 {
 	/* Deassert the optional reset signal */
-	mdiodev->reset_gpio = gpiod_get_optional(&mdiodev->dev,
-						 "reset", GPIOD_OUT_LOW);
+	mdiodev->reset_gpio = devm_gpiod_get_optional(&mdiodev->dev,
+						      "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(mdiodev->reset_gpio))
 		return PTR_ERR(mdiodev->reset_gpio);
 
