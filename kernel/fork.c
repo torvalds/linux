@@ -1542,14 +1542,14 @@ static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 	struct fs_struct *fs = current->fs;
 	if (clone_flags & CLONE_FS) {
 		/* tsk->fs is already what we want */
-		spin_lock(&fs->lock);
+		read_seqlock_excl(&fs->seq);
 		/* "users" and "in_exec" locked for check_unsafe_exec() */
 		if (fs->in_exec) {
-			spin_unlock(&fs->lock);
+			read_sequnlock_excl(&fs->seq);
 			return -EAGAIN;
 		}
 		fs->users++;
-		spin_unlock(&fs->lock);
+		read_sequnlock_excl(&fs->seq);
 		return 0;
 	}
 	tsk->fs = copy_fs_struct(fs);
@@ -3149,13 +3149,13 @@ int ksys_unshare(unsigned long unshare_flags)
 
 		if (new_fs) {
 			fs = current->fs;
-			spin_lock(&fs->lock);
+			read_seqlock_excl(&fs->seq);
 			current->fs = new_fs;
 			if (--fs->users)
 				new_fs = NULL;
 			else
 				new_fs = fs;
-			spin_unlock(&fs->lock);
+			read_sequnlock_excl(&fs->seq);
 		}
 
 		if (new_fd)
