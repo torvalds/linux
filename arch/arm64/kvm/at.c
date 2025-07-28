@@ -448,11 +448,11 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 
 		switch (BIT(wi->pgshift)) {
 		case SZ_4K:
-			valid_block = level == 1 || level == 2;
+			valid_block = level == 1 || level == 2 || (wi->pa52bit && level == 0);
 			break;
 		case SZ_16K:
 		case SZ_64K:
-			valid_block = level == 2;
+			valid_block = level == 2 || (wi->pa52bit && level == 1);
 			break;
 		}
 
