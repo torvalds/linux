@@ -121,15 +121,17 @@ Supported chips:
 
          https://www.ti.com/product/TMP1075
 
-  * NXP LM75B, P3T1755, PCT2075
+  * NXP LM75B, P3T1750, P3T1755, PCT2075
 
-    Prefix: 'lm75b', 'p3t1755', 'pct2075'
+    Prefix: 'lm75b', 'p3t1750', 'p3t1755', 'pct2075'
 
     Addresses scanned: none
 
     Datasheet: Publicly available at the NXP website
 
                https://www.nxp.com/docs/en/data-sheet/LM75B.pdf
+
+               https://www.nxp.com/docs/en/data-sheet/P3T1750DP.pdf
 
                https://www.nxp.com/docs/en/data-sheet/P3T1755.pdf
 
