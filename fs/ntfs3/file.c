@@ -162,13 +162,13 @@ static int ntfs_extend_initialized_size(struct file *file,
 		if (pos + len > new_valid)
 			len = new_valid - pos;
 
-		err = ntfs_write_begin(file, mapping, pos, len, &folio, NULL);
+		err = ntfs_write_begin(NULL, mapping, pos, len, &folio, NULL);
 		if (err)
 			goto out;
 
 		folio_zero_range(folio, zerofrom, folio_size(folio) - zerofrom);
 
-		err = ntfs_write_end(file, mapping, pos, len, len, folio, NULL);
+		err = ntfs_write_end(NULL, mapping, pos, len, len, folio, NULL);
 		if (err < 0)
 			goto out;
 		pos += len;

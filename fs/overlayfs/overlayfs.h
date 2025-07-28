@@ -355,19 +355,19 @@ static inline int ovl_do_remove_acl(struct ovl_fs *ofs, struct dentry *dentry,
 	return vfs_remove_acl(ovl_upper_mnt_idmap(ofs), dentry, acl_name);
 }
 
-static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
-				struct dentry *olddentry, struct inode *newdir,
+static inline int ovl_do_rename(struct ovl_fs *ofs, struct dentry *olddir,
+				struct dentry *olddentry, struct dentry *newdir,
 				struct dentry *newdentry, unsigned int flags)
 {
 	int err;
 	struct renamedata rd = {
 		.old_mnt_idmap	= ovl_upper_mnt_idmap(ofs),
-		.old_dir 	= olddir,
-		.old_dentry 	= olddentry,
+		.old_parent	= olddir,
+		.old_dentry	= olddentry,
 		.new_mnt_idmap	= ovl_upper_mnt_idmap(ofs),
-		.new_dir 	= newdir,
-		.new_dentry 	= newdentry,
-		.flags 		= flags,
+		.new_parent	= newdir,
+		.new_dentry	= newdentry,
+		.flags		= flags,
 	};
 
 	pr_debug("rename(%pd2, %pd2, 0x%x)\n", olddentry, newdentry, flags);
@@ -828,7 +828,7 @@ static inline void ovl_copyflags(struct inode *from, struct inode *to)
 
 /* dir.c */
 extern const struct inode_operations ovl_dir_inode_operations;
-int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
+int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 			     struct dentry *dentry);
 struct ovl_cattr {
 	dev_t rdev;

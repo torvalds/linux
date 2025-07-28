@@ -708,10 +708,12 @@ struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 int ntfs_set_size(struct inode *inode, u64 new_size);
 int ntfs_get_block(struct inode *inode, sector_t vbn,
 		   struct buffer_head *bh_result, int create);
-int ntfs_write_begin(struct file *file, struct address_space *mapping,
-		     loff_t pos, u32 len, struct folio **foliop, void **fsdata);
-int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
-		   u32 len, u32 copied, struct folio *folio, void *fsdata);
+int ntfs_write_begin(const struct kiocb *iocb, struct address_space *mapping,
+		     loff_t pos, u32 len, struct folio **foliop,
+		     void **fsdata);
+int ntfs_write_end(const struct kiocb *iocb, struct address_space *mapping,
+		   loff_t pos, u32 len, u32 copied, struct folio *folio,
+		   void *fsdata);
 int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc);
 int ntfs_sync_inode(struct inode *inode);
 int inode_read_data(struct inode *inode, void *data, size_t bytes);

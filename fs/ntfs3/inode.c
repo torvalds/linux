@@ -920,7 +920,7 @@ static int ntfs_get_block_write_begin(struct inode *inode, sector_t vbn,
 				  bh_result, create, GET_BLOCK_WRITE_BEGIN);
 }
 
-int ntfs_write_begin(struct file *file, struct address_space *mapping,
+int ntfs_write_begin(const struct kiocb *iocb, struct address_space *mapping,
 		     loff_t pos, u32 len, struct folio **foliop, void **fsdata)
 {
 	int err;
@@ -969,7 +969,8 @@ out:
 /*
  * ntfs_write_end - Address_space_operations::write_end.
  */
-int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
+int ntfs_write_end(const struct kiocb *iocb,
+		   struct address_space *mapping, loff_t pos,
 		   u32 len, u32 copied, struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
@@ -1001,7 +1002,7 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		folio_unlock(folio);
 		folio_put(folio);
 	} else {
-		err = generic_write_end(file, mapping, pos, len, copied, folio,
+		err = generic_write_end(iocb, mapping, pos, len, copied, folio,
 					fsdata);
 	}
 

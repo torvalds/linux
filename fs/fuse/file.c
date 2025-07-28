@@ -2212,10 +2212,13 @@ out:
  * It's worthy to make sure that space is reserved on disk for the write,
  * but how to implement it without killing performance need more thinking.
  */
-static int fuse_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
+static int fuse_write_begin(const struct kiocb *iocb,
+			    struct address_space *mapping,
+			    loff_t pos, unsigned len, struct folio **foliop,
+			    void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
+	struct file *file = iocb->ki_filp;
 	struct fuse_conn *fc = get_fuse_conn(file_inode(file));
 	struct folio *folio;
 	loff_t fsize;
@@ -2255,9 +2258,10 @@ error:
 	return err;
 }
 
-static int fuse_write_end(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned copied,
-		struct folio *folio, void *fsdata)
+static int fuse_write_end(const struct kiocb *iocb,
+			  struct address_space *mapping,
+			  loff_t pos, unsigned len, unsigned copied,
+			  struct folio *folio, void *fsdata)
 {
 	struct inode *inode = folio->mapping->host;
 

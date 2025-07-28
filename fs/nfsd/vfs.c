@@ -1867,7 +1867,6 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 			    struct svc_fh *tfhp, char *tname, int tlen)
 {
 	struct dentry	*fdentry, *tdentry, *odentry, *ndentry, *trap;
-	struct inode	*fdir, *tdir;
 	int		type = S_IFDIR;
 	__be32		err;
 	int		host_err;
@@ -1883,10 +1882,8 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 		goto out;
 
 	fdentry = ffhp->fh_dentry;
-	fdir = d_inode(fdentry);
 
 	tdentry = tfhp->fh_dentry;
-	tdir = d_inode(tdentry);
 
 	err = nfserr_perm;
 	if (!flen || isdotent(fname, flen) || !tlen || isdotent(tname, tlen))
@@ -1947,10 +1944,10 @@ retry:
 	} else {
 		struct renamedata rd = {
 			.old_mnt_idmap	= &nop_mnt_idmap,
-			.old_dir	= fdir,
+			.old_parent	= fdentry,
 			.old_dentry	= odentry,
 			.new_mnt_idmap	= &nop_mnt_idmap,
-			.new_dir	= tdir,
+			.new_parent	= tdentry,
 			.new_dentry	= ndentry,
 		};
 		int retries;

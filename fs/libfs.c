@@ -921,7 +921,7 @@ static int simple_read_folio(struct file *file, struct folio *folio)
 	return 0;
 }
 
-int simple_write_begin(struct file *file, struct address_space *mapping,
+int simple_write_begin(const struct kiocb *iocb, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct folio **foliop, void **fsdata)
 {
@@ -946,7 +946,7 @@ EXPORT_SYMBOL(simple_write_begin);
 
 /**
  * simple_write_end - .write_end helper for non-block-device FSes
- * @file: See .write_end of address_space_operations
+ * @iocb: kernel I/O control block
  * @mapping: 		"
  * @pos: 		"
  * @len: 		"
@@ -957,7 +957,8 @@ EXPORT_SYMBOL(simple_write_begin);
  * simple_write_end does the minimum needed for updating a folio after
  * writing is done. It has the same API signature as the .write_end of
  * address_space_operations vector. So it can just be set onto .write_end for
- * FSes that don't need any other processing. i_mutex is assumed to be held.
+ * FSes that don't need any other processing. i_rwsem is assumed to be held
+ * exclusively.
  * Block based filesystems should use generic_write_end().
  * NOTE: Even though i_size might get updated by this function, mark_inode_dirty
  * is not called, so a filesystem that actually does store data in .write_inode
@@ -966,9 +967,10 @@ EXPORT_SYMBOL(simple_write_begin);
  *
  * Use *ONLY* with simple_read_folio()
  */
-static int simple_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+static int simple_write_end(const struct kiocb *iocb,
+			    struct address_space *mapping,
+			    loff_t pos, unsigned len, unsigned copied,
+			    struct folio *folio, void *fsdata)
 {
 	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
@@ -984,7 +986,7 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * cannot change under us because we hold the i_rwsem.
 	 */
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
@@ -1594,13 +1596,17 @@ EXPORT_SYMBOL(generic_file_fsync);
 int generic_check_addressable(unsigned blocksize_bits, u64 num_blocks)
 {
 	u64 last_fs_block = num_blocks - 1;
-	u64 last_fs_page =
-		last_fs_block >> (PAGE_SHIFT - blocksize_bits);
+	u64 last_fs_page, max_bytes;
+
+	if (check_shl_overflow(num_blocks, blocksize_bits, &max_bytes))
+		return -EFBIG;
+
+	last_fs_page = (max_bytes >> PAGE_SHIFT) - 1;
 
 	if (unlikely(num_blocks == 0))
 		return 0;
 
-	if ((blocksize_bits < 9) || (blocksize_bits > PAGE_SHIFT))
+	if (blocksize_bits < 9)
 		return -EINVAL;
 
 	if ((last_fs_block > (sector_t)(~0ULL) >> (blocksize_bits - 9)) ||

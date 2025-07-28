@@ -300,12 +300,13 @@ static int vboxsf_writepages(struct address_space *mapping,
 	return error;
 }
 
-static int vboxsf_write_end(struct file *file, struct address_space *mapping,
+static int vboxsf_write_end(const struct kiocb *iocb,
+			    struct address_space *mapping,
 			    loff_t pos, unsigned int len, unsigned int copied,
 			    struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
-	struct vboxsf_handle *sf_handle = file->private_data;
+	struct vboxsf_handle *sf_handle = iocb->ki_filp->private_data;
 	size_t from = offset_in_folio(folio, pos);
 	u32 nwritten = len;
 	u8 *buf;

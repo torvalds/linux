@@ -2022,7 +2022,7 @@ out:
  * detach_mounts allows lazily unmounting those mounts instead of
  * leaking them.
  *
- * The caller may hold dentry->d_inode->i_mutex.
+ * The caller may hold dentry->d_inode->i_rwsem.
  */
 void __detach_mounts(struct dentry *dentry)
 {
