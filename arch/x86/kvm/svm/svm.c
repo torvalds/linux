@@ -5494,6 +5494,8 @@ static int __init svm_init(void)
 {
 	int r;
 
+	KVM_SANITY_CHECK_VM_STRUCT_SIZE(kvm_svm);
+
 	__unused_size_checks();
 
 	if (!kvm_is_svm_supported())
