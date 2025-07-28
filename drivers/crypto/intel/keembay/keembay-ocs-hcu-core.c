@@ -232,7 +232,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 	struct device *dev = rctx->hcu_dev->dev;
 	unsigned int remainder = 0;
 	unsigned int total;
-	size_t nents;
+	int nents;
 	size_t count;
 	int rc;
 	int i;
@@ -252,6 +252,9 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 
 	/* Determine the number of scatter gather list entries to process. */
 	nents = sg_nents_for_len(req->src, rctx->sg_data_total - remainder);
+
+	if (nents < 0)
+		return nents;
 
 	/* If there are entries to process, map them. */
 	if (nents) {
