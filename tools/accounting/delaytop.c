@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * delaytop.c - task delay monitoring tool.
+ * delaytop.c - system-wide delay monitoring tool.
  *
  * This tool provides real-time monitoring and statistics of
  * system, container, and task-level delays, including CPU,
- * memory, IO, and IRQ and delay accounting. It supports both
- * interactive (top-like), and can output delay information
- * for the whole system, specific containers (cgroups), or
- * individual tasks (PIDs).
+ * memory, IO, and IRQ. It supports both interactive (top-like),
+ * and can output delay information for the whole system, specific
+ * containers (cgroups), or individual tasks (PIDs).
  *
  * Key features:
  *	- Collects per-task delay accounting statistics via taskstats.
+ *	- Collects system-wide PSI information.
  *	- Supports sorting, filtering.
  *	- Supports both interactive (screen refresh).
  *
@@ -32,6 +32,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -41,7 +42,6 @@
 #include <linux/genetlink.h>
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
-#include <ncurses.h>
 
 #define PSI_CPU_SOME "/proc/pressure/cpu"
 #define PSI_CPU_FULL	"/proc/pressure/cpu"
@@ -62,6 +62,12 @@
 #define MAX_MSG_SIZE	1024
 #define MAX_TASKS		1000
 #define SET_TASK_STAT(task_count, field) tasks[task_count].field = stats.field
+#define BOOL_FPRINT(stream, fmt, ...) \
+({ \
+	int ret = fprintf(stream, fmt, ##__VA_ARGS__); \
+	ret >= 0; \
+})
+#define PSI_LINE_FORMAT "%-12s %6.1f%%/%6.1f%%/%6.1f%%/%8llu(ms)\n"
 
 /* Program settings structure */
 struct config {
@@ -262,6 +268,7 @@ static int create_nl_socket(void)
 	local.nl_family = AF_NETLINK;
 
 	if (bind(fd, (struct sockaddr *) &local, sizeof(local)) < 0) {
+		fprintf(stderr, "Failed to bind socket when create nl_socket\n");
 		close(fd);
 		return -1;
 	}
@@ -332,13 +339,17 @@ static int get_family_id(int sd)
 	rc = send_cmd(sd, GENL_ID_CTRL, getpid(), CTRL_CMD_GETFAMILY,
 			CTRL_ATTR_FAMILY_NAME, (void *)name,
 			strlen(TASKSTATS_GENL_NAME)+1);
-	if (rc < 0)
+	if (rc < 0) {
+		fprintf(stderr, "Failed to send cmd for family id\n");
 		return 0;
+	}
 
 	rep_len = recv(sd, &ans, sizeof(ans), 0);
 	if (ans.n.nlmsg_type == NLMSG_ERROR ||
-		(rep_len < 0) || !NLMSG_OK((&ans.n), rep_len))
+		(rep_len < 0) || !NLMSG_OK((&ans.n), rep_len)) {
+		fprintf(stderr, "Failed to receive response for family id\n");
 		return 0;
+	}
 
 	na = (struct nlattr *) GENLMSG_DATA(&ans);
 	na = (struct nlattr *) ((char *) na + NLA_ALIGN(na->nla_len));
@@ -433,26 +444,30 @@ static void read_psi_stats(void)
 static int read_comm(int pid, char *comm_buf, size_t buf_size)
 {
 	char path[64];
+	int ret = -1;
 	size_t len;
 	FILE *fp;
 
 	snprintf(path, sizeof(path), "/proc/%d/comm", pid);
 	fp = fopen(path, "r");
-	if (!fp)
-		return -1;
+	if (!fp) {
+		fprintf(stderr, "Failed to open comm file /proc/%d/comm\n", pid);
+		return ret;
+	}
+
 	if (fgets(comm_buf, buf_size, fp)) {
 		len = strlen(comm_buf);
 		if (len > 0 && comm_buf[len - 1] == '\n')
 			comm_buf[len - 1] = '\0';
-	} else {
-		fclose(fp);
-		return -1;
+		ret = 0;
 	}
+
 	fclose(fp);
-	return 0;
+
+	return ret;
 }
 
-static int fetch_and_fill_task_info(int pid, const char *comm)
+static void fetch_and_fill_task_info(int pid, const char *comm)
 {
 	struct {
 		struct nlmsghdr n;
@@ -466,13 +481,21 @@ static int fetch_and_fill_task_info(int pid, const char *comm)
 	int nl_len;
 	int rc;
 
+	/* Send request for task stats */
 	if (send_cmd(nl_sd, family_id, getpid(), TASKSTATS_CMD_GET,
 				 TASKSTATS_CMD_ATTR_PID, &pid, sizeof(pid)) < 0) {
-		return -1;
+		fprintf(stderr, "Failed to send request for task stats\n");
+		return;
 	}
+
+	/* Receive response */
 	rc = recv(nl_sd, &resp, sizeof(resp), 0);
-	if (rc < 0 || resp.n.nlmsg_type == NLMSG_ERROR)
-		return -1;
+	if (rc < 0 || resp.n.nlmsg_type == NLMSG_ERROR) {
+		fprintf(stderr, "Failed to receive response for task stats\n");
+		return;
+	}
+
+	/* Parse response */
 	nl_len = GENLMSG_PAYLOAD(&resp.n);
 	na = (struct nlattr *) GENLMSG_DATA(&resp);
 	while (nl_len > 0) {
@@ -515,7 +538,7 @@ static int fetch_and_fill_task_info(int pid, const char *comm)
 		nl_len -= NLA_ALIGN(na->nla_len);
 		na = NLA_NEXT(na);
 	}
-	return 0;
+	return;
 }
 
 static void get_task_delays(void)
@@ -654,54 +677,82 @@ static void display_results(void)
 {
 	time_t now = time(NULL);
 	struct tm *tm_now = localtime(&now);
-	char timestamp[32];
-	int i, count;
 	FILE *out = stdout;
+	char timestamp[32];
+	bool suc = true;
+	int i, count;
 
-	fprintf(out, "\033[H\033[J");
+	/* Clear terminal screen */
+	suc &= BOOL_FPRINT(out, "\033[H\033[J");
+
 	/* PSI output (one-line, no cat style) */
-	fprintf(out, "System Pressure Information: ");
-	fprintf(out, "(avg10/avg60/avg300/total)\n");
-	fprintf(out, "CPU:");
-	fprintf(out, "	full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu", psi.cpu_full_avg10,
-			psi.cpu_full_avg60, psi.cpu_full_avg300, psi.cpu_full_total);
-	fprintf(out, "  some: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n", psi.cpu_some_avg10,
-			psi.cpu_some_avg60, psi.cpu_some_avg300, psi.cpu_some_total);
+	suc &= BOOL_FPRINT(out, "System Pressure Information: (avg10/avg60/avg300/total)\n");
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"CPU some:",
+		psi.cpu_some_avg10,
+		psi.cpu_some_avg60,
+		psi.cpu_some_avg300,
+		psi.cpu_some_total / 1000);
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"CPU full:",
+		psi.cpu_full_avg10,
+		psi.cpu_full_avg60,
+		psi.cpu_full_avg300,
+		psi.cpu_full_total / 1000);
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"Memory full:",
+		psi.memory_full_avg10,
+		psi.memory_full_avg60,
+		psi.memory_full_avg300,
+		psi.memory_full_total / 1000);
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"Memory some:",
+		psi.memory_some_avg10,
+		psi.memory_some_avg60,
+		psi.memory_some_avg300,
+		psi.memory_some_total / 1000);
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"IO full:",
+		psi.io_full_avg10,
+		psi.io_full_avg60,
+		psi.io_full_avg300,
+		psi.io_full_total / 1000);
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"IO some:",
+		psi.io_some_avg10,
+		psi.io_some_avg60,
+		psi.io_some_avg300,
+		psi.io_some_total / 1000);
+	suc &= BOOL_FPRINT(out, PSI_LINE_FORMAT,
+		"IRQ full:",
+		psi.irq_full_avg10,
+		psi.irq_full_avg60,
+		psi.irq_full_avg300,
+		psi.irq_full_total / 1000);
 
-	fprintf(out, "Memory:");
-	fprintf(out, " full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu", psi.memory_full_avg10,
-			psi.memory_full_avg60, psi.memory_full_avg300, psi.memory_full_total);
-	fprintf(out, "  some: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n", psi.memory_some_avg10,
-			psi.memory_some_avg60, psi.memory_some_avg300, psi.memory_some_total);
-
-	fprintf(out, "IO:");
-	fprintf(out, "	full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu", psi.io_full_avg10,
-			psi.io_full_avg60, psi.io_full_avg300, psi.io_full_total);
-	fprintf(out, "  some: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n", psi.io_some_avg10,
-			psi.io_some_avg60, psi.io_some_avg300, psi.io_some_total);
-	fprintf(out, "IRQ:");
-	fprintf(out, "	full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n\n", psi.irq_full_avg10,
-			psi.irq_full_avg60, psi.irq_full_avg300, psi.irq_full_total);
 	if (cfg.container_path) {
-		fprintf(out, "Container Information (%s):\n", cfg.container_path);
-		fprintf(out, "Processes: running=%d, sleeping=%d, ",
+		suc &= BOOL_FPRINT(out, "Container Information (%s):\n", cfg.container_path);
+		suc &= BOOL_FPRINT(out, "Processes: running=%d, sleeping=%d, ",
 			container_stats.nr_running, container_stats.nr_sleeping);
-		fprintf(out, "stopped=%d, uninterruptible=%d, io_wait=%d\n\n",
+		suc &= BOOL_FPRINT(out, "stopped=%d, uninterruptible=%d, io_wait=%d\n\n",
 			container_stats.nr_stopped, container_stats.nr_uninterruptible,
 			container_stats.nr_io_wait);
 	}
-	fprintf(out, "Top %d processes (sorted by CPU delay):\n\n",
+	suc &= BOOL_FPRINT(out, "Top %d processes (sorted by CPU delay):\n",
 			cfg.max_processes);
-	fprintf(out, "  PID	TGID  COMMAND		 CPU(ms)  IO(ms)	");
-	fprintf(out, "SWAP(ms) RCL(ms) THR(ms)  CMP(ms)  WP(ms)  IRQ(ms)\n");
-	fprintf(out, "-----------------------------------------------");
-	fprintf(out, "----------------------------------------------\n");
+	suc &= BOOL_FPRINT(out, "%5s  %5s  %-17s", "PID", "TGID", "COMMAND");
+	suc &= BOOL_FPRINT(out, "%7s %7s %7s %7s %7s %7s %7s %7s\n",
+		"CPU(ms)", "IO(ms)", "SWAP(ms)", "RCL(ms)",
+		"THR(ms)", "CMP(ms)", "WP(ms)", "IRQ(ms)");
+
+	suc &= BOOL_FPRINT(out, "-----------------------------------------------");
+	suc &= BOOL_FPRINT(out, "----------------------------------------------\n");
 	count = task_count < cfg.max_processes ? task_count : cfg.max_processes;
 
 	for (i = 0; i < count; i++) {
-		fprintf(out, "%5d  %5d  %-15s ",
+		suc &= BOOL_FPRINT(out, "%5d  %5d  %-15s",
 			tasks[i].pid, tasks[i].tgid, tasks[i].command);
-		fprintf(out, "%7.2f  %7.2f  %7.2f  %7.2f %7.2f  %7.2f  %7.2f  %7.2f\n",
+		suc &= BOOL_FPRINT(out, "%7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f\n",
 			average_ms(tasks[i].cpu_delay_total, tasks[i].cpu_count),
 			average_ms(tasks[i].blkio_delay_total, tasks[i].blkio_count),
 			average_ms(tasks[i].swapin_delay_total, tasks[i].swapin_count),
@@ -712,7 +763,10 @@ static void display_results(void)
 			average_ms(tasks[i].irq_delay_total, tasks[i].irq_count));
 	}
 
-	fprintf(out, "\n");
+	suc &= BOOL_FPRINT(out, "\n");
+
+	if (!suc)
+		perror("Error writing to output");
 }
 
 /* Main function */
