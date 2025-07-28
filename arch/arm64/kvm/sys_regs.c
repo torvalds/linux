@@ -108,7 +108,6 @@ static bool get_el2_to_el1_mapping(unsigned int reg,
 		PURE_EL2_SYSREG(  HACR_EL2	);
 		PURE_EL2_SYSREG(  VTTBR_EL2	);
 		PURE_EL2_SYSREG(  VTCR_EL2	);
-		PURE_EL2_SYSREG(  RVBAR_EL2	);
 		PURE_EL2_SYSREG(  TPIDR_EL2	);
 		PURE_EL2_SYSREG(  HPFAR_EL2	);
 		PURE_EL2_SYSREG(  HCRX_EL2	);
@@ -534,8 +533,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 		return ignore_write(vcpu, p);
 
 	if (p->Op1 == 4) {	/* ICC_SRE_EL2 */
-		p->regval = (ICC_SRE_EL2_ENABLE | ICC_SRE_EL2_SRE |
-			     ICC_SRE_EL1_DIB | ICC_SRE_EL1_DFB);
+		p->regval = KVM_ICC_SRE_EL2;
 	} else {		/* ICC_SRE_EL1 */
 		p->regval = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
 	}
@@ -772,6 +770,12 @@ static u64 reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	vcpu_write_sys_reg(vcpu, mpidr, MPIDR_EL1);
 
 	return mpidr;
+}
+
+static unsigned int hidden_visibility(const struct kvm_vcpu *vcpu,
+				      const struct sys_reg_desc *r)
+{
+	return REG_HIDDEN;
 }
 
 static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
@@ -2335,6 +2339,10 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 	EL2_REG_FILTERED(name, acc, rst, v, el2_visibility)
 
 #define EL2_REG_VNCR(name, rst, v)	EL2_REG(name, bad_vncr_trap, rst, v)
+#define EL2_REG_VNCR_FILT(name, vis)			\
+	EL2_REG_FILTERED(name, bad_vncr_trap, reset_val, 0, vis)
+#define EL2_REG_VNCR_GICv3(name)			\
+	EL2_REG_VNCR_FILT(name, hidden_visibility)
 #define EL2_REG_REDIR(name, rst, v)	EL2_REG(name, bad_redir_trap, rst, v)
 
 /*
@@ -2538,11 +2546,7 @@ static bool access_gic_vtr(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return write_to_read_only(vcpu, p, r);
 
-	p->regval = kvm_vgic_global_state.ich_vtr_el2;
-	p->regval &= ~(ICH_VTR_EL2_DVIM 	|
-		       ICH_VTR_EL2_A3V		|
-		       ICH_VTR_EL2_IDbits);
-	p->regval |= ICH_VTR_EL2_nV4;
+	p->regval = kvm_get_guest_vtr_el2();
 
 	return true;
 }
@@ -2611,6 +2615,26 @@ static unsigned int tcr2_el2_visibility(const struct kvm_vcpu *vcpu,
 				    const struct sys_reg_desc *rd)
 {
 	return __el2_visibility(vcpu, rd, tcr2_visibility);
+}
+
+static unsigned int fgt2_visibility(const struct kvm_vcpu *vcpu,
+				    const struct sys_reg_desc *rd)
+{
+	if (el2_visibility(vcpu, rd) == 0 &&
+	    kvm_has_feat(vcpu->kvm, ID_AA64MMFR0_EL1, FGT, FGT2))
+		return 0;
+
+	return REG_HIDDEN;
+}
+
+static unsigned int fgt_visibility(const struct kvm_vcpu *vcpu,
+				   const struct sys_reg_desc *rd)
+{
+	if (el2_visibility(vcpu, rd) == 0 &&
+	    kvm_has_feat(vcpu->kvm, ID_AA64MMFR0_EL1, FGT, IMP))
+		return 0;
+
+	return REG_HIDDEN;
 }
 
 static unsigned int s1pie_visibility(const struct kvm_vcpu *vcpu,
@@ -3352,8 +3376,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(MDCR_EL2, access_mdcr, reset_mdcr, 0),
 	EL2_REG(CPTR_EL2, access_rw, reset_val, CPTR_NVHE_EL2_RES1),
 	EL2_REG_VNCR(HSTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HFGRTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HFGWTR_EL2, reset_val, 0),
+	EL2_REG_VNCR_FILT(HFGRTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HFGWTR_EL2, fgt_visibility),
 	EL2_REG_VNCR(HFGITR_EL2, reset_val, 0),
 	EL2_REG_VNCR(HACR_EL2, reset_val, 0),
 
@@ -3373,9 +3397,14 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 			 vncr_el2_visibility),
 
 	{ SYS_DESC(SYS_DACR32_EL2), undef_access, reset_unknown, DACR32_EL2 },
-	EL2_REG_VNCR(HDFGRTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HDFGWTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HAFGRTR_EL2, reset_val, 0),
+	EL2_REG_VNCR_FILT(HDFGRTR2_EL2, fgt2_visibility),
+	EL2_REG_VNCR_FILT(HDFGWTR2_EL2, fgt2_visibility),
+	EL2_REG_VNCR_FILT(HFGRTR2_EL2, fgt2_visibility),
+	EL2_REG_VNCR_FILT(HFGWTR2_EL2, fgt2_visibility),
+	EL2_REG_VNCR_FILT(HDFGRTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HDFGWTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HAFGRTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HFGITR2_EL2, fgt2_visibility),
 	EL2_REG_REDIR(SPSR_EL2, reset_val, 0),
 	EL2_REG_REDIR(ELR_EL2, reset_val, 0),
 	{ SYS_DESC(SYS_SP_EL1), access_sp_el1},
@@ -3417,44 +3446,44 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_MPAMVPM7_EL2), undef_access },
 
 	EL2_REG(VBAR_EL2, access_rw, reset_val, 0),
-	EL2_REG(RVBAR_EL2, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_RVBAR_EL2), undef_access },
 	{ SYS_DESC(SYS_RMR_EL2), undef_access },
 	EL2_REG_VNCR(VDISR_EL2, reset_unknown, 0),
 
-	EL2_REG_VNCR(ICH_AP0R0_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP0R1_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP0R2_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP0R3_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R0_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R1_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R2_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R3_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_AP0R0_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP0R1_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP0R2_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP0R3_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R0_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R1_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R2_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R3_EL2),
 
 	{ SYS_DESC(SYS_ICC_SRE_EL2), access_gic_sre },
 
-	EL2_REG_VNCR(ICH_HCR_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_HCR_EL2),
 	{ SYS_DESC(SYS_ICH_VTR_EL2), access_gic_vtr },
 	{ SYS_DESC(SYS_ICH_MISR_EL2), access_gic_misr },
 	{ SYS_DESC(SYS_ICH_EISR_EL2), access_gic_eisr },
 	{ SYS_DESC(SYS_ICH_ELRSR_EL2), access_gic_elrsr },
-	EL2_REG_VNCR(ICH_VMCR_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_VMCR_EL2),
 
-	EL2_REG_VNCR(ICH_LR0_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR1_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR2_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR3_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR4_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR5_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR6_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR7_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR8_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR9_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR10_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR11_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR12_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR13_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR14_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR15_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_LR0_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR1_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR2_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR3_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR4_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR5_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR6_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR7_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR8_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR9_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR10_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR11_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR12_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR13_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR14_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR15_EL2),
 
 	EL2_REG(CONTEXTIDR_EL2, access_rw, reset_val, 0),
 	EL2_REG(TPIDR_EL2, access_rw, reset_val, 0),
@@ -4323,12 +4352,12 @@ static const struct sys_reg_desc cp15_64_regs[] = {
 };
 
 static bool check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
-			       bool is_32)
+			       bool reset_check)
 {
 	unsigned int i;
 
 	for (i = 0; i < n; i++) {
-		if (!is_32 && table[i].reg && !table[i].reset) {
+		if (reset_check && table[i].reg && !table[i].reset) {
 			kvm_err("sys_reg table %pS entry %d (%s) lacks reset\n",
 				&table[i], i, table[i].name);
 			return false;
@@ -5317,17 +5346,21 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 
 int __init kvm_sys_reg_table_init(void)
 {
+	const struct sys_reg_desc *gicv3_regs;
 	bool valid = true;
-	unsigned int i;
+	unsigned int i, sz;
 	int ret = 0;
 
 	/* Make sure tables are unique and in order. */
-	valid &= check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), false);
-	valid &= check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs), true);
-	valid &= check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), true);
-	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), true);
-	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), true);
+	valid &= check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), true);
+	valid &= check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs), false);
+	valid &= check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), false);
+	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), false);
+	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), false);
 	valid &= check_sysreg_table(sys_insn_descs, ARRAY_SIZE(sys_insn_descs), false);
+
+	gicv3_regs = vgic_v3_get_sysreg_table(&sz);
+	valid &= check_sysreg_table(gicv3_regs, sz, false);
 
 	if (!valid)
 		return -EINVAL;
