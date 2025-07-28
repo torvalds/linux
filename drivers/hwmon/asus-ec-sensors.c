@@ -56,6 +56,8 @@ static char *mutex_path_override;
 
 #define ASUS_HW_ACCESS_MUTEX_RMTW_ASMX	"\\RMTW.ASMX"
 
+#define ASUS_HW_ACCESS_MUTEX_SB_PC00_LPCB_SIO1_MUT0 "\\_SB.PC00.LPCB.SIO1.MUT0"
+
 #define ASUS_HW_ACCESS_MUTEX_SB_PCI0_SBRG_SIO1_MUT0 "\\_SB_.PCI0.SBRG.SIO1.MUT0"
 
 #define MAX_IDENTICAL_BOARD_VARIATIONS	3
@@ -168,7 +170,8 @@ enum board_family {
 	family_amd_800_series,
 	family_intel_300_series,
 	family_intel_400_series,
-	family_intel_600_series
+	family_intel_600_series,
+	family_intel_700_series
 };
 
 /*
@@ -321,6 +324,14 @@ static const struct ec_sensor_info sensors_family_intel_600[] = {
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
 	[ec_sensor_temp_water_block_in] =
 		EC_SENSOR("Water_Block_In", hwmon_temp, 1, 0x01, 0x02),
+};
+
+static const struct ec_sensor_info sensors_family_intel_700[] = {
+	[ec_sensor_temp_t_sensor] =
+		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x01, 0x09),
+	[ec_sensor_temp_vrm] = EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x33),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 };
 
 /* Shortcuts for common combinations */
@@ -568,6 +579,13 @@ static const struct ec_board_info board_info_strix_z690_a_gaming_wifi_d4 = {
 	.family = family_intel_600_series,
 };
 
+static const struct ec_board_info board_info_strix_z790_e_gaming_wifi_ii = {
+	.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
+		SENSOR_FAN_CPU_OPT,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_SB_PC00_LPCB_SIO1_MUT0,
+	.family = family_intel_700_series,
+};
+
 static const struct ec_board_info board_info_zenith_ii_extreme = {
 	.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB | SENSOR_TEMP_T_SENSOR |
 		SENSOR_TEMP_VRM | SENSOR_SET_TEMP_WATER |
@@ -660,6 +678,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_strix_z490_f_gaming),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z690-A GAMING WIFI D4",
 					&board_info_strix_z690_a_gaming_wifi_d4),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z790-E GAMING WIFI II",
+					&board_info_strix_z790_e_gaming_wifi_ii),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG ZENITH II EXTREME",
 					&board_info_zenith_ii_extreme),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG ZENITH II EXTREME ALPHA",
@@ -1141,6 +1161,9 @@ static int asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_intel_600_series:
 		ec_data->sensors_info = sensors_family_intel_600;
+		break;
+	case family_intel_700_series:
+		ec_data->sensors_info = sensors_family_intel_700;
 		break;
 	default:
 		dev_err(dev, "Unknown board family: %d",
