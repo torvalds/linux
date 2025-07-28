@@ -62,11 +62,6 @@ int always_delete_dentry(const struct dentry *dentry)
 }
 EXPORT_SYMBOL(always_delete_dentry);
 
-const struct dentry_operations simple_dentry_operations = {
-	.d_delete = always_delete_dentry,
-};
-EXPORT_SYMBOL(simple_dentry_operations);
-
 /*
  * Lookup the data. This is trivial - if the dentry didn't already
  * exist, we know it is negative.  Set d_op to delete negative dentries.
@@ -75,9 +70,11 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned 
 {
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	if (!dentry->d_sb->s_d_op)
-		d_set_d_op(dentry, &simple_dentry_operations);
-
+	if (!dentry->d_op && !(dentry->d_flags & DCACHE_DONTCACHE)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags |= DCACHE_DONTCACHE;
+		spin_unlock(&dentry->d_lock);
+	}
 	if (IS_ENABLED(CONFIG_UNICODE) && IS_CASEFOLDED(dir))
 		return NULL;
 
@@ -684,7 +681,7 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_root = d_make_root(root);
 	if (!s->s_root)
 		return -ENOMEM;
-	s->s_d_op = ctx->dops;
+	set_default_d_op(s, ctx->dops);
 	return 0;
 }
 
@@ -1948,22 +1945,22 @@ static const struct dentry_operations generic_encrypted_dentry_ops = {
  * @sb: superblock to be configured
  *
  * Filesystems supporting casefolding and/or fscrypt can call this
- * helper at mount-time to configure sb->s_d_op to best set of dentry
- * operations required for the enabled features. The helper must be
- * called after these have been configured, but before the root dentry
- * is created.
+ * helper at mount-time to configure default dentry_operations to the
+ * best set of dentry operations required for the enabled features.
+ * The helper must be called after these have been configured, but
+ * before the root dentry is created.
  */
 void generic_set_sb_d_ops(struct super_block *sb)
 {
 #if IS_ENABLED(CONFIG_UNICODE)
 	if (sb->s_encoding) {
-		sb->s_d_op = &generic_ci_dentry_ops;
+		set_default_d_op(sb, &generic_ci_dentry_ops);
 		return;
 	}
 #endif
 #ifdef CONFIG_FS_ENCRYPTION
 	if (sb->s_cop) {
-		sb->s_d_op = &generic_encrypted_dentry_ops;
+		set_default_d_op(sb, &generic_encrypted_dentry_ops);
 		return;
 	}
 #endif

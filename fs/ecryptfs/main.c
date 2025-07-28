@@ -471,7 +471,7 @@ static int ecryptfs_get_tree(struct fs_context *fc)
 	sbi = NULL;
 	s->s_op = &ecryptfs_sops;
 	s->s_xattr = ecryptfs_xattr_handlers;
-	s->s_d_op = &ecryptfs_dops;
+	set_default_d_op(s, &ecryptfs_dops);
 
 	err = "Reading sb failed";
 	rc = kern_path(fc->source, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
