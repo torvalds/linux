@@ -2,10 +2,17 @@
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <linux/prctl.h>
 #include <sys/prctl.h>
 
 #include "futex.h"
+
+#ifndef PR_FUTEX_HASH
+#define PR_FUTEX_HASH                   78
+# define PR_FUTEX_HASH_SET_SLOTS        1
+# define FH_FLAG_IMMUTABLE              (1ULL << 0)
+# define PR_FUTEX_HASH_GET_SLOTS        2
+# define PR_FUTEX_HASH_GET_IMMUTABLE    3
+#endif // PR_FUTEX_HASH
 
 void futex_set_nbuckets_param(struct bench_futex_parameters *params)
 {

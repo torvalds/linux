@@ -1822,7 +1822,7 @@ int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable)
 		req->chan_cnt = IEEE_8021QAZ_MAX_TCS;
 		req->bpid_per_chan = 1;
 	} else {
-		req->chan_cnt = 1;
+		req->chan_cnt = pfvf->hw.rx_chan_cnt;
 		req->bpid_per_chan = 0;
 	}
 
@@ -1847,7 +1847,7 @@ int otx2_nix_cpt_config_bp(struct otx2_nic *pfvf, bool enable)
 		req->chan_cnt = IEEE_8021QAZ_MAX_TCS;
 		req->bpid_per_chan = 1;
 	} else {
-		req->chan_cnt = 1;
+		req->chan_cnt = pfvf->hw.rx_chan_cnt;
 		req->bpid_per_chan = 0;
 	}
 

@@ -66,7 +66,7 @@ impl<T: drm::Driver> Device<T> {
         open: Some(drm::File::<T::File>::open_callback),
         postclose: Some(drm::File::<T::File>::postclose_callback),
         unload: None,
-        release: None,
+        release: Some(Self::release),
         master_set: None,
         master_drop: None,
         debugfs_init: None,
@@ -161,6 +161,16 @@ impl<T: drm::Driver> Device<T> {
 
         // SAFETY: `ptr` is valid by the safety requirements of this function.
         unsafe { &*ptr.cast() }
+    }
+
+    extern "C" fn release(ptr: *mut bindings::drm_device) {
+        // SAFETY: `ptr` is a valid pointer to a `struct drm_device` and embedded in `Self`.
+        let this = unsafe { Self::from_drm_device(ptr) };
+
+        // SAFETY:
+        // - When `release` runs it is guaranteed that there is no further access to `this`.
+        // - `this` is valid for dropping.
+        unsafe { core::ptr::drop_in_place(this) };
     }
 }
 

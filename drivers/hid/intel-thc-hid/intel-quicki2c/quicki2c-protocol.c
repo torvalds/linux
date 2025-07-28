@@ -4,6 +4,7 @@
 #include <linux/bitfield.h>
 #include <linux/hid.h>
 #include <linux/hid-over-i2c.h>
+#include <linux/unaligned.h>
 
 #include "intel-thc-dev.h"
 #include "intel-thc-dma.h"
@@ -200,6 +201,9 @@ int quicki2c_set_report(struct quicki2c_device *qcdev, u8 report_type,
 
 int quicki2c_reset(struct quicki2c_device *qcdev)
 {
+	u16 input_reg = le16_to_cpu(qcdev->dev_desc.input_reg);
+	size_t read_len = HIDI2C_LENGTH_LEN;
+	u32 prd_len = read_len;
 	int ret;
 
 	qcdev->reset_ack = false;
@@ -213,12 +217,32 @@ int quicki2c_reset(struct quicki2c_device *qcdev)
 
 	ret = wait_event_interruptible_timeout(qcdev->reset_ack_wq, qcdev->reset_ack,
 					       HIDI2C_RESET_TIMEOUT * HZ);
-	if (ret <= 0 || !qcdev->reset_ack) {
+	if (qcdev->reset_ack)
+		return 0;
+
+	/*
+	 * Manually read reset response if it wasn't received, in case reset interrupt
+	 * was missed by touch device or THC hardware.
+	 */
+	ret = thc_tic_pio_read(qcdev->thc_hw, input_reg, read_len, &prd_len,
+			       (u32 *)qcdev->input_buf);
+	if (ret) {
+		dev_err_once(qcdev->dev, "Read Reset Response failed, ret %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * Check response packet length, it's first 16 bits of packet.
+	 * If response packet length is zero, it's reset response, otherwise not.
+	 */
+	if (get_unaligned_le16(qcdev->input_buf)) {
 		dev_err_once(qcdev->dev,
 			     "Wait reset response timed out ret:%d timeout:%ds\n",
 			     ret, HIDI2C_RESET_TIMEOUT);
 		return -ETIMEDOUT;
 	}
+
+	qcdev->reset_ack = true;
 
 	return 0;
 }

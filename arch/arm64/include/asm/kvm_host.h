@@ -1289,9 +1289,8 @@ void kvm_arm_resume_guest(struct kvm *kvm);
 	})
 
 /*
- * The couple of isb() below are there to guarantee the same behaviour
- * on VHE as on !VHE, where the eret to EL1 acts as a context
- * synchronization event.
+ * The isb() below is there to guarantee the same behaviour on VHE as on !VHE,
+ * where the eret to EL1 acts as a context synchronization event.
  */
 #define kvm_call_hyp(f, ...)						\
 	do {								\
@@ -1309,7 +1308,6 @@ void kvm_arm_resume_guest(struct kvm *kvm);
 									\
 		if (has_vhe()) {					\
 			ret = f(__VA_ARGS__);				\
-			isb();						\
 		} else {						\
 			ret = kvm_call_hyp_nvhe(f, ##__VA_ARGS__);	\
 		}							\
@@ -1482,7 +1480,6 @@ int kvm_vm_ioctl_get_reg_writable_masks(struct kvm *kvm,
 					struct reg_mask_range *range);
 
 /* Guest/host FPSIMD coordination helpers */
-int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu);

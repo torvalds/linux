@@ -1259,6 +1259,8 @@ xfs_growfs_check_rtgeom(
 
 	kfree(nmp);
 
+	trace_xfs_growfs_check_rtgeom(mp, min_logfsbs);
+
 	if (min_logfsbs > mp->m_sb.sb_logblocks)
 		return -EINVAL;
 

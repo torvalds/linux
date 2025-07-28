@@ -5,7 +5,7 @@
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/compiler.h>
 #include <linux/stringify.h>
@@ -80,6 +80,6 @@ static inline int arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-#endif /* #ifndef __ASSEMBLY__ */
+#endif /* #ifndef __ASSEMBLER__ */
 
 #endif /* _ASM_IRQFLAGS_H */

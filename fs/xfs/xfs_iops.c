@@ -665,7 +665,7 @@ xfs_get_atomic_write_max_opt(
 	 * less than our out of place write limit, but we don't want to exceed
 	 * the awu_max.
 	 */
-	return min(awu_max, xfs_inode_buftarg(ip)->bt_bdev_awu_max);
+	return min(awu_max, xfs_inode_buftarg(ip)->bt_awu_max);
 }
 
 static void
