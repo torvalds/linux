@@ -33,7 +33,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 		dev_warn(fbd->dev,
 			 "Error %d sending host ownership message to the firmware\n",
 			 err);
-		goto free_resources;
+		goto err_reset_queues;
 	}
 
 	err = fbnic_time_start(fbn);
@@ -57,6 +57,8 @@ time_stop:
 	fbnic_time_stop(fbn);
 release_ownership:
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
+err_reset_queues:
+	fbnic_reset_netif_queues(fbn);
 free_resources:
 	fbnic_free_resources(fbn);
 free_napi_vectors:
