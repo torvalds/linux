@@ -2408,6 +2408,17 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	else
 		lim.write_stream_granularity = 0;
 
+	/*
+	 * Only set the DEAC bit if the device guarantees that reads from
+	 * deallocated data return zeroes.  While the DEAC bit does not
+	 * require that, it must be a no-op if reads from deallocated data
+	 * do not return zeroes.
+	 */
+	if ((id->dlfeat & 0x7) == 0x1 && (id->dlfeat & (1 << 3))) {
+		ns->head->features |= NVME_NS_DEAC;
+		lim.max_hw_wzeroes_unmap_sectors = lim.max_write_zeroes_sectors;
+	}
+
 	ret = queue_limits_commit_update(ns->disk->queue, &lim);
 	if (ret) {
 		blk_mq_unfreeze_queue(ns->disk->queue, memflags);
@@ -2415,15 +2426,6 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	}
 
 	set_capacity_and_notify(ns->disk, capacity);
-
-	/*
-	 * Only set the DEAC bit if the device guarantees that reads from
-	 * deallocated data return zeroes.  While the DEAC bit does not
-	 * require that, it must be a no-op if reads from deallocated data
-	 * do not return zeroes.
-	 */
-	if ((id->dlfeat & 0x7) == 0x1 && (id->dlfeat & (1 << 3)))
-		ns->head->features |= NVME_NS_DEAC;
 	set_disk_ro(ns->disk, nvme_ns_is_readonly(ns, info));
 	set_bit(NVME_NS_READY, &ns->flags);
 	blk_mq_unfreeze_queue(ns->disk->queue, memflags);
