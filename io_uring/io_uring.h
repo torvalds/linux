@@ -81,6 +81,7 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
 void io_add_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
 bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags);
+bool io_req_post_cqe32(struct io_kiocb *req, struct io_uring_cqe src_cqe[2]);
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
 void io_req_track_inflight(struct io_kiocb *req);
@@ -293,11 +294,22 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
 }
 
+static inline void __io_wq_wake(struct wait_queue_head *wq)
+{
+	/*
+	 *
+	 * Pass in EPOLLIN|EPOLL_URING_WAKE as the poll wakeup key. The latter
+	 * set in the mask so that if we recurse back into our own poll
+	 * waitqueue handlers, we know we have a dependency between eventfd or
+	 * epoll and should terminate multishot poll at that point.
+	 */
+	if (wq_has_sleeper(wq))
+		__wake_up(wq, TASK_NORMAL, 0, poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
+}
+
 static inline void io_poll_wq_wake(struct io_ring_ctx *ctx)
 {
-	if (wq_has_sleeper(&ctx->poll_wq))
-		__wake_up(&ctx->poll_wq, TASK_NORMAL, 0,
-				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
+	__io_wq_wake(&ctx->poll_wq);
 }
 
 static inline void io_cqring_wake(struct io_ring_ctx *ctx)
@@ -306,15 +318,9 @@ static inline void io_cqring_wake(struct io_ring_ctx *ctx)
 	 * Trigger waitqueue handler on all waiters on our waitqueue. This
 	 * won't necessarily wake up all the tasks, io_should_wake() will make
 	 * that decision.
-	 *
-	 * Pass in EPOLLIN|EPOLL_URING_WAKE as the poll wakeup key. The latter
-	 * set in the mask so that if we recurse back into our own poll
-	 * waitqueue handlers, we know we have a dependency between eventfd or
-	 * epoll and should terminate multishot poll at that point.
 	 */
-	if (wq_has_sleeper(&ctx->cq_wait))
-		__wake_up(&ctx->cq_wait, TASK_NORMAL, 0,
-				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
+
+	__io_wq_wake(&ctx->cq_wait);
 }
 
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)

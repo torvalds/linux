@@ -114,11 +114,11 @@
 #define IO_REQ_LINK_FLAGS (REQ_F_LINK | REQ_F_HARDLINK)
 
 #define IO_REQ_CLEAN_FLAGS (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP | \
-				REQ_F_POLLED | REQ_F_INFLIGHT | REQ_F_CREDS | \
-				REQ_F_ASYNC_DATA)
+				REQ_F_INFLIGHT | REQ_F_CREDS | REQ_F_ASYNC_DATA)
 
 #define IO_REQ_CLEAN_SLOW_FLAGS (REQ_F_REFCOUNT | IO_REQ_LINK_FLAGS | \
-				 REQ_F_REISSUE | IO_REQ_CLEAN_FLAGS)
+				 REQ_F_REISSUE | REQ_F_POLLED | \
+				 IO_REQ_CLEAN_FLAGS)
 
 #define IO_TCTX_REFS_CACHE_NR	(1U << 10)
 
@@ -147,7 +147,7 @@ static bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 bool cancel_all,
 					 bool is_sqpoll_thread);
 
-static void io_queue_sqe(struct io_kiocb *req);
+static void io_queue_sqe(struct io_kiocb *req, unsigned int extra_flags);
 static void __io_req_caches_free(struct io_ring_ctx *ctx);
 
 static __read_mostly DEFINE_STATIC_KEY_FALSE(io_key_has_sqarray);
@@ -391,11 +391,6 @@ static void io_clean_op(struct io_kiocb *req)
 
 		if (def->cleanup)
 			def->cleanup(req);
-	}
-	if ((req->flags & REQ_F_POLLED) && req->apoll) {
-		kfree(req->apoll->double_poll);
-		kfree(req->apoll);
-		req->apoll = NULL;
 	}
 	if (req->flags & REQ_F_INFLIGHT)
 		atomic_dec(&req->tctx->inflight_tracked);
@@ -793,6 +788,21 @@ bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow)
 	return true;
 }
 
+static bool io_fill_cqe_aux32(struct io_ring_ctx *ctx,
+			      struct io_uring_cqe src_cqe[2])
+{
+	struct io_uring_cqe *cqe;
+
+	if (WARN_ON_ONCE(!(ctx->flags & IORING_SETUP_CQE32)))
+		return false;
+	if (unlikely(!io_get_cqe(ctx, &cqe)))
+		return false;
+
+	memcpy(cqe, src_cqe, 2 * sizeof(*cqe));
+	trace_io_uring_complete(ctx, NULL, cqe);
+	return true;
+}
+
 static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 			      u32 cflags)
 {
@@ -898,6 +908,31 @@ bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags)
 		spin_unlock(&ctx->completion_lock);
 	} else {
 		posted = io_fill_cqe_aux(ctx, req->cqe.user_data, res, cflags);
+	}
+
+	ctx->submit_state.cq_flush = true;
+	return posted;
+}
+
+/*
+ * A helper for multishot requests posting additional CQEs.
+ * Should only be used from a task_work including IO_URING_F_MULTISHOT.
+ */
+bool io_req_post_cqe32(struct io_kiocb *req, struct io_uring_cqe cqe[2])
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	bool posted;
+
+	lockdep_assert(!io_wq_current_is_worker());
+	lockdep_assert_held(&ctx->uring_lock);
+
+	cqe[0].user_data = req->cqe.user_data;
+	if (!ctx->lockless_cq) {
+		spin_lock(&ctx->completion_lock);
+		posted = io_fill_cqe_aux32(ctx, cqe);
+		spin_unlock(&ctx->completion_lock);
+	} else {
+		posted = io_fill_cqe_aux32(ctx, cqe);
 	}
 
 	ctx->submit_state.cq_flush = true;
@@ -1377,7 +1412,7 @@ void io_req_task_submit(struct io_kiocb *req, io_tw_token_t tw)
 	else if (req->flags & REQ_F_FORCE_ASYNC)
 		io_queue_iowq(req);
 	else
-		io_queue_sqe(req);
+		io_queue_sqe(req, 0);
 }
 
 void io_req_task_queue_fail(struct io_kiocb *req, int ret)
@@ -1938,13 +1973,33 @@ struct file *io_file_get_normal(struct io_kiocb *req, int fd)
 	return file;
 }
 
-static void io_queue_async(struct io_kiocb *req, int ret)
+static int io_req_sqe_copy(struct io_kiocb *req, unsigned int issue_flags)
+{
+	const struct io_cold_def *def = &io_cold_defs[req->opcode];
+
+	if (req->flags & REQ_F_SQE_COPIED)
+		return 0;
+	req->flags |= REQ_F_SQE_COPIED;
+	if (!def->sqe_copy)
+		return 0;
+	if (WARN_ON_ONCE(!(issue_flags & IO_URING_F_INLINE)))
+		return -EFAULT;
+	def->sqe_copy(req);
+	return 0;
+}
+
+static void io_queue_async(struct io_kiocb *req, unsigned int issue_flags, int ret)
 	__must_hold(&req->ctx->uring_lock)
 {
 	if (ret != -EAGAIN || (req->flags & REQ_F_NOWAIT)) {
+fail:
 		io_req_defer_failed(req, ret);
 		return;
 	}
+
+	ret = io_req_sqe_copy(req, issue_flags);
+	if (unlikely(ret))
+		goto fail;
 
 	switch (io_arm_poll_handler(req, 0)) {
 	case IO_APOLL_READY:
@@ -1960,19 +2015,21 @@ static void io_queue_async(struct io_kiocb *req, int ret)
 	}
 }
 
-static inline void io_queue_sqe(struct io_kiocb *req)
+static inline void io_queue_sqe(struct io_kiocb *req, unsigned int extra_flags)
 	__must_hold(&req->ctx->uring_lock)
 {
+	unsigned int issue_flags = IO_URING_F_NONBLOCK |
+				   IO_URING_F_COMPLETE_DEFER | extra_flags;
 	int ret;
 
-	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
+	ret = io_issue_sqe(req, issue_flags);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
 	 * doesn't support non-blocking read/write attempts
 	 */
 	if (unlikely(ret))
-		io_queue_async(req, ret);
+		io_queue_async(req, issue_flags, ret);
 }
 
 static void io_queue_sqe_fallback(struct io_kiocb *req)
@@ -1987,6 +2044,8 @@ static void io_queue_sqe_fallback(struct io_kiocb *req)
 		req->flags |= REQ_F_LINK;
 		io_req_defer_failed(req, req->cqe.res);
 	} else {
+		/* can't fail with IO_URING_F_INLINE */
+		io_req_sqe_copy(req, IO_URING_F_INLINE);
 		if (unlikely(req->ctx->drain_active))
 			io_drain_req(req);
 		else
@@ -2198,6 +2257,7 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 */
 	if (unlikely(link->head)) {
 		trace_io_uring_link(req, link->last);
+		io_req_sqe_copy(req, IO_URING_F_INLINE);
 		link->last->link = req;
 		link->last = req;
 
@@ -2221,7 +2281,7 @@ fallback:
 		return 0;
 	}
 
-	io_queue_sqe(req);
+	io_queue_sqe(req, IO_URING_F_INLINE);
 	return 0;
 }
 
