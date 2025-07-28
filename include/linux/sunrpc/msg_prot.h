@@ -69,15 +69,17 @@ enum rpc_reject_stat {
 };
 
 enum rpc_auth_stat {
-	RPC_AUTH_OK = 0,
-	RPC_AUTH_BADCRED = 1,
-	RPC_AUTH_REJECTEDCRED = 2,
-	RPC_AUTH_BADVERF = 3,
-	RPC_AUTH_REJECTEDVERF = 4,
-	RPC_AUTH_TOOWEAK = 5,
+	RPC_AUTH_OK = 0,		/* success */
+	RPC_AUTH_BADCRED = 1,		/* bad credential (seal broken) */
+	RPC_AUTH_REJECTEDCRED = 2,	/* client must begin new session */
+	RPC_AUTH_BADVERF = 3,		/* bad verifier (seal broken) */
+	RPC_AUTH_REJECTEDVERF = 4,	/* verifier expired or replayed */
+	RPC_AUTH_TOOWEAK = 5,		/* rejected for security reasons */
+	RPC_AUTH_INVALIDRESP = 6,	/* bogus response verifier */
+	RPC_AUTH_FAILED = 7,		/* reason unknown */
 	/* RPCSEC_GSS errors */
-	RPCSEC_GSS_CREDPROBLEM = 13,
-	RPCSEC_GSS_CTXPROBLEM = 14
+	RPCSEC_GSS_CREDPROBLEM = 13,	/* no credentials for user */
+	RPCSEC_GSS_CTXPROBLEM = 14	/* problem with context */
 };
 
 #define RPC_MAXNETNAMELEN	256
