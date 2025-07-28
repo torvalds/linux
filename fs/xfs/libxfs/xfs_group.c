@@ -172,7 +172,8 @@ xfs_group_free(
 
 	/* drop the mount's active reference */
 	xfs_group_rele(xg);
-	XFS_IS_CORRUPT(mp, atomic_read(&xg->xg_active_ref) != 0);
+	XFS_IS_CORRUPT(mp, atomic_read(&xg->xg_active_ref) > 0);
+	XFS_IS_CORRUPT(mp, atomic_read(&xg->xg_active_ref) < 0);
 	kfree_rcu_mightsleep(xg);
 }
 

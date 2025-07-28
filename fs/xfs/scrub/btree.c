@@ -306,7 +306,7 @@ xchk_btree_block_check_sibling(
 	if (pbp)
 		xchk_buffer_recheck(bs->sc, pbp);
 
-	if (xfs_btree_diff_two_ptrs(cur, pp, sibling))
+	if (xfs_btree_cmp_two_ptrs(cur, pp, sibling))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
 out:
 	xfs_btree_del_cursor(ncur, XFS_BTREE_ERROR);
