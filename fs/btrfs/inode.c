@@ -2047,6 +2047,12 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	bool check_prev = true;
 	u64 ino = btrfs_ino(inode);
 	struct can_nocow_file_extent_args nocow_args = { 0 };
+	/* The range that has ordered extent(s). */
+	u64 oe_cleanup_start;
+	u64 oe_cleanup_len = 0;
+	/* The range that is untouched. */
+	u64 untouched_start;
+	u64 untouched_len = 0;
 
 	/*
 	 * Normally on a zoned device we're only doing COW writes, but in case
@@ -2232,76 +2238,72 @@ must_cow:
 	return 0;
 
 error:
-	/*
-	 * There are several error cases:
-	 *
-	 * 1) Failed without falling back to COW
-	 *    start         cur_offset             end
-	 *    |/////////////|                      |
-	 *
-	 *    In this case, cow_start should be (u64)-1.
-	 *
-	 *    For range [start, cur_offset) the folios are already unlocked (except
-	 *    @locked_folio), EXTENT_DELALLOC already removed.
-	 *    Need to clear the dirty flags and finish the ordered extents.
-	 *
-	 * 2) Failed with error before calling fallback_to_cow()
-	 *
-	 *    start         cow_start              end
-	 *    |/////////////|                      |
-	 *
-	 *    In this case, only @cow_start is set, @cur_offset is between
-	 *    [cow_start, end)
-	 *
-	 *    It's mostly the same as case 1), just replace @cur_offset with
-	 *    @cow_start.
-	 *
-	 * 3) Failed with error from fallback_to_cow()
-	 *
-	 *    start         cow_start   cow_end    end
-	 *    |/////////////|-----------|          |
-	 *
-	 *    In this case, both @cow_start and @cow_end is set.
-	 *
-	 *    For range [start, cow_start) it's the same as case 1).
-	 *    But for range [cow_start, cow_end), all the cleanup is handled by
-	 *    cow_file_range(), we should not touch anything in that range.
-	 *
-	 * So for all above cases, if @cow_start is set, cleanup ordered extents
-	 * for range [start, @cow_start), other wise cleanup range [start, @cur_offset).
-	 */
-	if (cow_start != (u64)-1)
-		cur_offset = cow_start;
-
-	if (cur_offset > start) {
-		btrfs_cleanup_ordered_extents(inode, start, cur_offset - start);
-		cleanup_dirty_folios(inode, locked_folio, start, cur_offset - 1, ret);
+	if (cow_start == (u64)-1) {
+		/*
+		 * case a)
+		 *    start           cur_offset               end
+		 *    |   OE cleanup  |       Untouched        |
+		 *
+		 * We finished a fallback_to_cow() or nocow_one_range() call, but
+		 * failed to check the next range.
+		 */
+		oe_cleanup_start = start;
+		oe_cleanup_len = cur_offset - start;
+		untouched_start = cur_offset;
+		untouched_len = end + 1 - untouched_start;
+	} else if (cow_start != (u64)-1 && cow_end == 0) {
+		/*
+		 * case b)
+		 *    start        cow_start    cur_offset   end
+		 *    | OE cleanup |        Untouched        |
+		 *
+		 * We got a range that needs COW, but before we hit the next NOCOW range,
+		 * thus [cow_start, cur_offset) doesn't yet have any OE.
+		 */
+		oe_cleanup_start = start;
+		oe_cleanup_len = cow_start - start;
+		untouched_start = cow_start;
+		untouched_len = end + 1 - untouched_start;
+	} else {
+		/*
+		 * case c)
+		 *    start        cow_start    cow_end      end
+		 *    | OE cleanup |   Skip     |  Untouched |
+		 *
+		 * fallback_to_cow() failed, and fallback_to_cow() will do the
+		 * cleanup for its range, we shouldn't touch the range
+		 * [cow_start, cow_end].
+		 */
+		ASSERT(cow_start != (u64)-1 && cow_end != 0);
+		oe_cleanup_start = start;
+		oe_cleanup_len = cow_start - start;
+		untouched_start = cow_end + 1;
+		untouched_len = end + 1 - untouched_start;
 	}
 
-	/*
-	 * If an error happened while a COW region is outstanding, cur_offset
-	 * needs to be reset to @cow_end + 1 to skip the COW range, as
-	 * cow_file_range() will do the proper cleanup at error.
-	 */
-	if (cow_end)
-		cur_offset = cow_end + 1;
+	if (oe_cleanup_len) {
+		btrfs_cleanup_ordered_extents(inode, oe_cleanup_start, oe_cleanup_len);
+		cleanup_dirty_folios(inode, locked_folio, oe_cleanup_start,
+				     oe_cleanup_start + oe_cleanup_len - 1, ret);
+	}
 
-	/*
-	 * We need to lock the extent here because we're clearing DELALLOC and
-	 * we're not locked at this point.
-	 */
-	if (cur_offset < end) {
+	if (untouched_len) {
 		struct extent_state *cached = NULL;
+		const u64 untouched_end = untouched_start + untouched_len - 1;
 
-		btrfs_lock_extent(&inode->io_tree, cur_offset, end, &cached);
-		extent_clear_unlock_delalloc(inode, cur_offset, end,
+		/*
+		 * We need to lock the extent here because we're clearing DELALLOC and
+		 * we're not locked at this point.
+		 */
+		btrfs_lock_extent(&inode->io_tree, untouched_start, untouched_end, &cached);
+		extent_clear_unlock_delalloc(inode, untouched_start, untouched_end,
 					     locked_folio, &cached,
 					     EXTENT_LOCKED | EXTENT_DELALLOC |
 					     EXTENT_DEFRAG |
 					     EXTENT_DO_ACCOUNTING, PAGE_UNLOCK |
 					     PAGE_START_WRITEBACK |
 					     PAGE_END_WRITEBACK);
-		btrfs_qgroup_free_data(inode, NULL, cur_offset, end - cur_offset + 1, NULL);
+		btrfs_qgroup_free_data(inode, NULL, untouched_start, untouched_len, NULL);
 	}
 	btrfs_free_path(path);
 	btrfs_err_rl(fs_info,
