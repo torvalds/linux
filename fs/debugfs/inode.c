@@ -384,27 +384,12 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	if (!parent)
 		parent = debugfs_mount->mnt_root;
 
-	inode_lock(d_inode(parent));
-	if (unlikely(IS_DEADDIR(d_inode(parent))))
-		dentry = ERR_PTR(-ENOENT);
-	else
-		dentry = lookup_noperm(&QSTR(name), parent);
-	if (!IS_ERR(dentry) && d_really_is_positive(dentry)) {
-		if (d_is_dir(dentry))
-			pr_err("Directory '%s' with parent '%s' already present!\n",
-			       name, parent->d_name.name);
-		else
-			pr_err("File '%s' in directory '%s' already present!\n",
-			       name, parent->d_name.name);
-		dput(dentry);
-		dentry = ERR_PTR(-EEXIST);
-	}
-
+	dentry = simple_start_creating(parent, name);
 	if (IS_ERR(dentry)) {
-		inode_unlock(d_inode(parent));
+		if (dentry == ERR_PTR(-EEXIST))
+			pr_err("'%s' already exists in '%pd'\n", name, parent);
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 	}
-
 	return dentry;
 }
 

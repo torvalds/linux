@@ -2272,3 +2272,28 @@ void stashed_dentry_prune(struct dentry *dentry)
 	 */
 	cmpxchg(stashed, dentry, NULL);
 }
+
+/* parent must be held exclusive */
+struct dentry *simple_start_creating(struct dentry *parent, const char *name)
+{
+	struct dentry *dentry;
+	struct inode *dir = d_inode(parent);
+
+	inode_lock(dir);
+	if (unlikely(IS_DEADDIR(dir))) {
+		inode_unlock(dir);
+		return ERR_PTR(-ENOENT);
+	}
+	dentry = lookup_noperm(&QSTR(name), parent);
+	if (IS_ERR(dentry)) {
+		inode_unlock(dir);
+		return dentry;
+	}
+	if (dentry->d_inode) {
+		dput(dentry);
+		inode_unlock(dir);
+		return ERR_PTR(-EEXIST);
+	}
+	return dentry;
+}
+EXPORT_SYMBOL(simple_start_creating);
