@@ -37,7 +37,6 @@ int ipu7_isys_subdev_enum_mbus_code(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *state,
 				    struct v4l2_subdev_mbus_code_enum
 				    *code);
-u32 ipu7_isys_get_src_stream_by_src_pad(struct v4l2_subdev *sd, u32 pad);
 int ipu7_isys_get_stream_pad_fmt(struct v4l2_subdev *sd, u32 pad, u32 stream,
 				 struct v4l2_mbus_framefmt *format);
 int ipu7_isys_subdev_set_routing(struct v4l2_subdev *sd,
