@@ -870,3 +870,10 @@ Description:	This threshold is used to control triggering garbage collection whi
 		reserved section before preallocating on pinned file.
 		By default, the value is ovp_sections, especially, for zoned ufs, the
 		value is 1.
+
+What:		/sys/fs/f2fs/<disk>/gc_boost_gc_multiple
+Date:		June 2025
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Set a multiplier for the background GC migration window when F2FS GC is
+		boosted. The range should be from 1 to the segment count in a section.
+		Default: 5
