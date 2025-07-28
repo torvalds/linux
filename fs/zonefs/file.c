@@ -124,37 +124,46 @@ static void zonefs_readahead(struct readahead_control *rac)
  * Map blocks for page writeback. This is used only on conventional zone files,
  * which implies that the page range can only be within the fixed inode size.
  */
-static int zonefs_write_map_blocks(struct iomap_writepage_ctx *wpc,
-				   struct inode *inode, loff_t offset,
-				   unsigned int len)
+static ssize_t zonefs_writeback_range(struct iomap_writepage_ctx *wpc,
+		struct folio *folio, u64 offset, unsigned len, u64 end_pos)
 {
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct zonefs_zone *z = zonefs_inode_zone(wpc->inode);
 
 	if (WARN_ON_ONCE(zonefs_zone_is_seq(z)))
 		return -EIO;
-	if (WARN_ON_ONCE(offset >= i_size_read(inode)))
+	if (WARN_ON_ONCE(offset >= i_size_read(wpc->inode)))
 		return -EIO;
 
 	/* If the mapping is already OK, nothing needs to be done */
-	if (offset >= wpc->iomap.offset &&
-	    offset < wpc->iomap.offset + wpc->iomap.length)
-		return 0;
+	if (offset < wpc->iomap.offset ||
+	    offset >= wpc->iomap.offset + wpc->iomap.length) {
+		int error;
 
-	return zonefs_write_iomap_begin(inode, offset,
-					z->z_capacity - offset,
-					IOMAP_WRITE, &wpc->iomap, NULL);
+		error = zonefs_write_iomap_begin(wpc->inode, offset,
+				z->z_capacity - offset, IOMAP_WRITE,
+				&wpc->iomap, NULL);
+		if (error)
+			return error;
+	}
+
+	return iomap_add_to_ioend(wpc, folio, offset, end_pos, len);
 }
 
 static const struct iomap_writeback_ops zonefs_writeback_ops = {
-	.map_blocks		= zonefs_write_map_blocks,
+	.writeback_range	= zonefs_writeback_range,
+	.writeback_submit	= iomap_ioend_writeback_submit,
 };
 
 static int zonefs_writepages(struct address_space *mapping,
 			     struct writeback_control *wbc)
 {
-	struct iomap_writepage_ctx wpc = { };
+	struct iomap_writepage_ctx wpc = {
+		.inode		= mapping->host,
+		.wbc		= wbc,
+		.ops		= &zonefs_writeback_ops,
+	};
 
-	return iomap_writepages(mapping, wbc, &wpc, &zonefs_writeback_ops);
+	return iomap_writepages(&wpc);
 }
 
 static int zonefs_swap_activate(struct swap_info_struct *sis,
@@ -565,7 +574,8 @@ static ssize_t zonefs_file_buffered_write(struct kiocb *iocb,
 	if (ret <= 0)
 		goto inode_unlock;
 
-	ret = iomap_file_buffered_write(iocb, from, &zonefs_write_iomap_ops, NULL);
+	ret = iomap_file_buffered_write(iocb, from, &zonefs_write_iomap_ops,
+			NULL, NULL);
 	if (ret == -EIO)
 		zonefs_io_error(inode, true);
 

@@ -540,30 +540,42 @@ static void blkdev_readahead(struct readahead_control *rac)
 	iomap_readahead(rac, &blkdev_iomap_ops);
 }
 
-static int blkdev_map_blocks(struct iomap_writepage_ctx *wpc,
-		struct inode *inode, loff_t offset, unsigned int len)
+static ssize_t blkdev_writeback_range(struct iomap_writepage_ctx *wpc,
+		struct folio *folio, u64 offset, unsigned int len, u64 end_pos)
 {
-	loff_t isize = i_size_read(inode);
+	loff_t isize = i_size_read(wpc->inode);
 
 	if (WARN_ON_ONCE(offset >= isize))
 		return -EIO;
-	if (offset >= wpc->iomap.offset &&
-	    offset < wpc->iomap.offset + wpc->iomap.length)
-		return 0;
-	return blkdev_iomap_begin(inode, offset, isize - offset,
-				  IOMAP_WRITE, &wpc->iomap, NULL);
+
+	if (offset < wpc->iomap.offset ||
+	    offset >= wpc->iomap.offset + wpc->iomap.length) {
+		int error;
+
+		error = blkdev_iomap_begin(wpc->inode, offset, isize - offset,
+				IOMAP_WRITE, &wpc->iomap, NULL);
+		if (error)
+			return error;
+	}
+
+	return iomap_add_to_ioend(wpc, folio, offset, end_pos, len);
 }
 
 static const struct iomap_writeback_ops blkdev_writeback_ops = {
-	.map_blocks		= blkdev_map_blocks,
+	.writeback_range	= blkdev_writeback_range,
+	.writeback_submit	= iomap_ioend_writeback_submit,
 };
 
 static int blkdev_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
-	struct iomap_writepage_ctx wpc = { };
+	struct iomap_writepage_ctx wpc = {
+		.inode		= mapping->host,
+		.wbc		= wbc,
+		.ops		= &blkdev_writeback_ops
+	};
 
-	return iomap_writepages(mapping, wbc, &wpc, &blkdev_writeback_ops);
+	return iomap_writepages(&wpc);
 }
 
 const struct address_space_operations def_blk_aops = {
@@ -714,7 +726,8 @@ blkdev_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 static ssize_t blkdev_buffered_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	return iomap_file_buffered_write(iocb, from, &blkdev_iomap_ops, NULL);
+	return iomap_file_buffered_write(iocb, from, &blkdev_iomap_ops, NULL,
+			NULL);
 }
 
 /*
