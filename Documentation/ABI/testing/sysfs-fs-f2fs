@@ -877,3 +877,9 @@ Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Set a multiplier for the background GC migration window when F2FS GC is
 		boosted. The range should be from 1 to the segment count in a section.
 		Default: 5
+
+What:		/sys/fs/f2fs/<disk>/gc_boost_gc_greedy
+Date:		June 2025
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Control GC algorithm for boost GC. 0: cost benefit, 1: greedy
+		Default: 1
