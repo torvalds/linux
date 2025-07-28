@@ -758,7 +758,7 @@ static void its_free_ite(struct kvm *kvm, struct its_ite *ite)
 	if (irq) {
 		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock) {
 			if (irq->hw)
-				WARN_ON(its_unmap_vlpi(ite->irq->host_irq));
+				its_unmap_vlpi(ite->irq->host_irq);
 
 			irq->hw = false;
 		}
