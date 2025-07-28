@@ -204,14 +204,17 @@ static struct nat_entry *__init_nat_entry(struct f2fs_nm_info *nm_i,
 	return ne;
 }
 
-static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n)
+static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n, bool for_dirty)
 {
 	struct nat_entry *ne;
 
 	ne = radix_tree_lookup(&nm_i->nat_root, n);
 
-	/* for recent accessed nat entry, move it to tail of lru list */
-	if (ne && !get_nat_flag(ne, IS_DIRTY)) {
+	/*
+	 * for recent accessed nat entry which will not be dirtied soon
+	 * later, move it to tail of lru list.
+	 */
+	if (ne && !get_nat_flag(ne, IS_DIRTY) && !for_dirty) {
 		spin_lock(&nm_i->nat_list_lock);
 		if (!list_empty(&ne->list))
 			list_move_tail(&ne->list, &nm_i->nat_entries);
@@ -383,7 +386,7 @@ int f2fs_need_dentry_mark(struct f2fs_sb_info *sbi, nid_t nid)
 	bool need = false;
 
 	f2fs_down_read(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, nid);
+	e = __lookup_nat_cache(nm_i, nid, false);
 	if (e) {
 		if (!get_nat_flag(e, IS_CHECKPOINTED) &&
 				!get_nat_flag(e, HAS_FSYNCED_INODE))
@@ -400,7 +403,7 @@ bool f2fs_is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
 	bool is_cp = true;
 
 	f2fs_down_read(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, nid);
+	e = __lookup_nat_cache(nm_i, nid, false);
 	if (e && !get_nat_flag(e, IS_CHECKPOINTED))
 		is_cp = false;
 	f2fs_up_read(&nm_i->nat_tree_lock);
@@ -414,7 +417,7 @@ bool f2fs_need_inode_block_update(struct f2fs_sb_info *sbi, nid_t ino)
 	bool need_update = true;
 
 	f2fs_down_read(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, ino);
+	e = __lookup_nat_cache(nm_i, ino, false);
 	if (e && get_nat_flag(e, HAS_LAST_FSYNC) &&
 			(get_nat_flag(e, IS_CHECKPOINTED) ||
 			 get_nat_flag(e, HAS_FSYNCED_INODE)))
@@ -439,7 +442,7 @@ static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 		return;
 
 	f2fs_down_write(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, nid);
+	e = __lookup_nat_cache(nm_i, nid, false);
 	if (!e)
 		e = __init_nat_entry(nm_i, new, ne, false);
 	else
@@ -460,7 +463,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 	struct nat_entry *new = __alloc_nat_entry(sbi, ni->nid, true);
 
 	f2fs_down_write(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, ni->nid);
+	e = __lookup_nat_cache(nm_i, ni->nid, true);
 	if (!e) {
 		e = __init_nat_entry(nm_i, new, NULL, true);
 		copy_node_info(&e->ni, ni);
@@ -502,7 +505,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 
 	/* update fsync_mark if its inode nat entry is still alive */
 	if (ni->nid != ni->ino)
-		e = __lookup_nat_cache(nm_i, ni->ino);
+		e = __lookup_nat_cache(nm_i, ni->ino, false);
 	if (e) {
 		if (fsync_done && ni->nid == ni->ino)
 			set_nat_flag(e, HAS_FSYNCED_INODE, true);
@@ -562,7 +565,7 @@ int f2fs_get_node_info(struct f2fs_sb_info *sbi, nid_t nid,
 retry:
 	/* Check nat cache */
 	f2fs_down_read(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, nid);
+	e = __lookup_nat_cache(nm_i, nid, false);
 	if (e) {
 		ni->ino = nat_get_ino(e);
 		ni->blk_addr = nat_get_blkaddr(e);
@@ -2371,7 +2374,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 		 *   - __remove_nid_from_list(PREALLOC_NID)
 		 *                         - __insert_nid_to_list(FREE_NID)
 		 */
-		ne = __lookup_nat_cache(nm_i, nid);
+		ne = __lookup_nat_cache(nm_i, nid, false);
 		if (ne && (!get_nat_flag(ne, IS_CHECKPOINTED) ||
 				nat_get_blkaddr(ne) != NULL_ADDR))
 			goto err_out;
@@ -2936,7 +2939,7 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 
 		raw_ne = nat_in_journal(journal, i);
 
-		ne = __lookup_nat_cache(nm_i, nid);
+		ne = __lookup_nat_cache(nm_i, nid, true);
 		if (!ne) {
 			ne = __alloc_nat_entry(sbi, nid, true);
 			__init_nat_entry(nm_i, ne, &raw_ne, true);
