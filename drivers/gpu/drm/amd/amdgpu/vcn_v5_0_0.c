@@ -769,9 +769,10 @@ static int vcn_v5_0_0_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 
 	if (indirect) {
 		ret = amdgpu_vcn_psp_update_sram(adev, inst_idx, 0);
-		dev_err(adev->dev, "%s: vcn sram load failed %d\n", __func__, ret);
-		if (ret)
+		if (ret) {
+			dev_err(adev->dev, "%s: vcn sram load failed %d\n", __func__, ret);
 			return ret;
+		}
 	}
 
 	ring = &adev->vcn.inst[inst_idx].ring_enc[0];
