@@ -40,26 +40,6 @@ defined in by Daniel Bristot in [1].
 
 Currently we included the following:
 
-Monitor tss
-~~~~~~~~~~~
-
-The task switch while scheduling (tss) monitor ensures a task switch happens
-only in scheduling context, that is inside a call to `__schedule`::
-
-                     |
-                     |
-                     v
-                   +-----------------+
-                   |     thread      | <+
-                   +-----------------+  |
-                     |                  |
-                     | schedule_entry   | schedule_exit
-                     v                  |
-    sched_switch                        |
-  +---------------                      |
-  |                       sched         |
-  +-------------->                     -+
-
 Monitor sco
 ~~~~~~~~~~~
 
@@ -144,26 +124,55 @@ does not enable preemption::
                                                   |
                           scheduling_contex      -+
 
-Monitor sncid
-~~~~~~~~~~~~~
+Monitor sts
+~~~~~~~~~~~
 
-The schedule not called with interrupt disabled (sncid) monitor ensures
-schedule is not called with interrupt disabled::
+The schedule implies task switch (sts) monitor ensures a task switch happens
+only in scheduling context and up to once, as well as scheduling occurs with
+interrupts enabled but no task switch can happen before interrupts are
+disabled. When the next task picked for execution is the same as the previously
+running one, no real task switch occurs but interrupts are disabled nonetheless::
 
-                       |
-                       |
-                       v
-    schedule_entry   +--------------+
-    schedule_exit    |              |
-  +----------------- |  can_sched   |
-  |                  |              |
-  +----------------> |              | <+
-                     +--------------+  |
-                       |               |
-                       | irq_disable   | irq_enable
-                       v               |
-                                       |
-                        cant_sched    -+
+    irq_entry                      |
+     +----+                        |
+     v    |                        v
+ +------------+ irq_enable    #===================#   irq_disable
+ |            | ------------> H                   H   irq_entry
+ | cant_sched | <------------ H                   H   irq_enable
+ |            | irq_disable   H     can_sched     H --------------+
+ +------------+               H                   H               |
+                              H                   H               |
+            +---------------> H                   H <-------------+
+            |                 #===================#
+            |                   |
+      schedule_exit             | schedule_entry
+            |                   v
+            |   +-------------------+     irq_enable
+            |   |    scheduling     | <---------------+
+            |   +-------------------+                 |
+            |     |                                   |
+            |     | irq_disable                    +--------+  irq_entry
+            |     v                                |        | --------+
+            |   +-------------------+  irq_entry   | in_irq |         |
+            |   |                   | -----------> |        | <-------+
+            |   | disable_to_switch |              +--------+
+            |   |                   | --+
+            |   +-------------------+   |
+            |     |                     |
+            |     | sched_switch        |
+            |     v                     |
+            |   +-------------------+   |
+            |   |     switching     |   | irq_enable
+            |   +-------------------+   |
+            |     |                     |
+            |     | irq_enable          |
+            |     v                     |
+            |   +-------------------+   |
+            +-- |  enable_to_exit   | <-+
+                +-------------------+
+                  ^               | irq_disable
+                  |               | irq_entry
+                  +---------------+ irq_enable
 
 References
 ----------
