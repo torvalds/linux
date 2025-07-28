@@ -407,6 +407,15 @@ static inline struct dentry *ovl_lookup_upper(struct ovl_fs *ofs,
 	return lookup_one(ovl_upper_mnt_idmap(ofs), &QSTR_LEN(name, len), base);
 }
 
+static inline struct dentry *ovl_lookup_upper_unlocked(struct ovl_fs *ofs,
+						       const char *name,
+						       struct dentry *base,
+						       int len)
+{
+	return lookup_one_unlocked(ovl_upper_mnt_idmap(ofs),
+				   &QSTR_LEN(name, len), base);
+}
+
 static inline bool ovl_open_flags_need_copy_up(int flags)
 {
 	if (!flags)
@@ -416,6 +425,11 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 }
 
 /* util.c */
+int ovl_parent_lock(struct dentry *parent, struct dentry *child);
+static inline void ovl_parent_unlock(struct dentry *parent)
+{
+	inode_unlock(parent->d_inode);
+}
 int ovl_get_write_access(struct dentry *dentry);
 void ovl_put_write_access(struct dentry *dentry);
 void ovl_start_write(struct dentry *dentry);
@@ -448,6 +462,12 @@ void ovl_dentry_init_reval(struct dentry *dentry, struct dentry *upperdentry,
 void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
 			   struct ovl_entry *oe, unsigned int mask);
 bool ovl_dentry_weird(struct dentry *dentry);
+
+static inline bool ovl_dentry_casefolded(struct dentry *dentry)
+{
+	return sb_has_encoding(dentry->d_sb) && IS_CASEFOLDED(d_inode(dentry));
+}
+
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);
@@ -535,7 +555,8 @@ bool ovl_is_inuse(struct dentry *dentry);
 bool ovl_need_index(struct dentry *dentry);
 int ovl_nlink_start(struct dentry *dentry);
 void ovl_nlink_end(struct dentry *dentry);
-int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *work,
+			    struct dentry *upperdir, struct dentry *upper);
 int ovl_check_metacopy_xattr(struct ovl_fs *ofs, const struct path *path,
 			     struct ovl_metacopy *data);
 int ovl_set_metacopy_xattr(struct ovl_fs *ofs, struct dentry *d,
@@ -723,7 +744,7 @@ void ovl_cleanup_whiteouts(struct ovl_fs *ofs, struct dentry *upper,
 void ovl_cache_free(struct list_head *list);
 void ovl_dir_cache_free(struct inode *inode);
 int ovl_check_d_type_supported(const struct path *realpath);
-int ovl_workdir_cleanup(struct ovl_fs *ofs, struct inode *dir,
+int ovl_workdir_cleanup(struct ovl_fs *ofs, struct dentry *parent,
 			struct vfsmount *mnt, struct dentry *dentry, int level);
 int ovl_indexdir_cleanup(struct ovl_fs *ofs);
 
@@ -840,9 +861,9 @@ struct ovl_cattr {
 #define OVL_CATTR(m) (&(struct ovl_cattr) { .mode = (m) })
 
 struct dentry *ovl_create_real(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *newdentry,
+			       struct dentry *parent, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
-int ovl_cleanup(struct ovl_fs *ofs, struct inode *dir, struct dentry *dentry);
+int ovl_cleanup(struct ovl_fs *ofs, struct dentry *workdir, struct dentry *dentry);
 struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir);
 struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 			       struct ovl_cattr *attr);
