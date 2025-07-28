@@ -1224,9 +1224,6 @@ lookup_noperm_unlocked(), lookup_noperm_positive_unlocked().  They now
 take a qstr instead of separate name and length.  QSTR() can be used
 when strlen() is needed for the length.
 
-For try_lookup_noperm() a reference to the qstr is passed in case the
-hash might subsequently be needed.
-
 These function no longer do any permission checking - they previously
 checked that the caller has 'X' permission on the parent.  They must
 ONLY be used internally by a filesystem on itself when it knows that
