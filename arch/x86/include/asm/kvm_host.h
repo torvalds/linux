@@ -1387,8 +1387,6 @@ struct kvm_arch {
 
 #define __KVM_HAVE_ARCH_NONCOHERENT_DMA
 	atomic_t noncoherent_dma_count;
-#define __KVM_HAVE_ARCH_ASSIGNED_DEVICE
-	atomic_t assigned_device_count;
 	unsigned long nr_possible_bypass_irqs;
 
 #ifdef CONFIG_KVM_IOAPIC
