@@ -2719,6 +2719,12 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_DRAM:
 		*type = GFX_FW_TYPE_RLC_DRAM_BOOT;
 		break;
+	case AMDGPU_UCODE_ID_RLC_IRAM_1:
+		*type = GFX_FW_TYPE_RLX6_UCODE_CORE1;
+		break;
+	case AMDGPU_UCODE_ID_RLC_DRAM_1:
+		*type = GFX_FW_TYPE_RLX6_DRAM_BOOT_CORE1;
+		break;
 	case AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS:
 		*type = GFX_FW_TYPE_GLOBAL_TAP_DELAYS;
 		break;
@@ -2887,6 +2893,8 @@ static void psp_print_fw_hdr(struct psp_context *psp,
 		amdgpu_ucode_print_gfx_hdr(hdr);
 		break;
 	case AMDGPU_UCODE_ID_RLC_G:
+	case AMDGPU_UCODE_ID_RLC_DRAM_1:
+	case AMDGPU_UCODE_ID_RLC_IRAM_1:
 		hdr = (struct common_firmware_header *)adev->gfx.rlc_fw->data;
 		amdgpu_ucode_print_rlc_hdr(hdr);
 		break;

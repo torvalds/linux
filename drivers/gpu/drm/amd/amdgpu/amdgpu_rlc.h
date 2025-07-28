@@ -311,6 +311,8 @@ struct amdgpu_rlc {
 	u32 save_restore_list_srm_size_bytes;
 	u32 rlc_iram_ucode_size_bytes;
 	u32 rlc_dram_ucode_size_bytes;
+	u32 rlc_1_iram_ucode_size_bytes;
+	u32 rlc_1_dram_ucode_size_bytes;
 	u32 rlcp_ucode_size_bytes;
 	u32 rlcv_ucode_size_bytes;
 	u32 global_tap_delays_ucode_size_bytes;
@@ -326,6 +328,8 @@ struct amdgpu_rlc {
 	u8 *save_restore_list_srm;
 	u8 *rlc_iram_ucode;
 	u8 *rlc_dram_ucode;
+	u8 *rlc_1_iram_ucode;
+	u8 *rlc_1_dram_ucode;
 	u8 *rlcp_ucode;
 	u8 *rlcv_ucode;
 	u8 *global_tap_delays_ucode;
