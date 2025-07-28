@@ -80,7 +80,7 @@ struct fsnotify_mark_connector;
 struct fsnotify_sb_info;
 struct fs_context;
 struct fs_parameter_spec;
-struct fileattr;
+struct file_kattr;
 struct iomap_ops;
 
 extern void __init inode_init(void);
@@ -2257,8 +2257,8 @@ struct inode_operations {
 	int (*set_acl)(struct mnt_idmap *, struct dentry *,
 		       struct posix_acl *, int);
 	int (*fileattr_set)(struct mnt_idmap *idmap,
-			    struct dentry *dentry, struct fileattr *fa);
-	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+			    struct dentry *dentry, struct file_kattr *fa);
+	int (*fileattr_get)(struct dentry *dentry, struct file_kattr *fa);
 	struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 } ____cacheline_aligned;
 

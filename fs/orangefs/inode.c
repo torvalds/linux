@@ -889,7 +889,7 @@ int orangefs_update_time(struct inode *inode, int flags)
 	return __orangefs_setattr(inode, &iattr);
 }
 
-static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+static int orangefs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	u64 val = 0;
 	int ret;
@@ -910,7 +910,7 @@ static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 static int orangefs_fileattr_set(struct mnt_idmap *idmap,
-				 struct dentry *dentry, struct fileattr *fa)
+				 struct dentry *dentry, struct file_kattr *fa)
 {
 	u64 val = 0;
 

@@ -966,7 +966,7 @@ void ovl_check_protattr(struct inode *inode, struct dentry *upper)
 }
 
 int ovl_set_protattr(struct inode *inode, struct dentry *upper,
-		      struct fileattr *fa)
+		      struct file_kattr *fa)
 {
 	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
 	char buf[OVL_PROTATTR_MAX];

@@ -1617,7 +1617,7 @@ static const __maybe_unused unsigned bch_flags_to_xflags[] = {
 };
 
 static int bch2_fileattr_get(struct dentry *dentry,
-			     struct fileattr *fa)
+			     struct file_kattr *fa)
 {
 	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -1680,7 +1680,7 @@ static int fssetxattr_inode_update_fn(struct btree_trans *trans,
 
 static int bch2_fileattr_set(struct mnt_idmap *idmap,
 			     struct dentry *dentry,
-			     struct fileattr *fa)
+			     struct file_kattr *fa)
 {
 	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;

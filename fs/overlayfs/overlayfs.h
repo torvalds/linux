@@ -838,7 +838,7 @@ void ovl_copyattr(struct inode *to);
 
 void ovl_check_protattr(struct inode *inode, struct dentry *upper);
 int ovl_set_protattr(struct inode *inode, struct dentry *upper,
-		      struct fileattr *fa);
+		      struct file_kattr *fa);
 
 static inline void ovl_copyflags(struct inode *from, struct inode *to)
 {
@@ -870,11 +870,11 @@ struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 
 /* file.c */
 extern const struct file_operations ovl_file_operations;
-int ovl_real_fileattr_get(const struct path *realpath, struct fileattr *fa);
-int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa);
-int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int ovl_real_fileattr_get(const struct path *realpath, struct file_kattr *fa);
+int ovl_real_fileattr_set(const struct path *realpath, struct file_kattr *fa);
+int ovl_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
 int ovl_fileattr_set(struct mnt_idmap *idmap,
-		     struct dentry *dentry, struct fileattr *fa);
+		     struct dentry *dentry, struct file_kattr *fa);
 struct ovl_file;
 struct ovl_file *ovl_file_alloc(struct file *realfile);
 void ovl_file_free(struct ovl_file *of);

@@ -217,6 +217,24 @@ struct fsxattr {
 };
 
 /*
+ * Variable size structure for file_[sg]et_attr().
+ *
+ * Note. This is alternative to the structure 'struct file_kattr'/'struct fsxattr'.
+ * As this structure is passed to/from userspace with its size, this can
+ * be versioned based on the size.
+ */
+struct file_attr {
+	__u64 fa_xflags;	/* xflags field value (get/set) */
+	__u32 fa_extsize;	/* extsize field value (get/set)*/
+	__u32 fa_nextents;	/* nextents field value (get)   */
+	__u32 fa_projid;	/* project identifier (get/set) */
+	__u32 fa_cowextsize;	/* CoW extsize field value (get/set) */
+};
+
+#define FILE_ATTR_SIZE_VER0 24
+#define FILE_ATTR_SIZE_LATEST FILE_ATTR_SIZE_VER0
+
+/*
  * Flags for the fsx_xflags field
  */
 #define FS_XFLAG_REALTIME	0x00000001	/* data in realtime volume */

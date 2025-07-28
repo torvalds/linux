@@ -171,14 +171,14 @@ out:
 static int ovl_copy_fileattr(struct inode *inode, const struct path *old,
 			     const struct path *new)
 {
-	struct fileattr oldfa = { .flags_valid = true };
-	struct fileattr newfa = { .flags_valid = true };
+	struct file_kattr oldfa = { .flags_valid = true };
+	struct file_kattr newfa = { .flags_valid = true };
 	int err;
 
 	err = ovl_real_fileattr_get(old, &oldfa);
 	if (err) {
 		/* Ntfs-3g returns -EINVAL for "no fileattr support" */
-		if (err == -ENOTTY || err == -EINVAL)
+		if (err == -EOPNOTSUPP || err == -EINVAL)
 			return 0;
 		pr_warn("failed to retrieve lower fileattr (%pd2, err=%i)\n",
 			old->dentry, err);
