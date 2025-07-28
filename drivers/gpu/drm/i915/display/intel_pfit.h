@@ -6,8 +6,6 @@
 #ifndef __INTEL_PFIT_H__
 #define __INTEL_PFIT_H__
 
-#include <linux/types.h>
-
 enum drm_mode_status;
 struct drm_display_mode;
 struct drm_connector_state;

@@ -5,8 +5,6 @@
 #ifndef INTEL_SCALER_H
 #define INTEL_SCALER_H
 
-#include <linux/types.h>
-
 enum drm_mode_status;
 struct drm_display_mode;
 struct intel_atomic_state;
