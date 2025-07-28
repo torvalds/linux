@@ -44,11 +44,6 @@
 			reg = <0x0 0x8ad00000 0x0 0x500000>;
 			no-map;
 		};
-
-		venus_mem: memory@8b200000 {
-			reg = <0x0 0x8b200000 0x0 0x500000>;
-			no-map;
-		};
 	};
 };
 
