@@ -14,7 +14,6 @@ struct cached_dirent {
 	char *name;
 	int namelen;
 	loff_t pos;
-
 	struct cifs_fattr fattr;
 };
 
