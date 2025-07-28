@@ -1594,7 +1594,7 @@ static int krb5_authenticate(struct ksmbd_work *work,
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
 	char *in_blob, *out_blob;
-	struct channel *chann = NULL;
+	struct channel *chann = NULL, *old;
 	u64 prev_sess_id;
 	int in_len, out_len;
 	int retval;
@@ -1621,11 +1621,24 @@ static int krb5_authenticate(struct ksmbd_work *work,
 
 	rsp->SecurityBufferLength = cpu_to_le16(out_len);
 
-	if ((conn->sign || server_conf.enforced_signing) ||
+	/*
+	 * If session state is SMB2_SESSION_VALID, We can assume
+	 * that it is reauthentication. And the user/password
+	 * has been verified, so return it here.
+	 */
+	if (sess->state == SMB2_SESSION_VALID) {
+		if (conn->binding)
+			goto binding_session;
+		return 0;
+	}
+
+	if ((rsp->SessionFlags != SMB2_SESSION_FLAG_IS_GUEST_LE &&
+	    (conn->sign || server_conf.enforced_signing)) ||
 	    (req->SecurityMode & SMB2_NEGOTIATE_SIGNING_REQUIRED))
 		sess->sign = true;
 
-	if (smb3_encryption_negotiated(conn)) {
+	if (smb3_encryption_negotiated(conn) &&
+	    !(req->Flags & SMB2_SESSION_REQ_FLAG_BINDING)) {
 		retval = conn->ops->generate_encryptionkey(conn, sess);
 		if (retval) {
 			ksmbd_debug(SMB,
@@ -1638,6 +1651,7 @@ static int krb5_authenticate(struct ksmbd_work *work,
 		sess->sign = false;
 	}
 
+binding_session:
 	if (conn->dialect >= SMB30_PROT_ID) {
 		chann = lookup_chann_list(sess, conn);
 		if (!chann) {
@@ -1646,7 +1660,12 @@ static int krb5_authenticate(struct ksmbd_work *work,
 				return -ENOMEM;
 
 			chann->conn = conn;
-			xa_store(&sess->ksmbd_chann_list, (long)conn, chann, KSMBD_DEFAULT_GFP);
+			old = xa_store(&sess->ksmbd_chann_list, (long)conn,
+					chann, KSMBD_DEFAULT_GFP);
+			if (xa_is_err(old)) {
+				kfree(chann);
+				return xa_err(old);
+			}
 		}
 	}
 
@@ -1833,8 +1852,6 @@ int smb2_sess_setup(struct ksmbd_work *work)
 				ksmbd_conn_set_good(conn);
 				sess->state = SMB2_SESSION_VALID;
 			}
-			kfree(sess->Preauth_HashValue);
-			sess->Preauth_HashValue = NULL;
 		} else if (conn->preferred_auth_mech == KSMBD_AUTH_NTLMSSP) {
 			if (negblob->MessageType == NtLmNegotiate) {
 				rc = ntlm_negotiate(work, negblob, negblob_len, rsp);
@@ -1861,8 +1878,6 @@ int smb2_sess_setup(struct ksmbd_work *work)
 						kfree(preauth_sess);
 					}
 				}
-				kfree(sess->Preauth_HashValue);
-				sess->Preauth_HashValue = NULL;
 			} else {
 				pr_info_ratelimited("Unknown NTLMSSP message type : 0x%x\n",
 						le32_to_cpu(negblob->MessageType));
@@ -2581,7 +2596,7 @@ static void smb2_update_xattrs(struct ksmbd_tree_connect *tcon,
 	}
 }
 
-static int smb2_creat(struct ksmbd_work *work, struct path *parent_path,
+static int smb2_creat(struct ksmbd_work *work,
 		      struct path *path, char *name, int open_flags,
 		      umode_t posix_mode, bool is_dir)
 {
@@ -2610,7 +2625,7 @@ static int smb2_creat(struct ksmbd_work *work, struct path *parent_path,
 			return rc;
 	}
 
-	rc = ksmbd_vfs_kern_path_locked(work, name, 0, parent_path, path, 0);
+	rc = ksmbd_vfs_kern_path(work, name, 0, path, 0);
 	if (rc) {
 		pr_err("cannot get linux path (%s), err = %d\n",
 		       name, rc);
@@ -2860,7 +2875,7 @@ int smb2_open(struct ksmbd_work *work)
 	struct ksmbd_tree_connect *tcon = work->tcon;
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
-	struct path path, parent_path;
+	struct path path;
 	struct ksmbd_share_config *share = tcon->share_conf;
 	struct ksmbd_file *fp = NULL;
 	struct file *filp = NULL;
@@ -3116,8 +3131,8 @@ int smb2_open(struct ksmbd_work *work)
 		goto err_out2;
 	}
 
-	rc = ksmbd_vfs_kern_path_locked(work, name, LOOKUP_NO_SYMLINKS,
-					&parent_path, &path, 1);
+	rc = ksmbd_vfs_kern_path(work, name, LOOKUP_NO_SYMLINKS,
+				 &path, 1);
 	if (!rc) {
 		file_present = true;
 
@@ -3238,7 +3253,7 @@ int smb2_open(struct ksmbd_work *work)
 
 	/*create file if not present */
 	if (!file_present) {
-		rc = smb2_creat(work, &parent_path, &path, name, open_flags,
+		rc = smb2_creat(work, &path, name, open_flags,
 				posix_mode,
 				req->CreateOptions & FILE_DIRECTORY_FILE_LE);
 		if (rc) {
@@ -3443,7 +3458,7 @@ int smb2_open(struct ksmbd_work *work)
 	}
 
 	if (file_present || created)
-		ksmbd_vfs_kern_path_unlock(&parent_path, &path);
+		path_put(&path);
 
 	if (!S_ISDIR(file_inode(filp)->i_mode) && open_flags & O_TRUNC &&
 	    !fp->attrib_only && !stream_name) {
@@ -3724,7 +3739,7 @@ reconnected_fp:
 
 err_out:
 	if (rc && (file_present || created))
-		ksmbd_vfs_kern_path_unlock(&parent_path, &path);
+		path_put(&path);
 
 err_out1:
 	ksmbd_revert_fsids(work);
@@ -4108,20 +4123,6 @@ struct smb2_query_dir_private {
 	int			info_level;
 };
 
-static void lock_dir(struct ksmbd_file *dir_fp)
-{
-	struct dentry *dir = dir_fp->filp->f_path.dentry;
-
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
-}
-
-static void unlock_dir(struct ksmbd_file *dir_fp)
-{
-	struct dentry *dir = dir_fp->filp->f_path.dentry;
-
-	inode_unlock(d_inode(dir));
-}
-
 static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 {
 	struct mnt_idmap	*idmap = file_mnt_idmap(priv->dir_fp->filp);
@@ -4136,12 +4137,10 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 		if (dentry_name(priv->d_info, priv->info_level))
 			return -EINVAL;
 
-		lock_dir(priv->dir_fp);
-		dent = lookup_one(idmap,
-				  &QSTR_LEN(priv->d_info->name,
-					    priv->d_info->name_len),
-				  priv->dir_fp->filp->f_path.dentry);
-		unlock_dir(priv->dir_fp);
+		dent = lookup_one_unlocked(idmap,
+					   &QSTR_LEN(priv->d_info->name,
+						     priv->d_info->name_len),
+					   priv->dir_fp->filp->f_path.dentry);
 
 		if (IS_ERR(dent)) {
 			ksmbd_debug(SMB, "Cannot lookup `%s' [%ld]\n",
@@ -6052,8 +6051,7 @@ static int smb2_create_link(struct ksmbd_work *work,
 			    struct nls_table *local_nls)
 {
 	char *link_name = NULL, *target_name = NULL, *pathname = NULL;
-	struct path path, parent_path;
-	bool file_present = false;
+	struct path path;
 	int rc;
 
 	if (buf_len < (u64)sizeof(struct smb2_file_link_info) +
@@ -6082,15 +6080,12 @@ static int smb2_create_link(struct ksmbd_work *work,
 
 	ksmbd_debug(SMB, "target name is %s\n", target_name);
 	rc = ksmbd_vfs_kern_path_locked(work, link_name, LOOKUP_NO_SYMLINKS,
-					&parent_path, &path, 0);
+					&path, 0);
 	if (rc) {
 		if (rc != -ENOENT)
 			goto out;
-	} else
-		file_present = true;
-
-	if (file_info->ReplaceIfExists) {
-		if (file_present) {
+	} else {
+		if (file_info->ReplaceIfExists) {
 			rc = ksmbd_vfs_remove_file(work, &path);
 			if (rc) {
 				rc = -EINVAL;
@@ -6098,21 +6093,17 @@ static int smb2_create_link(struct ksmbd_work *work,
 					    link_name);
 				goto out;
 			}
-		}
-	} else {
-		if (file_present) {
+		} else {
 			rc = -EEXIST;
 			ksmbd_debug(SMB, "link already exists\n");
 			goto out;
 		}
+		ksmbd_vfs_kern_path_unlock(&path);
 	}
-
 	rc = ksmbd_vfs_link(work, target_name, link_name);
 	if (rc)
 		rc = -EINVAL;
 out:
-	if (file_present)
-		ksmbd_vfs_kern_path_unlock(&parent_path, &path);
 
 	if (!IS_ERR(link_name))
 		kfree(link_name);
