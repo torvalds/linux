@@ -103,7 +103,7 @@ static irqreturn_t sp7021_spi_target_irq(int irq, void *dev)
 
 	data_status = readl(pspim->s_base + SP7021_DATA_RDY_REG);
 	data_status |= SP7021_SLAVE_CLR_INT;
-	writel(data_status , pspim->s_base + SP7021_DATA_RDY_REG);
+	writel(data_status, pspim->s_base + SP7021_DATA_RDY_REG);
 	complete(&pspim->target_isr);
 	return IRQ_HANDLED;
 }
@@ -296,7 +296,7 @@ static void sp7021_spi_setup_clk(struct spi_controller *ctlr, struct spi_transfe
 }
 
 static int sp7021_spi_host_transfer_one(struct spi_controller *ctlr, struct spi_device *spi,
-				       struct spi_transfer *xfer)
+					struct spi_transfer *xfer)
 {
 	struct sp7021_spi_ctlr *pspim = spi_controller_get_devdata(ctlr);
 	unsigned long timeout = msecs_to_jiffies(1000);
@@ -360,7 +360,7 @@ static int sp7021_spi_host_transfer_one(struct spi_controller *ctlr, struct spi_
 }
 
 static int sp7021_spi_target_transfer_one(struct spi_controller *ctlr, struct spi_device *spi,
-				       struct spi_transfer *xfer)
+					  struct spi_transfer *xfer)
 {
 	struct sp7021_spi_ctlr *pspim = spi_controller_get_devdata(ctlr);
 	struct device *dev = pspim->dev;
