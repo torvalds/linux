@@ -1562,7 +1562,7 @@ static int vcn_v5_0_1_aca_bank_parser(struct aca_handle *handle, struct aca_bank
 
 /* reference to smu driver if header file */
 static int vcn_v5_0_1_err_codes[] = {
-	14, 15, /* VCN */
+	14, 15, 47, /* VCN [D|V|S] */
 };
 
 static bool vcn_v5_0_1_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
