@@ -3,12 +3,17 @@
 config RV_MON_EVENTS
 	bool
 
+config RV_MON_MAINTENANCE_EVENTS
+	bool
+
 config DA_MON_EVENTS_IMPLICIT
 	select RV_MON_EVENTS
+	select RV_MON_MAINTENANCE_EVENTS
 	bool
 
 config DA_MON_EVENTS_ID
 	select RV_MON_EVENTS
+	select RV_MON_MAINTENANCE_EVENTS
 	bool
 
 config LTL_MON_EVENTS_ID

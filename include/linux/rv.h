@@ -10,7 +10,8 @@
 #include <linux/types.h>
 #include <linux/list.h>
 
-#define MAX_DA_NAME_LEN	32
+#define MAX_DA_NAME_LEN			32
+#define MAX_DA_RETRY_RACING_EVENTS	3
 
 #ifdef CONFIG_RV
 #include <linux/bitops.h>
