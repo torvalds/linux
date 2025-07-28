@@ -1772,9 +1772,15 @@ static int fallback_to_cow(struct btrfs_inode *inode,
 	 * Don't try to create inline extents, as a mix of inline extent that
 	 * is written out and unlocked directly and a normal NOCOW extent
 	 * doesn't work.
+	 *
+	 * And here we do not unlock the folio after a successful run.
+	 * The folios will be unlocked after everything is finished, or by error handling.
+	 *
+	 * This is to ensure error handling won't need to clear dirty/ordered flags without
+	 * a locked folio, which can race with writeback.
 	 */
 	ret = cow_file_range(inode, locked_folio, start, end, NULL,
-			     COW_FILE_RANGE_NO_INLINE);
+			     COW_FILE_RANGE_NO_INLINE | COW_FILE_RANGE_KEEP_LOCKED);
 	ASSERT(ret != 1);
 	return ret;
 }
@@ -1917,53 +1923,6 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	return ret < 0 ? ret : can_nocow;
 }
 
-/*
- * Cleanup the dirty folios which will never be submitted due to error.
- *
- * When running a delalloc range, we may need to split the ranges (due to
- * fragmentation or NOCOW). If we hit an error in the later part, we will error
- * out and previously successfully executed range will never be submitted, thus
- * we have to cleanup those folios by clearing their dirty flag, starting and
- * finishing the writeback.
- */
-static void cleanup_dirty_folios(struct btrfs_inode *inode,
-				 struct folio *locked_folio,
-				 u64 start, u64 end, int error)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct address_space *mapping = inode->vfs_inode.i_mapping;
-	pgoff_t start_index = start >> PAGE_SHIFT;
-	pgoff_t end_index = end >> PAGE_SHIFT;
-	u32 len;
-
-	ASSERT(end + 1 - start < U32_MAX);
-	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
-	       IS_ALIGNED(end + 1, fs_info->sectorsize));
-	len = end + 1 - start;
-
-	/*
-	 * Handle the locked folio first.
-	 * The btrfs_folio_clamp_*() helpers can handle range out of the folio case.
-	 */
-	btrfs_folio_clamp_finish_io(fs_info, locked_folio, start, len);
-
-	for (pgoff_t index = start_index; index <= end_index; index++) {
-		struct folio *folio;
-
-		/* Already handled at the beginning. */
-		if (index == locked_folio->index)
-			continue;
-		folio = __filemap_get_folio(mapping, index, FGP_LOCK, GFP_NOFS);
-		/* Cache already dropped, no need to do any cleanup. */
-		if (IS_ERR(folio))
-			continue;
-		btrfs_folio_clamp_finish_io(fs_info, locked_folio, start, len);
-		folio_unlock(folio);
-		folio_put(folio);
-	}
-	mapping_set_error(mapping, error);
-}
-
 static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio,
 			   struct extent_state **cached,
 			   struct can_nocow_file_extent_args *nocow_args,
@@ -2013,7 +1972,7 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 	extent_clear_unlock_delalloc(inode, file_pos, end, locked_folio, cached,
 				     EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_CLEAR_DATA_RESV,
-				     PAGE_UNLOCK | PAGE_SET_ORDERED);
+				     PAGE_SET_ORDERED);
 	return ret;
 
 error:
@@ -2248,6 +2207,14 @@ must_cow:
 		cow_start = (u64)-1;
 	}
 
+	/*
+	 * Everything is finished without an error, can unlock the folios now.
+	 *
+	 * No need to touch the io tree range nor set folio ordered flag, as
+	 * fallback_to_cow() and nocow_one_range() have already handled them.
+	 */
+	extent_clear_unlock_delalloc(inode, start, end, locked_folio, NULL, 0, PAGE_UNLOCK);
+
 	btrfs_free_path(path);
 	return 0;
 
@@ -2306,9 +2273,13 @@ error:
 	}
 
 	if (oe_cleanup_len) {
+		const u64 oe_cleanup_end = oe_cleanup_start + oe_cleanup_len - 1;
 		btrfs_cleanup_ordered_extents(inode, oe_cleanup_start, oe_cleanup_len);
-		cleanup_dirty_folios(inode, locked_folio, oe_cleanup_start,
-				     oe_cleanup_start + oe_cleanup_len - 1, ret);
+		extent_clear_unlock_delalloc(inode, oe_cleanup_start, oe_cleanup_end,
+					     locked_folio, NULL,
+					     EXTENT_LOCKED | EXTENT_DELALLOC,
+					     PAGE_UNLOCK | PAGE_START_WRITEBACK |
+					     PAGE_END_WRITEBACK);
 	}
 
 	if (untouched_len) {
