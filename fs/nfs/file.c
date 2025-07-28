@@ -207,24 +207,25 @@ nfs_file_splice_read(struct file *in, loff_t *ppos, struct pipe_inode_info *pipe
 EXPORT_SYMBOL_GPL(nfs_file_splice_read);
 
 int
-nfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+nfs_file_mmap_prepare(struct vm_area_desc *desc)
 {
+	struct file *file = desc->file;
 	struct inode *inode = file_inode(file);
 	int	status;
 
 	dprintk("NFS: mmap(%pD2)\n", file);
 
-	/* Note: generic_file_mmap() returns ENOSYS on nommu systems
+	/* Note: generic_file_mmap_prepare() returns ENOSYS on nommu systems
 	 *       so we call that before revalidating the mapping
 	 */
-	status = generic_file_mmap(file, vma);
+	status = generic_file_mmap_prepare(desc);
 	if (!status) {
-		vma->vm_ops = &nfs_file_vm_ops;
+		desc->vm_ops = &nfs_file_vm_ops;
 		status = nfs_revalidate_mapping(inode, file->f_mapping);
 	}
 	return status;
 }
-EXPORT_SYMBOL_GPL(nfs_file_mmap);
+EXPORT_SYMBOL_GPL(nfs_file_mmap_prepare);
 
 /*
  * Flush any dirty pages for this process, and check for write errors.
@@ -903,7 +904,7 @@ const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
 	.read_iter	= nfs_file_read,
 	.write_iter	= nfs_file_write,
-	.mmap		= nfs_file_mmap,
+	.mmap_prepare	= nfs_file_mmap_prepare,
 	.open		= nfs_file_open,
 	.flush		= nfs_file_flush,
 	.release	= nfs_file_release,

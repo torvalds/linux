@@ -1914,10 +1914,10 @@ static const struct vm_operations_struct xfs_file_vm_ops = {
 };
 
 STATIC int
-xfs_file_mmap(
-	struct file		*file,
-	struct vm_area_struct	*vma)
+xfs_file_mmap_prepare(
+	struct vm_area_desc	*desc)
 {
+	struct file		*file = desc->file;
 	struct inode		*inode = file_inode(file);
 	struct xfs_buftarg	*target = xfs_inode_buftarg(XFS_I(inode));
 
@@ -1925,13 +1925,14 @@ xfs_file_mmap(
 	 * We don't support synchronous mappings for non-DAX files and
 	 * for DAX files if underneath dax_device is not synchronous.
 	 */
-	if (!daxdev_mapping_supported(vma, target->bt_daxdev))
+	if (!daxdev_mapping_supported(desc->vm_flags, file_inode(file),
+				      target->bt_daxdev))
 		return -EOPNOTSUPP;
 
 	file_accessed(file);
-	vma->vm_ops = &xfs_file_vm_ops;
+	desc->vm_ops = &xfs_file_vm_ops;
 	if (IS_DAX(inode))
-		vm_flags_set(vma, VM_HUGEPAGE);
+		desc->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }
 
@@ -1946,7 +1947,7 @@ const struct file_operations xfs_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
-	.mmap		= xfs_file_mmap,
+	.mmap_prepare	= xfs_file_mmap_prepare,
 	.open		= xfs_file_open,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,

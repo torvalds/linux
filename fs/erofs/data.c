@@ -432,20 +432,20 @@ static const struct vm_operations_struct erofs_dax_vm_ops = {
 	.huge_fault	= erofs_dax_huge_fault,
 };
 
-static int erofs_file_mmap(struct file *file, struct vm_area_struct *vma)
+static int erofs_file_mmap_prepare(struct vm_area_desc *desc)
 {
-	if (!IS_DAX(file_inode(file)))
-		return generic_file_readonly_mmap(file, vma);
+	if (!IS_DAX(file_inode(desc->file)))
+		return generic_file_readonly_mmap_prepare(desc);
 
-	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
+	if ((desc->vm_flags & VM_SHARED) && (desc->vm_flags & VM_MAYWRITE))
 		return -EINVAL;
 
-	vma->vm_ops = &erofs_dax_vm_ops;
-	vm_flags_set(vma, VM_HUGEPAGE);
+	desc->vm_ops = &erofs_dax_vm_ops;
+	desc->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }
 #else
-#define erofs_file_mmap	generic_file_readonly_mmap
+#define erofs_file_mmap_prepare	generic_file_readonly_mmap_prepare
 #endif
 
 static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
@@ -475,7 +475,7 @@ static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
 const struct file_operations erofs_file_fops = {
 	.llseek		= erofs_file_llseek,
 	.read_iter	= erofs_file_read_iter,
-	.mmap		= erofs_file_mmap,
+	.mmap_prepare	= erofs_file_mmap_prepare,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.splice_read	= filemap_splice_read,
 };

@@ -2039,15 +2039,16 @@ static const struct vm_operations_struct btrfs_file_vm_ops = {
 	.page_mkwrite	= btrfs_page_mkwrite,
 };
 
-static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
+static int btrfs_file_mmap_prepare(struct vm_area_desc *desc)
 {
+	struct file *filp = desc->file;
 	struct address_space *mapping = filp->f_mapping;
 
 	if (!mapping->a_ops->read_folio)
 		return -ENOEXEC;
 
 	file_accessed(filp);
-	vma->vm_ops = &btrfs_file_vm_ops;
+	desc->vm_ops = &btrfs_file_vm_ops;
 
 	return 0;
 }
@@ -3821,7 +3822,7 @@ const struct file_operations btrfs_file_operations = {
 	.splice_read	= filemap_splice_read,
 	.write_iter	= btrfs_file_write_iter,
 	.splice_write	= iter_file_splice_write,
-	.mmap		= btrfs_file_mmap,
+	.mmap_prepare	= btrfs_file_mmap_prepare,
 	.open		= btrfs_file_open,
 	.release	= btrfs_release_file,
 	.get_unmapped_area = thp_get_unmapped_area,
