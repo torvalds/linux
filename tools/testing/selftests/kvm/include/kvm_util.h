@@ -21,6 +21,8 @@
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
 
+#include <pthread.h>
+
 #include "kvm_util_arch.h"
 #include "kvm_util_types.h"
 #include "sparsebit.h"
@@ -1053,7 +1055,34 @@ struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm);
 
 void kvm_set_files_rlimit(uint32_t nr_vcpus);
 
-void kvm_pin_this_task_to_pcpu(uint32_t pcpu);
+int __pin_task_to_cpu(pthread_t task, int cpu);
+
+static inline void pin_task_to_cpu(pthread_t task, int cpu)
+{
+	int r;
+
+	r = __pin_task_to_cpu(task, cpu);
+	TEST_ASSERT(!r, "Failed to set thread affinity to pCPU '%u'", cpu);
+}
+
+static inline int pin_task_to_any_cpu(pthread_t task)
+{
+	int cpu = sched_getcpu();
+
+	pin_task_to_cpu(task, cpu);
+	return cpu;
+}
+
+static inline void pin_self_to_cpu(int cpu)
+{
+	pin_task_to_cpu(pthread_self(), cpu);
+}
+
+static inline int pin_self_to_any_cpu(void)
+{
+	return pin_task_to_any_cpu(pthread_self());
+}
+
 void kvm_print_vcpu_pinning_help(void);
 void kvm_parse_vcpu_pinning(const char *pcpus_string, uint32_t vcpu_to_pcpu[],
 			    int nr_vcpus);

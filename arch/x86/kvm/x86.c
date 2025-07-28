@@ -4582,6 +4582,9 @@ static u64 kvm_get_allowed_disable_exits(void)
 {
 	u64 r = KVM_X86_DISABLE_EXITS_PAUSE;
 
+	if (boot_cpu_has(X86_FEATURE_APERFMPERF))
+		r |= KVM_X86_DISABLE_EXITS_APERFMPERF;
+
 	if (!mitigate_smt_rsb) {
 		r |= KVM_X86_DISABLE_EXITS_HLT |
 			KVM_X86_DISABLE_EXITS_CSTATE;
@@ -5493,12 +5496,6 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 
 	if ((events->exception.injected || events->exception.pending) &&
 	    (events->exception.nr > 31 || events->exception.nr == NMI_VECTOR))
-		return -EINVAL;
-
-	/* INITs are latched while in SMM */
-	if (events->flags & KVM_VCPUEVENT_VALID_SMM &&
-	    (events->smi.smm || events->smi.pending) &&
-	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED)
 		return -EINVAL;
 
 	process_nmi(vcpu);
@@ -6490,17 +6487,11 @@ split_irqchip_unlock:
 
 		if (!mitigate_smt_rsb && boot_cpu_has_bug(X86_BUG_SMT_RSB) &&
 		    cpu_smt_possible() &&
-		    (cap->args[0] & ~KVM_X86_DISABLE_EXITS_PAUSE))
+		    (cap->args[0] & ~(KVM_X86_DISABLE_EXITS_PAUSE |
+				      KVM_X86_DISABLE_EXITS_APERFMPERF)))
 			pr_warn_once(SMT_RSB_MSG);
 
-		if (cap->args[0] & KVM_X86_DISABLE_EXITS_PAUSE)
-			kvm->arch.pause_in_guest = true;
-		if (cap->args[0] & KVM_X86_DISABLE_EXITS_MWAIT)
-			kvm->arch.mwait_in_guest = true;
-		if (cap->args[0] & KVM_X86_DISABLE_EXITS_HLT)
-			kvm->arch.hlt_in_guest = true;
-		if (cap->args[0] & KVM_X86_DISABLE_EXITS_CSTATE)
-			kvm->arch.cstate_in_guest = true;
+		kvm_disable_exits(kvm, cap->args[0]);
 		r = 0;
 disable_exits_unlock:
 		mutex_unlock(&kvm->lock);
@@ -7211,9 +7202,12 @@ set_pit2_out:
 		if (user_tsc_khz == 0)
 			user_tsc_khz = tsc_khz;
 
-		WRITE_ONCE(kvm->arch.default_tsc_khz, user_tsc_khz);
-		r = 0;
-
+		mutex_lock(&kvm->lock);
+		if (!kvm->created_vcpus) {
+			WRITE_ONCE(kvm->arch.default_tsc_khz, user_tsc_khz);
+			r = 0;
+		}
+		mutex_unlock(&kvm->lock);
 		goto out;
 	}
 	case KVM_GET_TSC_KHZ: {
@@ -10657,6 +10651,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		dm_request_for_irq_injection(vcpu) &&
 		kvm_cpu_accept_dm_intr(vcpu);
 	fastpath_t exit_fastpath;
+	u64 run_flags, debug_ctl;
 
 	bool req_immediate_exit = false;
 
@@ -10804,8 +10799,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_vcpu_update_apicv(vcpu);
 		if (kvm_check_request(KVM_REQ_APF_READY, vcpu))
 			kvm_check_async_pf_completion(vcpu);
+
+		/*
+		 * Recalc MSR intercepts as userspace may want to intercept
+		 * accesses to MSRs that KVM would otherwise pass through to
+		 * the guest.
+		 */
 		if (kvm_check_request(KVM_REQ_MSR_FILTER_CHANGED, vcpu))
-			kvm_x86_call(msr_filter_changed)(vcpu);
+			kvm_x86_call(recalc_msr_intercepts)(vcpu);
 
 		if (kvm_check_request(KVM_REQ_UPDATE_CPU_DIRTY_LOGGING, vcpu))
 			kvm_x86_call(update_cpu_dirty_logging)(vcpu);
@@ -10901,8 +10902,11 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		goto cancel_injection;
 	}
 
-	if (req_immediate_exit)
+	run_flags = 0;
+	if (req_immediate_exit) {
+		run_flags |= KVM_RUN_FORCE_IMMEDIATE_EXIT;
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
+	}
 
 	fpregs_assert_state_consistent();
 	if (test_thread_flag(TIF_NEED_FPU_LOAD))
@@ -10920,12 +10924,22 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		set_debugreg(vcpu->arch.eff_db[3], 3);
 		/* When KVM_DEBUGREG_WONT_EXIT, dr6 is accessible in guest. */
 		if (unlikely(vcpu->arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT))
-			kvm_x86_call(set_dr6)(vcpu, vcpu->arch.dr6);
+			run_flags |= KVM_RUN_LOAD_GUEST_DR6;
 	} else if (unlikely(hw_breakpoint_active())) {
 		set_debugreg(DR7_FIXED_1, 7);
 	}
 
-	vcpu->arch.host_debugctl = get_debugctlmsr();
+	/*
+	 * Refresh the host DEBUGCTL snapshot after disabling IRQs, as DEBUGCTL
+	 * can be modified in IRQ context, e.g. via SMP function calls.  Inform
+	 * vendor code if any host-owned bits were changed, e.g. so that the
+	 * value loaded into hardware while running the guest can be updated.
+	 */
+	debug_ctl = get_debugctlmsr();
+	if ((debug_ctl ^ vcpu->arch.host_debugctl) & kvm_x86_ops.HOST_OWNED_DEBUGCTL &&
+	    !vcpu->arch.guest_state_protected)
+		run_flags |= KVM_RUN_LOAD_DEBUGCTL;
+	vcpu->arch.host_debugctl = debug_ctl;
 
 	guest_timing_enter_irqoff();
 
@@ -10939,8 +10953,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		WARN_ON_ONCE((kvm_vcpu_apicv_activated(vcpu) != kvm_vcpu_apicv_active(vcpu)) &&
 			     (kvm_get_apic_mode(vcpu) != LAPIC_MODE_DISABLED));
 
-		exit_fastpath = kvm_x86_call(vcpu_run)(vcpu,
-						       req_immediate_exit);
+		exit_fastpath = kvm_x86_call(vcpu_run)(vcpu, run_flags);
 		if (likely(exit_fastpath != EXIT_FASTPATH_REENTER_GUEST))
 			break;
 
@@ -10951,6 +10964,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			exit_fastpath = EXIT_FASTPATH_EXIT_HANDLED;
 			break;
 		}
+
+		run_flags = 0;
 
 		/* Note, VM-Exits that go down the "slow" path are accounted below. */
 		++vcpu->stat.exits;
@@ -11425,6 +11440,28 @@ static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	trace_kvm_fpu(0);
 }
 
+static int kvm_x86_vcpu_pre_run(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * SIPI_RECEIVED is obsolete; KVM leaves the vCPU in Wait-For-SIPI and
+	 * tracks the pending SIPI separately.  SIPI_RECEIVED is still accepted
+	 * by KVM_SET_VCPU_EVENTS for backwards compatibility, but should be
+	 * converted to INIT_RECEIVED.
+	 */
+	if (WARN_ON_ONCE(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED))
+		return -EINVAL;
+
+	/*
+	 * Disallow running the vCPU if userspace forced it into an impossible
+	 * MP_STATE, e.g. if the vCPU is in WFS but SIPI is blocked.
+	 */
+	if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED &&
+	    !kvm_apic_init_sipi_allowed(vcpu))
+		return -EINVAL;
+
+	return kvm_x86_call(vcpu_pre_run)(vcpu);
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_queued_exception *ex = &vcpu->arch.exception;
@@ -11527,7 +11564,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	r = kvm_x86_call(vcpu_pre_run)(vcpu);
+	r = kvm_x86_vcpu_pre_run(vcpu);
 	if (r <= 0)
 		goto out;
 
@@ -11771,21 +11808,16 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Pending INITs are reported using KVM_SET_VCPU_EVENTS, disallow
-	 * forcing the guest into INIT/SIPI if those events are supposed to be
-	 * blocked.  KVM prioritizes SMI over INIT, so reject INIT/SIPI state
-	 * if an SMI is pending as well.
+	 * SIPI_RECEIVED is obsolete and no longer used internally; KVM instead
+	 * leaves the vCPU in INIT_RECIEVED (Wait-For-SIPI) and pends the SIPI.
+	 * Translate SIPI_RECEIVED as appropriate for backwards compatibility.
 	 */
-	if ((!kvm_apic_init_sipi_allowed(vcpu) || vcpu->arch.smi_pending) &&
-	    (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED ||
-	     mp_state->mp_state == KVM_MP_STATE_INIT_RECEIVED))
-		goto out;
-
 	if (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
-		kvm_set_mp_state(vcpu, KVM_MP_STATE_INIT_RECEIVED);
+		mp_state->mp_state = KVM_MP_STATE_INIT_RECEIVED;
 		set_bit(KVM_APIC_SIPI, &vcpu->arch.apic->pending_events);
-	} else
-		kvm_set_mp_state(vcpu, mp_state->mp_state);
+	}
+
+	kvm_set_mp_state(vcpu, mp_state->mp_state);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	ret = 0;

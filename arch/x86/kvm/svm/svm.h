@@ -44,9 +44,6 @@ static inline struct page *__sme_pa_to_page(unsigned long pa)
 #define	IOPM_SIZE PAGE_SIZE * 3
 #define	MSRPM_SIZE PAGE_SIZE * 2
 
-#define MAX_DIRECT_ACCESS_MSRS	48
-#define MSRPM_OFFSETS	32
-extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
 extern int nrips;
 extern int vgif;
@@ -189,8 +186,11 @@ struct svm_nested_state {
 	u64 vmcb12_gpa;
 	u64 last_vmcb12_gpa;
 
-	/* These are the merged vectors */
-	u32 *msrpm;
+	/*
+	 * The MSR permissions map used for vmcb02, which is the merge result
+	 * of vmcb01 and vmcb12
+	 */
+	void *msrpm;
 
 	/* A VMRUN has started but has not yet been performed, so
 	 * we cannot inject a nested vmexit yet.  */
@@ -271,7 +271,7 @@ struct vcpu_svm {
 	 */
 	u64 virt_spec_ctrl;
 
-	u32 *msrpm;
+	void *msrpm;
 
 	ulong nmi_iret_rip;
 
@@ -325,12 +325,6 @@ struct vcpu_svm {
 	 */
 	struct list_head ir_list;
 	spinlock_t ir_list_lock;
-
-	/* Save desired MSR intercept (read: pass-through) state */
-	struct {
-		DECLARE_BITMAP(read, MAX_DIRECT_ACCESS_MSRS);
-		DECLARE_BITMAP(write, MAX_DIRECT_ACCESS_MSRS);
-	} shadow_msr_intercept;
 
 	struct vcpu_sev_es_state sev_es;
 
@@ -621,17 +615,74 @@ static inline void svm_vmgexit_no_action(struct vcpu_svm *svm, u64 data)
 	svm_vmgexit_set_return_code(svm, GHCB_HV_RESP_NO_ACTION, data);
 }
 
-/* svm.c */
-#define MSR_INVALID				0xffffffffU
+/*
+ * The MSRPM is 8KiB in size, divided into four 2KiB ranges (the fourth range
+ * is reserved).  Each MSR within a range is covered by two bits, one each for
+ * read (bit 0) and write (bit 1), where a bit value of '1' means intercepted.
+ */
+#define SVM_MSRPM_BYTES_PER_RANGE 2048
+#define SVM_BITS_PER_MSR 2
+#define SVM_MSRS_PER_BYTE (BITS_PER_BYTE / SVM_BITS_PER_MSR)
+#define SVM_MSRS_PER_RANGE (SVM_MSRPM_BYTES_PER_RANGE * SVM_MSRS_PER_BYTE)
+static_assert(SVM_MSRS_PER_RANGE == 8192);
+#define SVM_MSRPM_OFFSET_MASK (SVM_MSRS_PER_RANGE - 1)
+
+static __always_inline int svm_msrpm_bit_nr(u32 msr)
+{
+	int range_nr;
+
+	switch (msr & ~SVM_MSRPM_OFFSET_MASK) {
+	case 0:
+		range_nr = 0;
+		break;
+	case 0xc0000000:
+		range_nr = 1;
+		break;
+	case 0xc0010000:
+		range_nr = 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return range_nr * SVM_MSRPM_BYTES_PER_RANGE * BITS_PER_BYTE +
+	       (msr & SVM_MSRPM_OFFSET_MASK) * SVM_BITS_PER_MSR;
+}
+
+#define __BUILD_SVM_MSR_BITMAP_HELPER(rtype, action, bitop, access, bit_rw)	\
+static inline rtype svm_##action##_msr_bitmap_##access(unsigned long *bitmap,	\
+						       u32 msr)			\
+{										\
+	int bit_nr;								\
+										\
+	bit_nr = svm_msrpm_bit_nr(msr);						\
+	if (bit_nr < 0)								\
+		return (rtype)true;						\
+										\
+	return bitop##_bit(bit_nr + bit_rw, bitmap);				\
+}
+
+#define BUILD_SVM_MSR_BITMAP_HELPERS(ret_type, action, bitop)			\
+	__BUILD_SVM_MSR_BITMAP_HELPER(ret_type, action, bitop, read,  0)	\
+	__BUILD_SVM_MSR_BITMAP_HELPER(ret_type, action, bitop, write, 1)
+
+BUILD_SVM_MSR_BITMAP_HELPERS(bool, test, test)
+BUILD_SVM_MSR_BITMAP_HELPERS(void, clear, __clear)
+BUILD_SVM_MSR_BITMAP_HELPERS(void, set, __set)
 
 #define DEBUGCTL_RESERVED_BITS (~DEBUGCTLMSR_LBR)
 
+/* svm.c */
 extern bool dump_invalid_vmcb;
 
-u32 svm_msrpm_offset(u32 msr);
-u32 *svm_vcpu_alloc_msrpm(void);
-void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm);
-void svm_vcpu_free_msrpm(u32 *msrpm);
+void *svm_alloc_permissions_map(unsigned long size, gfp_t gfp_mask);
+
+static inline void *svm_vcpu_alloc_msrpm(void)
+{
+	return svm_alloc_permissions_map(MSRPM_SIZE, GFP_KERNEL_ACCOUNT);
+}
+
+void svm_vcpu_free_msrpm(void *msrpm);
 void svm_copy_lbrs(struct vmcb *to_vmcb, struct vmcb *from_vmcb);
 void svm_enable_lbrv(struct kvm_vcpu *vcpu);
 void svm_update_lbrv(struct kvm_vcpu *vcpu);
@@ -650,6 +701,20 @@ void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
 void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool disable);
 void svm_complete_interrupt_delivery(struct kvm_vcpu *vcpu, int delivery_mode,
 				     int trig_mode, int vec);
+
+void svm_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type, bool set);
+
+static inline void svm_disable_intercept_for_msr(struct kvm_vcpu *vcpu,
+						 u32 msr, int type)
+{
+	svm_set_intercept_for_msr(vcpu, msr, type, false);
+}
+
+static inline void svm_enable_intercept_for_msr(struct kvm_vcpu *vcpu,
+						u32 msr, int type)
+{
+	svm_set_intercept_for_msr(vcpu, msr, type, true);
+}
 
 /* nested.c */
 
@@ -678,6 +743,8 @@ static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
 {
 	return vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_NMI);
 }
+
+int __init nested_svm_init_msrpm_merge_offsets(void);
 
 int enter_svm_guest_mode(struct kvm_vcpu *vcpu,
 			 u64 vmcb_gpa, struct vmcb *vmcb12, bool from_vmrun);
@@ -762,6 +829,7 @@ void sev_init_vmcb(struct vcpu_svm *svm);
 void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm);
 int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
 void sev_es_vcpu_reset(struct vcpu_svm *svm);
+void sev_es_recalc_msr_intercepts(struct kvm_vcpu *vcpu);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
 void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_area *hostsa);
 void sev_es_unmap_ghcb(struct vcpu_svm *svm);

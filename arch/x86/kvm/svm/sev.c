@@ -4390,16 +4390,17 @@ int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in)
 				    count, in);
 }
 
-static void sev_es_vcpu_after_set_cpuid(struct vcpu_svm *svm)
+void sev_es_recalc_msr_intercepts(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = &svm->vcpu;
+	/* Clear intercepts on MSRs that are context switched by hardware. */
+	svm_disable_intercept_for_msr(vcpu, MSR_AMD64_SEV_ES_GHCB, MSR_TYPE_RW);
+	svm_disable_intercept_for_msr(vcpu, MSR_EFER, MSR_TYPE_RW);
+	svm_disable_intercept_for_msr(vcpu, MSR_IA32_CR_PAT, MSR_TYPE_RW);
 
-	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX)) {
-		bool v_tsc_aux = guest_cpu_cap_has(vcpu, X86_FEATURE_RDTSCP) ||
-				 guest_cpu_cap_has(vcpu, X86_FEATURE_RDPID);
-
-		set_msr_interception(vcpu, svm->msrpm, MSR_TSC_AUX, v_tsc_aux, v_tsc_aux);
-	}
+	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX))
+		svm_set_intercept_for_msr(vcpu, MSR_TSC_AUX, MSR_TYPE_RW,
+					  !guest_cpu_cap_has(vcpu, X86_FEATURE_RDTSCP) &&
+					  !guest_cpu_cap_has(vcpu, X86_FEATURE_RDPID));
 
 	/*
 	 * For SEV-ES, accesses to MSR_IA32_XSS should not be intercepted if
@@ -4413,11 +4414,9 @@ static void sev_es_vcpu_after_set_cpuid(struct vcpu_svm *svm)
 	 * XSAVES being exposed to the guest so that KVM can at least honor
 	 * guest CPUID for RDMSR and WRMSR.
 	 */
-	if (guest_cpu_cap_has(vcpu, X86_FEATURE_XSAVES) &&
-	    guest_cpuid_has(vcpu, X86_FEATURE_XSAVES))
-		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_XSS, 1, 1);
-	else
-		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_XSS, 0, 0);
+	svm_set_intercept_for_msr(vcpu, MSR_IA32_XSS, MSR_TYPE_RW,
+				  !guest_cpu_cap_has(vcpu, X86_FEATURE_XSAVES) ||
+				  !guest_cpuid_has(vcpu, X86_FEATURE_XSAVES));
 }
 
 void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm)
@@ -4429,16 +4428,12 @@ void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm)
 	best = kvm_find_cpuid_entry(vcpu, 0x8000001F);
 	if (best)
 		vcpu->arch.reserved_gpa_bits &= ~(1UL << (best->ebx & 0x3f));
-
-	if (sev_es_guest(svm->vcpu.kvm))
-		sev_es_vcpu_after_set_cpuid(svm);
 }
 
 static void sev_es_init_vmcb(struct vcpu_svm *svm)
 {
 	struct kvm_sev_info *sev = to_kvm_sev_info(svm->vcpu.kvm);
 	struct vmcb *vmcb = svm->vmcb01.ptr;
-	struct kvm_vcpu *vcpu = &svm->vcpu;
 
 	svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ES_ENABLE;
 
@@ -4496,10 +4491,6 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 
 	/* Can't intercept XSETBV, HV can't modify XCR0 directly */
 	svm_clr_intercept(svm, INTERCEPT_XSETBV);
-
-	/* Clear intercepts on selected MSRs */
-	set_msr_interception(vcpu, svm->msrpm, MSR_EFER, 1, 1);
-	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_CR_PAT, 1, 1);
 }
 
 void sev_init_vmcb(struct vcpu_svm *svm)
