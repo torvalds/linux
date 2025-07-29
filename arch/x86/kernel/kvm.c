@@ -190,7 +190,7 @@ static void apf_task_wake_all(void)
 	}
 }
 
-void kvm_async_pf_task_wake(u32 token)
+static void kvm_async_pf_task_wake(u32 token)
 {
 	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
@@ -241,7 +241,6 @@ again:
 	/* A dummy token might be allocated and ultimately not used.  */
 	kfree(dummy);
 }
-EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
 
 noinstr u32 kvm_read_and_reset_apf_flags(void)
 {
