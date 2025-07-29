@@ -398,6 +398,14 @@ impl<T: RegulatorState> Drop for Regulator<T> {
     }
 }
 
+// SAFETY: It is safe to send a `Regulator<T>` across threads. In particular, a
+// Regulator<T> can be dropped from any thread.
+unsafe impl<T: RegulatorState> Send for Regulator<T> {}
+
+// SAFETY: It is safe to send a &Regulator<T> across threads because the C side
+// handles its own locking.
+unsafe impl<T: RegulatorState> Sync for Regulator<T> {}
+
 /// A voltage.
 ///
 /// This type represents a voltage value in microvolts.
