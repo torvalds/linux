@@ -2259,7 +2259,7 @@ struct hci_conn *hci_connect_bis(struct hci_dev *hdev, bdaddr_t *dst,
 	 * the start periodic advertising and create BIG commands have
 	 * been queued
 	 */
-	hci_conn_hash_list_state(hdev, bis_mark_per_adv, PA_LINK,
+	hci_conn_hash_list_state(hdev, bis_mark_per_adv, BIS_LINK,
 				 BT_BOUND, &data);
 
 	/* Queue start periodic advertising and create BIG */
