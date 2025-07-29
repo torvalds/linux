@@ -30,8 +30,8 @@ rm -rf "${tmpdir}"
 mkdir "${tmpdir}"
 
 # shellcheck disable=SC2154 # srctree is passed as an env variable
-sed "s:^${srctree}/::" "${srclist}" | tar -c -f - -C "${srctree}" -T - | tar -xf - -C "${tmpdir}"
-tar -c -f - -T "${objlist}" | tar -xf - -C "${tmpdir}"
+sed "s:^${srctree}/::" "${srclist}" | ${TAR} -c -f - -C "${srctree}" -T - | ${TAR} -xf - -C "${tmpdir}"
+${TAR} -c -f - -T "${objlist}" | ${TAR} -xf - -C "${tmpdir}"
 
 # Remove comments except SDPX lines
 # Use a temporary file to store directory contents to prevent find/xargs from
@@ -43,7 +43,7 @@ xargs -0 -P8 -n1 \
 rm -f "${tmpdir}.contents.txt"
 
 # Create archive and try to normalize metadata for reproducibility.
-tar "${timestamp:+--mtime=$timestamp}" \
+${TAR} "${timestamp:+--mtime=$timestamp}" \
     --owner=0 --group=0 --sort=name --numeric-owner --mode=u=rw,go=r,a+X \
     -I "${XZ}" -cf "${tarfile}" -C "${tmpdir}/" . > /dev/null
 
