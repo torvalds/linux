@@ -29,10 +29,10 @@ union unwind_task_id {
 };
 
 struct unwind_task_info {
+	unsigned long		unwind_mask;
 	struct unwind_cache	*cache;
 	struct callback_head	work;
 	union unwind_task_id	id;
-	int			pending;
 };
 
 #endif /* _LINUX_UNWIND_USER_DEFERRED_TYPES_H */

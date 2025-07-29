@@ -45,6 +45,16 @@ static inline bool try_assign_cnt(struct unwind_task_info *info, u32 cnt)
 static DEFINE_MUTEX(callback_mutex);
 static LIST_HEAD(callbacks);
 
+#define RESERVED_BITS	(UNWIND_PENDING)
+
+/* Zero'd bits are available for assigning callback users */
+static unsigned long unwind_mask = RESERVED_BITS;
+
+static inline bool unwind_pending(struct unwind_task_info *info)
+{
+	return test_bit(UNWIND_PENDING_BIT, &info->unwind_mask);
+}
+
 /*
  * This is a unique percpu identifier for a given task entry context.
  * Conceptually, it's incremented every time the CPU enters the kernel from
@@ -138,14 +148,15 @@ static void unwind_deferred_task_work(struct callback_head *head)
 	struct unwind_task_info *info = container_of(head, struct unwind_task_info, work);
 	struct unwind_stacktrace trace;
 	struct unwind_work *work;
+	unsigned long bits;
 	u64 cookie;
 
-	if (WARN_ON_ONCE(!info->pending))
+	if (WARN_ON_ONCE(!unwind_pending(info)))
 		return;
 
-	/* Allow work to come in again */
-	WRITE_ONCE(info->pending, 0);
-
+	/* Clear pending bit but make sure to have the current bits */
+	bits = atomic_long_fetch_andnot(UNWIND_PENDING,
+				  (atomic_long_t *)&info->unwind_mask);
 	/*
 	 * From here on out, the callback must always be called, even if it's
 	 * just an empty trace.
@@ -159,7 +170,8 @@ static void unwind_deferred_task_work(struct callback_head *head)
 
 	guard(mutex)(&callback_mutex);
 	list_for_each_entry(work, &callbacks, list) {
-		work->func(work, &trace, cookie);
+		if (test_bit(work->bit, &bits))
+			work->func(work, &trace, cookie);
 	}
 }
 
@@ -183,15 +195,16 @@ static void unwind_deferred_task_work(struct callback_head *head)
  * because it has already been previously called for the same entry context,
  * it will be called again with the same stack trace and cookie.
  *
- * Return: 1 if the the callback was already queued.
- *         0 if the callback successfully was queued.
+ * Return: 0 if the callback successfully was queued.
+ *         1 if the callback is pending or was already executed.
  *         Negative if there's an error.
  *         @cookie holds the cookie of the first request by any user
  */
 int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 {
 	struct unwind_task_info *info = &current->unwind_info;
-	long pending;
+	unsigned long old, bits;
+	unsigned long bit = BIT(work->bit);
 	int ret;
 
 	*cookie = 0;
@@ -212,32 +225,59 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 
 	*cookie = get_cookie(info);
 
-	/* callback already pending? */
-	pending = READ_ONCE(info->pending);
-	if (pending)
+	old = READ_ONCE(info->unwind_mask);
+
+	/* Is this already queued or executed */
+	if (old & bit)
 		return 1;
 
-	/* Claim the work unless an NMI just now swooped in to do so. */
-	if (!try_cmpxchg(&info->pending, &pending, 1))
-		return 1;
+	/*
+	 * This work's bit hasn't been set yet. Now set it with the PENDING
+	 * bit and fetch the current value of unwind_mask. If ether the
+	 * work's bit or PENDING was already set, then this is already queued
+	 * to have a callback.
+	 */
+	bits = UNWIND_PENDING | bit;
+	old = atomic_long_fetch_or(bits, (atomic_long_t *)&info->unwind_mask);
+	if (old & bits) {
+		/*
+		 * If the work's bit was set, whatever set it had better
+		 * have also set pending and queued a callback.
+		 */
+		WARN_ON_ONCE(!(old & UNWIND_PENDING));
+		return old & bit;
+	}
 
 	/* The work has been claimed, now schedule it. */
 	ret = task_work_add(current, &info->work, TWA_RESUME);
-	if (WARN_ON_ONCE(ret)) {
-		WRITE_ONCE(info->pending, 0);
-		return ret;
-	}
 
-	return 0;
+	if (WARN_ON_ONCE(ret))
+		WRITE_ONCE(info->unwind_mask, 0);
+
+	return ret;
 }
 
 void unwind_deferred_cancel(struct unwind_work *work)
 {
+	struct task_struct *g, *t;
+
 	if (!work)
+		return;
+
+	/* No work should be using a reserved bit */
+	if (WARN_ON_ONCE(BIT(work->bit) & RESERVED_BITS))
 		return;
 
 	guard(mutex)(&callback_mutex);
 	list_del(&work->list);
+
+	__clear_bit(work->bit, &unwind_mask);
+
+	guard(rcu)();
+	/* Clear this bit from all threads */
+	for_each_process_thread(g, t) {
+		clear_bit(work->bit, &t->unwind_info.unwind_mask);
+	}
 }
 
 int unwind_deferred_init(struct unwind_work *work, unwind_callback_t func)
@@ -245,6 +285,14 @@ int unwind_deferred_init(struct unwind_work *work, unwind_callback_t func)
 	memset(work, 0, sizeof(*work));
 
 	guard(mutex)(&callback_mutex);
+
+	/* See if there's a bit in the mask available */
+	if (unwind_mask == ~0UL)
+		return -EBUSY;
+
+	work->bit = ffz(unwind_mask);
+	__set_bit(work->bit, &unwind_mask);
+
 	list_add(&work->list, &callbacks);
 	work->func = func;
 	return 0;
@@ -256,6 +304,7 @@ void unwind_task_init(struct task_struct *task)
 
 	memset(info, 0, sizeof(*info));
 	init_task_work(&info->work, unwind_deferred_task_work);
+	info->unwind_mask = 0;
 }
 
 void unwind_task_free(struct task_struct *task)
