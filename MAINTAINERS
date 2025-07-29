@@ -14067,8 +14067,10 @@ F:	Documentation/admin-guide/LSM/LoadPin.rst
 F:	security/loadpin/
 
 LOCKDOWN SECURITY MODULE
+M:	Nicolas Bouchinet <nicolas.bouchinet@oss.cyber.gouv.fr>
+M:	Xiu Jianfeng <xiujianfeng@huawei.com>
 L:	linux-security-module@vger.kernel.org
-S:	Odd Fixes
+S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/lsm.git
 F:	security/lockdown/
 
