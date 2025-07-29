@@ -521,11 +521,36 @@ static const struct pwm_ops pca9685_pwm_ops = {
 	.free = pca9685_pwm_free,
 };
 
+static bool pca9685_readable_reg(struct device *dev, unsigned int reg)
+{
+	/* The ALL_LED registers are readable but read as zero */
+	return reg <= REG_OFF_H(15) || reg >= PCA9685_PRESCALE;
+}
+
+static bool pca9685_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return reg <= REG_OFF_H(15) || reg >= PCA9685_ALL_LED_ON_L;
+}
+
+static bool pca9685_volatile_reg(struct device *dev, unsigned int reg)
+{
+	/*
+	 * Writing to an ALL_LED register affects all LEDi registers, so they
+	 * are not cachable. :-\
+	 */
+	return reg < PCA9685_PRESCALE;
+}
+
 static const struct regmap_config pca9685_regmap_i2c_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+
+	.readable_reg = pca9685_readable_reg,
+	.writeable_reg = pca9685_writeable_reg,
+	.volatile_reg = pca9685_volatile_reg,
+
 	.max_register = PCA9685_NUMREGS,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int pca9685_pwm_probe(struct i2c_client *client)
