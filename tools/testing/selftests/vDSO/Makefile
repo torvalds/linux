@@ -12,7 +12,7 @@ TEST_GEN_PROGS += vdso_test_correctness
 TEST_GEN_PROGS += vdso_test_getrandom
 TEST_GEN_PROGS += vdso_test_chacha
 
-CFLAGS := -std=gnu99 -O2
+CFLAGS := -std=gnu99 -O2 -Wall -Wstrict-prototypes
 
 ifeq ($(CONFIG_X86_32),y)
 LDLIBS += -lgcc_s
