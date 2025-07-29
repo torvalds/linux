@@ -51,7 +51,7 @@
    discard it in modules) */
 #define __init		__section(".init.text") __cold __latent_entropy	\
 						__noinitretpoline	\
-						__no_sanitize_coverage
+						__no_kstack_erase
 #define __initdata	__section(".init.data")
 #define __initconst	__section(".init.rodata")
 #define __exitdata	__section(".exit.data")
