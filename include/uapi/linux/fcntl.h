@@ -111,4 +111,6 @@
 
 #define AT_RECURSIVE		0x8000	/* Apply to the entire subtree */
 
+#define O_SPDIO 040000000
+
 #endif /* _UAPI_LINUX_FCNTL_H */

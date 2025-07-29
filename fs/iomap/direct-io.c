@@ -3,6 +3,8 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * Copyright (c) 2016-2021 Christoph Hellwig.
  */
+
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/fs.h>
@@ -23,18 +25,20 @@
 #define IOMAP_DIO_WRITE		(1 << 30)
 #define IOMAP_DIO_DIRTY		(1 << 31)
 
+#define BIO_RETURN_TRIGGER 11
+
 struct iomap_dio {
 	struct kiocb		*iocb;
 	const struct iomap_dio_ops *dops;
 	loff_t			i_size;   // 파일 전체 크기
 	loff_t			size;     // 디바이스로 제출한 누적 바이트
-  atomic64_t  done;     // DMA 완료된 누적 바이트
-  u64         early_threshold; // 조기 완료 임계값
-  bool        early_done;      // 조기 완료 확인
 	atomic_t		ref;      // 참조하고 있는 bio 수?
 	unsigned long	flags;
 	int			error;
 	bool			wait_for_completion;
+
+  u64 threshold;
+  atomic_t early_woken;
 
 	union {
 		/* used during submission and for synchronous completion: */
@@ -51,17 +55,6 @@ struct iomap_dio {
 		} aio;
 	};
 };
-
-struct dio_bio_ctx {
-  struct iomap_dio *dio;
-  unsigned int bytes;
-};
-
-void print_dio(char *func_name, struct iomap_dio *dio) {
-  pr_info(KERN_INFO "%s():\n", func_name);
-  pr_info(KERN_INFO "  struct dio:\n    dio->i_size=%lld\n    dio->size=%lld\n    dio->done=%lld\n    dio->early_threshold=%lld\n    dio->ref=%d\n    dio->wait_for_completion=%d\n",
-          dio->i_size, dio->size, atomic64_read(&dio->done), dio->early_threshold, atomic_read(&dio->ref), dio->wait_for_completion);
-}
 
 int iomap_dio_iopoll(struct kiocb *kiocb, bool spin)
 {
@@ -90,12 +83,13 @@ static void iomap_dio_submit_bio(const struct iomap_iter *iter,
 
 ssize_t iomap_dio_complete(struct iomap_dio *dio)
 {
+  ktime_t s, e;
 	const struct iomap_dio_ops *dops = dio->dops;
 	struct kiocb *iocb = dio->iocb;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	loff_t offset = iocb->ki_pos;
 	ssize_t ret = dio->error;
-
+  //s = ktime_get();
 	if (dops && dops->end_io)
 		ret = dops->end_io(iocb, dio->size, ret, dio->flags);
 
@@ -138,8 +132,15 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	if (ret > 0 && (dio->flags & IOMAP_DIO_NEED_SYNC))
 		ret = generic_write_sync(iocb, ret);
 
-	kfree(dio);
-
+  if (dio->iocb->ki_filp->f_flags & O_SPDIO) { 
+    if (atomic_dec_and_test(&dio->ref)) {
+      kfree(dio);
+    }
+  } else {
+    kfree(dio);
+  }
+  e = ktime_get();
+  pr_info("iomap_dio_complete(): DIO completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iomap_dio_complete);
@@ -164,77 +165,61 @@ static inline void iomap_dio_set_error(struct iomap_dio *dio, int ret)
 
 static void iomap_dio_bio_end_io(struct bio *bio)
 {
-	//struct iomap_dio *dio = bio->bi_private;
-  struct dio_bio_ctx *ctx = bio->bi_private;
-  struct iomap_dio *dio = ctx->dio;
+	struct iomap_dio *dio = bio->bi_private;
 	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
-  //pr_info(KERN_INFO "iomap_dio_bio_end_io - 진입\n");
-  //print_dio("iomap_dio_bio_end_io - 진입 직후", dio);
-  if (bio->bi_status)
+
+	if (bio->bi_status)
 		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
 
-  // LDY  
-  //pr_info(KERN_INFO "iomap_dio_bio_end_io - ctx->bytes=%u\n", ctx->bytes);
-  atomic64_add(ctx->bytes, &dio->done);
-
-  if ((atomic64_read(&dio->done) >= dio->early_threshold) && !dio->early_done) {
-    dio->early_done = 1;
-      /*
-      struct task_struct *waiter = cmpxchg(&dio->submit.waiter,
-                                         waiter,
-                                         NULL);
-      */
-    struct task_struct *waiter = READ_ONCE(dio->submit.waiter);
-    if (waiter && cmpxchg(&dio->submit.waiter, waiter, NULL) == waiter) {
-      smp_mb();
-      blk_wake_io_task(waiter);
-    }
-      /*
-      if (waiter)
-        blk_wake_io_task(waiter);
-      */
-  }
-
-  if (atomic_dec_and_test(&dio->ref)) {
-    if (!dio->wait_for_completion) {
-      if (dio->flags & IOMAP_DIO_WRITE) {
-       struct inode *inode = file_inode(dio->iocb->ki_filp);
-        INIT_WORK(&dio->aio.work, iomap_dio_complete_work);
-        queue_work(inode->i_sb->s_dio_done_wq, &dio->aio.work);
-      } else {
-        iomap_dio_complete_work(&dio->aio.work);
-      }
-    } else if(dio->submit.waiter != NULL) {
-      struct task_struct *waiter = dio->submit.waiter;
-		  WRITE_ONCE(dio->submit.waiter, NULL);
-		  blk_wake_io_task(waiter);
-    } 
-  }
-  
-
-  /*
-  if (atomic_dec_and_test(&dio->ref)) {
-	  if (dio->wait_for_completion) {
-		  struct task_struct *waiter = dio->submit.waiter;
-  		WRITE_ONCE(dio->submit.waiter, NULL);
-  		blk_wake_io_task(waiter);
+	if (atomic_dec_and_test(&dio->ref)) {
+		if (dio->wait_for_completion) {
+			struct task_struct *waiter = dio->submit.waiter;
+			WRITE_ONCE(dio->submit.waiter, NULL);
+			blk_wake_io_task(waiter);
 		} else if (dio->flags & IOMAP_DIO_WRITE) {
 			struct inode *inode = file_inode(dio->iocb->ki_filp);
 
+			WRITE_ONCE(dio->iocb->private, NULL);
 			INIT_WORK(&dio->aio.work, iomap_dio_complete_work);
 			queue_work(inode->i_sb->s_dio_done_wq, &dio->aio.work);
 		} else {
+			WRITE_ONCE(dio->iocb->private, NULL);
 			iomap_dio_complete_work(&dio->aio.work);
 		}
 	}
-  */
+
 	if (should_dirty) {
 		bio_check_pages_dirty(bio);
 	} else {
 		bio_release_pages(bio, false);
-    kfree(ctx);
 		bio_put(bio);
 	}
+}
+
+static void spdio_end_io(struct bio *bio)
+{
+  struct iomap_dio *dio = bio->bi_private;
+
+  if (bio->bi_status)
+		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
+
+  // bio 플래그 확인 후 조기 반환 트리거 
+  if (bio->bi_flags & (1U << BIO_RETURN_TRIGGER)) {
+    struct task_struct *waiter = dio->submit.waiter;
+    if (waiter) {
+      WRITE_ONCE(dio->submit.waiter, NULL);
+      blk_wake_io_task(waiter);
+      //pr_info("spdio_end_io(): trigger completion point\n");
+    }
+  }
+  
+  if (atomic_dec_and_test(&dio->ref)) {
+    kfree(dio);
+  }
+
+  bio_release_pages(bio, false);
+	bio_put(bio);
+  //pr_info("spdio_end_io(): exit\n");
 }
 
 static void iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
@@ -287,6 +272,8 @@ static inline unsigned int iomap_dio_bio_opflags(struct iomap_dio *dio,
 static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		struct iomap_dio *dio)
 {
+  ktime_t s, e;
+  s = ktime_get();
 	const struct iomap *iomap = &iter->iomap;
 	struct inode *inode = iter->inode;
 	unsigned int blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
@@ -296,13 +283,18 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	loff_t pos = iter->pos;
 	unsigned int bio_opf;
 	struct bio *bio;
-  struct dio_bio_ctx *ctx;
 	bool need_zeroout = false;
 	bool use_fua = false;
 	int nr_pages, ret = 0;
 	size_t copied = 0;
 	size_t orig_count;
 
+  bool spdio = false;
+  if (dio->iocb->ki_filp->f_flags & O_SPDIO)
+    spdio = true;
+  e = ktime_get();
+  pr_info("iomap_dio_bio_iter(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  s = ktime_get();
 	if ((pos | length | align) & ((1 << blkbits) - 1))
 		return -EINVAL;
 
@@ -354,9 +346,20 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	 * operation.
 	 */
 	bio_opf = iomap_dio_bio_opflags(dio, iomap, use_fua);
+  e = ktime_get();
+  pr_info("iomap_dio_bio_iter(): before prepare I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 
-	nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
-	do {
+  /* threshold가 1M보다 작은 경우 좀 더 빠른 응답성을 위해
+  if (dio->threshold < 4096 * BIO_MAX_VECS) {
+    nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, 64);
+  } else {
+    nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
+  }
+  */ 
+
+  nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
+  do {
+    //s = ktime_get();
 		size_t n;
 		if (dio->error) {
 			iov_iter_revert(dio->submit.iter, copied);
@@ -365,14 +368,11 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		}
 
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
-    ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
-    ctx->dio = dio;
 		bio_set_dev(bio, iomap->bdev);
 		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
 		bio->bi_write_hint = dio->iocb->ki_hint;
 		bio->bi_ioprio = dio->iocb->ki_ioprio;
-		//bio->bi_private = dio;
-    bio->bi_private = ctx;
+		bio->bi_private = dio;
 		bio->bi_end_io = iomap_dio_bio_end_io;
 		bio->bi_opf = bio_opf;
 
@@ -389,7 +389,6 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		}
 
 		n = bio->bi_iter.bi_size;
-    ctx->bytes = n;
 		if (dio->flags & IOMAP_DIO_WRITE) {
 			task_io_account_write(n);
 		} else {
@@ -400,10 +399,26 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		dio->size += n;
 		copied += n;
 
-		nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter,
-						 BIO_MAX_VECS);
+    //pr_info("iomap_dio_bio_iter(): nr_pages=%d, bi_size=%ld\n",
+      //      nr_pages, n);
+    nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
+
+    if (spdio) {
+      // 이 bio가 조기 완료 시킬 bio인지 확인 
+      //pr_info(KERN_INFO "Enter SPDIO branch\n");
+      if (dio->size >= dio->threshold && dio->size - n < dio->threshold) {
+        bio->bi_flags |= (1U << BIO_RETURN_TRIGGER);
+        //pr_info(KERN_INFO "bio=%p is early completion point\n", bio);
+      }
+      bio->bi_end_io = spdio_end_io;
+    }
+    e = ktime_get();
+    pr_info("iomap_dio_bio_iter(): prepare I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+    s = ktime_get();
 		iomap_dio_submit_bio(iter, dio, bio, pos);
 		pos += n;
+    e = ktime_get();
+    pr_info("iomap_dio_bio_iter(): submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	} while (nr_pages);
   
 	/*
@@ -517,6 +532,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
 		unsigned int dio_flags)
 {
+  ktime_t s, e;
+  //s = ktime_get();
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct iomap_iter iomi = {
@@ -545,15 +562,20 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->dops = dops;
 	dio->error = 0;
 	dio->flags = 0;
-  // LDY
-  atomic64_set(&dio->done, 0);
-  dio->early_threshold = (iomi.len / 4);
-  dio->early_done = 0;
-
 	dio->submit.iter = iter;
 	dio->submit.waiter = current;
 	dio->submit.cookie = BLK_QC_T_NONE;
 	dio->submit.last_queue = NULL;
+
+  bool spdio = iocb->ki_filp->f_flags & O_SPDIO;
+  if (spdio) {
+    //unsigned int tmp = 4096 * 64;
+    dio->threshold = iomi.len / 4;
+    //if (dio->threshold > tmp)
+      //dio->threshold = tmp;
+    atomic_set(&dio->early_woken, 0);
+    atomic_set(&dio->ref, 2);
+  }
 
 	if (iov_iter_rw(iter) == READ) {
 		if (iomi.pos >= dio->i_size)
@@ -629,21 +651,25 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				goto out_free_dio;
 		}
 	}
-
+  e = ktime_get();
+  pr_info("__iomap_dio_rw(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	inode_dio_begin(inode);
 
+  s = ktime_get();
 	blk_start_plug(&plug);
 	while ((ret = iomap_iter(&iomi, ops)) > 0) {
 		iomi.processed = iomap_dio_iter(&iomi, dio);
     //print_dio("__iomap_dio_rw - while() 내부 iomap_dio_iter 호출 후", dio);
   }
 	blk_finish_plug(&plug);
-
+  e = ktime_get();
+  pr_info("__iomap_dio_rw(): prepare & submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	/*
 	 * We only report that we've read data up to i_size.
 	 * Revert iter to a state corresponding to that as some callers (such
 	 * as the splice code) rely on it.
 	 */
+  s = ktime_get();
 	if (iov_iter_rw(iter) == READ && iomi.pos >= dio->i_size)
 		iov_iter_revert(iter, iomi.pos - dio->i_size);
 
@@ -686,11 +712,11 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			return ERR_PTR(-EIOCBQUEUED);
 
 		for (;;) {
-      //print_dio("__iomap_dio_rw - for(;;) 내부", dio);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
-			if (!READ_ONCE(dio->submit.waiter))
+			if (!READ_ONCE(dio->submit.waiter)) {
 				break;
+      }
 
 			if (!(iocb->ki_flags & IOCB_HIPRI) ||
 			    !dio->submit.last_queue ||
@@ -700,6 +726,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		__set_current_state(TASK_RUNNING);
 	}
+  e = ktime_get();
+  pr_info("__iomap_dio_rw(): wait I/O completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	return dio;
 
 out_free_dio:
@@ -716,8 +744,11 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int dio_flags)
 {
 	struct iomap_dio *dio;
-
+  ktime_t start, end;
+  start = ktime_get();
 	dio = __iomap_dio_rw(iocb, iter, ops, dops, dio_flags);
+  end = ktime_get();
+  pr_info("__iomap_dio_rw(): latency=%lld ns\n", ktime_to_ns(ktime_sub(end, start)));
 	if (IS_ERR_OR_NULL(dio))
 		return PTR_ERR_OR_ZERO(dio);
 	return iomap_dio_complete(dio);
