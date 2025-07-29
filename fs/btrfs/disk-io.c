@@ -2029,14 +2029,10 @@ static int btrfs_init_csum_hash(struct btrfs_fs_info *fs_info, u16 csum_type)
 
 	fs_info->csum_shash = csum_shash;
 
-	/*
-	 * Check if the checksum implementation is a fast accelerated one.
-	 * As-is this is a bit of a hack and should be replaced once the csum
-	 * implementations provide that information themselves.
-	 */
+	/* Check if the checksum implementation is a fast accelerated one. */
 	switch (csum_type) {
 	case BTRFS_CSUM_TYPE_CRC32:
-		if (!strstr(crypto_shash_driver_name(csum_shash), "generic"))
+		if (crc32_optimizations() & CRC32C_OPTIMIZATION)
 			set_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags);
 		break;
 	case BTRFS_CSUM_TYPE_XXHASH:
