@@ -6,14 +6,14 @@
  *
  * Author: Alexander Popov <alex.popov@linux.com>
  *
- * STACKLEAK reduces the information which kernel stack leak bugs can
+ * KSTACK_ERASE reduces the information which kernel stack leak bugs can
  * reveal and blocks some uninitialized stack variable attacks.
  */
 
-#include <linux/stackleak.h>
+#include <linux/kstack_erase.h>
 #include <linux/kprobes.h>
 
-#ifdef CONFIG_STACKLEAK_RUNTIME_DISABLE
+#ifdef CONFIG_KSTACK_ERASE_RUNTIME_DISABLE
 #include <linux/jump_label.h>
 #include <linux/string_choices.h>
 #include <linux/sysctl.h>
@@ -68,7 +68,7 @@ late_initcall(stackleak_sysctls_init);
 #define skip_erasing()	static_branch_unlikely(&stack_erasing_bypass)
 #else
 #define skip_erasing()	false
-#endif /* CONFIG_STACKLEAK_RUNTIME_DISABLE */
+#endif /* CONFIG_KSTACK_ERASE_RUNTIME_DISABLE */
 
 #ifndef __stackleak_poison
 static __always_inline void __stackleak_poison(unsigned long erase_low,
@@ -91,7 +91,7 @@ static __always_inline void __stackleak_erase(bool on_task_stack)
 	erase_low = stackleak_find_top_of_poison(task_stack_low,
 						 current->lowest_stack);
 
-#ifdef CONFIG_STACKLEAK_METRICS
+#ifdef CONFIG_KSTACK_ERASE_METRICS
 	current->prev_lowest_stack = erase_low;
 #endif
 
@@ -113,7 +113,7 @@ static __always_inline void __stackleak_erase(bool on_task_stack)
 	else
 		erase_high = task_stack_high;
 
-	__stackleak_poison(erase_low, erase_high, STACKLEAK_POISON);
+	__stackleak_poison(erase_low, erase_high, KSTACK_ERASE_POISON);
 
 	/* Reset the 'lowest_stack' value for the next syscall */
 	current->lowest_stack = task_stack_high;
@@ -156,16 +156,16 @@ asmlinkage void noinstr stackleak_erase_off_task_stack(void)
 	__stackleak_erase(false);
 }
 
-void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
+void __used __no_caller_saved_registers noinstr __sanitizer_cov_stack_depth(void)
 {
 	unsigned long sp = current_stack_pointer;
 
 	/*
-	 * Having CONFIG_STACKLEAK_TRACK_MIN_SIZE larger than
-	 * STACKLEAK_SEARCH_DEPTH makes the poison search in
+	 * Having CONFIG_KSTACK_ERASE_TRACK_MIN_SIZE larger than
+	 * KSTACK_ERASE_SEARCH_DEPTH makes the poison search in
 	 * stackleak_erase() unreliable. Let's prevent that.
 	 */
-	BUILD_BUG_ON(CONFIG_STACKLEAK_TRACK_MIN_SIZE > STACKLEAK_SEARCH_DEPTH);
+	BUILD_BUG_ON(CONFIG_KSTACK_ERASE_TRACK_MIN_SIZE > KSTACK_ERASE_SEARCH_DEPTH);
 
 	/* 'lowest_stack' should be aligned on the register width boundary */
 	sp = ALIGN(sp, sizeof(unsigned long));
@@ -174,4 +174,4 @@ void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
 		current->lowest_stack = sp;
 	}
 }
-EXPORT_SYMBOL(stackleak_track_stack);
+EXPORT_SYMBOL(__sanitizer_cov_stack_depth);

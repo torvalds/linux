@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_STACKLEAK_H
-#define _LINUX_STACKLEAK_H
+#ifndef _LINUX_KSTACK_ERASE_H
+#define _LINUX_KSTACK_ERASE_H
 
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -9,10 +9,10 @@
  * Check that the poison value points to the unused hole in the
  * virtual memory map for your platform.
  */
-#define STACKLEAK_POISON -0xBEEF
-#define STACKLEAK_SEARCH_DEPTH 128
+#define KSTACK_ERASE_POISON -0xBEEF
+#define KSTACK_ERASE_SEARCH_DEPTH 128
 
-#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+#ifdef CONFIG_KSTACK_ERASE
 #include <asm/stacktrace.h>
 #include <linux/linkage.h>
 
@@ -50,7 +50,7 @@ stackleak_task_high_bound(const struct task_struct *tsk)
 static __always_inline unsigned long
 stackleak_find_top_of_poison(const unsigned long low, const unsigned long high)
 {
-	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
+	const unsigned int depth = KSTACK_ERASE_SEARCH_DEPTH / sizeof(unsigned long);
 	unsigned int poison_count = 0;
 	unsigned long poison_high = high;
 	unsigned long sp = high;
@@ -58,7 +58,7 @@ stackleak_find_top_of_poison(const unsigned long low, const unsigned long high)
 	while (sp > low && poison_count < depth) {
 		sp -= sizeof(unsigned long);
 
-		if (*(unsigned long *)sp == STACKLEAK_POISON) {
+		if (*(unsigned long *)sp == KSTACK_ERASE_POISON) {
 			poison_count++;
 		} else {
 			poison_count = 0;
@@ -72,7 +72,7 @@ stackleak_find_top_of_poison(const unsigned long low, const unsigned long high)
 static inline void stackleak_task_init(struct task_struct *t)
 {
 	t->lowest_stack = stackleak_task_low_bound(t);
-# ifdef CONFIG_STACKLEAK_METRICS
+# ifdef CONFIG_KSTACK_ERASE_METRICS
 	t->prev_lowest_stack = t->lowest_stack;
 # endif
 }
@@ -80,9 +80,9 @@ static inline void stackleak_task_init(struct task_struct *t)
 asmlinkage void noinstr stackleak_erase(void);
 asmlinkage void noinstr stackleak_erase_on_task_stack(void);
 asmlinkage void noinstr stackleak_erase_off_task_stack(void);
-void __no_caller_saved_registers noinstr stackleak_track_stack(void);
+void __no_caller_saved_registers noinstr __sanitizer_cov_stack_depth(void);
 
-#else /* !CONFIG_GCC_PLUGIN_STACKLEAK */
+#else /* !CONFIG_KSTACK_ERASE */
 static inline void stackleak_task_init(struct task_struct *t) { }
 #endif
 
