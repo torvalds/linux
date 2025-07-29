@@ -3264,43 +3264,120 @@ static void add_str_to_module(struct module *module, char *str)
 	list_add(&modstr->next, &module_strings);
 }
 
+#define ATTRIBUTE_STR "__attribute__("
+#define ATTRIBUTE_STR_LEN (sizeof(ATTRIBUTE_STR) - 1)
+
+/* Remove all __attribute__() from @type. Return allocated string or @type. */
+static char *sanitize_field_type(const char *type)
+{
+	char *attr, *tmp, *next, *ret = (char *)type;
+	int depth;
+
+	next = (char *)type;
+	while ((attr = strstr(next, ATTRIBUTE_STR))) {
+		/* Retry if "__attribute__(" is a part of another word. */
+		if (attr != next && !isspace(attr[-1])) {
+			next = attr + ATTRIBUTE_STR_LEN;
+			continue;
+		}
+
+		if (ret == type) {
+			ret = kstrdup(type, GFP_KERNEL);
+			if (WARN_ON_ONCE(!ret))
+				return NULL;
+			attr = ret + (attr - type);
+		}
+
+		/* the ATTRIBUTE_STR already has the first '(' */
+		depth = 1;
+		next = attr + ATTRIBUTE_STR_LEN;
+		do {
+			tmp = strpbrk(next, "()");
+			/* There is unbalanced parentheses */
+			if (WARN_ON_ONCE(!tmp)) {
+				kfree(ret);
+				return (char *)type;
+			}
+
+			if (*tmp == '(')
+				depth++;
+			else
+				depth--;
+			next = tmp + 1;
+		} while (depth > 0);
+		next = skip_spaces(next);
+		strcpy(attr, next);
+		next = attr;
+	}
+	return ret;
+}
+
+static char *find_replacable_eval(const char *type, const char *eval_string,
+				  int len)
+{
+	char *ptr;
+
+	if (!eval_string)
+		return NULL;
+
+	ptr = strchr(type, '[');
+	if (!ptr)
+		return NULL;
+	ptr++;
+
+	if (!isalpha(*ptr) && *ptr != '_')
+		return NULL;
+
+	if (strncmp(eval_string, ptr, len) != 0)
+		return NULL;
+
+	return ptr;
+}
+
 static void update_event_fields(struct trace_event_call *call,
 				struct trace_eval_map *map)
 {
 	struct ftrace_event_field *field;
+	const char *eval_string = NULL;
 	struct list_head *head;
+	int len = 0;
 	char *ptr;
 	char *str;
-	int len = strlen(map->eval_string);
 
 	/* Dynamic events should never have field maps */
-	if (WARN_ON_ONCE(call->flags & TRACE_EVENT_FL_DYNAMIC))
+	if (call->flags & TRACE_EVENT_FL_DYNAMIC)
 		return;
+
+	if (map) {
+		eval_string = map->eval_string;
+		len = strlen(map->eval_string);
+	}
 
 	head = trace_get_fields(call);
 	list_for_each_entry(field, head, link) {
-		ptr = strchr(field->type, '[');
-		if (!ptr)
-			continue;
-		ptr++;
-
-		if (!isalpha(*ptr) && *ptr != '_')
-			continue;
-
-		if (strncmp(map->eval_string, ptr, len) != 0)
-			continue;
-
-		str = kstrdup(field->type, GFP_KERNEL);
-		if (WARN_ON_ONCE(!str))
+		str = sanitize_field_type(field->type);
+		if (!str)
 			return;
-		ptr = str + (ptr - field->type);
-		ptr = eval_replace(ptr, map, len);
-		/* enum/sizeof string smaller than value */
-		if (WARN_ON_ONCE(!ptr)) {
-			kfree(str);
-			continue;
+
+		ptr = find_replacable_eval(str, eval_string, len);
+		if (ptr) {
+			if (str == field->type) {
+				str = kstrdup(field->type, GFP_KERNEL);
+				if (WARN_ON_ONCE(!str))
+					return;
+				ptr = str + (ptr - field->type);
+			}
+
+			ptr = eval_replace(ptr, map, len);
+			/* enum/sizeof string smaller than value */
+			if (WARN_ON_ONCE(!ptr)) {
+				kfree(str);
+				continue;
+			}
 		}
 
+		if (str == field->type)
+			continue;
 		/*
 		 * If the event is part of a module, then we need to free the string
 		 * when the module is removed. Otherwise, it will stay allocated
@@ -3310,14 +3387,18 @@ static void update_event_fields(struct trace_event_call *call,
 			add_str_to_module(call->module, str);
 
 		field->type = str;
+		if (field->filter_type == FILTER_OTHER)
+			field->filter_type = filter_assign_type(field->type);
 	}
 }
 
-void trace_event_eval_update(struct trace_eval_map **map, int len)
+/* Update all events for replacing eval and sanitizing */
+void trace_event_update_all(struct trace_eval_map **map, int len)
 {
 	struct trace_event_call *call, *p;
 	const char *last_system = NULL;
 	bool first = false;
+	bool updated;
 	int last_i;
 	int i;
 
@@ -3330,6 +3411,7 @@ void trace_event_eval_update(struct trace_eval_map **map, int len)
 			last_system = call->class->system;
 		}
 
+		updated = false;
 		/*
 		 * Since calls are grouped by systems, the likelihood that the
 		 * next call in the iteration belongs to the same system as the
@@ -3349,8 +3431,12 @@ void trace_event_eval_update(struct trace_eval_map **map, int len)
 				}
 				update_event_printk(call, map[i]);
 				update_event_fields(call, map[i]);
+				updated = true;
 			}
 		}
+		/* If not updated yet, update field for sanitizing. */
+		if (!updated)
+			update_event_fields(call, NULL);
 		cond_resched();
 	}
 	up_write(&trace_event_sem);
