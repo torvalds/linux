@@ -979,7 +979,6 @@ static int avs_component_load_libraries(struct avs_soc_component *acomp)
 	if (!ret)
 		ret = avs_module_info_init(adev, false);
 
-	pm_runtime_mark_last_busy(adev->dev);
 	pm_runtime_put_autosuspend(adev->dev);
 
 	return ret;

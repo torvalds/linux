@@ -126,7 +126,7 @@ void neponset_ncr_frob(unsigned int mask, unsigned int val)
 	unsigned long m = mask, v = val;
 
 	if (nep)
-		n->gpio[0]->set_multiple(n->gpio[0], &m, &v);
+		n->gpio[0]->set_multiple_rv(n->gpio[0], &m, &v);
 	else
 		WARN(1, "nep unset\n");
 }

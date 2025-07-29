@@ -4944,7 +4944,7 @@ static int snd_hdsp_create_hwdep(struct snd_card *card, struct hdsp *hdsp)
 
 	hdsp->hwdep = hw;
 	hw->private_data = hdsp;
-	strcpy(hw->name, "HDSP hwdep interface");
+	strscpy(hw->name, "HDSP hwdep interface");
 
 	hw->ops.ioctl = snd_hdsp_hwdep_ioctl;
 	hw->ops.ioctl_compat = snd_hdsp_hwdep_ioctl;
@@ -4963,7 +4963,7 @@ static int snd_hdsp_create_pcm(struct snd_card *card, struct hdsp *hdsp)
 
 	hdsp->pcm = pcm;
 	pcm->private_data = hdsp;
-	strcpy(pcm->name, hdsp->card_name);
+	strscpy(pcm->name, hdsp->card_name);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_hdsp_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_hdsp_capture_ops);
@@ -5111,7 +5111,7 @@ static int snd_hdsp_create_alsa_devices(struct snd_card *card, struct hdsp *hdsp
 	}
 
 	if (!(hdsp->state & HDSP_InitializationComplete)) {
-		strcpy(card->shortname, "Hammerfall DSP");
+		strscpy(card->shortname, "Hammerfall DSP");
 		sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name,
 			hdsp->port, hdsp->irq);
 
@@ -5255,8 +5255,8 @@ static int snd_hdsp_create(struct snd_card *card,
 	*/
 	pci_write_config_byte(hdsp->pci, PCI_LATENCY_TIMER, 0xFF);
 
-	strcpy(card->driver, "H-DSP");
-	strcpy(card->mixername, "Xilinx FPGA");
+	strscpy(card->driver, "H-DSP");
+	strscpy(card->mixername, "Xilinx FPGA");
 
 	if (hdsp->firmware_rev < 0xa)
 		return -ENODEV;
@@ -5412,7 +5412,7 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 	if (err)
 		goto error;
 
-	strcpy(card->shortname, "Hammerfall DSP");
+	strscpy(card->shortname, "Hammerfall DSP");
 	sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name,
 		hdsp->port, hdsp->irq);
 	err = snd_card_register(card);

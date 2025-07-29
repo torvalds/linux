@@ -1134,7 +1134,7 @@ int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "YMFPCI");
+	strscpy(pcm->name, "YMFPCI");
 	chip->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1201,7 +1201,7 @@ int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "YMFPCI - IEC958");
+	strscpy(pcm->name, "YMFPCI - IEC958");
 	chip->pcm_spdif = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1242,7 +1242,7 @@ int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "YMFPCI - Rear PCM");
+	strscpy(pcm->name, "YMFPCI - Rear PCM");
 	chip->pcm_4ch = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1948,7 +1948,7 @@ int snd_ymfpci_timer(struct snd_ymfpci *chip, int device)
 	tid.subdevice = 0;
 	err = snd_timer_new(chip->card, "YMFPCI", &tid, &timer);
 	if (err >= 0) {
-		strcpy(timer->name, "YMFPCI timer");
+		strscpy(timer->name, "YMFPCI timer");
 		timer->private_data = chip;
 		timer->hw = snd_ymfpci_timer_hw;
 	}

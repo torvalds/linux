@@ -879,6 +879,33 @@ static inline bool dev_pm_smart_suspend(struct device *dev)
 #endif
 }
 
+/*
+ * dev_pm_set_strict_midlayer - Update the device's power.strict_midlayer flag
+ * @dev: Target device.
+ * @val: New flag value.
+ *
+ * When set, power.strict_midlayer means that the middle layer power management
+ * code (typically, a bus type or a PM domain) does not expect its runtime PM
+ * suspend callback to be invoked at all during system-wide PM transitions and
+ * it does not expect its runtime PM resume callback to be invoked at any point
+ * when runtime PM is disabled for the device during system-wide PM transitions.
+ */
+static inline void dev_pm_set_strict_midlayer(struct device *dev, bool val)
+{
+#ifdef CONFIG_PM_SLEEP
+	dev->power.strict_midlayer = val;
+#endif
+}
+
+static inline bool dev_pm_strict_midlayer_is_set(struct device *dev)
+{
+#ifdef CONFIG_PM_SLEEP
+	return dev->power.strict_midlayer;
+#else
+	return false;
+#endif
+}
+
 static inline void device_lock(struct device *dev)
 {
 	mutex_lock(&dev->mutex);

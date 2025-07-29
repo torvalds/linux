@@ -3,7 +3,7 @@
 # Ux500 SoC audio configuration
 #
 menuconfig SND_SOC_UX500
-	tristate "SoC Audio support for Ux500 platform"
+	tristate "Ux500"
 	depends on SND_SOC
 	depends on MFD_DB8500_PRCMU
 	help

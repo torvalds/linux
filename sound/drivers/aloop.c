@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/module.h>
@@ -1368,7 +1369,7 @@ static int loopback_pcm_new(struct loopback *loopback,
 
 	pcm->private_data = loopback;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "Loopback PCM");
+	strscpy(pcm->name, "Loopback PCM");
 
 	loopback->pcm[device] = pcm;
 	return 0;
@@ -1631,7 +1632,7 @@ static int loopback_mixer_new(struct loopback *loopback, int notify)
 	struct loopback_setup *setup;
 	int err, dev, substr, substr_count, idx;
 
-	strcpy(card->mixername, "Loopback Mixer");
+	strscpy(card->mixername, "Loopback Mixer");
 	for (dev = 0; dev < 2; dev++) {
 		pcm = loopback->pcm[dev];
 		substr_count =
@@ -1824,8 +1825,8 @@ static int loopback_probe(struct platform_device *devptr)
 	loopback_cable_proc_new(loopback, 0);
 	loopback_cable_proc_new(loopback, 1);
 	loopback_timer_source_proc_new(loopback);
-	strcpy(card->driver, "Loopback");
-	strcpy(card->shortname, "Loopback");
+	strscpy(card->driver, "Loopback");
+	strscpy(card->shortname, "Loopback");
 	sprintf(card->longname, "Loopback %i", dev + 1);
 	err = snd_card_register(card);
 	if (err < 0)

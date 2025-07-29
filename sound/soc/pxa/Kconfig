@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "PXA"
+
 config SND_PXA2XX_SOC
 	tristate "SoC Audio for the Intel PXA2xx chip"
 	depends on ARCH_PXA || COMPILE_TEST
@@ -52,3 +54,5 @@ config SND_PXA910_SOC
 	help
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell PXA910 reference platform.
+
+endmenu

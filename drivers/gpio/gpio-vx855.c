@@ -127,8 +127,7 @@ static int vx855gpio_get(struct gpio_chip *gpio, unsigned int nr)
 	return ret;
 }
 
-static void vx855gpio_set(struct gpio_chip *gpio, unsigned int nr,
-			  int val)
+static int vx855gpio_set(struct gpio_chip *gpio, unsigned int nr, int val)
 {
 	struct vx855_gpio *vg = gpiochip_get_data(gpio);
 	unsigned long flags;
@@ -136,7 +135,7 @@ static void vx855gpio_set(struct gpio_chip *gpio, unsigned int nr,
 
 	/* True GPI cannot be switched to output mode */
 	if (nr < NR_VX855_GPI)
-		return;
+		return -EPERM;
 
 	spin_lock_irqsave(&vg->lock, flags);
 	reg_out = inl(vg->io_gpo);
@@ -153,6 +152,8 @@ static void vx855gpio_set(struct gpio_chip *gpio, unsigned int nr,
 	}
 	outl(reg_out, vg->io_gpo);
 	spin_unlock_irqrestore(&vg->lock, flags);
+
+	return 0;
 }
 
 static int vx855gpio_direction_output(struct gpio_chip *gpio,
@@ -215,7 +216,7 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->direction_input = vx855gpio_direction_input;
 	c->direction_output = vx855gpio_direction_output;
 	c->get = vx855gpio_get;
-	c->set = vx855gpio_set;
+	c->set_rv = vx855gpio_set;
 	c->set_config = vx855gpio_set_config;
 	c->dbg_show = NULL;
 	c->base = 0;

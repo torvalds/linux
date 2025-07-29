@@ -515,7 +515,7 @@ eval_odvp:
 	return result;
 }
 
-static struct thermal_zone_device_ops int3400_thermal_ops = {
+static const struct thermal_zone_device_ops int3400_thermal_ops = {
 	.get_temp = int3400_thermal_get_temp,
 	.change_mode = int3400_thermal_change_mode,
 };
@@ -690,6 +690,7 @@ static const struct acpi_device_id int3400_thermal_match[] = {
 	{"INTC1068", 0},
 	{"INTC10A0", 0},
 	{"INTC10D4", 0},
+	{"INTC10FC", 0},
 	{}
 };
 
