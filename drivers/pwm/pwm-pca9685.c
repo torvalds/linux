@@ -26,7 +26,6 @@
  * that is enabled is allowed to change the prescale register.
  * PWM channels requested afterwards must use a period that results in the same
  * prescale setting as the one set by the first requested channel.
- * GPIOs do not count as enabled PWMs as they are not using the prescaler.
  */
 
 #define PCA9685_MODE1		0x00
@@ -80,10 +79,6 @@ struct pca9685 {
 	struct regmap *regmap;
 	struct mutex lock;
 	DECLARE_BITMAP(pwms_enabled, PCA9685_MAXCHAN + 1);
-#if IS_ENABLED(CONFIG_GPIOLIB)
-	struct gpio_chip gpio;
-	DECLARE_BITMAP(pwms_inuse, PCA9685_MAXCHAN + 1);
-#endif
 };
 
 static inline struct pca9685 *to_pca(struct pwm_chip *chip)
@@ -217,147 +212,6 @@ static unsigned int pca9685_pwm_get_duty(struct pwm_chip *chip, int channel)
 	return (off - on) & (PCA9685_COUNTER_RANGE - 1);
 }
 
-#if IS_ENABLED(CONFIG_GPIOLIB)
-static bool pca9685_pwm_test_and_set_inuse(struct pca9685 *pca, int pwm_idx)
-{
-	bool is_inuse;
-
-	mutex_lock(&pca->lock);
-	if (pwm_idx >= PCA9685_MAXCHAN) {
-		/*
-		 * "All LEDs" channel:
-		 * pretend already in use if any of the PWMs are requested
-		 */
-		if (!bitmap_empty(pca->pwms_inuse, PCA9685_MAXCHAN)) {
-			is_inuse = true;
-			goto out;
-		}
-	} else {
-		/*
-		 * Regular channel:
-		 * pretend already in use if the "all LEDs" channel is requested
-		 */
-		if (test_bit(PCA9685_MAXCHAN, pca->pwms_inuse)) {
-			is_inuse = true;
-			goto out;
-		}
-	}
-	is_inuse = test_and_set_bit(pwm_idx, pca->pwms_inuse);
-out:
-	mutex_unlock(&pca->lock);
-	return is_inuse;
-}
-
-static void pca9685_pwm_clear_inuse(struct pca9685 *pca, int pwm_idx)
-{
-	mutex_lock(&pca->lock);
-	clear_bit(pwm_idx, pca->pwms_inuse);
-	mutex_unlock(&pca->lock);
-}
-
-static int pca9685_pwm_gpio_request(struct gpio_chip *gpio, unsigned int offset)
-{
-	struct pwm_chip *chip = gpiochip_get_data(gpio);
-	struct pca9685 *pca = to_pca(chip);
-
-	if (pca9685_pwm_test_and_set_inuse(pca, offset))
-		return -EBUSY;
-	pm_runtime_get_sync(pwmchip_parent(chip));
-	return 0;
-}
-
-static int pca9685_pwm_gpio_get(struct gpio_chip *gpio, unsigned int offset)
-{
-	struct pwm_chip *chip = gpiochip_get_data(gpio);
-
-	return pca9685_pwm_get_duty(chip, offset) != 0;
-}
-
-static int pca9685_pwm_gpio_set(struct gpio_chip *gpio, unsigned int offset,
-				int value)
-{
-	struct pwm_chip *chip = gpiochip_get_data(gpio);
-
-	pca9685_pwm_set_duty(chip, offset, value ? PCA9685_COUNTER_RANGE : 0);
-
-	return 0;
-}
-
-static void pca9685_pwm_gpio_free(struct gpio_chip *gpio, unsigned int offset)
-{
-	struct pwm_chip *chip = gpiochip_get_data(gpio);
-	struct pca9685 *pca = to_pca(chip);
-
-	pca9685_pwm_set_duty(chip, offset, 0);
-	pm_runtime_put(pwmchip_parent(chip));
-	pca9685_pwm_clear_inuse(pca, offset);
-}
-
-static int pca9685_pwm_gpio_get_direction(struct gpio_chip *chip,
-					  unsigned int offset)
-{
-	/* Always out */
-	return GPIO_LINE_DIRECTION_OUT;
-}
-
-static int pca9685_pwm_gpio_direction_input(struct gpio_chip *gpio,
-					    unsigned int offset)
-{
-	return -EINVAL;
-}
-
-static int pca9685_pwm_gpio_direction_output(struct gpio_chip *gpio,
-					     unsigned int offset, int value)
-{
-	pca9685_pwm_gpio_set(gpio, offset, value);
-
-	return 0;
-}
-
-/*
- * The PCA9685 has a bit for turning the PWM output full off or on. Some
- * boards like Intel Galileo actually uses these as normal GPIOs so we
- * expose a GPIO chip here which can exclusively take over the underlying
- * PWM channel.
- */
-static int pca9685_pwm_gpio_probe(struct pwm_chip *chip)
-{
-	struct pca9685 *pca = to_pca(chip);
-	struct device *dev = pwmchip_parent(chip);
-
-	pca->gpio.label = dev_name(dev);
-	pca->gpio.parent = dev;
-	pca->gpio.request = pca9685_pwm_gpio_request;
-	pca->gpio.free = pca9685_pwm_gpio_free;
-	pca->gpio.get_direction = pca9685_pwm_gpio_get_direction;
-	pca->gpio.direction_input = pca9685_pwm_gpio_direction_input;
-	pca->gpio.direction_output = pca9685_pwm_gpio_direction_output;
-	pca->gpio.get = pca9685_pwm_gpio_get;
-	pca->gpio.set = pca9685_pwm_gpio_set;
-	pca->gpio.base = -1;
-	pca->gpio.ngpio = PCA9685_MAXCHAN;
-	pca->gpio.can_sleep = true;
-
-	return devm_gpiochip_add_data(dev, &pca->gpio, chip);
-}
-#else
-static inline bool pca9685_pwm_test_and_set_inuse(struct pca9685 *pca,
-						  int pwm_idx)
-{
-	return false;
-}
-
-static inline void
-pca9685_pwm_clear_inuse(struct pca9685 *pca, int pwm_idx)
-{
-}
-
-static inline int pca9685_pwm_gpio_probe(struct pwm_chip *chip)
-{
-	return 0;
-}
-#endif
-
 static void pca9685_set_sleep_mode(struct pwm_chip *chip, bool enable)
 {
 	struct device *dev = pwmchip_parent(chip);
@@ -487,9 +341,6 @@ static int pca9685_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct pca9685 *pca = to_pca(chip);
 
-	if (pca9685_pwm_test_and_set_inuse(pca, pwm->hwpwm))
-		return -EBUSY;
-
 	if (pwm->hwpwm < PCA9685_MAXCHAN) {
 		/* PWMs - except the "all LEDs" channel - default to enabled */
 		mutex_lock(&pca->lock);
@@ -511,7 +362,6 @@ static void pca9685_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	mutex_unlock(&pca->lock);
 
 	pm_runtime_put(pwmchip_parent(chip));
-	pca9685_pwm_clear_inuse(pca, pwm->hwpwm);
 }
 
 static const struct pwm_ops pca9685_pwm_ops = {
@@ -614,12 +464,6 @@ static int pca9685_pwm_probe(struct i2c_client *client)
 	ret = pwmchip_add(chip);
 	if (ret < 0)
 		return ret;
-
-	ret = pca9685_pwm_gpio_probe(chip);
-	if (ret < 0) {
-		pwmchip_remove(chip);
-		return ret;
-	}
 
 	pm_runtime_enable(&client->dev);
 
