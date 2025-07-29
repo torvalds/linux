@@ -308,6 +308,7 @@
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 	status = "okay";
 
 	ak4613: codec@10 {
@@ -449,6 +450,7 @@
 		compatible = "rohm,br24t01", "atmel,24c01";
 		reg = <0x50>;
 		pagesize = <8>;
+		bootph-all;
 	};
 };
 

@@ -11,6 +11,11 @@
 
 / {
 	model = "VIA APC8750";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x20000000>;
+	};
 };
 
 &pinctrl {

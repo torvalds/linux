@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2019 NXP
+ */
+
+#include <dt-bindings/firmware/imx/rsrc.h>
+
+security_subsys: bus@31400000 {
+	compatible = "simple-bus";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0x31400000 0x0 0x31400000 0x90000>;
+
+	crypto: crypto@31400000 {
+		compatible = "fsl,imx8qm-caam", "fsl,sec-v4.0";
+		reg = <0x31400000 0x90000>;
+		interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x31400000 0x90000>;
+		power-domains = <&pd IMX_SC_R_CAAM_JR2>;
+		fsl,sec-era = <9>;
+
+		sec_jr2: jr@30000 {
+			compatible = "fsl,imx8qm-job-ring", "fsl,sec-v4.0-job-ring";
+			reg = <0x30000 0x10000>;
+			interrupts = <GIC_SPI 453 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&pd IMX_SC_R_CAAM_JR2>;
+		};
+
+		sec_jr3: jr@40000 {
+			compatible = "fsl,imx8qm-job-ring", "fsl,sec-v4.0-job-ring";
+			reg = <0x40000 0x10000>;
+			interrupts = <GIC_SPI 454 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&pd IMX_SC_R_CAAM_JR3>;
+		};
+	};
+};

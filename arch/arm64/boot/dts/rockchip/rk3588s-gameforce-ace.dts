@@ -7,6 +7,7 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/soc/rockchip,vop2.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/usb/pd.h>
 #include "rk3588s.dtsi"
@@ -456,6 +457,42 @@
 	cpu-supply = <&vdd_cpu_big1_s0>;
 };
 
+&dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "huiling,hl055fhav028c", "himax,hx8399c";
+		reg = <0>;
+		backlight = <&backlight>;
+		iovcc-supply = <&vcc3v3_lcd0_n>;
+		pinctrl-0 = <&lcd_rst>;
+		pinctrl-names = "default";
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		rotation = <90>;
+		vcc-supply = <&vcc3v3_lcd0_n>;
+
+		port {
+			mipi_panel_in: endpoint {
+				remote-endpoint = <&dsi0_out_panel>;
+			};
+		};
+	};
+};
+
+&dsi0_in {
+	dsi0_in_vp3: endpoint {
+		remote-endpoint = <&vp3_out_dsi0>;
+	};
+};
+
+&dsi0_out {
+	dsi0_out_panel: endpoint {
+		remote-endpoint = <&mipi_panel_in>;
+	};
+};
+
 &gpu {
 	mali-supply = <&vdd_gpu_s0>;
 	status = "okay";
@@ -633,6 +670,10 @@
 	status = "okay";
 };
 
+&mipidcphy0 {
+	status = "okay";
+};
+
 &package_thermal {
 	polling-delay = <1000>;
 
@@ -762,10 +803,15 @@
 		};
 	};
 
-	lcd_bl_en {
+	lcd {
 		lcd_bl_en: lcd-bl-en {
 			rockchip,pins =
 				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		lcd_rst: lcd-rst {
+			rockchip,pins =
+				<1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -1237,5 +1283,23 @@
 		pinctrl-0 = <&bt_enable_h>, <&bt_host_wake_l>, <&bt_wake_l>;
 		pinctrl-names = "default";
 		shutdown-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	vp3_out_dsi0: endpoint@ROCKCHIP_VOP2_EP_MIPI0 {
+		reg = <ROCKCHIP_VOP2_EP_MIPI0>;
+		remote-endpoint = <&dsi0_in_vp3>;
 	};
 };

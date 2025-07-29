@@ -182,7 +182,7 @@
 			"CK_33M_BMC", "LFRAME", "SERIRQ", "S_PLTRST";
 
 	/* Assert BMC_READY so BIOS doesn't sit around waiting for it */
-	bmc-ready {
+	bmc-ready-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 0) GPIO_ACTIVE_LOW>;
 		output-high;
