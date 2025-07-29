@@ -549,7 +549,7 @@ static int snd_portman_rawmidi_create(struct snd_card *card)
 		return err;
 
 	rmidi->private_data = pm;
-	strcpy(rmidi->name, CARD_NAME);
+	strscpy(rmidi->name, CARD_NAME);
 	rmidi->info_flags = SNDRV_RAWMIDI_INFO_OUTPUT |
 		            SNDRV_RAWMIDI_INFO_INPUT |
                             SNDRV_RAWMIDI_INFO_DUPLEX;
@@ -714,8 +714,8 @@ static int snd_portman_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Cannot create card\n");
 		return err;
 	}
-	strcpy(card->driver, DRIVER_NAME);
-	strcpy(card->shortname, CARD_NAME);
+	strscpy(card->driver, DRIVER_NAME);
+	strscpy(card->shortname, CARD_NAME);
 	sprintf(card->longname,  "%s at 0x%lx, irq %i", 
 		card->shortname, p->base, p->irq);
 

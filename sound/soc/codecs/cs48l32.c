@@ -1385,7 +1385,6 @@ static irqreturn_t cs48l32_irq(int irq, void *data)
 	result = IRQ_HANDLED;
 
 out:
-	pm_runtime_mark_last_busy(cs48l32_codec->core.dev);
 	pm_runtime_put_autosuspend(cs48l32_codec->core.dev);
 
 	return result;

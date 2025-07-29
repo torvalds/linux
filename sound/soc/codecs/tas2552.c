@@ -724,7 +724,6 @@ static int tas2552_probe(struct i2c_client *client)
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_enable(&client->dev);
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_sync_autosuspend(&client->dev);
 
 	dev_set_drvdata(&client->dev, data);
