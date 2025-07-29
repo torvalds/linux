@@ -20,32 +20,20 @@ properties:
   compatible:
     const: qcom,sm4450-camcc
 
-  reg:
-    maxItems: 1
-
   clocks:
     items:
       - description: Board XO source
       - description: Camera AHB clock source from GCC
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
 required:
   - compatible
-  - reg
   - clocks
-  - '#clock-cells'
-  - '#reset-cells'
   - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
