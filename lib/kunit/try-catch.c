@@ -34,31 +34,6 @@ static int kunit_generic_run_threadfn_adapter(void *data)
 	return 0;
 }
 
-static unsigned long kunit_test_timeout(void)
-{
-	/*
-	 * TODO(brendanhiggins@google.com): We should probably have some type of
-	 * variable timeout here. The only question is what that timeout value
-	 * should be.
-	 *
-	 * The intention has always been, at some point, to be able to label
-	 * tests with some type of size bucket (unit/small, integration/medium,
-	 * large/system/end-to-end, etc), where each size bucket would get a
-	 * default timeout value kind of like what Bazel does:
-	 * https://docs.bazel.build/versions/master/be/common-definitions.html#test.size
-	 * There is still some debate to be had on exactly how we do this. (For
-	 * one, we probably want to have some sort of test runner level
-	 * timeout.)
-	 *
-	 * For more background on this topic, see:
-	 * https://mike-bland.com/2011/11/01/small-medium-large.html
-	 *
-	 * If tests timeout due to exceeding sysctl_hung_task_timeout_secs,
-	 * the task will be killed and an oops generated.
-	 */
-	return 300 * msecs_to_jiffies(MSEC_PER_SEC); /* 5 min */
-}
-
 void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 {
 	struct kunit *test = try_catch->test;
@@ -85,8 +60,8 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 	task_done = task_struct->vfork_done;
 	wake_up_process(task_struct);
 
-	time_remaining = wait_for_completion_timeout(task_done,
-						     kunit_test_timeout());
+	time_remaining = wait_for_completion_timeout(
+		task_done, try_catch->timeout);
 	if (time_remaining == 0) {
 		try_catch->try_result = -ETIMEDOUT;
 		kthread_stop(task_struct);
