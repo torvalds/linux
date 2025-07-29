@@ -20,7 +20,8 @@ use kernel::{
 /// Finds exact supply name from the OF node.
 fn find_supply_name_exact(dev: &Device, name: &str) -> Option<CString> {
     let prop_name = CString::try_from_fmt(fmt!("{}-supply", name)).ok()?;
-    dev.property_present(&prop_name)
+    dev.fwnode()?
+        .property_present(&prop_name)
         .then(|| CString::try_from_fmt(fmt!("{name}")).ok())
         .flatten()
 }

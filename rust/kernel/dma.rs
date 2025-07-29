@@ -5,13 +5,155 @@
 //! C header: [`include/linux/dma-mapping.h`](srctree/include/linux/dma-mapping.h)
 
 use crate::{
-    bindings, build_assert,
-    device::{Bound, Device},
-    error::code::*,
-    error::Result,
+    bindings, build_assert, device,
+    device::{Bound, Core},
+    error::{to_result, Result},
+    prelude::*,
     transmute::{AsBytes, FromBytes},
     types::ARef,
 };
+
+/// Trait to be implemented by DMA capable bus devices.
+///
+/// The [`dma::Device`](Device) trait should be implemented by bus specific device representations,
+/// where the underlying bus is DMA capable, such as [`pci::Device`](::kernel::pci::Device) or
+/// [`platform::Device`](::kernel::platform::Device).
+pub trait Device: AsRef<device::Device<Core>> {
+    /// Set up the device's DMA streaming addressing capabilities.
+    ///
+    /// This method is usually called once from `probe()` as soon as the device capabilities are
+    /// known.
+    ///
+    /// # Safety
+    ///
+    /// This method must not be called concurrently with any DMA allocation or mapping primitives,
+    /// such as [`CoherentAllocation::alloc_attrs`].
+    unsafe fn dma_set_mask(&self, mask: DmaMask) -> Result {
+        // SAFETY:
+        // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
+        // - The safety requirement of this function guarantees that there are no concurrent calls
+        //   to DMA allocation and mapping primitives using this mask.
+        to_result(unsafe { bindings::dma_set_mask(self.as_ref().as_raw(), mask.value()) })
+    }
+
+    /// Set up the device's DMA coherent addressing capabilities.
+    ///
+    /// This method is usually called once from `probe()` as soon as the device capabilities are
+    /// known.
+    ///
+    /// # Safety
+    ///
+    /// This method must not be called concurrently with any DMA allocation or mapping primitives,
+    /// such as [`CoherentAllocation::alloc_attrs`].
+    unsafe fn dma_set_coherent_mask(&self, mask: DmaMask) -> Result {
+        // SAFETY:
+        // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
+        // - The safety requirement of this function guarantees that there are no concurrent calls
+        //   to DMA allocation and mapping primitives using this mask.
+        to_result(unsafe { bindings::dma_set_coherent_mask(self.as_ref().as_raw(), mask.value()) })
+    }
+
+    /// Set up the device's DMA addressing capabilities.
+    ///
+    /// This is a combination of [`Device::dma_set_mask`] and [`Device::dma_set_coherent_mask`].
+    ///
+    /// This method is usually called once from `probe()` as soon as the device capabilities are
+    /// known.
+    ///
+    /// # Safety
+    ///
+    /// This method must not be called concurrently with any DMA allocation or mapping primitives,
+    /// such as [`CoherentAllocation::alloc_attrs`].
+    unsafe fn dma_set_mask_and_coherent(&self, mask: DmaMask) -> Result {
+        // SAFETY:
+        // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
+        // - The safety requirement of this function guarantees that there are no concurrent calls
+        //   to DMA allocation and mapping primitives using this mask.
+        to_result(unsafe {
+            bindings::dma_set_mask_and_coherent(self.as_ref().as_raw(), mask.value())
+        })
+    }
+}
+
+/// A DMA mask that holds a bitmask with the lowest `n` bits set.
+///
+/// Use [`DmaMask::new`] or [`DmaMask::try_new`] to construct a value. Values
+/// are guaranteed to never exceed the bit width of `u64`.
+///
+/// This is the Rust equivalent of the C macro `DMA_BIT_MASK()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DmaMask(u64);
+
+impl DmaMask {
+    /// Constructs a `DmaMask` with the lowest `n` bits set to `1`.
+    ///
+    /// For `n <= 64`, sets exactly the lowest `n` bits.
+    /// For `n > 64`, results in a build error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::dma::DmaMask;
+    ///
+    /// let mask0 = DmaMask::new::<0>();
+    /// assert_eq!(mask0.value(), 0);
+    ///
+    /// let mask1 = DmaMask::new::<1>();
+    /// assert_eq!(mask1.value(), 0b1);
+    ///
+    /// let mask64 = DmaMask::new::<64>();
+    /// assert_eq!(mask64.value(), u64::MAX);
+    ///
+    /// // Build failure.
+    /// // let mask_overflow = DmaMask::new::<100>();
+    /// ```
+    #[inline]
+    pub const fn new<const N: u32>() -> Self {
+        let Ok(mask) = Self::try_new(N) else {
+            build_error!("Invalid DMA Mask.");
+        };
+
+        mask
+    }
+
+    /// Constructs a `DmaMask` with the lowest `n` bits set to `1`.
+    ///
+    /// For `n <= 64`, sets exactly the lowest `n` bits.
+    /// For `n > 64`, returns [`EINVAL`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::dma::DmaMask;
+    ///
+    /// let mask0 = DmaMask::try_new(0)?;
+    /// assert_eq!(mask0.value(), 0);
+    ///
+    /// let mask1 = DmaMask::try_new(1)?;
+    /// assert_eq!(mask1.value(), 0b1);
+    ///
+    /// let mask64 = DmaMask::try_new(64)?;
+    /// assert_eq!(mask64.value(), u64::MAX);
+    ///
+    /// let mask_overflow = DmaMask::try_new(100);
+    /// assert!(mask_overflow.is_err());
+    /// # Ok::<(), Error>(())
+    /// ```
+    #[inline]
+    pub const fn try_new(n: u32) -> Result<Self> {
+        Ok(Self(match n {
+            0 => 0,
+            1..=64 => u64::MAX >> (64 - n),
+            _ => return Err(EINVAL),
+        }))
+    }
+
+    /// Returns the underlying `u64` bitmask value.
+    #[inline]
+    pub const fn value(&self) -> u64 {
+        self.0
+    }
+}
 
 /// Possible attributes associated with a DMA mapping.
 ///
@@ -130,7 +272,7 @@ pub mod attrs {
 // Hence, find a way to revoke the device resources of a `CoherentAllocation`, but not the
 // entire `CoherentAllocation` including the allocated memory itself.
 pub struct CoherentAllocation<T: AsBytes + FromBytes> {
-    dev: ARef<Device>,
+    dev: ARef<device::Device>,
     dma_handle: bindings::dma_addr_t,
     count: usize,
     cpu_addr: *mut T,
@@ -152,7 +294,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     /// # Ok::<(), Error>(()) }
     /// ```
     pub fn alloc_attrs(
-        dev: &Device<Bound>,
+        dev: &device::Device<Bound>,
         count: usize,
         gfp_flags: kernel::alloc::Flags,
         dma_attrs: Attrs,
@@ -194,7 +336,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     /// Performs the same functionality as [`CoherentAllocation::alloc_attrs`], except the
     /// `dma_attrs` is 0 by default.
     pub fn alloc_coherent(
-        dev: &Device<Bound>,
+        dev: &device::Device<Bound>,
         count: usize,
         gfp_flags: kernel::alloc::Flags,
     ) -> Result<CoherentAllocation<T>> {

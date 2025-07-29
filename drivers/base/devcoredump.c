@@ -140,7 +140,7 @@ static const struct bin_attribute *const devcd_dev_bin_attrs[] = {
 };
 
 static const struct attribute_group devcd_dev_group = {
-	.bin_attrs_new = devcd_dev_bin_attrs,
+	.bin_attrs = devcd_dev_bin_attrs,
 };
 
 static const struct attribute_group *devcd_dev_groups[] = {
