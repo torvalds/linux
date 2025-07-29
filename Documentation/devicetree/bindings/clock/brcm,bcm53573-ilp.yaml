@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/brcm,bcm53573-ilp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM53573 ILP clock
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+description: >
+  ILP clock (sometimes referred as "slow clock") on Broadcom BCM53573 devices
+  using Cortex-A7 CPU.
+
+  ILP's rate has to be calculated on runtime and it depends on ALP clock which
+  has to be referenced.
+
+  This clock is part of PMU (Power Management Unit), a Broadcom device handling
+  power-related aspects. Its node must be sub-node of the PMU device.
+
+properties:
+  compatible:
+    items:
+      - const: brcm,bcm53573-ilp
+
+  clocks:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    items:
+      - const: ilp
+
+additionalProperties: false
+
+examples:
+  - |
+    ilp {
+        compatible = "brcm,bcm53573-ilp";
+        clocks = <&alp>;
+        #clock-cells = <0>;
+        clock-output-names = "ilp";
+    };
