@@ -16,6 +16,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+/*
+ * Remove the userspace definitions of the following preprocessor symbols
+ * to avoid duplicate-definition warnings from the subsequent in-kernel
+ * definitions.
+ */
+#undef SCHED_NORMAL
+#undef SCHED_FLAG_KEEP_ALL
+#undef SCHED_FLAG_UTIL_CLAMP
+
 #include "../kselftest.h"
 #include "../clone3/clone3_selftests.h"
 
