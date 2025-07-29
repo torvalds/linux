@@ -10129,69 +10129,40 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	drm_writeback_queue_job(wb_conn, new_con_state);
 }
 
-/**
- * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
- * @state: The atomic state to commit
- *
- * This will tell DC to commit the constructed DC state from atomic_check,
- * programming the hardware. Any failures here implies a hardware failure, since
- * atomic check should have filtered anything non-kosher.
- */
-static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+static void amdgpu_dm_update_hdcp(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct amdgpu_display_manager *dm = &adev->dm;
-	struct dm_atomic_state *dm_state;
-	struct dc_state *dc_state = NULL;
-	u32 i, j;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	unsigned long flags;
-	bool wait_for_vblank = true;
-	struct drm_connector *connector;
 	struct drm_connector_state *old_con_state, *new_con_state;
-	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
-	int crtc_disable_count = 0;
+	struct drm_device *dev = state->dev;
+	struct drm_connector *connector;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	int i;
 
-	trace_amdgpu_dm_atomic_commit_tail_begin(state);
-
-	drm_atomic_helper_update_legacy_modeset_state(dev, state);
-	drm_dp_mst_atomic_wait_for_dependencies(state);
-
-	dm_state = dm_atomic_get_new_state(state);
-	if (dm_state && dm_state->context) {
-		dc_state = dm_state->context;
-		amdgpu_dm_commit_streams(state, dc_state);
-	}
+	if (!adev->dm.hdcp_workqueue)
+		return;
 
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
+		struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+		struct dm_crtc_state *dm_new_crtc_state;
 		struct amdgpu_dm_connector *aconnector;
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+		if (!connector || connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 			continue;
 
 		aconnector = to_amdgpu_dm_connector(connector);
 
-		if (!adev->dm.hdcp_workqueue)
-			continue;
+		drm_dbg(dev, "[HDCP_DM] -------------- i : %x ----------\n", i);
 
-		pr_debug("[HDCP_DM] -------------- i : %x ----------\n", i);
-
-		if (!connector)
-			continue;
-
-		pr_debug("[HDCP_DM] connector->index: %x connect_status: %x dpms: %x\n",
+		drm_dbg(dev, "[HDCP_DM] connector->index: %x connect_status: %x dpms: %x\n",
 			connector->index, connector->status, connector->dpms);
-		pr_debug("[HDCP_DM] state protection old: %x new: %x\n",
+		drm_dbg(dev, "[HDCP_DM] state protection old: %x new: %x\n",
 			old_con_state->content_protection, new_con_state->content_protection);
 
 		if (aconnector->dc_sink) {
 			if (aconnector->dc_sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
 				aconnector->dc_sink->sink_signal != SIGNAL_TYPE_NONE) {
-				pr_debug("[HDCP_DM] pipe_ctx dispname=%s\n",
+				drm_dbg(dev, "[HDCP_DM] pipe_ctx dispname=%s\n",
 				aconnector->dc_sink->edid_caps.display_name);
 			}
 		}
@@ -10205,7 +10176,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 
 		if (old_crtc_state)
-			pr_debug("old crtc en: %x a: %x m: %x a-chg: %x c-chg: %x\n",
+			drm_dbg(dev, "old crtc en: %x a: %x m: %x a-chg: %x c-chg: %x\n",
 			old_crtc_state->enable,
 			old_crtc_state->active,
 			old_crtc_state->mode_changed,
@@ -10213,29 +10184,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			old_crtc_state->connectors_changed);
 
 		if (new_crtc_state)
-			pr_debug("NEW crtc en: %x a: %x m: %x a-chg: %x c-chg: %x\n",
+			drm_dbg(dev, "NEW crtc en: %x a: %x m: %x a-chg: %x c-chg: %x\n",
 			new_crtc_state->enable,
 			new_crtc_state->active,
 			new_crtc_state->mode_changed,
 			new_crtc_state->active_changed,
 			new_crtc_state->connectors_changed);
-	}
 
-	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
-		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
-		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-
-		if (!adev->dm.hdcp_workqueue)
-			continue;
-
-		new_crtc_state = NULL;
-		old_crtc_state = NULL;
-
-		if (acrtc) {
-			new_crtc_state = drm_atomic_get_new_crtc_state(state, &acrtc->base);
-			old_crtc_state = drm_atomic_get_old_crtc_state(state, &acrtc->base);
-		}
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
@@ -10279,7 +10234,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				new_con_state->content_protection >= DRM_MODE_CONTENT_PROTECTION_DESIRED)
 				enable_encryption = true;
 
-			drm_info(adev_to_drm(adev), "[HDCP_DM] hdcp_update_display enable_encryption = %x\n", enable_encryption);
+			drm_info(dev, "[HDCP_DM] hdcp_update_display enable_encryption = %x\n", enable_encryption);
 
 			if (aconnector->dc_link)
 				hdcp_update_display(
@@ -10287,6 +10242,45 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 					new_con_state->hdcp_content_type, enable_encryption);
 		}
 	}
+}
+
+/**
+ * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
+ * @state: The atomic state to commit
+ *
+ * This will tell DC to commit the constructed DC state from atomic_check,
+ * programming the hardware. Any failures here implies a hardware failure, since
+ * atomic check should have filtered anything non-kosher.
+ */
+static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_display_manager *dm = &adev->dm;
+	struct dm_atomic_state *dm_state;
+	struct dc_state *dc_state = NULL;
+	u32 i, j;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	unsigned long flags;
+	bool wait_for_vblank = true;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_con_state, *new_con_state;
+	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
+	int crtc_disable_count = 0;
+
+	trace_amdgpu_dm_atomic_commit_tail_begin(state);
+
+	drm_atomic_helper_update_legacy_modeset_state(dev, state);
+	drm_dp_mst_atomic_wait_for_dependencies(state);
+
+	dm_state = dm_atomic_get_new_state(state);
+	if (dm_state && dm_state->context) {
+		dc_state = dm_state->context;
+		amdgpu_dm_commit_streams(state, dc_state);
+	}
+
+	amdgpu_dm_update_hdcp(state);
 
 	/* Handle connector state changes */
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
