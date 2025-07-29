@@ -152,15 +152,14 @@ int ceph_fscrypt_decrypt_block_inplace(const struct inode *inode,
 				  unsigned int offs, u64 lblk_num);
 int ceph_fscrypt_encrypt_block_inplace(const struct inode *inode,
 				  struct page *page, unsigned int len,
-				  unsigned int offs, u64 lblk_num,
-				  gfp_t gfp_flags);
+				  unsigned int offs, u64 lblk_num);
 int ceph_fscrypt_decrypt_pages(struct inode *inode, struct page **page,
 			       u64 off, int len);
 int ceph_fscrypt_decrypt_extents(struct inode *inode, struct page **page,
 				 u64 off, struct ceph_sparse_extent *map,
 				 u32 ext_cnt);
 int ceph_fscrypt_encrypt_pages(struct inode *inode, struct page **page, u64 off,
-			       int len, gfp_t gfp);
+			       int len);
 
 static inline struct page *ceph_fscrypt_pagecache_page(struct page *page)
 {
@@ -236,8 +235,7 @@ static inline int ceph_fscrypt_decrypt_block_inplace(const struct inode *inode,
 
 static inline int ceph_fscrypt_encrypt_block_inplace(const struct inode *inode,
 					  struct page *page, unsigned int len,
-					  unsigned int offs, u64 lblk_num,
-					  gfp_t gfp_flags)
+					  unsigned int offs, u64 lblk_num)
 {
 	return 0;
 }
@@ -259,7 +257,7 @@ static inline int ceph_fscrypt_decrypt_extents(struct inode *inode,
 
 static inline int ceph_fscrypt_encrypt_pages(struct inode *inode,
 					     struct page **page, u64 off,
-					     int len, gfp_t gfp)
+					     int len)
 {
 	return 0;
 }

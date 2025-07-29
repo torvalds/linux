@@ -18,12 +18,13 @@
  * information about these ioctls.
  */
 
-#include <linux/unaligned.h>
 #include <crypto/skcipher.h>
+#include <linux/export.h>
 #include <linux/key-type.h>
-#include <linux/random.h>
 #include <linux/once.h>
+#include <linux/random.h>
 #include <linux/seq_file.h>
+#include <linux/unaligned.h>
 
 #include "fscrypt_private.h"
 

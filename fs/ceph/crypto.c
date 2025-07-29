@@ -488,15 +488,13 @@ int ceph_fscrypt_decrypt_block_inplace(const struct inode *inode,
 
 int ceph_fscrypt_encrypt_block_inplace(const struct inode *inode,
 				  struct page *page, unsigned int len,
-				  unsigned int offs, u64 lblk_num,
-				  gfp_t gfp_flags)
+				  unsigned int offs, u64 lblk_num)
 {
 	struct ceph_client *cl = ceph_inode_to_client(inode);
 
 	doutc(cl, "%p %llx.%llx len %u offs %u blk %llu\n", inode,
 	      ceph_vinop(inode), len, offs, lblk_num);
-	return fscrypt_encrypt_block_inplace(inode, page, len, offs, lblk_num,
-					     gfp_flags);
+	return fscrypt_encrypt_block_inplace(inode, page, len, offs, lblk_num);
 }
 
 /**
@@ -614,9 +612,8 @@ int ceph_fscrypt_decrypt_extents(struct inode *inode, struct page **page,
  * @page: pointer to page array
  * @off: offset into the file that the data starts
  * @len: max length to encrypt
- * @gfp: gfp flags to use for allocation
  *
- * Decrypt an array of cleartext pages and return the amount of
+ * Encrypt an array of cleartext pages and return the amount of
  * data encrypted. Any data in the page prior to the start of the
  * first complete block in the read is ignored. Any incomplete
  * crypto blocks at the end of the array are ignored.
@@ -624,7 +621,7 @@ int ceph_fscrypt_decrypt_extents(struct inode *inode, struct page **page,
  * Returns the length of the encrypted data or a negative errno.
  */
 int ceph_fscrypt_encrypt_pages(struct inode *inode, struct page **page, u64 off,
-				int len, gfp_t gfp)
+				int len)
 {
 	int i, num_blocks;
 	u64 baseblk = off >> CEPH_FSCRYPT_BLOCK_SHIFT;
@@ -645,7 +642,7 @@ int ceph_fscrypt_encrypt_pages(struct inode *inode, struct page **page, u64 off,
 
 		fret = ceph_fscrypt_encrypt_block_inplace(inode, page[pgidx],
 				CEPH_FSCRYPT_BLOCK_SIZE, pgoffs,
-				baseblk + i, gfp);
+				baseblk + i);
 		if (fret < 0) {
 			if (ret == 0)
 				ret = fret;
