@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PFSM (Pre-configurable Finite State Machine) driver for TI TPS65224/TPS6594/TPS6593/LP8764 PMICs
+ * PFSM (Pre-configurable Finite State Machine) driver for the following
+ * PMICs:
+ * - LP8764
+ * - TPS65224
+ * - TPS652G1
+ * - TPS6594
+ * - TPS6593
  *
  * Copyright (C) 2023 BayLibre Incorporated - https://www.baylibre.com/
  */
@@ -141,7 +147,7 @@ static long tps6594_pfsm_ioctl(struct file *f, unsigned int cmd, unsigned long a
 	switch (cmd) {
 	case PMIC_GOTO_STANDBY:
 		/* Disable LP mode on TPS6594 Family PMIC */
-		if (pfsm->chip_id != TPS65224) {
+		if (pfsm->chip_id != TPS65224 && pfsm->chip_id != TPS652G1) {
 			ret = regmap_clear_bits(pfsm->regmap, TPS6594_REG_RTC_CTRL_2,
 						TPS6594_BIT_LP_STANDBY_SEL);
 
@@ -154,8 +160,8 @@ static long tps6594_pfsm_ioctl(struct file *f, unsigned int cmd, unsigned long a
 					TPS6594_BIT_TRIGGER_I2C(0), TPS6594_BIT_TRIGGER_I2C(0));
 		break;
 	case PMIC_GOTO_LP_STANDBY:
-		/* TPS65224 does not support LP STANDBY */
-		if (pfsm->chip_id == TPS65224)
+		/* TPS65224/TPS652G1 does not support LP STANDBY */
+		if (pfsm->chip_id == TPS65224 || pfsm->chip_id == TPS652G1)
 			return ret;
 
 		/* Enable LP mode */
@@ -179,8 +185,8 @@ static long tps6594_pfsm_ioctl(struct file *f, unsigned int cmd, unsigned long a
 				      TPS6594_BIT_NSLEEP1B | TPS6594_BIT_NSLEEP2B);
 		break;
 	case PMIC_SET_MCU_ONLY_STATE:
-		/* TPS65224 does not support MCU_ONLY_STATE */
-		if (pfsm->chip_id == TPS65224)
+		/* TPS65224/TPS652G1 does not support MCU_ONLY_STATE */
+		if (pfsm->chip_id == TPS65224 || pfsm->chip_id == TPS652G1)
 			return ret;
 
 		if (copy_from_user(&state_opt, argp, sizeof(state_opt)))
@@ -206,7 +212,7 @@ static long tps6594_pfsm_ioctl(struct file *f, unsigned int cmd, unsigned long a
 			return -EFAULT;
 
 		/* Configure wake-up destination */
-		if (pfsm->chip_id == TPS65224) {
+		if (pfsm->chip_id == TPS65224 || pfsm->chip_id == TPS652G1) {
 			regmap_reg = TPS65224_REG_STARTUP_CTRL;
 			mask = TPS65224_MASK_STARTUP_DEST;
 		} else {
@@ -230,9 +236,14 @@ static long tps6594_pfsm_ioctl(struct file *f, unsigned int cmd, unsigned long a
 			return ret;
 
 		/* Modify NSLEEP1-2 bits */
-		ret = regmap_clear_bits(pfsm->regmap, TPS6594_REG_FSM_NSLEEP_TRIGGERS,
-					pfsm->chip_id == TPS65224 ?
-					TPS6594_BIT_NSLEEP1B : TPS6594_BIT_NSLEEP2B);
+		if (pfsm->chip_id == TPS65224 || pfsm->chip_id == TPS652G1)
+			ret = regmap_clear_bits(pfsm->regmap,
+						TPS6594_REG_FSM_NSLEEP_TRIGGERS,
+						TPS6594_BIT_NSLEEP1B);
+		else
+			ret = regmap_clear_bits(pfsm->regmap,
+						TPS6594_REG_FSM_NSLEEP_TRIGGERS,
+						TPS6594_BIT_NSLEEP2B);
 		break;
 	}
 
