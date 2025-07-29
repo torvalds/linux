@@ -542,7 +542,8 @@
 			};
 
 			memc-ddr@2000 {
-				compatible = "brcm,brcmstb-memc-ddr";
+				compatible = "brcm,brcmstb-memc-ddr-rev-a.0.0",
+					     "brcm,brcmstb-memc-ddr";
 				reg = <0x2000 0x300>;
 			};
 
@@ -569,7 +570,8 @@
 			};
 
 			memc-ddr@2000 {
-				compatible = "brcm,brcmstb-memc-ddr";
+				compatible = "brcm,brcmstb-memc-ddr-rev-a.0.0",
+					     "brcm,brcmstb-memc-ddr";
 				reg = <0x2000 0x300>;
 			};
 
