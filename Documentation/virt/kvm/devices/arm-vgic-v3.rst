@@ -125,11 +125,8 @@ Groups:
     Userspace is allowed to write the following register fields prior to
     initialization of the VGIC:
 
-      =====================
-      GICD_IIDR.Revision
-      GICD_TYPER2.nASSGIcap
-      =====================
-
+      * GICD_IIDR.Revision
+      * GICD_TYPER2.nASSGIcap
 
     GICD_IIDR.Revision is updated when the KVM implementation is changed in a
     way directly observable by the guest or userspace.  Userspace should read
