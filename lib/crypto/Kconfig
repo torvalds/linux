@@ -2,6 +2,9 @@
 
 menu "Crypto library routines"
 
+config CRYPTO_HASH_INFO
+	bool
+
 config CRYPTO_LIB_UTILS
 	tristate
 
@@ -136,6 +139,20 @@ config CRYPTO_LIB_CHACHA20POLY1305
 
 config CRYPTO_LIB_SHA1
 	tristate
+	help
+	  The SHA-1 library functions.  Select this if your module uses any of
+	  the functions from <crypto/sha1.h>.
+
+config CRYPTO_LIB_SHA1_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA1 && !UML
+	default y if ARM
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if PPC
+	default y if S390
+	default y if SPARC64
+	default y if X86_64
 
 config CRYPTO_LIB_SHA256
 	tristate
@@ -144,56 +161,60 @@ config CRYPTO_LIB_SHA256
 	  by either the generic implementation or an arch-specific one, if one
 	  is available and enabled.
 
-config CRYPTO_ARCH_HAVE_LIB_SHA256
+config CRYPTO_LIB_SHA256_ARCH
 	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the SHA-256 library interface.
+	depends on CRYPTO_LIB_SHA256 && !UML
+	default y if ARM && !CPU_V7M
+	default y if ARM64
+	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if PPC && SPE
+	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if S390
+	default y if SPARC64
+	default y if X86_64
 
-config CRYPTO_ARCH_HAVE_LIB_SHA256_SIMD
-	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the SHA-256 library interface
-	  that is SIMD-based and therefore not usable in hardirq
-	  context.
-
-config CRYPTO_LIB_SHA256_GENERIC
+config CRYPTO_LIB_SHA512
 	tristate
-	default CRYPTO_LIB_SHA256 if !CRYPTO_ARCH_HAVE_LIB_SHA256
 	help
-	  This symbol can be selected by arch implementations of the SHA-256
-	  library interface that require the generic code as a fallback, e.g.,
-	  for SIMD implementations. If no arch specific implementation is
-	  enabled, this implementation serves the users of CRYPTO_LIB_SHA256.
+	  The SHA-384, SHA-512, HMAC-SHA384, and HMAC-SHA512 library functions.
+	  Select this if your module uses any of these functions from
+	  <crypto/sha2.h>.
+
+config CRYPTO_LIB_SHA512_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA512 && !UML
+	default y if ARM && !CPU_V7M
+	default y if ARM64
+	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if S390
+	default y if SPARC64
+	default y if X86_64
 
 config CRYPTO_LIB_SM3
 	tristate
 
 if !KMSAN # avoid false positives from assembly
 if ARM
-source "arch/arm/lib/crypto/Kconfig"
+source "lib/crypto/arm/Kconfig"
 endif
 if ARM64
-source "arch/arm64/lib/crypto/Kconfig"
+source "lib/crypto/arm64/Kconfig"
 endif
 if MIPS
-source "arch/mips/lib/crypto/Kconfig"
+source "lib/crypto/mips/Kconfig"
 endif
 if PPC
-source "arch/powerpc/lib/crypto/Kconfig"
+source "lib/crypto/powerpc/Kconfig"
 endif
 if RISCV
-source "arch/riscv/lib/crypto/Kconfig"
+source "lib/crypto/riscv/Kconfig"
 endif
 if S390
-source "arch/s390/lib/crypto/Kconfig"
-endif
-if SPARC
-source "arch/sparc/lib/crypto/Kconfig"
+source "lib/crypto/s390/Kconfig"
 endif
 if X86
-source "arch/x86/lib/crypto/Kconfig"
+source "lib/crypto/x86/Kconfig"
 endif
 endif
 
