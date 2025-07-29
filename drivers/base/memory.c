@@ -769,21 +769,22 @@ static struct zone *early_node_zone_for_memory_block(struct memory_block *mem,
 
 #ifdef CONFIG_NUMA
 /**
- * memory_block_add_nid() - Indicate that system RAM falling into this memory
- *			    block device (partially) belongs to the given node.
+ * memory_block_add_nid_early() - Indicate that early system RAM falling into
+ *				  this memory block device (partially) belongs
+ *				  to the given node.
  * @mem: The memory block device.
  * @nid: The node id.
- * @context: The memory initialization context.
  *
- * Indicate that system RAM falling into this memory block (partially) belongs
- * to the given node. If the context indicates ("early") that we are adding the
- * node during node device subsystem initialization, this will also properly
- * set/adjust mem->zone based on the zone ranges of the given node.
+ * Indicate that early system RAM falling into this memory block (partially)
+ * belongs to the given node. This will also properly set/adjust mem->zone based
+ * on the zone ranges of the given node.
+ *
+ * Memory hotplug handles this on memory block creation, where we can only have
+ * a single nid span a memory block.
  */
-void memory_block_add_nid(struct memory_block *mem, int nid,
-			  enum meminit_context context)
+void memory_block_add_nid_early(struct memory_block *mem, int nid)
 {
-	if (context == MEMINIT_EARLY && mem->nid != nid) {
+	if (mem->nid != nid) {
 		/*
 		 * For early memory we have to determine the zone when setting
 		 * the node id and handle multiple nodes spanning a single
@@ -797,15 +798,14 @@ void memory_block_add_nid(struct memory_block *mem, int nid,
 			mem->zone = early_node_zone_for_memory_block(mem, nid);
 		else
 			mem->zone = NULL;
+		/*
+		 * If this memory block spans multiple nodes, we only indicate
+		 * the last processed node. If we span multiple nodes (not applicable
+		 * to hotplugged memory), zone == NULL will prohibit memory offlining
+		 * and consequently unplug.
+		 */
+		mem->nid = nid;
 	}
-
-	/*
-	 * If this memory block spans multiple nodes, we only indicate
-	 * the last processed node. If we span multiple nodes (not applicable
-	 * to hotplugged memory), zone == NULL will prohibit memory offlining
-	 * and consequently unplug.
-	 */
-	mem->nid = nid;
 }
 #endif
 
