@@ -55,8 +55,10 @@ static __always_inline void unwind_reset_info(void)
 	 * depends on nr_entries being cleared on exit to user,
 	 * this needs to be a separate conditional.
 	 */
-	if (unlikely(info->cache))
+	if (unlikely(info->cache)) {
 		info->cache->nr_entries = 0;
+		info->cache->unwind_completed = 0;
+	}
 }
 
 #else /* !CONFIG_UNWIND_USER */
