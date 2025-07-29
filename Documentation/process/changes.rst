@@ -61,7 +61,7 @@ Sphinx\ [#f1]_         3.4.3            sphinx-build --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
 mkimage (optional)     2017.01          mkimage --version
-Python (optional)      3.9.x            python3 --version
+Python                 3.9.x            python3 --version
 GNU AWK (optional)     5.1.0            gawk --version
 ====================== ===============  ========================================
 
@@ -153,6 +153,13 @@ Perl
 
 You will need perl 5 and the following modules: ``Getopt::Long``,
 ``Getopt::Std``, ``File::Basename``, and ``File::Find`` to build the kernel.
+
+Python
+------
+
+Several config options require it: it is required for arm/arm64
+default configs, CONFIG_LTO_CLANG, some DRM optional configs,
+the kernel-doc tool, and docs build (Sphinx), among others.
 
 BC
 --
