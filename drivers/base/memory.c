@@ -809,7 +809,7 @@ void memory_block_add_nid(struct memory_block *mem, int nid,
 }
 #endif
 
-static int add_memory_block(unsigned long block_id, unsigned long state,
+static int add_memory_block(unsigned long block_id, int nid, unsigned long state,
 			    struct vmem_altmap *altmap,
 			    struct memory_group *group)
 {
@@ -827,7 +827,7 @@ static int add_memory_block(unsigned long block_id, unsigned long state,
 
 	mem->start_section_nr = block_id * sections_per_block;
 	mem->state = state;
-	mem->nid = NUMA_NO_NODE;
+	mem->nid = nid;
 	mem->altmap = altmap;
 	INIT_LIST_HEAD(&mem->group_next);
 
@@ -852,13 +852,6 @@ static int add_memory_block(unsigned long block_id, unsigned long state,
 	}
 
 	return 0;
-}
-
-static int add_hotplug_memory_block(unsigned long block_id,
-				    struct vmem_altmap *altmap,
-				    struct memory_group *group)
-{
-	return add_memory_block(block_id, MEM_OFFLINE, altmap, group);
 }
 
 static void remove_memory_block(struct memory_block *memory)
@@ -900,7 +893,7 @@ int create_memory_block_devices(unsigned long start, unsigned long size,
 		return -EINVAL;
 
 	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
-		ret = add_hotplug_memory_block(block_id, altmap, group);
+		ret = add_memory_block(block_id, NUMA_NO_NODE, MEM_OFFLINE, altmap, group);
 		if (ret)
 			break;
 	}
@@ -1005,7 +998,7 @@ void __init memory_dev_init(void)
 			continue;
 
 		block_id = memory_block_id(nr);
-		ret = add_memory_block(block_id, MEM_ONLINE, NULL, NULL);
+		ret = add_memory_block(block_id, NUMA_NO_NODE, MEM_ONLINE, NULL, NULL);
 		if (ret) {
 			panic("%s() failed to add memory block: %d\n",
 			      __func__, ret);
