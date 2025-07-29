@@ -68,6 +68,8 @@
 #include <linux/sizes.h>
 #include <linux/ktime.h>
 
+#include <kunit/visibility.h>
+
 #include <uapi/linux/android/binder.h>
 
 #include <linux/cacheflush.h>
@@ -1585,11 +1587,10 @@ static struct binder_thread *binder_get_txn_from(
 {
 	struct binder_thread *from;
 
-	spin_lock(&t->lock);
+	guard(spinlock)(&t->lock);
 	from = t->from;
 	if (from)
 		atomic_inc(&from->tmp_ref);
-	spin_unlock(&t->lock);
 	return from;
 }
 
@@ -3144,10 +3145,8 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		if (!target_node) {
 			binder_txn_error("%d:%d cannot find target node\n",
-				thread->pid, proc->pid);
-			/*
-			 * return_error is set above
-			 */
+					 proc->pid, thread->pid);
+			/* return_error is set above */
 			return_error_param = -EINVAL;
 			return_error_line = __LINE__;
 			goto err_dead_binder;
@@ -5437,32 +5436,28 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	struct binder_node *new_node;
 	kuid_t curr_euid = current_euid();
 
-	mutex_lock(&context->context_mgr_node_lock);
+	guard(mutex)(&context->context_mgr_node_lock);
 	if (context->binder_context_mgr_node) {
 		pr_err("BINDER_SET_CONTEXT_MGR already set\n");
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 	ret = security_binder_set_context_mgr(proc->cred);
 	if (ret < 0)
-		goto out;
+		return ret;
 	if (uid_valid(context->binder_context_mgr_uid)) {
 		if (!uid_eq(context->binder_context_mgr_uid, curr_euid)) {
 			pr_err("BINDER_SET_CONTEXT_MGR bad uid %d != %d\n",
 			       from_kuid(&init_user_ns, curr_euid),
 			       from_kuid(&init_user_ns,
 					 context->binder_context_mgr_uid));
-			ret = -EPERM;
-			goto out;
+			return -EPERM;
 		}
 	} else {
 		context->binder_context_mgr_uid = curr_euid;
 	}
 	new_node = binder_new_node(proc, fbo);
-	if (!new_node) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!new_node)
+		return -ENOMEM;
 	binder_node_lock(new_node);
 	new_node->local_weak_refs++;
 	new_node->local_strong_refs++;
@@ -5471,8 +5466,6 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	context->binder_context_mgr_node = new_node;
 	binder_node_unlock(new_node);
 	binder_put_node(new_node);
-out:
-	mutex_unlock(&context->context_mgr_node_lock);
 	return ret;
 }
 
@@ -5707,11 +5700,6 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct binder_proc *proc = filp->private_data;
 	struct binder_thread *thread;
 	void __user *ubuf = (void __user *)arg;
-
-	/*pr_info("binder_ioctl: %d:%d %x %lx\n",
-			proc->pid, current->pid, cmd, arg);*/
-
-	binder_selftest_alloc(&proc->alloc);
 
 	trace_binder_ioctl(cmd, arg);
 
@@ -5948,10 +5936,11 @@ static void binder_vma_close(struct vm_area_struct *vma)
 	binder_alloc_vma_close(&proc->alloc);
 }
 
-static vm_fault_t binder_vm_fault(struct vm_fault *vmf)
+VISIBLE_IF_KUNIT vm_fault_t binder_vm_fault(struct vm_fault *vmf)
 {
 	return VM_FAULT_SIGBUS;
 }
+EXPORT_SYMBOL_IF_KUNIT(binder_vm_fault);
 
 static const struct vm_operations_struct binder_vm_ops = {
 	.open = binder_vma_open,
@@ -6314,14 +6303,13 @@ static DECLARE_WORK(binder_deferred_work, binder_deferred_func);
 static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer)
 {
-	mutex_lock(&binder_deferred_lock);
+	guard(mutex)(&binder_deferred_lock);
 	proc->deferred_work |= defer;
 	if (hlist_unhashed(&proc->deferred_work_node)) {
 		hlist_add_head(&proc->deferred_work_node,
 				&binder_deferred_list);
 		schedule_work(&binder_deferred_work);
 	}
-	mutex_unlock(&binder_deferred_lock);
 }
 
 static void print_binder_transaction_ilocked(struct seq_file *m,
@@ -6863,14 +6851,13 @@ static int proc_show(struct seq_file *m, void *unused)
 	struct binder_proc *itr;
 	int pid = (unsigned long)m->private;
 
-	mutex_lock(&binder_procs_lock);
+	guard(mutex)(&binder_procs_lock);
 	hlist_for_each_entry(itr, &binder_procs, proc_node) {
 		if (itr->pid == pid) {
 			seq_puts(m, "binder proc state:\n");
 			print_binder_proc(m, itr, true, false);
 		}
 	}
-	mutex_unlock(&binder_procs_lock);
 
 	return 0;
 }
@@ -6988,16 +6975,14 @@ const struct binder_debugfs_entry binder_debugfs_entries[] = {
 
 void binder_add_device(struct binder_device *device)
 {
-	spin_lock(&binder_devices_lock);
+	guard(spinlock)(&binder_devices_lock);
 	hlist_add_head(&device->hlist, &binder_devices);
-	spin_unlock(&binder_devices_lock);
 }
 
 void binder_remove_device(struct binder_device *device)
 {
-	spin_lock(&binder_devices_lock);
+	guard(spinlock)(&binder_devices_lock);
 	hlist_del_init(&device->hlist);
-	spin_unlock(&binder_devices_lock);
 }
 
 static int __init init_binder_device(const char *name)

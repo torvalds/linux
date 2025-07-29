@@ -622,7 +622,7 @@ static const struct iio_chan_spec_ext_info ltc2688_toggle_ext_info[] = {
 	{ }
 };
 
-static struct iio_chan_spec_ext_info ltc2688_dither_ext_info[] = {
+static const struct iio_chan_spec_ext_info ltc2688_dither_ext_info[] = {
 	LTC2688_CHAN_EXT_INFO("dither_raw", LTC2688_INPUT_B, IIO_SEPARATE,
 			      ltc2688_dac_input_read, ltc2688_dac_input_write),
 	LTC2688_CHAN_EXT_INFO("dither_raw_available", LTC2688_INPUT_B_AVAIL,

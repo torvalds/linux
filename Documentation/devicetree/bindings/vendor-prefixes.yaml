@@ -1069,6 +1069,8 @@ patternProperties:
     description: Next Thing Co.
   "^ni,.*":
     description: National Instruments
+  "^nicera,.*":
+    description: Nippon Ceramic Co., Ltd.
   "^nintendo,.*":
     description: Nintendo
   "^nlt,.*":

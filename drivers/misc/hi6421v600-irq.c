@@ -214,7 +214,6 @@ static void hi6421v600_irq_init(struct hi6421v600_irq *priv)
 static int hi6421v600_irq_probe(struct platform_device *pdev)
 {
 	struct device *pmic_dev = pdev->dev.parent;
-	struct device_node *np = pmic_dev->of_node;
 	struct platform_device *pmic_pdev;
 	struct device *dev = &pdev->dev;
 	struct hi6421v600_irq *priv;
@@ -254,8 +253,7 @@ static int hi6421v600_irq_probe(struct platform_device *pdev)
 	if (!priv->irqs)
 		return -ENOMEM;
 
-	priv->domain = irq_domain_create_simple(of_fwnode_handle(np),
-						PMIC_IRQ_LIST_MAX, 0,
+	priv->domain = irq_domain_create_simple(dev_fwnode(pmic_dev), PMIC_IRQ_LIST_MAX, 0,
 						&hi6421v600_domain_ops, priv);
 	if (!priv->domain) {
 		dev_err(dev, "Failed to create IRQ domain\n");
