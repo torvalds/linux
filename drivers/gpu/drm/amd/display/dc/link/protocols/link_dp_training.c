@@ -1729,6 +1729,15 @@ bool perform_link_training_with_retries(
 				break;
 		}
 
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+				stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST &&
+				!link->dc->config.enable_dpia_pre_training) {
+			if (j == (attempts - 1))
+				do_fallback = true;
+			else
+				do_fallback = false;
+		}
+
 		if (j == (attempts - 1)) {
 			DC_LOG_WARNING(
 				"%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d) @ spread = %x : fail reason:(%d)\n",
