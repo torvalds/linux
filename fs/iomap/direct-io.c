@@ -56,26 +56,6 @@ struct iomap_dio {
 	};
 };
 
-<<<<<<< HEAD
-=======
-struct dio_bio_ctx {
-  struct iomap_dio *dio;
-  unsigned int bytes;
-};
-
-void print_dio(char *func_name, struct iomap_dio *dio) {
-  pr_info(KERN_INFO "%s():\n", func_name);
-  pr_info(KERN_INFO "  struct dio:\n    dio->i_size=%lld\n    dio->size=%lld\n    dio->done=%lld\n    dio->early_threshold=%lld\n    dio->ref=%d\n    dio->wait_for_completion=%d\n",
-          dio->i_size, dio->size, atomic64_read(&dio->done), dio->early_threshold, atomic_read(&dio->ref), dio->wait_for_completion);
-}
-
-void print_log(char *func_name) {
-  struct timespec64 ts;
-  ktime_get_real_ts64(&ts);
-  pr_info("[K %lld.%09lu] %s\n", (long long)ts.tv_sec, ts.tv_nsec, func_name);
-}
-
->>>>>>> 252031490a9eb3a37a43a512bb1d48c347d45623
 int iomap_dio_iopoll(struct kiocb *kiocb, bool spin)
 {
 	struct request_queue *q = READ_ONCE(kiocb->private);
@@ -109,7 +89,7 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	loff_t offset = iocb->ki_pos;
 	ssize_t ret = dio->error;
-  //s = ktime_get();
+  s = ktime_get();
 	if (dops && dops->end_io)
 		ret = dops->end_io(iocb, dio->size, ret, dio->flags);
 
@@ -378,7 +358,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 
   nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   do {
-    //s = ktime_get();
+    s = ktime_get();
 		size_t n;
 		if (dio->error) {
 			iov_iter_revert(dio->submit.iter, copied);
@@ -552,7 +532,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int dio_flags)
 {
   ktime_t s, e;
-  //s = ktime_get();
+  s = ktime_get();
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct iomap_iter iomi = {
@@ -636,7 +616,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		if ((iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC)) == IOCB_DSYNC)
 			dio->flags |= IOMAP_DIO_WRITE_FUA;
 	}
-  print_log("__iomap_dio_rw(): dio 초기화 이후");
   
 	if (dio_flags & IOMAP_DIO_OVERWRITE_ONLY) {
 		ret = -EAGAIN;
@@ -733,10 +712,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 			if (!READ_ONCE(dio->submit.waiter)) {
-<<<<<<< HEAD
-=======
-        print_log("__iomap_dio_rw(): 루프 탈출");
->>>>>>> 252031490a9eb3a37a43a512bb1d48c347d45623
 				break;
       }
 
