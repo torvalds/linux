@@ -45,7 +45,7 @@ static inline bool try_assign_cnt(struct unwind_task_info *info, u32 cnt)
 static DEFINE_MUTEX(callback_mutex);
 static LIST_HEAD(callbacks);
 
-#define RESERVED_BITS	(UNWIND_PENDING)
+#define RESERVED_BITS	(UNWIND_PENDING | UNWIND_USED)
 
 /* Zero'd bits are available for assigning callback users */
 static unsigned long unwind_mask = RESERVED_BITS;
@@ -139,6 +139,9 @@ int unwind_user_faultable(struct unwind_stacktrace *trace)
 	unwind_user(trace, UNWIND_MAX_ENTRIES);
 
 	cache->nr_entries = trace->nr;
+
+	/* Clear nr_entries on way back to user space */
+	set_bit(UNWIND_USED_BIT, &info->unwind_mask);
 
 	return 0;
 }

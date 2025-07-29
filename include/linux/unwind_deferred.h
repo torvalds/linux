@@ -20,10 +20,14 @@ struct unwind_work {
 
 enum {
 	UNWIND_PENDING_BIT = 0,
+	UNWIND_USED_BIT,
 };
 
 enum {
 	UNWIND_PENDING		= BIT(UNWIND_PENDING_BIT),
+
+	/* Set if the unwinding was used (directly or deferred) */
+	UNWIND_USED		= BIT(UNWIND_USED_BIT)
 };
 
 void unwind_task_init(struct task_struct *task);
@@ -49,15 +53,11 @@ static __always_inline void unwind_reset_info(void)
 				return;
 		} while (!try_cmpxchg(&info->unwind_mask, &bits, 0UL));
 		current->unwind_info.id.id = 0;
-	}
-	/*
-	 * As unwind_user_faultable() can be called directly and
-	 * depends on nr_entries being cleared on exit to user,
-	 * this needs to be a separate conditional.
-	 */
-	if (unlikely(info->cache)) {
-		info->cache->nr_entries = 0;
-		info->cache->unwind_completed = 0;
+
+		if (unlikely(info->cache)) {
+			info->cache->nr_entries = 0;
+			info->cache->unwind_completed = 0;
+		}
 	}
 }
 
