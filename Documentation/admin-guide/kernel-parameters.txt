@@ -7214,6 +7214,14 @@
 			causing a major performance hit, and the space where
 			machines are deployed is by other means guarded.
 
+	tpm_crb_ffa.busy_timeout_ms= [ARM64,TPM]
+			Maximum time in milliseconds to retry sending a message
+			to the TPM service before giving up. This parameter controls
+			how long the system will continue retrying when the TPM
+			service is busy.
+			Format: <unsigned int>
+			Default: 2000 (2 seconds)
+
 	tpm_suspend_pcr=[HW,TPM]
 			Format: integer pcr id
 			Specify that at suspend time, the tpm driver
