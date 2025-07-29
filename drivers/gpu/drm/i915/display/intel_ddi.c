@@ -5158,11 +5158,9 @@ void intel_ddi_init(struct intel_display *display,
 			    phy_name(phy));
 	}
 
-	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	dig_port = intel_dig_port_alloc();
 	if (!dig_port)
 		return;
-
-	dig_port->aux_ch = AUX_CH_NONE;
 
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
@@ -5200,9 +5198,6 @@ void intel_ddi_init(struct intel_display *display,
 	}
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);
-
-	mutex_init(&dig_port->hdcp.mutex);
-	dig_port->hdcp.num_streams = 0;
 
 	encoder->hotplug = intel_ddi_hotplug;
 	encoder->compute_output_type = intel_ddi_compute_output_type;
@@ -5341,7 +5336,6 @@ void intel_ddi_init(struct intel_display *display,
 
 	dig_port->ddi_a_4_lanes = DISPLAY_VER(display) < 11 && ddi_buf_ctl & DDI_A_4_LANES;
 
-	dig_port->dp.output_reg = INVALID_MMIO_REG;
 	dig_port->max_lanes = intel_ddi_max_lanes(dig_port);
 
 	if (need_aux_ch(encoder, init_dp)) {

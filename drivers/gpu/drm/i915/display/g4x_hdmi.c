@@ -19,6 +19,7 @@
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
 #include "intel_dpio_phy.h"
+#include "intel_encoder.h"
 #include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
@@ -690,11 +691,9 @@ bool g4x_hdmi_init(struct intel_display *display,
 		drm_dbg_kms(display->drm, "No VBT child device for HDMI-%c\n",
 			    port_name(port));
 
-	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	dig_port = intel_dig_port_alloc();
 	if (!dig_port)
 		return false;
-
-	dig_port->aux_ch = AUX_CH_NONE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -703,8 +702,6 @@ bool g4x_hdmi_init(struct intel_display *display,
 	intel_encoder = &dig_port->base;
 
 	intel_encoder->devdata = devdata;
-
-	mutex_init(&dig_port->hdcp.mutex);
 
 	if (drm_encoder_init(display->drm, &intel_encoder->base,
 			     &intel_hdmi_enc_funcs, DRM_MODE_ENCODER_TMDS,
@@ -767,8 +764,6 @@ bool g4x_hdmi_init(struct intel_display *display,
 		intel_encoder->cloneable |= BIT(INTEL_OUTPUT_HDMI);
 
 	dig_port->hdmi.hdmi_reg = hdmi_reg;
-	dig_port->dp.output_reg = INVALID_MMIO_REG;
-	dig_port->max_lanes = 4;
 
 	intel_infoframe_init(dig_port);
 

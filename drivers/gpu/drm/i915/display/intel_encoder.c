@@ -103,3 +103,21 @@ void intel_encoder_shutdown_all(struct intel_display *display)
 		if (encoder->shutdown_complete)
 			encoder->shutdown_complete(encoder);
 }
+
+struct intel_digital_port *intel_dig_port_alloc(void)
+{
+	struct intel_digital_port *dig_port;
+
+	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	if (!dig_port)
+		return NULL;
+
+	dig_port->hdmi.hdmi_reg = INVALID_MMIO_REG;
+	dig_port->dp.output_reg = INVALID_MMIO_REG;
+	dig_port->aux_ch = AUX_CH_NONE;
+	dig_port->max_lanes = 4;
+
+	mutex_init(&dig_port->hdcp.mutex);
+
+	return dig_port;
+}

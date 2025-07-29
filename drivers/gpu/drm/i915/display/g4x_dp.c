@@ -1300,11 +1300,9 @@ bool g4x_dp_init(struct intel_display *display,
 		drm_dbg_kms(display->drm, "No VBT child device for DP-%c\n",
 			    port_name(port));
 
-	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	dig_port = intel_dig_port_alloc();
 	if (!dig_port)
 		return false;
-
-	dig_port->aux_ch = AUX_CH_NONE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -1314,8 +1312,6 @@ bool g4x_dp_init(struct intel_display *display,
 	encoder = &intel_encoder->base;
 
 	intel_encoder->devdata = devdata;
-
-	mutex_init(&dig_port->hdcp.mutex);
 
 	if (drm_encoder_init(display->drm, &intel_encoder->base,
 			     &intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS,
@@ -1386,7 +1382,6 @@ bool g4x_dp_init(struct intel_display *display,
 	}
 
 	dig_port->dp.output_reg = output_reg;
-	dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
 	intel_encoder->power_domain = intel_display_power_ddi_lanes_domain(display, port);
