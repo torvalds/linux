@@ -2445,11 +2445,11 @@ static const struct file_operations i915_error_state_fops = {
 
 void i915_gpu_error_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct dentry *debugfs_root = i915->drm.debugfs_root;
 
-	debugfs_create_file("i915_error_state", 0644, minor->debugfs_root, i915,
+	debugfs_create_file("i915_error_state", 0644, debugfs_root, i915,
 			    &i915_error_state_fops);
-	debugfs_create_file("i915_gpu_info", 0644, minor->debugfs_root, i915,
+	debugfs_create_file("i915_gpu_info", 0644, debugfs_root, i915,
 			    &i915_gpu_info_fops);
 }
 
