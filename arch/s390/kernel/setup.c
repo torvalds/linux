@@ -719,6 +719,11 @@ static void __init memblock_add_physmem_info(void)
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
 }
 
+static void __init setup_high_memory(void)
+{
+	high_memory = __va(ident_map_size);
+}
+
 /*
  * Reserve memory used for lowcore.
  */
@@ -951,6 +956,7 @@ void __init setup_arch(char **cmdline_p)
 
 	free_physmem_info();
 	setup_memory_end();
+	setup_high_memory();
 	memblock_dump_all();
 	setup_memory();
 
