@@ -320,8 +320,12 @@ int blk_validate_limits(struct queue_limits *lim)
 		pr_warn("Invalid logical block size (%d)\n", lim->logical_block_size);
 		return -EINVAL;
 	}
-	if (lim->physical_block_size < lim->logical_block_size)
+	if (lim->physical_block_size < lim->logical_block_size) {
 		lim->physical_block_size = lim->logical_block_size;
+	} else if (!is_power_of_2(lim->physical_block_size)) {
+		pr_warn("Invalid physical block size (%d)\n", lim->physical_block_size);
+		return -EINVAL;
+	}
 
 	/*
 	 * The minimum I/O size defaults to the physical block size unless
