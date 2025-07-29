@@ -1441,12 +1441,11 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		break;
 
 	case SYS_ID_AA64PFR0_EL1:
-		/* No RME, AMU, MPAM, S-EL2, or RAS */
+		/* No RME, AMU, MPAM, or S-EL2 */
 		val &= ~(ID_AA64PFR0_EL1_RME	|
 			 ID_AA64PFR0_EL1_AMU	|
 			 ID_AA64PFR0_EL1_MPAM	|
 			 ID_AA64PFR0_EL1_SEL2	|
-			 ID_AA64PFR0_EL1_RAS	|
 			 ID_AA64PFR0_EL1_EL3	|
 			 ID_AA64PFR0_EL1_EL2	|
 			 ID_AA64PFR0_EL1_EL1	|
@@ -1683,69 +1682,21 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	set_sysreg_masks(kvm, HFGITR2_EL2, res0, res1);
 
 	/* TCR2_EL2 */
-	res0 = TCR2_EL2_RES0;
-	res1 = TCR2_EL2_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, D128, IMP))
-		res0 |= (TCR2_EL2_DisCH0 | TCR2_EL2_DisCH1 | TCR2_EL2_D128);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, MEC, IMP))
-		res0 |= TCR2_EL2_AMEC1 | TCR2_EL2_AMEC0;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, HAFDBS, HAFT))
-		res0 |= TCR2_EL2_HAFT;
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, THE, IMP))
-		res0 |= TCR2_EL2_PTTWI | TCR2_EL2_PnCH;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, AIE, IMP))
-		res0 |= TCR2_EL2_AIE;
-	if (!kvm_has_s1poe(kvm))
-		res0 |= TCR2_EL2_POE | TCR2_EL2_E0POE;
-	if (!kvm_has_s1pie(kvm))
-		res0 |= TCR2_EL2_PIE;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
-		res0 |= (TCR2_EL2_E0POE | TCR2_EL2_D128 |
-			 TCR2_EL2_AMEC1 | TCR2_EL2_DisCH0 | TCR2_EL2_DisCH1);
+	get_reg_fixed_bits(kvm, TCR2_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, TCR2_EL2, res0, res1);
 
 	/* SCTLR_EL1 */
-	res0 = SCTLR_EL1_RES0;
-	res1 = SCTLR_EL1_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, PAN, PAN3))
-		res0 |= SCTLR_EL1_EPAN;
+	get_reg_fixed_bits(kvm, SCTLR_EL1, &res0, &res1);
 	set_sysreg_masks(kvm, SCTLR_EL1, res0, res1);
 
+	/* SCTLR2_ELx */
+	get_reg_fixed_bits(kvm, SCTLR2_EL1, &res0, &res1);
+	set_sysreg_masks(kvm, SCTLR2_EL1, res0, res1);
+	get_reg_fixed_bits(kvm, SCTLR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, SCTLR2_EL2, res0, res1);
+
 	/* MDCR_EL2 */
-	res0 = MDCR_EL2_RES0;
-	res1 = MDCR_EL2_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, IMP))
-		res0 |= (MDCR_EL2_HPMN | MDCR_EL2_TPMCR |
-			 MDCR_EL2_TPM | MDCR_EL2_HPME);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, IMP))
-		res0 |= MDCR_EL2_E2PB | MDCR_EL2_TPMS;
-	if (!kvm_has_feat(kvm, ID_AA64DFR1_EL1, SPMU, IMP))
-		res0 |= MDCR_EL2_EnSPM;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, V3P1))
-		res0 |= MDCR_EL2_HPMD;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceFilt, IMP))
-		res0 |= MDCR_EL2_TTRF;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, V3P5))
-		res0 |= MDCR_EL2_HCCD | MDCR_EL2_HLP;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceBuffer, IMP))
-		res0 |= MDCR_EL2_E2TB;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, FGT, IMP))
-		res0 |= MDCR_EL2_TDCC;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, MTPMU, IMP) ||
-	    kvm_has_feat(kvm, ID_AA64PFR0_EL1, EL3, IMP))
-		res0 |= MDCR_EL2_MTPME;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, V3P7))
-		res0 |= MDCR_EL2_HPMFZO;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSS, IMP))
-		res0 |= MDCR_EL2_PMSSE;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, V1P2))
-		res0 |= MDCR_EL2_HPMFZS;
-	if (!kvm_has_feat(kvm, ID_AA64DFR1_EL1, EBEP, IMP))
-		res0 |= MDCR_EL2_PMEE;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, DebugVer, V8P9))
-		res0 |= MDCR_EL2_EBWE;
-	if (!kvm_has_feat(kvm, ID_AA64DFR2_EL1, STEP, IMP))
-		res0 |= MDCR_EL2_EnSTEPOP;
+	get_reg_fixed_bits(kvm, MDCR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, MDCR_EL2, res0, res1);
 
 	/* CNTHCTL_EL2 */
@@ -1801,4 +1752,44 @@ void check_nested_vcpu_requests(struct kvm_vcpu *vcpu)
 	/* Must be last, as may switch context! */
 	if (kvm_check_request(KVM_REQ_GUEST_HYP_IRQ_PENDING, vcpu))
 		kvm_inject_nested_irq(vcpu);
+}
+
+/*
+ * One of the many architectural bugs in FEAT_NV2 is that the guest hypervisor
+ * can write to HCR_EL2 behind our back, potentially changing the exception
+ * routing / masking for even the host context.
+ *
+ * What follows is some slop to (1) react to exception routing / masking and (2)
+ * preserve the pending SError state across translation regimes.
+ */
+void kvm_nested_flush_hwstate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu_has_nv(vcpu))
+		return;
+
+	if (unlikely(vcpu_test_and_clear_flag(vcpu, NESTED_SERROR_PENDING)))
+		kvm_inject_serror_esr(vcpu, vcpu_get_vsesr(vcpu));
+}
+
+void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu)
+{
+	unsigned long *hcr = vcpu_hcr(vcpu);
+
+	if (!vcpu_has_nv(vcpu))
+		return;
+
+	/*
+	 * We previously decided that an SError was deliverable to the guest.
+	 * Reap the pending state from HCR_EL2 and...
+	 */
+	if (unlikely(__test_and_clear_bit(__ffs(HCR_VSE), hcr)))
+		vcpu_set_flag(vcpu, NESTED_SERROR_PENDING);
+
+	/*
+	 * Re-attempt SError injection in case the deliverability has changed,
+	 * which is necessary to faithfully emulate WFI the case of a pending
+	 * SError being a wakeup condition.
+	 */
+	if (unlikely(vcpu_test_and_clear_flag(vcpu, NESTED_SERROR_PENDING)))
+		kvm_inject_serror_esr(vcpu, vcpu_get_vsesr(vcpu));
 }
