@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/apm,xgene-gpio-sb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: APM X-Gene Standby GPIO controller
+
+maintainers:
+  - Khuong Dinh <khuong@os.amperecomputing.com>
+
+description: |
+  This is a gpio controller in the standby domain. It also supports interrupt in
+  some particular pins which are sourced to its parent interrupt controller
+  as diagram below:
+                                +-----------------+
+                                | X-Gene standby  |
+                                | GPIO controller +------ GPIO_0
+    +------------+              |                 | ...
+    | Parent IRQ | EXT_INT_0    |                 +------ GPIO_8/EXT_INT_0
+    | controller | (SPI40)      |                 | ...
+    | (GICv2)    +--------------+                 +------ GPIO_[N+8]/EXT_INT_N
+    |            |   ...        |                 |
+    |            | EXT_INT_N    |                 +------ GPIO_[N+9]
+    |            | (SPI[40 + N])|                 | ...
+    |            +--------------+                 +------ GPIO_MAX
+    +------------+              +-----------------+
+
+properties:
+  compatible:
+    const: apm,xgene-gpio-sb
+
+  reg:
+    maxItems: 1
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+
+  interrupts:
+    description:
+      List of interrupt specifiers for EXT_INT_0 through EXT_INT_N. The first
+      entry must correspond to EXT_INT_0.
+
+  '#interrupt-cells':
+    const: 2
+    description:
+      First cell selects EXT_INT_N (0-N), second cell specifies flags
+
+  interrupt-controller: true
+
+  apm,nr-gpios:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of GPIO pins
+
+  apm,nr-irqs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of interrupt pins
+
+  apm,irq-start:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Lowest GPIO pin supporting interrupts
+
+required:
+  - compatible
+  - reg
+  - '#gpio-cells'
+  - gpio-controller
+  - interrupts
+  - '#interrupt-cells'
+  - interrupt-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@17001000 {
+        compatible = "apm,xgene-gpio-sb";
+        reg = <0x17001000 0x400>;
+        #gpio-cells = <2>;
+        gpio-controller;
+        interrupts = <0x0 0x28 0x1>,
+                     <0x0 0x29 0x1>,
+                     <0x0 0x2a 0x1>,
+                     <0x0 0x2b 0x1>,
+                     <0x0 0x2c 0x1>,
+                     <0x0 0x2d 0x1>;
+        #interrupt-cells = <2>;
+        interrupt-controller;
+        apm,nr-gpios = <22>;
+        apm,nr-irqs = <6>;
+        apm,irq-start = <8>;
+    };
