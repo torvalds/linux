@@ -610,7 +610,7 @@ int ibclose(struct inode *inode, struct file *filep)
 
 long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
-	unsigned int minor = iminor(filep->f_path.dentry->d_inode);
+	unsigned int minor = iminor(file_inode(filep));
 	struct gpib_board *board;
 	struct gpib_file_private *file_priv = filep->private_data;
 	long retval = -ENOTTY;

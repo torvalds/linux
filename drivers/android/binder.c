@@ -5384,10 +5384,9 @@ static int binder_ioctl_write_read(struct file *filp, unsigned long arg,
 	void __user *ubuf = (void __user *)arg;
 	struct binder_write_read bwr;
 
-	if (copy_from_user(&bwr, ubuf, sizeof(bwr))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	if (copy_from_user(&bwr, ubuf, sizeof(bwr)))
+		return -EFAULT;
+
 	binder_debug(BINDER_DEBUG_READ_WRITE,
 		     "%d:%d write %lld at %016llx, read %lld at %016llx\n",
 		     proc->pid, thread->pid,
@@ -5402,8 +5401,6 @@ static int binder_ioctl_write_read(struct file *filp, unsigned long arg,
 		trace_binder_write_done(ret);
 		if (ret < 0) {
 			bwr.read_consumed = 0;
-			if (copy_to_user(ubuf, &bwr, sizeof(bwr)))
-				ret = -EFAULT;
 			goto out;
 		}
 	}
@@ -5417,22 +5414,17 @@ static int binder_ioctl_write_read(struct file *filp, unsigned long arg,
 		if (!binder_worklist_empty_ilocked(&proc->todo))
 			binder_wakeup_proc_ilocked(proc);
 		binder_inner_proc_unlock(proc);
-		if (ret < 0) {
-			if (copy_to_user(ubuf, &bwr, sizeof(bwr)))
-				ret = -EFAULT;
+		if (ret < 0)
 			goto out;
-		}
 	}
 	binder_debug(BINDER_DEBUG_READ_WRITE,
 		     "%d:%d wrote %lld of %lld, read return %lld of %lld\n",
 		     proc->pid, thread->pid,
 		     (u64)bwr.write_consumed, (u64)bwr.write_size,
 		     (u64)bwr.read_consumed, (u64)bwr.read_size);
-	if (copy_to_user(ubuf, &bwr, sizeof(bwr))) {
-		ret = -EFAULT;
-		goto out;
-	}
 out:
+	if (copy_to_user(ubuf, &bwr, sizeof(bwr)))
+		ret = -EFAULT;
 	return ret;
 }
 
@@ -6128,7 +6120,7 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	debugfs_remove(proc->debugfs_entry);
 
 	if (proc->binderfs_entry) {
-		binderfs_remove_file(proc->binderfs_entry);
+		simple_recursive_removal(proc->binderfs_entry, NULL);
 		proc->binderfs_entry = NULL;
 	}
 

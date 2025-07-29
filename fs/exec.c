@@ -1515,7 +1515,7 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	 * state is protected by cred_guard_mutex we hold.
 	 */
 	n_fs = 1;
-	spin_lock(&p->fs->lock);
+	read_seqlock_excl(&p->fs->seq);
 	rcu_read_lock();
 	for_other_threads(p, t) {
 		if (t->fs == p->fs)
@@ -1528,7 +1528,7 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
 	else
 		p->fs->in_exec = 1;
-	spin_unlock(&p->fs->lock);
+	read_sequnlock_excl(&p->fs->seq);
 }
 
 static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)

@@ -939,7 +939,7 @@ root_found:
 	sbi->s_check = opt->check;
 
 	if (table)
-		s->s_d_op = &isofs_dentry_ops[table - 1];
+		set_default_d_op(s, &isofs_dentry_ops[table - 1]);
 
 	/* get the root dentry */
 	s->s_root = d_make_root(inode);

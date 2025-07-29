@@ -340,8 +340,8 @@ static const struct scsi_host_template k2_sata_sht = {
 
 static struct ata_port_operations k2_sata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.softreset              = k2_sata_softreset,
-	.hardreset              = k2_sata_hardreset,
+	.reset.softreset	= k2_sata_softreset,
+	.reset.hardreset	= k2_sata_hardreset,
 	.sff_tf_load		= k2_sata_tf_load,
 	.sff_tf_read		= k2_sata_tf_read,
 	.sff_check_status	= k2_stat_check_status,

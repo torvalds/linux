@@ -21,8 +21,12 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	struct hfs_btree *tree;
 	struct hfs_btree_header_rec *head;
 	struct address_space *mapping;
-	struct page *page;
+	struct folio *folio;
+	struct buffer_head *bh;
 	unsigned int size;
+	u16 dblock;
+	sector_t start_block;
+	loff_t offset;
 
 	tree = kzalloc(sizeof(*tree), GFP_KERNEL);
 	if (!tree)
@@ -75,12 +79,40 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	unlock_new_inode(tree->inode);
 
 	mapping = tree->inode->i_mapping;
-	page = read_mapping_page(mapping, 0, NULL);
-	if (IS_ERR(page))
+	folio = filemap_grab_folio(mapping, 0);
+	if (IS_ERR(folio))
 		goto free_inode;
 
+	folio_zero_range(folio, 0, folio_size(folio));
+
+	dblock = hfs_ext_find_block(HFS_I(tree->inode)->first_extents, 0);
+	start_block = HFS_SB(sb)->fs_start + (dblock * HFS_SB(sb)->fs_div);
+
+	size = folio_size(folio);
+	offset = 0;
+	while (size > 0) {
+		size_t len;
+
+		bh = sb_bread(sb, start_block);
+		if (!bh) {
+			pr_err("unable to read tree header\n");
+			goto put_folio;
+		}
+
+		len = min_t(size_t, folio_size(folio), sb->s_blocksize);
+		memcpy_to_folio(folio, offset, bh->b_data, sb->s_blocksize);
+
+		brelse(bh);
+
+		start_block++;
+		offset += len;
+		size -= len;
+	}
+
+	folio_mark_uptodate(folio);
+
 	/* Load the header */
-	head = (struct hfs_btree_header_rec *)(kmap_local_page(page) +
+	head = (struct hfs_btree_header_rec *)(kmap_local_folio(folio, 0) +
 					       sizeof(struct hfs_bnode_desc));
 	tree->root = be32_to_cpu(head->root);
 	tree->leaf_count = be32_to_cpu(head->leaf_count);
@@ -95,22 +127,22 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 
 	size = tree->node_size;
 	if (!is_power_of_2(size))
-		goto fail_page;
+		goto fail_folio;
 	if (!tree->node_count)
-		goto fail_page;
+		goto fail_folio;
 	switch (id) {
 	case HFS_EXT_CNID:
 		if (tree->max_key_len != HFS_MAX_EXT_KEYLEN) {
 			pr_err("invalid extent max_key_len %d\n",
 			       tree->max_key_len);
-			goto fail_page;
+			goto fail_folio;
 		}
 		break;
 	case HFS_CAT_CNID:
 		if (tree->max_key_len != HFS_MAX_CAT_KEYLEN) {
 			pr_err("invalid catalog max_key_len %d\n",
 			       tree->max_key_len);
-			goto fail_page;
+			goto fail_folio;
 		}
 		break;
 	default:
@@ -121,12 +153,15 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	tree->pages_per_bnode = (tree->node_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	kunmap_local(head);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	return tree;
 
-fail_page:
+fail_folio:
 	kunmap_local(head);
-	put_page(page);
+put_folio:
+	folio_unlock(folio);
+	folio_put(folio);
 free_inode:
 	tree->inode->i_mapping->a_ops = &hfs_aops;
 	iput(tree->inode);

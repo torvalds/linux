@@ -139,11 +139,12 @@ obj-$(CONFIG_WATCH_QUEUE) += watch_queue.o
 obj-$(CONFIG_RESOURCE_KUNIT_TEST) += resource_kunit.o
 obj-$(CONFIG_SYSCTL_KUNIT_TEST) += sysctl-test.o
 
-CFLAGS_stackleak.o += $(DISABLE_STACKLEAK_PLUGIN)
-obj-$(CONFIG_GCC_PLUGIN_STACKLEAK) += stackleak.o
-KASAN_SANITIZE_stackleak.o := n
-KCSAN_SANITIZE_stackleak.o := n
-KCOV_INSTRUMENT_stackleak.o := n
+CFLAGS_kstack_erase.o += $(DISABLE_KSTACK_ERASE)
+CFLAGS_kstack_erase.o += $(call cc-option,-mgeneral-regs-only)
+obj-$(CONFIG_KSTACK_ERASE) += kstack_erase.o
+KASAN_SANITIZE_kstack_erase.o := n
+KCSAN_SANITIZE_kstack_erase.o := n
+KCOV_INSTRUMENT_kstack_erase.o := n
 
 obj-$(CONFIG_SCF_TORTURE_TEST) += scftorture.o
 

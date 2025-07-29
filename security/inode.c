@@ -112,18 +112,20 @@ static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 	struct dentry *dentry;
 	struct inode *dir, *inode;
 	int error;
+	bool pinned = false;
 
 	if (!(mode & S_IFMT))
 		mode = (mode & S_IALLUGO) | S_IFREG;
 
 	pr_debug("securityfs: creating file '%s'\n",name);
 
-	error = simple_pin_fs(&fs_type, &mount, &mount_count);
-	if (error)
-		return ERR_PTR(error);
-
-	if (!parent)
+	if (!parent) {
+		error = simple_pin_fs(&fs_type, &mount, &mount_count);
+		if (error)
+			return ERR_PTR(error);
+		pinned = true;
 		parent = mount->mnt_root;
+	}
 
 	dir = d_inode(parent);
 
@@ -159,7 +161,6 @@ static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 		inode->i_fop = fops;
 	}
 	d_instantiate(dentry, inode);
-	dget(dentry);
 	inode_unlock(dir);
 	return dentry;
 
@@ -168,7 +169,8 @@ out1:
 	dentry = ERR_PTR(error);
 out:
 	inode_unlock(dir);
-	simple_release_fs(&mount, &mount_count);
+	if (pinned)
+		simple_release_fs(&mount, &mount_count);
 	return dentry;
 }
 
@@ -279,6 +281,12 @@ struct dentry *securityfs_create_symlink(const char *name,
 }
 EXPORT_SYMBOL_GPL(securityfs_create_symlink);
 
+static void remove_one(struct dentry *victim)
+{
+	if (victim->d_parent == victim->d_sb->s_root)
+		simple_release_fs(&mount, &mount_count);
+}
+
 /**
  * securityfs_remove - removes a file or directory from the securityfs filesystem
  *
@@ -291,43 +299,11 @@ EXPORT_SYMBOL_GPL(securityfs_create_symlink);
  * This function is required to be called in order for the file to be
  * removed. No automatic cleanup of files will happen when a module is
  * removed; you are responsible here.
+ *
+ * AV: when applied to directory it will take all children out; no need to call
+ * it for descendents if ancestor is getting killed.
  */
 void securityfs_remove(struct dentry *dentry)
-{
-	struct inode *dir;
-
-	if (IS_ERR_OR_NULL(dentry))
-		return;
-
-	dir = d_inode(dentry->d_parent);
-	inode_lock(dir);
-	if (simple_positive(dentry)) {
-		if (d_is_dir(dentry))
-			simple_rmdir(dir, dentry);
-		else
-			simple_unlink(dir, dentry);
-		dput(dentry);
-	}
-	inode_unlock(dir);
-	simple_release_fs(&mount, &mount_count);
-}
-EXPORT_SYMBOL_GPL(securityfs_remove);
-
-static void remove_one(struct dentry *victim)
-{
-	simple_release_fs(&mount, &mount_count);
-}
-
-/**
- * securityfs_recursive_remove - recursively removes a file or directory
- *
- * @dentry: a pointer to a the dentry of the file or directory to be removed.
- *
- * This function recursively removes a file or directory in securityfs that was
- * previously created with a call to another securityfs function (like
- * securityfs_create_file() or variants thereof.)
- */
-void securityfs_recursive_remove(struct dentry *dentry)
 {
 	if (IS_ERR_OR_NULL(dentry))
 		return;
@@ -336,7 +312,7 @@ void securityfs_recursive_remove(struct dentry *dentry)
 	simple_recursive_removal(dentry, remove_one);
 	simple_release_fs(&mount, &mount_count);
 }
-EXPORT_SYMBOL_GPL(securityfs_recursive_remove);
+EXPORT_SYMBOL_GPL(securityfs_remove);
 
 #ifdef CONFIG_SECURITY
 static struct dentry *lsm_dentry;

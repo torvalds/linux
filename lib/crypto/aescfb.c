@@ -5,11 +5,10 @@
  * Copyright 2023 Google LLC
  */
 
-#include <linux/module.h>
-
-#include <crypto/algapi.h>
 #include <crypto/aes.h>
-
+#include <crypto/algapi.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include <asm/irqflags.h>
 
 static void aescfb_encrypt_block(const struct crypto_aes_ctx *ctx, void *dst,

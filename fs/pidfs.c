@@ -21,11 +21,23 @@
 #include <linux/utsname.h>
 #include <net/net_namespace.h>
 #include <linux/coredump.h>
+#include <linux/xattr.h>
 
 #include "internal.h"
 #include "mount.h"
 
-static struct kmem_cache *pidfs_cachep __ro_after_init;
+#define PIDFS_PID_DEAD ERR_PTR(-ESRCH)
+
+static struct kmem_cache *pidfs_attr_cachep __ro_after_init;
+static struct kmem_cache *pidfs_xattr_cachep __ro_after_init;
+
+static struct path pidfs_root_path = {};
+
+void pidfs_get_root(struct path *path)
+{
+	*path = pidfs_root_path;
+	path_get(path);
+}
 
 /*
  * Stashes information that userspace needs to access even after the
@@ -37,16 +49,11 @@ struct pidfs_exit_info {
 	__u32 coredump_mask;
 };
 
-struct pidfs_inode {
+struct pidfs_attr {
+	struct simple_xattrs *xattrs;
 	struct pidfs_exit_info __pei;
 	struct pidfs_exit_info *exit_info;
-	struct inode vfs_inode;
 };
-
-static inline struct pidfs_inode *pidfs_i(struct inode *inode)
-{
-	return container_of(inode, struct pidfs_inode, vfs_inode);
-}
 
 static struct rb_root pidfs_ino_tree = RB_ROOT;
 
@@ -125,6 +132,7 @@ void pidfs_add_pid(struct pid *pid)
 
 	pid->ino = pidfs_ino_nr;
 	pid->stashed = NULL;
+	pid->attr = NULL;
 	pidfs_ino_nr++;
 
 	write_seqcount_begin(&pidmap_lock_seq);
@@ -137,6 +145,33 @@ void pidfs_remove_pid(struct pid *pid)
 	write_seqcount_begin(&pidmap_lock_seq);
 	rb_erase(&pid->pidfs_node, &pidfs_ino_tree);
 	write_seqcount_end(&pidmap_lock_seq);
+}
+
+void pidfs_free_pid(struct pid *pid)
+{
+	struct pidfs_attr *attr __free(kfree) = no_free_ptr(pid->attr);
+	struct simple_xattrs *xattrs __free(kfree) = NULL;
+
+	/*
+	 * Any dentry must've been wiped from the pid by now.
+	 * Otherwise there's a reference count bug.
+	 */
+	VFS_WARN_ON_ONCE(pid->stashed);
+
+	/*
+	 * This if an error occurred during e.g., task creation that
+	 * causes us to never go through the exit path.
+	 */
+	if (unlikely(!attr))
+		return;
+
+	/* This never had a pidfd created. */
+	if (IS_ERR(attr))
+		return;
+
+	xattrs = no_free_ptr(attr->xattrs);
+	if (xattrs)
+		simple_xattrs_free(xattrs, NULL);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -261,13 +296,13 @@ static __u32 pidfs_coredump_mask(unsigned long mm_flags)
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pidfd_info __user *uinfo = (struct pidfd_info __user *)arg;
-	struct inode *inode = file_inode(file);
 	struct pid *pid = pidfd_pid(file);
 	size_t usize = _IOC_SIZE(cmd);
 	struct pidfd_info kinfo = {};
 	struct pidfs_exit_info *exit_info;
 	struct user_namespace *user_ns;
 	struct task_struct *task;
+	struct pidfs_attr *attr;
 	const struct cred *c;
 	__u64 mask;
 
@@ -286,8 +321,9 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	if (!pid_in_current_pidns(pid))
 		return -ESRCH;
 
+	attr = READ_ONCE(pid->attr);
 	if (mask & PIDFD_INFO_EXIT) {
-		exit_info = READ_ONCE(pidfs_i(inode)->exit_info);
+		exit_info = READ_ONCE(attr->exit_info);
 		if (exit_info) {
 			kinfo.mask |= PIDFD_INFO_EXIT;
 #ifdef CONFIG_CGROUPS
@@ -300,7 +336,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (mask & PIDFD_INFO_COREDUMP) {
 		kinfo.mask |= PIDFD_INFO_COREDUMP;
-		kinfo.coredump_mask = READ_ONCE(pidfs_i(inode)->__pei.coredump_mask);
+		kinfo.coredump_mask = READ_ONCE(attr->__pei.coredump_mask);
 	}
 
 	task = get_pid_task(pid, PIDTYPE_PID);
@@ -552,41 +588,61 @@ struct pid *pidfd_pid(const struct file *file)
  * task has been reaped which cannot happen until we're out of
  * release_task().
  *
- * If this struct pid is referred to by a pidfd then
- * stashed_dentry_get() will return the dentry and inode for that struct
- * pid. Since we've taken a reference on it there's now an additional
- * reference from the exit path on it. Which is fine. We're going to put
- * it again in a second and we know that the pid is kept alive anyway.
+ * If this struct pid has at least once been referred to by a pidfd then
+ * pid->attr will be allocated. If not we mark the struct pid as dead so
+ * anyone who is trying to register it with pidfs will fail to do so.
+ * Otherwise we would hand out pidfs for reaped tasks without having
+ * exit information available.
  *
- * Worst case is that we've filled in the info and immediately free the
- * dentry and inode afterwards since the pidfd has been closed. Since
+ * Worst case is that we've filled in the info and the pid gets freed
+ * right away in free_pid() when no one holds a pidfd anymore. Since
  * pidfs_exit() currently is placed after exit_task_work() we know that
- * it cannot be us aka the exiting task holding a pidfd to ourselves.
+ * it cannot be us aka the exiting task holding a pidfd to itself.
  */
 void pidfs_exit(struct task_struct *tsk)
 {
-	struct dentry *dentry;
+	struct pid *pid = task_pid(tsk);
+	struct pidfs_attr *attr;
+	struct pidfs_exit_info *exit_info;
+#ifdef CONFIG_CGROUPS
+	struct cgroup *cgrp;
+#endif
 
 	might_sleep();
 
-	dentry = stashed_dentry_get(&task_pid(tsk)->stashed);
-	if (dentry) {
-		struct inode *inode = d_inode(dentry);
-		struct pidfs_exit_info *exit_info = &pidfs_i(inode)->__pei;
-#ifdef CONFIG_CGROUPS
-		struct cgroup *cgrp;
-
-		rcu_read_lock();
-		cgrp = task_dfl_cgroup(tsk);
-		exit_info->cgroupid = cgroup_id(cgrp);
-		rcu_read_unlock();
-#endif
-		exit_info->exit_code = tsk->exit_code;
-
-		/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
-		smp_store_release(&pidfs_i(inode)->exit_info, &pidfs_i(inode)->__pei);
-		dput(dentry);
+	guard(spinlock_irq)(&pid->wait_pidfd.lock);
+	attr = pid->attr;
+	if (!attr) {
+		/*
+		 * No one ever held a pidfd for this struct pid.
+		 * Mark it as dead so no one can add a pidfs
+		 * entry anymore. We're about to be reaped and
+		 * so no exit information would be available.
+		 */
+		pid->attr = PIDFS_PID_DEAD;
+		return;
 	}
+
+	/*
+	 * If @pid->attr is set someone might still legitimately hold a
+	 * pidfd to @pid or someone might concurrently still be getting
+	 * a reference to an already stashed dentry from @pid->stashed.
+	 * So defer cleaning @pid->attr until the last reference to @pid
+	 * is put
+	 */
+
+	exit_info = &attr->__pei;
+
+#ifdef CONFIG_CGROUPS
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(tsk);
+	exit_info->cgroupid = cgroup_id(cgrp);
+	rcu_read_unlock();
+#endif
+	exit_info->exit_code = tsk->exit_code;
+
+	/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
+	smp_store_release(&attr->exit_info, &attr->__pei);
 }
 
 #ifdef CONFIG_COREDUMP
@@ -594,16 +650,15 @@ void pidfs_coredump(const struct coredump_params *cprm)
 {
 	struct pid *pid = cprm->pid;
 	struct pidfs_exit_info *exit_info;
-	struct dentry *dentry;
-	struct inode *inode;
+	struct pidfs_attr *attr;
 	__u32 coredump_mask = 0;
 
-	dentry = pid->stashed;
-	if (WARN_ON_ONCE(!dentry))
-		return;
+	attr = READ_ONCE(pid->attr);
 
-	inode = d_inode(dentry);
-	exit_info = &pidfs_i(inode)->__pei;
+	VFS_WARN_ON_ONCE(!attr);
+	VFS_WARN_ON_ONCE(attr == PIDFS_PID_DEAD);
+
+	exit_info = &attr->__pei;
 	/* Note how we were coredumped. */
 	coredump_mask = pidfs_coredump_mask(cprm->mm_flags);
 	/* Note that we actually did coredump. */
@@ -634,9 +689,24 @@ static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	return anon_inode_getattr(idmap, path, stat, request_mask, query_flags);
 }
 
+static ssize_t pidfs_listxattr(struct dentry *dentry, char *buf, size_t size)
+{
+	struct inode *inode = d_inode(dentry);
+	struct pid *pid = inode->i_private;
+	struct pidfs_attr *attr = pid->attr;
+	struct simple_xattrs *xattrs;
+
+	xattrs = READ_ONCE(attr->xattrs);
+	if (!xattrs)
+		return 0;
+
+	return simple_xattr_list(inode, xattrs, buf, size);
+}
+
 static const struct inode_operations pidfs_inode_operations = {
-	.getattr = pidfs_getattr,
-	.setattr = pidfs_setattr,
+	.getattr	= pidfs_getattr,
+	.setattr	= pidfs_setattr,
+	.listxattr	= pidfs_listxattr,
 };
 
 static void pidfs_evict_inode(struct inode *inode)
@@ -647,30 +717,9 @@ static void pidfs_evict_inode(struct inode *inode)
 	put_pid(pid);
 }
 
-static struct inode *pidfs_alloc_inode(struct super_block *sb)
-{
-	struct pidfs_inode *pi;
-
-	pi = alloc_inode_sb(sb, pidfs_cachep, GFP_KERNEL);
-	if (!pi)
-		return NULL;
-
-	memset(&pi->__pei, 0, sizeof(pi->__pei));
-	pi->exit_info = NULL;
-
-	return &pi->vfs_inode;
-}
-
-static void pidfs_free_inode(struct inode *inode)
-{
-	kmem_cache_free(pidfs_cachep, pidfs_i(inode));
-}
-
 static const struct super_operations pidfs_sops = {
-	.alloc_inode	= pidfs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= pidfs_evict_inode,
-	.free_inode	= pidfs_free_inode,
 	.statfs		= simple_statfs,
 };
 
@@ -770,6 +819,8 @@ static struct dentry *pidfs_fh_to_dentry(struct super_block *sb,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	VFS_WARN_ON_ONCE(!pid->attr);
+
 	mntput(path.mnt);
 	return path.dentry;
 }
@@ -796,53 +847,8 @@ static int pidfs_export_permission(struct handle_to_path_ctx *ctx,
 	return 0;
 }
 
-static inline bool pidfs_pid_valid(struct pid *pid, const struct path *path,
-				   unsigned int flags)
-{
-	enum pid_type type;
-
-	if (flags & PIDFD_STALE)
-		return true;
-
-	/*
-	 * Make sure that if a pidfd is created PIDFD_INFO_EXIT
-	 * information will be available. So after an inode for the
-	 * pidfd has been allocated perform another check that the pid
-	 * is still alive. If it is exit information is available even
-	 * if the task gets reaped before the pidfd is returned to
-	 * userspace. The only exception are indicated by PIDFD_STALE:
-	 *
-	 * (1) The kernel is in the middle of task creation and thus no
-	 *     task linkage has been established yet.
-	 * (2) The caller knows @pid has been registered in pidfs at a
-	 *     time when the task was still alive.
-	 *
-	 * In both cases exit information will have been reported.
-	 */
-	if (flags & PIDFD_THREAD)
-		type = PIDTYPE_PID;
-	else
-		type = PIDTYPE_TGID;
-
-	/*
-	 * Since pidfs_exit() is called before struct pid's task linkage
-	 * is removed the case where the task got reaped but a dentry
-	 * was already attached to struct pid and exit information was
-	 * recorded and published can be handled correctly.
-	 */
-	if (unlikely(!pid_has_task(pid, type))) {
-		struct inode *inode = d_inode(path->dentry);
-		return !!READ_ONCE(pidfs_i(inode)->exit_info);
-	}
-
-	return true;
-}
-
 static struct file *pidfs_export_open(struct path *path, unsigned int oflags)
 {
-	if (!pidfs_pid_valid(d_inode(path->dentry)->i_private, path, oflags))
-		return ERR_PTR(-ESRCH);
-
 	/*
 	 * Clear O_LARGEFILE as open_by_handle_at() forces it and raise
 	 * O_RDWR as pidfds always are.
@@ -864,6 +870,8 @@ static int pidfs_init_inode(struct inode *inode, void *data)
 
 	inode->i_private = data;
 	inode->i_flags |= S_PRIVATE | S_ANON_INODE;
+	/* We allow to set xattrs. */
+	inode->i_flags &= ~S_IMMUTABLE;
 	inode->i_mode |= S_IRWXU;
 	inode->i_op = &pidfs_inode_operations;
 	inode->i_fop = &pidfs_file_operations;
@@ -878,9 +886,127 @@ static void pidfs_put_data(void *data)
 	put_pid(pid);
 }
 
+/**
+ * pidfs_register_pid - register a struct pid in pidfs
+ * @pid: pid to pin
+ *
+ * Register a struct pid in pidfs.
+ *
+ * Return: On success zero, on error a negative error code is returned.
+ */
+int pidfs_register_pid(struct pid *pid)
+{
+	struct pidfs_attr *new_attr __free(kfree) = NULL;
+	struct pidfs_attr *attr;
+
+	might_sleep();
+
+	if (!pid)
+		return 0;
+
+	attr = READ_ONCE(pid->attr);
+	if (unlikely(attr == PIDFS_PID_DEAD))
+		return PTR_ERR(PIDFS_PID_DEAD);
+	if (attr)
+		return 0;
+
+	new_attr = kmem_cache_zalloc(pidfs_attr_cachep, GFP_KERNEL);
+	if (!new_attr)
+		return -ENOMEM;
+
+	/* Synchronize with pidfs_exit(). */
+	guard(spinlock_irq)(&pid->wait_pidfd.lock);
+
+	attr = pid->attr;
+	if (unlikely(attr == PIDFS_PID_DEAD))
+		return PTR_ERR(PIDFS_PID_DEAD);
+	if (unlikely(attr))
+		return 0;
+
+	pid->attr = no_free_ptr(new_attr);
+	return 0;
+}
+
+static struct dentry *pidfs_stash_dentry(struct dentry **stashed,
+					 struct dentry *dentry)
+{
+	int ret;
+	struct pid *pid = d_inode(dentry)->i_private;
+
+	VFS_WARN_ON_ONCE(stashed != &pid->stashed);
+
+	ret = pidfs_register_pid(pid);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return stash_dentry(stashed, dentry);
+}
+
 static const struct stashed_operations pidfs_stashed_ops = {
-	.init_inode = pidfs_init_inode,
-	.put_data = pidfs_put_data,
+	.stash_dentry	= pidfs_stash_dentry,
+	.init_inode	= pidfs_init_inode,
+	.put_data	= pidfs_put_data,
+};
+
+static int pidfs_xattr_get(const struct xattr_handler *handler,
+			   struct dentry *unused, struct inode *inode,
+			   const char *suffix, void *value, size_t size)
+{
+	struct pid *pid = inode->i_private;
+	struct pidfs_attr *attr = pid->attr;
+	const char *name;
+	struct simple_xattrs *xattrs;
+
+	xattrs = READ_ONCE(attr->xattrs);
+	if (!xattrs)
+		return 0;
+
+	name = xattr_full_name(handler, suffix);
+	return simple_xattr_get(xattrs, name, value, size);
+}
+
+static int pidfs_xattr_set(const struct xattr_handler *handler,
+			   struct mnt_idmap *idmap, struct dentry *unused,
+			   struct inode *inode, const char *suffix,
+			   const void *value, size_t size, int flags)
+{
+	struct pid *pid = inode->i_private;
+	struct pidfs_attr *attr = pid->attr;
+	const char *name;
+	struct simple_xattrs *xattrs;
+	struct simple_xattr *old_xattr;
+
+	/* Ensure we're the only one to set @attr->xattrs. */
+	WARN_ON_ONCE(!inode_is_locked(inode));
+
+	xattrs = READ_ONCE(attr->xattrs);
+	if (!xattrs) {
+		xattrs = kmem_cache_zalloc(pidfs_xattr_cachep, GFP_KERNEL);
+		if (!xattrs)
+			return -ENOMEM;
+
+		simple_xattrs_init(xattrs);
+		smp_store_release(&pid->attr->xattrs, xattrs);
+	}
+
+	name = xattr_full_name(handler, suffix);
+	old_xattr = simple_xattr_set(xattrs, name, value, size, flags);
+	if (IS_ERR(old_xattr))
+		return PTR_ERR(old_xattr);
+
+	simple_xattr_free(old_xattr);
+	return 0;
+}
+
+static const struct xattr_handler pidfs_trusted_xattr_handler = {
+	.prefix = XATTR_TRUSTED_PREFIX,
+	.get	= pidfs_xattr_get,
+	.set	= pidfs_xattr_set,
+};
+
+static const struct xattr_handler *const pidfs_xattr_handlers[] = {
+	&pidfs_trusted_xattr_handler,
+	NULL
 };
 
 static int pidfs_init_fs_context(struct fs_context *fc)
@@ -891,9 +1017,12 @@ static int pidfs_init_fs_context(struct fs_context *fc)
 	if (!ctx)
 		return -ENOMEM;
 
+	fc->s_iflags |= SB_I_NOEXEC;
+	fc->s_iflags |= SB_I_NODEV;
 	ctx->ops = &pidfs_sops;
 	ctx->eops = &pidfs_export_operations;
 	ctx->dops = &pidfs_dentry_operations;
+	ctx->xattr = pidfs_xattr_handlers;
 	fc->s_fs_info = (void *)&pidfs_stashed_ops;
 	return 0;
 }
@@ -921,8 +1050,7 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	if (!pidfs_pid_valid(pid, &path, flags))
-		return ERR_PTR(-ESRCH);
+	VFS_WARN_ON_ONCE(!pid->attr);
 
 	flags &= ~PIDFD_STALE;
 	flags |= O_RDWR;
@@ -934,79 +1062,21 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	return pidfd_file;
 }
 
-/**
- * pidfs_register_pid - register a struct pid in pidfs
- * @pid: pid to pin
- *
- * Register a struct pid in pidfs. Needs to be paired with
- * pidfs_put_pid() to not risk leaking the pidfs dentry and inode.
- *
- * Return: On success zero, on error a negative error code is returned.
- */
-int pidfs_register_pid(struct pid *pid)
-{
-	struct path path __free(path_put) = {};
-	int ret;
-
-	might_sleep();
-
-	if (!pid)
-		return 0;
-
-	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
-	if (unlikely(ret))
-		return ret;
-	/* Keep the dentry and only put the reference to the mount. */
-	path.dentry = NULL;
-	return 0;
-}
-
-/**
- * pidfs_get_pid - pin a struct pid through pidfs
- * @pid: pid to pin
- *
- * Similar to pidfs_register_pid() but only valid if the caller knows
- * there's a reference to the @pid through a dentry already that can't
- * go away.
- */
-void pidfs_get_pid(struct pid *pid)
-{
-	if (!pid)
-		return;
-	WARN_ON_ONCE(!stashed_dentry_get(&pid->stashed));
-}
-
-/**
- * pidfs_put_pid - drop a pidfs reference
- * @pid: pid to drop
- *
- * Drop a reference to @pid via pidfs. This is only safe if the
- * reference has been taken via pidfs_get_pid().
- */
-void pidfs_put_pid(struct pid *pid)
-{
-	might_sleep();
-
-	if (!pid)
-		return;
-	VFS_WARN_ON_ONCE(!pid->stashed);
-	dput(pid->stashed);
-}
-
-static void pidfs_inode_init_once(void *data)
-{
-	struct pidfs_inode *pi = data;
-
-	inode_init_once(&pi->vfs_inode);
-}
-
 void __init pidfs_init(void)
 {
-	pidfs_cachep = kmem_cache_create("pidfs_cache", sizeof(struct pidfs_inode), 0,
+	pidfs_attr_cachep = kmem_cache_create("pidfs_attr_cache", sizeof(struct pidfs_attr), 0,
 					 (SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT |
-					  SLAB_ACCOUNT | SLAB_PANIC),
-					 pidfs_inode_init_once);
+					  SLAB_ACCOUNT | SLAB_PANIC), NULL);
+
+	pidfs_xattr_cachep = kmem_cache_create("pidfs_xattr_cache",
+					       sizeof(struct simple_xattrs), 0,
+					       (SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT |
+						SLAB_ACCOUNT | SLAB_PANIC), NULL);
+
 	pidfs_mnt = kern_mount(&pidfs_type);
 	if (IS_ERR(pidfs_mnt))
 		panic("Failed to mount pidfs pseudo filesystem");
+
+	pidfs_root_path.mnt = pidfs_mnt;
+	pidfs_root_path.dentry = pidfs_mnt->mnt_root;
 }
