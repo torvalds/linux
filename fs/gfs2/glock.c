@@ -733,7 +733,7 @@ __acquires(&gl->gl_lockref.lock)
 		 */
 		if (ret) {
 			if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
-				fs_err(sdp, "Error %d syncing glock \n", ret);
+				fs_err(sdp, "Error %d syncing glock\n", ret);
 				gfs2_dump_glock(NULL, gl, true);
 			}
 			spin_lock(&gl->gl_lockref.lock);
