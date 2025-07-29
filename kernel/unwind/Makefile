@@ -1,1 +1,1 @@
- obj-$(CONFIG_UNWIND_USER) += user.o
+ obj-$(CONFIG_UNWIND_USER)	+= user.o deferred.o
