@@ -270,11 +270,16 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 		ctx = &tile->sriov.vf.ccs[ctx_id];
 		ctx->ctx_id = ctx_id;
 
-		migrate = xe_migrate_init(tile);
+		migrate = xe_migrate_alloc(tile);
 		if (IS_ERR(migrate)) {
 			err = PTR_ERR(migrate);
 			goto err_ret;
 		}
+
+		err = xe_migrate_init(migrate);
+		if (err)
+			goto err_ret;
+
 		ctx->migrate = migrate;
 
 		err = alloc_bb_pool(tile, ctx);

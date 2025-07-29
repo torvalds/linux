@@ -396,15 +396,15 @@ struct xe_migrate *xe_migrate_alloc(struct xe_tile *tile)
 
 /**
  * xe_migrate_init() - Initialize a migrate context
- * @tile: Back-pointer to the tile we're initializing for.
+ * @m: The migration context
  *
- * Return: Pointer to a migrate context on success. Error pointer on error.
+ * Return: 0 if successful, negative error code on failure
  */
-struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
+int xe_migrate_init(struct xe_migrate *m)
 {
-	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_tile *tile = m->tile;
 	struct xe_gt *primary_gt = tile->primary_gt;
-	struct xe_migrate *m = tile->migrate;
+	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_vm *vm;
 	int err;
 
@@ -412,15 +412,13 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 	vm = xe_vm_create(xe, XE_VM_FLAG_MIGRATION |
 			  XE_VM_FLAG_SET_TILE_ID(tile));
 	if (IS_ERR(vm))
-		return ERR_CAST(vm);
+		return PTR_ERR(vm);
 
 	xe_vm_lock(vm, false);
 	err = xe_migrate_prepare_vm(tile, m, vm);
 	xe_vm_unlock(vm);
-	if (err) {
-		xe_vm_close_and_put(vm);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto err_out;
 
 	if (xe->info.has_usm) {
 		struct xe_hw_engine *hwe = xe_gt_hw_engine(primary_gt,
@@ -429,8 +427,10 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 							   false);
 		u32 logical_mask = xe_migrate_usm_logical_mask(primary_gt);
 
-		if (!hwe || !logical_mask)
-			return ERR_PTR(-EINVAL);
+		if (!hwe || !logical_mask) {
+			err = -EINVAL;
+			goto err_out;
+		}
 
 		/*
 		 * XXX: Currently only reserving 1 (likely slow) BCS instance on
@@ -449,8 +449,8 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 						  EXEC_QUEUE_FLAG_MIGRATE, 0);
 	}
 	if (IS_ERR(m->q)) {
-		xe_vm_close_and_put(vm);
-		return ERR_CAST(m->q);
+		err = PTR_ERR(m->q);
+		goto err_out;
 	}
 
 	mutex_init(&m->job_mutex);
@@ -460,7 +460,7 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 
 	err = devm_add_action_or_reset(xe->drm.dev, xe_migrate_fini, m);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	if (IS_DGFX(xe)) {
 		if (xe_migrate_needs_ccs_emit(xe))
@@ -475,7 +475,12 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 			(unsigned long long)m->min_chunk_size);
 	}
 
-	return m;
+	return err;
+
+err_out:
+	xe_vm_close_and_put(vm);
+	return err;
+
 }
 
 static u64 max_mem_transfer_per_pass(struct xe_device *xe)
