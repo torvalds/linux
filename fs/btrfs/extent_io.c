@@ -1618,8 +1618,12 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 		folio_unlock(folio);
 		return 1;
 	}
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_folio_clear_dirty(fs_info, folio, start, len);
+		btrfs_folio_set_writeback(fs_info, folio, start, len);
+		btrfs_folio_clear_writeback(fs_info, folio, start, len);
 		return ret;
+	}
 
 	for (cur = start; cur < start + len; cur += fs_info->sectorsize)
 		set_bit((cur - folio_start) >> fs_info->sectorsize_bits, &range_bitmap);
