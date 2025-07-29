@@ -10791,6 +10791,7 @@ M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
 M:	Yangtao Li <frank.li@vivo.com>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vdubeyko/hfs.git
 F:	Documentation/filesystems/hfs.rst
 F:	fs/hfs/
 
@@ -10800,6 +10801,7 @@ M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
 M:	Yangtao Li <frank.li@vivo.com>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vdubeyko/hfs.git
 F:	Documentation/filesystems/hfsplus.rst
 F:	fs/hfsplus/
 
