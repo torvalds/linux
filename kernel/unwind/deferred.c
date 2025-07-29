@@ -12,6 +12,31 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 
+/*
+ * For requesting a deferred user space stack trace from NMI context
+ * the architecture must support a safe cmpxchg in NMI context.
+ * For those architectures that do not have that, then it cannot ask
+ * for a deferred user space stack trace from an NMI context. If it
+ * does, then it will get -EINVAL.
+ */
+#if defined(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG)
+# define CAN_USE_IN_NMI		1
+static inline bool try_assign_cnt(struct unwind_task_info *info, u32 cnt)
+{
+	u32 old = 0;
+
+	return try_cmpxchg(&info->id.cnt, &old, cnt);
+}
+#else
+# define CAN_USE_IN_NMI		0
+/* When NMIs are not allowed, this always succeeds */
+static inline bool try_assign_cnt(struct unwind_task_info *info, u32 cnt)
+{
+	info->id.cnt = cnt;
+	return true;
+}
+#endif
+
 /* Make the cache fit in a 4K page */
 #define UNWIND_MAX_ENTRIES					\
 	((SZ_4K - sizeof(struct unwind_cache)) / sizeof(long))
@@ -42,14 +67,13 @@ static DEFINE_PER_CPU(u32, unwind_ctx_ctr);
 static u64 get_cookie(struct unwind_task_info *info)
 {
 	u32 cnt = 1;
-	u32 old = 0;
 
 	if (info->id.cpu)
 		return info->id.id;
 
 	/* LSB is always set to ensure 0 is an invalid value */
 	cnt |= __this_cpu_read(unwind_ctx_ctr) + 2;
-	if (try_cmpxchg(&info->id.cnt, &old, cnt)) {
+	if (try_assign_cnt(info, cnt)) {
 		/* Update the per cpu counter */
 		__this_cpu_write(unwind_ctx_ctr, cnt);
 	}
@@ -167,15 +191,21 @@ static void unwind_deferred_task_work(struct callback_head *head)
 int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 {
 	struct unwind_task_info *info = &current->unwind_info;
+	long pending;
 	int ret;
 
 	*cookie = 0;
 
-	if (WARN_ON_ONCE(in_nmi()))
-		return -EINVAL;
-
 	if ((current->flags & (PF_KTHREAD | PF_EXITING)) ||
 	    !user_mode(task_pt_regs(current)))
+		return -EINVAL;
+
+	/*
+	 * NMI requires having safe cmpxchg operations.
+	 * Trigger a warning to make it obvious that an architecture
+	 * is using this in NMI when it should not be.
+	 */
+	if (WARN_ON_ONCE(!CAN_USE_IN_NMI && in_nmi()))
 		return -EINVAL;
 
 	guard(irqsave)();
@@ -183,15 +213,21 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	*cookie = get_cookie(info);
 
 	/* callback already pending? */
-	if (info->pending)
+	pending = READ_ONCE(info->pending);
+	if (pending)
+		return 1;
+
+	/* Claim the work unless an NMI just now swooped in to do so. */
+	if (!try_cmpxchg(&info->pending, &pending, 1))
 		return 1;
 
 	/* The work has been claimed, now schedule it. */
 	ret = task_work_add(current, &info->work, TWA_RESUME);
-	if (WARN_ON_ONCE(ret))
+	if (WARN_ON_ONCE(ret)) {
+		WRITE_ONCE(info->pending, 0);
 		return ret;
+	}
 
-	info->pending = 1;
 	return 0;
 }
 
