@@ -691,8 +691,7 @@ __acquires(&gl->gl_lockref.lock)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int ret;
 
-	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl) &&
-	    gh && !(gh->gh_flags & LM_FLAG_RECOVER))
+	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl))
 		goto skip_inval;
 
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
@@ -1548,7 +1547,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	int error;
 
-	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_RECOVER))
+	if (glock_blocked_by_withdraw(gl))
 		return -EIO;
 
 	if (gh->gh_flags & GL_NOBLOCK) {
