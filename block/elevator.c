@@ -705,7 +705,8 @@ static int elevator_change(struct request_queue *q, struct elv_change_ctx *ctx)
  * The I/O scheduler depends on the number of hardware queues, this forces a
  * reattachment when nr_hw_queues changes.
  */
-void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e)
+void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e,
+		struct elevator_tags *t)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 	struct elv_change_ctx ctx = {};
@@ -715,25 +716,21 @@ void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e)
 
 	if (e && !blk_queue_dying(q) && blk_queue_registered(q)) {
 		ctx.name = e->elevator_name;
-		ctx.et = blk_mq_alloc_sched_tags(set, set->nr_hw_queues);
-		if (!ctx.et) {
-			WARN_ON_ONCE(1);
-			goto unfreeze;
-		}
+		ctx.et = t;
+
 		mutex_lock(&q->elevator_lock);
 		/* force to reattach elevator after nr_hw_queue is updated */
 		ret = elevator_switch(q, &ctx);
 		mutex_unlock(&q->elevator_lock);
 	}
-unfreeze:
 	blk_mq_unfreeze_queue_nomemrestore(q);
 	if (!ret)
 		WARN_ON_ONCE(elevator_change_done(q, &ctx));
 	/*
 	 * Free sched tags if it's allocated but we couldn't switch elevator.
 	 */
-	if (ctx.et && !ctx.new)
-		blk_mq_free_sched_tags(ctx.et, set);
+	if (t && !ctx.new)
+		blk_mq_free_sched_tags(t, set);
 }
 
 /*
