@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 config ZL3073X
-	tristate "Microchip Azurite DPLL/PTP/SyncE devices"
+	tristate "Microchip Azurite DPLL/PTP/SyncE devices" if COMPILE_TEST
 	depends on NET
 	select DPLL
 	select NET_DEVLINK
@@ -16,9 +16,9 @@ config ZL3073X
 
 config ZL3073X_I2C
 	tristate "I2C bus implementation for Microchip Azurite devices"
-	depends on I2C && ZL3073X
+	depends on I2C
 	select REGMAP_I2C
-	default m
+	select ZL3073X
 	help
 	  This is I2C bus implementation for Microchip Azurite DPLL/PTP/SyncE
 	  devices.
@@ -28,9 +28,9 @@ config ZL3073X_I2C
 
 config ZL3073X_SPI
 	tristate "SPI bus implementation for Microchip Azurite devices"
-	depends on SPI && ZL3073X
+	depends on SPI
 	select REGMAP_SPI
-	default m
+	select ZL3073X
 	help
 	  This is SPI bus implementation for Microchip Azurite DPLL/PTP/SyncE
 	  devices.
