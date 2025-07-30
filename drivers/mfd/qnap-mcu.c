@@ -247,6 +247,14 @@ static int qnap_mcu_power_off(struct sys_off_data *data)
 	return NOTIFY_DONE;
 }
 
+static const struct qnap_mcu_variant qnap_ts233_mcu = {
+	.baud_rate = 115200,
+	.num_drives = 2,
+	.fan_pwm_min = 51,  /* Specified in original model.conf */
+	.fan_pwm_max = 255,
+	.usb_led = true,
+};
+
 static const struct qnap_mcu_variant qnap_ts433_mcu = {
 	.baud_rate = 115200,
 	.num_drives = 4,
@@ -319,6 +327,7 @@ static int qnap_mcu_probe(struct serdev_device *serdev)
 }
 
 static const struct of_device_id qnap_mcu_dt_ids[] = {
+	{ .compatible = "qnap,ts233-mcu", .data = &qnap_ts233_mcu },
 	{ .compatible = "qnap,ts433-mcu", .data = &qnap_ts433_mcu },
 	{ /* sentinel */ }
 };
