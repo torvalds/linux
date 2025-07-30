@@ -316,6 +316,19 @@ config DRM_SIMPLE_BRIDGE
 	  Support for non-programmable DRM bridges, such as ADI ADV7123, TI
 	  THS8134 and THS8135 or passive resistor ladder DACs.
 
+config DRM_SOLOMON_SSD2825
+	tristate "SSD2825 RGB/DSI bridge"
+	depends on SPI_MASTER && OF
+	select DRM_MIPI_DSI
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Say Y here if you want support for the Solomon SSD2825 RGB/DSI
+	  SPI bridge driver.
+
+	  Say M here if you want to support this hardware as a module.
+	  The module will be named "ssd2825".
+
 config DRM_THINE_THC63LVD1024
 	tristate "Thine THC63LVD1024 LVDS decoder bridge"
 	depends on OF
