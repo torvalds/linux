@@ -17,8 +17,8 @@ static const char expected_value_b[] = "bpf_selftest_value_b";
 bool found_value_a;
 bool found_value_b;
 
-SEC("lsm.s/socket_connect")
-int BPF_PROG(test_socket_connect)
+SEC("lsm.s/file_open")
+int BPF_PROG(test_file_open)
 {
 	u64 cgrp_id = bpf_get_current_cgroup_id();
 	struct cgroup_subsys_state *css, *tmp;

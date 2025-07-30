@@ -7,6 +7,10 @@
 #include "test_log_buf.skel.h"
 #include "bpf_util.h"
 
+#if !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 static size_t libbpf_log_pos;
 static char libbpf_log_buf[1024 * 1024];
 static bool libbpf_log_error;
