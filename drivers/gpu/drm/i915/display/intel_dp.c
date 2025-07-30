@@ -3182,7 +3182,26 @@ int intel_dp_compute_min_hblank(struct intel_crtc_state *crtc_state,
 	 */
 	min_hblank = min_hblank - 2;
 
-	min_hblank = min(10, min_hblank);
+	/*
+	 * min_hblank formula is undergoing a change, to avoid underrun use the
+	 * recomended value in spec to compare with the calculated one and use the
+	 * minimum value
+	 */
+	if (intel_dp_is_uhbr(crtc_state)) {
+		/*
+		 * Note: Bspec requires a min_hblank of 2 for YCBCR420
+		 * with compressed bpp 6, but the minimum compressed bpp
+		 * supported by the driver is 8.
+		 */
+		drm_WARN_ON(display->drm,
+			    (crtc_state->dsc.compression_enable &&
+			     crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
+			     crtc_state->dsc.compressed_bpp_x16 < fxp_q4_from_int(8)));
+		min_hblank = min(3, min_hblank);
+	} else {
+		min_hblank = min(10, min_hblank);
+	}
+
 	crtc_state->min_hblank = min_hblank;
 
 	return 0;
