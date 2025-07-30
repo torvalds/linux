@@ -628,6 +628,7 @@ TRACE_EVENT(sched_process_hang,
 );
 #endif /* CONFIG_DETECT_HUNG_TASK */
 
+#ifdef CONFIG_NUMA_BALANCING
 /*
  * Tracks migration of tasks from one runqueue to another. Can be used to
  * detect if automatic NUMA balancing is bouncing between nodes.
@@ -720,7 +721,6 @@ DEFINE_EVENT(sched_numa_pair_template, sched_swap_numa,
 	TP_ARGS(src_tsk, src_cpu, dst_tsk, dst_cpu)
 );
 
-#ifdef CONFIG_NUMA_BALANCING
 #define NUMAB_SKIP_REASON					\
 	EM( NUMAB_SKIP_UNSUITABLE,		"unsuitable" )	\
 	EM( NUMAB_SKIP_SHARED_RO,		"shared_ro" )	\
