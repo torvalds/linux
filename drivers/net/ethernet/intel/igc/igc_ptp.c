@@ -626,7 +626,7 @@ static void igc_ptp_enable_tx_timestamp(struct igc_adapter *adapter)
  * Return: 0 in case of success, negative errno code otherwise.
  */
 static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
-				      struct hwtstamp_config *config)
+				      struct kernel_hwtstamp_config *config)
 {
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -853,48 +853,46 @@ void igc_ptp_tx_tstamp_event(struct igc_adapter *adapter)
 }
 
 /**
- * igc_ptp_set_ts_config - set hardware time stamping config
+ * igc_ptp_hwtstamp_set - set hardware time stamping config
  * @netdev: network interface device structure
- * @ifr: interface request data
+ * @config: timestamping configuration structure
+ * @extack: netlink extended ack structure for error reporting
  *
  **/
-int igc_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
+int igc_ptp_hwtstamp_set(struct net_device *netdev,
+			 struct kernel_hwtstamp_config *config,
+			 struct netlink_ext_ack *extack)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
-	struct hwtstamp_config config;
 	int err;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = igc_ptp_set_timestamp_mode(adapter, &config);
+	err = igc_ptp_set_timestamp_mode(adapter, config);
 	if (err)
 		return err;
 
 	/* save these settings for future reference */
-	memcpy(&adapter->tstamp_config, &config,
-	       sizeof(adapter->tstamp_config));
+	adapter->tstamp_config = *config;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 /**
- * igc_ptp_get_ts_config - get hardware time stamping config
+ * igc_ptp_hwtstamp_get - get hardware time stamping config
  * @netdev: network interface device structure
- * @ifr: interface request data
+ * @config: timestamping configuration structure
  *
  * Get the hwtstamp_config settings to return to the user. Rather than attempt
  * to deconstruct the settings from the registers, just return a shadow copy
  * of the last known settings.
  **/
-int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
+int igc_ptp_hwtstamp_get(struct net_device *netdev,
+			 struct kernel_hwtstamp_config *config)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
-	struct hwtstamp_config *config = &adapter->tstamp_config;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
-		-EFAULT : 0;
+	*config = adapter->tstamp_config;
+
+	return 0;
 }
 
 /* The two conditions below must be met for cross timestamping via

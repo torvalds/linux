@@ -93,6 +93,7 @@ MODULE_LICENSE("GPL");
 
 struct qca808x_priv {
 	int led_polarity_mode;
+	struct qcom_phy_hw_stats hw_stats;
 };
 
 static int qca808x_phy_fast_retrain_config(struct phy_device *phydev)
@@ -242,6 +243,10 @@ static int qca808x_config_init(struct phy_device *phydev)
 	}
 
 	qca808x_fill_possible_interfaces(phydev);
+
+	ret = qcom_phy_counter_config(phydev);
+	if (ret)
+		return ret;
 
 	/* Configure adc threshold as 100mv for the link 10M */
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_ADC_THRESHOLD,
@@ -622,6 +627,22 @@ static int qca808x_led_polarity_set(struct phy_device *phydev, int index,
 			      active_low ? 0 : QCA808X_LED_ACTIVE_HIGH);
 }
 
+static int qca808x_update_stats(struct phy_device *phydev)
+{
+	struct qca808x_priv *priv = phydev->priv;
+
+	return qcom_phy_update_stats(phydev, &priv->hw_stats);
+}
+
+static void qca808x_get_phy_stats(struct phy_device *phydev,
+				  struct ethtool_eth_phy_stats *eth_stats,
+				  struct ethtool_phy_stats *stats)
+{
+	struct qca808x_priv *priv = phydev->priv;
+
+	qcom_phy_get_stats(stats, priv->hw_stats);
+}
+
 static struct phy_driver qca808x_driver[] = {
 {
 	/* Qualcomm QCA8081 */
@@ -651,6 +672,8 @@ static struct phy_driver qca808x_driver[] = {
 	.led_hw_control_set	= qca808x_led_hw_control_set,
 	.led_hw_control_get	= qca808x_led_hw_control_get,
 	.led_polarity_set	= qca808x_led_polarity_set,
+	.update_stats		= qca808x_update_stats,
+	.get_phy_stats		= qca808x_get_phy_stats,
 }, };
 
 module_phy_driver(qca808x_driver);

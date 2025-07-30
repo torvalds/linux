@@ -495,4 +495,17 @@ static inline int mlx5_max_eq_cap_get(const struct mlx5_core_dev *dev)
 
 	return 1 << MLX5_CAP_GEN(dev, log_max_eq);
 }
+
+static inline bool mlx5_pcie_cong_event_supported(struct mlx5_core_dev *dev)
+{
+	u64 features = MLX5_CAP_GEN_2_64(dev, general_obj_types_127_64);
+
+	if (!(features & MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_PCIE_CONG_EVENT))
+		return false;
+
+	if (dev->sd)
+		return false;
+
+	return true;
+}
 #endif /* __MLX5_CORE_H__ */

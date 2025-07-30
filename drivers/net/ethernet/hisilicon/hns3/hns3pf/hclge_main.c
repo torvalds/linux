@@ -490,7 +490,7 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev)
 	desc_num = reg_num / HCLGE_REG_NUM_PER_DESC + 1;
 
 	/* This may be called inside atomic sections,
-	 * so GFP_ATOMIC is more suitalbe here
+	 * so GFP_ATOMIC is more suitable here
 	 */
 	desc = kcalloc(desc_num, sizeof(struct hclge_desc), GFP_ATOMIC);
 	if (!desc)
@@ -582,7 +582,7 @@ static u64 *hclge_comm_get_stats(struct hclge_dev *hdev,
 				 int size, u64 *data)
 {
 	u64 *buf = data;
-	u32 i;
+	int i;
 
 	for (i = 0; i < size; i++) {
 		if (strs[i].stats_num > hdev->ae_dev->dev_specs.mac_stats_num)
@@ -599,7 +599,7 @@ static void hclge_comm_get_strings(struct hclge_dev *hdev, u32 stringset,
 				   const struct hclge_comm_stats_str strs[],
 				   int size, u8 **data)
 {
-	u32 i;
+	int i;
 
 	if (stringset != ETH_SS_STATS)
 		return;
@@ -2358,7 +2358,7 @@ static int hclge_common_thrd_config(struct hclge_dev *hdev,
 	for (i = 0; i < 2; i++) {
 		hclge_cmd_setup_basic_desc(&desc[i],
 					   HCLGE_OPC_RX_COM_THRD_ALLOC, false);
-		req = (struct hclge_rx_com_thrd *)&desc[i].data;
+		req = (struct hclge_rx_com_thrd *)desc[i].data;
 
 		/* The first descriptor set the NEXT bit to 1 */
 		if (i == 0)
@@ -2624,7 +2624,7 @@ int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex, u8 lan
 	int ret;
 
 	duplex = hclge_check_speed_dup(duplex, speed);
-	if (!mac->support_autoneg && mac->speed == speed &&
+	if (!mac->support_autoneg && mac->speed == (u32)speed &&
 	    mac->duplex == duplex && (mac->lane_num == lane_num || lane_num == 0))
 		return 0;
 
@@ -2652,7 +2652,7 @@ static int hclge_cfg_mac_speed_dup_h(struct hnae3_handle *handle, int speed,
 	if (ret)
 		return ret;
 
-	hdev->hw.mac.req_speed = speed;
+	hdev->hw.mac.req_speed = (u32)speed;
 	hdev->hw.mac.req_duplex = duplex;
 
 	return 0;
@@ -3446,7 +3446,7 @@ static int hclge_tp_port_init(struct hclge_dev *hdev)
 static int hclge_update_port_info(struct hclge_dev *hdev)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
-	int speed;
+	u32 speed;
 	int ret;
 
 	/* get the port info from SFP cmd if not copper port */
@@ -4872,7 +4872,7 @@ static int hclge_set_rss(struct hnae3_handle *handle, const u32 *indir,
 }
 
 static int hclge_set_rss_tuple(struct hnae3_handle *handle,
-			       struct ethtool_rxnfc *nfc)
+			       const struct ethtool_rxfh_fields *nfc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -4890,7 +4890,7 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 }
 
 static int hclge_get_rss_tuple(struct hnae3_handle *handle,
-			       struct ethtool_rxnfc *nfc)
+			       struct ethtool_rxfh_fields *nfc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	u8 tuple_sets;
@@ -6989,7 +6989,7 @@ static int hclge_get_all_rules(struct hnae3_handle *handle,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_fd_rule *rule;
 	struct hlist_node *node2;
-	int cnt = 0;
+	u32 cnt = 0;
 
 	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
 		return -EOPNOTSUPP;
@@ -8223,14 +8223,14 @@ static int hclge_update_desc_vfid(struct hclge_desc *desc, int vfid, bool clr)
 		word_num = vfid / 32;
 		bit_num  = vfid % 32;
 		if (clr)
-			desc[1].data[word_num] &= cpu_to_le32(~(1 << bit_num));
+			desc[1].data[word_num] &= cpu_to_le32(~(1U << bit_num));
 		else
 			desc[1].data[word_num] |= cpu_to_le32(1 << bit_num);
 	} else {
 		word_num = (vfid - HCLGE_VF_NUM_IN_FIRST_DESC) / 32;
 		bit_num  = vfid % 32;
 		if (clr)
-			desc[2].data[word_num] &= cpu_to_le32(~(1 << bit_num));
+			desc[2].data[word_num] &= cpu_to_le32(~(1U << bit_num));
 		else
 			desc[2].data[word_num] |= cpu_to_le32(1 << bit_num);
 	}
@@ -9292,7 +9292,7 @@ static int hclge_add_mgr_tbl(struct hclge_dev *hdev,
 static int init_mgr_tbl(struct hclge_dev *hdev)
 {
 	int ret;
-	int i;
+	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(hclge_mgr_table); i++) {
 		ret = hclge_add_mgr_tbl(hdev, &hclge_mgr_table[i]);
@@ -10719,7 +10719,7 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
 	mutex_lock(&hdev->vport_lock);
 	/* VF's mps must fit within hdev->mps */
-	if (vport->vport_id && max_frm_size > hdev->mps) {
+	if (vport->vport_id && (u32)max_frm_size > hdev->mps) {
 		mutex_unlock(&hdev->vport_lock);
 		return -EINVAL;
 	} else if (vport->vport_id) {
@@ -10730,7 +10730,7 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 
 	/* PF's mps must be greater then VF's mps */
 	for (i = 1; i < hdev->num_alloc_vport; i++)
-		if (max_frm_size < hdev->vport[i].mps) {
+		if ((u32)max_frm_size < hdev->vport[i].mps) {
 			dev_err(&hdev->pdev->dev,
 				"failed to set pf mtu for less than vport %d, mps = %u.\n",
 				i, hdev->vport[i].mps);
@@ -11220,7 +11220,7 @@ static int hclge_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 {
 	struct hnae3_client *client = vport->nic.client;
 	struct hclge_dev *hdev = ae_dev->priv;
-	int rst_cnt = hdev->rst_stats.reset_cnt;
+	u32 rst_cnt = hdev->rst_stats.reset_cnt;
 	int ret;
 
 	ret = client->ops->init_instance(&vport->nic);
@@ -11264,7 +11264,7 @@ static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
 {
 	struct hclge_dev *hdev = ae_dev->priv;
 	struct hnae3_client *client;
-	int rst_cnt;
+	u32 rst_cnt;
 	int ret;
 
 	if (!hnae3_dev_roce_supported(hdev) || !hdev->roce_client ||
@@ -11429,7 +11429,7 @@ static int hclge_pci_init(struct hclge_dev *hdev)
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			dev_err(&pdev->dev,
-				"can't set consistent PCI DMA");
+				"can't set consistent PCI DMA\n");
 			goto err_disable_device;
 		}
 		dev_warn(&pdev->dev, "set DMA mask to 32 bits\n");
@@ -12094,7 +12094,7 @@ static int hclge_vf_rate_param_check(struct hclge_dev *hdev,
 				     int min_tx_rate, int max_tx_rate)
 {
 	if (min_tx_rate != 0 ||
-	    max_tx_rate < 0 || max_tx_rate > hdev->hw.mac.max_speed) {
+	    max_tx_rate < 0 || (u32)max_tx_rate > hdev->hw.mac.max_speed) {
 		dev_err(&hdev->pdev->dev,
 			"min_tx_rate:%d [0], max_tx_rate:%d [0, %u]\n",
 			min_tx_rate, max_tx_rate, hdev->hw.mac.max_speed);
@@ -12119,7 +12119,7 @@ static int hclge_set_vf_rate(struct hnae3_handle *handle, int vf,
 	if (!vport)
 		return -EINVAL;
 
-	if (!force && max_tx_rate == vport->vf_info.max_tx_rate)
+	if (!force && (u32)max_tx_rate == vport->vf_info.max_tx_rate)
 		return 0;
 
 	ret = hclge_tm_qs_shaper_cfg(vport, max_tx_rate);
@@ -12870,7 +12870,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_all_rules = hclge_get_all_rules,
 	.enable_fd = hclge_enable_fd,
 	.add_arfs_entry = hclge_add_fd_entry_by_arfs,
-	.dbg_read_cmd = hclge_dbg_read_cmd,
+	.dbg_get_read_func = hclge_dbg_get_read_func,
 	.handle_hw_ras_error = hclge_handle_hw_ras_error,
 	.get_hw_reset_stat = hclge_get_hw_reset_stat,
 	.ae_dev_resetting = hclge_ae_dev_resetting,
@@ -12910,7 +12910,7 @@ static struct hnae3_ae_algo ae_algo = {
 
 static int __init hclge_init(void)
 {
-	pr_info("%s is initializing\n", HCLGE_NAME);
+	pr_debug("%s is initializing\n", HCLGE_NAME);
 
 	hclge_wq = alloc_workqueue("%s", WQ_UNBOUND, 0, HCLGE_NAME);
 	if (!hclge_wq) {

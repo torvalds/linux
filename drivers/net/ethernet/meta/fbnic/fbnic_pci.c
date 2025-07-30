@@ -291,6 +291,17 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto free_irqs;
 	}
 
+	/* Send the request to enable the FW logging to host. Note if this
+	 * fails we ignore the error and just display a message as it is
+	 * possible the FW is just too old to support the logging and needs
+	 * to be updated.
+	 */
+	err = fbnic_fw_log_init(fbd);
+	if (err)
+		dev_warn(fbd->dev,
+			 "Unable to initialize firmware log buffer: %d\n",
+			 err);
+
 	fbnic_devlink_register(fbd);
 	fbnic_dbg_fbd_init(fbd);
 	spin_lock_init(&fbd->hw_stats_lock);
@@ -365,6 +376,7 @@ static void fbnic_remove(struct pci_dev *pdev)
 	fbnic_hwmon_unregister(fbd);
 	fbnic_dbg_fbd_exit(fbd);
 	fbnic_devlink_unregister(fbd);
+	fbnic_fw_log_free(fbd);
 	fbnic_fw_free_mbx(fbd);
 	fbnic_free_irqs(fbd);
 
@@ -389,6 +401,8 @@ static int fbnic_pm_suspend(struct device *dev)
 	rtnl_unlock();
 
 null_uc_addr:
+	fbnic_fw_log_disable(fbd);
+
 	devl_lock(priv_to_devlink(fbd));
 
 	fbnic_fw_free_mbx(fbd);
@@ -434,6 +448,11 @@ static int __fbnic_pm_resume(struct device *dev)
 
 	devl_unlock(priv_to_devlink(fbd));
 
+	/* Only send log history if log buffer is empty to prevent duplicate
+	 * log entries.
+	 */
+	fbnic_fw_log_enable(fbd, list_empty(&fbd->fw_log.entries));
+
 	/* No netdev means there isn't a network interface to bring up */
 	if (fbnic_init_failure(fbd))
 		return 0;
@@ -455,6 +474,8 @@ static int __fbnic_pm_resume(struct device *dev)
 
 	return 0;
 err_free_mbx:
+	fbnic_fw_log_disable(fbd);
+
 	rtnl_unlock();
 	fbnic_fw_free_mbx(fbd);
 err_free_irqs:

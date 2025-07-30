@@ -18,10 +18,17 @@ static const struct of_device_id mt7988_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mt7988_of_match);
 
+static const struct regmap_config sw_regmap_config = {
+	.name = "switch",
+	.reg_bits = 16,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = MT7530_CREV,
+};
+
 static int
 mt7988_probe(struct platform_device *pdev)
 {
-	static struct regmap_config *sw_regmap_config;
 	struct mt7530_priv *priv;
 	void __iomem *base_addr;
 	int ret;
@@ -49,16 +56,8 @@ mt7988_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	sw_regmap_config = devm_kzalloc(&pdev->dev, sizeof(*sw_regmap_config), GFP_KERNEL);
-	if (!sw_regmap_config)
-		return -ENOMEM;
-
-	sw_regmap_config->name = "switch";
-	sw_regmap_config->reg_bits = 16;
-	sw_regmap_config->val_bits = 32;
-	sw_regmap_config->reg_stride = 4;
-	sw_regmap_config->max_register = MT7530_CREV;
-	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base_addr, sw_regmap_config);
+	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base_addr,
+					     &sw_regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 

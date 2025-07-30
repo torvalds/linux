@@ -20,7 +20,7 @@ struct wg_device;
 
 struct endpoint {
 	union {
-		struct sockaddr addr;
+		struct sockaddr_inet addr;     /* Large enough for both address families */
 		struct sockaddr_in addr4;
 		struct sockaddr_in6 addr6;
 	};

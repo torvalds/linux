@@ -4782,7 +4782,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 			   READ_ONCE(po->ifindex),
 			   packet_sock_flag(po, PACKET_SOCK_RUNNING),
 			   atomic_read(&s->sk_rmem_alloc),
-			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(s)),
+			   from_kuid_munged(seq_user_ns(seq), sk_uid(s)),
 			   sock_i_ino(s));
 	}
 

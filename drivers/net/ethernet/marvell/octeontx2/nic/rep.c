@@ -244,10 +244,10 @@ static int rvu_rep_devlink_port_register(struct rep_dev *rep)
 
 	if (!(rep->pcifunc & RVU_PFVF_FUNC_MASK)) {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		attrs.phys.port_number = rvu_get_pf(rep->pcifunc);
+		attrs.phys.port_number = rvu_get_pf(priv->pdev, rep->pcifunc);
 	} else {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PCI_VF;
-		attrs.pci_vf.pf = rvu_get_pf(rep->pcifunc);
+		attrs.pci_vf.pf = rvu_get_pf(priv->pdev, rep->pcifunc);
 		attrs.pci_vf.vf = rep->pcifunc & RVU_PFVF_FUNC_MASK;
 	}
 
@@ -672,7 +672,8 @@ int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack)
 		rep->pcifunc = pcifunc;
 
 		snprintf(ndev->name, sizeof(ndev->name), "Rpf%dvf%d",
-			 rvu_get_pf(pcifunc), (pcifunc & RVU_PFVF_FUNC_MASK));
+			 rvu_get_pf(priv->pdev, pcifunc),
+			 (pcifunc & RVU_PFVF_FUNC_MASK));
 
 		ndev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 			       NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |

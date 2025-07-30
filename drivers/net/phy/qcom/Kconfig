@@ -7,7 +7,7 @@ config AT803X_PHY
 	select QCOM_NET_PHYLIB
 	depends on REGULATOR
 	help
-	  Currently supports the AR8030, AR8031, AR8033, AR8035 model
+	  Currently supports the AR8030, AR8031, AR8033, AR8035, IPQ5018 model
 
 config QCA83XX_PHY
 	tristate "Qualcomm Atheros QCA833x PHYs"
@@ -24,6 +24,7 @@ config QCA808X_PHY
 config QCA807X_PHY
 	tristate "Qualcomm QCA807x PHYs"
 	select QCOM_NET_PHYLIB
+	select PHY_PACKAGE
 	depends on OF_MDIO
 	help
 	  Currently supports the Qualcomm QCA8072, QCA8075 and the PSGMII

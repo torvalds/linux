@@ -276,7 +276,7 @@ static irqreturn_t bdx_isr_napi(int irq, void *dev)
 			 * currently intrs are disabled (since we read ISR),
 			 * and we have failed to register next poll.
 			 * so we read the regs to trigger chip
-			 * and allow further interupts. */
+			 * and allow further interrupts. */
 			READ_REG(priv, regTXF_WPTR_0);
 			READ_REG(priv, regRXD_WPTR_0);
 		}

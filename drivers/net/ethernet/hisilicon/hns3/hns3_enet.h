@@ -623,7 +623,7 @@ struct hns3_reset_type_map {
 	enum hnae3_reset_type rst_type;
 };
 
-static inline int ring_space(struct hns3_enet_ring *ring)
+static inline u32 ring_space(struct hns3_enet_ring *ring)
 {
 	/* This smp_load_acquire() pairs with smp_store_release() in
 	 * hns3_nic_reclaim_one_desc called by hns3_clean_tx_ring.
@@ -694,7 +694,7 @@ static inline unsigned int hns3_page_order(struct hns3_enet_ring *ring)
 
 /* iterator for handling rings in ring group */
 #define hns3_for_each_ring(pos, head) \
-	for (pos = (head).ring; (pos); pos = (pos)->next)
+	for ((pos) = (head).ring; (pos); (pos) = (pos)->next)
 
 #define hns3_get_handle(ndev) \
 	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)

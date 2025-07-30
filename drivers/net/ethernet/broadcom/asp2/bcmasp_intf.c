@@ -605,10 +605,8 @@ next:
 
 	bcmasp_intf_rx_desc_write(intf, intf->rx_edpkt_dma_read);
 
-	if (processed < budget) {
-		napi_complete_done(&intf->rx_napi, processed);
+	if (processed < budget && napi_complete_done(&intf->rx_napi, processed))
 		bcmasp_enable_rx_irq(intf, 1);
-	}
 
 	return processed;
 }
@@ -1283,6 +1281,8 @@ struct bcmasp_intf *bcmasp_interface_create(struct bcmasp_priv *priv,
 			  NETIF_F_RXCSUM;
 	ndev->hw_features |= ndev->features;
 	ndev->needed_headroom += sizeof(struct bcmasp_pkt_offload);
+
+	netdev_sw_irq_coalesce_default_on(ndev);
 
 	return intf;
 

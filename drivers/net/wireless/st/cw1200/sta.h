@@ -22,7 +22,7 @@ int cw1200_change_interface(struct ieee80211_hw *dev,
 			    struct ieee80211_vif *vif,
 			    enum nl80211_iftype new_type,
 			    bool p2p);
-int cw1200_config(struct ieee80211_hw *dev, u32 changed);
+int cw1200_config(struct ieee80211_hw *dev, int radio_idx, u32 changed);
 void cw1200_configure_filter(struct ieee80211_hw *dev,
 			     unsigned int changed_flags,
 			     unsigned int *total_flags,
@@ -36,7 +36,8 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		   struct ieee80211_key_conf *key);
 
-int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
+int cw1200_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+			     u32 value);
 
 void cw1200_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop);
