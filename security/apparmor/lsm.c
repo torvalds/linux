@@ -1205,8 +1205,9 @@ static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
 	if (error)
 		return error;
 
-	/* newsk doesn't go through post_create */
-	AA_BUG(rcu_access_pointer(new_ctx->label));
+	/* newsk doesn't go through post_create, but does go through
+	 * security_sk_alloc()
+	 */
 	rcu_assign_pointer(new_ctx->label,
 			   aa_get_label(rcu_dereference_protected(peer_ctx->label,
 								  true)));
