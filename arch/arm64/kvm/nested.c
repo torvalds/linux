@@ -1287,7 +1287,7 @@ int kvm_handle_vncr_abort(struct kvm_vcpu *vcpu)
 	struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
-	BUG_ON(!(esr & ESR_ELx_VNCR_SHIFT));
+	WARN_ON_ONCE(!(esr & ESR_ELx_VNCR));
 
 	if (esr_fsc_is_permission_fault(esr)) {
 		inject_vncr_perm(vcpu);
