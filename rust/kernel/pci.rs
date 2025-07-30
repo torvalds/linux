@@ -403,6 +403,50 @@ impl Device {
         unsafe { (*self.as_raw()).device }
     }
 
+    /// Returns the PCI revision ID.
+    #[inline]
+    pub fn revision_id(&self) -> u8 {
+        // SAFETY: By its type invariant `self.as_raw` is always a valid pointer to a
+        // `struct pci_dev`.
+        unsafe { (*self.as_raw()).revision }
+    }
+
+    /// Returns the PCI bus device/function.
+    #[inline]
+    pub fn dev_id(&self) -> u16 {
+        // SAFETY: By its type invariant `self.as_raw` is always a valid pointer to a
+        // `struct pci_dev`.
+        unsafe { bindings::pci_dev_id(self.as_raw()) }
+    }
+
+    /// Returns the PCI subsystem vendor ID.
+    #[inline]
+    pub fn subsystem_vendor_id(&self) -> u16 {
+        // SAFETY: By its type invariant `self.as_raw` is always a valid pointer to a
+        // `struct pci_dev`.
+        unsafe { (*self.as_raw()).subsystem_vendor }
+    }
+
+    /// Returns the PCI subsystem device ID.
+    #[inline]
+    pub fn subsystem_device_id(&self) -> u16 {
+        // SAFETY: By its type invariant `self.as_raw` is always a valid pointer to a
+        // `struct pci_dev`.
+        unsafe { (*self.as_raw()).subsystem_device }
+    }
+
+    /// Returns the start of the given PCI bar resource.
+    pub fn resource_start(&self, bar: u32) -> Result<bindings::resource_size_t> {
+        if !Bar::index_is_valid(bar) {
+            return Err(EINVAL);
+        }
+
+        // SAFETY:
+        // - `bar` is a valid bar number, as guaranteed by the above call to `Bar::index_is_valid`,
+        // - by its type invariant `self.as_raw` is always a valid pointer to a `struct pci_dev`.
+        Ok(unsafe { bindings::pci_resource_start(self.as_raw(), bar.try_into()?) })
+    }
+
     /// Returns the size of the given PCI bar resource.
     pub fn resource_len(&self, bar: u32) -> Result<bindings::resource_size_t> {
         if !Bar::index_is_valid(bar) {
