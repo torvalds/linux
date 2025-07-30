@@ -1159,15 +1159,6 @@ static int rkvdec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (iommu_get_domain_for_dev(&pdev->dev)) {
-		rkvdec->empty_domain = iommu_paging_domain_alloc(rkvdec->dev);
-
-		if (IS_ERR(rkvdec->empty_domain)) {
-			rkvdec->empty_domain = NULL;
-			dev_warn(rkvdec->dev, "cannot alloc new empty domain\n");
-		}
-	}
-
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
 	irq = platform_get_irq(pdev, 0);
@@ -1189,6 +1180,15 @@ static int rkvdec_probe(struct platform_device *pdev)
 	ret = rkvdec_v4l2_init(rkvdec);
 	if (ret)
 		goto err_disable_runtime_pm;
+
+	if (iommu_get_domain_for_dev(&pdev->dev)) {
+		rkvdec->empty_domain = iommu_paging_domain_alloc(rkvdec->dev);
+
+		if (IS_ERR(rkvdec->empty_domain)) {
+			rkvdec->empty_domain = NULL;
+			dev_warn(rkvdec->dev, "cannot alloc new empty domain\n");
+		}
+	}
 
 	return 0;
 
