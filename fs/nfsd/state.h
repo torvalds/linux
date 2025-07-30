@@ -217,10 +217,12 @@ struct nfs4_delegation {
 	struct nfs4_clnt_odstate *dl_clnt_odstate;
 	time64_t		dl_time;
 	u32			dl_type;
-/* For recall: */
+	/* For recall: */
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
 	bool			dl_recalled;
+	bool			dl_written;
+	bool			dl_setattr;
 
 	/* for CB_GETATTR */
 	struct nfs4_cb_fattr    dl_cb_fattr;
