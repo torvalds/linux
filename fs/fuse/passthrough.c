@@ -306,9 +306,7 @@ out:
  *
  * Returns an fb object with elevated refcount to be stored in fuse inode.
  */
-struct fuse_backing *fuse_passthrough_open(struct file *file,
-					   struct inode *inode,
-					   int backing_id)
+struct fuse_backing *fuse_passthrough_open(struct file *file, int backing_id)
 {
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fm->fc;

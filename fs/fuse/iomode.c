@@ -177,8 +177,7 @@ static int fuse_file_passthrough_open(struct inode *inode, struct file *file)
 	    (ff->open_flags & ~FOPEN_PASSTHROUGH_MASK))
 		return -EINVAL;
 
-	fb = fuse_passthrough_open(file, inode,
-				   ff->args->open_outarg.backing_id);
+	fb = fuse_passthrough_open(file, ff->args->open_outarg.backing_id);
 	if (IS_ERR(fb))
 		return PTR_ERR(fb);
 
