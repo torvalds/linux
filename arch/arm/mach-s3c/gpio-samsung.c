@@ -516,7 +516,7 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 		gc->direction_input = samsung_gpiolib_2bit_input;
 	if (!gc->direction_output)
 		gc->direction_output = samsung_gpiolib_2bit_output;
-	if (!gc->set)
+	if (!gc->set_rv)
 		gc->set_rv = samsung_gpiolib_set;
 	if (!gc->get)
 		gc->get = samsung_gpiolib_get;
