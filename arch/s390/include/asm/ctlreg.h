@@ -80,7 +80,7 @@
 #define CR14_EXTERNAL_DAMAGE_SUBMASK		BIT(CR14_EXTERNAL_DAMAGE_SUBMASK_BIT)
 #define CR14_WARNING_SUBMASK			BIT(CR14_WARNING_SUBMASK_BIT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bug.h>
 
@@ -252,5 +252,5 @@ union ctlreg15 {
 	};
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_S390_CTLREG_H */
