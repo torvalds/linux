@@ -505,6 +505,7 @@ static int apparmor_file_alloc_security(struct file *file)
 	struct aa_file_ctx *ctx = file_ctx(file);
 	struct aa_label *label = begin_current_label_crit_section();
 
+	spin_lock_init(&ctx->lock);
 	rcu_assign_pointer(ctx->label, aa_get_label(label));
 	end_current_label_crit_section(label);
 	return 0;
