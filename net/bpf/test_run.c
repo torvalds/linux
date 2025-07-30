@@ -524,27 +524,27 @@ __bpf_kfunc int bpf_fentry_test1(int a)
 }
 EXPORT_SYMBOL_GPL(bpf_fentry_test1);
 
-int noinline bpf_fentry_test2(int a, u64 b)
+noinline int bpf_fentry_test2(int a, u64 b)
 {
 	return a + b;
 }
 
-int noinline bpf_fentry_test3(char a, int b, u64 c)
+noinline int bpf_fentry_test3(char a, int b, u64 c)
 {
 	return a + b + c;
 }
 
-int noinline bpf_fentry_test4(void *a, char b, int c, u64 d)
+noinline int bpf_fentry_test4(void *a, char b, int c, u64 d)
 {
 	return (long)a + b + c + d;
 }
 
-int noinline bpf_fentry_test5(u64 a, void *b, short c, int d, u64 e)
+noinline int bpf_fentry_test5(u64 a, void *b, short c, int d, u64 e)
 {
 	return a + (long)b + c + d + e;
 }
 
-int noinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
+noinline int bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
 {
 	return a + (long)b + c + d + (long)e + f;
 }
@@ -553,13 +553,13 @@ struct bpf_fentry_test_t {
 	struct bpf_fentry_test_t *a;
 };
 
-int noinline bpf_fentry_test7(struct bpf_fentry_test_t *arg)
+noinline int bpf_fentry_test7(struct bpf_fentry_test_t *arg)
 {
-	asm volatile ("": "+r"(arg));
+	asm volatile ("" : "+r"(arg));
 	return (long)arg;
 }
 
-int noinline bpf_fentry_test8(struct bpf_fentry_test_t *arg)
+noinline int bpf_fentry_test8(struct bpf_fentry_test_t *arg)
 {
 	return (long)arg->a;
 }
@@ -569,12 +569,12 @@ __bpf_kfunc u32 bpf_fentry_test9(u32 *a)
 	return *a;
 }
 
-int noinline bpf_fentry_test10(const void *a)
+noinline int bpf_fentry_test10(const void *a)
 {
 	return (long)a;
 }
 
-void noinline bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
+noinline void bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
 {
 }
 
@@ -598,7 +598,7 @@ __bpf_kfunc int bpf_modify_return_test_tp(int nonce)
 	return nonce;
 }
 
-int noinline bpf_fentry_shadow_test(int a)
+noinline int bpf_fentry_shadow_test(int a)
 {
 	return a + 1;
 }
