@@ -337,7 +337,6 @@ tracepoint_field(const struct pyrf_event *pe, struct tep_format_field *field)
 static PyObject*
 get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 {
-	const char *str = _PyUnicode_AsString(PyObject_Str(attr_name));
 	struct evsel *evsel = pevent->evsel;
 	struct tep_event *tp_format = evsel__tp_format(evsel);
 	struct tep_format_field *field;
@@ -345,7 +344,18 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 	if (IS_ERR_OR_NULL(tp_format))
 		return NULL;
 
+	PyObject *obj = PyObject_Str(attr_name);
+	if (obj == NULL)
+		return NULL;
+
+	const char *str = PyUnicode_AsUTF8(obj);
+	if (str == NULL) {
+		Py_DECREF(obj);
+		return NULL;
+	}
+
 	field = tep_find_any_field(tp_format, str);
+	Py_DECREF(obj);
 	return field ? tracepoint_field(pevent, field) : NULL;
 }
 #endif /* HAVE_LIBTRACEEVENT */
