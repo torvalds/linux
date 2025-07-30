@@ -1890,10 +1890,7 @@ static void copy_oom_score_adj(u64 clone_flags, struct task_struct *tsk)
 #ifdef CONFIG_RV
 static void rv_task_fork(struct task_struct *p)
 {
-	int i;
-
-	for (i = 0; i < RV_PER_TASK_MONITORS; i++)
-		p->rv[i].da_mon.monitoring = false;
+	memset(&p->rv, 0, sizeof(p->rv));
 }
 #else
 #define rv_task_fork(p) do {} while (0)
