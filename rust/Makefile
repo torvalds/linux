@@ -98,6 +98,12 @@ quiet_cmd_rustdoc = RUSTDOC $(if $(rustdoc_host),H, ) $<
 # and then retouch the generated files.
 rustdoc: rustdoc-core rustdoc-macros rustdoc-compiler_builtins \
     rustdoc-kernel rustdoc-pin_init
+	$(Q)grep -Ehro '<a href="srctree/([^"]+)"' $(rustdoc_output) | \
+		cut -d'"' -f2 | cut -d/ -f2- | while read f; do \
+			if [ ! -e "$(srctree)/$$f" ]; then \
+				echo "warning: srctree/ link to $$f does not exist"; \
+			fi \
+		done
 	$(Q)cp $(srctree)/Documentation/images/logo.svg $(rustdoc_output)/static.files/
 	$(Q)cp $(srctree)/Documentation/images/COPYING-logo $(rustdoc_output)/static.files/
 	$(Q)find $(rustdoc_output) -name '*.html' -type f -print0 | xargs -0 sed -Ei \
