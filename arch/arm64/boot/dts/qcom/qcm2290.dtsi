@@ -154,6 +154,7 @@
 			compatible = "qcom,scm-qcm2290", "qcom,scm";
 			clocks = <&rpmcc RPM_SMD_CE1_CLK>;
 			clock-names = "core";
+			qcom,dload-mode = <&tcsr_regs 0x13000>;
 			#reset-cells = <1>;
 			interconnects = <&system_noc MASTER_CRYPTO_CORE0 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
