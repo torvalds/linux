@@ -467,6 +467,19 @@ enum surface_update_type {
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
 };
 
+enum dc_lock_descriptor {
+	LOCK_DESCRIPTOR_NONE = 0x0,
+	LOCK_DESCRIPTOR_STATE = 0x1,
+	LOCK_DESCRIPTOR_LINK = 0x2,
+	LOCK_DESCRIPTOR_STREAM = 0x4,
+	LOCK_DESCRIPTOR_PLANE = 0x8,
+};
+
+struct surface_update_descriptor {
+	enum surface_update_type update_type;
+	enum dc_lock_descriptor lock_descriptor;
+};
+
 /* Forward declaration*/
 struct dc;
 struct dc_plane_state;

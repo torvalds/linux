@@ -148,10 +148,16 @@ static const char DC_BUILD_ID[] = "production-build";
 
 /* Private functions */
 
-static inline void elevate_update_type(enum surface_update_type *original, enum surface_update_type new)
+static inline void elevate_update_type(
+		struct surface_update_descriptor *descriptor,
+		enum surface_update_type new_type,
+		enum dc_lock_descriptor new_locks
+)
 {
-	if (new > *original)
-		*original = new;
+	if (new_type > descriptor->update_type)
+		descriptor->update_type = new_type;
+
+	descriptor->lock_descriptor |= new_locks;
 }
 
 static void destroy_links(struct dc *dc)
@@ -2656,47 +2662,49 @@ static bool is_surface_in_context(
 	return false;
 }
 
-static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
+static struct surface_update_descriptor get_plane_info_update_type(const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
-	enum surface_update_type update_type = UPDATE_TYPE_FAST;
+	struct surface_update_descriptor update_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	if (!u->plane_info)
-		return UPDATE_TYPE_FAST;
+		return update_type;
+
+	elevate_update_type(&update_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_PLANE);
 
 	if (u->plane_info->color_space != u->surface->color_space) {
 		update_flags->bits.color_space_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror) {
 		update_flags->bits.horizontal_mirror_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->rotation != u->surface->rotation) {
 		update_flags->bits.rotation_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->format != u->surface->format) {
 		update_flags->bits.pixel_format_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->stereo_format != u->surface->stereo_format) {
 		update_flags->bits.stereo_format_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha) {
 		update_flags->bits.per_pixel_alpha_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->global_alpha_value != u->surface->global_alpha_value) {
 		update_flags->bits.global_alpha_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
@@ -2708,7 +2716,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		 * recalculate stutter period.
 		 */
 		update_flags->bits.dcc_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
@@ -2717,33 +2725,33 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		 * and DML calculation
 		 */
 		update_flags->bits.bpp_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (u->plane_info->plane_size.surface_pitch != u->surface->plane_size.surface_pitch
 			|| u->plane_info->plane_size.chroma_pitch != u->surface->plane_size.chroma_pitch) {
 		update_flags->bits.plane_size_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 	}
 
 	const struct dc_tiling_info *tiling = &u->plane_info->tiling_info;
 
 	if (memcmp(tiling, &u->surface->tiling_info, sizeof(*tiling)) != 0) {
 		update_flags->bits.swizzle_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 
 		switch (tiling->gfxversion) {
 		case DcGfxVersion9:
 		case DcGfxVersion10:
 		case DcGfxVersion11:
 			if (tiling->gfx9.swizzle != DC_SW_LINEAR) {
-				elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+				elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 				update_flags->bits.bandwidth_change = 1;
 			}
 			break;
 		case DcGfxAddr3:
 			if (tiling->gfx_addr3.swizzle != DC_ADDR3_SW_LINEAR) {
-				elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+				elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 				update_flags->bits.bandwidth_change = 1;
 			}
 			break;
@@ -2759,14 +2767,17 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	return update_type;
 }
 
-static enum surface_update_type get_scaling_info_update_type(
+static struct surface_update_descriptor get_scaling_info_update_type(
 		const struct dc_check_config *check_config,
 		const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
+	struct surface_update_descriptor update_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	if (!u->scaling_info)
-		return UPDATE_TYPE_FAST;
+		return update_type;
+
+	elevate_update_type(&update_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_PLANE);
 
 	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
 			|| u->scaling_info->src_rect.height != u->surface->src_rect.height
@@ -2809,40 +2820,41 @@ static enum surface_update_type get_scaling_info_update_type(
 	if (update_flags->bits.clock_change
 			|| update_flags->bits.bandwidth_change
 			|| update_flags->bits.scaling_change)
-		return UPDATE_TYPE_FULL;
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 
 	if (update_flags->bits.position_change)
-		return UPDATE_TYPE_MED;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 
-	return UPDATE_TYPE_FAST;
+	return update_type;
 }
 
-static enum surface_update_type det_surface_update(
+static struct surface_update_descriptor det_surface_update(
 		const struct dc_check_config *check_config,
-		const struct dc_surface_update *u)
+		struct dc_surface_update *u)
 {
-	enum surface_update_type type;
-	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
+	struct surface_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 
 	if (u->surface->force_full_update) {
 		update_flags->raw = 0xFFFFFFFF;
-		return UPDATE_TYPE_FULL;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		return overall_type;
 	}
 
 	update_flags->raw = 0; // Reset all flags
 
-	type = get_plane_info_update_type(u);
-	elevate_update_type(&overall_type, type);
+	struct surface_update_descriptor inner_type = get_plane_info_update_type(u);
 
-	type = get_scaling_info_update_type(check_config, u);
-	elevate_update_type(&overall_type, type);
+	elevate_update_type(&overall_type, inner_type.update_type, inner_type.lock_descriptor);
+
+	inner_type = get_scaling_info_update_type(check_config, u);
+	elevate_update_type(&overall_type, inner_type.update_type, inner_type.lock_descriptor);
 
 	if (u->flip_addr) {
 		update_flags->bits.addr_update = 1;
 		if (u->flip_addr->address.tmz_surface != u->surface->address.tmz_surface) {
 			update_flags->bits.tmz_changed = 1;
-			elevate_update_type(&overall_type, UPDATE_TYPE_FULL);
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 		}
 	}
 	if (u->in_transfer_func)
@@ -2878,13 +2890,15 @@ static enum surface_update_type det_surface_update(
 	if (u->hdr_mult.value)
 		if (u->hdr_mult.value != u->surface->hdr_mult.value) {
 			update_flags->bits.hdr_mult = 1;
-			elevate_update_type(&overall_type, UPDATE_TYPE_MED);
+			// TODO: Should be fast?
+			elevate_update_type(&overall_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 		}
 
 	if (u->sdr_white_level_nits)
 		if (u->sdr_white_level_nits != u->surface->sdr_white_level_nits) {
 			update_flags->bits.sdr_white_level_nits = 1;
-			elevate_update_type(&overall_type, UPDATE_TYPE_FULL);
+			// TODO: Should be fast?
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 		}
 
 	if (u->cm2_params) {
@@ -2898,18 +2912,16 @@ static enum surface_update_type det_surface_update(
 			update_flags->bits.mcm_transfer_function_enable_change = 1;
 	}
 	if (update_flags->bits.in_transfer_func_change) {
-		type = UPDATE_TYPE_MED;
-		elevate_update_type(&overall_type, type);
+		// TODO: Fast?
+		elevate_update_type(&overall_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (update_flags->bits.lut_3d &&
 			u->surface->mcm_luts.lut3d_data.lut3d_src != DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
-		type = UPDATE_TYPE_FULL;
-		elevate_update_type(&overall_type, type);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 	if (update_flags->bits.mcm_transfer_function_enable_change) {
-		type = UPDATE_TYPE_FULL;
-		elevate_update_type(&overall_type, type);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (check_config->enable_legacy_fast_update &&
@@ -2917,8 +2929,7 @@ static enum surface_update_type det_surface_update(
 			update_flags->bits.gamut_remap_change ||
 			update_flags->bits.input_csc_change ||
 			update_flags->bits.coeff_reduction_change)) {
-		type = UPDATE_TYPE_FULL;
-		elevate_update_type(&overall_type, type);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 	return overall_type;
 }
@@ -2946,27 +2957,27 @@ static void force_immediate_gsl_plane_flip(struct dc *dc, struct dc_surface_upda
 	}
 }
 
-static enum surface_update_type check_update_surfaces_for_stream(
+static struct surface_update_descriptor check_update_surfaces_for_stream(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
-		struct dc_stream_update *stream_update
-)
+		struct dc_stream_update *stream_update)
 {
-	int i;
-	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
+	struct surface_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	if (stream_update && stream_update->pending_test_pattern) {
-		overall_type = UPDATE_TYPE_FULL;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	if (stream_update && stream_update->hw_cursor_req) {
-		overall_type = UPDATE_TYPE_FULL;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 	}
 
 	/* some stream updates require passive update */
 	if (stream_update) {
 		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
+
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 
 		if ((stream_update->src.height != 0 && stream_update->src.width != 0) ||
 			(stream_update->dst.height != 0 && stream_update->dst.width != 0) ||
@@ -3009,7 +3020,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 			su_flags->bits.out_csc = 1;
 
 		if (su_flags->raw != 0)
-			overall_type = UPDATE_TYPE_FULL;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 
 		if (stream_update->output_csc_transform)
 			su_flags->bits.out_csc = 1;
@@ -3021,11 +3032,11 @@ static enum surface_update_type check_update_surfaces_for_stream(
 			su_flags->bits.out_tf = 1;
 	}
 
-	for (i = 0 ; i < surface_count; i++) {
-		enum surface_update_type type =
+	for (int i = 0 ; i < surface_count; i++) {
+		struct surface_update_descriptor inner_type =
 				det_surface_update(check_config, &updates[i]);
 
-		elevate_update_type(&overall_type, type);
+		elevate_update_type(&overall_type, inner_type.update_type, inner_type.lock_descriptor);
 	}
 
 	return overall_type;
@@ -3036,7 +3047,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
  *
  * See :c:type:`enum surface_update_type <surface_update_type>` for explanation of update types
  */
-enum surface_update_type dc_check_update_surfaces_for_stream(
+struct surface_update_descriptor dc_check_update_surfaces_for_stream(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
@@ -3468,7 +3479,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 	context = dc->current_state;
 	update_type = dc_check_update_surfaces_for_stream(
-			&dc->check_config, srf_updates, surface_count, stream_update);
+			&dc->check_config, srf_updates, surface_count, stream_update).update_type;
 	if (full_update_required_weak(dc, srf_updates, surface_count, stream_update, stream))
 		update_type = UPDATE_TYPE_FULL;
 
