@@ -1826,6 +1826,7 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 		xas_load(&xas);
 		xas_set_mark(&xas, PAGECACHE_TAG_WRITEBACK);
 		xas_clear_mark(&xas, PAGECACHE_TAG_DIRTY);
+		xas_clear_mark(&xas, PAGECACHE_TAG_TOWRITE);
 		xas_unlock_irqrestore(&xas, flags);
 
 		btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
