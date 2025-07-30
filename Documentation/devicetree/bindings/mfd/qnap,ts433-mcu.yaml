@@ -19,6 +19,9 @@ properties:
       - qnap,ts233-mcu
       - qnap,ts433-mcu
 
+  nvmem-layout:
+    $ref: /schemas/nvmem/layouts/nvmem-layout.yaml
+
 patternProperties:
   "^fan-[0-9]+$":
     $ref: /schemas/hwmon/fan-common.yaml#
