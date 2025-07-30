@@ -374,64 +374,17 @@ bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_insert_merge);
 
-static int blk_mq_sched_alloc_map_and_rqs(struct request_queue *q,
-					  struct blk_mq_hw_ctx *hctx,
-					  unsigned int hctx_idx)
-{
-	if (blk_mq_is_shared_tags(q->tag_set->flags)) {
-		hctx->sched_tags = q->sched_shared_tags;
-		return 0;
-	}
-
-	hctx->sched_tags = blk_mq_alloc_map_and_rqs(q->tag_set, hctx_idx,
-						    q->nr_requests);
-
-	if (!hctx->sched_tags)
-		return -ENOMEM;
-	return 0;
-}
-
-static void blk_mq_exit_sched_shared_tags(struct request_queue *queue)
-{
-	blk_mq_free_rq_map(queue->sched_shared_tags);
-	queue->sched_shared_tags = NULL;
-}
-
 /* called in queue's release handler, tagset has gone away */
 static void blk_mq_sched_tags_teardown(struct request_queue *q, unsigned int flags)
 {
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (hctx->sched_tags) {
-			if (!blk_mq_is_shared_tags(flags))
-				blk_mq_free_rq_map(hctx->sched_tags);
-			hctx->sched_tags = NULL;
-		}
-	}
+	queue_for_each_hw_ctx(q, hctx, i)
+		hctx->sched_tags = NULL;
 
 	if (blk_mq_is_shared_tags(flags))
-		blk_mq_exit_sched_shared_tags(q);
-}
-
-static int blk_mq_init_sched_shared_tags(struct request_queue *queue)
-{
-	struct blk_mq_tag_set *set = queue->tag_set;
-
-	/*
-	 * Set initial depth at max so that we don't need to reallocate for
-	 * updating nr_requests.
-	 */
-	queue->sched_shared_tags = blk_mq_alloc_map_and_rqs(set,
-						BLK_MQ_NO_HCTX_IDX,
-						MAX_SCHED_RQ);
-	if (!queue->sched_shared_tags)
-		return -ENOMEM;
-
-	blk_mq_tag_update_sched_shared_tags(queue);
-
-	return 0;
+		q->sched_shared_tags = NULL;
 }
 
 void blk_mq_sched_reg_debugfs(struct request_queue *q)
@@ -458,8 +411,75 @@ void blk_mq_sched_unreg_debugfs(struct request_queue *q)
 	mutex_unlock(&q->debugfs_mutex);
 }
 
+void blk_mq_free_sched_tags(struct elevator_tags *et,
+		struct blk_mq_tag_set *set)
+{
+	unsigned long i;
+
+	/* Shared tags are stored at index 0 in @tags. */
+	if (blk_mq_is_shared_tags(set->flags))
+		blk_mq_free_map_and_rqs(set, et->tags[0], BLK_MQ_NO_HCTX_IDX);
+	else {
+		for (i = 0; i < et->nr_hw_queues; i++)
+			blk_mq_free_map_and_rqs(set, et->tags[i], i);
+	}
+
+	kfree(et);
+}
+
+struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
+		unsigned int nr_hw_queues)
+{
+	unsigned int nr_tags;
+	int i;
+	struct elevator_tags *et;
+	gfp_t gfp = GFP_NOIO | __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY;
+
+	if (blk_mq_is_shared_tags(set->flags))
+		nr_tags = 1;
+	else
+		nr_tags = nr_hw_queues;
+
+	et = kmalloc(sizeof(struct elevator_tags) +
+			nr_tags * sizeof(struct blk_mq_tags *), gfp);
+	if (!et)
+		return NULL;
+	/*
+	 * Default to double of smaller one between hw queue_depth and
+	 * 128, since we don't split into sync/async like the old code
+	 * did. Additionally, this is a per-hw queue depth.
+	 */
+	et->nr_requests = 2 * min_t(unsigned int, set->queue_depth,
+			BLKDEV_DEFAULT_RQ);
+	et->nr_hw_queues = nr_hw_queues;
+
+	if (blk_mq_is_shared_tags(set->flags)) {
+		/* Shared tags are stored at index 0 in @tags. */
+		et->tags[0] = blk_mq_alloc_map_and_rqs(set, BLK_MQ_NO_HCTX_IDX,
+					MAX_SCHED_RQ);
+		if (!et->tags[0])
+			goto out;
+	} else {
+		for (i = 0; i < et->nr_hw_queues; i++) {
+			et->tags[i] = blk_mq_alloc_map_and_rqs(set, i,
+					et->nr_requests);
+			if (!et->tags[i])
+				goto out_unwind;
+		}
+	}
+
+	return et;
+out_unwind:
+	while (--i >= 0)
+		blk_mq_free_map_and_rqs(set, et->tags[i], i);
+out:
+	kfree(et);
+	return NULL;
+}
+
 /* caller must have a reference to @e, will grab another one if successful */
-int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
+int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e,
+		struct elevator_tags *et)
 {
 	unsigned int flags = q->tag_set->flags;
 	struct blk_mq_hw_ctx *hctx;
@@ -467,40 +487,33 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	unsigned long i;
 	int ret;
 
-	/*
-	 * Default to double of smaller one between hw queue_depth and 128,
-	 * since we don't split into sync/async like the old code did.
-	 * Additionally, this is a per-hw queue depth.
-	 */
-	q->nr_requests = 2 * min_t(unsigned int, q->tag_set->queue_depth,
-				   BLKDEV_DEFAULT_RQ);
-
-	eq = elevator_alloc(q, e);
+	eq = elevator_alloc(q, e, et);
 	if (!eq)
 		return -ENOMEM;
 
+	q->nr_requests = et->nr_requests;
+
 	if (blk_mq_is_shared_tags(flags)) {
-		ret = blk_mq_init_sched_shared_tags(q);
-		if (ret)
-			goto err_put_elevator;
+		/* Shared tags are stored at index 0 in @et->tags. */
+		q->sched_shared_tags = et->tags[0];
+		blk_mq_tag_update_sched_shared_tags(q);
 	}
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		ret = blk_mq_sched_alloc_map_and_rqs(q, hctx, i);
-		if (ret)
-			goto err_free_map_and_rqs;
+		if (blk_mq_is_shared_tags(flags))
+			hctx->sched_tags = q->sched_shared_tags;
+		else
+			hctx->sched_tags = et->tags[i];
 	}
 
 	ret = e->ops.init_sched(q, eq);
 	if (ret)
-		goto err_free_map_and_rqs;
+		goto out;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (e->ops.init_hctx) {
 			ret = e->ops.init_hctx(hctx, i);
 			if (ret) {
-				eq = q->elevator;
-				blk_mq_sched_free_rqs(q);
 				blk_mq_exit_sched(q, eq);
 				kobject_put(&eq->kobj);
 				return ret;
@@ -509,10 +522,8 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	}
 	return 0;
 
-err_free_map_and_rqs:
-	blk_mq_sched_free_rqs(q);
+out:
 	blk_mq_sched_tags_teardown(q, flags);
-err_put_elevator:
 	kobject_put(&eq->kobj);
 	q->elevator = NULL;
 	return ret;
