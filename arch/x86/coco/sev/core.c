@@ -1045,11 +1045,13 @@ int __init sev_es_setup_ap_jump_table(struct real_mode_header *rmh)
  * This is needed by the OVMF UEFI firmware which will use whatever it finds in
  * the GHCB MSR as its GHCB to talk to the hypervisor. So make sure the per-cpu
  * runtime GHCBs used by the kernel are also mapped in the EFI page-table.
+ *
+ * When running under SVSM the CA page is needed too, so map it as well.
  */
-int __init sev_es_efi_map_ghcbs(pgd_t *pgd)
+int __init sev_es_efi_map_ghcbs_cas(pgd_t *pgd)
 {
+	unsigned long address, pflags, pflags_enc;
 	struct sev_es_runtime_data *data;
-	unsigned long address, pflags;
 	int cpu;
 	u64 pfn;
 
@@ -1057,6 +1059,7 @@ int __init sev_es_efi_map_ghcbs(pgd_t *pgd)
 		return 0;
 
 	pflags = _PAGE_NX | _PAGE_RW;
+	pflags_enc = cc_mkenc(pflags);
 
 	for_each_possible_cpu(cpu) {
 		data = per_cpu(runtime_data, cpu);
@@ -1066,6 +1069,16 @@ int __init sev_es_efi_map_ghcbs(pgd_t *pgd)
 
 		if (kernel_map_pages_in_pgd(pgd, pfn, address, 1, pflags))
 			return 1;
+
+		if (snp_vmpl) {
+			address = per_cpu(svsm_caa_pa, cpu);
+			if (!address)
+				return 1;
+
+			pfn = address >> PAGE_SHIFT;
+			if (kernel_map_pages_in_pgd(pgd, pfn, address, 1, pflags_enc))
+				return 1;
+		}
 	}
 
 	return 0;
@@ -1389,16 +1402,16 @@ int snp_issue_svsm_attest_req(u64 call_id, struct svsm_call *call,
 }
 EXPORT_SYMBOL_GPL(snp_issue_svsm_attest_req);
 
-static int snp_issue_guest_request(struct snp_guest_req *req, struct snp_req_data *input,
-				   struct snp_guest_request_ioctl *rio)
+static int snp_issue_guest_request(struct snp_guest_req *req)
 {
+	struct snp_req_data *input = &req->input;
 	struct ghcb_state state;
 	struct es_em_ctxt ctxt;
 	unsigned long flags;
 	struct ghcb *ghcb;
 	int ret;
 
-	rio->exitinfo2 = SEV_RET_NO_FW_CALL;
+	req->exitinfo2 = SEV_RET_NO_FW_CALL;
 
 	/*
 	 * __sev_get_ghcb() needs to run with IRQs disabled because it is using
@@ -1423,8 +1436,8 @@ static int snp_issue_guest_request(struct snp_guest_req *req, struct snp_req_dat
 	if (ret)
 		goto e_put;
 
-	rio->exitinfo2 = ghcb->save.sw_exit_info_2;
-	switch (rio->exitinfo2) {
+	req->exitinfo2 = ghcb->save.sw_exit_info_2;
+	switch (req->exitinfo2) {
 	case 0:
 		break;
 
@@ -1919,8 +1932,7 @@ static int enc_payload(struct snp_msg_desc *mdesc, u64 seqno, struct snp_guest_r
 	return 0;
 }
 
-static int __handle_guest_request(struct snp_msg_desc *mdesc, struct snp_guest_req *req,
-				  struct snp_guest_request_ioctl *rio)
+static int __handle_guest_request(struct snp_msg_desc *mdesc, struct snp_guest_req *req)
 {
 	unsigned long req_start = jiffies;
 	unsigned int override_npages = 0;
@@ -1934,7 +1946,7 @@ retry_request:
 	 * sequence number must be incremented or the VMPCK must be deleted to
 	 * prevent reuse of the IV.
 	 */
-	rc = snp_issue_guest_request(req, &req->input, rio);
+	rc = snp_issue_guest_request(req);
 	switch (rc) {
 	case -ENOSPC:
 		/*
@@ -1987,7 +1999,7 @@ retry_request:
 	snp_inc_msg_seqno(mdesc);
 
 	if (override_err) {
-		rio->exitinfo2 = override_err;
+		req->exitinfo2 = override_err;
 
 		/*
 		 * If an extended guest request was issued and the supplied certificate
@@ -2005,11 +2017,19 @@ retry_request:
 	return rc;
 }
 
-int snp_send_guest_request(struct snp_msg_desc *mdesc, struct snp_guest_req *req,
-			   struct snp_guest_request_ioctl *rio)
+int snp_send_guest_request(struct snp_msg_desc *mdesc, struct snp_guest_req *req)
 {
 	u64 seqno;
 	int rc;
+
+	/*
+	 * enc_payload() calls aesgcm_encrypt(), which can potentially offload to HW.
+	 * The offload's DMA SG list of data to encrypt has to be in linear mapping.
+	 */
+	if (!virt_addr_valid(req->req_buf) || !virt_addr_valid(req->resp_buf)) {
+		pr_warn("AES-GSM buffers must be in linear mapping");
+		return -EINVAL;
+	}
 
 	guard(mutex)(&snp_cmd_mutex);
 
@@ -2043,14 +2063,14 @@ int snp_send_guest_request(struct snp_msg_desc *mdesc, struct snp_guest_req *req
 	req->input.resp_gpa = __pa(mdesc->response);
 	req->input.data_gpa = req->certs_data ? __pa(req->certs_data) : 0;
 
-	rc = __handle_guest_request(mdesc, req, rio);
+	rc = __handle_guest_request(mdesc, req);
 	if (rc) {
 		if (rc == -EIO &&
-		    rio->exitinfo2 == SNP_GUEST_VMM_ERR(SNP_GUEST_VMM_ERR_INVALID_LEN))
+		    req->exitinfo2 == SNP_GUEST_VMM_ERR(SNP_GUEST_VMM_ERR_INVALID_LEN))
 			return rc;
 
 		pr_alert("Detected error from ASP request. rc: %d, exitinfo2: 0x%llx\n",
-			 rc, rio->exitinfo2);
+			 rc, req->exitinfo2);
 
 		snp_disable_vmpck(mdesc);
 		return rc;
@@ -2069,11 +2089,10 @@ EXPORT_SYMBOL_GPL(snp_send_guest_request);
 
 static int __init snp_get_tsc_info(void)
 {
-	struct snp_guest_request_ioctl *rio;
 	struct snp_tsc_info_resp *tsc_resp;
 	struct snp_tsc_info_req *tsc_req;
 	struct snp_msg_desc *mdesc;
-	struct snp_guest_req *req;
+	struct snp_guest_req req = {};
 	int rc = -ENOMEM;
 
 	tsc_req = kzalloc(sizeof(*tsc_req), GFP_KERNEL);
@@ -2089,32 +2108,24 @@ static int __init snp_get_tsc_info(void)
 	if (!tsc_resp)
 		goto e_free_tsc_req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
-	if (!req)
-		goto e_free_tsc_resp;
-
-	rio = kzalloc(sizeof(*rio), GFP_KERNEL);
-	if (!rio)
-		goto e_free_req;
-
 	mdesc = snp_msg_alloc();
 	if (IS_ERR_OR_NULL(mdesc))
-		goto e_free_rio;
+		goto e_free_tsc_resp;
 
 	rc = snp_msg_init(mdesc, snp_vmpl);
 	if (rc)
 		goto e_free_mdesc;
 
-	req->msg_version = MSG_HDR_VER;
-	req->msg_type = SNP_MSG_TSC_INFO_REQ;
-	req->vmpck_id = snp_vmpl;
-	req->req_buf = tsc_req;
-	req->req_sz = sizeof(*tsc_req);
-	req->resp_buf = (void *)tsc_resp;
-	req->resp_sz = sizeof(*tsc_resp) + AUTHTAG_LEN;
-	req->exit_code = SVM_VMGEXIT_GUEST_REQUEST;
+	req.msg_version = MSG_HDR_VER;
+	req.msg_type = SNP_MSG_TSC_INFO_REQ;
+	req.vmpck_id = snp_vmpl;
+	req.req_buf = tsc_req;
+	req.req_sz = sizeof(*tsc_req);
+	req.resp_buf = (void *)tsc_resp;
+	req.resp_sz = sizeof(*tsc_resp) + AUTHTAG_LEN;
+	req.exit_code = SVM_VMGEXIT_GUEST_REQUEST;
 
-	rc = snp_send_guest_request(mdesc, req, rio);
+	rc = snp_send_guest_request(mdesc, &req);
 	if (rc)
 		goto e_request;
 
@@ -2135,11 +2146,7 @@ e_request:
 	memzero_explicit(tsc_resp, sizeof(*tsc_resp) + AUTHTAG_LEN);
 e_free_mdesc:
 	snp_msg_free(mdesc);
-e_free_rio:
-	kfree(rio);
-e_free_req:
-	kfree(req);
- e_free_tsc_resp:
+e_free_tsc_resp:
 	kfree(tsc_resp);
 e_free_tsc_req:
 	kfree(tsc_req);
