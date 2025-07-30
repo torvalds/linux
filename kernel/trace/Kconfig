@@ -792,6 +792,20 @@ config UPROBE_EVENTS
 	  This option is required if you plan to use perf-probe subcommand
 	  of perf tools on user space applications.
 
+config EPROBE_EVENTS
+	bool "Enable event-based dynamic events"
+	depends on TRACING
+	depends on HAVE_REGS_AND_STACK_ACCESS_API
+	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
+	default y
+	help
+	  Eprobes are dynamic events that can be placed on other existing
+	  events. It can be used to limit what fields are recorded in
+	  an event or even dereference a field of an event. It can
+	  convert the type of an event field. For example, turn an
+	  address into a string.
+
 config BPF_EVENTS
 	depends on BPF_SYSCALL
 	depends on (KPROBE_EVENTS || UPROBE_EVENTS) && PERF_EVENTS
