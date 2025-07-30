@@ -568,6 +568,7 @@ struct dmub_srv {
 
 	bool sw_init;
 	bool hw_init;
+	bool dpia_supported;
 
 	uint64_t fb_base;
 	uint64_t fb_offset;
