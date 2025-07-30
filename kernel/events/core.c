@@ -6842,10 +6842,20 @@ static vm_fault_t perf_mmap_pfn_mkwrite(struct vm_fault *vmf)
 	return vmf->pgoff == 0 ? 0 : VM_FAULT_SIGBUS;
 }
 
+static int perf_mmap_may_split(struct vm_area_struct *vma, unsigned long addr)
+{
+	/*
+	 * Forbid splitting perf mappings to prevent refcount leaks due to
+	 * the resulting non-matching offsets and sizes. See open()/close().
+	 */
+	return -EINVAL;
+}
+
 static const struct vm_operations_struct perf_mmap_vmops = {
 	.open		= perf_mmap_open,
 	.close		= perf_mmap_close, /* non mergeable */
 	.pfn_mkwrite	= perf_mmap_pfn_mkwrite,
+	.may_split	= perf_mmap_may_split,
 };
 
 static int map_range(struct perf_buffer *rb, struct vm_area_struct *vma)
