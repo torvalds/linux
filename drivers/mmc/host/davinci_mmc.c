@@ -588,7 +588,7 @@ static void mmc_davinci_request(struct mmc_host *mmc, struct mmc_request *req)
 		cpu_relax();
 	}
 	if (mmcst1 & MMCST1_BUSY) {
-		dev_err(mmc_dev(host->mmc), "still BUSY? bad ... \n");
+		dev_err(mmc_dev(host->mmc), "still BUSY? bad ...\n");
 		req->cmd->error = -ETIMEDOUT;
 		mmc_request_done(mmc, req);
 		return;
