@@ -1953,7 +1953,7 @@ static void jedec_reset(u32 base, struct map_info *map, struct cfi_private *cfi)
 	 * as they will ignore the writes and don't care what address
 	 * the F0 is written to */
 	if (cfi->addr_unlock1) {
-		pr_debug( "reset unlock called %x %x \n",
+		pr_debug("reset unlock called %x %x\n",
 		       cfi->addr_unlock1,cfi->addr_unlock2);
 		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
 		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, cfi->device_type, NULL);
