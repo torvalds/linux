@@ -24813,7 +24813,7 @@ TEXAS INSTRUMENTS TPS6131X FLASH LED DRIVER
 M:	Matthias Fend <matthias.fend@emfend.at>
 L:	linux-leds@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/leds/ti,tps6131x.yaml
+F:	Documentation/devicetree/bindings/leds/ti,tps61310.yaml
 F:	drivers/leds/flash/leds-tps6131x.c
 
 TEXAS INSTRUMENTS' DAC7612 DAC DRIVER
