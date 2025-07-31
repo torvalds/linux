@@ -155,6 +155,8 @@ static int __init xe_init(void)
 	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
 		err = xe_call_init_func(init_funcs + i);
 		if (err) {
+			pr_info("%s: module_init aborted at %ps %pe\n",
+				DRIVER_NAME, init_funcs[i].init, ERR_PTR(err));
 			while (i--)
 				xe_call_exit_func(init_funcs + i);
 			return err;
