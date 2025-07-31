@@ -131,7 +131,7 @@ static void skx_init_mc_mapping(struct skx_dev *d)
 	 * EDAC driver.
 	 */
 	for (int i = 0; i < NUM_IMC; i++)
-		d->mc_mapping[i] = i;
+		d->imc[i].mc_mapping = i;
 }
 
 void skx_set_mc_mapping(struct skx_dev *d, u8 pmc, u8 lmc)
@@ -139,16 +139,16 @@ void skx_set_mc_mapping(struct skx_dev *d, u8 pmc, u8 lmc)
 	edac_dbg(0, "Set the mapping of mc phy idx to logical idx: %02d -> %02d\n",
 		 pmc, lmc);
 
-	d->mc_mapping[pmc] = lmc;
+	d->imc[pmc].mc_mapping = lmc;
 }
 EXPORT_SYMBOL_GPL(skx_set_mc_mapping);
 
 static u8 skx_get_mc_mapping(struct skx_dev *d, u8 pmc)
 {
 	edac_dbg(0, "Get the mapping of mc phy idx to logical idx: %02d -> %02d\n",
-		 pmc, d->mc_mapping[pmc]);
+		 pmc, d->imc[pmc].mc_mapping);
 
-	return d->mc_mapping[pmc];
+	return d->imc[pmc].mc_mapping;
 }
 
 static bool skx_adxl_decode(struct decoded_addr *res, enum error_source err_src)

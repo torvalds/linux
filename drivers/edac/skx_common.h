@@ -135,16 +135,6 @@ struct skx_dev {
 	struct pci_dev *pcu_cr3; /* for HBM memory detection */
 	u32 mcroute;
 	int num_imc;
-	/*
-	 * Some server BIOS may hide certain memory controllers, and the
-	 * EDAC driver skips those hidden memory controllers. However, the
-	 * ADXL still decodes memory error address using physical memory
-	 * controller indices. The mapping table is used to convert the
-	 * physical indices (reported by ADXL) to the logical indices
-	 * (used the EDAC driver) of present memory controllers during the
-	 * error handling process.
-	 */
-	u8 mc_mapping[NUM_IMC];
 	struct skx_imc {
 		struct mem_ctl_info *mci;
 		struct pci_dev *mdev; /* for i10nm CPU */
@@ -156,6 +146,16 @@ struct skx_dev {
 		u8 mc;	/* system wide mc# */
 		u8 lmc;	/* socket relative mc# */
 		u8 src_id;
+		/*
+		 * Some server BIOS may hide certain memory controllers, and the
+		 * EDAC driver skips those hidden memory controllers. However, the
+		 * ADXL still decodes memory error address using physical memory
+		 * controller indices. The mapping table is used to convert the
+		 * physical indices (reported by ADXL) to the logical indices
+		 * (used the EDAC driver) of present memory controllers during the
+		 * error handling process.
+		 */
+		u8 mc_mapping;
 		struct skx_channel {
 			struct pci_dev	*cdev;
 			struct pci_dev	*edev;
