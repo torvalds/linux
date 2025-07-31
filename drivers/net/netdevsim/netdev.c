@@ -371,7 +371,8 @@ static int nsim_poll(struct napi_struct *napi, int budget)
 	int done;
 
 	done = nsim_rcv(rq, budget);
-	napi_complete(napi);
+	if (done < budget)
+		napi_complete_done(napi, done);
 
 	return done;
 }

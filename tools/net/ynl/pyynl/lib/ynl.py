@@ -231,14 +231,7 @@ class NlMsg:
                     self.extack['unknown'].append(extack)
 
             if attr_space:
-                # We don't have the ability to parse nests yet, so only do global
-                if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
-                    miss_type = self.extack['miss-type']
-                    if miss_type in attr_space.attrs_by_val:
-                        spec = attr_space.attrs_by_val[miss_type]
-                        self.extack['miss-type'] = spec['name']
-                        if 'doc' in spec:
-                            self.extack['miss-type-doc'] = spec['doc']
+                self.annotate_extack(attr_space)
 
     def _decode_policy(self, raw):
         policy = {}
@@ -264,6 +257,18 @@ class NlMsg:
                 policy['mask'] = attr.as_scalar('u64')
         return policy
 
+    def annotate_extack(self, attr_space):
+        """ Make extack more human friendly with attribute information """
+
+        # We don't have the ability to parse nests yet, so only do global
+        if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
+            miss_type = self.extack['miss-type']
+            if miss_type in attr_space.attrs_by_val:
+                spec = attr_space.attrs_by_val[miss_type]
+                self.extack['miss-type'] = spec['name']
+                if 'doc' in spec:
+                    self.extack['miss-type-doc'] = spec['doc']
+
     def cmd(self):
         return self.nl_type
 
@@ -277,12 +282,12 @@ class NlMsg:
 
 
 class NlMsgs:
-    def __init__(self, data, attr_space=None):
+    def __init__(self, data):
         self.msgs = []
 
         offset = 0
         while offset < len(data):
-            msg = NlMsg(data, offset, attr_space=attr_space)
+            msg = NlMsg(data, offset)
             offset += msg.nl_len
             self.msgs.append(msg)
 
@@ -1034,12 +1039,13 @@ class YnlFamily(SpecFamily):
         op_rsp = []
         while not done:
             reply = self.sock.recv(self._recv_size)
-            nms = NlMsgs(reply, attr_space=op.attr_set)
+            nms = NlMsgs(reply)
             self._recv_dbg_print(reply, nms)
             for nl_msg in nms:
                 if nl_msg.nl_seq in reqs_by_seq:
                     (op, vals, req_msg, req_flags) = reqs_by_seq[nl_msg.nl_seq]
                     if nl_msg.extack:
+                        nl_msg.annotate_extack(op.attr_set)
                         self._decode_extack(req_msg, op, nl_msg.extack, vals)
                 else:
                     op = None

@@ -374,11 +374,6 @@ static struct st_pio_control *st_get_pio_control(
 }
 
 /* Low level functions.. */
-static inline int st_gpio_bank(int gpio)
-{
-	return gpio/ST_GPIO_PINS_PER_BANK;
-}
-
 static inline int st_gpio_pin(int gpio)
 {
 	return gpio%ST_GPIO_PINS_PER_BANK;

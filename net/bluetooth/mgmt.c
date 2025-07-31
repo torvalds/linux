@@ -1447,22 +1447,17 @@ static void settings_rsp(struct mgmt_pending_cmd *cmd, void *data)
 
 	send_settings_rsp(cmd->sk, cmd->opcode, match->hdev);
 
-	list_del(&cmd->list);
-
 	if (match->sk == NULL) {
 		match->sk = cmd->sk;
 		sock_hold(match->sk);
 	}
-
-	mgmt_pending_free(cmd);
 }
 
 static void cmd_status_rsp(struct mgmt_pending_cmd *cmd, void *data)
 {
 	u8 *status = data;
 
-	mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, *status);
-	mgmt_pending_remove(cmd);
+	mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode, *status);
 }
 
 static void cmd_complete_rsp(struct mgmt_pending_cmd *cmd, void *data)
@@ -1476,8 +1471,6 @@ static void cmd_complete_rsp(struct mgmt_pending_cmd *cmd, void *data)
 
 	if (cmd->cmd_complete) {
 		cmd->cmd_complete(cmd, match->mgmt_status);
-		mgmt_pending_remove(cmd);
-
 		return;
 	}
 
@@ -1486,13 +1479,13 @@ static void cmd_complete_rsp(struct mgmt_pending_cmd *cmd, void *data)
 
 static int generic_cmd_complete(struct mgmt_pending_cmd *cmd, u8 status)
 {
-	return mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, status,
+	return mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode, status,
 				 cmd->param, cmd->param_len);
 }
 
 static int addr_cmd_complete(struct mgmt_pending_cmd *cmd, u8 status)
 {
-	return mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, status,
+	return mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode, status,
 				 cmd->param, sizeof(struct mgmt_addr_info));
 }
 
@@ -1532,7 +1525,7 @@ static void mgmt_set_discoverable_complete(struct hci_dev *hdev, void *data,
 
 	if (err) {
 		u8 mgmt_err = mgmt_status(err);
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_err);
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 		goto done;
 	}
@@ -1707,7 +1700,7 @@ static void mgmt_set_connectable_complete(struct hci_dev *hdev, void *data,
 
 	if (err) {
 		u8 mgmt_err = mgmt_status(err);
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_err);
 		goto done;
 	}
 
@@ -1943,8 +1936,8 @@ static void set_ssp_complete(struct hci_dev *hdev, void *data, int err)
 			new_settings(hdev, NULL);
 		}
 
-		mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, cmd_status_rsp,
-				     &mgmt_err);
+		mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, true,
+				     cmd_status_rsp, &mgmt_err);
 		return;
 	}
 
@@ -1954,7 +1947,7 @@ static void set_ssp_complete(struct hci_dev *hdev, void *data, int err)
 		changed = hci_dev_test_and_clear_flag(hdev, HCI_SSP_ENABLED);
 	}
 
-	mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, settings_rsp, &match);
+	mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, true, settings_rsp, &match);
 
 	if (changed)
 		new_settings(hdev, match.sk);
@@ -2074,12 +2067,12 @@ static void set_le_complete(struct hci_dev *hdev, void *data, int err)
 	bt_dev_dbg(hdev, "err %d", err);
 
 	if (status) {
-		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, cmd_status_rsp,
-							&status);
+		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, true, cmd_status_rsp,
+				     &status);
 		return;
 	}
 
-	mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, settings_rsp, &match);
+	mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, true, settings_rsp, &match);
 
 	new_settings(hdev, match.sk);
 
@@ -2138,7 +2131,7 @@ static void set_mesh_complete(struct hci_dev *hdev, void *data, int err)
 	struct sock *sk = cmd->sk;
 
 	if (status) {
-		mgmt_pending_foreach(MGMT_OP_SET_MESH_RECEIVER, hdev,
+		mgmt_pending_foreach(MGMT_OP_SET_MESH_RECEIVER, hdev, true,
 				     cmd_status_rsp, &status);
 		return;
 	}
@@ -2638,7 +2631,7 @@ static void mgmt_class_complete(struct hci_dev *hdev, void *data, int err)
 
 	bt_dev_dbg(hdev, "err %d", err);
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 			  mgmt_status(err), hdev->dev_class, 3);
 
 	mgmt_pending_free(cmd);
@@ -3427,7 +3420,7 @@ static int pairing_complete(struct mgmt_pending_cmd *cmd, u8 status)
 	bacpy(&rp.addr.bdaddr, &conn->dst);
 	rp.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
 
-	err = mgmt_cmd_complete(cmd->sk, cmd->index, MGMT_OP_PAIR_DEVICE,
+	err = mgmt_cmd_complete(cmd->sk, cmd->hdev->id, MGMT_OP_PAIR_DEVICE,
 				status, &rp, sizeof(rp));
 
 	/* So we don't get further callbacks for this connection */
@@ -5108,24 +5101,14 @@ static void mgmt_adv_monitor_added(struct sock *sk, struct hci_dev *hdev,
 	mgmt_event(MGMT_EV_ADV_MONITOR_ADDED, hdev, &ev, sizeof(ev), sk);
 }
 
-void mgmt_adv_monitor_removed(struct hci_dev *hdev, u16 handle)
+static void mgmt_adv_monitor_removed(struct sock *sk, struct hci_dev *hdev,
+				     __le16 handle)
 {
 	struct mgmt_ev_adv_monitor_removed ev;
-	struct mgmt_pending_cmd *cmd;
-	struct sock *sk_skip = NULL;
-	struct mgmt_cp_remove_adv_monitor *cp;
 
-	cmd = pending_find(MGMT_OP_REMOVE_ADV_MONITOR, hdev);
-	if (cmd) {
-		cp = cmd->param;
+	ev.monitor_handle = handle;
 
-		if (cp->monitor_handle)
-			sk_skip = cmd->sk;
-	}
-
-	ev.monitor_handle = cpu_to_le16(handle);
-
-	mgmt_event(MGMT_EV_ADV_MONITOR_REMOVED, hdev, &ev, sizeof(ev), sk_skip);
+	mgmt_event(MGMT_EV_ADV_MONITOR_REMOVED, hdev, &ev, sizeof(ev), sk);
 }
 
 static int read_adv_mon_features(struct sock *sk, struct hci_dev *hdev,
@@ -5196,7 +5179,7 @@ static void mgmt_add_adv_patterns_monitor_complete(struct hci_dev *hdev,
 		hci_update_passive_scan(hdev);
 	}
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 			  mgmt_status(status), &rp, sizeof(rp));
 	mgmt_pending_remove(cmd);
 
@@ -5227,8 +5210,7 @@ static int __add_adv_patterns_monitor(struct sock *sk, struct hci_dev *hdev,
 
 	if (pending_find(MGMT_OP_SET_LE, hdev) ||
 	    pending_find(MGMT_OP_ADD_ADV_PATTERNS_MONITOR, hdev) ||
-	    pending_find(MGMT_OP_ADD_ADV_PATTERNS_MONITOR_RSSI, hdev) ||
-	    pending_find(MGMT_OP_REMOVE_ADV_MONITOR, hdev)) {
+	    pending_find(MGMT_OP_ADD_ADV_PATTERNS_MONITOR_RSSI, hdev)) {
 		status = MGMT_STATUS_BUSY;
 		goto unlock;
 	}
@@ -5398,8 +5380,7 @@ static void mgmt_remove_adv_monitor_complete(struct hci_dev *hdev,
 	struct mgmt_pending_cmd *cmd = data;
 	struct mgmt_cp_remove_adv_monitor *cp;
 
-	if (status == -ECANCELED ||
-	    cmd != pending_find(MGMT_OP_REMOVE_ADV_MONITOR, hdev))
+	if (status == -ECANCELED)
 		return;
 
 	hci_dev_lock(hdev);
@@ -5408,12 +5389,14 @@ static void mgmt_remove_adv_monitor_complete(struct hci_dev *hdev,
 
 	rp.monitor_handle = cp->monitor_handle;
 
-	if (!status)
+	if (!status) {
+		mgmt_adv_monitor_removed(cmd->sk, hdev, cp->monitor_handle);
 		hci_update_passive_scan(hdev);
+	}
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 			  mgmt_status(status), &rp, sizeof(rp));
-	mgmt_pending_remove(cmd);
+	mgmt_pending_free(cmd);
 
 	hci_dev_unlock(hdev);
 	bt_dev_dbg(hdev, "remove monitor %d complete, status %d",
@@ -5423,10 +5406,6 @@ static void mgmt_remove_adv_monitor_complete(struct hci_dev *hdev,
 static int mgmt_remove_adv_monitor_sync(struct hci_dev *hdev, void *data)
 {
 	struct mgmt_pending_cmd *cmd = data;
-
-	if (cmd != pending_find(MGMT_OP_REMOVE_ADV_MONITOR, hdev))
-		return -ECANCELED;
-
 	struct mgmt_cp_remove_adv_monitor *cp = cmd->param;
 	u16 handle = __le16_to_cpu(cp->monitor_handle);
 
@@ -5445,14 +5424,13 @@ static int remove_adv_monitor(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (pending_find(MGMT_OP_SET_LE, hdev) ||
-	    pending_find(MGMT_OP_REMOVE_ADV_MONITOR, hdev) ||
 	    pending_find(MGMT_OP_ADD_ADV_PATTERNS_MONITOR, hdev) ||
 	    pending_find(MGMT_OP_ADD_ADV_PATTERNS_MONITOR_RSSI, hdev)) {
 		status = MGMT_STATUS_BUSY;
 		goto unlock;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_ADV_MONITOR, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_REMOVE_ADV_MONITOR, hdev, data, len);
 	if (!cmd) {
 		status = MGMT_STATUS_NO_RESOURCES;
 		goto unlock;
@@ -5462,7 +5440,7 @@ static int remove_adv_monitor(struct sock *sk, struct hci_dev *hdev,
 				  mgmt_remove_adv_monitor_complete);
 
 	if (err) {
-		mgmt_pending_remove(cmd);
+		mgmt_pending_free(cmd);
 
 		if (err == -ENOMEM)
 			status = MGMT_STATUS_NO_RESOURCES;
@@ -5792,7 +5770,7 @@ static void start_discovery_complete(struct hci_dev *hdev, void *data, int err)
 	    cmd != pending_find(MGMT_OP_START_SERVICE_DISCOVERY, hdev))
 		return;
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, mgmt_status(err),
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_status(err),
 			  cmd->param, 1);
 	mgmt_pending_remove(cmd);
 
@@ -6013,7 +5991,7 @@ static void stop_discovery_complete(struct hci_dev *hdev, void *data, int err)
 
 	bt_dev_dbg(hdev, "err %d", err);
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, mgmt_status(err),
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_status(err),
 			  cmd->param, 1);
 	mgmt_pending_remove(cmd);
 
@@ -6238,7 +6216,7 @@ static void set_advertising_complete(struct hci_dev *hdev, void *data, int err)
 	u8 status = mgmt_status(err);
 
 	if (status) {
-		mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev,
+		mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev, true,
 				     cmd_status_rsp, &status);
 		return;
 	}
@@ -6248,7 +6226,7 @@ static void set_advertising_complete(struct hci_dev *hdev, void *data, int err)
 	else
 		hci_dev_clear_flag(hdev, HCI_ADVERTISING);
 
-	mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev, settings_rsp,
+	mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev, true, settings_rsp,
 			     &match);
 
 	new_settings(hdev, match.sk);
@@ -6592,7 +6570,7 @@ static void set_bredr_complete(struct hci_dev *hdev, void *data, int err)
 		 */
 		hci_dev_clear_flag(hdev, HCI_BREDR_ENABLED);
 
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_err);
 	} else {
 		send_settings_rsp(cmd->sk, MGMT_OP_SET_BREDR, hdev);
 		new_settings(hdev, cmd->sk);
@@ -6729,7 +6707,7 @@ static void set_secure_conn_complete(struct hci_dev *hdev, void *data, int err)
 	if (err) {
 		u8 mgmt_err = mgmt_status(err);
 
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode, mgmt_err);
 		goto done;
 	}
 
@@ -7176,7 +7154,7 @@ static void get_conn_info_complete(struct hci_dev *hdev, void *data, int err)
 		rp.max_tx_power = HCI_TX_POWER_INVALID;
 	}
 
-	mgmt_cmd_complete(cmd->sk, cmd->index, MGMT_OP_GET_CONN_INFO, status,
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, MGMT_OP_GET_CONN_INFO, status,
 			  &rp, sizeof(rp));
 
 	mgmt_pending_free(cmd);
@@ -7336,7 +7314,7 @@ static void get_clock_info_complete(struct hci_dev *hdev, void *data, int err)
 	}
 
 complete:
-	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, status, &rp,
+	mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode, status, &rp,
 			  sizeof(rp));
 
 	mgmt_pending_free(cmd);
@@ -8586,10 +8564,10 @@ static void add_advertising_complete(struct hci_dev *hdev, void *data, int err)
 	rp.instance = cp->instance;
 
 	if (err)
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode,
 				mgmt_status(err));
 	else
-		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 				  mgmt_status(err), &rp, sizeof(rp));
 
 	add_adv_complete(hdev, cmd->sk, cp->instance, err);
@@ -8777,10 +8755,10 @@ static void add_ext_adv_params_complete(struct hci_dev *hdev, void *data,
 
 		hci_remove_adv_instance(hdev, cp->instance);
 
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode,
 				mgmt_status(err));
 	} else {
-		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 				  mgmt_status(err), &rp, sizeof(rp));
 	}
 
@@ -8927,10 +8905,10 @@ static void add_ext_adv_data_complete(struct hci_dev *hdev, void *data, int err)
 	rp.instance = cp->instance;
 
 	if (err)
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode,
 				mgmt_status(err));
 	else
-		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 				  mgmt_status(err), &rp, sizeof(rp));
 
 	mgmt_pending_free(cmd);
@@ -9089,10 +9067,10 @@ static void remove_advertising_complete(struct hci_dev *hdev, void *data,
 	rp.instance = cp->instance;
 
 	if (err)
-		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_status(cmd->sk, cmd->hdev->id, cmd->opcode,
 				mgmt_status(err));
 	else
-		mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode,
+		mgmt_cmd_complete(cmd->sk, cmd->hdev->id, cmd->opcode,
 				  MGMT_STATUS_SUCCESS, &rp, sizeof(rp));
 
 	mgmt_pending_free(cmd);
@@ -9364,7 +9342,7 @@ void mgmt_index_removed(struct hci_dev *hdev)
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
 
-	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &match);
+	mgmt_pending_foreach(0, hdev, true, cmd_complete_rsp, &match);
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
 		mgmt_index_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev, NULL, 0,
@@ -9402,7 +9380,8 @@ void mgmt_power_on(struct hci_dev *hdev, int err)
 		hci_update_passive_scan(hdev);
 	}
 
-	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
+	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, true, settings_rsp,
+			     &match);
 
 	new_settings(hdev, match.sk);
 
@@ -9417,7 +9396,8 @@ void __mgmt_power_off(struct hci_dev *hdev)
 	struct cmd_lookup match = { NULL, hdev };
 	u8 zero_cod[] = { 0, 0, 0 };
 
-	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
+	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, true, settings_rsp,
+			     &match);
 
 	/* If the power off is because of hdev unregistration let
 	 * use the appropriate INVALID_INDEX status. Otherwise use
@@ -9431,7 +9411,7 @@ void __mgmt_power_off(struct hci_dev *hdev)
 	else
 		match.mgmt_status = MGMT_STATUS_NOT_POWERED;
 
-	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &match);
+	mgmt_pending_foreach(0, hdev, true, cmd_complete_rsp, &match);
 
 	if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0) {
 		mgmt_limited_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
@@ -9672,7 +9652,6 @@ static void unpair_device_rsp(struct mgmt_pending_cmd *cmd, void *data)
 	device_unpaired(hdev, &cp->addr.bdaddr, cp->addr.type, cmd->sk);
 
 	cmd->cmd_complete(cmd, 0);
-	mgmt_pending_remove(cmd);
 }
 
 bool mgmt_powering_down(struct hci_dev *hdev)
@@ -9728,8 +9707,8 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	struct mgmt_cp_disconnect *cp;
 	struct mgmt_pending_cmd *cmd;
 
-	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, unpair_device_rsp,
-			     hdev);
+	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, true,
+			     unpair_device_rsp, hdev);
 
 	cmd = pending_find(MGMT_OP_DISCONNECT, hdev);
 	if (!cmd)
@@ -9922,7 +9901,7 @@ void mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
-		mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev,
+		mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev, true,
 				     cmd_status_rsp, &mgmt_err);
 		return;
 	}
@@ -9932,8 +9911,8 @@ void mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 	else
 		changed = hci_dev_test_and_clear_flag(hdev, HCI_LINK_SECURITY);
 
-	mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev, settings_rsp,
-			     &match);
+	mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev, true,
+			     settings_rsp, &match);
 
 	if (changed)
 		new_settings(hdev, match.sk);
@@ -9957,9 +9936,12 @@ void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 {
 	struct cmd_lookup match = { NULL, hdev, mgmt_status(status) };
 
-	mgmt_pending_foreach(MGMT_OP_SET_DEV_CLASS, hdev, sk_lookup, &match);
-	mgmt_pending_foreach(MGMT_OP_ADD_UUID, hdev, sk_lookup, &match);
-	mgmt_pending_foreach(MGMT_OP_REMOVE_UUID, hdev, sk_lookup, &match);
+	mgmt_pending_foreach(MGMT_OP_SET_DEV_CLASS, hdev, false, sk_lookup,
+			     &match);
+	mgmt_pending_foreach(MGMT_OP_ADD_UUID, hdev, false, sk_lookup,
+			     &match);
+	mgmt_pending_foreach(MGMT_OP_REMOVE_UUID, hdev, false, sk_lookup,
+			     &match);
 
 	if (!status) {
 		mgmt_limited_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev, dev_class,

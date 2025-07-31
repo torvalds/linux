@@ -9,15 +9,15 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <larchintrin.h>
 
 /* CPUCFG */
 #define read_cpucfg(reg) __cpucfg(reg)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* LoongArch Registers */
 #define REG_ZERO	0x0
@@ -53,7 +53,7 @@
 #define REG_S7		0x1e
 #define REG_S8		0x1f
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* Bit fields for CPUCFG registers */
 #define LOONGARCH_CPUCFG0		0x0
@@ -171,7 +171,7 @@
  * SW emulation for KVM hypervirsor, see arch/loongarch/include/uapi/asm/kvm_para.h
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* CSR */
 #define csr_read32(reg) __csrrd_w(reg)
@@ -187,7 +187,7 @@
 #define iocsr_write32(val, reg) __iocsrwr_w(val, reg)
 #define iocsr_write64(val, reg) __iocsrwr_d(val, reg)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /* CSR register number */
 
@@ -1195,7 +1195,7 @@
 #define LOONGARCH_IOCSR_EXTIOI_ROUTE_BASE	0x1c00
 #define IOCSR_EXTIOI_VECTOR_NUM			256
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static __always_inline u64 drdtime(void)
 {
@@ -1357,7 +1357,7 @@ __BUILD_CSR_OP(tlbidx)
 #define clear_csr_estat(val)	\
 	csr_xchg32(~(val), val, LOONGARCH_CSR_ESTAT)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* Generic EntryLo bit definitions */
 #define ENTRYLO_V		(_ULCAST_(1) << 0)

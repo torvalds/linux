@@ -106,11 +106,11 @@ MODULE_LICENSE("GPL");
  */
 
 static struct {
-	u8	ptext[64];
-	u8	ctext[64];
+	u8	ptext[64] __nonstring;
+	u8	ctext[64] __nonstring;
 
-	u8	key[AES_MAX_KEY_SIZE];
-	u8	iv[AES_BLOCK_SIZE];
+	u8	key[AES_MAX_KEY_SIZE] __nonstring;
+	u8	iv[AES_BLOCK_SIZE] __nonstring;
 
 	int	klen;
 	int	len;

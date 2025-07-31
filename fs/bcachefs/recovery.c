@@ -99,9 +99,11 @@ int bch2_btree_lost_data(struct bch_fs *c,
 		goto out;
 	case BTREE_ID_snapshots:
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_reconstruct_snapshots, 0) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_check_topology, 0) ?: ret;
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes, 0) ?: ret;
 		goto out;
 	default:
+		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_check_topology, 0) ?: ret;
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes, 0) ?: ret;
 		goto out;
 	}
@@ -271,13 +273,24 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 		goto out;
 
 	struct btree_path *path = btree_iter_path(trans, &iter);
-	if (unlikely(!btree_path_node(path, k->level))) {
+	if (unlikely(!btree_path_node(path, k->level) &&
+		     !k->allocated)) {
+		struct bch_fs *c = trans->c;
+
+		if (!(c->recovery.passes_complete & (BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes)|
+						     BIT_ULL(BCH_RECOVERY_PASS_check_topology)))) {
+			bch_err(c, "have key in journal replay for btree depth that does not exist, confused");
+			ret = -EINVAL;
+		}
+#if 0
 		bch2_trans_iter_exit(trans, &iter);
 		bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 					  BTREE_MAX_DEPTH, 0, iter_flags);
 		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_btree_increase_depth(trans, iter.path, 0) ?:
 			-BCH_ERR_transaction_restart_nested;
+#endif
+		k->overwritten = true;
 		goto out;
 	}
 
@@ -594,6 +607,7 @@ static int read_btree_roots(struct bch_fs *c)
 					buf.buf, bch2_err_str(ret))) {
 			if (btree_id_is_alloc(i))
 				r->error = 0;
+			ret = 0;
 		}
 	}
 
@@ -679,7 +693,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 		ret = true;
 	}
 
-	if (new_version > c->sb.version_incompat &&
+	if (new_version > c->sb.version_incompat_allowed &&
 	    c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible) {
 		struct printbuf buf = PRINTBUF;
 
@@ -739,7 +753,24 @@ int bch2_fs_recovery(struct bch_fs *c)
 			? min(c->opts.recovery_pass_last, BCH_RECOVERY_PASS_snapshots_read)
 			: BCH_RECOVERY_PASS_snapshots_read;
 		c->opts.nochanges = true;
+	}
+
+	if (c->opts.nochanges)
 		c->opts.read_only = true;
+
+	if (c->opts.journal_rewind) {
+		bch_info(c, "rewinding journal, fsck required");
+		c->opts.fsck = true;
+	}
+
+	if (go_rw_in_recovery(c)) {
+		/*
+		 * start workqueues/kworkers early - kthread creation checks for
+		 * pending signals, which is _very_ annoying
+		 */
+		ret = bch2_fs_init_rw(c);
+		if (ret)
+			goto err;
 	}
 
 	mutex_lock(&c->sb_lock);
@@ -950,7 +981,7 @@ use_clean:
 
 	ret =   bch2_journal_log_msg(c, "starting journal at entry %llu, replaying %llu-%llu",
 				     journal_seq, last_seq, blacklist_seq - 1) ?:
-		bch2_fs_journal_start(&c->journal, journal_seq);
+		bch2_fs_journal_start(&c->journal, last_seq, journal_seq);
 	if (ret)
 		goto err;
 
@@ -1093,9 +1124,6 @@ use_clean:
 out:
 	bch2_flush_fsck_errs(c);
 
-	if (!IS_ERR(clean))
-		kfree(clean);
-
 	if (!ret &&
 	    test_bit(BCH_FS_need_delete_dead_snapshots, &c->flags) &&
 	    !c->opts.nochanges) {
@@ -1104,6 +1132,9 @@ out:
 	}
 
 	bch_err_fn(c, ret);
+final_out:
+	if (!IS_ERR(clean))
+		kfree(clean);
 	return ret;
 err:
 fsck_err:
@@ -1111,13 +1142,13 @@ fsck_err:
 		struct printbuf buf = PRINTBUF;
 		bch2_log_msg_start(c, &buf);
 
-		prt_printf(&buf, "error in recovery: %s", bch2_err_str(ret));
+		prt_printf(&buf, "error in recovery: %s\n", bch2_err_str(ret));
 		bch2_fs_emergency_read_only2(c, &buf);
 
 		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
-	return ret;
+	goto final_out;
 }
 
 int bch2_fs_initialize(struct bch_fs *c)
@@ -1166,7 +1197,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * journal_res_get() will crash if called before this has
 	 * set up the journal.pin FIFO and journal.cur pointer:
 	 */
-	ret = bch2_fs_journal_start(&c->journal, 1);
+	ret = bch2_fs_journal_start(&c->journal, 1, 1);
 	if (ret)
 		goto err;
 

@@ -6019,16 +6019,12 @@ static int amdgpu_device_health_check(struct list_head *device_list_handle)
 	return ret;
 }
 
-static int amdgpu_device_halt_activities(struct amdgpu_device *adev,
-			      struct amdgpu_job *job,
-			      struct amdgpu_reset_context *reset_context,
-			      struct list_head *device_list,
-			      struct amdgpu_hive_info *hive,
-			      bool need_emergency_restart)
+static int amdgpu_device_recovery_prepare(struct amdgpu_device *adev,
+					  struct list_head *device_list,
+					  struct amdgpu_hive_info *hive)
 {
-	struct list_head *device_list_handle =  NULL;
 	struct amdgpu_device *tmp_adev = NULL;
-	int i, r = 0;
+	int r;
 
 	/*
 	 * Build list of devices to reset.
@@ -6045,26 +6041,54 @@ static int amdgpu_device_halt_activities(struct amdgpu_device *adev,
 		}
 		if (!list_is_first(&adev->reset_list, device_list))
 			list_rotate_to_front(&adev->reset_list, device_list);
-		device_list_handle = device_list;
 	} else {
 		list_add_tail(&adev->reset_list, device_list);
-		device_list_handle = device_list;
 	}
 
 	if (!amdgpu_sriov_vf(adev) && (!adev->pcie_reset_ctx.occurs_dpc)) {
-		r = amdgpu_device_health_check(device_list_handle);
+		r = amdgpu_device_health_check(device_list);
 		if (r)
 			return r;
 	}
 
-	/* We need to lock reset domain only once both for XGMI and single device */
-	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
-				    reset_list);
+	return 0;
+}
+
+static void amdgpu_device_recovery_get_reset_lock(struct amdgpu_device *adev,
+						  struct list_head *device_list)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+
+	if (list_empty(device_list))
+		return;
+	tmp_adev =
+		list_first_entry(device_list, struct amdgpu_device, reset_list);
 	amdgpu_device_lock_reset_domain(tmp_adev->reset_domain);
+}
+
+static void amdgpu_device_recovery_put_reset_lock(struct amdgpu_device *adev,
+						  struct list_head *device_list)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+
+	if (list_empty(device_list))
+		return;
+	tmp_adev =
+		list_first_entry(device_list, struct amdgpu_device, reset_list);
+	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
+}
+
+static int amdgpu_device_halt_activities(
+	struct amdgpu_device *adev, struct amdgpu_job *job,
+	struct amdgpu_reset_context *reset_context,
+	struct list_head *device_list, struct amdgpu_hive_info *hive,
+	bool need_emergency_restart)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+	int i, r = 0;
 
 	/* block all schedulers and reset given job's ring */
-	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-
+	list_for_each_entry(tmp_adev, device_list, reset_list) {
 		amdgpu_device_set_mp1_state(tmp_adev);
 
 		/*
@@ -6252,11 +6276,6 @@ static void amdgpu_device_gpu_resume(struct amdgpu_device *adev,
 		amdgpu_ras_set_error_query_ready(tmp_adev, true);
 
 	}
-
-	tmp_adev = list_first_entry(device_list, struct amdgpu_device,
-					    reset_list);
-	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
-
 }
 
 
@@ -6324,10 +6343,16 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	reset_context->hive = hive;
 	INIT_LIST_HEAD(&device_list);
 
+	if (amdgpu_device_recovery_prepare(adev, &device_list, hive))
+		goto end_reset;
+
+	/* We need to lock reset domain only once both for XGMI and single device */
+	amdgpu_device_recovery_get_reset_lock(adev, &device_list);
+
 	r = amdgpu_device_halt_activities(adev, job, reset_context, &device_list,
 					 hive, need_emergency_restart);
 	if (r)
-		goto end_reset;
+		goto reset_unlock;
 
 	if (need_emergency_restart)
 		goto skip_sched_resume;
@@ -6337,7 +6362,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	 *
 	 * job->base holds a reference to parent fence
 	 */
-	if (job && dma_fence_is_signaled(&job->hw_fence)) {
+	if (job && dma_fence_is_signaled(&job->hw_fence.base)) {
 		job_signaled = true;
 		dev_info(adev->dev, "Guilty job already signaled, skipping HW reset");
 		goto skip_hw_reset;
@@ -6345,13 +6370,15 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	r = amdgpu_device_asic_reset(adev, &device_list, reset_context);
 	if (r)
-		goto end_reset;
+		goto reset_unlock;
 skip_hw_reset:
 	r = amdgpu_device_sched_resume(&device_list, reset_context, job_signaled);
 	if (r)
-		goto end_reset;
+		goto reset_unlock;
 skip_sched_resume:
 	amdgpu_device_gpu_resume(adev, &device_list, need_emergency_restart);
+reset_unlock:
+	amdgpu_device_recovery_put_reset_lock(adev, &device_list);
 end_reset:
 	if (hive) {
 		mutex_unlock(&hive->hive_lock);
@@ -6763,6 +6790,8 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 		memset(&reset_context, 0, sizeof(reset_context));
 		INIT_LIST_HEAD(&device_list);
 
+		amdgpu_device_recovery_prepare(adev, &device_list, hive);
+		amdgpu_device_recovery_get_reset_lock(adev, &device_list);
 		r = amdgpu_device_halt_activities(adev, NULL, &reset_context, &device_list,
 					 hive, false);
 		if (hive) {
@@ -6880,8 +6909,8 @@ out:
 		if (hive) {
 			list_for_each_entry(tmp_adev, &device_list, reset_list)
 				amdgpu_device_unset_mp1_state(tmp_adev);
-			amdgpu_device_unlock_reset_domain(adev->reset_domain);
 		}
+		amdgpu_device_recovery_put_reset_lock(adev, &device_list);
 	}
 
 	if (hive) {
@@ -6927,6 +6956,7 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 
 	amdgpu_device_sched_resume(&device_list, NULL, NULL);
 	amdgpu_device_gpu_resume(adev, &device_list, false);
+	amdgpu_device_recovery_put_reset_lock(adev, &device_list);
 	adev->pcie_reset_ctx.occurs_dpc = false;
 
 	if (hive) {

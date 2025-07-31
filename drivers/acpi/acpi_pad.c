@@ -33,7 +33,7 @@
 static DEFINE_MUTEX(isolated_cpus_lock);
 static DEFINE_MUTEX(round_robin_lock);
 
-static unsigned long power_saving_mwait_eax;
+static unsigned int power_saving_mwait_eax;
 
 static unsigned char tsc_detected_unstable;
 static unsigned char tsc_marked_unstable;

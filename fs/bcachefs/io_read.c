@@ -343,6 +343,10 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 
 	*bounce		= true;
 	*read_full	= promote_full;
+
+	if (have_io_error(failed))
+		orig->self_healing = true;
+
 	return promote;
 nopromote:
 	trace_io_read_nopromote(c, ret);
@@ -635,11 +639,14 @@ static void bch2_rbio_retry(struct work_struct *work)
 			prt_str(&buf, "(internal move) ");
 
 		prt_str(&buf, "data read error, ");
-		if (!ret)
+		if (!ret) {
 			prt_str(&buf, "successful retry");
-		else
+			if (rbio->self_healing)
+				prt_str(&buf, ", self healing");
+		} else
 			prt_str(&buf, bch2_err_str(ret));
 		prt_newline(&buf);
+
 
 		if (!bkey_deleted(&sk.k->k)) {
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(sk.k));
@@ -1484,7 +1491,12 @@ void bch2_read_bio_to_text(struct printbuf *out, struct bch_read_bio *rbio)
 	prt_printf(out, "have_ioref:\t%u\n",	rbio->have_ioref);
 	prt_printf(out, "narrow_crcs:\t%u\n",	rbio->narrow_crcs);
 	prt_printf(out, "context:\t%u\n",	rbio->context);
-	prt_printf(out, "ret:\t%s\n",		bch2_err_str(rbio->ret));
+
+	int ret = READ_ONCE(rbio->ret);
+	if (ret < 0)
+		prt_printf(out, "ret:\t%s\n",		bch2_err_str(ret));
+	else
+		prt_printf(out, "ret:\t%i\n",		ret);
 
 	prt_printf(out, "flags:\t");
 	bch2_prt_bitflags(out, bch2_read_bio_flags, rbio->flags);

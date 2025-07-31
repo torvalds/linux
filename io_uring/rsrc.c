@@ -112,8 +112,11 @@ static void io_release_ubuf(void *priv)
 	struct io_mapped_ubuf *imu = priv;
 	unsigned int i;
 
-	for (i = 0; i < imu->nr_bvecs; i++)
-		unpin_user_page(imu->bvec[i].bv_page);
+	for (i = 0; i < imu->nr_bvecs; i++) {
+		struct folio *folio = page_folio(imu->bvec[i].bv_page);
+
+		unpin_user_folio(folio, 1);
+	}
 }
 
 static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
@@ -731,6 +734,7 @@ bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
 
 	data->nr_pages_mid = folio_nr_pages(folio);
 	data->folio_shift = folio_shift(folio);
+	data->first_folio_page_idx = folio_page_idx(folio, page_array[0]);
 
 	/*
 	 * Check if pages are contiguous inside a folio, and all folios have
@@ -809,10 +813,8 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 
 	imu->nr_bvecs = nr_pages;
 	ret = io_buffer_account_pin(ctx, pages, nr_pages, imu, last_hpage);
-	if (ret) {
-		unpin_user_pages(pages, nr_pages);
+	if (ret)
 		goto done;
-	}
 
 	size = iov->iov_len;
 	/* store original address for later verification */
@@ -826,7 +828,11 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	if (coalesced)
 		imu->folio_shift = data.folio_shift;
 	refcount_set(&imu->refs, 1);
-	off = (unsigned long) iov->iov_base & ((1UL << imu->folio_shift) - 1);
+
+	off = (unsigned long)iov->iov_base & ~PAGE_MASK;
+	if (coalesced)
+		off += data.first_folio_page_idx << PAGE_SHIFT;
+
 	node->buf = imu;
 	ret = 0;
 
@@ -842,6 +848,10 @@ done:
 	if (ret) {
 		if (imu)
 			io_free_imu(ctx, imu);
+		if (pages) {
+			for (i = 0; i < nr_pages; i++)
+				unpin_user_folio(page_folio(pages[i]), 1);
+		}
 		io_cache_free(&ctx->node_cache, node);
 		node = ERR_PTR(ret);
 	}
@@ -1177,6 +1187,8 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		return -EINVAL;
 	if (check_add_overflow(arg->nr, arg->dst_off, &nbufs))
 		return -EOVERFLOW;
+	if (nbufs > IORING_MAX_REG_BUFFERS)
+		return -EINVAL;
 
 	ret = io_rsrc_data_alloc(&data, max(nbufs, ctx->buf_table.nr));
 	if (ret)
@@ -1327,7 +1339,6 @@ static int io_vec_fill_bvec(int ddir, struct iov_iter *iter,
 {
 	unsigned long folio_size = 1 << imu->folio_shift;
 	unsigned long folio_mask = folio_size - 1;
-	u64 folio_addr = imu->ubuf & ~folio_mask;
 	struct bio_vec *res_bvec = vec->bvec;
 	size_t total_len = 0;
 	unsigned bvec_idx = 0;
@@ -1349,8 +1360,13 @@ static int io_vec_fill_bvec(int ddir, struct iov_iter *iter,
 		if (unlikely(check_add_overflow(total_len, iov_len, &total_len)))
 			return -EOVERFLOW;
 
-		/* by using folio address it also accounts for bvec offset */
-		offset = buf_addr - folio_addr;
+		offset = buf_addr - imu->ubuf;
+		/*
+		 * Only the first bvec can have non zero bv_offset, account it
+		 * here and work with full folios below.
+		 */
+		offset += imu->bvec[0].bv_offset;
+
 		src_bvec = imu->bvec + (offset >> imu->folio_shift);
 		offset &= folio_mask;
 

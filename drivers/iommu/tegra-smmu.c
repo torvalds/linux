@@ -559,11 +559,11 @@ static void tegra_smmu_set_pde(struct tegra_smmu_as *as, unsigned long iova,
 {
 	unsigned int pd_index = iova_pd_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
-	struct tegra_pd *pd = as->pd;
+	u32 *pd = &as->pd->val[pd_index];
 	unsigned long offset = pd_index * sizeof(*pd);
 
 	/* Set the page directory entry first */
-	pd->val[pd_index] = value;
+	*pd = value;
 
 	/* The flush the page directory entry from caches */
 	dma_sync_single_range_for_device(smmu->dev, as->pd_dma, offset,

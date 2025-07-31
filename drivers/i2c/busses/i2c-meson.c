@@ -448,8 +448,8 @@ static u32 meson_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm meson_i2c_algorithm = {
-	.master_xfer = meson_i2c_xfer,
-	.master_xfer_atomic = meson_i2c_xfer_atomic,
+	.xfer = meson_i2c_xfer,
+	.xfer_atomic = meson_i2c_xfer_atomic,
 	.functionality = meson_i2c_func,
 };
 

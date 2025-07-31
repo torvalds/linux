@@ -3,9 +3,10 @@
 #define _BCACHEFS_SB_ERRORS_FORMAT_H
 
 enum bch_fsck_flags {
-	FSCK_CAN_FIX		= 1 << 0,
-	FSCK_CAN_IGNORE		= 1 << 1,
-	FSCK_AUTOFIX		= 1 << 2,
+	FSCK_CAN_FIX		= BIT(0),
+	FSCK_CAN_IGNORE		= BIT(1),
+	FSCK_AUTOFIX		= BIT(2),
+	FSCK_ERR_NO_LOG		= BIT(3),
 };
 
 #define BCH_SB_ERRS()									\
@@ -134,7 +135,7 @@ enum bch_fsck_flags {
 	x(bucket_gens_to_invalid_buckets,			121,	FSCK_AUTOFIX)	\
 	x(bucket_gens_nonzero_for_invalid_buckets,		122,	FSCK_AUTOFIX)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123,	0)		\
-	x(need_discard_freespace_key_bad,			124,	0)		\
+	x(need_discard_freespace_key_bad,			124,	FSCK_AUTOFIX)	\
 	x(discarding_bucket_not_in_need_discard_btree,		291,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_level_bad,				294,	0)		\
@@ -165,7 +166,7 @@ enum bch_fsck_flags {
 	x(ptr_to_missing_replicas_entry,			149,	FSCK_AUTOFIX)	\
 	x(ptr_to_missing_stripe,				150,	0)		\
 	x(ptr_to_incorrect_stripe,				151,	0)		\
-	x(ptr_gen_newer_than_bucket_gen,			152,	0)		\
+	x(ptr_gen_newer_than_bucket_gen,			152,	FSCK_AUTOFIX)		\
 	x(ptr_too_stale,					153,	0)		\
 	x(stale_dirty_ptr,					154,	FSCK_AUTOFIX)	\
 	x(ptr_bucket_data_type_mismatch,			155,	0)		\
@@ -217,7 +218,7 @@ enum bch_fsck_flags {
 	x(inode_str_hash_invalid,				194,	0)		\
 	x(inode_v3_fields_start_bad,				195,	0)		\
 	x(inode_snapshot_mismatch,				196,	0)		\
-	x(snapshot_key_missing_inode_snapshot,			314,	0)		\
+	x(snapshot_key_missing_inode_snapshot,			314,	FSCK_AUTOFIX)	\
 	x(inode_unlinked_but_clean,				197,	0)		\
 	x(inode_unlinked_but_nlink_nonzero,			198,	0)		\
 	x(inode_unlinked_and_not_open,				281,	0)		\
@@ -236,7 +237,7 @@ enum bch_fsck_flags {
 	x(inode_multiple_links_but_nlink_0,			207,	FSCK_AUTOFIX)	\
 	x(inode_wrong_backpointer,				208,	FSCK_AUTOFIX)	\
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
-	x(inode_has_child_snapshots_wrong,			287,	0)		\
+	x(inode_has_child_snapshots_wrong,			287,	FSCK_AUTOFIX)	\
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
 	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
 	x(inode_i_sectors_underflow,				312,	FSCK_AUTOFIX)	\
@@ -251,20 +252,20 @@ enum bch_fsck_flags {
 	x(deleted_inode_not_unlinked,				214,	FSCK_AUTOFIX)	\
 	x(deleted_inode_has_child_snapshots,			288,	FSCK_AUTOFIX)	\
 	x(extent_overlapping,					215,	0)		\
-	x(key_in_missing_inode,					216,	0)		\
+	x(key_in_missing_inode,					216,	FSCK_AUTOFIX)	\
 	x(key_in_wrong_inode_type,				217,	0)		\
-	x(extent_past_end_of_inode,				218,	0)		\
+	x(extent_past_end_of_inode,				218,	FSCK_AUTOFIX)	\
 	x(dirent_empty_name,					219,	0)		\
 	x(dirent_val_too_big,					220,	0)		\
 	x(dirent_name_too_long,					221,	0)		\
 	x(dirent_name_embedded_nul,				222,	0)		\
 	x(dirent_name_dot_or_dotdot,				223,	0)		\
 	x(dirent_name_has_slash,				224,	0)		\
-	x(dirent_d_type_wrong,					225,	0)		\
+	x(dirent_d_type_wrong,					225,	FSCK_AUTOFIX)	\
 	x(inode_bi_parent_wrong,				226,	0)		\
 	x(dirent_in_missing_dir_inode,				227,	0)		\
 	x(dirent_in_non_dir_inode,				228,	0)		\
-	x(dirent_to_missing_inode,				229,	0)		\
+	x(dirent_to_missing_inode,				229,	FSCK_AUTOFIX)	\
 	x(dirent_to_overwritten_inode,				302,	0)		\
 	x(dirent_to_missing_subvol,				230,	0)		\
 	x(dirent_to_itself,					231,	0)		\
@@ -279,8 +280,8 @@ enum bch_fsck_flags {
 	x(root_dir_missing,					239,	0)		\
 	x(root_inode_not_dir,					240,	0)		\
 	x(dir_loop,						241,	0)		\
-	x(hash_table_key_duplicate,				242,	0)		\
-	x(hash_table_key_wrong_offset,				243,	0)		\
+	x(hash_table_key_duplicate,				242,	FSCK_AUTOFIX)	\
+	x(hash_table_key_wrong_offset,				243,	FSCK_AUTOFIX)	\
 	x(unlinked_inode_not_on_deleted_list,			244,	FSCK_AUTOFIX)	\
 	x(reflink_p_front_pad_bad,				245,	0)		\
 	x(journal_entry_dup_same_device,			246,	0)		\
@@ -300,7 +301,7 @@ enum bch_fsck_flags {
 	x(btree_node_bkey_bad_u64s,				260,	0)		\
 	x(btree_node_topology_empty_interior_node,		261,	0)		\
 	x(btree_ptr_v2_min_key_bad,				262,	0)		\
-	x(btree_root_unreadable_and_scan_found_nothing,		263,	FSCK_AUTOFIX)	\
+	x(btree_root_unreadable_and_scan_found_nothing,		263,	0)		\
 	x(snapshot_node_missing,				264,	FSCK_AUTOFIX)	\
 	x(dup_backpointer_to_bad_csum_extent,			265,	0)		\
 	x(btree_bitmap_not_marked,				266,	FSCK_AUTOFIX)	\

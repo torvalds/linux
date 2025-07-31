@@ -823,7 +823,7 @@ static struct platform_driver tb10x_pinctrl_pdrv = {
 	.remove  = tb10x_pinctrl_remove,
 	.driver  = {
 		.name  = "tb10x_pinctrl",
-		.of_match_table = of_match_ptr(tb10x_pinctrl_dt_ids),
+		.of_match_table = tb10x_pinctrl_dt_ids,
 	}
 };
 

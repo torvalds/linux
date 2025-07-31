@@ -228,7 +228,7 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 		 * to reverse-translate virtual EL2 system registers for a
 		 * non-VHE guest hypervisor.
 		 */
-		__vcpu_sys_reg(vcpu, reg) = val;
+		__vcpu_assign_sys_reg(vcpu, reg, val);
 
 		switch (reg) {
 		case CNTHCTL_EL2:
@@ -263,7 +263,7 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 		return;
 
 memory_write:
-	 __vcpu_sys_reg(vcpu, reg) = val;
+	__vcpu_assign_sys_reg(vcpu, reg, val);
 }
 
 /* CSSELR values; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
@@ -605,7 +605,7 @@ static int set_oslsr_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	if ((val ^ rd->val) & ~OSLSR_EL1_OSLK)
 		return -EINVAL;
 
-	__vcpu_sys_reg(vcpu, rd->reg) = val;
+	__vcpu_assign_sys_reg(vcpu, rd->reg, val);
 	return 0;
 }
 
@@ -791,7 +791,7 @@ static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 		mask |= GENMASK(n - 1, 0);
 
 	reset_unknown(vcpu, r);
-	__vcpu_sys_reg(vcpu, r->reg) &= mask;
+	__vcpu_rmw_sys_reg(vcpu, r->reg, &=, mask);
 
 	return __vcpu_sys_reg(vcpu, r->reg);
 }
@@ -799,7 +799,7 @@ static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 static u64 reset_pmevcntr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	reset_unknown(vcpu, r);
-	__vcpu_sys_reg(vcpu, r->reg) &= GENMASK(31, 0);
+	__vcpu_rmw_sys_reg(vcpu, r->reg, &=, GENMASK(31, 0));
 
 	return __vcpu_sys_reg(vcpu, r->reg);
 }
@@ -811,7 +811,7 @@ static u64 reset_pmevtyper(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 		return 0;
 
 	reset_unknown(vcpu, r);
-	__vcpu_sys_reg(vcpu, r->reg) &= kvm_pmu_evtyper_mask(vcpu->kvm);
+	__vcpu_rmw_sys_reg(vcpu, r->reg, &=, kvm_pmu_evtyper_mask(vcpu->kvm));
 
 	return __vcpu_sys_reg(vcpu, r->reg);
 }
@@ -819,7 +819,7 @@ static u64 reset_pmevtyper(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 static u64 reset_pmselr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	reset_unknown(vcpu, r);
-	__vcpu_sys_reg(vcpu, r->reg) &= PMSELR_EL0_SEL_MASK;
+	__vcpu_rmw_sys_reg(vcpu, r->reg, &=, PMSELR_EL0_SEL_MASK);
 
 	return __vcpu_sys_reg(vcpu, r->reg);
 }
@@ -835,7 +835,7 @@ static u64 reset_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	 * The value of PMCR.N field is included when the
 	 * vCPU register is read via kvm_vcpu_read_pmcr().
 	 */
-	__vcpu_sys_reg(vcpu, r->reg) = pmcr;
+	__vcpu_assign_sys_reg(vcpu, r->reg, pmcr);
 
 	return __vcpu_sys_reg(vcpu, r->reg);
 }
@@ -907,7 +907,7 @@ static bool access_pmselr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		return false;
 
 	if (p->is_write)
-		__vcpu_sys_reg(vcpu, PMSELR_EL0) = p->regval;
+		__vcpu_assign_sys_reg(vcpu, PMSELR_EL0, p->regval);
 	else
 		/* return PMSELR.SEL field */
 		p->regval = __vcpu_sys_reg(vcpu, PMSELR_EL0)
@@ -1076,7 +1076,7 @@ static int set_pmreg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r, u64 va
 {
 	u64 mask = kvm_pmu_accessible_counter_mask(vcpu);
 
-	__vcpu_sys_reg(vcpu, r->reg) = val & mask;
+	__vcpu_assign_sys_reg(vcpu, r->reg, val & mask);
 	kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 
 	return 0;
@@ -1103,10 +1103,10 @@ static bool access_pmcnten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		val = p->regval & mask;
 		if (r->Op2 & 0x1)
 			/* accessing PMCNTENSET_EL0 */
-			__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) |= val;
+			__vcpu_rmw_sys_reg(vcpu, PMCNTENSET_EL0, |=, val);
 		else
 			/* accessing PMCNTENCLR_EL0 */
-			__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) &= ~val;
+			__vcpu_rmw_sys_reg(vcpu, PMCNTENSET_EL0, &=, ~val);
 
 		kvm_pmu_reprogram_counter_mask(vcpu, val);
 	} else {
@@ -1129,10 +1129,10 @@ static bool access_pminten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 
 		if (r->Op2 & 0x1)
 			/* accessing PMINTENSET_EL1 */
-			__vcpu_sys_reg(vcpu, PMINTENSET_EL1) |= val;
+			__vcpu_rmw_sys_reg(vcpu, PMINTENSET_EL1, |=, val);
 		else
 			/* accessing PMINTENCLR_EL1 */
-			__vcpu_sys_reg(vcpu, PMINTENSET_EL1) &= ~val;
+			__vcpu_rmw_sys_reg(vcpu, PMINTENSET_EL1, &=, ~val);
 	} else {
 		p->regval = __vcpu_sys_reg(vcpu, PMINTENSET_EL1);
 	}
@@ -1151,10 +1151,10 @@ static bool access_pmovs(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (p->is_write) {
 		if (r->CRm & 0x2)
 			/* accessing PMOVSSET_EL0 */
-			__vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= (p->regval & mask);
+			__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, |=, (p->regval & mask));
 		else
 			/* accessing PMOVSCLR_EL0 */
-			__vcpu_sys_reg(vcpu, PMOVSSET_EL0) &= ~(p->regval & mask);
+			__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, &=, ~(p->regval & mask));
 	} else {
 		p->regval = __vcpu_sys_reg(vcpu, PMOVSSET_EL0);
 	}
@@ -1185,8 +1185,8 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		if (!vcpu_mode_priv(vcpu))
 			return undef_access(vcpu, p, r);
 
-		__vcpu_sys_reg(vcpu, PMUSERENR_EL0) =
-			       p->regval & ARMV8_PMU_USERENR_MASK;
+		__vcpu_assign_sys_reg(vcpu, PMUSERENR_EL0,
+				      (p->regval & ARMV8_PMU_USERENR_MASK));
 	} else {
 		p->regval = __vcpu_sys_reg(vcpu, PMUSERENR_EL0)
 			    & ARMV8_PMU_USERENR_MASK;
@@ -1237,7 +1237,7 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	if (!kvm_supports_32bit_el0())
 		val |= ARMV8_PMU_PMCR_LC;
 
-	__vcpu_sys_reg(vcpu, r->reg) = val;
+	__vcpu_assign_sys_reg(vcpu, r->reg, val);
 	kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 
 	return 0;
@@ -2213,7 +2213,7 @@ static u64 reset_clidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	if (kvm_has_mte(vcpu->kvm))
 		clidr |= 2ULL << CLIDR_TTYPE_SHIFT(loc);
 
-	__vcpu_sys_reg(vcpu, r->reg) = clidr;
+	__vcpu_assign_sys_reg(vcpu, r->reg, clidr);
 
 	return __vcpu_sys_reg(vcpu, r->reg);
 }
@@ -2227,7 +2227,7 @@ static int set_clidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	if ((val & CLIDR_EL1_RES0) || (!(ctr_el0 & CTR_EL0_IDC) && idc))
 		return -EINVAL;
 
-	__vcpu_sys_reg(vcpu, rd->reg) = val;
+	__vcpu_assign_sys_reg(vcpu, rd->reg, val);
 
 	return 0;
 }
@@ -2404,7 +2404,7 @@ static bool access_sp_el1(struct kvm_vcpu *vcpu,
 			  const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		__vcpu_sys_reg(vcpu, SP_EL1) = p->regval;
+		__vcpu_assign_sys_reg(vcpu, SP_EL1, p->regval);
 	else
 		p->regval = __vcpu_sys_reg(vcpu, SP_EL1);
 
@@ -2428,7 +2428,7 @@ static bool access_spsr(struct kvm_vcpu *vcpu,
 			const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		__vcpu_sys_reg(vcpu, SPSR_EL1) = p->regval;
+		__vcpu_assign_sys_reg(vcpu, SPSR_EL1, p->regval);
 	else
 		p->regval = __vcpu_sys_reg(vcpu, SPSR_EL1);
 
@@ -2440,7 +2440,7 @@ static bool access_cntkctl_el12(struct kvm_vcpu *vcpu,
 				const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		__vcpu_sys_reg(vcpu, CNTKCTL_EL1) = p->regval;
+		__vcpu_assign_sys_reg(vcpu, CNTKCTL_EL1, p->regval);
 	else
 		p->regval = __vcpu_sys_reg(vcpu, CNTKCTL_EL1);
 
@@ -2454,7 +2454,9 @@ static u64 reset_hcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	if (!cpus_have_final_cap(ARM64_HAS_HCR_NV1))
 		val |= HCR_E2H;
 
-	return __vcpu_sys_reg(vcpu, r->reg) = val;
+	__vcpu_assign_sys_reg(vcpu, r->reg, val);
+
+	return __vcpu_sys_reg(vcpu, r->reg);
 }
 
 static unsigned int __el2_visibility(const struct kvm_vcpu *vcpu,
@@ -2625,7 +2627,7 @@ static bool access_mdcr(struct kvm_vcpu *vcpu,
 		u64_replace_bits(val, hpmn, MDCR_EL2_HPMN);
 	}
 
-	__vcpu_sys_reg(vcpu, MDCR_EL2) = val;
+	__vcpu_assign_sys_reg(vcpu, MDCR_EL2, val);
 
 	/*
 	 * Request a reload of the PMU to enable/disable the counters
@@ -2754,7 +2756,7 @@ static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 
 static u64 reset_mdcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	__vcpu_sys_reg(vcpu, r->reg) = vcpu->kvm->arch.nr_pmu_counters;
+	__vcpu_assign_sys_reg(vcpu, r->reg, vcpu->kvm->arch.nr_pmu_counters);
 	return vcpu->kvm->arch.nr_pmu_counters;
 }
 
@@ -4790,7 +4792,7 @@ void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 			r->reset(vcpu, r);
 
 		if (r->reg >= __SANITISED_REG_START__ && r->reg < NR_SYS_REGS)
-			(void)__vcpu_sys_reg(vcpu, r->reg);
+			__vcpu_rmw_sys_reg(vcpu, r->reg, |=, 0);
 	}
 
 	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
@@ -5012,7 +5014,7 @@ int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 	if (r->set_user) {
 		ret = (r->set_user)(vcpu, r, val);
 	} else {
-		__vcpu_sys_reg(vcpu, r->reg) = val;
+		__vcpu_assign_sys_reg(vcpu, r->reg, val);
 		ret = 0;
 	}
 

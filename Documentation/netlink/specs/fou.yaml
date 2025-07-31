@@ -15,7 +15,7 @@ kernel-policy: global
 definitions:
   -
     type: enum
-    name: encap_type
+    name: encap-type
     name-prefix: fou-encap-
     enum-name:
     entries: [ unspec, direct, gue ]
@@ -43,26 +43,26 @@ attribute-sets:
         name: type
         type: u8
       -
-        name: remcsum_nopartial
+        name: remcsum-nopartial
         type: flag
       -
-        name: local_v4
+        name: local-v4
         type: u32
       -
-        name: local_v6
+        name: local-v6
         type: binary
         checks:
           min-len: 16
       -
-        name: peer_v4
+        name: peer-v4
         type: u32
       -
-        name: peer_v6
+        name: peer-v6
         type: binary
         checks:
           min-len: 16
       -
-        name: peer_port
+        name: peer-port
         type: u16
         byte-order: big-endian
       -
@@ -90,12 +90,12 @@ operations:
             - port
             - ipproto
             - type
-            - remcsum_nopartial
-            - local_v4
-            - peer_v4
-            - local_v6
-            - peer_v6
-            - peer_port
+            - remcsum-nopartial
+            - local-v4
+            - peer-v4
+            - local-v6
+            - peer-v6
+            - peer-port
             - ifindex
 
     -
@@ -112,11 +112,11 @@ operations:
             - af
             - ifindex
             - port
-            - peer_port
-            - local_v4
-            - peer_v4
-            - local_v6
-            - peer_v6
+            - peer-port
+            - local-v4
+            - peer-v4
+            - local-v6
+            - peer-v6
 
     -
       name: get
