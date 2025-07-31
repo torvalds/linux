@@ -10,7 +10,7 @@
 #ifdef CONFIG_COREDUMP
 struct core_vma_metadata {
 	unsigned long start, end;
-	unsigned long flags;
+	vm_flags_t flags;
 	unsigned long dump_size;
 	unsigned long pgoff;
 	struct file   *file;
