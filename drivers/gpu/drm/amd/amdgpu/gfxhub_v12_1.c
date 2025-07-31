@@ -65,7 +65,7 @@ static void gfxhub_v12_1_xcc_setup_vm_pt_regs(struct amdgpu_device *adev,
 	struct amdgpu_vmhub *hub;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(i)];
 		WREG32_SOC15_OFFSET(GC, GET_INST(GC, i),
 				    regGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
@@ -83,8 +83,11 @@ static void gfxhub_v12_1_setup_vm_pt_regs(struct amdgpu_device *adev,
 					  uint32_t vmid,
 					  uint64_t page_table_base)
 {
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
 	gfxhub_v12_1_xcc_setup_vm_pt_regs(adev, vmid, page_table_base,
-					  adev->gfx.xcc_mask);
+					  xcc_mask);
 }
 
 static void gfxhub_v12_1_xcc_init_gart_aperture_regs(struct amdgpu_device *adev,
@@ -103,7 +106,7 @@ static void gfxhub_v12_1_xcc_init_gart_aperture_regs(struct amdgpu_device *adev,
 	/* If use GART for FB translation, vmid0 page table covers both
 	 * vram and system memory (gart)
 	 */
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		if (adev->gmc.pdb0_bo) {
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regGCVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
@@ -143,7 +146,7 @@ static void gfxhub_v12_1_xcc_init_system_aperture_regs(struct amdgpu_device *ade
 	uint32_t tmp;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		/* Program the AGP BAR */
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
 				 regGCMC_VM_AGP_BASE_LO32, 0);
@@ -245,7 +248,7 @@ static void gfxhub_v12_1_xcc_init_tlb_regs(struct amdgpu_device *adev,
 	uint32_t tmp;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		/* Setup TLB control */
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i),
 				   regGCMC_VM_MX_L1_TLB_CNTL);
@@ -280,7 +283,7 @@ static void gfxhub_v12_1_xcc_init_cache_regs(struct amdgpu_device *adev,
 	uint32_t tmp;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		/* Setup L2 cache */
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regGCVM_L2_CNTL);
 		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL,
@@ -341,7 +344,7 @@ static void gfxhub_v12_1_xcc_enable_system_domain(struct amdgpu_device *adev,
 	uint32_t tmp;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i),
 				   regGCVM_CONTEXT0_CNTL);
 		tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT0_CNTL,
@@ -364,7 +367,7 @@ static void gfxhub_v12_1_xcc_disable_identity_aperture(struct amdgpu_device *ade
 {
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		WREG32_SOC15(GC, GET_INST(GC, i),
 			     regGCVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32,
 			     0XFFFFFFFF);
@@ -400,7 +403,7 @@ static void gfxhub_v12_1_xcc_setup_vmid_config(struct amdgpu_device *adev,
 	block_size = adev->vm_manager.block_size;
 	block_size -= 9;
 
-	for (j = 0; j < NUM_XCC(xcc_mask); j++) {
+	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 		for (i = 0; i <= 14; i++) {
 			tmp = RREG32_SOC15_OFFSET(GC, GET_INST(GC, j),
@@ -458,7 +461,7 @@ static void gfxhub_v12_1_xcc_program_invalidation(struct amdgpu_device *adev,
 	struct amdgpu_vmhub *hub;
 	unsigned int i, j;
 
-	for (j = 0; j < NUM_XCC(xcc_mask); j++) {
+	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 
 		for (i = 0 ; i < 18; ++i) {
@@ -481,7 +484,7 @@ static int gfxhub_v12_1_xcc_gart_enable(struct amdgpu_device *adev,
 		/* GCMC_VM_FB_LOCATION_BASE/TOP are VF copy registers
 		 * VBIO post does not program them at boot up phase
 		 * Need driver to program them from guest side */
-		for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+		for_each_inst(i, xcc_mask) {
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regGCMC_VM_FB_LOCATION_BASE_LO32,
 				     lower_32_bits(adev->gmc.vram_start >> 24));
@@ -514,8 +517,10 @@ static int gfxhub_v12_1_xcc_gart_enable(struct amdgpu_device *adev,
 
 static int gfxhub_v12_1_gart_enable(struct amdgpu_device *adev)
 {
-	return gfxhub_v12_1_xcc_gart_enable(adev,
-					    adev->gfx.xcc_mask);
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	return gfxhub_v12_1_xcc_gart_enable(adev, xcc_mask);
 }
 
 static void gfxhub_v12_1_xcc_gart_disable(struct amdgpu_device *adev,
@@ -525,7 +530,7 @@ static void gfxhub_v12_1_xcc_gart_disable(struct amdgpu_device *adev,
 	u32 tmp;
 	u32 i, j;
 
-	for (j = 0; j < NUM_XCC(xcc_mask); j++) {
+	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 		/* Disable all tables */
 		for (i = 0; i < 16; i++)
@@ -555,7 +560,10 @@ static void gfxhub_v12_1_xcc_gart_disable(struct amdgpu_device *adev,
 
 static void gfxhub_v12_1_gart_disable(struct amdgpu_device *adev)
 {
-	gfxhub_v12_1_xcc_gart_disable(adev, adev->gfx.xcc_mask);
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v12_1_xcc_gart_disable(adev, xcc_mask);
 }
 
 static void gfxhub_v12_1_xcc_set_fault_enable_default(struct amdgpu_device *adev,
@@ -564,7 +572,7 @@ static void gfxhub_v12_1_xcc_set_fault_enable_default(struct amdgpu_device *adev
 	u32 tmp;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i),
 				   regGCVM_L2_PROTECTION_FAULT_CNTL_LO32);
 		tmp = REG_SET_FIELD(tmp,
@@ -637,7 +645,10 @@ static void gfxhub_v12_1_xcc_set_fault_enable_default(struct amdgpu_device *adev
 static void gfxhub_v12_1_set_fault_enable_default(struct amdgpu_device *adev,
 						  bool value)
 {
-	gfxhub_v12_1_xcc_set_fault_enable_default(adev, value, adev->gfx.xcc_mask);
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v12_1_xcc_set_fault_enable_default(adev, value, xcc_mask);
 }
 
 static uint32_t gfxhub_v12_1_get_invalidate_req(unsigned int vmid,
@@ -734,7 +745,7 @@ static void gfxhub_v12_1_xcc_init(struct amdgpu_device *adev, uint32_t xcc_mask)
 	struct amdgpu_vmhub *hub;
 	int i;
 
-	for (i = 0; i < NUM_XCC(xcc_mask); i++) {
+	for_each_inst(i, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(i)];
 
 		hub->ctx0_ptb_addr_lo32 =
@@ -790,7 +801,10 @@ static void gfxhub_v12_1_xcc_init(struct amdgpu_device *adev, uint32_t xcc_mask)
 
 static void gfxhub_v12_1_init(struct amdgpu_device *adev)
 {
-	gfxhub_v12_1_xcc_init(adev, adev->gfx.xcc_mask);
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v12_1_xcc_init(adev, xcc_mask);
 }
 
 static int gfxhub_v12_1_get_xgmi_info(struct amdgpu_device *adev)
