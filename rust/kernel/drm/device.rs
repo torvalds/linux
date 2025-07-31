@@ -120,9 +120,13 @@ impl<T: drm::Driver> Device<T> {
         // - `raw_data` is a valid pointer to uninitialized memory.
         // - `raw_data` will not move until it is dropped.
         unsafe { data.__pinned_init(raw_data) }.inspect_err(|_| {
-            // SAFETY: `__drm_dev_alloc()` was successful, hence `raw_drm` must be valid and the
+            // SAFETY: `raw_drm` is a valid pointer to `Self`, given that `__drm_dev_alloc` was
+            // successful.
+            let drm_dev = unsafe { Self::into_drm_device(raw_drm) };
+
+            // SAFETY: `__drm_dev_alloc()` was successful, hence `drm_dev` must be valid and the
             // refcount must be non-zero.
-            unsafe { bindings::drm_dev_put(ptr::addr_of_mut!((*raw_drm.as_ptr()).dev).cast()) };
+            unsafe { bindings::drm_dev_put(drm_dev) };
         })?;
 
         // SAFETY: The reference count is one, and now we take ownership of that reference as a
@@ -141,6 +145,14 @@ impl<T: drm::Driver> Device<T> {
         // SAFETY: By the safety requirements of this function `ptr` is a valid pointer to a
         // `struct drm_device` embedded in `Self`.
         unsafe { crate::container_of!(Opaque::cast_from(ptr), Self, dev) }.cast_mut()
+    }
+
+    /// # Safety
+    ///
+    /// `ptr` must be a valid pointer to `Self`.
+    unsafe fn into_drm_device(ptr: NonNull<Self>) -> *mut bindings::drm_device {
+        // SAFETY: By the safety requirements of this function, `ptr` is a valid pointer to `Self`.
+        unsafe { &raw mut (*ptr.as_ptr()).dev }.cast()
     }
 
     /// Not intended to be called externally, except via declare_drm_ioctls!()
@@ -192,8 +204,11 @@ unsafe impl<T: drm::Driver> AlwaysRefCounted for Device<T> {
     }
 
     unsafe fn dec_ref(obj: NonNull<Self>) {
+        // SAFETY: `obj` is a valid pointer to `Self`.
+        let drm_dev = unsafe { Self::into_drm_device(obj) };
+
         // SAFETY: The safety requirements guarantee that the refcount is non-zero.
-        unsafe { bindings::drm_dev_put(obj.cast().as_ptr()) };
+        unsafe { bindings::drm_dev_put(drm_dev) };
     }
 }
 
