@@ -115,30 +115,14 @@ void gfs2_freeze_unlock(struct gfs2_sbd *sdp)
 		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 }
 
-static void signal_our_withdraw(struct gfs2_sbd *sdp)
+static void do_withdraw(struct gfs2_sbd *sdp)
 {
-	struct gfs2_glock *live_gl = sdp->sd_live_gh.gh_gl;
-	struct inode *inode;
-	struct gfs2_inode *ip;
-	struct gfs2_glock *i_gl;
-	u64 no_formal_ino;
-	int ret = 0;
-	int tries;
-
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags) || !sdp->sd_jdesc)
-		return;
-
 	gfs2_ail_drain(sdp); /* frees all transactions */
-	inode = sdp->sd_jdesc->jd_inode;
-	ip = GFS2_I(inode);
-	i_gl = ip->i_gl;
-	no_formal_ino = ip->i_no_formal_ino;
 
 	/*
 	 * Don't tell dlm we're bailing until we have no more buffers in the
 	 * wind. If journal had an IO error, the log code should just purge
-	 * the outstanding buffers rather than submitting new IO. Making the
-	 * file system read-only will flush the journal, etc.
+	 * the outstanding buffers rather than submitting new IO.
 	 *
 	 * During a normal unmount, gfs2_make_fs_ro calls gfs2_log_shutdown
 	 * which clears SDF_JOURNAL_LIVE. In a withdraw, we must not write
@@ -168,112 +152,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		gfs2_gl_dq_holders(sdp);
 	}
 
-	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
-		if (!ret)
-			ret = -EIO;
-		goto skip_recovery;
-	}
-	/*
-	 * Drop the glock for our journal so another node can recover it.
-	 */
-	if (gfs2_holder_initialized(&sdp->sd_journal_gh)) {
-		gfs2_glock_dq_wait(&sdp->sd_journal_gh);
-		gfs2_holder_uninit(&sdp->sd_journal_gh);
-	}
-	sdp->sd_jinode_gh.gh_flags |= GL_NOCACHE;
-	gfs2_glock_dq(&sdp->sd_jinode_gh);
 	gfs2_thaw_freeze_initiator(sdp->sd_vfs);
-	wait_on_bit(&i_gl->gl_flags, GLF_DEMOTE, TASK_UNINTERRUPTIBLE);
-
-	/*
-	 * holder_uninit to force glock_put, to force dlm to let go
-	 */
-	gfs2_holder_uninit(&sdp->sd_jinode_gh);
-
-	/*
-	 * Note: We need to be careful here:
-	 * Our iput of jd_inode will evict it. The evict will dequeue its
-	 * glock, but the glock dq will wait for the withdraw unless we have
-	 * exception code in glock_dq.
-	 */
-	iput(inode);
-	sdp->sd_jdesc->jd_inode = NULL;
-	/*
-	 * Dequeue the "live" glock, but keep a reference so it's never freed.
-	 */
-	gfs2_glock_hold(live_gl);
-	gfs2_glock_dq_wait(&sdp->sd_live_gh);
-	/*
-	 * We enqueue the "live" glock in EX so that all other nodes
-	 * get a demote request and act on it. We don't really want the
-	 * lock in EX, so we send a "try" lock with 1CB to produce a callback.
-	 */
-	fs_warn(sdp, "Requesting recovery of jid %d.\n",
-		sdp->sd_lockstruct.ls_jid);
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE,
-			   LM_FLAG_TRY_1CB | LM_FLAG_RECOVER | GL_NOPID,
-			   &sdp->sd_live_gh);
-	msleep(GL_GLOCK_MAX_HOLD);
-	/*
-	 * This will likely fail in a cluster, but succeed standalone:
-	 */
-	ret = gfs2_glock_nq(&sdp->sd_live_gh);
-
-	gfs2_glock_put(live_gl); /* drop extra reference we acquired */
-
-	/*
-	 * If we actually got the "live" lock in EX mode, there are no other
-	 * nodes available to replay our journal.
-	 */
-	if (ret == 0) {
-		fs_warn(sdp, "No other mounters found.\n");
-		/*
-		 * We are about to release the lockspace.  By keeping live_gl
-		 * locked here, we ensure that the next mounter coming along
-		 * will be a "first" mounter which will perform recovery.
-		 */
-		goto skip_recovery;
-	}
-
-	/*
-	 * At this point our journal is evicted, so we need to get a new inode
-	 * for it. Once done, we need to call gfs2_find_jhead which
-	 * calls gfs2_map_journal_extents to map it for us again.
-	 *
-	 * Note that we don't really want it to look up a FREE block. The
-	 * GFS2_BLKST_FREE simply overrides a block check in gfs2_inode_lookup
-	 * which would otherwise fail because it requires grabbing an rgrp
-	 * glock, which would fail with -EIO because we're withdrawing.
-	 */
-	inode = gfs2_inode_lookup(sdp->sd_vfs, DT_UNKNOWN,
-				  sdp->sd_jdesc->jd_no_addr, no_formal_ino,
-				  GFS2_BLKST_FREE);
-	if (IS_ERR(inode)) {
-		fs_warn(sdp, "Reprocessing of jid %d failed with %ld.\n",
-			sdp->sd_lockstruct.ls_jid, PTR_ERR(inode));
-		goto skip_recovery;
-	}
-	sdp->sd_jdesc->jd_inode = inode;
-	d_mark_dontcache(inode);
-
-	/*
-	 * Now wait until recovery is complete.
-	 */
-	for (tries = 0; tries < 10; tries++) {
-		ret = check_journal_clean(sdp, sdp->sd_jdesc, false);
-		if (!ret)
-			break;
-		msleep(HZ);
-		fs_warn(sdp, "Waiting for journal recovery jid %d.\n",
-			sdp->sd_lockstruct.ls_jid);
-	}
-skip_recovery:
-	if (!ret)
-		fs_warn(sdp, "Journal recovery complete for jid %d.\n",
-			sdp->sd_lockstruct.ls_jid);
-	else
-		fs_warn(sdp, "Journal recovery skipped for jid %d until next "
-			"mount.\n", sdp->sd_lockstruct.ls_jid);
 }
 
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)
@@ -303,7 +182,7 @@ void gfs2_withdraw_func(struct work_struct *work)
 
 	BUG_ON(sdp->sd_args.ar_debug);
 
-	signal_our_withdraw(sdp);
+	do_withdraw(sdp);
 
 	kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
 
