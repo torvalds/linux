@@ -66,7 +66,6 @@ config RT2800PCI
 	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
-	select CRC_CCITT
 	select EEPROM_93CX6
 	help
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
@@ -142,7 +141,6 @@ config RT2800USB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
-	select CRC_CCITT
 	help
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070, RT3071 & RT3072
@@ -217,6 +215,7 @@ config RT2800SOC
 
 config RT2800_LIB
 	tristate
+	select CRC_CCITT
 
 config RT2800_LIB_MMIO
 	tristate
