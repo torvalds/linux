@@ -633,6 +633,14 @@
 			named mounts. Specifying both "all" and "named" disables
 			all v1 hierarchies.
 
+	cgroup_v1_proc=	[KNL] Show also missing controllers in /proc/cgroups
+			Format: { "true" | "false" }
+			/proc/cgroups lists only v1 controllers by default.
+			This compatibility option enables listing also v2
+			controllers (whose v1 code is not compiled!), so that
+			semi-legacy software can check this file to decide
+			about usage of v2 (sic) controllers.
+
 	cgroup_favordynmods= [KNL] Enable or Disable favordynmods.
 			Format: { "true" | "false" }
 			Defaults to the value of CONFIG_CGROUP_FAVOR_DYNMODS.

@@ -338,7 +338,7 @@ static int test_zswap_writeback_one(const char *cgroup, bool wb)
 		return -1;
 
 	if (wb != !!zswpwb_after) {
-		ksft_print_msg("zswpwb_after is %ld while wb is %s",
+		ksft_print_msg("zswpwb_after is %ld while wb is %s\n",
 				zswpwb_after, wb ? "enabled" : "disabled");
 		return -1;
 	}
