@@ -68,6 +68,7 @@ struct raspberrypi_clk_variant {
 	char		*clkdev;
 	unsigned long	min_rate;
 	bool		minimize;
+	bool		maximize;
 	u32		flags;
 };
 
@@ -135,7 +136,7 @@ raspberrypi_clk_variants[RPI_FIRMWARE_NUM_CLK_ID] = {
 	},
 	[RPI_FIRMWARE_V3D_CLK_ID] = {
 		.export = true,
-		.minimize = true,
+		.maximize = true,
 	},
 	[RPI_FIRMWARE_PIXEL_CLK_ID] = {
 		.export = true,
@@ -385,6 +386,9 @@ static struct clk_hw *raspberrypi_clk_register(struct raspberrypi_clk *rpi,
 			return ERR_PTR(ret);
 		}
 	}
+
+	if (variant->maximize)
+		variant->min_rate = max_rate;
 
 	if (variant->min_rate) {
 		unsigned long rate;
