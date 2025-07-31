@@ -6,6 +6,7 @@
 #ifndef _LINUX_CORESIGHT_H
 #define _LINUX_CORESIGHT_H
 
+#include <linux/acpi.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -480,26 +481,21 @@ static inline bool is_coresight_device(void __iomem *base)
  * Returns:
  *
  * clk   - Clock is found and enabled
- * NULL  - clock is not found
+ * NULL  - Clock is controlled by firmware (ACPI device only)
  * ERROR - Clock is found but failed to enable
  */
 static inline struct clk *coresight_get_enable_apb_pclk(struct device *dev)
 {
 	struct clk *pclk;
-	int ret;
 
-	pclk = clk_get(dev, "apb_pclk");
-	if (IS_ERR(pclk)) {
-		pclk = clk_get(dev, "apb");
-		if (IS_ERR(pclk))
-			return NULL;
-	}
+	/* Firmware controls clocks for an ACPI device. */
+	if (has_acpi_companion(dev))
+		return NULL;
 
-	ret = clk_prepare_enable(pclk);
-	if (ret) {
-		clk_put(pclk);
-		return ERR_PTR(ret);
-	}
+	pclk = devm_clk_get_optional_enabled(dev, "apb_pclk");
+	if (!pclk)
+		pclk = devm_clk_get_optional_enabled(dev, "apb");
+
 	return pclk;
 }
 
