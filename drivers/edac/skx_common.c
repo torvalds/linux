@@ -207,7 +207,7 @@ static bool skx_adxl_decode(struct decoded_addr *res, enum error_source err_src)
 		res->cs      = (int)adxl_values[component_indices[INDEX_CS]];
 	}
 
-	if (res->imc > NUM_IMC - 1 || res->imc < 0) {
+	if (res->imc < 0) {
 		skx_printk(KERN_ERR, "Bad imc %d\n", res->imc);
 		return false;
 	}
