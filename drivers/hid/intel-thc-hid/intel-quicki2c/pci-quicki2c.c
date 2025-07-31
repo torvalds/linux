@@ -11,12 +11,19 @@
 #include <linux/sizes.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/gpio/consumer.h>
+
 #include "intel-thc-dev.h"
 #include "intel-thc-hw.h"
+#include "intel-thc-wot.h"
 
 #include "quicki2c-dev.h"
 #include "quicki2c-hid.h"
 #include "quicki2c-protocol.h"
+
+static struct quicki2c_ddata ptl_ddata = {
+	.max_detect_size = MAX_RX_DETECT_SIZE_PTL,
+};
 
 /* THC QuickI2C ACPI method to get device properties */
 /* HIDI2C device method */
@@ -27,19 +34,26 @@ static guid_t i2c_hid_guid =
 static guid_t thc_platform_guid =
 	GUID_INIT(0x84005682, 0x5b71, 0x41a4, 0x8d, 0x66, 0x81, 0x30, 0xf7, 0x87, 0xa1, 0x38);
 
+/* QuickI2C Wake-on-Touch GPIO resource */
+static const struct acpi_gpio_params wake_gpio = { 0, 0, true };
+
+static const struct acpi_gpio_mapping quicki2c_gpios[] = {
+	{ "wake-on-touch", &wake_gpio, 1 },
+	{ }
+};
+
 /**
  * quicki2c_acpi_get_dsm_property - Query device ACPI DSM parameter
- *
- * @adev: point to ACPI device
+ * @adev: Point to ACPI device
  * @guid: ACPI method's guid
  * @rev: ACPI method's revision
  * @func: ACPI method's function number
  * @type: ACPI parameter's data type
- * @prop_buf: point to return buffer
+ * @prop_buf: Point to return buffer
  *
  * This is a helper function for device to query its ACPI DSM parameters.
  *
- * Return: 0 if success or ENODEV on failed.
+ * Return: 0 if success or ENODEV on failure.
  */
 static int quicki2c_acpi_get_dsm_property(struct acpi_device *adev, const guid_t *guid,
 					  u64 rev, u64 func, acpi_object_type type, void *prop_buf)
@@ -67,11 +81,10 @@ static int quicki2c_acpi_get_dsm_property(struct acpi_device *adev, const guid_t
 
 /**
  * quicki2c_acpi_get_dsd_property - Query device ACPI DSD parameter
- *
- * @adev: point to ACPI device
+ * @adev: Point to ACPI device
  * @dsd_method_name: ACPI method's property name
  * @type: ACPI parameter's data type
- * @prop_buf: point to return buffer
+ * @prop_buf: Point to return buffer
  *
  * This is a helper function for device to query its ACPI DSD parameters.
  *
@@ -100,13 +113,12 @@ static int quicki2c_acpi_get_dsd_property(struct acpi_device *adev, acpi_string 
 }
 
 /**
- * quicki2c_get_acpi_resources - Query all quicki2c devices' ACPI parameters
+ * quicki2c_get_acpi_resources - Query all QuickI2C devices' ACPI parameters
+ * @qcdev: Point to quicki2c_device structure
  *
- * @qcdev: point to quicki2c device
+ * This function gets all QuickI2C devices' ACPI resource.
  *
- * This function gets all quicki2c devices' ACPI resource.
- *
- * Return: 0 if success or error code on failed.
+ * Return: 0 if success or error code on failure.
  */
 static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 {
@@ -192,10 +204,9 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 }
 
 /**
- * quicki2c_irq_quick_handler - The ISR of the quicki2c driver
- *
+ * quicki2c_irq_quick_handler - The ISR of the QuickI2C driver
  * @irq: The irq number
- * @dev_id: pointer to the device structure
+ * @dev_id: Pointer to the quicki2c_device structure
  *
  * Return: IRQ_WAKE_THREAD if further process needed.
  */
@@ -214,13 +225,13 @@ static irqreturn_t quicki2c_irq_quick_handler(int irq, void *dev_id)
 
 /**
  * try_recover - Try to recovery THC and Device
- * @qcdev: pointer to quicki2c device
+ * @qcdev: Pointer to quicki2c_device structure
  *
- * This function is a error handler, called when fatal error happens.
- * It try to reset Touch Device and re-configure THC to recovery
- * transferring between Device and THC.
+ * This function is an error handler, called when fatal error happens.
+ * It try to reset touch device and re-configure THC to recovery
+ * communication between touch device and THC.
  *
- * Return: 0 if successful or error code on failed
+ * Return: 0 if successful or error code on failure
  */
 static int try_recover(struct quicki2c_device *qcdev)
 {
@@ -264,7 +275,7 @@ static int handle_input_report(struct quicki2c_device *qcdev)
 			continue;
 		}
 
-		/* discard samples before driver probe complete */
+		/* Discard samples before driver probe complete */
 		if (qcdev->state != QUICKI2C_ENABLED)
 			continue;
 
@@ -276,10 +287,9 @@ static int handle_input_report(struct quicki2c_device *qcdev)
 }
 
 /**
- * quicki2c_irq_thread_handler - IRQ thread handler of quicki2c driver
- *
+ * quicki2c_irq_thread_handler - IRQ thread handler of QuickI2C driver
  * @irq: The IRQ number
- * @dev_id: pointer to the quicki2c device structure
+ * @dev_id: Pointer to the quicki2c_device structure
  *
  * Return: IRQ_HANDLED to finish this handler.
  */
@@ -325,20 +335,21 @@ exit:
 }
 
 /**
- * quicki2c_dev_init - Initialize quicki2c device
+ * quicki2c_dev_init - Initialize QuickI2C device
+ * @pdev: Pointer to the THC PCI device
+ * @mem_addr: The Pointer of MMIO memory address
+ * @ddata: Point to quicki2c_ddata structure
  *
- * @pdev: pointer to the thc pci device
- * @mem_addr: The pointer of MMIO memory address
- *
- * Alloc quicki2c device structure and initialized THC device,
+ * Alloc quicki2c_device structure and initialized THC device,
  * then configure THC to HIDI2C mode.
  *
  * If success, enable THC hardware interrupt.
  *
- * Return: pointer to the quicki2c device structure if success
- * or NULL on failed.
+ * Return: Pointer to the quicki2c_device structure if success
+ * or NULL on failure.
  */
-static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __iomem *mem_addr)
+static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __iomem *mem_addr,
+						 const struct quicki2c_ddata *ddata)
 {
 	struct device *dev = &pdev->dev;
 	struct quicki2c_device *qcdev;
@@ -352,10 +363,11 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 	qcdev->dev = dev;
 	qcdev->mem_addr = mem_addr;
 	qcdev->state = QUICKI2C_DISABLED;
+	qcdev->ddata = ddata;
 
 	init_waitqueue_head(&qcdev->reset_ack_wq);
 
-	/* thc hw init */
+	/* THC hardware init */
 	qcdev->thc_hw = thc_dev_init(qcdev->dev, qcdev->mem_addr);
 	if (IS_ERR(qcdev->thc_hw)) {
 		ret = PTR_ERR(qcdev->thc_hw);
@@ -392,15 +404,16 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 
 	thc_interrupt_enable(qcdev->thc_hw, true);
 
+	thc_wot_config(qcdev->thc_hw, &quicki2c_gpios[0]);
+
 	qcdev->state = QUICKI2C_INITED;
 
 	return qcdev;
 }
 
 /**
- * quicki2c_dev_deinit - De-initialize quicki2c device
- *
- * @qcdev: pointer to the quicki2c device structure
+ * quicki2c_dev_deinit - De-initialize QuickI2C device
+ * @qcdev: Pointer to the quicki2c_device structure
  *
  * Disable THC interrupt and deinitilize THC.
  */
@@ -408,18 +421,63 @@ static void quicki2c_dev_deinit(struct quicki2c_device *qcdev)
 {
 	thc_interrupt_enable(qcdev->thc_hw, false);
 	thc_ltr_unconfig(qcdev->thc_hw);
+	thc_wot_unconfig(qcdev->thc_hw);
 
 	qcdev->state = QUICKI2C_DISABLED;
 }
 
 /**
- * quicki2c_dma_init - Configure THC DMA for quicki2c device
- * @qcdev: pointer to the quicki2c device structure
+ * quicki2c_dma_adv_enable - Configure and enable DMA advanced features
+ * @qcdev: Pointer to the quicki2c_device structure
+ *
+ * If platform supports THC DMA advanced features, such as max input size
+ * control or interrupt delay, configures and enables them.
+ */
+static void quicki2c_dma_adv_enable(struct quicki2c_device *qcdev)
+{
+	/*
+	 * If platform supports max input size control feature and touch device
+	 * max input length <= THC detect capability, enable the feature with device
+	 * max input length.
+	 */
+	if (qcdev->ddata->max_detect_size >=
+	    le16_to_cpu(qcdev->dev_desc.max_input_len)) {
+		thc_i2c_set_rx_max_size(qcdev->thc_hw,
+					le16_to_cpu(qcdev->dev_desc.max_input_len));
+		thc_i2c_rx_max_size_enable(qcdev->thc_hw, true);
+	}
+
+	/* If platform supports interrupt delay feature, enable it with given delay */
+	if (qcdev->ddata->interrupt_delay) {
+		thc_i2c_set_rx_int_delay(qcdev->thc_hw,
+					 qcdev->ddata->interrupt_delay);
+		thc_i2c_rx_int_delay_enable(qcdev->thc_hw, true);
+	}
+}
+
+/**
+ * quicki2c_dma_adv_disable - Disable DMA advanced features
+ * @qcdev: Pointer to the quicki2c device structure
+ *
+ * Disable all DMA advanced features if platform supports.
+ */
+static void quicki2c_dma_adv_disable(struct quicki2c_device *qcdev)
+{
+	if (qcdev->ddata->max_detect_size)
+		thc_i2c_rx_max_size_enable(qcdev->thc_hw, false);
+
+	if (qcdev->ddata->interrupt_delay)
+		thc_i2c_rx_int_delay_enable(qcdev->thc_hw, false);
+}
+
+/**
+ * quicki2c_dma_init - Configure THC DMA for QuickI2C device
+ * @qcdev: Pointer to the quicki2c_device structure
  *
  * This function uses TIC's parameters(such as max input length, max output
  * length) to allocate THC DMA buffers and configure THC DMA engines.
  *
- * Return: 0 if success or error code on failed.
+ * Return: 0 if success or error code on failure.
  */
 static int quicki2c_dma_init(struct quicki2c_device *qcdev)
 {
@@ -451,12 +509,15 @@ static int quicki2c_dma_init(struct quicki2c_device *qcdev)
 		return ret;
 	}
 
-	return ret;
+	if (qcdev->ddata)
+		quicki2c_dma_adv_enable(qcdev);
+
+	return 0;
 }
 
 /**
- * quicki2c_dma_deinit - Release THC DMA for quicki2c device
- * @qcdev: pointer to the quicki2c device structure
+ * quicki2c_dma_deinit - Release THC DMA for QuickI2C device
+ * @qcdev: Pointer to the quicki2c_device structure
  *
  * Stop THC DMA engines and release all DMA buffers.
  *
@@ -465,11 +526,14 @@ static void quicki2c_dma_deinit(struct quicki2c_device *qcdev)
 {
 	thc_dma_unconfigure(qcdev->thc_hw);
 	thc_dma_release(qcdev->thc_hw);
+
+	if (qcdev->ddata)
+		quicki2c_dma_adv_disable(qcdev);
 }
 
 /**
  * quicki2c_alloc_report_buf - Alloc report buffers
- * @qcdev: pointer to the quicki2c device structure
+ * @qcdev: Pointer to the quicki2c_device structure
  *
  * Allocate report descriptor buffer, it will be used for restore TIC HID
  * report descriptor.
@@ -480,7 +544,7 @@ static void quicki2c_dma_deinit(struct quicki2c_device *qcdev)
  * Allocate output report buffer, it will be used for store HID output report,
  * such as set feature.
  *
- * Return: 0 if success or error code on failed.
+ * Return: 0 if success or error code on failure.
  */
 static int quicki2c_alloc_report_buf(struct quicki2c_device *qcdev)
 {
@@ -518,28 +582,27 @@ static int quicki2c_alloc_report_buf(struct quicki2c_device *qcdev)
 }
 
 /*
- * quicki2c_probe: Quicki2c driver probe function
- *
- * @pdev: point to pci device
- * @id: point to pci_device_id structure
+ * quicki2c_probe: QuickI2C driver probe function
+ * @pdev: Point to PCI device
+ * @id: Point to pci_device_id structure
  *
  * This function initializes THC and HIDI2C device, the flow is:
- * - do THC pci device initialization
- * - query HIDI2C ACPI parameters
- * - configure THC to HIDI2C mode
- * - go through HIDI2C enumeration flow
- *   |- read device descriptor
- *   |- reset HIDI2C device
- * - enable THC interrupt and DMA
- * - read report descriptor
- * - register HID device
- * - enable runtime power management
+ * - Do THC pci device initialization
+ * - Query HIDI2C ACPI parameters
+ * - Configure THC to HIDI2C mode
+ * - Go through HIDI2C enumeration flow
+ *   |- Read device descriptor
+ *   |- Reset HIDI2C device
+ * - Enable THC interrupt and DMA
+ * - Read report descriptor
+ * - Register HID device
+ * - Enable runtime power management
  *
- * Return 0 if success or error code on failed.
+ * Return 0 if success or error code on failure.
  */
-static int quicki2c_probe(struct pci_dev *pdev,
-			  const struct pci_device_id *id)
+static int quicki2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	const struct quicki2c_ddata *ddata = (const struct quicki2c_ddata *)id->driver_data;
 	struct quicki2c_device *qcdev;
 	void __iomem *mem_addr;
 	int ret;
@@ -577,7 +640,7 @@ static int quicki2c_probe(struct pci_dev *pdev,
 
 	pdev->irq = pci_irq_vector(pdev, 0);
 
-	qcdev = quicki2c_dev_init(pdev, mem_addr);
+	qcdev = quicki2c_dev_init(pdev, mem_addr, ddata);
 	if (IS_ERR(qcdev)) {
 		dev_err_once(&pdev->dev, "QuickI2C device init failed\n");
 		ret = PTR_ERR(qcdev);
@@ -668,11 +731,10 @@ disable_pci_device:
 
 /**
  * quicki2c_remove - Device Removal Routine
+ * @pdev: Point to PCI device structure
  *
- * @pdev: PCI device structure
- *
- * This is called by the PCI subsystem to alert the driver
- * that it should release a PCI device.
+ * This is called by the PCI subsystem to alert the driver that it should
+ * release a PCI device.
  */
 static void quicki2c_remove(struct pci_dev *pdev)
 {
@@ -694,12 +756,10 @@ static void quicki2c_remove(struct pci_dev *pdev)
 
 /**
  * quicki2c_shutdown - Device Shutdown Routine
+ * @pdev: Point to PCI device structure
  *
- * @pdev: PCI device structure
- *
- * This is called from the reboot notifier
- * it's a simplified version of remove so we go down
- * faster.
+ * This is called from the reboot notifier, it's a simplified version of remove
+ * so we go down faster.
  */
 static void quicki2c_shutdown(struct pci_dev *pdev)
 {
@@ -930,13 +990,13 @@ static const struct dev_pm_ops quicki2c_pm_ops = {
 };
 
 static const struct pci_device_id quicki2c_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, THC_LNL_DEVICE_ID_I2C_PORT1), },
-	{PCI_VDEVICE(INTEL, THC_LNL_DEVICE_ID_I2C_PORT2), },
-	{PCI_VDEVICE(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT1), },
-	{PCI_VDEVICE(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT2), },
-	{PCI_VDEVICE(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT1), },
-	{PCI_VDEVICE(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT2), },
-	{}
+	{ PCI_DEVICE_DATA(INTEL, THC_LNL_DEVICE_ID_I2C_PORT1, NULL) },
+	{ PCI_DEVICE_DATA(INTEL, THC_LNL_DEVICE_ID_I2C_PORT2, NULL) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, quicki2c_pci_tbl);
 
