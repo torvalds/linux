@@ -38,6 +38,11 @@
 	     (__i)++) \
 		for_each_if(obj)
 
+struct intel_global_objs_state {
+	struct intel_global_obj *ptr;
+	struct intel_global_state *state, *old_state, *new_state;
+};
+
 struct intel_global_commit {
 	struct kref ref;
 	struct completion done;
@@ -173,7 +178,7 @@ intel_atomic_get_global_obj_state(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(state);
 	int index, num_objs, i;
 	size_t size;
-	struct __intel_global_objs_state *arr;
+	struct intel_global_objs_state *arr;
 	struct intel_global_state *obj_state;
 
 	for (i = 0; i < state->num_global_objs; i++)

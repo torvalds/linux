@@ -54,10 +54,10 @@
 
 struct cec_notifier;
 struct drm_printer;
-struct __intel_global_objs_state;
 struct intel_connector;
 struct intel_ddi_buf_trans;
 struct intel_fbc;
+struct intel_global_objs_state;
 struct intel_hdcp_shim;
 struct intel_tc_port;
 
@@ -593,7 +593,7 @@ struct intel_atomic_state {
 
 	struct ref_tracker *wakeref;
 
-	struct __intel_global_objs_state *global_objs;
+	struct intel_global_objs_state *global_objs;
 	int num_global_objs;
 
 	/* Internal commit, as opposed to userspace/client initiated one */

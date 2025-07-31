@@ -36,11 +36,6 @@ struct intel_global_state {
 	bool changed, serialized;
 };
 
-struct __intel_global_objs_state {
-	struct intel_global_obj *ptr;
-	struct intel_global_state *state, *old_state, *new_state;
-};
-
 void intel_atomic_global_obj_init(struct intel_display *display,
 				  struct intel_global_obj *obj,
 				  struct intel_global_state *state,
