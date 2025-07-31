@@ -3978,8 +3978,13 @@ static int scarlett2_input_select_ctl_info(
 		goto unlock;
 
 	/* Loop through each input */
-	for (i = 0; i < inputs; i++)
+	for (i = 0; i < inputs; i++) {
 		values[i] = kasprintf(GFP_KERNEL, "Input %d", i + 1);
+		if (!values[i]) {
+			err = -ENOMEM;
+			goto unlock;
+		}
+	}
 
 	err = snd_ctl_enum_info(uinfo, 1, i,
 				(const char * const *)values);
