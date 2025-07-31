@@ -979,8 +979,7 @@ static int do_writepage(struct folio *folio, size_t len)
  * on the page lock and it would not write the truncated inode node to the
  * journal before we have finished.
  */
-static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
-		void *data)
+static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc)
 {
 	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -1052,7 +1051,12 @@ out_unlock:
 static int ubifs_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
-	return write_cache_pages(mapping, wbc, ubifs_writepage, NULL);
+	struct folio *folio = NULL;
+	int error;
+
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		error = ubifs_writepage(folio, wbc);
+	return error;
 }
 
 /**
