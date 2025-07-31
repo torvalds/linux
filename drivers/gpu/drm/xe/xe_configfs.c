@@ -309,7 +309,7 @@ static struct configfs_subsystem xe_configfs = {
 	},
 };
 
-static struct xe_config_group_device *configfs_find_group(struct pci_dev *pdev)
+static struct xe_config_group_device *find_xe_config_group_device(struct pci_dev *pdev)
 {
 	struct config_item *item;
 
@@ -334,14 +334,14 @@ static struct xe_config_group_device *configfs_find_group(struct pci_dev *pdev)
  */
 bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 {
-	struct xe_config_group_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
 	bool mode;
 
 	if (!dev)
 		return false;
 
 	mode = dev->survivability_mode;
-	config_item_put(&dev->group.cg_item);
+	config_group_put(&dev->group);
 
 	return mode;
 }
@@ -355,7 +355,7 @@ bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
  */
 void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 {
-	struct xe_config_group_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
 
 	if (!dev)
 		return;
@@ -364,7 +364,7 @@ void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 	dev->survivability_mode = 0;
 	mutex_unlock(&dev->lock);
 
-	config_item_put(&dev->group.cg_item);
+	config_group_put(&dev->group);
 }
 
 /**
@@ -378,14 +378,14 @@ void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
  */
 u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 {
-	struct xe_config_group_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
 	u64 engines_allowed;
 
 	if (!dev)
 		return U64_MAX;
 
 	engines_allowed = dev->engines_allowed;
-	config_item_put(&dev->group.cg_item);
+	config_group_put(&dev->group);
 
 	return engines_allowed;
 }
