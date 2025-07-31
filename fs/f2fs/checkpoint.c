@@ -1778,6 +1778,7 @@ static void __checkpoint_and_complete_reqs(struct f2fs_sb_info *sbi)
 	llist_for_each_entry_safe(req, next, dispatch_list, llnode) {
 		diff = (u64)ktime_ms_delta(ktime_get(), req->queue_time);
 		req->ret = ret;
+		req->delta_time = diff;
 		complete(&req->wait);
 
 		sum_diff += diff;
@@ -1872,6 +1873,12 @@ int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi)
 		wait_for_completion(&req.wait);
 	else
 		flush_remained_ckpt_reqs(sbi, &req);
+
+	if (unlikely(req.delta_time >= CP_LONG_LATENCY_THRESHOLD)) {
+		f2fs_warn_ratelimited(sbi,
+			"blocked on checkpoint for %u ms", cprc->peak_time);
+		dump_stack();
+	}
 
 	return req.ret;
 }

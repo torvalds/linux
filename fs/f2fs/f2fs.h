@@ -334,7 +334,10 @@ struct ckpt_req {
 	struct completion wait;		/* completion for checkpoint done */
 	struct llist_node llnode;	/* llist_node to be linked in wait queue */
 	int ret;			/* return code of checkpoint */
-	ktime_t queue_time;		/* request queued time */
+	union {
+		ktime_t queue_time;	/* request queued time */
+		ktime_t delta_time;	/* time in queue */
+	};
 };
 
 struct ckpt_req_control {
@@ -349,6 +352,9 @@ struct ckpt_req_control {
 	unsigned int cur_time;		/* cur wait time in msec for currently issued checkpoint */
 	unsigned int peak_time;		/* peak wait time in msec until now */
 };
+
+/* a time threshold that checkpoint was blocked for, unit: ms */
+#define CP_LONG_LATENCY_THRESHOLD	5000
 
 /* for the bitmap indicate blocks to be discarded */
 struct discard_entry {
