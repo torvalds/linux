@@ -1304,7 +1304,7 @@ impl<'vec, T> Drop for DrainAll<'vec, T> {
     }
 }
 
-#[macros::kunit_tests(rust_kvec_kunit)]
+#[macros::kunit_tests(rust_kvec)]
 mod tests {
     use super::*;
     use crate::prelude::*;
