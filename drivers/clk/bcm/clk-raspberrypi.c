@@ -194,8 +194,11 @@ static int raspberrypi_fw_is_prepared(struct clk_hw *hw)
 
 	ret = raspberrypi_clock_property(rpi->firmware, data,
 					 RPI_FIRMWARE_GET_CLOCK_STATE, &val);
-	if (ret)
+	if (ret) {
+		dev_err_ratelimited(rpi->dev, "Failed to get %s state: %d\n",
+				    clk_hw_get_name(hw), ret);
 		return 0;
+	}
 
 	return !!(val & RPI_FIRMWARE_STATE_ENABLE_BIT);
 }
@@ -211,8 +214,11 @@ static unsigned long raspberrypi_fw_get_rate(struct clk_hw *hw,
 
 	ret = raspberrypi_clock_property(rpi->firmware, data,
 					 RPI_FIRMWARE_GET_CLOCK_RATE, &val);
-	if (ret)
+	if (ret) {
+		dev_err_ratelimited(rpi->dev, "Failed to get %s frequency: %d\n",
+				    clk_hw_get_name(hw), ret);
 		return 0;
+	}
 
 	return val;
 }
