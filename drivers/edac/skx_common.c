@@ -130,7 +130,7 @@ static void skx_init_mc_mapping(struct skx_dev *d)
 	 * the logical indices of the memory controllers enumerated by the
 	 * EDAC driver.
 	 */
-	for (int i = 0; i < NUM_IMC; i++)
+	for (int i = 0; i < d->num_imc; i++)
 		d->imc[i].mc_mapping = i;
 }
 
@@ -139,22 +139,28 @@ void skx_set_mc_mapping(struct skx_dev *d, u8 pmc, u8 lmc)
 	edac_dbg(0, "Set the mapping of mc phy idx to logical idx: %02d -> %02d\n",
 		 pmc, lmc);
 
-	d->imc[pmc].mc_mapping = lmc;
+	d->imc[lmc].mc_mapping = pmc;
 }
 EXPORT_SYMBOL_GPL(skx_set_mc_mapping);
 
-static u8 skx_get_mc_mapping(struct skx_dev *d, u8 pmc)
+static int skx_get_mc_mapping(struct skx_dev *d, u8 pmc)
 {
-	edac_dbg(0, "Get the mapping of mc phy idx to logical idx: %02d -> %02d\n",
-		 pmc, d->imc[pmc].mc_mapping);
+	for (int lmc = 0; lmc < d->num_imc; lmc++) {
+		if (d->imc[lmc].mc_mapping == pmc) {
+			edac_dbg(0, "Get the mapping of mc phy idx to logical idx: %02d -> %02d\n",
+				 pmc, lmc);
 
-	return d->imc[pmc].mc_mapping;
+			return lmc;
+		}
+	}
+
+	return -1;
 }
 
 static bool skx_adxl_decode(struct decoded_addr *res, enum error_source err_src)
 {
+	int i, lmc, len = 0;
 	struct skx_dev *d;
-	int i, len = 0;
 
 	if (res->addr >= skx_tohm || (res->addr >= skx_tolm &&
 				      res->addr < BIT_ULL(32))) {
@@ -218,7 +224,13 @@ static bool skx_adxl_decode(struct decoded_addr *res, enum error_source err_src)
 		return false;
 	}
 
-	res->imc = skx_get_mc_mapping(d, res->imc);
+	lmc = skx_get_mc_mapping(d, res->imc);
+	if (lmc < 0) {
+		skx_printk(KERN_ERR, "No lmc for imc %d\n", res->imc);
+		return false;
+	}
+
+	res->imc = lmc;
 
 	for (i = 0; i < adxl_component_count; i++) {
 		if (adxl_values[i] == ~0x0ull)
