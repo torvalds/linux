@@ -11,9 +11,11 @@
 #ifndef _LINUX_MFD_SYSCON_ATMEL_SMC_H_
 #define _LINUX_MFD_SYSCON_ATMEL_SMC_H_
 
-#include <linux/kernel.h>
-#include <linux/of.h>
-#include <linux/regmap.h>
+#include <linux/bits.h>
+#include <linux/types.h>
+
+struct device_node;
+struct regmap;
 
 #define ATMEL_SMC_SETUP(cs)			(((cs) * 0x10))
 #define ATMEL_HSMC_SETUP(layout, cs)		\
