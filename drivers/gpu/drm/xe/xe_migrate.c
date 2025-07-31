@@ -2017,15 +2017,19 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	if (!IS_ALIGNED(len, XE_CACHELINE_BYTES) ||
 	    !IS_ALIGNED((unsigned long)buf + offset, XE_CACHELINE_BYTES)) {
 		int buf_offset = 0;
+		void *bounce;
+		int err;
+
+		BUILD_BUG_ON(!is_power_of_2(XE_CACHELINE_BYTES));
+		bounce = kmalloc(XE_CACHELINE_BYTES, GFP_KERNEL);
+		if (!bounce)
+			return -ENOMEM;
 
 		/*
 		 * Less than ideal for large unaligned access but this should be
 		 * fairly rare, can fixup if this becomes common.
 		 */
 		do {
-			u8 bounce[XE_CACHELINE_BYTES];
-			void *ptr = (void *)bounce;
-			int err;
 			int copy_bytes = min_t(int, bytes_left,
 					       XE_CACHELINE_BYTES -
 					       (offset & XE_CACHELINE_MASK));
@@ -2034,22 +2038,22 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 			err = xe_migrate_access_memory(m, bo,
 						       offset &
 						       ~XE_CACHELINE_MASK,
-						       (void *)ptr,
-						       sizeof(bounce), 0);
+						       bounce,
+						       XE_CACHELINE_BYTES, 0);
 			if (err)
-				return err;
+				break;
 
 			if (write) {
-				memcpy(ptr + ptr_offset, buf + buf_offset, copy_bytes);
+				memcpy(bounce + ptr_offset, buf + buf_offset, copy_bytes);
 
 				err = xe_migrate_access_memory(m, bo,
 							       offset & ~XE_CACHELINE_MASK,
-							       (void *)ptr,
-							       sizeof(bounce), write);
+							       bounce,
+							       XE_CACHELINE_BYTES, write);
 				if (err)
-					return err;
+					break;
 			} else {
-				memcpy(buf + buf_offset, ptr + ptr_offset,
+				memcpy(buf + buf_offset, bounce + ptr_offset,
 				       copy_bytes);
 			}
 
@@ -2058,7 +2062,8 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 			offset += copy_bytes;
 		} while (bytes_left);
 
-		return 0;
+		kfree(bounce);
+		return err;
 	}
 
 	pagemap_addr = xe_migrate_dma_map(xe, buf, len + page_offset, write);
