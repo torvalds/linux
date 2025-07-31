@@ -6,9 +6,10 @@
  * Alexander Kjeldaas <astor@guardian.no>
  * with help from Aleph1, Roland Buresund and Andrew Main.
  *
- * See here for the libcap library ("POSIX draft" compliance):
+ * See here for the libcap2 library (compliant with Section 25 of
+ * the withdrawn POSIX 1003.1e Draft 17):
  *
- * ftp://www.kernel.org/pub/linux/libs/security/linux-privs/kernel-2.6/
+ * https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/
  */
 
 #ifndef _UAPI_LINUX_CAPABILITY_H
