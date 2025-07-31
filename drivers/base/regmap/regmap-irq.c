@@ -816,7 +816,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 						     d->mask_buf[i],
 						     chip->irq_drv_data);
 			if (ret)
-				goto err_alloc;
+				goto err_mutex;
 		}
 
 		if (chip->mask_base && !chip->handle_mask_sync) {
@@ -827,7 +827,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			if (ret) {
 				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
 					reg, ret);
-				goto err_alloc;
+				goto err_mutex;
 			}
 		}
 
@@ -838,7 +838,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			if (ret) {
 				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
 					reg, ret);
-				goto err_alloc;
+				goto err_mutex;
 			}
 		}
 
@@ -855,7 +855,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to read IRQ status: %d\n",
 					ret);
-				goto err_alloc;
+				goto err_mutex;
 			}
 		}
 
@@ -879,7 +879,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to ack 0x%x: %d\n",
 					reg, ret);
-				goto err_alloc;
+				goto err_mutex;
 			}
 		}
 	}
@@ -901,7 +901,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
 					reg, ret);
-				goto err_alloc;
+				goto err_mutex;
 			}
 		}
 	}
@@ -910,7 +910,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	if (chip->status_is_level) {
 		ret = read_irq_data(d);
 		if (ret < 0)
-			goto err_alloc;
+			goto err_mutex;
 
 		memcpy(d->prev_status_buf, d->status_buf,
 		       array_size(d->chip->num_regs, sizeof(d->prev_status_buf[0])));
@@ -918,7 +918,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 
 	ret = regmap_irq_create_domain(fwnode, irq_base, chip, d);
 	if (ret)
-		goto err_alloc;
+		goto err_mutex;
 
 	ret = request_threaded_irq(irq, NULL, regmap_irq_thread,
 				   irq_flags | IRQF_ONESHOT,
@@ -935,6 +935,8 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 
 err_domain:
 	/* Should really dispose of the domain but... */
+err_mutex:
+	mutex_destroy(&d->lock);
 err_alloc:
 	kfree(d->type_buf);
 	kfree(d->type_buf_def);
@@ -1027,6 +1029,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 			kfree(d->config_buf[i]);
 		kfree(d->config_buf);
 	}
+	mutex_destroy(&d->lock);
 	kfree(d);
 }
 EXPORT_SYMBOL_GPL(regmap_del_irq_chip);
