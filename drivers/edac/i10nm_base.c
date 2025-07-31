@@ -468,17 +468,18 @@ static int i10nm_get_imc_num(struct res_config *cfg)
 			return -ENODEV;
 		}
 
-		if (imc_num > I10NM_NUM_DDR_IMC) {
-			i10nm_printk(KERN_ERR, "Need to make I10NM_NUM_DDR_IMC >= %d\n", imc_num);
-			return -EINVAL;
-		}
-
 		if (cfg->ddr_imc_num != imc_num) {
 			/*
-			 * Store the number of present DDR memory controllers.
+			 * Update the configuration data to reflect the number of
+			 * present DDR memory controllers.
 			 */
 			cfg->ddr_imc_num = imc_num;
 			edac_dbg(2, "Set DDR MC number: %d", imc_num);
+
+			/* Release and reallocate skx_dev list with the updated number. */
+			skx_remove();
+			if (skx_get_all_bus_mappings(cfg, &i10nm_edac_list) <= 0)
+				return -ENODEV;
 		}
 
 		return 0;
