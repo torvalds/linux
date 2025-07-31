@@ -134,6 +134,7 @@ struct skx_dev {
 	struct pci_dev *uracu; /* for i10nm CPU */
 	struct pci_dev *pcu_cr3; /* for HBM memory detection */
 	u32 mcroute;
+	int num_imc;
 	/*
 	 * Some server BIOS may hide certain memory controllers, and the
 	 * EDAC driver skips those hidden memory controllers. However, the
