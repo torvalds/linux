@@ -686,7 +686,6 @@ int expect_strtox(int llen, void *func, const char *input, int base, intmax_t ex
 #define CASE_TEST(name) \
 	case __LINE__: llen += printf("%d %s", test, #name);
 
-/* constructors validate that they are executed in definition order */
 __attribute__((constructor))
 static void constructor1(void)
 {
