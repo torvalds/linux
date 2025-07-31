@@ -9,19 +9,19 @@
  * Author: Jerry Shih <jerry.shih@sifive.com>
  */
 
+#include <asm/simd.h>
 #include <asm/vector.h>
-#include <crypto/internal/simd.h>
+
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_extensions);
 
 asmlinkage void
 sha256_transform_zvknha_or_zvknhb_zvkb(struct sha256_block_state *state,
 				       const u8 *data, size_t nblocks);
 
-static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_extensions);
-
 static void sha256_blocks(struct sha256_block_state *state,
 			  const u8 *data, size_t nblocks)
 {
-	if (static_branch_likely(&have_extensions) && crypto_simd_usable()) {
+	if (static_branch_likely(&have_extensions) && likely(may_use_simd())) {
 		kernel_vector_begin();
 		sha256_transform_zvknha_or_zvknhb_zvkb(state, data, nblocks);
 		kernel_vector_end();
