@@ -203,21 +203,21 @@ static void spdio_end_io(struct bio *bio)
 		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
 
   // bio 플래그 확인 후 조기 반환 트리거 
-  //if (bio->bi_flags & (1U << BIO_RETURN_TRIGGER)) {
-  struct task_struct *waiter = dio->submit.waiter;
-   if (waiter) {
-     WRITE_ONCE(dio->submit.waiter, NULL);
-     blk_wake_io_task(waiter);
-     //pr_info("spdio_end_io(): trigger completion point\n");
-   }
-  //}
-  
-  if (atomic_dec_and_test(&dio->ref)) {
-    kfree(dio);
+  if (bio->bi_flags & (1U << BIO_RETURN_TRIGGER)) {
+    struct task_struct *waiter = dio->submit.waiter;
+    if (waiter) {
+      WRITE_ONCE(dio->submit.waiter, NULL);
+      blk_wake_io_task(waiter);
+      //pr_info("spdio_end_io(): trigger completion point\n");
+    }
+  } else {
+    bio_release_pages(bio, false);
+  	bio_put(bio);
   }
-
-  bio_release_pages(bio, false);
-	bio_put(bio);
+  
+  if (atomic_dec_and_test(&dio->ref)) 
+    kfree(dio);
+  
   //pr_info("spdio_end_io(): exit\n");
 }
 
@@ -356,7 +356,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
     nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   } 
   */
-  //nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
+  //nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, 1);
   nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   do {
     //s = ktime_get();
@@ -569,7 +569,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
   bool spdio = iocb->ki_filp->f_flags & O_SPDIO;
   if (spdio) {
     //unsigned int tmp = 4096 * 64;
-    //dio->threshold = iomi.len / 2;
+    dio->threshold = 4096;
     //if (dio->threshold < 4096)
     //  dio->threshold = 4096;
     //if (dio->threshold > tmp)
