@@ -1272,7 +1272,7 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 		 */
 		return cifs_sfu_make_node(xid, inode, dentry, tcon,
 					  full_path, mode, dev);
-	} else if (le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+	} else if (CIFS_REPARSE_SUPPORT(tcon)) {
 		/*
 		 * mknod via reparse points requires server support for
 		 * storing reparse points, which is available since

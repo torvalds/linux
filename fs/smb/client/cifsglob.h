@@ -2377,4 +2377,9 @@ static inline bool cifs_netbios_name(const char *name, size_t namelen)
 	return ret;
 }
 
+#define CIFS_REPARSE_SUPPORT(tcon) \
+	((tcon)->posix_extensions || \
+	 (le32_to_cpu((tcon)->fsAttrInfo.Attributes) & \
+	  FILE_SUPPORTS_REPARSE_POINTS))
+
 #endif	/* _CIFS_GLOB_H */

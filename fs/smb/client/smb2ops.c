@@ -5260,10 +5260,9 @@ static int smb2_make_node(unsigned int xid, struct inode *inode,
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 		rc = cifs_sfu_make_node(xid, inode, dentry, tcon,
 					full_path, mode, dev);
-	} else if ((le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS)
-		|| (tcon->posix_extensions)) {
+	} else if (CIFS_REPARSE_SUPPORT(tcon)) {
 		rc = mknod_reparse(xid, inode, dentry, tcon,
-					full_path, mode, dev);
+				   full_path, mode, dev);
 	}
 	return rc;
 }

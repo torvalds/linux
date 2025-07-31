@@ -635,7 +635,7 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	case CIFS_SYMLINK_TYPE_NATIVE:
 	case CIFS_SYMLINK_TYPE_NFS:
 	case CIFS_SYMLINK_TYPE_WSL:
-		if (le32_to_cpu(pTcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+		if (CIFS_REPARSE_SUPPORT(pTcon)) {
 			rc = create_reparse_symlink(xid, inode, direntry, pTcon,
 						    full_path, symname);
 			goto symlink_exit;
