@@ -2090,9 +2090,6 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 			current_bytes = min_t(int, current_bytes, S16_MAX * pitch);
 		}
 
-		if (fence)
-			dma_fence_put(fence);
-
 		__fence = xe_migrate_vram(m, current_bytes,
 					  (unsigned long)buf & ~PAGE_MASK,
 					  &pagemap_addr[current_page],
@@ -2100,11 +2097,15 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 					  XE_MIGRATE_COPY_TO_VRAM :
 					  XE_MIGRATE_COPY_TO_SRAM);
 		if (IS_ERR(__fence)) {
-			if (fence)
+			if (fence) {
 				dma_fence_wait(fence, false);
+				dma_fence_put(fence);
+			}
 			fence = __fence;
 			goto out_err;
 		}
+
+		dma_fence_put(fence);
 		fence = __fence;
 
 		buf += current_bytes;
