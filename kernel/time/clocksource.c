@@ -407,9 +407,8 @@ void clocksource_verify_percpu(struct clocksource *cs)
 	if (!cpumask_empty(&cpus_behind))
 		pr_warn("        CPUs %*pbl behind CPU %d for clocksource %s.\n",
 			cpumask_pr_args(&cpus_behind), testcpu, cs->name);
-	if (!cpumask_empty(&cpus_ahead) || !cpumask_empty(&cpus_behind))
-		pr_warn("        CPU %d check durations %lldns - %lldns for clocksource %s.\n",
-			testcpu, cs_nsec_min, cs_nsec_max, cs->name);
+	pr_info("        CPU %d check durations %lldns - %lldns for clocksource %s.\n",
+		testcpu, cs_nsec_min, cs_nsec_max, cs->name);
 }
 EXPORT_SYMBOL_GPL(clocksource_verify_percpu);
 
