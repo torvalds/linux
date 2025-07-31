@@ -97,6 +97,16 @@ struct xe_config_group_device {
 	struct mutex lock;
 };
 
+static const struct xe_config_device device_defaults = {
+	.survivability_mode = false,
+	.engines_allowed = U64_MAX,
+};
+
+static void set_device_defaults(struct xe_config_device *config)
+{
+	*config = device_defaults;
+}
+
 struct engine_info {
 	const char *cls;
 	u64 mask;
@@ -288,8 +298,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	/* Default values */
-	dev->config.engines_allowed = U64_MAX;
+	set_device_defaults(&dev->config);
 
 	config_group_init_type_name(&dev->group, name, &xe_config_device_type);
 
@@ -345,7 +354,7 @@ bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 	bool mode;
 
 	if (!dev)
-		return false;
+		return device_defaults.survivability_mode;
 
 	mode = dev->config.survivability_mode;
 	config_group_put(&dev->group);
@@ -389,7 +398,7 @@ u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 	u64 engines_allowed;
 
 	if (!dev)
-		return U64_MAX;
+		return device_defaults.engines_allowed;
 
 	engines_allowed = dev->config.engines_allowed;
 	config_group_put(&dev->group);
