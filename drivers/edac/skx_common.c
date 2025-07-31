@@ -17,6 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/adxl.h>
+#include <linux/overflow.h>
 #include <acpi/nfit.h>
 #include <asm/mce.h>
 #include <asm/uv/uv.h>
@@ -343,7 +344,7 @@ int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list)
 		if (!pdev)
 			break;
 		ndev++;
-		d = kzalloc(sizeof(*d), GFP_KERNEL);
+		d = kzalloc(struct_size(d, imc, imc_num), GFP_KERNEL);
 		if (!d) {
 			pci_dev_put(pdev);
 			return -ENOMEM;
