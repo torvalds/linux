@@ -381,38 +381,6 @@ static const unsigned int g12a_aoclk_reset[] = {
 	[RESET_AO_IR_OUT]	= 23,
 };
 
-static struct clk_regmap *g12a_aoclk_regmap[] = {
-	&g12a_aoclk_ahb,
-	&g12a_aoclk_ir_in,
-	&g12a_aoclk_i2c_m0,
-	&g12a_aoclk_i2c_s0,
-	&g12a_aoclk_uart,
-	&g12a_aoclk_prod_i2c,
-	&g12a_aoclk_uart2,
-	&g12a_aoclk_ir_out,
-	&g12a_aoclk_saradc,
-	&g12a_aoclk_mailbox,
-	&g12a_aoclk_m3,
-	&g12a_aoclk_ahb_sram,
-	&g12a_aoclk_rti,
-	&g12a_aoclk_m4_fclk,
-	&g12a_aoclk_m4_hclk,
-	&g12a_aoclk_cts_oscin,
-	&g12a_aoclk_32k_by_oscin_pre,
-	&g12a_aoclk_32k_by_oscin_div,
-	&g12a_aoclk_32k_by_oscin_sel,
-	&g12a_aoclk_32k_by_oscin,
-	&g12a_aoclk_cec_pre,
-	&g12a_aoclk_cec_div,
-	&g12a_aoclk_cec_sel,
-	&g12a_aoclk_cec,
-	&g12a_aoclk_cts_rtc_oscin,
-	&g12a_aoclk_clk81,
-	&g12a_aoclk_saradc_mux,
-	&g12a_aoclk_saradc_div,
-	&g12a_aoclk_saradc_gate,
-};
-
 static struct clk_hw *g12a_aoclk_hw_clks[] = {
 	[CLKID_AO_AHB]		= &g12a_aoclk_ahb.hw,
 	[CLKID_AO_IR_IN]	= &g12a_aoclk_ir_in.hw,
@@ -449,8 +417,6 @@ static const struct meson_aoclk_data g12a_aoclkc_data = {
 	.reset_reg	= AO_RTI_GEN_CNTL_REG0,
 	.num_reset	= ARRAY_SIZE(g12a_aoclk_reset),
 	.reset		= g12a_aoclk_reset,
-	.num_clks	= ARRAY_SIZE(g12a_aoclk_regmap),
-	.clks		= g12a_aoclk_regmap,
 	.hw_clks	= {
 		.hws	= g12a_aoclk_hw_clks,
 		.num	= ARRAY_SIZE(g12a_aoclk_hw_clks),

@@ -968,7 +968,7 @@ static int sg2042_mux_notifier_cb(struct notifier_block *nb,
 		/*
 		 * "1" is the array index of the second parent input source of
 		 * mux. For SG2042, it's fpll for all mux clocks.
-		 * "0" is the array index of the frist parent input source of
+		 * "0" is the array index of the first parent input source of
 		 * mux, For SG2042, it's mpll.
 		 * FIXME, any good idea to avoid magic number?
 		 */
