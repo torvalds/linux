@@ -21,6 +21,7 @@
 
 struct regmap_irq_chip_data {
 	struct mutex lock;
+	struct lock_class_key lock_key;
 	struct irq_chip irq_chip;
 
 	struct regmap *map;
@@ -801,7 +802,13 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			goto err_alloc;
 	}
 
-	mutex_init(&d->lock);
+	/*
+	 * If one regmap-irq is the parent of another then we'll try
+	 * to lock the child with the parent locked, use an explicit
+	 * lock_key so lockdep can figure out what's going on.
+	 */
+	lockdep_register_key(&d->lock_key);
+	mutex_init_with_key(&d->lock, &d->lock_key);
 
 	for (i = 0; i < chip->num_irqs; i++)
 		d->mask_buf_def[chip->irqs[i].reg_offset / map->reg_stride]
@@ -937,6 +944,7 @@ err_domain:
 	/* Should really dispose of the domain but... */
 err_mutex:
 	mutex_destroy(&d->lock);
+	lockdep_unregister_key(&d->lock_key);
 err_alloc:
 	kfree(d->type_buf);
 	kfree(d->type_buf_def);
@@ -1030,6 +1038,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 		kfree(d->config_buf);
 	}
 	mutex_destroy(&d->lock);
+	lockdep_unregister_key(&d->lock_key);
 	kfree(d);
 }
 EXPORT_SYMBOL_GPL(regmap_del_irq_chip);
