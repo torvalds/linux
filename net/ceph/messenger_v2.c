@@ -709,7 +709,7 @@ static int setup_crypto(struct ceph_connection *con,
 
 	dout("%s con %p con_mode %d session_key_len %d con_secret_len %d\n",
 	     __func__, con, con->v2.con_mode, session_key_len, con_secret_len);
-	WARN_ON(con->v2.hmac_tfm || con->v2.gcm_tfm || con->v2.gcm_req);
+	WARN_ON(con->v2.hmac_key_set || con->v2.gcm_tfm || con->v2.gcm_req);
 
 	if (con->v2.con_mode != CEPH_CON_MODE_CRC &&
 	    con->v2.con_mode != CEPH_CON_MODE_SECURE) {
@@ -723,22 +723,8 @@ static int setup_crypto(struct ceph_connection *con,
 		return 0;  /* auth_none */
 	}
 
-	noio_flag = memalloc_noio_save();
-	con->v2.hmac_tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	memalloc_noio_restore(noio_flag);
-	if (IS_ERR(con->v2.hmac_tfm)) {
-		ret = PTR_ERR(con->v2.hmac_tfm);
-		con->v2.hmac_tfm = NULL;
-		pr_err("failed to allocate hmac tfm context: %d\n", ret);
-		return ret;
-	}
-
-	ret = crypto_shash_setkey(con->v2.hmac_tfm, session_key,
-				  session_key_len);
-	if (ret) {
-		pr_err("failed to set hmac key: %d\n", ret);
-		return ret;
-	}
+	hmac_sha256_preparekey(&con->v2.hmac_key, session_key, session_key_len);
+	con->v2.hmac_key_set = true;
 
 	if (con->v2.con_mode == CEPH_CON_MODE_CRC) {
 		WARN_ON(con_secret_len);
@@ -793,38 +779,26 @@ static int setup_crypto(struct ceph_connection *con,
 	return 0;  /* auth_x, secure mode */
 }
 
-static int ceph_hmac_sha256(struct ceph_connection *con,
-			    const struct kvec *kvecs, int kvec_cnt, u8 *hmac)
+static void ceph_hmac_sha256(struct ceph_connection *con,
+			     const struct kvec *kvecs, int kvec_cnt,
+			     u8 hmac[SHA256_DIGEST_SIZE])
 {
-	SHASH_DESC_ON_STACK(desc, con->v2.hmac_tfm);  /* tfm arg is ignored */
-	int ret;
+	struct hmac_sha256_ctx ctx;
 	int i;
 
-	dout("%s con %p hmac_tfm %p kvec_cnt %d\n", __func__, con,
-	     con->v2.hmac_tfm, kvec_cnt);
+	dout("%s con %p hmac_key_set %d kvec_cnt %d\n", __func__, con,
+	     con->v2.hmac_key_set, kvec_cnt);
 
-	if (!con->v2.hmac_tfm) {
+	if (!con->v2.hmac_key_set) {
 		memset(hmac, 0, SHA256_DIGEST_SIZE);
-		return 0;  /* auth_none */
+		return;  /* auth_none */
 	}
 
-	desc->tfm = con->v2.hmac_tfm;
-	ret = crypto_shash_init(desc);
-	if (ret)
-		goto out;
-
-	for (i = 0; i < kvec_cnt; i++) {
-		ret = crypto_shash_update(desc, kvecs[i].iov_base,
-					  kvecs[i].iov_len);
-		if (ret)
-			goto out;
-	}
-
-	ret = crypto_shash_final(desc, hmac);
-
-out:
-	shash_desc_zero(desc);
-	return ret;  /* auth_x, both plain and secure modes */
+	/* auth_x, both plain and secure modes */
+	hmac_sha256_init(&ctx, &con->v2.hmac_key);
+	for (i = 0; i < kvec_cnt; i++)
+		hmac_sha256_update(&ctx, kvecs[i].iov_base, kvecs[i].iov_len);
+	hmac_sha256_final(&ctx, hmac);
 }
 
 static void gcm_inc_nonce(struct ceph_gcm_nonce *nonce)
@@ -1455,17 +1429,14 @@ static int prepare_auth_request_more(struct ceph_connection *con,
 static int prepare_auth_signature(struct ceph_connection *con)
 {
 	void *buf;
-	int ret;
 
 	buf = alloc_conn_buf(con, head_onwire_len(SHA256_DIGEST_SIZE,
 						  con_secure(con)));
 	if (!buf)
 		return -ENOMEM;
 
-	ret = ceph_hmac_sha256(con, con->v2.in_sign_kvecs,
-			       con->v2.in_sign_kvec_cnt, CTRL_BODY(buf));
-	if (ret)
-		return ret;
+	ceph_hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
+			 CTRL_BODY(buf));
 
 	return prepare_control(con, FRAME_TAG_AUTH_SIGNATURE, buf,
 			       SHA256_DIGEST_SIZE);
@@ -2460,10 +2431,8 @@ static int process_auth_signature(struct ceph_connection *con,
 		return -EINVAL;
 	}
 
-	ret = ceph_hmac_sha256(con, con->v2.out_sign_kvecs,
-			       con->v2.out_sign_kvec_cnt, hmac);
-	if (ret)
-		return ret;
+	ceph_hmac_sha256(con, con->v2.out_sign_kvecs, con->v2.out_sign_kvec_cnt,
+			 hmac);
 
 	ceph_decode_need(&p, end, SHA256_DIGEST_SIZE, bad);
 	if (crypto_memneq(p, hmac, SHA256_DIGEST_SIZE)) {
@@ -3814,10 +3783,8 @@ void ceph_con_v2_reset_protocol(struct ceph_connection *con)
 	memzero_explicit(&con->v2.in_gcm_nonce, CEPH_GCM_IV_LEN);
 	memzero_explicit(&con->v2.out_gcm_nonce, CEPH_GCM_IV_LEN);
 
-	if (con->v2.hmac_tfm) {
-		crypto_free_shash(con->v2.hmac_tfm);
-		con->v2.hmac_tfm = NULL;
-	}
+	memzero_explicit(&con->v2.hmac_key, sizeof(con->v2.hmac_key));
+	con->v2.hmac_key_set = false;
 	if (con->v2.gcm_req) {
 		aead_request_free(con->v2.gcm_req);
 		con->v2.gcm_req = NULL;

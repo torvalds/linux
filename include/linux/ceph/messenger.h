@@ -2,6 +2,7 @@
 #ifndef __FS_CEPH_MESSENGER_H
 #define __FS_CEPH_MESSENGER_H
 
+#include <crypto/sha2.h>
 #include <linux/bvec.h>
 #include <linux/crypto.h>
 #include <linux/kref.h>
@@ -412,7 +413,8 @@ struct ceph_connection_v2_info {
 	struct ceph_msg_data_cursor in_cursor;
 	struct ceph_msg_data_cursor out_cursor;
 
-	struct crypto_shash *hmac_tfm;  /* post-auth signature */
+	struct hmac_sha256_key hmac_key;  /* post-auth signature */
+	bool hmac_key_set;
 	struct crypto_aead *gcm_tfm;  /* on-wire encryption */
 	struct aead_request *gcm_req;
 	struct crypto_wait gcm_wait;
