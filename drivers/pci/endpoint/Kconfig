@@ -28,6 +28,14 @@ config PCI_ENDPOINT_CONFIGFS
 	   configure the endpoint function and used to bind the
 	   function with an endpoint controller.
 
+config PCI_ENDPOINT_MSI_DOORBELL
+	bool "PCI Endpoint MSI Doorbell Support"
+	depends on PCI_ENDPOINT && GENERIC_MSI_IRQ
+	help
+	  This enables the EP's MSI interrupt controller to function as a
+	  doorbell. The RC can trigger doorbell in EP by writing data to a
+	  dedicated BAR, which the EP maps to the controller's message address.
+
 source "drivers/pci/endpoint/functions/Kconfig"
 
 endmenu
