@@ -12,7 +12,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/random.h>
-#include <crypto/hash.h>
+#include <crypto/sha2.h>
 #include <crypto/utils.h>
 
 #include "tb.h"
@@ -709,8 +709,6 @@ int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw)
 	u8 response[TB_SWITCH_KEY_SIZE];
 	u8 hmac[TB_SWITCH_KEY_SIZE];
 	struct tb_switch *parent_sw;
-	struct crypto_shash *tfm;
-	struct shash_desc *shash;
 	int ret;
 
 	if (!tb->cm_ops->approve_switch || !tb->cm_ops->challenge_switch_key)
@@ -726,45 +724,15 @@ int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	ret = crypto_shash_setkey(tfm, sw->key, TB_SWITCH_KEY_SIZE);
-	if (ret)
-		goto err_free_tfm;
-
-	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(tfm),
-			GFP_KERNEL);
-	if (!shash) {
-		ret = -ENOMEM;
-		goto err_free_tfm;
-	}
-
-	shash->tfm = tfm;
-
-	memset(hmac, 0, sizeof(hmac));
-	ret = crypto_shash_digest(shash, challenge, sizeof(hmac), hmac);
-	if (ret)
-		goto err_free_shash;
+	static_assert(sizeof(hmac) == SHA256_DIGEST_SIZE);
+	hmac_sha256_usingrawkey(sw->key, TB_SWITCH_KEY_SIZE,
+				challenge, sizeof(challenge), hmac);
 
 	/* The returned HMAC must match the one we calculated */
-	if (crypto_memneq(response, hmac, sizeof(hmac))) {
-		ret = -EKEYREJECTED;
-		goto err_free_shash;
-	}
-
-	crypto_free_shash(tfm);
-	kfree(shash);
+	if (crypto_memneq(response, hmac, sizeof(hmac)))
+		return -EKEYREJECTED;
 
 	return tb->cm_ops->approve_switch(tb, sw);
-
-err_free_shash:
-	kfree(shash);
-err_free_tfm:
-	crypto_free_shash(tfm);
-
-	return ret;
 }
 
 /**
