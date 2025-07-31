@@ -401,6 +401,7 @@ int __init xe_configfs_init(void)
 	if (ret) {
 		pr_err("Error %d while registering %s subsystem\n",
 		       ret, root->cg_item.ci_namebuf);
+		mutex_destroy(&xe_configfs.su_mutex);
 		return ret;
 	}
 
@@ -410,5 +411,5 @@ int __init xe_configfs_init(void)
 void __exit xe_configfs_exit(void)
 {
 	configfs_unregister_subsystem(&xe_configfs);
+	mutex_destroy(&xe_configfs.su_mutex);
 }
-
