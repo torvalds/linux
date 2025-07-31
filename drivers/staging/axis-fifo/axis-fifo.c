@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
 #include <linux/miscdevice.h>
+#include <linux/debugfs.h>
 
 /* ----------------------------
  *       driver parameters
@@ -43,6 +44,8 @@
 
 #define READ_BUF_SIZE 128U /* read buffer length in words */
 #define WRITE_BUF_SIZE 128U /* write buffer length in words */
+
+#define AXIS_FIFO_DEBUG_REG_NAME_MAX_LEN	4
 
 /* ----------------------------
  *     IP register offsets
@@ -137,180 +140,13 @@ struct axis_fifo {
 
 	struct device *dt_device; /* device created from the device tree */
 	struct miscdevice miscdev;
+
+	struct dentry *debugfs_dir;
 };
 
-/* ----------------------------
- *         sysfs entries
- * ----------------------------
- */
-
-static ssize_t sysfs_write(struct device *dev, const char *buf,
-			   size_t count, unsigned int addr_offset)
-{
-	struct axis_fifo *fifo = dev_get_drvdata(dev);
-	unsigned long tmp;
-	int rc;
-
-	rc = kstrtoul(buf, 0, &tmp);
-	if (rc < 0)
-		return rc;
-
-	iowrite32(tmp, fifo->base_addr + addr_offset);
-
-	return count;
-}
-
-static ssize_t sysfs_read(struct device *dev, char *buf,
-			  unsigned int addr_offset)
-{
-	struct axis_fifo *fifo = dev_get_drvdata(dev);
-	unsigned int read_val;
-
-	read_val = ioread32(fifo->base_addr + addr_offset);
-	return sysfs_emit(buf, "0x%x\n", read_val);
-}
-
-static ssize_t isr_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_ISR_OFFSET);
-}
-
-static ssize_t isr_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_ISR_OFFSET);
-}
-
-static DEVICE_ATTR_RW(isr);
-
-static ssize_t ier_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_IER_OFFSET);
-}
-
-static ssize_t ier_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_IER_OFFSET);
-}
-
-static DEVICE_ATTR_RW(ier);
-
-static ssize_t tdfr_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_TDFR_OFFSET);
-}
-
-static DEVICE_ATTR_WO(tdfr);
-
-static ssize_t tdfv_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_TDFV_OFFSET);
-}
-
-static DEVICE_ATTR_RO(tdfv);
-
-static ssize_t tdfd_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_TDFD_OFFSET);
-}
-
-static DEVICE_ATTR_WO(tdfd);
-
-static ssize_t tlr_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_TLR_OFFSET);
-}
-
-static DEVICE_ATTR_WO(tlr);
-
-static ssize_t rdfr_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_RDFR_OFFSET);
-}
-
-static DEVICE_ATTR_WO(rdfr);
-
-static ssize_t rdfo_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_RDFO_OFFSET);
-}
-
-static DEVICE_ATTR_RO(rdfo);
-
-static ssize_t rdfd_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_RDFD_OFFSET);
-}
-
-static DEVICE_ATTR_RO(rdfd);
-
-static ssize_t rlr_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_RLR_OFFSET);
-}
-
-static DEVICE_ATTR_RO(rlr);
-
-static ssize_t srr_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_SRR_OFFSET);
-}
-
-static DEVICE_ATTR_WO(srr);
-
-static ssize_t tdr_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	return sysfs_write(dev, buf, count, XLLF_TDR_OFFSET);
-}
-
-static DEVICE_ATTR_WO(tdr);
-
-static ssize_t rdr_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	return sysfs_read(dev, buf, XLLF_RDR_OFFSET);
-}
-
-static DEVICE_ATTR_RO(rdr);
-
-static struct attribute *axis_fifo_attrs[] = {
-	&dev_attr_isr.attr,
-	&dev_attr_ier.attr,
-	&dev_attr_tdfr.attr,
-	&dev_attr_tdfv.attr,
-	&dev_attr_tdfd.attr,
-	&dev_attr_tlr.attr,
-	&dev_attr_rdfr.attr,
-	&dev_attr_rdfo.attr,
-	&dev_attr_rdfd.attr,
-	&dev_attr_rlr.attr,
-	&dev_attr_srr.attr,
-	&dev_attr_tdr.attr,
-	&dev_attr_rdr.attr,
-	NULL,
-};
-
-static const struct attribute_group axis_fifo_attrs_group = {
-	.name = "ip_registers",
-	.attrs = axis_fifo_attrs,
-};
-
-static const struct attribute_group *axis_fifo_attrs_groups[] = {
-	&axis_fifo_attrs_group,
-	NULL,
+struct axis_fifo_debug_reg {
+	const char * const name;
+	unsigned int offset;
 };
 
 /* ----------------------------
@@ -711,6 +547,37 @@ static const struct file_operations fops = {
 	.write = axis_fifo_write
 };
 
+static int axis_fifo_debugfs_regs_show(struct seq_file *m, void *p)
+{
+	static const struct axis_fifo_debug_reg regs[] = {
+		{"isr", XLLF_ISR_OFFSET},
+		{"ier", XLLF_IER_OFFSET},
+		{"tdfv", XLLF_TDFV_OFFSET},
+		{"rdfo", XLLF_RDFO_OFFSET},
+		{ /* Sentinel */ },
+	};
+	const struct axis_fifo_debug_reg *reg;
+	struct axis_fifo *fifo = m->private;
+
+	for (reg = regs; reg->name; ++reg) {
+		u32 val = ioread32(fifo->base_addr + reg->offset);
+
+		seq_printf(m, "%*s: 0x%08x\n", AXIS_FIFO_DEBUG_REG_NAME_MAX_LEN,
+			   reg->name, val);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(axis_fifo_debugfs_regs);
+
+static void axis_fifo_debugfs_init(struct axis_fifo *fifo)
+{
+	fifo->debugfs_dir = debugfs_create_dir(dev_name(fifo->dt_device), NULL);
+
+	debugfs_create_file("regs", 0444, fifo->debugfs_dir, fifo,
+			    &axis_fifo_debugfs_regs_fops);
+}
+
 /* read named property from the device tree */
 static int get_dts_property(struct axis_fifo *fifo,
 			    char *name, unsigned int *var)
@@ -877,11 +744,12 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	fifo->miscdev.fops = &fops;
 	fifo->miscdev.minor = MISC_DYNAMIC_MINOR;
 	fifo->miscdev.name = device_name;
-	fifo->miscdev.groups = axis_fifo_attrs_groups;
 	fifo->miscdev.parent = dev;
 	rc = misc_register(&fifo->miscdev);
 	if (rc < 0)
 		goto err_initial;
+
+	axis_fifo_debugfs_init(fifo);
 
 	return 0;
 
@@ -895,6 +763,7 @@ static void axis_fifo_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct axis_fifo *fifo = dev_get_drvdata(dev);
 
+	debugfs_remove(fifo->debugfs_dir);
 	misc_deregister(&fifo->miscdev);
 	dev_set_drvdata(dev, NULL);
 }

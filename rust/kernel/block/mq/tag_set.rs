@@ -9,7 +9,7 @@ use core::pin::Pin;
 use crate::{
     bindings,
     block::mq::{operations::OperationsVTable, request::RequestDataWrapper, Operations},
-    error,
+    error::{self, Result},
     prelude::try_pin_init,
     types::Opaque,
 };
@@ -41,7 +41,7 @@ impl<T: Operations> TagSet<T> {
         // SAFETY: `blk_mq_tag_set` only contains integers and pointers, which
         // all are allowed to be 0.
         let tag_set: bindings::blk_mq_tag_set = unsafe { core::mem::zeroed() };
-        let tag_set = core::mem::size_of::<RequestDataWrapper>()
+        let tag_set: Result<_> = core::mem::size_of::<RequestDataWrapper>()
             .try_into()
             .map(|cmd_size| {
                 bindings::blk_mq_tag_set {
@@ -56,12 +56,14 @@ impl<T: Operations> TagSet<T> {
                     nr_maps: num_maps,
                     ..tag_set
                 }
-            });
+            })
+            .map(Opaque::new)
+            .map_err(|e| e.into());
 
         try_pin_init!(TagSet {
-            inner <- PinInit::<_, error::Error>::pin_chain(Opaque::new(tag_set?), |tag_set| {
+            inner <- tag_set.pin_chain(|tag_set| {
                 // SAFETY: we do not move out of `tag_set`.
-                let tag_set = unsafe { Pin::get_unchecked_mut(tag_set) };
+                let tag_set: &mut Opaque<_> = unsafe { Pin::get_unchecked_mut(tag_set) };
                 // SAFETY: `tag_set` is a reference to an initialized `blk_mq_tag_set`.
                 error::to_result( unsafe { bindings::blk_mq_alloc_tag_set(tag_set.get())})
             }),

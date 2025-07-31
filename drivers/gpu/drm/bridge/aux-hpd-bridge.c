@@ -5,6 +5,7 @@
  * Author: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
  */
 #include <linux/auxiliary_bus.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/of.h>
 
@@ -172,12 +173,13 @@ static int drm_aux_hpd_bridge_probe(struct auxiliary_device *auxdev,
 {
 	struct drm_aux_hpd_bridge_data *data;
 
-	data = devm_kzalloc(&auxdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	data = devm_drm_bridge_alloc(&auxdev->dev,
+				     struct drm_aux_hpd_bridge_data, bridge,
+				     &drm_aux_hpd_bridge_funcs);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	data->dev = &auxdev->dev;
-	data->bridge.funcs = &drm_aux_hpd_bridge_funcs;
 	data->bridge.of_node = dev_get_platdata(data->dev);
 	data->bridge.ops = DRM_BRIDGE_OP_HPD;
 	data->bridge.type = id->driver_data;

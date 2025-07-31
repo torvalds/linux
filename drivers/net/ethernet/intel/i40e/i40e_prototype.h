@@ -23,22 +23,22 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 			   struct i40e_arq_event_info *e,
 			   u16 *events_pending);
 int
-i40e_asq_send_command(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+i40e_asq_send_command(struct i40e_hw *hw, struct libie_aq_desc *desc,
 		      void *buff, /* can be NULL */ u16  buff_size,
 		      struct i40e_asq_cmd_details *cmd_details);
 int
-i40e_asq_send_command_atomic(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+i40e_asq_send_command_atomic(struct i40e_hw *hw, struct libie_aq_desc *desc,
 			     void *buff, /* can be NULL */ u16  buff_size,
 			     struct i40e_asq_cmd_details *cmd_details,
 			     bool is_atomic_context);
 int
 i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
-				struct i40e_aq_desc *desc,
+				struct libie_aq_desc *desc,
 				void *buff, /* can be NULL */
 				u16  buff_size,
 				struct i40e_asq_cmd_details *cmd_details,
 				bool is_atomic_context,
-				enum i40e_admin_queue_err *aq_status);
+				enum libie_aq_err *aq_status);
 
 /* debug function for adminq */
 void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
@@ -46,7 +46,6 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
 
 bool i40e_check_asq_alive(struct i40e_hw *hw);
 int i40e_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
-const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
 
 int i40e_aq_get_rss_lut(struct i40e_hw *hw, u16 seid,
 			bool pf_lut, u8 *lut, u16 lut_size);
@@ -155,7 +154,7 @@ int
 i40e_aq_add_macvlan_v2(struct i40e_hw *hw, u16 seid,
 		       struct i40e_aqc_add_macvlan_element_data *mv_list,
 		       u16 count, struct i40e_asq_cmd_details *cmd_details,
-		       enum i40e_admin_queue_err *aq_status);
+		       enum libie_aq_err *aq_status);
 int i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 vsi_id,
 			   struct i40e_aqc_remove_macvlan_element_data *mv_list,
 			   u16 count, struct i40e_asq_cmd_details *cmd_details);
@@ -163,7 +162,7 @@ int
 i40e_aq_remove_macvlan_v2(struct i40e_hw *hw, u16 seid,
 			  struct i40e_aqc_remove_macvlan_element_data *mv_list,
 			  u16 count, struct i40e_asq_cmd_details *cmd_details,
-			  enum i40e_admin_queue_err *aq_status);
+			  enum libie_aq_err *aq_status);
 
 int i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 			   u32 v_opcode, u32 v_retval, u8 *msg, u16 msglen,
@@ -339,7 +338,7 @@ int i40e_nvmupd_command(struct i40e_hw *hw,
 			struct i40e_nvm_access *cmd,
 			u8 *bytes, int *errno);
 void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
-				  struct i40e_aq_desc *desc);
+				  struct libie_aq_desc *desc);
 void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw);
 void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status);
 

@@ -663,8 +663,7 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 		priv->rst_hw = devm_reset_control_get_exclusive(dev, "hw");
 		if (IS_ERR(priv->rst_hw)) {
 			dev_err(dev, "failed to get hw reset\n");
-			ret = PTR_ERR(priv->rst_hw);
-			goto free_host;
+			return PTR_ERR(priv->rst_hw);
 		}
 		host->ops.card_hw_reset = uniphier_sd_hw_reset;
 	}
@@ -694,7 +693,7 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 
 	ret = uniphier_sd_clk_enable(host);
 	if (ret)
-		goto free_host;
+		return ret;
 
 	uniphier_sd_host_init(host);
 
@@ -720,8 +719,6 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 
 disable_clk:
 	uniphier_sd_clk_disable(host);
-free_host:
-	tmio_mmc_host_free(host);
 
 	return ret;
 }
@@ -732,7 +729,6 @@ static void uniphier_sd_remove(struct platform_device *pdev)
 
 	tmio_mmc_host_remove(host);
 	uniphier_sd_clk_disable(host);
-	tmio_mmc_host_free(host);
 }
 
 static const struct of_device_id uniphier_sd_match[] = {

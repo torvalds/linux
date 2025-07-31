@@ -5,7 +5,7 @@
 #if defined(CONFIG_CC_IS_CLANG) && CONFIG_CLANG_VERSION < 170000
 #define __head	__section(".head.text") __no_sanitize_undefined __no_stack_protector
 #else
-#define __head	__section(".head.text") __no_sanitize_undefined __no_sanitize_coverage
+#define __head	__section(".head.text") __no_sanitize_undefined __no_kstack_erase
 #endif
 
 struct x86_mapping_info {

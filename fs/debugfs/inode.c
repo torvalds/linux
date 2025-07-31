@@ -444,7 +444,7 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 		proxy_fops = &debugfs_noop_file_operations;
 	inode->i_fop = proxy_fops;
 	DEBUGFS_I(inode)->raw = real_fops;
-	DEBUGFS_I(inode)->aux = aux;
+	DEBUGFS_I(inode)->aux = (void *)aux;
 
 	d_instantiate(dentry, inode);
 	fsnotify_create(d_inode(dentry->d_parent), dentry);

@@ -263,8 +263,8 @@ static void dpaa_get_strings(struct net_device *net_dev, u32 stringset,
 		ethtool_puts(&data, dpaa_stats_global[i]);
 }
 
-static int dpaa_get_hash_opts(struct net_device *dev,
-			      struct ethtool_rxnfc *cmd)
+static int dpaa_get_rxfh_fields(struct net_device *dev,
+				struct ethtool_rxfh_fields *cmd)
 {
 	struct dpaa_priv *priv = netdev_priv(dev);
 
@@ -299,22 +299,6 @@ static int dpaa_get_hash_opts(struct net_device *dev,
 	return 0;
 }
 
-static int dpaa_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			  u32 *unused)
-{
-	int ret = -EOPNOTSUPP;
-
-	switch (cmd->cmd) {
-	case ETHTOOL_GRXFH:
-		ret = dpaa_get_hash_opts(dev, cmd);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 static void dpaa_set_hash(struct net_device *net_dev, bool enable)
 {
 	struct mac_device *mac_dev;
@@ -329,8 +313,9 @@ static void dpaa_set_hash(struct net_device *net_dev, bool enable)
 	priv->keygen_in_use = enable;
 }
 
-static int dpaa_set_hash_opts(struct net_device *dev,
-			      struct ethtool_rxnfc *nfc)
+static int dpaa_set_rxfh_fields(struct net_device *dev,
+				const struct ethtool_rxfh_fields *nfc,
+				struct netlink_ext_ack *extack)
 {
 	int ret = -EINVAL;
 
@@ -356,21 +341,6 @@ static int dpaa_set_hash_opts(struct net_device *dev,
 	case ESP_V6_FLOW:
 		dpaa_set_hash(dev, !!nfc->data);
 		ret = 0;
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-static int dpaa_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
-{
-	int ret = -EOPNOTSUPP;
-
-	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = dpaa_set_hash_opts(dev, cmd);
 		break;
 	default:
 		break;
@@ -510,8 +480,8 @@ const struct ethtool_ops dpaa_ethtool_ops = {
 	.get_strings = dpaa_get_strings,
 	.get_link_ksettings = dpaa_get_link_ksettings,
 	.set_link_ksettings = dpaa_set_link_ksettings,
-	.get_rxnfc = dpaa_get_rxnfc,
-	.set_rxnfc = dpaa_set_rxnfc,
+	.get_rxfh_fields = dpaa_get_rxfh_fields,
+	.set_rxfh_fields = dpaa_set_rxfh_fields,
 	.get_ts_info = dpaa_get_ts_info,
 	.get_coalesce = dpaa_get_coalesce,
 	.set_coalesce = dpaa_set_coalesce,

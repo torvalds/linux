@@ -1066,7 +1066,13 @@ void i2c_unregister_device(struct i2c_client *client)
 		of_node_clear_flag(to_of_node(fwnode), OF_POPULATED);
 	else if (is_acpi_device_node(fwnode))
 		acpi_device_clear_enumerated(to_acpi_device_node(fwnode));
-	fwnode_handle_put(fwnode);
+
+	/*
+	 * If the primary fwnode is a software node it is free-ed by
+	 * device_remove_software_node() below, avoid double-free.
+	 */
+	if (!is_software_node(fwnode))
+		fwnode_handle_put(fwnode);
 
 	device_remove_software_node(&client->dev);
 	device_unregister(&client->dev);

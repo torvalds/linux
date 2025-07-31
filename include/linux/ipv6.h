@@ -17,6 +17,7 @@ struct ipv6_devconf {
 	__s32		hop_limit;
 	__s32		mtu6;
 	__s32		forwarding;
+	__s32		force_forwarding;
 	__s32		disable_policy;
 	__s32		proxy_ndp;
 	__cacheline_group_end(ipv6_devconf_read_txrx);
@@ -156,6 +157,7 @@ struct inet6_skb_parm {
 #define IP6SKB_SEG6	      256
 #define IP6SKB_FAKEJUMBO      512
 #define IP6SKB_MULTIPATH      1024
+#define IP6SKB_MCROUTE        2048
 };
 
 #if defined(CONFIG_NET_L3_MASTER_DEV)

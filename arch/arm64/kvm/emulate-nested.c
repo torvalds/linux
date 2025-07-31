@@ -88,6 +88,7 @@ enum cgt_group_id {
 
 	CGT_HCRX_EnFPM,
 	CGT_HCRX_TCR2En,
+	CGT_HCRX_SCTLR2En,
 
 	CGT_CNTHCTL_EL1TVT,
 	CGT_CNTHCTL_EL1TVCT,
@@ -108,6 +109,7 @@ enum cgt_group_id {
 	CGT_HCR_TTLB_TTLBOS,
 	CGT_HCR_TVM_TRVM,
 	CGT_HCR_TVM_TRVM_HCRX_TCR2En,
+	CGT_HCR_TVM_TRVM_HCRX_SCTLR2En,
 	CGT_HCR_TPU_TICAB,
 	CGT_HCR_TPU_TOCU,
 	CGT_HCR_NV1_nNV2_ENSCXT,
@@ -398,6 +400,12 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.mask		= HCRX_EL2_TCR2En,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
+	[CGT_HCRX_SCTLR2En] = {
+		.index		= HCRX_EL2,
+		.value		= 0,
+		.mask		= HCRX_EL2_SCTLR2En,
+		.behaviour	= BEHAVE_FORWARD_RW,
+	},
 	[CGT_CNTHCTL_EL1TVT] = {
 		.index		= CNTHCTL_EL2,
 		.value		= CNTHCTL_EL1TVT,
@@ -449,6 +457,8 @@ static const enum cgt_group_id *coarse_control_combo[] = {
 	MCB(CGT_HCR_TVM_TRVM,		CGT_HCR_TVM, CGT_HCR_TRVM),
 	MCB(CGT_HCR_TVM_TRVM_HCRX_TCR2En,
 					CGT_HCR_TVM, CGT_HCR_TRVM, CGT_HCRX_TCR2En),
+	MCB(CGT_HCR_TVM_TRVM_HCRX_SCTLR2En,
+					CGT_HCR_TVM, CGT_HCR_TRVM, CGT_HCRX_SCTLR2En),
 	MCB(CGT_HCR_TPU_TICAB,		CGT_HCR_TPU, CGT_HCR_TICAB),
 	MCB(CGT_HCR_TPU_TOCU,		CGT_HCR_TPU, CGT_HCR_TOCU),
 	MCB(CGT_HCR_NV1_nNV2_ENSCXT,	CGT_HCR_NV1_nNV2, CGT_HCR_ENSCXT),
@@ -782,6 +792,7 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(OP_TLBI_RVALE1OSNXS,	CGT_HCR_TTLB_TTLBOS),
 	SR_TRAP(OP_TLBI_RVAALE1OSNXS,	CGT_HCR_TTLB_TTLBOS),
 	SR_TRAP(SYS_SCTLR_EL1,		CGT_HCR_TVM_TRVM),
+	SR_TRAP(SYS_SCTLR2_EL1,		CGT_HCR_TVM_TRVM_HCRX_SCTLR2En),
 	SR_TRAP(SYS_TTBR0_EL1,		CGT_HCR_TVM_TRVM),
 	SR_TRAP(SYS_TTBR1_EL1,		CGT_HCR_TVM_TRVM),
 	SR_TRAP(SYS_TCR_EL1,		CGT_HCR_TVM_TRVM),
@@ -1354,6 +1365,7 @@ static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	SR_FGT(SYS_SCXTNUM_EL0,		HFGRTR, SCXTNUM_EL0, 1),
 	SR_FGT(SYS_SCXTNUM_EL1, 	HFGRTR, SCXTNUM_EL1, 1),
 	SR_FGT(SYS_SCTLR_EL1, 		HFGRTR, SCTLR_EL1, 1),
+	SR_FGT(SYS_SCTLR2_EL1,		HFGRTR, SCTLR_EL1, 1),
 	SR_FGT(SYS_REVIDR_EL1, 		HFGRTR, REVIDR_EL1, 1),
 	SR_FGT(SYS_PAR_EL1, 		HFGRTR, PAR_EL1, 1),
 	SR_FGT(SYS_MPIDR_EL1, 		HFGRTR, MPIDR_EL1, 1),
@@ -2592,13 +2604,8 @@ inject:
 
 static bool __forward_traps(struct kvm_vcpu *vcpu, unsigned int reg, u64 control_bit)
 {
-	bool control_bit_set;
-
-	if (!vcpu_has_nv(vcpu))
-		return false;
-
-	control_bit_set = __vcpu_sys_reg(vcpu, reg) & control_bit;
-	if (!is_hyp_ctxt(vcpu) && control_bit_set) {
+	if (is_nested_ctxt(vcpu) &&
+	    (__vcpu_sys_reg(vcpu, reg) & control_bit)) {
 		kvm_inject_nested_sync(vcpu, kvm_vcpu_get_esr(vcpu));
 		return true;
 	}
@@ -2719,6 +2726,9 @@ static void kvm_inject_el2_exception(struct kvm_vcpu *vcpu, u64 esr_el2,
 	case except_type_irq:
 		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_IRQ);
 		break;
+	case except_type_serror:
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SERR);
+		break;
 	default:
 		WARN_ONCE(1, "Unsupported EL2 exception injection %d\n", type);
 	}
@@ -2815,4 +2825,29 @@ int kvm_inject_nested_irq(struct kvm_vcpu *vcpu)
 
 	/* esr_el2 value doesn't matter for exits due to irqs. */
 	return kvm_inject_nested(vcpu, 0, except_type_irq);
+}
+
+int kvm_inject_nested_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
+{
+	u64 esr = FIELD_PREP(ESR_ELx_EC_MASK,
+			     iabt ? ESR_ELx_EC_IABT_LOW : ESR_ELx_EC_DABT_LOW);
+	esr |= ESR_ELx_FSC_EXTABT | ESR_ELx_IL;
+
+	vcpu_write_sys_reg(vcpu, FAR_EL2, addr);
+
+	if (__vcpu_sys_reg(vcpu, SCTLR2_EL2) & SCTLR2_EL1_EASE)
+		return kvm_inject_nested(vcpu, esr, except_type_serror);
+
+	return kvm_inject_nested_sync(vcpu, esr);
+}
+
+int kvm_inject_nested_serror(struct kvm_vcpu *vcpu, u64 esr)
+{
+	/*
+	 * Hardware sets up the EC field when propagating ESR as a result of
+	 * vSError injection. Manually populate EC for an emulated SError
+	 * exception.
+	 */
+	esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_SERROR);
+	return kvm_inject_nested(vcpu, esr, except_type_serror);
 }

@@ -94,7 +94,7 @@ iwl_mld_ftm_set_target_chandef(struct iwl_mld *mld,
 		IWL_ERR(mld, "Unsupported BW in FTM request (%d)\n",
 			peer->chandef.width);
 		return -EINVAL;
-}
+	}
 
 	/* non EDCA based measurement must use HE preamble */
 	if (peer->ftm.trigger_based || peer->ftm.non_trigger_based)

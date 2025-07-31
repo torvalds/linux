@@ -1553,7 +1553,7 @@ __sk_rmem_schedule(struct sock *sk, int size, bool pfmemalloc)
 }
 
 static inline bool
-sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
+sk_rmem_schedule(struct sock *sk, const struct sk_buff *skb, int size)
 {
 	return __sk_rmem_schedule(sk, size, skb_pfmemalloc(skb));
 }
@@ -2076,6 +2076,7 @@ static inline void sock_orphan(struct sock *sk)
 	sock_set_flag(sk, SOCK_DEAD);
 	sk_set_socket(sk, NULL);
 	sk->sk_wq  = NULL;
+	/* Note: sk_uid is unchanged. */
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -2086,18 +2087,23 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	rcu_assign_pointer(sk->sk_wq, &parent->wq);
 	parent->sk = sk;
 	sk_set_socket(sk, parent);
-	sk->sk_uid = SOCK_INODE(parent)->i_uid;
+	WRITE_ONCE(sk->sk_uid, SOCK_INODE(parent)->i_uid);
 	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
-kuid_t sock_i_uid(struct sock *sk);
+static inline kuid_t sk_uid(const struct sock *sk)
+{
+	/* Paired with WRITE_ONCE() in sockfs_setattr() */
+	return READ_ONCE(sk->sk_uid);
+}
+
 unsigned long __sock_i_ino(struct sock *sk);
 unsigned long sock_i_ino(struct sock *sk);
 
 static inline kuid_t sock_net_uid(const struct net *net, const struct sock *sk)
 {
-	return sk ? sk->sk_uid : make_kuid(net->user_ns, 0);
+	return sk ? sk_uid(sk) : make_kuid(net->user_ns, 0);
 }
 
 static inline u32 net_tx_rndhash(void)
@@ -2590,12 +2596,12 @@ static inline gfp_t gfp_memcg_charge(void)
 
 static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
 {
-	return noblock ? 0 : sk->sk_rcvtimeo;
+	return noblock ? 0 : READ_ONCE(sk->sk_rcvtimeo);
 }
 
 static inline long sock_sndtimeo(const struct sock *sk, bool noblock)
 {
-	return noblock ? 0 : sk->sk_sndtimeo;
+	return noblock ? 0 : READ_ONCE(sk->sk_sndtimeo);
 }
 
 static inline int sock_rcvlowat(const struct sock *sk, int waitall, int len)
@@ -2986,7 +2992,6 @@ void sock_set_timestamp(struct sock *sk, int optname, bool valbool);
 int sock_set_timestamping(struct sock *sk, int optname,
 			  struct so_timestamping timestamping);
 
-void sock_enable_timestamps(struct sock *sk);
 #if defined(CONFIG_CGROUP_BPF)
 void bpf_skops_tx_timestamping(struct sock *sk, struct sk_buff *skb, int op);
 #else

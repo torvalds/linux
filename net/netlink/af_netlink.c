@@ -2473,7 +2473,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	unsigned int flags = 0;
 	size_t tlvlen;
 
-	/* Error messages get the original request appened, unless the user
+	/* Error messages get the original request appended, unless the user
 	 * requests to cap the error message, and get extra error data if
 	 * requested.
 	 */
@@ -2887,8 +2887,7 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 };
 
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
-BTF_ID_LIST(btf_netlink_sock_id)
-BTF_ID(struct, netlink_sock)
+BTF_ID_LIST_SINGLE(btf_netlink_sock_id, struct, netlink_sock)
 
 static const struct bpf_iter_seq_info netlink_seq_info = {
 	.seq_ops		= &netlink_seq_ops,

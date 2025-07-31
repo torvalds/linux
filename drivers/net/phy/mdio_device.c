@@ -35,7 +35,8 @@ static void mdio_device_release(struct device *dev)
 	kfree(to_mdio_device(dev));
 }
 
-int mdio_device_bus_match(struct device *dev, const struct device_driver *drv)
+static int mdio_device_bus_match(struct device *dev,
+				 const struct device_driver *drv)
 {
 	struct mdio_device *mdiodev = to_mdio_device(dev);
 	const struct mdio_driver *mdiodrv = to_mdio_driver(drv);
@@ -45,7 +46,6 @@ int mdio_device_bus_match(struct device *dev, const struct device_driver *drv)
 
 	return strcmp(mdiodev->modalias, drv->name) == 0;
 }
-EXPORT_SYMBOL_GPL(mdio_device_bus_match);
 
 struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr)
 {
@@ -59,6 +59,7 @@ struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr)
 	mdiodev->dev.release = mdio_device_release;
 	mdiodev->dev.parent = &bus->dev;
 	mdiodev->dev.bus = &mdio_bus_type;
+	mdiodev->bus_match = mdio_device_bus_match;
 	mdiodev->device_free = mdio_device_free;
 	mdiodev->device_remove = mdio_device_remove;
 	mdiodev->bus = bus;

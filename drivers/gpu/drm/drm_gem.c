@@ -26,6 +26,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/iosys-map.h>
@@ -1238,38 +1239,6 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 		obj->funcs->print_info(p, indent, obj);
 }
 
-int drm_gem_pin_locked(struct drm_gem_object *obj)
-{
-	if (obj->funcs->pin)
-		return obj->funcs->pin(obj);
-
-	return 0;
-}
-
-void drm_gem_unpin_locked(struct drm_gem_object *obj)
-{
-	if (obj->funcs->unpin)
-		obj->funcs->unpin(obj);
-}
-
-int drm_gem_pin(struct drm_gem_object *obj)
-{
-	int ret;
-
-	dma_resv_lock(obj->resv, NULL);
-	ret = drm_gem_pin_locked(obj);
-	dma_resv_unlock(obj->resv);
-
-	return ret;
-}
-
-void drm_gem_unpin(struct drm_gem_object *obj)
-{
-	dma_resv_lock(obj->resv, NULL);
-	drm_gem_unpin_locked(obj);
-	dma_resv_unlock(obj->resv);
-}
-
 int drm_gem_vmap_locked(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	int ret;
@@ -1514,12 +1483,14 @@ EXPORT_SYMBOL(drm_gem_lru_move_tail);
  * @nr_to_scan: The number of pages to try to reclaim
  * @remaining: The number of pages left to reclaim, should be initialized by caller
  * @shrink: Callback to try to shrink/reclaim the object.
+ * @ticket: Optional ww_acquire_ctx context to use for locking
  */
 unsigned long
 drm_gem_lru_scan(struct drm_gem_lru *lru,
 		 unsigned int nr_to_scan,
 		 unsigned long *remaining,
-		 bool (*shrink)(struct drm_gem_object *obj))
+		 bool (*shrink)(struct drm_gem_object *obj, struct ww_acquire_ctx *ticket),
+		 struct ww_acquire_ctx *ticket)
 {
 	struct drm_gem_lru still_in_lru;
 	struct drm_gem_object *obj;
@@ -1552,17 +1523,20 @@ drm_gem_lru_scan(struct drm_gem_lru *lru,
 		 */
 		mutex_unlock(lru->lock);
 
+		if (ticket)
+			ww_acquire_init(ticket, &reservation_ww_class);
+
 		/*
 		 * Note that this still needs to be trylock, since we can
 		 * hit shrinker in response to trying to get backing pages
 		 * for this obj (ie. while it's lock is already held)
 		 */
-		if (!dma_resv_trylock(obj->resv)) {
+		if (!ww_mutex_trylock(&obj->resv->lock, ticket)) {
 			*remaining += obj->size >> PAGE_SHIFT;
 			goto tail;
 		}
 
-		if (shrink(obj)) {
+		if (shrink(obj, ticket)) {
 			freed += obj->size >> PAGE_SHIFT;
 
 			/*
@@ -1575,6 +1549,9 @@ drm_gem_lru_scan(struct drm_gem_lru *lru,
 		}
 
 		dma_resv_unlock(obj->resv);
+
+		if (ticket)
+			ww_acquire_fini(ticket);
 
 tail:
 		drm_gem_object_put(obj);

@@ -11,6 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
+#include <linux/virtio_features.h>
 
 /**
  * struct virtqueue - a queue to register buffers for sending or receiving.
@@ -141,7 +142,9 @@ struct virtio_admin_cmd {
  * @config: the configuration ops for this device.
  * @vringh_config: configuration ops for host vrings.
  * @vqs: the list of virtqueues for this device.
- * @features: the features supported by both driver and device.
+ * @features: the 64 lower features supported by both driver and device.
+ * @features_array: the full features space supported by both driver and
+ *		    device.
  * @priv: private pointer for the driver's use.
  * @debugfs_dir: debugfs directory entry.
  * @debugfs_filter_features: features to be filtered set by debugfs.
@@ -159,11 +162,11 @@ struct virtio_device {
 	const struct virtio_config_ops *config;
 	const struct vringh_config_ops *vringh_config;
 	struct list_head vqs;
-	u64 features;
+	VIRTIO_DECLARE_FEATURES(features);
 	void *priv;
 #ifdef CONFIG_VIRTIO_DEBUG
 	struct dentry *debugfs_dir;
-	u64 debugfs_filter_features;
+	u64 debugfs_filter_features[VIRTIO_FEATURES_DWORDS];
 #endif
 };
 

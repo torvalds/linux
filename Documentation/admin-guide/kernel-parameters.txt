@@ -2538,6 +2538,13 @@
 			requires the kernel to be built with
 			CONFIG_ARM64_PSEUDO_NMI.
 
+	irqchip.riscv_imsic_noipi
+			[RISC-V,EARLY]
+			Force the kernel to not use IMSIC software injected MSIs
+			as IPIs. Intended for system where IMSIC is trap-n-emulated,
+			and thus want to reduce MMIO traps when triggering IPIs
+			to multiple harts.
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken
@@ -3789,6 +3796,10 @@
 					       tsx_async_abort=full,nosmt [X86]
 					       mmio_stale_data=full,nosmt [X86]
 					       retbleed=auto,nosmt [X86]
+
+			[X86] After one of the above options, additionally
+			supports attack-vector based controls as documented in
+			Documentation/admin-guide/hw-vuln/attack_vector_controls.rst
 
 	mminit_loglevel=
 			[KNL,EARLY] When CONFIG_DEBUG_MEMORY_INIT is set, this
@@ -5497,7 +5508,8 @@
 			echo 1 > /sys/module/rcutree/parameters/rcu_normal_wake_from_gp
 			or pass a boot parameter "rcutree.rcu_normal_wake_from_gp=1"
 
-			Default is 0.
+			Default is 1 if num_possible_cpus() <= 16 and it is not explicitly
+			disabled by the boot parameter passing 0.
 
 	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
@@ -6399,6 +6411,11 @@
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
 
+	sched_proxy_exec= [KNL]
+			Enables or disables "proxy execution" style
+			solution to mutex-based priority inversion.
+			Format: <bool>
+
 	sched_verbose	[KNL,EARLY] Enables verbose scheduler debug messages.
 
 	schedstats=	[KNL,X86] Enable or disable scheduled statistics.
@@ -6570,14 +6587,14 @@
 			slab_debug can create guard zones around objects and
 			may poison objects when not in use. Also tracks the
 			last alloc / free. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_debug legacy name also accepted for now)
 
 	slab_max_order= [MM]
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
 			fragmentation. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_max_order legacy name also accepted for now)
 
 	slab_merge	[MM]
@@ -6592,13 +6609,14 @@
 			the number of objects indicated. The higher the number
 			of objects the smaller the overhead of tracking slabs
 			and the less frequently locks need to be acquired.
-			For more information see Documentation/mm/slub.rst.
+			For more information see
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_min_objects legacy name also accepted for now)
 
 	slab_min_order=	[MM]
 			Determines the minimum page order for slabs. Must be
 			lower or equal to slab_max_order. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_min_order legacy name also accepted for now)
 
 	slab_nomerge	[MM]
@@ -6612,7 +6630,8 @@
 			cache (risks via metadata attacks are mostly
 			unchanged). Debug options disable merging on their
 			own.
-			For more information see Documentation/mm/slub.rst.
+			For more information see
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_nomerge legacy name also accepted for now)
 
 	slab_strict_numa	[MM]

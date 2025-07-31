@@ -66,6 +66,20 @@ static pm_message_t pm_transition;
 static DEFINE_MUTEX(async_wip_mtx);
 static int async_error;
 
+/**
+ * pm_hibernate_is_recovering - if recovering from hibernate due to error.
+ *
+ * Used to query if dev_pm_ops.thaw() is called for normal hibernation case or
+ * recovering from some error.
+ *
+ * Return: true for error case, false for normal case.
+ */
+bool pm_hibernate_is_recovering(void)
+{
+	return pm_transition.event == PM_EVENT_RECOVER;
+}
+EXPORT_SYMBOL_GPL(pm_hibernate_is_recovering);
+
 static const char *pm_verb(int event)
 {
 	switch (event) {
@@ -2052,7 +2066,7 @@ static bool device_prepare_smart_suspend(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu_locked(link, &dev->links.suppliers, c_node) {
-		if (!(link->flags & DL_FLAG_PM_RUNTIME))
+		if (!device_link_test(link, DL_FLAG_PM_RUNTIME))
 			continue;
 
 		if (!dev_pm_smart_suspend(link->supplier) &&

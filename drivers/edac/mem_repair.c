@@ -286,17 +286,26 @@ static umode_t mem_repair_attr_visible(struct kobject *kobj, struct attribute *a
 	return 0;
 }
 
-#define MR_ATTR_RO(_name, _instance)       \
-	((struct edac_mem_repair_dev_attr) { .dev_attr = __ATTR_RO(_name), \
-					     .instance = _instance })
-
-#define MR_ATTR_WO(_name, _instance)       \
-	((struct edac_mem_repair_dev_attr) { .dev_attr = __ATTR_WO(_name), \
-					     .instance = _instance })
-
-#define MR_ATTR_RW(_name, _instance)       \
-	((struct edac_mem_repair_dev_attr) { .dev_attr = __ATTR_RW(_name), \
-					     .instance = _instance })
+static const struct device_attribute mem_repair_dev_attr[] = {
+	[MR_TYPE]	  = __ATTR_RO(repair_type),
+	[MR_PERSIST_MODE] = __ATTR_RW(persist_mode),
+	[MR_SAFE_IN_USE]  = __ATTR_RO(repair_safe_when_in_use),
+	[MR_HPA]	  = __ATTR_RW(hpa),
+	[MR_MIN_HPA]	  = __ATTR_RO(min_hpa),
+	[MR_MAX_HPA]	  = __ATTR_RO(max_hpa),
+	[MR_DPA]	  = __ATTR_RW(dpa),
+	[MR_MIN_DPA]	  = __ATTR_RO(min_dpa),
+	[MR_MAX_DPA]	  = __ATTR_RO(max_dpa),
+	[MR_NIBBLE_MASK]  = __ATTR_RW(nibble_mask),
+	[MR_BANK_GROUP]   = __ATTR_RW(bank_group),
+	[MR_BANK]	  = __ATTR_RW(bank),
+	[MR_RANK]	  = __ATTR_RW(rank),
+	[MR_ROW]	  = __ATTR_RW(row),
+	[MR_COLUMN]	  = __ATTR_RW(column),
+	[MR_CHANNEL]	  = __ATTR_RW(channel),
+	[MR_SUB_CHANNEL]  = __ATTR_RW(sub_channel),
+	[MEM_DO_REPAIR]	  = __ATTR_WO(repair)
+};
 
 static int mem_repair_create_desc(struct device *dev,
 				  const struct attribute_group **attr_groups,
@@ -305,34 +314,13 @@ static int mem_repair_create_desc(struct device *dev,
 	struct edac_mem_repair_context *ctx;
 	struct attribute_group *group;
 	int i;
-	struct edac_mem_repair_dev_attr dev_attr[] = {
-		[MR_TYPE]	  = MR_ATTR_RO(repair_type, instance),
-		[MR_PERSIST_MODE] = MR_ATTR_RW(persist_mode, instance),
-		[MR_SAFE_IN_USE]  = MR_ATTR_RO(repair_safe_when_in_use, instance),
-		[MR_HPA]	  = MR_ATTR_RW(hpa, instance),
-		[MR_MIN_HPA]	  = MR_ATTR_RO(min_hpa, instance),
-		[MR_MAX_HPA]	  = MR_ATTR_RO(max_hpa, instance),
-		[MR_DPA]	  = MR_ATTR_RW(dpa, instance),
-		[MR_MIN_DPA]	  = MR_ATTR_RO(min_dpa, instance),
-		[MR_MAX_DPA]	  = MR_ATTR_RO(max_dpa, instance),
-		[MR_NIBBLE_MASK]  = MR_ATTR_RW(nibble_mask, instance),
-		[MR_BANK_GROUP]   = MR_ATTR_RW(bank_group, instance),
-		[MR_BANK]	  = MR_ATTR_RW(bank, instance),
-		[MR_RANK]	  = MR_ATTR_RW(rank, instance),
-		[MR_ROW]	  = MR_ATTR_RW(row, instance),
-		[MR_COLUMN]	  = MR_ATTR_RW(column, instance),
-		[MR_CHANNEL]	  = MR_ATTR_RW(channel, instance),
-		[MR_SUB_CHANNEL]  = MR_ATTR_RW(sub_channel, instance),
-		[MEM_DO_REPAIR]	  = MR_ATTR_WO(repair, instance)
-	};
-
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	for (i = 0; i < MR_MAX_ATTRS; i++) {
-		memcpy(&ctx->mem_repair_dev_attr[i],
-		       &dev_attr[i], sizeof(dev_attr[i]));
+		ctx->mem_repair_dev_attr[i].dev_attr = mem_repair_dev_attr[i];
+		ctx->mem_repair_dev_attr[i].instance = instance;
 		sysfs_attr_init(&ctx->mem_repair_dev_attr[i].dev_attr.attr);
 		ctx->mem_repair_attrs[i] =
 			&ctx->mem_repair_dev_attr[i].dev_attr.attr;

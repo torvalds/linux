@@ -16,7 +16,7 @@
 #include <linux/types.h>
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
     /*
      *  Bootinfo definitions
@@ -43,7 +43,7 @@ struct mem_info {
 	__be32 size;			/* length of memory chunk (in bytes) */
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 
     /*
@@ -167,7 +167,7 @@ struct mem_info {
 #define BI_VERSION_MAJOR(v)		(((v) >> 16) & 0xffff)
 #define BI_VERSION_MINOR(v)		((v) & 0xffff)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct bootversion {
 	__be16 branch;
@@ -178,7 +178,7 @@ struct bootversion {
 	} machversions[];
 } __packed;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 
 #endif /* _UAPI_ASM_M68K_BOOTINFO_H */

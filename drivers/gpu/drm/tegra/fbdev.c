@@ -106,7 +106,9 @@ int tegra_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 		return PTR_ERR(info);
 	}
 
-	fb = tegra_fb_alloc(drm, &cmd, &bo, 1);
+	fb = tegra_fb_alloc(drm,
+			    drm_get_format_info(drm, cmd.pixel_format, cmd.modifier[0]),
+			    &cmd, &bo, 1);
 	if (IS_ERR(fb)) {
 		err = PTR_ERR(fb);
 		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",

@@ -51,6 +51,7 @@
 #define VNCR_SP_EL1             0x240
 #define VNCR_VBAR_EL1           0x250
 #define VNCR_TCR2_EL1		0x270
+#define VNCR_SCTLR2_EL1		0x278
 #define VNCR_PIRE0_EL1		0x290
 #define VNCR_PIR_EL1		0x2A0
 #define VNCR_POR_EL1		0x2A8
@@ -84,6 +85,7 @@
 #define VNCR_ICH_HCR_EL2        0x4C0
 #define VNCR_ICH_VMCR_EL2       0x4C8
 #define VNCR_VDISR_EL2          0x500
+#define VNCR_VSESR_EL2		0x508
 #define VNCR_PMBLIMITR_EL1      0x800
 #define VNCR_PMBPTR_EL1         0x810
 #define VNCR_PMBSR_EL1          0x820

@@ -1616,14 +1616,14 @@ static bool is_dual_plane(enum surface_pixel_format format)
 int dcn31x_populate_dml_pipes_from_context(struct dc *dc,
 					  struct dc_state *context,
 					  display_e2e_pipe_params_st *pipes,
-					  bool fast_validate)
+					  enum dc_validate_mode validate_mode)
 {
 	uint32_t pipe_cnt;
 	int i;
 
 	dc_assert_fp_enabled();
 
-	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes, validate_mode);
 
 	for (i = 0; i < pipe_cnt; i++) {
 		pipes[i].pipe.src.gpuvm = 1;
@@ -1641,7 +1641,7 @@ int dcn31x_populate_dml_pipes_from_context(struct dc *dc,
 int dcn31_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
-	bool fast_validate)
+	enum dc_validate_mode validate_mode)
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
@@ -1649,7 +1649,7 @@ int dcn31_populate_dml_pipes_from_context(
 	bool upscaled = false;
 
 	DC_FP_START();
-	dcn31x_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	dcn31x_populate_dml_pipes_from_context(dc, context, pipes, validate_mode);
 	DC_FP_END();
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1760,7 +1760,7 @@ dcn31_set_mcif_arb_params(struct dc *dc,
 
 enum dc_status dcn31_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate)
+		enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
@@ -1778,19 +1778,19 @@ enum dc_status dcn31_validate_bandwidth(struct dc *dc,
 		goto validate_fail;
 
 	DC_FP_START();
-	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate, true);
+	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, validate_mode, true);
 	DC_FP_END();
 
-	// Disable fast_validate to set min dcfclk in calculate_wm_and_dlg
+	// Disable DC_VALIDATE_MODE_ONLY and DC_VALIDATE_MODE_AND_STATE_INDEX to set min dcfclk in calculate_wm_and_dlg
 	if (pipe_cnt == 0)
-		fast_validate = false;
+		validate_mode = DC_VALIDATE_MODE_AND_PROGRAMMING;
 
 	if (!out)
 		goto validate_fail;
 
 	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
 
-	if (fast_validate) {
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		BW_VAL_TRACE_SKIP(fast);
 		goto validate_out;
 	}
@@ -1850,7 +1850,9 @@ static struct resource_funcs dcn31_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn31_get_panel_config_defaults,
 	.get_det_buffer_size = dcn31_get_det_buffer_size,
-	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
+	.update_dc_state_for_encoder_switch = dcn31_update_dc_state_for_encoder_switch,
+	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params
 };
 
 static struct clock_source *dcn30_clock_source_create(
@@ -2202,6 +2204,8 @@ static bool dcn31_resource_construct(
 	for (i = 0; i < dc->caps.max_planes; ++i)
 		dc->caps.planes[i] = plane_cap;
 
+	dc->caps.max_odm_combine_factor = 4;
+
 	dc->cap_funcs = cap_funcs;
 
 	dc->dcn_ip->max_num_dpp = dcn3_1_ip.max_num_dpp;
@@ -2230,4 +2234,36 @@ struct resource_pool *dcn31_create_resource_pool(
 	BREAK_TO_DEBUGGER();
 	kfree(pool);
 	return NULL;
+}
+
+enum dc_status dcn31_update_dc_state_for_encoder_switch(struct dc_link *link,
+	struct dc_link_settings *link_setting,
+	uint8_t pipe_count,
+	struct pipe_ctx *pipes,
+	struct audio_output *audio_output)
+{
+	struct dc_state *state = link->dc->current_state;
+	int i;
+
+#if defined(CONFIG_DRM_AMD_DC_FP)
+	for (i = 0; i < state->stream_count; i++)
+		if (state->streams[i] && state->streams[i]->link && state->streams[i]->link == link)
+			link->dc->hwss.calculate_pix_rate_divider((struct dc *)link->dc, state, state->streams[i]);
+
+	for (i = 0; i < pipe_count; i++) {
+		link->dc->res_pool->funcs->build_pipe_pix_clk_params(&pipes[i]);
+
+		// Setup audio
+		if (pipes[i].stream_res.audio != NULL)
+			build_audio_output(state, &pipes[i], &audio_output[i]);
+	}
+#else
+	/* This DCN requires rate divider updates and audio reprogramming to allow DP1<-->DP2 link rate switching,
+	 * but the above will not compile on architectures without an FPU.
+	 */
+	DC_LOG_WARNING("%s: DP1<-->DP2 link retraining will not work on this DCN on non-FPU platforms", __func__);
+	ASSERT(0);
+#endif
+
+	return DC_OK;
 }

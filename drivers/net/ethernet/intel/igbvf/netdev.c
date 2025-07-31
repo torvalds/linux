@@ -855,8 +855,6 @@ static irqreturn_t igbvf_msix_other(int irq, void *data)
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	adapter->int_counter1++;
-
 	hw->mac.get_link_status = 1;
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		mod_timer(&adapter->watchdog_timer, jiffies + 1);
@@ -898,8 +896,6 @@ static irqreturn_t igbvf_intr_msix_rx(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	adapter->int_counter0++;
 
 	/* Write the ITR value calculated at the end of the
 	 * previous interrupt.
@@ -1633,10 +1629,6 @@ static int igbvf_sw_init(struct igbvf_adapter *adapter)
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	adapter->tx_int_delay = 8;
-	adapter->tx_abs_int_delay = 32;
-	adapter->rx_int_delay = 0;
-	adapter->rx_abs_int_delay = 8;
 	adapter->requested_itr = 3;
 	adapter->current_itr = IGBVF_START_ITR;
 
@@ -2712,7 +2704,6 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct igbvf_adapter *adapter;
 	struct e1000_hw *hw;
 	const struct igbvf_info *ei = igbvf_info_tbl[ent->driver_data];
-	static int cards_found;
 	int err;
 
 	err = pci_enable_device_mem(pdev);
@@ -2783,8 +2774,6 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	igbvf_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 	strscpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
-
-	adapter->bd_number = cards_found++;
 
 	netdev->hw_features = NETIF_F_SG |
 			      NETIF_F_TSO |

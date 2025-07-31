@@ -146,18 +146,17 @@ run_cmd()
 }
 
 check_hv_connectivity() {
-	ip netns exec $hv_1 ping -c 1 -W 1 $1 &>/dev/null
-	sleep 1
-	ip netns exec $hv_1 ping -c 1 -W 1 $2 &>/dev/null
+	slowwait 5 ip netns exec $hv_1 ping -c 1 -W 1 $1 &>/dev/null
+	slowwait 5 ip netns exec $hv_1 ping -c 1 -W 1 $2 &>/dev/null
 
 	return $?
 }
 
 check_vm_connectivity() {
-	run_cmd "ip netns exec $vm_11 ping -c 1 -W 1 10.0.10.12"
+	slowwait 5 run_cmd "ip netns exec $vm_11 ping -c 1 -W 1 10.0.10.12"
 	log_test $? 0 "VM connectivity over $1 (ipv4 default rdst)"
 
-	run_cmd "ip netns exec $vm_21 ping -c 1 -W 1 10.0.10.22"
+	slowwait 5 run_cmd "ip netns exec $vm_21 ping -c 1 -W 1 10.0.10.22"
 	log_test $? 0 "VM connectivity over $1 (ipv6 default rdst)"
 }
 

@@ -218,4 +218,29 @@ __naked void null_check_8_null_bind(void)
 	: __clobber_all);
 }
 
+#define narrow_load(type, ctx, field)					\
+	SEC(type)							\
+	__description("narrow load on field " #field " of " #ctx)	\
+	__failure __msg("invalid bpf_context access")			\
+	__naked void invalid_narrow_load##ctx##field(void)		\
+	{								\
+		asm volatile ("						\
+		r1 = *(u32 *)(r1 + %[off]);				\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm_const(off, offsetof(struct ctx, field) + 4)	\
+		: __clobber_all);					\
+	}
+
+narrow_load("cgroup/getsockopt", bpf_sockopt, sk);
+narrow_load("cgroup/getsockopt", bpf_sockopt, optval);
+narrow_load("cgroup/getsockopt", bpf_sockopt, optval_end);
+narrow_load("tc", __sk_buff, sk);
+narrow_load("cgroup/bind4", bpf_sock_addr, sk);
+narrow_load("sockops", bpf_sock_ops, sk);
+narrow_load("sockops", bpf_sock_ops, skb_data);
+narrow_load("sockops", bpf_sock_ops, skb_data_end);
+narrow_load("sockops", bpf_sock_ops, skb_hwtstamp);
+
 char _license[] SEC("license") = "GPL";

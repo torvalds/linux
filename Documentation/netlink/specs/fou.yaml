@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: fou
 
 protocol: genetlink-legacy
@@ -18,7 +18,7 @@ definitions:
     name: encap-type
     name-prefix: fou-encap-
     enum-name:
-    entries: [ unspec, direct, gue ]
+    entries: [unspec, direct, gue]
 
 attribute-sets:
   -
@@ -81,8 +81,8 @@ operations:
       doc: Add port.
       attribute-set: fou
 
-      dont-validate: [ strict, dump ]
-      flags: [ admin-perm ]
+      dont-validate: [strict, dump]
+      flags: [admin-perm]
 
       do:
         request: &all_attrs
@@ -103,8 +103,8 @@ operations:
       doc: Delete port.
       attribute-set: fou
 
-      dont-validate: [ strict, dump ]
-      flags: [ admin-perm ]
+      dont-validate: [strict, dump]
+      flags: [admin-perm]
 
       do:
         request: &select_attrs
@@ -122,7 +122,7 @@ operations:
       name: get
       doc: Get tunnel info.
       attribute-set: fou
-      dont-validate: [ strict, dump ]
+      dont-validate: [strict, dump]
 
       do:
         request: *select_attrs

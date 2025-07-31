@@ -372,7 +372,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	}
 
 	table_attr->attr.size = table_header->length;
-	table_attr->attr.read_new = acpi_table_show;
+	table_attr->attr.read = acpi_table_show;
 	table_attr->attr.attr.name = table_attr->filename;
 	table_attr->attr.attr.mode = 0400;
 
@@ -495,7 +495,7 @@ static int acpi_table_data_init(struct acpi_table_header *th)
 			if (!data_attr)
 				return -ENOMEM;
 			sysfs_attr_init(&data_attr->attr.attr);
-			data_attr->attr.read_new = acpi_data_show;
+			data_attr->attr.read = acpi_data_show;
 			data_attr->attr.attr.mode = 0400;
 			return acpi_data_objs[i].fn(th, data_attr);
 		}

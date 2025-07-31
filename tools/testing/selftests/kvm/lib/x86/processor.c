@@ -1264,16 +1264,6 @@ done:
 	return min(max_gfn, ht_gfn - 1);
 }
 
-/* Returns true if kvm_intel was loaded with unrestricted_guest=1. */
-bool vm_is_unrestricted_guest(struct kvm_vm *vm)
-{
-	/* Ensure that a KVM vendor-specific module is loaded. */
-	if (vm == NULL)
-		close(open_kvm_dev_path_or_exit());
-
-	return get_kvm_intel_param_bool("unrestricted_guest");
-}
-
 void kvm_selftest_arch_init(void)
 {
 	host_cpu_is_intel = this_cpu_is_intel();

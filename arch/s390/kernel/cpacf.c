@@ -101,7 +101,7 @@ static const struct bin_attribute *const cpacf_attrs[] = {
 
 static const struct attribute_group cpacf_attr_grp = {
 	.name = "cpacf",
-	.bin_attrs_new = cpacf_attrs,
+	.bin_attrs = cpacf_attrs,
 };
 
 static int __init cpacf_init(void)

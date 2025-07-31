@@ -12,14 +12,17 @@ TEST_GEN_FILES := \
 TEST_PROGS := \
 	napi_id.py \
 	netcons_basic.sh \
+	netcons_cmdline.sh \
 	netcons_fragmented_msg.sh \
 	netcons_overflow.sh \
 	netcons_sysdata.sh \
+	netpoll_basic.py \
 	ping.py \
 	queues.py \
 	stats.py \
 	shaper.py \
 	hds.py \
+	xdp.py \
 # end of TEST_PROGS
 
 include ../../lib.mk

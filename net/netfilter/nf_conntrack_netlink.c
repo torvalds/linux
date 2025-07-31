@@ -2036,7 +2036,6 @@ static void ctnetlink_change_mark(struct nf_conn *ct,
 
 static const struct nla_policy protoinfo_policy[CTA_PROTOINFO_MAX+1] = {
 	[CTA_PROTOINFO_TCP]	= { .type = NLA_NESTED },
-	[CTA_PROTOINFO_DCCP]	= { .type = NLA_NESTED },
 	[CTA_PROTOINFO_SCTP]	= { .type = NLA_NESTED },
 };
 

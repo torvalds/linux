@@ -30,6 +30,26 @@ allOf:
           maxItems: 1
         reg-names:
           maxItems: 1
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mrvl,pxav1-mmc
+    then:
+      properties:
+        pinctrl-names:
+          description:
+            Optional for supporting PXA168 SDIO IRQ errata to switch CMD pin between
+            SDIO CMD and GPIO mode.
+          items:
+            - const: default
+            - const: state_cmd_gpio
+        pinctrl-0:
+          description:
+            Should contain default pinctrl.
+        pinctrl-1:
+          description:
+            Should switch CMD pin to GPIO mode as a high output.
 
 properties:
   compatible:
@@ -61,22 +81,6 @@ properties:
     items:
       - const: io
       - const: core
-
-  pinctrl-names:
-    description:
-      Optional for supporting PXA168 SDIO IRQ errata to switch CMD pin between
-      SDIO CMD and GPIO mode.
-    items:
-      - const: default
-      - const: state_cmd_gpio
-
-  pinctrl-0:
-    description:
-      Should contain default pinctrl.
-
-  pinctrl-1:
-    description:
-      Should switch CMD pin to GPIO mode as a high output.
 
   mrvl,clk-delay-cycles:
     description: Specify a number of cycles to delay for tuning.

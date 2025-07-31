@@ -15,6 +15,12 @@
 #include "test_util.h"
 #include "processor.h"
 
+#define SYS_REG(r)	ARM64_SYS_REG(sys_reg_Op0(SYS_ ## r),	\
+				      sys_reg_Op1(SYS_ ## r),	\
+				      sys_reg_CRn(SYS_ ## r),	\
+				      sys_reg_CRm(SYS_ ## r),	\
+				      sys_reg_Op2(SYS_ ## r))
+
 struct feature_id_reg {
 	__u64 reg;
 	__u64 id_reg;
@@ -22,37 +28,43 @@ struct feature_id_reg {
 	__u64 feat_min;
 };
 
-static struct feature_id_reg feat_id_regs[] = {
-	{
-		ARM64_SYS_REG(3, 0, 2, 0, 3),	/* TCR2_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		0,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 0, 10, 2, 2),	/* PIRE0_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		8,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 0, 10, 2, 3),	/* PIR_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		8,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 0, 10, 2, 4),	/* POR_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		16,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 3, 10, 2, 4),	/* POR_EL0 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		16,
-		1
+#define FEAT(id, f, v)					\
+	.id_reg		= SYS_REG(id),			\
+	.feat_shift	= id ## _ ## f ## _SHIFT,	\
+	.feat_min	= id ## _ ## f ## _ ## v
+
+#define REG_FEAT(r, id, f, v)			\
+	{					\
+		.reg = SYS_REG(r),		\
+		FEAT(id, f, v)			\
 	}
+
+static struct feature_id_reg feat_id_regs[] = {
+	REG_FEAT(TCR2_EL1,	ID_AA64MMFR3_EL1, TCRX, IMP),
+	REG_FEAT(TCR2_EL2,	ID_AA64MMFR3_EL1, TCRX, IMP),
+	REG_FEAT(PIRE0_EL1,	ID_AA64MMFR3_EL1, S1PIE, IMP),
+	REG_FEAT(PIRE0_EL2,	ID_AA64MMFR3_EL1, S1PIE, IMP),
+	REG_FEAT(PIR_EL1,	ID_AA64MMFR3_EL1, S1PIE, IMP),
+	REG_FEAT(PIR_EL2,	ID_AA64MMFR3_EL1, S1PIE, IMP),
+	REG_FEAT(POR_EL1,	ID_AA64MMFR3_EL1, S1POE, IMP),
+	REG_FEAT(POR_EL0,	ID_AA64MMFR3_EL1, S1POE, IMP),
+	REG_FEAT(POR_EL2,	ID_AA64MMFR3_EL1, S1POE, IMP),
+	REG_FEAT(HCRX_EL2,	ID_AA64MMFR1_EL1, HCX, IMP),
+	REG_FEAT(HFGRTR_EL2,	ID_AA64MMFR0_EL1, FGT, IMP),
+	REG_FEAT(HFGWTR_EL2,	ID_AA64MMFR0_EL1, FGT, IMP),
+	REG_FEAT(HFGITR_EL2,	ID_AA64MMFR0_EL1, FGT, IMP),
+	REG_FEAT(HDFGRTR_EL2,	ID_AA64MMFR0_EL1, FGT, IMP),
+	REG_FEAT(HDFGWTR_EL2,	ID_AA64MMFR0_EL1, FGT, IMP),
+	REG_FEAT(HAFGRTR_EL2,	ID_AA64MMFR0_EL1, FGT, IMP),
+	REG_FEAT(HFGRTR2_EL2,	ID_AA64MMFR0_EL1, FGT, FGT2),
+	REG_FEAT(HFGWTR2_EL2,	ID_AA64MMFR0_EL1, FGT, FGT2),
+	REG_FEAT(HFGITR2_EL2,	ID_AA64MMFR0_EL1, FGT, FGT2),
+	REG_FEAT(HDFGRTR2_EL2,	ID_AA64MMFR0_EL1, FGT, FGT2),
+	REG_FEAT(HDFGWTR2_EL2,	ID_AA64MMFR0_EL1, FGT, FGT2),
+	REG_FEAT(ZCR_EL2,	ID_AA64PFR0_EL1, SVE, IMP),
+	REG_FEAT(SCTLR2_EL1,	ID_AA64MMFR3_EL1, SCTLRX, IMP),
+	REG_FEAT(VDISR_EL2,	ID_AA64PFR0_EL1, RAS, IMP),
+	REG_FEAT(VSESR_EL2,	ID_AA64PFR0_EL1, RAS, IMP),
 };
 
 bool filter_reg(__u64 reg)
@@ -469,6 +481,7 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 0, 1, 0, 0),	/* SCTLR_EL1 */
 	ARM64_SYS_REG(3, 0, 1, 0, 1),	/* ACTLR_EL1 */
 	ARM64_SYS_REG(3, 0, 1, 0, 2),	/* CPACR_EL1 */
+	KVM_ARM64_SYS_REG(SYS_SCTLR2_EL1),
 	ARM64_SYS_REG(3, 0, 2, 0, 0),	/* TTBR0_EL1 */
 	ARM64_SYS_REG(3, 0, 2, 0, 1),	/* TTBR1_EL1 */
 	ARM64_SYS_REG(3, 0, 2, 0, 2),	/* TCR_EL1 */
@@ -686,6 +699,62 @@ static __u64 pauth_generic_regs[] = {
 	ARM64_SYS_REG(3, 0, 2, 3, 1),	/* APGAKEYHI_EL1 */
 };
 
+static __u64 el2_regs[] = {
+	SYS_REG(VPIDR_EL2),
+	SYS_REG(VMPIDR_EL2),
+	SYS_REG(SCTLR_EL2),
+	SYS_REG(ACTLR_EL2),
+	SYS_REG(HCR_EL2),
+	SYS_REG(MDCR_EL2),
+	SYS_REG(CPTR_EL2),
+	SYS_REG(HSTR_EL2),
+	SYS_REG(HFGRTR_EL2),
+	SYS_REG(HFGWTR_EL2),
+	SYS_REG(HFGITR_EL2),
+	SYS_REG(HACR_EL2),
+	SYS_REG(ZCR_EL2),
+	SYS_REG(HCRX_EL2),
+	SYS_REG(TTBR0_EL2),
+	SYS_REG(TTBR1_EL2),
+	SYS_REG(TCR_EL2),
+	SYS_REG(TCR2_EL2),
+	SYS_REG(VTTBR_EL2),
+	SYS_REG(VTCR_EL2),
+	SYS_REG(VNCR_EL2),
+	SYS_REG(HDFGRTR2_EL2),
+	SYS_REG(HDFGWTR2_EL2),
+	SYS_REG(HFGRTR2_EL2),
+	SYS_REG(HFGWTR2_EL2),
+	SYS_REG(HDFGRTR_EL2),
+	SYS_REG(HDFGWTR_EL2),
+	SYS_REG(HAFGRTR_EL2),
+	SYS_REG(HFGITR2_EL2),
+	SYS_REG(SPSR_EL2),
+	SYS_REG(ELR_EL2),
+	SYS_REG(AFSR0_EL2),
+	SYS_REG(AFSR1_EL2),
+	SYS_REG(ESR_EL2),
+	SYS_REG(FAR_EL2),
+	SYS_REG(HPFAR_EL2),
+	SYS_REG(MAIR_EL2),
+	SYS_REG(PIRE0_EL2),
+	SYS_REG(PIR_EL2),
+	SYS_REG(POR_EL2),
+	SYS_REG(AMAIR_EL2),
+	SYS_REG(VBAR_EL2),
+	SYS_REG(CONTEXTIDR_EL2),
+	SYS_REG(TPIDR_EL2),
+	SYS_REG(CNTVOFF_EL2),
+	SYS_REG(CNTHCTL_EL2),
+	SYS_REG(CNTHP_CTL_EL2),
+	SYS_REG(CNTHP_CVAL_EL2),
+	SYS_REG(CNTHV_CTL_EL2),
+	SYS_REG(CNTHV_CVAL_EL2),
+	SYS_REG(SP_EL2),
+	SYS_REG(VDISR_EL2),
+	SYS_REG(VSESR_EL2),
+};
+
 #define BASE_SUBLIST \
 	{ "base", .regs = base_regs, .regs_n = ARRAY_SIZE(base_regs), }
 #define VREGS_SUBLIST \
@@ -711,6 +780,14 @@ static __u64 pauth_generic_regs[] = {
 		.feature	= KVM_ARM_VCPU_PTRAUTH_GENERIC,		\
 		.regs		= pauth_generic_regs,			\
 		.regs_n		= ARRAY_SIZE(pauth_generic_regs),	\
+	}
+#define EL2_SUBLIST						\
+	{							\
+		.name 		= "EL2",			\
+		.capability	= KVM_CAP_ARM_EL2,		\
+		.feature	= KVM_ARM_VCPU_HAS_EL2,		\
+		.regs		= el2_regs,			\
+		.regs_n		= ARRAY_SIZE(el2_regs),		\
 	}
 
 static struct vcpu_reg_list vregs_config = {
@@ -761,6 +838,65 @@ static struct vcpu_reg_list pauth_pmu_config = {
 	},
 };
 
+static struct vcpu_reg_list el2_vregs_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_SUBLIST,
+	VREGS_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_vregs_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_SUBLIST,
+	VREGS_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_sve_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_SUBLIST,
+	SVE_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_sve_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_SUBLIST,
+	SVE_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_pauth_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_pauth_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
 struct vcpu_reg_list *vcpu_configs[] = {
 	&vregs_config,
 	&vregs_pmu_config,
@@ -768,5 +904,12 @@ struct vcpu_reg_list *vcpu_configs[] = {
 	&sve_pmu_config,
 	&pauth_config,
 	&pauth_pmu_config,
+
+	&el2_vregs_config,
+	&el2_vregs_pmu_config,
+	&el2_sve_config,
+	&el2_sve_pmu_config,
+	&el2_pauth_config,
+	&el2_pauth_pmu_config,
 };
 int vcpu_configs_n = ARRAY_SIZE(vcpu_configs);

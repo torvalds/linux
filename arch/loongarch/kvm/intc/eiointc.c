@@ -9,7 +9,7 @@
 
 static void eiointc_set_sw_coreisr(struct loongarch_eiointc *s)
 {
-	int ipnum, cpu, cpuid, irq_index, irq_mask, irq;
+	int ipnum, cpu, cpuid, irq;
 	struct kvm_vcpu *vcpu;
 
 	for (irq = 0; irq < EIOINTC_IRQS; irq++) {
@@ -18,8 +18,6 @@ static void eiointc_set_sw_coreisr(struct loongarch_eiointc *s)
 			ipnum = count_trailing_zeros(ipnum);
 			ipnum = (ipnum >= 0 && ipnum < 4) ? ipnum : 0;
 		}
-		irq_index = irq / 32;
-		irq_mask = BIT(irq & 0x1f);
 
 		cpuid = s->coremap.reg_u8[irq];
 		vcpu = kvm_get_vcpu_by_cpuid(s->kvm, cpuid);
@@ -27,16 +25,16 @@ static void eiointc_set_sw_coreisr(struct loongarch_eiointc *s)
 			continue;
 
 		cpu = vcpu->vcpu_id;
-		if (!!(s->coreisr.reg_u32[cpu][irq_index] & irq_mask))
-			set_bit(irq, s->sw_coreisr[cpu][ipnum]);
+		if (test_bit(irq, (unsigned long *)s->coreisr.reg_u32[cpu]))
+			__set_bit(irq, s->sw_coreisr[cpu][ipnum]);
 		else
-			clear_bit(irq, s->sw_coreisr[cpu][ipnum]);
+			__clear_bit(irq, s->sw_coreisr[cpu][ipnum]);
 	}
 }
 
 static void eiointc_update_irq(struct loongarch_eiointc *s, int irq, int level)
 {
-	int ipnum, cpu, found, irq_index, irq_mask;
+	int ipnum, cpu, found;
 	struct kvm_vcpu *vcpu;
 	struct kvm_interrupt vcpu_irq;
 
@@ -48,19 +46,16 @@ static void eiointc_update_irq(struct loongarch_eiointc *s, int irq, int level)
 
 	cpu = s->sw_coremap[irq];
 	vcpu = kvm_get_vcpu(s->kvm, cpu);
-	irq_index = irq / 32;
-	irq_mask = BIT(irq & 0x1f);
-
 	if (level) {
 		/* if not enable return false */
-		if (((s->enable.reg_u32[irq_index]) & irq_mask) == 0)
+		if (!test_bit(irq, (unsigned long *)s->enable.reg_u32))
 			return;
-		s->coreisr.reg_u32[cpu][irq_index] |= irq_mask;
+		__set_bit(irq, (unsigned long *)s->coreisr.reg_u32[cpu]);
 		found = find_first_bit(s->sw_coreisr[cpu][ipnum], EIOINTC_IRQS);
-		set_bit(irq, s->sw_coreisr[cpu][ipnum]);
+		__set_bit(irq, s->sw_coreisr[cpu][ipnum]);
 	} else {
-		s->coreisr.reg_u32[cpu][irq_index] &= ~irq_mask;
-		clear_bit(irq, s->sw_coreisr[cpu][ipnum]);
+		__clear_bit(irq, (unsigned long *)s->coreisr.reg_u32[cpu]);
+		__clear_bit(irq, s->sw_coreisr[cpu][ipnum]);
 		found = find_first_bit(s->sw_coreisr[cpu][ipnum], EIOINTC_IRQS);
 	}
 
@@ -110,159 +105,14 @@ void eiointc_set_irq(struct loongarch_eiointc *s, int irq, int level)
 	unsigned long flags;
 	unsigned long *isr = (unsigned long *)s->isr.reg_u8;
 
-	level ? set_bit(irq, isr) : clear_bit(irq, isr);
 	spin_lock_irqsave(&s->lock, flags);
+	level ? __set_bit(irq, isr) : __clear_bit(irq, isr);
 	eiointc_update_irq(s, irq, level);
 	spin_unlock_irqrestore(&s->lock, flags);
 }
 
-static inline void eiointc_enable_irq(struct kvm_vcpu *vcpu,
-		struct loongarch_eiointc *s, int index, u8 mask, int level)
-{
-	u8 val;
-	int irq;
-
-	val = mask & s->isr.reg_u8[index];
-	irq = ffs(val);
-	while (irq != 0) {
-		/*
-		 * enable bit change from 0 to 1,
-		 * need to update irq by pending bits
-		 */
-		eiointc_update_irq(s, irq - 1 + index * 8, level);
-		val &= ~BIT(irq - 1);
-		irq = ffs(val);
-	}
-}
-
-static int loongarch_eiointc_readb(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, int len, void *val)
-{
-	int index, ret = 0;
-	u8 data = 0;
-	gpa_t offset;
-
-	offset = addr - EIOINTC_BASE;
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = offset - EIOINTC_NODETYPE_START;
-		data = s->nodetype.reg_u8[index];
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		index = offset - EIOINTC_IPMAP_START;
-		data = s->ipmap.reg_u8[index];
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = offset - EIOINTC_ENABLE_START;
-		data = s->enable.reg_u8[index];
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		index = offset - EIOINTC_BOUNCE_START;
-		data = s->bounce.reg_u8[index];
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = offset - EIOINTC_COREISR_START;
-		data = s->coreisr.reg_u8[vcpu->vcpu_id][index];
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		index = offset - EIOINTC_COREMAP_START;
-		data = s->coremap.reg_u8[index];
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	*(u8 *)val = data;
-
-	return ret;
-}
-
-static int loongarch_eiointc_readw(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, int len, void *val)
-{
-	int index, ret = 0;
-	u16 data = 0;
-	gpa_t offset;
-
-	offset = addr - EIOINTC_BASE;
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START) >> 1;
-		data = s->nodetype.reg_u16[index];
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		index = (offset - EIOINTC_IPMAP_START) >> 1;
-		data = s->ipmap.reg_u16[index];
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START) >> 1;
-		data = s->enable.reg_u16[index];
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		index = (offset - EIOINTC_BOUNCE_START) >> 1;
-		data = s->bounce.reg_u16[index];
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START) >> 1;
-		data = s->coreisr.reg_u16[vcpu->vcpu_id][index];
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		index = (offset - EIOINTC_COREMAP_START) >> 1;
-		data = s->coremap.reg_u16[index];
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	*(u16 *)val = data;
-
-	return ret;
-}
-
-static int loongarch_eiointc_readl(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, int len, void *val)
-{
-	int index, ret = 0;
-	u32 data = 0;
-	gpa_t offset;
-
-	offset = addr - EIOINTC_BASE;
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START) >> 2;
-		data = s->nodetype.reg_u32[index];
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		index = (offset - EIOINTC_IPMAP_START) >> 2;
-		data = s->ipmap.reg_u32[index];
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START) >> 2;
-		data = s->enable.reg_u32[index];
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		index = (offset - EIOINTC_BOUNCE_START) >> 2;
-		data = s->bounce.reg_u32[index];
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START) >> 2;
-		data = s->coreisr.reg_u32[vcpu->vcpu_id][index];
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		index = (offset - EIOINTC_COREMAP_START) >> 2;
-		data = s->coremap.reg_u32[index];
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	*(u32 *)val = data;
-
-	return ret;
-}
-
-static int loongarch_eiointc_readq(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
-				gpa_t addr, int len, void *val)
+static int loongarch_eiointc_read(struct kvm_vcpu *vcpu, struct loongarch_eiointc *s,
+				gpa_t addr, unsigned long *val)
 {
 	int index, ret = 0;
 	u64 data = 0;
@@ -298,7 +148,7 @@ static int loongarch_eiointc_readq(struct kvm_vcpu *vcpu, struct loongarch_eioin
 		ret = -EINVAL;
 		break;
 	}
-	*(u64 *)val = data;
+	*val = data;
 
 	return ret;
 }
@@ -308,7 +158,7 @@ static int kvm_eiointc_read(struct kvm_vcpu *vcpu,
 			gpa_t addr, int len, void *val)
 {
 	int ret = -EINVAL;
-	unsigned long flags;
+	unsigned long flags, data, offset;
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
@@ -321,355 +171,115 @@ static int kvm_eiointc_read(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
-	vcpu->kvm->stat.eiointc_read_exits++;
+	offset = addr & 0x7;
+	addr -= offset;
+	vcpu->stat.eiointc_read_exits++;
 	spin_lock_irqsave(&eiointc->lock, flags);
+	ret = loongarch_eiointc_read(vcpu, eiointc, addr, &data);
+	spin_unlock_irqrestore(&eiointc->lock, flags);
+	if (ret)
+		return ret;
+
+	data = data >> (offset * 8);
 	switch (len) {
 	case 1:
-		ret = loongarch_eiointc_readb(vcpu, eiointc, addr, len, val);
+		*(long *)val = (s8)data;
 		break;
 	case 2:
-		ret = loongarch_eiointc_readw(vcpu, eiointc, addr, len, val);
+		*(long *)val = (s16)data;
 		break;
 	case 4:
-		ret = loongarch_eiointc_readl(vcpu, eiointc, addr, len, val);
-		break;
-	case 8:
-		ret = loongarch_eiointc_readq(vcpu, eiointc, addr, len, val);
+		*(long *)val = (s32)data;
 		break;
 	default:
-		WARN_ONCE(1, "%s: Abnormal address access: addr 0x%llx, size %d\n",
-						__func__, addr, len);
-	}
-	spin_unlock_irqrestore(&eiointc->lock, flags);
-
-	return ret;
-}
-
-static int loongarch_eiointc_writeb(struct kvm_vcpu *vcpu,
-				struct loongarch_eiointc *s,
-				gpa_t addr, int len, const void *val)
-{
-	int index, irq, bits, ret = 0;
-	u8 cpu;
-	u8 data, old_data;
-	u8 coreisr, old_coreisr;
-	gpa_t offset;
-
-	data = *(u8 *)val;
-	offset = addr - EIOINTC_BASE;
-
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START);
-		s->nodetype.reg_u8[index] = data;
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		/*
-		 * ipmap cannot be set at runtime, can be set only at the beginning
-		 * of irqchip driver, need not update upper irq level
-		 */
-		index = (offset - EIOINTC_IPMAP_START);
-		s->ipmap.reg_u8[index] = data;
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START);
-		old_data = s->enable.reg_u8[index];
-		s->enable.reg_u8[index] = data;
-		/*
-		 * 1: enable irq.
-		 * update irq when isr is set.
-		 */
-		data = s->enable.reg_u8[index] & ~old_data & s->isr.reg_u8[index];
-		eiointc_enable_irq(vcpu, s, index, data, 1);
-		/*
-		 * 0: disable irq.
-		 * update irq when isr is set.
-		 */
-		data = ~s->enable.reg_u8[index] & old_data & s->isr.reg_u8[index];
-		eiointc_enable_irq(vcpu, s, index, data, 0);
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		/* do not emulate hw bounced irq routing */
-		index = offset - EIOINTC_BOUNCE_START;
-		s->bounce.reg_u8[index] = data;
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START);
-		/* use attrs to get current cpu index */
-		cpu = vcpu->vcpu_id;
-		coreisr = data;
-		old_coreisr = s->coreisr.reg_u8[cpu][index];
-		/* write 1 to clear interrupt */
-		s->coreisr.reg_u8[cpu][index] = old_coreisr & ~coreisr;
-		coreisr &= old_coreisr;
-		bits = sizeof(data) * 8;
-		irq = find_first_bit((void *)&coreisr, bits);
-		while (irq < bits) {
-			eiointc_update_irq(s, irq + index * bits, 0);
-			bitmap_clear((void *)&coreisr, irq, 1);
-			irq = find_first_bit((void *)&coreisr, bits);
-		}
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		irq = offset - EIOINTC_COREMAP_START;
-		index = irq;
-		s->coremap.reg_u8[index] = data;
-		eiointc_update_sw_coremap(s, irq, data, sizeof(data), true);
-		break;
-	default:
-		ret = -EINVAL;
+		*(long *)val = (long)data;
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
-static int loongarch_eiointc_writew(struct kvm_vcpu *vcpu,
+static int loongarch_eiointc_write(struct kvm_vcpu *vcpu,
 				struct loongarch_eiointc *s,
-				gpa_t addr, int len, const void *val)
+				gpa_t addr, u64 value, u64 field_mask)
 {
-	int i, index, irq, bits, ret = 0;
+	int index, irq, ret = 0;
 	u8 cpu;
-	u16 data, old_data;
-	u16 coreisr, old_coreisr;
+	u64 data, old, mask;
 	gpa_t offset;
 
-	data = *(u16 *)val;
-	offset = addr - EIOINTC_BASE;
+	offset = addr & 7;
+	mask = field_mask << (offset * 8);
+	data = (value & field_mask) << (offset * 8);
 
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START) >> 1;
-		s->nodetype.reg_u16[index] = data;
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		/*
-		 * ipmap cannot be set at runtime, can be set only at the beginning
-		 * of irqchip driver, need not update upper irq level
-		 */
-		index = (offset - EIOINTC_IPMAP_START) >> 1;
-		s->ipmap.reg_u16[index] = data;
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START) >> 1;
-		old_data = s->enable.reg_u16[index];
-		s->enable.reg_u16[index] = data;
-		/*
-		 * 1: enable irq.
-		 * update irq when isr is set.
-		 */
-		data = s->enable.reg_u16[index] & ~old_data & s->isr.reg_u16[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 2 + i, mask, 1);
-		}
-		/*
-		 * 0: disable irq.
-		 * update irq when isr is set.
-		 */
-		data = ~s->enable.reg_u16[index] & old_data & s->isr.reg_u16[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 2 + i, mask, 0);
-		}
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		/* do not emulate hw bounced irq routing */
-		index = (offset - EIOINTC_BOUNCE_START) >> 1;
-		s->bounce.reg_u16[index] = data;
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START) >> 1;
-		/* use attrs to get current cpu index */
-		cpu = vcpu->vcpu_id;
-		coreisr = data;
-		old_coreisr = s->coreisr.reg_u16[cpu][index];
-		/* write 1 to clear interrupt */
-		s->coreisr.reg_u16[cpu][index] = old_coreisr & ~coreisr;
-		coreisr &= old_coreisr;
-		bits = sizeof(data) * 8;
-		irq = find_first_bit((void *)&coreisr, bits);
-		while (irq < bits) {
-			eiointc_update_irq(s, irq + index * bits, 0);
-			bitmap_clear((void *)&coreisr, irq, 1);
-			irq = find_first_bit((void *)&coreisr, bits);
-		}
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		irq = offset - EIOINTC_COREMAP_START;
-		index = irq >> 1;
-		s->coremap.reg_u16[index] = data;
-		eiointc_update_sw_coremap(s, irq, data, sizeof(data), true);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static int loongarch_eiointc_writel(struct kvm_vcpu *vcpu,
-				struct loongarch_eiointc *s,
-				gpa_t addr, int len, const void *val)
-{
-	int i, index, irq, bits, ret = 0;
-	u8 cpu;
-	u32 data, old_data;
-	u32 coreisr, old_coreisr;
-	gpa_t offset;
-
-	data = *(u32 *)val;
-	offset = addr - EIOINTC_BASE;
-
-	switch (offset) {
-	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
-		index = (offset - EIOINTC_NODETYPE_START) >> 2;
-		s->nodetype.reg_u32[index] = data;
-		break;
-	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
-		/*
-		 * ipmap cannot be set at runtime, can be set only at the beginning
-		 * of irqchip driver, need not update upper irq level
-		 */
-		index = (offset - EIOINTC_IPMAP_START) >> 2;
-		s->ipmap.reg_u32[index] = data;
-		break;
-	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
-		index = (offset - EIOINTC_ENABLE_START) >> 2;
-		old_data = s->enable.reg_u32[index];
-		s->enable.reg_u32[index] = data;
-		/*
-		 * 1: enable irq.
-		 * update irq when isr is set.
-		 */
-		data = s->enable.reg_u32[index] & ~old_data & s->isr.reg_u32[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 4 + i, mask, 1);
-		}
-		/*
-		 * 0: disable irq.
-		 * update irq when isr is set.
-		 */
-		data = ~s->enable.reg_u32[index] & old_data & s->isr.reg_u32[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 4 + i, mask, 0);
-		}
-		break;
-	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
-		/* do not emulate hw bounced irq routing */
-		index = (offset - EIOINTC_BOUNCE_START) >> 2;
-		s->bounce.reg_u32[index] = data;
-		break;
-	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
-		index = (offset - EIOINTC_COREISR_START) >> 2;
-		/* use attrs to get current cpu index */
-		cpu = vcpu->vcpu_id;
-		coreisr = data;
-		old_coreisr = s->coreisr.reg_u32[cpu][index];
-		/* write 1 to clear interrupt */
-		s->coreisr.reg_u32[cpu][index] = old_coreisr & ~coreisr;
-		coreisr &= old_coreisr;
-		bits = sizeof(data) * 8;
-		irq = find_first_bit((void *)&coreisr, bits);
-		while (irq < bits) {
-			eiointc_update_irq(s, irq + index * bits, 0);
-			bitmap_clear((void *)&coreisr, irq, 1);
-			irq = find_first_bit((void *)&coreisr, bits);
-		}
-		break;
-	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		irq = offset - EIOINTC_COREMAP_START;
-		index = irq >> 2;
-		s->coremap.reg_u32[index] = data;
-		eiointc_update_sw_coremap(s, irq, data, sizeof(data), true);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static int loongarch_eiointc_writeq(struct kvm_vcpu *vcpu,
-				struct loongarch_eiointc *s,
-				gpa_t addr, int len, const void *val)
-{
-	int i, index, irq, bits, ret = 0;
-	u8 cpu;
-	u64 data, old_data;
-	u64 coreisr, old_coreisr;
-	gpa_t offset;
-
-	data = *(u64 *)val;
+	addr -= offset;
 	offset = addr - EIOINTC_BASE;
 
 	switch (offset) {
 	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
 		index = (offset - EIOINTC_NODETYPE_START) >> 3;
-		s->nodetype.reg_u64[index] = data;
+		old = s->nodetype.reg_u64[index];
+		s->nodetype.reg_u64[index] = (old & ~mask) | data;
 		break;
 	case EIOINTC_IPMAP_START ... EIOINTC_IPMAP_END:
 		/*
 		 * ipmap cannot be set at runtime, can be set only at the beginning
 		 * of irqchip driver, need not update upper irq level
 		 */
-		index = (offset - EIOINTC_IPMAP_START) >> 3;
-		s->ipmap.reg_u64 = data;
+		old = s->ipmap.reg_u64;
+		s->ipmap.reg_u64 = (old & ~mask) | data;
 		break;
 	case EIOINTC_ENABLE_START ... EIOINTC_ENABLE_END:
 		index = (offset - EIOINTC_ENABLE_START) >> 3;
-		old_data = s->enable.reg_u64[index];
-		s->enable.reg_u64[index] = data;
+		old = s->enable.reg_u64[index];
+		s->enable.reg_u64[index] = (old & ~mask) | data;
 		/*
 		 * 1: enable irq.
 		 * update irq when isr is set.
 		 */
-		data = s->enable.reg_u64[index] & ~old_data & s->isr.reg_u64[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 8 + i, mask, 1);
+		data = s->enable.reg_u64[index] & ~old & s->isr.reg_u64[index];
+		while (data) {
+			irq = __ffs(data);
+			eiointc_update_irq(s, irq + index * 64, 1);
+			data &= ~BIT_ULL(irq);
 		}
 		/*
 		 * 0: disable irq.
 		 * update irq when isr is set.
 		 */
-		data = ~s->enable.reg_u64[index] & old_data & s->isr.reg_u64[index];
-		for (i = 0; i < sizeof(data); i++) {
-			u8 mask = (data >> (i * 8)) & 0xff;
-			eiointc_enable_irq(vcpu, s, index * 8 + i, mask, 0);
+		data = ~s->enable.reg_u64[index] & old & s->isr.reg_u64[index];
+		while (data) {
+			irq = __ffs(data);
+			eiointc_update_irq(s, irq + index * 64, 0);
+			data &= ~BIT_ULL(irq);
 		}
 		break;
 	case EIOINTC_BOUNCE_START ... EIOINTC_BOUNCE_END:
 		/* do not emulate hw bounced irq routing */
 		index = (offset - EIOINTC_BOUNCE_START) >> 3;
-		s->bounce.reg_u64[index] = data;
+		old = s->bounce.reg_u64[index];
+		s->bounce.reg_u64[index] = (old & ~mask) | data;
 		break;
 	case EIOINTC_COREISR_START ... EIOINTC_COREISR_END:
 		index = (offset - EIOINTC_COREISR_START) >> 3;
 		/* use attrs to get current cpu index */
 		cpu = vcpu->vcpu_id;
-		coreisr = data;
-		old_coreisr = s->coreisr.reg_u64[cpu][index];
+		old = s->coreisr.reg_u64[cpu][index];
 		/* write 1 to clear interrupt */
-		s->coreisr.reg_u64[cpu][index] = old_coreisr & ~coreisr;
-		coreisr &= old_coreisr;
-		bits = sizeof(data) * 8;
-		irq = find_first_bit((void *)&coreisr, bits);
-		while (irq < bits) {
-			eiointc_update_irq(s, irq + index * bits, 0);
-			bitmap_clear((void *)&coreisr, irq, 1);
-			irq = find_first_bit((void *)&coreisr, bits);
+		s->coreisr.reg_u64[cpu][index] = old & ~data;
+		data &= old;
+		while (data) {
+			irq = __ffs(data);
+			eiointc_update_irq(s, irq + index * 64, 0);
+			data &= ~BIT_ULL(irq);
 		}
 		break;
 	case EIOINTC_COREMAP_START ... EIOINTC_COREMAP_END:
-		irq = offset - EIOINTC_COREMAP_START;
-		index = irq >> 3;
-		s->coremap.reg_u64[index] = data;
-		eiointc_update_sw_coremap(s, irq, data, sizeof(data), true);
+		index = (offset - EIOINTC_COREMAP_START) >> 3;
+		old = s->coremap.reg_u64[index];
+		s->coremap.reg_u64[index] = (old & ~mask) | data;
+		data = s->coremap.reg_u64[index];
+		eiointc_update_sw_coremap(s, index * 8, data, sizeof(data), true);
 		break;
 	default:
 		ret = -EINVAL;
@@ -684,7 +294,7 @@ static int kvm_eiointc_write(struct kvm_vcpu *vcpu,
 			gpa_t addr, int len, const void *val)
 {
 	int ret = -EINVAL;
-	unsigned long flags;
+	unsigned long flags, value;
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
@@ -697,24 +307,25 @@ static int kvm_eiointc_write(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
-	vcpu->kvm->stat.eiointc_write_exits++;
+	vcpu->stat.eiointc_write_exits++;
 	spin_lock_irqsave(&eiointc->lock, flags);
 	switch (len) {
 	case 1:
-		ret = loongarch_eiointc_writeb(vcpu, eiointc, addr, len, val);
+		value = *(unsigned char *)val;
+		ret = loongarch_eiointc_write(vcpu, eiointc, addr, value, 0xFF);
 		break;
 	case 2:
-		ret = loongarch_eiointc_writew(vcpu, eiointc, addr, len, val);
+		value = *(unsigned short *)val;
+		ret = loongarch_eiointc_write(vcpu, eiointc, addr, value, USHRT_MAX);
 		break;
 	case 4:
-		ret = loongarch_eiointc_writel(vcpu, eiointc, addr, len, val);
-		break;
-	case 8:
-		ret = loongarch_eiointc_writeq(vcpu, eiointc, addr, len, val);
+		value = *(unsigned int *)val;
+		ret = loongarch_eiointc_write(vcpu, eiointc, addr, value, UINT_MAX);
 		break;
 	default:
-		WARN_ONCE(1, "%s: Abnormal address access: addr 0x%llx, size %d\n",
-						__func__, addr, len);
+		value = *(unsigned long *)val;
+		ret = loongarch_eiointc_write(vcpu, eiointc, addr, value, ULONG_MAX);
+		break;
 	}
 	spin_unlock_irqrestore(&eiointc->lock, flags);
 
@@ -989,7 +600,7 @@ static int kvm_eiointc_create(struct kvm_device *dev, u32 type)
 {
 	int ret;
 	struct loongarch_eiointc *s;
-	struct kvm_io_device *device, *device1;
+	struct kvm_io_device *device;
 	struct kvm *kvm = dev->kvm;
 
 	/* eiointc has been created */
@@ -1017,10 +628,10 @@ static int kvm_eiointc_create(struct kvm_device *dev, u32 type)
 		return ret;
 	}
 
-	device1 = &s->device_vext;
-	kvm_iodevice_init(device1, &kvm_eiointc_virt_ops);
+	device = &s->device_vext;
+	kvm_iodevice_init(device, &kvm_eiointc_virt_ops);
 	ret = kvm_io_bus_register_dev(kvm, KVM_IOCSR_BUS,
-			EIOINTC_VIRT_BASE, EIOINTC_VIRT_SIZE, device1);
+			EIOINTC_VIRT_BASE, EIOINTC_VIRT_SIZE, device);
 	if (ret < 0) {
 		kvm_io_bus_unregister_dev(kvm, KVM_IOCSR_BUS, &s->device);
 		kfree(s);

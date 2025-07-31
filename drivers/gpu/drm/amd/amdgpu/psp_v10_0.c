@@ -94,7 +94,7 @@ static int psp_v10_0_ring_create(struct psp_context *psp,
 
 	/* Wait for response flag (bit 31) in C2PMSG_64 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-			   0x80000000, 0x8000FFFF, false);
+			   MBOX_TOS_RESP_FLAG, MBOX_TOS_RESP_MASK, 0);
 
 	return ret;
 }
@@ -115,7 +115,7 @@ static int psp_v10_0_ring_stop(struct psp_context *psp,
 
 	/* Wait for response flag (bit 31) in C2PMSG_64 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-			   0x80000000, 0x80000000, false);
+			   MBOX_TOS_RESP_FLAG, MBOX_TOS_RESP_MASK, 0);
 
 	return ret;
 }

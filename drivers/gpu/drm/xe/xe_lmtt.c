@@ -11,6 +11,7 @@
 
 #include "xe_assert.h"
 #include "xe_bo.h"
+#include "xe_gt_tlb_invalidation.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -80,7 +81,7 @@ static struct xe_lmtt_pt *lmtt_pt_alloc(struct xe_lmtt *lmtt, unsigned int level
 	lmtt_assert(lmtt, xe_bo_is_vram(bo));
 	lmtt_debug(lmtt, "level=%u addr=%#llx\n", level, (u64)xe_bo_main_addr(bo, XE_PAGE_SIZE));
 
-	xe_map_memset(lmtt_to_xe(lmtt), &bo->vmap, 0, 0, bo->size);
+	xe_map_memset(lmtt_to_xe(lmtt), &bo->vmap, 0, 0, xe_bo_size(bo));
 
 	pt->level = level;
 	pt->bo = bo;
@@ -222,6 +223,58 @@ void xe_lmtt_init_hw(struct xe_lmtt *lmtt)
 	lmtt_setup_dir_ptr(lmtt);
 }
 
+static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
+{
+	struct xe_gt_tlb_invalidation_fence fences[XE_MAX_GT_PER_TILE];
+	struct xe_gt_tlb_invalidation_fence *fence = fences;
+	struct xe_tile *tile = lmtt_to_tile(lmtt);
+	struct xe_gt *gt;
+	int result = 0;
+	int err;
+	u8 id;
+
+	for_each_gt_on_tile(gt, tile, id) {
+		xe_gt_tlb_invalidation_fence_init(gt, fence, true);
+		err = xe_gt_tlb_invalidation_all(gt, fence);
+		result = result ?: err;
+		fence++;
+	}
+
+	lmtt_debug(lmtt, "num_fences=%d err=%d\n", (int)(fence - fences), result);
+
+	/*
+	 * It is fine to wait for all fences, even for those which covers the
+	 * invalidation request that failed, as such fence should be already
+	 * marked as signaled.
+	 */
+	fence = fences;
+	for_each_gt_on_tile(gt, tile, id)
+		xe_gt_tlb_invalidation_fence_wait(fence++);
+
+	return result;
+}
+
+/**
+ * xe_lmtt_invalidate_hw - Invalidate LMTT hardware.
+ * @lmtt: the &xe_lmtt to invalidate
+ *
+ * Send requests to all GuCs on this tile to invalidate all TLBs.
+ *
+ * This function should be called only when running as a PF driver.
+ */
+void xe_lmtt_invalidate_hw(struct xe_lmtt *lmtt)
+{
+	struct xe_device *xe = lmtt_to_xe(lmtt);
+	int err;
+
+	lmtt_assert(lmtt, IS_SRIOV_PF(xe));
+
+	err = lmtt_invalidate_hw(lmtt);
+	if (err)
+		xe_sriov_warn(xe, "LMTT%u invalidation failed (%pe)",
+			      lmtt_to_tile(lmtt)->id, ERR_PTR(err));
+}
+
 static void lmtt_write_pte(struct xe_lmtt *lmtt, struct xe_lmtt_pt *pt,
 			   u64 pte, unsigned int idx)
 {
@@ -276,6 +329,7 @@ static void lmtt_drop_pages(struct xe_lmtt *lmtt, unsigned int vfid)
 		return;
 
 	lmtt_write_pte(lmtt, pd, LMTT_PTE_INVALID, vfid);
+	lmtt_invalidate_hw(lmtt);
 
 	lmtt_assert(lmtt, pd->level > 0);
 	lmtt_assert(lmtt, pt->level == pd->level - 1);
@@ -397,11 +451,11 @@ static void lmtt_insert_bo(struct xe_lmtt *lmtt, unsigned int vfid, struct xe_bo
 	u64 addr, vram_offset;
 
 	lmtt_assert(lmtt, IS_ALIGNED(start, page_size));
-	lmtt_assert(lmtt, IS_ALIGNED(bo->size, page_size));
+	lmtt_assert(lmtt, IS_ALIGNED(xe_bo_size(bo), page_size));
 	lmtt_assert(lmtt, xe_bo_is_vram(bo));
 
 	vram_offset = vram_region_gpu_offset(bo->ttm.resource);
-	xe_res_first(bo->ttm.resource, 0, bo->size, &cur);
+	xe_res_first(bo->ttm.resource, 0, xe_bo_size(bo), &cur);
 	while (cur.remaining) {
 		addr = xe_res_dma(&cur);
 		addr += vram_offset; /* XXX */

@@ -9190,7 +9190,7 @@
 /* MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS
  * Get descriptions for a set of sensors, specified as an array of sensor
  * handles as returned by MC_CMD_DYNAMIC_SENSORS_LIST. Any handles which do not
- * correspond to a sensor currently managed by the MC will be dropped from from
+ * correspond to a sensor currently managed by the MC will be dropped from
  * the response. This may happen when a sensor table update is in progress, and
  * effectively means the set of usable sensors is the intersection between the
  * sets of sensors known to the driver and the MC. On Riverhead this command is
@@ -9236,7 +9236,7 @@
  * broken sensor, then the state of the response's MC_CMD_DYNAMIC_SENSORS_VALUE
  * entry will be set to BROKEN, and any value provided should be treated as
  * erroneous. Any handles which do not correspond to a sensor currently managed
- * by the MC will be dropped from from the response. This may happen when a
+ * by the MC will be dropped from the response. This may happen when a
  * sensor table update is in progress, and effectively means the set of usable
  * sensors is the intersection between the sets of sensors known to the driver
  * and the MC. On Riverhead this command is implemented as a wrapper for
@@ -22487,7 +22487,7 @@
  * the named interface itself - INTF=..., PF=..., VF=VF_NULL to refer to a PF
  * on a named interface - INTF=..., PF=..., VF=... to refer to a VF on a named
  * interface where ... refers to a small integer for the VF/PF fields, and to
- * values from the PCIE_INTERFACE enum for for the INTF field. It's only
+ * values from the PCIE_INTERFACE enum for the INTF field. It's only
  * meaningful to use INTF=CALLER within a structure that's an argument to
  * MC_CMD_DEVEL_GET_CLIENT_HANDLE.
  */

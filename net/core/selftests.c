@@ -27,6 +27,7 @@ struct net_packet_attrs {
 	int max_size;
 	u8 id;
 	u16 queue_mapping;
+	bool bad_csum;
 };
 
 struct net_test_priv {
@@ -165,6 +166,20 @@ static struct sk_buff *net_test_get_skb(struct net_device *ndev,
 		thdr->check = ~tcp_v4_check(l4len, ihdr->saddr, ihdr->daddr, 0);
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct tcphdr, check);
+
+		if (attr->bad_csum) {
+			/* Force mangled checksum */
+			if (skb_checksum_help(skb)) {
+				kfree_skb(skb);
+				return NULL;
+			}
+
+			if (thdr->check != CSUM_MANGLED_0)
+				thdr->check = CSUM_MANGLED_0;
+			else
+				thdr->check = csum16_sub(thdr->check,
+							 cpu_to_be16(1));
+		}
 	} else {
 		udp4_hwcsum(skb, ihdr->saddr, ihdr->daddr);
 	}
@@ -239,7 +254,11 @@ static int net_test_loopback_validate(struct sk_buff *skb,
 	if (tpriv->packet->id != shdr->id)
 		goto out;
 
-	tpriv->ok = true;
+	if (tpriv->packet->bad_csum && skb->ip_summed == CHECKSUM_UNNECESSARY)
+		tpriv->ok = -EIO;
+	else
+		tpriv->ok = true;
+
 	complete(&tpriv->comp);
 out:
 	kfree_skb(skb);
@@ -285,7 +304,12 @@ static int __net_test_loopback(struct net_device *ndev,
 		attr->timeout = NET_LB_TIMEOUT;
 
 	wait_for_completion_timeout(&tpriv->comp, attr->timeout);
-	ret = tpriv->ok ? 0 : -ETIMEDOUT;
+	if (tpriv->ok < 0)
+		ret = tpriv->ok;
+	else if (!tpriv->ok)
+		ret = -ETIMEDOUT;
+	else
+		ret = 0;
 
 cleanup:
 	dev_remove_pack(&tpriv->pt);
@@ -345,6 +369,42 @@ static int net_test_phy_loopback_tcp(struct net_device *ndev)
 	return __net_test_loopback(ndev, &attr);
 }
 
+/**
+ * net_test_phy_loopback_tcp_bad_csum - PHY loopback test with a deliberately
+ *					corrupted TCP checksum
+ * @ndev: the network device to test
+ *
+ * Builds the same minimal Ethernet/IPv4/TCP frame as
+ * net_test_phy_loopback_tcp(), then flips the least-significant bit of the TCP
+ * checksum so the resulting value is provably invalid (neither 0 nor 0xFFFF).
+ * The frame is transmitted through the device’s internal PHY loopback path:
+ *
+ *   test code -> MAC driver -> MAC HW -> xMII -> PHY ->
+ *   internal PHY loopback -> xMII -> MAC HW -> MAC driver -> test code
+ *
+ * Result interpretation
+ * ---------------------
+ *  0            The frame is delivered to the stack and the driver reports
+ *               ip_summed as CHECKSUM_NONE or CHECKSUM_COMPLETE - both are
+ *               valid ways to indicate “bad checksum, let the stack verify.”
+ *  -ETIMEDOUT   The MAC/PHY silently dropped the frame; hardware checksum
+ *               verification filtered it out before the driver saw it.
+ *  -EIO         The driver returned the frame with ip_summed ==
+ *               CHECKSUM_UNNECESSARY, falsely claiming a valid checksum and
+ *               indicating a serious RX-path defect.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int net_test_phy_loopback_tcp_bad_csum(struct net_device *ndev)
+{
+	struct net_packet_attrs attr = { };
+
+	attr.dst = ndev->dev_addr;
+	attr.tcp = true;
+	attr.bad_csum = true;
+	return __net_test_loopback(ndev, &attr);
+}
+
 static const struct net_test {
 	char name[ETH_GSTRING_LEN];
 	int (*fn)(struct net_device *ndev);
@@ -368,6 +428,9 @@ static const struct net_test {
 	}, {
 		.name = "PHY internal loopback, TCP    ",
 		.fn = net_test_phy_loopback_tcp,
+	}, {
+		.name = "PHY loopback, bad TCP csum    ",
+		.fn = net_test_phy_loopback_tcp_bad_csum,
 	}, {
 		/* This test should be done after all PHY loopback test */
 		.name = "PHY internal loopback, disable",

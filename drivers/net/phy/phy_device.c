@@ -59,6 +59,13 @@ struct phy_fixup {
 	int (*run)(struct phy_device *phydev);
 };
 
+static struct phy_driver genphy_c45_driver = {
+	.phy_id         = 0xffffffff,
+	.phy_id_mask    = 0xffffffff,
+	.name           = "Generic Clause 45 PHY",
+	.read_status    = genphy_c45_read_status,
+};
+
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_basic_features);
 
@@ -645,11 +652,119 @@ static struct attribute *phy_dev_attrs[] = {
 	&dev_attr_phy_dev_flags.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(phy_dev);
+
+static const struct attribute_group phy_dev_group = {
+	.attrs = phy_dev_attrs,
+};
+
+#define MMD_DEVICE_ID_ATTR(n) \
+static ssize_t mmd##n##_device_id_show(struct device *dev, \
+				struct device_attribute *attr, char *buf) \
+{ \
+	struct phy_device *phydev = to_phy_device(dev); \
+	return sysfs_emit(buf, "0x%.8lx\n", \
+			 (unsigned long)phydev->c45_ids.device_ids[n]); \
+} \
+static DEVICE_ATTR_RO(mmd##n##_device_id)
+
+MMD_DEVICE_ID_ATTR(1);
+MMD_DEVICE_ID_ATTR(2);
+MMD_DEVICE_ID_ATTR(3);
+MMD_DEVICE_ID_ATTR(4);
+MMD_DEVICE_ID_ATTR(5);
+MMD_DEVICE_ID_ATTR(6);
+MMD_DEVICE_ID_ATTR(7);
+MMD_DEVICE_ID_ATTR(8);
+MMD_DEVICE_ID_ATTR(9);
+MMD_DEVICE_ID_ATTR(10);
+MMD_DEVICE_ID_ATTR(11);
+MMD_DEVICE_ID_ATTR(12);
+MMD_DEVICE_ID_ATTR(13);
+MMD_DEVICE_ID_ATTR(14);
+MMD_DEVICE_ID_ATTR(15);
+MMD_DEVICE_ID_ATTR(16);
+MMD_DEVICE_ID_ATTR(17);
+MMD_DEVICE_ID_ATTR(18);
+MMD_DEVICE_ID_ATTR(19);
+MMD_DEVICE_ID_ATTR(20);
+MMD_DEVICE_ID_ATTR(21);
+MMD_DEVICE_ID_ATTR(22);
+MMD_DEVICE_ID_ATTR(23);
+MMD_DEVICE_ID_ATTR(24);
+MMD_DEVICE_ID_ATTR(25);
+MMD_DEVICE_ID_ATTR(26);
+MMD_DEVICE_ID_ATTR(27);
+MMD_DEVICE_ID_ATTR(28);
+MMD_DEVICE_ID_ATTR(29);
+MMD_DEVICE_ID_ATTR(30);
+MMD_DEVICE_ID_ATTR(31);
+
+static struct attribute *phy_mmd_attrs[] = {
+	&dev_attr_mmd1_device_id.attr,
+	&dev_attr_mmd2_device_id.attr,
+	&dev_attr_mmd3_device_id.attr,
+	&dev_attr_mmd4_device_id.attr,
+	&dev_attr_mmd5_device_id.attr,
+	&dev_attr_mmd6_device_id.attr,
+	&dev_attr_mmd7_device_id.attr,
+	&dev_attr_mmd8_device_id.attr,
+	&dev_attr_mmd9_device_id.attr,
+	&dev_attr_mmd10_device_id.attr,
+	&dev_attr_mmd11_device_id.attr,
+	&dev_attr_mmd12_device_id.attr,
+	&dev_attr_mmd13_device_id.attr,
+	&dev_attr_mmd14_device_id.attr,
+	&dev_attr_mmd15_device_id.attr,
+	&dev_attr_mmd16_device_id.attr,
+	&dev_attr_mmd17_device_id.attr,
+	&dev_attr_mmd18_device_id.attr,
+	&dev_attr_mmd19_device_id.attr,
+	&dev_attr_mmd20_device_id.attr,
+	&dev_attr_mmd21_device_id.attr,
+	&dev_attr_mmd22_device_id.attr,
+	&dev_attr_mmd23_device_id.attr,
+	&dev_attr_mmd24_device_id.attr,
+	&dev_attr_mmd25_device_id.attr,
+	&dev_attr_mmd26_device_id.attr,
+	&dev_attr_mmd27_device_id.attr,
+	&dev_attr_mmd28_device_id.attr,
+	&dev_attr_mmd29_device_id.attr,
+	&dev_attr_mmd30_device_id.attr,
+	&dev_attr_mmd31_device_id.attr,
+	NULL
+};
+
+static umode_t phy_mmd_is_visible(struct kobject *kobj,
+				  struct attribute *attr, int index)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct phy_device *phydev = to_phy_device(dev);
+	const int i = index + 1;
+
+	if (!phydev->is_c45)
+		return 0;
+	if (i >= ARRAY_SIZE(phydev->c45_ids.device_ids) ||
+	    phydev->c45_ids.device_ids[i] == 0xffffffff)
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group phy_mmd_group = {
+	.name = "c45_phy_ids",
+	.attrs = phy_mmd_attrs,
+	.is_visible = phy_mmd_is_visible,
+};
+
+static const struct attribute_group *phy_device_groups[] = {
+	&phy_dev_group,
+	&phy_mmd_group,
+	NULL,
+};
 
 static const struct device_type mdio_bus_phy_type = {
 	.name = "PHY",
-	.groups = phy_dev_groups,
+	.groups = phy_device_groups,
 	.release = phy_device_release,
 	.pm = pm_ptr(&mdio_bus_phy_pm_ops),
 };
@@ -1515,7 +1630,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
 	struct module *ndev_owner = NULL;
-	bool using_genphy = false;
 	int err;
 
 	/* For Ethernet device drivers that register their own MDIO bus, we
@@ -1541,7 +1655,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		else
 			d->driver = &genphy_driver.mdiodrv.driver;
 
-		using_genphy = true;
+		phydev->is_genphy_driven = 1;
 	}
 
 	if (!try_module_get(d->driver->owner)) {
@@ -1550,7 +1664,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		goto error_put_device;
 	}
 
-	if (using_genphy) {
+	if (phydev->is_genphy_driven) {
 		err = d->driver->probe(d);
 		if (err >= 0)
 			err = device_bind_driver(d);
@@ -1620,7 +1734,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 * the generic PHY driver we can't figure it out, thus set the old
 	 * legacy PORT_MII value.
 	 */
-	if (using_genphy)
+	if (phydev->is_genphy_driven)
 		phydev->port = PORT_MII;
 
 	/* Initial carrier state is off as the phy is about to be
@@ -1659,6 +1773,7 @@ error:
 
 error_module_put:
 	module_put(d->driver->owner);
+	phydev->is_genphy_driven = 0;
 	d->driver = NULL;
 error_put_device:
 	put_device(d);
@@ -1705,36 +1820,6 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 	return phydev;
 }
 EXPORT_SYMBOL(phy_attach);
-
-static bool phy_driver_is_genphy_kind(struct phy_device *phydev,
-				      struct device_driver *driver)
-{
-	struct device *d = &phydev->mdio.dev;
-	bool ret = false;
-
-	if (!phydev->drv)
-		return ret;
-
-	get_device(d);
-	ret = d->driver == driver;
-	put_device(d);
-
-	return ret;
-}
-
-bool phy_driver_is_genphy(struct phy_device *phydev)
-{
-	return phy_driver_is_genphy_kind(phydev,
-					 &genphy_driver.mdiodrv.driver);
-}
-EXPORT_SYMBOL_GPL(phy_driver_is_genphy);
-
-bool phy_driver_is_genphy_10g(struct phy_device *phydev)
-{
-	return phy_driver_is_genphy_kind(phydev,
-					 &genphy_c45_driver.mdiodrv.driver);
-}
-EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
 
 /**
  * phy_detach - detach a PHY device from its network device
@@ -1792,9 +1877,10 @@ void phy_detach(struct phy_device *phydev)
 	 * from the generic driver so that there's a chance a
 	 * real driver could be loaded
 	 */
-	if (phy_driver_is_genphy(phydev) ||
-	    phy_driver_is_genphy_10g(phydev))
+	if (phydev->is_genphy_driven) {
 		device_release_driver(&phydev->mdio.dev);
+		phydev->is_genphy_driven = 0;
+	}
 
 	/* Assert the reset signal */
 	phy_device_reset(phydev, 1);
@@ -2899,7 +2985,6 @@ static int phy_get_u32_property(struct device *dev, const char *name, u32 *val)
 /**
  * phy_get_internal_delay - returns the index of the internal delay
  * @phydev: phy_device struct
- * @dev: pointer to the devices device struct
  * @delay_values: array of delays the PHY supports
  * @size: the size of the delay array
  * @is_rx: boolean to indicate to get the rx internal delay
@@ -2912,9 +2997,10 @@ static int phy_get_u32_property(struct device *dev, const char *name, u32 *val)
  * array then size = 0 and the value of the delay property is returned.
  * Return -EINVAL if the delay is invalid or cannot be found.
  */
-s32 phy_get_internal_delay(struct phy_device *phydev, struct device *dev,
-			   const int *delay_values, int size, bool is_rx)
+s32 phy_get_internal_delay(struct phy_device *phydev, const int *delay_values,
+			   int size, bool is_rx)
 {
+	struct device *dev = &phydev->mdio.dev;
 	int i, ret;
 	u32 delay;
 
@@ -3416,8 +3502,7 @@ static int phy_probe(struct device *dev)
 	/* Get the LEDs from the device tree, and instantiate standard
 	 * LEDs for them.
 	 */
-	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev) &&
-	    !phy_driver_is_genphy_10g(phydev))
+	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev))
 		err = of_phy_leds(phydev);
 
 out:
@@ -3434,8 +3519,7 @@ static int phy_remove(struct device *dev)
 
 	cancel_delayed_work_sync(&phydev->state_queue);
 
-	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev) &&
-	    !phy_driver_is_genphy_10g(phydev))
+	if (IS_ENABLED(CONFIG_PHYLIB_LEDS) && !phy_driver_is_genphy(phydev))
 		phy_leds_unregister(phydev);
 
 	phydev->state = PHY_DOWN;

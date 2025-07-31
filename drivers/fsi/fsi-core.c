@@ -613,8 +613,8 @@ static const struct bin_attribute fsi_slave_raw_attr = {
 		.mode = 0600,
 	},
 	.size = 0,
-	.read_new = fsi_slave_sysfs_raw_read,
-	.write_new = fsi_slave_sysfs_raw_write,
+	.read = fsi_slave_sysfs_raw_read,
+	.write = fsi_slave_sysfs_raw_write,
 };
 
 static void fsi_slave_release(struct device *dev)
@@ -1404,7 +1404,7 @@ void fsi_driver_unregister(struct fsi_driver *fsi_drv)
 }
 EXPORT_SYMBOL_GPL(fsi_driver_unregister);
 
-struct bus_type fsi_bus_type = {
+const struct bus_type fsi_bus_type = {
 	.name		= "fsi",
 	.match		= fsi_bus_match,
 };

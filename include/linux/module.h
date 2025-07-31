@@ -14,6 +14,7 @@
 #include <linux/buildid.h>
 #include <linux/compiler.h>
 #include <linux/cache.h>
+#include <linux/cleanup.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/elf.h>
@@ -304,7 +305,6 @@ struct notifier_block;
 
 #ifdef CONFIG_MODULES
 
-extern int modules_disabled; /* for sysctl */
 /* Get/put a kernel symbol (calls must be symmetric) */
 void *__symbol_get(const char *symbol);
 void *__symbol_get_gpl(const char *symbol);
@@ -539,7 +539,7 @@ struct module {
 	struct trace_eval_map **trace_evals;
 	unsigned int num_trace_evals;
 #endif
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+#ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned int num_ftrace_callsites;
 	unsigned long *ftrace_callsites;
 #endif
@@ -1018,5 +1018,8 @@ static inline unsigned long find_kallsyms_symbol_value(struct module *mod,
 }
 
 #endif  /* CONFIG_MODULES && CONFIG_KALLSYMS */
+
+/* Define __free(module_put) macro for struct module *. */
+DEFINE_FREE(module_put, struct module *, if (_T) module_put(_T))
 
 #endif /* _LINUX_MODULE_H */

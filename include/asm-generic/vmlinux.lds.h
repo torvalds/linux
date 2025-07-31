@@ -167,7 +167,7 @@ defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
 #define FTRACE_STUB_HACK
 #endif
 
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+#ifdef CONFIG_DYNAMIC_FTRACE
 /*
  * The ftrace call sites are logged to a section whose name depends on the
  * compiler option used. A given kernel image will only use one, AKA

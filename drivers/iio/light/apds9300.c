@@ -17,7 +17,6 @@
 #include <linux/iio/events.h>
 
 #define APDS9300_DRV_NAME "apds9300"
-#define APDS9300_IRQ_NAME "apds9300_event"
 
 /* Command register bits */
 #define APDS9300_CMD	BIT(7) /* Select command register. Must write as 1 */
@@ -432,7 +431,7 @@ static int apds9300_probe(struct i2c_client *client)
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 				NULL, apds9300_interrupt_handler,
 				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				APDS9300_IRQ_NAME, indio_dev);
+				"apds9300_event", indio_dev);
 		if (ret) {
 			dev_err(&client->dev, "irq request error %d\n", -ret);
 			goto err;

@@ -500,8 +500,8 @@ static void smc_copy_sock_settings(struct sock *nsk, struct sock *osk,
 {
 	/* options we don't get control via setsockopt for */
 	nsk->sk_type = osk->sk_type;
-	nsk->sk_sndtimeo = osk->sk_sndtimeo;
-	nsk->sk_rcvtimeo = osk->sk_rcvtimeo;
+	nsk->sk_sndtimeo = READ_ONCE(osk->sk_sndtimeo);
+	nsk->sk_rcvtimeo = READ_ONCE(osk->sk_rcvtimeo);
 	nsk->sk_mark = READ_ONCE(osk->sk_mark);
 	nsk->sk_priority = READ_ONCE(osk->sk_priority);
 	nsk->sk_rcvlowat = osk->sk_rcvlowat;
@@ -1599,7 +1599,7 @@ static void smc_connect_work(struct work_struct *work)
 {
 	struct smc_sock *smc = container_of(work, struct smc_sock,
 					    connect_work);
-	long timeo = smc->sk.sk_sndtimeo;
+	long timeo = READ_ONCE(smc->sk.sk_sndtimeo);
 	int rc = 0;
 
 	if (!timeo)
@@ -2749,8 +2749,7 @@ int smc_accept(struct socket *sock, struct socket *new_sock,
 
 	if (lsmc->sockopt_defer_accept && !(arg->flags & O_NONBLOCK)) {
 		/* wait till data arrives on the socket */
-		timeo = msecs_to_jiffies(lsmc->sockopt_defer_accept *
-								MSEC_PER_SEC);
+		timeo = secs_to_jiffies(lsmc->sockopt_defer_accept);
 		if (smc_sk(nsk)->use_fallback) {
 			struct sock *clcsk = smc_sk(nsk)->clcsock->sk;
 

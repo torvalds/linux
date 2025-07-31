@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #ifndef __IVPU_DRV_H__
@@ -26,6 +26,7 @@
 #define PCI_DEVICE_ID_ARL	0xad1d
 #define PCI_DEVICE_ID_LNL	0x643e
 #define PCI_DEVICE_ID_PTL_P	0xb03e
+#define PCI_DEVICE_ID_WCL	0xfd3e
 
 #define IVPU_HW_IP_37XX 37
 #define IVPU_HW_IP_40XX 40
@@ -165,6 +166,7 @@ struct ivpu_device {
 		int boot;
 		int jsm;
 		int tdr;
+		int inference;
 		int autosuspend;
 		int d0i3_entry_msg;
 		int state_dump_msg;
@@ -207,10 +209,11 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
 #define IVPU_TEST_MODE_MIP_DISABLE        BIT(6)
 #define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
-#define IVPU_TEST_MODE_TURBO		  BIT(9)
-#define IVPU_TEST_MODE_CLK_RELINQ_DISABLE BIT(10)
-#define IVPU_TEST_MODE_CLK_RELINQ_ENABLE  BIT(11)
-#define IVPU_TEST_MODE_D0I2_DISABLE       BIT(12)
+#define IVPU_TEST_MODE_TURBO_ENABLE       BIT(9)
+#define IVPU_TEST_MODE_TURBO_DISABLE      BIT(10)
+#define IVPU_TEST_MODE_CLK_RELINQ_DISABLE BIT(11)
+#define IVPU_TEST_MODE_CLK_RELINQ_ENABLE  BIT(12)
+#define IVPU_TEST_MODE_D0I2_DISABLE       BIT(13)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
@@ -240,6 +243,7 @@ static inline int ivpu_hw_ip_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_IP_40XX;
 	case PCI_DEVICE_ID_PTL_P:
+	case PCI_DEVICE_ID_WCL:
 		return IVPU_HW_IP_50XX;
 	default:
 		dump_stack();
@@ -256,6 +260,7 @@ static inline int ivpu_hw_btrs_gen(struct ivpu_device *vdev)
 		return IVPU_HW_BTRS_MTL;
 	case PCI_DEVICE_ID_LNL:
 	case PCI_DEVICE_ID_PTL_P:
+	case PCI_DEVICE_ID_WCL:
 		return IVPU_HW_BTRS_LNL;
 	default:
 		dump_stack();

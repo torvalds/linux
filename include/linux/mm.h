@@ -1325,6 +1325,8 @@ static inline void get_page(struct page *page)
 	struct folio *folio = page_folio(page);
 	if (WARN_ON_ONCE(folio_test_slab(folio)))
 		return;
+	if (WARN_ON_ONCE(folio_test_large_kmalloc(folio)))
+		return;
 	folio_get(folio);
 }
 
@@ -1419,7 +1421,7 @@ static inline void put_page(struct page *page)
 {
 	struct folio *folio = page_folio(page);
 
-	if (folio_test_slab(folio))
+	if (folio_test_slab(folio) || folio_test_large_kmalloc(folio))
 		return;
 
 	folio_put(folio);
@@ -4177,12 +4179,12 @@ int arch_lock_shadow_stack_status(struct task_struct *t, unsigned long status);
 #define PP_MAGIC_MASK ~(PP_DMA_INDEX_MASK | 0x3UL)
 
 #ifdef CONFIG_PAGE_POOL
-static inline bool page_pool_page_is_pp(struct page *page)
+static inline bool page_pool_page_is_pp(const struct page *page)
 {
 	return (page->pp_magic & PP_MAGIC_MASK) == PP_SIGNATURE;
 }
 #else
-static inline bool page_pool_page_is_pp(struct page *page)
+static inline bool page_pool_page_is_pp(const struct page *page)
 {
 	return false;
 }

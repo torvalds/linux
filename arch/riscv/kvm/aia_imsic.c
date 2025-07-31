@@ -16,6 +16,7 @@
 #include <linux/swab.h>
 #include <kvm/iodev.h>
 #include <asm/csr.h>
+#include <asm/kvm_mmu.h>
 
 #define IMSIC_MAX_EIX	(IMSIC_MAX_ID / BITS_PER_TYPE(u64))
 
@@ -745,9 +746,8 @@ void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
 	 */
 
 	/* Purge the G-stage mapping */
-	kvm_riscv_gstage_iounmap(vcpu->kvm,
-				 vcpu->arch.aia_context.imsic_addr,
-				 IMSIC_MMIO_PAGE_SZ);
+	kvm_riscv_mmu_iounmap(vcpu->kvm, vcpu->arch.aia_context.imsic_addr,
+			      IMSIC_MMIO_PAGE_SZ);
 
 	/* TODO: Purge the IOMMU mapping ??? */
 
@@ -830,9 +830,9 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 	imsic_vsfile_local_clear(new_vsfile_hgei, imsic->nr_hw_eix);
 
 	/* Update G-stage mapping for the new IMSIC VS-file */
-	ret = kvm_riscv_gstage_ioremap(kvm, vcpu->arch.aia_context.imsic_addr,
-				       new_vsfile_pa, IMSIC_MMIO_PAGE_SZ,
-				       true, true);
+	ret = kvm_riscv_mmu_ioremap(kvm, vcpu->arch.aia_context.imsic_addr,
+				    new_vsfile_pa, IMSIC_MMIO_PAGE_SZ,
+				    true, true);
 	if (ret)
 		goto fail_free_vsfile_hgei;
 

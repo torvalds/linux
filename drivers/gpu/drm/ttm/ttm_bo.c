@@ -35,6 +35,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_tt.h>
 
+#include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -46,6 +47,7 @@
 #include <linux/dma-resv.h>
 
 #include "ttm_module.h"
+#include "ttm_bo_internal.h"
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
@@ -524,11 +526,11 @@ static s64 ttm_bo_evict_cb(struct ttm_lru_walk *walk, struct ttm_buffer_object *
 		return 0;
 
 	if (bo->deleted) {
-		lret = ttm_bo_wait_ctx(bo, walk->ctx);
+		lret = ttm_bo_wait_ctx(bo, walk->arg.ctx);
 		if (!lret)
 			ttm_bo_cleanup_memtype_use(bo);
 	} else {
-		lret = ttm_bo_evict(bo, walk->ctx);
+		lret = ttm_bo_evict(bo, walk->arg.ctx);
 	}
 
 	if (lret)
@@ -564,8 +566,10 @@ static int ttm_bo_evict_alloc(struct ttm_device *bdev,
 	struct ttm_bo_evict_walk evict_walk = {
 		.walk = {
 			.ops = &ttm_evict_walk_ops,
-			.ctx = ctx,
-			.ticket = ticket,
+			.arg = {
+				.ctx = ctx,
+				.ticket = ticket,
+			}
 		},
 		.place = place,
 		.evictor = evictor,
@@ -574,7 +578,7 @@ static int ttm_bo_evict_alloc(struct ttm_device *bdev,
 	};
 	s64 lret;
 
-	evict_walk.walk.trylock_only = true;
+	evict_walk.walk.arg.trylock_only = true;
 	lret = ttm_lru_walk_for_evict(&evict_walk.walk, bdev, man, 1);
 
 	/* One more attempt if we hit low limit? */
@@ -588,12 +592,12 @@ static int ttm_bo_evict_alloc(struct ttm_device *bdev,
 	/* Reset low limit */
 	evict_walk.try_low = evict_walk.hit_low = false;
 	/* If ticket-locking, repeat while making progress. */
-	evict_walk.walk.trylock_only = false;
+	evict_walk.walk.arg.trylock_only = false;
 
 retry:
 	do {
 		/* The walk may clear the evict_walk.walk.ticket field */
-		evict_walk.walk.ticket = ticket;
+		evict_walk.walk.arg.ticket = ticket;
 		evict_walk.evicted = 0;
 		lret = ttm_lru_walk_for_evict(&evict_walk.walk, bdev, man, 1);
 	} while (!lret && evict_walk.evicted);
@@ -1104,7 +1108,7 @@ ttm_bo_swapout_cb(struct ttm_lru_walk *walk, struct ttm_buffer_object *bo)
 	struct ttm_place place = {.mem_type = bo->resource->mem_type};
 	struct ttm_bo_swapout_walk *swapout_walk =
 		container_of(walk, typeof(*swapout_walk), walk);
-	struct ttm_operation_ctx *ctx = walk->ctx;
+	struct ttm_operation_ctx *ctx = walk->arg.ctx;
 	s64 ret;
 
 	/*
@@ -1215,8 +1219,10 @@ s64 ttm_bo_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 	struct ttm_bo_swapout_walk swapout_walk = {
 		.walk = {
 			.ops = &ttm_swap_ops,
-			.ctx = ctx,
-			.trylock_only = true,
+			.arg = {
+				.ctx = ctx,
+				.trylock_only = true,
+			},
 		},
 		.gfp_flags = gfp_flags,
 	};

@@ -287,15 +287,18 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 				    struct sg_table *sgt);
 int drm_gem_shmem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			      struct drm_mode_create_dumb *args);
+struct drm_gem_object *drm_gem_shmem_prime_import_no_map(struct drm_device *dev,
+							 struct dma_buf *buf);
 
 /**
  * DRM_GEM_SHMEM_DRIVER_OPS - Default shmem GEM operations
  *
- * This macro provides a shortcut for setting the shmem GEM operations in
- * the &drm_driver structure.
+ * This macro provides a shortcut for setting the shmem GEM operations
+ * in the &drm_driver structure. Drivers that do not require an s/g table
+ * for imported buffers should use this.
  */
 #define DRM_GEM_SHMEM_DRIVER_OPS \
-	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table, \
-	.dumb_create		   = drm_gem_shmem_dumb_create
+	.gem_prime_import       = drm_gem_shmem_prime_import_no_map, \
+	.dumb_create            = drm_gem_shmem_dumb_create
 
 #endif /* __DRM_GEM_SHMEM_HELPER_H__ */

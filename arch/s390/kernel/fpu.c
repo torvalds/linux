@@ -5,6 +5,8 @@
  * Copyright IBM Corp. 2015
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
+
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>

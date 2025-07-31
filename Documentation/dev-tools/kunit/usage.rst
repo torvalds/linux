@@ -699,7 +699,7 @@ the template below.
 	#include <kunit/visibility.h>
 	#include <my_file.h>
 	...
-	MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+	MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 	...
 	// Use do_interesting_thing() in tests
 

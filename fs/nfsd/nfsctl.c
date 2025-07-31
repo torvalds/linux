@@ -1622,10 +1622,9 @@ int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	/* count number of SERVER_THREADS values */
-	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
-		if (nla_type(attr) == NFSD_A_SERVER_THREADS)
-			nrpools++;
-	}
+	nlmsg_for_each_attr_type(attr, NFSD_A_SERVER_THREADS, info->nlhdr,
+				 GENL_HDRLEN, rem)
+		nrpools++;
 
 	mutex_lock(&nfsd_mutex);
 
@@ -1636,12 +1635,11 @@ int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	i = 0;
-	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
-		if (nla_type(attr) == NFSD_A_SERVER_THREADS) {
-			nthreads[i++] = nla_get_u32(attr);
-			if (i >= nrpools)
-				break;
-		}
+	nlmsg_for_each_attr_type(attr, NFSD_A_SERVER_THREADS, info->nlhdr,
+				 GENL_HDRLEN, rem) {
+		nthreads[i++] = nla_get_u32(attr);
+		if (i >= nrpools)
+			break;
 	}
 
 	if (info->attrs[NFSD_A_SERVER_GRACETIME] ||
@@ -1782,13 +1780,11 @@ int nfsd_nl_version_set_doit(struct sk_buff *skb, struct genl_info *info)
 	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++)
 		nfsd_minorversion(nn, i, NFSD_CLEAR);
 
-	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+	nlmsg_for_each_attr_type(attr, NFSD_A_SERVER_PROTO_VERSION, info->nlhdr,
+				 GENL_HDRLEN, rem) {
 		struct nlattr *tb[NFSD_A_VERSION_MAX + 1];
 		u32 major, minor = 0;
 		bool enabled;
-
-		if (nla_type(attr) != NFSD_A_SERVER_PROTO_VERSION)
-			continue;
 
 		if (nla_parse_nested(tb, NFSD_A_VERSION_MAX, attr,
 				     nfsd_version_nl_policy, info->extack) < 0)
@@ -1940,13 +1936,11 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 	 * Walk the list of server_socks from userland and move any that match
 	 * back to sv_permsocks
 	 */
-	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+	nlmsg_for_each_attr_type(attr, NFSD_A_SERVER_SOCK_ADDR, info->nlhdr,
+				 GENL_HDRLEN, rem) {
 		struct nlattr *tb[NFSD_A_SOCK_MAX + 1];
 		const char *xcl_name;
 		struct sockaddr *sa;
-
-		if (nla_type(attr) != NFSD_A_SERVER_SOCK_ADDR)
-			continue;
 
 		if (nla_parse_nested(tb, NFSD_A_SOCK_MAX, attr,
 				     nfsd_sock_nl_policy, info->extack) < 0)
@@ -2002,14 +1996,12 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 		svc_xprt_destroy_all(serv, net);
 
 	/* walk list of addrs again, open any that still don't exist */
-	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+	nlmsg_for_each_attr_type(attr, NFSD_A_SERVER_SOCK_ADDR, info->nlhdr,
+				 GENL_HDRLEN, rem) {
 		struct nlattr *tb[NFSD_A_SOCK_MAX + 1];
 		const char *xcl_name;
 		struct sockaddr *sa;
 		int ret;
-
-		if (nla_type(attr) != NFSD_A_SERVER_SOCK_ADDR)
-			continue;
 
 		if (nla_parse_nested(tb, NFSD_A_SOCK_MAX, attr,
 				     nfsd_sock_nl_policy, info->extack) < 0)
