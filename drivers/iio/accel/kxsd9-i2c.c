@@ -38,7 +38,7 @@ static void kxsd9_i2c_remove(struct i2c_client *client)
 
 static const struct of_device_id kxsd9_of_match[] = {
 	{ .compatible = "kionix,kxsd9", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, kxsd9_of_match);
 

@@ -555,6 +555,8 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
 
+	__BKEY_PADDED(btree_path_down, BKEY_BTREE_PTR_VAL_U64s_MAX);
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
@@ -615,6 +617,9 @@ enum btree_write_type {
 	x(dying)							\
 	x(fake)								\
 	x(need_rewrite)							\
+	x(need_rewrite_error)						\
+	x(need_rewrite_degraded)					\
+	x(need_rewrite_ptr_written_zero)				\
 	x(never_write)							\
 	x(pinned)
 
@@ -638,6 +643,32 @@ static inline void clear_btree_node_ ## flag(struct btree *b)		\
 
 BTREE_FLAGS()
 #undef x
+
+#define BTREE_NODE_REWRITE_REASON()					\
+	x(none)								\
+	x(unknown)							\
+	x(error)							\
+	x(degraded)							\
+	x(ptr_written_zero)
+
+enum btree_node_rewrite_reason {
+#define x(n)	BTREE_NODE_REWRITE_##n,
+	BTREE_NODE_REWRITE_REASON()
+#undef x
+};
+
+static inline enum btree_node_rewrite_reason btree_node_rewrite_reason(struct btree *b)
+{
+	if (btree_node_need_rewrite_ptr_written_zero(b))
+		return BTREE_NODE_REWRITE_ptr_written_zero;
+	if (btree_node_need_rewrite_degraded(b))
+		return BTREE_NODE_REWRITE_degraded;
+	if (btree_node_need_rewrite_error(b))
+		return BTREE_NODE_REWRITE_error;
+	if (btree_node_need_rewrite(b))
+		return BTREE_NODE_REWRITE_unknown;
+	return BTREE_NODE_REWRITE_none;
+}
 
 static inline struct btree_write *btree_current_write(struct btree *b)
 {

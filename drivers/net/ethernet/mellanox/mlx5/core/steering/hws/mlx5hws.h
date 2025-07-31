@@ -213,6 +213,7 @@ struct mlx5hws_action_dest_attr {
 	struct mlx5hws_action *dest;
 	/* Optional reformat action */
 	struct mlx5hws_action *reformat;
+	bool is_wire_ft;
 };
 
 /**

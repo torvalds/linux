@@ -28,6 +28,7 @@ struct record_opts {
 	bool	      sample_time_set;
 	bool	      sample_cpu;
 	bool	      sample_identifier;
+	bool	      sample_data_src;
 	bool	      period;
 	bool	      period_set;
 	bool	      running_time;
@@ -79,6 +80,7 @@ struct record_opts {
 	int	      synth;
 	int	      threads_spec;
 	const char    *threads_user_spec;
+	u64	      off_cpu_thresh_ns;
 };
 
 extern const char * const *record_usage;

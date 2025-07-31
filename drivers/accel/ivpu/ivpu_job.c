@@ -247,16 +247,16 @@ static int ivpu_cmdq_unregister(struct ivpu_file_priv *file_priv, struct ivpu_cm
 	if (!cmdq->db_id)
 		return 0;
 
+	ret = ivpu_jsm_unregister_db(vdev, cmdq->db_id);
+	if (!ret)
+		ivpu_dbg(vdev, JOB, "DB %d unregistered\n", cmdq->db_id);
+
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW) {
 		ret = ivpu_jsm_hws_destroy_cmdq(vdev, file_priv->ctx.id, cmdq->id);
 		if (!ret)
 			ivpu_dbg(vdev, JOB, "Command queue %d destroyed, ctx %d\n",
 				 cmdq->id, file_priv->ctx.id);
 	}
-
-	ret = ivpu_jsm_unregister_db(vdev, cmdq->db_id);
-	if (!ret)
-		ivpu_dbg(vdev, JOB, "DB %d unregistered\n", cmdq->db_id);
 
 	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
 	cmdq->db_id = 0;
@@ -986,7 +986,8 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 		return;
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
-		ivpu_jsm_reset_engine(vdev, 0);
+		if (ivpu_jsm_reset_engine(vdev, 0))
+			return;
 
 	mutex_lock(&vdev->context_list_lock);
 	xa_for_each(&vdev->context_xa, ctx_id, file_priv) {
@@ -1009,7 +1010,8 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
 		goto runtime_put;
 
-	ivpu_jsm_hws_resume_engine(vdev, 0);
+	if (ivpu_jsm_hws_resume_engine(vdev, 0))
+		return;
 	/*
 	 * In hardware scheduling mode NPU already has stopped processing jobs
 	 * and won't send us any further notifications, thus we have to free job related resources

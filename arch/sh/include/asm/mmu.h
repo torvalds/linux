@@ -33,7 +33,7 @@
 
 #define PMB_NO_ENTRY		(-1)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/errno.h>
 #include <linux/threads.h>
 #include <asm/page.h>
@@ -102,6 +102,6 @@ pmb_remap(phys_addr_t phys, unsigned long size, pgprot_t prot)
 	return pmb_remap_caller(phys, size, prot, __builtin_return_address(0));
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __MMU_H */

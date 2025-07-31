@@ -106,7 +106,7 @@ static int hid_start_in(struct hid_device *hid)
 /* I/O retry timer routine */
 static void hid_retry_timeout(struct timer_list *t)
 {
-	struct usbhid_device *usbhid = from_timer(usbhid, t, io_retry);
+	struct usbhid_device *usbhid = timer_container_of(usbhid, t, io_retry);
 	struct hid_device *hid = usbhid->hid;
 
 	dev_dbg(&usbhid->intf->dev, "retrying intr urb\n");

@@ -4,6 +4,7 @@
 
 #include "btree_iter.h"
 #include "journal.h"
+#include "snapshot.h"
 
 struct bch_fs;
 struct btree;
@@ -74,7 +75,7 @@ static inline int bch2_btree_delete_at_buffered(struct btree_trans *trans,
 }
 
 int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,
-				     struct bpos, struct bpos);
+				     struct bpos, snapshot_id_list *);
 
 /*
  * For use when splitting extents in existing snapshots:
@@ -88,11 +89,20 @@ static inline int bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 						 struct bpos old_pos,
 						 struct bpos new_pos)
 {
+	BUG_ON(old_pos.snapshot != new_pos.snapshot);
+
 	if (!btree_type_has_snapshots(btree) ||
 	    bkey_eq(old_pos, new_pos))
 		return 0;
 
-	return __bch2_insert_snapshot_whiteouts(trans, btree, old_pos, new_pos);
+	snapshot_id_list s;
+	int ret = bch2_get_snapshot_overwrites(trans, btree, old_pos, &s);
+	if (ret)
+		return ret;
+
+	return s.nr
+		? __bch2_insert_snapshot_whiteouts(trans, btree, new_pos, &s)
+		: 0;
 }
 
 int bch2_trans_update_extent_overwrite(struct btree_trans *, struct btree_iter *,

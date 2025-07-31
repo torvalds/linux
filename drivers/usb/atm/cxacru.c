@@ -582,7 +582,7 @@ struct cxacru_timer {
 
 static void cxacru_timeout_kill(struct timer_list *t)
 {
-	struct cxacru_timer *timer = from_timer(timer, t, timer);
+	struct cxacru_timer *timer = timer_container_of(timer, t, timer);
 
 	usb_unlink_urb(timer->urb);
 }

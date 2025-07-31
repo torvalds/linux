@@ -69,5 +69,12 @@ if _have_feature "AUTO_BUF_REG"; then
 	done
 fi
 
+if _have_feature "PER_IO_DAEMON"; then
+	ublk_io_and_remove 8G -t null -q 4 --nthreads 8 --per_io_tasks -r 1 -i "$reissue" &
+	ublk_io_and_remove 256M -t loop -q 4 --nthreads 8 --per_io_tasks -r 1 -i "$reissue" "${UBLK_BACKFILES[0]}" &
+	ublk_io_and_remove 8G -t null -q 4 --nthreads 8 --per_io_tasks -r 1 -i "$reissue"  &
+fi
+wait
+
 _cleanup_test "stress"
 _show_result $TID $ERR_CODE

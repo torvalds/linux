@@ -2203,8 +2203,8 @@ out_err:
 
 static void mptcp_retransmit_timer(struct timer_list *t)
 {
-	struct inet_connection_sock *icsk = from_timer(icsk, t,
-						       icsk_retransmit_timer);
+	struct inet_connection_sock *icsk = timer_container_of(icsk, t,
+							       icsk_retransmit_timer);
 	struct sock *sk = &icsk->icsk_inet.sk;
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
@@ -2223,7 +2223,7 @@ static void mptcp_retransmit_timer(struct timer_list *t)
 
 static void mptcp_tout_timer(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 
 	mptcp_schedule_work(sk);
 	sock_put(sk);

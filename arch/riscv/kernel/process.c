@@ -60,7 +60,7 @@ int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
 	if (!unaligned_ctl_available())
 		return -EINVAL;
 
-	return put_user(tsk->thread.align_ctl, (unsigned long __user *)adr);
+	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
 }
 
 void __show_regs(struct pt_regs *regs)

@@ -836,7 +836,7 @@ int __init scsi_init_devinfo(void)
 		goto out;
 
 	for (i = 0; scsi_static_device_list[i].vendor; i++) {
-		error = scsi_dev_info_list_add(1 /* compatibile */,
+		error = scsi_dev_info_list_add(1 /* compatible */,
 				scsi_static_device_list[i].vendor,
 				scsi_static_device_list[i].model,
 				NULL,

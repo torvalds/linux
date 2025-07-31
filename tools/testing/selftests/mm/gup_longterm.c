@@ -298,8 +298,11 @@ static void run_with_memfd(test_fn fn, const char *desc)
 	log_test_start("%s ... with memfd", desc);
 
 	fd = memfd_create("test", 0);
-	if (fd < 0)
+	if (fd < 0) {
 		ksft_print_msg("memfd_create() failed (%s)\n", strerror(errno));
+		log_test_result(KSFT_SKIP);
+		return;
+	}
 
 	fn(fd, pagesize);
 	close(fd);
@@ -366,6 +369,8 @@ static void run_with_memfd_hugetlb(test_fn fn, const char *desc,
 	fd = memfd_create("test", flags);
 	if (fd < 0) {
 		ksft_print_msg("memfd_create() failed (%s)\n", strerror(errno));
+		log_test_result(KSFT_SKIP);
+		return;
 	}
 
 	fn(fd, hugetlbsize);

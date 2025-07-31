@@ -628,7 +628,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 
 static void kvmppc_watchdog_func(struct timer_list *t)
 {
-	struct kvm_vcpu *vcpu = from_timer(vcpu, t, arch.wdt_timer);
+	struct kvm_vcpu *vcpu = timer_container_of(vcpu, t, arch.wdt_timer);
 	u32 tsr, new_tsr;
 	int final;
 

@@ -11,6 +11,7 @@
 #include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -504,7 +505,7 @@ static const struct iio_enum vf610_conversion_mode = {
 
 static const struct iio_chan_spec_ext_info vf610_ext_info[] = {
 	IIO_ENUM("conversion_mode", IIO_SHARED_BY_DIR, &vf610_conversion_mode),
-	{},
+	{ }
 };
 
 #define VF610_ADC_CHAN(_idx, _chan_type) {			\
@@ -591,9 +592,9 @@ static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 		info->value = vf610_adc_read_data(info);
 		if (iio_buffer_enabled(indio_dev)) {
 			info->scan.chan = info->value;
-			iio_push_to_buffers_with_timestamp(indio_dev,
-					&info->scan,
-					iio_get_time_ns(indio_dev));
+			iio_push_to_buffers_with_ts(indio_dev, &info->scan,
+						    sizeof(info->scan),
+						    iio_get_time_ns(indio_dev));
 			iio_trigger_notify_done(indio_dev->trig);
 		} else
 			complete(&info->completion);
@@ -630,36 +631,29 @@ static const struct attribute_group vf610_attribute_group = {
 	.attrs = vf610_attributes,
 };
 
-static int vf610_read_sample(struct iio_dev *indio_dev,
+static int vf610_read_sample(struct vf610_adc *info,
 			     struct iio_chan_spec const *chan, int *val)
 {
-	struct vf610_adc *info = iio_priv(indio_dev);
 	unsigned int hc_cfg;
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
-	mutex_lock(&info->lock);
+	guard(mutex)(&info->lock);
 	reinit_completion(&info->completion);
 	hc_cfg = VF610_ADC_ADCHC(chan->channel);
 	hc_cfg |= VF610_ADC_AIEN;
 	writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
 	ret = wait_for_completion_interruptible_timeout(&info->completion,
 							VF610_ADC_TIMEOUT);
-	if (ret == 0) {
-		ret = -ETIMEDOUT;
-		goto out_unlock;
-	}
+	if (ret == 0)
+		return -ETIMEDOUT;
 
 	if (ret < 0)
-		goto out_unlock;
+		return ret;
 
 	switch (chan->type) {
 	case IIO_VOLTAGE:
 		*val = info->value;
-		break;
+		return 0;
 	case IIO_TEMP:
 		/*
 		 * Calculate in degree Celsius times 1000
@@ -669,17 +663,10 @@ static int vf610_read_sample(struct iio_dev *indio_dev,
 		*val = 25000 - ((int)info->value - VF610_VTEMP25_3V3) *
 				1000000 / VF610_TEMP_SLOPE_COEFF;
 
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-
-out_unlock:
-	mutex_unlock(&info->lock);
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
 }
 
 static int vf610_read_raw(struct iio_dev *indio_dev,
@@ -694,7 +681,10 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
-		ret = vf610_read_sample(indio_dev, chan, val);
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = vf610_read_sample(info, chan, val);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 
@@ -823,7 +813,7 @@ static const struct vf610_chip_info imx6sx_chip_info = {
 static const struct of_device_id vf610_adc_match[] = {
 	{ .compatible = "fsl,imx6sx-adc", .data = &imx6sx_chip_info},
 	{ .compatible = "fsl,vf610-adc", .data = &vf610_chip_info},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vf610_adc_match);
 

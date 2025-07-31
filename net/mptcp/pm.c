@@ -270,7 +270,8 @@ int mptcp_pm_mp_prio_send_ack(struct mptcp_sock *msk,
 
 static void mptcp_pm_add_timer(struct timer_list *timer)
 {
-	struct mptcp_pm_add_entry *entry = from_timer(entry, timer, add_timer);
+	struct mptcp_pm_add_entry *entry = timer_container_of(entry, timer,
+							      add_timer);
 	struct mptcp_sock *msk = entry->sock;
 	struct sock *sk = (struct sock *)msk;
 

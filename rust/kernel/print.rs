@@ -198,10 +198,11 @@ macro_rules! print_macro (
 /// Equivalent to the kernel's [`pr_emerg`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_emerg`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_emerg
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -222,10 +223,11 @@ macro_rules! pr_emerg (
 /// Equivalent to the kernel's [`pr_alert`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_alert`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_alert
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -246,10 +248,11 @@ macro_rules! pr_alert (
 /// Equivalent to the kernel's [`pr_crit`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_crit`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_crit
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -270,10 +273,11 @@ macro_rules! pr_crit (
 /// Equivalent to the kernel's [`pr_err`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_err`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_err
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -294,10 +298,11 @@ macro_rules! pr_err (
 /// Equivalent to the kernel's [`pr_warn`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_warn`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_warn
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -318,10 +323,11 @@ macro_rules! pr_warn (
 /// Equivalent to the kernel's [`pr_notice`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_notice`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_notice
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -342,10 +348,11 @@ macro_rules! pr_notice (
 /// Equivalent to the kernel's [`pr_info`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_info`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_info
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -368,10 +375,11 @@ macro_rules! pr_info (
 /// yet.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_debug`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_debug
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///
@@ -395,11 +403,12 @@ macro_rules! pr_debug (
 /// Equivalent to the kernel's [`pr_cont`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
-/// `alloc::format!` for information about the formatting syntax.
+/// [`std::format!`] for information about the formatting syntax.
 ///
 /// [`pr_info!`]: crate::pr_info!
 /// [`pr_cont`]: https://docs.kernel.org/core-api/printk-basics.html#c.pr_cont
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
+/// [`std::format!`]: https://doc.rust-lang.org/std/macro.format.html
 ///
 /// # Examples
 ///

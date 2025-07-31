@@ -291,6 +291,10 @@ Example::
   # arch/x86/kernel/Makefile
   extra-y	+= vmlinux.lds
 
+extra-y is now deprecated because this is equivalent to:
+
+  always-$(KBUILD_BUILTIN) += vmlinux.lds
+
 $(extra-y) should only contain targets needed for vmlinux.
 
 Kbuild skips extra-y when vmlinux is apparently not a final goal.

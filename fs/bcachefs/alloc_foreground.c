@@ -69,10 +69,9 @@ const char * const bch2_watermarks[] = {
 
 void bch2_reset_alloc_cursors(struct bch_fs *c)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_member_device_rcu(c, ca, NULL)
 		memset(ca->alloc_cursor, 0, sizeof(ca->alloc_cursor));
-	rcu_read_unlock();
 }
 
 static void bch2_open_bucket_hash_add(struct bch_fs *c, struct open_bucket *ob)
@@ -166,9 +165,8 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 	       ARRAY_SIZE(c->open_buckets_partial));
 
 	spin_lock(&c->freelist_lock);
-	rcu_read_lock();
-	bch2_dev_rcu(c, ob->dev)->nr_partial_buckets++;
-	rcu_read_unlock();
+	scoped_guard(rcu)
+		bch2_dev_rcu(c, ob->dev)->nr_partial_buckets++;
 
 	ob->on_partial_list = true;
 	c->open_buckets_partial[c->open_buckets_partial_nr++] =
@@ -229,7 +227,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c,
 
 		track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket], true);
 		spin_unlock(&c->freelist_lock);
-		return ERR_PTR(-BCH_ERR_open_buckets_empty);
+		return ERR_PTR(bch_err_throw(c, open_buckets_empty));
 	}
 
 	/* Recheck under lock: */
@@ -535,7 +533,7 @@ again:
 
 		track_event_change(&c->times[BCH_TIME_blocked_allocate], true);
 
-		ob = ERR_PTR(-BCH_ERR_freelist_empty);
+		ob = ERR_PTR(bch_err_throw(c, freelist_empty));
 		goto err;
 	}
 
@@ -560,7 +558,7 @@ alloc:
 	}
 err:
 	if (!ob)
-		ob = ERR_PTR(-BCH_ERR_no_buckets_found);
+		ob = ERR_PTR(bch_err_throw(c, no_buckets_found));
 
 	if (!IS_ERR(ob))
 		ob->data_type = req->data_type;
@@ -603,18 +601,18 @@ static int __dev_stripe_cmp(struct dev_stripe_state *stripe,
 
 #define dev_stripe_cmp(l, r) __dev_stripe_cmp(stripe, l, r)
 
-struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
-					  struct dev_stripe_state *stripe,
-					  struct bch_devs_mask *devs)
+void bch2_dev_alloc_list(struct bch_fs *c,
+			 struct dev_stripe_state *stripe,
+			 struct bch_devs_mask *devs,
+			 struct dev_alloc_list *ret)
 {
-	struct dev_alloc_list ret = { .nr = 0 };
+	ret->nr = 0;
+
 	unsigned i;
-
 	for_each_set_bit(i, devs->d, BCH_SB_MEMBERS_MAX)
-		ret.data[ret.nr++] = i;
+		ret->data[ret->nr++] = i;
 
-	bubble_sort(ret.data, ret.nr, dev_stripe_cmp);
-	return ret;
+	bubble_sort(ret->data, ret->nr, dev_stripe_cmp);
 }
 
 static const u64 stripe_clock_hand_rescale	= 1ULL << 62; /* trigger rescale at */
@@ -705,18 +703,19 @@ static int add_new_bucket(struct bch_fs *c,
 	return 0;
 }
 
-int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
-				struct alloc_request *req,
-				struct dev_stripe_state *stripe,
-				struct closure *cl)
+inline int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
+				       struct alloc_request *req,
+				       struct dev_stripe_state *stripe,
+				       struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	int ret = -BCH_ERR_insufficient_devices;
+	int ret = 0;
 
 	BUG_ON(req->nr_effective >= req->nr_replicas);
 
-	struct dev_alloc_list devs_sorted = bch2_dev_alloc_list(c, stripe, &req->devs_may_alloc);
-	darray_for_each(devs_sorted, i) {
+	bch2_dev_alloc_list(c, stripe, &req->devs_may_alloc, &req->devs_sorted);
+
+	darray_for_each(req->devs_sorted, i) {
 		req->ca = bch2_dev_tryget_noerror(c, *i);
 		if (!req->ca)
 			continue;
@@ -739,13 +738,16 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		if (add_new_bucket(c, req, ob)) {
-			ret = 0;
+		ret = add_new_bucket(c, req, ob);
+		if (ret)
 			break;
-		}
 	}
 
-	return ret;
+	if (ret == 1)
+		return 0;
+	if (ret)
+		return ret;
+	return bch_err_throw(c, insufficient_devices);
 }
 
 /* Allocate from stripes: */
@@ -776,9 +778,9 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	if (!h)
 		return 0;
 
-	struct dev_alloc_list devs_sorted =
-		bch2_dev_alloc_list(c, &req->wp->stripe, &req->devs_may_alloc);
-	darray_for_each(devs_sorted, i)
+	bch2_dev_alloc_list(c, &req->wp->stripe, &req->devs_may_alloc, &req->devs_sorted);
+
+	darray_for_each(req->devs_sorted, i)
 		for (unsigned ec_idx = 0; ec_idx < h->s->nr_data; ec_idx++) {
 			if (!h->s->blocks[ec_idx])
 				continue;
@@ -872,9 +874,8 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 					  i);
 			ob->on_partial_list = false;
 
-			rcu_read_lock();
-			bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
-			rcu_read_unlock();
+			scoped_guard(rcu)
+				bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
 
 			ret = add_new_bucket(c, req, ob);
 			if (ret)
@@ -1056,9 +1057,8 @@ void bch2_open_buckets_stop(struct bch_fs *c, struct bch_dev *ca,
 
 			ob->on_partial_list = false;
 
-			rcu_read_lock();
-			bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
-			rcu_read_unlock();
+			scoped_guard(rcu)
+				bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
 
 			spin_unlock(&c->freelist_lock);
 			bch2_open_bucket_put(c, ob);
@@ -1086,14 +1086,11 @@ static struct write_point *__writepoint_find(struct hlist_head *head,
 {
 	struct write_point *wp;
 
-	rcu_read_lock();
+	guard(rcu)();
 	hlist_for_each_entry_rcu(wp, head, node)
 		if (wp->write_point == write_point)
-			goto out;
-	wp = NULL;
-out:
-	rcu_read_unlock();
-	return wp;
+			return wp;
+	return NULL;
 }
 
 static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
@@ -1104,7 +1101,7 @@ static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
 	return stranded * factor > free;
 }
 
-static bool try_increase_writepoints(struct bch_fs *c)
+static noinline bool try_increase_writepoints(struct bch_fs *c)
 {
 	struct write_point *wp;
 
@@ -1117,7 +1114,7 @@ static bool try_increase_writepoints(struct bch_fs *c)
 	return true;
 }
 
-static bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
+static noinline bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
 {
 	struct bch_fs *c = trans->c;
 	struct write_point *wp;
@@ -1379,11 +1376,11 @@ err:
 		goto retry;
 
 	if (cl && bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
-		ret = -BCH_ERR_bucket_alloc_blocked;
+		ret = bch_err_throw(c, bucket_alloc_blocked);
 
 	if (cl && !(flags & BCH_WRITE_alloc_nowait) &&
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
-		ret = -BCH_ERR_bucket_alloc_blocked;
+		ret = bch_err_throw(c, bucket_alloc_blocked);
 
 	return ret;
 }
@@ -1637,19 +1634,16 @@ static noinline void bch2_print_allocator_stuck(struct bch_fs *c)
 
 	bch2_printbuf_make_room(&buf, 4096);
 
-	rcu_read_lock();
 	buf.atomic++;
-
-	for_each_online_member_rcu(c, ca) {
-		prt_printf(&buf, "Dev %u:\n", ca->dev_idx);
-		printbuf_indent_add(&buf, 2);
-		bch2_dev_alloc_debug_to_text(&buf, ca);
-		printbuf_indent_sub(&buf, 2);
-		prt_newline(&buf);
-	}
-
+	scoped_guard(rcu)
+		for_each_online_member_rcu(c, ca) {
+			prt_printf(&buf, "Dev %u:\n", ca->dev_idx);
+			printbuf_indent_add(&buf, 2);
+			bch2_dev_alloc_debug_to_text(&buf, ca);
+			printbuf_indent_sub(&buf, 2);
+			prt_newline(&buf);
+		}
 	--buf.atomic;
-	rcu_read_unlock();
 
 	prt_printf(&buf, "Copygc debug:\n");
 	printbuf_indent_add(&buf, 2);

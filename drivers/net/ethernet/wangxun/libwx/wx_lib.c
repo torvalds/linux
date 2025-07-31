@@ -2623,7 +2623,7 @@ static int wx_alloc_page_pool(struct wx_ring *rx_ring)
 	struct page_pool_params pp_params = {
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.order = 0,
-		.pool_size = rx_ring->size,
+		.pool_size = rx_ring->count,
 		.nid = dev_to_node(rx_ring->dev),
 		.dev = rx_ring->dev,
 		.dma_dir = DMA_FROM_DEVICE,
@@ -3116,7 +3116,7 @@ EXPORT_SYMBOL(wx_service_event_complete);
 
 void wx_service_timer(struct timer_list *t)
 {
-	struct wx *wx = from_timer(wx, t, service_timer);
+	struct wx *wx = timer_container_of(wx, t, service_timer);
 	unsigned long next_event_offset = HZ * 2;
 
 	/* Reset the timer */

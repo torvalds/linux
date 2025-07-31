@@ -117,7 +117,6 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	n_targets = (struct dm_target *) (n_highs + num);
 
 	memset(n_highs, -1, sizeof(*n_highs) * num);
-	kvfree(t->highs);
 
 	t->num_allocated = num;
 	t->highs = n_highs;
@@ -257,7 +256,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 	if (bdev_is_zoned(bdev)) {
 		unsigned int zone_sectors = bdev_zone_sectors(bdev);
 
-		if (start & (zone_sectors - 1)) {
+		if (!bdev_is_zone_aligned(bdev, start)) {
 			DMERR("%s: start=%llu not aligned to h/w zone size %u of %pg",
 			      dm_device_name(ti->table->md),
 			      (unsigned long long)start,
@@ -274,7 +273,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 		 * devices do not end up with a smaller zone in the middle of
 		 * the sector range.
 		 */
-		if (len & (zone_sectors - 1)) {
+		if (!bdev_is_zone_aligned(bdev, len)) {
 			DMERR("%s: len=%llu not aligned to h/w zone size %u of %pg",
 			      dm_device_name(ti->table->md),
 			      (unsigned long long)len,
@@ -431,6 +430,13 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 	}
 
+	mutex_lock(&q->limits_lock);
+	/*
+	 * BLK_FEAT_ATOMIC_WRITES is not inherited from the bottom device in
+	 * blk_stack_limits(), so do it manually.
+	 */
+	limits->features |= (q->limits.features & BLK_FEAT_ATOMIC_WRITES);
+
 	if (blk_stack_limits(limits, &q->limits,
 			get_start_sect(bdev) + start) < 0)
 		DMWARN("%s: adding target device %pg caused an alignment inconsistency: "
@@ -448,6 +454,7 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 	 */
 	if (!dm_target_has_integrity(ti->type))
 		queue_limits_stack_integrity_bdev(limits, bdev);
+	mutex_unlock(&q->limits_lock);
 	return 0;
 }
 
@@ -1189,6 +1196,176 @@ put_live_table:
 	return 0;
 }
 
+enum dm_wrappedkey_op {
+	DERIVE_SW_SECRET,
+	IMPORT_KEY,
+	GENERATE_KEY,
+	PREPARE_KEY,
+};
+
+struct dm_wrappedkey_op_args {
+	enum dm_wrappedkey_op op;
+	int err;
+	union {
+		struct {
+			const u8 *eph_key;
+			size_t eph_key_size;
+			u8 *sw_secret;
+		} derive_sw_secret;
+		struct {
+			const u8 *raw_key;
+			size_t raw_key_size;
+			u8 *lt_key;
+		} import_key;
+		struct {
+			u8 *lt_key;
+		} generate_key;
+		struct {
+			const u8 *lt_key;
+			size_t lt_key_size;
+			u8 *eph_key;
+		} prepare_key;
+	};
+};
+
+static int dm_wrappedkey_op_callback(struct dm_target *ti, struct dm_dev *dev,
+				     sector_t start, sector_t len, void *data)
+{
+	struct dm_wrappedkey_op_args *args = data;
+	struct block_device *bdev = dev->bdev;
+	struct blk_crypto_profile *profile =
+		bdev_get_queue(bdev)->crypto_profile;
+	int err = -EOPNOTSUPP;
+
+	if (!args->err)
+		return 0;
+
+	switch (args->op) {
+	case DERIVE_SW_SECRET:
+		err = blk_crypto_derive_sw_secret(
+					bdev,
+					args->derive_sw_secret.eph_key,
+					args->derive_sw_secret.eph_key_size,
+					args->derive_sw_secret.sw_secret);
+		break;
+	case IMPORT_KEY:
+		err = blk_crypto_import_key(profile,
+					    args->import_key.raw_key,
+					    args->import_key.raw_key_size,
+					    args->import_key.lt_key);
+		break;
+	case GENERATE_KEY:
+		err = blk_crypto_generate_key(profile,
+					      args->generate_key.lt_key);
+		break;
+	case PREPARE_KEY:
+		err = blk_crypto_prepare_key(profile,
+					     args->prepare_key.lt_key,
+					     args->prepare_key.lt_key_size,
+					     args->prepare_key.eph_key);
+		break;
+	}
+	args->err = err;
+
+	/* Try another device in case this fails. */
+	return 0;
+}
+
+static int dm_exec_wrappedkey_op(struct blk_crypto_profile *profile,
+				 struct dm_wrappedkey_op_args *args)
+{
+	struct mapped_device *md =
+		container_of(profile, struct dm_crypto_profile, profile)->md;
+	struct dm_target *ti;
+	struct dm_table *t;
+	int srcu_idx;
+	int i;
+
+	args->err = -EOPNOTSUPP;
+
+	t = dm_get_live_table(md, &srcu_idx);
+	if (!t)
+		goto out;
+
+	/*
+	 * blk-crypto currently has no support for multiple incompatible
+	 * implementations of wrapped inline crypto keys on a single system.
+	 * It was already checked earlier that support for wrapped keys was
+	 * declared on all underlying devices.  Thus, all the underlying devices
+	 * should support all wrapped key operations and they should behave
+	 * identically, i.e. work with the same keys.  So, just executing the
+	 * operation on the first device on which it works suffices for now.
+	 */
+	for (i = 0; i < t->num_targets; i++) {
+		ti = dm_table_get_target(t, i);
+		if (!ti->type->iterate_devices)
+			continue;
+		ti->type->iterate_devices(ti, dm_wrappedkey_op_callback, args);
+		if (!args->err)
+			break;
+	}
+out:
+	dm_put_live_table(md, srcu_idx);
+	return args->err;
+}
+
+static int dm_derive_sw_secret(struct blk_crypto_profile *profile,
+			       const u8 *eph_key, size_t eph_key_size,
+			       u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
+{
+	struct dm_wrappedkey_op_args args = {
+		.op = DERIVE_SW_SECRET,
+		.derive_sw_secret = {
+			.eph_key = eph_key,
+			.eph_key_size = eph_key_size,
+			.sw_secret = sw_secret,
+		},
+	};
+	return dm_exec_wrappedkey_op(profile, &args);
+}
+
+static int dm_import_key(struct blk_crypto_profile *profile,
+			 const u8 *raw_key, size_t raw_key_size,
+			 u8 lt_key[BLK_CRYPTO_MAX_HW_WRAPPED_KEY_SIZE])
+{
+	struct dm_wrappedkey_op_args args = {
+		.op = IMPORT_KEY,
+		.import_key = {
+			.raw_key = raw_key,
+			.raw_key_size = raw_key_size,
+			.lt_key = lt_key,
+		},
+	};
+	return dm_exec_wrappedkey_op(profile, &args);
+}
+
+static int dm_generate_key(struct blk_crypto_profile *profile,
+			   u8 lt_key[BLK_CRYPTO_MAX_HW_WRAPPED_KEY_SIZE])
+{
+	struct dm_wrappedkey_op_args args = {
+		.op = GENERATE_KEY,
+		.generate_key = {
+			.lt_key = lt_key,
+		},
+	};
+	return dm_exec_wrappedkey_op(profile, &args);
+}
+
+static int dm_prepare_key(struct blk_crypto_profile *profile,
+			  const u8 *lt_key, size_t lt_key_size,
+			  u8 eph_key[BLK_CRYPTO_MAX_HW_WRAPPED_KEY_SIZE])
+{
+	struct dm_wrappedkey_op_args args = {
+		.op = PREPARE_KEY,
+		.prepare_key = {
+			.lt_key = lt_key,
+			.lt_key_size = lt_key_size,
+			.eph_key = eph_key,
+		},
+	};
+	return dm_exec_wrappedkey_op(profile, &args);
+}
+
 static int
 device_intersect_crypto_capabilities(struct dm_target *ti, struct dm_dev *dev,
 				     sector_t start, sector_t len, void *data)
@@ -1261,6 +1438,13 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 		ti->type->iterate_devices(ti,
 					  device_intersect_crypto_capabilities,
 					  profile);
+	}
+
+	if (profile->key_types_supported & BLK_CRYPTO_KEY_TYPE_HW_WRAPPED) {
+		profile->ll_ops.derive_sw_secret = dm_derive_sw_secret;
+		profile->ll_ops.import_key = dm_import_key;
+		profile->ll_ops.generate_key = dm_generate_key;
+		profile->ll_ops.prepare_key = dm_prepare_key;
 	}
 
 	if (t->md->queue &&
@@ -1484,6 +1668,18 @@ bool dm_table_has_no_data_devices(struct dm_table *t)
 
 		ti->type->iterate_devices(ti, count_device, &num_devices);
 		if (num_devices)
+			return false;
+	}
+
+	return true;
+}
+
+bool dm_table_is_wildcard(struct dm_table *t)
+{
+	for (unsigned int i = 0; i < t->num_targets; i++) {
+		struct dm_target *ti = dm_table_get_target(t, i);
+
+		if (!dm_target_is_wildcard(ti->type))
 			return false;
 	}
 
@@ -1721,8 +1917,12 @@ static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *
 					   sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
+	int b;
 
-	return !q->limits.max_write_zeroes_sectors;
+	mutex_lock(&q->limits_lock);
+	b = !q->limits.max_write_zeroes_sectors;
+	mutex_unlock(&q->limits_lock);
+	return b;
 }
 
 static bool dm_table_supports_write_zeroes(struct dm_table *t)
@@ -1830,10 +2030,24 @@ static bool dm_table_supports_atomic_writes(struct dm_table *t)
 	return true;
 }
 
+bool dm_table_supports_size_change(struct dm_table *t, sector_t old_size,
+				   sector_t new_size)
+{
+	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) && dm_has_zone_plugs(t->md) &&
+	    old_size != new_size) {
+		DMWARN("%s: device has zone write plug resources. "
+		       "Cannot change size",
+		       dm_device_name(t->md));
+		return false;
+	}
+	return true;
+}
+
 int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			      struct queue_limits *limits)
 {
 	int r;
+	struct queue_limits old_limits;
 
 	if (!dm_table_supports_nowait(t))
 		limits->features &= ~BLK_FEAT_NOWAIT;
@@ -1860,28 +2074,30 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	if (dm_table_supports_flush(t))
 		limits->features |= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA;
 
-	if (dm_table_supports_dax(t, device_not_dax_capable)) {
+	if (dm_table_supports_dax(t, device_not_dax_capable))
 		limits->features |= BLK_FEAT_DAX;
-		if (dm_table_supports_dax(t, device_not_dax_synchronous_capable))
-			set_dax_synchronous(t->md->dax_dev);
-	} else
+	else
 		limits->features &= ~BLK_FEAT_DAX;
 
-	if (dm_table_any_dev_attr(t, device_dax_write_cache_enabled, NULL))
-		dax_write_cache(t->md->dax_dev, true);
-
 	/* For a zoned table, setup the zone related queue attributes. */
-	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
-	    (limits->features & BLK_FEAT_ZONED)) {
-		r = dm_set_zones_restrictions(t, q, limits);
-		if (r)
-			return r;
+	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+		if (limits->features & BLK_FEAT_ZONED) {
+			r = dm_set_zones_restrictions(t, q, limits);
+			if (r)
+				return r;
+		} else if (dm_has_zone_plugs(t->md)) {
+			DMWARN("%s: device has zone write plug resources. "
+			       "Cannot switch to non-zoned table.",
+			       dm_device_name(t->md));
+			return -EINVAL;
+		}
 	}
 
 	if (dm_table_supports_atomic_writes(t))
 		limits->features |= BLK_FEAT_ATOMIC_WRITES;
 
-	r = queue_limits_set(q, limits);
+	old_limits = queue_limits_start_update(q);
+	r = queue_limits_commit_update(q, limits);
 	if (r)
 		return r;
 
@@ -1892,9 +2108,20 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
 	    (limits->features & BLK_FEAT_ZONED)) {
 		r = dm_revalidate_zones(t, q);
-		if (r)
+		if (r) {
+			queue_limits_set(q, &old_limits);
 			return r;
+		}
 	}
+
+	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED))
+		dm_finalize_zone_settings(t, limits);
+
+	if (dm_table_supports_dax(t, device_not_dax_synchronous_capable))
+		set_dax_synchronous(t->md->dax_dev);
+
+	if (dm_table_any_dev_attr(t, device_dax_write_cache_enabled, NULL))
+		dax_write_cache(t->md->dax_dev, true);
 
 	dm_update_crypto_profile(q, t);
 	return 0;

@@ -1335,28 +1335,31 @@ static void llc_conn_tmr_common_cb(struct sock *sk, u8 type)
 
 void llc_conn_pf_cycle_tmr_cb(struct timer_list *t)
 {
-	struct llc_sock *llc = from_timer(llc, t, pf_cycle_timer.timer);
+	struct llc_sock *llc = timer_container_of(llc, t,
+						  pf_cycle_timer.timer);
 
 	llc_conn_tmr_common_cb(&llc->sk, LLC_CONN_EV_TYPE_P_TMR);
 }
 
 void llc_conn_busy_tmr_cb(struct timer_list *t)
 {
-	struct llc_sock *llc = from_timer(llc, t, busy_state_timer.timer);
+	struct llc_sock *llc = timer_container_of(llc, t,
+						  busy_state_timer.timer);
 
 	llc_conn_tmr_common_cb(&llc->sk, LLC_CONN_EV_TYPE_BUSY_TMR);
 }
 
 void llc_conn_ack_tmr_cb(struct timer_list *t)
 {
-	struct llc_sock *llc = from_timer(llc, t, ack_timer.timer);
+	struct llc_sock *llc = timer_container_of(llc, t, ack_timer.timer);
 
 	llc_conn_tmr_common_cb(&llc->sk, LLC_CONN_EV_TYPE_ACK_TMR);
 }
 
 void llc_conn_rej_tmr_cb(struct timer_list *t)
 {
-	struct llc_sock *llc = from_timer(llc, t, rej_sent_timer.timer);
+	struct llc_sock *llc = timer_container_of(llc, t,
+						  rej_sent_timer.timer);
 
 	llc_conn_tmr_common_cb(&llc->sk, LLC_CONN_EV_TYPE_REJ_TMR);
 }

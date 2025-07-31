@@ -377,7 +377,7 @@ static void tun_flow_delete_by_queue(struct tun_struct *tun, u16 queue_index)
 
 static void tun_flow_cleanup(struct timer_list *t)
 {
-	struct tun_struct *tun = from_timer(tun, t, flow_gc_timer);
+	struct tun_struct *tun = timer_container_of(tun, t, flow_gc_timer);
 	unsigned long delay = tun->ageing_time;
 	unsigned long next_timer = jiffies + delay;
 	unsigned long count = 0;

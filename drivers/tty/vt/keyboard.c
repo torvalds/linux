@@ -376,6 +376,17 @@ static void to_utf8(struct vc_data *vc, uint c)
 	}
 }
 
+static void put_queue_utf8(struct vc_data *vc, u32 value)
+{
+	if (kbd->kbdmode == VC_UNICODE)
+		to_utf8(vc, value);
+	else {
+		int c = conv_uni_to_8bit(value);
+		if (c != -1)
+			put_queue(vc, c);
+	}
+}
+
 /* FIXME: review locking for vt.c callers */
 static void set_leds(void)
 {
@@ -454,13 +465,7 @@ static unsigned int handle_diacr(struct vc_data *vc, unsigned int ch)
 	if (ch == ' ' || ch == (BRL_UC_ROW|0) || ch == d)
 		return d;
 
-	if (kbd->kbdmode == VC_UNICODE)
-		to_utf8(vc, d);
-	else {
-		int c = conv_uni_to_8bit(d);
-		if (c != -1)
-			put_queue(vc, c);
-	}
+	put_queue_utf8(vc, d);
 
 	return ch;
 }
@@ -471,13 +476,7 @@ static unsigned int handle_diacr(struct vc_data *vc, unsigned int ch)
 static void fn_enter(struct vc_data *vc)
 {
 	if (diacr) {
-		if (kbd->kbdmode == VC_UNICODE)
-			to_utf8(vc, diacr);
-		else {
-			int c = conv_uni_to_8bit(diacr);
-			if (c != -1)
-				put_queue(vc, c);
-		}
+		put_queue_utf8(vc, diacr);
 		diacr = 0;
 	}
 
@@ -685,13 +684,7 @@ static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag)
 		diacr = value;
 		return;
 	}
-	if (kbd->kbdmode == VC_UNICODE)
-		to_utf8(vc, value);
-	else {
-		int c = conv_uni_to_8bit(value);
-		if (c != -1)
-			put_queue(vc, c);
-	}
+	put_queue_utf8(vc, value);
 }
 
 /*
@@ -1519,7 +1512,7 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 	if ((raw_mode || kbd->kbdmode == VC_OFF) && type != KT_SPEC && type != KT_SHIFT)
 		return;
 
-	(*k_handler[type])(vc, keysym & 0xff, !down);
+	(*k_handler[type])(vc, KVAL(keysym), !down);
 
 	param.ledstate = kbd->ledflagstate;
 	atomic_notifier_call_chain(&keyboard_notifier_list, KBD_POST_KEYSYM, &param);

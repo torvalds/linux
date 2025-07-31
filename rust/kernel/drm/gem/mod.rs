@@ -125,6 +125,8 @@ impl<T: DriverObject> IntoGEMObject for Object<T> {
     }
 
     unsafe fn as_ref<'a>(self_ptr: *mut bindings::drm_gem_object) -> &'a Self {
+        let self_ptr: *mut Opaque<bindings::drm_gem_object> = self_ptr.cast();
+
         // SAFETY: `obj` is guaranteed to be in an `Object<T>` via the safety contract of this
         // function
         unsafe { &*crate::container_of!(self_ptr, Object<T>, obj) }
@@ -269,8 +271,10 @@ impl<T: DriverObject> Object<T> {
     }
 
     extern "C" fn free_callback(obj: *mut bindings::drm_gem_object) {
+        let ptr: *mut Opaque<bindings::drm_gem_object> = obj.cast();
+
         // SAFETY: All of our objects are of type `Object<T>`.
-        let this = unsafe { crate::container_of!(obj, Self, obj) }.cast_mut();
+        let this = unsafe { crate::container_of!(ptr, Self, obj) };
 
         // SAFETY: The C code only ever calls this callback with a valid pointer to a `struct
         // drm_gem_object`.

@@ -27,7 +27,7 @@ attribute-sets:
         name: proc
         type: u32
       -
-        name: service_time
+        name: service-time
         type: s64
       -
         name: pad
@@ -139,7 +139,7 @@ operations:
             - prog
             - version
             - proc
-            - service_time
+            - service-time
             - saddr4
             - daddr4
             - saddr6

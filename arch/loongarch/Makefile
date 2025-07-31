@@ -181,11 +181,14 @@ vmlinux.elf vmlinux.efi vmlinuz.efi: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(bootvars-y) $(boot)/$@
 
 install:
-	$(Q)install -D -m 755 $(KBUILD_IMAGE) $(INSTALL_PATH)/$(image-name-y)-$(KERNELRELEASE)
-	$(Q)install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
-	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
+	$(call cmd,install)
 
 define archhelp
-	echo '  install              - install kernel into $(INSTALL_PATH)'
+	echo '  vmlinux.elf    - Uncompressed ELF kernel image (arch/loongarch/boot/vmlinux.elf)'
+	echo '  vmlinux.efi    - Uncompressed EFI kernel image (arch/loongarch/boot/vmlinux.efi)'
+	echo '  vmlinuz.efi    - GZIP/ZSTD-compressed EFI kernel image (arch/loongarch/boot/vmlinuz.efi)'
+	echo '                   Default when CONFIG_EFI_ZBOOT=y'
+	echo '  install        - Install kernel using (your) ~/bin/$(INSTALLKERNEL) or'
+	echo '                   (distribution) /sbin/$(INSTALLKERNEL) or install.sh to $$(INSTALL_PATH)'
 	echo
 endef

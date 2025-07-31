@@ -80,13 +80,12 @@ static inline unsigned bch2_bkey_ptrs_need_move(struct bch_fs *c,
 	unsigned ptr_bit = 1;
 	unsigned rewrite_ptrs = 0;
 
-	rcu_read_lock();
+	guard(rcu)();
 	bkey_for_each_ptr(ptrs, ptr) {
 		if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, opts->background_target))
 			rewrite_ptrs |= ptr_bit;
 		ptr_bit <<= 1;
 	}
-	rcu_read_unlock();
 
 	return rewrite_ptrs;
 }
@@ -135,12 +134,11 @@ u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 	}
 incompressible:
 	if (opts->background_target) {
-		rcu_read_lock();
+		guard(rcu)();
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 			if (!p.ptr.cached &&
 			    !bch2_dev_in_target(c, p.ptr.dev, opts->background_target))
 				sectors += p.crc.compressed_size;
-		rcu_read_unlock();
 	}
 
 	return sectors;
@@ -445,7 +443,7 @@ static int do_rebalance_extent(struct moving_context *ctxt,
 		if (bch2_err_matches(ret, ENOMEM)) {
 			/* memory allocation failure, wait for some IO to finish */
 			bch2_move_ctxt_wait_for_io(ctxt);
-			ret = -BCH_ERR_transaction_restart_nested;
+			ret = bch_err_throw(c, transaction_restart_nested);
 		}
 
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -527,7 +525,7 @@ static void rebalance_wait(struct bch_fs *c)
 		r->state		= BCH_REBALANCE_waiting;
 	}
 
-	bch2_kthread_io_clock_wait(clock, r->wait_iotime_end, MAX_SCHEDULE_TIMEOUT);
+	bch2_kthread_io_clock_wait_once(clock, r->wait_iotime_end, MAX_SCHEDULE_TIMEOUT);
 }
 
 static bool bch2_rebalance_enabled(struct bch_fs *c)
@@ -544,6 +542,7 @@ static int do_rebalance(struct moving_context *ctxt)
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct btree_iter rebalance_work_iter, extent_iter = {};
 	struct bkey_s_c k;
+	u32 kick = r->kick;
 	int ret = 0;
 
 	bch2_trans_begin(trans);
@@ -593,7 +592,8 @@ static int do_rebalance(struct moving_context *ctxt)
 	if (!ret &&
 	    !kthread_should_stop() &&
 	    !atomic64_read(&r->work_stats.sectors_seen) &&
-	    !atomic64_read(&r->scan_stats.sectors_seen)) {
+	    !atomic64_read(&r->scan_stats.sectors_seen) &&
+	    kick == r->kick) {
 		bch2_moving_ctxt_flush_all(ctxt);
 		bch2_trans_unlock_long(trans);
 		rebalance_wait(c);
@@ -677,11 +677,12 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 	}
 	prt_newline(out);
 
-	rcu_read_lock();
-	struct task_struct *t = rcu_dereference(c->rebalance.thread);
-	if (t)
-		get_task_struct(t);
-	rcu_read_unlock();
+	struct task_struct *t;
+	scoped_guard(rcu) {
+		t = rcu_dereference(c->rebalance.thread);
+		if (t)
+			get_task_struct(t);
+	}
 
 	if (t) {
 		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
@@ -794,7 +795,7 @@ static int check_rebalance_work_one(struct btree_trans *trans,
 				     BTREE_ID_extents, POS_MIN,
 				     BTREE_ITER_prefetch|
 				     BTREE_ITER_all_snapshots);
-		return -BCH_ERR_transaction_restart_nested;
+		return bch_err_throw(c, transaction_restart_nested);
 	}
 
 	if (!extent_k.k && !rebalance_k.k)

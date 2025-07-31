@@ -114,6 +114,77 @@ config CXL_FEATURES
 
 	  If unsure say 'n'
 
+config CXL_EDAC_MEM_FEATURES
+	bool "CXL: EDAC Memory Features"
+	depends on EXPERT
+	depends on CXL_MEM
+	depends on CXL_FEATURES
+	depends on EDAC >= CXL_BUS
+	help
+	  The CXL EDAC memory feature is optional and allows host to
+	  control the EDAC memory features configurations of CXL memory
+	  expander devices.
+
+	  Say 'y' if you have an expert need to change default settings
+	  of a memory RAS feature established by the platform/device.
+	  Otherwise say 'n'.
+
+config CXL_EDAC_SCRUB
+	bool "Enable CXL Patrol Scrub Control (Patrol Read)"
+	depends on CXL_EDAC_MEM_FEATURES
+	depends on EDAC_SCRUB
+	help
+	  The CXL EDAC scrub control is optional and allows host to
+	  control the scrub feature configurations of CXL memory expander
+	  devices.
+
+	  When enabled 'cxl_mem' and 'cxl_region' EDAC devices are
+	  published with memory scrub control attributes as described by
+	  Documentation/ABI/testing/sysfs-edac-scrub.
+
+	  Say 'y' if you have an expert need to change default settings
+	  of a memory scrub feature established by the platform/device
+	  (e.g. scrub rates for the patrol scrub feature).
+	  Otherwise say 'n'.
+
+config CXL_EDAC_ECS
+	bool "Enable CXL Error Check Scrub (Repair)"
+	depends on CXL_EDAC_MEM_FEATURES
+	depends on EDAC_ECS
+	help
+	  The CXL EDAC ECS control is optional and allows host to
+	  control the ECS feature configurations of CXL memory expander
+	  devices.
+
+	  When enabled 'cxl_mem' EDAC devices are published with memory
+	  ECS control attributes as described by
+	  Documentation/ABI/testing/sysfs-edac-ecs.
+
+	  Say 'y' if you have an expert need to change default settings
+	  of a memory ECS feature established by the platform/device.
+	  Otherwise say 'n'.
+
+config CXL_EDAC_MEM_REPAIR
+	bool "Enable CXL Memory Repair"
+	depends on CXL_EDAC_MEM_FEATURES
+	depends on EDAC_MEM_REPAIR
+	help
+	  The CXL EDAC memory repair control is optional and allows host
+	  to control the memory repair features (e.g. sparing, PPR)
+	  configurations of CXL memory expander devices.
+
+	  When enabled, the memory repair feature requires an additional
+	  memory of approximately 43KB to store CXL DRAM and CXL general
+	  media event records.
+
+	  When enabled 'cxl_mem' EDAC devices are published with memory
+	  repair control attributes as described by
+	  Documentation/ABI/testing/sysfs-edac-memory-repair.
+
+	  Say 'y' if you have an expert need to change default settings
+	  of a memory repair feature established by the platform/device.
+	  Otherwise say 'n'.
+
 config CXL_PORT
 	default CXL_BUS
 	tristate

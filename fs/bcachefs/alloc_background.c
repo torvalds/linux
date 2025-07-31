@@ -21,7 +21,6 @@
 #include "error.h"
 #include "lru.h"
 #include "recovery.h"
-#include "trace.h"
 #include "varint.h"
 
 #include <linux/kthread.h>
@@ -337,11 +336,10 @@ void bch2_alloc_v4_swab(struct bkey_s k)
 	a->stripe_sectors	= swab32(a->stripe_sectors);
 }
 
-void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
+static inline void __bch2_alloc_v4_to_text(struct printbuf *out, struct bch_fs *c,
+					   unsigned dev, const struct bch_alloc_v4 *a)
 {
-	struct bch_alloc_v4 _a;
-	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
-	struct bch_dev *ca = c ? bch2_dev_bucket_tryget_noerror(c, k.k->p) : NULL;
+	struct bch_dev *ca = c ? bch2_dev_tryget_noerror(c, dev) : NULL;
 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
@@ -367,6 +365,19 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	printbuf_indent_sub(out, 2);
 
 	bch2_dev_put(ca);
+}
+
+void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bch_alloc_v4 _a;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
+
+	__bch2_alloc_v4_to_text(out, c, k.k->p.inode, a);
+}
+
+void bch2_alloc_v4_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
+{
+	__bch2_alloc_v4_to_text(out, c, k.k->p.inode, bkey_s_c_to_alloc_v4(k).v);
 }
 
 void __bch2_alloc_to_v4(struct bkey_s_c k, struct bch_alloc_v4 *out)
@@ -697,8 +708,8 @@ static int __need_discard_or_freespace_err(struct btree_trans *trans,
 				  set ? "" : "un",
 				  bch2_btree_id_str(btree),
 				  buf.buf);
-	if (ret == -BCH_ERR_fsck_ignore ||
-	    ret == -BCH_ERR_fsck_errors_not_fixed)
+	if (bch2_err_matches(ret, BCH_ERR_fsck_ignore) ||
+	    bch2_err_matches(ret, BCH_ERR_fsck_errors_not_fixed))
 		ret = 0;
 
 	printbuf_exit(&buf);
@@ -854,7 +865,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_bucket_tryget(c, new.k->p);
 	if (!ca)
-		return -BCH_ERR_trigger_alloc;
+		return bch_err_throw(c, trigger_alloc);
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
@@ -988,14 +999,11 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		}
 
 		if (new_a->gen != old_a->gen) {
-			rcu_read_lock();
+			guard(rcu)();
 			u8 *gen = bucket_gen(ca, new.k->p.offset);
-			if (unlikely(!gen)) {
-				rcu_read_unlock();
+			if (unlikely(!gen))
 				goto invalid_bucket;
-			}
 			*gen = new_a->gen;
-			rcu_read_unlock();
 		}
 
 #define eval_state(_a, expr)		({ const struct bch_alloc_v4 *a = _a; expr; })
@@ -1021,15 +1029,12 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	}
 
 	if ((flags & BTREE_TRIGGER_gc) && (flags & BTREE_TRIGGER_insert)) {
-		rcu_read_lock();
+		guard(rcu)();
 		struct bucket *g = gc_bucket(ca, new.k->p.offset);
-		if (unlikely(!g)) {
-			rcu_read_unlock();
+		if (unlikely(!g))
 			goto invalid_bucket;
-		}
 		g->gen_valid	= 1;
 		g->gen		= new_a->gen;
-		rcu_read_unlock();
 	}
 err:
 fsck_err:
@@ -1039,7 +1044,7 @@ fsck_err:
 invalid_bucket:
 	bch2_fs_inconsistent(c, "reference to invalid bucket\n%s",
 			     (bch2_bkey_val_to_text(&buf, c, new.s_c), buf.buf));
-	ret = -BCH_ERR_trigger_alloc;
+	ret = bch_err_throw(c, trigger_alloc);
 	goto err;
 }
 
@@ -1105,13 +1110,12 @@ static bool next_bucket(struct bch_fs *c, struct bch_dev **ca, struct bpos *buck
 		bucket->offset = 0;
 	}
 
-	rcu_read_lock();
+	guard(rcu)();
 	*ca = __bch2_next_dev_idx(c, bucket->inode, NULL);
 	if (*ca) {
 		*bucket = POS((*ca)->dev_idx, (*ca)->mi.first_bucket);
 		bch2_dev_get(*ca);
 	}
-	rcu_read_unlock();
 
 	return *ca != NULL;
 }
@@ -1454,7 +1458,7 @@ delete:
 		ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
 			bch2_trans_commit(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc) ?:
-			-BCH_ERR_transaction_restart_commit;
+			bch_err_throw(c, transaction_restart_commit);
 		goto out;
 	} else {
 		/*
@@ -1777,14 +1781,16 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 
 static int discard_in_flight_add(struct bch_dev *ca, u64 bucket, bool in_progress)
 {
+	struct bch_fs *c = ca->fs;
 	int ret;
 
 	mutex_lock(&ca->discard_buckets_in_flight_lock);
-	darray_for_each(ca->discard_buckets_in_flight, i)
-		if (i->bucket == bucket) {
-			ret = -BCH_ERR_EEXIST_discard_in_flight_add;
-			goto out;
-		}
+	struct discard_in_flight *i =
+		darray_find_p(ca->discard_buckets_in_flight, i, i->bucket == bucket);
+	if (i) {
+		ret = bch_err_throw(c, EEXIST_discard_in_flight_add);
+		goto out;
+	}
 
 	ret = darray_push(&ca->discard_buckets_in_flight, ((struct discard_in_flight) {
 			   .in_progress = in_progress,
@@ -1798,14 +1804,11 @@ out:
 static void discard_in_flight_remove(struct bch_dev *ca, u64 bucket)
 {
 	mutex_lock(&ca->discard_buckets_in_flight_lock);
-	darray_for_each(ca->discard_buckets_in_flight, i)
-		if (i->bucket == bucket) {
-			BUG_ON(!i->in_progress);
-			darray_remove_item(&ca->discard_buckets_in_flight, i);
-			goto found;
-		}
-	BUG();
-found:
+	struct discard_in_flight *i =
+		darray_find_p(ca->discard_buckets_in_flight, i, i->bucket == bucket);
+	BUG_ON(!i || !i->in_progress);
+
+	darray_remove_item(&ca->discard_buckets_in_flight, i);
 	mutex_unlock(&ca->discard_buckets_in_flight_lock);
 }
 
@@ -2504,7 +2507,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	lockdep_assert_held(&c->state_lock);
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_member_device_rcu(c, ca, NULL) {
 		struct block_device *bdev = READ_ONCE(ca->disk_sb.bdev);
 		if (bdev)
@@ -2549,7 +2552,6 @@ void bch2_recalc_capacity(struct bch_fs *c)
 		bucket_size_max = max_t(unsigned, bucket_size_max,
 					ca->mi.bucket_size);
 	}
-	rcu_read_unlock();
 
 	bch2_set_ra_pages(c, ra_pages);
 
@@ -2574,10 +2576,9 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *c)
 {
 	u64 ret = U64_MAX;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_rw_member_rcu(c, ca)
 		ret = min(ret, ca->mi.nbuckets * ca->mi.bucket_size);
-	rcu_read_unlock();
 	return ret;
 }
 

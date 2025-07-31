@@ -228,11 +228,23 @@ static void process_fqn(struct die *cache, Dwarf_Die *die)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(accessibility)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(alignment)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(bit_size)
-DEFINE_PROCESS_UDATA_ATTRIBUTE(byte_size)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(encoding)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(data_bit_offset)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(data_member_location)
 DEFINE_PROCESS_UDATA_ATTRIBUTE(discr_value)
+
+static void process_byte_size_attr(struct die *cache, Dwarf_Die *die)
+{
+	Dwarf_Word value;
+	unsigned long override;
+
+	if (get_udata_attr(die, DW_AT_byte_size, &value)) {
+		if (stable && kabi_get_byte_size(cache->fqn, &override))
+			value = override;
+
+		process_fmt(cache, " byte_size(%" PRIu64 ")", value);
+	}
+}
 
 /* Match functions -- die_match_callback_t */
 #define DEFINE_MATCH(type)                                     \

@@ -394,7 +394,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		bool accounting_accumulated = false;
 		do {
 			if (race_fault()) {
-				ret = -BCH_ERR_journal_reclaim_would_deadlock;
+				ret = bch_err_throw(c, journal_reclaim_would_deadlock);
 				break;
 			}
 
@@ -633,7 +633,7 @@ int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 
 	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_btree_write_buffer))
-		return -BCH_ERR_erofs_no_writes;
+		return bch_err_throw(c, erofs_no_writes);
 
 	int ret = bch2_btree_write_buffer_flush_nocheck_rw(trans);
 	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_write_buffer);
@@ -676,7 +676,7 @@ int bch2_btree_write_buffer_maybe_flush(struct btree_trans *trans,
 			goto err;
 
 		bch2_bkey_buf_copy(last_flushed, c, tmp.k);
-		ret = -BCH_ERR_transaction_restart_write_buffer_flush;
+		ret = bch_err_throw(c, transaction_restart_write_buffer_flush);
 	}
 err:
 	bch2_bkey_buf_exit(&tmp, c);

@@ -733,7 +733,7 @@ static int psi_rtpoll_worker(void *data)
 
 static void poll_timer_fn(struct timer_list *t)
 {
-	struct psi_group *group = from_timer(group, t, rtpoll_timer);
+	struct psi_group *group = timer_container_of(group, t, rtpoll_timer);
 
 	atomic_set(&group->rtpoll_wakeup, 1);
 	wake_up_interruptible(&group->rtpoll_wait);

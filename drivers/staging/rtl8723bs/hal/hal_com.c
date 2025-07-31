@@ -890,15 +890,14 @@ static u32 Array_kfreemap[] = {
 void rtw_bb_rf_gain_offset(struct adapter *padapter)
 {
 	u8 value = padapter->eeprompriv.EEPROMRFGainOffset;
-	u32 res, i = 0;
 	u32 *Array = Array_kfreemap;
 	u32 v1 = 0, v2 = 0, target = 0;
+	u32 i = 0;
 
 	if (value & BIT4) {
 		if (padapter->eeprompriv.EEPROMRFGainVal != 0xff) {
-			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
-			res &= 0xfff87fff;
-			/* res &= 0xfff87fff; */
+			rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
+
 			for (i = 0; i < ARRAY_SIZE(Array_kfreemap); i += 2) {
 				v1 = Array[i];
 				v2 = Array[i+1];
@@ -909,9 +908,7 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 			}
 			PHY_SetRFReg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, BIT18|BIT17|BIT16|BIT15, target);
 
-			/* res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15; */
-			/* rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res); */
-			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
+			rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
 		}
 	}
 }

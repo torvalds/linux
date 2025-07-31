@@ -5749,7 +5749,8 @@ static void igc_clear_interrupt_scheme(struct igc_adapter *adapter)
  */
 static void igc_update_phy_info(struct timer_list *t)
 {
-	struct igc_adapter *adapter = from_timer(adapter, t, phy_info_timer);
+	struct igc_adapter *adapter = timer_container_of(adapter, t,
+							 phy_info_timer);
 
 	igc_get_phy_info(&adapter->hw);
 }
@@ -5791,7 +5792,8 @@ bool igc_has_link(struct igc_adapter *adapter)
  */
 static void igc_watchdog(struct timer_list *t)
 {
-	struct igc_adapter *adapter = from_timer(adapter, t, watchdog_timer);
+	struct igc_adapter *adapter = timer_container_of(adapter, t,
+							 watchdog_timer);
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
 }

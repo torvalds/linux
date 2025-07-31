@@ -1466,6 +1466,12 @@ struct pptable_funcs {
 	 */
 	int (*set_wbrf_exclusion_ranges)(struct smu_context *smu,
 					struct freq_band_range *exclusion_ranges);
+	/**
+	 * @get_xcp_metrics: Get a copy of the partition metrics table from SMU.
+	 * Return: Size of table
+	 */
+	ssize_t (*get_xcp_metrics)(struct smu_context *smu, int xcp_id,
+				   void *table);
 };
 
 typedef enum {

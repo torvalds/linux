@@ -45,6 +45,18 @@ static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
 	return iio_push_to_buffers(indio_dev, data);
 }
 
+static inline int iio_push_to_buffers_with_ts(struct iio_dev *indio_dev,
+					      void *data, size_t data_total_len,
+					      s64 timestamp)
+{
+	if (unlikely(data_total_len < indio_dev->scan_bytes)) {
+		dev_err(&indio_dev->dev, "Undersized storage pushed to buffer\n");
+		return -ENOSPC;
+	}
+
+	return iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
+}
+
 int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
 					  const void *data, size_t data_sz,
 					  int64_t timestamp);

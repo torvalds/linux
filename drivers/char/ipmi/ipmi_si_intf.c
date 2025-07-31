@@ -1076,7 +1076,8 @@ static void set_need_watch(void *send_info, unsigned int watch_mask)
 
 static void smi_timeout(struct timer_list *t)
 {
-	struct smi_info   *smi_info = from_timer(smi_info, t, si_timer);
+	struct smi_info   *smi_info = timer_container_of(smi_info, t,
+							 si_timer);
 	enum si_sm_result smi_result;
 	unsigned long     flags;
 	unsigned long     jiffies_now;

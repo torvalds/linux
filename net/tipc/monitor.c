@@ -630,7 +630,7 @@ void tipc_mon_get_state(struct net *net, u32 addr,
 
 static void mon_timeout(struct timer_list *t)
 {
-	struct tipc_monitor *mon = from_timer(mon, t, timer);
+	struct tipc_monitor *mon = timer_container_of(mon, t, timer);
 	struct tipc_peer *self;
 	int best_member_cnt = dom_size(mon->peer_cnt) - 1;
 

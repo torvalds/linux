@@ -47,9 +47,6 @@ struct nvmem_cell {
 static DEFINE_MUTEX(nvmem_mutex);
 static DEFINE_IDA(nvmem_ida);
 
-static DEFINE_MUTEX(nvmem_cell_mutex);
-static LIST_HEAD(nvmem_cell_tables);
-
 static DEFINE_MUTEX(nvmem_lookup_mutex);
 static LIST_HEAD(nvmem_lookup_list);
 
@@ -719,41 +716,6 @@ int nvmem_unregister_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(nvmem_unregister_notifier);
 
-static int nvmem_add_cells_from_table(struct nvmem_device *nvmem)
-{
-	const struct nvmem_cell_info *info;
-	struct nvmem_cell_table *table;
-	struct nvmem_cell_entry *cell;
-	int rval = 0, i;
-
-	mutex_lock(&nvmem_cell_mutex);
-	list_for_each_entry(table, &nvmem_cell_tables, node) {
-		if (strcmp(nvmem_dev_name(nvmem), table->nvmem_name) == 0) {
-			for (i = 0; i < table->ncells; i++) {
-				info = &table->cells[i];
-
-				cell = kzalloc(sizeof(*cell), GFP_KERNEL);
-				if (!cell) {
-					rval = -ENOMEM;
-					goto out;
-				}
-
-				rval = nvmem_cell_info_to_nvmem_cell_entry(nvmem, info, cell);
-				if (rval) {
-					kfree(cell);
-					goto out;
-				}
-
-				nvmem_cell_entry_add(cell);
-			}
-		}
-	}
-
-out:
-	mutex_unlock(&nvmem_cell_mutex);
-	return rval;
-}
-
 static struct nvmem_cell_entry *
 nvmem_find_cell_entry_by_name(struct nvmem_device *nvmem, const char *cell_id)
 {
@@ -1039,10 +1001,6 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 		if (rval)
 			goto err_remove_cells;
 	}
-
-	rval = nvmem_add_cells_from_table(nvmem);
-	if (rval)
-		goto err_remove_cells;
 
 	if (config->add_legacy_fixed_of_cells) {
 		rval = nvmem_add_cells_from_legacy_of(nvmem);
@@ -2150,32 +2108,6 @@ int nvmem_device_write(struct nvmem_device *nvmem,
 	return bytes;
 }
 EXPORT_SYMBOL_GPL(nvmem_device_write);
-
-/**
- * nvmem_add_cell_table() - register a table of cell info entries
- *
- * @table: table of cell info entries
- */
-void nvmem_add_cell_table(struct nvmem_cell_table *table)
-{
-	mutex_lock(&nvmem_cell_mutex);
-	list_add_tail(&table->node, &nvmem_cell_tables);
-	mutex_unlock(&nvmem_cell_mutex);
-}
-EXPORT_SYMBOL_GPL(nvmem_add_cell_table);
-
-/**
- * nvmem_del_cell_table() - remove a previously registered cell info table
- *
- * @table: table of cell info entries
- */
-void nvmem_del_cell_table(struct nvmem_cell_table *table)
-{
-	mutex_lock(&nvmem_cell_mutex);
-	list_del(&table->node);
-	mutex_unlock(&nvmem_cell_mutex);
-}
-EXPORT_SYMBOL_GPL(nvmem_del_cell_table);
 
 /**
  * nvmem_add_cell_lookups() - register a list of cell lookup entries

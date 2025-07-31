@@ -6,7 +6,7 @@ use crate::alloc::{flags::*, AllocError, KVec};
 use core::fmt::{self, Write};
 use core::ops::{self, Deref, DerefMut, Index};
 
-use crate::error::{code::*, Error};
+use crate::prelude::*;
 
 /// Byte string without UTF-8 validity guarantee.
 #[repr(transparent)]
@@ -572,30 +572,13 @@ macro_rules! c_str {
     }};
 }
 
-#[cfg(test)]
-#[expect(clippy::items_after_test_module)]
+#[kunit_tests(rust_kernel_str)]
 mod tests {
     use super::*;
 
-    struct String(CString);
-
-    impl String {
-        fn from_fmt(args: fmt::Arguments<'_>) -> Self {
-            String(CString::try_from_fmt(args).unwrap())
-        }
-    }
-
-    impl Deref for String {
-        type Target = str;
-
-        fn deref(&self) -> &str {
-            self.0.to_str().unwrap()
-        }
-    }
-
     macro_rules! format {
         ($($f:tt)*) => ({
-            &*String::from_fmt(kernel::fmt!($($f)*))
+            CString::try_from_fmt(::kernel::fmt!($($f)*))?.to_str()?
         })
     }
 
@@ -614,67 +597,72 @@ mod tests {
         \\xf0\\xf1\\xf2\\xf3\\xf4\\xf5\\xf6\\xf7\\xf8\\xf9\\xfa\\xfb\\xfc\\xfd\\xfe\\xff";
 
     #[test]
-    fn test_cstr_to_str() {
+    fn test_cstr_to_str() -> Result {
         let good_bytes = b"\xf0\x9f\xa6\x80\0";
-        let checked_cstr = CStr::from_bytes_with_nul(good_bytes).unwrap();
-        let checked_str = checked_cstr.to_str().unwrap();
+        let checked_cstr = CStr::from_bytes_with_nul(good_bytes)?;
+        let checked_str = checked_cstr.to_str()?;
         assert_eq!(checked_str, "🦀");
+        Ok(())
     }
 
     #[test]
-    #[should_panic]
-    fn test_cstr_to_str_panic() {
+    fn test_cstr_to_str_invalid_utf8() -> Result {
         let bad_bytes = b"\xc3\x28\0";
-        let checked_cstr = CStr::from_bytes_with_nul(bad_bytes).unwrap();
-        checked_cstr.to_str().unwrap();
+        let checked_cstr = CStr::from_bytes_with_nul(bad_bytes)?;
+        assert!(checked_cstr.to_str().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_cstr_as_str_unchecked() {
+    fn test_cstr_as_str_unchecked() -> Result {
         let good_bytes = b"\xf0\x9f\x90\xA7\0";
-        let checked_cstr = CStr::from_bytes_with_nul(good_bytes).unwrap();
+        let checked_cstr = CStr::from_bytes_with_nul(good_bytes)?;
         // SAFETY: The contents come from a string literal which contains valid UTF-8.
         let unchecked_str = unsafe { checked_cstr.as_str_unchecked() };
         assert_eq!(unchecked_str, "🐧");
+        Ok(())
     }
 
     #[test]
-    fn test_cstr_display() {
-        let hello_world = CStr::from_bytes_with_nul(b"hello, world!\0").unwrap();
+    fn test_cstr_display() -> Result {
+        let hello_world = CStr::from_bytes_with_nul(b"hello, world!\0")?;
         assert_eq!(format!("{hello_world}"), "hello, world!");
-        let non_printables = CStr::from_bytes_with_nul(b"\x01\x09\x0a\0").unwrap();
+        let non_printables = CStr::from_bytes_with_nul(b"\x01\x09\x0a\0")?;
         assert_eq!(format!("{non_printables}"), "\\x01\\x09\\x0a");
-        let non_ascii = CStr::from_bytes_with_nul(b"d\xe9j\xe0 vu\0").unwrap();
+        let non_ascii = CStr::from_bytes_with_nul(b"d\xe9j\xe0 vu\0")?;
         assert_eq!(format!("{non_ascii}"), "d\\xe9j\\xe0 vu");
-        let good_bytes = CStr::from_bytes_with_nul(b"\xf0\x9f\xa6\x80\0").unwrap();
+        let good_bytes = CStr::from_bytes_with_nul(b"\xf0\x9f\xa6\x80\0")?;
         assert_eq!(format!("{good_bytes}"), "\\xf0\\x9f\\xa6\\x80");
+        Ok(())
     }
 
     #[test]
-    fn test_cstr_display_all_bytes() {
+    fn test_cstr_display_all_bytes() -> Result {
         let mut bytes: [u8; 256] = [0; 256];
         // fill `bytes` with [1..=255] + [0]
         for i in u8::MIN..=u8::MAX {
             bytes[i as usize] = i.wrapping_add(1);
         }
-        let cstr = CStr::from_bytes_with_nul(&bytes).unwrap();
+        let cstr = CStr::from_bytes_with_nul(&bytes)?;
         assert_eq!(format!("{cstr}"), ALL_ASCII_CHARS);
+        Ok(())
     }
 
     #[test]
-    fn test_cstr_debug() {
-        let hello_world = CStr::from_bytes_with_nul(b"hello, world!\0").unwrap();
+    fn test_cstr_debug() -> Result {
+        let hello_world = CStr::from_bytes_with_nul(b"hello, world!\0")?;
         assert_eq!(format!("{hello_world:?}"), "\"hello, world!\"");
-        let non_printables = CStr::from_bytes_with_nul(b"\x01\x09\x0a\0").unwrap();
+        let non_printables = CStr::from_bytes_with_nul(b"\x01\x09\x0a\0")?;
         assert_eq!(format!("{non_printables:?}"), "\"\\x01\\x09\\x0a\"");
-        let non_ascii = CStr::from_bytes_with_nul(b"d\xe9j\xe0 vu\0").unwrap();
+        let non_ascii = CStr::from_bytes_with_nul(b"d\xe9j\xe0 vu\0")?;
         assert_eq!(format!("{non_ascii:?}"), "\"d\\xe9j\\xe0 vu\"");
-        let good_bytes = CStr::from_bytes_with_nul(b"\xf0\x9f\xa6\x80\0").unwrap();
+        let good_bytes = CStr::from_bytes_with_nul(b"\xf0\x9f\xa6\x80\0")?;
         assert_eq!(format!("{good_bytes:?}"), "\"\\xf0\\x9f\\xa6\\x80\"");
+        Ok(())
     }
 
     #[test]
-    fn test_bstr_display() {
+    fn test_bstr_display() -> Result {
         let hello_world = BStr::from_bytes(b"hello, world!");
         assert_eq!(format!("{hello_world}"), "hello, world!");
         let escapes = BStr::from_bytes(b"_\t_\n_\r_\\_\'_\"_");
@@ -685,10 +673,11 @@ mod tests {
         assert_eq!(format!("{non_ascii}"), "d\\xe9j\\xe0 vu");
         let good_bytes = BStr::from_bytes(b"\xf0\x9f\xa6\x80");
         assert_eq!(format!("{good_bytes}"), "\\xf0\\x9f\\xa6\\x80");
+        Ok(())
     }
 
     #[test]
-    fn test_bstr_debug() {
+    fn test_bstr_debug() -> Result {
         let hello_world = BStr::from_bytes(b"hello, world!");
         assert_eq!(format!("{hello_world:?}"), "\"hello, world!\"");
         let escapes = BStr::from_bytes(b"_\t_\n_\r_\\_\'_\"_");
@@ -699,6 +688,7 @@ mod tests {
         assert_eq!(format!("{non_ascii:?}"), "\"d\\xe9j\\xe0 vu\"");
         let good_bytes = BStr::from_bytes(b"\xf0\x9f\xa6\x80");
         assert_eq!(format!("{good_bytes:?}"), "\"\\xf0\\x9f\\xa6\\x80\"");
+        Ok(())
     }
 }
 
@@ -752,7 +742,7 @@ impl RawFormatter {
     /// for the lifetime of the returned [`RawFormatter`].
     pub(crate) unsafe fn from_buffer(buf: *mut u8, len: usize) -> Self {
         let pos = buf as usize;
-        // INVARIANT: We ensure that `end` is never less then `buf`, and the safety requirements
+        // INVARIANT: We ensure that `end` is never less than `buf`, and the safety requirements
         // guarantees that the memory region is valid for writes.
         Self {
             pos,
@@ -886,7 +876,7 @@ impl CString {
 
         // SAFETY: The number of bytes that can be written to `f` is bounded by `size`, which is
         // `buf`'s capacity. The contents of the buffer have been initialised by writes to `f`.
-        unsafe { buf.set_len(f.bytes_written()) };
+        unsafe { buf.inc_len(f.bytes_written()) };
 
         // Check that there are no `NUL` bytes before the end.
         // SAFETY: The buffer is valid for read because `f.bytes_written()` is bounded by `size`
@@ -944,5 +934,5 @@ impl fmt::Debug for CString {
 /// A convenience alias for [`core::format_args`].
 #[macro_export]
 macro_rules! fmt {
-    ($($f:tt)*) => ( core::format_args!($($f)*) )
+    ($($f:tt)*) => ( ::core::format_args!($($f)*) )
 }

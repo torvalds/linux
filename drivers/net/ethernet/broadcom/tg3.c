@@ -11062,7 +11062,7 @@ static void tg3_chk_missed_msi(struct tg3 *tp)
 
 static void tg3_timer(struct timer_list *t)
 {
-	struct tg3 *tp = from_timer(tp, t, timer);
+	struct tg3 *tp = timer_container_of(tp, t, timer);
 
 	spin_lock(&tp->lock);
 

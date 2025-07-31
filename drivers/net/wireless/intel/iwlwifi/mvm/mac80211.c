@@ -6360,8 +6360,8 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 			(struct iwl_mvm_internal_rxq_notif *)cmd->payload;
 	struct iwl_host_cmd hcmd = {
 		.id = WIDE_ID(DATA_PATH_GROUP, TRIGGER_RX_QUEUES_NOTIF_CMD),
-		.data[0] = &cmd,
-		.len[0] = sizeof(cmd),
+		.data[0] = cmd,
+		.len[0] = __struct_size(cmd),
 		.data[1] = data,
 		.len[1] = size,
 		.flags = CMD_SEND_IN_RFKILL | (sync ? 0 : CMD_ASYNC),

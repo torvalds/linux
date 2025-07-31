@@ -87,6 +87,8 @@ struct recovery_pass_entry {
 	__le32			flags;
 };
 
+LE32_BITMASK(BCH_RECOVERY_PASS_NO_RATELIMIT,	struct recovery_pass_entry, flags, 0, 1)
+
 struct bch_sb_field_recovery_passes {
 	struct bch_sb_field	field;
 	struct recovery_pass_entry start[];

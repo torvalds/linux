@@ -596,7 +596,7 @@ void musb_load_testpacket(struct musb *musb)
  */
 static void musb_otg_timer_func(struct timer_list *t)
 {
-	struct musb	*musb = from_timer(musb, t, otg_timer);
+	struct musb	*musb = timer_container_of(musb, t, otg_timer);
 	unsigned long	flags;
 
 	spin_lock_irqsave(&musb->lock, flags);

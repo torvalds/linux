@@ -268,7 +268,8 @@ static void gve_stats_report_schedule(struct gve_priv *priv)
 
 static void gve_stats_report_timer(struct timer_list *t)
 {
-	struct gve_priv *priv = from_timer(priv, t, stats_report_timer);
+	struct gve_priv *priv = timer_container_of(priv, t,
+						   stats_report_timer);
 
 	mod_timer(&priv->stats_report_timer,
 		  round_jiffies(jiffies +
@@ -2153,7 +2154,7 @@ void gve_handle_report_stats(struct gve_priv *priv)
 			};
 			stats[stats_idx++] = (struct stats) {
 				.stat_name = cpu_to_be32(RX_BUFFERS_POSTED),
-				.value = cpu_to_be64(priv->rx[0].fill_cnt),
+				.value = cpu_to_be64(priv->rx[idx].fill_cnt),
 				.queue_id = cpu_to_be32(idx),
 			};
 		}

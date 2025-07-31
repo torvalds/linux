@@ -406,6 +406,9 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		browser->b.index = al->idx_asm;
 	}
 
+	if (annotate_opts.hide_src_code_on_title)
+		annotate_opts.hide_src_code_on_title = false;
+
 	return true;
 }
 
@@ -704,6 +707,18 @@ switch_percent_type(struct annotation_options *opts, bool base)
 	}
 }
 
+static int annotate__scnprintf_title(struct hists *hists, char *bf, size_t size)
+{
+	int printed = hists__scnprintf_title(hists, bf, size);
+
+	if (!annotate_opts.hide_src_code_on_title) {
+		printed += scnprintf(bf + printed, size - printed, " [source: %s]",
+				     annotate_opts.hide_src_code ? "OFF" : "On");
+	}
+
+	return printed;
+}
+
 static int annotate_browser__run(struct annotate_browser *browser,
 				 struct evsel *evsel,
 				 struct hist_browser_timer *hbt)
@@ -719,7 +734,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 	char title[256];
 	int key;
 
-	hists__scnprintf_title(hists, title, sizeof(title));
+	annotate__scnprintf_title(hists, title, sizeof(title));
 	if (annotate_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
@@ -755,7 +770,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 
 			if (delay_secs != 0) {
 				symbol__annotate_decay_histogram(sym, evsel);
-				hists__scnprintf_title(hists, title, sizeof(title));
+				annotate__scnprintf_title(hists, title, sizeof(title));
 				annotate_browser__show(&browser->b, title, help);
 			}
 			continue;
@@ -820,6 +835,8 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		case 's':
 			if (annotate_browser__toggle_source(browser))
 				ui_helpline__puts(help);
+			annotate__scnprintf_title(hists, title, sizeof(title));
+			annotate_browser__show(&browser->b, title, help);
 			continue;
 		case 'o':
 			annotate_opts.use_offset = !annotate_opts.use_offset;
@@ -906,7 +923,7 @@ show_sup_ins:
 		case 'p':
 		case 'b':
 			switch_percent_type(&annotate_opts, key == 'b');
-			hists__scnprintf_title(hists, title, sizeof(title));
+			annotate__scnprintf_title(hists, title, sizeof(title));
 			annotate_browser__show(&browser->b, title, help);
 			continue;
 		case 'B':
@@ -928,6 +945,7 @@ show_sup_ins:
 		case CTRL('c'):
 			goto out;
 		default:
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, delay_secs, ", use 'h'/F1 to see actions");
 			continue;
 		}
 

@@ -135,6 +135,8 @@ impl<T: drm::Driver> Device<T> {
     ///
     /// `ptr` must be a valid pointer to a `struct device` embedded in `Self`.
     unsafe fn from_drm_device(ptr: *const bindings::drm_device) -> *mut Self {
+        let ptr: *const Opaque<bindings::drm_device> = ptr.cast();
+
         // SAFETY: By the safety requirements of this function `ptr` is a valid pointer to a
         // `struct drm_device` embedded in `Self`.
         unsafe { crate::container_of!(ptr, Self, dev) }.cast_mut()

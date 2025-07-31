@@ -77,6 +77,7 @@ void iwl_construct_mld(struct iwl_mld *mld, struct iwl_trans *trans,
 
 	/* Setup async RX handling */
 	spin_lock_init(&mld->async_handlers_lock);
+	INIT_LIST_HEAD(&mld->async_handlers_list);
 	wiphy_work_init(&mld->async_handlers_wk,
 			iwl_mld_async_handlers_wk);
 
@@ -653,7 +654,8 @@ iwl_mld_nic_error(struct iwl_op_mode *op_mode,
 	 * It might not actually be true that we'll restart, but the
 	 * setting doesn't matter if we're going to be unbound either.
 	 */
-	if (type != IWL_ERR_TYPE_RESET_HS_TIMEOUT)
+	if (type != IWL_ERR_TYPE_RESET_HS_TIMEOUT &&
+	    mld->fw_status.running)
 		mld->fw_status.in_hw_restart = true;
 }
 

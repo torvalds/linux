@@ -90,14 +90,52 @@ they should generally work out of the box, e.g.::
 Ubuntu
 ******
 
-Ubuntu LTS and non-LTS (interim) releases provide recent Rust releases and thus
-they should generally work out of the box, e.g.::
+25.04
+~~~~~
 
-	apt install rustc-1.80 rust-1.80-src bindgen-0.65 rustfmt-1.80 rust-1.80-clippy
+The latest Ubuntu releases provide recent Rust releases and thus they should
+generally work out of the box, e.g.::
+
+	apt install rustc rust-src bindgen rustfmt rust-clippy
+
+In addition, ``RUST_LIB_SRC`` needs to be set, e.g.::
+
+	RUST_LIB_SRC=/usr/src/rustc-$(rustc --version | cut -d' ' -f2)/library
+
+For convenience, ``RUST_LIB_SRC`` can be exported to the global environment.
+
+
+24.04 LTS and older
+~~~~~~~~~~~~~~~~~~~
+
+Though Ubuntu 24.04 LTS and older versions still provide recent Rust
+releases, they require some additional configuration to be set, using
+the versioned packages, e.g.::
+
+	apt install rustc-1.80 rust-1.80-src bindgen-0.65 rustfmt-1.80 \
+		rust-1.80-clippy
+	ln -s /usr/lib/rust-1.80/bin/rustfmt /usr/bin/rustfmt-1.80
+	ln -s /usr/lib/rust-1.80/bin/clippy-driver /usr/bin/clippy-driver-1.80
+
+None of these packages set their tools as defaults; therefore they should be
+specified explicitly, e.g.::
+
+	make LLVM=1 RUSTC=rustc-1.80 RUSTDOC=rustdoc-1.80 RUSTFMT=rustfmt-1.80 \
+		CLIPPY_DRIVER=clippy-driver-1.80 BINDGEN=bindgen-0.65
+
+Alternatively, modify the ``PATH`` variable to place the Rust 1.80 binaries
+first and set ``bindgen`` as the default, e.g.::
+
+	PATH=/usr/lib/rust-1.80/bin:$PATH
+	update-alternatives --install /usr/bin/bindgen bindgen \
+		/usr/bin/bindgen-0.65 100
+	update-alternatives --set bindgen /usr/bin/bindgen-0.65
 
 ``RUST_LIB_SRC`` needs to be set when using the versioned packages, e.g.::
 
 	RUST_LIB_SRC=/usr/src/rustc-$(rustc-1.80 --version | cut -d' ' -f2)/library
+
+For convenience, ``RUST_LIB_SRC`` can be exported to the global environment.
 
 In addition, ``bindgen-0.65`` is available in newer releases (24.04 LTS and
 24.10), but it may not be available in older ones (20.04 LTS and 22.04 LTS),

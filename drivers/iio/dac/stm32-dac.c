@@ -250,7 +250,7 @@ static const struct iio_chan_spec_ext_info stm32_dac_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &stm32_dac_powerdown_mode_en),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &stm32_dac_powerdown_mode_en),
-	{},
+	{ }
 };
 
 #define STM32_DAC_CHANNEL(chan, name) {			\
@@ -392,7 +392,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stm32_dac_pm_ops, stm32_dac_suspend,
 
 static const struct of_device_id stm32_dac_of_match[] = {
 	{ .compatible = "st,stm32-dac", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stm32_dac_of_match);
 

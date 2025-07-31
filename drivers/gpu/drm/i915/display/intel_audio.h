@@ -31,6 +31,5 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state);
 void intel_audio_init(struct intel_display *display);
 void intel_audio_register(struct intel_display *display);
 void intel_audio_deinit(struct intel_display *display);
-void intel_audio_sdp_split_update(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_AUDIO_H__ */

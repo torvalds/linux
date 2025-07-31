@@ -176,7 +176,7 @@ static int max77541_adc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id max77541_adc_platform_id[] = {
 	{ "max77541-adc" },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, max77541_adc_platform_id);
 

@@ -706,7 +706,7 @@ static inline void writecache_verify_watermark(struct dm_writecache *wc)
 
 static void writecache_max_age_timer(struct timer_list *t)
 {
-	struct dm_writecache *wc = from_timer(wc, t, max_age_timer);
+	struct dm_writecache *wc = timer_container_of(wc, t, max_age_timer);
 
 	if (!dm_suspended(wc->ti) && !writecache_has_error(wc)) {
 		queue_work(wc->writeback_wq, &wc->writeback_work);
@@ -866,7 +866,7 @@ static void writecache_flush_work(struct work_struct *work)
 
 static void writecache_autocommit_timer(struct timer_list *t)
 {
-	struct dm_writecache *wc = from_timer(wc, t, autocommit_timer);
+	struct dm_writecache *wc = timer_container_of(wc, t, autocommit_timer);
 
 	if (!writecache_has_error(wc))
 		queue_work(wc->writeback_wq, &wc->flush_work);

@@ -312,7 +312,7 @@ static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 
 	if (!bkey_refcount_c(k)) {
 		if (!(flags & BTREE_TRIGGER_overwrite))
-			ret = -BCH_ERR_missing_indirect_extent;
+			ret = bch_err_throw(c, missing_indirect_extent);
 		goto next;
 	}
 
@@ -612,7 +612,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	int ret = 0, ret2 = 0;
 
 	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_reflink))
-		return -BCH_ERR_erofs_no_writes;
+		return bch_err_throw(c, erofs_no_writes);
 
 	bch2_check_set_feature(c, BCH_FEATURE_reflink);
 
@@ -711,7 +711,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 			SET_REFLINK_P_IDX(&dst_p->v, offset);
 
 			if (reflink_p_may_update_opts_field &&
-			    may_change_src_io_path_opts)
+			    may_change_src_io_path_opts &&
+			    REFLINK_P_MAY_UPDATE_OPTIONS(src_p.v))
 				SET_REFLINK_P_MAY_UPDATE_OPTIONS(&dst_p->v, true);
 		} else {
 			BUG();
@@ -847,7 +848,7 @@ int bch2_gc_reflink_start(struct bch_fs *c)
 			struct reflink_gc *r = genradix_ptr_alloc(&c->reflink_gc_table,
 							c->reflink_gc_nr++, GFP_KERNEL);
 			if (!r) {
-				ret = -BCH_ERR_ENOMEM_gc_reflink_start;
+				ret = bch_err_throw(c, ENOMEM_gc_reflink_start);
 				break;
 			}
 

@@ -138,6 +138,7 @@ found:
 		goto retry;
 }
 
+#ifdef CONFIG_NUMA
 /*
  * Tracks nodes that have not yet been visited when searching for an idle
  * CPU across all available nodes.
@@ -186,6 +187,13 @@ static s32 pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, i
 
 	return cpu;
 }
+#else
+static inline s32
+pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, int node, u64 flags)
+{
+	return -EBUSY;
+}
+#endif
 
 /*
  * Find an idle CPU in the system, starting from @node.
@@ -447,9 +455,16 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	const struct cpumask *llc_cpus = NULL, *numa_cpus = NULL;
 	const struct cpumask *allowed = cpus_allowed ?: p->cpus_ptr;
 	int node = scx_cpu_node_if_enabled(prev_cpu);
+	bool is_prev_allowed;
 	s32 cpu;
 
 	preempt_disable();
+
+	/*
+	 * Check whether @prev_cpu is still within the allowed set. If not,
+	 * we can still try selecting a nearby CPU.
+	 */
+	is_prev_allowed = cpumask_test_cpu(prev_cpu, allowed);
 
 	/*
 	 * Determine the subset of CPUs usable by @p within @cpus_allowed.
@@ -463,21 +478,6 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 			allowed = local_cpus;
 		} else {
 			cpu = -EBUSY;
-			goto out_enable;
-		}
-
-		/*
-		 * If @prev_cpu is not in the allowed CPUs, skip topology
-		 * optimizations and try to pick any idle CPU usable by the
-		 * task.
-		 *
-		 * If %SCX_OPS_BUILTIN_IDLE_PER_NODE is enabled, prioritize
-		 * the current node, as it may optimize some waker->wakee
-		 * workloads.
-		 */
-		if (!cpumask_test_cpu(prev_cpu, allowed)) {
-			node = scx_cpu_node_if_enabled(smp_processor_id());
-			cpu = scx_pick_idle_cpu(allowed, node, flags);
 			goto out_enable;
 		}
 	}
@@ -525,7 +525,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		 * then avoid a migration.
 		 */
 		cpu = smp_processor_id();
-		if (cpus_share_cache(cpu, prev_cpu) &&
+		if (is_prev_allowed && cpus_share_cache(cpu, prev_cpu) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu)) {
 			cpu = prev_cpu;
 			goto out_unlock;
@@ -562,7 +562,8 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		/*
 		 * Keep using @prev_cpu if it's part of a fully idle core.
 		 */
-		if (cpumask_test_cpu(prev_cpu, idle_cpumask(node)->smt) &&
+		if (is_prev_allowed &&
+		    cpumask_test_cpu(prev_cpu, idle_cpumask(node)->smt) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu)) {
 			cpu = prev_cpu;
 			goto out_unlock;
@@ -611,7 +612,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	/*
 	 * Use @prev_cpu if it's idle.
 	 */
-	if (scx_idle_test_and_clear_cpu(prev_cpu)) {
+	if (is_prev_allowed && scx_idle_test_and_clear_cpu(prev_cpu)) {
 		cpu = prev_cpu;
 		goto out_unlock;
 	}

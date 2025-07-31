@@ -54,7 +54,7 @@ int bch2_snapshot_tree_lookup(struct btree_trans *trans, u32 id,
 					  BTREE_ITER_with_updates, snapshot_tree, s);
 
 	if (bch2_err_matches(ret, ENOENT))
-		ret = -BCH_ERR_ENOENT_snapshot_tree;
+		ret = bch_err_throw(trans->c, ENOENT_snapshot_tree);
 	return ret;
 }
 
@@ -67,7 +67,7 @@ __bch2_snapshot_tree_create(struct btree_trans *trans)
 	struct bkey_i_snapshot_tree *s_t;
 
 	if (ret == -BCH_ERR_ENOSPC_btree_slot)
-		ret = -BCH_ERR_ENOSPC_snapshot_tree;
+		ret = bch_err_throw(trans->c, ENOSPC_snapshot_tree);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -105,11 +105,8 @@ static bool __bch2_snapshot_is_ancestor_early(struct snapshot_table *t, u32 id, 
 
 static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancestor)
 {
-	rcu_read_lock();
-	bool ret = __bch2_snapshot_is_ancestor_early(rcu_dereference(c->snapshots), id, ancestor);
-	rcu_read_unlock();
-
-	return ret;
+	guard(rcu)();
+	return __bch2_snapshot_is_ancestor_early(rcu_dereference(c->snapshots), id, ancestor);
 }
 
 static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ancestor)
@@ -140,13 +137,11 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
 	bool ret;
 
-	rcu_read_lock();
+	guard(rcu)();
 	struct snapshot_table *t = rcu_dereference(c->snapshots);
 
-	if (unlikely(c->recovery.pass_done < BCH_RECOVERY_PASS_check_snapshots)) {
-		ret = __bch2_snapshot_is_ancestor_early(t, id, ancestor);
-		goto out;
-	}
+	if (unlikely(c->recovery.pass_done < BCH_RECOVERY_PASS_check_snapshots))
+		return __bch2_snapshot_is_ancestor_early(t, id, ancestor);
 
 	if (likely(ancestor >= IS_ANCESTOR_BITMAP))
 		while (id && id < ancestor - IS_ANCESTOR_BITMAP)
@@ -157,9 +152,6 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 		: id == ancestor;
 
 	EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, id, ancestor));
-out:
-	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -293,7 +285,7 @@ static int bch2_snapshot_table_make_room(struct bch_fs *c, u32 id)
 	mutex_lock(&c->snapshot_table_lock);
 	int ret = snapshot_t_mut(c, id)
 		? 0
-		: -BCH_ERR_ENOMEM_mark_snapshot;
+		: bch_err_throw(c, ENOMEM_mark_snapshot);
 	mutex_unlock(&c->snapshot_table_lock);
 	return ret;
 }
@@ -312,7 +304,7 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 
 	t = snapshot_t_mut(c, id);
 	if (!t) {
-		ret = -BCH_ERR_ENOMEM_mark_snapshot;
+		ret = bch_err_throw(c, ENOMEM_mark_snapshot);
 		goto err;
 	}
 
@@ -412,10 +404,10 @@ static u32 bch2_snapshot_tree_next(struct bch_fs *c, u32 id)
 u32 bch2_snapshot_oldest_subvol(struct bch_fs *c, u32 snapshot_root,
 				snapshot_id_list *skip)
 {
+	guard(rcu)();
 	u32 id, subvol = 0, s;
 retry:
 	id = snapshot_root;
-	rcu_read_lock();
 	while (id && bch2_snapshot_exists(c, id)) {
 		if (!(skip && snapshot_list_has_id(skip, id))) {
 			s = snapshot_t(c, id)->subvol;
@@ -427,7 +419,6 @@ retry:
 		if (id == snapshot_root)
 			break;
 	}
-	rcu_read_unlock();
 
 	if (!subvol && skip) {
 		skip = NULL;
@@ -617,18 +608,14 @@ static int snapshot_tree_ptr_good(struct btree_trans *trans,
 
 u32 bch2_snapshot_skiplist_get(struct bch_fs *c, u32 id)
 {
-	const struct snapshot_t *s;
-
 	if (!id)
 		return 0;
 
-	rcu_read_lock();
-	s = snapshot_t(c, id);
-	if (s->parent)
-		id = bch2_snapshot_nth_parent(c, id, get_random_u32_below(s->depth));
-	rcu_read_unlock();
-
-	return id;
+	guard(rcu)();
+	const struct snapshot_t *s = snapshot_t(c, id);
+	return s->parent
+		? bch2_snapshot_nth_parent(c, id, get_random_u32_below(s->depth))
+		: id;
 }
 
 static int snapshot_skiplist_good(struct btree_trans *trans, u32 id, struct bch_snapshot s)
@@ -947,10 +934,7 @@ static inline bool same_snapshot(struct snapshot_tree_reconstruct *r, struct bpo
 
 static inline bool snapshot_id_lists_have_common(snapshot_id_list *l, snapshot_id_list *r)
 {
-	darray_for_each(*l, i)
-		if (snapshot_list_has_id(r, *i))
-			return true;
-	return false;
+	return darray_find_p(*l, i, snapshot_list_has_id(r, *i)) != NULL;
 }
 
 static void snapshot_id_list_to_text(struct printbuf *out, snapshot_id_list *s)
@@ -1022,7 +1006,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 					"snapshot node %u from tree %s missing, recreate?", *id, buf.buf)) {
 				if (t->nr > 1) {
 					bch_err(c, "cannot reconstruct snapshot trees with multiple nodes");
-					ret = -BCH_ERR_fsck_repair_unimplemented;
+					ret = bch_err_throw(c, fsck_repair_unimplemented);
 					goto err;
 				}
 
@@ -1061,21 +1045,70 @@ int __bch2_check_key_has_snapshot(struct btree_trans *trans,
 		ret = bch2_btree_delete_at(trans, iter,
 					   BTREE_UPDATE_internal_snapshot_node) ?: 1;
 
-	/*
-	 * Snapshot missing: we should have caught this with btree_lost_data and
-	 * kicked off reconstruct_snapshots, so if we end up here we have no
-	 * idea what happened:
-	 */
-	if (fsck_err_on(state == SNAPSHOT_ID_empty,
-			trans, bkey_in_missing_snapshot,
-			"key in missing snapshot %s, delete?",
-			(bch2_btree_id_to_text(&buf, iter->btree_id),
-			 prt_char(&buf, ' '),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-		ret = bch2_btree_delete_at(trans, iter,
-					   BTREE_UPDATE_internal_snapshot_node) ?: 1;
+	if (state == SNAPSHOT_ID_empty) {
+		/*
+		 * Snapshot missing: we should have caught this with btree_lost_data and
+		 * kicked off reconstruct_snapshots, so if we end up here we have no
+		 * idea what happened.
+		 *
+		 * Do not delete unless we know that subvolumes and snapshots
+		 * are consistent:
+		 *
+		 * XXX:
+		 *
+		 * We could be smarter here, and instead of using the generic
+		 * recovery pass ratelimiting, track if there have been any
+		 * changes to the snapshots or inodes btrees since those passes
+		 * last ran.
+		 */
+		ret = bch2_require_recovery_pass(c, &buf, BCH_RECOVERY_PASS_check_snapshots) ?: ret;
+		ret = bch2_require_recovery_pass(c, &buf, BCH_RECOVERY_PASS_check_subvols) ?: ret;
+
+		if (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_snapshots))
+			ret = bch2_require_recovery_pass(c, &buf, BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
+
+		unsigned repair_flags = FSCK_CAN_IGNORE | (!ret ? FSCK_CAN_FIX : 0);
+
+		if (__fsck_err(trans, repair_flags, bkey_in_missing_snapshot,
+			     "key in missing snapshot %s, delete?",
+			     (bch2_btree_id_to_text(&buf, iter->btree_id),
+			      prt_char(&buf, ' '),
+			      bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+			ret = bch2_btree_delete_at(trans, iter,
+						   BTREE_UPDATE_internal_snapshot_node) ?: 1;
+		}
+	}
 fsck_err:
 	printbuf_exit(&buf);
+	return ret;
+}
+
+int __bch2_get_snapshot_overwrites(struct btree_trans *trans,
+				   enum btree_id btree, struct bpos pos,
+				   snapshot_id_list *s)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_reverse_norestart(trans, iter, btree, bpos_predecessor(pos),
+					     BTREE_ITER_all_snapshots, k, ret) {
+		if (!bkey_eq(k.k->p, pos))
+			break;
+
+		if (!bch2_snapshot_is_ancestor(c, k.k->p.snapshot, pos.snapshot) ||
+		    snapshot_list_has_ancestor(c, s, k.k->p.snapshot))
+			continue;
+
+		ret = snapshot_list_add(c, s, k.k->p.snapshot);
+		if (ret)
+			break;
+	}
+	bch2_trans_iter_exit(trans, &iter);
+	if (ret)
+		darray_exit(s);
+
 	return ret;
 }
 
@@ -1263,7 +1296,7 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 			goto err;
 
 		if (!k.k || !k.k->p.offset) {
-			ret = -BCH_ERR_ENOSPC_snapshot_create;
+			ret = bch_err_throw(c, ENOSPC_snapshot_create);
 			goto err;
 		}
 
@@ -1399,10 +1432,8 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 
 static inline u32 interior_delete_has_id(interior_delete_list *l, u32 id)
 {
-	darray_for_each(*l, i)
-		if (i->id == id)
-			return i->live_child;
-	return 0;
+	struct snapshot_interior_delete *i = darray_find_p(*l, i, i->id == id);
+	return i ? i->live_child : 0;
 }
 
 static unsigned __live_child(struct snapshot_table *t, u32 id,
@@ -1434,11 +1465,9 @@ static unsigned live_child(struct bch_fs *c, u32 id)
 {
 	struct snapshot_delete *d = &c->snapshot_delete;
 
-	rcu_read_lock();
-	u32 ret = __live_child(rcu_dereference(c->snapshots), id,
-			       &d->delete_leaves, &d->delete_interior);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return __live_child(rcu_dereference(c->snapshots), id,
+			    &d->delete_leaves, &d->delete_interior);
 }
 
 static bool snapshot_id_dying(struct snapshot_delete *d, unsigned id)
@@ -1695,7 +1724,7 @@ static int check_should_delete_snapshot(struct btree_trans *trans, struct bkey_s
 static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
 						interior_delete_list *skip)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	while (interior_delete_has_id(skip, id))
 		id = __bch2_snapshot_parent(c, id);
 
@@ -1704,7 +1733,6 @@ static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
 			id = __bch2_snapshot_parent(c, id);
 		} while (interior_delete_has_id(skip, id));
 	}
-	rcu_read_unlock();
 
 	return id;
 }
@@ -1870,6 +1898,8 @@ err:
 	d->running = false;
 	mutex_unlock(&d->progress_lock);
 	bch2_trans_put(trans);
+
+	bch2_recovery_pass_set_no_ratelimit(c, BCH_RECOVERY_PASS_check_snapshots);
 out_unlock:
 	mutex_unlock(&d->lock);
 	if (!bch2_err_matches(ret, EROFS))
@@ -1905,7 +1935,7 @@ void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 
 	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
 
-	if (!queue_work(c->write_ref_wq, &c->snapshot_delete.work))
+	if (!queue_work(system_long_wq, &c->snapshot_delete.work))
 		enumerated_ref_put(&c->writes, BCH_WRITE_REF_delete_dead_snapshots);
 }
 

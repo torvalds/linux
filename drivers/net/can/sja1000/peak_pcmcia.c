@@ -374,7 +374,7 @@ static inline void pcan_set_can_power(struct pcan_pccard *card, int onoff)
  */
 static void pcan_led_timer(struct timer_list *t)
 {
-	struct pcan_pccard *card = from_timer(card, t, led_timer);
+	struct pcan_pccard *card = timer_container_of(card, t, led_timer);
 	struct net_device *netdev;
 	int i, up_count = 0;
 	u8 ccr;

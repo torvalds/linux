@@ -62,7 +62,7 @@ static int load_c8sectpfe_fw(struct c8sectpfei *fei);
 
 static void c8sectpfe_timer_interrupt(struct timer_list *t)
 {
-	struct c8sectpfei *fei = from_timer(fei, t, timer);
+	struct c8sectpfei *fei = timer_container_of(fei, t, timer);
 	struct channel_info *channel;
 	int chan_num;
 

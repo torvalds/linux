@@ -78,7 +78,7 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 	bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
 				  sb_blacklist_u64s(nr + 1));
 	if (!bl) {
-		ret = -BCH_ERR_ENOSPC_sb_journal_seq_blacklist;
+		ret = bch_err_throw(c, ENOSPC_sb_journal_seq_blacklist);
 		goto out;
 	}
 
@@ -152,7 +152,7 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 
 	t = kzalloc(struct_size(t, entries, nr), GFP_KERNEL);
 	if (!t)
-		return -BCH_ERR_ENOMEM_blacklist_table_init;
+		return bch_err_throw(c, ENOMEM_blacklist_table_init);
 
 	t->nr = nr;
 

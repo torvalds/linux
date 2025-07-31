@@ -209,7 +209,7 @@ static snd_pcm_uframes_t imx_rpmsg_pcm_pointer(struct snd_soc_component *compone
 static void imx_rpmsg_timer_callback(struct timer_list *t)
 {
 	struct stream_timer  *stream_timer =
-			from_timer(stream_timer, t, timer);
+			timer_container_of(stream_timer, t, timer);
 	struct snd_pcm_substream *substream = stream_timer->substream;
 	struct rpmsg_info *info = stream_timer->info;
 	struct rpmsg_msg *msg;

@@ -292,7 +292,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		if (!new_keys.data) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
-			return -BCH_ERR_ENOMEM_journal_key_insert;
+			return bch_err_throw(c, ENOMEM_journal_key_insert);
 		}
 
 		/* Since @keys was full, there was no gap: */
@@ -331,7 +331,7 @@ int bch2_journal_key_insert(struct bch_fs *c, enum btree_id id,
 
 	n = kmalloc(bkey_bytes(&k->k), GFP_KERNEL);
 	if (!n)
-		return -BCH_ERR_ENOMEM_journal_key_insert;
+		return bch_err_throw(c, ENOMEM_journal_key_insert);
 
 	bkey_copy(n, k);
 	ret = bch2_journal_key_insert_take(c, id, level, n);
@@ -457,11 +457,9 @@ static void bch2_journal_iter_advance(struct journal_iter *iter)
 
 static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
-	struct bkey_s_c ret = bkey_s_c_null;
-
 	journal_iter_verify(iter);
 
-	rcu_read_lock();
+	guard(rcu)();
 	while (iter->idx < iter->keys->size) {
 		struct journal_key *k = iter->keys->data + iter->idx;
 
@@ -470,19 +468,16 @@ static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 			break;
 		BUG_ON(cmp);
 
-		if (!k->overwritten) {
-			ret = bkey_i_to_s_c(k->k);
-			break;
-		}
+		if (!k->overwritten)
+			return bkey_i_to_s_c(k->k);
 
 		if (k->overwritten_range)
 			iter->idx = idx_to_pos(iter->keys, rcu_dereference(k->overwritten_range)->end);
 		else
 			bch2_journal_iter_advance(iter);
 	}
-	rcu_read_unlock();
 
-	return ret;
+	return bkey_s_c_null;
 }
 
 static void bch2_journal_iter_exit(struct journal_iter *iter)
@@ -741,7 +736,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 				if (keys->nr * 8 > keys->size * 7) {
 					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu keys at seq %llu",
 						keys->nr, keys->size, nr_read, le64_to_cpu(i->j.seq));
-					return -BCH_ERR_ENOMEM_journal_keys_sort;
+					return bch_err_throw(c, ENOMEM_journal_keys_sort);
 				}
 
 				BUG_ON(darray_push(keys, n));

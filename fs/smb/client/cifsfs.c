@@ -70,7 +70,6 @@ bool require_gcm_256; /* false by default */
 bool enable_negotiate_signing; /* false by default */
 unsigned int global_secflags = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
-unsigned int sign_CIFS_PDUs = 1;
 
 /*
  * Global transaction id (XID) information

@@ -109,7 +109,8 @@ static unsigned char kbd_keycodes[256] = {
 
 static void mce_kbd_rx_timeout(struct timer_list *t)
 {
-	struct ir_raw_event_ctrl *raw = from_timer(raw, t, mce_kbd.rx_timeout);
+	struct ir_raw_event_ctrl *raw = timer_container_of(raw, t,
+							   mce_kbd.rx_timeout);
 	unsigned char maskcode;
 	unsigned long flags;
 	int i;

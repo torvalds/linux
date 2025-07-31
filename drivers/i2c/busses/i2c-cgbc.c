@@ -331,8 +331,8 @@ static u32 cgbc_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm cgbc_i2c_algorithm = {
-	.master_xfer	= cgbc_i2c_xfer,
-	.functionality	= cgbc_i2c_func,
+	.xfer = cgbc_i2c_xfer,
+	.functionality = cgbc_i2c_func,
 };
 
 static struct i2c_algo_cgbc_data cgbc_i2c_algo_data[] = {

@@ -35,7 +35,7 @@ static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s k,
 	nr_good = bch2_bkey_durability(c, k.s_c);
 	if ((!nr_good && !(flags & lost)) ||
 	    (nr_good < replicas && !(flags & degraded)))
-		return -BCH_ERR_remove_would_lose_data;
+		return bch_err_throw(c, remove_would_lose_data);
 
 	return 0;
 }
@@ -156,7 +156,7 @@ static int bch2_dev_metadata_drop(struct bch_fs *c,
 
 	/* don't handle this yet: */
 	if (flags & BCH_FORCE_IF_METADATA_LOST)
-		return -BCH_ERR_remove_with_metadata_missing_unimplemented;
+		return bch_err_throw(c, remove_with_metadata_missing_unimplemented);
 
 	trans = bch2_trans_get(c);
 	bch2_bkey_buf_init(&k);

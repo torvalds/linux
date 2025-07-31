@@ -2462,8 +2462,6 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 
-	netvsc_vf_setxdp(vf_netdev, NULL);
-
 	reinit_completion(&net_device_ctx->vf_add);
 	netdev_rx_handler_unregister(vf_netdev);
 	netdev_upper_dev_unlink(vf_netdev, ndev);
@@ -2631,7 +2629,9 @@ static int netvsc_probe(struct hv_device *dev,
 			continue;
 
 		netvsc_prepare_bonding(vf_netdev);
+		netdev_lock_ops(vf_netdev);
 		netvsc_register_vf(vf_netdev, VF_REG_IN_PROBE);
+		netdev_unlock_ops(vf_netdev);
 		__netvsc_vf_setup(net, vf_netdev);
 		break;
 	}

@@ -38,7 +38,7 @@ static inline int bch2_maybe_casefold(struct btree_trans *trans,
 	}
 }
 
-struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d);
+struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent);
 
 static inline unsigned dirent_val_u64s(unsigned len, unsigned cf_len)
 {
@@ -58,6 +58,14 @@ static inline void dirent_copy_target(struct bkey_i_dirent *dst,
 	dst->v.d_inum = src.v->d_inum;
 	dst->v.d_type = src.v->d_type;
 }
+
+int bch2_dirent_init_name(struct bkey_i_dirent *,
+			  const struct bch_hash_info *,
+			  const struct qstr *,
+			  const struct qstr *);
+struct bkey_i_dirent *bch2_dirent_create_key(struct btree_trans *,
+				const struct bch_hash_info *, subvol_inum, u8,
+				const struct qstr *, const struct qstr *, u64);
 
 int bch2_dirent_create_snapshot(struct btree_trans *, u32, u64, u32,
 			const struct bch_hash_info *, u8,
@@ -80,8 +88,8 @@ enum bch_rename_mode {
 };
 
 int bch2_dirent_rename(struct btree_trans *,
-		       subvol_inum, struct bch_hash_info *, u64 *,
-		       subvol_inum, struct bch_hash_info *, u64 *,
+		       subvol_inum, struct bch_hash_info *,
+		       subvol_inum, struct bch_hash_info *,
 		       const struct qstr *, subvol_inum *, u64 *,
 		       const struct qstr *, subvol_inum *, u64 *,
 		       enum bch_rename_mode);
@@ -95,7 +103,7 @@ u64 bch2_dirent_lookup(struct bch_fs *, subvol_inum,
 
 int bch2_empty_dir_snapshot(struct btree_trans *, u64, u32, u32);
 int bch2_empty_dir_trans(struct btree_trans *, subvol_inum);
-int bch2_readdir(struct bch_fs *, subvol_inum, struct dir_context *);
+int bch2_readdir(struct bch_fs *, subvol_inum, struct bch_hash_info *, struct dir_context *);
 
 int bch2_fsck_remove_dirent(struct btree_trans *, struct bpos);
 

@@ -439,15 +439,15 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (nvec < minvec)
 		return -ENOSPC;
 
-	if (nvec > maxvec)
-		nvec = maxvec;
-
 	rc = pci_setup_msi_context(dev);
 	if (rc)
 		return rc;
 
-	if (!pci_setup_msi_device_domain(dev))
+	if (!pci_setup_msi_device_domain(dev, nvec))
 		return -ENODEV;
+
+	if (nvec > maxvec)
+		nvec = maxvec;
 
 	for (;;) {
 		if (affd) {

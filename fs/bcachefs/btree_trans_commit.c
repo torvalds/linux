@@ -376,7 +376,7 @@ static inline int btree_key_can_insert(struct btree_trans *trans,
 				       struct btree *b, unsigned u64s)
 {
 	if (!bch2_btree_node_insert_fits(b, u64s))
-		return -BCH_ERR_btree_insert_btree_node_full;
+		return bch_err_throw(trans->c, btree_insert_btree_node_full);
 
 	return 0;
 }
@@ -394,9 +394,10 @@ btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 
 	new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
 	if (!new_k) {
-		bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
+		struct bch_fs *c = trans->c;
+		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
 			bch2_btree_id_str(path->btree_id), new_u64s);
-		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
+		return bch_err_throw(c, ENOMEM_btree_key_cache_insert);
 	}
 
 	ret =   bch2_trans_relock(trans) ?:
@@ -432,7 +433,7 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 	if (watermark < BCH_WATERMARK_reclaim &&
 	    !test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
 	    bch2_btree_key_cache_must_wait(c))
-		return -BCH_ERR_btree_insert_need_journal_reclaim;
+		return bch_err_throw(c, btree_insert_need_journal_reclaim);
 
 	/*
 	 * bch2_varint_decode can read past the end of the buffer by at most 7
@@ -894,7 +895,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		 */
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
 		    watermark < BCH_WATERMARK_reclaim) {
-			ret = -BCH_ERR_journal_reclaim_would_deadlock;
+			ret = bch_err_throw(c, journal_reclaim_would_deadlock);
 			goto out;
 		}
 
@@ -966,13 +967,26 @@ do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 
 	for (struct jset_entry *i = btree_trans_journal_entries_start(trans);
 	     i != btree_trans_journal_entries_top(trans);
-	     i = vstruct_next(i))
+	     i = vstruct_next(i)) {
 		if (i->type == BCH_JSET_ENTRY_btree_keys ||
 		    i->type == BCH_JSET_ENTRY_write_buffer_keys) {
-			int ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->start);
-			if (ret)
-				return ret;
+			jset_entry_for_each_key(i, k) {
+				int ret = bch2_journal_key_insert(c, i->btree_id, i->level, k);
+				if (ret)
+					return ret;
+			}
 		}
+
+		if (i->type == BCH_JSET_ENTRY_btree_root) {
+			guard(mutex)(&c->btree_root_lock);
+
+			struct btree_root *r = bch2_btree_id_root(c, i->btree_id);
+
+			bkey_copy(&r->key, i->start);
+			r->level = i->level;
+			r->alive = true;
+		}
+	}
 
 	for (struct bkey_i *i = btree_trans_subbuf_base(trans, &trans->accounting);
 	     i != btree_trans_subbuf_top(trans, &trans->accounting);
@@ -1011,7 +1025,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags)))
 			ret = do_bch2_trans_commit_to_journal_replay(trans);
 		else
-			ret = -BCH_ERR_erofs_trans_commit;
+			ret = bch_err_throw(c, erofs_trans_commit);
 		goto out_reset;
 	}
 
@@ -1093,7 +1107,7 @@ err:
 	 * restart:
 	 */
 	if (flags & BCH_TRANS_COMMIT_no_journal_res) {
-		ret = -BCH_ERR_transaction_restart_nested;
+		ret = bch_err_throw(c, transaction_restart_nested);
 		goto out;
 	}
 

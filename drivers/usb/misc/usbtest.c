@@ -592,7 +592,7 @@ struct sg_timeout {
 
 static void sg_timeout(struct timer_list *t)
 {
-	struct sg_timeout *timeout = from_timer(timeout, t, timer);
+	struct sg_timeout *timeout = timer_container_of(timeout, t, timer);
 
 	usb_sg_cancel(timeout->req);
 }

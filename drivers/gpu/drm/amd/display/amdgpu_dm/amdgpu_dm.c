@@ -676,21 +676,15 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 
 	if (acrtc->dm_irq_params.stream &&
-		acrtc->dm_irq_params.vrr_params.supported) {
-		bool replay_en = acrtc->dm_irq_params.stream->link->replay_settings.replay_feature_enabled;
-		bool psr_en = acrtc->dm_irq_params.stream->link->psr_settings.psr_feature_enabled;
-		bool fs_active_var_en = acrtc->dm_irq_params.freesync_config.state == VRR_STATE_ACTIVE_VARIABLE;
-
+	    acrtc->dm_irq_params.vrr_params.supported &&
+	    acrtc->dm_irq_params.freesync_config.state ==
+		    VRR_STATE_ACTIVE_VARIABLE) {
 		mod_freesync_handle_v_update(adev->dm.freesync_module,
 					     acrtc->dm_irq_params.stream,
 					     &acrtc->dm_irq_params.vrr_params);
 
-		/* update vmin_vmax only if freesync is enabled, or only if PSR and REPLAY are disabled */
-		if (fs_active_var_en || (!fs_active_var_en && !replay_en && !psr_en)) {
-			dc_stream_adjust_vmin_vmax(adev->dm.dc,
-					acrtc->dm_irq_params.stream,
-					&acrtc->dm_irq_params.vrr_params.adjust);
-		}
+		dc_stream_adjust_vmin_vmax(adev->dm.dc, acrtc->dm_irq_params.stream,
+					   &acrtc->dm_irq_params.vrr_params.adjust);
 	}
 
 	/*
@@ -2006,8 +2000,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_debug_mask & DC_FORCE_SUBVP_MCLK_SWITCH)
 		adev->dm.dc->debug.force_subvp_mclk_switch = true;
 
-	if (amdgpu_dc_debug_mask & DC_DISABLE_SUBVP)
+	if (amdgpu_dc_debug_mask & DC_DISABLE_SUBVP_FAMS) {
 		adev->dm.dc->debug.force_disable_subvp = true;
+		adev->dm.dc->debug.fams2_config.bits.enable = false;
+	}
 
 	if (amdgpu_dc_debug_mask & DC_ENABLE_DML2) {
 		adev->dm.dc->debug.using_dml2 = true;
@@ -2019,6 +2015,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_debug_mask & DC_HDCP_LC_ENABLE_SW_FALLBACK)
 		adev->dm.dc->debug.hdcp_lc_enable_sw_fallback = true;
+
+	if (amdgpu_dc_debug_mask & DC_SKIP_DETECTION_LT)
+		adev->dm.dc->debug.skip_detection_link_training = true;
 
 	adev->dm.dc->debug.visual_confirm = amdgpu_dc_visual_confirm;
 
@@ -4719,9 +4718,23 @@ static int get_brightness_range(const struct amdgpu_dm_backlight_caps *caps,
 	return 1;
 }
 
-static void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *caps,
-				      uint32_t *brightness)
+/* Rescale from [min..max] to [0..AMDGPU_MAX_BL_LEVEL] */
+static inline u32 scale_input_to_fw(int min, int max, u64 input)
 {
+	return DIV_ROUND_CLOSEST_ULL(input * AMDGPU_MAX_BL_LEVEL, max - min);
+}
+
+/* Rescale from [0..AMDGPU_MAX_BL_LEVEL] to [min..max] */
+static inline u32 scale_fw_to_input(int min, int max, u64 input)
+{
+	return min + DIV_ROUND_CLOSEST_ULL(input * (max - min), AMDGPU_MAX_BL_LEVEL);
+}
+
+static void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *caps,
+				      unsigned int min, unsigned int max,
+				      uint32_t *user_brightness)
+{
+	u32 brightness = scale_input_to_fw(min, max, *user_brightness);
 	u8 prev_signal = 0, prev_lum = 0;
 	int i = 0;
 
@@ -4732,7 +4745,7 @@ static void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *cap
 		return;
 
 	/* choose start to run less interpolation steps */
-	if (caps->luminance_data[caps->data_points/2].input_signal > *brightness)
+	if (caps->luminance_data[caps->data_points/2].input_signal > brightness)
 		i = caps->data_points/2;
 	do {
 		u8 signal = caps->luminance_data[i].input_signal;
@@ -4743,17 +4756,18 @@ static void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *cap
 		 * brightness < signal: interpolate between previous and current luminance numerator
 		 * brightness > signal: find next data point
 		 */
-		if (*brightness > signal) {
+		if (brightness > signal) {
 			prev_signal = signal;
 			prev_lum = lum;
 			i++;
 			continue;
 		}
-		if (*brightness < signal)
+		if (brightness < signal)
 			lum = prev_lum + DIV_ROUND_CLOSEST((lum - prev_lum) *
-							   (*brightness - prev_signal),
+							   (brightness - prev_signal),
 							   signal - prev_signal);
-		*brightness = DIV_ROUND_CLOSEST(lum * *brightness, 101);
+		*user_brightness = scale_fw_to_input(min, max,
+						     DIV_ROUND_CLOSEST(lum * brightness, 101));
 		return;
 	} while (i < caps->data_points);
 }
@@ -4766,11 +4780,10 @@ static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *c
 	if (!get_brightness_range(caps, &min, &max))
 		return brightness;
 
-	convert_custom_brightness(caps, &brightness);
+	convert_custom_brightness(caps, min, max, &brightness);
 
-	// Rescale 0..255 to min..max
-	return min + DIV_ROUND_CLOSEST((max - min) * brightness,
-				       AMDGPU_MAX_BL_LEVEL);
+	// Rescale 0..max to min..max
+	return min + DIV_ROUND_CLOSEST_ULL((u64)(max - min) * brightness, max);
 }
 
 static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *caps,
@@ -4783,8 +4796,8 @@ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *cap
 
 	if (brightness < min)
 		return 0;
-	// Rescale min..max to 0..255
-	return DIV_ROUND_CLOSEST(AMDGPU_MAX_BL_LEVEL * (brightness - min),
+	// Rescale min..max to 0..max
+	return DIV_ROUND_CLOSEST_ULL((u64)max * (brightness - min),
 				 max - min);
 }
 
@@ -4909,8 +4922,9 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	struct drm_device *drm = aconnector->base.dev;
 	struct amdgpu_display_manager *dm = &drm_to_adev(drm)->dm;
 	struct backlight_properties props = { 0 };
-	struct amdgpu_dm_backlight_caps caps = { 0 };
+	struct amdgpu_dm_backlight_caps *caps;
 	char bl_name[16];
+	int min, max;
 
 	if (aconnector->bl_idx == -1)
 		return;
@@ -4922,18 +4936,21 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 		return;
 	}
 
-	amdgpu_acpi_get_backlight_caps(&caps);
-	if (caps.caps_valid) {
+	caps = &dm->backlight_caps[aconnector->bl_idx];
+	if (get_brightness_range(caps, &min, &max)) {
 		if (power_supply_is_system_supplied() > 0)
-			props.brightness = caps.ac_level;
+			props.brightness = (max - min) * DIV_ROUND_CLOSEST(caps->ac_level, 100);
 		else
-			props.brightness = caps.dc_level;
+			props.brightness = (max - min) * DIV_ROUND_CLOSEST(caps->dc_level, 100);
+		/* min is zero, so max needs to be adjusted */
+		props.max_brightness = max - min;
+		drm_dbg(drm, "Backlight caps: min: %d, max: %d, ac %d, dc %d\n", min, max,
+			caps->ac_level, caps->dc_level);
 	} else
-		props.brightness = AMDGPU_MAX_BL_LEVEL;
+		props.brightness = props.max_brightness = AMDGPU_MAX_BL_LEVEL;
 
-	if (caps.data_points && !(amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE))
+	if (caps->data_points && !(amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE))
 		drm_info(drm, "Using custom brightness curve\n");
-	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
 
 	snprintf(bl_name, sizeof(bl_name), "amdgpu_bl%d",

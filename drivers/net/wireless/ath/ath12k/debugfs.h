@@ -12,8 +12,6 @@ void ath12k_debugfs_soc_create(struct ath12k_base *ab);
 void ath12k_debugfs_soc_destroy(struct ath12k_base *ab);
 void ath12k_debugfs_register(struct ath12k *ar);
 void ath12k_debugfs_unregister(struct ath12k *ar);
-void ath12k_debugfs_fw_stats_process(struct ath12k *ar,
-				     struct ath12k_fw_stats *stats);
 void ath12k_debugfs_op_vif_add(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif);
 void ath12k_debugfs_pdev_create(struct ath12k_base *ab);
@@ -123,11 +121,6 @@ static inline void ath12k_debugfs_register(struct ath12k *ar)
 }
 
 static inline void ath12k_debugfs_unregister(struct ath12k *ar)
-{
-}
-
-static inline void ath12k_debugfs_fw_stats_process(struct ath12k *ar,
-						   struct ath12k_fw_stats *stats)
 {
 }
 

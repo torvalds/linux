@@ -141,7 +141,7 @@ static const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5446_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ad5446_powerdown_mode_enum),
-	{ },
+	{ }
 };
 
 #define _AD5446_CHANNEL(bits, storage, _shift, ext) { \
@@ -440,7 +440,7 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 	{"dac101s101", ID_AD5310},
 	{"dac121s101", ID_AD5320},
 	{"dac7512", ID_AD5320},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5446_spi_ids);
 
@@ -543,7 +543,7 @@ static const struct i2c_device_id ad5446_i2c_ids[] = {
 	{"ad5602", ID_AD5602},
 	{"ad5612", ID_AD5612},
 	{"ad5622", ID_AD5622},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5446_i2c_ids);
 

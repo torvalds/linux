@@ -3015,7 +3015,7 @@ static void nvme_reset_work(struct work_struct *work)
 		goto out;
 
 	/*
-	 * Freeze and update the number of I/O queues as thos might have
+	 * Freeze and update the number of I/O queues as those might have
 	 * changed.  If there are no I/O queues left after this reset, keep the
 	 * controller around but remove all namespaces.
 	 */
@@ -3186,7 +3186,7 @@ static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
 		/*
 		 * Exclude some Kingston NV1 and A2000 devices from
 		 * NVME_QUIRK_SIMPLE_SUSPEND. Do a full suspend to save a
-		 * lot fo energy with s2idle sleep on some TUXEDO platforms.
+		 * lot of energy with s2idle sleep on some TUXEDO platforms.
 		 */
 		if (dmi_match(DMI_BOARD_NAME, "NS5X_NS7XAU") ||
 		    dmi_match(DMI_BOARD_NAME, "NS5x_7xAU") ||

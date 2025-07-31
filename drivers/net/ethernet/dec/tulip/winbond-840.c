@@ -763,7 +763,7 @@ static inline void update_csr6(struct net_device *dev, int new)
 
 static void netdev_timer(struct timer_list *t)
 {
-	struct netdev_private *np = from_timer(np, t, timer);
+	struct netdev_private *np = timer_container_of(np, t, timer);
 	struct net_device *dev = pci_get_drvdata(np->pci_dev);
 	void __iomem *ioaddr = np->base_addr;
 

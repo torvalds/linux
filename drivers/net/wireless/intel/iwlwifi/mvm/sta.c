@@ -253,7 +253,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 {
 	struct iwl_mvm_baid_data *data =
-		from_timer(data, t, session_timer);
+		timer_container_of(data, t, session_timer);
 	struct iwl_mvm_baid_data __rcu **rcu_ptr = data->rcu_ptr;
 	struct iwl_mvm_baid_data *ba_data;
 	struct ieee80211_sta *sta;

@@ -2079,24 +2079,9 @@ TEST_F(mount_setattr, detached_tree_propagation)
 	 * means that the device information will be different for any
 	 * statx() that was taken from /mnt/A before the mount compared
 	 * to one after the mount.
-	 *
-	 * Since we already now that the device information between the
-	 * stx1 and stx2 samples are identical we also now that stx2 and
-	 * stx3 device information will necessarily differ.
 	 */
 	ASSERT_NE(stx1.stx_dev_minor, stx3.stx_dev_minor);
-
-	/*
-	 * If mount propagation worked correctly then the tmpfs mount
-	 * that was created after the mount namespace was unshared will
-	 * have propagated onto /mnt/A in the detached mount tree.
-	 *
-	 * Verify that the device information for stx3 and stx4 are
-	 * identical. It is already established that stx3 is different
-	 * from both stx1 and stx2 sampled before the tmpfs mount was
-	 * done so if stx3 and stx4 are identical the proof is done.
-	 */
-	ASSERT_EQ(stx3.stx_dev_minor, stx4.stx_dev_minor);
+	ASSERT_EQ(stx1.stx_dev_minor, stx4.stx_dev_minor);
 
 	EXPECT_EQ(close(fd_tree), 0);
 }

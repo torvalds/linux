@@ -2556,8 +2556,8 @@ static irqreturn_t atl1_intr(int irq, void *data)
  */
 static void atl1_phy_config(struct timer_list *t)
 {
-	struct atl1_adapter *adapter = from_timer(adapter, t,
-						  phy_config_timer);
+	struct atl1_adapter *adapter = timer_container_of(adapter, t,
+							  phy_config_timer);
 	struct atl1_hw *hw = &adapter->hw;
 	unsigned long flags;
 

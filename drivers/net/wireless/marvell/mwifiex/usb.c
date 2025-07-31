@@ -1125,7 +1125,7 @@ static void mwifiex_usb_tx_aggr_tmo(struct timer_list *t)
 	struct urb_context *urb_cnxt = NULL;
 	struct sk_buff *skb_send = NULL;
 	struct tx_aggr_tmr_cnxt *timer_context =
-		from_timer(timer_context, t, hold_timer);
+		timer_container_of(timer_context, t, hold_timer);
 	struct mwifiex_adapter *adapter = timer_context->adapter;
 	struct usb_tx_data_port *port = timer_context->port;
 	int err = 0;

@@ -110,7 +110,7 @@ struct fsg_config {
 };
 
 static inline struct fsg_opts *
-fsg_opts_from_func_inst(const struct usb_function_instance *fi)
+fsg_opts_from_func_inst(struct usb_function_instance *fi)
 {
 	return container_of(fi, struct fsg_opts, func_inst);
 }

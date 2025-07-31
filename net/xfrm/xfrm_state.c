@@ -2697,7 +2697,7 @@ EXPORT_SYMBOL(xfrm_state_walk_done);
 
 static void xfrm_replay_timer_handler(struct timer_list *t)
 {
-	struct xfrm_state *x = from_timer(x, t, rtimer);
+	struct xfrm_state *x = timer_container_of(x, t, rtimer);
 
 	spin_lock(&x->lock);
 

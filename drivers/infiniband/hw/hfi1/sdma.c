@@ -467,7 +467,8 @@ static void sdma_err_progress_check_schedule(struct sdma_engine *sde)
 static void sdma_err_progress_check(struct timer_list *t)
 {
 	unsigned index;
-	struct sdma_engine *sde = from_timer(sde, t, err_progress_check_timer);
+	struct sdma_engine *sde = timer_container_of(sde, t,
+						     err_progress_check_timer);
 
 	dd_dev_err(sde->dd, "SDE progress check event\n");
 	for (index = 0; index < sde->dd->num_sdma; index++) {

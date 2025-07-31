@@ -3925,7 +3925,7 @@ void lpfc_poll_eratt(struct timer_list *t)
 	uint32_t eratt = 0;
 	uint64_t sli_intr, cnt;
 
-	phba = from_timer(phba, t, eratt_poll);
+	phba = timer_container_of(phba, t, eratt_poll);
 
 	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
@@ -9125,7 +9125,7 @@ out_free_mbox:
 void
 lpfc_mbox_timeout(struct timer_list *t)
 {
-	struct lpfc_hba  *phba = from_timer(phba, t, sli.mbox_tmo);
+	struct lpfc_hba  *phba = timer_container_of(phba, t, sli.mbox_tmo);
 	unsigned long iflag;
 	uint32_t tmo_posted;
 
@@ -15661,7 +15661,7 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 
 void lpfc_sli4_poll_hbtimer(struct timer_list *t)
 {
-	struct lpfc_hba *phba = from_timer(phba, t, cpuhp_poll_timer);
+	struct lpfc_hba *phba = timer_container_of(phba, t, cpuhp_poll_timer);
 	struct lpfc_queue *eq;
 
 	rcu_read_lock();

@@ -149,7 +149,7 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 
 	b->data = kvmalloc(btree_buf_bytes(b), gfp);
 	if (!b->data)
-		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
+		return bch_err_throw(c, ENOMEM_btree_node_mem_alloc);
 #ifdef __KERNEL__
 	b->aux_data = kvmalloc(btree_aux_data_bytes(b), gfp);
 #else
@@ -162,7 +162,7 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 	if (!b->aux_data) {
 		kvfree(b->data);
 		b->data = NULL;
-		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
+		return bch_err_throw(c, ENOMEM_btree_node_mem_alloc);
 	}
 
 	return 0;
@@ -353,21 +353,21 @@ static int __btree_node_reclaim_checks(struct bch_fs *c, struct btree *b,
 
 	if (btree_node_noevict(b)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_noevict]++;
-		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 	}
 	if (btree_node_write_blocked(b)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_blocked]++;
-		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 	}
 	if (btree_node_will_make_reachable(b)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_will_make_reachable]++;
-		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 	}
 
 	if (btree_node_dirty(b)) {
 		if (!flush) {
 			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_dirty]++;
-			return -BCH_ERR_ENOMEM_btree_node_reclaim;
+			return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 		}
 
 		if (locked) {
@@ -393,7 +393,7 @@ static int __btree_node_reclaim_checks(struct bch_fs *c, struct btree *b,
 				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_read_in_flight]++;
 			else if (btree_node_write_in_flight(b))
 				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_in_flight]++;
-			return -BCH_ERR_ENOMEM_btree_node_reclaim;
+			return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 		}
 
 		if (locked)
@@ -424,13 +424,13 @@ retry_unlocked:
 
 	if (!six_trylock_intent(&b->c.lock)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_lock_intent]++;
-		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 	}
 
 	if (!six_trylock_write(&b->c.lock)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_lock_write]++;
 		six_unlock_intent(&b->c.lock);
-		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		return bch_err_throw(c, ENOMEM_btree_node_reclaim);
 	}
 
 	/* recheck under lock */
@@ -682,7 +682,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 
 	return 0;
 err:
-	return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+	return bch_err_throw(c, ENOMEM_fs_btree_cache_init);
 }
 
 void bch2_fs_btree_cache_init_early(struct btree_cache *bc)
@@ -727,7 +727,7 @@ int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure 
 
 	if (!cl) {
 		trace_and_count(c, btree_cache_cannibalize_lock_fail, trans);
-		return -BCH_ERR_ENOMEM_btree_cache_cannibalize_lock;
+		return bch_err_throw(c, ENOMEM_btree_cache_cannibalize_lock);
 	}
 
 	closure_wait(&bc->alloc_wait, cl);
@@ -741,7 +741,7 @@ int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure 
 	}
 
 	trace_and_count(c, btree_cache_cannibalize_lock_fail, trans);
-	return -BCH_ERR_btree_cache_cannibalize_lock_blocked;
+	return bch_err_throw(c, btree_cache_cannibalize_lock_blocked);
 
 success:
 	trace_and_count(c, btree_cache_cannibalize_lock, trans);

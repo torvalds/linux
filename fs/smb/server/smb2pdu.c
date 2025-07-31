@@ -1607,17 +1607,18 @@ static int krb5_authenticate(struct ksmbd_work *work,
 	out_len = work->response_sz -
 		(le16_to_cpu(rsp->SecurityBufferOffset) + 4);
 
-	/* Check previous session */
-	prev_sess_id = le64_to_cpu(req->PreviousSessionId);
-	if (prev_sess_id && prev_sess_id != sess->id)
-		destroy_previous_session(conn, sess->user, prev_sess_id);
-
 	retval = ksmbd_krb5_authenticate(sess, in_blob, in_len,
 					 out_blob, &out_len);
 	if (retval) {
 		ksmbd_debug(SMB, "krb5 authentication failed\n");
 		return -EINVAL;
 	}
+
+	/* Check previous session */
+	prev_sess_id = le64_to_cpu(req->PreviousSessionId);
+	if (prev_sess_id && prev_sess_id != sess->id)
+		destroy_previous_session(conn, sess->user, prev_sess_id);
+
 	rsp->SecurityBufferLength = cpu_to_le16(out_len);
 
 	if ((conn->sign || server_conf.enforced_signing) ||
@@ -2874,7 +2875,7 @@ int smb2_open(struct ksmbd_work *work)
 	int req_op_level = 0, open_flags = 0, may_flags = 0, file_info = 0;
 	int rc = 0;
 	int contxt_cnt = 0, query_disk_id = 0;
-	int maximal_access_ctxt = 0, posix_ctxt = 0;
+	bool maximal_access_ctxt = false, posix_ctxt = false;
 	int s_type = 0;
 	int next_off = 0;
 	char *name = NULL;
@@ -2903,6 +2904,27 @@ int smb2_open(struct ksmbd_work *work)
 		return create_smb2_pipe(work);
 	}
 
+	if (req->CreateContextsOffset && tcon->posix_extensions) {
+		context = smb2_find_context_vals(req, SMB2_CREATE_TAG_POSIX, 16);
+		if (IS_ERR(context)) {
+			rc = PTR_ERR(context);
+			goto err_out2;
+		} else if (context) {
+			struct create_posix *posix = (struct create_posix *)context;
+
+			if (le16_to_cpu(context->DataOffset) +
+				le32_to_cpu(context->DataLength) <
+			    sizeof(struct create_posix) - 4) {
+				rc = -EINVAL;
+				goto err_out2;
+			}
+			ksmbd_debug(SMB, "get posix context\n");
+
+			posix_mode = le32_to_cpu(posix->Mode);
+			posix_ctxt = true;
+		}
+	}
+
 	if (req->NameLength) {
 		name = smb2_get_name((char *)req + le16_to_cpu(req->NameOffset),
 				     le16_to_cpu(req->NameLength),
@@ -2925,9 +2947,11 @@ int smb2_open(struct ksmbd_work *work)
 				goto err_out2;
 		}
 
-		rc = ksmbd_validate_filename(name);
-		if (rc < 0)
-			goto err_out2;
+		if (posix_ctxt == false) {
+			rc = ksmbd_validate_filename(name);
+			if (rc < 0)
+				goto err_out2;
+		}
 
 		if (ksmbd_share_veto_filename(share, name)) {
 			rc = -ENOENT;
@@ -3084,28 +3108,6 @@ int smb2_open(struct ksmbd_work *work)
 			ksmbd_debug(SMB, "get timewarp context\n");
 			rc = -EBADF;
 			goto err_out2;
-		}
-
-		if (tcon->posix_extensions) {
-			context = smb2_find_context_vals(req,
-							 SMB2_CREATE_TAG_POSIX, 16);
-			if (IS_ERR(context)) {
-				rc = PTR_ERR(context);
-				goto err_out2;
-			} else if (context) {
-				struct create_posix *posix =
-					(struct create_posix *)context;
-				if (le16_to_cpu(context->DataOffset) +
-				    le32_to_cpu(context->DataLength) <
-				    sizeof(struct create_posix) - 4) {
-					rc = -EINVAL;
-					goto err_out2;
-				}
-				ksmbd_debug(SMB, "get posix context\n");
-
-				posix_mode = le32_to_cpu(posix->Mode);
-				posix_ctxt = 1;
-			}
 		}
 	}
 
@@ -3538,6 +3540,15 @@ int smb2_open(struct ksmbd_work *work)
 		} else if (context) {
 			ksmbd_debug(SMB, "get query on disk id context\n");
 			query_disk_id = 1;
+		}
+
+		if (conn->is_aapl == false) {
+			context = smb2_find_context_vals(req, SMB2_CREATE_AAPL, 4);
+			if (IS_ERR(context)) {
+				rc = PTR_ERR(context);
+				goto err_out1;
+			} else if (context)
+				conn->is_aapl = true;
 		}
 	}
 
@@ -3978,7 +3989,10 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 		if (dinfo->EaSize)
 			dinfo->ExtFileAttributes = FILE_ATTRIBUTE_REPARSE_POINT_LE;
 		dinfo->Reserved = 0;
-		dinfo->UniqueId = cpu_to_le64(ksmbd_kstat->kstat->ino);
+		if (conn->is_aapl)
+			dinfo->UniqueId = 0;
+		else
+			dinfo->UniqueId = cpu_to_le64(ksmbd_kstat->kstat->ino);
 		if (d_info->hide_dot_file && d_info->name[0] == '.')
 			dinfo->ExtFileAttributes |= FILE_ATTRIBUTE_HIDDEN_LE;
 		memcpy(dinfo->FileName, conv_name, conv_len);
@@ -3995,7 +4009,10 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 			smb2_get_reparse_tag_special_file(ksmbd_kstat->kstat->mode);
 		if (fibdinfo->EaSize)
 			fibdinfo->ExtFileAttributes = FILE_ATTRIBUTE_REPARSE_POINT_LE;
-		fibdinfo->UniqueId = cpu_to_le64(ksmbd_kstat->kstat->ino);
+		if (conn->is_aapl)
+			fibdinfo->UniqueId = 0;
+		else
+			fibdinfo->UniqueId = cpu_to_le64(ksmbd_kstat->kstat->ino);
 		fibdinfo->ShortNameLength = 0;
 		fibdinfo->Reserved = 0;
 		fibdinfo->Reserved2 = cpu_to_le16(0);
@@ -4855,8 +4872,13 @@ static int get_file_standard_info(struct smb2_query_info_rsp *rsp,
 	sinfo = (struct smb2_file_standard_info *)rsp->Buffer;
 	delete_pending = ksmbd_inode_pending_delete(fp);
 
-	sinfo->AllocationSize = cpu_to_le64(stat.blocks << 9);
-	sinfo->EndOfFile = S_ISDIR(stat.mode) ? 0 : cpu_to_le64(stat.size);
+	if (ksmbd_stream_fd(fp) == false) {
+		sinfo->AllocationSize = cpu_to_le64(stat.blocks << 9);
+		sinfo->EndOfFile = S_ISDIR(stat.mode) ? 0 : cpu_to_le64(stat.size);
+	} else {
+		sinfo->AllocationSize = cpu_to_le64(fp->stream.size);
+		sinfo->EndOfFile = cpu_to_le64(fp->stream.size);
+	}
 	sinfo->NumberOfLinks = cpu_to_le32(get_nlink(&stat) - delete_pending);
 	sinfo->DeletePending = delete_pending;
 	sinfo->Directory = S_ISDIR(stat.mode) ? 1 : 0;
@@ -4919,9 +4941,14 @@ static int get_file_all_info(struct ksmbd_work *work,
 	file_info->ChangeTime = cpu_to_le64(time);
 	file_info->Attributes = fp->f_ci->m_fattr;
 	file_info->Pad1 = 0;
-	file_info->AllocationSize =
-		cpu_to_le64(stat.blocks << 9);
-	file_info->EndOfFile = S_ISDIR(stat.mode) ? 0 : cpu_to_le64(stat.size);
+	if (ksmbd_stream_fd(fp) == false) {
+		file_info->AllocationSize =
+			cpu_to_le64(stat.blocks << 9);
+		file_info->EndOfFile = S_ISDIR(stat.mode) ? 0 : cpu_to_le64(stat.size);
+	} else {
+		file_info->AllocationSize = cpu_to_le64(fp->stream.size);
+		file_info->EndOfFile = cpu_to_le64(fp->stream.size);
+	}
 	file_info->NumberOfLinks =
 			cpu_to_le32(get_nlink(&stat) - delete_pending);
 	file_info->DeletePending = delete_pending;
@@ -4930,7 +4957,10 @@ static int get_file_all_info(struct ksmbd_work *work,
 	file_info->IndexNumber = cpu_to_le64(stat.ino);
 	file_info->EASize = 0;
 	file_info->AccessFlags = fp->daccess;
-	file_info->CurrentByteOffset = cpu_to_le64(fp->filp->f_pos);
+	if (ksmbd_stream_fd(fp) == false)
+		file_info->CurrentByteOffset = cpu_to_le64(fp->filp->f_pos);
+	else
+		file_info->CurrentByteOffset = cpu_to_le64(fp->stream.pos);
 	file_info->Mode = fp->coption;
 	file_info->AlignmentRequirement = 0;
 	conv_len = smbConvertToUTF16((__le16 *)file_info->FileName, filename,
@@ -5118,8 +5148,13 @@ static int get_file_network_open_info(struct smb2_query_info_rsp *rsp,
 	time = ksmbd_UnixTimeToNT(stat.ctime);
 	file_info->ChangeTime = cpu_to_le64(time);
 	file_info->Attributes = fp->f_ci->m_fattr;
-	file_info->AllocationSize = cpu_to_le64(stat.blocks << 9);
-	file_info->EndOfFile = S_ISDIR(stat.mode) ? 0 : cpu_to_le64(stat.size);
+	if (ksmbd_stream_fd(fp) == false) {
+		file_info->AllocationSize = cpu_to_le64(stat.blocks << 9);
+		file_info->EndOfFile = S_ISDIR(stat.mode) ? 0 : cpu_to_le64(stat.size);
+	} else {
+		file_info->AllocationSize = cpu_to_le64(fp->stream.size);
+		file_info->EndOfFile = cpu_to_le64(fp->stream.size);
+	}
 	file_info->Reserved = cpu_to_le32(0);
 	rsp->OutputBufferLength =
 		cpu_to_le32(sizeof(struct smb2_file_ntwrk_info));
@@ -5142,7 +5177,11 @@ static void get_file_position_info(struct smb2_query_info_rsp *rsp,
 	struct smb2_file_pos_info *file_info;
 
 	file_info = (struct smb2_file_pos_info *)rsp->Buffer;
-	file_info->CurrentByteOffset = cpu_to_le64(fp->filp->f_pos);
+	if (ksmbd_stream_fd(fp) == false)
+		file_info->CurrentByteOffset = cpu_to_le64(fp->filp->f_pos);
+	else
+		file_info->CurrentByteOffset = cpu_to_le64(fp->stream.pos);
+
 	rsp->OutputBufferLength =
 		cpu_to_le32(sizeof(struct smb2_file_pos_info));
 }
@@ -5231,8 +5270,13 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 	file_info->ChangeTime = cpu_to_le64(time);
 	file_info->DosAttributes = fp->f_ci->m_fattr;
 	file_info->Inode = cpu_to_le64(stat.ino);
-	file_info->EndOfFile = cpu_to_le64(stat.size);
-	file_info->AllocationSize = cpu_to_le64(stat.blocks << 9);
+	if (ksmbd_stream_fd(fp) == false) {
+		file_info->EndOfFile = cpu_to_le64(stat.size);
+		file_info->AllocationSize = cpu_to_le64(stat.blocks << 9);
+	} else {
+		file_info->EndOfFile = cpu_to_le64(fp->stream.size);
+		file_info->AllocationSize = cpu_to_le64(fp->stream.size);
+	}
 	file_info->HardLinks = cpu_to_le32(stat.nlink);
 	file_info->Mode = cpu_to_le32(stat.mode & 0777);
 	switch (stat.mode & S_IFMT) {
@@ -6174,6 +6218,9 @@ static int set_file_allocation_info(struct ksmbd_work *work,
 	if (!(fp->daccess & FILE_WRITE_DATA_LE))
 		return -EACCES;
 
+	if (ksmbd_stream_fd(fp) == true)
+		return 0;
+
 	rc = vfs_getattr(&fp->filp->f_path, &stat, STATX_BASIC_STATS,
 			 AT_STATX_SYNC_AS_STAT);
 	if (rc)
@@ -6232,7 +6279,8 @@ static int set_end_of_file_info(struct ksmbd_work *work, struct ksmbd_file *fp,
 	 * truncate of some filesystem like FAT32 fill zero data in
 	 * truncated range.
 	 */
-	if (inode->i_sb->s_magic != MSDOS_SUPER_MAGIC) {
+	if (inode->i_sb->s_magic != MSDOS_SUPER_MAGIC &&
+	    ksmbd_stream_fd(fp) == false) {
 		ksmbd_debug(SMB, "truncated to newsize %lld\n", newsize);
 		rc = ksmbd_vfs_truncate(work, fp, newsize);
 		if (rc) {
@@ -6305,7 +6353,13 @@ static int set_file_position_info(struct ksmbd_file *fp,
 		return -EINVAL;
 	}
 
-	fp->filp->f_pos = current_byte_offset;
+	if (ksmbd_stream_fd(fp) == false)
+		fp->filp->f_pos = current_byte_offset;
+	else {
+		if (current_byte_offset > XATTR_SIZE_MAX)
+			current_byte_offset = XATTR_SIZE_MAX;
+		fp->stream.pos = current_byte_offset;
+	}
 	return 0;
 }
 

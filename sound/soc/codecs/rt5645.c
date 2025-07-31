@@ -3439,7 +3439,8 @@ static irqreturn_t rt5645_irq(int irq, void *data)
 
 static void rt5645_btn_check_callback(struct timer_list *t)
 {
-	struct rt5645_priv *rt5645 = from_timer(rt5645, t, btn_check_timer);
+	struct rt5645_priv *rt5645 = timer_container_of(rt5645, t,
+							btn_check_timer);
 
 	queue_delayed_work(system_power_efficient_wq,
 		   &rt5645->jack_detect_work, msecs_to_jiffies(5));

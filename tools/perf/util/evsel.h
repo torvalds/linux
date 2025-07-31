@@ -16,6 +16,7 @@
 struct bpf_object;
 struct cgroup;
 struct perf_counts;
+struct perf_stat_config;
 struct perf_stat_evsel;
 union perf_event;
 struct bpf_counter_ops;
@@ -69,6 +70,11 @@ struct evsel {
 		const char		*unit;
 		struct cgroup		*cgrp;
 		const char		*metric_id;
+		/*
+		 * This point to the first evsel with the same name, intended to store the
+		 * aggregated counts in aggregation mode.
+		 */
+		struct evsel		*first_wildcard_match;
 		/* parse modifier helper */
 		int			exclude_GH;
 		int			sample_read;
@@ -77,7 +83,6 @@ struct evsel {
 		bool			percore;
 		bool			precise_max;
 		bool			is_libpfm_event;
-		bool			auto_merge_stats;
 		bool			collect_stat;
 		bool			weak_group;
 		bool			bpf_counter;
@@ -114,7 +119,6 @@ struct evsel {
 	bool			ignore_missing_thread;
 	bool			forced_leader;
 	bool			cmdline_group_boundary;
-	bool			merged_stat;
 	bool			reset_group;
 	bool			errored;
 	bool			needs_auxtrace_mmap;
@@ -177,6 +181,12 @@ struct evsel {
 	/* For tool events */
 	/* Beginning time subtracted when the counter is read. */
 	union {
+		/* Defaults for retirement latency events. */
+		struct _retirement_latency {
+			double mean;
+			double min;
+			double max;
+		} retirement_latency;
 		/* duration_time is a single global time. */
 		__u64 start_time;
 		/*
@@ -542,6 +552,9 @@ void evsel__remove_from_group(struct evsel *evsel, struct evsel *leader);
 
 bool arch_evsel__must_be_in_group(const struct evsel *evsel);
 
+bool evsel__set_needs_uniquify(struct evsel *counter, const struct perf_stat_config *config);
+void evsel__uniquify_counter(struct evsel *counter);
+
 /*
  * Macro to swap the bit-field postition and size.
  * Used when,
@@ -556,5 +569,7 @@ bool arch_evsel__must_be_in_group(const struct evsel *evsel);
 u64 evsel__bitfield_swap_branch_flags(u64 value);
 void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
 				const char *config_name, u64 val);
+
+bool evsel__is_offcpu_event(struct evsel *evsel);
 
 #endif /* __PERF_EVSEL_H */

@@ -55,6 +55,13 @@ config LEDS_BRIGHTNESS_HW_CHANGED
 
 	  See Documentation/ABI/testing/sysfs-class-led for details.
 
+config LEDS_KUNIT_TEST
+	tristate "KUnit tests for LEDs"
+	depends on KUNIT && LEDS_CLASS
+	default KUNIT_ALL_TESTS
+	help
+	  Say Y here to enable KUnit testing for the LEDs framework.
+
 comment "LED drivers"
 
 config LEDS_88PM860X
@@ -735,7 +742,7 @@ config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
 	depends on MACH_KIRKWOOD || MACH_ARMADA_370 || COMPILE_TEST
-	default y
+	default y if MACH_KIRKWOOD || MACH_ARMADA_370
 	help
 	  This option enables support for the dual-GPIO LEDs found on the
 	  following LaCie/Seagate boards:
@@ -750,7 +757,7 @@ config LEDS_NETXBIG
 	depends on LEDS_CLASS
 	depends on MACH_KIRKWOOD || COMPILE_TEST
 	depends on OF_GPIO
-	default y
+	default MACH_KIRKWOOD
 	help
 	  This option enables support for LEDs found on the LaCie 2Big
 	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are

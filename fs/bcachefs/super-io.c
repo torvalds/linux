@@ -1112,7 +1112,7 @@ int bch2_write_super(struct bch_fs *c)
 		prt_str(&buf, ")");
 		bch2_fs_fatal_error(c, ": %s", buf.buf);
 		printbuf_exit(&buf);
-		ret = -BCH_ERR_sb_not_downgraded;
+		ret = bch_err_throw(c, sb_not_downgraded);
 		goto out;
 	}
 
@@ -1142,7 +1142,7 @@ int bch2_write_super(struct bch_fs *c)
 
 			if (c->opts.errors != BCH_ON_ERROR_continue &&
 			    c->opts.errors != BCH_ON_ERROR_fix_safe) {
-				ret = -BCH_ERR_erofs_sb_err;
+				ret = bch_err_throw(c, erofs_sb_err);
 				bch2_fs_fatal_error(c, "%s", buf.buf);
 			} else {
 				bch_err(c, "%s", buf.buf);
@@ -1161,7 +1161,7 @@ int bch2_write_super(struct bch_fs *c)
 				ca->disk_sb.seq);
 			bch2_fs_fatal_error(c, "%s", buf.buf);
 			printbuf_exit(&buf);
-			ret = -BCH_ERR_erofs_sb_err;
+			ret = bch_err_throw(c, erofs_sb_err);
 		}
 	}
 
@@ -1215,7 +1215,7 @@ int bch2_write_super(struct bch_fs *c)
 				  !can_mount_with_written), c,
 		": Unable to write superblock to sufficient devices (from %ps)",
 		(void *) _RET_IP_))
-		ret = -BCH_ERR_erofs_sb_err;
+		ret = bch_err_throw(c, erofs_sb_err);
 out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);

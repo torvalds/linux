@@ -19,6 +19,8 @@ struct vma_prepare {
 	struct vm_area_struct *insert;
 	struct vm_area_struct *remove;
 	struct vm_area_struct *remove2;
+
+	bool skip_vma_uprobe :1;
 };
 
 struct unlink_vma_file_batch {
@@ -120,6 +122,11 @@ struct vma_merge_struct {
 	 */
 	bool give_up_on_oom :1;
 
+	/*
+	 * If set, skip uprobe_mmap upon merged vma.
+	 */
+	bool skip_vma_uprobe :1;
+
 	/* Internal flags set during merge process: */
 
 	/*
@@ -213,6 +220,53 @@ static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
 
 	vma_mark_attached(vma);
 	return 0;
+}
+
+
+/*
+ * Temporary helper functions for file systems which wrap an invocation of
+ * f_op->mmap() but which might have an underlying file system which implements
+ * f_op->mmap_prepare().
+ */
+
+static inline struct vm_area_desc *vma_to_desc(struct vm_area_struct *vma,
+		struct vm_area_desc *desc)
+{
+	desc->mm = vma->vm_mm;
+	desc->start = vma->vm_start;
+	desc->end = vma->vm_end;
+
+	desc->pgoff = vma->vm_pgoff;
+	desc->file = vma->vm_file;
+	desc->vm_flags = vma->vm_flags;
+	desc->page_prot = vma->vm_page_prot;
+
+	desc->vm_ops = NULL;
+	desc->private_data = NULL;
+
+	return desc;
+}
+
+static inline void set_vma_from_desc(struct vm_area_struct *vma,
+		struct vm_area_desc *desc)
+{
+	/*
+	 * Since we're invoking .mmap_prepare() despite having a partially
+	 * established VMA, we must take care to handle setting fields
+	 * correctly.
+	 */
+
+	/* Mutable fields. Populated with initial state. */
+	vma->vm_pgoff = desc->pgoff;
+	if (vma->vm_file != desc->file)
+		vma_set_file(vma, desc->file);
+	if (vma->vm_flags != desc->vm_flags)
+		vm_flags_set(vma, desc->vm_flags);
+	vma->vm_page_prot = desc->page_prot;
+
+	/* User-defined fields. */
+	vma->vm_ops = desc->vm_ops;
+	vma->vm_private_data = desc->private_data;
 }
 
 int

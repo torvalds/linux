@@ -106,7 +106,7 @@ config NVME_TCP_TLS
 	help
 	  Enables TLS encryption for NVMe TCP using the netlink handshake API.
 
-	  The TLS handshake daemon is availble at
+	  The TLS handshake daemon is available at
 	  https://github.com/oracle/ktls-utils.
 
 	  If unsure, say N.

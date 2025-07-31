@@ -8784,7 +8784,7 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 static void
 ahd_stat_timer(struct timer_list *t)
 {
-	struct	ahd_softc *ahd = from_timer(ahd, t, stat_timer);
+	struct	ahd_softc *ahd = timer_container_of(ahd, t, stat_timer);
 	u_long	s;
 	int	enint_coal;
 

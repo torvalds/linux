@@ -3245,7 +3245,7 @@ static void sdhci_timeout_timer(struct timer_list *t)
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = from_timer(host, t, timer);
+	host = timer_container_of(host, t, timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -3267,7 +3267,7 @@ static void sdhci_timeout_data_timer(struct timer_list *t)
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = from_timer(host, t, data_timer);
+	host = timer_container_of(host, t, data_timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 

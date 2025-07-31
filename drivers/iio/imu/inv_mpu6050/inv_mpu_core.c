@@ -755,13 +755,12 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 		mutex_lock(&st->lock);
 		ret = inv_mpu6050_read_channel_data(indio_dev, chan, val);
 		mutex_unlock(&st->lock);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
@@ -895,9 +894,8 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	 * we should only update scale when the chip is disabled, i.e.
 	 * not running
 	 */
-	result = iio_device_claim_direct_mode(indio_dev);
-	if (result)
-		return result;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	mutex_lock(&st->lock);
 	result = pm_runtime_resume_and_get(pdev);
@@ -944,7 +942,7 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	pm_runtime_put_autosuspend(pdev);
 error_write_raw_unlock:
 	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return result;
 }

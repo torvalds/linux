@@ -133,7 +133,7 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 				break;
 			case MEI_EXT_HDR_GSC:
 				gsc_f2h = (struct mei_ext_hdr_gsc_f2h *)ext;
-				cb->ext_hdr = kzalloc(sizeof(*gsc_f2h), GFP_KERNEL);
+				cb->ext_hdr = (struct mei_ext_hdr *)kzalloc(sizeof(*gsc_f2h), GFP_KERNEL);
 				if (!cb->ext_hdr) {
 					cb->status = -ENOMEM;
 					goto discard;

@@ -272,6 +272,15 @@
  */
 #define UBLK_F_QUIESCE		(1ULL << 12)
 
+/*
+ * If this feature is set, ublk_drv supports each (qid,tag) pair having
+ * its own independent daemon task that is responsible for handling it.
+ * If it is not set, daemons are per-queue instead, so for two pairs
+ * (qid1,tag1) and (qid2,tag2), if qid1 == qid2, then the same task must
+ * be responsible for handling (qid1,tag1) and (qid2,tag2).
+ */
+#define UBLK_F_PER_IO_DAEMON (1ULL << 13)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1

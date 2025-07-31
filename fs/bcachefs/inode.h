@@ -283,15 +283,6 @@ static inline void bch2_inode_nlink_set(struct bch_inode_unpacked *bi,
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *);
 void bch2_inode_nlink_dec(struct btree_trans *, struct bch_inode_unpacked *);
 
-static inline bool bch2_inode_should_have_single_bp(struct bch_inode_unpacked *inode)
-{
-	bool inode_has_bp = inode->bi_dir || inode->bi_dir_offset;
-
-	return S_ISDIR(inode->bi_mode) ||
-		inode->bi_subvol ||
-		(!inode->bi_nlink && inode_has_bp);
-}
-
 struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
 void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
 			 struct bch_inode_unpacked *);

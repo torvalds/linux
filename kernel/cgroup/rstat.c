@@ -47,8 +47,20 @@ static spinlock_t *ss_rstat_lock(struct cgroup_subsys *ss)
 
 static raw_spinlock_t *ss_rstat_cpu_lock(struct cgroup_subsys *ss, int cpu)
 {
-	if (ss)
+	if (ss) {
+		/*
+		 * Depending on config, the subsystem per-cpu lock type may be an
+		 * empty struct. In enviromnents where this is the case, allocation
+		 * of this field is not performed in ss_rstat_init(). Avoid a
+		 * cpu-based offset relative to NULL by returning early. When the
+		 * lock type is zero in size, the corresponding lock functions are
+		 * no-ops so passing them NULL is acceptable.
+		 */
+		if (sizeof(*ss->rstat_ss_cpu_lock) == 0)
+			return NULL;
+
 		return per_cpu_ptr(ss->rstat_ss_cpu_lock, cpu);
+	}
 
 	return per_cpu_ptr(&rstat_base_cpu_lock, cpu);
 }
@@ -510,20 +522,15 @@ int __init ss_rstat_init(struct cgroup_subsys *ss)
 {
 	int cpu;
 
-#ifdef CONFIG_SMP
 	/*
-	 * On uniprocessor machines, arch_spinlock_t is defined as an empty
-	 * struct. Avoid allocating a size of zero by having this block
-	 * excluded in this case. It's acceptable to leave the subsystem locks
-	 * unitialized since the associated lock functions are no-ops in the
-	 * non-smp case.
+	 * Depending on config, the subsystem per-cpu lock type may be an empty
+	 * struct. Avoid allocating a size of zero in this case.
 	 */
-	if (ss) {
+	if (ss && sizeof(*ss->rstat_ss_cpu_lock)) {
 		ss->rstat_ss_cpu_lock = alloc_percpu(raw_spinlock_t);
 		if (!ss->rstat_ss_cpu_lock)
 			return -ENOMEM;
 	}
-#endif
 
 	spin_lock_init(ss_rstat_lock(ss));
 	for_each_possible_cpu(cpu)

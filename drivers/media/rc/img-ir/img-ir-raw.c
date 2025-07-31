@@ -65,7 +65,7 @@ void img_ir_isr_raw(struct img_ir_priv *priv, u32 irq_status)
  */
 static void img_ir_echo_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = from_timer(priv, t, raw.timer);
+	struct img_ir_priv *priv = timer_container_of(priv, t, raw.timer);
 
 	spin_lock_irq(&priv->lock);
 

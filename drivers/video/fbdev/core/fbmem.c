@@ -15,6 +15,8 @@
 #include <linux/export.h>
 #include <linux/fb.h>
 #include <linux/fbcon.h>
+#include <linux/lcd.h>
+#include <linux/leds.h>
 
 #include <video/nomodeset.h>
 
@@ -220,6 +222,12 @@ static int fb_check_caps(struct fb_info *info, struct fb_var_screeninfo *var,
 	return err;
 }
 
+static void fb_lcd_notify_mode_change(struct fb_info *info,
+				      struct fb_videomode *mode)
+{
+	lcd_notify_mode_change_all(info->device, mode->xres, mode->yres);
+}
+
 int
 fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 {
@@ -227,7 +235,6 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 	u32 activate;
 	struct fb_var_screeninfo old_var;
 	struct fb_videomode mode;
-	struct fb_event event;
 	u32 unused;
 
 	if (var->activate & FB_ACTIVATE_INV_MODE) {
@@ -333,32 +340,71 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 		return ret;
 	}
 
-	event.info = info;
-	event.data = &mode;
-	fb_notifier_call_chain(FB_EVENT_MODE_CHANGE, &event);
+	fb_lcd_notify_mode_change(info, &mode);
 
 	return 0;
 }
 EXPORT_SYMBOL(fb_set_var);
 
-int
-fb_blank(struct fb_info *info, int blank)
+static void fb_lcd_notify_blank(struct fb_info *info)
 {
-	struct fb_event event;
-	int ret = -EINVAL;
+	int power;
+
+	switch (info->blank) {
+	case FB_BLANK_UNBLANK:
+		power = LCD_POWER_ON;
+		break;
+	/* deprecated; TODO: should become 'off' */
+	case FB_BLANK_NORMAL:
+		power = LCD_POWER_REDUCED;
+		break;
+	case FB_BLANK_VSYNC_SUSPEND:
+		power = LCD_POWER_REDUCED_VSYNC_SUSPEND;
+		break;
+	/* 'off' */
+	case FB_BLANK_HSYNC_SUSPEND:
+	case FB_BLANK_POWERDOWN:
+	default:
+		power = LCD_POWER_OFF;
+		break;
+	}
+
+	lcd_notify_blank_all(info->device, power);
+}
+
+static void fb_ledtrig_backlight_notify_blank(struct fb_info *info)
+{
+	if (info->blank == FB_BLANK_UNBLANK)
+		ledtrig_backlight_blank(false);
+	else
+		ledtrig_backlight_blank(true);
+}
+
+int fb_blank(struct fb_info *info, int blank)
+{
+	int old_blank = info->blank;
+	int ret;
+
+	if (!info->fbops->fb_blank)
+		return -EINVAL;
 
 	if (blank > FB_BLANK_POWERDOWN)
 		blank = FB_BLANK_POWERDOWN;
 
-	event.info = info;
-	event.data = &blank;
+	info->blank = blank;
 
-	if (info->fbops->fb_blank)
-		ret = info->fbops->fb_blank(blank, info);
+	ret = info->fbops->fb_blank(blank, info);
+	if (ret)
+		goto err;
 
-	if (!ret)
-		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
+	fb_bl_notify_blank(info, old_blank);
+	fb_lcd_notify_blank(info);
+	fb_ledtrig_backlight_notify_blank(info);
 
+	return 0;
+
+err:
+	info->blank = old_blank;
 	return ret;
 }
 EXPORT_SYMBOL(fb_blank);
@@ -415,6 +461,14 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	refcount_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
+
+	/*
+	 * With an fb_blank callback present, we assume that the
+	 * display is blank, so that fb_blank() enables it on the
+	 * first modeset.
+	 */
+	if (fb_info->fbops->fb_blank)
+		fb_info->blank = FB_BLANK_POWERDOWN;
 
 	fb_device_create(fb_info);
 

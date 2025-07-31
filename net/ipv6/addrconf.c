@@ -4017,7 +4017,7 @@ restart:
 
 static void addrconf_rs_timer(struct timer_list *t)
 {
-	struct inet6_dev *idev = from_timer(idev, t, rs_timer);
+	struct inet6_dev *idev = timer_container_of(idev, t, rs_timer);
 	struct net_device *dev = idev->dev;
 	struct in6_addr lladdr;
 	int rtr_solicits;

@@ -985,7 +985,7 @@ static bool do_nocb_deferred_wakeup_common(struct rcu_data *rdp_gp,
 static void do_nocb_deferred_wakeup_timer(struct timer_list *t)
 {
 	unsigned long flags;
-	struct rcu_data *rdp = from_timer(rdp, t, nocb_timer);
+	struct rcu_data *rdp = timer_container_of(rdp, t, nocb_timer);
 
 	WARN_ON_ONCE(rdp->nocb_gp_rdp != rdp);
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("Timer"));

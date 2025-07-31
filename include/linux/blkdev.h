@@ -1456,6 +1456,13 @@ static inline bool bdev_is_zone_start(struct block_device *bdev,
 	return bdev_offset_from_zone_start(bdev, sector) == 0;
 }
 
+/* Check whether @sector is a multiple of the zone size. */
+static inline bool bdev_is_zone_aligned(struct block_device *bdev,
+					sector_t sector)
+{
+	return bdev_is_zone_start(bdev, sector);
+}
+
 /**
  * bdev_zone_is_seq - check if a sector belongs to a sequential write zone
  * @bdev:	block device to check

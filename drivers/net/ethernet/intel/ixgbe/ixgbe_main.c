@@ -8310,7 +8310,8 @@ static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_service_timer(struct timer_list *t)
 {
-	struct ixgbe_adapter *adapter = from_timer(adapter, t, service_timer);
+	struct ixgbe_adapter *adapter = timer_container_of(adapter, t,
+							   service_timer);
 	unsigned long next_event_offset;
 
 	/* poll faster when waiting for link */

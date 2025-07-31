@@ -3383,7 +3383,8 @@ void ieee80211_dynamic_ps_enable_work(struct wiphy *wiphy,
 
 void ieee80211_dynamic_ps_timer(struct timer_list *t)
 {
-	struct ieee80211_local *local = from_timer(local, t, dynamic_ps_timer);
+	struct ieee80211_local *local = timer_container_of(local, t,
+							   dynamic_ps_timer);
 
 	wiphy_work_queue(local->hw.wiphy, &local->dynamic_ps_enable_work);
 }
@@ -7220,11 +7221,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	bssid = ieee80211_get_bssid(hdr, len, sdata->vif.type);
 	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
 		struct ieee80211_ext *ext = (void *) mgmt;
-
-		if (ieee80211_is_s1g_short_beacon(ext->frame_control))
-			variable = ext->u.s1g_short_beacon.variable;
-		else
-			variable = ext->u.s1g_beacon.variable;
+		variable = ext->u.s1g_beacon.variable +
+			   ieee80211_s1g_optional_len(ext->frame_control);
 	}
 
 	baselen = (u8 *) variable - (u8 *) mgmt;
@@ -8082,7 +8080,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_sta_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.mgd.timer);
+		timer_container_of(sdata, t, u.mgd.timer);
 
 	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 }
@@ -8388,7 +8386,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.mgd.bcn_mon_timer);
+		timer_container_of(sdata, t, u.mgd.bcn_mon_timer);
 
 	if (WARN_ON(ieee80211_vif_is_mld(&sdata->vif)))
 		return;
@@ -8408,7 +8406,7 @@ static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.mgd.conn_mon_timer);
+		timer_container_of(sdata, t, u.mgd.conn_mon_timer);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;

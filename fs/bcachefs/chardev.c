@@ -399,7 +399,7 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	return ret;
 }
 
-static long bch2_ioctl_fs_usage(struct bch_fs *c,
+static noinline_for_stack long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
 	struct bch_ioctl_fs_usage arg = {};
@@ -469,7 +469,7 @@ err:
 }
 
 /* obsolete, didn't allow for new data types: */
-static long bch2_ioctl_dev_usage(struct bch_fs *c,
+static noinline_for_stack long bch2_ioctl_dev_usage(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage __user *user_arg)
 {
 	struct bch_ioctl_dev_usage arg;
@@ -613,15 +613,12 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	if (!dev)
 		return -EINVAL;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_online_member_rcu(c, ca)
-		if (ca->dev == dev) {
-			rcu_read_unlock();
+		if (ca->dev == dev)
 			return ca->dev_idx;
-		}
-	rcu_read_unlock();
 
-	return -BCH_ERR_ENOENT_dev_idx_not_found;
+	return bch_err_throw(c, ENOENT_dev_idx_not_found);
 }
 
 static long bch2_ioctl_disk_resize(struct bch_fs *c,
