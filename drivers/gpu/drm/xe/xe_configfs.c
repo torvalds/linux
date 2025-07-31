@@ -85,7 +85,7 @@
  *	rmdir /sys/kernel/config/xe/0000:03:00.0/
  */
 
-struct xe_config_device {
+struct xe_config_group_device {
 	struct config_group group;
 
 	bool survivability_mode;
@@ -113,21 +113,21 @@ static const struct engine_info engine_info[] = {
 	{ .cls = "gsccs", .mask = XE_HW_ENGINE_GSCCS_MASK },
 };
 
-static struct xe_config_device *to_xe_config_device(struct config_item *item)
+static struct xe_config_group_device *to_xe_config_group_device(struct config_item *item)
 {
-	return container_of(to_config_group(item), struct xe_config_device, group);
+	return container_of(to_config_group(item), struct xe_config_group_device, group);
 }
 
 static ssize_t survivability_mode_show(struct config_item *item, char *page)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 
 	return sprintf(page, "%d\n", dev->survivability_mode);
 }
 
 static ssize_t survivability_mode_store(struct config_item *item, const char *page, size_t len)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 	bool survivability_mode;
 	int ret;
 
@@ -144,7 +144,7 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 
 static ssize_t engines_allowed_show(struct config_item *item, char *page)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 	char *p = page;
 
 	for (size_t i = 0; i < ARRAY_SIZE(engine_info); i++) {
@@ -199,7 +199,7 @@ static bool lookup_engine_mask(const char *pattern, u64 *mask)
 static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 				     size_t len)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 	size_t patternlen, p;
 	u64 mask, val = 0;
 
@@ -237,7 +237,7 @@ static struct configfs_attribute *xe_config_device_attrs[] = {
 
 static void xe_config_device_release(struct config_item *item)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 
 	mutex_destroy(&dev->lock);
 	kfree(dev);
@@ -257,7 +257,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 							const char *name)
 {
 	unsigned int domain, bus, slot, function;
-	struct xe_config_device *dev;
+	struct xe_config_group_device *dev;
 	struct pci_dev *pdev;
 	char canonical[16];
 	int ret;
@@ -309,7 +309,7 @@ static struct configfs_subsystem xe_configfs = {
 	},
 };
 
-static struct xe_config_device *configfs_find_group(struct pci_dev *pdev)
+static struct xe_config_group_device *configfs_find_group(struct pci_dev *pdev)
 {
 	struct config_item *item;
 
@@ -320,7 +320,7 @@ static struct xe_config_device *configfs_find_group(struct pci_dev *pdev)
 	if (!item)
 		return NULL;
 
-	return to_xe_config_device(item);
+	return to_xe_config_group_device(item);
 }
 
 /**
@@ -334,7 +334,7 @@ static struct xe_config_device *configfs_find_group(struct pci_dev *pdev)
  */
 bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 {
-	struct xe_config_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = configfs_find_group(pdev);
 	bool mode;
 
 	if (!dev)
@@ -355,7 +355,7 @@ bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
  */
 void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 {
-	struct xe_config_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = configfs_find_group(pdev);
 
 	if (!dev)
 		return;
@@ -378,7 +378,7 @@ void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
  */
 u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 {
-	struct xe_config_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = configfs_find_group(pdev);
 	u64 engines_allowed;
 
 	if (!dev)
