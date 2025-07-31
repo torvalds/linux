@@ -4,9 +4,8 @@
  *
  * Copyright 2025 Google LLC
  */
-
 #include <asm/neon.h>
-#include <crypto/internal/simd.h>
+#include <asm/simd.h>
 #include <linux/cpufeature.h>
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_sha512_insns);
@@ -21,7 +20,7 @@ static void sha512_blocks(struct sha512_block_state *state,
 {
 	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
 	    static_branch_likely(&have_sha512_insns) &&
-	    likely(crypto_simd_usable())) {
+	    likely(may_use_simd())) {
 		do {
 			size_t rem;
 

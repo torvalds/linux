@@ -4,9 +4,8 @@
  *
  * Copyright 2025 Google LLC
  */
-
 #include <asm/neon.h>
-#include <crypto/internal/simd.h>
+#include <asm/simd.h>
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
 
@@ -19,7 +18,7 @@ static void sha512_blocks(struct sha512_block_state *state,
 			  const u8 *data, size_t nblocks)
 {
 	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    static_branch_likely(&have_neon) && likely(crypto_simd_usable())) {
+	    static_branch_likely(&have_neon) && likely(may_use_simd())) {
 		kernel_neon_begin();
 		sha512_block_data_order_neon(state, data, nblocks);
 		kernel_neon_end();
