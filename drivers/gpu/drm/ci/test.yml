@@ -24,7 +24,7 @@
 
 .lava-igt:arm32:
   extends:
-    - .lava-test:arm32
+    - .lava-arm32-test-gl
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
     DEBIAN_ARCH: "armhf"
@@ -33,15 +33,14 @@
     - testing:arm32
   needs:
     - alpine/x86_64_lava_ssh_client
-    - kernel+rootfs_arm32
-    - debian/x86_64_build
+    - debian/arm32_test-gl
     - python-artifacts
     - testing:arm32
     - igt:arm32
 
 .lava-igt:arm64:
   extends:
-    - .lava-test:arm64
+    - .lava-arm64-test-gl
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
     DEBIAN_ARCH: "arm64"
@@ -50,15 +49,14 @@
     - testing:arm64
   needs:
     - alpine/x86_64_lava_ssh_client
-    - kernel+rootfs_arm64
-    - debian/x86_64_build
+    - debian/arm64_test-gl
     - python-artifacts
     - testing:arm64
     - igt:arm64
 
 .lava-igt:x86_64:
   extends:
-    - .lava-test:x86_64
+    - .lava-x86_64-test-gl
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
     DEBIAN_ARCH: "amd64"
@@ -67,16 +65,15 @@
     - testing:x86_64
   needs:
     - alpine/x86_64_lava_ssh_client
-    - kernel+rootfs_x86_64
-    - debian/x86_64_build
+    - debian/x86_64_test-gl
     - python-artifacts
     - testing:x86_64
     - igt:x86_64
 
 .baremetal-igt-arm64:
   extends:
-    - .baremetal-test-arm64
-    - .use-debian/baremetal_arm64_test
+    - .baremetal-test-arm64-gl
+    - .use-debian/baremetal_arm64_test-gl
     - .allow_failure_lockdep
   timeout: "1h30m"
   rules:
@@ -91,7 +88,7 @@
     BM_CMDLINE: "ip=dhcp console=ttyMSM0,115200n8 $BM_KERNEL_EXTRA_ARGS root=/dev/nfs rw nfsrootdebug nfsroot=,tcp,nfsvers=4.2 init=/init $BM_KERNELARGS"
     FARM: google
   needs:
-    - debian/baremetal_arm64_test
+    - debian/baremetal_arm64_test-gl
     - job: testing:arm64
       artifacts: false
     - igt:arm64
@@ -101,19 +98,21 @@
 .software-driver:
   stage: software-driver
   extends:
+    - .test-gl
     - .allow_failure_lockdep
   timeout: "1h30m"
   rules:
     - !reference [.scheduled_pipeline-rules, rules]
     - when: on_success
-  extends:
-    - .test-gl
   tags:
-    - kvm
+    - $FDO_RUNNER_JOB_PRIORITY_TAG_X86_64_KVM
+  before_script:
+    - !reference [default, before_script]
+    - rm -rf install
+    - tar -xf artifacts/install.tar
   script:
     - ln -sf $CI_PROJECT_DIR/install /install
     - mv install/bzImage /kernel/bzImage
-    - mkdir -p /lib/modules
     - install/crosvm-runner.sh install/igt_runner.sh
   needs:
     - debian/x86_64_test-gl
@@ -179,20 +178,6 @@ msm:apq8096:
     RUNNER_TAG: google-freedreno-db820c
   script:
     - ./install/bare-metal/fastboot.sh || exit $?
-
-msm:sdm845:
-  extends:
-    - .baremetal-igt-arm64
-  stage: msm
-  parallel: 6
-  variables:
-    DEVICE_TYPE: sdm845-cheza-r3
-    DRIVER_NAME: msm
-    BM_KERNEL: https://${PIPELINE_ARTIFACTS_BASE}/arm64/cheza-kernel
-    GPU_VERSION: sdm845
-    RUNNER_TAG: google-freedreno-cheza
-  script:
-    - ./install/bare-metal/cros-servo.sh || exit $?
 
 msm:sm8350-hdk:
   extends:
@@ -323,7 +308,7 @@ i915:cml:
   variables:
     DEVICE_TYPE: asus-C436FA-Flip-hatch
     GPU_VERSION: cml
-    RUNNER_TAG: mesa-ci-x86-64-lava-asus-C436FA-flip-hatch
+    RUNNER_TAG: mesa-ci-x86-64-lava-asus-C436FA-Flip-hatch
 
 i915:tgl:
   extends:

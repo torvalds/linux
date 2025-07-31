@@ -376,9 +376,12 @@ int meson_encoder_hdmi_probe(struct meson_drm *priv)
 	struct device_node *remote;
 	int ret;
 
-	meson_encoder_hdmi = devm_kzalloc(priv->dev, sizeof(*meson_encoder_hdmi), GFP_KERNEL);
-	if (!meson_encoder_hdmi)
-		return -ENOMEM;
+	meson_encoder_hdmi = devm_drm_bridge_alloc(priv->dev,
+						   struct meson_encoder_hdmi,
+						   bridge,
+						   &meson_encoder_hdmi_bridge_funcs);
+	if (IS_ERR(meson_encoder_hdmi))
+		return PTR_ERR(meson_encoder_hdmi);
 
 	/* HDMI Transceiver Bridge */
 	remote = of_graph_get_remote_node(priv->dev->of_node, 1, 0);
@@ -395,7 +398,6 @@ int meson_encoder_hdmi_probe(struct meson_drm *priv)
 	}
 
 	/* HDMI Encoder Bridge */
-	meson_encoder_hdmi->bridge.funcs = &meson_encoder_hdmi_bridge_funcs;
 	meson_encoder_hdmi->bridge.of_node = priv->dev->of_node;
 	meson_encoder_hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	meson_encoder_hdmi->bridge.interlace_allowed = true;

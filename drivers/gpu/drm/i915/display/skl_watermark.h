@@ -8,17 +8,15 @@
 
 #include <linux/types.h>
 
-#include "intel_display_limits.h"
-#include "intel_global_state.h"
-#include "intel_wm_types.h"
-
+enum plane_id;
 struct intel_atomic_state;
-struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_dbuf_state;
 struct intel_display;
 struct intel_plane;
 struct intel_plane_state;
+struct skl_ddb_entry;
 struct skl_pipe_wm;
 struct skl_wm_level;
 
@@ -27,8 +25,6 @@ u8 intel_enabled_dbuf_slices_mask(struct intel_display *display);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
 bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state);
-bool intel_can_enable_sagv(struct intel_display *display,
-			   const struct intel_bw_state *bw_state);
 bool intel_has_sagv(struct intel_display *display);
 
 u32 skl_ddb_dbuf_slice_mask(struct intel_display *display,
@@ -63,28 +59,11 @@ unsigned int skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_st
 					  struct intel_plane *plane, int width,
 					  int height, int cpp);
 
-struct intel_dbuf_state {
-	struct intel_global_state base;
-
-	struct skl_ddb_entry ddb[I915_MAX_PIPES];
-	unsigned int weight[I915_MAX_PIPES];
-	u8 slices[I915_MAX_PIPES];
-	u8 enabled_slices;
-	u8 active_pipes;
-	u8 mdclk_cdclk_ratio;
-	bool joined_mbus;
-};
-
 struct intel_dbuf_state *
 intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
 
-#define to_intel_dbuf_state(global_state) \
-	container_of_const((global_state), struct intel_dbuf_state, base)
-
-#define intel_atomic_get_old_dbuf_state(state) \
-	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_intel_display(state)->dbuf.obj))
-#define intel_atomic_get_new_dbuf_state(state) \
-	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_intel_display(state)->dbuf.obj))
+int intel_dbuf_num_enabled_slices(const struct intel_dbuf_state *dbuf_state);
+int intel_dbuf_num_active_pipes(const struct intel_dbuf_state *dbuf_state);
 
 int intel_dbuf_init(struct intel_display *display);
 int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
@@ -97,6 +76,8 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
 void intel_dbuf_mbus_pre_ddb_update(struct intel_atomic_state *state);
 void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state);
 void intel_program_dpkgc_latency(struct intel_atomic_state *state);
+
+bool intel_dbuf_pmdemand_needs_update(struct intel_atomic_state *state);
 
 #endif /* __SKL_WATERMARK_H__ */
 

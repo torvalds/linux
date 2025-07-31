@@ -46,6 +46,8 @@
 
 #include "dmub/inc/dmub_cmd.h"
 
+#include "sspl/dc_spl_types.h"
+
 struct abm_save_restore;
 
 /* forward declaration */
@@ -53,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.334"
+#define DC_VER "3.2.340"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -66,8 +68,11 @@ struct dmub_notification;
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
+#define MAX_SUPPORTED_FORMATS 7
+
 #define MAX_HOST_ROUTERS_NUM 3
-#define MAX_DPIA_PER_HOST_ROUTER 2
+#define MAX_DPIA_PER_HOST_ROUTER 3
+#define MAX_DPIA_NUM  (MAX_HOST_ROUTERS_NUM * MAX_DPIA_PER_HOST_ROUTER)
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -193,6 +198,34 @@ struct dpp_color_caps {
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/* Below structure is to describe the HW support for mem layout, extend support
+	range to match what OS could handle in the roadmap */
+struct lut3d_caps {
+	uint32_t dma_3d_lut : 1; /*< DMA mode support for 3D LUT */
+	struct {
+		uint32_t swizzle_3d_rgb : 1;
+		uint32_t swizzle_3d_bgr : 1;
+		uint32_t linear_1d : 1;
+	} mem_layout_support;
+	struct {
+		uint32_t unorm_12msb : 1;
+		uint32_t unorm_12lsb : 1;
+		uint32_t float_fp1_5_10 : 1;
+	} mem_format_support;
+	struct {
+		uint32_t order_rgba : 1;
+		uint32_t order_bgra : 1;
+	} mem_pixel_order_support;
+	/*< size options are 9, 17, 33, 45, 65 */
+	struct {
+		uint32_t dim_9 : 1; /* 3D LUT support for 9x9x9 */
+		uint32_t dim_17 : 1; /* 3D LUT support for 17x17x17 */
+		uint32_t dim_33 : 1; /* 3D LUT support for 33x33x33 */
+		uint32_t dim_45 : 1; /* 3D LUT support for 45x45x45 */
+		uint32_t dim_65 : 1; /* 3D LUT support for 65x65x65 */
+	} lut_dim_caps;
+};
+
 /**
  * struct mpc_color_caps - color pipeline capabilities for multiple pipe and
  * plane combined blocks
@@ -204,14 +237,21 @@ struct dpp_color_caps {
  * @shared_3d_lut: shared 3D LUT flag. Can be either DPP or MPC, but single
  * instance
  * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ * @mcm_3d_lut_caps: HW support cap for MCM LUT memory
+ * @rmcm_3d_lut_caps: HW support cap for RMCM LUT memory
+ * @preblend: whether color manager supports preblend with MPC
  */
 struct mpc_color_caps {
 	uint16_t gamut_remap : 1;
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t num_3dluts : 3;
+	uint16_t num_rmcm_3dluts : 3;
 	uint16_t shared_3d_lut:1;
 	struct rom_curve_caps ogam_rom_caps;
+	struct lut3d_caps mcm_3d_lut_caps;
+	struct lut3d_caps rmcm_3d_lut_caps;
+	bool preblend;
 };
 
 /**
@@ -271,6 +311,7 @@ struct dc_caps {
 	bool dmcub_support;
 	bool zstate_support;
 	bool ips_support;
+	bool ips_v2_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
 	unsigned int mall_size_per_mem_channel;
@@ -308,6 +349,8 @@ struct dc_caps {
 	struct dc_scl_caps scl_caps;
 	uint8_t num_of_host_routers;
 	uint8_t num_of_dpias_per_host_router;
+	/* limit of the ODM only, could be limited by other factors (like pipe count)*/
+	uint8_t max_odm_combine_factor;
 };
 
 struct dc_bug_wa {
@@ -462,6 +505,7 @@ struct dc_config {
 	bool use_spl;
 	bool prefer_easf;
 	bool use_pipe_ctx_sync_logic;
+	int smart_mux_version;
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
 	bool use_default_clock_table;
@@ -472,6 +516,7 @@ struct dc_config {
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
+	unsigned int disable_ips_rcg;
 	unsigned int disable_ips_in_vpb;
 	bool disable_ips_in_dpms_off;
 	bool usb4_bw_alloc_support;
@@ -484,6 +529,8 @@ struct dc_config {
 	bool set_pipe_unlock_order;
 	bool enable_dpia_pre_training;
 	bool unify_link_enc_assignment;
+	struct spl_sharpness_range dcn_sharpness_range;
+	struct spl_sharpness_range dcn_override_sharpness_range;
 };
 
 enum visual_confirm {
@@ -495,6 +542,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWAPCHAIN = 6,
 	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_SMARTMUX_DGPU = 10,
 	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
@@ -773,6 +821,7 @@ enum pg_hw_resources {
 	PG_DCHVM,
 	PG_DWB,
 	PG_HPO,
+	PG_DCOH,
 	PG_HW_RESOURCES_NUM_ELEMENT
 };
 
@@ -789,10 +838,8 @@ union dpia_debug_options {
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
-		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
-		uint32_t enable_dpia_pre_training:1; /* bit 7 */
-		uint32_t unify_link_enc_assignment:1; /* bit 8 */
-		uint32_t reserved:24;
+		uint32_t enable_usb4_bw_zero_alloc_patch:1; /* bit 6 */
+		uint32_t reserved:25;
 	} bits;
 	uint32_t raw;
 };
@@ -918,6 +965,9 @@ struct dc_debug_options {
 	bool disable_dsc_power_gate;
 	bool disable_optc_power_gate;
 	bool disable_hpo_power_gate;
+	bool disable_io_clk_power_gate;
+	bool disable_mem_power_gate;
+	bool disable_dio_power_gate;
 	int dsc_min_slice_height_override;
 	int dsc_bpp_increment_div;
 	bool disable_pplib_wm_range;
@@ -1154,7 +1204,7 @@ struct dc_init_data {
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
 	uint32_t *clk_reg_offsets;
-	struct dml2_soc_bb *bb_from_dmub;
+	void *bb_from_dmub;
 };
 
 struct dc_callback_init {
@@ -1254,6 +1304,12 @@ union dc_3dlut_state {
 	uint32_t raw;
 };
 
+
+struct dc_rmcm_3dlut {
+	bool isInUse;
+	const struct dc_stream_state *stream;
+	uint8_t protection_bits;
+};
 
 struct dc_3dlut {
 	struct kref refcount;
@@ -1392,6 +1448,8 @@ struct dc_plane_state {
 	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
 	unsigned int sdr_white_level_nits;
+	struct spl_sharpness_range sharpness_range;
+	enum sharpness_range_source sharpness_source;
 };
 
 struct dc_plane_info {
@@ -1573,6 +1631,7 @@ struct dc_scratch_space {
 		bool blank_stream_on_ocs_change;
 		bool read_dpcd204h_on_irq_hpd;
 		bool force_dp_ffe_preset;
+		bool skip_phy_ssc_reduction;
 	} wa_flags;
 	union dc_dp_ffe_preset forced_dp_ffe_preset;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
@@ -1582,6 +1641,8 @@ struct dc_scratch_space {
 
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
+	bool is_dds;
+	bool is_display_mux_present;
 	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
 
 	struct dc_panel_config panel_config;
@@ -1636,6 +1697,10 @@ struct dc {
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
 
+	/* For eDP to know the switching state of SmartMux */
+	bool is_switch_in_progress_orig;
+	bool is_switch_in_progress_dest;
+
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
 
@@ -1666,7 +1731,7 @@ struct dc {
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
-	struct dml2_configuration_options dml2_tmp;
+	struct dml2_configuration_options dml2_dc_power_options;
 	enum dc_acpi_cm_power_state power_state;
 
 };
@@ -1771,19 +1836,15 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
 					struct dc_state *context,
-					bool fast_validate);
+					enum dc_validate_mode validate_mode);
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
 		struct gpio_service *gpio_service);
 
-/*
- * fast_validate: we return after determining if we can support the new state,
- * but before we populate the programming info
- */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,
@@ -2379,17 +2440,12 @@ void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw);
 
 /*
- * Validate the BW of all the valid DPIA links to make sure it doesn't exceed
- * available BW for each host router
+ * Calculates the DP tunneling bandwidth required for the stream timing
+ * and aggregates the stream bandwidth for the respective DP tunneling link
  *
- * @dc: pointer to dc struct
- * @stream: pointer to all possible streams
- * @count: number of valid DPIA streams
- *
- * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
+ * return: dc_status
  */
-bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *streams,
-		const unsigned int count);
+enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, const struct dc_state *new_ctx);
 
 /* Sink Interfaces - A sink corresponds to a display output device */
 

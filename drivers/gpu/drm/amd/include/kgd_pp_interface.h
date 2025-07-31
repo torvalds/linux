@@ -108,6 +108,8 @@ enum pp_clock_type {
 	PP_VCLK1,
 	PP_DCLK,
 	PP_DCLK1,
+	PP_ISPICLK,
+	PP_ISPXCLK,
 	OD_SCLK,
 	OD_MCLK,
 	OD_VDDC_CURVE,

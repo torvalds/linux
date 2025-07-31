@@ -2118,7 +2118,8 @@ static void mtk_dp_update_plugged_status(struct mtk_dp *mtk_dp)
 	mutex_unlock(&mtk_dp->update_plugged_status_lock);
 }
 
-static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+mtk_dp_bdg_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct mtk_dp *mtk_dp = mtk_dp_from_bridge(bridge);
 	enum drm_connector_status ret = connector_status_disconnected;
@@ -2725,9 +2726,10 @@ static int mtk_dp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	mtk_dp = devm_kzalloc(dev, sizeof(*mtk_dp), GFP_KERNEL);
-	if (!mtk_dp)
-		return -ENOMEM;
+	mtk_dp = devm_drm_bridge_alloc(dev, struct mtk_dp, bridge,
+				       &mtk_dp_bridge_funcs);
+	if (IS_ERR(mtk_dp))
+		return PTR_ERR(mtk_dp);
 
 	mtk_dp->dev = dev;
 	mtk_dp->data = (struct mtk_dp_data *)of_device_get_match_data(dev);
@@ -2785,7 +2787,6 @@ static int mtk_dp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	mtk_dp->bridge.funcs = &mtk_dp_bridge_funcs;
 	mtk_dp->bridge.of_node = dev->of_node;
 	mtk_dp->bridge.type = mtk_dp->data->bridge_type;
 

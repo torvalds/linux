@@ -7,11 +7,11 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <linux/hmm.h>
+#include <linux/hugetlb_inline.h>
 #include <linux/memremap.h>
-#include <linux/migrate.h>
 #include <linux/mm_types.h>
-#include <linux/pagemap.h>
 #include <linux/slab.h>
 
 #include <drm/drm_device.h>
@@ -108,21 +108,6 @@
  */
 
 /**
- * DOC: Migration
- *
- * The migration support is quite simple, allowing migration between RAM and
- * device memory at the range granularity. For example, GPU SVM currently does
- * not support mixing RAM and device memory pages within a range. This means
- * that upon GPU fault, the entire range can be migrated to device memory, and
- * upon CPU fault, the entire range is migrated to RAM. Mixed RAM and device
- * memory storage within a range could be added in the future if required.
- *
- * The reasoning for only supporting range granularity is as follows: it
- * simplifies the implementation, and range sizes are driver-defined and should
- * be relatively small.
- */
-
-/**
  * DOC: Partial Unmapping of Ranges
  *
  * Partial unmapping of ranges (e.g., 1M out of 2M is unmapped by CPU resulting
@@ -191,12 +176,9 @@
  *		}
  *
  *		if (driver_migration_policy(range)) {
- *			mmap_read_lock(mm);
- *			devmem = driver_alloc_devmem();
- *			err = drm_gpusvm_migrate_to_devmem(gpusvm, range,
- *							   devmem_allocation,
- *							   &ctx);
- *			mmap_read_unlock(mm);
+ *			err = drm_pagemap_populate_mm(driver_choose_drm_pagemap(),
+ *						      gpuva_start, gpuva_end, gpusvm->mm,
+ *						      ctx->timeslice_ms);
  *			if (err)	// CPU mappings may have changed
  *				goto retry;
  *		}
@@ -286,97 +268,6 @@ static unsigned long
 npages_in_range(unsigned long start, unsigned long end)
 {
 	return (end - start) >> PAGE_SHIFT;
-}
-
-/**
- * struct drm_gpusvm_zdd - GPU SVM zone device data
- *
- * @refcount: Reference count for the zdd
- * @devmem_allocation: device memory allocation
- * @device_private_page_owner: Device private pages owner
- *
- * This structure serves as a generic wrapper installed in
- * page->zone_device_data. It provides infrastructure for looking up a device
- * memory allocation upon CPU page fault and asynchronously releasing device
- * memory once the CPU has no page references. Asynchronous release is useful
- * because CPU page references can be dropped in IRQ contexts, while releasing
- * device memory likely requires sleeping locks.
- */
-struct drm_gpusvm_zdd {
-	struct kref refcount;
-	struct drm_gpusvm_devmem *devmem_allocation;
-	void *device_private_page_owner;
-};
-
-/**
- * drm_gpusvm_zdd_alloc() - Allocate a zdd structure.
- * @device_private_page_owner: Device private pages owner
- *
- * This function allocates and initializes a new zdd structure. It sets up the
- * reference count and initializes the destroy work.
- *
- * Return: Pointer to the allocated zdd on success, ERR_PTR() on failure.
- */
-static struct drm_gpusvm_zdd *
-drm_gpusvm_zdd_alloc(void *device_private_page_owner)
-{
-	struct drm_gpusvm_zdd *zdd;
-
-	zdd = kmalloc(sizeof(*zdd), GFP_KERNEL);
-	if (!zdd)
-		return NULL;
-
-	kref_init(&zdd->refcount);
-	zdd->devmem_allocation = NULL;
-	zdd->device_private_page_owner = device_private_page_owner;
-
-	return zdd;
-}
-
-/**
- * drm_gpusvm_zdd_get() - Get a reference to a zdd structure.
- * @zdd: Pointer to the zdd structure.
- *
- * This function increments the reference count of the provided zdd structure.
- *
- * Return: Pointer to the zdd structure.
- */
-static struct drm_gpusvm_zdd *drm_gpusvm_zdd_get(struct drm_gpusvm_zdd *zdd)
-{
-	kref_get(&zdd->refcount);
-	return zdd;
-}
-
-/**
- * drm_gpusvm_zdd_destroy() - Destroy a zdd structure.
- * @ref: Pointer to the reference count structure.
- *
- * This function queues the destroy_work of the zdd for asynchronous destruction.
- */
-static void drm_gpusvm_zdd_destroy(struct kref *ref)
-{
-	struct drm_gpusvm_zdd *zdd =
-		container_of(ref, struct drm_gpusvm_zdd, refcount);
-	struct drm_gpusvm_devmem *devmem = zdd->devmem_allocation;
-
-	if (devmem) {
-		complete_all(&devmem->detached);
-		if (devmem->ops->devmem_release)
-			devmem->ops->devmem_release(devmem);
-	}
-	kfree(zdd);
-}
-
-/**
- * drm_gpusvm_zdd_put() - Put a zdd reference.
- * @zdd: Pointer to the zdd structure.
- *
- * This function decrements the reference count of the provided zdd structure
- * and schedules its destruction if the count drops to zero.
- */
-static void drm_gpusvm_zdd_put(struct drm_gpusvm_zdd *zdd)
-{
-	kref_put(&zdd->refcount, drm_gpusvm_zdd_destroy);
 }
 
 /**
@@ -945,7 +836,7 @@ retry:
 		 * process-many-malloc' fails. In the failure case, each process
 		 * mallocs 16k but the CPU VMA is ~128k which results in 64k SVM
 		 * ranges. When migrating the SVM ranges, some processes fail in
-		 * drm_gpusvm_migrate_to_devmem with 'migrate.cpages != npages'
+		 * drm_pagemap_migrate_to_devmem with 'migrate.cpages != npages'
 		 * and then upon drm_gpusvm_range_get_pages device pages from
 		 * other processes are collected + faulted in which creates all
 		 * sorts of problems. Unsure exactly how this happening, also
@@ -979,6 +870,40 @@ static void drm_gpusvm_driver_lock_held(struct drm_gpusvm *gpusvm)
 {
 }
 #endif
+
+/**
+ * drm_gpusvm_find_vma_start() - Find start address for first VMA in range
+ * @gpusvm: Pointer to the GPU SVM structure
+ * @start: The inclusive start user address.
+ * @end: The exclusive end user address.
+ *
+ * Returns: The start address of first VMA within the provided range,
+ * ULONG_MAX otherwise. Assumes start_addr < end_addr.
+ */
+unsigned long
+drm_gpusvm_find_vma_start(struct drm_gpusvm *gpusvm,
+			  unsigned long start,
+			  unsigned long end)
+{
+	struct mm_struct *mm = gpusvm->mm;
+	struct vm_area_struct *vma;
+	unsigned long addr = ULONG_MAX;
+
+	if (!mmget_not_zero(mm))
+		return addr;
+
+	mmap_read_lock(mm);
+
+	vma = find_vma_intersection(mm, start, end);
+	if (vma)
+		addr =  vma->vm_start;
+
+	mmap_read_unlock(mm);
+	mmput(mm);
+
+	return addr;
+}
+EXPORT_SYMBOL_GPL(drm_gpusvm_find_vma_start);
 
 /**
  * drm_gpusvm_range_find_or_insert() - Find or insert GPU SVM range
@@ -1329,7 +1254,7 @@ int drm_gpusvm_range_get_pages(struct drm_gpusvm *gpusvm,
 		.dev_private_owner = gpusvm->device_private_page_owner,
 	};
 	struct mm_struct *mm = gpusvm->mm;
-	struct drm_gpusvm_zdd *zdd;
+	void *zdd;
 	unsigned long timeout =
 		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
 	unsigned long i, j;
@@ -1412,6 +1337,7 @@ map_pages:
 	}
 
 	zdd = NULL;
+	pagemap = NULL;
 	num_dma_mapped = 0;
 	for (i = 0, j = 0; i < npages; ++j) {
 		struct page *page = hmm_pfn_to_page(pfns[i]);
@@ -1431,7 +1357,7 @@ map_pages:
 				}
 
 				pagemap = page_pgmap(page);
-				dpagemap = zdd->devmem_allocation->dpagemap;
+				dpagemap = drm_pagemap_page_to_dpagemap(page);
 				if (drm_WARN_ON(gpusvm->drm, !dpagemap)) {
 					/*
 					 * Raced. This is not supposed to happen
@@ -1455,7 +1381,7 @@ map_pages:
 		} else {
 			dma_addr_t addr;
 
-			if (is_zone_device_page(page) || zdd) {
+			if (is_zone_device_page(page) || pagemap) {
 				err = -EOPNOTSUPP;
 				goto err_unmap;
 			}
@@ -1483,7 +1409,7 @@ map_pages:
 		flags.has_dma_mapping = true;
 	}
 
-	if (zdd) {
+	if (pagemap) {
 		flags.has_devmem_pages = true;
 		range->dpagemap = dpagemap;
 	}
@@ -1511,6 +1437,7 @@ EXPORT_SYMBOL_GPL(drm_gpusvm_range_get_pages);
 
 /**
  * drm_gpusvm_range_unmap_pages() - Unmap pages associated with a GPU SVM range
+ * drm_gpusvm_range_evict() - Evict GPU SVM range
  * @gpusvm: Pointer to the GPU SVM structure
  * @range: Pointer to the GPU SVM range structure
  * @ctx: GPU SVM context
@@ -1541,562 +1468,11 @@ void drm_gpusvm_range_unmap_pages(struct drm_gpusvm *gpusvm,
 EXPORT_SYMBOL_GPL(drm_gpusvm_range_unmap_pages);
 
 /**
- * drm_gpusvm_migration_unlock_put_page() - Put a migration page
- * @page: Pointer to the page to put
- *
- * This function unlocks and puts a page.
- */
-static void drm_gpusvm_migration_unlock_put_page(struct page *page)
-{
-	unlock_page(page);
-	put_page(page);
-}
-
-/**
- * drm_gpusvm_migration_unlock_put_pages() - Put migration pages
- * @npages: Number of pages
- * @migrate_pfn: Array of migrate page frame numbers
- *
- * This function unlocks and puts an array of pages.
- */
-static void drm_gpusvm_migration_unlock_put_pages(unsigned long npages,
-						  unsigned long *migrate_pfn)
-{
-	unsigned long i;
-
-	for (i = 0; i < npages; ++i) {
-		struct page *page;
-
-		if (!migrate_pfn[i])
-			continue;
-
-		page = migrate_pfn_to_page(migrate_pfn[i]);
-		drm_gpusvm_migration_unlock_put_page(page);
-		migrate_pfn[i] = 0;
-	}
-}
-
-/**
- * drm_gpusvm_get_devmem_page() - Get a reference to a device memory page
- * @page: Pointer to the page
- * @zdd: Pointer to the GPU SVM zone device data
- *
- * This function associates the given page with the specified GPU SVM zone
- * device data and initializes it for zone device usage.
- */
-static void drm_gpusvm_get_devmem_page(struct page *page,
-				       struct drm_gpusvm_zdd *zdd)
-{
-	page->zone_device_data = drm_gpusvm_zdd_get(zdd);
-	zone_device_page_init(page);
-}
-
-/**
- * drm_gpusvm_migrate_map_pages() - Map migration pages for GPU SVM migration
- * @dev: The device for which the pages are being mapped
- * @dma_addr: Array to store DMA addresses corresponding to mapped pages
- * @migrate_pfn: Array of migrate page frame numbers to map
- * @npages: Number of pages to map
- * @dir: Direction of data transfer (e.g., DMA_BIDIRECTIONAL)
- *
- * This function maps pages of memory for migration usage in GPU SVM. It
- * iterates over each page frame number provided in @migrate_pfn, maps the
- * corresponding page, and stores the DMA address in the provided @dma_addr
- * array.
- *
- * Return: 0 on success, -EFAULT if an error occurs during mapping.
- */
-static int drm_gpusvm_migrate_map_pages(struct device *dev,
-					dma_addr_t *dma_addr,
-					unsigned long *migrate_pfn,
-					unsigned long npages,
-					enum dma_data_direction dir)
-{
-	unsigned long i;
-
-	for (i = 0; i < npages; ++i) {
-		struct page *page = migrate_pfn_to_page(migrate_pfn[i]);
-
-		if (!page)
-			continue;
-
-		if (WARN_ON_ONCE(is_zone_device_page(page)))
-			return -EFAULT;
-
-		dma_addr[i] = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
-		if (dma_mapping_error(dev, dma_addr[i]))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
-/**
- * drm_gpusvm_migrate_unmap_pages() - Unmap pages previously mapped for GPU SVM migration
- * @dev: The device for which the pages were mapped
- * @dma_addr: Array of DMA addresses corresponding to mapped pages
- * @npages: Number of pages to unmap
- * @dir: Direction of data transfer (e.g., DMA_BIDIRECTIONAL)
- *
- * This function unmaps previously mapped pages of memory for GPU Shared Virtual
- * Memory (SVM). It iterates over each DMA address provided in @dma_addr, checks
- * if it's valid and not already unmapped, and unmaps the corresponding page.
- */
-static void drm_gpusvm_migrate_unmap_pages(struct device *dev,
-					   dma_addr_t *dma_addr,
-					   unsigned long npages,
-					   enum dma_data_direction dir)
-{
-	unsigned long i;
-
-	for (i = 0; i < npages; ++i) {
-		if (!dma_addr[i] || dma_mapping_error(dev, dma_addr[i]))
-			continue;
-
-		dma_unmap_page(dev, dma_addr[i], PAGE_SIZE, dir);
-	}
-}
-
-/**
- * drm_gpusvm_migrate_to_devmem() - Migrate GPU SVM range to device memory
+ * drm_gpusvm_range_evict() - Evict GPU SVM range
  * @gpusvm: Pointer to the GPU SVM structure
- * @range: Pointer to the GPU SVM range structure
- * @devmem_allocation: Pointer to the device memory allocation. The caller
- *                     should hold a reference to the device memory allocation,
- *                     which should be dropped via ops->devmem_release or upon
- *                     the failure of this function.
- * @ctx: GPU SVM context
- *
- * This function migrates the specified GPU SVM range to device memory. It
- * performs the necessary setup and invokes the driver-specific operations for
- * migration to device memory. Upon successful return, @devmem_allocation can
- * safely reference @range until ops->devmem_release is called which only upon
- * successful return. Expected to be called while holding the mmap lock in read
- * mode.
- *
- * Return: 0 on success, negative error code on failure.
- */
-int drm_gpusvm_migrate_to_devmem(struct drm_gpusvm *gpusvm,
-				 struct drm_gpusvm_range *range,
-				 struct drm_gpusvm_devmem *devmem_allocation,
-				 const struct drm_gpusvm_ctx *ctx)
-{
-	const struct drm_gpusvm_devmem_ops *ops = devmem_allocation->ops;
-	unsigned long start = drm_gpusvm_range_start(range),
-		      end = drm_gpusvm_range_end(range);
-	struct migrate_vma migrate = {
-		.start		= start,
-		.end		= end,
-		.pgmap_owner	= gpusvm->device_private_page_owner,
-		.flags		= MIGRATE_VMA_SELECT_SYSTEM,
-	};
-	struct mm_struct *mm = gpusvm->mm;
-	unsigned long i, npages = npages_in_range(start, end);
-	struct vm_area_struct *vas;
-	struct drm_gpusvm_zdd *zdd = NULL;
-	struct page **pages;
-	dma_addr_t *dma_addr;
-	void *buf;
-	int err;
-
-	mmap_assert_locked(gpusvm->mm);
-
-	if (!range->flags.migrate_devmem)
-		return -EINVAL;
-
-	if (!ops->populate_devmem_pfn || !ops->copy_to_devmem ||
-	    !ops->copy_to_ram)
-		return -EOPNOTSUPP;
-
-	vas = vma_lookup(mm, start);
-	if (!vas) {
-		err = -ENOENT;
-		goto err_out;
-	}
-
-	if (end > vas->vm_end || start < vas->vm_start) {
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	if (!vma_is_anonymous(vas)) {
-		err = -EBUSY;
-		goto err_out;
-	}
-
-	buf = kvcalloc(npages, 2 * sizeof(*migrate.src) + sizeof(*dma_addr) +
-		       sizeof(*pages), GFP_KERNEL);
-	if (!buf) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	dma_addr = buf + (2 * sizeof(*migrate.src) * npages);
-	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*dma_addr)) * npages;
-
-	zdd = drm_gpusvm_zdd_alloc(gpusvm->device_private_page_owner);
-	if (!zdd) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
-	migrate.vma = vas;
-	migrate.src = buf;
-	migrate.dst = migrate.src + npages;
-
-	err = migrate_vma_setup(&migrate);
-	if (err)
-		goto err_free;
-
-	if (!migrate.cpages) {
-		err = -EFAULT;
-		goto err_free;
-	}
-
-	if (migrate.cpages != npages) {
-		err = -EBUSY;
-		goto err_finalize;
-	}
-
-	err = ops->populate_devmem_pfn(devmem_allocation, npages, migrate.dst);
-	if (err)
-		goto err_finalize;
-
-	err = drm_gpusvm_migrate_map_pages(devmem_allocation->dev, dma_addr,
-					   migrate.src, npages, DMA_TO_DEVICE);
-	if (err)
-		goto err_finalize;
-
-	for (i = 0; i < npages; ++i) {
-		struct page *page = pfn_to_page(migrate.dst[i]);
-
-		pages[i] = page;
-		migrate.dst[i] = migrate_pfn(migrate.dst[i]);
-		drm_gpusvm_get_devmem_page(page, zdd);
-	}
-
-	err = ops->copy_to_devmem(pages, dma_addr, npages);
-	if (err)
-		goto err_finalize;
-
-	/* Upon success bind devmem allocation to range and zdd */
-	devmem_allocation->timeslice_expiration = get_jiffies_64() +
-		msecs_to_jiffies(ctx->timeslice_ms);
-	zdd->devmem_allocation = devmem_allocation;	/* Owns ref */
-
-err_finalize:
-	if (err)
-		drm_gpusvm_migration_unlock_put_pages(npages, migrate.dst);
-	migrate_vma_pages(&migrate);
-	migrate_vma_finalize(&migrate);
-	drm_gpusvm_migrate_unmap_pages(devmem_allocation->dev, dma_addr, npages,
-				       DMA_TO_DEVICE);
-err_free:
-	if (zdd)
-		drm_gpusvm_zdd_put(zdd);
-	kvfree(buf);
-err_out:
-	return err;
-}
-EXPORT_SYMBOL_GPL(drm_gpusvm_migrate_to_devmem);
-
-/**
- * drm_gpusvm_migrate_populate_ram_pfn() - Populate RAM PFNs for a VM area
- * @vas: Pointer to the VM area structure, can be NULL
- * @fault_page: Fault page
- * @npages: Number of pages to populate
- * @mpages: Number of pages to migrate
- * @src_mpfn: Source array of migrate PFNs
- * @mpfn: Array of migrate PFNs to populate
- * @addr: Start address for PFN allocation
- *
- * This function populates the RAM migrate page frame numbers (PFNs) for the
- * specified VM area structure. It allocates and locks pages in the VM area for
- * RAM usage. If vas is non-NULL use alloc_page_vma for allocation, if NULL use
- * alloc_page for allocation.
- *
- * Return: 0 on success, negative error code on failure.
- */
-static int drm_gpusvm_migrate_populate_ram_pfn(struct vm_area_struct *vas,
-					       struct page *fault_page,
-					       unsigned long npages,
-					       unsigned long *mpages,
-					       unsigned long *src_mpfn,
-					       unsigned long *mpfn,
-					       unsigned long addr)
-{
-	unsigned long i;
-
-	for (i = 0; i < npages; ++i, addr += PAGE_SIZE) {
-		struct page *page, *src_page;
-
-		if (!(src_mpfn[i] & MIGRATE_PFN_MIGRATE))
-			continue;
-
-		src_page = migrate_pfn_to_page(src_mpfn[i]);
-		if (!src_page)
-			continue;
-
-		if (fault_page) {
-			if (src_page->zone_device_data !=
-			    fault_page->zone_device_data)
-				continue;
-		}
-
-		if (vas)
-			page = alloc_page_vma(GFP_HIGHUSER, vas, addr);
-		else
-			page = alloc_page(GFP_HIGHUSER);
-
-		if (!page)
-			goto free_pages;
-
-		mpfn[i] = migrate_pfn(page_to_pfn(page));
-	}
-
-	for (i = 0; i < npages; ++i) {
-		struct page *page = migrate_pfn_to_page(mpfn[i]);
-
-		if (!page)
-			continue;
-
-		WARN_ON_ONCE(!trylock_page(page));
-		++*mpages;
-	}
-
-	return 0;
-
-free_pages:
-	for (i = 0; i < npages; ++i) {
-		struct page *page = migrate_pfn_to_page(mpfn[i]);
-
-		if (!page)
-			continue;
-
-		put_page(page);
-		mpfn[i] = 0;
-	}
-	return -ENOMEM;
-}
-
-/**
- * drm_gpusvm_evict_to_ram() - Evict GPU SVM range to RAM
- * @devmem_allocation: Pointer to the device memory allocation
- *
- * Similar to __drm_gpusvm_migrate_to_ram but does not require mmap lock and
- * migration done via migrate_device_* functions.
- *
- * Return: 0 on success, negative error code on failure.
- */
-int drm_gpusvm_evict_to_ram(struct drm_gpusvm_devmem *devmem_allocation)
-{
-	const struct drm_gpusvm_devmem_ops *ops = devmem_allocation->ops;
-	unsigned long npages, mpages = 0;
-	struct page **pages;
-	unsigned long *src, *dst;
-	dma_addr_t *dma_addr;
-	void *buf;
-	int i, err = 0;
-	unsigned int retry_count = 2;
-
-	npages = devmem_allocation->size >> PAGE_SHIFT;
-
-retry:
-	if (!mmget_not_zero(devmem_allocation->mm))
-		return -EFAULT;
-
-	buf = kvcalloc(npages, 2 * sizeof(*src) + sizeof(*dma_addr) +
-		       sizeof(*pages), GFP_KERNEL);
-	if (!buf) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	src = buf;
-	dst = buf + (sizeof(*src) * npages);
-	dma_addr = buf + (2 * sizeof(*src) * npages);
-	pages = buf + (2 * sizeof(*src) + sizeof(*dma_addr)) * npages;
-
-	err = ops->populate_devmem_pfn(devmem_allocation, npages, src);
-	if (err)
-		goto err_free;
-
-	err = migrate_device_pfns(src, npages);
-	if (err)
-		goto err_free;
-
-	err = drm_gpusvm_migrate_populate_ram_pfn(NULL, NULL, npages, &mpages,
-						  src, dst, 0);
-	if (err || !mpages)
-		goto err_finalize;
-
-	err = drm_gpusvm_migrate_map_pages(devmem_allocation->dev, dma_addr,
-					   dst, npages, DMA_FROM_DEVICE);
-	if (err)
-		goto err_finalize;
-
-	for (i = 0; i < npages; ++i)
-		pages[i] = migrate_pfn_to_page(src[i]);
-
-	err = ops->copy_to_ram(pages, dma_addr, npages);
-	if (err)
-		goto err_finalize;
-
-err_finalize:
-	if (err)
-		drm_gpusvm_migration_unlock_put_pages(npages, dst);
-	migrate_device_pages(src, dst, npages);
-	migrate_device_finalize(src, dst, npages);
-	drm_gpusvm_migrate_unmap_pages(devmem_allocation->dev, dma_addr, npages,
-				       DMA_FROM_DEVICE);
-err_free:
-	kvfree(buf);
-err_out:
-	mmput_async(devmem_allocation->mm);
-
-	if (completion_done(&devmem_allocation->detached))
-		return 0;
-
-	if (retry_count--) {
-		cond_resched();
-		goto retry;
-	}
-
-	return err ?: -EBUSY;
-}
-EXPORT_SYMBOL_GPL(drm_gpusvm_evict_to_ram);
-
-/**
- * __drm_gpusvm_migrate_to_ram() - Migrate GPU SVM range to RAM (internal)
- * @vas: Pointer to the VM area structure
- * @device_private_page_owner: Device private pages owner
- * @page: Pointer to the page for fault handling (can be NULL)
- * @fault_addr: Fault address
- * @size: Size of migration
- *
- * This internal function performs the migration of the specified GPU SVM range
- * to RAM. It sets up the migration, populates + dma maps RAM PFNs, and
- * invokes the driver-specific operations for migration to RAM.
- *
- * Return: 0 on success, negative error code on failure.
- */
-static int __drm_gpusvm_migrate_to_ram(struct vm_area_struct *vas,
-				       void *device_private_page_owner,
-				       struct page *page,
-				       unsigned long fault_addr,
-				       unsigned long size)
-{
-	struct migrate_vma migrate = {
-		.vma		= vas,
-		.pgmap_owner	= device_private_page_owner,
-		.flags		= MIGRATE_VMA_SELECT_DEVICE_PRIVATE |
-			MIGRATE_VMA_SELECT_DEVICE_COHERENT,
-		.fault_page	= page,
-	};
-	struct drm_gpusvm_zdd *zdd;
-	const struct drm_gpusvm_devmem_ops *ops;
-	struct device *dev = NULL;
-	unsigned long npages, mpages = 0;
-	struct page **pages;
-	dma_addr_t *dma_addr;
-	unsigned long start, end;
-	void *buf;
-	int i, err = 0;
-
-	if (page) {
-		zdd = page->zone_device_data;
-		if (time_before64(get_jiffies_64(),
-				  zdd->devmem_allocation->timeslice_expiration))
-			return 0;
-	}
-
-	start = ALIGN_DOWN(fault_addr, size);
-	end = ALIGN(fault_addr + 1, size);
-
-	/* Corner where VMA area struct has been partially unmapped */
-	if (start < vas->vm_start)
-		start = vas->vm_start;
-	if (end > vas->vm_end)
-		end = vas->vm_end;
-
-	migrate.start = start;
-	migrate.end = end;
-	npages = npages_in_range(start, end);
-
-	buf = kvcalloc(npages, 2 * sizeof(*migrate.src) + sizeof(*dma_addr) +
-		       sizeof(*pages), GFP_KERNEL);
-	if (!buf) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	dma_addr = buf + (2 * sizeof(*migrate.src) * npages);
-	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*dma_addr)) * npages;
-
-	migrate.vma = vas;
-	migrate.src = buf;
-	migrate.dst = migrate.src + npages;
-
-	err = migrate_vma_setup(&migrate);
-	if (err)
-		goto err_free;
-
-	/* Raced with another CPU fault, nothing to do */
-	if (!migrate.cpages)
-		goto err_free;
-
-	if (!page) {
-		for (i = 0; i < npages; ++i) {
-			if (!(migrate.src[i] & MIGRATE_PFN_MIGRATE))
-				continue;
-
-			page = migrate_pfn_to_page(migrate.src[i]);
-			break;
-		}
-
-		if (!page)
-			goto err_finalize;
-	}
-	zdd = page->zone_device_data;
-	ops = zdd->devmem_allocation->ops;
-	dev = zdd->devmem_allocation->dev;
-
-	err = drm_gpusvm_migrate_populate_ram_pfn(vas, page, npages, &mpages,
-						  migrate.src, migrate.dst,
-						  start);
-	if (err)
-		goto err_finalize;
-
-	err = drm_gpusvm_migrate_map_pages(dev, dma_addr, migrate.dst, npages,
-					   DMA_FROM_DEVICE);
-	if (err)
-		goto err_finalize;
-
-	for (i = 0; i < npages; ++i)
-		pages[i] = migrate_pfn_to_page(migrate.src[i]);
-
-	err = ops->copy_to_ram(pages, dma_addr, npages);
-	if (err)
-		goto err_finalize;
-
-err_finalize:
-	if (err)
-		drm_gpusvm_migration_unlock_put_pages(npages, migrate.dst);
-	migrate_vma_pages(&migrate);
-	migrate_vma_finalize(&migrate);
-	if (dev)
-		drm_gpusvm_migrate_unmap_pages(dev, dma_addr, npages,
-					       DMA_FROM_DEVICE);
-err_free:
-	kvfree(buf);
-err_out:
-
-	return err;
-}
-
-/**
- * drm_gpusvm_range_evict - Evict GPU SVM range
  * @range: Pointer to the GPU SVM range to be removed
  *
- * This function evicts the specified GPU SVM range. This function will not
- * evict coherent pages.
+ * This function evicts the specified GPU SVM range.
  *
  * Return: 0 on success, a negative error code on failure.
  */
@@ -2149,60 +1525,6 @@ int drm_gpusvm_range_evict(struct drm_gpusvm *gpusvm,
 EXPORT_SYMBOL_GPL(drm_gpusvm_range_evict);
 
 /**
- * drm_gpusvm_page_free() - Put GPU SVM zone device data associated with a page
- * @page: Pointer to the page
- *
- * This function is a callback used to put the GPU SVM zone device data
- * associated with a page when it is being released.
- */
-static void drm_gpusvm_page_free(struct page *page)
-{
-	drm_gpusvm_zdd_put(page->zone_device_data);
-}
-
-/**
- * drm_gpusvm_migrate_to_ram() - Migrate GPU SVM range to RAM (page fault handler)
- * @vmf: Pointer to the fault information structure
- *
- * This function is a page fault handler used to migrate a GPU SVM range to RAM.
- * It retrieves the GPU SVM range information from the faulting page and invokes
- * the internal migration function to migrate the range back to RAM.
- *
- * Return: VM_FAULT_SIGBUS on failure, 0 on success.
- */
-static vm_fault_t drm_gpusvm_migrate_to_ram(struct vm_fault *vmf)
-{
-	struct drm_gpusvm_zdd *zdd = vmf->page->zone_device_data;
-	int err;
-
-	err = __drm_gpusvm_migrate_to_ram(vmf->vma,
-					  zdd->device_private_page_owner,
-					  vmf->page, vmf->address,
-					  zdd->devmem_allocation->size);
-
-	return err ? VM_FAULT_SIGBUS : 0;
-}
-
-/*
- * drm_gpusvm_pagemap_ops - Device page map operations for GPU SVM
- */
-static const struct dev_pagemap_ops drm_gpusvm_pagemap_ops = {
-	.page_free = drm_gpusvm_page_free,
-	.migrate_to_ram = drm_gpusvm_migrate_to_ram,
-};
-
-/**
- * drm_gpusvm_pagemap_ops_get() - Retrieve GPU SVM device page map operations
- *
- * Return: Pointer to the GPU SVM device page map operations structure.
- */
-const struct dev_pagemap_ops *drm_gpusvm_pagemap_ops_get(void)
-{
-	return &drm_gpusvm_pagemap_ops;
-}
-EXPORT_SYMBOL_GPL(drm_gpusvm_pagemap_ops_get);
-
-/**
  * drm_gpusvm_has_mapping() - Check if GPU SVM has mapping for the given address range
  * @gpusvm: Pointer to the GPU SVM structure.
  * @start: Start address
@@ -2245,29 +1567,6 @@ void drm_gpusvm_range_set_unmapped(struct drm_gpusvm_range *range,
 		range->flags.partial_unmap = true;
 }
 EXPORT_SYMBOL_GPL(drm_gpusvm_range_set_unmapped);
-
-/**
- * drm_gpusvm_devmem_init() - Initialize a GPU SVM device memory allocation
- *
- * @dev: Pointer to the device structure which device memory allocation belongs to
- * @mm: Pointer to the mm_struct for the address space
- * @ops: Pointer to the operations structure for GPU SVM device memory
- * @dpagemap: The struct drm_pagemap we're allocating from.
- * @size: Size of device memory allocation
- */
-void drm_gpusvm_devmem_init(struct drm_gpusvm_devmem *devmem_allocation,
-			    struct device *dev, struct mm_struct *mm,
-			    const struct drm_gpusvm_devmem_ops *ops,
-			    struct drm_pagemap *dpagemap, size_t size)
-{
-	init_completion(&devmem_allocation->detached);
-	devmem_allocation->dev = dev;
-	devmem_allocation->mm = mm;
-	devmem_allocation->ops = ops;
-	devmem_allocation->dpagemap = dpagemap;
-	devmem_allocation->size = size;
-}
-EXPORT_SYMBOL_GPL(drm_gpusvm_devmem_init);
 
 MODULE_DESCRIPTION("DRM GPUSVM");
 MODULE_LICENSE("GPL");

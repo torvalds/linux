@@ -79,4 +79,6 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 bool fill_custom_backlight_caps(unsigned int config_no,
 		struct dm_acpi_atif_backlight_caps *caps);
 void reset_replay_dsync_error_count(struct dc_link *link);
+void change_replay_to_psr(struct dc_link *link);
+void change_psr_to_replay(struct dc_link *link);
 #endif /* MODULES_POWER_POWER_HELPERS_H_ */

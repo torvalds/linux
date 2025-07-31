@@ -47,7 +47,7 @@ static int amdgpu_mes_doorbell_init(struct amdgpu_device *adev)
 	/* Bitmap for dynamic allocation of kernel doorbells */
 	mes->doorbell_bitmap = bitmap_zalloc(PAGE_SIZE / sizeof(u32), GFP_KERNEL);
 	if (!mes->doorbell_bitmap) {
-		DRM_ERROR("Failed to allocate MES doorbell bitmap\n");
+		dev_err(adev->dev, "Failed to allocate MES doorbell bitmap\n");
 		return -ENOMEM;
 	}
 
@@ -256,7 +256,7 @@ int amdgpu_mes_suspend(struct amdgpu_device *adev)
 	r = adev->mes.funcs->suspend_gang(&adev->mes, &input);
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
-		DRM_ERROR("failed to suspend all gangs");
+		dev_err(adev->dev, "failed to suspend all gangs");
 
 	return r;
 }
@@ -280,7 +280,7 @@ int amdgpu_mes_resume(struct amdgpu_device *adev)
 	r = adev->mes.funcs->resume_gang(&adev->mes, &input);
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
-		DRM_ERROR("failed to resume all gangs");
+		dev_err(adev->dev, "failed to resume all gangs");
 
 	return r;
 }
@@ -304,7 +304,7 @@ int amdgpu_mes_map_legacy_queue(struct amdgpu_device *adev,
 	r = adev->mes.funcs->map_legacy_queue(&adev->mes, &queue_input);
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
-		DRM_ERROR("failed to map legacy queue\n");
+		dev_err(adev->dev, "failed to map legacy queue\n");
 
 	return r;
 }
@@ -329,7 +329,7 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 	r = adev->mes.funcs->unmap_legacy_queue(&adev->mes, &queue_input);
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
-		DRM_ERROR("failed to unmap legacy queue\n");
+		dev_err(adev->dev, "failed to unmap legacy queue\n");
 
 	return r;
 }
@@ -361,7 +361,7 @@ int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
 	r = adev->mes.funcs->reset_hw_queue(&adev->mes, &queue_input);
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
-		DRM_ERROR("failed to reset legacy queue\n");
+		dev_err(adev->dev, "failed to reset legacy queue\n");
 
 	return r;
 }
@@ -469,7 +469,8 @@ int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
 	int r;
 
 	if (!adev->mes.funcs->misc_op) {
-		DRM_ERROR("mes set shader debugger is not supported!\n");
+		dev_err(adev->dev,
+			"mes set shader debugger is not supported!\n");
 		return -EINVAL;
 	}
 
@@ -493,7 +494,7 @@ int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
 
 	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
 	if (r)
-		DRM_ERROR("failed to set_shader_debugger\n");
+		dev_err(adev->dev, "failed to set_shader_debugger\n");
 
 	amdgpu_mes_unlock(&adev->mes);
 
@@ -507,7 +508,8 @@ int amdgpu_mes_flush_shader_debugger(struct amdgpu_device *adev,
 	int r;
 
 	if (!adev->mes.funcs->misc_op) {
-		DRM_ERROR("mes flush shader debugger is not supported!\n");
+		dev_err(adev->dev,
+			"mes flush shader debugger is not supported!\n");
 		return -EINVAL;
 	}
 
@@ -519,7 +521,7 @@ int amdgpu_mes_flush_shader_debugger(struct amdgpu_device *adev,
 
 	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
 	if (r)
-		DRM_ERROR("failed to set_shader_debugger\n");
+		dev_err(adev->dev, "failed to set_shader_debugger\n");
 
 	amdgpu_mes_unlock(&adev->mes);
 

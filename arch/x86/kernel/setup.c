@@ -213,8 +213,10 @@ arch_initcall(init_x86_sysctl);
  */
 struct screen_info screen_info;
 EXPORT_SYMBOL(screen_info);
+#if defined(CONFIG_FIRMWARE_EDID)
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
+#endif
 
 extern int root_mountflags;
 
@@ -525,7 +527,9 @@ static void __init parse_boot_params(void)
 {
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
 	screen_info = boot_params.screen_info;
+#if defined(CONFIG_FIRMWARE_EDID)
 	edid_info = boot_params.edid_info;
+#endif
 #ifdef CONFIG_X86_32
 	apm_info.bios = boot_params.apm_bios_info;
 	ist_info = boot_params.ist_info;

@@ -5,6 +5,7 @@
 
 #include <kunit/test-bug.h>
 
+#include <linux/export.h>
 #include <linux/kmemleak.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
