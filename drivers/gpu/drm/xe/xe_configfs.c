@@ -88,8 +88,10 @@
 struct xe_config_group_device {
 	struct config_group group;
 
-	bool survivability_mode;
-	u64 engines_allowed;
+	struct xe_config_device {
+		bool survivability_mode;
+		u64 engines_allowed;
+	} config;
 
 	/* protects attributes */
 	struct mutex lock;
@@ -118,9 +120,14 @@ static struct xe_config_group_device *to_xe_config_group_device(struct config_it
 	return container_of(to_config_group(item), struct xe_config_group_device, group);
 }
 
+static struct xe_config_device *to_xe_config_device(struct config_item *item)
+{
+	return &to_xe_config_group_device(item)->config;
+}
+
 static ssize_t survivability_mode_show(struct config_item *item, char *page)
 {
-	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	struct xe_config_device *dev = to_xe_config_device(item);
 
 	return sprintf(page, "%d\n", dev->survivability_mode);
 }
@@ -136,7 +143,7 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 		return ret;
 
 	mutex_lock(&dev->lock);
-	dev->survivability_mode = survivability_mode;
+	dev->config.survivability_mode = survivability_mode;
 	mutex_unlock(&dev->lock);
 
 	return len;
@@ -144,7 +151,7 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 
 static ssize_t engines_allowed_show(struct config_item *item, char *page)
 {
-	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	struct xe_config_device *dev = to_xe_config_device(item);
 	char *p = page;
 
 	for (size_t i = 0; i < ARRAY_SIZE(engine_info); i++) {
@@ -220,7 +227,7 @@ static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 	}
 
 	mutex_lock(&dev->lock);
-	dev->engines_allowed = val;
+	dev->config.engines_allowed = val;
 	mutex_unlock(&dev->lock);
 
 	return len;
@@ -282,7 +289,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 		return ERR_PTR(-ENOMEM);
 
 	/* Default values */
-	dev->engines_allowed = U64_MAX;
+	dev->config.engines_allowed = U64_MAX;
 
 	config_group_init_type_name(&dev->group, name, &xe_config_device_type);
 
@@ -340,7 +347,7 @@ bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 	if (!dev)
 		return false;
 
-	mode = dev->survivability_mode;
+	mode = dev->config.survivability_mode;
 	config_group_put(&dev->group);
 
 	return mode;
@@ -361,7 +368,7 @@ void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 		return;
 
 	mutex_lock(&dev->lock);
-	dev->survivability_mode = 0;
+	dev->config.survivability_mode = 0;
 	mutex_unlock(&dev->lock);
 
 	config_group_put(&dev->group);
@@ -384,7 +391,7 @@ u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 	if (!dev)
 		return U64_MAX;
 
-	engines_allowed = dev->engines_allowed;
+	engines_allowed = dev->config.engines_allowed;
 	config_group_put(&dev->group);
 
 	return engines_allowed;
