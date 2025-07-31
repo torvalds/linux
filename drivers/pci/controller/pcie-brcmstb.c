@@ -973,7 +973,7 @@ static int brcm_pcie_get_inbound_wins(struct brcm_pcie *pcie,
 	 *
 	 * The PCIe host controller by design must set the inbound viewport to
 	 * be a contiguous arrangement of all of the system's memory.  In
-	 * addition, its size mut be a power of two.  To further complicate
+	 * addition, its size must be a power of two.  To further complicate
 	 * matters, the viewport must start on a pcie-address that is aligned
 	 * on a multiple of its size.  If a portion of the viewport does not
 	 * represent system memory -- e.g. 3GB of memory requires a 4GB
