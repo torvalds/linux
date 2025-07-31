@@ -1259,20 +1259,19 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_control *control,
 		      struct sk_buff *skb)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct ieee80211_sta *sta = control->sta;
+	struct mt7996_sta *msta = sta ? (void *)sta->drv_priv : NULL;
 	struct mt76_phy *mphy = hw->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
+	struct mt7996_vif *mvif = vif ? (void *)vif->drv_priv : NULL;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	u8 link_id = u32_get_bits(info->control.flags,
 				  IEEE80211_TX_CTRL_MLO_LINK);
-	struct mt7996_sta *msta;
-	struct mt7996_vif *mvif;
 
 	rcu_read_lock();
-
-	msta = control->sta ? (void *)control->sta->drv_priv : NULL;
-	mvif = vif ? (void *)vif->drv_priv : NULL;
 
 	/* Use primary link_id if the value from mac80211 is set to
 	 * IEEE80211_LINK_UNSPECIFIED.
@@ -1282,6 +1281,31 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 			link_id = msta->deflink_id;
 		else if (mvif)
 			link_id = mvif->mt76.deflink_id;
+	}
+
+	if (vif && ieee80211_vif_is_mld(vif)) {
+		struct ieee80211_bss_conf *link_conf;
+
+		if (msta) {
+			struct ieee80211_link_sta *link_sta;
+
+			link_sta = rcu_dereference(sta->link[link_id]);
+			if (!link_sta)
+				link_sta = rcu_dereference(sta->link[msta->deflink_id]);
+
+			if (link_sta) {
+				memcpy(hdr->addr1, link_sta->addr, ETH_ALEN);
+				if (ether_addr_equal(sta->addr, hdr->addr3))
+					memcpy(hdr->addr3, link_sta->addr, ETH_ALEN);
+			}
+		}
+
+		link_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (link_conf) {
+			memcpy(hdr->addr2, link_conf->addr, ETH_ALEN);
+			if (ether_addr_equal(vif->addr, hdr->addr3))
+				memcpy(hdr->addr3, link_conf->addr, ETH_ALEN);
+		}
 	}
 
 	if (mvif) {
