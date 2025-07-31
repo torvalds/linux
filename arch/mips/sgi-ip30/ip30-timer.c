@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2004-2007 Stanislaw Skowronek <skylark@unaligned.org>
  * Copyright (C) 2009 Johannes Dickgreber <tanzy@gmx.de>
- * Copyright (C) 2011 Joshua Kinard <kumba@gentoo.org>
+ * Copyright (C) 2011 Joshua Kinard <linux@kumba.dev>
  */
 
 #include <linux/clocksource.h>

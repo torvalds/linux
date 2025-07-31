@@ -776,7 +776,7 @@ struct txx9_sramc_dev {
 };
 
 static ssize_t txx9_sram_read(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr,
+			      const struct bin_attribute *bin_attr,
 			      char *buf, loff_t pos, size_t size)
 {
 	struct txx9_sramc_dev *dev = bin_attr->private;
@@ -791,7 +791,7 @@ static ssize_t txx9_sram_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t txx9_sram_write(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
+			       const struct bin_attribute *bin_attr,
 			       char *buf, loff_t pos, size_t size)
 {
 	struct txx9_sramc_dev *dev = bin_attr->private;
