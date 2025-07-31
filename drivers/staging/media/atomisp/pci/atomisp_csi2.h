@@ -19,27 +19,10 @@
 #define CSI2_PAD_SOURCE		1
 #define CSI2_PADS_NUM		2
 
-#define CSI2_MAX_ACPI_GPIOS	2u
-
-struct acpi_device;
 struct v4l2_device;
 
 struct atomisp_device;
 struct atomisp_sub_device;
-
-struct atomisp_csi2_acpi_gpio_map {
-	struct acpi_gpio_params params[CSI2_MAX_ACPI_GPIOS];
-	struct acpi_gpio_mapping mapping[CSI2_MAX_ACPI_GPIOS + 1];
-};
-
-struct atomisp_csi2_acpi_gpio_parsing_data {
-	struct acpi_device *adev;
-	struct atomisp_csi2_acpi_gpio_map *map;
-	u32 settings[CSI2_MAX_ACPI_GPIOS];
-	unsigned int settings_count;
-	unsigned int res_count;
-	unsigned int map_count;
-};
 
 struct atomisp_mipi_csi2_device {
 	struct v4l2_subdev subdev;

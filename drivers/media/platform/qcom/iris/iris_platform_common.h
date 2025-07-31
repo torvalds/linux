@@ -21,6 +21,7 @@ struct iris_inst;
 #define DEFAULT_MAX_HOST_BUF_COUNT		64
 #define DEFAULT_MAX_HOST_BURST_BUF_COUNT	256
 #define DEFAULT_FPS				30
+#define NUM_MBS_8K				((8192 * 4352) / 256)
 
 enum stage_type {
 	STAGE_1 = 1,
@@ -80,8 +81,12 @@ struct platform_inst_caps {
 };
 
 enum platform_inst_fw_cap_type {
-	PROFILE = 1,
-	LEVEL,
+	PROFILE_H264 = 1,
+	PROFILE_HEVC,
+	PROFILE_VP9,
+	LEVEL_H264,
+	LEVEL_HEVC,
+	LEVEL_VP9,
 	INPUT_BUF_HOST_MAX_COUNT,
 	STAGE,
 	PIPE,
@@ -89,7 +94,7 @@ enum platform_inst_fw_cap_type {
 	CODED_FRAMES,
 	BIT_DEPTH,
 	RAP_FRAME,
-	DEBLOCK,
+	TIER,
 	INST_FW_CAP_MAX,
 };
 
@@ -172,15 +177,24 @@ struct iris_platform_data {
 	struct ubwc_config_data *ubwc_config;
 	u32 num_vpp_pipe;
 	u32 max_session_count;
+	/* max number of macroblocks per frame supported */
 	u32 max_core_mbpf;
-	const u32 *input_config_params;
-	unsigned int input_config_params_size;
+	const u32 *input_config_params_default;
+	unsigned int input_config_params_default_size;
+	const u32 *input_config_params_hevc;
+	unsigned int input_config_params_hevc_size;
+	const u32 *input_config_params_vp9;
+	unsigned int input_config_params_vp9_size;
 	const u32 *output_config_params;
 	unsigned int output_config_params_size;
 	const u32 *dec_input_prop;
 	unsigned int dec_input_prop_size;
-	const u32 *dec_output_prop;
-	unsigned int dec_output_prop_size;
+	const u32 *dec_output_prop_avc;
+	unsigned int dec_output_prop_avc_size;
+	const u32 *dec_output_prop_hevc;
+	unsigned int dec_output_prop_hevc_size;
+	const u32 *dec_output_prop_vp9;
+	unsigned int dec_output_prop_vp9_size;
 	const u32 *dec_ip_int_buf_tbl;
 	unsigned int dec_ip_int_buf_tbl_size;
 	const u32 *dec_op_int_buf_tbl;
