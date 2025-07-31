@@ -453,7 +453,7 @@ struct xe_device {
 	/** @ordered_wq: used to serialize compute mode resume */
 	struct workqueue_struct *ordered_wq;
 
-	/** @unordered_wq: used to serialize unordered work, mostly display */
+	/** @unordered_wq: used to serialize unordered work */
 	struct workqueue_struct *unordered_wq;
 
 	/** @destroy_wq: used to serialize user destroy work, like queue */
