@@ -38,6 +38,7 @@ static int bch2_fsck_rename_dirent(struct btree_trans *trans,
 				   struct bkey_s_c_dirent old,
 				   bool *updated_before_k_pos)
 {
+	struct bch_fs *c = trans->c;
 	struct qstr old_name = bch2_dirent_get_name(old);
 	struct bkey_i_dirent *new = bch2_trans_kmalloc(trans, BKEY_U64s_MAX * sizeof(u64));
 	int ret = PTR_ERR_OR_ZERO(new);
@@ -60,7 +61,7 @@ static int bch2_fsck_rename_dirent(struct btree_trans *trans,
 					sprintf(renamed_buf, "%.*s.fsck_renamed-%u",
 						old_name.len, old_name.name, i));
 
-		ret = bch2_dirent_init_name(new, hash_info, &renamed_name, NULL);
+		ret = bch2_dirent_init_name(c, new, hash_info, &renamed_name, NULL);
 		if (ret)
 			return ret;
 
@@ -79,7 +80,7 @@ static int bch2_fsck_rename_dirent(struct btree_trans *trans,
 	}
 
 	ret = ret ?: bch2_fsck_update_backpointers(trans, s, desc, hash_info, &new->k_i);
-	bch_err_fn(trans->c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 

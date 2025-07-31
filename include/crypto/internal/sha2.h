@@ -25,7 +25,7 @@ void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
 void sha256_blocks_simd(u32 state[SHA256_STATE_WORDS],
 			const u8 *data, size_t nblocks);
 
-static inline void sha256_choose_blocks(
+static __always_inline void sha256_choose_blocks(
 	u32 state[SHA256_STATE_WORDS], const u8 *data, size_t nblocks,
 	bool force_generic, bool force_simd)
 {

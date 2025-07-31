@@ -362,14 +362,19 @@ static struct vesadrm_device *vesadrm_device_create(struct drm_driver *drv,
 
 	if (!__screen_info_vbe_mode_nonvga(si)) {
 		vesa->cmap_write = vesadrm_vga_cmap_write;
-#if defined(CONFIG_X86_32)
 	} else {
+#if defined(CONFIG_X86_32)
 		phys_addr_t pmi_base = __screen_info_vesapm_info_base(si);
-		const u16 *pmi_addr = phys_to_virt(pmi_base);
 
-		vesa->pmi.PrimaryPalette = (u8 *)pmi_addr + pmi_addr[2];
-		vesa->cmap_write = vesadrm_pmi_cmap_write;
+		if (pmi_base) {
+			const u16 *pmi_addr = phys_to_virt(pmi_base);
+
+			vesa->pmi.PrimaryPalette = (u8 *)pmi_addr + pmi_addr[2];
+			vesa->cmap_write = vesadrm_pmi_cmap_write;
+		} else
 #endif
+		if (format->is_color_indexed)
+			drm_warn(dev, "hardware palette is unchangeable, colors may be incorrect\n");
 	}
 
 #ifdef CONFIG_X86

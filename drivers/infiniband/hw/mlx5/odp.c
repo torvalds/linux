@@ -259,8 +259,8 @@ static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 	}
 
 	if (MLX5_CAP_ODP(mr_to_mdev(mr)->mdev, mem_page_fault))
-		__xa_erase(&mr_to_mdev(mr)->odp_mkeys,
-			   mlx5_base_mkey(mr->mmkey.key));
+		xa_erase(&mr_to_mdev(mr)->odp_mkeys,
+			 mlx5_base_mkey(mr->mmkey.key));
 	xa_unlock(&imr->implicit_children);
 
 	/* Freeing a MR is a sleeping operation, so bounce to a work queue */
@@ -532,8 +532,8 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	}
 
 	if (MLX5_CAP_ODP(dev->mdev, mem_page_fault)) {
-		ret = __xa_store(&dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
-				 &mr->mmkey, GFP_KERNEL);
+		ret = xa_store(&dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key),
+			       &mr->mmkey, GFP_KERNEL);
 		if (xa_is_err(ret)) {
 			ret = ERR_PTR(xa_err(ret));
 			__xa_erase(&imr->implicit_children, idx);

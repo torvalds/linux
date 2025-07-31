@@ -45,6 +45,7 @@
 #include "amdgpu_ras.h"
 
 MODULE_FIRMWARE("amdgpu/sdma_4_4_2.bin");
+MODULE_FIRMWARE("amdgpu/sdma_4_4_4.bin");
 MODULE_FIRMWARE("amdgpu/sdma_4_4_5.bin");
 
 static const struct amdgpu_hwip_reg_entry sdma_reg_list_4_4_2[] = {

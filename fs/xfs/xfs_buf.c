@@ -2082,44 +2082,6 @@ xfs_buf_delwri_submit(
 	return error;
 }
 
-/*
- * Push a single buffer on a delwri queue.
- *
- * The purpose of this function is to submit a single buffer of a delwri queue
- * and return with the buffer still on the original queue.
- *
- * The buffer locking and queue management logic between _delwri_pushbuf() and
- * _delwri_queue() guarantee that the buffer cannot be queued to another list
- * before returning.
- */
-int
-xfs_buf_delwri_pushbuf(
-	struct xfs_buf		*bp,
-	struct list_head	*buffer_list)
-{
-	int			error;
-
-	ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-
-	trace_xfs_buf_delwri_pushbuf(bp, _RET_IP_);
-
-	xfs_buf_lock(bp);
-	bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC);
-	bp->b_flags |= XBF_WRITE;
-	xfs_buf_submit(bp);
-
-	/*
-	 * The buffer is now locked, under I/O but still on the original delwri
-	 * queue. Wait for I/O completion, restore the DELWRI_Q flag and
-	 * return with the buffer unlocked and still on the original queue.
-	 */
-	error = xfs_buf_iowait(bp);
-	bp->b_flags |= _XBF_DELWRI_Q;
-	xfs_buf_unlock(bp);
-
-	return error;
-}
-
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {
 	/*
