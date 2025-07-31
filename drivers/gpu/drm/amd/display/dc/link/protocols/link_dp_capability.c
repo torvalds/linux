@@ -1525,8 +1525,8 @@ bool read_is_mst_supported(struct dc_link *link)
 		return false;
 	}
 
-	rev.raw  = 0;
-	cap.raw  = 0;
+	rev.raw = 0;
+	cap.raw = 0;
 
 	st = core_link_read_dpcd(link, DP_DPCD_REV, &rev.raw,
 			sizeof(rev));
@@ -2125,13 +2125,13 @@ void detect_edp_sink_caps(struct dc_link *link)
 						&backlight_adj_cap, sizeof(backlight_adj_cap));
 
 	link->dpcd_caps.dynamic_backlight_capable_edp =
-				(backlight_adj_cap & DP_EDP_DYNAMIC_BACKLIGHT_CAP) ? true:false;
+				(backlight_adj_cap & DP_EDP_DYNAMIC_BACKLIGHT_CAP) ? true : false;
 
 	core_link_read_dpcd(link, DP_EDP_GENERAL_CAP_1,
 						&general_edp_cap, sizeof(general_edp_cap));
 
 	link->dpcd_caps.set_power_state_capable_edp =
-				(general_edp_cap & DP_EDP_SET_POWER_CAP) ? true:false;
+				(general_edp_cap & DP_EDP_SET_POWER_CAP) ? true : false;
 
 	set_default_brightness_aux(link);
 
