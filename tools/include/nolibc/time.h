@@ -133,7 +133,8 @@ static __attribute__((unused))
 int clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
 		    struct timespec *rmtp)
 {
-	return __sysret(sys_clock_nanosleep(clockid, flags, rqtp, rmtp));
+	/* Directly return a positive error number */
+	return -sys_clock_nanosleep(clockid, flags, rqtp, rmtp);
 }
 
 static __inline__
@@ -145,7 +146,7 @@ double difftime(time_t time1, time_t time2)
 static __inline__
 int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 {
-	return clock_nanosleep(CLOCK_REALTIME, 0, rqtp, rmtp);
+	return __sysret(sys_clock_nanosleep(CLOCK_REALTIME, 0, rqtp, rmtp));
 }
 
 
