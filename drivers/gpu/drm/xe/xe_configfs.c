@@ -12,9 +12,9 @@
 #include <linux/string.h>
 
 #include "xe_configfs.h"
-#include "xe_module.h"
-
 #include "xe_hw_engine_types.h"
+#include "xe_module.h"
+#include "xe_pci_types.h"
 
 /**
  * DOC: Xe Configfs
@@ -280,6 +280,15 @@ static const struct xe_device_desc *xe_match_desc(struct pci_dev *pdev)
 	return found ? (const void *)found->driver_data : NULL;
 }
 
+static struct pci_dev *get_physfn_instead(struct pci_dev *virtfn)
+{
+	struct pci_dev *physfn = pci_physfn(virtfn);
+
+	pci_dev_get(physfn);
+	pci_dev_put(virtfn);
+	return physfn;
+}
+
 static struct config_group *xe_config_make_device_group(struct config_group *group,
 							const char *name)
 {
@@ -288,6 +297,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	const struct xe_device_desc *match;
 	struct pci_dev *pdev;
 	char canonical[16];
+	int vfnumber = 0;
 	int ret;
 
 	ret = sscanf(name, "%x:%x:%x.%x", &domain, &bus, &slot, &function);
@@ -301,12 +311,29 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 		return ERR_PTR(-EINVAL);
 
 	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
+	if (!pdev && function)
+		pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, 0));
+	if (!pdev && slot)
+		pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(0, 0));
 	if (!pdev)
 		return ERR_PTR(-ENODEV);
 
+	if (PCI_DEVFN(slot, function) != pdev->devfn) {
+		pdev = get_physfn_instead(pdev);
+		vfnumber = PCI_DEVFN(slot, function) - pdev->devfn;
+		if (!dev_is_pf(&pdev->dev) || vfnumber > pci_sriov_get_totalvfs(pdev)) {
+			pci_dev_put(pdev);
+			return ERR_PTR(-ENODEV);
+		}
+	}
+
 	match = xe_match_desc(pdev);
-	if (!match)
+	if (match && vfnumber && !match->has_sriov) {
+		pci_info(pdev, "xe driver does not support VFs on this device\n");
+		match = NULL;
+	} else if (!match) {
 		pci_info(pdev, "xe driver does not support configuration of this device\n");
+	}
 
 	pci_dev_put(pdev);
 
