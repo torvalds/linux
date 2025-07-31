@@ -6,6 +6,7 @@
  * Copyright (C) 2021 Nathan Rossi <nathan.rossi@digi.com>
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
@@ -41,7 +42,7 @@
 
 #define INA238_CONFIG_ADCRANGE		BIT(4)
 #define SQ52206_CONFIG_ADCRANGE_HIGH	BIT(4)
-#define SQ52206_CONFIG_ADCRANGE_LOW		BIT(3)
+#define SQ52206_CONFIG_ADCRANGE_LOW	BIT(3)
 
 #define INA238_DIAG_ALERT_TMPOL		BIT(7)
 #define INA238_DIAG_ALERT_SHNTOL	BIT(6)
@@ -104,9 +105,10 @@
 
 #define INA238_SHUNT_VOLTAGE_LSB	5 /* 5 uV/lsb */
 #define INA238_BUS_VOLTAGE_LSB		3125 /* 3.125 mV/lsb */
-#define INA238_DIE_TEMP_LSB			1250000 /* 125.0000 mC/lsb */
+#define INA238_DIE_TEMP_LSB		1250000 /* 125.0000 mC/lsb */
 #define SQ52206_BUS_VOLTAGE_LSB		3750 /* 3.75 mV/lsb */
 #define SQ52206_DIE_TEMP_LSB		78125 /* 7.8125 mC/lsb */
+#define INA228_DIE_TEMP_LSB		78125 /* 7.8125 mC/lsb */
 
 static const struct regmap_config ina238_regmap_config = {
 	.max_register = INA238_REGISTERS,
@@ -114,16 +116,17 @@ static const struct regmap_config ina238_regmap_config = {
 	.val_bits = 16,
 };
 
-enum ina238_ids { ina238, ina237, sq52206 };
+enum ina238_ids { ina238, ina237, sq52206, ina228 };
 
 struct ina238_config {
+	bool has_20bit_voltage_current; /* vshunt, vbus and current are 20-bit fields */
 	bool has_power_highest;		/* chip detection power peak */
-	bool has_energy;			/* chip detection energy */
-	u8 temp_shift;				/* fixed parameters for temp calculate */
+	bool has_energy;		/* chip detection energy */
+	u8 temp_shift;			/* fixed parameters for temp calculate */
 	u32 power_calculate_factor;	/* fixed parameters for power calculate */
-	u16 config_default;			/* Power-on default state */
+	u16 config_default;		/* Power-on default state */
 	int bus_voltage_lsb;		/* use for temperature calculate, uV/lsb */
-	int temp_lsb;				/* use for temperature calculate */
+	int temp_lsb;			/* use for temperature calculate */
 };
 
 struct ina238_data {
@@ -137,6 +140,7 @@ struct ina238_data {
 
 static const struct ina238_config ina238_config[] = {
 	[ina238] = {
+		.has_20bit_voltage_current = false,
 		.has_energy = false,
 		.has_power_highest = false,
 		.temp_shift = 4,
@@ -146,6 +150,7 @@ static const struct ina238_config ina238_config[] = {
 		.temp_lsb = INA238_DIE_TEMP_LSB,
 	},
 	[ina237] = {
+		.has_20bit_voltage_current = false,
 		.has_energy = false,
 		.has_power_highest = false,
 		.temp_shift = 4,
@@ -155,6 +160,7 @@ static const struct ina238_config ina238_config[] = {
 		.temp_lsb = INA238_DIE_TEMP_LSB,
 	},
 	[sq52206] = {
+		.has_20bit_voltage_current = false,
 		.has_energy = true,
 		.has_power_highest = true,
 		.temp_shift = 0,
@@ -162,6 +168,16 @@ static const struct ina238_config ina238_config[] = {
 		.config_default = SQ52206_CONFIG_DEFAULT,
 		.bus_voltage_lsb = SQ52206_BUS_VOLTAGE_LSB,
 		.temp_lsb = SQ52206_DIE_TEMP_LSB,
+	},
+	[ina228] = {
+		.has_20bit_voltage_current = true,
+		.has_energy = true,
+		.has_power_highest = false,
+		.temp_shift = 0,
+		.power_calculate_factor = 20,
+		.config_default = INA238_CONFIG_DEFAULT,
+		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
+		.temp_lsb = INA228_DIE_TEMP_LSB,
 	},
 };
 
@@ -199,6 +215,65 @@ static int ina238_read_reg40(const struct i2c_client *client, u8 reg, u64 *val)
 	return 0;
 }
 
+static int ina238_read_field_s20(const struct i2c_client *client, u8 reg, s32 *val)
+{
+	u32 regval;
+	int err;
+
+	err = ina238_read_reg24(client, reg, &regval);
+	if (err)
+		return err;
+
+	/* bits 3-0 Reserved, always zero */
+	regval >>= 4;
+
+	*val = sign_extend32(regval, 19);
+
+	return 0;
+}
+
+static int ina228_read_shunt_voltage(struct device *dev, u32 attr, int channel,
+				     long *val)
+{
+	struct ina238_data *data = dev_get_drvdata(dev);
+	int regval;
+	int err;
+
+	err = ina238_read_field_s20(data->client, INA238_SHUNT_VOLTAGE, &regval);
+	if (err)
+		return err;
+
+	/*
+	 * gain of 1 -> LSB / 4
+	 * This field has 16 bit on ina238. ina228 adds another 4 bits of
+	 * precision. ina238 conversion factors can still be applied when
+	 * dividing by 16.
+	 */
+	*val = (regval * INA238_SHUNT_VOLTAGE_LSB) * data->gain / (1000 * 4) / 16;
+	return 0;
+}
+
+static int ina228_read_bus_voltage(struct device *dev, u32 attr, int channel,
+				   long *val)
+{
+	struct ina238_data *data = dev_get_drvdata(dev);
+	int regval;
+	int err;
+
+	err = ina238_read_field_s20(data->client, INA238_BUS_VOLTAGE, &regval);
+	if (err)
+		return err;
+
+	/*
+	 * gain of 1 -> LSB / 4
+	 * This field has 16 bit on ina238. ina228 adds another 4 bits of
+	 * precision. ina238 conversion factors can still be applied when
+	 * dividing by 16.
+	 */
+	*val = (regval * data->config->bus_voltage_lsb) / 1000 / 16;
+	return 0;
+}
+
 static int ina238_read_in(struct device *dev, u32 attr, int channel,
 			  long *val)
 {
@@ -211,6 +286,8 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 	case 0:
 		switch (attr) {
 		case hwmon_in_input:
+			if (data->config->has_20bit_voltage_current)
+				return ina228_read_shunt_voltage(dev, attr, channel, val);
 			reg = INA238_SHUNT_VOLTAGE;
 			break;
 		case hwmon_in_max:
@@ -234,6 +311,8 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 	case 1:
 		switch (attr) {
 		case hwmon_in_input:
+			if (data->config->has_20bit_voltage_current)
+				return ina228_read_bus_voltage(dev, attr, channel, val);
 			reg = INA238_BUS_VOLTAGE;
 			break;
 		case hwmon_in_max:
@@ -271,7 +350,7 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 		if (channel == 0)
 			/* gain of 1 -> LSB / 4 */
 			*val = (regval * INA238_SHUNT_VOLTAGE_LSB) *
-					data->gain / (1000 * 4);
+				data->gain / (1000 * 4);
 		else
 			*val = (regval * data->config->bus_voltage_lsb) / 1000;
 		break;
@@ -341,13 +420,25 @@ static int ina238_read_current(struct device *dev, u32 attr, long *val)
 
 	switch (attr) {
 	case hwmon_curr_input:
-		err = regmap_read(data->regmap, INA238_CURRENT, &regval);
-		if (err < 0)
-			return err;
+		if (data->config->has_20bit_voltage_current) {
+			err = ina238_read_field_s20(data->client, INA238_CURRENT, &regval);
+			if (err)
+				return err;
+		} else {
+			err = regmap_read(data->regmap, INA238_CURRENT, &regval);
+			if (err < 0)
+				return err;
+			/* sign-extend */
+			regval = (s16)regval;
+		}
 
 		/* Signed register, fixed 1mA current lsb. result in mA */
-		*val = div_s64((s16)regval * INA238_FIXED_SHUNT * data->gain,
+		*val = div_s64((s64)regval * INA238_FIXED_SHUNT * data->gain,
 			       data->rshunt * 4);
+
+		/* Account for 4 bit offset */
+		if (data->config->has_20bit_voltage_current)
+			*val /= 16;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -370,7 +461,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 			return err;
 
 		/* Fixed 1mA lsb, scaled by 1000000 to have result in uW */
-		power = div_u64(regval * 1000ULL * INA238_FIXED_SHUNT *	data->gain *
+		power = div_u64(regval * 1000ULL * INA238_FIXED_SHUNT * data->gain *
 				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
 		/* Clamp value to maximum value of long */
 		*val = clamp_val(power, 0, LONG_MAX);
@@ -381,7 +472,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 			return err;
 
 		/* Fixed 1mA lsb, scaled by 1000000 to have result in uW */
-		power = div_u64(regval * 1000ULL * INA238_FIXED_SHUNT *	data->gain *
+		power = div_u64(regval * 1000ULL * INA238_FIXED_SHUNT * data->gain *
 				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
 		/* Clamp value to maximum value of long */
 		*val = clamp_val(power, 0, LONG_MAX);
@@ -395,7 +486,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 		 * Truncated 24-bit compare register, lower 8-bits are
 		 * truncated. Same conversion to/from uW as POWER register.
 		 */
-		power = div_u64((regval << 8) * 1000ULL * INA238_FIXED_SHUNT *	data->gain *
+		power = div_u64((regval << 8) * 1000ULL * INA238_FIXED_SHUNT * data->gain *
 				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
 		/* Clamp value to maximum value of long */
 		*val = clamp_val(power, 0, LONG_MAX);
@@ -448,7 +539,7 @@ static int ina238_read_temp(struct device *dev, u32 attr, long *val)
 			return err;
 		/* Signed, result in mC */
 		*val = div_s64(((s64)((s16)regval) >> data->config->temp_shift) *
-						(s64)data->config->temp_lsb, 10000);
+			       (s64)data->config->temp_lsb, 10000);
 		break;
 	case hwmon_temp_max:
 		err = regmap_read(data->regmap, INA238_TEMP_LIMIT, &regval);
@@ -456,7 +547,7 @@ static int ina238_read_temp(struct device *dev, u32 attr, long *val)
 			return err;
 		/* Signed, result in mC */
 		*val = div_s64(((s64)((s16)regval) >> data->config->temp_shift) *
-						(s64)data->config->temp_lsb, 10000);
+			       (s64)data->config->temp_lsb, 10000);
 		break;
 	case hwmon_temp_max_alarm:
 		err = regmap_read(data->regmap, INA238_DIAG_ALERT, &regval);
@@ -501,8 +592,8 @@ static ssize_t energy1_input_show(struct device *dev,
 		return ret;
 
 	/* result in uJ */
-	energy = div_u64(regval * INA238_FIXED_SHUNT *	data->gain * 16 * 10 *
-				data->config->power_calculate_factor, 4 * data->rshunt);
+	energy = div_u64(regval * INA238_FIXED_SHUNT * data->gain * 16 * 10 *
+			 data->config->power_calculate_factor, 4 * data->rshunt);
 
 	return sysfs_emit(buf, "%llu\n", energy);
 }
@@ -750,6 +841,7 @@ static int ina238_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ina238_id[] = {
+	{ "ina228", ina228 },
 	{ "ina237", ina237 },
 	{ "ina238", ina238 },
 	{ "sq52206", sq52206 },
@@ -758,6 +850,10 @@ static const struct i2c_device_id ina238_id[] = {
 MODULE_DEVICE_TABLE(i2c, ina238_id);
 
 static const struct of_device_id __maybe_unused ina238_of_match[] = {
+	{
+		.compatible = "ti,ina228",
+		.data = (void *)ina228
+	},
 	{
 		.compatible = "ti,ina237",
 		.data = (void *)ina237
