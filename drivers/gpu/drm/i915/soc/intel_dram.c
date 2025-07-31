@@ -11,6 +11,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"

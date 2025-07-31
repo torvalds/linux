@@ -28,6 +28,7 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_utils.h"
 #include "intel_connector.h"
 #include "intel_display_power.h"
 #include "intel_display_core.h"

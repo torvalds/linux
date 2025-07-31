@@ -10,6 +10,7 @@
 
 #include "pxp/intel_pxp.h"
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"

@@ -18,6 +18,7 @@
 #include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "i9xx_wm.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
