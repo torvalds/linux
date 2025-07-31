@@ -224,7 +224,7 @@ static int cc_generate_mlli(struct device *dev, struct buffer_array *sg_data,
 	/* Set MLLI size for the bypass operation */
 	mlli_params->mlli_len = (total_nents * LLI_ENTRY_BYTE_SIZE);
 
-	dev_dbg(dev, "MLLI params: virt_addr=%pK dma_addr=%pad mlli_len=0x%X\n",
+	dev_dbg(dev, "MLLI params: virt_addr=%p dma_addr=%pad mlli_len=0x%X\n",
 		mlli_params->mlli_virt_addr, &mlli_params->mlli_dma_addr,
 		mlli_params->mlli_len);
 
@@ -239,7 +239,7 @@ static void cc_add_sg_entry(struct device *dev, struct buffer_array *sgl_data,
 {
 	unsigned int index = sgl_data->num_of_buffers;
 
-	dev_dbg(dev, "index=%u nents=%u sgl=%pK data_len=0x%08X is_last=%d\n",
+	dev_dbg(dev, "index=%u nents=%u sgl=%p data_len=0x%08X is_last=%d\n",
 		index, nents, sgl, data_len, is_last_table);
 	sgl_data->nents[index] = nents;
 	sgl_data->entry[index].sgl = sgl;
@@ -298,7 +298,7 @@ cc_set_aead_conf_buf(struct device *dev, struct aead_req_ctx *areq_ctx,
 		dev_err(dev, "dma_map_sg() config buffer failed\n");
 		return -ENOMEM;
 	}
-	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%pK offset=%u length=%u\n",
+	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%p offset=%u length=%u\n",
 		&sg_dma_address(&areq_ctx->ccm_adata_sg),
 		sg_page(&areq_ctx->ccm_adata_sg),
 		sg_virt(&areq_ctx->ccm_adata_sg),
@@ -323,7 +323,7 @@ static int cc_set_hash_buf(struct device *dev, struct ahash_req_ctx *areq_ctx,
 		dev_err(dev, "dma_map_sg() src buffer failed\n");
 		return -ENOMEM;
 	}
-	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%pK offset=%u length=%u\n",
+	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%p offset=%u length=%u\n",
 		&sg_dma_address(areq_ctx->buff_sg), sg_page(areq_ctx->buff_sg),
 		sg_virt(areq_ctx->buff_sg), areq_ctx->buff_sg->offset,
 		areq_ctx->buff_sg->length);
@@ -359,11 +359,11 @@ void cc_unmap_cipher_request(struct device *dev, void *ctx,
 	if (src != dst) {
 		dma_unmap_sg(dev, src, req_ctx->in_nents, DMA_TO_DEVICE);
 		dma_unmap_sg(dev, dst, req_ctx->out_nents, DMA_FROM_DEVICE);
-		dev_dbg(dev, "Unmapped req->dst=%pK\n", sg_virt(dst));
-		dev_dbg(dev, "Unmapped req->src=%pK\n", sg_virt(src));
+		dev_dbg(dev, "Unmapped req->dst=%p\n", sg_virt(dst));
+		dev_dbg(dev, "Unmapped req->src=%p\n", sg_virt(src));
 	} else {
 		dma_unmap_sg(dev, src, req_ctx->in_nents, DMA_BIDIRECTIONAL);
-		dev_dbg(dev, "Unmapped req->src=%pK\n", sg_virt(src));
+		dev_dbg(dev, "Unmapped req->src=%p\n", sg_virt(src));
 	}
 }
 
@@ -391,11 +391,11 @@ int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
 		req_ctx->gen_ctx.iv_dma_addr =
 			dma_map_single(dev, info, ivsize, DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, req_ctx->gen_ctx.iv_dma_addr)) {
-			dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
+			dev_err(dev, "Mapping iv %u B at va=%p for DMA failed\n",
 				ivsize, info);
 			return -ENOMEM;
 		}
-		dev_dbg(dev, "Mapped iv %u B at va=%pK to dma=%pad\n",
+		dev_dbg(dev, "Mapped iv %u B at va=%p to dma=%pad\n",
 			ivsize, info, &req_ctx->gen_ctx.iv_dma_addr);
 	} else {
 		req_ctx->gen_ctx.iv_dma_addr = 0;
@@ -506,7 +506,7 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	if ((areq_ctx->assoc_buff_type == CC_DMA_BUF_MLLI ||
 	     areq_ctx->data_buff_type == CC_DMA_BUF_MLLI) &&
 	    (areq_ctx->mlli_params.mlli_virt_addr)) {
-		dev_dbg(dev, "free MLLI buffer: dma=%pad virt=%pK\n",
+		dev_dbg(dev, "free MLLI buffer: dma=%pad virt=%p\n",
 			&areq_ctx->mlli_params.mlli_dma_addr,
 			areq_ctx->mlli_params.mlli_virt_addr);
 		dma_pool_free(areq_ctx->mlli_params.curr_pool,
@@ -514,13 +514,13 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 			      areq_ctx->mlli_params.mlli_dma_addr);
 	}
 
-	dev_dbg(dev, "Unmapping src sgl: req->src=%pK areq_ctx->src.nents=%u areq_ctx->assoc.nents=%u assoclen:%u cryptlen=%u\n",
+	dev_dbg(dev, "Unmapping src sgl: req->src=%p areq_ctx->src.nents=%u areq_ctx->assoc.nents=%u assoclen:%u cryptlen=%u\n",
 		sg_virt(req->src), areq_ctx->src.nents, areq_ctx->assoc.nents,
 		areq_ctx->assoclen, req->cryptlen);
 
 	dma_unmap_sg(dev, req->src, areq_ctx->src.mapped_nents, src_direction);
 	if (req->src != req->dst) {
-		dev_dbg(dev, "Unmapping dst sgl: req->dst=%pK\n",
+		dev_dbg(dev, "Unmapping dst sgl: req->dst=%p\n",
 			sg_virt(req->dst));
 		dma_unmap_sg(dev, req->dst, areq_ctx->dst.mapped_nents, DMA_FROM_DEVICE);
 	}
@@ -566,7 +566,7 @@ static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 		dma_map_single(dev, areq_ctx->gen_ctx.iv, hw_iv_size,
 			       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, areq_ctx->gen_ctx.iv_dma_addr)) {
-		dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
+		dev_err(dev, "Mapping iv %u B at va=%p for DMA failed\n",
 			hw_iv_size, req->iv);
 		kfree_sensitive(areq_ctx->gen_ctx.iv);
 		areq_ctx->gen_ctx.iv = NULL;
@@ -574,7 +574,7 @@ static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 		goto chain_iv_exit;
 	}
 
-	dev_dbg(dev, "Mapped iv %u B at va=%pK to dma=%pad\n",
+	dev_dbg(dev, "Mapped iv %u B at va=%p to dma=%pad\n",
 		hw_iv_size, req->iv, &areq_ctx->gen_ctx.iv_dma_addr);
 
 chain_iv_exit:
@@ -977,7 +977,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 	dma_addr = dma_map_single(dev, areq_ctx->mac_buf, MAX_MAC_SIZE,
 				  DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, dma_addr)) {
-		dev_err(dev, "Mapping mac_buf %u B at va=%pK for DMA failed\n",
+		dev_err(dev, "Mapping mac_buf %u B at va=%p for DMA failed\n",
 			MAX_MAC_SIZE, areq_ctx->mac_buf);
 		rc = -ENOMEM;
 		goto aead_map_failure;
@@ -991,7 +991,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 					  DMA_TO_DEVICE);
 
 		if (dma_mapping_error(dev, dma_addr)) {
-			dev_err(dev, "Mapping mac_buf %u B at va=%pK for DMA failed\n",
+			dev_err(dev, "Mapping mac_buf %u B at va=%p for DMA failed\n",
 				AES_BLOCK_SIZE, addr);
 			areq_ctx->ccm_iv0_dma_addr = 0;
 			rc = -ENOMEM;
@@ -1009,7 +1009,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		dma_addr = dma_map_single(dev, areq_ctx->hkey, AES_BLOCK_SIZE,
 					  DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, dma_addr)) {
-			dev_err(dev, "Mapping hkey %u B at va=%pK for DMA failed\n",
+			dev_err(dev, "Mapping hkey %u B at va=%p for DMA failed\n",
 				AES_BLOCK_SIZE, areq_ctx->hkey);
 			rc = -ENOMEM;
 			goto aead_map_failure;
@@ -1019,7 +1019,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		dma_addr = dma_map_single(dev, &areq_ctx->gcm_len_block,
 					  AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma_addr)) {
-			dev_err(dev, "Mapping gcm_len_block %u B at va=%pK for DMA failed\n",
+			dev_err(dev, "Mapping gcm_len_block %u B at va=%p for DMA failed\n",
 				AES_BLOCK_SIZE, &areq_ctx->gcm_len_block);
 			rc = -ENOMEM;
 			goto aead_map_failure;
@@ -1030,7 +1030,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 					  AES_BLOCK_SIZE, DMA_TO_DEVICE);
 
 		if (dma_mapping_error(dev, dma_addr)) {
-			dev_err(dev, "Mapping gcm_iv_inc1 %u B at va=%pK for DMA failed\n",
+			dev_err(dev, "Mapping gcm_iv_inc1 %u B at va=%p for DMA failed\n",
 				AES_BLOCK_SIZE, (areq_ctx->gcm_iv_inc1));
 			areq_ctx->gcm_iv_inc1_dma_addr = 0;
 			rc = -ENOMEM;
@@ -1042,7 +1042,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 					  AES_BLOCK_SIZE, DMA_TO_DEVICE);
 
 		if (dma_mapping_error(dev, dma_addr)) {
-			dev_err(dev, "Mapping gcm_iv_inc2 %u B at va=%pK for DMA failed\n",
+			dev_err(dev, "Mapping gcm_iv_inc2 %u B at va=%p for DMA failed\n",
 				AES_BLOCK_SIZE, (areq_ctx->gcm_iv_inc2));
 			areq_ctx->gcm_iv_inc2_dma_addr = 0;
 			rc = -ENOMEM;
@@ -1152,7 +1152,7 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 	u32 dummy = 0;
 	u32 mapped_nents = 0;
 
-	dev_dbg(dev, "final params : curr_buff=%pK curr_buff_cnt=0x%X nbytes = 0x%X src=%pK curr_index=%u\n",
+	dev_dbg(dev, "final params : curr_buff=%p curr_buff_cnt=0x%X nbytes = 0x%X src=%p curr_index=%u\n",
 		curr_buff, *curr_buff_cnt, nbytes, src, areq_ctx->buff_index);
 	/* Init the type of the dma buffer */
 	areq_ctx->data_dma_buf_type = CC_DMA_BUF_NULL;
@@ -1236,7 +1236,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 	u32 dummy = 0;
 	u32 mapped_nents = 0;
 
-	dev_dbg(dev, " update params : curr_buff=%pK curr_buff_cnt=0x%X nbytes=0x%X src=%pK curr_index=%u\n",
+	dev_dbg(dev, " update params : curr_buff=%p curr_buff_cnt=0x%X nbytes=0x%X src=%p curr_index=%u\n",
 		curr_buff, *curr_buff_cnt, nbytes, src, areq_ctx->buff_index);
 	/* Init the type of the dma buffer */
 	areq_ctx->data_dma_buf_type = CC_DMA_BUF_NULL;
@@ -1246,7 +1246,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 	areq_ctx->in_nents = 0;
 
 	if (total_in_len < block_size) {
-		dev_dbg(dev, " less than one block: curr_buff=%pK *curr_buff_cnt=0x%X copy_to=%pK\n",
+		dev_dbg(dev, " less than one block: curr_buff=%p *curr_buff_cnt=0x%X copy_to=%p\n",
 			curr_buff, *curr_buff_cnt, &curr_buff[*curr_buff_cnt]);
 		areq_ctx->in_nents = sg_nents_for_len(src, nbytes);
 		sg_copy_to_buffer(src, areq_ctx->in_nents,
@@ -1265,7 +1265,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 
 	/* Copy the new residue to next buffer */
 	if (*next_buff_cnt) {
-		dev_dbg(dev, " handle residue: next buff %pK skip data %u residue %u\n",
+		dev_dbg(dev, " handle residue: next buff %p skip data %u residue %u\n",
 			next_buff, (update_data_len - *curr_buff_cnt),
 			*next_buff_cnt);
 		cc_copy_sg_portion(dev, next_buff, src,
@@ -1338,7 +1338,7 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 	 *allocated and should be released
 	 */
 	if (areq_ctx->mlli_params.curr_pool) {
-		dev_dbg(dev, "free MLLI buffer: dma=%pad virt=%pK\n",
+		dev_dbg(dev, "free MLLI buffer: dma=%pad virt=%p\n",
 			&areq_ctx->mlli_params.mlli_dma_addr,
 			areq_ctx->mlli_params.mlli_virt_addr);
 		dma_pool_free(areq_ctx->mlli_params.curr_pool,
@@ -1347,14 +1347,14 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 	}
 
 	if (src && areq_ctx->in_nents) {
-		dev_dbg(dev, "Unmapped sg src: virt=%pK dma=%pad len=0x%X\n",
+		dev_dbg(dev, "Unmapped sg src: virt=%p dma=%pad len=0x%X\n",
 			sg_virt(src), &sg_dma_address(src), sg_dma_len(src));
 		dma_unmap_sg(dev, src,
 			     areq_ctx->in_nents, DMA_TO_DEVICE);
 	}
 
 	if (*prev_len) {
-		dev_dbg(dev, "Unmapped buffer: areq_ctx->buff_sg=%pK dma=%pad len 0x%X\n",
+		dev_dbg(dev, "Unmapped buffer: areq_ctx->buff_sg=%p dma=%pad len 0x%X\n",
 			sg_virt(areq_ctx->buff_sg),
 			&sg_dma_address(areq_ctx->buff_sg),
 			sg_dma_len(areq_ctx->buff_sg));
