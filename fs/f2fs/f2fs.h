@@ -269,11 +269,32 @@ enum {
 #define DEF_DISABLE_QUICK_INTERVAL	1	/* 1 secs */
 #define DEF_UMOUNT_DISCARD_TIMEOUT	5	/* 5 secs */
 
+enum cp_time {
+	CP_TIME_START,		/* begin */
+	CP_TIME_LOCK,		/* after cp_global_sem */
+	CP_TIME_OP_LOCK,	/* after block_operation */
+	CP_TIME_FLUSH_META,	/* after flush sit/nat */
+	CP_TIME_SYNC_META,	/* after sync_meta_pages */
+	CP_TIME_SYNC_CP_META,	/* after sync cp meta pages */
+	CP_TIME_WAIT_DIRTY_META,/* after wait on dirty meta */
+	CP_TIME_WAIT_CP_DATA,	/* after wait on cp data */
+	CP_TIME_FLUSH_DEVICE,	/* after flush device cache */
+	CP_TIME_WAIT_LAST_CP,	/* after wait on last cp pack */
+	CP_TIME_END,		/* after unblock_operation */
+	CP_TIME_MAX,
+};
+
+/* time cost stats of checkpoint */
+struct cp_stats {
+	ktime_t times[CP_TIME_MAX];
+};
+
 struct cp_control {
 	int reason;
 	__u64 trim_start;
 	__u64 trim_end;
 	__u64 trim_minlen;
+	struct cp_stats stats;
 };
 
 /*
@@ -1643,6 +1664,7 @@ struct f2fs_sb_info {
 	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
 	long interval_time[MAX_TIME];		/* to store thresholds */
 	struct ckpt_req_control cprc_info;	/* for checkpoint request control */
+	struct cp_stats cp_stats;		/* for time stat of checkpoint */
 
 	struct inode_management im[MAX_INO_ENTRY];	/* manage inode cache */
 
