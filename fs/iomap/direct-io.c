@@ -139,8 +139,8 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
   } else {
     kfree(dio);
   }
-  e = ktime_get();
-  pr_info("iomap_dio_complete(): DIO completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  //e = ktime_get();
+  //pr_info("iomap_dio_complete(): DIO completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iomap_dio_complete);
@@ -203,14 +203,14 @@ static void spdio_end_io(struct bio *bio)
 		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
 
   // bio 플래그 확인 후 조기 반환 트리거 
-  if (bio->bi_flags & (1U << BIO_RETURN_TRIGGER)) {
-    struct task_struct *waiter = dio->submit.waiter;
-    if (waiter) {
-      WRITE_ONCE(dio->submit.waiter, NULL);
-      blk_wake_io_task(waiter);
-      //pr_info("spdio_end_io(): trigger completion point\n");
-    }
-  }
+  //if (bio->bi_flags & (1U << BIO_RETURN_TRIGGER)) {
+  struct task_struct *waiter = dio->submit.waiter;
+   if (waiter) {
+     WRITE_ONCE(dio->submit.waiter, NULL);
+     blk_wake_io_task(waiter);
+     //pr_info("spdio_end_io(): trigger completion point\n");
+   }
+  //}
   
   if (atomic_dec_and_test(&dio->ref)) {
     kfree(dio);
@@ -272,7 +272,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		struct iomap_dio *dio)
 {
   ktime_t s, e;
-  s = ktime_get();
+  //s = ktime_get();
 	const struct iomap *iomap = &iter->iomap;
 	struct inode *inode = iter->inode;
 	unsigned int blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
@@ -291,9 +291,9 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
   bool spdio = false;
   if (dio->iocb->ki_filp->f_flags & O_SPDIO)
     spdio = true;
-  e = ktime_get();
-  pr_info("iomap_dio_bio_iter(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
-  s = ktime_get();
+  //e = ktime_get();
+  //pr_info("iomap_dio_bio_iter(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  //s = ktime_get();
 	if ((pos | length | align) & ((1 << blkbits) - 1))
 		return -EINVAL;
 
@@ -345,27 +345,28 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	 * operation.
 	 */
 	bio_opf = iomap_dio_bio_opflags(dio, iomap, use_fua);
-  e = ktime_get();
-  pr_info("iomap_dio_bio_iter(): before prepare I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  //e = ktime_get();
+  //pr_info("iomap_dio_bio_iter(): before prepare I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 
-  /* threshold가 1M보다 작은 경우 좀 더 빠른 응답성을 위해
+  // threshold가 1M보다 작은 경우 좀 더 빠른 응답성을 위해
+  /*
   if (dio->threshold < 4096 * BIO_MAX_VECS) {
-    nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, 64);
+    nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, 32);
   } else {
     nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
-  }
-  */ 
-
+  } 
+  */
+  //nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   do {
-    s = ktime_get();
+    //s = ktime_get();
 		size_t n;
 		if (dio->error) {
 			iov_iter_revert(dio->submit.iter, copied);
 			copied = ret = 0;
 			goto out;
 		}
-
+    
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 		bio_set_dev(bio, iomap->bdev);
 		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
@@ -394,14 +395,13 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 			if (dio->flags & IOMAP_DIO_DIRTY)
 				bio_set_pages_dirty(bio);
 		}
-
+    //pr_info("iomap_dio_bio_iter(): nr_pages=%d, bi_size=%ld\n", nr_pages, n);
 		dio->size += n;
 		copied += n;
 
     //pr_info("iomap_dio_bio_iter(): nr_pages=%d, bi_size=%ld\n",
       //      nr_pages, n);
     nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
-
     if (spdio) {
       // 이 bio가 조기 완료 시킬 bio인지 확인 
       //pr_info(KERN_INFO "Enter SPDIO branch\n");
@@ -411,13 +411,13 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
       }
       bio->bi_end_io = spdio_end_io;
     }
-    e = ktime_get();
-    pr_info("iomap_dio_bio_iter(): prepare I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
-    s = ktime_get();
+    //e = ktime_get();
+    //pr_info("iomap_dio_bio_iter(): prepare I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+    //s = ktime_get();
 		iomap_dio_submit_bio(iter, dio, bio, pos);
 		pos += n;
-    e = ktime_get();
-    pr_info("iomap_dio_bio_iter(): submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+    //e = ktime_get();
+    //pr_info("iomap_dio_bio_iter(): submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	} while (nr_pages);
   
 	/*
@@ -532,7 +532,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int dio_flags)
 {
   ktime_t s, e;
-  s = ktime_get();
+  //s = ktime_get();
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct iomap_iter iomi = {
@@ -569,7 +569,9 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
   bool spdio = iocb->ki_filp->f_flags & O_SPDIO;
   if (spdio) {
     //unsigned int tmp = 4096 * 64;
-    dio->threshold = iomi.len / 4;
+    //dio->threshold = iomi.len / 2;
+    //if (dio->threshold < 4096)
+    //  dio->threshold = 4096;
     //if (dio->threshold > tmp)
       //dio->threshold = tmp;
     atomic_set(&dio->early_woken, 0);
@@ -649,24 +651,24 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				goto out_free_dio;
 		}
 	}
-  e = ktime_get();
-  pr_info("__iomap_dio_rw(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  //e = ktime_get();
+  //pr_info("__iomap_dio_rw(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	inode_dio_begin(inode);
 
-  s = ktime_get();
+  //s = ktime_get();
 	blk_start_plug(&plug);
 	while ((ret = iomap_iter(&iomi, ops)) > 0) {
 		iomi.processed = iomap_dio_iter(&iomi, dio);
   }
 	blk_finish_plug(&plug);
-  e = ktime_get();
-  pr_info("__iomap_dio_rw(): prepare & submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  //e = ktime_get();
+  //pr_info("__iomap_dio_rw(): prepare & submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	/*
 	 * We only report that we've read data up to i_size.
 	 * Revert iter to a state corresponding to that as some callers (such
 	 * as the splice code) rely on it.
 	 */
-  s = ktime_get();
+  //s = ktime_get();
 	if (iov_iter_rw(iter) == READ && iomi.pos >= dio->i_size)
 		iov_iter_revert(iter, iomi.pos - dio->i_size);
 
@@ -723,8 +725,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		__set_current_state(TASK_RUNNING);
 	}
-  e = ktime_get();
-  pr_info("__iomap_dio_rw(): wait I/O completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  //e = ktime_get();
+  //pr_info("__iomap_dio_rw(): wait I/O completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	return dio;
 
 out_free_dio:
@@ -742,10 +744,10 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 {
 	struct iomap_dio *dio;
   ktime_t start, end;
-  start = ktime_get();
+  //start = ktime_get();
 	dio = __iomap_dio_rw(iocb, iter, ops, dops, dio_flags);
-  end = ktime_get();
-  pr_info("__iomap_dio_rw(): latency=%lld ns\n", ktime_to_ns(ktime_sub(end, start)));
+  //end = ktime_get();
+  //pr_info("__iomap_dio_rw(): latency=%lld ns\n", ktime_to_ns(ktime_sub(end, start)));
 	if (IS_ERR_OR_NULL(dio))
 		return PTR_ERR_OR_ZERO(dio);
 	return iomap_dio_complete(dio);

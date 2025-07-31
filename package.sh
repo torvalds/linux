@@ -12,10 +12,13 @@ JOBS=$(nproc)
 #scripts/config --file "$BUILD/.config" \
 #  --set-str CONFIG_LOCALVERSION "$LOCAL"
 
-make O="$BUILD" -j"$JOBS" bindeb-pkg
+make O="$BUILD" -j"$JOBS"
+#bindeb-pkg
 
-cd "$BUILD"/..
-sudo dpkg -i linux-image-*${LOCAL}*.deb \
-  linux-headers-*${LOCAL}*.deb
+#cd "$BUILD"/..
+#sudo dpkg -i linux-image-*${LOCAL}*.deb \
+#  linux-headers-*${LOCAL}*.deb
+
+sudo make O="$BUILD" install
 
 sudo reboot
