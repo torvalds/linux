@@ -1,0 +1,96 @@
+{
+  "learning_rate": 0.01,
+  "prediction_threshold": 0.7,
+  "attention_budget_per_hour": 100.0,
+  "max_concurrent_tasks": 10,
+  "max_predictions_per_user": 5,
+  "workflow_timeout_seconds": 300,
+  "adaptation_interval_seconds": 3600,
+  "ml_model_path": "/var/lib/heros/pta_ml_model.bin",
+  "backup_path": "/var/backup/heros/pta_backup.db",
+  "learning_parameters": {
+    "pattern_recognition_threshold": 0.6,
+    "behavior_modeling_window": 86400,
+    "prediction_horizon": 3600,
+    "confidence_decay_rate": 0.95,
+    "min_pattern_frequency": 3
+  },
+  "attention_economy": {
+    "base_credits_per_hour": 100.0,
+    "earning_rate_multiplier": 1.0,
+    "spending_rate_multiplier": 1.0,
+    "max_credits_carried_over": 200.0,
+    "credit_reset_interval": 86400
+  },
+  "task_prioritization": {
+    "urgency_weight": 0.4,
+    "importance_weight": 0.3,
+    "context_relevance_weight": 0.2,
+    "user_preference_weight": 0.1,
+    "min_priority_threshold": 0.3
+  },
+  "workflow_automation": {
+    "max_workflow_steps": 50,
+    "step_timeout_seconds": 30,
+    "retry_attempts": 3,
+    "retry_delay_seconds": 5,
+    "parallel_execution_limit": 5
+  },
+  "context_awareness": {
+    "context_update_interval": 60,
+    "context_memory_duration": 3600,
+    "relevance_threshold": 0.5,
+    "max_contexts_per_user": 10,
+    "context_fusion_enabled": true
+  },
+  "machine_learning": {
+    "model_update_frequency": 3600,
+    "training_data_retention_days": 30,
+    "feature_extraction_enabled": true,
+    "online_learning_enabled": true,
+    "model_backup_frequency": 86400
+  },
+  "performance_tuning": {
+    "event_queue_size": 1000,
+    "prediction_cache_size": 256,
+    "context_cache_size": 512,
+    "task_pool_size": 100,
+    "max_memory_usage_mb": 512
+  },
+  "integration_settings": {
+    "metadata_daemon_socket": "/tmp/heros_metadata.sock",
+    "action_daemon_socket": "/tmp/heros_action.sock",
+    "ai_integration_socket": "/tmp/heros_ai_integration.sock",
+    "wal_daemon_url": "http://127.0.0.1:9292",
+    "dedup_daemon_socket": "/tmp/heros_dedup.sock"
+  },
+  "security_settings": {
+    "authentication_required": true,
+    "encryption_enabled": true,
+    "audit_logging_enabled": true,
+    "access_control_enabled": true,
+    "rate_limiting_enabled": true
+  },
+  "monitoring_settings": {
+    "metrics_collection_enabled": true,
+    "health_check_interval": 30,
+    "performance_monitoring_enabled": true,
+    "alert_thresholds": {
+      "prediction_accuracy_min": 0.7,
+      "task_completion_rate_min": 0.8,
+      "attention_credit_balance_min": 10.0,
+      "response_time_max_ms": 1000
+    }
+  },
+  "user_experience": {
+    "proactive_suggestions_enabled": true,
+    "automation_transparency_enabled": true,
+    "user_control_level": "adaptive",
+    "notification_preferences": {
+      "task_suggestions": true,
+      "workflow_progress": true,
+      "attention_credit_alerts": true,
+      "prediction_accuracy_reports": false
+    }
+  }
+} 

@@ -1,0 +1,20 @@
+[package]
+name = "dedup_daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.0"
+warp = "0.3"
+reqwest = { version = "0.11", features = ["json"] }
+blake3 = "1.0"
+thiserror = "1.0"
+lazy_static = "1.4"
+sysinfo = "0.29"
+toml = "0.8"
+futures = "0.3"
+libc = "0.2"

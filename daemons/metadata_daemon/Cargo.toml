@@ -1,0 +1,24 @@
+[package]
+name = "metadata_daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.29", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio-util = "0.7"
+thiserror = "1"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+syslog = "6"
+base64 = "0.21"
+chrono = { version = "0.4", features = ["serde"] }
+lazy_static = "1.4"
+regex = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+anyhow = "1.0"
+
+[[bin]]
+name = "manifest_cli"
+path = "src/bin/manifest_cli.rs" 

@@ -1,0 +1,22 @@
+# Example PDP Policy File for HER OS
+# Format: <allow|deny> <type>:<value>
+# Types: path, subvol, snapshot, subvolname, user, group, hours, expr
+
+# Deny access to a specific subvolume
+deny subvol:12345
+# Deny access to snapshot 1
+deny snapshot:1
+# Deny access to @snapshots subvolume
+deny subvolname:@snapshots
+# Allow user alice
+allow user:alice
+# Allow access for admin group
+allow group:admin
+# Deny access for guests group
+deny group:guests
+# Allow access for uid 1000 between 8am and 6pm
+allow expr:uid==1000&&hour>=8&&hour<=18
+# Deny access for uid 1001 before 8am
+deny expr:uid==1001&&hour<8
+# Allow everything else by default
+allow * 

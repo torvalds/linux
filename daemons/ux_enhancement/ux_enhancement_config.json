@@ -1,0 +1,444 @@
+{
+  "daemon_settings": {
+    "max_notifications": 100,
+    "max_search_suggestions": 50,
+    "max_scheduled_tasks": 200,
+    "max_accessibility_features": 20,
+    "max_personalization_rules": 100,
+    "notification_timeout_seconds": 3600,
+    "search_suggestion_cache_size": 1000,
+    "task_scheduling_horizon_days": 30,
+    "enable_real_time_processing": true,
+    "enable_background_learning": true
+  },
+  "intelligent_notifications": {
+    "enable_context_awareness": true,
+    "enable_personalization": true,
+    "enable_priority_learning": true,
+    "enable_timing_optimization": true,
+    "enable_action_suggestions": true,
+    "notification_categories": {
+      "work": {"priority": "high", "timeout": 7200},
+      "personal": {"priority": "normal", "timeout": 3600},
+      "system": {"priority": "low", "timeout": 1800},
+      "urgent": {"priority": "critical", "timeout": 300},
+      "ai_suggestion": {"priority": "normal", "timeout": 5400}
+    },
+    "delivery_methods": {
+      "desktop_notification": true,
+      "speech_synthesis": true,
+      "email": false,
+      "sms": false,
+      "push_notification": false
+    },
+    "learning_settings": {
+      "user_response_tracking": true,
+      "preference_learning": true,
+      "timing_optimization": true,
+      "content_personalization": true
+    }
+  },
+  "predictive_search": {
+    "enable_semantic_search": true,
+    "enable_auto_completion": true,
+    "enable_context_awareness": true,
+    "enable_learning": true,
+    "max_suggestions": 10,
+    "confidence_threshold": 0.7,
+    "search_categories": {
+      "files": {"weight": 1.0, "enabled": true},
+      "applications": {"weight": 0.8, "enabled": true},
+      "web": {"weight": 0.6, "enabled": true},
+      "contacts": {"weight": 0.7, "enabled": true},
+      "calendar": {"weight": 0.9, "enabled": true}
+    },
+    "learning_algorithm": "collaborative_filtering",
+    "update_frequency_minutes": 30,
+    "enable_federated_learning": true
+  },
+  "automated_file_organization": {
+    "enable_auto_organization": true,
+    "organization_frequency_hours": 24,
+    "enable_smart_folders": true,
+    "enable_tagging": true,
+    "enable_content_analysis": true,
+    "organization_rules": {
+      "documents": {
+        "extensions": [".pdf", ".doc", ".docx", ".txt", ".rtf"],
+        "destination": "Documents",
+        "subcategories": ["work", "personal", "reference"]
+      },
+      "images": {
+        "extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg"],
+        "destination": "Images",
+        "subcategories": ["photos", "screenshots", "artwork"]
+      },
+      "videos": {
+        "extensions": [".mp4", ".avi", ".mov", ".mkv", ".wmv"],
+        "destination": "Videos",
+        "subcategories": ["movies", "recordings", "clips"]
+      },
+      "music": {
+        "extensions": [".mp3", ".wav", ".flac", ".aac", ".ogg"],
+        "destination": "Music",
+        "subcategories": ["songs", "podcasts", "audiobooks"]
+      },
+      "downloads": {
+        "extensions": [".zip", ".tar", ".gz", ".rar"],
+        "destination": "Downloads",
+        "subcategories": ["archives", "installers", "temp"]
+      }
+    },
+    "ai_categorization": {
+      "enable_content_analysis": true,
+      "enable_metadata_extraction": true,
+      "enable_similarity_grouping": true,
+      "confidence_threshold": 0.8
+    }
+  },
+  "smart_scheduling": {
+    "enable_ai_scheduling": true,
+    "enable_conflict_resolution": true,
+    "enable_optimization": true,
+    "enable_learning": true,
+    "scheduling_horizon_days": 30,
+    "optimization_goals": {
+      "productivity": 0.4,
+      "work_life_balance": 0.3,
+      "energy_optimization": 0.2,
+      "social_engagement": 0.1
+    },
+    "task_categories": {
+      "work": {"priority": 0.8, "duration_estimate": "auto"},
+      "personal": {"priority": 0.6, "duration_estimate": "auto"},
+      "health": {"priority": 0.9, "duration_estimate": "auto"},
+      "learning": {"priority": 0.7, "duration_estimate": "auto"},
+      "social": {"priority": 0.5, "duration_estimate": "auto"}
+    },
+    "scheduling_algorithm": "genetic_algorithm",
+    "enable_calendar_integration": true,
+    "enable_weather_consideration": true,
+    "enable_traffic_consideration": true
+  },
+  "context_aware_assistance": {
+    "enable_proactive_assistance": true,
+    "enable_workflow_optimization": true,
+    "enable_learning": true,
+    "context_window_minutes": 60,
+    "assistance_types": {
+      "file_management": {"enabled": true, "priority": "high"},
+      "email_management": {"enabled": true, "priority": "high"},
+      "scheduling": {"enabled": true, "priority": "medium"},
+      "search": {"enabled": true, "priority": "medium"},
+      "security": {"enabled": true, "priority": "critical"},
+      "performance": {"enabled": true, "priority": "medium"}
+    },
+    "learning_settings": {
+      "user_feedback_tracking": true,
+      "success_rate_learning": true,
+      "context_pattern_recognition": true,
+      "assistance_effectiveness_tracking": true
+    }
+  },
+  "universal_accessibility": {
+    "enable_screen_reader": true,
+    "enable_voice_control": true,
+    "enable_gesture_recognition": true,
+    "enable_eye_tracking": false,
+    "enable_brain_computer_interface": false,
+    "accessibility_features": {
+      "screen_reader": {
+        "enabled": true,
+        "voice": "default",
+        "speed": 1.0,
+        "pitch": 1.0,
+        "volume": 0.8
+      },
+      "voice_control": {
+        "enabled": true,
+        "language": "en",
+        "recognition_engine": "google_speech",
+        "command_customization": true
+      },
+      "high_contrast": {
+        "enabled": false,
+        "theme": "high_contrast",
+        "color_scheme": "dark_on_light"
+      },
+      "large_text": {
+        "enabled": false,
+        "scaling_factor": 1.5,
+        "minimum_size": 12
+      },
+      "keyboard_navigation": {
+        "enabled": true,
+        "shortcuts_enabled": true,
+        "sticky_keys": false,
+        "slow_keys": false
+      },
+      "mouse_alternatives": {
+        "enabled": false,
+        "trackball": false,
+        "head_pointer": false,
+        "switch_control": false
+      }
+    },
+    "learning_settings": {
+      "usage_pattern_tracking": true,
+      "effectiveness_measurement": true,
+      "user_preference_learning": true,
+      "adaptive_optimization": true
+    }
+  },
+  "multi_modal_interaction": {
+    "enable_voice_interaction": true,
+    "enable_gesture_interaction": true,
+    "enable_eye_tracking": false,
+    "enable_brain_computer_interface": false,
+    "enable_haptic_feedback": true,
+    "interaction_modes": {
+      "voice": {
+        "enabled": true,
+        "recognition_engine": "google_speech",
+        "language": "en",
+        "noise_cancellation": true,
+        "confidence_threshold": 0.8
+      },
+      "gesture": {
+        "enabled": true,
+        "recognition_engine": "opencv",
+        "gesture_types": ["swipe", "pinch", "wave", "point"],
+        "confidence_threshold": 0.7
+      },
+      "eye_tracking": {
+        "enabled": false,
+        "tracking_device": "tobii",
+        "dwell_time_ms": 1000,
+        "confidence_threshold": 0.9
+      },
+      "bci": {
+        "enabled": false,
+        "device_type": "eeg",
+        "signal_processing": "real_time",
+        "confidence_threshold": 0.6
+      }
+    },
+    "fusion_algorithm": "weighted_voting",
+    "enable_context_awareness": true,
+    "enable_learning": true
+  },
+  "personalization": {
+    "enable_deep_personalization": true,
+    "enable_preference_learning": true,
+    "enable_behavior_modeling": true,
+    "enable_adaptive_interface": true,
+    "personalization_domains": {
+      "interface": {
+        "theme": "auto",
+        "layout": "auto",
+        "colors": "auto",
+        "fonts": "auto",
+        "animations": "auto"
+      },
+      "workflow": {
+        "shortcuts": "auto",
+        "menus": "auto",
+        "toolbars": "auto",
+        "dashboards": "auto"
+      },
+      "content": {
+        "recommendations": "auto",
+        "search_results": "auto",
+        "notifications": "auto",
+        "suggestions": "auto"
+      },
+      "interaction": {
+        "response_time": "auto",
+        "verbosity": "auto",
+        "assistance_level": "auto",
+        "automation_level": "auto"
+      }
+    },
+    "learning_algorithm": "reinforcement_learning",
+    "update_frequency_hours": 6,
+    "enable_privacy_preservation": true
+  },
+  "learning_adaptation": {
+    "enable_continuous_learning": true,
+    "enable_behavior_modeling": true,
+    "enable_adaptation": true,
+    "enable_optimization": true,
+    "learning_components": {
+      "user_behavior": {
+        "tracking_enabled": true,
+        "modeling_enabled": true,
+        "prediction_enabled": true,
+        "adaptation_enabled": true
+      },
+      "system_performance": {
+        "monitoring_enabled": true,
+        "optimization_enabled": true,
+        "resource_management": true,
+        "load_balancing": true
+      },
+      "interaction_patterns": {
+        "recognition_enabled": true,
+        "learning_enabled": true,
+        "optimization_enabled": true,
+        "personalization_enabled": true
+      }
+    },
+    "adaptation_rate": 0.1,
+    "learning_rate": 0.01,
+    "forgetting_factor": 0.95,
+    "enable_transfer_learning": true
+  },
+  "emotional_intelligence": {
+    "enable_emotion_detection": true,
+    "enable_empathetic_responses": true,
+    "enable_emotional_optimization": true,
+    "enable_stress_monitoring": true,
+    "emotion_detection": {
+      "text_analysis": true,
+      "voice_analysis": true,
+      "facial_expression": false,
+      "physiological_signals": false,
+      "behavior_patterns": true
+    },
+    "emotional_responses": {
+      "empathy_level": "adaptive",
+      "response_style": "supportive",
+      "intervention_threshold": 0.7,
+      "escalation_enabled": true
+    },
+    "stress_monitoring": {
+      "keyboard_patterns": true,
+      "mouse_movement": true,
+      "application_switching": true,
+      "error_frequency": true,
+      "response_time": true
+    },
+    "emotional_optimization": {
+      "interface_adaptation": true,
+      "notification_timing": true,
+      "assistance_level": true,
+      "automation_level": true
+    },
+    "emotion_categories": {
+      "positive": ["happy", "excited", "calm", "satisfied"],
+      "negative": ["sad", "angry", "fearful", "frustrated", "stressed"],
+      "neutral": ["neutral", "focused", "contemplative"]
+    }
+  },
+  "performance_tuning": {
+    "enable_optimization": true,
+    "enable_caching": true,
+    "enable_compression": true,
+    "enable_parallel_processing": true,
+    "optimization_targets": {
+      "response_time_ms": 100,
+      "memory_usage_mb": 512,
+      "cpu_usage_percent": 20,
+      "battery_impact_percent": 5
+    },
+    "caching_strategy": {
+      "search_suggestions": "lru",
+      "user_preferences": "persistent",
+      "context_data": "temporary",
+      "emotional_context": "session"
+    },
+    "parallel_processing": {
+      "notification_processing": true,
+      "search_generation": true,
+      "file_organization": true,
+      "emotion_detection": true
+    }
+  },
+  "security_settings": {
+    "enable_privacy_protection": true,
+    "enable_data_encryption": true,
+    "enable_access_control": true,
+    "enable_audit_logging": true,
+    "privacy_protection": {
+      "personal_data_anonymization": true,
+      "behavior_tracking_consent": true,
+      "data_retention_policy": "30_days",
+      "data_deletion_on_demand": true
+    },
+    "access_control": {
+      "user_authentication": true,
+      "role_based_access": true,
+      "session_management": true,
+      "privilege_escalation": false
+    },
+    "audit_logging": {
+      "user_interactions": true,
+      "system_events": true,
+      "privacy_events": true,
+      "security_events": true
+    }
+  },
+  "monitoring_settings": {
+    "enable_metrics_collection": true,
+    "enable_performance_monitoring": true,
+    "enable_health_checks": true,
+    "enable_alerting": true,
+    "metrics": {
+      "user_satisfaction": true,
+      "response_time": true,
+      "accuracy": true,
+      "accessibility_score": true,
+      "personalization_effectiveness": true
+    },
+    "health_checks": {
+      "daemon_health": true,
+      "component_health": true,
+      "resource_health": true,
+      "integration_health": true
+    },
+    "alert_thresholds": {
+      "user_satisfaction_min": 0.7,
+      "response_time_max_ms": 1000,
+      "accuracy_min": 0.8,
+      "accessibility_score_min": 0.9,
+      "error_rate_max": 0.01
+    }
+  },
+  "integration_settings": {
+    "metadata_daemon_socket": "/tmp/heros_metadata.sock",
+    "pta_engine_socket": "/tmp/heros_pta_engine.sock",
+    "ai_ml_engine_socket": "/tmp/heros_ai_ml_engine.sock",
+    "integration_layer_socket": "/tmp/heros_integration.sock",
+    "pdp_socket": "/tmp/heros_pdp.sock",
+    "enable_rest_api": true,
+    "rest_api_port": 9296,
+    "enable_websocket": true,
+    "websocket_port": 9297,
+    "enable_dbus": true,
+    "dbus_service": "org.heros.UXEnhancement"
+  },
+  "user_experience": {
+    "enable_adaptive_interface": true,
+    "enable_contextual_help": true,
+    "enable_tutorial_system": true,
+    "enable_feedback_collection": true,
+    "interface_adaptation": {
+      "theme_adaptation": true,
+      "layout_adaptation": true,
+      "content_adaptation": true,
+      "interaction_adaptation": true
+    },
+    "contextual_help": {
+      "proactive_help": true,
+      "context_sensitive_help": true,
+      "learning_paths": true,
+      "adaptive_tutorials": true
+    },
+    "feedback_system": {
+      "explicit_feedback": true,
+      "implicit_feedback": true,
+      "satisfaction_tracking": true,
+      "improvement_suggestions": true
+    }
+  }
+} 
