@@ -54,10 +54,8 @@ macro_rules! drm_legacy_fields {
 ///
 /// `self.dev` is a valid instance of a `struct device`.
 #[repr(C)]
-#[pin_data]
 pub struct Device<T: drm::Driver> {
     dev: Opaque<bindings::drm_device>,
-    #[pin]
     data: T::Data,
 }
 
