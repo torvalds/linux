@@ -392,15 +392,12 @@ u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 
 int __init xe_configfs_init(void)
 {
-	struct config_group *root = &xe_configfs.su_group;
 	int ret;
 
-	config_group_init(root);
+	config_group_init(&xe_configfs.su_group);
 	mutex_init(&xe_configfs.su_mutex);
 	ret = configfs_register_subsystem(&xe_configfs);
 	if (ret) {
-		pr_err("Error %d while registering %s subsystem\n",
-		       ret, root->cg_item.ci_namebuf);
 		mutex_destroy(&xe_configfs.su_mutex);
 		return ret;
 	}
