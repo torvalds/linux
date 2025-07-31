@@ -2,7 +2,9 @@
 
 //! Kernel errors.
 //!
-//! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
+//! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)\
+//! C header: [`include/uapi/asm-generic/errno.h`](srctree/include/uapi/asm-generic/errno.h)\
+//! C header: [`include/linux/errno.h`](srctree/include/linux/errno.h)
 
 use crate::{
     alloc::{layout::LayoutError, AllocError},
