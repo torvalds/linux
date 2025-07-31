@@ -177,6 +177,7 @@ core_pattern
 	%E		executable path
 	%c		maximum size of core file by resource limit RLIMIT_CORE
 	%C		CPU the task ran on
+	%F		pidfd number
 	%<OTHER>	both are dropped
 	========	==========================================
 
@@ -1106,7 +1107,8 @@ printk_ratelimit_burst
 While long term we enforce one message per `printk_ratelimit`_
 seconds, we do allow a burst of messages to pass through.
 ``printk_ratelimit_burst`` specifies the number of messages we can
-send before ratelimiting kicks in.
+send before ratelimiting kicks in.  After `printk_ratelimit`_ seconds
+have elapsed, another burst of messages may be sent.
 
 The default value is 10 messages.
 
