@@ -11,6 +11,7 @@
 
 struct intel_atomic_state;
 struct intel_display;
+struct intel_global_commit;
 struct intel_global_obj;
 struct intel_global_state;
 
@@ -25,8 +26,6 @@ struct intel_global_obj {
 	struct intel_global_state *state;
 	const struct intel_global_state_funcs *funcs;
 };
-
-struct intel_global_commit;
 
 struct intel_global_state {
 	struct intel_global_obj *obj;
