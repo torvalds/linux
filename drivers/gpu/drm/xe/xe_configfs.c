@@ -270,11 +270,22 @@ static const struct config_item_type xe_config_device_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
+static const struct xe_device_desc *xe_match_desc(struct pci_dev *pdev)
+{
+	struct device_driver *driver = driver_find("xe", &pci_bus_type);
+	struct pci_driver *drv = to_pci_driver(driver);
+	const struct pci_device_id *ids = drv ? drv->id_table : NULL;
+	const struct pci_device_id *found = pci_match_id(ids, pdev);
+
+	return found ? (const void *)found->driver_data : NULL;
+}
+
 static struct config_group *xe_config_make_device_group(struct config_group *group,
 							const char *name)
 {
 	unsigned int domain, bus, slot, function;
 	struct xe_config_group_device *dev;
+	const struct xe_device_desc *match;
 	struct pci_dev *pdev;
 	char canonical[16];
 	int ret;
@@ -292,7 +303,15 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
 	if (!pdev)
 		return ERR_PTR(-ENODEV);
+
+	match = xe_match_desc(pdev);
+	if (!match)
+		pci_info(pdev, "xe driver does not support configuration of this device\n");
+
 	pci_dev_put(pdev);
+
+	if (!match)
+		return ERR_PTR(-ENOENT);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
