@@ -396,6 +396,10 @@ struct smu_dpm_context {
 	struct smu_dpm_policy_ctxt *dpm_policies;
 };
 
+struct smu_temp_context {
+	const struct smu_temp_funcs      *temp_funcs;
+};
+
 struct smu_power_gate {
 	bool uvd_gated;
 	bool vce_gated;
@@ -529,6 +533,7 @@ struct smu_context {
 	struct smu_table_context	smu_table;
 	struct smu_dpm_context		smu_dpm;
 	struct smu_power_context	smu_power;
+	struct smu_temp_context		smu_temp;
 	struct smu_feature		smu_feature;
 	struct amd_pp_display_configuration  *display_config;
 	struct smu_baco_context		smu_baco;
@@ -622,6 +627,28 @@ struct smu_context {
 };
 
 struct i2c_adapter;
+
+/**
+ * struct smu_temp_funcs - Callbacks used to get temperature data.
+ */
+struct smu_temp_funcs {
+	/**
+	 * @get_temp_metrics: Calibrate voltage/frequency curve to fit the system's
+	 *           power delivery and voltage margins. Required for adaptive
+	 * @type Temperature metrics type(baseboard/gpuboard)
+	 * Return: Size of &table
+	 */
+	ssize_t (*get_temp_metrics)(struct smu_context *smu,
+				    enum smu_temp_metric_type type, void *table);
+
+	/**
+	 * @temp_metrics_is_support: Get if specific temperature metrics is supported
+	 * @type Temperature metrics type(baseboard/gpuboard)
+	 * Return: true if supported else false
+	 */
+	bool (*temp_metrics_is_supported)(struct smu_context *smu, enum smu_temp_metric_type type);
+
+};
 
 /**
  * struct pptable_funcs - Callbacks used to interact with the SMU.
