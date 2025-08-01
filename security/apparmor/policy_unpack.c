@@ -450,20 +450,72 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 	return dfa;
 }
 
+static int process_strs_entry(char *str, int size, bool multi)
+{
+	int c = 1;
+
+	if (size <= 0)
+		return -1;
+	if (multi) {
+		if (size < 2)
+			return -2;
+		/* multi ends with double \0 */
+		if (str[size - 2])
+			return -3;
+	}
+
+	char *save = str;
+	char *pos = str;
+	char *end = multi ? str + size - 2 : str + size - 1;
+	/* count # of internal \0 */
+	while (str < end) {
+		if (str == pos) {
+			/* starts with ... */
+			if (!*str) {
+				AA_DEBUG(DEBUG_UNPACK,
+					 "starting with null save=%lu size %d c=%d",
+					 str - save, size, c);
+				return -4;
+			}
+			if (isspace(*str))
+				return -5;
+			if (*str == ':') {
+				/* :ns_str\0str\0
+				 * first character after : must be valid
+				 */
+				if (!str[1])
+					return -6;
+			}
+		} else if (!*str) {
+			if (*pos == ':')
+				*str = ':';
+			else
+				c++;
+			pos = str +  1;
+		}
+		str++;
+	} /* while */
+
+	return c;
+}
+
 /**
- * unpack_trans_table - unpack a profile transition table
+ * unpack_strs_table - unpack a profile transition table
  * @e: serialized data extent information  (NOT NULL)
+ * @name: name of table (MAY BE NULL)
+ * @multi: allow multiple strings on a single entry
  * @strs: str table to unpack to (NOT NULL)
  *
  * Returns: true if table successfully unpacked or not present
  */
-static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
+static bool unpack_strs_table(struct aa_ext *e, const char *name, bool multi,
+			      struct aa_str_table *strs)
 {
 	void *saved_pos = e->pos;
-	char **table = NULL;
+	struct aa_str_table_ent *table = NULL;
 
 	/* exec table is optional */
-	if (aa_unpack_nameX(e, AA_STRUCT, "xtable")) {
+	if (aa_unpack_nameX(e, AA_STRUCT, name)) {
 		u16 size;
 		int i;
 
@@ -475,7 +527,8 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 			 * for size check here
 			 */
 			goto fail;
-		table = kcalloc(size, sizeof(char *), GFP_KERNEL);
+		table = kcalloc(size, sizeof(struct aa_str_table_ent),
+				GFP_KERNEL);
 		if (!table)
 			goto fail;
 
@@ -483,41 +536,23 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 		strs->size = size;
 		for (i = 0; i < size; i++) {
 			char *str;
-			int c, j, pos, size2 = aa_unpack_strdup(e, &str, NULL);
+			int c, size2 = aa_unpack_strdup(e, &str, NULL);
 			/* aa_unpack_strdup verifies that the last character is
 			 * null termination byte.
 			 */
-			if (!size2)
+			c = process_strs_entry(str, size2, multi);
+			if (c <= 0) {
+				AA_DEBUG(DEBUG_UNPACK, "process_strs %d", c);
 				goto fail;
-			table[i] = str;
-			/* verify that name doesn't start with space */
-			if (isspace(*str))
-				goto fail;
-
-			/* count internal #  of internal \0 */
-			for (c = j = 0; j < size2 - 1; j++) {
-				if (!str[j]) {
-					pos = j;
-					c++;
-				}
 			}
-			if (*str == ':') {
-				/* first character after : must be valid */
-				if (!str[1])
-					goto fail;
-				/* beginning with : requires an embedded \0,
-				 * verify that exactly 1 internal \0 exists
-				 * trailing \0 already verified by aa_unpack_strdup
-				 *
-				 * convert \0 back to : for label_parse
-				 */
-				if (c == 1)
-					str[pos] = ':';
-				else if (c > 1)
-					goto fail;
-			} else if (c)
+			if (!multi && c > 1) {
+				AA_DEBUG(DEBUG_UNPACK, "!multi && c > 1");
 				/* fail - all other cases with embedded \0 */
 				goto fail;
+			}
+			table[i].strs = str;
+			table[i].count = c;
+			table[i].size = size2;
 		}
 		if (!aa_unpack_nameX(e, AA_ARRAYEND, NULL))
 			goto fail;
@@ -527,7 +562,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 	return true;
 
 fail:
-	aa_free_str_table(strs);
+	aa_destroy_str_table(strs);
 	e->pos = saved_pos;
 	return false;
 }
@@ -795,13 +830,14 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 	 * transition table may be present even when the dfa is
 	 * not. For compatibility reasons unpack and discard.
 	 */
-	if (!unpack_trans_table(e, &pdb->trans) && required_trans) {
+	if (!unpack_strs_table(e, "xtable", false, &pdb->trans) &&
+	    required_trans) {
 		*info = "failed to unpack profile transition table";
 		goto fail;
 	}
 
 	if (!pdb->dfa && pdb->trans.table)
-		aa_free_str_table(&pdb->trans);
+		aa_destroy_str_table(&pdb->trans);
 
 	/* TODO:
 	 * - move compat mapping here, requires dfa merging first
@@ -1268,7 +1304,7 @@ static bool verify_perms(struct aa_policydb *pdb)
 	}
 	/* deal with incorrectly constructed string tables */
 	if (xmax == -1) {
-		aa_free_str_table(&pdb->trans);
+		aa_destroy_str_table(&pdb->trans);
 	} else if (pdb->trans.size > xmax + 1) {
 		if (!aa_resize_str_table(&pdb->trans, xmax + 1, GFP_KERNEL))
 			return false;

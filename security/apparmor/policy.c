@@ -104,7 +104,7 @@ static void aa_free_pdb(struct aa_policydb *pdb)
 	if (pdb) {
 		aa_put_dfa(pdb->dfa);
 		kvfree(pdb->perms);
-		aa_free_str_table(&pdb->trans);
+		aa_destroy_str_table(&pdb->trans);
 		kfree(pdb);
 	}
 }

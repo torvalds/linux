@@ -30,6 +30,7 @@ extern struct aa_dfa *stacksplitdfa;
 #define DEBUG_DOMAIN 4
 #define DEBUG_POLICY 8
 #define DEBUG_INTERFACE 0x10
+#define DEBUG_UNPACK 0x40
 
 #define DEBUG_ALL 0x1f		/* update if new DEBUG_X added */
 #define DEBUG_PARSE_ERROR (-1)
@@ -119,13 +120,19 @@ static inline bool path_mediated_fs(struct dentry *dentry)
 	return !(dentry->d_sb->s_flags & SB_NOUSER);
 }
 
-struct aa_str_table {
+struct aa_str_table_ent {
+	int count;
 	int size;
-	char **table;
+	char *strs;
 };
 
-void aa_free_str_table(struct aa_str_table *table);
+struct aa_str_table {
+	int size;
+	struct aa_str_table_ent *table;
+};
+
 bool aa_resize_str_table(struct aa_str_table *t, int newsize, gfp_t gfp);
+void aa_destroy_str_table(struct aa_str_table *table);
 
 struct counted_str {
 	struct kref count;

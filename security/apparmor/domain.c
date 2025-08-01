@@ -529,7 +529,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 	/* TODO: move lookup parsing to unpack time so this is a straight
 	 *       index into the resultant label
 	 */
-	for (next = rules->file->trans.table[index]; next;
+	for (next = rules->file->trans.table[index].strs; next;
 	     next = next_name(xtype, next)) {
 		const char *lookup = (*next == '&') ? next + 1 : next;
 		*name = next;
