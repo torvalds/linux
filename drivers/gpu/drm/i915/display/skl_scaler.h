@@ -42,4 +42,7 @@ skl_scaler_mode_valid(struct intel_display *display,
 		      enum intel_output_format output_format,
 		      int num_joined_pipes);
 
+void adl_scaler_ecc_mask(const struct intel_crtc_state *crtc_state);
+
+void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state);
 #endif

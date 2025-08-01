@@ -10,6 +10,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_display_wa.h"
 #include "intel_fb.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
@@ -762,6 +763,9 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 			crtc_state->scaler_state.scaler_id < 0))
 		return;
 
+	if (intel_display_wa(display, 14011503117))
+		adl_scaler_ecc_mask(crtc_state);
+
 	drm_rect_init(&src, 0, 0,
 		      drm_rect_width(&crtc_state->pipe_src) << 16,
 		      drm_rect_height(&crtc_state->pipe_src) << 16);
@@ -937,4 +941,29 @@ void skl_scaler_get_config(struct intel_crtc_state *crtc_state)
 		scaler_state->scaler_users |= (1 << SKL_CRTC_INDEX);
 	else
 		scaler_state->scaler_users &= ~(1 << SKL_CRTC_INDEX);
+}
+
+void adl_scaler_ecc_mask(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (!crtc_state->pch_pfit.enabled)
+		return;
+
+	intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, ~0);
+}
+
+void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	const struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
+	int id;
+
+	if (!scaler_state && scaler_state->scaler_id == -1)
+		return;
+
+	intel_de_write_fw(display, SKL_PS_ECC_STAT(crtc->pipe, id), 1);
+	intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, 0);
 }
