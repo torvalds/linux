@@ -278,7 +278,8 @@
 	__SMU_DUMMY_MAP(MALLPowerState), \
 	__SMU_DUMMY_MAP(ResetSDMA), \
 	__SMU_DUMMY_MAP(ResetVCN), \
-	__SMU_DUMMY_MAP(GetStaticMetricsTable),
+	__SMU_DUMMY_MAP(GetStaticMetricsTable), \
+	__SMU_DUMMY_MAP(GetSystemMetricsTable),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

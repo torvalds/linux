@@ -257,6 +257,7 @@ struct smu_table {
 	void *cpu_addr;
 	struct amdgpu_bo *bo;
 	uint32_t version;
+	unsigned long  metrics_time;
 };
 
 enum smu_perf_level_designation {
@@ -322,6 +323,7 @@ enum smu_table_id {
 	SMU_TABLE_ECCINFO,
 	SMU_TABLE_COMBO_PPTABLE,
 	SMU_TABLE_WIFIBAND,
+	SMU_TABLE_TEMP_METRICS,
 	SMU_TABLE_COUNT,
 };
 

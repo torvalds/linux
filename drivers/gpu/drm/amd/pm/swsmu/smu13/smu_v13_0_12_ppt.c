@@ -138,6 +138,7 @@ const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetThrottlingPolicy,                 PPSMC_MSG_SetThrottlingPolicy,             0),
 	MSG_MAP(ResetSDMA,                           PPSMC_MSG_ResetSDMA,                       0),
 	MSG_MAP(GetStaticMetricsTable,               PPSMC_MSG_GetStaticMetricsTable,           1),
+	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           0),
 };
 
 static int smu_v13_0_12_get_enabled_mask(struct smu_context *smu,
@@ -184,7 +185,8 @@ static int smu_v13_0_12_fru_get_product_info(struct smu_context *smu,
 
 int smu_v13_0_12_get_max_metrics_size(void)
 {
-	return max(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t));
+	return max3(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t),
+		   sizeof(SystemMetricsTable_t));
 }
 
 static void smu_v13_0_12_init_xgmi_data(struct smu_context *smu,
@@ -357,6 +359,245 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 	}
 
 	return 0;
+}
+
+static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu, void *metrics_table,
+						 bool bypass_cache)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
+	struct smu_table *table = &smu_table->driver_table;
+	int ret;
+
+	if (bypass_cache || !smu_table->tables[SMU_TABLE_TEMP_METRICS].metrics_time ||
+	    time_after(jiffies,
+		       smu_table->tables[SMU_TABLE_TEMP_METRICS].metrics_time +
+		       msecs_to_jiffies(1))) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSystemMetricsTable, NULL);
+		if (ret) {
+			dev_info(smu->adev->dev,
+				 "Failed to export system metrics table!\n");
+			return ret;
+		}
+
+		amdgpu_asic_invalidate_hdp(smu->adev, NULL);
+		memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
+
+		smu_table->tables[SMU_TABLE_TEMP_METRICS].metrics_time = jiffies;
+	}
+
+	if (metrics_table)
+		memcpy(metrics_table, smu_table->metrics_table, sizeof(SystemMetricsTable_t));
+
+	return 0;
+}
+
+static enum amdgpu_node_temp smu_v13_0_12_get_node_sensor_type(NODE_TEMP_e type)
+{
+	switch (type) {
+	case NODE_TEMP_RETIMER:
+		return AMDGPU_RETIMER_X_TEMP;
+	case NODE_TEMP_IBC_TEMP:
+		return AMDGPU_OAM_X_IBC_TEMP;
+	case NODE_TEMP_IBC_2_TEMP:
+		return AMDGPU_OAM_X_IBC_2_TEMP;
+	case NODE_TEMP_VDD18_VR_TEMP:
+		return AMDGPU_OAM_X_VDD18_VR_TEMP;
+	case NODE_TEMP_04_HBM_B_VR_TEMP:
+		return AMDGPU_OAM_X_04_HBM_B_VR_TEMP;
+	case NODE_TEMP_04_HBM_D_VR_TEMP:
+		return AMDGPU_OAM_X_04_HBM_D_VR_TEMP;
+	default:
+		return -EINVAL;
+	}
+}
+
+static enum amdgpu_vr_temp smu_v13_0_12_get_vr_sensor_type(SVI_TEMP_e type)
+{
+	switch (type) {
+	case SVI_VDDCR_VDD0_TEMP:
+		return AMDGPU_VDDCR_VDD0_TEMP;
+	case SVI_VDDCR_VDD1_TEMP:
+		return AMDGPU_VDDCR_VDD1_TEMP;
+	case SVI_VDDCR_VDD2_TEMP:
+		return AMDGPU_VDDCR_VDD2_TEMP;
+	case SVI_VDDCR_VDD3_TEMP:
+		return AMDGPU_VDDCR_VDD3_TEMP;
+	case SVI_VDDCR_SOC_A_TEMP:
+		return AMDGPU_VDDCR_SOC_A_TEMP;
+	case SVI_VDDCR_SOC_C_TEMP:
+		return AMDGPU_VDDCR_SOC_C_TEMP;
+	case SVI_VDDCR_SOCIO_A_TEMP:
+		return AMDGPU_VDDCR_SOCIO_A_TEMP;
+	case SVI_VDDCR_SOCIO_C_TEMP:
+		return AMDGPU_VDDCR_SOCIO_C_TEMP;
+	case SVI_VDD_085_HBM_TEMP:
+		return AMDGPU_VDD_085_HBM_TEMP;
+	case SVI_VDDCR_11_HBM_B_TEMP:
+		return AMDGPU_VDDCR_11_HBM_B_TEMP;
+	case SVI_VDDCR_11_HBM_D_TEMP:
+		return AMDGPU_VDDCR_11_HBM_D_TEMP;
+	case SVI_VDD_USR_TEMP:
+		return AMDGPU_VDD_USR_TEMP;
+	case SVI_VDDIO_11_E32_TEMP:
+		return AMDGPU_VDDIO_11_E32_TEMP;
+	default:
+		return -EINVAL;
+	}
+}
+
+static enum amdgpu_system_temp smu_v13_0_12_get_system_sensor_type(SYSTEM_TEMP_e type)
+{
+	switch (type) {
+	case SYSTEM_TEMP_UBB_FPGA:
+		return AMDGPU_UBB_FPGA_TEMP;
+	case SYSTEM_TEMP_UBB_FRONT:
+		return AMDGPU_UBB_FRONT_TEMP;
+	case SYSTEM_TEMP_UBB_BACK:
+		return AMDGPU_UBB_BACK_TEMP;
+	case SYSTEM_TEMP_UBB_OAM7:
+		return AMDGPU_UBB_OAM7_TEMP;
+	case SYSTEM_TEMP_UBB_IBC:
+		return AMDGPU_UBB_IBC_TEMP;
+	case SYSTEM_TEMP_UBB_UFPGA:
+		return AMDGPU_UBB_UFPGA_TEMP;
+	case SYSTEM_TEMP_UBB_OAM1:
+		return AMDGPU_UBB_OAM1_TEMP;
+	case SYSTEM_TEMP_OAM_0_1_HSC:
+		return AMDGPU_OAM_0_1_HSC_TEMP;
+	case SYSTEM_TEMP_OAM_2_3_HSC:
+		return AMDGPU_OAM_2_3_HSC_TEMP;
+	case SYSTEM_TEMP_OAM_4_5_HSC:
+		return AMDGPU_OAM_4_5_HSC_TEMP;
+	case SYSTEM_TEMP_OAM_6_7_HSC:
+		return AMDGPU_OAM_6_7_HSC_TEMP;
+	case SYSTEM_TEMP_UBB_FPGA_0V72_VR:
+		return AMDGPU_UBB_FPGA_0V72_VR_TEMP;
+	case SYSTEM_TEMP_UBB_FPGA_3V3_VR:
+		return AMDGPU_UBB_FPGA_3V3_VR_TEMP;
+	case SYSTEM_TEMP_RETIMER_0_1_2_3_1V2_VR:
+		return AMDGPU_RETIMER_0_1_2_3_1V2_VR_TEMP;
+	case SYSTEM_TEMP_RETIMER_4_5_6_7_1V2_VR:
+		return AMDGPU_RETIMER_4_5_6_7_1V2_VR_TEMP;
+	case SYSTEM_TEMP_RETIMER_0_1_0V9_VR:
+		return AMDGPU_RETIMER_0_1_0V9_VR_TEMP;
+	case SYSTEM_TEMP_RETIMER_4_5_0V9_VR:
+		return AMDGPU_RETIMER_4_5_0V9_VR_TEMP;
+	case SYSTEM_TEMP_RETIMER_2_3_0V9_VR:
+		return AMDGPU_RETIMER_2_3_0V9_VR_TEMP;
+	case SYSTEM_TEMP_RETIMER_6_7_0V9_VR:
+		return AMDGPU_RETIMER_6_7_0V9_VR_TEMP;
+	case SYSTEM_TEMP_OAM_0_1_2_3_3V3_VR:
+		return AMDGPU_OAM_0_1_2_3_3V3_VR_TEMP;
+	case SYSTEM_TEMP_OAM_4_5_6_7_3V3_VR:
+		return AMDGPU_OAM_4_5_6_7_3V3_VR_TEMP;
+	case SYSTEM_TEMP_IBC_HSC:
+		return AMDGPU_IBC_HSC_TEMP;
+	case SYSTEM_TEMP_IBC:
+		return AMDGPU_IBC_TEMP;
+	default:
+		return -EINVAL;
+	}
+}
+
+static bool smu_v13_0_12_is_temp_metrics_supported(struct smu_context *smu,
+						   enum smu_temp_metric_type type)
+{
+	switch (type) {
+	case SMU_TEMP_METRIC_BASEBOARD:
+		if (smu->adev->gmc.xgmi.physical_node_id == 0 &&
+		    smu->adev->gmc.xgmi.num_physical_nodes > 1 &&
+		    smu_v13_0_6_cap_supported(smu, SMU_CAP(TEMP_METRICS)))
+			return true;
+		break;
+	case SMU_TEMP_METRIC_GPUBOARD:
+		return smu_v13_0_6_cap_supported(smu, SMU_CAP(TEMP_METRICS));
+	default:
+		break;
+	}
+
+	return false;
+}
+
+static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
+					     enum smu_temp_metric_type type, void *table)
+{
+	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
+	struct amdgpu_baseboard_temp_metrics_v1_0 *baseboard_temp_metrics;
+	SystemMetricsTable_t *metrics;
+	int ret, sensor_type;
+	u32 idx, sensors;
+	ssize_t size;
+
+	size = (type == SMU_TEMP_METRIC_GPUBOARD) ?
+		sizeof(*gpuboard_temp_metrics) : sizeof(*baseboard_temp_metrics);
+
+	if (!table)
+		goto out;
+	metrics = kzalloc(sizeof(SystemMetricsTable_t), GFP_KERNEL);
+	if (!metrics)
+		return -ENOMEM;
+	gpuboard_temp_metrics = (struct amdgpu_gpuboard_temp_metrics_v1_0 *)table;
+	baseboard_temp_metrics = (struct amdgpu_baseboard_temp_metrics_v1_0 *)table;
+	if (type  == SMU_TEMP_METRIC_GPUBOARD)
+		smu_cmn_init_gpuboard_temp_metrics(gpuboard_temp_metrics, 1, 0);
+	else if (type  == SMU_TEMP_METRIC_BASEBOARD)
+		smu_cmn_init_baseboard_temp_metrics(baseboard_temp_metrics, 1, 0);
+
+	ret = smu_v13_0_12_get_system_metrics_table(smu, metrics, false);
+	if (ret) {
+		kfree(metrics);
+		return ret;
+	}
+
+	if (type == SMU_TEMP_METRIC_GPUBOARD) {
+		gpuboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
+		gpuboard_temp_metrics->label_version = metrics->LabelVersion;
+		gpuboard_temp_metrics->node_id = metrics->NodeIdentifier;
+
+		idx = 0;
+		for (sensors = 0; sensors < NODE_TEMP_MAX_TEMP_ENTRIES; sensors++) {
+			if (metrics->NodeTemperatures[sensors] != -1) {
+				sensor_type = smu_v13_0_12_get_node_sensor_type(sensors);
+				gpuboard_temp_metrics->node_temp[idx] =
+					((int)metrics->NodeTemperatures[sensors])  & 0xFFFFFF;
+				gpuboard_temp_metrics->node_temp[idx] |= (sensor_type << 24);
+				idx++;
+			}
+		}
+
+		idx = 0;
+
+		for (sensors = 0; sensors < SVI_MAX_TEMP_ENTRIES; sensors++) {
+			if (metrics->VrTemperatures[sensors] != -1) {
+				sensor_type = smu_v13_0_12_get_vr_sensor_type(sensors);
+				gpuboard_temp_metrics->vr_temp[idx] =
+					((int)metrics->VrTemperatures[sensors])  & 0xFFFFFF;
+				gpuboard_temp_metrics->vr_temp[idx] |= (sensor_type << 24);
+				idx++;
+			}
+		}
+	} else if (type == SMU_TEMP_METRIC_BASEBOARD) {
+		baseboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
+		baseboard_temp_metrics->label_version = metrics->LabelVersion;
+		baseboard_temp_metrics->node_id = metrics->NodeIdentifier;
+
+		idx = 0;
+		for (sensors = 0; sensors < SYSTEM_TEMP_MAX_ENTRIES; sensors++) {
+			if (metrics->SystemTemperatures[sensors] != -1) {
+				sensor_type = smu_v13_0_12_get_system_sensor_type(sensors);
+				baseboard_temp_metrics->system_temp[idx] =
+					((int)metrics->SystemTemperatures[sensors])  & 0xFFFFFF;
+				baseboard_temp_metrics->system_temp[idx] |= (sensor_type << 24);
+				idx++;
+			}
+		}
+	}
+
+	kfree(metrics);
+
+out:
+	return size;
 }
 
 ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu, struct amdgpu_xcp *xcp, void *table, void *smu_metrics)
@@ -572,3 +813,8 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table, void
 
 	return sizeof(*gpu_metrics);
 }
+
+const struct smu_temp_funcs smu_v13_0_12_temp_funcs = {
+	.temp_metrics_is_supported = smu_v13_0_12_is_temp_metrics_supported,
+	.get_temp_metrics = smu_v13_0_12_get_temp_metrics,
+};
