@@ -1010,13 +1010,6 @@ int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 	return v4l2_event_subscribe(fh, sub, STAT_NEVENTS, NULL);
 }
 
-int omap3isp_stat_unsubscribe_event(struct v4l2_subdev *subdev,
-				    struct v4l2_fh *fh,
-				    struct v4l2_event_subscription *sub)
-{
-	return v4l2_event_unsubscribe(fh, sub);
-}
-
 void omap3isp_stat_unregister_entities(struct ispstat *stat)
 {
 	v4l2_device_unregister_subdev(&stat->subdev);
