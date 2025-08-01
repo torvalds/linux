@@ -1160,13 +1160,11 @@ int __trace_array_puts(struct trace_array *tr, unsigned long ip,
 
 	trace_ctx = tracing_gen_ctx();
 	buffer = tr->array_buffer.buffer;
-	ring_buffer_nest_start(buffer);
+	guard(ring_buffer_nest)(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc,
 					    trace_ctx);
-	if (!event) {
-		size = 0;
-		goto out;
-	}
+	if (!event)
+		return 0;
 
 	entry = ring_buffer_event_data(event);
 	entry->ip = ip;
@@ -1182,8 +1180,6 @@ int __trace_array_puts(struct trace_array *tr, unsigned long ip,
 
 	__buffer_unlock_commit(buffer, event);
 	ftrace_trace_stack(tr, buffer, trace_ctx, 4, NULL);
- out:
-	ring_buffer_nest_end(buffer);
 	return size;
 }
 EXPORT_SYMBOL_GPL(__trace_array_puts);
@@ -1213,7 +1209,6 @@ int __trace_bputs(unsigned long ip, const char *str)
 	struct bputs_entry *entry;
 	unsigned int trace_ctx;
 	int size = sizeof(struct bputs_entry);
-	int ret = 0;
 
 	if (!printk_binsafe(tr))
 		return __trace_puts(ip, str, strlen(str));
@@ -1227,11 +1222,11 @@ int __trace_bputs(unsigned long ip, const char *str)
 	trace_ctx = tracing_gen_ctx();
 	buffer = tr->array_buffer.buffer;
 
-	ring_buffer_nest_start(buffer);
+	guard(ring_buffer_nest)(buffer);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
 					    trace_ctx);
 	if (!event)
-		goto out;
+		return 0;
 
 	entry = ring_buffer_event_data(event);
 	entry->ip			= ip;
@@ -1240,10 +1235,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	__buffer_unlock_commit(buffer, event);
 	ftrace_trace_stack(tr, buffer, trace_ctx, 4, NULL);
 
-	ret = 1;
- out:
-	ring_buffer_nest_end(buffer);
-	return ret;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(__trace_bputs);
 
@@ -3397,21 +3389,19 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 
 	size = sizeof(*entry) + sizeof(u32) * len;
 	buffer = tr->array_buffer.buffer;
-	ring_buffer_nest_start(buffer);
-	event = __trace_buffer_lock_reserve(buffer, TRACE_BPRINT, size,
-					    trace_ctx);
-	if (!event)
-		goto out;
-	entry = ring_buffer_event_data(event);
-	entry->ip			= ip;
-	entry->fmt			= fmt;
+	scoped_guard(ring_buffer_nest, buffer) {
+		event = __trace_buffer_lock_reserve(buffer, TRACE_BPRINT, size,
+						    trace_ctx);
+		if (!event)
+			goto out_put;
+		entry = ring_buffer_event_data(event);
+		entry->ip			= ip;
+		entry->fmt			= fmt;
 
-	memcpy(entry->buf, tbuffer, sizeof(u32) * len);
-	__buffer_unlock_commit(buffer, event);
-	ftrace_trace_stack(tr, buffer, trace_ctx, 6, NULL);
-
-out:
-	ring_buffer_nest_end(buffer);
+		memcpy(entry->buf, tbuffer, sizeof(u32) * len);
+		__buffer_unlock_commit(buffer, event);
+		ftrace_trace_stack(tr, buffer, trace_ctx, 6, NULL);
+	}
 out_put:
 	put_trace_buf();
 
@@ -3452,20 +3442,19 @@ int __trace_array_vprintk(struct trace_buffer *buffer,
 	len = vscnprintf(tbuffer, TRACE_BUF_SIZE, fmt, args);
 
 	size = sizeof(*entry) + len + 1;
-	ring_buffer_nest_start(buffer);
-	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
-					    trace_ctx);
-	if (!event)
-		goto out;
-	entry = ring_buffer_event_data(event);
-	entry->ip = ip;
+	scoped_guard(ring_buffer_nest, buffer) {
+		event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
+						    trace_ctx);
+		if (!event)
+			goto out;
+		entry = ring_buffer_event_data(event);
+		entry->ip = ip;
 
-	memcpy(&entry->buf, tbuffer, len + 1);
-	__buffer_unlock_commit(buffer, event);
-	ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
-
+		memcpy(&entry->buf, tbuffer, len + 1);
+		__buffer_unlock_commit(buffer, event);
+		ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
+	}
 out:
-	ring_buffer_nest_end(buffer);
 	put_trace_buf();
 
 out_nobuffer:

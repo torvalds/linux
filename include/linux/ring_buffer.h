@@ -144,6 +144,9 @@ int ring_buffer_write(struct trace_buffer *buffer,
 void ring_buffer_nest_start(struct trace_buffer *buffer);
 void ring_buffer_nest_end(struct trace_buffer *buffer);
 
+DEFINE_GUARD(ring_buffer_nest, struct trace_buffer *,
+	     ring_buffer_nest_start(_T), ring_buffer_nest_end(_T))
+
 struct ring_buffer_event *
 ring_buffer_peek(struct trace_buffer *buffer, int cpu, u64 *ts,
 		 unsigned long *lost_events);
