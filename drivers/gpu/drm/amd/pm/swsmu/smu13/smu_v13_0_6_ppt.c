@@ -350,6 +350,11 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
 		smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
 	}
+
+	if (fw_ver >= 0x04560700) {
+		if (!amdgpu_sriov_vf(smu->adev))
+			smu_v13_0_6_cap_set(smu, SMU_CAP(TEMP_METRICS));
+	}
 }
 
 static void smu_v13_0_6_init_caps(struct smu_context *smu)
