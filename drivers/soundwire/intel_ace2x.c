@@ -11,6 +11,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
+#include <linux/string_choices.h>
 #include <sound/hdaudio.h>
 #include <sound/hda-mlink.h>
 #include <sound/hda-sdw-bpt.h>
@@ -183,7 +184,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 		return 0;
 
 	dev_err(cdns->dev, "%s: sdw_prepare_%s_dma_buffer failed %d\n",
-		__func__, command ? "read" : "write", ret);
+		__func__, str_read_write(command), ret);
 
 	ret1 = hda_sdw_bpt_close(cdns->dev->parent, /* PCI device */
 				 sdw->bpt_ctx.bpt_tx_stream, &sdw->bpt_ctx.dmab_tx_bdl,
@@ -245,7 +246,7 @@ static void intel_ace2x_bpt_close_stream(struct sdw_intel *sdw, struct sdw_slave
 	cdns->bus.bpt_stream = NULL;
 }
 
-#define INTEL_BPT_MSG_BYTE_ALIGNMENT 32
+#define INTEL_BPT_MSG_BYTE_MIN 16
 
 static int intel_ace2x_bpt_send_async(struct sdw_intel *sdw, struct sdw_slave *slave,
 				      struct sdw_bpt_msg *msg)
@@ -253,9 +254,9 @@ static int intel_ace2x_bpt_send_async(struct sdw_intel *sdw, struct sdw_slave *s
 	struct sdw_cdns *cdns = &sdw->cdns;
 	int ret;
 
-	if (msg->len % INTEL_BPT_MSG_BYTE_ALIGNMENT) {
-		dev_err(cdns->dev, "BPT message length %d is not a multiple of %d bytes\n",
-			msg->len, INTEL_BPT_MSG_BYTE_ALIGNMENT);
+	if (msg->len < INTEL_BPT_MSG_BYTE_MIN) {
+		dev_err(cdns->dev, "BPT message length %d is less than the minimum bytes %d\n",
+			msg->len, INTEL_BPT_MSG_BYTE_MIN);
 		return -EINVAL;
 	}
 
