@@ -2073,6 +2073,134 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 	return 0;
 }
 
+/**
+ * DOC: board
+ *
+ * Certain SOCs can support various board attributes reporting. This is useful
+ * for user application to monitor various board reated attributes.
+ *
+ * The amdgpu driver provides a sysfs API for reporting board attributes. Presently,
+ * only two types of attributes are reported, baseboard temperature and
+ * gpu board temperature. Both of them are reported as binary files.
+ *
+ * * .. code-block:: console
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/baseboard_temp
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/gpuboard_temp
+ *
+ */
+
+/**
+ * DOC: baseboard_temp
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current baseboard
+ * temperature metrics data. The file baseboard_temp is used for this.
+ * Reading the file will dump all the current baseboard temperature  metrics data.
+ */
+static ssize_t amdgpu_get_baseboard_temp_metrics(struct device *dev,
+						 struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	ssize_t size;
+	int ret;
+
+	ret = amdgpu_pm_get_access_if_active(adev);
+	if (ret)
+		return ret;
+
+	size = amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_BASEBOARD, NULL);
+	if (size <= 0)
+		goto out;
+	if (size >= PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_BASEBOARD, buf);
+
+out:
+	amdgpu_pm_put_access(adev);
+
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+/**
+ * DOC: gpuboard_temp
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current gpuboard
+ * temperature metrics data. The file gpuboard_temp is used for this.
+ * Reading the file will dump all the current gpuboard temperature  metrics data.
+ */
+static ssize_t amdgpu_get_gpuboard_temp_metrics(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	ssize_t size;
+	int ret;
+
+	ret = amdgpu_pm_get_access_if_active(adev);
+	if (ret)
+		return ret;
+
+	size = amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_GPUBOARD, NULL);
+	if (size <= 0)
+		goto out;
+	if (size >= PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_GPUBOARD, buf);
+
+out:
+	amdgpu_pm_put_access(adev);
+
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static DEVICE_ATTR(baseboard_temp, 0444, amdgpu_get_baseboard_temp_metrics, NULL);
+static DEVICE_ATTR(gpuboard_temp, 0444, amdgpu_get_gpuboard_temp_metrics, NULL);
+
+static struct attribute *board_attrs[] = {
+	&dev_attr_baseboard_temp.attr,
+	&dev_attr_gpuboard_temp.attr,
+	NULL
+};
+
+static umode_t amdgpu_board_attr_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (attr == &dev_attr_baseboard_temp.attr) {
+		if (!amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_BASEBOARD))
+			return 0;
+	}
+
+	if (attr == &dev_attr_gpuboard_temp.attr) {
+		if (!amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_GPUBOARD))
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+const struct attribute_group amdgpu_board_attr_group = {
+	.name = "board",
+	.attrs = board_attrs,
+	.is_visible = amdgpu_board_attr_visible,
+};
+
 /* pm policy attributes */
 struct amdgpu_pm_policy_attr {
 	struct device_attribute dev_attr;
@@ -4457,6 +4585,13 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	    -EOPNOTSUPP) {
 		ret = devm_device_add_group(adev->dev,
 					    &amdgpu_pm_policy_attr_group);
+		if (ret)
+			goto err_out0;
+	}
+
+	if (amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_GPUBOARD)) {
+		ret = devm_device_add_group(adev->dev,
+					    &amdgpu_board_attr_group);
 		if (ret)
 			goto err_out0;
 	}
