@@ -71,6 +71,7 @@
 #include <crypto/ecdh.h>
 #include <crypto/hash.h>
 #include <crypto/hmac.h>
+#include <crypto/utils.h>
 
 /* maximum number of names the TPM must remember for authorization */
 #define AUTH_MAX_NAMES	3
@@ -829,12 +830,11 @@ int tpm_buf_check_hmac_response(struct tpm_chip *chip, struct tpm_buf *buf,
 	/* we're done with the rphash, so put our idea of the hmac there */
 	tpm2_hmac_final(&sctx, auth->session_key, sizeof(auth->session_key)
 			+ auth->passphrase_len, rphash);
-	if (memcmp(rphash, &buf->data[offset_s], SHA256_DIGEST_SIZE) == 0) {
-		rc = 0;
-	} else {
+	if (crypto_memneq(rphash, &buf->data[offset_s], SHA256_DIGEST_SIZE)) {
 		dev_err(&chip->dev, "TPM: HMAC check failed\n");
 		goto out;
 	}
+	rc = 0;
 
 	/* now do response decryption */
 	if (auth->attrs & TPM2_SA_ENCRYPT) {
