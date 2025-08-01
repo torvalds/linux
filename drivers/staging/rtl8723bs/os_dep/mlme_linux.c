@@ -53,11 +53,6 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 		rtw_signal_process(adapter->pid[2], SIGALRM);
 }
 
-void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
-{
-	rtw_cfg80211_indicate_scan_done(padapter, aborted);
-}
-
 static struct rt_pmkid_list   backupPMKIDList[NUM_PMKID_CACHE];
 void rtw_reset_securitypriv(struct adapter *adapter)
 {
