@@ -5042,7 +5042,7 @@ tracing_cpumask_read(struct file *filp, char __user *ubuf,
 		     size_t count, loff_t *ppos)
 {
 	struct trace_array *tr = file_inode(filp)->i_private;
-	char *mask_str;
+	char *mask_str __free(kfree) = NULL;
 	int len;
 
 	len = snprintf(NULL, 0, "%*pb\n",
@@ -5053,16 +5053,10 @@ tracing_cpumask_read(struct file *filp, char __user *ubuf,
 
 	len = snprintf(mask_str, len, "%*pb\n",
 		       cpumask_pr_args(tr->tracing_cpumask));
-	if (len >= count) {
-		count = -EINVAL;
-		goto out_err;
-	}
-	count = simple_read_from_buffer(ubuf, count, ppos, mask_str, len);
+	if (len >= count)
+		return -EINVAL;
 
-out_err:
-	kfree(mask_str);
-
-	return count;
+	return simple_read_from_buffer(ubuf, count, ppos, mask_str, len);
 }
 
 int tracing_set_cpumask(struct trace_array *tr,
@@ -10739,7 +10733,8 @@ ssize_t trace_parse_run_command(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos,
 				int (*createfn)(const char *))
 {
-	char *kbuf, *buf, *tmp;
+	char *kbuf __free(kfree) = NULL;
+	char *buf, *tmp;
 	int ret = 0;
 	size_t done = 0;
 	size_t size;
@@ -10754,10 +10749,9 @@ ssize_t trace_parse_run_command(struct file *file, const char __user *buffer,
 		if (size >= WRITE_BUFSIZE)
 			size = WRITE_BUFSIZE - 1;
 
-		if (copy_from_user(kbuf, buffer + done, size)) {
-			ret = -EFAULT;
-			goto out;
-		}
+		if (copy_from_user(kbuf, buffer + done, size))
+			return -EFAULT;
+
 		kbuf[size] = '\0';
 		buf = kbuf;
 		do {
@@ -10773,8 +10767,7 @@ ssize_t trace_parse_run_command(struct file *file, const char __user *buffer,
 					/* This can accept WRITE_BUFSIZE - 2 ('\n' + '\0') */
 					pr_warn("Line length is too long: Should be less than %d\n",
 						WRITE_BUFSIZE - 2);
-					ret = -EINVAL;
-					goto out;
+					return -EINVAL;
 				}
 			}
 			done += size;
@@ -10787,17 +10780,12 @@ ssize_t trace_parse_run_command(struct file *file, const char __user *buffer,
 
 			ret = createfn(buf);
 			if (ret)
-				goto out;
+				return ret;
 			buf += size;
 
 		} while (done < count);
 	}
-	ret = done;
-
-out:
-	kfree(kbuf);
-
-	return ret;
+	return done;
 }
 
 #ifdef CONFIG_TRACER_MAX_TRACE
