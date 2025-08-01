@@ -6,23 +6,6 @@
  ******************************************************************************/
 #include <drv_types.h>
 
-void rtw_os_indicate_connect(struct adapter *adapter)
-{
-	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
-
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) ||
-		(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true)) {
-		rtw_cfg80211_ibss_indicate_connect(adapter);
-	} else {
-		rtw_cfg80211_indicate_connect(adapter);
-	}
-
-	netif_carrier_on(adapter->pnetdev);
-
-	if (adapter->pid[2] != 0)
-		rtw_signal_process(adapter->pid[2], SIGALRM);
-}
-
 static struct rt_pmkid_list   backupPMKIDList[NUM_PMKID_CACHE];
 void rtw_reset_securitypriv(struct adapter *adapter)
 {
