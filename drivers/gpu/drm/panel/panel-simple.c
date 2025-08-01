@@ -5683,8 +5683,43 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 	.lanes = 4,
 };
 
+static const struct drm_display_mode nt36672a_tianmaplus_mode = {
+	.clock = (1080 + 90 + 2 + 120) * (2340 + 10 + 3 + 8) * 60 / 1000,
+	.hdisplay = 1080,
+	.hsync_start = 1080 + 90,
+	.hsync_end = 1080 + 90 + 2,
+	.htotal = 1080 + 90 + 2 + 120,
+	.vdisplay = 2340,
+	.vsync_start = 2340 + 10,
+	.vsync_end = 2340 + 10 + 3,
+	.vtotal = 2340 + 10 + 3 + 8,
+	.width_mm = 67,
+	.height_mm = 145,
+	.type = DRM_MODE_TYPE_DRIVER,
+};
+
+static const struct panel_desc_dsi nt36672a_tianmaplus = {
+	.desc = {
+		.modes = &nt36672a_tianmaplus_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 67,
+			.height = 145,
+		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "tianma,nt36672a-xiaomi-lavender-simple",
+		.data = &nt36672a_tianmaplus
+	},{
 		.compatible = "auo,b080uan01",
 		.data = &auo_b080uan01
 	}, {
