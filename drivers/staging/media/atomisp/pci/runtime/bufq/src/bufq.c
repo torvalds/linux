@@ -497,7 +497,7 @@ void ia_css_bufq_dump_queue_info(void)
 	for (i = 0; i < SH_CSS_MAX_SP_THREADS; i++) {
 		for (j = 0; j < SH_CSS_MAX_NUM_QUEUES; j++) {
 			snprintf(prefix, BUFQ_DUMP_FILE_NAME_PREFIX_SIZE,
-				 "host2sp_buffer_queue[%u][%u]", i, j);
+				 "host2sp_buffer_queue[%d][%d]", i, j);
 			bufq_dump_queue_info(prefix,
 					     &css_queues.host2sp_buffer_queue_handles[i][j]);
 		}
@@ -505,7 +505,7 @@ void ia_css_bufq_dump_queue_info(void)
 
 	for (i = 0; i < SH_CSS_MAX_NUM_QUEUES; i++) {
 		snprintf(prefix, BUFQ_DUMP_FILE_NAME_PREFIX_SIZE,
-			 "sp2host_buffer_queue[%u]", i);
+			 "sp2host_buffer_queue[%d]", i);
 		bufq_dump_queue_info(prefix,
 				     &css_queues.sp2host_buffer_queue_handles[i]);
 	}
