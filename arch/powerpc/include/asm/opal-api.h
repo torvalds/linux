@@ -246,7 +246,7 @@
 #define OPAL_CONFIG_IDLE_UNDO		0
 #define OPAL_CONFIG_IDLE_APPLY		1
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* Other enums */
 enum OpalFreezeState {
@@ -1183,6 +1183,6 @@ struct opal_mpipl_fadump {
 	struct	opal_mpipl_region region[];
 } __packed;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __OPAL_API_H */

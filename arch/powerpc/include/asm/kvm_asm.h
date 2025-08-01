@@ -9,7 +9,7 @@
 #ifndef __POWERPC_KVM_ASM_H__
 #define __POWERPC_KVM_ASM_H__
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #ifdef CONFIG_64BIT
 #define PPC_STD(sreg, offset, areg)  std sreg, (offset)(areg)
 #define PPC_LD(treg, offset, areg)   ld treg, (offset)(areg)

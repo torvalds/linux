@@ -5,7 +5,7 @@
 #ifndef _ASM_POWERPC_VDSO_GETRANDOM_H
 #define _ASM_POWERPC_VDSO_GETRANDOM_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/vdso_datapage.h>
 
@@ -62,6 +62,6 @@ static __always_inline const struct vdso_rng_data *__arch_get_vdso_u_rng_data(vo
 ssize_t __c_kernel_getrandom(void *buffer, size_t len, unsigned int flags, void *opaque_state,
 			     size_t opaque_len);
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_POWERPC_VDSO_GETRANDOM_H */

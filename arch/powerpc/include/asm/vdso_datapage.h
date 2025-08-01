@@ -9,11 +9,11 @@
  * 		      IBM Corp.
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <vdso/datapage.h>
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 .macro get_datapage ptr symbol
 	bcl	20, 31, .+4
@@ -23,7 +23,7 @@
 	addi	\ptr, \ptr, (\symbol - 999b)@l
 .endm
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __KERNEL__ */
 #endif /* _SYSTEMCFG_H */

@@ -8,7 +8,7 @@
 
 #include <asm/feature-fixups.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /*
  * All exceptions from guest state must go through KVM
@@ -64,5 +64,5 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
 .endm
 
-#endif /*__ASSEMBLY__ */
+#endif /*__ASSEMBLER__ */
 #endif /* ASM_KVM_BOOKE_HV_ASM_H */

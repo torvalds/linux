@@ -10,7 +10,7 @@
 #if !defined(_ASM_POWERPC_LV1CALL_H)
 #define _ASM_POWERPC_LV1CALL_H
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 
 #include <linux/types.h>
 #include <linux/export.h>
@@ -211,7 +211,7 @@
     {return _lv1_##name(LV1_##in##_IN_##out##_OUT_ARGS);}
 #endif
 
-#endif /* !defined(__ASSEMBLY__) */
+#endif /* !defined(__ASSEMBLER__) */
 
 /* lv1 call table */
 

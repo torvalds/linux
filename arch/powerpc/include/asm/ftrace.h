@@ -15,7 +15,7 @@
 #define FTRACE_MCOUNT_MAX_OFFSET	8
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern void _mcount(void);
 
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
@@ -69,14 +69,14 @@ struct ftrace_ops;
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs);
 #endif
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #endif
 #endif /* CONFIG_FUNCTION_TRACER */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef CONFIG_FTRACE_SYSCALLS
 /*
  * Some syscall entry functions on powerpc start with "ppc_" (fork and clone,
@@ -160,6 +160,6 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsi
 static inline void ftrace_free_init_tramp(void) { }
 static inline unsigned long ftrace_call_adjust(unsigned long addr) { return addr; }
 #endif
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_POWERPC_FTRACE */

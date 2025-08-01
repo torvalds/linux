@@ -10,7 +10,7 @@
 #define AMR_KUEP_BLOCKED	UL(0x5455555555555555)
 #define AMR_KUAP_BLOCKED	(AMR_KUAP_BLOCK_READ | AMR_KUAP_BLOCK_WRITE)
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 .macro kuap_user_restore gpr1, gpr2
 #if defined(CONFIG_PPC_PKEY)
@@ -191,7 +191,7 @@
 #endif
 .endm
 
-#else /* !__ASSEMBLY__ */
+#else /* !__ASSEMBLER__ */
 
 #include <linux/jump_label.h>
 #include <linux/sched.h>
@@ -413,6 +413,6 @@ static __always_inline void restore_user_access(unsigned long flags)
 	if (static_branch_unlikely(&uaccess_flush_key) && flags == AMR_KUAP_BLOCKED)
 		do_uaccess_flush();
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_POWERPC_BOOK3S_64_KUP_H */

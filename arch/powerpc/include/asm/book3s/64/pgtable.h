@@ -4,7 +4,7 @@
 
 #include <asm-generic/pgtable-nop4d.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/mmdebug.h>
 #include <linux/bug.h>
 #include <linux/sizes.h>
@@ -143,7 +143,7 @@
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * page table defines
  */
@@ -291,7 +291,7 @@ static inline unsigned long pud_leaf_size(pud_t pud)
 	else
 		return PUD_SIZE;
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #include <asm/book3s/64/hash.h>
 #include <asm/book3s/64/radix.h>
@@ -327,7 +327,7 @@ static inline unsigned long pud_leaf_size(pud_t pud)
 #define FIXADDR_SIZE	SZ_32M
 #define FIXADDR_TOP	(IOREMAP_END + FIXADDR_SIZE)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline unsigned long pte_update(struct mm_struct *mm, unsigned long addr,
 				       pte_t *ptep, unsigned long clr,
@@ -1381,5 +1381,5 @@ static inline bool is_pte_rw_upgrade(unsigned long old_val, unsigned long new_va
 	return false;
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */

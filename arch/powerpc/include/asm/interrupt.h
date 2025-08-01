@@ -64,7 +64,7 @@
 #define INTERRUPT_DATA_LOAD_TLB_MISS_603	0x1100
 #define INTERRUPT_DATA_STORE_TLB_MISS_603	0x1200
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/context_tracking.h>
 #include <linux/hardirq.h>
@@ -675,6 +675,6 @@ unsigned long interrupt_exit_user_restart(struct pt_regs *regs);
 unsigned long interrupt_exit_kernel_restart(struct pt_regs *regs);
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_POWERPC_INTERRUPT_H */

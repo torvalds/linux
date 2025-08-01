@@ -8,7 +8,7 @@
 #ifndef _BPF_JIT_H
 #define _BPF_JIT_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/types.h>
 #include <asm/ppc-opcode.h>

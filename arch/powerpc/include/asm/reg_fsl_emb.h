@@ -9,7 +9,7 @@
 
 #include <linux/stringify.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* Performance Monitor Registers */
 static __always_inline unsigned int mfpmr(unsigned int rn)
 {
@@ -32,7 +32,7 @@ static __always_inline void mtpmr(unsigned int rn, unsigned int val)
 	     ".machine pop;"
 	     : [val] "=r" (val) : [rn] "i" (rn));
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* Freescale Book E Performance Monitor APU Registers */
 #define PMRN_PMC0	0x010	/* Performance Monitor Counter 0 */

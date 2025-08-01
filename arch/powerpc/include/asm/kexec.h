@@ -49,7 +49,7 @@
 #define KEXEC_STATE_IRQS_OFF 1
 #define KEXEC_STATE_REAL_MODE 2
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/reg.h>
 
 typedef void (*crash_shutdown_t)(void);
@@ -210,6 +210,6 @@ static inline void reset_sprs(void)
 }
 #endif
 
-#endif /* ! __ASSEMBLY__ */
+#endif /* ! __ASSEMBLER__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */
