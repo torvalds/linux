@@ -332,10 +332,10 @@ static int usb_probe_interface(struct device *dev)
 		return error;
 
 	if (udev->authorized == 0) {
-		dev_err(&intf->dev, "Device is not authorized for usage\n");
+		dev_info(&intf->dev, "Device is not authorized for usage\n");
 		return error;
 	} else if (intf->authorized == 0) {
-		dev_err(&intf->dev, "Interface %d is not authorized for usage\n",
+		dev_info(&intf->dev, "Interface %d is not authorized for usage\n",
 				intf->altsetting->desc.bInterfaceNumber);
 		return error;
 	}
