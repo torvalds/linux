@@ -2330,9 +2330,18 @@ static const struct i2c_device_id aw88399_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, aw88399_i2c_id);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id aw88399_acpi_match[] = {
+	{ "AWDZ8399", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, aw88399_acpi_match);
+#endif
+
 static struct i2c_driver aw88399_i2c_driver = {
 	.driver = {
 		.name = AW88399_I2C_NAME,
+		.acpi_match_table = ACPI_PTR(aw88399_acpi_match),
 	},
 	.probe = aw88399_i2c_probe,
 	.id_table = aw88399_i2c_id,
