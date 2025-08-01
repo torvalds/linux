@@ -271,8 +271,8 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 		ctx->ctx_id = ctx_id;
 
 		migrate = xe_migrate_alloc(tile);
-		if (IS_ERR(migrate)) {
-			err = PTR_ERR(migrate);
+		if (!migrate) {
+			err = -ENOMEM;
 			goto err_ret;
 		}
 
