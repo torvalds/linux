@@ -208,17 +208,17 @@ static void spdio_end_io(struct bio *bio)
     if (waiter) {
       WRITE_ONCE(dio->submit.waiter, NULL);
       blk_wake_io_task(waiter);
-      //pr_info("spdio_end_io(): trigger completion point\n");
+      pr_info("spdio_end_io(): trigger completion point\n");
     }
   } else {
-    bio_release_pages(bio, false);
-  	bio_put(bio);
+    pr_info("spdio_end_io(): exit\n");
   }
   
   if (atomic_dec_and_test(&dio->ref)) 
     kfree(dio);
   
-  //pr_info("spdio_end_io(): exit\n");
+  bio_release_pages(bio, false);
+  bio_put(bio);
 }
 
 static void iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
@@ -356,8 +356,8 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
     nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   } 
   */
-  //nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, 1);
-  nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
+  nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, 1);
+  //nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
   do {
     //s = ktime_get();
 		size_t n;
@@ -532,7 +532,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int dio_flags)
 {
   ktime_t s, e;
-  //s = ktime_get();
+  s = ktime_get();
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct iomap_iter iomi = {
@@ -651,24 +651,24 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				goto out_free_dio;
 		}
 	}
-  //e = ktime_get();
-  //pr_info("__iomap_dio_rw(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  e = ktime_get();
+  pr_info("__iomap_dio_rw(): initialization=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	inode_dio_begin(inode);
 
-  //s = ktime_get();
+  s = ktime_get();
 	blk_start_plug(&plug);
 	while ((ret = iomap_iter(&iomi, ops)) > 0) {
 		iomi.processed = iomap_dio_iter(&iomi, dio);
   }
 	blk_finish_plug(&plug);
-  //e = ktime_get();
-  //pr_info("__iomap_dio_rw(): prepare & submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  e = ktime_get();
+  pr_info("__iomap_dio_rw(): prepare & submit I/O=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	/*
 	 * We only report that we've read data up to i_size.
 	 * Revert iter to a state corresponding to that as some callers (such
 	 * as the splice code) rely on it.
 	 */
-  //s = ktime_get();
+  s = ktime_get();
 	if (iov_iter_rw(iter) == READ && iomi.pos >= dio->i_size)
 		iov_iter_revert(iter, iomi.pos - dio->i_size);
 
@@ -725,8 +725,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		__set_current_state(TASK_RUNNING);
 	}
-  //e = ktime_get();
-  //pr_info("__iomap_dio_rw(): wait I/O completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
+  e = ktime_get();
+  pr_info("__iomap_dio_rw(): wait I/O completion=%lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	return dio;
 
 out_free_dio:

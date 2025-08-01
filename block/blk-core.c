@@ -1432,10 +1432,12 @@ bool blk_update_request(struct request *req, blk_status_t error,
 			req->bio = bio->bi_next;
 
     // LDY
+    /*
     if (bio->bi_end_io && bio->bi_flags & BIO_TRIGGER_COMPLETION) {
       bio->bi_end_io(bio);
       bio->bi_end_io = NULL;
     }
+    */
 		/* Completion has already been traced */
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 		req_bio_endio(req, bio, bio_bytes, error);

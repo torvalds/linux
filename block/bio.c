@@ -1491,6 +1491,7 @@ again:
 	/* release cgroup info */
 	bio_uninit(bio);
   // LDY 
+  /*
   if (bio->bi_flags & BIO_TRIGGER_COMPLETION) {
     bio_release_pages(bio, false);
     bio_put(bio);
@@ -1498,10 +1499,11 @@ again:
     if (bio->bi_end_io)
       bio->bi_end_io(bio);
   }
+  */ 
   /* 기존 로직 
+   */
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
-  */ 
 }
 EXPORT_SYMBOL(bio_endio);
 
