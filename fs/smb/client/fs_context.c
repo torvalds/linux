@@ -1475,35 +1475,21 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			pr_warn("username too long\n");
 			goto cifs_parse_mount_err;
 		}
-		ctx->username = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->username == NULL) {
-			cifs_errorf(fc, "OOM when copying username string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->username = no_free_ptr(param->string);
 		break;
 	case Opt_pass:
 		kfree_sensitive(ctx->password);
 		ctx->password = NULL;
 		if (strlen(param->string) == 0)
 			break;
-
-		ctx->password = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->password == NULL) {
-			cifs_errorf(fc, "OOM when copying password string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->password = no_free_ptr(param->string);
 		break;
 	case Opt_pass2:
 		kfree_sensitive(ctx->password2);
 		ctx->password2 = NULL;
 		if (strlen(param->string) == 0)
 			break;
-
-		ctx->password2 = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->password2 == NULL) {
-			cifs_errorf(fc, "OOM when copying password2 string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->password2 = no_free_ptr(param->string);
 		break;
 	case Opt_ip:
 		if (strlen(param->string) == 0) {
@@ -1526,11 +1512,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		}
 
 		kfree(ctx->domainname);
-		ctx->domainname = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->domainname == NULL) {
-			cifs_errorf(fc, "OOM when copying domainname string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->domainname = no_free_ptr(param->string);
 		cifs_dbg(FYI, "Domain name set\n");
 		break;
 	case Opt_srcaddr:
@@ -1550,11 +1532,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
 		if (strncasecmp(param->string, "default", 7) != 0) {
 			kfree(ctx->iocharset);
-			ctx->iocharset = kstrdup(param->string, GFP_KERNEL);
-			if (ctx->iocharset == NULL) {
-				cifs_errorf(fc, "OOM when copying iocharset string\n");
-				goto cifs_parse_mount_err;
-			}
+			ctx->iocharset = no_free_ptr(param->string);
 		}
 		/* if iocharset not set then load_nls_default
 		 * is used by caller

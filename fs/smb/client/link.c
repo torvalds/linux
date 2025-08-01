@@ -19,6 +19,7 @@
 #include "smb2proto.h"
 #include "cifs_ioctl.h"
 #include "fs_context.h"
+#include "reparse.h"
 
 /*
  * M-F Symlink Functions - Begin
@@ -570,7 +571,6 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	int rc = -EOPNOTSUPP;
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct TCP_Server_Info *server;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	const char *full_path;
@@ -593,7 +593,6 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 		goto symlink_exit;
 	}
 	pTcon = tlink_tcon(tlink);
-	server = cifs_pick_channel(pTcon->ses);
 
 	full_path = build_path_from_dentry(direntry, page);
 	if (IS_ERR(full_path)) {
@@ -643,13 +642,9 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	case CIFS_SYMLINK_TYPE_NATIVE:
 	case CIFS_SYMLINK_TYPE_NFS:
 	case CIFS_SYMLINK_TYPE_WSL:
-		if (server->ops->create_reparse_symlink &&
-		    (le32_to_cpu(pTcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS)) {
-			rc = server->ops->create_reparse_symlink(xid, inode,
-								 direntry,
-								 pTcon,
-								 full_path,
-								 symname);
+		if (le32_to_cpu(pTcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+			rc = create_reparse_symlink(xid, inode, direntry, pTcon,
+						    full_path, symname);
 			goto symlink_exit;
 		}
 		break;

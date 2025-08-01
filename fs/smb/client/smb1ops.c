@@ -16,6 +16,7 @@
 #include "fs_context.h"
 #include "nterr.h"
 #include "smberr.h"
+#include "reparse.h"
 
 /*
  * An NT cancel request header looks just like the original request except:
@@ -1263,17 +1264,26 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 		if (rc == 0)
 			d_instantiate(dentry, newinode);
 		return rc;
+	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+		/*
+		 * Check if mounted with mount parm 'sfu' mount parm.
+		 * SFU emulation should work with all servers
+		 * and was used by default in earlier versions of Windows.
+		 */
+		return cifs_sfu_make_node(xid, inode, dentry, tcon,
+					  full_path, mode, dev);
+	} else if (le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+		/*
+		 * mknod via reparse points requires server support for
+		 * storing reparse points, which is available since
+		 * Windows 2000, but was not widely used until release
+		 * of Windows Server 2012 by the Windows NFS server.
+		 */
+		return mknod_reparse(xid, inode, dentry, tcon,
+				     full_path, mode, dev);
+	} else {
+		return -EOPNOTSUPP;
 	}
-	/*
-	 * Check if mounted with mount parm 'sfu' mount parm.
-	 * SFU emulation should work with all servers, but only
-	 * supports block and char device, socket & fifo,
-	 * and was used by default in earlier versions of Windows
-	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
-		return -EPERM;
-	return cifs_sfu_make_node(xid, inode, dentry, tcon,
-				  full_path, mode, dev);
 }
 
 static bool
@@ -1370,6 +1380,7 @@ struct smb_version_operations smb1_operations = {
 	.create_hardlink = CIFSCreateHardLink,
 	.query_symlink = cifs_query_symlink,
 	.get_reparse_point_buffer = cifs_get_reparse_point_buffer,
+	.create_reparse_inode = cifs_create_reparse_inode,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,
