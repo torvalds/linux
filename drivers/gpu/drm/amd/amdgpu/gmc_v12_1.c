@@ -369,6 +369,34 @@ static void gmc_v12_1_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	uint16_t queried;
 	int vmid, i;
 
+	if (adev->enable_uni_mes && adev->mes.ring[0].sched.ready &&
+	    (adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x6f) {
+		struct mes_inv_tlbs_pasid_input input = {0};
+		input.xcc_id = inst;
+		input.pasid = pasid;
+		input.flush_type = flush_type;
+
+		/* MES will invalidate hubs for the device(including slave xcc) from master, ignore request from slave */
+		if (!amdgpu_gfx_is_master_xcc(adev, inst))
+			return;
+
+		input.hub_id = AMDGPU_GFXHUB(0);
+		adev->mes.funcs->invalidate_tlbs_pasid(&adev->mes, &input);
+
+		if (all_hub) {
+			/* invalidate mm_hub */
+			if (test_bit(AMDGPU_MMHUB1(0), adev->vmhubs_mask)) {
+				input.hub_id = AMDGPU_MMHUB0(0);
+				adev->mes.funcs->invalidate_tlbs_pasid(&adev->mes, &input);
+			}
+			if (test_bit(AMDGPU_MMHUB1(0), adev->vmhubs_mask)) {
+				input.hub_id = AMDGPU_MMHUB1(0);
+				adev->mes.funcs->invalidate_tlbs_pasid(&adev->mes, &input);
+			}
+		}
+		return;
+	}
+
 	for (vmid = 1; vmid < 16; vmid++) {
 		bool valid;
 
