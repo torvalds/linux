@@ -1021,6 +1021,15 @@ config DRM_PANEL_SYNAPTICS_R63353
 	  Say Y if you want to enable support for panels based on the
 	  Synaptics R63353 controller.
 
+config DRM_PANEL_TIANMA_NT36672A
+	tristate "Tianma NT36672  panel for Xiami Redmi Note 7 (xiaomi-lavender)"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Tianma nt36672
+	  command mode panel used in Xiaomi Redmi Note 7 phone (codename lavender)
+
 config DRM_PANEL_TDO_TL070WSH30
 	tristate "TDO TL070WSH30 DSI panel"
 	depends on OF
