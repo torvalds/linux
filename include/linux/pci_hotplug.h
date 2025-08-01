@@ -104,6 +104,7 @@ static inline bool shpchp_is_native(struct pci_dev *bridge) { return true; }
 
 static inline bool hotplug_is_native(struct pci_dev *bridge)
 {
-	return pciehp_is_native(bridge) || shpchp_is_native(bridge);
+	return (bridge->is_pciehp && pciehp_is_native(bridge)) ||
+	       shpchp_is_native(bridge);
 }
 #endif

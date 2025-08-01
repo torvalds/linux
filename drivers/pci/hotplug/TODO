@@ -2,10 +2,6 @@ Contributions are solicited in particular to remedy the following issues:
 
 cpcihp:
 
-* There are no implementations of the ->hardware_test, ->get_power and
-  ->set_power callbacks in struct cpci_hp_controller_ops.  Why were they
-  introduced?  Can they be removed from the struct?
-
 * Returned code from pci_hp_add_bridge() is not checked.
 
 cpqphp:

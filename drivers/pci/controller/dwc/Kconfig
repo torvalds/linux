@@ -19,6 +19,7 @@ config PCIE_DW_DEBUGFS
 config PCIE_DW_HOST
 	bool
 	select PCIE_DW
+	select IRQ_MSI_LIB
 
 config PCIE_DW_EP
 	bool
@@ -296,6 +297,7 @@ config PCIE_QCOM
 	select PCIE_DW_HOST
 	select CRC8
 	select PCIE_QCOM_COMMON
+	select PCI_HOST_COMMON
 	help
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
 	  PCIe controller uses the DesignWare core plus Qualcomm-specific
@@ -401,6 +403,16 @@ config PCIE_UNIPHIER_EP
 	help
 	  Say Y here if you want PCIe endpoint controller support on
 	  UniPhier SoCs. This driver supports Pro5 SoC.
+
+config PCIE_SOPHGO_DW
+	bool "Sophgo DesignWare PCIe controller (host mode)"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	depends on PCI_MSI
+	depends on OF
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe host controller support on
+	  Sophgo SoCs.
 
 config PCIE_SPEAR13XX
 	bool "STMicroelectronics SPEAr PCIe controller"
