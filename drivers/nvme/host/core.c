@@ -348,24 +348,30 @@ static inline enum nvme_disposition nvme_decide_disposition(struct request *req)
 static inline void nvme_end_req(struct request *req)
 {
 	blk_status_t status = nvme_error_status(nvme_req(req)->status);
-
+  ktime_t s, e;
+   s = ktime_get();
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
 	    req_op(req) == REQ_OP_ZONE_APPEND)
 		req->__sector = nvme_lba_to_sect(req->q->queuedata,
 			le64_to_cpu(nvme_req(req)->result.u64));
 
 	nvme_trace_bio_complete(req);
+  e = ktime_get();
+  pr_info("nvme_end_rq(): %lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	blk_mq_end_request(req, status);
 }
 
 void nvme_complete_rq(struct request *req)
 {
+  ktime_t s, e;
+  s = ktime_get();
 	trace_nvme_complete_rq(req);
 	nvme_cleanup_cmd(req);
 
 	if (nvme_req(req)->ctrl->kas)
 		nvme_req(req)->ctrl->comp_seen = true;
-
+  e = ktime_get();
+  pr_info("nvme_complete_rq(): %lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 	switch (nvme_decide_disposition(req)) {
 	case COMPLETE:
 		nvme_end_req(req);

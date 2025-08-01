@@ -545,7 +545,8 @@ EXPORT_SYMBOL_GPL(blk_mq_free_request);
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
 	u64 now = 0;
-
+  ktime_t s, e;
+  s = ktime_get();
 	if (blk_mq_need_time_stamp(rq))
 		now = ktime_get_ns();
 
@@ -564,6 +565,8 @@ inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 	} else {
 		blk_mq_free_request(rq);
 	}
+  e = ktime_get();
+  pr_info("__blk_mq_end_request(): %lld ns\n", ktime_to_ns(ktime_sub(e, s)));
 }
 EXPORT_SYMBOL(__blk_mq_end_request);
 

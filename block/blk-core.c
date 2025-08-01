@@ -1405,11 +1405,14 @@ bool blk_update_request(struct request *req, blk_status_t error,
 		unsigned int nr_bytes)
 {
 	int total_bytes;
-
+  ktime_t s, e; 
+  s = ktime_get();
 	trace_block_rq_complete(req, blk_status_to_errno(error), nr_bytes);
-
-	if (!req->bio)
+  e = ktime_get();
+	if (!req->bio) {
+    pr_info("blk_update_request(): %lld ns - req->bio==NULL\n", ktime_to_ns(ktime_sub(e, s)));
 		return false;
+  }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	if (blk_integrity_rq(req) && req_op(req) == REQ_OP_READ &&
@@ -1459,6 +1462,8 @@ bool blk_update_request(struct request *req, blk_status_t error,
 		 * later.
 		 */
 		req->__data_len = 0;
+    e = ktime_get();
+    pr_info("blk_update_request(): %lld ns - completely done req->bio==NULL\n", ktime_to_ns(ktime_sub(e, s)));
 		return false;
 	}
 
@@ -1487,7 +1492,8 @@ bool blk_update_request(struct request *req, blk_status_t error,
 		/* recalculate the number of segments */
 		req->nr_phys_segments = blk_recalc_rq_segments(req);
 	}
-
+  e = ktime_get();
+  pr_info("blk_update_request(): %lld ns - error?\n", ktime_to_ns(ktime_sub(e, s)));
 	return true;
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
