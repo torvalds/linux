@@ -66,18 +66,6 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 	spin_unlock_bh(&adapter->security_key_mutex);
 }
 
-void rtw_os_indicate_disconnect(struct adapter *adapter)
-{
-	/* struct rt_pmkid_list   backupPMKIDList[ NUM_PMKID_CACHE ]; */
-
-	netif_carrier_off(adapter->pnetdev); /*  Do it first for tx broadcast pkt after disconnection issue! */
-
-	rtw_cfg80211_indicate_disconnect(adapter);
-
-	/* modify for CONFIG_IEEE80211W, none 11w also can use the same command */
-	rtw_reset_securitypriv_cmd(adapter);
-}
-
 void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 {
 	uint	len;
