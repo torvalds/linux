@@ -1817,6 +1817,12 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 		   str_yes_no(snapshot->kernel_reserved));
 
 	for (type = GUC_STATE_CAPTURE_TYPE_GLOBAL; type < GUC_STATE_CAPTURE_TYPE_MAX; type++) {
+		/*
+		 * FIXME: During devcoredump print we should avoid accessing the
+		 * driver pointers for gt or engine. Printing should be done only
+		 * using the snapshot captured. Here we are accessing the gt
+		 * pointer. It should be fixed.
+		 */
 		list = xe_guc_capture_get_reg_desc_list(gt, GUC_CAPTURE_LIST_INDEX_PF, type,
 							capture_class, false);
 		snapshot_print_by_list_order(snapshot, p, type, list);
