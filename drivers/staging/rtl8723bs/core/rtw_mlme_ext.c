@@ -374,6 +374,15 @@ static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_c
 	return chanset_size;
 }
 
+static void init_mlme_ext_timer(struct adapter *padapter)
+{
+	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
+	timer_setup(&pmlmeext->survey_timer, survey_timer_hdl, 0);
+	timer_setup(&pmlmeext->link_timer, link_timer_hdl, 0);
+	timer_setup(&pmlmeext->sa_query_timer, sa_query_timer_hdl, 0);
+}
+
 void init_mlme_ext_priv(struct adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
