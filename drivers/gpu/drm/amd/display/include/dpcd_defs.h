@@ -224,6 +224,7 @@ enum dpcd_psr_sink_states {
 #define DP_SINK_PR_PIXEL_DEVIATION_PER_LINE     0x379
 #define DP_SINK_PR_MAX_NUMBER_OF_DEVIATION_LINE 0x37A
 #define DP_SINK_EMISSION_RATE                   0x37E
+#define DP_SINK_PR_FRAME_SKIP_COUNT             0x337
 
 /* Remove once drm_dp_helper.h is updated upstream */
 #ifndef DP_TOTAL_LTTPR_CNT
