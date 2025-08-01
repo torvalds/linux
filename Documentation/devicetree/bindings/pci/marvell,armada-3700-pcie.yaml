@@ -42,6 +42,9 @@ properties:
     additionalProperties: false
 
     properties:
+      '#address-cells':
+        const: 0
+
       interrupt-controller: true
 
       '#interrupt-cells':
@@ -92,6 +95,7 @@ examples:
             reset-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 
             pcie_intc: interrupt-controller {
+                #address-cells = <0>;
                 interrupt-controller;
                 #interrupt-cells = <1>;
             };
