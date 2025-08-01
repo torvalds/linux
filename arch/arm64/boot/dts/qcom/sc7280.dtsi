@@ -3855,6 +3855,13 @@
 							compatible = "qcom,q6afe-clocks";
 							#clock-cells = <2>;
 						};
+
+						q6usbdai: usbd {
+							compatible = "qcom,q6usb";
+							iommus = <&apps_smmu 0x180f 0x0>;
+							#sound-dai-cells = <1>;
+							qcom,usb-audio-intr-idx = /bits/ 16 <2>;
+						};
 					};
 
 					q6asm: service@7 {
@@ -4295,6 +4302,7 @@
 			snps,parkmode-disable-ss-quirk;
 			snps,dis-u1-entry-quirk;
 			snps,dis-u2-entry-quirk;
+			num-hc-interrupters = /bits/ 16 <3>;
 			phys = <&usb_1_hsphy>, <&usb_1_qmpphy QMP_USB43DP_USB3_PHY>;
 			phy-names = "usb2-phy", "usb3-phy";
 			maximum-speed = "super-speed";
