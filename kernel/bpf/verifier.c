@@ -21445,7 +21445,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 					 &target_size);
 		if (cnt == 0 || cnt >= INSN_BUF_SIZE ||
 		    (ctx_field_size && !target_size)) {
-			verifier_bug(env, "error during ctx access conversion");
+			verifier_bug(env, "error during ctx access conversion (%d)", cnt);
 			return -EFAULT;
 		}
 
