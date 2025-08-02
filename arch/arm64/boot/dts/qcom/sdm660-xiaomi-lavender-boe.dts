@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2024, Barnabas Czeman <trabarni@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "sdm660-xiaomi-lavender-common.dtsi"
+
+/ {
+	model = "Xiaomi Redmi Note 7 (Boe)";
+	compatible = "xiaomi,lavender-boe", "qcom,sdm660";
+};
+
+&panel {
+	compatible = "boe,td4320";
+};
