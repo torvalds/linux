@@ -4,7 +4,6 @@
  * Copyright (c) 2020, AngeloGioacchino Del Regno <kholk11@gmail.com>
  */
 
-#include <dt-bindings/clock/qcom,dsi-phy-28nm.h>
 #include <dt-bindings/clock/qcom,gcc-sdm660.h>
 #include <dt-bindings/clock/qcom,gpucc-sdm660.h>
 #include <dt-bindings/clock/qcom,mmcc-sdm660.h>
@@ -598,8 +597,8 @@
 			};
 
 			gpu_speed_bin: gpu-speed-bin@41a0 {
-				reg = <0x41a2 0x1>;
-				bits = <5 7>;
+				reg = <0x41a2 0x2>;
+				bits = <5 8>;
 			};
 		};
 
@@ -1013,6 +1012,20 @@
 					drive-strength = <2>;
 				};
 			};
+
+			spi7_default: spi7-default-state {
+				pins = "gpio24", "gpio25", "gpio26", "gpio27";
+				function = "blsp_spi7";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
+			spi7_sleep: spi7-sleep-state {
+				pins = "gpio24", "gpio25", "gpio26", "gpio27";
+				function = "blsp_spi7";
+				drive-strength = <6>;
+				bias-disable;
+			};
 		};
 
 		remoteproc_mss: remoteproc@4080000 {
@@ -1112,44 +1125,75 @@
 
 			gpu_sdm630_opp_table: opp-table {
 				compatible = "operating-points-v2";
+
+				/*
+				 * 775MHz is only available on default speed bin
+				 * or 162 (bit 3). Though it cannot be used for now
+				 * due to interconnect framework not supporting
+				 * multiple frequencies at the same opp-level.
+				 *
 				opp-775000000 {
 					opp-hz = /bits/ 64 <775000000>;
 					opp-level = <RPM_SMD_LEVEL_TURBO>;
 					opp-peak-kBps = <5412000>;
-					opp-supported-hw = <0xa2>;
+					opp-supported-hw = <0x8>;
+				}; */
+
+				/* bins 162, 146 -> bits 3, 2 */
+				opp-700000000 {
+					opp-hz = /bits/ 64 <700000000>;
+					opp-level = <RPM_SMD_LEVEL_TURBO>;
+					opp-peak-kBps = <5184000>;
+					opp-supported-hw = <0xc>;
 				};
+
+				/* bins 162, 146, 135 -> bits 3, 2, 1 */
 				opp-647000000 {
 					opp-hz = /bits/ 64 <647000000>;
 					opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
 					opp-peak-kBps = <4068000>;
-					opp-supported-hw = <0xff>;
+					opp-supported-hw = <0xe>;
 				};
+
+				/* 588 MHz and below are supported by all bins */
 				opp-588000000 {
 					opp-hz = /bits/ 64 <588000000>;
 					opp-level = <RPM_SMD_LEVEL_NOM>;
 					opp-peak-kBps = <3072000>;
 					opp-supported-hw = <0xff>;
 				};
+
 				opp-465000000 {
 					opp-hz = /bits/ 64 <465000000>;
 					opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 					opp-peak-kBps = <2724000>;
 					opp-supported-hw = <0xff>;
 				};
+
 				opp-370000000 {
 					opp-hz = /bits/ 64 <370000000>;
 					opp-level = <RPM_SMD_LEVEL_SVS>;
 					opp-peak-kBps = <2188000>;
 					opp-supported-hw = <0xff>;
 				};
+
 				opp-240000000 {
 					opp-hz = /bits/ 64 <240000000>;
 					opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
 					opp-peak-kBps = <1648000>;
 					opp-supported-hw = <0xff>;
 				};
+
 				opp-160000000 {
 					opp-hz = /bits/ 64 <160000000>;
+					opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
+					opp-peak-kBps = <1200000>;
+					opp-supported-hw = <0xff>;
+				};
+
+				/* Idle, parented to gpucc_cxo */
+				opp-19200000 {
+					opp-hz = /bits/ 64 <19200000>;
 					opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
 					opp-peak-kBps = <1200000>;
 					opp-supported-hw = <0xff>;
@@ -1548,8 +1592,8 @@
 					<&sleep_clk>,
 					<&gcc GCC_MMSS_GPLL0_CLK>,
 					<&gcc GCC_MMSS_GPLL0_DIV_CLK>,
-					<&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>,
-					<&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
+					<&mdss_dsi0_phy 1>,
+					<&mdss_dsi0_phy 0>,
 					<0>,
 					<0>,
 					<0>,
@@ -1671,8 +1715,8 @@
 
 				assigned-clocks = <&mmcc BYTE0_CLK_SRC>,
 						  <&mmcc PCLK0_CLK_SRC>;
-				assigned-clock-parents = <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
-							 <&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>;
+				assigned-clock-parents = <&mdss_dsi0_phy 0>,
+							 <&mdss_dsi0_phy 1>;
 
 				clocks = <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc MDSS_BYTE0_CLK>,
@@ -1939,6 +1983,26 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c7_default>;
 			pinctrl-1 = <&i2c7_sleep>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		blsp_spi7: spi@c1b7000 {
+			compatible = "qcom,spi-qup-v2.2.1";
+			reg = <0x0c1b7000 0x600>;
+			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_BLSP2_QUP3_I2C_APPS_CLK>,
+				 <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			clock-frequency = <400000>;
+			dmas = <&blsp2_dma 8>, <&blsp2_dma 9>;
+			dma-names = "tx", "rx";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&spi7_default>;
+			pinctrl-1 = <&spi7_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";

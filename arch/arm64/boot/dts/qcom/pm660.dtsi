@@ -5,6 +5,7 @@
 
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/input/qcom,spmi-haptics.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -197,6 +198,16 @@
 			};
 		};
 
+		pm660_fg: fuel-gauge@4000 {
+			compatible = "qcom,pmi8998-fg";
+			reg = <0x4000 0x1000>;
+
+			interrupts = <0x0 0x40 0x3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "soc-delta";
+
+			status = "disabled";
+		};
+
 		pm660_rradc: adc@4500 {
 			compatible = "qcom,pm660-rradc";
 			reg = <0x4500>;
@@ -221,6 +232,23 @@
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm660_haptics: vibrator@c000 {
+			compatible = "qcom,pmi8998-haptics", "qcom,spmi-haptics";
+			reg = <0xc000>;
+
+			interrupts = <0x1 0xc0 0x0 IRQ_TYPE_EDGE_BOTH>,
+				     <0x1 0xc0 0x1 IRQ_TYPE_EDGE_BOTH>;
+			interrupt-names = "short", "play";
+
+			qcom,actuator-type = <HAP_TYPE_LRA>;
+			qcom,brake-pattern = <0x3 0x3 0x0 0x0>;
+			qcom,play-mode = <HAP_PLAY_BUFFER>;
+			qcom,wave-play-rate-us = <6667>;
+			qcom,wave-shape = <HAP_WAVE_SQUARE>;
+
+			status = "disabled";
+		};
 
 		pm660_spmi_regulators: regulators {
 			compatible = "qcom,pm660-regulators";

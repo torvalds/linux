@@ -13,61 +13,82 @@
 	compatible = "qcom,adreno-512.0", "qcom,adreno";
 	operating-points-v2 = <&gpu_sdm660_opp_table>;
 
+	/*
+	 * Delete the whole OPP table inherited from SDM630 - we need to
+	 * rewrite it cleanly from scratch, because frequency tables in gpucc
+	 * are different between sdm630 - sdm660, and the same bin (135) has
+	 * different meaning (unlocks different frequencies) on sdm660,
+	 * compared to sdm630.
+	 */
+	/delete-node/ opp-table;
+
 	gpu_sdm660_opp_table: opp-table {
 		compatible = "operating-points-v2";
 
 		/*
-		 * 775MHz is only available on the highest speed bin
+		 * 750 MHz is only available on the highest speed bin
 		 * Though it cannot be used for now due to interconnect
 		 * framework not supporting multiple frequencies
-		 * at the same opp-level
+		 * at the same opp-level.
+		 * These OPPs are correct, but we are lacking support for the
+		 * GPU regulator. Hence, disable them for now to prevent the
+		 * platform from hanging on high graphics loads.
 
+		 * bin 157 -> bit 6 *
 		opp-750000000 {
 			opp-hz = /bits/ 64 <750000000>;
 			opp-level = <RPM_SMD_LEVEL_TURBO>;
 			opp-peak-kBps = <5412000>;
-			opp-supported-hw = <0xCHECKME>;
-		};
+			opp-supported-hw = <0x40>;
+		}; */
 
-		* These OPPs are correct, but we are lacking support for the
-		* GPU regulator. Hence, disable them for now to prevent the
-		* platform from hanging on high graphics loads.
-
+		/* bins 157,146 -> bits 6,5 */
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
 			opp-level = <RPM_SMD_LEVEL_TURBO>;
 			opp-peak-kBps = <5184000>;
-			opp-supported-hw = <0xff>;
+			opp-supported-hw = <0x60>;
 		};
 
+		/* bins 157,146,135 -> bits 6,5,4 */
 		opp-647000000 {
 			opp-hz = /bits/ 64 <647000000>;
 			opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
 			opp-peak-kBps = <4068000>;
-			opp-supported-hw = <0xff>;
+			opp-supported-hw = <0x70>;
 		};
 
+		/* bins 157,146,135 -> bits 6,5,4 */
 		opp-588000000 {
 			opp-hz = /bits/ 64 <588000000>;
 			opp-level = <RPM_SMD_LEVEL_NOM>;
 			opp-peak-kBps = <3072000>;
-			opp-supported-hw = <0xff>;
+			opp-supported-hw = <0x70>;
 		};
 
+		/* bins 157,146,135,122 -> bits 6,5,4,3 */
 		opp-465000000 {
 			opp-hz = /bits/ 64 <465000000>;
 			opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 			opp-peak-kBps = <2724000>;
-			opp-supported-hw = <0xff>;
+			opp-supported-hw = <0x78>;
 		};
 
+		/* this one is for SDM636 with bin 90, bit 2 */
+		opp-430000000 {
+			opp-hz = /bits/ 64 <430000000>;
+			opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
+			opp-peak-kBps = <2724000>;
+			opp-supported-hw = <0x4>;
+		};
+
+		/* 370 MHz and below are supported in all bins */
 		opp-370000000 {
 			opp-hz = /bits/ 64 <370000000>;
 			opp-level = <RPM_SMD_LEVEL_SVS>;
 			opp-peak-kBps = <2188000>;
 			opp-supported-hw = <0xff>;
 		};
-		*/
 
 		opp-266000000 {
 			opp-hz = /bits/ 64 <266000000>;
@@ -78,6 +99,14 @@
 
 		opp-160000000 {
 			opp-hz = /bits/ 64 <160000000>;
+			opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
+			opp-peak-kBps = <1200000>;
+			opp-supported-hw = <0xff>;
+		};
+
+		/* Idle, parented to gpucc_cxo */
+		opp-19200000 {
+			opp-hz = /bits/ 64 <19200000>;
 			opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
 			opp-peak-kBps = <1200000>;
 			opp-supported-hw = <0xff>;
@@ -170,8 +199,8 @@
 
 		assigned-clocks = <&mmcc BYTE1_CLK_SRC>,
 					<&mmcc PCLK1_CLK_SRC>;
-		assigned-clock-parents = <&mdss_dsi1_phy DSI_BYTE_PLL_CLK>,
-					 <&mdss_dsi1_phy DSI_PIXEL_PLL_CLK>;
+		assigned-clock-parents = <&mdss_dsi1_phy 0>,
+						<&mdss_dsi1_phy 1>;
 
 		clocks = <&mmcc MDSS_MDP_CLK>,
 				<&mmcc MDSS_BYTE1_CLK>,
@@ -239,10 +268,10 @@
 			<&sleep_clk>,
 			<&gcc GCC_MMSS_GPLL0_CLK>,
 			<&gcc GCC_MMSS_GPLL0_DIV_CLK>,
-			<&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>,
-			<&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
-			<&mdss_dsi1_phy DSI_PIXEL_PLL_CLK>,
-			<&mdss_dsi1_phy DSI_BYTE_PLL_CLK>,
+			<&mdss_dsi0_phy 1>,
+			<&mdss_dsi0_phy 0>,
+			<&mdss_dsi1_phy 1>,
+			<&mdss_dsi1_phy 0>,
 			<0>,
 			<0>;
 };
