@@ -9,6 +9,8 @@
 
 #include "rocket_device.h"
 
+extern const struct dev_pm_ops rocket_pm_ops;
+
 struct rocket_iommu_domain {
 	struct iommu_domain *domain;
 	struct kref kref;
