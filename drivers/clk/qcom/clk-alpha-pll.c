@@ -66,7 +66,7 @@
 #define GET_PLL_TYPE(pll)	(((pll)->regs - clk_alpha_pll_regs[0]) / PLL_OFF_MAX_REGS)
 
 const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
-	[CLK_ALPHA_PLL_TYPE_DEFAULT] =  {
+	[CLK_ALPHA_PLL_TYPE_DEFAULT] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_ALPHA_VAL_U] = 0x0c,
@@ -77,7 +77,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL_U] = 0x20,
 		[PLL_OFF_STATUS] = 0x24,
 	},
-	[CLK_ALPHA_PLL_TYPE_HUAYRA] =  {
+	[CLK_ALPHA_PLL_TYPE_HUAYRA] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_USER_CTL] = 0x10,
@@ -87,7 +87,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL_U] = 0x20,
 		[PLL_OFF_STATUS] = 0x24,
 	},
-	[CLK_ALPHA_PLL_TYPE_HUAYRA_APSS] =  {
+	[CLK_ALPHA_PLL_TYPE_HUAYRA_APSS] = {
 		[PLL_OFF_L_VAL] = 0x08,
 		[PLL_OFF_ALPHA_VAL] = 0x10,
 		[PLL_OFF_USER_CTL] = 0x18,
@@ -97,7 +97,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL] = 0x30,
 		[PLL_OFF_TEST_CTL_U] = 0x34,
 	},
-	[CLK_ALPHA_PLL_TYPE_HUAYRA_2290] =  {
+	[CLK_ALPHA_PLL_TYPE_HUAYRA_2290] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_USER_CTL] = 0x0c,
@@ -110,7 +110,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_OPMODE] = 0x28,
 		[PLL_OFF_STATUS] = 0x38,
 	},
-	[CLK_ALPHA_PLL_TYPE_BRAMMO] =  {
+	[CLK_ALPHA_PLL_TYPE_BRAMMO] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_ALPHA_VAL_U] = 0x0c,
@@ -119,7 +119,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL] = 0x1c,
 		[PLL_OFF_STATUS] = 0x24,
 	},
-	[CLK_ALPHA_PLL_TYPE_FABIA] =  {
+	[CLK_ALPHA_PLL_TYPE_FABIA] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_USER_CTL] = 0x0c,
 		[PLL_OFF_USER_CTL_U] = 0x10,
@@ -147,7 +147,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_OPMODE] = 0x38,
 		[PLL_OFF_ALPHA_VAL] = 0x40,
 	},
-	[CLK_ALPHA_PLL_TYPE_AGERA] =  {
+	[CLK_ALPHA_PLL_TYPE_AGERA] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_USER_CTL] = 0x0c,
@@ -157,7 +157,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL_U] = 0x1c,
 		[PLL_OFF_STATUS] = 0x2c,
 	},
-	[CLK_ALPHA_PLL_TYPE_ZONDA] =  {
+	[CLK_ALPHA_PLL_TYPE_ZONDA] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_USER_CTL] = 0x0c,
@@ -243,7 +243,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL] = 0x28,
 		[PLL_OFF_TEST_CTL_U] = 0x2c,
 	},
-	[CLK_ALPHA_PLL_TYPE_DEFAULT_EVO] =  {
+	[CLK_ALPHA_PLL_TYPE_DEFAULT_EVO] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_ALPHA_VAL_U] = 0x0c,
@@ -254,7 +254,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_CONFIG_CTL] = 0x20,
 		[PLL_OFF_STATUS] = 0x24,
 	},
-	[CLK_ALPHA_PLL_TYPE_BRAMMO_EVO] =  {
+	[CLK_ALPHA_PLL_TYPE_BRAMMO_EVO] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_ALPHA_VAL_U] = 0x0c,
@@ -275,7 +275,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_TEST_CTL] = 0x30,
 		[PLL_OFF_TEST_CTL_U] = 0x34,
 	},
-	[CLK_ALPHA_PLL_TYPE_STROMER_PLUS] =  {
+	[CLK_ALPHA_PLL_TYPE_STROMER_PLUS] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_USER_CTL] = 0x08,
 		[PLL_OFF_USER_CTL_U] = 0x0c,
@@ -286,7 +286,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_ALPHA_VAL] = 0x24,
 		[PLL_OFF_ALPHA_VAL_U] = 0x28,
 	},
-	[CLK_ALPHA_PLL_TYPE_ZONDA_OLE] =  {
+	[CLK_ALPHA_PLL_TYPE_ZONDA_OLE] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_USER_CTL] = 0x0c,
@@ -301,7 +301,7 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_OPMODE] = 0x30,
 		[PLL_OFF_STATUS] = 0x3c,
 	},
-	[CLK_ALPHA_PLL_TYPE_NSS_HUAYRA] =  {
+	[CLK_ALPHA_PLL_TYPE_NSS_HUAYRA] = {
 		[PLL_OFF_L_VAL] = 0x04,
 		[PLL_OFF_ALPHA_VAL] = 0x08,
 		[PLL_OFF_TEST_CTL] = 0x0c,

@@ -709,8 +709,8 @@ static const struct qcom_cc_desc lpass_audio_cc_sc7280_desc = {
 };
 
 static const struct qcom_reset_map lpass_audio_cc_sc7280_resets[] = {
-	[LPASS_AUDIO_SWR_RX_CGCR] =  { 0xa0, 1 },
-	[LPASS_AUDIO_SWR_TX_CGCR] =  { 0xa8, 1 },
+	[LPASS_AUDIO_SWR_RX_CGCR] = { 0xa0, 1 },
+	[LPASS_AUDIO_SWR_TX_CGCR] = { 0xa8, 1 },
 	[LPASS_AUDIO_SWR_WSA_CGCR] = { 0xb0, 1 },
 };
 

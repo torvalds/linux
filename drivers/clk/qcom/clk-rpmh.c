@@ -87,7 +87,7 @@ static DEFINE_MUTEX(rpmh_clk_lock);
 		.hw.init = &(struct clk_init_data){			\
 			.ops = &clk_rpmh_ops,				\
 			.name = #_name,					\
-			.parent_data =  &(const struct clk_parent_data){ \
+			.parent_data = &(const struct clk_parent_data){ \
 					.fw_name = "xo",		\
 					.name = "xo_board",		\
 			},						\
@@ -105,7 +105,7 @@ static DEFINE_MUTEX(rpmh_clk_lock);
 		.hw.init = &(struct clk_init_data){			\
 			.ops = &clk_rpmh_ops,				\
 			.name = #_name "_ao",				\
-			.parent_data =  &(const struct clk_parent_data){ \
+			.parent_data = &(const struct clk_parent_data){ \
 					.fw_name = "xo",		\
 					.name = "xo_board",		\
 			},						\
@@ -182,7 +182,7 @@ static int clk_rpmh_send_aggregate_command(struct clk_rpmh *c)
 	}
 
 	c->last_sent_aggr_state = c->aggr_state;
-	c->peer->last_sent_aggr_state =  c->last_sent_aggr_state;
+	c->peer->last_sent_aggr_state = c->last_sent_aggr_state;
 
 	return 0;
 }

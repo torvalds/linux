@@ -74,7 +74,7 @@ static struct clk_alpha_pll mmpll0 = {
 	},
 };
 
-static struct clk_alpha_pll mmpll6 =  {
+static struct clk_alpha_pll mmpll6 = {
 	.offset = 0xf0,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
 	.clkr = {

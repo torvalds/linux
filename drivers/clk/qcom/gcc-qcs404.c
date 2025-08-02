@@ -2754,7 +2754,7 @@ static struct clk_regmap *gcc_qcs404_clocks[] = {
 	[GCC_DCC_CLK] = &gcc_dcc_clk.clkr,
 	[GCC_DCC_XO_CLK] = &gcc_dcc_xo_clk.clkr,
 	[GCC_WCSS_Q6_AHB_CLK] = &gcc_wdsp_q6ss_ahbs_clk.clkr,
-	[GCC_WCSS_Q6_AXIM_CLK] =  &gcc_wdsp_q6ss_axim_clk.clkr,
+	[GCC_WCSS_Q6_AXIM_CLK] = &gcc_wdsp_q6ss_axim_clk.clkr,
 
 };
 
