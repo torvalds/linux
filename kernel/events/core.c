@@ -7148,11 +7148,19 @@ aux_unlock:
 	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &perf_mmap_vmops;
 
-	ret = map_range(rb, vma);
-
 	mapped = get_mapped(event, event_mapped);
 	if (mapped)
 		mapped(event, vma->vm_mm);
+
+	/*
+	 * Try to map it into the page table. On fail, invoke
+	 * perf_mmap_close() to undo the above, as the callsite expects
+	 * full cleanup in this case and therefore does not invoke
+	 * vmops::close().
+	 */
+	ret = map_range(rb, vma);
+	if (ret)
+		perf_mmap_close(vma);
 
 	return ret;
 }
