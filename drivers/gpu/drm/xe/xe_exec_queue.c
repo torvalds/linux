@@ -1081,11 +1081,14 @@ int xe_exec_queue_last_fence_test_dep(struct xe_exec_queue *q, struct xe_vm *vm)
  * xe_exec_queue_contexts_hwsp_rebase - Re-compute GGTT references
  * within all LRCs of a queue.
  * @q: the &xe_exec_queue struct instance containing target LRCs
+ * @scratch: scratch buffer to be used as temporary storage
  */
-void xe_exec_queue_contexts_hwsp_rebase(struct xe_exec_queue *q)
+void xe_exec_queue_contexts_hwsp_rebase(struct xe_exec_queue *q, void *scratch)
 {
 	int i;
 
-	for (i = 0; i < q->width; ++i)
+	for (i = 0; i < q->width; ++i) {
+		xe_lrc_update_memirq_regs_with_address(q->lrc[i], q->hwe, scratch);
 		xe_lrc_update_hwctx_regs_with_address(q->lrc[i]);
+	}
 }

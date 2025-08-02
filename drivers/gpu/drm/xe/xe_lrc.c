@@ -697,7 +697,13 @@ u32 xe_lrc_regs_offset(struct xe_lrc *lrc)
 	return xe_lrc_pphwsp_offset(lrc) + LRC_PPHWSP_SIZE;
 }
 
-static size_t lrc_reg_size(struct xe_device *xe)
+/**
+ * xe_lrc_reg_size() - Get size of the LRC registers area within queues
+ * @xe: the &xe_device struct instance
+ *
+ * Returns: Size of the LRC registers area for current platform
+ */
+size_t xe_lrc_reg_size(struct xe_device *xe)
 {
 	if (GRAPHICS_VERx100(xe) >= 1250)
 		return 96 * sizeof(u32);
@@ -707,7 +713,7 @@ static size_t lrc_reg_size(struct xe_device *xe)
 
 size_t xe_lrc_skip_size(struct xe_device *xe)
 {
-	return LRC_PPHWSP_SIZE + lrc_reg_size(xe);
+	return LRC_PPHWSP_SIZE + xe_lrc_reg_size(xe);
 }
 
 static inline u32 __xe_lrc_seqno_offset(struct xe_lrc *lrc)
@@ -946,6 +952,47 @@ static void *empty_lrc_data(struct xe_hw_engine *hwe)
 	}
 
 	return data;
+}
+
+/**
+ * xe_default_lrc_update_memirq_regs_with_address - Re-compute GGTT references in default LRC
+ * of given engine.
+ * @hwe: the &xe_hw_engine struct instance
+ */
+void xe_default_lrc_update_memirq_regs_with_address(struct xe_hw_engine *hwe)
+{
+	struct xe_gt *gt = hwe->gt;
+	u32 *regs;
+
+	if (!gt->default_lrc[hwe->class])
+		return;
+
+	regs = gt->default_lrc[hwe->class] + LRC_PPHWSP_SIZE;
+	set_memory_based_intr(regs, hwe);
+}
+
+/**
+ * xe_lrc_update_memirq_regs_with_address - Re-compute GGTT references in mem interrupt data
+ * for given LRC.
+ * @lrc: the &xe_lrc struct instance
+ * @hwe: the &xe_hw_engine struct instance
+ * @regs: scratch buffer to be used as temporary storage
+ */
+void xe_lrc_update_memirq_regs_with_address(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
+					    u32 *regs)
+{
+	struct xe_gt *gt = hwe->gt;
+	struct iosys_map map;
+	size_t regs_len;
+
+	if (!xe_device_uses_memirq(gt_to_xe(gt)))
+		return;
+
+	map = __xe_lrc_regs_map(lrc);
+	regs_len = xe_lrc_reg_size(gt_to_xe(gt));
+	xe_map_memcpy_from(gt_to_xe(gt), regs, &map, 0, regs_len);
+	set_memory_based_intr(regs, hwe);
+	xe_map_memcpy_to(gt_to_xe(gt), &map, 0, regs, regs_len);
 }
 
 static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)

@@ -13,6 +13,7 @@
 #include "xe_guc_ct.h"
 #include "xe_guc_submit.h"
 #include "xe_irq.h"
+#include "xe_lrc.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_printk.h"
@@ -244,6 +245,11 @@ static int vf_get_next_migrated_gt_id(struct xe_device *xe)
 	return -1;
 }
 
+static size_t post_migration_scratch_size(struct xe_device *xe)
+{
+	return xe_lrc_reg_size(xe);
+}
+
 /**
  * Perform post-migration fixups on a single GT.
  *
@@ -260,19 +266,29 @@ static int vf_get_next_migrated_gt_id(struct xe_device *xe)
 static int gt_vf_post_migration_fixups(struct xe_gt *gt)
 {
 	s64 shift;
+	void *buf;
 	int err;
 
+	buf = kmalloc(post_migration_scratch_size(gt_to_xe(gt)), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	err = xe_gt_sriov_vf_query_config(gt);
-	if (err)
+	if (err) {
+		kfree(buf);
 		return err;
+	}
 
 	shift = xe_gt_sriov_vf_ggtt_shift(gt);
 	if (shift) {
 		xe_tile_sriov_vf_fixup_ggtt_nodes(gt_to_tile(gt), shift);
-		xe_guc_contexts_hwsp_rebase(&gt->uc.guc);
+		xe_gt_sriov_vf_default_lrcs_hwsp_rebase(gt);
+		xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
 		/* FIXME: add the recovery steps */
 		xe_guc_ct_fixup_messages_with_ggtt(&gt->uc.guc.ct, shift);
 	}
+
+	kfree(buf);
 	return 0;
 }
 

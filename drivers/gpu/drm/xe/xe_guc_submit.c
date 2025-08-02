@@ -2510,14 +2510,15 @@ void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p)
  * xe_guc_contexts_hwsp_rebase - Re-compute GGTT references within all
  * exec queues registered to given GuC.
  * @guc: the &xe_guc struct instance
+ * @scratch: scratch buffer to be used as temporary storage
  */
-void xe_guc_contexts_hwsp_rebase(struct xe_guc *guc)
+void xe_guc_contexts_hwsp_rebase(struct xe_guc *guc, void *scratch)
 {
 	struct xe_exec_queue *q;
 	unsigned long index;
 
 	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		xe_exec_queue_contexts_hwsp_rebase(q);
+		xe_exec_queue_contexts_hwsp_rebase(q, scratch);
 	mutex_unlock(&guc->submission_state.lock);
 }
