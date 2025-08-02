@@ -60,6 +60,7 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = BIT(18);
 	gt->gt_complain_secs = 10;
+	gt->gt_withdraw_helper_timeout = 5;
 }
 
 void free_sbd(struct gfs2_sbd *sdp)
@@ -92,7 +93,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	init_waitqueue_head(&sdp->sd_async_glock_wait);
 	atomic_set(&sdp->sd_glock_disposal, 0);
 	init_completion(&sdp->sd_locking_init);
-	init_completion(&sdp->sd_wdack);
+	init_completion(&sdp->sd_withdraw_helper);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
@@ -1395,12 +1396,14 @@ static const struct constant_table gfs2_param_data[] = {
 };
 
 enum opt_errors {
-	Opt_errors_withdraw = GFS2_ERRORS_WITHDRAW,
-	Opt_errors_panic    = GFS2_ERRORS_PANIC,
+	Opt_errors_withdraw   = GFS2_ERRORS_WITHDRAW,
+	Opt_errors_deactivate = GFS2_ERRORS_DEACTIVATE,
+	Opt_errors_panic      = GFS2_ERRORS_PANIC,
 };
 
 static const struct constant_table gfs2_param_errors[] = {
 	{"withdraw",   Opt_errors_withdraw },
+	{"deactivate", Opt_errors_deactivate },
 	{"panic",      Opt_errors_panic },
 	{}
 };

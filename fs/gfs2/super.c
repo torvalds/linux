@@ -1145,6 +1145,9 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		case GFS2_ERRORS_WITHDRAW:
 			state = "withdraw";
 			break;
+		case GFS2_ERRORS_DEACTIVATE:
+			state = "deactivate";
+			break;
 		case GFS2_ERRORS_PANIC:
 			state = "panic";
 			break;

@@ -537,8 +537,7 @@ struct gfs2_statfs_change_host {
 
 #define GFS2_ERRORS_DEFAULT     GFS2_ERRORS_WITHDRAW
 #define GFS2_ERRORS_WITHDRAW    0
-#define GFS2_ERRORS_CONTINUE    1 /* place holder for future feature */
-#define GFS2_ERRORS_RO          2 /* place holder for future feature */
+#define GFS2_ERRORS_DEACTIVATE  1
 #define GFS2_ERRORS_PANIC       3
 
 struct gfs2_args {
@@ -554,7 +553,7 @@ struct gfs2_args {
 	unsigned int ar_data:2;			/* ordered/writeback */
 	unsigned int ar_meta:1;			/* mount metafs */
 	unsigned int ar_discard:1;		/* discard requests */
-	unsigned int ar_errors:2;               /* errors=withdraw | panic */
+	unsigned int ar_errors:2;               /* errors=withdraw | deactivate | panic */
 	unsigned int ar_nobarrier:1;            /* do not send barriers */
 	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
 	unsigned int ar_got_rgrplvb:1;		/* Was the rgrplvb opt given? */
@@ -580,6 +579,7 @@ struct gfs2_tune {
 	unsigned int gt_complain_secs;
 	unsigned int gt_statfs_quantum;
 	unsigned int gt_statfs_slow;
+	unsigned int gt_withdraw_helper_timeout;
 };
 
 enum {
@@ -711,7 +711,8 @@ struct gfs2_sbd {
 	wait_queue_head_t sd_async_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
-	struct completion sd_wdack;
+	struct completion sd_withdraw_helper;
+	int sd_withdraw_helper_status;
 	struct delayed_work sd_control_work;
 
 	/* Inode Stuff */

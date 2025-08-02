@@ -171,32 +171,91 @@ void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)
 	va_end(args);
 }
 
+/**
+ * gfs2_offline_uevent - run gfs2_withdraw_helper
+ * @sdp: The GFS2 superblock
+ */
+static bool gfs2_offline_uevent(struct gfs2_sbd *sdp)
+{
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	long timeout;
+
+	/* Skip protocol "lock_nolock" which doesn't require shared storage. */
+	if (!ls->ls_ops->lm_lock)
+		return false;
+
+	/*
+	 * The gfs2_withdraw_helper replies by writing one of the following
+	 * status codes to "/sys$DEVPATH/lock_module/withdraw":
+	 *
+	 * 0 - The shared block device has been marked inactive.  Future write
+	 *     operations will fail.
+	 *
+	 * 1 - The shared block device may still be active and carry out
+	 *     write operations.
+	 *
+	 * If the "offline" uevent isn't reacted upon in time, the event
+	 * handler is assumed to have failed.
+	 */
+
+	sdp->sd_withdraw_helper_status = -1;
+	kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
+	timeout = gfs2_tune_get(sdp, gt_withdraw_helper_timeout) * HZ;
+	wait_for_completion_timeout(&sdp->sd_withdraw_helper, timeout);
+	if (sdp->sd_withdraw_helper_status == -1) {
+		fs_err(sdp, "%s timed out\n", "gfs2_withdraw_helper");
+	} else {
+		fs_err(sdp, "%s %s with status %d\n",
+		       "gfs2_withdraw_helper",
+		       sdp->sd_withdraw_helper_status == 0 ?
+		       "succeeded" : "failed",
+		       sdp->sd_withdraw_helper_status);
+	}
+	return sdp->sd_withdraw_helper_status == 0;
+}
+
 void gfs2_withdraw_func(struct work_struct *work)
 {
 	struct gfs2_sbd *sdp = container_of(work, struct gfs2_sbd, sd_withdraw_work);
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	const struct lm_lockops *lm = ls->ls_ops;
+	bool device_inactive;
 
 	if (test_bit(SDF_KILL, &sdp->sd_flags))
 		return;
 
 	BUG_ON(sdp->sd_args.ar_debug);
 
-	do_withdraw(sdp);
+	/*
+	 * Try to deactivate the shared block device so that no more I/O will
+	 * go through.  If successful, we can immediately trigger remote
+	 * recovery.  Otherwise, we must first empty out all our local caches.
+	 */
 
-	kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
+	device_inactive = gfs2_offline_uevent(sdp);
 
-	if (!strcmp(sdp->sd_lockstruct.ls_ops->lm_proto_name, "lock_dlm"))
-		wait_for_completion(&sdp->sd_wdack);
+	if (sdp->sd_args.ar_errors == GFS2_ERRORS_DEACTIVATE && !device_inactive)
+		panic("GFS2: fsid=%s: panic requested\n", sdp->sd_fsname);
 
-	if (lm->lm_unmount)
-		lm->lm_unmount(sdp, false);
+	if (lm->lm_unmount) {
+		if (device_inactive) {
+			lm->lm_unmount(sdp, false);
+			do_withdraw(sdp);
+		} else {
+			do_withdraw(sdp);
+			lm->lm_unmount(sdp, false);
+		}
+	} else {
+		do_withdraw(sdp);
+	}
+
 	fs_err(sdp, "file system withdrawn\n");
 }
 
 void gfs2_withdraw(struct gfs2_sbd *sdp)
 {
-	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
+	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW ||
+	    sdp->sd_args.ar_errors == GFS2_ERRORS_DEACTIVATE) {
 		if (test_and_set_bit(SDF_WITHDRAWN, &sdp->sd_flags))
 			return;
 
