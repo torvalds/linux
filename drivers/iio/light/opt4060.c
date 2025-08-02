@@ -1104,7 +1104,7 @@ static irqreturn_t opt4060_trigger_handler(int irq, void *p)
 		}
 	}
 
-	iio_push_to_buffers_with_timestamp(idev, &raw, pf->timestamp);
+	iio_push_to_buffers_with_ts(idev, &raw, sizeof(raw), pf->timestamp);
 err_read:
 	iio_trigger_notify_done(idev->trig);
 	return IRQ_HANDLED;

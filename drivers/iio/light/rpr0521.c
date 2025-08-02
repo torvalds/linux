@@ -457,8 +457,8 @@ static irqreturn_t rpr0521_trigger_consumer_handler(int irq, void *p)
 		data->scan.channels,
 		(3 * 2) + 1);	/* 3 * 16-bit + (discarded) int clear reg. */
 	if (!err)
-		iio_push_to_buffers_with_timestamp(indio_dev,
-						   &data->scan, pf->timestamp);
+		iio_push_to_buffers_with_ts(indio_dev, &data->scan,
+					    sizeof(data->scan), pf->timestamp);
 	else
 		dev_err(&data->client->dev,
 			"Trigger consumer can't read from sensor.\n");

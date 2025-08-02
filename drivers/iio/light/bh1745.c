@@ -755,8 +755,8 @@ static irqreturn_t bh1745_trigger_handler(int interrupt, void *p)
 		scan.chans[j++] = value;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan),
+				    iio_get_time_ns(indio_dev));
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);

@@ -903,7 +903,7 @@ static irqreturn_t veml6030_trigger_handler(int irq, void *p)
 		scan.chans[i++] = reg;
 	}
 
-	iio_push_to_buffers_with_timestamp(iio, &scan, pf->timestamp);
+	iio_push_to_buffers_with_ts(iio, &scan, sizeof(scan), pf->timestamp);
 
 done:
 	iio_trigger_notify_done(iio->trig);
