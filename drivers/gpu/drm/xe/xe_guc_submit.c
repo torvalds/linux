@@ -671,12 +671,18 @@ static void wq_item_append(struct xe_exec_queue *q)
 	if (wq_wait_for_space(q, wqi_size))
 		return;
 
+	xe_gt_assert(guc_to_gt(guc), i == XE_GUC_CONTEXT_WQ_HEADER_DATA_0_TYPE_LEN);
 	wqi[i++] = FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_MULTI_LRC) |
 		FIELD_PREP(WQ_LEN_MASK, len_dw);
+	xe_gt_assert(guc_to_gt(guc), i == XE_GUC_CONTEXT_WQ_EL_INFO_DATA_1_CTX_DESC_LOW);
 	wqi[i++] = xe_lrc_descriptor(q->lrc[0]);
+	xe_gt_assert(guc_to_gt(guc), i ==
+		     XE_GUC_CONTEXT_WQ_EL_INFO_DATA_2_GUCCTX_RINGTAIL_FREEZEPOCS);
 	wqi[i++] = FIELD_PREP(WQ_GUC_ID_MASK, q->guc->id) |
 		FIELD_PREP(WQ_RING_TAIL_MASK, q->lrc[0]->ring.tail / sizeof(u64));
+	xe_gt_assert(guc_to_gt(guc), i == XE_GUC_CONTEXT_WQ_EL_INFO_DATA_3_WI_FENCE_ID);
 	wqi[i++] = 0;
+	xe_gt_assert(guc_to_gt(guc), i == XE_GUC_CONTEXT_WQ_EL_CHILD_LIST_DATA_4_RINGTAIL);
 	for (j = 1; j < q->width; ++j) {
 		struct xe_lrc *lrc = q->lrc[j];
 
@@ -695,6 +701,50 @@ static void wq_item_append(struct xe_exec_queue *q)
 
 	map = xe_lrc_parallel_map(q->lrc[0]);
 	parallel_write(xe, map, wq_desc.tail, q->guc->wqi_tail);
+}
+
+static int wq_items_rebase(struct xe_exec_queue *q)
+{
+	struct xe_guc *guc = exec_queue_to_guc(q);
+	struct xe_device *xe = guc_to_xe(guc);
+	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
+	int i = q->guc->wqi_head;
+
+	/* the ring starts after a header struct */
+	iosys_map_incr(&map, offsetof(struct guc_submit_parallel_scratch, wq[0]));
+
+	while ((i % WQ_SIZE) != (q->guc->wqi_tail % WQ_SIZE)) {
+		u32 len_dw, type, val;
+
+		if (drm_WARN_ON_ONCE(&xe->drm, i < 0 || i > 2 * WQ_SIZE))
+			break;
+
+		val = xe_map_rd_ring_u32(xe, &map, i / sizeof(u32) +
+					 XE_GUC_CONTEXT_WQ_HEADER_DATA_0_TYPE_LEN,
+					 WQ_SIZE / sizeof(u32));
+		len_dw = FIELD_GET(WQ_LEN_MASK, val);
+		type = FIELD_GET(WQ_TYPE_MASK, val);
+
+		if (drm_WARN_ON_ONCE(&xe->drm, len_dw >= WQ_SIZE / sizeof(u32)))
+			break;
+
+		if (type == WQ_TYPE_MULTI_LRC) {
+			val = xe_lrc_descriptor(q->lrc[0]);
+			xe_map_wr_ring_u32(xe, &map, i / sizeof(u32) +
+					   XE_GUC_CONTEXT_WQ_EL_INFO_DATA_1_CTX_DESC_LOW,
+					   WQ_SIZE / sizeof(u32), val);
+		} else if (drm_WARN_ON_ONCE(&xe->drm, type != WQ_TYPE_NOOP)) {
+			break;
+		}
+
+		i += (len_dw + 1) * sizeof(u32);
+	}
+
+	if ((i % WQ_SIZE) != (q->guc->wqi_tail % WQ_SIZE)) {
+		xe_gt_err(q->gt, "Exec queue fixups incomplete - wqi parse failed\n");
+		return -EBADMSG;
+	}
+	return 0;
 }
 
 #define RESUME_PENDING	~0x0ull
@@ -2547,6 +2597,10 @@ int xe_guc_contexts_hwsp_rebase(struct xe_guc *guc, void *scratch)
 	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
 		err = xe_exec_queue_contexts_hwsp_rebase(q, scratch);
+		if (err)
+			break;
+		if (xe_exec_queue_is_parallel(q))
+			err = wq_items_rebase(q);
 		if (err)
 			break;
 	}
