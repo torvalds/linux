@@ -1662,7 +1662,10 @@ static irqreturn_t vcnl4010_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct vcnl4000_data *data = iio_priv(indio_dev);
 	const unsigned long *active_scan_mask = indio_dev->active_scan_mask;
-	u16 buffer[8] __aligned(8) = {0}; /* 1x16-bit + naturally aligned ts */
+	struct {
+		u16 chan;
+		aligned_s64 ts;
+	} scan = { };
 	bool data_read = false;
 	unsigned long isr;
 	int val = 0;
@@ -1682,7 +1685,7 @@ static irqreturn_t vcnl4010_trigger_handler(int irq, void *p)
 			if (ret < 0)
 				goto end;
 
-			buffer[0] = val;
+			scan.chan = val;
 			data_read = true;
 		}
 	}
@@ -1695,7 +1698,7 @@ static irqreturn_t vcnl4010_trigger_handler(int irq, void *p)
 	if (!data_read)
 		goto end;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &scan,
 					   iio_get_time_ns(indio_dev));
 
 end:
