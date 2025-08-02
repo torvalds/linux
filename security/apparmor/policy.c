@@ -243,6 +243,9 @@ static void free_ruleset(struct aa_ruleset *rules)
 {
 	int i;
 
+	if (!rules)
+	  return;
+
 	aa_put_pdb(rules->file);
 	aa_put_pdb(rules->policy);
 	aa_free_cap_rules(&rules->caps);
@@ -335,7 +338,6 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 	profile = kzalloc(struct_size(profile, label.rules, 1), gfp);
 	if (!profile)
 		return NULL;
-	profile->n_rules = 1;
 
 	if (!aa_policy_init(&profile->base, NULL, hname, gfp))
 		goto fail;
@@ -346,6 +348,7 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 	profile->label.rules[0] = aa_alloc_ruleset(gfp);
 	if (!profile->label.rules[0])
 		goto fail;
+	profile->n_rules = 1;
 
 	/* update being set needed by fs interface */
 	if (!proxy) {
