@@ -29,6 +29,7 @@
 #include "xe_pm.h"
 #include "xe_reg_sr.h"
 #include "xe_reg_whitelist.h"
+#include "xe_sa.h"
 #include "xe_sriov.h"
 #include "xe_tuning.h"
 #include "xe_uc_debugfs.h"
@@ -128,7 +129,7 @@ static int sa_info(struct xe_gt *gt, struct drm_printer *p)
 
 	xe_pm_runtime_get(gt_to_xe(gt));
 	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, p,
-				     tile->mem.kernel_bb_pool->gpu_addr);
+				     xe_sa_manager_gpu_addr(tile->mem.kernel_bb_pool));
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return 0;
@@ -152,7 +153,7 @@ static int sa_info_vf_ccs(struct xe_gt *gt, struct drm_printer *p)
 
 		drm_printf(p, "ccs %s bb suballoc info\n", ctx_id ? "write" : "read");
 		drm_printf(p, "-------------------------\n");
-		drm_suballoc_dump_debug_info(&bb_pool->base, p, bb_pool->gpu_addr);
+		drm_suballoc_dump_debug_info(&bb_pool->base, p, xe_sa_manager_gpu_addr(bb_pool));
 		drm_puts(p, "\n");
 	}
 

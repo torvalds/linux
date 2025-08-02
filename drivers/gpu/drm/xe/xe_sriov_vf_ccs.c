@@ -169,7 +169,7 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_tile_vf_ccs *ctx)
 static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
 {
 	struct xe_lrc *lrc = xe_migrate_lrc(ctx->migrate);
-	u64 addr = ctx->mem.ccs_bb_pool->gpu_addr;
+	u64 addr = xe_sa_manager_gpu_addr(ctx->mem.ccs_bb_pool);
 	u32 dw[10], i = 0;
 
 	dw[i++] = MI_ARB_ON_OFF | MI_ARB_ENABLE;
