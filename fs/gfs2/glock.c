@@ -760,7 +760,6 @@ __acquires(&gl->gl_lockref.lock)
 	spin_lock(&gl->gl_lockref.lock);
 
 skip_inval:
-	gl->gl_lockref.count++;
 	/*
 	 * Check for an error encountered since we called go_sync and go_inval.
 	 * If so, we can't withdraw from the glock code because the withdraw
@@ -803,6 +802,7 @@ skip_inval:
 			if (!test_bit(GLF_CANCELING, &gl->gl_flags))
 				clear_bit(GLF_LOCK, &gl->gl_flags);
 			clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
+			gl->gl_lockref.count++;
 			gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
 			return;
 		} else {
@@ -818,6 +818,7 @@ skip_inval:
 
 		if (!ret) {
 			/* The operation will be completed asynchronously. */
+			gl->gl_lockref.count++;
 			return;
 		}
 		clear_bit(GLF_PENDING_REPLY, &gl->gl_flags);
@@ -837,6 +838,7 @@ skip_inval:
 
 	/* Complete the operation now. */
 	finish_xmote(gl, target);
+	gl->gl_lockref.count++;
 	gfs2_glock_queue_work(gl, 0);
 }
 
