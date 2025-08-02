@@ -640,18 +640,20 @@ JSON FORMAT
 With -j, perf stat is able to print out a JSON format output
 that can be used for parsing.
 
-- timestamp : optional usec time stamp in fractions of second (with -I)
+- interval : optional timestamp in fractions of second (with -I)
 - optional aggregate options:
 		- core : core identifier (with --per-core)
 		- die : die identifier (with --per-die)
 		- socket : socket identifier (with --per-socket)
 		- node : node identifier (with --per-node)
 		- thread : thread identifier (with --per-thread)
+- counters : number of aggregated PMU counters
 - counter-value : counter value
 - unit : unit of the counter value or empty
 - event : event name
 - variance : optional variance if multiple values are collected (with -r)
-- runtime : run time of counter
+- event-runtime : run time of the event
+- pcnt-running : percentage of time the event was running
 - metric-value : optional metric value
 - metric-unit : optional unit of metric
 

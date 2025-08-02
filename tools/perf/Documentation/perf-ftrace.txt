@@ -123,6 +123,10 @@ OPTIONS for 'perf ftrace trace'
 --graph-opts::
 	List of options allowed to set:
 
+	  - args         - Show function arguments.
+	  - retval       - Show function return value.
+	  - retval-hex   - Show function return value in hexadecimal format.
+	  - retaddr      - Show function return address.
 	  - nosleep-time - Measure on-CPU time only for function_graph tracer.
 	  - noirqs       - Ignore functions that happen inside interrupt.
 	  - verbose      - Show process names, PIDs, timestamps, etc.
@@ -138,6 +142,12 @@ OPTIONS for 'perf ftrace latency'
 --trace-funcs=::
 	Set the function name to get the histogram.  Unlike perf ftrace trace,
 	it only allows single function to calculate the histogram.
+
+-e::
+--events=::
+	Set the pair of events to get the histogram.  The histogram is calculated
+	by the time difference between the two events from the same thread.  This
+	requires -b/--use-bpf option.
 
 -b::
 --use-bpf::

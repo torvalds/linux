@@ -333,4 +333,4 @@ FIFO sizes to avoid xruns.
 
 Alignment requirements are currently not enforced at the core level
 but at the platform-level, e.g. for Intel the data sizes must be
-multiples of 32 bytes.
+equal to or larger than 16 bytes.

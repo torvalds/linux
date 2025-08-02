@@ -908,6 +908,9 @@ void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
 {
 	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
 
+	if (!mres->wq_gc)
+		return;
+
 	atomic_set(&mres->shutdown, 1);
 
 	flush_delayed_work(&mres->gc_dwork_ent);

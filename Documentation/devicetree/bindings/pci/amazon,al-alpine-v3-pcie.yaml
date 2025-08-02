@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/amazon,al-alpine-v3-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amazon Annapurna Labs Alpine v3 PCIe Host Bridge
+
+maintainers:
+  - Jonathan Chocron <jonnyc@amazon.com>
+
+description:
+  Amazon's Annapurna Labs PCIe Host Controller is based on the Synopsys
+  DesignWare PCI controller.
+
+allOf:
+  - $ref: snps,dw-pcie.yaml#
+
+properties:
+  compatible:
+    enum:
+      - amazon,al-alpine-v2-pcie
+      - amazon,al-alpine-v3-pcie
+
+  reg:
+    items:
+      - description: PCIe ECAM space
+      - description: AL proprietary registers
+      - description: Designware PCIe registers
+
+  reg-names:
+    items:
+      - const: config
+      - const: controller
+      - const: dbi
+
+  interrupts:
+    maxItems: 1
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie@fb600000 {
+            compatible = "amazon,al-alpine-v3-pcie";
+            reg = <0x0 0xfb600000 0x0 0x00100000
+                  0x0 0xfd800000 0x0 0x00010000
+                  0x0 0xfd810000 0x0 0x00001000>;
+            reg-names = "config", "controller", "dbi";
+            bus-range = <0 255>;
+            device_type = "pci";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            #interrupt-cells = <1>;
+            interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-map-mask = <0x00 0 0 7>;
+            interrupt-map = <0x0000 0 0 1 &gic GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>; /* INTa */
+            ranges = <0x02000000 0x0 0xc0010000 0x0 0xc0010000 0x0 0x07ff0000>;
+        };
+    };
