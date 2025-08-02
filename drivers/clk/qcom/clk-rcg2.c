@@ -1318,6 +1318,113 @@ const struct clk_ops clk_gfx3d_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_gfx3d_ops);
 
+static int clk_gfx3d_src_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
+{
+	struct clk_rate_request parent_req = { .min_rate = 0, .max_rate = ULONG_MAX };
+	struct clk_rcg2_gfx3d *cgfx = to_clk_rcg2_gfx3d(hw);
+	struct clk_rcg2 *rcg = &cgfx->rcg;
+	struct clk_hw *xo, *p0, *p1, *curr_p;
+	const struct freq_tbl *f;
+	int ret;
+
+	xo = clk_hw_get_parent_by_index(hw, 0);
+	/*
+	 * When msm_gpu devfreq wants to put GPU to idle, it requests the rate
+	 * of 27 MHz (27000000) in function disable_clk() in
+	 * drivers/gpu/drm/msm/msm_gpu.c. It expects "rounding down to zero".
+	 * Check for any request below 30 MHz here and round it down to lowest:
+	 */
+	if (req->rate < 30000000) {
+		req->best_parent_hw = xo;
+		/* return 19.2 MHz even for 27 MHz requests */
+		req->best_parent_rate = clk_hw_get_rate(xo);
+		return 0;
+	}
+
+	f = qcom_find_freq(rcg->freq_tbl, req->rate);
+	if (!f || (req->rate != f->freq))
+		return -EINVAL;
+
+	/* Indexes of source from the parent map */
+	p0 = clk_hw_get_parent_by_index(hw, 1);
+	p1 = clk_hw_get_parent_by_index(hw, 2);
+
+	curr_p = clk_hw_get_parent(hw);
+
+	parent_req.rate = f->freq * (f->pre_div + 1) / 2;
+
+	if (curr_p == xo || curr_p == p1)
+		req->best_parent_hw = p0;
+	else if (curr_p == p0)
+		req->best_parent_hw = p1;
+
+	parent_req.best_parent_hw = clk_hw_get_parent(req->best_parent_hw);
+	parent_req.best_parent_rate = clk_hw_get_rate(parent_req.best_parent_hw);
+
+
+	ret = __clk_determine_rate(req->best_parent_hw, &parent_req);
+	if (ret)
+		return ret;
+
+	clk_hw_get_rate_range(req->best_parent_hw,
+	&parent_req.min_rate, &parent_req.max_rate);
+
+	if (req->min_rate > parent_req.min_rate)
+		parent_req.min_rate = req->min_rate;
+
+	if (req->max_rate < parent_req.max_rate)
+		parent_req.max_rate = req->max_rate;
+
+	req->best_parent_rate = parent_req.rate;
+
+	return 0;
+}
+
+static int clk_gfx3d_src_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
+					     unsigned long parent_rate, u8 index)
+{
+	struct clk_rcg2_gfx3d *cgfx = to_clk_rcg2_gfx3d(hw);
+	struct clk_rcg2 *rcg = &cgfx->rcg;
+	const struct freq_tbl *f;
+	u32 cfg;
+	int ret;
+
+	cfg = rcg->parent_map[index].cfg << CFG_SRC_SEL_SHIFT;
+
+	/*
+	 * For "idle" requests use parent_rate, which will be cxo rate of
+	 * 19.2 MHz, so that qcom_find_freq() call below can find the
+	 * actual correct entry in freq_tbl with the correct divider set.
+	 */
+	if (rate < 30000000)
+		rate = 19200000;
+
+	f = qcom_find_freq(rcg->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	/* Update the RCG-DIV */
+	cfg |= f->pre_div << CFG_SRC_DIV_SHIFT;
+
+	ret = regmap_write(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG, cfg);
+	if (ret)
+		return ret;
+
+	return update_config(rcg);
+}
+
+const struct clk_ops clk_gfx3d_src_ops = {
+	.is_enabled = clk_rcg2_is_enabled,
+	.get_parent = clk_rcg2_get_parent,
+	.set_parent = clk_rcg2_set_parent,
+	.recalc_rate = clk_rcg2_recalc_rate,
+	.set_rate = clk_gfx3d_set_rate,
+	.set_rate_and_parent = clk_gfx3d_src_set_rate_and_parent,
+	.determine_rate = clk_gfx3d_src_determine_rate,
+};
+EXPORT_SYMBOL_GPL(clk_gfx3d_src_ops);
+
 static int clk_rcg2_set_force_enable(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
