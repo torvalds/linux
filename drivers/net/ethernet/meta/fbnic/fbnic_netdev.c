@@ -423,10 +423,12 @@ static void fbnic_get_stats64(struct net_device *dev,
 	tx_dropped = stats->dropped;
 
 	/* Record drops from Tx HW Datapath */
+	spin_lock(&fbd->hw_stats_lock);
 	tx_dropped += fbd->hw_stats.tmi.drop.frames.value +
 		      fbd->hw_stats.tti.cm_drop.frames.value +
 		      fbd->hw_stats.tti.frame_drop.frames.value +
 		      fbd->hw_stats.tti.tbi_drop.frames.value;
+	spin_unlock(&fbd->hw_stats_lock);
 
 	stats64->tx_bytes = tx_bytes;
 	stats64->tx_packets = tx_packets;
