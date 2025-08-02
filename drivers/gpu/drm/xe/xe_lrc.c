@@ -41,7 +41,6 @@
 #define LRC_PPHWSP_SIZE				SZ_4K
 #define LRC_INDIRECT_CTX_BO_SIZE		SZ_4K
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
-#define LRC_WA_BB_SIZE				SZ_4K
 
 /*
  * Layout of the LRC and associated data allocated as
@@ -1149,13 +1148,11 @@ static int setup_bo(struct bo_setup_state *state)
 	ssize_t remain;
 
 	if (state->lrc->bo->vmap.is_iomem) {
-		state->buffer = kmalloc(state->max_size, GFP_KERNEL);
 		if (!state->buffer)
 			return -ENOMEM;
 		state->ptr = state->buffer;
 	} else {
 		state->ptr = state->lrc->bo->vmap.vaddr + state->offset;
-		state->buffer = NULL;
 	}
 
 	remain = state->max_size / sizeof(u32);
@@ -1180,7 +1177,6 @@ static int setup_bo(struct bo_setup_state *state)
 	return 0;
 
 fail:
-	kfree(state->buffer);
 	return -ENOSPC;
 }
 
@@ -1192,10 +1188,16 @@ static void finish_bo(struct bo_setup_state *state)
 	xe_map_memcpy_to(gt_to_xe(state->lrc->gt), &state->lrc->bo->vmap,
 			 state->offset, state->buffer,
 			 state->written * sizeof(u32));
-	kfree(state->buffer);
 }
 
-static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+/**
+ * xe_lrc_setup_wa_bb_with_scratch - Execute all wa bb setup callbacks.
+ * @lrc: the &xe_lrc struct instance
+ * @hwe: the &xe_hw_engine struct instance
+ * @scratch: preallocated scratch buffer for temporary storage
+ * Return: 0 on success, negative error code on failure
+ */
+int xe_lrc_setup_wa_bb_with_scratch(struct xe_lrc *lrc, struct xe_hw_engine *hwe, u32 *scratch)
 {
 	static const struct bo_setup funcs[] = {
 		{ .setup = setup_timestamp_wa },
@@ -1206,6 +1208,7 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 		.lrc = lrc,
 		.hwe = hwe,
 		.max_size = LRC_WA_BB_SIZE,
+		.buffer = scratch,
 		.reserve_dw = 1,
 		.offset = __xe_lrc_wa_bb_offset(lrc),
 		.funcs = funcs,
@@ -1228,6 +1231,21 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	return 0;
 }
 
+static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+{
+	u32 *buf = NULL;
+	int ret;
+
+	if (lrc->bo->vmap.is_iomem)
+		buf = kmalloc(LRC_WA_BB_SIZE, GFP_KERNEL);
+
+	ret = xe_lrc_setup_wa_bb_with_scratch(lrc, hwe, buf);
+
+	kfree(buf);
+
+	return ret;
+}
+
 static int
 setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 {
@@ -1238,6 +1256,7 @@ setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 		.lrc = lrc,
 		.hwe = hwe,
 		.max_size = (63 * 64) /* max 63 cachelines */,
+		.buffer = NULL,
 		.offset = __xe_lrc_indirect_ctx_offset(lrc),
 	};
 	int ret;
@@ -1254,9 +1273,14 @@ setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	if (xe_gt_WARN_ON(lrc->gt, !state.funcs))
 		return 0;
 
+	if (lrc->bo->vmap.is_iomem)
+		state.buffer = kmalloc(state.max_size, GFP_KERNEL);
+
 	ret = setup_bo(&state);
-	if (ret)
+	if (ret) {
+		kfree(state.buffer);
 		return ret;
+	}
 
 	/*
 	 * Align to 64B cacheline so there's no garbage at the end for CS to
@@ -1268,6 +1292,7 @@ setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	}
 
 	finish_bo(&state);
+	kfree(state.buffer);
 
 	xe_lrc_write_ctx_reg(lrc,
 			     CTX_CS_INDIRECT_CTX,

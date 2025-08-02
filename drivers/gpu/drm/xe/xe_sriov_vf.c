@@ -247,7 +247,7 @@ static int vf_get_next_migrated_gt_id(struct xe_device *xe)
 
 static size_t post_migration_scratch_size(struct xe_device *xe)
 {
-	return xe_lrc_reg_size(xe);
+	return max(xe_lrc_reg_size(xe), LRC_WA_BB_SIZE);
 }
 
 /**
@@ -274,22 +274,23 @@ static int gt_vf_post_migration_fixups(struct xe_gt *gt)
 		return -ENOMEM;
 
 	err = xe_gt_sriov_vf_query_config(gt);
-	if (err) {
-		kfree(buf);
-		return err;
-	}
+	if (err)
+		goto out;
 
 	shift = xe_gt_sriov_vf_ggtt_shift(gt);
 	if (shift) {
 		xe_tile_sriov_vf_fixup_ggtt_nodes(gt_to_tile(gt), shift);
 		xe_gt_sriov_vf_default_lrcs_hwsp_rebase(gt);
-		xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
+		err = xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
+		if (err)
+			goto out;
 		xe_guc_jobs_ring_rebase(&gt->uc.guc);
 		xe_guc_ct_fixup_messages_with_ggtt(&gt->uc.guc.ct, shift);
 	}
 
+out:
 	kfree(buf);
-	return 0;
+	return err;
 }
 
 static void vf_post_migration_recovery(struct xe_device *xe)

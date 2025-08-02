@@ -2535,14 +2535,22 @@ void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p)
  * exec queues registered to given GuC.
  * @guc: the &xe_guc struct instance
  * @scratch: scratch buffer to be used as temporary storage
+ *
+ * Returns: zero on success, negative error code on failure.
  */
-void xe_guc_contexts_hwsp_rebase(struct xe_guc *guc, void *scratch)
+int xe_guc_contexts_hwsp_rebase(struct xe_guc *guc, void *scratch)
 {
 	struct xe_exec_queue *q;
 	unsigned long index;
+	int err = 0;
 
 	mutex_lock(&guc->submission_state.lock);
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		xe_exec_queue_contexts_hwsp_rebase(q, scratch);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		err = xe_exec_queue_contexts_hwsp_rebase(q, scratch);
+		if (err)
+			break;
+	}
 	mutex_unlock(&guc->submission_state.lock);
+
+	return err;
 }
