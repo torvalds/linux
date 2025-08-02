@@ -19,7 +19,6 @@
 #include "clk-alpha-pll.h"
 #include "common.h"
 #include "clk-regmap.h"
-#include "clk-pll.h"
 #include "clk-rcg.h"
 #include "clk-branch.h"
 #include "gdsc.h"
@@ -100,18 +99,65 @@ static const struct clk_parent_data gpucc_parent_data_1[] = {
 	{ .fw_name = "gcc_gpu_gpll0_clk" },
 };
 
+/*
+ * Frequencies and PLL configuration
+ * The PLL source would be doing ping-pong between
+ * GPU-PLL0 and GPU-PLL1.
+ *  ====================================================
+ *  | F         | PLL SRC Freq | PLL postdiv | RCG Div |
+ *  ====================================================
+ *  | 160000000 | 640000000    |    2        |    2    |
+ *  | 266000000 | 532000000    |    1        |    2    |
+ *  | 370000000 | 740000000    |    1        |    2    |
+ *  | 465000000 | 930000000    |    1        |    2    |
+ *  | 588000000 | 1176000000   |    1        |    2    |
+ *  | 647000000 | 1294000000   |    1        |    2    |
+ *  | 700000000 | 1400000000   |    1        |    2    |
+ *  | 750000000 | 1500000000   |    1        |    2    |
+ *  ====================================================
+*/
+
+static const struct freq_tbl ftbl_gfx3d_clk_src_660[] = {
+	F( 19200000, 0,  1, 0, 0),
+	F(160000000, 0,  4, 0, 0),
+	F(266000000, 0,  2, 0, 0),
+	F(370000000, 0,  2, 0, 0),
+	F(430000000, 0,  2, 0, 0),
+	F(465000000, 0,  2, 0, 0),
+	F(585000000, 0,  2, 0, 0),
+	F(588000000, 0,  2, 0, 0),
+	F(647000000, 0,  2, 0, 0),
+	F(700000000, 0,  2, 0, 0),
+	F(750000000, 0,  2, 0, 0),
+	{ }
+};
+
+static const struct freq_tbl ftbl_gfx3d_clk_src_630[] = {
+	F( 19200000, 0,  1, 0, 0),
+	F(160000000, 0,  4, 0, 0),
+	F(240000000, 0,  2, 0, 0),
+	F(370000000, 0,  2, 0, 0),
+	F(465000000, 0,  2, 0, 0),
+	F(588000000, 0,  2, 0, 0),
+	F(647000000, 0,  2, 0, 0),
+	F(648000000, 0,  2, 0, 0),
+	F(700000000, 0,  2, 0, 0),
+	F(775000000, 0,  2, 0, 0),
+	{ }
+};
+
 static struct clk_rcg2_gfx3d gfx3d_clk_src = {
-	.div = 2,
 	.rcg = {
 		.cmd_rcgr = 0x1070,
 		.mnd_width = 0,
 		.hid_width = 5,
 		.parent_map = gpucc_parent_map_1,
+		.freq_tbl = ftbl_gfx3d_clk_src_660,
 		.clkr.hw.init = &(struct clk_init_data){
 			.name = "gfx3d_clk_src",
 			.parent_data = gpucc_parent_data_1,
 			.num_parents = ARRAY_SIZE(gpucc_parent_data_1),
-			.ops = &clk_gfx3d_ops,
+			.ops = &clk_gfx3d_src_ops,
 			.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 		},
 	},
@@ -306,27 +352,28 @@ MODULE_DEVICE_TABLE(of, gpucc_sdm660_match_table);
 static int gpucc_sdm660_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
-	struct alpha_pll_config gpu_pll_config = {
+	/* 800MHz configuration for GPU PLLs */
+	const struct alpha_pll_config gpu_pll_config = {
 		.config_ctl_val = 0x4001055b,
 		.alpha = 0xaaaaab00,
 		.alpha_en_mask = BIT(24),
 		.vco_val = 0x2 << 20,
 		.vco_mask = 0x3 << 20,
 		.main_output_mask = 0x1,
+		.l = 0x29,
+		.alpha_hi = 0xaa,
 	};
+
+	/* SDM630 uses slightly different frequency table */
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gpucc-sdm630"))
+		gfx3d_clk_src.rcg.freq_tbl = ftbl_gfx3d_clk_src_630;
 
 	regmap = qcom_cc_map(pdev, &gpucc_sdm660_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	/* 800MHz configuration for GPU PLL0 */
-	gpu_pll_config.l = 0x29;
-	gpu_pll_config.alpha_hi = 0xaa;
+	/* Apply initial 800 MHz configuration for both GPU PLLs */
 	clk_alpha_pll_configure(&gpu_pll0_pll_out_main, regmap, &gpu_pll_config);
-
-	/* 740MHz configuration for GPU PLL1 */
-	gpu_pll_config.l = 0x26;
-	gpu_pll_config.alpha_hi = 0x8a;
 	clk_alpha_pll_configure(&gpu_pll1_pll_out_main, regmap, &gpu_pll_config);
 
 	return qcom_cc_really_probe(&pdev->dev, &gpucc_sdm660_desc, regmap);
