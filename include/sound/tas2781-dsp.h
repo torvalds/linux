@@ -198,6 +198,14 @@ struct tasdevice_rca {
 	int ncfgs;
 	struct tasdevice_config_info **cfg_info;
 	int profile_cfg_id;
+	/*
+	 * Since version 0x105, the keyword 'init' was introduced into the
+	 * profile, which is used for chip initialization, particularly to
+	 * store common settings for other non-initialization profiles.
+	 * if (init_profile_id < 0)
+	 *         No init profile inside the RCA firmware.
+	 */
+	int init_profile_id;
 };
 
 void tasdevice_select_cfg_blk(void *context, int conf_no,
