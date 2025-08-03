@@ -969,6 +969,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,lemans-evk
               - qcom,qcs9100-ride
               - qcom,qcs9100-ride-r3
           - const: qcom,qcs9100
