@@ -1123,7 +1123,7 @@ int cgroup_writeback_by_id(u64 bdi_id, int memcg_id,
 	dirty = dirty * 10 / 8;
 
 	/* issue the writeback work */
-	work = kzalloc(sizeof(*work), GFP_NOWAIT | __GFP_NOWARN);
+	work = kzalloc(sizeof(*work), GFP_NOWAIT);
 	if (work) {
 		work->nr_pages = dirty;
 		work->sync_mode = WB_SYNC_NONE;
