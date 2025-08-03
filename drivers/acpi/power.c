@@ -63,6 +63,8 @@ struct acpi_power_resource_entry {
 	struct acpi_power_resource *resource;
 };
 
+static bool unused_power_resources_quirk;
+
 static LIST_HEAD(acpi_power_resource_list);
 static DEFINE_MUTEX(power_resource_list_lock);
 
@@ -1046,7 +1048,7 @@ void acpi_turn_off_unused_power_resources(void)
 {
 	struct acpi_power_resource *resource;
 
-	if (dmi_check_system(dmi_leave_unused_power_resources_on))
+	if (unused_power_resources_quirk)
 		return;
 
 	mutex_lock(&power_resource_list_lock);
@@ -1064,4 +1066,10 @@ void acpi_turn_off_unused_power_resources(void)
 	}
 
 	mutex_unlock(&power_resource_list_lock);
+}
+
+void __init acpi_power_resources_init(void)
+{
+	unused_power_resources_quirk =
+		dmi_check_system(dmi_leave_unused_power_resources_on);
 }
