@@ -4240,15 +4240,18 @@ out:
 }
 
 static int _nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fsinfo *info)
+			     struct nfs_fattr *fattr)
 {
-	u32 bitmask[3];
+	u32 bitmask[3] = {
+		[0] = FATTR4_WORD0_TYPE | FATTR4_WORD0_CHANGE |
+		      FATTR4_WORD0_SIZE | FATTR4_WORD0_FSID,
+	};
 	struct nfs4_lookup_root_arg args = {
 		.bitmask = bitmask,
 	};
 	struct nfs4_lookup_res res = {
 		.server = server,
-		.fattr = info->fattr,
+		.fattr = fattr,
 		.fh = fhandle,
 	};
 	struct rpc_message msg = {
@@ -4257,27 +4260,20 @@ static int _nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_resp = &res,
 	};
 
-	bitmask[0] = nfs4_fattr_bitmap[0];
-	bitmask[1] = nfs4_fattr_bitmap[1];
-	/*
-	 * Process the label in the upcoming getfattr
-	 */
-	bitmask[2] = nfs4_fattr_bitmap[2] & ~FATTR4_WORD2_SECURITY_LABEL;
-
-	nfs_fattr_init(info->fattr);
+	nfs_fattr_init(fattr);
 	return nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 }
 
 static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fsinfo *info)
+			    struct nfs_fattr *fattr)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = _nfs4_lookup_root(server, fhandle, info);
-		trace_nfs4_lookup_root(server, fhandle, info->fattr, err);
+		err = _nfs4_lookup_root(server, fhandle, fattr);
+		trace_nfs4_lookup_root(server, fhandle, fattr, err);
 		switch (err) {
 		case 0:
 		case -NFS4ERR_WRONGSEC:
@@ -4290,8 +4286,9 @@ out:
 	return err;
 }
 
-static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
-				struct nfs_fsinfo *info, rpc_authflavor_t flavor)
+static int nfs4_lookup_root_sec(struct nfs_server *server,
+				struct nfs_fh *fhandle, struct nfs_fattr *fattr,
+				rpc_authflavor_t flavor)
 {
 	struct rpc_auth_create_args auth_args = {
 		.pseudoflavor = flavor,
@@ -4301,7 +4298,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
 	auth = rpcauth_create(&auth_args, server->client);
 	if (IS_ERR(auth))
 		return -EACCES;
-	return nfs4_lookup_root(server, fhandle, info);
+	return nfs4_lookup_root(server, fhandle, fattr);
 }
 
 /*
@@ -4314,7 +4311,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
  * negative errno value.
  */
 static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
-			      struct nfs_fsinfo *info)
+			      struct nfs_fattr *fattr)
 {
 	/* Per 3530bis 15.33.5 */
 	static const rpc_authflavor_t flav_array[] = {
@@ -4330,8 +4327,9 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	if (server->auth_info.flavor_len > 0) {
 		/* try each flavor specified by user */
 		for (i = 0; i < server->auth_info.flavor_len; i++) {
-			status = nfs4_lookup_root_sec(server, fhandle, info,
-						server->auth_info.flavors[i]);
+			status = nfs4_lookup_root_sec(
+				server, fhandle, fattr,
+				server->auth_info.flavors[i]);
 			if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 				continue;
 			break;
@@ -4339,7 +4337,7 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	} else {
 		/* no flavors specified by user, try default list */
 		for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
-			status = nfs4_lookup_root_sec(server, fhandle, info,
+			status = nfs4_lookup_root_sec(server, fhandle, fattr,
 						      flav_array[i]);
 			if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 				continue;
@@ -4363,28 +4361,22 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
  * nfs4_proc_get_rootfh - get file handle for server's pseudoroot
  * @server: initialized nfs_server handle
  * @fhandle: we fill in the pseudo-fs root file handle
- * @info: we fill in an FSINFO struct
+ * @fattr: we fill in a bare bones struct fattr
  * @auth_probe: probe the auth flavours
  *
  * Returns zero on success, or a negative errno.
  */
 int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
-			 struct nfs_fsinfo *info,
-			 bool auth_probe)
+			 struct nfs_fattr *fattr, bool auth_probe)
 {
 	int status = 0;
 
 	if (!auth_probe)
-		status = nfs4_lookup_root(server, fhandle, info);
+		status = nfs4_lookup_root(server, fhandle, fattr);
 
 	if (auth_probe || status == NFS4ERR_WRONGSEC)
-		status = server->nfs_client->cl_mvops->find_root_sec(server,
-				fhandle, info);
-
-	if (status == 0)
-		status = nfs4_server_capabilities(server, fhandle);
-	if (status == 0)
-		status = nfs4_do_fsinfo(server, fhandle, info);
+		status = server->nfs_client->cl_mvops->find_root_sec(
+			server, fhandle, fattr);
 
 	return nfs4_map_errors(status);
 }
@@ -10351,10 +10343,10 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
  * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
  * possible) as per RFC3530bis and RFC5661 Security Considerations sections
  */
-static int
-_nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
-		    struct nfs_fsinfo *info,
-		    struct nfs4_secinfo_flavors *flavors, bool use_integrity)
+static int _nfs41_proc_secinfo_no_name(struct nfs_server *server,
+				       struct nfs_fh *fhandle,
+				       struct nfs4_secinfo_flavors *flavors,
+				       bool use_integrity)
 {
 	struct nfs41_secinfo_no_name_args args = {
 		.style = SECINFO_STYLE_CURRENT_FH,
@@ -10398,9 +10390,9 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 	return status;
 }
 
-static int
-nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
-			   struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
+static int nfs41_proc_secinfo_no_name(struct nfs_server *server,
+				      struct nfs_fh *fhandle,
+				      struct nfs4_secinfo_flavors *flavors)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
@@ -10412,7 +10404,7 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 
 		/* try to use integrity protection with machine cred */
 		if (_nfs4_is_integrity_protected(server->nfs_client))
-			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+			err = _nfs41_proc_secinfo_no_name(server, fhandle,
 							  flavors, true);
 
 		/*
@@ -10422,7 +10414,7 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		 * the current filesystem's rpc_client and the user cred.
 		 */
 		if (err == -NFS4ERR_WRONGSEC)
-			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+			err = _nfs41_proc_secinfo_no_name(server, fhandle,
 							  flavors, false);
 
 		switch (err) {
@@ -10438,9 +10430,8 @@ out:
 	return err;
 }
 
-static int
-nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
-		    struct nfs_fsinfo *info)
+static int nfs41_find_root_sec(struct nfs_server *server,
+			       struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	int err;
 	struct page *page;
@@ -10456,14 +10447,14 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	}
 
 	flavors = page_address(page);
-	err = nfs41_proc_secinfo_no_name(server, fhandle, info, flavors);
+	err = nfs41_proc_secinfo_no_name(server, fhandle, flavors);
 
 	/*
 	 * Fall back on "guess and check" method if
 	 * the server doesn't support SECINFO_NO_NAME
 	 */
 	if (err == -NFS4ERR_WRONGSEC || err == -ENOTSUPP) {
-		err = nfs4_find_root_sec(server, fhandle, info);
+		err = nfs4_find_root_sec(server, fhandle, fattr);
 		goto out_freepage;
 	}
 	if (err)
@@ -10488,8 +10479,8 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			flavor = RPC_AUTH_MAXFLAVOR;
 
 		if (flavor != RPC_AUTH_MAXFLAVOR) {
-			err = nfs4_lookup_root_sec(server, fhandle,
-						   info, flavor);
+			err = nfs4_lookup_root_sec(server, fhandle, fattr,
+						   flavor);
 			if (!err)
 				break;
 		}
