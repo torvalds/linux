@@ -4,8 +4,13 @@
  */
 /dts-v1/;
 
-#include "sa8775p-ride-r3.dts"
+#include "lemans.dtsi"
+#include "lemans-pmics.dtsi"
+
+#include "lemans-ride-common.dtsi"
+#include "lemans-ride-ethernet-aqr115c.dtsi"
+
 / {
-	model = "Qualcomm QCS9100 Ride Rev3";
+	model = "Qualcomm Technologies, Inc. Lemans Ride Rev3";
 	compatible = "qcom,qcs9100-ride-r3", "qcom,qcs9100", "qcom,sa8775p";
 };
