@@ -550,6 +550,23 @@ const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
 #endif  /*  0  */
 
+static void complete_address_handler(struct kref *kref)
+{
+	struct fw_address_handler *handler = container_of(kref, struct fw_address_handler, kref);
+
+	complete(&handler->done);
+}
+
+static void get_address_handler(struct fw_address_handler *handler)
+{
+	kref_get(&handler->kref);
+}
+
+static int put_address_handler(struct fw_address_handler *handler)
+{
+	return kref_put(&handler->kref, complete_address_handler);
+}
+
 /**
  * fw_core_add_address_handler() - register for incoming requests
  * @handler:	callback
@@ -596,6 +613,8 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 		if (other != NULL) {
 			handler->offset += other->length;
 		} else {
+			init_completion(&handler->done);
+			kref_init(&handler->kref);
 			list_add_tail_rcu(&handler->link, &address_handler_list);
 			ret = 0;
 			break;
@@ -621,6 +640,9 @@ void fw_core_remove_address_handler(struct fw_address_handler *handler)
 		list_del_rcu(&handler->link);
 
 	synchronize_rcu();
+
+	if (!put_address_handler(handler))
+		wait_for_completion(&handler->done);
 }
 EXPORT_SYMBOL(fw_core_remove_address_handler);
 
@@ -913,10 +935,13 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	scoped_guard(rcu) {
 		handler = lookup_enclosing_address_handler(&address_handler_list, offset,
 							   request->length);
-		if (handler)
+		if (handler) {
+			get_address_handler(handler);
 			handler->address_callback(card, request, tcode, destination, source,
 						  p->generation, offset, request->data,
 						  request->length, handler->callback_data);
+			put_address_handler(handler);
+		}
 	}
 
 	if (!handler)
@@ -952,10 +977,13 @@ static void handle_fcp_region_request(struct fw_card *card,
 
 	scoped_guard(rcu) {
 		list_for_each_entry_rcu(handler, &address_handler_list, link) {
-			if (is_enclosing_handler(handler, offset, request->length))
+			if (is_enclosing_handler(handler, offset, request->length)) {
+				get_address_handler(handler);
 				handler->address_callback(card, request, tcode, destination, source,
 							  p->generation, offset, request->data,
 							  request->length, handler->callback_data);
+				put_address_handler(handler);
+			}
 		}
 	}
 
