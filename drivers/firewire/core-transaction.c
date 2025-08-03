@@ -960,7 +960,7 @@ static void handle_fcp_region_request(struct fw_card *card,
 {
 	struct fw_address_handler *buffer_on_kernel_stack[BUFFER_ON_KERNEL_STACK_SIZE];
 	struct fw_address_handler *handler, **handlers;
-	int tcode, destination, source, i, count;
+	int tcode, destination, source, i, count, buffer_size;
 
 	if ((offset != (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
 	     offset != (CSR_REGISTER_BASE | CSR_FCP_RESPONSE)) ||
@@ -983,13 +983,38 @@ static void handle_fcp_region_request(struct fw_card *card,
 
 	count = 0;
 	handlers = buffer_on_kernel_stack;
+	buffer_size = ARRAY_SIZE(buffer_on_kernel_stack);
 	scoped_guard(rcu) {
 		list_for_each_entry_rcu(handler, &address_handler_list, link) {
 			if (is_enclosing_handler(handler, offset, request->length)) {
+				if (count >= buffer_size) {
+					int next_size = buffer_size * 2;
+					struct fw_address_handler **buffer_on_kernel_heap;
+
+					if (handlers == buffer_on_kernel_stack)
+						buffer_on_kernel_heap = NULL;
+					else
+						buffer_on_kernel_heap = handlers;
+
+					buffer_on_kernel_heap =
+						krealloc_array(buffer_on_kernel_heap, next_size,
+							sizeof(*buffer_on_kernel_heap), GFP_ATOMIC);
+					// FCP is used for purposes unrelated to significant system
+					// resources (e.g. storage or networking), so allocation
+					// failures are not considered so critical.
+					if (!buffer_on_kernel_heap)
+						break;
+
+					if (handlers == buffer_on_kernel_stack) {
+						memcpy(buffer_on_kernel_heap, buffer_on_kernel_stack,
+						       sizeof(buffer_on_kernel_stack));
+					}
+
+					handlers = buffer_on_kernel_heap;
+					buffer_size = next_size;
+				}
 				get_address_handler(handler);
-				handlers[count] = handler;
-				if (++count >= ARRAY_SIZE(buffer_on_kernel_stack))
-					break;
+				handlers[count++] = handler;
 			}
 		}
 	}
@@ -1001,6 +1026,9 @@ static void handle_fcp_region_request(struct fw_card *card,
 					  request->length, handler->callback_data);
 		put_address_handler(handler);
 	}
+
+	if (handlers != buffer_on_kernel_stack)
+		kfree(handlers);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
