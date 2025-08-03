@@ -5,7 +5,10 @@
 
 /dts-v1/;
 
-#include "sa8775p-ride.dtsi"
+#include "lemans-auto.dtsi"
+
+#include "sa8775p-pmics.dtsi"
+#include "lemans-ride-common.dtsi"
 #include "lemans-ride-ethernet-88ea1512.dtsi"
 
 / {

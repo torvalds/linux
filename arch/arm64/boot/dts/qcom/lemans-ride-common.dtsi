@@ -3,13 +3,8 @@
  * Copyright (c) 2023, Linaro Limited
  */
 
-/dts-v1/;
-
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
-
-#include "lemans-auto.dtsi"
-#include "sa8775p-pmics.dtsi"
 
 / {
 	aliases {
