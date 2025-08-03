@@ -8,7 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
-#include "sa8775p.dtsi"
+#include "lemans.dtsi"
 #include "sa8775p-pmics.dtsi"
 
 / {
