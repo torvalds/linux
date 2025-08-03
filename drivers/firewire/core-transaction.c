@@ -950,13 +950,17 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	put_address_handler(handler);
 }
 
+// To use kmalloc allocator efficiently, this should be power of two.
+#define BUFFER_ON_KERNEL_STACK_SIZE	4
+
 static void handle_fcp_region_request(struct fw_card *card,
 				      struct fw_packet *p,
 				      struct fw_request *request,
 				      unsigned long long offset)
 {
-	struct fw_address_handler *handler;
-	int tcode, destination, source;
+	struct fw_address_handler *buffer_on_kernel_stack[BUFFER_ON_KERNEL_STACK_SIZE];
+	struct fw_address_handler *handler, **handlers;
+	int tcode, destination, source, i, count;
 
 	if ((offset != (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
 	     offset != (CSR_REGISTER_BASE | CSR_FCP_RESPONSE)) ||
@@ -977,16 +981,25 @@ static void handle_fcp_region_request(struct fw_card *card,
 		return;
 	}
 
+	count = 0;
+	handlers = buffer_on_kernel_stack;
 	scoped_guard(rcu) {
 		list_for_each_entry_rcu(handler, &address_handler_list, link) {
 			if (is_enclosing_handler(handler, offset, request->length)) {
 				get_address_handler(handler);
-				handler->address_callback(card, request, tcode, destination, source,
-							  p->generation, offset, request->data,
-							  request->length, handler->callback_data);
-				put_address_handler(handler);
+				handlers[count] = handler;
+				if (++count >= ARRAY_SIZE(buffer_on_kernel_stack))
+					break;
 			}
 		}
+	}
+
+	for (i = 0; i < count; ++i) {
+		handler = handlers[i];
+		handler->address_callback(card, request, tcode, destination, source,
+					  p->generation, offset, request->data,
+					  request->length, handler->callback_data);
+		put_address_handler(handler);
 	}
 
 	fw_send_response(card, request, RCODE_COMPLETE);
