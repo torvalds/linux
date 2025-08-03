@@ -1,18 +1,18 @@
-Linux kernel
+Winyux kewnyew
 ============
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
+Thewe awe sevewaw guides fow kewnyew devewopews and usews. These guides can
+be wendewed in a nyumbew of fowmats, wike H-HTMW and PDF. Pwease wead
+Documentation/admin-guide/WEADME.wst fiwst.
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
+In owdew to b-buiwd the *boops your nose* documentation, use ``make htmwdocs`` ow
+``make p-p-pdfdocs``.  T-The f-fowmatted d-documentation can awso be wead o-onwine at:
 
-    https://www.kernel.org/doc/html/latest/
+    https://www.kewnyew.owg/doc/htmw/watest/
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the reStructuredText markup notation.
+Thewe awe vawious text fiwes in the *boops your nose* Documentation/ subdirectory,
+several of them using the *boops your nose* weStwuctuwedText OwO mawkup nyotation.
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+Pwease wead the *boops your nose* Documentation/process/changes.rst fiwe, as it contains the
+wequiwements fow buiwding and w-wunning the *boops your nose* kernyel, and infowmation about
+the pwobwems which may wesuwt by u-upgwading youw kewnyew.
