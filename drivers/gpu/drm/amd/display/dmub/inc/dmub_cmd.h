@@ -4020,6 +4020,10 @@ enum dmub_cmd_replay_type {
 	 */
 	DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP = 8,
 	/**
+	 * Set version
+	 */
+	DMUB_CMD__REPLAY_SET_VERSION = 9,
+	/**
 	 * Set Replay General command.
 	 */
 	DMUB_CMD__REPLAY_SET_GENERAL_CMD = 16,
@@ -4141,6 +4145,63 @@ struct dmub_cmd_replay_copy_settings_data {
 	 * @pad: Align structure to 4 byte boundary.
 	 */
 	uint8_t pad[2];
+};
+
+
+/**
+ * Replay versions.
+ */
+enum replay_version {
+	/**
+	 * FreeSync Replay
+	 */
+	REPLAY_VERSION_FREESYNC_REPLAY	= 0,
+	/**
+	 * Panel Replay
+	 */
+	REPLAY_VERSION_PANEL_REPLAY		= 1,
+	/**
+	 * Replay not supported.
+	 */
+	REPLAY_VERSION_UNSUPPORTED		= 0xFF,
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD___SET_REPLAY_VERSION command.
+ */
+struct dmub_cmd_replay_set_version_data {
+	/**
+	 * PSR version that FW should implement.
+	 */
+	enum replay_version version;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel instance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__REPLAY_SET_VERSION command.
+ */
+struct dmub_rb_cmd_replay_set_version {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__REPLAY_SET_VERSION command.
+	 */
+	struct dmub_cmd_replay_set_version_data replay_set_version_data;
 };
 
 /**
@@ -4506,6 +4567,10 @@ union dmub_replay_cmd_set {
 	 * Definition of DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command data.
 	 */
 	struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data disabled_adaptive_sync_sdp_data;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_VERSION command data.
+	 */
+	struct dmub_cmd_replay_set_version_data version_data;
 	/**
 	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command data.
 	 */
@@ -6265,6 +6330,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE command.
 	 */
 	struct dmub_rb_cmd_idle_opt_set_dc_power_state idle_opt_set_dc_power_state;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_VERSION command.
+	 */
+	struct dmub_rb_cmd_replay_set_version replay_set_version;
 	/*
 	 * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
 	 */
