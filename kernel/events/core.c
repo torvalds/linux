@@ -7115,14 +7115,13 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		perf_event_update_time(event);
 		perf_event_init_userpage(event);
 		perf_event_update_userpage(event);
+		ret = 0;
 	} else {
 		ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
 				   event->attr.aux_watermark, flags);
 		if (!ret)
 			rb->aux_mmap_locked = extra;
 	}
-
-	ret = 0;
 
 unlock:
 	if (!ret) {
