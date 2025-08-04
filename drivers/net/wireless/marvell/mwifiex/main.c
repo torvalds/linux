@@ -494,6 +494,11 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 		return;
 	}
 
+	if (adapter->rgpower_data) {
+		release_firmware(adapter->rgpower_data);
+		adapter->rgpower_data = NULL;
+	}
+
 	mwifiex_unregister(adapter);
 	pr_debug("info: %s: free adapter\n", __func__);
 }
