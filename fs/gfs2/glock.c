@@ -663,16 +663,6 @@ out:
 		clear_bit(GLF_LOCK, &gl->gl_flags);
 }
 
-static bool is_system_glock(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
-
-	if (gl == m_ip->i_gl)
-		return true;
-	return false;
-}
-
 /**
  * do_xmote - Calls the DLM to change the state of a lock
  * @gl: The lock state
@@ -747,36 +737,29 @@ skip_inval:
 	 * to see sd_log_error and withdraw, and in the meantime, requeue the
 	 * work for later.
 	 *
-	 * We make a special exception for some system glocks, such as the
-	 * system statfs inode glock, which needs to be granted before the
-	 * gfs2_quotad daemon can exit, and that exit needs to finish before
-	 * we can unmount the withdrawn file system.
-	 *
 	 * However, if we're just unlocking the lock (say, for unmount, when
 	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
 	 * then it's okay to tell dlm to unlock it.
 	 */
 	if (glock_blocked_by_withdraw(gl) && target != LM_ST_UNLOCKED) {
-		if (!is_system_glock(gl)) {
-			request_demote(gl, LM_ST_UNLOCKED, 0, false);
-			/*
-			 * Ordinarily, we would call dlm and its callback would call
-			 * finish_xmote, which would call state_change() to the new state.
-			 * Since we withdrew, we won't call dlm, so call state_change
-			 * manually, but to the UNLOCKED state we desire.
-			 */
-			state_change(gl, LM_ST_UNLOCKED);
-			/*
-			 * We skip telling dlm to do the locking, so we won't get a
-			 * reply that would otherwise clear GLF_LOCK. So we clear it here.
-			 */
-			if (!test_bit(GLF_CANCELING, &gl->gl_flags))
-				clear_bit(GLF_LOCK, &gl->gl_flags);
-			clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
-			gl->gl_lockref.count++;
-			gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
-			return;
-		}
+		request_demote(gl, LM_ST_UNLOCKED, 0, false);
+		/*
+		 * Ordinarily, we would call dlm and its callback would call
+		 * finish_xmote, which would call state_change() to the new state.
+		 * Since we withdrew, we won't call dlm, so call state_change
+		 * manually, but to the UNLOCKED state we desire.
+		 */
+		state_change(gl, LM_ST_UNLOCKED);
+		/*
+		 * We skip telling dlm to do the locking, so we won't get a
+		 * reply that would otherwise clear GLF_LOCK. So we clear it here.
+		 */
+		if (!test_bit(GLF_CANCELING, &gl->gl_flags))
+			clear_bit(GLF_LOCK, &gl->gl_flags);
+		clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
+		gl->gl_lockref.count++;
+		gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
+		return;
 	}
 
 	if (ls->ls_ops->lm_lock) {
