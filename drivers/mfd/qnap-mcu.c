@@ -163,7 +163,11 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	reply->received = 0;
 	reinit_completion(&reply->done);
 
-	qnap_mcu_write(mcu, cmd_data, cmd_data_size);
+	ret = qnap_mcu_write(mcu, cmd_data, cmd_data_size);
+	if (ret < 0) {
+		mutex_unlock(&mcu->bus_lock);
+		return ret;
+	}
 
 	serdev_device_wait_until_sent(mcu->serdev, msecs_to_jiffies(QNAP_MCU_TIMEOUT_MS));
 
