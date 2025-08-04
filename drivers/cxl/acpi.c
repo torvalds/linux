@@ -20,7 +20,6 @@ static const guid_t acpi_cxl_qtg_id_guid =
 	GUID_INIT(0xF365F9A6, 0xA7DE, 0x4071,
 		  0xA6, 0x6A, 0xB4, 0x0C, 0x0B, 0x4F, 0x8E, 0x52);
 
-
 static u64 cxl_xor_hpa_to_spa(struct cxl_root_decoder *cxlrd, u64 hpa)
 {
 	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
@@ -472,8 +471,13 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 
 	cxlrd->qos_class = cfmws->qtg_id;
 
-	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR)
-		cxlrd->hpa_to_spa = cxl_xor_hpa_to_spa;
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
+		cxlrd->ops = kzalloc(sizeof(*cxlrd->ops), GFP_KERNEL);
+		if (!cxlrd->ops)
+			return -ENOMEM;
+
+		cxlrd->ops->hpa_to_spa = cxl_xor_hpa_to_spa;
+	}
 
 	rc = cxl_decoder_add(cxld, target_map);
 	if (rc)
