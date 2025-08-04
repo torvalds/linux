@@ -56,11 +56,6 @@ struct rttm_cs {
 };
 
 /* Simple internal register functions */
-static inline void rttm_set_counter(void __iomem *base, unsigned int counter)
-{
-	iowrite32(counter, base + RTTM_CNT);
-}
-
 static inline unsigned int rttm_get_counter(void __iomem *base)
 {
 	return ioread32(base + RTTM_CNT);
@@ -137,7 +132,6 @@ static void rttm_stop_timer(void __iomem *base)
 
 static void rttm_start_timer(struct timer_of *to, u32 mode)
 {
-	rttm_set_counter(to->of_base.base, 0);
 	rttm_enable_timer(to->of_base.base, mode, to->of_clk.rate / RTTM_TICKS_PER_SEC);
 }
 
