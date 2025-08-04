@@ -41,12 +41,10 @@
 #define RTTM_MAX_DIVISOR	GENMASK(15, 0)
 
 /*
- * Timers are derived from the LXB clock frequency. Usually this is a fixed
- * multiple of the 25 MHz oscillator. The 930X SOC is an exception from that.
- * Its LXB clock has only dividers and uses the switch PLL of 2.45 GHz as its
- * base. The only meaningful frequencies we can achieve from that are 175.000
- * MHz and 153.125 MHz. The greatest common divisor of all explained possible
- * speeds is 3125000. Pin the timers to this 3.125 MHz reference frequency.
+ * Timers are derived from the lexra bus (LXB) clock frequency. This is 175 MHz
+ * on RTL930x and 200 MHz on the other platforms. With 3.125 MHz choose a common
+ * divisor to have enough range and detail. This provides comparability between
+ * the different platforms.
  */
 #define RTTM_TICKS_PER_SEC	3125000
 
