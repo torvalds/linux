@@ -1241,13 +1241,35 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 	return page_vma_mkclean_one(&pvmw);
 }
 
-static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
+static void __folio_mod_stat(struct folio *folio, int nr, int nr_pmdmapped)
+{
+	int idx;
+
+	if (nr) {
+		idx = folio_test_anon(folio) ? NR_ANON_MAPPED : NR_FILE_MAPPED;
+		__lruvec_stat_mod_folio(folio, idx, nr);
+	}
+	if (nr_pmdmapped) {
+		if (folio_test_anon(folio)) {
+			idx = NR_ANON_THPS;
+			__lruvec_stat_mod_folio(folio, idx, nr_pmdmapped);
+		} else {
+			/* NR_*_PMDMAPPED are not maintained per-memcg */
+			idx = folio_test_swapbacked(folio) ?
+				NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED;
+			__mod_node_page_state(folio_pgdat(folio), idx,
+					      nr_pmdmapped);
+		}
+	}
+}
+
+static __always_inline void __folio_add_rmap(struct folio *folio,
 		struct page *page, int nr_pages, struct vm_area_struct *vma,
-		enum rmap_level level, int *nr_pmdmapped)
+		enum rmap_level level)
 {
 	atomic_t *mapped = &folio->_nr_pages_mapped;
 	const int orig_nr_pages = nr_pages;
-	int first = 0, nr = 0;
+	int first = 0, nr = 0, nr_pmdmapped = 0;
 
 	__folio_rmap_sanity_checks(folio, page, nr_pages, level);
 
@@ -1283,7 +1305,7 @@ static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
 		first = atomic_inc_and_test(&folio->_entire_mapcount);
 		if (IS_ENABLED(CONFIG_NO_PAGE_MAPCOUNT)) {
 			if (level == RMAP_LEVEL_PMD && first)
-				*nr_pmdmapped = folio_large_nr_pages(folio);
+				nr_pmdmapped = folio_large_nr_pages(folio);
 			nr = folio_inc_return_large_mapcount(folio, vma);
 			if (nr == 1)
 				/* Was completely unmapped. */
@@ -1302,7 +1324,7 @@ static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
 				 * folios separately.
 				 */
 				if (level == RMAP_LEVEL_PMD)
-					*nr_pmdmapped = nr_pages;
+					nr_pmdmapped = nr_pages;
 				nr = nr_pages - (nr & FOLIO_PAGES_MAPPED);
 				/* Raced ahead of a remove and another add? */
 				if (unlikely(nr < 0))
@@ -1315,7 +1337,7 @@ static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
 		folio_inc_large_mapcount(folio, vma);
 		break;
 	}
-	return nr;
+	__folio_mod_stat(folio, nr, nr_pmdmapped);
 }
 
 /**
@@ -1403,42 +1425,18 @@ static void __page_check_anon_rmap(const struct folio *folio,
 		       page);
 }
 
-static void __folio_mod_stat(struct folio *folio, int nr, int nr_pmdmapped)
-{
-	int idx;
-
-	if (nr) {
-		idx = folio_test_anon(folio) ? NR_ANON_MAPPED : NR_FILE_MAPPED;
-		__lruvec_stat_mod_folio(folio, idx, nr);
-	}
-	if (nr_pmdmapped) {
-		if (folio_test_anon(folio)) {
-			idx = NR_ANON_THPS;
-			__lruvec_stat_mod_folio(folio, idx, nr_pmdmapped);
-		} else {
-			/* NR_*_PMDMAPPED are not maintained per-memcg */
-			idx = folio_test_swapbacked(folio) ?
-				NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED;
-			__mod_node_page_state(folio_pgdat(folio), idx,
-					      nr_pmdmapped);
-		}
-	}
-}
-
 static __always_inline void __folio_add_anon_rmap(struct folio *folio,
 		struct page *page, int nr_pages, struct vm_area_struct *vma,
 		unsigned long address, rmap_t flags, enum rmap_level level)
 {
-	int i, nr, nr_pmdmapped = 0;
+	int i;
 
 	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
 
-	nr = __folio_add_rmap(folio, page, nr_pages, vma, level, &nr_pmdmapped);
+	__folio_add_rmap(folio, page, nr_pages, vma, level);
 
 	if (likely(!folio_test_ksm(folio)))
 		__page_check_anon_rmap(folio, page, vma, address);
-
-	__folio_mod_stat(folio, nr, nr_pmdmapped);
 
 	if (flags & RMAP_EXCLUSIVE) {
 		switch (level) {
@@ -1613,12 +1611,9 @@ static __always_inline void __folio_add_file_rmap(struct folio *folio,
 		struct page *page, int nr_pages, struct vm_area_struct *vma,
 		enum rmap_level level)
 {
-	int nr, nr_pmdmapped = 0;
-
 	VM_WARN_ON_FOLIO(folio_test_anon(folio), folio);
 
-	nr = __folio_add_rmap(folio, page, nr_pages, vma, level, &nr_pmdmapped);
-	__folio_mod_stat(folio, nr, nr_pmdmapped);
+	__folio_add_rmap(folio, page, nr_pages, vma, level);
 
 	/* See comments in folio_add_anon_rmap_*() */
 	if (!folio_test_large(folio))
