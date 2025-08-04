@@ -1854,7 +1854,7 @@ static int pnv_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	return 0;
 
 out:
-	irq_domain_free_irqs_parent(domain, virq, i - 1);
+	irq_domain_free_irqs_parent(domain, virq, i);
 	msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, nr_irqs);
 	return ret;
 }
