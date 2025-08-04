@@ -539,10 +539,16 @@ static bool construct_phy(struct dc_link *link,
 
 		break;
 	case CONNECTOR_ID_EDP:
+		// If smartmux is supported, only create the link on the primary eDP.
+		// Dual eDP is not supported with smartmux.
+		if (!(!link->dc->config.smart_mux_version || dc_ctx->dc_edp_id_count == 0))
+			goto create_fail;
+
 		link->connector_signal = SIGNAL_TYPE_EDP;
 
 		if (link->hpd_gpio) {
-			if (!link->dc->config.allow_edp_hotplug_detection)
+			if (!link->dc->config.allow_edp_hotplug_detection
+				&& !is_smartmux_suported(link))
 				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 
 			switch (link->dc->config.allow_edp_hotplug_detection) {

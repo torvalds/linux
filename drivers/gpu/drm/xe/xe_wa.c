@@ -10,6 +10,7 @@
 #include <linux/compiler_types.h>
 #include <linux/fault-inject.h>
 
+#include <generated/xe_device_wa_oob.h>
 #include <generated/xe_wa_oob.h>
 
 #include "regs/xe_engine_regs.h"
@@ -283,6 +284,18 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 	  XE_RTP_RULES(MEDIA_VERSION(3000),
 		       ENGINE_CLASS(VIDEO_DECODE)),
 	  XE_RTP_ACTIONS(SET(VDBOX_CGCTL3F10(0), IECPUNIT_CLKGATE_DIS)),
+	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE),
+	},
+	{ XE_RTP_NAME("16021865536"),
+	  XE_RTP_RULES(MEDIA_VERSION(3002),
+		       ENGINE_CLASS(VIDEO_DECODE)),
+	  XE_RTP_ACTIONS(SET(VDBOX_CGCTL3F10(0), IECPUNIT_CLKGATE_DIS)),
+	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE),
+	},
+	{ XE_RTP_NAME("16021867713"),
+	  XE_RTP_RULES(MEDIA_VERSION(3002),
+		       ENGINE_CLASS(VIDEO_DECODE)),
+	  XE_RTP_ACTIONS(SET(VDBOX_CGCTL3F1C(0), MFXPIPE_CLKGATE_DIS)),
 	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE),
 	},
 	{ XE_RTP_NAME("14021486841"),
@@ -644,6 +657,10 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_ACTIONS(SET(RING_PSMI_CTL(0), RC_SEMA_IDLE_MSG_DISABLE,
 			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 	},
+	{ XE_RTP_NAME("14021402888"),
+	  XE_RTP_RULES(GRAPHICS_VERSION(3003), FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(HALF_SLICE_CHICKEN7, CLEAR_OPTIMIZATION_DISABLE))
+	},
 };
 
 static const struct xe_rtp_entry_sr lrc_was[] = {
@@ -860,7 +877,32 @@ static __maybe_unused const struct xe_rtp_entry oob_was[] = {
 
 static_assert(ARRAY_SIZE(oob_was) - 1 == _XE_WA_OOB_COUNT);
 
+static __maybe_unused const struct xe_rtp_entry device_oob_was[] = {
+#include <generated/xe_device_wa_oob.c>
+	{}
+};
+
+static_assert(ARRAY_SIZE(device_oob_was) - 1 == _XE_DEVICE_WA_OOB_COUNT);
+
 __diag_pop();
+
+/**
+ * xe_wa_process_device_oob - process OOB workaround table
+ * @xe: device instance to process workarounds for
+ *
+ * process OOB workaround table for this device, marking in @xe the
+ * workarounds that are active.
+ */
+
+void xe_wa_process_device_oob(struct xe_device *xe)
+{
+	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(xe);
+
+	xe_rtp_process_ctx_enable_active_tracking(&ctx, xe->wa_active.oob, ARRAY_SIZE(device_oob_was));
+
+	xe->wa_active.oob_initialized = true;
+	xe_rtp_process(&ctx, device_oob_was);
+}
 
 /**
  * xe_wa_process_oob - process OOB workaround table
@@ -931,6 +973,28 @@ void xe_wa_process_lrc(struct xe_hw_engine *hwe)
 }
 
 /**
+ * xe_wa_device_init - initialize device with workaround oob bookkeeping
+ * @xe: Xe device instance to initialize
+ *
+ * Returns 0 for success, negative with error code otherwise
+ */
+int xe_wa_device_init(struct xe_device *xe)
+{
+	unsigned long *p;
+
+	p = drmm_kzalloc(&xe->drm,
+			 sizeof(*p) * BITS_TO_LONGS(ARRAY_SIZE(device_oob_was)),
+			 GFP_KERNEL);
+
+	if (!p)
+		return -ENOMEM;
+
+	xe->wa_active.oob = p;
+
+	return 0;
+}
+
+/**
  * xe_wa_init - initialize gt with workaround bookkeeping
  * @gt: GT instance to initialize
  *
@@ -963,6 +1027,16 @@ int xe_wa_init(struct xe_gt *gt)
 	return 0;
 }
 ALLOW_ERROR_INJECTION(xe_wa_init, ERRNO); /* See xe_pci_probe() */
+
+void xe_wa_device_dump(struct xe_device *xe, struct drm_printer *p)
+{
+	size_t idx;
+
+	drm_printf(p, "Device OOB Workarounds\n");
+	for_each_set_bit(idx, xe->wa_active.oob, ARRAY_SIZE(device_oob_was))
+		if (device_oob_was[idx].name)
+			drm_printf_indent(p, 1, "%s\n", device_oob_was[idx].name);
+}
 
 void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 {

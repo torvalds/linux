@@ -301,7 +301,6 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 	struct smu_table_context *smu_table = &smu->smu_table;
 	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
 	int xcc_id;
 
 	/* For clocks with multiple instances, only report the first one */
@@ -357,7 +356,7 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu, struct amdgpu_xcp *xcp, void *table, void *smu_metrics)

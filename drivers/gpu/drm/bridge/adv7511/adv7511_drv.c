@@ -864,7 +864,8 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 	return ret;
 }
 
-static enum drm_connector_status adv7511_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+adv7511_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 

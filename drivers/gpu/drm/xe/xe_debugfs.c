@@ -20,7 +20,9 @@
 #include "xe_pm.h"
 #include "xe_pxp_debugfs.h"
 #include "xe_sriov.h"
+#include "xe_sriov_pf.h"
 #include "xe_step.h"
+#include "xe_wa.h"
 
 #ifdef CONFIG_DRM_XE_DEBUG
 #include "xe_bo_evict.h"
@@ -82,9 +84,28 @@ static int sriov_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int workarounds(struct xe_device *xe, struct drm_printer *p)
+{
+	xe_pm_runtime_get(xe);
+	xe_wa_device_dump(xe, p);
+	xe_pm_runtime_put(xe);
+
+	return 0;
+}
+
+static int workaround_info(struct seq_file *m, void *data)
+{
+	struct xe_device *xe = node_to_xe(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	workarounds(xe, &p);
+	return 0;
+}
+
 static const struct drm_info_list debugfs_list[] = {
 	{"info", info, 0},
 	{ .name = "sriov_info", .show = sriov_info, },
+	{ .name = "workarounds", .show = workaround_info, },
 };
 
 static int forcewake_open(struct inode *inode, struct file *file)
@@ -273,4 +294,7 @@ void xe_debugfs_register(struct xe_device *xe)
 	xe_pxp_debugfs_register(xe->pxp);
 
 	fault_create_debugfs_attr("fail_gt_reset", root, &gt_reset_failure);
+
+	if (IS_SRIOV_PF(xe))
+		xe_sriov_pf_debugfs_register(xe, root);
 }

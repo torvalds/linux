@@ -37,6 +37,7 @@ struct komeda_fb {
 
 struct drm_framebuffer *
 komeda_fb_create(struct drm_device *dev, struct drm_file *file,
+		const struct drm_format_info *info,
 		const struct drm_mode_fb_cmd2 *mode_cmd);
 int komeda_fb_check_src_coords(const struct komeda_fb *kfb,
 			       u32 src_x, u32 src_y, u32 src_w, u32 src_h);
