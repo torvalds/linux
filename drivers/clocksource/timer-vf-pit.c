@@ -81,7 +81,7 @@ static inline void pit_timer_set_counter(void __iomem *base, unsigned int cnt)
 	writel(cnt, PITLDVAL(base));
 }
 
-static inline void pit_irq_acknowledge(struct pit_timer *pit)
+static inline void pit_timer_irqack(struct pit_timer *pit)
 {
 	writel(PITTFLG_TIF, PITTFLG(pit->clkevt_base));
 }
@@ -165,7 +165,7 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 	struct clock_event_device *ced = dev_id;
 	struct pit_timer *pit = ced_to_pit(ced);
 
-	pit_irq_acknowledge(pit);
+	pit_timer_irqack(pit);
 
 	/*
 	 * pit hardware doesn't support oneshot, it will generate an interrupt
@@ -195,7 +195,7 @@ static int __init pit_clockevent_init(struct pit_timer *pit, const char *name,
 
 	pit_timer_disable(pit->clkevt_base);
 
-	pit_irq_acknowledge(pit);
+	pit_timer_irqack(pit);
 
 	BUG_ON(request_irq(irq, pit_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
 			   name, &pit->ced));
