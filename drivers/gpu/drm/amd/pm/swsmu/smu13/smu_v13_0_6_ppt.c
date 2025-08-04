@@ -822,7 +822,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
 	int version = smu_v13_0_6_get_metrics_version(smu);
-	int ret, i, retry = 100;
+	int ret, i, retry = 100, n;
 	uint32_t table_version;
 	uint16_t max_speed;
 	uint8_t max_width;
@@ -883,6 +883,23 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 		/* use AID0 serial number by default */
 		pptable->PublicSerialNumber_AID =
 			GET_METRIC_FIELD(PublicSerialNumber_AID, version)[0];
+
+		amdgpu_device_set_uid(smu->adev->uid_info, AMDGPU_UID_TYPE_SOC,
+				      0, pptable->PublicSerialNumber_AID);
+		n = ARRAY_SIZE(metrics_v0->PublicSerialNumber_AID);
+		for (i = 0; i < n; i++) {
+			amdgpu_device_set_uid(
+				smu->adev->uid_info, AMDGPU_UID_TYPE_AID, i,
+				GET_METRIC_FIELD(PublicSerialNumber_AID,
+						 version)[i]);
+		}
+		n = ARRAY_SIZE(metrics_v0->PublicSerialNumber_XCD);
+		for (i = 0; i < n; i++) {
+			amdgpu_device_set_uid(
+				smu->adev->uid_info, AMDGPU_UID_TYPE_XCD, i,
+				GET_METRIC_FIELD(PublicSerialNumber_XCD,
+						 version)[i]);
+		}
 
 		pptable->Init = true;
 		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS))) {
