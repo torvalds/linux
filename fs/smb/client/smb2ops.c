@@ -409,7 +409,7 @@ __smb2_find_mid(struct TCP_Server_Info *server, char *buf, bool dequeue)
 			kref_get(&mid->refcount);
 			if (dequeue) {
 				list_del_init(&mid->qhead);
-				mid->mid_flags |= MID_DELETED;
+				mid->deleted_from_q = true;
 			}
 			spin_unlock(&server->mid_queue_lock);
 			return mid;
@@ -4817,7 +4817,7 @@ static void smb2_decrypt_offload(struct work_struct *work)
 			} else {
 				spin_lock(&dw->server->mid_queue_lock);
 				mid->mid_state = MID_REQUEST_SUBMITTED;
-				mid->mid_flags &= ~(MID_DELETED);
+				mid->deleted_from_q = false;
 				list_add_tail(&mid->qhead,
 					&dw->server->pending_mid_q);
 				spin_unlock(&dw->server->mid_queue_lock);

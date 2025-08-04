@@ -327,7 +327,7 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 		if (mid->mid_state == MID_REQUEST_SUBMITTED)
 			mid->mid_state = MID_RETRY_NEEDED;
 		list_move(&mid->qhead, &retry_list);
-		mid->mid_flags |= MID_DELETED;
+		mid->deleted_from_q = true;
 	}
 	spin_unlock(&server->mid_queue_lock);
 	cifs_server_unlock(server);
@@ -888,7 +888,7 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 			list_for_each_entry_safe(mid, nmid, &server->pending_mid_q, qhead) {
 				kref_get(&mid->refcount);
 				list_move(&mid->qhead, &dispose_list);
-				mid->mid_flags |= MID_DELETED;
+				mid->deleted_from_q = true;
 			}
 			spin_unlock(&server->mid_queue_lock);
 
@@ -966,12 +966,12 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 	 * Trying to handle/dequeue a mid after the send_recv()
 	 * function has finished processing it is a bug.
 	 */
-	if (mid->mid_flags & MID_DELETED) {
+	if (mid->deleted_from_q == true) {
 		spin_unlock(&mid->server->mid_queue_lock);
 		pr_warn_once("trying to dequeue a deleted mid\n");
 	} else {
 		list_del_init(&mid->qhead);
-		mid->mid_flags |= MID_DELETED;
+		mid->deleted_from_q = true;
 		spin_unlock(&mid->server->mid_queue_lock);
 	}
 }
@@ -1108,7 +1108,7 @@ clean_demultiplex_info(struct TCP_Server_Info *server)
 			kref_get(&mid_entry->refcount);
 			mid_entry->mid_state = MID_SHUTDOWN;
 			list_move(&mid_entry->qhead, &dispose_list);
-			mid_entry->mid_flags |= MID_DELETED;
+			mid_entry->deleted_from_q = true;
 		}
 		spin_unlock(&server->mid_queue_lock);
 
