@@ -15,7 +15,7 @@
 #define KLDIR_ENT_SIZE			0x40
 #define KLDIR_MAX_ENTRIES		(0x400 / 0x40)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 typedef struct kldir_ent_s {
 	u64		magic;		/* Indicates validity of entry	    */
 	off_t		offset;		/* Offset from start of node space  */
@@ -27,7 +27,7 @@ typedef struct kldir_ent_s {
 	/* NOTE: These 16 bytes are used in the Partition KLDIR
 	   entry to store partition info. Refer to klpart.h for this. */
 } kldir_ent_t;
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #ifdef CONFIG_SGI_IP27
 #include <asm/sn/sn0/kldir.h>

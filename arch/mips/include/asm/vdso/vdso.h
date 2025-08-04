@@ -9,7 +9,7 @@
 
 #define __VDSO_PAGES 4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/asm.h>
 #include <asm/vdso.h>
@@ -69,4 +69,4 @@ static inline void __iomem *get_gic(const struct vdso_time_data *data)
 
 #endif /* CONFIG_CLKSRC_MIPS_GIC */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */

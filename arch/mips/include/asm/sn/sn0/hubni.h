@@ -11,7 +11,7 @@
 #ifndef _ASM_SGI_SN0_HUBNI_H
 #define _ASM_SGI_SN0_HUBNI_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/types.h>
 #endif
 
@@ -226,7 +226,7 @@
 
 #define NLT_EXIT_PORT_MASK (UINT64_CAST 0xf)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 typedef union	hubni_port_error_u {
 	u64	nipe_reg_value;
@@ -258,6 +258,6 @@ static inline int get_region_shift(void)
 	return NASID_TO_COARSEREG_SHFT;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_SGI_SN0_HUBNI_H */

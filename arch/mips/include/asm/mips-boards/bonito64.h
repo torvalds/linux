@@ -21,7 +21,7 @@
 #ifndef _ASM_MIPS_BOARDS_BONITO64_H
 #define _ASM_MIPS_BOARDS_BONITO64_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* offsets from base register */
 #define BONITO(x)	(x)
@@ -36,7 +36,7 @@ extern unsigned long _pcictrl_bonito_pcicfg;
 
 #define BONITO(x)		*(volatile u32 *)(_pcictrl_bonito + (x))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 
 #define BONITO_BOOT_BASE		0x1fc00000
