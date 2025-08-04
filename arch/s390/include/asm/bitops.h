@@ -193,10 +193,9 @@ static inline unsigned long __ffs(unsigned long word)
  */
 static inline int ffs(int word)
 {
-	unsigned long mask = 2 * BITS_PER_LONG - 1;
 	unsigned int val = (unsigned int)word;
 
-	return (1 + (__flogr(-val & val) ^ (BITS_PER_LONG - 1))) & mask;
+	return BITS_PER_LONG - __flogr(-val & val);
 }
 
 /**
@@ -223,9 +222,7 @@ static inline unsigned long __fls(unsigned long word)
  */
 static inline int fls64(unsigned long word)
 {
-	unsigned long mask = 2 * BITS_PER_LONG - 1;
-
-	return (1 + (__flogr(word) ^ (BITS_PER_LONG - 1))) & mask;
+	return BITS_PER_LONG - __flogr(word);
 }
 
 /**
