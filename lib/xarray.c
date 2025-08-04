@@ -370,7 +370,7 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 	if (node) {
 		xas->xa_alloc = NULL;
 	} else {
-		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
+		gfp_t gfp = GFP_NOWAIT;
 
 		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
 			gfp |= __GFP_ACCOUNT;
