@@ -104,9 +104,9 @@ static int qnap_mcu_register_err_led(struct device *dev, struct qnap_mcu *mcu, i
 }
 
 enum qnap_mcu_usb_led_mode {
-	QNAP_MCU_USB_LED_ON = 1,
-	QNAP_MCU_USB_LED_OFF = 3,
-	QNAP_MCU_USB_LED_BLINK = 2,
+	QNAP_MCU_USB_LED_ON = 0,
+	QNAP_MCU_USB_LED_OFF = 2,
+	QNAP_MCU_USB_LED_BLINK = 1,
 };
 
 struct qnap_mcu_usb_led {
@@ -137,7 +137,7 @@ static int qnap_mcu_usb_led_set(struct led_classdev *led_cdev,
 	 * Byte 3 is shared between the usb led target on/off/blink
 	 * and also the buzzer control (in the input driver)
 	 */
-	cmd[2] = 'D' + usb_led->mode;
+	cmd[2] = 'E' + usb_led->mode;
 
 	return qnap_mcu_exec_with_ack(usb_led->mcu, cmd, sizeof(cmd));
 }
@@ -161,7 +161,7 @@ static int qnap_mcu_usb_led_blink_set(struct led_classdev *led_cdev,
 	 * Byte 3 is shared between the USB LED target on/off/blink
 	 * and also the buzzer control (in the input driver)
 	 */
-	cmd[2] = 'D' + usb_led->mode;
+	cmd[2] = 'E' + usb_led->mode;
 
 	return qnap_mcu_exec_with_ack(usb_led->mcu, cmd, sizeof(cmd));
 }
