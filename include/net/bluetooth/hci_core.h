@@ -1915,6 +1915,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 				!hci_dev_test_flag(dev, HCI_RPA_EXPIRED))
 #define adv_rpa_valid(adv)     (bacmp(&adv->random_addr, BDADDR_ANY) && \
 				!adv->rpa_expired)
+#define le_enabled(dev)        (lmp_le_capable(dev) && \
+				hci_dev_test_flag(dev, HCI_LE_ENABLED))
 
 #define scan_1m(dev) (((dev)->le_tx_def_phys & HCI_LE_SET_PHY_1M) || \
 		      ((dev)->le_rx_def_phys & HCI_LE_SET_PHY_1M))
@@ -1981,14 +1983,23 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 
 /* CIS Master/Slave and BIS support */
 #define iso_capable(dev) (cis_capable(dev) || bis_capable(dev))
+#define iso_enabled(dev) (le_enabled(dev) && iso_capable(dev))
 #define cis_capable(dev) \
 	(cis_central_capable(dev) || cis_peripheral_capable(dev))
+#define cis_enabled(dev) (le_enabled(dev) && cis_capable(dev))
 #define cis_central_capable(dev) \
 	((dev)->le_features[3] & HCI_LE_CIS_CENTRAL)
+#define cis_central_enabled(dev) \
+	(le_enabled(dev) && cis_central_capable(dev))
 #define cis_peripheral_capable(dev) \
 	((dev)->le_features[3] & HCI_LE_CIS_PERIPHERAL)
+#define cis_peripheral_enabled(dev) \
+	(le_enabled(dev) && cis_peripheral_capable(dev))
 #define bis_capable(dev) ((dev)->le_features[3] & HCI_LE_ISO_BROADCASTER)
-#define sync_recv_capable(dev) ((dev)->le_features[3] & HCI_LE_ISO_SYNC_RECEIVER)
+#define bis_enabled(dev) (le_enabled(dev) && bis_capable(dev))
+#define sync_recv_capable(dev) \
+	((dev)->le_features[3] & HCI_LE_ISO_SYNC_RECEIVER)
+#define sync_recv_enabled(dev) (le_enabled(dev) && sync_recv_capable(dev))
 
 #define mws_transport_config_capable(dev) (((dev)->commands[30] & 0x08) && \
 	(!hci_test_quirk((dev), HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG)))

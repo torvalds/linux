@@ -4531,14 +4531,14 @@ static int hci_le_set_host_feature_sync(struct hci_dev *hdev)
 {
 	struct hci_cp_le_set_host_feature cp;
 
-	if (!cis_capable(hdev))
+	if (!iso_capable(hdev))
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
 
 	/* Connected Isochronous Channels (Host Support) */
 	cp.bit_number = 32;
-	cp.bit_value = 1;
+	cp.bit_value = iso_enabled(hdev) ? 0x01 : 0x00;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_HOST_FEATURE,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
