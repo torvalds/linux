@@ -422,9 +422,11 @@ struct cxl_root_decoder;
 /**
  * struct cxl_rd_ops - CXL root decoder callback operations
  * @hpa_to_spa: Convert host physical address to system physical address
+ * @spa_to_hpa: Convert system physical address to host physical address
  */
 struct cxl_rd_ops {
 	u64 (*hpa_to_spa)(struct cxl_root_decoder *cxlrd, u64 hpa);
+	u64 (*spa_to_hpa)(struct cxl_root_decoder *cxlrd, u64 spa);
 };
 
 /**
