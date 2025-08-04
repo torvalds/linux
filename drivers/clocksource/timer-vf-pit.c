@@ -79,8 +79,8 @@ static u64 pit_timer_clocksource_read(struct clocksource *cs)
 	return (u64)~readl(PITCVAL(pit->clksrc_base));
 }
 
-static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base,
-				       unsigned long rate)
+static int __init pit_clocksource_init(struct pit_timer *pit, const char *name,
+				       void __iomem *base, unsigned long rate)
 {
 	/*
 	 * The channels 0 and 1 can be chained to build a 64-bit
@@ -88,7 +88,7 @@ static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base
 	 * the channels 0 and 1 unused for anyone else who needs them
 	 */
 	pit->clksrc_base = base + PIT_CH(2);
-	pit->cs.name = "vf-pit";
+	pit->cs.name = name;
 	pit->cs.rating = 300;
 	pit->cs.read = pit_timer_clocksource_read;
 	pit->cs.mask = CLOCKSOURCE_MASK(32);
@@ -162,8 +162,9 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
-				      unsigned long rate, int irq, unsigned int cpu)
+static int __init pit_clockevent_init(struct pit_timer *pit, const char *name,
+				      void __iomem *base, unsigned long rate,
+				      int irq, unsigned int cpu)
 {
 	/*
 	 * The channels 0 and 1 can be chained to build a 64-bit
@@ -178,12 +179,12 @@ static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
 	pit_irq_acknowledge(pit);
 
 	BUG_ON(request_irq(irq, pit_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
-			   "VF pit timer", &pit->ced));
+			   name, &pit->ced));
 
 	pit->ced.cpumask = cpumask_of(cpu);
 	pit->ced.irq = irq;
 
-	pit->ced.name = "VF pit timer";
+	pit->ced.name = name;
 	pit->ced.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	pit->ced.set_state_shutdown = pit_shutdown;
 	pit->ced.set_state_periodic = pit_set_periodic;
@@ -208,6 +209,7 @@ static int __init pit_timer_init(struct device_node *np)
 	struct pit_timer *pit;
 	struct clk *pit_clk;
 	void __iomem *timer_base;
+	const char *name = of_node_full_name(np);
 	unsigned long clk_rate;
 	int irq, ret;
 
@@ -244,11 +246,11 @@ static int __init pit_timer_init(struct device_node *np)
 	/* enable the pit module */
 	writel(~PITMCR_MDIS, timer_base + PITMCR);
 
-	ret = pit_clocksource_init(pit, timer_base, clk_rate);
+	ret = pit_clocksource_init(pit, name, timer_base, clk_rate);
 	if (ret)
 		goto out_disable_unprepare;
 
-	ret = pit_clockevent_init(pit, timer_base, clk_rate, irq, 0);
+	ret = pit_clockevent_init(pit, name, timer_base, clk_rate, irq, 0);
 	if (ret)
 		goto out_pit_clocksource_unregister;
 
