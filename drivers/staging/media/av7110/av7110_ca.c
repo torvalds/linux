@@ -26,7 +26,7 @@
 
 void CI_handle(struct av7110 *av7110, u8 *data, u16 len)
 {
-	unsigned slot_num;
+	unsigned int slot_num;
 
 	dprintk(8, "av7110:%p\n", av7110);
 
