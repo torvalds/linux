@@ -458,7 +458,13 @@ done:
 
 static void do_promote(struct gfs2_glock *gl)
 {
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_holder *gh, *current_gh;
+
+	if (gfs2_withdrawn(sdp)) {
+		do_error(gl, LM_OUT_ERROR);
+		return;
+	}
 
 	current_gh = find_first_holder(gl);
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
@@ -565,7 +571,6 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 		state_change(gl, state);
 	}
 
-
 	/* Demote to UN request arrived during demote to SH or DF */
 	if (test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
@@ -654,28 +659,36 @@ __acquires(&gl->gl_lockref.lock)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int ret;
 
-	if (target != LM_ST_UNLOCKED && gfs2_withdrawn(sdp))
-		goto skip_inval;
+	/*
+	 * When a filesystem is withdrawing, the remaining cluster nodes will
+	 * take care of recovering the withdrawing node's journal.  We only
+	 * need to make sure that once we trigger remote recovery, we won't
+	 * write to the shared block device anymore.  This means that here,
+	 *
+	 * - no new writes to the filesystem must be triggered (->go_sync()).
+	 *
+	 * - any cached data should be discarded by calling ->go_inval(), dirty
+	 *   or not and journaled or unjournaled.
+	 *
+	 * - no more dlm locking operations should be issued (->lm_lock()).
+	 */
 
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
 	GLOCK_BUG_ON(gl, gl->gl_state == gl->gl_target);
+
 	if (!glops->go_inval || !glops->go_sync)
 		goto skip_inval;
 
 	spin_unlock(&gl->gl_lockref.lock);
-	ret = glops->go_sync(gl);
-	/* If we had a problem syncing (due to io errors or whatever,
-	 * we should not invalidate the metadata or tell dlm to
-	 * release the glock to other nodes.
-	 */
-	if (ret) {
-		if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
-			fs_err(sdp, "Error %d syncing glock\n", ret);
-			gfs2_dump_glock(NULL, gl, true);
-			gfs2_withdraw(sdp);
+	if (!gfs2_withdrawn(sdp)) {
+		ret = glops->go_sync(gl);
+		if (ret) {
+			if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
+				fs_err(sdp, "Error %d syncing glock\n", ret);
+				gfs2_dump_glock(NULL, gl, true);
+				gfs2_withdraw(sdp);
+			}
 		}
-		spin_lock(&gl->gl_lockref.lock);
-		goto skip_inval;
 	}
 
 	if (target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED)
@@ -683,25 +696,10 @@ __acquires(&gl->gl_lockref.lock)
 	spin_lock(&gl->gl_lockref.lock);
 
 skip_inval:
-	if (gfs2_withdrawn(sdp) && target != LM_ST_UNLOCKED) {
-		request_demote(gl, LM_ST_UNLOCKED, 0, false);
-		/*
-		 * Ordinarily, we would call dlm and its callback would call
-		 * finish_xmote, which would call state_change() to the new state.
-		 * Since we withdrew, we won't call dlm, so call state_change
-		 * manually, but to the UNLOCKED state we desire.
-		 */
-		state_change(gl, LM_ST_UNLOCKED);
-		/*
-		 * We skip telling dlm to do the locking, so we won't get a
-		 * reply that would otherwise clear GLF_LOCK. So we clear it here.
-		 */
-		if (!test_bit(GLF_CANCELING, &gl->gl_flags))
-			clear_bit(GLF_LOCK, &gl->gl_flags);
-		clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
-		gl->gl_lockref.count++;
-		gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
-		return;
+	if (gfs2_withdrawn(sdp)) {
+		if (target != LM_ST_UNLOCKED)
+			target = LM_OUT_ERROR;
+		goto out;
 	}
 
 	if (ls->ls_ops->lm_lock) {
@@ -717,12 +715,15 @@ skip_inval:
 		}
 		clear_bit(GLF_PENDING_REPLY, &gl->gl_flags);
 
-		if (ret == -ENODEV && gl->gl_target == LM_ST_UNLOCKED &&
-		    target == LM_ST_UNLOCKED) {
+		if (ret == -ENODEV) {
 			/*
 			 * The lockspace has been released and the lock has
 			 * been unlocked implicitly.
 			 */
+			if (target != LM_ST_UNLOCKED) {
+				target = LM_OUT_ERROR;
+				goto out;
+			}
 		} else {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
 			GLOCK_BUG_ON(gl, !gfs2_withdrawn(sdp));
@@ -730,6 +731,7 @@ skip_inval:
 		}
 	}
 
+out:
 	/* Complete the operation now. */
 	finish_xmote(gl, target);
 	gl->gl_lockref.count++;
@@ -2081,8 +2083,17 @@ static void dump_glock_func(struct gfs2_glock *gl)
 static void withdraw_glock(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_lockref.lock);
-	if (!__lockref_is_dead(&gl->gl_lockref))
+	if (!__lockref_is_dead(&gl->gl_lockref)) {
+		/*
+		 * We don't want to write back any more dirty data.  Unlock the
+		 * remaining inode and resource group glocks; this will cause
+		 * their ->go_inval() hooks to toss out all the remaining
+		 * cached data, dirty or not.
+		 */
+		if (gl->gl_ops->go_inval && gl->gl_state != LM_ST_UNLOCKED)
+			request_demote(gl, LM_ST_UNLOCKED, 0, false);
 		do_error(gl, LM_OUT_ERROR); /* remove pending waiters */
+	}
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
