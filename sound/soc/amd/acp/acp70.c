@@ -23,7 +23,7 @@
 #include "amd.h"
 #include "acp-mach.h"
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #define DRV_NAME "acp_asoc_acp70"
 

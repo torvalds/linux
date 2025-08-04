@@ -248,8 +248,9 @@ static int mchp_eic_init(struct device_node *node, struct device_node *parent)
 		eic->irqs[i] = irq.args[1];
 	}
 
-	eic->domain = irq_domain_add_hierarchy(parent_domain, 0, MCHP_EIC_NIRQ,
-					       node, &mchp_eic_domain_ops, eic);
+	eic->domain = irq_domain_create_hierarchy(parent_domain, 0, MCHP_EIC_NIRQ,
+						  of_fwnode_handle(node), &mchp_eic_domain_ops,
+						  eic);
 	if (!eic->domain) {
 		pr_err("%pOF: Failed to add domain\n", node);
 		ret = -ENODEV;

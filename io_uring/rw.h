@@ -16,6 +16,8 @@ struct io_async_rw {
 		struct iov_iter			iter;
 		struct iov_iter_state		iter_state;
 		struct iovec			fast_iov;
+		unsigned			buf_group;
+
 		/*
 		 * wpq is for buffered io, while meta fields are used with
 		 * direct io

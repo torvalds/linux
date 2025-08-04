@@ -11,6 +11,24 @@
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 
+/* Set this bit to handle partial blocks in the API. */
+#define CRYPTO_AHASH_ALG_BLOCK_ONLY	0x01000000
+
+/* Set this bit if final requires at least one byte. */
+#define CRYPTO_AHASH_ALG_FINAL_NONZERO	0x02000000
+
+/* Set this bit if finup can deal with multiple blocks. */
+#define CRYPTO_AHASH_ALG_FINUP_MAX	0x04000000
+
+/* This bit is set by the Crypto API if export_core is not supported. */
+#define CRYPTO_AHASH_ALG_NO_EXPORT_CORE	0x08000000
+
+#define HASH_FBREQ_ON_STACK(name, req) \
+        char __##name##_req[sizeof(struct ahash_request) + \
+                            MAX_SYNC_HASH_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct ahash_request *name = ahash_fbreq_on_stack_init( \
+                __##name##_req, (req))
+
 struct ahash_request;
 
 struct ahash_instance {
@@ -49,6 +67,7 @@ int crypto_register_ahashes(struct ahash_alg *algs, int count);
 void crypto_unregister_ahashes(struct ahash_alg *algs, int count);
 int ahash_register_instance(struct crypto_template *tmpl,
 			    struct ahash_instance *inst);
+void ahash_free_singlespawn_instance(struct ahash_instance *inst);
 
 int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
 		    unsigned int keylen);
@@ -58,9 +77,17 @@ static inline bool crypto_shash_alg_has_setkey(struct shash_alg *alg)
 	return alg->setkey != shash_no_setkey;
 }
 
+bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg);
+
 static inline bool crypto_shash_alg_needs_key(struct shash_alg *alg)
 {
 	return crypto_shash_alg_has_setkey(alg) &&
+		!(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY);
+}
+
+static inline bool crypto_hash_alg_needs_key(struct hash_alg_common *alg)
+{
+	return crypto_hash_alg_has_setkey(alg) &&
 		!(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY);
 }
 
@@ -187,7 +214,7 @@ static inline void ahash_request_complete(struct ahash_request *req, int err)
 
 static inline u32 ahash_request_flags(struct ahash_request *req)
 {
-	return req->base.flags;
+	return crypto_request_flags(&req->base) & ~CRYPTO_AHASH_REQ_PRIVATE;
 }
 
 static inline struct crypto_ahash *crypto_spawn_ahash(
@@ -247,20 +274,96 @@ static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
 	return container_of(tfm, struct crypto_shash, base);
 }
 
-static inline bool ahash_request_chained(struct ahash_request *req)
-{
-	return false;
-}
-
 static inline bool ahash_request_isvirt(struct ahash_request *req)
 {
 	return req->base.flags & CRYPTO_AHASH_REQ_VIRT;
 }
 
-static inline bool crypto_ahash_req_chain(struct crypto_ahash *tfm)
+static inline bool crypto_ahash_req_virt(struct crypto_ahash *tfm)
 {
-	return crypto_tfm_req_chain(&tfm->base);
+	return crypto_tfm_req_virt(&tfm->base);
 }
+
+static inline struct crypto_ahash *crypto_ahash_fb(struct crypto_ahash *tfm)
+{
+	return __crypto_ahash_cast(crypto_ahash_tfm(tfm)->fb);
+}
+
+static inline struct ahash_request *ahash_fbreq_on_stack_init(
+	char *buf, struct ahash_request *old)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(old);
+	struct ahash_request *req = (void *)buf;
+
+	crypto_stack_request_init(&req->base,
+				  crypto_ahash_tfm(crypto_ahash_fb(tfm)));
+	ahash_request_set_callback(req, ahash_request_flags(old), NULL, NULL);
+	req->base.flags &= ~CRYPTO_AHASH_REQ_PRIVATE;
+	req->base.flags |= old->base.flags & CRYPTO_AHASH_REQ_PRIVATE;
+	req->src = old->src;
+	req->result = old->result;
+	req->nbytes = old->nbytes;
+
+	return req;
+}
+
+/* Return the state size without partial block for block-only algorithms. */
+static inline unsigned int crypto_shash_coresize(struct crypto_shash *tfm)
+{
+	return crypto_shash_statesize(tfm) - crypto_shash_blocksize(tfm) - 1;
+}
+
+/* This can only be used if the request was never cloned. */
+#define HASH_REQUEST_ZERO(name) \
+	memzero_explicit(__##name##_req, sizeof(__##name##_req))
+
+/**
+ * crypto_ahash_export_core() - extract core state for message digest
+ * @req: reference to the ahash_request handle whose state is exported
+ * @out: output buffer of sufficient size that can hold the hash state
+ *
+ * Export the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the export creation was successful; < 0 if an error occurred
+ */
+int crypto_ahash_export_core(struct ahash_request *req, void *out);
+
+/**
+ * crypto_ahash_import_core() - import core state
+ * @req: reference to ahash_request handle the state is imported into
+ * @in: buffer holding the state
+ *
+ * Import the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the import was successful; < 0 if an error occurred
+ */
+int crypto_ahash_import_core(struct ahash_request *req, const void *in);
+
+/**
+ * crypto_shash_export_core() - extract core state for message digest
+ * @desc: reference to the operational state handle whose state is exported
+ * @out: output buffer of sufficient size that can hold the hash state
+ *
+ * Export the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the export creation was successful; < 0 if an error occurred
+ */
+int crypto_shash_export_core(struct shash_desc *desc, void *out);
+
+/**
+ * crypto_shash_import_core() - import core state
+ * @desc: reference to the operational state handle the state imported into
+ * @in: buffer holding the state
+ *
+ * Import the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the import was successful; < 0 if an error occurred
+ */
+int crypto_shash_import_core(struct shash_desc *desc, const void *in);
 
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
 

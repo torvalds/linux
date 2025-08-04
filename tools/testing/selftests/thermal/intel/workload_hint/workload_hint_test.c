@@ -37,7 +37,7 @@ void workload_hint_exit(int signum)
 	}
 
 	if (write(fd, "0\n", 2) < 0) {
-		perror("Can' disable workload hints\n");
+		perror("Can't disable workload hints\n");
 		exit(1);
 	}
 
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 	}
 
 	if (write(fd, "1\n", 2) < 0) {
-		perror("Can' enable workload hints\n");
+		perror("Can't enable workload hints\n");
 		exit(1);
 	}
 

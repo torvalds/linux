@@ -53,7 +53,7 @@ void fpstate_init_soft(struct swregs_state *soft)
 
 void finit(void)
 {
-	fpstate_init_soft(&current->thread.fpu.fpstate->regs.soft);
+	fpstate_init_soft(&x86_task_fpu(current)->fpstate->regs.soft);
 }
 
 /*

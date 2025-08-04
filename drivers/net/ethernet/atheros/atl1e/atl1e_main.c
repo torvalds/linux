@@ -115,8 +115,8 @@ static inline void atl1e_irq_reset(struct atl1e_adapter *adapter)
  */
 static void atl1e_phy_config(struct timer_list *t)
 {
-	struct atl1e_adapter *adapter = from_timer(adapter, t,
-						   phy_config_timer);
+	struct atl1e_adapter *adapter = timer_container_of(adapter, t,
+							   phy_config_timer);
 	struct atl1e_hw *hw = &adapter->hw;
 	unsigned long flags;
 

@@ -11,3 +11,10 @@ msm/msm_mapping@shadow
 # IGT Version: 1.28-gf13702b8e
 # Linux Version: 6.10.0-rc5
 kms_lease@page-flip-implicit-plane
+
+# Board Name: sc7180-trogdor-lazor-limozeen-nots-r5
+# Bug Report: https://gitlab.freedesktop.org/drm/msm/-/issues/74
+# Failure Rate: 20
+# IGT Version: 1.30-g04bedb923
+# Linux Version: 6.14.0-rc4
+kms_cursor_crc@cursor-random-128x128

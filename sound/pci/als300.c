@@ -617,7 +617,7 @@ static int snd_als300_create(struct snd_card *card,
 	chip->chip_type = chip_type;
 	spin_lock_init(&chip->reg_lock);
 
-	err = pci_request_regions(pci, "ALS300");
+	err = pcim_request_all_regions(pci, "ALS300");
 	if (err < 0)
 		return err;
 

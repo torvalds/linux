@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (c) 2021-2025 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Alexander Stein
+ */
+
+#include "imx8dxp.dtsi"
+#include "tqma8xxs.dtsi"
+
+/ {
+	model = "TQ-Systems i.MX8DXP TQMa8XDPS";
+	compatible = "tq,imx8dxp-tqma8xdps", "fsl,imx8dxp";
+};
+
+&pmic0_thermal {
+	cooling-maps {
+		map0 {
+			cooling-device =
+				<&A35_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				<&A35_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};

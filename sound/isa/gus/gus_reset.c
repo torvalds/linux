@@ -141,10 +141,6 @@ void snd_gf1_stop_voice(struct snd_gus_card * gus, unsigned short voice)
 	if (gus->gf1.enh_mode)
 		snd_gf1_write8(gus, SNDRV_GF1_VB_ACCUMULATOR, 0);
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
-#if 0
-	snd_gf1_lfo_shutdown(gus, voice, ULTRA_LFO_VIBRATO);
-	snd_gf1_lfo_shutdown(gus, voice, ULTRA_LFO_TREMOLO);
-#endif
 }
 
 static void snd_gf1_clear_voices(struct snd_gus_card * gus, unsigned short v_min,
@@ -182,10 +178,6 @@ static void snd_gf1_clear_voices(struct snd_gus_card * gus, unsigned short v_min
 			snd_gf1_write16(gus, SNDRV_GF1_VW_EFFECT_VOLUME_FINAL, 0);
 		}
 		spin_unlock_irqrestore(&gus->reg_lock, flags);
-#if 0
-		snd_gf1_lfo_shutdown(gus, i, ULTRA_LFO_VIBRATO);
-		snd_gf1_lfo_shutdown(gus, i, ULTRA_LFO_TREMOLO);
-#endif
 	}
 }
 
@@ -335,9 +327,7 @@ int snd_gf1_start(struct snd_gus_card * gus)
 	} else {
 		gus->gf1.sw_lfo = 1;
 	}
-#if 0
-	snd_gf1_lfo_init(gus);
-#endif
+
 	if (gus->gf1.memory > 0)
 		for (i = 0; i < 4; i++)
 			snd_gf1_poke(gus, gus->gf1.default_voice_address + i, 0);
@@ -391,8 +381,6 @@ int snd_gf1_stop(struct snd_gus_card * gus)
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* disable IRQ & DAC */
 	snd_gf1_timers_done(gus);
 	snd_gf1_mem_done(gus);
-#if 0
-	snd_gf1_lfo_done(gus);
-#endif
+
 	return 0;
 }

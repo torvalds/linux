@@ -2397,8 +2397,7 @@ static int renesas_usb3_stop(struct usb_gadget *gadget)
 		rzv2m_usb3drd_reset(usb3_to_dev(usb3)->parent, false);
 
 	renesas_usb3_stop_controller(usb3);
-	if (usb3->phy)
-		phy_exit(usb3->phy);
+	phy_exit(usb3->phy);
 
 	pm_runtime_put(usb3_to_dev(usb3));
 
@@ -2984,8 +2983,7 @@ static int renesas_usb3_suspend(struct device *dev)
 		return 0;
 
 	renesas_usb3_stop_controller(usb3);
-	if (usb3->phy)
-		phy_exit(usb3->phy);
+	phy_exit(usb3->phy);
 	pm_runtime_put(dev);
 
 	return 0;

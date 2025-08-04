@@ -4,10 +4,14 @@
  *
  * Copyright (c) 2024, Intel Corporation.
  *
+ * Order of entries in snd_soc_acpi_intel_ptl_sdw_machines[] matters.
+ * Check subset of link mask when matching the machine driver, rule is
+ * superset match should be ordered before subset matches.
  */
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
+#include "sof-function-topology-lib.h"
 #include "soc-acpi-intel-sdca-quirks.h"
 #include "soc-acpi-intel-sdw-mockup-match.h"
 #include <sound/soc-acpi-intel-ssp-common.h>
@@ -134,7 +138,7 @@ static const struct snd_soc_acpi_endpoint jack_dmic_endpoints[] = {
 	},
 };
 
-static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints_endpoints[] = {
+static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints[] = {
 	/* Jack Endpoint */
 	{
 		.num = 0,
@@ -284,8 +288,8 @@ static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 static const struct snd_soc_acpi_adr_device rt712_vb_2_group1_adr[] = {
 	{
 		.adr = 0x000230025D071201ull,
-		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints_endpoints),
-		.endpoints = jack_amp_g1_dmic_endpoints_endpoints,
+		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints),
+		.endpoints = jack_amp_g1_dmic_endpoints,
 		.name_prefix = "rt712"
 	}
 };
@@ -293,8 +297,8 @@ static const struct snd_soc_acpi_adr_device rt712_vb_2_group1_adr[] = {
 static const struct snd_soc_acpi_adr_device rt712_vb_3_group1_adr[] = {
 	{
 		.adr = 0x000330025D071201ull,
-		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints_endpoints),
-		.endpoints = jack_amp_g1_dmic_endpoints_endpoints,
+		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints),
+		.endpoints = jack_amp_g1_dmic_endpoints,
 		.name_prefix = "rt712"
 	}
 };
@@ -314,6 +318,15 @@ static const struct snd_soc_acpi_adr_device rt713_vb_3_adr[] = {
 		.num_endpoints = ARRAY_SIZE(jack_dmic_endpoints),
 		.endpoints = jack_dmic_endpoints,
 		.name_prefix = "rt713"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt1320_3_group1_adr[] = {
+	{
+		.adr = 0x000330025D132001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "rt1320-1"
 	}
 };
 
@@ -537,9 +550,23 @@ static const struct snd_soc_acpi_link_adr ptl_sdw_rt712_vb_l3_rt1320_l2[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr ptl_sdw_rt712_vb_l3_rt1320_l3[] = {
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(rt712_vb_3_group1_adr),
+		.adr_d = rt712_vb_3_group1_adr,
+	},
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(rt1320_3_group1_adr),
+		.adr_d = rt1320_3_group1_adr,
+	},
+	{}
+};
+
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
-	/* mockup tests need to be first */
+/* Order Priority: mockup > most links > most bit link-mask > alphabetical */
 	{
 		.link_mask = GENMASK(3, 0),
 		.links = sdw_mockup_headset_2amps_mic,
@@ -559,16 +586,48 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-ptl-rt715-rt711-rt1308-mono.tplg",
 	},
 	{
+		.link_mask = BIT(0),
+		.links = sdw_mockup_multi_func,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-rt722.tplg", /* Reuse the existing tplg file */
+	},
+	{
+		.link_mask = BIT(1) | BIT(2) | BIT(3),
+		.links = ptl_sdw_rt713_vb_l2_rt1320_l13,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-ptl-rt713-l2-rt1320-l13.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(1) | BIT(2) | BIT(3),
+		.links = ptl_sdw_rt713_vb_l3_rt1320_l12,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-ptl-rt713-l3-rt1320-l12.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
 		.link_mask = BIT(1) | BIT(2) | BIT(3),
 		.links = ptl_cs42l43_l2_cs35l56x6_l13,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-cs42l43-l2-cs35l56x6-l13.tplg",
 	},
 	{
-		.link_mask = BIT(0),
-		.links = sdw_mockup_multi_func,
+		.link_mask = BIT(1) | BIT(2),
+		.links = ptl_sdw_rt712_vb_l2_rt1320_l1,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-ptl-rt722.tplg", /* Reuse the existing tplg file */
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-ptl-rt712-l2-rt1320-l1.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(2) | BIT(3),
+		.links = ptl_sdw_rt712_vb_l3_rt1320_l2,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-ptl-rt712-l3-rt1320-l2.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0),
@@ -577,62 +636,47 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-ptl-rt711.tplg",
 	},
 	{
-		.link_mask = BIT(3),
-		.links = ptl_cs42l43_l3,
-		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-ptl-cs42l43-l3.tplg",
-	},
-	{
-		.link_mask = BIT(3),
-		.links = ptl_rt721_l3,
-		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-ptl-rt721.tplg",
-	},
-	{
 		.link_mask = BIT(0),
 		.links = ptl_rt722_only,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt722.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(1),
 		.links = ptl_rt722_l1,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt722.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(3),
+		.links = ptl_cs42l43_l3,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-cs42l43-l3.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(3),
+		.links = ptl_sdw_rt712_vb_l3_rt1320_l3,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-ptl-rt712-l3-rt1320-l3.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(3),
+		.links = ptl_rt721_l3,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-rt721.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(3),
 		.links = ptl_rt722_l3,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt722.tplg",
-	},
-	{
-		.link_mask = BIT(1) | BIT(2),
-		.links = ptl_sdw_rt712_vb_l2_rt1320_l1,
-		.drv_name = "sof_sdw",
-		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
-		.sof_tplg_filename = "sof-ptl-rt712-l2-rt1320-l1.tplg"
-	},
-	{
-		.link_mask = BIT(2) | BIT(3),
-		.links = ptl_sdw_rt712_vb_l3_rt1320_l2,
-		.drv_name = "sof_sdw",
-		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
-		.sof_tplg_filename = "sof-ptl-rt712-l3-rt1320-l2.tplg"
-	},
-	{
-		.link_mask = BIT(1) | BIT(2) | BIT(3),
-		.links = ptl_sdw_rt713_vb_l2_rt1320_l13,
-		.drv_name = "sof_sdw",
-		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
-		.sof_tplg_filename = "sof-ptl-rt713-l2-rt1320-l13.tplg"
-	},
-	{
-		.link_mask = BIT(1) | BIT(2) | BIT(3),
-		.links = ptl_sdw_rt713_vb_l3_rt1320_l12,
-		.drv_name = "sof_sdw",
-		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
-		.sof_tplg_filename = "sof-ptl-rt713-l3-rt1320-l12.tplg"
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{},
 };

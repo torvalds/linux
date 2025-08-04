@@ -108,7 +108,7 @@ static int add_sd_direct(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	chunk->vaddr = sd_entry->u.bp.addr.va + offset;
 	chunk->fpm_addr = pble_rsrc->next_fpm_addr;
 	ibdev_dbg(to_ibdev(dev),
-		  "PBLE: chunk_size[%lld] = 0x%llx vaddr=0x%pK fpm_addr = %llx\n",
+		  "PBLE: chunk_size[%lld] = 0x%llx vaddr=0x%p fpm_addr = %llx\n",
 		  chunk->size, chunk->size, chunk->vaddr, chunk->fpm_addr);
 
 	return 0;

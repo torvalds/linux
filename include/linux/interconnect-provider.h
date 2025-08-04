@@ -116,8 +116,10 @@ struct icc_node {
 
 int icc_std_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 		      u32 peak_bw, u32 *agg_avg, u32 *agg_peak);
+struct icc_node *icc_node_create_dyn(void);
 struct icc_node *icc_node_create(int id);
 void icc_node_destroy(int id);
+int icc_link_nodes(struct icc_node *src_node, struct icc_node **dst_node);
 int icc_link_create(struct icc_node *node, const int dst_id);
 void icc_node_add(struct icc_node *node, struct icc_provider *provider);
 void icc_node_del(struct icc_node *node);
@@ -136,6 +138,11 @@ static inline int icc_std_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return -ENOTSUPP;
 }
 
+static inline struct icc_node *icc_node_create_dyn(void)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 static inline struct icc_node *icc_node_create(int id)
 {
 	return ERR_PTR(-ENOTSUPP);
@@ -143,6 +150,11 @@ static inline struct icc_node *icc_node_create(int id)
 
 static inline void icc_node_destroy(int id)
 {
+}
+
+static inline int icc_link_nodes(struct icc_node *src_node, struct icc_node **dst_node)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int icc_link_create(struct icc_node *node, const int dst_id)

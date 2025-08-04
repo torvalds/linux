@@ -243,7 +243,6 @@ static void iwl_mac_hw_set_flags(struct iwl_mld *mld)
 	ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
-	ieee80211_hw_set(hw, DISALLOW_PUNCTURING_5GHZ);
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, TDLS_WIDER_BW);
@@ -305,7 +304,7 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 
 	wiphy->max_remain_on_channel_duration = 10000;
 
-	wiphy->hw_version = mld->trans->hw_id;
+	wiphy->hw_version = mld->trans->info.hw_id;
 
 	wiphy->hw_timestamp_max_peers = 1;
 
@@ -351,9 +350,9 @@ static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
 	hw->queues = IEEE80211_NUM_ACS;
 
 	hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
-	hw->netdev_features |= mld->cfg->features;
+	hw->netdev_features |= mld->trans->mac_cfg->base->features;
 
-	hw->max_tx_fragments = mld->trans->max_skb_frags;
+	hw->max_tx_fragments = mld->trans->info.max_skb_frags;
 	hw->max_listen_interval = IWL_MLD_CONN_LISTEN_INTERVAL;
 
 	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
@@ -376,6 +375,24 @@ static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
 
 static int iwl_mld_hw_verify_preconditions(struct iwl_mld *mld)
 {
+	int ratecheck;
+
+	/* check for rates version 3 */
+	ratecheck =
+		(iwl_fw_lookup_cmd_ver(mld->fw, TX_CMD, 0) >= 11) +
+		(iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
+					 TLC_MNG_UPDATE_NOTIF, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
+					 REPLY_RX_MPDU_CMD, 0) >= 6) +
+		(iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
+					 RX_NO_DATA_NOTIF, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mld->fw, LONG_GROUP, TX_CMD, 0) >= 9);
+
+	if (ratecheck != 0 && ratecheck != 5) {
+		IWL_ERR(mld, "Firmware has inconsistent rates\n");
+		return -EINVAL;
+	}
+
 	/* 11ax is expected to be enabled for all supported devices */
 	if (WARN_ON(!mld->nvm_data->sku_cap_11ax_enable))
 		return -EINVAL;
@@ -540,15 +557,6 @@ void iwl_mld_mac80211_stop(struct ieee80211_hw *hw, bool suspend)
 	if (!suspend ||
 	    (IS_ENABLED(CONFIG_PM_SLEEP) && iwl_mld_no_wowlan_suspend(mld)))
 		iwl_mld_stop_fw(mld);
-
-	/* HW is stopped, no more coming RX. OTOH, the worker can't run as the
-	 * wiphy lock is held. Cancel it in case it was scheduled just before
-	 * we stopped the HW.
-	 */
-	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
-
-	/* Empty out the list, as the worker won't do that */
-	iwl_mld_purge_async_handlers_list(mld);
 
 	/* Clear in_hw_restart flag when stopping the hw, as mac80211 won't
 	 * execute the restart.
@@ -897,9 +905,8 @@ void iwl_mld_change_chanctx(struct ieee80211_hw *hw,
 			return;
 	}
 update:
-	phy->chandef = *chandef;
 
-	iwl_mld_phy_fw_action(mld, ctx, FW_CTXT_ACTION_MODIFY);
+	iwl_mld_update_phy_chandef(mld, ctx);
 }
 
 static u8
@@ -1031,12 +1038,19 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 		iwl_mld_send_ap_tx_power_constraint_cmd(mld, vif, link);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
-		/* TODO: task=sniffer add sniffer station */
+		ret = iwl_mld_add_mon_sta(mld, vif, link);
+		if (ret)
+			goto deactivate_link;
+
 		mld->monitor.p80 =
 			iwl_mld_chandef_get_primary_80(&vif->bss_conf.chanreq.oper);
 	}
 
 	return 0;
+
+deactivate_link:
+	if (mld_link->active)
+		iwl_mld_deactivate_link(mld, link);
 err:
 	RCU_INIT_POINTER(mld_link->chan_ctx, NULL);
 	return ret;
@@ -1062,7 +1076,8 @@ void iwl_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	iwl_mld_deactivate_link(mld, link);
 
-	/* TODO: task=sniffer remove sniffer station */
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		iwl_mld_remove_mon_sta(mld, vif, link);
 
 	if (n_active > 1) {
 		/* Indicate to mac80211 that EML is disabled */
@@ -1258,9 +1273,14 @@ iwl_mld_mac80211_link_info_changed(struct ieee80211_hw *hw,
 }
 
 static void
-iwl_mld_smps_wa(struct iwl_mld *mld, struct ieee80211_vif *vif, bool enable)
+iwl_mld_smps_workaround(struct iwl_mld *mld, struct ieee80211_vif *vif, bool enable)
 {
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	bool workaround_required =
+		iwl_fw_lookup_cmd_ver(mld->fw, MAC_PM_POWER_TABLE, 0) < 2;
+
+	if (!workaround_required)
+		return;
 
 	/* Send the device-level power commands since the
 	 * firmware checks the POWER_TABLE_CMD's POWER_SAVE_EN bit to
@@ -1307,7 +1327,7 @@ void iwl_mld_mac80211_vif_cfg_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_PS) {
-		iwl_mld_smps_wa(mld, vif, vif->cfg.ps);
+		iwl_mld_smps_workaround(mld, vif, vif->cfg.ps);
 		iwl_mld_update_mac_power(mld, vif, false);
 	}
 
@@ -1320,13 +1340,22 @@ iwl_mld_mac80211_hw_scan(struct ieee80211_hw *hw,
 			 struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+	int ret;
 
 	if (WARN_ON(!hw_req->req.n_channels ||
 		    hw_req->req.n_channels >
 		    mld->fw->ucode_capa.n_scan_channels))
 		return -EINVAL;
 
-	return iwl_mld_regular_scan_start(mld, vif, &hw_req->req, &hw_req->ies);
+	ret = iwl_mld_regular_scan_start(mld, vif, &hw_req->req, &hw_req->ies);
+	if (!ret) {
+		/* We will be busy with scanning, so the counters may not reflect the
+		 * reality. Stop checking the counters until the scan ends
+		 */
+		iwl_mld_start_ignoring_tpt_updates(mld);
+	}
+
+	return ret;
 }
 
 static void
@@ -1342,8 +1371,11 @@ iwl_mld_mac80211_cancel_hw_scan(struct ieee80211_hw *hw,
 	 * cancel scan before ieee80211_scan_work() could run.
 	 * To handle that, simply return if the scan is not running.
 	 */
-	if (mld->scan.status & IWL_MLD_SCAN_REGULAR)
+	if (mld->scan.status & IWL_MLD_SCAN_REGULAR) {
 		iwl_mld_scan_stop(mld, IWL_MLD_SCAN_REGULAR, true);
+		/* Scan is over, we can check again the tpt counters */
+		iwl_mld_stop_ignoring_tpt_updates(mld);
+	}
 }
 
 static int
@@ -1720,7 +1752,7 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 						    FW_CTXT_ACTION_MODIFY);
 			if (ret)
 				return ret;
-			iwl_mld_smps_wa(mld, vif, vif->cfg.ps);
+			iwl_mld_smps_workaround(mld, vif, vif->cfg.ps);
 		}
 
 		/* MFP is set by default before the station is authorized.
@@ -1763,7 +1795,7 @@ static int iwl_mld_move_sta_state_down(struct iwl_mld *mld,
 						  &mld_vif->emlsr.check_tpt_wk);
 
 			iwl_mld_reset_cca_40mhz_workaround(mld, vif);
-			iwl_mld_smps_wa(mld, vif, true);
+			iwl_mld_smps_workaround(mld, vif, true);
 		}
 
 		/* once we move into assoc state, need to update the FW to
@@ -2004,7 +2036,7 @@ static int iwl_mld_alloc_ptk_pn(struct iwl_mld *mld,
 				struct ieee80211_key_conf *key,
 				struct iwl_mld_ptk_pn **ptk_pn)
 {
-	u8 num_rx_queues = mld->trans->num_rx_queues;
+	u8 num_rx_queues = mld->trans->info.num_rxqs;
 	int keyidx = key->keyidx;
 	struct ieee80211_key_seq seq;
 
@@ -2460,15 +2492,17 @@ iwl_mld_change_vif_links(struct ieee80211_hw *hw,
 		added |= BIT(0);
 
 	for (int i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
-		if (removed & BIT(i))
+		if (removed & BIT(i) && !WARN_ON(!old[i]))
 			iwl_mld_remove_link(mld, old[i]);
 	}
 
 	for (int i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
 		if (added & BIT(i)) {
 			link_conf = link_conf_dereference_protected(vif, i);
-			if (WARN_ON(!link_conf))
-				return -EINVAL;
+			if (!link_conf) {
+				err = -EINVAL;
+				goto remove_added_links;
+			}
 
 			err = iwl_mld_add_link(mld, link_conf);
 			if (err)
@@ -2503,7 +2537,11 @@ remove_added_links:
 		iwl_mld_remove_link(mld, link_conf);
 	}
 
-	return err;
+	if (WARN_ON(!iwl_mld_error_before_recovery(mld)))
+		return err;
+
+	/* reconfig will fix us anyway */
+	return 0;
 }
 
 static int iwl_mld_change_sta_links(struct ieee80211_hw *hw,

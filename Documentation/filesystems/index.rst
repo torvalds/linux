@@ -99,6 +99,7 @@ Documentation for filesystem implementations.
    fuse
    fuse-io
    fuse-io-uring
+   fuse-passthrough
    inotify
    isofs
    nilfs2
@@ -113,6 +114,7 @@ Documentation for filesystem implementations.
    qnx6
    ramfs-rootfs-initramfs
    relay
+   resctrl
    romfs
    smb/index
    spufs/index

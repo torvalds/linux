@@ -171,6 +171,7 @@ static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct nand_chip *nand_chip,
 {
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	u32 code = 0;
+	int rc;
 
 	if (cmd == NAND_CMD_NONE)
 		return;
@@ -182,7 +183,9 @@ static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct nand_chip *nand_chip,
 	if (cmd != NAND_CMD_RESET)
 		code |= NCTL_CSA;
 
-	bcm47xxnflash_ops_bcm4706_ctl_cmd(b47n->cc, code);
+	rc = bcm47xxnflash_ops_bcm4706_ctl_cmd(b47n->cc, code);
+	if (rc)
+		pr_err("ctl_cmd didn't work with error %d\n", rc);
 }
 
 /* Default nand_select_chip calls cmd_ctrl, which is not used in BCM4706 */

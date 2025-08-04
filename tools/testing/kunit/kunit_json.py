@@ -39,10 +39,20 @@ def _get_group_json(test: Test, common_fields: JsonObj) -> JsonObj:
 		status = _status_map.get(subtest.status, "FAIL")
 		test_cases.append({"name": subtest.name, "status": status})
 
+	test_counts = test.counts
+	counts_json = {
+		"tests": test_counts.total(),
+		"passed": test_counts.passed,
+		"failed": test_counts.failed,
+		"crashed": test_counts.crashed,
+		"skipped": test_counts.skipped,
+		"errors": test_counts.errors,
+	}
 	test_group = {
 		"name": test.name,
 		"sub_groups": sub_groups,
 		"test_cases": test_cases,
+		"misc": counts_json
 	}
 	test_group.update(common_fields)
 	return test_group

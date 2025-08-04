@@ -70,7 +70,7 @@ static void asd_clear_nexus_tasklet_complete(struct asd_ascb *ascb,
 
 static void asd_clear_nexus_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = from_timer(ascb, t, timer);
+	struct asd_ascb *ascb = timer_container_of(ascb, t, timer);
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
 	ASD_DPRINTK("%s: here\n", __func__);
@@ -244,7 +244,7 @@ static int asd_clear_nexus_index(struct sas_task *task)
 
 static void asd_tmf_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = from_timer(ascb, t, timer);
+	struct asd_ascb *ascb = timer_container_of(ascb, t, timer);
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
 	ASD_DPRINTK("tmf timed out\n");

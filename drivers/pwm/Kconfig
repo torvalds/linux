@@ -114,6 +114,16 @@ config PWM_AXI_PWMGEN
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-axi-pwmgen.
 
+config PWM_BCM2835
+	tristate "BCM2835 PWM support"
+	depends on ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  PWM framework driver for BCM2835 controller (Raspberry Pi)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm2835.
+
 config PWM_BCM_IPROC
 	tristate "iProc PWM support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
@@ -136,16 +146,6 @@ config PWM_BCM_KONA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bcm-kona.
-
-config PWM_BCM2835
-	tristate "BCM2835 PWM support"
-	depends on ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  PWM framework driver for BCM2835 controller (Raspberry Pi)
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-bcm2835.
 
 config PWM_BERLIN
 	tristate "Marvell Berlin PWM support"
@@ -351,6 +351,18 @@ config PWM_KEEMBAY
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-keembay.
 
+config PWM_LOONGSON
+	tristate "Loongson PWM support"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	depends on COMMON_CLK
+	help
+	  Generic PWM framework driver for Loongson family.
+	  It can be found on Loongson-2K series cpus and Loongson LS7A
+	  bridge chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-loongson.
+
 config PWM_LP3943
 	tristate "TI/National Semiconductor LP3943 PWM support"
 	depends on MFD_LP3943
@@ -411,26 +423,17 @@ config PWM_LPSS_PLATFORM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss-platform.
 
-config PWM_MESON
-	tristate "Amlogic Meson PWM driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	depends on COMMON_CLK && HAS_IOMEM
+config PWM_MC33XS2410
+	tristate "MC33XS2410 PWM support"
+	depends on OF
+	depends on SPI
 	help
-	  The platform driver for Amlogic Meson PWM controller.
+	  NXP MC33XS2410 high-side switch driver. The MC33XS2410 is a four
+	  channel high-side switch. The device is operational from 3.0 V
+	  to 60 V. The device is controlled by SPI port for configuration.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-meson.
-
-config PWM_MTK_DISP
-	tristate "MediaTek display PWM driver"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Generic PWM framework driver for MediaTek disp-pwm device.
-	  The PWM is used to control the backlight brightness for display.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-mtk-disp.
+	  will be called pwm-mc33xs2410.
 
 config PWM_MEDIATEK
 	tristate "MediaTek PWM support"
@@ -442,6 +445,16 @@ config PWM_MEDIATEK
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mediatek.
 
+config PWM_MESON
+	tristate "Amlogic Meson PWM driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM
+	help
+	  The platform driver for Amlogic Meson PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-meson.
+
 config PWM_MICROCHIP_CORE
 	tristate "Microchip corePWM PWM support"
 	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
@@ -451,6 +464,17 @@ config PWM_MICROCHIP_CORE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-microchip-core.
+
+config PWM_MTK_DISP
+	tristate "MediaTek display PWM driver"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Generic PWM framework driver for MediaTek disp-pwm device.
+	  The PWM is used to control the backlight brightness for display.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-mtk-disp.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
@@ -510,7 +534,7 @@ config PWM_RASPBERRYPI_POE
 	  Enable Raspberry Pi firmware controller PWM bus used to control the
 	  official RPI PoE hat
 
-config PWM_RCAR
+config PWM_RENESAS_RCAR
 	tristate "Renesas R-Car PWM support"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -520,6 +544,28 @@ config PWM_RCAR
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-rcar.
+
+config PWM_RENESAS_RZG2L_GPT
+	tristate "Renesas RZ/G2L General PWM Timer support"
+	depends on ARCH_RZG2L || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver exposes the General PWM Timer controller found in Renesas
+	  RZ/G2L like chips through the PWM API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-rzg2l-gpt.
+
+config PWM_RENESAS_RZ_MTU3
+	tristate "Renesas RZ/G2L MTU3a PWM Timer support"
+	depends on RZ_MTU3
+	depends on HAS_IOMEM
+	help
+	  This driver exposes the MTU3a PWM Timer controller found in Renesas
+	  RZ/G2L like chips through the PWM API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-rz-mtu3.
 
 config PWM_RENESAS_TPU
 	tristate "Renesas TPU PWM support"
@@ -539,17 +585,6 @@ config PWM_ROCKCHIP
 	help
 	  Generic PWM framework driver for the PWM controller found on
 	  Rockchip SoCs.
-
-config PWM_RZ_MTU3
-	tristate "Renesas RZ/G2L MTU3a PWM Timer support"
-	depends on RZ_MTU3
-	depends on HAS_IOMEM
-	help
-	  This driver exposes the MTU3a PWM Timer controller found in Renesas
-	  RZ/G2L like chips through the PWM API.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-rz-mtu3.
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"

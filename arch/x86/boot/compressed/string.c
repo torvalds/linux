@@ -15,9 +15,9 @@ static void *____memcpy(void *dest, const void *src, size_t n)
 {
 	int d0, d1, d2;
 	asm volatile(
-		"rep ; movsl\n\t"
+		"rep movsl\n\t"
 		"movl %4,%%ecx\n\t"
-		"rep ; movsb\n\t"
+		"rep movsb"
 		: "=&c" (d0), "=&D" (d1), "=&S" (d2)
 		: "0" (n >> 2), "g" (n & 3), "1" (dest), "2" (src)
 		: "memory");
@@ -29,9 +29,9 @@ static void *____memcpy(void *dest, const void *src, size_t n)
 {
 	long d0, d1, d2;
 	asm volatile(
-		"rep ; movsq\n\t"
+		"rep movsq\n\t"
 		"movq %4,%%rcx\n\t"
-		"rep ; movsb\n\t"
+		"rep movsb"
 		: "=&c" (d0), "=&D" (d1), "=&S" (d2)
 		: "0" (n >> 3), "g" (n & 7), "1" (dest), "2" (src)
 		: "memory");

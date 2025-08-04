@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: MIT
-nvkm-y += nvkm/engine/ofa/ga100.o
-nvkm-y += nvkm/engine/ofa/ga102.o
-nvkm-y += nvkm/engine/ofa/ad102.o
-
-nvkm-y += nvkm/engine/ofa/r535.o

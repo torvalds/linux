@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/fsl,tzic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale tzic Interrupt controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,imx51-tzic
+              - fsl,imx53-tzic
+          - const: fsl,tzic
+      - items:
+          - const: fsl,imx50-tzic
+          - const: fsl,imx53-tzic
+          - const: fsl,tzic
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    tz-interrupt-controller@fffc000 {
+        compatible = "fsl,imx53-tzic", "fsl,tzic";
+        reg = <0x0fffc000 0x4000>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };

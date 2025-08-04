@@ -7,9 +7,11 @@
  * This test measures the performance effects of KVM's access tracking.
  * Access tracking is driven by the MMU notifiers test_young, clear_young, and
  * clear_flush_young. These notifiers do not have a direct userspace API,
- * however the clear_young notifier can be triggered by marking a pages as idle
- * in /sys/kernel/mm/page_idle/bitmap. This test leverages that mechanism to
- * enable access tracking on guest memory.
+ * however the clear_young notifier can be triggered either by
+ *   1. marking a pages as idle in /sys/kernel/mm/page_idle/bitmap OR
+ *   2. adding a new MGLRU generation using the lru_gen debugfs file.
+ * This test leverages page_idle to enable access tracking on guest memory
+ * unless MGLRU is enabled, in which case MGLRU is used.
  *
  * To measure performance this test runs a VM with a configurable number of
  * vCPUs that each touch every page in disjoint regions of memory. Performance
@@ -17,10 +19,11 @@
  * predefined region.
  *
  * Note that a deterministic correctness test of access tracking is not possible
- * by using page_idle as it exists today. This is for a few reasons:
+ * by using page_idle or MGLRU aging as it exists today. This is for a few
+ * reasons:
  *
- * 1. page_idle only issues clear_young notifiers, which lack a TLB flush. This
- *    means subsequent guest accesses are not guaranteed to see page table
+ * 1. page_idle and MGLRU only issue clear_young notifiers, which lack a TLB flush.
+ *    This means subsequent guest accesses are not guaranteed to see page table
  *    updates made by KVM until some time in the future.
  *
  * 2. page_idle only operates on LRU pages. Newly allocated pages are not
@@ -48,8 +51,16 @@
 #include "guest_modes.h"
 #include "processor.h"
 
+#include "cgroup_util.h"
+#include "lru_gen_util.h"
+
+static const char *TEST_MEMCG_NAME = "access_tracking_perf_test";
+
 /* Global variable used to synchronize all of the vCPU threads. */
 static int iteration;
+
+/* The cgroup memory controller root. Needed for lru_gen-based aging. */
+char cgroup_root[PATH_MAX];
 
 /* Defines what vCPU threads should do during a given iteration. */
 static enum {
@@ -64,6 +75,25 @@ static int vcpu_last_completed_iteration[KVM_MAX_VCPUS];
 
 /* Whether to overlap the regions of memory vCPUs access. */
 static bool overlap_memory_access;
+
+/*
+ * If the test should only warn if there are too many idle pages (i.e., it is
+ * expected).
+ * -1: Not yet set.
+ *  0: We do not expect too many idle pages, so FAIL if too many idle pages.
+ *  1: Having too many idle pages is expected, so merely print a warning if
+ *     too many idle pages are found.
+ */
+static int idle_pages_warn_only = -1;
+
+/* Whether or not to use MGLRU instead of page_idle for access tracking */
+static bool use_lru_gen;
+
+/* Total number of pages to expect in the memcg after touching everything */
+static long test_pages;
+
+/* Last generation we found the pages in */
+static int lru_gen_last_gen = -1;
 
 struct test_params {
 	/* The backing source for the region of memory. */
@@ -123,8 +153,24 @@ static void mark_page_idle(int page_idle_fd, uint64_t pfn)
 		    "Set page_idle bits for PFN 0x%" PRIx64, pfn);
 }
 
-static void mark_vcpu_memory_idle(struct kvm_vm *vm,
-				  struct memstress_vcpu_args *vcpu_args)
+static void too_many_idle_pages(long idle_pages, long total_pages, int vcpu_idx)
+{
+	char prefix[18] = {};
+
+	if (vcpu_idx >= 0)
+		snprintf(prefix, 18, "vCPU%d: ", vcpu_idx);
+
+	TEST_ASSERT(idle_pages_warn_only,
+		    "%sToo many pages still idle (%lu out of %lu)",
+		    prefix, idle_pages, total_pages);
+
+	printf("WARNING: %sToo many pages still idle (%lu out of %lu), "
+	       "this will affect performance results.\n",
+	       prefix, idle_pages, total_pages);
+}
+
+static void pageidle_mark_vcpu_memory_idle(struct kvm_vm *vm,
+					   struct memstress_vcpu_args *vcpu_args)
 {
 	int vcpu_idx = vcpu_args->vcpu_idx;
 	uint64_t base_gva = vcpu_args->gva;
@@ -177,25 +223,77 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 	 * arbitrary; high enough that we ensure most memory access went through
 	 * access tracking but low enough as to not make the test too brittle
 	 * over time and across architectures.
-	 *
-	 * When running the guest as a nested VM, "warn" instead of asserting
-	 * as the TLB size is effectively unlimited and the KVM doesn't
-	 * explicitly flush the TLB when aging SPTEs.  As a result, more pages
-	 * are cached and the guest won't see the "idle" bit cleared.
 	 */
-	if (still_idle >= pages / 10) {
-#ifdef __x86_64__
-		TEST_ASSERT(this_cpu_has(X86_FEATURE_HYPERVISOR),
-			    "vCPU%d: Too many pages still idle (%lu out of %lu)",
-			    vcpu_idx, still_idle, pages);
-#endif
-		printf("WARNING: vCPU%d: Too many pages still idle (%lu out of %lu), "
-		       "this will affect performance results.\n",
-		       vcpu_idx, still_idle, pages);
-	}
+	if (still_idle >= pages / 10)
+		too_many_idle_pages(still_idle, pages,
+				    overlap_memory_access ? -1 : vcpu_idx);
 
 	close(page_idle_fd);
 	close(pagemap_fd);
+}
+
+int find_generation(struct memcg_stats *stats, long total_pages)
+{
+	/*
+	 * For finding the generation that contains our pages, use the same
+	 * 90% threshold that page_idle uses.
+	 */
+	int gen = lru_gen_find_generation(stats, total_pages * 9 / 10);
+
+	if (gen >= 0)
+		return gen;
+
+	if (!idle_pages_warn_only) {
+		TEST_FAIL("Could not find a generation with 90%% of guest memory (%ld pages).",
+			   total_pages * 9 / 10);
+		return gen;
+	}
+
+	/*
+	 * We couldn't find a generation with 90% of guest memory, which can
+	 * happen if access tracking is unreliable. Simply look for a majority
+	 * of pages.
+	 */
+	puts("WARNING: Couldn't find a generation with 90% of guest memory. "
+	     "Performance results may not be accurate.");
+	gen = lru_gen_find_generation(stats, total_pages / 2);
+	TEST_ASSERT(gen >= 0,
+		    "Could not find a generation with 50%% of guest memory (%ld pages).",
+		    total_pages / 2);
+	return gen;
+}
+
+static void lru_gen_mark_memory_idle(struct kvm_vm *vm)
+{
+	struct timespec ts_start;
+	struct timespec ts_elapsed;
+	struct memcg_stats stats;
+	int new_gen;
+
+	/* Make a new generation */
+	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	lru_gen_do_aging(&stats, TEST_MEMCG_NAME);
+	ts_elapsed = timespec_elapsed(ts_start);
+
+	/* Check the generation again */
+	new_gen = find_generation(&stats, test_pages);
+
+	/*
+	 * This function should only be invoked with newly-accessed pages,
+	 * so pages should always move to a newer generation.
+	 */
+	if (new_gen <= lru_gen_last_gen) {
+		/* We did not move to a newer generation. */
+		long idle_pages = lru_gen_sum_memcg_stats_for_gen(lru_gen_last_gen,
+								  &stats);
+
+		too_many_idle_pages(min_t(long, idle_pages, test_pages),
+				    test_pages, -1);
+	}
+	pr_info("%-30s: %ld.%09lds\n",
+		"Mark memory idle (lru_gen)", ts_elapsed.tv_sec,
+		ts_elapsed.tv_nsec);
+	lru_gen_last_gen = new_gen;
 }
 
 static void assert_ucall(struct kvm_vcpu *vcpu, uint64_t expected_ucall)
@@ -237,7 +335,7 @@ static void vcpu_thread_main(struct memstress_vcpu_args *vcpu_args)
 			assert_ucall(vcpu, UCALL_SYNC);
 			break;
 		case ITERATION_MARK_IDLE:
-			mark_vcpu_memory_idle(vm, vcpu_args);
+			pageidle_mark_vcpu_memory_idle(vm, vcpu_args);
 			break;
 		}
 
@@ -289,15 +387,18 @@ static void access_memory(struct kvm_vm *vm, int nr_vcpus,
 
 static void mark_memory_idle(struct kvm_vm *vm, int nr_vcpus)
 {
+	if (use_lru_gen)
+		return lru_gen_mark_memory_idle(vm);
+
 	/*
 	 * Even though this parallelizes the work across vCPUs, this is still a
 	 * very slow operation because page_idle forces the test to mark one pfn
-	 * at a time and the clear_young notifier serializes on the KVM MMU
+	 * at a time and the clear_young notifier may serialize on the KVM MMU
 	 * lock.
 	 */
 	pr_debug("Marking VM memory idle (slow)...\n");
 	iteration_work = ITERATION_MARK_IDLE;
-	run_iteration(vm, nr_vcpus, "Mark memory idle");
+	run_iteration(vm, nr_vcpus, "Mark memory idle (page_idle)");
 }
 
 static void run_test(enum vm_guest_mode mode, void *arg)
@@ -309,10 +410,37 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	vm = memstress_create_vm(mode, nr_vcpus, params->vcpu_memory_bytes, 1,
 				 params->backing_src, !overlap_memory_access);
 
+	/*
+	 * If guest_page_size is larger than the host's page size, the
+	 * guest (memstress) will only fault in a subset of the host's pages.
+	 */
+	test_pages = params->nr_vcpus * params->vcpu_memory_bytes /
+		      max(memstress_args.guest_page_size,
+			  (uint64_t)getpagesize());
+
 	memstress_start_vcpu_threads(nr_vcpus, vcpu_thread_main);
 
 	pr_info("\n");
 	access_memory(vm, nr_vcpus, ACCESS_WRITE, "Populating memory");
+
+	if (use_lru_gen) {
+		struct memcg_stats stats;
+
+		/*
+		 * Do a page table scan now. Following initial population, aging
+		 * may not cause the pages to move to a newer generation. Do
+		 * an aging pass now so that future aging passes always move
+		 * pages to a newer generation.
+		 */
+		printf("Initial aging pass (lru_gen)\n");
+		lru_gen_do_aging(&stats, TEST_MEMCG_NAME);
+		TEST_ASSERT(lru_gen_sum_memcg_stats(&stats) >= test_pages,
+			    "Not all pages accounted for (looking for %ld). "
+			    "Was the memcg set up correctly?", test_pages);
+		access_memory(vm, nr_vcpus, ACCESS_WRITE, "Re-populating memory");
+		lru_gen_read_memcg_stats(&stats, TEST_MEMCG_NAME);
+		lru_gen_last_gen = find_generation(&stats, test_pages);
+	}
 
 	/* As a control, read and write to the populated memory first. */
 	access_memory(vm, nr_vcpus, ACCESS_WRITE, "Writing to populated memory");
@@ -326,6 +454,37 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	memstress_join_vcpu_threads(nr_vcpus);
 	memstress_destroy_vm(vm);
+}
+
+static int access_tracking_unreliable(void)
+{
+#ifdef __x86_64__
+	/*
+	 * When running nested, the TLB size may be effectively unlimited (for
+	 * example, this is the case when running on KVM L0), and KVM doesn't
+	 * explicitly flush the TLB when aging SPTEs.  As a result, more pages
+	 * are cached and the guest won't see the "idle" bit cleared.
+	 */
+	if (this_cpu_has(X86_FEATURE_HYPERVISOR)) {
+		puts("Skipping idle page count sanity check, because the test is run nested");
+		return 1;
+	}
+#endif
+	/*
+	 * When NUMA balancing is enabled, guest memory will be unmapped to get
+	 * NUMA faults, dropping the Accessed bits.
+	 */
+	if (is_numa_balancing_enabled()) {
+		puts("Skipping idle page count sanity check, because NUMA balancing is enabled");
+		return 1;
+	}
+	return 0;
+}
+
+static int run_test_for_each_guest_mode(const char *cgroup, void *arg)
+{
+	for_each_guest_mode(run_test, arg);
+	return 0;
 }
 
 static void help(char *name)
@@ -342,9 +501,20 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
+	printf(" -w: Control whether the test warns or fails if more than 10%%\n"
+	       "     of pages are still seen as idle/old after accessing guest\n"
+	       "     memory.  >0 == warn only, 0 == fail, <0 == auto.  For auto\n"
+	       "     mode, the test fails by default, but switches to warn only\n"
+	       "     if NUMA balancing is enabled or the test detects it's running\n"
+	       "     in a VM.\n");
 	backing_src_help("-s");
 	puts("");
 	exit(0);
+}
+
+void destroy_cgroup(char *cg)
+{
+	printf("Destroying cgroup: %s\n", cg);
 }
 
 int main(int argc, char *argv[])
@@ -354,12 +524,13 @@ int main(int argc, char *argv[])
 		.vcpu_memory_bytes = DEFAULT_PER_VCPU_MEM_SIZE,
 		.nr_vcpus = 1,
 	};
+	char *new_cg = NULL;
 	int page_idle_fd;
 	int opt;
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hm:b:v:os:")) != -1) {
+	while ((opt = getopt(argc, argv, "hm:b:v:os:w:")) != -1) {
 		switch (opt) {
 		case 'm':
 			guest_modes_cmdline(optarg);
@@ -376,6 +547,11 @@ int main(int argc, char *argv[])
 		case 's':
 			params.backing_src = parse_backing_src_type(optarg);
 			break;
+		case 'w':
+			idle_pages_warn_only =
+				atoi_non_negative("Idle pages warning",
+						  optarg);
+			break;
 		case 'h':
 		default:
 			help(argv[0]);
@@ -383,12 +559,53 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	page_idle_fd = open("/sys/kernel/mm/page_idle/bitmap", O_RDWR);
-	__TEST_REQUIRE(page_idle_fd >= 0,
-		       "CONFIG_IDLE_PAGE_TRACKING is not enabled");
-	close(page_idle_fd);
+	if (idle_pages_warn_only == -1)
+		idle_pages_warn_only = access_tracking_unreliable();
 
-	for_each_guest_mode(run_test, &params);
+	if (lru_gen_usable()) {
+		bool cg_created = true;
+		int ret;
+
+		puts("Using lru_gen for aging");
+		use_lru_gen = true;
+
+		if (cg_find_controller_root(cgroup_root, sizeof(cgroup_root), "memory"))
+			ksft_exit_skip("Cannot find memory cgroup controller\n");
+
+		new_cg = cg_name(cgroup_root, TEST_MEMCG_NAME);
+		printf("Creating cgroup: %s\n", new_cg);
+		if (cg_create(new_cg)) {
+			if (errno == EEXIST) {
+				printf("Found existing cgroup");
+				cg_created = false;
+			} else {
+				ksft_exit_skip("could not create new cgroup: %s\n", new_cg);
+			}
+		}
+
+		/*
+		 * This will fork off a new process to run the test within
+		 * a new memcg, so we need to properly propagate the return
+		 * value up.
+		 */
+		ret = cg_run(new_cg, &run_test_for_each_guest_mode, &params);
+		if (cg_created)
+			cg_destroy(new_cg);
+		if (ret < 0)
+			TEST_FAIL("child did not spawn or was abnormally killed");
+		if (ret)
+			return ret;
+	} else {
+		page_idle_fd = open("/sys/kernel/mm/page_idle/bitmap", O_RDWR);
+		__TEST_REQUIRE(page_idle_fd >= 0,
+			       "Couldn't open /sys/kernel/mm/page_idle/bitmap. "
+			       "Is CONFIG_IDLE_PAGE_TRACKING enabled?");
+
+		close(page_idle_fd);
+
+		puts("Using page_idle for aging");
+		run_test_for_each_guest_mode(NULL, &params);
+	}
 
 	return 0;
 }

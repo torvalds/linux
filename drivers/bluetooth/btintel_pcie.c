@@ -208,6 +208,96 @@ static void btintel_pcie_prepare_tx(struct txq *txq, u16 tfd_index,
 	memcpy(buf->data, skb->data, tfd->size);
 }
 
+static inline void btintel_pcie_dump_debug_registers(struct hci_dev *hdev)
+{
+	struct btintel_pcie_data *data = hci_get_drvdata(hdev);
+	u16 cr_hia, cr_tia;
+	u32 reg, mbox_reg;
+	struct sk_buff *skb;
+	u8 buf[80];
+
+	skb = alloc_skb(1024, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	snprintf(buf, sizeof(buf), "%s", "---- Dump of debug registers ---");
+	bt_dev_dbg(hdev, "%s", buf);
+	skb_put_data(skb, buf, strlen(buf));
+
+	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_BOOT_STAGE_REG);
+	snprintf(buf, sizeof(buf), "boot stage: 0x%8.8x", reg);
+	bt_dev_dbg(hdev, "%s", buf);
+	skb_put_data(skb, buf, strlen(buf));
+	data->boot_stage_cache = reg;
+
+	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_IPC_STATUS_REG);
+	snprintf(buf, sizeof(buf), "ipc status: 0x%8.8x", reg);
+	skb_put_data(skb, buf, strlen(buf));
+	bt_dev_dbg(hdev, "%s", buf);
+
+	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_IPC_CONTROL_REG);
+	snprintf(buf, sizeof(buf), "ipc control: 0x%8.8x", reg);
+	skb_put_data(skb, buf, strlen(buf));
+	bt_dev_dbg(hdev, "%s", buf);
+
+	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_IPC_SLEEP_CTL_REG);
+	snprintf(buf, sizeof(buf), "ipc sleep control: 0x%8.8x", reg);
+	skb_put_data(skb, buf, strlen(buf));
+	bt_dev_dbg(hdev, "%s", buf);
+
+	/*Read the Mail box status and registers*/
+	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_MBOX_STATUS_REG);
+	snprintf(buf, sizeof(buf), "mbox status: 0x%8.8x", reg);
+	skb_put_data(skb, buf, strlen(buf));
+	if (reg & BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX1) {
+		mbox_reg = btintel_pcie_rd_reg32(data,
+						 BTINTEL_PCIE_CSR_MBOX_1_REG);
+		snprintf(buf, sizeof(buf), "mbox_1: 0x%8.8x", mbox_reg);
+		skb_put_data(skb, buf, strlen(buf));
+		bt_dev_dbg(hdev, "%s", buf);
+	}
+
+	if (reg & BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX2) {
+		mbox_reg = btintel_pcie_rd_reg32(data,
+						 BTINTEL_PCIE_CSR_MBOX_2_REG);
+		snprintf(buf, sizeof(buf), "mbox_2: 0x%8.8x", mbox_reg);
+		skb_put_data(skb, buf, strlen(buf));
+		bt_dev_dbg(hdev, "%s", buf);
+	}
+
+	if (reg & BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX3) {
+		mbox_reg = btintel_pcie_rd_reg32(data,
+						 BTINTEL_PCIE_CSR_MBOX_3_REG);
+		snprintf(buf, sizeof(buf), "mbox_3: 0x%8.8x", mbox_reg);
+		skb_put_data(skb, buf, strlen(buf));
+		bt_dev_dbg(hdev, "%s", buf);
+	}
+
+	if (reg & BTINTEL_PCIE_CSR_MBOX_STATUS_MBOX4) {
+		mbox_reg = btintel_pcie_rd_reg32(data,
+						 BTINTEL_PCIE_CSR_MBOX_4_REG);
+		snprintf(buf, sizeof(buf), "mbox_4: 0x%8.8x", mbox_reg);
+		skb_put_data(skb, buf, strlen(buf));
+		bt_dev_dbg(hdev, "%s", buf);
+	}
+
+	cr_hia = data->ia.cr_hia[BTINTEL_PCIE_RXQ_NUM];
+	cr_tia = data->ia.cr_tia[BTINTEL_PCIE_RXQ_NUM];
+	snprintf(buf, sizeof(buf), "rxq: cr_tia: %u cr_hia: %u", cr_tia, cr_hia);
+	skb_put_data(skb, buf, strlen(buf));
+	bt_dev_dbg(hdev, "%s", buf);
+
+	cr_hia = data->ia.cr_hia[BTINTEL_PCIE_TXQ_NUM];
+	cr_tia = data->ia.cr_tia[BTINTEL_PCIE_TXQ_NUM];
+	snprintf(buf, sizeof(buf), "txq: cr_tia: %u cr_hia: %u", cr_tia, cr_hia);
+	skb_put_data(skb, buf, strlen(buf));
+	bt_dev_dbg(hdev, "%s", buf);
+	snprintf(buf, sizeof(buf), "--------------------------------");
+	bt_dev_dbg(hdev, "%s", buf);
+
+	hci_recv_diag(hdev, skb);
+}
+
 static int btintel_pcie_send_sync(struct btintel_pcie_data *data,
 				  struct sk_buff *skb)
 {
@@ -237,8 +327,11 @@ static int btintel_pcie_send_sync(struct btintel_pcie_data *data,
 	/* Wait for the complete interrupt - URBD0 */
 	ret = wait_event_timeout(data->tx_wait_q, data->tx_wait_done,
 				 msecs_to_jiffies(BTINTEL_PCIE_TX_WAIT_TIMEOUT_MS));
-	if (!ret)
+	if (!ret) {
+		bt_dev_err(data->hdev, "tx completion timeout");
+		btintel_pcie_dump_debug_registers(data->hdev);
 		return -ETIME;
+	}
 
 	return 0;
 }
@@ -756,6 +849,26 @@ static int btintel_pcie_read_device_mem(struct btintel_pcie_data *data,
 	return 0;
 }
 
+static inline bool btintel_pcie_in_lockdown(struct btintel_pcie_data *data)
+{
+	return (data->boot_stage_cache &
+		BTINTEL_PCIE_CSR_BOOT_STAGE_ROM_LOCKDOWN) ||
+		(data->boot_stage_cache &
+		 BTINTEL_PCIE_CSR_BOOT_STAGE_IML_LOCKDOWN);
+}
+
+static inline bool btintel_pcie_in_error(struct btintel_pcie_data *data)
+{
+	return (data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_DEVICE_ERR) ||
+		(data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_ABORT_HANDLER);
+}
+
+static void btintel_pcie_msix_gp1_handler(struct btintel_pcie_data *data)
+{
+	bt_dev_err(data->hdev, "Received gp1 mailbox interrupt");
+	btintel_pcie_dump_debug_registers(data->hdev);
+}
+
 /* This function handles the MSI-X interrupt for gp0 cause (bit 0 in
  * BTINTEL_PCIE_CSR_MSIX_HW_INT_CAUSES) which is sent for boot stage and image response.
  */
@@ -778,6 +891,18 @@ static void btintel_pcie_msix_gp0_handler(struct btintel_pcie_data *data)
 	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_IMG_RESPONSE_REG);
 	if (reg != data->img_resp_cache)
 		data->img_resp_cache = reg;
+
+	if (btintel_pcie_in_error(data)) {
+		bt_dev_err(data->hdev, "Controller in error state");
+		btintel_pcie_dump_debug_registers(data->hdev);
+		return;
+	}
+
+	if (btintel_pcie_in_lockdown(data)) {
+		bt_dev_err(data->hdev, "Controller in lockdown state");
+		btintel_pcie_dump_debug_registers(data->hdev);
+		return;
+	}
 
 	data->gp0_received = true;
 
@@ -889,7 +1014,6 @@ static void btintel_pcie_msix_tx_handle(struct btintel_pcie_data *data)
 static int btintel_pcie_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *)skb->data;
-	const char diagnostics_hdr[] = { 0x87, 0x80, 0x03 };
 	struct btintel_pcie_data *data = hci_get_drvdata(hdev);
 
 	if (skb->len > HCI_EVENT_HDR_SIZE && hdr->evt == 0xff &&
@@ -943,15 +1067,6 @@ static int btintel_pcie_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 				kfree_skb(skb);
 				return 0;
 			}
-		}
-
-		/* Handle all diagnostics events separately. May still call
-		 * hci_recv_frame.
-		 */
-		if (len >= sizeof(diagnostics_hdr) &&
-		    memcmp(&skb->data[2], diagnostics_hdr,
-			   sizeof(diagnostics_hdr)) == 0) {
-			return btintel_diagnostics(hdev, skb);
 		}
 
 		/* This is a debug event that comes from IML and OP image when it
@@ -1342,6 +1457,9 @@ static irqreturn_t btintel_pcie_irq_msix_handler(int irq, void *dev_id)
 	/* This interrupt is raised when there is an hardware exception */
 	if (intr_hw & BTINTEL_PCIE_MSIX_HW_INT_CAUSES_HWEXP)
 		btintel_pcie_msix_hw_exp_handler(data);
+
+	if (intr_hw & BTINTEL_PCIE_MSIX_HW_INT_CAUSES_GP1)
+		btintel_pcie_msix_gp1_handler(data);
 
 	/* This interrupt is triggered by the firmware after updating
 	 * boot_stage register and image_response register
@@ -2028,6 +2146,7 @@ static int btintel_pcie_setup(struct hci_dev *hdev)
 	while ((err = btintel_pcie_setup_internal(hdev)) && fw_dl_retry++ < 1) {
 		bt_dev_err(hdev, "Firmware download retry count: %d",
 			   fw_dl_retry);
+		btintel_pcie_dump_debug_registers(hdev);
 		err = btintel_pcie_reset_bt(data);
 		if (err) {
 			bt_dev_err(hdev, "Failed to do shr reset: %d", err);

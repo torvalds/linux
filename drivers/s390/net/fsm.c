@@ -132,7 +132,7 @@ fsm_getstate_str(fsm_instance *fi)
 static void
 fsm_expire_timer(struct timer_list *t)
 {
-	fsm_timer *this = from_timer(this, t, tl);
+	fsm_timer *this = timer_container_of(this, t, tl);
 #if FSM_TIMER_DEBUG
 	printk(KERN_DEBUG "fsm(%s): Timer %p expired\n",
 	       this->fi->name, this);

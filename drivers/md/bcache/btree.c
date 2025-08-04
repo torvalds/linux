@@ -36,6 +36,7 @@
 #include <linux/sched/clock.h>
 #include <linux/rculist.h>
 #include <linux/delay.h>
+#include <linux/sort.h>
 #include <trace/events/bcache.h>
 
 /*
@@ -88,8 +89,6 @@
  * Test module load/unload
  */
 
-#define MAX_NEED_GC		64
-#define MAX_SAVE_PRIO		72
 #define MAX_GC_TIMES		100
 #define MIN_GC_NODES		100
 #define GC_SLEEP_MS		100
@@ -558,8 +557,6 @@ static void mca_data_alloc(struct btree *b, struct bkey *k, gfp_t gfp)
 		list_move(&b->list, &b->c->btree_cache_freed);
 	}
 }
-
-#define cmp_int(l, r)		((l > r) - (l < r))
 
 #ifdef CONFIG_PROVE_LOCKING
 static int btree_lock_cmp_fn(const struct lockdep_map *_a,

@@ -349,7 +349,6 @@
 					 BMP280_NUM_TEMP_BYTES + \
 					 BME280_NUM_HUMIDITY_BYTES)
 
-#define BME280_NUM_MAX_CHANNELS		3
 /* Core exported structs */
 
 static const char *const bmp280_supply_names[] = {
@@ -451,13 +450,6 @@ struct bmp280_data {
 	 * section 3.6.3 of the datasheet.
 	 */
 	int sampling_freq;
-
-	/*
-	 * Data to push to userspace triggered buffer. Up to 3 channels and
-	 * s64 timestamp, aligned.
-	 */
-	u8 sensor_data[ALIGN(sizeof(s32) * BME280_NUM_MAX_CHANNELS, sizeof(s64))
-		       + sizeof(s64)] __aligned(sizeof(s64));
 
 	/* Value to hold the current operation mode of the device */
 	enum bmp280_op_mode op_mode;

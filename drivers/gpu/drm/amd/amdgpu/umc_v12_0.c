@@ -174,19 +174,76 @@ static void umc_v12_0_query_ras_error_count(struct amdgpu_device *adev,
 	umc_v12_0_reset_error_count(adev);
 }
 
+static void umc_v12_0_get_retire_flip_bits(struct amdgpu_device *adev)
+{
+	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
+	uint32_t vram_type = adev->gmc.vram_type;
+	struct amdgpu_umc_flip_bits *flip_bits = &(adev->umc.flip_bits);
+
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+
+	/* default setting */
+	flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_C2_BIT;
+	flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C3_BIT;
+	flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_C4_BIT;
+	flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R13_BIT;
+	flip_bits->flip_row_bit = 13;
+	flip_bits->bit_num = 4;
+	flip_bits->r13_in_pa = UMC_V12_0_PA_R13_BIT;
+
+	if (nps == AMDGPU_NPS2_PARTITION_MODE) {
+		flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH5_BIT;
+		flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C2_BIT;
+		flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B1_BIT;
+		flip_bits->r13_in_pa = UMC_V12_0_PA_R12_BIT;
+	} else if (nps == AMDGPU_NPS4_PARTITION_MODE) {
+		flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH4_BIT;
+		flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_CH5_BIT;
+		flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B0_BIT;
+		flip_bits->r13_in_pa = UMC_V12_0_PA_R11_BIT;
+	}
+
+	switch (vram_type) {
+	case AMDGPU_VRAM_TYPE_HBM:
+		/* other nps modes are taken as nps1 */
+		if (nps == AMDGPU_NPS2_PARTITION_MODE)
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+		else if (nps == AMDGPU_NPS4_PARTITION_MODE)
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
+
+		break;
+	case AMDGPU_VRAM_TYPE_HBM3E:
+		flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+		flip_bits->flip_row_bit = 12;
+
+		if (nps == AMDGPU_NPS2_PARTITION_MODE)
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
+		else if (nps == AMDGPU_NPS4_PARTITION_MODE)
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R10_BIT;
+
+		break;
+	default:
+		dev_warn(adev->dev,
+			"Unknown HBM type, set RAS retire flip bits to the value in NPS1 mode.\n");
+		break;
+	}
+
+	adev->umc.retire_unit = 0x1 << flip_bits->bit_num;
+}
+
 static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ras_err_data *err_data,
 					struct ta_ras_query_address_input *addr_in,
 					struct ta_ras_query_address_output *addr_out,
 					bool dump_addr)
 {
-	uint32_t col, col_lower, row, row_lower, bank;
+	uint32_t col, col_lower, row, row_lower, row_high, bank;
 	uint32_t channel_index = 0, umc_inst = 0;
-	uint32_t i, loop_bits[UMC_V12_0_RETIRE_LOOP_BITS];
+	uint32_t i, bit_num, retire_unit, *flip_bits;
 	uint64_t soc_pa, column, err_addr;
 	struct ta_ras_query_address_output addr_out_tmp;
 	struct ta_ras_query_address_output *paddr_out;
-	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
 	int ret = 0;
 
 	if (!addr_out)
@@ -211,46 +268,46 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 		umc_inst = addr_in->ma.umc_inst;
 	}
 
-	loop_bits[0] = UMC_V12_0_PA_C2_BIT;
-	loop_bits[1] = UMC_V12_0_PA_C3_BIT;
-	loop_bits[2] = UMC_V12_0_PA_C4_BIT;
-	loop_bits[3] = UMC_V12_0_PA_R13_BIT;
-
-	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
-		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
-
-	/* other nps modes are taken as nps1 */
-	if (nps == AMDGPU_NPS4_PARTITION_MODE) {
-		loop_bits[0] = UMC_V12_0_PA_CH4_BIT;
-		loop_bits[1] = UMC_V12_0_PA_CH5_BIT;
-		loop_bits[2] = UMC_V12_0_PA_B0_BIT;
-		loop_bits[3] = UMC_V12_0_PA_R11_BIT;
-	}
+	flip_bits = adev->umc.flip_bits.flip_bits_in_pa;
+	bit_num = adev->umc.flip_bits.bit_num;
+	retire_unit = adev->umc.retire_unit;
 
 	soc_pa = paddr_out->pa.pa;
 	channel_index = paddr_out->pa.channel_idx;
 	/* clear loop bits in soc physical address */
-	for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
-		soc_pa &= ~BIT_ULL(loop_bits[i]);
+	for (i = 0; i < bit_num; i++)
+		soc_pa &= ~BIT_ULL(flip_bits[i]);
 
 	paddr_out->pa.pa = soc_pa;
 	/* get column bit 0 and 1 in mca address */
 	col_lower = (err_addr >> 1) & 0x3ULL;
-	/* MA_R13_BIT will be handled later */
+	/* extra row bit will be handled later */
 	row_lower = (err_addr >> UMC_V12_0_MA_R0_BIT) & 0x1fffULL;
+	row_lower &= ~BIT_ULL(adev->umc.flip_bits.flip_row_bit);
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 5, 0)) {
+		row_high = (soc_pa >> adev->umc.flip_bits.r13_in_pa) & 0x3ULL;
+		/* it's 2.25GB in each channel, from MCA address to PA
+		 * [R14 R13] is converted if the two bits value are 0x3,
+		 * get them from PA instead of MCA address.
+		 */
+		row_lower |= (row_high << 13);
+	}
 
 	if (!err_data && !dump_addr)
 		goto out;
 
 	/* loop for all possibilities of retired bits */
-	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
+	for (column = 0; column < retire_unit; column++) {
 		soc_pa = paddr_out->pa.pa;
-		for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
-			soc_pa |= (((column >> i) & 0x1ULL) << loop_bits[i]);
+		for (i = 0; i < bit_num; i++)
+			soc_pa |= (((column >> i) & 0x1ULL) << flip_bits[i]);
 
 		col = ((column & 0x7) << 2) | col_lower;
-		/* add row bit 13 */
-		row = ((column >> 3) << 13) | row_lower;
+		/* handle extra row bit */
+		if (bit_num == RETIRE_FLIP_BITS_NUM)
+			row = ((column >> 3) << adev->umc.flip_bits.flip_row_bit) |
+					row_lower;
 
 		if (dump_addr)
 			dev_info(adev->dev,
@@ -428,8 +485,12 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 		bank->regs[ACA_REG_IDX_ADDR]);
 
 	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
-	count = ext_error_code == 0 ?
-		ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
+	if (umc_v12_0_is_deferred_error(adev, status))
+		count = ext_error_code == 0 ?
+			adev->umc.err_addr_cnt / adev->umc.retire_unit : 1ULL;
+	else
+		count = ext_error_code == 0 ?
+			ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
 
 	return aca_error_cache_log_bank_error(handle, &info, err_type, count);
 }
@@ -469,8 +530,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	uint64_t err_addr, pa_addr = 0;
 	struct ras_ecc_err *ecc_err;
 	struct ta_ras_query_address_output addr_out;
-	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
-	uint32_t shift_bit = UMC_V12_0_PA_C4_BIT;
+	uint32_t shift_bit = adev->umc.flip_bits.flip_bits_in_pa[2];
 	int count, ret, i;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
@@ -514,11 +574,6 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	ecc_err->addr = addr;
 	ecc_err->pa_pfn = pa_addr >> AMDGPU_GPU_PAGE_SHIFT;
 	ecc_err->channel_idx = addr_out.pa.channel_idx;
-
-	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
-		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
-	if (nps == AMDGPU_NPS4_PARTITION_MODE)
-		shift_bit = UMC_V12_0_PA_B0_BIT;
 
 	/* If converted pa_pfn is 0, use pa C4 pfn. */
 	if (!ecc_err->pa_pfn)
@@ -665,5 +720,6 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	.update_ecc_status = umc_v12_0_update_ecc_status,
 	.convert_ras_err_addr = umc_v12_0_convert_error_address,
 	.get_die_id_from_pa = umc_v12_0_get_die_id,
+	.get_retire_flip_bits = umc_v12_0_get_retire_flip_bits,
 };
 

@@ -1852,7 +1852,7 @@ static const struct of_device_id adis16480_of_match[] = {
 	{ .compatible = "adi,adis16547-1" },
 	{ .compatible = "adi,adis16547-2" },
 	{ .compatible = "adi,adis16547-3" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adis16480_of_match);
 

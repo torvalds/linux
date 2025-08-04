@@ -209,12 +209,12 @@ static struct pci_ops exynos_pci_ops = {
 	.write = exynos_pcie_wr_own_conf,
 };
 
-static int exynos_pcie_link_up(struct dw_pcie *pci)
+static bool exynos_pcie_link_up(struct dw_pcie *pci)
 {
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
 	u32 val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_RDLH_LINKUP);
 
-	return (val & PCIE_ELBI_XMLH_LINKUP);
+	return val & PCIE_ELBI_XMLH_LINKUP;
 }
 
 static int exynos_pcie_host_init(struct dw_pcie_rp *pp)

@@ -1415,22 +1415,13 @@ static int sa_sha_run(struct ahash_request *req)
 	    (auth_len >= SA_UNSAFE_DATA_SZ_MIN &&
 	     auth_len <= SA_UNSAFE_DATA_SZ_MAX)) {
 		struct ahash_request *subreq = &rctx->fallback_req;
-		int ret = 0;
+		int ret;
 
 		ahash_request_set_tfm(subreq, ctx->fallback.ahash);
-		subreq->base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+		ahash_request_set_callback(subreq, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+		ahash_request_set_crypt(subreq, req->src, req->result, auth_len);
 
-		crypto_ahash_init(subreq);
-
-		subreq->nbytes = auth_len;
-		subreq->src = req->src;
-		subreq->result = req->result;
-
-		ret |= crypto_ahash_update(subreq);
-
-		subreq->nbytes = 0;
-
-		ret |= crypto_ahash_final(subreq);
+		ret = crypto_ahash_digest(subreq);
 
 		return ret;
 	}
@@ -1502,8 +1493,7 @@ static int sa_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 		return ret;
 
 	if (alg_base) {
-		ctx->shash = crypto_alloc_shash(alg_base, 0,
-						CRYPTO_ALG_NEED_FALLBACK);
+		ctx->shash = crypto_alloc_shash(alg_base, 0, 0);
 		if (IS_ERR(ctx->shash)) {
 			dev_err(sa_k3_dev, "base driver %s couldn't be loaded\n",
 				alg_base);
@@ -1511,8 +1501,7 @@ static int sa_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 		}
 		/* for fallback */
 		ctx->fallback.ahash =
-			crypto_alloc_ahash(alg_base, 0,
-					   CRYPTO_ALG_NEED_FALLBACK);
+			crypto_alloc_ahash(alg_base, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR(ctx->fallback.ahash)) {
 			dev_err(ctx->dev_data->dev,
 				"Could not load fallback driver\n");
@@ -1546,54 +1535,38 @@ static int sa_sha_init(struct ahash_request *req)
 		crypto_ahash_digestsize(tfm), rctx);
 
 	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback.ahash);
-	rctx->fallback_req.base.flags =
-		req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	ahash_request_set_callback(&rctx->fallback_req, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	ahash_request_set_crypt(&rctx->fallback_req, NULL, NULL, 0);
 
 	return crypto_ahash_init(&rctx->fallback_req);
 }
 
 static int sa_sha_update(struct ahash_request *req)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct sa_sha_req_ctx *rctx = ahash_request_ctx(req);
-	struct sa_tfm_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback.ahash);
-	rctx->fallback_req.base.flags =
-		req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	rctx->fallback_req.nbytes = req->nbytes;
-	rctx->fallback_req.src = req->src;
+	ahash_request_set_callback(&rctx->fallback_req, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	ahash_request_set_crypt(&rctx->fallback_req, req->src, NULL, req->nbytes);
 
 	return crypto_ahash_update(&rctx->fallback_req);
 }
 
 static int sa_sha_final(struct ahash_request *req)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct sa_sha_req_ctx *rctx = ahash_request_ctx(req);
-	struct sa_tfm_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback.ahash);
-	rctx->fallback_req.base.flags =
-		req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	rctx->fallback_req.result = req->result;
+	ahash_request_set_callback(&rctx->fallback_req, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	ahash_request_set_crypt(&rctx->fallback_req, NULL, req->result, 0);
 
 	return crypto_ahash_final(&rctx->fallback_req);
 }
 
 static int sa_sha_finup(struct ahash_request *req)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct sa_sha_req_ctx *rctx = ahash_request_ctx(req);
-	struct sa_tfm_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback.ahash);
-	rctx->fallback_req.base.flags =
-		req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-
-	rctx->fallback_req.nbytes = req->nbytes;
-	rctx->fallback_req.src = req->src;
-	rctx->fallback_req.result = req->result;
+	ahash_request_set_callback(&rctx->fallback_req, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	ahash_request_set_crypt(&rctx->fallback_req, req->src, req->result, req->nbytes);
 
 	return crypto_ahash_finup(&rctx->fallback_req);
 }
@@ -1605,8 +1578,7 @@ static int sa_sha_import(struct ahash_request *req, const void *in)
 	struct sa_tfm_ctx *ctx = crypto_ahash_ctx(tfm);
 
 	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback.ahash);
-	rctx->fallback_req.base.flags = req->base.flags &
-		CRYPTO_TFM_REQ_MAY_SLEEP;
+	ahash_request_set_callback(&rctx->fallback_req, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
 	return crypto_ahash_import(&rctx->fallback_req, in);
 }
@@ -1614,12 +1586,9 @@ static int sa_sha_import(struct ahash_request *req, const void *in)
 static int sa_sha_export(struct ahash_request *req, void *out)
 {
 	struct sa_sha_req_ctx *rctx = ahash_request_ctx(req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct sa_tfm_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct ahash_request *subreq = &rctx->fallback_req;
 
-	ahash_request_set_tfm(subreq, ctx->fallback.ahash);
-	subreq->base.flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	ahash_request_set_callback(subreq, req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
 	return crypto_ahash_export(subreq, out);
 }

@@ -27,6 +27,7 @@
 #include <util/pmu-flex.h>
 #include "parse-events.h"
 #include "print-events.h"
+#include "hashmap.h"
 #include "header.h"
 #include "string2.h"
 #include "strbuf.h"
@@ -66,8 +67,6 @@ struct perf_pmu_alias {
 	char *topic;
 	/** @terms: Owned list of the original parsed parameters. */
 	struct parse_events_terms terms;
-	/** @list: List element of struct perf_pmu aliases. */
-	struct list_head list;
 	/**
 	 * @pmu_name: The name copied from the json struct pmu_event. This can
 	 * differ from the PMU name as it won't have suffixes.
@@ -77,6 +76,12 @@ struct perf_pmu_alias {
 	char unit[UNIT_MAX_LEN+1];
 	/** @scale: Value to scale read counter values by. */
 	double scale;
+	/** @retirement_latency_mean: Value to be given for unsampled retirement latency mean. */
+	double retirement_latency_mean;
+	/** @retirement_latency_min: Value to be given for unsampled retirement latency min. */
+	double retirement_latency_min;
+	/** @retirement_latency_max: Value to be given for unsampled retirement latency max. */
+	double retirement_latency_max;
 	/**
 	 * @per_pkg: Does the file
 	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.per-pkg or
@@ -257,7 +262,7 @@ static int pmu_format(struct perf_pmu *pmu, int dirfd, const char *name, bool ea
 	return 0;
 }
 
-int perf_pmu__convert_scale(const char *scale, char **end, double *sval)
+static int parse_double(const char *scale, char **end, double *sval)
 {
 	char *lc;
 	int ret = 0;
@@ -292,6 +297,11 @@ out:
 	setlocale(LC_NUMERIC, lc);
 	free(lc);
 	return ret;
+}
+
+int perf_pmu__convert_scale(const char *scale, char **end, double *sval)
+{
+	return parse_double(scale, end, sval);
 }
 
 static int perf_pmu__parse_scale(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
@@ -407,25 +417,33 @@ static void perf_pmu__parse_snapshot(struct perf_pmu *pmu, struct perf_pmu_alias
 }
 
 /* Delete an alias entry. */
-static void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
+static void perf_pmu_free_alias(struct perf_pmu_alias *alias)
 {
-	zfree(&newalias->name);
-	zfree(&newalias->desc);
-	zfree(&newalias->long_desc);
-	zfree(&newalias->topic);
-	zfree(&newalias->pmu_name);
-	parse_events_terms__exit(&newalias->terms);
-	free(newalias);
+	if (!alias)
+		return;
+
+	zfree(&alias->name);
+	zfree(&alias->desc);
+	zfree(&alias->long_desc);
+	zfree(&alias->topic);
+	zfree(&alias->pmu_name);
+	parse_events_terms__exit(&alias->terms);
+	free(alias);
 }
 
 static void perf_pmu__del_aliases(struct perf_pmu *pmu)
 {
-	struct perf_pmu_alias *alias, *tmp;
+	struct hashmap_entry *entry;
+	size_t bkt;
 
-	list_for_each_entry_safe(alias, tmp, &pmu->aliases, list) {
-		list_del(&alias->list);
-		perf_pmu_free_alias(alias);
-	}
+	if (!pmu->aliases)
+		return;
+
+	hashmap__for_each_entry(pmu->aliases, entry, bkt)
+		perf_pmu_free_alias(entry->pvalue);
+
+	hashmap__free(pmu->aliases);
+	pmu->aliases = NULL;
 }
 
 static struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu,
@@ -433,35 +451,37 @@ static struct perf_pmu_alias *perf_pmu__find_alias(struct perf_pmu *pmu,
 						   bool load)
 {
 	struct perf_pmu_alias *alias;
+	bool has_sysfs_event;
+	char event_file_name[FILENAME_MAX + 8];
 
-	if (load && !pmu->sysfs_aliases_loaded) {
-		bool has_sysfs_event;
-		char event_file_name[FILENAME_MAX + 8];
+	if (hashmap__find(pmu->aliases, name, &alias))
+		return alias;
 
-		/*
-		 * Test if alias/event 'name' exists in the PMU's sysfs/events
-		 * directory. If not skip parsing the sysfs aliases. Sysfs event
-		 * name must be all lower or all upper case.
-		 */
-		scnprintf(event_file_name, sizeof(event_file_name), "events/%s", name);
+	if (!load || pmu->sysfs_aliases_loaded)
+		return NULL;
+
+	/*
+	 * Test if alias/event 'name' exists in the PMU's sysfs/events
+	 * directory. If not skip parsing the sysfs aliases. Sysfs event
+	 * name must be all lower or all upper case.
+	 */
+	scnprintf(event_file_name, sizeof(event_file_name), "events/%s", name);
+	for (size_t i = 7, n = 7 + strlen(name); i < n; i++)
+		event_file_name[i] = tolower(event_file_name[i]);
+
+	has_sysfs_event = perf_pmu__file_exists(pmu, event_file_name);
+	if (!has_sysfs_event) {
 		for (size_t i = 7, n = 7 + strlen(name); i < n; i++)
-			event_file_name[i] = tolower(event_file_name[i]);
+			event_file_name[i] = toupper(event_file_name[i]);
 
 		has_sysfs_event = perf_pmu__file_exists(pmu, event_file_name);
-		if (!has_sysfs_event) {
-			for (size_t i = 7, n = 7 + strlen(name); i < n; i++)
-				event_file_name[i] = toupper(event_file_name[i]);
-
-			has_sysfs_event = perf_pmu__file_exists(pmu, event_file_name);
-		}
-		if (has_sysfs_event)
-			pmu_aliases_parse(pmu);
-
 	}
-	list_for_each_entry(alias, &pmu->aliases, list) {
-		if (!strcasecmp(alias->name, name))
+	if (has_sysfs_event) {
+		pmu_aliases_parse(pmu);
+		if (hashmap__find(pmu->aliases, name, &alias))
 			return alias;
 	}
+
 	return NULL;
 }
 
@@ -525,6 +545,18 @@ static int update_alias(const struct pmu_event *pe,
 		if (!ret)
 			snprintf(data->alias->unit, sizeof(data->alias->unit), "%s", unit);
 	}
+	if (!ret && pe->retirement_latency_mean) {
+		ret = parse_double(pe->retirement_latency_mean, NULL,
+					      &data->alias->retirement_latency_mean);
+	}
+	if (!ret && pe->retirement_latency_min) {
+		ret = parse_double(pe->retirement_latency_min, NULL,
+					      &data->alias->retirement_latency_min);
+	}
+	if (!ret && pe->retirement_latency_max) {
+		ret = parse_double(pe->retirement_latency_max, NULL,
+					      &data->alias->retirement_latency_max);
+	}
 	return ret;
 }
 
@@ -532,8 +564,8 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 				const char *desc, const char *val, FILE *val_fd,
 			        const struct pmu_event *pe, enum event_source src)
 {
-	struct perf_pmu_alias *alias;
-	int ret;
+	struct perf_pmu_alias *alias, *old_alias;
+	int ret = 0;
 	const char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
 	bool deprecated = false, perpkg = false;
 
@@ -562,6 +594,24 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	alias->per_pkg = perpkg;
 	alias->snapshot = false;
 	alias->deprecated = deprecated;
+	alias->retirement_latency_mean = 0.0;
+	alias->retirement_latency_min = 0.0;
+	alias->retirement_latency_max = 0.0;
+
+	if (!ret && pe && pe->retirement_latency_mean) {
+		ret = parse_double(pe->retirement_latency_mean, NULL,
+				   &alias->retirement_latency_mean);
+	}
+	if (!ret && pe && pe->retirement_latency_min) {
+		ret = parse_double(pe->retirement_latency_min, NULL,
+				   &alias->retirement_latency_min);
+	}
+	if (!ret && pe && pe->retirement_latency_max) {
+		ret = parse_double(pe->retirement_latency_max, NULL,
+				   &alias->retirement_latency_max);
+	}
+	if (ret)
+		return ret;
 
 	ret = parse_events_terms(&alias->terms, val, val_fd);
 	if (ret) {
@@ -607,7 +657,8 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 		break;
 
 	}
-	list_add_tail(&alias->list, &pmu->aliases);
+	hashmap__set(pmu->aliases, alias->name, alias, /*old_key=*/ NULL, &old_alias);
+	perf_pmu_free_alias(old_alias);
 	return 0;
 }
 
@@ -1095,43 +1146,77 @@ perf_pmu__arch_init(struct perf_pmu *pmu)
 		pmu->mem_events = perf_mem_events;
 }
 
+/* Variant of str_hash that does tolower on each character. */
+static size_t aliases__hash(long key, void *ctx __maybe_unused)
+{
+	const char *s = (const char *)key;
+	size_t h = 0;
+
+	while (*s) {
+		h = h * 31 + tolower(*s);
+		s++;
+	}
+	return h;
+}
+
+static bool aliases__equal(long key1, long key2, void *ctx __maybe_unused)
+{
+	return strcasecmp((const char *)key1, (const char *)key2) == 0;
+}
+
+int perf_pmu__init(struct perf_pmu *pmu, __u32 type, const char *name)
+{
+	pmu->type = type;
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->caps);
+
+	pmu->name = strdup(name);
+	if (!pmu->name)
+		return -ENOMEM;
+
+	pmu->aliases = hashmap__new(aliases__hash, aliases__equal, /*ctx=*/ NULL);
+	if (!pmu->aliases)
+		return -ENOMEM;
+
+	return 0;
+}
+
 struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char *name,
 				  bool eager_load)
 {
 	struct perf_pmu *pmu;
-	__u32 type;
 
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
 
-	pmu->name = strdup(name);
-	if (!pmu->name)
-		goto err;
+	if (perf_pmu__init(pmu, PERF_PMU_TYPE_FAKE, name) != 0) {
+		perf_pmu__delete(pmu);
+		return NULL;
+	}
 
 	/*
 	 * Read type early to fail fast if a lookup name isn't a PMU. Ensure
 	 * that type value is successfully assigned (return 1).
 	 */
-	if (perf_pmu__scan_file_at(pmu, dirfd, "type", "%u", &type) != 1)
-		goto err;
-
-	INIT_LIST_HEAD(&pmu->format);
-	INIT_LIST_HEAD(&pmu->aliases);
-	INIT_LIST_HEAD(&pmu->caps);
+	if (perf_pmu__scan_file_at(pmu, dirfd, "type", "%u", &pmu->type) != 1) {
+		perf_pmu__delete(pmu);
+		return NULL;
+	}
 
 	/*
 	 * The pmu data we store & need consists of the pmu
 	 * type value and format definitions. Load both right
 	 * now.
 	 */
-	if (pmu_format(pmu, dirfd, name, eager_load))
-		goto err;
+	if (pmu_format(pmu, dirfd, name, eager_load)) {
+		perf_pmu__delete(pmu);
+		return NULL;
+	}
 
 	pmu->is_core = is_pmu_core(name);
 	pmu->cpus = pmu_cpumask(dirfd, name, pmu->is_core);
 
-	pmu->type = type;
 	pmu->is_uncore = pmu_is_uncore(dirfd, name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
@@ -1153,10 +1238,6 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 		pmu_aliases_parse_eager(pmu, dirfd);
 
 	return pmu;
-err:
-	zfree(&pmu->name);
-	free(pmu);
-	return NULL;
 }
 
 /* Creates the PMU when sysfs scanning fails. */
@@ -1178,7 +1259,7 @@ struct perf_pmu *perf_pmu__create_placeholder_core_pmu(struct list_head *core_pm
 	pmu->cpus = cpu_map__online();
 
 	INIT_LIST_HEAD(&pmu->format);
-	INIT_LIST_HEAD(&pmu->aliases);
+	pmu->aliases = hashmap__new(aliases__hash, aliases__equal, /*ctx=*/ NULL);
 	INIT_LIST_HEAD(&pmu->caps);
 	list_add_tail(&pmu->list, core_pmus);
 	return pmu;
@@ -1429,7 +1510,7 @@ static int pmu_config_term(const struct perf_pmu *pmu,
 			break;
 		case PARSE_EVENTS__TERM_TYPE_USER: /* Not hardcoded. */
 			return -EINVAL;
-		case PARSE_EVENTS__TERM_TYPE_NAME ... PARSE_EVENTS__TERM_TYPE_HARDWARE:
+		case PARSE_EVENTS__TERM_TYPE_NAME ... PARSE_EVENTS__TERM_TYPE_CPU:
 			/* Skip non-config terms. */
 			break;
 		default:
@@ -1678,6 +1759,9 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 	info->unit     = NULL;
 	info->scale    = 0.0;
 	info->snapshot = false;
+	info->retirement_latency_mean = 0.0;
+	info->retirement_latency_min = 0.0;
+	info->retirement_latency_max = 0.0;
 
 	if (perf_pmu__is_hwmon(pmu)) {
 		ret = hwmon_pmu__check_alias(head_terms, info, err);
@@ -1710,6 +1794,10 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 
 		if (term->alternate_hw_config)
 			*alternate_hw_config = term->val.num;
+
+		info->retirement_latency_mean = alias->retirement_latency_mean;
+		info->retirement_latency_min = alias->retirement_latency_min;
+		info->retirement_latency_max = alias->retirement_latency_max;
 
 		list_del_init(&term->list);
 		parse_events_term__delete(term);
@@ -1804,6 +1892,7 @@ int perf_pmu__for_each_format(struct perf_pmu *pmu, void *state, pmu_format_call
 		"aux-output",
 		"aux-action=(pause|resume|start-paused)",
 		"aux-sample-size=number",
+		"cpu=number",
 	};
 	struct perf_pmu_format *format;
 	int ret;
@@ -1930,13 +2019,14 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 			     void *state, pmu_event_callback cb)
 {
 	char buf[1024];
-	struct perf_pmu_alias *event;
 	struct pmu_event_info info = {
 		.pmu = pmu,
 		.event_type_desc = "Kernel PMU event",
 	};
 	int ret = 0;
 	struct strbuf sb;
+	struct hashmap_entry *entry;
+	size_t bkt;
 
 	if (perf_pmu__is_hwmon(pmu))
 		return hwmon_pmu__for_each_event(pmu, state, cb);
@@ -1944,7 +2034,8 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 	strbuf_init(&sb, /*hint=*/ 0);
 	pmu_aliases_parse(pmu);
 	pmu_add_cpu_aliases(pmu);
-	list_for_each_entry(event, &pmu->aliases, list) {
+	hashmap__for_each_entry(pmu->aliases, entry, bkt) {
+		struct perf_pmu_alias *event = entry->pvalue;
 		size_t buf_used, pmu_name_len;
 
 		if (perf_pmu__is_tool(pmu) && tool_pmu__skip_event(event->name))
@@ -2051,6 +2142,9 @@ static bool perf_pmu___name_match(const struct perf_pmu *pmu, const char *to_mat
 	}
 	for (size_t i = 0; i < ARRAY_SIZE(names); i++) {
 		const char *name = names[i];
+
+		if (!name)
+			continue;
 
 		if (wildcard && perf_pmu__match_wildcard_uncore(name, to_match))
 			return true;
@@ -2209,6 +2303,17 @@ static void perf_pmu__del_caps(struct perf_pmu *pmu)
 		zfree(&caps->value);
 		free(caps);
 	}
+}
+
+struct perf_pmu_caps *perf_pmu__get_cap(struct perf_pmu *pmu, const char *name)
+{
+	struct perf_pmu_caps *caps;
+
+	list_for_each_entry(caps, &pmu->caps, list) {
+		if (!strcmp(caps->name, name))
+			return caps;
+	}
+	return NULL;
 }
 
 /*
@@ -2401,6 +2506,9 @@ int perf_pmu__pathname_fd(int dirfd, const char *pmu_name, const char *filename,
 
 void perf_pmu__delete(struct perf_pmu *pmu)
 {
+	if (!pmu)
+		return;
+
 	if (perf_pmu__is_hwmon(pmu))
 		hwmon_pmu__exit(pmu);
 
@@ -2418,14 +2526,16 @@ void perf_pmu__delete(struct perf_pmu *pmu)
 
 const char *perf_pmu__name_from_config(struct perf_pmu *pmu, u64 config)
 {
-	struct perf_pmu_alias *event;
+	struct hashmap_entry *entry;
+	size_t bkt;
 
 	if (!pmu)
 		return NULL;
 
 	pmu_aliases_parse(pmu);
 	pmu_add_cpu_aliases(pmu);
-	list_for_each_entry(event, &pmu->aliases, list) {
+	hashmap__for_each_entry(pmu->aliases, entry, bkt) {
+		struct perf_pmu_alias *event = entry->pvalue;
 		struct perf_event_attr attr = {.config = 0,};
 
 		int ret = perf_pmu__config(pmu, &attr, &event->terms, /*apply_hardcoded=*/true,

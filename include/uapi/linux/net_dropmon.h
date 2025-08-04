@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __NET_DROPMON_H
-#define __NET_DROPMON_H
+#ifndef _UAPI__NET_DROPMON_H
+#define _UAPI__NET_DROPMON_H
 
 #include <linux/types.h>
 #include <linux/netlink.h>

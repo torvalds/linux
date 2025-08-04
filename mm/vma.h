@@ -19,6 +19,8 @@ struct vma_prepare {
 	struct vm_area_struct *insert;
 	struct vm_area_struct *remove;
 	struct vm_area_struct *remove2;
+
+	bool skip_vma_uprobe :1;
 };
 
 struct unlink_vma_file_batch {
@@ -119,6 +121,11 @@ struct vma_merge_struct {
 	 * execute the merge, returning NULL.
 	 */
 	bool give_up_on_oom :1;
+
+	/*
+	 * If set, skip uprobe_mmap upon merged vma.
+	 */
+	bool skip_vma_uprobe :1;
 
 	/* Internal flags set during merge process: */
 
@@ -547,5 +554,20 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address);
 int expand_downwards(struct vm_area_struct *vma, unsigned long address);
 
 int __vm_munmap(unsigned long start, size_t len, bool unlock);
+
+int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma);
+
+/* vma_init.h, shared between CONFIG_MMU and nommu. */
+void __init vma_state_init(void);
+struct vm_area_struct *vm_area_alloc(struct mm_struct *mm);
+struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig);
+void vm_area_free(struct vm_area_struct *vma);
+
+/* vma_exec.c */
+#ifdef CONFIG_MMU
+int create_init_stack_vma(struct mm_struct *mm, struct vm_area_struct **vmap,
+			  unsigned long *top_mem_p);
+int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift);
+#endif
 
 #endif	/* __MM_VMA_H */

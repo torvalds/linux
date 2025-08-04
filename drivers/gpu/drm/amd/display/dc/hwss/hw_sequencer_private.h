@@ -49,6 +49,7 @@ struct hwseq_wa_state {
 	bool DEGVIDCN10_253_applied;
 	bool disallow_self_refresh_during_multi_plane_transition_applied;
 	unsigned int disallow_self_refresh_during_multi_plane_transition_applied_on_frame;
+	bool skip_blank_stream;
 };
 
 struct pipe_ctx;
@@ -183,6 +184,8 @@ struct hwseq_private_funcs {
 			struct dc_cm2_func_luts mcm_luts,
 			bool lut_bank_a);
 	void (*perform_3dlut_wa_unlock)(struct pipe_ctx *pipe_ctx);
+	void (*wait_for_pipe_update_if_needed)(struct dc *dc, struct pipe_ctx *pipe_ctx, bool is_surface_update_only);
+	void (*set_wait_for_update_needed_for_pipe)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 };
 
 struct dce_hwseq {

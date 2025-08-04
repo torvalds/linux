@@ -314,7 +314,7 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 	if (*seg_info == NULL)
 		return -ENOMEM;
 
-	strcpy((*seg_info)->segment_name, name);
+	strscpy((*seg_info)->segment_name, name);
 
 	/* load the segment */
 	rc = segment_load(name, SEGMENT_SHARED,
@@ -612,7 +612,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 				rc = -ENOMEM;
 				goto out;
 			}
-			strcpy(dev_info->segment_name, local_buf);
+			strscpy(dev_info->segment_name, local_buf);
 			dev_info->segment_type = seg_info->segment_type;
 			INIT_LIST_HEAD(&dev_info->seg_list);
 		}

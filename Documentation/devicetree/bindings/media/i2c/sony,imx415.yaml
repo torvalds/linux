@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Sony IMX415 CMOS Image Sensor
 
 maintainers:
-  - Michael Riesch <michael.riesch@wolfvision.net>
+  - Michael Riesch <michael.riesch@collabora.com>
 
 description: |-
   The Sony IMX415 is a diagonal 6.4 mm (Type 1/2.8) CMOS active pixel type

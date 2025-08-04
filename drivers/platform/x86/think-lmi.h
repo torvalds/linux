@@ -90,6 +90,7 @@ struct tlmi_attr_setting {
 	struct kobject kobj;
 	struct wmi_device *wdev;
 	int index;
+	char name[TLMI_SETTINGS_MAXLEN];
 	char display_name[TLMI_SETTINGS_MAXLEN];
 	char *possible_values;
 };

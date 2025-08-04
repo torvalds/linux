@@ -446,12 +446,12 @@ static void iproc_msi_disable(struct iproc_msi *msi)
 static int iproc_msi_alloc_domains(struct device_node *node,
 				   struct iproc_msi *msi)
 {
-	msi->inner_domain = irq_domain_add_linear(NULL, msi->nr_msi_vecs,
-						  &msi_domain_ops, msi);
+	msi->inner_domain = irq_domain_create_linear(NULL, msi->nr_msi_vecs,
+						     &msi_domain_ops, msi);
 	if (!msi->inner_domain)
 		return -ENOMEM;
 
-	msi->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi->msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node),
 						    &iproc_msi_domain_info,
 						    msi->inner_domain);
 	if (!msi->msi_domain) {

@@ -206,7 +206,7 @@ static int q6apm_lpass_dai_prepare(struct snd_pcm_substream *substream, struct s
 
 	rc = q6apm_graph_start(dai_data->graph[dai->id]);
 	if (rc < 0) {
-		dev_err(dai->dev, "fail to start APM port %x\n", dai->id);
+		dev_err(dai->dev, "Failed to start APM port %d\n", dai->id);
 		goto err;
 	}
 	dai_data->is_port_started[dai->id] = true;

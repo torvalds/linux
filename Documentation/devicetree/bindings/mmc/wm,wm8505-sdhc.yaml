@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/wm,wm8505-sdhc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: WonderMedia SoC SDHCI Controller
+
+maintainers:
+  - Alexey Charkov <alchark@gmail.com>
+
+allOf:
+  - $ref: mmc-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: wm,wm8505-sdhc
+      - items:
+          - const: wm,wm8650-sdhc
+          - const: wm,wm8505-sdhc
+      - items:
+          - const: wm,wm8750-sdhc
+          - const: wm,wm8505-sdhc
+      - items:
+          - const: wm,wm8850-sdhc
+          - const: wm,wm8505-sdhc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: SDMMC controller interrupt
+      - description: SDMMC controller DMA interrupt
+
+  sdon-inverted:
+    type: boolean
+    description: All chips before (not including) WM8505 rev. A2 treated their
+      "clock stop" bit (register offset 0x08 a.k.a. SDMMC_BUSMODE, bit 0x10)
+      as "set 1 to disable SD clock", while all the later versions treated it
+      as "set 0 to disable SD clock". Set this property for later versions of
+      wm,wm8505-sdhc. On wm,wm8650-sdhc and later this property is implied and
+      does not need to be set explicitly
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mmc@d800a000 {
+        compatible = "wm,wm8505-sdhc";
+        reg = <0xd800a000 0x1000>;
+        interrupts = <20>, <21>;
+        clocks = <&sdhc>;
+        bus-width = <4>;
+        sdon-inverted;
+    };

@@ -292,7 +292,7 @@ void tipc_disc_remove_dest(struct tipc_discoverer *d)
  */
 static void tipc_disc_timeout(struct timer_list *t)
 {
-	struct tipc_discoverer *d = from_timer(d, t, timer);
+	struct tipc_discoverer *d = timer_container_of(d, t, timer);
 	struct tipc_net *tn = tipc_net(d->net);
 	struct tipc_media_addr maddr;
 	struct sk_buff *skb = NULL;

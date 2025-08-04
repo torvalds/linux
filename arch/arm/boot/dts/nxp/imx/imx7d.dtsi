@@ -48,7 +48,7 @@
 
 		opp-792000000 {
 			opp-hz = /bits/ 64 <792000000>;
-			opp-microvolt = <1000000>;
+			opp-microvolt = <1000000 950000 1250000>;
 			clock-latency-ns = <150000>;
 			opp-supported-hw = <0xd>, <0x7>;
 			opp-suspend;
@@ -56,7 +56,7 @@
 
 		opp-996000000 {
 			opp-hz = /bits/ 64 <996000000>;
-			opp-microvolt = <1100000>;
+			opp-microvolt = <1100000 1045000 1250000>;
 			clock-latency-ns = <150000>;
 			opp-supported-hw = <0xc>, <0x7>;
 			opp-suspend;
@@ -64,7 +64,7 @@
 
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <1225000>;
+			opp-microvolt = <1225000 1200000 1250000>;
 			clock-latency-ns = <150000>;
 			opp-supported-hw = <0x8>, <0x3>;
 			opp-suspend;

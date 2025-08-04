@@ -70,7 +70,7 @@ Online attacks
 --------------
 
 fscrypt (and storage encryption in general) can only provide limited
-protection, if any at all, against online attacks.  In detail:
+protection against online attacks.  In detail:
 
 Side-channel attacks
 ~~~~~~~~~~~~~~~~~~~~
@@ -99,16 +99,23 @@ Therefore, any encryption-specific access control checks would merely
 be enforced by kernel *code* and therefore would be largely redundant
 with the wide variety of access control mechanisms already available.)
 
-Kernel memory compromise
-~~~~~~~~~~~~~~~~~~~~~~~~
+Read-only kernel memory compromise
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-An attacker who compromises the system enough to read from arbitrary
-memory, e.g. by mounting a physical attack or by exploiting a kernel
-security vulnerability, can compromise all encryption keys that are
-currently in use.
+Unless `hardware-wrapped keys`_ are used, an attacker who gains the
+ability to read from arbitrary kernel memory, e.g. by mounting a
+physical attack or by exploiting a kernel security vulnerability, can
+compromise all fscrypt keys that are currently in-use.  This also
+extends to cold boot attacks; if the system is suddenly powered off,
+keys the system was using may remain in memory for a short time.
 
-However, fscrypt allows encryption keys to be removed from the kernel,
-which may protect them from later compromise.
+However, if hardware-wrapped keys are used, then the fscrypt master
+keys and file contents encryption keys (but not other types of fscrypt
+subkeys such as filenames encryption keys) are protected from
+compromises of arbitrary kernel memory.
+
+In addition, fscrypt allows encryption keys to be removed from the
+kernel, which may protect them from later compromise.
 
 In more detail, the FS_IOC_REMOVE_ENCRYPTION_KEY ioctl (or the
 FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS ioctl) can wipe a master
@@ -144,6 +151,24 @@ However, these ioctls have some limitations:
   accelerator hardware (if used by the crypto API to implement any of
   the algorithms), or in other places not explicitly considered here.
 
+Full system compromise
+~~~~~~~~~~~~~~~~~~~~~~
+
+An attacker who gains "root" access and/or the ability to execute
+arbitrary kernel code can freely exfiltrate data that is protected by
+any in-use fscrypt keys.  Thus, usually fscrypt provides no meaningful
+protection in this scenario.  (Data that is protected by a key that is
+absent throughout the entire attack remains protected, modulo the
+limitations of key removal mentioned above in the case where the key
+was removed prior to the attack.)
+
+However, if `hardware-wrapped keys`_ are used, such attackers will be
+unable to exfiltrate the master keys or file contents keys in a form
+that will be usable after the system is powered off.  This may be
+useful if the attacker is significantly time-limited and/or
+bandwidth-limited, so they can only exfiltrate some data and need to
+rely on a later offline attack to exfiltrate the rest of it.
+
 Limitations of v1 policies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -169,6 +194,10 @@ policies on all new encrypted directories.
 
 Key hierarchy
 =============
+
+Note: this section assumes the use of raw keys rather than
+hardware-wrapped keys.  The use of hardware-wrapped keys modifies the
+key hierarchy slightly.  For details, see `Hardware-wrapped keys`_.
 
 Master Keys
 -----------
@@ -832,7 +861,9 @@ a pointer to struct fscrypt_add_key_arg, defined as follows::
             struct fscrypt_key_specifier key_spec;
             __u32 raw_size;
             __u32 key_id;
-            __u32 __reserved[8];
+    #define FSCRYPT_ADD_KEY_FLAG_HW_WRAPPED 0x00000001
+            __u32 flags;
+            __u32 __reserved[7];
             __u8 raw[];
     };
 
@@ -851,7 +882,7 @@ a pointer to struct fscrypt_add_key_arg, defined as follows::
 
     struct fscrypt_provisioning_key_payload {
             __u32 type;
-            __u32 __reserved;
+            __u32 flags;
             __u8 raw[];
     };
 
@@ -879,24 +910,32 @@ as follows:
   Alternatively, if ``key_id`` is nonzero, this field must be 0, since
   in that case the size is implied by the specified Linux keyring key.
 
-- ``key_id`` is 0 if the raw key is given directly in the ``raw``
-  field.  Otherwise ``key_id`` is the ID of a Linux keyring key of
-  type "fscrypt-provisioning" whose payload is
-  struct fscrypt_provisioning_key_payload whose ``raw`` field contains
-  the raw key and whose ``type`` field matches ``key_spec.type``.
-  Since ``raw`` is variable-length, the total size of this key's
-  payload must be ``sizeof(struct fscrypt_provisioning_key_payload)``
-  plus the raw key size.  The process must have Search permission on
-  this key.
+- ``key_id`` is 0 if the key is given directly in the ``raw`` field.
+  Otherwise ``key_id`` is the ID of a Linux keyring key of type
+  "fscrypt-provisioning" whose payload is struct
+  fscrypt_provisioning_key_payload whose ``raw`` field contains the
+  key, whose ``type`` field matches ``key_spec.type``, and whose
+  ``flags`` field matches ``flags``.  Since ``raw`` is
+  variable-length, the total size of this key's payload must be
+  ``sizeof(struct fscrypt_provisioning_key_payload)`` plus the number
+  of key bytes.  The process must have Search permission on this key.
 
-  Most users should leave this 0 and specify the raw key directly.
-  The support for specifying a Linux keyring key is intended mainly to
+  Most users should leave this 0 and specify the key directly.  The
+  support for specifying a Linux keyring key is intended mainly to
   allow re-adding keys after a filesystem is unmounted and re-mounted,
-  without having to store the raw keys in userspace memory.
+  without having to store the keys in userspace memory.
+
+- ``flags`` contains optional flags from ``<linux/fscrypt.h>``:
+
+  - FSCRYPT_ADD_KEY_FLAG_HW_WRAPPED: This denotes that the key is a
+    hardware-wrapped key.  See `Hardware-wrapped keys`_.  This flag
+    can't be used if FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR is used.
 
 - ``raw`` is a variable-length field which must contain the actual
   key, ``raw_size`` bytes long.  Alternatively, if ``key_id`` is
-  nonzero, then this field is unused.
+  nonzero, then this field is unused.  Note that despite being named
+  ``raw``, if FSCRYPT_ADD_KEY_FLAG_HW_WRAPPED is specified then it
+  will contain a wrapped key, not a raw key.
 
 For v2 policy keys, the kernel keeps track of which user (identified
 by effective user ID) added the key, and only allows the key to be
@@ -908,8 +947,8 @@ prevent that other user from unexpectedly removing it.  Therefore,
 FS_IOC_ADD_ENCRYPTION_KEY may also be used to add a v2 policy key
 *again*, even if it's already added by other user(s).  In this case,
 FS_IOC_ADD_ENCRYPTION_KEY will just install a claim to the key for the
-current user, rather than actually add the key again (but the raw key
-must still be provided, as a proof of knowledge).
+current user, rather than actually add the key again (but the key must
+still be provided, as a proof of knowledge).
 
 FS_IOC_ADD_ENCRYPTION_KEY returns 0 if either the key or a claim to
 the key was either added or already exists.
@@ -918,20 +957,23 @@ FS_IOC_ADD_ENCRYPTION_KEY can fail with the following errors:
 
 - ``EACCES``: FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR was specified, but the
   caller does not have the CAP_SYS_ADMIN capability in the initial
-  user namespace; or the raw key was specified by Linux key ID but the
+  user namespace; or the key was specified by Linux key ID but the
   process lacks Search permission on the key.
+- ``EBADMSG``: invalid hardware-wrapped key
 - ``EDQUOT``: the key quota for this user would be exceeded by adding
   the key
 - ``EINVAL``: invalid key size or key specifier type, or reserved bits
   were set
-- ``EKEYREJECTED``: the raw key was specified by Linux key ID, but the
-  key has the wrong type
-- ``ENOKEY``: the raw key was specified by Linux key ID, but no key
-  exists with that ID
+- ``EKEYREJECTED``: the key was specified by Linux key ID, but the key
+  has the wrong type
+- ``ENOKEY``: the key was specified by Linux key ID, but no key exists
+  with that ID
 - ``ENOTTY``: this type of filesystem does not implement encryption
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
   support for this filesystem, or the filesystem superblock has not
-  had encryption enabled on it
+  had encryption enabled on it; or a hardware wrapped key was specified
+  but the filesystem does not support inline encryption or the hardware
+  does not support hardware-wrapped keys
 
 Legacy method
 ~~~~~~~~~~~~~
@@ -994,9 +1036,8 @@ or removed by non-root users.
 These ioctls don't work on keys that were added via the legacy
 process-subscribed keyrings mechanism.
 
-Before using these ioctls, read the `Kernel memory compromise`_
-section for a discussion of the security goals and limitations of
-these ioctls.
+Before using these ioctls, read the `Online attacks`_ section for a
+discussion of the security goals and limitations of these ioctls.
 
 FS_IOC_REMOVE_ENCRYPTION_KEY
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1316,7 +1357,8 @@ inline encryption hardware doesn't have the needed crypto capabilities
 (e.g. support for the needed encryption algorithm and data unit size)
 and where blk-crypto-fallback is unusable.  (For blk-crypto-fallback
 to be usable, it must be enabled in the kernel configuration with
-CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK=y.)
+CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK=y, and the file must be
+protected by a raw key rather than a hardware-wrapped key.)
 
 Currently fscrypt always uses the filesystem block size (which is
 usually 4096 bytes) as the data unit size.  Therefore, it can only use
@@ -1324,7 +1366,76 @@ inline encryption hardware that supports that data unit size.
 
 Inline encryption doesn't affect the ciphertext or other aspects of
 the on-disk format, so users may freely switch back and forth between
-using "inlinecrypt" and not using "inlinecrypt".
+using "inlinecrypt" and not using "inlinecrypt".  An exception is that
+files that are protected by a hardware-wrapped key can only be
+encrypted/decrypted by the inline encryption hardware and therefore
+can only be accessed when the "inlinecrypt" mount option is used.  For
+more information about hardware-wrapped keys, see below.
+
+Hardware-wrapped keys
+---------------------
+
+fscrypt supports using *hardware-wrapped keys* when the inline
+encryption hardware supports it.  Such keys are only present in kernel
+memory in wrapped (encrypted) form; they can only be unwrapped
+(decrypted) by the inline encryption hardware and are temporally bound
+to the current boot.  This prevents the keys from being compromised if
+kernel memory is leaked.  This is done without limiting the number of
+keys that can be used and while still allowing the execution of
+cryptographic tasks that are tied to the same key but can't use inline
+encryption hardware, e.g. filenames encryption.
+
+Note that hardware-wrapped keys aren't specific to fscrypt; they are a
+block layer feature (part of *blk-crypto*).  For more details about
+hardware-wrapped keys, see the block layer documentation at
+:ref:`Documentation/block/inline-encryption.rst
+<hardware_wrapped_keys>`.  The rest of this section just focuses on
+the details of how fscrypt can use hardware-wrapped keys.
+
+fscrypt supports hardware-wrapped keys by allowing the fscrypt master
+keys to be hardware-wrapped keys as an alternative to raw keys.  To
+add a hardware-wrapped key with `FS_IOC_ADD_ENCRYPTION_KEY`_,
+userspace must specify FSCRYPT_ADD_KEY_FLAG_HW_WRAPPED in the
+``flags`` field of struct fscrypt_add_key_arg and also in the
+``flags`` field of struct fscrypt_provisioning_key_payload when
+applicable.  The key must be in ephemerally-wrapped form, not
+long-term wrapped form.
+
+Some limitations apply.  First, files protected by a hardware-wrapped
+key are tied to the system's inline encryption hardware.  Therefore
+they can only be accessed when the "inlinecrypt" mount option is used,
+and they can't be included in portable filesystem images.  Second,
+currently the hardware-wrapped key support is only compatible with
+`IV_INO_LBLK_64 policies`_ and `IV_INO_LBLK_32 policies`_, as it
+assumes that there is just one file contents encryption key per
+fscrypt master key rather than one per file.  Future work may address
+this limitation by passing per-file nonces down the storage stack to
+allow the hardware to derive per-file keys.
+
+Implementation-wise, to encrypt/decrypt the contents of files that are
+protected by a hardware-wrapped key, fscrypt uses blk-crypto,
+attaching the hardware-wrapped key to the bio crypt contexts.  As is
+the case with raw keys, the block layer will program the key into a
+keyslot when it isn't already in one.  However, when programming a
+hardware-wrapped key, the hardware doesn't program the given key
+directly into a keyslot but rather unwraps it (using the hardware's
+ephemeral wrapping key) and derives the inline encryption key from it.
+The inline encryption key is the key that actually gets programmed
+into a keyslot, and it is never exposed to software.
+
+However, fscrypt doesn't just do file contents encryption; it also
+uses its master keys to derive filenames encryption keys, key
+identifiers, and sometimes some more obscure types of subkeys such as
+dirhash keys.  So even with file contents encryption out of the
+picture, fscrypt still needs a raw key to work with.  To get such a
+key from a hardware-wrapped key, fscrypt asks the inline encryption
+hardware to derive a cryptographically isolated "software secret" from
+the hardware-wrapped key.  fscrypt uses this "software secret" to key
+its KDF to derive all subkeys other than file contents keys.
+
+Note that this implies that the hardware-wrapped key feature only
+protects the file contents encryption keys.  It doesn't protect other
+fscrypt subkeys such as filenames encryption keys.
 
 Direct I/O support
 ==================
@@ -1409,7 +1520,7 @@ read the ciphertext into the page cache and decrypt it in-place.  The
 folio lock must be held until decryption has finished, to prevent the
 folio from becoming visible to userspace prematurely.
 
-For the write path (->writepage()) of regular files, filesystems
+For the write path (->writepages()) of regular files, filesystems
 cannot encrypt data in-place in the page cache, since the cached
 plaintext must be preserved.  Instead, filesystems must encrypt into a
 temporary buffer or "bounce page", then write out the temporary

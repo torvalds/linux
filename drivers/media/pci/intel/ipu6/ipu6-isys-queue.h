@@ -20,11 +20,7 @@ struct ipu6_isys_stream;
 struct ipu6_isys_queue {
 	struct vb2_queue vbq;
 	struct list_head node;
-	struct device *dev;
-	/*
-	 * @lock: serialise access to queued and pre_streamon_queued
-	 */
-	spinlock_t lock;
+	spinlock_t lock; /* Protects active and incoming lists */
 	struct list_head active;
 	struct list_head incoming;
 	unsigned int fw_output;
@@ -69,10 +65,6 @@ void
 ipu6_isys_buf_to_fw_frame_buf(struct ipu6_fw_isys_frame_buff_set_abi *set,
 			      struct ipu6_isys_stream *stream,
 			      struct ipu6_isys_buffer_list *bl);
-void
-ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib,
-				 struct ipu6_fw_isys_resp_info_abi *info);
-void ipu6_isys_queue_buf_done(struct ipu6_isys_buffer *ib);
 void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 			       struct ipu6_fw_isys_resp_info_abi *info);
 int ipu6_isys_queue_init(struct ipu6_isys_queue *aq);

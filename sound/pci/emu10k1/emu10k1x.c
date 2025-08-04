@@ -884,7 +884,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	spin_lock_init(&chip->emu_lock);
 	spin_lock_init(&chip->voice_lock);
   
-	err = pci_request_regions(pci, "EMU10K1X");
+	err = pcim_request_all_regions(pci, "EMU10K1X");
 	if (err < 0)
 		return err;
 	chip->port = pci_resource_start(pci, 0);

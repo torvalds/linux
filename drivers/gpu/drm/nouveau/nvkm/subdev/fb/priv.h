@@ -98,4 +98,6 @@ int gp102_fb_vpr_scrub(struct nvkm_fb *);
 int gv100_fb_init_page(struct nvkm_fb *);
 
 bool tu102_fb_vpr_scrub_required(struct nvkm_fb *);
+
+u64 ga102_fb_vidmem_size(struct nvkm_fb *);
 #endif

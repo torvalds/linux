@@ -493,13 +493,15 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	d.timeout_ms = READ_ONCE(cmd->timeout_ms);
 
 	if (d.data_len && (ioucmd->flags & IORING_URING_CMD_FIXED)) {
-		/* fixedbufs is only for non-vectored io */
-		if (vec)
-			return -EINVAL;
+		int ddir = nvme_is_write(&c) ? WRITE : READ;
 
-		ret = io_uring_cmd_import_fixed(d.addr, d.data_len,
-			nvme_is_write(&c) ? WRITE : READ, &iter, ioucmd,
-			issue_flags);
+		if (vec)
+			ret = io_uring_cmd_import_fixed_vec(ioucmd,
+					u64_to_user_ptr(d.addr), d.data_len,
+					ddir, &iter, issue_flags);
+		else
+			ret = io_uring_cmd_import_fixed(d.addr, d.data_len,
+					ddir, &iter, ioucmd, issue_flags);
 		if (ret < 0)
 			return ret;
 
@@ -521,7 +523,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	if (d.data_len) {
 		ret = nvme_map_user_request(req, d.addr, d.data_len,
 			nvme_to_user_ptr(d.metadata), d.metadata_len,
-			map_iter, vec);
+			map_iter, vec ? NVME_IOCTL_VEC : 0);
 		if (ret)
 			goto out_free_req;
 	}
@@ -727,7 +729,7 @@ int nvme_ns_head_ioctl(struct block_device *bdev, blk_mode_t mode,
 
 	/*
 	 * Handle ioctls that apply to the controller instead of the namespace
-	 * seperately and drop the ns SRCU reference early.  This avoids a
+	 * separately and drop the ns SRCU reference early.  This avoids a
 	 * deadlock when deleting namespaces using the passthrough interface.
 	 */
 	if (is_ctrl_ioctl(cmd))

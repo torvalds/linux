@@ -15,14 +15,14 @@
 #include "log.h"
 #include "timens.h"
 
-static int tclock_gettime(clock_t clockid, struct timespec *now)
+static int tclock_gettime(clockid_t clockid, struct timespec *now)
 {
 	if (clockid == CLOCK_BOOTTIME_ALARM)
 		clockid = CLOCK_BOOTTIME;
 	return clock_gettime(clockid, now);
 }
 
-int run_test(int clockid, struct timespec now)
+static int run_test(int clockid, struct timespec now)
 {
 	struct itimerspec new_value;
 	long long elapsed;
@@ -81,6 +81,8 @@ int main(int argc, char *argv[])
 	char buf[4096];
 	pid_t pid;
 	struct timespec btime_now, mtime_now;
+
+	ksft_print_header();
 
 	nscheck();
 

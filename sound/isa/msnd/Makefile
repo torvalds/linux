@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-snd-msnd-lib-y := msnd.o msnd_midi.o msnd_pinnacle_mixer.o
+snd-msnd-lib-y := msnd.o msnd_pinnacle_mixer.o
 snd-msnd-pinnacle-y := msnd_pinnacle.o
 snd-msnd-classic-y := msnd_classic.o
 

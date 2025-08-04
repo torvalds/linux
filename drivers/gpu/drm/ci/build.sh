@@ -98,14 +98,14 @@ done
 
 make ${KERNEL_IMAGE_NAME}
 
-mkdir -p /lava-files/
+mkdir -p /kernel/
 for image in ${KERNEL_IMAGE_NAME}; do
-    cp arch/${KERNEL_ARCH}/boot/${image} /lava-files/.
+    cp arch/${KERNEL_ARCH}/boot/${image} /kernel/.
 done
 
 if [[ -n ${DEVICE_TREES} ]]; then
     make dtbs
-    cp ${DEVICE_TREES} /lava-files/.
+    cp ${DEVICE_TREES} /kernel/.
 fi
 
 make modules
@@ -121,11 +121,11 @@ if [[ ${DEBIAN_ARCH} = "arm64" ]]; then
         -d arch/arm64/boot/Image.lzma \
         -C lzma\
         -b arch/arm64/boot/dts/qcom/sdm845-cheza-r3.dtb \
-        /lava-files/cheza-kernel
+        /kernel/cheza-kernel
     KERNEL_IMAGE_NAME+=" cheza-kernel"
 
     # Make a gzipped copy of the Image for db410c.
-    gzip -k /lava-files/Image
+    gzip -k /kernel/Image
     KERNEL_IMAGE_NAME+=" Image.gz"
 fi
 
@@ -139,7 +139,7 @@ cp -rfv drivers/gpu/drm/ci/* install/.
 . .gitlab-ci/container/container_post_build.sh
 
 if [[ "$UPLOAD_TO_MINIO" = "1" ]]; then
-    xz -7 -c -T${FDO_CI_CONCURRENT:-4} vmlinux > /lava-files/vmlinux.xz
+    xz -7 -c -T${FDO_CI_CONCURRENT:-4} vmlinux > /kernel/vmlinux.xz
     FILES_TO_UPLOAD="$KERNEL_IMAGE_NAME vmlinux.xz"
 
     if [[ -n $DEVICE_TREES ]]; then
@@ -148,13 +148,13 @@ if [[ "$UPLOAD_TO_MINIO" = "1" ]]; then
 
     ls -l "${S3_JWT_FILE}"
     for f in $FILES_TO_UPLOAD; do
-        ci-fairy s3cp --token-file "${S3_JWT_FILE}" /lava-files/$f \
-                https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/$f
+        s3_upload /kernel/$f \
+                https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/
     done
 
     S3_ARTIFACT_NAME="kernel-files.tar.zst"
     tar --zstd -cf $S3_ARTIFACT_NAME install
-    ci-fairy s3cp --token-file "${S3_JWT_FILE}" ${S3_ARTIFACT_NAME} https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/${S3_ARTIFACT_NAME}
+    s3_upload ${S3_ARTIFACT_NAME} https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/
 
     echo "Download vmlinux.xz from https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/vmlinux.xz"
 fi
@@ -165,7 +165,7 @@ ln -s common artifacts/install/ci-common
 cp .config artifacts/${CI_JOB_NAME}_config
 
 for image in ${KERNEL_IMAGE_NAME}; do
-    cp /lava-files/$image artifacts/install/.
+    cp /kernel/$image artifacts/install/.
 done
 
 tar -C artifacts -cf artifacts/install.tar install

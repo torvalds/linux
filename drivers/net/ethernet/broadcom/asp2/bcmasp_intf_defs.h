@@ -118,8 +118,7 @@
 #define  UMC_PSW_MS			0x624
 #define  UMC_PSW_LS			0x628
 
-#define UMAC2FB_OFFSET_2_1		0x9f044
-#define UMAC2FB_OFFSET			0x9f03c
+#define UMAC2FB_OFFSET			0x9f044
 #define  UMAC2FB_CFG			0x0
 #define   UMAC2FB_CFG_OPUT_EN		BIT(0)
 #define   UMAC2FB_CFG_VLAN_EN		BIT(1)

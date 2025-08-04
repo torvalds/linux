@@ -624,10 +624,10 @@ static int mcp_gpio_get(struct gpio_chip *gc,
 	return ret;
 }
 
-static void mcp_gpio_set(struct gpio_chip *gc,
-				unsigned int offset, int value)
+static int mcp_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct mcp2221 *mcp = gpiochip_get_data(gc);
+	int ret;
 
 	memset(mcp->txbuf, 0, 18);
 	mcp->txbuf[0] = MCP2221_GPIO_SET;
@@ -638,8 +638,10 @@ static void mcp_gpio_set(struct gpio_chip *gc,
 	mcp->txbuf[mcp->gp_idx] = !!value;
 
 	mutex_lock(&mcp->lock);
-	mcp_send_data_req_status(mcp, mcp->txbuf, 18);
+	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 18);
 	mutex_unlock(&mcp->lock);
+
+	return ret;
 }
 
 static int mcp_gpio_dir_set(struct mcp2221 *mcp,
@@ -1206,7 +1208,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	mcp->gc->direction_input = mcp_gpio_direction_input;
 	mcp->gc->direction_output = mcp_gpio_direction_output;
 	mcp->gc->get_direction = mcp_gpio_get_direction;
-	mcp->gc->set = mcp_gpio_set;
+	mcp->gc->set_rv = mcp_gpio_set;
 	mcp->gc->get = mcp_gpio_get;
 	mcp->gc->ngpio = MCP_NGPIO;
 	mcp->gc->base = -1;

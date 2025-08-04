@@ -36,29 +36,10 @@ static void exfat_put_super(struct super_block *sb)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
 	mutex_lock(&sbi->s_lock);
+	exfat_clear_volume_dirty(sb);
 	exfat_free_bitmap(sbi);
 	brelse(sbi->boot_bh);
 	mutex_unlock(&sbi->s_lock);
-}
-
-static int exfat_sync_fs(struct super_block *sb, int wait)
-{
-	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	int err = 0;
-
-	if (unlikely(exfat_forced_shutdown(sb)))
-		return 0;
-
-	if (!wait)
-		return 0;
-
-	/* If there are some dirty buffers in the bdev inode */
-	mutex_lock(&sbi->s_lock);
-	sync_blockdev(sb->s_bdev);
-	if (exfat_clear_volume_dirty(sb))
-		err = -EIO;
-	mutex_unlock(&sbi->s_lock);
-	return err;
 }
 
 static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -219,7 +200,6 @@ static const struct super_operations exfat_sops = {
 	.write_inode	= exfat_write_inode,
 	.evict_inode	= exfat_evict_inode,
 	.put_super	= exfat_put_super,
-	.sync_fs	= exfat_sync_fs,
 	.statfs		= exfat_statfs,
 	.show_options	= exfat_show_options,
 	.shutdown	= exfat_shutdown,
@@ -751,10 +731,14 @@ static void exfat_free(struct fs_context *fc)
 
 static int exfat_reconfigure(struct fs_context *fc)
 {
+	struct super_block *sb = fc->root->d_sb;
 	fc->sb_flags |= SB_NODIRATIME;
 
-	/* volume flag will be updated in exfat_sync_fs */
-	sync_filesystem(fc->root->d_sb);
+	sync_filesystem(sb);
+	mutex_lock(&EXFAT_SB(sb)->s_lock);
+	exfat_clear_volume_dirty(sb);
+	mutex_unlock(&EXFAT_SB(sb)->s_lock);
+
 	return 0;
 }
 

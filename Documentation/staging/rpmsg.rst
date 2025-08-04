@@ -112,31 +112,6 @@ Returns 0 on success and an appropriate error value on failure.
 
 ::
 
-  int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
-							void *data, int len);
-
-
-sends a message across to the remote processor, using the src and dst
-addresses provided by the user.
-
-The caller should specify the endpoint, the data it wants to send,
-its length (in bytes), and explicit source and destination addresses.
-The message will then be sent to the remote processor to which the
-endpoint's channel belongs, but the endpoint's src and channel dst
-addresses will be ignored (and the user-provided addresses will
-be used instead).
-
-In case there are no TX buffers available, the function will block until
-one becomes available (i.e. until the remote processor consumes
-a tx buffer and puts it back on virtio's used descriptor ring),
-or a timeout of 15 seconds elapses. When the latter happens,
--ERESTARTSYS is returned.
-
-The function can only be called from a process context (for now).
-Returns 0 on success and an appropriate error value on failure.
-
-::
-
   int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len);
 
 sends a message across to the remote processor from a given endpoint.
@@ -166,27 +141,6 @@ its length (in bytes), and an explicit destination address.
 The message will then be sent to the remote processor to which the
 channel belongs, using the channel's src address, and the user-provided
 dst address (thus the channel's dst address will be ignored).
-
-In case there are no TX buffers available, the function will immediately
-return -ENOMEM without waiting until one becomes available.
-
-The function can only be called from a process context (for now).
-Returns 0 on success and an appropriate error value on failure.
-
-::
-
-  int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
-							void *data, int len);
-
-
-sends a message across to the remote processor, using source and
-destination addresses provided by the user.
-
-The user should specify the channel, the data it wants to send,
-its length (in bytes), and explicit source and destination addresses.
-The message will then be sent to the remote processor to which the
-channel belongs, but the channel's src and dst addresses will be
-ignored (and the user-provided addresses will be used instead).
 
 In case there are no TX buffers available, the function will immediately
 return -ENOMEM without waiting until one becomes available.

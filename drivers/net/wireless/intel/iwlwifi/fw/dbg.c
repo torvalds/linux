@@ -187,7 +187,7 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 		/* Pull RXF2 */
 		iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->rxfifo2_size,
 				  RXF_DIFF_FROM_PREV +
-				  fwrt->trans->trans_cfg->umac_prph_offset, 1);
+				  fwrt->trans->mac_cfg->umac_prph_offset, 1);
 		/* Pull LMAC2 RXF1 */
 		if (fwrt->smem_cfg.num_lmacs > 1)
 			iwl_fwrt_dump_rxf(fwrt, dump_data,
@@ -654,10 +654,10 @@ static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
 {
 	u32 range_len;
 
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_ax210);
 		handler(fwrt, iwl_prph_dump_addr_ax210, range_len, ptr);
-	} else if (fwrt->trans->trans_cfg->device_family >=
+	} else if (fwrt->trans->mac_cfg->device_family >=
 		   IWL_DEVICE_FAMILY_22000) {
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_22000);
 		handler(fwrt, iwl_prph_dump_addr_22000, range_len, ptr);
@@ -665,7 +665,7 @@ static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_comm);
 		handler(fwrt, iwl_prph_dump_addr_comm, range_len, ptr);
 
-		if (fwrt->trans->trans_cfg->mq_rx_supported) {
+		if (fwrt->trans->mac_cfg->mq_rx_supported) {
 			range_len = ARRAY_SIZE(iwl_prph_dump_addr_9000);
 			handler(fwrt, iwl_prph_dump_addr_9000, range_len, ptr);
 		}
@@ -809,13 +809,14 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	const struct iwl_fw_dbg_mem_seg_tlv *fw_mem = fwrt->fw->dbg.mem_tlv;
 	struct iwl_fwrt_shared_mem_cfg *mem_cfg = &fwrt->smem_cfg;
 	u32 file_len, fifo_len = 0, prph_len = 0, radio_len = 0;
-	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
+	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->mac_cfg->base->smem_len;
 	u32 sram2_len = fwrt->fw->dbg.n_mem_tlv ?
 				0 : fwrt->trans->cfg->dccm2_len;
 	int i;
 
 	/* SRAM - include stack CCM if driver knows the values for it */
-	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
+	if (!fwrt->trans->cfg->dccm_offset ||
+	    !fwrt->trans->cfg->dccm_len) {
 		const struct fw_img *img;
 
 		if (fwrt->cur_fw_img >= IWL_UCODE_TYPE_MAX)
@@ -838,7 +839,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 			iwl_fw_prph_handler(fwrt, &prph_len,
 					    iwl_fw_get_prph_len);
 
-		if (fwrt->trans->trans_cfg->device_family ==
+		if (fwrt->trans->mac_cfg->device_family ==
 		    IWL_DEVICE_FAMILY_7000 &&
 		    iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RADIO_REG))
 			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
@@ -876,7 +877,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 
 	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
 		file_len += sizeof(*dump_data) +
-			fwrt->trans->cfg->d3_debug_data_length * 2;
+			fwrt->trans->mac_cfg->base->d3_debug_data_length * 2;
 	}
 
 	/* If we only want a monitor dump, reset the file length */
@@ -904,13 +905,14 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		dump_data->len = cpu_to_le32(sizeof(*dump_info));
 		dump_info = (void *)dump_data->data;
 		dump_info->hw_type =
-			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
+			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->info.hw_rev));
 		dump_info->hw_step =
-			cpu_to_le32(fwrt->trans->hw_rev_step);
+			cpu_to_le32(fwrt->trans->info.hw_rev_step);
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
-		strscpy_pad(dump_info->dev_human_readable, fwrt->trans->name,
-			sizeof(dump_info->dev_human_readable));
+		strscpy_pad(dump_info->dev_human_readable,
+			    fwrt->trans->info.name,
+			    sizeof(dump_info->dev_human_readable));
 		strscpy_pad(dump_info->bus_human_readable, fwrt->dev->bus->name,
 			sizeof(dump_info->bus_human_readable));
 		dump_info->num_of_lmacs = fwrt->smem_cfg.num_lmacs;
@@ -996,7 +998,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		}
 
 		iwl_fw_dump_mem(fwrt, &dump_data, smem_len,
-				fwrt->trans->cfg->smem_offset,
+				fwrt->trans->mac_cfg->base->smem_offset,
 				IWL_FW_ERROR_DUMP_MEM_SMEM);
 
 		iwl_fw_dump_mem(fwrt, &dump_data, sram2_len,
@@ -1005,8 +1007,8 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	}
 
 	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
-		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
-		size_t data_size = fwrt->trans->cfg->d3_debug_data_length;
+		u32 addr = fwrt->trans->mac_cfg->base->d3_debug_data_base_addr;
+		size_t data_size = fwrt->trans->mac_cfg->base->d3_debug_data_length;
 
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
 		dump_data->len = cpu_to_le32(data_size * 2);
@@ -1109,7 +1111,7 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = size;
 
-	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (fwrt->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		indirect_wr_addr = WMAL_INDRCT_CMD1;
 
 	indirect_wr_addr += le32_to_cpu(offset);
@@ -1266,7 +1268,7 @@ static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 	/* all paged index start from 1 to skip CSS section */
 	idx++;
 
-	if (!fwrt->trans->trans_cfg->gen2)
+	if (!fwrt->trans->mac_cfg->gen2)
 		return _iwl_dump_ini_paging_iter(fwrt, range_ptr, range_len, idx);
 
 	range = range_ptr;
@@ -1790,7 +1792,7 @@ iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt, u32 alloc_id,
 
 	data->write_ptr = iwl_get_mon_reg(fwrt, alloc_id,
 					  &addrs->write_ptr);
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		u32 wrt_ptr = le32_to_cpu(data->write_ptr);
 
 		data->write_ptr = cpu_to_le32(wrt_ptr >> 2);
@@ -1817,7 +1819,7 @@ iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
 	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
 
 	return iwl_dump_ini_mon_fill_header(fwrt, alloc_id, mon_dump,
-					    &fwrt->trans->cfg->mon_dram_regs);
+					    &fwrt->trans->mac_cfg->base->mon_dram_regs);
 }
 
 static void *
@@ -1830,7 +1832,7 @@ iwl_dump_ini_mon_smem_fill_header(struct iwl_fw_runtime *fwrt,
 	u32 alloc_id = le32_to_cpu(reg->internal_buffer.alloc_id);
 
 	return iwl_dump_ini_mon_fill_header(fwrt, alloc_id, mon_dump,
-					    &fwrt->trans->cfg->mon_smem_regs);
+					    &fwrt->trans->mac_cfg->base->mon_smem_regs);
 }
 
 static void *
@@ -1844,7 +1846,7 @@ iwl_dump_ini_mon_dbgi_fill_header(struct iwl_fw_runtime *fwrt,
 					    /* no offset calculation later */
 					    IWL_FW_INI_ALLOCATION_ID_DBGC1,
 					    mon_dump,
-					    &fwrt->trans->cfg->mon_dbgi_regs);
+					    &fwrt->trans->mac_cfg->base->mon_dbgi_regs);
 }
 
 static void *
@@ -1909,7 +1911,7 @@ iwl_dump_ini_mem_block_ranges(struct iwl_fw_runtime *fwrt,
 static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 				      struct iwl_dump_ini_region_data *reg_data)
 {
-	if (fwrt->trans->trans_cfg->gen2) {
+	if (fwrt->trans->mac_cfg->gen2) {
 		if (fwrt->trans->init_dram.paging_cnt)
 			return fwrt->trans->init_dram.paging_cnt - 1;
 		else
@@ -2021,7 +2023,7 @@ iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
 	/* start from 1 to skip CSS section */
 	for (i = 1; i <= iwl_dump_ini_paging_ranges(fwrt, reg_data); i++) {
 		size += range_header_len;
-		if (fwrt->trans->trans_cfg->gen2)
+		if (fwrt->trans->mac_cfg->gen2)
 			size += fwrt->trans->init_dram.paging[i].size;
 		else
 			size += fwrt->fw_paging_db[i].fw_paging_size;
@@ -2375,7 +2377,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_dump_cfg_name *cfg_name;
 	u32 size = sizeof(*tlv) + sizeof(*dump);
 	u32 num_of_cfg_names = 0;
-	u32 hw_type;
+	u32 hw_type, is_cdb, is_jacket;
 
 	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
 		size += sizeof(*cfg_name);
@@ -2403,33 +2405,24 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->ver_type = cpu_to_le32(fwrt->dump.fw_ver.type);
 	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
 
-	dump->hw_step = cpu_to_le32(fwrt->trans->hw_rev_step);
+	dump->hw_step = cpu_to_le32(fwrt->trans->info.hw_rev_step);
 
-	/*
-	 * Several HWs all have type == 0x42, so we'll override this value
-	 * according to the detected HW
-	 */
-	hw_type = CSR_HW_REV_TYPE(fwrt->trans->hw_rev);
-	if (hw_type == IWL_AX210_HW_TYPE) {
-		u32 prph_val = iwl_read_umac_prph(fwrt->trans, WFPM_OTP_CFG1_ADDR);
-		u32 is_jacket = !!(prph_val & WFPM_OTP_CFG1_IS_JACKET_BIT);
-		u32 is_cdb = !!(prph_val & WFPM_OTP_CFG1_IS_CDB_BIT);
-		u32 masked_bits = is_jacket | (is_cdb << 1);
+	hw_type = CSR_HW_REV_TYPE(fwrt->trans->info.hw_rev);
 
-		/*
-		 * The HW type depends on certain bits in this case, so add
-		 * these bits to the HW type. We won't have collisions since we
-		 * add these bits after the highest possible bit in the mask.
-		 */
-		hw_type |= masked_bits << IWL_AX210_HW_TYPE_ADDITION_SHIFT;
-	}
+	is_cdb = CSR_HW_RFID_IS_CDB(fwrt->trans->info.hw_rf_id);
+	is_jacket = !!(iwl_read_umac_prph(fwrt->trans, WFPM_OTP_CFG1_ADDR) &
+				WFPM_OTP_CFG1_IS_JACKET_BIT);
+
+	/* Use bits 12 and 13 to indicate jacket/CDB, respectively */
+	hw_type |= (is_jacket | (is_cdb << 1)) << IWL_JACKET_CDB_SHIFT;
+
 	dump->hw_type = cpu_to_le32(hw_type);
 
 	dump->rf_id_flavor =
-		cpu_to_le32(CSR_HW_RFID_FLAVOR(fwrt->trans->hw_rf_id));
-	dump->rf_id_dash = cpu_to_le32(CSR_HW_RFID_DASH(fwrt->trans->hw_rf_id));
-	dump->rf_id_step = cpu_to_le32(CSR_HW_RFID_STEP(fwrt->trans->hw_rf_id));
-	dump->rf_id_type = cpu_to_le32(CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id));
+		cpu_to_le32(CSR_HW_RFID_FLAVOR(fwrt->trans->info.hw_rf_id));
+	dump->rf_id_dash = cpu_to_le32(CSR_HW_RFID_DASH(fwrt->trans->info.hw_rf_id));
+	dump->rf_id_step = cpu_to_le32(CSR_HW_RFID_STEP(fwrt->trans->info.hw_rf_id));
+	dump->rf_id_type = cpu_to_le32(CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id));
 
 	dump->lmac_major = cpu_to_le32(fwrt->dump.fw_ver.lmac_major);
 	dump->lmac_minor = cpu_to_le32(fwrt->dump.fw_ver.lmac_minor);
@@ -2624,6 +2617,12 @@ enum iwl_dump_ini_region_selector {
 	IWL_INI_DUMP_LATE_REGIONS,
 };
 
+static bool iwl_dump_due_to_error(enum iwl_fw_ini_time_point tp_id)
+{
+	return tp_id == IWL_FW_INI_TIME_POINT_FW_ASSERT ||
+	       tp_id == IWL_FW_INI_TIME_POINT_FW_HW_ERROR;
+}
+
 static u32
 iwl_dump_ini_dump_regions(struct iwl_fw_runtime *fwrt,
 			  struct iwl_fwrt_dump_data *dump_data,
@@ -2689,8 +2688,7 @@ iwl_dump_ini_dump_regions(struct iwl_fw_runtime *fwrt,
 		 * debug data which also need to be collected.
 		 */
 		if (reg_type == IWL_FW_INI_REGION_DRAM_IMR) {
-			if (tp_id == IWL_FW_INI_TIME_POINT_FW_ASSERT ||
-			    tp_id == IWL_FW_INI_TIME_POINT_FW_HW_ERROR)
+			if (iwl_dump_due_to_error(tp_id))
 				imr_reg_data->reg_tlv =
 					fwrt->trans->dbg.active_regions[i];
 			else
@@ -2726,8 +2724,8 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 	BUILD_BUG_ON((sizeof(trigger->regions_mask) * BITS_PER_BYTE) <
 		     ARRAY_SIZE(fwrt->trans->dbg.active_regions));
 
-	if (trigger->time_point &
-			cpu_to_le32(IWL_FW_INI_APPLY_POLICY_RESET_HANDSHAKE)) {
+	if (trigger->apply_policy &
+			cpu_to_le32(IWL_FW_INI_APPLY_POLICY_SPLIT_DUMP_RESET)) {
 		size += iwl_dump_ini_dump_regions(fwrt, dump_data, list, tp_id,
 						  regions_mask, &imr_reg_data,
 						  IWL_INI_DUMP_EARLY_REGIONS);
@@ -2736,6 +2734,10 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 						  regions_mask, &imr_reg_data,
 						  IWL_INI_DUMP_LATE_REGIONS);
 	} else {
+		if (fw_has_capa(&fwrt->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT) &&
+		    iwl_dump_due_to_error(tp_id))
+			iwl_trans_pcie_fw_reset_handshake(fwrt->trans);
 		size += iwl_dump_ini_dump_regions(fwrt, dump_data, list, tp_id,
 						  regions_mask, &imr_reg_data,
 						  IWL_INI_DUMP_ALL_REGIONS);
@@ -3282,13 +3284,13 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 {
-	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+	const struct iwl_mac_cfg *mac_cfg = fwrt->trans->mac_cfg;
 
 	if (!iwl_fw_dbg_is_d3_debug_enabled(fwrt))
 		return;
 
 	if (!fwrt->dump.d3_debug_data) {
-		fwrt->dump.d3_debug_data = kmalloc(cfg->d3_debug_data_length,
+		fwrt->dump.d3_debug_data = kmalloc(mac_cfg->base->d3_debug_data_length,
 						   GFP_KERNEL);
 		if (!fwrt->dump.d3_debug_data) {
 			IWL_ERR(fwrt,
@@ -3298,15 +3300,15 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 	}
 
 	/* if the buffer holds previous debug data it is overwritten */
-	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_debug_data_base_addr,
+	iwl_trans_read_mem_bytes(fwrt->trans, mac_cfg->base->d3_debug_data_base_addr,
 				 fwrt->dump.d3_debug_data,
-				 cfg->d3_debug_data_length);
+				 mac_cfg->base->d3_debug_data_length);
 
 	if (fwrt->sanitize_ops && fwrt->sanitize_ops->frob_mem)
 		fwrt->sanitize_ops->frob_mem(fwrt->sanitize_ctx,
-					     cfg->d3_debug_data_base_addr,
+					     mac_cfg->base->d3_debug_data_base_addr,
 					     fwrt->dump.d3_debug_data,
-					     cfg->d3_debug_data_length);
+					     mac_cfg->base->d3_debug_data_length);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);
 
@@ -3341,7 +3343,7 @@ static int iwl_fw_dbg_suspend_resume_hcmd(struct iwl_trans *trans, bool suspend)
 static void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 				      struct iwl_fw_dbg_params *params)
 {
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 		return;
 	}
@@ -3365,7 +3367,7 @@ static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 	if (!params)
 		return -EIO;
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
@@ -3467,7 +3469,7 @@ void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt)
 				  GENMASK(31, IWL_FW_DBG_DOMAIN_POS + 1));
 
 	/* supported starting from 9000 devices */
-	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+	if (fwrt->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		return;
 
 	if (fwrt->trans->dbg.yoyo_bin_loaded || (preset && preset != 1))

@@ -340,7 +340,7 @@ OPTIONS
 
 -d::
 --data::
-	Record the sample virtual addresses.
+	Record the sample virtual addresses.  Implies --sample-mem-info.
 
 --phys-data::
 	Record the sample physical addresses.
@@ -367,6 +367,11 @@ OPTIONS
 	Record the sample identifier i.e. PERF_SAMPLE_IDENTIFIER bit set in
 	the sample_type member of the struct perf_event_attr argument to the
 	perf_event_open system call.
+
+--sample-mem-info::
+	Record the sample data source information for memory operations.
+	It requires hardware supports and may work on specific events only.
+	Please consider using 'perf mem record' instead if you're not sure.
 
 -n::
 --no-samples::
@@ -836,6 +841,15 @@ filtered through the mask provided by -C option.
 	Note that BPF can collect stack traces using frame pointer ("fp")
 	only, as of now.  So the applications built without the frame
 	pointer might see bogus addresses.
+
+	off-cpu profiling consists two types of samples: direct samples, which
+	share the same behavior as regular samples, and the accumulated
+	samples, stored in BPF stack trace map, presented after all the regular
+	samples.
+
+--off-cpu-thresh::
+	Once a task's off-cpu time reaches this threshold (in milliseconds), it
+	generates a direct off-cpu sample. The default is 500ms.
 
 --setup-filter=<action>::
 	Prepare BPF filter to be used by regular users.  The action should be

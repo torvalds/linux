@@ -526,9 +526,15 @@ static void dcn31_reset_back_end_for_pipe(
 
 	link = pipe_ctx->stream->link;
 
+	if (dc->hwseq)
+		dc->hwseq->wa_state.skip_blank_stream = false;
+
 	if ((!pipe_ctx->stream->dpms_off || link->link_status.link_active) &&
-		(link->connector_signal == SIGNAL_TYPE_EDP))
+		(link->connector_signal == SIGNAL_TYPE_EDP)) {
 		dc->hwss.blank_stream(pipe_ctx);
+		if (dc->hwseq)
+			dc->hwseq->wa_state.skip_blank_stream = true;
+	}
 
 	pipe_ctx->stream_res.tg->funcs->set_dsc_config(
 			pipe_ctx->stream_res.tg,
@@ -570,7 +576,8 @@ static void dcn31_reset_back_end_for_pipe(
 			pipe_ctx->stream_res.audio = NULL;
 		}
 	}
-
+	if (dc->hwseq)
+		dc->hwseq->wa_state.skip_blank_stream = false;
 	pipe_ctx->stream = NULL;
 	DC_LOG_DEBUG("Reset back end for pipe %d, tg:%d\n",
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);

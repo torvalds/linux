@@ -24,7 +24,6 @@
 #include <net/ipv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include <linux/dccp.h>
 #include <linux/sctp.h>
 #include <linux/lsm_audit.h>
 #include <linux/security.h>
@@ -66,13 +65,6 @@ int ipv4_skb_to_auditdata(struct sk_buff *skb,
 
 		ad->u.net->sport = uh->source;
 		ad->u.net->dport = uh->dest;
-		break;
-	}
-	case IPPROTO_DCCP: {
-		struct dccp_hdr *dh = dccp_hdr(skb);
-
-		ad->u.net->sport = dh->dccph_sport;
-		ad->u.net->dport = dh->dccph_dport;
 		break;
 	}
 	case IPPROTO_SCTP: {
@@ -138,17 +130,6 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 
 		ad->u.net->sport = uh->source;
 		ad->u.net->dport = uh->dest;
-		break;
-	}
-	case IPPROTO_DCCP: {
-		struct dccp_hdr _dccph, *dh;
-
-		dh = skb_header_pointer(skb, offset, sizeof(_dccph), &_dccph);
-		if (dh == NULL)
-			break;
-
-		ad->u.net->sport = dh->dccph_sport;
-		ad->u.net->dport = dh->dccph_dport;
 		break;
 	}
 	case IPPROTO_SCTP: {

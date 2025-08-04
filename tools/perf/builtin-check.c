@@ -22,6 +22,17 @@ static const char *check_feature_usage[] = {
 	NULL
 };
 
+#define FEATURE_STATUS(name_, macro_) {    \
+	.name = name_,                     \
+	.macro = #macro_,                  \
+	.is_builtin = IS_BUILTIN(macro_) }
+
+#define FEATURE_STATUS_TIP(name_, macro_, tip_) { \
+	.name = name_,				  \
+	.macro = #macro_,			  \
+	.tip = tip_,				  \
+	.is_builtin = IS_BUILTIN(macro_) }
+
 struct feature_status supported_features[] = {
 	FEATURE_STATUS("aio", HAVE_AIO_SUPPORT),
 	FEATURE_STATUS("bpf", HAVE_LIBBPF_SUPPORT),
@@ -31,7 +42,7 @@ struct feature_status supported_features[] = {
 	FEATURE_STATUS("dwarf_getlocations", HAVE_LIBDW_SUPPORT),
 	FEATURE_STATUS("dwarf-unwind", HAVE_DWARF_UNWIND_SUPPORT),
 	FEATURE_STATUS("auxtrace", HAVE_AUXTRACE_SUPPORT),
-	FEATURE_STATUS("libbfd", HAVE_LIBBFD_SUPPORT),
+	FEATURE_STATUS_TIP("libbfd", HAVE_LIBBFD_SUPPORT, "Deprecated, license incompatibility, use BUILD_NONDISTRO=1 and install binutils-dev[el]"),
 	FEATURE_STATUS("libcapstone", HAVE_LIBCAPSTONE_SUPPORT),
 	FEATURE_STATUS("libcrypto", HAVE_LIBCRYPTO_SUPPORT),
 	FEATURE_STATUS("libdw-dwarf-unwind", HAVE_LIBDW_SUPPORT),
@@ -43,7 +54,7 @@ struct feature_status supported_features[] = {
 	FEATURE_STATUS("libpython", HAVE_LIBPYTHON_SUPPORT),
 	FEATURE_STATUS("libslang", HAVE_SLANG_SUPPORT),
 	FEATURE_STATUS("libtraceevent", HAVE_LIBTRACEEVENT),
-	FEATURE_STATUS("libunwind", HAVE_LIBUNWIND_SUPPORT),
+	FEATURE_STATUS_TIP("libunwind", HAVE_LIBUNWIND_SUPPORT, "Deprecated, use LIBUNWIND=1 and install libunwind-dev[el] to build with it"),
 	FEATURE_STATUS("lzma", HAVE_LZMA_SUPPORT),
 	FEATURE_STATUS("numa_num_possible_cpus", HAVE_LIBNUMA_SUPPORT),
 	FEATURE_STATUS("zlib", HAVE_ZLIB_SUPPORT),
@@ -66,21 +77,20 @@ static void on_off_print(const char *status)
 }
 
 /* Helper function to print status of a feature along with name/macro */
-static void status_print(const char *name, const char *macro,
-			 const char *status)
+void feature_status__printf(const struct feature_status *feature)
 {
+	const char *name = feature->name, *macro = feature->macro,
+		   *status = feature->is_builtin ? "on" : "OFF";
+
 	printf("%22s: ", name);
 	on_off_print(status);
-	printf("  # %s\n", macro);
-}
+	printf("  # %s", macro);
 
-#define STATUS(feature)                                           \
-do {                                                              \
-	if (feature.is_builtin)                                   \
-		status_print(feature.name, feature.macro, "on");  \
-	else                                                      \
-		status_print(feature.name, feature.macro, "OFF"); \
-} while (0)
+	if (!feature->is_builtin && feature->tip)
+		printf(" ( tip: %s )", feature->tip);
+
+	putchar('\n');
+}
 
 /**
  * check whether "feature" is built-in with perf
@@ -95,7 +105,7 @@ static int has_support(const char *feature)
 		if ((strcasecmp(feature, supported_features[i].name) == 0) ||
 		    (strcasecmp(feature, supported_features[i].macro) == 0)) {
 			if (!quiet)
-				STATUS(supported_features[i]);
+				feature_status__printf(&supported_features[i]);
 			return supported_features[i].is_builtin;
 		}
 	}

@@ -82,4 +82,12 @@ void dal_irq_service_set_generic(
 	const struct irq_source_info *info,
 	bool enable);
 
+bool hpd0_ack(
+	struct irq_service *irq_service,
+	const struct irq_source_info *info);
+
+bool hpd1_ack(
+	struct irq_service *irq_service,
+	const struct irq_source_info *info);
+
 #endif

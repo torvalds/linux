@@ -89,6 +89,8 @@ struct link_training_settings {
 	bool enhanced_framing;
 	enum lttpr_mode lttpr_mode;
 
+	bool lttpr_early_tps2;
+
 	/* disallow different lanes to have different lane settings */
 	bool disallow_per_lane_settings;
 	/* dpcd lane settings will always use the same hw lane settings

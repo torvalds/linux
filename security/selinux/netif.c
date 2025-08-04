@@ -156,7 +156,11 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	ret = security_netif_sid(dev->name, sid);
 	if (ret != 0)
 		goto out;
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+
+	/* If this memory allocation fails still return 0. The SID
+	 * is valid, it just won't be added to the cache.
+	 */
+	new = kmalloc(sizeof(*new), GFP_ATOMIC);
 	if (new) {
 		new->nsec.ns = ns;
 		new->nsec.ifindex = ifindex;

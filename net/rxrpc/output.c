@@ -18,7 +18,7 @@
 
 extern int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
 
-static ssize_t do_udp_sendmsg(struct socket *socket, struct msghdr *msg, size_t len)
+ssize_t do_udp_sendmsg(struct socket *socket, struct msghdr *msg, size_t len)
 {
 	struct sockaddr *sa = msg->msg_name;
 	struct sock *sk = socket->sk;
@@ -915,4 +915,62 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 
 	peer->last_tx_at = ktime_get_seconds();
 	_leave("");
+}
+
+/*
+ * Send a RESPONSE message.
+ */
+void rxrpc_send_response(struct rxrpc_connection *conn, struct sk_buff *response)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(response);
+	struct scatterlist sg[16];
+	struct bio_vec bvec[16];
+	struct msghdr msg;
+	size_t len = sp->resp.len;
+	__be32 wserial;
+	u32 serial = 0;
+	int ret, nr_sg;
+
+	_enter("C=%x,%x", conn->debug_id, sp->resp.challenge_serial);
+
+	sg_init_table(sg, ARRAY_SIZE(sg));
+	ret = skb_to_sgvec(response, sg, 0, len);
+	if (ret < 0)
+		goto fail;
+	nr_sg = ret;
+
+	for (int i = 0; i < nr_sg; i++)
+		bvec_set_page(&bvec[i], sg_page(&sg[i]), sg[i].length, sg[i].offset);
+
+	iov_iter_bvec(&msg.msg_iter, WRITE, bvec, nr_sg, len);
+
+	msg.msg_name	= &conn->peer->srx.transport;
+	msg.msg_namelen	= conn->peer->srx.transport_len;
+	msg.msg_control	= NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags	= MSG_SPLICE_PAGES;
+
+	serial = rxrpc_get_next_serials(conn, 1);
+	wserial = htonl(serial);
+
+	trace_rxrpc_tx_response(conn, serial, sp);
+
+	ret = skb_store_bits(response, offsetof(struct rxrpc_wire_header, serial),
+			     &wserial, sizeof(wserial));
+	if (ret < 0)
+		goto fail;
+
+	rxrpc_local_dont_fragment(conn->local, false);
+
+	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+	if (ret < 0)
+		goto fail;
+
+	conn->peer->last_tx_at = ktime_get_seconds();
+	return;
+
+fail:
+	trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+			    rxrpc_tx_point_response);
+	kleave(" = %d", ret);
 }

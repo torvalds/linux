@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Confidential computing shared guest collateral
+#
+config TSM_GUEST
+	bool
+
+config TSM_REPORTS
+	select TSM_GUEST
+	select CONFIGFS_FS
+	tristate
+
+config TSM_MEASUREMENTS
+	select TSM_GUEST
+	select CRYPTO_HASH_INFO
+	select CRYPTO
+	bool

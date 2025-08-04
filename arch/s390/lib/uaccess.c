@@ -17,17 +17,18 @@
 #ifdef CONFIG_DEBUG_ENTRY
 void debug_user_asce(int exit)
 {
+	struct lowcore *lc = get_lowcore();
 	struct ctlreg cr1, cr7;
 
 	local_ctl_store(1, &cr1);
 	local_ctl_store(7, &cr7);
-	if (cr1.val == get_lowcore()->kernel_asce.val && cr7.val == get_lowcore()->user_asce.val)
+	if (cr1.val == lc->user_asce.val && cr7.val == lc->user_asce.val)
 		return;
 	panic("incorrect ASCE on kernel %s\n"
 	      "cr1:    %016lx cr7:  %016lx\n"
 	      "kernel: %016lx user: %016lx\n",
 	      exit ? "exit" : "entry", cr1.val, cr7.val,
-	      get_lowcore()->kernel_asce.val, get_lowcore()->user_asce.val);
+	      lc->kernel_asce.val, lc->user_asce.val);
 }
 #endif /*CONFIG_DEBUG_ENTRY */
 

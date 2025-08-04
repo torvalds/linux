@@ -284,7 +284,7 @@ static bool cadet_has_rds_data(struct cadet *dev)
 
 static void cadet_handler(struct timer_list *t)
 {
-	struct cadet *dev = from_timer(dev, t, readtimer);
+	struct cadet *dev = timer_container_of(dev, t, readtimer);
 
 	/* Service the RDS fifo */
 	if (mutex_trylock(&dev->lock)) {

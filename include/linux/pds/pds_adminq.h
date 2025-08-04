@@ -4,7 +4,7 @@
 #ifndef _PDS_CORE_ADMINQ_H_
 #define _PDS_CORE_ADMINQ_H_
 
-#define PDSC_ADMINQ_MAX_POLL_INTERVAL	256
+#define PDSC_ADMINQ_MAX_POLL_INTERVAL	256000	/* usecs */
 
 enum pds_core_adminq_flags {
 	PDS_AQ_FLAG_FASTPOLL	= BIT(1),	/* completion poll at 1ms */
@@ -463,7 +463,6 @@ struct pds_core_lif_getattr_cmd {
  * @rsvd:       Word boundary padding
  * @comp_index: Index in the descriptor ring for which this is the completion
  * @state:	LIF state (enum pds_core_lif_state)
- * @name:	LIF name string, 0 terminated
  * @features:	Features (enum pds_core_hw_features)
  * @rsvd2:      Word boundary padding
  * @color:	Color bit

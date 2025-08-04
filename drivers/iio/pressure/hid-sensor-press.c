@@ -176,8 +176,9 @@ static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 		if (!press_state->timestamp)
 			press_state->timestamp = iio_get_time_ns(indio_dev);
 
-		iio_push_to_buffers_with_timestamp(
-			indio_dev, &press_state->scan, press_state->timestamp);
+		iio_push_to_buffers_with_ts(indio_dev, &press_state->scan,
+					    sizeof(press_state->scan),
+					    press_state->timestamp);
 	}
 
 	return 0;
@@ -339,7 +340,7 @@ static const struct platform_device_id hid_press_ids[] = {
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200031",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_press_ids);
 

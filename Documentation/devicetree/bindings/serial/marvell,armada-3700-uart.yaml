@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/marvell,armada-3700-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada-3700 UART
+
+maintainers:
+  - Pali Rohár <pali@kernel.org>
+
+description:
+  Marvell UART is a non standard UART used in some of Marvell EBU SoCs (e.g.
+  Armada-3700).
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-3700-uart
+      - marvell,armada-3700-uart-ext
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+    description:
+      UART reference clock used to derive the baud rate. If absent, only fixed
+      baud rate from the bootloader is supported.
+
+  interrupts:
+    minItems: 2
+    items:
+      - description: UART sum interrupt
+      - description: UART TX interrupt
+      - description: UART RX interrupt
+
+  interrupt-names:
+    minItems: 2
+    maxItems: 3
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+  - if:
+      properties:
+        compatible:
+          const: marvell,armada-3700-uart-ext
+    then:
+      properties:
+        interrupts:
+          maxItems: 2
+
+        interrupt-names:
+          items:
+            - const: uart-tx
+            - const: uart-rx
+    else:
+      properties:
+        interrupts:
+          minItems: 3
+
+        interrupt-names:
+          items:
+            - const: uart-sum
+            - const: uart-tx
+            - const: uart-rx
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    serial@12000 {
+        compatible = "marvell,armada-3700-uart";
+        reg = <0x12000 0x18>;
+        clocks = <&uartclk 0>;
+        interrupts =
+            <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+            <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+            <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "uart-sum", "uart-tx", "uart-rx";
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    serial@12200 {
+        compatible = "marvell,armada-3700-uart-ext";
+        reg = <0x12200 0x30>;
+        clocks = <&uartclk 1>;
+        interrupts =
+            <GIC_SPI 30 IRQ_TYPE_EDGE_RISING>,
+            <GIC_SPI 31 IRQ_TYPE_EDGE_RISING>;
+        interrupt-names = "uart-tx", "uart-rx";
+    };

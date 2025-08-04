@@ -77,6 +77,7 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 		link->shim = res->mmio_base +  SDW_SHIM2_GENERIC_BASE(link_id);
 		link->shim_vs = res->mmio_base + SDW_SHIM2_VS_BASE(link_id);
 		link->shim_lock = res->eml_lock;
+		link->mic_privacy = res->mic_privacy;
 	}
 
 	link->ops = res->ops;

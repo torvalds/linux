@@ -294,6 +294,7 @@ static const struct crypto_type crypto_lskcipher_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_LSKCIPHER,
 	.tfmsize = offsetof(struct crypto_lskcipher, base),
+	.algsize = offsetof(struct lskcipher_alg, co.base),
 };
 
 static void crypto_lskcipher_exit_tfm_sg(struct crypto_tfm *tfm)

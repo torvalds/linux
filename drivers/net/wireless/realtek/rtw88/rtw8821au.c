@@ -66,7 +66,7 @@ static const struct usb_device_id rtw_8821au_id_table[] = {
 MODULE_DEVICE_TABLE(usb, rtw_8821au_id_table);
 
 static struct usb_driver rtw_8821au_driver = {
-	.name = "rtw_8821au",
+	.name = KBUILD_MODNAME,
 	.id_table = rtw_8821au_id_table,
 	.probe = rtw_usb_probe,
 	.disconnect = rtw_usb_disconnect,

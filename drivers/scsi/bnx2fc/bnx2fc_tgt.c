@@ -30,7 +30,7 @@ static void bnx2fc_free_conn_id(struct bnx2fc_hba *hba, u32 conn_id);
 static void bnx2fc_upld_timer(struct timer_list *t)
 {
 
-	struct bnx2fc_rport *tgt = from_timer(tgt, t, upld_timer);
+	struct bnx2fc_rport *tgt = timer_container_of(tgt, t, upld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl not received!!\n");
 	/* fake upload completion */
@@ -43,7 +43,7 @@ static void bnx2fc_upld_timer(struct timer_list *t)
 static void bnx2fc_ofld_timer(struct timer_list *t)
 {
 
-	struct bnx2fc_rport *tgt = from_timer(tgt, t, ofld_timer);
+	struct bnx2fc_rport *tgt = timer_container_of(tgt, t, ofld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "entered bnx2fc_ofld_timer\n");
 	/* NOTE: This function should never be called, as

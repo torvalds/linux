@@ -1101,7 +1101,6 @@ int ieee80211_parse_bitrates(enum nl80211_chan_width width,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates)
 {
-	u32 rate_flags = ieee80211_chanwidth_rate_flags(width);
 	struct ieee80211_rate *br;
 	int brate, rate, i, j, count = 0;
 
@@ -1112,8 +1111,6 @@ int ieee80211_parse_bitrates(enum nl80211_chan_width width,
 
 		for (j = 0; j < sband->n_bitrates; j++) {
 			br = &sband->bitrates[j];
-			if ((rate_flags & br->flags) != rate_flags)
-				continue;
 
 			brate = DIV_ROUND_UP(br->bitrate, 5);
 			if (brate == rate) {

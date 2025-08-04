@@ -3,17 +3,65 @@
 
 set -e
 
-# Detect files that are tracked but ignored by git. This is checked only when
-# ${KBUILD_EXTRA_WARN} contains 1, git is installed, and the source tree is
-# tracked by git.
+# Detect files that are tracked but ignored by git.
 check_tracked_ignored_files () {
-	case "${KBUILD_EXTRA_WARN}" in
-	*1*) ;;
-	*) return;;
-	esac
-
-	git -C ${srctree:-.} ls-files -i -c --exclude-per-directory=.gitignore 2>/dev/null |
+	git -C "${srctree:-.}" ls-files -i -c --exclude-per-directory=.gitignore 2>/dev/null |
 		sed 's/$/: warning: ignored by one of the .gitignore files/' >&2
 }
 
+# Check for missing #include <linux/export.h>
+#
+# The rule for including <linux/export.h> is very simple:
+# Include <linux/export.h> only when you use EXPORT_SYMBOL(). That's it.
+#
+# However, some headers include <linux/export.h> even though they are completely
+# unrelated to EXPORT_SYMBOL().
+#
+# One example is include/linux/module.h. Please note <linux/module.h> and
+# <linux/export.h> are orthogonal. <linux/module.h> should be included by files
+# that can be compiled as modules. In other words, <linux/module.h> should be
+# included by EXPORT_SYMBOL consumers. In contrast, <linux/export.h> should be
+# included from EXPORT_SYMBOL providers, which may or may not be modular.
+# Hence, include/linux/module.h should *not* include <linux/export.h>.
+#
+# Another example is include/linux/linkage.h, which is completely unrelated to
+# EXPORT_SYMBOL(). Worse, it is included by most C files, which means, most C
+# files end up including <linux/export.h>, even though only some of them
+# actually export symbols. Hence, include/linux/linkage.h should *not* include
+# <linux/export.h>.
+#
+# Before fixing such headers, we must ensure that C files using EXPORT_SYMBOL()
+# include <linux/export.h> directly, since many C files currently rely on
+# <linux/export.h> being included indirectly (likely, via <linux/linkage> etc.).
+#
+# Therefore, this check.
+#
+# The problem is simple - the warned files use EXPORT_SYMBOL(), but do not
+# include <linux/export.h>. Please add #include <linux/export.h> to them.
+#
+# If the included headers are sorted alphabetically, please insert
+# <linux/export.h> in the appropriate position to maintain the sort order.
+# For this reason, this script only checks missing <linux/export.h>, but
+# does not automatically fix it.
+check_missing_include_linux_export_h () {
+
+	git -C "${srctree:-.}" grep --files-with-matches -E 'EXPORT_SYMBOL((_NS)?(_GPL)?|_GPL_FOR_MODULES)\(.*\)' \
+	    -- '*.[ch]' :^tools/ :^include/linux/export.h |
+	xargs -r git -C "${srctree:-.}" grep --files-without-match '#include[[:space:]]*<linux/export\.h>' |
+	xargs -r printf "%s: warning: EXPORT_SYMBOL() is used, but #include <linux/export.h> is missing\n" >&2
+}
+
+# If you do not use EXPORT_SYMBOL(), please do not include <linux/export.h>.
+# Currently, this is checked for *.c files, but not for *.h files, because some
+# *.c files rely on <linux/export.h> being included indirectly.
+check_unnecessary_include_linux_export_h () {
+
+	git -C "${srctree:-.}" grep --files-with-matches '#include[[:space:]]*<linux/export\.h>' \
+	    -- '*.[c]' :^tools/ |
+	xargs -r git -C "${srctree:-.}" grep --files-without-match -E 'EXPORT_SYMBOL((_NS)?(_GPL)?|_GPL_FOR_MODULES)\(.*\)' |
+	xargs -r printf "%s: warning: EXPORT_SYMBOL() is not used, but #include <linux/export.h> is present\n" >&2
+}
+
 check_tracked_ignored_files
+check_missing_include_linux_export_h
+check_unnecessary_include_linux_export_h

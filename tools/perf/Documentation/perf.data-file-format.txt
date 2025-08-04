@@ -370,7 +370,7 @@ struct {
 	u32	mmap_len;
 };
 
-Indicates that trace contains records of PERF_RECORD_COMPRESSED type
+Indicates that trace contains records of PERF_RECORD_COMPRESSED2 type
 that have perf_events records in compressed form.
 
 	HEADER_CPU_PMU_CAPS = 28,
@@ -602,7 +602,14 @@ struct auxtrace_error_event {
 Describes a header feature. These are records used in pipe-mode that
 contain information that otherwise would be in perf.data file's header.
 
-	PERF_RECORD_COMPRESSED 			= 81,
+	PERF_RECORD_COMPRESSED 			= 81, /* deprecated */
+
+The header is followed by compressed data frame that can be decompressed
+into array of perf trace records. The size of the entire compressed event
+record including the header is limited by the max value of header.size.
+
+It is deprecated and new files should use PERF_RECORD_COMPRESSED2 to gurantee
+8-byte alignment.
 
 struct compressed_event {
 	struct perf_event_header	header;
@@ -618,10 +625,17 @@ This is used, for instance, to 'perf inject' events after init and before
 regular events, those emitted by the kernel, to support combining guest and
 host records.
 
+	PERF_RECORD_COMPRESSED2			= 83,
 
-The header is followed by compressed data frame that can be decompressed
-into array of perf trace records. The size of the entire compressed event
-record including the header is limited by the max value of header.size.
+8-byte aligned version of `PERF_RECORD_COMPRESSED`. `header.size` indicates the
+total record size, including padding for 8-byte alignment, and `data_size`
+specifies the actual size of the compressed data.
+
+struct perf_record_compressed2 {
+	struct perf_event_header	header;
+	__u64				data_size;
+	char				data[];
+};
 
 Event types
 

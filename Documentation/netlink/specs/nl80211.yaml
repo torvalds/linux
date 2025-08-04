@@ -204,71 +204,6 @@ definitions:
       - sched-scan-random-mac-addr
       - no-random-mac-addr
   -
-    name: ieee80211-mcs-info
-    type: struct
-    members:
-      -
-        name: rx-mask
-        type: binary
-        len: 10
-      -
-        name: rx-highest
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-params
-        type: u8
-      -
-        name: reserved
-        type: binary
-        len: 3
-  -
-    name: ieee80211-vht-mcs-info
-    type: struct
-    members:
-      -
-        name: rx-mcs-map
-        type: u16
-        byte-order: little-endian
-      -
-        name: rx-highest
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-mcs-map
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-highest
-        type: u16
-        byte-order: little-endian
-  -
-    name: ieee80211-ht-cap
-    type: struct
-    members:
-      -
-        name: cap-info
-        type: u16
-        byte-order: little-endian
-      -
-        name: ampdu-params-info
-        type: u8
-      -
-        name: mcs
-        type: binary
-        struct: ieee80211-mcs-info
-      -
-        name: extended-ht-cap-info
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-bf-cap-info
-        type: u32
-        byte-order: little-endian
-      -
-        name: antenna-selection-info
-        type: u8
-  -
     name: channel-type
     type: enum
     entries:
@@ -761,7 +696,6 @@ attribute-sets:
       -
         name: ht-capability-mask
         type: binary
-        struct: ieee80211-ht-cap
       -
         name: noack-map
         type: u16
@@ -1382,7 +1316,6 @@ attribute-sets:
       -
         name: ht-mcs-set
         type: binary
-        struct: ieee80211-mcs-info
       -
         name: ht-capa
         type: u16
@@ -1395,7 +1328,6 @@ attribute-sets:
       -
         name: vht-mcs-set
         type: binary
-        struct: ieee80211-vht-mcs-info
       -
         name: vht-capa
         type: u32

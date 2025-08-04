@@ -5,6 +5,26 @@
  * Copyright (C) 2024 Renesas Electronics Corp.
  */
 
+/*
+ * Please set the switch position SW_OPT_MUX.1 on the carrier board and the
+ * corresponding macro SW_SDIO_M2E on the board DTS:
+ *
+ * SW_SDIO_M2E:
+ *     0 - SMARC SDIO signal is connected to uSD1
+ *     1 - SMARC SDIO signal is connected to M.2 Key E connector
+ *
+ * Please set the switch position SW_GPIO_CAN_PMOD on the carrier board and the
+ * corresponding macro SW_GPIO8_CAN0_STB/SW_GPIO8_CAN0_STB on the board DTS:
+ *
+ * SW_GPIO8_CAN0_STB:
+ *	0 - Connect to GPIO8 PMOD (default)
+ *	1 - Connect to CAN0 transceiver STB pin
+ *
+ * SW_GPIO9_CAN1_STB:
+ *	0 - Connect to GPIO9 PMOD (default)
+ *	1 - Connect to CAN1 transceiver STB pin
+ */
+
 / {
 	model = "Renesas RZ SMARC Carrier-II Board";
 	compatible = "renesas,smarc2-evk";
@@ -16,9 +36,36 @@
 
 	aliases {
 		serial3 = &scif0;
+		mmc1 = &sdhi1;
+	};
+
+	can_transceiver0: can-phy0 {
+		compatible = "ti,tcan1042";
+		#phy-cells = <0>;
+		max-bitrate = <8000000>;
+		status = "disabled";
+	};
+
+	can_transceiver1: can-phy1 {
+		compatible = "ti,tcan1042";
+		#phy-cells = <0>;
+		max-bitrate = <8000000>;
+		status = "disabled";
 	};
 };
 
+&canfd {
+	status = "okay";
+};
+
 &scif0 {
+	status = "okay";
+};
+
+&sdhi1 {
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+
 	status = "okay";
 };

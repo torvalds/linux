@@ -47,7 +47,7 @@ struct imx8qm_ldb_channel {
 struct imx8qm_ldb {
 	struct ldb base;
 	struct device *dev;
-	struct imx8qm_ldb_channel channel[MAX_LDB_CHAN_NUM];
+	struct imx8qm_ldb_channel *channel[MAX_LDB_CHAN_NUM];
 	struct clk *clk_pixel;
 	struct clk *clk_bypass;
 	int active_chno;
@@ -107,7 +107,7 @@ static int imx8qm_ldb_bridge_atomic_check(struct drm_bridge *bridge,
 
 	if (is_split) {
 		imx8qm_ldb_ch =
-			&imx8qm_ldb->channel[imx8qm_ldb->active_chno ^ 1];
+			imx8qm_ldb->channel[imx8qm_ldb->active_chno ^ 1];
 		imx8qm_ldb_set_phy_cfg(imx8qm_ldb, di_clk, is_split, true,
 				       phy_cfg);
 		ret = phy_validate(imx8qm_ldb_ch->phy, PHY_MODE_LVDS, 0, &opts);
@@ -158,7 +158,7 @@ imx8qm_ldb_bridge_mode_set(struct drm_bridge *bridge,
 
 	if (is_split) {
 		imx8qm_ldb_ch =
-			&imx8qm_ldb->channel[imx8qm_ldb->active_chno ^ 1];
+			imx8qm_ldb->channel[imx8qm_ldb->active_chno ^ 1];
 		imx8qm_ldb_set_phy_cfg(imx8qm_ldb, di_clk, is_split, true,
 				       phy_cfg);
 		ret = phy_configure(imx8qm_ldb_ch->phy, &opts);
@@ -226,13 +226,13 @@ static void imx8qm_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	if (is_split) {
-		ret = phy_power_on(imx8qm_ldb->channel[0].phy);
+		ret = phy_power_on(imx8qm_ldb->channel[0]->phy);
 		if (ret)
 			DRM_DEV_ERROR(dev,
 				      "failed to power on channel0 PHY: %d\n",
 				      ret);
 
-		ret = phy_power_on(imx8qm_ldb->channel[1].phy);
+		ret = phy_power_on(imx8qm_ldb->channel[1]->phy);
 		if (ret)
 			DRM_DEV_ERROR(dev,
 				      "failed to power on channel1 PHY: %d\n",
@@ -261,12 +261,12 @@ static void imx8qm_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
 	ldb_bridge_disable_helper(bridge);
 
 	if (is_split) {
-		ret = phy_power_off(imx8qm_ldb->channel[0].phy);
+		ret = phy_power_off(imx8qm_ldb->channel[0]->phy);
 		if (ret)
 			DRM_DEV_ERROR(dev,
 				      "failed to power off channel0 PHY: %d\n",
 				      ret);
-		ret = phy_power_off(imx8qm_ldb->channel[1].phy);
+		ret = phy_power_off(imx8qm_ldb->channel[1]->phy);
 		if (ret)
 			DRM_DEV_ERROR(dev,
 				      "failed to power off channel1 PHY: %d\n",
@@ -412,7 +412,7 @@ static int imx8qm_ldb_get_phy(struct imx8qm_ldb *imx8qm_ldb)
 	int i, ret;
 
 	for (i = 0; i < MAX_LDB_CHAN_NUM; i++) {
-		imx8qm_ldb_ch = &imx8qm_ldb->channel[i];
+		imx8qm_ldb_ch = imx8qm_ldb->channel[i];
 		ldb_ch = &imx8qm_ldb_ch->base;
 
 		if (!ldb_ch->is_available)
@@ -448,6 +448,14 @@ static int imx8qm_ldb_probe(struct platform_device *pdev)
 	if (!imx8qm_ldb)
 		return -ENOMEM;
 
+	for (i = 0; i < MAX_LDB_CHAN_NUM; i++) {
+		imx8qm_ldb->channel[i] =
+			devm_drm_bridge_alloc(dev, struct imx8qm_ldb_channel, base.bridge,
+					      &imx8qm_ldb_bridge_funcs);
+		if (IS_ERR(imx8qm_ldb->channel[i]))
+			return PTR_ERR(imx8qm_ldb->channel[i]);
+	}
+
 	imx8qm_ldb->clk_pixel = devm_clk_get(dev, "pixel");
 	if (IS_ERR(imx8qm_ldb->clk_pixel)) {
 		ret = PTR_ERR(imx8qm_ldb->clk_pixel);
@@ -473,7 +481,7 @@ static int imx8qm_ldb_probe(struct platform_device *pdev)
 	ldb->ctrl_reg = 0xe0;
 
 	for (i = 0; i < MAX_LDB_CHAN_NUM; i++)
-		ldb->channel[i] = &imx8qm_ldb->channel[i].base;
+		ldb->channel[i] = &imx8qm_ldb->channel[i]->base;
 
 	ret = ldb_init_helper(ldb);
 	if (ret)
@@ -499,12 +507,12 @@ static int imx8qm_ldb_probe(struct platform_device *pdev)
 		}
 
 		imx8qm_ldb->active_chno = 0;
-		imx8qm_ldb_ch = &imx8qm_ldb->channel[0];
+		imx8qm_ldb_ch = imx8qm_ldb->channel[0];
 		ldb_ch = &imx8qm_ldb_ch->base;
 		ldb_ch->link_type = pixel_order;
 	} else {
 		for (i = 0; i < MAX_LDB_CHAN_NUM; i++) {
-			imx8qm_ldb_ch = &imx8qm_ldb->channel[i];
+			imx8qm_ldb_ch = imx8qm_ldb->channel[i];
 			ldb_ch = &imx8qm_ldb_ch->base;
 
 			if (ldb_ch->is_available) {
@@ -525,7 +533,7 @@ static int imx8qm_ldb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, imx8qm_ldb);
 	pm_runtime_enable(dev);
 
-	ldb_add_bridge_helper(ldb, &imx8qm_ldb_bridge_funcs);
+	ldb_add_bridge_helper(ldb);
 
 	return ret;
 }

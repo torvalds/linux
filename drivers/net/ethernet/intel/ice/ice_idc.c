@@ -9,22 +9,25 @@
 static DEFINE_XARRAY_ALLOC1(ice_aux_id);
 
 /**
- * ice_get_auxiliary_drv - retrieve iidc_auxiliary_drv struct
- * @pf: pointer to PF struct
+ * ice_get_auxiliary_drv - retrieve iidc_rdma_core_auxiliary_drv struct
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
  *
  * This function has to be called with a device_lock on the
- * pf->adev.dev to avoid race conditions.
+ * cdev->adev.dev to avoid race conditions.
+ *
+ * Return: pointer to the matched auxiliary driver struct
  */
-static struct iidc_auxiliary_drv *ice_get_auxiliary_drv(struct ice_pf *pf)
+static struct iidc_rdma_core_auxiliary_drv *
+ice_get_auxiliary_drv(struct iidc_rdma_core_dev_info *cdev)
 {
 	struct auxiliary_device *adev;
 
-	adev = pf->adev;
+	adev = cdev->adev;
 	if (!adev || !adev->dev.driver)
 		return NULL;
 
-	return container_of(adev->dev.driver, struct iidc_auxiliary_drv,
-			    adrv.driver);
+	return container_of(adev->dev.driver,
+			    struct iidc_rdma_core_auxiliary_drv, adrv.driver);
 }
 
 /**
@@ -32,44 +35,54 @@ static struct iidc_auxiliary_drv *ice_get_auxiliary_drv(struct ice_pf *pf)
  * @pf: pointer to PF struct
  * @event: event struct
  */
-void ice_send_event_to_aux(struct ice_pf *pf, struct iidc_event *event)
+void ice_send_event_to_aux(struct ice_pf *pf, struct iidc_rdma_event *event)
 {
-	struct iidc_auxiliary_drv *iadrv;
+	struct iidc_rdma_core_auxiliary_drv *iadrv;
+	struct iidc_rdma_core_dev_info *cdev;
 
 	if (WARN_ON_ONCE(!in_task()))
 		return;
 
+	cdev = pf->cdev_info;
+	if (!cdev)
+		return;
+
 	mutex_lock(&pf->adev_mutex);
-	if (!pf->adev)
+	if (!cdev->adev)
 		goto finish;
 
-	device_lock(&pf->adev->dev);
-	iadrv = ice_get_auxiliary_drv(pf);
+	device_lock(&cdev->adev->dev);
+	iadrv = ice_get_auxiliary_drv(cdev);
 	if (iadrv && iadrv->event_handler)
-		iadrv->event_handler(pf, event);
-	device_unlock(&pf->adev->dev);
+		iadrv->event_handler(cdev, event);
+	device_unlock(&cdev->adev->dev);
 finish:
 	mutex_unlock(&pf->adev_mutex);
 }
 
 /**
  * ice_add_rdma_qset - Add Leaf Node for RDMA Qset
- * @pf: PF struct
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
  * @qset: Resource to be allocated
+ *
+ * Return: Zero on success or error code encountered
  */
-int ice_add_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset)
+int ice_add_rdma_qset(struct iidc_rdma_core_dev_info *cdev,
+		      struct iidc_rdma_qset_params *qset)
 {
 	u16 max_rdmaqs[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_vsi *vsi;
 	struct device *dev;
+	struct ice_pf *pf;
 	u32 qset_teid;
 	u16 qs_handle;
 	int status;
 	int i;
 
-	if (WARN_ON(!pf || !qset))
+	if (WARN_ON(!cdev || !qset))
 		return -EINVAL;
 
+	pf = pci_get_drvdata(cdev->pdev);
 	dev = ice_pf_to_dev(pf);
 
 	if (!ice_is_rdma_ena(pf))
@@ -100,7 +113,6 @@ int ice_add_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset)
 		dev_err(dev, "Failed VSI RDMA Qset enable\n");
 		return status;
 	}
-	vsi->qset_handle[qset->tc] = qset->qs_handle;
 	qset->teid = qset_teid;
 
 	return 0;
@@ -109,18 +121,23 @@ EXPORT_SYMBOL_GPL(ice_add_rdma_qset);
 
 /**
  * ice_del_rdma_qset - Delete leaf node for RDMA Qset
- * @pf: PF struct
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
  * @qset: Resource to be freed
+ *
+ * Return: Zero on success, error code on failure
  */
-int ice_del_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset)
+int ice_del_rdma_qset(struct iidc_rdma_core_dev_info *cdev,
+		      struct iidc_rdma_qset_params *qset)
 {
 	struct ice_vsi *vsi;
+	struct ice_pf *pf;
 	u32 teid;
 	u16 q_id;
 
-	if (WARN_ON(!pf || !qset))
+	if (WARN_ON(!cdev || !qset))
 		return -EINVAL;
 
+	pf = pci_get_drvdata(cdev->pdev);
 	vsi = ice_find_vsi(pf, qset->vport_id);
 	if (!vsi) {
 		dev_err(ice_pf_to_dev(pf), "RDMA Invalid VSI\n");
@@ -130,36 +147,36 @@ int ice_del_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset)
 	q_id = qset->qs_handle;
 	teid = qset->teid;
 
-	vsi->qset_handle[qset->tc] = 0;
-
 	return ice_dis_vsi_rdma_qset(vsi->port_info, 1, &teid, &q_id);
 }
 EXPORT_SYMBOL_GPL(ice_del_rdma_qset);
 
 /**
  * ice_rdma_request_reset - accept request from RDMA to perform a reset
- * @pf: struct for PF
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
  * @reset_type: type of reset
+ *
+ * Return: Zero on success, error code on failure
  */
-int ice_rdma_request_reset(struct ice_pf *pf, enum iidc_reset_type reset_type)
+int ice_rdma_request_reset(struct iidc_rdma_core_dev_info *cdev,
+			   enum iidc_rdma_reset_type reset_type)
 {
 	enum ice_reset_req reset;
+	struct ice_pf *pf;
 
-	if (WARN_ON(!pf))
+	if (WARN_ON(!cdev))
 		return -EINVAL;
 
+	pf = pci_get_drvdata(cdev->pdev);
+
 	switch (reset_type) {
-	case IIDC_PFR:
+	case IIDC_FUNC_RESET:
 		reset = ICE_RESET_PFR;
 		break;
-	case IIDC_CORER:
+	case IIDC_DEV_RESET:
 		reset = ICE_RESET_CORER;
 		break;
-	case IIDC_GLOBR:
-		reset = ICE_RESET_GLOBR;
-		break;
 	default:
-		dev_err(ice_pf_to_dev(pf), "incorrect reset request\n");
 		return -EINVAL;
 	}
 
@@ -169,18 +186,23 @@ EXPORT_SYMBOL_GPL(ice_rdma_request_reset);
 
 /**
  * ice_rdma_update_vsi_filter - update main VSI filters for RDMA
- * @pf: pointer to struct for PF
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
  * @vsi_id: VSI HW idx to update filter on
  * @enable: bool whether to enable or disable filters
+ *
+ * Return: Zero on success, error code on failure
  */
-int ice_rdma_update_vsi_filter(struct ice_pf *pf, u16 vsi_id, bool enable)
+int ice_rdma_update_vsi_filter(struct iidc_rdma_core_dev_info *cdev,
+			       u16 vsi_id, bool enable)
 {
 	struct ice_vsi *vsi;
+	struct ice_pf *pf;
 	int status;
 
-	if (WARN_ON(!pf))
+	if (WARN_ON(!cdev))
 		return -EINVAL;
 
+	pf = pci_get_drvdata(cdev->pdev);
 	vsi = ice_find_vsi(pf, vsi_id);
 	if (!vsi)
 		return -EINVAL;
@@ -201,37 +223,23 @@ int ice_rdma_update_vsi_filter(struct ice_pf *pf, u16 vsi_id, bool enable)
 EXPORT_SYMBOL_GPL(ice_rdma_update_vsi_filter);
 
 /**
- * ice_get_qos_params - parse QoS params for RDMA consumption
- * @pf: pointer to PF struct
- * @qos: set of QoS values
+ * ice_alloc_rdma_qvector - alloc vector resources reserved for RDMA driver
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
+ * @entry: MSI-X entry to be removed
+ *
+ * Return: Zero on success, error code on failure
  */
-void ice_get_qos_params(struct ice_pf *pf, struct iidc_qos_params *qos)
+int ice_alloc_rdma_qvector(struct iidc_rdma_core_dev_info *cdev,
+			   struct msix_entry *entry)
 {
-	struct ice_dcbx_cfg *dcbx_cfg;
-	unsigned int i;
-	u32 up2tc;
+	struct msi_map map;
+	struct ice_pf *pf;
 
-	dcbx_cfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
-	up2tc = rd32(&pf->hw, PRTDCB_TUP2TC);
+	if (WARN_ON(!cdev))
+		return -EINVAL;
 
-	qos->num_tc = ice_dcb_get_num_tc(dcbx_cfg);
-	for (i = 0; i < IIDC_MAX_USER_PRIORITY; i++)
-		qos->up2tc[i] = (up2tc >> (i * 3)) & 0x7;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		qos->tc_info[i].rel_bw = dcbx_cfg->etscfg.tcbwtable[i];
-
-	qos->pfc_mode = dcbx_cfg->pfc_mode;
-	if (qos->pfc_mode == IIDC_DSCP_PFC_MODE)
-		for (i = 0; i < IIDC_MAX_DSCP_MAPPING; i++)
-			qos->dscp_map[i] = dcbx_cfg->dscp_map[i];
-}
-EXPORT_SYMBOL_GPL(ice_get_qos_params);
-
-int ice_alloc_rdma_qvector(struct ice_pf *pf, struct msix_entry *entry)
-{
-	struct msi_map map = ice_alloc_irq(pf, true);
-
+	pf = pci_get_drvdata(cdev->pdev);
+	map = ice_alloc_irq(pf, true);
 	if (map.index < 0)
 		return -ENOMEM;
 
@@ -244,12 +252,19 @@ EXPORT_SYMBOL_GPL(ice_alloc_rdma_qvector);
 
 /**
  * ice_free_rdma_qvector - free vector resources reserved for RDMA driver
- * @pf: board private structure to initialize
+ * @cdev: pointer to iidc_rdma_core_dev_info struct
  * @entry: MSI-X entry to be removed
  */
-void ice_free_rdma_qvector(struct ice_pf *pf, struct msix_entry *entry)
+void ice_free_rdma_qvector(struct iidc_rdma_core_dev_info *cdev,
+			   struct msix_entry *entry)
 {
 	struct msi_map map;
+	struct ice_pf *pf;
+
+	if (WARN_ON(!cdev || !entry))
+		return;
+
+	pf = pci_get_drvdata(cdev->pdev);
 
 	map.index = entry->entry;
 	map.virq = entry->vector;
@@ -263,19 +278,23 @@ EXPORT_SYMBOL_GPL(ice_free_rdma_qvector);
  */
 static void ice_adev_release(struct device *dev)
 {
-	struct iidc_auxiliary_dev *iadev;
+	struct iidc_rdma_core_auxiliary_dev *iadev;
 
-	iadev = container_of(dev, struct iidc_auxiliary_dev, adev.dev);
+	iadev = container_of(dev, struct iidc_rdma_core_auxiliary_dev,
+			     adev.dev);
 	kfree(iadev);
 }
 
 /**
  * ice_plug_aux_dev - allocate and register AUX device
  * @pf: pointer to pf struct
+ *
+ * Return: Zero on success, error code on failure
  */
 int ice_plug_aux_dev(struct ice_pf *pf)
 {
-	struct iidc_auxiliary_dev *iadev;
+	struct iidc_rdma_core_auxiliary_dev *iadev;
+	struct iidc_rdma_core_dev_info *cdev;
 	struct auxiliary_device *adev;
 	int ret;
 
@@ -285,17 +304,22 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	if (!ice_is_rdma_ena(pf))
 		return 0;
 
+	cdev = pf->cdev_info;
+	if (!cdev)
+		return -ENODEV;
+
 	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
 	if (!iadev)
 		return -ENOMEM;
 
 	adev = &iadev->adev;
-	iadev->pf = pf;
+	iadev->cdev_info = cdev;
 
 	adev->id = pf->aux_idx;
 	adev->dev.release = ice_adev_release;
 	adev->dev.parent = &pf->pdev->dev;
-	adev->name = pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2 ? "roce" : "iwarp";
+	adev->name = cdev->rdma_protocol & IIDC_RDMA_PROTOCOL_ROCEV2 ?
+		"roce" : "iwarp";
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
@@ -310,7 +334,7 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	}
 
 	mutex_lock(&pf->adev_mutex);
-	pf->adev = adev;
+	cdev->adev = adev;
 	mutex_unlock(&pf->adev_mutex);
 
 	return 0;
@@ -324,8 +348,8 @@ void ice_unplug_aux_dev(struct ice_pf *pf)
 	struct auxiliary_device *adev;
 
 	mutex_lock(&pf->adev_mutex);
-	adev = pf->adev;
-	pf->adev = NULL;
+	adev = pf->cdev_info->adev;
+	pf->cdev_info->adev = NULL;
 	mutex_unlock(&pf->adev_mutex);
 
 	if (adev) {
@@ -340,7 +364,9 @@ void ice_unplug_aux_dev(struct ice_pf *pf)
  */
 int ice_init_rdma(struct ice_pf *pf)
 {
+	struct iidc_rdma_priv_dev_info *privd;
 	struct device *dev = &pf->pdev->dev;
+	struct iidc_rdma_core_dev_info *cdev;
 	int ret;
 
 	if (!ice_is_rdma_ena(pf)) {
@@ -348,22 +374,50 @@ int ice_init_rdma(struct ice_pf *pf)
 		return 0;
 	}
 
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	if (!cdev)
+		return -ENOMEM;
+
+	pf->cdev_info = cdev;
+
+	privd = kzalloc(sizeof(*privd), GFP_KERNEL);
+	if (!privd) {
+		ret = -ENOMEM;
+		goto err_privd_alloc;
+	}
+
+	privd->pf_id = pf->hw.pf_id;
 	ret = xa_alloc(&ice_aux_id, &pf->aux_idx, NULL, XA_LIMIT(1, INT_MAX),
 		       GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "Failed to allocate device ID for AUX driver\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_alloc_xa;
 	}
 
-	pf->rdma_mode |= IIDC_RDMA_PROTOCOL_ROCEV2;
+	cdev->iidc_priv = privd;
+	privd->netdev = pf->vsi[0]->netdev;
+
+	privd->hw_addr = (u8 __iomem *)pf->hw.hw_addr;
+	cdev->pdev = pf->pdev;
+	privd->vport_id = pf->vsi[0]->vsi_num;
+
+	pf->cdev_info->rdma_protocol |= IIDC_RDMA_PROTOCOL_ROCEV2;
+	ice_setup_dcb_qos_info(pf, &privd->qos_info);
 	ret = ice_plug_aux_dev(pf);
 	if (ret)
 		goto err_plug_aux_dev;
 	return 0;
 
 err_plug_aux_dev:
-	pf->adev = NULL;
+	pf->cdev_info->adev = NULL;
 	xa_erase(&ice_aux_id, pf->aux_idx);
+err_alloc_xa:
+	kfree(privd);
+err_privd_alloc:
+	kfree(cdev);
+	pf->cdev_info = NULL;
+
 	return ret;
 }
 
@@ -378,4 +432,7 @@ void ice_deinit_rdma(struct ice_pf *pf)
 
 	ice_unplug_aux_dev(pf);
 	xa_erase(&ice_aux_id, pf->aux_idx);
+	kfree(pf->cdev_info->iidc_priv);
+	kfree(pf->cdev_info);
+	pf->cdev_info = NULL;
 }

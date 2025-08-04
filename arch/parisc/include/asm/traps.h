@@ -4,7 +4,7 @@
 
 #define PARISC_ITLB_TRAP	6 /* defined by architecture. Do not change. */
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 struct pt_regs;
 
 /* traps.c */

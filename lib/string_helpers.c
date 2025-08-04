@@ -138,6 +138,25 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 }
 EXPORT_SYMBOL(string_get_size);
 
+int parse_int_array(const char *buf, size_t count, int **array)
+{
+	int *ints, nints;
+
+	get_options(buf, 0, &nints);
+	if (!nints)
+		return -ENOENT;
+
+	ints = kcalloc(nints + 1, sizeof(*ints), GFP_KERNEL);
+	if (!ints)
+		return -ENOMEM;
+
+	get_options(buf, nints + 1, ints);
+	*array = ints;
+
+	return 0;
+}
+EXPORT_SYMBOL(parse_int_array);
+
 /**
  * parse_int_array_user - Split string into a sequence of integers
  * @from:	The user space buffer to read from
@@ -153,30 +172,14 @@ EXPORT_SYMBOL(string_get_size);
  */
 int parse_int_array_user(const char __user *from, size_t count, int **array)
 {
-	int *ints, nints;
 	char *buf;
-	int ret = 0;
+	int ret;
 
 	buf = memdup_user_nul(from, count);
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	get_options(buf, 0, &nints);
-	if (!nints) {
-		ret = -ENOENT;
-		goto free_buf;
-	}
-
-	ints = kcalloc(nints + 1, sizeof(*ints), GFP_KERNEL);
-	if (!ints) {
-		ret = -ENOMEM;
-		goto free_buf;
-	}
-
-	get_options(buf, nints + 1, ints);
-	*array = ints;
-
-free_buf:
+	ret = parse_int_array(buf, count, array);
 	kfree(buf);
 	return ret;
 }

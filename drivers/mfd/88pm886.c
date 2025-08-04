@@ -16,11 +16,11 @@ static const struct regmap_config pm886_regmap_config = {
 	.max_register = PM886_REG_RTC_SPARE6,
 };
 
-static struct regmap_irq pm886_regmap_irqs[] = {
+static const struct regmap_irq pm886_regmap_irqs[] = {
 	REGMAP_IRQ_REG(PM886_IRQ_ONKEY, 0, PM886_INT_ENA1_ONKEY),
 };
 
-static struct regmap_irq_chip pm886_regmap_irq_chip = {
+static const struct regmap_irq_chip pm886_regmap_irq_chip = {
 	.name = "88pm886",
 	.irqs = pm886_regmap_irqs,
 	.num_irqs = ARRAY_SIZE(pm886_regmap_irqs),
@@ -30,11 +30,11 @@ static struct regmap_irq_chip pm886_regmap_irq_chip = {
 	.unmask_base = PM886_REG_INT_ENA_1,
 };
 
-static struct resource pm886_onkey_resources[] = {
+static const struct resource pm886_onkey_resources[] = {
 	DEFINE_RES_IRQ_NAMED(PM886_IRQ_ONKEY, "88pm886-onkey"),
 };
 
-static struct mfd_cell pm886_devs[] = {
+static const struct mfd_cell pm886_devs[] = {
 	MFD_CELL_RES("88pm886-onkey", pm886_onkey_resources),
 	MFD_CELL_NAME("88pm886-regulator"),
 	MFD_CELL_NAME("88pm886-rtc"),
@@ -124,7 +124,11 @@ static int pm886_probe(struct i2c_client *client)
 	if (err)
 		return dev_err_probe(dev, err, "Failed to register power off handler\n");
 
-	device_init_wakeup(dev, device_property_read_bool(dev, "wakeup-source"));
+	if (device_property_read_bool(dev, "wakeup-source")) {
+		err = devm_device_init_wakeup(dev);
+		if (err)
+			return dev_err_probe(dev, err, "Failed to init wakeup\n");
+	}
 
 	return 0;
 }

@@ -68,7 +68,7 @@ MODULE_DEVICE_TABLE(i2c, adxl367_i2c_id);
 
 static const struct of_device_id adxl367_of_match[] = {
 	{ .compatible = "adi,adxl367" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adxl367_of_match);
 

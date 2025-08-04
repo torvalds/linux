@@ -11,7 +11,6 @@
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/fwnode.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c-atr.h>
 #include <linux/i2c.h>
@@ -28,95 +27,14 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
+#include "ds90ub953.h"
+
 #define UB953_PAD_SINK			0
 #define UB953_PAD_SOURCE		1
 
 #define UB953_NUM_GPIOS			4
 
 #define UB953_DEFAULT_CLKOUT_RATE	25000000UL
-
-#define UB953_REG_RESET_CTL			0x01
-#define UB953_REG_RESET_CTL_DIGITAL_RESET_1	BIT(1)
-#define UB953_REG_RESET_CTL_DIGITAL_RESET_0	BIT(0)
-
-#define UB953_REG_GENERAL_CFG			0x02
-#define UB953_REG_GENERAL_CFG_CONT_CLK		BIT(6)
-#define UB953_REG_GENERAL_CFG_CSI_LANE_SEL_SHIFT	4
-#define UB953_REG_GENERAL_CFG_CSI_LANE_SEL_MASK	GENMASK(5, 4)
-#define UB953_REG_GENERAL_CFG_CRC_TX_GEN_ENABLE	BIT(1)
-#define UB953_REG_GENERAL_CFG_I2C_STRAP_MODE	BIT(0)
-
-#define UB953_REG_MODE_SEL			0x03
-#define UB953_REG_MODE_SEL_MODE_DONE		BIT(3)
-#define UB953_REG_MODE_SEL_MODE_OVERRIDE	BIT(4)
-#define UB953_REG_MODE_SEL_MODE_MASK		GENMASK(2, 0)
-
-#define UB953_REG_CLKOUT_CTRL0			0x06
-#define UB953_REG_CLKOUT_CTRL1			0x07
-
-#define UB953_REG_SCL_HIGH_TIME			0x0b
-#define UB953_REG_SCL_LOW_TIME			0x0c
-
-#define UB953_REG_LOCAL_GPIO_DATA		0x0d
-#define UB953_REG_LOCAL_GPIO_DATA_GPIO_RMTEN(n)		BIT(4 + (n))
-#define UB953_REG_LOCAL_GPIO_DATA_GPIO_OUT_SRC(n)	BIT(0 + (n))
-
-#define UB953_REG_GPIO_INPUT_CTRL		0x0e
-#define UB953_REG_GPIO_INPUT_CTRL_OUT_EN(n)	BIT(4 + (n))
-#define UB953_REG_GPIO_INPUT_CTRL_INPUT_EN(n)	BIT(0 + (n))
-
-#define UB953_REG_BC_CTRL			0x49
-#define UB953_REG_BC_CTRL_CRC_ERR_CLR		BIT(3)
-
-#define UB953_REG_REV_MASK_ID			0x50
-#define UB953_REG_GENERAL_STATUS		0x52
-
-#define UB953_REG_GPIO_PIN_STS			0x53
-#define UB953_REG_GPIO_PIN_STS_GPIO_STS(n)	BIT(0 + (n))
-
-#define UB953_REG_BIST_ERR_CNT			0x54
-#define UB953_REG_CRC_ERR_CNT1			0x55
-#define UB953_REG_CRC_ERR_CNT2			0x56
-
-#define UB953_REG_CSI_ERR_CNT			0x5c
-#define UB953_REG_CSI_ERR_STATUS		0x5d
-#define UB953_REG_CSI_ERR_DLANE01		0x5e
-#define UB953_REG_CSI_ERR_DLANE23		0x5f
-#define UB953_REG_CSI_ERR_CLK_LANE		0x60
-#define UB953_REG_CSI_PKT_HDR_VC_ID		0x61
-#define UB953_REG_PKT_HDR_WC_LSB		0x62
-#define UB953_REG_PKT_HDR_WC_MSB		0x63
-#define UB953_REG_CSI_ECC			0x64
-
-#define UB953_REG_IND_ACC_CTL			0xb0
-#define UB953_REG_IND_ACC_ADDR			0xb1
-#define UB953_REG_IND_ACC_DATA			0xb2
-
-#define UB953_REG_FPD3_RX_ID(n)			(0xf0 + (n))
-#define UB953_REG_FPD3_RX_ID_LEN		6
-
-/* Indirect register blocks */
-#define UB953_IND_TARGET_PAT_GEN		0x00
-#define UB953_IND_TARGET_FPD3_TX		0x01
-#define UB953_IND_TARGET_DIE_ID			0x02
-
-#define UB953_IND_PGEN_CTL			0x01
-#define UB953_IND_PGEN_CTL_PGEN_ENABLE		BIT(0)
-#define UB953_IND_PGEN_CFG			0x02
-#define UB953_IND_PGEN_CSI_DI			0x03
-#define UB953_IND_PGEN_LINE_SIZE1		0x04
-#define UB953_IND_PGEN_LINE_SIZE0		0x05
-#define UB953_IND_PGEN_BAR_SIZE1		0x06
-#define UB953_IND_PGEN_BAR_SIZE0		0x07
-#define UB953_IND_PGEN_ACT_LPF1			0x08
-#define UB953_IND_PGEN_ACT_LPF0			0x09
-#define UB953_IND_PGEN_TOT_LPF1			0x0a
-#define UB953_IND_PGEN_TOT_LPF0			0x0b
-#define UB953_IND_PGEN_LINE_PD1			0x0c
-#define UB953_IND_PGEN_LINE_PD0			0x0d
-#define UB953_IND_PGEN_VBP			0x0e
-#define UB953_IND_PGEN_VFP			0x0f
-#define UB953_IND_PGEN_COLOR(n)			(0x10 + (n)) /* n <= 15 */
 
 /* Note: Only sync mode supported for now */
 enum ub953_mode {
@@ -185,10 +103,13 @@ static inline struct ub953_data *sd_to_ub953(struct v4l2_subdev *sd)
  * HW Access
  */
 
-static int ub953_read(struct ub953_data *priv, u8 reg, u8 *val)
+static int ub953_read(struct ub953_data *priv, u8 reg, u8 *val, int *err)
 {
 	unsigned int v;
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -204,12 +125,18 @@ static int ub953_read(struct ub953_data *priv, u8 reg, u8 *val)
 out_unlock:
 	mutex_unlock(&priv->reg_lock);
 
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
-static int ub953_write(struct ub953_data *priv, u8 reg, u8 val)
+static int ub953_write(struct ub953_data *priv, u8 reg, u8 val, int *err)
 {
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -219,6 +146,9 @@ static int ub953_write(struct ub953_data *priv, u8 reg, u8 val)
 			"Cannot write register 0x%02x: %d\n", reg, ret);
 
 	mutex_unlock(&priv->reg_lock);
+
+	if (ret && err)
+		*err = ret;
 
 	return ret;
 }
@@ -244,10 +174,14 @@ static int ub953_select_ind_reg_block(struct ub953_data *priv, u8 block)
 }
 
 __maybe_unused
-static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
+static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val,
+			  int *err)
 {
 	unsigned int v;
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -258,7 +192,7 @@ static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
 	ret = regmap_write(priv->regmap, UB953_REG_IND_ACC_ADDR, reg);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_ADDR failed when reading %u:%x02x: %d\n",
+			"Write to IND_ACC_ADDR failed when reading %u:0x%02x: %d\n",
 			block, reg, ret);
 		goto out_unlock;
 	}
@@ -266,7 +200,7 @@ static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
 	ret = regmap_read(priv->regmap, UB953_REG_IND_ACC_DATA, &v);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_DATA failed when reading %u:%x02x: %d\n",
+			"Write to IND_ACC_DATA failed when reading %u:0x%02x: %d\n",
 			block, reg, ret);
 		goto out_unlock;
 	}
@@ -276,13 +210,20 @@ static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
 out_unlock:
 	mutex_unlock(&priv->reg_lock);
 
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
 __maybe_unused
-static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
+static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val,
+			   int *err)
 {
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -293,7 +234,7 @@ static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
 	ret = regmap_write(priv->regmap, UB953_REG_IND_ACC_ADDR, reg);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_ADDR failed when writing %u:%x02x: %d\n",
+			"Write to IND_ACC_ADDR failed when writing %u:0x%02x: %d\n",
 			block, reg, ret);
 		goto out_unlock;
 	}
@@ -301,12 +242,15 @@ static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
 	ret = regmap_write(priv->regmap, UB953_REG_IND_ACC_DATA, val);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_DATA failed when writing %u:%x02x\n: %d\n",
+			"Write to IND_ACC_DATA failed when writing %u:0x%02x: %d\n",
 			block, reg, ret);
 	}
 
 out_unlock:
 	mutex_unlock(&priv->reg_lock);
+
+	if (ret && err)
+		*err = ret;
 
 	return ret;
 }
@@ -320,7 +264,7 @@ static int ub953_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	int ret;
 	u8 v;
 
-	ret = ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &v);
+	ret = ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -366,7 +310,7 @@ static int ub953_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	int ret;
 	u8 v;
 
-	ret = ub953_read(priv, UB953_REG_GPIO_PIN_STS, &v);
+	ret = ub953_read(priv, UB953_REG_GPIO_PIN_STS, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -400,11 +344,11 @@ static int ub953_gpiochip_probe(struct ub953_data *priv)
 	int ret;
 
 	/* Set all GPIOs to local input mode */
-	ret = ub953_write(priv, UB953_REG_LOCAL_GPIO_DATA, 0);
+	ret = ub953_write(priv, UB953_REG_LOCAL_GPIO_DATA, 0, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub953_write(priv, UB953_REG_GPIO_INPUT_CTRL, 0xf);
+	ret = ub953_write(priv, UB953_REG_GPIO_INPUT_CTRL, 0xf, NULL);
 	if (ret)
 		return ret;
 
@@ -607,23 +551,33 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 {
 	struct ub953_data *priv = sd_to_ub953(sd);
 	struct device *dev = &priv->client->dev;
-	u8 v = 0, v1 = 0, v2 = 0;
-	unsigned int i;
 	char id[UB953_REG_FPD3_RX_ID_LEN];
-	u8 gpio_local_data = 0;
-	u8 gpio_input_ctrl = 0;
-	u8 gpio_pin_sts = 0;
+	u8 gpio_local_data;
+	u8 gpio_input_ctrl;
+	u8 gpio_pin_sts;
+	unsigned int i;
+	u8 v, v1, v2;
+	int ret;
 
-	for (i = 0; i < sizeof(id); i++)
-		ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i]);
+	for (i = 0; i < sizeof(id); i++) {
+		ret = ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i], NULL);
+		if (ret)
+			return ret;
+	}
 
 	dev_info(dev, "ID '%.*s'\n", (int)sizeof(id), id);
 
-	ub953_read(priv, UB953_REG_GENERAL_STATUS, &v);
+	ret = ub953_read(priv, UB953_REG_GENERAL_STATUS, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "GENERAL_STATUS %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CRC_ERR_CNT1, &v1);
-	ub953_read(priv, UB953_REG_CRC_ERR_CNT2, &v2);
+	ub953_read(priv, UB953_REG_CRC_ERR_CNT1, &v1, &ret);
+	ub953_read(priv, UB953_REG_CRC_ERR_CNT2, &v2, &ret);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CRC error count %u\n", v1 | (v2 << 8));
 
 	/* Clear CRC error counter */
@@ -632,34 +586,60 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 				   UB953_REG_BC_CTRL_CRC_ERR_CLR,
 				   UB953_REG_BC_CTRL_CRC_ERR_CLR);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_CNT, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_CNT, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI error count %u\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_STATUS, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_STATUS, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_STATUS %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_DLANE01, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_DLANE01, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_DLANE01 %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_DLANE23, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_DLANE23, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_DLANE23 %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_CLK_LANE, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_CLK_LANE, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_CLK_LANE %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_PKT_HDR_VC_ID, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_PKT_HDR_VC_ID, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI packet header VC %u ID %u\n", v >> 6, v & 0x3f);
 
-	ub953_read(priv, UB953_REG_PKT_HDR_WC_LSB, &v1);
-	ub953_read(priv, UB953_REG_PKT_HDR_WC_MSB, &v2);
+	ub953_read(priv, UB953_REG_PKT_HDR_WC_LSB, &v1, &ret);
+	ub953_read(priv, UB953_REG_PKT_HDR_WC_MSB, &v2, &ret);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI packet header WC %u\n", (v2 << 8) | v1);
 
-	ub953_read(priv, UB953_REG_CSI_ECC, &v);
+	ret = ub953_read(priv, UB953_REG_CSI_ECC, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI ECC %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_LOCAL_GPIO_DATA, &gpio_local_data);
-	ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &gpio_input_ctrl);
-	ub953_read(priv, UB953_REG_GPIO_PIN_STS, &gpio_pin_sts);
+	ub953_read(priv, UB953_REG_LOCAL_GPIO_DATA, &gpio_local_data, &ret);
+	ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &gpio_input_ctrl, &ret);
+	ub953_read(priv, UB953_REG_GPIO_PIN_STS, &gpio_pin_sts, &ret);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < UB953_NUM_GPIOS; i++) {
 		dev_info(dev,
@@ -843,11 +823,11 @@ static int ub953_i2c_master_init(struct ub953_data *priv)
 	scl_high = div64_u64((u64)scl_high * ref, 1000000000) - 5;
 	scl_low = div64_u64((u64)scl_low * ref, 1000000000) - 5;
 
-	ret = ub953_write(priv, UB953_REG_SCL_HIGH_TIME, scl_high);
+	ret = ub953_write(priv, UB953_REG_SCL_HIGH_TIME, scl_high, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub953_write(priv, UB953_REG_SCL_LOW_TIME, scl_low);
+	ret = ub953_write(priv, UB953_REG_SCL_LOW_TIME, scl_low, NULL);
 	if (ret)
 		return ret;
 
@@ -986,11 +966,11 @@ static int ub953_write_clkout_regs(struct ub953_data *priv,
 
 	clkout_ctrl1 = clkout_data->n;
 
-	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL0, clkout_ctrl0);
+	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL0, clkout_ctrl0, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL1, clkout_ctrl1);
+	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL1, clkout_ctrl1, NULL);
 	if (ret)
 		return ret;
 
@@ -1009,13 +989,13 @@ static unsigned long ub953_clkout_recalc_rate(struct clk_hw *hw,
 	u64 rate;
 	int ret;
 
-	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL0, &ctrl0);
+	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL0, &ctrl0, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to read CLKOUT_CTRL0: %d\n", ret);
 		return 0;
 	}
 
-	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL1, &ctrl1);
+	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL1, &ctrl1, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to read CLKOUT_CTRL1: %d\n", ret);
 		return 0;
@@ -1122,6 +1102,7 @@ static int ub953_register_clkout(struct ub953_data *priv)
 static int ub953_add_i2c_adapter(struct ub953_data *priv)
 {
 	struct device *dev = &priv->client->dev;
+	struct i2c_atr_adap_desc desc = { };
 	struct fwnode_handle *i2c_handle;
 	int ret;
 
@@ -1129,8 +1110,12 @@ static int ub953_add_i2c_adapter(struct ub953_data *priv)
 	if (!i2c_handle)
 		return 0;
 
-	ret = i2c_atr_add_adapter(priv->plat_data->atr, priv->plat_data->port,
-				  dev, i2c_handle);
+	desc.chan_id = priv->plat_data->port;
+	desc.parent = dev;
+	desc.bus_handle = i2c_handle;
+	desc.num_aliases = 0;
+
+	ret = i2c_atr_add_adapter(priv->plat_data->atr, &desc);
 
 	fwnode_handle_put(i2c_handle);
 
@@ -1191,7 +1176,7 @@ static int ub953_hw_init(struct ub953_data *priv)
 	int ret;
 	u8 v;
 
-	ret = ub953_read(priv, UB953_REG_MODE_SEL, &v);
+	ret = ub953_read(priv, UB953_REG_MODE_SEL, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -1231,13 +1216,13 @@ static int ub953_hw_init(struct ub953_data *priv)
 		return dev_err_probe(dev, -EINVAL,
 				     "clkin required for non-sync ext mode\n");
 
-	ret = ub953_read(priv, UB953_REG_REV_MASK_ID, &v);
+	ret = ub953_read(priv, UB953_REG_REV_MASK_ID, &v, NULL);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to read revision");
 
 	dev_info(dev, "Found %s rev/mask %#04x\n", priv->hw_data->model, v);
 
-	ret = ub953_read(priv, UB953_REG_GENERAL_CFG, &v);
+	ret = ub953_read(priv, UB953_REG_GENERAL_CFG, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -1254,11 +1239,16 @@ static int ub953_hw_init(struct ub953_data *priv)
 		UB953_REG_GENERAL_CFG_CSI_LANE_SEL_SHIFT;
 	v |= UB953_REG_GENERAL_CFG_CRC_TX_GEN_ENABLE;
 
-	ret = ub953_write(priv, UB953_REG_GENERAL_CFG, v);
+	ret = ub953_write(priv, UB953_REG_GENERAL_CFG, v, NULL);
 	if (ret)
 		return ret;
 
-	return 0;
+	v = 1U << UB953_REG_I2C_CONTROL2_SDA_OUTPUT_SETUP_SHIFT;
+	v |= UB953_REG_I2C_CONTROL2_BUS_SPEEDUP;
+
+	ret = ub953_write(priv, UB953_REG_I2C_CONTROL2, v, NULL);
+
+	return ret;
 }
 
 static int ub953_subdev_init(struct ub953_data *priv)

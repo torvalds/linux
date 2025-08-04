@@ -1231,6 +1231,182 @@ static void uffd_move_pmd_split_test(uffd_test_args_t *targs)
 			      uffd_move_pmd_handle_fault);
 }
 
+static bool
+uffdio_verify_results(const char *name, int ret, int error, long result)
+{
+	/*
+	 * Should always return -1 with errno=EAGAIN, with corresponding
+	 * result field updated in ioctl() args to be -EAGAIN too
+	 * (e.g. copy.copy field for UFFDIO_COPY).
+	 */
+	if (ret != -1) {
+		uffd_test_fail("%s should have returned -1", name);
+		return false;
+	}
+
+	if (error != EAGAIN) {
+		uffd_test_fail("%s should have errno==EAGAIN", name);
+		return false;
+	}
+
+	if (result != -EAGAIN) {
+		uffd_test_fail("%s should have been updated for -EAGAIN",
+			       name);
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * This defines a function to test one ioctl.  Note that here "field" can
+ * be 1 or anything not -EAGAIN.  With that initial value set, we can
+ * verify later that it should be updated by kernel (when -EAGAIN
+ * returned), by checking whether it is also updated to -EAGAIN.
+ */
+#define DEFINE_MMAP_CHANGING_TEST(name, ioctl_name, field)		\
+	static bool uffdio_mmap_changing_test_##name(int fd)		\
+	{								\
+		int ret;						\
+		struct uffdio_##name args = {				\
+			.field = 1,					\
+		};							\
+		ret = ioctl(fd, ioctl_name, &args);			\
+		return uffdio_verify_results(#ioctl_name, ret, errno, args.field); \
+	}
+
+DEFINE_MMAP_CHANGING_TEST(zeropage, UFFDIO_ZEROPAGE, zeropage)
+DEFINE_MMAP_CHANGING_TEST(copy, UFFDIO_COPY, copy)
+DEFINE_MMAP_CHANGING_TEST(move, UFFDIO_MOVE, move)
+DEFINE_MMAP_CHANGING_TEST(poison, UFFDIO_POISON, updated)
+DEFINE_MMAP_CHANGING_TEST(continue, UFFDIO_CONTINUE, mapped)
+
+typedef enum {
+	/* We actually do not care about any state except UNINTERRUPTIBLE.. */
+	THR_STATE_UNKNOWN = 0,
+	THR_STATE_UNINTERRUPTIBLE,
+} thread_state;
+
+static void sleep_short(void)
+{
+	usleep(1000);
+}
+
+static thread_state thread_state_get(pid_t tid)
+{
+	const char *header = "State:\t";
+	char tmp[256], *p, c;
+	FILE *fp;
+
+	snprintf(tmp, sizeof(tmp), "/proc/%d/status", tid);
+	fp = fopen(tmp, "r");
+
+	if (!fp)
+		return THR_STATE_UNKNOWN;
+
+	while (fgets(tmp, sizeof(tmp), fp)) {
+		p = strstr(tmp, header);
+		if (p) {
+			/* For example, "State:\tD (disk sleep)" */
+			c = *(p + sizeof(header) - 1);
+			return c == 'D' ?
+			    THR_STATE_UNINTERRUPTIBLE : THR_STATE_UNKNOWN;
+		}
+	}
+
+	return THR_STATE_UNKNOWN;
+}
+
+static void thread_state_until(pid_t tid, thread_state state)
+{
+	thread_state s;
+
+	do {
+		s = thread_state_get(tid);
+		sleep_short();
+	} while (s != state);
+}
+
+static void *uffd_mmap_changing_thread(void *opaque)
+{
+	volatile pid_t *pid = opaque;
+	int ret;
+
+	/* Unfortunately, it's only fetch-able from the thread itself.. */
+	assert(*pid == 0);
+	*pid = syscall(SYS_gettid);
+
+	/* Inject an event, this will hang solid until the event read */
+	ret = madvise(area_dst, page_size, MADV_REMOVE);
+	if (ret)
+		err("madvise(MADV_REMOVE) failed");
+
+	return NULL;
+}
+
+static void uffd_consume_message(int fd)
+{
+	struct uffd_msg msg = { 0 };
+
+	while (uffd_read_msg(fd, &msg));
+}
+
+static void uffd_mmap_changing_test(uffd_test_args_t *targs)
+{
+	/*
+	 * This stores the real PID (which can be different from how tid is
+	 * defined..) for the child thread, 0 means not initialized.
+	 */
+	pid_t pid = 0;
+	pthread_t tid;
+	int ret;
+
+	if (uffd_register(uffd, area_dst, nr_pages * page_size,
+			  true, false, false))
+		err("uffd_register() failed");
+
+	/* Create a thread to generate the racy event */
+	ret = pthread_create(&tid, NULL, uffd_mmap_changing_thread, &pid);
+	if (ret)
+		err("pthread_create() failed");
+
+	/*
+	 * Wait until the thread setup the pid.  Use volatile to make sure
+	 * it reads from RAM not regs.
+	 */
+	while (!(volatile pid_t)pid)
+		sleep_short();
+
+	/* Wait until the thread hangs at REMOVE event */
+	thread_state_until(pid, THR_STATE_UNINTERRUPTIBLE);
+
+	if (!uffdio_mmap_changing_test_copy(uffd))
+		return;
+
+	if (!uffdio_mmap_changing_test_zeropage(uffd))
+		return;
+
+	if (!uffdio_mmap_changing_test_move(uffd))
+		return;
+
+	if (!uffdio_mmap_changing_test_poison(uffd))
+		return;
+
+	if (!uffdio_mmap_changing_test_continue(uffd))
+		return;
+
+	/*
+	 * All succeeded above!  Recycle everything.  Start by reading the
+	 * event so as to kick the thread roll again..
+	 */
+	uffd_consume_message(uffd);
+
+	ret = pthread_join(tid, NULL);
+	assert(ret == 0);
+
+	uffd_test_pass();
+}
+
 static int prevent_hugepages(const char **errmsg)
 {
 	/* This should be done before source area is populated */
@@ -1469,6 +1645,32 @@ uffd_test_case_t uffd_tests[] = {
 		.uffd_fn = uffd_poison_test,
 		.mem_targets = MEM_ALL,
 		.uffd_feature_required = UFFD_FEATURE_POISON,
+	},
+	{
+		.name = "mmap-changing",
+		.uffd_fn = uffd_mmap_changing_test,
+		/*
+		 * There's no point running this test over all mem types as
+		 * they share the same code paths.
+		 *
+		 * Choose shmem for simplicity, because (1) shmem supports
+		 * MINOR mode to cover UFFDIO_CONTINUE, and (2) shmem is
+		 * almost always available (unlike hugetlb).  Here we
+		 * abused SHMEM for UFFDIO_MOVE, but the test we want to
+		 * cover doesn't yet need the correct memory type..
+		 */
+		.mem_targets = MEM_SHMEM,
+		/*
+		 * Any UFFD_FEATURE_EVENT_* should work to trigger the
+		 * race logically, but choose the simplest (REMOVE).
+		 *
+		 * Meanwhile, since we'll cover quite a few new ioctl()s
+		 * (CONTINUE, POISON, MOVE), skip this test for old kernels
+		 * by choosing all of them.
+		 */
+		.uffd_feature_required = UFFD_FEATURE_EVENT_REMOVE |
+		UFFD_FEATURE_MOVE | UFFD_FEATURE_POISON |
+		UFFD_FEATURE_MINOR_SHMEM,
 	},
 };
 

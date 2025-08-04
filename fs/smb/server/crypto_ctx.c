@@ -75,9 +75,6 @@ static struct shash_desc *alloc_shash_desc(int id)
 	case CRYPTO_SHASH_CMACAES:
 		tfm = crypto_alloc_shash("cmac(aes)", 0, 0);
 		break;
-	case CRYPTO_SHASH_SHA256:
-		tfm = crypto_alloc_shash("sha256", 0, 0);
-		break;
 	case CRYPTO_SHASH_SHA512:
 		tfm = crypto_alloc_shash("sha512", 0, 0);
 		break;
@@ -196,11 +193,6 @@ struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_hmacsha256(void)
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_cmacaes(void)
 {
 	return ____crypto_shash_ctx_find(CRYPTO_SHASH_CMACAES);
-}
-
-struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha256(void)
-{
-	return ____crypto_shash_ctx_find(CRYPTO_SHASH_SHA256);
 }
 
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha512(void)

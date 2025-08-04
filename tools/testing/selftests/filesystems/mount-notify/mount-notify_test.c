@@ -8,43 +8,21 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
-#include <linux/fanotify.h>
 #include <unistd.h>
-#include <sys/fanotify.h>
 #include <sys/syscall.h>
 
 #include "../../kselftest_harness.h"
 #include "../statmount/statmount.h"
+#include "../utils.h"
 
-#ifndef FAN_MNT_ATTACH
-struct fanotify_event_info_mnt {
-	struct fanotify_event_info_header hdr;
-	__u64 mnt_id;
-};
-#define FAN_MNT_ATTACH 0x01000000 /* Mount was attached */
+// Needed for linux/fanotify.h
+#ifndef __kernel_fsid_t
+typedef struct {
+	int	val[2];
+} __kernel_fsid_t;
 #endif
 
-#ifndef FAN_MNT_DETACH
-#define FAN_MNT_DETACH 0x02000000 /* Mount was detached */
-#endif
-
-#ifndef FAN_REPORT_MNT
-#define FAN_REPORT_MNT 0x00004000 /* Report mount events */
-#endif
-
-#ifndef FAN_MARK_MNTNS
-#define FAN_MARK_MNTNS 0x00000110
-#endif
-
-static uint64_t get_mnt_id(struct __test_metadata *const _metadata,
-			   const char *path)
-{
-	struct statx sx;
-
-	ASSERT_EQ(statx(AT_FDCWD, path, 0, STATX_MNT_ID_UNIQUE, &sx), 0);
-	ASSERT_TRUE(!!(sx.stx_mask & STATX_MNT_ID_UNIQUE));
-	return sx.stx_mnt_id;
-}
+#include <sys/fanotify.h>
 
 static const char root_mntpoint_templ[] = "/tmp/mount-notify_test_root.XXXXXX";
 
@@ -94,7 +72,7 @@ FIXTURE_SETUP(fanotify)
 
 	ASSERT_EQ(mkdir("b", 0700), 0);
 
-	self->root_id = get_mnt_id(_metadata, "/");
+	self->root_id = get_unique_mnt_id("/");
 	ASSERT_NE(self->root_id, 0);
 
 	for (i = 0; i < NUM_FAN_FDS; i++) {

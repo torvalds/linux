@@ -32,6 +32,9 @@ properties:
   spi-max-frequency:
     maximum: 20000000
 
+  reset-gpios:
+    maxItems: 1
+
   clocks:
     description: |
       Phandle and clock identifier for external sampling clock.
@@ -71,6 +74,7 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     spi {
       #address-cells = <1>;
       #size-cells = <0>;
@@ -80,6 +84,7 @@ examples:
         reg = <0>;
         interrupt-parent = <&gpio5>;
         interrupts = <15 2>;
+        reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
         spi-max-frequency = <20000000>;
         microchip,device-addr = <0>;
         vref-supply = <&vref_reg>;

@@ -28,6 +28,8 @@ and kernel support is required. See linkperf:perf-arm-spe[1] for a setup guide.
 Due to the statistical nature of SPE sampling, not every memory operation will
 be sampled.
 
+On AMD this use IBS Op PMU to sample load-store operations.
+
 COMMON OPTIONS
 --------------
 -f::
@@ -67,8 +69,15 @@ RECORD OPTIONS
 	Configure all used events to run in user space.
 
 --ldlat <n>::
-	Specify desired latency for loads event. Supported on Intel and Arm64
-	processors only. Ignored on other archs.
+	Specify desired latency for loads event. Supported on Intel, Arm64 and
+	some AMD processors. Ignored on other archs.
+
+	On supported AMD processors:
+	- /sys/bus/event_source/devices/ibs_op/caps/ldlat file contains '1'.
+	- Supported latency values are 128 to 2048 (both inclusive).
+	- Latency value which is a multiple of 128 incurs a little less profiling
+	  overhead compared to other values.
+	- Load latency filtering is disabled by default.
 
 REPORT OPTIONS
 --------------
@@ -127,6 +136,25 @@ REPORT OPTIONS
 
 In addition, for report all perf report options are valid, and for record
 all perf record options.
+
+OVERHEAD CALCULATION
+--------------------
+Unlike linkperf:perf-report[1], which calculates overhead from the actual
+sample period, perf-mem overhead is calculated using sample weight. E.g.
+there are two samples in perf.data file, both with the same sample period,
+but one sample with weight 180 and the other with weight 20:
+
+  $ perf script -F period,data_src,weight,ip,sym
+  100000    629080842 |OP LOAD|LVL L3 hit|...     20       7e69b93ca524 strcmp
+  100000   1a29081042 |OP LOAD|LVL RAM hit|...   180   ffffffff82429168 memcpy
+
+  $ perf report -F overhead,symbol
+  50%   [.] strcmp
+  50%   [k] memcpy
+
+  $ perf mem report -F overhead,symbol
+  90%   [k] memcpy
+  10%   [.] strcmp
 
 SEE ALSO
 --------

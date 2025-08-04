@@ -192,8 +192,7 @@ EXPORT_SYMBOL(__fscache_clear_page_bits);
 /*
  * Deal with the completion of writing the data to the cache.
  */
-static void fscache_wreq_done(void *priv, ssize_t transferred_or_error,
-			      bool was_async)
+static void fscache_wreq_done(void *priv, ssize_t transferred_or_error)
 {
 	struct fscache_write_request *wreq = priv;
 
@@ -202,8 +201,7 @@ static void fscache_wreq_done(void *priv, ssize_t transferred_or_error,
 					wreq->set_bits);
 
 	if (wreq->term_func)
-		wreq->term_func(wreq->term_func_priv, transferred_or_error,
-				was_async);
+		wreq->term_func(wreq->term_func_priv, transferred_or_error);
 	fscache_end_operation(&wreq->cache_resources);
 	kfree(wreq);
 }
@@ -255,14 +253,14 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	return;
 
 abandon_end:
-	return fscache_wreq_done(wreq, ret, false);
+	return fscache_wreq_done(wreq, ret);
 abandon_free:
 	kfree(wreq);
 abandon:
 	if (using_pgpriv2)
 		fscache_clear_page_bits(mapping, start, len, cond);
 	if (term_func)
-		term_func(term_func_priv, ret, false);
+		term_func(term_func_priv, ret);
 }
 EXPORT_SYMBOL(__fscache_write_to_cache);
 

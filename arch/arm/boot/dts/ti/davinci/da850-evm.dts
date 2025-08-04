@@ -60,7 +60,7 @@
 			sync-edge = <0>;
 			sync-ctrl = <1>;
 			raster-order = <0>;
-			fifo-th = <0>;
+			fifo-th = <1>;
 		};
 
 		display-timings {

@@ -399,7 +399,7 @@ __get_srv6_rtcfg_id()
 
 # Given the description of a router <id:op> as an input, the function returns
 # the <op> token which represents the operation (e.g. End behavior with or
-# withouth flavors) configured for the node.
+# without flavors) configured for the node.
 
 # Note that when the operation represents an End behavior with a list of
 # flavors, the output is the ordered version of that list.
@@ -480,7 +480,7 @@ setup_rt_local_sids()
 
 
 	# all SIDs start with a common locator. Routes and SRv6 Endpoint
-	# behavior instaces are grouped together in the 'localsid' table.
+	# behavior instances are grouped together in the 'localsid' table.
 	ip -netns "${nsname}" -6 rule \
 		add to "${LOCATOR_SERVICE}::/16" \
 		lookup "${LOCALSID_TABLE_ID}" prio 999

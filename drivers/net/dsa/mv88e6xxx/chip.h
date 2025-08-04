@@ -241,7 +241,7 @@ struct mv88e6xxx_port_hwtstamp {
 	u16 tx_seq_id;
 
 	/* Current timestamp configuration */
-	struct hwtstamp_config tstamp_config;
+	struct kernel_hwtstamp_config tstamp_config;
 };
 
 enum mv88e6xxx_policy_mapping {

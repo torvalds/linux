@@ -312,8 +312,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	/* VRAM init */
 	drm->gem.vram_available = drm->client.device.info.ram_user;
 
-	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
-				   device->func->resource_size(device, 1));
+	arch_io_reserve_memtype_wc(device->func->resource_addr(device, NVKM_BAR1_FB),
+				   device->func->resource_size(device, NVKM_BAR1_FB));
 
 	ret = nouveau_ttm_init_vram(drm);
 	if (ret) {
@@ -321,8 +321,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	drm->ttm.mtrr = arch_phys_wc_add(device->func->resource_addr(device, 1),
-					 device->func->resource_size(device, 1));
+	drm->ttm.mtrr = arch_phys_wc_add(device->func->resource_addr(device, NVKM_BAR1_FB),
+					 device->func->resource_size(device, NVKM_BAR1_FB));
 
 	/* GART init */
 	if (!drm->agp.bridge) {
@@ -357,7 +357,7 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 
 	arch_phys_wc_del(drm->ttm.mtrr);
 	drm->ttm.mtrr = 0;
-	arch_io_free_memtype_wc(device->func->resource_addr(device, 1),
-				device->func->resource_size(device, 1));
+	arch_io_free_memtype_wc(device->func->resource_addr(device, NVKM_BAR1_FB),
+				device->func->resource_size(device, NVKM_BAR1_FB));
 
 }

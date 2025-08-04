@@ -49,9 +49,6 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 	fw->gt = gt;
 	spin_lock_init(&fw->lock);
 
-	/* Assuming gen11+ so assert this assumption is correct */
-	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
-
 	if (xe->info.graphics_verx100 >= 1270) {
 		init_domain(fw, XE_FW_DOMAIN_ID_GT,
 			    FORCEWAKE_GT,
@@ -66,9 +63,6 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 {
 	int i, j;
-
-	/* Assuming gen11+ so assert this assumption is correct */
-	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
 
 	if (!xe_gt_is_media_type(gt))
 		init_domain(fw, XE_FW_DOMAIN_ID_RENDER,

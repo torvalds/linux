@@ -404,13 +404,10 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
-	struct kprobe *p = NULL;
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
-	kprobe_opcode_t *addr = NULL;
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	addr = (kprobe_opcode_t *) (args->regs->pc);
 	if (val == DIE_TRAP &&
 	    args->trapnr == (BREAKPOINT_INSTRUCTION & 0xff)) {
 		if (!kprobe_running()) {
@@ -421,7 +418,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				ret = NOTIFY_DONE;
 			}
 		} else {
-			p = get_kprobe(addr);
 			if ((kcb->kprobe_status == KPROBE_HIT_SS) ||
 			    (kcb->kprobe_status == KPROBE_REENTER)) {
 				if (post_kprobe_handler(args->regs))

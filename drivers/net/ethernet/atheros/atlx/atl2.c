@@ -1010,7 +1010,8 @@ static void atl2_tx_timeout(struct net_device *netdev, unsigned int txqueue)
  */
 static void atl2_watchdog(struct timer_list *t)
 {
-	struct atl2_adapter *adapter = from_timer(adapter, t, watchdog_timer);
+	struct atl2_adapter *adapter = timer_container_of(adapter, t,
+							  watchdog_timer);
 
 	if (!test_bit(__ATL2_DOWN, &adapter->flags)) {
 		u32 drop_rxd, drop_rxs;
@@ -1035,8 +1036,8 @@ static void atl2_watchdog(struct timer_list *t)
  */
 static void atl2_phy_config(struct timer_list *t)
 {
-	struct atl2_adapter *adapter = from_timer(adapter, t,
-						  phy_config_timer);
+	struct atl2_adapter *adapter = timer_container_of(adapter, t,
+							  phy_config_timer);
 	struct atl2_hw *hw = &adapter->hw;
 	unsigned long flags;
 

@@ -871,7 +871,7 @@ static const struct of_device_id of_twl6030_match_tbl[] = {
 		.compatible = "ti,twl6032-gpadc",
 		.data = &twl6032_pdata,
 	},
-	{ /* end */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_twl6030_match_tbl);
 

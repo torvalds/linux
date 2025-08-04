@@ -4551,7 +4551,7 @@ static void qla4xxx_check_relogin_flash_ddb(struct iscsi_cls_session *cls_sess)
  **/
 static void qla4xxx_timer(struct timer_list *t)
 {
-	struct scsi_qla_host *ha = from_timer(ha, t, timer);
+	struct scsi_qla_host *ha = timer_container_of(ha, t, timer);
 	int start_dpc = 0;
 	uint16_t w;
 

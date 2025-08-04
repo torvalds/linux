@@ -2,7 +2,6 @@ dumb_buffer@create-clear,Crash
 kms_atomic_transition@modeset-transition,Fail
 kms_atomic_transition@modeset-transition-fencing,Fail
 kms_atomic_transition@plane-toggle-modeset-transition,Fail
-kms_bw@connected-linear-tiling-1-displays-2160x1440p,Fail
 kms_color@gamma,Fail
 kms_color@legacy-gamma,Fail
 kms_cursor_crc@cursor-alpha-opaque,Fail
@@ -55,6 +54,7 @@ kms_flip@plain-flip-ts-check,Fail
 kms_flip@plain-flip-ts-check-interruptible,Fail
 kms_flip@wf_vblank-ts-check-interruptible,Fail
 kms_invalid_mode@int-max-clock,Fail
+kms_invalid_mode@overflow-vrefresh,Fail
 kms_lease@lease-uevent,Fail
 kms_lease@page-flip-implicit-plane,Fail
 kms_pipe_crc_basic@compare-crc-sanitycheck-nv12,Fail

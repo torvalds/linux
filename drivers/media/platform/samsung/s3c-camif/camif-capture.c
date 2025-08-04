@@ -1030,9 +1030,9 @@ static int s3c_camif_s_selection(struct file *file, void *priv,
 	vp->state |= ST_VP_CONFIG;
 	spin_unlock_irqrestore(&camif->slock, flags);
 
-	pr_debug("type: %#x, target: %#x, flags: %#x, (%d,%d)/%dx%d\n",
-		sel->type, sel->target, sel->flags,
-		sel->r.left, sel->r.top, sel->r.width, sel->r.height);
+	pr_debug("type: %#x, target: %#x, flags: %#x, (%d,%d)/%ux%u\n",
+		 sel->type, sel->target, sel->flags,
+		 sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
 	return 0;
 }
@@ -1372,7 +1372,7 @@ static int s3c_camif_subdev_get_selection(struct v4l2_subdev *sd,
 
 	mutex_unlock(&camif->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: crop: (%d,%d) %dx%d, size: %ux%u\n",
+	v4l2_dbg(1, debug, sd, "%s: crop: (%d,%d)/%ux%u, size: %ux%u\n",
 		 __func__, crop->left, crop->top, crop->width,
 		 crop->height, mf->width, mf->height);
 
@@ -1424,7 +1424,7 @@ static void __camif_try_crop(struct camif_dev *camif, struct v4l2_rect *r)
 		}
 	}
 
-	v4l2_dbg(1, debug, &camif->v4l2_dev, "crop: (%d,%d)/%dx%d, fmt: %ux%u\n",
+	v4l2_dbg(1, debug, &camif->v4l2_dev, "crop: (%d,%d)/%ux%u, fmt: %ux%u\n",
 		 r->left, r->top, r->width, r->height, mf->width, mf->height);
 }
 
@@ -1464,7 +1464,7 @@ static int s3c_camif_subdev_set_selection(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&camif->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %u, f_h: %u\n",
+	v4l2_dbg(1, debug, sd, "%s: (%d,%d)/%ux%u, f_w: %u, f_h: %u\n",
 		 __func__, crop->left, crop->top, crop->width, crop->height,
 		 camif->mbus_fmt.width, camif->mbus_fmt.height);
 

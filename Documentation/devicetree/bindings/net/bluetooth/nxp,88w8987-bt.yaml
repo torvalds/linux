@@ -48,6 +48,18 @@ properties:
     description:
       The GPIO number of the NXP chipset used for BT_WAKE_IN.
 
+  interrupts:
+    maxItems: 1
+    description:
+      Host wakeup by falling edge interrupt on this pin which is
+      connected to BT_WAKE_OUT pin of the NXP chipset.
+
+  interrupt-names:
+    items:
+      - const: wakeup
+
+  wakeup-source: true
+
   nxp,wakeout-pin:
     $ref: /schemas/types.yaml#/definitions/uint8
     description:
@@ -61,6 +73,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
     serial {
         bluetooth {
             compatible = "nxp,88w8987-bt";
@@ -70,5 +83,9 @@ examples:
             nxp,wakein-pin = /bits/ 8 <18>;
             nxp,wakeout-pin = /bits/ 8 <19>;
             local-bd-address = [66 55 44 33 22 11];
+            interrupt-parent = <&gpio>;
+            interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "wakeup";
+            wakeup-source;
         };
     };

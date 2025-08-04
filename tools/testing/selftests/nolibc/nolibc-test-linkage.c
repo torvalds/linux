@@ -2,9 +2,7 @@
 
 #include "nolibc-test-linkage.h"
 
-#ifndef NOLIBC
 #include <errno.h>
-#endif
 
 void *linkage_test_errno_addr(void)
 {

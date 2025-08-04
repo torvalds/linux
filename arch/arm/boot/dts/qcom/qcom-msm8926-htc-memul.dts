@@ -5,10 +5,12 @@
 
 /dts-v1/;
 
-#include "qcom-msm8226.dtsi"
+#include "msm8926.dtsi"
 #include "pm8226.dtsi"
 
 /delete-node/ &adsp_region;
+/delete-node/ &mba_region;
+/delete-node/ &mpss_region;
 /delete-node/ &smem_region;
 
 / {
@@ -191,6 +193,16 @@
 	/* NCP6924 Camera Regulators @ 10 */
 	/* PN544 NFC @ 28 */
 	/* TPS61310 Flash/Torch @ 33 */
+};
+
+&modem {
+	mx-supply = <&pm8226_l3>;
+	pll-supply = <&pm8226_l8>;
+	mss-supply = <&pm8226_s5>;
+
+	firmware-name = "qcom/msm8926/memul/mba.b00", "qcom/msm8926/memul/modem.mdt";
+
+	status = "okay";
 };
 
 &pm8226_vib {

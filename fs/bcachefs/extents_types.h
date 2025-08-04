@@ -34,6 +34,7 @@ struct bch_io_failures {
 		u8		dev;
 		unsigned	failed_csum_nr:6,
 				failed_io:1,
+				failed_btree_validate:1,
 				failed_ec:1;
 	}			devs[BCH_REPLICAS_MAX + 1];
 };

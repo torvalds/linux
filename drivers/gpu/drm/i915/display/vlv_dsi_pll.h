@@ -9,7 +9,6 @@
 #include <linux/types.h>
 
 enum port;
-struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_display;
 struct intel_encoder;
@@ -33,11 +32,11 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 
 #ifdef I915
-bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
+bool bxt_dsi_pll_is_enabled(struct intel_display *display);
 void assert_dsi_pll_enabled(struct intel_display *display);
 void assert_dsi_pll_disabled(struct intel_display *display);
 #else
-static inline bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
+static inline bool bxt_dsi_pll_is_enabled(struct intel_display *display)
 {
 	return false;
 }

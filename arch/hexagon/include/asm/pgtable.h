@@ -238,9 +238,6 @@ static inline int pte_present(pte_t pte)
 	return pte_val(pte) & _PAGE_PRESENT;
 }
 
-/* mk_pte - make a PTE out of a page pointer and protection bits */
-#define mk_pte(page, pgprot) pfn_pte(page_to_pfn(page), (pgprot))
-
 /* pte_page - returns a page (frame pointer/descriptor?) based on a PTE */
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 

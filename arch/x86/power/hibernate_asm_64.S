@@ -138,8 +138,7 @@ SYM_FUNC_START(core_restore_code)
 	movq	pbe_address(%rdx), %rsi
 	movq	pbe_orig_address(%rdx), %rdi
 	movq	$(PAGE_SIZE >> 3), %rcx
-	rep
-	movsq
+	rep movsq
 
 	/* progress to the next pbe */
 	movq	pbe_next(%rdx), %rdx

@@ -18,7 +18,9 @@
 #include <asm/processor.h>
 
 enum cc_vendor cc_vendor __ro_after_init = CC_VENDOR_NONE;
+SYM_PIC_ALIAS(cc_vendor);
 u64 cc_mask __ro_after_init;
+SYM_PIC_ALIAS(cc_mask);
 
 static struct cc_attr_flags {
 	__u64 host_sev_snp	: 1,

@@ -71,7 +71,7 @@ In subsys/file.c (where the tracing statement must be added)::
 	void somefct(void)
 	{
 		...
-		trace_subsys_eventname(arg, task);
+		trace_subsys_eventname_tp(arg, task);
 		...
 	}
 
@@ -129,12 +129,12 @@ within an if statement with the following::
 		for (i = 0; i < count; i++)
 			tot += calculate_nuggets();
 
-		trace_foo_bar(tot);
+		trace_foo_bar_tp(tot);
 	}
 
-All trace_<tracepoint>() calls have a matching trace_<tracepoint>_enabled()
+All trace_<tracepoint>_tp() calls have a matching trace_<tracepoint>_enabled()
 function defined that returns true if the tracepoint is enabled and
-false otherwise. The trace_<tracepoint>() should always be within the
+false otherwise. The trace_<tracepoint>_tp() should always be within the
 block of the if (trace_<tracepoint>_enabled()) to prevent races between
 the tracepoint being enabled and the check being seen.
 
@@ -143,7 +143,10 @@ the static_key of the tracepoint to allow the if statement to be implemented
 with jump labels and avoid conditional branches.
 
 .. note:: The convenience macro TRACE_EVENT provides an alternative way to
-      define tracepoints. Check http://lwn.net/Articles/379903,
+      define tracepoints. Note, DECLARE_TRACE(foo) creates a function
+      "trace_foo_tp()" whereas TRACE_EVENT(foo) creates a function
+      "trace_foo()", and also exposes the tracepoint as a trace event in
+      /sys/kernel/tracing/events directory.  Check http://lwn.net/Articles/379903,
       http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362
       for a series of articles with more details.
 
@@ -159,7 +162,9 @@ In a C file::
 
 	void do_trace_foo_bar_wrapper(args)
 	{
-		trace_foo_bar(args);
+		trace_foo_bar_tp(args); // for tracepoints created via DECLARE_TRACE
+					//   or
+		trace_foo_bar(args);    // for tracepoints created via TRACE_EVENT
 	}
 
 In the header file::

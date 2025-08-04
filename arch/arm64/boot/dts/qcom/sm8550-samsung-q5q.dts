@@ -547,20 +547,20 @@
 };
 
 &remoteproc_adsp {
-	firmware-name = "qcom/sm8550/adsp.mdt",
-			"qcom/sm8550/adsp_dtb.mdt";
+	firmware-name = "qcom/sm8550/adsp.mbn",
+			"qcom/sm8550/adsp_dtb.mbn";
 	status = "okay";
 };
 
 &remoteproc_cdsp {
-	firmware-name = "qcom/sm8550/cdsp.mdt",
-			"qcom/sm8550/cdsp_dtb.mdt";
+	firmware-name = "qcom/sm8550/cdsp.mbn",
+			"qcom/sm8550/cdsp_dtb.mbn";
 	status = "okay";
 };
 
 &remoteproc_mpss {
-	firmware-name = "qcom/sm8550/modem.mdt",
-			"qcom/sm8550/modem_dtb.mdt";
+	firmware-name = "qcom/sm8550/modem.mbn",
+			"qcom/sm8550/modem_dtb.mbn";
 	status = "okay";
 };
 

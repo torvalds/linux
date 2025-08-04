@@ -1,5 +1,79 @@
 [
     {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITI",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITI",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xFE",
+        "EventName": "IDI_MISC.WB_DOWNGRADE",
+        "PublicDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts number of cache lines that are allocated and written back to L3 with the intention that they are more likely to be reused shortly",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xFE",
+        "EventName": "IDI_MISC.WB_UPGRADE",
+        "PublicDescription": "Counts number of cache lines that are allocated and written back to L3 with the intention that they are more likely to be reused shortly.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x2"
+    },
+    {
         "BriefDescription": "L1D data line replacements",
         "Counter": "0,1,2,3",
         "EventCode": "0x51",

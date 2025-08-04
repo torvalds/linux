@@ -6,7 +6,7 @@
  * Copyright (c) 2011 John Crispin <john@phrozen.org>
  */
 
-#include <linux/device.h>
+#include <linux/device/devres.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
@@ -19,32 +19,14 @@
 struct fwnode_handle;
 struct lock_class_key;
 
-static void devm_gpiod_release(struct device *dev, void *res)
+static void devm_gpiod_release(void *desc)
 {
-	struct gpio_desc **desc = res;
-
-	gpiod_put(*desc);
+	gpiod_put(desc);
 }
 
-static int devm_gpiod_match(struct device *dev, void *res, void *data)
+static void devm_gpiod_release_array(void *descs)
 {
-	struct gpio_desc **this = res, **gpio = data;
-
-	return *this == *gpio;
-}
-
-static void devm_gpiod_release_array(struct device *dev, void *res)
-{
-	struct gpio_descs **descs = res;
-
-	gpiod_put_array(*descs);
-}
-
-static int devm_gpiod_match_array(struct device *dev, void *res, void *data)
-{
-	struct gpio_descs **this = res, **gpios = data;
-
-	return *this == *gpios;
+	gpiod_put_array(descs);
 }
 
 /**
@@ -114,8 +96,8 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 						    unsigned int idx,
 						    enum gpiod_flags flags)
 {
-	struct gpio_desc **dr;
 	struct gpio_desc *desc;
+	int ret;
 
 	desc = gpiod_get_index(dev, con_id, idx, flags);
 	if (IS_ERR(desc))
@@ -126,23 +108,16 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 	 * already under resource management by this device.
 	 */
 	if (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
-		struct devres *dres;
+		bool dres;
 
-		dres = devres_find(dev, devm_gpiod_release,
-				   devm_gpiod_match, &desc);
+		dres = devm_is_action_added(dev, devm_gpiod_release, desc);
 		if (dres)
 			return desc;
 	}
 
-	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
-			  GFP_KERNEL);
-	if (!dr) {
-		gpiod_put(desc);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	*dr = desc;
-	devres_add(dev, dr);
+	ret = devm_add_action_or_reset(dev, devm_gpiod_release, desc);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return desc;
 }
@@ -171,22 +146,16 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 					      enum gpiod_flags flags,
 					      const char *label)
 {
-	struct gpio_desc **dr;
 	struct gpio_desc *desc;
-
-	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
-			  GFP_KERNEL);
-	if (!dr)
-		return ERR_PTR(-ENOMEM);
+	int ret;
 
 	desc = gpiod_find_and_request(dev, fwnode, con_id, index, flags, label, false);
-	if (IS_ERR(desc)) {
-		devres_free(dr);
+	if (IS_ERR(desc))
 		return desc;
-	}
 
-	*dr = desc;
-	devres_add(dev, dr);
+	ret = devm_add_action_or_reset(dev, devm_gpiod_release, desc);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return desc;
 }
@@ -244,22 +213,16 @@ struct gpio_descs *__must_check devm_gpiod_get_array(struct device *dev,
 						     const char *con_id,
 						     enum gpiod_flags flags)
 {
-	struct gpio_descs **dr;
 	struct gpio_descs *descs;
-
-	dr = devres_alloc(devm_gpiod_release_array,
-			  sizeof(struct gpio_descs *), GFP_KERNEL);
-	if (!dr)
-		return ERR_PTR(-ENOMEM);
+	int ret;
 
 	descs = gpiod_get_array(dev, con_id, flags);
-	if (IS_ERR(descs)) {
-		devres_free(dr);
+	if (IS_ERR(descs))
 		return descs;
-	}
 
-	*dr = descs;
-	devres_add(dev, dr);
+	ret = devm_add_action_or_reset(dev, devm_gpiod_release_array, descs);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return descs;
 }
@@ -307,8 +270,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_array_optional);
  */
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
 {
-	WARN_ON(devres_release(dev, devm_gpiod_release, devm_gpiod_match,
-		&desc));
+	devm_release_action(dev, devm_gpiod_release, desc);
 }
 EXPORT_SYMBOL_GPL(devm_gpiod_put);
 
@@ -332,13 +294,13 @@ void devm_gpiod_unhinge(struct device *dev, struct gpio_desc *desc)
 
 	if (IS_ERR_OR_NULL(desc))
 		return;
-	ret = devres_destroy(dev, devm_gpiod_release,
-			     devm_gpiod_match, &desc);
+
 	/*
 	 * If the GPIO descriptor is requested as nonexclusive, we
 	 * may call this function several times on the same descriptor
 	 * so it is OK if devres_destroy() returns -ENOENT.
 	 */
+	ret = devm_remove_action_nowarn(dev, devm_gpiod_release, desc);
 	if (ret == -ENOENT)
 		return;
 	/* Anything else we should warn about */
@@ -357,8 +319,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_unhinge);
  */
 void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs)
 {
-	WARN_ON(devres_release(dev, devm_gpiod_release_array,
-			       devm_gpiod_match_array, &descs));
+	devm_remove_action(dev, devm_gpiod_release_array, descs);
 }
 EXPORT_SYMBOL_GPL(devm_gpiod_put_array);
 

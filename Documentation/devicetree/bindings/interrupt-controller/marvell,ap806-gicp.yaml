@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/marvell,ap806-gicp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell GICP Controller
+
+maintainers:
+  - Thomas Petazzoni <thomas.petazzoni@bootlin.com>
+
+description:
+  GICP is a Marvell extension of the GIC that allows to trigger GIC SPI
+  interrupts by doing a memory transaction. It is used by the ICU
+  located in the Marvell CP110 to turn wired interrupts inside the CP
+  into GIC SPI interrupts.
+
+properties:
+  compatible:
+    const: marvell,ap806-gicp
+
+  reg:
+    maxItems: 1
+
+  marvell,spi-ranges:
+    description: Tuples of GIC SPI interrupt ranges available for this GICP
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      items:
+        - description: SPI interrupt base
+        - description: Number of interrupts in the range
+
+  msi-controller: true
+
+required:
+  - compatible
+  - reg
+  - msi-controller
+  - marvell,spi-ranges
+
+additionalProperties: false
+
+examples:
+  - |
+    msi-controller@3f0040 {
+        compatible = "marvell,ap806-gicp";
+        reg = <0x3f0040 0x10>;
+        marvell,spi-ranges = <64 64>, <288 64>;
+        msi-controller;
+    };

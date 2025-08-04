@@ -41,12 +41,12 @@ static s64 interp(s64 x, s64 x1, s64 x2, s64 y1, s64 y2)
 {
 	s64 dydx;
 
-	dydx = DIV_ROUND_UP_ULL((y2 - y1) * 100000, (x2 - x1));
+	dydx = DIV64_U64_ROUND_UP((y2 - y1) * 100000, (x2 - x1));
 
-	return (y1 + DIV_ROUND_UP_ULL(dydx * (x - x1), 100000));
+	return (y1 + DIV64_U64_ROUND_UP(dydx * (x - x1), 100000));
 }
 
-static void get_ana_cp_int_prop(u32 vco_clk,
+static void get_ana_cp_int_prop(u64 vco_clk,
 				u32 refclk_postscalar,
 				int mpll_ana_v2i,
 				int c, int a,
@@ -115,16 +115,16 @@ static void get_ana_cp_int_prop(u32 vco_clk,
 								      CURVE0_MULTIPLIER));
 
 	scaled_interpolated_sqrt =
-			int_sqrt(DIV_ROUND_UP_ULL(interpolated_product, vco_div_refclk_float) *
+			int_sqrt(DIV64_U64_ROUND_UP(interpolated_product, vco_div_refclk_float) *
 			DIV_ROUND_DOWN_ULL(1000000000000ULL, 55));
 
 	/* Scale vco_div_refclk for ana_cp_int */
 	scaled_vco_div_refclk2 = DIV_ROUND_UP_ULL(vco_div_refclk_float, 1000000);
-	adjusted_vco_clk2 = 1460281 * DIV_ROUND_UP_ULL(scaled_interpolated_sqrt *
+	adjusted_vco_clk2 = 1460281 * DIV64_U64_ROUND_UP(scaled_interpolated_sqrt *
 						       scaled_vco_div_refclk2,
 						       curve_1_interpolated);
 
-	*ana_cp_prop = DIV_ROUND_UP_ULL(adjusted_vco_clk2, curve_2_scaled2);
+	*ana_cp_prop = DIV64_U64_ROUND_UP(adjusted_vco_clk2, curve_2_scaled2);
 	*ana_cp_prop = max(1, min(*ana_cp_prop, 127));
 }
 
@@ -165,10 +165,10 @@ static void compute_hdmi_tmds_pll(u64 pixel_clock, u32 refclk,
 	/* Select appropriate v2i point */
 	if (datarate <= INTEL_SNPS_PHY_HDMI_9999MHZ) {
 		mpll_ana_v2i = 2;
-		tx_clk_div = ilog2(DIV_ROUND_DOWN_ULL(INTEL_SNPS_PHY_HDMI_9999MHZ, datarate));
+		tx_clk_div = ilog2(div64_u64(INTEL_SNPS_PHY_HDMI_9999MHZ, datarate));
 	} else {
 		mpll_ana_v2i = 3;
-		tx_clk_div = ilog2(DIV_ROUND_DOWN_ULL(INTEL_SNPS_PHY_HDMI_16GHZ, datarate));
+		tx_clk_div = ilog2(div64_u64(INTEL_SNPS_PHY_HDMI_16GHZ, datarate));
 	}
 	vco_clk = (datarate << tx_clk_div) >> 1;
 

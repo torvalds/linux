@@ -20,6 +20,7 @@ properties:
           - mediatek,mt8183-mdp3-wrot
       - items:
           - enum:
+              - mediatek,mt8188-mdp3-wrot
               - mediatek,mt8195-mdp3-wrot
           - const: mediatek,mt8183-mdp3-wrot
 

@@ -310,6 +310,14 @@ struct xe_vm {
 	 * protected by the vm resv.
 	 */
 	u64 tlb_flush_seqno;
+	/**
+	 * @validating: The task that is currently making bos resident for this vm.
+	 * Protected by the VM's resv for writing. Opportunistic reading can be done
+	 * using READ_ONCE. Note: This is a workaround for the
+	 * TTM eviction_valuable() callback not being passed a struct
+	 * ttm_operation_context(). Future work might want to address this.
+	 */
+	struct task_struct *validating;
 	/** @batch_invalidate_tlb: Always invalidate TLB before batch start */
 	bool batch_invalidate_tlb;
 	/** @xef: XE file handle for tracking this VM's drm client */
@@ -330,6 +338,8 @@ struct xe_vma_op_map {
 	bool is_cpu_addr_mirror;
 	/** @dumpable: whether BO is dumped on GPU hang */
 	bool dumpable;
+	/** @invalidate: invalidate the VMA before bind */
+	bool invalidate_on_bind;
 	/** @pat_index: The pat index to use for this operation. */
 	u16 pat_index;
 };

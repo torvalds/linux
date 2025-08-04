@@ -6,18 +6,21 @@
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
 
-#if __clang_major__ >= 18 && defined(ENABLE_ATOMICS_TESTS) && \
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86))
+#ifdef CAN_USE_LOAD_ACQ_STORE_REL
 
 SEC("socket")
 __description("store-release, 8-bit")
-__success __success_unpriv __retval(0x12)
+__success __success_unpriv __retval(0)
 __naked void store_release_8(void)
 {
 	asm volatile (
+	"r0 = 0;"
 	"w1 = 0x12;"
 	".8byte %[store_release_insn];" // store_release((u8 *)(r10 - 1), w1);
-	"w0 = *(u8 *)(r10 - 1);"
+	"w2 = *(u8 *)(r10 - 1);"
+	"if r2 == r1 goto 1f;"
+	"r0 = 1;"
+"1:"
 	"exit;"
 	:
 	: __imm_insn(store_release_insn,
@@ -27,13 +30,17 @@ __naked void store_release_8(void)
 
 SEC("socket")
 __description("store-release, 16-bit")
-__success __success_unpriv __retval(0x1234)
+__success __success_unpriv __retval(0)
 __naked void store_release_16(void)
 {
 	asm volatile (
+	"r0 = 0;"
 	"w1 = 0x1234;"
 	".8byte %[store_release_insn];" // store_release((u16 *)(r10 - 2), w1);
-	"w0 = *(u16 *)(r10 - 2);"
+	"w2 = *(u16 *)(r10 - 2);"
+	"if r2 == r1 goto 1f;"
+	"r0 = 1;"
+"1:"
 	"exit;"
 	:
 	: __imm_insn(store_release_insn,
@@ -43,13 +50,17 @@ __naked void store_release_16(void)
 
 SEC("socket")
 __description("store-release, 32-bit")
-__success __success_unpriv __retval(0x12345678)
+__success __success_unpriv __retval(0)
 __naked void store_release_32(void)
 {
 	asm volatile (
+	"r0 = 0;"
 	"w1 = 0x12345678;"
 	".8byte %[store_release_insn];" // store_release((u32 *)(r10 - 4), w1);
-	"w0 = *(u32 *)(r10 - 4);"
+	"w2 = *(u32 *)(r10 - 4);"
+	"if r2 == r1 goto 1f;"
+	"r0 = 1;"
+"1:"
 	"exit;"
 	:
 	: __imm_insn(store_release_insn,
@@ -59,13 +70,17 @@ __naked void store_release_32(void)
 
 SEC("socket")
 __description("store-release, 64-bit")
-__success __success_unpriv __retval(0x1234567890abcdef)
+__success __success_unpriv __retval(0)
 __naked void store_release_64(void)
 {
 	asm volatile (
+	"r0 = 0;"
 	"r1 = 0x1234567890abcdef ll;"
 	".8byte %[store_release_insn];" // store_release((u64 *)(r10 - 8), r1);
-	"r0 = *(u64 *)(r10 - 8);"
+	"r2 = *(u64 *)(r10 - 8);"
+	"if r2 == r1 goto 1f;"
+	"r0 = 1;"
+"1:"
 	"exit;"
 	:
 	: __imm_insn(store_release_insn,
@@ -271,7 +286,7 @@ __naked void store_release_with_invalid_reg(void)
 	: __clobber_all);
 }
 
-#else
+#else /* CAN_USE_LOAD_ACQ_STORE_REL */
 
 SEC("socket")
 __description("Clang version < 18, ENABLE_ATOMICS_TESTS not defined, and/or JIT doesn't support store-release, use a dummy test")
@@ -281,6 +296,6 @@ int dummy_test(void)
 	return 0;
 }
 
-#endif
+#endif /* CAN_USE_LOAD_ACQ_STORE_REL */
 
 char _license[] SEC("license") = "GPL";

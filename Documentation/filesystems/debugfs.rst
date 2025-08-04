@@ -229,22 +229,15 @@ module is unloaded without explicitly removing debugfs entries, the result
 will be a lot of stale pointers and no end of highly antisocial behavior.
 So all debugfs users - at least those which can be built as modules - must
 be prepared to remove all files and directories they create there.  A file
-can be removed with::
+or directory can be removed with::
 
     void debugfs_remove(struct dentry *dentry);
 
 The dentry value can be NULL or an error value, in which case nothing will
-be removed.
-
-Once upon a time, debugfs users were required to remember the dentry
-pointer for every debugfs file they created so that all files could be
-cleaned up.  We live in more civilized times now, though, and debugfs users
-can call::
-
-    void debugfs_remove_recursive(struct dentry *dentry);
-
-If this function is passed a pointer for the dentry corresponding to the
-top-level directory, the entire hierarchy below that directory will be
-removed.
+be removed.  Note that this function will recursively remove all files and
+directories underneath it.  Previously, debugfs_remove_recursive() was used
+to perform that task, but this function is now just an alias to
+debugfs_remove().  debugfs_remove_recursive() should be considered
+deprecated.
 
 .. [1] http://lwn.net/Articles/309298/

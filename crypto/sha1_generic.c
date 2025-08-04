@@ -12,13 +12,11 @@
  * Copyright (c) Jean-Francois Dive <jef@linuxbe.org>
  */
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/types.h>
 #include <crypto/sha1.h>
 #include <crypto/sha1_base.h>
-#include <asm/byteorder.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
 
 const u8 sha1_zero_message_hash[SHA1_DIGEST_SIZE] = {
 	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
@@ -39,38 +37,31 @@ static void sha1_generic_block_fn(struct sha1_state *sst, u8 const *src,
 	memzero_explicit(temp, sizeof(temp));
 }
 
-int crypto_sha1_update(struct shash_desc *desc, const u8 *data,
-		       unsigned int len)
+static int crypto_sha1_update(struct shash_desc *desc, const u8 *data,
+			      unsigned int len)
 {
-	return sha1_base_do_update(desc, data, len, sha1_generic_block_fn);
+	return sha1_base_do_update_blocks(desc, data, len,
+					  sha1_generic_block_fn);
 }
-EXPORT_SYMBOL(crypto_sha1_update);
 
-static int sha1_final(struct shash_desc *desc, u8 *out)
+static int crypto_sha1_finup(struct shash_desc *desc, const u8 *data,
+			     unsigned int len, u8 *out)
 {
-	sha1_base_do_finalize(desc, sha1_generic_block_fn);
+	sha1_base_do_finup(desc, data, len, sha1_generic_block_fn);
 	return sha1_base_finish(desc, out);
 }
-
-int crypto_sha1_finup(struct shash_desc *desc, const u8 *data,
-		      unsigned int len, u8 *out)
-{
-	sha1_base_do_update(desc, data, len, sha1_generic_block_fn);
-	return sha1_final(desc, out);
-}
-EXPORT_SYMBOL(crypto_sha1_finup);
 
 static struct shash_alg alg = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
 	.init		=	sha1_base_init,
 	.update		=	crypto_sha1_update,
-	.final		=	sha1_final,
 	.finup		=	crypto_sha1_finup,
-	.descsize	=	sizeof(struct sha1_state),
+	.descsize	=	SHA1_STATE_SIZE,
 	.base		=	{
 		.cra_name	=	"sha1",
 		.cra_driver_name=	"sha1-generic",
 		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize	=	SHA1_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -86,7 +77,7 @@ static void __exit sha1_generic_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-subsys_initcall(sha1_generic_mod_init);
+module_init(sha1_generic_mod_init);
 module_exit(sha1_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

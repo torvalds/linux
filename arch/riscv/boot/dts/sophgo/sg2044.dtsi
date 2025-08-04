@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2025 Inochi Amaoto <inochiama@gmail.com>
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "sg2044-cpus.dtsi"
+#include "sg2044-reset.h"
+
+/ {
+	compatible = "sophgo,sg2044";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000 0x00000010 0x00000000>;
+	};
+
+	osc: oscillator {
+		compatible = "fixed-clock";
+		clock-output-names = "osc";
+		#clock-cells = <0>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		uart0: serial@7030000000 {
+			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
+			reg = <0x70 0x30000000 0x0 0x1000>;
+			clock-frequency = <500000000>;
+			interrupt-parent = <&intc>;
+			interrupts = <41 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst RST_UART0>;
+			status = "disabled";
+		};
+
+		uart1: serial@7030001000 {
+			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
+			reg = <0x70 0x30001000 0x0 0x1000>;
+			clock-frequency = <500000000>;
+			interrupt-parent = <&intc>;
+			interrupts = <42 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst RST_UART1>;
+			status = "disabled";
+		};
+
+		uart2: serial@7030002000 {
+			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
+			reg = <0x70 0x30002000 0x0 0x1000>;
+			clock-frequency = <500000000>;
+			interrupt-parent = <&intc>;
+			interrupts = <43 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst RST_UART2>;
+			status = "disabled";
+		};
+
+		uart3: serial@7030003000 {
+			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
+			reg = <0x70 0x30003000 0x0 0x1000>;
+			clock-frequency = <500000000>;
+			interrupt-parent = <&intc>;
+			interrupts = <44 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst RST_UART3>;
+			status = "disabled";
+		};
+
+		rst: reset-controller@7050003000 {
+			compatible = "sophgo,sg2044-reset",
+				     "sophgo,sg2042-reset";
+			reg = <0x70 0x50003000 0x0 0x1000>;
+			#reset-cells = <1>;
+		};
+	};
+};

@@ -86,10 +86,9 @@ static irqreturn_t ad7266_trigger_handler(int irq, void *p)
 	int ret;
 
 	ret = spi_read(st->spi, st->data.sample, 4);
-	if (ret == 0) {
-		iio_push_to_buffers_with_timestamp(indio_dev, &st->data,
-			    pf->timestamp);
-	}
+	if (ret == 0)
+		iio_push_to_buffers_with_ts(indio_dev, &st->data, sizeof(st->data),
+					    pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 

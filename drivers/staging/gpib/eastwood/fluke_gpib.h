@@ -55,8 +55,10 @@ enum state1_bits {
 	SOURCE_HANDSHAKE_MASK = 0x7
 };
 
-// we customized the cb7210 vhdl to give the "data in" status
-// on the unused bit 7 of the address0 register.
+/*
+ * we customized the cb7210 vhdl to give the "data in" status
+ * on the unused bit 7 of the address0 register.
+ */
 enum cb7210_address0 {
 	DATA_IN_STATUS = 0x80
 };
@@ -67,8 +69,8 @@ static inline int cb7210_page_in_bits(unsigned int page)
 }
 
 // don't use without locking nec_priv->register_page_lock
-static inline uint8_t fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
-					     int register_num)
+static inline u8 fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
+					int register_num)
 {
 	u8 retval;
 
@@ -77,14 +79,14 @@ static inline uint8_t fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
 }
 
 // don't use without locking nec_priv->register_page_lock
-static inline void fluke_write_byte_nolock(struct nec7210_priv *nec_priv, uint8_t data,
+static inline void fluke_write_byte_nolock(struct nec7210_priv *nec_priv, u8 data,
 					   int register_num)
 {
 	writel(data, nec_priv->mmiobase + register_num * nec_priv->offset);
 }
 
-static inline uint8_t fluke_paged_read_byte(struct fluke_priv *e_priv,
-					    unsigned int register_num, unsigned int page)
+static inline u8 fluke_paged_read_byte(struct fluke_priv *e_priv,
+				       unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	u8 retval;
@@ -99,7 +101,7 @@ static inline uint8_t fluke_paged_read_byte(struct fluke_priv *e_priv,
 	return retval;
 }
 
-static inline void fluke_paged_write_byte(struct fluke_priv *e_priv, uint8_t data,
+static inline void fluke_paged_write_byte(struct fluke_priv *e_priv, u8 data,
 					  unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
@@ -124,11 +126,12 @@ enum bus_status_bits {
 };
 
 enum cb7210_aux_cmds {
-/* AUX_RTL2 is an undocumented aux command which causes cb7210 to assert
- *	(and keep asserted) local rtl message.  This is used in conjunction
- *	with the (stupid) cb7210 implementation
- *	of the normal nec7210 AUX_RTL aux command, which
- *	causes the rtl message to toggle between on and off.
+/*
+ * AUX_RTL2 is an undocumented aux command which causes cb7210 to assert
+ * (and keep asserted) local rtl message.  This is used in conjunction
+ * with the (stupid) cb7210 implementation
+ * of the normal nec7210 AUX_RTL aux command, which
+ * causes the rtl message to toggle between on and off.
  */
 	AUX_RTL2 = 0xd,
 	AUX_NBAF = 0xe,	// new byte available false (also clears seoi)

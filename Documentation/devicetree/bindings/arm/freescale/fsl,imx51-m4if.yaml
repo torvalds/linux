@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/freescale/fsl,imx51-m4if.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Multi Master Multi Memory Interface (M4IF) and Tigerp module
+
+description: collect the imx devices, which only have compatible and reg property
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx51-m4if
+          - fsl,imx51-tigerp
+          - fsl,imx51-aipstz
+          - fsl,imx53-aipstz
+          - fsl,imx7d-pcie-phy
+      - items:
+          - const: fsl,imx53-tigerp
+          - const: fsl,imx51-tigerp
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    m4if@83fd8000 {
+        compatible = "fsl,imx51-m4if";
+        reg = <0x83fd8000 0x1000>;
+    };

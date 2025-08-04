@@ -139,7 +139,7 @@ void tulip_media_task(struct work_struct *work)
 
 void mxic_timer(struct timer_list *t)
 {
-	struct tulip_private *tp = from_timer(tp, t, timer);
+	struct tulip_private *tp = timer_container_of(tp, t, timer);
 	struct net_device *dev = tp->dev;
 	void __iomem *ioaddr = tp->base_addr;
 	int next_tick = 60*HZ;
@@ -156,7 +156,7 @@ void mxic_timer(struct timer_list *t)
 
 void comet_timer(struct timer_list *t)
 {
-	struct tulip_private *tp = from_timer(tp, t, timer);
+	struct tulip_private *tp = timer_container_of(tp, t, timer);
 	struct net_device *dev = tp->dev;
 	int next_tick = 2*HZ;
 

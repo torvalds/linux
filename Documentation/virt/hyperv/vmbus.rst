@@ -250,10 +250,18 @@ interrupts are not Linux IRQs, there are no entries in /proc/interrupts
 or /proc/irq corresponding to individual VMBus channel interrupts.
 
 An online CPU in a Linux guest may not be taken offline if it has
-VMBus channel interrupts assigned to it.  Any such channel
-interrupts must first be manually reassigned to another CPU as
-described above.  When no channel interrupts are assigned to the
-CPU, it can be taken offline.
+VMBus channel interrupts assigned to it. Starting in kernel v6.15,
+any such interrupts are automatically reassigned to some other CPU
+at the time of offlining. The "other" CPU is chosen by the
+implementation and is not load balanced or otherwise intelligently
+determined. If the CPU is onlined again, channel interrupts previously
+assigned to it are not moved back. As a result, after multiple CPUs
+have been offlined, and perhaps onlined again, the interrupt-to-CPU
+mapping may be scrambled and non-optimal. In such a case, optimal
+assignments must be re-established manually. For kernels v6.14 and
+earlier, any conflicting channel interrupts must first be manually
+reassigned to another CPU as described above. Then when no channel
+interrupts are assigned to the CPU, it can be taken offline.
 
 The VMBus channel interrupt handling code is designed to work
 correctly even if an interrupt is received on a CPU other than the
@@ -324,3 +332,15 @@ rescinded, neither Hyper-V nor Linux retains any state about
 its previous existence. Such a device might be re-added later,
 in which case it is treated as an entirely new device. See
 vmbus_onoffer_rescind().
+
+For some devices, such as the KVP device, Hyper-V automatically
+sends a rescind message when the primary channel is closed,
+likely as a result of unbinding the device from its driver.
+The rescind causes Linux to remove the device. But then Hyper-V
+immediately reoffers the device to the guest, causing a new
+instance of the device to be created in Linux. For other
+devices, such as the synthetic SCSI and NIC devices, closing the
+primary channel does *not* result in Hyper-V sending a rescind
+message. The device continues to exist in Linux on the VMBus,
+but with no driver bound to it. The same driver or a new driver
+can subsequently be bound to the existing instance of the device.

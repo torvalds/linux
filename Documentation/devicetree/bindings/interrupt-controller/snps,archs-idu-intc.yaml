@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/snps,archs-idu-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARC-HS Interrupt Distribution Unit
+
+maintainers:
+  - Vineet Gupta <vgupta@kernel.org>
+
+description: >
+  ARC-HS Interrupt Distribution Unit is an optional 2nd level interrupt
+  controller which can be used in SMP configurations for dynamic IRQ routing,
+  load balancing of common/external IRQs towards core intc.
+
+  The interrupt controller is accessed via the special ARC AUX register
+  interface, hence "reg" property is not specified.
+
+properties:
+  compatible:
+    const: snps,archs-idu-intc
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    description: |
+      Number of interrupt specifier cells:
+        - 1: only a common IRQ is specified.
+        - 2: a second cell encodes trigger type and level flags:
+            1 = low-to-high edge triggered
+            4 = active high level-sensitive (default)
+    enum: [1, 2]
+
+required:
+  - compatible
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller {
+        compatible = "snps,archs-idu-intc";
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };

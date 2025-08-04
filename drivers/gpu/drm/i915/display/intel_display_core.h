@@ -21,17 +21,15 @@
 #include "intel_display_limits.h"
 #include "intel_display_params.h"
 #include "intel_display_power.h"
+#include "intel_dmc_wl.h"
 #include "intel_dpll_mgr.h"
 #include "intel_fbc.h"
 #include "intel_global_state.h"
 #include "intel_gmbus.h"
 #include "intel_opregion.h"
-#include "intel_dmc_wl.h"
+#include "intel_pch.h"
 #include "intel_wm_types.h"
 
-struct task_struct;
-
-struct drm_i915_private;
 struct drm_property;
 struct drm_property_blob;
 struct i915_audio_component;
@@ -52,6 +50,7 @@ struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 struct intel_opregion;
 struct intel_overlay;
+struct task_struct;
 
 /* Amount of SAGV/QGV points, BSpec precisely defines this */
 #define I915_NUM_QGV_POINTS 8
@@ -80,7 +79,7 @@ struct intel_display_funcs {
 /* functions used for watermark calcs for display. */
 struct intel_wm_funcs {
 	/* update_wm is for legacy wm management */
-	void (*update_wm)(struct drm_i915_private *dev_priv);
+	void (*update_wm)(struct intel_display *display);
 	int (*compute_watermarks)(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
@@ -90,8 +89,8 @@ struct intel_wm_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
-	void (*get_hw_state)(struct drm_i915_private *i915);
-	void (*sanitize)(struct drm_i915_private *i915);
+	void (*get_hw_state)(struct intel_display *display);
+	void (*sanitize)(struct intel_display *display);
 };
 
 struct intel_audio_state {
@@ -160,6 +159,7 @@ struct intel_hotplug {
 	struct {
 		unsigned long last_jiffies;
 		int count;
+		int blocked_count;
 		enum {
 			HPD_ENABLED = 0,
 			HPD_DISABLED = 1,
@@ -170,8 +170,8 @@ struct intel_hotplug {
 	u32 retry_bits;
 	struct delayed_work reenable_work;
 
-	u32 long_port_mask;
-	u32 short_port_mask;
+	u32 long_hpd_pin_mask;
+	u32 short_hpd_pin_mask;
 	struct work_struct dig_port_work;
 
 	struct work_struct poll_init_work;
@@ -179,7 +179,7 @@ struct intel_hotplug {
 
 	/*
 	 * Queuing of hotplug_work, reenable_work and poll_init_work is
-	 * enabled. Protected by drm_i915_private::irq_lock.
+	 * enabled. Protected by intel_display::irq::lock.
 	 */
 	bool detection_work_enabled;
 
@@ -287,6 +287,9 @@ struct intel_display {
 
 	/* Platform (and subplatform, if any) identification */
 	struct intel_display_platforms platform;
+
+	/* Intel PCH: where the south display engine lives */
+	enum intel_pch pch_type;
 
 	/* Display functions */
 	struct {
@@ -425,7 +428,7 @@ struct intel_display {
 		 * reused when sending message to gsc cs.
 		 * this is only populated post Meteorlake
 		 */
-		struct intel_hdcp_gsc_message *hdcp_message;
+		struct intel_hdcp_gsc_context *gsc_context;
 		/* Mutex to protect the above hdcp related values. */
 		struct mutex hdcp_mutex;
 	} hdcp;
@@ -453,6 +456,9 @@ struct intel_display {
 	} ips;
 
 	struct {
+		/* protects the irq masks */
+		spinlock_t lock;
+
 		/*
 		 * Most platforms treat the display irq block as an always-on
 		 * power domain. vlv/chv can disable it at runtime and need
@@ -465,9 +471,9 @@ struct intel_display {
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
 
-		int vblank_wa_num_pipes;
+		int vblank_enable_count;
 
-		struct work_struct vblank_dc_work;
+		struct work_struct vblank_notify_work;
 
 		u32 de_irq_mask[I915_MAX_PIPES];
 		u32 pipestat_irq_mask[I915_MAX_PIPES];
@@ -574,6 +580,8 @@ struct intel_display {
 	struct intel_vbt_data vbt;
 	struct intel_dmc_wl wl;
 	struct intel_wm wm;
+
+	struct work_struct psr_dc5_dc6_wa_work;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */

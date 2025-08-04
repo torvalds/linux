@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Test cases for compiler-based stack variable zeroing via
- * -ftrivial-auto-var-init={zero,pattern} or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
+ * -ftrivial-auto-var-init={zero,pattern}.
  * For example, see:
  * "Running tests with kunit_tool" at Documentation/dev-tools/kunit/start.rst
  *	./tools/testing/kunit/kunit.py run stackinit [--raw_output] \
@@ -375,14 +375,6 @@ union test_small_end {
 #ifdef CONFIG_INIT_STACK_NONE
 # define USER_PASS	XFAIL
 # define BYREF_PASS	XFAIL
-# define STRONG_PASS	XFAIL
-#elif defined(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER)
-# define USER_PASS	WANT_SUCCESS
-# define BYREF_PASS	XFAIL
-# define STRONG_PASS	XFAIL
-#elif defined(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF)
-# define USER_PASS	WANT_SUCCESS
-# define BYREF_PASS	WANT_SUCCESS
 # define STRONG_PASS	XFAIL
 #else
 # define USER_PASS	WANT_SUCCESS

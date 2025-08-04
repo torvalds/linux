@@ -10,6 +10,8 @@
 #include "kvm_emulate.h"
 #include "cpuid.h"
 
+#define KVM_MAX_MCE_BANKS 32
+
 struct kvm_caps {
 	/* control of guest tsc rate supported? */
 	bool has_tsc_control;
@@ -32,6 +34,9 @@ struct kvm_caps {
 	u64 supported_xcr0;
 	u64 supported_xss;
 	u64 supported_perf_cap;
+
+	u64 supported_quirks;
+	u64 inapplicable_quirks;
 };
 
 struct kvm_host_values {
@@ -114,6 +119,24 @@ int kvm_check_nested_events(struct kvm_vcpu *vcpu);
 static inline void kvm_leave_nested(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops.nested_ops->leave_nested(vcpu);
+}
+
+/*
+ * If IBRS is advertised to the vCPU, KVM must flush the indirect branch
+ * predictors when transitioning from L2 to L1, as L1 expects hardware (KVM in
+ * this case) to provide separate predictor modes.  Bare metal isolates the host
+ * from the guest, but doesn't isolate different guests from one another (in
+ * this case L1 and L2). The exception is if bare metal supports same mode IBRS,
+ * which offers protection within the same mode, and hence protects L1 from L2.
+ */
+static inline void kvm_nested_vmexit_handle_ibrs(struct kvm_vcpu *vcpu)
+{
+	if (cpu_feature_enabled(X86_FEATURE_AMD_IBRS_SAME_MODE))
+		return;
+
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SPEC_CTRL) ||
+	    guest_cpu_cap_has(vcpu, X86_FEATURE_AMD_IBRS))
+		indirect_branch_prediction_barrier();
 }
 
 static inline bool kvm_vcpu_has_run(struct kvm_vcpu *vcpu)
@@ -629,25 +652,17 @@ static inline bool user_exit_on_hypercall(struct kvm *kvm, unsigned long hc_nr)
 	return kvm->arch.hypercall_exit_enabled & BIT(hc_nr);
 }
 
-int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
-			      unsigned long a0, unsigned long a1,
-			      unsigned long a2, unsigned long a3,
-			      int op_64_bit, int cpl,
+int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, int cpl,
 			      int (*complete_hypercall)(struct kvm_vcpu *));
 
-#define __kvm_emulate_hypercall(_vcpu, nr, a0, a1, a2, a3, op_64_bit, cpl, complete_hypercall)	\
-({												\
-	int __ret;										\
-												\
-	__ret = ____kvm_emulate_hypercall(_vcpu,						\
-					  kvm_##nr##_read(_vcpu), kvm_##a0##_read(_vcpu),	\
-					  kvm_##a1##_read(_vcpu), kvm_##a2##_read(_vcpu),	\
-					  kvm_##a3##_read(_vcpu), op_64_bit, cpl,		\
-					  complete_hypercall);					\
-												\
-	if (__ret > 0)										\
-		__ret = complete_hypercall(_vcpu);						\
-	__ret;											\
+#define __kvm_emulate_hypercall(_vcpu, cpl, complete_hypercall)			\
+({										\
+	int __ret;								\
+	__ret = ____kvm_emulate_hypercall(_vcpu, cpl, complete_hypercall);	\
+										\
+	if (__ret > 0)								\
+		__ret = complete_hypercall(_vcpu);				\
+	__ret;									\
 })
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);

@@ -52,6 +52,8 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 					   struct dma_fence **fences,
 					   struct dma_fence_unwrap *cursors);
 
+int dma_fence_dedup_array(struct dma_fence **array, int num_fences);
+
 /**
  * dma_fence_unwrap_merge - unwrap and merge fences
  *
