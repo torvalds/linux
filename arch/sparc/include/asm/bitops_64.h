@@ -23,8 +23,8 @@ void set_bit(unsigned long nr, volatile unsigned long *addr);
 void clear_bit(unsigned long nr, volatile unsigned long *addr);
 void change_bit(unsigned long nr, volatile unsigned long *addr);
 
-int fls(unsigned int word);
-int __fls(unsigned long word);
+int __attribute_const__ fls(unsigned int word);
+int __attribute_const__ __fls(unsigned long word);
 
 #include <asm-generic/bitops/non-atomic.h>
 
@@ -32,8 +32,8 @@ int __fls(unsigned long word);
 
 #ifdef __KERNEL__
 
-int ffs(int x);
-unsigned long __ffs(unsigned long);
+int __attribute_const__ ffs(int x);
+unsigned long __attribute_const__ __ffs(unsigned long);
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/sched.h>
