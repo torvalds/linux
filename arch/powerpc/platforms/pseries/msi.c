@@ -593,7 +593,7 @@ static int pseries_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 
 out:
 	/* TODO: handle RTAS cleanup in ->msi_finish() ? */
-	irq_domain_free_irqs_parent(domain, virq, i - 1);
+	irq_domain_free_irqs_parent(domain, virq, i);
 	return ret;
 }
 
