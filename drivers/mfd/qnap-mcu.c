@@ -150,6 +150,7 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	size_t length = reply_data_size + QNAP_MCU_CHECKSUM_SIZE;
 	struct qnap_mcu_reply *reply = &mcu->reply;
 	int ret = 0;
+	u8 crc;
 
 	if (length > sizeof(rx)) {
 		dev_err(&mcu->serdev->dev, "expected data too big for receive buffer");
@@ -172,17 +173,15 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	if (!wait_for_completion_timeout(&reply->done, msecs_to_jiffies(QNAP_MCU_TIMEOUT_MS))) {
 		dev_err(&mcu->serdev->dev, "Command timeout\n");
 		return -ETIMEDOUT;
-	} else {
-		u8 crc = qnap_mcu_csum(rx, reply_data_size);
-
-		if (crc != rx[reply_data_size]) {
-			dev_err(&mcu->serdev->dev,
-				"Invalid Checksum received\n");
-			return -EIO;
-		} else {
-			memcpy(reply_data, rx, reply_data_size);
-		}
 	}
+
+	crc = qnap_mcu_csum(rx, reply_data_size);
+	if (crc != rx[reply_data_size]) {
+		dev_err(&mcu->serdev->dev, "Invalid Checksum received\n");
+		return -EIO;
+	}
+
+	memcpy(reply_data, rx, reply_data_size);
 
 	return 0;
 }
