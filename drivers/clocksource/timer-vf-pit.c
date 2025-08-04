@@ -37,8 +37,6 @@ struct pit_timer {
 	struct clocksource cs;
 };
 
-static struct pit_timer pit_timer;
-
 static void __iomem *clksrc_base;
 
 static inline struct pit_timer *ced_to_pit(struct clock_event_device *ced)
@@ -189,38 +187,66 @@ static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
 
 static int __init pit_timer_init(struct device_node *np)
 {
+	struct pit_timer *pit;
 	struct clk *pit_clk;
 	void __iomem *timer_base;
 	unsigned long clk_rate;
 	int irq, ret;
 
+	pit = kzalloc(sizeof(*pit), GFP_KERNEL);
+	if (!pit)
+		return -ENOMEM;
+
+	ret = -ENXIO;
 	timer_base = of_iomap(np, 0);
 	if (!timer_base) {
 		pr_err("Failed to iomap\n");
-		return -ENXIO;
+		goto out_kfree;
 	}
 
+	ret = -EINVAL;
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq <= 0)
-		return -EINVAL;
+	if (irq <= 0) {
+		pr_err("Failed to irq_of_parse_and_map\n");
+		goto out_iounmap;
+	}
 
 	pit_clk = of_clk_get(np, 0);
-	if (IS_ERR(pit_clk))
-		return PTR_ERR(pit_clk);
+	if (IS_ERR(pit_clk)) {
+		ret = PTR_ERR(pit_clk);
+		goto out_iounmap;
+	}
 
 	ret = clk_prepare_enable(pit_clk);
 	if (ret)
-		return ret;
+		goto out_clk_put;
 
 	clk_rate = clk_get_rate(pit_clk);
 
 	/* enable the pit module */
 	writel(~PITMCR_MDIS, timer_base + PITMCR);
 
-	ret = pit_clocksource_init(&pit_timer, timer_base, clk_rate);
+	ret = pit_clocksource_init(pit, timer_base, clk_rate);
 	if (ret)
-		return ret;
+		goto out_disable_unprepare;
 
-	return pit_clockevent_init(&pit_timer, timer_base, clk_rate, irq, 0);
+	ret = pit_clockevent_init(pit, timer_base, clk_rate, irq, 0);
+	if (ret)
+		goto out_pit_clocksource_unregister;
+
+	return 0;
+
+out_pit_clocksource_unregister:
+	clocksource_unregister(&pit->cs);
+out_disable_unprepare:
+	clk_disable_unprepare(pit_clk);
+out_clk_put:
+	clk_put(pit_clk);
+out_iounmap:
+	iounmap(timer_base);
+out_kfree:
+	kfree(pit);
+
+	return ret;
 }
 TIMER_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);
