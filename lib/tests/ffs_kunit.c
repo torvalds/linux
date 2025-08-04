@@ -497,6 +497,46 @@ static void ffz_edge_cases_test(struct kunit *test)
 }
 
 /*
+ * To have useful build error output, split the tests into separate
+ * functions so it's clear which are missing __attribute_const__.
+ */
+#define CREATE_WRAPPER(func)						\
+static noinline bool build_test_##func(void)				\
+{									\
+	int init_##func = 32;						\
+	int result_##func = func(6);					\
+									\
+	/* Does the static initializer vanish after calling func? */	\
+	BUILD_BUG_ON(init_##func < 32);					\
+									\
+	/* "Consume" the results so optimizer doesn't drop them. */	\
+	barrier_data(&init_##func);					\
+	barrier_data(&result_##func);					\
+									\
+	return true;							\
+}
+CREATE_WRAPPER(ffs)
+CREATE_WRAPPER(fls)
+CREATE_WRAPPER(__ffs)
+CREATE_WRAPPER(__fls)
+CREATE_WRAPPER(ffz)
+#undef CREATE_WRAPPER
+
+/*
+ * Make sure that __attribute_const__ has be applied to all the
+ * functions. This is a regression test for:
+ * https://github.com/KSPP/linux/issues/364
+ */
+static void ffs_attribute_const_test(struct kunit *test)
+{
+	KUNIT_EXPECT_TRUE(test, build_test_ffs());
+	KUNIT_EXPECT_TRUE(test, build_test_fls());
+	KUNIT_EXPECT_TRUE(test, build_test___ffs());
+	KUNIT_EXPECT_TRUE(test, build_test___fls());
+	KUNIT_EXPECT_TRUE(test, build_test_ffz());
+}
+
+/*
  * KUnit test case definitions
  */
 static struct kunit_case ffs_test_cases[] = {
