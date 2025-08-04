@@ -155,6 +155,7 @@ static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
 	 * the channels 0 and 1 unused for anyone else who needs them
 	 */
 	pit->clkevt_base = base + PIT_CH(3);
+	pit->cycle_per_jiffy = rate / (HZ);
 
 	writel(0, pit->clkevt_base + PITTCTRL);
 
@@ -212,7 +213,6 @@ static int __init pit_timer_init(struct device_node *np)
 		return ret;
 
 	clk_rate = clk_get_rate(pit_clk);
-	pit_timer.cycle_per_jiffy = clk_rate / (HZ);
 
 	/* enable the pit module */
 	writel(~PITMCR_MDIS, timer_base + PITMCR);
