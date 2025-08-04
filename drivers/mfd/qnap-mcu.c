@@ -156,7 +156,7 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 		return -EINVAL;
 	}
 
-	mutex_lock(&mcu->bus_lock);
+	guard(mutex)(&mcu->bus_lock);
 
 	reply->data = rx;
 	reply->length = length;
@@ -164,30 +164,27 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	reinit_completion(&reply->done);
 
 	ret = qnap_mcu_write(mcu, cmd_data, cmd_data_size);
-	if (ret < 0) {
-		mutex_unlock(&mcu->bus_lock);
+	if (ret < 0)
 		return ret;
-	}
 
 	serdev_device_wait_until_sent(mcu->serdev, msecs_to_jiffies(QNAP_MCU_TIMEOUT_MS));
 
 	if (!wait_for_completion_timeout(&reply->done, msecs_to_jiffies(QNAP_MCU_TIMEOUT_MS))) {
 		dev_err(&mcu->serdev->dev, "Command timeout\n");
-		ret = -ETIMEDOUT;
+		return -ETIMEDOUT;
 	} else {
 		u8 crc = qnap_mcu_csum(rx, reply_data_size);
 
 		if (crc != rx[reply_data_size]) {
 			dev_err(&mcu->serdev->dev,
 				"Invalid Checksum received\n");
-			ret = -EIO;
+			return -EIO;
 		} else {
 			memcpy(reply_data, rx, reply_data_size);
 		}
 	}
 
-	mutex_unlock(&mcu->bus_lock);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(qnap_mcu_exec);
 
