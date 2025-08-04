@@ -397,7 +397,7 @@ unmask:
 		 * socket so the server throws away the partial SMB
 		 */
 		cifs_signal_cifsd_for_reconnect(server, false);
-		trace_smb3_partial_send_reconnect(server->CurrentMid,
+		trace_smb3_partial_send_reconnect(server->current_mid,
 						  server->conn_id, server->hostname);
 	}
 smbd_done:
@@ -509,7 +509,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 		in_flight = server->in_flight;
 		spin_unlock(&server->req_lock);
 
-		trace_smb3_nblk_credits(server->CurrentMid,
+		trace_smb3_nblk_credits(server->current_mid,
 				server->conn_id, server->hostname, scredits, -1, in_flight);
 		cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
 				__func__, 1, scredits);
@@ -542,7 +542,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 				in_flight = server->in_flight;
 				spin_unlock(&server->req_lock);
 
-				trace_smb3_credit_timeout(server->CurrentMid,
+				trace_smb3_credit_timeout(server->current_mid,
 						server->conn_id, server->hostname, scredits,
 						num_credits, in_flight);
 				cifs_server_dbg(VFS, "wait timed out after %d ms\n",
@@ -585,7 +585,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 					spin_unlock(&server->req_lock);
 
 					trace_smb3_credit_timeout(
-							server->CurrentMid,
+							server->current_mid,
 							server->conn_id, server->hostname,
 							scredits, num_credits, in_flight);
 					cifs_server_dbg(VFS, "wait timed out after %d ms\n",
@@ -615,7 +615,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			in_flight = server->in_flight;
 			spin_unlock(&server->req_lock);
 
-			trace_smb3_waitff_credits(server->CurrentMid,
+			trace_smb3_waitff_credits(server->current_mid,
 					server->conn_id, server->hostname, scredits,
 					-(num_credits), in_flight);
 			cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
@@ -666,7 +666,7 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 		 */
 		if (server->in_flight == 0) {
 			spin_unlock(&server->req_lock);
-			trace_smb3_insufficient_credits(server->CurrentMid,
+			trace_smb3_insufficient_credits(server->current_mid,
 					server->conn_id, server->hostname, scredits,
 					num, in_flight);
 			cifs_dbg(FYI, "%s: %d requests in flight, needed %d total=%d\n",
