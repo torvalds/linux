@@ -17,12 +17,13 @@
 #define PIT0_OFFSET	0x100
 #define PIT_CH(n)       (PIT0_OFFSET + 0x10 * (n))
 
-#define PITCVAL		0x04
-
 #define PITMCR_MDIS	BIT(1)
 
 #define PITLDVAL(__base)	(__base)
 #define PITTCTRL(__base)	((__base) + 0x08)
+
+#define PITCVAL_OFFSET	0x04
+#define PITCVAL(__base)	((__base) + 0x04)
 
 #define PITTCTRL_TEN			BIT(0)
 #define PITTCTRL_TIE			BIT(1)
@@ -39,7 +40,7 @@ struct pit_timer {
 	struct clocksource cs;
 };
 
-static void __iomem *clksrc_base;
+static void __iomem *sched_clock_base;
 
 static inline struct pit_timer *ced_to_pit(struct clock_event_device *ced)
 {
@@ -68,14 +69,14 @@ static inline void pit_irq_acknowledge(struct pit_timer *pit)
 
 static u64 notrace pit_read_sched_clock(void)
 {
-	return ~readl(clksrc_base + PITCVAL);
+	return ~readl(sched_clock_base);
 }
 
 static u64 pit_timer_clocksource_read(struct clocksource *cs)
 {
 	struct pit_timer *pit = cs_to_pit(cs);
 
-	return (u64)~readl(pit->clksrc_base + PITCVAL);
+	return (u64)~readl(PITCVAL(pit->clksrc_base));
 }
 
 static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base,
@@ -98,8 +99,7 @@ static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base
 	writel(~0, PITLDVAL(pit->clksrc_base));
 	writel(PITTCTRL_TEN, PITTCTRL(pit->clksrc_base));
 
-	clksrc_base = pit->clksrc_base;
-
+	sched_clock_base = pit->clksrc_base + PITCVAL_OFFSET;
 	sched_clock_register(pit_read_sched_clock, 32, rate);
 
 	return clocksource_register_hz(&pit->cs, rate);
