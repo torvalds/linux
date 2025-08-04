@@ -21,11 +21,11 @@
 #define PITTCTRL	0x08
 #define PITTFLG		0x0c
 
-#define PITMCR_MDIS	(0x1 << 1)
+#define PITMCR_MDIS	BIT(1)
 
-#define PITTCTRL_TEN	(0x1 << 0)
-#define PITTCTRL_TIE	(0x1 << 1)
-#define PITCTRL_CHN	(0x1 << 2)
+#define PITTCTRL_TEN	BIT(0)
+#define PITTCTRL_TIE	BIT(1)
+#define PITCTRL_CHN	BIT(2)
 
 #define PITTFLG_TIF	0x1
 
