@@ -1934,6 +1934,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 			 ((dev)->le_rx_def_phys & HCI_LE_SET_PHY_CODED))
 
 #define ll_privacy_capable(dev) ((dev)->le_features[0] & HCI_LE_LL_PRIVACY)
+#define ll_privacy_enabled(dev) (le_enabled(dev) && ll_privacy_capable(dev))
 
 #define privacy_mode_capable(dev) (ll_privacy_capable(dev) && \
 				   ((dev)->commands[39] & 0x04))

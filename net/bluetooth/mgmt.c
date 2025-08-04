@@ -934,7 +934,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (sync_recv_enabled(hdev))
 		settings |= MGMT_SETTING_ISO_SYNC_RECEIVER;
 
-	if (ll_privacy_capable(hdev))
+	if (ll_privacy_enabled(hdev))
 		settings |= MGMT_SETTING_LL_PRIVACY;
 
 	return settings;
