@@ -66,8 +66,16 @@ static u64 notrace pit_read_sched_clock(void)
 	return ~readl(clksrc_base + PITCVAL);
 }
 
-static int __init pit_clocksource_init(struct pit_timer *pit, unsigned long rate)
+static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base,
+				       unsigned long rate)
 {
+	/*
+	 * The channels 0 and 1 can be chained to build a 64-bit
+	 * timer. Let's use the channel 2 as a clocksource and leave
+	 * the channels 0 and 1 unused for anyone else who needs them
+	 */
+	pit->clksrc_base = base + PIT_CH(2);
+
 	/* set the max load value and start the clock source counter */
 	writel(0, pit->clksrc_base + PITTCTRL);
 	writel(~0, pit->clksrc_base + PITLDVAL);
@@ -76,8 +84,9 @@ static int __init pit_clocksource_init(struct pit_timer *pit, unsigned long rate
 	clksrc_base = pit->clksrc_base;
 
 	sched_clock_register(pit_read_sched_clock, 32, rate);
+
 	return clocksource_mmio_init(pit->clksrc_base + PITCVAL, "vf-pit", rate,
-			300, 32, clocksource_mmio_readl_down);
+				     300, 32, clocksource_mmio_readl_down);
 }
 
 static int pit_set_next_event(unsigned long delta, struct clock_event_device *ced)
@@ -137,8 +146,16 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init pit_clockevent_init(struct pit_timer *pit, unsigned long rate, int irq)
+static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
+				      unsigned long rate, int irq)
 {
+	/*
+	 * The channels 0 and 1 can be chained to build a 64-bit
+	 * timer. Let's use the channel 3 as a clockevent and leave
+	 * the channels 0 and 1 unused for anyone else who needs them
+	 */
+	pit->clkevt_base = base + PIT_CH(3);
+
 	writel(0, pit->clkevt_base + PITTCTRL);
 
 	writel(PITTFLG_TIF, pit->clkevt_base + PITTFLG);
@@ -182,14 +199,6 @@ static int __init pit_timer_init(struct device_node *np)
 		return -ENXIO;
 	}
 
-	/*
-	 * PIT0 and PIT1 can be chained to build a 64-bit timer,
-	 * so choose PIT2 as clocksource, PIT3 as clockevent device,
-	 * and leave PIT0 and PIT1 unused for anyone else who needs them.
-	 */
-	pit_timer.clksrc_base = timer_base + PIT_CH(2);
-	pit_timer.clkevt_base = timer_base + PIT_CH(3);
-
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0)
 		return -EINVAL;
@@ -208,10 +217,10 @@ static int __init pit_timer_init(struct device_node *np)
 	/* enable the pit module */
 	writel(~PITMCR_MDIS, timer_base + PITMCR);
 
-	ret = pit_clocksource_init(&pit_timer, clk_rate);
+	ret = pit_clocksource_init(&pit_timer, timer_base, clk_rate);
 	if (ret)
 		return ret;
 
-	return pit_clockevent_init(&pit_timer, clk_rate, irq);
+	return pit_clockevent_init(&pit_timer, timer_base, clk_rate, irq);
 }
 TIMER_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);
