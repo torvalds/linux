@@ -44,6 +44,11 @@ static inline struct pit_timer *ced_to_pit(struct clock_event_device *ced)
 	return container_of(ced, struct pit_timer, ced);
 }
 
+static inline struct pit_timer *cs_to_pit(struct clocksource *cs)
+{
+	return container_of(cs, struct pit_timer, cs);
+}
+
 static inline void pit_timer_enable(struct pit_timer *pit)
 {
 	writel(PITTCTRL_TEN | PITTCTRL_TIE, pit->clkevt_base + PITTCTRL);
@@ -64,6 +69,13 @@ static u64 notrace pit_read_sched_clock(void)
 	return ~readl(clksrc_base + PITCVAL);
 }
 
+static u64 pit_timer_clocksource_read(struct clocksource *cs)
+{
+	struct pit_timer *pit = cs_to_pit(cs);
+
+	return (u64)~readl(pit->clksrc_base + PITCVAL);
+}
+
 static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base,
 				       unsigned long rate)
 {
@@ -73,6 +85,11 @@ static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base
 	 * the channels 0 and 1 unused for anyone else who needs them
 	 */
 	pit->clksrc_base = base + PIT_CH(2);
+	pit->cs.name = "vf-pit";
+	pit->cs.rating = 300;
+	pit->cs.read = pit_timer_clocksource_read;
+	pit->cs.mask = CLOCKSOURCE_MASK(32);
+	pit->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	/* set the max load value and start the clock source counter */
 	writel(0, pit->clksrc_base + PITTCTRL);
@@ -83,8 +100,7 @@ static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base
 
 	sched_clock_register(pit_read_sched_clock, 32, rate);
 
-	return clocksource_mmio_init(pit->clksrc_base + PITCVAL, "vf-pit", rate,
-				     300, 32, clocksource_mmio_readl_down);
+	return clocksource_register_hz(&pit->cs, rate);
 }
 
 static int pit_set_next_event(unsigned long delta, struct clock_event_device *ced)
