@@ -62,6 +62,16 @@ static inline void pit_timer_disable(struct pit_timer *pit)
 	writel(0, PITTCTRL(pit->clkevt_base));
 }
 
+static inline void pit_clocksource_enable(struct pit_timer *pit)
+{
+	writel(PITTCTRL_TEN, PITTCTRL(pit->clksrc_base));
+}
+
+static inline void pit_clocksource_disable(struct pit_timer *pit)
+{
+	pit_timer_disable(pit);
+}
+
 static inline void pit_irq_acknowledge(struct pit_timer *pit)
 {
 	writel(PITTFLG_TIF, PITTFLG(pit->clkevt_base));
@@ -95,9 +105,9 @@ static int __init pit_clocksource_init(struct pit_timer *pit, const char *name,
 	pit->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	/* set the max load value and start the clock source counter */
-	pit_timer_disable(pit);
+	pit_clocksource_disable(pit);
 	writel(~0, PITLDVAL(pit->clksrc_base));
-	writel(PITTCTRL_TEN, PITTCTRL(pit->clksrc_base));
+	pit_clocksource_enable(pit);
 
 	sched_clock_base = pit->clksrc_base + PITCVAL_OFFSET;
 	sched_clock_register(pit_read_sched_clock, 32, rate);
