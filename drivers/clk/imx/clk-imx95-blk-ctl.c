@@ -453,15 +453,24 @@ static int imx95_bc_runtime_suspend(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
 
+	bc->clk_reg_restore = readl(bc->base + bc->pdata->clk_reg_offset);
 	clk_disable_unprepare(bc->clk_apb);
+
 	return 0;
 }
 
 static int imx95_bc_runtime_resume(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
+	int ret;
 
-	return clk_prepare_enable(bc->clk_apb);
+	ret = clk_prepare_enable(bc->clk_apb);
+	if (ret)
+		return ret;
+
+	writel(bc->clk_reg_restore, bc->base + bc->pdata->clk_reg_offset);
+
+	return 0;
 }
 #endif
 
@@ -469,17 +478,12 @@ static int imx95_bc_runtime_resume(struct device *dev)
 static int imx95_bc_suspend(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
-	int ret;
 
-	if (bc->pdata->rpm_enabled) {
-		ret = pm_runtime_get_sync(bc->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(bc->dev);
-			return ret;
-		}
-	}
+	if (pm_runtime_suspended(dev))
+		return 0;
 
 	bc->clk_reg_restore = readl(bc->base + bc->pdata->clk_reg_offset);
+	clk_disable_unprepare(bc->clk_apb);
 
 	return 0;
 }
@@ -487,11 +491,16 @@ static int imx95_bc_suspend(struct device *dev)
 static int imx95_bc_resume(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
+	int ret;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	ret = clk_prepare_enable(bc->clk_apb);
+	if (ret)
+		return ret;
 
 	writel(bc->clk_reg_restore, bc->base + bc->pdata->clk_reg_offset);
-
-	if (bc->pdata->rpm_enabled)
-		pm_runtime_put(bc->dev);
 
 	return 0;
 }
