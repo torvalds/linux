@@ -19,6 +19,20 @@ Description:
 		is returned to the user. The inject_poison attribute is only
 		visible for devices supporting the capability.
 
+		TEST-ONLY INTERFACE: This interface is intended for testing
+		and validation purposes only. It is not a data repair mechanism
+		and should never be used on production systems or live data.
+
+		DATA LOSS RISK: For CXL persistent memory (PMEM) devices,
+		poison injection can result in permanent data loss. Injected
+		poison may render data permanently inaccessible even after
+		clearing, as the clear operation writes zeros and does not
+		recover original data.
+
+		SYSTEM STABILITY RISK: For volatile memory, poison injection
+		can cause kernel crashes, system instability, or unpredictable
+		behavior if the poisoned addresses are accessed by running code
+		or critical kernel structures.
 
 What:		/sys/kernel/debug/cxl/memX/clear_poison
 Date:		April, 2023
@@ -34,6 +48,79 @@ Description:
 		device cannot clear poison from the address, -ENXIO is returned.
 		The clear_poison attribute is only visible for devices
 		supporting the capability.
+
+		TEST-ONLY INTERFACE: This interface is intended for testing
+		and validation purposes only. It is not a data repair mechanism
+		and should never be used on production systems or live data.
+
+		CLEAR IS NOT DATA RECOVERY: This operation writes zeros to the
+		specified address range and removes the address from the poison
+		list. It does NOT recover or restore original data that may have
+		been present before poison injection. Any original data at the
+		cleared address is permanently lost and replaced with zeros.
+
+		CLEAR IS NOT A REPAIR MECHANISM: This interface is for testing
+		purposes only and should not be used as a data repair tool.
+		Clearing poison is fundamentally different from data recovery
+		or error correction.
+
+What:		/sys/kernel/debug/cxl/regionX/inject_poison
+Date:		August, 2025
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(WO) When a Host Physical Address (HPA) is written to this
+		attribute, the region driver translates it to a Device
+		Physical Address (DPA) and identifies the corresponding
+		memdev. It then sends an inject poison command to that memdev
+		at the translated DPA. Refer to the memdev ABI entry at:
+		/sys/kernel/debug/cxl/memX/inject_poison for the detailed
+		behavior. This attribute is only visible if all memdevs
+		participating in the region support both inject and clear
+		poison commands.
+
+		TEST-ONLY INTERFACE: This interface is intended for testing
+		and validation purposes only. It is not a data repair mechanism
+		and should never be used on production systems or live data.
+
+		DATA LOSS RISK: For CXL persistent memory (PMEM) devices,
+		poison injection can result in permanent data loss. Injected
+		poison may render data permanently inaccessible even after
+		clearing, as the clear operation writes zeros and does not
+		recover original data.
+
+		SYSTEM STABILITY RISK: For volatile memory, poison injection
+		can cause kernel crashes, system instability, or unpredictable
+		behavior if the poisoned addresses are accessed by running code
+		or critical kernel structures.
+
+What:		/sys/kernel/debug/cxl/regionX/clear_poison
+Date:		August, 2025
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(WO) When a Host Physical Address (HPA) is written to this
+		attribute, the region driver translates it to a Device
+		Physical Address (DPA) and identifies the corresponding
+		memdev. It then sends a clear poison command to that memdev
+		at the translated DPA. Refer to the memdev ABI entry at:
+		/sys/kernel/debug/cxl/memX/clear_poison for the detailed
+		behavior. This attribute is only visible if all memdevs
+		participating in the region support both inject and clear
+		poison commands.
+
+		TEST-ONLY INTERFACE: This interface is intended for testing
+		and validation purposes only. It is not a data repair mechanism
+		and should never be used on production systems or live data.
+
+		CLEAR IS NOT DATA RECOVERY: This operation writes zeros to the
+		specified address range and removes the address from the poison
+		list. It does NOT recover or restore original data that may have
+		been present before poison injection. Any original data at the
+		cleared address is permanently lost and replaced with zeros.
+
+		CLEAR IS NOT A REPAIR MECHANISM: This interface is for testing
+		purposes only and should not be used as a data repair tool.
+		Clearing poison is fundamentally different from data recovery
+		or error correction.
 
 What:		/sys/kernel/debug/cxl/einj_types
 Date:		January, 2024

@@ -2,6 +2,7 @@
 /* Copyright(c) 2022 Intel Corporation. All rights reserved. */
 #include <linux/memregion.h>
 #include <linux/genalloc.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/memory.h>
@@ -3003,9 +3004,8 @@ struct dpa_result {
 	u64 dpa;
 };
 
-static int __maybe_unused region_offset_to_dpa_result(struct cxl_region *cxlr,
-						      u64 offset,
-						      struct dpa_result *result)
+static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
+				       struct dpa_result *result)
 {
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
@@ -3648,6 +3648,105 @@ static void shutdown_notifiers(void *_cxlr)
 	unregister_mt_adistance_algorithm(&cxlr->adist_notifier);
 }
 
+static void remove_debugfs(void *dentry)
+{
+	debugfs_remove_recursive(dentry);
+}
+
+static int validate_region_offset(struct cxl_region *cxlr, u64 offset)
+{
+	struct cxl_region_params *p = &cxlr->params;
+	resource_size_t region_size;
+	u64 hpa;
+
+	if (offset < p->cache_size) {
+		dev_err(&cxlr->dev,
+			"Offset %#llx is within extended linear cache %#llx\n",
+			offset, p->cache_size);
+		return -EINVAL;
+	}
+
+	region_size = resource_size(p->res);
+	if (offset >= region_size) {
+		dev_err(&cxlr->dev, "Offset %#llx exceeds region size %#llx\n",
+			offset, region_size);
+		return -EINVAL;
+	}
+
+	hpa = p->res->start + offset;
+	if (hpa < p->res->start || hpa > p->res->end) {
+		dev_err(&cxlr->dev, "HPA %#llx not in region %pr\n", hpa,
+			p->res);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cxl_region_debugfs_poison_inject(void *data, u64 offset)
+{
+	struct dpa_result result = { .dpa = ULLONG_MAX, .cxlmd = NULL };
+	struct cxl_region *cxlr = data;
+	int rc;
+
+	ACQUIRE(rwsem_read_intr, region_rwsem)(&cxl_rwsem.region);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &region_rwsem)))
+		return rc;
+
+	ACQUIRE(rwsem_read_intr, dpa_rwsem)(&cxl_rwsem.dpa);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &dpa_rwsem)))
+		return rc;
+
+	if (validate_region_offset(cxlr, offset))
+		return -EINVAL;
+
+	rc = region_offset_to_dpa_result(cxlr, offset, &result);
+	if (rc || !result.cxlmd || result.dpa == ULLONG_MAX) {
+		dev_dbg(&cxlr->dev,
+			"Failed to resolve DPA for region offset %#llx rc %d\n",
+			offset, rc);
+
+		return rc ? rc : -EINVAL;
+	}
+
+	return cxl_inject_poison_locked(result.cxlmd, result.dpa);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_inject_fops, NULL,
+			 cxl_region_debugfs_poison_inject, "%llx\n");
+
+static int cxl_region_debugfs_poison_clear(void *data, u64 offset)
+{
+	struct dpa_result result = { .dpa = ULLONG_MAX, .cxlmd = NULL };
+	struct cxl_region *cxlr = data;
+	int rc;
+
+	ACQUIRE(rwsem_read_intr, region_rwsem)(&cxl_rwsem.region);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &region_rwsem)))
+		return rc;
+
+	ACQUIRE(rwsem_read_intr, dpa_rwsem)(&cxl_rwsem.dpa);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &dpa_rwsem)))
+		return rc;
+
+	if (validate_region_offset(cxlr, offset))
+		return -EINVAL;
+
+	rc = region_offset_to_dpa_result(cxlr, offset, &result);
+	if (rc || !result.cxlmd || result.dpa == ULLONG_MAX) {
+		dev_dbg(&cxlr->dev,
+			"Failed to resolve DPA for region offset %#llx rc %d\n",
+			offset, rc);
+
+		return rc ? rc : -EINVAL;
+	}
+
+	return cxl_clear_poison_locked(result.cxlmd, result.dpa);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
+			 cxl_region_debugfs_poison_clear, "%llx\n");
+
 static int cxl_region_can_probe(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
@@ -3677,6 +3776,7 @@ static int cxl_region_probe(struct device *dev)
 {
 	struct cxl_region *cxlr = to_cxl_region(dev);
 	struct cxl_region_params *p = &cxlr->params;
+	bool poison_supported = true;
 	int rc;
 
 	rc = cxl_region_can_probe(cxlr);
@@ -3699,6 +3799,31 @@ static int cxl_region_probe(struct device *dev)
 	rc = devm_add_action_or_reset(&cxlr->dev, shutdown_notifiers, cxlr);
 	if (rc)
 		return rc;
+
+	/* Create poison attributes if all memdevs support the capabilities */
+	for (int i = 0; i < p->nr_targets; i++) {
+		struct cxl_endpoint_decoder *cxled = p->targets[i];
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+
+		if (!cxl_memdev_has_poison_cmd(cxlmd, CXL_POISON_ENABLED_INJECT) ||
+		    !cxl_memdev_has_poison_cmd(cxlmd, CXL_POISON_ENABLED_CLEAR)) {
+			poison_supported = false;
+			break;
+		}
+	}
+
+	if (poison_supported) {
+		struct dentry *dentry;
+
+		dentry = cxl_debugfs_create_dir(dev_name(dev));
+		debugfs_create_file("inject_poison", 0200, dentry, cxlr,
+				    &cxl_poison_inject_fops);
+		debugfs_create_file("clear_poison", 0200, dentry, cxlr,
+				    &cxl_poison_clear_fops);
+		rc = devm_add_action_or_reset(dev, remove_debugfs, dentry);
+		if (rc)
+			return rc;
+	}
 
 	switch (cxlr->mode) {
 	case CXL_PARTMODE_PMEM:
