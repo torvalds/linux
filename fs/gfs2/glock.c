@@ -137,33 +137,6 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 		kmem_cache_free(gfs2_glock_cachep, gl);
 }
 
-/**
- * glock_blocked_by_withdraw - determine if we can still use a glock
- * @gl: the glock
- *
- * We need to allow some glocks to be enqueued, dequeued, promoted, and demoted
- * when we're withdrawn. For example, to maintain metadata integrity, we should
- * disallow the use of inode and rgrp glocks when withdrawn. Other glocks like
- * the iopen or freeze glock may be safely used because none of their
- * metadata goes through the journal. So in general, we should disallow all
- * glocks that are journaled, and allow all the others. One exception is:
- * we need to allow our active journal to be promoted and demoted so others
- * may recover it and we can reacquire it when they're done.
- */
-static bool glock_blocked_by_withdraw(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-
-	if (!gfs2_withdrawn(sdp))
-		return false;
-	if (gl->gl_ops->go_flags & GLOF_NONDISK)
-		return false;
-	if (!sdp->sd_jdesc ||
-	    gl->gl_name.ln_number == sdp->sd_jdesc->jd_no_addr)
-		return false;
-	return true;
-}
-
 static void __gfs2_glock_free(struct gfs2_glock *gl)
 {
 	rhashtable_remove_fast(&gl_hash_table, &gl->gl_node, ht_parms);
@@ -681,7 +654,7 @@ __acquires(&gl->gl_lockref.lock)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int ret;
 
-	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl))
+	if (target != LM_ST_UNLOCKED && gfs2_withdrawn(sdp))
 		goto skip_inval;
 
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
@@ -725,7 +698,7 @@ __acquires(&gl->gl_lockref.lock)
 	spin_lock(&gl->gl_lockref.lock);
 
 skip_inval:
-	if (glock_blocked_by_withdraw(gl) && target != LM_ST_UNLOCKED) {
+	if (gfs2_withdrawn(sdp) && target != LM_ST_UNLOCKED) {
 		request_demote(gl, LM_ST_UNLOCKED, 0, false);
 		/*
 		 * Ordinarily, we would call dlm and its callback would call
@@ -1512,9 +1485,10 @@ trap_recursive:
 int gfs2_glock_nq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	int error;
 
-	if (glock_blocked_by_withdraw(gl))
+	if (gfs2_withdrawn(sdp))
 		return -EIO;
 
 	if (gh->gh_flags & GL_NOBLOCK) {
@@ -2122,8 +2096,7 @@ static void dump_glock_func(struct gfs2_glock *gl)
 static void withdraw_dq(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_lockref.lock);
-	if (!__lockref_is_dead(&gl->gl_lockref) &&
-	    glock_blocked_by_withdraw(gl))
+	if (!__lockref_is_dead(&gl->gl_lockref))
 		do_error(gl, LM_OUT_ERROR); /* remove pending waiters */
 	spin_unlock(&gl->gl_lockref.lock);
 }

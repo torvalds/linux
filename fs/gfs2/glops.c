@@ -638,7 +638,6 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_type = LM_TYPE_META,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_inode_glops = {
@@ -664,35 +663,30 @@ const struct gfs2_glock_operations gfs2_freeze_glops = {
 	.go_xmote_bh = freeze_go_xmote_bh,
 	.go_callback = freeze_go_callback,
 	.go_type = LM_TYPE_NONDISK,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_type = LM_TYPE_IOPEN,
 	.go_callback = iopen_go_callback,
 	.go_dump = inode_go_dump,
-	.go_flags = GLOF_NONDISK,
 	.go_subclass = 1,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {
 	.go_type = LM_TYPE_FLOCK,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_nondisk_glops = {
 	.go_type = LM_TYPE_NONDISK,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations gfs2_quota_glops = {
 	.go_type = LM_TYPE_QUOTA,
-	.go_flags = GLOF_LVB | GLOF_NONDISK,
+	.go_flags = GLOF_LVB,
 };
 
 const struct gfs2_glock_operations gfs2_journal_glops = {
 	.go_type = LM_TYPE_JOURNAL,
-	.go_flags = GLOF_NONDISK,
 };
 
 const struct gfs2_glock_operations *gfs2_glops_list[] = {

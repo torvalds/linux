@@ -228,7 +228,6 @@ struct gfs2_glock_operations {
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1 /* address space attached */
 #define GLOF_LVB    2 /* Lock Value Block attached */
-#define GLOF_NONDISK   8 /* not I/O related */
 };
 
 enum {
@@ -518,8 +517,6 @@ struct gfs2_jdesc {
 
 	struct list_head jd_revoke_list;
 	unsigned int jd_replay_tail;
-
-	u64 jd_no_addr;
 };
 
 struct gfs2_statfs_change_host {
