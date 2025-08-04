@@ -1671,6 +1671,9 @@ bool nbcon_alloc(struct console *con)
 {
 	struct nbcon_state state = { };
 
+	/* Synchronize the kthread start. */
+	lockdep_assert_console_list_lock_held();
+
 	/* The write_thread() callback is mandatory. */
 	if (WARN_ON(!con->write_thread))
 		return false;
@@ -1701,12 +1704,15 @@ bool nbcon_alloc(struct console *con)
 			return false;
 		}
 
-		if (printk_kthreads_running) {
+		if (printk_kthreads_ready && !have_boot_console) {
 			if (!nbcon_kthread_create(con)) {
 				kfree(con->pbufs);
 				con->pbufs = NULL;
 				return false;
 			}
+
+			/* Might be the first kthread. */
+			printk_kthreads_running = true;
 		}
 	}
 
@@ -1716,13 +1722,29 @@ bool nbcon_alloc(struct console *con)
 /**
  * nbcon_free - Free and cleanup the nbcon console specific data
  * @con:	Console to free/cleanup nbcon data
+ *
+ * Important: @have_nbcon_console must be updated before calling
+ *	this function. In particular, it can be set only when there
+ *	is still another nbcon console registered.
  */
 void nbcon_free(struct console *con)
 {
 	struct nbcon_state state = { };
 
-	if (printk_kthreads_running)
+	/* Synchronize the kthread stop. */
+	lockdep_assert_console_list_lock_held();
+
+	if (printk_kthreads_running) {
 		nbcon_kthread_stop(con);
+
+		/* Might be the last nbcon console.
+		 *
+		 * Do not rely on printk_kthreads_check_locked(). It is not
+		 * called in some code paths, see nbcon_free() callers.
+		 */
+		if (!have_nbcon_console)
+			printk_kthreads_running = false;
+	}
 
 	nbcon_state_set(con, &state);
 
