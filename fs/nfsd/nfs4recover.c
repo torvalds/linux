@@ -92,22 +92,8 @@ nfs4_reset_creds(const struct cred *original)
 	put_cred(revert_creds(original));
 }
 
-static void
-md5_to_hex(char *out, char *md5)
-{
-	int i;
-
-	for (i=0; i<16; i++) {
-		unsigned char c = md5[i];
-
-		*out++ = '0' + ((c&0xf0)>>4) + (c>=0xa0)*('a'-'9'-1);
-		*out++ = '0' + (c&0x0f) + ((c&0x0f)>=0x0a)*('a'-'9'-1);
-	}
-	*out = '\0';
-}
-
 static int
-nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
+nfs4_make_rec_clidname(char dname[HEXDIR_LEN], const struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
 	struct crypto_shash *tfm;
@@ -133,7 +119,7 @@ nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 	if (status)
 		goto out;
 
-	md5_to_hex(dname, cksum.data);
+	sprintf(dname, "%*phN", 16, cksum.data);
 
 	status = 0;
 out:
