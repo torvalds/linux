@@ -16,18 +16,20 @@
 #define PITMCR		0x00
 #define PIT0_OFFSET	0x100
 #define PIT_CH(n)       (PIT0_OFFSET + 0x10 * (n))
-#define PITLDVAL	0x00
+
 #define PITCVAL		0x04
-#define PITTCTRL	0x08
-#define PITTFLG		0x0c
 
 #define PITMCR_MDIS	BIT(1)
 
-#define PITTCTRL_TEN	BIT(0)
-#define PITTCTRL_TIE	BIT(1)
-#define PITCTRL_CHN	BIT(2)
+#define PITLDVAL(__base)	(__base)
+#define PITTCTRL(__base)	((__base) + 0x08)
 
-#define PITTFLG_TIF	0x1
+#define PITTCTRL_TEN			BIT(0)
+#define PITTCTRL_TIE			BIT(1)
+
+#define PITTFLG(__base)	((__base) + 0x0c)
+
+#define PITTFLG_TIF			BIT(0)
 
 struct pit_timer {
 	void __iomem *clksrc_base;
@@ -51,17 +53,17 @@ static inline struct pit_timer *cs_to_pit(struct clocksource *cs)
 
 static inline void pit_timer_enable(struct pit_timer *pit)
 {
-	writel(PITTCTRL_TEN | PITTCTRL_TIE, pit->clkevt_base + PITTCTRL);
+	writel(PITTCTRL_TEN | PITTCTRL_TIE, PITTCTRL(pit->clkevt_base));
 }
 
 static inline void pit_timer_disable(struct pit_timer *pit)
 {
-	writel(0, pit->clkevt_base + PITTCTRL);
+	writel(0, PITTCTRL(pit->clkevt_base));
 }
 
 static inline void pit_irq_acknowledge(struct pit_timer *pit)
 {
-	writel(PITTFLG_TIF, pit->clkevt_base + PITTFLG);
+	writel(PITTFLG_TIF, PITTFLG(pit->clkevt_base));
 }
 
 static u64 notrace pit_read_sched_clock(void)
@@ -92,9 +94,9 @@ static int __init pit_clocksource_init(struct pit_timer *pit, void __iomem *base
 	pit->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	/* set the max load value and start the clock source counter */
-	writel(0, pit->clksrc_base + PITTCTRL);
-	writel(~0, pit->clksrc_base + PITLDVAL);
-	writel(PITTCTRL_TEN, pit->clksrc_base + PITTCTRL);
+	pit_timer_disable(pit);
+	writel(~0, PITLDVAL(pit->clksrc_base));
+	writel(PITTCTRL_TEN, PITTCTRL(pit->clksrc_base));
 
 	clksrc_base = pit->clksrc_base;
 
@@ -115,7 +117,7 @@ static int pit_set_next_event(unsigned long delta, struct clock_event_device *ce
 	 * hardware requirement.
 	 */
 	pit_timer_disable(pit);
-	writel(delta - 1, pit->clkevt_base + PITLDVAL);
+	writel(delta - 1, PITLDVAL(pit->clkevt_base));
 	pit_timer_enable(pit);
 
 	return 0;
@@ -171,9 +173,9 @@ static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
 	pit->clkevt_base = base + PIT_CH(3);
 	pit->cycle_per_jiffy = rate / (HZ);
 
-	writel(0, pit->clkevt_base + PITTCTRL);
+	pit_timer_disable(pit);
 
-	writel(PITTFLG_TIF, pit->clkevt_base + PITTFLG);
+	pit_irq_acknowledge(pit);
 
 	BUG_ON(request_irq(irq, pit_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
 			   "VF pit timer", &pit->ced));
