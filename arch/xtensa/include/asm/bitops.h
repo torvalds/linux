@@ -37,7 +37,7 @@ static inline unsigned long __cntlz (unsigned long x)
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-static inline int ffz(unsigned long x)
+static inline int __attribute_const__ ffz(unsigned long x)
 {
 	return 31 - __cntlz(~x & -~x);
 }
@@ -46,7 +46,7 @@ static inline int ffz(unsigned long x)
  * __ffs: Find first bit set in word. Return 0 for bit 0
  */
 
-static inline unsigned long __ffs(unsigned long x)
+static inline __attribute_const__ unsigned long __ffs(unsigned long x)
 {
 	return 31 - __cntlz(x & -x);
 }
@@ -57,7 +57,7 @@ static inline unsigned long __ffs(unsigned long x)
  * differs in spirit from the above ffz (man ffs).
  */
 
-static inline int ffs(unsigned long x)
+static inline __attribute_const__ int ffs(unsigned long x)
 {
 	return 32 - __cntlz(x & -x);
 }
@@ -67,7 +67,7 @@ static inline int ffs(unsigned long x)
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 
-static inline int fls (unsigned int x)
+static inline __attribute_const__ int fls (unsigned int x)
 {
 	return 32 - __cntlz(x);
 }
@@ -78,7 +78,7 @@ static inline int fls (unsigned int x)
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-static inline unsigned long __fls(unsigned long word)
+static inline __attribute_const__ unsigned long __fls(unsigned long word)
 {
 	return 31 - __cntlz(word);
 }
