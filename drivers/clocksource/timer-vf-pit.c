@@ -13,10 +13,12 @@
 /*
  * Each pit takes 0x10 Bytes register space
  */
-#define PITMCR		0x00
 #define PIT0_OFFSET	0x100
 #define PIT_CH(n)       (PIT0_OFFSET + 0x10 * (n))
 
+#define PITMCR(__base)	(__base)
+
+#define PITMCR_FRZ	BIT(0)
 #define PITMCR_MDIS	BIT(1)
 
 #define PITLDVAL(__base)	(__base)
@@ -50,6 +52,16 @@ static inline struct pit_timer *ced_to_pit(struct clock_event_device *ced)
 static inline struct pit_timer *cs_to_pit(struct clocksource *cs)
 {
 	return container_of(cs, struct pit_timer, cs);
+}
+
+static inline void pit_module_enable(void __iomem *base)
+{
+	writel(0, PITMCR(base));
+}
+
+static inline void pit_module_disable(void __iomem *base)
+{
+	writel(PITMCR_MDIS, PITMCR(base));
 }
 
 static inline void pit_timer_enable(struct pit_timer *pit)
@@ -254,11 +266,11 @@ static int __init pit_timer_init(struct device_node *np)
 	clk_rate = clk_get_rate(pit_clk);
 
 	/* enable the pit module */
-	writel(~PITMCR_MDIS, timer_base + PITMCR);
+	pit_module_enable(timer_base);
 
 	ret = pit_clocksource_init(pit, name, timer_base, clk_rate);
 	if (ret)
-		goto out_disable_unprepare;
+		goto out_pit_module_disable;
 
 	ret = pit_clockevent_init(pit, name, timer_base, clk_rate, irq, 0);
 	if (ret)
@@ -268,7 +280,8 @@ static int __init pit_timer_init(struct device_node *np)
 
 out_pit_clocksource_unregister:
 	clocksource_unregister(&pit->cs);
-out_disable_unprepare:
+out_pit_module_disable:
+	pit_module_disable(timer_base);
 	clk_disable_unprepare(pit_clk);
 out_clk_put:
 	clk_put(pit_clk);
