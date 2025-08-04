@@ -64,29 +64,21 @@ static inline void pit_module_disable(void __iomem *base)
 	writel(PITMCR_MDIS, PITMCR(base));
 }
 
-static inline void pit_timer_enable(struct pit_timer *pit)
+static inline void pit_timer_enable(void __iomem *base, bool tie)
 {
-	writel(PITTCTRL_TEN | PITTCTRL_TIE, PITTCTRL(pit->clkevt_base));
+	u32 val = PITTCTRL_TEN | (tie ? PITTCTRL_TIE : 0);
+
+	writel(val, PITTCTRL(base));
 }
 
-static inline void pit_timer_disable(struct pit_timer *pit)
+static inline void pit_timer_disable(void __iomem *base)
 {
-	writel(0, PITTCTRL(pit->clkevt_base));
+	writel(0, PITTCTRL(base));
 }
 
 static inline void pit_timer_set_counter(void __iomem *base, unsigned int cnt)
 {
 	writel(cnt, PITLDVAL(base));
-}
-
-static inline void pit_clocksource_enable(struct pit_timer *pit)
-{
-	writel(PITTCTRL_TEN, PITTCTRL(pit->clksrc_base));
-}
-
-static inline void pit_clocksource_disable(struct pit_timer *pit)
-{
-	pit_timer_disable(pit);
 }
 
 static inline void pit_irq_acknowledge(struct pit_timer *pit)
@@ -122,9 +114,9 @@ static int __init pit_clocksource_init(struct pit_timer *pit, const char *name,
 	pit->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	/* set the max load value and start the clock source counter */
-	pit_clocksource_disable(pit);
+	pit_timer_disable(pit->clksrc_base);
 	pit_timer_set_counter(pit->clksrc_base, ~0);
-	pit_clocksource_enable(pit);
+	pit_timer_enable(pit->clksrc_base, 0);
 
 	sched_clock_base = pit->clksrc_base + PITCVAL_OFFSET;
 	sched_clock_register(pit_read_sched_clock, 32, rate);
@@ -143,9 +135,9 @@ static int pit_set_next_event(unsigned long delta, struct clock_event_device *ce
 	 * and the PITLAVAL should be set to delta minus one according to pit
 	 * hardware requirement.
 	 */
-	pit_timer_disable(pit);
+	pit_timer_disable(pit->clkevt_base);
 	pit_timer_set_counter(pit->clkevt_base, delta - 1);
-	pit_timer_enable(pit);
+	pit_timer_enable(pit->clkevt_base, true);
 
 	return 0;
 }
@@ -154,7 +146,7 @@ static int pit_shutdown(struct clock_event_device *ced)
 {
 	struct pit_timer *pit = ced_to_pit(ced);
 
-	pit_timer_disable(pit);
+	pit_timer_disable(pit->clkevt_base);
 
 	return 0;
 }
@@ -182,7 +174,7 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 	 * to stop the counter loop in ONESHOT mode.
 	 */
 	if (likely(clockevent_state_oneshot(ced)))
-		pit_timer_disable(pit);
+		pit_timer_disable(pit->clkevt_base);
 
 	ced->event_handler(ced);
 
@@ -201,7 +193,7 @@ static int __init pit_clockevent_init(struct pit_timer *pit, const char *name,
 	pit->clkevt_base = base + PIT_CH(3);
 	pit->cycle_per_jiffy = rate / (HZ);
 
-	pit_timer_disable(pit);
+	pit_timer_disable(pit->clkevt_base);
 
 	pit_irq_acknowledge(pit);
 
