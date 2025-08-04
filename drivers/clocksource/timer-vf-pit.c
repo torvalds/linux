@@ -74,6 +74,11 @@ static inline void pit_timer_disable(struct pit_timer *pit)
 	writel(0, PITTCTRL(pit->clkevt_base));
 }
 
+static inline void pit_timer_set_counter(void __iomem *base, unsigned int cnt)
+{
+	writel(cnt, PITLDVAL(base));
+}
+
 static inline void pit_clocksource_enable(struct pit_timer *pit)
 {
 	writel(PITTCTRL_TEN, PITTCTRL(pit->clksrc_base));
@@ -118,7 +123,7 @@ static int __init pit_clocksource_init(struct pit_timer *pit, const char *name,
 
 	/* set the max load value and start the clock source counter */
 	pit_clocksource_disable(pit);
-	writel(~0, PITLDVAL(pit->clksrc_base));
+	pit_timer_set_counter(pit->clksrc_base, ~0);
 	pit_clocksource_enable(pit);
 
 	sched_clock_base = pit->clksrc_base + PITCVAL_OFFSET;
@@ -139,7 +144,7 @@ static int pit_set_next_event(unsigned long delta, struct clock_event_device *ce
 	 * hardware requirement.
 	 */
 	pit_timer_disable(pit);
-	writel(delta - 1, PITLDVAL(pit->clkevt_base));
+	pit_timer_set_counter(pit->clkevt_base, delta - 1);
 	pit_timer_enable(pit);
 
 	return 0;
