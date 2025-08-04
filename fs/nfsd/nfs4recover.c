@@ -95,7 +95,7 @@ nfs4_reset_creds(const struct cred *original)
 static int
 nfs4_make_rec_clidname(char dname[HEXDIR_LEN], const struct xdr_netobj *clname)
 {
-	struct xdr_netobj cksum;
+	u8 digest[MD5_DIGEST_SIZE];
 	struct crypto_shash *tfm;
 	int status;
 
@@ -107,23 +107,16 @@ nfs4_make_rec_clidname(char dname[HEXDIR_LEN], const struct xdr_netobj *clname)
 		goto out_no_tfm;
 	}
 
-	cksum.len = crypto_shash_digestsize(tfm);
-	cksum.data = kmalloc(cksum.len, GFP_KERNEL);
-	if (cksum.data == NULL) {
-		status = -ENOMEM;
- 		goto out;
-	}
-
 	status = crypto_shash_tfm_digest(tfm, clname->data, clname->len,
-					 cksum.data);
+					 digest);
 	if (status)
 		goto out;
 
-	sprintf(dname, "%*phN", 16, cksum.data);
+	static_assert(HEXDIR_LEN == 2 * MD5_DIGEST_SIZE + 1);
+	sprintf(dname, "%*phN", MD5_DIGEST_SIZE, digest);
 
 	status = 0;
 out:
-	kfree(cksum.data);
 	crypto_free_shash(tfm);
 out_no_tfm:
 	return status;
