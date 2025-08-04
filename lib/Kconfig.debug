@@ -2479,6 +2479,20 @@ config STRING_HELPERS_KUNIT_TEST
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 
+config FFS_KUNIT_TEST
+	tristate "KUnit test ffs-family functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for ffs-family bit manipulation functions
+	  including ffs(), __ffs(), fls(), __fls(), fls64(), and __ffs64().
+
+	  These tests validate mathematical correctness, edge case handling,
+	  and cross-architecture consistency of bit scanning functions.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to Documentation/dev-tools/kunit/.
+
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
 
