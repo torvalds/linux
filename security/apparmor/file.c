@@ -98,6 +98,8 @@ int aa_audit_file(const struct cred *subj_cred,
 		  const char *target, struct aa_label *tlabel,
 		  kuid_t ouid, const char *info, int error)
 {
+	u32 quiet = perms->quiet;
+	u32 complain = perms->complain;
 	int type = AUDIT_APPARMOR_AUTO;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_TASK, AA_CLASS_FILE, op);
 
@@ -112,6 +114,8 @@ int aa_audit_file(const struct cred *subj_cred,
 	ad.error = error;
 	ad.common.u.tsk = NULL;
 
+	if (COMPLAIN_MODE(profile))
+		complain |= ~(perms->allow | perms->deny);
 	if (likely(!ad.error)) {
 		u32 mask = perms->audit;
 
@@ -132,11 +136,14 @@ int aa_audit_file(const struct cred *subj_cred,
 		if (ad.request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
+		if (AUDIT_MODE(profile) == AUDIT_QUIET_ALLOWED)
+			quiet |= complain | perms->allow;
+
 		/* quiet known rejects, assumes quiet and kill do not overlap */
-		if ((ad.request & perms->quiet) &&
+		if ((ad.request & quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
-			ad.request &= ~perms->quiet;
+			ad.request &= ~quiet;
 
 		if (!ad.request)
 			return ad.error;

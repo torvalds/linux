@@ -20,6 +20,7 @@
 const char *const audit_mode_names[] = {
 	"normal",
 	"quiet_denied",
+	"quiet.allowed",
 	"quiet",
 	"noquiet",
 	"all"

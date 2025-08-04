@@ -24,6 +24,7 @@ extern const char *const audit_mode_names[];
 enum audit_mode {
 	AUDIT_NORMAL,		/* follow normal auditing of accesses */
 	AUDIT_QUIET_DENIED,	/* quiet all denied access messages */
+	AUDIT_QUIET_ALLOWED,	/* quiet all allowed access messages */
 	AUDIT_QUIET,		/* quiet all messages */
 	AUDIT_NOQUIET,		/* do not quiet audit messages */
 	AUDIT_ALL,		/* audit all accesses */

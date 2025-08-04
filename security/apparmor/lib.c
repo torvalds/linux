@@ -363,6 +363,13 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
  */
 void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 {
+	if (KILL_MODE(profile))
+		perms->kill = ~perms->allow;
+	else if (COMPLAIN_MODE(profile))
+		perms->complain |= ~(perms->allow | perms->deny);
+	else if (USER_MODE(profile))
+		perms->prompt |= ~(perms->allow | perms->deny);
+
 	switch (AUDIT_MODE(profile)) {
 	case AUDIT_ALL:
 		perms->audit = ALL_PERMS_MASK;
@@ -374,16 +381,12 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 		perms->audit = 0;
 		fallthrough;
 	case AUDIT_QUIET_DENIED:
-		perms->quiet = ALL_PERMS_MASK;
+		perms->quiet |= ~perms->allow;
+		break;
+	case AUDIT_QUIET_ALLOWED:
+		perms->quiet |= perms->complain | perms->allow;
 		break;
 	}
-
-	if (KILL_MODE(profile))
-		perms->kill = ALL_PERMS_MASK;
-	else if (COMPLAIN_MODE(profile))
-		perms->complain = ALL_PERMS_MASK;
-	else if (USER_MODE(profile))
-		perms->prompt = ALL_PERMS_MASK;
 }
 
 void aa_profile_match_label(struct aa_profile *profile,
