@@ -147,7 +147,7 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 }
 
 static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
-				      unsigned long rate, int irq)
+				      unsigned long rate, int irq, unsigned int cpu)
 {
 	/*
 	 * The channels 0 and 1 can be chained to build a 64-bit
@@ -163,7 +163,7 @@ static int __init pit_clockevent_init(struct pit_timer *pit, void __iomem *base,
 	BUG_ON(request_irq(irq, pit_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
 			   "VF pit timer", &pit->ced));
 
-	pit->ced.cpumask = cpumask_of(0);
+	pit->ced.cpumask = cpumask_of(cpu);
 	pit->ced.irq = irq;
 
 	pit->ced.name = "VF pit timer";
@@ -221,6 +221,6 @@ static int __init pit_timer_init(struct device_node *np)
 	if (ret)
 		return ret;
 
-	return pit_clockevent_init(&pit_timer, timer_base, clk_rate, irq);
+	return pit_clockevent_init(&pit_timer, timer_base, clk_rate, irq, 0);
 }
 TIMER_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);
