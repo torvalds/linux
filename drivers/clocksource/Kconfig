@@ -475,7 +475,7 @@ config FSL_FTM_TIMER
 	  Support for Freescale FlexTimer Module (FTM) timer.
 
 config VF_PIT_TIMER
-	bool
+	bool "Vybrid Family Programmable timer" if COMPILE_TEST
 	select CLKSRC_MMIO
 	help
 	  Support for Periodic Interrupt Timer on Freescale Vybrid Family SoCs.
