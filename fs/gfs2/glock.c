@@ -646,8 +646,10 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	}
 
 	/* Fast path - we got what we asked for */
-	if (test_and_clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags))
+	if (test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags)) {
+		clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 		gfs2_demote_wake(gl);
+	}
 	if (gl->gl_state != LM_ST_UNLOCKED) {
 		if (glops->go_xmote_bh) {
 			int rv;
@@ -891,14 +893,12 @@ __acquires(&gl->gl_lockref.lock)
 
 out_sched:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	smp_mb__after_atomic();
 	gl->gl_lockref.count++;
 	gfs2_glock_queue_work(gl, 0);
 	return;
 
 out_unlock:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	smp_mb__after_atomic();
 }
 
 /**
