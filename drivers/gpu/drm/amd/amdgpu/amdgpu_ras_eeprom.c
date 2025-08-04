@@ -765,6 +765,10 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		dev_warn(adev->dev,
 			"Saved bad pages %d reaches threshold value %d\n",
 			control->ras_num_bad_pages, ras->bad_page_cnt_threshold);
+
+		if (adev->cper.enabled && amdgpu_cper_generate_bp_threshold_record(adev))
+			dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+
 		if ((amdgpu_bad_page_threshold != -1) &&
 		    (amdgpu_bad_page_threshold != -2)) {
 			control->tbl_hdr.header = RAS_TABLE_HDR_BAD;
