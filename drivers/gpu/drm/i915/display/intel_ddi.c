@@ -2166,7 +2166,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	enum tc_port tc_port = intel_encoder_to_tc(&dig_port->base);
-	u32 ln0, ln1, pin_assignment;
+	enum intel_tc_pin_assignment pin_assignment;
+	u32 ln0, ln1;
 	u8 width;
 
 	if (DISPLAY_VER(display) >= 14)
@@ -2188,11 +2189,11 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 	ln1 &= ~(MG_DP_MODE_CFG_DP_X1_MODE | MG_DP_MODE_CFG_DP_X2_MODE);
 
 	/* DPPATC */
-	pin_assignment = intel_tc_port_get_pin_assignment_mask(dig_port);
+	pin_assignment = intel_tc_port_get_pin_assignment(dig_port);
 	width = crtc_state->lane_count;
 
 	switch (pin_assignment) {
-	case 0x0:
+	case INTEL_TC_PIN_ASSIGNMENT_NONE:
 		drm_WARN_ON(display->drm,
 			    !intel_tc_port_in_legacy_mode(dig_port));
 		if (width == 1) {
@@ -2202,20 +2203,20 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x1:
+	case INTEL_TC_PIN_ASSIGNMENT_A:
 		if (width == 4) {
 			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x2:
+	case INTEL_TC_PIN_ASSIGNMENT_B:
 		if (width == 2) {
 			ln0 |= MG_DP_MODE_CFG_DP_X2_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x3:
-	case 0x5:
+	case INTEL_TC_PIN_ASSIGNMENT_C:
+	case INTEL_TC_PIN_ASSIGNMENT_E:
 		if (width == 1) {
 			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;
@@ -2224,8 +2225,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 			ln1 |= MG_DP_MODE_CFG_DP_X2_MODE;
 		}
 		break;
-	case 0x4:
-	case 0x6:
+	case INTEL_TC_PIN_ASSIGNMENT_D:
+	case INTEL_TC_PIN_ASSIGNMENT_F:
 		if (width == 1) {
 			ln0 |= MG_DP_MODE_CFG_DP_X1_MODE;
 			ln1 |= MG_DP_MODE_CFG_DP_X1_MODE;

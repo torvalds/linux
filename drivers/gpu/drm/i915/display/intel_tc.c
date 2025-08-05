@@ -277,7 +277,8 @@ static u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
 }
 
-u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
+enum intel_tc_pin_assignment
+intel_tc_port_get_pin_assignment(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
@@ -299,8 +300,9 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 	struct intel_display *display = to_intel_display(dig_port);
 	enum tc_port tc_port = intel_encoder_to_tc(&dig_port->base);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
+	enum intel_tc_pin_assignment pin_assignment;
 	intel_wakeref_t wakeref;
-	u32 val, pin_assignment;
+	u32 val;
 
 	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		val = intel_de_read(display, TCSS_DDI_STATUS(tc_port));
@@ -327,13 +329,13 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 
 static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
-	u32 pin_mask;
+	enum intel_tc_pin_assignment pin_assignment;
 
-	pin_mask = intel_tc_port_get_pin_assignment_mask(dig_port);
+	pin_assignment = intel_tc_port_get_pin_assignment(dig_port);
 
-	switch (pin_mask) {
+	switch (pin_assignment) {
 	default:
-		MISSING_CASE(pin_mask);
+		MISSING_CASE(pin_assignment);
 		fallthrough;
 	case INTEL_TC_PIN_ASSIGNMENT_D:
 		return 2;
