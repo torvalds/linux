@@ -75,7 +75,6 @@ struct smbd_connection {
 	atomic_t send_credits;
 	atomic_t receive_credits;
 	int receive_credit_target;
-	int fragment_reassembly_remaining;
 
 	/* Memory registrations */
 	/* Maximum number of RDMA read/write outstanding on this connection */

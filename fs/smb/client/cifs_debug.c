@@ -465,13 +465,11 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "\nRead Queue count_reassembly_queue: %x "
 			"count_enqueue_reassembly_queue: %x "
 			"count_dequeue_reassembly_queue: %x "
-			"fragment_reassembly_remaining: %x "
 			"reassembly_data_length: %x "
 			"reassembly_queue_length: %x",
 			server->smbd_conn->count_reassembly_queue,
 			server->smbd_conn->count_enqueue_reassembly_queue,
 			server->smbd_conn->count_dequeue_reassembly_queue,
-			server->smbd_conn->fragment_reassembly_remaining,
 			server->smbd_conn->reassembly_data_length,
 			server->smbd_conn->reassembly_queue_length);
 		seq_printf(m, "\nCurrent Credits send_credits: %x "
