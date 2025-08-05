@@ -1549,6 +1549,7 @@ int amdgpu_vcn_reg_dump_init(struct amdgpu_device *adev,
 static void amdgpu_vcn_reg_dump_fini(struct amdgpu_device *adev)
 {
 	kfree(adev->vcn.ip_dump);
+	adev->vcn.ip_dump = NULL;
 	adev->vcn.reg_list = NULL;
 	adev->vcn.reg_count = 0;
 }

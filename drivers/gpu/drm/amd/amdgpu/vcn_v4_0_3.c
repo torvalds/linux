@@ -280,8 +280,6 @@ static int vcn_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	kfree(adev->vcn.ip_dump);
-
 	return 0;
 }
 
