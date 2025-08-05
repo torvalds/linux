@@ -814,8 +814,7 @@ static int bh1745_init(struct bh1745_data *data)
 
 	ret = devm_add_action_or_reset(dev, bh1745_power_off, data);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add action or reset\n");
+		return ret;
 
 	return 0;
 }

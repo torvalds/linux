@@ -351,8 +351,7 @@ static int vl53l0x_probe(struct i2c_client *client)
 
 	error = devm_add_action_or_reset(&client->dev, vl53l0x_power_off, data);
 	if (error)
-		return dev_err_probe(&client->dev, error,
-				     "Failed to install poweroff action\n");
+		return ret;
 
 	indio_dev->name = "vl53l0x";
 	indio_dev->info = &vl53l0x_info;

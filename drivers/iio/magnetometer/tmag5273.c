@@ -642,7 +642,7 @@ static int tmag5273_probe(struct i2c_client *i2c)
 	 */
 	ret = devm_add_action_or_reset(dev, tmag5273_power_down, data);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to add powerdown action\n");
+		return ret;
 
 	ret = pm_runtime_set_active(dev);
 	if (ret < 0)

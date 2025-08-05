@@ -778,8 +778,7 @@ static int ads1119_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(dev, ads1119_powerdown, st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add powerdown action\n");
+		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }

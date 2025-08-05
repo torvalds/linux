@@ -527,8 +527,7 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(&pdev->dev,
 				       rockchip_saradc_regulator_disable, info);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to register devm action\n");
+		return ret;
 
 	ret = regulator_get_voltage(info->vref);
 	if (ret < 0)

@@ -1300,7 +1300,7 @@ static int ad7124_probe(struct spi_device *spi)
 		ret = devm_add_action_or_reset(&spi->dev, ad7124_reg_disable,
 					       st->vref[i]);
 		if (ret)
-			return dev_err_probe(dev, ret, "Failed to register disable handler for regulator #%d\n", i);
+			return ret;
 	}
 
 	st->mclk = devm_clk_get_enabled(&spi->dev, "mclk");

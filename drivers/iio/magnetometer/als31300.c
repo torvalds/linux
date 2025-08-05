@@ -373,7 +373,7 @@ static int als31300_probe(struct i2c_client *i2c)
 
 	ret = devm_add_action_or_reset(dev, als31300_power_down, data);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to add powerdown action\n");
+		return ret;
 
 	indio_dev->info = &als31300_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

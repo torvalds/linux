@@ -1309,7 +1309,7 @@ static int apds9306_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(dev, apds9306_powerdown, data);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to add action or reset\n");
+		return ret;
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)

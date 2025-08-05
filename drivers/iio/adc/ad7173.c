@@ -1731,8 +1731,7 @@ static int ad7173_fw_parse_device_config(struct iio_dev *indio_dev)
 
 	ret = devm_add_action_or_reset(dev, ad7173_disable_regulators, st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add regulators disable action\n");
+		return ret;
 
 	ret = device_property_match_property_string(dev, "clock-names",
 						    ad7173_clk_sel,

@@ -1195,7 +1195,7 @@ static int msa311_probe(struct i2c_client *i2c)
 	 */
 	err = devm_add_action_or_reset(dev, msa311_powerdown, msa311);
 	if (err)
-		return dev_err_probe(dev, err, "can't add powerdown action\n");
+		return err;
 
 	err = pm_runtime_set_active(dev);
 	if (err)
