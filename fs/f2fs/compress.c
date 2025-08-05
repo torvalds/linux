@@ -1215,9 +1215,11 @@ int f2fs_truncate_partial_cluster(struct inode *inode, u64 from, bool lock)
 {
 	void *fsdata = NULL;
 	struct page *pagep;
+	struct page **rpages;
 	int log_cluster_size = F2FS_I(inode)->i_log_cluster_size;
 	pgoff_t start_idx = from >> (PAGE_SHIFT + log_cluster_size) <<
 							log_cluster_size;
+	int i;
 	int err;
 
 	err = f2fs_is_compressed_cluster(inode, start_idx);
@@ -1238,36 +1240,30 @@ int f2fs_truncate_partial_cluster(struct inode *inode, u64 from, bool lock)
 	if (err <= 0)
 		return err;
 
-	if (err > 0) {
-		struct page **rpages = fsdata;
-		int cluster_size = F2FS_I(inode)->i_cluster_size;
-		int i;
+	rpages = fsdata;
 
-		for (i = cluster_size - 1; i >= 0; i--) {
-			struct folio *folio = page_folio(rpages[i]);
-			loff_t start = (loff_t)folio->index << PAGE_SHIFT;
-			loff_t offset = from > start ? from - start : 0;
+	for (i = (1 << log_cluster_size) - 1; i >= 0; i--) {
+		struct folio *folio = page_folio(rpages[i]);
+		loff_t start = (loff_t)folio->index << PAGE_SHIFT;
+		loff_t offset = from > start ? from - start : 0;
 
-			folio_zero_segment(folio, offset, folio_size(folio));
+		folio_zero_segment(folio, offset, folio_size(folio));
 
-			if (from >= start)
-				break;
-		}
-
-		f2fs_compress_write_end(inode, fsdata, start_idx, true);
-
-		err = filemap_write_and_wait_range(inode->i_mapping,
-				round_down(from, cluster_size << PAGE_SHIFT),
-				LLONG_MAX);
-		if (err)
-			return err;
-
-		truncate_pagecache(inode, from);
-
-		err = f2fs_do_truncate_blocks(inode,
-				round_up(from, PAGE_SIZE), lock);
+		if (from >= start)
+			break;
 	}
-	return err;
+
+	f2fs_compress_write_end(inode, fsdata, start_idx, true);
+
+	err = filemap_write_and_wait_range(inode->i_mapping,
+			round_down(from, 1 << log_cluster_size << PAGE_SHIFT),
+			LLONG_MAX);
+	if (err)
+		return err;
+
+	truncate_pagecache(inode, from);
+
+	return f2fs_do_truncate_blocks(inode, round_up(from, PAGE_SIZE), lock);
 }
 
 static int f2fs_write_compressed_pages(struct compress_ctx *cc,
