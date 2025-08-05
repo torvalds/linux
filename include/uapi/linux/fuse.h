@@ -235,6 +235,10 @@
  *
  *  7.44
  *  - add FUSE_NOTIFY_INC_EPOCH
+ *
+ *  7.45
+ *  - add FUSE_COPY_FILE_RANGE_64
+ *  - add struct fuse_copy_file_range_out
  */
 
 #ifndef _LINUX_FUSE_H
@@ -270,7 +274,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 44
+#define FUSE_KERNEL_MINOR_VERSION 45
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -657,6 +661,7 @@ enum fuse_opcode {
 	FUSE_SYNCFS		= 50,
 	FUSE_TMPFILE		= 51,
 	FUSE_STATX		= 52,
+	FUSE_COPY_FILE_RANGE_64	= 53,
 
 	/* CUSE specific operations */
 	CUSE_INIT		= 4096,
@@ -1146,6 +1151,11 @@ struct fuse_copy_file_range_in {
 	uint64_t	off_out;
 	uint64_t	len;
 	uint64_t	flags;
+};
+
+/* For FUSE_COPY_FILE_RANGE_64 */
+struct fuse_copy_file_range_out {
+	uint64_t	bytes_copied;
 };
 
 #define FUSE_SETUPMAPPING_FLAG_WRITE (1ull << 0)

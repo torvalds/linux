@@ -856,6 +856,9 @@ struct fuse_conn {
 	/** Does the filesystem support copy_file_range? */
 	unsigned no_copy_file_range:1;
 
+	/** Does the filesystem support copy_file_range_64? */
+	unsigned no_copy_file_range_64:1;
+
 	/* Send DESTROY request */
 	unsigned int destroy:1;
 

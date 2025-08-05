@@ -2960,10 +2960,12 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 		.nodeid_out = ff_out->nodeid,
 		.fh_out = ff_out->fh,
 		.off_out = pos_out,
-		.len = min_t(size_t, len, UINT_MAX & PAGE_MASK),
+		.len = len,
 		.flags = flags
 	};
 	struct fuse_write_out outarg;
+	struct fuse_copy_file_range_out outarg_64;
+	u64 bytes_copied;
 	ssize_t err;
 	/* mark unstable when write-back is not used, and file_out gets
 	 * extended */
@@ -3013,33 +3015,51 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (is_unstable)
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
 
-	args.opcode = FUSE_COPY_FILE_RANGE;
+	args.opcode = FUSE_COPY_FILE_RANGE_64;
 	args.nodeid = ff_in->nodeid;
 	args.in_numargs = 1;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
 	args.out_numargs = 1;
-	args.out_args[0].size = sizeof(outarg);
-	args.out_args[0].value = &outarg;
+	args.out_args[0].size = sizeof(outarg_64);
+	args.out_args[0].value = &outarg_64;
+	if (fc->no_copy_file_range_64) {
+fallback:
+		/* Fall back to old op that can't handle large copy length */
+		args.opcode = FUSE_COPY_FILE_RANGE;
+		args.out_args[0].size = sizeof(outarg);
+		args.out_args[0].value = &outarg;
+		inarg.len = len = min_t(size_t, len, UINT_MAX & PAGE_MASK);
+	}
 	err = fuse_simple_request(fm, &args);
 	if (err == -ENOSYS) {
-		fc->no_copy_file_range = 1;
-		err = -EOPNOTSUPP;
+		if (fc->no_copy_file_range_64) {
+			fc->no_copy_file_range = 1;
+			err = -EOPNOTSUPP;
+		} else {
+			fc->no_copy_file_range_64 = 1;
+			goto fallback;
+		}
 	}
-	if (!err && outarg.size > len)
-		err = -EIO;
-
 	if (err)
 		goto out;
 
+	bytes_copied = fc->no_copy_file_range_64 ?
+		outarg.size : outarg_64.bytes_copied;
+
+	if (bytes_copied > len) {
+		err = -EIO;
+		goto out;
+	}
+
 	truncate_inode_pages_range(inode_out->i_mapping,
 				   ALIGN_DOWN(pos_out, PAGE_SIZE),
-				   ALIGN(pos_out + outarg.size, PAGE_SIZE) - 1);
+				   ALIGN(pos_out + bytes_copied, PAGE_SIZE) - 1);
 
 	file_update_time(file_out);
-	fuse_write_update_attr(inode_out, pos_out + outarg.size, outarg.size);
+	fuse_write_update_attr(inode_out, pos_out + bytes_copied, bytes_copied);
 
-	err = outarg.size;
+	err = bytes_copied;
 out:
 	if (is_unstable)
 		clear_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
