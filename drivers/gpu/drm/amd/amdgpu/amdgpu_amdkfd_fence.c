@@ -128,8 +128,12 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (dma_fence_is_signaled(f))
 		return true;
 
+	/* if fence->svm_bo is NULL, means this fence is created through
+	 * init_kfd_vm() or amdgpu_amdkfd_gpuvm_restore_process_bos().
+	 * Therefore, this fence is amdgpu_amdkfd_fence->eviction_fence.
+	 */
 	if (!fence->svm_bo) {
-		if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, f))
+		if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, fence->context_id, f))
 			return true;
 	} else {
 		if (!svm_range_schedule_evict_svm_bo(fence))
