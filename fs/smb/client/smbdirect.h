@@ -175,22 +175,6 @@ struct smbd_request {
 /* Maximum number of SGEs used by smbdirect.c in any receive work request */
 #define SMBDIRECT_MAX_RECV_SGE	1
 
-/* The context for a SMBD response */
-struct smbd_response {
-	struct smbd_connection *info;
-	struct ib_cqe cqe;
-	struct ib_sge sge;
-
-	/* Link to receive queue or reassembly queue */
-	struct list_head list;
-
-	/* Indicate if this is the 1st packet of a payload */
-	bool first_segment;
-
-	/* SMBD packet header and payload follows this structure */
-	u8 packet[];
-};
-
 /* Create a SMBDirect session */
 struct smbd_connection *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr);
