@@ -1991,6 +1991,15 @@ static int complete_fast_rdmsr(struct kvm_vcpu *vcpu)
 	return complete_fast_msr_access(vcpu);
 }
 
+static int complete_fast_rdmsr_imm(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->run->msr.error)
+		kvm_register_write(vcpu, vcpu->arch.cui_rdmsr_imm_reg,
+				   vcpu->run->msr.data);
+
+	return complete_fast_msr_access(vcpu);
+}
+
 static u64 kvm_msr_reason(int r)
 {
 	switch (r) {
@@ -2025,39 +2034,53 @@ static int kvm_msr_user_space(struct kvm_vcpu *vcpu, u32 index,
 	return 1;
 }
 
-int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
+static int __kvm_emulate_rdmsr(struct kvm_vcpu *vcpu, u32 msr, int reg,
+			       int (*complete_rdmsr)(struct kvm_vcpu *))
 {
-	u32 msr = kvm_rcx_read(vcpu);
 	u64 data;
 	int r;
 
 	r = kvm_get_msr_with_filter(vcpu, msr, &data);
-
 	if (!r) {
 		trace_kvm_msr_read(msr, data);
 
-		kvm_rax_write(vcpu, data & -1u);
-		kvm_rdx_write(vcpu, (data >> 32) & -1u);
+		if (reg < 0) {
+			kvm_rax_write(vcpu, data & -1u);
+			kvm_rdx_write(vcpu, (data >> 32) & -1u);
+		} else {
+			kvm_register_write(vcpu, reg, data);
+		}
 	} else {
 		/* MSR read failed? See if we should ask user space */
 		if (kvm_msr_user_space(vcpu, msr, KVM_EXIT_X86_RDMSR, 0,
-				       complete_fast_rdmsr, r))
+				       complete_rdmsr, r))
 			return 0;
 		trace_kvm_msr_read_ex(msr);
 	}
 
 	return kvm_x86_call(complete_emulated_msr)(vcpu, r);
 }
+
+int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
+{
+	return __kvm_emulate_rdmsr(vcpu, kvm_rcx_read(vcpu), -1,
+				   complete_fast_rdmsr);
+}
 EXPORT_SYMBOL_GPL(kvm_emulate_rdmsr);
 
-int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
+int kvm_emulate_rdmsr_imm(struct kvm_vcpu *vcpu, u32 msr, int reg)
 {
-	u32 msr = kvm_rcx_read(vcpu);
-	u64 data = kvm_read_edx_eax(vcpu);
+	vcpu->arch.cui_rdmsr_imm_reg = reg;
+
+	return __kvm_emulate_rdmsr(vcpu, msr, reg, complete_fast_rdmsr_imm);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_rdmsr_imm);
+
+static int __kvm_emulate_wrmsr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
 	int r;
 
 	r = kvm_set_msr_with_filter(vcpu, msr, data);
-
 	if (!r) {
 		trace_kvm_msr_write(msr, data);
 	} else {
@@ -2073,7 +2096,19 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 
 	return kvm_x86_call(complete_emulated_msr)(vcpu, r);
 }
+
+int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
+{
+	return __kvm_emulate_wrmsr(vcpu, kvm_rcx_read(vcpu),
+				   kvm_read_edx_eax(vcpu));
+}
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
+
+int kvm_emulate_wrmsr_imm(struct kvm_vcpu *vcpu, u32 msr, int reg)
+{
+	return __kvm_emulate_wrmsr(vcpu, msr, kvm_register_read(vcpu, reg));
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr_imm);
 
 int kvm_emulate_as_nop(struct kvm_vcpu *vcpu)
 {
