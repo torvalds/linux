@@ -200,6 +200,8 @@ static bool force_contiguous(u32 bo_flags)
 	else if (bo_flags & XE_BO_FLAG_PINNED &&
 		 !(bo_flags & XE_BO_FLAG_PINNED_LATE_RESTORE))
 		return true; /* needs vmap */
+	else if (bo_flags & XE_BO_FLAG_CPU_ADDR_MIRROR)
+		return true;
 
 	/*
 	 * For eviction / restore on suspend / resume objects pinned in VRAM

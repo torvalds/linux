@@ -383,6 +383,14 @@ static int xe_svm_copy(struct page **pages,
 			}
 
 			match = vram_addr + PAGE_SIZE * (i - pos) == __vram_addr;
+			/* Expected with contiguous memory */
+			xe_assert(vr->xe, match);
+
+			if (pagemap_addr[i].order) {
+				i += NR_PAGES(pagemap_addr[i].order) - 1;
+				chunk = (i - pos) == (XE_MIGRATE_CHUNK_SIZE / PAGE_SIZE);
+				last = (i + 1) == npages;
+			}
 		}
 
 		/*
