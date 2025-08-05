@@ -960,7 +960,7 @@ static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu,
 	DECLARE_BITMAP(bitmap, X86_PMC_IDX_MAX);
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
-	int i;
+	int i, idx;
 
 	BUILD_BUG_ON(sizeof(pmu->global_ctrl) * BITS_PER_BYTE != X86_PMC_IDX_MAX);
 
@@ -973,12 +973,14 @@ static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu,
 			     (unsigned long *)&pmu->global_ctrl, X86_PMC_IDX_MAX))
 		return;
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	kvm_for_each_pmc(pmu, pmc, i, bitmap) {
 		if (!pmc_is_event_allowed(pmc) || !cpl_is_matched(pmc))
 			continue;
 
 		kvm_pmu_incr_counter(pmc);
 	}
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 }
 
 void kvm_pmu_instruction_retired(struct kvm_vcpu *vcpu)
