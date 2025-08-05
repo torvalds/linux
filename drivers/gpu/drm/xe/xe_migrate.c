@@ -1802,6 +1802,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	unsigned int pitch = len >= PAGE_SIZE && !(len & ~PAGE_MASK) ?
 		PAGE_SIZE : 4;
 	int err;
+	unsigned long i, j;
 
 	if (drm_WARN_ON(&xe->drm, (len & XE_CACHELINE_MASK) ||
 			(sram_offset | vram_addr) & XE_CACHELINE_MASK))
@@ -1816,6 +1817,24 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	if (IS_ERR(bb)) {
 		err = PTR_ERR(bb);
 		return ERR_PTR(err);
+	}
+
+	/*
+	 * If the order of a struct drm_pagemap_addr entry is greater than 0,
+	 * the entry is populated by GPU pagemap but subsequent entries within
+	 * the range of that order are not populated.
+	 * build_pt_update_batch_sram() expects a fully populated array of
+	 * struct drm_pagemap_addr. Ensure this is the case even with higher
+	 * orders.
+	 */
+	for (i = 0; i < npages;) {
+		unsigned int order = sram_addr[i].order;
+
+		for (j = 1; j < NR_PAGES(order) && i + j < npages; j++)
+			if (!sram_addr[i + j].addr)
+				sram_addr[i + j].addr = sram_addr[i].addr + j * PAGE_SIZE;
+
+		i += NR_PAGES(order);
 	}
 
 	build_pt_update_batch_sram(m, bb, pt_slot * XE_PAGE_SIZE,
