@@ -163,7 +163,7 @@ void xe_svm_flush(struct xe_vm *vm);
 #else
 #include <linux/interval_tree.h>
 
-struct drm_pagemap_device_addr;
+struct drm_pagemap_addr;
 struct drm_gpusvm_ctx;
 struct drm_gpusvm_range;
 struct xe_bo;
@@ -178,7 +178,7 @@ struct xe_vram_region;
 struct xe_svm_range {
 	struct {
 		struct interval_tree_node itree;
-		const struct drm_pagemap_device_addr *dma_addr;
+		const struct drm_pagemap_addr *dma_addr;
 	} base;
 	u32 tile_present;
 	u32 tile_invalidated;

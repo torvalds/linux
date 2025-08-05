@@ -17,7 +17,7 @@ struct drm_gpusvm_notifier;
 struct drm_gpusvm_ops;
 struct drm_gpusvm_range;
 struct drm_pagemap;
-struct drm_pagemap_device_addr;
+struct drm_pagemap_addr;
 
 /**
  * struct drm_gpusvm_ops - Operations structure for GPU SVM
@@ -154,7 +154,7 @@ struct drm_gpusvm_range {
 	struct interval_tree_node itree;
 	struct list_head entry;
 	unsigned long notifier_seq;
-	struct drm_pagemap_device_addr *dma_addr;
+	struct drm_pagemap_addr *dma_addr;
 	struct drm_pagemap *dpagemap;
 	struct drm_gpusvm_range_flags flags;
 };
