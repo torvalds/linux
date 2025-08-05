@@ -60,6 +60,32 @@ struct smbdirect_socket {
 			struct list_head list;
 			spinlock_t lock;
 		} free;
+
+		/*
+		 * The list of arrived non-empty smbdirect_recv_io
+		 * structures
+		 *
+		 * This represents the reassembly queue.
+		 */
+		struct {
+			struct list_head list;
+			spinlock_t lock;
+			wait_queue_head_t wait_queue;
+			/* total data length of reassembly queue */
+			int data_length;
+			int queue_length;
+			/* the offset to first buffer in reassembly queue */
+			int first_entry_offset;
+			/*
+			 * Indicate if we have received a full packet on the
+			 * connection This is used to identify the first SMBD
+			 * packet of a assembled payload (SMB packet) in
+			 * reassembly queue so we can return a RFC1002 length to
+			 * upper layer to indicate the length of the SMB packet
+			 * received
+			 */
+			bool full_packet_received;
+		} reassembly;
 	} recv_io;
 };
 
