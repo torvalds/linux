@@ -2,6 +2,7 @@
 # Copyright (C) 2004 THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the cpufrequtils package.
 # Ducrot Bruno <ducrot@poupinou.org>, 2004.
+# Wedone <wedoneofficiel@outlook.fr>, 2024.
 #
 #, fuzzy
 msgid ""
@@ -10,7 +11,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2011-03-08 17:03+0100\n"
 "PO-Revision-Date: 2004-11-17 15:53+1000\n"
-"Last-Translator: Bruno Ducrot <ducrot@poupinou.org>\n"
+"Last-Translator: Wedone <wedoneofficiel@outlook.fr>\n"
 "Language-Team: NONE\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -19,55 +20,55 @@ msgstr ""
 
 #: utils/idle_monitor/nhm_idle.c:36
 msgid "Processor Core C3"
-msgstr ""
+msgstr "Processeur Cœur C3"
 
 #: utils/idle_monitor/nhm_idle.c:43
 msgid "Processor Core C6"
-msgstr ""
+msgstr "Processeur Cœur C6"
 
 #: utils/idle_monitor/nhm_idle.c:51
 msgid "Processor Package C3"
-msgstr ""
+msgstr "Pack Processeur C3"
 
 #: utils/idle_monitor/nhm_idle.c:58 utils/idle_monitor/amd_fam14h_idle.c:70
 msgid "Processor Package C6"
-msgstr ""
+msgstr "Pack Processeur C6"
 
 #: utils/idle_monitor/snb_idle.c:33
 msgid "Processor Core C7"
-msgstr ""
+msgstr "Processeur Cœur C7"
 
 #: utils/idle_monitor/snb_idle.c:40
 msgid "Processor Package C2"
-msgstr ""
+msgstr "Pack Processeur C2"
 
 #: utils/idle_monitor/snb_idle.c:47
 msgid "Processor Package C7"
-msgstr ""
+msgstr "Pack Processeur C7"
 
 #: utils/idle_monitor/amd_fam14h_idle.c:56
 msgid "Package in sleep state (PC1 or deeper)"
-msgstr ""
+msgstr "Pack en état de veille (PC1 ou plus profond)"
 
 #: utils/idle_monitor/amd_fam14h_idle.c:63
 msgid "Processor Package C1"
-msgstr ""
+msgstr "Pack Processeur C1"
 
 #: utils/idle_monitor/amd_fam14h_idle.c:77
 msgid "North Bridge P1 boolean counter (returns 0 or 1)"
-msgstr ""
+msgstr "North Bridge P1 compteur booléen (renvoie 0 ou 1)"
 
 #: utils/idle_monitor/mperf_monitor.c:35
 msgid "Processor Core not idle"
-msgstr ""
+msgstr "Le cœur du processeur n'est pas au repos"
 
 #: utils/idle_monitor/mperf_monitor.c:42
 msgid "Processor Core in an idle state"
-msgstr ""
+msgstr "Processeur Cœur en état d'inactivité"
 
 #: utils/idle_monitor/mperf_monitor.c:50
 msgid "Average Frequency (including boost) in MHz"
-msgstr ""
+msgstr "Fréquence moyenne (y compris l'amplification) en MHz"
 
 #: utils/idle_monitor/cpupower-monitor.c:66
 #, c-format
@@ -249,20 +250,20 @@ msgstr ""
 #: utils/cpufreq-info.c:161
 #, c-format
 msgid "  boost state support: \n"
-msgstr ""
+msgstr "  renforcer le soutien de l'état : \n"
 
 #: utils/cpufreq-info.c:163
 #, c-format
 msgid "    Supported: %s\n"
-msgstr ""
+msgstr "    Pris en charge : %s\n"
 
 #: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
 msgid "yes"
-msgstr ""
+msgstr "oui"
 
 #: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
 msgid "no"
-msgstr ""
+msgstr "non"
 
 #: utils/cpufreq-info.c:164
 #, fuzzy, c-format
@@ -277,7 +278,7 @@ msgstr ""
 #: utils/cpufreq-info.c:178
 #, c-format
 msgid "    Total States: %d\n"
-msgstr ""
+msgstr "    Total des états : %d\n"
 
 #: utils/cpufreq-info.c:181
 #, c-format
