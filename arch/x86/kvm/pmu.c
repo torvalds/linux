@@ -491,12 +491,6 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 	return is_fixed_event_allowed(filter, pmc->idx);
 }
 
-static bool pmc_event_is_allowed(struct kvm_pmc *pmc)
-{
-	return pmc_is_globally_enabled(pmc) && pmc_is_locally_enabled(pmc) &&
-	       check_pmu_event_filter(pmc);
-}
-
 static int reprogram_counter(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -507,7 +501,8 @@ static int reprogram_counter(struct kvm_pmc *pmc)
 
 	emulate_overflow = pmc_pause_counter(pmc);
 
-	if (!pmc_event_is_allowed(pmc))
+	if (!pmc_is_globally_enabled(pmc) || !pmc_is_locally_enabled(pmc) ||
+	    !check_pmu_event_filter(pmc))
 		return 0;
 
 	if (emulate_overflow)
@@ -979,7 +974,8 @@ static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu,
 		return;
 
 	kvm_for_each_pmc(pmu, pmc, i, bitmap) {
-		if (!pmc_event_is_allowed(pmc) || !cpl_is_matched(pmc))
+		if (!pmc_is_globally_enabled(pmc) || !pmc_is_locally_enabled(pmc) ||
+		    !check_pmu_event_filter(pmc) || !cpl_is_matched(pmc))
 			continue;
 
 		kvm_pmu_incr_counter(pmc);
