@@ -823,7 +823,7 @@ static void usbhs_remove(struct platform_device *pdev)
 	usbhs_pipe_remove(priv);
 }
 
-static __maybe_unused int usbhsc_suspend(struct device *dev)
+static int usbhsc_suspend(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
@@ -839,7 +839,7 @@ static __maybe_unused int usbhsc_suspend(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int usbhsc_resume(struct device *dev)
+static int usbhsc_resume(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
@@ -856,12 +856,12 @@ static __maybe_unused int usbhsc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(usbhsc_pm_ops, usbhsc_suspend, usbhsc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(usbhsc_pm_ops, usbhsc_suspend, usbhsc_resume);
 
 static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {
 		.name	= "renesas_usbhs",
-		.pm	= &usbhsc_pm_ops,
+		.pm	= pm_sleep_ptr(&usbhsc_pm_ops),
 		.of_match_table = usbhs_of_match,
 	},
 	.probe		= usbhs_probe,

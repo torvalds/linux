@@ -633,6 +633,14 @@
 			named mounts. Specifying both "all" and "named" disables
 			all v1 hierarchies.
 
+	cgroup_v1_proc=	[KNL] Show also missing controllers in /proc/cgroups
+			Format: { "true" | "false" }
+			/proc/cgroups lists only v1 controllers by default.
+			This compatibility option enables listing also v2
+			controllers (whose v1 code is not compiled!), so that
+			semi-legacy software can check this file to decide
+			about usage of v2 (sic) controllers.
+
 	cgroup_favordynmods= [KNL] Enable or Disable favordynmods.
 			Format: { "true" | "false" }
 			Defaults to the value of CONFIG_CGROUP_FAVOR_DYNMODS.
@@ -2212,6 +2220,11 @@
 			different crypto accelerators. This option can be used
 			to achieve best performance for particular HW.
 
+	ima=		[IMA] Enable or disable IMA
+			Format: { "off" | "on" }
+			Default: "on"
+			Note that disabling IMA is limited to kdump kernel.
+
 	indirect_target_selection= [X86,Intel] Mitigation control for Indirect
 			Target Selection(ITS) bug in Intel CPUs. Updated
 			microcode is also required for a fix in IBPB.
@@ -2537,6 +2550,13 @@
 			Enables support for pseudo-NMIs in the kernel. This
 			requires the kernel to be built with
 			CONFIG_ARM64_PSEUDO_NMI.
+
+	irqchip.riscv_imsic_noipi
+			[RISC-V,EARLY]
+			Force the kernel to not use IMSIC software injected MSIs
+			as IPIs. Intended for system where IMSIC is trap-n-emulated,
+			and thus want to reduce MMIO traps when triggering IPIs
+			to multiple harts.
 
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
@@ -3790,6 +3810,10 @@
 					       mmio_stale_data=full,nosmt [X86]
 					       retbleed=auto,nosmt [X86]
 
+			[X86] After one of the above options, additionally
+			supports attack-vector based controls as documented in
+			Documentation/admin-guide/hw-vuln/attack_vector_controls.rst
+
 	mminit_loglevel=
 			[KNL,EARLY] When CONFIG_DEBUG_MEMORY_INIT is set, this
 			parameter allows control of the logging verbosity for
@@ -5000,6 +5024,18 @@
 			that number, otherwise (e.g., 'pmu_override=on'), MMCR1
 			remains 0.
 
+	pm_async=	[PM]
+			Format: off
+			This parameter sets the initial value of the
+			/sys/power/pm_async sysfs knob at boot time.
+			If set to "off", disables asynchronous suspend and
+			resume of devices during system-wide power transitions.
+			This can be useful on platforms where device
+			dependencies are not well-defined, or for debugging
+			power management issues. Asynchronous operations are
+			enabled by default.
+
+
 	pm_debug_messages	[SUSPEND,KNL]
 			Enable suspend/resume debug messages during boot up.
 
@@ -5485,7 +5521,8 @@
 			echo 1 > /sys/module/rcutree/parameters/rcu_normal_wake_from_gp
 			or pass a boot parameter "rcutree.rcu_normal_wake_from_gp=1"
 
-			Default is 0.
+			Default is 1 if num_possible_cpus() <= 16 and it is not explicitly
+			disabled by the boot parameter passing 0.
 
 	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
@@ -6387,6 +6424,11 @@
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
 
+	sched_proxy_exec= [KNL]
+			Enables or disables "proxy execution" style
+			solution to mutex-based priority inversion.
+			Format: <bool>
+
 	sched_verbose	[KNL,EARLY] Enables verbose scheduler debug messages.
 
 	schedstats=	[KNL,X86] Enable or disable scheduled statistics.
@@ -6558,14 +6600,14 @@
 			slab_debug can create guard zones around objects and
 			may poison objects when not in use. Also tracks the
 			last alloc / free. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_debug legacy name also accepted for now)
 
 	slab_max_order= [MM]
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
 			fragmentation. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_max_order legacy name also accepted for now)
 
 	slab_merge	[MM]
@@ -6580,13 +6622,14 @@
 			the number of objects indicated. The higher the number
 			of objects the smaller the overhead of tracking slabs
 			and the less frequently locks need to be acquired.
-			For more information see Documentation/mm/slub.rst.
+			For more information see
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_min_objects legacy name also accepted for now)
 
 	slab_min_order=	[MM]
 			Determines the minimum page order for slabs. Must be
 			lower or equal to slab_max_order. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_min_order legacy name also accepted for now)
 
 	slab_nomerge	[MM]
@@ -6600,7 +6643,8 @@
 			cache (risks via metadata attacks are mostly
 			unchanged). Debug options disable merging on their
 			own.
-			For more information see Documentation/mm/slub.rst.
+			For more information see
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_nomerge legacy name also accepted for now)
 
 	slab_strict_numa	[MM]
@@ -7214,6 +7258,14 @@
 			causing a major performance hit, and the space where
 			machines are deployed is by other means guarded.
 
+	tpm_crb_ffa.busy_timeout_ms= [ARM64,TPM]
+			Maximum time in milliseconds to retry sending a message
+			to the TPM service before giving up. This parameter controls
+			how long the system will continue retrying when the TPM
+			service is busy.
+			Format: <unsigned int>
+			Default: 2000 (2 seconds)
+
 	tpm_suspend_pcr=[HW,TPM]
 			Format: integer pcr id
 			Specify that at suspend time, the tpm driver
@@ -7487,6 +7539,19 @@
 			blob key is all zeros. This is helpful for situations where
 			having this key zero'ed is acceptable. E.g. in testing
 			scenarios.
+
+	tsa=		[X86] Control mitigation for Transient Scheduler
+			Attacks on AMD CPUs. Search the following in your
+			favourite search engine for more details:
+
+			"Technical guidance for mitigating transient scheduler
+			attacks".
+
+			off		- disable the mitigation
+			on		- enable the mitigation (default)
+			user		- mitigate only user/kernel transitions
+			vm		- mitigate only guest/host transitions
+
 
 	tsc=		Disable clocksource stability checks for TSC.
 			Format: <string>

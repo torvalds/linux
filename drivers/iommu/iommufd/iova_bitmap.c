@@ -407,7 +407,6 @@ void iova_bitmap_set(struct iova_bitmap *bitmap,
 
 update_indexes:
 	if (unlikely(!iova_bitmap_mapped_range(mapped, iova, length))) {
-
 		/*
 		 * The attempt to advance the base index to @iova
 		 * may fail if it's out of bounds, or pinning the pages

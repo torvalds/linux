@@ -774,7 +774,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 
-	mmc = mmc_alloc_host(sizeof(struct wmt_mci_priv), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*priv));
 	if (!mmc) {
 		dev_err(&pdev->dev, "Failed to allocate mmc_host\n");
 		ret = -ENOMEM;
@@ -808,7 +808,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	if (!priv->sdmmc_base) {
 		dev_err(&pdev->dev, "Failed to map IO space\n");
 		ret = -ENOMEM;
-		goto fail2;
+		goto fail1;
 	}
 
 	priv->irq_regular = regular_irq;
@@ -873,8 +873,6 @@ fail4:
 	free_irq(regular_irq, priv);
 fail3:
 	iounmap(priv->sdmmc_base);
-fail2:
-	mmc_free_host(mmc);
 fail1:
 	return ret;
 }
@@ -909,8 +907,6 @@ static void wmt_mci_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(priv->clk_sdmmc);
 	clk_put(priv->clk_sdmmc);
-
-	mmc_free_host(mmc);
 
 	dev_info(&pdev->dev, "WMT MCI device removed\n");
 }

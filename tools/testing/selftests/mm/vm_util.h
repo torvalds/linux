@@ -18,6 +18,13 @@
 #define PM_SWAP                       BIT_ULL(62)
 #define PM_PRESENT                    BIT_ULL(63)
 
+/*
+ * Ignore the checkpatch warning, we must read from x but don't want to do
+ * anything with it in order to trigger a read page fault. We therefore must use
+ * volatile to stop the compiler from optimising this away.
+ */
+#define FORCE_READ(x) (*(volatile typeof(x) *)x)
+
 extern unsigned int __page_size;
 extern unsigned int __page_shift;
 
@@ -43,6 +50,8 @@ static inline unsigned int pshift(void)
 		__page_shift = (ffsl(psize()) - 1);
 	return __page_shift;
 }
+
+bool detect_huge_zeropage(void);
 
 /*
  * Plan 9 FS has bugs (at least on QEMU) where certain operations fail with
@@ -116,6 +125,9 @@ static inline void log_test_result(int result)
 {
 	ksft_test_result_report(result, "%s\n", test_name);
 }
+
+void *sys_mremap(void *old_address, unsigned long old_size,
+		 unsigned long new_size, int flags, void *new_address);
 
 /*
  * On ppc64 this will only work with radix 2M hugepage size

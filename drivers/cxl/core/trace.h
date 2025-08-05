@@ -214,12 +214,16 @@ TRACE_EVENT(cxl_overflow,
 #define CXL_EVENT_RECORD_FLAG_PERF_DEGRADED	BIT(4)
 #define CXL_EVENT_RECORD_FLAG_HW_REPLACE	BIT(5)
 #define CXL_EVENT_RECORD_FLAG_MAINT_OP_SUB_CLASS_VALID	BIT(6)
+#define CXL_EVENT_RECORD_FLAG_LD_ID_VALID	BIT(7)
+#define CXL_EVENT_RECORD_FLAG_HEAD_ID_VALID	BIT(8)
 #define show_hdr_flags(flags)	__print_flags(flags, " | ",			   \
 	{ CXL_EVENT_RECORD_FLAG_PERMANENT,	"PERMANENT_CONDITION"		}, \
 	{ CXL_EVENT_RECORD_FLAG_MAINT_NEEDED,	"MAINTENANCE_NEEDED"		}, \
 	{ CXL_EVENT_RECORD_FLAG_PERF_DEGRADED,	"PERFORMANCE_DEGRADED"		}, \
 	{ CXL_EVENT_RECORD_FLAG_HW_REPLACE,	"HARDWARE_REPLACEMENT_NEEDED"	},  \
-	{ CXL_EVENT_RECORD_FLAG_MAINT_OP_SUB_CLASS_VALID,	"MAINT_OP_SUB_CLASS_VALID" }	\
+	{ CXL_EVENT_RECORD_FLAG_MAINT_OP_SUB_CLASS_VALID,	"MAINT_OP_SUB_CLASS_VALID" }, \
+	{ CXL_EVENT_RECORD_FLAG_LD_ID_VALID,	"LD_ID_VALID" }, \
+	{ CXL_EVENT_RECORD_FLAG_HEAD_ID_VALID,	"HEAD_ID_VALID" } \
 )
 
 /*
@@ -247,7 +251,9 @@ TRACE_EVENT(cxl_overflow,
 	__field(u64, hdr_timestamp)				\
 	__field(u8, hdr_length)					\
 	__field(u8, hdr_maint_op_class)				\
-	__field(u8, hdr_maint_op_sub_class)
+	__field(u8, hdr_maint_op_sub_class)			\
+	__field(u16, hdr_ld_id)					\
+	__field(u8, hdr_head_id)
 
 #define CXL_EVT_TP_fast_assign(cxlmd, l, hdr)					\
 	__assign_str(memdev);				\
@@ -260,18 +266,22 @@ TRACE_EVENT(cxl_overflow,
 	__entry->hdr_related_handle = le16_to_cpu((hdr).related_handle);	\
 	__entry->hdr_timestamp = le64_to_cpu((hdr).timestamp);			\
 	__entry->hdr_maint_op_class = (hdr).maint_op_class;			\
-	__entry->hdr_maint_op_sub_class = (hdr).maint_op_sub_class
+	__entry->hdr_maint_op_sub_class = (hdr).maint_op_sub_class;		\
+	__entry->hdr_ld_id = le16_to_cpu((hdr).ld_id);				\
+	__entry->hdr_head_id = (hdr).head_id
 
 #define CXL_EVT_TP_printk(fmt, ...) \
 	TP_printk("memdev=%s host=%s serial=%lld log=%s : time=%llu uuid=%pUb "	\
 		"len=%d flags='%s' handle=%x related_handle=%x "		\
-		"maint_op_class=%u maint_op_sub_class=%u : " fmt,		\
+		"maint_op_class=%u maint_op_sub_class=%u "			\
+		"ld_id=%x head_id=%x : " fmt,					\
 		__get_str(memdev), __get_str(host), __entry->serial,		\
 		cxl_event_log_type_str(__entry->log),				\
 		__entry->hdr_timestamp, &__entry->hdr_uuid, __entry->hdr_length,\
 		show_hdr_flags(__entry->hdr_flags), __entry->hdr_handle,	\
 		__entry->hdr_related_handle, __entry->hdr_maint_op_class,	\
 		__entry->hdr_maint_op_sub_class,	\
+		__entry->hdr_ld_id, __entry->hdr_head_id,			\
 		##__VA_ARGS__)
 
 TRACE_EVENT(cxl_generic_event,
@@ -496,7 +506,10 @@ TRACE_EVENT(cxl_general_media,
 			uuid_copy(&__entry->region_uuid, &uuid_null);
 		}
 		__entry->cme_threshold_ev_flags = rec->cme_threshold_ev_flags;
-		__entry->cme_count = get_unaligned_le24(rec->cme_count);
+		if (rec->media_hdr.descriptor & CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+			__entry->cme_count = get_unaligned_le24(rec->cme_count);
+		else
+			__entry->cme_count = 0;
 	),
 
 	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' " \
@@ -648,7 +661,10 @@ TRACE_EVENT(cxl_dram,
 		       CXL_EVENT_GEN_MED_COMP_ID_SIZE);
 		__entry->sub_channel = rec->sub_channel;
 		__entry->cme_threshold_ev_flags = rec->cme_threshold_ev_flags;
-		__entry->cvme_count = get_unaligned_le24(rec->cvme_count);
+		if (rec->media_hdr.descriptor & CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+			__entry->cvme_count = get_unaligned_le24(rec->cvme_count);
+		else
+			__entry->cvme_count = 0;
 	),
 
 	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' descriptor='%s' type='%s' sub_type='%s' " \
@@ -868,6 +884,111 @@ TRACE_EVENT(cxl_memory_module,
 				    CXL_MMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
 		show_pldm_resource_id(__entry->validity_flags, CXL_MMER_VALID_COMPONENT,
 				      CXL_MMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id)
+	)
+);
+
+/*
+ * Memory Sparing Event Record - MSER
+ *
+ * CXL rev 3.2 section 8.2.10.2.1.4; Table 8-60
+ */
+#define CXL_MSER_QUERY_RESOURCE_FLAG			BIT(0)
+#define CXL_MSER_HARD_SPARING_FLAG			BIT(1)
+#define CXL_MSER_DEV_INITED_FLAG			BIT(2)
+#define show_mem_sparing_flags(flags)	__print_flags(flags, "|",	\
+	{ CXL_MSER_QUERY_RESOURCE_FLAG,		"Query Resources" },	\
+	{ CXL_MSER_HARD_SPARING_FLAG,		"Hard Sparing" },	\
+	{ CXL_MSER_DEV_INITED_FLAG,	"Device Initiated Sparing" }	\
+)
+
+#define CXL_MSER_VALID_CHANNEL				BIT(0)
+#define CXL_MSER_VALID_RANK				BIT(1)
+#define CXL_MSER_VALID_NIBBLE				BIT(2)
+#define CXL_MSER_VALID_BANK_GROUP			BIT(3)
+#define CXL_MSER_VALID_BANK				BIT(4)
+#define CXL_MSER_VALID_ROW				BIT(5)
+#define CXL_MSER_VALID_COLUMN				BIT(6)
+#define CXL_MSER_VALID_COMPONENT_ID			BIT(7)
+#define CXL_MSER_VALID_COMPONENT_ID_FORMAT		BIT(8)
+#define CXL_MSER_VALID_SUB_CHANNEL			BIT(9)
+#define show_mem_sparing_valid_flags(flags)	__print_flags(flags, "|",		\
+	{ CXL_MSER_VALID_CHANNEL,			"CHANNEL" },			\
+	{ CXL_MSER_VALID_RANK,				"RANK" },			\
+	{ CXL_MSER_VALID_NIBBLE,			"NIBBLE" },			\
+	{ CXL_MSER_VALID_BANK_GROUP,			"BANK GROUP" },			\
+	{ CXL_MSER_VALID_BANK,				"BANK" },			\
+	{ CXL_MSER_VALID_ROW,				"ROW" },			\
+	{ CXL_MSER_VALID_COLUMN,			"COLUMN" },			\
+	{ CXL_MSER_VALID_COMPONENT_ID,			"COMPONENT ID" },		\
+	{ CXL_MSER_VALID_COMPONENT_ID_FORMAT,		"COMPONENT ID PLDM FORMAT" },	\
+	{ CXL_MSER_VALID_SUB_CHANNEL,			"SUB CHANNEL" }			\
+)
+
+TRACE_EVENT(cxl_memory_sparing,
+
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
+		 struct cxl_event_mem_sparing *rec),
+
+	TP_ARGS(cxlmd, log, rec),
+
+	TP_STRUCT__entry(
+		CXL_EVT_TP_entry
+
+		/* Memory Sparing Event */
+		__field(u8, flags)
+		__field(u8, result)
+		__field(u16, validity_flags)
+		__field(u16, res_avail)
+		__field(u8, channel)
+		__field(u8, rank)
+		__field(u32, nibble_mask)
+		__field(u8, bank_group)
+		__field(u8, bank)
+		__field(u32, row)
+		__field(u16, column)
+		__field(u8, sub_channel)
+		__array(u8, comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE)
+	),
+
+	TP_fast_assign(
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
+		__entry->hdr_uuid = CXL_EVENT_MEM_SPARING_UUID;
+
+		/* Memory Sparing Event */
+		__entry->flags = rec->flags;
+		__entry->result = rec->result;
+		__entry->validity_flags = le16_to_cpu(rec->validity_flags);
+		__entry->res_avail = le16_to_cpu(rec->res_avail);
+		__entry->channel = rec->channel;
+		__entry->rank = rec->rank;
+		__entry->nibble_mask = get_unaligned_le24(rec->nibble_mask);
+		__entry->bank_group = rec->bank_group;
+		__entry->bank = rec->bank;
+		__entry->row = get_unaligned_le24(rec->row);
+		__entry->column = le16_to_cpu(rec->column);
+		__entry->sub_channel = rec->sub_channel;
+		memcpy(__entry->comp_id, &rec->component_id,
+		       CXL_EVENT_GEN_MED_COMP_ID_SIZE);
+	),
+
+	CXL_EVT_TP_printk("flags='%s' result=%u validity_flags='%s' " \
+		"spare resource avail=%u channel=%u rank=%u " \
+		"nibble_mask=%x bank_group=%u bank=%u " \
+		"row=%u column=%u sub_channel=%u " \
+		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
+		"pldm_entity_id=%s pldm_resource_id=%s",
+		show_mem_sparing_flags(__entry->flags),
+		__entry->result,
+		show_mem_sparing_valid_flags(__entry->validity_flags),
+		__entry->res_avail, __entry->channel, __entry->rank,
+		__entry->nibble_mask, __entry->bank_group, __entry->bank,
+		__entry->row, __entry->column, __entry->sub_channel,
+		__print_hex(__entry->comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE),
+		show_comp_id_pldm_flags(__entry->comp_id[0]),
+		show_pldm_entity_id(__entry->validity_flags, CXL_MSER_VALID_COMPONENT_ID,
+				    CXL_MSER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		show_pldm_resource_id(__entry->validity_flags, CXL_MSER_VALID_COMPONENT_ID,
+				      CXL_MSER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id)
 	)
 );
 

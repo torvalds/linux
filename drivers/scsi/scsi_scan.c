@@ -909,7 +909,8 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	sdev->model = (char *) (sdev->inquiry + 16);
 	sdev->rev = (char *) (sdev->inquiry + 32);
 
-	if (strncmp(sdev->vendor, "ATA     ", 8) == 0) {
+	sdev->is_ata = strncmp(sdev->vendor, "ATA     ", 8) == 0;
+	if (sdev->is_ata) {
 		/*
 		 * sata emulation layer device.  This is a hack to work around
 		 * the SATL power management specifications which state that

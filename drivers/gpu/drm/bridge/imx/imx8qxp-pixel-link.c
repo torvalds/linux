@@ -327,9 +327,10 @@ static int imx8qxp_pixel_link_bridge_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	pl = devm_kzalloc(dev, sizeof(*pl), GFP_KERNEL);
-	if (!pl)
-		return -ENOMEM;
+	pl = devm_drm_bridge_alloc(dev, struct imx8qxp_pixel_link, bridge,
+				   &imx8qxp_pixel_link_bridge_funcs);
+	if (IS_ERR(pl))
+		return PTR_ERR(pl);
 
 	ret = imx_scu_get_handle(&pl->ipc_handle);
 	if (ret) {
@@ -384,7 +385,6 @@ static int imx8qxp_pixel_link_bridge_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pl);
 
 	pl->bridge.driver_private = pl;
-	pl->bridge.funcs = &imx8qxp_pixel_link_bridge_funcs;
 	pl->bridge.of_node = np;
 
 	drm_bridge_add(&pl->bridge);

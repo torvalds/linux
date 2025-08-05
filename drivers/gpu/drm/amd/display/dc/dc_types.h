@@ -175,6 +175,7 @@ struct dc_panel_patch {
 	unsigned int embedded_tiled_slave;
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
+	unsigned int skip_audio_sab_check;
 	unsigned int mst_start_top_delay;
 	unsigned int remove_sink_ext_caps;
 	unsigned int disable_colorimetry;
@@ -263,6 +264,7 @@ enum dc_timing_source {
 	TIMING_SOURCE_EDID_4BYTE,
 	TIMING_SOURCE_EDID_CEA_DISPLAYID_VTDB,
 	TIMING_SOURCE_EDID_CEA_RID,
+	TIMING_SOURCE_EDID_DISPLAYID_TYPE5,
 	TIMING_SOURCE_VBIOS,
 	TIMING_SOURCE_CV,
 	TIMING_SOURCE_TV,
@@ -1255,7 +1257,6 @@ enum dc_cm2_gpu_mem_layout {
 
 enum dc_cm2_gpu_mem_pixel_component_order {
 	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
-	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_BGRA
 };
 
 enum dc_cm2_gpu_mem_format {
@@ -1277,7 +1278,6 @@ struct dc_cm2_gpu_mem_format_parameters {
 
 enum dc_cm2_gpu_mem_size {
 	DC_CM2_GPU_MEM_SIZE_171717,
-	DC_CM2_GPU_MEM_SIZE_333333,
 	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
 };
 
@@ -1315,6 +1315,7 @@ struct dc_cm2_func_luts {
 		bool mpc_3dlut_enable;
 		bool rmcm_3dlut_enable;
 		bool mpc_mcm_post_blend;
+		uint8_t rmcm_tmz;
 	} lut3d_data;
 	const struct dc_transfer_func *lut1d_func;
 };
@@ -1370,6 +1371,21 @@ struct set_backlight_level_params {
 	uint32_t max_backlight_pwm;
 	/* AUX HW instance */
 	uint8_t aux_inst;
+};
+
+enum dc_validate_mode {
+	/* validate the mode and program HW */
+	DC_VALIDATE_MODE_AND_PROGRAMMING = 0,
+	/* only validate the mode */
+	DC_VALIDATE_MODE_ONLY = 1,
+	/* validate the mode and get the max state (voltage level) */
+	DC_VALIDATE_MODE_AND_STATE_INDEX = 2,
+};
+
+struct dc_validation_dpia_set {
+	const struct dc_link *link;
+	const struct dc_tunnel_settings *tunnel_settings;
+	uint32_t required_bw;
 };
 
 #endif /* DC_TYPES_H_ */

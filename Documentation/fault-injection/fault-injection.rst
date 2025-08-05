@@ -2,7 +2,7 @@
 Fault injection capabilities infrastructure
 ===========================================
 
-See also drivers/md/md-faulty.c and "every_nth" module option for scsi_debug.
+See also "every_nth" module option for scsi_debug.
 
 
 Available fault injection capabilities

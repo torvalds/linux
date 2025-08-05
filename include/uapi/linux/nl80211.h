@@ -1330,7 +1330,15 @@
  *      TID to Link mapping for downlink/uplink traffic.
  *
  * @NL80211_CMD_ASSOC_MLO_RECONF: For a non-AP MLD station, request to
- *      add/remove links to/from the association.
+ *      add/remove links to/from the association. To indicate link
+ *      reconfiguration request results from the driver, this command is also
+ *      used as an event to notify userspace about the added links information.
+ *      For notifying the removed links information, the existing
+ *      %NL80211_CMD_LINKS_REMOVED command is used. This command is also used to
+ *      notify userspace about newly added links for the current connection in
+ *      case of AP-initiated link recommendation requests, received via
+ *      a BTM (BSS Transition Management) request or a link reconfig notify
+ *      frame, where the driver handles the link recommendation offload.
  *
  * @NL80211_CMD_EPCS_CFG: EPCS configuration for a station. Used by userland to
  *	control EPCS configuration. Used to notify userland on the current state
@@ -2899,6 +2907,27 @@ enum nl80211_commands {
  *	APs Support". Drivers may set additional flags that they support
  *	in the kernel or device.
  *
+ * @NL80211_ATTR_WIPHY_RADIO_INDEX: (int) Integer attribute denoting the index
+ *	of the radio in interest. Internally a value of -1 is used to
+ *	indicate that the radio id is not given in user-space. This means
+ *	that all the attributes are applicable to all the radios. If there is
+ *	a radio index provided in user-space, the attributes will be
+ *	applicable to that specific radio only. If the radio id is greater
+ *	thank the number of radios, error denoting invalid value is returned.
+ *
+ * @NL80211_ATTR_S1G_LONG_BEACON_PERIOD: (u8) Integer attribute that represents
+ *	the number of beacon intervals between each long beacon transmission
+ *	for an S1G BSS with short beaconing enabled. This is a required
+ *	attribute for initialising an S1G short beaconing BSS. When updating
+ *	the short beacon data, this is not required. It has a minimum value of
+ *	2 (i.e 2 beacon intervals).
+ *
+ * @NL80211_ATTR_S1G_SHORT_BEACON: Nested attribute containing the short beacon
+ *	head and tail used to set or update the short beacon templates. When
+ *	bringing up a new interface, %NL80211_ATTR_S1G_LONG_BEACON_PERIOD is
+ *	required alongside this attribute. Refer to
+ *	@enum nl80211_s1g_short_beacon_attrs for the attribute definitions.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3455,6 +3484,11 @@ enum nl80211_attrs {
 	NL80211_ATTR_EPCS,
 
 	NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS,
+
+	NL80211_ATTR_WIPHY_RADIO_INDEX,
+
+	NL80211_ATTR_S1G_LONG_BEACON_PERIOD,
+	NL80211_ATTR_S1G_SHORT_BEACON,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -8088,6 +8122,7 @@ enum nl80211_ap_settings_flags {
  *	and contains attributes defined in &enum nl80211_if_combination_attrs.
  * @NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK: bitmask (u32) of antennas
  *	connected to this radio.
+ * @NL80211_WIPHY_RADIO_ATTR_RTS_THRESHOLD: RTS threshold (u32) of this radio.
  *
  * @__NL80211_WIPHY_RADIO_ATTR_LAST: Internal
  * @NL80211_WIPHY_RADIO_ATTR_MAX: Highest attribute
@@ -8099,6 +8134,7 @@ enum nl80211_wiphy_radio_attrs {
 	NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE,
 	NL80211_WIPHY_RADIO_ATTR_INTERFACE_COMBINATION,
 	NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK,
+	NL80211_WIPHY_RADIO_ATTR_RTS_THRESHOLD,
 
 	/* keep last */
 	__NL80211_WIPHY_RADIO_ATTR_LAST,
@@ -8126,6 +8162,29 @@ enum nl80211_wiphy_radio_freq_range {
 
 	__NL80211_WIPHY_RADIO_FREQ_ATTR_LAST,
 	NL80211_WIPHY_RADIO_FREQ_ATTR_MAX = __NL80211_WIPHY_RADIO_FREQ_ATTR_LAST - 1,
+};
+
+/**
+ * enum nl80211_s1g_short_beacon_attrs - S1G short beacon data
+ *
+ * @__NL80211_S1G_SHORT_BEACON_ATTR_INVALID: Invalid
+ *
+ * @NL80211_S1G_SHORT_BEACON_ATTR_HEAD: Short beacon head (binary).
+ * @NL80211_S1G_SHORT_BEACON_ATTR_TAIL: Short beacon tail (binary).
+ *
+ * @__NL80211_S1G_SHORT_BEACON_ATTR_LAST: Internal
+ * @NL80211_S1G_SHORT_BEACON_ATTR_MAX: Highest attribute
+ */
+enum nl80211_s1g_short_beacon_attrs {
+	__NL80211_S1G_SHORT_BEACON_ATTR_INVALID,
+
+	NL80211_S1G_SHORT_BEACON_ATTR_HEAD,
+	NL80211_S1G_SHORT_BEACON_ATTR_TAIL,
+
+	/* keep last */
+	__NL80211_S1G_SHORT_BEACON_ATTR_LAST,
+	NL80211_S1G_SHORT_BEACON_ATTR_MAX =
+		__NL80211_S1G_SHORT_BEACON_ATTR_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */

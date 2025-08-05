@@ -32,7 +32,7 @@ xfs_show_open_zone(
 {
 	seq_printf(m, "\t  zone %d, wp %u, written %u, used %u, hint %s\n",
 		rtg_rgno(oz->oz_rtg),
-		oz->oz_write_pointer, oz->oz_written,
+		oz->oz_allocated, oz->oz_written,
 		rtg_rmap(oz->oz_rtg)->i_used_blocks,
 		xfs_write_hint_to_str(oz->oz_write_hint));
 }

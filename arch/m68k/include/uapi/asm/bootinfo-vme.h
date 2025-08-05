@@ -33,7 +33,7 @@
 #define VME_TYPE_BVME6000	0x6000	/* BVM Ltd. BVME6000 */
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * Board ID data structure - pointer to this retrieved from Bug by head.S
@@ -56,7 +56,7 @@ typedef struct {
 	__be32	option2;
 } t_bdid, *p_bdid;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 
     /*

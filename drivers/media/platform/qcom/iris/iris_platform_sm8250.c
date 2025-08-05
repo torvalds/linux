@@ -30,15 +30,6 @@ static struct platform_inst_fw_cap inst_fw_cap_sm8250[] = {
 		.hfi_id = HFI_PROPERTY_PARAM_WORK_MODE,
 		.set = iris_set_stage,
 	},
-	{
-		.cap_id = DEBLOCK,
-		.min = 0,
-		.max = 1,
-		.step_or_mask = 1,
-		.value = 0,
-		.hfi_id = HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER,
-		.set = iris_set_u32,
-	},
 };
 
 static struct platform_inst_caps platform_inst_cap_sm8250 = {
@@ -136,10 +127,10 @@ struct iris_platform_data sm8250_data = {
 	.hw_response_timeout = HW_RESPONSE_TIMEOUT_VALUE,
 	.num_vpp_pipe = 4,
 	.max_session_count = 16,
-	.max_core_mbpf = (8192 * 4352) / 256,
-	.input_config_params =
+	.max_core_mbpf = NUM_MBS_8K,
+	.input_config_params_default =
 		sm8250_vdec_input_config_param_default,
-	.input_config_params_size =
+	.input_config_params_default_size =
 		ARRAY_SIZE(sm8250_vdec_input_config_param_default),
 
 	.dec_ip_int_buf_tbl = sm8250_dec_ip_int_buf_tbl,

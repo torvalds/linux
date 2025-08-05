@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /*
@@ -15,6 +15,10 @@
  * and one clock with 353 MHZ to PPE. The other fixed rate output clocks
  * are supplied to GCC (24 MHZ as XO and 32 KHZ as sleep clock), and to PCS
  * with 31.25 MHZ.
+ *
+ * On the IPQ5424 SoC, there is an output clock from CMN PLL to PPE at 375 MHZ,
+ * and an output clock to NSS (network subsystem) at 300 MHZ. The other output
+ * clocks from CMN PLL on IPQ5424 are the same as IPQ9574.
  *
  *               +---------+
  *               |   GCC   |
@@ -46,6 +50,8 @@
 #include <linux/regmap.h>
 
 #include <dt-bindings/clock/qcom,ipq-cmn-pll.h>
+#include <dt-bindings/clock/qcom,ipq5018-cmn-pll.h>
+#include <dt-bindings/clock/qcom,ipq5424-cmn-pll.h>
 
 #define CMN_PLL_REFCLK_SRC_SELECTION		0x28
 #define CMN_PLL_REFCLK_SRC_DIV			GENMASK(9, 8)
@@ -105,6 +111,26 @@ static const struct regmap_config ipq_cmn_pll_regmap_config = {
 	.fast_io = true,
 };
 
+static const struct cmn_pll_fixed_output_clk ipq5018_output_clks[] = {
+	CLK_PLL_OUTPUT(IPQ5018_XO_24MHZ_CLK, "xo-24mhz", 24000000UL),
+	CLK_PLL_OUTPUT(IPQ5018_SLEEP_32KHZ_CLK, "sleep-32khz", 32000UL),
+	CLK_PLL_OUTPUT(IPQ5018_ETH_50MHZ_CLK, "eth-50mhz", 50000000UL),
+	{ /* Sentinel */ }
+};
+
+static const struct cmn_pll_fixed_output_clk ipq5424_output_clks[] = {
+	CLK_PLL_OUTPUT(IPQ5424_XO_24MHZ_CLK, "xo-24mhz", 24000000UL),
+	CLK_PLL_OUTPUT(IPQ5424_SLEEP_32KHZ_CLK, "sleep-32khz", 32000UL),
+	CLK_PLL_OUTPUT(IPQ5424_PCS_31P25MHZ_CLK, "pcs-31p25mhz", 31250000UL),
+	CLK_PLL_OUTPUT(IPQ5424_NSS_300MHZ_CLK, "nss-300mhz", 300000000UL),
+	CLK_PLL_OUTPUT(IPQ5424_PPE_375MHZ_CLK, "ppe-375mhz", 375000000UL),
+	CLK_PLL_OUTPUT(IPQ5424_ETH0_50MHZ_CLK, "eth0-50mhz", 50000000UL),
+	CLK_PLL_OUTPUT(IPQ5424_ETH1_50MHZ_CLK, "eth1-50mhz", 50000000UL),
+	CLK_PLL_OUTPUT(IPQ5424_ETH2_50MHZ_CLK, "eth2-50mhz", 50000000UL),
+	CLK_PLL_OUTPUT(IPQ5424_ETH_25MHZ_CLK, "eth-25mhz", 25000000UL),
+	{ /* Sentinel */ }
+};
+
 static const struct cmn_pll_fixed_output_clk ipq9574_output_clks[] = {
 	CLK_PLL_OUTPUT(XO_24MHZ_CLK, "xo-24mhz", 24000000UL),
 	CLK_PLL_OUTPUT(SLEEP_32KHZ_CLK, "sleep-32khz", 32000UL),
@@ -115,6 +141,7 @@ static const struct cmn_pll_fixed_output_clk ipq9574_output_clks[] = {
 	CLK_PLL_OUTPUT(ETH1_50MHZ_CLK, "eth1-50mhz", 50000000UL),
 	CLK_PLL_OUTPUT(ETH2_50MHZ_CLK, "eth2-50mhz", 50000000UL),
 	CLK_PLL_OUTPUT(ETH_25MHZ_CLK, "eth-25mhz", 25000000UL),
+	{ /* Sentinel */ }
 };
 
 /*
@@ -297,7 +324,7 @@ static struct clk_hw *ipq_cmn_pll_clk_hw_register(struct platform_device *pdev)
 
 static int ipq_cmn_pll_register_clks(struct platform_device *pdev)
 {
-	const struct cmn_pll_fixed_output_clk *fixed_clk;
+	const struct cmn_pll_fixed_output_clk *p, *fixed_clk;
 	struct clk_hw_onecell_data *hw_data;
 	struct device *dev = &pdev->dev;
 	struct clk_hw *cmn_pll_hw;
@@ -305,8 +332,13 @@ static int ipq_cmn_pll_register_clks(struct platform_device *pdev)
 	struct clk_hw *hw;
 	int ret, i;
 
-	fixed_clk = ipq9574_output_clks;
-	num_clks = ARRAY_SIZE(ipq9574_output_clks);
+	fixed_clk = device_get_match_data(dev);
+	if (!fixed_clk)
+		return -EINVAL;
+
+	num_clks = 0;
+	for (p = fixed_clk; p->name; p++)
+		num_clks++;
 
 	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, num_clks + 1),
 			       GFP_KERNEL);
@@ -375,11 +407,11 @@ static int ipq_cmn_pll_clk_probe(struct platform_device *pdev)
 	 */
 	ret = pm_clk_add(dev, "ahb");
 	if (ret)
-		return dev_err_probe(dev, ret, "Fail to add AHB clock\n");
+		return dev_err_probe(dev, ret, "Failed to add AHB clock\n");
 
 	ret = pm_clk_add(dev, "sys");
 	if (ret)
-		return dev_err_probe(dev, ret, "Fail to add SYS clock\n");
+		return dev_err_probe(dev, ret, "Failed to add SYS clock\n");
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret)
@@ -390,7 +422,7 @@ static int ipq_cmn_pll_clk_probe(struct platform_device *pdev)
 	pm_runtime_put(dev);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Fail to register CMN PLL clocks\n");
+				     "Failed to register CMN PLL clocks\n");
 
 	return 0;
 }
@@ -415,7 +447,9 @@ static const struct dev_pm_ops ipq_cmn_pll_pm_ops = {
 };
 
 static const struct of_device_id ipq_cmn_pll_clk_ids[] = {
-	{ .compatible = "qcom,ipq9574-cmn-pll", },
+	{ .compatible = "qcom,ipq5018-cmn-pll", .data = &ipq5018_output_clks },
+	{ .compatible = "qcom,ipq5424-cmn-pll", .data = &ipq5424_output_clks },
+	{ .compatible = "qcom,ipq9574-cmn-pll", .data = &ipq9574_output_clks },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ipq_cmn_pll_clk_ids);

@@ -138,6 +138,7 @@ Benjamin Poirier <benjamin.poirier@gmail.com> <bpoirier@suse.de>
 Benjamin Tissoires <bentiss@kernel.org> <benjamin.tissoires@gmail.com>
 Benjamin Tissoires <bentiss@kernel.org> <benjamin.tissoires@redhat.com>
 Benno Lossin <lossin@kernel.org> <benno.lossin@proton.me>
+Bernard Metzler <bernard.metzler@linux.dev> <bmt@zurich.ibm.com>
 Bingwu Zhang <xtex@aosc.io> <xtexchooser@duck.com>
 Bingwu Zhang <xtex@aosc.io> <xtex@xtexx.eu.org>
 Bjorn Andersson <andersson@kernel.org> <bjorn@kryo.se>
@@ -197,6 +198,7 @@ Daniel Borkmann <daniel@iogearbox.net> <daniel.borkmann@tik.ee.ethz.ch>
 Daniel Borkmann <daniel@iogearbox.net> <dborkmann@redhat.com>
 Daniel Borkmann <daniel@iogearbox.net> <dborkman@redhat.com>
 Daniel Borkmann <daniel@iogearbox.net> <dxchgb@gmail.com>
+Danilo Krummrich <dakr@kernel.org> <dakr@redhat.com>
 David Brownell <david-b@pacbell.net>
 David Collins <quic_collinsd@quicinc.com> <collinsd@codeaurora.org>
 David Heidelberg <david@ixit.cz> <d.okias@gmail.com>
@@ -222,6 +224,8 @@ Dmitry Safonov <0x7f454c46@gmail.com> <d.safonov@partner.samsung.com>
 Dmitry Safonov <0x7f454c46@gmail.com> <dsafonov@virtuozzo.com>
 Domen Puncer <domen@coderock.org>
 Douglas Gilbert <dougg@torque.net>
+Drew Fustini <fustini@kernel.org> <drew@pdp7.com>
+<duje@dujemihanovic.xyz> <duje.mihanovic@skole.hr>
 Ed L. Cashin <ecashin@coraid.com>
 Elliot Berman <quic_eberman@quicinc.com> <eberman@codeaurora.org>
 Enric Balletbo i Serra <eballetbo@kernel.org> <enric.balletbo@collabora.com>
@@ -282,8 +286,10 @@ Gustavo Padovan <gustavo@las.ic.unicamp.br>
 Gustavo Padovan <padovan@profusion.mobi>
 Hamza Mahfooz <hamzamahfooz@linux.microsoft.com> <hamza.mahfooz@amd.com>
 Hanjun Guo <guohanjun@huawei.com> <hanjun.guo@linaro.org>
-Hans Verkuil <hverkuil@xs4all.nl> <hansverk@cisco.com>
-Hans Verkuil <hverkuil@xs4all.nl> <hverkuil-cisco@xs4all.nl>
+Hans de Goede <hansg@kernel.org> <hdegoede@redhat.com>
+Hans Verkuil <hverkuil@kernel.org> <hverkuil@xs4all.nl>
+Hans Verkuil <hverkuil@kernel.org> <hverkuil-cisco@xs4all.nl>
+Hans Verkuil <hverkuil@kernel.org> <hansverk@cisco.com>
 Harry Yoo <harry.yoo@oracle.com> <42.hyeyoo@gmail.com>
 Heiko Carstens <hca@linux.ibm.com> <h.carstens@de.ibm.com>
 Heiko Carstens <hca@linux.ibm.com> <heiko.carstens@de.ibm.com>
@@ -412,6 +418,7 @@ Kenneth W Chen <kenneth.w.chen@intel.com>
 Kenneth Westfield <quic_kwestfie@quicinc.com> <kwestfie@codeaurora.org>
 Kiran Gunda <quic_kgunda@quicinc.com> <kgunda@codeaurora.org>
 Kirill Tkhai <tkhai@ya.ru> <ktkhai@virtuozzo.com>
+Kirill A. Shutemov <kas@kernel.org> <kirill.shutemov@linux.intel.com>
 Kishon Vijay Abraham I <kishon@kernel.org> <kishon@ti.com>
 Konrad Dybcio <konradybcio@kernel.org> <konrad.dybcio@linaro.org>
 Konrad Dybcio <konradybcio@kernel.org> <konrad.dybcio@somainline.org>
@@ -426,6 +433,9 @@ Krzysztof Wilczyński <kwilczynski@kernel.org> <krzysztof.wilczynski@linux.com>
 Krzysztof Wilczyński <kwilczynski@kernel.org> <kw@linux.com>
 Kshitiz Godara <quic_kgodara@quicinc.com> <kgodara@codeaurora.org>
 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+Kuniyuki Iwashima <kuniyu@google.com> <kuniyu@amazon.com>
+Kuniyuki Iwashima <kuniyu@google.com> <kuniyu@amazon.co.jp>
+Kuniyuki Iwashima <kuniyu@google.com> <kuni1840@gmail.com>
 Kuogee Hsieh <quic_khsieh@quicinc.com> <khsieh@codeaurora.org>
 Lee Jones <lee@kernel.org> <joneslee@google.com>
 Lee Jones <lee@kernel.org> <lee.jones@canonical.com>
@@ -686,11 +696,16 @@ Sedat Dilek <sedat.dilek@gmail.com> <sedat.dilek@credativ.de>
 Senthilkumar N L <quic_snlakshm@quicinc.com> <snlakshm@codeaurora.org>
 Serge Hallyn <sergeh@kernel.org> <serge.hallyn@canonical.com>
 Serge Hallyn <sergeh@kernel.org> <serue@us.ibm.com>
+Sergey Senozhatsky <senozhatsky@chromium.org> <sergey.senozhatsky.work@gmail.com>
+Sergey Senozhatsky <senozhatsky@chromium.org> <sergey.senozhatsky@gmail.com>
+Sergey Senozhatsky <senozhatsky@chromium.org> <sergey.senozhatsky@mail.by>
+Sergey Senozhatsky <senozhatsky@chromium.org> <senozhatsky@google.com>
 Seth Forshee <sforshee@kernel.org> <seth.forshee@canonical.com>
 Shakeel Butt <shakeel.butt@linux.dev> <shakeelb@google.com>
-Shannon Nelson <shannon.nelson@amd.com> <snelson@pensando.io>
-Shannon Nelson <shannon.nelson@amd.com> <shannon.nelson@intel.com>
-Shannon Nelson <shannon.nelson@amd.com> <shannon.nelson@oracle.com>
+Shannon Nelson <sln@onemain.com> <shannon.nelson@amd.com>
+Shannon Nelson <sln@onemain.com> <snelson@pensando.io>
+Shannon Nelson <sln@onemain.com> <shannon.nelson@intel.com>
+Shannon Nelson <sln@onemain.com> <shannon.nelson@oracle.com>
 Sharath Chandra Vurukala <quic_sharathv@quicinc.com> <sharathv@codeaurora.org>
 Shiraz Hashim <shiraz.linux.kernel@gmail.com> <shiraz.hashim@st.com>
 Shuah Khan <shuah@kernel.org> <shuahkhan@gmail.com>
@@ -719,6 +734,7 @@ Srinivas Ramana <quic_sramana@quicinc.com> <sramana@codeaurora.org>
 Sriram R <quic_srirrama@quicinc.com> <srirrama@codeaurora.org>
 Sriram Yagnaraman <sriram.yagnaraman@ericsson.com> <sriram.yagnaraman@est.tech>
 Stanislav Fomichev <sdf@fomichev.me> <sdf@google.com>
+Stanislav Fomichev <sdf@fomichev.me> <stfomichev@gmail.com>
 Stefan Wahren <wahrenst@gmx.net> <stefan.wahren@i2se.com>
 Stéphane Witzmann <stephane.witzmann@ubpmes.univ-bpclermont.fr>
 Stephen Hemminger <stephen@networkplumber.org> <shemminger@linux-foundation.org>
@@ -823,3 +839,6 @@ Yosry Ahmed <yosry.ahmed@linux.dev> <yosryahmed@google.com>
 Yusuke Goda <goda.yusuke@renesas.com>
 Zack Rusin <zack.rusin@broadcom.com> <zackr@vmware.com>
 Zhu Yanjun <zyjzyj2000@gmail.com> <yanjunz@nvidia.com>
+Zijun Hu <zijun.hu@oss.qualcomm.com> <quic_zijuhu@quicinc.com>
+Zijun Hu <zijun.hu@oss.qualcomm.com> <zijuhu@codeaurora.org>
+Zijun Hu <zijun_hu@htc.com>

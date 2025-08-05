@@ -175,6 +175,12 @@ bool processor_physically_present(acpi_handle handle);
 static inline void acpi_early_processor_control_setup(void) {}
 #endif
 
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+void acpi_idle_rescan_dead_smt_siblings(void);
+#else
+static inline void acpi_idle_rescan_dead_smt_siblings(void) {}
+#endif
+
 /* --------------------------------------------------------------------------
                                   Embedded Controller
    -------------------------------------------------------------------------- */

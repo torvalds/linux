@@ -2067,7 +2067,7 @@ static struct i915_gpu_coredump *
 __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 dump_flags)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = i915->display;
 	struct i915_gpu_coredump *error;
 
 	/* Check if GPU capture has been disabled */
@@ -2506,8 +2506,8 @@ static const struct bin_attribute error_state_attr = {
 	.attr.name = "error",
 	.attr.mode = S_IRUSR | S_IWUSR,
 	.size = 0,
-	.read_new = error_state_read,
-	.write_new = error_state_write,
+	.read = error_state_read,
+	.write = error_state_write,
 };
 
 void i915_gpu_error_sysfs_setup(struct drm_i915_private *i915)

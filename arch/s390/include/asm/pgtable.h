@@ -915,7 +915,7 @@ static inline int pmd_protnone(pmd_t pmd)
 }
 #endif
 
-static inline int pte_swp_exclusive(pte_t pte)
+static inline bool pte_swp_exclusive(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
 }

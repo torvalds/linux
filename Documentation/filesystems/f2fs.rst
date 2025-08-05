@@ -218,7 +218,7 @@ mode=%s			 Control block allocation mode which supports "adaptive"
 			 fragmentation/after-GC situation itself. The developers use these
 			 modes to understand filesystem fragmentation/after-GC condition well,
 			 and eventually get some insights to handle them better.
-			 In "fragment:segment", f2fs allocates a new segment in ramdom
+			 In "fragment:segment", f2fs allocates a new segment in random
 			 position. With this, we can simulate the after-GC condition.
 			 In "fragment:block", we can scatter block allocation with
 			 "max_fragment_chunk" and "max_fragment_hole" sysfs nodes.
@@ -261,7 +261,7 @@ test_dummy_encryption=%s
 			 The argument may be either "v1" or "v2", in order to
 			 select the corresponding fscrypt policy version.
 checkpoint=%s[:%u[%]]	 Set to "disable" to turn off checkpointing. Set to "enable"
-			 to reenable checkpointing. Is enabled by default. While
+			 to re-enable checkpointing. Is enabled by default. While
 			 disabled, any unmounting or unexpected shutdowns will cause
 			 the filesystem contents to appear as they did when the
 			 filesystem was mounted with that option.

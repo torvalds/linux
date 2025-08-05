@@ -206,9 +206,10 @@ static int kd35t133_probe(struct mipi_dsi_device *dsi)
 	struct kd35t133 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct kd35t133, panel,
+				   &kd35t133_funcs, DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
@@ -247,9 +248,6 @@ static int kd35t133_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET |
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
-
-	drm_panel_init(&ctx->panel, &dsi->dev, &kd35t133_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)

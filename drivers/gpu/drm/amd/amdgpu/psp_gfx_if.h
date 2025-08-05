@@ -106,7 +106,9 @@ enum psp_gfx_cmd_id
     /*IDs of performance monitoring/profiling*/
     GFX_CMD_ID_CONFIG_SQ_PERFMON  = 0x00000046,   /* Config CGTT_SQ_CLK_CTRL */
     /* Dynamic memory partitioninig (NPS mode change)*/
-    GFX_CMD_ID_FB_NPS_MODE         = 0x00000048,  /* Configure memory partitioning mode */
+    GFX_CMD_ID_FB_NPS_MODE        = 0x00000048,  /* Configure memory partitioning mode */
+    GFX_CMD_ID_FB_FW_RESERV_ADDR  = 0x00000050,  /* Query FW reservation addr */
+    GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR = 0x00000051,  /* Query FW reservation extended addr */
 };
 
 /* PSP boot config sub-commands */
@@ -404,11 +406,19 @@ struct psp_gfx_uresp_bootcfg {
 	uint32_t boot_cfg;	/* boot config data */
 };
 
+/* Command-specific response for fw reserve info */
+struct psp_gfx_uresp_fw_reserve_info {
+    uint32_t reserve_base_address_hi;
+    uint32_t reserve_base_address_lo;
+    uint32_t reserve_size;
+};
+
 /* Union of command-specific responses for GPCOM ring. */
 union psp_gfx_uresp {
 	struct psp_gfx_uresp_reserved		reserved;
 	struct psp_gfx_uresp_bootcfg		boot_cfg;
 	struct psp_gfx_uresp_fwar_db_info	fwar_db_info;
+	struct psp_gfx_uresp_fw_reserve_info	fw_reserve_info;
 };
 
 /* Structure of GFX Response buffer.

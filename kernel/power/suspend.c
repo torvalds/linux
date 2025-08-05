@@ -384,6 +384,7 @@ static int suspend_prepare(suspend_state_t state)
 		return 0;
 
 	dpm_save_failed_step(SUSPEND_FREEZE);
+	filesystems_thaw();
 	pm_notifier_call_chain(PM_POST_SUSPEND);
  Restore:
 	pm_restore_console();
@@ -592,8 +593,6 @@ static int enter_state(suspend_state_t state)
 		ksys_sync_helper();
 		trace_suspend_resume(TPS("sync_filesystems"), 0, false);
 	}
-	if (filesystem_freeze_enabled)
-		filesystems_freeze();
 
 	pm_pr_dbg("Preparing system for sleep (%s)\n", mem_sleep_labels[state]);
 	pm_suspend_clear_flags();
@@ -606,16 +605,13 @@ static int enter_state(suspend_state_t state)
 
 	trace_suspend_resume(TPS("suspend_enter"), state, false);
 	pm_pr_dbg("Suspending system (%s)\n", mem_sleep_labels[state]);
-	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
-	pm_restore_gfp_mask();
 
  Finish:
 	events_check_enabled = false;
 	pm_pr_dbg("Finishing wakeup.\n");
 	suspend_finish();
  Unlock:
-	filesystems_thaw();
 	mutex_unlock(&system_transition_mutex);
 	return error;
 }

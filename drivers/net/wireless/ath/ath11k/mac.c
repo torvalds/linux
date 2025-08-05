@@ -1037,7 +1037,7 @@ static int ath11k_mac_monitor_vdev_create(struct ath11k *ar)
 	struct ath11k_pdev *pdev = ar->pdev;
 	struct vdev_create_params param = {};
 	int bit, ret;
-	u8 tmp_addr[6] = {0};
+	u8 tmp_addr[6] = {};
 	u16 nss;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -1283,7 +1283,7 @@ static int ath11k_mac_config_ps(struct ath11k *ar)
 	return ret;
 }
 
-static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
+static int ath11k_mac_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ath11k *ar = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
@@ -3026,7 +3026,7 @@ static bool ath11k_mac_vif_recalc_sta_he_txbf(struct ath11k *ar,
 					      struct ieee80211_sta_he_cap *he_cap)
 {
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
-	struct ieee80211_he_cap_elem he_cap_elem = {0};
+	struct ieee80211_he_cap_elem he_cap_elem = {};
 	struct ieee80211_sta_he_cap *cap_band = NULL;
 	struct cfg80211_chan_def def;
 	u32 param = WMI_VDEV_PARAM_SET_HEMU_MODE;
@@ -3763,7 +3763,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		ath11k_recalculate_mgmt_rate(ar, vif, &def);
 
 	if (changed & BSS_CHANGED_TWT) {
-		struct wmi_twt_enable_params twt_params = {0};
+		struct wmi_twt_enable_params twt_params = {};
 
 		if (info->twt_requester || info->twt_responder) {
 			ath11k_wmi_fill_default_twt_params(&twt_params);
@@ -5323,7 +5323,7 @@ static struct ieee80211_sta_ht_cap
 ath11k_create_ht_cap(struct ath11k *ar, u32 ar_ht_cap, u32 rate_cap_rx_chainmask)
 {
 	int i;
-	struct ieee80211_sta_ht_cap ht_cap = {0};
+	struct ieee80211_sta_ht_cap ht_cap = {};
 	u32 ar_vht_cap = ar->pdev->cap.vht_cap;
 
 	if (!(ar_ht_cap & WMI_HT_CAP_ENABLED))
@@ -5490,7 +5490,7 @@ static struct ieee80211_sta_vht_cap
 ath11k_create_vht_cap(struct ath11k *ar, u32 rate_cap_tx_chainmask,
 		      u32 rate_cap_rx_chainmask)
 {
-	struct ieee80211_sta_vht_cap vht_cap = {0};
+	struct ieee80211_sta_vht_cap vht_cap = {};
 	u16 txmcs_map, rxmcs_map;
 	int i;
 
@@ -6159,7 +6159,7 @@ void ath11k_mac_drain_tx(struct ath11k *ar)
 
 static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 {
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	struct ath11k_base *ab = ar->ab;
 	int i, ret = 0;
 	u32 ring_id;
@@ -6678,7 +6678,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
-	struct vdev_create_params vdev_param = {0};
+	struct vdev_create_params vdev_param = {};
 	struct peer_create_params peer_param;
 	u32 param_id, param_value;
 	u16 nss;
@@ -7044,7 +7044,8 @@ static void ath11k_mac_op_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&ar->conf_mutex);
 }
 
-static int ath11k_mac_op_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+static int ath11k_mac_op_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+				     u32 *tx_ant, u32 *rx_ant)
 {
 	struct ath11k *ar = hw->priv;
 
@@ -7058,7 +7059,8 @@ static int ath11k_mac_op_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *
 	return 0;
 }
 
-static int ath11k_mac_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+static int ath11k_mac_op_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+				     u32 tx_ant, u32 rx_ant)
 {
 	struct ath11k *ar = hw->priv;
 	int ret;
@@ -8182,7 +8184,8 @@ ath11k_set_vdev_param_to_all_vifs(struct ath11k *ar, int param, u32 value)
 /* mac80211 stores device specific RTS/Fragmentation threshold value,
  * this is set interface specific to firmware from ath11k driver
  */
-static int ath11k_mac_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath11k_mac_op_set_rts_threshold(struct ieee80211_hw *hw,
+					   int radio_idx, u32 value)
 {
 	struct ath11k *ar = hw->priv;
 	int param_id = WMI_VDEV_PARAM_RTS_THRESHOLD;
@@ -8190,7 +8193,8 @@ static int ath11k_mac_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return ath11k_set_vdev_param_to_all_vifs(ar, param_id, value);
 }
 
-static int ath11k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath11k_mac_op_set_frag_threshold(struct ieee80211_hw *hw,
+					    int radio_idx, u32 value)
 {
 	/* Even though there's a WMI vdev param for fragmentation threshold no
 	 * known firmware actually implements it. Moreover it is not possible to
@@ -8740,9 +8744,9 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 			return ret;
 		}
-		ieee80211_iterate_stations_atomic(ar->hw,
-						  ath11k_mac_disable_peer_fixed_rate,
-						  arvif);
+		ieee80211_iterate_stations_mtx(ar->hw,
+					       ath11k_mac_disable_peer_fixed_rate,
+					       arvif);
 	} else if (ath11k_mac_bitrate_mask_get_single_nss(ar, arvif, band, mask,
 							  &single_nss)) {
 		rate = WMI_FIXED_RATE_NONE;
@@ -8809,9 +8813,9 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 		}
 
 		mutex_lock(&ar->conf_mutex);
-		ieee80211_iterate_stations_atomic(ar->hw,
-						  ath11k_mac_disable_peer_fixed_rate,
-						  arvif);
+		ieee80211_iterate_stations_mtx(ar->hw,
+					       ath11k_mac_disable_peer_fixed_rate,
+					       arvif);
 
 		arvif->bitrate_mask = *mask;
 		ieee80211_iterate_stations_atomic(ar->hw,
@@ -8997,6 +9001,81 @@ static void ath11k_mac_put_chain_rssi(struct station_info *sinfo,
 	}
 }
 
+static void ath11k_mac_fw_stats_reset(struct ath11k *ar)
+{
+	spin_lock_bh(&ar->data_lock);
+	ath11k_fw_stats_pdevs_free(&ar->fw_stats.pdevs);
+	ath11k_fw_stats_vdevs_free(&ar->fw_stats.vdevs);
+	ar->fw_stats.num_vdev_recvd = 0;
+	ar->fw_stats.num_bcn_recvd = 0;
+	spin_unlock_bh(&ar->data_lock);
+}
+
+int ath11k_mac_fw_stats_request(struct ath11k *ar,
+				struct stats_request_params *req_param)
+{
+	struct ath11k_base *ab = ar->ab;
+	unsigned long time_left;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	ath11k_mac_fw_stats_reset(ar);
+
+	reinit_completion(&ar->fw_stats_complete);
+	reinit_completion(&ar->fw_stats_done);
+
+	ret = ath11k_wmi_send_stats_request_cmd(ar, req_param);
+
+	if (ret) {
+		ath11k_warn(ab, "could not request fw stats (%d)\n",
+			    ret);
+		return ret;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->fw_stats_complete, 1 * HZ);
+	if (!time_left)
+		return -ETIMEDOUT;
+
+	/* FW stats can get split when exceeding the stats data buffer limit.
+	 * In that case, since there is no end marking for the back-to-back
+	 * received 'update stats' event, we keep a 3 seconds timeout in case,
+	 * fw_stats_done is not marked yet
+	 */
+	time_left = wait_for_completion_timeout(&ar->fw_stats_done, 3 * HZ);
+	if (!time_left)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int ath11k_mac_get_fw_stats(struct ath11k *ar, u32 pdev_id,
+				   u32 vdev_id, u32 stats_id)
+{
+	struct ath11k_base *ab = ar->ab;
+	struct stats_request_params req_param;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (ar->state != ATH11K_STATE_ON)
+		return -ENETDOWN;
+
+	req_param.pdev_id = pdev_id;
+	req_param.vdev_id = vdev_id;
+	req_param.stats_id = stats_id;
+
+	ret = ath11k_mac_fw_stats_request(ar, &req_param);
+	if (ret)
+		ath11k_warn(ab, "failed to request fw stats: %d\n", ret);
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "debug get fw stat pdev id %d vdev id %d stats id 0x%x\n",
+		   pdev_id, vdev_id, stats_id);
+
+	return ret;
+}
+
 static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_sta *sta,
@@ -9031,11 +9110,12 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 
 	ath11k_mac_put_chain_rssi(sinfo, arsta, "ppdu", false);
 
+	mutex_lock(&ar->conf_mutex);
 	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_CHAIN_SIGNAL)) &&
 	    arsta->arvif->vdev_type == WMI_VDEV_TYPE_STA &&
 	    ar->ab->hw_params.supports_rssi_stats &&
-	    !ath11k_debugfs_get_fw_stats(ar, ar->pdev->pdev_id, 0,
-					 WMI_REQUEST_RSSI_PER_CHAIN_STAT)) {
+	    !ath11k_mac_get_fw_stats(ar, ar->pdev->pdev_id, 0,
+				     WMI_REQUEST_RSSI_PER_CHAIN_STAT)) {
 		ath11k_mac_put_chain_rssi(sinfo, arsta, "fw stats", true);
 	}
 
@@ -9043,9 +9123,10 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	if (!signal &&
 	    arsta->arvif->vdev_type == WMI_VDEV_TYPE_STA &&
 	    ar->ab->hw_params.supports_rssi_stats &&
-	    !(ath11k_debugfs_get_fw_stats(ar, ar->pdev->pdev_id, 0,
-					WMI_REQUEST_VDEV_STAT)))
+	    !(ath11k_mac_get_fw_stats(ar, ar->pdev->pdev_id, 0,
+				      WMI_REQUEST_VDEV_STAT)))
 		signal = arsta->rssi_beacon;
+	mutex_unlock(&ar->conf_mutex);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
 		   "sta statistics db2dbm %u rssi comb %d rssi beacon %d\n",
@@ -9380,38 +9461,6 @@ exit:
 	return ret;
 }
 
-static int ath11k_fw_stats_request(struct ath11k *ar,
-				   struct stats_request_params *req_param)
-{
-	struct ath11k_base *ab = ar->ab;
-	unsigned long time_left;
-	int ret;
-
-	lockdep_assert_held(&ar->conf_mutex);
-
-	spin_lock_bh(&ar->data_lock);
-	ar->fw_stats_done = false;
-	ath11k_fw_stats_pdevs_free(&ar->fw_stats.pdevs);
-	spin_unlock_bh(&ar->data_lock);
-
-	reinit_completion(&ar->fw_stats_complete);
-
-	ret = ath11k_wmi_send_stats_request_cmd(ar, req_param);
-	if (ret) {
-		ath11k_warn(ab, "could not request fw stats (%d)\n",
-			    ret);
-		return ret;
-	}
-
-	time_left = wait_for_completion_timeout(&ar->fw_stats_complete,
-						1 * HZ);
-
-	if (!time_left)
-		return -ETIMEDOUT;
-
-	return 0;
-}
-
 static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     unsigned int link_id,
@@ -9419,7 +9468,6 @@ static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 {
 	struct ath11k *ar = hw->priv;
 	struct ath11k_base *ab = ar->ab;
-	struct stats_request_params req_param = {0};
 	struct ath11k_fw_stats_pdev *pdev;
 	int ret;
 
@@ -9431,9 +9479,6 @@ static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 	 */
 	mutex_lock(&ar->conf_mutex);
 
-	if (ar->state != ATH11K_STATE_ON)
-		goto err_fallback;
-
 	/* Firmware doesn't provide Tx power during CAC hence no need to fetch
 	 * the stats.
 	 */
@@ -9442,10 +9487,8 @@ static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 		return -EAGAIN;
 	}
 
-	req_param.pdev_id = ar->pdev->pdev_id;
-	req_param.stats_id = WMI_REQUEST_PDEV_STAT;
-
-	ret = ath11k_fw_stats_request(ar, &req_param);
+	ret = ath11k_mac_get_fw_stats(ar, ar->pdev->pdev_id, 0,
+				      WMI_REQUEST_PDEV_STAT);
 	if (ret) {
 		ath11k_warn(ab, "failed to request fw pdev stats: %d\n", ret);
 		goto err_fallback;
@@ -10378,7 +10421,7 @@ int ath11k_mac_register(struct ath11k_base *ab)
 	struct ath11k_pdev *pdev;
 	int i;
 	int ret;
-	u8 mac_addr[ETH_ALEN] = {0};
+	u8 mac_addr[ETH_ALEN] = {};
 
 	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
 		return 0;

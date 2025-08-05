@@ -18,6 +18,7 @@ config INTEL_PMT_CLASS
 config INTEL_PMT_TELEMETRY
 	tristate "Intel Platform Monitoring Technology (PMT) Telemetry driver"
 	depends on INTEL_VSEC
+	select INTEL_PMT_DISCOVERY
 	select INTEL_PMT_CLASS
 	help
 	  The Intel Platform Monitory Technology (PMT) Telemetry driver provides
@@ -38,3 +39,30 @@ config INTEL_PMT_CRASHLOG
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_pmt_crashlog.
+
+config INTEL_PMT_DISCOVERY
+	tristate "Intel Platform Monitoring Technology (PMT) Discovery driver"
+	depends on INTEL_VSEC
+	select INTEL_PMT_CLASS
+	help
+	  The Intel Platform Monitoring Technology (PMT) discovery driver provides
+	  access to details about the various PMT features and feature specific
+	  attributes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pmt_discovery.
+
+config INTEL_PMT_KUNIT_TEST
+	tristate "KUnit tests for Intel PMT driver"
+	depends on INTEL_PMT_DISCOVERY
+	depends on INTEL_PMT_TELEMETRY || !INTEL_PMT_TELEMETRY
+	depends on KUNIT
+	help
+	  Enable this option to compile and run a suite of KUnit tests for the Intel
+	  Platform Monitoring Technology (PMT) driver. These tests are designed to
+	  validate the driver's functionality, error handling, and overall stability,
+	  helping developers catch regressions and ensure code quality during changes.
+
+	  This option is intended for development and testing environments. It is
+	  recommended to disable it in production builds. To compile this driver as a
+	  module, choose M here: the module will be called pmt-discovery-kunit.

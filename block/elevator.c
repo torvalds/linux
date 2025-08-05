@@ -689,21 +689,21 @@ static int elevator_change(struct request_queue *q, struct elv_change_ctx *ctx)
  * The I/O scheduler depends on the number of hardware queues, this forces a
  * reattachment when nr_hw_queues changes.
  */
-void elv_update_nr_hw_queues(struct request_queue *q)
+void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e)
 {
 	struct elv_change_ctx ctx = {};
 	int ret = -ENODEV;
 
 	WARN_ON_ONCE(q->mq_freeze_depth == 0);
 
-	mutex_lock(&q->elevator_lock);
-	if (q->elevator && !blk_queue_dying(q) && blk_queue_registered(q)) {
-		ctx.name = q->elevator->type->elevator_name;
+	if (e && !blk_queue_dying(q) && blk_queue_registered(q)) {
+		ctx.name = e->elevator_name;
 
+		mutex_lock(&q->elevator_lock);
 		/* force to reattach elevator after nr_hw_queue is updated */
 		ret = elevator_switch(q, &ctx);
+		mutex_unlock(&q->elevator_lock);
 	}
-	mutex_unlock(&q->elevator_lock);
 	blk_mq_unfreeze_queue_nomemrestore(q);
 	if (!ret)
 		WARN_ON_ONCE(elevator_change_done(q, &ctx));
@@ -719,7 +719,8 @@ void elevator_set_default(struct request_queue *q)
 		.name = "mq-deadline",
 		.no_uevent = true,
 	};
-	int err = 0;
+	int err;
+	struct elevator_type *e;
 
 	/* now we allow to switch elevator */
 	blk_queue_flag_clear(QUEUE_FLAG_NO_ELV_SWITCH, q);
@@ -732,12 +733,18 @@ void elevator_set_default(struct request_queue *q)
 	 * have multiple queues or mq-deadline is not available, default
 	 * to "none".
 	 */
-	if (elevator_find_get(ctx.name) && (q->nr_hw_queues == 1 ||
-			 blk_mq_is_shared_tags(q->tag_set->flags)))
+	e = elevator_find_get(ctx.name);
+	if (!e)
+		return;
+
+	if ((q->nr_hw_queues == 1 ||
+			blk_mq_is_shared_tags(q->tag_set->flags))) {
 		err = elevator_change(q, &ctx);
-	if (err < 0)
-		pr_warn("\"%s\" elevator initialization, failed %d, "
-			"falling back to \"none\"\n", ctx.name, err);
+		if (err < 0)
+			pr_warn("\"%s\" elevator initialization, failed %d, falling back to \"none\"\n",
+					ctx.name, err);
+	}
+	elevator_put(e);
 }
 
 void elevator_set_none(struct request_queue *q)

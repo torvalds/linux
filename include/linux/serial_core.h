@@ -443,8 +443,8 @@ struct uart_port {
 	spinlock_t		lock;			/* port lock */
 	unsigned long		iobase;			/* in/out[bwl] */
 	unsigned char __iomem	*membase;		/* read/write[bwl] */
-	unsigned int		(*serial_in)(struct uart_port *, int);
-	void			(*serial_out)(struct uart_port *, int, int);
+	u32			(*serial_in)(struct uart_port *, unsigned int offset);
+	void			(*serial_out)(struct uart_port *, unsigned int offset, u32 val);
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               const struct ktermios *old);
@@ -1101,8 +1101,6 @@ static inline bool uart_console_registered(struct uart_port *port)
 	return uart_console(port) && console_is_registered(port->cons);
 }
 
-struct uart_port *uart_get_console(struct uart_port *ports, int nr,
-				   struct console *c);
 int uart_parse_earlycon(char *p, enum uart_iotype *iotype,
 			resource_size_t *addr, char **options);
 void uart_parse_options(const char *options, int *baud, int *parity, int *bits,

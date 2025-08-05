@@ -110,6 +110,8 @@ static struct netfs_io_request *netfs_pgpriv2_begin_copy_to_cache(
 	if (!creq->io_streams[1].avail)
 		goto cancel_put;
 
+	__set_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &creq->flags);
+	trace_netfs_copy2cache(rreq, creq);
 	trace_netfs_write(creq, netfs_write_trace_copy_to_cache);
 	netfs_stat(&netfs_n_wh_copy_to_cache);
 	rreq->copy_to_cache = creq;
@@ -154,6 +156,9 @@ void netfs_pgpriv2_end_copy_to_cache(struct netfs_io_request *rreq)
 	netfs_issue_write(creq, &creq->io_streams[1]);
 	smp_wmb(); /* Write lists before ALL_QUEUED. */
 	set_bit(NETFS_RREQ_ALL_QUEUED, &creq->flags);
+	trace_netfs_rreq(rreq, netfs_rreq_trace_end_copy_to_cache);
+	if (list_empty_careful(&creq->io_streams[1].subrequests))
+		netfs_wake_collector(creq);
 
 	netfs_put_request(creq, netfs_rreq_trace_put_return);
 	creq->copy_to_cache = NULL;

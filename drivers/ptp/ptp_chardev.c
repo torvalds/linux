@@ -106,11 +106,9 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 
 int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 {
-	struct ptp_clock *ptp =
-		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct ptp_clock *ptp = container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 	char debugfsname[32];
-	unsigned long flags;
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
@@ -122,9 +120,8 @@ int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 	}
 	bitmap_set(queue->mask, 0, PTP_MAX_CHANNELS);
 	spin_lock_init(&queue->lock);
-	spin_lock_irqsave(&ptp->tsevqs_lock, flags);
-	list_add_tail(&queue->qlist, &ptp->tsevqs);
-	spin_unlock_irqrestore(&ptp->tsevqs_lock, flags);
+	scoped_guard(spinlock_irq, &ptp->tsevqs_lock)
+		list_add_tail(&queue->qlist, &ptp->tsevqs);
 	pccontext->private_clkdata = queue;
 
 	/* Debugfs contents */
@@ -143,402 +140,392 @@ int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 int ptp_release(struct posix_clock_context *pccontext)
 {
 	struct timestamp_event_queue *queue = pccontext->private_clkdata;
-	unsigned long flags;
 	struct ptp_clock *ptp =
 		container_of(pccontext->clk, struct ptp_clock, clock);
 
 	debugfs_remove(queue->debugfs_instance);
 	pccontext->private_clkdata = NULL;
-	spin_lock_irqsave(&ptp->tsevqs_lock, flags);
-	list_del(&queue->qlist);
-	spin_unlock_irqrestore(&ptp->tsevqs_lock, flags);
+	scoped_guard(spinlock_irq, &ptp->tsevqs_lock)
+		list_del(&queue->qlist);
 	bitmap_free(queue->mask);
 	kfree(queue);
+	return 0;
+}
+
+static long ptp_clock_getcaps(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_clock_caps caps = {
+		.max_adj		= ptp->info->max_adj,
+		.n_alarm		= ptp->info->n_alarm,
+		.n_ext_ts		= ptp->info->n_ext_ts,
+		.n_per_out		= ptp->info->n_per_out,
+		.pps			= ptp->info->pps,
+		.n_pins			= ptp->info->n_pins,
+		.cross_timestamping	= ptp->info->getcrosststamp != NULL,
+		.adjust_phase		= ptp->info->adjphase != NULL &&
+					  ptp->info->getmaxphase != NULL,
+	};
+
+	if (caps.adjust_phase)
+		caps.max_phase_adj = ptp->info->getmaxphase(ptp->info);
+
+	return copy_to_user(arg, &caps, sizeof(caps)) ? -EFAULT : 0;
+}
+
+static long ptp_extts_request(struct ptp_clock *ptp, unsigned int cmd, void __user *arg)
+{
+	struct ptp_clock_request req = { .type = PTP_CLK_REQ_EXTTS };
+	struct ptp_clock_info *ops = ptp->info;
+	unsigned int supported_extts_flags;
+
+	if (copy_from_user(&req.extts, arg, sizeof(req.extts)))
+		return -EFAULT;
+
+	if (cmd == PTP_EXTTS_REQUEST2) {
+		/* Tell the drivers to check the flags carefully. */
+		req.extts.flags |= PTP_STRICT_FLAGS;
+		/* Make sure no reserved bit is set. */
+		if ((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
+		    req.extts.rsv[0] || req.extts.rsv[1])
+			return -EINVAL;
+
+		/* Ensure one of the rising/falling edge bits is set. */
+		if ((req.extts.flags & PTP_ENABLE_FEATURE) &&
+		    (req.extts.flags & PTP_EXTTS_EDGES) == 0)
+			return -EINVAL;
+	} else {
+		req.extts.flags &= PTP_EXTTS_V1_VALID_FLAGS;
+		memset(req.extts.rsv, 0, sizeof(req.extts.rsv));
+	}
+
+	if (req.extts.index >= ops->n_ext_ts)
+		return -EINVAL;
+
+	supported_extts_flags = ptp->info->supported_extts_flags;
+	/* The PTP_ENABLE_FEATURE flag is always supported. */
+	supported_extts_flags |= PTP_ENABLE_FEATURE;
+	/* If the driver does not support strictly checking flags, the
+	 * PTP_RISING_EDGE and PTP_FALLING_EDGE flags are merely hints
+	 * which are not enforced.
+	 */
+	if (!(supported_extts_flags & PTP_STRICT_FLAGS))
+		supported_extts_flags |= PTP_EXTTS_EDGES;
+	/* Reject unsupported flags */
+	if (req.extts.flags & ~supported_extts_flags)
+		return -EOPNOTSUPP;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		return ops->enable(ops, &req, req.extts.flags & PTP_ENABLE_FEATURE ? 1 : 0);
+}
+
+static long ptp_perout_request(struct ptp_clock *ptp, unsigned int cmd, void __user *arg)
+{
+	struct ptp_clock_request req = { .type = PTP_CLK_REQ_PEROUT };
+	struct ptp_perout_request *perout = &req.perout;
+	struct ptp_clock_info *ops = ptp->info;
+
+	if (copy_from_user(perout, arg, sizeof(*perout)))
+		return -EFAULT;
+
+	if (cmd == PTP_PEROUT_REQUEST2) {
+		if (perout->flags & ~PTP_PEROUT_VALID_FLAGS)
+			return -EINVAL;
+
+		/*
+		 * The "on" field has undefined meaning if
+		 * PTP_PEROUT_DUTY_CYCLE isn't set, we must still treat it
+		 * as reserved, which must be set to zero.
+		 */
+		if (!(perout->flags & PTP_PEROUT_DUTY_CYCLE) &&
+		    !mem_is_zero(perout->rsv, sizeof(perout->rsv)))
+			return -EINVAL;
+
+		if (perout->flags & PTP_PEROUT_DUTY_CYCLE) {
+			/* The duty cycle must be subunitary. */
+			if (perout->on.sec > perout->period.sec ||
+			    (perout->on.sec == perout->period.sec &&
+			     perout->on.nsec > perout->period.nsec))
+				return -ERANGE;
+		}
+
+		if (perout->flags & PTP_PEROUT_PHASE) {
+			/*
+			 * The phase should be specified modulo the period,
+			 * therefore anything equal or larger than 1 period
+			 * is invalid.
+			 */
+			if (perout->phase.sec > perout->period.sec ||
+			    (perout->phase.sec == perout->period.sec &&
+			     perout->phase.nsec >= perout->period.nsec))
+				return -ERANGE;
+		}
+	} else {
+		perout->flags &= PTP_PEROUT_V1_VALID_FLAGS;
+		memset(perout->rsv, 0, sizeof(perout->rsv));
+	}
+
+	if (perout->index >= ops->n_per_out)
+		return -EINVAL;
+	if (perout->flags & ~ops->supported_perout_flags)
+		return -EOPNOTSUPP;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		return ops->enable(ops, &req, perout->period.sec || perout->period.nsec);
+}
+
+static long ptp_enable_pps(struct ptp_clock *ptp, bool enable)
+{
+	struct ptp_clock_request req = { .type = PTP_CLK_REQ_PPS };
+	struct ptp_clock_info *ops = ptp->info;
+
+	if (!capable(CAP_SYS_TIME))
+		return -EPERM;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		return ops->enable(ops, &req, enable);
+}
+
+static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_sys_offset_precise precise_offset;
+	struct system_device_crosststamp xtstamp;
+	struct timespec64 ts;
+	int err;
+
+	if (!ptp->info->getcrosststamp)
+		return -EOPNOTSUPP;
+
+	err = ptp->info->getcrosststamp(ptp->info, &xtstamp);
+	if (err)
+		return err;
+
+	memset(&precise_offset, 0, sizeof(precise_offset));
+	ts = ktime_to_timespec64(xtstamp.device);
+	precise_offset.device.sec = ts.tv_sec;
+	precise_offset.device.nsec = ts.tv_nsec;
+	ts = ktime_to_timespec64(xtstamp.sys_realtime);
+	precise_offset.sys_realtime.sec = ts.tv_sec;
+	precise_offset.sys_realtime.nsec = ts.tv_nsec;
+	ts = ktime_to_timespec64(xtstamp.sys_monoraw);
+	precise_offset.sys_monoraw.sec = ts.tv_sec;
+	precise_offset.sys_monoraw.nsec = ts.tv_nsec;
+
+	return copy_to_user(arg, &precise_offset, sizeof(precise_offset)) ? -EFAULT : 0;
+}
+
+static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_sys_offset_extended *extoff __free(kfree) = NULL;
+	struct ptp_system_timestamp sts;
+
+	if (!ptp->info->gettimex64)
+		return -EOPNOTSUPP;
+
+	extoff = memdup_user(arg, sizeof(*extoff));
+	if (IS_ERR(extoff))
+		return PTR_ERR(extoff);
+
+	if (extoff->n_samples > PTP_MAX_SAMPLES || extoff->rsv[0] || extoff->rsv[1])
+		return -EINVAL;
+
+	switch (extoff->clockid) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_RAW:
+		break;
+	case CLOCK_AUX ... CLOCK_AUX_LAST:
+		if (IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS))
+			break;
+		fallthrough;
+	default:
+		return -EINVAL;
+	}
+
+	sts.clockid = extoff->clockid;
+	for (unsigned int i = 0; i < extoff->n_samples; i++) {
+		struct timespec64 ts;
+		int err;
+
+		err = ptp->info->gettimex64(ptp->info, &ts, &sts);
+		if (err)
+			return err;
+
+		/* Filter out disabled or unavailable clocks */
+		if (sts.pre_ts.tv_sec < 0 || sts.post_ts.tv_sec < 0)
+			return -EINVAL;
+
+		extoff->ts[i][0].sec = sts.pre_ts.tv_sec;
+		extoff->ts[i][0].nsec = sts.pre_ts.tv_nsec;
+		extoff->ts[i][1].sec = ts.tv_sec;
+		extoff->ts[i][1].nsec = ts.tv_nsec;
+		extoff->ts[i][2].sec = sts.post_ts.tv_sec;
+		extoff->ts[i][2].nsec = sts.post_ts.tv_nsec;
+	}
+
+	return copy_to_user(arg, extoff, sizeof(*extoff)) ? -EFAULT : 0;
+}
+
+static long ptp_sys_offset(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_sys_offset *sysoff __free(kfree) = NULL;
+	struct ptp_clock_time *pct;
+	struct timespec64 ts;
+
+	sysoff = memdup_user(arg, sizeof(*sysoff));
+	if (IS_ERR(sysoff))
+		return PTR_ERR(sysoff);
+
+	if (sysoff->n_samples > PTP_MAX_SAMPLES)
+		return -EINVAL;
+
+	pct = &sysoff->ts[0];
+	for (unsigned int i = 0; i < sysoff->n_samples; i++) {
+		struct ptp_clock_info *ops = ptp->info;
+		int err;
+
+		ktime_get_real_ts64(&ts);
+		pct->sec = ts.tv_sec;
+		pct->nsec = ts.tv_nsec;
+		pct++;
+		if (ops->gettimex64)
+			err = ops->gettimex64(ops, &ts, NULL);
+		else
+			err = ops->gettime64(ops, &ts);
+		if (err)
+			return err;
+		pct->sec = ts.tv_sec;
+		pct->nsec = ts.tv_nsec;
+		pct++;
+	}
+	ktime_get_real_ts64(&ts);
+	pct->sec = ts.tv_sec;
+	pct->nsec = ts.tv_nsec;
+
+	return copy_to_user(arg, sysoff, sizeof(*sysoff)) ? -EFAULT : 0;
+}
+
+static long ptp_pin_getfunc(struct ptp_clock *ptp, unsigned int cmd, void __user *arg)
+{
+	struct ptp_clock_info *ops = ptp->info;
+	struct ptp_pin_desc pd;
+
+	if (copy_from_user(&pd, arg, sizeof(pd)))
+		return -EFAULT;
+
+	if (cmd == PTP_PIN_GETFUNC2 && !mem_is_zero(pd.rsv, sizeof(pd.rsv)))
+		return -EINVAL;
+
+	if (pd.index >= ops->n_pins)
+		return -EINVAL;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		pd = ops->pin_config[array_index_nospec(pd.index, ops->n_pins)];
+
+	return copy_to_user(arg, &pd, sizeof(pd)) ? -EFAULT : 0;
+}
+
+static long ptp_pin_setfunc(struct ptp_clock *ptp, unsigned int cmd, void __user *arg)
+{
+	struct ptp_clock_info *ops = ptp->info;
+	struct ptp_pin_desc pd;
+	unsigned int pin_index;
+
+	if (copy_from_user(&pd, arg, sizeof(pd)))
+		return -EFAULT;
+
+	if (cmd == PTP_PIN_SETFUNC2 && !mem_is_zero(pd.rsv, sizeof(pd.rsv)))
+		return -EINVAL;
+
+	if (pd.index >= ops->n_pins)
+		return -EINVAL;
+
+	pin_index = array_index_nospec(pd.index, ops->n_pins);
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		return ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);
+}
+
+static long ptp_mask_clear_all(struct timestamp_event_queue *tsevq)
+{
+	bitmap_clear(tsevq->mask, 0, PTP_MAX_CHANNELS);
+	return 0;
+}
+
+static long ptp_mask_en_single(struct timestamp_event_queue *tsevq, void __user *arg)
+{
+	unsigned int channel;
+
+	if (copy_from_user(&channel, arg, sizeof(channel)))
+		return -EFAULT;
+	if (channel >= PTP_MAX_CHANNELS)
+		return -EFAULT;
+	set_bit(channel, tsevq->mask);
 	return 0;
 }
 
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
-	struct ptp_clock *ptp =
-		container_of(pccontext->clk, struct ptp_clock, clock);
-	unsigned int i, pin_index, supported_extts_flags;
-	struct ptp_sys_offset_extended *extoff = NULL;
-	struct ptp_sys_offset_precise precise_offset;
-	struct system_device_crosststamp xtstamp;
-	struct ptp_clock_info *ops = ptp->info;
-	struct ptp_sys_offset *sysoff = NULL;
-	struct timestamp_event_queue *tsevq;
-	struct ptp_system_timestamp sts;
-	struct ptp_clock_request req;
-	struct ptp_clock_caps caps;
-	struct ptp_clock_time *pct;
-	struct ptp_pin_desc pd;
-	struct timespec64 ts;
-	int enable, err = 0;
+	struct ptp_clock *ptp = container_of(pccontext->clk, struct ptp_clock, clock);
+	void __user *argptr;
 
 	if (in_compat_syscall() && cmd != PTP_ENABLE_PPS && cmd != PTP_ENABLE_PPS2)
 		arg = (unsigned long)compat_ptr(arg);
-
-	tsevq = pccontext->private_clkdata;
+	argptr = (void __force __user *)arg;
 
 	switch (cmd) {
-
 	case PTP_CLOCK_GETCAPS:
 	case PTP_CLOCK_GETCAPS2:
-		memset(&caps, 0, sizeof(caps));
-
-		caps.max_adj = ptp->info->max_adj;
-		caps.n_alarm = ptp->info->n_alarm;
-		caps.n_ext_ts = ptp->info->n_ext_ts;
-		caps.n_per_out = ptp->info->n_per_out;
-		caps.pps = ptp->info->pps;
-		caps.n_pins = ptp->info->n_pins;
-		caps.cross_timestamping = ptp->info->getcrosststamp != NULL;
-		caps.adjust_phase = ptp->info->adjphase != NULL &&
-				    ptp->info->getmaxphase != NULL;
-		if (caps.adjust_phase)
-			caps.max_phase_adj = ptp->info->getmaxphase(ptp->info);
-		if (copy_to_user((void __user *)arg, &caps, sizeof(caps)))
-			err = -EFAULT;
-		break;
+		return ptp_clock_getcaps(ptp, argptr);
 
 	case PTP_EXTTS_REQUEST:
 	case PTP_EXTTS_REQUEST2:
-		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0) {
-			err = -EACCES;
-			break;
-		}
-		memset(&req, 0, sizeof(req));
-
-		if (copy_from_user(&req.extts, (void __user *)arg,
-				   sizeof(req.extts))) {
-			err = -EFAULT;
-			break;
-		}
-		if (cmd == PTP_EXTTS_REQUEST2) {
-			/* Tell the drivers to check the flags carefully. */
-			req.extts.flags |= PTP_STRICT_FLAGS;
-			/* Make sure no reserved bit is set. */
-			if ((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
-			    req.extts.rsv[0] || req.extts.rsv[1]) {
-				err = -EINVAL;
-				break;
-			}
-			/* Ensure one of the rising/falling edge bits is set. */
-			if ((req.extts.flags & PTP_ENABLE_FEATURE) &&
-			    (req.extts.flags & PTP_EXTTS_EDGES) == 0) {
-				err = -EINVAL;
-				break;
-			}
-		} else if (cmd == PTP_EXTTS_REQUEST) {
-			req.extts.flags &= PTP_EXTTS_V1_VALID_FLAGS;
-			req.extts.rsv[0] = 0;
-			req.extts.rsv[1] = 0;
-		}
-		if (req.extts.index >= ops->n_ext_ts) {
-			err = -EINVAL;
-			break;
-		}
-		supported_extts_flags = ptp->info->supported_extts_flags;
-		/* The PTP_ENABLE_FEATURE flag is always supported. */
-		supported_extts_flags |= PTP_ENABLE_FEATURE;
-		/* If the driver does not support strictly checking flags, the
-		 * PTP_RISING_EDGE and PTP_FALLING_EDGE flags are merely
-		 * hints which are not enforced.
-		 */
-		if (!(supported_extts_flags & PTP_STRICT_FLAGS))
-			supported_extts_flags |= PTP_EXTTS_EDGES;
-		/* Reject unsupported flags */
-		if (req.extts.flags & ~supported_extts_flags)
-			return -EOPNOTSUPP;
-		req.type = PTP_CLK_REQ_EXTTS;
-		enable = req.extts.flags & PTP_ENABLE_FEATURE ? 1 : 0;
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		err = ops->enable(ops, &req, enable);
-		mutex_unlock(&ptp->pincfg_mux);
-		break;
+		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0)
+			return -EACCES;
+		return ptp_extts_request(ptp, cmd, argptr);
 
 	case PTP_PEROUT_REQUEST:
 	case PTP_PEROUT_REQUEST2:
-		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0) {
-			err = -EACCES;
-			break;
-		}
-		memset(&req, 0, sizeof(req));
-
-		if (copy_from_user(&req.perout, (void __user *)arg,
-				   sizeof(req.perout))) {
-			err = -EFAULT;
-			break;
-		}
-		if (cmd == PTP_PEROUT_REQUEST2) {
-			struct ptp_perout_request *perout = &req.perout;
-
-			if (perout->flags & ~PTP_PEROUT_VALID_FLAGS) {
-				err = -EINVAL;
-				break;
-			}
-			/*
-			 * The "on" field has undefined meaning if
-			 * PTP_PEROUT_DUTY_CYCLE isn't set, we must still treat
-			 * it as reserved, which must be set to zero.
-			 */
-			if (!(perout->flags & PTP_PEROUT_DUTY_CYCLE) &&
-			    (perout->rsv[0] || perout->rsv[1] ||
-			     perout->rsv[2] || perout->rsv[3])) {
-				err = -EINVAL;
-				break;
-			}
-			if (perout->flags & PTP_PEROUT_DUTY_CYCLE) {
-				/* The duty cycle must be subunitary. */
-				if (perout->on.sec > perout->period.sec ||
-				    (perout->on.sec == perout->period.sec &&
-				     perout->on.nsec > perout->period.nsec)) {
-					err = -ERANGE;
-					break;
-				}
-			}
-			if (perout->flags & PTP_PEROUT_PHASE) {
-				/*
-				 * The phase should be specified modulo the
-				 * period, therefore anything equal or larger
-				 * than 1 period is invalid.
-				 */
-				if (perout->phase.sec > perout->period.sec ||
-				    (perout->phase.sec == perout->period.sec &&
-				     perout->phase.nsec >= perout->period.nsec)) {
-					err = -ERANGE;
-					break;
-				}
-			}
-		} else if (cmd == PTP_PEROUT_REQUEST) {
-			req.perout.flags &= PTP_PEROUT_V1_VALID_FLAGS;
-			req.perout.rsv[0] = 0;
-			req.perout.rsv[1] = 0;
-			req.perout.rsv[2] = 0;
-			req.perout.rsv[3] = 0;
-		}
-		if (req.perout.index >= ops->n_per_out) {
-			err = -EINVAL;
-			break;
-		}
-		if (req.perout.flags & ~ptp->info->supported_perout_flags)
-			return -EOPNOTSUPP;
-		req.type = PTP_CLK_REQ_PEROUT;
-		enable = req.perout.period.sec || req.perout.period.nsec;
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		err = ops->enable(ops, &req, enable);
-		mutex_unlock(&ptp->pincfg_mux);
-		break;
+		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0)
+			return -EACCES;
+		return ptp_perout_request(ptp, cmd, argptr);
 
 	case PTP_ENABLE_PPS:
 	case PTP_ENABLE_PPS2:
-		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0) {
-			err = -EACCES;
-			break;
-		}
-		memset(&req, 0, sizeof(req));
-
-		if (!capable(CAP_SYS_TIME))
-			return -EPERM;
-		req.type = PTP_CLK_REQ_PPS;
-		enable = arg ? 1 : 0;
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		err = ops->enable(ops, &req, enable);
-		mutex_unlock(&ptp->pincfg_mux);
-		break;
+		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0)
+			return -EACCES;
+		return ptp_enable_pps(ptp, !!arg);
 
 	case PTP_SYS_OFFSET_PRECISE:
 	case PTP_SYS_OFFSET_PRECISE2:
-		if (!ptp->info->getcrosststamp) {
-			err = -EOPNOTSUPP;
-			break;
-		}
-		err = ptp->info->getcrosststamp(ptp->info, &xtstamp);
-		if (err)
-			break;
-
-		memset(&precise_offset, 0, sizeof(precise_offset));
-		ts = ktime_to_timespec64(xtstamp.device);
-		precise_offset.device.sec = ts.tv_sec;
-		precise_offset.device.nsec = ts.tv_nsec;
-		ts = ktime_to_timespec64(xtstamp.sys_realtime);
-		precise_offset.sys_realtime.sec = ts.tv_sec;
-		precise_offset.sys_realtime.nsec = ts.tv_nsec;
-		ts = ktime_to_timespec64(xtstamp.sys_monoraw);
-		precise_offset.sys_monoraw.sec = ts.tv_sec;
-		precise_offset.sys_monoraw.nsec = ts.tv_nsec;
-		if (copy_to_user((void __user *)arg, &precise_offset,
-				 sizeof(precise_offset)))
-			err = -EFAULT;
-		break;
+		return ptp_sys_offset_precise(ptp, argptr);
 
 	case PTP_SYS_OFFSET_EXTENDED:
 	case PTP_SYS_OFFSET_EXTENDED2:
-		if (!ptp->info->gettimex64) {
-			err = -EOPNOTSUPP;
-			break;
-		}
-		extoff = memdup_user((void __user *)arg, sizeof(*extoff));
-		if (IS_ERR(extoff)) {
-			err = PTR_ERR(extoff);
-			extoff = NULL;
-			break;
-		}
-		if (extoff->n_samples > PTP_MAX_SAMPLES ||
-		    extoff->rsv[0] || extoff->rsv[1] ||
-		    (extoff->clockid != CLOCK_REALTIME &&
-		     extoff->clockid != CLOCK_MONOTONIC &&
-		     extoff->clockid != CLOCK_MONOTONIC_RAW)) {
-			err = -EINVAL;
-			break;
-		}
-		sts.clockid = extoff->clockid;
-		for (i = 0; i < extoff->n_samples; i++) {
-			err = ptp->info->gettimex64(ptp->info, &ts, &sts);
-			if (err)
-				goto out;
-			extoff->ts[i][0].sec = sts.pre_ts.tv_sec;
-			extoff->ts[i][0].nsec = sts.pre_ts.tv_nsec;
-			extoff->ts[i][1].sec = ts.tv_sec;
-			extoff->ts[i][1].nsec = ts.tv_nsec;
-			extoff->ts[i][2].sec = sts.post_ts.tv_sec;
-			extoff->ts[i][2].nsec = sts.post_ts.tv_nsec;
-		}
-		if (copy_to_user((void __user *)arg, extoff, sizeof(*extoff)))
-			err = -EFAULT;
-		break;
+		return ptp_sys_offset_extended(ptp, argptr);
 
 	case PTP_SYS_OFFSET:
 	case PTP_SYS_OFFSET2:
-		sysoff = memdup_user((void __user *)arg, sizeof(*sysoff));
-		if (IS_ERR(sysoff)) {
-			err = PTR_ERR(sysoff);
-			sysoff = NULL;
-			break;
-		}
-		if (sysoff->n_samples > PTP_MAX_SAMPLES) {
-			err = -EINVAL;
-			break;
-		}
-		pct = &sysoff->ts[0];
-		for (i = 0; i < sysoff->n_samples; i++) {
-			ktime_get_real_ts64(&ts);
-			pct->sec = ts.tv_sec;
-			pct->nsec = ts.tv_nsec;
-			pct++;
-			if (ops->gettimex64)
-				err = ops->gettimex64(ops, &ts, NULL);
-			else
-				err = ops->gettime64(ops, &ts);
-			if (err)
-				goto out;
-			pct->sec = ts.tv_sec;
-			pct->nsec = ts.tv_nsec;
-			pct++;
-		}
-		ktime_get_real_ts64(&ts);
-		pct->sec = ts.tv_sec;
-		pct->nsec = ts.tv_nsec;
-		if (copy_to_user((void __user *)arg, sysoff, sizeof(*sysoff)))
-			err = -EFAULT;
-		break;
+		return ptp_sys_offset(ptp, argptr);
 
 	case PTP_PIN_GETFUNC:
 	case PTP_PIN_GETFUNC2:
-		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
-			err = -EFAULT;
-			break;
-		}
-		if ((pd.rsv[0] || pd.rsv[1] || pd.rsv[2]
-				|| pd.rsv[3] || pd.rsv[4])
-			&& cmd == PTP_PIN_GETFUNC2) {
-			err = -EINVAL;
-			break;
-		} else if (cmd == PTP_PIN_GETFUNC) {
-			pd.rsv[0] = 0;
-			pd.rsv[1] = 0;
-			pd.rsv[2] = 0;
-			pd.rsv[3] = 0;
-			pd.rsv[4] = 0;
-		}
-		pin_index = pd.index;
-		if (pin_index >= ops->n_pins) {
-			err = -EINVAL;
-			break;
-		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		pd = ops->pin_config[pin_index];
-		mutex_unlock(&ptp->pincfg_mux);
-		if (!err && copy_to_user((void __user *)arg, &pd, sizeof(pd)))
-			err = -EFAULT;
-		break;
+		return ptp_pin_getfunc(ptp, cmd, argptr);
 
 	case PTP_PIN_SETFUNC:
 	case PTP_PIN_SETFUNC2:
-		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0) {
-			err = -EACCES;
-			break;
-		}
-		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
-			err = -EFAULT;
-			break;
-		}
-		if ((pd.rsv[0] || pd.rsv[1] || pd.rsv[2]
-				|| pd.rsv[3] || pd.rsv[4])
-			&& cmd == PTP_PIN_SETFUNC2) {
-			err = -EINVAL;
-			break;
-		} else if (cmd == PTP_PIN_SETFUNC) {
-			pd.rsv[0] = 0;
-			pd.rsv[1] = 0;
-			pd.rsv[2] = 0;
-			pd.rsv[3] = 0;
-			pd.rsv[4] = 0;
-		}
-		pin_index = pd.index;
-		if (pin_index >= ops->n_pins) {
-			err = -EINVAL;
-			break;
-		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		err = ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);
-		mutex_unlock(&ptp->pincfg_mux);
-		break;
+		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0)
+			return -EACCES;
+		return ptp_pin_setfunc(ptp, cmd, argptr);
 
 	case PTP_MASK_CLEAR_ALL:
-		bitmap_clear(tsevq->mask, 0, PTP_MAX_CHANNELS);
-		break;
+		return ptp_mask_clear_all(pccontext->private_clkdata);
 
 	case PTP_MASK_EN_SINGLE:
-		if (copy_from_user(&i, (void __user *)arg, sizeof(i))) {
-			err = -EFAULT;
-			break;
-		}
-		if (i >= PTP_MAX_CHANNELS) {
-			err = -EFAULT;
-			break;
-		}
-		set_bit(i, tsevq->mask);
-		break;
+		return ptp_mask_en_single(pccontext->private_clkdata, argptr);
 
 	default:
-		err = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-
-out:
-	kfree(extoff);
-	kfree(sysoff);
-	return err;
 }
 
 __poll_t ptp_poll(struct posix_clock_context *pccontext, struct file *fp,
@@ -562,71 +549,46 @@ __poll_t ptp_poll(struct posix_clock_context *pccontext, struct file *fp,
 ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 		 char __user *buf, size_t cnt)
 {
-	struct ptp_clock *ptp =
-		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct ptp_clock *ptp =	container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 	struct ptp_extts_event *event;
-	unsigned long flags;
-	size_t qcnt, i;
-	int result;
+	ssize_t result;
 
 	queue = pccontext->private_clkdata;
-	if (!queue) {
-		result = -EINVAL;
-		goto exit;
-	}
+	if (!queue)
+		return -EINVAL;
 
-	if (cnt % sizeof(struct ptp_extts_event) != 0) {
-		result = -EINVAL;
-		goto exit;
-	}
+	if (cnt % sizeof(*event) != 0)
+		return -EINVAL;
 
 	if (cnt > EXTTS_BUFSIZE)
 		cnt = EXTTS_BUFSIZE;
 
-	cnt = cnt / sizeof(struct ptp_extts_event);
-
-	if (wait_event_interruptible(ptp->tsev_wq,
-				     ptp->defunct || queue_cnt(queue))) {
+	if (wait_event_interruptible(ptp->tsev_wq, ptp->defunct || queue_cnt(queue)))
 		return -ERESTARTSYS;
-	}
 
-	if (ptp->defunct) {
-		result = -ENODEV;
-		goto exit;
-	}
+	if (ptp->defunct)
+		return -ENODEV;
 
 	event = kmalloc(EXTTS_BUFSIZE, GFP_KERNEL);
-	if (!event) {
-		result = -ENOMEM;
-		goto exit;
+	if (!event)
+		return -ENOMEM;
+
+	scoped_guard(spinlock_irq, &queue->lock) {
+		size_t qcnt = min((size_t)queue_cnt(queue), cnt / sizeof(*event));
+
+		for (size_t i = 0; i < qcnt; i++) {
+			event[i] = queue->buf[queue->head];
+			/* Paired with READ_ONCE() in queue_cnt() */
+			WRITE_ONCE(queue->head, (queue->head + 1) % PTP_MAX_TIMESTAMPS);
+		}
+		cnt = qcnt * sizeof(*event);
 	}
-
-	spin_lock_irqsave(&queue->lock, flags);
-
-	qcnt = queue_cnt(queue);
-
-	if (cnt > qcnt)
-		cnt = qcnt;
-
-	for (i = 0; i < cnt; i++) {
-		event[i] = queue->buf[queue->head];
-		/* Paired with READ_ONCE() in queue_cnt() */
-		WRITE_ONCE(queue->head, (queue->head + 1) % PTP_MAX_TIMESTAMPS);
-	}
-
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	cnt = cnt * sizeof(struct ptp_extts_event);
 
 	result = cnt;
-	if (copy_to_user(buf, event, cnt)) {
+	if (copy_to_user(buf, event, cnt))
 		result = -EFAULT;
-		goto free_event;
-	}
 
-free_event:
 	kfree(event);
-exit:
 	return result;
 }

@@ -615,7 +615,7 @@ static void __btrfs_dump_space_info(const struct btrfs_fs_info *fs_info,
 
 void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   struct btrfs_space_info *info, u64 bytes,
-			   int dump_block_groups)
+			   bool dump_block_groups)
 {
 	struct btrfs_block_group *cache;
 	u64 total_avail = 0;
@@ -1887,7 +1887,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 					      space_info->flags, orig_bytes, 1);
 
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, space_info, orig_bytes, 0);
+			btrfs_dump_space_info(fs_info, space_info, orig_bytes, false);
 	}
 	return ret;
 }
@@ -1918,7 +1918,7 @@ int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
 					      space_info->flags, bytes, 1);
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, space_info, bytes, 0);
+			btrfs_dump_space_info(fs_info, space_info, bytes, false);
 	}
 	return ret;
 }
@@ -1973,13 +1973,13 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 
 static u64 calc_pct_ratio(u64 x, u64 y)
 {
-	int err;
+	int ret;
 
 	if (!y)
 		return 0;
 again:
-	err = check_mul_overflow(100, x, &x);
-	if (err)
+	ret = check_mul_overflow(100, x, &x);
+	if (ret)
 		goto lose_precision;
 	return div64_u64(x, y);
 lose_precision:
@@ -2139,7 +2139,7 @@ void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool 
 	}
 }
 
-bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
+static bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
 {
 	bool ret;
 

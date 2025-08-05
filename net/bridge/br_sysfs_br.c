@@ -1026,7 +1026,7 @@ static ssize_t brforward_read(struct file *filp, struct kobject *kobj,
 static const struct bin_attribute bridge_forward = {
 	.attr = { .name = SYSFS_BRIDGE_FDB,
 		  .mode = 0444, },
-	.read_new = brforward_read,
+	.read = brforward_read,
 };
 
 /*

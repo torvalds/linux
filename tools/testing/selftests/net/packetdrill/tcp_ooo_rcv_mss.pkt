@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0
+
+--mss=1000
+
+`./defaults.sh
+sysctl -q net.ipv4.tcp_rmem="4096 131072 $((32*1024*1024))"`
+
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1000,nop,nop,sackOK,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 10>
+  +.1 < . 1:1(0) ack 1 win 257
+
+   +0 accept(3, ..., ...) = 4
+
+   +0 < . 2001:11001(9000) ack 1 win 257
+   +0 > . 1:1(0) ack 1 win 81 <nop,nop,sack 2001:11001>
+
+// check that ooo packet properly updates tcpi_rcv_mss
+   +0 %{ assert tcpi_rcv_mss == 1000, tcpi_rcv_mss }%
+
+   +0 < . 11001:21001(10000) ack 1 win 257
+   +0 > . 1:1(0) ack 1 win 81 <nop,nop,sack 2001:21001>
+

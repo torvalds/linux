@@ -1865,7 +1865,7 @@ int snd_wss_pcm(struct snd_wss *chip, int device)
 		pcm->info_flags |= SNDRV_PCM_INFO_HALF_DUPLEX;
 	if (chip->hardware != WSS_HW_INTERWAVE)
 		pcm->info_flags |= SNDRV_PCM_INFO_JOINT_DUPLEX;
-	strcpy(pcm->name, snd_wss_chip_id(chip));
+	strscpy(pcm->name, snd_wss_chip_id(chip));
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, chip->card->dev,
 				       64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
@@ -1896,7 +1896,7 @@ int snd_wss_timer(struct snd_wss *chip, int device)
 	err = snd_timer_new(chip->card, "CS4231", &tid, &timer);
 	if (err < 0)
 		return err;
-	strcpy(timer->name, snd_wss_chip_id(chip));
+	strscpy(timer->name, snd_wss_chip_id(chip));
 	timer->private_data = chip;
 	timer->private_free = snd_wss_timer_free;
 	timer->hw = snd_wss_timer_table;
@@ -2176,7 +2176,7 @@ int snd_wss_mixer(struct snd_wss *chip)
 
 	card = chip->card;
 
-	strcpy(card->mixername, chip->pcm->name);
+	strscpy(card->mixername, chip->pcm->name);
 
 	/* Use only the first 11 entries on AD1848 */
 	if (chip->hardware & WSS_HW_AD1848_MASK)

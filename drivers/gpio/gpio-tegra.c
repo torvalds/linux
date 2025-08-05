@@ -146,12 +146,14 @@ static void tegra_gpio_free(struct gpio_chip *chip, unsigned int offset)
 	tegra_gpio_disable(tgi, offset);
 }
 
-static void tegra_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			   int value)
+static int tegra_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 
 	tegra_gpio_mask_write(tgi, GPIO_MSK_OUT(tgi, offset), offset, value);
+
+	return 0;
 }
 
 static int tegra_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -718,7 +720,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->gc.direction_input		= tegra_gpio_direction_input;
 	tgi->gc.get			= tegra_gpio_get;
 	tgi->gc.direction_output	= tegra_gpio_direction_output;
-	tgi->gc.set			= tegra_gpio_set;
+	tgi->gc.set_rv			= tegra_gpio_set;
 	tgi->gc.get_direction		= tegra_gpio_get_direction;
 	tgi->gc.base			= 0;
 	tgi->gc.ngpio			= tgi->bank_count * 32;

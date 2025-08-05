@@ -899,7 +899,7 @@ EXPORT_SYMBOL_GPL(nvme_fc_set_remoteport_devloss);
  * may crash.
  *
  * As such:
- * Wrapper all the dma routines and check the dev pointer.
+ * Wrap all the dma routines and check the dev pointer.
  *
  * If simple mappings (return just a dma address, we'll noop them,
  * returning a dma address of 0.
@@ -1955,8 +1955,8 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	}
 
 	/*
-	 * For the linux implementation, if we have an unsucceesful
-	 * status, they blk-mq layer can typically be called with the
+	 * For the linux implementation, if we have an unsuccessful
+	 * status, the blk-mq layer can typically be called with the
 	 * non-zero status and the content of the cqe isn't important.
 	 */
 	if (status)
@@ -2429,7 +2429,7 @@ static bool nvme_fc_terminate_exchange(struct request *req, void *data)
 
 /*
  * This routine runs through all outstanding commands on the association
- * and aborts them.  This routine is typically be called by the
+ * and aborts them.  This routine is typically called by the
  * delete_association routine. It is also called due to an error during
  * reconnect. In that scenario, it is most likely a command that initializes
  * the controller, including fabric Connect commands on io queues, that
@@ -2622,7 +2622,7 @@ nvme_fc_unmap_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
  * as part of the exchange.  The CQE is the last thing for the io,
  * which is transferred (explicitly or implicitly) with the RSP IU
  * sent on the exchange. After the CQE is received, the FC exchange is
- * terminaed and the Exchange may be used on a different io.
+ * terminated and the Exchange may be used on a different io.
  *
  * The transport to LLDD api has the transport making a request for a
  * new fcp io request to the LLDD. The LLDD then allocates a FC exchange

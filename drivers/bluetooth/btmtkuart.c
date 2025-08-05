@@ -316,7 +316,7 @@ mtk_stp_split(struct btmtkuart_dev *bdev, const unsigned char *data, int count,
 
 		/* Resync STP when unexpected data is being read */
 		if (shdr->prefix != 0x80 || bdev->stp_dlen > 2048) {
-			bt_dev_err(bdev->hdev, "stp format unexpect (%d, %d)",
+			bt_dev_err(bdev->hdev, "stp format unexpected (%d, %d)",
 				   shdr->prefix, bdev->stp_dlen);
 			bdev->stp_cursor = 2;
 			bdev->stp_dlen = 0;
@@ -872,7 +872,7 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 	SET_HCIDEV_DEV(hdev, &serdev->dev);
 
 	hdev->manufacturer = 70;
-	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	hci_set_quirk(hdev, HCI_QUIRK_NON_PERSISTENT_SETUP);
 
 	if (btmtkuart_is_standalone(bdev)) {
 		err = clk_prepare_enable(bdev->osc);

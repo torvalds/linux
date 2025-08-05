@@ -712,7 +712,7 @@ static void __locks_wake_up_blocks(struct file_lock_core *blocker)
 		    fl->fl_lmops && fl->fl_lmops->lm_notify)
 			fl->fl_lmops->lm_notify(fl);
 		else
-			locks_wake_up(fl);
+			locks_wake_up_waiter(waiter);
 
 		/*
 		 * The setting of flc_blocker to NULL marks the "done"
@@ -1794,7 +1794,7 @@ generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **pr
 
 	/*
 	 * In the delegation case we need mutual exclusion with
-	 * a number of operations that take the i_mutex.  We trylock
+	 * a number of operations that take the i_rwsem.  We trylock
 	 * because delegations are an optional optimization, and if
 	 * there's some chance of a conflict--we'd rather not
 	 * bother, maybe that's a sign this just isn't a good file to

@@ -299,3 +299,27 @@ struct smp_ops smp_ops = {
 	.send_call_func_single_ipi = native_send_call_func_single_ipi,
 };
 EXPORT_SYMBOL_GPL(smp_ops);
+
+int arch_cpu_rescan_dead_smt_siblings(void)
+{
+	enum cpuhp_smt_control old = cpu_smt_control;
+	int ret;
+
+	/*
+	 * If SMT has been disabled and SMT siblings are in HLT, bring them back
+	 * online and offline them again so that they end up in MWAIT proper.
+	 *
+	 * Called with hotplug enabled.
+	 */
+	if (old != CPU_SMT_DISABLED && old != CPU_SMT_FORCE_DISABLED)
+		return 0;
+
+	ret = cpuhp_smt_enable();
+	if (ret)
+		return ret;
+
+	ret = cpuhp_smt_disable(old);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arch_cpu_rescan_dead_smt_siblings);

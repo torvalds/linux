@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/jump_label.h>

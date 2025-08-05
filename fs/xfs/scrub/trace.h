@@ -2996,7 +2996,7 @@ DEFINE_EVENT(xrep_pptr_salvage_class, name, \
 DEFINE_XREP_PPTR_SALVAGE_EVENT(xrep_xattr_salvage_pptr);
 DEFINE_XREP_PPTR_SALVAGE_EVENT(xrep_xattr_insert_pptr);
 
-TRACE_EVENT(xrep_xattr_class,
+DECLARE_EVENT_CLASS(xrep_xattr_class,
 	TP_PROTO(struct xfs_inode *ip, struct xfs_inode *arg_ip),
 	TP_ARGS(ip, arg_ip),
 	TP_STRUCT__entry(

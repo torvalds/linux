@@ -411,11 +411,9 @@ static int venc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	us_per_frame = timeperframe->numerator * (u64)USEC_PER_SEC;
 	do_div(us_per_frame, timeperframe->denominator);
 
-	if (!us_per_frame)
-		return -EINVAL;
-
-	fps = (u64)USEC_PER_SEC;
-	do_div(fps, us_per_frame);
+	us_per_frame = clamp(us_per_frame, 1, USEC_PER_SEC);
+	fps = USEC_PER_SEC / (u32)us_per_frame;
+	fps = min(VENUS_MAX_FPS, fps);
 
 	inst->timeperframe = *timeperframe;
 	inst->fps = fps;

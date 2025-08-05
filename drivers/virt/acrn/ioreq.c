@@ -626,7 +626,7 @@ int acrn_ioreq_init(struct acrn_vm *vm, u64 buf_vma)
 	}
 
 	dev_dbg(acrn_dev.this_device,
-		"Init ioreq buffer %pK!\n", vm->ioreq_buf);
+		"Init ioreq buffer %p!\n", vm->ioreq_buf);
 	ret = 0;
 free_buf:
 	kfree(set_buffer);
@@ -638,7 +638,7 @@ void acrn_ioreq_deinit(struct acrn_vm *vm)
 	struct acrn_ioreq_client *client, *next;
 
 	dev_dbg(acrn_dev.this_device,
-		"Deinit ioreq buffer %pK!\n", vm->ioreq_buf);
+		"Deinit ioreq buffer %p!\n", vm->ioreq_buf);
 	/* Destroy all clients belonging to this VM */
 	list_for_each_entry_safe(client, next, &vm->ioreq_clients, list)
 		acrn_ioreq_client_destroy(client);

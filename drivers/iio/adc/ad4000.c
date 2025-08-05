@@ -554,7 +554,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st,
 	val = mult_frac(st->vref_mv, MICRO, st->gain_milli);
 
 	/* Would multiply by NANO here but we multiplied by extra MILLI */
-	tmp2 = shift_right((u64)val * MICRO, scale_bits);
+	tmp2 = (u64)val * MICRO >> scale_bits;
 	tmp0 = div_s64_rem(tmp2, NANO, &tmp1);
 
 	/* Store scale for when span compression is disabled */

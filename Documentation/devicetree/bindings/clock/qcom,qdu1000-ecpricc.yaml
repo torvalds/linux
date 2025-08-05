@@ -14,7 +14,7 @@ description: |
   Qualcomm ECPRI Specification V2.0 Common Public Radio Interface clock control
   module which supports the clocks, resets on QDU1000 and QRU1000
 
-  See also:: include/dt-bindings/clock/qcom,qdu1000-ecpricc.h
+  See also: include/dt-bindings/clock/qcom,qdu1000-ecpricc.h
 
 properties:
   compatible:

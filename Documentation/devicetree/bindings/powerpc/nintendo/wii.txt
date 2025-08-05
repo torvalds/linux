@@ -139,10 +139,6 @@ Nintendo Wii device tree
   - interrupt-controller
   - interrupts : should contain the cascade interrupt of the "flipper" pic
 
-1.l) The General Purpose I/O (GPIO) controller node
-
-  see Documentation/devicetree/bindings/gpio/nintendo,hollywood-gpio.txt
-
 1.m) The control node
 
   Represents the control interface used to setup several miscellaneous

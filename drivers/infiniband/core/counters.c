@@ -461,7 +461,7 @@ static struct ib_qp *rdma_counter_get_qp(struct ib_device *dev, u32 qp_num)
 		return NULL;
 
 	qp = container_of(res, struct ib_qp, res);
-	if (qp->qp_type == IB_QPT_RAW_PACKET && !capable(CAP_NET_RAW))
+	if (qp->qp_type == IB_QPT_RAW_PACKET && !rdma_dev_has_raw_cap(dev))
 		goto err;
 
 	return qp;

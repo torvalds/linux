@@ -40,16 +40,22 @@ timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 			CPU_SET(i, &params->monitored_cpus);
 	}
 
-	retval = osnoise_set_stop_us(tool->context, params->stop_us);
-	if (retval) {
-		err_msg("Failed to set stop us\n");
-		goto out_err;
-	}
+	if (params->mode != TRACING_MODE_BPF) {
+		/*
+		 * In tracefs and mixed mode, timerlat tracer handles stopping
+		 * on threshold
+		 */
+		retval = osnoise_set_stop_us(tool->context, params->stop_us);
+		if (retval) {
+			err_msg("Failed to set stop us\n");
+			goto out_err;
+		}
 
-	retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
-	if (retval) {
-		err_msg("Failed to set stop total us\n");
-		goto out_err;
+		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
+		if (retval) {
+			err_msg("Failed to set stop total us\n");
+			goto out_err;
+		}
 	}
 
 

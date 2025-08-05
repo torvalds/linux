@@ -68,6 +68,7 @@ static int hbg_reset_prepare(struct hbg_priv *priv, enum hbg_reset_type type)
 	clear_bit(HBG_NIC_STATE_RESET_FAIL, &priv->state);
 	ret = hbg_hw_event_notify(priv, HBG_HW_EVENT_RESET);
 	if (ret) {
+		priv->stats.reset_fail_cnt++;
 		set_bit(HBG_NIC_STATE_RESET_FAIL, &priv->state);
 		clear_bit(HBG_NIC_STATE_RESETTING, &priv->state);
 	}
@@ -88,6 +89,7 @@ static int hbg_reset_done(struct hbg_priv *priv, enum hbg_reset_type type)
 	clear_bit(HBG_NIC_STATE_RESETTING, &priv->state);
 	ret = hbg_rebuild(priv);
 	if (ret) {
+		priv->stats.reset_fail_cnt++;
 		set_bit(HBG_NIC_STATE_RESET_FAIL, &priv->state);
 		dev_err(&priv->pdev->dev, "failed to rebuild after reset\n");
 		return ret;

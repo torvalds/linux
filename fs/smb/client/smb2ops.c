@@ -4316,6 +4316,7 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	u8 key[SMB3_ENC_DEC_KEY_SIZE];
 	struct aead_request *req;
 	u8 *iv;
+	DECLARE_CRYPTO_WAIT(wait);
 	unsigned int crypt_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
 	void *creq;
 	size_t sensitive_size;
@@ -4366,7 +4367,11 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	aead_request_set_crypt(req, sg, sg, crypt_len, iv);
 	aead_request_set_ad(req, assoc_data_len);
 
-	rc = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
+	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  crypto_req_done, &wait);
+
+	rc = crypto_wait_req(enc ? crypto_aead_encrypt(req)
+				: crypto_aead_decrypt(req), &wait);
 
 	if (!rc && enc)
 		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);
@@ -5255,8 +5260,9 @@ static int smb2_make_node(unsigned int xid, struct inode *inode,
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 		rc = cifs_sfu_make_node(xid, inode, dentry, tcon,
 					full_path, mode, dev);
-	} else if (le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
-		rc = smb2_mknod_reparse(xid, inode, dentry, tcon,
+	} else if ((le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS)
+		|| (tcon->posix_extensions)) {
+		rc = mknod_reparse(xid, inode, dentry, tcon,
 					full_path, mode, dev);
 	}
 	return rc;
@@ -5315,7 +5321,7 @@ struct smb_version_operations smb20_operations = {
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
-	.create_reparse_symlink = smb2_create_reparse_symlink,
+	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -5418,7 +5424,7 @@ struct smb_version_operations smb21_operations = {
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
-	.create_reparse_symlink = smb2_create_reparse_symlink,
+	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -5525,7 +5531,7 @@ struct smb_version_operations smb30_operations = {
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
-	.create_reparse_symlink = smb2_create_reparse_symlink,
+	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -5641,7 +5647,7 @@ struct smb_version_operations smb311_operations = {
 	.get_reparse_point_buffer = smb2_get_reparse_point_buffer,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
-	.create_reparse_symlink = smb2_create_reparse_symlink,
+	.create_reparse_inode = smb2_create_reparse_inode,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,

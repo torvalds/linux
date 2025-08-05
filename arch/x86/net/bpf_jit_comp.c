@@ -3501,13 +3501,6 @@ int arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_func
 	return emit_bpf_dispatcher(&prog, 0, num_funcs - 1, funcs, image, buf);
 }
 
-static const char *bpf_get_prog_name(struct bpf_prog *prog)
-{
-	if (prog->aux->ksym.prog)
-		return prog->aux->ksym.name;
-	return prog->aux->name;
-}
-
 static void priv_stack_init_guard(void __percpu *priv_stack_ptr, int alloc_size)
 {
 	int cpu, underflow_idx = (alloc_size - PRIV_STACK_GUARD_SZ) >> 3;
@@ -3531,7 +3524,7 @@ static void priv_stack_check_guard(void __percpu *priv_stack_ptr, int alloc_size
 		if (stack_ptr[0] != PRIV_STACK_GUARD_VAL ||
 		    stack_ptr[underflow_idx] != PRIV_STACK_GUARD_VAL) {
 			pr_err("BPF private stack overflow/underflow detected for prog %sx\n",
-			       bpf_get_prog_name(prog));
+			       bpf_jit_get_prog_name(prog));
 			break;
 		}
 	}
@@ -3845,7 +3838,6 @@ void arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp
 	}
 	return;
 #endif
-	WARN(1, "verification of programs using bpf_throw should have failed\n");
 }
 
 void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,

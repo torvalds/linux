@@ -30,8 +30,10 @@
 #include "i915_irq.h"
 #include "intel_connector.h"
 #include "intel_display_power.h"
+#include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_dp.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_hotplug_irq.h"
@@ -191,40 +193,34 @@ static bool detection_work_enabled(struct intel_display *display)
 static bool
 mod_delayed_detection_work(struct intel_display *display, struct delayed_work *work, int delay)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	lockdep_assert_held(&display->irq.lock);
 
 	if (!detection_work_enabled(display))
 		return false;
 
-	return mod_delayed_work(i915->unordered_wq, work, delay);
+	return mod_delayed_work(display->wq.unordered, work, delay);
 }
 
 static bool
 queue_delayed_detection_work(struct intel_display *display, struct delayed_work *work, int delay)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	lockdep_assert_held(&display->irq.lock);
 
 	if (!detection_work_enabled(display))
 		return false;
 
-	return queue_delayed_work(i915->unordered_wq, work, delay);
+	return queue_delayed_work(display->wq.unordered, work, delay);
 }
 
 static bool
 queue_detection_work(struct intel_display *display, struct work_struct *work)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	lockdep_assert_held(&display->irq.lock);
 
 	if (!detection_work_enabled(display))
 		return false;
 
-	return queue_work(i915->unordered_wq, work);
+	return queue_work(display->wq.unordered, work);
 }
 
 static void
@@ -905,8 +901,13 @@ void intel_hpd_poll_enable(struct intel_display *display)
  */
 void intel_hpd_poll_disable(struct intel_display *display)
 {
+	struct intel_encoder *encoder;
+
 	if (!HAS_DISPLAY(display))
 		return;
+
+	for_each_intel_dp(display->drm, encoder)
+		intel_dp_dpcd_set_probe(enc_to_intel_dp(encoder), true);
 
 	WRITE_ONCE(display->hotplug.poll_enabled, false);
 

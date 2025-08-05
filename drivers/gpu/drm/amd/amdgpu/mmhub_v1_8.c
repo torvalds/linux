@@ -76,6 +76,8 @@ static void mmhub_v1_8_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmi
 
 static void mmhub_v1_8_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
+	uint64_t gart_start = amdgpu_virt_xgmi_migrate_enabled(adev) ?
+			adev->gmc.vram_start : adev->gmc.fb_start;
 	uint64_t pt_base;
 	u32 inst_mask;
 	int i;
@@ -95,10 +97,10 @@ static void mmhub_v1_8_init_gart_aperture_regs(struct amdgpu_device *adev)
 		if (adev->gmc.pdb0_bo) {
 			WREG32_SOC15(MMHUB, i,
 				     regVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
-				     (u32)(adev->gmc.fb_start >> 12));
+				     (u32)(gart_start >> 12));
 			WREG32_SOC15(MMHUB, i,
 				     regVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
-				     (u32)(adev->gmc.fb_start >> 44));
+				     (u32)(gart_start >> 44));
 
 			WREG32_SOC15(MMHUB, i,
 				     regVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,

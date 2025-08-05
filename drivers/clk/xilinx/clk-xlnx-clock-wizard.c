@@ -669,7 +669,7 @@ static long clk_wzrd_ver_round_rate_all(struct clk_hw *hw, unsigned long rate,
 	u32 m, d, o, div, f;
 	int err;
 
-	err = clk_wzrd_get_divisors(hw, rate, *prate);
+	err = clk_wzrd_get_divisors_ver(hw, rate, *prate);
 	if (err)
 		return err;
 

@@ -250,26 +250,6 @@ struct cdns_pcie_rp_ib_bar {
 
 struct cdns_pcie;
 
-enum cdns_pcie_msg_routing {
-	/* Route to Root Complex */
-	MSG_ROUTING_TO_RC,
-
-	/* Use Address Routing */
-	MSG_ROUTING_BY_ADDR,
-
-	/* Use ID Routing */
-	MSG_ROUTING_BY_ID,
-
-	/* Route as Broadcast Message from Root Complex */
-	MSG_ROUTING_BCAST,
-
-	/* Local message; terminate at receiver (INTx messages) */
-	MSG_ROUTING_LOCAL,
-
-	/* Gather & route to Root Complex (PME_TO_Ack message) */
-	MSG_ROUTING_GATHER,
-};
-
 struct cdns_pcie_ops {
 	int	(*start_link)(struct cdns_pcie *pcie);
 	void	(*stop_link)(struct cdns_pcie *pcie);

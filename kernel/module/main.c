@@ -126,8 +126,36 @@ static void mod_update_bounds(struct module *mod)
 }
 
 /* Block module loading/unloading? */
-int modules_disabled;
+static int modules_disabled;
 core_param(nomodule, modules_disabled, bint, 0);
+
+static const struct ctl_table module_sysctl_table[] = {
+	{
+		.procname	= "modprobe",
+		.data		= &modprobe_path,
+		.maxlen		= KMOD_PATH_LEN,
+		.mode		= 0644,
+		.proc_handler	= proc_dostring,
+	},
+	{
+		.procname	= "modules_disabled",
+		.data		= &modules_disabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		/* only handle a transition from default "0" to "1" */
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= SYSCTL_ONE,
+	},
+};
+
+static int __init init_module_sysctl(void)
+{
+	register_sysctl_init("kernel", module_sysctl_table);
+	return 0;
+}
+
+subsys_initcall(init_module_sysctl);
 
 /* Waiting for a module to finish initializing? */
 static DECLARE_WAIT_QUEUE_HEAD(module_wq);
@@ -1573,8 +1601,14 @@ static int apply_relocations(struct module *mod, const struct load_info *info)
 		if (infosec >= info->hdr->e_shnum)
 			continue;
 
-		/* Don't bother with non-allocated sections */
-		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC))
+		/*
+		 * Don't bother with non-allocated sections.
+		 * An exception is the percpu section, which has separate allocations
+		 * for individual CPUs. We relocate the percpu section in the initial
+		 * ELF template and subsequently copy it to the per-CPU destinations.
+		 */
+		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC) &&
+		    (!infosec || infosec != info->index.pcpu))
 			continue;
 
 		if (info->sechdrs[i].sh_flags & SHF_RELA_LIVEPATCH)
@@ -2639,7 +2673,7 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 					 sizeof(*mod->trace_bprintk_fmt_start),
 					 &mod->num_trace_bprintk_fmt);
 #endif
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+#ifdef CONFIG_DYNAMIC_FTRACE
 	/* sechdrs[0].sh_size is always zero */
 	mod->ftrace_callsites = section_objs(info, FTRACE_CALLSITE_SECTION,
 					     sizeof(*mod->ftrace_callsites),
@@ -2696,9 +2730,8 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 
 static int move_module(struct module *mod, struct load_info *info)
 {
-	int i;
-	enum mod_mem_type t = 0;
-	int ret = -ENOMEM;
+	int i, ret;
+	enum mod_mem_type t = MOD_MEM_NUM_TYPES;
 	bool codetag_section_found = false;
 
 	for_each_mod_mem_type(type) {
@@ -2776,7 +2809,7 @@ static int move_module(struct module *mod, struct load_info *info)
 	return 0;
 out_err:
 	module_memory_restore_rox(mod);
-	for (t--; t >= 0; t--)
+	while (t--)
 		module_memory_free(mod, t);
 	if (codetag_section_found)
 		codetag_free_module_sections(mod);
@@ -3368,7 +3401,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	module_allocated = true;
 
-	audit_log_kern_module(mod->name);
+	audit_log_kern_module(info->name);
 
 	/* Reserve our place in the list. */
 	err = add_unformed_module(mod);
@@ -3532,8 +3565,10 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	 * failures once the proper module was allocated and
 	 * before that.
 	 */
-	if (!module_allocated)
+	if (!module_allocated) {
+		audit_log_kern_module(info->name ? info->name : "?");
 		mod_stat_bump_becoming(info, flags);
+	}
 	free_copy(info, flags);
 	return err;
 }

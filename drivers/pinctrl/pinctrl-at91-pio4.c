@@ -1212,9 +1212,9 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		dev_dbg(dev, "bank %i: irq=%d\n", i, ret);
 	}
 
-	atmel_pioctrl->irq_domain = irq_domain_create_linear(of_fwnode_handle(dev->of_node),
-			atmel_pioctrl->gpio_chip->ngpio,
-			&irq_domain_simple_ops, NULL);
+	atmel_pioctrl->irq_domain = irq_domain_create_linear(dev_fwnode(dev),
+							     atmel_pioctrl->gpio_chip->ngpio,
+							     &irq_domain_simple_ops, NULL);
 	if (!atmel_pioctrl->irq_domain)
 		return dev_err_probe(dev, -ENODEV, "can't add the irq domain\n");
 

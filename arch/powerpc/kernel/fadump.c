@@ -1373,14 +1373,11 @@ static void fadump_free_elfcorehdr_buf(void)
 
 static void fadump_invalidate_release_mem(void)
 {
-	mutex_lock(&fadump_mutex);
-	if (!fw_dump.dump_active) {
-		mutex_unlock(&fadump_mutex);
-		return;
+	scoped_guard(mutex, &fadump_mutex) {
+		if (!fw_dump.dump_active)
+			return;
+		fadump_cleanup();
 	}
-
-	fadump_cleanup();
-	mutex_unlock(&fadump_mutex);
 
 	fadump_free_elfcorehdr_buf();
 	fadump_release_memory(fw_dump.boot_mem_top, memblock_end_of_DRAM());

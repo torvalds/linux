@@ -93,12 +93,15 @@ struct dml2_soc_power_management_parameters {
 	double dram_clk_change_write_only_us;
 	double fclk_change_blackout_us;
 	double g7_ppt_blackout_us;
+	double g7_temperature_read_blackout_us;
 	double stutter_enter_plus_exit_latency_us;
 	double stutter_exit_latency_us;
 	double z8_stutter_enter_plus_exit_latency_us;
 	double z8_stutter_exit_latency_us;
 	double z8_min_idle_time;
 	double g6_temp_read_blackout_us[DML_MAX_CLK_TABLE_SIZE];
+	double type_b_dram_clk_change_blackout_us;
+	double type_b_ppt_blackout_us;
 };
 
 struct dml2_clk_table {
@@ -130,6 +133,7 @@ struct dml2_soc_state_table {
 
 struct dml2_soc_vmin_clock_limits {
 	unsigned long dispclk_khz;
+	unsigned long dcfclk_khz;
 };
 
 struct dml2_soc_bb {
@@ -138,6 +142,7 @@ struct dml2_soc_bb {
 	struct dml2_soc_power_management_parameters power_management_parameters;
 	struct dml2_soc_vmin_clock_limits vmin_limit;
 
+	double lower_bound_bandwidth_dchub;
 	unsigned int dprefclk_mhz;
 	unsigned int xtalclk_mhz;
 	unsigned int pcie_refclk_mhz;

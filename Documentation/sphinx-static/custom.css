@@ -136,3 +136,18 @@ div.language-selection:hover ul {
 div.language-selection ul li:hover {
     background: #dddddd;
 }
+
+/* Make xrefs more universally visible */
+a.reference, a.reference:hover {
+    border-bottom: none;
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+}
+
+/* Slightly different style for sidebar links */
+div.sphinxsidebar a { border-bottom: none; }
+div.sphinxsidebar a:hover {
+    border-bottom: none;
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+}

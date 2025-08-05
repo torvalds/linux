@@ -94,8 +94,9 @@ struct falcon_sflash {
 	struct spi_controller *host;
 };
 
-int falcon_sflash_xfer(struct spi_device *spi, struct spi_transfer *t,
-		unsigned long flags)
+static int
+falcon_sflash_xfer(struct spi_device *spi, struct spi_transfer *t,
+		   unsigned long flags)
 {
 	struct device *dev = &spi->dev;
 	struct falcon_sflash *priv = spi_controller_get_devdata(spi->controller);

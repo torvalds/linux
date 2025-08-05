@@ -104,72 +104,72 @@
     {
         "EventCode": "0x0C10",
         "EventName": "L1I_TLB_REFILL_4K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 4KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 4KB page."
     },
     {
         "EventCode": "0x0C11",
         "EventName": "L1I_TLB_REFILL_64K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 64KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 64KB page."
     },
     {
         "EventCode": "0x0C12",
         "EventName": "L1I_TLB_REFILL_2M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 2MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 2MB page."
     },
     {
         "EventCode": "0x0C13",
         "EventName": "L1I_TLB_REFILL_32M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 32MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 32MB page."
     },
     {
         "EventCode": "0x0C14",
         "EventName": "L1I_TLB_REFILL_512M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 512MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 512MB page."
     },
     {
         "EventCode": "0x0C15",
         "EventName": "L1I_TLB_REFILL_1G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 1GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 1GB page."
     },
     {
         "EventCode": "0x0C16",
         "EventName": "L1I_TLB_REFILL_16G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1I in 16GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1I in 16GB page."
     },
     {
         "EventCode": "0x0C18",
         "EventName": "L1D_TLB_REFILL_4K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 4KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 4KB page."
     },
     {
         "EventCode": "0x0C19",
         "EventName": "L1D_TLB_REFILL_64K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 64KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 64KB page."
     },
     {
         "EventCode": "0x0C1A",
         "EventName": "L1D_TLB_REFILL_2M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 2MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 2MB page."
     },
     {
         "EventCode": "0x0C1B",
         "EventName": "L1D_TLB_REFILL_32M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 32MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 32MB page."
     },
     {
         "EventCode": "0x0C1C",
         "EventName": "L1D_TLB_REFILL_512M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 512MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 512MB page."
     },
     {
         "EventCode": "0x0C1D",
         "EventName": "L1D_TLB_REFILL_1G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 1GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 1GB page."
     },
     {
         "EventCode": "0x0C1E",
         "EventName": "L1D_TLB_REFILL_16G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L1D in 16GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L1D in 16GB page."
     },
     {
         "EventCode": "0x0C20",
@@ -244,72 +244,72 @@
     {
         "EventCode": "0x0C30",
         "EventName": "L2I_TLB_REFILL_4K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2Iin 4KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 4KB page."
     },
     {
         "EventCode": "0x0C31",
         "EventName": "L2I_TLB_REFILL_64K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 64KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 64KB page."
     },
     {
         "EventCode": "0x0C32",
         "EventName": "L2I_TLB_REFILL_2M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 2MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 2MB page."
     },
     {
         "EventCode": "0x0C33",
         "EventName": "L2I_TLB_REFILL_32M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 32MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 32MB page."
     },
     {
         "EventCode": "0x0C34",
         "EventName": "L2I_TLB_REFILL_512M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 512MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 512MB page."
     },
     {
         "EventCode": "0x0C35",
         "EventName": "L2I_TLB_REFILL_1G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 1GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 1GB page."
     },
     {
         "EventCode": "0x0C36",
         "EventName": "L2I_TLB_REFILL_16G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2I in 16GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I in 16GB page."
     },
     {
         "EventCode": "0x0C38",
         "EventName": "L2D_TLB_REFILL_4K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 4KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 4KB page."
     },
     {
         "EventCode": "0x0C39",
         "EventName": "L2D_TLB_REFILL_64K",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 64KB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 64KB page."
     },
     {
         "EventCode": "0x0C3A",
         "EventName": "L2D_TLB_REFILL_2M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 2MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 2MB page."
     },
     {
         "EventCode": "0x0C3B",
         "EventName": "L2D_TLB_REFILL_32M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 32MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 32MB page."
     },
     {
         "EventCode": "0x0C3C",
         "EventName": "L2D_TLB_REFILL_512M",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 512MB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 512MB page."
     },
     {
         "EventCode": "0x0C3D",
         "EventName": "L2D_TLB_REFILL_1G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 1GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 1GB page."
     },
     {
         "EventCode": "0x0C3E",
         "EventName": "L2D_TLB_REFILL_16G",
-        "BriefDescription": "This event counts operations that cause a TLB refill to the L2D in 16GB page."
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2D in 16GB page."
     },
     {
         "ArchStdEvent": "DTLB_WALK_PERCYC",

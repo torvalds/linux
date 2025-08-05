@@ -34,7 +34,7 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 					   const char *symname,
 					   bool *directory);
 
-int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
+int create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname)
 {
@@ -57,6 +57,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	struct reparse_symlink_data_buffer *buf = NULL;
 	struct cifs_open_info_data data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	const char *symroot = cifs_sb->ctx->symlinkroot;
 	struct inode *new;
 	struct kvec iov;
 	__le16 *path = NULL;
@@ -82,7 +83,8 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		.symlink_target = symlink_target,
 	};
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	    symroot && symname[0] == '/') {
 		/*
 		 * This is a request to create an absolute symlink on the server
 		 * which does not support POSIX paths, and expects symlink in
@@ -92,7 +94,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		 * ensure compatibility of this symlink stored in absolute form
 		 * on the SMB server.
 		 */
-		if (!strstarts(symname, cifs_sb->ctx->symlinkroot)) {
+		if (!strstarts(symname, symroot)) {
 			/*
 			 * If the absolute Linux symlink target path is not
 			 * inside "symlinkroot" location then there is no way
@@ -101,12 +103,12 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 			cifs_dbg(VFS,
 				 "absolute symlink '%s' cannot be converted to NT format "
 				 "because it is outside of symlinkroot='%s'\n",
-				 symname, cifs_sb->ctx->symlinkroot);
+				 symname, symroot);
 			rc = -EINVAL;
 			goto out;
 		}
-		len = strlen(cifs_sb->ctx->symlinkroot);
-		if (cifs_sb->ctx->symlinkroot[len-1] != '/')
+		len = strlen(symroot);
+		if (symroot[len - 1] != '/')
 			len++;
 		if (symname[len] >= 'a' && symname[len] <= 'z' &&
 		    (symname[len+1] == '/' || symname[len+1] == '\0')) {
@@ -225,7 +227,8 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 
 	iov.iov_base = buf;
 	iov.iov_len = len;
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb, xid,
 				     tcon, full_path, directory,
 				     &iov, NULL);
 	if (!IS_ERR(new))
@@ -397,7 +400,8 @@ static int create_native_socket(const unsigned int xid, struct inode *inode,
 	struct inode *new;
 	int rc = 0;
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb, xid,
 				     tcon, full_path, false, &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -490,7 +494,8 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 		.symlink_target = kstrdup(symname, GFP_KERNEL),
 	};
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb, xid,
 				     tcon, full_path, false, &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -683,7 +688,8 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 	memcpy(data.wsl.eas, &cc->ea, len);
 	data.wsl.eas_len = len;
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb,
 				     xid, tcon, full_path, false,
 				     &reparse_iov, &xattr_iov);
 	if (!IS_ERR(new))
@@ -696,7 +702,7 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 	return rc;
 }
 
-int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
+int mknod_reparse(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev)
 {
@@ -782,6 +788,7 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 			      const char *full_path,
 			      struct cifs_sb_info *cifs_sb)
 {
+	const char *symroot = cifs_sb->ctx->symlinkroot;
 	char sep = CIFS_DIR_SEP(cifs_sb);
 	char *linux_target = NULL;
 	char *smb_target = NULL;
@@ -815,7 +822,8 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		goto out;
 	}
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && !relative) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	    symroot && !relative) {
 		/*
 		 * This is an absolute symlink from the server which does not
 		 * support POSIX paths, so the symlink is in NT-style path.
@@ -875,15 +883,8 @@ globalroot:
 			abs_path += sizeof("\\DosDevices\\")-1;
 		else if (strstarts(abs_path, "\\GLOBAL??\\"))
 			abs_path += sizeof("\\GLOBAL??\\")-1;
-		else {
-			/* Unhandled absolute symlink, points outside of DOS/Win32 */
-			cifs_dbg(VFS,
-				 "absolute symlink '%s' cannot be converted from NT format "
-				 "because points to unknown target\n",
-				 smb_target);
-			rc = -EIO;
-			goto out;
-		}
+		else
+			goto out_unhandled_target;
 
 		/* Sometimes path separator after \?? is double backslash */
 		if (abs_path[0] == '\\')
@@ -910,25 +911,19 @@ globalroot:
 			abs_path++;
 			abs_path[0] = drive_letter;
 		} else {
-			/* Unhandled absolute symlink. Report an error. */
-			cifs_dbg(VFS,
-				 "absolute symlink '%s' cannot be converted from NT format "
-				 "because points to unknown target\n",
-				 smb_target);
-			rc = -EIO;
-			goto out;
+			goto out_unhandled_target;
 		}
 
 		abs_path_len = strlen(abs_path)+1;
-		symlinkroot_len = strlen(cifs_sb->ctx->symlinkroot);
-		if (cifs_sb->ctx->symlinkroot[symlinkroot_len-1] == '/')
+		symlinkroot_len = strlen(symroot);
+		if (symroot[symlinkroot_len - 1] == '/')
 			symlinkroot_len--;
 		linux_target = kmalloc(symlinkroot_len + 1 + abs_path_len, GFP_KERNEL);
 		if (!linux_target) {
 			rc = -ENOMEM;
 			goto out;
 		}
-		memcpy(linux_target, cifs_sb->ctx->symlinkroot, symlinkroot_len);
+		memcpy(linux_target, symroot, symlinkroot_len);
 		linux_target[symlinkroot_len] = '/';
 		memcpy(linux_target + symlinkroot_len + 1, abs_path, abs_path_len);
 	} else if (smb_target[0] == sep && relative) {
@@ -966,6 +961,7 @@ globalroot:
 		 * These paths have same format as Linux symlinks, so no
 		 * conversion is needed.
 		 */
+out_unhandled_target:
 		linux_target = smb_target;
 		smb_target = NULL;
 	}
@@ -1172,7 +1168,6 @@ out:
 	if (!have_xattr_dev && (tag == IO_REPARSE_TAG_LX_CHR || tag == IO_REPARSE_TAG_LX_BLK))
 		return false;
 
-	fattr->cf_dtype = S_DT(fattr->cf_mode);
 	return true;
 }
 

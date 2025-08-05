@@ -304,7 +304,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 
-int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
+int rt2x00mac_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
@@ -740,7 +740,8 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);
 
-int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+int rt2x00mac_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+			  u32 tx_ant, u32 rx_ant)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct link_ant *ant = &rt2x00dev->link.ant;
@@ -785,7 +786,8 @@ int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_set_antenna);
 
-int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+int rt2x00mac_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+			  u32 *tx_ant, u32 *rx_ant)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct link_ant *ant = &rt2x00dev->link.ant;

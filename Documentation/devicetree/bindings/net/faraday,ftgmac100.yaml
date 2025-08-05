@@ -6,9 +6,6 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Faraday Technology FTGMAC100 gigabit ethernet controller
 
-allOf:
-  - $ref: ethernet-controller.yaml#
-
 maintainers:
   - Po-Yu Chuang <ratbert@faraday-tech.com>
 
@@ -34,6 +31,9 @@ properties:
     items:
       - description: MAC IP clock
       - description: RMII RCLK gate for AST2500/2600
+
+  resets:
+    maxItems: 1
 
   clock-names:
     minItems: 1
@@ -73,6 +73,21 @@ required:
   - compatible
   - reg
   - interrupts
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - aspeed,ast2600-mac
+    then:
+      properties:
+        resets: true
+    else:
+      properties:
+        resets: false
 
 unevaluatedProperties: false
 

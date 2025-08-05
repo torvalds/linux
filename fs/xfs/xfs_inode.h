@@ -358,7 +358,7 @@ static inline bool xfs_inode_has_bigrtalloc(const struct xfs_inode *ip)
 
 static inline bool xfs_inode_can_hw_atomic_write(const struct xfs_inode *ip)
 {
-	return xfs_inode_buftarg(ip)->bt_bdev_awu_max > 0;
+	return xfs_inode_buftarg(ip)->bt_awu_max > 0;
 }
 
 /*

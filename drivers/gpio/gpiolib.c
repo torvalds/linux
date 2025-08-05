@@ -75,6 +75,19 @@ static const struct bus_type gpio_bus_type = {
 };
 
 /*
+ * At the end we want all GPIOs to be dynamically allocated from 0.
+ * However, some legacy drivers still perform fixed allocation.
+ * Until they are all fixed, leave 0-512 space for them.
+ */
+#define GPIO_DYNAMIC_BASE	512
+/*
+ * Define the maximum of the possible GPIO in the global numberspace.
+ * While the GPIO base and numbers are positive, we limit it with signed
+ * maximum as a lot of code is using negative values for special cases.
+ */
+#define GPIO_DYNAMIC_MAX	INT_MAX
+
+/*
  * Number of GPIOs to use for the fast path in set array
  */
 #define FASTPATH_NGPIO CONFIG_GPIOLIB_FASTPATH_LIMIT
@@ -266,20 +279,6 @@ struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc)
 EXPORT_SYMBOL_GPL(gpiod_to_gpio_device);
 
 /**
- * gpiod_is_equal() - Check if two GPIO descriptors refer to the same pin.
- * @desc: Descriptor to compare.
- * @other: The second descriptor to compare against.
- *
- * Returns:
- * True if the descriptors refer to the same physical pin. False otherwise.
- */
-bool gpiod_is_equal(struct gpio_desc *desc, struct gpio_desc *other)
-{
-	return desc == other;
-}
-EXPORT_SYMBOL_GPL(gpiod_is_equal);
-
-/**
  * gpio_device_get_base() - Get the base GPIO number allocated by this device
  * @gdev: GPIO device
  *
@@ -386,6 +385,21 @@ static int validate_desc(const struct gpio_desc *desc, const char *func)
 	if (__valid <= 0) \
 		return; \
 	} while (0)
+
+/**
+ * gpiod_is_equal() - Check if two GPIO descriptors refer to the same pin.
+ * @desc: Descriptor to compare.
+ * @other: The second descriptor to compare against.
+ *
+ * Returns:
+ * True if the descriptors refer to the same physical pin. False otherwise.
+ */
+bool gpiod_is_equal(const struct gpio_desc *desc, const struct gpio_desc *other)
+{
+	return validate_desc(desc, __func__) > 0 &&
+	       !IS_ERR_OR_NULL(other) && desc == other;
+}
+EXPORT_SYMBOL_GPL(gpiod_is_equal);
 
 static int gpiochip_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
@@ -3297,14 +3311,15 @@ static int gpiod_get_raw_value_commit(const struct gpio_desc *desc)
 static int gpio_chip_get_multiple(struct gpio_chip *gc,
 				  unsigned long *mask, unsigned long *bits)
 {
-	int ret;
-	
 	lockdep_assert_held(&gc->gpiodev->srcu);
 
 	if (gc->get_multiple) {
+		int ret;
+
 		ret = gc->get_multiple(gc, mask, bits);
 		if (ret > 0)
 			return -EBADE;
+		return ret;
 	}
 
 	if (gc->get) {
@@ -5220,8 +5235,8 @@ core_initcall(gpiolib_dev_init);
 static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 {
 	bool active_low, is_irq, is_out;
-	unsigned int gpio = gdev->base;
 	struct gpio_desc *desc;
+	unsigned int gpio = 0;
 	struct gpio_chip *gc;
 	unsigned long flags;
 	int value;
@@ -5325,8 +5340,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	seq_printf(s, "%s: GPIOs %u-%u", dev_name(&gdev->dev), gdev->base,
-		   gdev->base + gdev->ngpio - 1);
+	seq_printf(s, "%s: %u GPIOs", dev_name(&gdev->dev), gdev->ngpio);
 	parent = gc->parent;
 	if (parent)
 		seq_printf(s, ", parent: %s/%s",

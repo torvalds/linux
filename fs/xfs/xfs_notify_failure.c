@@ -253,8 +253,7 @@ xfs_dax_notify_dev_failure(
 		return -EOPNOTSUPP;
 	}
 
-	error = xfs_dax_translate_range(type == XG_TYPE_RTG ?
-			mp->m_rtdev_targp : mp->m_ddev_targp,
+	error = xfs_dax_translate_range(xfs_group_type_buftarg(mp, type),
 			offset, len, &daddr, &bblen);
 	if (error)
 		return error;
@@ -280,10 +279,7 @@ xfs_dax_notify_dev_failure(
 		kernel_frozen = xfs_dax_notify_failure_freeze(mp) == 0;
 	}
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		goto out;
-
+	tp = xfs_trans_alloc_empty(mp);
 	start_gno = xfs_fsb_to_gno(mp, start_bno, type);
 	end_gno = xfs_fsb_to_gno(mp, end_bno, type);
 	while ((xg = xfs_group_next_range(mp, xg, start_gno, end_gno, type))) {
@@ -354,7 +350,6 @@ xfs_dax_notify_dev_failure(
 			error = -EFSCORRUPTED;
 	}
 
-out:
 	/* Thaw the fs if it has been frozen before. */
 	if (mf_flags & MF_MEM_PRE_REMOVE)
 		xfs_dax_notify_failure_thaw(mp, kernel_frozen);

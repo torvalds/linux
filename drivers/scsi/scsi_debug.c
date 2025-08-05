@@ -8770,7 +8770,7 @@ static int sdebug_add_store(void)
 		dif_size = sdebug_store_sectors * sizeof(struct t10_pi_tuple);
 		sip->dif_storep = vmalloc(dif_size);
 
-		pr_info("dif_storep %u bytes @ %pK\n", dif_size,
+		pr_info("dif_storep %u bytes @ %p\n", dif_size,
 			sip->dif_storep);
 
 		if (!sip->dif_storep) {

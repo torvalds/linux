@@ -13,6 +13,15 @@
 
 struct elevator_type;
 
+/*
+ * Default upper limit for the software max_sectors limit used for regular I/Os.
+ * This can be increased through sysfs.
+ *
+ * This should not be confused with the max_hw_sector limit that is entirely
+ * controlled by the block device driver, usually based on hardware limits.
+ */
+#define BLK_DEF_MAX_SECTORS_CAP	(SZ_4M >> SECTOR_SHIFT)
+
 #define	BLK_DEV_MAX_SECTORS	(LLONG_MAX >> 9)
 #define	BLK_MIN_SEGMENT_SIZE	4096
 
@@ -321,7 +330,7 @@ bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 
 bool blk_insert_flush(struct request *rq);
 
-void elv_update_nr_hw_queues(struct request_queue *q);
+void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e);
 void elevator_set_default(struct request_queue *q);
 void elevator_set_none(struct request_queue *q);
 
@@ -467,23 +476,15 @@ static inline bool bio_zone_write_plugging(struct bio *bio)
 {
 	return bio_flagged(bio, BIO_ZONE_WRITE_PLUGGING);
 }
+static inline bool blk_req_bio_is_zone_append(struct request *rq,
+					      struct bio *bio)
+{
+	return req_op(rq) == REQ_OP_ZONE_APPEND ||
+	       bio_flagged(bio, BIO_EMULATES_ZONE_APPEND);
+}
 void blk_zone_write_plug_bio_merged(struct bio *bio);
 void blk_zone_write_plug_init_request(struct request *rq);
-static inline void blk_zone_update_request_bio(struct request *rq,
-					       struct bio *bio)
-{
-	/*
-	 * For zone append requests, the request sector indicates the location
-	 * at which the BIO data was written. Return this value to the BIO
-	 * issuer through the BIO iter sector.
-	 * For plugged zone writes, which include emulated zone append, we need
-	 * the original BIO sector so that blk_zone_write_plug_bio_endio() can
-	 * lookup the zone write plug.
-	 */
-	if (req_op(rq) == REQ_OP_ZONE_APPEND ||
-	    bio_flagged(bio, BIO_EMULATES_ZONE_APPEND))
-		bio->bi_iter.bi_sector = rq->__sector;
-}
+void blk_zone_append_update_request_bio(struct request *rq, struct bio *bio);
 void blk_zone_write_plug_bio_endio(struct bio *bio);
 static inline void blk_zone_bio_endio(struct bio *bio)
 {
@@ -516,14 +517,19 @@ static inline bool bio_zone_write_plugging(struct bio *bio)
 {
 	return false;
 }
+static inline bool blk_req_bio_is_zone_append(struct request *req,
+					      struct bio *bio)
+{
+	return false;
+}
 static inline void blk_zone_write_plug_bio_merged(struct bio *bio)
 {
 }
 static inline void blk_zone_write_plug_init_request(struct request *rq)
 {
 }
-static inline void blk_zone_update_request_bio(struct request *rq,
-					       struct bio *bio)
+static inline void blk_zone_append_update_request_bio(struct request *rq,
+						      struct bio *bio)
 {
 }
 static inline void blk_zone_bio_endio(struct bio *bio)

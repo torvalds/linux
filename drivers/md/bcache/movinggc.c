@@ -182,19 +182,16 @@ err:		if (!IS_ERR_OR_NULL(w->private))
 	closure_sync(&cl);
 }
 
-static bool new_bucket_cmp(const void *l, const void *r, void __always_unused *args)
+static bool bucket_cmp(struct bucket *l, struct bucket *r)
 {
-	struct bucket **_l = (struct bucket **)l;
-	struct bucket **_r = (struct bucket **)r;
-
-	return GC_SECTORS_USED(*_l) >= GC_SECTORS_USED(*_r);
+	return GC_SECTORS_USED(l) < GC_SECTORS_USED(r);
 }
 
 static unsigned int bucket_heap_top(struct cache *ca)
 {
 	struct bucket *b;
 
-	return (b = min_heap_peek(&ca->heap)[0]) ? GC_SECTORS_USED(b) : 0;
+	return (b = heap_peek(&ca->heap)) ? GC_SECTORS_USED(b) : 0;
 }
 
 void bch_moving_gc(struct cache_set *c)
@@ -202,10 +199,6 @@ void bch_moving_gc(struct cache_set *c)
 	struct cache *ca = c->cache;
 	struct bucket *b;
 	unsigned long sectors_to_move, reserve_sectors;
-	const struct min_heap_callbacks callbacks = {
-		.less = new_bucket_cmp,
-		.swp = NULL,
-	};
 
 	if (!c->copy_gc_enabled)
 		return;
@@ -216,7 +209,7 @@ void bch_moving_gc(struct cache_set *c)
 	reserve_sectors = ca->sb.bucket_size *
 			     fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
-	ca->heap.nr = 0;
+	ca->heap.used = 0;
 
 	for_each_bucket(b, ca) {
 		if (GC_MARK(b) == GC_MARK_METADATA ||
@@ -225,31 +218,25 @@ void bch_moving_gc(struct cache_set *c)
 		    atomic_read(&b->pin))
 			continue;
 
-		if (!min_heap_full(&ca->heap)) {
+		if (!heap_full(&ca->heap)) {
 			sectors_to_move += GC_SECTORS_USED(b);
-			min_heap_push(&ca->heap, &b, &callbacks, NULL);
-		} else if (!new_bucket_cmp(&b, min_heap_peek(&ca->heap), ca)) {
+			heap_add(&ca->heap, b, bucket_cmp);
+		} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
 			sectors_to_move -= bucket_heap_top(ca);
 			sectors_to_move += GC_SECTORS_USED(b);
 
 			ca->heap.data[0] = b;
-			min_heap_sift_down(&ca->heap, 0, &callbacks, NULL);
+			heap_sift(&ca->heap, 0, bucket_cmp);
 		}
 	}
 
 	while (sectors_to_move > reserve_sectors) {
-		if (ca->heap.nr) {
-			b = min_heap_peek(&ca->heap)[0];
-			min_heap_pop(&ca->heap, &callbacks, NULL);
-		}
+		heap_pop(&ca->heap, b, bucket_cmp);
 		sectors_to_move -= GC_SECTORS_USED(b);
 	}
 
-	while (ca->heap.nr) {
-		b = min_heap_peek(&ca->heap)[0];
-		min_heap_pop(&ca->heap, &callbacks, NULL);
+	while (heap_pop(&ca->heap, b, bucket_cmp))
 		SET_GC_MOVE(b, 1);
-	}
 
 	mutex_unlock(&c->bucket_lock);
 

@@ -223,6 +223,7 @@ config PCI_HYPERV
 	tristate "Hyper-V PCI Frontend"
 	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI && SYSFS
 	select PCI_HYPERV_INTERFACE
+	select IRQ_MSI_LIB
 	help
 	  The PCI device frontend driver allows the kernel to import arbitrary
 	  PCI devices from a PCI backend to support PCI driver domains.

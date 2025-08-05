@@ -88,16 +88,29 @@ static int iris_hfi_gen1_sys_pc_prep(struct iris_core *core)
 static int iris_hfi_gen1_session_open(struct iris_inst *inst)
 {
 	struct hfi_session_open_pkt packet;
+	u32 codec = 0;
 	int ret;
 
 	if (inst->state != IRIS_INST_DEINIT)
 		return -EALREADY;
 
+	switch (inst->codec) {
+	case V4L2_PIX_FMT_H264:
+		codec = HFI_VIDEO_CODEC_H264;
+		break;
+	case V4L2_PIX_FMT_HEVC:
+		codec = HFI_VIDEO_CODEC_HEVC;
+		break;
+	case V4L2_PIX_FMT_VP9:
+		codec = HFI_VIDEO_CODEC_VP9;
+		break;
+	}
+
 	packet.shdr.hdr.size = sizeof(struct hfi_session_open_pkt);
 	packet.shdr.hdr.pkt_type = HFI_CMD_SYS_SESSION_INIT;
 	packet.shdr.session_id = inst->session_id;
 	packet.session_domain = HFI_SESSION_TYPE_DEC;
-	packet.session_codec = HFI_VIDEO_CODEC_H264;
+	packet.session_codec = codec;
 
 	reinit_completion(&inst->completion);
 
@@ -208,8 +221,10 @@ static int iris_hfi_gen1_session_stop(struct iris_inst *inst, u32 plane)
 		flush_pkt.flush_type = flush_type;
 
 		ret = iris_hfi_queue_cmd_write(core, &flush_pkt, flush_pkt.shdr.hdr.size);
-		if (!ret)
+		if (!ret) {
+			inst->flush_responses_pending++;
 			ret = iris_wait_for_session_response(inst, true);
+		}
 	}
 
 	return ret;
@@ -386,6 +401,8 @@ static int iris_hfi_gen1_session_drain(struct iris_inst *inst, u32 plane)
 	ip_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_EMPTY_BUFFER;
 	ip_pkt.shdr.session_id = inst->session_id;
 	ip_pkt.flags = HFI_BUFFERFLAG_EOS;
+	if (inst->codec == V4L2_PIX_FMT_VP9)
+		ip_pkt.packet_buffer = 0xdeadb000;
 
 	return iris_hfi_queue_cmd_write(inst->core, &ip_pkt, ip_pkt.shdr.hdr.size);
 }
@@ -490,14 +507,6 @@ iris_hfi_gen1_packet_session_set_property(struct hfi_session_set_property_pkt *p
 		packet->shdr.hdr.size += sizeof(u32) + sizeof(*wm);
 		break;
 	}
-	case HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER: {
-		struct hfi_enable *en = prop_data;
-		u32 *in = pdata;
-
-		en->enable = *in;
-		packet->shdr.hdr.size += sizeof(u32) + sizeof(*en);
-		break;
-	}
 	default:
 		return -EINVAL;
 	}
@@ -546,14 +555,15 @@ static int iris_hfi_gen1_set_resolution(struct iris_inst *inst)
 	struct hfi_framesize fs;
 	int ret;
 
-	fs.buffer_type = HFI_BUFFER_INPUT;
-	fs.width = inst->fmt_src->fmt.pix_mp.width;
-	fs.height = inst->fmt_src->fmt.pix_mp.height;
+	if (!iris_drc_pending(inst)) {
+		fs.buffer_type = HFI_BUFFER_INPUT;
+		fs.width = inst->fmt_src->fmt.pix_mp.width;
+		fs.height = inst->fmt_src->fmt.pix_mp.height;
 
-	ret = hfi_gen1_set_property(inst, ptype, &fs, sizeof(fs));
-	if (ret)
-		return ret;
-
+		ret = hfi_gen1_set_property(inst, ptype, &fs, sizeof(fs));
+		if (ret)
+			return ret;
+	}
 	fs.buffer_type = HFI_BUFFER_OUTPUT2;
 	fs.width = inst->fmt_dst->fmt.pix_mp.width;
 	fs.height = inst->fmt_dst->fmt.pix_mp.height;
@@ -768,8 +778,8 @@ static int iris_hfi_gen1_session_set_config_params(struct iris_inst *inst, u32 p
 			iris_hfi_gen1_set_bufsize},
 	};
 
-	config_params = core->iris_platform_data->input_config_params;
-	config_params_size = core->iris_platform_data->input_config_params_size;
+	config_params = core->iris_platform_data->input_config_params_default;
+	config_params_size = core->iris_platform_data->input_config_params_default_size;
 
 	if (V4L2_TYPE_IS_OUTPUT(plane)) {
 		for (i = 0; i < config_params_size; i++) {

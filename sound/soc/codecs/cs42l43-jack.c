@@ -242,7 +242,6 @@ done:
 error:
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 
 	return ret;
@@ -362,14 +361,15 @@ static void cs42l43_stop_button_detect(struct cs42l43_codec *priv)
 	priv->button_detect_running = false;
 }
 
+#define CS42L43_BUTTON_COMB_US 11000
 #define CS42L43_BUTTON_COMB_MAX 512
 #define CS42L43_BUTTON_ROUT 2210
 
-void cs42l43_button_press_work(struct work_struct *work)
+irqreturn_t cs42l43_button_press(int irq, void *data)
 {
-	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
-						  button_press_work.work);
+	struct cs42l43_codec *priv = data;
 	struct cs42l43 *cs42l43 = priv->core;
+	irqreturn_t iret = IRQ_NONE;
 	unsigned int buttons = 0;
 	unsigned int val = 0;
 	int i, ret;
@@ -377,7 +377,7 @@ void cs42l43_button_press_work(struct work_struct *work)
 	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret) {
 		dev_err(priv->dev, "Failed to resume for button press: %d\n", ret);
-		return;
+		return iret;
 	}
 
 	mutex_lock(&priv->jack_lock);
@@ -386,6 +386,9 @@ void cs42l43_button_press_work(struct work_struct *work)
 		dev_dbg(priv->dev, "Spurious button press IRQ\n");
 		goto error;
 	}
+
+	// Wait for 2 full cycles of comb filter to ensure good reading
+	usleep_range(2 * CS42L43_BUTTON_COMB_US, 2 * CS42L43_BUTTON_COMB_US + 50);
 
 	regmap_read(cs42l43->regmap, CS42L43_DETECT_STATUS_1, &val);
 
@@ -420,34 +423,26 @@ void cs42l43_button_press_work(struct work_struct *work)
 
 	snd_soc_jack_report(priv->jack_hp, buttons, CS42L43_JACK_BUTTONS);
 
+	iret = IRQ_HANDLED;
+
 error:
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
+
+	return iret;
 }
 
-irqreturn_t cs42l43_button_press(int irq, void *data)
+irqreturn_t cs42l43_button_release(int irq, void *data)
 {
 	struct cs42l43_codec *priv = data;
-
-	// Wait for 2 full cycles of comb filter to ensure good reading
-	queue_delayed_work(system_wq, &priv->button_press_work,
-			   msecs_to_jiffies(20));
-
-	return IRQ_HANDLED;
-}
-
-void cs42l43_button_release_work(struct work_struct *work)
-{
-	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
-						  button_release_work);
+	irqreturn_t iret = IRQ_NONE;
 	int ret;
 
 	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret) {
 		dev_err(priv->dev, "Failed to resume for button release: %d\n", ret);
-		return;
+		return iret;
 	}
 
 	mutex_lock(&priv->jack_lock);
@@ -456,23 +451,17 @@ void cs42l43_button_release_work(struct work_struct *work)
 		dev_dbg(priv->dev, "Button release IRQ\n");
 
 		snd_soc_jack_report(priv->jack_hp, 0, CS42L43_JACK_BUTTONS);
+
+		iret = IRQ_HANDLED;
 	} else {
 		dev_dbg(priv->dev, "Spurious button release IRQ\n");
 	}
 
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
-}
 
-irqreturn_t cs42l43_button_release(int irq, void *data)
-{
-	struct cs42l43_codec *priv = data;
-
-	queue_work(system_wq, &priv->button_release_work);
-
-	return IRQ_HANDLED;
+	return iret;
 }
 
 void cs42l43_bias_sense_timeout(struct work_struct *work)
@@ -504,7 +493,6 @@ void cs42l43_bias_sense_timeout(struct work_struct *work)
 
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
 
@@ -776,7 +764,6 @@ error:
 
 	priv->suspend_jack_debounce = false;
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
 
@@ -787,8 +774,6 @@ irqreturn_t cs42l43_tip_sense(int irq, void *data)
 
 	cancel_delayed_work(&priv->bias_sense_timeout);
 	cancel_delayed_work(&priv->tip_sense_work);
-	cancel_delayed_work(&priv->button_press_work);
-	cancel_work(&priv->button_release_work);
 
 	// Ensure delay after suspend is long enough to avoid false detection
 	if (priv->suspend_jack_debounce)

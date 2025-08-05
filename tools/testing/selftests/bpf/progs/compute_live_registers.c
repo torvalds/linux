@@ -240,6 +240,22 @@ __naked void if2(void)
 		::: __clobber_all);
 }
 
+/* Verifier misses that r2 is alive if jset is not handled properly */
+SEC("socket")
+__log_level(2)
+__msg("2: 012....... (45) if r1 & 0x7 goto pc+1")
+__naked void if3_jset_bug(void)
+{
+	asm volatile (
+		"r0 = 1;"
+		"r2 = 2;"
+		"if r1 & 0x7 goto +1;"
+		"exit;"
+		"r0 = r2;"
+		"exit;"
+		::: __clobber_all);
+}
+
 SEC("socket")
 __log_level(2)
 __msg("0: .......... (b7) r1 = 0")

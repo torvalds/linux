@@ -722,9 +722,10 @@ static int ili9322_probe(struct spi_device *spi)
 	int ret;
 	int i;
 
-	ili = devm_kzalloc(dev, sizeof(struct ili9322), GFP_KERNEL);
-	if (!ili)
-		return -ENOMEM;
+	ili = devm_drm_panel_alloc(dev, struct ili9322, panel,
+				   &ili9322_drm_funcs, DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(ili))
+		return PTR_ERR(ili);
 
 	spi_set_drvdata(spi, ili);
 
@@ -882,9 +883,6 @@ static int ili9322_probe(struct spi_device *spi)
 	} else {
 		ili->input = ili->conf->input;
 	}
-
-	drm_panel_init(&ili->panel, dev, &ili9322_drm_funcs,
-		       DRM_MODE_CONNECTOR_DPI);
 
 	drm_panel_add(&ili->panel);
 

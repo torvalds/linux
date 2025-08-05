@@ -721,8 +721,8 @@ static int inet_reuseport_add_sock(struct sock *sk,
 {
 	struct inet_bind_bucket *tb = inet_csk(sk)->icsk_bind_hash;
 	const struct hlist_nulls_node *node;
+	kuid_t uid = sk_uid(sk);
 	struct sock *sk2;
-	kuid_t uid = sock_i_uid(sk);
 
 	sk_nulls_for_each_rcu(sk2, node, &ilb->nulls_head) {
 		if (sk2 != sk &&
@@ -730,7 +730,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 		    ipv6_only_sock(sk2) == ipv6_only_sock(sk) &&
 		    sk2->sk_bound_dev_if == sk->sk_bound_dev_if &&
 		    inet_csk(sk2)->icsk_bind_hash == tb &&
-		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
+		    sk2->sk_reuseport && uid_eq(uid, sk_uid(sk2)) &&
 		    inet_rcv_saddr_equal(sk, sk2, false))
 			return reuseport_add_sock(sk, sk2,
 						  inet_rcv_saddr_any(sk));

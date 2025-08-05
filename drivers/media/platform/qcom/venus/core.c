@@ -424,13 +424,13 @@ static int venus_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&core->work, venus_sys_error_handler);
 	init_waitqueue_head(&core->sys_err_done);
 
-	ret = devm_request_threaded_irq(dev, core->irq, hfi_isr, venus_isr_thread,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-					"venus", core);
+	ret = hfi_create(core, &venus_core_ops);
 	if (ret)
 		goto err_core_put;
 
-	ret = hfi_create(core, &venus_core_ops);
+	ret = devm_request_threaded_irq(dev, core->irq, hfi_isr, venus_isr_thread,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"venus", core);
 	if (ret)
 		goto err_core_put;
 
@@ -709,11 +709,11 @@ static const struct venus_resources msm8996_res = {
 };
 
 static const struct freq_tbl msm8998_freq_table[] = {
-	{ 1944000, 465000000 },	/* 4k UHD @ 60 (decode only) */
-	{  972000, 465000000 },	/* 4k UHD @ 30 */
-	{  489600, 360000000 },	/* 1080p @ 60 */
-	{  244800, 186000000 },	/* 1080p @ 30 */
-	{  108000, 100000000 },	/* 720p @ 30 */
+	{ 1728000, 533000000 },	/* 4k UHD @ 60 (decode only) */
+	{ 1036800, 444000000 },	/* 2k @ 120 */
+	{  829440, 355200000 },	/* 4k @ 44 */
+	{  489600, 269330000 },/* 4k @ 30 */
+	{  108000, 200000000 },	/* 1080p @ 60 */
 };
 
 static const struct reg_val msm8998_reg_preset[] = {

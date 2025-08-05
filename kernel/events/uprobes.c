@@ -436,8 +436,7 @@ static int __uprobe_write_opcode(struct vm_area_struct *vma,
 	 * there are no unexpected folio references ...
 	 */
 	if (is_register || userfaultfd_missing(vma) ||
-	    (folio_ref_count(folio) != folio_mapcount(folio) + 1 +
-	     folio_test_swapcache(folio) * folio_nr_pages(folio)))
+	    (folio_ref_count(folio) != folio_expected_ref_count(folio) + 1))
 		goto remap;
 
 	/*
@@ -540,7 +539,7 @@ retry:
 	}
 
 	ret = 0;
-	if (unlikely(!folio_test_anon(folio))) {
+	if (unlikely(!folio_test_anon(folio) || folio_is_zone_device(folio))) {
 		VM_WARN_ON_ONCE(is_register);
 		folio_put(folio);
 		goto out;

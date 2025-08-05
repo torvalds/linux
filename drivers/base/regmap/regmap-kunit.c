@@ -736,7 +736,7 @@ static void stride(struct kunit *test)
 	}
 }
 
-static struct regmap_range_cfg test_range = {
+static const struct regmap_range_cfg test_range = {
 	.selector_reg = 1,
 	.selector_mask = 0xff,
 

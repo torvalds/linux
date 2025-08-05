@@ -177,7 +177,7 @@ int snd_oxfw_create_hwdep(struct snd_oxfw *oxfw)
 	err = snd_hwdep_new(oxfw->card, oxfw->card->driver, 0, &hwdep);
 	if (err < 0)
 		goto end;
-	strcpy(hwdep->name, oxfw->card->driver);
+	strscpy(hwdep->name, oxfw->card->driver);
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_OXFW;
 	hwdep->ops = hwdep_ops;
 	hwdep->private_data = oxfw;

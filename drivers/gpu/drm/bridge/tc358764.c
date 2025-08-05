@@ -347,9 +347,10 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 	struct tc358764 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(struct tc358764), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_bridge_alloc(dev, struct tc358764, bridge,
+				    &tc358764_bridge_funcs);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -368,7 +369,6 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		return ret;
 
-	ctx->bridge.funcs = &tc358764_bridge_funcs;
 	ctx->bridge.of_node = dev->of_node;
 	ctx->bridge.pre_enable_prev_first = true;
 

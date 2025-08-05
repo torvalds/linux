@@ -152,7 +152,6 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 		}
 	} while (poll);
 
-	pm_runtime_mark_last_busy(arizona->dev);
 	pm_runtime_put_autosuspend(arizona->dev);
 
 	return IRQ_HANDLED;

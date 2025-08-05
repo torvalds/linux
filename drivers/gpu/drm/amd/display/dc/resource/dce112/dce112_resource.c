@@ -886,7 +886,7 @@ static enum dc_status build_mapped_resource(
 enum dc_status dce112_validate_bandwidth(
 	struct dc *dc,
 	struct dc_state *context,
-	bool fast_validate)
+	enum dc_validate_mode validate_mode)
 {
 	bool result = false;
 

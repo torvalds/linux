@@ -627,12 +627,14 @@ struct smb_version_operations {
 	bool (*is_network_name_deleted)(char *buf, struct TCP_Server_Info *srv);
 	struct reparse_data_buffer * (*get_reparse_point_buffer)(const struct kvec *rsp_iov,
 								 u32 *plen);
-	int (*create_reparse_symlink)(const unsigned int xid,
-				      struct inode *inode,
-				      struct dentry *dentry,
-				      struct cifs_tcon *tcon,
-				      const char *full_path,
-				      const char *symname);
+	struct inode * (*create_reparse_inode)(struct cifs_open_info_data *data,
+					       struct super_block *sb,
+					       const unsigned int xid,
+					       struct cifs_tcon *tcon,
+					       const char *full_path,
+					       bool directory,
+					       struct kvec *reparse_iov,
+					       struct kvec *xattr_iov);
 };
 
 struct smb_version_values {
@@ -709,6 +711,7 @@ inc_rfc1001_len(void *buf, int count)
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	spinlock_t srv_lock;  /* protect anything here that is not protected */
 	__u64 conn_id; /* connection identifier (useful for debugging) */
 	int srv_count; /* reference counter */
@@ -776,6 +779,7 @@ struct TCP_Server_Info {
 	__le32 session_key_id; /* retrieved from negotiate response and send in session setup request */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
+	unsigned long neg_start; /* when negotiate started (jiffies) */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
 #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
@@ -1302,6 +1306,7 @@ struct cifs_tcon {
 	bool use_persistent:1; /* use persistent instead of durable handles */
 	bool no_lease:1;    /* Do not request leases on files or directories */
 	bool use_witness:1; /* use witness protocol */
+	bool dummy:1; /* dummy tcon used for reconnecting channels */
 	__le32 capabilities;
 	__u32 share_flags;
 	__u32 maximal_access;

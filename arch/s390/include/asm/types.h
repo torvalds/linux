@@ -5,7 +5,7 @@
 
 #include <uapi/asm/types.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 union register_pair {
 	unsigned __int128 pair;
@@ -15,5 +15,5 @@ union register_pair {
 	};
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_S390_TYPES_H */

@@ -40,7 +40,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
@@ -249,7 +248,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 
 	if (HAS_PCH_SPLIT(display)) {
 		assert_fdi_rx_pll_disabled(display, pipe);
-		assert_shared_dpll_disabled(display, crtc_state->shared_dpll);
+		assert_dpll_disabled(display, crtc_state->intel_dpll);
 	} else {
 		assert_pll_disabled(display, pipe);
 	}

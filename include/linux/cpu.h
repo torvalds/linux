@@ -82,6 +82,7 @@ extern ssize_t cpu_show_old_microcode(struct device *dev,
 				      struct device_attribute *attr, char *buf);
 extern ssize_t cpu_show_indirect_target_selection(struct device *dev,
 						  struct device_attribute *attr, char *buf);
+extern ssize_t cpu_show_tsa(struct device *dev, struct device_attribute *attr, char *buf);
 
 extern __printf(4, 5)
 struct device *cpu_device_create(struct device *parent, void *drvdata,
@@ -120,6 +121,7 @@ extern void cpu_maps_update_begin(void);
 extern void cpu_maps_update_done(void);
 int bringup_hibernate_cpu(unsigned int sleep_cpu);
 void bringup_nonboot_cpus(unsigned int max_cpus);
+int arch_cpu_rescan_dead_smt_siblings(void);
 
 #else	/* CONFIG_SMP */
 #define cpuhp_tasks_frozen	0
@@ -133,6 +135,8 @@ static inline void cpu_maps_update_done(void)
 }
 
 static inline int add_cpu(unsigned int cpu) { return 0;}
+
+static inline int arch_cpu_rescan_dead_smt_siblings(void) { return 0; }
 
 #endif /* CONFIG_SMP */
 extern const struct bus_type cpu_subsys;
@@ -183,20 +187,31 @@ static inline void arch_cpu_finalize_init(void) { }
 
 void play_idle_precise(u64 duration_ns, u64 latency_ns);
 
-static inline void play_idle(unsigned long duration_us)
-{
-	play_idle_precise(duration_us * NSEC_PER_USEC, U64_MAX);
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 void cpuhp_report_idle_dead(void);
 #else
 static inline void cpuhp_report_idle_dead(void) { }
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
+enum cpu_attack_vectors {
+	CPU_MITIGATE_USER_KERNEL,
+	CPU_MITIGATE_USER_USER,
+	CPU_MITIGATE_GUEST_HOST,
+	CPU_MITIGATE_GUEST_GUEST,
+	NR_CPU_ATTACK_VECTORS,
+};
+
+enum smt_mitigations {
+	SMT_MITIGATIONS_OFF,
+	SMT_MITIGATIONS_AUTO,
+	SMT_MITIGATIONS_ON,
+};
+
 #ifdef CONFIG_CPU_MITIGATIONS
 extern bool cpu_mitigations_off(void);
 extern bool cpu_mitigations_auto_nosmt(void);
+extern bool cpu_attack_vector_mitigated(enum cpu_attack_vectors v);
+extern enum smt_mitigations smt_mitigations;
 #else
 static inline bool cpu_mitigations_off(void)
 {
@@ -206,6 +221,11 @@ static inline bool cpu_mitigations_auto_nosmt(void)
 {
 	return false;
 }
+static inline bool cpu_attack_vector_mitigated(enum cpu_attack_vectors v)
+{
+	return false;
+}
+#define smt_mitigations SMT_MITIGATIONS_OFF
 #endif
 
 #endif /* _LINUX_CPU_H_ */

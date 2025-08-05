@@ -119,6 +119,8 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_autherr_badverf	cpu_to_be32(RPC_AUTH_BADVERF)
 #define	rpc_autherr_rejectedverf cpu_to_be32(RPC_AUTH_REJECTEDVERF)
 #define	rpc_autherr_tooweak	cpu_to_be32(RPC_AUTH_TOOWEAK)
+#define	rpc_autherr_invalidresp	cpu_to_be32(RPC_AUTH_INVALIDRESP)
+#define	rpc_autherr_failed	cpu_to_be32(RPC_AUTH_FAILED)
 #define	rpcsec_gsserr_credproblem	cpu_to_be32(RPCSEC_GSS_CREDPROBLEM)
 #define	rpcsec_gsserr_ctxproblem	cpu_to_be32(RPCSEC_GSS_CTXPROBLEM)
 
@@ -242,8 +244,7 @@ typedef int	(*kxdrdproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 
 extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf,
 			    __be32 *p, struct rpc_rqst *rqst);
-extern void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
-			   struct page **pages, struct rpc_rqst *rqst);
+void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
 extern int xdr_reserve_space_vec(struct xdr_stream *xdr, size_t nbytes);
 extern void __xdr_commit_encode(struct xdr_stream *xdr);

@@ -803,13 +803,15 @@ static void fsl_sai_config_disable(struct fsl_sai *sai, int dir)
 	 * anymore. Add software reset to fix this issue.
 	 * This is a hardware bug, and will be fix in the
 	 * next sai version.
+	 *
+	 * In consumer mode, this can happen even after a
+	 * single open/close, especially if both tx and rx
+	 * are running concurrently.
 	 */
-	if (!sai->is_consumer_mode[tx]) {
-		/* Software Reset */
-		regmap_write(sai->regmap, FSL_SAI_xCSR(tx, ofs), FSL_SAI_CSR_SR);
-		/* Clear SR bit to finish the reset */
-		regmap_write(sai->regmap, FSL_SAI_xCSR(tx, ofs), 0);
-	}
+	/* Software Reset */
+	regmap_write(sai->regmap, FSL_SAI_xCSR(tx, ofs), FSL_SAI_CSR_SR);
+	/* Clear SR bit to finish the reset */
+	regmap_write(sai->regmap, FSL_SAI_xCSR(tx, ofs), 0);
 }
 
 static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -1059,7 +1061,7 @@ static const struct snd_soc_component_driver fsl_component = {
 	.legacy_dai_naming	= 1,
 };
 
-static struct reg_default fsl_sai_reg_defaults_ofs0[] = {
+static const struct reg_default fsl_sai_reg_defaults_ofs0[] = {
 	{FSL_SAI_TCR1(0), 0},
 	{FSL_SAI_TCR2(0), 0},
 	{FSL_SAI_TCR3(0), 0},
@@ -1082,7 +1084,7 @@ static struct reg_default fsl_sai_reg_defaults_ofs0[] = {
 	{FSL_SAI_RMR, 0},
 };
 
-static struct reg_default fsl_sai_reg_defaults_ofs8[] = {
+static const struct reg_default fsl_sai_reg_defaults_ofs8[] = {
 	{FSL_SAI_TCR1(8), 0},
 	{FSL_SAI_TCR2(8), 0},
 	{FSL_SAI_TCR3(8), 0},
