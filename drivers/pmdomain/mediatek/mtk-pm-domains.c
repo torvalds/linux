@@ -47,9 +47,6 @@ struct scpsys_domain {
 	struct clk_bulk_data *clks;
 	int num_subsys_clks;
 	struct clk_bulk_data *subsys_clks;
-	struct regmap *infracfg_nao;
-	struct regmap *infracfg;
-	struct regmap *smi;
 	struct regulator *supply;
 };
 
@@ -57,6 +54,8 @@ struct scpsys {
 	struct device *dev;
 	struct regmap *base;
 	const struct scpsys_soc_data *soc_data;
+	u8 bus_prot_index[BUS_PROT_BLOCK_COUNT];
+	struct regmap **bus_prot;
 	struct genpd_onecell_data pd_data;
 	struct generic_pm_domain *domains[];
 };
@@ -125,19 +124,19 @@ static int scpsys_sram_disable(struct scpsys_domain *pd)
 static struct regmap *scpsys_bus_protect_get_regmap(struct scpsys_domain *pd,
 						    const struct scpsys_bus_prot_data *bpd)
 {
-	if (bpd->flags & BUS_PROT_COMPONENT_SMI)
-		return pd->smi;
-	else
-		return pd->infracfg;
+	struct scpsys *scpsys = pd->scpsys;
+	unsigned short block_idx = scpsys->bus_prot_index[bpd->bus_prot_block];
+
+	return scpsys->bus_prot[block_idx];
 }
 
 static struct regmap *scpsys_bus_protect_get_sta_regmap(struct scpsys_domain *pd,
 							const struct scpsys_bus_prot_data *bpd)
 {
-	if (bpd->flags & BUS_PROT_STA_COMPONENT_INFRA_NAO)
-		return pd->infracfg_nao;
-	else
-		return scpsys_bus_protect_get_regmap(pd, bpd);
+	struct scpsys *scpsys = pd->scpsys;
+	int block_idx = scpsys->bus_prot_index[bpd->bus_prot_sta_block];
+
+	return scpsys->bus_prot[block_idx];
 }
 
 static int scpsys_bus_protect_clear(struct scpsys_domain *pd,
@@ -149,7 +148,7 @@ static int scpsys_bus_protect_clear(struct scpsys_domain *pd,
 	u32 expected_ack;
 	u32 val;
 
-	expected_ack = (bpd->flags & BUS_PROT_STA_COMPONENT_INFRA_NAO ? sta_mask : 0);
+	expected_ack = (bpd->bus_prot_sta_block == BUS_PROT_BLOCK_INFRA_NAO ? sta_mask : 0);
 
 	if (bpd->flags & BUS_PROT_REG_UPDATE)
 		regmap_clear_bits(regmap, bpd->bus_prot_clr, bpd->bus_prot_set_clr_mask);
@@ -355,7 +354,6 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 {
 	const struct scpsys_domain_data *domain_data;
 	struct scpsys_domain *pd;
-	struct device_node *smi_node;
 	struct property *prop;
 	const char *clk_name;
 	int i, ret, num_clks;
@@ -394,32 +392,6 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 			return dev_err_cast_probe(scpsys->dev, pd->supply,
 				      "%pOF: failed to get power supply.\n",
 				      node);
-	}
-
-	pd->infracfg = syscon_regmap_lookup_by_phandle_optional(node, "mediatek,infracfg");
-	if (IS_ERR(pd->infracfg))
-		return dev_err_cast_probe(scpsys->dev, pd->infracfg,
-					  "%pOF: failed to get infracfg regmap\n",
-					  node);
-
-	smi_node = of_parse_phandle(node, "mediatek,smi", 0);
-	if (smi_node) {
-		pd->smi = device_node_to_regmap(smi_node);
-		of_node_put(smi_node);
-		if (IS_ERR(pd->smi))
-			return dev_err_cast_probe(scpsys->dev, pd->smi,
-						  "%pOF: failed to get SMI regmap\n",
-						  node);
-	}
-
-	if (MTK_SCPD_CAPS(pd, MTK_SCPD_HAS_INFRA_NAO)) {
-		pd->infracfg_nao = syscon_regmap_lookup_by_phandle(node, "mediatek,infracfg-nao");
-		if (IS_ERR(pd->infracfg_nao))
-			return dev_err_cast_probe(scpsys->dev, pd->infracfg_nao,
-						  "%pOF: failed to get infracfg-nao regmap\n",
-						  node);
-	} else {
-		pd->infracfg_nao = NULL;
 	}
 
 	num_clks = of_clk_get_parent_count(node);
@@ -615,6 +587,136 @@ static void scpsys_domain_cleanup(struct scpsys *scpsys)
 	}
 }
 
+static int scpsys_get_bus_protection_legacy(struct device *dev, struct scpsys *scpsys)
+{
+	const u8 bp_blocks[3] = {
+		BUS_PROT_BLOCK_INFRA, BUS_PROT_BLOCK_SMI, BUS_PROT_BLOCK_INFRA_NAO
+	};
+	struct device_node *np = dev->of_node;
+	struct device_node *node, *smi_np;
+	int num_regmaps = 0, i, j;
+	struct regmap *regmap[3];
+
+	/*
+	 * Legacy code retrieves a maximum of three bus protection handles:
+	 * some may be optional, or may not be, so the array of bp blocks
+	 * that is normally passed in as platform data must be dynamically
+	 * built in this case.
+	 *
+	 * Here, try to retrieve all of the regmaps that the legacy code
+	 * supported and then count the number of the ones that are present,
+	 * this makes it then possible to allocate the array of bus_prot
+	 * regmaps and convert all to the new style handling.
+	 */
+	node = of_find_node_with_property(np, "mediatek,infracfg");
+	if (node) {
+		regmap[0] = syscon_regmap_lookup_by_phandle(node, "mediatek,infracfg");
+		of_node_put(node);
+		num_regmaps++;
+		if (IS_ERR(regmap[0]))
+			return dev_err_probe(dev, PTR_ERR(regmap[0]),
+					     "%pOF: failed to get infracfg regmap\n",
+					     node);
+	} else {
+		regmap[0] = NULL;
+	}
+
+	node = of_find_node_with_property(np, "mediatek,smi");
+	if (node) {
+		smi_np = of_parse_phandle(node, "mediatek,smi", 0);
+		of_node_put(node);
+		if (!smi_np)
+			return -ENODEV;
+
+		regmap[1] = device_node_to_regmap(smi_np);
+		num_regmaps++;
+		of_node_put(smi_np);
+		if (IS_ERR(regmap[1]))
+			return dev_err_probe(dev, PTR_ERR(regmap[1]),
+					     "%pOF: failed to get SMI regmap\n",
+					     node);
+	} else {
+		regmap[1] = NULL;
+	}
+
+	node = of_find_node_with_property(np, "mediatek,infracfg-nao");
+	if (node) {
+		regmap[2] = syscon_regmap_lookup_by_phandle(node, "mediatek,infracfg-nao");
+		num_regmaps++;
+		of_node_put(node);
+		if (IS_ERR(regmap[2]))
+			return dev_err_probe(dev, PTR_ERR(regmap[2]),
+					     "%pOF: failed to get infracfg regmap\n",
+					     node);
+	} else {
+		regmap[2] = NULL;
+	}
+
+	scpsys->bus_prot = devm_kmalloc_array(dev, num_regmaps,
+					      sizeof(*scpsys->bus_prot), GFP_KERNEL);
+	if (!scpsys->bus_prot)
+		return -ENOMEM;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(bp_blocks); i++) {
+		enum scpsys_bus_prot_block bp_type;
+
+		if (!regmap[i])
+			continue;
+
+		bp_type = bp_blocks[i];
+		scpsys->bus_prot_index[bp_type] = j;
+		scpsys->bus_prot[j] = regmap[i];
+
+		j++;
+	}
+
+	return 0;
+}
+
+static int scpsys_get_bus_protection(struct device *dev, struct scpsys *scpsys)
+{
+	const struct scpsys_soc_data *soc = scpsys->soc_data;
+	struct device_node *np = dev->of_node;
+	int i, num_handles;
+
+	num_handles = of_count_phandle_with_args(np, "access-controllers", NULL);
+	if (num_handles < 0 || num_handles != soc->num_bus_prot_blocks)
+		return dev_err_probe(dev, -EINVAL,
+				     "Cannot get access controllers: expected %u, got %d\n",
+				     soc->num_bus_prot_blocks, num_handles);
+
+	scpsys->bus_prot = devm_kmalloc_array(dev, soc->num_bus_prot_blocks,
+					      sizeof(*scpsys->bus_prot), GFP_KERNEL);
+	if (!scpsys->bus_prot)
+		return -ENOMEM;
+
+	for (i = 0; i < soc->num_bus_prot_blocks; i++) {
+		enum scpsys_bus_prot_block bp_type;
+		struct device_node *node;
+
+		node = of_parse_phandle(np, "access-controllers", i);
+		if (!node)
+			return -EINVAL;
+
+		/*
+		 * Index the bus protection regmaps so that we don't have to
+		 * find the right one by type with a loop at every execution
+		 * of power sequence(s).
+		 */
+		bp_type = soc->bus_prot_blocks[i];
+		scpsys->bus_prot_index[bp_type] = i;
+
+		scpsys->bus_prot[i] = device_node_to_regmap(node);
+		of_node_put(node);
+		if (IS_ERR_OR_NULL(scpsys->bus_prot[i]))
+			return dev_err_probe(dev, scpsys->bus_prot[i] ?
+					     PTR_ERR(scpsys->bus_prot[i]) : -ENXIO,
+					     "Cannot get regmap for access controller %d\n", i);
+	}
+
+	return 0;
+}
+
 static const struct of_device_id scpsys_of_match[] = {
 	{
 		.compatible = "mediatek,mt6735-power-controller",
@@ -700,6 +802,14 @@ static int scpsys_probe(struct platform_device *pdev)
 		dev_err(dev, "no regmap available\n");
 		return PTR_ERR(scpsys->base);
 	}
+
+	if (of_find_property(np, "access-controllers", NULL))
+		ret = scpsys_get_bus_protection(dev, scpsys);
+	else
+		ret = scpsys_get_bus_protection_legacy(dev, scpsys);
+
+	if (ret)
+		return ret;
 
 	ret = -ENODEV;
 	for_each_available_child_of_node(np, node) {

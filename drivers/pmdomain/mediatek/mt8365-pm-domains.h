@@ -29,11 +29,9 @@
 			    MT8365_SMI_COMMON_CLAMP_EN)
 
 #define MT8365_BUS_PROT_WAY_EN(_set_mask, _set, _sta_mask, _sta)	\
-		_BUS_PROT(_set_mask, _set, _set, _sta_mask, _sta,	\
-			  BUS_PROT_COMPONENT_INFRA |			\
-			  BUS_PROT_STA_COMPONENT_INFRA_NAO |		\
-			  BUS_PROT_INVERTED |				\
-			  BUS_PROT_REG_UPDATE)
+		_BUS_PROT_STA(INFRA, INFRA_NAO, _set_mask, _set, _set,	\
+			      _sta_mask, _sta,				\
+			      BUS_PROT_INVERTED | BUS_PROT_REG_UPDATE)
 
 static const struct scpsys_domain_data scpsys_domain_data_mt8365[] = {
 	[MT8365_POWER_DOMAIN_MM] = {

@@ -50,30 +50,43 @@ enum scpsys_bus_prot_flags {
 	BUS_PROT_REG_UPDATE = BIT(1),
 	BUS_PROT_IGNORE_CLR_ACK = BIT(2),
 	BUS_PROT_INVERTED = BIT(3),
-	BUS_PROT_COMPONENT_INFRA = BIT(4),
-	BUS_PROT_COMPONENT_SMI = BIT(5),
-	BUS_PROT_STA_COMPONENT_INFRA_NAO = BIT(6),
 };
 
-#define _BUS_PROT(_set_clr_mask, _set, _clr, _sta_mask, _sta, _flags) {	\
-		.bus_prot_set_clr_mask = (_set_clr_mask),	\
-		.bus_prot_set = _set,				\
-		.bus_prot_clr = _clr,				\
-		.bus_prot_sta_mask = (_sta_mask),		\
-		.bus_prot_sta = _sta,				\
-		.flags = _flags					\
+enum scpsys_bus_prot_block {
+	BUS_PROT_BLOCK_INFRA,
+	BUS_PROT_BLOCK_INFRA_NAO,
+	BUS_PROT_BLOCK_SMI,
+	BUS_PROT_BLOCK_COUNT,
+};
+
+#define _BUS_PROT_STA(_hwip, _sta_hwip, _set_clr_mask, _set, _clr,	\
+		      _sta_mask, _sta, _flags)				\
+	{								\
+		.bus_prot_block = BUS_PROT_BLOCK_##_hwip,		\
+		.bus_prot_sta_block = BUS_PROT_BLOCK_##_sta_hwip,	\
+		.bus_prot_set_clr_mask = (_set_clr_mask),		\
+		.bus_prot_set = _set,					\
+		.bus_prot_clr = _clr,					\
+		.bus_prot_sta_mask = (_sta_mask),			\
+		.bus_prot_sta = _sta,					\
+		.flags = _flags						\
 	}
 
-#define BUS_PROT_WR(_hwip, _mask, _set, _clr, _sta) \
-		_BUS_PROT(_mask, _set, _clr, _mask, _sta, BUS_PROT_COMPONENT_##_hwip)
+#define _BUS_PROT(_hwip, _set_clr_mask, _set, _clr, _sta_mask,		\
+		  _sta, _flags)						\
+	_BUS_PROT_STA(_hwip, _hwip, _set_clr_mask, _set, _clr,		\
+		      _sta_mask, _sta, _flags)
 
-#define BUS_PROT_WR_IGN(_hwip, _mask, _set, _clr, _sta) \
-		_BUS_PROT(_mask, _set, _clr, _mask, _sta, \
-			  BUS_PROT_COMPONENT_##_hwip | BUS_PROT_IGNORE_CLR_ACK)
+#define BUS_PROT_WR(_hwip, _mask, _set, _clr, _sta)			\
+		_BUS_PROT(_hwip, _mask, _set, _clr,  _mask, _sta, 0)
 
-#define BUS_PROT_UPDATE(_hwip, _mask, _set, _clr, _sta) \
-		_BUS_PROT(_mask, _set, _clr, _mask, _sta, \
-			  BUS_PROT_COMPONENT_##_hwip | BUS_PROT_REG_UPDATE)
+#define BUS_PROT_WR_IGN(_hwip, _mask, _set, _clr, _sta)		\
+		_BUS_PROT(_hwip, _mask, _set, _clr, _mask, _sta,	\
+			  BUS_PROT_IGNORE_CLR_ACK)
+
+#define BUS_PROT_UPDATE(_hwip, _mask, _set, _clr, _sta)			\
+		_BUS_PROT(_hwip, _mask, _set, _clr, _mask, _sta,	\
+			  BUS_PROT_REG_UPDATE)
 
 #define BUS_PROT_INFRA_UPDATE_TOPAXI(_mask)			\
 		BUS_PROT_UPDATE(INFRA, _mask,			\
@@ -82,6 +95,8 @@ enum scpsys_bus_prot_flags {
 				INFRA_TOPAXI_PROTECTSTA1)
 
 struct scpsys_bus_prot_data {
+	u8 bus_prot_block;
+	u8 bus_prot_sta_block;
 	u32 bus_prot_set_clr_mask;
 	u32 bus_prot_set;
 	u32 bus_prot_clr;
@@ -119,6 +134,8 @@ struct scpsys_domain_data {
 struct scpsys_soc_data {
 	const struct scpsys_domain_data *domains_data;
 	int num_domains;
+	enum scpsys_bus_prot_block *bus_prot_blocks;
+	int num_bus_prot_blocks;
 };
 
 #endif /* __SOC_MEDIATEK_MTK_PM_DOMAINS_H */
