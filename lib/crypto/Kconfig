@@ -112,6 +112,7 @@ config CRYPTO_LIB_MD5_ARCH
 	depends on CRYPTO_LIB_MD5 && !UML
 	default y if MIPS && CPU_CAVIUM_OCTEON
 	default y if PPC
+	default y if SPARC64
 
 config CRYPTO_LIB_POLY1305_RSIZE
 	int
