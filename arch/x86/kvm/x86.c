@@ -2151,9 +2151,6 @@ static int handle_fastpath_set_x2apic_icr_irqoff(struct kvm_vcpu *vcpu, u64 data
 
 static int handle_fastpath_set_tscdeadline(struct kvm_vcpu *vcpu, u64 data)
 {
-	if (!kvm_can_use_hv_timer(vcpu))
-		return 1;
-
 	kvm_set_lapic_tscdeadline_msr(vcpu, data);
 	return 0;
 }
