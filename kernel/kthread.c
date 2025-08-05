@@ -283,7 +283,7 @@ static void __kthread_parkme(struct kthread *self)
 		 * task->state.
 		 *
 		 * Such a collision might possibly result in the task state
-		 * changin from TASK_PARKED and us failing the
+		 * changing from TASK_PARKED and us failing the
 		 * wait_task_inactive() in kthread_park().
 		 */
 		set_special_state(TASK_PARKED);
