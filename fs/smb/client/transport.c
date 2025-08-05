@@ -642,12 +642,16 @@ cifs_wait_mtu_credits(struct TCP_Server_Info *server, size_t size,
 
 int wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
+	unsigned int sleep_state = TASK_KILLABLE;
 	int error;
+
+	if (mid->sr_flags & CIFS_INTERRUPTIBLE_WAIT)
+		sleep_state = TASK_INTERRUPTIBLE;
 
 	error = wait_event_state(server->response_q,
 				 mid->mid_state != MID_REQUEST_SUBMITTED &&
 				 mid->mid_state != MID_RESPONSE_RECEIVED,
-				 (TASK_KILLABLE|TASK_FREEZABLE_UNSAFE));
+				 (sleep_state | TASK_FREEZABLE_UNSAFE));
 	if (error < 0)
 		return -ERESTARTSYS;
 
@@ -701,6 +705,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 		return PTR_ERR(mid);
 	}
 
+	mid->sr_flags = flags;
 	mid->receive = receive;
 	mid->callback = callback;
 	mid->callback_data = cbdata;
@@ -945,6 +950,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			return PTR_ERR(mid[i]);
 		}
 
+		mid[i]->sr_flags = flags;
 		mid[i]->mid_state = MID_REQUEST_SUBMITTED;
 		mid[i]->optype = optype;
 		/*
@@ -1014,10 +1020,11 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		for (; i < num_rqst; i++) {
 			cifs_server_dbg(FYI, "Cancelling wait for mid %llu cmd: %d\n",
 				 mid[i]->mid, le16_to_cpu(mid[i]->command));
-			send_cancel(server, &rqst[i], mid[i]);
+			send_cancel(ses, server, &rqst[i], mid[i], xid);
 			spin_lock(&mid[i]->mid_lock);
 			mid[i]->wait_cancelled = true;
-			if (mid[i]->callback) {
+			if (mid[i]->mid_state == MID_REQUEST_SUBMITTED ||
+			    mid[i]->mid_state == MID_RESPONSE_RECEIVED) {
 				mid[i]->callback = cifs_cancelled_callback;
 				cancelled_mid[i] = true;
 				credits[i].value = 0;

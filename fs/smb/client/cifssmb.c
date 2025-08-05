@@ -2059,7 +2059,7 @@ CIFSSMBLock(const unsigned int xid, struct cifs_tcon *tcon,
 /*	LOCK_RSP *pSMBr = NULL; */ /* No response data other than rc to parse */
 	unsigned int in_len;
 	int bytes_returned;
-	int flags = 0;
+	int flags = CIFS_WINDOWS_LOCK | CIFS_INTERRUPTIBLE_WAIT;
 	__u16 count;
 
 	cifs_dbg(FYI, "CIFSSMBLock timeout %d numLock %d\n",
@@ -2104,8 +2104,9 @@ CIFSSMBLock(const unsigned int xid, struct cifs_tcon *tcon,
 	pSMB->ByteCount = cpu_to_le16(count);
 
 	if (waitFlag)
-		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB, in_len,
-			(struct smb_hdr *) pSMB, &bytes_returned);
+		rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB, in_len,
+				 (struct smb_hdr *) pSMB, &bytes_returned,
+				 flags);
 	else
 		rc = SendReceiveNoRsp(xid, tcon->ses, (char *)pSMB, in_len, flags);
 	cifs_small_buf_release(pSMB);
@@ -2130,7 +2131,7 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_posix_lock *parm_data;
 	unsigned int in_len;
 	int rc = 0;
-	int timeout = 0;
+	int sr_flags = CIFS_INTERRUPTIBLE_WAIT;
 	int bytes_returned = 0;
 	int resp_buf_type = 0;
 	__u16 params, param_offset, offset, byte_count, count;
@@ -2173,7 +2174,7 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 
 	parm_data->lock_type = cpu_to_le16(lock_type);
 	if (waitFlag) {
-		timeout = CIFS_BLOCKING_OP; /* blocking operation, no timeout */
+		sr_flags |= CIFS_BLOCKING_OP; /* blocking operation, no timeout */
 		parm_data->lock_flags = cpu_to_le16(1);
 		pSMB->Timeout = cpu_to_le32(-1);
 	} else
@@ -2190,13 +2191,14 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 	in_len += byte_count;
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	if (waitFlag) {
-		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB, in_len,
-			(struct smb_hdr *) pSMBr, &bytes_returned);
+		rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB, in_len,
+				 (struct smb_hdr *) pSMBr, &bytes_returned,
+				 sr_flags);
 	} else {
 		iov[0].iov_base = (char *)pSMB;
 		iov[0].iov_len = in_len;
 		rc = SendReceive2(xid, tcon->ses, iov, 1 /* num iovecs */,
-				&resp_buf_type, timeout, &rsp_iov);
+				&resp_buf_type, sr_flags, &rsp_iov);
 		pSMBr = (struct smb_com_transaction2_sfi_rsp *)rsp_iov.iov_base;
 	}
 	cifs_small_buf_release(pSMB);

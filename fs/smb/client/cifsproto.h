@@ -130,11 +130,12 @@ extern int cifs_wait_mtu_credits(struct TCP_Server_Info *server,
 				 struct cifs_credits *credits);
 
 static inline int
-send_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
-	    struct mid_q_entry *mid)
+send_cancel(struct cifs_ses *ses, struct TCP_Server_Info *server,
+	    struct smb_rqst *rqst, struct mid_q_entry *mid,
+	    unsigned int xid)
 {
 	return server->ops->send_cancel ?
-				server->ops->send_cancel(server, rqst, mid) : 0;
+		server->ops->send_cancel(ses, server, rqst, mid, xid) : 0;
 }
 
 int wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ);
@@ -142,9 +143,6 @@ extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
 			struct kvec *, int /* nvec to send */,
 			int * /* type of buf returned */, const int flags,
 			struct kvec * /* resp vec */);
-int SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
-			    struct smb_hdr *in_buf, unsigned int in_len,
-			    struct smb_hdr *out_buf, int *pbytes_returned);
 
 void smb2_query_server_interfaces(struct work_struct *work);
 void
