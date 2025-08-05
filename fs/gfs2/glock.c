@@ -710,6 +710,7 @@ __acquires(&gl->gl_lockref.lock)
 		if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
 			fs_err(sdp, "Error %d syncing glock\n", ret);
 			gfs2_dump_glock(NULL, gl, true);
+			gfs2_withdraw(sdp);
 		}
 		spin_lock(&gl->gl_lockref.lock);
 		goto skip_inval;
@@ -728,6 +729,7 @@ __acquires(&gl->gl_lockref.lock)
 			gfs2_glock_assert_warn(gl,
 					       !atomic_read(&gl->gl_ail_count));
 			gfs2_dump_glock(NULL, gl, true);
+			gfs2_withdraw(sdp);
 		}
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
 	}
@@ -755,8 +757,6 @@ skip_inval:
 	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
 	 * then it's okay to tell dlm to unlock it.
 	 */
-	if (unlikely(sdp->sd_log_error) && !gfs2_withdrawn(sdp))
-		gfs2_withdraw(sdp);
 	if (glock_blocked_by_withdraw(gl) &&
 	    (target != LM_ST_UNLOCKED ||
 	     test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags))) {

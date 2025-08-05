@@ -1299,17 +1299,6 @@ int gfs2_logd(void *data)
 		if (gfs2_withdrawn(sdp))
 			break;
 
-		/* Check for errors writing to the journal */
-		if (sdp->sd_log_error) {
-			gfs2_lm(sdp,
-				"GFS2: fsid=%s: error %d: "
-				"withdrawing the file system to "
-				"prevent further damage.\n",
-				sdp->sd_fsname, sdp->sd_log_error);
-			gfs2_withdraw(sdp);
-			break;
-		}
-
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp, 0);
 			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
@@ -1332,7 +1321,6 @@ int gfs2_logd(void *data)
 				test_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags) ||
 				gfs2_ail_flush_reqd(sdp) ||
 				gfs2_jrnl_flush_reqd(sdp) ||
-				sdp->sd_log_error ||
 				gfs2_withdrawn(sdp) ||
 				kthread_should_stop(),
 				t);
