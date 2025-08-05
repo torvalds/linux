@@ -757,9 +757,7 @@ skip_inval:
 	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
 	 * then it's okay to tell dlm to unlock it.
 	 */
-	if (glock_blocked_by_withdraw(gl) &&
-	    (target != LM_ST_UNLOCKED ||
-	     test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags))) {
+	if (glock_blocked_by_withdraw(gl) && target != LM_ST_UNLOCKED) {
 		if (!is_system_glock(gl)) {
 			request_demote(gl, LM_ST_UNLOCKED, 0, false);
 			/*
@@ -1648,7 +1646,6 @@ static void __gfs2_glock_dq(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	spin_lock(&gl->gl_lockref.lock);
 	if (!gfs2_holder_queued(gh)) {
@@ -1673,24 +1670,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		clear_bit(GLF_LOCK, &gl->gl_flags);
 		if (!gfs2_holder_queued(gh))
 			goto out;
-	}
-
-	/*
-	 * If we're in the process of file system withdraw, we cannot just
-	 * dequeue any glocks until our journal is recovered, lest we introduce
-	 * file system corruption. We need two exceptions to this rule: We need
-	 * to allow unlocking of nondisk glocks and the glock for our own
-	 * journal that needs recovery.
-	 */
-	if (test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags) &&
-	    glock_blocked_by_withdraw(gl) &&
-	    gh->gh_gl != sdp->sd_jinode_gl) {
-		sdp->sd_glock_dqs_held++;
-		spin_unlock(&gl->gl_lockref.lock);
-		might_sleep();
-		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY,
-			    TASK_UNINTERRUPTIBLE);
-		spin_lock(&gl->gl_lockref.lock);
 	}
 
 	__gfs2_glock_dq(gh);

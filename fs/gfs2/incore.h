@@ -600,8 +600,6 @@ enum {
 	SDF_FORCE_AIL_FLUSH     = 9,
 	SDF_FREEZE_INITIATOR	= 10,
 	SDF_REMOTE_WITHDRAW	= 13, /* Performing remote recovery */
-	SDF_WITHDRAW_RECOVERY	= 14, /* Wait for journal recovery when we are
-					 withdrawing */
 	SDF_KILL		= 15,
 	SDF_EVICTING		= 16,
 	SDF_FROZEN		= 17,
@@ -760,7 +758,6 @@ struct gfs2_sbd {
 	struct gfs2_jdesc *sd_jdesc;
 	struct gfs2_holder sd_journal_gh;
 	struct gfs2_holder sd_jinode_gh;
-	struct gfs2_glock *sd_jinode_gl;
 
 	struct gfs2_holder sd_sc_gh;
 	struct buffer_head *sd_sc_bh;
@@ -845,7 +842,6 @@ struct gfs2_sbd {
 
 	unsigned long sd_last_warning;
 	struct dentry *debugfs_dir;    /* debugfs directory */
-	unsigned long sd_glock_dqs_held;
 };
 
 #define GFS2_BAD_INO 1

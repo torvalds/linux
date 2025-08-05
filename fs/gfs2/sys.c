@@ -85,7 +85,6 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "FS Freeze Initiator:      %d\n"
 		     "FS Frozen:                %d\n"
 		     "Remote Withdraw:          %d\n"
-		     "Withdraw Recovery:        %d\n"
 		     "Killing:                  %d\n"
 		     "sd_log_error:             %d\n"
 		     "sd_log_flush_lock:        %d\n"
@@ -116,7 +115,6 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     test_bit(SDF_FREEZE_INITIATOR, &f),
 		     test_bit(SDF_FROZEN, &f),
 		     test_bit(SDF_REMOTE_WITHDRAW, &f),
-		     test_bit(SDF_WITHDRAW_RECOVERY, &f),
 		     test_bit(SDF_KILL, &f),
 		     sdp->sd_log_error,
 		     rwsem_is_locked(&sdp->sd_log_flush_lock),

@@ -134,8 +134,6 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	i_gl = ip->i_gl;
 	no_formal_ino = ip->i_no_formal_ino;
 
-	/* Prevent any glock dq until withdraw recovery is complete */
-	set_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 	/*
 	 * Don't tell dlm we're bailing until we have no more buffers in the
 	 * wind. If journal had an IO error, the log code should just purge
@@ -173,7 +171,6 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
 		if (!ret)
 			ret = -EIO;
-		clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 		goto skip_recovery;
 	}
 	/*
@@ -233,7 +230,6 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	ret = gfs2_glock_nq(&sdp->sd_live_gh);
 
 	gfs2_glock_put(live_gl); /* drop extra reference we acquired */
-	clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 
 	/*
 	 * If we actually got the "live" lock in EX mode, there are no other
@@ -288,9 +284,6 @@ skip_recovery:
 	else
 		fs_warn(sdp, "Journal recovery skipped for jid %d until next "
 			"mount.\n", sdp->sd_lockstruct.ls_jid);
-	fs_warn(sdp, "Glock dequeues delayed: %lu\n", sdp->sd_glock_dqs_held);
-	sdp->sd_glock_dqs_held = 0;
-	wake_up_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY);
 }
 
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)
