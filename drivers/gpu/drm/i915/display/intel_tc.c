@@ -269,9 +269,11 @@ static u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
+	intel_wakeref_t wakeref;
 	u32 lane_mask;
 
-	lane_mask = intel_de_read(display, PORT_TX_DFLEXDPSP(tc->phy_fia));
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+		lane_mask = intel_de_read(display, PORT_TX_DFLEXDPSP(tc->phy_fia));
 
 	drm_WARN_ON(display->drm, lane_mask == 0xffffffff);
 	assert_tc_cold_blocked(tc);
@@ -284,9 +286,11 @@ u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
+	intel_wakeref_t wakeref;
 	u32 pin_mask;
 
-	pin_mask = intel_de_read(display, PORT_TX_DFLEXPA1(tc->phy_fia));
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+		pin_mask = intel_de_read(display, PORT_TX_DFLEXPA1(tc->phy_fia));
 
 	drm_WARN_ON(display->drm, pin_mask == 0xffffffff);
 	assert_tc_cold_blocked(tc);
@@ -324,12 +328,9 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 
 static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
-	struct intel_display *display = to_intel_display(dig_port);
-	intel_wakeref_t wakeref;
 	u32 pin_mask;
 
-	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		pin_mask = intel_tc_port_get_pin_assignment_mask(dig_port);
+	pin_mask = intel_tc_port_get_pin_assignment_mask(dig_port);
 
 	switch (pin_mask) {
 	default:
@@ -345,12 +346,9 @@ static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 
 static int intel_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
-	struct intel_display *display = to_intel_display(dig_port);
-	intel_wakeref_t wakeref;
 	u32 lane_mask = 0;
 
-	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		lane_mask = intel_tc_port_get_lane_mask(dig_port);
+	lane_mask = intel_tc_port_get_lane_mask(dig_port);
 
 	switch (lane_mask) {
 	default:
