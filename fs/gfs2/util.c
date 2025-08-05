@@ -516,13 +516,11 @@ void gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
 }
 
 /*
- * gfs2_io_error_bh_i - Flag a buffer I/O error
- * @withdraw: withdraw the filesystem
+ * gfs2_io_error_bh_i - Flag a buffer I/O error and withdraw
  */
 
 void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
-			const char *function, char *file, unsigned int line,
-			bool withdraw)
+			const char *function, char *file, unsigned int line)
 {
 	if (gfs2_withdrawn(sdp))
 		return;
@@ -531,7 +529,5 @@ void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	       "block = %llu, "
 	       "function = %s, file = %s, line = %u\n",
 	       (unsigned long long)bh->b_blocknr, function, file, line);
-	if (withdraw)
-		gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 }
-

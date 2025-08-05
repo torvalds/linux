@@ -112,10 +112,8 @@ __acquires(&sdp->sd_ail_lock)
 					  &tr->tr_ail2_list);
 				continue;
 			}
-			if (!cmpxchg(&sdp->sd_log_error, 0, -EIO)) {
+			if (!cmpxchg(&sdp->sd_log_error, 0, -EIO))
 				gfs2_io_error_bh(sdp, bh);
-				gfs2_withdraw(sdp);
-			}
 		}
 
 		if (gfs2_withdrawn(sdp)) {
@@ -324,10 +322,8 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
 			continue;
 		}
 		if (!buffer_uptodate(bh) &&
-		    !cmpxchg(&sdp->sd_log_error, 0, -EIO)) {
+		    !cmpxchg(&sdp->sd_log_error, 0, -EIO))
 			gfs2_io_error_bh(sdp, bh);
-			gfs2_withdraw(sdp);
-		}
 		/*
 		 * If we have space for revokes and the bd is no longer on any
 		 * buf list, we can just add a revoke for it immediately and
