@@ -1183,15 +1183,20 @@ static inline bool zone_is_empty(struct zone *zone)
 #define KASAN_TAG_MASK		((1UL << KASAN_TAG_WIDTH) - 1)
 #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
 
+static inline enum zone_type memdesc_zonenum(memdesc_flags_t flags)
+{
+	ASSERT_EXCLUSIVE_BITS(flags.f, ZONES_MASK << ZONES_PGSHIFT);
+	return (flags.f >> ZONES_PGSHIFT) & ZONES_MASK;
+}
+
 static inline enum zone_type page_zonenum(const struct page *page)
 {
-	ASSERT_EXCLUSIVE_BITS(page->flags, ZONES_MASK << ZONES_PGSHIFT);
-	return (page->flags.f >> ZONES_PGSHIFT) & ZONES_MASK;
+	return memdesc_zonenum(page->flags);
 }
 
 static inline enum zone_type folio_zonenum(const struct folio *folio)
 {
-	return page_zonenum(&folio->page);
+	return memdesc_zonenum(folio->flags);
 }
 
 #ifdef CONFIG_ZONE_DEVICE
