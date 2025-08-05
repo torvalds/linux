@@ -412,6 +412,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
 #ifdef CONFIG_CIFS_SMB_DIRECT
+		struct smbdirect_socket *sc;
 		struct smbdirect_socket_parameters *sp;
 #endif
 
@@ -436,7 +437,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "\nSMBDirect transport not available");
 			goto skip_rdma;
 		}
-		sp = &server->smbd_conn->socket.parameters;
+		sc = &server->smbd_conn->socket;
+		sp = &sc->parameters;
 
 		seq_printf(m, "\nSMBDirect (in hex) protocol version: %x "
 			"transport status: %x",
@@ -470,8 +472,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			server->smbd_conn->count_reassembly_queue,
 			server->smbd_conn->count_enqueue_reassembly_queue,
 			server->smbd_conn->count_dequeue_reassembly_queue,
-			server->smbd_conn->reassembly_data_length,
-			server->smbd_conn->reassembly_queue_length);
+			sc->recv_io.reassembly.data_length,
+			sc->recv_io.reassembly.queue_length);
 		seq_printf(m, "\nCurrent Credits send_credits: %x "
 			"receive_credits: %x receive_credit_target: %x",
 			atomic_read(&server->smbd_conn->send_credits),

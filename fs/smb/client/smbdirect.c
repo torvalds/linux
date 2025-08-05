@@ -224,7 +224,7 @@ static int smbd_conn_upcall(
 
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		wake_up_interruptible(&info->disconn_wait);
-		wake_up_interruptible(&info->wait_reassembly_queue);
+		wake_up_interruptible(&sc->recv_io.reassembly.wait_queue);
 		wake_up_interruptible_all(&info->wait_send_queue);
 		break;
 
@@ -470,7 +470,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	/* SMBD negotiation response */
 	case SMBDIRECT_EXPECT_NEGOTIATE_REP:
 		dump_smbdirect_negotiate_resp(smbdirect_recv_io_payload(response));
-		info->full_packet_received = true;
+		sc->recv_io.reassembly.full_packet_received = true;
 		info->negotiate_done =
 			process_negotiation_response(response, wc->byte_len);
 		put_receive_buffer(info, response);
@@ -483,13 +483,13 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		data_length = le32_to_cpu(data_transfer->data_length);
 
 		if (data_length) {
-			if (info->full_packet_received)
+			if (sc->recv_io.reassembly.full_packet_received)
 				response->first_segment = true;
 
 			if (le32_to_cpu(data_transfer->remaining_data_length))
-				info->full_packet_received = false;
+				sc->recv_io.reassembly.full_packet_received = false;
 			else
-				info->full_packet_received = true;
+				sc->recv_io.reassembly.full_packet_received = true;
 		}
 
 		atomic_dec(&info->receive_credits);
@@ -524,7 +524,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		 */
 		if (data_length) {
 			enqueue_reassembly(info, response, data_length);
-			wake_up_interruptible(&info->wait_reassembly_queue);
+			wake_up_interruptible(&sc->recv_io.reassembly.wait_queue);
 		} else
 			put_receive_buffer(info, response);
 
@@ -1124,9 +1124,11 @@ static void enqueue_reassembly(
 	struct smbdirect_recv_io *response,
 	int data_length)
 {
-	spin_lock(&info->reassembly_queue_lock);
-	list_add_tail(&response->list, &info->reassembly_queue);
-	info->reassembly_queue_length++;
+	struct smbdirect_socket *sc = &info->socket;
+
+	spin_lock(&sc->recv_io.reassembly.lock);
+	list_add_tail(&response->list, &sc->recv_io.reassembly.list);
+	sc->recv_io.reassembly.queue_length++;
 	/*
 	 * Make sure reassembly_data_length is updated after list and
 	 * reassembly_queue_length are updated. On the dequeue side
@@ -1134,8 +1136,8 @@ static void enqueue_reassembly(
 	 * if reassembly_queue_length and list is up to date
 	 */
 	virt_wmb();
-	info->reassembly_data_length += data_length;
-	spin_unlock(&info->reassembly_queue_lock);
+	sc->recv_io.reassembly.data_length += data_length;
+	spin_unlock(&sc->recv_io.reassembly.lock);
 	info->count_reassembly_queue++;
 	info->count_enqueue_reassembly_queue++;
 }
@@ -1147,11 +1149,12 @@ static void enqueue_reassembly(
  */
 static struct smbdirect_recv_io *_get_first_reassembly(struct smbd_connection *info)
 {
+	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *ret = NULL;
 
-	if (!list_empty(&info->reassembly_queue)) {
+	if (!list_empty(&sc->recv_io.reassembly.list)) {
 		ret = list_first_entry(
-			&info->reassembly_queue,
+			&sc->recv_io.reassembly.list,
 			struct smbdirect_recv_io, list);
 	}
 	return ret;
@@ -1219,10 +1222,10 @@ static int allocate_receive_buffers(struct smbd_connection *info, int num_buf)
 	struct smbdirect_recv_io *response;
 	int i;
 
-	INIT_LIST_HEAD(&info->reassembly_queue);
-	spin_lock_init(&info->reassembly_queue_lock);
-	info->reassembly_data_length = 0;
-	info->reassembly_queue_length = 0;
+	INIT_LIST_HEAD(&sc->recv_io.reassembly.list);
+	spin_lock_init(&sc->recv_io.reassembly.lock);
+	sc->recv_io.reassembly.data_length = 0;
+	sc->recv_io.reassembly.queue_length = 0;
 
 	INIT_LIST_HEAD(&sc->recv_io.free.list);
 	spin_lock_init(&sc->recv_io.free.lock);
@@ -1333,18 +1336,18 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	/* It's not possible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
 	do {
-		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
+		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 		response = _get_first_reassembly(info);
 		if (response) {
 			list_del(&response->list);
 			spin_unlock_irqrestore(
-				&info->reassembly_queue_lock, flags);
+				&sc->recv_io.reassembly.lock, flags);
 			put_receive_buffer(info, response);
 		} else
 			spin_unlock_irqrestore(
-				&info->reassembly_queue_lock, flags);
+				&sc->recv_io.reassembly.lock, flags);
 	} while (response);
-	info->reassembly_data_length = 0;
+	sc->recv_io.reassembly.data_length = 0;
 
 	log_rdma_event(INFO, "free receive buffers\n");
 	wait_event(info->wait_receive_queues,
@@ -1639,7 +1642,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 	init_waitqueue_head(&info->conn_wait);
 	init_waitqueue_head(&info->disconn_wait);
-	init_waitqueue_head(&info->wait_reassembly_queue);
+	init_waitqueue_head(&sc->recv_io.reassembly.wait_queue);
 	rc = rdma_connect(sc->rdma.cm_id, &conn_param);
 	if (rc) {
 		log_rdma_event(ERR, "rdma_connect() failed with %i\n", rc);
@@ -1776,9 +1779,9 @@ again:
 	 * the only one reading from the front of the queue. The transport
 	 * may add more entries to the back of the queue at the same time
 	 */
-	log_read(INFO, "size=%zd info->reassembly_data_length=%d\n", size,
-		info->reassembly_data_length);
-	if (info->reassembly_data_length >= size) {
+	log_read(INFO, "size=%zd sc->recv_io.reassembly.data_length=%d\n", size,
+		sc->recv_io.reassembly.data_length);
+	if (sc->recv_io.reassembly.data_length >= size) {
 		int queue_length;
 		int queue_removed = 0;
 
@@ -1790,10 +1793,10 @@ again:
 		 * updated in SOFTIRQ as more data is received
 		 */
 		virt_rmb();
-		queue_length = info->reassembly_queue_length;
+		queue_length = sc->recv_io.reassembly.queue_length;
 		data_read = 0;
 		to_read = size;
-		offset = info->first_entry_offset;
+		offset = sc->recv_io.reassembly.first_entry_offset;
 		while (data_read < size) {
 			response = _get_first_reassembly(info);
 			data_transfer = smbdirect_recv_io_payload(response);
@@ -1841,10 +1844,10 @@ again:
 					list_del(&response->list);
 				else {
 					spin_lock_irq(
-						&info->reassembly_queue_lock);
+						&sc->recv_io.reassembly.lock);
 					list_del(&response->list);
 					spin_unlock_irq(
-						&info->reassembly_queue_lock);
+						&sc->recv_io.reassembly.lock);
 				}
 				queue_removed++;
 				info->count_reassembly_queue--;
@@ -1863,23 +1866,23 @@ again:
 				 to_read, data_read, offset);
 		}
 
-		spin_lock_irq(&info->reassembly_queue_lock);
-		info->reassembly_data_length -= data_read;
-		info->reassembly_queue_length -= queue_removed;
-		spin_unlock_irq(&info->reassembly_queue_lock);
+		spin_lock_irq(&sc->recv_io.reassembly.lock);
+		sc->recv_io.reassembly.data_length -= data_read;
+		sc->recv_io.reassembly.queue_length -= queue_removed;
+		spin_unlock_irq(&sc->recv_io.reassembly.lock);
 
-		info->first_entry_offset = offset;
+		sc->recv_io.reassembly.first_entry_offset = offset;
 		log_read(INFO, "returning to thread data_read=%d reassembly_data_length=%d first_entry_offset=%d\n",
-			 data_read, info->reassembly_data_length,
-			 info->first_entry_offset);
+			 data_read, sc->recv_io.reassembly.data_length,
+			 sc->recv_io.reassembly.first_entry_offset);
 read_rfc1002_done:
 		return data_read;
 	}
 
 	log_read(INFO, "wait_event on more data\n");
 	rc = wait_event_interruptible(
-		info->wait_reassembly_queue,
-		info->reassembly_data_length >= size ||
+		sc->recv_io.reassembly.wait_queue,
+		sc->recv_io.reassembly.data_length >= size ||
 			sc->status != SMBDIRECT_SOCKET_CONNECTED);
 	/* Don't return any data if interrupted */
 	if (rc)

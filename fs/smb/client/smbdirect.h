@@ -108,29 +108,9 @@ struct smbd_connection {
 	int count_receive_queue;
 	wait_queue_head_t wait_receive_queues;
 
-	/* Reassembly queue */
-	struct list_head reassembly_queue;
-	spinlock_t reassembly_queue_lock;
-	wait_queue_head_t wait_reassembly_queue;
-
-	/* total data length of reassembly queue */
-	int reassembly_data_length;
-	int reassembly_queue_length;
-	/* the offset to first buffer in reassembly queue */
-	int first_entry_offset;
-
 	bool send_immediate;
 
 	wait_queue_head_t wait_send_queue;
-
-	/*
-	 * Indicate if we have received a full packet on the connection
-	 * This is used to identify the first SMBD packet of a assembled
-	 * payload (SMB packet) in reassembly queue so we can return a
-	 * RFC1002 length to upper layer to indicate the length of the SMB
-	 * packet received
-	 */
-	bool full_packet_received;
 
 	struct workqueue_struct *workqueue;
 	struct delayed_work idle_timer_work;
