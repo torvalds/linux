@@ -1558,17 +1558,22 @@ static inline int page_zone_id(struct page *page)
 }
 
 #ifdef NODE_NOT_IN_PAGE_FLAGS
-int page_to_nid(const struct page *page);
+int memdesc_nid(memdesc_flags_t mdf);
 #else
-static inline int page_to_nid(const struct page *page)
+static inline int memdesc_nid(memdesc_flags_t mdf)
 {
-	return (PF_POISONED_CHECK(page)->flags.f >> NODES_PGSHIFT) & NODES_MASK;
+	return (mdf.f >> NODES_PGSHIFT) & NODES_MASK;
 }
 #endif
 
+static inline int page_to_nid(const struct page *page)
+{
+	return memdesc_nid(PF_POISONED_CHECK(page)->flags);
+}
+
 static inline int folio_nid(const struct folio *folio)
 {
-	return page_to_nid(&folio->page);
+	return memdesc_nid(folio->flags);
 }
 
 #ifdef CONFIG_NUMA_BALANCING
@@ -1791,14 +1796,14 @@ static inline pg_data_t *page_pgdat(const struct page *page)
 	return NODE_DATA(page_to_nid(page));
 }
 
-static inline struct zone *folio_zone(const struct folio *folio)
-{
-	return page_zone(&folio->page);
-}
-
 static inline pg_data_t *folio_pgdat(const struct folio *folio)
 {
-	return page_pgdat(&folio->page);
+	return NODE_DATA(folio_nid(folio));
+}
+
+static inline struct zone *folio_zone(const struct folio *folio)
+{
+	return &folio_pgdat(folio)->node_zones[folio_zonenum(folio)];
 }
 
 #ifdef SECTION_IN_PAGE_FLAGS
