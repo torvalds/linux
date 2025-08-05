@@ -177,15 +177,15 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
 		page_pgmap(page)->type == MEMORY_DEVICE_PCI_P2PDMA;
 }
 
-static inline bool is_device_coherent_page(const struct page *page)
-{
-	return is_zone_device_page(page) &&
-		page_pgmap(page)->type == MEMORY_DEVICE_COHERENT;
-}
-
 static inline bool folio_is_device_coherent(const struct folio *folio)
 {
-	return is_device_coherent_page(&folio->page);
+	return folio_is_zone_device(folio) &&
+		folio->pgmap->type == MEMORY_DEVICE_COHERENT;
+}
+
+static inline bool is_device_coherent_page(const struct page *page)
+{
+	return folio_is_device_coherent(page_folio(page));
 }
 
 static inline bool is_fsdax_page(const struct page *page)
