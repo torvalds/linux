@@ -471,13 +471,11 @@ void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
 
 /*
  * gfs2_meta_check_ii - Flag a magic number consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          -2 if it was already withdrawn
  */
 
-int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *function, char *file,
-		       unsigned int line)
+void gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			const char *function, char *file,
+			unsigned int line)
 {
 	gfs2_lm(sdp,
 		"fatal: invalid metadata block - "
@@ -486,18 +484,15 @@ int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		(unsigned long long)bh->b_blocknr,
 		function, file, line);
 	gfs2_withdraw(sdp);
-	return -1;
 }
 
 /*
  * gfs2_metatype_check_ii - Flag a metadata type consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          -2 if it was already withdrawn
  */
 
-int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-			   u16 type, u16 t, const char *function,
-			   char *file, unsigned int line)
+void gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			    u16 type, u16 t, const char *function,
+			    char *file, unsigned int line)
 {
 	gfs2_lm(sdp,
 		"fatal: invalid metadata block - "
@@ -506,7 +501,6 @@ int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		(unsigned long long)bh->b_blocknr, type, t,
 		function, file, line);
 	gfs2_withdraw(sdp);
-	return -1;
 }
 
 /*
@@ -515,15 +509,14 @@ int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
  *          0 if it was already withdrawn
  */
 
-int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
-		    unsigned int line)
+void gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
+		     unsigned int line)
 {
 	gfs2_lm(sdp,
 		"fatal: I/O error - "
 		"function = %s, file = %s, line = %u\n",
 		function, file, line);
 	gfs2_withdraw(sdp);
-	return -1;
 }
 
 /*
