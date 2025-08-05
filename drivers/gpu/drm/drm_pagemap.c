@@ -460,54 +460,80 @@ static int drm_pagemap_migrate_populate_ram_pfn(struct vm_area_struct *vas,
 {
 	unsigned long i;
 
-	for (i = 0; i < npages; ++i, addr += PAGE_SIZE) {
-		struct page *page, *src_page;
+	for (i = 0; i < npages;) {
+		struct page *page = NULL, *src_page;
+		struct folio *folio;
+		unsigned int order = 0;
 
 		if (!(src_mpfn[i] & MIGRATE_PFN_MIGRATE))
-			continue;
+			goto next;
 
 		src_page = migrate_pfn_to_page(src_mpfn[i]);
 		if (!src_page)
-			continue;
+			goto next;
 
 		if (fault_page) {
 			if (src_page->zone_device_data !=
 			    fault_page->zone_device_data)
-				continue;
+				goto next;
 		}
 
-		if (vas)
-			page = alloc_page_vma(GFP_HIGHUSER, vas, addr);
-		else
-			page = alloc_page(GFP_HIGHUSER);
+		order = folio_order(page_folio(src_page));
 
-		if (!page)
+		/* TODO: Support fallback to single pages if THP allocation fails */
+		if (vas)
+			folio = vma_alloc_folio(GFP_HIGHUSER, order, vas, addr);
+		else
+			folio = folio_alloc(GFP_HIGHUSER, order);
+
+		if (!folio)
 			goto free_pages;
 
+		page = folio_page(folio, 0);
 		mpfn[i] = migrate_pfn(page_to_pfn(page));
+
+next:
+		if (page)
+			addr += page_size(page);
+		else
+			addr += PAGE_SIZE;
+
+		i += NR_PAGES(order);
 	}
 
-	for (i = 0; i < npages; ++i) {
+	for (i = 0; i < npages;) {
 		struct page *page = migrate_pfn_to_page(mpfn[i]);
+		unsigned int order = 0;
 
 		if (!page)
-			continue;
+			goto next_lock;
 
-		WARN_ON_ONCE(!trylock_page(page));
-		++*mpages;
+		WARN_ON_ONCE(!folio_trylock(page_folio(page)));
+
+		order = folio_order(page_folio(page));
+		*mpages += NR_PAGES(order);
+
+next_lock:
+		i += NR_PAGES(order);
 	}
 
 	return 0;
 
 free_pages:
-	for (i = 0; i < npages; ++i) {
+	for (i = 0; i < npages;) {
 		struct page *page = migrate_pfn_to_page(mpfn[i]);
+		unsigned int order = 0;
 
 		if (!page)
-			continue;
+			goto next_put;
 
 		put_page(page);
 		mpfn[i] = 0;
+
+		order = folio_order(page_folio(page));
+
+next_put:
+		i += NR_PAGES(order);
 	}
 	return -ENOMEM;
 }
