@@ -1785,6 +1785,9 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0803, 0x3095), /* Zoom Telephonics Model 3095F USB MODEM */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x0572, 0x1300), /* Conexant USB MODEM CX06836 */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
 	{ USB_DEVICE(0x0572, 0x1321), /* Conexant USB MODEM CX93010 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
