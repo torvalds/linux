@@ -1200,14 +1200,14 @@ static inline enum zone_type folio_zonenum(const struct folio *folio)
 }
 
 #ifdef CONFIG_ZONE_DEVICE
-static inline bool is_zone_device_page(const struct page *page)
+static inline bool memdesc_is_zone_device(memdesc_flags_t mdf)
 {
-	return page_zonenum(page) == ZONE_DEVICE;
+	return memdesc_zonenum(mdf) == ZONE_DEVICE;
 }
 
 static inline struct dev_pagemap *page_pgmap(const struct page *page)
 {
-	VM_WARN_ON_ONCE_PAGE(!is_zone_device_page(page), page);
+	VM_WARN_ON_ONCE_PAGE(!memdesc_is_zone_device(page->flags), page);
 	return page_folio(page)->pgmap;
 }
 
@@ -1222,9 +1222,9 @@ static inline struct dev_pagemap *page_pgmap(const struct page *page)
 static inline bool zone_device_pages_have_same_pgmap(const struct page *a,
 						     const struct page *b)
 {
-	if (is_zone_device_page(a) != is_zone_device_page(b))
+	if (memdesc_is_zone_device(a->flags) != memdesc_is_zone_device(b->flags))
 		return false;
-	if (!is_zone_device_page(a))
+	if (!memdesc_is_zone_device(a->flags))
 		return true;
 	return page_pgmap(a) == page_pgmap(b);
 }
@@ -1232,7 +1232,7 @@ static inline bool zone_device_pages_have_same_pgmap(const struct page *a,
 extern void memmap_init_zone_device(struct zone *, unsigned long,
 				    unsigned long, struct dev_pagemap *);
 #else
-static inline bool is_zone_device_page(const struct page *page)
+static inline bool memdesc_is_zone_device(memdesc_flags_t mdf)
 {
 	return false;
 }
@@ -1247,9 +1247,14 @@ static inline struct dev_pagemap *page_pgmap(const struct page *page)
 }
 #endif
 
+static inline bool is_zone_device_page(const struct page *page)
+{
+	return memdesc_is_zone_device(page->flags);
+}
+
 static inline bool folio_is_zone_device(const struct folio *folio)
 {
-	return is_zone_device_page(&folio->page);
+	return memdesc_is_zone_device(folio->flags);
 }
 
 static inline bool is_zone_movable_page(const struct page *page)
