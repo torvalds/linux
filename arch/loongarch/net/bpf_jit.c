@@ -1915,6 +1915,16 @@ out_free:
 	goto out_offset;
 }
 
+bool bpf_jit_bypass_spec_v1(void)
+{
+	return true;
+}
+
+bool bpf_jit_bypass_spec_v4(void)
+{
+	return true;
+}
+
 /* Indicate the JIT backend supports mixing bpf2bpf and tailcalls. */
 bool bpf_jit_supports_subprog_tailcalls(void)
 {
