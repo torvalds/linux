@@ -334,6 +334,8 @@ static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 	pin_assignment = intel_tc_port_get_pin_assignment(dig_port);
 
 	switch (pin_assignment) {
+	case INTEL_TC_PIN_ASSIGNMENT_NONE:
+		return 0;
 	default:
 		MISSING_CASE(pin_assignment);
 		fallthrough;
