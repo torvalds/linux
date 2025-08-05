@@ -4200,6 +4200,8 @@ static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 		return handle_fastpath_set_msr_irqoff(vcpu);
 	case SVM_EXIT_HLT:
 		return handle_fastpath_hlt(vcpu);
+	case SVM_EXIT_INVD:
+		return handle_fastpath_invd(vcpu);
 	default:
 		break;
 	}

@@ -2087,6 +2087,15 @@ int kvm_emulate_invd(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_invd);
 
+fastpath_t handle_fastpath_invd(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_emulate_invd(vcpu))
+		return EXIT_FASTPATH_EXIT_USERSPACE;
+
+	return EXIT_FASTPATH_REENTER_GUEST;
+}
+EXPORT_SYMBOL_GPL(handle_fastpath_invd);
+
 int kvm_handle_invalid_op(struct kvm_vcpu *vcpu)
 {
 	kvm_queue_exception(vcpu, UD_VECTOR);

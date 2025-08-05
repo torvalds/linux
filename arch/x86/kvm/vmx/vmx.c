@@ -7175,6 +7175,8 @@ static fastpath_t vmx_exit_handlers_fastpath(struct kvm_vcpu *vcpu,
 		return handle_fastpath_preemption_timer(vcpu, force_immediate_exit);
 	case EXIT_REASON_HLT:
 		return handle_fastpath_hlt(vcpu);
+	case EXIT_REASON_INVD:
+		return handle_fastpath_invd(vcpu);
 	default:
 		return EXIT_FASTPATH_NONE;
 	}
