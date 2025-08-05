@@ -402,7 +402,7 @@ unsigned long get_free_hugepages(void)
 	return fhp;
 }
 
-bool check_vmflag_io(void *addr)
+static bool check_vmflag(void *addr, const char *flag)
 {
 	char buffer[MAX_LINE_LENGTH];
 	const char *flags;
@@ -419,11 +419,21 @@ bool check_vmflag_io(void *addr)
 		if (!flaglen)
 			return false;
 
-		if (flaglen == strlen("io") && !memcmp(flags, "io", flaglen))
+		if (flaglen == strlen(flag) && !memcmp(flags, flag, flaglen))
 			return true;
 
 		flags += flaglen;
 	}
+}
+
+bool check_vmflag_io(void *addr)
+{
+	return check_vmflag(addr, "io");
+}
+
+bool check_vmflag_pfnmap(void *addr)
+{
+	return check_vmflag(addr, "pf");
 }
 
 /*
