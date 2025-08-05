@@ -157,16 +157,17 @@ static inline unsigned long pgmap_vmemmap_nr(struct dev_pagemap *pgmap)
 	return 1 << pgmap->vmemmap_shift;
 }
 
+static inline bool folio_is_device_private(const struct folio *folio)
+{
+	return IS_ENABLED(CONFIG_DEVICE_PRIVATE) &&
+		folio_is_zone_device(folio) &&
+		folio->pgmap->type == MEMORY_DEVICE_PRIVATE;
+}
+
 static inline bool is_device_private_page(const struct page *page)
 {
 	return IS_ENABLED(CONFIG_DEVICE_PRIVATE) &&
-		is_zone_device_page(page) &&
-		page_pgmap(page)->type == MEMORY_DEVICE_PRIVATE;
-}
-
-static inline bool folio_is_device_private(const struct folio *folio)
-{
-	return is_device_private_page(&folio->page);
+		folio_is_device_private(page_folio(page));
 }
 
 static inline bool is_pci_p2pdma_page(const struct page *page)
