@@ -170,7 +170,7 @@ struct drm_pagemap_devmem_ops {
 	/**
 	 * @copy_to_devmem: Copy to device memory (required for migration)
 	 * @pages: Pointer to array of device memory pages (destination)
-	 * @dma_addr: Pointer to array of DMA addresses (source)
+	 * @pagemap_addr: Pointer to array of DMA information (source)
 	 * @npages: Number of pages to copy
 	 *
 	 * Copy pages to device memory.
@@ -178,13 +178,13 @@ struct drm_pagemap_devmem_ops {
 	 * Return: 0 on success, a negative error code on failure.
 	 */
 	int (*copy_to_devmem)(struct page **pages,
-			      dma_addr_t *dma_addr,
+			      struct drm_pagemap_addr *pagemap_addr,
 			      unsigned long npages);
 
 	/**
 	 * @copy_to_ram: Copy to system RAM (required for migration)
 	 * @pages: Pointer to array of device memory pages (source)
-	 * @dma_addr: Pointer to array of DMA addresses (destination)
+	 * @pagemap_addr: Pointer to array of DMA information (destination)
 	 * @npages: Number of pages to copy
 	 *
 	 * Copy pages to system RAM.
@@ -192,7 +192,7 @@ struct drm_pagemap_devmem_ops {
 	 * Return: 0 on success, a negative error code on failure.
 	 */
 	int (*copy_to_ram)(struct page **pages,
-			   dma_addr_t *dma_addr,
+			   struct drm_pagemap_addr *pagemap_addr,
 			   unsigned long npages);
 };
 

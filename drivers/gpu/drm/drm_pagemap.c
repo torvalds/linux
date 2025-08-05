@@ -202,7 +202,7 @@ static void drm_pagemap_get_devmem_page(struct page *page,
 /**
  * drm_pagemap_migrate_map_pages() - Map migration pages for GPU SVM migration
  * @dev: The device for which the pages are being mapped
- * @dma_addr: Array to store DMA addresses corresponding to mapped pages
+ * @pagemap_addr: Array to store DMA information corresponding to mapped pages
  * @migrate_pfn: Array of migrate page frame numbers to map
  * @npages: Number of pages to map
  * @dir: Direction of data transfer (e.g., DMA_BIDIRECTIONAL)
@@ -215,7 +215,7 @@ static void drm_pagemap_get_devmem_page(struct page *page,
  * Returns: 0 on success, -EFAULT if an error occurs during mapping.
  */
 static int drm_pagemap_migrate_map_pages(struct device *dev,
-					 dma_addr_t *dma_addr,
+					 struct drm_pagemap_addr *pagemap_addr,
 					 unsigned long *migrate_pfn,
 					 unsigned long npages,
 					 enum dma_data_direction dir)
@@ -224,6 +224,7 @@ static int drm_pagemap_migrate_map_pages(struct device *dev,
 
 	for (i = 0; i < npages; ++i) {
 		struct page *page = migrate_pfn_to_page(migrate_pfn[i]);
+		dma_addr_t dma_addr;
 
 		if (!page)
 			continue;
@@ -231,9 +232,14 @@ static int drm_pagemap_migrate_map_pages(struct device *dev,
 		if (WARN_ON_ONCE(is_zone_device_page(page)))
 			return -EFAULT;
 
-		dma_addr[i] = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
-		if (dma_mapping_error(dev, dma_addr[i]))
+		dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
+		if (dma_mapping_error(dev, dma_addr))
 			return -EFAULT;
+
+		pagemap_addr[i] =
+			drm_pagemap_addr_encode(dma_addr,
+						DRM_INTERCONNECT_SYSTEM,
+						0, dir);
 	}
 
 	return 0;
@@ -242,7 +248,7 @@ static int drm_pagemap_migrate_map_pages(struct device *dev,
 /**
  * drm_pagemap_migrate_unmap_pages() - Unmap pages previously mapped for GPU SVM migration
  * @dev: The device for which the pages were mapped
- * @dma_addr: Array of DMA addresses corresponding to mapped pages
+ * @pagemap_addr: Array of DMA information corresponding to mapped pages
  * @npages: Number of pages to unmap
  * @dir: Direction of data transfer (e.g., DMA_BIDIRECTIONAL)
  *
@@ -251,17 +257,17 @@ static int drm_pagemap_migrate_map_pages(struct device *dev,
  * if it's valid and not already unmapped, and unmaps the corresponding page.
  */
 static void drm_pagemap_migrate_unmap_pages(struct device *dev,
-					    dma_addr_t *dma_addr,
+					    struct drm_pagemap_addr *pagemap_addr,
 					    unsigned long npages,
 					    enum dma_data_direction dir)
 {
 	unsigned long i;
 
 	for (i = 0; i < npages; ++i) {
-		if (!dma_addr[i] || dma_mapping_error(dev, dma_addr[i]))
+		if (!pagemap_addr[i].addr || dma_mapping_error(dev, pagemap_addr[i].addr))
 			continue;
 
-		dma_unmap_page(dev, dma_addr[i], PAGE_SIZE, dir);
+		dma_unmap_page(dev, pagemap_addr[i].addr, PAGE_SIZE, dir);
 	}
 }
 
@@ -314,7 +320,7 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 	struct vm_area_struct *vas;
 	struct drm_pagemap_zdd *zdd = NULL;
 	struct page **pages;
-	dma_addr_t *dma_addr;
+	struct drm_pagemap_addr *pagemap_addr;
 	void *buf;
 	int err;
 
@@ -340,14 +346,14 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 		goto err_out;
 	}
 
-	buf = kvcalloc(npages, 2 * sizeof(*migrate.src) + sizeof(*dma_addr) +
+	buf = kvcalloc(npages, 2 * sizeof(*migrate.src) + sizeof(*pagemap_addr) +
 		       sizeof(*pages), GFP_KERNEL);
 	if (!buf) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	dma_addr = buf + (2 * sizeof(*migrate.src) * npages);
-	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*dma_addr)) * npages;
+	pagemap_addr = buf + (2 * sizeof(*migrate.src) * npages);
+	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*pagemap_addr)) * npages;
 
 	zdd = drm_pagemap_zdd_alloc(pgmap_owner);
 	if (!zdd) {
@@ -377,8 +383,9 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 	if (err)
 		goto err_finalize;
 
-	err = drm_pagemap_migrate_map_pages(devmem_allocation->dev, dma_addr,
+	err = drm_pagemap_migrate_map_pages(devmem_allocation->dev, pagemap_addr,
 					    migrate.src, npages, DMA_TO_DEVICE);
+
 	if (err)
 		goto err_finalize;
 
@@ -390,7 +397,7 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 		drm_pagemap_get_devmem_page(page, zdd);
 	}
 
-	err = ops->copy_to_devmem(pages, dma_addr, npages);
+	err = ops->copy_to_devmem(pages, pagemap_addr, npages);
 	if (err)
 		goto err_finalize;
 
@@ -404,7 +411,7 @@ err_finalize:
 		drm_pagemap_migration_unlock_put_pages(npages, migrate.dst);
 	migrate_vma_pages(&migrate);
 	migrate_vma_finalize(&migrate);
-	drm_pagemap_migrate_unmap_pages(devmem_allocation->dev, dma_addr, npages,
+	drm_pagemap_migrate_unmap_pages(devmem_allocation->dev, pagemap_addr, npages,
 					DMA_TO_DEVICE);
 err_free:
 	if (zdd)
@@ -509,7 +516,7 @@ int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation)
 	unsigned long npages, mpages = 0;
 	struct page **pages;
 	unsigned long *src, *dst;
-	dma_addr_t *dma_addr;
+	struct drm_pagemap_addr *pagemap_addr;
 	void *buf;
 	int i, err = 0;
 	unsigned int retry_count = 2;
@@ -520,7 +527,7 @@ retry:
 	if (!mmget_not_zero(devmem_allocation->mm))
 		return -EFAULT;
 
-	buf = kvcalloc(npages, 2 * sizeof(*src) + sizeof(*dma_addr) +
+	buf = kvcalloc(npages, 2 * sizeof(*src) + sizeof(*pagemap_addr) +
 		       sizeof(*pages), GFP_KERNEL);
 	if (!buf) {
 		err = -ENOMEM;
@@ -528,8 +535,8 @@ retry:
 	}
 	src = buf;
 	dst = buf + (sizeof(*src) * npages);
-	dma_addr = buf + (2 * sizeof(*src) * npages);
-	pages = buf + (2 * sizeof(*src) + sizeof(*dma_addr)) * npages;
+	pagemap_addr = buf + (2 * sizeof(*src) * npages);
+	pages = buf + (2 * sizeof(*src) + sizeof(*pagemap_addr)) * npages;
 
 	err = ops->populate_devmem_pfn(devmem_allocation, npages, src);
 	if (err)
@@ -544,7 +551,7 @@ retry:
 	if (err || !mpages)
 		goto err_finalize;
 
-	err = drm_pagemap_migrate_map_pages(devmem_allocation->dev, dma_addr,
+	err = drm_pagemap_migrate_map_pages(devmem_allocation->dev, pagemap_addr,
 					    dst, npages, DMA_FROM_DEVICE);
 	if (err)
 		goto err_finalize;
@@ -552,7 +559,7 @@ retry:
 	for (i = 0; i < npages; ++i)
 		pages[i] = migrate_pfn_to_page(src[i]);
 
-	err = ops->copy_to_ram(pages, dma_addr, npages);
+	err = ops->copy_to_ram(pages, pagemap_addr, npages);
 	if (err)
 		goto err_finalize;
 
@@ -561,7 +568,7 @@ err_finalize:
 		drm_pagemap_migration_unlock_put_pages(npages, dst);
 	migrate_device_pages(src, dst, npages);
 	migrate_device_finalize(src, dst, npages);
-	drm_pagemap_migrate_unmap_pages(devmem_allocation->dev, dma_addr, npages,
+	drm_pagemap_migrate_unmap_pages(devmem_allocation->dev, pagemap_addr, npages,
 					DMA_FROM_DEVICE);
 err_free:
 	kvfree(buf);
@@ -612,7 +619,7 @@ static int __drm_pagemap_migrate_to_ram(struct vm_area_struct *vas,
 	struct device *dev = NULL;
 	unsigned long npages, mpages = 0;
 	struct page **pages;
-	dma_addr_t *dma_addr;
+	struct drm_pagemap_addr *pagemap_addr;
 	unsigned long start, end;
 	void *buf;
 	int i, err = 0;
@@ -637,14 +644,14 @@ static int __drm_pagemap_migrate_to_ram(struct vm_area_struct *vas,
 	migrate.end = end;
 	npages = npages_in_range(start, end);
 
-	buf = kvcalloc(npages, 2 * sizeof(*migrate.src) + sizeof(*dma_addr) +
+	buf = kvcalloc(npages, 2 * sizeof(*migrate.src) + sizeof(*pagemap_addr) +
 		       sizeof(*pages), GFP_KERNEL);
 	if (!buf) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	dma_addr = buf + (2 * sizeof(*migrate.src) * npages);
-	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*dma_addr)) * npages;
+	pagemap_addr = buf + (2 * sizeof(*migrate.src) * npages);
+	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*pagemap_addr)) * npages;
 
 	migrate.vma = vas;
 	migrate.src = buf;
@@ -680,7 +687,7 @@ static int __drm_pagemap_migrate_to_ram(struct vm_area_struct *vas,
 	if (err)
 		goto err_finalize;
 
-	err = drm_pagemap_migrate_map_pages(dev, dma_addr, migrate.dst, npages,
+	err = drm_pagemap_migrate_map_pages(dev, pagemap_addr, migrate.dst, npages,
 					    DMA_FROM_DEVICE);
 	if (err)
 		goto err_finalize;
@@ -688,7 +695,7 @@ static int __drm_pagemap_migrate_to_ram(struct vm_area_struct *vas,
 	for (i = 0; i < npages; ++i)
 		pages[i] = migrate_pfn_to_page(migrate.src[i]);
 
-	err = ops->copy_to_ram(pages, dma_addr, npages);
+	err = ops->copy_to_ram(pages, pagemap_addr, npages);
 	if (err)
 		goto err_finalize;
 
@@ -698,7 +705,7 @@ err_finalize:
 	migrate_vma_pages(&migrate);
 	migrate_vma_finalize(&migrate);
 	if (dev)
-		drm_pagemap_migrate_unmap_pages(dev, dma_addr, npages,
+		drm_pagemap_migrate_unmap_pages(dev, pagemap_addr, npages,
 						DMA_FROM_DEVICE);
 err_free:
 	kvfree(buf);

@@ -328,7 +328,8 @@ enum xe_svm_copy_dir {
 	XE_SVM_COPY_TO_SRAM,
 };
 
-static int xe_svm_copy(struct page **pages, dma_addr_t *dma_addr,
+static int xe_svm_copy(struct page **pages,
+		       struct drm_pagemap_addr *pagemap_addr,
 		       unsigned long npages, const enum xe_svm_copy_dir dir)
 {
 	struct xe_vram_region *vr = NULL;
@@ -360,7 +361,7 @@ static int xe_svm_copy(struct page **pages, dma_addr_t *dma_addr,
 		last = (i + 1) == npages;
 
 		/* No CPU page and no device pages queue'd to copy */
-		if (!dma_addr[i] && vram_addr == XE_VRAM_ADDR_INVALID)
+		if (!pagemap_addr[i].addr && vram_addr == XE_VRAM_ADDR_INVALID)
 			continue;
 
 		if (!vr && spage) {
@@ -374,7 +375,7 @@ static int xe_svm_copy(struct page **pages, dma_addr_t *dma_addr,
 		 * first device page, check if physical contiguous on subsequent
 		 * device pages.
 		 */
-		if (dma_addr[i] && spage) {
+		if (pagemap_addr[i].addr && spage) {
 			__vram_addr = xe_vram_region_page_to_dpa(vr, spage);
 			if (vram_addr == XE_VRAM_ADDR_INVALID) {
 				vram_addr = __vram_addr;
@@ -399,18 +400,20 @@ static int xe_svm_copy(struct page **pages, dma_addr_t *dma_addr,
 				if (sram) {
 					vm_dbg(&xe->drm,
 					       "COPY TO SRAM - 0x%016llx -> 0x%016llx, NPAGES=%ld",
-					       vram_addr, (u64)dma_addr[pos], i - pos + incr);
+					       vram_addr,
+					       (u64)pagemap_addr[pos].addr, i - pos + incr);
 					__fence = xe_migrate_from_vram(vr->migrate,
 								       i - pos + incr,
 								       vram_addr,
-								       dma_addr + pos);
+								       &pagemap_addr[pos]);
 				} else {
 					vm_dbg(&xe->drm,
 					       "COPY TO VRAM - 0x%016llx -> 0x%016llx, NPAGES=%ld",
-					       (u64)dma_addr[pos], vram_addr, i - pos + incr);
+					       (u64)pagemap_addr[pos].addr, vram_addr,
+					       i - pos + incr);
 					__fence = xe_migrate_to_vram(vr->migrate,
 								     i - pos + incr,
-								     dma_addr + pos,
+								     &pagemap_addr[pos],
 								     vram_addr);
 				}
 				if (IS_ERR(__fence)) {
@@ -423,7 +426,7 @@ static int xe_svm_copy(struct page **pages, dma_addr_t *dma_addr,
 			}
 
 			/* Setup physical address of next device page */
-			if (dma_addr[i] && spage) {
+			if (pagemap_addr[i].addr && spage) {
 				vram_addr = __vram_addr;
 				pos = i;
 			} else {
@@ -435,16 +438,16 @@ static int xe_svm_copy(struct page **pages, dma_addr_t *dma_addr,
 				if (sram) {
 					vm_dbg(&xe->drm,
 					       "COPY TO SRAM - 0x%016llx -> 0x%016llx, NPAGES=%d",
-					       vram_addr, (u64)dma_addr[pos], 1);
+					       vram_addr, (u64)pagemap_addr[pos].addr, 1);
 					__fence = xe_migrate_from_vram(vr->migrate, 1,
 								       vram_addr,
-								       dma_addr + pos);
+								       &pagemap_addr[pos]);
 				} else {
 					vm_dbg(&xe->drm,
 					       "COPY TO VRAM - 0x%016llx -> 0x%016llx, NPAGES=%d",
-					       (u64)dma_addr[pos], vram_addr, 1);
+					       (u64)pagemap_addr[pos].addr, vram_addr, 1);
 					__fence = xe_migrate_to_vram(vr->migrate, 1,
-								     dma_addr + pos,
+								     &pagemap_addr[pos],
 								     vram_addr);
 				}
 				if (IS_ERR(__fence)) {
@@ -470,16 +473,18 @@ err_out:
 #undef XE_VRAM_ADDR_INVALID
 }
 
-static int xe_svm_copy_to_devmem(struct page **pages, dma_addr_t *dma_addr,
+static int xe_svm_copy_to_devmem(struct page **pages,
+				 struct drm_pagemap_addr *pagemap_addr,
 				 unsigned long npages)
 {
-	return xe_svm_copy(pages, dma_addr, npages, XE_SVM_COPY_TO_VRAM);
+	return xe_svm_copy(pages, pagemap_addr, npages, XE_SVM_COPY_TO_VRAM);
 }
 
-static int xe_svm_copy_to_ram(struct page **pages, dma_addr_t *dma_addr,
+static int xe_svm_copy_to_ram(struct page **pages,
+			      struct drm_pagemap_addr *pagemap_addr,
 			      unsigned long npages)
 {
-	return xe_svm_copy(pages, dma_addr, npages, XE_SVM_COPY_TO_SRAM);
+	return xe_svm_copy(pages, pagemap_addr, npages, XE_SVM_COPY_TO_SRAM);
 }
 
 static struct xe_bo *to_xe_bo(struct drm_pagemap_devmem *devmem_allocation)
