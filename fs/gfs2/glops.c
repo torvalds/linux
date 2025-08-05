@@ -45,7 +45,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 	       gl->gl_name.ln_type, gl->gl_name.ln_number,
 	       gfs2_glock2aspace(gl));
 	gfs2_lm(sdp, "AIL error\n");
-	gfs2_withdraw_delayed(sdp);
+	gfs2_withdraw(sdp);
 }
 
 /**
@@ -83,9 +83,6 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync,
 	GLOCK_BUG_ON(gl, !fsync && atomic_read(&gl->gl_ail_count));
 	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
-
-	if (gfs2_withdrawing(sdp))
-		gfs2_withdraw(sdp);
 }
 
 
@@ -608,10 +605,10 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl)
 		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
 		error = gfs2_find_jhead(sdp->sd_jdesc, &head);
-		if (gfs2_assert_withdraw_delayed(sdp, !error))
+		if (gfs2_assert_withdraw(sdp, !error))
 			return error;
-		if (gfs2_assert_withdraw_delayed(sdp, head.lh_flags &
-						 GFS2_LOG_HEAD_UNMOUNT))
+		if (gfs2_assert_withdraw(sdp, head.lh_flags &
+					 GFS2_LOG_HEAD_UNMOUNT))
 			return -EIO;
 		gfs2_log_pointers_init(sdp, &head);
 	}

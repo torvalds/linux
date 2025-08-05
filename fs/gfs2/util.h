@@ -37,24 +37,14 @@ do { \
 
 
 void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			    const char *function, char *file, unsigned int line,
-			    bool delayed);
+			    const char *function, char *file, unsigned int line);
 
 #define gfs2_assert_withdraw(sdp, assertion) \
 	({ \
 		bool _bool = (assertion); \
 		if (unlikely(!_bool)) \
 			gfs2_assert_withdraw_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__, false); \
-		!_bool; \
-	})
-
-#define gfs2_assert_withdraw_delayed(sdp, assertion) \
-	({ \
-		bool _bool = (assertion); \
-		if (unlikely(!_bool)) \
-			gfs2_assert_withdraw_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__, true); \
+					__func__, __FILE__, __LINE__); \
 		!_bool; \
 	})
 
@@ -193,33 +183,13 @@ static inline unsigned int gfs2_tune_get_i(struct gfs2_tune *gt,
 }
 
 /**
- * gfs2_withdraw_delayed - withdraw as soon as possible without deadlocks
- * @sdp: the superblock
- */
-static inline void gfs2_withdraw_delayed(struct gfs2_sbd *sdp)
-{
-	set_bit(SDF_WITHDRAWING, &sdp->sd_flags);
-}
-
-/**
  * gfs2_withdrawing_or_withdrawn - test whether the file system is withdrawing
  *                                 or withdrawn
  * @sdp: the superblock
  */
 static inline bool gfs2_withdrawing_or_withdrawn(struct gfs2_sbd *sdp)
 {
-	return unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags) ||
-			test_bit(SDF_WITHDRAWING, &sdp->sd_flags));
-}
-
-/**
- * gfs2_withdrawing - check if a withdraw is pending
- * @sdp: the superblock
- */
-static inline bool gfs2_withdrawing(struct gfs2_sbd *sdp)
-{
-	return unlikely(test_bit(SDF_WITHDRAWING, &sdp->sd_flags) &&
-			!test_bit(SDF_WITHDRAWN, &sdp->sd_flags));
+	return unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags));
 }
 
 static inline bool gfs2_withdraw_in_prog(struct gfs2_sbd *sdp)

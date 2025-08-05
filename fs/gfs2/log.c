@@ -114,7 +114,7 @@ __acquires(&sdp->sd_ail_lock)
 			}
 			if (!cmpxchg(&sdp->sd_log_error, 0, -EIO)) {
 				gfs2_io_error_bh(sdp, bh);
-				gfs2_withdraw_delayed(sdp);
+				gfs2_withdraw(sdp);
 			}
 		}
 
@@ -326,7 +326,7 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
 		if (!buffer_uptodate(bh) &&
 		    !cmpxchg(&sdp->sd_log_error, 0, -EIO)) {
 			gfs2_io_error_bh(sdp, bh);
-			gfs2_withdraw_delayed(sdp);
+			gfs2_withdraw(sdp);
 		}
 		/*
 		 * If we have space for revokes and the bd is no longer on any
@@ -807,9 +807,6 @@ void gfs2_flush_revokes(struct gfs2_sbd *sdp)
 	gfs2_log_lock(sdp);
 	gfs2_ail1_empty(sdp, max_revokes);
 	gfs2_log_unlock(sdp);
-
-	if (gfs2_withdrawing(sdp))
-		gfs2_withdraw(sdp);
 }
 
 /**
@@ -987,9 +984,6 @@ static void empty_ail1_list(struct gfs2_sbd *sdp)
 		if (gfs2_withdrawing_or_withdrawn(sdp))
 			break;
 	}
-
-	if (gfs2_withdrawing(sdp))
-		gfs2_withdraw(sdp);
 }
 
 /**
@@ -1071,7 +1065,7 @@ repeat:
 			sdp->sd_log_tr = NULL;
 			tr->tr_first = first_log_head;
 			if (unlikely(frozen)) {
-				if (gfs2_assert_withdraw_delayed(sdp,
+				if (gfs2_assert_withdraw(sdp,
 				       !tr->tr_num_buf_new && !tr->tr_num_databuf_new))
 					goto out_withdraw;
 			}
@@ -1096,7 +1090,7 @@ repeat:
 		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
 	if (unlikely(frozen))
-		if (gfs2_assert_withdraw_delayed(sdp, !reserved_revokes))
+		if (gfs2_assert_withdraw(sdp, !reserved_revokes))
 			goto out_withdraw;
 
 	gfs2_ordered_write(sdp);
@@ -1151,13 +1145,11 @@ out_end:
 		reserved_blocks += (reserved_revokes - sdp->sd_ldptrs) / sdp->sd_inptrs;
 out:
 	if (used_blocks != reserved_blocks) {
-		gfs2_assert_withdraw_delayed(sdp, used_blocks < reserved_blocks);
+		gfs2_assert_withdraw(sdp, used_blocks < reserved_blocks);
 		gfs2_log_release(sdp, reserved_blocks - used_blocks);
 	}
 	up_write(&sdp->sd_log_flush_lock);
 	gfs2_trans_free(sdp, tr);
-	if (gfs2_withdrawing(sdp))
-		gfs2_withdraw(sdp);
 	trace_gfs2_log_flush(sdp, 0, flags);
 	return;
 
@@ -1345,9 +1337,6 @@ int gfs2_logd(void *data)
 				kthread_should_stop(),
 				t);
 	}
-
-	if (gfs2_withdrawing(sdp))
-		gfs2_withdraw(sdp);
 
 	return 0;
 }

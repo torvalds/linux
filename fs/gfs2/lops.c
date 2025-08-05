@@ -209,7 +209,7 @@ static void gfs2_end_log_write(struct bio *bio)
 		if (!cmpxchg(&sdp->sd_log_error, 0, err))
 			fs_err(sdp, "Error %d writing to journal, jid=%u\n",
 			       err, sdp->sd_jdesc->jd_jid);
-		gfs2_withdraw_delayed(sdp);
+		gfs2_withdraw(sdp);
 		/* prevent more writes to the journal */
 		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 		wake_up(&sdp->sd_logd_waitq);
