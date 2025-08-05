@@ -303,11 +303,15 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	enum tc_port tc_port = intel_encoder_to_tc(&dig_port->base);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	intel_wakeref_t wakeref;
 	u32 val, pin_assignment;
 
 	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		val = intel_de_read(display, TCSS_DDI_STATUS(tc_port));
+
+	drm_WARN_ON(display->drm, val == 0xffffffff);
+	assert_tc_cold_blocked(tc);
 
 	pin_assignment =
 		REG_FIELD_GET(TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK, val);
@@ -374,8 +378,6 @@ static int get_max_lane_count(struct intel_tc_port *tc)
 
 	if (tc->mode != TC_PORT_DP_ALT)
 		return 4;
-
-	assert_tc_cold_blocked(tc);
 
 	if (DISPLAY_VER(display) >= 20)
 		return lnl_tc_port_get_max_lane_count(dig_port);
