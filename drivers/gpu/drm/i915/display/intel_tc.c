@@ -260,10 +260,9 @@ assert_tc_port_power_enabled(struct intel_tc_port *tc)
 		    !intel_display_power_is_enabled(display, tc_port_power_domain(tc)));
 }
 
-static u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
+static u32 get_lane_mask(struct intel_tc_port *tc)
 {
-	struct intel_display *display = to_intel_display(dig_port);
-	struct intel_tc_port *tc = to_tc_port(dig_port);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	intel_wakeref_t wakeref;
 	u32 lane_mask;
 
@@ -322,9 +321,8 @@ get_pin_assignment(struct intel_tc_port *tc)
 	return pin_assignment;
 }
 
-static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
+static int mtl_get_max_lane_count(struct intel_tc_port *tc)
 {
-	struct intel_tc_port *tc = to_tc_port(dig_port);
 	enum intel_tc_pin_assignment pin_assignment;
 
 	pin_assignment = get_pin_assignment(tc);
@@ -343,11 +341,11 @@ static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 	}
 }
 
-static int intel_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
+static int icl_get_max_lane_count(struct intel_tc_port *tc)
 {
 	u32 lane_mask = 0;
 
-	lane_mask = intel_tc_port_get_lane_mask(dig_port);
+	lane_mask = get_lane_mask(tc);
 
 	switch (lane_mask) {
 	default:
@@ -369,15 +367,14 @@ static int intel_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 static int get_max_lane_count(struct intel_tc_port *tc)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
-	struct intel_digital_port *dig_port = tc->dig_port;
 
 	if (tc->mode != TC_PORT_DP_ALT)
 		return 4;
 
 	if (DISPLAY_VER(display) >= 14)
-		return mtl_tc_port_get_max_lane_count(dig_port);
+		return mtl_get_max_lane_count(tc);
 
-	return intel_tc_port_get_max_lane_count(dig_port);
+	return icl_get_max_lane_count(tc);
 }
 
 static void read_pin_configuration(struct intel_tc_port *tc)
