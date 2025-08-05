@@ -1284,7 +1284,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	ret = devm_add_action_or_reset(dev, nxp_fspi_cleanup, f);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to register nxp_fspi_cleanup\n");
+		return ret;
 
 	return devm_spi_register_controller(&pdev->dev, ctlr);
 }
