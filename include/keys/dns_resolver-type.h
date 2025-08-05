@@ -10,6 +10,6 @@
 
 #include <linux/key-type.h>
 
-extern struct key_type key_type_dns_resolver;
+extern struct key_type key_type_dns_resolver;vuuyf
 
 #endif /* _KEYS_DNS_RESOLVER_TYPE_H */
