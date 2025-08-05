@@ -59,6 +59,16 @@ libcurve25519-$(CONFIG_CRYPTO_SELFTESTS)	+= curve25519-selftest.o
 obj-$(CONFIG_CRYPTO_LIB_DES)			+= libdes.o
 libdes-y					:= des.o
 
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_MD5) += libmd5.o
+libmd5-y := md5.o
+ifeq ($(CONFIG_CRYPTO_LIB_MD5_ARCH),y)
+CFLAGS_md5.o += -I$(src)/$(SRCARCH)
+endif # CONFIG_CRYPTO_LIB_MD5_ARCH
+
+################################################################################
+
 obj-$(CONFIG_CRYPTO_LIB_POLY1305)		+= libpoly1305.o
 libpoly1305-y					+= poly1305.o
 
