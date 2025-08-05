@@ -603,7 +603,7 @@ restart:
 		gfs2_quota_cleanup(sdp);
 	}
 
-	WARN_ON(gfs2_withdrawing(sdp));
+	flush_work(&sdp->sd_withdraw_work);
 
 	/*  At this point, we're through modifying the disk  */
 

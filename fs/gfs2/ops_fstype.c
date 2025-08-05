@@ -1215,6 +1215,8 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (error)
 		goto fail_debug;
 
+	INIT_WORK(&sdp->sd_withdraw_work, gfs2_withdraw_func);
+
 	error = init_locking(sdp, &mount_gh, DO);
 	if (error)
 		goto fail_lm;

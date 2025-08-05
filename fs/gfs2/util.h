@@ -232,6 +232,8 @@ gfs2_tune_get_i(&(sdp)->sd_tune, &(sdp)->sd_tune.field)
 
 __printf(2, 3)
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...);
+
+void gfs2_withdraw_func(struct work_struct *work);
 void gfs2_withdraw(struct gfs2_sbd *sdp);
 
 #endif /* __UTIL_DOT_H__ */
