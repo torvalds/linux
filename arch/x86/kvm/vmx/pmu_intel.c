@@ -762,7 +762,7 @@ void intel_pmu_cross_mapped_check(struct kvm_pmu *pmu)
 	int bit, hw_idx;
 
 	kvm_for_each_pmc(pmu, pmc, bit, (unsigned long *)&pmu->global_ctrl) {
-		if (!pmc_speculative_in_use(pmc) ||
+		if (!pmc_is_locally_enabled(pmc) ||
 		    !pmc_is_globally_enabled(pmc) || !pmc->perf_event)
 			continue;
 

@@ -493,7 +493,7 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 
 static bool pmc_event_is_allowed(struct kvm_pmc *pmc)
 {
-	return pmc_is_globally_enabled(pmc) && pmc_speculative_in_use(pmc) &&
+	return pmc_is_globally_enabled(pmc) && pmc_is_locally_enabled(pmc) &&
 	       check_pmu_event_filter(pmc);
 }
 
@@ -572,7 +572,7 @@ void kvm_pmu_recalc_pmc_emulation(struct kvm_pmu *pmu, struct kvm_pmc *pmc)
 	 * omitting a PMC from a bitmap could result in a missed event if the
 	 * filter is changed to allow counting the event.
 	 */
-	if (!pmc_speculative_in_use(pmc))
+	if (!pmc_is_locally_enabled(pmc))
 		return;
 
 	if (pmc_is_event_match(pmc, kvm_pmu_eventsel.INSTRUCTIONS_RETIRED))
@@ -912,7 +912,7 @@ void kvm_pmu_cleanup(struct kvm_vcpu *vcpu)
 		      pmu->pmc_in_use, X86_PMC_IDX_MAX);
 
 	kvm_for_each_pmc(pmu, pmc, i, bitmask) {
-		if (pmc->perf_event && !pmc_speculative_in_use(pmc))
+		if (pmc->perf_event && !pmc_is_locally_enabled(pmc))
 			pmc_stop_counter(pmc);
 	}
 

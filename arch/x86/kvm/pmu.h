@@ -160,7 +160,7 @@ static inline struct kvm_pmc *get_fixed_pmc(struct kvm_pmu *pmu, u32 msr)
 	return NULL;
 }
 
-static inline bool pmc_speculative_in_use(struct kvm_pmc *pmc)
+static inline bool pmc_is_locally_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
