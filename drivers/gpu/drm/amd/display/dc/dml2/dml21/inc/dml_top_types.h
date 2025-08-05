@@ -417,6 +417,8 @@ struct dml2_display_cfg_programming {
 
 	struct {
 		bool supported_in_blank; // Changing to configurations where this is false requires stutter to be disabled during the transition
+		uint8_t base_percent_efficiency; //LP1
+		uint8_t low_power_percent_efficiency; //LP2
 	} stutter;
 
 	struct {

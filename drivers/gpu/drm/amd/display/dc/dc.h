@@ -694,6 +694,15 @@ struct dc_clocks {
 	int idle_fclk_khz;
 	int subvp_prefetch_dramclk_khz;
 	int subvp_prefetch_fclk_khz;
+
+	/* Stutter efficiency is technically not clock values
+	 * but stored here so the values are part of the update_clocks call similar to num_ways
+	 * Efficiencies are stored as percentage (0-100)
+	 */
+	struct {
+		uint8_t base_efficiency; //LP1
+		uint8_t low_power_efficiency; //LP2
+	} stutter_efficiency;
 };
 
 struct dc_bw_validation_profile {
