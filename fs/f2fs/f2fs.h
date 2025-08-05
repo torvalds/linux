@@ -212,6 +212,7 @@ struct f2fs_mount_info {
 	int compress_mode;			/* compression mode */
 	unsigned char extensions[COMPRESS_EXT_NUM][F2FS_EXTENSION_LEN];	/* extensions */
 	unsigned char noextensions[COMPRESS_EXT_NUM][F2FS_EXTENSION_LEN]; /* extensions */
+	unsigned int lookup_mode;
 };
 
 #define F2FS_FEATURE_ENCRYPT			0x00000001
@@ -1473,6 +1474,12 @@ enum {
 	FOREGROUND,
 	MAX_CALL_TYPE,
 	TOTAL_CALL = FOREGROUND,
+};
+
+enum f2fs_lookup_mode {
+	LOOKUP_PERF,
+	LOOKUP_COMPAT,
+	LOOKUP_AUTO,
 };
 
 static inline int f2fs_test_bit(unsigned int nr, char *addr);
