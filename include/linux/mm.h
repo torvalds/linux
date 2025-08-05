@@ -1808,9 +1808,9 @@ static inline void set_page_section(struct page *page, unsigned long section)
 	page->flags.f |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
 }
 
-static inline unsigned long page_to_section(const struct page *page)
+static inline unsigned long memdesc_section(memdesc_flags_t mdf)
 {
-	return (page->flags.f >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+	return (mdf.f >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
 #endif
 

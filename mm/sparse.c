@@ -45,7 +45,7 @@ static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
 
 int page_to_nid(const struct page *page)
 {
-	return section_to_node_table[page_to_section(page)];
+	return section_to_node_table[memdesc_section(page->flags)];
 }
 EXPORT_SYMBOL(page_to_nid);
 
