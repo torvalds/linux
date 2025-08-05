@@ -1218,25 +1218,25 @@ static int rt9467_charger_probe(struct i2c_client *i2c)
 	ret = devm_add_action_or_reset(dev, rt9467_chg_destroy_adc_lock,
 				       &data->adc_lock);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to init ADC lock\n");
+		return ret;
 
 	mutex_init(&data->attach_lock);
 	ret = devm_add_action_or_reset(dev, rt9467_chg_destroy_attach_lock,
 				       &data->attach_lock);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to init attach lock\n");
+		return ret;
 
 	mutex_init(&data->ichg_ieoc_lock);
 	ret = devm_add_action_or_reset(dev, rt9467_chg_destroy_ichg_ieoc_lock,
 				       &data->ichg_ieoc_lock);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to init ICHG/IEOC lock\n");
+		return ret;
 
 	init_completion(&data->aicl_done);
 	ret = devm_add_action_or_reset(dev, rt9467_chg_complete_aicl_done,
 				       &data->aicl_done);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to init AICL done completion\n");
+		return ret;
 
 	ret = rt9467_do_charger_init(data);
 	if (ret)
