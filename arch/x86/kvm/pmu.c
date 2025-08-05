@@ -974,8 +974,7 @@ static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu,
 		return;
 
 	kvm_for_each_pmc(pmu, pmc, i, bitmap) {
-		if (!pmc_is_locally_enabled(pmc) ||
-		    !check_pmu_event_filter(pmc) || !cpl_is_matched(pmc))
+		if (!check_pmu_event_filter(pmc) || !cpl_is_matched(pmc))
 			continue;
 
 		kvm_pmu_incr_counter(pmc);
