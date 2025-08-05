@@ -657,17 +657,17 @@ static inline unsigned int slub_get_cpu_partial(struct kmem_cache *s)
  */
 static inline bool slab_test_pfmemalloc(const struct slab *slab)
 {
-	return test_bit(SL_pfmemalloc, &slab->flags);
+	return test_bit(SL_pfmemalloc, &slab->flags.f);
 }
 
 static inline void slab_set_pfmemalloc(struct slab *slab)
 {
-	set_bit(SL_pfmemalloc, &slab->flags);
+	set_bit(SL_pfmemalloc, &slab->flags.f);
 }
 
 static inline void __slab_clear_pfmemalloc(struct slab *slab)
 {
-	__clear_bit(SL_pfmemalloc, &slab->flags);
+	__clear_bit(SL_pfmemalloc, &slab->flags.f);
 }
 
 /*
@@ -675,12 +675,12 @@ static inline void __slab_clear_pfmemalloc(struct slab *slab)
  */
 static __always_inline void slab_lock(struct slab *slab)
 {
-	bit_spin_lock(SL_locked, &slab->flags);
+	bit_spin_lock(SL_locked, &slab->flags.f);
 }
 
 static __always_inline void slab_unlock(struct slab *slab)
 {
-	bit_spin_unlock(SL_locked, &slab->flags);
+	bit_spin_unlock(SL_locked, &slab->flags.f);
 }
 
 static inline bool
@@ -1046,7 +1046,7 @@ static void print_slab_info(const struct slab *slab)
 {
 	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%pGp\n",
 	       slab, slab->objects, slab->inuse, slab->freelist,
-	       &slab->flags);
+	       &slab->flags.f);
 }
 
 void skip_orig_size_check(struct kmem_cache *s, const void *object)
@@ -2755,17 +2755,17 @@ static void discard_slab(struct kmem_cache *s, struct slab *slab)
 
 static inline bool slab_test_node_partial(const struct slab *slab)
 {
-	return test_bit(SL_partial, &slab->flags);
+	return test_bit(SL_partial, &slab->flags.f);
 }
 
 static inline void slab_set_node_partial(struct slab *slab)
 {
-	set_bit(SL_partial, &slab->flags);
+	set_bit(SL_partial, &slab->flags.f);
 }
 
 static inline void slab_clear_node_partial(struct slab *slab)
 {
-	clear_bit(SL_partial, &slab->flags);
+	clear_bit(SL_partial, &slab->flags.f);
 }
 
 /*
