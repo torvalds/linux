@@ -1165,19 +1165,20 @@ static struct smbdirect_recv_io *_get_first_reassembly(struct smbd_connection *i
  */
 static struct smbdirect_recv_io *get_receive_buffer(struct smbd_connection *info)
 {
+	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *ret = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&info->receive_queue_lock, flags);
-	if (!list_empty(&info->receive_queue)) {
+	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
+	if (!list_empty(&sc->recv_io.free.list)) {
 		ret = list_first_entry(
-			&info->receive_queue,
+			&sc->recv_io.free.list,
 			struct smbdirect_recv_io, list);
 		list_del(&ret->list);
 		info->count_receive_queue--;
 		info->count_get_receive_buffer++;
 	}
-	spin_unlock_irqrestore(&info->receive_queue_lock, flags);
+	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
 	return ret;
 }
@@ -1202,11 +1203,11 @@ static void put_receive_buffer(
 		response->sge.length = 0;
 	}
 
-	spin_lock_irqsave(&info->receive_queue_lock, flags);
-	list_add_tail(&response->list, &info->receive_queue);
+	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
+	list_add_tail(&response->list, &sc->recv_io.free.list);
 	info->count_receive_queue++;
 	info->count_put_receive_buffer++;
-	spin_unlock_irqrestore(&info->receive_queue_lock, flags);
+	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
 	queue_work(info->workqueue, &info->post_send_credits_work);
 }
@@ -1223,8 +1224,8 @@ static int allocate_receive_buffers(struct smbd_connection *info, int num_buf)
 	info->reassembly_data_length = 0;
 	info->reassembly_queue_length = 0;
 
-	INIT_LIST_HEAD(&info->receive_queue);
-	spin_lock_init(&info->receive_queue_lock);
+	INIT_LIST_HEAD(&sc->recv_io.free.list);
+	spin_lock_init(&sc->recv_io.free.lock);
 	info->count_receive_queue = 0;
 
 	init_waitqueue_head(&info->wait_receive_queues);
@@ -1236,16 +1237,16 @@ static int allocate_receive_buffers(struct smbd_connection *info, int num_buf)
 
 		response->socket = sc;
 		response->sge.length = 0;
-		list_add_tail(&response->list, &info->receive_queue);
+		list_add_tail(&response->list, &sc->recv_io.free.list);
 		info->count_receive_queue++;
 	}
 
 	return 0;
 
 allocate_failed:
-	while (!list_empty(&info->receive_queue)) {
+	while (!list_empty(&sc->recv_io.free.list)) {
 		response = list_first_entry(
-				&info->receive_queue,
+				&sc->recv_io.free.list,
 				struct smbdirect_recv_io, list);
 		list_del(&response->list);
 		info->count_receive_queue--;

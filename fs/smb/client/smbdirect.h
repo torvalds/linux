@@ -105,10 +105,7 @@ struct smbd_connection {
 	wait_queue_head_t wait_post_send;
 
 	/* Receive queue */
-	struct list_head receive_queue;
 	int count_receive_queue;
-	spinlock_t receive_queue_lock;
-
 	wait_queue_head_t wait_receive_queues;
 
 	/* Reassembly queue */
