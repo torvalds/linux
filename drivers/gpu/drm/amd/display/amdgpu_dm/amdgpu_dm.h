@@ -154,7 +154,7 @@ struct idle_workqueue {
 };
 
 /**
- * struct dm_vupdate_work - Work data for periodic action in idle
+ * struct vupdate_offload_work - Work data for offloading task from vupdate handler
  * @work: Kernel work data for the work event
  * @adev: amdgpu_device back pointer
  * @stream: DC stream associated with the crtc
