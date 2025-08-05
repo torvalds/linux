@@ -176,8 +176,12 @@ extern struct x86_pmu_capability kvm_pmu_cap;
 
 void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops);
 
+void kvm_pmu_recalc_pmc_emulation(struct kvm_pmu *pmu, struct kvm_pmc *pmc);
+
 static inline void kvm_pmu_request_counter_reprogram(struct kvm_pmc *pmc)
 {
+	kvm_pmu_recalc_pmc_emulation(pmc_to_pmu(pmc), pmc);
+
 	set_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
 	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 }

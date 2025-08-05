@@ -542,6 +542,47 @@ static int reprogram_counter(struct kvm_pmc *pmc)
 				     eventsel & ARCH_PERFMON_EVENTSEL_INT);
 }
 
+static bool pmc_is_event_match(struct kvm_pmc *pmc, u64 eventsel)
+{
+	/*
+	 * Ignore checks for edge detect (all events currently emulated by KVM
+	 * are always rising edges), pin control (unsupported by modern CPUs),
+	 * and counter mask and its invert flag (KVM doesn't emulate multiple
+	 * events in a single clock cycle).
+	 *
+	 * Note, the uppermost nibble of AMD's mask overlaps Intel's IN_TX (bit
+	 * 32) and IN_TXCP (bit 33), as well as two reserved bits (bits 35:34).
+	 * Checking the "in HLE/RTM transaction" flags is correct as the vCPU
+	 * can't be in a transaction if KVM is emulating an instruction.
+	 *
+	 * Checking the reserved bits might be wrong if they are defined in the
+	 * future, but so could ignoring them, so do the simple thing for now.
+	 */
+	return !((pmc->eventsel ^ eventsel) & AMD64_RAW_EVENT_MASK_NB);
+}
+
+void kvm_pmu_recalc_pmc_emulation(struct kvm_pmu *pmu, struct kvm_pmc *pmc)
+{
+	bitmap_clear(pmu->pmc_counting_instructions, pmc->idx, 1);
+	bitmap_clear(pmu->pmc_counting_branches, pmc->idx, 1);
+
+	/*
+	 * Do NOT consult the PMU event filters, as the filters must be checked
+	 * at the time of emulation to ensure KVM uses fresh information, e.g.
+	 * omitting a PMC from a bitmap could result in a missed event if the
+	 * filter is changed to allow counting the event.
+	 */
+	if (!pmc_speculative_in_use(pmc))
+		return;
+
+	if (pmc_is_event_match(pmc, kvm_pmu_eventsel.INSTRUCTIONS_RETIRED))
+		bitmap_set(pmu->pmc_counting_instructions, pmc->idx, 1);
+
+	if (pmc_is_event_match(pmc, kvm_pmu_eventsel.BRANCH_INSTRUCTIONS_RETIRED))
+		bitmap_set(pmu->pmc_counting_branches, pmc->idx, 1);
+}
+EXPORT_SYMBOL_GPL(kvm_pmu_recalc_pmc_emulation);
+
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
 	DECLARE_BITMAP(bitmap, X86_PMC_IDX_MAX);
@@ -577,6 +618,9 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 	 */
 	if (unlikely(pmu->need_cleanup))
 		kvm_pmu_cleanup(vcpu);
+
+	kvm_for_each_pmc(pmu, pmc, bit, bitmap)
+		kvm_pmu_recalc_pmc_emulation(pmu, pmc);
 }
 
 int kvm_pmu_check_rdpmc_early(struct kvm_vcpu *vcpu, unsigned int idx)
@@ -915,7 +959,8 @@ static inline bool cpl_is_matched(struct kvm_pmc *pmc)
 							 select_user;
 }
 
-static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
+static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu,
+				  const unsigned long *event_pmcs)
 {
 	DECLARE_BITMAP(bitmap, X86_PMC_IDX_MAX);
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -924,29 +969,17 @@ static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
 
 	BUILD_BUG_ON(sizeof(pmu->global_ctrl) * BITS_PER_BYTE != X86_PMC_IDX_MAX);
 
+	if (bitmap_empty(event_pmcs, X86_PMC_IDX_MAX))
+		return;
+
 	if (!kvm_pmu_has_perf_global_ctrl(pmu))
-		bitmap_copy(bitmap, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX);
-	else if (!bitmap_and(bitmap, pmu->all_valid_pmc_idx,
+		bitmap_copy(bitmap, event_pmcs, X86_PMC_IDX_MAX);
+	else if (!bitmap_and(bitmap, event_pmcs,
 			     (unsigned long *)&pmu->global_ctrl, X86_PMC_IDX_MAX))
 		return;
 
 	kvm_for_each_pmc(pmu, pmc, i, bitmap) {
-		/*
-		 * Ignore checks for edge detect (all events currently emulated
-		 * but KVM are always rising edges), pin control (unsupported
-		 * by modern CPUs), and counter mask and its invert flag (KVM
-		 * doesn't emulate multiple events in a single clock cycle).
-		 *
-		 * Note, the uppermost nibble of AMD's mask overlaps Intel's
-		 * IN_TX (bit 32) and IN_TXCP (bit 33), as well as two reserved
-		 * bits (bits 35:34).  Checking the "in HLE/RTM transaction"
-		 * flags is correct as the vCPU can't be in a transaction if
-		 * KVM is emulating an instruction.  Checking the reserved bits
-		 * might be wrong if they are defined in the future, but so
-		 * could ignoring them, so do the simple thing for now.
-		 */
-		if (((pmc->eventsel ^ eventsel) & AMD64_RAW_EVENT_MASK_NB) ||
-		    !pmc_event_is_allowed(pmc) || !cpl_is_matched(pmc))
+		if (!pmc_event_is_allowed(pmc) || !cpl_is_matched(pmc))
 			continue;
 
 		kvm_pmu_incr_counter(pmc);
@@ -955,13 +988,13 @@ static void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
 
 void kvm_pmu_instruction_retired(struct kvm_vcpu *vcpu)
 {
-	kvm_pmu_trigger_event(vcpu, kvm_pmu_eventsel.INSTRUCTIONS_RETIRED);
+	kvm_pmu_trigger_event(vcpu, vcpu_to_pmu(vcpu)->pmc_counting_instructions);
 }
 EXPORT_SYMBOL_GPL(kvm_pmu_instruction_retired);
 
 void kvm_pmu_branch_retired(struct kvm_vcpu *vcpu)
 {
-	kvm_pmu_trigger_event(vcpu, kvm_pmu_eventsel.BRANCH_INSTRUCTIONS_RETIRED);
+	kvm_pmu_trigger_event(vcpu, vcpu_to_pmu(vcpu)->pmc_counting_branches);
 }
 EXPORT_SYMBOL_GPL(kvm_pmu_branch_retired);
 
