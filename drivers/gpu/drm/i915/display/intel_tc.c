@@ -282,17 +282,35 @@ intel_tc_port_get_pin_assignment(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
+	enum intel_tc_pin_assignment pin_assignment;
 	intel_wakeref_t wakeref;
-	u32 pin_mask;
+	u32 val;
 
 	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		pin_mask = intel_de_read(display, PORT_TX_DFLEXPA1(tc->phy_fia));
+		val = intel_de_read(display, PORT_TX_DFLEXPA1(tc->phy_fia));
 
-	drm_WARN_ON(display->drm, pin_mask == 0xffffffff);
+	drm_WARN_ON(display->drm, val == 0xffffffff);
 	assert_tc_cold_blocked(tc);
 
-	return (pin_mask & DP_PIN_ASSIGNMENT_MASK(tc->phy_fia_idx)) >>
-	       DP_PIN_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
+	pin_assignment = (val & DP_PIN_ASSIGNMENT_MASK(tc->phy_fia_idx)) >>
+			 DP_PIN_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
+
+	switch (pin_assignment) {
+	case INTEL_TC_PIN_ASSIGNMENT_A:
+	case INTEL_TC_PIN_ASSIGNMENT_B:
+	case INTEL_TC_PIN_ASSIGNMENT_F:
+		drm_WARN_ON(display->drm, DISPLAY_VER(display) > 11);
+		break;
+	case INTEL_TC_PIN_ASSIGNMENT_NONE:
+	case INTEL_TC_PIN_ASSIGNMENT_C:
+	case INTEL_TC_PIN_ASSIGNMENT_D:
+	case INTEL_TC_PIN_ASSIGNMENT_E:
+		break;
+	default:
+		MISSING_CASE(pin_assignment);
+	}
+
+	return pin_assignment;
 }
 
 static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
