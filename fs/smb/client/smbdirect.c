@@ -383,6 +383,7 @@ static bool process_negotiation_response(
 			info->max_frmr_depth * PAGE_SIZE);
 	info->max_frmr_depth = sp->max_read_write_size / PAGE_SIZE;
 
+	sc->recv_io.expected = SMBDIRECT_EXPECT_DATA_TRANSFER;
 	return true;
 }
 
@@ -408,7 +409,6 @@ static void smbd_post_send_credits(struct work_struct *work)
 			if (!response)
 				break;
 
-			response->type = SMBD_TRANSFER_DATA;
 			response->first_segment = false;
 			rc = smbd_post_recv(info, response);
 			if (rc) {
@@ -445,10 +445,11 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct smbd_response *response =
 		container_of(wc->wr_cqe, struct smbd_response, cqe);
 	struct smbd_connection *info = response->info;
+	struct smbdirect_socket *sc = &info->socket;
 	int data_length = 0;
 
 	log_rdma_recv(INFO, "response=0x%p type=%d wc status=%d wc opcode %d byte_len=%d pkey_index=%u\n",
-		      response, response->type, wc->status, wc->opcode,
+		      response, sc->recv_io.expected, wc->status, wc->opcode,
 		      wc->byte_len, wc->pkey_index);
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
@@ -463,9 +464,9 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		response->sge.length,
 		DMA_FROM_DEVICE);
 
-	switch (response->type) {
+	switch (sc->recv_io.expected) {
 	/* SMBD negotiation response */
-	case SMBD_NEGOTIATE_RESP:
+	case SMBDIRECT_EXPECT_NEGOTIATE_REP:
 		dump_smbdirect_negotiate_resp(smbd_response_payload(response));
 		info->full_packet_received = true;
 		info->negotiate_done =
@@ -475,7 +476,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		return;
 
 	/* SMBD data transfer packet */
-	case SMBD_TRANSFER_DATA:
+	case SMBDIRECT_EXPECT_DATA_TRANSFER:
 		data_transfer = smbd_response_payload(response);
 		data_length = le32_to_cpu(data_transfer->data_length);
 
@@ -526,13 +527,17 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			put_receive_buffer(info, response);
 
 		return;
+
+	case SMBDIRECT_EXPECT_NEGOTIATE_REQ:
+		/* Only server... */
+		break;
 	}
 
 	/*
 	 * This is an internal error!
 	 */
-	log_rdma_recv(ERR, "unexpected response type=%d\n", response->type);
-	WARN_ON_ONCE(response->type != SMBD_TRANSFER_DATA);
+	log_rdma_recv(ERR, "unexpected response type=%d\n", sc->recv_io.expected);
+	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
 error:
 	put_receive_buffer(info, response);
 	smbd_disconnect_rdma_connection(info);
@@ -1067,10 +1072,11 @@ static int smbd_post_recv(
 /* Perform SMBD negotiate according to [MS-SMBD] 3.1.5.2 */
 static int smbd_negotiate(struct smbd_connection *info)
 {
+	struct smbdirect_socket *sc = &info->socket;
 	int rc;
 	struct smbd_response *response = get_receive_buffer(info);
 
-	response->type = SMBD_NEGOTIATE_RESP;
+	sc->recv_io.expected = SMBDIRECT_EXPECT_NEGOTIATE_REP;
 	rc = smbd_post_recv(info, response);
 	log_rdma_event(INFO, "smbd_post_recv rc=%d iov.addr=0x%llx iov.length=%u iov.lkey=0x%x\n",
 		       rc, response->sge.addr,

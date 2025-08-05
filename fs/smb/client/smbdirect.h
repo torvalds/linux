@@ -156,11 +156,6 @@ struct smbd_connection {
 	unsigned int count_send_empty;
 };
 
-enum smbd_message_type {
-	SMBD_NEGOTIATE_RESP,
-	SMBD_TRANSFER_DATA,
-};
-
 /* Maximum number of SGEs used by smbdirect.c in any send work request */
 #define SMBDIRECT_MAX_SEND_SGE	6
 
@@ -185,8 +180,6 @@ struct smbd_response {
 	struct smbd_connection *info;
 	struct ib_cqe cqe;
 	struct ib_sge sge;
-
-	enum smbd_message_type type;
 
 	/* Link to receive queue or reassembly queue */
 	struct list_head list;
