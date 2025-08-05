@@ -20,6 +20,7 @@
  *  Anurekh Saxena (anurekh.saxena@timesys.com)
  *  Lake Stevens Instrument Division (Glenn Engel)
  *  Jim Kingdon, Cygnus Support.
+ *  Muhammad Quwais Safutra, Brakoman.
  *
  * Original KGDB stub: David Grothe <dave@gcom.com>,
  * Tigran Aivazian <tigran@sco.com>
@@ -76,11 +77,11 @@ static int gdbstub_read_wait(void)
 	return ret;
 }
 #else
-static int gdbstub_read_wait(void)
-{
+static int gdbstub_read_wait(void){
 	int ret = dbg_io_ops->read_char();
-	while (ret == NO_POLL_CHAR)
+	while (ret == NO_POLL_CHAR){
 		ret = dbg_io_ops->read_char();
+	}
 	return ret;
 }
 #endif
