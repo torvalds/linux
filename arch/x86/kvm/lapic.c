@@ -2432,7 +2432,7 @@ EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
 
 #define X2APIC_ICR_RESERVED_BITS (GENMASK_ULL(31, 20) | GENMASK_ULL(17, 16) | BIT(13))
 
-int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
+static int __kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data, bool fast)
 {
 	if (data & X2APIC_ICR_RESERVED_BITS)
 		return 1;
@@ -2447,7 +2447,20 @@ int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
 	 */
 	data &= ~APIC_ICR_BUSY;
 
-	kvm_apic_send_ipi(apic, (u32)data, (u32)(data >> 32));
+	if (fast) {
+		struct kvm_lapic_irq irq;
+		int ignored;
+
+		kvm_icr_to_lapic_irq(apic, (u32)data, (u32)(data >> 32), &irq);
+
+		if (!kvm_irq_delivery_to_apic_fast(apic->vcpu->kvm, apic, &irq,
+						   &ignored, NULL))
+			return -EWOULDBLOCK;
+
+		trace_kvm_apic_ipi((u32)data, irq.dest_id);
+	} else {
+		kvm_apic_send_ipi(apic, (u32)data, (u32)(data >> 32));
+	}
 	if (kvm_x86_ops.x2apic_icr_is_split) {
 		kvm_lapic_set_reg(apic, APIC_ICR, data);
 		kvm_lapic_set_reg(apic, APIC_ICR2, data >> 32);
@@ -2456,6 +2469,16 @@ int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
 	}
 	trace_kvm_apic_write(APIC_ICR, data);
 	return 0;
+}
+
+static int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
+{
+	return __kvm_x2apic_icr_write(apic, data, false);
+}
+
+int kvm_x2apic_icr_write_fast(struct kvm_lapic *apic, u64 data)
+{
+	return __kvm_x2apic_icr_write(apic, data, true);
 }
 
 static u64 kvm_x2apic_icr_read(struct kvm_lapic *apic)
