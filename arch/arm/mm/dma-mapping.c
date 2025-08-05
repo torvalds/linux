@@ -718,7 +718,7 @@ static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 			if (size < sz)
 				break;
 			if (!offset)
-				set_bit(PG_dcache_clean, &folio->flags);
+				set_bit(PG_dcache_clean, &folio->flags.f);
 			offset = 0;
 			size -= sz;
 			if (!size)

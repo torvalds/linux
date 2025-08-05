@@ -37,11 +37,11 @@
 #define PG_dcache_dirty			PG_arch_1
 
 #define folio_test_dcache_dirty(folio)		\
-	test_bit(PG_dcache_dirty, &(folio)->flags)
+	test_bit(PG_dcache_dirty, &(folio)->flags.f)
 #define folio_set_dcache_dirty(folio)	\
-	set_bit(PG_dcache_dirty, &(folio)->flags)
+	set_bit(PG_dcache_dirty, &(folio)->flags.f)
 #define folio_clear_dcache_dirty(folio)	\
-	clear_bit(PG_dcache_dirty, &(folio)->flags)
+	clear_bit(PG_dcache_dirty, &(folio)->flags.f)
 
 extern void (*flush_cache_all)(void);
 extern void (*__flush_cache_all)(void);

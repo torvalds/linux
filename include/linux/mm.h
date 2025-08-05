@@ -1024,7 +1024,7 @@ static inline unsigned int compound_order(struct page *page)
 {
 	struct folio *folio = (struct folio *)page;
 
-	if (!test_bit(PG_head, &folio->flags))
+	if (!test_bit(PG_head, &folio->flags.f))
 		return 0;
 	return folio_large_order(folio);
 }
@@ -1554,7 +1554,7 @@ static inline bool is_nommu_shared_mapping(vm_flags_t flags)
  */
 static inline int page_zone_id(struct page *page)
 {
-	return (page->flags >> ZONEID_PGSHIFT) & ZONEID_MASK;
+	return (page->flags.f >> ZONEID_PGSHIFT) & ZONEID_MASK;
 }
 
 #ifdef NODE_NOT_IN_PAGE_FLAGS
@@ -1562,7 +1562,7 @@ int page_to_nid(const struct page *page);
 #else
 static inline int page_to_nid(const struct page *page)
 {
-	return (PF_POISONED_CHECK(page)->flags >> NODES_PGSHIFT) & NODES_MASK;
+	return (PF_POISONED_CHECK(page)->flags.f >> NODES_PGSHIFT) & NODES_MASK;
 }
 #endif
 
@@ -1637,14 +1637,14 @@ static inline void page_cpupid_reset_last(struct page *page)
 #else
 static inline int folio_last_cpupid(struct folio *folio)
 {
-	return (folio->flags >> LAST_CPUPID_PGSHIFT) & LAST_CPUPID_MASK;
+	return (folio->flags.f >> LAST_CPUPID_PGSHIFT) & LAST_CPUPID_MASK;
 }
 
 int folio_xchg_last_cpupid(struct folio *folio, int cpupid);
 
 static inline void page_cpupid_reset_last(struct page *page)
 {
-	page->flags |= LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT;
+	page->flags.f |= LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT;
 }
 #endif /* LAST_CPUPID_NOT_IN_PAGE_FLAGS */
 
@@ -1740,7 +1740,7 @@ static inline u8 page_kasan_tag(const struct page *page)
 	u8 tag = KASAN_TAG_KERNEL;
 
 	if (kasan_enabled()) {
-		tag = (page->flags >> KASAN_TAG_PGSHIFT) & KASAN_TAG_MASK;
+		tag = (page->flags.f >> KASAN_TAG_PGSHIFT) & KASAN_TAG_MASK;
 		tag ^= 0xff;
 	}
 
@@ -1755,12 +1755,12 @@ static inline void page_kasan_tag_set(struct page *page, u8 tag)
 		return;
 
 	tag ^= 0xff;
-	old_flags = READ_ONCE(page->flags);
+	old_flags = READ_ONCE(page->flags.f);
 	do {
 		flags = old_flags;
 		flags &= ~(KASAN_TAG_MASK << KASAN_TAG_PGSHIFT);
 		flags |= (tag & KASAN_TAG_MASK) << KASAN_TAG_PGSHIFT;
-	} while (unlikely(!try_cmpxchg(&page->flags, &old_flags, flags)));
+	} while (unlikely(!try_cmpxchg(&page->flags.f, &old_flags, flags)));
 }
 
 static inline void page_kasan_tag_reset(struct page *page)
@@ -1804,13 +1804,13 @@ static inline pg_data_t *folio_pgdat(const struct folio *folio)
 #ifdef SECTION_IN_PAGE_FLAGS
 static inline void set_page_section(struct page *page, unsigned long section)
 {
-	page->flags &= ~(SECTIONS_MASK << SECTIONS_PGSHIFT);
-	page->flags |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
+	page->flags.f &= ~(SECTIONS_MASK << SECTIONS_PGSHIFT);
+	page->flags.f |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
 }
 
 static inline unsigned long page_to_section(const struct page *page)
 {
-	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
+	return (page->flags.f >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
 #endif
 
@@ -2015,14 +2015,14 @@ static inline bool folio_is_longterm_pinnable(struct folio *folio)
 
 static inline void set_page_zone(struct page *page, enum zone_type zone)
 {
-	page->flags &= ~(ZONES_MASK << ZONES_PGSHIFT);
-	page->flags |= (zone & ZONES_MASK) << ZONES_PGSHIFT;
+	page->flags.f &= ~(ZONES_MASK << ZONES_PGSHIFT);
+	page->flags.f |= (zone & ZONES_MASK) << ZONES_PGSHIFT;
 }
 
 static inline void set_page_node(struct page *page, unsigned long node)
 {
-	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
-	page->flags |= (node & NODES_MASK) << NODES_PGSHIFT;
+	page->flags.f &= ~(NODES_MASK << NODES_PGSHIFT);
+	page->flags.f |= (node & NODES_MASK) << NODES_PGSHIFT;
 }
 
 static inline void set_page_links(struct page *page, enum zone_type zone,
@@ -2064,7 +2064,7 @@ static inline long compound_nr(struct page *page)
 {
 	struct folio *folio = (struct folio *)page;
 
-	if (!test_bit(PG_head, &folio->flags))
+	if (!test_bit(PG_head, &folio->flags.f))
 		return 1;
 	return folio_large_nr_pages(folio);
 }

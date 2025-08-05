@@ -1707,10 +1707,10 @@ static int identify_page_state(unsigned long pfn, struct page *p,
 	 * carried out only if the first check can't determine the page status.
 	 */
 	for (ps = error_states;; ps++)
-		if ((p->flags & ps->mask) == ps->res)
+		if ((p->flags.f & ps->mask) == ps->res)
 			break;
 
-	page_flags |= (p->flags & (1UL << PG_dirty));
+	page_flags |= (p->flags.f & (1UL << PG_dirty));
 
 	if (!ps->mask)
 		for (ps = error_states;; ps++)
@@ -2137,7 +2137,7 @@ retry:
 		return action_result(pfn, MF_MSG_FREE_HUGE, res);
 	}
 
-	page_flags = folio->flags;
+	page_flags = folio->flags.f;
 
 	if (!hwpoison_user_mappings(folio, p, pfn, flags)) {
 		folio_unlock(folio);
@@ -2398,7 +2398,7 @@ try_again:
 	 * folio_remove_rmap_*() in try_to_unmap_one(). So to determine page
 	 * status correctly, we save a copy of the page flags at this time.
 	 */
-	page_flags = folio->flags;
+	page_flags = folio->flags.f;
 
 	/*
 	 * __munlock_folio() may clear a writeback folio's LRU flag without
@@ -2744,13 +2744,13 @@ static int soft_offline_in_use_page(struct page *page)
 				putback_movable_pages(&pagelist);
 
 			pr_info("%#lx: %s migration failed %ld, type %pGp\n",
-				pfn, msg_page[huge], ret, &page->flags);
+				pfn, msg_page[huge], ret, &page->flags.f);
 			if (ret > 0)
 				ret = -EBUSY;
 		}
 	} else {
 		pr_info("%#lx: %s isolation failed, page count %d, type %pGp\n",
-			pfn, msg_page[huge], page_count(page), &page->flags);
+			pfn, msg_page[huge], page_count(page), &page->flags.f);
 		ret = -EBUSY;
 	}
 	return ret;

@@ -48,12 +48,12 @@ static inline void set_page_mte_tagged(struct page *page)
 	 * before the page flags update.
 	 */
 	smp_wmb();
-	set_bit(PG_mte_tagged, &page->flags);
+	set_bit(PG_mte_tagged, &page->flags.f);
 }
 
 static inline bool page_mte_tagged(struct page *page)
 {
-	bool ret = test_bit(PG_mte_tagged, &page->flags);
+	bool ret = test_bit(PG_mte_tagged, &page->flags.f);
 
 	VM_WARN_ON_ONCE(folio_test_hugetlb(page_folio(page)));
 
@@ -82,7 +82,7 @@ static inline bool try_page_mte_tagging(struct page *page)
 {
 	VM_WARN_ON_ONCE(folio_test_hugetlb(page_folio(page)));
 
-	if (!test_and_set_bit(PG_mte_lock, &page->flags))
+	if (!test_and_set_bit(PG_mte_lock, &page->flags.f))
 		return true;
 
 	/*
@@ -90,7 +90,7 @@ static inline bool try_page_mte_tagging(struct page *page)
 	 * already. Check if the PG_mte_tagged flag has been set or wait
 	 * otherwise.
 	 */
-	smp_cond_load_acquire(&page->flags, VAL & (1UL << PG_mte_tagged));
+	smp_cond_load_acquire(&page->flags.f, VAL & (1UL << PG_mte_tagged));
 
 	return false;
 }
@@ -173,13 +173,13 @@ static inline void folio_set_hugetlb_mte_tagged(struct folio *folio)
 	 * before the folio flags update.
 	 */
 	smp_wmb();
-	set_bit(PG_mte_tagged, &folio->flags);
+	set_bit(PG_mte_tagged, &folio->flags.f);
 
 }
 
 static inline bool folio_test_hugetlb_mte_tagged(struct folio *folio)
 {
-	bool ret = test_bit(PG_mte_tagged, &folio->flags);
+	bool ret = test_bit(PG_mte_tagged, &folio->flags.f);
 
 	VM_WARN_ON_ONCE(!folio_test_hugetlb(folio));
 
@@ -196,7 +196,7 @@ static inline bool folio_try_hugetlb_mte_tagging(struct folio *folio)
 {
 	VM_WARN_ON_ONCE(!folio_test_hugetlb(folio));
 
-	if (!test_and_set_bit(PG_mte_lock, &folio->flags))
+	if (!test_and_set_bit(PG_mte_lock, &folio->flags.f))
 		return true;
 
 	/*
@@ -204,7 +204,7 @@ static inline bool folio_try_hugetlb_mte_tagging(struct folio *folio)
 	 * already. Check if the PG_mte_tagged flag has been set or wait
 	 * otherwise.
 	 */
-	smp_cond_load_acquire(&folio->flags, VAL & (1UL << PG_mte_tagged));
+	smp_cond_load_acquire(&folio->flags.f, VAL & (1UL << PG_mte_tagged));
 
 	return false;
 }

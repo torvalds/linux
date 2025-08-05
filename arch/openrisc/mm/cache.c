@@ -83,7 +83,7 @@ void update_cache(struct vm_area_struct *vma, unsigned long address,
 {
 	unsigned long pfn = pte_val(*pte) >> PAGE_SHIFT;
 	struct folio *folio = page_folio(pfn_to_page(pfn));
-	int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags);
+	int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags.f);
 
 	/*
 	 * Since icaches do not snoop for updated data on OpenRISC, we

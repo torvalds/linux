@@ -1140,10 +1140,10 @@ static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync,
 	 */
 	flags = wait->flags;
 	if (flags & WQ_FLAG_EXCLUSIVE) {
-		if (test_bit(key->bit_nr, &key->folio->flags))
+		if (test_bit(key->bit_nr, &key->folio->flags.f))
 			return -1;
 		if (flags & WQ_FLAG_CUSTOM) {
-			if (test_and_set_bit(key->bit_nr, &key->folio->flags))
+			if (test_and_set_bit(key->bit_nr, &key->folio->flags.f))
 				return -1;
 			flags |= WQ_FLAG_DONE;
 		}
@@ -1226,9 +1226,9 @@ static inline bool folio_trylock_flag(struct folio *folio, int bit_nr,
 					struct wait_queue_entry *wait)
 {
 	if (wait->flags & WQ_FLAG_EXCLUSIVE) {
-		if (test_and_set_bit(bit_nr, &folio->flags))
+		if (test_and_set_bit(bit_nr, &folio->flags.f))
 			return false;
-	} else if (test_bit(bit_nr, &folio->flags))
+	} else if (test_bit(bit_nr, &folio->flags.f))
 		return false;
 
 	wait->flags |= WQ_FLAG_WOKEN | WQ_FLAG_DONE;

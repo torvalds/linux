@@ -1186,7 +1186,7 @@ static inline bool zone_is_empty(struct zone *zone)
 static inline enum zone_type page_zonenum(const struct page *page)
 {
 	ASSERT_EXCLUSIVE_BITS(page->flags, ZONES_MASK << ZONES_PGSHIFT);
-	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+	return (page->flags.f >> ZONES_PGSHIFT) & ZONES_MASK;
 }
 
 static inline enum zone_type folio_zonenum(const struct folio *folio)

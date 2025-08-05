@@ -107,7 +107,7 @@ static int do_readpage(struct folio *folio)
 	size_t offset = 0;
 
 	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
-		inode->i_ino, folio->index, i_size, folio->flags);
+		inode->i_ino, folio->index, i_size, folio->flags.f);
 	ubifs_assert(c, !folio_test_checked(folio));
 	ubifs_assert(c, !folio->private);
 
@@ -600,7 +600,7 @@ static int populate_page(struct ubifs_info *c, struct folio *folio,
 	pgoff_t end_index;
 
 	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
-		inode->i_ino, folio->index, i_size, folio->flags);
+		inode->i_ino, folio->index, i_size, folio->flags.f);
 
 	end_index = (i_size - 1) >> PAGE_SHIFT;
 	if (!i_size || folio->index > end_index) {
@@ -988,7 +988,7 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc)
 	int err, len = folio_size(folio);
 
 	dbg_gen("ino %lu, pg %lu, pg flags %#lx",
-		inode->i_ino, folio->index, folio->flags);
+		inode->i_ino, folio->index, folio->flags.f);
 	ubifs_assert(c, folio->private != NULL);
 
 	/* Is the folio fully outside @i_size? (truncate in progress) */

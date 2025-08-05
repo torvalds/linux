@@ -34,6 +34,10 @@ struct address_space;
 struct futex_private_hash;
 struct mem_cgroup;
 
+typedef struct {
+	unsigned long f;
+} memdesc_flags_t;
+
 /*
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
@@ -72,7 +76,7 @@ struct mem_cgroup;
 #endif
 
 struct page {
-	unsigned long flags;		/* Atomic flags, some possibly
+	memdesc_flags_t flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
 	/*
 	 * Five words (20/40 bytes) are available in this union.
@@ -383,7 +387,7 @@ struct folio {
 	union {
 		struct {
 	/* public: */
-			unsigned long flags;
+			memdesc_flags_t flags;
 			union {
 				struct list_head lru;
 	/* private: avoid cluttering the output */
