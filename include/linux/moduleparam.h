@@ -6,6 +6,13 @@
 #include <linux/stringify.h>
 #include <linux/kernel.h>
 
+/*
+ * The maximum module name length, including the NUL byte.
+ * Chosen so that structs with an unsigned long line up, specifically
+ * modversion_info.
+ */
+#define __MODULE_NAME_LEN (64 - sizeof(unsigned long))
+
 /* You can override this manually, but generally this should match the
    module name. */
 #ifdef MODULE
@@ -16,9 +23,6 @@
 /* We cannot use MODULE_PARAM_PREFIX because some modules override it. */
 #define __MODULE_INFO_PREFIX KBUILD_MODNAME "."
 #endif
-
-/* Chosen so that structs with an unsigned long line up. */
-#define MAX_PARAM_PREFIX_LEN (64 - sizeof(unsigned long))
 
 #define __MODULE_INFO(tag, name, info)					  \
 	static const char __UNIQUE_ID(name)[]				  \
@@ -282,10 +286,9 @@ struct kparam_array
 #define __moduleparam_const const
 #endif
 
-/* This is the fundamental function for registering boot/module
-   parameters. */
+/* This is the fundamental function for registering boot/module parameters. */
 #define __module_param_call(prefix, name, ops, arg, perm, level, flags)	\
-	/* Default value instead of permissions? */			\
+	static_assert(sizeof(""prefix) - 1 <= __MODULE_NAME_LEN);	\
 	static const char __param_str_##name[] = prefix #name;		\
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used __section("__param")					\

@@ -890,7 +890,7 @@ bit 1  print system memory info
 bit 2  print timer info
 bit 3  print locks info if ``CONFIG_LOCKDEP`` is on
 bit 4  print ftrace buffer
-bit 5  print all printk messages in buffer
+bit 5  replay all messages on consoles at the end of panic
 bit 6  print all CPUs backtrace (if available in the arch)
 bit 7  print only tasks in uninterruptible (blocked) state
 =====  ============================================
@@ -898,6 +898,24 @@ bit 7  print only tasks in uninterruptible (blocked) state
 So for example to print tasks and memory info on panic, user can::
 
   echo 3 > /proc/sys/kernel/panic_print
+
+
+panic_sys_info
+==============
+
+A comma separated list of extra information to be dumped on panic,
+for example, "tasks,mem,timers,...".  It is a human readable alternative
+to 'panic_print'. Possible values are:
+
+=============   ===================================================
+tasks           print all tasks info
+mem             print system memory info
+timer           print timers info
+lock            print locks info if CONFIG_LOCKDEP is on
+ftrace          print ftrace buffer
+all_bt          print all CPUs backtrace (if available in the arch)
+blocked_tasks   print only tasks in uninterruptible (blocked) state
+=============   ===================================================
 
 
 panic_on_rcu_stall

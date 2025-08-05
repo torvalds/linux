@@ -6,10 +6,10 @@
 
 use crate::{
     alloc::{layout::LayoutError, AllocError},
+    fmt,
     str::CStr,
 };
 
-use core::fmt;
 use core::num::NonZeroI32;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
@@ -154,7 +154,7 @@ impl Error {
     /// Returns the error encoded as a pointer.
     pub fn to_ptr<T>(self) -> *mut T {
         // SAFETY: `self.0` is a valid error due to its invariant.
-        unsafe { bindings::ERR_PTR(self.0.get() as _) as *mut _ }
+        unsafe { bindings::ERR_PTR(self.0.get() as crate::ffi::c_long).cast() }
     }
 
     /// Returns a string representing the error, if one exists.
@@ -189,7 +189,7 @@ impl fmt::Debug for Error {
             Some(name) => f
                 .debug_tuple(
                     // SAFETY: These strings are ASCII-only.
-                    unsafe { core::str::from_utf8_unchecked(name) },
+                    unsafe { core::str::from_utf8_unchecked(name.to_bytes()) },
                 )
                 .finish(),
         }
@@ -220,8 +220,8 @@ impl From<LayoutError> for Error {
     }
 }
 
-impl From<core::fmt::Error> for Error {
-    fn from(_: core::fmt::Error) -> Error {
+impl From<fmt::Error> for Error {
+    fn from(_: fmt::Error) -> Error {
         code::EINVAL
     }
 }

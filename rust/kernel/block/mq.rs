@@ -53,7 +53,7 @@
 //! [`GenDiskBuilder`]: gen_disk::GenDiskBuilder
 //! [`GenDiskBuilder::build`]: gen_disk::GenDiskBuilder::build
 //!
-//! # Example
+//! # Examples
 //!
 //! ```rust
 //! use kernel::{
