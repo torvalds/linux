@@ -222,24 +222,32 @@ static int drm_pagemap_migrate_map_pages(struct device *dev,
 {
 	unsigned long i;
 
-	for (i = 0; i < npages; ++i) {
+	for (i = 0; i < npages;) {
 		struct page *page = migrate_pfn_to_page(migrate_pfn[i]);
 		dma_addr_t dma_addr;
+		struct folio *folio;
+		unsigned int order = 0;
 
 		if (!page)
-			continue;
+			goto next;
 
 		if (WARN_ON_ONCE(is_zone_device_page(page)))
 			return -EFAULT;
 
-		dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
+		folio = page_folio(page);
+		order = folio_order(folio);
+
+		dma_addr = dma_map_page(dev, page, 0, page_size(page), dir);
 		if (dma_mapping_error(dev, dma_addr))
 			return -EFAULT;
 
 		pagemap_addr[i] =
 			drm_pagemap_addr_encode(dma_addr,
 						DRM_INTERCONNECT_SYSTEM,
-						0, dir);
+						order, dir);
+
+next:
+		i += NR_PAGES(order);
 	}
 
 	return 0;
@@ -263,11 +271,14 @@ static void drm_pagemap_migrate_unmap_pages(struct device *dev,
 {
 	unsigned long i;
 
-	for (i = 0; i < npages; ++i) {
+	for (i = 0; i < npages;) {
 		if (!pagemap_addr[i].addr || dma_mapping_error(dev, pagemap_addr[i].addr))
-			continue;
+			goto next;
 
-		dma_unmap_page(dev, pagemap_addr[i].addr, PAGE_SIZE, dir);
+		dma_unmap_page(dev, pagemap_addr[i].addr, PAGE_SIZE << pagemap_addr[i].order, dir);
+
+next:
+		i += NR_PAGES(pagemap_addr[i].order);
 	}
 }
 
