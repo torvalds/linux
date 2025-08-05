@@ -322,27 +322,6 @@ get_pin_assignment(struct intel_tc_port *tc)
 	return pin_assignment;
 }
 
-static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
-{
-	struct intel_tc_port *tc = to_tc_port(dig_port);
-	enum intel_tc_pin_assignment pin_assignment;
-
-	pin_assignment = get_pin_assignment(tc);
-
-	switch (pin_assignment) {
-	case INTEL_TC_PIN_ASSIGNMENT_NONE:
-		return 0;
-	default:
-		MISSING_CASE(pin_assignment);
-		fallthrough;
-	case INTEL_TC_PIN_ASSIGNMENT_D:
-		return 2;
-	case INTEL_TC_PIN_ASSIGNMENT_C:
-	case INTEL_TC_PIN_ASSIGNMENT_E:
-		return 4;
-	}
-}
-
 static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
 	struct intel_tc_port *tc = to_tc_port(dig_port);
@@ -394,9 +373,6 @@ static int get_max_lane_count(struct intel_tc_port *tc)
 
 	if (tc->mode != TC_PORT_DP_ALT)
 		return 4;
-
-	if (DISPLAY_VER(display) >= 20)
-		return lnl_tc_port_get_max_lane_count(dig_port);
 
 	if (DISPLAY_VER(display) >= 14)
 		return mtl_tc_port_get_max_lane_count(dig_port);
