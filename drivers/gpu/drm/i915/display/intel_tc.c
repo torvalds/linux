@@ -277,23 +277,32 @@ static u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
 }
 
-enum intel_tc_pin_assignment
-intel_tc_port_get_pin_assignment(struct intel_digital_port *dig_port)
+static enum intel_tc_pin_assignment
+get_pin_assignment(struct intel_tc_port *tc)
 {
-	struct intel_display *display = to_intel_display(dig_port);
-	struct intel_tc_port *tc = to_tc_port(dig_port);
+	struct intel_display *display = to_intel_display(tc->dig_port);
+	enum tc_port tc_port = intel_encoder_to_tc(&tc->dig_port->base);
 	enum intel_tc_pin_assignment pin_assignment;
 	intel_wakeref_t wakeref;
+	i915_reg_t reg;
+	u32 mask;
 	u32 val;
 
+	if (DISPLAY_VER(display) >= 20) {
+		reg = TCSS_DDI_STATUS(tc_port);
+		mask = TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK;
+	} else {
+		reg = PORT_TX_DFLEXPA1(tc->phy_fia);
+		mask = DP_PIN_ASSIGNMENT_MASK(tc->phy_fia_idx);
+	}
+
 	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		val = intel_de_read(display, PORT_TX_DFLEXPA1(tc->phy_fia));
+		val = intel_de_read(display, reg);
 
 	drm_WARN_ON(display->drm, val == 0xffffffff);
 	assert_tc_cold_blocked(tc);
 
-	pin_assignment = (val & DP_PIN_ASSIGNMENT_MASK(tc->phy_fia_idx)) >>
-			 DP_PIN_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
+	pin_assignment = (val & mask) >> (ffs(mask) - 1);
 
 	switch (pin_assignment) {
 	case INTEL_TC_PIN_ASSIGNMENT_A:
@@ -315,21 +324,10 @@ intel_tc_port_get_pin_assignment(struct intel_digital_port *dig_port)
 
 static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
-	struct intel_display *display = to_intel_display(dig_port);
-	enum tc_port tc_port = intel_encoder_to_tc(&dig_port->base);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
 	enum intel_tc_pin_assignment pin_assignment;
-	intel_wakeref_t wakeref;
-	u32 val;
 
-	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		val = intel_de_read(display, TCSS_DDI_STATUS(tc_port));
-
-	drm_WARN_ON(display->drm, val == 0xffffffff);
-	assert_tc_cold_blocked(tc);
-
-	pin_assignment =
-		REG_FIELD_GET(TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK, val);
+	pin_assignment = get_pin_assignment(tc);
 
 	switch (pin_assignment) {
 	case INTEL_TC_PIN_ASSIGNMENT_NONE:
@@ -347,9 +345,10 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 
 static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
+	struct intel_tc_port *tc = to_tc_port(dig_port);
 	enum intel_tc_pin_assignment pin_assignment;
 
-	pin_assignment = intel_tc_port_get_pin_assignment(dig_port);
+	pin_assignment = get_pin_assignment(tc);
 
 	switch (pin_assignment) {
 	case INTEL_TC_PIN_ASSIGNMENT_NONE:
@@ -418,6 +417,14 @@ int intel_tc_port_max_lane_count(struct intel_digital_port *dig_port)
 		return 4;
 
 	return tc->max_lane_count;
+}
+
+enum intel_tc_pin_assignment
+intel_tc_port_get_pin_assignment(struct intel_digital_port *dig_port)
+{
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	return get_pin_assignment(tc);
 }
 
 void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
