@@ -51,6 +51,15 @@ struct smbdirect_socket {
 			SMBDIRECT_EXPECT_NEGOTIATE_REP = 2,
 			SMBDIRECT_EXPECT_DATA_TRANSFER = 3,
 		} expected;
+
+		/*
+		 * The list of free smbdirect_recv_io
+		 * structures
+		 */
+		struct {
+			struct list_head list;
+			spinlock_t lock;
+		} free;
 	} recv_io;
 };
 
