@@ -287,6 +287,9 @@ get_pin_assignment(struct intel_tc_port *tc)
 	u32 mask;
 	u32 val;
 
+	if (tc->mode == TC_PORT_TBT_ALT)
+		return INTEL_TC_PIN_ASSIGNMENT_NONE;
+
 	if (DISPLAY_VER(display) >= 20) {
 		reg = TCSS_DDI_STATUS(tc_port);
 		mask = TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK;
