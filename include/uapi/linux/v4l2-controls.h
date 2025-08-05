@@ -2549,40 +2549,6 @@ struct v4l2_ctrl_hevc_scaling_matrix {
 	__u8	scaling_list_dc_coef_32x32[2];
 };
 
-#define V4L2_CID_COLORIMETRY_CLASS_BASE	(V4L2_CTRL_CLASS_COLORIMETRY | 0x900)
-#define V4L2_CID_COLORIMETRY_CLASS	(V4L2_CTRL_CLASS_COLORIMETRY | 1)
-
-#define V4L2_CID_COLORIMETRY_HDR10_CLL_INFO	(V4L2_CID_COLORIMETRY_CLASS_BASE + 0)
-
-struct v4l2_ctrl_hdr10_cll_info {
-	__u16 max_content_light_level;
-	__u16 max_pic_average_light_level;
-};
-
-#define V4L2_CID_COLORIMETRY_HDR10_MASTERING_DISPLAY	(V4L2_CID_COLORIMETRY_CLASS_BASE + 1)
-
-#define V4L2_HDR10_MASTERING_PRIMARIES_X_LOW	5
-#define V4L2_HDR10_MASTERING_PRIMARIES_X_HIGH	37000
-#define V4L2_HDR10_MASTERING_PRIMARIES_Y_LOW	5
-#define V4L2_HDR10_MASTERING_PRIMARIES_Y_HIGH	42000
-#define V4L2_HDR10_MASTERING_WHITE_POINT_X_LOW	5
-#define V4L2_HDR10_MASTERING_WHITE_POINT_X_HIGH	37000
-#define V4L2_HDR10_MASTERING_WHITE_POINT_Y_LOW	5
-#define V4L2_HDR10_MASTERING_WHITE_POINT_Y_HIGH	42000
-#define V4L2_HDR10_MASTERING_MAX_LUMA_LOW	50000
-#define V4L2_HDR10_MASTERING_MAX_LUMA_HIGH	100000000
-#define V4L2_HDR10_MASTERING_MIN_LUMA_LOW	1
-#define V4L2_HDR10_MASTERING_MIN_LUMA_HIGH	50000
-
-struct v4l2_ctrl_hdr10_mastering_display {
-	__u16 display_primaries_x[3];
-	__u16 display_primaries_y[3];
-	__u16 white_point_x;
-	__u16 white_point_y;
-	__u32 max_display_mastering_luminance;
-	__u32 min_display_mastering_luminance;
-};
-
 /* Stateless VP9 controls */
 
 #define V4L2_VP9_LOOP_FILTER_FLAG_DELTA_ENABLED	0x1
@@ -3514,5 +3480,39 @@ struct v4l2_ctrl_av1_film_grain {
 #define V4L2_CID_MPEG_CX2341X_BASE      V4L2_CID_CODEC_CX2341X_BASE
 #define V4L2_CID_MPEG_MFC51_BASE        V4L2_CID_CODEC_MFC51_BASE
 #endif
+
+#define V4L2_CID_COLORIMETRY_CLASS_BASE	(V4L2_CTRL_CLASS_COLORIMETRY | 0x900)
+#define V4L2_CID_COLORIMETRY_CLASS	(V4L2_CTRL_CLASS_COLORIMETRY | 1)
+
+#define V4L2_CID_COLORIMETRY_HDR10_CLL_INFO	(V4L2_CID_COLORIMETRY_CLASS_BASE + 0)
+
+struct v4l2_ctrl_hdr10_cll_info {
+	__u16 max_content_light_level;
+	__u16 max_pic_average_light_level;
+};
+
+#define V4L2_CID_COLORIMETRY_HDR10_MASTERING_DISPLAY	(V4L2_CID_COLORIMETRY_CLASS_BASE + 1)
+
+#define V4L2_HDR10_MASTERING_PRIMARIES_X_LOW	5
+#define V4L2_HDR10_MASTERING_PRIMARIES_X_HIGH	37000
+#define V4L2_HDR10_MASTERING_PRIMARIES_Y_LOW	5
+#define V4L2_HDR10_MASTERING_PRIMARIES_Y_HIGH	42000
+#define V4L2_HDR10_MASTERING_WHITE_POINT_X_LOW	5
+#define V4L2_HDR10_MASTERING_WHITE_POINT_X_HIGH	37000
+#define V4L2_HDR10_MASTERING_WHITE_POINT_Y_LOW	5
+#define V4L2_HDR10_MASTERING_WHITE_POINT_Y_HIGH	42000
+#define V4L2_HDR10_MASTERING_MAX_LUMA_LOW	50000
+#define V4L2_HDR10_MASTERING_MAX_LUMA_HIGH	100000000
+#define V4L2_HDR10_MASTERING_MIN_LUMA_LOW	1
+#define V4L2_HDR10_MASTERING_MIN_LUMA_HIGH	50000
+
+struct v4l2_ctrl_hdr10_mastering_display {
+	__u16 display_primaries_x[3];
+	__u16 display_primaries_y[3];
+	__u16 white_point_x;
+	__u16 white_point_y;
+	__u32 max_display_mastering_luminance;
+	__u32 min_display_mastering_luminance;
+};
 
 #endif
