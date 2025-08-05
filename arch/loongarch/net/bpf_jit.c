@@ -4,7 +4,11 @@
  *
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  */
+#include <linux/memory.h>
 #include "bpf_jit.h"
+
+#define LOONGARCH_LONG_JUMP_NINSNS 5
+#define LOONGARCH_LONG_JUMP_NBYTES (LOONGARCH_LONG_JUMP_NINSNS * 4)
 
 #define REG_TCC		LOONGARCH_GPR_A6
 #define TCC_SAVED	LOONGARCH_GPR_S5
@@ -88,7 +92,7 @@ static u8 tail_call_reg(struct jit_ctx *ctx)
  */
 static void build_prologue(struct jit_ctx *ctx)
 {
-	int stack_adjust = 0, store_offset, bpf_stack_adjust;
+	int i, stack_adjust = 0, store_offset, bpf_stack_adjust;
 
 	bpf_stack_adjust = round_up(ctx->prog->aux->stack_depth, 16);
 
@@ -97,6 +101,10 @@ static void build_prologue(struct jit_ctx *ctx)
 
 	stack_adjust = round_up(stack_adjust, 16);
 	stack_adjust += bpf_stack_adjust;
+
+	/* Reserve space for the move_imm + jirl instruction */
+	for (i = 0; i < LOONGARCH_LONG_JUMP_NINSNS; i++)
+		emit_insn(ctx, nop);
 
 	/*
 	 * First instruction initializes the tail call count (TCC).
@@ -1192,6 +1200,101 @@ static int validate_ctx(struct jit_ctx *ctx)
 		return -1;
 
 	return 0;
+}
+
+static int emit_jump_and_link(struct jit_ctx *ctx, u8 rd, u64 target)
+{
+	if (!target) {
+		pr_err("bpf_jit: jump target address is error\n");
+		return -EFAULT;
+	}
+
+	move_imm(ctx, LOONGARCH_GPR_T1, target, false);
+	emit_insn(ctx, jirl, rd, LOONGARCH_GPR_T1, 0);
+
+	return 0;
+}
+
+static int emit_jump_or_nops(void *target, void *ip, u32 *insns, bool is_call)
+{
+	int i;
+	struct jit_ctx ctx;
+
+	ctx.idx = 0;
+	ctx.image = (union loongarch_instruction *)insns;
+
+	if (!target) {
+		for (i = 0; i < LOONGARCH_LONG_JUMP_NINSNS; i++)
+			emit_insn((&ctx), nop);
+		return 0;
+	}
+
+	return emit_jump_and_link(&ctx, is_call ? LOONGARCH_GPR_T0 : LOONGARCH_GPR_ZERO, (u64)target);
+}
+
+void *bpf_arch_text_copy(void *dst, void *src, size_t len)
+{
+	int ret;
+
+	mutex_lock(&text_mutex);
+	ret = larch_insn_text_copy(dst, src, len);
+	mutex_unlock(&text_mutex);
+
+	return ret ? ERR_PTR(-EINVAL) : dst;
+}
+
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
+		       void *old_addr, void *new_addr)
+{
+	int ret;
+	bool is_call = (poke_type == BPF_MOD_CALL);
+	u32 old_insns[LOONGARCH_LONG_JUMP_NINSNS] = {[0 ... 4] = INSN_NOP};
+	u32 new_insns[LOONGARCH_LONG_JUMP_NINSNS] = {[0 ... 4] = INSN_NOP};
+
+	if (!is_kernel_text((unsigned long)ip) &&
+		!is_bpf_text_address((unsigned long)ip))
+		return -ENOTSUPP;
+
+	ret = emit_jump_or_nops(old_addr, ip, old_insns, is_call);
+	if (ret)
+		return ret;
+
+	if (memcmp(ip, old_insns, LOONGARCH_LONG_JUMP_NBYTES))
+		return -EFAULT;
+
+	ret = emit_jump_or_nops(new_addr, ip, new_insns, is_call);
+	if (ret)
+		return ret;
+
+	mutex_lock(&text_mutex);
+	if (memcmp(ip, new_insns, LOONGARCH_LONG_JUMP_NBYTES))
+		ret = larch_insn_text_copy(ip, new_insns, LOONGARCH_LONG_JUMP_NBYTES);
+	mutex_unlock(&text_mutex);
+
+	return ret;
+}
+
+int bpf_arch_text_invalidate(void *dst, size_t len)
+{
+	int i;
+	int ret = 0;
+	u32 *inst;
+
+	inst = kvmalloc(len, GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+
+	for (i = 0; i < (len / sizeof(u32)); i++)
+		inst[i] = INSN_BREAK;
+
+	mutex_lock(&text_mutex);
+	if (larch_insn_text_copy(dst, inst, len))
+		ret = -EINVAL;
+	mutex_unlock(&text_mutex);
+
+	kvfree(inst);
+
+	return ret;
 }
 
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
