@@ -277,6 +277,14 @@ static u32 get_lane_mask(struct intel_tc_port *tc)
 	return lane_mask >> DP_LANE_ASSIGNMENT_SHIFT(tc->phy_fia_idx);
 }
 
+static char pin_assignment_name(enum intel_tc_pin_assignment pin_assignment)
+{
+	if (pin_assignment == INTEL_TC_PIN_ASSIGNMENT_NONE)
+		return '-';
+
+	return 'A' + pin_assignment - INTEL_TC_PIN_ASSIGNMENT_A;
+}
+
 static enum intel_tc_pin_assignment
 get_pin_assignment(struct intel_tc_port *tc)
 {
@@ -1510,10 +1518,13 @@ static void intel_tc_port_reset_mode(struct intel_tc_port *tc,
 	if (!force_disconnect)
 		tc_phy_connect(tc, required_lanes);
 
-	drm_dbg_kms(display->drm, "Port %s: TC port mode reset (%s -> %s)\n",
+	drm_dbg_kms(display->drm,
+		    "Port %s: TC port mode reset (%s -> %s) pin assignment: %c max lanes: %d\n",
 		    tc->port_name,
 		    tc_port_mode_name(old_tc_mode),
-		    tc_port_mode_name(tc->mode));
+		    tc_port_mode_name(tc->mode),
+		    pin_assignment_name(tc->pin_assignment),
+		    tc->max_lane_count);
 }
 
 static bool intel_tc_port_needs_reset(struct intel_tc_port *tc)
@@ -1668,9 +1679,11 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 		__intel_tc_port_put_link(tc);
 	}
 
-	drm_dbg_kms(display->drm, "Port %s: sanitize mode (%s)\n",
+	drm_dbg_kms(display->drm, "Port %s: sanitize mode (%s) pin assignment: %c max lanes: %d\n",
 		    tc->port_name,
-		    tc_port_mode_name(tc->mode));
+		    tc_port_mode_name(tc->mode),
+		    pin_assignment_name(tc->pin_assignment),
+		    tc->max_lane_count);
 
 	mutex_unlock(&tc->lock);
 }
