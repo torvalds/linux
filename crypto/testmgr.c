@@ -4178,6 +4178,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "authenc(hmac(md5),ecb(cipher_null))",
+		.generic_driver = "authenc(hmac-md5-lib,ecb-cipher_null)",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = __VECS(hmac_md5_ecb_cipher_null_tv_template)
@@ -5064,6 +5065,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "hmac(md5)",
+		.generic_driver = "hmac-md5-lib",
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(hmac_md5_tv_template)
@@ -5250,6 +5252,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "md5",
+		.generic_driver = "md5-lib",
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(md5_tv_template)
