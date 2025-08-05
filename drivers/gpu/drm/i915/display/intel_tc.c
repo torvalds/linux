@@ -23,11 +23,6 @@
 #include "intel_modeset_lock.h"
 #include "intel_tc.h"
 
-#define DP_PIN_ASSIGNMENT_NONE	0x0
-#define DP_PIN_ASSIGNMENT_C	0x3
-#define DP_PIN_ASSIGNMENT_D	0x4
-#define DP_PIN_ASSIGNMENT_E	0x5
-
 enum tc_port_mode {
 	TC_PORT_DISCONNECTED,
 	TC_PORT_TBT_ALT,
@@ -317,15 +312,15 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 		REG_FIELD_GET(TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK, val);
 
 	switch (pin_assignment) {
-	case DP_PIN_ASSIGNMENT_NONE:
+	case INTEL_TC_PIN_ASSIGNMENT_NONE:
 		return 0;
 	default:
 		MISSING_CASE(pin_assignment);
 		fallthrough;
-	case DP_PIN_ASSIGNMENT_D:
+	case INTEL_TC_PIN_ASSIGNMENT_D:
 		return 2;
-	case DP_PIN_ASSIGNMENT_C:
-	case DP_PIN_ASSIGNMENT_E:
+	case INTEL_TC_PIN_ASSIGNMENT_C:
+	case INTEL_TC_PIN_ASSIGNMENT_E:
 		return 4;
 	}
 }
@@ -340,10 +335,10 @@ static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 	default:
 		MISSING_CASE(pin_mask);
 		fallthrough;
-	case DP_PIN_ASSIGNMENT_D:
+	case INTEL_TC_PIN_ASSIGNMENT_D:
 		return 2;
-	case DP_PIN_ASSIGNMENT_C:
-	case DP_PIN_ASSIGNMENT_E:
+	case INTEL_TC_PIN_ASSIGNMENT_C:
+	case INTEL_TC_PIN_ASSIGNMENT_E:
 		return 4;
 	}
 }
