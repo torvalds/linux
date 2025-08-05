@@ -61,6 +61,7 @@ struct intel_tc_port {
 	enum tc_port_mode mode;
 	enum tc_port_mode init_mode;
 	enum phy_fia phy_fia;
+	enum intel_tc_pin_assignment pin_assignment;
 	u8 phy_fia_idx;
 	u8 max_lane_count;
 };
@@ -382,6 +383,7 @@ static int get_max_lane_count(struct intel_tc_port *tc)
 
 static void read_pin_configuration(struct intel_tc_port *tc)
 {
+	tc->pin_assignment = get_pin_assignment(tc);
 	tc->max_lane_count = get_max_lane_count(tc);
 }
 
@@ -403,7 +405,7 @@ intel_tc_port_get_pin_assignment(struct intel_digital_port *dig_port)
 	if (!intel_encoder_is_tc(&dig_port->base))
 		return INTEL_TC_PIN_ASSIGNMENT_NONE;
 
-	return get_pin_assignment(tc);
+	return tc->pin_assignment;
 }
 
 void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
