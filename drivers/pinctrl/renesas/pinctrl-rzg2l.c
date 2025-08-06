@@ -298,8 +298,6 @@ struct rzg2l_pinctrl_data {
 	void (*pwpr_pfc_lock_unlock)(struct rzg2l_pinctrl *pctrl, bool lock);
 	void (*pmc_writeb)(struct rzg2l_pinctrl *pctrl, u8 val, u16 offset);
 	int (*pin_to_oen_bit)(struct rzg2l_pinctrl *pctrl, unsigned int _pin);
-	u32 (*oen_read)(struct rzg2l_pinctrl *pctrl, unsigned int _pin);
-	int (*oen_write)(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen);
 	int (*hw_to_bias_param)(unsigned int val);
 	int (*bias_param_to_hw)(enum pin_config_param param);
 };
@@ -1092,16 +1090,16 @@ static int rzg2l_pin_to_oen_bit(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 	return -EINVAL;
 }
 
-static u32 rzg2l_read_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
+static int rzg2l_read_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 {
 	int bit;
 
 	if (!pctrl->data->pin_to_oen_bit)
-		return 0;
+		return -EOPNOTSUPP;
 
 	bit = pctrl->data->pin_to_oen_bit(pctrl, _pin);
 	if (bit < 0)
-		return 0;
+		return -EINVAL;
 
 	return !(readb(pctrl->base + pctrl->data->hwcfg->regs.oen) & BIT(bit));
 }
@@ -1115,7 +1113,7 @@ static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oe
 	int bit;
 
 	if (!pctrl->data->pin_to_oen_bit)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	bit = pctrl->data->pin_to_oen_bit(pctrl, _pin);
 	if (bit < 0)
@@ -1298,11 +1296,10 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		if (!(cfg & PIN_CFG_OEN))
 			return -EINVAL;
-		if (!pctrl->data->oen_read)
-			return -EOPNOTSUPP;
-		arg = pctrl->data->oen_read(pctrl, _pin);
-		if (!arg)
-			return -EINVAL;
+		ret = rzg2l_read_oen(pctrl, _pin);
+		if (ret < 0)
+			return ret;
+		arg = ret;
 		break;
 
 	case PIN_CONFIG_POWER_SOURCE:
@@ -1461,9 +1458,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			if (!(cfg & PIN_CFG_OEN))
 				return -EINVAL;
-			if (!pctrl->data->oen_write)
-				return -EOPNOTSUPP;
-			ret = pctrl->data->oen_write(pctrl, _pin, !!arg);
+			ret = rzg2l_write_oen(pctrl, _pin, !!arg);
 			if (ret)
 				return ret;
 			break;
@@ -3300,8 +3295,6 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
 	.pin_to_oen_bit = &rzg2l_pin_to_oen_bit,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
@@ -3318,8 +3311,6 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
 	.pin_to_oen_bit = &rzg2l_pin_to_oen_bit,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
@@ -3335,8 +3326,6 @@ static struct rzg2l_pinctrl_data r9a08g045_data = {
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
 	.pin_to_oen_bit = &rzg3s_pin_to_oen_bit,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
@@ -3359,8 +3348,6 @@ static struct rzg2l_pinctrl_data r9a09g047_data = {
 	.pwpr_pfc_lock_unlock = &rzv2h_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzv2h_pmc_writeb,
 	.pin_to_oen_bit = &rzg3e_pin_to_oen_bit,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzv2h_hw_to_bias_param,
 	.bias_param_to_hw = &rzv2h_bias_param_to_hw,
 };
@@ -3383,8 +3370,6 @@ static struct rzg2l_pinctrl_data r9a09g056_data = {
 	.pwpr_pfc_lock_unlock = &rzv2h_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzv2h_pmc_writeb,
 	.pin_to_oen_bit = &rzv2h_pin_to_oen_bit,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzv2h_hw_to_bias_param,
 	.bias_param_to_hw = &rzv2h_bias_param_to_hw,
 };
@@ -3408,8 +3393,6 @@ static struct rzg2l_pinctrl_data r9a09g057_data = {
 	.pwpr_pfc_lock_unlock = &rzv2h_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzv2h_pmc_writeb,
 	.pin_to_oen_bit = &rzv2h_pin_to_oen_bit,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzv2h_hw_to_bias_param,
 	.bias_param_to_hw = &rzv2h_bias_param_to_hw,
 };
