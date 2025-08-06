@@ -18,6 +18,13 @@ description: |
   Datasheets:
     https://www.analog.com/en/products/adm1294.html
 
+  The SQ24905C is also a Hot-swap controller compatibility to the ADM1278,
+  the PMBUS_MFR_MODEL is MC09C
+
+  Datasheets:
+    https://www.silergy.com/
+    download/downloadFile?id=5669&type=product&ftype=note
+
 properties:
   compatible:
     enum:
@@ -30,6 +37,7 @@ properties:
       - adi,adm1281
       - adi,adm1293
       - adi,adm1294
+      - silergy,mc09c
 
   reg:
     maxItems: 1
@@ -96,6 +104,7 @@ allOf:
               - adi,adm1281
               - adi,adm1293
               - adi,adm1294
+              - silergy,mc09c
     then:
       properties:
         adi,volt-curr-sample-average:
