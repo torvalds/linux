@@ -2637,11 +2637,19 @@ static void gfx_v12_1_xcc_enable_atomics(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regTCP_UTCL0_CNTL1, data);
 }
 
+static void gfx_v12_1_xcc_disable_burst(struct amdgpu_device *adev,
+					int xcc_id)
+{
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGL1_DRAM_BURST_CTRL, 0xf);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGLARB_DRAM_BURST_CTRL, 0xf);
+}
+
 static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 {
 	int i;
 
 	for (i = 0; i < NUM_XCC(adev->gfx.xcc_mask); i++) {
+		gfx_v12_1_xcc_disable_burst(adev, i);
 		gfx_v12_1_xcc_enable_atomics(adev, i);
 		gfx_v12_1_xcc_setup_tcp_thrashing_ctrl(adev, i);
 	}
