@@ -152,7 +152,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 	 * happy to scanout from anywhere within its global aperture.
 	 */
 	pinctl = 0;
-	if (HAS_GMCH(dev_priv))
+	if (HAS_GMCH(display))
 		pinctl |= PIN_MAPPABLE;
 
 	i915_gem_ww_ctx_init(&ww, true);
@@ -193,7 +193,7 @@ retry:
 		 * mode that matches the user configuration.
 		 */
 		ret = i915_vma_pin_fence(vma);
-		if (ret != 0 && DISPLAY_VER(dev_priv) < 4) {
+		if (ret != 0 && DISPLAY_VER(display) < 4) {
 			i915_vma_unpin(vma);
 			goto err_unpin;
 		}
