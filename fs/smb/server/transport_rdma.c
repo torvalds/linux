@@ -37,7 +37,6 @@
 #define SMB_DIRECT_NEGOTIATE_TIMEOUT		120
 
 #define SMB_DIRECT_MAX_SEND_SGES		6
-#define SMB_DIRECT_MAX_RECV_SGES		1
 
 /*
  * Default maximum number of RDMA read/write outstanding on this connection
@@ -1834,7 +1833,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 		       device->attrs.max_send_sge);
 		return -EINVAL;
 	}
-	if (device->attrs.max_recv_sge < SMB_DIRECT_MAX_RECV_SGES) {
+	if (device->attrs.max_recv_sge < SMBDIRECT_RECV_IO_MAX_SGE) {
 		pr_err("warning: device max_recv_sge = %d too small\n",
 		       device->attrs.max_recv_sge);
 		return -EINVAL;
@@ -1858,7 +1857,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	cap->max_send_wr = max_send_wrs;
 	cap->max_recv_wr = sp->recv_credit_max;
 	cap->max_send_sge = SMB_DIRECT_MAX_SEND_SGES;
-	cap->max_recv_sge = SMB_DIRECT_MAX_RECV_SGES;
+	cap->max_recv_sge = SMBDIRECT_RECV_IO_MAX_SGE;
 	cap->max_inline_data = 0;
 	cap->max_rdma_ctxs = t->max_rw_credits;
 	return 0;
