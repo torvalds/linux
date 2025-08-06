@@ -344,12 +344,6 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_update_request_times(gl);
 
-	/* don't want to call dlm if we've unmounted the lock protocol */
-	if (test_bit(DFL_UNMOUNT, &ls->ls_recover_flags)) {
-		gfs2_glock_free(gl);
-		return;
-	}
-
 	/*
 	 * When the lockspace is released, all remaining glocks will be
 	 * unlocked automatically.  This is more efficient than unlocking them
@@ -377,6 +371,11 @@ again:
 	if (error == -EBUSY) {
 		msleep(20);
 		goto again;
+	}
+
+	if (error == -ENODEV) {
+		gfs2_glock_free(gl);
+		return;
 	}
 
 	if (error) {
