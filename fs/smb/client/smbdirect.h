@@ -33,16 +33,6 @@ enum keep_alive_status {
 	KEEP_ALIVE_SENT,
 };
 
-enum smbd_connection_status {
-	SMBD_CREATED,
-	SMBD_CONNECTING,
-	SMBD_CONNECTED,
-	SMBD_NEGOTIATE_FAILED,
-	SMBD_DISCONNECTING,
-	SMBD_DISCONNECTED,
-	SMBD_DESTROYED
-};
-
 /*
  * The context for the SMBDirect transport
  * Everything related to the transport is here. It has several logical parts
