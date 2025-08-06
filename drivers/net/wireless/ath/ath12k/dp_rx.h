@@ -31,15 +31,21 @@ struct ath12k_dp_rx_tid {
 	struct ath12k_base *ab;
 };
 
+struct ath12k_dp_rx_tid_rxq {
+	u8 tid;
+	bool active;
+	struct ath12k_reoq_buf qbuf;
+};
+
 struct ath12k_dp_rx_reo_cache_flush_elem {
 	struct list_head list;
-	struct ath12k_dp_rx_tid data;
+	struct ath12k_dp_rx_tid_rxq data;
 	unsigned long ts;
 };
 
 struct ath12k_dp_rx_reo_cmd {
 	struct list_head list;
-	struct ath12k_dp_rx_tid data;
+	struct ath12k_dp_rx_tid_rxq data;
 	int cmd_num;
 	void (*handler)(struct ath12k_dp *dp, void *ctx,
 			enum hal_reo_cmd_status status);
