@@ -92,6 +92,13 @@ struct smbdirect_socket {
 struct smbdirect_recv_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
+
+	/*
+	 * For now we only use a single SGE
+	 * as we have just one large buffer
+	 * per posted recv.
+	 */
+#define SMBDIRECT_RECV_IO_MAX_SGE 1
 	struct ib_sge sge;
 
 	/* Link to free or reassembly list */
