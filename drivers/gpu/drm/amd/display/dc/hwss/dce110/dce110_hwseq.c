@@ -1601,17 +1601,19 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 	}
 
 	if (pipe_ctx->stream_res.audio != NULL) {
-		build_audio_output(context, pipe_ctx, &pipe_ctx->stream_res.audio_output);
+		struct audio_output audio_output = {0};
 
-		link_hwss->setup_audio_output(pipe_ctx, &pipe_ctx->stream_res.audio_output,
+		build_audio_output(context, pipe_ctx, &audio_output);
+
+		link_hwss->setup_audio_output(pipe_ctx, &audio_output,
 				pipe_ctx->stream_res.audio->inst);
 
 		pipe_ctx->stream_res.audio->funcs->az_configure(
 				pipe_ctx->stream_res.audio,
 				pipe_ctx->stream->signal,
-				&pipe_ctx->stream_res.audio_output.crtc_info,
+				&audio_output.crtc_info,
 				&pipe_ctx->stream->audio_info,
-				&pipe_ctx->stream_res.audio_output.dp_link_info);
+				&audio_output.dp_link_info);
 
 		if (dc->config.disable_hbr_audio_dp2)
 			if (pipe_ctx->stream_res.audio->funcs->az_disable_hbr_audio &&
@@ -2385,7 +2387,9 @@ static void dce110_setup_audio_dto(
 		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
 			continue;
 		if (pipe_ctx->stream_res.audio != NULL) {
-			build_audio_output(context, pipe_ctx, &pipe_ctx->stream_res.audio_output);
+			struct audio_output audio_output;
+
+			build_audio_output(context, pipe_ctx, &audio_output);
 
 			if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->set_audio_dtbclk_dto) {
 				struct dtbclk_dto_params dto_params = {0};
@@ -2396,14 +2400,14 @@ static void dce110_setup_audio_dto(
 				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 						pipe_ctx->stream_res.audio,
 						pipe_ctx->stream->signal,
-						&pipe_ctx->stream_res.audio_output.crtc_info,
-						&pipe_ctx->stream_res.audio_output.pll_info);
+						&audio_output.crtc_info,
+						&audio_output.pll_info);
 			} else
 				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 					pipe_ctx->stream_res.audio,
 					pipe_ctx->stream->signal,
-					&pipe_ctx->stream_res.audio_output.crtc_info,
-					&pipe_ctx->stream_res.audio_output.pll_info);
+					&audio_output.crtc_info,
+					&audio_output.pll_info);
 			break;
 		}
 	}
@@ -2423,15 +2427,15 @@ static void dce110_setup_audio_dto(
 				continue;
 
 			if (pipe_ctx->stream_res.audio != NULL) {
-				build_audio_output(context,
-						   pipe_ctx,
-						   &pipe_ctx->stream_res.audio_output);
+				struct audio_output audio_output = {0};
+
+				build_audio_output(context, pipe_ctx, &audio_output);
 
 				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 					pipe_ctx->stream_res.audio,
 					pipe_ctx->stream->signal,
-					&pipe_ctx->stream_res.audio_output.crtc_info,
-					&pipe_ctx->stream_res.audio_output.pll_info);
+					&audio_output.crtc_info,
+					&audio_output.pll_info);
 				break;
 			}
 		}
