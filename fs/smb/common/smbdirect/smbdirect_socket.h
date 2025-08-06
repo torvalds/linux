@@ -89,6 +89,30 @@ struct smbdirect_socket {
 	} recv_io;
 };
 
+struct smbdirect_send_io {
+	struct smbdirect_socket *socket;
+	struct ib_cqe cqe;
+
+	/*
+	 * The SGE entries for this work request
+	 *
+	 * The first points to the packet header
+	 */
+#define SMBDIRECT_SEND_IO_MAX_SGE 6
+	size_t num_sge;
+	struct ib_sge sge[SMBDIRECT_SEND_IO_MAX_SGE];
+
+	/*
+	 * Link to the list of sibling smbdirect_send_io
+	 * messages.
+	 */
+	struct list_head sibling_list;
+	struct ib_send_wr wr;
+
+	/* SMBD packet header follows this structure */
+	u8 packet[];
+};
+
 struct smbdirect_recv_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
