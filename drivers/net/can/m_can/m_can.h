@@ -86,6 +86,7 @@ struct m_can_classdev {
 	struct device *dev;
 	struct clk *hclk;
 	struct clk *cclk;
+	struct reset_control *rst;
 
 	struct workqueue_struct *tx_wq;
 	struct phy *transceiver;
