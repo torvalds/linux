@@ -354,6 +354,8 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 	if (fw_ver >= 0x04560700) {
 		if (!amdgpu_sriov_vf(smu->adev))
 			smu_v13_0_6_cap_set(smu, SMU_CAP(TEMP_METRICS));
+	} else {
+		smu_v13_0_12_tables_fini(smu);
 	}
 }
 
@@ -568,6 +570,9 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	}
 
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12))
+		return smu_v13_0_12_tables_init(smu);
+
 	return 0;
 }
 
@@ -694,6 +699,13 @@ static int smu_v13_0_6_init_smc_tables(struct smu_context *smu)
 	ret = smu_v13_0_6_allocate_dpm_context(smu);
 
 	return ret;
+}
+
+static int smu_v13_0_6_fini_smc_tables(struct smu_context *smu)
+{
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12))
+		smu_v13_0_12_tables_fini(smu);
+	return smu_v13_0_fini_smc_tables(smu);
 }
 
 static int smu_v13_0_6_get_allowed_feature_mask(struct smu_context *smu,
@@ -3833,7 +3845,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.init_microcode = smu_v13_0_6_init_microcode,
 	.fini_microcode = smu_v13_0_fini_microcode,
 	.init_smc_tables = smu_v13_0_6_init_smc_tables,
-	.fini_smc_tables = smu_v13_0_fini_smc_tables,
+	.fini_smc_tables = smu_v13_0_6_fini_smc_tables,
 	.init_power = smu_v13_0_init_power,
 	.fini_power = smu_v13_0_fini_power,
 	.check_fw_status = smu_v13_0_6_check_fw_status,

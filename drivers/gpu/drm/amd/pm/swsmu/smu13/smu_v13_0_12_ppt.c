@@ -140,6 +140,42 @@ const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           0),
 };
 
+int smu_v13_0_12_tables_init(struct smu_context *smu)
+{
+	struct amdgpu_baseboard_temp_metrics_v1_0 *baseboard_temp_metrics;
+	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	struct smu_table_cache *cache;
+	int ret;
+
+	ret = smu_table_cache_init(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS,
+				   sizeof(*baseboard_temp_metrics), 50);
+	if (ret)
+		return ret;
+	/* Initialize base board temperature metrics */
+	cache = &(tables[SMU_TABLE_BASEBOARD_TEMP_METRICS].cache);
+	baseboard_temp_metrics =
+		(struct amdgpu_baseboard_temp_metrics_v1_0 *) cache->buffer;
+	smu_cmn_init_baseboard_temp_metrics(baseboard_temp_metrics, 1, 0);
+	/* Initialize GPU board temperature metrics */
+	ret = smu_table_cache_init(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS,
+				   sizeof(*gpuboard_temp_metrics), 50);
+	if (ret)
+		return ret;
+	cache = &(tables[SMU_TABLE_GPUBOARD_TEMP_METRICS].cache);
+	gpuboard_temp_metrics = (struct amdgpu_gpuboard_temp_metrics_v1_0 *)cache->buffer;
+	smu_cmn_init_gpuboard_temp_metrics(gpuboard_temp_metrics, 1, 0);
+
+	return 0;
+}
+
+void smu_v13_0_12_tables_fini(struct smu_context *smu)
+{
+	smu_table_cache_fini(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS);
+	smu_table_cache_fini(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS);
+}
+
 static int smu_v13_0_12_get_enabled_mask(struct smu_context *smu,
 					 uint64_t *feature_mask)
 {
@@ -514,33 +550,39 @@ static bool smu_v13_0_12_is_temp_metrics_supported(struct smu_context *smu,
 static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 					     enum smu_temp_metric_type type, void *table)
 {
-	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
 	struct amdgpu_baseboard_temp_metrics_v1_0 *baseboard_temp_metrics;
-	SystemMetricsTable_t *metrics;
+	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	SystemMetricsTable_t *metrics =
+		(SystemMetricsTable_t *)smu_table->metrics_table;
+
+	struct smu_table *data_table;
 	int ret, sensor_type;
 	u32 idx, sensors;
 	ssize_t size;
 
-	size = (type == SMU_TEMP_METRIC_GPUBOARD) ?
-		sizeof(*gpuboard_temp_metrics) : sizeof(*baseboard_temp_metrics);
-
-	if (!table)
-		goto out;
-	metrics = kzalloc(sizeof(SystemMetricsTable_t), GFP_KERNEL);
-	if (!metrics)
-		return -ENOMEM;
-	gpuboard_temp_metrics = (struct amdgpu_gpuboard_temp_metrics_v1_0 *)table;
-	baseboard_temp_metrics = (struct amdgpu_baseboard_temp_metrics_v1_0 *)table;
-	if (type  == SMU_TEMP_METRIC_GPUBOARD)
-		smu_cmn_init_gpuboard_temp_metrics(gpuboard_temp_metrics, 1, 0);
-	else if (type  == SMU_TEMP_METRIC_BASEBOARD)
-		smu_cmn_init_baseboard_temp_metrics(baseboard_temp_metrics, 1, 0);
-
-	ret = smu_v13_0_12_get_system_metrics_table(smu, metrics);
-	if (ret) {
-		kfree(metrics);
-		return ret;
+	if (type == SMU_TEMP_METRIC_BASEBOARD) {
+		/* Initialize base board temperature metrics */
+		data_table =
+			&smu->smu_table.tables[SMU_TABLE_BASEBOARD_TEMP_METRICS];
+		baseboard_temp_metrics =
+			(struct amdgpu_baseboard_temp_metrics_v1_0 *)
+				data_table->cache.buffer;
+		size = sizeof(*baseboard_temp_metrics);
+	} else {
+		data_table =
+			&smu->smu_table.tables[SMU_TABLE_GPUBOARD_TEMP_METRICS];
+		gpuboard_temp_metrics =
+			(struct amdgpu_gpuboard_temp_metrics_v1_0 *)
+				data_table->cache.buffer;
+		size = sizeof(*baseboard_temp_metrics);
 	}
+
+	ret = smu_v13_0_12_get_system_metrics_table(smu, NULL);
+	if (ret)
+		return ret;
+
+	smu_table_cache_update_time(data_table, jiffies);
 
 	if (type == SMU_TEMP_METRIC_GPUBOARD) {
 		gpuboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
@@ -586,9 +628,8 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 		}
 	}
 
-	kfree(metrics);
+	memcpy(table, data_table->cache.buffer, size);
 
-out:
 	return size;
 }
 
