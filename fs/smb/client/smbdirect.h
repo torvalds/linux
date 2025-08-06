@@ -139,9 +139,6 @@ struct smbd_request {
 	u8 packet[];
 };
 
-/* Maximum number of SGEs used by smbdirect.c in any receive work request */
-#define SMBDIRECT_MAX_RECV_SGE	1
-
 /* Create a SMBDirect session */
 struct smbd_connection *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr);
