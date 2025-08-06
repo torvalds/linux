@@ -8782,8 +8782,8 @@ static int sdebug_add_store(void)
 	/* Logical Block Provisioning */
 	if (scsi_debug_lbp()) {
 		map_size = lba_to_map_index(sdebug_store_sectors - 1) + 1;
-		sip->map_storep = vmalloc(array_size(sizeof(long),
-						     BITS_TO_LONGS(map_size)));
+		sip->map_storep = vcalloc(BITS_TO_LONGS(map_size),
+					  sizeof(long));
 
 		pr_info("%lu provisioning blocks\n", map_size);
 
@@ -8791,8 +8791,6 @@ static int sdebug_add_store(void)
 			pr_err("LBP map oom\n");
 			goto err;
 		}
-
-		bitmap_zero(sip->map_storep, map_size);
 
 		/* Map first 1KB for partition table */
 		if (sdebug_num_parts)
