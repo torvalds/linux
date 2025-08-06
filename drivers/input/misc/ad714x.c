@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>

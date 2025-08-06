@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/idr.h>
