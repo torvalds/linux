@@ -308,11 +308,13 @@ static void gen6_init_clock_gating(struct drm_i915_private *i915)
 
 static void lpt_init_clock_gating(struct drm_i915_private *i915)
 {
+	struct intel_display *display = i915->display;
+
 	/*
 	 * TODO: this bit should only be enabled when really needed, then
 	 * disabled when not needed anymore in order to save power.
 	 */
-	if (HAS_PCH_LPT_LP(i915))
+	if (HAS_PCH_LPT_LP(display))
 		intel_uncore_rmw(&i915->uncore, SOUTH_DSPCLK_GATE_D,
 				 0, PCH_LP_PARTITION_LEVEL_DISABLE);
 
@@ -356,7 +358,9 @@ static void dg2_init_clock_gating(struct drm_i915_private *i915)
 
 static void cnp_init_clock_gating(struct drm_i915_private *i915)
 {
-	if (!HAS_PCH_CNP(i915))
+	struct intel_display *display = i915->display;
+
+	if (!HAS_PCH_CNP(display))
 		return;
 
 	/* Display WA #1181 WaSouthDisplayDisablePWMCGEGating: cnp */
@@ -497,6 +501,8 @@ static void hsw_init_clock_gating(struct drm_i915_private *i915)
 
 static void ivb_init_clock_gating(struct drm_i915_private *i915)
 {
+	struct intel_display *display = i915->display;
+
 	intel_uncore_write(&i915->uncore, ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaFbcAsynchFlipDisableFbcQueue:ivb */
@@ -534,7 +540,7 @@ static void ivb_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_rmw(&i915->uncore, GEN6_MBCUNIT_SNPCR, GEN6_MBC_SNPCR_MASK,
 			 GEN6_MBC_SNPCR_MED);
 
-	if (!HAS_PCH_NOP(i915))
+	if (!HAS_PCH_NOP(display))
 		cpt_init_clock_gating(i915);
 
 	gen6_check_mch_setup(i915);
