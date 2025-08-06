@@ -296,6 +296,7 @@ struct rzg2l_pinctrl_data {
 #endif
 	void (*pwpr_pfc_lock_unlock)(struct rzg2l_pinctrl *pctrl, bool lock);
 	void (*pmc_writeb)(struct rzg2l_pinctrl *pctrl, u8 val, u16 offset);
+	int (*pin_to_oen_bit)(struct rzg2l_pinctrl *pctrl, unsigned int _pin);
 	u32 (*oen_read)(struct rzg2l_pinctrl *pctrl, unsigned int _pin);
 	int (*oen_write)(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen);
 	int (*hw_to_bias_param)(unsigned int val);
@@ -1070,7 +1071,10 @@ static u32 rzg2l_read_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 {
 	int bit;
 
-	bit = rzg2l_pin_to_oen_bit(pctrl, _pin);
+	if (!pctrl->data->pin_to_oen_bit)
+		return 0;
+
+	bit = pctrl->data->pin_to_oen_bit(pctrl, _pin);
 	if (bit < 0)
 		return 0;
 
@@ -1084,9 +1088,12 @@ static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oe
 	int bit;
 	u8 val;
 
-	bit = rzg2l_pin_to_oen_bit(pctrl, _pin);
+	if (!pctrl->data->pin_to_oen_bit)
+		return -EINVAL;
+
+	bit = pctrl->data->pin_to_oen_bit(pctrl, _pin);
 	if (bit < 0)
-		return bit;
+		return -EINVAL;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 	val = readb(pctrl->base + oen_offset);
@@ -1118,40 +1125,6 @@ static int rzg3s_pin_to_oen_bit(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 		bit += 1;
 
 	return bit;
-}
-
-static u32 rzg3s_oen_read(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
-{
-	int bit;
-
-	bit = rzg3s_pin_to_oen_bit(pctrl, _pin);
-	if (bit < 0)
-		return 0;
-
-	return !(readb(pctrl->base + pctrl->data->hwcfg->regs.oen) & BIT(bit));
-}
-
-static int rzg3s_oen_write(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen)
-{
-	u16 oen_offset = pctrl->data->hwcfg->regs.oen;
-	unsigned long flags;
-	int bit;
-	u8 val;
-
-	bit = rzg3s_pin_to_oen_bit(pctrl, _pin);
-	if (bit < 0)
-		return bit;
-
-	spin_lock_irqsave(&pctrl->lock, flags);
-	val = readb(pctrl->base + oen_offset);
-	if (oen)
-		val &= ~BIT(bit);
-	else
-		val |= BIT(bit);
-	writeb(val, pctrl->base + oen_offset);
-	spin_unlock_irqrestore(&pctrl->lock, flags);
-
-	return 0;
 }
 
 static int rzg2l_hw_to_bias_param(unsigned int bias)
@@ -3312,6 +3285,7 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 #endif
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
+	.pin_to_oen_bit = &rzg2l_pin_to_oen_bit,
 	.oen_read = &rzg2l_read_oen,
 	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
@@ -3329,6 +3303,7 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.hwcfg = &rzg2l_hwcfg,
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
+	.pin_to_oen_bit = &rzg2l_pin_to_oen_bit,
 	.oen_read = &rzg2l_read_oen,
 	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
@@ -3345,8 +3320,9 @@ static struct rzg2l_pinctrl_data r9a08g045_data = {
 	.hwcfg = &rzg3s_hwcfg,
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
-	.oen_read = &rzg3s_oen_read,
-	.oen_write = &rzg3s_oen_write,
+	.pin_to_oen_bit = &rzg3s_pin_to_oen_bit,
+	.oen_read = &rzg2l_read_oen,
+	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
