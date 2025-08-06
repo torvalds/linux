@@ -21,7 +21,7 @@ int __bch2_darray_resize_noprof(darray_char *d, size_t element_size, size_t new_
 			return -ENOMEM;
 
 		void *data = likely(bytes < INT_MAX)
-			? kvmalloc_noprof(bytes, gfp)
+			? kvmalloc_node_align_noprof(bytes, 1, gfp, NUMA_NO_NODE)
 			: vmalloc_noprof(bytes);
 		if (!data)
 			return -ENOMEM;

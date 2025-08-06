@@ -61,7 +61,7 @@ static inline void *bch2_kvmalloc_noprof(size_t n, gfp_t flags)
 {
 	void *p = unlikely(n >= INT_MAX)
 		? vmalloc_noprof(n)
-		: kvmalloc_noprof(n, flags & ~__GFP_ZERO);
+		: kvmalloc_node_align_noprof(n, 1, flags & ~__GFP_ZERO, NUMA_NO_NODE);
 	if (p && (flags & __GFP_ZERO))
 		memset(p, 0, n);
 	return p;
