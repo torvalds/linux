@@ -70,22 +70,6 @@ alloc_mid(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	return temp;
 }
 
-int
-smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
-	 unsigned int smb_buf_length)
-{
-	struct kvec iov[1] = {
-		[0].iov_base = smb_buffer,
-		[0].iov_len = smb_buf_length,
-	};
-	struct smb_rqst rqst = {
-		.rq_iov = iov,
-		.rq_nvec = ARRAY_SIZE(iov),
-	};
-
-	return __smb_send_rqst(server, 1, &rqst);
-}
-
 static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 			struct mid_q_entry **ppmidQ)
 {
@@ -369,7 +353,7 @@ int SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	rc = cifs_sign_smb(in_buf, in_len, server, &mid->sequence_number);
+	rc = cifs_sign_rqst(&rqst, server, &mid->sequence_number);
 	if (rc) {
 		delete_mid(mid);
 		cifs_server_unlock(server);
@@ -377,7 +361,7 @@ int SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 
 	mid->mid_state = MID_REQUEST_SUBMITTED;
-	rc = smb_send(server, in_buf, in_len);
+	rc = __smb_send_rqst(server, 1, &rqst);
 	cifs_save_when_sent(mid);
 
 	if (rc < 0)
