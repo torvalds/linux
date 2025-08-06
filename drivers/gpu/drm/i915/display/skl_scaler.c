@@ -959,11 +959,12 @@ void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	int id;
 
 	if (!scaler_state && scaler_state->scaler_id == -1)
 		return;
 
-	intel_de_write_fw(display, SKL_PS_ECC_STAT(crtc->pipe, id), 1);
+	intel_de_write_fw(display,
+			  SKL_PS_ECC_STAT(crtc->pipe, scaler_state->scaler_id),
+			  1);
 	intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, 0);
 }
