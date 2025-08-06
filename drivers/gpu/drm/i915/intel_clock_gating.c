@@ -620,7 +620,7 @@ static void g4x_init_clock_gating(struct drm_i915_private *i915)
 		OVCUNIT_CLOCK_GATE_DISABLE;
 	if (IS_GM45(i915))
 		dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
-	intel_uncore_write(&i915->uncore, DSPCLK_GATE_D(i915), dspclk_gate);
+	intel_uncore_write(&i915->uncore, DSPCLK_GATE_D, dspclk_gate);
 
 	g4x_disable_trickle_feed(i915);
 }
@@ -631,7 +631,7 @@ static void i965gm_init_clock_gating(struct drm_i915_private *i915)
 
 	intel_uncore_write(uncore, RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
 	intel_uncore_write(uncore, RENCLK_GATE_D2, 0);
-	intel_uncore_write(uncore, DSPCLK_GATE_D(i915), 0);
+	intel_uncore_write(uncore, DSPCLK_GATE_D, 0);
 	intel_uncore_write(uncore, RAMCLK_GATE_D, 0);
 	intel_uncore_write16(uncore, DEUC, 0);
 	intel_uncore_write(uncore,

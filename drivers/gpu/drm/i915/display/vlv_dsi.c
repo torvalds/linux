@@ -761,7 +761,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 
 	if (display->platform.valleyview || display->platform.cherryview) {
 		/* Disable DPOunit clock gating, can stall pipe */
-		intel_de_rmw(display, DSPCLK_GATE_D(display),
+		intel_de_rmw(display, VLV_DSPCLK_GATE_D,
 			     0, DPOUNIT_CLOCK_GATE_DISABLE);
 	}
 
@@ -918,7 +918,7 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 	} else {
 		vlv_dsi_pll_disable(encoder);
 
-		intel_de_rmw(display, DSPCLK_GATE_D(display),
+		intel_de_rmw(display, VLV_DSPCLK_GATE_D,
 			     DPOUNIT_CLOCK_GATE_DISABLE, 0);
 	}
 

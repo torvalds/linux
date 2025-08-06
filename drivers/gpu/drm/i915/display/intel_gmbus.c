@@ -219,7 +219,7 @@ static void pnv_gmbus_clock_gating(struct intel_display *display,
 				   bool enable)
 {
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	intel_de_rmw(display, DSPCLK_GATE_D(display),
+	intel_de_rmw(display, DSPCLK_GATE_D,
 		     PNV_GMBUSUNIT_CLOCK_GATE_DISABLE,
 		     !enable ? PNV_GMBUSUNIT_CLOCK_GATE_DISABLE : 0);
 }
