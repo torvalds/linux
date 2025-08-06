@@ -451,6 +451,18 @@ config DRM_TI_TPD12S015
 	  Texas Instruments TPD12S015 HDMI level shifter and ESD protection
 	  driver.
 
+config DRM_WAVESHARE_BRIDGE
+	tristate "Waveshare DSI bridge"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select REGMAP_I2C
+	help
+	  Driver for waveshare DSI to DPI bridge board.
+	  Please say Y if you have such hardware
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"

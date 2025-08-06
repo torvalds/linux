@@ -41,6 +41,7 @@ obj-$(CONFIG_DRM_TI_SN65DSI86) += ti-sn65dsi86.o
 obj-$(CONFIG_DRM_TI_TDP158) += ti-tdp158.o
 obj-$(CONFIG_DRM_TI_TFP410) += ti-tfp410.o
 obj-$(CONFIG_DRM_TI_TPD12S015) += ti-tpd12s015.o
+obj-$(CONFIG_DRM_WAVESHARE_BRIDGE) += waveshare-dsi.o
 obj-$(CONFIG_DRM_NWL_MIPI_DSI) += nwl-dsi.o
 obj-$(CONFIG_DRM_ITE_IT66121) += ite-it66121.o
 
