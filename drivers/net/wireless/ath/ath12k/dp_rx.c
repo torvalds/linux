@@ -693,44 +693,33 @@ static int ath12k_dp_reo_cmd_send(struct ath12k_base *ab,
 	return 0;
 }
 
-static void ath12k_dp_reo_cache_flush(struct ath12k_base *ab,
-				      struct ath12k_dp_rx_tid_rxq *rx_tid)
+static int ath12k_dp_reo_cache_flush(struct ath12k_base *ab,
+				     struct ath12k_dp_rx_tid_rxq *rx_tid)
 {
 	struct ath12k_hal_reo_cmd cmd = {};
-	unsigned long tot_desc_sz, desc_sz;
 	int ret;
 
-	tot_desc_sz = rx_tid->qbuf.size;
-	desc_sz = ath12k_hal_reo_qdesc_size(0, HAL_DESC_REO_NON_QOS_TID);
-
-	while (tot_desc_sz > desc_sz) {
-		tot_desc_sz -= desc_sz;
-		cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned + tot_desc_sz);
-		cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
-		ret = ath12k_dp_reo_cmd_send(ab, rx_tid,
-					     HAL_REO_CMD_FLUSH_CACHE, &cmd,
-					     NULL);
-		if (ret)
-			ath12k_warn(ab,
-				    "failed to send HAL_REO_CMD_FLUSH_CACHE, tid %d (%d)\n",
-				    rx_tid->tid, ret);
-	}
-
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
-	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
+	/* HAL_REO_CMD_FLG_FLUSH_FWD_ALL_MPDUS - all pending MPDUs
+	 *in the bitmap will be forwarded/flushed to REO output rings
+	 */
+	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS |
+		   HAL_REO_CMD_FLG_FLUSH_FWD_ALL_MPDUS;
+
+	/* For all QoS TIDs (except NON_QOS), the driver allocates a maximum
+	 * window size of 1024. In such cases, the driver can issue a single
+	 * 1KB descriptor flush command instead of sending multiple 128-byte
+	 * flush commands for each QoS TID, improving efficiency.
+	 */
+
+	if (rx_tid->tid != HAL_DESC_REO_NON_QOS_TID)
+		cmd.flag |= HAL_REO_CMD_FLG_FLUSH_QUEUE_1K_DESC;
+
 	ret = ath12k_dp_reo_cmd_send(ab, rx_tid,
 				     HAL_REO_CMD_FLUSH_CACHE,
 				     &cmd, ath12k_dp_reo_cmd_free);
-	if (ret) {
-		ath12k_err(ab, "failed to send HAL_REO_CMD_FLUSH_CACHE cmd, tid %d (%d)\n",
-			   rx_tid->tid, ret);
-		dma_unmap_single(ab->dev, rx_tid->qbuf.paddr_aligned, rx_tid->qbuf.size,
-				 DMA_BIDIRECTIONAL);
-		kfree(rx_tid->qbuf.vaddr);
-		rx_tid->qbuf.vaddr = NULL;
-	}
+	return ret;
 }
 
 static void ath12k_peer_rx_tid_qref_reset(struct ath12k_base *ab, u16 peer_id, u16 tid)
@@ -828,9 +817,19 @@ static void ath12k_dp_rx_tid_del_func(struct ath12k_dp *dp, void *ctx,
 		if (dp->reo_cmd_cache_flush_count > ATH12K_DP_RX_REO_DESC_FREE_THRES ||
 		    time_after(jiffies, elem->ts +
 			       msecs_to_jiffies(ATH12K_DP_RX_REO_DESC_FREE_TIMEOUT_MS))) {
+			/* The reo_cmd_cache_flush_list is used in only two contexts,
+			 * one is in this function called from napi and the
+			 * other in ath12k_dp_free during core destroy.
+			 * If cache command sent is success, delete the element in
+			 * the cache list. ath12k_dp_rx_reo_cmd_list_cleanup
+			 * will be called during core destroy.
+			 */
+
+			if (ath12k_dp_reo_cache_flush(ab, &elem->data))
+				break;
+
 			list_del(&elem->list);
 			dp->reo_cmd_cache_flush_count--;
-			ath12k_dp_reo_cache_flush(ab, &elem->data);
 			kfree(elem);
 		}
 	}
