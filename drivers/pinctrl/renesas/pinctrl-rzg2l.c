@@ -146,7 +146,6 @@
 #define SD_CH(off, ch)		((off) + (ch) * 4)
 #define ETH_POC(off, ch)	((off) + (ch) * 4)
 #define QSPI			(0x3008)
-#define PFC_OEN			(0x3C40) /* known on RZ/V2H(P) only */
 
 #define PVDD_2500		2	/* I/O domain voltage 2.5V */
 #define PVDD_1800		1	/* I/O domain voltage <= 1.8V */
@@ -255,6 +254,7 @@ enum rzg2l_iolh_index {
  * @iolh_groupb_oi: IOLH group B output impedance specific values
  * @tint_start_index: the start index for the TINT interrupts
  * @drive_strength_ua: drive strength in uA is supported (otherwise mA is supported)
+ * @oen_pwpr_lock: flag indicating if the OEN register is locked by PWPR
  * @func_base: base number for port function (see register PFC)
  * @oen_max_pin: the maximum pin number supporting output enable
  * @oen_max_port: the maximum port number supporting output enable
@@ -267,6 +267,7 @@ struct rzg2l_hwcfg {
 	u16 iolh_groupb_oi[4];
 	u16 tint_start_index;
 	bool drive_strength_ua;
+	bool oen_pwpr_lock;
 	u8 func_base;
 	u8 oen_max_pin;
 	u8 oen_max_port;
@@ -1083,10 +1084,11 @@ static u32 rzg2l_read_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 
 static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen)
 {
+	const struct rzg2l_register_offsets *regs = &pctrl->data->hwcfg->regs;
 	u16 oen_offset = pctrl->data->hwcfg->regs.oen;
 	unsigned long flags;
+	u8 val, pwpr;
 	int bit;
-	u8 val;
 
 	if (!pctrl->data->pin_to_oen_bit)
 		return -EINVAL;
@@ -1101,7 +1103,13 @@ static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oe
 		val &= ~BIT(bit);
 	else
 		val |= BIT(bit);
+	if (pctrl->data->hwcfg->oen_pwpr_lock) {
+		pwpr = readb(pctrl->base + regs->pwpr);
+		writeb(pwpr | PWPR_REGWE_B, pctrl->base + regs->pwpr);
+	}
 	writeb(val, pctrl->base + oen_offset);
+	if (pctrl->data->hwcfg->oen_pwpr_lock)
+		writeb(pwpr & ~PWPR_REGWE_B, pctrl->base + regs->pwpr);
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
@@ -1192,7 +1200,7 @@ static int rzv2h_bias_param_to_hw(enum pin_config_param param)
 	return -EINVAL;
 }
 
-static u8 rzv2h_pin_to_oen_bit(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
+static int rzv2h_pin_to_oen_bit(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 {
 	static const char * const pin_names[] = { "ET0_TXC_TXCLK", "ET1_TXC_TXCLK",
 						  "XSPI0_RESET0N", "XSPI0_CS0N",
@@ -1206,41 +1214,7 @@ static u8 rzv2h_pin_to_oen_bit(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 	}
 
 	/* Should not happen. */
-	return 0;
-}
-
-static u32 rzv2h_oen_read(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
-{
-	u8 bit;
-
-	bit = rzv2h_pin_to_oen_bit(pctrl, _pin);
-
-	return !(readb(pctrl->base + PFC_OEN) & BIT(bit));
-}
-
-static int rzv2h_oen_write(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen)
-{
-	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
-	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
-	unsigned long flags;
-	u8 val, bit;
-	u8 pwpr;
-
-	bit = rzv2h_pin_to_oen_bit(pctrl, _pin);
-	spin_lock_irqsave(&pctrl->lock, flags);
-	val = readb(pctrl->base + PFC_OEN);
-	if (oen)
-		val &= ~BIT(bit);
-	else
-		val |= BIT(bit);
-
-	pwpr = readb(pctrl->base + regs->pwpr);
-	writeb(pwpr | PWPR_REGWE_B, pctrl->base + regs->pwpr);
-	writeb(val, pctrl->base + PFC_OEN);
-	writeb(pwpr & ~PWPR_REGWE_B, pctrl->base + regs->pwpr);
-	spin_unlock_irqrestore(&pctrl->lock, flags);
-
-	return 0;
+	return -EINVAL;
 }
 
 static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
@@ -3140,8 +3114,7 @@ static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 	}
 
 	cache->qspi = readb(pctrl->base + QSPI);
-	if (pctrl->data->hwcfg->regs.oen)
-		cache->oen = readb(pctrl->base + pctrl->data->hwcfg->regs.oen);
+	cache->oen = readb(pctrl->base + pctrl->data->hwcfg->regs.oen);
 
 	if (!atomic_read(&pctrl->wakeup_path))
 		clk_disable_unprepare(pctrl->clk);
@@ -3166,8 +3139,7 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	}
 
 	writeb(cache->qspi, pctrl->base + QSPI);
-	if (pctrl->data->hwcfg->regs.oen)
-		writeb(cache->oen, pctrl->base + pctrl->data->hwcfg->regs.oen);
+	writeb(cache->oen, pctrl->base + pctrl->data->hwcfg->regs.oen);
 	for (u8 i = 0; i < 2; i++) {
 		if (regs->sd_ch)
 			writeb(cache->sd_ch[i], pctrl->base + SD_CH(regs->sd_ch, i));
@@ -3267,8 +3239,10 @@ static const struct rzg2l_hwcfg rzg3s_hwcfg = {
 static const struct rzg2l_hwcfg rzv2h_hwcfg = {
 	.regs = {
 		.pwpr = 0x3c04,
+		.oen = 0x3c40,
 	},
 	.tint_start_index = 17,
+	.oen_pwpr_lock = true,
 };
 
 static struct rzg2l_pinctrl_data r9a07g043_data = {
@@ -3365,8 +3339,9 @@ static struct rzg2l_pinctrl_data r9a09g056_data = {
 #endif
 	.pwpr_pfc_lock_unlock = &rzv2h_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzv2h_pmc_writeb,
-	.oen_read = &rzv2h_oen_read,
-	.oen_write = &rzv2h_oen_write,
+	.pin_to_oen_bit = &rzv2h_pin_to_oen_bit,
+	.oen_read = &rzg2l_read_oen,
+	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzv2h_hw_to_bias_param,
 	.bias_param_to_hw = &rzv2h_bias_param_to_hw,
 };
@@ -3389,8 +3364,9 @@ static struct rzg2l_pinctrl_data r9a09g057_data = {
 #endif
 	.pwpr_pfc_lock_unlock = &rzv2h_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzv2h_pmc_writeb,
-	.oen_read = &rzv2h_oen_read,
-	.oen_write = &rzv2h_oen_write,
+	.pin_to_oen_bit = &rzv2h_pin_to_oen_bit,
+	.oen_read = &rzg2l_read_oen,
+	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzv2h_hw_to_bias_param,
 	.bias_param_to_hw = &rzv2h_bias_param_to_hw,
 };
