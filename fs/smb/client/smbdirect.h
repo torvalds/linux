@@ -123,22 +123,6 @@ struct smbd_connection {
 	unsigned int count_send_empty;
 };
 
-/* Maximum number of SGEs used by smbdirect.c in any send work request */
-#define SMBDIRECT_MAX_SEND_SGE	6
-
-/* The context for a SMBD request */
-struct smbd_request {
-	struct smbd_connection *info;
-	struct ib_cqe cqe;
-
-	/* the SGE entries for this work request */
-	struct ib_sge sge[SMBDIRECT_MAX_SEND_SGE];
-	int num_sge;
-
-	/* SMBD packet header follows this structure */
-	u8 packet[];
-};
-
 /* Create a SMBDirect session */
 struct smbd_connection *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr);
