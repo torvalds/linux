@@ -722,6 +722,7 @@ struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(struct snd_kcontrol *kco
 struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(struct snd_kcontrol *kcontrol);
 
 int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level);
+enum snd_soc_bias_level snd_soc_dapm_get_bias_level(struct snd_soc_dapm_context *dapm);
 
 #define for_each_dapm_widgets(list, i, widget)				\
 	for ((i) = 0;							\
@@ -745,18 +746,6 @@ static inline void snd_soc_dapm_init_bias_level(
 	struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level)
 {
 	dapm->bias_level = level;
-}
-
-/**
- * snd_soc_dapm_get_bias_level() - Get current DAPM bias level
- * @dapm: The context for which to get the bias level
- *
- * Returns: The current bias level of the passed DAPM context.
- */
-static inline enum snd_soc_bias_level snd_soc_dapm_get_bias_level(
-	struct snd_soc_dapm_context *dapm)
-{
-	return dapm->bias_level;
 }
 
 /**
