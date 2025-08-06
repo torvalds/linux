@@ -9,7 +9,7 @@
 
 #![allow(missing_docs)]
 
-use super::{flags::*, AllocError, Allocator, Flags};
+use super::{flags::*, AllocError, Allocator, Flags, NumaNode};
 use core::alloc::Layout;
 use core::cmp;
 use core::ptr;
@@ -51,6 +51,7 @@ unsafe impl Allocator for Cmalloc {
         layout: Layout,
         old_layout: Layout,
         flags: Flags,
+        _nid: NumaNode,
     ) -> Result<NonNull<[u8]>, AllocError> {
         let src = match ptr {
             Some(src) => {
