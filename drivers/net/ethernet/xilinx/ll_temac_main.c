@@ -137,7 +137,7 @@ u32 temac_indirect_in32(struct temac_local *lp, int reg)
 /*
  * temac_indirect_in32_locked - Indirect register read access.  This
  * function must be called with lp->indirect_lock being held.  Use
- * this together with spin_lock_irqsave/spin_lock_irqrestore to avoid
+ * this together with spin_lock_irqsave/spin_unlock_irqrestore to avoid
  * repeated lock/unlock and to ensure uninterrupted access to indirect
  * registers.
  */
@@ -178,7 +178,7 @@ void temac_indirect_out32(struct temac_local *lp, int reg, u32 value)
 /*
  * temac_indirect_out32_locked - Indirect register write access.  This
  * function must be called with lp->indirect_lock being held.  Use
- * this together with spin_lock_irqsave/spin_lock_irqrestore to avoid
+ * this together with spin_lock_irqsave/spin_unlock_irqrestore to avoid
  * repeated lock/unlock and to ensure uninterrupted access to indirect
  * registers.
  */
