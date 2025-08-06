@@ -165,9 +165,6 @@ extern void cleanup_module(void);
 
 struct module_kobject *lookup_or_create_module_kobject(const char *name);
 
-/* Generic info of form tag = "info" */
-#define MODULE_INFO(tag, info) __MODULE_INFO(tag, tag, info)
-
 /* For userspace: you can also call me... */
 #define MODULE_ALIAS(_alias) MODULE_INFO(alias, _alias)
 
