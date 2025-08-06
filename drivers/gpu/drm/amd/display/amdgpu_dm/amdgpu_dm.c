@@ -611,7 +611,7 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 		 * page-flip completion events that have been queued to us
 		 * if a pageflip happened inside front-porch.
 		 */
-		if (vrr_active) {
+		if (vrr_active && acrtc->dm_irq_params.stream) {
 			bool replay_en = acrtc->dm_irq_params.stream->link->replay_settings.replay_feature_enabled;
 			bool psr_en = acrtc->dm_irq_params.stream->link->psr_settings.psr_feature_enabled;
 			bool fs_active_var_en = acrtc->dm_irq_params.freesync_config.state
@@ -620,8 +620,7 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 			amdgpu_dm_crtc_handle_vblank(acrtc);
 
 			/* BTR processing for pre-DCE12 ASICs */
-			if (acrtc->dm_irq_params.stream &&
-			    adev->family < AMDGPU_FAMILY_AI) {
+			if (adev->family < AMDGPU_FAMILY_AI) {
 				spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 				mod_freesync_handle_v_update(
 				    adev->dm.freesync_module,
