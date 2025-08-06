@@ -850,6 +850,8 @@ static int ath12k_dp_rx_tid_delete_handler(struct ath12k_base *ab,
 	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.upd0 |= HAL_REO_CMD_UPD0_VLD;
+	/* Observed flush cache failure, to avoid that set vld bit during delete */
+	cmd.upd1 |= HAL_REO_CMD_UPD1_VLD;
 
 	return ath12k_dp_reo_cmd_send(ab, rx_tid,
 				      HAL_REO_CMD_UPDATE_RX_QUEUE, &cmd,
