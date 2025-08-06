@@ -1985,6 +1985,7 @@ static inline void bpf_module_put(const void *data, struct module *owner)
 		module_put(owner);
 }
 int bpf_struct_ops_link_create(union bpf_attr *attr);
+u32 bpf_struct_ops_id(const void *kdata);
 
 #ifdef CONFIG_NET
 /* Define it here to avoid the use of forward declaration */
