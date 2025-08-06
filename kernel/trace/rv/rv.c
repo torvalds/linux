@@ -495,7 +495,7 @@ static void *available_monitors_next(struct seq_file *m, void *p, loff_t *pos)
  */
 static void *enabled_monitors_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	struct rv_monitor *mon = p;
+	struct rv_monitor *mon = container_of(p, struct rv_monitor, list);
 
 	(*pos)++;
 
