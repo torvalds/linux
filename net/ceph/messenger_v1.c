@@ -210,8 +210,7 @@ static void prepare_write_message(struct ceph_connection *con)
 			&con->v1.out_temp_ack);
 	}
 
-	ceph_con_get_out_msg(con);
-	m = con->out_msg;
+	m = ceph_con_get_out_msg(con);
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%zd\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),

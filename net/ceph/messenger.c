@@ -2110,7 +2110,7 @@ int ceph_con_in_msg_alloc(struct ceph_connection *con,
 	return ret;
 }
 
-void ceph_con_get_out_msg(struct ceph_connection *con)
+struct ceph_msg *ceph_con_get_out_msg(struct ceph_connection *con)
 {
 	struct ceph_msg *msg;
 
@@ -2141,7 +2141,7 @@ void ceph_con_get_out_msg(struct ceph_connection *con)
 	 * message or in case of a fault.
 	 */
 	WARN_ON(con->out_msg);
-	con->out_msg = ceph_msg_get(msg);
+	return con->out_msg = ceph_msg_get(msg);
 }
 
 /*
