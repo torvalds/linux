@@ -105,15 +105,6 @@ struct smbd_connection {
 	struct workqueue_struct *workqueue;
 	struct delayed_work idle_timer_work;
 
-	/* Memory pool for preallocating buffers */
-	/* request pool for RDMA send */
-	struct kmem_cache *request_cache;
-	mempool_t *request_mempool;
-
-	/* response pool for RDMA receive */
-	struct kmem_cache *response_cache;
-	mempool_t *response_mempool;
-
 	/* for debug purposes */
 	unsigned int count_get_receive_buffer;
 	unsigned int count_put_receive_buffer;
