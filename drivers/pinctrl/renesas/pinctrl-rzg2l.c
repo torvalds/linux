@@ -146,7 +146,6 @@
 #define SD_CH(off, ch)		((off) + (ch) * 4)
 #define ETH_POC(off, ch)	((off) + (ch) * 4)
 #define QSPI			(0x3008)
-#define ETH_MODE		(0x3018)
 #define PFC_OEN			(0x3C40) /* known on RZ/V2H(P) only */
 
 #define PVDD_2500		2	/* I/O domain voltage 2.5V */
@@ -221,11 +220,13 @@ static const struct pin_config_item renesas_rzv2h_conf_items[] = {
  * @pwpr: PWPR register offset
  * @sd_ch: SD_CH register offset
  * @eth_poc: ETH_POC register offset
+ * @oen: OEN register offset
  */
 struct rzg2l_register_offsets {
 	u16 pwpr;
 	u16 sd_ch;
 	u16 eth_poc;
+	u16 oen;
 };
 
 /**
@@ -322,7 +323,7 @@ struct rzg2l_pinctrl_pin_settings {
  * @ien: IEN registers cache
  * @sd_ch: SD_CH registers cache
  * @eth_poc: ET_POC registers cache
- * @eth_mode: ETH_MODE register cache
+ * @oen: Output Enable register cache
  * @qspi: QSPI registers cache
  */
 struct rzg2l_pinctrl_reg_cache {
@@ -335,7 +336,7 @@ struct rzg2l_pinctrl_reg_cache {
 	u32	*pupd[2];
 	u8	sd_ch[2];
 	u8	eth_poc[2];
-	u8	eth_mode;
+	u8	oen;
 	u8	qspi;
 };
 
@@ -1073,11 +1074,12 @@ static u32 rzg2l_read_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 	if (bit < 0)
 		return 0;
 
-	return !(readb(pctrl->base + ETH_MODE) & BIT(bit));
+	return !(readb(pctrl->base + pctrl->data->hwcfg->regs.oen) & BIT(bit));
 }
 
 static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen)
 {
+	u16 oen_offset = pctrl->data->hwcfg->regs.oen;
 	unsigned long flags;
 	int bit;
 	u8 val;
@@ -1087,12 +1089,12 @@ static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oe
 		return bit;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
-	val = readb(pctrl->base + ETH_MODE);
+	val = readb(pctrl->base + oen_offset);
 	if (oen)
 		val &= ~BIT(bit);
 	else
 		val |= BIT(bit);
-	writeb(val, pctrl->base + ETH_MODE);
+	writeb(val, pctrl->base + oen_offset);
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
@@ -1126,11 +1128,12 @@ static u32 rzg3s_oen_read(struct rzg2l_pinctrl *pctrl, unsigned int _pin)
 	if (bit < 0)
 		return 0;
 
-	return !(readb(pctrl->base + ETH_MODE) & BIT(bit));
+	return !(readb(pctrl->base + pctrl->data->hwcfg->regs.oen) & BIT(bit));
 }
 
 static int rzg3s_oen_write(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oen)
 {
+	u16 oen_offset = pctrl->data->hwcfg->regs.oen;
 	unsigned long flags;
 	int bit;
 	u8 val;
@@ -1140,12 +1143,12 @@ static int rzg3s_oen_write(struct rzg2l_pinctrl *pctrl, unsigned int _pin, u8 oe
 		return bit;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
-	val = readb(pctrl->base + ETH_MODE);
+	val = readb(pctrl->base + oen_offset);
 	if (oen)
 		val &= ~BIT(bit);
 	else
 		val |= BIT(bit);
-	writeb(val, pctrl->base + ETH_MODE);
+	writeb(val, pctrl->base + oen_offset);
 	spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
@@ -3164,7 +3167,8 @@ static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
 	}
 
 	cache->qspi = readb(pctrl->base + QSPI);
-	cache->eth_mode = readb(pctrl->base + ETH_MODE);
+	if (pctrl->data->hwcfg->regs.oen)
+		cache->oen = readb(pctrl->base + pctrl->data->hwcfg->regs.oen);
 
 	if (!atomic_read(&pctrl->wakeup_path))
 		clk_disable_unprepare(pctrl->clk);
@@ -3189,7 +3193,8 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	}
 
 	writeb(cache->qspi, pctrl->base + QSPI);
-	writeb(cache->eth_mode, pctrl->base + ETH_MODE);
+	if (pctrl->data->hwcfg->regs.oen)
+		writeb(cache->oen, pctrl->base + pctrl->data->hwcfg->regs.oen);
 	for (u8 i = 0; i < 2; i++) {
 		if (regs->sd_ch)
 			writeb(cache->sd_ch[i], pctrl->base + SD_CH(regs->sd_ch, i));
@@ -3241,6 +3246,7 @@ static const struct rzg2l_hwcfg rzg2l_hwcfg = {
 		.pwpr = 0x3014,
 		.sd_ch = 0x3000,
 		.eth_poc = 0x300c,
+		.oen = 0x3018,
 	},
 	.iolh_groupa_ua = {
 		/* 3v3 power source */
@@ -3256,6 +3262,7 @@ static const struct rzg2l_hwcfg rzg3s_hwcfg = {
 		.pwpr = 0x3000,
 		.sd_ch = 0x3004,
 		.eth_poc = 0x3010,
+		.oen = 0x3018,
 	},
 	.iolh_groupa_ua = {
 		/* 1v8 power source */
