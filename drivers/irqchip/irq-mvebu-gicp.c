@@ -237,7 +237,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	base = ioremap(gicp->res->start, gicp->res->end - gicp->res->start);
+	base = ioremap(gicp->res->start, resource_size(gicp->res));
 	if (IS_ERR(base)) {
 		dev_err(&pdev->dev, "ioremap() failed. Unable to clear pending interrupts.\n");
 	} else {
