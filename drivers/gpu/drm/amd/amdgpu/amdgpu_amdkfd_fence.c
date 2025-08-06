@@ -62,7 +62,8 @@ static atomic_t fence_seq = ATOMIC_INIT(0);
 
 struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 				struct mm_struct *mm,
-				struct svm_range_bo *svm_bo)
+				struct svm_range_bo *svm_bo,
+				u16 context_id)
 {
 	struct amdgpu_amdkfd_fence *fence;
 
@@ -76,6 +77,7 @@ struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 	get_task_comm(fence->timeline_name, current);
 	spin_lock_init(&fence->lock);
 	fence->svm_bo = svm_bo;
+	fence->context_id = context_id;
 	dma_fence_init(&fence->base, &amdkfd_fence_ops, &fence->lock,
 		   context, atomic_inc_return(&fence_seq));
 

@@ -98,6 +98,7 @@ struct amdgpu_amdkfd_fence {
 	spinlock_t lock;
 	char timeline_name[TASK_COMM_LEN];
 	struct svm_range_bo *svm_bo;
+	uint16_t context_id;
 };
 
 struct amdgpu_kfd_dev {
@@ -190,7 +191,8 @@ int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
 
 struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
 				struct mm_struct *mm,
-				struct svm_range_bo *svm_bo);
+				struct svm_range_bo *svm_bo,
+				u16 context_id);
 
 int amdgpu_amdkfd_drm_client_create(struct amdgpu_device *adev);
 #if defined(CONFIG_DEBUG_FS)
