@@ -191,9 +191,9 @@ static void prepare_write_message_footer(struct ceph_connection *con,
 /*
  * Prepare headers for the next outgoing message.
  */
-static void prepare_write_message(struct ceph_connection *con)
+static void prepare_write_message(struct ceph_connection *con,
+				  struct ceph_msg *m)
 {
-	struct ceph_msg *m;
 	u32 crc;
 
 	con_out_kvec_reset(con);
@@ -208,8 +208,6 @@ static void prepare_write_message(struct ceph_connection *con)
 		con_out_kvec_add(con, sizeof(con->v1.out_temp_ack),
 			&con->v1.out_temp_ack);
 	}
-
-	m = ceph_con_get_out_msg(con);
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%zd\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
@@ -1545,8 +1543,8 @@ do_next:
 			goto more;
 		}
 		/* is anything else pending? */
-		if (!list_empty(&con->out_queue)) {
-			prepare_write_message(con);
+		if ((msg = ceph_con_get_out_msg(con)) != NULL) {
+			prepare_write_message(con, msg);
 			goto more;
 		}
 		if (con->in_seq > con->in_seq_acked) {

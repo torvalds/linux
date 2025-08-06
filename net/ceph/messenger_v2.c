@@ -3310,8 +3310,7 @@ static int populate_out_iter(struct ceph_connection *con)
 			pr_err("prepare_keepalive2 failed: %d\n", ret);
 			return ret;
 		}
-	} else if (!list_empty(&con->out_queue)) {
-		msg = ceph_con_get_out_msg(con);
+	} else if ((msg = ceph_con_get_out_msg(con)) != NULL) {
 		ret = prepare_message(con, msg);
 		if (ret) {
 			pr_err("prepare_message failed: %d\n", ret);
