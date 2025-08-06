@@ -132,9 +132,10 @@ static void ibx_init_clock_gating(struct drm_i915_private *i915)
 
 static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = dev_priv->display;
 	enum pipe pipe;
 
-	for_each_pipe(dev_priv, pipe) {
+	for_each_pipe(display, pipe) {
 		intel_uncore_rmw(&dev_priv->uncore, DSPCNTR(dev_priv, pipe),
 				 0, DISP_TRICKLE_FEED_DISABLE);
 
@@ -218,7 +219,7 @@ static void cpt_init_clock_gating(struct drm_i915_private *i915)
 	/* The below fixes the weird display corruption, a few pixels shifted
 	 * downward, on (only) LVDS of some HP laptops with IVY.
 	 */
-	for_each_pipe(i915, pipe) {
+	for_each_pipe(display, pipe) {
 		val = intel_uncore_read(&i915->uncore, TRANS_CHICKEN2(pipe));
 		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 		val &= ~TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
@@ -229,7 +230,7 @@ static void cpt_init_clock_gating(struct drm_i915_private *i915)
 		intel_uncore_write(&i915->uncore, TRANS_CHICKEN2(pipe), val);
 	}
 	/* WADP0ClockGatingDisable */
-	for_each_pipe(i915, pipe) {
+	for_each_pipe(display, pipe) {
 		intel_uncore_write(&i915->uncore, TRANS_CHICKEN1(pipe),
 				   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 	}
@@ -421,6 +422,7 @@ static void skl_init_clock_gating(struct drm_i915_private *i915)
 
 static void bdw_init_clock_gating(struct drm_i915_private *i915)
 {
+	struct intel_display *display = i915->display;
 	enum pipe pipe;
 
 	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
@@ -432,7 +434,7 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 	/* WaPsrDPAMaskVBlankInSRD:bdw */
 	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, HSW_MASK_VBL_TO_PIPE_IN_SRD);
 
-	for_each_pipe(i915, pipe) {
+	for_each_pipe(display, pipe) {
 		/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 		intel_uncore_rmw(&i915->uncore, CHICKEN_PIPESL_1(pipe),
 				 0, BDW_UNMASK_VBL_TO_REGS_IN_SRD);
@@ -468,6 +470,7 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 
 static void hsw_init_clock_gating(struct drm_i915_private *i915)
 {
+	struct intel_display *display = i915->display;
 	enum pipe pipe;
 
 	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
@@ -476,7 +479,7 @@ static void hsw_init_clock_gating(struct drm_i915_private *i915)
 	/* WaPsrDPAMaskVBlankInSRD:hsw */
 	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, HSW_MASK_VBL_TO_PIPE_IN_SRD);
 
-	for_each_pipe(i915, pipe) {
+	for_each_pipe(display, pipe) {
 		/* WaPsrDPRSUnmaskVBlankInSRD:hsw */
 		intel_uncore_rmw(&i915->uncore, CHICKEN_PIPESL_1(pipe),
 				 0, HSW_UNMASK_VBL_TO_REGS_IN_SRD);
