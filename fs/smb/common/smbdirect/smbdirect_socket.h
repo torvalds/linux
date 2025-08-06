@@ -40,6 +40,20 @@ struct smbdirect_socket {
 	struct smbdirect_socket_parameters parameters;
 
 	/*
+	 * The state for posted send buffers
+	 */
+	struct {
+		/*
+		 * Memory pools for preallocating
+		 * smbdirect_send_io buffers
+		 */
+		struct {
+			struct kmem_cache	*cache;
+			mempool_t		*pool;
+		} mem;
+	} send_io;
+
+	/*
 	 * The state for posted receive buffers
 	 */
 	struct {
@@ -51,6 +65,15 @@ struct smbdirect_socket {
 			SMBDIRECT_EXPECT_NEGOTIATE_REP = 2,
 			SMBDIRECT_EXPECT_DATA_TRANSFER = 3,
 		} expected;
+
+		/*
+		 * Memory pools for preallocating
+		 * smbdirect_recv_io buffers
+		 */
+		struct {
+			struct kmem_cache	*cache;
+			mempool_t		*pool;
+		} mem;
 
 		/*
 		 * The list of free smbdirect_recv_io
