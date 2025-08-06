@@ -45,7 +45,7 @@
 #define APPLETBDRM_BULK_MSG_TIMEOUT	1000
 
 #define drm_to_adev(_drm)		container_of(_drm, struct appletbdrm_device, drm)
-#define adev_to_udev(adev)		interface_to_usbdev(to_usb_interface(adev->dmadev))
+#define adev_to_udev(adev)		interface_to_usbdev(to_usb_interface((adev)->drm.dev))
 
 struct appletbdrm_msg_request_header {
 	__le16 unk_00;
@@ -123,8 +123,6 @@ struct appletbdrm_fb_request_response {
 } __packed;
 
 struct appletbdrm_device {
-	struct device *dmadev;
-
 	unsigned int in_ep;
 	unsigned int out_ep;
 
@@ -214,7 +212,7 @@ retry:
 	}
 
 	if (response->msg != expected_response) {
-		drm_err(drm, "Unexpected response from device (expected %p4cc found %p4cc)\n",
+		drm_err(drm, "Unexpected response from device (expected %p4cl found %p4cl)\n",
 			&expected_response, &response->msg);
 		return -EIO;
 	}
@@ -288,7 +286,7 @@ static int appletbdrm_get_information(struct appletbdrm_device *adev)
 	}
 
 	if (pixel_format != APPLETBDRM_PIXEL_FORMAT) {
-		drm_err(drm, "Encountered unknown pixel format (%p4cc)\n", &pixel_format);
+		drm_err(drm, "Encountered unknown pixel format (%p4cl)\n", &pixel_format);
 		ret = -EINVAL;
 		goto free_info;
 	}
@@ -612,22 +610,10 @@ static const struct drm_encoder_funcs appletbdrm_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static struct drm_gem_object *appletbdrm_driver_gem_prime_import(struct drm_device *dev,
-								 struct dma_buf *dma_buf)
-{
-	struct appletbdrm_device *adev = drm_to_adev(dev);
-
-	if (!adev->dmadev)
-		return ERR_PTR(-ENODEV);
-
-	return drm_gem_prime_import_dev(dev, dma_buf, adev->dmadev);
-}
-
 DEFINE_DRM_GEM_FOPS(appletbdrm_drm_fops);
 
 static const struct drm_driver appletbdrm_drm_driver = {
 	DRM_GEM_SHMEM_DRIVER_OPS,
-	.gem_prime_import	= appletbdrm_driver_gem_prime_import,
 	.name			= "appletbdrm",
 	.desc			= "Apple Touch Bar DRM Driver",
 	.major			= 1,
@@ -747,6 +733,7 @@ static int appletbdrm_probe(struct usb_interface *intf,
 	struct device *dev = &intf->dev;
 	struct appletbdrm_device *adev;
 	struct drm_device *drm = NULL;
+	struct device *dma_dev;
 	int ret;
 
 	ret = usb_find_common_endpoints(intf->cur_altsetting, &bulk_in, &bulk_out, NULL, NULL);
@@ -761,11 +748,18 @@ static int appletbdrm_probe(struct usb_interface *intf,
 
 	adev->in_ep = bulk_in->bEndpointAddress;
 	adev->out_ep = bulk_out->bEndpointAddress;
-	adev->dmadev = dev;
 
 	drm = &adev->drm;
 
 	usb_set_intfdata(intf, adev);
+
+	dma_dev = usb_intf_get_dma_device(intf);
+	if (dma_dev) {
+		drm_dev_set_dma_dev(drm, dma_dev);
+		put_device(dma_dev);
+	} else {
+		drm_warn(drm, "buffer sharing not supported"); /* not an error */
+	}
 
 	ret = appletbdrm_get_information(adev);
 	if (ret) {

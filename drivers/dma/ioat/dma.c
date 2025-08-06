@@ -901,7 +901,8 @@ static void ioat_reboot_chan(struct ioatdma_chan *ioat_chan)
 
 void ioat_timer_event(struct timer_list *t)
 {
-	struct ioatdma_chan *ioat_chan = from_timer(ioat_chan, t, timer);
+	struct ioatdma_chan *ioat_chan = timer_container_of(ioat_chan, t,
+							    timer);
 	dma_addr_t phys_complete;
 	u64 status;
 

@@ -14,8 +14,8 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _LINUX_IF_ARCNET_H
-#define _LINUX_IF_ARCNET_H
+#ifndef _UAPI_LINUX_IF_ARCNET_H
+#define _UAPI_LINUX_IF_ARCNET_H
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
@@ -127,4 +127,4 @@ struct archdr {
 	} soft;
 };
 
-#endif				/* _LINUX_IF_ARCNET_H */
+#endif				/* _UAPI_LINUX_IF_ARCNET_H */

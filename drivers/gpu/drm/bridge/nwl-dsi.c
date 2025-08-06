@@ -910,6 +910,7 @@ static void nwl_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
@@ -919,7 +920,7 @@ static int nwl_dsi_bridge_attach(struct drm_bridge *bridge,
 	if (IS_ERR(panel_bridge))
 		return PTR_ERR(panel_bridge);
 
-	return drm_bridge_attach(bridge->encoder, panel_bridge, bridge, flags);
+	return drm_bridge_attach(encoder, panel_bridge, bridge, flags);
 }
 
 static u32 *nwl_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,

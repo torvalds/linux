@@ -785,7 +785,7 @@ static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
 static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	u64 mask = BIT(ARMV8_PMU_CYCLE_IDX);
-	u8 n = vcpu->kvm->arch.pmcr_n;
+	u8 n = vcpu->kvm->arch.nr_pmu_counters;
 
 	if (n)
 		mask |= GENMASK(n - 1, 0);
@@ -1216,8 +1216,9 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	 * with the existing KVM behavior.
 	 */
 	if (!kvm_vm_has_ran_once(kvm) &&
+	    !vcpu_has_nv(vcpu)	      &&
 	    new_n <= kvm_arm_pmu_get_max_counters(kvm))
-		kvm->arch.pmcr_n = new_n;
+		kvm->arch.nr_pmu_counters = new_n;
 
 	mutex_unlock(&kvm->arch.config_lock);
 
@@ -1600,13 +1601,14 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		val = sanitise_id_aa64pfr0_el1(vcpu, val);
 		break;
 	case SYS_ID_AA64PFR1_EL1:
-		if (!kvm_has_mte(vcpu->kvm))
+		if (!kvm_has_mte(vcpu->kvm)) {
 			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE);
+			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac);
+		}
 
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SME);
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RNDR_trap);
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_NMI);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac);
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_GCS);
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_THE);
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTEX);
@@ -1959,10 +1961,33 @@ static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
 {
 	u64 hw_val = read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1);
 	u64 mpam_mask = ID_AA64PFR1_EL1_MPAM_frac_MASK;
+	u8 mte = SYS_FIELD_GET(ID_AA64PFR1_EL1, MTE, hw_val);
+	u8 user_mte_frac = SYS_FIELD_GET(ID_AA64PFR1_EL1, MTE_frac, user_val);
+	u8 hw_mte_frac = SYS_FIELD_GET(ID_AA64PFR1_EL1, MTE_frac, hw_val);
 
 	/* See set_id_aa64pfr0_el1 for comment about MPAM */
 	if ((hw_val & mpam_mask) == (user_val & mpam_mask))
 		user_val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
+
+	/*
+	 * Previously MTE_frac was hidden from guest. However, if the
+	 * hardware supports MTE2 but not MTE_ASYM_FAULT then a value
+	 * of 0 for this field indicates that the hardware supports
+	 * MTE_ASYNC. Whereas, 0xf indicates MTE_ASYNC is not supported.
+	 *
+	 * As KVM must accept values from KVM provided by user-space,
+	 * when ID_AA64PFR1_EL1.MTE is 2 allow user-space to set
+	 * ID_AA64PFR1_EL1.MTE_frac to 0. However, ignore it to avoid
+	 * incorrectly claiming hardware support for MTE_ASYNC in the
+	 * guest.
+	 */
+
+	if (mte == ID_AA64PFR1_EL1_MTE_MTE2 &&
+	    hw_mte_frac == ID_AA64PFR1_EL1_MTE_frac_NI &&
+	    user_mte_frac == ID_AA64PFR1_EL1_MTE_frac_ASYNC) {
+		user_val &= ~ID_AA64PFR1_EL1_MTE_frac_MASK;
+		user_val |= hw_val & ID_AA64PFR1_EL1_MTE_frac_MASK;
+	}
 
 	return set_id_reg(vcpu, rd, user_val);
 }
@@ -2287,15 +2312,6 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 			"trap of EL2 register redirected to EL1");
 }
 
-#define EL2_REG(name, acc, rst, v) {		\
-	SYS_DESC(SYS_##name),			\
-	.access = acc,				\
-	.reset = rst,				\
-	.reg = name,				\
-	.visibility = el2_visibility,		\
-	.val = v,				\
-}
-
 #define EL2_REG_FILTERED(name, acc, rst, v, filter) {	\
 	SYS_DESC(SYS_##name),			\
 	.access = acc,				\
@@ -2304,6 +2320,9 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 	.visibility = filter,			\
 	.val = v,				\
 }
+
+#define EL2_REG(name, acc, rst, v)			\
+	EL2_REG_FILTERED(name, acc, rst, v, el2_visibility)
 
 #define EL2_REG_VNCR(name, rst, v)	EL2_REG(name, bad_vncr_trap, rst, v)
 #define EL2_REG_REDIR(name, rst, v)	EL2_REG(name, bad_redir_trap, rst, v)
@@ -2452,6 +2471,16 @@ static unsigned int sve_el2_visibility(const struct kvm_vcpu *vcpu,
 	return __el2_visibility(vcpu, rd, sve_visibility);
 }
 
+static unsigned int vncr_el2_visibility(const struct kvm_vcpu *vcpu,
+					const struct sys_reg_desc *rd)
+{
+	if (el2_visibility(vcpu, rd) == 0 &&
+	    kvm_has_feat(vcpu->kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
+		return 0;
+
+	return REG_HIDDEN;
+}
+
 static bool access_zcr_el2(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *p,
 			   const struct sys_reg_desc *r)
@@ -2576,16 +2605,33 @@ static bool access_mdcr(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
 {
-	u64 old = __vcpu_sys_reg(vcpu, MDCR_EL2);
+	u64 hpmn, val, old = __vcpu_sys_reg(vcpu, MDCR_EL2);
 
-	if (!access_rw(vcpu, p, r))
-		return false;
+	if (!p->is_write) {
+		p->regval = old;
+		return true;
+	}
+
+	val = p->regval;
+	hpmn = FIELD_GET(MDCR_EL2_HPMN, val);
 
 	/*
-	 * Request a reload of the PMU to enable/disable the counters affected
-	 * by HPME.
+	 * If HPMN is out of bounds, limit it to what we actually
+	 * support. This matches the UNKNOWN definition of the field
+	 * in that case, and keeps the emulation simple. Sort of.
 	 */
-	if ((old ^ __vcpu_sys_reg(vcpu, MDCR_EL2)) & MDCR_EL2_HPME)
+	if (hpmn > vcpu->kvm->arch.nr_pmu_counters) {
+		hpmn = vcpu->kvm->arch.nr_pmu_counters;
+		u64_replace_bits(val, hpmn, MDCR_EL2_HPMN);
+	}
+
+	__vcpu_sys_reg(vcpu, MDCR_EL2) = val;
+
+	/*
+	 * Request a reload of the PMU to enable/disable the counters
+	 * affected by HPME.
+	 */
+	if ((old ^ val) & MDCR_EL2_HPME)
 		kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 
 	return true;
@@ -2704,6 +2750,12 @@ static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	.set_user = set_imp_id_reg,			\
 	.reset = reset_imp_id_reg,			\
 	.val = mask,					\
+	}
+
+static u64 reset_mdcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
+{
+	__vcpu_sys_reg(vcpu, r->reg) = vcpu->kvm->arch.nr_pmu_counters;
+	return vcpu->kvm->arch.nr_pmu_counters;
 }
 
 /*
@@ -3249,7 +3301,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(SCTLR_EL2, access_rw, reset_val, SCTLR_EL2_RES1),
 	EL2_REG(ACTLR_EL2, access_rw, reset_val, 0),
 	EL2_REG_VNCR(HCR_EL2, reset_hcr, 0),
-	EL2_REG(MDCR_EL2, access_mdcr, reset_val, 0),
+	EL2_REG(MDCR_EL2, access_mdcr, reset_mdcr, 0),
 	EL2_REG(CPTR_EL2, access_rw, reset_val, CPTR_NVHE_EL2_RES1),
 	EL2_REG_VNCR(HSTR_EL2, reset_val, 0),
 	EL2_REG_VNCR(HFGRTR_EL2, reset_val, 0),
@@ -3269,6 +3321,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 			 tcr2_el2_visibility),
 	EL2_REG_VNCR(VTTBR_EL2, reset_val, 0),
 	EL2_REG_VNCR(VTCR_EL2, reset_val, 0),
+	EL2_REG_FILTERED(VNCR_EL2, bad_vncr_trap, reset_val, 0,
+			 vncr_el2_visibility),
 
 	{ SYS_DESC(SYS_DACR32_EL2), undef_access, reset_unknown, DACR32_EL2 },
 	EL2_REG_VNCR(HDFGRTR_EL2, reset_val, 0),
@@ -3552,8 +3606,7 @@ static bool handle_ripas2e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 {
 	u32 sys_encoding = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
 	u64 vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2);
-	u64 base, range, tg, num, scale;
-	int shift;
+	u64 base, range;
 
 	if (!kvm_supported_tlbi_ipas2_op(vcpu, sys_encoding))
 		return undef_access(vcpu, p, r);
@@ -3563,26 +3616,7 @@ static bool handle_ripas2e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	 * of the guest's S2 (different base granule size, for example), we
 	 * decide to ignore TTL and only use the described range.
 	 */
-	tg	= FIELD_GET(GENMASK(47, 46), p->regval);
-	scale	= FIELD_GET(GENMASK(45, 44), p->regval);
-	num	= FIELD_GET(GENMASK(43, 39), p->regval);
-	base	= p->regval & GENMASK(36, 0);
-
-	switch(tg) {
-	case 1:
-		shift = 12;
-		break;
-	case 2:
-		shift = 14;
-		break;
-	case 3:
-	default:		/* IMPDEF: handle tg==0 as 64k */
-		shift = 16;
-		break;
-	}
-
-	base <<= shift;
-	range = __TLBI_RANGE_PAGES(num, scale) << shift;
+	base = decode_range_tlbi(p->regval, &range, NULL);
 
 	kvm_s2_mmu_iterate_by_vmid(vcpu->kvm, get_vmid(vttbr),
 				   &(union tlbi_info) {
@@ -3648,11 +3682,22 @@ static void s2_mmu_tlbi_s1e1(struct kvm_s2_mmu *mmu,
 	WARN_ON(__kvm_tlbi_s1e2(mmu, info->va.addr, info->va.encoding));
 }
 
+static bool handle_tlbi_el2(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			    const struct sys_reg_desc *r)
+{
+	u32 sys_encoding = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
+
+	if (!kvm_supported_tlbi_s1e2_op(vcpu, sys_encoding))
+		return undef_access(vcpu, p, r);
+
+	kvm_handle_s1e2_tlbi(vcpu, sys_encoding, p->regval);
+	return true;
+}
+
 static bool handle_tlbi_el1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			    const struct sys_reg_desc *r)
 {
 	u32 sys_encoding = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
-	u64 vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2);
 
 	/*
 	 * If we're here, this is because we've trapped on a EL1 TLBI
@@ -3663,6 +3708,13 @@ static bool handle_tlbi_el1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	 * - HCR_EL2.E2H == 0 : a non-VHE guest
 	 * - HCR_EL2.{E2H,TGE} == { 1, 0 } : a VHE guest in guest mode
 	 *
+	 * Another possibility is that we are invalidating the EL2 context
+	 * using EL1 instructions, but that we landed here because we need
+	 * additional invalidation for structures that are not held in the
+	 * CPU TLBs (such as the VNCR pseudo-TLB and its EL2 mapping). In
+	 * that case, we are guaranteed that HCR_EL2.{E2H,TGE} == { 1, 1 }
+	 * as we don't allow an NV-capable L1 in a nVHE configuration.
+	 *
 	 * We don't expect these helpers to ever be called when running
 	 * in a vEL1 context.
 	 */
@@ -3672,7 +3724,13 @@ static bool handle_tlbi_el1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (!kvm_supported_tlbi_s1e1_op(vcpu, sys_encoding))
 		return undef_access(vcpu, p, r);
 
-	kvm_s2_mmu_iterate_by_vmid(vcpu->kvm, get_vmid(vttbr),
+	if (vcpu_el2_e2h_is_set(vcpu) && vcpu_el2_tge_is_set(vcpu)) {
+		kvm_handle_s1e2_tlbi(vcpu, sys_encoding, p->regval);
+		return true;
+	}
+
+	kvm_s2_mmu_iterate_by_vmid(vcpu->kvm,
+				   get_vmid(__vcpu_sys_reg(vcpu, VTTBR_EL2)),
 				   &(union tlbi_info) {
 					   .va = {
 						   .addr = p->regval,
@@ -3794,16 +3852,21 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1IS, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1IS, handle_ripas2e1is),
 
-	SYS_INSN(TLBI_ALLE2OS, undef_access),
-	SYS_INSN(TLBI_VAE2OS, undef_access),
+	SYS_INSN(TLBI_ALLE2OS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2OS, handle_tlbi_el2),
 	SYS_INSN(TLBI_ALLE1OS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2OS, undef_access),
+	SYS_INSN(TLBI_VALE2OS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1OS, handle_vmalls12e1is),
 
-	SYS_INSN(TLBI_RVAE2IS, undef_access),
-	SYS_INSN(TLBI_RVALE2IS, undef_access),
+	SYS_INSN(TLBI_RVAE2IS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2IS, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2IS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2IS, handle_tlbi_el2),
 
 	SYS_INSN(TLBI_ALLE1IS, handle_alle1is),
+
+	SYS_INSN(TLBI_VALE2IS, handle_tlbi_el2),
+
 	SYS_INSN(TLBI_VMALLS12E1IS, handle_vmalls12e1is),
 	SYS_INSN(TLBI_IPAS2E1OS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2E1, handle_ipas2e1is),
@@ -3813,11 +3876,17 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1, handle_ripas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1OS, handle_ripas2e1is),
-	SYS_INSN(TLBI_RVAE2OS, undef_access),
-	SYS_INSN(TLBI_RVALE2OS, undef_access),
-	SYS_INSN(TLBI_RVAE2, undef_access),
-	SYS_INSN(TLBI_RVALE2, undef_access),
+	SYS_INSN(TLBI_RVAE2OS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2OS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVAE2, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2, handle_tlbi_el2),
+
 	SYS_INSN(TLBI_ALLE1, handle_alle1is),
+
+	SYS_INSN(TLBI_VALE2, handle_tlbi_el2),
+
 	SYS_INSN(TLBI_VMALLS12E1, handle_vmalls12e1is),
 
 	SYS_INSN(TLBI_IPAS2E1ISNXS, handle_ipas2e1is),
@@ -3825,19 +3894,19 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1ISNXS, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1ISNXS, handle_ripas2e1is),
 
-	SYS_INSN(TLBI_ALLE2OSNXS, undef_access),
-	SYS_INSN(TLBI_VAE2OSNXS, undef_access),
+	SYS_INSN(TLBI_ALLE2OSNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2OSNXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_ALLE1OSNXS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2OSNXS, undef_access),
+	SYS_INSN(TLBI_VALE2OSNXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1OSNXS, handle_vmalls12e1is),
 
-	SYS_INSN(TLBI_RVAE2ISNXS, undef_access),
-	SYS_INSN(TLBI_RVALE2ISNXS, undef_access),
-	SYS_INSN(TLBI_ALLE2ISNXS, undef_access),
-	SYS_INSN(TLBI_VAE2ISNXS, undef_access),
+	SYS_INSN(TLBI_RVAE2ISNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2ISNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2ISNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2ISNXS, handle_tlbi_el2),
 
 	SYS_INSN(TLBI_ALLE1ISNXS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2ISNXS, undef_access),
+	SYS_INSN(TLBI_VALE2ISNXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1ISNXS, handle_vmalls12e1is),
 	SYS_INSN(TLBI_IPAS2E1OSNXS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2E1NXS, handle_ipas2e1is),
@@ -3847,14 +3916,14 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1NXS, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1NXS, handle_ripas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1OSNXS, handle_ripas2e1is),
-	SYS_INSN(TLBI_RVAE2OSNXS, undef_access),
-	SYS_INSN(TLBI_RVALE2OSNXS, undef_access),
-	SYS_INSN(TLBI_RVAE2NXS, undef_access),
-	SYS_INSN(TLBI_RVALE2NXS, undef_access),
-	SYS_INSN(TLBI_ALLE2NXS, undef_access),
-	SYS_INSN(TLBI_VAE2NXS, undef_access),
+	SYS_INSN(TLBI_RVAE2OSNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2OSNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVAE2NXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2NXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2NXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2NXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_ALLE1NXS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2NXS, undef_access),
+	SYS_INSN(TLBI_VALE2NXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1NXS, handle_vmalls12e1is),
 };
 
@@ -5153,65 +5222,13 @@ void kvm_calculate_traps(struct kvm_vcpu *vcpu)
 	if (test_bit(KVM_ARCH_FLAG_FGU_INITIALIZED, &kvm->arch.flags))
 		goto out;
 
-	kvm->arch.fgu[HFGxTR_GROUP] = (HFGxTR_EL2_nAMAIR2_EL1		|
-				       HFGxTR_EL2_nMAIR2_EL1		|
-				       HFGxTR_EL2_nS2POR_EL1		|
-				       HFGxTR_EL2_nACCDATA_EL1		|
-				       HFGxTR_EL2_nSMPRI_EL1_MASK	|
-				       HFGxTR_EL2_nTPIDR2_EL0_MASK);
-
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_TLBIRVAALE1OS|
-						HFGITR_EL2_TLBIRVALE1OS	|
-						HFGITR_EL2_TLBIRVAAE1OS	|
-						HFGITR_EL2_TLBIRVAE1OS	|
-						HFGITR_EL2_TLBIVAALE1OS	|
-						HFGITR_EL2_TLBIVALE1OS	|
-						HFGITR_EL2_TLBIVAAE1OS	|
-						HFGITR_EL2_TLBIASIDE1OS	|
-						HFGITR_EL2_TLBIVAE1OS	|
-						HFGITR_EL2_TLBIVMALLE1OS);
-
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, RANGE))
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_TLBIRVAALE1	|
-						HFGITR_EL2_TLBIRVALE1	|
-						HFGITR_EL2_TLBIRVAAE1	|
-						HFGITR_EL2_TLBIRVAE1	|
-						HFGITR_EL2_TLBIRVAALE1IS|
-						HFGITR_EL2_TLBIRVALE1IS	|
-						HFGITR_EL2_TLBIRVAAE1IS	|
-						HFGITR_EL2_TLBIRVAE1IS	|
-						HFGITR_EL2_TLBIRVAALE1OS|
-						HFGITR_EL2_TLBIRVALE1OS	|
-						HFGITR_EL2_TLBIRVAAE1OS	|
-						HFGITR_EL2_TLBIRVAE1OS);
-
-	if (!kvm_has_feat(kvm, ID_AA64ISAR2_EL1, ATS1A, IMP))
-		kvm->arch.fgu[HFGITR_GROUP] |= HFGITR_EL2_ATS1E1A;
-
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, PAN, PAN2))
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_ATS1E1RP |
-						HFGITR_EL2_ATS1E1WP);
-
-	if (!kvm_has_s1pie(kvm))
-		kvm->arch.fgu[HFGxTR_GROUP] |= (HFGxTR_EL2_nPIRE0_EL1 |
-						HFGxTR_EL2_nPIR_EL1);
-
-	if (!kvm_has_s1poe(kvm))
-		kvm->arch.fgu[HFGxTR_GROUP] |= (HFGxTR_EL2_nPOR_EL1 |
-						HFGxTR_EL2_nPOR_EL0);
-
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, IMP))
-		kvm->arch.fgu[HAFGRTR_GROUP] |= ~(HAFGRTR_EL2_RES0 |
-						  HAFGRTR_EL2_RES1);
-
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP)) {
-		kvm->arch.fgu[HDFGRTR_GROUP] |= (HDFGRTR_EL2_nBRBDATA  |
-						 HDFGRTR_EL2_nBRBCTL   |
-						 HDFGRTR_EL2_nBRBIDR);
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_nBRBINJ |
-						HFGITR_EL2_nBRBIALL);
-	}
+	compute_fgu(kvm, HFGRTR_GROUP);
+	compute_fgu(kvm, HFGITR_GROUP);
+	compute_fgu(kvm, HDFGRTR_GROUP);
+	compute_fgu(kvm, HAFGRTR_GROUP);
+	compute_fgu(kvm, HFGRTR2_GROUP);
+	compute_fgu(kvm, HFGITR2_GROUP);
+	compute_fgu(kvm, HDFGRTR2_GROUP);
 
 	set_bit(KVM_ARCH_FLAG_FGU_INITIALIZED, &kvm->arch.flags);
 out:
@@ -5268,6 +5285,8 @@ int __init kvm_sys_reg_table_init(void)
 	init_imp_id_regs();
 
 	ret = populate_nv_trap_config();
+
+	check_feature_map();
 
 	for (i = 0; !ret && i < ARRAY_SIZE(sys_reg_descs); i++)
 		ret = populate_sysreg_config(sys_reg_descs + i, i);

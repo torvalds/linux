@@ -1165,7 +1165,7 @@ static void imx_uart_break_ctl(struct uart_port *port, int break_state)
  */
 static void imx_uart_timeout(struct timer_list *t)
 {
-	struct imx_port *sport = from_timer(sport, t, timer);
+	struct imx_port *sport = timer_container_of(sport, t, timer);
 	unsigned long flags;
 
 	if (sport->port.state) {

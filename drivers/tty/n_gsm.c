@@ -1971,7 +1971,7 @@ static void gsm_control_response(struct gsm_mux *gsm, unsigned int command,
 
 static void gsm_control_keep_alive(struct timer_list *t)
 {
-	struct gsm_mux *gsm = from_timer(gsm, t, ka_timer);
+	struct gsm_mux *gsm = timer_container_of(gsm, t, ka_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gsm->control_lock, flags);
@@ -2028,7 +2028,7 @@ static void gsm_control_transmit(struct gsm_mux *gsm, struct gsm_control *ctrl)
 
 static void gsm_control_retransmit(struct timer_list *t)
 {
-	struct gsm_mux *gsm = from_timer(gsm, t, t2_timer);
+	struct gsm_mux *gsm = timer_container_of(gsm, t, t2_timer);
 	struct gsm_control *ctrl;
 	unsigned long flags;
 	spin_lock_irqsave(&gsm->control_lock, flags);
@@ -2229,7 +2229,7 @@ static int gsm_dlci_negotiate(struct gsm_dlci *dlci)
 
 static void gsm_dlci_t1(struct timer_list *t)
 {
-	struct gsm_dlci *dlci = from_timer(dlci, t, t1);
+	struct gsm_dlci *dlci = timer_container_of(dlci, t, t1);
 	struct gsm_mux *gsm = dlci->gsm;
 
 	switch (dlci->state) {
@@ -2489,7 +2489,7 @@ static void gsm_dlci_command(struct gsm_dlci *dlci, const u8 *data, int len)
  */
 static void gsm_kick_timer(struct timer_list *t)
 {
-	struct gsm_mux *gsm = from_timer(gsm, t, kick_timer);
+	struct gsm_mux *gsm = timer_container_of(gsm, t, kick_timer);
 	unsigned long flags;
 	int sent = 0;
 

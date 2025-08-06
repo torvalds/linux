@@ -68,12 +68,6 @@
 
 static int load_elf_binary(struct linux_binprm *bprm);
 
-#ifdef CONFIG_USELIB
-static int load_elf_library(struct file *);
-#else
-#define load_elf_library NULL
-#endif
-
 /*
  * If we don't support core dumping, then supply a NULL so we
  * don't even try.
@@ -101,7 +95,6 @@ static int elf_core_dump(struct coredump_params *cprm);
 static struct linux_binfmt elf_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_elf_binary,
-	.load_shlib	= load_elf_library,
 #ifdef CONFIG_COREDUMP
 	.core_dump	= elf_core_dump,
 	.min_coredump	= ELF_EXEC_PAGESIZE,
@@ -830,6 +823,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
 	struct elf_phdr *elf_property_phdata = NULL;
 	unsigned long elf_brk;
+	bool brk_moved = false;
 	int retval, i;
 	unsigned long elf_entry;
 	unsigned long e_entry;
@@ -1097,15 +1091,19 @@ out_free_interp:
 			/* Calculate any requested alignment. */
 			alignment = maximum_alignment(elf_phdata, elf_ex->e_phnum);
 
-			/*
-			 * There are effectively two types of ET_DYN
-			 * binaries: programs (i.e. PIE: ET_DYN with PT_INTERP)
-			 * and loaders (ET_DYN without PT_INTERP, since they
-			 * _are_ the ELF interpreter). The loaders must
-			 * be loaded away from programs since the program
-			 * may otherwise collide with the loader (especially
-			 * for ET_EXEC which does not have a randomized
-			 * position). For example to handle invocations of
+			/**
+			 * DOC: PIE handling
+			 *
+			 * There are effectively two types of ET_DYN ELF
+			 * binaries: programs (i.e. PIE: ET_DYN with
+			 * PT_INTERP) and loaders (i.e. static PIE: ET_DYN
+			 * without PT_INTERP, usually the ELF interpreter
+			 * itself). Loaders must be loaded away from programs
+			 * since the program may otherwise collide with the
+			 * loader (especially for ET_EXEC which does not have
+			 * a randomized position).
+			 *
+			 * For example, to handle invocations of
 			 * "./ld.so someprog" to test out a new version of
 			 * the loader, the subsequent program that the
 			 * loader loads must avoid the loader itself, so
@@ -1118,6 +1116,9 @@ out_free_interp:
 			 * ELF_ET_DYN_BASE and loaders are loaded into the
 			 * independently randomized mmap region (0 load_bias
 			 * without MAP_FIXED nor MAP_FIXED_NOREPLACE).
+			 *
+			 * See below for "brk" handling details, which is
+			 * also affected by program vs loader and ASLR.
 			 */
 			if (interpreter) {
 				/* On ET_DYN with PT_INTERP, we do the ASLR. */
@@ -1234,8 +1235,6 @@ out_free_interp:
 	start_data += load_bias;
 	end_data += load_bias;
 
-	current->mm->start_brk = current->mm->brk = ELF_PAGEALIGN(elf_brk);
-
 	if (interpreter) {
 		elf_entry = load_elf_interp(interp_elf_ex,
 					    interpreter,
@@ -1291,27 +1290,44 @@ out_free_interp:
 	mm->end_data = end_data;
 	mm->start_stack = bprm->p;
 
-	if ((current->flags & PF_RANDOMIZE) && (snapshot_randomize_va_space > 1)) {
+	/**
+	 * DOC: "brk" handling
+	 *
+	 * For architectures with ELF randomization, when executing a
+	 * loader directly (i.e. static PIE: ET_DYN without PT_INTERP),
+	 * move the brk area out of the mmap region and into the unused
+	 * ELF_ET_DYN_BASE region. Since "brk" grows up it may collide
+	 * early with the stack growing down or other regions being put
+	 * into the mmap region by the kernel (e.g. vdso).
+	 *
+	 * In the CONFIG_COMPAT_BRK case, though, everything is turned
+	 * off because we're not allowed to move the brk at all.
+	 */
+	if (!IS_ENABLED(CONFIG_COMPAT_BRK) &&
+	    IS_ENABLED(CONFIG_ARCH_HAS_ELF_RANDOMIZE) &&
+	    elf_ex->e_type == ET_DYN && !interpreter) {
+		elf_brk = ELF_ET_DYN_BASE;
+		/* This counts as moving the brk, so let brk(2) know. */
+		brk_moved = true;
+	}
+	mm->start_brk = mm->brk = ELF_PAGEALIGN(elf_brk);
+
+	if ((current->flags & PF_RANDOMIZE) && snapshot_randomize_va_space > 1) {
 		/*
-		 * For architectures with ELF randomization, when executing
-		 * a loader directly (i.e. no interpreter listed in ELF
-		 * headers), move the brk area out of the mmap region
-		 * (since it grows up, and may collide early with the stack
-		 * growing down), and into the unused ELF_ET_DYN_BASE region.
+		 * If we didn't move the brk to ELF_ET_DYN_BASE (above),
+		 * leave a gap between .bss and brk.
 		 */
-		if (IS_ENABLED(CONFIG_ARCH_HAS_ELF_RANDOMIZE) &&
-		    elf_ex->e_type == ET_DYN && !interpreter) {
-			mm->brk = mm->start_brk = ELF_ET_DYN_BASE;
-		} else {
-			/* Otherwise leave a gap between .bss and brk. */
+		if (!brk_moved)
 			mm->brk = mm->start_brk = mm->brk + PAGE_SIZE;
-		}
 
 		mm->brk = mm->start_brk = arch_randomize_brk(mm);
+		brk_moved = true;
+	}
+
 #ifdef compat_brk_randomized
+	if (brk_moved)
 		current->brk_randomized = 1;
 #endif
-	}
 
 	if (current->personality & MMAP_PAGE_ZERO) {
 		/* Why this, you ask???  Well SVr4 maps page 0 as read-only,
@@ -1360,75 +1376,6 @@ out_free_ph:
 	kfree(elf_phdata);
 	goto out;
 }
-
-#ifdef CONFIG_USELIB
-/* This is really simpleminded and specialized - we are loading an
-   a.out library that is given an ELF header. */
-static int load_elf_library(struct file *file)
-{
-	struct elf_phdr *elf_phdata;
-	struct elf_phdr *eppnt;
-	int retval, error, i, j;
-	struct elfhdr elf_ex;
-
-	error = -ENOEXEC;
-	retval = elf_read(file, &elf_ex, sizeof(elf_ex), 0);
-	if (retval < 0)
-		goto out;
-
-	if (memcmp(elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
-		goto out;
-
-	/* First of all, some simple consistency checks */
-	if (elf_ex.e_type != ET_EXEC || elf_ex.e_phnum > 2 ||
-	    !elf_check_arch(&elf_ex) || !file->f_op->mmap)
-		goto out;
-	if (elf_check_fdpic(&elf_ex))
-		goto out;
-
-	/* Now read in all of the header information */
-
-	j = sizeof(struct elf_phdr) * elf_ex.e_phnum;
-	/* j < ELF_MIN_ALIGN because elf_ex.e_phnum <= 2 */
-
-	error = -ENOMEM;
-	elf_phdata = kmalloc(j, GFP_KERNEL);
-	if (!elf_phdata)
-		goto out;
-
-	eppnt = elf_phdata;
-	error = -ENOEXEC;
-	retval = elf_read(file, eppnt, j, elf_ex.e_phoff);
-	if (retval < 0)
-		goto out_free_ph;
-
-	for (j = 0, i = 0; i<elf_ex.e_phnum; i++)
-		if ((eppnt + i)->p_type == PT_LOAD)
-			j++;
-	if (j != 1)
-		goto out_free_ph;
-
-	while (eppnt->p_type != PT_LOAD)
-		eppnt++;
-
-	/* Now use mmap to map the library into memory. */
-	error = elf_load(file, ELF_PAGESTART(eppnt->p_vaddr),
-			eppnt,
-			PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_FIXED_NOREPLACE | MAP_PRIVATE,
-			0);
-
-	if (error != ELF_PAGESTART(eppnt->p_vaddr))
-		goto out_free_ph;
-
-	error = 0;
-
-out_free_ph:
-	kfree(elf_phdata);
-out:
-	return error;
-}
-#endif /* #ifdef CONFIG_USELIB */
 
 #ifdef CONFIG_ELF_CORE
 /*

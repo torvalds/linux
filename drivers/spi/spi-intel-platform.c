@@ -14,14 +14,17 @@
 static int intel_spi_platform_probe(struct platform_device *pdev)
 {
 	struct intel_spi_boardinfo *info;
-	struct resource *mem;
+	void __iomem *base;
 
 	info = dev_get_platdata(&pdev->dev);
 	if (!info)
 		return -EINVAL;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	return intel_spi_probe(&pdev->dev, mem, info);
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	return intel_spi_probe(&pdev->dev, base, info);
 }
 
 static struct platform_driver intel_spi_platform_driver = {

@@ -714,7 +714,7 @@ static inline unsigned int atmci_convert_chksize(struct atmel_mci *host,
 
 static void atmci_timeout_timer(struct timer_list *t)
 {
-	struct atmel_mci *host = from_timer(host, t, timer);
+	struct atmel_mci *host = timer_container_of(host, t, timer);
 	struct device *dev = host->dev;
 
 	dev_dbg(dev, "software timeout\n");
@@ -1652,7 +1652,8 @@ static void atmci_command_complete(struct atmel_mci *host,
 
 static void atmci_detect_change(struct timer_list *t)
 {
-	struct atmel_mci_slot	*slot = from_timer(slot, t, detect_timer);
+	struct atmel_mci_slot	*slot = timer_container_of(slot, t,
+								detect_timer);
 	bool			present;
 	bool			present_old;
 

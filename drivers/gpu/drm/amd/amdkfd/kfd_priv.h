@@ -1507,6 +1507,8 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 int kfd_get_num_events(struct kfd_process *p);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
+void kfd_signal_vm_fault_event_with_userptr(struct kfd_process *p, uint64_t gpu_va);
+
 void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 				struct kfd_vm_fault_info *info,
 				struct kfd_hsa_memory_exception_data *data);
@@ -1581,10 +1583,15 @@ int kfd_debugfs_hang_hws(struct kfd_node *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
 int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
+void kfd_debugfs_add_process(struct kfd_process *p);
+void kfd_debugfs_remove_process(struct kfd_process *p);
+
 #else
 
 static inline void kfd_debugfs_init(void) {}
 static inline void kfd_debugfs_fini(void) {}
+static inline void kfd_debugfs_add_process(struct kfd_process *p) {}
+static inline void kfd_debugfs_remove_process(struct kfd_process *p) {}
 
 #endif
 

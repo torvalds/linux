@@ -1,4 +1,4 @@
-maxcpus=8 nr_cpus=43
+maxcpus=8 nr_cpus=17
 rcutree.gp_preinit_delay=3
 rcutree.gp_init_delay=3
 rcutree.gp_cleanup_delay=3

@@ -1443,7 +1443,7 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
  */
 static void radeon_lvds_timer_func(struct timer_list *t)
 {
-	struct radeonfb_info *rinfo = from_timer(rinfo, t, lvds_timer);
+	struct radeonfb_info *rinfo = timer_container_of(rinfo, t, lvds_timer);
 
 	radeon_engine_idle();
 

@@ -188,4 +188,68 @@ config VIRTIO_DEBUG
 
 	  If unsure, say N.
 
+config VIRTIO_RTC
+	tristate "Virtio RTC driver"
+	depends on VIRTIO
+	depends on PTP_1588_CLOCK_OPTIONAL
+	help
+	 This driver provides current time from a Virtio RTC device. The driver
+	 provides the time through one or more clocks. The Virtio RTC PTP
+	 clocks and/or the Real Time Clock driver for Virtio RTC must be
+	 enabled to expose the clocks to userspace.
+
+	 To compile this code as a module, choose M here: the module will be
+	 called virtio_rtc.
+
+	 If unsure, say M.
+
+if VIRTIO_RTC
+
+comment "WARNING: Consider enabling VIRTIO_RTC_PTP and/or VIRTIO_RTC_CLASS."
+	depends on !VIRTIO_RTC_PTP && !VIRTIO_RTC_CLASS
+
+comment "Enable PTP_1588_CLOCK in order to enable VIRTIO_RTC_PTP."
+	depends on PTP_1588_CLOCK=n
+
+config VIRTIO_RTC_PTP
+	bool "Virtio RTC PTP clocks"
+	default y
+	depends on PTP_1588_CLOCK
+	help
+	 This exposes any Virtio RTC clocks as PTP Hardware Clocks (PHCs) to
+	 userspace. The PHC sysfs attribute "clock_name" describes the clock
+	 type.
+
+	 If unsure, say Y.
+
+config VIRTIO_RTC_ARM
+	bool "Virtio RTC cross-timestamping using Arm Generic Timer"
+	default y
+	depends on VIRTIO_RTC_PTP && ARM_ARCH_TIMER
+	help
+	 This enables Virtio RTC cross-timestamping using the Arm Generic Timer.
+	 It only has an effect if the Virtio RTC device also supports this. The
+	 cross-timestamp is available through the PTP clock driver precise
+	 cross-timestamp ioctl (PTP_SYS_OFFSET_PRECISE2 aka
+	 PTP_SYS_OFFSET_PRECISE).
+
+	 If unsure, say Y.
+
+comment "Enable RTC_CLASS in order to enable VIRTIO_RTC_CLASS."
+	depends on RTC_CLASS=n
+
+config VIRTIO_RTC_CLASS
+	bool "Real Time Clock driver for Virtio RTC"
+	default y
+	depends on RTC_CLASS
+	help
+	 This exposes the Virtio RTC UTC-like clock as a Linux Real Time Clock.
+	 It only has an effect if the Virtio RTC device has a UTC-like clock
+	 which smears leap seconds to avoid steps. The Real Time Clock is
+	 read-only, and may support setting an alarm.
+
+	 If unsure, say Y.
+
+endif # VIRTIO_RTC
+
 endif # VIRTIO_MENU

@@ -183,9 +183,6 @@ static struct spi_offload_trigger
 
 	guard(mutex)(&trigger->lock);
 
-	if (!trigger->ops)
-		return ERR_PTR(-ENODEV);
-
 	if (trigger->ops->request) {
 		ret = trigger->ops->request(trigger, type, args->args, args->nargs);
 		if (ret)
@@ -434,7 +431,7 @@ int devm_spi_offload_trigger_register(struct device *dev,
 {
 	struct spi_offload_trigger *trigger;
 
-	if (!info->fwnode || !info->ops)
+	if (!info->fwnode || !info->ops || !info->ops->match)
 		return -EINVAL;
 
 	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);

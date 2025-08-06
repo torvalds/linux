@@ -23,6 +23,9 @@ properties:
   "#thermal-sensor-cells":
     const: 1
 
+  vcc-supply:
+    description: Power supply for tmp102
+
 required:
   - compatible
   - reg
@@ -42,6 +45,7 @@ examples:
             reg = <0x48>;
             interrupt-parent = <&gpio7>;
             interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
+            vcc-supply = <&supply>;
             #thermal-sensor-cells = <1>;
         };
     };

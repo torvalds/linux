@@ -5,7 +5,7 @@
 #include <asm/cpu-features.h>
 #include <asm/cache.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *
@@ -168,7 +168,7 @@ extern unsigned int instruction_size(unsigned int insn);
 
 void select_idle_routine(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #include <asm/processor_32.h>
 

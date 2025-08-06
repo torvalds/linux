@@ -1676,7 +1676,7 @@ void ipwireless_init_hardware_v2_v3(struct ipw_hardware *hw)
 
 static void ipwireless_setup_timer(struct timer_list *t)
 {
-	struct ipw_hardware *hw = from_timer(hw, t, setup_timer);
+	struct ipw_hardware *hw = timer_container_of(hw, t, setup_timer);
 
 	hw->init_loops++;
 

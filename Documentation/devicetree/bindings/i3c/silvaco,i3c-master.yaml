@@ -9,14 +9,17 @@ title: Silvaco I3C master
 maintainers:
   - Conor Culhane <conor.culhane@silvaco.com>
 
-allOf:
-  - $ref: i3c.yaml#
-
 properties:
   compatible:
-    enum:
-      - nuvoton,npcm845-i3c
-      - silvaco,i3c-master-v1
+    oneOf:
+      - enum:
+          - nuvoton,npcm845-i3c
+          - silvaco,i3c-master-v1
+      - items:
+          - enum:
+              - nxp,imx94-i3c
+              - nxp,imx95-i3c
+          - const: silvaco,i3c-master-v1
 
   reg:
     maxItems: 1
@@ -25,12 +28,14 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 2
     items:
       - description: system clock
       - description: bus clock
       - description: other (slower) events clock
 
   clock-names:
+    minItems: 2
     items:
       - const: pclk
       - const: fast_clk
@@ -45,6 +50,34 @@ required:
   - interrupts
   - clock-names
   - clocks
+
+allOf:
+  - $ref: i3c.yaml#
+  - if:
+      properties:
+        compatible:
+          enum:
+            - nuvoton,npcm845-i3c
+            - silvaco,i3c-master-v1
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          minItems: 3
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nxp,imx94-i3c
+              - nxp,imx95-i3c
+    then:
+      properties:
+        clocks:
+          maxItems: 2
+        clock-names:
+          maxItems: 2
 
 unevaluatedProperties: false
 

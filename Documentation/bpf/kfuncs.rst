@@ -160,6 +160,23 @@ Or::
                 ...
         }
 
+2.2.6 __prog Annotation
+---------------------------
+This annotation is used to indicate that the argument needs to be fixed up to
+the bpf_prog_aux of the caller BPF program. Any value passed into this argument
+is ignored, and rewritten by the verifier.
+
+An example is given below::
+
+        __bpf_kfunc int bpf_wq_set_callback_impl(struct bpf_wq *wq,
+                                                 int (callback_fn)(void *map, int *key, void *value),
+                                                 unsigned int flags,
+                                                 void *aux__prog)
+         {
+                struct bpf_prog_aux *aux = aux__prog;
+                ...
+         }
+
 .. _BPF_kfunc_nodef:
 
 2.3 Using an existing kernel function

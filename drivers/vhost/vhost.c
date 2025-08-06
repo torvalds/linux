@@ -2304,6 +2304,19 @@ static int log_used(struct vhost_virtqueue *vq, u64 used_offset, u64 len)
 	return 0;
 }
 
+/*
+ * vhost_log_write() - Log in dirty page bitmap
+ * @vq:      vhost virtqueue.
+ * @log:     Array of dirty memory in GPA.
+ * @log_num: Size of vhost_log arrary.
+ * @len:     The total length of memory buffer to log in the dirty bitmap.
+ *	     Some drivers may only partially use pages shared via the last
+ *	     vring descriptor (i.e. vhost-net RX buffer).
+ *	     Use (len == U64_MAX) to indicate the driver would log all
+ *           pages of vring descriptors.
+ * @iov:     Array of dirty memory in HVA.
+ * @count:   Size of iovec array.
+ */
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len, struct iovec *iov, int count)
 {
@@ -2327,15 +2340,14 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		r = log_write(vq->log_base, log[i].addr, l);
 		if (r < 0)
 			return r;
-		len -= l;
-		if (!len) {
-			if (vq->log_ctx)
-				eventfd_signal(vq->log_ctx);
-			return 0;
-		}
+
+		if (len != U64_MAX)
+			len -= l;
 	}
-	/* Length written exceeds what we have stored. This is a bug. */
-	BUG();
+
+	if (vq->log_ctx)
+		eventfd_signal(vq->log_ctx);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vhost_log_write);

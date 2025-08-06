@@ -87,7 +87,6 @@ FEATURE_TESTS_BASIC :=                  \
         libtracefs                      \
         libcpupower                     \
         libcrypto                       \
-        libunwind                       \
         pthread-attr-setaffinity-np     \
         pthread-barrier     		\
         reallocarray                    \
@@ -148,15 +147,12 @@ endif
 FEATURE_DISPLAY ?=              \
          libdw                  \
          glibc                  \
-         libbfd                 \
-         libbfd-buildid		\
          libelf                 \
          libnuma                \
          numa_num_possible_cpus \
          libperl                \
          libpython              \
          libcrypto              \
-         libunwind              \
          libcapstone            \
          llvm-perf              \
          zlib                   \

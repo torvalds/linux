@@ -169,7 +169,11 @@ enum board_family {
 	family_intel_600_series
 };
 
-/* All the known sensors for ASUS EC controllers */
+/*
+ * All the known sensors for ASUS EC controllers. These arrays have to be sorted
+ * by the full ((bank << 8) + index) register index (see asus_ec_block_read() as
+ * to why).
+ */
 static const struct ec_sensor_info sensors_family_amd_400[] = {
 	[ec_sensor_temp_chipset] =
 		EC_SENSOR("Chipset", hwmon_temp, 1, 0x00, 0x3a),
@@ -183,10 +187,10 @@ static const struct ec_sensor_info sensors_family_amd_400[] = {
 		EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x3e),
 	[ec_sensor_in_cpu_core] =
 		EC_SENSOR("CPU Core", hwmon_in, 2, 0x00, 0xa2),
-	[ec_sensor_fan_cpu_opt] =
-		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xbc),
 	[ec_sensor_fan_vrm_hs] =
 		EC_SENSOR("VRM HS", hwmon_fan, 2, 0x00, 0xb2),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xbc),
 	[ec_sensor_fan_chipset] =
 		/* no chipset fans in this generation */
 		EC_SENSOR("Chipset", hwmon_fan, 0, 0x00, 0x00),
@@ -194,10 +198,10 @@ static const struct ec_sensor_info sensors_family_amd_400[] = {
 		EC_SENSOR("Water_Flow", hwmon_fan, 2, 0x00, 0xb4),
 	[ec_sensor_curr_cpu] =
 		EC_SENSOR("CPU", hwmon_curr, 1, 0x00, 0xf4),
-	[ec_sensor_temp_water_in] =
-		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x0d),
 	[ec_sensor_temp_water_out] =
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x0b),
+	[ec_sensor_temp_water_in] =
+		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x0d),
 };
 
 static const struct ec_sensor_info sensors_family_amd_500[] = {
@@ -239,19 +243,20 @@ static const struct ec_sensor_info sensors_family_amd_500[] = {
 
 static const struct ec_sensor_info sensors_family_amd_600[] = {
 	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x30),
-	[ec_sensor_temp_cpu_package] = EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_temp_cpu_package] =
+		EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
 	[ec_sensor_temp_mb] =
 	EC_SENSOR("Motherboard", hwmon_temp, 1, 0x00, 0x32),
 	[ec_sensor_temp_vrm] =
 		EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x33),
 	[ec_sensor_temp_t_sensor] =
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x36),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 	[ec_sensor_temp_water_in] =
 		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x00),
 	[ec_sensor_temp_water_out] =
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
-	[ec_sensor_fan_cpu_opt] =
-		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 };
 
 static const struct ec_sensor_info sensors_family_intel_300[] = {
@@ -278,6 +283,14 @@ static const struct ec_sensor_info sensors_family_intel_600[] = {
 	[ec_sensor_temp_t_sensor] =
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x3d),
 	[ec_sensor_temp_vrm] = EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x3e),
+	[ec_sensor_fan_water_flow] =
+		EC_SENSOR("Water_Flow", hwmon_fan, 2, 0x00, 0xbe),
+	[ec_sensor_temp_water_in] =
+		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x00),
+	[ec_sensor_temp_water_out] =
+		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
+	[ec_sensor_temp_water_block_in] =
+		EC_SENSOR("Water_Block_In", hwmon_temp, 1, 0x01, 0x02),
 };
 
 /* Shortcuts for common combinations */
@@ -298,6 +311,15 @@ struct ec_board_info {
 	 */
 	const char *mutex_path;
 	enum board_family family;
+};
+
+static const struct ec_board_info board_info_maximus_vi_hero = {
+	.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB |
+		SENSOR_TEMP_T_SENSOR |
+		SENSOR_TEMP_VRM | SENSOR_SET_TEMP_WATER |
+		SENSOR_FAN_CPU_OPT | SENSOR_FAN_WATER_FLOW,
+	.mutex_path = ACPI_GLOBAL_LOCK_PSEUDO_PATH,
+	.family = family_intel_300_series,
 };
 
 static const struct ec_board_info board_info_prime_x470_pro = {
@@ -400,6 +422,13 @@ static const struct ec_board_info board_info_maximus_xi_hero = {
 		SENSOR_FAN_CPU_OPT | SENSOR_FAN_WATER_FLOW,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	.family = family_intel_300_series,
+};
+
+static const struct ec_board_info board_info_maximus_z690_formula = {
+	.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
+		SENSOR_SET_TEMP_WATER | SENSOR_FAN_WATER_FLOW,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
+	.family = family_intel_600_series,
 };
 
 static const struct ec_board_info board_info_crosshair_viii_impact = {
@@ -507,6 +536,8 @@ static const struct ec_board_info board_info_tuf_gaming_x670e_plus = {
 	}
 
 static const struct dmi_system_id dmi_table[] = {
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("MAXIMUS VI HERO",
+					&board_info_maximus_vi_hero),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X470-PRO",
 					&board_info_prime_x470_pro),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X570-PRO",
@@ -537,6 +568,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_maximus_xi_hero),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG MAXIMUS XI HERO (WI-FI)",
 					&board_info_maximus_xi_hero),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG MAXIMUS Z690 FORMULA",
+					&board_info_maximus_z690_formula),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VIII IMPACT",
 					&board_info_crosshair_viii_impact),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX B550-E GAMING",
@@ -933,6 +966,10 @@ static int asus_ec_hwmon_read_string(struct device *dev,
 {
 	struct ec_sensors_data *state = dev_get_drvdata(dev);
 	int sensor_index = find_ec_sensor_index(state, type, channel);
+
+	if (sensor_index < 0)
+		return sensor_index;
+
 	*str = get_sensor_info(state, sensor_index)->label;
 
 	return 0;

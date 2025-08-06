@@ -130,6 +130,12 @@
 		clock-frequency = <19200000>;
 	};
 
+	wl12xx_pwrseq: wl12xx-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&twl 0>;
+		clock-names = "ext_clock";
+	};
+
 	/* regulator for wl12xx on sdio5 */
 	wl12xx_vmmc: wl12xx_vmmc {
 		pinctrl-names = "default";
@@ -361,10 +367,8 @@
 	 */
 	wl12xx_gpio: wl12xx-gpio-pins {
 		pinctrl-single,pins = <
-			OMAP4_IOPAD(0x066, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a19.gpio_43 */
-			OMAP4_IOPAD(0x06c, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a22.gpio_46 */
+			OMAP4_IOPAD(0x066, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a19.gpio_43 - WLAN_EN */
 			OMAP4_IOPAD(0x070, PIN_OUTPUT_PULLUP | MUX_MODE3)	/* gpmc_a24.gpio_48 */
-			OMAP4_IOPAD(0x072, PIN_OUTPUT_PULLUP | MUX_MODE3)	/* gpmc_a25.gpio_49 */
 		>;
 	};
 
@@ -385,6 +389,22 @@
 	button_pins: button-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x114, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpio_121 */
+		>;
+	};
+
+	bt_pins: bt-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x06c, PIN_OUTPUT | MUX_MODE3)	  /* gpmc_a22.gpio_46 - BTEN */
+			OMAP4_IOPAD(0x072, PIN_OUTPUT_PULLUP | MUX_MODE3) /* gpmc_a25.gpio_49 - BTWAKEUP */
+		>;
+	};
+
+	uart2_pins: uart2-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x118, PIN_INPUT_PULLUP | MUX_MODE0)  /* uart2_cts.uart2_cts - HCI */
+			OMAP4_IOPAD(0x11a, PIN_OUTPUT | MUX_MODE0)	  /* uart2_rts.uart2_rts */
+			OMAP4_IOPAD(0x11c, PIN_INPUT_PULLUP | MUX_MODE0)  /* uart2_rx.uart2_rx */
+			OMAP4_IOPAD(0x11e, PIN_OUTPUT | MUX_MODE0)	  /* uart2_tx.uart2_tx */
 		>;
 	};
 };
@@ -408,6 +428,7 @@
 		reg = <0x48>;
 		/* IRQ# = 7 */
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
+		#clock-cells = <1>;
 		system-power-controller;
 	};
 
@@ -488,6 +509,7 @@
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
+	mmc-pwrseq = <&wl12xx_pwrseq>;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -523,8 +545,19 @@
 };
 
 &uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
 	interrupts-extended = <&wakeupgen GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core OMAP4_UART2_RX>;
+
+	bluetooth {
+		compatible = "ti,wl1271-st";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_pins>;
+		enable-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;	/* GPIO_46 */
+		clocks = <&twl 0>;
+		clock-names = "ext_clock";
+	};
 };
 
 &uart3 {

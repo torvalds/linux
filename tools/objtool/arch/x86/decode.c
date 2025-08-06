@@ -189,6 +189,15 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	op2 = ins.opcode.bytes[1];
 	op3 = ins.opcode.bytes[2];
 
+	/*
+	 * XXX hack, decoder is buggered and thinks 0xea is 7 bytes long.
+	 */
+	if (op1 == 0xea) {
+		insn->len = 1;
+		insn->type = INSN_BUG;
+		return 0;
+	}
+
 	if (ins.rex_prefix.nbytes) {
 		rex = ins.rex_prefix.bytes[0];
 		rex_w = X86_REX_W(rex) >> 3;
@@ -842,12 +851,14 @@ int arch_decode_hint_reg(u8 sp_reg, int *base)
 
 bool arch_is_retpoline(struct symbol *sym)
 {
-	return !strncmp(sym->name, "__x86_indirect_", 15);
+	return !strncmp(sym->name, "__x86_indirect_", 15) ||
+	       !strncmp(sym->name, "__pi___x86_indirect_", 20);
 }
 
 bool arch_is_rethunk(struct symbol *sym)
 {
-	return !strcmp(sym->name, "__x86_return_thunk");
+	return !strcmp(sym->name, "__x86_return_thunk") ||
+	       !strcmp(sym->name, "__pi___x86_return_thunk");
 }
 
 bool arch_is_embedded_insn(struct symbol *sym)

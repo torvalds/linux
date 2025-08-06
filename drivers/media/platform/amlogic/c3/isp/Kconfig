@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config VIDEO_C3_ISP
+	tristate "Amlogic C3 Image Signal Processor (ISP) driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on VIDEO_DEV
+	depends on OF
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	help
+	  Video4Linux2 driver for Amlogic C3 ISP pipeline.
+	  The C3 ISP is used for processing raw images and
+	  outputing results to memory.
+
+	  To compile this driver as a module choose m here.

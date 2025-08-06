@@ -3,3 +3,7 @@ devlink
 netdev
 ovs
 page-pool
+rt-addr
+rt-link
+rt-route
+tc

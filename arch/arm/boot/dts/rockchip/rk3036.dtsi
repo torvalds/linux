@@ -213,6 +213,8 @@
 		g-np-tx-fifo-size = <16>;
 		g-rx-fifo-size = <275>;
 		g-tx-fifo-size = <256 128 128 64 64 32>;
+		phys = <&usb2phy_otg>;
+		phy-names = "usb2-phy";
 		status = "disabled";
 	};
 
@@ -224,6 +226,8 @@
 		clocks = <&cru HCLK_OTG1>;
 		clock-names = "otg";
 		dr_mode = "host";
+		phys = <&usb2phy_host>;
+		phy-names = "usb2-phy";
 		status = "disabled";
 	};
 
@@ -342,6 +346,37 @@
 	grf: syscon@20008000 {
 		compatible = "rockchip,rk3036-grf", "syscon", "simple-mfd";
 		reg = <0x20008000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		usb2phy: usb2phy@17c {
+			compatible = "rockchip,rk3036-usb2phy";
+			reg = <0x017c 0x20>;
+			clocks = <&cru SCLK_OTGPHY0>;
+			clock-names = "phyclk";
+			clock-output-names = "usb480m_phy";
+			assigned-clocks = <&cru SCLK_USB480M>;
+			assigned-clock-parents = <&usb2phy>;
+			#clock-cells = <0>;
+			status = "disabled";
+
+			usb2phy_host: host-port {
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "linestate";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			usb2phy_otg: otg-port {
+				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-bvalid", "otg-id",
+						  "linestate";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
 
 		power: power-controller {
 			compatible = "rockchip,rk3036-power-controller";
@@ -398,8 +433,9 @@
 		compatible = "rockchip,rk3036-inno-hdmi";
 		reg = <0x20034000 0x4000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru  PCLK_HDMI>;
-		clock-names = "pclk";
+		clocks = <&cru PCLK_HDMI>, <&cru SCLK_LCDC>;
+		clock-names = "pclk", "ref";
+		rockchip,grf = <&grf>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_ctl>;
 		#sound-dai-cells = <0>;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2021, 2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2021, 2024-2025 Intel Corporation
  */
 #ifndef __iwl_agn_h__
 #define __iwl_agn_h__
@@ -399,7 +399,7 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
  * later with iwl_free_nvm_data().
  */
 struct iwl_nvm_data *
-iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size);
 
 int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size);

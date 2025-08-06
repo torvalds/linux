@@ -2347,7 +2347,7 @@ snd_azf3328_create(struct snd_card *card,
 		return -ENXIO;
 	}
 
-	err = pci_request_regions(pci, "Aztech AZF3328");
+	err = pcim_request_all_regions(pci, "Aztech AZF3328");
 	if (err < 0)
 		return err;
 

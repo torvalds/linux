@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/truly,nt35597-2K-display.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Truly NT35597 DSI 2K display
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+
+description: |
+  Truly NT35597 DSI 2K display is used on the Qualcomm SDM845 MTP board.
+
+allOf:
+  - $ref: panel-common-dual.yaml#
+
+properties:
+  compatible:
+    const: truly,nt35597-2K-display
+
+  reg:
+    maxItems: 1
+
+  vdda-supply:
+    description: regulator that provides the supply voltage Power IC supply
+
+  vdispp-supply:
+    description: regulator that provides the supply voltage for positive LCD bias
+
+  vdispn-supply:
+    description: regulator that provides the supply voltage for negative LCD bias
+
+  reset-gpios: true
+
+  mode-gpios:
+    description:
+      Gpio for choosing the mode of the display for single DSI or Dual DSI.
+      This should be low for dual DSI and high for single DSI mode.
+
+  ports:
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - vdda-supply
+  - reset-gpios
+  - mode-gpios
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        panel@0 {
+            compatible = "truly,nt35597-2K-display";
+            reg = <0>;
+
+            vdda-supply = <&pm8998_l14>;
+            vdispp-supply = <&lab_regulator>;
+            vdispn-supply = <&ibb_regulator>;
+
+            reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+            mode-gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    panel0_in: endpoint {
+                        remote-endpoint = <&dsi0_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+
+                    panel1_in: endpoint {
+                        remote-endpoint = <&dsi1_out>;
+                    };
+                };
+            };
+        };
+    };
+...

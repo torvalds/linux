@@ -11,6 +11,7 @@
 #ifndef __LINUX_OPP_H__
 #define __LINUX_OPP_H__
 
+#include <linux/cleanup.h>
 #include <linux/energy_model.h>
 #include <linux/err.h>
 #include <linux/notifier.h>
@@ -100,7 +101,7 @@ struct dev_pm_opp_data {
 #if defined(CONFIG_PM_OPP)
 
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
-void dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table);
+struct opp_table *dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table);
 void dev_pm_opp_put_opp_table(struct opp_table *opp_table);
 
 unsigned long dev_pm_opp_get_bw(struct dev_pm_opp *opp, bool peak, int index);
@@ -161,7 +162,7 @@ struct dev_pm_opp *dev_pm_opp_find_bw_ceil(struct device *dev,
 struct dev_pm_opp *dev_pm_opp_find_bw_floor(struct device *dev,
 					   unsigned int *bw, int index);
 
-void dev_pm_opp_get(struct dev_pm_opp *opp);
+struct dev_pm_opp *dev_pm_opp_get(struct dev_pm_opp *opp);
 void dev_pm_opp_put(struct dev_pm_opp *opp);
 
 int dev_pm_opp_add_dynamic(struct device *dev, struct dev_pm_opp_data *opp);
@@ -196,6 +197,7 @@ int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 void dev_pm_opp_remove_table(struct device *dev);
 void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask);
 int dev_pm_opp_sync_regulators(struct device *dev);
+
 #else
 static inline struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
 {
@@ -207,7 +209,10 @@ static inline struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline void dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table) {}
+static inline struct opp_table *dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table)
+{
+	return opp_table;
+}
 
 static inline void dev_pm_opp_put_opp_table(struct opp_table *opp_table) {}
 
@@ -345,7 +350,10 @@ static inline struct dev_pm_opp *dev_pm_opp_find_bw_floor(struct device *dev,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline void dev_pm_opp_get(struct dev_pm_opp *opp) {}
+static inline struct dev_pm_opp *dev_pm_opp_get(struct dev_pm_opp *opp)
+{
+	return opp;
+}
 
 static inline void dev_pm_opp_put(struct dev_pm_opp *opp) {}
 
@@ -573,6 +581,12 @@ static inline int dev_pm_opp_of_find_icc_paths(struct device *dev, struct opp_ta
 }
 #endif
 
+/* Scope based cleanup macro for OPP reference counting */
+DEFINE_FREE(put_opp, struct dev_pm_opp *, if (!IS_ERR_OR_NULL(_T)) dev_pm_opp_put(_T))
+
+/* Scope based cleanup macro for OPP table reference counting */
+DEFINE_FREE(put_opp_table, struct opp_table *, if (!IS_ERR_OR_NULL(_T)) dev_pm_opp_put_opp_table(_T))
+
 /* OPP Configuration helpers */
 
 static inline int dev_pm_opp_add(struct device *dev, unsigned long freq,
@@ -702,6 +716,16 @@ static inline void dev_pm_opp_put_prop_name(int token)
 static inline unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 {
 	return dev_pm_opp_get_freq_indexed(opp, 0);
+}
+
+static inline int dev_pm_opp_set_level(struct device *dev, unsigned int level)
+{
+	struct dev_pm_opp *opp __free(put_opp) = dev_pm_opp_find_level_exact(dev, level);
+
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+
+	return dev_pm_opp_set_opp(dev, opp);
 }
 
 #endif		/* __LINUX_OPP_H__ */

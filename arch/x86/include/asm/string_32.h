@@ -33,11 +33,11 @@ extern size_t strlen(const char *s);
 static __always_inline void *__memcpy(void *to, const void *from, size_t n)
 {
 	int d0, d1, d2;
-	asm volatile("rep ; movsl\n\t"
+	asm volatile("rep movsl\n\t"
 		     "movl %4,%%ecx\n\t"
 		     "andl $3,%%ecx\n\t"
 		     "jz 1f\n\t"
-		     "rep ; movsb\n\t"
+		     "rep movsb\n\t"
 		     "1:"
 		     : "=&c" (d0), "=&D" (d1), "=&S" (d2)
 		     : "0" (n / 4), "g" (n), "1" ((long)to), "2" ((long)from)
@@ -89,7 +89,7 @@ static __always_inline void *__constant_memcpy(void *to, const void *from,
 	if (n >= 5 * 4) {
 		/* large block: use rep prefix */
 		int ecx;
-		asm volatile("rep ; movsl"
+		asm volatile("rep movsl"
 			     : "=&c" (ecx), "=&D" (edi), "=&S" (esi)
 			     : "0" (n / 4), "1" (edi), "2" (esi)
 			     : "memory"
@@ -165,8 +165,7 @@ extern void *memchr(const void *cs, int c, size_t count);
 static inline void *__memset_generic(void *s, char c, size_t count)
 {
 	int d0, d1;
-	asm volatile("rep\n\t"
-		     "stosb"
+	asm volatile("rep stosb"
 		     : "=&c" (d0), "=&D" (d1)
 		     : "a" (c), "1" (s), "0" (count)
 		     : "memory");
@@ -199,8 +198,7 @@ extern void *memset(void *, int, size_t);
 static inline void *memset16(uint16_t *s, uint16_t v, size_t n)
 {
 	int d0, d1;
-	asm volatile("rep\n\t"
-		     "stosw"
+	asm volatile("rep stosw"
 		     : "=&c" (d0), "=&D" (d1)
 		     : "a" (v), "1" (s), "0" (n)
 		     : "memory");
@@ -211,8 +209,7 @@ static inline void *memset16(uint16_t *s, uint16_t v, size_t n)
 static inline void *memset32(uint32_t *s, uint32_t v, size_t n)
 {
 	int d0, d1;
-	asm volatile("rep\n\t"
-		     "stosl"
+	asm volatile("rep stosl"
 		     : "=&c" (d0), "=&D" (d1)
 		     : "a" (v), "1" (s), "0" (n)
 		     : "memory");

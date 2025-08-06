@@ -1900,7 +1900,8 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
  **/
 static void igbvf_watchdog(struct timer_list *t)
 {
-	struct igbvf_adapter *adapter = from_timer(adapter, t, watchdog_timer);
+	struct igbvf_adapter *adapter = timer_container_of(adapter, t,
+							   watchdog_timer);
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);

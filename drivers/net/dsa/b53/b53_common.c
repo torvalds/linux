@@ -21,6 +21,8 @@
 #include <linux/export.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/platform_data/b53.h>
 #include <linux/phy.h>
@@ -326,6 +328,26 @@ static void b53_get_vlan_entry(struct b53_device *dev, u16 vid,
 	}
 }
 
+static void b53_set_eap_mode(struct b53_device *dev, int port, int mode)
+{
+	u64 eap_conf;
+
+	if (is5325(dev) || is5365(dev) || dev->chip_id == BCM5389_DEVICE_ID)
+		return;
+
+	b53_read64(dev, B53_EAP_PAGE, B53_PORT_EAP_CONF(port), &eap_conf);
+
+	if (is63xx(dev)) {
+		eap_conf &= ~EAP_MODE_MASK_63XX;
+		eap_conf |= (u64)mode << EAP_MODE_SHIFT_63XX;
+	} else {
+		eap_conf &= ~EAP_MODE_MASK;
+		eap_conf |= (u64)mode << EAP_MODE_SHIFT;
+	}
+
+	b53_write64(dev, B53_EAP_PAGE, B53_PORT_EAP_CONF(port), eap_conf);
+}
+
 static void b53_set_forwarding(struct b53_device *dev, int enable)
 {
 	u8 mgmt;
@@ -585,6 +607,13 @@ int b53_setup_port(struct dsa_switch *ds, int port)
 	b53_port_set_ucast_flood(dev, port, true);
 	b53_port_set_mcast_flood(dev, port, true);
 	b53_port_set_learning(dev, port, false);
+
+	/* Force all traffic to go to the CPU port to prevent the ASIC from
+	 * trying to forward to bridged ports on matching FDB entries, then
+	 * dropping frames because it isn't allowed to forward there.
+	 */
+	if (dsa_is_user_port(ds, port))
+		b53_set_eap_mode(dev, port, EAP_MODE_SIMPLIFIED);
 
 	return 0;
 }
@@ -1175,6 +1204,10 @@ static int b53_setup(struct dsa_switch *ds)
 	 */
 	ds->untag_vlan_aware_bridge_pvid = true;
 
+	/* Ageing time is set in seconds */
+	ds->ageing_time_min = 1 * 1000;
+	ds->ageing_time_max = AGE_TIME_MAX * 1000;
+
 	ret = b53_reset_switch(dev);
 	if (ret) {
 		dev_err(ds->dev, "failed to reset switch\n");
@@ -1290,41 +1323,17 @@ static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
 				  phy_interface_t interface)
 {
 	struct b53_device *dev = ds->priv;
-	u8 rgmii_ctrl = 0, off;
+	u8 rgmii_ctrl = 0;
 
-	if (port == dev->imp_port)
-		off = B53_RGMII_CTRL_IMP;
-	else
-		off = B53_RGMII_CTRL_P(port);
+	b53_read8(dev, B53_CTRL_PAGE, B53_RGMII_CTRL_P(port), &rgmii_ctrl);
+	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
 
-	b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
+	if (is63268(dev))
+		rgmii_ctrl |= RGMII_CTRL_MII_OVERRIDE;
 
-	switch (interface) {
-	case PHY_INTERFACE_MODE_RGMII_ID:
-		rgmii_ctrl |= (RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
-		break;
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-		rgmii_ctrl &= ~(RGMII_CTRL_DLL_TXC);
-		rgmii_ctrl |= RGMII_CTRL_DLL_RXC;
-		break;
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC);
-		rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
-		break;
-	case PHY_INTERFACE_MODE_RGMII:
-	default:
-		rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
-		break;
-	}
+	rgmii_ctrl |= RGMII_CTRL_ENABLE_GMII;
 
-	if (port != dev->imp_port) {
-		if (is63268(dev))
-			rgmii_ctrl |= RGMII_CTRL_MII_OVERRIDE;
-
-		rgmii_ctrl |= RGMII_CTRL_ENABLE_GMII;
-	}
-
-	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
+	b53_write8(dev, B53_CTRL_PAGE, B53_RGMII_CTRL_P(port), rgmii_ctrl);
 
 	dev_dbg(ds->dev, "Configured port %d for %s\n", port,
 		phy_modes(interface));
@@ -1345,8 +1354,7 @@ static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
 	 * tx_clk aligned timing (restoring to reset defaults)
 	 */
 	b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
-	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC |
-			RGMII_CTRL_TIMING_SEL);
+	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
 
 	/* PHY_INTERFACE_MODE_RGMII_TXID means TX internal delay, make
 	 * sure that we enable the port TX clock internal delay to
@@ -1366,7 +1374,10 @@ static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
 		rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
 	if (interface == PHY_INTERFACE_MODE_RGMII)
 		rgmii_ctrl |= RGMII_CTRL_DLL_TXC | RGMII_CTRL_DLL_RXC;
-	rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
+
+	if (dev->chip_id != BCM53115_DEVICE_ID)
+		rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
+
 	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
 
 	dev_info(ds->dev, "Configured port %d for %s\n", port,
@@ -1430,6 +1441,10 @@ static void b53_phylink_get_caps(struct dsa_switch *ds, int port,
 	__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_REVMII, config->supported_interfaces);
 
+	/* BCM63xx RGMII ports support RGMII */
+	if (is63xx(dev) && in_range(port, B53_63XX_RGMII0, 4))
+		phy_interface_set_rgmii(config->supported_interfaces);
+
 	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 		MAC_10 | MAC_100;
 
@@ -1469,7 +1484,7 @@ static void b53_phylink_mac_config(struct phylink_config *config,
 	struct b53_device *dev = ds->priv;
 	int port = dp->index;
 
-	if (is63xx(dev) && port >= B53_63XX_RGMII0)
+	if (is63xx(dev) && in_range(port, B53_63XX_RGMII0, 4))
 		b53_adjust_63xx_rgmii(ds, port, interface);
 
 	if (mode == MLO_AN_FIXED) {
@@ -2042,6 +2057,9 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 		pvlan |= BIT(i);
 	}
 
+	/* Disable redirection of unknown SA to the CPU port */
+	b53_set_eap_mode(dev, port, EAP_MODE_BASIC);
+
 	/* Configure the local port VLAN control membership to include
 	 * remote ports and update the local port bitmask
 	 */
@@ -2076,6 +2094,9 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct dsa_bridge bridge)
 		if (port != i)
 			pvlan &= ~BIT(i);
 	}
+
+	/* Enable redirection of unknown SA to the CPU port */
+	b53_set_eap_mode(dev, port, EAP_MODE_SIMPLIFIED);
 
 	b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), pvlan);
 	dev->ports[port].vlan_ctl_mask = pvlan;
@@ -2315,6 +2336,9 @@ int b53_eee_init(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	int ret;
 
+	if (!b53_support_eee(ds, port))
+		return 0;
+
 	ret = phy_init_eee(phy, false);
 	if (ret)
 		return 0;
@@ -2329,7 +2353,7 @@ bool b53_support_eee(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 
-	return !is5325(dev) && !is5365(dev);
+	return !is5325(dev) && !is5365(dev) && !is63xx(dev);
 }
 EXPORT_SYMBOL(b53_support_eee);
 
@@ -2373,6 +2397,28 @@ static int b53_get_max_mtu(struct dsa_switch *ds, int port)
 	return B53_MAX_MTU;
 }
 
+int b53_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
+{
+	struct b53_device *dev = ds->priv;
+	u32 atc;
+	int reg;
+
+	if (is63xx(dev))
+		reg = B53_AGING_TIME_CONTROL_63XX;
+	else
+		reg = B53_AGING_TIME_CONTROL;
+
+	atc = DIV_ROUND_CLOSEST(msecs, 1000);
+
+	if (!is5325(dev) && !is5365(dev))
+		atc |= AGE_CHANGE;
+
+	b53_write32(dev, B53_MGMT_PAGE, reg, atc);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(b53_set_ageing_time);
+
 static const struct phylink_mac_ops b53_phylink_mac_ops = {
 	.mac_select_pcs	= b53_phylink_mac_select_pcs,
 	.mac_config	= b53_phylink_mac_config,
@@ -2396,6 +2442,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_disable		= b53_disable_port,
 	.support_eee		= b53_support_eee,
 	.set_mac_eee		= b53_set_mac_eee,
+	.set_ageing_time	= b53_set_ageing_time,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_pre_bridge_flags	= b53_br_flags_pre,

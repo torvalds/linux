@@ -168,7 +168,7 @@ static void __init media5200_init_irq(void)
 
 	spin_lock_init(&media5200_irq.lock);
 
-	media5200_irq.irqhost = irq_domain_add_linear(fpga_np,
+	media5200_irq.irqhost = irq_domain_create_linear(of_fwnode_handle(fpga_np),
 			MEDIA5200_NUM_IRQS, &media5200_irq_ops, &media5200_irq);
 	if (!media5200_irq.irqhost)
 		goto out;

@@ -41,6 +41,19 @@ static int __init cgroup_bpf_wq_init(void)
 }
 core_initcall(cgroup_bpf_wq_init);
 
+static int cgroup_bpf_lifetime_notify(struct notifier_block *nb,
+				      unsigned long action, void *data);
+
+static struct notifier_block cgroup_bpf_lifetime_nb = {
+	.notifier_call = cgroup_bpf_lifetime_notify,
+};
+
+void __init cgroup_bpf_lifetime_notifier_init(void)
+{
+	BUG_ON(blocking_notifier_chain_register(&cgroup_lifetime_notifier,
+						&cgroup_bpf_lifetime_nb));
+}
+
 /* __always_inline is necessary to prevent indirect call through run_prog
  * function pointer.
  */
@@ -206,7 +219,7 @@ bpf_cgroup_atype_find(enum bpf_attach_type attach_type, u32 attach_btf_id)
 }
 #endif /* CONFIG_BPF_LSM */
 
-void cgroup_bpf_offline(struct cgroup *cgrp)
+static void cgroup_bpf_offline(struct cgroup *cgrp)
 {
 	cgroup_get(cgrp);
 	percpu_ref_kill(&cgrp->bpf.refcnt);
@@ -491,7 +504,7 @@ static void activate_effective_progs(struct cgroup *cgrp,
  * cgroup_bpf_inherit() - inherit effective programs from parent
  * @cgrp: the cgroup to modify
  */
-int cgroup_bpf_inherit(struct cgroup *cgrp)
+static int cgroup_bpf_inherit(struct cgroup *cgrp)
 {
 /* has to use marco instead of const int, since compiler thinks
  * that array below is variable length
@@ -532,6 +545,27 @@ cleanup:
 	percpu_ref_exit(&cgrp->bpf.refcnt);
 
 	return -ENOMEM;
+}
+
+static int cgroup_bpf_lifetime_notify(struct notifier_block *nb,
+				      unsigned long action, void *data)
+{
+	struct cgroup *cgrp = data;
+	int ret = 0;
+
+	if (cgrp->root != &cgrp_dfl_root)
+		return NOTIFY_OK;
+
+	switch (action) {
+	case CGROUP_LIFETIME_ONLINE:
+		ret = cgroup_bpf_inherit(cgrp);
+		break;
+	case CGROUP_LIFETIME_OFFLINE:
+		cgroup_bpf_offline(cgrp);
+		break;
+	}
+
+	return notifier_from_errno(ret);
 }
 
 static int update_effective_progs(struct cgroup *cgrp,
@@ -1653,10 +1687,6 @@ cgroup_dev_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	if (func_proto)
 		return func_proto;
 
-	func_proto = cgroup_current_func_proto(func_id, prog);
-	if (func_proto)
-		return func_proto;
-
 	switch (func_id) {
 	case BPF_FUNC_perf_event_output:
 		return &bpf_event_output_data_proto;
@@ -2204,10 +2234,6 @@ sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	if (func_proto)
 		return func_proto;
 
-	func_proto = cgroup_current_func_proto(func_id, prog);
-	if (func_proto)
-		return func_proto;
-
 	switch (func_id) {
 	case BPF_FUNC_sysctl_get_name:
 		return &bpf_sysctl_get_name_proto;
@@ -2348,10 +2374,6 @@ cg_sockopt_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	const struct bpf_func_proto *func_proto;
 
 	func_proto = cgroup_common_func_proto(func_id, prog);
-	if (func_proto)
-		return func_proto;
-
-	func_proto = cgroup_current_func_proto(func_id, prog);
 	if (func_proto)
 		return func_proto;
 
@@ -2597,26 +2619,6 @@ cgroup_common_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		default:
 			return &bpf_set_retval_proto;
 		}
-	default:
-		return NULL;
-	}
-}
-
-/* Common helpers for cgroup hooks with valid process context. */
-const struct bpf_func_proto *
-cgroup_current_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-{
-	switch (func_id) {
-	case BPF_FUNC_get_current_uid_gid:
-		return &bpf_get_current_uid_gid_proto;
-	case BPF_FUNC_get_current_comm:
-		return &bpf_get_current_comm_proto;
-#ifdef CONFIG_CGROUP_NET_CLASSID
-	case BPF_FUNC_get_cgroup_classid:
-		return &bpf_get_cgroup_classid_curr_proto;
-#endif
-	case BPF_FUNC_current_task_under_cgroup:
-		return &bpf_current_task_under_cgroup_proto;
 	default:
 		return NULL;
 	}

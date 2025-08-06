@@ -74,6 +74,7 @@ static const struct crypto_type crypto_sig_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SIG,
 	.tfmsize = offsetof(struct crypto_sig, base),
+	.algsize = offsetof(struct sig_alg, base),
 };
 
 struct crypto_sig *crypto_alloc_sig(const char *alg_name, u32 type, u32 mask)
@@ -102,6 +103,11 @@ static int sig_default_set_key(struct crypto_sig *tfm,
 	return -ENOSYS;
 }
 
+static unsigned int sig_default_size(struct crypto_sig *tfm)
+{
+	return DIV_ROUND_UP_POW2(crypto_sig_keysize(tfm), BITS_PER_BYTE);
+}
+
 static int sig_prepare_alg(struct sig_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
@@ -117,9 +123,9 @@ static int sig_prepare_alg(struct sig_alg *alg)
 	if (!alg->key_size)
 		return -EINVAL;
 	if (!alg->max_size)
-		alg->max_size = alg->key_size;
+		alg->max_size = sig_default_size;
 	if (!alg->digest_size)
-		alg->digest_size = alg->key_size;
+		alg->digest_size = sig_default_size;
 
 	base->cra_type = &crypto_sig_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;

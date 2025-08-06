@@ -44,8 +44,11 @@ enum qcom_scm_arg_types {
 
 /**
  * struct qcom_scm_desc
+ * @svc: Service identifier
+ * @cmd: Command identifier
  * @arginfo:	Metadata describing the arguments in args[]
  * @args:	The array of arguments for the secure syscall
+ * @owner: Owner identifier
  */
 struct qcom_scm_desc {
 	u32 svc;

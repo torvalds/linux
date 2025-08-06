@@ -29,6 +29,18 @@ int strncmp(const char *cs, const char *ct, size_t count)
 	return 0;
 }
 
+ssize_t sized_strscpy(char *dst, const char *src, size_t count)
+{
+	size_t len;
+
+	if (count == 0)
+		return -E2BIG;
+	len = strnlen(src, count - 1);
+	memcpy(dst, src, len);
+	dst[len] = '\0';
+	return src[len] ? -E2BIG : len;
+}
+
 void *memset64(uint64_t *s, uint64_t v, size_t count)
 {
 	uint64_t *xs = s;

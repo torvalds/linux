@@ -948,13 +948,14 @@ static enum drm_mode_status adv7511_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static int adv7511_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 	int ret = 0;
 
 	if (adv->next_bridge) {
-		ret = drm_bridge_attach(bridge->encoder, adv->next_bridge, bridge,
+		ret = drm_bridge_attach(encoder, adv->next_bridge, bridge,
 					flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 		if (ret)
 			return ret;

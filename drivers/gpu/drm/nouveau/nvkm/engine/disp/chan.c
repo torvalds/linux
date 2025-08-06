@@ -49,7 +49,7 @@ nvkm_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 {
 	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
 	struct nvkm_device *device = chan->disp->engine.subdev.device;
-	const u64 base = device->func->resource_addr(device, 0);
+	const u64 base = device->func->resource_addr(device, NVKM_BAR0_PRI);
 
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = base + chan->func->user(chan, size);

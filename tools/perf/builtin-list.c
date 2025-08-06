@@ -197,7 +197,8 @@ static void default_print_metric(void *ps,
 				const char *long_desc,
 				const char *expr,
 				const char *threshold,
-				const char *unit __maybe_unused)
+				const char *unit __maybe_unused,
+				const char *pmu_name __maybe_unused)
 {
 	struct print_state *print_state = ps;
 	FILE *fp = print_state->fp;
@@ -433,7 +434,8 @@ static void json_print_event(void *ps, const char *topic, const char *pmu_name,
 static void json_print_metric(void *ps __maybe_unused, const char *group,
 			      const char *name, const char *desc,
 			      const char *long_desc, const char *expr,
-			      const char *threshold, const char *unit)
+			      const char *threshold, const char *unit,
+			      const char *pmu_name)
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
@@ -481,6 +483,12 @@ static void json_print_metric(void *ps __maybe_unused, const char *group,
 		fix_escape_fprintf(fp, &buf, "%s\t\"PublicDescription\": \"%S\"",
 				   need_sep ? ",\n" : "",
 				   long_desc);
+		need_sep = true;
+	}
+	if (pmu_name) {
+		fix_escape_fprintf(fp, &buf, "%s\t\"Unit\": \"%S\"",
+				   need_sep ? ",\n" : "",
+				   pmu_name);
 		need_sep = true;
 	}
 	fprintf(fp, "%s}", need_sep ? "\n" : "");

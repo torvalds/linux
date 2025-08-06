@@ -629,8 +629,6 @@ int __init fsl_mc_allocator_driver_init(void);
 
 void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 
-void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
-
 int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 					  enum fsl_mc_pool_type pool_type,
 					  struct fsl_mc_resource

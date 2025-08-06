@@ -9,8 +9,8 @@
  *
  */
  
-#ifndef _LINUX_IF_PLIP_H
-#define _LINUX_IF_PLIP_H
+#ifndef _UAPI_LINUX_IF_PLIP_H
+#define _UAPI_LINUX_IF_PLIP_H
 
 #include <linux/sockios.h>
 

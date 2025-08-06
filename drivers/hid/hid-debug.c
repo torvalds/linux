@@ -3291,6 +3291,8 @@ static const char *keys[KEY_MAX + 1] = {
 	[BTN_TR2] = "BtnTR2",			[BTN_SELECT] = "BtnSelect",
 	[BTN_START] = "BtnStart",		[BTN_MODE] = "BtnMode",
 	[BTN_THUMBL] = "BtnThumbL",		[BTN_THUMBR] = "BtnThumbR",
+	[BTN_GRIPL] = "BtnGripL",		[BTN_GRIPR] = "BtnGripR",
+	[BTN_GRIPL2] = "BtnGripL2",		[BTN_GRIPR2] = "BtnGripR2",
 	[BTN_TOOL_PEN] = "ToolPen",		[BTN_TOOL_RUBBER] = "ToolRubber",
 	[BTN_TOOL_BRUSH] = "ToolBrush",		[BTN_TOOL_PENCIL] = "ToolPencil",
 	[BTN_TOOL_AIRBRUSH] = "ToolAirbrush",	[BTN_TOOL_FINGER] = "ToolFinger",

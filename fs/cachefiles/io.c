@@ -63,7 +63,7 @@ static void cachefiles_read_complete(struct kiocb *iocb, long ret)
 				ret = -ESTALE;
 		}
 
-		ki->term_func(ki->term_func_priv, ret, ki->was_async);
+		ki->term_func(ki->term_func_priv, ret);
 	}
 
 	cachefiles_put_kiocb(ki);
@@ -188,7 +188,7 @@ in_progress:
 
 presubmission_error:
 	if (term_func)
-		term_func(term_func_priv, ret < 0 ? ret : skipped, false);
+		term_func(term_func_priv, ret < 0 ? ret : skipped);
 	return ret;
 }
 
@@ -271,7 +271,7 @@ static void cachefiles_write_complete(struct kiocb *iocb, long ret)
 	atomic_long_sub(ki->b_writing, &object->volume->cache->b_writing);
 	set_bit(FSCACHE_COOKIE_HAVE_DATA, &object->cookie->flags);
 	if (ki->term_func)
-		ki->term_func(ki->term_func_priv, ret, ki->was_async);
+		ki->term_func(ki->term_func_priv, ret);
 	cachefiles_put_kiocb(ki);
 }
 
@@ -301,7 +301,7 @@ int __cachefiles_write(struct cachefiles_object *object,
 	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
 	if (!ki) {
 		if (term_func)
-			term_func(term_func_priv, -ENOMEM, false);
+			term_func(term_func_priv, -ENOMEM);
 		return -ENOMEM;
 	}
 
@@ -366,7 +366,7 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 {
 	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_WRITE)) {
 		if (term_func)
-			term_func(term_func_priv, -ENOBUFS, false);
+			term_func(term_func_priv, -ENOBUFS);
 		trace_netfs_sreq(term_func_priv, netfs_sreq_trace_cache_nowrite);
 		return -ENOBUFS;
 	}
@@ -665,7 +665,7 @@ static void cachefiles_issue_write(struct netfs_io_subrequest *subreq)
 		pre = CACHEFILES_DIO_BLOCK_SIZE - off;
 		if (pre >= len) {
 			fscache_count_dio_misfit();
-			netfs_write_subrequest_terminated(subreq, len, false);
+			netfs_write_subrequest_terminated(subreq, len);
 			return;
 		}
 		subreq->transferred += pre;
@@ -691,7 +691,7 @@ static void cachefiles_issue_write(struct netfs_io_subrequest *subreq)
 		len -= post;
 		if (len == 0) {
 			fscache_count_dio_misfit();
-			netfs_write_subrequest_terminated(subreq, post, false);
+			netfs_write_subrequest_terminated(subreq, post);
 			return;
 		}
 		iov_iter_truncate(&subreq->io_iter, len);
@@ -703,7 +703,7 @@ static void cachefiles_issue_write(struct netfs_io_subrequest *subreq)
 					 &start, &len, len, true);
 	cachefiles_end_secure(cache, saved_cred);
 	if (ret < 0) {
-		netfs_write_subrequest_terminated(subreq, ret, false);
+		netfs_write_subrequest_terminated(subreq, ret);
 		return;
 	}
 

@@ -142,17 +142,3 @@ int rv1_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_di
 
 	return actual_dispclk_set_mhz * 1000;
 }
-
-int rv1_vbios_smu_set_dprefclk(struct clk_mgr_internal *clk_mgr)
-{
-	int actual_dprefclk_set_mhz = -1;
-
-	actual_dprefclk_set_mhz = rv1_vbios_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_SetDprefclkFreq,
-			khz_to_mhz_ceil(clk_mgr->base.dprefclk_khz));
-
-	/* TODO: add code for programing DP DTO, currently this is down by command table */
-
-	return actual_dprefclk_set_mhz * 1000;
-}

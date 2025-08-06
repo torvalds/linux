@@ -70,6 +70,13 @@ properties:
     minItems: 1
     maxItems: 4
 
+  gpio-reserved-ranges: true
+
+  ngpios:
+    minimum: 1
+    maximum: 32
+    default: 32
+
 patternProperties:
   "^.+-hog(-[0-9]+)?$":
     type: object

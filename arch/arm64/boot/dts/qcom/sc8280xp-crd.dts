@@ -37,6 +37,20 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&kypd_vol_up_n>;
+		pinctrl-names = "default";
+
+		key-vol-up {
+			label = "volume_up";
+			gpios = <&pmc8280_1_gpios 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
+		};
+	};
+
 	pmic-glink {
 		compatible = "qcom,sc8280xp-pmic-glink", "qcom,pmic-glink";
 
@@ -686,7 +700,7 @@
 		vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
 		vddrfa1p8-supply = <&vreg_pmu_rfa_1p7>;
 
-		qcom,ath11k-calibration-variant = "QC_8280XP_CRD";
+		qcom,calibration-variant = "QC_8280XP_CRD";
 	};
 };
 
@@ -733,6 +747,12 @@
 
 &remoteproc_nsp0 {
 	firmware-name = "qcom/sc8280xp/qccdsp8280.mbn";
+
+	status = "okay";
+};
+
+&remoteproc_slpi {
+	firmware-name = "qcom/sc8280xp/qcslpi8280.mbn";
 
 	status = "okay";
 };
@@ -883,6 +903,14 @@
 	edp_bl_reg_en: edp-bl-reg-en-state {
 		pins = "gpio9";
 		function = "normal";
+	};
+
+	kypd_vol_up_n: kypd-vol-up-n-state {
+		pins = "gpio6";
+		function = "normal";
+		power-source = <0>; /* 3.3 V */
+		bias-pull-up;
+		input-enable;
 	};
 
 	misc_3p3_reg_en: misc-3p3-reg-en-state {

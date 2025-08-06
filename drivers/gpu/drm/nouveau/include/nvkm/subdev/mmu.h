@@ -8,7 +8,7 @@ struct nvkm_vma {
 	struct list_head head;
 	struct rb_node tree;
 	u64 addr;
-	u64 size:50;
+	u64 size;
 	bool mapref:1; /* PTs (de)referenced on (un)map (vs pre-allocated). */
 	bool sparse:1; /* Unmapped PDEs/PTEs will not trigger MMU faults. */
 #define NVKM_VMA_PAGE_NONE 7
@@ -73,6 +73,7 @@ struct nvkm_vmm {
 		struct nvkm_gsp_object object;
 
 		struct nvkm_vma *rsvd;
+		bool external;
 	} rm;
 };
 
@@ -165,4 +166,5 @@ int gp100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct 
 int gp10b_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
 int gv100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
 int tu102_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
+int gh100_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);
 #endif

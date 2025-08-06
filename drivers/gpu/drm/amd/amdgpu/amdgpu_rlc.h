@@ -237,6 +237,20 @@ struct amdgpu_rlc_funcs {
 	void (*unset_safe_mode)(struct amdgpu_device *adev, int xcc_id);
 	int  (*init)(struct amdgpu_device *adev);
 	u32  (*get_csb_size)(struct amdgpu_device *adev);
+
+	/**
+	 * @get_csb_buffer: Get the clear state to be put into the hardware.
+	 *
+	 * The parameter adev is used to get the CS data and other gfx info,
+	 * and buffer is the RLC CS pointer
+	 *
+	 * Sometimes, the user space puts a request to clear the state in the
+	 * command buffer; this function provides the clear state that gets put
+	 * into the hardware. Note that the driver programs Clear State
+	 * Indirect Buffer (CSB) explicitly when it sets up the kernel rings,
+	 * and it also provides a pointer to it which is used by the firmware
+	 * to load the clear state in some cases.
+	 */
 	void (*get_csb_buffer)(struct amdgpu_device *adev, volatile u32 *buffer);
 	int  (*get_cp_table_num)(struct amdgpu_device *adev);
 	int  (*resume)(struct amdgpu_device *adev);

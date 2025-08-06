@@ -290,10 +290,8 @@ static void __init fadump_show_config(void)
 	if (!fw_dump.fadump_supported)
 		return;
 
-	pr_debug("Fadump enabled    : %s\n",
-				(fw_dump.fadump_enabled ? "yes" : "no"));
-	pr_debug("Dump Active       : %s\n",
-				(fw_dump.dump_active ? "yes" : "no"));
+	pr_debug("Fadump enabled    : %s\n", str_yes_no(fw_dump.fadump_enabled));
+	pr_debug("Dump Active       : %s\n", str_yes_no(fw_dump.dump_active));
 	pr_debug("Dump section sizes:\n");
 	pr_debug("    CPU state data size: %lx\n", fw_dump.cpu_state_data_size);
 	pr_debug("    HPTE region size   : %lx\n", fw_dump.hpte_region_size);

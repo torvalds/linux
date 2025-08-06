@@ -132,7 +132,7 @@ static void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 	do {
 		local_irq_enable();
 
-		if (thread_flags & _TIF_NEED_RESCHED)
+		if (thread_flags & (_TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY))
 			schedule();
 
 		if (thread_flags & _TIF_UPROBE)
@@ -393,20 +393,16 @@ static bool cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
  * As per the ABI exit SME streaming mode and clear the SVE state not
  * shared with FPSIMD on syscall entry.
  */
-static inline void fp_user_discard(void)
+static inline void fpsimd_syscall_enter(void)
 {
-	/*
-	 * If SME is active then exit streaming mode.  If ZA is active
-	 * then flush the SVE registers but leave userspace access to
-	 * both SVE and SME enabled, otherwise disable SME for the
-	 * task and fall through to disabling SVE too.  This means
-	 * that after a syscall we never have any streaming mode
-	 * register state to track, if this changes the KVM code will
-	 * need updating.
-	 */
+	/* Ensure PSTATE.SM is clear, but leave PSTATE.ZA as-is. */
 	if (system_supports_sme())
 		sme_smstop_sm();
 
+	/*
+	 * The CPU is not in streaming mode. If non-streaming SVE is not
+	 * supported, there is no SVE state that needs to be discarded.
+	 */
 	if (!system_supports_sve())
 		return;
 
@@ -416,6 +412,33 @@ static inline void fp_user_discard(void)
 		sve_vq_minus_one = sve_vq_from_vl(task_get_sve_vl(current)) - 1;
 		sve_flush_live(true, sve_vq_minus_one);
 	}
+
+	/*
+	 * Any live non-FPSIMD SVE state has been zeroed. Allow
+	 * fpsimd_save_user_state() to lazily discard SVE state until either
+	 * the live state is unbound or fpsimd_syscall_exit() is called.
+	 */
+	__this_cpu_write(fpsimd_last_state.to_save, FP_STATE_FPSIMD);
+}
+
+static __always_inline void fpsimd_syscall_exit(void)
+{
+	if (!system_supports_sve())
+		return;
+
+	/*
+	 * The current task's user FPSIMD/SVE/SME state is now bound to this
+	 * CPU. The fpsimd_last_state.to_save value is either:
+	 *
+	 * - FP_STATE_FPSIMD, if the state has not been reloaded on this CPU
+	 *   since fpsimd_syscall_enter().
+	 *
+	 * - FP_STATE_CURRENT, if the state has been reloaded on this CPU at
+	 *   any point.
+	 *
+	 * Reset this to FP_STATE_CURRENT to stop lazy discarding.
+	 */
+	__this_cpu_write(fpsimd_last_state.to_save, FP_STATE_CURRENT);
 }
 
 UNHANDLED(el1t, 64, sync)
@@ -739,10 +762,11 @@ static void noinstr el0_svc(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
-	fp_user_discard();
+	fpsimd_syscall_enter();
 	local_daif_restore(DAIF_PROCCTX);
 	do_el0_svc(regs);
 	exit_to_user_mode(regs);
+	fpsimd_syscall_exit();
 }
 
 static void noinstr el0_fpac(struct pt_regs *regs, unsigned long esr)

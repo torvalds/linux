@@ -717,13 +717,13 @@ static DEFINE_SIMPLE_DEV_PM_OPS(ltr390_pm_ops, ltr390_suspend, ltr390_resume);
 
 static const struct i2c_device_id ltr390_id[] = {
 	{ "ltr390" },
-	{ /* Sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltr390_id);
 
 static const struct of_device_id ltr390_of_table[] = {
 	{ .compatible = "liteon,ltr390" },
-	{ /* Sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltr390_of_table);
 

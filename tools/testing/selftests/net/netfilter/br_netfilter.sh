@@ -60,9 +60,6 @@ bcast_ping()
 	done
 }
 
-ip netns exec "$ns0" sysctl -q net.ipv4.conf.all.rp_filter=0
-ip netns exec "$ns0" sysctl -q net.ipv4.conf.default.rp_filter=0
-
 if ! ip link add veth1 netns "$ns0" type veth peer name eth0 netns "$ns1"; then
 	echo "SKIP: Can't create veth device"
 	exit $ksft_skip

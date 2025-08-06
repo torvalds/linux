@@ -291,7 +291,7 @@ reset_hfcpci(struct hfc_pci *hc)
 static void
 hfcpci_Timer(struct timer_list *t)
 {
-	struct hfc_pci *hc = from_timer(hc, t, hw.timer);
+	struct hfc_pci *hc = timer_container_of(hc, t, hw.timer);
 	hc->hw.timer.expires = jiffies + 75;
 	/* WD RESET */
 /*

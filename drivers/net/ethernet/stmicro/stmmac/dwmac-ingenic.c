@@ -56,6 +56,7 @@ enum ingenic_mac_version {
 
 struct ingenic_mac {
 	const struct ingenic_soc_info *soc_info;
+	struct plat_stmmacenet_data *plat_dat;
 	struct device *dev;
 	struct regmap *regmap;
 
@@ -70,13 +71,13 @@ struct ingenic_soc_info {
 	int (*set_mode)(struct plat_stmmacenet_data *plat_dat);
 };
 
-static int ingenic_mac_init(struct plat_stmmacenet_data *plat_dat)
+static int ingenic_mac_init(struct platform_device *pdev, void *bsp_priv)
 {
-	struct ingenic_mac *mac = plat_dat->bsp_priv;
+	struct ingenic_mac *mac = bsp_priv;
 	int ret;
 
 	if (mac->soc_info->set_mode) {
-		ret = mac->soc_info->set_mode(plat_dat);
+		ret = mac->soc_info->set_mode(mac->plat_dat);
 		if (ret)
 			return ret;
 	}
@@ -284,43 +285,13 @@ static int ingenic_mac_probe(struct platform_device *pdev)
 
 	mac->soc_info = data;
 	mac->dev = &pdev->dev;
+	mac->plat_dat = plat_dat;
 
 	plat_dat->bsp_priv = mac;
+	plat_dat->init = ingenic_mac_init;
 
-	ret = ingenic_mac_init(plat_dat);
-	if (ret)
-		return ret;
-
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
-
-#ifdef CONFIG_PM_SLEEP
-static int ingenic_mac_suspend(struct device *dev)
-{
-	int ret;
-
-	ret = stmmac_suspend(dev);
-
-	return ret;
-}
-
-static int ingenic_mac_resume(struct device *dev)
-{
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	int ret;
-
-	ret = ingenic_mac_init(priv->plat);
-	if (ret)
-		return ret;
-
-	ret = stmmac_resume(dev);
-
-	return ret;
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static SIMPLE_DEV_PM_OPS(ingenic_mac_pm_ops, ingenic_mac_suspend, ingenic_mac_resume);
 
 static struct ingenic_soc_info jz4775_soc_info = {
 	.version = ID_JZ4775,
@@ -370,10 +341,9 @@ MODULE_DEVICE_TABLE(of, ingenic_mac_of_matches);
 
 static struct platform_driver ingenic_mac_driver = {
 	.probe		= ingenic_mac_probe,
-	.remove		= stmmac_pltfr_remove,
 	.driver		= {
 		.name	= "ingenic-mac",
-		.pm		= pm_ptr(&ingenic_mac_pm_ops),
+		.pm		= &stmmac_pltfr_pm_ops,
 		.of_match_table = ingenic_mac_of_matches,
 	},
 };

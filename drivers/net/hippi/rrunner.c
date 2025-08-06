@@ -1154,7 +1154,7 @@ static inline void rr_raz_rx(struct rr_private *rrpriv,
 
 static void rr_timer(struct timer_list *t)
 {
-	struct rr_private *rrpriv = from_timer(rrpriv, t, timer);
+	struct rr_private *rrpriv = timer_container_of(rrpriv, t, timer);
 	struct net_device *dev = pci_get_drvdata(rrpriv->pci_dev);
 	struct rr_regs __iomem *regs = rrpriv->regs;
 	unsigned long flags;

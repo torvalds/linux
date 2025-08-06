@@ -55,19 +55,6 @@ int free_stream_context(struct intel_sst_drv *ctx, unsigned int str_id)
 	return ret;
 }
 
-int sst_get_stream_allocated(struct intel_sst_drv *ctx,
-	struct snd_sst_params *str_param,
-	struct snd_sst_lib_download **lib_dnld)
-{
-	int retval;
-
-	retval = ctx->ops->alloc_stream(ctx, str_param);
-	if (retval > 0)
-		dev_dbg(ctx->dev, "Stream allocated %d\n", retval);
-	return retval;
-
-}
-
 /*
  * sst_get_sfreq - this function returns the frequency of the stream
  *
@@ -428,17 +415,6 @@ static int sst_cdev_codec_caps(struct snd_compr_codec_caps *codec)
 		return -EINVAL;
 
 	return 0;
-}
-
-void sst_cdev_fragment_elapsed(struct intel_sst_drv *ctx, int str_id)
-{
-	struct stream_info *stream;
-
-	dev_dbg(ctx->dev, "fragment elapsed from firmware for str_id %d\n",
-			str_id);
-	stream = &ctx->streams[str_id];
-	if (stream->compr_cb)
-		stream->compr_cb(stream->compr_cb_param);
 }
 
 /*

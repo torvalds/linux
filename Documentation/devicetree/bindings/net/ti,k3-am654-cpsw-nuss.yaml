@@ -143,6 +143,8 @@ properties:
           label:
             description: label associated with this port
 
+          fixed-link: true
+
           ti,mac-only:
             $ref: /schemas/types.yaml#/definitions/flag
             description:

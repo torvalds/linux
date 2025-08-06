@@ -101,6 +101,7 @@ int bch2_journal_keys_to_write_buffer_end(struct bch_fs *, struct journal_keys_t
 
 int bch2_btree_write_buffer_resize(struct bch_fs *, size_t);
 void bch2_fs_btree_write_buffer_exit(struct bch_fs *);
+void bch2_fs_btree_write_buffer_init_early(struct bch_fs *);
 int bch2_fs_btree_write_buffer_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_WRITE_BUFFER_H */

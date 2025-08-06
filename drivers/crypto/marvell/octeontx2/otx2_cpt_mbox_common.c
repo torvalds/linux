@@ -255,3 +255,28 @@ int otx2_cpt_lf_reset_msg(struct otx2_cptlfs_info *lfs, int slot)
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(otx2_cpt_lf_reset_msg, "CRYPTO_DEV_OCTEONTX2_CPT");
+
+int otx2_cpt_lmtst_tbl_setup_msg(struct otx2_cptlfs_info *lfs)
+{
+	struct otx2_mbox *mbox = lfs->mbox;
+	struct pci_dev *pdev = lfs->pdev;
+	struct lmtst_tbl_setup_req *req;
+
+	req = (struct lmtst_tbl_setup_req *)
+	       otx2_mbox_alloc_msg_rsp(mbox, 0, sizeof(*req),
+				       sizeof(struct msg_rsp));
+	if (!req) {
+		dev_err(&pdev->dev, "RVU MBOX failed to alloc message.\n");
+		return -EFAULT;
+	}
+
+	req->hdr.id = MBOX_MSG_LMTST_TBL_SETUP;
+	req->hdr.sig = OTX2_MBOX_REQ_SIG;
+	req->hdr.pcifunc = 0;
+
+	req->use_local_lmt_region = true;
+	req->lmt_iova = lfs->lmt_info.iova;
+
+	return otx2_cpt_send_mbox_msg(mbox, pdev);
+}
+EXPORT_SYMBOL_NS_GPL(otx2_cpt_lmtst_tbl_setup_msg, "CRYPTO_DEV_OCTEONTX2_CPT");

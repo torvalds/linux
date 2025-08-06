@@ -1704,7 +1704,7 @@ p9_client_write_subreq(struct netfs_io_subrequest *subreq)
 				    start, len, &subreq->io_iter);
 	}
 	if (IS_ERR(req)) {
-		netfs_write_subrequest_terminated(subreq, PTR_ERR(req), false);
+		netfs_write_subrequest_terminated(subreq, PTR_ERR(req));
 		return;
 	}
 
@@ -1712,7 +1712,7 @@ p9_client_write_subreq(struct netfs_io_subrequest *subreq)
 	if (err) {
 		trace_9p_protocol_dump(clnt, &req->rc);
 		p9_req_put(clnt, req);
-		netfs_write_subrequest_terminated(subreq, err, false);
+		netfs_write_subrequest_terminated(subreq, err);
 		return;
 	}
 
@@ -1724,7 +1724,7 @@ p9_client_write_subreq(struct netfs_io_subrequest *subreq)
 	p9_debug(P9_DEBUG_9P, "<<< RWRITE count %d\n", len);
 
 	p9_req_put(clnt, req);
-	netfs_write_subrequest_terminated(subreq, written, false);
+	netfs_write_subrequest_terminated(subreq, written);
 }
 EXPORT_SYMBOL(p9_client_write_subreq);
 

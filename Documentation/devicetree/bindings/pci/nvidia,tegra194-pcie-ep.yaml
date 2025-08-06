@@ -74,7 +74,7 @@ properties:
 
   reset-gpios:
     description: Must contain a phandle to a GPIO controller followed by GPIO
-      that is being used as PERST input signal. Please refer to pci.txt.
+      that is being used as PERST input signal.
 
   phys:
     minItems: 1

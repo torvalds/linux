@@ -5,6 +5,7 @@ config AFS_FS
 	select AF_RXRPC
 	select DNS_RESOLVER
 	select NETFS_SUPPORT
+	select CRYPTO_KRB5
 	help
 	  If you say Y here, you will get an experimental Andrew File System
 	  driver. It currently only supports unsecured read-only AFS access.

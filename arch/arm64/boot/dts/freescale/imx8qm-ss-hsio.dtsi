@@ -12,7 +12,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	pciea: pcie@5f000000 {
+	pcie0: pciea: pcie@5f000000 {
 		compatible = "fsl,imx8q-pcie";
 		reg = <0x5f000000 0x10000>,
 		      <0x4ff00000 0x80000>;
@@ -42,7 +42,7 @@
 		status = "disabled";
 	};
 
-	pciea_ep: pcie-ep@5f000000 {
+	pcie0_ep: pciea_ep: pcie-ep@5f000000 {
 		compatible = "fsl,imx8q-pcie-ep";
 		reg = <0x5f000000 0x00010000>,
 		      <0x40000000 0x10000000>;
@@ -61,7 +61,7 @@
 		status = "disabled";
 	};
 
-	pcieb: pcie@5f010000 {
+	pcie1: pcieb: pcie@5f010000 {
 		compatible = "fsl,imx8q-pcie";
 		reg = <0x5f010000 0x10000>,
 		      <0x8ff00000 0x80000>;

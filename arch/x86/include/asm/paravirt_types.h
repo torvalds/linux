@@ -91,15 +91,15 @@ struct pv_cpu_ops {
 		      unsigned int *ecx, unsigned int *edx);
 
 	/* Unsafe MSR operations.  These will warn or panic on failure. */
-	u64 (*read_msr)(unsigned int msr);
-	void (*write_msr)(unsigned int msr, unsigned low, unsigned high);
+	u64 (*read_msr)(u32 msr);
+	void (*write_msr)(u32 msr, u64 val);
 
 	/*
 	 * Safe MSR operations.
-	 * read sets err to 0 or -EIO.  write returns 0 or -EIO.
+	 * Returns 0 or -EIO.
 	 */
-	u64 (*read_msr_safe)(unsigned int msr, int *err);
-	int (*write_msr_safe)(unsigned int msr, unsigned low, unsigned high);
+	int (*read_msr_safe)(u32 msr, u64 *val);
+	int (*write_msr_safe)(u32 msr, u64 val);
 
 	u64 (*read_pmc)(int counter);
 
@@ -189,12 +189,10 @@ struct pv_mmu_ops {
 
 	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
 
-#if CONFIG_PGTABLE_LEVELS >= 5
 	struct paravirt_callee_save p4d_val;
 	struct paravirt_callee_save make_p4d;
 
 	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
-#endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
 
 	struct pv_lazy_ops lazy_mode;
 

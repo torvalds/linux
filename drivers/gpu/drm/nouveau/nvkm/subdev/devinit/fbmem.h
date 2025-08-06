@@ -47,8 +47,8 @@
 static inline struct io_mapping *
 fbmem_init(struct nvkm_device *dev)
 {
-	return io_mapping_create_wc(dev->func->resource_addr(dev, 1),
-				    dev->func->resource_size(dev, 1));
+	return io_mapping_create_wc(dev->func->resource_addr(dev, NVKM_BAR1_FB),
+				    dev->func->resource_size(dev, NVKM_BAR1_FB));
 }
 
 static inline void

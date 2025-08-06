@@ -247,7 +247,7 @@ static const struct i2c_device_id abp060mg_id_table[] = {
 	{ "abp015pd", ABP015PD },
 	{ "abp030pd", ABP030PD },
 	{ "abp060pd", ABP060PD },
-	{ /* empty */ },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, abp060mg_id_table);
 

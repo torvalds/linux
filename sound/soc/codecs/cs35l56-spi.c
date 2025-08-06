@@ -25,6 +25,9 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, cs35l56);
+
+	cs35l56->base.fw_reg = &cs35l56_fw_reg;
+
 	cs35l56->base.regmap = devm_regmap_init_spi(spi, regmap_config);
 	if (IS_ERR(cs35l56->base.regmap)) {
 		ret = PTR_ERR(cs35l56->base.regmap);

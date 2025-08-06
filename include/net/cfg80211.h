@@ -1097,43 +1097,6 @@ int cfg80211_chandef_primary(const struct cfg80211_chan_def *chandef,
 int nl80211_send_chandef(struct sk_buff *msg, const struct cfg80211_chan_def *chandef);
 
 /**
- * ieee80211_chanwidth_rate_flags - return rate flags for channel width
- * @width: the channel width of the channel
- *
- * In some channel types, not all rates may be used - for example CCK
- * rates may not be used in 5/10 MHz channels.
- *
- * Returns: rate flags which apply for this channel width
- */
-static inline enum ieee80211_rate_flags
-ieee80211_chanwidth_rate_flags(enum nl80211_chan_width width)
-{
-	switch (width) {
-	case NL80211_CHAN_WIDTH_5:
-		return IEEE80211_RATE_SUPPORTS_5MHZ;
-	case NL80211_CHAN_WIDTH_10:
-		return IEEE80211_RATE_SUPPORTS_10MHZ;
-	default:
-		break;
-	}
-	return 0;
-}
-
-/**
- * ieee80211_chandef_rate_flags - returns rate flags for a channel
- * @chandef: channel definition for the channel
- *
- * See ieee80211_chanwidth_rate_flags().
- *
- * Returns: rate flags which apply for this channel
- */
-static inline enum ieee80211_rate_flags
-ieee80211_chandef_rate_flags(struct cfg80211_chan_def *chandef)
-{
-	return ieee80211_chanwidth_rate_flags(chandef->width);
-}
-
-/**
  * ieee80211_chandef_max_power - maximum transmission power for the chandef
  *
  * In some regulations, the transmit power may depend on the configured channel
@@ -1300,11 +1263,13 @@ struct cfg80211_crypto_settings {
  * struct cfg80211_mbssid_config - AP settings for multi bssid
  *
  * @tx_wdev: pointer to the transmitted interface in the MBSSID set
+ * @tx_link_id: link ID of the transmitted profile in an MLD.
  * @index: index of this AP in the multi bssid group.
  * @ema: set to true if the beacons should be sent out in EMA mode.
  */
 struct cfg80211_mbssid_config {
 	struct wireless_dev *tx_wdev;
+	u8 tx_link_id;
 	u8 index;
 	bool ema;
 };
@@ -1770,6 +1735,9 @@ struct cfg80211_ttlm_params {
  * @supported_oper_classes_len: number of supported operating classes
  * @support_p2p_ps: information if station supports P2P PS mechanism
  * @airtime_weight: airtime scheduler weight for this station
+ * @eml_cap_present: Specifies if EML capabilities field (@eml_cap) is
+ *	present/updated
+ * @eml_cap: EML capabilities of this station
  * @link_sta_params: link related params.
  */
 struct station_parameters {
@@ -1794,6 +1762,8 @@ struct station_parameters {
 	u8 supported_oper_classes_len;
 	int support_p2p_ps;
 	u16 airtime_weight;
+	bool eml_cap_present;
+	u16 eml_cap;
 	struct link_station_parameters link_sta_params;
 };
 

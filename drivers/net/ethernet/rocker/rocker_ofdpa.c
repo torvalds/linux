@@ -1933,7 +1933,7 @@ static int ofdpa_port_fdb(struct ofdpa_port *ofdpa_port,
 	spin_unlock_irqrestore(&ofdpa->fdb_tbl_lock, lock_flags);
 
 	/* Check if adding and already exists, or removing and can't find */
-	if (!found != !removing) {
+	if (!found == removing) {
 		kfree(fdb);
 		if (!found && removing)
 			return 0;
@@ -1982,7 +1982,7 @@ err_out:
 
 static void ofdpa_fdb_cleanup(struct timer_list *t)
 {
-	struct ofdpa *ofdpa = from_timer(ofdpa, t, fdb_cleanup_timer);
+	struct ofdpa *ofdpa = timer_container_of(ofdpa, t, fdb_cleanup_timer);
 	struct ofdpa_port *ofdpa_port;
 	struct ofdpa_fdb_tbl_entry *entry;
 	struct hlist_node *tmp;

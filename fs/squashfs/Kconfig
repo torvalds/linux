@@ -149,6 +149,27 @@ config SQUASHFS_XATTR
 
 	  If unsure, say N.
 
+config SQUASHFS_COMP_CACHE_FULL
+	bool "Enable full caching of compressed blocks"
+	depends on SQUASHFS
+	default n
+	help
+	  This option enables caching of all compressed blocks, Without caching,
+	  repeated reads of the same files trigger excessive disk I/O, significantly
+	  reducinng performance in workloads like fio-based benchmarks.
+
+	  For example, fio tests (iodepth=1, numjobs=1, ioengine=psync) show:
+	   With caching: IOPS=2223, BW=278MiB/s (291MB/s)
+	   Without caching: IOPS=815, BW=102MiB/s (107MB/s)
+
+	  Enabling this option restores performance to pre-regression levels by
+	  caching all compressed blocks in the page cache, reducing disk I/O for
+	  repeated reads. However, this increases memory usage, which may be a
+	  concern in memory-constrained environments.
+
+	  Enable this option if your workload involves frequent repeated reads and
+	  memory usage is not a limiting factor. If unsure, say N.
+
 config SQUASHFS_ZLIB
 	bool "Include support for ZLIB compressed file systems"
 	depends on SQUASHFS

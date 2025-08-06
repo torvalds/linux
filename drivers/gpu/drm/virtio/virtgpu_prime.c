@@ -75,7 +75,6 @@ static void virtgpu_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 
 static const struct virtio_dma_buf_ops virtgpu_dmabuf_ops =  {
 	.ops = {
-		.cache_sgt_mapping = true,
 		.attach = virtio_dma_buf_attach,
 		.detach = drm_gem_map_detach,
 		.map_dma_buf = virtgpu_gem_map_dma_buf,
@@ -205,16 +204,15 @@ static void virtgpu_dma_buf_free_obj(struct drm_gem_object *obj)
 {
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
 	struct virtio_gpu_device *vgdev = obj->dev->dev_private;
-	struct dma_buf_attachment *attach = obj->import_attach;
 
-	if (attach) {
-		struct dma_buf *dmabuf = attach->dmabuf;
+	if (drm_gem_is_imported(obj)) {
+		struct dma_buf *dmabuf = obj->dma_buf;
 
 		dma_resv_lock(dmabuf->resv, NULL);
 		virtgpu_dma_buf_unmap(bo);
 		dma_resv_unlock(dmabuf->resv);
 
-		dma_buf_detach(dmabuf, attach);
+		dma_buf_detach(dmabuf, obj->import_attach);
 		dma_buf_put(dmabuf);
 	}
 

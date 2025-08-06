@@ -11,28 +11,28 @@
 #include "i915_reg_defs.h"
 
 enum pipe;
-struct drm_i915_private;
+struct intel_display;
 
 #ifdef I915
-bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
+bool intel_lvds_port_enabled(struct intel_display *display,
 			     i915_reg_t lvds_reg, enum pipe *pipe);
-void intel_lvds_init(struct drm_i915_private *dev_priv);
-struct intel_encoder *intel_get_lvds_encoder(struct drm_i915_private *dev_priv);
-bool intel_is_dual_link_lvds(struct drm_i915_private *dev_priv);
+void intel_lvds_init(struct intel_display *display);
+struct intel_encoder *intel_get_lvds_encoder(struct intel_display *display);
+bool intel_is_dual_link_lvds(struct intel_display *display);
 #else
-static inline bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
+static inline bool intel_lvds_port_enabled(struct intel_display *display,
 					   i915_reg_t lvds_reg, enum pipe *pipe)
 {
 	return false;
 }
-static inline void intel_lvds_init(struct drm_i915_private *dev_priv)
+static inline void intel_lvds_init(struct intel_display *display)
 {
 }
-static inline struct intel_encoder *intel_get_lvds_encoder(struct drm_i915_private *dev_priv)
+static inline struct intel_encoder *intel_get_lvds_encoder(struct intel_display *display)
 {
 	return NULL;
 }
-static inline bool intel_is_dual_link_lvds(struct drm_i915_private *dev_priv)
+static inline bool intel_is_dual_link_lvds(struct intel_display *display)
 {
 	return false;
 }

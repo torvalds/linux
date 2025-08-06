@@ -41,6 +41,21 @@ static inline long syscall_get_nr(struct task_struct *task,
 	return task_thread_info(task)->syscall;
 }
 
+static inline void syscall_set_nr(struct task_struct *task,
+				  struct pt_regs *regs,
+				  int nr)
+{
+	/*
+	 * New syscall number has to be assigned to regs[2] because
+	 * it is loaded from there unconditionally after return from
+	 * syscall_trace_enter() invocation.
+	 *
+	 * Consequently, if the syscall was indirect and nr != __NR_syscall,
+	 * then after this assignment the syscall will cease to be indirect.
+	 */
+	task_thread_info(task)->syscall = regs->regs[2] = nr;
+}
+
 static inline void mips_syscall_update_nr(struct task_struct *task,
 					  struct pt_regs *regs)
 {
@@ -71,6 +86,23 @@ static inline void mips_get_syscall_arg(unsigned long *arg,
 	if ((IS_ENABLED(CONFIG_MIPS32_O32) &&
 	     test_tsk_thread_flag(task, TIF_32BIT_REGS)))
 		*arg = (unsigned int)*arg;
+#endif
+}
+
+static inline void mips_set_syscall_arg(unsigned long *arg,
+	struct task_struct *task, struct pt_regs *regs, unsigned int n)
+{
+#ifdef CONFIG_32BIT
+	switch (n) {
+	case 0: case 1: case 2: case 3:
+		regs->regs[4 + n] = *arg;
+		return;
+	case 4: case 5: case 6: case 7:
+		*arg = regs->args[n] = *arg;
+		return;
+	}
+#else
+	regs->regs[4 + n] = *arg;
 #endif
 }
 
@@ -118,6 +150,17 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 	while (n--)
 		mips_get_syscall_arg(args++, task, regs, i++);
+}
+
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 unsigned long *args)
+{
+	unsigned int i = 0;
+	unsigned int n = 6;
+
+	while (n--)
+		mips_set_syscall_arg(args++, task, regs, i++);
 }
 
 extern const unsigned long sys_call_table[];

@@ -75,12 +75,12 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 		 * is fine as it's going to the root tile's mmio, that's
 		 * guaranteed to be initialized earlier in xe_mmio_probe_early()
 		 */
-		mtcfg = xe_mmio_read64_2x32(mmio, XEHP_MTCFG_ADDR);
+		mtcfg = xe_mmio_read32(mmio, XEHP_MTCFG_ADDR);
 		tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 
 		if (tile_count < xe->info.tile_count) {
 			drm_info(&xe->drm, "tile_count: %d, reduced_tile_count %d\n",
-					xe->info.tile_count, tile_count);
+				 xe->info.tile_count, tile_count);
 			xe->info.tile_count = tile_count;
 
 			/*
@@ -128,7 +128,7 @@ int xe_mmio_probe_early(struct xe_device *xe)
 	 */
 	xe->mmio.size = pci_resource_len(pdev, GTTMMADR_BAR);
 	xe->mmio.regs = pci_iomap(pdev, GTTMMADR_BAR, 0);
-	if (xe->mmio.regs == NULL) {
+	if (!xe->mmio.regs) {
 		drm_err(&xe->drm, "failed to map registers\n");
 		return -EIO;
 	}
@@ -138,6 +138,7 @@ int xe_mmio_probe_early(struct xe_device *xe)
 
 	return devm_add_action_or_reset(xe->drm.dev, mmio_fini, xe);
 }
+ALLOW_ERROR_INJECTION(xe_mmio_probe_early, ERRNO); /* See xe_pci_probe() */
 
 /**
  * xe_mmio_init() - Initialize an MMIO instance
@@ -204,8 +205,9 @@ void xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val)
 
 	trace_xe_reg_rw(mmio, true, addr, val, sizeof(val));
 
-	if (!reg.vf && mmio->sriov_vf_gt)
-		xe_gt_sriov_vf_write32(mmio->sriov_vf_gt, reg, val);
+	if (!reg.vf && IS_SRIOV_VF(mmio->tile->xe))
+		xe_gt_sriov_vf_write32(mmio->sriov_vf_gt ?:
+				       mmio->tile->primary_gt, reg, val);
 	else
 		writel(val, mmio->regs + addr);
 }
@@ -218,8 +220,9 @@ u32 xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg)
 	/* Wa_15015404425 */
 	mmio_flush_pending_writes(mmio);
 
-	if (!reg.vf && mmio->sriov_vf_gt)
-		val = xe_gt_sriov_vf_read32(mmio->sriov_vf_gt, reg);
+	if (!reg.vf && IS_SRIOV_VF(mmio->tile->xe))
+		val = xe_gt_sriov_vf_read32(mmio->sriov_vf_gt ?:
+					    mmio->tile->primary_gt, reg);
 	else
 		val = readl(mmio->regs + addr);
 
@@ -309,8 +312,8 @@ u64 xe_mmio_read64_2x32(struct xe_mmio *mmio, struct xe_reg reg)
 	return (u64)udw << 32 | ldw;
 }
 
-static int __xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-			    u32 *out_val, bool atomic, bool expect_match)
+static int __xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val,
+			    u32 timeout_us, u32 *out_val, bool atomic, bool expect_match)
 {
 	ktime_t cur = ktime_get_raw();
 	const ktime_t end = ktime_add_us(cur, timeout_us);

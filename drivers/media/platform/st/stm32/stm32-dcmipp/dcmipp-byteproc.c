@@ -373,8 +373,8 @@ static int dcmipp_byteproc_set_selection(struct v4l2_subdev *sd,
 		mf->width = s->r.width;
 		mf->height = s->r.height;
 
-		dev_dbg(byteproc->dev, "s_selection: crop %ux%u@(%u,%u)\n",
-			crop->width, crop->height, crop->left, crop->top);
+		dev_dbg(byteproc->dev, "s_selection: crop (%d,%d)/%ux%u\n",
+			crop->left, crop->top, crop->width, crop->height);
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
 		mf = v4l2_subdev_state_get_format(sd_state, 0);
@@ -386,9 +386,9 @@ static int dcmipp_byteproc_set_selection(struct v4l2_subdev *sd,
 		mf->width = s->r.width;
 		mf->height = s->r.height;
 
-		dev_dbg(byteproc->dev, "s_selection: compose %ux%u@(%u,%u)\n",
-			compose->width, compose->height,
-			compose->left, compose->top);
+		dev_dbg(byteproc->dev, "s_selection: compose (%d,%d)/%ux%u\n",
+			compose->left, compose->top,
+			compose->width, compose->height);
 		break;
 	default:
 		return -EINVAL;

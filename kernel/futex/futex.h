@@ -7,6 +7,7 @@
 #include <linux/sched/wake_q.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <linux/cleanup.h>
 
 #ifdef CONFIG_PREEMPT_RT
 #include <linux/rcuwait.h>
@@ -38,6 +39,7 @@
 #define FLAGS_HAS_TIMEOUT	0x0040
 #define FLAGS_NUMA		0x0080
 #define FLAGS_STRICT		0x0100
+#define FLAGS_MPOL		0x0200
 
 /* FUTEX_ to FLAGS_ */
 static inline unsigned int futex_to_flags(unsigned int op)
@@ -53,7 +55,7 @@ static inline unsigned int futex_to_flags(unsigned int op)
 	return flags;
 }
 
-#define FUTEX2_VALID_MASK (FUTEX2_SIZE_MASK | FUTEX2_PRIVATE)
+#define FUTEX2_VALID_MASK (FUTEX2_SIZE_MASK | FUTEX2_NUMA | FUTEX2_MPOL | FUTEX2_PRIVATE)
 
 /* FUTEX2_ to FLAGS_ */
 static inline unsigned int futex2_to_flags(unsigned int flags2)
@@ -65,6 +67,9 @@ static inline unsigned int futex2_to_flags(unsigned int flags2)
 
 	if (flags2 & FUTEX2_NUMA)
 		flags |= FLAGS_NUMA;
+
+	if (flags2 & FUTEX2_MPOL)
+		flags |= FLAGS_MPOL;
 
 	return flags;
 }
@@ -85,6 +90,19 @@ static inline bool futex_flags_valid(unsigned int flags)
 	/* Only 32bit futexes are implemented -- for now */
 	if ((flags & FLAGS_SIZE_MASK) != FLAGS_SIZE_32)
 		return false;
+
+	/*
+	 * Must be able to represent both FUTEX_NO_NODE and every valid nodeid
+	 * in a futex word.
+	 */
+	if (flags & FLAGS_NUMA) {
+		int bits = 8 * futex_size(flags);
+		u64 max = ~0ULL;
+
+		max >>= 64 - bits;
+		if (nr_node_ids >= max)
+			return false;
+	}
 
 	return true;
 }
@@ -117,6 +135,7 @@ struct futex_hash_bucket {
 	atomic_t waiters;
 	spinlock_t lock;
 	struct plist_head chain;
+	struct futex_private_hash *priv;
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -156,6 +175,7 @@ typedef void (futex_wake_fn)(struct wake_q_head *wake_q, struct futex_q *q);
  * @requeue_pi_key:	the requeue_pi target futex key
  * @bitset:		bitset for the optional bitmasked wakeup
  * @requeue_state:	State field for futex_requeue_pi()
+ * @drop_hb_ref:	Waiter should drop the extra hash bucket reference if true
  * @requeue_wait:	RCU wait for futex_requeue_pi() (RT only)
  *
  * We use this hashed waitqueue, instead of a normal wait_queue_entry_t, so
@@ -182,6 +202,7 @@ struct futex_q {
 	union futex_key *requeue_pi_key;
 	u32 bitset;
 	atomic_t requeue_state;
+	bool drop_hb_ref;
 #ifdef CONFIG_PREEMPT_RT
 	struct rcuwait requeue_wait;
 #endif
@@ -196,12 +217,35 @@ enum futex_access {
 
 extern int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 			 enum futex_access rw);
-
+extern void futex_q_lockptr_lock(struct futex_q *q);
 extern struct hrtimer_sleeper *
 futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 		  int flags, u64 range_ns);
 
 extern struct futex_hash_bucket *futex_hash(union futex_key *key);
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+extern void futex_hash_get(struct futex_hash_bucket *hb);
+extern void futex_hash_put(struct futex_hash_bucket *hb);
+
+extern struct futex_private_hash *futex_private_hash(void);
+extern bool futex_private_hash_get(struct futex_private_hash *fph);
+extern void futex_private_hash_put(struct futex_private_hash *fph);
+
+#else /* !CONFIG_FUTEX_PRIVATE_HASH */
+static inline void futex_hash_get(struct futex_hash_bucket *hb) { }
+static inline void futex_hash_put(struct futex_hash_bucket *hb) { }
+static inline struct futex_private_hash *futex_private_hash(void) { return NULL; }
+static inline bool futex_private_hash_get(void) { return false; }
+static inline void futex_private_hash_put(struct futex_private_hash *fph) { }
+#endif
+
+DEFINE_CLASS(hb, struct futex_hash_bucket *,
+	     if (_T) futex_hash_put(_T),
+	     futex_hash(key), union futex_key *key);
+
+DEFINE_CLASS(private_hash, struct futex_private_hash *,
+	     if (_T) futex_private_hash_put(_T),
+	     futex_private_hash(), void);
 
 /**
  * futex_match - Check whether two futex keys are equal
@@ -219,9 +263,9 @@ static inline int futex_match(union futex_key *key1, union futex_key *key2)
 }
 
 extern int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
-			    struct futex_q *q, struct futex_hash_bucket **hb);
-extern void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
-				   struct hrtimer_sleeper *timeout);
+			    struct futex_q *q, union futex_key *key2,
+			    struct task_struct *task);
+extern void futex_do_wait(struct futex_q *q, struct hrtimer_sleeper *timeout);
 extern bool __futex_wake_mark(struct futex_q *q);
 extern void futex_wake_mark(struct wake_q_head *wake_q, struct futex_q *q);
 
@@ -256,7 +300,7 @@ static inline int futex_cmpxchg_value_locked(u32 *curval, u32 __user *uaddr, u32
  * This looks a bit overkill, but generally just results in a couple
  * of instructions.
  */
-static __always_inline int futex_read_inatomic(u32 *dest, u32 __user *from)
+static __always_inline int futex_get_value(u32 *dest, u32 __user *from)
 {
 	u32 val;
 
@@ -273,12 +317,26 @@ Efault:
 	return -EFAULT;
 }
 
+static __always_inline int futex_put_value(u32 val, u32 __user *to)
+{
+	if (can_do_masked_user_access())
+		to = masked_user_access_begin(to);
+	else if (!user_read_access_begin(to, sizeof(*to)))
+		return -EFAULT;
+	unsafe_put_user(val, to, Efault);
+	user_read_access_end();
+	return 0;
+Efault:
+	user_read_access_end();
+	return -EFAULT;
+}
+
 static inline int futex_get_value_locked(u32 *dest, u32 __user *from)
 {
 	int ret;
 
 	pagefault_disable();
-	ret = futex_read_inatomic(dest, from);
+	ret = futex_get_value(dest, from);
 	pagefault_enable();
 
 	return ret;
@@ -354,7 +412,7 @@ static inline int futex_hb_waiters_pending(struct futex_hash_bucket *hb)
 #endif
 }
 
-extern struct futex_hash_bucket *futex_q_lock(struct futex_q *q);
+extern void futex_q_lock(struct futex_q *q, struct futex_hash_bucket *hb);
 extern void futex_q_unlock(struct futex_hash_bucket *hb);
 
 

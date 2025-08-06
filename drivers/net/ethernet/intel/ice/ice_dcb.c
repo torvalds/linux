@@ -1288,7 +1288,7 @@ ice_add_dscp_up_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	tlv->ouisubtype = htonl(ouisubtype);
 
 	/* bytes 0 - 63 - IPv4 DSCP2UP LUT */
-	for (i = 0; i < ICE_DSCP_NUM_VAL; i++) {
+	for (i = 0; i < DSCP_MAX; i++) {
 		/* IPv4 mapping */
 		buf[i] = dcbcfg->dscp_map[i];
 		/* IPv6 mapping */

@@ -1147,6 +1147,7 @@ static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 	bool reset = true;
 	int err;
 
+	netdev_lock(priv->netdev);
 	mutex_lock(&priv->state_lock);
 
 	new_params = priv->channels.params;
@@ -1162,6 +1163,7 @@ static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 				       &trust_state, reset);
 
 	mutex_unlock(&priv->state_lock);
+	netdev_unlock(priv->netdev);
 
 	return err;
 }

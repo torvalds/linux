@@ -3,6 +3,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "enumerated_ref.h"
 #include "fs.h"
 #include "fs-io.h"
 #include "fs-io-direct.h"
@@ -401,7 +402,7 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_dio_write);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_dio_write);
 
 	/* inode->i_dio_count is our ref on inode and thus bch_fs */
 	inode_dio_end(&inode->v);
@@ -606,7 +607,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	prefetch(&inode->ei_inode);
 	prefetch((void *) &inode->ei_inode + 64);
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_dio_write))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_dio_write))
 		return -EROFS;
 
 	inode_lock(&inode->v);
@@ -675,7 +676,7 @@ err_put_bio:
 	bio_put(bio);
 	inode_dio_end(&inode->v);
 err_put_write_ref:
-	bch2_write_ref_put(c, BCH_WRITE_REF_dio_write);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_dio_write);
 	goto out;
 }
 

@@ -25,4 +25,8 @@ void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache);
 
 extern unsigned long tlb_single_page_flush_ceiling;
 
+#ifdef CONFIG_NUMA
+void __init x86_numa_init(void);
+#endif
+
 #endif	/* __X86_MM_INTERNAL_H */

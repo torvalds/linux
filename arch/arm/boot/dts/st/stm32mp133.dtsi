@@ -60,6 +60,8 @@
 			interrupts = <0>;
 			dmas = <&dmamux1 9 0x400 0x80000001>;
 			dma-names = "rx";
+			nvmem-cells = <&vrefint>;
+			nvmem-cell-names = "vrefint";
 			status = "disabled";
 
 			channel@18 {

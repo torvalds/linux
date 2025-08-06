@@ -1270,6 +1270,7 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 	struct smu_13_0_dpm_table *gfx_table =
 		&dpm_context->dpm_tables.gfx_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+	int r;
 
 	/* Disable determinism if switching to another mode */
 	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) &&
@@ -1282,7 +1283,11 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 
 	case AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM:
 		return 0;
-
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		r = smu_v13_0_set_performance_level(smu, level);
+		if (!r)
+			smu_v13_0_reset_custom_level(smu);
+		return r;
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 	case AMD_DPM_FORCED_LEVEL_LOW:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
@@ -1423,7 +1428,11 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			min_clk = dpm_context->dpm_tables.gfx_table.min;
 			max_clk = dpm_context->dpm_tables.gfx_table.max;
 
-			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk, false);
+			ret = aldebaran_set_soft_freq_limited_range(
+				smu, SMU_GFXCLK, min_clk, max_clk, false);
+			if (ret)
+				return ret;
+			smu_v13_0_reset_custom_level(smu);
 		}
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
@@ -1976,11 +1985,6 @@ static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 	return true;
 }
 
-static bool aldebaran_is_mode2_reset_supported(struct smu_context *smu)
-{
-	return true;
-}
-
 static int aldebaran_set_mp1_state(struct smu_context *smu,
 				   enum pp_mp1_state mp1_state)
 {
@@ -2086,7 +2090,6 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = aldebaran_get_gpu_metrics,
 	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
-	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
 	.smu_handle_passthrough_sbr = aldebaran_smu_handle_passthrough_sbr,
 	.mode1_reset = aldebaran_mode1_reset,
 	.set_mp1_state = aldebaran_set_mp1_state,

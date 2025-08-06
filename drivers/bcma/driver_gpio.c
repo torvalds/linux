@@ -26,12 +26,14 @@ static int bcma_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 	return !!bcma_chipco_gpio_in(cc, 1 << gpio);
 }
 
-static void bcma_gpio_set_value(struct gpio_chip *chip, unsigned gpio,
-				int value)
+static int bcma_gpio_set_value(struct gpio_chip *chip, unsigned int gpio,
+			       int value)
 {
 	struct bcma_drv_cc *cc = gpiochip_get_data(chip);
 
 	bcma_chipco_gpio_out(cc, 1 << gpio, value ? 1 << gpio : 0);
+
+	return 0;
 }
 
 static int bcma_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
@@ -184,7 +186,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->request		= bcma_gpio_request;
 	chip->free		= bcma_gpio_free;
 	chip->get		= bcma_gpio_get_value;
-	chip->set		= bcma_gpio_set_value;
+	chip->set_rv		= bcma_gpio_set_value;
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->parent		= bus->dev;

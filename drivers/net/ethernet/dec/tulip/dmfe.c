@@ -1115,7 +1115,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 
 static void dmfe_timer(struct timer_list *t)
 {
-	struct dmfe_board_info *db = from_timer(db, t, timer);
+	struct dmfe_board_info *db = timer_container_of(db, t, timer);
 	struct net_device *dev = pci_get_drvdata(db->pdev);
 	void __iomem *ioaddr = db->ioaddr;
 	u32 tmp_cr8;

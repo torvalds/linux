@@ -142,6 +142,14 @@ void decide_8b_10b_training_settings(
 	lt_settings->lttpr_mode = dp_decide_8b_10b_lttpr_mode(link);
 	lt_settings->cr_pattern_time = get_cr_training_aux_rd_interval(link, link_setting, lt_settings->lttpr_mode);
 	dp_hw_to_dpcd_lane_settings(lt_settings, lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
+
+	/* Some embedded LTTPRs rely on receiving TPS2 before LT to interop reliably with sensitive VGA dongles
+	 * This allows these LTTPRs to minimize freq/phase and skew variation during lock and deskew sequences
+	 */
+	if ((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) ==
+			AMD_EXT_DISPLAY_PATH_CAPS__DP_EARLY_8B10B_TPS2) {
+		lt_settings->lttpr_early_tps2 = true;
+	}
 }
 
 enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
@@ -172,6 +180,42 @@ enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
 	DC_LOG_DC("chose LTTPR_MODE_NON_LTTPR.\n");
 	return LTTPR_MODE_NON_LTTPR;
 }
+
+static void set_link_settings_and_perform_early_tps2_retimer_pre_lt_sequence(struct dc_link *link,
+	const struct link_resource *link_res,
+	struct link_training_settings *lt_settings,
+	uint32_t lttpr_count)
+{
+	/* Vendor-specific LTTPR early TPS2 sequence:
+	* 1. Output TPS2
+	* 2. Wait 400us
+	* 3. Set link settings as usual
+	* 4. Write TPS1 to DP_TRAINING_PATTERN_SET_PHY_REPEATERx targeting LTTPR closest to host
+	* 5. Wait 1ms
+	* 6. Begin link training as usual
+	* */
+
+	uint32_t closest_lttpr_address_offset = dp_get_closest_lttpr_offset(lttpr_count);
+
+	union dpcd_training_pattern dpcd_pattern = {0};
+
+	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = 1;
+	dpcd_pattern.v1_4.SCRAMBLING_DISABLE = 1;
+
+	DC_LOG_HW_LINK_TRAINING("%s\n GPU sends TPS2. Wait 400us.\n", __func__);
+
+	dp_set_hw_training_pattern(link, link_res, DP_TRAINING_PATTERN_SEQUENCE_2, DPRX);
+
+	dp_set_hw_lane_settings(link, link_res, lt_settings, DPRX);
+
+	udelay(400);
+
+	dpcd_set_link_settings(link, lt_settings);
+
+	core_link_write_dpcd(link, DP_TRAINING_PATTERN_SET_PHY_REPEATER1 + closest_lttpr_address_offset, &dpcd_pattern.raw, 1);
+
+	udelay(1000);
+	}
 
 enum link_training_result perform_8b_10b_clock_recovery_sequence(
 	struct dc_link *link,
@@ -383,7 +427,7 @@ enum link_training_result dp_perform_8b_10b_link_training(
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 
-	uint8_t repeater_cnt;
+	uint8_t repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	uint8_t repeater_id;
 	uint8_t lane = 0;
 
@@ -391,14 +435,16 @@ enum link_training_result dp_perform_8b_10b_link_training(
 		start_clock_recovery_pattern_early(link, link_res, lt_settings, DPRX);
 
 	/* 1. set link rate, lane count and spread. */
-	dpcd_set_link_settings(link, lt_settings);
+	if (lt_settings->lttpr_early_tps2)
+		set_link_settings_and_perform_early_tps2_retimer_pre_lt_sequence(link, link_res, lt_settings, repeater_cnt);
+	else
+		dpcd_set_link_settings(link, lt_settings);
 
 	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
 		 */
-		repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
 				repeater_id--) {

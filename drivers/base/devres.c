@@ -759,6 +759,17 @@ int __devm_add_action(struct device *dev, void (*action)(void *), void *data, co
 }
 EXPORT_SYMBOL_GPL(__devm_add_action);
 
+bool devm_is_action_added(struct device *dev, void (*action)(void *), void *data)
+{
+	struct action_devres devres = {
+		.data = data,
+		.action = action,
+	};
+
+	return devres_find(dev, devm_action_release, devm_action_match, &devres);
+}
+EXPORT_SYMBOL_GPL(devm_is_action_added);
+
 /**
  * devm_remove_action_nowarn() - removes previously added custom action
  * @dev: Device that owns the action
@@ -976,17 +987,10 @@ EXPORT_SYMBOL_GPL(devm_krealloc);
  */
 char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
 {
-	size_t size;
-	char *buf;
-
 	if (!s)
 		return NULL;
 
-	size = strlen(s) + 1;
-	buf = devm_kmalloc(dev, size, gfp);
-	if (buf)
-		memcpy(buf, s, size);
-	return buf;
+	return devm_kmemdup(dev, s, strlen(s) + 1, gfp);
 }
 EXPORT_SYMBOL_GPL(devm_kstrdup);
 

@@ -240,7 +240,7 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	struct regulator_config cfg = { };
 	struct regulator_dev *rdev;
 	enum gpiod_flags gflags;
-	int ptr, ret, state, i;
+	int ptr, state, i;
 
 	drvdata = devm_kzalloc(dev, sizeof(struct gpio_regulator_data),
 			       GFP_KERNEL);
@@ -345,11 +345,9 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(cfg.ena_gpiod);
 
 	rdev = devm_regulator_register(dev, &drvdata->desc, &cfg);
-	if (IS_ERR(rdev)) {
-		ret = PTR_ERR(rdev);
-		dev_err(dev, "Failed to register regulator: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(rdev))
+		return dev_err_probe(dev, PTR_ERR(rdev),
+				     "Failed to register regulator\n");
 
 	platform_set_drvdata(pdev, drvdata);
 

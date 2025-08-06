@@ -30,6 +30,14 @@ int falcon_wait_idle(struct falcon *falcon)
 				  (value == 0), 10, 100000);
 }
 
+static int falcon_dma_wait_not_full(struct falcon *falcon)
+{
+	u32 value;
+
+	return readl_poll_timeout(falcon->regs + FALCON_DMATRFCMD, value,
+				  !(value & FALCON_DMATRFCMD_FULL), 10, 100000);
+}
+
 static int falcon_dma_wait_idle(struct falcon *falcon)
 {
 	u32 value;
@@ -44,6 +52,7 @@ static int falcon_copy_chunk(struct falcon *falcon,
 			     enum falcon_memory target)
 {
 	u32 cmd = FALCON_DMATRFCMD_SIZE_256B;
+	int err;
 
 	if (target == FALCON_MEMORY_IMEM)
 		cmd |= FALCON_DMATRFCMD_IMEM;
@@ -56,11 +65,15 @@ static int falcon_copy_chunk(struct falcon *falcon,
 	 */
 	cmd |= FALCON_DMATRFCMD_DMACTX(1);
 
+	err = falcon_dma_wait_not_full(falcon);
+	if (err < 0)
+		return err;
+
 	falcon_writel(falcon, offset, FALCON_DMATRFMOFFS);
 	falcon_writel(falcon, base, FALCON_DMATRFFBOFFS);
 	falcon_writel(falcon, cmd, FALCON_DMATRFCMD);
 
-	return falcon_dma_wait_idle(falcon);
+	return 0;
 }
 
 static void falcon_copy_firmware_image(struct falcon *falcon,
@@ -190,6 +203,11 @@ int falcon_boot(struct falcon *falcon)
 	for (offset = 0; offset < falcon->firmware.code.size; offset += 256)
 		falcon_copy_chunk(falcon, falcon->firmware.code.offset + offset,
 				  offset, FALCON_MEMORY_IMEM);
+
+	/* wait for DMA to complete */
+	err = falcon_dma_wait_idle(falcon);
+	if (err < 0)
+		return err;
 
 	/* setup falcon interrupts */
 	falcon_writel(falcon, FALCON_IRQMSET_EXT(0xff) |

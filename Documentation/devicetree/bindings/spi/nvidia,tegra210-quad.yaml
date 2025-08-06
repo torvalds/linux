@@ -10,9 +10,6 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
   - Jonathan Hunter <jonathanh@nvidia.com>
 
-allOf:
-  - $ref: spi-controller.yaml#
-
 properties:
   compatible:
     enum:
@@ -47,6 +44,9 @@ properties:
       - const: rx
       - const: tx
 
+  iommus:
+    maxItems: 1
+
 patternProperties:
   "@[0-9a-f]+$":
     type: object
@@ -68,6 +68,18 @@ required:
   - resets
 
 unevaluatedProperties: false
+
+allOf:
+  - $ref: spi-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: nvidia,tegra234-qspi
+    then:
+      properties:
+        iommus: false
 
 examples:
   - |

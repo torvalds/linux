@@ -27,6 +27,8 @@
 static const struct hid_device_id hid_quirks[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD), HID_QUIRK_BADPAD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_PREDATOR), HID_QUIRK_BADPAD },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ADATA_XPG, USB_VENDOR_ID_ADATA_XPG_WL_GAMING_MOUSE), HID_QUIRK_ALWAYS_POLL },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ADATA_XPG, USB_VENDOR_ID_ADATA_XPG_WL_GAMING_MOUSE_DONGLE), HID_QUIRK_ALWAYS_POLL },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AFATECH, USB_DEVICE_ID_AFATECH_AF9016), HID_QUIRK_FULLSPEED_INTERVAL },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AIREN, USB_DEVICE_ID_AIREN_SLIMPLUS), HID_QUIRK_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AKAI_09E8, USB_DEVICE_ID_AKAI_09E8_MIDIMIX), HID_QUIRK_NO_INIT_REPORTS },
@@ -1061,7 +1063,7 @@ bool hid_ignore(struct hid_device *hdev)
 	}
 
 	if (hdev->type == HID_TYPE_USBMOUSE &&
-	    hid_match_id(hdev, hid_mouse_ignore_list))
+	    hdev->quirks & HID_QUIRK_IGNORE_MOUSE)
 		return true;
 
 	return !!hid_match_id(hdev, hid_ignore_list);
@@ -1264,6 +1266,9 @@ static unsigned long hid_gets_squirk(const struct hid_device *hdev)
 
 	if (hid_match_id(hdev, hid_ignore_list))
 		quirks |= HID_QUIRK_IGNORE;
+
+	if (hid_match_id(hdev, hid_mouse_ignore_list))
+		quirks |= HID_QUIRK_IGNORE_MOUSE;
 
 	if (hid_match_id(hdev, hid_have_special_driver))
 		quirks |= HID_QUIRK_HAVE_SPECIAL_DRIVER;

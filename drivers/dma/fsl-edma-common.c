@@ -95,7 +95,7 @@ static void fsl_edma3_enable_request(struct fsl_edma_chan *fsl_chan)
 	}
 
 	val = edma_readl_chreg(fsl_chan, ch_csr);
-	val |= EDMA_V3_CH_CSR_ERQ;
+	val |= EDMA_V3_CH_CSR_ERQ | EDMA_V3_CH_CSR_EEI;
 	edma_writel_chreg(fsl_chan, val, ch_csr);
 }
 
@@ -821,7 +821,7 @@ void fsl_edma_issue_pending(struct dma_chan *chan)
 int fsl_edma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
-	int ret;
+	int ret = 0;
 
 	if (fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_HAS_CHCLK)
 		clk_prepare_enable(fsl_chan->clk);
@@ -831,17 +831,29 @@ int fsl_edma_alloc_chan_resources(struct dma_chan *chan)
 				sizeof(struct fsl_edma_hw_tcd64) : sizeof(struct fsl_edma_hw_tcd),
 				32, 0);
 
-	if (fsl_chan->txirq) {
+	if (fsl_chan->txirq)
 		ret = request_irq(fsl_chan->txirq, fsl_chan->irq_handler, IRQF_SHARED,
 				 fsl_chan->chan_name, fsl_chan);
 
-		if (ret) {
-			dma_pool_destroy(fsl_chan->tcd_pool);
-			return ret;
-		}
-	}
+	if (ret)
+		goto err_txirq;
+
+	if (fsl_chan->errirq > 0)
+		ret = request_irq(fsl_chan->errirq, fsl_chan->errirq_handler, IRQF_SHARED,
+				  fsl_chan->errirq_name, fsl_chan);
+
+	if (ret)
+		goto err_errirq;
 
 	return 0;
+
+err_errirq:
+	if (fsl_chan->txirq)
+		free_irq(fsl_chan->txirq, fsl_chan);
+err_txirq:
+	dma_pool_destroy(fsl_chan->tcd_pool);
+
+	return ret;
 }
 
 void fsl_edma_free_chan_resources(struct dma_chan *chan)
@@ -862,6 +874,8 @@ void fsl_edma_free_chan_resources(struct dma_chan *chan)
 
 	if (fsl_chan->txirq)
 		free_irq(fsl_chan->txirq, fsl_chan);
+	if (fsl_chan->errirq)
+		free_irq(fsl_chan->errirq, fsl_chan);
 
 	vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
 	dma_pool_destroy(fsl_chan->tcd_pool);

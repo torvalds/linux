@@ -954,6 +954,7 @@ int sev_do_cmd(int cmd, void *data, int *psp_ret);
 void *psp_copy_user_blob(u64 uaddr, u32 len);
 void *snp_alloc_firmware_page(gfp_t mask);
 void snp_free_firmware_page(void *addr);
+void sev_platform_shutdown(void);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 
@@ -987,6 +988,8 @@ static inline void *snp_alloc_firmware_page(gfp_t mask)
 }
 
 static inline void snp_free_firmware_page(void *addr) { }
+
+static inline void sev_platform_shutdown(void) { }
 
 #endif	/* CONFIG_CRYPTO_DEV_SP_PSP */
 

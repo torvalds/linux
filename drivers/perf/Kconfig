@@ -202,7 +202,7 @@ config THUNDERX2_PMU
 	tristate "Cavium ThunderX2 SoC PMU UNCORE"
 	depends on ARCH_THUNDER2 || COMPILE_TEST
 	depends on NUMA && ACPI
-	default m
+	default m if ARCH_THUNDER2
 	help
 	   Provides support for ThunderX2 UNCORE events.
 	   The SoC has PMU support in its L3 cache controller (L3C) and

@@ -356,7 +356,7 @@ done:
 
 static void vcc_rx_timer(struct timer_list *t)
 {
-	struct vcc_port *port = from_timer(port, t, rx_timer);
+	struct vcc_port *port = timer_container_of(port, t, rx_timer);
 	struct vio_driver_state *vio;
 	unsigned long flags;
 	int rv;
@@ -382,7 +382,7 @@ done:
 
 static void vcc_tx_timer(struct timer_list *t)
 {
-	struct vcc_port *port = from_timer(port, t, tx_timer);
+	struct vcc_port *port = timer_container_of(port, t, tx_timer);
 	struct vio_vcc *pkt;
 	unsigned long flags;
 	size_t tosend = 0;

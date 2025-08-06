@@ -2337,7 +2337,7 @@ static void timeout_index_operations_callback(struct vdo_completion *completion)
 
 static void timeout_index_operations(struct timer_list *t)
 {
-	struct hash_zone *zone = from_timer(zone, t, timer);
+	struct hash_zone *zone = timer_container_of(zone, t, timer);
 
 	if (change_timer_state(zone, DEDUPE_QUERY_TIMER_RUNNING,
 			       DEDUPE_QUERY_TIMER_FIRED))

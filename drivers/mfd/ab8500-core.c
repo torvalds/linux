@@ -580,9 +580,9 @@ static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 		num_irqs = AB8500_NR_IRQS;
 
 	/* If ->irq_base is zero this will give a linear mapping */
-	ab8500->domain = irq_domain_add_simple(ab8500->dev->of_node,
-					       num_irqs, 0,
-					       &ab8500_irq_ops, ab8500);
+	ab8500->domain = irq_domain_create_simple(of_fwnode_handle(ab8500->dev->of_node),
+						  num_irqs, 0,
+						  &ab8500_irq_ops, ab8500);
 
 	if (!ab8500->domain) {
 		dev_err(ab8500->dev, "Failed to create irqdomain\n");

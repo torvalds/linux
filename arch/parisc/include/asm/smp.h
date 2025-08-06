@@ -12,7 +12,7 @@ extern int init_per_cpu(int cpuid);
 #define PDC_OS_BOOT_RENDEZVOUS     0x10
 #define PDC_OS_BOOT_RENDEZVOUS_HI  0x28
 
-#ifndef ASSEMBLY
+#ifndef __ASSEMBLER__
 #include <linux/bitops.h>
 #include <linux/threads.h>	/* for NR_CPUS */
 #include <linux/cpumask.h>
@@ -34,7 +34,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #define raw_smp_processor_id()		(current_thread_info()->cpu)
 
-#endif /* !ASSEMBLY */
+#endif /* !__ASSEMBLER__ */
 
 #else /* CONFIG_SMP */
 

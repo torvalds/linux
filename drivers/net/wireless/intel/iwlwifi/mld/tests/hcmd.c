@@ -2,7 +2,7 @@
 /*
  * KUnit tests for channel helper functions
  *
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 #include <kunit/test.h>
 
@@ -30,10 +30,10 @@ static void test_hcmd_names_sorted(struct kunit *test)
 static void test_hcmd_names_for_rx(struct kunit *test)
 {
 	static struct iwl_trans t = {
-		.command_groups = iwl_mld_groups,
+		.conf.command_groups = iwl_mld_groups,
 	};
 
-	t.command_groups_size = global_iwl_mld_goups_size;
+	t.conf.command_groups_size = global_iwl_mld_goups_size;
 
 	for (unsigned int i = 0; i < iwl_mld_rx_handlers_num; i++) {
 		const struct iwl_rx_handler *rxh;

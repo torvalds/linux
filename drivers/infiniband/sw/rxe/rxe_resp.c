@@ -649,10 +649,6 @@ static enum resp_states process_flush(struct rxe_qp *qp,
 	struct rxe_mr *mr = qp->resp.mr;
 	struct resp_res *res = qp->resp.res;
 
-	/* ODP is not supported right now. WIP. */
-	if (is_odp_mr(mr))
-		return RESPST_ERR_UNSUPPORTED_OPCODE;
-
 	/* oA19-14, oA19-15 */
 	if (res && res->replay)
 		return RESPST_ACKNOWLEDGE;
@@ -753,7 +749,16 @@ static enum resp_states atomic_write_reply(struct rxe_qp *qp,
 	value = *(u64 *)payload_addr(pkt);
 	iova = qp->resp.va + qp->resp.offset;
 
-	err = rxe_mr_do_atomic_write(mr, iova, value);
+	/* See IBA oA19-28 */
+	if (unlikely(mr->state != RXE_MR_STATE_VALID)) {
+		rxe_dbg_mr(mr, "mr not in valid state\n");
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+
+	if (is_odp_mr(mr))
+		err = rxe_odp_do_atomic_write(mr, iova, value);
+	else
+		err = rxe_mr_do_atomic_write(mr, iova, value);
 	if (err)
 		return err;
 

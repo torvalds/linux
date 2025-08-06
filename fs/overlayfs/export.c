@@ -385,11 +385,9 @@ static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 	 */
 	take_dentry_name_snapshot(&name, real);
 	/*
-	 * No idmap handling here: it's an internal lookup.  Could skip
-	 * permission checking altogether, but for now just use non-idmap
-	 * transformed ids.
+	 * No idmap handling here: it's an internal lookup.
 	 */
-	this = lookup_one_len(name.name.name, connected, name.name.len);
+	this = lookup_noperm(&name.name, connected);
 	release_dentry_name_snapshot(&name);
 	err = PTR_ERR(this);
 	if (IS_ERR(this)) {

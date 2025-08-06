@@ -253,6 +253,9 @@ static void iwl_mld_power_build_cmd(struct iwl_mld *mld,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
 
+	if (iwl_fw_lookup_cmd_ver(mld->fw, MAC_PM_POWER_TABLE, 0) >= 2)
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_ENABLE_SMPS_MSK);
+
 	/* firmware supports LPRX for beacons at rate 1 Mbps or 6 Mbps only */
 	if (link_conf->beacon_rate &&
 	    (link_conf->beacon_rate->bitrate == 10 ||

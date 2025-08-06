@@ -4,6 +4,7 @@ Kernel driver asus_ec_sensors
 =================================
 
 Supported boards:
+ * MAXIMUS VI HERO
  * PRIME X470-PRO
  * PRIME X570-PRO
  * PRIME X670E-PRO WIFI
@@ -20,6 +21,7 @@ Supported boards:
  * ROG CROSSHAIR X670E GENE
  * ROG MAXIMUS XI HERO
  * ROG MAXIMUS XI HERO (WI-FI)
+ * ROG MAXIMUS Z690 FORMULA
  * ROG STRIX B550-E GAMING
  * ROG STRIX B550-I GAMING
  * ROG STRIX X570-E GAMING

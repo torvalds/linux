@@ -29,6 +29,7 @@
 
 #include <linux/arch_topology.h>
 #include <linux/cpumask.h>
+#include <linux/nodemask.h>
 #include <linux/bitops.h>
 #include <linux/mmzone.h>
 #include <linux/smp.h>
@@ -38,10 +39,6 @@
 #ifndef nr_cpus_node
 #define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
 #endif
-
-#define for_each_node_with_cpus(node)			\
-	for_each_online_node(node)			\
-		if (nr_cpus_node(node))
 
 int arch_update_cpu_topology(void);
 
@@ -331,5 +328,14 @@ sched_numa_hop_mask(unsigned int node, unsigned int hops)
 		     cpu_online_mask,					       \
 	     !IS_ERR_OR_NULL(mask);					       \
 	     __hops++)
+
+DECLARE_PER_CPU(unsigned long, cpu_scale);
+
+static inline unsigned long topology_get_cpu_scale(int cpu)
+{
+	return per_cpu(cpu_scale, cpu);
+}
+
+void topology_set_cpu_scale(unsigned int cpu, unsigned long capacity);
 
 #endif /* _LINUX_TOPOLOGY_H */

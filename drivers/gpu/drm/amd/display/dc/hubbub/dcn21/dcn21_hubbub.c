@@ -132,9 +132,9 @@ int hubbub21_init_dchub(struct hubbub *hubbub,
 		// Init VMID 0 based on PA config
 		dcn20_vmid_setup(&hubbub1->vmid[0], &phys_config);
 	}
-
-	dcn21_dchvm_init(hubbub);
-
+	if (!hubbub1->base.ctx->dc->config.skip_riommu_prefetch_wa) {
+		dcn21_dchvm_init(hubbub);
+	}
 	return hubbub1->num_vmid;
 }
 

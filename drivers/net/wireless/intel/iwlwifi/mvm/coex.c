@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2020, 2022-2024 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2020, 2022-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  */
 #include <linux/ieee80211.h>
@@ -181,7 +181,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	struct iwl_mvm_sta *mvmsta;
 	u32 value;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return 0;
 
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
@@ -569,7 +569,7 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 					iwl_mvm_bt_notif_iterator, &data);
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		rcu_read_unlock();
 		return;
 	}

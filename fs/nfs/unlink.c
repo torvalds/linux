@@ -464,18 +464,17 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 
 	sdentry = NULL;
 	do {
-		int slen;
 		dput(sdentry);
 		sillycounter++;
-		slen = scnprintf(silly, sizeof(silly),
-				SILLYNAME_PREFIX "%0*llx%0*x",
-				SILLYNAME_FILEID_LEN, fileid,
-				SILLYNAME_COUNTER_LEN, sillycounter);
+		scnprintf(silly, sizeof(silly),
+			  SILLYNAME_PREFIX "%0*llx%0*x",
+			  SILLYNAME_FILEID_LEN, fileid,
+			  SILLYNAME_COUNTER_LEN, sillycounter);
 
 		dfprintk(VFS, "NFS: trying to rename %pd to %s\n",
 				dentry, silly);
 
-		sdentry = lookup_one_len(silly, dentry->d_parent, slen);
+		sdentry = lookup_noperm(&QSTR(silly), dentry->d_parent);
 		/*
 		 * N.B. Better to return EBUSY here ... it could be
 		 * dangerous to delete the file while it's in use.

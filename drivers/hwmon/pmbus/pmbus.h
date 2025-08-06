@@ -482,6 +482,7 @@ struct pmbus_driver_info {
 	 */
 	int access_delay;		/* in microseconds */
 	int write_delay;		/* in microseconds */
+	int page_change_delay;		/* in microseconds */
 };
 
 /* Regulator ops */
@@ -508,11 +509,11 @@ int pmbus_regulator_init_cb(struct regulator_dev *rdev,
 
 #define PMBUS_REGULATOR(_name, _id)   PMBUS_REGULATOR_STEP(_name, _id, 0, 0, 0)
 
-#define PMBUS_REGULATOR_STEP_ONE(_name, _voltages, _step, _min_uV)  \
+#define __PMBUS_REGULATOR_STEP_ONE(_name, _node, _voltages, _step, _min_uV)  \
 	{							\
 		.name = (_name),				\
 		.of_match = of_match_ptr(_name),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_node = of_match_ptr(_node),		\
 		.ops = &pmbus_regulator_ops,			\
 		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\
@@ -522,7 +523,19 @@ int pmbus_regulator_init_cb(struct regulator_dev *rdev,
 		.init_cb = pmbus_regulator_init_cb,		\
 	}
 
-#define PMBUS_REGULATOR_ONE(_name)   PMBUS_REGULATOR_STEP_ONE(_name, 0, 0, 0)
+/*
+ * _NODE macros are defined for historic reasons and MUST NOT be used in new
+ * drivers.
+ */
+#define PMBUS_REGULATOR_STEP_ONE_NODE(_name, _voltages, _step, _min_uV)  \
+	__PMBUS_REGULATOR_STEP_ONE(_name, "regulators", _voltages, _step, _min_uV)
+
+#define PMBUS_REGULATOR_ONE_NODE(_name)	PMBUS_REGULATOR_STEP_ONE_NODE(_name, 0, 0, 0)
+
+#define PMBUS_REGULATOR_STEP_ONE(_name, _voltages, _step, _min_uV)  \
+	__PMBUS_REGULATOR_STEP_ONE(_name, NULL, _voltages, _step, _min_uV)
+
+#define PMBUS_REGULATOR_ONE(_name)	PMBUS_REGULATOR_STEP_ONE(_name, 0, 0, 0)
 
 /* Function declarations */
 

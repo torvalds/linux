@@ -951,6 +951,22 @@ int vt_ioctl(struct tty_struct *tty,
 					(unsigned short __user *)arg);
 	case VT_WAITEVENT:
 		return vt_event_wait_ioctl((struct vt_event __user *)arg);
+
+	case VT_GETCONSIZECSRPOS:
+	{
+		struct vt_consizecsrpos concsr;
+
+		console_lock();
+		concsr.con_cols = vc->vc_cols;
+		concsr.con_rows = vc->vc_rows;
+		concsr.csr_col = vc->state.x;
+		concsr.csr_row = vc->state.y;
+		console_unlock();
+		if (copy_to_user(up, &concsr, sizeof(concsr)))
+			return -EFAULT;
+		return 0;
+	}
+
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -1103,8 +1119,6 @@ long vt_compat_ioctl(struct tty_struct *tty,
 	case VT_WAITACTIVE:
 	case VT_RELDISP:
 	case VT_DISALLOCATE:
-	case VT_RESIZE:
-	case VT_RESIZEX:
 		return vt_ioctl(tty, cmd, arg);
 
 	/*

@@ -1075,16 +1075,16 @@ static void get_ddr3_info(struct ast_device *ast, struct ast2300_dram_param *par
 
 	switch (param->vram_size) {
 	default:
-	case AST_VIDMEM_SIZE_8M:
+	case SZ_8M:
 		param->dram_config |= 0x00;
 		break;
-	case AST_VIDMEM_SIZE_16M:
+	case SZ_16M:
 		param->dram_config |= 0x04;
 		break;
-	case AST_VIDMEM_SIZE_32M:
+	case SZ_32M:
 		param->dram_config |= 0x08;
 		break;
-	case AST_VIDMEM_SIZE_64M:
+	case SZ_64M:
 		param->dram_config |= 0x0c;
 		break;
 	}
@@ -1446,16 +1446,16 @@ static void get_ddr2_info(struct ast_device *ast, struct ast2300_dram_param *par
 
 	switch (param->vram_size) {
 	default:
-	case AST_VIDMEM_SIZE_8M:
+	case SZ_8M:
 		param->dram_config |= 0x00;
 		break;
-	case AST_VIDMEM_SIZE_16M:
+	case SZ_16M:
 		param->dram_config |= 0x04;
 		break;
-	case AST_VIDMEM_SIZE_32M:
+	case SZ_32M:
 		param->dram_config |= 0x08;
 		break;
-	case AST_VIDMEM_SIZE_64M:
+	case SZ_64M:
 		param->dram_config |= 0x0c;
 		break;
 	}
@@ -1635,19 +1635,19 @@ static void ast_post_chip_2300(struct ast_device *ast)
                 switch (temp & 0x0c) {
                 default:
 		case 0x00:
-			param.vram_size = AST_VIDMEM_SIZE_8M;
+			param.vram_size = SZ_8M;
 			break;
 
 		case 0x04:
-			param.vram_size = AST_VIDMEM_SIZE_16M;
+			param.vram_size = SZ_16M;
 			break;
 
 		case 0x08:
-			param.vram_size = AST_VIDMEM_SIZE_32M;
+			param.vram_size = SZ_32M;
 			break;
 
 		case 0x0c:
-			param.vram_size = AST_VIDMEM_SIZE_64M;
+			param.vram_size = SZ_64M;
 			break;
 		}
 

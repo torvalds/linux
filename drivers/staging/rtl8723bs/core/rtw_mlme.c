@@ -1460,8 +1460,8 @@ void rtw_wmm_event_callback(struct adapter *padapter, u8 *pbuf)
 */
 void _rtw_join_timeout_handler(struct timer_list *t)
 {
-	struct adapter *adapter = from_timer(adapter, t,
-						  mlmepriv.assoc_timer);
+	struct adapter *adapter = timer_container_of(adapter, t,
+						     mlmepriv.assoc_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
@@ -1504,8 +1504,8 @@ void _rtw_join_timeout_handler(struct timer_list *t)
 */
 void rtw_scan_timeout_handler(struct timer_list *t)
 {
-	struct adapter *adapter = from_timer(adapter, t,
-						  mlmepriv.scan_to_timer);
+	struct adapter *adapter = timer_container_of(adapter, t,
+						     mlmepriv.scan_to_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	spin_lock_bh(&pmlmepriv->lock);
@@ -2022,12 +2022,12 @@ signed int rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, u
 	}
 
 	iEntry = SecIsInPMKIDList(adapter, pmlmepriv->assoc_bssid);
-	if (iEntry < 0) {
+	if (iEntry < 0)
 		return ielength;
-	} else {
-		if (authmode == WLAN_EID_RSN)
-			ielength = rtw_append_pmkid(adapter, iEntry, out_ie, ielength);
-	}
+
+	if (authmode == WLAN_EID_RSN)
+		ielength = rtw_append_pmkid(adapter, iEntry, out_ie, ielength);
+
 	return ielength;
 }
 

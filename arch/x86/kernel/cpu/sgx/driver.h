@@ -2,7 +2,6 @@
 #ifndef __ARCH_SGX_DRIVER_H__
 #define __ARCH_SGX_DRIVER_H__
 
-#include <crypto/hash.h>
 #include <linux/kref.h>
 #include <linux/mmu_notifier.h>
 #include <linux/radix-tree.h>

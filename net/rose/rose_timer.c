@@ -118,7 +118,7 @@ void rose_stop_idletimer(struct sock *sk)
 
 static void rose_heartbeat_expiry(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 	struct rose_sock *rose = rose_sk(sk);
 
 	bh_lock_sock(sk);
@@ -163,7 +163,7 @@ out:
 
 static void rose_timer_expiry(struct timer_list *t)
 {
-	struct rose_sock *rose = from_timer(rose, t, timer);
+	struct rose_sock *rose = timer_container_of(rose, t, timer);
 	struct sock *sk = &rose->sock;
 
 	bh_lock_sock(sk);
@@ -198,7 +198,7 @@ out:
 
 static void rose_idletimer_expiry(struct timer_list *t)
 {
-	struct rose_sock *rose = from_timer(rose, t, idletimer);
+	struct rose_sock *rose = timer_container_of(rose, t, idletimer);
 	struct sock *sk = &rose->sock;
 
 	bh_lock_sock(sk);

@@ -9,6 +9,7 @@
  * not aware of PI.
  */
 #include <linux/blk-integrity.h>
+#include <linux/t10-pi.h>
 #include <linux/workqueue.h>
 #include "blk.h"
 
@@ -43,6 +44,29 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	bio_endio(bio);
 }
 
+#define BIP_CHECK_FLAGS (BIP_CHECK_GUARD | BIP_CHECK_REFTAG | BIP_CHECK_APPTAG)
+static bool bip_should_check(struct bio_integrity_payload *bip)
+{
+	return bip->bip_flags & BIP_CHECK_FLAGS;
+}
+
+static bool bi_offload_capable(struct blk_integrity *bi)
+{
+	switch (bi->csum_type) {
+	case BLK_INTEGRITY_CSUM_CRC64:
+		return bi->tuple_size == sizeof(struct crc64_pi_tuple);
+	case BLK_INTEGRITY_CSUM_CRC:
+	case BLK_INTEGRITY_CSUM_IP:
+		return bi->tuple_size == sizeof(struct t10_pi_tuple);
+	default:
+		pr_warn_once("%s: unknown integrity checksum type:%d\n",
+			__func__, bi->csum_type);
+		fallthrough;
+	case BLK_INTEGRITY_CSUM_NONE:
+		return false;
+	}
+}
+
 /**
  * __bio_integrity_endio - Integrity I/O completion function
  * @bio:	Protected bio
@@ -54,12 +78,12 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  */
 bool __bio_integrity_endio(struct bio *bio)
 {
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct bio_integrity_data *bid =
 		container_of(bip, struct bio_integrity_data, bip);
 
-	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status && bi->csum_type) {
+	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status &&
+	    bip_should_check(bip)) {
 		INIT_WORK(&bid->work, bio_integrity_verify_fn);
 		queue_work(kintegrityd_wq, &bid->work);
 		return false;
@@ -84,6 +108,7 @@ bool bio_integrity_prep(struct bio *bio)
 {
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_data *bid;
+	bool set_flags = true;
 	gfp_t gfp = GFP_NOIO;
 	unsigned int len;
 	void *buf;
@@ -100,19 +125,24 @@ bool bio_integrity_prep(struct bio *bio)
 
 	switch (bio_op(bio)) {
 	case REQ_OP_READ:
-		if (bi->flags & BLK_INTEGRITY_NOVERIFY)
-			return true;
+		if (bi->flags & BLK_INTEGRITY_NOVERIFY) {
+			if (bi_offload_capable(bi))
+				return true;
+			set_flags = false;
+		}
 		break;
 	case REQ_OP_WRITE:
-		if (bi->flags & BLK_INTEGRITY_NOGENERATE)
-			return true;
-
 		/*
 		 * Zero the memory allocated to not leak uninitialized kernel
 		 * memory to disk for non-integrity metadata where nothing else
 		 * initializes the memory.
 		 */
-		if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE)
+		if (bi->flags & BLK_INTEGRITY_NOGENERATE) {
+			if (bi_offload_capable(bi))
+				return true;
+			set_flags = false;
+			gfp |= __GFP_ZERO;
+		} else if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE)
 			gfp |= __GFP_ZERO;
 		break;
 	default:
@@ -137,19 +167,21 @@ bool bio_integrity_prep(struct bio *bio)
 	bid->bip.bip_flags |= BIP_BLOCK_INTEGRITY;
 	bip_set_seed(&bid->bip, bio->bi_iter.bi_sector);
 
-	if (bi->csum_type == BLK_INTEGRITY_CSUM_IP)
-		bid->bip.bip_flags |= BIP_IP_CHECKSUM;
-	if (bi->csum_type)
-		bid->bip.bip_flags |= BIP_CHECK_GUARD;
-	if (bi->flags & BLK_INTEGRITY_REF_TAG)
-		bid->bip.bip_flags |= BIP_CHECK_REFTAG;
+	if (set_flags) {
+		if (bi->csum_type == BLK_INTEGRITY_CSUM_IP)
+			bid->bip.bip_flags |= BIP_IP_CHECKSUM;
+		if (bi->csum_type)
+			bid->bip.bip_flags |= BIP_CHECK_GUARD;
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			bid->bip.bip_flags |= BIP_CHECK_REFTAG;
+	}
 
 	if (bio_integrity_add_page(bio, virt_to_page(buf), len,
 			offset_in_page(buf)) < len)
 		goto err_end_io;
 
 	/* Auto-generate integrity metadata if this is a write */
-	if (bio_data_dir(bio) == WRITE)
+	if (bio_data_dir(bio) == WRITE && bip_should_check(&bid->bip))
 		blk_integrity_generate(bio);
 	else
 		bid->saved_bio_iter = bio->bi_iter;

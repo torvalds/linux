@@ -254,7 +254,7 @@ static u32 macvlan_hash_mix(const struct macvlan_dev *vlan)
 static unsigned int mc_hash(const struct macvlan_dev *vlan,
 			    const unsigned char *addr)
 {
-	u32 val = __get_unaligned_cpu32(addr + 2);
+	u32 val = get_unaligned((u32 *)(addr + 2));
 
 	val ^= macvlan_hash_mix(vlan);
 	return hash_32(val, MACVLAN_MC_FILTER_BITS);
@@ -754,13 +754,13 @@ static int macvlan_sync_address(struct net_device *dev,
 static int macvlan_set_mac_address(struct net_device *dev, void *p)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct sockaddr *addr = p;
+	struct sockaddr_storage *addr = p;
 
-	if (!is_valid_ether_addr(addr->sa_data))
+	if (!is_valid_ether_addr(addr->__data))
 		return -EADDRNOTAVAIL;
 
 	/* If the addresses are the same, this is a no-op */
-	if (ether_addr_equal(dev->dev_addr, addr->sa_data))
+	if (ether_addr_equal(dev->dev_addr, addr->__data))
 		return 0;
 
 	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
@@ -768,10 +768,10 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 		return dev_set_mac_address(vlan->lowerdev, addr, NULL);
 	}
 
-	if (macvlan_addr_busy(vlan->port, addr->sa_data))
+	if (macvlan_addr_busy(vlan->port, addr->__data))
 		return -EADDRINUSE;
 
-	return macvlan_sync_address(dev, addr->sa_data);
+	return macvlan_sync_address(dev, addr->__data);
 }
 
 static void macvlan_change_rx_flags(struct net_device *dev, int change)
@@ -1295,11 +1295,11 @@ static void macvlan_port_destroy(struct net_device *dev)
 	 */
 	if (macvlan_passthru(port) &&
 	    !ether_addr_equal(port->dev->dev_addr, port->perm_addr)) {
-		struct sockaddr sa;
+		struct sockaddr_storage ss;
 
-		sa.sa_family = port->dev->type;
-		memcpy(&sa.sa_data, port->perm_addr, port->dev->addr_len);
-		dev_set_mac_address(port->dev, &sa, NULL);
+		ss.ss_family = port->dev->type;
+		memcpy(&ss.__data, port->perm_addr, port->dev->addr_len);
+		dev_set_mac_address(port->dev, &ss, NULL);
 	}
 
 	kfree(port);

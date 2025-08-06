@@ -255,25 +255,6 @@ static void qed_db_recovery_teardown(struct qed_hwfn *p_hwfn)
 	p_hwfn->db_recovery_info.db_recovery_counter = 0;
 }
 
-/* Print the content of the doorbell recovery mechanism */
-void qed_db_recovery_dp(struct qed_hwfn *p_hwfn)
-{
-	struct qed_db_recovery_entry *db_entry = NULL;
-
-	DP_NOTICE(p_hwfn,
-		  "Displaying doorbell recovery database. Counter was %d\n",
-		  p_hwfn->db_recovery_info.db_recovery_counter);
-
-	/* Protect the list */
-	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
-	list_for_each_entry(db_entry,
-			    &p_hwfn->db_recovery_info.list, list_entry) {
-		qed_db_recovery_dp_entry(p_hwfn, db_entry, "Printing");
-	}
-
-	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
-}
-
 /* Ring the doorbell of a single doorbell recovery entry */
 static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
 				 struct qed_db_recovery_entry *db_entry)

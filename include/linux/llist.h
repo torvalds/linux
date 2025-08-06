@@ -223,9 +223,26 @@ static inline struct llist_node *llist_next(struct llist_node *node)
 	return node->next;
 }
 
-extern bool llist_add_batch(struct llist_node *new_first,
-			    struct llist_node *new_last,
-			    struct llist_head *head);
+/**
+ * llist_add_batch - add several linked entries in batch
+ * @new_first:	first entry in batch to be added
+ * @new_last:	last entry in batch to be added
+ * @head:	the head for your lock-less list
+ *
+ * Return whether list is empty before adding.
+ */
+static inline bool llist_add_batch(struct llist_node *new_first,
+				   struct llist_node *new_last,
+				   struct llist_head *head)
+{
+	struct llist_node *first = READ_ONCE(head->first);
+
+	do {
+		new_last->next = first;
+	} while (!try_cmpxchg(&head->first, &first, new_first));
+
+	return !first;
+}
 
 static inline bool __llist_add_batch(struct llist_node *new_first,
 				     struct llist_node *new_last,

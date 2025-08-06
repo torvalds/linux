@@ -89,7 +89,7 @@ unsigned long x25_display_timer(struct sock *sk)
 
 static void x25_heartbeat_expiry(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) /* can currently only occur in state 3 */
@@ -156,7 +156,7 @@ static inline void x25_do_timer_expiry(struct sock * sk)
 
 static void x25_timer_expiry(struct timer_list *t)
 {
-	struct x25_sock *x25 = from_timer(x25, t, timer);
+	struct x25_sock *x25 = timer_container_of(x25, t, timer);
 	struct sock *sk = &x25->sk;
 
 	bh_lock_sock(sk);

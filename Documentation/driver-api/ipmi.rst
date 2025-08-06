@@ -45,7 +45,7 @@ manual), choose the 'IPMI SI handler' option.  A driver also exists
 for direct I2C access to the IPMI management controller.  Some boards
 support this, but it is unknown if it will work on every board.  For
 this, choose 'IPMI SMBus handler', but be ready to try to do some
-figuring to see if it will work on your system if the SMBIOS/APCI
+figuring to see if it will work on your system if the SMBIOS/ACPI
 information is wrong or not present.  It is fairly safe to have both
 these enabled and let the drivers auto-detect what is present.
 
@@ -63,7 +63,7 @@ situation, you need to read the section below named 'The SI Driver' or
 IPMI defines a standard watchdog timer.  You can enable this with the
 'IPMI Watchdog Timer' config option.  If you compile the driver into
 the kernel, then via a kernel command-line option you can have the
-watchdog timer start as soon as it initializes.  It also have a lot
+watchdog timer start as soon as it initializes.  It also has a lot
 of other options, see the 'Watchdog' section below for more details.
 Note that you can also have the watchdog continue to run if it is
 closed (by default it is disabled on close).  Go into the 'Watchdog
@@ -280,10 +280,8 @@ Creating the User
 To use the message handler, you must first create a user using
 ipmi_create_user.  The interface number specifies which SMI you want
 to connect to, and you must supply callback functions to be called
-when data comes in.  The callback function can run at interrupt level,
-so be careful using the callbacks.  This also allows to you pass in a
-piece of data, the handler_data, that will be passed back to you on
-all calls.
+when data comes in.  This also allows to you pass in a piece of data,
+the handler_data, that will be passed back to you on all calls.
 
 Once you are done, call ipmi_destroy_user() to get rid of the user.
 
@@ -303,8 +301,7 @@ use it for anything you like.
 
 Responses come back in the function pointed to by the ipmi_recv_hndl
 field of the "handler" that you passed in to ipmi_create_user().
-Remember again, these may be running at interrupt level.  Remember to
-look at the receive type, too.
+Remember to look at the receive type, too.
 
 From userland, you fill out an ipmi_req_t structure and use the
 IPMICTL_SEND_COMMAND ioctl.  For incoming stuff, you can use select()
@@ -317,13 +314,13 @@ This gives the receiver a place to actually put the message.
 
 If the message cannot fit into the data you provide, you will get an
 EMSGSIZE error and the driver will leave the data in the receive
-queue.  If you want to get it and have it truncate the message, us
+queue.  If you want to get it and have it truncate the message, use
 the IPMICTL_RECEIVE_MSG_TRUNC ioctl.
 
 When you send a command (which is defined by the lowest-order bit of
 the netfn per the IPMI spec) on the IPMB bus, the driver will
 automatically assign the sequence number to the command and save the
-command.  If the response is not receive in the IPMI-specified 5
+command.  If the response is not received in the IPMI-specified 5
 seconds, it will generate a response automatically saying the command
 timed out.  If an unsolicited response comes in (if it was after 5
 seconds, for instance), that response will be ignored.
@@ -367,7 +364,7 @@ channel bitmasks do not overlap.
 
 To respond to a received command, set the response bit in the returned
 netfn, use the address from the received message, and use the same
-msgid that you got in the receive message.
+msgid that you got in the received message.
 
 From userland, equivalent IOCTLs are provided to do these functions.
 
@@ -440,7 +437,7 @@ register would be 0xca6.  This defaults to 1.
 
 The regsizes parameter gives the size of a register, in bytes.  The
 data used by IPMI is 8-bits wide, but it may be inside a larger
-register.  This parameter allows the read and write type to specified.
+register.  This parameter allows the read and write type to be specified.
 It may be 1, 2, 4, or 8.  The default is 1.
 
 Since the register size may be larger than 32 bits, the IPMI data may not
@@ -481,8 +478,8 @@ If your IPMI interface does not support interrupts and is a KCS or
 SMIC interface, the IPMI driver will start a kernel thread for the
 interface to help speed things up.  This is a low-priority kernel
 thread that constantly polls the IPMI driver while an IPMI operation
-is in progress.  The force_kipmid module parameter will all the user to
-force this thread on or off.  If you force it off and don't have
+is in progress.  The force_kipmid module parameter will allow the user
+to force this thread on or off.  If you force it off and don't have
 interrupts, the driver will run VERY slowly.  Don't blame me,
 these interfaces suck.
 
@@ -583,7 +580,7 @@ kernel command line as::
 These are the same options as on the module command line.
 
 The I2C driver does not support non-blocking access or polling, so
-this driver cannod to IPMI panic events, extend the watchdog at panic
+this driver cannot do IPMI panic events, extend the watchdog at panic
 time, or other panic-related IPMI functions without special kernel
 patches and driver modifications.  You can get those at the openipmi
 web page.
@@ -610,7 +607,7 @@ Parameters are::
 	ipmi_ipmb.retry_time_ms=<Time between retries on IPMB>
 	ipmi_ipmb.max_retries=<Number of times to retry a message>
 
-Loading the module will not result in the driver automatcially
+Loading the module will not result in the driver automatically
 starting unless there is device tree information setting it up.  If
 you want to instantiate one of these by hand, do::
 

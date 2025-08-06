@@ -25,7 +25,7 @@ menu "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
+	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && CRYPTO_SELFTESTS
 	depends on (MODULE_SIG || !MODULES)
 	help
 	  This option enables the fips boot option which is
@@ -143,16 +143,17 @@ config CRYPTO_ACOMP
 
 config CRYPTO_HKDF
 	tristate
-	select CRYPTO_SHA256 if !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
-	select CRYPTO_SHA512 if !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+	select CRYPTO_SHA256 if CRYPTO_SELFTESTS
+	select CRYPTO_SHA512 if CRYPTO_SELFTESTS
 	select CRYPTO_HASH2
 
 config CRYPTO_MANAGER
-	tristate "Cryptographic algorithm manager"
+	tristate
+	default CRYPTO_ALGAPI if CRYPTO_SELFTESTS
 	select CRYPTO_MANAGER2
 	help
-	  Create default cryptographic template instantiations such as
-	  cbc(aes).
+	  This provides the support for instantiating templates such as
+	  cbc(aes), and the support for the crypto self-tests.
 
 config CRYPTO_MANAGER2
 	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
@@ -173,34 +174,26 @@ config CRYPTO_USER
 	  Userspace configuration for cryptographic instantiations such as
 	  cbc(aes).
 
-config CRYPTO_MANAGER_DISABLE_TESTS
-	bool "Disable run-time self tests"
-	default y
+config CRYPTO_SELFTESTS
+	bool "Enable cryptographic self-tests"
+	depends on DEBUG_KERNEL
 	help
-	  Disable run-time self tests that normally take place at
-	  algorithm registration.
+	  Enable the cryptographic self-tests.
 
-config CRYPTO_MANAGER_EXTRA_TESTS
-	bool "Enable extra run-time crypto self tests"
-	depends on DEBUG_KERNEL && !CRYPTO_MANAGER_DISABLE_TESTS && CRYPTO_MANAGER
-	help
-	  Enable extra run-time self tests of registered crypto algorithms,
-	  including randomized fuzz tests.
+	  The cryptographic self-tests run at boot time, or at algorithm
+	  registration time if algorithms are dynamically loaded later.
 
-	  This is intended for developer use only, as these tests take much
-	  longer to run than the normal self tests.
+	  This is primarily intended for developer use.  It should not be
+	  enabled in production kernels, unless you are trying to use these
+	  tests to fulfill a FIPS testing requirement.
 
 config CRYPTO_NULL
 	tristate "Null algorithms"
-	select CRYPTO_NULL2
+	select CRYPTO_ALGAPI
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
-
-config CRYPTO_NULL2
-	tristate
-	select CRYPTO_ALGAPI2
-	select CRYPTO_SKCIPHER2
-	select CRYPTO_HASH2
 
 config CRYPTO_PCRYPT
 	tristate "Parallel crypto engine"
@@ -228,7 +221,6 @@ config CRYPTO_AUTHENC
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_HASH
-	select CRYPTO_NULL
 	help
 	  Authenc: Combined mode wrapper for IPsec.
 
@@ -240,18 +232,21 @@ config CRYPTO_KRB5ENC
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_HASH
-	select CRYPTO_NULL
 	help
 	  Combined hash and cipher support for Kerberos 5 RFC3961 simplified
 	  profile.  This is required for Kerberos 5-style encryption, used by
 	  sunrpc/NFS and rxrpc/AFS.
 
-config CRYPTO_TEST
-	tristate "Testing module"
+config CRYPTO_BENCHMARK
+	tristate "Crypto benchmarking module"
 	depends on m || EXPERT
 	select CRYPTO_MANAGER
 	help
-	  Quick & dirty crypto test module.
+	  Quick & dirty crypto benchmarking module.
+
+	  This is mainly intended for use by people developing cryptographic
+	  algorithms in the kernel.  It should not be enabled in production
+	  kernels.
 
 config CRYPTO_SIMD
 	tristate
@@ -634,8 +629,8 @@ config CRYPTO_ARC4
 
 config CRYPTO_CHACHA20
 	tristate "ChaCha"
+	select CRYPTO_LIB_CHACHA
 	select CRYPTO_LIB_CHACHA_GENERIC
-	select CRYPTO_LIB_CHACHA_INTERNAL
 	select CRYPTO_SKCIPHER
 	help
 	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms
@@ -784,8 +779,8 @@ config CRYPTO_AEGIS128_SIMD
 config CRYPTO_CHACHA20POLY1305
 	tristate "ChaCha20-Poly1305"
 	select CRYPTO_CHACHA20
-	select CRYPTO_POLY1305
 	select CRYPTO_AEAD
+	select CRYPTO_LIB_POLY1305
 	select CRYPTO_MANAGER
 	help
 	  ChaCha20 stream cipher and Poly1305 authenticator combined
@@ -806,7 +801,6 @@ config CRYPTO_GCM
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
-	select CRYPTO_NULL
 	select CRYPTO_MANAGER
 	help
 	  GCM (Galois/Counter Mode) authenticated encryption mode and GMAC
@@ -817,7 +811,6 @@ config CRYPTO_GCM
 config CRYPTO_GENIV
 	tristate
 	select CRYPTO_AEAD
-	select CRYPTO_NULL
 	select CRYPTO_MANAGER
 	select CRYPTO_RNG_DEFAULT
 
@@ -953,18 +946,6 @@ config CRYPTO_POLYVAL
 	  This is used in HCTR2.  It is not a general-purpose
 	  cryptographic hash function.
 
-config CRYPTO_POLY1305
-	tristate "Poly1305"
-	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305_GENERIC
-	select CRYPTO_LIB_POLY1305_INTERNAL
-	help
-	  Poly1305 authenticator algorithm (RFC7539)
-
-	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
-	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
-	  in IETF protocols. This is the portable C implementation of Poly1305.
-
 config CRYPTO_RMD160
 	tristate "RIPEMD-160"
 	select CRYPTO_HASH
@@ -994,6 +975,7 @@ config CRYPTO_SHA256
 	tristate "SHA-224 and SHA-256"
 	select CRYPTO_HASH
 	select CRYPTO_LIB_SHA256
+	select CRYPTO_LIB_SHA256_GENERIC
 	help
 	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180, ISO/IEC 10118-3)
 
@@ -1012,13 +994,10 @@ config CRYPTO_SHA3
 	help
 	  SHA-3 secure hash algorithms (FIPS 202, ISO/IEC 10118-3)
 
-config CRYPTO_SM3
-	tristate
-
 config CRYPTO_SM3_GENERIC
 	tristate "SM3 (ShangMi 3)"
 	select CRYPTO_HASH
-	select CRYPTO_SM3
+	select CRYPTO_LIB_SM3
 	help
 	  SM3 (ShangMi 3) secure hash function (OSCCA GM/T 0004-2012, ISO/IEC 10118-3)
 
@@ -1406,7 +1385,6 @@ config CRYPTO_USER_API_AEAD
 	depends on NET
 	select CRYPTO_AEAD
 	select CRYPTO_SKCIPHER
-	select CRYPTO_NULL
 	select CRYPTO_USER_API
 	help
 	  Enable the userspace interface for AEAD cipher algorithms.

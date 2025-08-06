@@ -1328,7 +1328,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 
 static void link_timeout_enable_link(struct timer_list *t)
 {
-	struct hisi_hba *hisi_hba = from_timer(hisi_hba, t, timer);
+	struct hisi_hba *hisi_hba = timer_container_of(hisi_hba, t, timer);
 	int i, reg_val;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -1349,7 +1349,7 @@ static void link_timeout_enable_link(struct timer_list *t)
 
 static void link_timeout_disable_link(struct timer_list *t)
 {
-	struct hisi_hba *hisi_hba = from_timer(hisi_hba, t, timer);
+	struct hisi_hba *hisi_hba = timer_container_of(hisi_hba, t, timer);
 	int i, reg_val;
 
 	reg_val = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -2581,7 +2581,8 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 
 static void hisi_sas_internal_abort_quirk_timeout(struct timer_list *t)
 {
-	struct hisi_sas_slot *slot = from_timer(slot, t, internal_abort_timer);
+	struct hisi_sas_slot *slot = timer_container_of(slot, t,
+							internal_abort_timer);
 	struct hisi_sas_port *port = slot->port;
 	struct asd_sas_port *asd_sas_port;
 	struct asd_sas_phy *sas_phy;
@@ -2771,7 +2772,7 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 	irq_msk = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO)
 		   >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) & 0x1ff;
 	while (irq_msk) {
-		if (irq_msk  & 1) {
+		if (irq_msk & 1) {
 			u32 reg_value = hisi_sas_phy_read32(hisi_hba, phy_no,
 					    CHL_INT0);
 
@@ -3111,7 +3112,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
+static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
@@ -3499,7 +3500,7 @@ static int write_gpio_v2_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 			 * numbered drive in the fourth byte.
 			 * See SFF-8485 Rev. 0.7 Table 24.
 			 */
-			void __iomem  *reg_addr = hisi_hba->sgpio_regs +
+			void __iomem *reg_addr = hisi_hba->sgpio_regs +
 					reg_index * 4 + phy_no;
 			int data_idx = phy_no + 3 - (phy_no % 4) * 2;
 

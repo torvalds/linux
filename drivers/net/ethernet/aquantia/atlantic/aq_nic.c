@@ -254,7 +254,7 @@ static void aq_nic_service_task(struct work_struct *work)
 
 static void aq_nic_service_timer_cb(struct timer_list *t)
 {
-	struct aq_nic_s *self = from_timer(self, t, service_timer);
+	struct aq_nic_s *self = timer_container_of(self, t, service_timer);
 
 	mod_timer(&self->service_timer,
 		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
@@ -264,7 +264,7 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 
 static void aq_nic_polling_timer_cb(struct timer_list *t)
 {
-	struct aq_nic_s *self = from_timer(self, t, polling_timer);
+	struct aq_nic_s *self = timer_container_of(self, t, polling_timer);
 	unsigned int i = 0U;
 
 	for (i = 0U; self->aq_vecs > i; ++i)
@@ -897,6 +897,8 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 	}
 
 	frags = aq_nic_map_skb(self, skb, ring);
+
+	skb_tx_timestamp(skb);
 
 	if (likely(frags)) {
 		err = self->aq_hw_ops->hw_ring_tx_xmit(self->aq_hw,

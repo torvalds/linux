@@ -90,7 +90,7 @@ int io_renameat(struct io_kiocb *req, unsigned int issue_flags)
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 void io_renameat_cleanup(struct io_kiocb *req)
@@ -141,7 +141,7 @@ int io_unlinkat(struct io_kiocb *req, unsigned int issue_flags)
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 void io_unlinkat_cleanup(struct io_kiocb *req)
@@ -185,7 +185,7 @@ int io_mkdirat(struct io_kiocb *req, unsigned int issue_flags)
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 void io_mkdirat_cleanup(struct io_kiocb *req)
@@ -235,7 +235,7 @@ int io_symlinkat(struct io_kiocb *req, unsigned int issue_flags)
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_linkat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -281,7 +281,7 @@ int io_linkat(struct io_kiocb *req, unsigned int issue_flags)
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 void io_link_cleanup(struct io_kiocb *req)

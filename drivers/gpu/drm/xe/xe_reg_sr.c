@@ -173,6 +173,9 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 	if (xa_empty(&sr->xa))
 		return;
 
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	xe_gt_dbg(gt, "Applying %s save-restore MMIOs\n", sr->name);
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);

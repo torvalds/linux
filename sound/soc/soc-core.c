@@ -2134,18 +2134,13 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 	}
 }
 
-static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
+static void snd_soc_unbind_card(struct snd_soc_card *card)
 {
 	if (snd_soc_card_is_instantiated(card)) {
 		card->instantiated = false;
 		snd_soc_flush_all_delayed_work(card);
 
 		soc_cleanup_card_resources(card);
-		if (!unregister)
-			list_add(&card->list, &unbind_card_list);
-	} else {
-		if (unregister)
-			list_del(&card->list);
 	}
 }
 
@@ -2155,9 +2150,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	struct snd_soc_component *component;
 	int ret;
 
-	mutex_lock(&client_mutex);
 	snd_soc_card_mutex_lock_root(card);
-
 	snd_soc_fill_dummy_dai(card);
 
 	snd_soc_dapm_init(&card->dapm, card, NULL);
@@ -2304,9 +2297,49 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 probe_end:
 	if (ret < 0)
 		soc_cleanup_card_resources(card);
-
 	snd_soc_card_mutex_unlock(card);
-	mutex_unlock(&client_mutex);
+
+	return ret;
+}
+
+static void devm_card_bind_release(struct device *dev, void *res)
+{
+	snd_soc_unregister_card(*(struct snd_soc_card **)res);
+}
+
+static int devm_snd_soc_bind_card(struct device *dev, struct snd_soc_card *card)
+{
+	struct snd_soc_card **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_card_bind_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = snd_soc_bind_card(card);
+	if (ret == 0 || ret == -EPROBE_DEFER) {
+		*ptr = card;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return ret;
+}
+
+static int snd_soc_rebind_card(struct snd_soc_card *card)
+{
+	int ret;
+
+	if (card->devres_dev) {
+		devres_destroy(card->devres_dev, devm_card_bind_release, NULL, NULL);
+		ret = devm_snd_soc_bind_card(card->devres_dev, card);
+	} else {
+		ret = snd_soc_bind_card(card);
+	}
+
+	if (ret != -EPROBE_DEFER)
+		list_del_init(&card->list);
 
 	return ret;
 }
@@ -2506,6 +2539,8 @@ EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
  */
 int snd_soc_register_card(struct snd_soc_card *card)
 {
+	int ret;
+
 	if (!card->name || !card->dev)
 		return -EINVAL;
 
@@ -2526,7 +2561,21 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	mutex_init(&card->dapm_mutex);
 	mutex_init(&card->pcm_mutex);
 
-	return snd_soc_bind_card(card);
+	mutex_lock(&client_mutex);
+
+	if (card->devres_dev) {
+		ret = devm_snd_soc_bind_card(card->devres_dev, card);
+		if (ret == -EPROBE_DEFER) {
+			list_add(&card->list, &unbind_card_list);
+			ret = 0;
+		}
+	} else {
+		ret = snd_soc_bind_card(card);
+	}
+
+	mutex_unlock(&client_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_card);
 
@@ -2539,7 +2588,8 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
 void snd_soc_unregister_card(struct snd_soc_card *card)
 {
 	mutex_lock(&client_mutex);
-	snd_soc_unbind_card(card, true);
+	snd_soc_unbind_card(card);
+	list_del(&card->list);
 	mutex_unlock(&client_mutex);
 	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 }
@@ -2753,23 +2803,19 @@ static void convert_endianness_formats(struct snd_soc_pcm_stream *stream)
 			stream->formats |= endianness_format_map[i];
 }
 
-static void snd_soc_try_rebind_card(void)
-{
-	struct snd_soc_card *card, *c;
-
-	list_for_each_entry_safe(card, c, &unbind_card_list, list)
-		if (!snd_soc_bind_card(card))
-			list_del(&card->list);
-}
-
 static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 {
 	struct snd_soc_card *card = component->card;
+	bool instantiated;
 
 	snd_soc_unregister_dais(component);
 
-	if (card)
-		snd_soc_unbind_card(card, false);
+	if (card) {
+		instantiated = card->instantiated;
+		snd_soc_unbind_card(card);
+		if (instantiated)
+			list_add(&card->list, &unbind_card_list);
+	}
 
 	list_del(&component->list);
 }
@@ -2808,6 +2854,7 @@ int snd_soc_add_component(struct snd_soc_component *component,
 			  struct snd_soc_dai_driver *dai_drv,
 			  int num_dai)
 {
+	struct snd_soc_card *card, *c;
 	int ret;
 	int i;
 
@@ -2838,15 +2885,14 @@ int snd_soc_add_component(struct snd_soc_component *component,
 	/* see for_each_component */
 	list_add(&component->list, &component_list);
 
+	list_for_each_entry_safe(card, c, &unbind_card_list, list)
+		snd_soc_rebind_card(card);
+
 err_cleanup:
 	if (ret < 0)
 		snd_soc_del_component_unlocked(component);
 
 	mutex_unlock(&client_mutex);
-
-	if (ret == 0)
-		snd_soc_try_rebind_card();
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_component);
@@ -2881,34 +2927,14 @@ EXPORT_SYMBOL_GPL(snd_soc_register_component);
 void snd_soc_unregister_component_by_driver(struct device *dev,
 					    const struct snd_soc_component_driver *component_driver)
 {
-	struct snd_soc_component *component;
+	const char *driver_name = NULL;
 
-	if (!component_driver)
-		return;
+	if (component_driver)
+		driver_name = component_driver->name;
 
-	mutex_lock(&client_mutex);
-	component = snd_soc_lookup_component_nolocked(dev, component_driver->name);
-	if (!component)
-		goto out;
-
-	snd_soc_del_component_unlocked(component);
-
-out:
-	mutex_unlock(&client_mutex);
-}
-EXPORT_SYMBOL_GPL(snd_soc_unregister_component_by_driver);
-
-/**
- * snd_soc_unregister_component - Unregister all related component
- * from the ASoC core
- *
- * @dev: The device to unregister
- */
-void snd_soc_unregister_component(struct device *dev)
-{
 	mutex_lock(&client_mutex);
 	while (1) {
-		struct snd_soc_component *component = snd_soc_lookup_component_nolocked(dev, NULL);
+		struct snd_soc_component *component = snd_soc_lookup_component_nolocked(dev, driver_name);
 
 		if (!component)
 			break;
@@ -2917,7 +2943,7 @@ void snd_soc_unregister_component(struct device *dev)
 	}
 	mutex_unlock(&client_mutex);
 }
-EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
+EXPORT_SYMBOL_GPL(snd_soc_unregister_component_by_driver);
 
 /* Retrieve a card's name from device tree */
 int snd_soc_of_parse_card_name(struct snd_soc_card *card,

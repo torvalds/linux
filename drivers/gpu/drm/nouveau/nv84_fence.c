@@ -185,10 +185,8 @@ static void
 nv84_fence_destroy(struct nouveau_drm *drm)
 {
 	struct nv84_fence_priv *priv = drm->fence;
-	nouveau_bo_unmap(priv->bo);
-	if (priv->bo)
-		nouveau_bo_unpin(priv->bo);
-	nouveau_bo_fini(priv->bo);
+
+	nouveau_bo_unpin_del(&priv->bo);
 	drm->fence = NULL;
 	kfree(priv);
 }
@@ -222,19 +220,8 @@ nv84_fence_create(struct nouveau_drm *drm)
 		  * will lose CPU/GPU coherency!
 		  */
 		NOUVEAU_GEM_DOMAIN_GART | NOUVEAU_GEM_DOMAIN_COHERENT;
-	ret = nouveau_bo_new(&drm->client, 16 * drm->chan_total, 0,
-			     domain, 0, 0, NULL, NULL, &priv->bo);
-	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, domain, false);
-		if (ret == 0) {
-			ret = nouveau_bo_map(priv->bo);
-			if (ret)
-				nouveau_bo_unpin(priv->bo);
-		}
-		if (ret)
-			nouveau_bo_fini(priv->bo);
-	}
 
+	ret = nouveau_bo_new_map(&drm->client, domain, 16 * drm->chan_total, &priv->bo);
 	if (ret)
 		nv84_fence_destroy(drm);
 	return ret;

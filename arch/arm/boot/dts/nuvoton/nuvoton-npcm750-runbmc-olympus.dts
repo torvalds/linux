@@ -427,91 +427,91 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		reset-gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
-		G1A_P0_0 {
+		g1a-p0-0-hog {
 			gpio-hog;
 			gpios = <0 0>;
 			output-high;
 			line-name = "TPM_BMC_ALERT_N";
 		};
-		G1A_P0_1 {
+		g1a-p0-1-hog {
 			gpio-hog;
 			gpios = <1 0>;
 			input;
 			line-name = "FM_BIOS_TOP_SWAP";
 		};
-		G1A_P0_2 {
+		g1a-p0-2-hog {
 			gpio-hog;
 			gpios = <2 0>;
 			input;
 			line-name = "FM_BIOS_PREFRB2_GOOD";
 		};
-		G1A_P0_3 {
+		g1a-p0-3-hog {
 			gpio-hog;
 			gpios = <3 0>;
 			input;
 			line-name = "BMC_SATAXPCIE_0TO3_SEL";
 		};
-		G1A_P0_4 {
+		g1a-p0-4-hog {
 			gpio-hog;
 			gpios = <4 0>;
 			input;
 			line-name = "BMC_SATAXPCIE_4TO7_SEL";
 		};
-		G1A_P0_5 {
+		g1a-p0-5-hog {
 			gpio-hog;
 			gpios = <5 0>;
 			output-low;
 			line-name = "FM_UV_ADR_TRIGGER_EN_N";
 		};
-		G1A_P0_6 {
+		g1a-p0-6-hog {
 			gpio-hog;
 			gpios = <6 0>;
 			input;
 			line-name = "RM_THROTTLE_EN_N";
 		};
-		G1A_P1_0 {
+		g1a-p1-0-hog {
 			gpio-hog;
 			gpios = <8 0>;
 			input;
 			line-name = "FM_BMC_TPM_PRES_N";
 		};
-		G1A_P1_1 {
+		g1a-p1-1-hog {
 			gpio-hog;
 			gpios = <9 0>;
 			input;
 			line-name = "FM_CPU0_SKTOCC_LVT3_N";
 		};
-		G1A_P1_2 {
+		g1a-p1-2-hog {
 			gpio-hog;
 			gpios = <10 0>;
 			input;
 			line-name = "FM_CPU1_SKTOCC_LVT3_N";
 		};
-		G1A_P1_3 {
+		g1a-p1-3-hog {
 			gpio-hog;
 			gpios = <11 0>;
 			input;
 			line-name = "PSU1_ALERT_N";
 		};
-		G1A_P1_4 {
+		g1a-p1-4-hog {
 			gpio-hog;
 			gpios = <12 0>;
 			input;
 			line-name = "PSU2_ALERT_N";
 		};
-		G1A_P1_5 {
+		g1a-p1-5-hog {
 			gpio-hog;
 			gpios = <13 0>;
 			input;
 			line-name = "H_CPU0_FAST_WAKE_LVT3_N";
 		};
-		G1A_P1_6 {
+		g1a-p1-6-hog {
 			gpio-hog;
 			gpios = <14 0>;
 			output-high;
 			line-name = "I2C_MUX1_RESET_N";
 		};
-		G1A_P1_7 {
+		g1a-p1-7-hog {
 			gpio-hog;
 			gpios = <15 0>;
 			input;
@@ -524,91 +524,91 @@
 		reg = <0x75>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		G1B_P0_0 {
+		g1b-p0-0-hog {
 			gpio-hog;
 			gpios = <0 0>;
 			input;
 			line-name = "PVDDQ_ABC_PINALERT_N";
 		};
-		G1B_P0_1 {
+		g1b-p0-1-hog {
 			gpio-hog;
 			gpios = <1 0>;
 			input;
 			line-name = "PVDDQ_DEF_PINALERT_N";
 		};
-		G1B_P0_2 {
+		g1b-p0-2-hog {
 			gpio-hog;
 			gpios = <2 0>;
 			input;
 			line-name = "PVDDQ_GHJ_PINALERT_N";
 		};
-		G1B_P0_3 {
+		g1b-p0-3-hog {
 			gpio-hog;
 			gpios = <3 0>;
 			input;
 			line-name = "PVDDQ_KLM_PINALERT_N";
 		};
-		G1B_P0_5 {
+		g1b-p0-5-hog {
 			gpio-hog;
 			gpios = <5 0>;
 			input;
 			line-name = "FM_BOARD_REV_ID0";
 		};
-		G1B_P0_6 {
+		g1b-p0-6-hog {
 			gpio-hog;
 			gpios = <6 0>;
 			input;
 			line-name = "FM_BOARD_REV_ID1";
 		};
-		G1B_P0_7 {
+		g1b-p0-7-hog {
 			gpio-hog;
 			gpios = <7 0>;
 			input;
 			line-name = "FM_BOARD_REV_ID2";
 		};
-		G1B_P1_0 {
+		g1b-p1-0-hog {
 			gpio-hog;
 			gpios = <8 0>;
 			input;
 			line-name = "FM_OC_DETECT_EN_N";
 		};
-		G1B_P1_1 {
+		g1b-p1-1-hog {
 			gpio-hog;
 			gpios = <9 0>;
 			input;
 			line-name = "FM_FLASH_DESC_OVERRIDE";
 		};
-		G1B_P1_2 {
+		g1b-p1-2-hog {
 			gpio-hog;
 			gpios = <10 0>;
 			output-low;
 			line-name = "FP_PWR_ID_LED_N";
 		};
-		G1B_P1_3 {
+		g1b-p1-3-hog {
 			gpio-hog;
 			gpios = <11 0>;
 			output-low;
 			line-name = "BMC_LED_PWR_GRN";
 		};
-		G1B_P1_4 {
+		g1b-p1-4-hog {
 			gpio-hog;
 			gpios = <12 0>;
 			output-low;
 			line-name = "BMC_LED_PWR_AMBER";
 		};
-		G1B_P1_5 {
+		g1b-p1-5-hog {
 			gpio-hog;
 			gpios = <13 0>;
 			output-high;
 			line-name = "FM_BMC_FAULT_LED_N";
 		};
-		G1B_P1_6 {
+		g1b-p1-6-hog {
 			gpio-hog;
 			gpios = <14 0>;
 			output-high;
 			line-name = "FM_CPLD_BMC_PWRDN_N";
 		};
-		G1B_P1_7 {
+		g1b-p1-7-hog {
 			gpio-hog;
 			gpios = <15 0>;
 			output-high;
@@ -626,91 +626,91 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		reset-gpios = <&gpio5 28 GPIO_ACTIVE_LOW>;
-		G2A_P0_0 {
+		g2a-p0-0-hog {
 			gpio-hog;
 			gpios = <0 0>;
 			output-high;
 			line-name = "BMC_PON_RST_REQ_N";
 		};
-		G2A_P0_1 {
+		g2a-p0-1-hog {
 			gpio-hog;
 			gpios = <1 0>;
 			output-high;
 			line-name = "BMC_RST_IND_REQ_N";
 		};
-		G2A_P0_2 {
+		g2a-p0-2-hog {
 			gpio-hog;
 			gpios = <2 0>;
 			input;
 			line-name = "RST_BMC_RTCRST";
 		};
-		G2A_P0_3 {
+		g2a-p0-3-hog {
 			gpio-hog;
 			gpios = <3 0>;
 			output-high;
 			line-name = "FM_BMC_PWRBTN_OUT_N";
 		};
-		G2A_P0_4 {
+		g2a-p0-4-hog {
 			gpio-hog;
 			gpios = <4 0>;
 			output-high;
 			line-name = "RST_BMC_SYSRST_BTN_OUT_N";
 		};
-		G2A_P0_5 {
+		g2a-p0-5-hog {
 			gpio-hog;
 			gpios = <5 0>;
 			output-high;
 			line-name = "FM_BATTERY_SENSE_EN_N";
 		};
-		G2A_P0_6 {
+		g2a-p0-6-hog {
 			gpio-hog;
 			gpios = <6 0>;
 			output-high;
 			line-name = "FM_BMC_READY_N";
 		};
-		G2A_P0_7 {
+		g2a-p0-7-hog {
 			gpio-hog;
 			gpios = <7 0>;
 			input;
 			line-name = "IRQ_BMC_PCH_SMI_LPC_N";
 		};
-		G2A_P1_0 {
+		g2a-p1-0-hog {
 			gpio-hog;
 			gpios = <8 0>;
 			input;
 			line-name = "FM_SLOT4_CFG0";
 		};
-		G2A_P1_1 {
+		g2a-p1-1-hog {
 			gpio-hog;
 			gpios = <9 0>;
 			input;
 			line-name = "FM_SLOT4_CFG1";
 		};
-		G2A_P1_2 {
+		g2a-p1-2-hog {
 			gpio-hog;
 			gpios = <10 0>;
 			input;
 			line-name = "FM_NVDIMM_EVENT_N";
 		};
-		G2A_P1_3 {
+		g2a-p1-3-hog {
 			gpio-hog;
 			gpios = <11 0>;
 			input;
 			line-name = "PSU1_BLADE_EN_N";
 		};
-		G2A_P1_4 {
+		g2a-p1-4-hog {
 			gpio-hog;
 			gpios = <12 0>;
 			input;
 			line-name = "BMC_PCH_FNM";
 		};
-		G2A_P1_5 {
+		g2a-p1-5-hog {
 			gpio-hog;
 			gpios = <13 0>;
 			input;
 			line-name = "FM_SOL_UART_CH_SEL";
 		};
-		G2A_P1_6 {
+		g2a-p1-6-hog {
 			gpio-hog;
 			gpios = <14 0>;
 			input;
@@ -723,91 +723,91 @@
 		reg = <0x75>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		G2B_P0_0 {
+		g2b-p0-0-hog {
 			gpio-hog;
 			gpios = <0 0>;
 			input;
 			line-name = "FM_CPU_MSMI_LVT3_N";
 		};
-		G2B_P0_1 {
+		g2b-p0-1-hog {
 			gpio-hog;
 			gpios = <1 0>;
 			input;
 			line-name = "FM_BIOS_MRC_DEBUG_MSG_DIS";
 		};
-		G2B_P0_2 {
+		g2b-p0-2-hog {
 			gpio-hog;
 			gpios = <2 0>;
 			input;
 			line-name = "FM_CPU1_DISABLE_BMC_N";
 		};
-		G2B_P0_3 {
+		g2b-p0-3-hog {
 			gpio-hog;
 			gpios = <3 0>;
 			output-low;
 			line-name = "BMC_JTAG_SELECT";
 		};
-		G2B_P0_4 {
+		g2b-p0-4-hog {
 			gpio-hog;
 			gpios = <4 0>;
 			output-high;
 			line-name = "PECI_MUX_SELECT";
 		};
-		G2B_P0_5 {
+		g2b-p0-5-hog {
 			gpio-hog;
 			gpios = <5 0>;
 			output-high;
 			line-name = "I2C_MUX2_RESET_N";
 		};
-		G2B_P0_6 {
+		g2b-p0-6-hog {
 			gpio-hog;
 			gpios = <6 0>;
 			input;
 			line-name = "FM_BMC_CPLD_PSU2_ON";
 		};
-		G2B_P0_7 {
+		g2b-p0-7-hog {
 			gpio-hog;
 			gpios = <7 0>;
 			output-high;
 			line-name = "PSU2_ALERT_EN_N";
 		};
-		G2B_P1_0 {
+		g2b-p1-0-hog {
 			gpio-hog;
 			gpios = <8 0>;
 			output-high;
 			line-name = "FM_CPU_BMC_INIT";
 		};
-		G2B_P1_1 {
+		g2b-p1-1-hog {
 			gpio-hog;
 			gpios = <9 0>;
 			output-high;
 			line-name = "IRQ_BMC_PCH_SCI_LPC_N";
 		};
-		G2B_P1_2 {
+		g2b-p1-2-hog {
 			gpio-hog;
 			gpios = <10 0>;
 			output-low;
 			line-name = "PMB_ALERT_EN_N";
 		};
-		G2B_P1_3 {
+		g2b-p1-3-hog {
 			gpio-hog;
 			gpios = <11 0>;
 			output-high;
 			line-name = "FM_FAST_PROCHOT_EN_N";
 		};
-		G2B_P1_4 {
+		g2b-p1-4-hog {
 			gpio-hog;
 			gpios = <12 0>;
 			output-high;
 			line-name = "BMC_NVDIMM_PRSNT_N";
 		};
-		G2B_P1_5 {
+		g2b-p1-5-hog {
 			gpio-hog;
 			gpios = <13 0>;
 			output-low;
 			line-name = "FM_BACKUP_BIOS_SEL_H_BMC";
 		};
-		G2B_P1_6 {
+		g2b-p1-6-hog {
 			gpio-hog;
 			gpios = <14 0>;
 			output-high;

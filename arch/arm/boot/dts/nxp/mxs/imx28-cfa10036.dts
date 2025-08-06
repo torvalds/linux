@@ -102,9 +102,9 @@
 			0x31c3 /*
 			MX28_PAD_PWM3__GPIO_3_28 */
 		>;
-		fsl,drive-strength = <0>;
-		fsl,voltage = <1>;
-		fsl,pull-up = <0>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 };
 

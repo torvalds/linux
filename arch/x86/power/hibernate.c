@@ -42,6 +42,7 @@ unsigned long relocated_restore_code __visible;
 
 /**
  *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ *	@pfn: the page frame number to check.
  */
 int pfn_is_nosave(unsigned long pfn)
 {
@@ -86,7 +87,10 @@ static inline u32 compute_e820_crc32(struct e820_table *table)
 /**
  *	arch_hibernation_header_save - populate the architecture specific part
  *		of a hibernation image header
- *	@addr: address to save the data at
+ *	@addr: address where architecture specific header data will be saved.
+ *	@max_size: maximum size of architecture specific data in hibernation header.
+ *
+ *	Return: 0 on success, -EOVERFLOW if max_size is insufficient.
  */
 int arch_hibernation_header_save(void *addr, unsigned int max_size)
 {

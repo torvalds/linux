@@ -280,15 +280,16 @@ static void st21nfca_se_wt_work(struct work_struct *work)
 
 static void st21nfca_se_wt_timeout(struct timer_list *t)
 {
-	struct st21nfca_hci_info *info = from_timer(info, t, se_info.bwi_timer);
+	struct st21nfca_hci_info *info = timer_container_of(info, t,
+							    se_info.bwi_timer);
 
 	schedule_work(&info->se_info.timeout_work);
 }
 
 static void st21nfca_se_activation_timeout(struct timer_list *t)
 {
-	struct st21nfca_hci_info *info = from_timer(info, t,
-						    se_info.se_active_timer);
+	struct st21nfca_hci_info *info = timer_container_of(info, t,
+							    se_info.se_active_timer);
 
 	info->se_info.se_active = false;
 

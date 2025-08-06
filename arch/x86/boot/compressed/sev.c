@@ -21,98 +21,13 @@
 #include <asm/fpu/xcr.h>
 #include <asm/ptrace.h>
 #include <asm/svm.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 
 #include "error.h"
-#include "../msr.h"
+#include "sev.h"
 
 static struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
 struct ghcb *boot_ghcb;
-
-/*
- * Copy a version of this function here - insn-eval.c can't be used in
- * pre-decompression code.
- */
-static bool insn_has_rep_prefix(struct insn *insn)
-{
-	insn_byte_t p;
-	int i;
-
-	insn_get_prefixes(insn);
-
-	for_each_insn_prefix(insn, i, p) {
-		if (p == 0xf2 || p == 0xf3)
-			return true;
-	}
-
-	return false;
-}
-
-/*
- * Only a dummy for insn_get_seg_base() - Early boot-code is 64bit only and
- * doesn't use segments.
- */
-static unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
-{
-	return 0UL;
-}
-
-static inline u64 sev_es_rd_ghcb_msr(void)
-{
-	struct msr m;
-
-	boot_rdmsr(MSR_AMD64_SEV_ES_GHCB, &m);
-
-	return m.q;
-}
-
-static inline void sev_es_wr_ghcb_msr(u64 val)
-{
-	struct msr m;
-
-	m.q = val;
-	boot_wrmsr(MSR_AMD64_SEV_ES_GHCB, &m);
-}
-
-static enum es_result vc_decode_insn(struct es_em_ctxt *ctxt)
-{
-	char buffer[MAX_INSN_SIZE];
-	int ret;
-
-	memcpy(buffer, (unsigned char *)ctxt->regs->ip, MAX_INSN_SIZE);
-
-	ret = insn_decode(&ctxt->insn, buffer, MAX_INSN_SIZE, INSN_MODE_64);
-	if (ret < 0)
-		return ES_DECODE_FAILED;
-
-	return ES_OK;
-}
-
-static enum es_result vc_write_mem(struct es_em_ctxt *ctxt,
-				   void *dst, char *buf, size_t size)
-{
-	memcpy(dst, buf, size);
-
-	return ES_OK;
-}
-
-static enum es_result vc_read_mem(struct es_em_ctxt *ctxt,
-				  void *src, char *buf, size_t size)
-{
-	memcpy(buf, src, size);
-
-	return ES_OK;
-}
-
-static enum es_result vc_ioio_check(struct es_em_ctxt *ctxt, u16 port, size_t size)
-{
-	return ES_OK;
-}
-
-static bool fault_in_kernel_space(unsigned long address)
-{
-	return false;
-}
 
 #undef __init
 #define __init
@@ -122,24 +37,27 @@ static bool fault_in_kernel_space(unsigned long address)
 
 #define __BOOT_COMPRESSED
 
-/* Basic instruction decoding support needed */
-#include "../../lib/inat.c"
-#include "../../lib/insn.c"
+extern struct svsm_ca *boot_svsm_caa;
+extern u64 boot_svsm_caa_pa;
 
-/* Include code for early handlers */
-#include "../../coco/sev/shared.c"
-
-static struct svsm_ca *svsm_get_caa(void)
+struct svsm_ca *svsm_get_caa(void)
 {
 	return boot_svsm_caa;
 }
 
-static u64 svsm_get_caa_pa(void)
+u64 svsm_get_caa_pa(void)
 {
 	return boot_svsm_caa_pa;
 }
 
-static int svsm_perform_call_protocol(struct svsm_call *call)
+int svsm_perform_call_protocol(struct svsm_call *call);
+
+u8 snp_vmpl;
+
+/* Include code for early handlers */
+#include "../../boot/startup/sev-shared.c"
+
+int svsm_perform_call_protocol(struct svsm_call *call)
 {
 	struct ghcb *ghcb;
 	int ret;
@@ -157,7 +75,7 @@ static int svsm_perform_call_protocol(struct svsm_call *call)
 	return ret;
 }
 
-bool sev_snp_enabled(void)
+static bool sev_snp_enabled(void)
 {
 	return sev_status & MSR_AMD64_SEV_SNP_ENABLED;
 }
@@ -212,7 +130,7 @@ void snp_set_page_shared(unsigned long paddr)
 	__page_state_change(paddr, SNP_PAGE_STATE_SHARED);
 }
 
-static bool early_setup_ghcb(void)
+bool early_setup_ghcb(void)
 {
 	if (set_page_decrypted((unsigned long)&boot_ghcb_page))
 		return false;
@@ -223,7 +141,7 @@ static bool early_setup_ghcb(void)
 	boot_ghcb = &boot_ghcb_page;
 
 	/* Initialize lookup tables for the instruction decoder */
-	inat_init_tables();
+	sev_insn_decode_init();
 
 	/* SNP guest requires the GHCB GPA must be registered */
 	if (sev_snp_enabled())
@@ -294,46 +212,6 @@ bool sev_es_check_ghcb_fault(unsigned long address)
 {
 	/* Check whether the fault was on the GHCB page */
 	return ((address & PAGE_MASK) == (unsigned long)&boot_ghcb_page);
-}
-
-void do_boot_stage2_vc(struct pt_regs *regs, unsigned long exit_code)
-{
-	struct es_em_ctxt ctxt;
-	enum es_result result;
-
-	if (!boot_ghcb && !early_setup_ghcb())
-		sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SEV_ES_GEN_REQ);
-
-	vc_ghcb_invalidate(boot_ghcb);
-	result = vc_init_em_ctxt(&ctxt, regs, exit_code);
-	if (result != ES_OK)
-		goto finish;
-
-	result = vc_check_opcode_bytes(&ctxt, exit_code);
-	if (result != ES_OK)
-		goto finish;
-
-	switch (exit_code) {
-	case SVM_EXIT_RDTSC:
-	case SVM_EXIT_RDTSCP:
-		result = vc_handle_rdtsc(boot_ghcb, &ctxt, exit_code);
-		break;
-	case SVM_EXIT_IOIO:
-		result = vc_handle_ioio(boot_ghcb, &ctxt);
-		break;
-	case SVM_EXIT_CPUID:
-		result = vc_handle_cpuid(boot_ghcb, &ctxt);
-		break;
-	default:
-		result = ES_UNSUPPORTED;
-		break;
-	}
-
-finish:
-	if (result == ES_OK)
-		vc_finish_insn(&ctxt);
-	else if (result != ES_RETRY)
-		sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SEV_ES_GEN_REQ);
 }
 
 /*

@@ -35,6 +35,7 @@ properties:
               - fsl,imx8mp-wdt
               - fsl,imx8mq-wdt
               - fsl,ls1012a-wdt
+              - fsl,ls1021a-wdt
               - fsl,ls1043a-wdt
               - fsl,vf610-wdt
           - const: fsl,imx21-wdt
@@ -102,6 +103,7 @@ allOf:
             contains:
               enum:
                 - fsl,ls1012a-wdt
+                - fsl,ls1021a-wdt
                 - fsl,ls1043a-wdt
     then:
       properties:

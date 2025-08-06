@@ -41,7 +41,7 @@ If you are facing multiple issues with the Linux kernel at once, report each
 separately. While writing your report, include all information relevant to the
 issue, like the kernel and the distro used. In case of a regression, CC the
 regressions mailing list (regressions@lists.linux.dev) to your report. Also try
-to pin-point the culprit with a bisection; if you succeed, include its
+to pinpoint the culprit with a bisection; if you succeed, include its
 commit-id and CC everyone in the sign-off-by chain.
 
 Once the report is out, answer any questions that come up and help where you
@@ -206,7 +206,7 @@ Reporting issues only occurring in older kernel version lines
 This subsection is for you, if you tried the latest mainline kernel as outlined
 above, but failed to reproduce your issue there; at the same time you want to
 see the issue fixed in a still supported stable or longterm series or vendor
-kernels regularly rebased on those. If that the case, follow these steps:
+kernels regularly rebased on those. If that is the case, follow these steps:
 
  * Prepare yourself for the possibility that going through the next few steps
    might not get the issue solved in older releases: the fix might be too big
@@ -312,7 +312,7 @@ small modifications to a kernel based on a recent Linux version; that for
 example often holds true for the mainline kernels shipped by Debian GNU/Linux
 Sid or Fedora Rawhide. Some developers will also accept reports about issues
 with kernels from distributions shipping the latest stable kernel, as long as
-its only slightly modified; that for example is often the case for Arch Linux,
+it's only slightly modified; that for example is often the case for Arch Linux,
 regular Fedora releases, and openSUSE Tumbleweed. But keep in mind, you better
 want to use a mainline Linux and avoid using a stable kernel for this
 process, as outlined in the section 'Install a fresh kernel for testing' in more

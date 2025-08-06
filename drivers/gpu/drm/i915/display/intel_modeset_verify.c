@@ -6,13 +6,14 @@
  */
 
 #include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_cx0_phy.h"
 #include "intel_display.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_modeset_verify.h"
@@ -28,9 +29,8 @@ static void intel_connector_verify_state(const struct intel_crtc_state *crtc_sta
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_display *display = to_intel_display(connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
-	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
+	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.base.id, connector->base.name);
 
 	if (connector->get_hw_state(connector)) {
@@ -91,7 +91,6 @@ verify_connector_state(struct intel_atomic_state *state,
 static void intel_pipe_config_sanity_check(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	if (crtc_state->has_pch_encoder) {
 		int fdi_dotclock = intel_dotclock_calculate(intel_fdi_link_freq(display, crtc_state),
@@ -103,7 +102,7 @@ static void intel_pipe_config_sanity_check(const struct intel_crtc_state *crtc_s
 		 * Yell if the encoder disagrees. Allow for slight
 		 * rounding differences.
 		 */
-		drm_WARN(&i915->drm, abs(fdi_dotclock - dotclock) > 1,
+		drm_WARN(display->drm, abs(fdi_dotclock - dotclock) > 1,
 			 "FDI dotclock and encoder dotclock mismatch, fdi: %i, encoder: %i\n",
 			 fdi_dotclock, dotclock);
 	}
@@ -113,17 +112,16 @@ static void
 verify_encoder_state(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	const struct drm_connector_state *old_conn_state, *new_conn_state;
 	int i;
 
-	for_each_intel_encoder(&i915->drm, encoder) {
+	for_each_intel_encoder(display->drm, encoder) {
 		bool enabled = false, found = false;
 		enum pipe pipe;
 
-		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s]\n",
+		drm_dbg_kms(display->drm, "[ENCODER:%d:%s]\n",
 			    encoder->base.base.id,
 			    encoder->base.name);
 
@@ -166,7 +164,6 @@ verify_crtc_state(struct intel_atomic_state *state,
 		  struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_crtc_state *sw_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_crtc_state *hw_crtc_state;
@@ -185,7 +182,7 @@ verify_crtc_state(struct intel_atomic_state *state,
 	intel_crtc_get_pipe_config(hw_crtc_state);
 
 	/* we keep both pipes enabled on 830 */
-	if (IS_I830(i915) && hw_crtc_state->hw.active)
+	if (display->platform.i830 && hw_crtc_state->hw.active)
 		hw_crtc_state->hw.active = sw_crtc_state->hw.active;
 
 	INTEL_DISPLAY_STATE_WARN(display,

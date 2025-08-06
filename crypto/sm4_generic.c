@@ -83,7 +83,7 @@ static void __exit sm4_fini(void)
 	crypto_unregister_alg(&sm4_alg);
 }
 
-subsys_initcall(sm4_init);
+module_init(sm4_init);
 module_exit(sm4_fini);
 
 MODULE_DESCRIPTION("SM4 Cipher Algorithm");

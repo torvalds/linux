@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef _NET_TIMESTAMPING_H
-#define _NET_TIMESTAMPING_H
+#ifndef _UAPI_NET_TIMESTAMPING_H
+#define _UAPI_NET_TIMESTAMPING_H
 
 #include <linux/types.h>
 #include <linux/socket.h>   /* for SO_TIMESTAMPING */
@@ -216,4 +216,4 @@ struct sock_txtime {
 	__u32			flags;	/* as defined by enum txtime_flags */
 };
 
-#endif /* _NET_TIMESTAMPING_H */
+#endif /* _UAPI_NET_TIMESTAMPING_H */
