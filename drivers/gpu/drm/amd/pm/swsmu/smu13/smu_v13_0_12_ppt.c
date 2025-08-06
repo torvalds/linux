@@ -83,7 +83,6 @@ const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[SMU_FEATURE_COUNT] =
 	SMU_13_0_12_FEA_MAP(SMU_FEATURE_PIT_BIT,			FEATURE_PIT),
 };
 
-// clang-format off
 const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -361,30 +360,23 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu, void *metrics_table,
-						 bool bypass_cache)
+static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu,
+						 void *metrics_table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
 	struct smu_table *table = &smu_table->driver_table;
 	int ret;
 
-	if (bypass_cache || !smu_table->tables[SMU_TABLE_TEMP_METRICS].metrics_time ||
-	    time_after(jiffies,
-		       smu_table->tables[SMU_TABLE_TEMP_METRICS].metrics_time +
-		       msecs_to_jiffies(1))) {
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSystemMetricsTable, NULL);
-		if (ret) {
-			dev_info(smu->adev->dev,
-				 "Failed to export system metrics table!\n");
-			return ret;
-		}
-
-		amdgpu_asic_invalidate_hdp(smu->adev, NULL);
-		memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
-
-		smu_table->tables[SMU_TABLE_TEMP_METRICS].metrics_time = jiffies;
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSystemMetricsTable, NULL);
+	if (ret) {
+		dev_info(smu->adev->dev,
+			 "Failed to export system metrics table!\n");
+		return ret;
 	}
+
+	amdgpu_asic_invalidate_hdp(smu->adev, NULL);
+	memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
 
 	if (metrics_table)
 		memcpy(metrics_table, smu_table->metrics_table, sizeof(SystemMetricsTable_t));
@@ -544,7 +536,7 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 	else if (type  == SMU_TEMP_METRIC_BASEBOARD)
 		smu_cmn_init_baseboard_temp_metrics(baseboard_temp_metrics, 1, 0);
 
-	ret = smu_v13_0_12_get_system_metrics_table(smu, metrics, false);
+	ret = smu_v13_0_12_get_system_metrics_table(smu, metrics);
 	if (ret) {
 		kfree(metrics);
 		return ret;
