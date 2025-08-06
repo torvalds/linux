@@ -249,6 +249,14 @@ struct smu_user_dpm_profile {
 		tables[table_id].domain = d;		\
 	} while (0)
 
+struct smu_table_cache {
+	void *buffer;
+	size_t size;
+	/* interval in ms*/
+	uint32_t interval;
+	unsigned long last_cache_time;
+};
+
 struct smu_table {
 	uint64_t size;
 	uint32_t align;
@@ -257,7 +265,7 @@ struct smu_table {
 	void *cpu_addr;
 	struct amdgpu_bo *bo;
 	uint32_t version;
-	unsigned long  metrics_time;
+	struct smu_table_cache cache;
 };
 
 enum smu_perf_level_designation {
@@ -323,7 +331,8 @@ enum smu_table_id {
 	SMU_TABLE_ECCINFO,
 	SMU_TABLE_COMBO_PPTABLE,
 	SMU_TABLE_WIFIBAND,
-	SMU_TABLE_TEMP_METRICS,
+	SMU_TABLE_GPUBOARD_TEMP_METRICS,
+	SMU_TABLE_BASEBOARD_TEMP_METRICS,
 	SMU_TABLE_COUNT,
 };
 
@@ -1650,6 +1659,71 @@ typedef struct {
 
 struct smu_dpm_policy *smu_get_pm_policy(struct smu_context *smu,
 					 enum pp_pm_policy p_type);
+
+static inline enum smu_table_id
+smu_metrics_get_temp_table_id(enum smu_temp_metric_type type)
+{
+	switch (type) {
+	case SMU_TEMP_METRIC_BASEBOARD:
+		return SMU_TABLE_BASEBOARD_TEMP_METRICS;
+	case SMU_TEMP_METRIC_GPUBOARD:
+		return SMU_TABLE_GPUBOARD_TEMP_METRICS;
+	default:
+		return SMU_TABLE_COUNT;
+	}
+
+	return SMU_TABLE_COUNT;
+}
+
+static inline void smu_table_cache_update_time(struct smu_table *table,
+					       unsigned long time)
+{
+	table->cache.last_cache_time = time;
+}
+
+static inline bool smu_table_cache_is_valid(struct smu_table *table)
+{
+	if (!table->cache.buffer || !table->cache.last_cache_time ||
+	    !table->cache.interval || !table->cache.size ||
+	    time_after(jiffies,
+		       table->cache.last_cache_time +
+			       msecs_to_jiffies(table->cache.interval)))
+		return false;
+
+	return true;
+}
+
+static inline int smu_table_cache_init(struct smu_context *smu,
+				       enum smu_table_id table_id, size_t size,
+				       uint32_t cache_interval)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+
+	tables[table_id].cache.buffer = kzalloc(size, GFP_KERNEL);
+	if (!tables[table_id].cache.buffer)
+		return -ENOMEM;
+
+	tables[table_id].cache.last_cache_time = 0;
+	tables[table_id].cache.interval = cache_interval;
+	tables[table_id].cache.size = size;
+
+	return 0;
+}
+
+static inline void smu_table_cache_fini(struct smu_context *smu,
+					enum smu_table_id table_id)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+
+	if (tables[table_id].cache.buffer) {
+		kfree(tables[table_id].cache.buffer);
+		tables[table_id].cache.buffer = NULL;
+		tables[table_id].cache.last_cache_time = 0;
+		tables[table_id].cache.interval = 0;
+	}
+}
 
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
 int smu_get_power_limit(void *handle,
