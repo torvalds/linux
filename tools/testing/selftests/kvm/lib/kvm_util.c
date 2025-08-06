@@ -95,7 +95,7 @@ static ssize_t get_module_param(const char *module_name, const char *param,
 	return bytes_read;
 }
 
-static int get_module_param_integer(const char *module_name, const char *param)
+int kvm_get_module_param_integer(const char *module_name, const char *param)
 {
 	/*
 	 * 16 bytes to hold a 64-bit value (1 byte per char), 1 byte for the
@@ -119,7 +119,7 @@ static int get_module_param_integer(const char *module_name, const char *param)
 	return atoi_paranoid(value);
 }
 
-static bool get_module_param_bool(const char *module_name, const char *param)
+bool kvm_get_module_param_bool(const char *module_name, const char *param)
 {
 	char value;
 	ssize_t r;
@@ -133,36 +133,6 @@ static bool get_module_param_bool(const char *module_name, const char *param)
 		return false;
 
 	TEST_FAIL("Unrecognized value '%c' for boolean module param", value);
-}
-
-bool get_kvm_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm", param);
-}
-
-bool get_kvm_intel_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm_intel", param);
-}
-
-bool get_kvm_amd_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm_amd", param);
-}
-
-int get_kvm_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm", param);
-}
-
-int get_kvm_intel_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm_intel", param);
-}
-
-int get_kvm_amd_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm_amd", param);
 }
 
 /*
