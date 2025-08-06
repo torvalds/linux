@@ -1057,6 +1057,8 @@ __bpf_kfunc int bpf_kfunc_st_ops_inc10(struct st_ops_args *args)
 	return args->a;
 }
 
+__bpf_kfunc int bpf_kfunc_multi_st_ops_test_1(struct st_ops_args *args, u32 id);
+
 BTF_KFUNCS_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
@@ -1097,6 +1099,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_st_ops_test_prologue, KF_TRUSTED_ARGS | KF_SLEEPABL
 BTF_ID_FLAGS(func, bpf_kfunc_st_ops_test_epilogue, KF_TRUSTED_ARGS | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_st_ops_test_pro_epilogue, KF_TRUSTED_ARGS | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_st_ops_inc10, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_multi_st_ops_test_1, KF_TRUSTED_ARGS)
 BTF_KFUNCS_END(bpf_testmod_check_kfunc_ids)
 
 static int bpf_testmod_ops_init(struct btf *btf)
@@ -1528,6 +1531,114 @@ static struct bpf_struct_ops testmod_st_ops = {
 	.owner = THIS_MODULE,
 };
 
+struct hlist_head multi_st_ops_list;
+static DEFINE_SPINLOCK(multi_st_ops_lock);
+
+static int multi_st_ops_init(struct btf *btf)
+{
+	spin_lock_init(&multi_st_ops_lock);
+	INIT_HLIST_HEAD(&multi_st_ops_list);
+
+	return 0;
+}
+
+static int multi_st_ops_init_member(const struct btf_type *t,
+				    const struct btf_member *member,
+				    void *kdata, const void *udata)
+{
+	return 0;
+}
+
+static struct bpf_testmod_multi_st_ops *multi_st_ops_find_nolock(u32 id)
+{
+	struct bpf_testmod_multi_st_ops *st_ops;
+
+	hlist_for_each_entry(st_ops, &multi_st_ops_list, node) {
+		if (st_ops->id == id)
+			return st_ops;
+	}
+
+	return NULL;
+}
+
+int bpf_kfunc_multi_st_ops_test_1(struct st_ops_args *args, u32 id)
+{
+	struct bpf_testmod_multi_st_ops *st_ops;
+	unsigned long flags;
+	int ret = -1;
+
+	spin_lock_irqsave(&multi_st_ops_lock, flags);
+	st_ops = multi_st_ops_find_nolock(id);
+	if (st_ops)
+		ret = st_ops->test_1(args);
+	spin_unlock_irqrestore(&multi_st_ops_lock, flags);
+
+	return ret;
+}
+
+static int multi_st_ops_reg(void *kdata, struct bpf_link *link)
+{
+	struct bpf_testmod_multi_st_ops *st_ops =
+		(struct bpf_testmod_multi_st_ops *)kdata;
+	unsigned long flags;
+	int err = 0;
+	u32 id;
+
+	if (!st_ops->test_1)
+		return -EINVAL;
+
+	id = bpf_struct_ops_id(kdata);
+
+	spin_lock_irqsave(&multi_st_ops_lock, flags);
+	if (multi_st_ops_find_nolock(id)) {
+		pr_err("multi_st_ops(id:%d) has already been registered\n", id);
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	st_ops->id = id;
+	hlist_add_head(&st_ops->node, &multi_st_ops_list);
+unlock:
+	spin_unlock_irqrestore(&multi_st_ops_lock, flags);
+
+	return err;
+}
+
+static void multi_st_ops_unreg(void *kdata, struct bpf_link *link)
+{
+	struct bpf_testmod_multi_st_ops *st_ops;
+	unsigned long flags;
+	u32 id;
+
+	id = bpf_struct_ops_id(kdata);
+
+	spin_lock_irqsave(&multi_st_ops_lock, flags);
+	st_ops = multi_st_ops_find_nolock(id);
+	if (st_ops)
+		hlist_del(&st_ops->node);
+	spin_unlock_irqrestore(&multi_st_ops_lock, flags);
+}
+
+static int bpf_testmod_multi_st_ops__test_1(struct st_ops_args *args)
+{
+	return 0;
+}
+
+static struct bpf_testmod_multi_st_ops multi_st_ops_cfi_stubs = {
+	.test_1 = bpf_testmod_multi_st_ops__test_1,
+};
+
+struct bpf_struct_ops testmod_multi_st_ops = {
+	.verifier_ops = &bpf_testmod_verifier_ops,
+	.init = multi_st_ops_init,
+	.init_member = multi_st_ops_init_member,
+	.reg = multi_st_ops_reg,
+	.unreg = multi_st_ops_unreg,
+	.cfi_stubs = &multi_st_ops_cfi_stubs,
+	.name = "bpf_testmod_multi_st_ops",
+	.owner = THIS_MODULE,
+};
+
 extern int bpf_fentry_test1(int a);
 
 static int bpf_testmod_init(void)
@@ -1550,6 +1661,7 @@ static int bpf_testmod_init(void)
 	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops2, bpf_testmod_ops2);
 	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops3, bpf_testmod_ops3);
 	ret = ret ?: register_bpf_struct_ops(&testmod_st_ops, bpf_testmod_st_ops);
+	ret = ret ?: register_bpf_struct_ops(&testmod_multi_st_ops, bpf_testmod_multi_st_ops);
 	ret = ret ?: register_btf_id_dtor_kfuncs(bpf_testmod_dtors,
 						 ARRAY_SIZE(bpf_testmod_dtors),
 						 THIS_MODULE);
