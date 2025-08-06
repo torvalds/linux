@@ -2756,7 +2756,8 @@ rcu_torture_stats_print(void)
 		cur_ops->stats();
 	if (rtcv_snap == rcu_torture_current_version &&
 	    rcu_access_pointer(rcu_torture_current) &&
-	    !rcu_stall_is_suppressed()) {
+	    !rcu_stall_is_suppressed() &&
+	    rcu_inkernel_boot_has_ended()) {
 		int __maybe_unused flags = 0;
 		unsigned long __maybe_unused gp_seq = 0;
 
