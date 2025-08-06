@@ -118,7 +118,7 @@ __acquires(&sdp->sd_ail_lock)
 			}
 		}
 
-		if (gfs2_withdrawing_or_withdrawn(sdp)) {
+		if (gfs2_withdrawn(sdp)) {
 			gfs2_remove_from_ail(bd);
 			continue;
 		}
@@ -834,7 +834,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	struct super_block *sb = sdp->sd_vfs;
 	u64 dblock;
 
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		return;
 
 	page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
@@ -981,7 +981,7 @@ static void empty_ail1_list(struct gfs2_sbd *sdp)
 		gfs2_ail1_wait(sdp);
 		empty = gfs2_ail1_empty(sdp, 0);
 
-		if (gfs2_withdrawing_or_withdrawn(sdp))
+		if (gfs2_withdrawn(sdp))
 			break;
 	}
 }
@@ -1044,7 +1044,7 @@ repeat:
 	 * Do this check while holding the log_flush_lock to prevent new
 	 * buffers from being added to the ail via gfs2_pin()
 	 */
-	if (gfs2_withdrawing_or_withdrawn(sdp) ||
+	if (gfs2_withdrawn(sdp) ||
 	    !test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		goto out;
 
@@ -1094,14 +1094,14 @@ repeat:
 			goto out_withdraw;
 
 	gfs2_ordered_write(sdp);
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		goto out_withdraw;
 	lops_before_commit(sdp, tr);
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		goto out_withdraw;
 	if (sdp->sd_jdesc)
 		gfs2_log_submit_bio(&sdp->sd_jdesc->jd_log_bio, REQ_OP_WRITE);
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		goto out_withdraw;
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
@@ -1109,7 +1109,7 @@ repeat:
 	} else if (sdp->sd_log_tail != sdp->sd_log_flush_tail && !sdp->sd_log_idle) {
 		log_write_header(sdp, flags);
 	}
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		goto out_withdraw;
 	lops_after_commit(sdp, tr);
 
@@ -1127,7 +1127,7 @@ repeat:
 	if (!(flags & GFS2_LOG_HEAD_FLUSH_NORMAL)) {
 		if (!sdp->sd_log_idle) {
 			empty_ail1_list(sdp);
-			if (gfs2_withdrawing_or_withdrawn(sdp))
+			if (gfs2_withdrawn(sdp))
 				goto out_withdraw;
 			log_write_header(sdp, flags);
 		}
@@ -1296,7 +1296,7 @@ int gfs2_logd(void *data)
 
 	set_freezable();
 	while (!kthread_should_stop()) {
-		if (gfs2_withdrawing_or_withdrawn(sdp))
+		if (gfs2_withdrawn(sdp))
 			break;
 
 		/* Check for errors writing to the journal */
@@ -1333,7 +1333,7 @@ int gfs2_logd(void *data)
 				gfs2_ail_flush_reqd(sdp) ||
 				gfs2_jrnl_flush_reqd(sdp) ||
 				sdp->sd_log_error ||
-				gfs2_withdrawing_or_withdrawn(sdp) ||
+				gfs2_withdrawn(sdp) ||
 				kthread_should_stop(),
 				t);
 	}

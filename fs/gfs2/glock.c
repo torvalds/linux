@@ -154,7 +154,7 @@ static bool glock_blocked_by_withdraw(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (!gfs2_withdrawing_or_withdrawn(sdp))
+	if (!gfs2_withdrawn(sdp))
 		return false;
 	if (gl->gl_ops->go_flags & GLOF_NONDISK)
 		return false;
@@ -270,7 +270,7 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
 	if (mapping) {
 		truncate_inode_pages_final(mapping);
-		if (!gfs2_withdrawing_or_withdrawn(sdp))
+		if (!gfs2_withdrawn(sdp))
 			GLOCK_BUG_ON(gl, !mapping_empty(mapping));
 	}
 	trace_gfs2_glock_put(gl);
@@ -755,7 +755,7 @@ skip_inval:
 	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
 	 * then it's okay to tell dlm to unlock it.
 	 */
-	if (unlikely(sdp->sd_log_error) && !gfs2_withdrawing_or_withdrawn(sdp))
+	if (unlikely(sdp->sd_log_error) && !gfs2_withdrawn(sdp))
 		gfs2_withdraw(sdp);
 	if (glock_blocked_by_withdraw(gl) &&
 	    (target != LM_ST_UNLOCKED ||
@@ -803,7 +803,7 @@ skip_inval:
 			 */
 		} else {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
-			GLOCK_BUG_ON(gl, !gfs2_withdrawing_or_withdrawn(sdp));
+			GLOCK_BUG_ON(gl, !gfs2_withdrawn(sdp));
 			return;
 		}
 	}

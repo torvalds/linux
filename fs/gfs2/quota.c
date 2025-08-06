@@ -125,7 +125,7 @@ static void gfs2_qd_dispose(struct gfs2_quota_data *qd)
 	hlist_bl_del_rcu(&qd->qd_hlist);
 	spin_unlock_bucket(qd->qd_hash);
 
-	if (!gfs2_withdrawing_or_withdrawn(sdp)) {
+	if (!gfs2_withdrawn(sdp)) {
 		gfs2_assert_warn(sdp, !qd->qd_change);
 		gfs2_assert_warn(sdp, !qd->qd_slot_ref);
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
@@ -1551,7 +1551,7 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 {
 	if (error == 0 || error == -EROFS)
 		return;
-	if (!gfs2_withdrawing_or_withdrawn(sdp)) {
+	if (!gfs2_withdrawn(sdp)) {
 		if (!cmpxchg(&sdp->sd_log_error, 0, error))
 			fs_err(sdp, "gfs2_quotad: %s error %d\n", msg, error);
 		wake_up(&sdp->sd_logd_waitq);
@@ -1583,7 +1583,7 @@ int gfs2_quotad(void *data)
 	while (!kthread_should_stop()) {
 		unsigned long t;
 
-		if (gfs2_withdrawing_or_withdrawn(sdp))
+		if (gfs2_withdrawn(sdp))
 			break;
 
 		now = jiffies;
@@ -1614,7 +1614,7 @@ int gfs2_quotad(void *data)
 		t = min(statfs_deadline - now, quotad_deadline - now);
 		wait_event_freezable_timeout(sdp->sd_quota_wait,
 				sdp->sd_statfs_force_sync ||
-				gfs2_withdrawing_or_withdrawn(sdp) ||
+				gfs2_withdrawn(sdp) ||
 				kthread_should_stop(),
 				t);
 

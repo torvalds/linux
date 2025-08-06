@@ -183,11 +183,10 @@ static inline unsigned int gfs2_tune_get_i(struct gfs2_tune *gt,
 }
 
 /**
- * gfs2_withdrawing_or_withdrawn - test whether the file system is withdrawing
- *                                 or withdrawn
+ * gfs2_withdrawn - test whether the file system is withdrawn
  * @sdp: the superblock
  */
-static inline bool gfs2_withdrawing_or_withdrawn(struct gfs2_sbd *sdp)
+static inline bool gfs2_withdrawn(struct gfs2_sbd *sdp)
 {
 	return unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags));
 }

@@ -191,7 +191,7 @@ static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 
 static ssize_t withdraw_show(struct gfs2_sbd *sdp, char *buf)
 {
-	unsigned int b = gfs2_withdrawing_or_withdrawn(sdp);
+	unsigned int b = gfs2_withdrawn(sdp);
 	return sysfs_emit(buf, "%u\n", b);
 }
 
