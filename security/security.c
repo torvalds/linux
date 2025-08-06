@@ -823,16 +823,8 @@ static int lsm_msg_msg_alloc(struct msg_msg *mp)
  */
 static int lsm_bdev_alloc(struct block_device *bdev)
 {
-	if (blob_sizes.lbs_bdev == 0) {
-		bdev->bd_security = NULL;
-		return 0;
-	}
-
-	bdev->bd_security = kzalloc(blob_sizes.lbs_bdev, GFP_KERNEL);
-	if (!bdev->bd_security)
-		return -ENOMEM;
-
-	return 0;
+	return lsm_blob_alloc(&bdev->bd_security, blob_sizes.lbs_bdev,
+			      GFP_KERNEL);
 }
 
 /**
