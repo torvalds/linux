@@ -136,13 +136,13 @@ static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe) {
-		intel_uncore_rmw(&dev_priv->uncore, DSPCNTR(dev_priv, pipe),
+		intel_uncore_rmw(&dev_priv->uncore, DSPCNTR(display, pipe),
 				 0, DISP_TRICKLE_FEED_DISABLE);
 
-		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(dev_priv, pipe),
+		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(display, pipe),
 				 0, 0);
 		intel_uncore_posting_read(&dev_priv->uncore,
-					  DSPSURF(dev_priv, pipe));
+					  DSPSURF(display, pipe));
 	}
 }
 
