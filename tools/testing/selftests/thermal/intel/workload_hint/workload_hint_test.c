@@ -32,12 +32,12 @@ void workload_hint_exit(int signum)
 
 	fd = open(WORKLOAD_ENABLE_ATTRIBUTE, O_RDWR);
 	if (fd < 0) {
-		perror("Unable to open workload type feature enable file\n");
+		perror("Unable to open workload type feature enable file");
 		exit(1);
 	}
 
 	if (write(fd, "0\n", 2) < 0) {
-		perror("Can't disable workload hints\n");
+		perror("Can't disable workload hints");
 		exit(1);
 	}
 
@@ -68,16 +68,14 @@ int main(int argc, char **argv)
 			exit(1);
 
 		sprintf(delay_str, "%s\n", argv[1]);
-
-		sprintf(delay_str, "%s\n", argv[1]);
 		fd = open(WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE, O_RDWR);
 		if (fd < 0) {
-			perror("Unable to open workload notification delay\n");
+			perror("Unable to open workload notification delay");
 			exit(1);
 		}
 
 		if (write(fd, delay_str, strlen(delay_str)) < 0) {
-			perror("Can't set delay\n");
+			perror("Can't set delay");
 			exit(1);
 		}
 
@@ -94,12 +92,12 @@ int main(int argc, char **argv)
 	/* Enable feature via sysfs knob */
 	fd = open(WORKLOAD_ENABLE_ATTRIBUTE, O_RDWR);
 	if (fd < 0) {
-		perror("Unable to open workload type feature enable file\n");
+		perror("Unable to open workload type feature enable file");
 		exit(1);
 	}
 
 	if (write(fd, "1\n", 2) < 0) {
-		perror("Can't enable workload hints\n");
+		perror("Can't enable workload hints");
 		exit(1);
 	}
 
@@ -110,7 +108,7 @@ int main(int argc, char **argv)
 	while (1) {
 		fd = open(WORKLOAD_TYPE_INDEX_ATTRIBUTE, O_RDONLY);
 		if (fd < 0) {
-			perror("Unable to open workload type file\n");
+			perror("Unable to open workload type file");
 			exit(1);
 		}
 

@@ -14,7 +14,6 @@
 #include "raid5.h"
 #include "raid10.h"
 #include "md-bitmap.h"
-#include "dm-core.h"
 
 #include <linux/device-mapper.h>
 
@@ -2532,6 +2531,10 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	struct md_rdev *rdev, *freshest;
 	struct mddev *mddev = &rs->md;
 
+	/* Respect resynchronization requested with "sync" argument. */
+	if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags))
+		set_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
+
 	freshest = NULL;
 	rdev_for_each(rdev, mddev) {
 		if (test_bit(Journal, &rdev->flags))
@@ -3305,7 +3308,7 @@ size_check:
 
 	/* Disable/enable discard support on raid set. */
 	configure_discard_support(rs);
-	rs->md.dm_gendisk = ti->table->md->disk;
+	rs->md.dm_gendisk = dm_disk(dm_table_get_md(ti->table));
 
 	mddev_unlock(&rs->md);
 	return 0;
