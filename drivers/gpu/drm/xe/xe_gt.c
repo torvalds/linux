@@ -400,7 +400,7 @@ int xe_gt_init_early(struct xe_gt *gt)
 
 	xe_reg_sr_init(&gt->reg_sr, "GT", gt_to_xe(gt));
 
-	err = xe_wa_init(gt);
+	err = xe_wa_gt_init(gt);
 	if (err)
 		return err;
 
@@ -408,7 +408,7 @@ int xe_gt_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	xe_wa_process_oob(gt);
+	xe_wa_process_gt_oob(gt);
 
 	xe_force_wake_init_gt(gt, gt_to_fw(gt));
 	spin_lock_init(&gt->global_invl_lock);

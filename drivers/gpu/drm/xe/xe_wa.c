@@ -916,13 +916,13 @@ void xe_wa_process_device_oob(struct xe_device *xe)
 }
 
 /**
- * xe_wa_process_oob - process OOB workaround table
+ * xe_wa_process_gt_oob - process GT OOB workaround table
  * @gt: GT instance to process workarounds for
  *
  * Process OOB workaround table for this platform, marking in @gt the
  * workarounds that are active.
  */
-void xe_wa_process_oob(struct xe_gt *gt)
+void xe_wa_process_gt_oob(struct xe_gt *gt)
 {
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
 
@@ -1006,12 +1006,12 @@ int xe_wa_device_init(struct xe_device *xe)
 }
 
 /**
- * xe_wa_init - initialize gt with workaround bookkeeping
+ * xe_wa_gt_init - initialize gt with workaround bookkeeping
  * @gt: GT instance to initialize
  *
  * Returns 0 for success, negative error code otherwise.
  */
-int xe_wa_init(struct xe_gt *gt)
+int xe_wa_gt_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	size_t n_oob, n_lrc, n_engine, n_gt, total;
@@ -1037,7 +1037,7 @@ int xe_wa_init(struct xe_gt *gt)
 
 	return 0;
 }
-ALLOW_ERROR_INJECTION(xe_wa_init, ERRNO); /* See xe_pci_probe() */
+ALLOW_ERROR_INJECTION(xe_wa_gt_init, ERRNO); /* See xe_pci_probe() */
 
 void xe_wa_device_dump(struct xe_device *xe, struct drm_printer *p)
 {
