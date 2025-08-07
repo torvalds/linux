@@ -251,6 +251,10 @@
 	};
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &hdptxphy0 {
 	status = "okay";
 };
@@ -333,6 +337,10 @@
 		interrupts = <RK_PB0 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
 };
 
 &mdio1 {
