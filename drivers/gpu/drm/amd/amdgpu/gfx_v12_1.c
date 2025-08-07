@@ -3866,8 +3866,8 @@ static void gfx_v12_1_set_imu_funcs(struct amdgpu_device *adev)
 		adev->gfx.imu.mode = MISSION_MODE;
 	else
 		adev->gfx.imu.mode = DEBUG_MODE;
-
-	adev->gfx.imu.funcs = &gfx_v12_1_imu_funcs;
+	if (!amdgpu_sriov_vf(adev))
+		adev->gfx.imu.funcs = &gfx_v12_1_imu_funcs;
 }
 
 static void gfx_v12_1_set_rlc_funcs(struct amdgpu_device *adev)
