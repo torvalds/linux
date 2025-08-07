@@ -4,6 +4,7 @@
 #include <net/sock.h>
 
 #include "uring_cmd.h"
+#include "io_uring.h"
 
 static inline int io_uring_cmd_getsockopt(struct socket *sock,
 					  struct io_uring_cmd *cmd,
@@ -73,7 +74,7 @@ static bool io_process_timestamp_skb(struct io_uring_cmd *cmd, struct sock *sk,
 
 	cqe->user_data = 0;
 	cqe->res = tskey;
-	cqe->flags = IORING_CQE_F_MORE;
+	cqe->flags = IORING_CQE_F_MORE | ctx_cqe32_flags(cmd_to_io_kiocb(cmd)->ctx);
 	cqe->flags |= tstype << IORING_TIMESTAMP_TYPE_SHIFT;
 	if (ret == SOF_TIMESTAMPING_TX_HARDWARE)
 		cqe->flags |= IORING_CQE_F_TSTAMP_HW;

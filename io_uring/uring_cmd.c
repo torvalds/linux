@@ -242,7 +242,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ctx->flags & IORING_SETUP_SQE128)
 		issue_flags |= IO_URING_F_SQE128;
-	if (ctx->flags & IORING_SETUP_CQE32)
+	if (ctx->flags & (IORING_SETUP_CQE32 | IORING_SETUP_CQE_MIXED))
 		issue_flags |= IO_URING_F_CQE32;
 	if (io_is_compat(ctx))
 		issue_flags |= IO_URING_F_COMPAT;
