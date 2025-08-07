@@ -802,14 +802,15 @@ class KernelDoc:
         nested = NestedMatch()
         for search, sub in struct_nested_prefixes:
             members = nested.sub(search, sub, members)
-
-        # Keeps the original declaration as-is
+        #
+        # Deal with embedded struct and union members, and drop enums entirely.
+        #
         declaration = members
         members = self.rewrite_struct_members(members)
-
-        # Ignore other nested elements, like enums
         members = re.sub(r'(\{[^\{\}]*\})', '', members)
-
+        #
+        # Output the result and we are done.
+        #
         self.create_parameter_list(ln, decl_type, members, ';',
                                    declaration_name)
         self.check_sections(ln, declaration_name, decl_type)
