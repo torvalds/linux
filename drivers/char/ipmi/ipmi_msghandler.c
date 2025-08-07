@@ -2319,6 +2319,11 @@ static int i_ipmi_request(struct ipmi_user     *user,
 
 	if (!run_to_completion)
 		mutex_lock(&intf->users_mutex);
+	if (intf->maintenance_mode_state == IPMI_MAINTENANCE_MODE_STATE_RESET) {
+		/* No messages while the BMC is in reset. */
+		rv = -EBUSY;
+		goto out_err;
+	}
 	if (intf->in_shutdown) {
 		rv = -ENODEV;
 		goto out_err;
@@ -2614,6 +2619,12 @@ retry_bmc_lock:
 	if (intf->in_bmc_register ||
 	    (bmc->dyn_id_set && time_is_after_jiffies(bmc->dyn_id_expiry)))
 		goto out_noprocessing;
+
+	/* Don't allow sysfs access when in maintenance mode. */
+	if (intf->maintenance_mode_state) {
+		rv = -EBUSY;
+		goto out_noprocessing;
+	}
 
 	prev_guid_set = bmc->dyn_guid_set;
 	__get_guid(intf);
