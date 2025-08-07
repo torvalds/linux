@@ -205,7 +205,7 @@ static int virtballoon_free_page_report(struct page_reporting_dev_info *pr_dev_i
 	unsigned int unused, err;
 
 	/* We should always be able to add these buffers to an empty queue. */
-	err = virtqueue_add_inbuf(vq, sg, nents, vb, GFP_NOWAIT | __GFP_NOWARN);
+	err = virtqueue_add_inbuf(vq, sg, nents, vb, GFP_NOWAIT);
 
 	/*
 	 * In the extremely unlikely case that something has occurred and we
