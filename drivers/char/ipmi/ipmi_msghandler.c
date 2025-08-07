@@ -434,6 +434,7 @@ struct ipmi_smi {
 	atomic_t nr_users;
 	struct device_attribute nr_users_devattr;
 	struct device_attribute nr_msgs_devattr;
+	struct device_attribute maintenance_mode_devattr;
 
 
 	/* Used for wake ups at startup. */
@@ -3521,6 +3522,19 @@ static ssize_t nr_msgs_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(nr_msgs);
 
+static ssize_t maintenance_mode_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct ipmi_smi *intf = container_of(attr,
+					     struct ipmi_smi,
+					     maintenance_mode_devattr);
+
+	return sysfs_emit(buf, "%u %d\n", intf->maintenance_mode_state,
+			  intf->auto_maintenance_timeout);
+}
+static DEVICE_ATTR_RO(maintenance_mode);
+
 static void redo_bmc_reg(struct work_struct *work)
 {
 	struct ipmi_smi *intf = container_of(work, struct ipmi_smi,
@@ -3657,6 +3671,14 @@ int ipmi_add_smi(struct module         *owner,
 		goto out_err_bmc_reg;
 	}
 
+	intf->maintenance_mode_devattr = dev_attr_maintenance_mode;
+	sysfs_attr_init(&intf->maintenance_mode_devattr.attr);
+	rv = device_create_file(intf->si_dev, &intf->maintenance_mode_devattr);
+	if (rv) {
+		device_remove_file(intf->si_dev, &intf->nr_users_devattr);
+		goto out_err_bmc_reg;
+	}
+
 	intf->intf_num = i;
 	mutex_unlock(&ipmi_interfaces_mutex);
 
@@ -3764,6 +3786,7 @@ void ipmi_unregister_smi(struct ipmi_smi *intf)
 	if (intf->handlers->shutdown)
 		intf->handlers->shutdown(intf->send_info);
 
+	device_remove_file(intf->si_dev, &intf->maintenance_mode_devattr);
 	device_remove_file(intf->si_dev, &intf->nr_msgs_devattr);
 	device_remove_file(intf->si_dev, &intf->nr_users_devattr);
 
