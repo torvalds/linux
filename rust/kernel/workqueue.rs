@@ -881,7 +881,19 @@ where
 {
 }
 
-// SAFETY: TODO.
+    // SAFETY:
+    //
+    // The [`run`](WorkItemPointer::run) function pointer stored in the `work_struct` always
+    // originates from a prior call to [`__enqueue`](RawWorkItem::__enqueue) on a
+    // `Pin<KBox<T>>`.  A `Pin<KBox<T>>` owns its heap allocation and, by virtue of being
+    // pinned, guarantees that its contents will not be moved.  When the C side of the
+    // workqueue invokes the function pointer, it passes back the same `work_struct`
+    // pointer that was produced by `__enqueue`.  This implementation computes the
+    // original `KBox` from that pointer via `work_container_of` and converts it back
+    // into a pinned box, which is safe because ownership is transferred back from the
+    // kernel.  Therefore, the pointer passed to `run` is always valid for the
+    // duration of the call, and dereferencing it is sound.
+
 unsafe impl<T, const ID: u64> WorkItemPointer<ID> for Pin<KBox<T>>
 where
     T: WorkItem<ID, Pointer = Self>,
@@ -901,7 +913,20 @@ where
     }
 }
 
-// SAFETY: TODO.
+    // SAFETY:
+    //
+    // The implementation of [`RawWorkItem::__enqueue`] for `Pin<KBox<T>>` allocates a
+    // new `Work<T, ID>` and obtains a raw pointer to its embedded `work_struct` via
+    // [`raw_get_work`](Work::raw_get).  It then passes that pointer to the provided
+    // closure.  The `Pin<KBox<T>>` is freshly allocated and by type invariants cannot
+    // already be enqueued, so the closure must return `true`.  If it were to return
+    // `false`, the implementation invokes `unreachable_unchecked()`, which is never
+    // reached in valid usage.  When the closure returns `true` the C workqueue
+    // subsystem takes ownership of the `work_struct` and will eventually call back
+    // into [`WorkItemPointer::run`], at which point the box is recovered and
+    // dropped.  Throughout this process the raw pointer passed to the closure
+    // remains valid for the duration specified in [`RawWorkItem`]'s safety contract.
+
 unsafe impl<T, const ID: u64> RawWorkItem<ID> for Pin<KBox<T>>
 where
     T: WorkItem<ID, Pointer = Self>,
