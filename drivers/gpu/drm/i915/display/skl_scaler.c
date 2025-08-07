@@ -960,7 +960,7 @@ void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state)
 	const struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
 
-	if (!scaler_state && scaler_state->scaler_id == -1)
+	if (scaler_state->scaler_id < 0)
 		return;
 
 	intel_de_write_fw(display,
