@@ -91,28 +91,41 @@ properties:
         maxItems: 1
 
       active-semi,chglev-gpios:
-        description: CGHLEV GPIO
+        description: charge current level GPIO
         maxItems: 1
 
       active-semi,lbo-gpios:
-        description: LBO GPIO
+        description: low battery voltage detect GPIO
         maxItems: 1
 
       active-semi,input-voltage-threshold-microvolt:
-        description: Input voltage threshold
-        maxItems: 1
+        description:
+          Specifies the charger's input over-voltage threshold value. Despite
+          the name, specified values are in millivolt (mV).
+        enum: [ 6600, 7000, 7500, 8000 ]
+        default: 6600
 
       active-semi,precondition-timeout:
-        description: Precondition timeout
+        description:
+          Specifies the charger's PRECONDITION safety timer setting value in
+          minutes. If 0, it means to disable this timer.
+        enum: [ 0, 40, 60, 80 ]
+        default: 40
         $ref: /schemas/types.yaml#/definitions/uint32
 
       active-semi,total-timeout:
-        description: Total timeout
+        description:
+          Specifies the charger's total safety timer setting value in hours; If
+          0, it means to disable this timer;
+        enum: [ 0, 3, 4, 5 ]
+        default: 3
         $ref: /schemas/types.yaml#/definitions/uint32
 
     required:
       - compatible
       - interrupts
+      - active-semi,chglev-gpios
+      - active-semi,lbo-gpios
 
 additionalProperties: false
 
