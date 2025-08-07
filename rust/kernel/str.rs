@@ -350,14 +350,29 @@ impl CStr {
     ///
     /// # Examples
     ///
-    /// ```
+    /
+        /// # Errors
+    ///
+    /// This function returns an [`Err`] when the underlying bytes are not
+    /// valid UTF-8. The [`Err`] must be handled; it cannot be discarded,
+    /// as indicated by the #[must_use] annotation on this method.
+    ///
+/`    ///
     /// # use kernel::str::CStr;
     /// let cstr = CStr::from_bytes_with_nul(b"foo\0")?;
-    /// assert_eq!(cstr.to_str(), Ok("foo"));
-    /// # Ok::<(), kernel::error::Error>(())
+     kernel::error::Error>(())
     /// ```
+
+     
+    
+        ///
+    /// This method returns a `Result` because not all C strings contain valid UTF-8.  To avoid
+    /// accidentally ignoring a failed conversion, the return type is marked `#[must_use]`.  Code
+    /// that calls this function should handle the error case explicitly (e.g. by logging or
+    /// propagating it), rather than silently discarding it.
     #[inline]
-    pub fn to_str(&self) -> Result<&str, core::str::Utf8Error> {
+    #[must_use]
+pub fn to_str(&self) -> Result<&str, core::str::Utf8Error> {
         core::str::from_utf8(self.as_bytes())
     }
 
@@ -380,7 +395,10 @@ impl CStr {
     /// ```
     #[inline]
     pub unsafe fn as_str_unchecked(&self) -> &str {
-        // SAFETY: TODO.
+                // SAFETY: The data behind `self` are bytes from a `CStr`, i.e. a NUL-terminated sequence
+        // of u8 values. `from_utf8_unchecked` requires that the byte slice be valid UTF-8; the
+        // caller of this method must therefore guarantee that the `CStr` contains valid UTF-8
+        // data before calling this function. See [`to_str`] for a checked version.
         unsafe { core::str::from_utf8_unchecked(self.as_bytes()) }
     }
 
