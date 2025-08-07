@@ -162,14 +162,6 @@ static void gdlm_ast(void *arg)
 	}
 
 	ret = gl->gl_req;
-	if (gl->gl_lksb.sb_flags & DLM_SBF_ALTMODE) {
-		if (gl->gl_req == LM_ST_SHARED)
-			ret = LM_ST_DEFERRED;
-		else if (gl->gl_req == LM_ST_DEFERRED)
-			ret = LM_ST_SHARED;
-		else
-			BUG();
-	}
 
 	/*
 	 * The GLF_INITIAL flag is initially set for new glocks.  Upon the
@@ -259,15 +251,6 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 	if (gfs_flags & LM_FLAG_TRY_1CB) {
 		lkf |= DLM_LKF_NOQUEUE;
 		lkf |= DLM_LKF_NOQUEUEBAST;
-	}
-
-	if (gfs_flags & LM_FLAG_ANY) {
-		if (req == DLM_LOCK_PR)
-			lkf |= DLM_LKF_ALTCW;
-		else if (req == DLM_LOCK_CW)
-			lkf |= DLM_LKF_ALTPR;
-		else
-			BUG();
 	}
 
 	if (!test_bit(GLF_INITIAL, &gl->gl_flags)) {
