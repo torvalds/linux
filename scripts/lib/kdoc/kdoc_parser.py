@@ -647,37 +647,7 @@ class KernelDoc:
                 return (r.group(1), r.group(3), r.group(2))
         return None
 
-    def dump_struct(self, ln, proto):
-        """
-        Store an entry for an struct or union
-        """
-        #
-        # Do the basic parse to get the pieces of the declaration.
-        #
-        struct_parts = self.split_struct_proto(proto)
-        if not struct_parts:
-            self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
-            return
-        decl_type, declaration_name, members = struct_parts
-
-        if self.entry.identifier != declaration_name:
-            self.emit_msg(ln, f"expecting prototype for {decl_type} {self.entry.identifier}. "
-                          f"Prototype was for {decl_type} {declaration_name} instead\n")
-            return
-        #
-        # Go through the list of members applying all of our transformations.
-        #
-        members = trim_private_members(members)
-        for search, sub in struct_prefixes:
-            members = search.sub(sub, members)
-
-        nested = NestedMatch()
-        for search, sub in struct_nested_prefixes:
-            members = nested.sub(search, sub, members)
-
-        # Keeps the original declaration as-is
-        declaration = members
-
+    def rewrite_struct_members(self, members):
         # Split nested struct/union elements
         #
         # This loop was simpler at the original kernel-doc perl version, as
@@ -768,6 +738,39 @@ class KernelDoc:
                                     newmember += f"{dtype} {s_id}.{name}; "
 
                 members = members.replace(oldmember, newmember)
+        return members
+
+    def dump_struct(self, ln, proto):
+        """
+        Store an entry for an struct or union
+        """
+        #
+        # Do the basic parse to get the pieces of the declaration.
+        #
+        struct_parts = self.split_struct_proto(proto)
+        if not struct_parts:
+            self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
+            return
+        decl_type, declaration_name, members = struct_parts
+
+        if self.entry.identifier != declaration_name:
+            self.emit_msg(ln, f"expecting prototype for {decl_type} {self.entry.identifier}. "
+                          f"Prototype was for {decl_type} {declaration_name} instead\n")
+            return
+        #
+        # Go through the list of members applying all of our transformations.
+        #
+        members = trim_private_members(members)
+        for search, sub in struct_prefixes:
+            members = search.sub(sub, members)
+
+        nested = NestedMatch()
+        for search, sub in struct_nested_prefixes:
+            members = nested.sub(search, sub, members)
+
+        # Keeps the original declaration as-is
+        declaration = members
+        members = self.rewrite_struct_members(members)
 
         # Ignore other nested elements, like enums
         members = re.sub(r'(\{[^\{\}]*\})', '', members)
