@@ -92,8 +92,6 @@ struct smb_direct_transport {
 
 	struct smbdirect_socket socket;
 
-	wait_queue_head_t	wait_status;
-
 	spinlock_t		receive_credit_lock;
 	int			recv_credits;
 	int			recv_credit_target;
@@ -307,7 +305,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	spin_lock_init(&sc->recv_io.free.lock);
 
 	sc->status = SMBDIRECT_SOCKET_CREATED;
-	init_waitqueue_head(&t->wait_status);
+	init_waitqueue_head(&sc->status_wait);
 
 	spin_lock_init(&sc->recv_io.reassembly.lock);
 	INIT_LIST_HEAD(&sc->recv_io.reassembly.list);
@@ -518,7 +516,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		sc->recv_io.reassembly.full_packet_received = true;
 		sc->status = SMBDIRECT_SOCKET_CONNECTED;
 		enqueue_reassembly(t, recvmsg, 0);
-		wake_up(&t->wait_status);
+		wake_up(&sc->status_wait);
 		return;
 	case SMBDIRECT_EXPECT_DATA_TRANSFER: {
 		struct smbdirect_data_transfer *data_transfer =
@@ -1522,7 +1520,7 @@ static void smb_direct_disconnect(struct ksmbd_transport *t)
 	ksmbd_debug(RDMA, "Disconnecting cm_id=%p\n", sc->rdma.cm_id);
 
 	smb_direct_disconnect_rdma_work(&st->disconnect_work);
-	wait_event_interruptible(st->wait_status,
+	wait_event_interruptible(sc->status_wait,
 				 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 	free_transport(st);
 }
@@ -1549,7 +1547,7 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED: {
 		sc->status = SMBDIRECT_SOCKET_CONNECTED;
-		wake_up(&t->wait_status);
+		wake_up(&sc->status_wait);
 		break;
 	}
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
@@ -1557,14 +1555,14 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 		ib_drain_qp(sc->ib.qp);
 
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		wake_up_all(&t->wait_status);
+		wake_up_all(&sc->status_wait);
 		wake_up_all(&sc->recv_io.reassembly.wait_queue);
 		wake_up_all(&t->wait_send_credits);
 		break;
 	}
 	case RDMA_CM_EVENT_CONNECT_ERROR: {
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		wake_up_all(&t->wait_status);
+		wake_up_all(&sc->status_wait);
 		break;
 	}
 	default:
@@ -1997,7 +1995,7 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	int ret;
 
 	ksmbd_debug(RDMA, "Waiting for SMB_DIRECT negotiate request\n");
-	ret = wait_event_interruptible_timeout(st->wait_status,
+	ret = wait_event_interruptible_timeout(sc->status_wait,
 					       st->negotiation_requested ||
 					       sc->status == SMBDIRECT_SOCKET_DISCONNECTED,
 					       SMB_DIRECT_NEGOTIATE_TIMEOUT * HZ);
