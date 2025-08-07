@@ -1973,11 +1973,6 @@ out_fail:
 
 static void m_can_tx_submit(struct m_can_classdev *cdev)
 {
-	if (cdev->version == 30)
-		return;
-	if (!cdev->is_peripheral)
-		return;
-
 	m_can_write(cdev, M_CAN_TXBAR, cdev->tx_peripheral_submit);
 	cdev->tx_peripheral_submit = 0;
 }
