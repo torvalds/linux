@@ -620,27 +620,29 @@ static void io_cq_unlock_post(struct io_ring_ctx *ctx)
 
 static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool dying)
 {
-	size_t cqe_size = sizeof(struct io_uring_cqe);
-
 	lockdep_assert_held(&ctx->uring_lock);
 
 	/* don't abort if we're dying, entries must get freed */
 	if (!dying && __io_cqring_events(ctx) == ctx->cq_entries)
 		return;
 
-	if (ctx->flags & IORING_SETUP_CQE32)
-		cqe_size <<= 1;
-
 	io_cq_lock(ctx);
 	while (!list_empty(&ctx->cq_overflow_list)) {
+		size_t cqe_size = sizeof(struct io_uring_cqe);
 		struct io_uring_cqe *cqe;
 		struct io_overflow_cqe *ocqe;
+		bool is_cqe32 = false;
 
 		ocqe = list_first_entry(&ctx->cq_overflow_list,
 					struct io_overflow_cqe, list);
+		if (ocqe->cqe.flags & IORING_CQE_F_32 ||
+		    ctx->flags & IORING_SETUP_CQE32) {
+			is_cqe32 = true;
+			cqe_size <<= 1;
+		}
 
 		if (!dying) {
-			if (!io_get_cqe_overflow(ctx, &cqe, true))
+			if (!io_get_cqe_overflow(ctx, &cqe, true, is_cqe32))
 				break;
 			memcpy(cqe, &ocqe->cqe, cqe_size);
 		}
@@ -752,10 +754,12 @@ static struct io_overflow_cqe *io_alloc_ocqe(struct io_ring_ctx *ctx,
 {
 	struct io_overflow_cqe *ocqe;
 	size_t ocq_size = sizeof(struct io_overflow_cqe);
-	bool is_cqe32 = (ctx->flags & IORING_SETUP_CQE32);
+	bool is_cqe32 = false;
 
-	if (is_cqe32)
-		ocq_size += sizeof(struct io_uring_cqe);
+	if (cqe->flags & IORING_CQE_F_32 || ctx->flags & IORING_SETUP_CQE32) {
+		is_cqe32 = true;
+		ocq_size <<= 1;
+	}
 
 	ocqe = kzalloc(ocq_size, gfp | __GFP_ACCOUNT);
 	trace_io_uring_cqe_overflow(ctx, cqe->user_data, cqe->res, cqe->flags, ocqe);
@@ -774,11 +778,29 @@ static struct io_overflow_cqe *io_alloc_ocqe(struct io_ring_ctx *ctx,
 }
 
 /*
+ * Fill an empty dummy CQE, in case alignment is off for posting a 32b CQE
+ * because the ring is a single 16b entry away from wrapping.
+ */
+static bool io_fill_nop_cqe(struct io_ring_ctx *ctx, unsigned int off)
+{
+	if (__io_cqring_events(ctx) < ctx->cq_entries) {
+		struct io_uring_cqe *cqe = &ctx->rings->cqes[off];
+
+		cqe->user_data = 0;
+		cqe->res = 0;
+		cqe->flags = IORING_CQE_F_SKIP;
+		ctx->cached_cq_tail++;
+		return true;
+	}
+	return false;
+}
+
+/*
  * writes to the cq entry need to come after reading head; the
  * control dependency is enough as we're using WRITE_ONCE to
  * fill the cq entry
  */
-bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow)
+bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow, bool cqe32)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
@@ -792,12 +814,22 @@ bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow)
 	if (!overflow && (ctx->check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT)))
 		return false;
 
+	/*
+	 * Post dummy CQE if a 32b CQE is needed and there's only room for a
+	 * 16b CQE before the ring wraps.
+	 */
+	if (cqe32 && off + 1 == ctx->cq_entries) {
+		if (!io_fill_nop_cqe(ctx, off))
+			return false;
+		off = 0;
+	}
+
 	/* userspace may cheat modifying the tail, be safe and do min */
 	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
 	free = ctx->cq_entries - queued;
 	/* we need a contiguous range, limit based on the current array offset */
 	len = min(free, ctx->cq_entries - off);
-	if (!len)
+	if (len < (cqe32 + 1))
 		return false;
 
 	if (ctx->flags & IORING_SETUP_CQE32) {
@@ -815,9 +847,9 @@ static bool io_fill_cqe_aux32(struct io_ring_ctx *ctx,
 {
 	struct io_uring_cqe *cqe;
 
-	if (WARN_ON_ONCE(!(ctx->flags & IORING_SETUP_CQE32)))
+	if (WARN_ON_ONCE(!(ctx->flags & (IORING_SETUP_CQE32|IORING_SETUP_CQE_MIXED))))
 		return false;
-	if (unlikely(!io_get_cqe(ctx, &cqe)))
+	if (unlikely(!io_get_cqe(ctx, &cqe, true)))
 		return false;
 
 	memcpy(cqe, src_cqe, 2 * sizeof(*cqe));
@@ -828,14 +860,15 @@ static bool io_fill_cqe_aux32(struct io_ring_ctx *ctx,
 static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 			      u32 cflags)
 {
+	bool cqe32 = cflags & IORING_CQE_F_32;
 	struct io_uring_cqe *cqe;
 
-	if (likely(io_get_cqe(ctx, &cqe))) {
+	if (likely(io_get_cqe(ctx, &cqe, cqe32))) {
 		WRITE_ONCE(cqe->user_data, user_data);
 		WRITE_ONCE(cqe->res, res);
 		WRITE_ONCE(cqe->flags, cflags);
 
-		if (ctx->flags & IORING_SETUP_CQE32) {
+		if (cqe32) {
 			WRITE_ONCE(cqe->big_cqe[0], 0);
 			WRITE_ONCE(cqe->big_cqe[1], 0);
 		}
@@ -2756,6 +2789,10 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 		if (check_shl_overflow(off, 1, &off))
 			return SIZE_MAX;
 	}
+	if (flags & IORING_SETUP_CQE_MIXED) {
+		if (cq_entries < 2)
+			return SIZE_MAX;
+	}
 
 #ifdef CONFIG_SMP
 	off = ALIGN(off, SMP_CACHE_BYTES);
@@ -3680,6 +3717,14 @@ static int io_uring_sanitise_params(struct io_uring_params *p)
 	    !(flags & IORING_SETUP_SINGLE_ISSUER))
 		return -EINVAL;
 
+	/*
+	 * Nonsensical to ask for CQE32 and mixed CQE support, it's not
+	 * supported to post 16b CQEs on a ring setup with CQE32.
+	 */
+	if ((flags & (IORING_SETUP_CQE32|IORING_SETUP_CQE_MIXED)) ==
+	    (IORING_SETUP_CQE32|IORING_SETUP_CQE_MIXED))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -3906,7 +3951,8 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 			IORING_SETUP_SQE128 | IORING_SETUP_CQE32 |
 			IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN |
 			IORING_SETUP_NO_MMAP | IORING_SETUP_REGISTERED_FD_ONLY |
-			IORING_SETUP_NO_SQARRAY | IORING_SETUP_HYBRID_IOPOLL))
+			IORING_SETUP_NO_SQARRAY | IORING_SETUP_HYBRID_IOPOLL |
+			IORING_SETUP_CQE_MIXED))
 		return -EINVAL;
 
 	return io_uring_create(entries, &p, params);

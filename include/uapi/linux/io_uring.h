@@ -225,6 +225,12 @@ enum io_uring_sqe_flags_bit {
 /* Use hybrid poll in iopoll process */
 #define IORING_SETUP_HYBRID_IOPOLL	(1U << 17)
 
+/*
+ * Allow both 16b and 32b CQEs. If a 32b CQE is posted, it will have
+ * IORING_CQE_F_32 set in cqe->flags.
+ */
+#define IORING_SETUP_CQE_MIXED		(1U << 18)
+
 enum io_uring_op {
 	IORING_OP_NOP,
 	IORING_OP_READV,

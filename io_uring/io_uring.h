@@ -75,7 +75,7 @@ static inline bool io_should_wake(struct io_wait_queue *iowq)
 unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 			 unsigned int cq_entries, size_t *sq_offset);
 int io_uring_fill_params(unsigned entries, struct io_uring_params *p);
-bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow);
+bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow, bool cqe32);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
@@ -169,25 +169,31 @@ static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
 
 static inline bool io_get_cqe_overflow(struct io_ring_ctx *ctx,
 					struct io_uring_cqe **ret,
-					bool overflow)
+					bool overflow, bool cqe32)
 {
 	io_lockdep_assert_cq_locked(ctx);
 
-	if (unlikely(ctx->cqe_cached >= ctx->cqe_sentinel)) {
-		if (unlikely(!io_cqe_cache_refill(ctx, overflow)))
+	if (unlikely(ctx->cqe_sentinel - ctx->cqe_cached < (cqe32 + 1))) {
+		if (unlikely(!io_cqe_cache_refill(ctx, overflow, cqe32)))
 			return false;
 	}
 	*ret = ctx->cqe_cached;
 	ctx->cached_cq_tail++;
 	ctx->cqe_cached++;
-	if (ctx->flags & IORING_SETUP_CQE32)
+	if (ctx->flags & IORING_SETUP_CQE32) {
 		ctx->cqe_cached++;
+	} else if (cqe32 && ctx->flags & IORING_SETUP_CQE_MIXED) {
+		ctx->cqe_cached++;
+		ctx->cached_cq_tail++;
+	}
+	WARN_ON_ONCE(ctx->cqe_cached > ctx->cqe_sentinel);
 	return true;
 }
 
-static inline bool io_get_cqe(struct io_ring_ctx *ctx, struct io_uring_cqe **ret)
+static inline bool io_get_cqe(struct io_ring_ctx *ctx, struct io_uring_cqe **ret,
+				bool cqe32)
 {
-	return io_get_cqe_overflow(ctx, ret, false);
+	return io_get_cqe_overflow(ctx, ret, false, cqe32);
 }
 
 static inline bool io_defer_get_uncommited_cqe(struct io_ring_ctx *ctx,
@@ -196,25 +202,24 @@ static inline bool io_defer_get_uncommited_cqe(struct io_ring_ctx *ctx,
 	io_lockdep_assert_cq_locked(ctx);
 
 	ctx->submit_state.cq_flush = true;
-	return io_get_cqe(ctx, cqe_ret);
+	return io_get_cqe(ctx, cqe_ret, ctx->flags & IORING_SETUP_CQE_MIXED);
 }
 
 static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
 					    struct io_kiocb *req)
 {
+	bool is_cqe32 = req->cqe.flags & IORING_CQE_F_32;
 	struct io_uring_cqe *cqe;
 
 	/*
-	 * If we can't get a cq entry, userspace overflowed the
-	 * submission (by quite a lot). Increment the overflow count in
-	 * the ring.
+	 * If we can't get a cq entry, userspace overflowed the submission
+	 * (by quite a lot).
 	 */
-	if (unlikely(!io_get_cqe(ctx, &cqe)))
+	if (unlikely(!io_get_cqe(ctx, &cqe, is_cqe32)))
 		return false;
 
-
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
-	if (ctx->flags & IORING_SETUP_CQE32) {
+	if (is_cqe32) {
 		memcpy(cqe->big_cqe, &req->big_cqe, sizeof(*cqe));
 		memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 	}
@@ -237,6 +242,22 @@ static inline void io_req_set_res(struct io_kiocb *req, s32 res, u32 cflags)
 {
 	req->cqe.res = res;
 	req->cqe.flags = cflags;
+}
+
+static inline u32 ctx_cqe32_flags(struct io_ring_ctx *ctx)
+{
+	if (ctx->flags & IORING_SETUP_CQE_MIXED)
+		return IORING_CQE_F_32;
+	return 0;
+}
+
+static inline void io_req_set_res32(struct io_kiocb *req, s32 res, u32 cflags,
+				    __u64 extra1, __u64 extra2)
+{
+	req->cqe.res = res;
+	req->cqe.flags = cflags | ctx_cqe32_flags(req->ctx);
+	req->big_cqe.extra1 = extra1;
+	req->big_cqe.extra2 = extra2;
 }
 
 static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
