@@ -663,11 +663,8 @@ class KernelDoc:
         # re limitation.
 
         struct_members = KernRe(r'(struct|union)([^\{\};]+)(\{)([^\{\}]*)(\})([^\{\};]*)(;)')
-        while True:
-            tuples = struct_members.findall(members)
-            if not tuples:
-                break
-
+        tuples = struct_members.findall(members)
+        while tuples:
             for t in tuples:
                 newmember = ""
                 maintype = t[0]
@@ -738,6 +735,7 @@ class KernelDoc:
                                     newmember += f"{dtype} {s_id}.{name}; "
 
                 members = members.replace(oldmember, newmember)
+            tuples = struct_members.findall(members)
         return members
 
     def dump_struct(self, ln, proto):
