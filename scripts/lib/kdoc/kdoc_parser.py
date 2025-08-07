@@ -551,7 +551,6 @@ class KernelDoc:
         ]
 
         definition_body = r'\{(.*)\}\s*' + "(?:" + '|'.join(qualifiers) + ")?"
-        struct_members = KernRe(type_pattern + r'([^\{\};]+)(\{)([^\{\}]*)(\})([^\{\}\;]*)(\;)')
 
         # Extract struct/union definition
         members = None
@@ -683,6 +682,7 @@ class KernelDoc:
         # So, we need to have an extra loop on Python to override such
         # re limitation.
 
+        struct_members = KernRe(type_pattern + r'([^\{\};]+)(\{)([^\{\}]*)(\})([^\{\};]*)(;)')
         while True:
             tuples = struct_members.findall(members)
             if not tuples:
