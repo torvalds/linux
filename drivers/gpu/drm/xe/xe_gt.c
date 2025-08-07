@@ -106,7 +106,7 @@ static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
 	unsigned int fw_ref;
 	u32 reg;
 
-	if (!XE_WA(gt, 16023588340))
+	if (!XE_GT_WA(gt, 16023588340))
 		return;
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
@@ -128,7 +128,7 @@ static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
 	unsigned int fw_ref;
 	u32 reg;
 
-	if (!XE_WA(gt, 16023588340))
+	if (!XE_GT_WA(gt, 16023588340))
 		return;
 
 	if (xe_gt_is_media_type(gt))
@@ -966,7 +966,7 @@ int xe_gt_sanitize_freq(struct xe_gt *gt)
 	if ((!xe_uc_fw_is_available(&gt->uc.gsc.fw) ||
 	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw) ||
 	     xe_uc_fw_is_in_error_state(&gt->uc.gsc.fw)) &&
-	    XE_WA(gt, 22019338487))
+	    XE_GT_WA(gt, 22019338487))
 		ret = xe_guc_pc_restore_stashed_freq(&gt->uc.guc.pc);
 
 	return ret;

@@ -157,7 +157,7 @@ static bool needs_wa_dual_queue(struct xe_gt *gt)
 	 * on RCS and CCSes with different address spaces, which on DG2 is
 	 * required as a WA for an HW bug.
 	 */
-	if (XE_WA(gt, 22011391025))
+	if (XE_GT_WA(gt, 22011391025))
 		return true;
 
 	/*
@@ -184,10 +184,10 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 flags = 0;
 
-	if (XE_WA(gt, 22012773006))
+	if (XE_GT_WA(gt, 22012773006))
 		flags |= GUC_WA_POLLCS;
 
-	if (XE_WA(gt, 14014475959))
+	if (XE_GT_WA(gt, 14014475959))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
 	if (needs_wa_dual_queue(gt))
@@ -201,17 +201,17 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (GRAPHICS_VERx100(xe) < 1270)
 		flags |= GUC_WA_PRE_PARSER;
 
-	if (XE_WA(gt, 22012727170) || XE_WA(gt, 22012727685))
+	if (XE_GT_WA(gt, 22012727170) || XE_GT_WA(gt, 22012727685))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
 
-	if (XE_WA(gt, 18020744125) &&
+	if (XE_GT_WA(gt, 18020744125) &&
 	    !xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_RENDER))
 		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
 
-	if (XE_WA(gt, 1509372804))
+	if (XE_GT_WA(gt, 1509372804))
 		flags |= GUC_WA_RENDER_RST_RC6_EXIT;
 
-	if (XE_WA(gt, 14018913170))
+	if (XE_GT_WA(gt, 14018913170))
 		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 
 	return flags;

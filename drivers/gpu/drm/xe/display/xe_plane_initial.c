@@ -122,7 +122,7 @@ initial_plane_bo(struct xe_device *xe,
 		phys_base = base;
 		flags |= XE_BO_FLAG_STOLEN;
 
-		if (XE_WA(xe_root_mmio_gt(xe), 22019338487_display))
+		if (XE_GT_WA(xe_root_mmio_gt(xe), 22019338487_display))
 			return NULL;
 
 		/*

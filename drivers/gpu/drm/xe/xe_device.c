@@ -883,7 +883,7 @@ int xe_device_probe(struct xe_device *xe)
 	}
 
 	if (xe->tiles->media_gt &&
-	    XE_WA(xe->tiles->media_gt, 15015404425_disable))
+	    XE_GT_WA(xe->tiles->media_gt, 15015404425_disable))
 		XE_DEVICE_WA_DISABLE(xe, 15015404425);
 
 	err = xe_devcoredump_init(xe);
@@ -1043,7 +1043,7 @@ void xe_device_l2_flush(struct xe_device *xe)
 
 	gt = xe_root_mmio_gt(xe);
 
-	if (!XE_WA(gt, 16023588340))
+	if (!XE_GT_WA(gt, 16023588340))
 		return;
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
@@ -1087,7 +1087,7 @@ void xe_device_td_flush(struct xe_device *xe)
 		return;
 
 	root_gt = xe_root_mmio_gt(xe);
-	if (XE_WA(root_gt, 16023588340)) {
+	if (XE_GT_WA(root_gt, 16023588340)) {
 		/* A transient flush is not sufficient: flush the L2 */
 		xe_device_l2_flush(xe);
 	} else {

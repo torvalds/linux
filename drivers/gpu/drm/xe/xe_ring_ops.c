@@ -179,7 +179,7 @@ static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
 	u32 flags;
 
-	if (XE_WA(gt, 14016712196))
+	if (XE_GT_WA(gt, 14016712196))
 		i = emit_pipe_control(dw, i, 0, PIPE_CONTROL_DEPTH_CACHE_FLUSH,
 				      LRC_PPHWSP_FLUSH_INVAL_SCRATCH_ADDR, 0);
 
@@ -190,7 +190,7 @@ static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 		 PIPE_CONTROL_DC_FLUSH_ENABLE |
 		 PIPE_CONTROL_FLUSH_ENABLE);
 
-	if (XE_WA(gt, 1409600907))
+	if (XE_GT_WA(gt, 1409600907))
 		flags |= PIPE_CONTROL_DEPTH_STALL;
 
 	if (lacks_render)
@@ -206,7 +206,7 @@ static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int 
 	if (hwe->class != XE_ENGINE_CLASS_RENDER)
 		return i;
 
-	if (XE_WA(hwe->gt, 16020292621))
+	if (XE_GT_WA(hwe->gt, 16020292621))
 		i = emit_pipe_control(dw, i, 0, PIPE_CONTROL_LRI_POST_SYNC,
 				      RING_NOPID(hwe->mmio_base).addr, 0);
 

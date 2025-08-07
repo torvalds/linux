@@ -413,7 +413,7 @@ struct xe_gt {
 		unsigned long *oob;
 		/**
 		 * @wa_active.oob_initialized: mark oob as initialized to help
-		 * detecting misuse of XE_WA() - it can only be called on
+		 * detecting misuse of XE_GT_WA() - it can only be called on
 		 * initialization after OOB WAs have being processed
 		 */
 		bool oob_initialized;

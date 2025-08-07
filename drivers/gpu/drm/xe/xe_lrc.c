@@ -75,7 +75,7 @@ lrc_to_xe(struct xe_lrc *lrc)
 static bool
 gt_engine_needs_indirect_ctx(struct xe_gt *gt, enum xe_engine_class class)
 {
-	if (XE_WA(gt, 16010904313) &&
+	if (XE_GT_WA(gt, 16010904313) &&
 	    (class == XE_ENGINE_CLASS_RENDER ||
 	     class == XE_ENGINE_CLASS_COMPUTE))
 		return true;
@@ -1071,7 +1071,7 @@ static ssize_t setup_timestamp_wa(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	const u32 ts_addr = __xe_lrc_ctx_timestamp_ggtt_addr(lrc);
 	u32 *cmd = batch;
 
-	if (!XE_WA(lrc->gt, 16010904313) ||
+	if (!XE_GT_WA(lrc->gt, 16010904313) ||
 	    !(hwe->class == XE_ENGINE_CLASS_RENDER ||
 	      hwe->class == XE_ENGINE_CLASS_COMPUTE ||
 	      hwe->class == XE_ENGINE_CLASS_COPY ||
@@ -1108,7 +1108,7 @@ static ssize_t setup_invalidate_state_cache_wa(struct xe_lrc *lrc,
 {
 	u32 *cmd = batch;
 
-	if (!XE_WA(lrc->gt, 18022495364) ||
+	if (!XE_GT_WA(lrc->gt, 18022495364) ||
 	    hwe->class != XE_ENGINE_CLASS_RENDER)
 		return 0;
 
@@ -2093,7 +2093,7 @@ u32 *xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, u32 *cs)
 	 * continue to emit all of the SVG state since it's best not to leak
 	 * any of the state between contexts, even if that leakage is harmless.
 	 */
-	if (XE_WA(gt, 14019789679) && q->hwe->class == XE_ENGINE_CLASS_RENDER) {
+	if (XE_GT_WA(gt, 14019789679) && q->hwe->class == XE_ENGINE_CLASS_RENDER) {
 		state_table = xe_hpg_svg_state;
 		state_table_size = ARRAY_SIZE(xe_hpg_svg_state);
 	}

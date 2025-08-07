@@ -166,7 +166,7 @@ static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr
 
 	stolen_size -= wopcm_size;
 
-	if (media_gt && XE_WA(media_gt, 14019821291)) {
+	if (media_gt && XE_GT_WA(media_gt, 14019821291)) {
 		u64 gscpsmi_base = xe_mmio_read64_2x32(&media_gt->mmio, GSCPSMI_BASE)
 			& ~GENMASK_ULL(5, 0);
 

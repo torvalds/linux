@@ -247,7 +247,7 @@ static size_t calculate_regset_size(struct xe_gt *gt)
 
 	count += ADS_REGSET_EXTRA_MAX * XE_NUM_HW_ENGINES;
 
-	if (XE_WA(gt, 1607983814))
+	if (XE_GT_WA(gt, 1607983814))
 		count += LNCFCMOCS_REG_COUNT;
 
 	return count * sizeof(struct guc_mmio_reg);
@@ -317,17 +317,17 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 	offset = guc_ads_waklv_offset(ads);
 	remain = guc_ads_waklv_size(ads);
 
-	if (XE_WA(gt, 14019882105) || XE_WA(gt, 16021333562))
+	if (XE_GT_WA(gt, 14019882105) || XE_GT_WA(gt, 16021333562))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED);
-	if (XE_WA(gt, 18024947630))
+	if (XE_GT_WA(gt, 18024947630))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WORKAROUND_KLV_ID_GAM_PFQ_SHADOW_TAIL_POLLING);
-	if (XE_WA(gt, 16022287689))
+	if (XE_GT_WA(gt, 16022287689))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WORKAROUND_KLV_ID_DISABLE_MTP_DURING_ASYNC_COMPUTE);
 
-	if (XE_WA(gt, 14022866841))
+	if (XE_GT_WA(gt, 14022866841))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WA_KLV_WAKE_POWER_DOMAINS_FOR_OUTBOUND_MMIO);
 
@@ -336,21 +336,21 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 	 * the default value for this register is determined to be 0xC40. This could change in the
 	 * future, so GuC depends on KMD to send it the correct value.
 	 */
-	if (XE_WA(gt, 13011645652)) {
+	if (XE_GT_WA(gt, 13011645652)) {
 		u32 data = 0xC40;
 
 		guc_waklv_enable(ads, &data, sizeof(data) / sizeof(u32), &offset, &remain,
 				 GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE);
 	}
 
-	if (XE_WA(gt, 14022293748) || XE_WA(gt, 22019794406))
+	if (XE_GT_WA(gt, 14022293748) || XE_GT_WA(gt, 22019794406))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WORKAROUND_KLV_ID_BACK_TO_BACK_RCS_ENGINE_RESET);
 
-	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 44, 0) && XE_WA(gt, 16026508708))
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 44, 0) && XE_GT_WA(gt, 16026508708))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WA_KLV_RESET_BB_STACK_PTR_ON_VF_SWITCH);
-	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 47, 0) && XE_WA(gt, 16026007364)) {
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 47, 0) && XE_GT_WA(gt, 16026007364)) {
 		u32 data[] = {
 			0x0,
 			0xF,
@@ -761,7 +761,7 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 		guc_mmio_regset_write_one(ads, regset_map, e->reg, count++);
 	}
 
-	if (XE_WA(hwe->gt, 1607983814) && hwe->class == XE_ENGINE_CLASS_RENDER) {
+	if (XE_GT_WA(hwe->gt, 1607983814) && hwe->class == XE_ENGINE_CLASS_RENDER) {
 		for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
 			guc_mmio_regset_write_one(ads, regset_map,
 						  XELP_LNCFCMOCS(i), count++);
