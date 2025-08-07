@@ -495,12 +495,12 @@ static int init_acpi(struct device *dev)
 	if (hsmp_pdev->proto_ver == HSMP_PROTO_VER6) {
 		ret = hsmp_get_tbl_dram_base(sock_ind);
 		if (ret)
-			dev_err(dev, "Failed to init metric table\n");
+			dev_info(dev, "Failed to init metric table\n");
 	}
 
 	ret = hsmp_create_sensor(dev, sock_ind);
 	if (ret)
-		dev_err(dev, "Failed to register HSMP sensors with hwmon\n");
+		dev_info(dev, "Failed to register HSMP sensors with hwmon\n");
 
 	dev_set_drvdata(dev, &hsmp_pdev->sock[sock_ind]);
 
