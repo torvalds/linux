@@ -703,7 +703,6 @@ class KernelDoc:
                                 newmember += f"{dtype}{s_id}.{name}{extra}; "
 
                         else:
-                            arg = arg.strip()
                             # Handle bitmaps
                             arg = KernRe(r':\s*\d+\s*').sub('', arg)
 
