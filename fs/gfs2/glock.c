@@ -717,12 +717,6 @@ __acquires(&gl->gl_lockref.lock)
 			return;
 		do_error(gl, 0); /* Fail queued try locks */
 	}
-	gl->gl_req = target;
-	set_bit(GLF_BLOCKING, &gl->gl_flags);
-	if ((gl->gl_req == LM_ST_UNLOCKED) ||
-	    (gl->gl_state == LM_ST_EXCLUSIVE) ||
-	    (lck_flags & (LM_FLAG_TRY|LM_FLAG_TRY_1CB)))
-		clear_bit(GLF_BLOCKING, &gl->gl_flags);
 	if (!glops->go_inval && !glops->go_sync)
 		goto skip_inval;
 

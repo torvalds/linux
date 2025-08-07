@@ -58,6 +58,7 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
 /**
  * gfs2_update_reply_times - Update locking statistics
  * @gl: The glock to update
+ * @blocking: The operation may have been blocking
  *
  * This assumes that gl->gl_dstamp has been set earlier.
  *
@@ -72,12 +73,12 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
  * TRY_1CB flags are set are classified as non-blocking. All
  * other DLM requests are counted as (potentially) blocking.
  */
-static inline void gfs2_update_reply_times(struct gfs2_glock *gl)
+static inline void gfs2_update_reply_times(struct gfs2_glock *gl,
+					   bool blocking)
 {
 	struct gfs2_pcpu_lkstats *lks;
 	const unsigned gltype = gl->gl_name.ln_type;
-	unsigned index = test_bit(GLF_BLOCKING, &gl->gl_flags) ?
-			 GFS2_LKS_SRTTB : GFS2_LKS_SRTT;
+	unsigned index = blocking ? GFS2_LKS_SRTTB : GFS2_LKS_SRTT;
 	s64 rtt;
 
 	preempt_disable();
@@ -119,14 +120,18 @@ static inline void gfs2_update_request_times(struct gfs2_glock *gl)
 static void gdlm_ast(void *arg)
 {
 	struct gfs2_glock *gl = arg;
+	bool blocking;
 	unsigned ret;
+
+	blocking = test_bit(GLF_BLOCKING, &gl->gl_flags);
+	gfs2_update_reply_times(gl, blocking);
+	clear_bit(GLF_BLOCKING, &gl->gl_flags);
 
 	/* If the glock is dead, we only react to a dlm_unlock() reply. */
 	if (__lockref_is_dead(&gl->gl_lockref) &&
 	    gl->gl_lksb.sb_status != -DLM_EUNLOCK)
 		return;
 
-	gfs2_update_reply_times(gl);
 	BUG_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
 
 	if ((gl->gl_lksb.sb_flags & DLM_SBF_VALNOTVALID) && gl->gl_lksb.sb_lvbptr)
@@ -241,7 +246,7 @@ static bool down_conversion(int cur, int req)
 }
 
 static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
-		      const int cur, const int req)
+		      const int req, bool blocking)
 {
 	u32 lkf = 0;
 
@@ -274,7 +279,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 		 * "upward" lock conversions or else DLM will reject the
 		 * request as invalid.
 		 */
-		if (!down_conversion(cur, req))
+		if (blocking)
 			lkf |= DLM_LKF_QUECVT;
 	}
 
@@ -294,14 +299,20 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 		     unsigned int flags)
 {
 	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
+	bool blocking;
 	int cur, req;
 	u32 lkf;
 	char strname[GDLM_STRNAME_BYTES] = "";
 	int error;
 
+	gl->gl_req = req_state;
 	cur = make_mode(gl->gl_name.ln_sbd, gl->gl_state);
 	req = make_mode(gl->gl_name.ln_sbd, req_state);
-	lkf = make_flags(gl, flags, cur, req);
+	blocking = !down_conversion(cur, req) &&
+		   !(flags & (LM_FLAG_TRY|LM_FLAG_TRY_1CB));
+	lkf = make_flags(gl, flags, req, blocking);
+	if (blocking)
+		set_bit(GLF_BLOCKING, &gl->gl_flags);
 	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
 	if (test_bit(GLF_INITIAL, &gl->gl_flags)) {
@@ -341,7 +352,6 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 		return;
 	}
 
-	clear_bit(GLF_BLOCKING, &gl->gl_flags);
 	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_update_request_times(gl);
