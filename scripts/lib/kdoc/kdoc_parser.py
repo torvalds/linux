@@ -647,22 +647,28 @@ class KernelDoc:
                 return (r.group(1), r.group(3), r.group(2))
         return None
 
+    #
+    # Rewrite the members of a structure or union for easier formatting later on.
+    # Among other things, this function will turn a member like:
+    #
+    #  struct { inner_members; } foo;
+    #
+    # into:
+    #
+    #  struct foo; inner_members;
+    #
     def rewrite_struct_members(self, members):
-        # Split nested struct/union elements
         #
-        # This loop was simpler at the original kernel-doc perl version, as
-        #   while ($members =~ m/$struct_members/) { ... }
-        # reads 'members' string on each interaction.
+        # Process struct/union members from the most deeply nested outward.  The
+        # trick is in the ^{ below - it prevents a match of an outer struct/union
+        # until the inner one has been munged (removing the "{" in the process).
         #
-        # Python behavior is different: it parses 'members' only once,
-        # creating a list of tuples from the first interaction.
-        #
-        # On other words, this won't get nested structs.
-        #
-        # So, we need to have an extra loop on Python to override such
-        # re limitation.
-
-        struct_members = KernRe(r'(struct|union)([^\{\};]+)(\{)([^\{\}]*)(\})([^\{\};]*)(;)')
+        struct_members = KernRe(r'(struct|union)'   # 0: declaration type
+                                r'([^\{\};]+)' 	    # 1: possible name
+                                r'(\{)'
+                                r'([^\{\}]*)'       # 3: Contents of declaration
+                                r'(\})'
+                                r'([^\{\};]*)(;)')  # 5: Remaining stuff after declaration
         tuples = struct_members.findall(members)
         while tuples:
             for t in tuples:
