@@ -2589,14 +2589,23 @@ out_unlock:
 restore_flag:
 	sbi->gc_mode = gc_mode;
 	sbi->sb->s_flags = s_flags;	/* Restore SB_RDONLY status */
+	f2fs_info(sbi, "f2fs_disable_checkpoint() finish, err:%d", err);
 	return err;
 }
 
 static void f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
 {
 	unsigned int nr_pages = get_pages(sbi, F2FS_DIRTY_DATA) / 16;
+	long long start, writeback, end;
+
+	f2fs_info(sbi, "f2fs_enable_checkpoint() starts, meta: %lld, node: %lld, data: %lld",
+					get_pages(sbi, F2FS_DIRTY_META),
+					get_pages(sbi, F2FS_DIRTY_NODES),
+					get_pages(sbi, F2FS_DIRTY_DATA));
 
 	f2fs_update_time(sbi, ENABLE_TIME);
+
+	start = ktime_get();
 
 	/* we should flush all the data to keep data consistency */
 	while (get_pages(sbi, F2FS_DIRTY_DATA)) {
@@ -2606,6 +2615,7 @@ static void f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
 		if (f2fs_time_over(sbi, ENABLE_TIME))
 			break;
 	}
+	writeback = ktime_get();
 
 	sync_inodes_sb(sbi->sb);
 
@@ -2624,6 +2634,12 @@ static void f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
 
 	/* Let's ensure there's no pending checkpoint anymore */
 	f2fs_flush_ckpt_thread(sbi);
+
+	end = ktime_get();
+
+	f2fs_info(sbi, "f2fs_enable_checkpoint() finishes, writeback:%llu, sync:%llu",
+					ktime_ms_delta(writeback, start),
+					ktime_ms_delta(end, writeback));
 }
 
 static int __f2fs_remount(struct fs_context *fc, struct super_block *sb)
