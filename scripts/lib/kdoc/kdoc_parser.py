@@ -673,73 +673,69 @@ class KernelDoc:
         while tuples:
             for t in tuples:
                 newmember = ""
-                maintype = t[0]
-                s_ids = t[5]
-                content = t[3]
-
-                oldmember = "".join(t)
-
-                for s_id in s_ids.split(','):
+                oldmember = "".join(t) # Reconstruct the original formatting
+                dtype, name, lbr, content, rbr, rest, semi = t
+                #
+                # Pass through each field name, normalizing the form and formatting.
+                #
+                for s_id in rest.split(','):
                     s_id = s_id.strip()
-
-                    newmember += f"{maintype} {s_id}; "
+                    newmember += f"{dtype} {s_id}; "
+                    #
+                    # Remove bitfield/array/pointer info, getting the bare name.
+                    #
                     s_id = KernRe(r'[:\[].*').sub('', s_id)
                     s_id = KernRe(r'^\s*\**(\S+)\s*').sub(r'\1', s_id)
-
+                    #
+                    # Pass through the members of this inner structure/union.
+                    #
                     for arg in content.split(';'):
                         arg = arg.strip()
-
-                        if not arg:
-                            continue
-
+                        #
+                        # Look for (type)(*name)(args) - pointer to function
+                        #
                         r = KernRe(r'^([^\(]+\(\*?\s*)([\w.]*)(\s*\).*)')
                         if r.match(arg):
+                            dtype, name, extra = r.group(1), r.group(2), r.group(3)
                             # Pointer-to-function
-                            dtype = r.group(1)
-                            name = r.group(2)
-                            extra = r.group(3)
-
-                            if not name:
-                                continue
-
                             if not s_id:
                                 # Anonymous struct/union
                                 newmember += f"{dtype}{name}{extra}; "
                             else:
                                 newmember += f"{dtype}{s_id}.{name}{extra}; "
-
+                        #
+                        # Otherwise a non-function member.
+                        #
                         else:
-                            # Handle bitmaps
+                            #
+                            # Remove bitmap and array portions and spaces around commas
+                            #
                             arg = KernRe(r':\s*\d+\s*').sub('', arg)
-
-                            # Handle arrays
                             arg = KernRe(r'\[.*\]').sub('', arg)
-
-                            # Handle multiple IDs
                             arg = KernRe(r'\s*,\s*').sub(',', arg)
-
+                            #
+                            # Look for a normal decl - "type name[,name...]"
+                            #
                             r = KernRe(r'(.*)\s+([\S+,]+)')
-
                             if r.search(arg):
-                                dtype = r.group(1)
-                                names = r.group(2)
+                                for name in r.group(2).split(','):
+                                    name = KernRe(r'^\s*\**(\S+)\s*').sub(r'\1', name)
+                                    if not s_id:
+                                        # Anonymous struct/union
+                                        newmember += f"{r.group(1)} {name}; "
+                                    else:
+                                        newmember += f"{r.group(1)} {s_id}.{name}; "
                             else:
                                 newmember += f"{arg}; "
-                                continue
-
-                            for name in names.split(','):
-                                name = KernRe(r'^\s*\**(\S+)\s*').sub(r'\1', name).strip()
-
-                                if not name:
-                                    continue
-
-                                if not s_id:
-                                    # Anonymous struct/union
-                                    newmember += f"{dtype} {name}; "
-                                else:
-                                    newmember += f"{dtype} {s_id}.{name}; "
-
+                #
+                # At the end of the s_id loop, replace the original declaration with
+                # the munged version.
+                #
                 members = members.replace(oldmember, newmember)
+            #
+            # End of the tuple loop - search again and see if there are outer members
+            # that now turn up.
+            #
             tuples = struct_members.findall(members)
         return members
 
