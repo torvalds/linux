@@ -372,6 +372,9 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 
 	/* Debug and Trace Registers are restricted. */
 
+	/* Group 1 ID registers */
+	HOST_HANDLED(SYS_REVIDR_EL1),
+
 	/* AArch64 mappings of the AArch32 ID registers */
 	/* CRm=1 */
 	AARCH32(SYS_ID_PFR0_EL1),
@@ -460,6 +463,7 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 
 	HOST_HANDLED(SYS_CCSIDR_EL1),
 	HOST_HANDLED(SYS_CLIDR_EL1),
+	HOST_HANDLED(SYS_AIDR_EL1),
 	HOST_HANDLED(SYS_CSSELR_EL1),
 	HOST_HANDLED(SYS_CTR_EL0),
 
