@@ -284,8 +284,8 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 {
 	struct power_supply *psy;
 	union power_supply_propval data;
-	unsigned char fsm_state[][16] = { "init", "discharge", "precharge",
-		"fastcharge",
+	static const unsigned char fsm_state[][16] = {
+		"init", "discharge", "precharge", "fastcharge",
 	};
 	int ret;
 	int vbatt;
@@ -313,7 +313,7 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 
 	dev_dbg(info->dev, "Entering FSM:%s, Charger:%s, Battery:%s, "
 		"Allowed:%d\n",
-		&fsm_state[info->state][0],
+		fsm_state[info->state],
 		(info->online) ? "online" : "N/A",
 		(info->present) ? "present" : "N/A", info->allowed);
 	dev_dbg(info->dev, "set_charging_fsm:vbatt:%d(mV)\n", vbatt);
@@ -385,7 +385,7 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 	}
 	dev_dbg(info->dev,
 		"Out FSM:%s, Charger:%s, Battery:%s, Allowed:%d\n",
-		&fsm_state[info->state][0],
+		fsm_state[info->state],
 		(info->online) ? "online" : "N/A",
 		(info->present) ? "present" : "N/A", info->allowed);
 	mutex_unlock(&info->lock);
