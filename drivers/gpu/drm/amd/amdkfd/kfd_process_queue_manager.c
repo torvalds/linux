@@ -94,7 +94,8 @@ void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
 	if (dev->kfd->shared_resources.enable_mes && !!pdd->proc_ctx_gpu_addr &&
 	    down_read_trylock(&dev->adev->reset_domain->sem)) {
 		amdgpu_mes_flush_shader_debugger(dev->adev,
-						 pdd->proc_ctx_gpu_addr, 0);
+						 pdd->proc_ctx_gpu_addr,
+						 ffs(pdd->dev->xcc_mask) - 1);
 		up_read(&dev->adev->reset_domain->sem);
 	}
 	pdd->already_dequeued = true;

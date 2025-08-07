@@ -371,8 +371,10 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en)
 		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
 	}
 
-	return amdgpu_mes_set_shader_debugger(pdd->dev->adev, pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
-						pdd->watch_points, flags, sq_trap_en, 0);
+	return amdgpu_mes_set_shader_debugger(pdd->dev->adev,
+					pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
+					pdd->watch_points, flags, sq_trap_en,
+					ffs(pdd->dev->xcc_mask) - 1);
 }
 
 #define KFD_DEBUGGER_INVALID_WATCH_POINT_ID -1
