@@ -591,6 +591,7 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		mes_v12_1_get_rrmt(input->wrm_reg.reg1,
 				   GET_INST(GC, input->xcc_id),
 				   &misc_pkt.wait_reg_mem.rrmt_opt2);
+
 		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
 			misc_pkt.wait_reg_mem.reg_offset1 =
 				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset1);
@@ -1508,9 +1509,6 @@ static int mes_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int pipe, r, xcc_id, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	if (adev->enable_uni_mes && num_xcc > 1)
-		adev->mes.enable_coop_mode = true;
-
 	adev->mes.funcs = &mes_v12_1_funcs;
 	adev->mes.kiq_hw_init = &mes_v12_1_kiq_hw_init;
 	adev->mes.kiq_hw_fini = &mes_v12_1_kiq_hw_fini;
@@ -1541,7 +1539,7 @@ static int mes_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 			if (r)
 				return r;
 
-			if (adev->mes.enable_coop_mode) {
+			if (adev->enable_uni_mes && num_xcc > 1) {
 				r = mes_v12_1_allocate_shared_cmd_buf(adev,
 							      pipe, xcc_id);
 				if (r)
@@ -1741,6 +1739,45 @@ static int mes_v12_1_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id)
 	return 0;
 }
 
+static int mes_v12_1_setup_coop_mode(struct amdgpu_device *adev, int xcc_id)
+{
+	u32 num_xcc_per_xcp, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	int r = 0;
+
+	if (num_xcc == 1)
+		return r;
+
+	if (adev->gfx.funcs &&
+	    adev->gfx.funcs->get_xccs_per_xcp)
+		num_xcc_per_xcp = adev->gfx.funcs->get_xccs_per_xcp(adev);
+	else
+		return -EINVAL;
+
+	switch (adev->xcp_mgr->mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		adev->mes.enable_coop_mode = 1;
+		adev->mes.master_xcc_ids[xcc_id] = 0;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		adev->mes.enable_coop_mode = 1;
+		adev->mes.master_xcc_ids[xcc_id] =
+			(xcc_id/num_xcc_per_xcp) * (num_xcc / 2);
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		adev->mes.enable_coop_mode = 1;
+		adev->mes.master_xcc_ids[xcc_id] =
+			(xcc_id/num_xcc_per_xcp) * (num_xcc / 4);
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		adev->mes.enable_coop_mode = 0;
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	return r;
+}
+
 static int mes_v12_1_xcc_hw_init(struct amdgpu_ip_block *ip_block, int xcc_id)
 {
 	int r;
@@ -1781,10 +1818,13 @@ static int mes_v12_1_xcc_hw_init(struct amdgpu_ip_block *ip_block, int xcc_id)
 	if (r)
 		goto failure;
 
-	if (adev->enable_uni_mes)
+	if (adev->enable_uni_mes) {
+		r = mes_v12_1_setup_coop_mode(adev, xcc_id);
+		if (r)
+			goto failure;
 		mes_v12_1_set_hw_resources_1(&adev->mes,
 					       AMDGPU_MES_SCHED_PIPE, xcc_id);
-
+	}
 	mes_v12_1_init_aggregated_doorbell(&adev->mes, xcc_id);
 
 	r = mes_v12_1_query_sched_status(&adev->mes,
@@ -1816,10 +1856,6 @@ static int mes_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
 	int r, xcc_id, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
-		/* for SPX mode, all master xcc ids are set to 0 */
-		if (adev->mes.enable_coop_mode)
-			adev->mes.master_xcc_ids[xcc_id] = 0;
-
 		r = mes_v12_1_xcc_hw_init(ip_block, xcc_id);
 		if (r)
 			return r;
