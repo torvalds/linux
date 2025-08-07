@@ -452,7 +452,7 @@ static void m_can_interrupt_enable(struct m_can_classdev *cdev, u32 interrupts)
 {
 	if (cdev->active_interrupts == interrupts)
 		return;
-	cdev->ops->write_reg(cdev, M_CAN_IE, interrupts);
+	m_can_write(cdev, M_CAN_IE, interrupts);
 	cdev->active_interrupts = interrupts;
 }
 
