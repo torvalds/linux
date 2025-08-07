@@ -739,6 +739,42 @@ class KernelDoc:
             tuples = struct_members.findall(members)
         return members
 
+    #
+    # Format the struct declaration into a standard form for inclusion in the
+    # resulting docs.
+    #
+    def format_struct_decl(self, declaration):
+        #
+        # Insert newlines, get rid of extra spaces.
+        #
+        declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
+        declaration = KernRe(r'\}\s+;').sub('};', declaration)
+        #
+        # Format inline enums with each member on its own line.
+        #
+        r = KernRe(r'(enum\s+\{[^\}]+),([^\n])')
+        while r.search(declaration):
+            declaration = r.sub(r'\1,\n\2', declaration)
+        #
+        # Now go through and supply the right number of tabs
+        # for each line.
+        #
+        def_args = declaration.split('\n')
+        level = 1
+        declaration = ""
+        for clause in def_args:
+            clause = KernRe(r'\s+').sub(' ', clause.strip(), count=1)
+            if clause:
+                if '}' in clause and level > 1:
+                    level -= 1
+                if not clause.startswith('#'):
+                    declaration += "\t" * level
+                declaration += "\t" + clause + "\n"
+                if "{" in clause and "}" not in clause:
+                    level += 1
+        return declaration
+
+
     def dump_struct(self, ln, proto):
         """
         Store an entry for an struct or union
@@ -777,42 +813,8 @@ class KernelDoc:
         self.create_parameter_list(ln, decl_type, members, ';',
                                    declaration_name)
         self.check_sections(ln, declaration_name, decl_type)
-
-        # Adjust declaration for better display
-        declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
-        declaration = KernRe(r'\}\s+;').sub('};', declaration)
-
-        # Better handle inlined enums
-        while True:
-            r = KernRe(r'(enum\s+\{[^\}]+),([^\n])')
-            if not r.search(declaration):
-                break
-
-            declaration = r.sub(r'\1,\n\2', declaration)
-
-        def_args = declaration.split('\n')
-        level = 1
-        declaration = ""
-        for clause in def_args:
-
-            clause = clause.strip()
-            clause = KernRe(r'\s+').sub(' ', clause, count=1)
-
-            if not clause:
-                continue
-
-            if '}' in clause and level > 1:
-                level -= 1
-
-            if not KernRe(r'^\s*#').match(clause):
-                declaration += "\t" * level
-
-            declaration += "\t" + clause + "\n"
-            if "{" in clause and "}" not in clause:
-                level += 1
-
         self.output_declaration(decl_type, declaration_name,
-                                definition=declaration,
+                                definition=self.format_struct_decl(declaration),
                                 purpose=self.entry.declaration_purpose)
 
     def dump_enum(self, ln, proto):
