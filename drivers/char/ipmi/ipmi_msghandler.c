@@ -52,6 +52,8 @@ static void intf_free(struct kref *ref);
 static bool initialized;
 static bool drvregistered;
 
+static struct timer_list ipmi_timer;
+
 /* Numbers in this enumerator should be mapped to ipmi_panic_event_str */
 enum ipmi_panic_event_op {
 	IPMI_SEND_PANIC_EVENT_NONE,
@@ -1943,6 +1945,7 @@ static int i_ipmi_req_sysintf(struct ipmi_smi        *intf,
 				&& intf->maintenance_mode_state < newst) {
 			intf->maintenance_mode_state = newst;
 			maintenance_mode_update(intf);
+			mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
 		}
 		spin_unlock_irqrestore(&intf->maintenance_mode_lock,
 				       flags);
@@ -5081,6 +5084,7 @@ static bool ipmi_timeout_handler(struct ipmi_smi *intf,
 			    && (intf->auto_maintenance_timeout <= 0)) {
 				intf->maintenance_mode_state =
 					IPMI_MAINTENANCE_MODE_STATE_OFF;
+				intf->auto_maintenance_timeout = 0;
 				maintenance_mode_update(intf);
 			}
 		}
@@ -5102,8 +5106,6 @@ static void ipmi_request_event(struct ipmi_smi *intf)
 	if (!intf->in_shutdown)
 		intf->handlers->request_events(intf->send_info);
 }
-
-static struct timer_list ipmi_timer;
 
 static atomic_t stop_operation;
 
@@ -5128,6 +5130,8 @@ static void ipmi_timeout_work(struct work_struct *work)
 			}
 			need_timer = true;
 		}
+		if (intf->maintenance_mode_state)
+			need_timer = true;
 
 		need_timer |= ipmi_timeout_handler(intf, IPMI_TIMEOUT_TIME);
 	}
