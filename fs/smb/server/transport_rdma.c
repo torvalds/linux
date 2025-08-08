@@ -324,6 +324,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	if (!t)
 		return NULL;
 	sc = &t->socket;
+	smbdirect_socket_init(sc);
 
 	sc->rdma.cm_id = cm_id;
 	cm_id->context = t;
@@ -333,17 +334,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
-	INIT_LIST_HEAD(&sc->recv_io.free.list);
-	spin_lock_init(&sc->recv_io.free.lock);
-
-	sc->status = SMBDIRECT_SOCKET_CREATED;
-	init_waitqueue_head(&sc->status_wait);
-
-	spin_lock_init(&sc->recv_io.reassembly.lock);
-	INIT_LIST_HEAD(&sc->recv_io.reassembly.list);
-	sc->recv_io.reassembly.data_length = 0;
-	sc->recv_io.reassembly.queue_length = 0;
-	init_waitqueue_head(&sc->recv_io.reassembly.wait_queue);
 	init_waitqueue_head(&t->wait_send_credits);
 	init_waitqueue_head(&t->wait_rw_credits);
 
