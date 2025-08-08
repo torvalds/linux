@@ -703,17 +703,6 @@ __acquires(&gl->gl_lockref.lock)
 
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
 	GLOCK_BUG_ON(gl, gl->gl_state == gl->gl_target);
-	if ((target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) &&
-	    glops->go_inval) {
-		/*
-		 * If another process is already doing the invalidate, let that
-		 * finish first.  The glock state machine will get back to this
-		 * holder again later.
-		 */
-		if (test_and_set_bit(GLF_INVALIDATE_IN_PROGRESS,
-				     &gl->gl_flags))
-			return;
-	}
 	if (!glops->go_inval || !glops->go_sync)
 		goto skip_inval;
 
@@ -732,7 +721,7 @@ __acquires(&gl->gl_lockref.lock)
 		goto skip_inval;
 	}
 
-	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
+	if (target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) {
 		/*
 		 * The call to go_sync should have cleared out the ail list.
 		 * If there are still items, we have a problem. We ought to
@@ -747,7 +736,6 @@ __acquires(&gl->gl_lockref.lock)
 			gfs2_dump_glock(NULL, gl, true);
 		}
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
-		clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
 	}
 	spin_lock(&gl->gl_lockref.lock);
 
@@ -2316,8 +2304,6 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'y';
 	if (test_bit(GLF_LFLUSH, gflags))
 		*p++ = 'f';
-	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, gflags))
-		*p++ = 'i';
 	if (test_bit(GLF_PENDING_REPLY, gflags))
 		*p++ = 'R';
 	if (test_bit(GLF_HAVE_REPLY, gflags))
