@@ -45,6 +45,23 @@
 			{ BIT(NFS_INO_LAYOUTSTATS), "LAYOUTSTATS" }, \
 			{ BIT(NFS_INO_ODIRECT), "ODIRECT" })
 
+#define nfs_show_wb_flags(v) \
+	__print_flags(v, "|", \
+			{ BIT(PG_BUSY), "BUSY" }, \
+			{ BIT(PG_MAPPED), "MAPPED" }, \
+			{ BIT(PG_FOLIO), "FOLIO" }, \
+			{ BIT(PG_CLEAN), "CLEAN" }, \
+			{ BIT(PG_COMMIT_TO_DS), "COMMIT_TO_DS" }, \
+			{ BIT(PG_INODE_REF), "INODE_REF" }, \
+			{ BIT(PG_HEADLOCK), "HEADLOCK" }, \
+			{ BIT(PG_TEARDOWN), "TEARDOWN" }, \
+			{ BIT(PG_UNLOCKPAGE), "UNLOCKPAGE" }, \
+			{ BIT(PG_UPTODATE), "UPTODATE" }, \
+			{ BIT(PG_WB_END), "WB_END" }, \
+			{ BIT(PG_REMOVE), "REMOVE" }, \
+			{ BIT(PG_CONTENDED1), "CONTENDED1" }, \
+			{ BIT(PG_CONTENDED2), "CONTENDED2" })
+
 DECLARE_EVENT_CLASS(nfs_inode_event,
 		TP_PROTO(
 			const struct inode *inode
@@ -1462,6 +1479,55 @@ TRACE_EVENT(nfs_writeback_done,
 			show_nfs4_verifier(__entry->verifier)
 		)
 );
+
+DECLARE_EVENT_CLASS(nfs_page_class,
+		TP_PROTO(
+			const struct nfs_page *req
+		),
+
+		TP_ARGS(req),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(const struct nfs_page *__private, req)
+			__field(loff_t, offset)
+			__field(unsigned int, count)
+			__field(unsigned long, flags)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = folio_inode(req->wb_folio);
+			const struct nfs_inode *nfsi = NFS_I(inode);
+
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = nfsi->fileid;
+			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->req = req;
+			__entry->offset = req_offset(req);
+			__entry->count = req->wb_bytes;
+			__entry->flags = req->wb_flags;
+		),
+
+		TP_printk(
+			"fileid=%02x:%02x:%llu fhandle=0x%08x req=%p offset=%lld count=%u flags=%s",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid, __entry->fhandle,
+			__entry->req, __entry->offset, __entry->count,
+			nfs_show_wb_flags(__entry->flags)
+		)
+);
+
+#define DEFINE_NFS_PAGE_EVENT(name) \
+	DEFINE_EVENT(nfs_page_class, name, \
+			TP_PROTO( \
+				const struct nfs_page *req \
+			), \
+			TP_ARGS(req))
+
+DEFINE_NFS_PAGE_EVENT(nfs_writepage_setup);
+DEFINE_NFS_PAGE_EVENT(nfs_do_writepage);
 
 DECLARE_EVENT_CLASS(nfs_page_error_class,
 		TP_PROTO(
