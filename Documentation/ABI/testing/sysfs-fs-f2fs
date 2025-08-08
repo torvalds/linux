@@ -898,3 +898,16 @@ Description:
 		- "compat": Hash-based lookup with a linear search fallback enabled
 		- "auto:perf": lookup_mode is auto and fallback is disabled on-disk
 		- "auto:compat": lookup_mode is auto and fallback is enabled on-disk
+
+What:		/sys/fs/f2fs/<disk>/bggc_io_aware
+Date:		August 2025
+Contact:	"Liao Yuanhong" <liaoyuanhong@vivo.com>
+Description:	Used to adjust the BG_GC priority when pending IO, with a default value
+		of 0. Specifically, for ZUFS, the default value is 1.
+
+		==================  ======================================================
+		value				description
+		bggc_io_aware = 0   skip background GC if there is any kind of pending IO
+		bggc_io_aware = 1   skip background GC if there is pending read IO
+		bggc_io_aware = 2   don't aware IO for background GC
+		==================  ======================================================
