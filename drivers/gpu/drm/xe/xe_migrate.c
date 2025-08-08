@@ -904,7 +904,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 			goto err;
 		}
 
-		xe_sched_job_add_migrate_flush(job, flush_flags);
+		xe_sched_job_add_migrate_flush(job, flush_flags | MI_INVALIDATE_TLB);
 		if (!fence) {
 			err = xe_sched_job_add_deps(job, src_bo->ttm.base.resv,
 						    DMA_RESV_USAGE_BOOKKEEP);
@@ -1288,11 +1288,13 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 
 		size -= clear_L0;
 		/* Preemption is enabled again by the ring ops. */
-		if (clear_vram && xe_migrate_allow_identity(clear_L0, &src_it))
+		if (clear_vram && xe_migrate_allow_identity(clear_L0, &src_it)) {
 			xe_res_next(&src_it, clear_L0);
-		else
-			emit_pte(m, bb, clear_L0_pt, clear_vram, clear_only_system_ccs,
-				 &src_it, clear_L0, dst);
+		} else {
+			emit_pte(m, bb, clear_L0_pt, clear_vram,
+				 clear_only_system_ccs, &src_it, clear_L0, dst);
+			flush_flags |= MI_INVALIDATE_TLB;
+		}
 
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
@@ -1303,7 +1305,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		if (xe_migrate_needs_ccs_emit(xe)) {
 			emit_copy_ccs(gt, bb, clear_L0_ofs, true,
 				      m->cleared_mem_ofs, false, clear_L0);
-			flush_flags = MI_FLUSH_DW_CCS;
+			flush_flags |= MI_FLUSH_DW_CCS;
 		}
 
 		job = xe_bb_create_migration_job(m->q, bb,
@@ -1638,6 +1640,8 @@ next_cmd:
 		goto err_sa;
 	}
 
+	xe_sched_job_add_migrate_flush(job, MI_INVALIDATE_TLB);
+
 	if (ops->pre_commit) {
 		pt_update->job = job;
 		err = ops->pre_commit(pt_update);
@@ -1863,7 +1867,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 		goto err;
 	}
 
-	xe_sched_job_add_migrate_flush(job, 0);
+	xe_sched_job_add_migrate_flush(job, MI_INVALIDATE_TLB);
 
 	mutex_lock(&m->job_mutex);
 	xe_sched_job_arm(job);

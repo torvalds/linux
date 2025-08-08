@@ -110,10 +110,10 @@ static int emit_bb_start(u64 batch_addr, u32 ppgtt_flag, u32 *dw, int i)
 	return i;
 }
 
-static int emit_flush_invalidate(u32 addr, u32 val, u32 *dw, int i)
+static int emit_flush_invalidate(u32 addr, u32 val, u32 flush_flags, u32 *dw, int i)
 {
-	dw[i++] = MI_FLUSH_DW | MI_INVALIDATE_TLB | MI_FLUSH_DW_OP_STOREDW |
-		  MI_FLUSH_IMM_DW;
+	dw[i++] = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW |
+		  MI_FLUSH_IMM_DW | (flush_flags & MI_INVALIDATE_TLB) ?: 0;
 
 	dw[i++] = addr | MI_FLUSH_DW_USE_GTT;
 	dw[i++] = 0;
@@ -410,13 +410,13 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 	i = emit_bb_start(job->ptrs[0].batch_addr, BIT(8), dw, i);
 
 	dw[i++] = preparser_disable(true);
-	i = emit_flush_invalidate(saddr, seqno, dw, i);
+	i = emit_flush_invalidate(saddr, seqno, job->migrate_flush_flags, dw, i);
 	dw[i++] = preparser_disable(false);
 
 	i = emit_bb_start(job->ptrs[1].batch_addr, BIT(8), dw, i);
 
 	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno,
-				MI_INVALIDATE_TLB | job->migrate_flush_flags,
+				job->migrate_flush_flags,
 				dw, i);
 
 	i = emit_user_interrupt(dw, i);
