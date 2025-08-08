@@ -41,11 +41,11 @@ struct xe_sa_manager;
 struct xe_tile_vf_ccs {
 	/** @id: Id to which context it belongs to */
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
-	/** @migrate: Migration helper for save/restore of CCS data */
-	struct xe_migrate *migrate;
+	/** @mig_q: exec queues used for migration */
+	struct xe_exec_queue *mig_q;
 
 	struct {
-		/** @ccs_rw_bb_pool: Pool from which batch buffers are allocated. */
+		/** @ccs_bb_pool: Pool from which batch buffers are allocated. */
 		struct xe_sa_manager *ccs_bb_pool;
 	} mem;
 };

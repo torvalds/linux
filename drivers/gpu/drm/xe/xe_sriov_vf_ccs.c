@@ -8,6 +8,7 @@
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_exec_queue.h"
 #include "xe_exec_queue_types.h"
 #include "xe_guc_submit.h"
 #include "xe_lrc.h"
@@ -168,8 +169,8 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_tile_vf_ccs *ctx)
 
 static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
 {
-	struct xe_lrc *lrc = xe_migrate_lrc(ctx->migrate);
 	u64 addr = xe_sa_manager_gpu_addr(ctx->mem.ccs_bb_pool);
+	struct xe_lrc *lrc = xe_exec_queue_lrc(ctx->mig_q);
 	u32 dw[10], i = 0;
 
 	dw[i++] = MI_ARB_ON_OFF | MI_ARB_ENABLE;
@@ -183,13 +184,12 @@ static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
 	xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
 }
 
-static int register_save_restore_context(struct xe_migrate *m,
-					 enum xe_sriov_vf_ccs_rw_ctxs ctx_id)
+static int register_save_restore_context(struct xe_tile_vf_ccs *ctx)
 {
 	int err = -EINVAL;
 	int ctx_type;
 
-	switch (ctx_id) {
+	switch (ctx->ctx_id) {
 	case XE_SRIOV_VF_CCS_READ_CTX:
 		ctx_type = GUC_CONTEXT_COMPRESSION_SAVE;
 		break;
@@ -200,7 +200,7 @@ static int register_save_restore_context(struct xe_migrate *m,
 		return err;
 	}
 
-	xe_guc_register_exec_queue(xe_migrate_exec_queue(m), ctx_type);
+	xe_guc_register_exec_queue(ctx->mig_q, ctx_type);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
 
 	for_each_ccs_rw_ctx(ctx_id) {
 		ctx = &tile->sriov.vf.ccs[ctx_id];
-		err = register_save_restore_context(ctx->migrate, ctx_id);
+		err = register_save_restore_context(ctx);
 		if (err)
 			return err;
 	}
@@ -236,13 +236,14 @@ int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
 static void xe_sriov_vf_ccs_fini(void *arg)
 {
 	struct xe_tile_vf_ccs *ctx = arg;
-	struct xe_lrc *lrc = xe_migrate_lrc(ctx->migrate);
+	struct xe_lrc *lrc = xe_exec_queue_lrc(ctx->mig_q);
 
 	/*
 	 * Make TAIL = HEAD in the ring so that no issues are seen if Guc
 	 * submits this context to HW on VF pause after unbinding device.
 	 */
 	xe_lrc_set_ring_tail(lrc, xe_lrc_ring_head(lrc));
+	xe_exec_queue_put(ctx->mig_q);
 }
 
 /**
@@ -258,8 +259,9 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 {
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
-	struct xe_migrate *migrate;
 	struct xe_tile_vf_ccs *ctx;
+	struct xe_exec_queue *q;
+	u32 flags;
 	int err;
 
 	xe_assert(xe, IS_SRIOV_VF(xe));
@@ -270,36 +272,39 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 		ctx = &tile->sriov.vf.ccs[ctx_id];
 		ctx->ctx_id = ctx_id;
 
-		migrate = xe_migrate_alloc(tile);
-		if (!migrate) {
-			err = -ENOMEM;
+		flags = EXEC_QUEUE_FLAG_KERNEL |
+			EXEC_QUEUE_FLAG_PERMANENT |
+			EXEC_QUEUE_FLAG_MIGRATE;
+		q = xe_exec_queue_create_bind(xe, tile, flags, 0);
+		if (IS_ERR(q)) {
+			err = PTR_ERR(q);
 			goto err_ret;
 		}
-
-		err = xe_migrate_init(migrate);
-		if (err)
-			goto err_ret;
-
-		ctx->migrate = migrate;
+		ctx->mig_q = q;
 
 		err = alloc_bb_pool(tile, ctx);
 		if (err)
-			goto err_ret;
+			goto err_free_queue;
 
 		ccs_rw_update_ring(ctx);
 
-		err = register_save_restore_context(ctx->migrate, ctx_id);
+		err = register_save_restore_context(ctx);
 		if (err)
-			goto err_ret;
+			goto err_free_queue;
 
 		err = devm_add_action_or_reset(xe->drm.dev,
 					       xe_sriov_vf_ccs_fini,
 					       ctx);
+		if (err)
+			goto err_ret;
 	}
 
 	xe->sriov.vf.ccs.initialized = 1;
 
 	return 0;
+
+err_free_queue:
+	xe_exec_queue_put(q);
 
 err_ret:
 	return err;
@@ -319,7 +324,7 @@ int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
-	struct xe_migrate *migrate;
+	struct xe_tile_vf_ccs *ctx;
 	struct xe_tile *tile;
 	struct xe_bb *bb;
 	int err = 0;
@@ -334,8 +339,8 @@ int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
 		/* bb should be NULL here. Assert if not NULL */
 		xe_assert(xe, !bb);
 
-		migrate = tile->sriov.vf.ccs[ctx_id].migrate;
-		err = xe_migrate_ccs_rw_copy(migrate, bo, ctx_id);
+		ctx = &tile->sriov.vf.ccs[ctx_id];
+		err = xe_migrate_ccs_rw_copy(tile, ctx->mig_q, bo, ctx_id);
 	}
 	return err;
 }

@@ -951,7 +951,7 @@ err_sync:
 }
 
 /**
- * xe_get_migrate_lrc() - Get the LRC from migrate context.
+ * xe_migrate_lrc() - Get the LRC from migrate context.
  * @migrate: Migrate context.
  *
  * Return: Pointer to LRC on success, error on failure
@@ -961,14 +961,15 @@ struct xe_lrc *xe_migrate_lrc(struct xe_migrate *migrate)
 	return migrate->q->lrc[0];
 }
 
-static int emit_flush_invalidate(struct xe_migrate *m, u32 *dw, int i,
+static int emit_flush_invalidate(struct xe_exec_queue *q, u32 *dw, int i,
 				 u32 flags)
 {
+	struct xe_lrc *lrc = xe_exec_queue_lrc(q);
 	dw[i++] = MI_FLUSH_DW | MI_INVALIDATE_TLB | MI_FLUSH_DW_OP_STOREDW |
 		  MI_FLUSH_IMM_DW | flags;
-	dw[i++] = lower_32_bits(xe_lrc_start_seqno_ggtt_addr(xe_migrate_lrc(m))) |
+	dw[i++] = lower_32_bits(xe_lrc_start_seqno_ggtt_addr(lrc)) |
 		  MI_FLUSH_DW_USE_GTT;
-	dw[i++] = upper_32_bits(xe_lrc_start_seqno_ggtt_addr(xe_migrate_lrc(m)));
+	dw[i++] = upper_32_bits(xe_lrc_start_seqno_ggtt_addr(lrc));
 	dw[i++] = MI_NOOP;
 	dw[i++] = MI_NOOP;
 
@@ -977,7 +978,8 @@ static int emit_flush_invalidate(struct xe_migrate *m, u32 *dw, int i,
 
 /**
  * xe_migrate_ccs_rw_copy() - Copy content of TTM resources.
- * @m: The migration context.
+ * @tile: Tile whose migration context to be used.
+ * @q : Execution to be used along with migration context.
  * @src_bo: The buffer object @src is currently bound to.
  * @read_write : Creates BB commands for CCS read/write.
  *
@@ -988,7 +990,7 @@ static int emit_flush_invalidate(struct xe_migrate *m, u32 *dw, int i,
  *
  * Return: 0 if successful, negative error code on failure.
  */
-int xe_migrate_ccs_rw_copy(struct xe_migrate *m,
+int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
 			   struct xe_bo *src_bo,
 			   enum xe_sriov_vf_ccs_rw_ctxs read_write)
 
@@ -996,7 +998,8 @@ int xe_migrate_ccs_rw_copy(struct xe_migrate *m,
 	bool src_is_pltt = read_write == XE_SRIOV_VF_CCS_READ_CTX;
 	bool dst_is_pltt = read_write == XE_SRIOV_VF_CCS_WRITE_CTX;
 	struct ttm_resource *src = src_bo->ttm.resource;
-	struct xe_gt *gt = m->tile->primary_gt;
+	struct xe_migrate *m = tile->migrate;
+	struct xe_gt *gt = tile->primary_gt;
 	u32 batch_size, batch_size_allocated;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_res_cursor src_it, ccs_it;
@@ -1079,11 +1082,11 @@ int xe_migrate_ccs_rw_copy(struct xe_migrate *m,
 
 		emit_pte(m, bb, ccs_pt, false, false, &ccs_it, ccs_size, src);
 
-		bb->len = emit_flush_invalidate(m, bb->cs, bb->len, flush_flags);
+		bb->len = emit_flush_invalidate(q, bb->cs, bb->len, flush_flags);
 		flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs, src_is_pltt,
 						  src_L0_ofs, dst_is_pltt,
 						  src_L0, ccs_ofs, true);
-		bb->len = emit_flush_invalidate(m, bb->cs, bb->len, flush_flags);
+		bb->len = emit_flush_invalidate(q, bb->cs, bb->len, flush_flags);
 
 		size -= src_L0;
 	}

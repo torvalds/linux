@@ -790,6 +790,21 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
+ * xe_exec_queue_lrc() - Get the LRC from exec queue.
+ * @q: The exec_queue.
+ *
+ * Retrieves the primary LRC for the exec queue. Note that this function
+ * returns only the first LRC instance, even when multiple parallel LRCs
+ * are configured.
+ *
+ * Return: Pointer to LRC on success, error on failure
+ */
+struct xe_lrc *xe_exec_queue_lrc(struct xe_exec_queue *q)
+{
+	return q->lrc[0];
+}
+
+/**
  * xe_exec_queue_is_lr() - Whether an exec_queue is long-running
  * @q: The exec_queue
  *
