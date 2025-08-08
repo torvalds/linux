@@ -152,8 +152,7 @@ static void xe_migrate_program_identity(struct xe_device *xe, struct xe_vm *vm, 
 	for (pos = dpa_base; pos < vram_limit;
 	     pos += SZ_1G, ofs += 8) {
 		if (pos + SZ_1G >= vram_limit) {
-			entry = vm->pt_ops->pde_encode_bo(bo, pt_2m_ofs,
-							  pat_index);
+			entry = vm->pt_ops->pde_encode_bo(bo, pt_2m_ofs);
 			xe_map_wr(xe, &bo->vmap, ofs, u64, entry);
 
 			flags = vm->pt_ops->pte_encode_addr(xe, 0,
@@ -207,7 +206,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 	/* PT30 & PT31 reserved for 2M identity map */
 	pt29_ofs = xe_bo_size(bo) - 3 * XE_PAGE_SIZE;
-	entry = vm->pt_ops->pde_encode_bo(bo, pt29_ofs, pat_index);
+	entry = vm->pt_ops->pde_encode_bo(bo, pt29_ofs);
 	xe_pt_write(xe, &vm->pt_root[id]->bo->vmap, 0, entry);
 
 	map_ofs = (num_entries - num_setup) * XE_PAGE_SIZE;
@@ -275,15 +274,14 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			flags = XE_PDE_64K;
 
 		entry = vm->pt_ops->pde_encode_bo(bo, map_ofs + (u64)(level - 1) *
-						  XE_PAGE_SIZE, pat_index);
+						  XE_PAGE_SIZE);
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE * level, u64,
 			  entry | flags);
 	}
 
 	/* Write PDE's that point to our BO. */
 	for (i = 0; i < map_ofs / PAGE_SIZE; i++) {
-		entry = vm->pt_ops->pde_encode_bo(bo, (u64)i * XE_PAGE_SIZE,
-						  pat_index);
+		entry = vm->pt_ops->pde_encode_bo(bo, (u64)i * XE_PAGE_SIZE);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE +
 			  (i + 1) * 8, u64, entry);

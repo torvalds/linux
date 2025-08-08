@@ -1512,14 +1512,39 @@ static u64 pte_encode_ps(u32 pt_level)
 	return 0;
 }
 
-static u64 xelp_pde_encode_bo(struct xe_bo *bo, u64 bo_offset,
-			      const u16 pat_index)
+static u16 pde_pat_index(struct xe_bo *bo)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	u16 pat_index;
+
+	/*
+	 * We only have two bits to encode the PAT index in non-leaf nodes, but
+	 * these only point to other paging structures so we only need a minimal
+	 * selection of options. The user PAT index is only for encoding leaf
+	 * nodes, where we have use of more bits to do the encoding. The
+	 * non-leaf nodes are instead under driver control so the chosen index
+	 * here should be distict from the user PAT index. Also the
+	 * corresponding coherency of the PAT index should be tied to the
+	 * allocation type of the page table (or at least we should pick
+	 * something which is always safe).
+	 */
+	if (!xe_bo_is_vram(bo) && bo->ttm.ttm->caching == ttm_cached)
+		pat_index = xe->pat.idx[XE_CACHE_WB];
+	else
+		pat_index = xe->pat.idx[XE_CACHE_NONE];
+
+	xe_assert(xe, pat_index <= 3);
+
+	return pat_index;
+}
+
+static u64 xelp_pde_encode_bo(struct xe_bo *bo, u64 bo_offset)
 {
 	u64 pde;
 
 	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pde |= pde_encode_pat_index(pat_index);
+	pde |= pde_encode_pat_index(pde_pat_index(bo));
 
 	return pde;
 }
@@ -2024,8 +2049,7 @@ struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id)
 
 u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile)
 {
-	return vm->pt_ops->pde_encode_bo(vm->pt_root[tile->id]->bo, 0,
-					 tile_to_xe(tile)->pat.idx[XE_CACHE_WB]);
+	return vm->pt_ops->pde_encode_bo(vm->pt_root[tile->id]->bo, 0);
 }
 
 static struct xe_exec_queue *
