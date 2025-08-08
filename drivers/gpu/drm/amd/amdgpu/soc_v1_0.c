@@ -379,7 +379,7 @@ static int soc_v1_0_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 	mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
 	derv_mode = __soc_v1_0_calc_xcp_mode(xcp_mgr);
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev) || !adev->psp.funcs)
 		return derv_mode;
 
 	if (adev->nbio.funcs &&
