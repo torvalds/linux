@@ -43,6 +43,8 @@ struct smbdirect_socket {
 	enum smbdirect_socket_status status;
 	wait_queue_head_t status_wait;
 
+	struct work_struct disconnect_work;
+
 	/* RDMA related */
 	struct {
 		struct rdma_cm_id *cm_id;
