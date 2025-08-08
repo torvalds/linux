@@ -113,8 +113,6 @@ struct smb_direct_transport {
 	struct work_struct	send_immediate_work;
 	struct work_struct	disconnect_work;
 
-	bool			negotiation_requested;
-
 	bool			legacy_iwarp;
 	u8			initiator_depth;
 	u8			responder_resources;
@@ -255,19 +253,53 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 			     disconnect_work);
 	struct smbdirect_socket *sc = &t->socket;
 
-	if (sc->status == SMBDIRECT_SOCKET_CONNECTED) {
+	/*
+	 * make sure this and other work is not queued again
+	 * but here we don't block and avoid
+	 * disable[_delayed]_work_sync()
+	 */
+	disable_work(&t->disconnect_work);
+	disable_work(&t->post_recv_credits_work);
+	disable_work(&t->send_immediate_work);
+
+	switch (sc->status) {
+	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
+	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
+	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
+	case SMBDIRECT_SOCKET_CONNECTED:
+	case SMBDIRECT_SOCKET_ERROR:
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTING;
 		rdma_disconnect(sc->rdma.cm_id);
+		break;
+
+	case SMBDIRECT_SOCKET_CREATED:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_NEEDED:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED:
+		/*
+		 * rdma_accept() never reached
+		 * RDMA_CM_EVENT_ESTABLISHED
+		 */
+		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		break;
+
+	case SMBDIRECT_SOCKET_DISCONNECTING:
+	case SMBDIRECT_SOCKET_DISCONNECTED:
+	case SMBDIRECT_SOCKET_DESTROYED:
+		break;
 	}
 }
 
 static void
 smb_direct_disconnect_rdma_connection(struct smb_direct_transport *t)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
-	if (sc->status == SMBDIRECT_SOCKET_CONNECTED)
-		queue_work(smb_direct_wq, &t->disconnect_work);
+	queue_work(smb_direct_wq, &t->disconnect_work);
 }
 
 static void smb_direct_send_immediate_work(struct work_struct *work)
@@ -512,9 +544,9 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			smb_direct_disconnect_rdma_connection(t);
 			return;
 		}
-		t->negotiation_requested = true;
 		sc->recv_io.reassembly.full_packet_received = true;
-		sc->status = SMBDIRECT_SOCKET_CONNECTED;
+		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED);
+		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
 		enqueue_reassembly(t, recvmsg, 0);
 		wake_up(&sc->status_wait);
 		return;
@@ -1546,7 +1578,8 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED: {
-		sc->status = SMBDIRECT_SOCKET_CONNECTED;
+		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING);
+		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_NEEDED;
 		wake_up(&sc->status_wait);
 		break;
 	}
@@ -1555,6 +1588,7 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 		ib_drain_qp(sc->ib.qp);
 
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
 		wake_up_all(&sc->status_wait);
 		wake_up_all(&sc->recv_io.reassembly.wait_queue);
 		wake_up_all(&t->wait_send_credits);
@@ -1611,6 +1645,8 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 		resp->min_version = SMB_DIRECT_VERSION_LE;
 		resp->max_version = SMB_DIRECT_VERSION_LE;
 		resp->status = STATUS_NOT_SUPPORTED;
+
+		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
 	} else {
 		resp->status = STATUS_SUCCESS;
 		resp->min_version = SMB_DIRECT_VERSION_LE;
@@ -1627,6 +1663,7 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 				cpu_to_le32(sp->max_fragmented_recv_size);
 
 		sc->recv_io.expected = SMBDIRECT_EXPECT_DATA_TRANSFER;
+		sc->status = SMBDIRECT_SOCKET_CONNECTED;
 	}
 
 	sendmsg->sge[0].addr = ib_dma_map_single(sc->ib.dev,
@@ -1682,6 +1719,8 @@ static int smb_direct_accept_client(struct smb_direct_transport *t)
 	conn_param.rnr_retry_count = SMB_DIRECT_CM_RNR_RETRY;
 	conn_param.flow_control = 0;
 
+	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED);
+	sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING;
 	ret = rdma_accept(sc->rdma.cm_id, &conn_param);
 	if (ret) {
 		pr_err("error at rdma_accept: %d\n", ret);
@@ -1696,6 +1735,9 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 	int ret;
 	struct smbdirect_recv_io *recvmsg;
 
+	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED);
+	sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED;
+
 	sc->recv_io.expected = SMBDIRECT_EXPECT_NEGOTIATE_REQ;
 
 	recvmsg = get_free_recvmsg(t);
@@ -1708,7 +1750,6 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 		goto out_err;
 	}
 
-	t->negotiation_requested = false;
 	ret = smb_direct_accept_client(t);
 	if (ret) {
 		pr_err("Can't accept client\n");
@@ -1994,12 +2035,25 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	struct smbdirect_negotiate_req *req;
 	int ret;
 
+	/*
+	 * We are waiting to pass the following states:
+	 *
+	 * SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED
+	 * SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING
+	 * SMBDIRECT_SOCKET_NEGOTIATE_NEEDED
+	 *
+	 * To finally get to SMBDIRECT_SOCKET_NEGOTIATE_RUNNING
+	 * in order to continue below.
+	 *
+	 * Everything else is unexpected and an error.
+	 */
 	ksmbd_debug(RDMA, "Waiting for SMB_DIRECT negotiate request\n");
 	ret = wait_event_interruptible_timeout(sc->status_wait,
-					       st->negotiation_requested ||
-					       sc->status == SMBDIRECT_SOCKET_DISCONNECTED,
-					       SMB_DIRECT_NEGOTIATE_TIMEOUT * HZ);
-	if (ret <= 0 || sc->status == SMBDIRECT_SOCKET_DISCONNECTED)
+					sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED &&
+					sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING &&
+					sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED,
+					SMB_DIRECT_NEGOTIATE_TIMEOUT * HZ);
+	if (ret <= 0 || sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING)
 		return ret < 0 ? ret : -ETIMEDOUT;
 
 	recvmsg = get_first_reassembly(st);
