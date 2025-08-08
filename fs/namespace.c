@@ -5176,7 +5176,8 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		int ret;
 		struct mount_kattr kattr = {};
 
-		kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
+		if (flags & OPEN_TREE_CLONE)
+			kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
 		if (flags & AT_RECURSIVE)
 			kattr.kflags |= MOUNT_KATTR_RECURSE;
 
