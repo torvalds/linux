@@ -1480,7 +1480,7 @@ static ssize_t acoustic_ctl_write(struct file *file,
 		return PTR_ERR(src);
 
 	if (src[0] > max_pkg_len && src[0] != count) {
-		dev_err(priv->dev, "pkg(%u), max(%u), count(%u) dismatch.\n",
+		dev_err(priv->dev, "pkg(%u), max(%u), count(%u) mismatch.\n",
 			src[0], max_pkg_len, (unsigned int)count);
 		ret = 0;
 		goto exit;
