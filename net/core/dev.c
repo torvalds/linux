@@ -6978,6 +6978,12 @@ int napi_set_threaded(struct napi_struct *napi,
 	if (napi->config)
 		napi->config->threaded = threaded;
 
+	/* Setting/unsetting threaded mode on a napi might not immediately
+	 * take effect, if the current napi instance is actively being
+	 * polled. In this case, the switch between threaded mode and
+	 * softirq mode will happen in the next round of napi_schedule().
+	 * This should not cause hiccups/stalls to the live traffic.
+	 */
 	if (!threaded && napi->thread) {
 		napi_stop_kthread(napi);
 	} else {
@@ -7011,23 +7017,9 @@ int netif_set_threaded(struct net_device *dev,
 
 	WRITE_ONCE(dev->threaded, threaded);
 
-	/* Make sure kthread is created before THREADED bit
-	 * is set.
-	 */
-	smp_mb__before_atomic();
-
-	/* Setting/unsetting threaded mode on a napi might not immediately
-	 * take effect, if the current napi instance is actively being
-	 * polled. In this case, the switch between threaded mode and
-	 * softirq mode will happen in the next round of napi_schedule().
-	 * This should not cause hiccups/stalls to the live traffic.
-	 */
-	list_for_each_entry(napi, &dev->napi_list, dev_list) {
-		if (!threaded && napi->thread)
-			napi_stop_kthread(napi);
-		else
-			assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
-	}
+	/* The error should not occur as the kthreads are already created. */
+	list_for_each_entry(napi, &dev->napi_list, dev_list)
+		WARN_ON_ONCE(napi_set_threaded(napi, threaded));
 
 	return err;
 }
