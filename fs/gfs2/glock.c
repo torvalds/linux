@@ -502,7 +502,7 @@ static bool do_promote(struct gfs2_glock *gl)
 			 */
 			if (list_is_first(&gh->gh_list, &gl->gl_holders))
 				return false;
-			do_error(gl, 0);
+			do_error(gl, 0); /* Fail queued try locks */
 			break;
 		}
 		set_bit(HIF_HOLDER, &gh->gh_iflags);
@@ -713,7 +713,6 @@ __acquires(&gl->gl_lockref.lock)
 		if (test_and_set_bit(GLF_INVALIDATE_IN_PROGRESS,
 				     &gl->gl_flags))
 			return;
-		do_error(gl, 0); /* Fail queued try locks */
 	}
 	if (!glops->go_inval && !glops->go_sync)
 		goto skip_inval;
@@ -1459,6 +1458,24 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
 	va_end(args);
 }
 
+static bool gfs2_should_queue_trylock(struct gfs2_glock *gl,
+				      struct gfs2_holder *gh)
+{
+	struct gfs2_holder *current_gh, *gh2;
+
+	current_gh = find_first_holder(gl);
+	if (current_gh && !may_grant(gl, current_gh, gh))
+		return false;
+
+	list_for_each_entry(gh2, &gl->gl_holders, gh_list) {
+		if (test_bit(HIF_HOLDER, &gh2->gh_iflags))
+			continue;
+		if (!(gh2->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
+			return false;
+	}
+	return true;
+}
+
 static inline bool pid_is_meaningful(const struct gfs2_holder *gh)
 {
         if (!(gh->gh_flags & GL_NOPID))
@@ -1477,27 +1494,20 @@ static inline bool pid_is_meaningful(const struct gfs2_holder *gh)
  */
 
 static inline void add_to_queue(struct gfs2_holder *gh)
-__releases(&gl->gl_lockref.lock)
-__acquires(&gl->gl_lockref.lock)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_holder *gh2;
-	int try_futile = 0;
 
 	GLOCK_BUG_ON(gl, gh->gh_owner_pid == NULL);
 	if (test_and_set_bit(HIF_WAIT, &gh->gh_iflags))
 		GLOCK_BUG_ON(gl, true);
 
-	if (gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) {
-		if (test_bit(GLF_LOCK, &gl->gl_flags)) {
-			struct gfs2_holder *current_gh;
-
-			current_gh = find_first_holder(gl);
-			try_futile = !may_grant(gl, current_gh, gh);
-		}
-		if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
-			goto fail;
+	if ((gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) &&
+	    !gfs2_should_queue_trylock(gl, gh)) {
+		gh->gh_error = GLR_TRYFAILED;
+		gfs2_holder_wake(gh);
+		return;
 	}
 
 	list_for_each_entry(gh2, &gl->gl_holders, gh_list) {
@@ -1508,15 +1518,6 @@ __acquires(&gl->gl_lockref.lock)
 		if (!pid_is_meaningful(gh2))
 			continue;
 		goto trap_recursive;
-	}
-	list_for_each_entry(gh2, &gl->gl_holders, gh_list) {
-		if (try_futile &&
-		    !(gh2->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB))) {
-fail:
-			gh->gh_error = GLR_TRYFAILED;
-			gfs2_holder_wake(gh);
-			return;
-		}
 	}
 	trace_gfs2_glock_queue(gh, 1);
 	gfs2_glstats_inc(gl, GFS2_LKS_QCOUNT);
