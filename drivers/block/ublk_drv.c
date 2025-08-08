@@ -2265,23 +2265,28 @@ static bool ublk_get_data(const struct ublk_queue *ubq, struct ublk_io *io,
 	return ublk_start_io(ubq, req, io);
 }
 
-static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
-			       unsigned int issue_flags,
-			       const struct ublksrv_io_cmd *ub_cmd)
+static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
+		unsigned int issue_flags)
 {
+	/* May point to userspace-mapped memory */
+	const struct ublksrv_io_cmd *ub_src = io_uring_sqe_cmd(cmd->sqe);
 	u16 buf_idx = UBLK_INVALID_BUF_IDX;
 	struct ublk_device *ub = cmd->file->private_data;
 	struct ublk_queue *ubq;
 	struct ublk_io *io;
 	u32 cmd_op = cmd->cmd_op;
-	unsigned tag = ub_cmd->tag;
+	u16 q_id = READ_ONCE(ub_src->q_id);
+	u16 tag = READ_ONCE(ub_src->tag);
+	s32 result = READ_ONCE(ub_src->result);
+	u64 addr = READ_ONCE(ub_src->addr); /* unioned with zone_append_lba */
 	struct request *req;
 	int ret;
 	bool compl;
 
+	WARN_ON_ONCE(issue_flags & IO_URING_F_UNLOCKED);
+
 	pr_devel("%s: received: cmd op %d queue %d tag %d result %d\n",
-			__func__, cmd->cmd_op, ub_cmd->q_id, tag,
-			ub_cmd->result);
+			__func__, cmd->cmd_op, q_id, tag, result);
 
 	ret = ublk_check_cmd_op(cmd_op);
 	if (ret)
@@ -2292,14 +2297,13 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 	 * so no need to validate the q_id, tag, or task
 	 */
 	if (_IOC_NR(cmd_op) == UBLK_IO_UNREGISTER_IO_BUF)
-		return ublk_unregister_io_buf(cmd, ub, ub_cmd->addr,
-					      issue_flags);
+		return ublk_unregister_io_buf(cmd, ub, addr, issue_flags);
 
 	ret = -EINVAL;
-	if (ub_cmd->q_id >= ub->dev_info.nr_hw_queues)
+	if (q_id >= ub->dev_info.nr_hw_queues)
 		goto out;
 
-	ubq = ublk_get_queue(ub, ub_cmd->q_id);
+	ubq = ublk_get_queue(ub, q_id);
 
 	if (tag >= ubq->q_depth)
 		goto out;
@@ -2307,10 +2311,10 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 	io = &ubq->ios[tag];
 	/* UBLK_IO_FETCH_REQ can be handled on any task, which sets io->task */
 	if (unlikely(_IOC_NR(cmd_op) == UBLK_IO_FETCH_REQ)) {
-		ret = ublk_check_fetch_buf(ubq, ub_cmd->addr);
+		ret = ublk_check_fetch_buf(ubq, addr);
 		if (ret)
 			goto out;
-		ret = ublk_fetch(cmd, ubq, io, ub_cmd->addr);
+		ret = ublk_fetch(cmd, ubq, io, addr);
 		if (ret)
 			goto out;
 
@@ -2324,7 +2328,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		 * so can be handled on any task
 		 */
 		if (_IOC_NR(cmd_op) == UBLK_IO_REGISTER_IO_BUF)
-			return ublk_register_io_buf(cmd, ubq, io, ub_cmd->addr,
+			return ublk_register_io_buf(cmd, ubq, io, addr,
 						    issue_flags);
 
 		goto out;
@@ -2346,22 +2350,22 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 
 	switch (_IOC_NR(cmd_op)) {
 	case UBLK_IO_REGISTER_IO_BUF:
-		return ublk_daemon_register_io_buf(cmd, ubq, io, ub_cmd->addr,
+		return ublk_daemon_register_io_buf(cmd, ubq, io, addr,
 						   issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
-		ret = ublk_check_commit_and_fetch(ubq, io, ub_cmd->addr);
+		ret = ublk_check_commit_and_fetch(ubq, io, addr);
 		if (ret)
 			goto out;
-		io->res = ub_cmd->result;
+		io->res = result;
 		req = ublk_fill_io_cmd(io, cmd);
-		ret = ublk_config_io_buf(ubq, io, cmd, ub_cmd->addr, &buf_idx);
+		ret = ublk_config_io_buf(ubq, io, cmd, addr, &buf_idx);
 		compl = ublk_need_complete_req(ubq, io);
 
 		/* can't touch 'ublk_io' any more */
 		if (buf_idx != UBLK_INVALID_BUF_IDX)
 			io_buffer_unregister_bvec(cmd, buf_idx, issue_flags);
 		if (req_op(req) == REQ_OP_ZONE_APPEND)
-			req->__sector = ub_cmd->zone_append_lba;
+			req->__sector = addr;
 		if (compl)
 			__ublk_complete_rq(req);
 
@@ -2375,7 +2379,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		 * request
 		 */
 		req = ublk_fill_io_cmd(io, cmd);
-		ret = ublk_config_io_buf(ubq, io, cmd, ub_cmd->addr, NULL);
+		ret = ublk_config_io_buf(ubq, io, cmd, addr, NULL);
 		WARN_ON_ONCE(ret);
 		if (likely(ublk_get_data(ubq, io, req))) {
 			__ublk_prep_compl_io_cmd(io, req);
@@ -2424,26 +2428,6 @@ static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
 fail_put:
 	ublk_put_req_ref(io, req);
 	return NULL;
-}
-
-static inline int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
-		unsigned int issue_flags)
-{
-	/*
-	 * Not necessary for async retry, but let's keep it simple and always
-	 * copy the values to avoid any potential reuse.
-	 */
-	const struct ublksrv_io_cmd *ub_src = io_uring_sqe_cmd(cmd->sqe);
-	const struct ublksrv_io_cmd ub_cmd = {
-		.q_id = READ_ONCE(ub_src->q_id),
-		.tag = READ_ONCE(ub_src->tag),
-		.result = READ_ONCE(ub_src->result),
-		.addr = READ_ONCE(ub_src->addr)
-	};
-
-	WARN_ON_ONCE(issue_flags & IO_URING_F_UNLOCKED);
-
-	return __ublk_ch_uring_cmd(cmd, issue_flags, &ub_cmd);
 }
 
 static void ublk_ch_uring_cmd_cb(struct io_uring_cmd *cmd,
