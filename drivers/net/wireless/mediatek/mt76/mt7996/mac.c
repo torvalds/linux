@@ -903,8 +903,12 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 				       IEEE80211_TX_CTRL_MLO_LINK);
 
 	mvif = vif ? (struct mt7996_vif *)vif->drv_priv : NULL;
-	if (mvif)
-		mlink = rcu_dereference(mvif->mt76.link[link_id]);
+	if (mvif) {
+		if (wcid->offchannel)
+			mlink = rcu_dereference(mvif->mt76.offchannel_link);
+		if (!mlink)
+			mlink = rcu_dereference(mvif->mt76.link[link_id]);
+	}
 
 	if (mlink) {
 		omac_idx = mlink->omac_idx;
