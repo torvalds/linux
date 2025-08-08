@@ -136,6 +136,24 @@ struct smbdirect_socket {
 	} recv_io;
 };
 
+static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
+{
+	/*
+	 * This also sets status = SMBDIRECT_SOCKET_CREATED
+	 */
+	BUILD_BUG_ON(SMBDIRECT_SOCKET_CREATED != 0);
+	memset(sc, 0, sizeof(*sc));
+
+	init_waitqueue_head(&sc->status_wait);
+
+	INIT_LIST_HEAD(&sc->recv_io.free.list);
+	spin_lock_init(&sc->recv_io.free.lock);
+
+	INIT_LIST_HEAD(&sc->recv_io.reassembly.list);
+	spin_lock_init(&sc->recv_io.reassembly.lock);
+	init_waitqueue_head(&sc->recv_io.reassembly.wait_queue);
+}
+
 struct smbdirect_send_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
