@@ -878,7 +878,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		}
 
 		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
-		    kfd->num_nodes != 1) {
+		    kfd->num_nodes != 1 &&
+		    (KFD_GC_VERSION(kfd) != IP_VERSION(12, 1, 0))) {
 			/* For multi-partition capable GPUs and CPX mode, first
 			 * XCD gets VMID range 4-9 and second XCD gets VMID
 			 * range 10-15.
@@ -899,6 +900,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			node->compute_vmid_bitmap =
 				gpu_resources->compute_vmid_bitmap;
 		}
+
 		node->max_proc_per_quantum = max_proc_per_quantum;
 		atomic_set(&node->sram_ecc_flag, 0);
 
