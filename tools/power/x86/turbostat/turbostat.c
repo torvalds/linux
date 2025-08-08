@@ -2756,7 +2756,7 @@ void print_header(char *delim)
 
 	for (mp = sys.tp; mp; mp = mp->next) {
 
-		if (mp->format == FORMAT_RAW) {
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE) {
 			if (mp->width == 64)
 				outp += sprintf(outp, "%s%18.18s", (printed++ ? delim : ""), mp->name);
 			else
@@ -2831,7 +2831,7 @@ void print_header(char *delim)
 	}
 
 	for (mp = sys.cp; mp; mp = mp->next) {
-		if (mp->format == FORMAT_RAW) {
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE) {
 			if (mp->width == 64)
 				outp += sprintf(outp, "%s%18.18s", delim, mp->name);
 			else
@@ -2961,7 +2961,7 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sUncMHz", (printed++ ? delim : ""));
 
 	for (mp = sys.pp; mp; mp = mp->next) {
-		if (mp->format == FORMAT_RAW) {
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE) {
 			if (mp->width == 64)
 				outp += sprintf(outp, "%s%18.18s", delim, mp->name);
 			else if (mp->width == 32)
@@ -3282,7 +3282,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	/* Added counters */
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW) {
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE) {
 			if (mp->width == 32)
 				outp +=
 				    sprintf(outp, "%s0x%08x", (printed++ ? delim : ""), (unsigned int)t->counter[i]);
@@ -3379,7 +3379,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), c->core_throt_cnt);
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW) {
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE) {
 			if (mp->width == 32)
 				outp +=
 				    sprintf(outp, "%s0x%08x", (printed++ ? delim : ""), (unsigned int)c->counter[i]);
@@ -3578,7 +3578,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->uncore_mhz);
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW) {
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE) {
 			if (mp->width == 32)
 				outp +=
 				    sprintf(outp, "%s0x%08x", (printed++ ? delim : ""), (unsigned int)p->counter[i]);
@@ -3755,7 +3755,7 @@ int delta_package(struct pkg_data *new, struct pkg_data *old)
 	    new->rapl_dram_perf_status.raw_value - old->rapl_dram_perf_status.raw_value;
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW)
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
 		else if (mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
@@ -3799,7 +3799,7 @@ void delta_core(struct core_data *new, struct core_data *old)
 	DELTA_WRAP32(new->core_energy.raw_value, old->core_energy.raw_value);
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW)
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
 		else
 			old->counter[i] = new->counter[i] - old->counter[i];
@@ -3913,7 +3913,7 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 		old->smi_count = new->smi_count - old->smi_count;
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
-		if (mp->format == FORMAT_RAW)
+		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
 		else
 			old->counter[i] = new->counter[i] - old->counter[i];
@@ -10419,6 +10419,10 @@ void parse_add_command_msr(char *add_command)
 			format = FORMAT_RAW;
 			goto next;
 		}
+		if (!strncmp(add_command, "average", strlen("average"))) {
+			format = FORMAT_AVERAGE;
+			goto next;
+		}
 		if (!strncmp(add_command, "delta", strlen("delta"))) {
 			format = FORMAT_DELTA;
 			goto next;
@@ -10691,13 +10695,19 @@ next:
 			has_format = true;
 		}
 
+		if (strcmp("average", format_name) == 0) {
+			format = FORMAT_AVERAGE;
+			has_format = true;
+		}
+
 		if (strcmp("delta", format_name) == 0) {
 			format = FORMAT_DELTA;
 			has_format = true;
 		}
 
 		if (!has_format) {
-			fprintf(stderr, "%s: Invalid format %s. Expected raw or delta\n", __func__, format_name);
+			fprintf(stderr, "%s: Invalid format %s. Expected raw, average or delta\n",
+				__func__, format_name);
 			exit(1);
 		}
 	}

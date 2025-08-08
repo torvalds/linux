@@ -47,10 +47,11 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		MSRs are read as 64-bits, u32 truncates the displayed value to 32-bits.
 		default: u64
 
-	format: {\fBraw\fP | \fBdelta\fP | \fBpercent\fP}
+	format: {\fBraw\fP | \fBdelta\fP | \fBpercent\fP | \fBaverage\fP}
 		'raw' shows the MSR contents in hex.
 		'delta' shows the difference in values during the measurement interval.
 		'percent' shows the delta as a percentage of the cycles elapsed.
+		'average' similar to raw, but also averaged for node/package summaries (or when using -S).
 		default: delta
 
 	name: "name_string"
