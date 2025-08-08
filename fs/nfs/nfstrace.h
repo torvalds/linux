@@ -1051,6 +1051,19 @@ DEFINE_NFS_FOLIO_EVENT_DONE(nfs_writeback_folio_done);
 DEFINE_NFS_FOLIO_EVENT(nfs_invalidate_folio);
 DEFINE_NFS_FOLIO_EVENT_DONE(nfs_launder_folio_done);
 
+DEFINE_NFS_FOLIO_EVENT(nfs_try_to_update_request);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_try_to_update_request_done);
+
+DEFINE_NFS_FOLIO_EVENT(nfs_update_folio);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_update_folio_done);
+
+DEFINE_NFS_FOLIO_EVENT(nfs_write_begin);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_write_begin_done);
+
+DEFINE_NFS_FOLIO_EVENT(nfs_write_end);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_write_end_done);
+
+
 DECLARE_EVENT_CLASS(nfs_kiocb_event,
 		TP_PROTO(
 			const struct kiocb *iocb,

@@ -1017,11 +1017,12 @@ static struct nfs_page *nfs_try_to_update_request(struct folio *folio,
 	unsigned int end;
 	int error;
 
+	trace_nfs_try_to_update_request(folio_inode(folio), offset, bytes);
 	end = offset + bytes;
 
 	req = nfs_lock_and_join_requests(folio);
 	if (IS_ERR_OR_NULL(req))
-		return req;
+		goto out;
 
 	rqend = req->wb_offset + req->wb_bytes;
 	/*
@@ -1043,6 +1044,9 @@ static struct nfs_page *nfs_try_to_update_request(struct folio *folio,
 	else
 		req->wb_bytes = rqend - req->wb_offset;
 	req->wb_nio = 0;
+out:
+	trace_nfs_try_to_update_request_done(folio_inode(folio), offset, bytes,
+					     PTR_ERR_OR_ZERO(req));
 	return req;
 out_flushme:
 	/*
@@ -1053,6 +1057,7 @@ out_flushme:
 	nfs_mark_request_dirty(req);
 	nfs_unlock_and_release_request(req);
 	error = nfs_wb_folio(folio->mapping->host, folio);
+	trace_nfs_try_to_update_request_done(folio_inode(folio), offset, bytes, error);
 	return (error < 0) ? ERR_PTR(error) : NULL;
 }
 
@@ -1290,6 +1295,8 @@ int nfs_update_folio(struct file *file, struct folio *folio,
 
 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
 
+	trace_nfs_update_folio(inode, offset, count);
+
 	dprintk("NFS:       nfs_update_folio(%pD2 %d@%lld)\n", file, count,
 		(long long)(folio_pos(folio) + offset));
 
@@ -1309,6 +1316,7 @@ int nfs_update_folio(struct file *file, struct folio *folio,
 	if (status < 0)
 		nfs_set_pageerror(mapping);
 out:
+	trace_nfs_update_folio_done(inode, offset, count, status);
 	dprintk("NFS:       nfs_update_folio returns %d (isize %lld)\n",
 			status, (long long)i_size_read(inode));
 	return status;
