@@ -1080,6 +1080,8 @@ DEFINE_NFS_FOLIO_EVENT_DONE(nfs_write_begin_done);
 DEFINE_NFS_FOLIO_EVENT(nfs_write_end);
 DEFINE_NFS_FOLIO_EVENT_DONE(nfs_write_end_done);
 
+DEFINE_NFS_FOLIO_EVENT(nfs_writepages);
+DEFINE_NFS_FOLIO_EVENT_DONE(nfs_writepages_done);
 
 DECLARE_EVENT_CLASS(nfs_kiocb_event,
 		TP_PROTO(

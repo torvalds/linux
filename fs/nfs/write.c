@@ -657,12 +657,14 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	int priority = 0;
 	int err;
 
+	trace_nfs_writepages(inode, wbc->range_start, wbc->range_end - wbc->range_start);
+
 	/* Wait with writeback until write congestion eases */
 	if (wbc->sync_mode == WB_SYNC_NONE && nfss->write_congested) {
 		err = wait_event_killable(nfss->write_congestion_wait,
 					  nfss->write_congested == 0);
 		if (err)
-			return err;
+			goto out_err;
 	}
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
@@ -693,10 +695,10 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	} while (err < 0 && !nfs_error_is_fatal(err));
 	nfs_io_completion_put(ioc);
 
-	if (err < 0)
-		goto out_err;
-	return 0;
+	if (err > 0)
+		err = 0;
 out_err:
+	trace_nfs_writepages_done(inode, wbc->range_start, wbc->range_end - wbc->range_start, err);
 	return err;
 }
 
