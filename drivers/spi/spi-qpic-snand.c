@@ -1549,7 +1549,6 @@ static int qcom_spi_probe(struct platform_device *pdev)
 	}
 
 	snandc->props = dev_data;
-	snandc->dev = &pdev->dev;
 
 	snandc->core_clk = devm_clk_get(dev, "core");
 	if (IS_ERR(snandc->core_clk))
