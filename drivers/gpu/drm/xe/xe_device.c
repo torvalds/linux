@@ -802,10 +802,6 @@ int xe_device_probe(struct xe_device *xe)
 			return err;
 	}
 
-	err = xe_devcoredump_init(xe);
-	if (err)
-		return err;
-
 	/*
 	 * From here on, if a step fails, make sure a Driver-FLR is triggereed
 	 */
@@ -869,6 +865,10 @@ int xe_device_probe(struct xe_device *xe)
 	if (xe->tiles->media_gt &&
 	    XE_WA(xe->tiles->media_gt, 15015404425_disable))
 		XE_DEVICE_WA_DISABLE(xe, 15015404425);
+
+	err = xe_devcoredump_init(xe);
+	if (err)
+		return err;
 
 	xe_nvm_init(xe);
 
