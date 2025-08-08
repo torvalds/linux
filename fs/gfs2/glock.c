@@ -714,25 +714,24 @@ __acquires(&gl->gl_lockref.lock)
 				     &gl->gl_flags))
 			return;
 	}
-	if (!glops->go_inval && !glops->go_sync)
+	if (!glops->go_inval || !glops->go_sync)
 		goto skip_inval;
 
 	spin_unlock(&gl->gl_lockref.lock);
-	if (glops->go_sync) {
-		ret = glops->go_sync(gl);
-		/* If we had a problem syncing (due to io errors or whatever,
-		 * we should not invalidate the metadata or tell dlm to
-		 * release the glock to other nodes.
-		 */
-		if (ret) {
-			if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
-				fs_err(sdp, "Error %d syncing glock\n", ret);
-				gfs2_dump_glock(NULL, gl, true);
-			}
-			spin_lock(&gl->gl_lockref.lock);
-			goto skip_inval;
+	ret = glops->go_sync(gl);
+	/* If we had a problem syncing (due to io errors or whatever,
+	 * we should not invalidate the metadata or tell dlm to
+	 * release the glock to other nodes.
+	 */
+	if (ret) {
+		if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
+			fs_err(sdp, "Error %d syncing glock\n", ret);
+			gfs2_dump_glock(NULL, gl, true);
 		}
+		spin_lock(&gl->gl_lockref.lock);
+		goto skip_inval;
 	}
+
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
 		/*
 		 * The call to go_sync should have cleared out the ail list.
