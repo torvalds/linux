@@ -432,7 +432,7 @@ static void panfrost_gem_debugfs_bo_print(struct panfrost_gem_object *bo,
 	if (!refcount)
 		return;
 
-	resident_size = bo->base.pages ? bo->base.base.size : 0;
+	resident_size = panfrost_gem_rss(&bo->base.base);
 
 	snprintf(creator_info, sizeof(creator_info),
 		 "%s/%d", bo->debugfs.creator.process_name, bo->debugfs.creator.tgid);
