@@ -356,7 +356,7 @@ static int tas2563_save_calibration(struct tas2781_hda *h)
 	}
 
 	if (cd->total_sz != offset) {
-		dev_err(p->dev, "%s: tot_size(%lu) and offset(%u) dismatch\n",
+		dev_err(p->dev, "%s: tot_size(%lu) and offset(%u) mismatch\n",
 			__func__, cd->total_sz, offset);
 		return -EINVAL;
 	}
