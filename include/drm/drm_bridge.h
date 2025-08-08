@@ -1434,20 +1434,6 @@ drm_bridge_chain_get_last_bridge(struct drm_encoder *encoder)
 }
 
 /**
- * drm_for_each_bridge_in_chain() - Iterate over all bridges present in a chain
- * @encoder: the encoder to iterate bridges on
- * @bridge: a bridge pointer updated to point to the current bridge at each
- *	    iteration
- *
- * Iterate over all bridges present in the bridge chain attached to @encoder.
- *
- * This is deprecated, do not use!
- * New drivers shall use drm_for_each_bridge_in_chain_scoped().
- */
-#define drm_for_each_bridge_in_chain(encoder, bridge)			\
-	list_for_each_entry(bridge, &(encoder)->bridge_chain, chain_node)
-
-/**
  * drm_bridge_get_next_bridge_and_put - Get the next bridge in the chain
  *                                      and put the previous
  * @bridge: bridge object
