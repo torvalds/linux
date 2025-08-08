@@ -1380,6 +1380,27 @@ static const struct can_bittiming_const m_can_data_bittiming_const_31X = {
 	.brp_inc = 1,
 };
 
+static int m_can_init_ram(struct m_can_classdev *cdev)
+{
+	int end, i, start;
+	int err = 0;
+
+	/* initialize the entire Message RAM in use to avoid possible
+	 * ECC/parity checksum errors when reading an uninitialized buffer
+	 */
+	start = cdev->mcfg[MRAM_SIDF].off;
+	end = cdev->mcfg[MRAM_TXB].off +
+		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+
+	for (i = start; i < end; i += 4) {
+		err = m_can_fifo_write_no_off(cdev, i, 0x0);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int m_can_set_bittiming(struct net_device *dev)
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
@@ -2373,28 +2394,6 @@ static void m_can_of_parse_mram(struct m_can_classdev *cdev,
 		cdev->mcfg[MRAM_TXE].off, cdev->mcfg[MRAM_TXE].num,
 		cdev->mcfg[MRAM_TXB].off, cdev->mcfg[MRAM_TXB].num);
 }
-
-int m_can_init_ram(struct m_can_classdev *cdev)
-{
-	int end, i, start;
-	int err = 0;
-
-	/* initialize the entire Message RAM in use to avoid possible
-	 * ECC/parity checksum errors when reading an uninitialized buffer
-	 */
-	start = cdev->mcfg[MRAM_SIDF].off;
-	end = cdev->mcfg[MRAM_TXB].off +
-		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
-
-	for (i = start; i < end; i += 4) {
-		err = m_can_fifo_write_no_off(cdev, i, 0x0);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(m_can_init_ram);
 
 int m_can_class_get_clocks(struct m_can_classdev *cdev)
 {
