@@ -1051,6 +1051,58 @@ DEFINE_NFS_FOLIO_EVENT_DONE(nfs_writeback_folio_done);
 DEFINE_NFS_FOLIO_EVENT(nfs_invalidate_folio);
 DEFINE_NFS_FOLIO_EVENT_DONE(nfs_launder_folio_done);
 
+DECLARE_EVENT_CLASS(nfs_kiocb_event,
+		TP_PROTO(
+			const struct kiocb *iocb,
+			const struct iov_iter *iter
+		),
+
+		TP_ARGS(iocb, iter),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(u64, version)
+			__field(loff_t, offset)
+			__field(size_t, count)
+			__field(int, flags)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = file_inode(iocb->ki_filp);
+			const struct nfs_inode *nfsi = NFS_I(inode);
+
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = nfsi->fileid;
+			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->offset = iocb->ki_pos;
+			__entry->count = iov_iter_count(iter);
+			__entry->flags = iocb->ki_flags;
+		),
+
+		TP_printk(
+			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu offset=%lld count=%zu ki_flags=%s",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle, __entry->version,
+			__entry->offset, __entry->count,
+			__print_flags(__entry->flags, "|", TRACE_IOCB_STRINGS)
+		)
+);
+
+#define DEFINE_NFS_KIOCB_EVENT(name) \
+	DEFINE_EVENT(nfs_kiocb_event, name, \
+			TP_PROTO( \
+				const struct kiocb *iocb, \
+				const struct iov_iter *iter \
+			), \
+			TP_ARGS(iocb, iter))
+
+DEFINE_NFS_KIOCB_EVENT(nfs_file_read);
+DEFINE_NFS_KIOCB_EVENT(nfs_file_write);
+
 TRACE_EVENT(nfs_aop_readahead,
 		TP_PROTO(
 			const struct inode *inode,

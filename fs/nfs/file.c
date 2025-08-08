@@ -161,6 +161,8 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t result;
 
+	trace_nfs_file_read(iocb, to);
+
 	if (iocb->ki_flags & IOCB_DIRECT)
 		return nfs_file_direct_read(iocb, to, false);
 
@@ -689,6 +691,8 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t result, written;
 	errseq_t since;
 	int error;
+
+	trace_nfs_file_write(iocb, from);
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
