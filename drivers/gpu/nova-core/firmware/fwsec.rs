@@ -246,8 +246,8 @@ impl FalconFirmware for FwsecFirmware {
 
 impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
     fn new_fwsec(dev: &Device<device::Bound>, bios: &Vbios, cmd: FwsecCommand) -> Result<Self> {
-        let desc = bios.fwsec_image().header(dev)?;
-        let ucode = bios.fwsec_image().ucode(dev, desc)?;
+        let desc = bios.fwsec_image().header()?;
+        let ucode = bios.fwsec_image().ucode(desc)?;
         let mut dma_object = DmaObject::from_data(dev, ucode)?;
 
         let hdr_offset = (desc.imem_load_size + desc.interface_offset) as usize;
@@ -336,7 +336,7 @@ impl FwsecFirmware {
         let ucode_dma = FirmwareDmaObject::<Self, _>::new_fwsec(dev, bios, cmd)?;
 
         // Patch signature if needed.
-        let desc = bios.fwsec_image().header(dev)?;
+        let desc = bios.fwsec_image().header()?;
         let ucode_signed = if desc.signature_count != 0 {
             let sig_base_img = (desc.imem_load_size + desc.pkc_data_offset) as usize;
             let desc_sig_versions = u32::from(desc.signature_versions);
@@ -375,7 +375,7 @@ impl FwsecFirmware {
             dev_dbg!(dev, "patching signature with index {}\n", signature_idx);
             let signature = bios
                 .fwsec_image()
-                .sigs(dev, desc)
+                .sigs(desc)
                 .and_then(|sigs| sigs.get(signature_idx).ok_or(EINVAL))?;
 
             ucode_dma.patch_signature(signature, sig_base_img)?

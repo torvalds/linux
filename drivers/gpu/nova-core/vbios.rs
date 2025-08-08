@@ -9,6 +9,7 @@ use core::convert::TryFrom;
 use kernel::device;
 use kernel::error::Result;
 use kernel::prelude::*;
+use kernel::types::ARef;
 
 /// The offset of the VBIOS ROM in the BAR0 space.
 const ROM_OFFSET: usize = 0x300000;
@@ -230,10 +231,10 @@ impl Vbios {
             (second_fwsec_image, first_fwsec_image, pci_at_image)
         {
             second
-                .setup_falcon_data(dev, &pci_at, &first)
+                .setup_falcon_data(&pci_at, &first)
                 .inspect_err(|e| dev_err!(dev, "Falcon data setup failed: {:?}\n", e))?;
             Ok(Vbios {
-                fwsec_image: second.build(dev)?,
+                fwsec_image: second.build()?,
             })
         } else {
             dev_err!(
@@ -742,9 +743,10 @@ impl TryFrom<BiosImageBase> for BiosImage {
 ///
 /// Each BiosImage type has a BiosImageBase type along with other image-specific fields. Note that
 /// Rust favors composition of types over inheritance.
-#[derive(Debug)]
 #[expect(dead_code)]
 struct BiosImageBase {
+    /// Used for logging.
+    dev: ARef<device::Device>,
     /// PCI ROM Expansion Header
     rom_header: PciRomHeader,
     /// PCI Data Structure
@@ -801,6 +803,7 @@ impl BiosImageBase {
         data_copy.extend_from_slice(data, GFP_KERNEL)?;
 
         Ok(BiosImageBase {
+            dev: dev.into(),
             rom_header,
             pcir,
             npde,
@@ -836,7 +839,7 @@ impl PciAtBiosImage {
     ///
     /// This is just a 4 byte structure that contains a pointer to the Falcon data in the FWSEC
     /// image.
-    fn falcon_data_ptr(&self, dev: &device::Device) -> Result<u32> {
+    fn falcon_data_ptr(&self) -> Result<u32> {
         let token = self.get_bit_token(BIT_TOKEN_ID_FALCON_DATA)?;
 
         // Make sure we don't go out of bounds
@@ -847,14 +850,14 @@ impl PciAtBiosImage {
         // read the 4 bytes at the offset specified in the token
         let offset = token.data_offset as usize;
         let bytes: [u8; 4] = self.base.data[offset..offset + 4].try_into().map_err(|_| {
-            dev_err!(dev, "Failed to convert data slice to array");
+            dev_err!(self.base.dev, "Failed to convert data slice to array");
             EINVAL
         })?;
 
         let data_ptr = u32::from_le_bytes(bytes);
 
         if (data_ptr as usize) < self.base.data.len() {
-            dev_err!(dev, "Falcon data pointer out of bounds\n");
+            dev_err!(self.base.dev, "Falcon data pointer out of bounds\n");
             return Err(EINVAL);
         }
 
@@ -978,11 +981,10 @@ impl PmuLookupTable {
 impl FwSecBiosBuilder {
     fn setup_falcon_data(
         &mut self,
-        dev: &device::Device,
         pci_at_image: &PciAtBiosImage,
         first_fwsec: &FwSecBiosBuilder,
     ) -> Result {
-        let mut offset = pci_at_image.falcon_data_ptr(dev)? as usize;
+        let mut offset = pci_at_image.falcon_data_ptr()? as usize;
         let mut pmu_in_first_fwsec = false;
 
         // The falcon data pointer assumes that the PciAt and FWSEC images
@@ -1005,10 +1007,15 @@ impl FwSecBiosBuilder {
         self.falcon_data_offset = Some(offset);
 
         if pmu_in_first_fwsec {
-            self.pmu_lookup_table =
-                Some(PmuLookupTable::new(dev, &first_fwsec.base.data[offset..])?);
+            self.pmu_lookup_table = Some(PmuLookupTable::new(
+                &self.base.dev,
+                &first_fwsec.base.data[offset..],
+            )?);
         } else {
-            self.pmu_lookup_table = Some(PmuLookupTable::new(dev, &self.base.data[offset..])?);
+            self.pmu_lookup_table = Some(PmuLookupTable::new(
+                &self.base.dev,
+                &self.base.data[offset..],
+            )?);
         }
 
         match self
@@ -1021,14 +1028,18 @@ impl FwSecBiosBuilder {
                 let mut ucode_offset = entry.data as usize;
                 ucode_offset -= pci_at_image.base.data.len();
                 if ucode_offset < first_fwsec.base.data.len() {
-                    dev_err!(dev, "Falcon Ucode offset not in second Fwsec.\n");
+                    dev_err!(self.base.dev, "Falcon Ucode offset not in second Fwsec.\n");
                     return Err(EINVAL);
                 }
                 ucode_offset -= first_fwsec.base.data.len();
                 self.falcon_ucode_offset = Some(ucode_offset);
             }
             Err(e) => {
-                dev_err!(dev, "PmuLookupTableEntry not found, error: {:?}\n", e);
+                dev_err!(
+                    self.base.dev,
+                    "PmuLookupTableEntry not found, error: {:?}\n",
+                    e
+                );
                 return Err(EINVAL);
             }
         }
@@ -1036,7 +1047,7 @@ impl FwSecBiosBuilder {
     }
 
     /// Build the final FwSecBiosImage from this builder
-    fn build(self, dev: &device::Device) -> Result<FwSecBiosImage> {
+    fn build(self) -> Result<FwSecBiosImage> {
         let ret = FwSecBiosImage {
             base: self.base,
             falcon_ucode_offset: self.falcon_ucode_offset.ok_or(EINVAL)?,
@@ -1044,8 +1055,8 @@ impl FwSecBiosBuilder {
 
         if cfg!(debug_assertions) {
             // Print the desc header for debugging
-            let desc = ret.header(dev)?;
-            dev_dbg!(dev, "PmuLookupTableEntry desc: {:#?}\n", desc);
+            let desc = ret.header()?;
+            dev_dbg!(ret.base.dev, "PmuLookupTableEntry desc: {:#?}\n", desc);
         }
 
         Ok(ret)
@@ -1054,13 +1065,16 @@ impl FwSecBiosBuilder {
 
 impl FwSecBiosImage {
     /// Get the FwSec header ([`FalconUCodeDescV3`]).
-    pub(crate) fn header(&self, dev: &device::Device) -> Result<&FalconUCodeDescV3> {
+    pub(crate) fn header(&self) -> Result<&FalconUCodeDescV3> {
         // Get the falcon ucode offset that was found in setup_falcon_data.
         let falcon_ucode_offset = self.falcon_ucode_offset;
 
         // Make sure the offset is within the data bounds.
         if falcon_ucode_offset + core::mem::size_of::<FalconUCodeDescV3>() > self.base.data.len() {
-            dev_err!(dev, "fwsec-frts header not contained within BIOS bounds\n");
+            dev_err!(
+                self.base.dev,
+                "fwsec-frts header not contained within BIOS bounds\n"
+            );
             return Err(ERANGE);
         }
 
@@ -1072,7 +1086,7 @@ impl FwSecBiosImage {
         let ver = (hdr & 0xff00) >> 8;
 
         if ver != 3 {
-            dev_err!(dev, "invalid fwsec firmware version: {:?}\n", ver);
+            dev_err!(self.base.dev, "invalid fwsec firmware version: {:?}\n", ver);
             return Err(EINVAL);
         }
 
@@ -1092,7 +1106,7 @@ impl FwSecBiosImage {
     }
 
     /// Get the ucode data as a byte slice
-    pub(crate) fn ucode(&self, dev: &device::Device, desc: &FalconUCodeDescV3) -> Result<&[u8]> {
+    pub(crate) fn ucode(&self, desc: &FalconUCodeDescV3) -> Result<&[u8]> {
         let falcon_ucode_offset = self.falcon_ucode_offset;
 
         // The ucode data follows the descriptor.
@@ -1104,15 +1118,16 @@ impl FwSecBiosImage {
             .data
             .get(ucode_data_offset..ucode_data_offset + size)
             .ok_or(ERANGE)
-            .inspect_err(|_| dev_err!(dev, "fwsec ucode data not contained within BIOS bounds\n"))
+            .inspect_err(|_| {
+                dev_err!(
+                    self.base.dev,
+                    "fwsec ucode data not contained within BIOS bounds\n"
+                )
+            })
     }
 
     /// Get the signatures as a byte slice
-    pub(crate) fn sigs(
-        &self,
-        dev: &device::Device,
-        desc: &FalconUCodeDescV3,
-    ) -> Result<&[Bcrt30Rsa3kSignature]> {
+    pub(crate) fn sigs(&self, desc: &FalconUCodeDescV3) -> Result<&[Bcrt30Rsa3kSignature]> {
         // The signatures data follows the descriptor.
         let sigs_data_offset = self.falcon_ucode_offset + core::mem::size_of::<FalconUCodeDescV3>();
         let sigs_size =
@@ -1121,7 +1136,7 @@ impl FwSecBiosImage {
         // Make sure the data is within bounds.
         if sigs_data_offset + sigs_size > self.base.data.len() {
             dev_err!(
-                dev,
+                self.base.dev,
                 "fwsec signatures data not contained within BIOS bounds\n"
             );
             return Err(ERANGE);
