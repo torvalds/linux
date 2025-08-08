@@ -41,6 +41,7 @@ const char *smbdirect_socket_status_string(enum smbdirect_socket_status status)
 
 struct smbdirect_socket {
 	enum smbdirect_socket_status status;
+	wait_queue_head_t status_wait;
 
 	/* RDMA related */
 	struct {
