@@ -259,6 +259,24 @@
 			status = "disabled";
 		};
 
+		emmc: mmc@79990000 {
+			compatible = "loongson,ls2k2000-mmc";
+			reg = <0x0 0x79990000 0x0 0x1000>;
+			interrupt-parent = <&pic>;
+			interrupts = <51 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_EMMC_CLK>;
+			status = "disabled";
+		};
+
+		mmc@79991000 {
+			compatible = "loongson,ls2k2000-mmc";
+			reg = <0x0 0x79991000 0x0 0x1000>;
+			interrupt-parent = <&pic>;
+			interrupts = <50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_EMMC_CLK>;
+			status = "disabled";
+		};
+
 		pcie@1a000000 {
 			compatible = "loongson,ls2k-pci";
 			reg = <0x0 0x1a000000 0x0 0x02000000>,
