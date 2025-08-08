@@ -157,9 +157,8 @@ do {									\
 
 static void smbd_disconnect_rdma_work(struct work_struct *work)
 {
-	struct smbd_connection *info =
-		container_of(work, struct smbd_connection, disconnect_work);
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, disconnect_work);
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
@@ -197,7 +196,9 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 
 static void smbd_disconnect_rdma_connection(struct smbd_connection *info)
 {
-	queue_work(info->workqueue, &info->disconnect_work);
+	struct smbdirect_socket *sc = &info->socket;
+
+	queue_work(info->workqueue, &sc->disconnect_work);
 }
 
 /* Upcall from RDMA CM */
@@ -1705,6 +1706,8 @@ static struct smbd_connection *_smbd_get_connection(
 	info->initiator_depth = 1;
 	info->responder_resources = SMBD_CM_RESPONDER_RESOURCES;
 
+	INIT_WORK(&sc->disconnect_work, smbd_disconnect_rdma_work);
+
 	rc = smbd_ia_open(info, dstaddr, port);
 	if (rc) {
 		log_rdma_event(INFO, "smbd_ia_open rc=%d\n", rc);
@@ -1850,7 +1853,6 @@ static struct smbd_connection *_smbd_get_connection(
 
 	init_waitqueue_head(&info->wait_post_send);
 
-	INIT_WORK(&info->disconnect_work, smbd_disconnect_rdma_work);
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
 	info->new_credits_offered = 0;
 	spin_lock_init(&info->lock_new_credits_offered);

@@ -45,7 +45,6 @@ enum keep_alive_status {
 struct smbd_connection {
 	struct smbdirect_socket socket;
 
-	struct work_struct disconnect_work;
 	struct work_struct post_send_credits_work;
 
 	spinlock_t lock_new_credits_offered;
