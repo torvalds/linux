@@ -24,18 +24,19 @@
 #define __MODULE_INFO_PREFIX KBUILD_MODNAME "."
 #endif
 
-#define __MODULE_INFO(tag, name, info)					  \
-	static const char __UNIQUE_ID(name)[]				  \
+/* Generic info of form tag = "info" */
+#define MODULE_INFO(tag, info)					  \
+	static const char __UNIQUE_ID(modinfo)[]			  \
 		__used __section(".modinfo") __aligned(1)		  \
 		= __MODULE_INFO_PREFIX __stringify(tag) "=" info
 
 #define __MODULE_PARM_TYPE(name, _type)					  \
-	__MODULE_INFO(parmtype, name##type, #name ":" _type)
+	MODULE_INFO(parmtype, #name ":" _type)
 
 /* One for each parameter, describing how to use it.  Some files do
    multiple of these per line, so can't just use MODULE_INFO. */
 #define MODULE_PARM_DESC(_parm, desc) \
-	__MODULE_INFO(parm, _parm, #_parm ":" desc)
+	MODULE_INFO(parm, #_parm ":" desc)
 
 struct kernel_param;
 
