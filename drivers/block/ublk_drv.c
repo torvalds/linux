@@ -235,7 +235,7 @@ struct ublk_device {
 
 	struct completion	completion;
 	unsigned int		nr_queues_ready;
-	unsigned int		nr_privileged_daemon;
+	bool 			unprivileged_daemons;
 	struct mutex cancel_mutex;
 	bool canceling;
 	pid_t 	ublksrv_tgid;
@@ -1551,7 +1551,7 @@ static void ublk_reset_ch_dev(struct ublk_device *ub)
 	/* set to NULL, otherwise new tasks cannot mmap io_cmd_buf */
 	ub->mm = NULL;
 	ub->nr_queues_ready = 0;
-	ub->nr_privileged_daemon = 0;
+	ub->unprivileged_daemons = false;
 	ub->ublksrv_tgid = -1;
 }
 
@@ -1978,12 +1978,10 @@ static void ublk_mark_io_ready(struct ublk_device *ub, struct ublk_queue *ubq)
 	__must_hold(&ub->mutex)
 {
 	ubq->nr_io_ready++;
-	if (ublk_queue_ready(ubq)) {
+	if (ublk_queue_ready(ubq))
 		ub->nr_queues_ready++;
-
-		if (capable(CAP_SYS_ADMIN))
-			ub->nr_privileged_daemon++;
-	}
+	if (!ub->unprivileged_daemons && !capable(CAP_SYS_ADMIN))
+		ub->unprivileged_daemons = true;
 
 	if (ub->nr_queues_ready == ub->dev_info.nr_hw_queues) {
 		/* now we are ready for handling ublk io request */
@@ -2878,8 +2876,8 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 
 	ublk_apply_params(ub);
 
-	/* don't probe partitions if any one ubq daemon is un-trusted */
-	if (ub->nr_privileged_daemon != ub->nr_queues_ready)
+	/* don't probe partitions if any daemon task is un-trusted */
+	if (ub->unprivileged_daemons)
 		set_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 
 	ublk_get_device(ub);
