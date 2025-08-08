@@ -111,7 +111,6 @@ struct smb_direct_transport {
 
 	struct work_struct	post_recv_credits_work;
 	struct work_struct	send_immediate_work;
-	struct work_struct	disconnect_work;
 
 	bool			legacy_iwarp;
 	u8			initiator_depth;
@@ -248,17 +247,17 @@ static struct smbdirect_recv_io *get_first_reassembly(struct smb_direct_transpor
 
 static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 {
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, disconnect_work);
 	struct smb_direct_transport *t =
-		container_of(work, struct smb_direct_transport,
-			     disconnect_work);
-	struct smbdirect_socket *sc = &t->socket;
+		container_of(sc, struct smb_direct_transport, socket);
 
 	/*
 	 * make sure this and other work is not queued again
 	 * but here we don't block and avoid
 	 * disable[_delayed]_work_sync()
 	 */
-	disable_work(&t->disconnect_work);
+	disable_work(&sc->disconnect_work);
 	disable_work(&t->post_recv_credits_work);
 	disable_work(&t->send_immediate_work);
 
@@ -299,7 +298,9 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 static void
 smb_direct_disconnect_rdma_connection(struct smb_direct_transport *t)
 {
-	queue_work(smb_direct_wq, &t->disconnect_work);
+	struct smbdirect_socket *sc = &t->socket;
+
+	queue_work(smb_direct_wq, &sc->disconnect_work);
 }
 
 static void smb_direct_send_immediate_work(struct work_struct *work)
@@ -326,6 +327,8 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	sc = &t->socket;
 	smbdirect_socket_init(sc);
 
+	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
+
 	sc->rdma.cm_id = cm_id;
 	cm_id->context = t;
 
@@ -347,7 +350,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	INIT_WORK(&t->post_recv_credits_work,
 		  smb_direct_post_recv_credits);
 	INIT_WORK(&t->send_immediate_work, smb_direct_send_immediate_work);
-	INIT_WORK(&t->disconnect_work, smb_direct_disconnect_rdma_work);
 
 	conn = ksmbd_conn_alloc();
 	if (!conn)
@@ -371,9 +373,9 @@ static void free_transport(struct smb_direct_transport *t)
 	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_recv_io *recvmsg;
 
-	disable_work_sync(&t->disconnect_work);
+	disable_work_sync(&sc->disconnect_work);
 	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING) {
-		smb_direct_disconnect_rdma_work(&t->disconnect_work);
+		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
 		wait_event_interruptible(sc->status_wait,
 					 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 	}
@@ -1558,7 +1560,7 @@ static void smb_direct_shutdown(struct ksmbd_transport *t)
 
 	ksmbd_debug(RDMA, "smb-direct shutdown cm_id=%p\n", sc->rdma.cm_id);
 
-	smb_direct_disconnect_rdma_work(&st->disconnect_work);
+	smb_direct_disconnect_rdma_work(&sc->disconnect_work);
 }
 
 static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
