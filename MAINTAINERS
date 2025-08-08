@@ -12583,10 +12583,9 @@ S:	Supported
 F:	drivers/cpufreq/intel_pstate.c
 
 INTEL PTP DFL ToD DRIVER
-M:	Tianfei Zhang <tianfei.zhang@intel.com>
 L:	linux-fpga@vger.kernel.org
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/ptp/ptp_dfl_tod.c
 
 INTEL QUADRATURE ENCODER PERIPHERAL DRIVER
