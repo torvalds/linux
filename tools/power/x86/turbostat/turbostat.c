@@ -2331,6 +2331,8 @@ int cpu_is_not_allowed(int cpu)
  * skip non-present cpus
  */
 
+#define PER_THREAD_PARAMS  struct thread_data *t, struct core_data *c, struct pkg_data *p
+
 int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pkg_data *),
 		 struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
@@ -2360,21 +2362,21 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 	return retval;
 }
 
-int is_cpu_first_thread_in_core(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int is_cpu_first_thread_in_core(PER_THREAD_PARAMS)
 {
 	UNUSED(p);
 
 	return ((int)t->cpu_id == c->base_cpu || c->base_cpu < 0);
 }
 
-int is_cpu_first_core_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int is_cpu_first_core_in_package(PER_THREAD_PARAMS)
 {
 	UNUSED(c);
 
 	return ((int)t->cpu_id == p->base_cpu || p->base_cpu < 0);
 }
 
-int is_cpu_first_thread_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int is_cpu_first_thread_in_package(PER_THREAD_PARAMS)
 {
 	return is_cpu_first_thread_in_core(t, c, p) && is_cpu_first_core_in_package(t, c, p);
 }
@@ -3020,7 +3022,7 @@ void print_header(char *delim)
 	outp += sprintf(outp, "\n");
 }
 
-int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int dump_counters(PER_THREAD_PARAMS)
 {
 	int i;
 	struct msr_counter *mp;
@@ -3135,7 +3137,7 @@ double rapl_counter_get_value(const struct rapl_counter *c, enum rapl_unit desir
 /*
  * column formatting convention & formats
  */
-int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int format_counters(PER_THREAD_PARAMS)
 {
 	static int count;
 
@@ -3677,7 +3679,7 @@ void flush_output_stderr(void)
 	outp = output_buffer;
 }
 
-void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+void format_all_counters(PER_THREAD_PARAMS)
 {
 	static int count;
 
@@ -3968,7 +3970,7 @@ void rapl_counter_clear(struct rapl_counter *c)
 	c->unit = RAPL_UNIT_INVALID;
 }
 
-void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+void clear_counters(PER_THREAD_PARAMS)
 {
 	int i;
 	struct msr_counter *mp;
@@ -4065,7 +4067,7 @@ void rapl_counter_accumulate(struct rapl_counter *dst, const struct rapl_counter
 	dst->raw_value += src->raw_value;
 }
 
-int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int sum_counters(PER_THREAD_PARAMS)
 {
 	int i;
 	struct msr_counter *mp;
@@ -4213,7 +4215,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
  * sum the counters for all cpus in the system
  * compute the weighted average
  */
-void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+void compute_average(PER_THREAD_PARAMS)
 {
 	int i;
 	struct msr_counter *mp;
@@ -4796,7 +4798,7 @@ char *find_sysfs_path_by_id(struct sysfs_path *sp, int id)
 	return NULL;
 }
 
-int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int get_cstate_counters(unsigned int cpu, PER_THREAD_PARAMS)
 {
 	/*
 	 * Overcommit memory a little bit here,
@@ -5096,7 +5098,7 @@ static inline int get_rapl_domain_id(int cpu)
  * migrate to cpu
  * acquire and record local counters for that cpu
  */
-int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int get_counters(PER_THREAD_PARAMS)
 {
 	int cpu = t->cpu_id;
 	unsigned long long msr;
@@ -6586,7 +6588,7 @@ int get_msr_sum(int cpu, off_t offset, unsigned long long *msr)
 timer_t timerid;
 
 /* Timer callback, update the sum of MSRs periodically. */
-static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+static int update_msr_sum(PER_THREAD_PARAMS)
 {
 	int i, ret;
 	int cpu = t->cpu_id;
@@ -7332,7 +7334,7 @@ static void dump_sysfs_pstate_config(void)
  * print_epb()
  * Decode the ENERGY_PERF_BIAS MSR
  */
-int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int print_epb(PER_THREAD_PARAMS)
 {
 	char *epb_string;
 	int cpu, epb;
@@ -7381,7 +7383,7 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
  * print_hwp()
  * Decode the MSR_HWP_CAPABILITIES
  */
-int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int print_hwp(PER_THREAD_PARAMS)
 {
 	unsigned long long msr;
 	int cpu;
@@ -7470,7 +7472,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 /*
  * print_perf_limit()
  */
-int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int print_perf_limit(PER_THREAD_PARAMS)
 {
 	unsigned long long msr;
 	int cpu;
@@ -7845,7 +7847,7 @@ static int print_rapl_sysfs(void)
 	return 0;
 }
 
-int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int print_rapl(PER_THREAD_PARAMS)
 {
 	unsigned long long msr;
 	const char *msr_name;
@@ -7999,7 +8001,7 @@ void probe_rapl(void)
  * below this value, including the Digital Thermal Sensor (DTS),
  * Package Thermal Management Sensor (PTM), and thermal event thresholds.
  */
-int set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int set_temperature_target(PER_THREAD_PARAMS)
 {
 	unsigned long long msr;
 	unsigned int tcc_default, tcc_offset;
@@ -8067,7 +8069,7 @@ guess:
 	return 0;
 }
 
-int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int print_thermal(PER_THREAD_PARAMS)
 {
 	unsigned long long msr;
 	unsigned int dts, dts2;
@@ -8147,7 +8149,7 @@ void probe_thermal(void)
 	for_all_cpus(print_thermal, ODD_COUNTERS);
 }
 
-int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int get_cpu_type(PER_THREAD_PARAMS)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -9395,7 +9397,7 @@ void allocate_irq_buffers(void)
 		err(-1, "calloc %d NMI", topo.max_cpu_num + 1);
 }
 
-int update_topo(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+int update_topo(PER_THREAD_PARAMS)
 {
 	topo.allowed_cpus++;
 	if ((int)t->cpu_id == c->base_cpu)
