@@ -24,6 +24,74 @@
 static struct tpm_chip *chip;
 static struct tpm_digest *digests;
 
+/* implementation specific TPM constants */
+#define TPM_SIZE_OFFSET			2
+#define TPM_RETURN_OFFSET		6
+#define TPM_DATA_OFFSET			10
+
+#define LOAD32(buffer, offset)	(ntohl(*(uint32_t *)&buffer[offset]))
+#define LOAD32N(buffer, offset)	(*(uint32_t *)&buffer[offset])
+#define LOAD16(buffer, offset)	(ntohs(*(uint16_t *)&buffer[offset]))
+
+struct osapsess {
+	uint32_t handle;
+	unsigned char secret[SHA1_DIGEST_SIZE];
+	unsigned char enonce[TPM_NONCE_SIZE];
+};
+
+/* discrete values, but have to store in uint16_t for TPM use */
+enum {
+	SEAL_keytype = 1,
+	SRK_keytype = 4
+};
+
+#define TPM_DEBUG 0
+
+#if TPM_DEBUG
+static inline void dump_options(struct trusted_key_options *o)
+{
+	pr_info("sealing key type %d\n", o->keytype);
+	pr_info("sealing key handle %0X\n", o->keyhandle);
+	pr_info("pcrlock %d\n", o->pcrlock);
+	pr_info("pcrinfo %d\n", o->pcrinfo_len);
+	print_hex_dump(KERN_INFO, "pcrinfo ", DUMP_PREFIX_NONE,
+		       16, 1, o->pcrinfo, o->pcrinfo_len, 0);
+}
+
+static inline void dump_sess(struct osapsess *s)
+{
+	print_hex_dump(KERN_INFO, "trusted-key: handle ", DUMP_PREFIX_NONE,
+		       16, 1, &s->handle, 4, 0);
+	pr_info("secret:\n");
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE,
+		       16, 1, &s->secret, SHA1_DIGEST_SIZE, 0);
+	pr_info("trusted-key: enonce:\n");
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE,
+		       16, 1, &s->enonce, SHA1_DIGEST_SIZE, 0);
+}
+
+static inline void dump_tpm_buf(unsigned char *buf)
+{
+	int len;
+
+	pr_info("\ntpm buffer\n");
+	len = LOAD32(buf, TPM_SIZE_OFFSET);
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1, buf, len, 0);
+}
+#else
+static inline void dump_options(struct trusted_key_options *o)
+{
+}
+
+static inline void dump_sess(struct osapsess *s)
+{
+}
+
+static inline void dump_tpm_buf(unsigned char *buf)
+{
+}
+#endif
+
 static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
 		       unsigned int keylen, ...)
 {
@@ -56,7 +124,7 @@ static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
 /*
  * calculate authorization info fields to send to TPM
  */
-int TSS_authhmac(unsigned char *digest, const unsigned char *key,
+static int TSS_authhmac(unsigned char *digest, const unsigned char *key,
 			unsigned int keylen, unsigned char *h1,
 			unsigned char *h2, unsigned int h3, ...)
 {
@@ -94,12 +162,11 @@ int TSS_authhmac(unsigned char *digest, const unsigned char *key,
 				  TPM_NONCE_SIZE, h2, 1, &c, 0, 0);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(TSS_authhmac);
 
 /*
  * verify the AUTH1_COMMAND (Seal) result from TPM
  */
-int TSS_checkhmac1(unsigned char *buffer,
+static int TSS_checkhmac1(unsigned char *buffer,
 			  const uint32_t command,
 			  const unsigned char *ononce,
 			  const unsigned char *key,
@@ -159,7 +226,6 @@ int TSS_checkhmac1(unsigned char *buffer,
 		return -EINVAL;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(TSS_checkhmac1);
 
 /*
  * verify the AUTH2_COMMAND (unseal) result from TPM
@@ -244,7 +310,7 @@ static int TSS_checkhmac2(unsigned char *buffer,
  * For key specific tpm requests, we will generate and send our
  * own TPM command packets using the drivers send function.
  */
-int trusted_tpm_send(unsigned char *cmd, size_t buflen)
+static int trusted_tpm_send(unsigned char *cmd, size_t buflen)
 {
 	struct tpm_buf buf;
 	int rc;
@@ -270,7 +336,6 @@ int trusted_tpm_send(unsigned char *cmd, size_t buflen)
 	tpm_put_ops(chip);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(trusted_tpm_send);
 
 /*
  * Lock a trusted key, by extending a selected PCR.
@@ -324,7 +389,7 @@ static int osap(struct tpm_buf *tb, struct osapsess *s,
 /*
  * Create an object independent authorisation protocol (oiap) session
  */
-int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce)
+static int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce)
 {
 	int ret;
 
@@ -341,7 +406,6 @@ int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce)
 	       TPM_NONCE_SIZE);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(oiap);
 
 struct tpm_digests {
 	unsigned char encauth[SHA1_DIGEST_SIZE];
