@@ -78,6 +78,10 @@ bool __attribute_const__ btrfs_supported_blocksize(u32 blocksize)
 
 	if (blocksize == PAGE_SIZE || blocksize == SZ_4K || blocksize == BTRFS_MIN_BLOCKSIZE)
 		return true;
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	if (blocksize <= PAGE_SIZE)
+		return true;
+#endif
 	return false;
 }
 
