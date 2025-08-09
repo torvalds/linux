@@ -265,7 +265,7 @@ static void __init armada37xx_cpufreq_avs_configure(struct regmap *base,
 	 */
 
 	target_vm = avs_map[l0_vdd_min] - 100;
-	target_vm = target_vm > MIN_VOLT_MV ? target_vm : MIN_VOLT_MV;
+	target_vm = max(target_vm, MIN_VOLT_MV);
 	dvfs->avs[1] = armada_37xx_avs_val_match(target_vm);
 
 	/*
@@ -273,7 +273,7 @@ static void __init armada37xx_cpufreq_avs_configure(struct regmap *base,
 	 * be larger than 1000mv
 	 */
 	target_vm = avs_map[l0_vdd_min] - 150;
-	target_vm = target_vm > MIN_VOLT_MV ? target_vm : MIN_VOLT_MV;
+	target_vm = max(target_vm, MIN_VOLT_MV);
 	dvfs->avs[2] = dvfs->avs[3] = armada_37xx_avs_val_match(target_vm);
 
 	/*
