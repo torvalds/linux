@@ -1611,7 +1611,7 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
 static bool dl_server_stopped(struct sched_dl_entity *dl_se)
 {
 	if (!dl_se->dl_server_active)
-		return false;
+		return true;
 
 	if (dl_se->dl_server_idle) {
 		dl_server_stop(dl_se);
