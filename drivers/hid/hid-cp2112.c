@@ -1288,7 +1288,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->gc.label			= "cp2112_gpio";
 	dev->gc.direction_input		= cp2112_gpio_direction_input;
 	dev->gc.direction_output	= cp2112_gpio_direction_output;
-	dev->gc.set_rv			= cp2112_gpio_set;
+	dev->gc.set			= cp2112_gpio_set;
 	dev->gc.get			= cp2112_gpio_get;
 	dev->gc.base			= -1;
 	dev->gc.ngpio			= CP2112_GPIO_MAX_GPIO;

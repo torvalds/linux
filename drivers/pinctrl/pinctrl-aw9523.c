@@ -785,8 +785,8 @@ static int aw9523_init_gpiochip(struct aw9523 *awi, unsigned int npins)
 	gc->direction_output = aw9523_direction_output;
 	gc->get = aw9523_gpio_get;
 	gc->get_multiple = aw9523_gpio_get_multiple;
-	gc->set_rv = aw9523_gpio_set;
-	gc->set_multiple_rv = aw9523_gpio_set_multiple;
+	gc->set = aw9523_gpio_set;
+	gc->set_multiple = aw9523_gpio_set_multiple;
 	gc->set_config = gpiochip_generic_config;
 	gc->parent = dev;
 	gc->owner = THIS_MODULE;

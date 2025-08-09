@@ -188,7 +188,7 @@ int __max730x_probe(struct max7301 *ts)
 	ts->chip.direction_input = max7301_direction_input;
 	ts->chip.get = max7301_get;
 	ts->chip.direction_output = max7301_direction_output;
-	ts->chip.set_rv = max7301_set;
+	ts->chip.set = max7301_set;
 
 	ts->chip.ngpio = PIN_NUMBER;
 	ts->chip.can_sleep = true;

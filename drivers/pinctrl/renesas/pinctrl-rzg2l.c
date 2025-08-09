@@ -2795,7 +2795,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 	chip->direction_input = rzg2l_gpio_direction_input;
 	chip->direction_output = rzg2l_gpio_direction_output;
 	chip->get = rzg2l_gpio_get;
-	chip->set_rv = rzg2l_gpio_set;
+	chip->set = rzg2l_gpio_set;
 	chip->label = name;
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;

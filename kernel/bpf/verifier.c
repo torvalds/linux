@@ -23114,6 +23114,8 @@ static void free_states(struct bpf_verifier_env *env)
 
 	for (i = 0; i < env->scc_cnt; ++i) {
 		info = env->scc_info[i];
+		if (!info)
+			continue;
 		for (j = 0; j < info->num_visits; j++)
 			free_backedges(&info->visits[j]);
 		kvfree(info);
@@ -24554,6 +24556,7 @@ dfs_continue:
 		err = -ENOMEM;
 		goto exit;
 	}
+	env->scc_cnt = next_scc_id;
 exit:
 	kvfree(stack);
 	kvfree(pre);
