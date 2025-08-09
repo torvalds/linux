@@ -3830,7 +3830,7 @@ static int __net_init unix_net_init(struct net *net)
 {
 	int i;
 
-	net->unx.sysctl_max_dgram_qlen = 10;
+	net->unx.sysctl_max_dgram_qlen = 512;
 	if (unix_sysctl_register(net))
 		goto out;
 
