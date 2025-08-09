@@ -59,6 +59,8 @@ struct btrfs_space_info;
 #define BTRFS_MIN_BLOCKSIZE	(SZ_4K)
 #endif
 
+#define BTRFS_MAX_BLOCKSIZE	(SZ_64K)
+
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
 #define BTRFS_OLDEST_GENERATION	0ULL
@@ -997,6 +999,7 @@ static inline unsigned int btrfs_blocks_per_folio(const struct btrfs_fs_info *fs
 	return folio_size(folio) >> fs_info->sectorsize_bits;
 }
 
+bool __attribute_const__ btrfs_supported_blocksize(u32 blocksize);
 bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
 			enum btrfs_exclusive_operation type);
 bool btrfs_exclop_start_try_lock(struct btrfs_fs_info *fs_info,
