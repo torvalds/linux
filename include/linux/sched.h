@@ -637,8 +637,8 @@ struct sched_rt_entity {
 #endif
 } __randomize_layout;
 
-typedef bool (*dl_server_has_tasks_f)(struct sched_dl_entity *);
-typedef struct task_struct *(*dl_server_pick_f)(struct sched_dl_entity *);
+struct rq_flags;
+typedef struct task_struct *(*dl_server_pick_f)(struct sched_dl_entity *, struct rq_flags *rf);
 
 struct sched_dl_entity {
 	struct rb_node			rb_node;
@@ -730,9 +730,6 @@ struct sched_dl_entity {
 	 * dl_server_update().
 	 *
 	 * @rq the runqueue this server is for
-	 *
-	 * @server_has_tasks() returns true if @server_pick return a
-	 * runnable task.
 	 */
 	struct rq			*rq;
 	dl_server_pick_f		server_pick_task;

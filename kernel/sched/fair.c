@@ -8705,15 +8705,6 @@ static void set_cpus_allowed_fair(struct task_struct *p, struct affinity_context
 	set_task_max_allowed_capacity(p);
 }
 
-static int
-balance_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
-{
-	if (sched_fair_runnable(rq))
-		return 1;
-
-	return sched_balance_newidle(rq, rf) != 0;
-}
-
 static void set_next_buddy(struct sched_entity *se)
 {
 	for_each_sched_entity(se) {
@@ -8822,7 +8813,7 @@ preempt:
 	resched_curr_lazy(rq);
 }
 
-static struct task_struct *pick_task_fair(struct rq *rq)
+static struct task_struct *pick_task_fair(struct rq *rq, struct rq_flags *rf)
 {
 	struct sched_entity *se;
 	struct cfs_rq *cfs_rq;
@@ -8866,7 +8857,7 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
 	int new_tasks;
 
 again:
-	p = pick_task_fair(rq);
+	p = pick_task_fair(rq, rf);
 	if (!p)
 		goto idle;
 	se = &p->se;
@@ -8945,14 +8936,10 @@ idle:
 	return NULL;
 }
 
-static struct task_struct *__pick_next_task_fair(struct rq *rq, struct task_struct *prev)
+static struct task_struct *
+fair_server_pick_task(struct sched_dl_entity *dl_se, struct rq_flags *rf)
 {
-	return pick_next_task_fair(rq, prev, NULL);
-}
-
-static struct task_struct *fair_server_pick_task(struct sched_dl_entity *dl_se)
-{
-	return pick_task_fair(dl_se->rq);
+	return pick_task_fair(dl_se->rq, rf);
 }
 
 void fair_server_init(struct rq *rq)
@@ -13644,11 +13631,10 @@ DEFINE_SCHED_CLASS(fair) = {
 	.wakeup_preempt		= check_preempt_wakeup_fair,
 
 	.pick_task		= pick_task_fair,
-	.pick_next_task		= __pick_next_task_fair,
+	.pick_next_task		= pick_next_task_fair,
 	.put_prev_task		= put_prev_task_fair,
 	.set_next_task          = set_next_task_fair,
 
-	.balance		= balance_fair,
 	.select_task_rq		= select_task_rq_fair,
 	.migrate_task_rq	= migrate_task_rq_fair,
 
