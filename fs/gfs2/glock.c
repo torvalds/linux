@@ -678,23 +678,8 @@ __acquires(&gl->gl_lockref.lock)
 		goto skip_inval;
 	}
 
-	if (target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) {
-		/*
-		 * The call to go_sync should have cleared out the ail list.
-		 * If there are still items, we have a problem. We ought to
-		 * withdraw, but we can't because the withdraw code also uses
-		 * glocks. Warn about the error, dump the glock, then fall
-		 * through and wait for logd to do the withdraw for us.
-		 */
-		if ((atomic_read(&gl->gl_ail_count) != 0) &&
-		    (!cmpxchg(&sdp->sd_log_error, 0, -EIO))) {
-			gfs2_glock_assert_warn(gl,
-					       !atomic_read(&gl->gl_ail_count));
-			gfs2_dump_glock(NULL, gl, true);
-			gfs2_withdraw(sdp);
-		}
+	if (target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED)
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
-	}
 	spin_lock(&gl->gl_lockref.lock);
 
 skip_inval:
