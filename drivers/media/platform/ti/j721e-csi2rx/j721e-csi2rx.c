@@ -299,7 +299,7 @@ static int ti_csi2rx_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int ti_csi2rx_g_fmt_vid_cap(struct file *file, void *prov,
+static int ti_csi2rx_g_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_format *f)
 {
 	struct ti_csi2rx_dev *csi = video_drvdata(file);

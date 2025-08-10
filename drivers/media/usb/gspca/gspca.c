@@ -1029,15 +1029,15 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_vid_cap(struct file *file, void *_priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-	u32 priv = fmt->fmt.pix.priv;
+	u32 fmt_priv = fmt->fmt.pix.priv;
 
 	fmt->fmt.pix = gspca_dev->pixfmt;
 	/* some drivers use priv internally, so keep the original value */
-	fmt->fmt.pix.priv = priv;
+	fmt->fmt.pix.priv = fmt_priv;
 	return 0;
 }
 
@@ -1075,24 +1075,24 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	return mode;			/* used when s_fmt */
 }
 
-static int vidioc_try_fmt_vid_cap(struct file *file, void *_priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-	u32 priv = fmt->fmt.pix.priv;
+	u32 fmt_priv = fmt->fmt.pix.priv;
 
 	if (try_fmt_vid_cap(gspca_dev, fmt) < 0)
 		return -EINVAL;
 	/* some drivers use priv internally, so keep the original value */
-	fmt->fmt.pix.priv = priv;
+	fmt->fmt.pix.priv = fmt_priv;
 	return 0;
 }
 
-static int vidioc_s_fmt_vid_cap(struct file *file, void *_priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-	u32 priv = fmt->fmt.pix.priv;
+	u32 fmt_priv = fmt->fmt.pix.priv;
 	int mode;
 
 	if (vb2_is_busy(&gspca_dev->queue))
@@ -1109,7 +1109,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *_priv,
 	else
 		gspca_dev->pixfmt = gspca_dev->cam.cam_mode[mode];
 	/* some drivers use priv internally, so keep the original value */
-	fmt->fmt.pix.priv = priv;
+	fmt->fmt.pix.priv = fmt_priv;
 	return 0;
 }
 
