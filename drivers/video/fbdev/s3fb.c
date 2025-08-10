@@ -988,34 +988,30 @@ static int s3fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static int s3fb_blank(int blank_mode, struct fb_info *info)
 {
 	struct s3fb_info *par = info->par;
+	u8 data;
+
+	data = (blank_mode == FB_BLANK_UNBLANK) ? 0x00 : 0x20;
+	svga_wseq_mask(par->state.vgabase, 0x01, data, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x18, data, 0x20);
 
 	switch (blank_mode) {
-	case FB_BLANK_UNBLANK:
-		fb_dbg(info, "unblank\n");
-		svga_wcrt_mask(par->state.vgabase, 0x56, 0x00, 0x06);
-		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
-		break;
-	case FB_BLANK_NORMAL:
-		fb_dbg(info, "blank\n");
-		svga_wcrt_mask(par->state.vgabase, 0x56, 0x00, 0x06);
-		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+	default:
+		data = 0x00;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
-		fb_dbg(info, "hsync\n");
-		svga_wcrt_mask(par->state.vgabase, 0x56, 0x02, 0x06);
-		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+		data = 0x02;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
-		fb_dbg(info, "vsync\n");
-		svga_wcrt_mask(par->state.vgabase, 0x56, 0x04, 0x06);
-		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+		data = 0x04;
 		break;
 	case FB_BLANK_POWERDOWN:
-		fb_dbg(info, "sync down\n");
-		svga_wcrt_mask(par->state.vgabase, 0x56, 0x06, 0x06);
-		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
+		data = 0x06;
 		break;
 	}
+	svga_wcrt_mask(par->state.vgabase, 0x56, data, 0x06);
+
+	data = (blank_mode == FB_BLANK_POWERDOWN) ? 0x01 : 0x00;
+	svga_wseq_mask(par->state.vgabase, 0x14, data, 0x01);
 
 	return 0;
 }
@@ -1445,6 +1441,8 @@ static int __maybe_unused s3_pci_suspend(struct device *dev)
 	}
 
 	fb_set_suspend(info, 1);
+	svga_wseq_mask(par->state.vgabase, 0x18, 0x20, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x14, 0x03, 0x03);
 
 	mutex_unlock(&(par->open_lock));
 	console_unlock();
@@ -1471,6 +1469,9 @@ static int __maybe_unused s3_pci_resume(struct device *dev)
 		return 0;
 	}
 
+	vga_wseq(par->state.vgabase, 0x08, 0x06);
+	svga_wseq_mask(par->state.vgabase, 0x18, 0x00, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x14, 0x00, 0x03);
 	s3fb_set_par(info);
 	fb_set_suspend(info, 0);
 
