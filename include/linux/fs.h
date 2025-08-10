@@ -73,7 +73,6 @@ struct seq_file;
 struct workqueue_struct;
 struct iov_iter;
 struct fscrypt_operations;
-struct fsverity_info;
 struct fsverity_operations;
 struct fsnotify_mark_connector;
 struct fsnotify_sb_info;
@@ -777,10 +776,6 @@ struct inode {
 	__u32			i_fsnotify_mask; /* all events this inode cares about */
 	/* 32-bit hole reserved for expanding i_fsnotify_mask */
 	struct fsnotify_mark_connector __rcu	*i_fsnotify_marks;
-#endif
-
-#ifdef CONFIG_FS_VERITY
-	struct fsverity_info	*i_verity_info;
 #endif
 
 	void			*i_private; /* fs or device private pointer */

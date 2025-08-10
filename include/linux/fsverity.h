@@ -26,6 +26,8 @@
 /* Arbitrary limit to bound the kmalloc() size.  Can be changed. */
 #define FS_VERITY_MAX_DESCRIPTOR_SIZE	16384
 
+struct fsverity_info;
+
 /* Verity operations for filesystems */
 struct fsverity_operations {
 	/**
@@ -130,11 +132,15 @@ struct fsverity_operations {
 
 #ifdef CONFIG_FS_VERITY
 
+/*
+ * Returns the address of the verity info pointer within the filesystem-specific
+ * part of the inode.  (To save memory on filesystems that don't support
+ * fsverity, a field in 'struct inode' itself is no longer used.)
+ */
 static inline struct fsverity_info **
 fsverity_info_addr(const struct inode *inode)
 {
-	if (inode->i_sb->s_vop->inode_info_offs == 0)
-		return (struct fsverity_info **)&inode->i_verity_info;
+	VFS_WARN_ON_ONCE(inode->i_sb->s_vop->inode_info_offs == 0);
 	return (void *)inode + inode->i_sb->s_vop->inode_info_offs;
 }
 
