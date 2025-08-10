@@ -10,14 +10,9 @@
 #include <media/videobuf2-dma-contig.h>
 #include "mtk-mdp3-m2m.h"
 
-static inline struct mdp_m2m_ctx *fh_to_ctx(struct v4l2_fh *fh)
-{
-	return container_of(fh, struct mdp_m2m_ctx, fh);
-}
-
 static inline struct mdp_m2m_ctx *file_to_ctx(struct file *filp)
 {
-	return fh_to_ctx(file_to_v4l2_fh(filp));
+	return container_of(file_to_v4l2_fh(filp), struct mdp_m2m_ctx, fh);
 }
 
 static inline struct mdp_m2m_ctx *ctrl_to_ctx(struct v4l2_ctrl *ctrl)
@@ -290,7 +285,7 @@ static int mdp_m2m_querycap(struct file *file, void *fh,
 static int mdp_m2m_enum_fmt_mplane(struct file *file, void *fh,
 				   struct v4l2_fmtdesc *f)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(fh);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 
 	return mdp_enum_fmt_mplane(ctx->mdp_dev, f);
 }
@@ -298,7 +293,7 @@ static int mdp_m2m_enum_fmt_mplane(struct file *file, void *fh,
 static int mdp_m2m_g_fmt_mplane(struct file *file, void *fh,
 				struct v4l2_format *f)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(fh);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 	struct mdp_frame *frame;
 	struct v4l2_pix_format_mplane *pix_mp;
 
@@ -316,7 +311,7 @@ static int mdp_m2m_g_fmt_mplane(struct file *file, void *fh,
 static int mdp_m2m_s_fmt_mplane(struct file *file, void *fh,
 				struct v4l2_format *f)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(fh);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 	struct mdp_frame *frame = ctx_get_frame(ctx, f->type);
 	struct mdp_frame *capture;
 	const struct mdp_format *fmt;
@@ -359,7 +354,7 @@ static int mdp_m2m_s_fmt_mplane(struct file *file, void *fh,
 static int mdp_m2m_try_fmt_mplane(struct file *file, void *fh,
 				  struct v4l2_format *f)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(fh);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 
 	if (!mdp_try_fmt_mplane(ctx->mdp_dev, f, &ctx->curr_param, ctx->id))
 		return -EINVAL;
@@ -370,7 +365,7 @@ static int mdp_m2m_try_fmt_mplane(struct file *file, void *fh,
 static int mdp_m2m_g_selection(struct file *file, void *fh,
 			       struct v4l2_selection *s)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(fh);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 	struct mdp_frame *frame;
 	bool valid = false;
 
@@ -422,7 +417,7 @@ static int mdp_m2m_g_selection(struct file *file, void *fh,
 static int mdp_m2m_s_selection(struct file *file, void *fh,
 			       struct v4l2_selection *s)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(fh);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 	struct mdp_frame *frame = ctx_get_frame(ctx, s->type);
 	struct mdp_frame *capture;
 	struct v4l2_rect r;
