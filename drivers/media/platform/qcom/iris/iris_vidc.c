@@ -26,10 +26,12 @@ static void iris_v4l2_fh_init(struct iris_inst *inst, struct file *filp)
 	v4l2_fh_init(&inst->fh, inst->core->vdev_dec);
 	inst->fh.ctrl_handler = &inst->ctrl_handler;
 	v4l2_fh_add(&inst->fh);
+	filp->private_data = &inst->fh;
 }
 
 static void iris_v4l2_fh_deinit(struct iris_inst *inst, struct file *filp)
 {
+	filp->private_data = NULL;
 	v4l2_fh_del(&inst->fh);
 	inst->fh.ctrl_handler = NULL;
 	v4l2_fh_exit(&inst->fh);
@@ -185,7 +187,6 @@ int iris_open(struct file *filp)
 	iris_add_session(inst);
 
 	inst->fh.m2m_ctx = inst->m2m_ctx;
-	filp->private_data = &inst->fh;
 
 	return 0;
 
@@ -269,7 +270,6 @@ int iris_close(struct file *filp)
 	mutex_destroy(&inst->ctx_q_lock);
 	mutex_destroy(&inst->lock);
 	kfree(inst);
-	filp->private_data = NULL;
 
 	return 0;
 }
