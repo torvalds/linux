@@ -71,7 +71,6 @@ extern void start_thread(struct pt_regs *regs, unsigned long entry,
 
 struct cpuinfo_um {
 	unsigned long loops_per_jiffy;
-	int ipi_pipe[2];
 	int cache_alignment;
 	union {
 		__u32		x86_capability[NCAPINTS + NBUGINTS];
