@@ -665,6 +665,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_work_mask = 0;
 	memset(&ci->i_btime, '\0', sizeof(ci->i_btime));
 #ifdef CONFIG_FS_ENCRYPTION
+	ci->i_crypt_info = NULL;
 	ci->fscrypt_auth = NULL;
 	ci->fscrypt_auth_len = 0;
 #endif
