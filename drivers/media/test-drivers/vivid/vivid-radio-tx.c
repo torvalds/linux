@@ -96,7 +96,7 @@ __poll_t vivid_radio_tx_poll(struct file *file, struct poll_table_struct *wait)
 	return EPOLLOUT | EPOLLWRNORM | v4l2_ctrl_poll(file, wait);
 }
 
-int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a)
+int vidioc_g_modulator(struct file *file, void *priv, struct v4l2_modulator *a)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
@@ -115,7 +115,7 @@ int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a)
 	return 0;
 }
 
-int vidioc_s_modulator(struct file *file, void *fh, const struct v4l2_modulator *a)
+int vidioc_s_modulator(struct file *file, void *priv, const struct v4l2_modulator *a)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 

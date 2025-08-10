@@ -1207,20 +1207,20 @@ static int vidioc_s_selection(struct file *file, void *priv,
 	return 0;
 }
 
-static int vicodec_encoder_cmd(struct file *file, void *fh,
+static int vicodec_encoder_cmd(struct file *file, void *priv,
 			    struct v4l2_encoder_cmd *ec)
 {
 	struct vicodec_ctx *ctx = file2ctx(file);
 	int ret;
 
-	ret = v4l2_m2m_ioctl_try_encoder_cmd(file, fh, ec);
+	ret = v4l2_m2m_ioctl_try_encoder_cmd(file, priv, ec);
 	if (ret < 0)
 		return ret;
 
 	if (!vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))
 		return 0;
 
-	ret = v4l2_m2m_ioctl_encoder_cmd(file, fh, ec);
+	ret = v4l2_m2m_ioctl_encoder_cmd(file, priv, ec);
 	if (ret < 0)
 		return ret;
 
@@ -1235,7 +1235,7 @@ static int vicodec_encoder_cmd(struct file *file, void *fh,
 	return 0;
 }
 
-static int vicodec_decoder_cmd(struct file *file, void *fh,
+static int vicodec_decoder_cmd(struct file *file, void *priv,
 			    struct v4l2_decoder_cmd *dc)
 {
 	struct vicodec_ctx *ctx = file2ctx(file);
@@ -1247,14 +1247,14 @@ static int vicodec_decoder_cmd(struct file *file, void *fh,
 	 */
 	WARN_ON(ctx->is_stateless);
 
-	ret = v4l2_m2m_ioctl_try_decoder_cmd(file, fh, dc);
+	ret = v4l2_m2m_ioctl_try_decoder_cmd(file, priv, dc);
 	if (ret < 0)
 		return ret;
 
 	if (!vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))
 		return 0;
 
-	ret = v4l2_m2m_ioctl_decoder_cmd(file, fh, dc);
+	ret = v4l2_m2m_ioctl_decoder_cmd(file, priv, dc);
 	if (ret < 0)
 		return ret;
 
@@ -1269,7 +1269,7 @@ static int vicodec_decoder_cmd(struct file *file, void *fh,
 	return 0;
 }
 
-static int vicodec_enum_framesizes(struct file *file, void *fh,
+static int vicodec_enum_framesizes(struct file *file, void *priv,
 				   struct v4l2_frmsizeenum *fsize)
 {
 	switch (fsize->pixel_format) {

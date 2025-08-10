@@ -1021,7 +1021,7 @@ int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-int vidioc_g_dv_timings(struct file *file, void *_fh,
+int vidioc_g_dv_timings(struct file *file, void *priv,
 				    struct v4l2_dv_timings *timings)
 {
 	struct vivid_dev *dev = video_drvdata(file);
@@ -1039,7 +1039,7 @@ int vidioc_g_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
-int vidioc_enum_dv_timings(struct file *file, void *_fh,
+int vidioc_enum_dv_timings(struct file *file, void *priv,
 				    struct v4l2_enum_dv_timings *timings)
 {
 	struct vivid_dev *dev = video_drvdata(file);
@@ -1056,7 +1056,7 @@ int vidioc_enum_dv_timings(struct file *file, void *_fh,
 			NULL, NULL);
 }
 
-int vidioc_dv_timings_cap(struct file *file, void *_fh,
+int vidioc_dv_timings_cap(struct file *file, void *priv,
 				    struct v4l2_dv_timings_cap *cap)
 {
 	struct vivid_dev *dev = video_drvdata(file);
@@ -1073,7 +1073,7 @@ int vidioc_dv_timings_cap(struct file *file, void *_fh,
 	return 0;
 }
 
-int vidioc_g_edid(struct file *file, void *_fh,
+int vidioc_g_edid(struct file *file, void *priv,
 			 struct v4l2_edid *edid)
 {
 	struct vivid_dev *dev = video_drvdata(file);
