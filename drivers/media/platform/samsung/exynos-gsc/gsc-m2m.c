@@ -666,7 +666,7 @@ unlock:
 
 static int gsc_m2m_release(struct file *file)
 {
-	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct gsc_ctx *ctx = file_to_ctx(file);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
 	pr_debug("pid: %d, state: 0x%lx, refcnt= %d",
@@ -690,7 +690,7 @@ static int gsc_m2m_release(struct file *file)
 static __poll_t gsc_m2m_poll(struct file *file,
 					struct poll_table_struct *wait)
 {
-	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct gsc_ctx *ctx = file_to_ctx(file);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 	__poll_t ret;
 
@@ -705,7 +705,7 @@ static __poll_t gsc_m2m_poll(struct file *file,
 
 static int gsc_m2m_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct gsc_ctx *ctx = file_to_ctx(file);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 	int ret;
 

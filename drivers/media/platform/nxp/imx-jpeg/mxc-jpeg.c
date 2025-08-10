@@ -649,6 +649,11 @@ static inline struct mxc_jpeg_ctx *mxc_jpeg_fh_to_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct mxc_jpeg_ctx, fh);
 }
 
+static inline struct mxc_jpeg_ctx *mxc_jpeg_file_to_ctx(struct file *filp)
+{
+	return mxc_jpeg_fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 static int enum_fmt(const struct mxc_jpeg_fmt *mxc_formats, int n,
 		    struct v4l2_fmtdesc *f, u32 type)
 {
@@ -2735,7 +2740,7 @@ static const struct v4l2_ioctl_ops mxc_jpeg_ioctl_ops = {
 static int mxc_jpeg_release(struct file *file)
 {
 	struct mxc_jpeg_dev *mxc_jpeg = video_drvdata(file);
-	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(file->private_data);
+	struct mxc_jpeg_ctx *ctx = mxc_jpeg_file_to_ctx(file);
 	struct device *dev = mxc_jpeg->dev;
 
 	mutex_lock(&mxc_jpeg->lock);

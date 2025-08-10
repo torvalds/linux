@@ -25,7 +25,10 @@
 #include "g2d.h"
 #include "g2d-regs.h"
 
-#define fh2ctx(__fh) container_of(__fh, struct g2d_ctx, fh)
+static inline struct g2d_ctx *file2ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct g2d_ctx, fh);
+}
 
 static struct g2d_fmt formats[] = {
 	{
@@ -272,7 +275,7 @@ static int g2d_open(struct file *file)
 static int g2d_release(struct file *file)
 {
 	struct g2d_dev *dev = video_drvdata(file);
-	struct g2d_ctx *ctx = fh2ctx(file->private_data);
+	struct g2d_ctx *ctx = file2ctx(file);
 
 	mutex_lock(&dev->mutex);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);

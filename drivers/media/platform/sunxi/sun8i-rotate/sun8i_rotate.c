@@ -691,8 +691,7 @@ err_free:
 static int rotate_release(struct file *file)
 {
 	struct rotate_dev *dev = video_drvdata(file);
-	struct rotate_ctx *ctx = container_of(file->private_data,
-						   struct rotate_ctx, fh);
+	struct rotate_ctx *ctx = rotate_file2ctx(file);
 
 	mutex_lock(&dev->dev_mutex);
 

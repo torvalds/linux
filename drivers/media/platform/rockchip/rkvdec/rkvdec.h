@@ -129,6 +129,11 @@ static inline struct rkvdec_ctx *fh_to_rkvdec_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct rkvdec_ctx, fh);
 }
 
+static inline struct rkvdec_ctx *file_to_rkvdec_ctx(struct file *filp)
+{
+	return fh_to_rkvdec_ctx(file_to_v4l2_fh(filp));
+}
+
 struct rkvdec_aux_buf {
 	void *cpu;
 	dma_addr_t dma;

@@ -222,6 +222,11 @@ static inline struct mtk_vcodec_enc_ctx *fh_to_enc_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct mtk_vcodec_enc_ctx, fh);
 }
 
+static inline struct mtk_vcodec_enc_ctx *file_to_enc_ctx(struct file *filp)
+{
+	return fh_to_enc_ctx(file_to_v4l2_fh(filp));
+}
+
 static inline struct mtk_vcodec_enc_ctx *ctrl_to_enc_ctx(struct v4l2_ctrl *ctrl)
 {
 	return container_of(ctrl->handler, struct mtk_vcodec_enc_ctx, ctrl_hdl);

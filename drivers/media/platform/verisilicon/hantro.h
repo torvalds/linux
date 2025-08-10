@@ -387,6 +387,11 @@ static __always_inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct hantro_ctx, fh);
 }
 
+static __always_inline struct hantro_ctx *file_to_ctx(struct file *filp)
+{
+	return fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 /* Register accessors. */
 static __always_inline void vepu_write_relaxed(struct hantro_dev *vpu,
 					       u32 val, u32 reg)

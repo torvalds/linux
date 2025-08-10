@@ -124,6 +124,11 @@ static inline struct mtk_jpeg_ctx *mtk_jpeg_fh_to_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct mtk_jpeg_ctx, fh);
 }
 
+static inline struct mtk_jpeg_ctx *mtk_jpeg_file_to_ctx(struct file *filp)
+{
+	return mtk_jpeg_fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 static inline struct mtk_jpeg_src_buf *mtk_jpeg_vb2_to_srcbuf(
 							struct vb2_buffer *vb)
 {
@@ -1208,7 +1213,7 @@ free:
 static int mtk_jpeg_release(struct file *file)
 {
 	struct mtk_jpeg_dev *jpeg = video_drvdata(file);
-	struct mtk_jpeg_ctx *ctx = mtk_jpeg_fh_to_ctx(file->private_data);
+	struct mtk_jpeg_ctx *ctx = mtk_jpeg_file_to_ctx(file);
 
 	mutex_lock(&jpeg->lock);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);

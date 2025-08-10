@@ -15,6 +15,11 @@ static inline struct mdp_m2m_ctx *fh_to_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct mdp_m2m_ctx, fh);
 }
 
+static inline struct mdp_m2m_ctx *file_to_ctx(struct file *filp)
+{
+	return fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 static inline struct mdp_m2m_ctx *ctrl_to_ctx(struct v4l2_ctrl *ctrl)
 {
 	return container_of(ctrl->handler, struct mdp_m2m_ctx, ctrl_handler);
@@ -643,7 +648,7 @@ err_free_ctx:
 
 static int mdp_m2m_release(struct file *file)
 {
-	struct mdp_m2m_ctx *ctx = fh_to_ctx(file->private_data);
+	struct mdp_m2m_ctx *ctx = file_to_ctx(file);
 	struct mdp_dev *mdp = video_drvdata(file);
 	struct device *dev = &mdp->pdev->dev;
 

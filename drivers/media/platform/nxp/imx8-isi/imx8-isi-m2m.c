@@ -79,6 +79,11 @@ static inline struct mxc_isi_m2m_ctx *to_isi_m2m_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct mxc_isi_m2m_ctx, fh);
 }
 
+static inline struct mxc_isi_m2m_ctx *file_to_isi_m2m_ctx(struct file *filp)
+{
+	return to_isi_m2m_ctx(file_to_v4l2_fh(filp));
+}
+
 static inline struct mxc_isi_m2m_ctx_queue_data *
 mxc_isi_m2m_ctx_qdata(struct mxc_isi_m2m_ctx *ctx, enum v4l2_buf_type type)
 {
@@ -707,7 +712,7 @@ err_fh:
 static int mxc_isi_m2m_release(struct file *file)
 {
 	struct mxc_isi_m2m *m2m = video_drvdata(file);
-	struct mxc_isi_m2m_ctx *ctx = to_isi_m2m_ctx(file->private_data);
+	struct mxc_isi_m2m_ctx *ctx = file_to_isi_m2m_ctx(file);
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	mxc_isi_m2m_ctx_ctrls_delete(ctx);

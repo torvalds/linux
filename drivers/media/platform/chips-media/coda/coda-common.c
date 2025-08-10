@@ -56,6 +56,11 @@
 
 #define fh_to_ctx(__fh)	container_of(__fh, struct coda_ctx, fh)
 
+static inline struct coda_ctx *file_to_ctx(struct file *filp)
+{
+	return fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 int coda_debug;
 module_param(coda_debug, int, 0644);
 MODULE_PARM_DESC(coda_debug, "Debug level (0-2)");
@@ -2733,7 +2738,7 @@ err_coda_max:
 static int coda_release(struct file *file)
 {
 	struct coda_dev *dev = video_drvdata(file);
-	struct coda_ctx *ctx = fh_to_ctx(file->private_data);
+	struct coda_ctx *ctx = file_to_ctx(file);
 
 	coda_dbg(1, ctx, "release instance (%p)\n", ctx);
 

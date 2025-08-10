@@ -353,6 +353,11 @@ static inline struct mtk_mdp_ctx *fh_to_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct mtk_mdp_ctx, fh);
 }
 
+static inline struct mtk_mdp_ctx *file_to_ctx(struct file *filp)
+{
+	return fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 static inline struct mtk_mdp_ctx *ctrl_to_ctx(struct v4l2_ctrl *ctrl)
 {
 	return container_of(ctrl->handler, struct mtk_mdp_ctx, ctrl_handler);
@@ -1137,7 +1142,7 @@ err_lock:
 
 static int mtk_mdp_m2m_release(struct file *file)
 {
-	struct mtk_mdp_ctx *ctx = fh_to_ctx(file->private_data);
+	struct mtk_mdp_ctx *ctx = file_to_ctx(file);
 	struct mtk_mdp_dev *mdp = ctx->mdp_dev;
 
 	flush_workqueue(mdp->job_wq);

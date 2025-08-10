@@ -1373,7 +1373,7 @@ static int isp_video_release(struct file *file)
 
 static __poll_t isp_video_poll(struct file *file, poll_table *wait)
 {
-	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
+	struct isp_video_fh *vfh = file_to_isp_video_fh(file);
 	struct isp_video *video = video_drvdata(file);
 	__poll_t ret;
 
@@ -1386,7 +1386,7 @@ static __poll_t isp_video_poll(struct file *file, poll_table *wait)
 
 static int isp_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct isp_video_fh *vfh = to_isp_video_fh(file->private_data);
+	struct isp_video_fh *vfh = file_to_isp_video_fh(file);
 
 	return vb2_mmap(&vfh->queue, vma);
 }

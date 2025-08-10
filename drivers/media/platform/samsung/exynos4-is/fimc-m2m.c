@@ -675,7 +675,7 @@ unlock:
 
 static int fimc_m2m_release(struct file *file)
 {
-	struct fimc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct fimc_ctx *ctx = file_to_ctx(file);
 	struct fimc_dev *fimc = ctx->fimc_dev;
 
 	dbg("pid: %d, state: 0x%lx, refcnt= %d",

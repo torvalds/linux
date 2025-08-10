@@ -13,8 +13,6 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mem2mem.h>
 
-#define fh_to_ctx(f)    (container_of(f, struct hva_ctx, fh))
-
 #define hva_to_dev(h)   (h->dev)
 
 #define ctx_to_dev(c)   (c->hva_dev->dev)

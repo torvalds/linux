@@ -953,7 +953,7 @@ err_free_ctx:
 
 static int rkvdec_release(struct file *filp)
 {
-	struct rkvdec_ctx *ctx = fh_to_rkvdec_ctx(filp->private_data);
+	struct rkvdec_ctx *ctx = file_to_rkvdec_ctx(filp);
 
 	v4l2_fh_del(&ctx->fh);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);

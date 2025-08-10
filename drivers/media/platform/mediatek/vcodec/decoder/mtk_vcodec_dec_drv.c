@@ -294,7 +294,7 @@ err_ctrls_setup:
 static int fops_vcodec_release(struct file *file)
 {
 	struct mtk_vcodec_dec_dev *dev = video_drvdata(file);
-	struct mtk_vcodec_dec_ctx *ctx = fh_to_dec_ctx(file->private_data);
+	struct mtk_vcodec_dec_ctx *ctx = file_to_dec_ctx(file);
 
 	mtk_v4l2_vdec_dbg(0, ctx, "[%d] decoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);

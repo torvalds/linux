@@ -45,7 +45,10 @@
  *   whole of a destination image with a pixel format conversion.
  */
 
-#define fh2ctx(__fh) container_of(__fh, struct dma2d_ctx, fh)
+static inline struct dma2d_ctx *file2ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct dma2d_ctx, fh);
+}
 
 static const struct dma2d_fmt formats[] = {
 	{
@@ -318,7 +321,7 @@ static int dma2d_open(struct file *file)
 static int dma2d_release(struct file *file)
 {
 	struct dma2d_dev *dev = video_drvdata(file);
-	struct dma2d_ctx *ctx = fh2ctx(file->private_data);
+	struct dma2d_ctx *ctx = file2ctx(file);
 
 	mutex_lock(&dev->mutex);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);

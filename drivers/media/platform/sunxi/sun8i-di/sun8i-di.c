@@ -756,8 +756,7 @@ err_free:
 static int deinterlace_release(struct file *file)
 {
 	struct deinterlace_dev *dev = video_drvdata(file);
-	struct deinterlace_ctx *ctx = container_of(file->private_data,
-						   struct deinterlace_ctx, fh);
+	struct deinterlace_ctx *ctx = deinterlace_file2ctx(file);
 
 	mutex_lock(&dev->dev_mutex);
 

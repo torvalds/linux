@@ -142,6 +142,11 @@ struct deinterlace_ctx {
 	struct dma_interleaved_template *xt;
 };
 
+static inline struct deinterlace_ctx *file_to_ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct deinterlace_ctx, fh);
+}
+
 /*
  * mem2mem callbacks
  */
@@ -872,7 +877,7 @@ static int deinterlace_open(struct file *file)
 static int deinterlace_release(struct file *file)
 {
 	struct deinterlace_dev *pcdev = video_drvdata(file);
-	struct deinterlace_ctx *ctx = file->private_data;
+	struct deinterlace_ctx *ctx = file_to_ctx(file);
 
 	dprintk(pcdev, "Releasing instance %p\n", ctx);
 

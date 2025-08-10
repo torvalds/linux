@@ -59,7 +59,7 @@ int wave5_vpu_release_device(struct file *filp,
 			     int (*close_func)(struct vpu_instance *inst, u32 *fail_res),
 			     char *name)
 {
-	struct vpu_instance *inst = wave5_to_vpu_inst(filp->private_data);
+	struct vpu_instance *inst = file_to_vpu_inst(filp);
 	int ret = 0;
 
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);

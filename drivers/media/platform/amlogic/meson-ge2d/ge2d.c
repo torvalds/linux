@@ -82,6 +82,11 @@ struct ge2d_ctx {
 	u32 xy_swap;
 };
 
+static inline struct ge2d_ctx *file_to_ge2d_ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct ge2d_ctx, fh);
+}
+
 struct meson_ge2d {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_m2m_dev *m2m_dev;
@@ -871,8 +876,7 @@ static int ge2d_open(struct file *file)
 
 static int ge2d_release(struct file *file)
 {
-	struct ge2d_ctx *ctx =
-		container_of(file->private_data, struct ge2d_ctx, fh);
+	struct ge2d_ctx *ctx = file_to_ge2d_ctx(file);
 	struct meson_ge2d *ge2d = ctx->ge2d;
 
 	mutex_lock(&ge2d->mutex);

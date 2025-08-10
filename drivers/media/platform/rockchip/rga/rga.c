@@ -411,8 +411,7 @@ static int rga_open(struct file *file)
 
 static int rga_release(struct file *file)
 {
-	struct rga_ctx *ctx =
-		container_of(file->private_data, struct rga_ctx, fh);
+	struct rga_ctx *ctx = file_to_rga_ctx(file);
 	struct rockchip_rga *rga = ctx->rga;
 
 	mutex_lock(&rga->mutex);

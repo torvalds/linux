@@ -401,8 +401,7 @@ err_free:
 static int cedrus_release(struct file *file)
 {
 	struct cedrus_dev *dev = video_drvdata(file);
-	struct cedrus_ctx *ctx = container_of(file->private_data,
-					      struct cedrus_ctx, fh);
+	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
 
 	mutex_lock(&dev->dev_mutex);
 

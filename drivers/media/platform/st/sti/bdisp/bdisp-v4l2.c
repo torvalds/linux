@@ -35,6 +35,11 @@
 
 #define fh_to_ctx(__fh) container_of(__fh, struct bdisp_ctx, fh)
 
+static inline struct bdisp_ctx *file_to_ctx(struct file *filp)
+{
+	return fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 enum bdisp_dev_flags {
 	ST_M2M_OPEN,            /* Driver opened */
 	ST_M2M_RUNNING,         /* HW device running */
@@ -644,7 +649,7 @@ unlock:
 
 static int bdisp_release(struct file *file)
 {
-	struct bdisp_ctx *ctx = fh_to_ctx(file->private_data);
+	struct bdisp_ctx *ctx = file_to_ctx(file);
 	struct bdisp_dev *bdisp = ctx->bdisp_dev;
 
 	dev_dbg(bdisp->dev, "%s\n", __func__);

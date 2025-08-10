@@ -687,8 +687,7 @@ err_ctx_free:
 
 static int hantro_release(struct file *filp)
 {
-	struct hantro_ctx *ctx =
-		container_of(filp->private_data, struct hantro_ctx, fh);
+	struct hantro_ctx *ctx = file_to_ctx(filp);
 
 	/*
 	 * No need for extra locking because this was the last reference

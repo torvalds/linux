@@ -585,6 +585,11 @@ static inline struct s5p_jpeg_ctx *fh_to_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct s5p_jpeg_ctx, fh);
 }
 
+static inline struct s5p_jpeg_ctx *file_to_ctx(struct file *filp)
+{
+	return fh_to_ctx(file_to_v4l2_fh(filp));
+}
+
 static int s5p_jpeg_to_user_subsampling(struct s5p_jpeg_ctx *ctx)
 {
 	switch (ctx->jpeg->variant->version) {
@@ -1012,7 +1017,7 @@ free:
 static int s5p_jpeg_release(struct file *file)
 {
 	struct s5p_jpeg *jpeg = video_drvdata(file);
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
+	struct s5p_jpeg_ctx *ctx = file_to_ctx(file);
 
 	mutex_lock(&jpeg->lock);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
@@ -1828,7 +1833,7 @@ static int s5p_jpeg_g_selection(struct file *file, void *priv,
 static int s5p_jpeg_s_selection(struct file *file, void *fh,
 				  struct v4l2_selection *s)
 {
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
+	struct s5p_jpeg_ctx *ctx = file_to_ctx(file);
 	struct v4l2_rect *rect = &s->r;
 	int ret = -EINVAL;
 

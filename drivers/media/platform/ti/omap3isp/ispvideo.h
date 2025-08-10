@@ -195,6 +195,12 @@ struct isp_video_fh {
 };
 
 #define to_isp_video_fh(fh)	container_of(fh, struct isp_video_fh, vfh)
+
+static inline struct isp_video_fh *file_to_isp_video_fh(struct file *filp)
+{
+	return to_isp_video_fh(file_to_v4l2_fh(filp));
+}
+
 #define isp_video_queue_to_isp_video_fh(q) \
 				container_of(q, struct isp_video_fh, queue)
 

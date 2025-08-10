@@ -214,6 +214,11 @@ struct emmaprp_ctx {
 	struct emmaprp_q_data	q_data[2];
 };
 
+static inline struct emmaprp_ctx *file_to_emmaprp_ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct emmaprp_ctx, fh);
+}
+
 static struct emmaprp_q_data *get_q_data(struct emmaprp_ctx *ctx,
 					 enum v4l2_buf_type type)
 {
@@ -758,7 +763,7 @@ static int emmaprp_open(struct file *file)
 static int emmaprp_release(struct file *file)
 {
 	struct emmaprp_dev *pcdev = video_drvdata(file);
-	struct emmaprp_ctx *ctx = file->private_data;
+	struct emmaprp_ctx *ctx = file_to_emmaprp_ctx(file);
 
 	dprintk(pcdev, "Releasing instance %p\n", ctx);
 

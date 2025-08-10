@@ -302,6 +302,11 @@ struct allegro_channel {
 	unsigned int error;
 };
 
+static inline struct allegro_channel *file_to_channel(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct allegro_channel, fh);
+}
+
 static inline int
 allegro_channel_get_i_frame_qp(struct allegro_channel *channel)
 {
@@ -3229,7 +3234,7 @@ error:
 
 static int allegro_release(struct file *file)
 {
-	struct allegro_channel *channel = fh_to_channel(file->private_data);
+	struct allegro_channel *channel = file_to_channel(file);
 
 	v4l2_m2m_ctx_release(channel->fh.m2m_ctx);
 
