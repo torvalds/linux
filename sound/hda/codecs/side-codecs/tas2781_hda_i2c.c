@@ -26,6 +26,7 @@
 #include <sound/tlv.h>
 #include <sound/tas2770-tlv.h>
 #include <sound/tas2781-tlv.h>
+#include <sound/tas5825-tlv.h>
 
 #include "hda_local.h"
 #include "hda_auto_parser.h"
@@ -50,6 +51,7 @@ enum device_chip_id {
 	HDA_TAS2563,
 	HDA_TAS2770,
 	HDA_TAS2781,
+	HDA_TAS5825,
 	HDA_OTHERS
 };
 
@@ -268,6 +270,17 @@ static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Analog Gain", TAS2781_AMP_LEVEL,
 		1, 0, 20, 0, tas2781_amp_getvol,
 		tas2781_amp_putvol, amp_vol_tlv),
+	ACARD_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
+		tas2781_force_fwload_get, tas2781_force_fwload_put),
+};
+
+static const struct snd_kcontrol_new tas5825_snd_controls[] = {
+	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Analog Volume", TAS5825_AMP_LEVEL,
+		0, 0, 31, 1, tas2781_amp_getvol,
+		tas2781_amp_putvol, tas5825_amp_tlv),
+	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Digital Volume", TAS5825_DVC_LEVEL,
+		0, 0, 254, 1, tas2781_amp_getvol,
+		tas2781_amp_putvol, tas5825_dvc_tlv),
 	ACARD_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
 		tas2781_force_fwload_get, tas2781_force_fwload_put),
 };
@@ -501,6 +514,12 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 				     ARRAY_SIZE(tas2781_snd_controls));
 		tasdevice_dspfw_init(context);
 		break;
+	case HDA_TAS5825:
+		tasdev_add_kcontrols(tas_priv, hda_priv->snd_ctls, codec,
+				     &tas5825_snd_controls[0],
+				     ARRAY_SIZE(tas5825_snd_controls));
+		tasdevice_dspfw_init(context);
+		break;
 	case HDA_TAS2563:
 		tasdevice_dspfw_init(context);
 		break;
@@ -628,6 +647,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 	} else if (strstarts(dev_name(&clt->dev),
 			     "i2c-TXNW2781:00-tas2781-hda.0")) {
 		device_name = "TXNW2781";
+		hda_priv->hda_chip_id = HDA_TAS2781;
 		hda_priv->save_calibration = tas2781_save_calibration;
 		tas_hda->priv->global_addr = TAS2781_GLOBAL_ADDR;
 	} else if (strstr(dev_name(&clt->dev), "INT8866")) {
@@ -639,6 +659,13 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 		hda_priv->hda_chip_id = HDA_TAS2563;
 		hda_priv->save_calibration = tas2563_save_calibration;
 		tas_hda->priv->global_addr = TAS2563_GLOBAL_ADDR;
+	} else if (strstarts(dev_name(&clt->dev), "i2c-TXNW5825")) {
+		/*
+		 * TAS5825, integrated on-chip DSP without
+		 * global I2C address and calibration supported.
+		 */
+		device_name = "TXNW5825";
+		hda_priv->hda_chip_id = HDA_TAS5825;
 	} else {
 		return -ENODEV;
 	}
@@ -775,6 +802,7 @@ static const struct acpi_device_id tas2781_acpi_hda_match[] = {
 	{"TIAS2781", 0 },
 	{"TXNW2770", 0 },
 	{"TXNW2781", 0 },
+	{"TXNW5825", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, tas2781_acpi_hda_match);
