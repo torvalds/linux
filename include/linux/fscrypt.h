@@ -201,11 +201,15 @@ struct fscrypt_operations {
 int fscrypt_d_revalidate(struct inode *dir, const struct qstr *name,
 			 struct dentry *dentry, unsigned int flags);
 
+/*
+ * Returns the address of the fscrypt info pointer within the
+ * filesystem-specific part of the inode.  (To save memory on filesystems that
+ * don't support fscrypt, a field in 'struct inode' itself is no longer used.)
+ */
 static inline struct fscrypt_inode_info **
 fscrypt_inode_info_addr(const struct inode *inode)
 {
-	if (inode->i_sb->s_cop->inode_info_offs == 0)
-		return (struct fscrypt_inode_info **)&inode->i_crypt_info;
+	VFS_WARN_ON_ONCE(inode->i_sb->s_cop->inode_info_offs == 0);
 	return (void *)inode + inode->i_sb->s_cop->inode_info_offs;
 }
 
