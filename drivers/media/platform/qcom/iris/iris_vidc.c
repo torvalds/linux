@@ -69,7 +69,7 @@ static void iris_remove_session(struct iris_inst *inst)
 	mutex_unlock(&core->lock);
 }
 
-static inline struct iris_inst *iris_get_inst(struct file *filp, void *fh)
+static inline struct iris_inst *iris_get_inst(struct file *filp)
 {
 	return container_of(file_to_v4l2_fh(filp), struct iris_inst, fh);
 }
@@ -251,7 +251,7 @@ static void iris_check_num_queued_internal_buffers(struct iris_inst *inst, u32 p
 
 int iris_close(struct file *filp)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 
 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
 	v4l2_m2m_ctx_release(inst->m2m_ctx);
@@ -276,14 +276,14 @@ int iris_close(struct file *filp)
 
 static int iris_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *f)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 
 	return iris_vdec_enum_fmt(inst, f);
 }
 
 static int iris_try_fmt_vid_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 	int ret;
 
 	mutex_lock(&inst->lock);
@@ -295,7 +295,7 @@ static int iris_try_fmt_vid_mplane(struct file *filp, void *fh, struct v4l2_form
 
 static int iris_s_fmt_vid_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 	int ret;
 
 	mutex_lock(&inst->lock);
@@ -307,7 +307,7 @@ static int iris_s_fmt_vid_mplane(struct file *filp, void *fh, struct v4l2_format
 
 static int iris_g_fmt_vid_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 	int ret = 0;
 
 	mutex_lock(&inst->lock);
@@ -326,7 +326,7 @@ static int iris_g_fmt_vid_mplane(struct file *filp, void *fh, struct v4l2_format
 static int iris_enum_framesizes(struct file *filp, void *fh,
 				struct v4l2_frmsizeenum *fsize)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 	struct platform_inst_caps *caps;
 
 	if (fsize->index)
@@ -359,7 +359,7 @@ static int iris_querycap(struct file *filp, void *fh, struct v4l2_capability *ca
 
 static int iris_g_selection(struct file *filp, void *fh, struct v4l2_selection *s)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -394,7 +394,7 @@ static int iris_subscribe_event(struct v4l2_fh *fh, const struct v4l2_event_subs
 static int iris_dec_cmd(struct file *filp, void *fh,
 			struct v4l2_decoder_cmd *dec)
 {
-	struct iris_inst *inst = iris_get_inst(filp, NULL);
+	struct iris_inst *inst = iris_get_inst(filp);
 	int ret = 0;
 
 	mutex_lock(&inst->lock);
