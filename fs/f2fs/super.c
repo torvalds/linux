@@ -480,6 +480,9 @@ static void init_once(void *foo)
 	struct f2fs_inode_info *fi = (struct f2fs_inode_info *) foo;
 
 	inode_init_once(&fi->vfs_inode);
+#ifdef CONFIG_FS_ENCRYPTION
+	fi->i_crypt_info = NULL;
+#endif
 }
 
 #ifdef CONFIG_QUOTA
@@ -3570,6 +3573,8 @@ static struct block_device **f2fs_get_devices(struct super_block *sb,
 }
 
 static const struct fscrypt_operations f2fs_cryptops = {
+	.inode_info_offs	= (int)offsetof(struct f2fs_inode_info, i_crypt_info) -
+				  (int)offsetof(struct f2fs_inode_info, vfs_inode),
 	.needs_bounce_pages	= 1,
 	.has_32bit_inodes	= 1,
 	.supports_subblock_data_units = 1,
@@ -3581,7 +3586,7 @@ static const struct fscrypt_operations f2fs_cryptops = {
 	.has_stable_inodes	= f2fs_has_stable_inodes,
 	.get_devices		= f2fs_get_devices,
 };
-#endif
+#endif /* CONFIG_FS_ENCRYPTION */
 
 static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
 		u64 ino, u32 generation)
