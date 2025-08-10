@@ -166,11 +166,6 @@ static inline struct visl_ctx *visl_file_to_ctx(struct file *file)
 	return container_of(file_to_v4l2_fh(file), struct visl_ctx, fh);
 }
 
-static inline struct visl_ctx *visl_v4l2fh_to_ctx(struct v4l2_fh *v4l2_fh)
-{
-	return container_of(v4l2_fh, struct visl_ctx, fh);
-}
-
 void *visl_find_control_data(struct visl_ctx *ctx, u32 id);
 struct v4l2_ctrl *visl_find_control(struct visl_ctx *ctx, u32 id);
 u32 visl_control_num_elems(struct visl_ctx *ctx, u32 id);
