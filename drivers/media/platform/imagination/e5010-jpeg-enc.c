@@ -769,7 +769,7 @@ static int e5010_open(struct file *file)
 err_ctrls_setup:
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 exit:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	mutex_unlock(&e5010->mutex);
 free:
@@ -786,7 +786,7 @@ static int e5010_release(struct file *file)
 	mutex_lock(&e5010->mutex);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	mutex_unlock(&e5010->mutex);

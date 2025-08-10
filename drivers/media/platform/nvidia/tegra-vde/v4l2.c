@@ -856,7 +856,7 @@ static int tegra_release(struct file *file)
 	struct tegra_ctx *ctx = fh_to_tegra_ctx(fh);
 	struct tegra_vde *vde = ctx->vde;
 
-	v4l2_fh_del(fh);
+	v4l2_fh_del(fh, file);
 	v4l2_m2m_ctx_release(fh->m2m_ctx);
 	v4l2_ctrl_handler_free(&ctx->hdl);
 	v4l2_fh_exit(fh);

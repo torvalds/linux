@@ -3241,7 +3241,7 @@ static int allegro_release(struct file *file)
 
 	v4l2_ctrl_handler_free(&channel->ctrl_handler);
 
-	v4l2_fh_del(&channel->fh);
+	v4l2_fh_del(&channel->fh, file);
 	v4l2_fh_exit(&channel->fh);
 
 	kfree(channel);

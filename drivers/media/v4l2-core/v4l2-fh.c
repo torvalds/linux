@@ -67,7 +67,7 @@ int v4l2_fh_open(struct file *filp)
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_open);
 
-void v4l2_fh_del(struct v4l2_fh *fh)
+void v4l2_fh_del(struct v4l2_fh *fh, struct file *filp)
 {
 	unsigned long flags;
 
@@ -75,6 +75,8 @@ void v4l2_fh_del(struct v4l2_fh *fh)
 	list_del_init(&fh->list);
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 	v4l2_prio_close(fh->vdev->prio, fh->prio);
+
+	filp->private_data = NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_del);
 
@@ -94,10 +96,9 @@ int v4l2_fh_release(struct file *filp)
 	struct v4l2_fh *fh = file_to_v4l2_fh(filp);
 
 	if (fh) {
-		v4l2_fh_del(fh);
+		v4l2_fh_del(fh, filp);
 		v4l2_fh_exit(fh);
 		kfree(fh);
-		filp->private_data = NULL;
 	}
 	return 0;
 }

@@ -822,7 +822,7 @@ int my_release(struct file *file)
 	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 	...
-	v4l2_fh_del(&my_fh->fh);
+	v4l2_fh_del(&my_fh->fh, file);
 	v4l2_fh_exit(&my_fh->fh);
 	kfree(my_fh);
 	return 0;
@@ -840,7 +840,7 @@ void v4l2_fh_add(struct v4l2_fh *fh, struct file *filp)
   添加一个 v4l2_fh 到 video_device 文件句柄列表。一旦文件句柄
   初始化完成就必须调用。
 
-void v4l2_fh_del(struct v4l2_fh *fh)
+void v4l2_fh_del(struct v4l2_fh *fh, struct file *filp)
 
   从 video_device() 中解除文件句柄的关联。文件句柄的退出函数也
   将被调用。

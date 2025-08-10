@@ -30,8 +30,7 @@ static void iris_v4l2_fh_init(struct iris_inst *inst, struct file *filp)
 
 static void iris_v4l2_fh_deinit(struct iris_inst *inst, struct file *filp)
 {
-	filp->private_data = NULL;
-	v4l2_fh_del(&inst->fh);
+	v4l2_fh_del(&inst->fh, filp);
 	inst->fh.ctrl_handler = NULL;
 	v4l2_fh_exit(&inst->fh);
 }

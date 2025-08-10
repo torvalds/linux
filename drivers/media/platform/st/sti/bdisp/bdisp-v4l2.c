@@ -634,7 +634,7 @@ static int bdisp_open(struct file *file)
 
 error_ctrls:
 	bdisp_ctrls_delete(ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	bdisp_hw_free_nodes(ctx);
@@ -659,7 +659,7 @@ static int bdisp_release(struct file *file)
 
 	bdisp_ctrls_delete(ctx);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 
 	if (--bdisp->m2m.refcnt <= 0)

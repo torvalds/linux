@@ -1684,7 +1684,7 @@ static int delta_open(struct file *file)
 	return 0;
 
 err_fh_del:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 err:
@@ -1712,7 +1712,7 @@ static int delta_release(struct file *file)
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 
 	/* disable ST231 clocks */

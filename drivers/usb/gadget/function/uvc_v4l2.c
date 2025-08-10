@@ -692,8 +692,7 @@ uvc_v4l2_release(struct file *file)
 		uvc_v4l2_disable(uvc);
 	mutex_unlock(&video->mutex);
 
-	file->private_data = NULL;
-	v4l2_fh_del(&handle->vfh);
+	v4l2_fh_del(&handle->vfh, file);
 	v4l2_fh_exit(&handle->vfh);
 	kfree(handle);
 

@@ -2725,7 +2725,7 @@ err_clk_ahb:
 err_clk_enable:
 	pm_runtime_put_sync(dev->dev);
 err_pm_get:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 err_coda_name_init:
 	ida_free(&dev->ida, ctx->idx);
@@ -2763,7 +2763,7 @@ static int coda_release(struct file *file)
 	clk_disable_unprepare(dev->clk_ahb);
 	clk_disable_unprepare(dev->clk_per);
 	pm_runtime_put_sync(dev->dev);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	ida_free(&dev->ida, ctx->idx);
 	if (ctx->ops->release)

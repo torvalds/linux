@@ -900,9 +900,8 @@ static int pvr2_v4l2_release(struct file *file)
 		fhp->rhp = NULL;
 	}
 
-	v4l2_fh_del(&fhp->fh);
+	v4l2_fh_del(&fhp->fh, file);
 	v4l2_fh_exit(&fhp->fh);
-	file->private_data = NULL;
 
 	pvr2_channel_done(&fhp->channel);
 	pvr2_trace(PVR2_TRACE_STRUCT,

@@ -926,7 +926,7 @@ static int vdec_close(struct file *file)
 
 	v4l2_m2m_ctx_release(sess->m2m_ctx);
 	v4l2_m2m_release(sess->m2m_dev);
-	v4l2_fh_del(&sess->fh);
+	v4l2_fh_del(&sess->fh, file);
 	v4l2_fh_exit(&sess->fh);
 
 	mutex_destroy(&sess->lock);

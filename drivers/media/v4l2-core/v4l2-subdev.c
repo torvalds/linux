@@ -109,7 +109,7 @@ static int subdev_open(struct file *file)
 
 err:
 	module_put(subdev_fh->owner);
-	v4l2_fh_del(&subdev_fh->vfh);
+	v4l2_fh_del(&subdev_fh->vfh, file);
 	v4l2_fh_exit(&subdev_fh->vfh);
 	subdev_fh_free(subdev_fh);
 	kfree(subdev_fh);
@@ -127,11 +127,10 @@ static int subdev_close(struct file *file)
 	if (sd->internal_ops && sd->internal_ops->close)
 		sd->internal_ops->close(sd, subdev_fh);
 	module_put(subdev_fh->owner);
-	v4l2_fh_del(vfh);
+	v4l2_fh_del(vfh, file);
 	v4l2_fh_exit(vfh);
 	subdev_fh_free(subdev_fh);
 	kfree(subdev_fh);
-	file->private_data = NULL;
 
 	return 0;
 }

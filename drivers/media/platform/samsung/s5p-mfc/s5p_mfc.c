@@ -955,7 +955,7 @@ err_ctrls_setup:
 err_bad_node:
 	dev->ctx[ctx->num] = NULL;
 err_no_ctx:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 err_alloc:
@@ -1010,7 +1010,7 @@ static int s5p_mfc_release(struct file *file)
 	if (dev)
 		dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	/* vdev is gone if dev is null */
 	if (dev)
 		v4l2_fh_exit(&ctx->fh);

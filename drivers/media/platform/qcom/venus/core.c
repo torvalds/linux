@@ -607,7 +607,7 @@ void venus_close_common(struct venus_inst *inst, struct file *filp)
 	v4l2_m2m_ctx_release(inst->m2m_ctx);
 	v4l2_m2m_release(inst->m2m_dev);
 	hfi_session_destroy(inst);
-	v4l2_fh_del(&inst->fh);
+	v4l2_fh_del(&inst->fh, filp);
 	v4l2_fh_exit(&inst->fh);
 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
 

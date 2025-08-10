@@ -792,7 +792,7 @@ static int ipu_csc_scaler_open(struct file *file)
 err_ctrls:
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 err_ctx:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	return ret;
@@ -807,7 +807,7 @@ static int ipu_csc_scaler_release(struct file *file)
 
 	v4l2_ctrl_handler_free(&ctx->ctrl_hdlr);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 

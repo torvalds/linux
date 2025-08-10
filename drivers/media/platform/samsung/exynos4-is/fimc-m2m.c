@@ -663,7 +663,7 @@ error_m2m_ctx:
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 error_c:
 	fimc_ctrls_delete(ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
@@ -684,7 +684,7 @@ static int fimc_m2m_release(struct file *file)
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	fimc_ctrls_delete(ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 
 	if (--fimc->m2m.refcnt <= 0)

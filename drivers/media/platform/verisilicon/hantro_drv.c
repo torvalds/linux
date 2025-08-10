@@ -677,7 +677,7 @@ static int hantro_open(struct file *filp)
 	return 0;
 
 err_fh_free:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, filp);
 	v4l2_fh_exit(&ctx->fh);
 err_ctx_free:
 	kfree(ctx);
@@ -693,7 +693,7 @@ static int hantro_release(struct file *filp)
 	 * to this file.
 	 */
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, filp);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	kfree(ctx);

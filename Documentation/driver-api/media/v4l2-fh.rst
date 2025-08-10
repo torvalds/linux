@@ -65,7 +65,7 @@ Example:
 		struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 		...
-		v4l2_fh_del(&my_fh->fh);
+		v4l2_fh_del(&my_fh->fh, file);
 		v4l2_fh_exit(&my_fh->fh);
 		kfree(my_fh);
 		return 0;
@@ -86,7 +86,7 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
   Must be called once the file handle is completely initialized.
 
 :c:func:`v4l2_fh_del <v4l2_fh_del>`
-(:c:type:`fh <v4l2_fh>`)
+(:c:type:`fh <v4l2_fh>`, struct file \*filp)
 
 - Unassociate the file handle from :c:type:`video_device`. The file handle
   exit function may now be called.

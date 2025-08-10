@@ -114,12 +114,15 @@ int v4l2_fh_open(struct file *filp);
  * v4l2_fh_del - Remove file handle from the list of file handles.
  *
  * @fh: pointer to &struct v4l2_fh
+ * @filp: pointer to &struct file associated with @fh
+ *
+ * The function resets filp->private_data to NULL.
  *
  * .. note::
  *    Must be called in v4l2_file_operations->release\(\) handler if the driver
  *    uses &struct v4l2_fh.
  */
-void v4l2_fh_del(struct v4l2_fh *fh);
+void v4l2_fh_del(struct v4l2_fh *fh, struct file *filp);
 
 /**
  * v4l2_fh_exit - Release resources related to a file handle.

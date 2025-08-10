@@ -46,7 +46,7 @@ void wave5_cleanup_instance(struct vpu_instance *inst, struct file *filp)
 	wave5_vdi_free_dma_memory(inst->dev, &inst->bitstream_vbuf);
 	v4l2_ctrl_handler_free(&inst->v4l2_ctrl_hdl);
 	if (inst->v4l2_fh.vdev) {
-		v4l2_fh_del(&inst->v4l2_fh);
+		v4l2_fh_del(&inst->v4l2_fh, filp);
 		v4l2_fh_exit(&inst->v4l2_fh);
 	}
 	list_del_init(&inst->list);

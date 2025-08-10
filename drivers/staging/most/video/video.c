@@ -107,7 +107,7 @@ static int comp_vdev_open(struct file *filp)
 	return 0;
 
 err_rm:
-	v4l2_fh_del(&fh->fh);
+	v4l2_fh_del(&fh->fh, filp);
 	v4l2_fh_exit(&fh->fh);
 
 err_dec:
@@ -143,7 +143,7 @@ static int comp_vdev_close(struct file *filp)
 	most_stop_channel(mdev->iface, mdev->ch_idx, &comp);
 	mdev->mute = false;
 
-	v4l2_fh_del(&fh->fh);
+	v4l2_fh_del(&fh->fh, filp);
 	v4l2_fh_exit(&fh->fh);
 
 	atomic_dec(&mdev->access_ref);

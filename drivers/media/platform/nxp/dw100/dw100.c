@@ -667,7 +667,7 @@ static int dw100_release(struct file *file)
 {
 	struct dw100_ctx *ctx = dw100_file2ctx(file);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->hdl);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);

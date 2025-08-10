@@ -954,7 +954,7 @@ static int rkvdec_release(struct file *filp)
 {
 	struct rkvdec_ctx *ctx = file_to_rkvdec_ctx(filp);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, filp);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	v4l2_ctrl_handler_free(&ctx->ctrl_hdl);
 	v4l2_fh_exit(&ctx->fh);

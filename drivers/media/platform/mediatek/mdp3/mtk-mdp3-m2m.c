@@ -633,7 +633,7 @@ err_release_m2m_ctx:
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 err_release_handler:
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 err_exit_fh:
 	v4l2_fh_exit(&ctx->fh);
 	ida_free(&mdp->mdp_ida, ctx->id);
@@ -657,7 +657,7 @@ static int mdp_m2m_release(struct file *file)
 		mdp_vpu_put_locked(mdp);
 
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	ida_free(&mdp->mdp_ida, ctx->id);
 	mutex_unlock(&mdp->m2m_lock);

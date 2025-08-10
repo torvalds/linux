@@ -746,7 +746,7 @@ static int fops_release(struct file *file)
 		}
 	}
 
-	v4l2_fh_del(&fh->fh);
+	v4l2_fh_del(&fh->fh, file);
 	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 

@@ -911,7 +911,7 @@ int ivtv_v4l2_close(struct file *filp)
 		ivtv_unmute(itv);
 	}
 
-	v4l2_fh_del(fh);
+	v4l2_fh_del(fh, filp);
 	v4l2_fh_exit(fh);
 
 	/* Easy case first: this stream was never claimed by us */
@@ -1006,7 +1006,7 @@ static int ivtv_open(struct file *filp)
 			if (atomic_read(&itv->capturing) > 0) {
 				/* switching to radio while capture is
 				   in progress is not polite */
-				v4l2_fh_del(&item->fh);
+				v4l2_fh_del(&item->fh, filp);
 				v4l2_fh_exit(&item->fh);
 				kfree(item);
 				return -EBUSY;
