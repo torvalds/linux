@@ -90,19 +90,19 @@ bool btrfs_compress_is_valid_type(const char *str, size_t len)
 }
 
 static int compression_compress_pages(int type, struct list_head *ws,
-				      struct address_space *mapping, u64 start,
+				      struct btrfs_inode *inode, u64 start,
 				      struct folio **folios, unsigned long *out_folios,
 				      unsigned long *total_in, unsigned long *total_out)
 {
 	switch (type) {
 	case BTRFS_COMPRESS_ZLIB:
-		return zlib_compress_folios(ws, mapping, start, folios,
+		return zlib_compress_folios(ws, inode, start, folios,
 					    out_folios, total_in, total_out);
 	case BTRFS_COMPRESS_LZO:
-		return lzo_compress_folios(ws, mapping, start, folios,
+		return lzo_compress_folios(ws, inode, start, folios,
 					   out_folios, total_in, total_out);
 	case BTRFS_COMPRESS_ZSTD:
-		return zstd_compress_folios(ws, mapping, start, folios,
+		return zstd_compress_folios(ws, inode, start, folios,
 					    out_folios, total_in, total_out);
 	case BTRFS_COMPRESS_NONE:
 	default:
@@ -1034,7 +1034,7 @@ int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
  * @total_out is an in/out parameter, must be set to the input length and will
  * be also used to return the total number of compressed bytes
  */
-int btrfs_compress_folios(unsigned int type, int level, struct address_space *mapping,
+int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out)
 {
@@ -1044,7 +1044,7 @@ int btrfs_compress_folios(unsigned int type, int level, struct address_space *ma
 
 	level = btrfs_compress_set_level(type, level);
 	workspace = get_workspace(type, level);
-	ret = compression_compress_pages(type, workspace, mapping, start, folios,
+	ret = compression_compress_pages(type, workspace, inode, start, folios,
 					 out_folios, total_in, total_out);
 	/* The total read-in bytes should be no larger than the input. */
 	ASSERT(*total_in <= orig_len);

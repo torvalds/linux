@@ -88,7 +88,7 @@ int __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
 bool btrfs_compress_level_valid(unsigned int type, int level);
-int btrfs_compress_folios(unsigned int type, int level, struct address_space *mapping,
+int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inode,
 			  u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out);
 int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
@@ -155,7 +155,7 @@ int btrfs_compress_heuristic(struct btrfs_inode *inode, u64 start, u64 end);
 int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
 				     struct folio **in_folio_ret);
 
-int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
+int zlib_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
@@ -166,7 +166,7 @@ struct list_head *zlib_alloc_workspace(unsigned int level);
 void zlib_free_workspace(struct list_head *ws);
 struct list_head *zlib_get_workspace(unsigned int level);
 
-int lzo_compress_folios(struct list_head *ws, struct address_space *mapping,
+int lzo_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
@@ -176,7 +176,7 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 struct list_head *lzo_alloc_workspace(void);
 void lzo_free_workspace(struct list_head *ws);
 
-int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
+int zstd_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);

@@ -209,12 +209,13 @@ out:
 	return 0;
 }
 
-int lzo_compress_folios(struct list_head *ws, struct address_space *mapping,
+int lzo_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			u64 start, struct folio **folios, unsigned long *out_folios,
 			unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	const u32 sectorsize = inode_to_fs_info(mapping->host)->sectorsize;
+	const u32 sectorsize = inode->root->fs_info->sectorsize;
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	struct folio *folio_in = NULL;
 	char *sizes_ptr;
 	const unsigned long max_nr_folio = *out_folios;

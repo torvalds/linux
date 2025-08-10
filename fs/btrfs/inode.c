@@ -959,7 +959,7 @@ again:
 
 	/* Compression level is applied here. */
 	ret = btrfs_compress_folios(compress_type, compress_level,
-				    mapping, start, folios, &nr_folios, &total_in,
+				    inode, start, folios, &nr_folios, &total_in,
 				    &total_compressed);
 	if (ret)
 		goto mark_incompressible;

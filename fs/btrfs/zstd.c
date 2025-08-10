@@ -384,11 +384,12 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
+int zstd_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	zstd_cstream *stream;
 	int ret = 0;
 	int nr_folios = 0;
@@ -411,8 +412,6 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	stream = zstd_init_cstream(&workspace->params, len, workspace->mem,
 			workspace->size);
 	if (unlikely(!stream)) {
-		struct btrfs_inode *inode = BTRFS_I(mapping->host);
-
 		btrfs_err(inode->root->fs_info,
 	"zstd compression init level %d failed, root %llu inode %llu offset %llu",
 			  workspace->req_level, btrfs_root_id(inode->root),
@@ -447,8 +446,6 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 		ret2 = zstd_compress_stream(stream, &workspace->out_buf,
 				&workspace->in_buf);
 		if (unlikely(zstd_is_error(ret2))) {
-			struct btrfs_inode *inode = BTRFS_I(mapping->host);
-
 			btrfs_warn(inode->root->fs_info,
 "zstd compression level %d failed, error %d root %llu inode %llu offset %llu",
 				   workspace->req_level, zstd_get_error_code(ret2),
@@ -522,8 +519,6 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 		ret2 = zstd_end_stream(stream, &workspace->out_buf);
 		if (unlikely(zstd_is_error(ret2))) {
-			struct btrfs_inode *inode = BTRFS_I(mapping->host);
-
 			btrfs_err(inode->root->fs_info,
 "zstd compression end level %d failed, error %d root %llu inode %llu offset %llu",
 				  workspace->req_level, zstd_get_error_code(ret2),

@@ -133,11 +133,12 @@ static int copy_data_into_buffer(struct address_space *mapping,
 	return 0;
 }
 
-int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
+int zlib_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	int ret;
 	char *data_in = NULL;
 	char *cfolio_out;
@@ -155,8 +156,6 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 	ret = zlib_deflateInit(&workspace->strm, workspace->level);
 	if (unlikely(ret != Z_OK)) {
-		struct btrfs_inode *inode = BTRFS_I(mapping->host);
-
 		btrfs_err(inode->root->fs_info,
 	"zlib compression init failed, error %d root %llu inode %llu offset %llu",
 			  ret, btrfs_root_id(inode->root), btrfs_ino(inode), start);
@@ -225,8 +224,6 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 		ret = zlib_deflate(&workspace->strm, Z_SYNC_FLUSH);
 		if (unlikely(ret != Z_OK)) {
-			struct btrfs_inode *inode = BTRFS_I(mapping->host);
-
 			btrfs_warn(inode->root->fs_info,
 		"zlib compression failed, error %d root %llu inode %llu offset %llu",
 				   ret, btrfs_root_id(inode->root), btrfs_ino(inode),
