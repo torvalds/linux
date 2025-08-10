@@ -101,6 +101,9 @@ void v4l2_fh_add(struct v4l2_fh *fh);
  *
  * It allocates a v4l2_fh and inits and adds it to the &struct video_device
  * associated with the file pointer.
+ *
+ * On error filp->private_data will be %NULL, otherwise it will point to
+ * the &struct v4l2_fh.
  */
 int v4l2_fh_open(struct file *filp);
 
@@ -108,9 +111,6 @@ int v4l2_fh_open(struct file *filp);
  * v4l2_fh_del - Remove file handle from the list of file handles.
  *
  * @fh: pointer to &struct v4l2_fh
- *
- * On error filp->private_data will be %NULL, otherwise it will point to
- * the &struct v4l2_fh.
  *
  * .. note::
  *    Must be called in v4l2_file_operations->release\(\) handler if the driver
