@@ -1313,13 +1313,13 @@ void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new);
  * v4l2_ctrl_log_status - helper function to implement %VIDIOC_LOG_STATUS ioctl
  *
  * @file: pointer to struct file
- * @fh: unused. Kept just to be compatible to the arguments expected by
+ * @priv: unused. Kept just to be compatible to the arguments expected by
  *	&struct v4l2_ioctl_ops.vidioc_log_status.
  *
  * Can be used as a vidioc_log_status function that just dumps all controls
  * associated with the filehandle.
  */
-int v4l2_ctrl_log_status(struct file *file, void *fh);
+int v4l2_ctrl_log_status(struct file *file, void *priv);
 
 /**
  * v4l2_ctrl_subscribe_event - Subscribes to an event

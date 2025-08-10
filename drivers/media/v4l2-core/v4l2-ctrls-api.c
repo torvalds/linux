@@ -1250,7 +1250,7 @@ EXPORT_SYMBOL(v4l2_querymenu);
  * VIDIOC_LOG_STATUS helpers
  */
 
-int v4l2_ctrl_log_status(struct file *file, void *fh)
+int v4l2_ctrl_log_status(struct file *file, void *priv)
 {
 	struct video_device *vfd = video_devdata(file);
 
