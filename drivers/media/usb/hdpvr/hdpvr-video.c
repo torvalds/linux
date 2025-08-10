@@ -381,7 +381,7 @@ static int hdpvr_open(struct file *file)
 	fh->legacy_mode = true;
 	v4l2_fh_init(&fh->fh, video_devdata(file));
 	v4l2_fh_add(&fh->fh);
-	file->private_data = fh;
+	file->private_data = &fh->fh;
 	return 0;
 }
 
