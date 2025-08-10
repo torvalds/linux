@@ -3,7 +3,7 @@
  * v4l2-fh.h
  *
  * V4L2 file handle. Store per file handle data for the V4L2
- * framework. Using file handles is optional for the drivers.
+ * framework. Using file handles is mandatory for the drivers.
  *
  * Copyright (C) 2009--2010 Nokia Corporation.
  *

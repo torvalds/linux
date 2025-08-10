@@ -425,14 +425,26 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
 
-	if (video_is_registered(vdev))
-		ret = vdev->fops->open(filp);
-	else
+	if (!video_is_registered(vdev)) {
 		ret = -ENODEV;
+		goto done;
+	}
 
+	ret = vdev->fops->open(filp);
+	if (ret)
+		goto done;
+
+	/* All drivers must use v4l2_fh. */
+	if (WARN_ON(!test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))) {
+		vdev->fops->release(filp);
+		ret = -ENODEV;
+	}
+
+done:
 	if (vdev->dev_debug & V4L2_DEV_DEBUG_FOP)
 		dprintk("%s: open (%d)\n",
 			video_device_node_name(vdev), ret);
+
 	/* decrease the refcount in case of an error */
 	if (ret)
 		video_put(vdev);
@@ -1114,8 +1126,7 @@ void video_unregister_device(struct video_device *vdev)
 	 */
 	clear_bit(V4L2_FL_REGISTERED, &vdev->flags);
 	mutex_unlock(&videodev_lock);
-	if (test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))
-		v4l2_event_wake_all(vdev);
+	v4l2_event_wake_all(vdev);
 	device_unregister(&vdev->dev);
 }
 EXPORT_SYMBOL(video_unregister_device);

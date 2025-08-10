@@ -3,13 +3,8 @@
 V4L2 File handles
 -----------------
 
-struct v4l2_fh provides a way to easily keep file handle specific
-data that is used by the V4L2 framework.
-
-.. attention::
-	New drivers must use struct v4l2_fh
-	since it is also used to implement priority handling
-	(:ref:`VIDIOC_G_PRIORITY`).
+struct v4l2_fh provides a way to easily keep file handle specific data that is
+used by the V4L2 framework. Its usage is mandatory in all drivers.
 
 struct v4l2_fh is allocated in the driver's ``open()`` file operation handler.
 It is typically embedded in a larger driver-specific structure. The
@@ -133,12 +128,6 @@ associated device node:
 (struct file \*filp)
 
 - Same, but it calls v4l2_fh_is_singular with filp->private_data.
-
-.. note::
-        The V4L2 framework knows whether a driver uses :c:type:`v4l2_fh` as its
-        ``file->private_data`` pointer by testing the ``V4L2_FL_USES_V4L2_FH``
-        bit in :c:type:`video_device`->flags. This bit is set whenever
-        :c:func:`v4l2_fh_init` is called.
 
 
 V4L2 fh functions and data structures

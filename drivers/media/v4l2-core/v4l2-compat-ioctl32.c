@@ -672,15 +672,12 @@ struct v4l2_ext_control32 {
 static inline bool ctrl_is_pointer(struct file *file, u32 id)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct v4l2_fh *fh = NULL;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct v4l2_ctrl_handler *hdl = NULL;
 	struct v4l2_query_ext_ctrl qec = { id };
 	const struct v4l2_ioctl_ops *ops = vdev->ioctl_ops;
 
-	if (test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))
-		fh = file_to_v4l2_fh(file);
-
-	if (fh && fh->ctrl_handler)
+	if (fh->ctrl_handler)
 		hdl = fh->ctrl_handler;
 	else if (vdev->ctrl_handler)
 		hdl = vdev->ctrl_handler;

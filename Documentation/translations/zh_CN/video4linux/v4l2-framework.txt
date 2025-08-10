@@ -775,11 +775,6 @@ v4l2_fh 结构体提供一个保存用于 V4L2 框架的文件句柄特定数据
 如果 video_device 标志，新驱动
 必须使用 v4l2_fh 结构体，因为它也用于实现优先级处理（VIDIOC_G/S_PRIORITY）。
 
-v4l2_fh 的用户（位于 V4l2 框架中，并非驱动）可通过测试
-video_device->flags 中的 V4L2_FL_USES_V4L2_FH 位得知驱动是否使用
-v4l2_fh 作为他的 file->private_data 指针。这个位会在调用 v4l2_fh_init()
-时被设置。
-
 v4l2_fh 结构体作为驱动自身文件句柄结构体的一部分被分配，且驱动在
 其打开函数中将 file->private_data 指向它。
 
