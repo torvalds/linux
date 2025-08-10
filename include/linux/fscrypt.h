@@ -195,6 +195,22 @@ struct fscrypt_operations {
 int fscrypt_d_revalidate(struct inode *dir, const struct qstr *name,
 			 struct dentry *dentry, unsigned int flags);
 
+/*
+ * Load the inode's fscrypt info pointer, using a raw dereference.  Since this
+ * uses a raw dereference with no memory barrier, it is appropriate to use only
+ * when the caller knows the inode's key setup already happened, resulting in
+ * non-NULL fscrypt info.  E.g., the file contents en/decryption functions use
+ * this, since fscrypt_file_open() set up the key.
+ */
+static inline struct fscrypt_inode_info *
+fscrypt_get_inode_info_raw(const struct inode *inode)
+{
+	struct fscrypt_inode_info *ci = inode->i_crypt_info;
+
+	VFS_WARN_ON_ONCE(ci == NULL);
+	return ci;
+}
+
 static inline struct fscrypt_inode_info *
 fscrypt_get_inode_info(const struct inode *inode)
 {
