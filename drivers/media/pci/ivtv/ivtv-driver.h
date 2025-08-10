@@ -384,14 +384,9 @@ struct ivtv_open_id {
 	struct ivtv *itv;
 };
 
-static inline struct ivtv_open_id *fh2id(struct v4l2_fh *fh)
-{
-	return container_of(fh, struct ivtv_open_id, fh);
-}
-
 static inline struct ivtv_open_id *file2id(struct file *filp)
 {
-	return fh2id(file_to_v4l2_fh(filp));
+	return container_of(file_to_v4l2_fh(filp), struct ivtv_open_id, fh);
 }
 
 struct yuv_frame_info
