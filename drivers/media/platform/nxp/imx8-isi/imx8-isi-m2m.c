@@ -673,7 +673,6 @@ static int mxc_isi_m2m_open(struct file *file)
 	mutex_init(&ctx->vb2_lock);
 
 	v4l2_fh_init(&ctx->fh, vdev);
-	file->private_data = &ctx->fh;
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(m2m->m2m_dev, ctx,
 					    &mxc_isi_m2m_queue_init);
@@ -694,7 +693,7 @@ static int mxc_isi_m2m_open(struct file *file)
 	if (ret)
 		goto err_ctrls;
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	return 0;
 

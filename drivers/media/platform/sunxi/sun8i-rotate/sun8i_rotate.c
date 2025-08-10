@@ -659,7 +659,6 @@ static int rotate_open(struct file *file)
 	rotate_set_cap_format(ctx, &ctx->dst_fmt, ctx->rotate);
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dev = dev;
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx,
@@ -669,7 +668,7 @@ static int rotate_open(struct file *file)
 		goto err_free;
 	}
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	ret = rotate_setup_ctrls(ctx);
 	if (ret)

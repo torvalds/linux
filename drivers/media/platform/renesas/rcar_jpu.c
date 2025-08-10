@@ -1231,8 +1231,7 @@ static int jpu_open(struct file *file)
 
 	v4l2_fh_init(&ctx->fh, vfd);
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	ctx->jpu = jpu;
 	ctx->encoder = vfd == &jpu->vfd_encoder;

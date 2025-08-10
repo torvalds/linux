@@ -938,8 +938,7 @@ static int rkvdec_open(struct file *filp)
 	if (ret)
 		goto err_cleanup_m2m_ctx;
 
-	filp->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, filp);
 
 	return 0;
 

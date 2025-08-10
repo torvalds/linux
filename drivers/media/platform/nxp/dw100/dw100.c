@@ -607,7 +607,6 @@ static int dw100_open(struct file *file)
 
 	mutex_init(&ctx->vq_mutex);
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dw_dev = dw_dev;
 
 	ctx->q_data[DW100_QUEUE_SRC].fmt = &formats[0];
@@ -651,7 +650,7 @@ static int dw100_open(struct file *file)
 		goto err;
 	}
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	return 0;
 

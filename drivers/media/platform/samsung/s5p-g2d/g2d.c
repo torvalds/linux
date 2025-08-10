@@ -257,8 +257,7 @@ static int g2d_open(struct file *file)
 		return ret;
 	}
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	g2d_setup_ctrls(ctx);
 

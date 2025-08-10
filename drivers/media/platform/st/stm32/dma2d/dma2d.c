@@ -304,8 +304,7 @@ static int dma2d_open(struct file *file)
 	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	dma2d_setup_ctrls(ctx);
 

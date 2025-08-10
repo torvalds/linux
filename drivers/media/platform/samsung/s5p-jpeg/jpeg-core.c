@@ -970,8 +970,7 @@ static int s5p_jpeg_open(struct file *file)
 	v4l2_fh_init(&ctx->fh, vfd);
 	/* Use separate control handler per file handle */
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	ctx->jpeg = jpeg;
 	if (vfd == jpeg->vfd_encoder) {

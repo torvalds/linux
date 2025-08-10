@@ -725,8 +725,7 @@ static int fops_open(struct file *file)
 
 	fh->port = port;
 	v4l2_fh_init(&fh->fh, video_devdata(file));
-	v4l2_fh_add(&fh->fh);
-	file->private_data = &fh->fh;
+	v4l2_fh_add(&fh->fh, file);
 
 	return 0;
 }

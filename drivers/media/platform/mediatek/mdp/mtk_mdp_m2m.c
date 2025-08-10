@@ -1070,14 +1070,13 @@ static int mtk_mdp_m2m_open(struct file *file)
 	mutex_init(&ctx->slock);
 	ctx->id = mdp->id_counter++;
 	v4l2_fh_init(&ctx->fh, vfd);
-	file->private_data = &ctx->fh;
 	ret = mtk_mdp_ctrls_create(ctx);
 	if (ret)
 		goto error_ctrls;
 
 	/* Use separate control handler per file handle */
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 	INIT_LIST_HEAD(&ctx->list);
 
 	ctx->mdp_dev = mdp;

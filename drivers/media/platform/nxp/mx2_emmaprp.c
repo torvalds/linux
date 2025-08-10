@@ -730,7 +730,6 @@ static int emmaprp_open(struct file *file)
 		return -ENOMEM;
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dev = pcdev;
 
 	if (mutex_lock_interruptible(&pcdev->dev_mutex)) {
@@ -752,7 +751,7 @@ static int emmaprp_open(struct file *file)
 	clk_prepare_enable(pcdev->clk_emma_ahb);
 	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[1];
 	ctx->q_data[V4L2_M2M_DST].fmt = &formats[0];
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 	mutex_unlock(&pcdev->dev_mutex);
 
 	dprintk(pcdev, "Created instance %p, m2m_ctx: %p\n", ctx, ctx->fh.m2m_ctx);

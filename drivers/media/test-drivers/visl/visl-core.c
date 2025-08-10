@@ -341,7 +341,6 @@ static int visl_open(struct file *file)
 	ctx->tpg_str_buf = kzalloc(TPG_STR_BUF_SZ, GFP_KERNEL);
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dev = dev;
 
 	rc = visl_init_ctrls(ctx);
@@ -361,7 +360,7 @@ static int visl_open(struct file *file)
 	if (rc)
 		goto free_m2m_ctx;
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	dprintk(dev, "Created instance: %p, m2m_ctx: %p\n",
 		ctx, ctx->fh.m2m_ctx);

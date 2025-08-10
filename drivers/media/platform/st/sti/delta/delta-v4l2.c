@@ -1639,8 +1639,7 @@ static int delta_open(struct file *file)
 	ctx->dev = delta;
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	INIT_WORK(&ctx->run_work, delta_run_work);
 	mutex_init(&ctx->lock);

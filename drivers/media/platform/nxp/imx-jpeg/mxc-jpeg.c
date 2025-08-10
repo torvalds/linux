@@ -2205,8 +2205,7 @@ static int mxc_jpeg_open(struct file *file)
 	}
 
 	v4l2_fh_init(&ctx->fh, mxc_vfd);
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	ctx->mxc_jpeg = mxc_jpeg;
 

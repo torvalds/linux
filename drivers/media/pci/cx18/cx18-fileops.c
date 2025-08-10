@@ -743,8 +743,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	item->type = s->type;
 
 	item->open_id = cx->open_id++;
-	filp->private_data = &item->fh;
-	v4l2_fh_add(&item->fh);
+	v4l2_fh_add(&item->fh, filp);
 
 	if (item->type == CX18_ENC_STREAM_TYPE_RAD &&
 			v4l2_fh_is_singular_file(filp)) {

@@ -3219,8 +3219,7 @@ static int allegro_open(struct file *file)
 	}
 
 	list_add(&channel->list, &dev->channels);
-	file->private_data = &channel->fh;
-	v4l2_fh_add(&channel->fh);
+	v4l2_fh_add(&channel->fh, file);
 
 	allegro_channel_adjust(channel);
 

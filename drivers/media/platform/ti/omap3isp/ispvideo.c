@@ -1297,7 +1297,7 @@ static int isp_video_open(struct file *file)
 		return -ENOMEM;
 
 	v4l2_fh_init(&handle->vfh, &video->video);
-	v4l2_fh_add(&handle->vfh);
+	v4l2_fh_add(&handle->vfh, file);
 
 	/* If this is the first user, initialise the pipeline. */
 	if (omap3isp_get(video->isp) == NULL) {
@@ -1333,7 +1333,6 @@ static int isp_video_open(struct file *file)
 	handle->timeperframe.denominator = 1;
 
 	handle->video = video;
-	file->private_data = &handle->vfh;
 
 done:
 	if (ret < 0) {

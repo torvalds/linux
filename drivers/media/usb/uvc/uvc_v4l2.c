@@ -600,10 +600,9 @@ static int uvc_v4l2_open(struct file *file)
 		return -ENOMEM;
 
 	v4l2_fh_init(&handle->vfh, &stream->vdev);
-	v4l2_fh_add(&handle->vfh);
+	v4l2_fh_add(&handle->vfh, file);
 	handle->chain = stream->chain;
 	handle->stream = stream;
-	file->private_data = &handle->vfh;
 
 	return 0;
 }

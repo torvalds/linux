@@ -672,10 +672,9 @@ uvc_v4l2_open(struct file *file)
 		return -ENOMEM;
 
 	v4l2_fh_init(&handle->vfh, vdev);
-	v4l2_fh_add(&handle->vfh);
+	v4l2_fh_add(&handle->vfh, file);
 
 	handle->device = &uvc->video;
-	file->private_data = &handle->vfh;
 
 	return 0;
 }

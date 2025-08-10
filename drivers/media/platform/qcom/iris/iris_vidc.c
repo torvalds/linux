@@ -25,8 +25,7 @@ static void iris_v4l2_fh_init(struct iris_inst *inst, struct file *filp)
 {
 	v4l2_fh_init(&inst->fh, inst->core->vdev_dec);
 	inst->fh.ctrl_handler = &inst->ctrl_handler;
-	v4l2_fh_add(&inst->fh);
-	filp->private_data = &inst->fh;
+	v4l2_fh_add(&inst->fh, filp);
 }
 
 static void iris_v4l2_fh_deinit(struct iris_inst *inst, struct file *filp)

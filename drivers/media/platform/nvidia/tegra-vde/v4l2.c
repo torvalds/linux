@@ -832,8 +832,7 @@ static int tegra_open(struct file *file)
 		goto free_ctrls;
 	}
 
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	tegra_reset_coded_fmt(ctx);
 	tegra_try_coded_fmt(file, &ctx->fh, &ctx->coded_fmt);

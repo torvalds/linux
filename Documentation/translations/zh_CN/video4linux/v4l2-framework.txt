@@ -812,8 +812,7 @@ int my_open(struct file *file)
 
 	...
 
-	file->private_data = &my_fh->fh;
-	v4l2_fh_add(&my_fh->fh);
+	v4l2_fh_add(&my_fh->fh, file);
 	return 0;
 }
 
@@ -836,7 +835,7 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
   初始化文件句柄。这*必须*在驱动的 v4l2_file_operations->open()
   函数中执行。
 
-void v4l2_fh_add(struct v4l2_fh *fh)
+void v4l2_fh_add(struct v4l2_fh *fh, struct file *filp)
 
   添加一个 v4l2_fh 到 video_device 文件句柄列表。一旦文件句柄
   初始化完成就必须调用。

@@ -730,7 +730,6 @@ static int deinterlace_open(struct file *file)
 	deinterlace_prepare_format(&ctx->dst_fmt);
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dev = dev;
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx,
@@ -740,7 +739,7 @@ static int deinterlace_open(struct file *file)
 		goto err_free;
 	}
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	mutex_unlock(&dev->dev_mutex);
 

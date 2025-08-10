@@ -87,11 +87,14 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
  * v4l2_fh_add - Add the fh to the list of file handles on a video_device.
  *
  * @fh: pointer to &struct v4l2_fh
+ * @filp: pointer to &struct file associated with @fh
+ *
+ * The function sets filp->private_data to point to @fh.
  *
  * .. note::
  *    The @fh file handle must be initialised first.
  */
-void v4l2_fh_add(struct v4l2_fh *fh);
+void v4l2_fh_add(struct v4l2_fh *fh, struct file *filp);
 
 /**
  * v4l2_fh_open - Ancillary routine that can be used as the open\(\) op

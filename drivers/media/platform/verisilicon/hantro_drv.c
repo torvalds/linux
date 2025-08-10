@@ -663,8 +663,7 @@ static int hantro_open(struct file *filp)
 	}
 
 	v4l2_fh_init(&ctx->fh, vdev);
-	filp->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, filp);
 
 	hantro_reset_fmts(ctx);
 

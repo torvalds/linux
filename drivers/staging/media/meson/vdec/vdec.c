@@ -908,9 +908,8 @@ static int vdec_open(struct file *file)
 
 	v4l2_fh_init(&sess->fh, core->vdev_dec);
 	sess->fh.ctrl_handler = &sess->ctrl_handler;
-	v4l2_fh_add(&sess->fh);
+	v4l2_fh_add(&sess->fh, file);
 	sess->fh.m2m_ctx = sess->m2m_ctx;
-	file->private_data = &sess->fh;
 
 	return 0;
 

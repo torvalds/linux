@@ -608,8 +608,7 @@ static int bdisp_open(struct file *file)
 
 	/* Use separate control handler per file handle */
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	/* Default format */
 	ctx->src = bdisp_dflt_fmt;

@@ -998,9 +998,7 @@ static int ivtv_open(struct file *filp)
 	v4l2_fh_init(&item->fh, &s->vdev);
 	item->itv = itv;
 	item->type = s->type;
-
-	filp->private_data = &item->fh;
-	v4l2_fh_add(&item->fh);
+	v4l2_fh_add(&item->fh, filp);
 
 	if (item->type == IVTV_ENC_STREAM_TYPE_RAD &&
 			v4l2_fh_is_singular_file(filp)) {

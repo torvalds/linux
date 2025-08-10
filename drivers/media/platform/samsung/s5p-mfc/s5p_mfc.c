@@ -801,8 +801,7 @@ static int s5p_mfc_open(struct file *file)
 	}
 	init_waitqueue_head(&ctx->queue);
 	v4l2_fh_init(&ctx->fh, vdev);
-	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 	ctx->dev = dev;
 	INIT_LIST_HEAD(&ctx->src_queue);
 	INIT_LIST_HEAD(&ctx->dst_queue);

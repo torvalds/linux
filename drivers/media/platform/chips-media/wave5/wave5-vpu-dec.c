@@ -1761,8 +1761,7 @@ static int wave5_vpu_open_dec(struct file *filp)
 		return -ENOMEM;
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
-	filp->private_data = &inst->v4l2_fh;
-	v4l2_fh_add(&inst->v4l2_fh);
+	v4l2_fh_add(&inst->v4l2_fh, filp);
 
 	INIT_LIST_HEAD(&inst->list);
 

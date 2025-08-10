@@ -1079,9 +1079,7 @@ static int vsp1_video_open(struct file *file)
 		return -ENOMEM;
 
 	v4l2_fh_init(vfh, &video->video);
-	v4l2_fh_add(vfh);
-
-	file->private_data = vfh;
+	v4l2_fh_add(vfh, file);
 
 	ret = vsp1_device_get(video->vsp1);
 	if (ret < 0) {

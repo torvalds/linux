@@ -96,9 +96,7 @@ static int comp_vdev_open(struct file *filp)
 
 	fh->mdev = mdev;
 	v4l2_fh_init(&fh->fh, vdev);
-	filp->private_data = &fh->fh;
-
-	v4l2_fh_add(&fh->fh);
+	v4l2_fh_add(&fh->fh, filp);
 
 	ret = most_start_channel(mdev->iface, mdev->ch_idx, &comp);
 	if (ret) {

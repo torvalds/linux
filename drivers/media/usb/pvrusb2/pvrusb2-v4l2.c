@@ -1003,10 +1003,9 @@ static int pvr2_v4l2_open(struct file *file)
 	}
 
 	fhp->file = file;
-	file->private_data = &fhp->fh;
 
 	fhp->fw_mode_flag = pvr2_hdw_cpufw_get_enabled(hdw);
-	v4l2_fh_add(&fhp->fh);
+	v4l2_fh_add(&fhp->fh, file);
 
 	return 0;
 }

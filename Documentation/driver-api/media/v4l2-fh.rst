@@ -11,25 +11,22 @@ data that is used by the V4L2 framework.
 	since it is also used to implement priority handling
 	(:ref:`VIDIOC_G_PRIORITY`).
 
-The users of :c:type:`v4l2_fh` (in the V4L2 framework, not the driver) know
-whether a driver uses :c:type:`v4l2_fh` as its ``file->private_data`` pointer
-by testing the ``V4L2_FL_USES_V4L2_FH`` bit in :c:type:`video_device`->flags.
-This bit is set whenever :c:func:`v4l2_fh_init` is called.
+struct v4l2_fh is allocated in the driver's ``open()`` file operation handler.
+It is typically embedded in a larger driver-specific structure. The
+:c:type:`v4l2_fh` must be initialized with a call to :c:func:`v4l2_fh_init`,
+and added to the video device with :c:func:`v4l2_fh_add`. This associates the
+:c:type:`v4l2_fh` with the :c:type:`file` by setting ``file->private_data`` to
+point to the :c:type:`v4l2_fh`.
 
-struct v4l2_fh is allocated as a part of the driver's own file handle
-structure and ``file->private_data`` is set to it in the driver's ``open()``
-function by the driver. The :c:type:`v4l2_fh` file handle can be retrieved
-from the :c:type:`file` using :c:func:`file_to_v4l2_fh`. Drivers must not
-access ``file->private_data`` directly.
+Similarly, the struct v4l2_fh is freed in the driver's ``release()`` file
+operation handler. It must be removed from the video device with
+:c:func:`v4l2_fh_del` and cleaned up with :c:func:`v4l2_fh_exit` before being
+freed.
 
-In many cases the struct v4l2_fh will be embedded in a larger
-structure. In that case you should call:
-
-#) :c:func:`v4l2_fh_init` and :c:func:`v4l2_fh_add` in ``open()``
-#) :c:func:`v4l2_fh_del` and :c:func:`v4l2_fh_exit` in ``release()``
-
-Drivers can extract their own file handle structure by using the container_of
-macro.
+Drivers must not access ``file->private_data`` directly. They can retrieve the
+:c:type:`v4l2_fh` associated with a :c:type:`file` by calling
+:c:func:`file_to_v4l2_fh`. Drivers can extract their own file handle structure
+by using the container_of macro.
 
 Example:
 
@@ -58,8 +55,7 @@ Example:
 
 		...
 
-		file->private_data = &my_fh->fh;
-		v4l2_fh_add(&my_fh->fh);
+		v4l2_fh_add(&my_fh->fh, file);
 		return 0;
 	}
 
@@ -84,7 +80,7 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
   :c:type:`v4l2_file_operations`->open() handler.
 
 :c:func:`v4l2_fh_add <v4l2_fh_add>`
-(:c:type:`fh <v4l2_fh>`)
+(:c:type:`fh <v4l2_fh>`, struct file \*filp)
 
 - Add a :c:type:`v4l2_fh` to :c:type:`video_device` file handle list.
   Must be called once the file handle is completely initialized.
@@ -137,6 +133,12 @@ associated device node:
 (struct file \*filp)
 
 - Same, but it calls v4l2_fh_is_singular with filp->private_data.
+
+.. note::
+        The V4L2 framework knows whether a driver uses :c:type:`v4l2_fh` as its
+        ``file->private_data`` pointer by testing the ``V4L2_FL_USES_V4L2_FH``
+        bit in :c:type:`video_device`->flags. This bit is set whenever
+        :c:func:`v4l2_fh_init` is called.
 
 
 V4L2 fh functions and data structures
