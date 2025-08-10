@@ -691,7 +691,7 @@ static inline bool ctrl_is_pointer(struct file *file, u32 id)
 	if (!ops || !ops->vidioc_query_ext_ctrl)
 		return false;
 
-	return !ops->vidioc_query_ext_ctrl(file, fh, &qec) &&
+	return !ops->vidioc_query_ext_ctrl(file, NULL, &qec) &&
 		(qec.flags & V4L2_CTRL_FLAG_HAS_PAYLOAD);
 }
 
