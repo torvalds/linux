@@ -26,7 +26,7 @@
 static int uvc_meta_v4l2_querycap(struct file *file, void *fh,
 				  struct v4l2_capability *cap)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_video_chain *chain = stream->chain;
 
@@ -42,7 +42,7 @@ static int uvc_meta_v4l2_querycap(struct file *file, void *fh,
 static int uvc_meta_v4l2_get_format(struct file *file, void *fh,
 				    struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
 
@@ -60,7 +60,7 @@ static int uvc_meta_v4l2_get_format(struct file *file, void *fh,
 static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 				    struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
@@ -86,7 +86,7 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 static int uvc_meta_v4l2_set_format(struct file *file, void *fh,
 				    struct v4l2_format *format)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
 	int ret;
@@ -115,7 +115,7 @@ static int uvc_meta_v4l2_set_format(struct file *file, void *fh,
 static int uvc_meta_v4l2_enum_formats(struct file *file, void *fh,
 				      struct v4l2_fmtdesc *fdesc)
 {
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
 	u32 i = fdesc->index;

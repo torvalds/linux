@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-V4L2 File handlers
-------------------
+V4L2 File handles
+-----------------
 
 struct v4l2_fh provides a way to easily keep file handle specific
 data that is used by the V4L2 framework.
@@ -18,7 +18,9 @@ This bit is set whenever :c:func:`v4l2_fh_init` is called.
 
 struct v4l2_fh is allocated as a part of the driver's own file handle
 structure and ``file->private_data`` is set to it in the driver's ``open()``
-function by the driver.
+function by the driver. The :c:type:`v4l2_fh` file handle can be retrieved
+from the :c:type:`file` using :c:func:`file_to_v4l2_fh`. Drivers must not
+access ``file->private_data`` directly.
 
 In many cases the struct v4l2_fh will be embedded in a larger
 structure. In that case you should call:
@@ -63,7 +65,7 @@ Example:
 
 	int my_release(struct file *file)
 	{
-		struct v4l2_fh *fh = file->private_data;
+		struct v4l2_fh *fh = file_to_v4l2_fh(file);
 		struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 		...
@@ -78,10 +80,8 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
 :c:func:`v4l2_fh_init <v4l2_fh_init>`
 (:c:type:`fh <v4l2_fh>`, :c:type:`vdev <video_device>`)
 
-
 - Initialise the file handle. This **MUST** be performed in the driver's
   :c:type:`v4l2_file_operations`->open() handler.
-
 
 :c:func:`v4l2_fh_add <v4l2_fh_add>`
 (:c:type:`fh <v4l2_fh>`)
@@ -101,6 +101,10 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
 - Uninitialise the file handle. After uninitialisation the :c:type:`v4l2_fh`
   memory can be freed.
 
+:c:func:`file_to_v4l2_fh <file_to_v4l2_fh>`
+(struct file \*filp)
+
+- Retrieve the :c:type:`v4l2_fh` instance associated with a :c:type:`file`.
 
 If struct v4l2_fh is not embedded, then you can use these helper functions:
 

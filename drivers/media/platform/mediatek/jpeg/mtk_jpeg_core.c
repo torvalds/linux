@@ -588,7 +588,7 @@ static int mtk_jpeg_enc_s_selection(struct file *file, void *priv,
 
 static int mtk_jpeg_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct mtk_jpeg_ctx *ctx = mtk_jpeg_fh_to_ctx(priv);
 	struct vb2_queue *vq;
 	struct vb2_buffer *vb;

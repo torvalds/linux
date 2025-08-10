@@ -3483,7 +3483,7 @@ static int allegro_enum_framesizes(struct file *file, void *fh,
 static int allegro_ioctl_streamon(struct file *file, void *priv,
 				  enum v4l2_buf_type type)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct allegro_channel *channel = fh_to_channel(fh);
 	int err;
 

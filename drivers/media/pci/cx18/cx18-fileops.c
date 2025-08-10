@@ -678,7 +678,7 @@ void cx18_stop_capture(struct cx18_stream *s, int gop_end)
 
 int cx18_v4l2_close(struct file *filp)
 {
-	struct v4l2_fh *fh = filp->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(filp);
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];

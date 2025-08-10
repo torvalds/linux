@@ -57,6 +57,20 @@ struct v4l2_fh {
 };
 
 /**
+ * file_to_v4l2_fh - Return the v4l2_fh associated with a struct file
+ *
+ * @filp: pointer to &struct file
+ *
+ * This function should be used by drivers to retrieve the &struct v4l2_fh
+ * instance pointer stored in the file private_data instead of accessing the
+ * private_data field directly.
+ */
+static inline struct v4l2_fh *file_to_v4l2_fh(struct file *filp)
+{
+	return filp->private_data;
+}
+
+/**
  * v4l2_fh_init - Initialise the file handle.
  *
  * @fh: pointer to &struct v4l2_fh

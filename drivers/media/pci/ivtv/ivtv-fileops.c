@@ -877,7 +877,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 
 int ivtv_v4l2_close(struct file *filp)
 {
-	struct v4l2_fh *fh = filp->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(filp);
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];

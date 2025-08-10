@@ -122,7 +122,7 @@ static int subdev_close(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 
 	if (sd->internal_ops && sd->internal_ops->close)
@@ -612,7 +612,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 	bool ro_subdev = test_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
 	bool streams_subdev = sd->flags & V4L2_SUBDEV_FL_STREAMS;
@@ -1135,7 +1135,7 @@ static long subdev_do_ioctl_lock(struct file *file, unsigned int cmd, void *arg)
 
 	if (video_is_registered(vdev)) {
 		struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-		struct v4l2_fh *vfh = file->private_data;
+		struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 		struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 		struct v4l2_subdev_state *state;
 
@@ -1192,7 +1192,7 @@ static __poll_t subdev_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
 		return EPOLLERR;

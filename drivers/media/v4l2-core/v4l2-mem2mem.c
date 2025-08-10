@@ -971,7 +971,7 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		rc = v4l2_m2m_poll_for_data(file, m2m_ctx, wait);
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
-		struct v4l2_fh *fh = file->private_data;
+		struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 		poll_wait(file, &fh->wait, wait);
 		if (v4l2_event_pending(fh))
@@ -1004,7 +1004,7 @@ unsigned long v4l2_m2m_get_unmapped_area(struct file *file, unsigned long addr,
 					 unsigned long len, unsigned long pgoff,
 					 unsigned long flags)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	unsigned long offset = pgoff << PAGE_SHIFT;
 	struct vb2_queue *vq;
 
@@ -1371,7 +1371,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_request_queue);
 int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
 				struct v4l2_requestbuffers *rb)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_reqbufs(file, fh->m2m_ctx, rb);
 }
@@ -1380,7 +1380,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_reqbufs);
 int v4l2_m2m_ioctl_create_bufs(struct file *file, void *priv,
 				struct v4l2_create_buffers *create)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_create_bufs(file, fh->m2m_ctx, create);
 }
@@ -1389,7 +1389,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_create_bufs);
 int v4l2_m2m_ioctl_remove_bufs(struct file *file, void *priv,
 			       struct v4l2_remove_buffers *remove)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct vb2_queue *q = v4l2_m2m_get_vq(fh->m2m_ctx, remove->type);
 
 	if (!q)
@@ -1404,7 +1404,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_remove_bufs);
 int v4l2_m2m_ioctl_querybuf(struct file *file, void *priv,
 				struct v4l2_buffer *buf)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_querybuf(file, fh->m2m_ctx, buf);
 }
@@ -1413,7 +1413,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_querybuf);
 int v4l2_m2m_ioctl_qbuf(struct file *file, void *priv,
 				struct v4l2_buffer *buf)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_qbuf(file, fh->m2m_ctx, buf);
 }
@@ -1422,7 +1422,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_qbuf);
 int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
 				struct v4l2_buffer *buf)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
 }
@@ -1431,7 +1431,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_dqbuf);
 int v4l2_m2m_ioctl_prepare_buf(struct file *file, void *priv,
 			       struct v4l2_buffer *buf)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_prepare_buf(file, fh->m2m_ctx, buf);
 }
@@ -1440,7 +1440,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_prepare_buf);
 int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
 				struct v4l2_exportbuffer *eb)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_expbuf(file, fh->m2m_ctx, eb);
 }
@@ -1449,7 +1449,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_expbuf);
 int v4l2_m2m_ioctl_streamon(struct file *file, void *priv,
 				enum v4l2_buf_type type)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_streamon(file, fh->m2m_ctx, type);
 }
@@ -1458,7 +1458,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamon);
 int v4l2_m2m_ioctl_streamoff(struct file *file, void *priv,
 				enum v4l2_buf_type type)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_streamoff(file, fh->m2m_ctx, type);
 }
@@ -1542,7 +1542,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_decoder_cmd);
 int v4l2_m2m_ioctl_encoder_cmd(struct file *file, void *priv,
 			       struct v4l2_encoder_cmd *ec)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_encoder_cmd(file, fh->m2m_ctx, ec);
 }
@@ -1551,7 +1551,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_encoder_cmd);
 int v4l2_m2m_ioctl_decoder_cmd(struct file *file, void *priv,
 			       struct v4l2_decoder_cmd *dc)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_decoder_cmd(file, fh->m2m_ctx, dc);
 }
@@ -1572,7 +1572,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_stateless_try_decoder_cmd);
 int v4l2_m2m_ioctl_stateless_decoder_cmd(struct file *file, void *priv,
 					 struct v4l2_decoder_cmd *dc)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct vb2_v4l2_buffer *out_vb, *cap_vb;
 	struct v4l2_m2m_dev *m2m_dev = fh->m2m_ctx->m2m_dev;
 	unsigned long flags;
@@ -1617,7 +1617,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_stateless_decoder_cmd);
 
 int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	return v4l2_m2m_mmap(file, fh->m2m_ctx, vma);
 }
@@ -1625,7 +1625,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
 
 __poll_t v4l2_m2m_fop_poll(struct file *file, poll_table *wait)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
 	__poll_t ret;
 

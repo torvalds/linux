@@ -1348,7 +1348,7 @@ done:
 static int isp_video_release(struct file *file)
 {
 	struct isp_video *video = video_drvdata(file);
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct isp_video_fh *handle = to_isp_video_fh(vfh);
 
 	/* Disable streaming and free the buffers queue resources. */

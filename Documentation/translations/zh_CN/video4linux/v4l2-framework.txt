@@ -819,7 +819,7 @@ int my_open(struct file *file)
 
 int my_release(struct file *file)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 	...

@@ -1253,7 +1253,7 @@ EXPORT_SYMBOL(v4l2_querymenu);
 int v4l2_ctrl_log_status(struct file *file, void *fh)
 {
 	struct video_device *vfd = video_devdata(file);
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags) && vfd->v4l2_dev)
 		v4l2_ctrl_handler_log_status(vfh->ctrl_handler,
@@ -1348,7 +1348,7 @@ EXPORT_SYMBOL(v4l2_ctrl_subdev_subscribe_event);
  */
 __poll_t v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	poll_wait(file, &fh->wait, wait);
 	if (v4l2_event_pending(fh))

@@ -1604,7 +1604,7 @@ end:
 static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 				struct v4l2_decoder_cmd *cmd)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(fh);
 	unsigned long flags;
 	int ret;
@@ -1637,7 +1637,7 @@ static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 static int mxc_jpeg_encoder_cmd(struct file *file, void *priv,
 				struct v4l2_encoder_cmd *cmd)
 {
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(fh);
 	unsigned long flags;
 	int ret;

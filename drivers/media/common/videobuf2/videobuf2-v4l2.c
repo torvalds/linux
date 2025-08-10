@@ -979,7 +979,7 @@ __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	res = vb2_core_poll(q, file, wait);
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
-		struct v4l2_fh *fh = file->private_data;
+		struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 		poll_wait(file, &fh->wait, wait);
 		if (v4l2_event_pending(fh))

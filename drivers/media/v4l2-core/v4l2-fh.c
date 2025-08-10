@@ -90,7 +90,7 @@ EXPORT_SYMBOL_GPL(v4l2_fh_exit);
 
 int v4l2_fh_release(struct file *filp)
 {
-	struct v4l2_fh *fh = filp->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(filp);
 
 	if (fh) {
 		v4l2_fh_del(fh);
