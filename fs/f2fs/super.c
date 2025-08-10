@@ -483,6 +483,9 @@ static void init_once(void *foo)
 #ifdef CONFIG_FS_ENCRYPTION
 	fi->i_crypt_info = NULL;
 #endif
+#ifdef CONFIG_FS_VERITY
+	fi->i_verity_info = NULL;
+#endif
 }
 
 #ifdef CONFIG_QUOTA
