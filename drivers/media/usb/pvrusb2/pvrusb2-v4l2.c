@@ -48,7 +48,7 @@ struct pvr2_v4l2_fh {
 
 static inline struct pvr2_v4l2_fh *to_pvr2_v4l2_fh(struct file *filp)
 {
-	return container_of(filp->private_data, struct pvr2_v4l2_fh, fh);
+	return container_of(file_to_v4l2_fh(filp), struct pvr2_v4l2_fh, fh);
 }
 
 struct pvr2_v4l2 {

@@ -414,7 +414,7 @@ static inline struct cx18_open_id *fh2id(struct v4l2_fh *fh)
 
 static inline struct cx18_open_id *file2id(struct file *file)
 {
-	return fh2id(file->private_data);
+	return fh2id(file_to_v4l2_fh(file));
 }
 
 /* forward declaration of struct defined in cx18-cards.h */

@@ -54,7 +54,7 @@ struct comp_fh {
 
 static inline struct comp_fh *to_comp_fh(struct file *filp)
 {
-	return container_of(filp->private_data, struct comp_fh, fh);
+	return container_of(file_to_v4l2_fh(filp), struct comp_fh, fh);
 }
 
 static LIST_HEAD(video_devices);

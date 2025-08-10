@@ -678,7 +678,7 @@ static inline bool ctrl_is_pointer(struct file *file, u32 id)
 	const struct v4l2_ioctl_ops *ops = vdev->ioctl_ops;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))
-		fh = file->private_data;
+		fh = file_to_v4l2_fh(file);
 
 	if (fh && fh->ctrl_handler)
 		hdl = fh->ctrl_handler;

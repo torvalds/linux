@@ -654,11 +654,11 @@ static int vivid_fop_release(struct file *file)
 		v4l2_info(&dev->v4l2_dev, "reconnect\n");
 		vivid_reconnect(dev);
 	}
-	if (file->private_data == dev->radio_rx_rds_owner) {
+	if (file_to_v4l2_fh(file) == dev->radio_rx_rds_owner) {
 		dev->radio_rx_rds_last_block = 0;
 		dev->radio_rx_rds_owner = NULL;
 	}
-	if (file->private_data == dev->radio_tx_rds_owner) {
+	if (file_to_v4l2_fh(file) == dev->radio_tx_rds_owner) {
 		dev->radio_tx_rds_last_block = 0;
 		dev->radio_tx_rds_owner = NULL;
 	}

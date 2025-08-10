@@ -69,7 +69,7 @@ static void iris_remove_session(struct iris_inst *inst)
 
 static inline struct iris_inst *iris_get_inst(struct file *filp, void *fh)
 {
-	return container_of(filp->private_data, struct iris_inst, fh);
+	return container_of(file_to_v4l2_fh(filp), struct iris_inst, fh);
 }
 
 static void iris_m2m_device_run(void *priv)

@@ -424,7 +424,7 @@ struct vpe_ctx {
 
 static inline struct vpe_ctx *to_vpe_ctx(struct file *filp)
 {
-	return container_of(filp->private_data, struct vpe_ctx, fh);
+	return container_of(file_to_v4l2_fh(filp), struct vpe_ctx, fh);
 }
 
 /*

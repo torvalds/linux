@@ -39,11 +39,11 @@ ssize_t vivid_radio_tx_write(struct file *file, const char __user *buf,
 	if (mutex_lock_interruptible(&dev->mutex))
 		return -ERESTARTSYS;
 	if (dev->radio_tx_rds_owner &&
-	    file->private_data != dev->radio_tx_rds_owner) {
+	    file_to_v4l2_fh(file) != dev->radio_tx_rds_owner) {
 		mutex_unlock(&dev->mutex);
 		return -EBUSY;
 	}
-	dev->radio_tx_rds_owner = file->private_data;
+	dev->radio_tx_rds_owner = file_to_v4l2_fh(file);
 
 retry:
 	timestamp = ktime_sub(ktime_get(), dev->radio_rds_init_time);

@@ -1197,7 +1197,7 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 	vfd = video_devdata(file);
 	if (!test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
 		return -ENOTTY;
-	vfh = file->private_data;
+	vfh = file_to_v4l2_fh(file);
 	return v4l2_prio_change(vfd->prio, &vfh->prio, *p);
 }
 
@@ -3084,7 +3084,7 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
-		vfh = file->private_data;
+		vfh = file_to_v4l2_fh(file);
 
 	/*
 	 * We need to serialize streamon/off with queueing new requests.

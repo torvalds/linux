@@ -170,7 +170,7 @@ static irqreturn_t rotate_irq(int irq, void *data)
 
 static inline struct rotate_ctx *rotate_file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct rotate_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct rotate_ctx, fh);
 }
 
 static void rotate_prepare_format(struct v4l2_pix_format *pix_fmt)

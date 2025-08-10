@@ -309,7 +309,7 @@ static void deinterlace_init(struct deinterlace_dev *dev)
 
 static inline struct deinterlace_ctx *deinterlace_file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct deinterlace_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct deinterlace_ctx, fh);
 }
 
 static bool deinterlace_check_format(u32 pixelformat)

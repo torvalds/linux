@@ -144,7 +144,7 @@ static const struct v4l2_event vicodec_eos_event = {
 
 static inline struct vicodec_ctx *file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct vicodec_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct vicodec_ctx, fh);
 }
 
 static struct vicodec_q_data *get_q_data(struct vicodec_ctx *ctx,

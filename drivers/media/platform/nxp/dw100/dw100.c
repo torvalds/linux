@@ -266,7 +266,7 @@ static inline int dw100_dump_regs(struct seq_file *m)
 
 static inline struct dw100_ctx *dw100_file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct dw100_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct dw100_ctx, fh);
 }
 
 static struct dw100_q_data *dw100_get_q_data(struct dw100_ctx *ctx,

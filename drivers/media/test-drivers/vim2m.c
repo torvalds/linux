@@ -236,7 +236,7 @@ struct vim2m_ctx {
 
 static inline struct vim2m_ctx *file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct vim2m_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct vim2m_ctx, fh);
 }
 
 static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,

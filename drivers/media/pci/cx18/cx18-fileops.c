@@ -709,7 +709,7 @@ int cx18_v4l2_close(struct file *filp)
 	}
 
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV &&
-	    filp->private_data == vdev->queue->owner) {
+	    file_to_v4l2_fh(filp) == vdev->queue->owner) {
 		vb2_queue_release(vdev->queue);
 		vdev->queue->owner = NULL;
 	}

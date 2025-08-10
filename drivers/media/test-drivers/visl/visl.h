@@ -163,7 +163,7 @@ struct visl_ctrl_desc {
 
 static inline struct visl_ctx *visl_file_to_ctx(struct file *file)
 {
-	return container_of(file->private_data, struct visl_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct visl_ctx, fh);
 }
 
 static inline struct visl_ctx *visl_v4l2fh_to_ctx(struct v4l2_fh *v4l2_fh)

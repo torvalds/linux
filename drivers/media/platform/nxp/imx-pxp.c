@@ -248,7 +248,7 @@ struct pxp_ctx {
 
 static inline struct pxp_ctx *file2ctx(struct file *file)
 {
-	return container_of(file->private_data, struct pxp_ctx, fh);
+	return container_of(file_to_v4l2_fh(file), struct pxp_ctx, fh);
 }
 
 static struct pxp_q_data *get_q_data(struct pxp_ctx *ctx,

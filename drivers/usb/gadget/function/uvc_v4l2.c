@@ -685,7 +685,7 @@ uvc_v4l2_release(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
-	struct uvc_file_handle *handle = to_uvc_file_handle(file->private_data);
+	struct uvc_file_handle *handle = file_to_uvc_file_handle(file);
 	struct uvc_video *video = handle->device;
 
 	mutex_lock(&video->mutex);

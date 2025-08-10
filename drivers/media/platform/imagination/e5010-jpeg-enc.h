@@ -122,7 +122,7 @@ struct e5010_context {
 
 static inline struct e5010_context *to_e5010_context(struct file *filp)
 {
-	return container_of(filp->private_data, struct e5010_context, fh);
+	return container_of(file_to_v4l2_fh(filp), struct e5010_context, fh);
 }
 
 /*

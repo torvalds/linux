@@ -390,7 +390,7 @@ static int hdpvr_release(struct file *file)
 	struct hdpvr_device *dev = video_drvdata(file);
 
 	mutex_lock(&dev->io_mutex);
-	if (file->private_data == dev->owner) {
+	if (file_to_v4l2_fh(file) == dev->owner) {
 		hdpvr_stop_streaming(dev);
 		dev->owner = NULL;
 	}
@@ -426,7 +426,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 			mutex_unlock(&dev->io_mutex);
 			goto err;
 		}
-		dev->owner = file->private_data;
+		dev->owner = file_to_v4l2_fh(file);
 		print_buffer_status();
 	}
 	mutex_unlock(&dev->io_mutex);
@@ -541,7 +541,7 @@ static __poll_t hdpvr_poll(struct file *filp, poll_table *wait)
 				 "start_streaming failed\n");
 			dev->status = STATUS_IDLE;
 		} else {
-			dev->owner = filp->private_data;
+			dev->owner = file_to_v4l2_fh(filp);
 		}
 
 		print_buffer_status();
@@ -1048,7 +1048,7 @@ static int vidioc_encoder_cmd(struct file *filp, void *priv,
 
 	switch (a->cmd) {
 	case V4L2_ENC_CMD_START:
-		if (dev->owner && filp->private_data != dev->owner) {
+		if (dev->owner && file_to_v4l2_fh(filp) != dev->owner) {
 			res = -EBUSY;
 			break;
 		}
@@ -1056,12 +1056,12 @@ static int vidioc_encoder_cmd(struct file *filp, void *priv,
 			break;
 		res = hdpvr_start_streaming(dev);
 		if (!res)
-			dev->owner = filp->private_data;
+			dev->owner = file_to_v4l2_fh(filp);
 		else
 			dev->status = STATUS_IDLE;
 		break;
 	case V4L2_ENC_CMD_STOP:
-		if (dev->owner && filp->private_data != dev->owner) {
+		if (dev->owner && file_to_v4l2_fh(filp) != dev->owner) {
 			res = -EBUSY;
 			break;
 		}

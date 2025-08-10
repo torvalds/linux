@@ -639,7 +639,7 @@ struct uvc_fh {
 
 static inline struct uvc_fh *to_uvc_fh(struct file *filp)
 {
-	return container_of(filp->private_data, struct uvc_fh, vfh);
+	return container_of(file_to_v4l2_fh(filp), struct uvc_fh, vfh);
 }
 
 /* ------------------------------------------------------------------------
