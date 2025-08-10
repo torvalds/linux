@@ -791,7 +791,7 @@ static int s3c_camif_vidioc_s_fmt(struct file *file, void *priv,
 	out_frame->rect.top = 0;
 
 	if (vp->owner == NULL)
-		vp->owner = priv;
+		vp->owner = file_to_v4l2_fh(file);
 
 	pr_debug("%ux%u. payload: %u. fmt: 0x%08x. %d %d. sizeimage: %d. bpl: %d\n",
 		 out_frame->f_width, out_frame->f_height, vp->payload,
@@ -841,7 +841,7 @@ static int s3c_camif_streamon(struct file *file, void *priv,
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	if (vp->owner && vp->owner != priv)
+	if (vp->owner && vp->owner != file_to_v4l2_fh(file))
 		return -EBUSY;
 
 	if (s3c_vp_active(vp))
@@ -872,7 +872,7 @@ static int s3c_camif_streamoff(struct file *file, void *priv,
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	if (vp->owner && vp->owner != priv)
+	if (vp->owner && vp->owner != file_to_v4l2_fh(file))
 		return -EBUSY;
 
 	ret = vb2_streamoff(&vp->vb_queue, type);
@@ -888,9 +888,9 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 	int ret;
 
 	pr_debug("[vp%d] rb count: %d, owner: %p, priv: %p\n",
-		 vp->id, rb->count, vp->owner, priv);
+		 vp->id, rb->count, vp->owner, file_to_v4l2_fh(file));
 
-	if (vp->owner && vp->owner != priv)
+	if (vp->owner && vp->owner != file_to_v4l2_fh(file))
 		return -EBUSY;
 
 	if (rb->count)
@@ -910,7 +910,7 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 
 	vp->reqbufs_count = rb->count;
 	if (vp->owner == NULL && rb->count > 0)
-		vp->owner = priv;
+		vp->owner = file_to_v4l2_fh(file);
 
 	return ret;
 }
@@ -929,7 +929,7 @@ static int s3c_camif_qbuf(struct file *file, void *priv,
 
 	pr_debug("[vp%d]\n", vp->id);
 
-	if (vp->owner && vp->owner != priv)
+	if (vp->owner && vp->owner != file_to_v4l2_fh(file))
 		return -EBUSY;
 
 	return vb2_qbuf(&vp->vb_queue, vp->vdev.v4l2_dev->mdev, buf);
@@ -942,7 +942,7 @@ static int s3c_camif_dqbuf(struct file *file, void *priv,
 
 	pr_debug("[vp%d] sequence: %d\n", vp->id, vp->frame_sequence);
 
-	if (vp->owner && vp->owner != priv)
+	if (vp->owner && vp->owner != file_to_v4l2_fh(file))
 		return -EBUSY;
 
 	return vb2_dqbuf(&vp->vb_queue, buf, file->f_flags & O_NONBLOCK);
@@ -954,14 +954,14 @@ static int s3c_camif_create_bufs(struct file *file, void *priv,
 	struct camif_vp *vp = video_drvdata(file);
 	int ret;
 
-	if (vp->owner && vp->owner != priv)
+	if (vp->owner && vp->owner != file_to_v4l2_fh(file))
 		return -EBUSY;
 
 	create->count = max_t(u32, 1, create->count);
 	ret = vb2_create_bufs(&vp->vb_queue, create);
 
 	if (!ret && vp->owner == NULL)
-		vp->owner = priv;
+		vp->owner = file_to_v4l2_fh(file);
 
 	return ret;
 }
