@@ -190,8 +190,15 @@ void __fsverity_cleanup_inode(struct inode *inode);
  */
 static inline void fsverity_cleanup_inode(struct inode *inode)
 {
-	if (*fsverity_info_addr(inode))
+	/*
+	 * Only IS_VERITY() inodes can have verity info, so start by checking
+	 * for IS_VERITY() (which is faster than retrieving the pointer to the
+	 * verity info).  This minimizes overhead for non-verity inodes.
+	 */
+	if (IS_VERITY(inode))
 		__fsverity_cleanup_inode(inode);
+	else
+		VFS_WARN_ON_ONCE(*fsverity_info_addr(inode) != NULL);
 }
 
 /* read_metadata.c */
