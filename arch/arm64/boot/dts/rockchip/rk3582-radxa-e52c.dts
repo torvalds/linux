@@ -71,7 +71,7 @@
 
 		led-1 {
 			color = <LED_COLOR_ID_GREEN>;
-			default-state = "on";
+			default-state = "off";
 			function = LED_FUNCTION_LAN;
 			linux,default-trigger = "netdev";
 			pwms = <&pwm14 0 1000000 PWM_POLARITY_INVERTED>;
@@ -80,7 +80,7 @@
 
 		led-2 {
 			color = <LED_COLOR_ID_GREEN>;
-			default-state = "on";
+			default-state = "off";
 			function = LED_FUNCTION_WAN;
 			linux,default-trigger = "netdev";
 			pwms = <&pwm11 0 1000000 PWM_POLARITY_INVERTED>;
