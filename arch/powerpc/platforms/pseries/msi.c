@@ -15,7 +15,6 @@
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
-#include <asm/xive.h>
 
 #include "pseries.h"
 
@@ -437,19 +436,6 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
 }
 
 /*
- * ->msi_free() is called before irq_domain_free_irqs_top() when the
- * handler data is still available. Use that to clear the XIVE
- * controller data.
- */
-static void pseries_msi_ops_msi_free(struct irq_domain *domain,
-				     struct msi_domain_info *info,
-				     unsigned int irq)
-{
-	if (xive_enabled())
-		xive_irq_free_data(irq);
-}
-
-/*
  * RTAS can not disable one MSI at a time. It's all or nothing. Do it
  * at the end after all IRQs have been freed.
  */
@@ -463,7 +449,6 @@ static void pseries_msi_post_free(struct irq_domain *domain, struct device *dev)
 
 static struct msi_domain_ops pseries_pci_msi_domain_ops = {
 	.msi_prepare	= pseries_msi_ops_prepare,
-	.msi_free	= pseries_msi_ops_msi_free,
 	.msi_post_free	= pseries_msi_post_free,
 };
 
@@ -604,8 +589,7 @@ static void pseries_irq_domain_free(struct irq_domain *domain, unsigned int virq
 	struct pci_controller *phb = irq_data_get_irq_chip_data(d);
 
 	pr_debug("%s bridge %pOF %d #%d\n", __func__, phb->dn, virq, nr_irqs);
-
-	/* XIVE domain data is cleared through ->msi_free() */
+	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
 
 static const struct irq_domain_ops pseries_irq_domain_ops = {

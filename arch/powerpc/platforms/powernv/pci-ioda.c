@@ -37,7 +37,6 @@
 #include <asm/firmware.h>
 #include <asm/pnv-pci.h>
 #include <asm/mmzone.h>
-#include <asm/xive.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -1707,23 +1706,6 @@ static int __pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 	return 0;
 }
 
-/*
- * The msi_free() op is called before irq_domain_free_irqs_top() when
- * the handler data is still available. Use that to clear the XIVE
- * controller.
- */
-static void pnv_msi_ops_msi_free(struct irq_domain *domain,
-				 struct msi_domain_info *info,
-				 unsigned int irq)
-{
-	if (xive_enabled())
-		xive_irq_free_data(irq);
-}
-
-static struct msi_domain_ops pnv_pci_msi_domain_ops = {
-	.msi_free	= pnv_msi_ops_msi_free,
-};
-
 static void pnv_msi_shutdown(struct irq_data *d)
 {
 	d = d->parent_data;
@@ -1754,7 +1736,6 @@ static struct irq_chip pnv_pci_msi_irq_chip = {
 static struct msi_domain_info pnv_msi_domain_info = {
 	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
 		  MSI_FLAG_MULTI_PCI_MSI  | MSI_FLAG_PCI_MSIX),
-	.ops   = &pnv_pci_msi_domain_ops,
 	.chip  = &pnv_pci_msi_irq_chip,
 };
 
@@ -1870,7 +1851,7 @@ static void pnv_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 		 virq, d->hwirq, nr_irqs);
 
 	msi_bitmap_free_hwirqs(&phb->msi_bmp, d->hwirq, nr_irqs);
-	/* XIVE domain is cleared through ->msi_free() */
+	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
 
 static const struct irq_domain_ops pnv_irq_domain_ops = {
