@@ -46,7 +46,7 @@ doc_decl = doc_com + KernRe(r'(\w+)', cache=False)
 known_section_names = 'description|context|returns?|notes?|examples?'
 known_sections = KernRe(known_section_names, flags = re.I)
 doc_sect = doc_com + \
-    KernRe(r'\s*(\@[.\w]+|\@\.\.\.|' + known_section_names + r')\s*:([^:].*)?$',
+    KernRe(r'\s*(@[.\w]+|@\.\.\.|' + known_section_names + r')\s*:([^:].*)?$',
            flags=re.I, cache=False)
 
 doc_content = doc_com_body + KernRe(r'(.*)', cache=False)
@@ -54,13 +54,11 @@ doc_inline_start = KernRe(r'^\s*/\*\*\s*$', cache=False)
 doc_inline_sect = KernRe(r'\s*\*\s*(@\s*[\w][\w\.]*\s*):(.*)', cache=False)
 doc_inline_end = KernRe(r'^\s*\*/\s*$', cache=False)
 doc_inline_oneline = KernRe(r'^\s*/\*\*\s*(@[\w\s]+):\s*(.*)\s*\*/\s*$', cache=False)
-attribute = KernRe(r"__attribute__\s*\(\([a-z0-9,_\*\s\(\)]*\)\)",
-               flags=re.I | re.S, cache=False)
 
 export_symbol = KernRe(r'^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*', cache=False)
 export_symbol_ns = KernRe(r'^\s*EXPORT_SYMBOL_NS(_GPL)?\s*\(\s*(\w+)\s*,\s*"\S+"\)\s*', cache=False)
 
-type_param = KernRe(r"\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
+type_param = KernRe(r"@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
 
 #
 # Tests for the beginning of a kerneldoc block in its various forms.
@@ -75,11 +73,117 @@ doc_begin_func = KernRe(str(doc_com) +			# initial " * '
                         cache = False)
 
 #
+# Here begins a long set of transformations to turn structure member prefixes
+# and macro invocations into something we can parse and generate kdoc for.
+#
+struct_attribute = KernRe(r"__attribute__\s*\(\([a-z0-9,_\*\s\(\)]*\)\)",
+                          flags=re.I | re.S, cache=False)
+struct_args_pattern = r'([^,)]+)'
+
+struct_prefixes = [
+    # Strip attributes
+    (struct_attribute, ' '),
+    (KernRe(r'\s*__aligned\s*\([^;]*\)', re.S), ' '),
+    (KernRe(r'\s*__counted_by\s*\([^;]*\)', re.S), ' '),
+    (KernRe(r'\s*__counted_by_(le|be)\s*\([^;]*\)', re.S), ' '),
+    (KernRe(r'\s*__packed\s*', re.S), ' '),
+    (KernRe(r'\s*CRYPTO_MINALIGN_ATTR', re.S), ' '),
+    (KernRe(r'\s*____cacheline_aligned_in_smp', re.S), ' '),
+    (KernRe(r'\s*____cacheline_aligned', re.S), ' '),
+    #
+    # Unwrap struct_group macros based on this definition:
+    # __struct_group(TAG, NAME, ATTRS, MEMBERS...)
+    # which has variants like: struct_group(NAME, MEMBERS...)
+    # Only MEMBERS arguments require documentation.
+    #
+    # Parsing them happens on two steps:
+    #
+    # 1. drop struct group arguments that aren't at MEMBERS,
+    #    storing them as STRUCT_GROUP(MEMBERS)
+    #
+    # 2. remove STRUCT_GROUP() ancillary macro.
+    #
+    # The original logic used to remove STRUCT_GROUP() using an
+    # advanced regex:
+    #
+    #   \bSTRUCT_GROUP(\(((?:(?>[^)(]+)|(?1))*)\))[^;]*;
+    #
+    # with two patterns that are incompatible with
+    # Python re module, as it has:
+    #
+    #   - a recursive pattern: (?1)
+    #   - an atomic grouping: (?>...)
+    #
+    # I tried a simpler version: but it didn't work either:
+    #   \bSTRUCT_GROUP\(([^\)]+)\)[^;]*;
+    #
+    # As it doesn't properly match the end parenthesis on some cases.
+    #
+    # So, a better solution was crafted: there's now a NestedMatch
+    # class that ensures that delimiters after a search are properly
+    # matched. So, the implementation to drop STRUCT_GROUP() will be
+    # handled in separate.
+    #
+    (KernRe(r'\bstruct_group\s*\(([^,]*,)', re.S), r'STRUCT_GROUP('),
+    (KernRe(r'\bstruct_group_attr\s*\(([^,]*,){2}', re.S), r'STRUCT_GROUP('),
+    (KernRe(r'\bstruct_group_tagged\s*\(([^,]*),([^,]*),', re.S), r'struct \1 \2; STRUCT_GROUP('),
+    (KernRe(r'\b__struct_group\s*\(([^,]*,){3}', re.S), r'STRUCT_GROUP('),
+    #
+    # Replace macros
+    #
+    # TODO: use NestedMatch for FOO($1, $2, ...) matches
+    #
+    # it is better to also move those to the NestedMatch logic,
+    # to ensure that parenthesis will be properly matched.
+    #
+    (KernRe(r'__ETHTOOL_DECLARE_LINK_MODE_MASK\s*\(([^\)]+)\)', re.S),
+     r'DECLARE_BITMAP(\1, __ETHTOOL_LINK_MODE_MASK_NBITS)'),
+    (KernRe(r'DECLARE_PHY_INTERFACE_MASK\s*\(([^\)]+)\)', re.S),
+     r'DECLARE_BITMAP(\1, PHY_INTERFACE_MODE_MAX)'),
+    (KernRe(r'DECLARE_BITMAP\s*\(' + struct_args_pattern + r',\s*' + struct_args_pattern + r'\)',
+            re.S), r'unsigned long \1[BITS_TO_LONGS(\2)]'),
+    (KernRe(r'DECLARE_HASHTABLE\s*\(' + struct_args_pattern + r',\s*' + struct_args_pattern + r'\)',
+            re.S), r'unsigned long \1[1 << ((\2) - 1)]'),
+    (KernRe(r'DECLARE_KFIFO\s*\(' + struct_args_pattern + r',\s*' + struct_args_pattern +
+            r',\s*' + struct_args_pattern + r'\)', re.S), r'\2 *\1'),
+    (KernRe(r'DECLARE_KFIFO_PTR\s*\(' + struct_args_pattern + r',\s*' +
+            struct_args_pattern + r'\)', re.S), r'\2 *\1'),
+    (KernRe(r'(?:__)?DECLARE_FLEX_ARRAY\s*\(' + struct_args_pattern + r',\s*' +
+            struct_args_pattern + r'\)', re.S), r'\1 \2[]'),
+    (KernRe(r'DEFINE_DMA_UNMAP_ADDR\s*\(' + struct_args_pattern + r'\)', re.S), r'dma_addr_t \1'),
+    (KernRe(r'DEFINE_DMA_UNMAP_LEN\s*\(' + struct_args_pattern + r'\)', re.S), r'__u32 \1'),
+]
+#
+# Regexes here are guaranteed to have the end limiter matching
+# the start delimiter. Yet, right now, only one replace group
+# is allowed.
+#
+struct_nested_prefixes = [
+    (re.compile(r'\bSTRUCT_GROUP\('), r'\1'),
+]
+
+
+#
 # A little helper to get rid of excess white space
 #
 multi_space = KernRe(r'\s\s+')
 def trim_whitespace(s):
     return multi_space.sub(' ', s.strip())
+
+#
+# Remove struct/enum members that have been marked "private".
+#
+def trim_private_members(text):
+    #
+    # First look for a "public:" block that ends a private region, then
+    # handle the "private until the end" case.
+    #
+    text = KernRe(r'/\*\s*private:.*?/\*\s*public:.*?\*/', flags=re.S).sub('', text)
+    text = KernRe(r'/\*\s*private:.*', flags=re.S).sub('', text)
+    #
+    # We needed the comments to do the above, but now we can take them out.
+    #
+    return KernRe(r'\s*/\*.*?\*/\s*', flags=re.S).sub('', text).strip()
 
 class state:
     """
@@ -390,7 +494,7 @@ class KernelDoc:
 
         for arg in args.split(splitter):
             # Strip comments
-            arg = KernRe(r'\/\*.*\*\/').sub('', arg)
+            arg = KernRe(r'/\*.*\*/').sub('', arg)
 
             # Ignore argument attributes
             arg = KernRe(r'\sPOS0?\s').sub(' ', arg)
@@ -413,7 +517,7 @@ class KernelDoc:
 
                 arg = arg.replace('#', ',')
 
-                r = KernRe(r'[^\(]+\(\*?\s*([\w\[\]\.]*)\s*\)')
+                r = KernRe(r'[^\(]+\(\*?\s*([\w\[\].]*)\s*\)')
                 if r.match(arg):
                     param = r.group(1)
                 else:
@@ -428,7 +532,7 @@ class KernelDoc:
                 # Array-of-pointers
 
                 arg = arg.replace('#', ',')
-                r = KernRe(r'[^\(]+\(\s*\*\s*([\w\[\]\.]*?)\s*(\s*\[\s*[\w]+\s*\]\s*)*\)')
+                r = KernRe(r'[^\(]+\(\s*\*\s*([\w\[\].]*?)\s*(\s*\[\s*[\w]+\s*\]\s*)*\)')
                 if r.match(arg):
                     param = r.group(1)
                 else:
@@ -520,13 +624,11 @@ class KernelDoc:
             self.emit_msg(ln,
                           f"No description found for return value of '{declaration_name}'")
 
-    def dump_struct(self, ln, proto):
-        """
-        Store an entry for an struct or union
-        """
-
+    #
+    # Split apart a structure prototype; returns (struct|union, name, members) or None
+    #
+    def split_struct_proto(self, proto):
         type_pattern = r'(struct|union)'
-
         qualifiers = [
             "__attribute__",
             "__packed",
@@ -534,288 +636,203 @@ class KernelDoc:
             "____cacheline_aligned_in_smp",
             "____cacheline_aligned",
         ]
-
         definition_body = r'\{(.*)\}\s*' + "(?:" + '|'.join(qualifiers) + ")?"
-        struct_members = KernRe(type_pattern + r'([^\{\};]+)(\{)([^\{\}]*)(\})([^\{\}\;]*)(\;)')
-
-        # Extract struct/union definition
-        members = None
-        declaration_name = None
-        decl_type = None
 
         r = KernRe(type_pattern + r'\s+(\w+)\s*' + definition_body)
         if r.search(proto):
-            decl_type = r.group(1)
-            declaration_name = r.group(2)
-            members = r.group(3)
+            return (r.group(1), r.group(2), r.group(3))
         else:
             r = KernRe(r'typedef\s+' + type_pattern + r'\s*' + definition_body + r'\s*(\w+)\s*;')
-
             if r.search(proto):
-                decl_type = r.group(1)
-                declaration_name = r.group(3)
-                members = r.group(2)
-
-        if not members:
-            self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
-            return
-
-        if self.entry.identifier != declaration_name:
-            self.emit_msg(ln,
-                          f"expecting prototype for {decl_type} {self.entry.identifier}. Prototype was for {decl_type} {declaration_name} instead\n")
-            return
-
-        args_pattern = r'([^,)]+)'
-
-        sub_prefixes = [
-            (KernRe(r'\/\*\s*private:.*?\/\*\s*public:.*?\*\/', re.S | re.I), ''),
-            (KernRe(r'\/\*\s*private:.*', re.S | re.I), ''),
-
-            # Strip comments
-            (KernRe(r'\/\*.*?\*\/', re.S), ''),
-
-            # Strip attributes
-            (attribute, ' '),
-            (KernRe(r'\s*__aligned\s*\([^;]*\)', re.S), ' '),
-            (KernRe(r'\s*__counted_by\s*\([^;]*\)', re.S), ' '),
-            (KernRe(r'\s*__counted_by_(le|be)\s*\([^;]*\)', re.S), ' '),
-            (KernRe(r'\s*__packed\s*', re.S), ' '),
-            (KernRe(r'\s*CRYPTO_MINALIGN_ATTR', re.S), ' '),
-            (KernRe(r'\s*____cacheline_aligned_in_smp', re.S), ' '),
-            (KernRe(r'\s*____cacheline_aligned', re.S), ' '),
-
-            # Unwrap struct_group macros based on this definition:
-            # __struct_group(TAG, NAME, ATTRS, MEMBERS...)
-            # which has variants like: struct_group(NAME, MEMBERS...)
-            # Only MEMBERS arguments require documentation.
-            #
-            # Parsing them happens on two steps:
-            #
-            # 1. drop struct group arguments that aren't at MEMBERS,
-            #    storing them as STRUCT_GROUP(MEMBERS)
-            #
-            # 2. remove STRUCT_GROUP() ancillary macro.
-            #
-            # The original logic used to remove STRUCT_GROUP() using an
-            # advanced regex:
-            #
-            #   \bSTRUCT_GROUP(\(((?:(?>[^)(]+)|(?1))*)\))[^;]*;
-            #
-            # with two patterns that are incompatible with
-            # Python re module, as it has:
-            #
-            #   - a recursive pattern: (?1)
-            #   - an atomic grouping: (?>...)
-            #
-            # I tried a simpler version: but it didn't work either:
-            #   \bSTRUCT_GROUP\(([^\)]+)\)[^;]*;
-            #
-            # As it doesn't properly match the end parenthesis on some cases.
-            #
-            # So, a better solution was crafted: there's now a NestedMatch
-            # class that ensures that delimiters after a search are properly
-            # matched. So, the implementation to drop STRUCT_GROUP() will be
-            # handled in separate.
-
-            (KernRe(r'\bstruct_group\s*\(([^,]*,)', re.S), r'STRUCT_GROUP('),
-            (KernRe(r'\bstruct_group_attr\s*\(([^,]*,){2}', re.S), r'STRUCT_GROUP('),
-            (KernRe(r'\bstruct_group_tagged\s*\(([^,]*),([^,]*),', re.S), r'struct \1 \2; STRUCT_GROUP('),
-            (KernRe(r'\b__struct_group\s*\(([^,]*,){3}', re.S), r'STRUCT_GROUP('),
-
-            # Replace macros
-            #
-            # TODO: use NestedMatch for FOO($1, $2, ...) matches
-            #
-            # it is better to also move those to the NestedMatch logic,
-            # to ensure that parenthesis will be properly matched.
-
-            (KernRe(r'__ETHTOOL_DECLARE_LINK_MODE_MASK\s*\(([^\)]+)\)', re.S), r'DECLARE_BITMAP(\1, __ETHTOOL_LINK_MODE_MASK_NBITS)'),
-            (KernRe(r'DECLARE_PHY_INTERFACE_MASK\s*\(([^\)]+)\)', re.S), r'DECLARE_BITMAP(\1, PHY_INTERFACE_MODE_MAX)'),
-            (KernRe(r'DECLARE_BITMAP\s*\(' + args_pattern + r',\s*' + args_pattern + r'\)', re.S), r'unsigned long \1[BITS_TO_LONGS(\2)]'),
-            (KernRe(r'DECLARE_HASHTABLE\s*\(' + args_pattern + r',\s*' + args_pattern + r'\)', re.S), r'unsigned long \1[1 << ((\2) - 1)]'),
-            (KernRe(r'DECLARE_KFIFO\s*\(' + args_pattern + r',\s*' + args_pattern + r',\s*' + args_pattern + r'\)', re.S), r'\2 *\1'),
-            (KernRe(r'DECLARE_KFIFO_PTR\s*\(' + args_pattern + r',\s*' + args_pattern + r'\)', re.S), r'\2 *\1'),
-            (KernRe(r'(?:__)?DECLARE_FLEX_ARRAY\s*\(' + args_pattern + r',\s*' + args_pattern + r'\)', re.S), r'\1 \2[]'),
-            (KernRe(r'DEFINE_DMA_UNMAP_ADDR\s*\(' + args_pattern + r'\)', re.S), r'dma_addr_t \1'),
-            (KernRe(r'DEFINE_DMA_UNMAP_LEN\s*\(' + args_pattern + r'\)', re.S), r'__u32 \1'),
-            (KernRe(r'VIRTIO_DECLARE_FEATURES\s*\(' + args_pattern + r'\)', re.S), r'u64 \1; u64 \1_array[VIRTIO_FEATURES_DWORDS]'),
-        ]
-
-        # Regexes here are guaranteed to have the end limiter matching
-        # the start delimiter. Yet, right now, only one replace group
-        # is allowed.
-
-        sub_nested_prefixes = [
-            (re.compile(r'\bSTRUCT_GROUP\('), r'\1'),
-        ]
-
-        for search, sub in sub_prefixes:
-            members = search.sub(sub, members)
-
-        nested = NestedMatch()
-
-        for search, sub in sub_nested_prefixes:
-            members = nested.sub(search, sub, members)
-
-        # Keeps the original declaration as-is
-        declaration = members
-
-        # Split nested struct/union elements
+                return (r.group(1), r.group(3), r.group(2))
+        return None
+    #
+    # Rewrite the members of a structure or union for easier formatting later on.
+    # Among other things, this function will turn a member like:
+    #
+    #  struct { inner_members; } foo;
+    #
+    # into:
+    #
+    #  struct foo; inner_members;
+    #
+    def rewrite_struct_members(self, members):
         #
-        # This loop was simpler at the original kernel-doc perl version, as
-        #   while ($members =~ m/$struct_members/) { ... }
-        # reads 'members' string on each interaction.
+        # Process struct/union members from the most deeply nested outward.  The
+        # trick is in the ^{ below - it prevents a match of an outer struct/union
+        # until the inner one has been munged (removing the "{" in the process).
         #
-        # Python behavior is different: it parses 'members' only once,
-        # creating a list of tuples from the first interaction.
-        #
-        # On other words, this won't get nested structs.
-        #
-        # So, we need to have an extra loop on Python to override such
-        # re limitation.
-
-        while True:
-            tuples = struct_members.findall(members)
-            if not tuples:
-                break
-
+        struct_members = KernRe(r'(struct|union)'   # 0: declaration type
+                                r'([^\{\};]+)' 	    # 1: possible name
+                                r'(\{)'
+                                r'([^\{\}]*)'       # 3: Contents of declaration
+                                r'(\})'
+                                r'([^\{\};]*)(;)')  # 5: Remaining stuff after declaration
+        tuples = struct_members.findall(members)
+        while tuples:
             for t in tuples:
                 newmember = ""
-                maintype = t[0]
-                s_ids = t[5]
-                content = t[3]
-
-                oldmember = "".join(t)
-
-                for s_id in s_ids.split(','):
+                oldmember = "".join(t) # Reconstruct the original formatting
+                dtype, name, lbr, content, rbr, rest, semi = t
+                #
+                # Pass through each field name, normalizing the form and formatting.
+                #
+                for s_id in rest.split(','):
                     s_id = s_id.strip()
-
-                    newmember += f"{maintype} {s_id}; "
+                    newmember += f"{dtype} {s_id}; "
+                    #
+                    # Remove bitfield/array/pointer info, getting the bare name.
+                    #
                     s_id = KernRe(r'[:\[].*').sub('', s_id)
                     s_id = KernRe(r'^\s*\**(\S+)\s*').sub(r'\1', s_id)
-
+                    #
+                    # Pass through the members of this inner structure/union.
+                    #
                     for arg in content.split(';'):
                         arg = arg.strip()
-
-                        if not arg:
-                            continue
-
-                        r = KernRe(r'^([^\(]+\(\*?\s*)([\w\.]*)(\s*\).*)')
+                        #
+                        # Look for (type)(*name)(args) - pointer to function
+                        #
+                        r = KernRe(r'^([^\(]+\(\*?\s*)([\w.]*)(\s*\).*)')
                         if r.match(arg):
+                            dtype, name, extra = r.group(1), r.group(2), r.group(3)
                             # Pointer-to-function
-                            dtype = r.group(1)
-                            name = r.group(2)
-                            extra = r.group(3)
-
-                            if not name:
-                                continue
-
                             if not s_id:
                                 # Anonymous struct/union
                                 newmember += f"{dtype}{name}{extra}; "
                             else:
                                 newmember += f"{dtype}{s_id}.{name}{extra}; "
-
+                        #
+                        # Otherwise a non-function member.
+                        #
                         else:
-                            arg = arg.strip()
-                            # Handle bitmaps
+                            #
+                            # Remove bitmap and array portions and spaces around commas
+                            #
                             arg = KernRe(r':\s*\d+\s*').sub('', arg)
-
-                            # Handle arrays
                             arg = KernRe(r'\[.*\]').sub('', arg)
-
-                            # Handle multiple IDs
                             arg = KernRe(r'\s*,\s*').sub(',', arg)
-
+                            #
+                            # Look for a normal decl - "type name[,name...]"
+                            #
                             r = KernRe(r'(.*)\s+([\S+,]+)')
-
                             if r.search(arg):
-                                dtype = r.group(1)
-                                names = r.group(2)
+                                for name in r.group(2).split(','):
+                                    name = KernRe(r'^\s*\**(\S+)\s*').sub(r'\1', name)
+                                    if not s_id:
+                                        # Anonymous struct/union
+                                        newmember += f"{r.group(1)} {name}; "
+                                    else:
+                                        newmember += f"{r.group(1)} {s_id}.{name}; "
                             else:
                                 newmember += f"{arg}; "
-                                continue
-
-                            for name in names.split(','):
-                                name = KernRe(r'^\s*\**(\S+)\s*').sub(r'\1', name).strip()
-
-                                if not name:
-                                    continue
-
-                                if not s_id:
-                                    # Anonymous struct/union
-                                    newmember += f"{dtype} {name}; "
-                                else:
-                                    newmember += f"{dtype} {s_id}.{name}; "
-
+                #
+                # At the end of the s_id loop, replace the original declaration with
+                # the munged version.
+                #
                 members = members.replace(oldmember, newmember)
+            #
+            # End of the tuple loop - search again and see if there are outer members
+            # that now turn up.
+            #
+            tuples = struct_members.findall(members)
+        return members
 
-        # Ignore other nested elements, like enums
-        members = re.sub(r'(\{[^\{\}]*\})', '', members)
-
-        self.create_parameter_list(ln, decl_type, members, ';',
-                                   declaration_name)
-        self.check_sections(ln, declaration_name, decl_type)
-
-        # Adjust declaration for better display
+    #
+    # Format the struct declaration into a standard form for inclusion in the
+    # resulting docs.
+    #
+    def format_struct_decl(self, declaration):
+        #
+        # Insert newlines, get rid of extra spaces.
+        #
         declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
         declaration = KernRe(r'\}\s+;').sub('};', declaration)
-
-        # Better handle inlined enums
-        while True:
-            r = KernRe(r'(enum\s+\{[^\}]+),([^\n])')
-            if not r.search(declaration):
-                break
-
+        #
+        # Format inline enums with each member on its own line.
+        #
+        r = KernRe(r'(enum\s+\{[^\}]+),([^\n])')
+        while r.search(declaration):
             declaration = r.sub(r'\1,\n\2', declaration)
-
+        #
+        # Now go through and supply the right number of tabs
+        # for each line.
+        #
         def_args = declaration.split('\n')
         level = 1
         declaration = ""
         for clause in def_args:
+            clause = KernRe(r'\s+').sub(' ', clause.strip(), count=1)
+            if clause:
+                if '}' in clause and level > 1:
+                    level -= 1
+                if not clause.startswith('#'):
+                    declaration += "\t" * level
+                declaration += "\t" + clause + "\n"
+                if "{" in clause and "}" not in clause:
+                    level += 1
+        return declaration
 
-            clause = clause.strip()
-            clause = KernRe(r'\s+').sub(' ', clause, count=1)
 
-            if not clause:
-                continue
+    def dump_struct(self, ln, proto):
+        """
+        Store an entry for an struct or union
+        """
+        #
+        # Do the basic parse to get the pieces of the declaration.
+        #
+        struct_parts = self.split_struct_proto(proto)
+        if not struct_parts:
+            self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
+            return
+        decl_type, declaration_name, members = struct_parts
 
-            if '}' in clause and level > 1:
-                level -= 1
+        if self.entry.identifier != declaration_name:
+            self.emit_msg(ln, f"expecting prototype for {decl_type} {self.entry.identifier}. "
+                          f"Prototype was for {decl_type} {declaration_name} instead\n")
+            return
+        #
+        # Go through the list of members applying all of our transformations.
+        #
+        members = trim_private_members(members)
+        for search, sub in struct_prefixes:
+            members = search.sub(sub, members)
 
-            if not KernRe(r'^\s*#').match(clause):
-                declaration += "\t" * level
-
-            declaration += "\t" + clause + "\n"
-            if "{" in clause and "}" not in clause:
-                level += 1
-
+        nested = NestedMatch()
+        for search, sub in struct_nested_prefixes:
+            members = nested.sub(search, sub, members)
+        #
+        # Deal with embedded struct and union members, and drop enums entirely.
+        #
+        declaration = members
+        members = self.rewrite_struct_members(members)
+        members = re.sub(r'(\{[^\{\}]*\})', '', members)
+        #
+        # Output the result and we are done.
+        #
+        self.create_parameter_list(ln, decl_type, members, ';',
+                                   declaration_name)
+        self.check_sections(ln, declaration_name, decl_type)
         self.output_declaration(decl_type, declaration_name,
-                                definition=declaration,
+                                definition=self.format_struct_decl(declaration),
                                 purpose=self.entry.declaration_purpose)
 
     def dump_enum(self, ln, proto):
         """
         Stores an enum inside self.entries array.
         """
-
-        # Ignore members marked private
-        proto = KernRe(r'\/\*\s*private:.*?\/\*\s*public:.*?\*\/', flags=re.S).sub('', proto)
-        proto = KernRe(r'\/\*\s*private:.*}', flags=re.S).sub('}', proto)
-
-        # Strip comments
-        proto = KernRe(r'\/\*.*?\*\/', flags=re.S).sub('', proto)
-
-        # Strip #define macros inside enums
+        #
+        # Strip preprocessor directives.  Note that this depends on the
+        # trailing semicolon we added in process_proto_type().
+        #
         proto = KernRe(r'#\s*((define|ifdef|if)\s+|endif)[^;]*;', flags=re.S).sub('', proto)
-
         #
         # Parse out the name and members of the enum.  Typedef form first.
         #
         r = KernRe(r'typedef\s+enum\s*\{(.*)\}\s*(\w*)\s*;')
         if r.search(proto):
             declaration_name = r.group(2)
-            members = r.group(1).rstrip()
+            members = trim_private_members(r.group(1))
         #
         # Failing that, look for a straight enum
         #
@@ -823,7 +840,7 @@ class KernelDoc:
             r = KernRe(r'enum\s+(\w*)\s*\{(.*)\}')
             if r.match(proto):
                 declaration_name = r.group(1)
-                members = r.group(2).rstrip()
+                members = trim_private_members(r.group(2))
         #
         # OK, this isn't going to work.
         #
@@ -1041,7 +1058,7 @@ class KernelDoc:
         Stores a typedef inside self.entries array.
         """
 
-        typedef_type = r'((?:\s+[\w\*]+\b){0,7}\s+(?:\w+\b|\*+))\s*'
+        typedef_type = r'((?:\s+[\w*]+\b){0,7}\s+(?:\w+\b|\*+))\s*'
         typedef_ident = r'\*?\s*(\w\S+)\s*'
         typedef_args = r'\s*\((.*)\);'
 
@@ -1262,7 +1279,7 @@ class KernelDoc:
             self.dump_section()
 
             # Look for doc_com + <text> + doc_end:
-            r = KernRe(r'\s*\*\s*[a-zA-Z_0-9:\.]+\*/')
+            r = KernRe(r'\s*\*\s*[a-zA-Z_0-9:.]+\*/')
             if r.match(line):
                 self.emit_msg(ln, f"suspicious ending line: {line}")
 
@@ -1473,7 +1490,7 @@ class KernelDoc:
         """Ancillary routine to process a function prototype"""
 
         # strip C99-style comments to end of line
-        line = KernRe(r"\/\/.*$", re.S).sub('', line)
+        line = KernRe(r"//.*$", re.S).sub('', line)
         #
         # Soak up the line's worth of prototype text, stopping at { or ; if present.
         #
