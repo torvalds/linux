@@ -77,10 +77,10 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream
 
 	if (atomic_read(&subs->stream->chip->shutdown))
 		return SNDRV_PCM_POS_XRUN;
-	spin_lock(&subs->lock);
-	hwptr_done = subs->hwptr_done;
-	runtime->delay = snd_usb_pcm_delay(subs, runtime);
-	spin_unlock(&subs->lock);
+	scoped_guard(spinlock, &subs->lock) {
+		hwptr_done = subs->hwptr_done;
+		runtime->delay = snd_usb_pcm_delay(subs, runtime);
+	}
 	return bytes_to_frames(runtime, hwptr_done);
 }
 
@@ -560,9 +560,9 @@ int snd_usb_hw_params(struct snd_usb_substream *subs,
 					  subs->sync_endpoint);
 	}
 
-	mutex_lock(&chip->mutex);
-	subs->cur_audiofmt = fmt;
-	mutex_unlock(&chip->mutex);
+	scoped_guard(mutex, &chip->mutex) {
+		subs->cur_audiofmt = fmt;
+	}
 
 	if (!subs->data_endpoint->need_setup)
 		goto unlock;
@@ -611,9 +611,9 @@ int snd_usb_hw_free(struct snd_usb_substream *subs)
 	struct snd_usb_audio *chip = subs->stream->chip;
 
 	snd_media_stop_pipeline(subs);
-	mutex_lock(&chip->mutex);
-	subs->cur_audiofmt = NULL;
-	mutex_unlock(&chip->mutex);
+	scoped_guard(mutex, &chip->mutex) {
+		subs->cur_audiofmt = NULL;
+	}
 	if (!snd_usb_lock_shutdown(chip)) {
 		if (stop_endpoints(subs, false))
 			sync_pending_stops(subs);
@@ -1244,13 +1244,11 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_usb_audio *chip = subs->stream->chip;
 	int ret;
 
-	mutex_lock(&chip->mutex);
-	if (subs->opened) {
-		mutex_unlock(&chip->mutex);
-		return -EBUSY;
+	scoped_guard(mutex, &chip->mutex) {
+		if (subs->opened)
+			return -EBUSY;
+		subs->opened = 1;
 	}
-	subs->opened = 1;
-	mutex_unlock(&chip->mutex);
 
 	runtime->hw = snd_usb_hardware;
 	/* need an explicit sync to catch applptr update in low-latency mode */
@@ -1281,9 +1279,9 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 err_resume:
 	snd_usb_autosuspend(subs->stream->chip);
 err_open:
-	mutex_lock(&chip->mutex);
-	subs->opened = 0;
-	mutex_unlock(&chip->mutex);
+	scoped_guard(mutex, &chip->mutex) {
+		subs->opened = 0;
+	}
 
 	return ret;
 }
@@ -1307,9 +1305,9 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 
 	subs->pcm_substream = NULL;
 	snd_usb_autosuspend(subs->stream->chip);
-	mutex_lock(&chip->mutex);
-	subs->opened = 0;
-	mutex_unlock(&chip->mutex);
+	scoped_guard(mutex, &chip->mutex) {
+		subs->opened = 0;
+	}
 
 	return 0;
 }
@@ -1325,7 +1323,6 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 	struct snd_pcm_runtime *runtime = subs->pcm_substream->runtime;
 	unsigned int stride, frames, bytes, oldptr;
 	int i, period_elapsed = 0;
-	unsigned long flags;
 	unsigned char *cp;
 	int current_frame_number;
 
@@ -1358,22 +1355,21 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 							oldbytes, bytes);
 		}
 		/* update the current pointer */
-		spin_lock_irqsave(&subs->lock, flags);
-		oldptr = subs->hwptr_done;
-		subs->hwptr_done += bytes;
-		if (subs->hwptr_done >= subs->buffer_bytes)
-			subs->hwptr_done -= subs->buffer_bytes;
-		frames = (bytes + (oldptr % stride)) / stride;
-		subs->transfer_done += frames;
-		if (subs->transfer_done >= runtime->period_size) {
-			subs->transfer_done -= runtime->period_size;
-			period_elapsed = 1;
+		scoped_guard(spinlock_irqsave, &subs->lock) {
+			oldptr = subs->hwptr_done;
+			subs->hwptr_done += bytes;
+			if (subs->hwptr_done >= subs->buffer_bytes)
+				subs->hwptr_done -= subs->buffer_bytes;
+			frames = (bytes + (oldptr % stride)) / stride;
+			subs->transfer_done += frames;
+			if (subs->transfer_done >= runtime->period_size) {
+				subs->transfer_done -= runtime->period_size;
+				period_elapsed = 1;
+			}
+
+			/* realign last_frame_number */
+			subs->last_frame_number = current_frame_number;
 		}
-
-		/* realign last_frame_number */
-		subs->last_frame_number = current_frame_number;
-
-		spin_unlock_irqrestore(&subs->lock, flags);
 		/* copy a data chunk */
 		if (oldptr + bytes > subs->buffer_bytes) {
 			unsigned int bytes1 = subs->buffer_bytes - oldptr;

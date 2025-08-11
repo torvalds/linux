@@ -900,7 +900,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 
 	/* check whether it's already registered */
 	chip = NULL;
-	mutex_lock(&register_mutex);
+	guard(mutex)(&register_mutex);
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (usb_chip[i] && usb_chip[i]->dev == dev) {
 			if (atomic_read(&usb_chip[i]->shutdown)) {
@@ -1015,7 +1015,6 @@ static int usb_audio_probe(struct usb_interface *intf,
 
 	if (platform_ops && platform_ops->connect_cb)
 		platform_ops->connect_cb(chip);
-	mutex_unlock(&register_mutex);
 
 	return 0;
 
@@ -1033,7 +1032,6 @@ static int usb_audio_probe(struct usb_interface *intf,
 		if (!chip->num_interfaces)
 			snd_card_free(chip->card);
 	}
-	mutex_unlock(&register_mutex);
 	return err;
 }
 
@@ -1041,18 +1039,14 @@ static int usb_audio_probe(struct usb_interface *intf,
  * we need to take care of counter, since disconnection can be called also
  * many times as well as usb_audio_probe().
  */
-static void usb_audio_disconnect(struct usb_interface *intf)
+static bool __usb_audio_disconnect(struct usb_interface *intf,
+				   struct snd_usb_audio *chip,
+				   struct snd_card *card)
 {
-	struct snd_usb_audio *chip = usb_get_intfdata(intf);
-	struct snd_card *card;
 	struct list_head *p;
 
-	if (chip == USB_AUDIO_IFACE_UNUSED)
-		return;
+	guard(mutex)(&register_mutex);
 
-	card = chip->card;
-
-	mutex_lock(&register_mutex);
 	if (platform_ops && platform_ops->disconnect_cb)
 		platform_ops->disconnect_cb(chip);
 
@@ -1098,13 +1092,24 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 		usb_enable_autosuspend(interface_to_usbdev(intf));
 
 	chip->num_interfaces--;
-	if (chip->num_interfaces <= 0) {
-		usb_chip[chip->index] = NULL;
-		mutex_unlock(&register_mutex);
+	if (chip->num_interfaces > 0)
+		return false;
+
+	usb_chip[chip->index] = NULL;
+	return true;
+}
+
+static void usb_audio_disconnect(struct usb_interface *intf)
+{
+	struct snd_usb_audio *chip = usb_get_intfdata(intf);
+	struct snd_card *card;
+
+	if (chip == USB_AUDIO_IFACE_UNUSED)
+		return;
+
+	card = chip->card;
+	if (__usb_audio_disconnect(intf, chip, card))
 		snd_card_free_when_closed(card);
-	} else {
-		mutex_unlock(&register_mutex);
-	}
 }
 
 /* lock the shutdown (disconnect) task and autoresume */
