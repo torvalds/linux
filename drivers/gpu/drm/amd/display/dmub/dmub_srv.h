@@ -598,6 +598,8 @@ struct dmub_notification {
 	enum dmub_notification_type type;
 	uint8_t link_index;
 	uint8_t result;
+	/* notify instance from DMUB */
+	uint8_t instance;
 	bool pending_notification;
 	union {
 		struct aux_reply_data aux_reply;
