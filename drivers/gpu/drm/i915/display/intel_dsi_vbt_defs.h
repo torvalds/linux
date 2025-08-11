@@ -94,10 +94,15 @@ struct mipi_config {
 #define DL_DCS_PORT_A_AND_C		0x02
 		u16 dl_dcs_cabc_ports:2;
 		u16 dl_dcs_backlight_ports:2;
-		u16 rsvd3:4;
+		u16 port_sync:1;				/* 219-230 */
+		u16 rsvd3:3;
 	} __packed;
 
-	u16 rsvd4;
+	/* DSI Controller Parameters */
+	struct {
+		u16 dsi_usage:1;
+		u16 rsvd4:15;
+	} __packed;
 
 	u8 rsvd5;
 	u32 target_burst_mode_freq;
@@ -118,7 +123,9 @@ struct mipi_config {
 		u16 dphy_param_valid:1;
 		u16 eot_pkt_disabled:1;
 		u16 enable_clk_stop:1;
-		u16 rsvd7:13;
+		u16 blanking_packets_during_bllp:1;		/* 219+ */
+		u16 lp_clock_during_lpm:1;			/* 219+ */
+		u16 rsvd7:11;
 	} __packed;
 
 	u32 hs_tx_timeout;
