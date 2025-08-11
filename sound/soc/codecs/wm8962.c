@@ -82,6 +82,7 @@ struct wm8962_priv {
 #endif
 
 	int irq;
+	bool master_flag;
 };
 
 /* We can't use the same notifier block for more than one supply and
@@ -2715,6 +2716,7 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 static int wm8962_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int aif0 = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -2761,9 +2763,11 @@ static int wm8962_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
+	wm8962->master_flag = false;
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
 		aif0 |= WM8962_MSTR;
+		wm8962->master_flag = true;
 		break;
 	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
@@ -3442,7 +3446,7 @@ static const struct gpio_chip wm8962_template_chip = {
 	.owner			= THIS_MODULE,
 	.request		= wm8962_gpio_request,
 	.direction_output	= wm8962_gpio_direction_out,
-	.set_rv			= wm8962_gpio_set,
+	.set			= wm8962_gpio_set,
 	.can_sleep		= 1,
 };
 
@@ -3903,6 +3907,9 @@ static int wm8962_runtime_resume(struct device *dev)
 			   WM8962_BIAS_ENA | WM8962_VMID_SEL_MASK,
 			   WM8962_BIAS_ENA | 0x180);
 
+	if (wm8962->master_flag)
+		regmap_update_bits(wm8962->regmap, WM8962_AUDIO_INTERFACE_0,
+				   WM8962_MSTR, WM8962_MSTR);
 	msleep(5);
 
 	return 0;
@@ -3915,6 +3922,10 @@ disable_clock:
 static int wm8962_runtime_suspend(struct device *dev)
 {
 	struct wm8962_priv *wm8962 = dev_get_drvdata(dev);
+
+	if (wm8962->master_flag)
+		regmap_update_bits(wm8962->regmap, WM8962_AUDIO_INTERFACE_0,
+				   WM8962_MSTR, 0);
 
 	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
 			   WM8962_VMID_SEL_MASK | WM8962_BIAS_ENA, 0);

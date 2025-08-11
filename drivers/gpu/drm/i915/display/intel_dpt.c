@@ -9,6 +9,7 @@
 #include "gt/gen8_ppgtt.h"
 
 #include "i915_drv.h"
+#include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
@@ -126,7 +127,7 @@ struct i915_vma *intel_dpt_pin_to_ggtt(struct i915_address_space *vm,
 				       unsigned int alignment)
 {
 	struct drm_i915_private *i915 = vm->i915;
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = i915->display;
 	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
 	struct ref_tracker *wakeref;
 	struct i915_vma *vma;

@@ -550,6 +550,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			scl-gpios = <&gpio4 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+			dmas = <&edma0 1 36>,
+			       <&edma0 1 37>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -563,6 +566,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			scl-gpios = <&gpio4 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+			dmas = <&edma0 1 34>,
+			       <&edma0 1 35>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -576,6 +582,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			scl-gpios = <&gpio4 12 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+			dmas = <&edma0 1 40>,
+			       <&edma0 1 41>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -717,6 +726,9 @@
 			interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg";
+			dmas = <&edma0 1 32>,
+			       <&edma0 1 33>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -727,6 +739,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
+			dmas = <&edma0 1 30>,
+			       <&edma0 1 31>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -737,6 +752,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
+			dmas = <&edma0 1 28>,
+			       <&edma0 1 29>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -747,6 +765,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
+			dmas = <&edma0 1 26>,
+			       <&edma0 1 27>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -757,6 +778,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
+			dmas = <&edma0 1 24>,
+			       <&edma0 1 25>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -767,6 +791,9 @@
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(1)>;
 			clock-names = "ipg";
+			dmas = <&edma0 1 22>,
+			       <&edma0 1 23>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 

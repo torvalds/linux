@@ -806,7 +806,7 @@ struct vx_core *snd_vx_create(struct snd_card *card,
 
 	chip->card = card;
 	card->private_data = chip;
-	strcpy(card->driver, hw->name);
+	strscpy(card->driver, hw->name);
 	sprintf(card->shortname, "Digigram %s", hw->name);
 
 	vx_proc_init(chip);

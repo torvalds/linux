@@ -16,6 +16,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/irq_cpu.h>
+#include <asm/time.h>
 
 #include <lantiq_soc.h>
 #include <irq.h>
@@ -335,7 +336,8 @@ static const struct irq_domain_ops irq_domain_ops = {
 	.map = icu_map,
 };
 
-int __init icu_of_init(struct device_node *node, struct device_node *parent)
+static int __init
+icu_of_init(struct device_node *node, struct device_node *parent)
 {
 	struct device_node *eiu_node;
 	struct resource res;

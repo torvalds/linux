@@ -324,7 +324,7 @@ static struct gb_power_supply_prop *get_psy_prop(struct gb_power_supply *gbpsy,
 }
 
 static int is_psy_prop_writeable(struct gb_power_supply *gbpsy,
-				     enum power_supply_property psp)
+				 enum power_supply_property psp)
 {
 	struct gb_power_supply_prop *prop;
 
@@ -493,7 +493,7 @@ static int gb_power_supply_description_get(struct gb_power_supply *gbpsy)
 	if (!gbpsy->model_name)
 		return -ENOMEM;
 	gbpsy->serial_number = kstrndup(resp.serial_number, PROP_MAX,
-				       GFP_KERNEL);
+					GFP_KERNEL);
 	if (!gbpsy->serial_number)
 		return -ENOMEM;
 
@@ -546,7 +546,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	}
 
 	gbpsy->props = kcalloc(gbpsy->properties_count, sizeof(*gbpsy->props),
-			      GFP_KERNEL);
+			       GFP_KERNEL);
 	if (!gbpsy->props) {
 		ret = -ENOMEM;
 		goto out_put_operation;
@@ -634,8 +634,8 @@ static int __gb_power_supply_property_get(struct gb_power_supply *gbpsy,
 }
 
 static int __gb_power_supply_property_strval_get(struct gb_power_supply *gbpsy,
-						enum power_supply_property psp,
-						union power_supply_propval *val)
+						 enum power_supply_property psp,
+						 union power_supply_propval *val)
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_MODEL_NAME:
@@ -943,8 +943,8 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 		goto out;
 
 	supplies->supply = kcalloc(supplies->supplies_count,
-				     sizeof(struct gb_power_supply),
-				     GFP_KERNEL);
+				   sizeof(struct gb_power_supply),
+				   GFP_KERNEL);
 
 	if (!supplies->supply) {
 		ret = -ENOMEM;

@@ -59,12 +59,6 @@
 #define OOB_BUF_SIZE			128
 #define ecceng_to_qspi(eng)		container_of(eng, struct qpic_spi_nand, ecc_eng)
 
-struct qpic_snand_op {
-	u32 cmd_reg;
-	u32 addr1_reg;
-	u32 addr2_reg;
-};
-
 struct snandc_read_status {
 	__le32 snandc_flash;
 	__le32 snandc_buffer;
@@ -283,9 +277,22 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 		goto err_free_ecc_cfg;
 	}
 
-	if (ecc_cfg->strength != 4) {
+	switch (ecc_cfg->strength) {
+	case 4:
+		ecc_cfg->ecc_mode = ECC_MODE_4BIT;
+		ecc_cfg->ecc_bytes_hw = 7;
+		ecc_cfg->spare_bytes = 4;
+		break;
+
+	case 8:
+		ecc_cfg->ecc_mode = ECC_MODE_8BIT;
+		ecc_cfg->ecc_bytes_hw = 13;
+		ecc_cfg->spare_bytes = 2;
+		break;
+
+	default:
 		dev_err(snandc->dev,
-			"only 4 bits ECC strength is supported\n");
+			"only 4 or 8 bits ECC strength is supported\n");
 		ret = -EOPNOTSUPP;
 		goto err_free_ecc_cfg;
 	}
@@ -302,8 +309,6 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 	nand->ecc.ctx.priv = ecc_cfg;
 	snandc->qspi->mtd = mtd;
 
-	ecc_cfg->ecc_bytes_hw = 7;
-	ecc_cfg->spare_bytes = 4;
 	ecc_cfg->bbm_size = 1;
 	ecc_cfg->bch_enabled = true;
 	ecc_cfg->bytes = ecc_cfg->ecc_bytes_hw + ecc_cfg->spare_bytes + ecc_cfg->bbm_size;
@@ -365,7 +370,7 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 			       FIELD_PREP(ECC_SW_RESET, 0) |
 			       FIELD_PREP(ECC_NUM_DATA_BYTES_MASK, ecc_cfg->cw_data) |
 			       FIELD_PREP(ECC_FORCE_CLK_OPEN, 1) |
-			       FIELD_PREP(ECC_MODE_MASK, 0) |
+			       FIELD_PREP(ECC_MODE_MASK, ecc_cfg->ecc_mode) |
 			       FIELD_PREP(ECC_PARITY_SIZE_BYTES_BCH_MASK, ecc_cfg->ecc_bytes_hw);
 
 	ecc_cfg->ecc_buf_cfg = FIELD_PREP(NUM_STEPS_MASK, 0x203);
@@ -608,10 +613,16 @@ static int qcom_spi_read_last_cw(struct qcom_nand_controller *snandc,
 
 	bbpos = mtd->writesize - ecc_cfg->cw_size * (num_cw - 1);
 
-	if (snandc->data_buffer[bbpos] == 0xff)
-		snandc->data_buffer[bbpos + 1] = 0xff;
-	if (snandc->data_buffer[bbpos] != 0xff)
-		snandc->data_buffer[bbpos + 1] = snandc->data_buffer[bbpos];
+	/*
+	 * TODO: The SPINAND code expects two bad block marker bytes
+	 * at the beginning of the OOB area, but the OOB layout used by
+	 * the driver has only one. Duplicate that for now in order to
+	 * avoid certain blocks to be marked as bad.
+	 *
+	 * This can be removed once single-byte bad block marker support
+	 * gets implemented in the SPINAND code.
+	 */
+	snandc->data_buffer[bbpos + 1] = snandc->data_buffer[bbpos];
 
 	memcpy(op->data.buf.in, snandc->data_buffer + bbpos, op->data.nbytes);
 
@@ -851,7 +862,7 @@ static int qcom_spi_read_page_ecc(struct qcom_nand_controller *snandc,
 		int data_size, oob_size;
 
 		if (i == (num_cw - 1)) {
-			data_size = 512 - ((num_cw - 1) << 2);
+			data_size = NANDC_STEP_SIZE - ((num_cw - 1) << 2);
 			oob_size = (num_cw << 2) + ecc_cfg->ecc_bytes_hw +
 				    ecc_cfg->spare_bytes;
 		} else {
@@ -1310,7 +1321,6 @@ static int qcom_spi_write_page(struct qcom_nand_controller *snandc,
 static int qcom_spi_send_cmdaddr(struct qcom_nand_controller *snandc,
 				 const struct spi_mem_op *op)
 {
-	struct qpic_snand_op s_op = {};
 	u32 cmd;
 	int ret, opcode;
 
@@ -1318,34 +1328,24 @@ static int qcom_spi_send_cmdaddr(struct qcom_nand_controller *snandc,
 	if (ret < 0)
 		return ret;
 
-	s_op.cmd_reg = cmd;
-	s_op.addr1_reg = op->addr.val;
-	s_op.addr2_reg = 0;
-
 	opcode = op->cmd.opcode;
 
 	switch (opcode) {
 	case SPINAND_WRITE_EN:
 		return 0;
 	case SPINAND_PROGRAM_EXECUTE:
-		s_op.addr1_reg = op->addr.val << 16;
-		s_op.addr2_reg = op->addr.val >> 16 & 0xff;
-		snandc->qspi->addr1 = cpu_to_le32(s_op.addr1_reg);
-		snandc->qspi->addr2 = cpu_to_le32(s_op.addr2_reg);
+		snandc->qspi->addr1 = cpu_to_le32(op->addr.val << 16);
+		snandc->qspi->addr2 = cpu_to_le32(op->addr.val >> 16 & 0xff);
 		snandc->qspi->cmd = cpu_to_le32(cmd);
 		return qcom_spi_program_execute(snandc, op);
 	case SPINAND_READ:
-		s_op.addr1_reg = (op->addr.val << 16);
-		s_op.addr2_reg = op->addr.val >> 16 & 0xff;
-		snandc->qspi->addr1 = cpu_to_le32(s_op.addr1_reg);
-		snandc->qspi->addr2 = cpu_to_le32(s_op.addr2_reg);
+		snandc->qspi->addr1 = cpu_to_le32(op->addr.val << 16);
+		snandc->qspi->addr2 = cpu_to_le32(op->addr.val >> 16 & 0xff);
 		snandc->qspi->cmd = cpu_to_le32(cmd);
 		return 0;
 	case SPINAND_ERASE:
-		s_op.addr2_reg = (op->addr.val >> 16) & 0xffff;
-		s_op.addr1_reg = op->addr.val;
-		snandc->qspi->addr1 = cpu_to_le32(s_op.addr1_reg << 16);
-		snandc->qspi->addr2 = cpu_to_le32(s_op.addr2_reg);
+		snandc->qspi->addr1 = cpu_to_le32(op->addr.val << 16);
+		snandc->qspi->addr2 = cpu_to_le32(op->addr.val >> 16 & 0xffff);
 		snandc->qspi->cmd = cpu_to_le32(cmd);
 		return qcom_spi_block_erase(snandc);
 	default:
@@ -1357,10 +1357,10 @@ static int qcom_spi_send_cmdaddr(struct qcom_nand_controller *snandc,
 	qcom_clear_read_regs(snandc);
 	qcom_clear_bam_transaction(snandc);
 
-	snandc->regs->cmd = cpu_to_le32(s_op.cmd_reg);
+	snandc->regs->cmd = cpu_to_le32(cmd);
 	snandc->regs->exec = cpu_to_le32(1);
-	snandc->regs->addr0 = cpu_to_le32(s_op.addr1_reg);
-	snandc->regs->addr1 = cpu_to_le32(s_op.addr2_reg);
+	snandc->regs->addr0 = cpu_to_le32(op->addr.val);
+	snandc->regs->addr1 = cpu_to_le32(0);
 
 	qcom_write_reg_dma(snandc, &snandc->regs->cmd, NAND_FLASH_CMD, 3, NAND_BAM_NEXT_SGL);
 	qcom_write_reg_dma(snandc, &snandc->regs->exec, NAND_EXEC_CMD, 1, NAND_BAM_NEXT_SGL);

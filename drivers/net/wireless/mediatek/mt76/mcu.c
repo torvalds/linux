@@ -78,6 +78,10 @@ int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	unsigned long expires;
 	int ret, seq;
 
+	if (mt76_is_sdio(dev))
+		if (test_bit(MT76_RESET, &dev->phy.state) && atomic_read(&dev->bus_hung))
+			return -EIO;
+
 	if (ret_skb)
 		*ret_skb = NULL;
 

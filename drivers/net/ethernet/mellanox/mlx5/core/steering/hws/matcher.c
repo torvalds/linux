@@ -468,12 +468,16 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher)
 	struct mlx5hws_cmd_rtc_create_attr rtc_attr = {0};
 	struct mlx5hws_match_template *mt = matcher->mt;
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+	union mlx5hws_matcher_size *size_rx, *size_tx;
 	struct mlx5hws_table *tbl = matcher->tbl;
 	u32 obj_id;
 	int ret;
 
-	rtc_attr.log_size = attr->table.sz_row_log;
-	rtc_attr.log_depth = attr->table.sz_col_log;
+	size_rx = &attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX];
+	size_tx = &attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX];
+
+	rtc_attr.log_size = size_rx->table.sz_row_log;
+	rtc_attr.log_depth = size_rx->table.sz_col_log;
 	rtc_attr.is_frst_jumbo = mlx5hws_matcher_mt_is_jumbo(mt);
 	rtc_attr.is_scnd_range = 0;
 	rtc_attr.miss_ft_id = matcher->end_ft_id;
@@ -507,10 +511,8 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher)
 		}
 	}
 
-	obj_id = mlx5hws_pool_get_base_id(matcher->match_ste.pool);
-
 	rtc_attr.pd = ctx->pd_num;
-	rtc_attr.ste_base = obj_id;
+	rtc_attr.ste_base = matcher->match_ste.ste_0_base;
 	rtc_attr.reparse_mode = mlx5hws_context_get_reparse_mode(ctx);
 	rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, false);
 	hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, false);
@@ -527,9 +529,9 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher)
 	}
 
 	if (tbl->type == MLX5HWS_TABLE_TYPE_FDB) {
-		obj_id = mlx5hws_pool_get_base_mirror_id(
-			matcher->match_ste.pool);
-		rtc_attr.ste_base = obj_id;
+		rtc_attr.log_size = size_tx->table.sz_row_log;
+		rtc_attr.log_depth = size_tx->table.sz_col_log;
+		rtc_attr.ste_base = matcher->match_ste.ste_1_base;
 		rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, true);
 
 		obj_id = mlx5hws_pool_get_base_mirror_id(ctx->stc_pool);
@@ -566,41 +568,36 @@ hws_matcher_check_attr_sz(struct mlx5hws_cmd_query_caps *caps,
 			  struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_matcher_attr *attr = &matcher->attr;
+	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+	union mlx5hws_matcher_size *size;
+	int i;
 
-	if (attr->table.sz_col_log > caps->rtc_log_depth_max) {
-		mlx5hws_err(matcher->tbl->ctx, "Matcher depth exceeds limit %d\n",
-			    caps->rtc_log_depth_max);
-		return -EOPNOTSUPP;
-	}
+	for (i = 0; i < 2; i++) {
+		size = &attr->size[i];
 
-	if (attr->table.sz_col_log + attr->table.sz_row_log > caps->ste_alloc_log_max) {
-		mlx5hws_err(matcher->tbl->ctx, "Total matcher size exceeds limit %d\n",
-			    caps->ste_alloc_log_max);
-		return -EOPNOTSUPP;
-	}
+		if (size->table.sz_col_log > caps->rtc_log_depth_max) {
+			mlx5hws_err(ctx, "Matcher depth exceeds limit %d\n",
+				    caps->rtc_log_depth_max);
+			return -EOPNOTSUPP;
+		}
 
-	if (attr->table.sz_col_log + attr->table.sz_row_log < caps->ste_alloc_log_gran) {
-		mlx5hws_err(matcher->tbl->ctx, "Total matcher size below limit %d\n",
-			    caps->ste_alloc_log_gran);
-		return -EOPNOTSUPP;
+		if (size->table.sz_col_log + size->table.sz_row_log >
+		    caps->ste_alloc_log_max) {
+			mlx5hws_err(ctx,
+				    "Total matcher size exceeds limit %d\n",
+				    caps->ste_alloc_log_max);
+			return -EOPNOTSUPP;
+		}
+
+		if (size->table.sz_col_log + size->table.sz_row_log <
+		    caps->ste_alloc_log_gran) {
+			mlx5hws_err(ctx, "Total matcher size below limit %d\n",
+				    caps->ste_alloc_log_gran);
+			return -EOPNOTSUPP;
+		}
 	}
 
 	return 0;
-}
-
-static void hws_matcher_set_pool_attr(struct mlx5hws_pool_attr *attr,
-				      struct mlx5hws_matcher *matcher)
-{
-	switch (matcher->attr.optimize_flow_src) {
-	case MLX5HWS_MATCHER_FLOW_SRC_VPORT:
-		attr->opt_type = MLX5HWS_POOL_OPTIMIZE_ORIG;
-		break;
-	case MLX5HWS_MATCHER_FLOW_SRC_WIRE:
-		attr->opt_type = MLX5HWS_POOL_OPTIMIZE_MIRROR;
-		break;
-	default:
-		break;
-	}
 }
 
 static int hws_matcher_check_and_process_at(struct mlx5hws_matcher *matcher,
@@ -683,8 +680,9 @@ static void hws_matcher_set_ip_version_match(struct mlx5hws_matcher *matcher)
 
 static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 {
+	struct mlx5hws_cmd_ste_create_attr ste_attr = {};
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
-	struct mlx5hws_pool_attr pool_attr = {0};
+	union mlx5hws_matcher_size *size;
 	int ret;
 
 	/* Calculate match, range and hash definers */
@@ -699,22 +697,39 @@ static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 
 	hws_matcher_set_ip_version_match(matcher);
 
-	/* Create an STE pool per matcher*/
-	pool_attr.table_type = matcher->tbl->type;
-	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STE;
-	pool_attr.alloc_log_sz = matcher->attr.table.sz_col_log +
-				 matcher->attr.table.sz_row_log;
-	hws_matcher_set_pool_attr(&pool_attr, matcher);
+	/* Create an STE range each for RX and TX. */
+	ste_attr.table_type = FS_FT_FDB_RX;
+	size = &matcher->attr.size[MLX5HWS_MATCHER_SIZE_TYPE_RX];
+	ste_attr.log_obj_range =
+		matcher->attr.optimize_flow_src ==
+			MLX5HWS_MATCHER_FLOW_SRC_VPORT ?
+			0 : size->table.sz_col_log + size->table.sz_row_log;
 
-	matcher->match_ste.pool = mlx5hws_pool_create(ctx, &pool_attr);
-	if (!matcher->match_ste.pool) {
-		mlx5hws_err(ctx, "Failed to allocate matcher STE pool\n");
-		ret = -EOPNOTSUPP;
+	ret = mlx5hws_cmd_ste_create(ctx->mdev, &ste_attr,
+				     &matcher->match_ste.ste_0_base);
+	if (ret) {
+		mlx5hws_err(ctx, "Failed to allocate RX STE range (%d)\n", ret);
 		goto uninit_match_definer;
+	}
+
+	ste_attr.table_type = FS_FT_FDB_TX;
+	size = &matcher->attr.size[MLX5HWS_MATCHER_SIZE_TYPE_TX];
+	ste_attr.log_obj_range =
+		matcher->attr.optimize_flow_src ==
+			MLX5HWS_MATCHER_FLOW_SRC_WIRE ?
+			0 : size->table.sz_col_log + size->table.sz_row_log;
+
+	ret = mlx5hws_cmd_ste_create(ctx->mdev, &ste_attr,
+				     &matcher->match_ste.ste_1_base);
+	if (ret) {
+		mlx5hws_err(ctx, "Failed to allocate TX STE range (%d)\n", ret);
+		goto destroy_rx_ste_range;
 	}
 
 	return 0;
 
+destroy_rx_ste_range:
+	mlx5hws_cmd_ste_destroy(ctx->mdev, matcher->match_ste.ste_0_base);
 uninit_match_definer:
 	if (!(matcher->flags & MLX5HWS_MATCHER_FLAGS_COLLISION))
 		mlx5hws_definer_mt_uninit(ctx, matcher->mt);
@@ -723,9 +738,12 @@ uninit_match_definer:
 
 static void hws_matcher_unbind_mt(struct mlx5hws_matcher *matcher)
 {
-	mlx5hws_pool_destroy(matcher->match_ste.pool);
+	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+
+	mlx5hws_cmd_ste_destroy(ctx->mdev, matcher->match_ste.ste_1_base);
+	mlx5hws_cmd_ste_destroy(ctx->mdev, matcher->match_ste.ste_0_base);
 	if (!(matcher->flags & MLX5HWS_MATCHER_FLAGS_COLLISION))
-		mlx5hws_definer_mt_uninit(matcher->tbl->ctx, matcher->mt);
+		mlx5hws_definer_mt_uninit(ctx, matcher->mt);
 }
 
 static int
@@ -734,6 +752,10 @@ hws_matcher_validate_insert_mode(struct mlx5hws_cmd_query_caps *caps,
 {
 	struct mlx5hws_matcher_attr *attr = &matcher->attr;
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+	union mlx5hws_matcher_size *size_rx, *size_tx;
+
+	size_rx = &matcher->attr.size[MLX5HWS_MATCHER_SIZE_TYPE_RX];
+	size_tx = &matcher->attr.size[MLX5HWS_MATCHER_SIZE_TYPE_TX];
 
 	switch (attr->insert_mode) {
 	case MLX5HWS_MATCHER_INSERT_BY_HASH:
@@ -744,7 +766,7 @@ hws_matcher_validate_insert_mode(struct mlx5hws_cmd_query_caps *caps,
 		break;
 
 	case MLX5HWS_MATCHER_INSERT_BY_INDEX:
-		if (attr->table.sz_col_log) {
+		if (size_rx->table.sz_col_log || size_tx->table.sz_col_log) {
 			mlx5hws_err(ctx, "Matcher with INSERT_BY_INDEX supports only Nx1 table size\n");
 			return -EOPNOTSUPP;
 		}
@@ -764,7 +786,10 @@ hws_matcher_validate_insert_mode(struct mlx5hws_cmd_query_caps *caps,
 				return -EOPNOTSUPP;
 			}
 
-			if (attr->table.sz_row_log > MLX5_IFC_RTC_LINEAR_LOOKUP_TBL_LOG_MAX) {
+			if (size_rx->table.sz_row_log >
+				MLX5_IFC_RTC_LINEAR_LOOKUP_TBL_LOG_MAX ||
+			    size_tx->table.sz_row_log >
+				MLX5_IFC_RTC_LINEAR_LOOKUP_TBL_LOG_MAX) {
 				mlx5hws_err(ctx, "Matcher with linear distribute: rows exceed limit %d",
 					    MLX5_IFC_RTC_LINEAR_LOOKUP_TBL_LOG_MAX);
 				return -EOPNOTSUPP;
@@ -788,6 +813,10 @@ hws_matcher_process_attr(struct mlx5hws_cmd_query_caps *caps,
 			 struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_matcher_attr *attr = &matcher->attr;
+	union mlx5hws_matcher_size *size_rx, *size_tx;
+
+	size_rx = &attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX];
+	size_tx = &attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX];
 
 	if (hws_matcher_validate_insert_mode(caps, matcher))
 		return -EOPNOTSUPP;
@@ -799,8 +828,12 @@ hws_matcher_process_attr(struct mlx5hws_cmd_query_caps *caps,
 
 	/* Convert number of rules to the required depth */
 	if (attr->mode == MLX5HWS_MATCHER_RESOURCE_MODE_RULE &&
-	    attr->insert_mode == MLX5HWS_MATCHER_INSERT_BY_HASH)
-		attr->table.sz_col_log = hws_matcher_rules_to_tbl_depth(attr->rule.num_log);
+	    attr->insert_mode == MLX5HWS_MATCHER_INSERT_BY_HASH) {
+		size_rx->table.sz_col_log =
+			hws_matcher_rules_to_tbl_depth(size_rx->rule.num_log);
+		size_tx->table.sz_col_log =
+			hws_matcher_rules_to_tbl_depth(size_tx->rule.num_log);
+	}
 
 	matcher->flags |= attr->resizable ? MLX5HWS_MATCHER_FLAGS_RESIZABLE : 0;
 	matcher->flags |= attr->isolated_matcher_end_ft_id ?
@@ -861,14 +894,19 @@ static int
 hws_matcher_create_col_matcher(struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+	union mlx5hws_matcher_size *size_rx, *size_tx;
 	struct mlx5hws_matcher *col_matcher;
-	int ret;
+	int i, ret;
+
+	size_rx = &matcher->attr.size[MLX5HWS_MATCHER_SIZE_TYPE_RX];
+	size_tx = &matcher->attr.size[MLX5HWS_MATCHER_SIZE_TYPE_TX];
 
 	if (matcher->attr.mode != MLX5HWS_MATCHER_RESOURCE_MODE_RULE ||
 	    matcher->attr.insert_mode == MLX5HWS_MATCHER_INSERT_BY_INDEX)
 		return 0;
 
-	if (!hws_matcher_requires_col_tbl(matcher->attr.rule.num_log))
+	if (!hws_matcher_requires_col_tbl(size_rx->rule.num_log) &&
+	    !hws_matcher_requires_col_tbl(size_tx->rule.num_log))
 		return 0;
 
 	col_matcher = kzalloc(sizeof(*matcher), GFP_KERNEL);
@@ -885,10 +923,16 @@ hws_matcher_create_col_matcher(struct mlx5hws_matcher *matcher)
 	col_matcher->flags |= MLX5HWS_MATCHER_FLAGS_COLLISION;
 	col_matcher->attr.mode = MLX5HWS_MATCHER_RESOURCE_MODE_HTABLE;
 	col_matcher->attr.optimize_flow_src = matcher->attr.optimize_flow_src;
-	col_matcher->attr.table.sz_row_log = matcher->attr.rule.num_log;
-	col_matcher->attr.table.sz_col_log = MLX5HWS_MATCHER_ASSURED_COL_TBL_DEPTH;
-	if (col_matcher->attr.table.sz_row_log > MLX5HWS_MATCHER_ASSURED_ROW_RATIO)
-		col_matcher->attr.table.sz_row_log -= MLX5HWS_MATCHER_ASSURED_ROW_RATIO;
+	for (i = 0; i < 2; i++) {
+		union mlx5hws_matcher_size *dst = &col_matcher->attr.size[i];
+		union mlx5hws_matcher_size *src = &matcher->attr.size[i];
+
+		dst->table.sz_row_log = src->rule.num_log;
+		dst->table.sz_col_log = MLX5HWS_MATCHER_ASSURED_COL_TBL_DEPTH;
+		if (dst->table.sz_row_log > MLX5HWS_MATCHER_ASSURED_ROW_RATIO)
+			dst->table.sz_row_log -=
+				MLX5HWS_MATCHER_ASSURED_ROW_RATIO;
+	}
 
 	col_matcher->attr.max_num_of_at_attach = matcher->attr.max_num_of_at_attach;
 	col_matcher->attr.isolated_matcher_end_ft_id =

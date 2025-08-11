@@ -1318,26 +1318,14 @@ mtk_wed_rro_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
 static int
 mtk_wed_rro_alloc(struct mtk_wed_device *dev)
 {
-	struct reserved_mem *rmem;
-	struct device_node *np;
-	int index;
+	struct resource res;
+	int ret;
 
-	index = of_property_match_string(dev->hw->node, "memory-region-names",
-					 "wo-dlm");
-	if (index < 0)
-		return index;
+	ret = of_reserved_mem_region_to_resource_byname(dev->hw->node, "wo-dlm", &res);
+	if (ret)
+		return ret;
 
-	np = of_parse_phandle(dev->hw->node, "memory-region", index);
-	if (!np)
-		return -ENODEV;
-
-	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
-
-	if (!rmem)
-		return -ENODEV;
-
-	dev->rro.miod_phys = rmem->base;
+	dev->rro.miod_phys = res.start;
 	dev->rro.fdbk_phys = MTK_WED_MIOD_COUNT + dev->rro.miod_phys;
 
 	return mtk_wed_rro_ring_alloc(dev, &dev->rro.ring,
@@ -2794,7 +2782,6 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 	if (!pdev)
 		goto err_of_node_put;
 
-	get_device(&pdev->dev);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		goto err_put_device;

@@ -125,7 +125,7 @@ impl DriverData {
     fn new() -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
             status <- CMutex::new(0),
-            buffer: Box::init(pin_init::zeroed())?,
+            buffer: Box::init(pin_init::init_zeroed())?,
         }? Error)
     }
 }

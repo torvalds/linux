@@ -1030,9 +1030,8 @@ static inline unsigned int get_pcd(struct pxafb_info *fbi,
 
 /*
  * Some touchscreens need hsync information from the video driver to
- * function correctly. We export it here.  Note that 'hsync_time' and
- * the value returned from pxafb_get_hsync_time() is the *reciprocal*
- * of the hsync period in seconds.
+ * function correctly. We export it here.  Note that 'hsync_time' is
+ * the *reciprocal* of the hsync period in seconds.
  */
 static inline void set_hsync_time(struct pxafb_info *fbi, unsigned int pcd)
 {
@@ -1047,18 +1046,6 @@ static inline void set_hsync_time(struct pxafb_info *fbi, unsigned int pcd)
 
 	fbi->hsync_time = htime;
 }
-
-unsigned long pxafb_get_hsync_time(struct device *dev)
-{
-	struct pxafb_info *fbi = dev_get_drvdata(dev);
-
-	/* If display is blanked/suspended, hsync isn't active */
-	if (!fbi || (fbi->state != C_ENABLE))
-		return 0;
-
-	return fbi->hsync_time;
-}
-EXPORT_SYMBOL(pxafb_get_hsync_time);
 
 static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 			   unsigned long start, size_t size)

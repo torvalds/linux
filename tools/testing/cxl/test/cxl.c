@@ -2,6 +2,7 @@
 // Copyright(c) 2021 Intel Corporation. All rights reserved.
 
 #include <linux/platform_device.h>
+#include <linux/memory_hotplug.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -1328,6 +1329,7 @@ err_mem:
 static __init int cxl_test_init(void)
 {
 	int rc, i;
+	struct range mappable;
 
 	cxl_acpi_test();
 	cxl_core_test();
@@ -1342,8 +1344,11 @@ static __init int cxl_test_init(void)
 		rc = -ENOMEM;
 		goto err_gen_pool_create;
 	}
+	mappable = mhp_get_pluggable_range(true);
 
-	rc = gen_pool_add(cxl_mock_pool, iomem_resource.end + 1 - SZ_64G,
+	rc = gen_pool_add(cxl_mock_pool,
+			  min(iomem_resource.end + 1 - SZ_64G,
+			      mappable.end + 1 - SZ_64G),
 			  SZ_64G, NUMA_NO_NODE);
 	if (rc)
 		goto err_gen_pool_add;

@@ -249,8 +249,8 @@ static int lpc18xx_gpio_pin_ic_probe(struct lpc18xx_gpio_chip *gc)
 	raw_spin_lock_init(&ic->lock);
 
 	ic->domain = irq_domain_create_hierarchy(parent_domain, 0, NR_LPC18XX_GPIO_PIN_IC_IRQS,
-						 of_fwnode_handle(dev->of_node),
-						 &lpc18xx_gpio_pin_ic_domain_ops, ic);
+						 dev_fwnode(dev), &lpc18xx_gpio_pin_ic_domain_ops,
+						 ic);
 	if (!ic->domain) {
 		pr_err("unable to add irq domain\n");
 		ret = -ENODEV;
@@ -327,7 +327,7 @@ static const struct gpio_chip lpc18xx_chip = {
 	.free			= gpiochip_generic_free,
 	.direction_input	= lpc18xx_gpio_direction_input,
 	.direction_output	= lpc18xx_gpio_direction_output,
-	.set_rv			= lpc18xx_gpio_set,
+	.set			= lpc18xx_gpio_set,
 	.get			= lpc18xx_gpio_get,
 	.ngpio			= LPC18XX_MAX_PORTS * LPC18XX_PINS_PER_PORT,
 	.owner			= THIS_MODULE,

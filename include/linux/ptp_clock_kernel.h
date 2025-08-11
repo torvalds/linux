@@ -477,40 +477,14 @@ static inline ktime_t ptp_convert_timestamp(const ktime_t *hwtstamp,
 
 static inline void ptp_read_system_prets(struct ptp_system_timestamp *sts)
 {
-	if (sts) {
-		switch (sts->clockid) {
-		case CLOCK_REALTIME:
-			ktime_get_real_ts64(&sts->pre_ts);
-			break;
-		case CLOCK_MONOTONIC:
-			ktime_get_ts64(&sts->pre_ts);
-			break;
-		case CLOCK_MONOTONIC_RAW:
-			ktime_get_raw_ts64(&sts->pre_ts);
-			break;
-		default:
-			break;
-		}
-	}
+	if (sts)
+		ktime_get_clock_ts64(sts->clockid, &sts->pre_ts);
 }
 
 static inline void ptp_read_system_postts(struct ptp_system_timestamp *sts)
 {
-	if (sts) {
-		switch (sts->clockid) {
-		case CLOCK_REALTIME:
-			ktime_get_real_ts64(&sts->post_ts);
-			break;
-		case CLOCK_MONOTONIC:
-			ktime_get_ts64(&sts->post_ts);
-			break;
-		case CLOCK_MONOTONIC_RAW:
-			ktime_get_raw_ts64(&sts->post_ts);
-			break;
-		default:
-			break;
-		}
-	}
+	if (sts)
+		ktime_get_clock_ts64(sts->clockid, &sts->post_ts);
 }
 
 #endif

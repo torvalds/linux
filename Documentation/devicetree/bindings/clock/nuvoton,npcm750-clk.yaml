@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/nuvoton,npcm750-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Nuvoton NPCM7XX Clock Controller
+
+maintainers:
+  - Tali Perry <tali.perry1@gmail.com>
+
+description: >
+  Nuvoton Poleg BMC NPCM7XX contains an integrated clock controller, which
+  generates and supplies clocks to all modules within the BMC.
+
+  External clocks:
+
+  There are six fixed clocks that are generated outside the BMC. All clocks are of
+  a known fixed value that cannot be changed. clk_refclk, clk_mcbypck and
+  clk_sysbypck are inputs to the clock controller.
+  clk_rg1refck, clk_rg2refck and clk_xin are external clocks suppling the
+  network. They are set on the device tree, but not used by the clock module. The
+  network devices use them directly.
+
+  All available clocks are defined as preprocessor macros in:
+  dt-bindings/clock/nuvoton,npcm7xx-clock.h
+  and can be reused as DT sources.
+
+properties:
+  compatible:
+    const: nuvoton,npcm750-clk
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clock-names:
+    items:
+      - const: refclk
+      - const: sysbypck
+      - const: mcbypck
+
+  clocks:
+    items:
+      - description: refclk
+      - description: sysbypck
+      - description: mcbypck
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@f0801000 {
+        compatible = "nuvoton,npcm750-clk";
+        #clock-cells = <1>;
+        reg = <0xf0801000 0x1000>;
+        clock-names = "refclk", "sysbypck", "mcbypck";
+        clocks = <&clk_refclk>, <&clk_sysbypck>, <&clk_mcbypck>;
+    };

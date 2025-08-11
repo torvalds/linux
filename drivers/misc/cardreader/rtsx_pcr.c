@@ -1236,7 +1236,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	else if (PCI_PID(pcr) == PID_5228)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,
 			RTS5228_SSC_DEPTH_2M);
-	else if (is_version(pcr, 0x5264, IC_VER_A))
+	else if (is_version(pcr, PID_5264, RTS5264_IC_VER_A))
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, 0);
 	else if (PCI_PID(pcr) == PID_5264)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,

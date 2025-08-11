@@ -1061,7 +1061,7 @@ static int __init fake_init(void)
 
 	if (geoid >= VME_MAX_SLOTS) {
 		pr_err("VME geographical address must be between 0 and %d (exclusive), but got %d\n",
-			VME_MAX_SLOTS, geoid);
+		       VME_MAX_SLOTS, geoid);
 		return -EINVAL;
 	}
 

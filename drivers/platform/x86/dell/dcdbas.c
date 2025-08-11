@@ -662,7 +662,7 @@ static struct attribute *dcdbas_dev_attrs[] = {
 
 static const struct attribute_group dcdbas_attr_group = {
 	.attrs = dcdbas_dev_attrs,
-	.bin_attrs_new = dcdbas_bin_attrs,
+	.bin_attrs = dcdbas_bin_attrs,
 };
 
 static int dcdbas_probe(struct platform_device *dev)

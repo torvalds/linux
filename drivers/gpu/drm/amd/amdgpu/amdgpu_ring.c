@@ -99,6 +99,29 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned int ndw)
 	return 0;
 }
 
+/**
+ * amdgpu_ring_alloc_reemit - allocate space on the ring buffer for reemit
+ *
+ * @ring: amdgpu_ring structure holding ring information
+ * @ndw: number of dwords to allocate in the ring buffer
+ *
+ * Allocate @ndw dwords in the ring buffer (all asics).
+ * doesn't check the max_dw limit as we may be reemitting
+ * several submissions.
+ */
+static void amdgpu_ring_alloc_reemit(struct amdgpu_ring *ring, unsigned int ndw)
+{
+	/* Align requested size with padding so unlock_commit can
+	 * pad safely */
+	ndw = (ndw + ring->funcs->align_mask) & ~ring->funcs->align_mask;
+
+	ring->count_dw = ndw;
+	ring->wptr_old = ring->wptr;
+
+	if (ring->funcs->begin_use)
+		ring->funcs->begin_use(ring);
+}
+
 /** amdgpu_ring_insert_nop - insert NOP packets
  *
  * @ring: amdgpu_ring structure holding ring information
@@ -333,6 +356,12 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	/*  Initialize cached_rptr to 0 */
 	ring->cached_rptr = 0;
 
+	if (!ring->ring_backup) {
+		ring->ring_backup = kvzalloc(ring->ring_size, GFP_KERNEL);
+		if (!ring->ring_backup)
+			return -ENOMEM;
+	}
+
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create_kernel(adev, ring->ring_size + ring->funcs->extra_dw, PAGE_SIZE,
@@ -342,6 +371,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 					    (void **)&ring->ring);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
+			kvfree(ring->ring_backup);
 			return r;
 		}
 		amdgpu_ring_clear_ring(ring);
@@ -385,6 +415,8 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,
 			      (void **)&ring->ring);
+	kvfree(ring->ring_backup);
+	ring->ring_backup = NULL;
 
 	dma_fence_put(ring->vmid_wait);
 	ring->vmid_wait = NULL;
@@ -687,6 +719,7 @@ static void amdgpu_ring_to_mqd_prop(struct amdgpu_ring *ring,
 	prop->eop_gpu_addr = ring->eop_gpu_addr;
 	prop->use_doorbell = ring->use_doorbell;
 	prop->doorbell_index = ring->doorbell_index;
+	prop->kernel_queue = true;
 
 	/* map_queues packet doesn't need activate the queue,
 	 * so only kiq need set this field.
@@ -757,4 +790,70 @@ bool amdgpu_ring_sched_ready(struct amdgpu_ring *ring)
 		return false;
 
 	return true;
+}
+
+void amdgpu_ring_reset_helper_begin(struct amdgpu_ring *ring,
+				    struct amdgpu_fence *guilty_fence)
+{
+	/* Stop the scheduler to prevent anybody else from touching the ring buffer. */
+	drm_sched_wqueue_stop(&ring->sched);
+	/* back up the non-guilty commands */
+	amdgpu_ring_backup_unprocessed_commands(ring, guilty_fence);
+}
+
+int amdgpu_ring_reset_helper_end(struct amdgpu_ring *ring,
+				 struct amdgpu_fence *guilty_fence)
+{
+	unsigned int i;
+	int r;
+
+	/* verify that the ring is functional */
+	r = amdgpu_ring_test_ring(ring);
+	if (r)
+		return r;
+
+	/* signal the fence of the bad job */
+	if (guilty_fence)
+		amdgpu_fence_driver_guilty_force_completion(guilty_fence);
+	/* Re-emit the non-guilty commands */
+	if (ring->ring_backup_entries_to_copy) {
+		amdgpu_ring_alloc_reemit(ring, ring->ring_backup_entries_to_copy);
+		for (i = 0; i < ring->ring_backup_entries_to_copy; i++)
+			amdgpu_ring_write(ring, ring->ring_backup[i]);
+		amdgpu_ring_commit(ring);
+	}
+	/* Start the scheduler again */
+	drm_sched_wqueue_start(&ring->sched);
+	return 0;
+}
+
+bool amdgpu_ring_is_reset_type_supported(struct amdgpu_ring *ring,
+					 u32 reset_type)
+{
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_GFX:
+		if (ring->adev->gfx.gfx_supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		if (ring->adev->gfx.compute_supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		if (ring->adev->sdma.supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_VCN_DEC:
+	case AMDGPU_RING_TYPE_VCN_ENC:
+		if (ring->adev->vcn.supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_VCN_JPEG:
+		if (ring->adev->jpeg.supported_reset & reset_type)
+			return true;
+		break;
+	default:
+		break;
+	}
+	return false;
 }

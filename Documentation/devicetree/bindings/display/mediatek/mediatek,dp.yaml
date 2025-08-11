@@ -45,6 +45,9 @@ properties:
   '#sound-dai-cells':
     const: 0
 
+  aux-bus:
+    $ref: /schemas/display/dp-aux-bus.yaml#
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     properties:

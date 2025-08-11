@@ -291,7 +291,6 @@ _preset_ready_:
 	/* Mark Slave initialization complete */
 	rt1308->hw_init = true;
 
-	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
 	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);

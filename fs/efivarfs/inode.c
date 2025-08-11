@@ -138,7 +138,7 @@ const struct inode_operations efivarfs_dir_inode_operations = {
 };
 
 static int
-efivarfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+efivarfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	unsigned int i_flags;
 	unsigned int flags = 0;
@@ -154,7 +154,7 @@ efivarfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 
 static int
 efivarfs_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa)
+		      struct dentry *dentry, struct file_kattr *fa)
 {
 	unsigned int i_flags = 0;
 

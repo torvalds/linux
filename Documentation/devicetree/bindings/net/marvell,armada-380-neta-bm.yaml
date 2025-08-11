@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/marvell,armada-380-neta-bm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 380/XP Buffer Manager (BM)
+
+maintainers:
+  - Marcin Wojtas <marcin.s.wojtas@gmail.com>
+
+description:
+  In order to see how to hook the BM to a given ethernet port, please refer to
+  Documentation/devicetree/bindings/net/marvell,armada-370-neta.yaml.
+
+properties:
+  compatible:
+    const: marvell,armada-380-neta-bm
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  internal-mem:
+    description: Phandle to internal SRAM region
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+patternProperties:
+  "^pool[0-3],capacity$":
+    description:
+      size of external buffer pointers' ring maintained in DRAM for pool 0-3
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 128
+    maximum: 16352
+
+  "^pool[0-3],pkt-size$":
+    description:
+      maximum packet size for a short buffer pool entry (pool 0-3)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - internal-mem
+
+additionalProperties: false
+
+examples:
+  - |
+    bm@c8000 {
+        compatible = "marvell,armada-380-neta-bm";
+        reg = <0xc8000 0xac>;
+        clocks = <&gateclk 13>;
+        internal-mem = <&bm_bppi>;
+        pool2,capacity = <4096>;
+        pool1,pkt-size = <512>;
+    };

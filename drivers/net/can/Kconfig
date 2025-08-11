@@ -154,6 +154,7 @@ config CAN_JANZ_ICAN3
 config CAN_KVASER_PCIEFD
 	depends on PCI
 	tristate "Kvaser PCIe FD cards"
+	select NET_DEVLINK
 	help
 	  This is a driver for the Kvaser PCI Express CAN FD family.
 
@@ -201,7 +202,7 @@ config CAN_SUN4I
 	  be called sun4i_can.
 
 config CAN_TI_HECC
-	depends on ARM
+	depends on ARM || COMPILE_TEST
 	tristate "TI High End CAN Controller"
 	select CAN_RX_OFFLOAD
 	help

@@ -9,7 +9,6 @@ config APPLE_PMGR_PWRSTATE
 	select MFD_SYSCON
 	select PM_GENERIC_DOMAINS
 	select RESET_CONTROLLER
-	default ARCH_APPLE
 	help
 	  The PMGR block in Apple SoCs provides high-level power state
 	  controls for SoC devices. This driver manages them through the

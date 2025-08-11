@@ -15,26 +15,25 @@
 
 #include "timekeeping_internal.h"
 
+static inline void fill_clock_configuration(struct vdso_clock *vc, const struct tk_read_base *base)
+{
+	vc->cycle_last	= base->cycle_last;
+#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
+	vc->max_cycles	= base->clock->max_cycles;
+#endif
+	vc->mask	= base->mask;
+	vc->mult	= base->mult;
+	vc->shift	= base->shift;
+}
+
 static inline void update_vdso_time_data(struct vdso_time_data *vdata, struct timekeeper *tk)
 {
 	struct vdso_clock *vc = vdata->clock_data;
 	struct vdso_timestamp *vdso_ts;
 	u64 nsec, sec;
 
-	vc[CS_HRES_COARSE].cycle_last	= tk->tkr_mono.cycle_last;
-#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
-	vc[CS_HRES_COARSE].max_cycles	= tk->tkr_mono.clock->max_cycles;
-#endif
-	vc[CS_HRES_COARSE].mask		= tk->tkr_mono.mask;
-	vc[CS_HRES_COARSE].mult		= tk->tkr_mono.mult;
-	vc[CS_HRES_COARSE].shift	= tk->tkr_mono.shift;
-	vc[CS_RAW].cycle_last		= tk->tkr_raw.cycle_last;
-#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
-	vc[CS_RAW].max_cycles		= tk->tkr_raw.clock->max_cycles;
-#endif
-	vc[CS_RAW].mask			= tk->tkr_raw.mask;
-	vc[CS_RAW].mult			= tk->tkr_raw.mult;
-	vc[CS_RAW].shift		= tk->tkr_raw.shift;
+	fill_clock_configuration(&vc[CS_HRES_COARSE],	&tk->tkr_mono);
+	fill_clock_configuration(&vc[CS_RAW],		&tk->tkr_raw);
 
 	/* CLOCK_MONOTONIC */
 	vdso_ts		= &vc[CS_HRES_COARSE].basetime[CLOCK_MONOTONIC];
@@ -119,7 +118,8 @@ void update_vsyscall(struct timekeeper *tk)
 	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_time_data(vdata, tk);
 
-	__arch_update_vsyscall(vdata);
+	__arch_update_vdso_clock(&vc[CS_HRES_COARSE]);
+	__arch_update_vdso_clock(&vc[CS_RAW]);
 
 	vdso_write_end(vdata);
 
@@ -135,6 +135,46 @@ void update_vsyscall_tz(void)
 
 	__arch_sync_vdso_time_data(vdata);
 }
+
+#ifdef CONFIG_POSIX_AUX_CLOCKS
+void vdso_time_update_aux(struct timekeeper *tk)
+{
+	struct vdso_time_data *vdata = vdso_k_time_data;
+	struct vdso_timestamp *vdso_ts;
+	struct vdso_clock *vc;
+	s32 clock_mode;
+	u64 nsec;
+
+	vc = &vdata->aux_clock_data[tk->id - TIMEKEEPER_AUX_FIRST];
+	vdso_ts = &vc->basetime[VDSO_BASE_AUX];
+	clock_mode = tk->tkr_mono.clock->vdso_clock_mode;
+	if (!tk->clock_valid)
+		clock_mode = VDSO_CLOCKMODE_NONE;
+
+	/* copy vsyscall data */
+	vdso_write_begin_clock(vc);
+
+	vc->clock_mode = clock_mode;
+
+	if (clock_mode != VDSO_CLOCKMODE_NONE) {
+		fill_clock_configuration(vc, &tk->tkr_mono);
+
+		vdso_ts->sec	= tk->xtime_sec;
+
+		nsec = tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift;
+		nsec += tk->offs_aux;
+		vdso_ts->sec += __iter_div_u64_rem(nsec, NSEC_PER_SEC, &nsec);
+		nsec = nsec << tk->tkr_mono.shift;
+		vdso_ts->nsec = nsec;
+	}
+
+	__arch_update_vdso_clock(vc);
+
+	vdso_write_end_clock(vc);
+
+	__arch_sync_vdso_time_data(vdata);
+}
+#endif
 
 /**
  * vdso_update_begin - Start of a VDSO update section

@@ -378,6 +378,9 @@ err_create_cq:
 	mlx5_free_bfreg(mdev, &sq->bfreg);
 err_alloc_bfreg:
 	kfree(sq);
+
+	if (mdev->wc_state == MLX5_WC_STATE_UNSUPPORTED)
+		mlx5_core_warn(mdev, "Write combining is not supported\n");
 }
 
 bool mlx5_wc_support_get(struct mlx5_core_dev *mdev)

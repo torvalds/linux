@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+<import file="adreno/adreno_common.xml"/>
+<import file="adreno/adreno_pm4.xml"/>
+
+<enum name="a6xx_tile_mode">
+	<value name="TILE6_LINEAR" value="0"/>
+	<value name="TILE6_2" value="2"/>
+	<value name="TILE6_3" value="3"/>
+</enum>
+
+<enum name="a6xx_format">
+	<value value="0x02" name="FMT6_A8_UNORM"/>
+	<value value="0x03" name="FMT6_8_UNORM"/>
+	<value value="0x04" name="FMT6_8_SNORM"/>
+	<value value="0x05" name="FMT6_8_UINT"/>
+	<value value="0x06" name="FMT6_8_SINT"/>
+
+	<value value="0x08" name="FMT6_4_4_4_4_UNORM"/>
+	<value value="0x0a" name="FMT6_5_5_5_1_UNORM"/>
+	<value value="0x0c" name="FMT6_1_5_5_5_UNORM"/> <!-- read only -->
+	<value value="0x0e" name="FMT6_5_6_5_UNORM"/>
+
+	<value value="0x0f" name="FMT6_8_8_UNORM"/>
+	<value value="0x10" name="FMT6_8_8_SNORM"/>
+	<value value="0x11" name="FMT6_8_8_UINT"/>
+	<value value="0x12" name="FMT6_8_8_SINT"/>
+	<value value="0x13" name="FMT6_L8_A8_UNORM"/>
+
+	<value value="0x15" name="FMT6_16_UNORM"/>
+	<value value="0x16" name="FMT6_16_SNORM"/>
+	<value value="0x17" name="FMT6_16_FLOAT"/>
+	<value value="0x18" name="FMT6_16_UINT"/>
+	<value value="0x19" name="FMT6_16_SINT"/>
+
+	<value value="0x21" name="FMT6_8_8_8_UNORM"/>
+	<value value="0x22" name="FMT6_8_8_8_SNORM"/>
+	<value value="0x23" name="FMT6_8_8_8_UINT"/>
+	<value value="0x24" name="FMT6_8_8_8_SINT"/>
+
+	<value value="0x30" name="FMT6_8_8_8_8_UNORM"/>
+	<value value="0x31" name="FMT6_8_8_8_X8_UNORM"/> <!-- samples 1 for alpha -->
+	<value value="0x32" name="FMT6_8_8_8_8_SNORM"/>
+	<value value="0x33" name="FMT6_8_8_8_8_UINT"/>
+	<value value="0x34" name="FMT6_8_8_8_8_SINT"/>
+
+	<value value="0x35" name="FMT6_9_9_9_E5_FLOAT"/>
+
+	<value value="0x36" name="FMT6_10_10_10_2_UNORM"/>
+	<value value="0x37" name="FMT6_10_10_10_2_UNORM_DEST"/>
+	<value value="0x39" name="FMT6_10_10_10_2_SNORM"/>
+	<value value="0x3a" name="FMT6_10_10_10_2_UINT"/>
+	<value value="0x3b" name="FMT6_10_10_10_2_SINT"/>
+
+	<value value="0x42" name="FMT6_11_11_10_FLOAT"/>
+
+	<value value="0x43" name="FMT6_16_16_UNORM"/>
+	<value value="0x44" name="FMT6_16_16_SNORM"/>
+	<value value="0x45" name="FMT6_16_16_FLOAT"/>
+	<value value="0x46" name="FMT6_16_16_UINT"/>
+	<value value="0x47" name="FMT6_16_16_SINT"/>
+
+	<value value="0x48" name="FMT6_32_UNORM"/>
+	<value value="0x49" name="FMT6_32_SNORM"/>
+	<value value="0x4a" name="FMT6_32_FLOAT"/>
+	<value value="0x4b" name="FMT6_32_UINT"/>
+	<value value="0x4c" name="FMT6_32_SINT"/>
+	<value value="0x4d" name="FMT6_32_FIXED"/>
+
+	<value value="0x58" name="FMT6_16_16_16_UNORM"/>
+	<value value="0x59" name="FMT6_16_16_16_SNORM"/>
+	<value value="0x5a" name="FMT6_16_16_16_FLOAT"/>
+	<value value="0x5b" name="FMT6_16_16_16_UINT"/>
+	<value value="0x5c" name="FMT6_16_16_16_SINT"/>
+
+	<value value="0x60" name="FMT6_16_16_16_16_UNORM"/>
+	<value value="0x61" name="FMT6_16_16_16_16_SNORM"/>
+	<value value="0x62" name="FMT6_16_16_16_16_FLOAT"/>
+	<value value="0x63" name="FMT6_16_16_16_16_UINT"/>
+	<value value="0x64" name="FMT6_16_16_16_16_SINT"/>
+
+	<value value="0x65" name="FMT6_32_32_UNORM"/>
+	<value value="0x66" name="FMT6_32_32_SNORM"/>
+	<value value="0x67" name="FMT6_32_32_FLOAT"/>
+	<value value="0x68" name="FMT6_32_32_UINT"/>
+	<value value="0x69" name="FMT6_32_32_SINT"/>
+	<value value="0x6a" name="FMT6_32_32_FIXED"/>
+
+	<value value="0x70" name="FMT6_32_32_32_UNORM"/>
+	<value value="0x71" name="FMT6_32_32_32_SNORM"/>
+	<value value="0x72" name="FMT6_32_32_32_UINT"/>
+	<value value="0x73" name="FMT6_32_32_32_SINT"/>
+	<value value="0x74" name="FMT6_32_32_32_FLOAT"/>
+	<value value="0x75" name="FMT6_32_32_32_FIXED"/>
+
+	<value value="0x80" name="FMT6_32_32_32_32_UNORM"/>
+	<value value="0x81" name="FMT6_32_32_32_32_SNORM"/>
+	<value value="0x82" name="FMT6_32_32_32_32_FLOAT"/>
+	<value value="0x83" name="FMT6_32_32_32_32_UINT"/>
+	<value value="0x84" name="FMT6_32_32_32_32_SINT"/>
+	<value value="0x85" name="FMT6_32_32_32_32_FIXED"/>
+
+	<value value="0x8c" name="FMT6_G8R8B8R8_422_UNORM"/> <!-- UYVY -->
+	<value value="0x8d" name="FMT6_R8G8R8B8_422_UNORM"/> <!-- YUYV -->
+	<value value="0x8e" name="FMT6_R8_G8B8_2PLANE_420_UNORM"/> <!-- NV12 -->
+	<value value="0x8f" name="FMT6_NV21"/>
+	<value value="0x90" name="FMT6_R8_G8_B8_3PLANE_420_UNORM"/> <!-- YV12 -->
+
+	<value value="0x91" name="FMT6_Z24_UNORM_S8_UINT_AS_R8G8B8A8"/>
+
+	<!-- Note: tiling/UBWC for these may be different from equivalent formats
+	For example FMT6_NV12_Y is not compatible with FMT6_8_UNORM
+	-->
+	<value value="0x94" name="FMT6_NV12_Y"/>
+	<value value="0x95" name="FMT6_NV12_UV"/>
+	<value value="0x96" name="FMT6_NV12_VU"/>
+	<value value="0x97" name="FMT6_NV12_4R"/>
+	<value value="0x98" name="FMT6_NV12_4R_Y"/>
+	<value value="0x99" name="FMT6_NV12_4R_UV"/>
+	<value value="0x9a" name="FMT6_P010"/>
+	<value value="0x9b" name="FMT6_P010_Y"/>
+	<value value="0x9c" name="FMT6_P010_UV"/>
+	<value value="0x9d" name="FMT6_TP10"/>
+	<value value="0x9e" name="FMT6_TP10_Y"/>
+	<value value="0x9f" name="FMT6_TP10_UV"/>
+
+	<value value="0xa0" name="FMT6_Z24_UNORM_S8_UINT"/>
+
+	<value value="0xab" name="FMT6_ETC2_RG11_UNORM"/>
+	<value value="0xac" name="FMT6_ETC2_RG11_SNORM"/>
+	<value value="0xad" name="FMT6_ETC2_R11_UNORM"/>
+	<value value="0xae" name="FMT6_ETC2_R11_SNORM"/>
+	<value value="0xaf" name="FMT6_ETC1"/>
+	<value value="0xb0" name="FMT6_ETC2_RGB8"/>
+	<value value="0xb1" name="FMT6_ETC2_RGBA8"/>
+	<value value="0xb2" name="FMT6_ETC2_RGB8A1"/>
+	<value value="0xb3" name="FMT6_DXT1"/>
+	<value value="0xb4" name="FMT6_DXT3"/>
+	<value value="0xb5" name="FMT6_DXT5"/>
+	<value value="0xb6" name="FMT6_RGTC1_UNORM"/>
+	<value value="0xb7" name="FMT6_RGTC1_UNORM_FAST"/>
+	<value value="0xb8" name="FMT6_RGTC1_SNORM"/>
+	<value value="0xb9" name="FMT6_RGTC1_SNORM_FAST"/>
+	<value value="0xba" name="FMT6_RGTC2_UNORM"/>
+	<value value="0xbb" name="FMT6_RGTC2_UNORM_FAST"/>
+	<value value="0xbc" name="FMT6_RGTC2_SNORM"/>
+	<value value="0xbd" name="FMT6_RGTC2_SNORM_FAST"/>
+	<value value="0xbe" name="FMT6_BPTC_UFLOAT"/>
+	<value value="0xbf" name="FMT6_BPTC_FLOAT"/>
+	<value value="0xc0" name="FMT6_BPTC"/>
+	<value value="0xc1" name="FMT6_ASTC_4x4"/>
+	<value value="0xc2" name="FMT6_ASTC_5x4"/>
+	<value value="0xc3" name="FMT6_ASTC_5x5"/>
+	<value value="0xc4" name="FMT6_ASTC_6x5"/>
+	<value value="0xc5" name="FMT6_ASTC_6x6"/>
+	<value value="0xc6" name="FMT6_ASTC_8x5"/>
+	<value value="0xc7" name="FMT6_ASTC_8x6"/>
+	<value value="0xc8" name="FMT6_ASTC_8x8"/>
+	<value value="0xc9" name="FMT6_ASTC_10x5"/>
+	<value value="0xca" name="FMT6_ASTC_10x6"/>
+	<value value="0xcb" name="FMT6_ASTC_10x8"/>
+	<value value="0xcc" name="FMT6_ASTC_10x10"/>
+	<value value="0xcd" name="FMT6_ASTC_12x10"/>
+	<value value="0xce" name="FMT6_ASTC_12x12"/>
+
+	<!-- for sampling stencil (integer, 2nd channel), not available on a630 -->
+	<value value="0xea" name="FMT6_Z24_UINT_S8_UINT"/>
+
+	<!-- Not a hw enum, used internally in driver -->
+	<value value="0xff" name="FMT6_NONE"/>
+
+</enum>
+
+<!-- probably same as a5xx -->
+<enum name="a6xx_polygon_mode">
+	<value name="POLYMODE6_POINTS" value="1"/>
+	<value name="POLYMODE6_LINES" value="2"/>
+	<value name="POLYMODE6_TRIANGLES" value="3"/>
+</enum>
+
+<enum name="a6xx_depth_format">
+	<value name="DEPTH6_NONE" value="0"/>
+	<value name="DEPTH6_16" value="1"/>
+	<value name="DEPTH6_24_8" value="2"/>
+	<value name="DEPTH6_32" value="4"/>
+</enum>
+
+<bitset name="a6x_cp_protect" inline="yes">
+	<bitfield name="BASE_ADDR" low="0" high="17"/>
+	<bitfield name="MASK_LEN" low="18" high="30"/>
+	<bitfield name="READ" pos="31" type="boolean"/>
+</bitset>
+
+<enum name="a6xx_shader_id">
+	<value value="0x9" name="A6XX_TP0_TMO_DATA"/>
+	<value value="0xa" name="A6XX_TP0_SMO_DATA"/>
+	<value value="0xb" name="A6XX_TP0_MIPMAP_BASE_DATA"/>
+	<value value="0x19" name="A6XX_TP1_TMO_DATA"/>
+	<value value="0x1a" name="A6XX_TP1_SMO_DATA"/>
+	<value value="0x1b" name="A6XX_TP1_MIPMAP_BASE_DATA"/>
+	<value value="0x29" name="A6XX_SP_INST_DATA"/>
+	<value value="0x2a" name="A6XX_SP_LB_0_DATA"/>
+	<value value="0x2b" name="A6XX_SP_LB_1_DATA"/>
+	<value value="0x2c" name="A6XX_SP_LB_2_DATA"/>
+	<value value="0x2d" name="A6XX_SP_LB_3_DATA"/>
+	<value value="0x2e" name="A6XX_SP_LB_4_DATA"/>
+	<value value="0x2f" name="A6XX_SP_LB_5_DATA"/>
+	<value value="0x30" name="A6XX_SP_CB_BINDLESS_DATA"/>
+	<value value="0x31" name="A6XX_SP_CB_LEGACY_DATA"/>
+	<value value="0x32" name="A6XX_SP_GFX_UAV_BASE_DATA"/>
+	<value value="0x33" name="A6XX_SP_INST_TAG"/>
+	<value value="0x34" name="A6XX_SP_CB_BINDLESS_TAG"/>
+	<value value="0x35" name="A6XX_SP_TMO_UMO_TAG"/>
+	<value value="0x36" name="A6XX_SP_SMO_TAG"/>
+	<value value="0x37" name="A6XX_SP_STATE_DATA"/>
+	<value value="0x49" name="A6XX_HLSQ_CHUNK_CVS_RAM"/>
+	<value value="0x4a" name="A6XX_HLSQ_CHUNK_CPS_RAM"/>
+	<value value="0x4b" name="A6XX_HLSQ_CHUNK_CVS_RAM_TAG"/>
+	<value value="0x4c" name="A6XX_HLSQ_CHUNK_CPS_RAM_TAG"/>
+	<value value="0x4d" name="A6XX_HLSQ_ICB_CVS_CB_BASE_TAG"/>
+	<value value="0x4e" name="A6XX_HLSQ_ICB_CPS_CB_BASE_TAG"/>
+	<value value="0x50" name="A6XX_HLSQ_CVS_MISC_RAM"/>
+	<value value="0x51" name="A6XX_HLSQ_CPS_MISC_RAM"/>
+	<value value="0x52" name="A6XX_HLSQ_INST_RAM"/>
+	<value value="0x53" name="A6XX_HLSQ_GFX_CVS_CONST_RAM"/>
+	<value value="0x54" name="A6XX_HLSQ_GFX_CPS_CONST_RAM"/>
+	<value value="0x55" name="A6XX_HLSQ_CVS_MISC_RAM_TAG"/>
+	<value value="0x56" name="A6XX_HLSQ_CPS_MISC_RAM_TAG"/>
+	<value value="0x57" name="A6XX_HLSQ_INST_RAM_TAG"/>
+	<value value="0x58" name="A6XX_HLSQ_GFX_CVS_CONST_RAM_TAG"/>
+	<value value="0x59" name="A6XX_HLSQ_GFX_CPS_CONST_RAM_TAG"/>
+	<value value="0x5a" name="A6XX_HLSQ_PWR_REST_RAM"/>
+	<value value="0x5b" name="A6XX_HLSQ_PWR_REST_TAG"/>
+	<value value="0x60" name="A6XX_HLSQ_DATAPATH_META"/>
+	<value value="0x61" name="A6XX_HLSQ_FRONTEND_META"/>
+	<value value="0x62" name="A6XX_HLSQ_INDIRECT_META"/>
+	<value value="0x63" name="A6XX_HLSQ_BACKEND_META"/>
+	<value value="0x70" name="A6XX_SP_LB_6_DATA"/>
+	<value value="0x71" name="A6XX_SP_LB_7_DATA"/>
+	<value value="0x73" name="A6XX_HLSQ_INST_RAM_1"/>
+</enum>
+
+<enum name="a6xx_debugbus_id">
+	<value value="0x1" name="A6XX_DBGBUS_CP"/>
+	<value value="0x2" name="A6XX_DBGBUS_RBBM"/>
+	<value value="0x3" name="A6XX_DBGBUS_VBIF"/>
+	<value value="0x4" name="A6XX_DBGBUS_HLSQ"/>
+	<value value="0x5" name="A6XX_DBGBUS_UCHE"/>
+	<value value="0x6" name="A6XX_DBGBUS_DPM"/>
+	<value value="0x7" name="A6XX_DBGBUS_TESS"/>
+	<value value="0x8" name="A6XX_DBGBUS_PC"/>
+	<value value="0x9" name="A6XX_DBGBUS_VFDP"/>
+	<value value="0xa" name="A6XX_DBGBUS_VPC"/>
+	<value value="0xb" name="A6XX_DBGBUS_TSE"/>
+	<value value="0xc" name="A6XX_DBGBUS_RAS"/>
+	<value value="0xd" name="A6XX_DBGBUS_VSC"/>
+	<value value="0xe" name="A6XX_DBGBUS_COM"/>
+	<value value="0x10" name="A6XX_DBGBUS_LRZ"/>
+	<value value="0x11" name="A6XX_DBGBUS_A2D"/>
+	<value value="0x12" name="A6XX_DBGBUS_CCUFCHE"/>
+	<value value="0x13" name="A6XX_DBGBUS_GMU_CX"/>
+	<value value="0x14" name="A6XX_DBGBUS_RBP"/>
+	<value value="0x15" name="A6XX_DBGBUS_DCS"/>
+	<value value="0x16" name="A6XX_DBGBUS_DBGC"/>
+	<value value="0x17" name="A6XX_DBGBUS_CX"/>
+	<value value="0x18" name="A6XX_DBGBUS_GMU_GX"/>
+	<value value="0x19" name="A6XX_DBGBUS_TPFCHE"/>
+	<value value="0x1a" name="A6XX_DBGBUS_GBIF_GX"/>
+	<value value="0x1d" name="A6XX_DBGBUS_GPC"/>
+	<value value="0x1e" name="A6XX_DBGBUS_LARC"/>
+	<value value="0x1f" name="A6XX_DBGBUS_HLSQ_SPTP"/>
+	<value value="0x20" name="A6XX_DBGBUS_RB_0"/>
+	<value value="0x21" name="A6XX_DBGBUS_RB_1"/>
+	<value value="0x22" name="A6XX_DBGBUS_RB_2"/>
+	<value value="0x24" name="A6XX_DBGBUS_UCHE_WRAPPER"/>
+	<value value="0x28" name="A6XX_DBGBUS_CCU_0"/>
+	<value value="0x29" name="A6XX_DBGBUS_CCU_1"/>
+	<value value="0x2a" name="A6XX_DBGBUS_CCU_2"/>
+	<value value="0x38" name="A6XX_DBGBUS_VFD_0"/>
+	<value value="0x39" name="A6XX_DBGBUS_VFD_1"/>
+	<value value="0x3a" name="A6XX_DBGBUS_VFD_2"/>
+	<value value="0x3b" name="A6XX_DBGBUS_VFD_3"/>
+	<value value="0x3c" name="A6XX_DBGBUS_VFD_4"/>
+	<value value="0x3d" name="A6XX_DBGBUS_VFD_5"/>
+	<value value="0x40" name="A6XX_DBGBUS_SP_0"/>
+	<value value="0x41" name="A6XX_DBGBUS_SP_1"/>
+	<value value="0x42" name="A6XX_DBGBUS_SP_2"/>
+	<value value="0x48" name="A6XX_DBGBUS_TPL1_0"/>
+	<value value="0x49" name="A6XX_DBGBUS_TPL1_1"/>
+	<value value="0x4a" name="A6XX_DBGBUS_TPL1_2"/>
+	<value value="0x4b" name="A6XX_DBGBUS_TPL1_3"/>
+	<value value="0x4c" name="A6XX_DBGBUS_TPL1_4"/>
+	<value value="0x4d" name="A6XX_DBGBUS_TPL1_5"/>
+	<value value="0x58" name="A6XX_DBGBUS_SPTP_0"/>
+	<value value="0x59" name="A6XX_DBGBUS_SPTP_1"/>
+	<value value="0x5a" name="A6XX_DBGBUS_SPTP_2"/>
+	<value value="0x5b" name="A6XX_DBGBUS_SPTP_3"/>
+	<value value="0x5c" name="A6XX_DBGBUS_SPTP_4"/>
+	<value value="0x5d" name="A6XX_DBGBUS_SPTP_5"/>
+</enum>
+
+<!--
+Used in a6xx_a2d_bit_cntl.. the value mostly seems to correlate to the
+component type/size, so I think it relates to internal format used for
+blending?  The one exception is that 16b unorm and 32b float use the
+same value... maybe 16b unorm is uncommon enough that it was just easier
+to upconvert to 32b float internally?
+
+ 8b unorm:  10 (sometimes 0, is the high bit part of something else?)
+16b unorm:   4
+
+32b int:     7
+16b int:     6
+ 8b int:     5
+
+32b float:   4
+16b float:   3
+ -->
+<enum name="a6xx_2d_ifmt">
+	<value value="0x10" name="R2D_UNORM8"/>
+	<value value="0x7"  name="R2D_INT32"/>
+	<value value="0x6"  name="R2D_INT16"/>
+	<value value="0x5"  name="R2D_INT8"/>
+	<value value="0x4"  name="R2D_FLOAT32"/>
+	<value value="0x3"  name="R2D_FLOAT16"/>
+	<value value="0x1"  name="R2D_UNORM8_SRGB"/>
+	<value value="0x0"  name="R2D_RAW"/>
+</enum>
+
+<enum name="a6xx_tex_type">
+	<value name="A6XX_TEX_1D" value="0"/>
+	<value name="A6XX_TEX_2D" value="1"/>
+	<value name="A6XX_TEX_CUBE" value="2"/>
+	<value name="A6XX_TEX_3D" value="3"/>
+	<value name="A6XX_TEX_BUFFER" value="4"/>
+	<doc>
+		A special buffer type for usage as the source for buffer
+		to image copies with lower alignment requirements than
+		A6XX_TEX_2D, available since A7XX.
+	</doc>
+	<value name="A6XX_TEX_IMG_BUFFER" value="5"/>
+</enum>
+
+<enum name="a6xx_ztest_mode">
+	<doc>Allow early z-test and early-lrz (if applicable)</doc>
+	<value value="0x0" name="A6XX_EARLY_Z"/>
+	<doc>Disable early z-test and early-lrz test (if applicable)</doc>
+	<value value="0x1" name="A6XX_LATE_Z"/>
+	<doc>
+		A special mode that allows early-lrz (if applicable) or early-z
+		tests, but also does late-z tests at which point it writes depth.
+
+		This mode is used when fragment can be killed (via discard or
+		sample mask) after early-z tests and it writes depth. In such case
+		depth can be written only at late-z stage, but it's ok to use
+		early-z to discard fragments.
+
+		However this mode is not compatible with:
+		- Lack of D/S attachment
+		- Stencil writes on stencil or depth test failures
+		- Per-sample shading
+	</doc>
+	<value value="0x2" name="A6XX_EARLY_Z_LATE_Z"/>
+	<doc>Not a real hw value, used internally by mesa</doc>
+	<value value="0x3" name="A6XX_INVALID_ZTEST"/>
+</enum>
+
+<enum name="a6xx_tess_spacing">
+	<value value="0x0" name="TESS_EQUAL"/>
+	<value value="0x2" name="TESS_FRACTIONAL_ODD"/>
+	<value value="0x3" name="TESS_FRACTIONAL_EVEN"/>
+</enum>
+<enum name="a6xx_tess_output">
+	<value value="0x0" name="TESS_POINTS"/>
+	<value value="0x1" name="TESS_LINES"/>
+	<value value="0x2" name="TESS_CW_TRIS"/>
+	<value value="0x3" name="TESS_CCW_TRIS"/>
+</enum>
+
+</database>

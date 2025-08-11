@@ -978,6 +978,15 @@
         "UMask": "0x4"
     },
     {
+        "BriefDescription": "Offcore Uncacheable memory data read transactions.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "OFFCORE_REQUESTS.MEM_UC",
+        "PublicDescription": "This event counts noncacheable memory data read transactions. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x20"
+    },
+    {
         "BriefDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore.",
         "Counter": "0,1,2,3",
         "CounterMask": "1",

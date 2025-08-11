@@ -236,7 +236,7 @@ static int generic_fpregs_set(struct task_struct *target,
 
 static struct user_regset uml_regsets[] __ro_after_init = {
 	[REGSET_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= sizeof(struct user_regs_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -246,7 +246,7 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 #ifdef CONFIG_X86_32
 	/* Old FP registers, they are needed in signal frames */
 	[REGSET_FP_LEGACY] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= sizeof(struct user_i387_ia32_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -257,10 +257,10 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 #endif
 	[REGSET_FP] = {
 #ifdef CONFIG_X86_32
-		.core_note_type	= NT_PRXFPREG,
+		USER_REGSET_NOTE_TYPE(PRXFPREG),
 		.n		= sizeof(struct user32_fxsr_struct) / sizeof(long),
 #else
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= sizeof(struct user_i387_struct) / sizeof(long),
 #endif
 		.size		= sizeof(long),
@@ -270,7 +270,7 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 		.set		= generic_fpregs_set,
 	},
 	[REGSET_XSTATE] = {
-		.core_note_type	= NT_X86_XSTATE,
+		USER_REGSET_NOTE_TYPE(X86_XSTATE),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
 		.active		= generic_fpregs_active,

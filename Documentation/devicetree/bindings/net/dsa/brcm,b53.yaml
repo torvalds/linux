@@ -66,6 +66,12 @@ properties:
               - brcm,bcm63268-switch
           - const: brcm,bcm63xx-switch
 
+  brcm,gpio-ctrl:
+    description:
+      A phandle to the syscon node of the bcm63xx gpio controller
+      which contains phy control registers
+    $ref: /schemas/types.yaml#/definitions/phandle
+
 required:
   - compatible
   - reg

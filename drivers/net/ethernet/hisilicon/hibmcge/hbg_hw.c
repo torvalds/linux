@@ -18,6 +18,13 @@
 #define HBG_ENDIAN_CTRL_LE_DATA_BE	0x0
 #define HBG_PCU_FRAME_LEN_PLUS 4
 
+#define HBG_FIFO_TX_FULL_THRSLD		0x3F0
+#define HBG_FIFO_TX_EMPTY_THRSLD	0x1F0
+#define HBG_FIFO_RX_FULL_THRSLD		0x240
+#define HBG_FIFO_RX_EMPTY_THRSLD	0x190
+#define HBG_CFG_FIFO_FULL_THRSLD	0x10
+#define HBG_CFG_FIFO_EMPTY_THRSLD	0x01
+
 static bool hbg_hw_spec_is_valid(struct hbg_priv *priv)
 {
 	return hbg_reg_read(priv, HBG_REG_SPEC_VALID_ADDR) &&
@@ -168,6 +175,11 @@ static void hbg_hw_set_mac_max_frame_len(struct hbg_priv *priv,
 
 void hbg_hw_set_mtu(struct hbg_priv *priv, u16 mtu)
 {
+	/* burst_len BIT(29) set to 1 can improve the TX performance.
+	 * But packet drop occurs when mtu > 2000.
+	 * So, BIT(29) reset to 0 when mtu > 2000.
+	 */
+	u32 burst_len_bit = (mtu > 2000) ? 0 : 1;
 	u32 frame_len;
 
 	frame_len = mtu + VLAN_HLEN * priv->dev_specs.vlan_layers +
@@ -175,6 +187,9 @@ void hbg_hw_set_mtu(struct hbg_priv *priv, u16 mtu)
 
 	hbg_hw_set_pcu_max_frame_len(priv, frame_len);
 	hbg_hw_set_mac_max_frame_len(priv, frame_len);
+
+	hbg_reg_write_field(priv, HBG_REG_BRUST_LENGTH_ADDR,
+			    HBG_REG_BRUST_LENGTH_B, burst_len_bit);
 }
 
 void hbg_hw_mac_enable(struct hbg_priv *priv, u32 enable)
@@ -264,6 +279,41 @@ void hbg_hw_set_rx_pause_mac_addr(struct hbg_priv *priv, u64 mac_addr)
 	hbg_reg_write64(priv, HBG_REG_FD_FC_ADDR_LOW_ADDR, mac_addr);
 }
 
+static void hbg_hw_set_fifo_thrsld(struct hbg_priv *priv,
+				   u32 full, u32 empty, enum hbg_dir dir)
+{
+	u32 value = 0;
+
+	value |= FIELD_PREP(HBG_REG_FIFO_THRSLD_FULL_M, full);
+	value |= FIELD_PREP(HBG_REG_FIFO_THRSLD_EMPTY_M, empty);
+
+	if (dir & HBG_DIR_TX)
+		hbg_reg_write(priv, HBG_REG_TX_FIFO_THRSLD_ADDR, value);
+
+	if (dir & HBG_DIR_RX)
+		hbg_reg_write(priv, HBG_REG_RX_FIFO_THRSLD_ADDR, value);
+}
+
+static void hbg_hw_set_cfg_fifo_thrsld(struct hbg_priv *priv,
+				       u32 full, u32 empty, enum hbg_dir dir)
+{
+	u32 value;
+
+	value = hbg_reg_read(priv, HBG_REG_CFG_FIFO_THRSLD_ADDR);
+
+	if (dir & HBG_DIR_TX) {
+		value |= FIELD_PREP(HBG_REG_CFG_FIFO_THRSLD_TX_FULL_M, full);
+		value |= FIELD_PREP(HBG_REG_CFG_FIFO_THRSLD_TX_EMPTY_M, empty);
+	}
+
+	if (dir & HBG_DIR_RX) {
+		value |= FIELD_PREP(HBG_REG_CFG_FIFO_THRSLD_RX_FULL_M, full);
+		value |= FIELD_PREP(HBG_REG_CFG_FIFO_THRSLD_RX_EMPTY_M, empty);
+	}
+
+	hbg_reg_write(priv, HBG_REG_CFG_FIFO_THRSLD_ADDR, value);
+}
+
 static void hbg_hw_init_transmit_ctrl(struct hbg_priv *priv)
 {
 	u32 ctrl = 0;
@@ -324,5 +374,12 @@ int hbg_hw_init(struct hbg_priv *priv)
 
 	hbg_hw_init_rx_control(priv);
 	hbg_hw_init_transmit_ctrl(priv);
+
+	hbg_hw_set_fifo_thrsld(priv, HBG_FIFO_TX_FULL_THRSLD,
+			       HBG_FIFO_TX_EMPTY_THRSLD, HBG_DIR_TX);
+	hbg_hw_set_fifo_thrsld(priv, HBG_FIFO_RX_FULL_THRSLD,
+			       HBG_FIFO_RX_EMPTY_THRSLD, HBG_DIR_RX);
+	hbg_hw_set_cfg_fifo_thrsld(priv, HBG_CFG_FIFO_FULL_THRSLD,
+				   HBG_CFG_FIFO_EMPTY_THRSLD, HBG_DIR_TX_RX);
 	return 0;
 }

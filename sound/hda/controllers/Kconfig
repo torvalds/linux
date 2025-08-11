@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_HDA_INTEL
+	tristate "HD Audio PCI"
+	depends on SND_PCI
+	select SND_HDA
+	select SND_INTEL_DSP_CONFIG
+	help
+	  Say Y here to include support for Intel "High Definition
+	  Audio" (Azalia) and its compatible devices.
+
+	  This option enables the HD-audio controller.  Don't forget
+	  to choose the appropriate HD-audio codec options.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hda-intel.
+
+config SND_HDA_TEGRA
+	tristate "NVIDIA Tegra HD Audio"
+	depends on ARCH_TEGRA
+	select SND_HDA
+	select SND_HDA_ALIGNED_MMIO
+	help
+	  Say Y here to support the HDA controller present in NVIDIA
+	  Tegra SoCs
+
+	  This options enables support for the HD Audio controller
+	  present in some NVIDIA Tegra SoCs, used to communicate audio
+	  to the HDMI output.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hda-tegra.
+
+config SND_HDA_ACPI
+	tristate "HD Audio ACPI"
+	depends on ACPI
+	select SND_HDA
+	help
+	  Say Y here to include support for Azalia-compatible HDA controllers
+	  which are advertised via ACPI objects.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hda-acpi.

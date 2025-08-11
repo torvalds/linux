@@ -29,6 +29,7 @@
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/poll.h>
 #include <linux/uaccess.h>
 

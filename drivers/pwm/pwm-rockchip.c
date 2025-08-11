@@ -8,6 +8,8 @@
 
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/limits.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -61,6 +63,7 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 				  struct pwm_state *state)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u64 prescaled_ns = (u64)pc->data->prescaler * NSEC_PER_SEC;
 	u32 enable_conf = pc->data->enable_conf;
 	unsigned long clk_rate;
 	u64 tmp;
@@ -78,12 +81,12 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 	clk_rate = clk_get_rate(pc->clk);
 
 	tmp = readl_relaxed(pc->base + pc->data->regs.period);
-	tmp *= pc->data->prescaler * NSEC_PER_SEC;
-	state->period = DIV_ROUND_CLOSEST_ULL(tmp, clk_rate);
+	tmp *= prescaled_ns;
+	state->period = DIV_U64_ROUND_UP(tmp, clk_rate);
 
 	tmp = readl_relaxed(pc->base + pc->data->regs.duty);
-	tmp *= pc->data->prescaler * NSEC_PER_SEC;
-	state->duty_cycle =  DIV_ROUND_CLOSEST_ULL(tmp, clk_rate);
+	tmp *= prescaled_ns;
+	state->duty_cycle =  DIV_U64_ROUND_UP(tmp, clk_rate);
 
 	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
 	state->enabled = (val & enable_conf) == enable_conf;
@@ -103,8 +106,9 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			       const struct pwm_state *state)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
-	unsigned long period, duty;
-	u64 clk_rate, div;
+	u64 prescaled_ns = (u64)pc->data->prescaler * NSEC_PER_SEC;
+	u64 clk_rate, tmp;
+	u32 period_ticks, duty_ticks;
 	u32 ctrl;
 
 	clk_rate = clk_get_rate(pc->clk);
@@ -114,12 +118,15 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * bits, every possible input period can be obtained using the
 	 * default prescaler value for all practical clock rate values.
 	 */
-	div = clk_rate * state->period;
-	period = DIV_ROUND_CLOSEST_ULL(div,
-				       pc->data->prescaler * NSEC_PER_SEC);
+	tmp = mul_u64_u64_div_u64(clk_rate, state->period, prescaled_ns);
+	if (tmp > U32_MAX)
+		tmp = U32_MAX;
+	period_ticks = tmp;
 
-	div = clk_rate * state->duty_cycle;
-	duty = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+	tmp = mul_u64_u64_div_u64(clk_rate, state->duty_cycle, prescaled_ns);
+	if (tmp > U32_MAX)
+		tmp = U32_MAX;
+	duty_ticks = tmp;
 
 	/*
 	 * Lock the period and duty of previous configuration, then
@@ -131,8 +138,8 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		writel_relaxed(ctrl, pc->base + pc->data->regs.ctrl);
 	}
 
-	writel(period, pc->base + pc->data->regs.period);
-	writel(duty, pc->base + pc->data->regs.duty);
+	writel(period_ticks, pc->base + pc->data->regs.period);
+	writel(duty_ticks, pc->base + pc->data->regs.duty);
 
 	if (pc->data->supports_polarity) {
 		ctrl &= ~PWM_POLARITY_MASK;

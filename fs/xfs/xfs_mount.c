@@ -673,11 +673,6 @@ static inline xfs_extlen_t xfs_calc_atomic_write_max(struct xfs_mount *mp)
 	return rounddown_pow_of_two(XFS_B_TO_FSB(mp, MAX_RW_COUNT));
 }
 
-static inline unsigned int max_pow_of_two_factor(const unsigned int nr)
-{
-	return 1 << (ffs(nr) - 1);
-}
-
 /*
  * If the underlying device advertises atomic write support, limit the size of
  * atomic writes to the greatest power-of-two factor of the group size so

@@ -5,6 +5,7 @@ config DRM_XE
 	depends on KUNIT || !KUNIT
 	depends on INTEL_VSEC || !INTEL_VSEC
 	depends on X86_PLATFORM_DEVICES || !(X86 && ACPI)
+	depends on PAGE_SIZE_4KB || COMPILE_TEST || BROKEN
 	select INTERVAL_TREE
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
@@ -32,7 +33,6 @@ config DRM_XE
 	select ACPI_VIDEO if X86 && ACPI
 	select ACPI_WMI if X86 && ACPI
 	select SYNC_FILE
-	select IOSF_MBI
 	select CRC32
 	select SND_HDA_I915 if SND_HDA_CORE
 	select CEC_CORE if CEC_NOTIFIER
@@ -46,6 +46,7 @@ config DRM_XE
 	select WANT_DEV_COREDUMP
 	select AUXILIARY_BUS
 	select HMM_MIRROR
+	select REGMAP if I2C
 	help
 	  Driver for Intel Xe2 series GPUs and later. Experimental support
 	  for Xe series is also available.
@@ -87,16 +88,18 @@ config DRM_XE_GPUSVM
 	  Enable this option if you want support for CPU to GPU address
 	  mirroring.
 
-	  If in doubut say "Y".
+	  If in doubt say "Y".
 
-config DRM_XE_DEVMEM_MIRROR
-	bool "Enable device memory mirror"
+config DRM_XE_PAGEMAP
+	bool "Enable device memory pool for SVM"
 	depends on DRM_XE_GPUSVM
 	select GET_FREE_REGION
 	default y
 	help
-	  Disable this option only if you want to compile out without device
-	  memory mirror. Will reduce KMD memory footprint when disabled.
+	  Disable this option only if you don't want to expose local device
+	  memory for SVM. Will reduce KMD memory footprint when disabled.
+
+	  If in doubt say "Y".
 
 config DRM_XE_FORCE_PROBE
 	string "Force probe xe for selected Intel hardware IDs"

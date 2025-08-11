@@ -283,7 +283,6 @@ static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 	}
 
 out:
-	pm_runtime_mark_last_busy(cs35l56->base.dev);
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
 

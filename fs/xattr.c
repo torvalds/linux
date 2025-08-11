@@ -215,7 +215,7 @@ EXPORT_SYMBOL(__vfs_setxattr);
  *
  *  returns the result of the internal setxattr or setsecurity operations.
  *
- *  This function requires the caller to lock the inode's i_mutex before it
+ *  This function requires the caller to lock the inode's i_rwsem before it
  *  is executed. It also assumes that the caller will make the appropriate
  *  permission checks.
  */

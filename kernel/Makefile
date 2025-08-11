@@ -12,7 +12,6 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    notifier.o ksysfs.o cred.o reboot.o \
 	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o
 
-obj-$(CONFIG_USERMODE_DRIVER) += usermode_driver.o
 obj-$(CONFIG_MULTIUSER) += groups.o
 obj-$(CONFIG_VHOST_TASK) += vhost_task.o
 
@@ -55,6 +54,7 @@ obj-y += rcu/
 obj-y += livepatch/
 obj-y += dma/
 obj-y += entry/
+obj-y += unwind/
 obj-$(CONFIG_MODULES) += module/
 
 obj-$(CONFIG_KCMP) += kcmp.o
@@ -139,11 +139,12 @@ obj-$(CONFIG_WATCH_QUEUE) += watch_queue.o
 obj-$(CONFIG_RESOURCE_KUNIT_TEST) += resource_kunit.o
 obj-$(CONFIG_SYSCTL_KUNIT_TEST) += sysctl-test.o
 
-CFLAGS_stackleak.o += $(DISABLE_STACKLEAK_PLUGIN)
-obj-$(CONFIG_GCC_PLUGIN_STACKLEAK) += stackleak.o
-KASAN_SANITIZE_stackleak.o := n
-KCSAN_SANITIZE_stackleak.o := n
-KCOV_INSTRUMENT_stackleak.o := n
+CFLAGS_kstack_erase.o += $(DISABLE_KSTACK_ERASE)
+CFLAGS_kstack_erase.o += $(call cc-option,-mgeneral-regs-only)
+obj-$(CONFIG_KSTACK_ERASE) += kstack_erase.o
+KASAN_SANITIZE_kstack_erase.o := n
+KCSAN_SANITIZE_kstack_erase.o := n
+KCOV_INSTRUMENT_kstack_erase.o := n
 
 obj-$(CONFIG_SCF_TORTURE_TEST) += scftorture.o
 
@@ -158,11 +159,48 @@ filechk_cat = cat $<
 $(obj)/config_data: $(KCONFIG_CONFIG) FORCE
 	$(call filechk,cat)
 
+# kheaders_data.tar.xz
 $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
 
-quiet_cmd_genikh = CHK     $(obj)/kheaders_data.tar.xz
-      cmd_genikh = $(CONFIG_SHELL) $(srctree)/kernel/gen_kheaders.sh $@
-$(obj)/kheaders_data.tar.xz: FORCE
-	$(call cmd,genikh)
+quiet_cmd_kheaders_data = GEN     $@
+      cmd_kheaders_data = "$<" "$@" "$(obj)/kheaders-srclist" "$(obj)/kheaders-objlist" "$(KBUILD_BUILD_TIMESTAMP)"
+      cmd_kheaders_data_dep = cat $(depfile) >> $(dot-target).cmd; rm -f $(depfile)
 
-clean-files := kheaders_data.tar.xz kheaders.md5
+define rule_kheaders_data
+	$(call cmd_and_savecmd,kheaders_data)
+	$(call cmd,kheaders_data_dep)
+endef
+
+targets += kheaders_data.tar.xz
+$(obj)/kheaders_data.tar.xz: $(src)/gen_kheaders.sh $(obj)/kheaders-srclist $(obj)/kheaders-objlist $(obj)/kheaders.md5 FORCE
+	$(call if_changed_rule,kheaders_data)
+
+# generated headers in objtree
+#
+# include/generated/utsversion.h is ignored because it is generated
+# after gen_kheaders.sh is executed. (utsversion.h is unneeded for kheaders)
+filechk_kheaders_objlist = \
+	for d in include "arch/$(SRCARCH)/include"; do \
+		find "$${d}/generated" ! -path "include/generated/utsversion.h" -a -name "*.h" -print; \
+	done
+
+$(obj)/kheaders-objlist: FORCE
+	$(call filechk,kheaders_objlist)
+
+# non-generated headers in srctree
+filechk_kheaders_srclist = \
+	for d in include "arch/$(SRCARCH)/include"; do \
+		find "$(srctree)/$${d}" -path "$(srctree)/$${d}/generated" -prune -o -name "*.h" -print; \
+	done
+
+$(obj)/kheaders-srclist: FORCE
+	$(call filechk,kheaders_srclist)
+
+# Some files are symlinks. If symlinks are changed, kheaders_data.tar.xz should
+# be rebuilt.
+filechk_kheaders_md5sum = xargs -r -a $< stat -c %N | md5sum
+
+$(obj)/kheaders.md5: $(obj)/kheaders-srclist FORCE
+	$(call filechk,kheaders_md5sum)
+
+clean-files := kheaders.md5 kheaders-srclist kheaders-objlist

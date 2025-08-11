@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
+#include <sound/sdca_hid.h>
 
 /*
  * Should be long enough to encompass all the MIPI DisCo properties.
@@ -813,6 +814,43 @@ static int find_sdca_control_range(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_control_value(struct device *dev, struct sdca_entity *entity,
+				   struct fwnode_handle *control_node,
+				   struct sdca_control *control,
+				   const char * const label)
+{
+	char property[SDCA_PROPERTY_LENGTH];
+	bool global = true;
+	int ret, cn, i;
+	u32 tmp;
+
+	snprintf(property, sizeof(property), "mipi-sdca-control-%s", label);
+
+	ret = fwnode_property_read_u32(control_node, property, &tmp);
+	if (ret == -EINVAL)
+		global = false;
+	else if (ret)
+		return ret;
+
+	i = 0;
+	for_each_set_bit(cn, (unsigned long *)&control->cn_list,
+			 BITS_PER_TYPE(control->cn_list)) {
+		if (!global) {
+			snprintf(property, sizeof(property),
+				 "mipi-sdca-control-cn-%d-%s", cn, label);
+
+			ret = fwnode_property_read_u32(control_node, property, &tmp);
+			if (ret)
+				return ret;
+		}
+
+		control->values[i] = tmp;
+		i++;
+	}
+
+	return 0;
+}
+
 /*
  * TODO: Add support for -cn- properties, allowing different channels to have
  * different defaults etc.
@@ -842,45 +880,46 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 
 	control->layers = tmp;
 
+	ret = fwnode_property_read_u64(control_node, "mipi-sdca-control-cn-list",
+				       &control->cn_list);
+	if (ret == -EINVAL) {
+		/* Spec allows not specifying cn-list if only the first number is used */
+		control->cn_list = 0x1;
+	} else if (ret || !control->cn_list) {
+		dev_err(dev, "%s: control %#x: cn list missing: %d\n",
+			entity->label, control->sel, ret);
+		return ret;
+	}
+
+	control->values = devm_kzalloc(dev, hweight64(control->cn_list), GFP_KERNEL);
+	if (!control->values)
+		return -ENOMEM;
+
 	switch (control->mode) {
 	case SDCA_ACCESS_MODE_DC:
-		ret = fwnode_property_read_u32(control_node,
-					       "mipi-sdca-control-dc-value",
-					       &tmp);
+		ret = find_sdca_control_value(dev, entity, control_node, control,
+					      "dc-value");
 		if (ret) {
 			dev_err(dev, "%s: control %#x: dc value missing: %d\n",
 				entity->label, control->sel, ret);
 			return ret;
 		}
 
-		control->value = tmp;
 		control->has_fixed = true;
 		break;
 	case SDCA_ACCESS_MODE_RW:
 	case SDCA_ACCESS_MODE_DUAL:
-		ret = fwnode_property_read_u32(control_node,
-					       "mipi-sdca-control-default-value",
-					       &tmp);
-		if (!ret) {
-			control->value = tmp;
+		ret = find_sdca_control_value(dev, entity, control_node, control,
+					      "default-value");
+		if (!ret)
 			control->has_default = true;
-		}
 
-		ret = fwnode_property_read_u32(control_node,
-					       "mipi-sdca-control-fixed-value",
-					       &tmp);
-		if (!ret) {
-			if (control->has_default && control->value != tmp) {
-				dev_err(dev,
-					"%s: control %#x: default and fixed value don't match\n",
-					entity->label, control->sel);
-				return -EINVAL;
-			}
-
-			control->value = tmp;
+		ret = find_sdca_control_value(dev, entity, control_node, control,
+					      "fixed-value");
+		if (!ret)
 			control->has_fixed = true;
-		}
-
+		fallthrough;
+	case SDCA_ACCESS_MODE_RO:
 		control->deferrable = fwnode_property_read_bool(control_node,
 								"mipi-sdca-control-deferrable");
 		break;
@@ -895,22 +934,13 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 		return ret;
 	}
 
-	ret = fwnode_property_read_u64(control_node, "mipi-sdca-control-cn-list",
-				       &control->cn_list);
-	if (ret == -EINVAL) {
-		/* Spec allows not specifying cn-list if only the first number is used */
-		control->cn_list = 0x1;
-	} else if (ret || !control->cn_list) {
-		dev_err(dev, "%s: control %#x: cn list missing: %d\n",
-			entity->label, control->sel, ret);
-		return ret;
-	}
-
 	ret = fwnode_property_read_u32(control_node,
 				       "mipi-sdca-control-interrupt-position",
 				       &tmp);
 	if (!ret)
 		control->interrupt_position = tmp;
+	else
+		control->interrupt_position = SDCA_NO_INTERRUPT;
 
 	control->label = find_sdca_control_label(dev, entity, control);
 	if (!control->label)
@@ -919,11 +949,10 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 	control->type = find_sdca_control_datatype(entity, control);
 	control->nbits = find_sdca_control_bits(entity, control);
 
-	dev_info(dev, "%s: %s: control %#x mode %#x layers %#x cn %#llx int %d value %#x %s\n",
+	dev_info(dev, "%s: %s: control %#x mode %#x layers %#x cn %#llx int %d %s\n",
 		 entity->label, control->label, control->sel,
 		 control->mode, control->layers, control->cn_list,
-		 control->interrupt_position, control->value,
-		 control->deferrable ? "deferrable" : "");
+		 control->interrupt_position, control->deferrable ? "deferrable" : "");
 
 	return 0;
 }
@@ -1220,6 +1249,93 @@ bad_list:
 	return -EINVAL;
 }
 
+static int
+find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
+		      struct fwnode_handle *entity_node, struct sdca_entity *entity)
+{
+	struct sdca_entity_hide *hide = &entity->hide;
+	unsigned int delay, *af_list = hide->af_number_list;
+	int nval, ret;
+	unsigned char *report_desc = NULL;
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-RxUMP-ownership-transition-maxdelay", &delay);
+	if (!ret)
+		hide->max_delay = delay;
+
+	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDTx-supported-report-ids");
+	if (nval > 0) {
+		hide->num_hidtx_ids = nval;
+		hide->hidtx_ids = devm_kcalloc(dev, hide->num_hidtx_ids,
+					       sizeof(*hide->hidtx_ids), GFP_KERNEL);
+		if (!hide->hidtx_ids)
+			return -ENOMEM;
+
+		ret = fwnode_property_read_u32_array(entity_node,
+						     "mipi-sdca-HIDTx-supported-report-ids",
+						     hide->hidtx_ids,
+						     hide->num_hidtx_ids);
+		if (ret < 0)
+			return ret;
+	}
+
+	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDRx-supported-report-ids");
+	if (nval > 0) {
+		hide->num_hidrx_ids = nval;
+		hide->hidrx_ids = devm_kcalloc(dev, hide->num_hidrx_ids,
+					       sizeof(*hide->hidrx_ids), GFP_KERNEL);
+		if (!hide->hidrx_ids)
+			return -ENOMEM;
+
+		ret = fwnode_property_read_u32_array(entity_node,
+						     "mipi-sdca-HIDRx-supported-report-ids",
+						     hide->hidrx_ids,
+						     hide->num_hidrx_ids);
+		if (ret < 0)
+			return ret;
+	}
+
+	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-hide-related-audio-function-list");
+	if (nval <= 0) {
+		dev_err(dev, "%pfwP: audio function numbers list missing: %d\n",
+			entity_node, nval);
+		return -EINVAL;
+	} else if (nval > SDCA_MAX_FUNCTION_COUNT) {
+		dev_err(dev, "%pfwP: maximum number of audio function exceeded\n", entity_node);
+		return -EINVAL;
+	}
+
+	hide->hide_reside_function_num = nval;
+	fwnode_property_read_u32_array(entity_node,
+				       "mipi-sdca-hide-related-audio-function-list", af_list, nval);
+
+	nval = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
+	if (nval)
+		fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
+					      (u8 *)&hide->hid_desc, nval);
+
+	if (hide->hid_desc.bNumDescriptors) {
+		nval = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
+		if (nval) {
+			report_desc = devm_kzalloc(dev, nval, GFP_KERNEL);
+			if (!report_desc)
+				return -ENOMEM;
+			hide->hid_report_desc = report_desc;
+			fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
+						      report_desc, nval);
+
+			/* add HID device */
+			ret = sdca_add_hid_device(dev, entity);
+			if (ret) {
+				dev_err(dev, "%pfwP: failed to add HID device: %d\n", entity_node, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -1260,6 +1376,9 @@ static int find_sdca_entity(struct device *dev,
 		break;
 	case SDCA_ENTITY_TYPE_GE:
 		ret = find_sdca_entity_ge(dev, entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_HIDE:
+		ret = find_sdca_entity_hide(dev, function_node, entity_node, entity);
 		break;
 	default:
 		break;
@@ -1541,7 +1660,6 @@ static int find_sdca_entity_connection(struct device *dev,
 	ret = fwnode_property_read_u64(entity_node, "mipi-sdca-input-pin-list", &pin_list);
 	if (ret == -EINVAL) {
 		/* Allow missing pin lists, assume no pins. */
-		dev_warn(dev, "%s: missing pin list\n", entity->label);
 		return 0;
 	} else if (ret) {
 		dev_err(dev, "%s: failed to read pin list: %d\n", entity->label, ret);
@@ -1847,6 +1965,74 @@ int sdca_parse_function(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_parse_function, "SND_SOC_SDCA");
+
+struct sdca_control *sdca_selector_find_control(struct device *dev,
+						struct sdca_entity *entity,
+						const int sel)
+{
+	int i;
+
+	for (i = 0; i < entity->num_controls; i++) {
+		struct sdca_control *control = &entity->controls[i];
+
+		if (control->sel == sel)
+			return control;
+	}
+
+	dev_err(dev, "%s: control %#x: missing\n", entity->label, sel);
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sdca_selector_find_control, "SND_SOC_SDCA");
+
+struct sdca_control_range *sdca_control_find_range(struct device *dev,
+						   struct sdca_entity *entity,
+						   struct sdca_control *control,
+						   int cols, int rows)
+{
+	struct sdca_control_range *range = &control->range;
+
+	if ((cols && range->cols != cols) || (rows && range->rows != rows) ||
+	    !range->data) {
+		dev_err(dev, "%s: control %#x: ranges invalid (%d,%d)\n",
+			entity->label, control->sel, range->cols, range->rows);
+		return NULL;
+	}
+
+	return range;
+}
+EXPORT_SYMBOL_NS(sdca_control_find_range, "SND_SOC_SDCA");
+
+struct sdca_control_range *sdca_selector_find_range(struct device *dev,
+						    struct sdca_entity *entity,
+						    int sel, int cols, int rows)
+{
+	struct sdca_control *control;
+
+	control = sdca_selector_find_control(dev, entity, sel);
+	if (!control)
+		return NULL;
+
+	return sdca_control_find_range(dev, entity, control, cols, rows);
+}
+EXPORT_SYMBOL_NS(sdca_selector_find_range, "SND_SOC_SDCA");
+
+struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
+					  struct sdca_function_data *function,
+					  const int id)
+{
+	int i;
+
+	for (i = 0; i < function->num_clusters; i++) {
+		struct sdca_cluster *cluster = &function->clusters[i];
+
+		if (cluster->id == id)
+			return cluster;
+	}
+
+	dev_err(dev, "%s: cluster %#x: missing\n", function->desc->name, id);
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sdca_id_find_cluster, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");

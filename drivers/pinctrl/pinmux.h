@@ -141,13 +141,6 @@ struct function_desc {
 	void *data;
 };
 
-/* Convenient macro to define a generic pin function descriptor */
-#define PINCTRL_FUNCTION_DESC(_name, _grps, _num_grps, _data)	\
-(struct function_desc) {					\
-	.func = PINCTRL_PINFUNCTION(_name, _grps, _num_grps),	\
-	.data = _data,						\
-}
-
 int pinmux_generic_get_function_count(struct pinctrl_dev *pctldev);
 
 const char *
@@ -167,6 +160,9 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				const char * const *groups,
 				unsigned int const ngroups,
 				void *data);
+
+int pinmux_generic_add_pinfunction(struct pinctrl_dev *pctldev,
+				   const struct pinfunction *func, void *data);
 
 int pinmux_generic_remove_function(struct pinctrl_dev *pctldev,
 				   unsigned int selector);

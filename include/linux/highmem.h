@@ -292,12 +292,6 @@ static inline void zero_user_segment(struct page *page,
 	zero_user_segments(page, start, end, 0, 0);
 }
 
-static inline void zero_user(struct page *page,
-	unsigned start, unsigned size)
-{
-	zero_user_segments(page, start, start + size, 0, 0);
-}
-
 #ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
 
 static inline void copy_user_highpage(struct page *to, struct page *from,
@@ -688,10 +682,4 @@ static inline void folio_release_kmap(struct folio *folio, void *addr)
 	kunmap_local(addr);
 	folio_put(folio);
 }
-
-static inline void unmap_and_put_page(struct page *page, void *addr)
-{
-	folio_release_kmap(page_folio(page), addr);
-}
-
 #endif /* _LINUX_HIGHMEM_H */

@@ -14,6 +14,7 @@
 #include <linux/buildid.h>
 #include <linux/compiler.h>
 #include <linux/cache.h>
+#include <linux/cleanup.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/elf.h>
@@ -32,7 +33,7 @@
 #include <linux/percpu.h>
 #include <asm/module.h>
 
-#define MODULE_NAME_LEN MAX_PARAM_PREFIX_LEN
+#define MODULE_NAME_LEN __MODULE_NAME_LEN
 
 struct modversion_info {
 	unsigned long crc;
@@ -163,9 +164,6 @@ extern void cleanup_module(void);
 #endif /*CONFIG_MODULES*/
 
 struct module_kobject *lookup_or_create_module_kobject(const char *name);
-
-/* Generic info of form tag = "info" */
-#define MODULE_INFO(tag, info) __MODULE_INFO(tag, tag, info)
 
 /* For userspace: you can also call me... */
 #define MODULE_ALIAS(_alias) MODULE_INFO(alias, _alias)
@@ -301,24 +299,6 @@ static typeof(name) __mod_device_table__##type##__##name		\
 #define MODULE_IMPORT_NS(ns)	MODULE_INFO(import_ns, ns)
 
 struct notifier_block;
-
-#ifdef CONFIG_MODULES
-
-extern int modules_disabled; /* for sysctl */
-/* Get/put a kernel symbol (calls must be symmetric) */
-void *__symbol_get(const char *symbol);
-void *__symbol_get_gpl(const char *symbol);
-#define symbol_get(x)	({ \
-	static const char __notrim[] \
-		__used __section(".no_trim_symbol") = __stringify(x); \
-	(typeof(&x))(__symbol_get(__stringify(x))); })
-
-/* modules using other modules: kdb wants to see this. */
-struct module_use {
-	struct list_head source_list;
-	struct list_head target_list;
-	struct module *source, *target;
-};
 
 enum module_state {
 	MODULE_STATE_LIVE,	/* Normal state. */
@@ -539,7 +519,7 @@ struct module {
 	struct trace_eval_map **trace_evals;
 	unsigned int num_trace_evals;
 #endif
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+#ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned int num_ftrace_callsites;
 	unsigned long *ftrace_callsites;
 #endif
@@ -603,6 +583,16 @@ struct module {
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
 #endif
+
+#ifdef CONFIG_MODULES
+
+/* Get/put a kernel symbol (calls must be symmetric) */
+void *__symbol_get(const char *symbol);
+void *__symbol_get_gpl(const char *symbol);
+#define symbol_get(x)	({ \
+	static const char __notrim[] \
+		__used __section(".no_trim_symbol") = __stringify(x); \
+	(typeof(&x))(__symbol_get(__stringify(x))); })
 
 #ifndef HAVE_ARCH_KALLSYMS_SYMBOL_VALUE
 static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)
@@ -1018,5 +1008,8 @@ static inline unsigned long find_kallsyms_symbol_value(struct module *mod,
 }
 
 #endif  /* CONFIG_MODULES && CONFIG_KALLSYMS */
+
+/* Define __free(module_put) macro for struct module *. */
+DEFINE_FREE(module_put, struct module *, if (_T) module_put(_T))
 
 #endif /* _LINUX_MODULE_H */

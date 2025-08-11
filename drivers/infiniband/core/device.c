@@ -145,6 +145,33 @@ bool rdma_dev_access_netns(const struct ib_device *dev, const struct net *net)
 }
 EXPORT_SYMBOL(rdma_dev_access_netns);
 
+/**
+ * rdma_dev_has_raw_cap() - Returns whether a specified rdma device has
+ *			    CAP_NET_RAW capability or not.
+ *
+ * @dev:	Pointer to rdma device whose capability to be checked
+ *
+ * Returns true if a rdma device's owning user namespace has CAP_NET_RAW
+ * capability, otherwise false. When rdma subsystem is in legacy shared network,
+ * namespace mode, the default net namespace is considered.
+ */
+bool rdma_dev_has_raw_cap(const struct ib_device *dev)
+{
+	const struct net *net;
+
+	/* Network namespace is the resource whose user namespace
+	 * to be considered. When in shared mode, there is no reliable
+	 * network namespace resource, so consider the default net namespace.
+	 */
+	if (ib_devices_shared_netns)
+		net = &init_net;
+	else
+		net = read_pnet(&dev->coredev.rdma_net);
+
+	return ns_capable(net->user_ns, CAP_NET_RAW);
+}
+EXPORT_SYMBOL(rdma_dev_has_raw_cap);
+
 /*
  * xarray has this behavior where it won't iterate over NULL values stored in
  * allocated arrays.  So we need our own iterator to see all values stored in
@@ -557,6 +584,8 @@ static void rdma_init_coredev(struct ib_core_device *coredev,
 /**
  * _ib_alloc_device - allocate an IB device struct
  * @size:size of structure to allocate
+ * @net: network namespace device should be located in, namespace
+ *       must stay valid until ib_register_device() is completed.
  *
  * Low-level drivers should use ib_alloc_device() to allocate &struct
  * ib_device.  @size is the size of the structure to be allocated,
@@ -564,7 +593,7 @@ static void rdma_init_coredev(struct ib_core_device *coredev,
  * ib_dealloc_device() must be used to free structures allocated with
  * ib_alloc_device().
  */
-struct ib_device *_ib_alloc_device(size_t size)
+struct ib_device *_ib_alloc_device(size_t size, struct net *net)
 {
 	struct ib_device *device;
 	unsigned int i;
@@ -581,7 +610,15 @@ struct ib_device *_ib_alloc_device(size_t size)
 		return NULL;
 	}
 
-	rdma_init_coredev(&device->coredev, device, &init_net);
+	/* ib_devices_shared_netns can't change while we have active namespaces
+	 * in the system which means either init_net is passed or the user has
+	 * no idea what they are doing.
+	 *
+	 * To avoid breaking backward compatibility, when in shared mode,
+	 * force to init the device in the init_net.
+	 */
+	net = ib_devices_shared_netns ? &init_net : net;
+	rdma_init_coredev(&device->coredev, device, net);
 
 	INIT_LIST_HEAD(&device->event_handler_list);
 	spin_lock_init(&device->qp_open_list_lock);
@@ -2671,6 +2708,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, add_sub_dev);
 	SET_DEVICE_OP(dev_ops, advise_mr);
 	SET_DEVICE_OP(dev_ops, alloc_dm);
+	SET_DEVICE_OP(dev_ops, alloc_dmah);
 	SET_DEVICE_OP(dev_ops, alloc_hw_device_stats);
 	SET_DEVICE_OP(dev_ops, alloc_hw_port_stats);
 	SET_DEVICE_OP(dev_ops, alloc_mr);
@@ -2691,6 +2729,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, create_ah);
 	SET_DEVICE_OP(dev_ops, create_counters);
 	SET_DEVICE_OP(dev_ops, create_cq);
+	SET_DEVICE_OP(dev_ops, create_cq_umem);
 	SET_DEVICE_OP(dev_ops, create_flow);
 	SET_DEVICE_OP(dev_ops, create_qp);
 	SET_DEVICE_OP(dev_ops, create_rwq_ind_table);
@@ -2698,6 +2737,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, create_user_ah);
 	SET_DEVICE_OP(dev_ops, create_wq);
 	SET_DEVICE_OP(dev_ops, dealloc_dm);
+	SET_DEVICE_OP(dev_ops, dealloc_dmah);
 	SET_DEVICE_OP(dev_ops, dealloc_driver);
 	SET_DEVICE_OP(dev_ops, dealloc_mw);
 	SET_DEVICE_OP(dev_ops, dealloc_pd);
@@ -2763,8 +2803,10 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, modify_srq);
 	SET_DEVICE_OP(dev_ops, modify_wq);
 	SET_DEVICE_OP(dev_ops, peek_cq);
+	SET_DEVICE_OP(dev_ops, pre_destroy_cq);
 	SET_DEVICE_OP(dev_ops, poll_cq);
 	SET_DEVICE_OP(dev_ops, port_groups);
+	SET_DEVICE_OP(dev_ops, post_destroy_cq);
 	SET_DEVICE_OP(dev_ops, post_recv);
 	SET_DEVICE_OP(dev_ops, post_send);
 	SET_DEVICE_OP(dev_ops, post_srq_recv);
@@ -2793,6 +2835,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_OBJ_SIZE(dev_ops, ib_ah);
 	SET_OBJ_SIZE(dev_ops, ib_counters);
 	SET_OBJ_SIZE(dev_ops, ib_cq);
+	SET_OBJ_SIZE(dev_ops, ib_dmah);
 	SET_OBJ_SIZE(dev_ops, ib_mw);
 	SET_OBJ_SIZE(dev_ops, ib_pd);
 	SET_OBJ_SIZE(dev_ops, ib_qp);

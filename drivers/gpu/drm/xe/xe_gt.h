@@ -28,7 +28,6 @@ static inline bool xe_fault_inject_gt_reset(void)
 }
 
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile);
-int xe_gt_init_hwconfig(struct xe_gt *gt);
 int xe_gt_init_early(struct xe_gt *gt);
 int xe_gt_init(struct xe_gt *gt);
 void xe_gt_mmio_init(struct xe_gt *gt);
@@ -105,6 +104,11 @@ static inline bool xe_gt_has_indirect_ring_state(struct xe_gt *gt)
 {
 	return gt->info.has_indirect_ring_state &&
 	       xe_device_uc_enabled(gt_to_xe(gt));
+}
+
+static inline bool xe_gt_is_main_type(struct xe_gt *gt)
+{
+	return gt->info.type == XE_GT_TYPE_MAIN;
 }
 
 static inline bool xe_gt_is_media_type(struct xe_gt *gt)

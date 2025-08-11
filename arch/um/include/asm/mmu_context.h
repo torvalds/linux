@@ -16,11 +16,6 @@
 #define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 {
-	/*
-	 * This is called by fs/exec.c and sys_unshare()
-	 * when the new ->mm is used for the first time.
-	 */
-	__switch_mm(&new->context.id);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -28,11 +23,9 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	unsigned cpu = smp_processor_id();
 
-	if(prev != next){
+	if (prev != next) {
 		cpumask_clear_cpu(cpu, mm_cpumask(prev));
 		cpumask_set_cpu(cpu, mm_cpumask(next));
-		if(next != &init_mm)
-			__switch_mm(&next->context.id);
 	}
 }
 

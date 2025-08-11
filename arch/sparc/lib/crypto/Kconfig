@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-config CRYPTO_SHA256_SPARC64
-	tristate
-	depends on SPARC64
-	default CRYPTO_LIB_SHA256
-	select CRYPTO_ARCH_HAVE_LIB_SHA256
-	select CRYPTO_LIB_SHA256_GENERIC

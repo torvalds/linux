@@ -240,6 +240,29 @@ create_netdevsim() {
     echo nsim$id
 }
 
+create_netdevsim_port() {
+    local nsim_id="$1"
+    local ns="$2"
+    local port_id="$3"
+    local perm_addr="$4"
+    local orig_dev
+    local new_dev
+    local nsim_path
+
+    nsim_path="/sys/bus/netdevsim/devices/netdevsim$nsim_id"
+
+    echo "$port_id $perm_addr" | ip netns exec "$ns" tee "$nsim_path"/new_port > /dev/null || return 1
+
+    orig_dev=$(ip netns exec "$ns" find "$nsim_path"/net/ -maxdepth 1 -name 'e*' | tail -n 1)
+    orig_dev=$(basename "$orig_dev")
+    new_dev="nsim${nsim_id}p$port_id"
+
+    ip -netns "$ns" link set dev "$orig_dev" name "$new_dev"
+    ip -netns "$ns" link set dev "$new_dev" up
+
+    echo "$new_dev"
+}
+
 # Remove netdevsim with given id.
 cleanup_netdevsim() {
     local id="$1"
@@ -547,13 +570,19 @@ ip_link_set_addr()
 	defer ip link set dev "$name" address "$old_addr"
 }
 
-ip_link_is_up()
+ip_link_has_flag()
 {
 	local name=$1; shift
+	local flag=$1; shift
 
 	local state=$(ip -j link show "$name" |
-		      jq -r '(.[].flags[] | select(. == "UP")) // "DOWN"')
-	[[ $state == "UP" ]]
+		      jq --arg flag "$flag" 'any(.[].flags.[]; . == $flag)')
+	[[ $state == true ]]
+}
+
+ip_link_is_up()
+{
+	ip_link_has_flag "$1" UP
 }
 
 ip_link_set_up()

@@ -1475,35 +1475,21 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			pr_warn("username too long\n");
 			goto cifs_parse_mount_err;
 		}
-		ctx->username = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->username == NULL) {
-			cifs_errorf(fc, "OOM when copying username string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->username = no_free_ptr(param->string);
 		break;
 	case Opt_pass:
 		kfree_sensitive(ctx->password);
 		ctx->password = NULL;
 		if (strlen(param->string) == 0)
 			break;
-
-		ctx->password = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->password == NULL) {
-			cifs_errorf(fc, "OOM when copying password string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->password = no_free_ptr(param->string);
 		break;
 	case Opt_pass2:
 		kfree_sensitive(ctx->password2);
 		ctx->password2 = NULL;
 		if (strlen(param->string) == 0)
 			break;
-
-		ctx->password2 = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->password2 == NULL) {
-			cifs_errorf(fc, "OOM when copying password2 string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->password2 = no_free_ptr(param->string);
 		break;
 	case Opt_ip:
 		if (strlen(param->string) == 0) {
@@ -1526,11 +1512,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		}
 
 		kfree(ctx->domainname);
-		ctx->domainname = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->domainname == NULL) {
-			cifs_errorf(fc, "OOM when copying domainname string\n");
-			goto cifs_parse_mount_err;
-		}
+		ctx->domainname = no_free_ptr(param->string);
 		cifs_dbg(FYI, "Domain name set\n");
 		break;
 	case Opt_srcaddr:
@@ -1550,11 +1532,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
 		if (strncasecmp(param->string, "default", 7) != 0) {
 			kfree(ctx->iocharset);
-			ctx->iocharset = kstrdup(param->string, GFP_KERNEL);
-			if (ctx->iocharset == NULL) {
-				cifs_errorf(fc, "OOM when copying iocharset string\n");
-				goto cifs_parse_mount_err;
-			}
+			ctx->iocharset = no_free_ptr(param->string);
 		}
 		/* if iocharset not set then load_nls_default
 		 * is used by caller
@@ -1674,6 +1652,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 				pr_warn_once("conflicting posix mount options specified\n");
 			ctx->linux_ext = 1;
 			ctx->no_linux_ext = 0;
+			ctx->nonativesocket = 1; /* POSIX mounts use NFS style reparse points */
 		}
 		break;
 	case Opt_nocase:
@@ -1849,24 +1828,6 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	kfree_sensitive(ctx->password2);
 	ctx->password2 = NULL;
 	return -EINVAL;
-}
-
-enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb)
-{
-	if (cifs_sb->ctx->symlink_type == CIFS_SYMLINK_TYPE_DEFAULT) {
-		if (cifs_sb->ctx->mfsymlinks)
-			return CIFS_SYMLINK_TYPE_MFSYMLINKS;
-		else if (cifs_sb->ctx->sfu_emul)
-			return CIFS_SYMLINK_TYPE_SFU;
-		else if (cifs_sb->ctx->linux_ext && !cifs_sb->ctx->no_linux_ext)
-			return CIFS_SYMLINK_TYPE_UNIX;
-		else if (cifs_sb->ctx->reparse_type != CIFS_REPARSE_TYPE_NONE)
-			return CIFS_SYMLINK_TYPE_NATIVE;
-		else
-			return CIFS_SYMLINK_TYPE_NONE;
-	} else {
-		return cifs_sb->ctx->symlink_type;
-	}
 }
 
 int smb3_init_fs_context(struct fs_context *fc)

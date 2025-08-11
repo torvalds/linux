@@ -7,11 +7,11 @@
 #ifndef _SH_CSS_DEFS_H_
 #define _SH_CSS_DEFS_H_
 
+#include <linux/math.h>
+
 #include "isp.h"
 
 /*#include "vamem.h"*/ /* Cannot include for VAMEM properties this file is visible on ISP -> pipeline generator */
-
-#include "math_support.h"	/* max(), min, etc etc */
 
 /* ID's for refcount */
 #define IA_CSS_REFCOUNT_PARAM_SET_POOL  0xCAFE0001
@@ -182,7 +182,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
    The ISP firmware needs these rules to be applied at pre-processor time,
    that's why these are macros, not functions. */
 #define _ISP_BQS(num)  ((num) / 2)
-#define _ISP_VECS(width) CEIL_DIV(width, ISP_VEC_NELEMS)
+#define _ISP_VECS(width) DIV_ROUND_UP(width, ISP_VEC_NELEMS)
 
 #define ISP_BQ_GRID_WIDTH(elements_per_line, deci_factor_log2) \
 	CEIL_SHIFT(elements_per_line / 2,  deci_factor_log2)
@@ -194,9 +194,9 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 /* The morphing table is similar to the shading table in the sense that we
    have 1 more value than we have cells in the grid. */
 #define _ISP_MORPH_TABLE_WIDTH(int_width) \
-	(CEIL_DIV(int_width, SH_CSS_MORPH_TABLE_GRID) + 1)
+	(DIV_ROUND_UP(int_width, SH_CSS_MORPH_TABLE_GRID) + 1)
 #define _ISP_MORPH_TABLE_HEIGHT(int_height) \
-	(CEIL_DIV(int_height, SH_CSS_MORPH_TABLE_GRID) + 1)
+	(DIV_ROUND_UP(int_height, SH_CSS_MORPH_TABLE_GRID) + 1)
 #define _ISP_MORPH_TABLE_ALIGNED_WIDTH(width) \
 	CEIL_MUL(_ISP_MORPH_TABLE_WIDTH(width), \
 		 SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD)
@@ -298,7 +298,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 			     c_subsampling, \
 			     num_chunks, \
 			     pipelining) \
-	CEIL_MUL2(CEIL_MUL2(MAX(__ISP_PADDED_OUTPUT_WIDTH(out_width, \
+	round_up(round_up(MAX(__ISP_PADDED_OUTPUT_WIDTH(out_width, \
 							    dvs_env_width, \
 							    left_crop), \
 				  __ISP_MIN_INTERNAL_WIDTH(num_chunks, \

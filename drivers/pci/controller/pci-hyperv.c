@@ -44,6 +44,7 @@
 #include <linux/delay.h>
 #include <linux/semaphore.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/msi.h>
 #include <linux/hyperv.h>
 #include <linux/refcount.h>
@@ -508,7 +509,6 @@ struct hv_pcibus_device {
 	struct list_head children;
 	struct list_head dr_list;
 
-	struct msi_domain_info msi_info;
 	struct irq_domain *irq_domain;
 
 	struct workqueue_struct *wq;
@@ -576,9 +576,8 @@ struct hv_pci_compl {
 static void hv_pci_onchannelcallback(void *context);
 
 #ifdef CONFIG_X86
-#define DELIVERY_MODE	APIC_DELIVERY_MODE_FIXED
-#define FLOW_HANDLER	handle_edge_irq
-#define FLOW_NAME	"edge"
+#define DELIVERY_MODE		APIC_DELIVERY_MODE_FIXED
+#define HV_MSI_CHIP_FLAGS	MSI_CHIP_FLAG_SET_ACK
 
 static int hv_pci_irqchip_init(void)
 {
@@ -737,8 +736,7 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 #define HV_PCI_MSI_SPI_START	64
 #define HV_PCI_MSI_SPI_NR	(1020 - HV_PCI_MSI_SPI_START)
 #define DELIVERY_MODE		0
-#define FLOW_HANDLER		NULL
-#define FLOW_NAME		NULL
+#define HV_MSI_CHIP_FLAGS	MSI_CHIP_FLAG_SET_EOI
 #define hv_msi_prepare		NULL
 
 struct hv_pci_chip_data {
@@ -1701,7 +1699,7 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 	struct msi_desc *msi = irq_data_get_msi_desc(irq_data);
 
 	pdev = msi_desc_to_pci_dev(msi);
-	hbus = info->data;
+	hbus = domain->host_data;
 	int_desc = irq_data_get_irq_chip_data(irq_data);
 	if (!int_desc)
 		return;
@@ -1719,7 +1717,6 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 
 static void hv_irq_mask(struct irq_data *data)
 {
-	pci_msi_mask_irq(data);
 	if (data->parent_data->chip->irq_mask)
 		irq_chip_mask_parent(data);
 }
@@ -1730,7 +1727,6 @@ static void hv_irq_unmask(struct irq_data *data)
 
 	if (data->parent_data->chip->irq_unmask)
 		irq_chip_unmask_parent(data);
-	pci_msi_unmask_irq(data);
 }
 
 struct compose_comp_ctxt {
@@ -2115,24 +2111,87 @@ return_null_message:
 	msg->data = 0;
 }
 
+static bool hv_pcie_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
+				      struct irq_domain *real_parent, struct msi_domain_info *info)
+{
+	struct irq_chip *chip = info->chip;
+
+	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
+		return false;
+
+	info->ops->msi_prepare = hv_msi_prepare;
+
+	chip->irq_set_affinity = irq_chip_set_affinity_parent;
+
+	if (IS_ENABLED(CONFIG_X86))
+		chip->flags |= IRQCHIP_MOVE_DEFERRED;
+
+	return true;
+}
+
+#define HV_PCIE_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS		| \
+				    MSI_FLAG_USE_DEF_CHIP_OPS		| \
+				    MSI_FLAG_PCI_MSI_MASK_PARENT)
+#define HV_PCIE_MSI_FLAGS_SUPPORTED (MSI_FLAG_MULTI_PCI_MSI		| \
+				     MSI_FLAG_PCI_MSIX			| \
+				     MSI_FLAG_PCI_MSIX_ALLOC_DYN	| \
+				     MSI_GENERIC_FLAGS_MASK)
+
+static const struct msi_parent_ops hv_pcie_msi_parent_ops = {
+	.required_flags		= HV_PCIE_MSI_FLAGS_REQUIRED,
+	.supported_flags	= HV_PCIE_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.chip_flags		= HV_MSI_CHIP_FLAGS,
+	.prefix			= "HV-",
+	.init_dev_msi_info	= hv_pcie_init_dev_msi_info,
+};
+
 /* HW Interrupt Chip Descriptor */
 static struct irq_chip hv_msi_irq_chip = {
 	.name			= "Hyper-V PCIe MSI",
 	.irq_compose_msi_msg	= hv_compose_msi_msg,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
-#ifdef CONFIG_X86
 	.irq_ack		= irq_chip_ack_parent,
-	.flags			= IRQCHIP_MOVE_DEFERRED,
-#elif defined(CONFIG_ARM64)
 	.irq_eoi		= irq_chip_eoi_parent,
-#endif
 	.irq_mask		= hv_irq_mask,
 	.irq_unmask		= hv_irq_unmask,
 };
 
-static struct msi_domain_ops hv_msi_ops = {
-	.msi_prepare	= hv_msi_prepare,
-	.msi_free	= hv_msi_free,
+static int hv_pcie_domain_alloc(struct irq_domain *d, unsigned int virq, unsigned int nr_irqs,
+			       void *arg)
+{
+	/*
+	 * TODO: Allocating and populating struct tran_int_desc in hv_compose_msi_msg()
+	 * should be moved here.
+	 */
+	int ret;
+
+	ret = irq_domain_alloc_irqs_parent(d, virq, nr_irqs, arg);
+	if (ret < 0)
+		return ret;
+
+	for (int i = 0; i < nr_irqs; i++) {
+		irq_domain_set_hwirq_and_chip(d, virq + i, 0, &hv_msi_irq_chip, NULL);
+		if (IS_ENABLED(CONFIG_X86))
+			__irq_set_handler(virq + i, handle_edge_irq, 0, "edge");
+	}
+
+	return 0;
+}
+
+static void hv_pcie_domain_free(struct irq_domain *d, unsigned int virq, unsigned int nr_irqs)
+{
+	struct msi_domain_info *info = d->host_data;
+
+	for (int i = 0; i < nr_irqs; i++)
+		hv_msi_free(d, info, virq + i);
+
+	irq_domain_free_irqs_top(d, virq, nr_irqs);
+}
+
+static const struct irq_domain_ops hv_pcie_domain_ops = {
+	.alloc	= hv_pcie_domain_alloc,
+	.free	= hv_pcie_domain_free,
 };
 
 /**
@@ -2150,17 +2209,14 @@ static struct msi_domain_ops hv_msi_ops = {
  */
 static int hv_pcie_init_irq_domain(struct hv_pcibus_device *hbus)
 {
-	hbus->msi_info.chip = &hv_msi_irq_chip;
-	hbus->msi_info.ops = &hv_msi_ops;
-	hbus->msi_info.flags = (MSI_FLAG_USE_DEF_DOM_OPS |
-		MSI_FLAG_USE_DEF_CHIP_OPS | MSI_FLAG_MULTI_PCI_MSI |
-		MSI_FLAG_PCI_MSIX);
-	hbus->msi_info.handler = FLOW_HANDLER;
-	hbus->msi_info.handler_name = FLOW_NAME;
-	hbus->msi_info.data = hbus;
-	hbus->irq_domain = pci_msi_create_irq_domain(hbus->fwnode,
-						     &hbus->msi_info,
-						     hv_pci_get_root_domain());
+	struct irq_domain_info info = {
+		.fwnode		= hbus->fwnode,
+		.ops		= &hv_pcie_domain_ops,
+		.host_data	= hbus,
+		.parent		= hv_pci_get_root_domain(),
+	};
+
+	hbus->irq_domain = msi_create_parent_irq_domain(&info, &hv_pcie_msi_parent_ops);
 	if (!hbus->irq_domain) {
 		dev_err(&hbus->hdev->device,
 			"Failed to build an MSI IRQ domain\n");

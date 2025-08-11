@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig SND_HDA_CODEC_REALTEK
+	tristate "Realtek HD-audio codec support"
+	help
+	  Say Y or M here to include Realtek HD-audio codec support.
+
+	  This will enable all Realtek HD-audio codec drivers as default,
+	  but you can enable/disable each codec driver individually, too
+	  (only when CONFIG_EXPERT is set).
+
+if SND_HDA_CODEC_REALTEK
+
+config SND_HDA_CODEC_REALTEK_LIB
+	tristate
+	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
+	select SND_HDA_SCODEC_COMPONENT
+
+config SND_HDA_CODEC_ALC260
+	tristate "Build Realtek ALC260 HD-audio codec support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC260 HD-audio codec support
+
+config SND_HDA_CODEC_ALC262
+	tristate "Build Realtek ALC262 HD-audio codec support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC262 HD-audio codec support
+
+config SND_HDA_CODEC_ALC268
+	tristate "Build Realtek ALC268 HD-audio codec support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC268 and compatible HD-audio
+	  codec support
+
+config SND_HDA_CODEC_ALC269
+	tristate "Build Realtek ALC269 HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC269 and compatible HD-audio
+	  codec support
+
+config SND_HDA_CODEC_ALC662
+	tristate "Build Realtek ALC662 HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC662 and compatible HD-audio
+	  codec support
+
+config SND_HDA_CODEC_ALC680
+	tristate "Build Realtek ALC680 HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC680 HD-audio codec support
+
+config SND_HDA_CODEC_ALC861
+	tristate "Build Realtek ALC861 HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC861 HD-audio codec support
+
+config SND_HDA_CODEC_ALC861VD
+	tristate "Build Realtek ALC861-VD HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC861-VD HD-audio codec support
+
+config SND_HDA_CODEC_ALC880
+	tristate "Build Realtek ALC880 HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC880 HD-audio codec support
+
+config SND_HDA_CODEC_ALC882
+	tristate "Build Realtek ALC882 HD-audio codecs support" if EXPERT
+	depends on INPUT
+	select SND_HDA_CODEC_REALTEK_LIB
+	default y
+	help
+	  Say Y or M here to include Realtek ALC882 and compatible HD-audio
+	  codec support
+
+endif

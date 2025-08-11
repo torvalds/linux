@@ -7,6 +7,8 @@
 #ifndef __IA_CSS_EED1_8_PARAM_H
 #define __IA_CSS_EED1_8_PARAM_H
 
+#include <linux/math.h>
+
 #include "type_support.h"
 #include "vmem.h" /* needed for VMEM_ARRAY */
 
@@ -35,35 +37,35 @@
 #define EED1_8_STATE_INPUT_BUFFER_HEIGHT	(5 * NUM_PLANES)
 
 /* Each plane has width equal to half frame line */
-#define EED1_8_STATE_INPUT_BUFFER_WIDTH	CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_INPUT_BUFFER_WIDTH	DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 1 line state per color plane LD_H state */
 #define EED1_8_STATE_LD_H_HEIGHT	(1 * NUM_PLANES)
-#define EED1_8_STATE_LD_H_WIDTH		CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_LD_H_WIDTH		DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 1 line state per color plane LD_V state */
 #define EED1_8_STATE_LD_V_HEIGHT	(1 * NUM_PLANES)
-#define EED1_8_STATE_LD_V_WIDTH		CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_LD_V_WIDTH		DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 1 line (single plane) state for D_Hr state */
 #define EED1_8_STATE_D_HR_HEIGHT	1
-#define EED1_8_STATE_D_HR_WIDTH		CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_D_HR_WIDTH		DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 1 line (single plane) state for D_Hb state */
 #define EED1_8_STATE_D_HB_HEIGHT	1
-#define EED1_8_STATE_D_HB_WIDTH		CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_D_HB_WIDTH		DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 2 lines (single plane) state for D_Vr state */
 #define EED1_8_STATE_D_VR_HEIGHT	2
-#define EED1_8_STATE_D_VR_WIDTH		CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_D_VR_WIDTH		DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 2 line (single plane) state for D_Vb state */
 #define EED1_8_STATE_D_VB_HEIGHT	2
-#define EED1_8_STATE_D_VB_WIDTH		CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_D_VB_WIDTH		DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 2 lines state for R and B (= 2 planes) rb_zipped_state */
 #define EED1_8_STATE_RB_ZIPPED_HEIGHT	(2 * 2)
-#define EED1_8_STATE_RB_ZIPPED_WIDTH	CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_RB_ZIPPED_WIDTH	DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 #if EED1_8_FC_ENABLE_MEDIAN
 /* 1 full input line (GR-R color line) for Yc state */
@@ -72,11 +74,11 @@
 
 /* 1 line state per color plane Cg_state */
 #define EED1_8_STATE_CG_HEIGHT	(1 * NUM_PLANES)
-#define EED1_8_STATE_CG_WIDTH	CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_CG_WIDTH	DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 1 line state per color plane Co_state */
 #define EED1_8_STATE_CO_HEIGHT	(1 * NUM_PLANES)
-#define EED1_8_STATE_CO_WIDTH	CEIL_DIV(MAX_FRAME_SIMDWIDTH, 2)
+#define EED1_8_STATE_CO_WIDTH	DIV_ROUND_UP(MAX_FRAME_SIMDWIDTH, 2)
 
 /* 1 full input line (GR-R color line) for AbsK state */
 #define EED1_8_STATE_ABSK_HEIGHT	1

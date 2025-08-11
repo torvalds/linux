@@ -189,9 +189,11 @@ static int gpio_pin_get(struct gpio_chip *gc, unsigned offset)
 	return (gpio_read_data_reg(chip, reg->info) >> pos) & 1;
 }
 
-static void gpio_pin_set(struct gpio_chip *gc, unsigned offset, int value)
+static int gpio_pin_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	gpio_pin_set_value(gpiochip_get_data(gc), offset, value);
+
+	return 0;
 }
 
 static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)

@@ -6597,6 +6597,54 @@ done:
 	return rval;
 }
 
+int qla24xx_print_fc_port_id(struct scsi_qla_host *vha, struct seq_file *s, u16 loop_id)
+{
+	int rval = QLA_FUNCTION_FAILED;
+	dma_addr_t pd_dma;
+	struct port_database_24xx *pd;
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+
+	if (!vha->hw->flags.fw_started)
+		goto done;
+
+	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	if (pd == NULL) {
+		ql_log(ql_log_warn, vha, 0xd047,
+		    "Failed to allocate port database structure.\n");
+		goto done;
+	}
+
+	memset(&mc, 0, sizeof(mc));
+	mc.mb[0] = MBC_GET_PORT_DATABASE;
+	mc.mb[1] = loop_id;
+	mc.mb[2] = MSW(pd_dma);
+	mc.mb[3] = LSW(pd_dma);
+	mc.mb[6] = MSW(MSD(pd_dma));
+	mc.mb[7] = LSW(MSD(pd_dma));
+	mc.mb[9] = vha->vp_idx;
+
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1193, "%s: fail\n", __func__);
+		goto done_free_sp;
+	}
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1197, "%s: %8phC done\n",
+	    __func__, pd->port_name);
+
+	seq_printf(s, "%8phC  %02x%02x%02x  %d\n",
+		   pd->port_name, pd->port_id[0],
+		   pd->port_id[1], pd->port_id[2],
+		   loop_id);
+
+done_free_sp:
+	if (pd)
+		dma_pool_free(ha->s_dma_pool, pd, pd_dma);
+done:
+	return rval;
+}
+
 /*
  * qla24xx_gpdb_wait
  * NOTE: Do not call this routine from DPC thread

@@ -941,8 +941,10 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_USERSPACE_ATTR_PID:
-			if (dp->user_features &
-			    OVS_DP_F_DISPATCH_UPCALL_PER_CPU)
+			if (OVS_CB(skb)->upcall_pid)
+				upcall.portid = OVS_CB(skb)->upcall_pid;
+			else if (dp->user_features &
+				 OVS_DP_F_DISPATCH_UPCALL_PER_CPU)
 				upcall.portid =
 				  ovs_dp_get_upcall_portid(dp,
 							   smp_processor_id());
