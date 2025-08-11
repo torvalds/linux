@@ -76,7 +76,7 @@ struct mipi_config {
 #define ENABLE_ROTATION_180	0x2
 #define ENABLE_ROTATION_270	0x3
 		u32 rotation:2;
-		u32 bta_enabled:1;
+		u32 bta_disable:1;
 		u32 rsvd2:15;
 	} __packed;
 
