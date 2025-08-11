@@ -1584,6 +1584,8 @@ static u64 get_ethtool_ipv6_rss(struct bnxt *bp)
 {
 	if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6)
 		return RXH_IP_SRC | RXH_IP_DST;
+	if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6_FLOW_LABEL)
+		return RXH_IP_SRC | RXH_IP_DST | RXH_IP6_FL;
 	return 0;
 }
 
@@ -1662,11 +1664,16 @@ static int bnxt_set_rxfh_fields(struct net_device *dev,
 
 	if (cmd->data == RXH_4TUPLE)
 		tuple = 4;
-	else if (cmd->data == RXH_2TUPLE)
+	else if (cmd->data == RXH_2TUPLE ||
+		 cmd->data == (RXH_2TUPLE | RXH_IP6_FL))
 		tuple = 2;
 	else if (!cmd->data)
 		tuple = 0;
 	else
+		return -EINVAL;
+
+	if (cmd->data & RXH_IP6_FL &&
+	    !(bp->rss_cap & BNXT_RSS_CAP_IPV6_FLOW_LABEL_RSS_CAP))
 		return -EINVAL;
 
 	if (cmd->flow_type == TCP_V4_FLOW) {
@@ -1732,10 +1739,15 @@ static int bnxt_set_rxfh_fields(struct net_device *dev,
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 	case IPV6_FLOW:
-		if (tuple == 2)
+		rss_hash_cfg &= ~(VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6_FLOW_LABEL);
+		if (!tuple)
+			break;
+		if (cmd->data & RXH_IP6_FL)
+			rss_hash_cfg |=
+				VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6_FLOW_LABEL;
+		else if (tuple == 2)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6;
-		else if (!tuple)
-			rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6;
 		break;
 	}
 
