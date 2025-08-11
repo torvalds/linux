@@ -96,14 +96,12 @@ struct smb_direct_transport {
 	int			recv_credits;
 	int			recv_credit_target;
 
-	atomic_t		send_credits;
 	spinlock_t		lock_new_recv_credits;
 	int			new_recv_credits;
 	int			max_rw_credits;
 	int			pages_per_rw_credit;
 	atomic_t		rw_credits;
 
-	wait_queue_head_t	wait_send_credits;
 	wait_queue_head_t	wait_rw_credits;
 
 	struct work_struct	post_recv_credits_work;
@@ -334,7 +332,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
-	init_waitqueue_head(&t->wait_send_credits);
 	init_waitqueue_head(&t->wait_rw_credits);
 
 	spin_lock_init(&t->receive_credit_lock);
@@ -374,7 +371,7 @@ static void free_transport(struct smb_direct_transport *t)
 					 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 	}
 
-	wake_up_all(&t->wait_send_credits);
+	wake_up_all(&sc->send_io.credits.wait_queue);
 	wake_up_all(&sc->send_io.pending.zero_wait_queue);
 
 	disable_work_sync(&t->post_recv_credits_work);
@@ -588,14 +585,14 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		t->recv_credit_target =
 				le16_to_cpu(data_transfer->credits_requested);
 		atomic_add(le16_to_cpu(data_transfer->credits_granted),
-			   &t->send_credits);
+			   &sc->send_io.credits.count);
 
 		if (le16_to_cpu(data_transfer->flags) &
 		    SMBDIRECT_FLAG_RESPONSE_REQUESTED)
 			queue_work(smb_direct_wq, &t->send_immediate_work);
 
-		if (atomic_read(&t->send_credits) > 0)
-			wake_up(&t->wait_send_credits);
+		if (atomic_read(&sc->send_io.credits.count) > 0)
+			wake_up(&sc->send_io.credits.wait_queue);
 
 		if (data_length) {
 			if (t->recv_credit_target > old_recv_credit_target)
@@ -901,6 +898,7 @@ static int smb_direct_flush_send_list(struct smb_direct_transport *t,
 				      struct smb_direct_send_ctx *send_ctx,
 				      bool is_last)
 {
+	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_send_io *first, *last;
 	int ret;
 
@@ -927,8 +925,8 @@ static int smb_direct_flush_send_list(struct smb_direct_transport *t,
 					 send_ctx->need_invalidate_rkey,
 					 send_ctx->remote_key);
 	} else {
-		atomic_add(send_ctx->wr_cnt, &t->send_credits);
-		wake_up(&t->wait_send_credits);
+		atomic_add(send_ctx->wr_cnt, &sc->send_io.credits.count);
+		wake_up(&sc->send_io.credits.wait_queue);
 		list_for_each_entry_safe(first, last, &send_ctx->msg_list,
 					 sibling_list) {
 			smb_direct_free_sendmsg(t, first);
@@ -963,16 +961,17 @@ static int wait_for_credits(struct smb_direct_transport *t,
 static int wait_for_send_credits(struct smb_direct_transport *t,
 				 struct smb_direct_send_ctx *send_ctx)
 {
+	struct smbdirect_socket *sc = &t->socket;
 	int ret;
 
 	if (send_ctx &&
-	    (send_ctx->wr_cnt >= 16 || atomic_read(&t->send_credits) <= 1)) {
+	    (send_ctx->wr_cnt >= 16 || atomic_read(&sc->send_io.credits.count) <= 1)) {
 		ret = smb_direct_flush_send_list(t, send_ctx, false);
 		if (ret)
 			return ret;
 	}
 
-	return wait_for_credits(t, &t->wait_send_credits, &t->send_credits, 1);
+	return wait_for_credits(t, &sc->send_io.credits.wait_queue, &sc->send_io.credits.count, 1);
 }
 
 static int wait_for_rw_credits(struct smb_direct_transport *t, int credits)
@@ -1155,7 +1154,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 	ret = smb_direct_create_header(t, data_length, remaining_data_length,
 				       &msg);
 	if (ret) {
-		atomic_inc(&t->send_credits);
+		atomic_inc(&sc->send_io.credits.count);
 		return ret;
 	}
 
@@ -1195,7 +1194,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 	return 0;
 err:
 	smb_direct_free_sendmsg(t, msg);
-	atomic_inc(&t->send_credits);
+	atomic_inc(&sc->send_io.credits.count);
 	return ret;
 }
 
@@ -1581,7 +1580,7 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
 		wake_up_all(&sc->status_wait);
 		wake_up_all(&sc->recv_io.reassembly.wait_queue);
-		wake_up_all(&t->wait_send_credits);
+		wake_up_all(&sc->send_io.credits.wait_queue);
 		break;
 	}
 	case RDMA_CM_EVENT_CONNECT_ERROR: {
@@ -1844,7 +1843,6 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	t->new_recv_credits = 0;
 
 	sp->send_credit_target = smb_direct_send_credit_target;
-	atomic_set(&t->send_credits, 0);
 	atomic_set(&t->rw_credits, t->max_rw_credits);
 
 	sp->max_send_size = smb_direct_max_send_size;
