@@ -824,11 +824,10 @@ static unsigned long rzg2l_cpg_sipll5_recalc_rate(struct clk_hw *hw,
 	return pll5_rate;
 }
 
-static long rzg2l_cpg_sipll5_round_rate(struct clk_hw *hw,
-					unsigned long rate,
-					unsigned long *parent_rate)
+static int rzg2l_cpg_sipll5_determine_rate(struct clk_hw *hw,
+					   struct clk_rate_request *req)
 {
-	return rate;
+	return 0;
 }
 
 static int rzg2l_cpg_sipll5_set_rate(struct clk_hw *hw,
@@ -902,7 +901,7 @@ static int rzg2l_cpg_sipll5_set_rate(struct clk_hw *hw,
 
 static const struct clk_ops rzg2l_cpg_sipll5_ops = {
 	.recalc_rate = rzg2l_cpg_sipll5_recalc_rate,
-	.round_rate = rzg2l_cpg_sipll5_round_rate,
+	.determine_rate = rzg2l_cpg_sipll5_determine_rate,
 	.set_rate = rzg2l_cpg_sipll5_set_rate,
 };
 
