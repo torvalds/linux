@@ -495,6 +495,17 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
 struct folio *mm_get_huge_zero_folio(struct mm_struct *mm);
 void mm_put_huge_zero_folio(struct mm_struct *mm);
 
+static inline struct folio *get_persistent_huge_zero_folio(void)
+{
+	if (!IS_ENABLED(CONFIG_PERSISTENT_HUGE_ZERO_FOLIO))
+		return NULL;
+
+	if (unlikely(!huge_zero_folio))
+		return NULL;
+
+	return huge_zero_folio;
+}
+
 static inline bool thp_migration_supported(void)
 {
 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
@@ -684,6 +695,11 @@ static inline int change_huge_pud(struct mmu_gather *tlb,
 				  unsigned long cp_flags)
 {
 	return 0;
+}
+
+static inline struct folio *get_persistent_huge_zero_folio(void)
+{
+	return NULL;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
