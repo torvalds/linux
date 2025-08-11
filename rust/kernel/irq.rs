@@ -13,4 +13,9 @@
 /// Flags to be used when registering IRQ handlers.
 mod flags;
 
+/// IRQ allocation and handling.
+mod request;
+
 pub use flags::Flags;
+
+pub use request::{Handler, IrqRequest, IrqReturn, Registration};

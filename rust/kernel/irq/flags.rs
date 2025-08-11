@@ -21,7 +21,7 @@ use crate::prelude::*;
 /// If an invalid combination of flags is provided, the system will refuse to
 /// register the handler, and lower layers will enforce certain flags when
 /// necessary. This means, for example, that all the
-/// `crate::irq::Registration` for a shared interrupt have to agree on
+/// [`crate::irq::Registration`] for a shared interrupt have to agree on
 /// [`Flags::SHARED`] and on the same trigger type, if set.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Flags(c_ulong);
@@ -92,7 +92,6 @@ impl Flags {
     /// `PERCPU`.
     pub const NO_DEBUG: Flags = Flags::new(bindings::IRQF_NO_DEBUG);
 
-    #[expect(dead_code)]
     pub(crate) fn into_inner(self) -> c_ulong {
         self.0
     }
