@@ -4197,6 +4197,7 @@ static const struct rtw89_port_reg rtw89_port_base_ax = {
 	.ptcl_dbg = R_AX_PTCL_DBG,
 	.ptcl_dbg_info = R_AX_PTCL_DBG_INFO,
 	.bcn_drop_all = R_AX_BCN_DROP_ALL0,
+	.bcn_psr_rpt = R_AX_BCN_PSR_RPT_P0,
 	.hiq_win = {R_AX_P0MB_HGQ_WINDOW_CFG_0, R_AX_PORT_HGQ_WINDOW_CFG,
 		    R_AX_PORT_HGQ_WINDOW_CFG + 1, R_AX_PORT_HGQ_WINDOW_CFG + 2,
 		    R_AX_PORT_HGQ_WINDOW_CFG + 3},
@@ -4649,6 +4650,30 @@ static void rtw89_mac_port_cfg_bcn_early(struct rtw89_dev *rtwdev,
 				BCN_ERLY_DEF);
 }
 
+static void rtw89_mac_port_cfg_bcn_psr_rpt(struct rtw89_dev *rtwdev,
+					   struct rtw89_vif_link *rtwvif_link)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
+	struct ieee80211_bss_conf *bss_conf;
+	u8 bssid_index;
+	u32 reg;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	if (bss_conf->nontransmitted)
+		bssid_index = bss_conf->bssid_index;
+	else
+		bssid_index = 0;
+
+	rcu_read_unlock();
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, p->bcn_psr_rpt + rtwvif_link->port * 4,
+				   rtwvif_link->mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_BCAID_P0_MASK, bssid_index);
+}
+
 void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif_link *rtwvif_link,
 			     struct rtw89_vif_link *rtwvif_src,
@@ -4805,6 +4830,7 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvi
 	rtw89_mac_port_tsf_resync_all(rtwdev);
 	fsleep(BCN_ERLY_SET_DLY);
 	rtw89_mac_port_cfg_bcn_early(rtwdev, rtwvif_link);
+	rtw89_mac_port_cfg_bcn_psr_rpt(rtwdev, rtwvif_link);
 
 	return 0;
 }
