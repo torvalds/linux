@@ -121,8 +121,8 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 
 		if (ret < 0)
 			return ret;
-		*val = (ret >> st->chip_info->channel[0].scan_type.shift) &
-			GENMASK(st->chip_info->channel[0].scan_type.realbits - 1, 0);
+		*val = (ret >> chan->scan_type.shift) &
+			GENMASK(chan->scan_type.realbits - 1, 0);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->scale_mv;
@@ -345,7 +345,7 @@ static int ad7476_probe(struct spi_device *spi)
 	/* Setup default message */
 
 	st->xfer.rx_buf = &st->data;
-	st->xfer.len = st->chip_info->channel[0].scan_type.storagebits / 8;
+	st->xfer.len = indio_dev->channels[0].scan_type.storagebits / 8;
 
 	spi_message_init(&st->msg);
 	spi_message_add_tail(&st->xfer, &st->msg);
