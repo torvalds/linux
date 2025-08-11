@@ -287,10 +287,10 @@ static int reset_flow_steering(void)
 	 * the exit status.
 	 */
 
-	run_command("sudo ethtool -K %s ntuple off >&2", ifname);
-	run_command("sudo ethtool -K %s ntuple on >&2", ifname);
+	run_command("ethtool -K %s ntuple off >&2", ifname);
+	run_command("ethtool -K %s ntuple on >&2", ifname);
 	run_command(
-		"sudo ethtool -n %s | grep 'Filter:' | awk '{print $2}' | xargs -n1 ethtool -N %s delete >&2",
+		"ethtool -n %s | grep 'Filter:' | awk '{print $2}' | xargs -n1 ethtool -N %s delete >&2",
 		ifname, ifname);
 	return 0;
 }
@@ -351,12 +351,12 @@ static int configure_headersplit(bool on)
 
 static int configure_rss(void)
 {
-	return run_command("sudo ethtool -X %s equal %d >&2", ifname, start_queue);
+	return run_command("ethtool -X %s equal %d >&2", ifname, start_queue);
 }
 
 static int configure_channels(unsigned int rx, unsigned int tx)
 {
-	return run_command("sudo ethtool -L %s rx %u tx %u", ifname, rx, tx);
+	return run_command("ethtool -L %s rx %u tx %u", ifname, rx, tx);
 }
 
 static int configure_flow_steering(struct sockaddr_in6 *server_sin)
@@ -374,7 +374,7 @@ static int configure_flow_steering(struct sockaddr_in6 *server_sin)
 	}
 
 	/* Try configure 5-tuple */
-	if (run_command("sudo ethtool -N %s flow-type %s %s %s dst-ip %s %s %s dst-port %s queue %d >&2",
+	if (run_command("ethtool -N %s flow-type %s %s %s dst-ip %s %s %s dst-port %s queue %d >&2",
 			   ifname,
 			   type,
 			   client_ip ? "src-ip" : "",
@@ -384,7 +384,7 @@ static int configure_flow_steering(struct sockaddr_in6 *server_sin)
 			   client_ip ? port : "",
 			   port, start_queue))
 		/* If that fails, try configure 3-tuple */
-		if (run_command("sudo ethtool -N %s flow-type %s dst-ip %s dst-port %s queue %d >&2",
+		if (run_command("ethtool -N %s flow-type %s dst-ip %s dst-port %s queue %d >&2",
 				ifname,
 				type,
 				server_addr,
