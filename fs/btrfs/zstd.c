@@ -400,6 +400,7 @@ int zstd_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 	unsigned long len = *total_out;
 	const unsigned long nr_dest_folios = *out_folios;
 	const u64 orig_end = start + len;
+	const u32 blocksize = inode->root->fs_info->sectorsize;
 	unsigned long max_out = nr_dest_folios * PAGE_SIZE;
 	unsigned int cur_len;
 
@@ -456,7 +457,7 @@ int zstd_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 		}
 
 		/* Check to see if we are making it bigger */
-		if (tot_in + workspace->in_buf.pos > 8192 &&
+		if (tot_in + workspace->in_buf.pos > blocksize * 2 &&
 				tot_in + workspace->in_buf.pos <
 				tot_out + workspace->out_buf.pos) {
 			ret = -E2BIG;
