@@ -457,6 +457,11 @@ F:	Documentation/devicetree/bindings/iio/adc/adi,ad7380.yaml
 F:	Documentation/iio/ad7380.rst
 F:	drivers/iio/adc/ad7380.c
 
+AD7476 ADC DRIVER FOR VARIOUS SIMPLE 1-CHANNEL SPI ADCs
+M:	Matti Vaittinen <mazziesaccount@gmail.com>
+S:	Maintained
+F:	drivers/iio/adc/ad7476.c
+
 AD7877 TOUCHSCREEN DRIVER
 M:	Michael Hennerich <michael.hennerich@analog.com>
 S:	Supported
