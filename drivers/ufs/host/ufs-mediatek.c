@@ -1475,6 +1475,7 @@ static int ufs_mtk_pre_link(struct ufs_hba *hba)
 {
 	int ret;
 	u32 tmp;
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
 	ufs_mtk_get_controller_version(hba);
 
@@ -1499,6 +1500,16 @@ static int ufs_mtk_pre_link(struct ufs_hba *hba)
 	tmp &= ~(1 << 6);
 
 	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(VS_SAVEPOWERCONTROL), tmp);
+
+	/* Enable the 1144 functions setting */
+	if (host->ip_ver == IP_VER_MT6989) {
+		ret = ufshcd_dme_get(hba, UIC_ARG_MIB(VS_DEBUGOMC), &tmp);
+		if (ret)
+			return ret;
+
+		tmp |= 0x10;
+		ret = ufshcd_dme_set(hba, UIC_ARG_MIB(VS_DEBUGOMC), tmp);
+	}
 
 	return ret;
 }
