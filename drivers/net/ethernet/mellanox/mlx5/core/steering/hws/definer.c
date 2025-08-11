@@ -727,8 +727,9 @@ hws_definer_conv_outer(struct mlx5hws_definer_conv_data *cd,
 	u32 *s_ipv6, *d_ipv6;
 
 	if (HWS_IS_FLD_SET_SZ(match_param, outer_headers.l4_type, 0x2) ||
-	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.reserved_at_c2, 0xe) ||
-	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.reserved_at_c4, 0x4)) {
+	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.l4_type_ext, 0x4) ||
+	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.reserved_at_c6, 0xa) ||
+	    HWS_IS_FLD_SET_SZ(match_param, outer_headers.reserved_at_d4, 0x4)) {
 		mlx5hws_err(cd->ctx, "Unsupported outer parameters set\n");
 		return -EINVAL;
 	}
@@ -903,8 +904,9 @@ hws_definer_conv_inner(struct mlx5hws_definer_conv_data *cd,
 	u32 *s_ipv6, *d_ipv6;
 
 	if (HWS_IS_FLD_SET_SZ(match_param, inner_headers.l4_type, 0x2) ||
-	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.reserved_at_c2, 0xe) ||
-	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.reserved_at_c4, 0x4)) {
+	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.l4_type_ext, 0x4) ||
+	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.reserved_at_c6, 0xa) ||
+	    HWS_IS_FLD_SET_SZ(match_param, inner_headers.reserved_at_d4, 0x4)) {
 		mlx5hws_err(cd->ctx, "Unsupported inner parameters set\n");
 		return -EINVAL;
 	}
@@ -1279,7 +1281,8 @@ hws_definer_conv_misc2(struct mlx5hws_definer_conv_data *cd,
 	struct mlx5hws_definer_fc *curr_fc;
 
 	if (HWS_IS_FLD_SET_SZ(match_param, misc_parameters_2.reserved_at_1a0, 0x8) ||
-	    HWS_IS_FLD_SET_SZ(match_param, misc_parameters_2.reserved_at_1b8, 0x8) ||
+	    HWS_IS_FLD_SET_SZ(match_param,
+			      misc_parameters_2.ipsec_next_header, 0x8) ||
 	    HWS_IS_FLD_SET_SZ(match_param, misc_parameters_2.reserved_at_1c0, 0x40) ||
 	    HWS_IS_FLD_SET(match_param, misc_parameters_2.macsec_syndrome) ||
 	    HWS_IS_FLD_SET(match_param, misc_parameters_2.ipsec_syndrome)) {

@@ -144,6 +144,9 @@
 
 #define SO_PASSRIGHTS		0x4051
 
+#define SO_INQ			0x4052
+#define SCM_INQ			SO_INQ
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

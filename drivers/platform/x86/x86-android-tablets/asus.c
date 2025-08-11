@@ -206,24 +206,9 @@ static const struct software_node asus_tf103c_touchscreen_node = {
 	.properties = asus_tf103c_touchscreen_props,
 };
 
-static const struct property_entry asus_tf103c_battery_props[] = {
-	PROPERTY_ENTRY_STRING("compatible", "simple-battery"),
-	PROPERTY_ENTRY_STRING("device-chemistry", "lithium-ion-polymer"),
-	PROPERTY_ENTRY_U32("precharge-current-microamp", 256000),
-	PROPERTY_ENTRY_U32("charge-term-current-microamp", 128000),
-	PROPERTY_ENTRY_U32("constant-charge-current-max-microamp", 2048000),
-	PROPERTY_ENTRY_U32("constant-charge-voltage-max-microvolt", 4208000),
-	PROPERTY_ENTRY_U32("factory-internal-resistance-micro-ohms", 150000),
-	{ }
-};
-
-static const struct software_node asus_tf103c_battery_node = {
-	.properties = asus_tf103c_battery_props,
-};
-
 static const struct property_entry asus_tf103c_bq24190_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_4v2_battery_node),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
 	PROPERTY_ENTRY_BOOL("disable-reset"),
@@ -236,7 +221,7 @@ static const struct software_node asus_tf103c_bq24190_node = {
 
 static const struct property_entry asus_tf103c_ug3105_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", bq24190_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_4v2_battery_node),
 	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 5000),
 	{ }
 };
@@ -321,6 +306,6 @@ const struct x86_dev_info asus_tf103c_info __initconst = {
 	.gpio_button = &asus_me176c_tf103c_lid,
 	.gpio_button_count = 1,
 	.gpiod_lookup_tables = asus_tf103c_gpios,
-	.bat_swnode = &asus_tf103c_battery_node,
+	.bat_swnode = &generic_lipo_4v2_battery_node,
 	.modules = bq24190_modules,
 };

@@ -241,7 +241,7 @@ static struct ata_port_operations pdc_20621_ops = {
 
 	.freeze			= pdc_freeze,
 	.thaw			= pdc_thaw,
-	.softreset		= pdc_softreset,
+	.reset.softreset	= pdc_softreset,
 	.error_handler		= pdc_error_handler,
 	.lost_interrupt		= ATA_OP_NULL,
 	.post_internal_cmd	= pdc_post_internal_cmd,

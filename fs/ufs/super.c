@@ -397,7 +397,7 @@ static int ufs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			pr_err("ufstype can't be changed during remount\n");
 			return -EINVAL;
 		}
-                if (!ctx->flavour) {
+                if (ctx->flavour) {
 			pr_err("conflicting ufstype options\n");
 			return -EINVAL;
 		}

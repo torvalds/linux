@@ -128,45 +128,50 @@ static int vprbrd_gpioa_get(struct gpio_chip *chip,
 	return answer;
 }
 
-static void vprbrd_gpioa_set(struct gpio_chip *chip,
-		unsigned int offset, int value)
+static int vprbrd_gpioa_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
-	int ret;
+	int ret = 0;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpioa_msg *gamsg = (struct vprbrd_gpioa_msg *)vb->buf;
 
-	if (gpio->gpioa_out & (1 << offset)) {
-		if (value)
-			gpio->gpioa_val |= (1 << offset);
-		else
-			gpio->gpioa_val &= ~(1 << offset);
+	if (!(gpio->gpioa_out & (1 << offset)))
+		return 0;
 
-		mutex_lock(&vb->lock);
+	if (value)
+		gpio->gpioa_val |= (1 << offset);
+	else
+		gpio->gpioa_val &= ~(1 << offset);
 
-		gamsg->cmd = VPRBRD_GPIOA_CMD_SETOUT;
-		gamsg->clk = 0x00;
-		gamsg->offset = offset;
-		gamsg->t1 = 0x00;
-		gamsg->t2 = 0x00;
-		gamsg->invert = 0x00;
-		gamsg->pwmlevel = 0x00;
-		gamsg->outval = value;
-		gamsg->risefall = 0x00;
-		gamsg->answer = 0x00;
-		gamsg->__fill = 0x00;
+	mutex_lock(&vb->lock);
 
-		ret = usb_control_msg(vb->usb_dev,
-			usb_sndctrlpipe(vb->usb_dev, 0),
-			VPRBRD_USB_REQUEST_GPIOA, VPRBRD_USB_TYPE_OUT,
-			0x0000,	0x0000, gamsg,
-			sizeof(struct vprbrd_gpioa_msg), VPRBRD_USB_TIMEOUT_MS);
+	gamsg->cmd = VPRBRD_GPIOA_CMD_SETOUT;
+	gamsg->clk = 0x00;
+	gamsg->offset = offset;
+	gamsg->t1 = 0x00;
+	gamsg->t2 = 0x00;
+	gamsg->invert = 0x00;
+	gamsg->pwmlevel = 0x00;
+	gamsg->outval = value;
+	gamsg->risefall = 0x00;
+	gamsg->answer = 0x00;
+	gamsg->__fill = 0x00;
 
-		mutex_unlock(&vb->lock);
+	ret = usb_control_msg(vb->usb_dev, usb_sndctrlpipe(vb->usb_dev, 0),
+			      VPRBRD_USB_REQUEST_GPIOA, VPRBRD_USB_TYPE_OUT,
+			      0x0000, 0x0000, gamsg,
+			      sizeof(struct vprbrd_gpioa_msg),
+			      VPRBRD_USB_TIMEOUT_MS);
 
-		if (ret != sizeof(struct vprbrd_gpioa_msg))
-			dev_err(chip->parent, "usb error setting pin value\n");
+	mutex_unlock(&vb->lock);
+
+	if (ret != sizeof(struct vprbrd_gpioa_msg)) {
+		dev_err(chip->parent, "usb error setting pin value\n");
+		return -EREMOTEIO;
 	}
+
+	return 0;
 }
 
 static int vprbrd_gpioa_direction_input(struct gpio_chip *chip,
@@ -304,37 +309,42 @@ static int vprbrd_gpiob_get(struct gpio_chip *chip,
 	return (gpio->gpiob_val >> offset) & 0x1;
 }
 
-static void vprbrd_gpiob_set(struct gpio_chip *chip,
-		unsigned int offset, int value)
+static int vprbrd_gpiob_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpiob_msg *gbmsg = (struct vprbrd_gpiob_msg *)vb->buf;
 
-	if (gpio->gpiob_out & (1 << offset)) {
-		if (value)
-			gpio->gpiob_val |= (1 << offset);
-		else
-			gpio->gpiob_val &= ~(1 << offset);
+	if (!(gpio->gpiob_out & (1 << offset)))
+		return 0;
 
-		mutex_lock(&vb->lock);
+	if (value)
+		gpio->gpiob_val |= (1 << offset);
+	else
+		gpio->gpiob_val &= ~(1 << offset);
 
-		gbmsg->cmd = VPRBRD_GPIOB_CMD_SETVAL;
-		gbmsg->val = cpu_to_be16(value << offset);
-		gbmsg->mask = cpu_to_be16(0x0001 << offset);
+	mutex_lock(&vb->lock);
 
-		ret = usb_control_msg(vb->usb_dev,
-			usb_sndctrlpipe(vb->usb_dev, 0),
-			VPRBRD_USB_REQUEST_GPIOB, VPRBRD_USB_TYPE_OUT,
-			0x0000,	0x0000, gbmsg,
-			sizeof(struct vprbrd_gpiob_msg), VPRBRD_USB_TIMEOUT_MS);
+	gbmsg->cmd = VPRBRD_GPIOB_CMD_SETVAL;
+	gbmsg->val = cpu_to_be16(value << offset);
+	gbmsg->mask = cpu_to_be16(0x0001 << offset);
 
-		mutex_unlock(&vb->lock);
+	ret = usb_control_msg(vb->usb_dev, usb_sndctrlpipe(vb->usb_dev, 0),
+			      VPRBRD_USB_REQUEST_GPIOB, VPRBRD_USB_TYPE_OUT,
+			      0x0000, 0x0000, gbmsg,
+			      sizeof(struct vprbrd_gpiob_msg),
+			      VPRBRD_USB_TIMEOUT_MS);
 
-		if (ret != sizeof(struct vprbrd_gpiob_msg))
-			dev_err(chip->parent, "usb error setting pin value\n");
+	mutex_unlock(&vb->lock);
+
+	if (ret != sizeof(struct vprbrd_gpiob_msg)) {
+		dev_err(chip->parent, "usb error setting pin value\n");
+		return -EREMOTEIO;
 	}
+
+	return 0;
 }
 
 static int vprbrd_gpiob_direction_input(struct gpio_chip *chip,
@@ -368,16 +378,14 @@ static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
 	gpio->gpiob_out |= (1 << offset);
 
 	mutex_lock(&vb->lock);
-
 	ret = vprbrd_gpiob_setdir(vb, offset, 1);
-	if (ret)
-		dev_err(chip->parent, "usb error setting pin to output\n");
-
 	mutex_unlock(&vb->lock);
+	if (ret) {
+		dev_err(chip->parent, "usb error setting pin to output\n");
+		return ret;
+	}
 
-	vprbrd_gpiob_set(chip, offset, value);
-
-	return ret;
+	return vprbrd_gpiob_set(chip, offset, value);
 }
 
 /* ----- end of gpio b chip ---------------------------------------------- */

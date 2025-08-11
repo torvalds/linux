@@ -20,7 +20,8 @@ struct io_nop {
 };
 
 #define NOP_FLAGS	(IORING_NOP_INJECT_RESULT | IORING_NOP_FIXED_FILE | \
-			 IORING_NOP_FIXED_BUFFER | IORING_NOP_FILE)
+			 IORING_NOP_FIXED_BUFFER | IORING_NOP_FILE | \
+			 IORING_NOP_TW)
 
 int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
@@ -68,5 +69,10 @@ done:
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, nop->result, 0);
+	if (nop->flags & IORING_NOP_TW) {
+		req->io_task_work.func = io_req_task_complete;
+		io_req_task_work_add(req);
+		return IOU_ISSUE_SKIP_COMPLETE;
+	}
 	return IOU_COMPLETE;
 }

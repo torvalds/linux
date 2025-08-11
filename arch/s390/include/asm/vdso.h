@@ -4,11 +4,11 @@
 
 #include <vdso/datapage.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 int vdso_getcpu_init(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define __VDSO_PAGES	4
 

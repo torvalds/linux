@@ -840,9 +840,9 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 	*mid = smb2_mid_entry_alloc(shdr, server);
 	if (*mid == NULL)
 		return -ENOMEM;
-	spin_lock(&server->mid_lock);
+	spin_lock(&server->mid_queue_lock);
 	list_add_tail(&(*mid)->qhead, &server->pending_mid_q);
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_queue_lock);
 
 	return 0;
 }

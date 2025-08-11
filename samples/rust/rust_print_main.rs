@@ -40,7 +40,7 @@ fn arc_print() -> Result {
         // behaviour, contract or protocol on both `i32` and `&str` into a single `Arc` of
         // type `Arc<dyn Display>`.
 
-        use core::fmt::Display;
+        use kernel::fmt::Display;
         fn arc_dyn_print(arc: &Arc<dyn Display>) {
             pr_info!("Arc<dyn Display> says {arc}");
         }

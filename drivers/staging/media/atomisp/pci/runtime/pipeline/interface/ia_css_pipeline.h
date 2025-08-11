@@ -34,7 +34,6 @@ struct ia_css_pipeline_stage {
 struct ia_css_pipeline {
 	enum ia_css_pipe_id pipe_id;
 	u8 pipe_num;
-	bool stop_requested;
 	struct ia_css_pipeline_stage *stages;
 	struct ia_css_pipeline_stage *current_stage;
 	unsigned int num_stages;

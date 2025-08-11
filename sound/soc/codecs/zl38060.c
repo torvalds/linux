@@ -440,7 +440,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input = chip_direction_input,
 	.direction_output = chip_direction_output,
 	.get = chip_gpio_get,
-	.set_rv = chip_gpio_set,
+	.set = chip_gpio_set,
 
 	.can_sleep = true,
 };

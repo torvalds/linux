@@ -28,13 +28,11 @@
 #include <linux/ptrace.h>
 #include <linux/export.h>
 #include <linux/user.h>
-#include <linux/tty.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
 #include <linux/initrd.h>
-#include <linux/vt_kern.h>
 #include <linux/console.h>
 #include <linux/pci.h>
 #include <linux/adb.h>

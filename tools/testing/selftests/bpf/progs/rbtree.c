@@ -61,19 +61,19 @@ static long __add_three(struct bpf_rb_root *root, struct bpf_spin_lock *lock)
 	}
 	m->key = 1;
 
-	bpf_spin_lock(&glock);
-	bpf_rbtree_add(&groot, &n->node, less);
-	bpf_rbtree_add(&groot, &m->node, less);
-	bpf_spin_unlock(&glock);
+	bpf_spin_lock(lock);
+	bpf_rbtree_add(root, &n->node, less);
+	bpf_rbtree_add(root, &m->node, less);
+	bpf_spin_unlock(lock);
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)
 		return 3;
 	n->key = 3;
 
-	bpf_spin_lock(&glock);
-	bpf_rbtree_add(&groot, &n->node, less);
-	bpf_spin_unlock(&glock);
+	bpf_spin_lock(lock);
+	bpf_rbtree_add(root, &n->node, less);
+	bpf_spin_unlock(lock);
 	return 0;
 }
 

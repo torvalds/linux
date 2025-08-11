@@ -179,10 +179,9 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 	struct qla_hw_data *ha = vha->hw;
 	struct gid_list_info *gid_list;
 	dma_addr_t gid_list_dma;
-	fc_port_t fc_port;
 	char *id_iter;
 	int rc, i;
-	uint16_t entries, loop_id;
+	uint16_t entries;
 
 	seq_printf(s, "%s\n", vha->host_str);
 	gid_list = dma_alloc_coherent(&ha->pdev->dev,
@@ -205,18 +204,11 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 	seq_puts(s, "Port Name	Port ID		Loop ID\n");
 
 	for (i = 0; i < entries; i++) {
-		struct gid_list_info *gid =
-			(struct gid_list_info *)id_iter;
-		loop_id = le16_to_cpu(gid->loop_id);
-		memset(&fc_port, 0, sizeof(fc_port_t));
+		struct gid_list_info *gid = (struct gid_list_info *)id_iter;
 
-		fc_port.loop_id = loop_id;
-
-		rc = qla24xx_gpdb_wait(vha, &fc_port, 0);
-		seq_printf(s, "%8phC  %02x%02x%02x  %d\n",
-			   fc_port.port_name, fc_port.d_id.b.domain,
-			   fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
-			   fc_port.loop_id);
+		rc = qla24xx_print_fc_port_id(vha, s, le16_to_cpu(gid->loop_id));
+		if (rc != QLA_SUCCESS)
+			break;
 		id_iter += ha->gid_list_info_size;
 	}
 out_free_id_list:

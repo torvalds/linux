@@ -377,6 +377,13 @@ struct ntfs_inode {
 	 */
 	u8 mi_loaded;
 
+	/* 
+	 * Use this field to avoid any write(s).
+	 * If inode is bad during initialization - use make_bad_inode
+	 * If inode is bad during operations - use this field
+	 */
+	u8 ni_bad;
+
 	union {
 		struct ntfs_index dir;
 		struct {
@@ -577,8 +584,7 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 		struct NTFS_DE *de);
 
 int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
-	      struct ntfs_inode *ni, struct NTFS_DE *de, struct NTFS_DE *new_de,
-	      bool *is_bad);
+	      struct ntfs_inode *ni, struct NTFS_DE *de, struct NTFS_DE *new_de);
 
 bool ni_is_dirty(struct inode *inode);
 
@@ -702,10 +708,12 @@ struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 int ntfs_set_size(struct inode *inode, u64 new_size);
 int ntfs_get_block(struct inode *inode, sector_t vbn,
 		   struct buffer_head *bh_result, int create);
-int ntfs_write_begin(struct file *file, struct address_space *mapping,
-		     loff_t pos, u32 len, struct folio **foliop, void **fsdata);
-int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
-		   u32 len, u32 copied, struct folio *folio, void *fsdata);
+int ntfs_write_begin(const struct kiocb *iocb, struct address_space *mapping,
+		     loff_t pos, u32 len, struct folio **foliop,
+		     void **fsdata);
+int ntfs_write_end(const struct kiocb *iocb, struct address_space *mapping,
+		   loff_t pos, u32 len, u32 copied, struct folio *folio,
+		   void *fsdata);
 int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc);
 int ntfs_sync_inode(struct inode *inode);
 int inode_read_data(struct inode *inode, void *data, size_t bytes);
@@ -874,7 +882,7 @@ int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry);
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 extern const struct xattr_handler *const ntfs_xattr_handlers[];
 
-int ntfs_save_wsl_perm(struct inode *inode, __le16 *ea_size);
+int ntfs_save_wsl_perm(struct inode *inode, __le32 *ea_size);
 void ntfs_get_wsl_perm(struct inode *inode);
 
 /* globals from lznt.c */
@@ -1023,6 +1031,11 @@ static inline bool is_compressed(const struct ntfs_inode *ni)
 {
 	return (ni->std_fa & FILE_ATTRIBUTE_COMPRESSED) ||
 	       (ni->ni_flags & NI_FLAG_COMPRESSED_MASK);
+}
+
+static inline bool is_bad_ni(const struct ntfs_inode *ni)
+{
+	return ni->ni_bad;
 }
 
 static inline int ni_ext_compress_bits(const struct ntfs_inode *ni)

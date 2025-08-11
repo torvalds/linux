@@ -1185,7 +1185,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 		goto nomem;
 	memset(ones, 0xff, MMC_SPI_BLOCKSIZE);
 
-	mmc = mmc_alloc_host(sizeof(*host), &spi->dev);
+	mmc = devm_mmc_alloc_host(&spi->dev, sizeof(*host));
 	if (!mmc)
 		goto nomem;
 
@@ -1305,7 +1305,6 @@ fail_glue_init:
 	kfree(host->data);
 fail_nobuf1:
 	mmc_spi_put_pdata(spi);
-	mmc_free_host(mmc);
 nomem:
 	kfree(ones);
 	return status;
@@ -1328,7 +1327,6 @@ static void mmc_spi_remove(struct spi_device *spi)
 
 	spi->max_speed_hz = mmc->f_max;
 	mmc_spi_put_pdata(spi);
-	mmc_free_host(mmc);
 }
 
 static const struct spi_device_id mmc_spi_dev_ids[] = {

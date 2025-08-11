@@ -7,6 +7,8 @@ int cork_byte;
 int push_start;
 int push_end;
 int apply_bytes;
+int pop_start;
+int pop_end;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKMAP);
@@ -22,6 +24,8 @@ int prog_sk_policy(struct sk_msg_md *msg)
 		bpf_msg_cork_bytes(msg, cork_byte);
 	if (push_start > 0 && push_end > 0)
 		bpf_msg_push_data(msg, push_start, push_end, 0);
+	if (pop_start >= 0 && pop_end > 0)
+		bpf_msg_pop_data(msg, pop_start, pop_end, 0);
 
 	return SK_PASS;
 }

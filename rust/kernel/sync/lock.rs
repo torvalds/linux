@@ -175,6 +175,8 @@ impl<T: ?Sized, B: Backend> Lock<T, B> {
     /// Tries to acquire the lock.
     ///
     /// Returns a guard that can be used to access the data protected by the lock if successful.
+    // `Option<T>` is not `#[must_use]` even if `T` is, thus the attribute is needed here.
+    #[must_use = "if unused, the lock will be immediately unlocked"]
     pub fn try_lock(&self) -> Option<Guard<'_, T, B>> {
         // SAFETY: The constructor of the type calls `init`, so the existence of the object proves
         // that `init` was called.

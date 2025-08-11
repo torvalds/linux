@@ -1,6 +1,7 @@
 acpi_dock_ops
 address_space_operations
 backlight_ops
+bin_attribute
 block_device_operations
 bus_type
 clk_ops

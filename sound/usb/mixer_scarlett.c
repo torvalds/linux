@@ -357,21 +357,21 @@ static int scarlett_ctl_put(struct snd_kcontrol *kctl,
 	return changed;
 }
 
-static void scarlett_generate_name(int i, char *dst, int offsets[])
+static void scarlett_generate_name(int i, char *dst, size_t size, int offsets[])
 {
 	if (i > offsets[SCARLETT_OFFSET_MIX])
-		sprintf(dst, "Mix %c",
-			'A'+(i - offsets[SCARLETT_OFFSET_MIX] - 1));
+		scnprintf(dst, size, "Mix %c",
+			  'A'+(i - offsets[SCARLETT_OFFSET_MIX] - 1));
 	else if (i > offsets[SCARLETT_OFFSET_ADAT])
-		sprintf(dst, "ADAT %d", i - offsets[SCARLETT_OFFSET_ADAT]);
+		scnprintf(dst, size, "ADAT %d", i - offsets[SCARLETT_OFFSET_ADAT]);
 	else if (i > offsets[SCARLETT_OFFSET_SPDIF])
-		sprintf(dst, "SPDIF %d", i - offsets[SCARLETT_OFFSET_SPDIF]);
+		scnprintf(dst, size, "SPDIF %d", i - offsets[SCARLETT_OFFSET_SPDIF]);
 	else if (i > offsets[SCARLETT_OFFSET_ANALOG])
-		sprintf(dst, "Analog %d", i - offsets[SCARLETT_OFFSET_ANALOG]);
+		scnprintf(dst, size, "Analog %d", i - offsets[SCARLETT_OFFSET_ANALOG]);
 	else if (i > offsets[SCARLETT_OFFSET_PCM])
-		sprintf(dst, "PCM %d", i - offsets[SCARLETT_OFFSET_PCM]);
+		scnprintf(dst, size, "PCM %d", i - offsets[SCARLETT_OFFSET_PCM]);
 	else
-		sprintf(dst, "Off");
+		scnprintf(dst, size, "Off");
 }
 
 static int scarlett_ctl_enum_dynamic_info(struct snd_kcontrol *kctl,
@@ -391,6 +391,7 @@ static int scarlett_ctl_enum_dynamic_info(struct snd_kcontrol *kctl,
 	/* generate name dynamically based on item number and offset info */
 	scarlett_generate_name(uinfo->value.enumerated.item,
 			       uinfo->value.enumerated.name,
+			       sizeof(uinfo->value.enumerated.name),
 			       opt->offsets);
 
 	return 0;
@@ -876,7 +877,8 @@ static int scarlett_controls_create_generic(struct usb_mixer_interface *mixer,
 				return err;
 			break;
 		case SCARLETT_SWITCH_IMPEDANCE:
-			sprintf(mx, "Input %d Impedance Switch", ctl->num);
+			scnprintf(mx, sizeof(mx),
+				  "Input %d Impedance Switch", ctl->num);
 			err = add_new_ctl(mixer, &usb_scarlett_ctl_enum,
 					  scarlett_ctl_enum_resume, 0x01,
 					  0x09, ctl->num, USB_MIXER_S16, 1, mx,
@@ -885,7 +887,8 @@ static int scarlett_controls_create_generic(struct usb_mixer_interface *mixer,
 				return err;
 			break;
 		case SCARLETT_SWITCH_PAD:
-			sprintf(mx, "Input %d Pad Switch", ctl->num);
+			scnprintf(mx, sizeof(mx),
+				  "Input %d Pad Switch", ctl->num);
 			err = add_new_ctl(mixer, &usb_scarlett_ctl_enum,
 					  scarlett_ctl_enum_resume, 0x01,
 					  0x0b, ctl->num, USB_MIXER_S16, 1, mx,
@@ -894,7 +897,8 @@ static int scarlett_controls_create_generic(struct usb_mixer_interface *mixer,
 				return err;
 			break;
 		case SCARLETT_SWITCH_GAIN:
-			sprintf(mx, "Input %d Gain Switch", ctl->num);
+			scnprintf(mx, sizeof(mx),
+				  "Input %d Gain Switch", ctl->num);
 			err = add_new_ctl(mixer, &usb_scarlett_ctl_enum,
 					  scarlett_ctl_enum_resume, 0x01,
 					  0x08, ctl->num, USB_MIXER_S16, 1, mx,
@@ -960,8 +964,9 @@ int snd_scarlett_controls_create(struct usb_mixer_interface *mixer)
 			return err;
 
 		for (o = 0; o < info->matrix_out; o++) {
-			sprintf(mx, "Matrix %02d Mix %c Playback Volume", i+1,
-				o+'A');
+			scnprintf(mx, sizeof(mx),
+				  "Matrix %02d Mix %c Playback Volume", i+1,
+				  o+'A');
 			err = add_new_ctl(mixer, &usb_scarlett_ctl,
 					  scarlett_ctl_resume, 0x3c, 0x00,
 					  (i << 3) + (o & 0x07), USB_MIXER_S16,

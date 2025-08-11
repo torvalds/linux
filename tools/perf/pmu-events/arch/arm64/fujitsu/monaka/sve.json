@@ -13,11 +13,11 @@
     },
     {
         "ArchStdEvent": "ASE_SVE_INST_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD or SVE operation."
     },
     {
         "ArchStdEvent": "UOP_SPEC",
-        "BriefDescription": "This event counts all architecturally executed micro-operations."
+        "BriefDescription": "This event counts all architecturally executed micro-operation."
     },
     {
         "ArchStdEvent": "SVE_MATH_SPEC",
@@ -29,7 +29,7 @@
     },
     {
         "ArchStdEvent": "FP_FMA_SPEC",
-        "BriefDescription": "This event counts architecturally executed floating-point fused multiply-add and multiply-subtract operations."
+        "BriefDescription": "This event counts architecturally executed floating-point fused multiply-add and multiply-subtract operation."
     },
     {
         "ArchStdEvent": "FP_RECPE_SPEC",
@@ -41,15 +41,15 @@
     },
     {
         "ArchStdEvent": "ASE_INT_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD integer operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD integer operation."
     },
     {
         "ArchStdEvent": "SVE_INT_SPEC",
-        "BriefDescription": "This event counts architecturally executed SVE integer operations."
+        "BriefDescription": "This event counts architecturally executed SVE integer operation."
     },
     {
         "ArchStdEvent": "ASE_SVE_INT_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE integer operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD or SVE integer operation."
     },
     {
         "ArchStdEvent": "SVE_INT_DIV_SPEC",
@@ -69,7 +69,7 @@
     },
     {
         "ArchStdEvent": "ASE_SVE_INT_MUL_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE integer multiply operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD or SVE integer multiply operation."
     },
     {
         "ArchStdEvent": "SVE_INT_MUL64_SPEC",
@@ -77,19 +77,19 @@
     },
     {
         "ArchStdEvent": "SVE_INT_MULH64_SPEC",
-        "BriefDescription": "This event counts architecturally executed SVE integer 64-bit x 64-bit multiply returning high part operations."
+        "BriefDescription": "This event counts architecturally executed SVE integer 64-bit x 64-bit multiply returning high part operation."
     },
     {
         "ArchStdEvent": "ASE_NONFP_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD non-floating-point operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD non-floating-point operation."
     },
     {
         "ArchStdEvent": "SVE_NONFP_SPEC",
-        "BriefDescription": "This event counts architecturally executed SVE non-floating-point operations."
+        "BriefDescription": "This event counts architecturally executed SVE non-floating-point operation."
     },
     {
         "ArchStdEvent": "ASE_SVE_NONFP_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE non-floating-point operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD or SVE non-floating-point operation."
     },
     {
         "ArchStdEvent": "ASE_INT_VREDUCE_SPEC",
@@ -101,7 +101,7 @@
     },
     {
         "ArchStdEvent": "ASE_SVE_INT_VREDUCE_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE integer reduction operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD or SVE integer reduction operation."
     },
     {
         "ArchStdEvent": "SVE_PERM_SPEC",
@@ -149,11 +149,11 @@
     },
     {
         "ArchStdEvent": "ASE_SVE_LD_SPEC",
-        "BriefDescription": "This event counts architecturally executed operations that read from memory due to SVE and Advanced SIMD load instructions."
+        "BriefDescription": "This event counts architecturally executed operations that read from memory due to Advanced SIMD or SVE load instructions."
     },
     {
         "ArchStdEvent": "ASE_SVE_ST_SPEC",
-        "BriefDescription": "This event counts architecturally executed operations that write to memory due to SVE and Advanced SIMD store instructions."
+        "BriefDescription": "This event counts architecturally executed operations that write to memory due to Advanced SIMD or SVE store instructions."
     },
     {
         "ArchStdEvent": "PRF_SPEC",
@@ -197,11 +197,11 @@
     },
     {
         "ArchStdEvent": "ASE_SVE_LD_MULTI_SPEC",
-        "BriefDescription": "This event counts architecturally executed operations that read from memory due to SVE and Advanced SIMD multiple vector contiguous structure load instructions."
+        "BriefDescription": "This event counts architecturally executed operations that read from memory due to Advanced SIMD or SVE multiple vector contiguous structure load instructions."
     },
     {
         "ArchStdEvent": "ASE_SVE_ST_MULTI_SPEC",
-        "BriefDescription": "This event counts architecturally executed operations that write to memory due to SVE and Advanced SIMD multiple vector contiguous structure store instructions."
+        "BriefDescription": "This event counts architecturally executed operations that write to memory due to Advanced SIMD or SVE multiple vector contiguous structure store instructions."
     },
     {
         "ArchStdEvent": "SVE_LD_GATHER_SPEC",
@@ -221,27 +221,27 @@
     },
     {
         "ArchStdEvent": "FP_HP_SCALE_OPS_SPEC",
-        "BriefDescription": "This event counts architecturally executed SVE half-precision arithmetic operations. See FP_HP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 8, or by 16 for operations that would also be counted by SVE_FP_FMA_SPEC."
+        "BriefDescription": "This event counts architecturally executed SVE half-precision arithmetic operation. See FP_HP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 8, or by 16 for operations that would also be counted by SVE_FP_FMA_SPEC."
     },
     {
         "ArchStdEvent": "FP_HP_FIXED_OPS_SPEC",
-        "BriefDescription": "This event counts architecturally executed v8SIMD&FP half-precision arithmetic operations. See FP_HP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by the number of 16-bit elements for Advanced SIMD operations, or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
+        "BriefDescription": "This event counts architecturally executed v8SIMD&FP half-precision arithmetic operation. See FP_HP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by the number of 16-bit elements for Advanced SIMD operations, or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
     },
     {
         "ArchStdEvent": "FP_SP_SCALE_OPS_SPEC",
-        "BriefDescription": "This event counts architecturally executed SVE single-precision arithmetic operations. See FP_SP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 4, or by 8 for operations that would also be counted by SVE_FP_FMA_SPEC."
+        "BriefDescription": "This event counts architecturally executed SVE single-precision arithmetic operation. See FP_SP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 4, or by 8 for operations that would also be counted by SVE_FP_FMA_SPEC."
     },
     {
         "ArchStdEvent": "FP_SP_FIXED_OPS_SPEC",
-        "BriefDescription": "This event counts architecturally executed v8SIMD&FP single-precision arithmetic operations. See FP_SP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by the number of 32-bit elements for Advanced SIMD operations, or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
+        "BriefDescription": "This event counts architecturally executed v8SIMD&FP single-precision arithmetic operation. See FP_SP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by the number of 32-bit elements for Advanced SIMD operations, or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
     },
     {
         "ArchStdEvent": "FP_DP_SCALE_OPS_SPEC",
-        "BriefDescription": "This event counts architecturally executed SVE double-precision arithmetic operations. See FP_DP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 2, or by 4 for operations that would also be counted by SVE_FP_FMA_SPEC."
+        "BriefDescription": "This event counts architecturally executed SVE double-precision arithmetic operation. See FP_DP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 2, or by 4 for operations that would also be counted by SVE_FP_FMA_SPEC."
     },
     {
         "ArchStdEvent": "FP_DP_FIXED_OPS_SPEC",
-        "BriefDescription": "This event counts architecturally executed v8SIMD&FP double-precision arithmetic operations. See FP_DP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 2 for Advanced SIMD operations, or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
+        "BriefDescription": "This event counts architecturally executed v8SIMD&FP double-precision arithmetic operation. See FP_DP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by 2 for Advanced SIMD operations, or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
     },
     {
         "ArchStdEvent": "ASE_SVE_INT_DOT_SPEC",

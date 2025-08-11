@@ -10,16 +10,6 @@
 #include "xe_uc_fw_types.h"
 
 /**
- * struct xe_gt_sriov_vf_relay_version - PF ABI version details.
- */
-struct xe_gt_sriov_vf_relay_version {
-	/** @major: major version. */
-	u16 major;
-	/** @minor: minor version. */
-	u16 minor;
-};
-
-/**
  * struct xe_gt_sriov_vf_selfconfig - VF configuration data.
  */
 struct xe_gt_sriov_vf_selfconfig {
@@ -66,8 +56,6 @@ struct xe_gt_sriov_vf {
 	struct xe_uc_fw_version guc_version;
 	/** @self_config: resource configurations. */
 	struct xe_gt_sriov_vf_selfconfig self_config;
-	/** @pf_version: negotiated VF/PF ABI version. */
-	struct xe_gt_sriov_vf_relay_version pf_version;
 	/** @runtime: runtime data retrieved from the PF. */
 	struct xe_gt_sriov_vf_runtime runtime;
 };

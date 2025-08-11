@@ -180,14 +180,18 @@ static ssize_t charge_control_end_threshold_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	int cc_end_value, s006_cc_return;
-	int value, ret;
+	unsigned int value;
+	int ret;
 
 	ret = kstrtouint(buf, 10, &value);
 	if (ret)
 		return ret;
 
-	if (value < 50 || value > 100)
+	if (value > 100)
 		return -EINVAL;
+
+	if (value < 50)
+		value = 50;
 
 	cc_end_value = value * 0x100 + 0x20;
 	s006_cc_return = call_fext_func(fext, FUNC_S006_METHOD,

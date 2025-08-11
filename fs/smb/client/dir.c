@@ -190,6 +190,7 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	int disposition;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
+	struct cached_fid *parent_cfid = NULL;
 	int rdwr_for_fscache = 0;
 	__le32 lease_flags = 0;
 
@@ -313,10 +314,10 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	if (!tcon->unix_ext && (mode & S_IWUGO) == 0)
 		create_options |= CREATE_OPTION_READONLY;
 
+
 retry_open:
 	if (tcon->cfids && direntry->d_parent && server->dialect >= SMB30_PROT_ID) {
-		struct cached_fid *parent_cfid;
-
+		parent_cfid = NULL;
 		spin_lock(&tcon->cfids->cfid_list_lock);
 		list_for_each_entry(parent_cfid, &tcon->cfids->entries, entry) {
 			if (parent_cfid->dentry == direntry->d_parent) {
@@ -327,6 +328,7 @@ retry_open:
 					memcpy(fid->parent_lease_key,
 					       parent_cfid->fid.lease_key,
 					       SMB2_LEASE_KEY_SIZE);
+					parent_cfid->dirents.is_valid = false;
 				}
 				break;
 			}

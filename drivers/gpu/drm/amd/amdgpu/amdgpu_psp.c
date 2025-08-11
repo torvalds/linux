@@ -575,9 +575,11 @@ static int psp_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
-		 uint32_t reg_val, uint32_t mask, bool check_changed)
+int psp_wait_for(struct psp_context *psp, uint32_t reg_index, uint32_t reg_val,
+		 uint32_t mask, uint32_t flags)
 {
+	bool check_changed = flags & PSP_WAITREG_CHANGED;
+	bool verbose = !(flags & PSP_WAITREG_NOVERBOSE);
 	uint32_t val;
 	int i;
 	struct amdgpu_device *adev = psp->adev;
@@ -597,9 +599,10 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 		udelay(1);
 	}
 
-	dev_err(adev->dev,
-		"psp reg (0x%x) wait timed out, mask: %x, read: %x exp: %x",
-		reg_index, mask, val, reg_val);
+	if (verbose)
+		dev_err(adev->dev,
+			"psp reg (0x%x) wait timed out, mask: %x, read: %x exp: %x",
+			reg_index, mask, val, reg_val);
 
 	return -ETIME;
 }
@@ -4252,8 +4255,8 @@ rel_buf:
 static const struct bin_attribute psp_vbflash_bin_attr = {
 	.attr = {.name = "psp_vbflash", .mode = 0660},
 	.size = 0,
-	.write_new = amdgpu_psp_vbflash_write,
-	.read_new = amdgpu_psp_vbflash_read,
+	.write = amdgpu_psp_vbflash_write,
+	.read = amdgpu_psp_vbflash_read,
 };
 
 /**
@@ -4316,7 +4319,7 @@ static umode_t amdgpu_bin_flash_attr_is_visible(struct kobject *kobj,
 
 const struct attribute_group amdgpu_flash_attr_group = {
 	.attrs = flash_attrs,
-	.bin_attrs_new = bin_flash_attrs,
+	.bin_attrs = bin_flash_attrs,
 	.is_bin_visible = amdgpu_bin_flash_attr_is_visible,
 	.is_visible = amdgpu_flash_attr_is_visible,
 };

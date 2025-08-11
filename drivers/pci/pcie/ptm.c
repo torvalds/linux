@@ -254,6 +254,7 @@ bool pcie_ptm_enabled(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pcie_ptm_enabled);
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 static ssize_t context_update_write(struct file *file, const char __user *ubuf,
 			     size_t count, loff_t *ppos)
 {
@@ -506,7 +507,7 @@ struct pci_ptm_debugfs *pcie_ptm_create_debugfs(struct device *dev, void *pdata,
 	if (!ops->check_capability)
 		return NULL;
 
-	/* Check for PTM capability before creating debugfs attrbutes */
+	/* Check for PTM capability before creating debugfs attributes */
 	ret = ops->check_capability(pdata);
 	if (!ret) {
 		dev_dbg(dev, "PTM capability not present\n");
@@ -552,3 +553,4 @@ void pcie_ptm_destroy_debugfs(struct pci_ptm_debugfs *ptm_debugfs)
 	debugfs_remove_recursive(ptm_debugfs->debugfs);
 }
 EXPORT_SYMBOL_GPL(pcie_ptm_destroy_debugfs);
+#endif

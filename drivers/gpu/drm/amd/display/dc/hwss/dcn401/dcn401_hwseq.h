@@ -109,4 +109,5 @@ void dcn401_detect_pipe_changes(
 void dcn401_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp);
+void dcn401_initialize_min_clocks(struct dc *dc);
 #endif /* __DC_HWSS_DCN401_H__ */

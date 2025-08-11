@@ -112,7 +112,7 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct btrfs_root *log,
 				       struct btrfs_path *path,
-				       u64 dirid, int del_all);
+				       u64 dirid, bool del_all);
 static void wait_log_commit(struct btrfs_root *root, int transid);
 
 /*
@@ -142,6 +142,9 @@ static struct btrfs_inode *btrfs_iget_logging(u64 objectid, struct btrfs_root *r
 {
 	unsigned int nofs_flag;
 	struct btrfs_inode *inode;
+
+	/* Only meant to be called for subvolume roots and not for log roots. */
+	ASSERT(btrfs_is_fstree(btrfs_root_id(root)));
 
 	/*
 	 * We're holding a transaction handle whether we are logging or
@@ -318,8 +321,7 @@ struct walk_control {
 
 	/*
 	 * Ignore any items from the inode currently being processed. Needs
-	 * to be set every time we find a BTRFS_INODE_ITEM_KEY and we are in
-	 * the LOG_WALK_REPLAY_INODES stage.
+	 * to be set every time we find a BTRFS_INODE_ITEM_KEY.
 	 */
 	bool ignore_cur_inode;
 
@@ -604,21 +606,6 @@ static int read_alloc_one_name(struct extent_buffer *eb, void *start, int len,
 	return 0;
 }
 
-/*
- * simple helper to read an inode off the disk from a given root
- * This can only be called for subvolume roots and not for the log
- */
-static noinline struct btrfs_inode *read_one_inode(struct btrfs_root *root,
-						   u64 objectid)
-{
-	struct btrfs_inode *inode;
-
-	inode = btrfs_iget_logging(objectid, root);
-	if (IS_ERR(inode))
-		return NULL;
-	return inode;
-}
-
 /* replays a single extent in 'eb' at 'slot' with 'key' into the
  * subvolume 'root'.  path is released on entry and should be released
  * on exit.
@@ -668,15 +655,15 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		extent_end = ALIGN(start + size,
 				   fs_info->sectorsize);
 	} else {
-		ret = 0;
-		goto out;
+		btrfs_err(fs_info,
+		  "unexpected extent type=%d root=%llu inode=%llu offset=%llu",
+			  found_type, btrfs_root_id(root), key->objectid, key->offset);
+		return -EUCLEAN;
 	}
 
-	inode = read_one_inode(root, key->objectid);
-	if (!inode) {
-		ret = -EIO;
-		goto out;
-	}
+	inode = btrfs_iget_logging(key->objectid, root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	/*
 	 * first check to see if we already have this extent in the
@@ -948,9 +935,10 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 
 	btrfs_release_path(path);
 
-	inode = read_one_inode(root, location.objectid);
-	if (!inode) {
-		ret = -EIO;
+	inode = btrfs_iget_logging(location.objectid, root);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		inode = NULL;
 		goto out;
 	}
 
@@ -961,7 +949,8 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	ret = unlink_inode_for_log_replay(trans, dir, inode, &name);
 out:
 	kfree(name.name);
-	iput(&inode->vfs_inode);
+	if (inode)
+		iput(&inode->vfs_inode);
 	return ret;
 }
 
@@ -1051,6 +1040,126 @@ out:
 	return ret;
 }
 
+static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
+				  struct btrfs_path *path,
+				  struct btrfs_root *log_root,
+				  struct btrfs_key *search_key,
+				  struct btrfs_inode *dir,
+				  struct btrfs_inode *inode,
+				  u64 parent_objectid)
+{
+	struct extent_buffer *leaf = path->nodes[0];
+	unsigned long ptr;
+	unsigned long ptr_end;
+
+	/*
+	 * Check all the names in this back reference to see if they are in the
+	 * log. If so, we allow them to stay otherwise they must be unlinked as
+	 * a conflict.
+	 */
+	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+	ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
+	while (ptr < ptr_end) {
+		struct fscrypt_str victim_name;
+		struct btrfs_inode_ref *victim_ref;
+		int ret;
+
+		victim_ref = (struct btrfs_inode_ref *)ptr;
+		ret = read_alloc_one_name(leaf, (victim_ref + 1),
+					  btrfs_inode_ref_name_len(leaf, victim_ref),
+					  &victim_name);
+		if (ret)
+			return ret;
+
+		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
+		if (ret) {
+			kfree(victim_name.name);
+			if (ret < 0)
+				return ret;
+			ptr = (unsigned long)(victim_ref + 1) + victim_name.len;
+			continue;
+		}
+
+		inc_nlink(&inode->vfs_inode);
+		btrfs_release_path(path);
+
+		ret = unlink_inode_for_log_replay(trans, dir, inode, &victim_name);
+		kfree(victim_name.name);
+		if (ret)
+			return ret;
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+static int unlink_extrefs_not_in_log(struct btrfs_trans_handle *trans,
+				     struct btrfs_path *path,
+				     struct btrfs_root *root,
+				     struct btrfs_root *log_root,
+				     struct btrfs_key *search_key,
+				     struct btrfs_inode *inode,
+				     u64 inode_objectid,
+				     u64 parent_objectid)
+{
+	struct extent_buffer *leaf = path->nodes[0];
+	const unsigned long base = btrfs_item_ptr_offset(leaf, path->slots[0]);
+	const u32 item_size = btrfs_item_size(leaf, path->slots[0]);
+	u32 cur_offset = 0;
+
+	while (cur_offset < item_size) {
+		struct btrfs_inode_extref *extref;
+		struct btrfs_inode *victim_parent;
+		struct fscrypt_str victim_name;
+		int ret;
+
+		extref = (struct btrfs_inode_extref *)(base + cur_offset);
+		victim_name.len = btrfs_inode_extref_name_len(leaf, extref);
+
+		if (btrfs_inode_extref_parent(leaf, extref) != parent_objectid)
+			goto next;
+
+		ret = read_alloc_one_name(leaf, &extref->name, victim_name.len,
+					  &victim_name);
+		if (ret)
+			return ret;
+
+		search_key->objectid = inode_objectid;
+		search_key->type = BTRFS_INODE_EXTREF_KEY;
+		search_key->offset = btrfs_extref_hash(parent_objectid,
+						       victim_name.name,
+						       victim_name.len);
+		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
+		if (ret) {
+			kfree(victim_name.name);
+			if (ret < 0)
+				return ret;
+next:
+			cur_offset += victim_name.len + sizeof(*extref);
+			continue;
+		}
+
+		victim_parent = btrfs_iget_logging(parent_objectid, root);
+		if (IS_ERR(victim_parent)) {
+			kfree(victim_name.name);
+			return PTR_ERR(victim_parent);
+		}
+
+		inc_nlink(&inode->vfs_inode);
+		btrfs_release_path(path);
+
+		ret = unlink_inode_for_log_replay(trans, victim_parent, inode,
+						  &victim_name);
+		iput(&victim_parent->vfs_inode);
+		kfree(victim_name.name);
+		if (ret)
+			return ret;
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
 static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  struct btrfs_path *path,
@@ -1061,7 +1170,6 @@ static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
 				  u64 ref_index, struct fscrypt_str *name)
 {
 	int ret;
-	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
 	struct btrfs_key search_key;
 	struct btrfs_inode_extref *extref;
@@ -1072,121 +1180,37 @@ again:
 	search_key.type = BTRFS_INODE_REF_KEY;
 	search_key.offset = parent_objectid;
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
-	if (ret == 0) {
-		struct btrfs_inode_ref *victim_ref;
-		unsigned long ptr;
-		unsigned long ptr_end;
-
-		leaf = path->nodes[0];
-
-		/* are we trying to overwrite a back ref for the root directory
-		 * if so, just jump out, we're done
+	if (ret < 0) {
+		return ret;
+	} else if (ret == 0) {
+		/*
+		 * Are we trying to overwrite a back ref for the root directory?
+		 * If so, we're done.
 		 */
 		if (search_key.objectid == search_key.offset)
 			return 1;
 
-		/* check all the names in this back reference to see
-		 * if they are in the log.  if so, we allow them to stay
-		 * otherwise they must be unlinked as a conflict
-		 */
-		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
-		ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
-		while (ptr < ptr_end) {
-			struct fscrypt_str victim_name;
-
-			victim_ref = (struct btrfs_inode_ref *)ptr;
-			ret = read_alloc_one_name(leaf, (victim_ref + 1),
-				 btrfs_inode_ref_name_len(leaf, victim_ref),
-				 &victim_name);
-			if (ret)
-				return ret;
-
-			ret = backref_in_log(log_root, &search_key,
-					     parent_objectid, &victim_name);
-			if (ret < 0) {
-				kfree(victim_name.name);
-				return ret;
-			} else if (!ret) {
-				inc_nlink(&inode->vfs_inode);
-				btrfs_release_path(path);
-
-				ret = unlink_inode_for_log_replay(trans, dir, inode,
-						&victim_name);
-				kfree(victim_name.name);
-				if (ret)
-					return ret;
-				goto again;
-			}
-			kfree(victim_name.name);
-
-			ptr = (unsigned long)(victim_ref + 1) + victim_name.len;
-		}
+		ret = unlink_refs_not_in_log(trans, path, log_root, &search_key,
+					     dir, inode, parent_objectid);
+		if (ret == -EAGAIN)
+			goto again;
+		else if (ret)
+			return ret;
 	}
 	btrfs_release_path(path);
 
 	/* Same search but for extended refs */
-	extref = btrfs_lookup_inode_extref(NULL, root, path, name,
-					   inode_objectid, parent_objectid, 0,
-					   0);
+	extref = btrfs_lookup_inode_extref(root, path, name, inode_objectid, parent_objectid);
 	if (IS_ERR(extref)) {
 		return PTR_ERR(extref);
 	} else if (extref) {
-		u32 item_size;
-		u32 cur_offset = 0;
-		unsigned long base;
-		struct btrfs_inode *victim_parent;
-
-		leaf = path->nodes[0];
-
-		item_size = btrfs_item_size(leaf, path->slots[0]);
-		base = btrfs_item_ptr_offset(leaf, path->slots[0]);
-
-		while (cur_offset < item_size) {
-			struct fscrypt_str victim_name;
-
-			extref = (struct btrfs_inode_extref *)(base + cur_offset);
-
-			if (btrfs_inode_extref_parent(leaf, extref) != parent_objectid)
-				goto next;
-
-			ret = read_alloc_one_name(leaf, &extref->name,
-				 btrfs_inode_extref_name_len(leaf, extref),
-				 &victim_name);
-			if (ret)
-				return ret;
-
-			search_key.objectid = inode_objectid;
-			search_key.type = BTRFS_INODE_EXTREF_KEY;
-			search_key.offset = btrfs_extref_hash(parent_objectid,
-							      victim_name.name,
-							      victim_name.len);
-			ret = backref_in_log(log_root, &search_key,
-					     parent_objectid, &victim_name);
-			if (ret < 0) {
-				kfree(victim_name.name);
-				return ret;
-			} else if (!ret) {
-				ret = -ENOENT;
-				victim_parent = read_one_inode(root,
-						parent_objectid);
-				if (victim_parent) {
-					inc_nlink(&inode->vfs_inode);
-					btrfs_release_path(path);
-
-					ret = unlink_inode_for_log_replay(trans,
-							victim_parent,
-							inode, &victim_name);
-				}
-				iput(&victim_parent->vfs_inode);
-				kfree(victim_name.name);
-				if (ret)
-					return ret;
-				goto again;
-			}
-			kfree(victim_name.name);
-next:
-			cur_offset += victim_name.len + sizeof(*extref);
-		}
+		ret = unlink_extrefs_not_in_log(trans, path, root, log_root,
+						&search_key, inode,
+						inode_objectid, parent_objectid);
+		if (ret == -EAGAIN)
+			goto again;
+		else if (ret)
+			return ret;
 	}
 	btrfs_release_path(path);
 
@@ -1314,9 +1338,9 @@ again:
 			struct btrfs_inode *dir;
 
 			btrfs_release_path(path);
-			dir = read_one_inode(root, parent_id);
-			if (!dir) {
-				ret = -ENOENT;
+			dir = btrfs_iget_logging(parent_id, root);
+			if (IS_ERR(dir)) {
+				ret = PTR_ERR(dir);
 				kfree(name.name);
 				goto out;
 			}
@@ -1360,7 +1384,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	unsigned long ref_end;
 	struct fscrypt_str name = { 0 };
 	int ret;
-	int log_ref_ver = 0;
+	const bool is_extref_item = (key->type == BTRFS_INODE_EXTREF_KEY);
 	u64 parent_objectid;
 	u64 inode_objectid;
 	u64 ref_index = 0;
@@ -1369,11 +1393,10 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	ref_ptr = btrfs_item_ptr_offset(eb, slot);
 	ref_end = ref_ptr + btrfs_item_size(eb, slot);
 
-	if (key->type == BTRFS_INODE_EXTREF_KEY) {
+	if (is_extref_item) {
 		struct btrfs_inode_extref *r;
 
 		ref_struct_size = sizeof(struct btrfs_inode_extref);
-		log_ref_ver = 1;
 		r = (struct btrfs_inode_extref *)ref_ptr;
 		parent_objectid = btrfs_inode_extref_parent(eb, r);
 	} else {
@@ -1388,37 +1411,61 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	 * copy the back ref in.  The link count fixup code will take
 	 * care of the rest
 	 */
-	dir = read_one_inode(root, parent_objectid);
-	if (!dir) {
-		ret = -ENOENT;
+	dir = btrfs_iget_logging(parent_objectid, root);
+	if (IS_ERR(dir)) {
+		ret = PTR_ERR(dir);
+		if (ret == -ENOENT)
+			ret = 0;
+		dir = NULL;
 		goto out;
 	}
 
-	inode = read_one_inode(root, inode_objectid);
-	if (!inode) {
-		ret = -EIO;
+	inode = btrfs_iget_logging(inode_objectid, root);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		inode = NULL;
 		goto out;
 	}
 
 	while (ref_ptr < ref_end) {
-		if (log_ref_ver) {
+		if (is_extref_item) {
 			ret = extref_get_fields(eb, ref_ptr, &name,
 						&ref_index, &parent_objectid);
+			if (ret)
+				goto out;
 			/*
 			 * parent object can change from one array
 			 * item to another.
 			 */
-			if (!dir)
-				dir = read_one_inode(root, parent_objectid);
 			if (!dir) {
-				ret = -ENOENT;
-				goto out;
+				dir = btrfs_iget_logging(parent_objectid, root);
+				if (IS_ERR(dir)) {
+					ret = PTR_ERR(dir);
+					dir = NULL;
+					/*
+					 * A new parent dir may have not been
+					 * logged and not exist in the subvolume
+					 * tree, see the comment above before
+					 * the loop when getting the first
+					 * parent dir.
+					 */
+					if (ret == -ENOENT) {
+						/*
+						 * The next extref may refer to
+						 * another parent dir that
+						 * exists, so continue.
+						 */
+						ret = 0;
+						goto next;
+					}
+					goto out;
+				}
 			}
 		} else {
 			ret = ref_get_fields(eb, ref_ptr, &name, &ref_index);
+			if (ret)
+				goto out;
 		}
-		if (ret)
-			goto out;
 
 		ret = inode_in_dir(root, path, btrfs_ino(dir), btrfs_ino(inode),
 				   ref_index, &name);
@@ -1452,10 +1499,11 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 		}
 		/* Else, ret == 1, we already have a perfect match, we're done. */
 
+next:
 		ref_ptr = (unsigned long)(ref_ptr + ref_struct_size) + name.len;
 		kfree(name.name);
 		name.name = NULL;
-		if (log_ref_ver) {
+		if (is_extref_item && dir) {
 			iput(&dir->vfs_inode);
 			dir = NULL;
 		}
@@ -1632,8 +1680,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	if (inode->vfs_inode.i_nlink == 0) {
 		if (S_ISDIR(inode->vfs_inode.i_mode)) {
-			ret = replay_dir_deletes(trans, root, NULL, path,
-						 ino, 1);
+			ret = replay_dir_deletes(trans, root, NULL, path, ino, true);
 			if (ret)
 				goto out;
 		}
@@ -1681,9 +1728,9 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 
 		btrfs_release_path(path);
-		inode = read_one_inode(root, key.offset);
-		if (!inode) {
-			ret = -EIO;
+		inode = btrfs_iget_logging(key.offset, root);
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
 			break;
 		}
 
@@ -1719,9 +1766,9 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 	struct btrfs_inode *inode;
 	struct inode *vfs_inode;
 
-	inode = read_one_inode(root, objectid);
-	if (!inode)
-		return -EIO;
+	inode = btrfs_iget_logging(objectid, root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
 	vfs_inode = &inode->vfs_inode;
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
@@ -1760,14 +1807,14 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 	struct btrfs_inode *dir;
 	int ret;
 
-	inode = read_one_inode(root, location->objectid);
-	if (!inode)
-		return -ENOENT;
+	inode = btrfs_iget_logging(location->objectid, root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-	dir = read_one_inode(root, dirid);
-	if (!dir) {
+	dir = btrfs_iget_logging(dirid, root);
+	if (IS_ERR(dir)) {
 		iput(&inode->vfs_inode);
-		return -EIO;
+		return PTR_ERR(dir);
 	}
 
 	ret = btrfs_add_link(trans, dir, inode, name, 1, index);
@@ -1844,9 +1891,9 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	bool update_size = true;
 	bool name_added = false;
 
-	dir = read_one_inode(root, key->objectid);
-	if (!dir)
-		return -EIO;
+	dir = btrfs_iget_logging(key->objectid, root);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
 
 	ret = read_alloc_one_name(eb, di + 1, btrfs_dir_name_len(eb, di), &name);
 	if (ret)
@@ -2146,9 +2193,10 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 	btrfs_dir_item_key_to_cpu(eb, di, &location);
 	btrfs_release_path(path);
 	btrfs_release_path(log_path);
-	inode = read_one_inode(root, location.objectid);
-	if (!inode) {
-		ret = -EIO;
+	inode = btrfs_iget_logging(location.objectid, root);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		inode = NULL;
 		goto out;
 	}
 
@@ -2284,7 +2332,7 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct btrfs_root *log,
 				       struct btrfs_path *path,
-				       u64 dirid, int del_all)
+				       u64 dirid, bool del_all)
 {
 	u64 range_start;
 	u64 range_end;
@@ -2300,14 +2348,17 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 	if (!log_path)
 		return -ENOMEM;
 
-	dir = read_one_inode(root, dirid);
-	/* it isn't an error if the inode isn't there, that can happen
-	 * because we replay the deletes before we copy in the inode item
-	 * from the log
+	dir = btrfs_iget_logging(dirid, root);
+	/*
+	 * It isn't an error if the inode isn't there, that can happen because
+	 * we replay the deletes before we copy in the inode item from the log.
 	 */
-	if (!dir) {
+	if (IS_ERR(dir)) {
 		btrfs_free_path(log_path);
-		return 0;
+		ret = PTR_ERR(dir);
+		if (ret == -ENOENT)
+			ret = 0;
+		return ret;
 	}
 
 	range_start = 0;
@@ -2413,23 +2464,30 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 
 	nritems = btrfs_header_nritems(eb);
 	for (i = 0; i < nritems; i++) {
+		struct btrfs_inode_item *inode_item;
+
 		btrfs_item_key_to_cpu(eb, &key, i);
 
-		/* inode keys are done during the first stage */
-		if (key.type == BTRFS_INODE_ITEM_KEY &&
-		    wc->stage == LOG_WALK_REPLAY_INODES) {
-			struct btrfs_inode_item *inode_item;
-			u32 mode;
-
-			inode_item = btrfs_item_ptr(eb, i,
-					    struct btrfs_inode_item);
+		if (key.type == BTRFS_INODE_ITEM_KEY) {
+			inode_item = btrfs_item_ptr(eb, i, struct btrfs_inode_item);
 			/*
-			 * If we have a tmpfile (O_TMPFILE) that got fsync'ed
-			 * and never got linked before the fsync, skip it, as
-			 * replaying it is pointless since it would be deleted
-			 * later. We skip logging tmpfiles, but it's always
-			 * possible we are replaying a log created with a kernel
-			 * that used to log tmpfiles.
+			 * An inode with no links is either:
+			 *
+			 * 1) A tmpfile (O_TMPFILE) that got fsync'ed and never
+			 *    got linked before the fsync, skip it, as replaying
+			 *    it is pointless since it would be deleted later.
+			 *    We skip logging tmpfiles, but it's always possible
+			 *    we are replaying a log created with a kernel that
+			 *    used to log tmpfiles;
+			 *
+			 * 2) A non-tmpfile which got its last link deleted
+			 *    while holding an open fd on it and later got
+			 *    fsynced through that fd. We always log the
+			 *    parent inodes when inode->last_unlink_trans is
+			 *    set to the current transaction, so ignore all the
+			 *    inode items for this inode. We will delete the
+			 *    inode when processing the parent directory with
+			 *    replay_dir_deletes().
 			 */
 			if (btrfs_inode_nlink(eb, inode_item) == 0) {
 				wc->ignore_cur_inode = true;
@@ -2437,14 +2495,20 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			} else {
 				wc->ignore_cur_inode = false;
 			}
-			ret = replay_xattr_deletes(wc->trans, root, log,
-						   path, key.objectid);
+		}
+
+		/* Inode keys are done during the first stage. */
+		if (key.type == BTRFS_INODE_ITEM_KEY &&
+		    wc->stage == LOG_WALK_REPLAY_INODES) {
+			u32 mode;
+
+			ret = replay_xattr_deletes(wc->trans, root, log, path, key.objectid);
 			if (ret)
 				break;
 			mode = btrfs_inode_mode(eb, inode_item);
 			if (S_ISDIR(mode)) {
-				ret = replay_dir_deletes(wc->trans,
-					 root, log, path, key.objectid, 0);
+				ret = replay_dir_deletes(wc->trans, root, log, path,
+							 key.objectid, false);
 				if (ret)
 					break;
 			}
@@ -2466,9 +2530,9 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				struct btrfs_inode *inode;
 				u64 from;
 
-				inode = read_one_inode(root, key.objectid);
-				if (!inode) {
-					ret = -EIO;
+				inode = btrfs_iget_logging(key.objectid, root);
+				if (IS_ERR(inode)) {
+					ret = PTR_ERR(inode);
 					break;
 				}
 				from = ALIGN(i_size_read(&inode->vfs_inode),
@@ -2519,9 +2583,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			   key.type == BTRFS_INODE_EXTREF_KEY) {
 			ret = add_inode_ref(wc->trans, root, log, path,
 					    eb, i, &key);
-			if (ret && ret != -ENOENT)
+			if (ret)
 				break;
-			ret = 0;
 		} else if (key.type == BTRFS_EXTENT_DATA_KEY) {
 			ret = replay_one_extent(wc->trans, root, path,
 						eb, i, &key);
@@ -2720,7 +2783,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	level = btrfs_header_level(log->node);
 	orig_level = level;
 	path->nodes[level] = log->node;
-	atomic_inc(&log->node->refs);
+	refcount_inc(&log->node->refs);
 	path->slots[level] = 0;
 
 	while (1) {
@@ -2961,9 +3024,9 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	}
 
 	if (log_transid % 2 == 0)
-		mark = EXTENT_DIRTY;
+		mark = EXTENT_DIRTY_LOG1;
 	else
-		mark = EXTENT_NEW;
+		mark = EXTENT_DIRTY_LOG2;
 
 	/* we start IO on  all the marked extents here, but we don't actually
 	 * wait for them until later.
@@ -3094,7 +3157,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_write_marked_extents(fs_info,
 					 &log_root_tree->dirty_log_pages,
-					 EXTENT_DIRTY | EXTENT_NEW);
+					 EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 	blk_finish_plug(&plug);
 	/*
 	 * As described above, -EAGAIN indicates a hole in the extents. We
@@ -3114,7 +3177,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_wait_tree_log_extents(log, mark);
 	if (!ret)
 		ret = btrfs_wait_tree_log_extents(log_root_tree,
-						  EXTENT_NEW | EXTENT_DIRTY);
+						  EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 	if (ret) {
 		btrfs_set_log_full_commit(trans);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -3240,9 +3303,9 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 			 */
 			btrfs_write_marked_extents(log->fs_info,
 						   &log->dirty_log_pages,
-						   EXTENT_DIRTY | EXTENT_NEW);
+						   EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 			btrfs_wait_tree_log_extents(log,
-						    EXTENT_DIRTY | EXTENT_NEW);
+						    EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 
 			if (trans)
 				btrfs_abort_transaction(trans, ret);
@@ -3432,7 +3495,7 @@ static int del_logged_dentry(struct btrfs_trans_handle *trans,
 	 * inode item because on log replay we update the field to reflect
 	 * all existing entries in the directory (see overwrite_item()).
 	 */
-	return btrfs_delete_one_dir_name(trans, log, path, di);
+	return btrfs_del_item(trans, log, path);
 }
 
 /*
@@ -3472,26 +3535,27 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 		return;
 	}
 
-	ret = join_running_log_trans(root);
-	if (ret)
+	path = btrfs_alloc_path();
+	if (!path) {
+		btrfs_set_log_full_commit(trans);
 		return;
+	}
+
+	ret = join_running_log_trans(root);
+	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
+	if (WARN_ON(ret))
+		goto out;
 
 	mutex_lock(&dir->log_mutex);
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
 	ret = del_logged_dentry(trans, root->log_root, path, btrfs_ino(dir),
 				name, index);
-	btrfs_free_path(path);
-out_unlock:
 	mutex_unlock(&dir->log_mutex);
 	if (ret < 0)
 		btrfs_set_log_full_commit(trans);
 	btrfs_end_log_trans(root);
+out:
+	btrfs_free_path(path);
 }
 
 /* see comments for btrfs_del_dir_entries_in_log */
@@ -3501,7 +3565,6 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode, u64 dirid)
 {
 	struct btrfs_root *log;
-	u64 index;
 	int ret;
 
 	ret = inode_logged(trans, inode, NULL);
@@ -3513,13 +3576,13 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	}
 
 	ret = join_running_log_trans(root);
-	if (ret)
+	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
+	if (WARN_ON(ret))
 		return;
 	log = root->log_root;
 	mutex_lock(&inode->log_mutex);
 
-	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode),
-				  dirid, &index);
+	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode), dirid, NULL);
 	mutex_unlock(&inode->log_mutex);
 	if (ret < 0 && ret != -ENOENT)
 		btrfs_set_log_full_commit(trans);
@@ -3684,7 +3747,7 @@ static int clone_leaf(struct btrfs_path *path, struct btrfs_log_ctx *ctx)
 	 * Add extra ref to scratch eb so that it is not freed when callers
 	 * release the path, so we can reuse it later if needed.
 	 */
-	atomic_inc(&ctx->scratch_eb->refs);
+	refcount_inc(&ctx->scratch_eb->refs);
 
 	return 0;
 }
@@ -4172,10 +4235,7 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 			    struct inode *inode, int log_inode_only,
 			    u64 logged_isize)
 {
-	struct btrfs_map_token token;
 	u64 flags;
-
-	btrfs_init_map_token(&token, leaf);
 
 	if (log_inode_only) {
 		/* set the generation to zero so the recover code
@@ -4183,33 +4243,29 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 		 * just to say 'this inode exists' and a logging
 		 * to say 'update this inode with these values'
 		 */
-		btrfs_set_token_inode_generation(&token, item, 0);
-		btrfs_set_token_inode_size(&token, item, logged_isize);
+		btrfs_set_inode_generation(leaf, item, 0);
+		btrfs_set_inode_size(leaf, item, logged_isize);
 	} else {
-		btrfs_set_token_inode_generation(&token, item,
-						 BTRFS_I(inode)->generation);
-		btrfs_set_token_inode_size(&token, item, inode->i_size);
+		btrfs_set_inode_generation(leaf, item, BTRFS_I(inode)->generation);
+		btrfs_set_inode_size(leaf, item, inode->i_size);
 	}
 
-	btrfs_set_token_inode_uid(&token, item, i_uid_read(inode));
-	btrfs_set_token_inode_gid(&token, item, i_gid_read(inode));
-	btrfs_set_token_inode_mode(&token, item, inode->i_mode);
-	btrfs_set_token_inode_nlink(&token, item, inode->i_nlink);
+	btrfs_set_inode_uid(leaf, item, i_uid_read(inode));
+	btrfs_set_inode_gid(leaf, item, i_gid_read(inode));
+	btrfs_set_inode_mode(leaf, item, inode->i_mode);
+	btrfs_set_inode_nlink(leaf, item, inode->i_nlink);
 
-	btrfs_set_token_timespec_sec(&token, &item->atime,
-				     inode_get_atime_sec(inode));
-	btrfs_set_token_timespec_nsec(&token, &item->atime,
-				      inode_get_atime_nsec(inode));
+	btrfs_set_timespec_sec(leaf, &item->atime, inode_get_atime_sec(inode));
+	btrfs_set_timespec_nsec(leaf, &item->atime, inode_get_atime_nsec(inode));
 
-	btrfs_set_token_timespec_sec(&token, &item->mtime,
-				     inode_get_mtime_sec(inode));
-	btrfs_set_token_timespec_nsec(&token, &item->mtime,
-				      inode_get_mtime_nsec(inode));
+	btrfs_set_timespec_sec(leaf, &item->mtime, inode_get_mtime_sec(inode));
+	btrfs_set_timespec_nsec(leaf, &item->mtime, inode_get_mtime_nsec(inode));
 
-	btrfs_set_token_timespec_sec(&token, &item->ctime,
-				     inode_get_ctime_sec(inode));
-	btrfs_set_token_timespec_nsec(&token, &item->ctime,
-				      inode_get_ctime_nsec(inode));
+	btrfs_set_timespec_sec(leaf, &item->ctime, inode_get_ctime_sec(inode));
+	btrfs_set_timespec_nsec(leaf, &item->ctime, inode_get_ctime_nsec(inode));
+
+	btrfs_set_timespec_sec(leaf, &item->otime, BTRFS_I(inode)->i_otime_sec);
+	btrfs_set_timespec_nsec(leaf, &item->otime, BTRFS_I(inode)->i_otime_nsec);
 
 	/*
 	 * We do not need to set the nbytes field, in fact during a fast fsync
@@ -4220,13 +4276,13 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	 * inode item in subvolume tree as needed (see overwrite_item()).
 	 */
 
-	btrfs_set_token_inode_sequence(&token, item, inode_peek_iversion(inode));
-	btrfs_set_token_inode_transid(&token, item, trans->transid);
-	btrfs_set_token_inode_rdev(&token, item, inode->i_rdev);
+	btrfs_set_inode_sequence(leaf, item, inode_peek_iversion(inode));
+	btrfs_set_inode_transid(leaf, item, trans->transid);
+	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
 	flags = btrfs_inode_combine_flags(BTRFS_I(inode)->flags,
 					  BTRFS_I(inode)->ro_flags);
-	btrfs_set_token_inode_flags(&token, item, flags);
-	btrfs_set_token_inode_block_group(&token, item, 0);
+	btrfs_set_inode_flags(leaf, item, flags);
+	btrfs_set_inode_block_group(leaf, item, 0);
 }
 
 static int log_inode_item(struct btrfs_trans_handle *trans,
@@ -7192,8 +7248,6 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
-	struct btrfs_key found_key;
-	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
@@ -7227,6 +7281,9 @@ again:
 	key.offset = (u64)-1;
 
 	while (1) {
+		struct btrfs_root *log;
+		struct btrfs_key found_key;
+
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
 
 		if (ret < 0) {
@@ -7255,6 +7312,12 @@ again:
 						   true);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
+			wc.replay_dest = NULL;
+			if (ret != -ENOENT) {
+				btrfs_put_root(log);
+				btrfs_abort_transaction(trans, ret);
+				goto error;
+			}
 
 			/*
 			 * We didn't find the subvol, likely because it was
@@ -7267,36 +7330,36 @@ again:
 			 * block from being modified, and we'll just bail for
 			 * each subsequent pass.
 			 */
-			if (ret == -ENOENT)
-				ret = btrfs_pin_extent_for_log_replay(trans, log->node);
-			btrfs_put_root(log);
-
-			if (!ret)
-				goto next;
-			btrfs_abort_transaction(trans, ret);
-			goto error;
+			ret = btrfs_pin_extent_for_log_replay(trans, log->node);
+			if (ret) {
+				btrfs_put_root(log);
+				btrfs_abort_transaction(trans, ret);
+				goto error;
+			}
+			goto next;
 		}
 
 		wc.replay_dest->log_root = log;
 		ret = btrfs_record_root_in_trans(trans, wc.replay_dest);
-		if (ret)
-			/* The loop needs to continue due to the root refs */
+		if (ret) {
 			btrfs_abort_transaction(trans, ret);
-		else
-			ret = walk_log_tree(trans, log, &wc);
-
-		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
-			ret = fixup_inode_link_counts(trans, wc.replay_dest,
-						      path);
-			if (ret)
-				btrfs_abort_transaction(trans, ret);
+			goto next;
 		}
 
-		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
+		ret = walk_log_tree(trans, log, &wc);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto next;
+		}
+
+		if (wc.stage == LOG_WALK_REPLAY_ALL) {
 			struct btrfs_root *root = wc.replay_dest;
 
-			btrfs_release_path(path);
-
+			ret = fixup_inode_link_counts(trans, wc.replay_dest, path);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto next;
+			}
 			/*
 			 * We have just replayed everything, and the highest
 			 * objectid of fs roots probably has changed in case
@@ -7306,17 +7369,20 @@ again:
 			 * could only happen during mount.
 			 */
 			ret = btrfs_init_root_free_objectid(root);
-			if (ret)
+			if (ret) {
 				btrfs_abort_transaction(trans, ret);
+				goto next;
+			}
 		}
-
-		wc.replay_dest->log_root = NULL;
-		btrfs_put_root(wc.replay_dest);
+next:
+		if (wc.replay_dest) {
+			wc.replay_dest->log_root = NULL;
+			btrfs_put_root(wc.replay_dest);
+		}
 		btrfs_put_root(log);
 
 		if (ret)
 			goto error;
-next:
 		if (found_key.offset == 0)
 			break;
 		key.offset = found_key.offset - 1;
@@ -7447,6 +7513,8 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  * full log sync.
  * Also we don't need to worry with renames, since btrfs_rename() marks the log
  * for full commit when renaming a subvolume.
+ *
+ * Must be called before creating the subvolume entry in its parent directory.
  */
 void btrfs_record_new_subvolume(const struct btrfs_trans_handle *trans,
 				struct btrfs_inode *dir)
@@ -7483,6 +7551,9 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	bool log_pinned = false;
 	int ret;
 
+	btrfs_init_log_ctx(&ctx, inode);
+	ctx.logging_new_name = true;
+
 	/*
 	 * this will force the logging code to walk the dentry chain
 	 * up for the file
@@ -7514,6 +7585,13 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	ret = 0;
 
 	/*
+	 * Now that we know we need to update the log, allocate the scratch eb
+	 * for the context before joining a log transaction below, as this can
+	 * take time and therefore we could delay log commits from other tasks.
+	 */
+	btrfs_init_log_ctx_scratch_eb(&ctx);
+
+	/*
 	 * If we are doing a rename (old_dir is not NULL) from a directory that
 	 * was previously logged, make sure that on log replay we get the old
 	 * dir entry deleted. This is needed because we will also log the new
@@ -7531,6 +7609,14 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 					     &old_dentry->d_name, 0, &fname);
 		if (ret)
 			goto out;
+
+		path = btrfs_alloc_path();
+		if (!path) {
+			ret = -ENOMEM;
+			fscrypt_free_filename(&fname);
+			goto out;
+		}
+
 		/*
 		 * We have two inodes to update in the log, the old directory and
 		 * the inode that got renamed, so we must pin the log to prevent
@@ -7544,18 +7630,12 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		 * mark the log for a full commit.
 		 */
 		if (WARN_ON_ONCE(ret < 0)) {
+			btrfs_free_path(path);
 			fscrypt_free_filename(&fname);
 			goto out;
 		}
 
 		log_pinned = true;
-
-		path = btrfs_alloc_path();
-		if (!path) {
-			ret = -ENOMEM;
-			fscrypt_free_filename(&fname);
-			goto out;
-		}
 
 		/*
 		 * Other concurrent task might be logging the old directory,
@@ -7588,9 +7668,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			goto out;
 	}
 
-	btrfs_init_log_ctx(&ctx, inode);
-	ctx.logging_new_name = true;
-	btrfs_init_log_ctx_scratch_eb(&ctx);
 	/*
 	 * We don't care about the return value. If we fail to log the new name
 	 * then we know the next attempt to sync the log will fallback to a full
@@ -7599,7 +7676,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * inconsistent state after a rename operation.
 	 */
 	btrfs_log_inode_parent(trans, inode, parent, LOG_INODE_EXISTS, &ctx);
-	free_extent_buffer(ctx.scratch_eb);
 	ASSERT(list_empty(&ctx.conflict_inodes));
 out:
 	/*
@@ -7612,5 +7688,6 @@ out:
 		btrfs_set_log_full_commit(trans);
 	if (log_pinned)
 		btrfs_end_log_trans(root);
+	free_extent_buffer(ctx.scratch_eb);
 }
 

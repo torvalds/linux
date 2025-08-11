@@ -104,7 +104,7 @@
 			status = "disabled";
 		};
 
-		dma-controller@1fe10c20 {
+		apbdma2: dma-controller@1fe10c20 {
 			compatible = "loongson,ls2k0500-apbdma", "loongson,ls2k1000-apbdma";
 			reg = <0 0x1fe10c20 0 0x8>;
 			interrupt-parent = <&eiointc>;
@@ -114,7 +114,7 @@
 			status = "disabled";
 		};
 
-		dma-controller@1fe10c30 {
+		apbdma3: dma-controller@1fe10c30 {
 			compatible = "loongson,ls2k0500-apbdma", "loongson,ls2k1000-apbdma";
 			reg = <0 0x1fe10c30 0 0x8>;
 			interrupt-parent = <&eiointc>;
@@ -434,6 +434,30 @@
 			reg = <0x0 0x1ff4a800 0x0 0x0800>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <19>;
+			status = "disabled";
+		};
+
+		mmc0: mmc@1ff64000 {
+			compatible = "loongson,ls2k0500-mmc";
+			reg = <0 0x1ff64000 0 0x2000>,
+			      <0 0x1fe10100 0 0x4>;
+			interrupt-parent = <&eiointc>;
+			interrupts = <57>;
+			dmas = <&apbdma3 0>;
+			dma-names = "rx-tx";
+			clocks = <&clk LOONGSON2_APB_CLK>;
+			status = "disabled";
+		};
+
+		mmc@1ff66000 {
+			compatible = "loongson,ls2k0500-mmc";
+			reg = <0 0x1ff66000 0 0x2000>,
+			      <0 0x1fe10100 0 0x4>;
+			interrupt-parent = <&eiointc>;
+			interrupts = <58>;
+			dmas = <&apbdma2 0>;
+			dma-names = "rx-tx";
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			status = "disabled";
 		};
 

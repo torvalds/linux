@@ -48,9 +48,7 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 	struct bch_hash_info info = {
 		.inum_snapshot	= bi->bi_snapshot,
 		.type		= INODE_STR_HASH(bi),
-#ifdef CONFIG_UNICODE
 		.cf_encoding	= bch2_inode_casefold(c, bi) ? c->cf_encoding : NULL,
-#endif
 		.siphash_key	= { .k0 = bi->bi_hash_seed }
 	};
 

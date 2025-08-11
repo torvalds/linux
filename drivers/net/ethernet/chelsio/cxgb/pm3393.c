@@ -141,7 +141,7 @@ static int pm3393_interrupt_enable(struct cmac *cmac)
 	pmwrite(cmac, SUNI1x10GEXP_REG_GLOBAL_INTERRUPT_ENABLE,
 		0 /*SUNI1x10GEXP_BITMSK_TOP_INTE */ );
 
-	/* TERMINATOR - PL_INTERUPTS_EXT */
+	/* TERMINATOR - PL_INTERRUPTS_EXT */
 	pl_intr = readl(cmac->adapter->regs + A_PL_ENABLE);
 	pl_intr |= F_PL_INTR_EXT;
 	writel(pl_intr, cmac->adapter->regs + A_PL_ENABLE);
@@ -179,7 +179,7 @@ static int pm3393_interrupt_disable(struct cmac *cmac)
 	elmer &= ~ELMER0_GP_BIT1;
 	t1_tpi_write(cmac->adapter, A_ELMER0_INT_ENABLE, elmer);
 
-	/* TERMINATOR - PL_INTERUPTS_EXT */
+	/* TERMINATOR - PL_INTERRUPTS_EXT */
 	/* DO NOT DISABLE TERMINATOR's EXTERNAL INTERRUPTS. ANOTHER CHIP
 	 * COULD WANT THEM ENABLED. We disable PM3393 at the ELMER level.
 	 */
@@ -222,7 +222,7 @@ static int pm3393_interrupt_clear(struct cmac *cmac)
 	elmer |= ELMER0_GP_BIT1;
 	t1_tpi_write(cmac->adapter, A_ELMER0_INT_CAUSE, elmer);
 
-	/* TERMINATOR - PL_INTERUPTS_EXT
+	/* TERMINATOR - PL_INTERRUPTS_EXT
 	 */
 	pl_intr = readl(cmac->adapter->regs + A_PL_CAUSE);
 	pl_intr |= F_PL_INTR_EXT;
@@ -756,7 +756,7 @@ static int pm3393_mac_reset(adapter_t * adapter)
 
 		/* ??? If this fails, might be able to software reset the XAUI part
 		 *     and try to recover... thus saving us from doing another HW reset */
-		/* Has the XAUI MABC PLL circuitry stablized? */
+		/* Has the XAUI MABC PLL circuitry stabilized? */
 		is_xaui_mabc_pll_locked =
 		    (val & SUNI1x10GEXP_BITMSK_TOP_SXRA_EXPIRED);
 

@@ -398,8 +398,9 @@ static const struct vm_operations_struct orangefs_file_vm_ops = {
 /*
  * Memory map a region of a file.
  */
-static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
+static int orangefs_file_mmap_prepare(struct vm_area_desc *desc)
 {
+	struct file *file = desc->file;
 	int ret;
 
 	ret = orangefs_revalidate_mapping(file_inode(file));
@@ -410,10 +411,11 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		     "orangefs_file_mmap: called on %pD\n", file);
 
 	/* set the sequential readahead hint */
-	vm_flags_mod(vma, VM_SEQ_READ, VM_RAND_READ);
+	desc->vm_flags |= VM_SEQ_READ;
+	desc->vm_flags &= ~VM_RAND_READ;
 
 	file_accessed(file);
-	vma->vm_ops = &orangefs_file_vm_ops;
+	desc->vm_ops = &orangefs_file_vm_ops;
 	return 0;
 }
 
@@ -574,7 +576,7 @@ const struct file_operations orangefs_file_operations = {
 	.read_iter	= orangefs_file_read_iter,
 	.write_iter	= orangefs_file_write_iter,
 	.lock		= orangefs_lock,
-	.mmap		= orangefs_file_mmap,
+	.mmap_prepare	= orangefs_file_mmap_prepare,
 	.open		= generic_file_open,
 	.splice_read    = orangefs_file_splice_read,
 	.splice_write   = iter_file_splice_write,

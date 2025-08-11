@@ -21,8 +21,16 @@ I. For patch submitters
        "<binding dir>: dt-bindings: ..."
 
      The 80 characters of the subject are precious. It is recommended to not
-     use "Documentation" or "doc" because that is implied. All bindings are
-     docs. Repeating "binding" again should also be avoided.
+     use "Documentation", "doc" or "YAML" because that is implied. All
+     bindings are docs and all new bindings are supposed to be in Devicetree
+     schema format.  Repeating "binding" again should also be avoided, so for
+     a new device it is often enough for example::
+
+       "dt-bindings: iio: adc: Add ROHM BD79100G"
+
+     Conversion of other formats to DT schema::
+
+       "dt-bindings: iio: adc: adi,ad7476: Convert to DT schema"
 
   2) DT binding files are written in DT schema format using json-schema
      vocabulary and YAML file format. The DT binding files must pass validation

@@ -10,6 +10,7 @@
 #include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
+#include "xe_memirq.h"
 #include "xe_migrate.h"
 #include "xe_pcode.h"
 #include "xe_sa.h"
@@ -174,6 +175,12 @@ int xe_tile_init_noalloc(struct xe_tile *tile)
 
 int xe_tile_init(struct xe_tile *tile)
 {
+	int err;
+
+	err = xe_memirq_init(&tile->memirq);
+	if (err)
+		return err;
+
 	tile->mem.kernel_bb_pool = xe_sa_bo_manager_init(tile, SZ_1M, 16);
 	if (IS_ERR(tile->mem.kernel_bb_pool))
 		return PTR_ERR(tile->mem.kernel_bb_pool);

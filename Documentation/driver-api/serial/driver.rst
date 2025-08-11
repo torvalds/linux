@@ -24,9 +24,8 @@ console support.
 Console Support
 ---------------
 
-The serial core provides a few helper functions.  This includes identifying
-the correct port structure (via uart_get_console()) and decoding command line
-arguments (uart_parse_options()).
+The serial core provides a few helper functions.  This includes
+decoding command line arguments (uart_parse_options()).
 
 There is also a helper function (uart_console_write()) which performs a
 character by character write, translating newlines to CRLF sequences.
@@ -76,7 +75,7 @@ Other functions
            uart_add_one_port uart_remove_one_port uart_console_write
            uart_parse_earlycon uart_parse_options uart_set_options
            uart_get_lsr_info uart_handle_dcd_change uart_handle_cts_change
-           uart_try_toggle_sysrq uart_get_console
+           uart_try_toggle_sysrq
 
 .. kernel-doc:: include/linux/serial_core.h
    :identifiers: uart_port_tx_limited uart_port_tx

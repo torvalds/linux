@@ -629,7 +629,6 @@ struct tegra_clk_periph {
 
 #define TEGRA_CLK_PERIPH_MAGIC 0x18221223
 
-extern const struct clk_ops tegra_clk_periph_ops;
 struct clk *tegra_clk_register_periph(const char *name,
 		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,

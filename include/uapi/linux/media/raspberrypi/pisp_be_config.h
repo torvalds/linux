@@ -21,10 +21,11 @@
 /* preferred byte alignment for outputs */
 #define PISP_BACK_END_OUTPUT_MAX_ALIGN 64u
 
-/* minimum allowed tile width anywhere in the pipeline */
-#define PISP_BACK_END_MIN_TILE_WIDTH 16u
-/* minimum allowed tile width anywhere in the pipeline */
-#define PISP_BACK_END_MIN_TILE_HEIGHT 16u
+/* minimum allowed tile sizes anywhere in the pipeline */
+#define PISP_BACK_END_MIN_TILE_WIDTH	16u
+#define PISP_BACK_END_MIN_TILE_HEIGHT	16u
+#define PISP_BACK_END_MAX_TILE_WIDTH	65536u
+#define PISP_BACK_END_MAX_TILE_HEIGHT	65536u
 
 #define PISP_BACK_END_NUM_OUTPUTS 2
 #define PISP_BACK_END_HOG_OUTPUT 1

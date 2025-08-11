@@ -589,8 +589,8 @@ static void tda1997x_enable_edid(struct v4l2_subdev *sd)
 
 	v4l2_dbg(1, debug, sd, "%s\n", __func__);
 
-	/* Enable hotplug after 100ms */
-	schedule_delayed_work(&state->delayed_work_enable_hpd, HZ / 10);
+	/* Enable hotplug after 143ms */
+	schedule_delayed_work(&state->delayed_work_enable_hpd, HZ / 7);
 }
 
 /* -----------------------------------------------------------------------------
