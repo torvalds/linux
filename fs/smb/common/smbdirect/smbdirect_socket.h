@@ -79,6 +79,14 @@ struct smbdirect_socket {
 		} mem;
 
 		/*
+		 * The credit state for the send side
+		 */
+		struct {
+			atomic_t count;
+			wait_queue_head_t wait_queue;
+		} credits;
+
+		/*
 		 * The state about posted/pending sends
 		 */
 		struct {
@@ -162,6 +170,9 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	memset(sc, 0, sizeof(*sc));
 
 	init_waitqueue_head(&sc->status_wait);
+
+	atomic_set(&sc->send_io.credits.count, 0);
+	init_waitqueue_head(&sc->send_io.credits.wait_queue);
 
 	atomic_set(&sc->send_io.pending.count, 0);
 	init_waitqueue_head(&sc->send_io.pending.dec_wait_queue);
