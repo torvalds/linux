@@ -133,8 +133,6 @@ struct pci_controller {
 
 	/* IRQ domain hierarchy */
 	struct irq_domain	*dev_domain;
-	struct irq_domain	*msi_domain;
-	struct fwnode_handle	*fwnode;
 
 	/* iommu_ops support */
 	struct iommu_device	iommu;
