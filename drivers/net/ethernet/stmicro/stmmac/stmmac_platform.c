@@ -901,7 +901,9 @@ static int __maybe_unused stmmac_pltfr_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	ret = stmmac_suspend(dev);
-	stmmac_pltfr_exit(pdev, priv->plat);
+
+	if (!priv->plat->suspend)
+		stmmac_pltfr_exit(pdev, priv->plat);
 
 	return ret;
 }
@@ -920,9 +922,11 @@ static int __maybe_unused stmmac_pltfr_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
-	ret = stmmac_pltfr_init(pdev, priv->plat);
-	if (ret)
-		return ret;
+	if (!priv->plat->resume) {
+		ret = stmmac_pltfr_init(pdev, priv->plat);
+		if (ret)
+			return ret;
+	}
 
 	return stmmac_resume(dev);
 }
