@@ -391,11 +391,6 @@ static void ehrpwm_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct ehrpwm_pwm_chip *pc = to_ehrpwm_pwm_chip(chip);
 
-	if (pwm_is_enabled(pwm)) {
-		dev_warn(pwmchip_parent(chip), "Removing PWM device without disabling\n");
-		pm_runtime_put_sync(pwmchip_parent(chip));
-	}
-
 	/* set period value to zero on free */
 	pc->period_cycles[pwm->hwpwm] = 0;
 }
