@@ -300,23 +300,30 @@ static void netconsole_print_banner(struct netpoll *np)
 	np_info(np, "remote ethernet address %pM\n", np->remote_mac);
 }
 
+/* Parse the string and populate the `inet_addr` union. Return 0 if IPv4 is
+ * populated, 1 if IPv6 is populated, and -1 upon failure.
+ */
 static int netpoll_parse_ip_addr(const char *str, union inet_addr *addr)
 {
-	const char *end;
+	const char *end = NULL;
+	int len;
 
-	if (!strchr(str, ':') &&
-	    in4_pton(str, -1, (void *)addr, -1, &end) > 0) {
-		if (!*end)
-			return 0;
-	}
-	if (in6_pton(str, -1, addr->in6.s6_addr, -1, &end) > 0) {
-#if IS_ENABLED(CONFIG_IPV6)
-		if (!*end)
-			return 1;
-#else
+	len = strlen(str);
+	if (!len)
 		return -1;
-#endif
-	}
+
+	if (str[len - 1] == '\n')
+		len -= 1;
+
+	if (in4_pton(str, len, (void *)addr, -1, &end) > 0 &&
+	    (!end || *end == 0 || *end == '\n'))
+		return 0;
+
+	if (IS_ENABLED(CONFIG_IPV6) &&
+	    in6_pton(str, len, (void *)addr, -1, &end) > 0 &&
+	    (!end || *end == 0 || *end == '\n'))
+		return 1;
+
 	return -1;
 }
 
