@@ -1640,7 +1640,7 @@ static void xe_vm_free_scratch(struct xe_vm *vm)
 	}
 }
 
-struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
+struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 {
 	struct drm_gem_object *vm_resv_obj;
 	struct xe_vm *vm;
@@ -1661,9 +1661,10 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 	vm->xe = xe;
 
 	vm->size = 1ull << xe->info.va_bits;
-
 	vm->flags = flags;
 
+	if (xef)
+		vm->xef = xe_file_get(xef);
 	/**
 	 * GSC VMs are kernel-owned, only used for PXP ops and can sometimes be
 	 * manipulated under the PXP mutex. However, the PXP mutex can be taken
@@ -1814,6 +1815,8 @@ err_no_resv:
 	for_each_tile(tile, xe, id)
 		xe_range_fence_tree_fini(&vm->rftree[id]);
 	ttm_lru_bulk_move_fini(&xe->ttm, &vm->lru_bulk_move);
+	if (vm->xef)
+		xe_file_put(vm->xef);
 	kfree(vm);
 	if (flags & XE_VM_FLAG_LR_MODE)
 		xe_pm_runtime_put(xe);
@@ -2097,7 +2100,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_FAULT_MODE)
 		flags |= XE_VM_FLAG_FAULT_MODE;
 
-	vm = xe_vm_create(xe, flags);
+	vm = xe_vm_create(xe, flags, xef);
 	if (IS_ERR(vm))
 		return PTR_ERR(vm);
 
@@ -2112,8 +2115,6 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 
 		vm->usm.asid = asid;
 	}
-
-	vm->xef = xe_file_get(xef);
 
 	/* Record BO memory for VM pagetable created against client */
 	for_each_tile(tile, xe, id)
