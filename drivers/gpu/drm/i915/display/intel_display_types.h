@@ -50,6 +50,7 @@
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
+#include "intel_dsi_vbt_defs.h"
 #include "intel_wm_types.h"
 
 struct cec_notifier;

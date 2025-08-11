@@ -37,7 +37,7 @@
 #ifndef _INTEL_VBT_DEFS_H_
 #define _INTEL_VBT_DEFS_H_
 
-#include "intel_bios.h"
+#include "intel_dsi_vbt_defs.h"
 
 /* EDID derived structures */
 struct bdb_edid_pnp_id {
