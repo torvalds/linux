@@ -98,11 +98,14 @@ static unsigned long mdp4_lvds_pll_recalc_rate(struct clk_hw *hw,
 	return lvds_pll->pixclk;
 }
 
-static long mdp4_lvds_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *parent_rate)
+static int mdp4_lvds_pll_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
-	const struct pll_rate *pll_rate = find_rate(rate);
-	return pll_rate->rate;
+	const struct pll_rate *pll_rate = find_rate(req->rate);
+
+	req->rate = pll_rate->rate;
+
+	return 0;
 }
 
 static int mdp4_lvds_pll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -118,7 +121,7 @@ static const struct clk_ops mdp4_lvds_pll_ops = {
 	.enable = mdp4_lvds_pll_enable,
 	.disable = mdp4_lvds_pll_disable,
 	.recalc_rate = mdp4_lvds_pll_recalc_rate,
-	.round_rate = mdp4_lvds_pll_round_rate,
+	.determine_rate = mdp4_lvds_pll_determine_rate,
 	.set_rate = mdp4_lvds_pll_set_rate,
 };
 
