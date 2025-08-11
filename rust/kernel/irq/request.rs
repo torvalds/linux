@@ -36,18 +36,18 @@ pub trait Handler: Sync {
     /// All work that does not necessarily need to be executed from
     /// interrupt context, should be deferred to a threaded handler.
     /// See also [`ThreadedRegistration`].
-    fn handle(&self) -> IrqReturn;
+    fn handle(&self, device: &Device<Bound>) -> IrqReturn;
 }
 
 impl<T: ?Sized + Handler + Send> Handler for Arc<T> {
-    fn handle(&self) -> IrqReturn {
-        T::handle(self)
+    fn handle(&self, device: &Device<Bound>) -> IrqReturn {
+        T::handle(self, device)
     }
 }
 
 impl<T: ?Sized + Handler, A: Allocator> Handler for Box<T, A> {
-    fn handle(&self) -> IrqReturn {
-        T::handle(self)
+    fn handle(&self, device: &Device<Bound>) -> IrqReturn {
+        T::handle(self, device)
     }
 }
 
@@ -140,7 +140,7 @@ impl<'a> IrqRequest<'a> {
 ///
 /// ```
 /// use kernel::c_str;
-/// use kernel::device::Bound;
+/// use kernel::device::{Bound, Device};
 /// use kernel::irq::{self, Flags, IrqRequest, IrqReturn, Registration};
 /// use kernel::prelude::*;
 /// use kernel::sync::{Arc, Completion};
@@ -154,7 +154,7 @@ impl<'a> IrqRequest<'a> {
 ///
 /// impl irq::Handler for Data {
 ///     // Executed in IRQ context.
-///     fn handle(&self) -> IrqReturn {
+///     fn handle(&self, _dev: &Device<Bound>) -> IrqReturn {
 ///         self.completion.complete_all();
 ///         IrqReturn::Handled
 ///     }
@@ -180,7 +180,7 @@ impl<'a> IrqRequest<'a> {
 ///
 /// # Invariants
 ///
-/// * We own an irq handler using `&self.handler` as its private data.
+/// * We own an irq handler whose cookie is a pointer to `Self`.
 #[pin_data]
 pub struct Registration<T: Handler + 'static> {
     #[pin]
@@ -208,21 +208,24 @@ impl<T: Handler + 'static> Registration<T> {
             inner <- Devres::new(
                 request.dev,
                 try_pin_init!(RegistrationInner {
-                    // SAFETY: `this` is a valid pointer to the `Registration` instance
-                    cookie: unsafe { &raw mut (*this.as_ptr()).handler }.cast(),
+                    // INVARIANT: `this` is a valid pointer to the `Registration` instance
+                    cookie: this.as_ptr().cast::<c_void>(),
                     irq: {
                         // SAFETY:
                         // - The callbacks are valid for use with request_irq.
                         // - If this succeeds, the slot is guaranteed to be valid until the
                         //   destructor of Self runs, which will deregister the callbacks
                         //   before the memory location becomes invalid.
+                        // - When request_irq is called, everything that handle_irq_callback will
+                        //   touch has already been initialized, so it's safe for the callback to
+                        //   be called immediately.
                         to_result(unsafe {
                             bindings::request_irq(
                                 request.irq,
                                 Some(handle_irq_callback::<T>),
                                 flags.into_inner(),
                                 name.as_char_ptr(),
-                                (&raw mut (*this.as_ptr()).handler).cast(),
+                                this.as_ptr().cast::<c_void>(),
                             )
                         })?;
                         request.irq
@@ -259,9 +262,13 @@ impl<T: Handler + 'static> Registration<T> {
 ///
 /// This function should be only used as the callback in `request_irq`.
 unsafe extern "C" fn handle_irq_callback<T: Handler>(_irq: i32, ptr: *mut c_void) -> c_uint {
-    // SAFETY: `ptr` is a pointer to T set in `Registration::new`
-    let handler = unsafe { &*(ptr as *const T) };
-    T::handle(handler) as c_uint
+    // SAFETY: `ptr` is a pointer to `Registration<T>` set in `Registration::new`
+    let registration = unsafe { &*(ptr as *const Registration<T>) };
+    // SAFETY: The irq callback is removed before the device is unbound, so the fact that the irq
+    // callback is running implies that the device has not yet been unbound.
+    let device = unsafe { registration.inner.device().as_bound() };
+
+    T::handle(&registration.handler, device) as c_uint
 }
 
 /// The value that can be returned from [`ThreadedHandler::handle`].
@@ -287,7 +294,8 @@ pub trait ThreadedHandler: Sync {
     /// handler, i.e. [`ThreadedHandler::handle_threaded`].
     ///
     /// The default implementation returns [`ThreadedIrqReturn::WakeThread`].
-    fn handle(&self) -> ThreadedIrqReturn {
+    #[expect(unused_variables)]
+    fn handle(&self, device: &Device<Bound>) -> ThreadedIrqReturn {
         ThreadedIrqReturn::WakeThread
     }
 
@@ -295,26 +303,26 @@ pub trait ThreadedHandler: Sync {
     ///
     /// This is executed in process context. The kernel creates a dedicated
     /// `kthread` for this purpose.
-    fn handle_threaded(&self) -> IrqReturn;
+    fn handle_threaded(&self, device: &Device<Bound>) -> IrqReturn;
 }
 
 impl<T: ?Sized + ThreadedHandler + Send> ThreadedHandler for Arc<T> {
-    fn handle(&self) -> ThreadedIrqReturn {
-        T::handle(self)
+    fn handle(&self, device: &Device<Bound>) -> ThreadedIrqReturn {
+        T::handle(self, device)
     }
 
-    fn handle_threaded(&self) -> IrqReturn {
-        T::handle_threaded(self)
+    fn handle_threaded(&self, device: &Device<Bound>) -> IrqReturn {
+        T::handle_threaded(self, device)
     }
 }
 
 impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
-    fn handle(&self) -> ThreadedIrqReturn {
-        T::handle(self)
+    fn handle(&self, device: &Device<Bound>) -> ThreadedIrqReturn {
+        T::handle(self, device)
     }
 
-    fn handle_threaded(&self) -> IrqReturn {
-        T::handle_threaded(self)
+    fn handle_threaded(&self, device: &Device<Bound>) -> IrqReturn {
+        T::handle_threaded(self, device)
     }
 }
 
@@ -333,7 +341,7 @@ impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
 ///
 /// ```
 /// use kernel::c_str;
-/// use kernel::device::Bound;
+/// use kernel::device::{Bound, Device};
 /// use kernel::irq::{
 ///   self, Flags, IrqRequest, IrqReturn, ThreadedHandler, ThreadedIrqReturn,
 ///   ThreadedRegistration,
@@ -357,7 +365,7 @@ impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
 ///     // This will run (in a separate kthread) if and only if
 ///     // [`ThreadedHandler::handle`] returns [`WakeThread`], which it does by
 ///     // default.
-///     fn handle_threaded(&self) -> IrqReturn {
+///     fn handle_threaded(&self, _dev: &Device<Bound>) -> IrqReturn {
 ///         let mut data = self.value.lock();
 ///         *data += 1;
 ///         IrqReturn::Handled
@@ -390,7 +398,7 @@ impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
 ///
 /// # Invariants
 ///
-/// * We own an irq handler using `&T` as its private data.
+/// * We own an irq handler whose cookie is a pointer to `Self`.
 #[pin_data]
 pub struct ThreadedRegistration<T: ThreadedHandler + 'static> {
     #[pin]
@@ -418,14 +426,17 @@ impl<T: ThreadedHandler + 'static> ThreadedRegistration<T> {
             inner <- Devres::new(
                 request.dev,
                 try_pin_init!(RegistrationInner {
-                    // SAFETY: `this` is a valid pointer to the `ThreadedRegistration` instance.
-                    cookie: unsafe { &raw mut (*this.as_ptr()).handler }.cast(),
+                    // INVARIANT: `this` is a valid pointer to the `ThreadedRegistration` instance.
+                    cookie: this.as_ptr().cast::<c_void>(),
                     irq: {
                         // SAFETY:
                         // - The callbacks are valid for use with request_threaded_irq.
                         // - If this succeeds, the slot is guaranteed to be valid until the
-                        // destructor of Self runs, which will deregister the callbacks
-                        // before the memory location becomes invalid.
+                        //   destructor of Self runs, which will deregister the callbacks
+                        //   before the memory location becomes invalid.
+                        // - When request_threaded_irq is called, everything that the two callbacks
+                        //   will touch has already been initialized, so it's safe for the
+                        //   callbacks to be called immediately.
                         to_result(unsafe {
                             bindings::request_threaded_irq(
                                 request.irq,
@@ -433,7 +444,7 @@ impl<T: ThreadedHandler + 'static> ThreadedRegistration<T> {
                                 Some(thread_fn_callback::<T>),
                                 flags.into_inner(),
                                 name.as_char_ptr(),
-                                (&raw mut (*this.as_ptr()).handler).cast(),
+                                this.as_ptr().cast::<c_void>(),
                             )
                         })?;
                         request.irq
@@ -473,16 +484,24 @@ unsafe extern "C" fn handle_threaded_irq_callback<T: ThreadedHandler>(
     _irq: i32,
     ptr: *mut c_void,
 ) -> c_uint {
-    // SAFETY: `ptr` is a pointer to T set in `ThreadedRegistration::new`
-    let handler = unsafe { &*(ptr as *const T) };
-    T::handle(handler) as c_uint
+    // SAFETY: `ptr` is a pointer to `ThreadedRegistration<T>` set in `ThreadedRegistration::new`
+    let registration = unsafe { &*(ptr as *const ThreadedRegistration<T>) };
+    // SAFETY: The irq callback is removed before the device is unbound, so the fact that the irq
+    // callback is running implies that the device has not yet been unbound.
+    let device = unsafe { registration.inner.device().as_bound() };
+
+    T::handle(&registration.handler, device) as c_uint
 }
 
 /// # Safety
 ///
 /// This function should be only used as the callback in `request_threaded_irq`.
 unsafe extern "C" fn thread_fn_callback<T: ThreadedHandler>(_irq: i32, ptr: *mut c_void) -> c_uint {
-    // SAFETY: `ptr` is a pointer to T set in `ThreadedRegistration::new`
-    let handler = unsafe { &*(ptr as *const T) };
-    T::handle_threaded(handler) as c_uint
+    // SAFETY: `ptr` is a pointer to `ThreadedRegistration<T>` set in `ThreadedRegistration::new`
+    let registration = unsafe { &*(ptr as *const ThreadedRegistration<T>) };
+    // SAFETY: The irq callback is removed before the device is unbound, so the fact that the irq
+    // callback is running implies that the device has not yet been unbound.
+    let device = unsafe { registration.inner.device().as_bound() };
+
+    T::handle_threaded(&registration.handler, device) as c_uint
 }
