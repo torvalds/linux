@@ -1293,10 +1293,10 @@ out_notconn:
 	mutex_unlock(&xprt->xpt_mutex);
 	return -ENOTCONN;
 out_close:
-	pr_notice("rpc-srv/tcp: %s: %s %d when sending %d bytes - shutting down socket\n",
+	pr_notice("rpc-srv/tcp: %s: %s %d when sending %zu bytes - shutting down socket\n",
 		  xprt->xpt_server->sv_name,
 		  (err < 0) ? "got error" : "sent",
-		  (err < 0) ? err : sent, xdr->len);
+		  (err < 0) ? err : sent, xdr->len + sizeof(marker));
 	svc_xprt_deferred_close(xprt);
 	mutex_unlock(&xprt->xpt_mutex);
 	return -EAGAIN;
