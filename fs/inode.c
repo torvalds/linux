@@ -2913,7 +2913,7 @@ EXPORT_SYMBOL(mode_strip_sgid);
  */
 void dump_inode(struct inode *inode, const char *reason)
 {
-       pr_warn("%s encountered for inode %px", reason, inode);
+	pr_warn("%s encountered for inode %px (%s)\n", reason, inode, inode->i_sb->s_type->name);
 }
 
 EXPORT_SYMBOL(dump_inode);
