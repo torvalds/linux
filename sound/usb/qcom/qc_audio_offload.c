@@ -961,21 +961,21 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 		goto put_suspend;
 
 	if (!atomic_read(&chip->shutdown)) {
-		ret = snd_usb_lock_shutdown(chip);
-		if (ret < 0)
+		CLASS(snd_usb_lock, pm)(chip);
+		if (pm.err < 0) {
+			ret = pm.err;
 			goto detach_ep;
+		}
 
 		if (subs->sync_endpoint) {
 			ret = snd_usb_endpoint_prepare(chip, subs->sync_endpoint);
 			if (ret < 0)
-				goto unlock;
+				goto detach_ep;
 		}
 
 		ret = snd_usb_endpoint_prepare(chip, subs->data_endpoint);
 		if (ret < 0)
-			goto unlock;
-
-		snd_usb_unlock_shutdown(chip);
+			goto detach_ep;
 
 		dev_dbg(uaudio_qdev->data->dev,
 			"selected %s iface:%d altsetting:%d datainterval:%dus\n",
@@ -988,9 +988,6 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 	}
 
 	return 0;
-
-unlock:
-	snd_usb_unlock_shutdown(chip);
 
 detach_ep:
 	snd_usb_hw_free(subs);

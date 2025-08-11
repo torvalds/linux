@@ -139,6 +139,29 @@ struct snd_usb_audio_quirk {
 int snd_usb_lock_shutdown(struct snd_usb_audio *chip);
 void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
+/* auto-cleanup */
+struct __snd_usb_lock {
+	struct snd_usb_audio *chip;
+	int err;
+};
+
+static inline struct __snd_usb_lock __snd_usb_lock_shutdown(struct snd_usb_audio *chip)
+{
+	struct __snd_usb_lock T = { .chip = chip };
+	T.err = snd_usb_lock_shutdown(chip);
+	return T;
+}
+
+static inline void __snd_usb_unlock_shutdown(struct __snd_usb_lock *lock)
+{
+	if (!lock->err)
+		snd_usb_unlock_shutdown(lock->chip);
+}
+
+DEFINE_CLASS(snd_usb_lock, struct __snd_usb_lock,
+	     __snd_usb_unlock_shutdown(&(_T)), __snd_usb_lock_shutdown(chip),
+	     struct snd_usb_audio *chip)
+
 extern bool snd_usb_use_vmalloc;
 extern bool snd_usb_skip_validation;
 
