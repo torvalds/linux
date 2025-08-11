@@ -311,18 +311,21 @@ static int xvcu_pll_set_div(struct vcu_pll *pll, int div)
 	return 0;
 }
 
-static long xvcu_pll_round_rate(struct clk_hw *hw,
-				unsigned long rate, unsigned long *parent_rate)
+static int xvcu_pll_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
 {
 	struct vcu_pll *pll = to_vcu_pll(hw);
 	unsigned int feedback_div;
 
-	rate = clamp_t(unsigned long, rate, pll->fvco_min, pll->fvco_max);
+	req->rate = clamp_t(unsigned long, req->rate, pll->fvco_min,
+			    pll->fvco_max);
 
-	feedback_div = DIV_ROUND_CLOSEST_ULL(rate, *parent_rate);
+	feedback_div = DIV_ROUND_CLOSEST_ULL(req->rate, req->best_parent_rate);
 	feedback_div = clamp_t(unsigned int, feedback_div, 25, 125);
 
-	return *parent_rate * feedback_div;
+	req->rate = req->best_parent_rate * feedback_div;
+
+	return 0;
 }
 
 static unsigned long xvcu_pll_recalc_rate(struct clk_hw *hw,
@@ -394,7 +397,7 @@ static void xvcu_pll_disable(struct clk_hw *hw)
 static const struct clk_ops vcu_pll_ops = {
 	.enable = xvcu_pll_enable,
 	.disable = xvcu_pll_disable,
-	.round_rate = xvcu_pll_round_rate,
+	.determine_rate = xvcu_pll_determine_rate,
 	.recalc_rate = xvcu_pll_recalc_rate,
 	.set_rate = xvcu_pll_set_rate,
 };
