@@ -835,8 +835,12 @@ __acquires(&gl->gl_lockref.lock)
 	/* While a demote is in progress, the GLF_LOCK flag must be set. */
 	GLOCK_BUG_ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
 
-	if (test_bit(GLF_DEMOTE, &gl->gl_flags) &&
-	    gl->gl_demote_state != gl->gl_state) {
+	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
+		if (gl->gl_demote_state == gl->gl_state) {
+			gfs2_demote_wake(gl);
+			goto promote;
+		}
+
 		if (find_first_holder(gl))
 			goto out_unlock;
 		if (nonblock)
@@ -846,21 +850,20 @@ __acquires(&gl->gl_lockref.lock)
 		gl->gl_target = gl->gl_demote_state;
 		do_xmote(gl, NULL, gl->gl_target);
 		return;
-	} else {
-		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
-			gfs2_demote_wake(gl);
-		do_promote(gl);
-		if (find_first_holder(gl))
-			goto out_unlock;
-		gh = find_first_waiter(gl);
-		if (!gh)
-			goto out_unlock;
-		gl->gl_target = gh->gh_state;
-		if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
-			do_error(gl, 0); /* Fail queued try locks */
-		do_xmote(gl, gh, gl->gl_target);
-		return;
 	}
+
+promote:
+	do_promote(gl);
+	if (find_first_holder(gl))
+		goto out_unlock;
+	gh = find_first_waiter(gl);
+	if (!gh)
+		goto out_unlock;
+	gl->gl_target = gh->gh_state;
+	if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
+		do_error(gl, 0); /* Fail queued try locks */
+	do_xmote(gl, gh, gl->gl_target);
+	return;
 
 out_sched:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
