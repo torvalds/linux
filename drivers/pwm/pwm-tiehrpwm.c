@@ -391,7 +391,7 @@ static void ehrpwm_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct ehrpwm_pwm_chip *pc = to_ehrpwm_pwm_chip(chip);
 
-	/* set period value to zero on free */
+	/* Don't let a pwm without consumer block requests to the other channel */
 	pc->period_cycles[pwm->hwpwm] = 0;
 }
 
