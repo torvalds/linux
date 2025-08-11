@@ -513,6 +513,11 @@ static int loongson_dwmac_fix_reset(struct stmmac_priv *priv, void __iomem *ioad
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 
+	if (value & DMA_BUS_MODE_SFT_RESET) {
+		netdev_err(priv->dev, "the PHY clock is missing\n");
+		return -EINVAL;
+	}
+
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
 
