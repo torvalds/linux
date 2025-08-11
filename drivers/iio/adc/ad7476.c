@@ -27,7 +27,7 @@
 struct ad7476_state;
 
 struct ad7476_chip_info {
-	unsigned int			int_vref_uv;
+	unsigned int			int_vref_mv;
 	struct iio_chan_spec		channel[2];
 	/* channels used when convst gpio is defined */
 	struct iio_chan_spec		convst_channel[2];
@@ -172,7 +172,7 @@ static const struct ad7476_chip_info ad7091r_chip_info = {
 	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	.convst_channel[0] = AD7091R_CONVST_CHAN(12),
 	.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	.int_vref_uv = 2500000,
+	.int_vref_mv = 2500,
 	.has_vref = true,
 	.reset = ad7091_reset,
 };
@@ -229,7 +229,7 @@ static const struct ad7476_chip_info ad7475_chip_info = {
 static const struct ad7476_chip_info ad7495_chip_info = {
 	.channel[0] = AD7476_CHAN(12),
 	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	.int_vref_uv = 2500000,
+	.int_vref_mv = 2500,
 	.has_vdrive = true,
 };
 
@@ -295,7 +295,7 @@ static int ad7476_probe(struct spi_device *spi)
 		return -ENODEV;
 
 	/* Use VCC for reference voltage if vref / internal vref aren't used */
-	if (!st->chip_info->int_vref_uv && !st->chip_info->has_vref) {
+	if (!st->chip_info->int_vref_mv && !st->chip_info->has_vref) {
 		ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vcc");
 		if (ret < 0)
 			return ret;
@@ -310,7 +310,7 @@ static int ad7476_probe(struct spi_device *spi)
 		ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
 		if (ret < 0) {
 			/* Vref is optional if a device has an internal reference */
-			if (!st->chip_info->int_vref_uv || ret != -ENODEV)
+			if (!st->chip_info->int_vref_mv || ret != -ENODEV)
 				return ret;
 		} else {
 			st->scale_mv = ret / 1000;
@@ -318,7 +318,7 @@ static int ad7476_probe(struct spi_device *spi)
 	}
 
 	if (!st->scale_mv)
-		st->scale_mv = st->chip_info->int_vref_uv / 1000;
+		st->scale_mv = st->chip_info->int_vref_mv;
 
 	if (st->chip_info->has_vdrive) {
 		ret = devm_regulator_get_enable(&spi->dev, "vdrive");
