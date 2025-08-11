@@ -1139,6 +1139,9 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 		}
 	}
 
+	if (!amdgpu_vm_ready(vm))
+		return -EINVAL;
+
 	r = amdgpu_vm_clear_freed(adev, vm, NULL);
 	if (r)
 		return r;
