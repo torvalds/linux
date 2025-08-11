@@ -1398,6 +1398,17 @@ static int ufs_mtk_pre_pwr_change(struct ufs_hba *hba,
 		}
 	}
 
+	/* if already configured to the requested pwr_mode, skip adapt */
+	if (dev_req_params->gear_rx == hba->pwr_info.gear_rx &&
+	    dev_req_params->gear_tx == hba->pwr_info.gear_tx &&
+	    dev_req_params->lane_rx == hba->pwr_info.lane_rx &&
+	    dev_req_params->lane_tx == hba->pwr_info.lane_tx &&
+	    dev_req_params->pwr_rx == hba->pwr_info.pwr_rx &&
+	    dev_req_params->pwr_tx == hba->pwr_info.pwr_tx &&
+	    dev_req_params->hs_rate == hba->pwr_info.hs_rate) {
+		return ret;
+	}
+
 	if (dev_req_params->pwr_rx == FAST_MODE ||
 	    dev_req_params->pwr_rx == FASTAUTO_MODE) {
 		if (host->hw_ver.major >= 3) {
