@@ -6,8 +6,8 @@
  * [based on crc32c-vpmsum_glue.c]
  */
 
+#include <asm/simd.h>
 #include <asm/switch_to.h>
-#include <crypto/internal/simd.h>
 #include <linux/cpufeature.h>
 #include <linux/jump_label.h>
 #include <linux/preempt.h>
@@ -29,7 +29,8 @@ static inline u16 crc_t10dif_arch(u16 crci, const u8 *p, size_t len)
 	u32 crc = crci;
 
 	if (len < (VECTOR_BREAKPOINT + VMX_ALIGN) ||
-	    !static_branch_likely(&have_vec_crypto) || !crypto_simd_usable())
+	    !static_branch_likely(&have_vec_crypto) ||
+	    unlikely(!may_use_simd()))
 		return crc_t10dif_generic(crc, p, len);
 
 	if ((unsigned long)p & VMX_ALIGN_MASK) {

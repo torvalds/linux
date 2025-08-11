@@ -44,7 +44,7 @@ static inline u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 		return crc32c_base(crc, p, len);
 
 	if (IS_ENABLED(CONFIG_X86_64) && len >= CRC32C_PCLMUL_BREAKEVEN &&
-	    static_branch_likely(&have_pclmulqdq) && crypto_simd_usable()) {
+	    static_branch_likely(&have_pclmulqdq) && likely(irq_fpu_usable())) {
 		/*
 		 * Long length, the vector registers are usable, and the CPU is
 		 * 64-bit and supports both CRC32 and PCLMULQDQ instructions.

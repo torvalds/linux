@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <asm/simd.h>
 #include <asm/switch_to.h>
-#include <crypto/internal/simd.h>
 #include <linux/cpufeature.h>
 #include <linux/jump_label.h>
 #include <linux/preempt.h>
@@ -24,7 +24,8 @@ static inline u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 	unsigned int tail;
 
 	if (len < (VECTOR_BREAKPOINT + VMX_ALIGN) ||
-	    !static_branch_likely(&have_vec_crypto) || !crypto_simd_usable())
+	    !static_branch_likely(&have_vec_crypto) ||
+	    unlikely(!may_use_simd()))
 		return crc32c_base(crc, p, len);
 
 	if ((unsigned long)p & VMX_ALIGN_MASK) {
