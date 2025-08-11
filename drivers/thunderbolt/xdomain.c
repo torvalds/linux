@@ -2562,10 +2562,9 @@ int tb_xdomain_init(void)
 	 * Rest of the properties are filled dynamically based on these
 	 * when the P2P connection is made.
 	 */
-	tb_property_add_immediate(xdomain_property_dir, "vendorid",
-				  PCI_VENDOR_ID_INTEL);
-	tb_property_add_text(xdomain_property_dir, "vendorid", "Intel Corp.");
-	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x1);
+	tb_property_add_immediate(xdomain_property_dir, "vendorid", 0x1d6b);
+	tb_property_add_text(xdomain_property_dir, "vendorid", "Linux");
+	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x0004);
 	tb_property_add_immediate(xdomain_property_dir, "devicerv", 0x80000100);
 
 	xdomain_property_block_gen = get_random_u32();
