@@ -277,8 +277,8 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
  * possible, programmable rate for this DPLL.  Attempts to select the
  * minimum possible n.  Stores the computed (m, n) in the DPLL's
  * dpll_data structure so set_rate() will not need to call this
- * (expensive) function again.  Returns ~0 if the target rate cannot
- * be rounded, or the rounded rate upon success.
+ * (expensive) function again.  Returns -EINVAL if the target rate
+ * cannot be rounded, or the rounded rate upon success.
  */
 long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 			   unsigned long *parent_rate)
@@ -295,7 +295,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 	const char *clk_name;
 
 	if (!clk || !clk->dpll_data)
-		return ~0;
+		return -EINVAL;
 
 	dd = clk->dpll_data;
 
@@ -360,7 +360,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 	if (prev_min_delta == LONG_MAX) {
 		pr_debug("clock: %s: cannot round to rate %lu\n",
 			 clk_name, target_rate);
-		return ~0;
+		return -EINVAL;
 	}
 
 	dd->last_rounded_m = min_delta_m;
