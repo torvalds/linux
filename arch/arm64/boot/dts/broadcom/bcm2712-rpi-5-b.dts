@@ -16,14 +16,6 @@
 	#include "rp1-nexus.dtsi"
 };
 
-&pcie1 {
-	status = "okay";
-};
-
-&pcie2 {
-	status = "okay";
-};
-
 &rp1_eth {
 	status = "okay";
 	phy-mode = "rgmii-id";
