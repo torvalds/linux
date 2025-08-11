@@ -136,6 +136,23 @@ struct smbdirect_socket {
 		} free;
 
 		/*
+		 * The state for posted recv_io messages
+		 * and the refill work struct.
+		 */
+		struct {
+			atomic_t count;
+			struct work_struct refill_work;
+		} posted;
+
+		/*
+		 * The credit state for the recv side
+		 */
+		struct {
+			u16 target;
+			atomic_t count;
+		} credits;
+
+		/*
 		 * The list of arrived non-empty smbdirect_recv_io
 		 * structures
 		 *
@@ -203,6 +220,10 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 	INIT_LIST_HEAD(&sc->recv_io.free.list);
 	spin_lock_init(&sc->recv_io.free.lock);
+
+	atomic_set(&sc->recv_io.posted.count, 0);
+
+	atomic_set(&sc->recv_io.credits.count, 0);
 
 	INIT_LIST_HEAD(&sc->recv_io.reassembly.list);
 	spin_lock_init(&sc->recv_io.reassembly.lock);
