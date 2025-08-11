@@ -135,19 +135,21 @@ static unsigned long clk_corediv_recalc_rate(struct clk_hw *hwclk,
 	return parent_rate / div;
 }
 
-static long clk_corediv_round_rate(struct clk_hw *hwclk, unsigned long rate,
-			       unsigned long *parent_rate)
+static int clk_corediv_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	/* Valid ratio are 1:4, 1:5, 1:6 and 1:8 */
 	u32 div;
 
-	div = *parent_rate / rate;
+	div = req->best_parent_rate / req->rate;
 	if (div < 4)
 		div = 4;
 	else if (div > 6)
 		div = 8;
 
-	return *parent_rate / div;
+	req->rate = req->best_parent_rate / div;
+
+	return 0;
 }
 
 static int clk_corediv_set_rate(struct clk_hw *hwclk, unsigned long rate,
@@ -199,7 +201,7 @@ static const struct clk_corediv_soc_desc armada370_corediv_soc = {
 		.disable = clk_corediv_disable,
 		.is_enabled = clk_corediv_is_enabled,
 		.recalc_rate = clk_corediv_recalc_rate,
-		.round_rate = clk_corediv_round_rate,
+		.determine_rate = clk_corediv_determine_rate,
 		.set_rate = clk_corediv_set_rate,
 	},
 	.ratio_reload = BIT(8),
@@ -215,7 +217,7 @@ static const struct clk_corediv_soc_desc armada380_corediv_soc = {
 		.disable = clk_corediv_disable,
 		.is_enabled = clk_corediv_is_enabled,
 		.recalc_rate = clk_corediv_recalc_rate,
-		.round_rate = clk_corediv_round_rate,
+		.determine_rate = clk_corediv_determine_rate,
 		.set_rate = clk_corediv_set_rate,
 	},
 	.ratio_reload = BIT(8),
@@ -228,7 +230,7 @@ static const struct clk_corediv_soc_desc armada375_corediv_soc = {
 	.ndescs = ARRAY_SIZE(mvebu_corediv_desc),
 	.ops = {
 		.recalc_rate = clk_corediv_recalc_rate,
-		.round_rate = clk_corediv_round_rate,
+		.determine_rate = clk_corediv_determine_rate,
 		.set_rate = clk_corediv_set_rate,
 	},
 	.ratio_reload = BIT(8),
@@ -240,7 +242,7 @@ static const struct clk_corediv_soc_desc mv98dx3236_corediv_soc = {
 	.ndescs = ARRAY_SIZE(mv98dx3236_corediv_desc),
 	.ops = {
 		.recalc_rate = clk_corediv_recalc_rate,
-		.round_rate = clk_corediv_round_rate,
+		.determine_rate = clk_corediv_determine_rate,
 		.set_rate = clk_corediv_set_rate,
 	},
 	.ratio_reload = BIT(10),
