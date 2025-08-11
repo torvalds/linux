@@ -2318,13 +2318,15 @@ int sb_init_dio_done_wq(struct super_block *sb)
 						      sb->s_id);
 	if (!wq)
 		return -ENOMEM;
+
+	old = NULL;
 	/*
 	 * This has to be atomic as more DIOs can race to create the workqueue
 	 */
-	old = cmpxchg(&sb->s_dio_done_wq, NULL, wq);
-	/* Someone created workqueue before us? Free ours... */
-	if (old)
+	if (!try_cmpxchg(&sb->s_dio_done_wq, &old, wq)) {
+		/* Someone created workqueue before us? Free ours... */
 		destroy_workqueue(wq);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sb_init_dio_done_wq);
