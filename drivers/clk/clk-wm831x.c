@@ -133,18 +133,20 @@ static unsigned long wm831x_fll_recalc_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static long wm831x_fll_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *unused)
+static int wm831x_fll_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
 	int best = 0;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_fll_auto_rates); i++)
-		if (abs(wm831x_fll_auto_rates[i] - rate) <
-		    abs(wm831x_fll_auto_rates[best] - rate))
+		if (abs(wm831x_fll_auto_rates[i] - req->rate) <
+		    abs(wm831x_fll_auto_rates[best] - req->rate))
 			best = i;
 
-	return wm831x_fll_auto_rates[best];
+	req->rate = wm831x_fll_auto_rates[best];
+
+	return 0;
 }
 
 static int wm831x_fll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -214,7 +216,7 @@ static const struct clk_ops wm831x_fll_ops = {
 	.is_prepared = wm831x_fll_is_prepared,
 	.prepare = wm831x_fll_prepare,
 	.unprepare = wm831x_fll_unprepare,
-	.round_rate = wm831x_fll_round_rate,
+	.determine_rate = wm831x_fll_determine_rate,
 	.recalc_rate = wm831x_fll_recalc_rate,
 	.set_rate = wm831x_fll_set_rate,
 	.get_parent = wm831x_fll_get_parent,
