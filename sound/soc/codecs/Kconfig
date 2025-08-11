@@ -125,6 +125,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
 	imply SND_SOC_FRAMER
+	imply SND_SOC_FS210X
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
 	imply SND_SOC_HDAC_HDA
@@ -1235,6 +1236,18 @@ config SND_SOC_FRAMER
 config SND_SOC_FS_AMP_LIB
 	select CRC16
 	tristate
+
+config SND_SOC_FS210X
+	tristate 'FourSemi FS2104/5S digital audio amplifier'
+	depends on I2C
+	select GPIOLIB
+	select REGMAP_I2C
+	select SND_SOC_FS_AMP_LIB
+	help
+	  Enable support for FourSemi FS2104/5S digital audio amplifier.
+	  The FS2104/5S are Inductor-Less, Stereo, Closed-Loop,
+	  Digital Input Class-D Power Amplifiers with Enhanced Signal Processing.
+	  The amplifiers support I2C and I2S/TDM.
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
