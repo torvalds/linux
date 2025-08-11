@@ -349,7 +349,7 @@ static int smbd_conn_upcall(
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		wake_up_all(&sc->status_wait);
 		wake_up_all(&sc->recv_io.reassembly.wait_queue);
-		wake_up_all(&info->wait_send_queue);
+		wake_up_all(&sc->send_io.credits.wait_queue);
 		break;
 
 	default:
@@ -473,7 +473,7 @@ static bool process_negotiation_response(
 		log_rdma_event(ERR, "error: credits_granted==0\n");
 		return false;
 	}
-	atomic_set(&info->send_credits, le16_to_cpu(packet->credits_granted));
+	atomic_set(&sc->send_io.credits.count, le16_to_cpu(packet->credits_granted));
 
 	atomic_set(&info->receive_credits, 0);
 
@@ -651,12 +651,12 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			le16_to_cpu(data_transfer->credits_requested);
 		if (le16_to_cpu(data_transfer->credits_granted)) {
 			atomic_add(le16_to_cpu(data_transfer->credits_granted),
-				&info->send_credits);
+				&sc->send_io.credits.count);
 			/*
 			 * We have new send credits granted from remote peer
 			 * If any sender is waiting for credits, unblock it
 			 */
-			wake_up(&info->wait_send_queue);
+			wake_up(&sc->send_io.credits.wait_queue);
 		}
 
 		log_incoming(INFO, "data flags %d data_offset %d data_length %d remaining_data_length %d\n",
@@ -1021,8 +1021,8 @@ static int smbd_post_send_iter(struct smbd_connection *info,
 
 wait_credit:
 	/* Wait for send credits. A SMBD packet needs one credit */
-	rc = wait_event_interruptible(info->wait_send_queue,
-		atomic_read(&info->send_credits) > 0 ||
+	rc = wait_event_interruptible(sc->send_io.credits.wait_queue,
+		atomic_read(&sc->send_io.credits.count) > 0 ||
 		sc->status != SMBDIRECT_SOCKET_CONNECTED);
 	if (rc)
 		goto err_wait_credit;
@@ -1032,8 +1032,8 @@ wait_credit:
 		rc = -EAGAIN;
 		goto err_wait_credit;
 	}
-	if (unlikely(atomic_dec_return(&info->send_credits) < 0)) {
-		atomic_inc(&info->send_credits);
+	if (unlikely(atomic_dec_return(&sc->send_io.credits.count) < 0)) {
+		atomic_inc(&sc->send_io.credits.count);
 		goto wait_credit;
 	}
 
@@ -1162,7 +1162,7 @@ err_alloc:
 
 err_wait_send_queue:
 	/* roll back send credits and pending */
-	atomic_inc(&info->send_credits);
+	atomic_inc(&sc->send_io.credits.count);
 
 err_wait_credit:
 	return rc;
@@ -1843,7 +1843,6 @@ static struct smbd_connection *_smbd_get_connection(
 		goto allocate_cache_failed;
 	}
 
-	init_waitqueue_head(&info->wait_send_queue);
 	INIT_DELAYED_WORK(&info->idle_timer_work, idle_connection_timer);
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		msecs_to_jiffies(sp->keepalive_interval_msec));

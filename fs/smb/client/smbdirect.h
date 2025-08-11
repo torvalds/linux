@@ -53,7 +53,6 @@ struct smbd_connection {
 	/* dynamic connection parameters defined in [MS-SMBD] 3.1.1.1 */
 	enum keep_alive_status keep_alive_requested;
 	int protocol;
-	atomic_t send_credits;
 	atomic_t receive_credits;
 	int receive_credit_target;
 
@@ -87,8 +86,6 @@ struct smbd_connection {
 	wait_queue_head_t wait_receive_queues;
 
 	bool send_immediate;
-
-	wait_queue_head_t wait_send_queue;
 
 	struct workqueue_struct *workqueue;
 	struct delayed_work idle_timer_work;
