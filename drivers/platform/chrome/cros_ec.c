@@ -102,14 +102,13 @@ EXPORT_SYMBOL(cros_ec_irq_thread);
 static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
 {
 	int ret;
-	struct {
-		struct cros_ec_command msg;
+	TRAILING_OVERLAP(struct cros_ec_command, msg, data,
 		union {
 			struct ec_params_host_sleep_event req0;
 			struct ec_params_host_sleep_event_v1 req1;
 			struct ec_response_host_sleep_event_v1 resp1;
 		} u;
-	} __packed buf;
+	) __packed buf;
 
 	memset(&buf, 0, sizeof(buf));
 
