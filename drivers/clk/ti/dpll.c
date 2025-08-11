@@ -77,7 +77,7 @@ const struct clk_hw_omap_ops clkhwops_omap3_dpll = {};
 static const struct clk_ops omap2_dpll_core_ck_ops = {
 	.get_parent	= &omap2_init_dpll_parent,
 	.recalc_rate	= &omap2_dpllcore_recalc,
-	.round_rate	= &omap2_dpll_round_rate,
+	.determine_rate	= &omap2_dpll_determine_rate,
 	.set_rate	= &omap2_reprogram_dpllcore,
 };
 #else
@@ -88,7 +88,7 @@ static const struct clk_ops omap2_dpll_core_ck_ops = {};
 static const struct clk_ops omap3_dpll_core_ck_ops = {
 	.get_parent	= &omap2_init_dpll_parent,
 	.recalc_rate	= &omap3_dpll_recalc,
-	.round_rate	= &omap2_dpll_round_rate,
+	.determine_rate	= &omap2_dpll_determine_rate,
 };
 
 static const struct clk_ops omap3_dpll_ck_ops = {
