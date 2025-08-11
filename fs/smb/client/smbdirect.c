@@ -418,10 +418,10 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 		return;
 	}
 
-	if (atomic_dec_and_test(&info->send_pending))
-		wake_up(&info->wait_send_pending);
+	if (atomic_dec_and_test(&sc->send_io.pending.count))
+		wake_up(&sc->send_io.pending.zero_wait_queue);
 
-	wake_up(&info->wait_post_send);
+	wake_up(&sc->send_io.pending.dec_wait_queue);
 
 	mempool_free(request, sc->send_io.mem.pool);
 }
@@ -908,14 +908,14 @@ static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 		request->sge[0].addr,
 		request->sge[0].length, request->sge[0].lkey);
 
-	atomic_inc(&info->send_pending);
+	atomic_inc(&sc->send_io.pending.count);
 	rc = ib_post_send(sc->ib.qp, &send_wr, NULL);
 	if (!rc)
 		return 0;
 
 	/* if we reach here, post send failed */
 	log_rdma_send(ERR, "ib_post_send failed rc=%d\n", rc);
-	atomic_dec(&info->send_pending);
+	atomic_dec(&sc->send_io.pending.count);
 	ib_dma_unmap_single(sc->ib.dev, request->sge[0].addr,
 		request->sge[0].length, DMA_TO_DEVICE);
 
@@ -1038,8 +1038,8 @@ wait_credit:
 	}
 
 wait_send_queue:
-	wait_event(info->wait_post_send,
-		atomic_read(&info->send_pending) < sp->send_credit_target ||
+	wait_event(sc->send_io.pending.dec_wait_queue,
+		atomic_read(&sc->send_io.pending.count) < sp->send_credit_target ||
 		sc->status != SMBDIRECT_SOCKET_CONNECTED);
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED) {
@@ -1048,9 +1048,9 @@ wait_send_queue:
 		goto err_wait_send_queue;
 	}
 
-	if (unlikely(atomic_inc_return(&info->send_pending) >
+	if (unlikely(atomic_inc_return(&sc->send_io.pending.count) >
 				sp->send_credit_target)) {
-		atomic_dec(&info->send_pending);
+		atomic_dec(&sc->send_io.pending.count);
 		goto wait_send_queue;
 	}
 
@@ -1157,8 +1157,8 @@ err_dma:
 	atomic_sub(new_credits, &info->receive_credits);
 
 err_alloc:
-	if (atomic_dec_and_test(&info->send_pending))
-		wake_up(&info->wait_send_pending);
+	if (atomic_dec_and_test(&sc->send_io.pending.count))
+		wake_up(&sc->send_io.pending.zero_wait_queue);
 
 err_wait_send_queue:
 	/* roll back send credits and pending */
@@ -1848,11 +1848,6 @@ static struct smbd_connection *_smbd_get_connection(
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		msecs_to_jiffies(sp->keepalive_interval_msec));
 
-	init_waitqueue_head(&info->wait_send_pending);
-	atomic_set(&info->send_pending, 0);
-
-	init_waitqueue_head(&info->wait_post_send);
-
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
 	info->new_credits_offered = 0;
 	spin_lock_init(&info->lock_new_credits_offered);
@@ -2151,8 +2146,8 @@ int smbd_send(struct TCP_Server_Info *server,
 	 * that means all the I/Os have been out and we are good to return
 	 */
 
-	wait_event(info->wait_send_pending,
-		atomic_read(&info->send_pending) == 0 ||
+	wait_event(sc->send_io.pending.zero_wait_queue,
+		atomic_read(&sc->send_io.pending.count) == 0 ||
 		sc->status != SMBDIRECT_SOCKET_CONNECTED);
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED && rc == 0)
