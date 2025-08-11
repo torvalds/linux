@@ -106,9 +106,6 @@ struct smb_direct_transport {
 	wait_queue_head_t	wait_send_credits;
 	wait_queue_head_t	wait_rw_credits;
 
-	wait_queue_head_t	wait_send_pending;
-	atomic_t		send_pending;
-
 	struct work_struct	post_recv_credits_work;
 	struct work_struct	send_immediate_work;
 
@@ -342,9 +339,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	spin_lock_init(&t->receive_credit_lock);
 
-	init_waitqueue_head(&t->wait_send_pending);
-	atomic_set(&t->send_pending, 0);
-
 	spin_lock_init(&t->lock_new_recv_credits);
 
 	INIT_WORK(&t->post_recv_credits_work,
@@ -381,7 +375,7 @@ static void free_transport(struct smb_direct_transport *t)
 	}
 
 	wake_up_all(&t->wait_send_credits);
-	wake_up_all(&t->wait_send_pending);
+	wake_up_all(&sc->send_io.pending.zero_wait_queue);
 
 	disable_work_sync(&t->post_recv_credits_work);
 	disable_work_sync(&t->send_immediate_work);
@@ -847,8 +841,8 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 		smb_direct_disconnect_rdma_connection(t);
 	}
 
-	if (atomic_dec_and_test(&t->send_pending))
-		wake_up(&t->wait_send_pending);
+	if (atomic_dec_and_test(&sc->send_io.pending.count))
+		wake_up(&sc->send_io.pending.zero_wait_queue);
 
 	/* iterate and free the list of messages in reverse. the list's head
 	 * is invalid.
@@ -881,12 +875,12 @@ static int smb_direct_post_send(struct smb_direct_transport *t,
 	struct smbdirect_socket *sc = &t->socket;
 	int ret;
 
-	atomic_inc(&t->send_pending);
+	atomic_inc(&sc->send_io.pending.count);
 	ret = ib_post_send(sc->ib.qp, wr, NULL);
 	if (ret) {
 		pr_err("failed to post send: %d\n", ret);
-		if (atomic_dec_and_test(&t->send_pending))
-			wake_up(&t->wait_send_pending);
+		if (atomic_dec_and_test(&sc->send_io.pending.count))
+			wake_up(&sc->send_io.pending.zero_wait_queue);
 		smb_direct_disconnect_rdma_connection(t);
 	}
 	return ret;
@@ -1344,8 +1338,8 @@ done:
 	 * that means all the I/Os have been out and we are good to return
 	 */
 
-	wait_event(st->wait_send_pending,
-		   atomic_read(&st->send_pending) == 0 ||
+	wait_event(sc->send_io.pending.zero_wait_queue,
+		   atomic_read(&sc->send_io.pending.count) == 0 ||
 		   sc->status != SMBDIRECT_SOCKET_CONNECTED);
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED && ret == 0)
 		ret = -ENOTCONN;
@@ -1681,8 +1675,8 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 		return ret;
 	}
 
-	wait_event(t->wait_send_pending,
-		   atomic_read(&t->send_pending) == 0 ||
+	wait_event(sc->send_io.pending.zero_wait_queue,
+		   atomic_read(&sc->send_io.pending.count) == 0 ||
 		   sc->status != SMBDIRECT_SOCKET_CONNECTED);
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
 		return -ENOTCONN;
