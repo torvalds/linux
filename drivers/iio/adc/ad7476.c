@@ -52,29 +52,6 @@ struct ad7476_state {
 	unsigned char data[ALIGN(2, sizeof(s64)) + sizeof(s64)] __aligned(IIO_DMA_MINALIGN);
 };
 
-enum ad7476_supported_device_ids {
-	ID_AD7091,
-	ID_AD7091R,
-	ID_AD7273,
-	ID_AD7274,
-	ID_AD7276,
-	ID_AD7277,
-	ID_AD7278,
-	ID_AD7466,
-	ID_AD7467,
-	ID_AD7468,
-	ID_AD7475,
-	ID_AD7495,
-	ID_AD7940,
-	ID_ADC081S,
-	ID_ADC101S,
-	ID_ADC121S,
-	ID_ADS7866,
-	ID_ADS7867,
-	ID_ADS7868,
-	ID_LTC2314_14,
-};
-
 static void ad7091_convst(struct ad7476_state *st)
 {
 	if (!st->convst_gpio)
@@ -190,102 +167,119 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 #define ADS786X_CHAN(bits) _AD7476_CHAN((bits), 12 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 
-static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
-	[ID_AD7091] = {
-		.channel[0] = AD7091R_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.convst_channel[0] = AD7091R_CONVST_CHAN(12),
-		.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.reset = ad7091_reset,
-	},
-	[ID_AD7091R] = {
-		.channel[0] = AD7091R_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.convst_channel[0] = AD7091R_CONVST_CHAN(12),
-		.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.int_vref_uv = 2500000,
-		.has_vref = true,
-		.reset = ad7091_reset,
-	},
-	[ID_AD7273] = {
-		.channel[0] = AD7940_CHAN(10),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.has_vref = true,
-	},
-	[ID_AD7274] = {
-		.channel[0] = AD7940_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.has_vref = true,
-	},
-	[ID_AD7276] = {
-		.channel[0] = AD7940_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7277] = {
-		.channel[0] = AD7940_CHAN(10),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7278] = {
-		.channel[0] = AD7940_CHAN(8),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7466] = {
-		.channel[0] = AD7476_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7467] = {
-		.channel[0] = AD7476_CHAN(10),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7468] = {
-		.channel[0] = AD7476_CHAN(8),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7475] = {
-		.channel[0] = AD7476_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.has_vref = true,
-		.has_vdrive = true,
-	},
-	[ID_AD7495] = {
-		.channel[0] = AD7476_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.int_vref_uv = 2500000,
-		.has_vdrive = true,
-	},
-	[ID_AD7940] = {
-		.channel[0] = AD7940_CHAN(14),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_ADC081S] = {
-		.channel[0] = ADC081S_CHAN(8),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_ADC101S] = {
-		.channel[0] = ADC081S_CHAN(10),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_ADC121S] = {
-		.channel[0] = ADC081S_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_ADS7866] = {
-		.channel[0] = ADS786X_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_ADS7867] = {
-		.channel[0] = ADS786X_CHAN(10),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_ADS7868] = {
-		.channel[0] = ADS786X_CHAN(8),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_LTC2314_14] = {
-		.channel[0] = AD7940_CHAN(14),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.has_vref = true,
-	},
+static const struct ad7476_chip_info ad7091_chip_info = {
+	.channel[0] = AD7091R_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.convst_channel[0] = AD7091R_CONVST_CHAN(12),
+	.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.reset = ad7091_reset,
+};
+
+static const struct ad7476_chip_info ad7091r_chip_info = {
+	.channel[0] = AD7091R_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.convst_channel[0] = AD7091R_CONVST_CHAN(12),
+	.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.int_vref_uv = 2500000,
+	.has_vref = true,
+	.reset = ad7091_reset,
+};
+
+static const struct ad7476_chip_info ad7273_chip_info = {
+	.channel[0] = AD7940_CHAN(10),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.has_vref = true,
+};
+
+static const struct ad7476_chip_info ad7274_chip_info = {
+	.channel[0] = AD7940_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.has_vref = true,
+};
+
+static const struct ad7476_chip_info ad7276_chip_info = {
+	.channel[0] = AD7940_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ad7277_chip_info = {
+	.channel[0] = AD7940_CHAN(10),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ad7278_chip_info = {
+	.channel[0] = AD7940_CHAN(8),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ad7466_chip_info = {
+	.channel[0] = AD7476_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ad7467_chip_info = {
+	.channel[0] = AD7476_CHAN(10),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ad7468_chip_info = {
+	.channel[0] = AD7476_CHAN(8),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ad7475_chip_info = {
+	.channel[0] = AD7476_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.has_vref = true,
+	.has_vdrive = true,
+};
+
+static const struct ad7476_chip_info ad7495_chip_info = {
+	.channel[0] = AD7476_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.int_vref_uv = 2500000,
+	.has_vdrive = true,
+};
+
+static const struct ad7476_chip_info ad7940_chip_info = {
+	.channel[0] = AD7940_CHAN(14),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info adc081s_chip_info = {
+	.channel[0] = ADC081S_CHAN(8),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info adc101s_chip_info = {
+	.channel[0] = ADC081S_CHAN(10),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info adc121s_chip_info = {
+	.channel[0] = ADC081S_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ads7866_chip_info = {
+	.channel[0] = ADS786X_CHAN(12),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ads7867_chip_info = {
+	.channel[0] = ADS786X_CHAN(10),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ads7868_chip_info = {
+	.channel[0] = ADS786X_CHAN(8),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct ad7476_chip_info ltc2314_14_chip_info = {
+	.channel[0] = AD7940_CHAN(14),
+	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.has_vref = true,
 };
 
 static const struct iio_info ad7476_info = {
@@ -311,8 +305,10 @@ static int ad7476_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->chip_info =
-		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
+
+	st->chip_info = spi_get_device_match_data(spi);
+	if (!st->chip_info)
+		return -ENODEV;
 
 	reg = devm_regulator_get(&spi->dev, "vcc");
 	if (IS_ERR(reg))
@@ -408,41 +404,41 @@ static int ad7476_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7476_id[] = {
-	{ "ad7091", ID_AD7091 },
-	{ "ad7091r", ID_AD7091R },
-	{ "ad7273", ID_AD7273 },
-	{ "ad7274", ID_AD7274 },
-	{ "ad7276", ID_AD7276},
-	{ "ad7277", ID_AD7277 },
-	{ "ad7278", ID_AD7278 },
-	{ "ad7466", ID_AD7466 },
-	{ "ad7467", ID_AD7467 },
-	{ "ad7468", ID_AD7468 },
-	{ "ad7475", ID_AD7475 },
-	{ "ad7476", ID_AD7466 },
-	{ "ad7476a", ID_AD7466 },
-	{ "ad7477", ID_AD7467 },
-	{ "ad7477a", ID_AD7467 },
-	{ "ad7478", ID_AD7468 },
-	{ "ad7478a", ID_AD7468 },
-	{ "ad7495", ID_AD7495 },
-	{ "ad7910", ID_AD7467 },
-	{ "ad7920", ID_AD7466 },
-	{ "ad7940", ID_AD7940 },
-	{ "adc081s", ID_ADC081S },
-	{ "adc101s", ID_ADC101S },
-	{ "adc121s", ID_ADC121S },
-	{ "ads7866", ID_ADS7866 },
-	{ "ads7867", ID_ADS7867 },
-	{ "ads7868", ID_ADS7868 },
+	{ "ad7091", (kernel_ulong_t)&ad7091_chip_info },
+	{ "ad7091r", (kernel_ulong_t)&ad7091r_chip_info },
+	{ "ad7273", (kernel_ulong_t)&ad7273_chip_info },
+	{ "ad7274", (kernel_ulong_t)&ad7274_chip_info },
+	{ "ad7276", (kernel_ulong_t)&ad7276_chip_info },
+	{ "ad7277", (kernel_ulong_t)&ad7277_chip_info },
+	{ "ad7278", (kernel_ulong_t)&ad7278_chip_info },
+	{ "ad7466", (kernel_ulong_t)&ad7466_chip_info },
+	{ "ad7467", (kernel_ulong_t)&ad7467_chip_info },
+	{ "ad7468", (kernel_ulong_t)&ad7468_chip_info },
+	{ "ad7475", (kernel_ulong_t)&ad7475_chip_info },
+	{ "ad7476", (kernel_ulong_t)&ad7466_chip_info },
+	{ "ad7476a", (kernel_ulong_t)&ad7466_chip_info },
+	{ "ad7477", (kernel_ulong_t)&ad7467_chip_info },
+	{ "ad7477a", (kernel_ulong_t)&ad7467_chip_info },
+	{ "ad7478", (kernel_ulong_t)&ad7468_chip_info },
+	{ "ad7478a", (kernel_ulong_t)&ad7468_chip_info },
+	{ "ad7495", (kernel_ulong_t)&ad7495_chip_info },
+	{ "ad7910", (kernel_ulong_t)&ad7467_chip_info },
+	{ "ad7920", (kernel_ulong_t)&ad7466_chip_info },
+	{ "ad7940", (kernel_ulong_t)&ad7940_chip_info },
+	{ "adc081s", (kernel_ulong_t)&adc081s_chip_info },
+	{ "adc101s", (kernel_ulong_t)&adc101s_chip_info },
+	{ "adc121s", (kernel_ulong_t)&adc121s_chip_info },
+	{ "ads7866", (kernel_ulong_t)&ads7866_chip_info },
+	{ "ads7867", (kernel_ulong_t)&ads7867_chip_info },
+	{ "ads7868", (kernel_ulong_t)&ads7868_chip_info },
 	/*
 	 * The ROHM BU79100G is identical to the TI's ADS7866 from the software
 	 * point of view. The binding document mandates the ADS7866 to be
 	 * marked as a fallback for the BU79100G, but we still need the SPI ID
 	 * here to make the module loading work.
 	 */
-	{ "bu79100g", ID_ADS7866 },
-	{ "ltc2314-14", ID_LTC2314_14 },
+	{ "bu79100g", (kernel_ulong_t)&ads7866_chip_info },
+	{ "ltc2314-14", (kernel_ulong_t)&ltc2314_14_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7476_id);
