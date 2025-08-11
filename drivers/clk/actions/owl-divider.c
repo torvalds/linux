@@ -23,13 +23,16 @@ long owl_divider_helper_round_rate(struct owl_clk_common *common,
 				  div_hw->div_flags);
 }
 
-static long owl_divider_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *parent_rate)
+static int owl_divider_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	struct owl_divider *div = hw_to_owl_divider(hw);
 
-	return owl_divider_helper_round_rate(&div->common, &div->div_hw,
-					     rate, parent_rate);
+	req->rate = owl_divider_helper_round_rate(&div->common, &div->div_hw,
+						  req->rate,
+						  &req->best_parent_rate);
+
+	return 0;
 }
 
 unsigned long owl_divider_helper_recalc_rate(struct owl_clk_common *common,
@@ -89,6 +92,6 @@ static int owl_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 
 const struct clk_ops owl_divider_ops = {
 	.recalc_rate = owl_divider_recalc_rate,
-	.round_rate = owl_divider_round_rate,
+	.determine_rate = owl_divider_determine_rate,
 	.set_rate = owl_divider_set_rate,
 };
