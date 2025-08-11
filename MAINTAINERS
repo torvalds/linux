@@ -5354,6 +5354,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/cdns,*.txt
 F:	Documentation/devicetree/bindings/media/cdns,csi2rx.yaml
 F:	drivers/media/platform/cadence/cdns-csi2*
+F:	include/media/cadence/cdns-csi2*
 
 CADENCE NAND DRIVER
 L:	linux-mtd@lists.infradead.org
