@@ -29,6 +29,7 @@
 #include "ufs-mediatek-sip.h"
 
 static int  ufs_mtk_config_mcq(struct ufs_hba *hba, bool irq);
+static void _ufs_mtk_clk_scale(struct ufs_hba *hba, bool scale_up);
 
 #define CREATE_TRACE_POINTS
 #include "ufs-mediatek-trace.h"
@@ -1144,6 +1145,17 @@ static void ufs_mtk_fix_ahit(struct ufs_hba *hba)
 	ufs_mtk_setup_clk_gating(hba);
 }
 
+static void ufs_mtk_fix_clock_scaling(struct ufs_hba *hba)
+{
+	/* UFS version is below 4.0, clock scaling is not necessary */
+	if ((hba->dev_info.wspecversion < 0x0400)  &&
+		ufs_mtk_is_clk_scale_ready(hba)) {
+		hba->caps &= ~UFSHCD_CAP_CLK_SCALING;
+
+		_ufs_mtk_clk_scale(hba, false);
+	}
+}
+
 static void ufs_mtk_init_mcq_irq(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
@@ -1774,6 +1786,7 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 	ufs_mtk_vreg_fix_vcc(hba);
 	ufs_mtk_vreg_fix_vccqx(hba);
 	ufs_mtk_fix_ahit(hba);
+	ufs_mtk_fix_clock_scaling(hba);
 }
 
 static void ufs_mtk_event_notify(struct ufs_hba *hba,
