@@ -84,16 +84,17 @@ static unsigned long x1000_otg_phy_recalc_rate(struct clk_hw *hw,
 	return parent_rate;
 }
 
-static long x1000_otg_phy_round_rate(struct clk_hw *hw, unsigned long req_rate,
-				      unsigned long *parent_rate)
+static int x1000_otg_phy_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
-	if (req_rate < 18000000)
-		return 12000000;
+	if (req->rate < 18000000)
+		req->rate = 12000000;
+	else if (req->rate < 36000000)
+		req->rate = 24000000;
+	else
+		req->rate = 48000000;
 
-	if (req_rate < 36000000)
-		return 24000000;
-
-	return 48000000;
+	return 0;
 }
 
 static int x1000_otg_phy_set_rate(struct clk_hw *hw, unsigned long req_rate,
@@ -161,7 +162,7 @@ static int x1000_usb_phy_is_enabled(struct clk_hw *hw)
 
 static const struct clk_ops x1000_otg_phy_ops = {
 	.recalc_rate = x1000_otg_phy_recalc_rate,
-	.round_rate = x1000_otg_phy_round_rate,
+	.determine_rate = x1000_otg_phy_determine_rate,
 	.set_rate = x1000_otg_phy_set_rate,
 
 	.enable		= x1000_usb_phy_enable,
