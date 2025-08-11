@@ -96,7 +96,6 @@ struct smb_direct_transport {
 
 	spinlock_t		receive_credit_lock;
 	int			recv_credits;
-	int			count_avail_recvmsg;
 	int			recv_credit_target;
 
 	atomic_t		send_credits;
@@ -183,13 +182,6 @@ static inline void
 	return (void *)recvmsg->packet;
 }
 
-static inline bool is_receive_credit_post_required(int receive_credits,
-						   int avail_recvmsg_count)
-{
-	return receive_credits <= (smb_direct_receive_credit_max >> 3) &&
-		avail_recvmsg_count >= (receive_credits >> 2);
-}
-
 static struct
 smbdirect_recv_io *get_free_recvmsg(struct smb_direct_transport *t)
 {
@@ -223,6 +215,8 @@ static void put_recvmsg(struct smb_direct_transport *t,
 	spin_lock(&sc->recv_io.free.lock);
 	list_add(&recvmsg->list, &sc->recv_io.free.list);
 	spin_unlock(&sc->recv_io.free.lock);
+
+	queue_work(smb_direct_wq, &t->post_recv_credits_work);
 }
 
 static void enqueue_reassembly(struct smb_direct_transport *t,
@@ -530,7 +524,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		struct smbdirect_data_transfer *data_transfer =
 			(struct smbdirect_data_transfer *)recvmsg->packet;
 		u32 remaining_data_length, data_offset, data_length;
-		int avail_recvmsg_count, receive_credits;
+		int old_recv_credit_target;
 
 		if (wc->byte_len <
 		    offsetof(struct smbdirect_data_transfer, padding)) {
@@ -565,18 +559,13 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 				sc->recv_io.reassembly.full_packet_received = false;
 			else
 				sc->recv_io.reassembly.full_packet_received = true;
-
-			spin_lock(&t->receive_credit_lock);
-			receive_credits = --(t->recv_credits);
-			avail_recvmsg_count = t->count_avail_recvmsg;
-			spin_unlock(&t->receive_credit_lock);
-		} else {
-			spin_lock(&t->receive_credit_lock);
-			receive_credits = --(t->recv_credits);
-			avail_recvmsg_count = ++(t->count_avail_recvmsg);
-			spin_unlock(&t->receive_credit_lock);
 		}
 
+		spin_lock(&t->receive_credit_lock);
+		t->recv_credits -= 1;
+		spin_unlock(&t->receive_credit_lock);
+
+		old_recv_credit_target = t->recv_credit_target;
 		t->recv_credit_target =
 				le16_to_cpu(data_transfer->credits_requested);
 		atomic_add(le16_to_cpu(data_transfer->credits_granted),
@@ -589,10 +578,10 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (atomic_read(&t->send_credits) > 0)
 			wake_up(&t->wait_send_credits);
 
-		if (is_receive_credit_post_required(receive_credits, avail_recvmsg_count))
-			queue_work(smb_direct_wq, &t->post_recv_credits_work);
-
 		if (data_length) {
+			if (t->recv_credit_target > old_recv_credit_target)
+				queue_work(smb_direct_wq, &t->post_recv_credits_work);
+
 			enqueue_reassembly(t, recvmsg, (int)data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
@@ -750,15 +739,6 @@ again:
 		sc->recv_io.reassembly.queue_length -= queue_removed;
 		spin_unlock_irq(&sc->recv_io.reassembly.lock);
 
-		spin_lock(&st->receive_credit_lock);
-		st->count_avail_recvmsg += queue_removed;
-		if (is_receive_credit_post_required(st->recv_credits, st->count_avail_recvmsg)) {
-			spin_unlock(&st->receive_credit_lock);
-			queue_work(smb_direct_wq, &st->post_recv_credits_work);
-		} else {
-			spin_unlock(&st->receive_credit_lock);
-		}
-
 		sc->recv_io.reassembly.first_entry_offset = offset;
 		ksmbd_debug(RDMA,
 			    "returning to thread data_read=%d reassembly_data_length=%d first_entry_offset=%d\n",
@@ -810,7 +790,6 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 
 	spin_lock(&t->receive_credit_lock);
 	t->recv_credits += credits;
-	t->count_avail_recvmsg -= credits;
 	spin_unlock(&t->receive_credit_lock);
 
 	spin_lock(&t->lock_new_recv_credits);
@@ -1826,7 +1805,6 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	}
 
 	t->recv_credits = 0;
-	t->count_avail_recvmsg = 0;
 
 	sp->recv_credit_max = smb_direct_receive_credit_max;
 	t->recv_credit_target = 10;
@@ -1914,7 +1892,6 @@ static int smb_direct_create_pools(struct smb_direct_transport *t)
 		recvmsg->sge.length = 0;
 		list_add(&recvmsg->list, &sc->recv_io.free.list);
 	}
-	t->count_avail_recvmsg = sp->recv_credit_max;
 
 	return 0;
 err:
