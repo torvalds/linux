@@ -197,7 +197,7 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 	 */
 	if (should_emulate_decoders(info)) {
 		dev_dbg(dev, "Fallback map %d range register%s\n", info->ranges,
-			info->ranges > 1 ? "s" : "");
+			str_plural(info->ranges));
 		cxlhdm->decoder_count = info->ranges;
 	}
 
