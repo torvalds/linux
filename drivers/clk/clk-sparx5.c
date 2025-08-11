@@ -213,19 +213,21 @@ static unsigned long s5_pll_recalc_rate(struct clk_hw *hw,
 	return conf.freq;
 }
 
-static long s5_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long *parent_rate)
+static int s5_pll_determine_rate(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct s5_pll_conf conf;
 
-	return s5_calc_params(rate, *parent_rate, &conf);
+	req->rate = s5_calc_params(req->rate, req->best_parent_rate, &conf);
+
+	return 0;
 }
 
 static const struct clk_ops s5_pll_ops = {
 	.enable		= s5_pll_enable,
 	.disable	= s5_pll_disable,
 	.set_rate	= s5_pll_set_rate,
-	.round_rate	= s5_pll_round_rate,
+	.determine_rate = s5_pll_determine_rate,
 	.recalc_rate	= s5_pll_recalc_rate,
 };
 
