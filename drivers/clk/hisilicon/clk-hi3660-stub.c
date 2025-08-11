@@ -34,7 +34,7 @@
 			.num_parents = 0,			\
 			.flags = CLK_GET_RATE_NOCACHE,		\
 		},						\
-	},
+	}
 
 #define to_stub_clk(_hw) container_of(_hw, struct hi3660_stub_clk, hw)
 
@@ -102,10 +102,10 @@ static const struct clk_ops hi3660_stub_clk_ops = {
 };
 
 static struct hi3660_stub_clk hi3660_stub_clks[HI3660_CLK_STUB_NUM] = {
-	DEFINE_CLK_STUB(HI3660_CLK_STUB_CLUSTER0, 0x0001030A, "cpu-cluster.0")
-	DEFINE_CLK_STUB(HI3660_CLK_STUB_CLUSTER1, 0x0002030A, "cpu-cluster.1")
-	DEFINE_CLK_STUB(HI3660_CLK_STUB_GPU, 0x0003030A, "clk-g3d")
-	DEFINE_CLK_STUB(HI3660_CLK_STUB_DDR, 0x00040309, "clk-ddrc")
+	DEFINE_CLK_STUB(HI3660_CLK_STUB_CLUSTER0, 0x0001030A, "cpu-cluster.0"),
+	DEFINE_CLK_STUB(HI3660_CLK_STUB_CLUSTER1, 0x0002030A, "cpu-cluster.1"),
+	DEFINE_CLK_STUB(HI3660_CLK_STUB_GPU, 0x0003030A, "clk-g3d"),
+	DEFINE_CLK_STUB(HI3660_CLK_STUB_DDR, 0x00040309, "clk-ddrc"),
 };
 
 static struct clk_hw *hi3660_stub_clk_hw_get(struct of_phandle_args *clkspec,
