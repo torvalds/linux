@@ -8013,6 +8013,9 @@ int stmmac_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(stmmac_resume);
 
+EXPORT_GPL_SIMPLE_DEV_PM_OPS(stmmac_simple_pm_ops, stmmac_suspend,
+			     stmmac_resume);
+
 #ifndef MODULE
 static int __init stmmac_cmdline_opt(char *str)
 {
