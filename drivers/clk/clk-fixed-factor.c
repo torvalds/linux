@@ -47,21 +47,6 @@ static int clk_factor_determine_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static long clk_factor_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *prate)
-{
-	struct clk_fixed_factor *fix = to_clk_fixed_factor(hw);
-
-	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
-		unsigned long best_parent;
-
-		best_parent = (rate / fix->mult) * fix->div;
-		*prate = clk_hw_round_rate(clk_hw_get_parent(hw), best_parent);
-	}
-
-	return (*prate / fix->div) * fix->mult;
-}
-
 static int clk_factor_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
@@ -87,7 +72,6 @@ static unsigned long clk_factor_recalc_accuracy(struct clk_hw *hw,
 
 const struct clk_ops clk_fixed_factor_ops = {
 	.determine_rate = clk_factor_determine_rate,
-	.round_rate = clk_factor_round_rate,
 	.set_rate = clk_factor_set_rate,
 	.recalc_rate = clk_factor_recalc_rate,
 	.recalc_accuracy = clk_factor_recalc_accuracy,
