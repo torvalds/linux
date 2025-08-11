@@ -832,7 +832,12 @@ __acquires(&gl->gl_lockref.lock)
 		return;
 	set_bit(GLF_LOCK, &gl->gl_flags);
 
-	/* While a demote is in progress, the GLF_LOCK flag must be set. */
+	/*
+	 * The GLF_DEMOTE_IN_PROGRESS flag is only set intermittently during
+	 * locking operations.  We have just started a locking operation by
+	 * setting the GLF_LOCK flag, so the GLF_DEMOTE_IN_PROGRESS flag must
+	 * be cleared.
+	 */
 	GLOCK_BUG_ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
 
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
@@ -859,6 +864,8 @@ promote:
 	gh = find_first_waiter(gl);
 	if (!gh)
 		goto out_unlock;
+	if (nonblock)
+		goto out_sched;
 	gl->gl_target = gh->gh_state;
 	if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
 		do_error(gl, 0); /* Fail queued try locks */
