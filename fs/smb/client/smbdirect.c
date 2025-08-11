@@ -590,6 +590,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbd_connection *info =
 		container_of(sc, struct smbd_connection, socket);
+	int old_recv_credit_target;
 	u32 data_offset = 0;
 	u32 data_length = 0;
 	u32 remaining_data_length = 0;
@@ -661,6 +662,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		}
 
 		atomic_dec(&info->receive_credits);
+		old_recv_credit_target = info->receive_credit_target;
 		info->receive_credit_target =
 			le16_to_cpu(data_transfer->credits_requested);
 		if (le16_to_cpu(data_transfer->credits_granted)) {
@@ -691,6 +693,9 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		 * reassembly queue and wake up the reading thread
 		 */
 		if (data_length) {
+			if (info->receive_credit_target > old_recv_credit_target)
+				queue_work(info->workqueue, &info->post_send_credits_work);
+
 			enqueue_reassembly(info, response, data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
