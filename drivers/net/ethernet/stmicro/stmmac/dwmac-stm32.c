@@ -498,6 +498,26 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 	return err;
 }
 
+static int stm32_dwmac_suspend(struct device *dev, void *bsp_priv)
+{
+	struct stm32_dwmac *dwmac = bsp_priv;
+
+	stm32_dwmac_clk_disable(dwmac);
+
+	return dwmac->ops->suspend ? dwmac->ops->suspend(dwmac) : 0;
+}
+
+static int stm32_dwmac_resume(struct device *dev, void *bsp_priv)
+{
+	struct stmmac_priv *priv = netdev_priv(dev_get_drvdata(dev));
+	struct stm32_dwmac *dwmac = bsp_priv;
+
+	if (dwmac->ops->resume)
+		dwmac->ops->resume(dwmac);
+
+	return stm32_dwmac_init(priv->plat);
+}
+
 static int stm32_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -535,6 +555,8 @@ static int stm32_dwmac_probe(struct platform_device *pdev)
 
 	plat_dat->flags |= STMMAC_FLAG_EN_TX_LPI_CLK_PHY_CAP;
 	plat_dat->bsp_priv = dwmac;
+	plat_dat->suspend = stm32_dwmac_suspend;
+	plat_dat->resume = stm32_dwmac_resume;
 
 	ret = stm32_dwmac_init(plat_dat);
 	if (ret)
@@ -600,50 +622,6 @@ static void stm32mp1_resume(struct stm32_dwmac *dwmac)
 	clk_disable_unprepare(dwmac->clk_ethstp);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int stm32_dwmac_suspend(struct device *dev)
-{
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct stm32_dwmac *dwmac = priv->plat->bsp_priv;
-
-	int ret;
-
-	ret = stmmac_suspend(dev);
-	if (ret)
-		return ret;
-
-	stm32_dwmac_clk_disable(dwmac);
-
-	if (dwmac->ops->suspend)
-		ret = dwmac->ops->suspend(dwmac);
-
-	return ret;
-}
-
-static int stm32_dwmac_resume(struct device *dev)
-{
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct stm32_dwmac *dwmac = priv->plat->bsp_priv;
-	int ret;
-
-	if (dwmac->ops->resume)
-		dwmac->ops->resume(dwmac);
-
-	ret = stm32_dwmac_init(priv->plat);
-	if (ret)
-		return ret;
-
-	ret = stmmac_resume(dev);
-
-	return ret;
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static SIMPLE_DEV_PM_OPS(stm32_dwmac_pm_ops,
-	stm32_dwmac_suspend, stm32_dwmac_resume);
-
 static struct stm32_ops stm32mcu_dwmac_data = {
 	.set_mode = stm32mcu_set_mode
 };
@@ -691,7 +669,7 @@ static struct platform_driver stm32_dwmac_driver = {
 	.remove = stm32_dwmac_remove,
 	.driver = {
 		.name           = "stm32-dwmac",
-		.pm		= &stm32_dwmac_pm_ops,
+		.pm		= &stmmac_simple_pm_ops,
 		.of_match_table = stm32_dwmac_match,
 	},
 };
