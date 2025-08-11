@@ -137,6 +137,14 @@ pub mod flags {
 /// - Implementers must ensure that all trait functions abide by the guarantees documented in the
 ///   `# Guarantees` sections.
 pub unsafe trait Allocator {
+    /// The minimum alignment satisfied by all allocations from this allocator.
+    ///
+    /// # Guarantees
+    ///
+    /// Any pointer allocated by this allocator is guaranteed to be aligned to `MIN_ALIGN` even if
+    /// the requested layout has a smaller alignment.
+    const MIN_ALIGN: usize;
+
     /// Allocate memory based on `layout` and `flags`.
     ///
     /// On success, returns a buffer represented as `NonNull<[u8]>` that satisfies the layout
