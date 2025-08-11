@@ -117,6 +117,7 @@ class bkg(cmd):
                          shell=shell, fail=fail, ns=ns, host=host,
                          ksft_wait=ksft_wait)
         self.terminate = not exit_wait and not ksft_wait
+        self._exit_wait = exit_wait
         self.check_fail = fail
 
         if shell and self.terminate:
@@ -127,7 +128,9 @@ class bkg(cmd):
         return self
 
     def __exit__(self, ex_type, ex_value, ex_tb):
-        return self.process(terminate=self.terminate, fail=self.check_fail)
+        # Force termination on exception
+        terminate = self.terminate or (self._exit_wait and ex_type)
+        return self.process(terminate=terminate, fail=self.check_fail)
 
 
 global_defer_queue = []
