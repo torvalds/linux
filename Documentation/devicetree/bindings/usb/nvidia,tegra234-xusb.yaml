@@ -32,9 +32,35 @@ properties:
       - const: bar2
 
   interrupts:
+    minItems: 2
     items:
       - description: xHCI host interrupt
       - description: mailbox interrupt
+      - description: USB wake event 0
+      - description: USB wake event 1
+      - description: USB wake event 2
+      - description: USB wake event 3
+      - description: USB wake event 4
+      - description: USB wake event 5
+      - description: USB wake event 6
+    description: |
+      The first two interrupts are required for the USB host controller. The
+      remaining USB wake event interrupts are optional. Each USB wake event is
+      independent; it is not necessary to use all of these events on a
+      platform. The USB host controller can function even if no wake-up events
+      are defined. The USB wake event interrupts are handled by the Tegra PMC;
+      hence, the interrupt controller for these is the PMC and the interrupt
+      IDs correspond to the PMC wake event IDs. A complete list of wake event
+      IDs is provided below, and this information is also present in the Tegra
+      TRM document.
+
+        PMC wake-up 76 for USB3 port 0 wakeup
+        PMC wake-up 77 for USB3 port 1 wakeup
+        PMC wake-up 78 for USB3 port 2 and port 3 wakeup
+        PMC wake-up 79 for USB2 port 0 wakeup
+        PMC wake-up 80 for USB2 port 1 wakeup
+        PMC wake-up 81 for USB2 port 2 wakeup
+        PMC wake-up 82 for USB2 port 3 wakeup
 
   clocks:
     items:
@@ -127,8 +153,9 @@ examples:
               <0x03650000 0x10000>;
         reg-names = "hcd", "fpci", "bar2";
 
-        interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
-                     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+        interrupts-extended = <&gic GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+                              <&gic GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+                              <&pmc 76 IRQ_TYPE_LEVEL_HIGH>;
 
         clocks = <&bpmp TEGRA234_CLK_XUSB_CORE_HOST>,
                  <&bpmp TEGRA234_CLK_XUSB_FALCON>,
