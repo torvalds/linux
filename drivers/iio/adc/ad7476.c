@@ -31,6 +31,7 @@ struct ad7476_chip_info {
 	unsigned int			int_vref_mv;
 	struct iio_chan_spec		channel[2];
 	void (*reset)(struct ad7476_state *);
+	void (*conversion_pre_op)(struct ad7476_state *st);
 	bool				has_vref;
 	bool				has_vdrive;
 };
@@ -70,7 +71,8 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	struct ad7476_state *st = iio_priv(indio_dev);
 	int b_sent;
 
-	ad7091_convst(st);
+	if (st->chip_info->conversion_pre_op)
+		st->chip_info->conversion_pre_op(st);
 
 	b_sent = spi_sync(st->spi, &st->msg);
 	if (b_sent < 0)
@@ -94,7 +96,8 @@ static int ad7476_scan_direct(struct ad7476_state *st)
 {
 	int ret;
 
-	ad7091_convst(st);
+	if (st->chip_info->conversion_pre_op)
+		st->chip_info->conversion_pre_op(st);
 
 	ret = spi_sync(st->spi, &st->msg);
 	if (ret)
@@ -160,12 +163,14 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 static const struct ad7476_chip_info ad7091_chip_info = {
 	.channel[0] = AD7091R_CHAN(12),
 	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.conversion_pre_op = ad7091_convst,
 	.reset = ad7091_reset,
 };
 
 static const struct ad7476_chip_info ad7091r_chip_info = {
 	.channel[0] = AD7091R_CHAN(12),
 	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	.conversion_pre_op = ad7091_convst,
 	.int_vref_mv = 2500,
 	.has_vref = true,
 	.reset = ad7091_reset,
