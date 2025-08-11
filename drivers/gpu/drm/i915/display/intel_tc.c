@@ -395,12 +395,16 @@ static void read_pin_configuration(struct intel_tc_port *tc)
 
 int intel_tc_port_max_lane_count(struct intel_digital_port *dig_port)
 {
+	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
 
 	if (!intel_encoder_is_tc(&dig_port->base))
 		return 4;
 
-	return get_max_lane_count(tc);
+	if (DISPLAY_VER(display) < 20)
+		return get_max_lane_count(tc);
+
+	return tc->max_lane_count;
 }
 
 void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
