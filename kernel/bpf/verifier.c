@@ -19553,7 +19553,7 @@ hit:
 				err = err ?: add_scc_backedge(env, &sl->state, backedge);
 				if (err) {
 					free_verifier_state(&backedge->state, false);
-					kvfree(backedge);
+					kfree(backedge);
 					return err;
 				}
 			}
