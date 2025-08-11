@@ -77,6 +77,21 @@ struct smbdirect_socket {
 			struct kmem_cache	*cache;
 			mempool_t		*pool;
 		} mem;
+
+		/*
+		 * The state about posted/pending sends
+		 */
+		struct {
+			atomic_t count;
+			/*
+			 * woken when count is decremented
+			 */
+			wait_queue_head_t dec_wait_queue;
+			/*
+			 * woken when count reached zero
+			 */
+			wait_queue_head_t zero_wait_queue;
+		} pending;
 	} send_io;
 
 	/*
@@ -147,6 +162,10 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	memset(sc, 0, sizeof(*sc));
 
 	init_waitqueue_head(&sc->status_wait);
+
+	atomic_set(&sc->send_io.pending.count, 0);
+	init_waitqueue_head(&sc->send_io.pending.dec_wait_queue);
+	init_waitqueue_head(&sc->send_io.pending.zero_wait_queue);
 
 	INIT_LIST_HEAD(&sc->recv_io.free.list);
 	spin_lock_init(&sc->recv_io.free.lock);
