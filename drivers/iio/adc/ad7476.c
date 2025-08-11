@@ -6,6 +6,7 @@
  * Copyright 2010 Analog Devices Inc.
  */
 
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -29,8 +30,6 @@ struct ad7476_state;
 struct ad7476_chip_info {
 	unsigned int			int_vref_mv;
 	struct iio_chan_spec		channel[2];
-	/* channels used when convst gpio is defined */
-	struct iio_chan_spec		convst_channel[2];
 	void (*reset)(struct ad7476_state *);
 	bool				has_vref;
 	bool				has_vdrive;
@@ -42,6 +41,7 @@ struct ad7476_state {
 	struct gpio_desc		*convst_gpio;
 	struct spi_transfer		xfer;
 	struct spi_message		msg;
+	struct iio_chan_spec		channel[2];
 	int				scale_mv;
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
@@ -154,24 +154,18 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 #define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 #define AD7091R_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), 0)
-#define AD7091R_CONVST_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), \
-		BIT(IIO_CHAN_INFO_RAW))
 #define ADS786X_CHAN(bits) _AD7476_CHAN((bits), 12 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 
 static const struct ad7476_chip_info ad7091_chip_info = {
 	.channel[0] = AD7091R_CHAN(12),
 	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	.convst_channel[0] = AD7091R_CONVST_CHAN(12),
-	.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	.reset = ad7091_reset,
 };
 
 static const struct ad7476_chip_info ad7091r_chip_info = {
 	.channel[0] = AD7091R_CHAN(12),
 	.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	.convst_channel[0] = AD7091R_CONVST_CHAN(12),
-	.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	.int_vref_mv = 2500,
 	.has_vref = true,
 	.reset = ad7091_reset,
@@ -282,6 +276,7 @@ static int ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
+	unsigned int i;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -332,16 +327,28 @@ static int ad7476_probe(struct spi_device *spi)
 	if (IS_ERR(st->convst_gpio))
 		return PTR_ERR(st->convst_gpio);
 
+	/*
+	 * This will never happen. Unless someone changes the channel specs
+	 * in this driver. And if someone does, without changing the loop
+	 * below, then we'd better immediately produce a big fat error, before
+	 * the change proceeds from that developer's table.
+	 */
+	static_assert(ARRAY_SIZE(st->channel) == ARRAY_SIZE(st->chip_info->channel));
+	for (i = 0; i < ARRAY_SIZE(st->channel); i++) {
+		st->channel[i] = st->chip_info->channel[i];
+		if (st->convst_gpio)
+			__set_bit(IIO_CHAN_INFO_RAW,
+				  &st->channel[i].info_mask_separate);
+	}
+
 	st->spi = spi;
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = st->chip_info->channel;
-	indio_dev->num_channels = 2;
+	indio_dev->channels = st->channel;
+	indio_dev->num_channels = ARRAY_SIZE(st->channel);
 	indio_dev->info = &ad7476_info;
 
-	if (st->convst_gpio)
-		indio_dev->channels = st->chip_info->convst_channel;
 	/* Setup default message */
 
 	st->xfer.rx_buf = &st->data;
