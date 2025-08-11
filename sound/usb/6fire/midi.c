@@ -23,9 +23,8 @@ static void usb6fire_midi_out_handler(struct urb *urb)
 {
 	struct midi_runtime *rt = urb->context;
 	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rt->out_lock, flags);
+	guard(spinlock_irqsave)(&rt->out_lock);
 
 	if (rt->out) {
 		ret = snd_rawmidi_transmit(rt->out, rt->out_buffer + 4,
@@ -43,18 +42,14 @@ static void usb6fire_midi_out_handler(struct urb *urb)
 		} else /* no more data to transmit */
 			rt->out = NULL;
 	}
-	spin_unlock_irqrestore(&rt->out_lock, flags);
 }
 
 static void usb6fire_midi_in_received(
 		struct midi_runtime *rt, u8 *data, int length)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&rt->in_lock, flags);
+	guard(spinlock_irqsave)(&rt->in_lock);
 	if (rt->in)
 		snd_rawmidi_receive(rt->in, data, length);
-	spin_unlock_irqrestore(&rt->in_lock, flags);
 }
 
 static int usb6fire_midi_out_open(struct snd_rawmidi_substream *alsa_sub)
@@ -73,14 +68,11 @@ static void usb6fire_midi_out_trigger(
 	struct midi_runtime *rt = alsa_sub->rmidi->private_data;
 	struct urb *urb = &rt->out_urb;
 	__s8 ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rt->out_lock, flags);
+	guard(spinlock_irqsave)(&rt->out_lock);
 	if (up) { /* start transfer */
-		if (rt->out) { /* we are already transmitting so just return */
-			spin_unlock_irqrestore(&rt->out_lock, flags);
+		if (rt->out) /* we are already transmitting so just return */
 			return;
-		}
 
 		ret = snd_rawmidi_transmit(alsa_sub, rt->out_buffer + 4,
 				MIDI_BUFSIZE - 4);
@@ -99,7 +91,6 @@ static void usb6fire_midi_out_trigger(
 		}
 	} else if (rt->out == alsa_sub)
 		rt->out = NULL;
-	spin_unlock_irqrestore(&rt->out_lock, flags);
 }
 
 static void usb6fire_midi_out_drain(struct snd_rawmidi_substream *alsa_sub)
@@ -125,14 +116,12 @@ static void usb6fire_midi_in_trigger(
 		struct snd_rawmidi_substream *alsa_sub, int up)
 {
 	struct midi_runtime *rt = alsa_sub->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rt->in_lock, flags);
+	guard(spinlock_irqsave)(&rt->in_lock);
 	if (up)
 		rt->in = alsa_sub;
 	else
 		rt->in = NULL;
-	spin_unlock_irqrestore(&rt->in_lock, flags);
 }
 
 static const struct snd_rawmidi_ops out_ops = {
