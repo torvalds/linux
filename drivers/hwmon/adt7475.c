@@ -1704,12 +1704,15 @@ static int adt7475_pwm_properties_parse_reference_args(struct fwnode_handle *fwn
 	if (ret)
 		return ret;
 
-	if (rargs.nargs != 4) {
+	if (rargs.nargs != 3 && rargs.nargs != 4) {
 		fwnode_handle_put(rargs.fwnode);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < 4; i++)
+	/* Let duty_cycle default to period */
+	args[3] = rargs.args[1];
+
+	for (i = 0; i < rargs.nargs; i++)
 		args[i] = rargs.args[i];
 
 	ret = _adt7475_pwm_properties_parse_args(args, cfg);
@@ -1724,10 +1727,21 @@ static int adt7475_pwm_properties_parse_args(struct fwnode_handle *fwnode,
 {
 	int ret;
 	u32 args[4] = {};
+	size_t n_vals = fwnode_property_count_u32(fwnode, "pwms");
 
-	ret = fwnode_property_read_u32_array(fwnode, "pwms", args, ARRAY_SIZE(args));
+	if (n_vals != 3 && n_vals != 4)
+		return -EOVERFLOW;
+
+	ret = fwnode_property_read_u32_array(fwnode, "pwms", args, n_vals);
 	if (ret)
 		return ret;
+
+	/*
+	 * If there are no item to define the duty_cycle, default it to the
+	 * period.
+	 */
+	if (n_vals == 3)
+		args[3] = args[1];
 
 	return _adt7475_pwm_properties_parse_args(args, cfg);
 }

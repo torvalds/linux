@@ -434,7 +434,7 @@ xfs_init_open_zone(
 	spin_lock_init(&oz->oz_alloc_lock);
 	atomic_set(&oz->oz_ref, 1);
 	oz->oz_rtg = rtg;
-	oz->oz_write_pointer = write_pointer;
+	oz->oz_allocated = write_pointer;
 	oz->oz_written = write_pointer;
 	oz->oz_write_hint = write_hint;
 	oz->oz_is_gc = is_gc;
@@ -569,7 +569,7 @@ xfs_try_use_zone(
 	struct xfs_open_zone	*oz,
 	bool			lowspace)
 {
-	if (oz->oz_write_pointer == rtg_blocks(oz->oz_rtg))
+	if (oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return false;
 	if (!lowspace && !xfs_good_hint_match(oz, file_hint))
 		return false;
@@ -654,13 +654,6 @@ static inline bool xfs_zoned_pack_tight(struct xfs_inode *ip)
 		!(ip->i_diflags & XFS_DIFLAG_APPEND);
 }
 
-/*
- * Pick a new zone for writes.
- *
- * If we aren't using up our budget of open zones just open a new one from the
- * freelist.  Else try to find one that matches the expected data lifetime.  If
- * we don't find one that is good pick any zone that is available.
- */
 static struct xfs_open_zone *
 xfs_select_zone_nowait(
 	struct xfs_mount	*mp,
@@ -688,7 +681,8 @@ xfs_select_zone_nowait(
 		goto out_unlock;
 
 	/*
-	 * See if we can open a new zone and use that.
+	 * See if we can open a new zone and use that so that data for different
+	 * files is mixed as little as possible.
 	 */
 	oz = xfs_try_open_zone(mp, write_hint);
 	if (oz)
@@ -744,25 +738,25 @@ xfs_zone_alloc_blocks(
 {
 	struct xfs_rtgroup	*rtg = oz->oz_rtg;
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	xfs_rgblock_t		rgbno;
+	xfs_rgblock_t		allocated;
 
 	spin_lock(&oz->oz_alloc_lock);
 	count_fsb = min3(count_fsb, XFS_MAX_BMBT_EXTLEN,
-		(xfs_filblks_t)rtg_blocks(rtg) - oz->oz_write_pointer);
+		(xfs_filblks_t)rtg_blocks(rtg) - oz->oz_allocated);
 	if (!count_fsb) {
 		spin_unlock(&oz->oz_alloc_lock);
 		return 0;
 	}
-	rgbno = oz->oz_write_pointer;
-	oz->oz_write_pointer += count_fsb;
+	allocated = oz->oz_allocated;
+	oz->oz_allocated += count_fsb;
 	spin_unlock(&oz->oz_alloc_lock);
 
-	trace_xfs_zone_alloc_blocks(oz, rgbno, count_fsb);
+	trace_xfs_zone_alloc_blocks(oz, allocated, count_fsb);
 
 	*sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
 	*is_seq = bdev_zone_is_seq(mp->m_rtdev_targp->bt_bdev, *sector);
 	if (!*is_seq)
-		*sector += XFS_FSB_TO_BB(mp, rgbno);
+		*sector += XFS_FSB_TO_BB(mp, allocated);
 	return XFS_FSB_TO_B(mp, count_fsb);
 }
 
@@ -983,7 +977,7 @@ xfs_zone_rgbno_is_valid(
 	lockdep_assert_held(&rtg_rmap(rtg)->i_lock);
 
 	if (rtg->rtg_open_zone)
-		return rgbno < rtg->rtg_open_zone->oz_write_pointer;
+		return rgbno < rtg->rtg_open_zone->oz_allocated;
 	return !xa_get_mark(&rtg_mount(rtg)->m_groups[XG_TYPE_RTG].xa,
 			rtg_rgno(rtg), XFS_RTG_FREE);
 }
@@ -1017,7 +1011,7 @@ xfs_init_zone(
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_zone_info	*zi = mp->m_zone_info;
-	uint64_t		used = rtg_rmap(rtg)->i_used_blocks;
+	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
 	xfs_rgblock_t		write_pointer, highest_rgbno;
 	int			error;
 
@@ -1114,24 +1108,27 @@ xfs_get_zone_info_cb(
 }
 
 /*
- * Calculate the max open zone limit based on the of number of
- * backing zones available
+ * Calculate the max open zone limit based on the of number of backing zones
+ * available.
  */
 static inline uint32_t
 xfs_max_open_zones(
 	struct xfs_mount	*mp)
 {
 	unsigned int		max_open, max_open_data_zones;
+
 	/*
-	 * We need two zones for every open data zone,
-	 * one in reserve as we don't reclaim open zones. One data zone
-	 * and its spare is included in XFS_MIN_ZONES.
+	 * We need two zones for every open data zone, one in reserve as we
+	 * don't reclaim open zones.  One data zone and its spare is included
+	 * in XFS_MIN_ZONES to support at least one user data writer.
 	 */
 	max_open_data_zones = (mp->m_sb.sb_rgcount - XFS_MIN_ZONES) / 2 + 1;
 	max_open = max_open_data_zones + XFS_OPEN_GC_ZONES;
 
 	/*
-	 * Cap the max open limit to 1/4 of available space
+	 * Cap the max open limit to 1/4 of available space.  Without this we'd
+	 * run out of easy reclaim targets too quickly and storage devices don't
+	 * handle huge numbers of concurrent write streams overly well.
 	 */
 	max_open = min(max_open, mp->m_sb.sb_rgcount / 4);
 

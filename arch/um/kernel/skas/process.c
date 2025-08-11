@@ -26,8 +26,6 @@ static int __init start_kernel_proc(void *unused)
 	return 0;
 }
 
-extern int userspace_pid[];
-
 static char cpu0_irqstack[THREAD_SIZE] __aligned(THREAD_SIZE);
 
 int __init start_uml(void)

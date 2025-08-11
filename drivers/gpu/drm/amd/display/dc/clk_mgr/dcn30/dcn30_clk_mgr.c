@@ -30,6 +30,7 @@
 #include "dce100/dce_clk_mgr.h"
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dml/dcn30/dcn30_fpu.h"
+#include "dcn30/dcn30m_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
@@ -498,7 +499,8 @@ static struct clk_mgr_funcs dcn3_funcs = {
 		.are_clock_states_equal = dcn3_are_clock_states_equal,
 		.enable_pme_wa = dcn3_enable_pme_wa,
 		.notify_link_rate_change = dcn30_notify_link_rate_change,
-		.is_smu_present = dcn3_is_smu_present
+		.is_smu_present = dcn3_is_smu_present,
+		.set_smartmux_switch = dcn30m_set_smartmux_switch
 };
 
 static void dcn3_init_clocks_fpga(struct clk_mgr *clk_mgr)

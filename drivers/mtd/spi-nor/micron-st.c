@@ -189,7 +189,7 @@ static int mt25qu512a_post_bfpt_fixup(struct spi_nor *nor,
 	return 0;
 }
 
-static struct spi_nor_fixups mt25qu512a_fixups = {
+static const struct spi_nor_fixups mt25qu512a_fixups = {
 	.post_bfpt = mt25qu512a_post_bfpt_fixup,
 };
 
@@ -225,15 +225,15 @@ static int st_nor_two_die_late_init(struct spi_nor *nor)
 	return spi_nor_set_4byte_addr_mode(nor, true);
 }
 
-static struct spi_nor_fixups n25q00_fixups = {
+static const struct spi_nor_fixups n25q00_fixups = {
 	.late_init = st_nor_four_die_late_init,
 };
 
-static struct spi_nor_fixups mt25q01_fixups = {
+static const struct spi_nor_fixups mt25q01_fixups = {
 	.late_init = st_nor_two_die_late_init,
 };
 
-static struct spi_nor_fixups mt25q02_fixups = {
+static const struct spi_nor_fixups mt25q02_fixups = {
 	.late_init = st_nor_four_die_late_init,
 };
 

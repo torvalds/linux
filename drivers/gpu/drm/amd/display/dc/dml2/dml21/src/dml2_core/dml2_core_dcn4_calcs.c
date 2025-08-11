@@ -4861,7 +4861,7 @@ static double get_urgent_bandwidth_required(
 	double ReadBandwidthChroma[],
 	double PrefetchBandwidthLuma[],
 	double PrefetchBandwidthChroma[],
-	double PrefetchBandwidthOto[],
+	double PrefetchBandwidthMax[],
 	double excess_vactive_fill_bw_l[],
 	double excess_vactive_fill_bw_c[],
 	double cursor_bw[],
@@ -4925,9 +4925,9 @@ static double get_urgent_bandwidth_required(
 			l->vm_row_bw = NumberOfDPP[k] * prefetch_vmrow_bw[k];
 			l->flip_and_active_bw = l->per_plane_flip_bw[k] + ReadBandwidthLuma[k] * l->adj_factor_p0 + ReadBandwidthChroma[k] * l->adj_factor_p1 + cursor_bw[k] * l->adj_factor_cur;
 			l->flip_and_prefetch_bw = l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre;
-			l->flip_and_prefetch_bw_oto = l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthOto[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre;
+			l->flip_and_prefetch_bw_max = l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthMax[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre;
 			l->active_and_excess_bw = (ReadBandwidthLuma[k] + excess_vactive_fill_bw_l[k]) * l->tmp_nom_adj_factor_p0 + (ReadBandwidthChroma[k] + excess_vactive_fill_bw_c[k]) * l->tmp_nom_adj_factor_p1 + dpte_row_bw[k] + meta_row_bw[k];
-			surface_required_bw[k] = math_max5(l->vm_row_bw, l->flip_and_active_bw, l->flip_and_prefetch_bw, l->active_and_excess_bw, l->flip_and_prefetch_bw_oto);
+			surface_required_bw[k] = math_max5(l->vm_row_bw, l->flip_and_active_bw, l->flip_and_prefetch_bw, l->active_and_excess_bw, l->flip_and_prefetch_bw_max);
 
 			/* export peak required bandwidth for the surface */
 			surface_peak_required_bw[k] = math_max2(surface_required_bw[k], surface_peak_required_bw[k]);
@@ -5125,7 +5125,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->Tsw_est3 = 0.0;
 	s->cursor_prefetch_bytes = 0;
 	*p->prefetch_cursor_bw = 0;
-	*p->RequiredPrefetchBWOTO = 0.0;
+	*p->RequiredPrefetchBWMax = 0.0;
 
 	dcc_mrq_enable = (p->dcc_enable && p->mrq_present);
 
@@ -5356,7 +5356,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	 * mp will fail if ms decides to use equ schedule and mp decides to use oto schedule
 	 * and the required bandwidth increases when going from ms to mp
 	 */
-	*p->RequiredPrefetchBWOTO = s->prefetch_bw_oto;
+	*p->RequiredPrefetchBWMax = s->prefetch_bw_oto;
 
 #ifdef __DML_VBA_DEBUG__
 	DML_LOG_VERBOSE("DML::%s: vactive_sw_bw_l = %f\n", __func__, p->vactive_sw_bw_l);
@@ -5718,8 +5718,14 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 			s->TimeForFetchingVM = s->Tvm_equ;
 			s->TimeForFetchingRowInVBlank = s->Tr0_equ;
 
-		*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
-		*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
+			*p->dst_y_per_vm_vblank = math_ceil2(4.0 * s->TimeForFetchingVM / s->LineTime, 1.0) / 4.0;
+			*p->dst_y_per_row_vblank = math_ceil2(4.0 * s->TimeForFetchingRowInVBlank / s->LineTime, 1.0) / 4.0;
+
+			/* equ bw should be propagated so a ceiling of the equ bw is accounted for prior to mode programming.
+			 * Overall bandwidth may be lower when going from mode support to mode programming but final pixel data
+			 * bandwidth may end up higher than what was calculated in mode support.
+			 */
+			*p->RequiredPrefetchBWMax = math_max2(s->prefetch_bw_equ, *p->RequiredPrefetchBWMax);
 
 #ifdef __DML_VBA_DEBUG__
 			DML_LOG_VERBOSE("DML::%s: Using equ bw scheduling for prefetch\n", __func__);
@@ -6115,7 +6121,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				l->zero_array, //PrefetchBandwidthLuma,
 				l->zero_array, //PrefetchBandwidthChroma,
-				l->zero_array, //PrefetchBWOTO
+				l->zero_array, //PrefetchBWMax
 				l->zero_array,
 				l->zero_array,
 				l->zero_array,
@@ -6152,7 +6158,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				l->zero_array, //PrefetchBandwidthLuma,
 				l->zero_array, //PrefetchBandwidthChroma,
-				l->zero_array, //PrefetchBWOTO
+				l->zero_array, //PrefetchBWMax
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6189,7 +6195,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				p->prefetch_bandwidth_l,
 				p->prefetch_bandwidth_c,
-				p->prefetch_bandwidth_oto, // to prevent ms/mp mismatch when oto bw > total vactive bw
+				p->prefetch_bandwidth_max, // to prevent ms/mp mismatches where mp prefetch bw > ms prefetch bw
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6226,7 +6232,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				p->prefetch_bandwidth_l,
 				p->prefetch_bandwidth_c,
-				p->prefetch_bandwidth_oto, // to prevent ms/mp mismatch when oto bw > total vactive bw
+				p->prefetch_bandwidth_max, // to prevent ms/mp mismatch where mp prefetch bw > ms prefetch bw
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6263,7 +6269,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				p->prefetch_bandwidth_l,
 				p->prefetch_bandwidth_c,
-				p->prefetch_bandwidth_oto, // to prevent ms/mp mismatch when oto bw > total vactive bw
+				p->prefetch_bandwidth_max, // to prevent ms/mp mismatches where mp prefetch bw > ms prefetch bw
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -7490,7 +7496,7 @@ static noinline_for_stack void dml_core_ms_prefetch_check(struct dml2_core_inter
 			CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->ms.VRatioPreC[k];
 			CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWLuma = &mode_lib->ms.RequiredPrefetchPixelDataBWLuma[k]; // prefetch_sw_bw_l
 			CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWChroma = &mode_lib->ms.RequiredPrefetchPixelDataBWChroma[k]; // prefetch_sw_bw_c
-			CalculatePrefetchSchedule_params->RequiredPrefetchBWOTO = &mode_lib->ms.RequiredPrefetchBWOTO[k];
+			CalculatePrefetchSchedule_params->RequiredPrefetchBWMax = &mode_lib->ms.RequiredPrefetchBWMax[k];
 			CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->ms.NoTimeForDynamicMetadata[k];
 			CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
 			CalculatePrefetchSchedule_params->Tno_bw_flip = &mode_lib->ms.Tno_bw_flip[k];
@@ -7635,7 +7641,7 @@ static noinline_for_stack void dml_core_ms_prefetch_check(struct dml2_core_inter
 			calculate_peak_bandwidth_params->surface_read_bandwidth_c = mode_lib->ms.vactive_sw_bw_c;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_l = mode_lib->ms.RequiredPrefetchPixelDataBWLuma;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_c = mode_lib->ms.RequiredPrefetchPixelDataBWChroma;
-			calculate_peak_bandwidth_params->prefetch_bandwidth_oto = mode_lib->ms.RequiredPrefetchBWOTO;
+			calculate_peak_bandwidth_params->prefetch_bandwidth_max = mode_lib->ms.RequiredPrefetchBWMax;
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_l = mode_lib->ms.excess_vactive_fill_bw_l;
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_c = mode_lib->ms.excess_vactive_fill_bw_c;
 			calculate_peak_bandwidth_params->cursor_bw = mode_lib->ms.cursor_bw;
@@ -7802,7 +7808,7 @@ static noinline_for_stack void dml_core_ms_prefetch_check(struct dml2_core_inter
 		calculate_peak_bandwidth_params->surface_read_bandwidth_c = mode_lib->ms.vactive_sw_bw_c;
 		calculate_peak_bandwidth_params->prefetch_bandwidth_l = mode_lib->ms.RequiredPrefetchPixelDataBWLuma;
 		calculate_peak_bandwidth_params->prefetch_bandwidth_c = mode_lib->ms.RequiredPrefetchPixelDataBWChroma;
-		calculate_peak_bandwidth_params->prefetch_bandwidth_oto = mode_lib->ms.RequiredPrefetchBWOTO;
+		calculate_peak_bandwidth_params->prefetch_bandwidth_max = mode_lib->ms.RequiredPrefetchBWMax;
 		calculate_peak_bandwidth_params->excess_vactive_fill_bw_l = mode_lib->ms.excess_vactive_fill_bw_l;
 		calculate_peak_bandwidth_params->excess_vactive_fill_bw_c = mode_lib->ms.excess_vactive_fill_bw_c;
 		calculate_peak_bandwidth_params->cursor_bw = mode_lib->ms.cursor_bw;
@@ -7907,6 +7913,7 @@ static noinline_for_stack void dml_core_ms_prefetch_check(struct dml2_core_inter
 	DML_LOG_VERBOSE("DML::%s: Done prefetch calculation\n", __func__);
 
 }
+
 
 static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out_params)
 {
@@ -11256,7 +11263,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->mp.VRatioPrefetchC[k];
 			CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWLuma = &mode_lib->mp.RequiredPrefetchPixelDataBWLuma[k];
 			CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWChroma = &mode_lib->mp.RequiredPrefetchPixelDataBWChroma[k];
-			CalculatePrefetchSchedule_params->RequiredPrefetchBWOTO = &s->dummy_single_array[0][k];
+			CalculatePrefetchSchedule_params->RequiredPrefetchBWMax = &s->dummy_single_array[0][k];
 			CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->mp.NotEnoughTimeForDynamicMetadata[k];
 			CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->mp.Tno_bw[k];
 			CalculatePrefetchSchedule_params->Tno_bw_flip = &mode_lib->mp.Tno_bw_flip[k];
@@ -11399,7 +11406,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			calculate_peak_bandwidth_params->surface_read_bandwidth_c = mode_lib->mp.vactive_sw_bw_c;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_l = mode_lib->mp.RequiredPrefetchPixelDataBWLuma;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_c = mode_lib->mp.RequiredPrefetchPixelDataBWChroma;
-			calculate_peak_bandwidth_params->prefetch_bandwidth_oto = s->dummy_single_array[0];
+			calculate_peak_bandwidth_params->prefetch_bandwidth_max = s->dummy_single_array[0];
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_l = mode_lib->mp.excess_vactive_fill_bw_l;
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_c = mode_lib->mp.excess_vactive_fill_bw_c;
 			calculate_peak_bandwidth_params->cursor_bw = mode_lib->mp.cursor_bw;
@@ -11539,7 +11546,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			calculate_peak_bandwidth_params->meta_row_bw = mode_lib->mp.meta_row_bw;
 			calculate_peak_bandwidth_params->prefetch_cursor_bw = mode_lib->mp.prefetch_cursor_bw;
 			calculate_peak_bandwidth_params->prefetch_vmrow_bw = mode_lib->mp.prefetch_vmrow_bw;
-			calculate_peak_bandwidth_params->prefetch_bandwidth_oto = s->dummy_single_array[0];
+			calculate_peak_bandwidth_params->prefetch_bandwidth_max = s->dummy_single_array[0];
 			calculate_peak_bandwidth_params->flip_bw = mode_lib->mp.final_flip_bw;
 			calculate_peak_bandwidth_params->urgent_burst_factor_l = mode_lib->mp.UrgentBurstFactorLuma;
 			calculate_peak_bandwidth_params->urgent_burst_factor_c = mode_lib->mp.UrgentBurstFactorChroma;
@@ -11883,7 +11890,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		}
 
 		//Maximum Bandwidth Used
-		s->TotalWRBandwidth = 0;
+		mode_lib->mp.TotalWRBandwidth = 0;
 		for (k = 0; k < display_cfg->num_streams; ++k) {
 			s->WRBandwidth = 0;
 			if (display_cfg->stream_descriptors[k].writeback.active_writebacks_per_stream > 0) {
@@ -11892,7 +11899,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 					(display_cfg->stream_descriptors[k].timing.h_total * display_cfg->stream_descriptors[k].writeback.writeback_stream[0].input_height
 						/ ((double)display_cfg->stream_descriptors[k].timing.pixel_clock_khz / 1000))
 					* (display_cfg->stream_descriptors[k].writeback.writeback_stream[0].pixel_format == dml2_444_32 ? 4.0 : 8.0);
-				s->TotalWRBandwidth = s->TotalWRBandwidth + s->WRBandwidth;
+				mode_lib->mp.TotalWRBandwidth = mode_lib->mp.TotalWRBandwidth + s->WRBandwidth;
 			}
 		}
 
@@ -13062,6 +13069,10 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_10x4;
 		else if (mode_lib->ms.support.OutputRate[k] == dml2_core_internal_output_rate_hdmi_rate_12x4)
 			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_12x4;
+		else if (mode_lib->ms.support.OutputRate[k] == dml2_core_internal_output_rate_hdmi_rate_16x4)
+			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_16x4;
+		else if (mode_lib->ms.support.OutputRate[k] == dml2_core_internal_output_rate_hdmi_rate_20x4)
+			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_20x4;
 
 		out->informative.mode_support_info.AlignedYPitch[k] = mode_lib->ms.support.AlignedYPitch[k];
 		out->informative.mode_support_info.AlignedCPitch[k] = mode_lib->ms.support.AlignedCPitch[k];
@@ -13246,7 +13257,7 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 		out->informative.misc.DisplayPipeLineDeliveryTimeLumaPrefetch[k] = mode_lib->mp.DisplayPipeLineDeliveryTimeLumaPrefetch[k];
 		out->informative.misc.DisplayPipeLineDeliveryTimeChromaPrefetch[k] = mode_lib->mp.DisplayPipeLineDeliveryTimeChromaPrefetch[k];
 
-		out->informative.misc.WritebackRequiredBandwidth = mode_lib->scratch.dml_core_mode_programming_locals.TotalWRBandwidth / 1000.0;
+		out->informative.misc.WritebackRequiredBandwidth = mode_lib->mp.TotalWRBandwidth / 1000.0;
 		out->informative.misc.WritebackAllowDRAMClockChangeEndPosition[k] = mode_lib->mp.WritebackAllowDRAMClockChangeEndPosition[k];
 		out->informative.misc.WritebackAllowFCLKChangeEndPosition[k] = mode_lib->mp.WritebackAllowFCLKChangeEndPosition[k];
 		out->informative.misc.DSCCLK_calculated[k] = mode_lib->mp.DSCCLK[k];

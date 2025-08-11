@@ -81,7 +81,7 @@
     },
     {
         "ArchStdEvent": "CSDB_SPEC",
-        "BriefDescription": "This event counts speculatively executed control speculation barrier instructions."
+        "BriefDescription": "This event counts architecturally executed control speculation barrier instructions."
     },
     {
         "EventCode": "0x0108",
@@ -91,17 +91,17 @@
     {
         "EventCode": "0x0109",
         "EventName": "IEL_SPEC",
-        "BriefDescription": "This event counts architecturally executed inter-element manipulation operations."
+        "BriefDescription": "This event counts architecturally executed inter-element manipulation operation."
     },
     {
         "EventCode": "0x010A",
         "EventName": "IREG_SPEC",
-        "BriefDescription": "This event counts architecturally executed inter-register manipulation operations."
+        "BriefDescription": "This event counts architecturally executed inter-register manipulation operation."
     },
     {
         "EventCode": "0x011A",
         "EventName": "BC_LD_SPEC",
-        "BriefDescription": "This event counts architecturally executed SIMD broadcast floating-point load operations."
+        "BriefDescription": "This event counts architecturally executed SIMD broadcast floating-point load operation."
     },
     {
         "EventCode": "0x011B",
@@ -130,7 +130,7 @@
     },
     {
         "ArchStdEvent": "ASE_INST_SPEC",
-        "BriefDescription": "This event counts architecturally executed Advanced SIMD operations."
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD operation."
     },
     {
         "ArchStdEvent": "INT_SPEC",
@@ -158,7 +158,7 @@
     },
     {
         "ArchStdEvent": "NONFP_SPEC",
-        "BriefDescription": "This event counts architecturally executed non-floating-point operations."
+        "BriefDescription": "This event counts architecturally executed non-floating-point operation."
     },
     {
         "ArchStdEvent": "INT_SCALE_OPS_SPEC",

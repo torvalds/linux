@@ -345,6 +345,11 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 
 	if (fw_ver >= 0x00562500)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
+
+	if (fw_ver >= 0x04560100) {
+		smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
+		smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
+	}
 }
 
 static void smu_v13_0_6_init_caps(struct smu_context *smu)
@@ -685,8 +690,8 @@ static int smu_v13_0_6_get_allowed_feature_mask(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v13_0_6_get_metrics_table(struct smu_context *smu,
-					 void *metrics_table, bool bypass_cache)
+int smu_v13_0_6_get_metrics_table(struct smu_context *smu, void *metrics_table,
+				  bool bypass_cache)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
@@ -800,6 +805,8 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	int version = smu_v13_0_6_get_metrics_version(smu);
 	int ret, i, retry = 100;
 	uint32_t table_version;
+	uint16_t max_speed;
+	uint8_t max_width;
 
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12) &&
 	    smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS)))
@@ -835,6 +842,9 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 			SMUQ10_ROUND(GET_METRIC_FIELD(MaxGfxclkFrequency, version));
 		pptable->MinGfxclkFrequency =
 			SMUQ10_ROUND(GET_METRIC_FIELD(MinGfxclkFrequency, version));
+		max_width = (uint8_t)GET_METRIC_FIELD(XgmiWidth, version);
+		max_speed = (uint16_t)GET_METRIC_FIELD(XgmiBitrate, version);
+		amgpu_xgmi_set_max_speed_width(smu->adev, max_speed, max_width);
 
 		for (i = 0; i < 4; ++i) {
 			pptable->FclkFrequencyTable[i] =
@@ -871,51 +881,51 @@ static int smu_v13_0_6_get_dpm_ultimate_freq(struct smu_context *smu,
 					     enum smu_clk_type clk_type,
 					     uint32_t *min, uint32_t *max)
 {
+	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
-	uint32_t clock_limit = 0, param;
+	struct smu_13_0_dpm_table *dpm_table;
+	uint32_t min_clk, max_clk, param;
 	int ret = 0, clk_id = 0;
 
-	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type)) {
+	/* Use dpm tables, if data is already fetched */
+	if (pptable->Init) {
 		switch (clk_type) {
 		case SMU_MCLK:
 		case SMU_UCLK:
-			if (pptable->Init)
-				clock_limit = pptable->UclkFrequencyTable[0];
+			dpm_table = &dpm_context->dpm_tables.uclk_table;
 			break;
 		case SMU_GFXCLK:
 		case SMU_SCLK:
-			if (pptable->Init)
-				clock_limit = pptable->MinGfxclkFrequency;
+			dpm_table = &dpm_context->dpm_tables.gfx_table;
 			break;
 		case SMU_SOCCLK:
-			if (pptable->Init)
-				clock_limit = pptable->SocclkFrequencyTable[0];
+			dpm_table = &dpm_context->dpm_tables.soc_table;
 			break;
 		case SMU_FCLK:
-			if (pptable->Init)
-				clock_limit = pptable->FclkFrequencyTable[0];
+			dpm_table = &dpm_context->dpm_tables.fclk_table;
 			break;
 		case SMU_VCLK:
-			if (pptable->Init)
-				clock_limit = pptable->VclkFrequencyTable[0];
+			dpm_table = &dpm_context->dpm_tables.vclk_table;
 			break;
 		case SMU_DCLK:
-			if (pptable->Init)
-				clock_limit = pptable->DclkFrequencyTable[0];
+			dpm_table = &dpm_context->dpm_tables.dclk_table;
 			break;
 		default:
-			break;
+			return -EINVAL;
 		}
 
+		min_clk = dpm_table->min;
+		max_clk = dpm_table->max;
+
 		if (min)
-			*min = clock_limit;
-
+			*min = min_clk;
 		if (max)
-			*max = clock_limit;
+			*max = max_clk;
 
-		return 0;
+		if (min_clk && max_clk)
+			return 0;
 	}
 
 	if (!(clk_type == SMU_GFXCLK || clk_type == SMU_SCLK)) {
@@ -1377,8 +1387,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		min_clk = pstate_table->gfxclk_pstate.curr.min;
-		max_clk = pstate_table->gfxclk_pstate.curr.max;
+		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
+		min_clk = single_dpm_table->min;
+		max_clk = single_dpm_table->max;
 
 		if (now < SMU_13_0_6_DSCLK_THRESHOLD) {
 			size += sysfs_emit_at(buf, size, "S: %uMhz *\n",
@@ -2682,7 +2693,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	bool per_inst;
 
 	metrics_v0 = kzalloc(METRICS_TABLE_SIZE, GFP_KERNEL);
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, true);
+	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, false);
 	if (ret) {
 		kfree(metrics_v0);
 		return ret;

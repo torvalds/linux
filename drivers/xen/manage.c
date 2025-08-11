@@ -52,12 +52,6 @@ void xen_resume_notifier_register(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(xen_resume_notifier_register);
 
-void xen_resume_notifier_unregister(struct notifier_block *nb)
-{
-	raw_notifier_chain_unregister(&xen_resume_notifier, nb);
-}
-EXPORT_SYMBOL_GPL(xen_resume_notifier_unregister);
-
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 static int xen_suspend(void *data)
 {

@@ -16,6 +16,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/moduleparam.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/err.h>

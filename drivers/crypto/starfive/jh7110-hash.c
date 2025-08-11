@@ -493,25 +493,25 @@ static int starfive_hash_setkey(struct crypto_ahash *hash,
 
 static int starfive_sha224_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "sha224-generic",
+	return starfive_hash_init_tfm(hash, "sha224-lib",
 				      STARFIVE_HASH_SHA224, 0);
 }
 
 static int starfive_sha256_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "sha256-generic",
+	return starfive_hash_init_tfm(hash, "sha256-lib",
 				      STARFIVE_HASH_SHA256, 0);
 }
 
 static int starfive_sha384_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "sha384-generic",
+	return starfive_hash_init_tfm(hash, "sha384-lib",
 				      STARFIVE_HASH_SHA384, 0);
 }
 
 static int starfive_sha512_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "sha512-generic",
+	return starfive_hash_init_tfm(hash, "sha512-lib",
 				      STARFIVE_HASH_SHA512, 0);
 }
 
@@ -523,25 +523,25 @@ static int starfive_sm3_init_tfm(struct crypto_ahash *hash)
 
 static int starfive_hmac_sha224_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "hmac(sha224-generic)",
+	return starfive_hash_init_tfm(hash, "hmac-sha224-lib",
 				      STARFIVE_HASH_SHA224, 1);
 }
 
 static int starfive_hmac_sha256_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "hmac(sha256-generic)",
+	return starfive_hash_init_tfm(hash, "hmac-sha256-lib",
 				      STARFIVE_HASH_SHA256, 1);
 }
 
 static int starfive_hmac_sha384_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "hmac(sha384-generic)",
+	return starfive_hash_init_tfm(hash, "hmac-sha384-lib",
 				      STARFIVE_HASH_SHA384, 1);
 }
 
 static int starfive_hmac_sha512_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "hmac(sha512-generic)",
+	return starfive_hash_init_tfm(hash, "hmac-sha512-lib",
 				      STARFIVE_HASH_SHA512, 1);
 }
 

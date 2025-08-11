@@ -5,6 +5,8 @@
 //! The [`Revocable`] type wraps other types and allows access to them to be revoked. The existence
 //! of a [`RevocableGuard`] ensures that objects remain valid.
 
+use pin_init::Wrapper;
+
 use crate::{bindings, prelude::*, sync::rcu, types::Opaque};
 use core::{
     marker::PhantomData,
@@ -80,11 +82,11 @@ unsafe impl<T: Sync + Send> Sync for Revocable<T> {}
 
 impl<T> Revocable<T> {
     /// Creates a new revocable instance of the given data.
-    pub fn new(data: impl PinInit<T>) -> impl PinInit<Self> {
-        pin_init!(Self {
+    pub fn new<E>(data: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        try_pin_init!(Self {
             is_available: AtomicBool::new(true),
             data <- Opaque::pin_init(data),
-        })
+        }? E)
     }
 
     /// Tries to access the revocable wrapped object.
@@ -231,6 +233,10 @@ impl<T> PinnedDrop for Revocable<T> {
 ///
 /// The RCU read-side lock is held while the guard is alive.
 pub struct RevocableGuard<'a, T> {
+    // This can't use the `&'a T` type because references that appear in function arguments must
+    // not become dangling during the execution of the function, which can happen if the
+    // `RevocableGuard` is passed as a function argument and then dropped during execution of the
+    // function.
     data_ref: *const T,
     _rcu_guard: rcu::Guard,
     _p: PhantomData<&'a ()>,

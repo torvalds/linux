@@ -123,7 +123,7 @@ static struct ata_port_operations ns87410_port_ops = {
 	.qc_issue	= ns87410_qc_issue,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ns87410_set_piomode,
-	.prereset	= ns87410_pre_reset,
+	.reset.prereset	= ns87410_pre_reset,
 };
 
 static int ns87410_init_one(struct pci_dev *dev, const struct pci_device_id *id)

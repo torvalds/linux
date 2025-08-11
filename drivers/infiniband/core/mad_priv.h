@@ -95,13 +95,16 @@ struct ib_mad_agent_private {
 
 	spinlock_t lock;
 	struct list_head send_list;
+	unsigned int sol_fc_send_count;
 	struct list_head wait_list;
-	struct list_head done_list;
+	unsigned int sol_fc_wait_count;
 	struct delayed_work timed_work;
 	unsigned long timeout;
 	struct list_head local_list;
 	struct work_struct local_work;
 	struct list_head rmpp_list;
+	unsigned int sol_fc_max;
+	struct list_head backlog_list;
 
 	refcount_t refcount;
 	union {
@@ -118,6 +121,32 @@ struct ib_mad_snoop_private {
 	struct completion comp;
 };
 
+enum ib_mad_state {
+	/* MAD is in the making and is not yet in any list */
+	IB_MAD_STATE_INIT,
+	/* MAD is in backlog list */
+	IB_MAD_STATE_QUEUED,
+	/*
+	 * MAD was sent to the QP and is waiting for completion
+	 * notification in send list.
+	 */
+	IB_MAD_STATE_SEND_START,
+	/*
+	 * MAD send completed successfully, waiting for a response
+	 * in wait list.
+	 */
+	IB_MAD_STATE_WAIT_RESP,
+	/*
+	 * Response came early, before send completion notification,
+	 * in send list.
+	 */
+	IB_MAD_STATE_EARLY_RESP,
+	/* MAD was canceled while in wait or send list */
+	IB_MAD_STATE_CANCELED,
+	/* MAD processing completed, MAD in no list */
+	IB_MAD_STATE_DONE
+};
+
 struct ib_mad_send_wr_private {
 	struct ib_mad_list_head mad_list;
 	struct list_head agent_list;
@@ -132,8 +161,6 @@ struct ib_mad_send_wr_private {
 	int max_retries;
 	int retries_left;
 	int retry;
-	int refcount;
-	enum ib_wc_status status;
 
 	/* RMPP control */
 	struct list_head rmpp_list;
@@ -143,7 +170,47 @@ struct ib_mad_send_wr_private {
 	int seg_num;
 	int newwin;
 	int pad;
+
+	enum ib_mad_state state;
+
+	/* Solicited MAD flow control */
+	bool is_solicited_fc;
 };
+
+static inline void expect_mad_state(struct ib_mad_send_wr_private *mad_send_wr,
+				    enum ib_mad_state expected_state)
+{
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		WARN_ON(mad_send_wr->state != expected_state);
+}
+
+static inline void expect_mad_state2(struct ib_mad_send_wr_private *mad_send_wr,
+				     enum ib_mad_state expected_state1,
+				     enum ib_mad_state expected_state2)
+{
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		WARN_ON(mad_send_wr->state != expected_state1 &&
+			mad_send_wr->state != expected_state2);
+}
+
+static inline void expect_mad_state3(struct ib_mad_send_wr_private *mad_send_wr,
+				     enum ib_mad_state expected_state1,
+				     enum ib_mad_state expected_state2,
+				     enum ib_mad_state expected_state3)
+{
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		WARN_ON(mad_send_wr->state != expected_state1 &&
+			mad_send_wr->state != expected_state2 &&
+			mad_send_wr->state != expected_state3);
+}
+
+static inline void
+not_expect_mad_state(struct ib_mad_send_wr_private *mad_send_wr,
+		     enum ib_mad_state wrong_state)
+{
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		WARN_ON(mad_send_wr->state == wrong_state);
+}
 
 struct ib_mad_local_private {
 	struct list_head completion_list;
@@ -221,5 +288,8 @@ void ib_mark_mad_done(struct ib_mad_send_wr_private *mad_send_wr);
 
 void ib_reset_mad_timeout(struct ib_mad_send_wr_private *mad_send_wr,
 			  unsigned long timeout_ms);
+
+void change_mad_state(struct ib_mad_send_wr_private *mad_send_wr,
+		      enum ib_mad_state new_state);
 
 #endif	/* __IB_MAD_PRIV_H__ */

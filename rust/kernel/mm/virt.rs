@@ -392,80 +392,80 @@ pub mod flags {
     use crate::bindings;
 
     /// No flags are set.
-    pub const NONE: vm_flags_t = bindings::VM_NONE as _;
+    pub const NONE: vm_flags_t = bindings::VM_NONE as vm_flags_t;
 
     /// Mapping allows reads.
-    pub const READ: vm_flags_t = bindings::VM_READ as _;
+    pub const READ: vm_flags_t = bindings::VM_READ as vm_flags_t;
 
     /// Mapping allows writes.
-    pub const WRITE: vm_flags_t = bindings::VM_WRITE as _;
+    pub const WRITE: vm_flags_t = bindings::VM_WRITE as vm_flags_t;
 
     /// Mapping allows execution.
-    pub const EXEC: vm_flags_t = bindings::VM_EXEC as _;
+    pub const EXEC: vm_flags_t = bindings::VM_EXEC as vm_flags_t;
 
     /// Mapping is shared.
-    pub const SHARED: vm_flags_t = bindings::VM_SHARED as _;
+    pub const SHARED: vm_flags_t = bindings::VM_SHARED as vm_flags_t;
 
     /// Mapping may be updated to allow reads.
-    pub const MAYREAD: vm_flags_t = bindings::VM_MAYREAD as _;
+    pub const MAYREAD: vm_flags_t = bindings::VM_MAYREAD as vm_flags_t;
 
     /// Mapping may be updated to allow writes.
-    pub const MAYWRITE: vm_flags_t = bindings::VM_MAYWRITE as _;
+    pub const MAYWRITE: vm_flags_t = bindings::VM_MAYWRITE as vm_flags_t;
 
     /// Mapping may be updated to allow execution.
-    pub const MAYEXEC: vm_flags_t = bindings::VM_MAYEXEC as _;
+    pub const MAYEXEC: vm_flags_t = bindings::VM_MAYEXEC as vm_flags_t;
 
     /// Mapping may be updated to be shared.
-    pub const MAYSHARE: vm_flags_t = bindings::VM_MAYSHARE as _;
+    pub const MAYSHARE: vm_flags_t = bindings::VM_MAYSHARE as vm_flags_t;
 
     /// Page-ranges managed without `struct page`, just pure PFN.
-    pub const PFNMAP: vm_flags_t = bindings::VM_PFNMAP as _;
+    pub const PFNMAP: vm_flags_t = bindings::VM_PFNMAP as vm_flags_t;
 
     /// Memory mapped I/O or similar.
-    pub const IO: vm_flags_t = bindings::VM_IO as _;
+    pub const IO: vm_flags_t = bindings::VM_IO as vm_flags_t;
 
     /// Do not copy this vma on fork.
-    pub const DONTCOPY: vm_flags_t = bindings::VM_DONTCOPY as _;
+    pub const DONTCOPY: vm_flags_t = bindings::VM_DONTCOPY as vm_flags_t;
 
     /// Cannot expand with mremap().
-    pub const DONTEXPAND: vm_flags_t = bindings::VM_DONTEXPAND as _;
+    pub const DONTEXPAND: vm_flags_t = bindings::VM_DONTEXPAND as vm_flags_t;
 
     /// Lock the pages covered when they are faulted in.
-    pub const LOCKONFAULT: vm_flags_t = bindings::VM_LOCKONFAULT as _;
+    pub const LOCKONFAULT: vm_flags_t = bindings::VM_LOCKONFAULT as vm_flags_t;
 
     /// Is a VM accounted object.
-    pub const ACCOUNT: vm_flags_t = bindings::VM_ACCOUNT as _;
+    pub const ACCOUNT: vm_flags_t = bindings::VM_ACCOUNT as vm_flags_t;
 
     /// Should the VM suppress accounting.
-    pub const NORESERVE: vm_flags_t = bindings::VM_NORESERVE as _;
+    pub const NORESERVE: vm_flags_t = bindings::VM_NORESERVE as vm_flags_t;
 
     /// Huge TLB Page VM.
-    pub const HUGETLB: vm_flags_t = bindings::VM_HUGETLB as _;
+    pub const HUGETLB: vm_flags_t = bindings::VM_HUGETLB as vm_flags_t;
 
     /// Synchronous page faults. (DAX-specific)
-    pub const SYNC: vm_flags_t = bindings::VM_SYNC as _;
+    pub const SYNC: vm_flags_t = bindings::VM_SYNC as vm_flags_t;
 
     /// Architecture-specific flag.
-    pub const ARCH_1: vm_flags_t = bindings::VM_ARCH_1 as _;
+    pub const ARCH_1: vm_flags_t = bindings::VM_ARCH_1 as vm_flags_t;
 
     /// Wipe VMA contents in child on fork.
-    pub const WIPEONFORK: vm_flags_t = bindings::VM_WIPEONFORK as _;
+    pub const WIPEONFORK: vm_flags_t = bindings::VM_WIPEONFORK as vm_flags_t;
 
     /// Do not include in the core dump.
-    pub const DONTDUMP: vm_flags_t = bindings::VM_DONTDUMP as _;
+    pub const DONTDUMP: vm_flags_t = bindings::VM_DONTDUMP as vm_flags_t;
 
     /// Not soft dirty clean area.
-    pub const SOFTDIRTY: vm_flags_t = bindings::VM_SOFTDIRTY as _;
+    pub const SOFTDIRTY: vm_flags_t = bindings::VM_SOFTDIRTY as vm_flags_t;
 
     /// Can contain `struct page` and pure PFN pages.
-    pub const MIXEDMAP: vm_flags_t = bindings::VM_MIXEDMAP as _;
+    pub const MIXEDMAP: vm_flags_t = bindings::VM_MIXEDMAP as vm_flags_t;
 
     /// MADV_HUGEPAGE marked this vma.
-    pub const HUGEPAGE: vm_flags_t = bindings::VM_HUGEPAGE as _;
+    pub const HUGEPAGE: vm_flags_t = bindings::VM_HUGEPAGE as vm_flags_t;
 
     /// MADV_NOHUGEPAGE marked this vma.
-    pub const NOHUGEPAGE: vm_flags_t = bindings::VM_NOHUGEPAGE as _;
+    pub const NOHUGEPAGE: vm_flags_t = bindings::VM_NOHUGEPAGE as vm_flags_t;
 
     /// KSM may merge identical pages.
-    pub const MERGEABLE: vm_flags_t = bindings::VM_MERGEABLE as _;
+    pub const MERGEABLE: vm_flags_t = bindings::VM_MERGEABLE as vm_flags_t;
 }

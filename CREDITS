@@ -1397,6 +1397,10 @@ N: Thomas Gleixner
 E: tglx@linutronix.de
 D: NAND flash hardware support, JFFS2 on NAND flash
 
+N: Jérôme Glisse
+E: jglisse@redhat.com
+D: HMM - Heterogeneous Memory Management
+
 N: Richard E. Gooch
 E: rgooch@atnf.csiro.au
 D: parent process death signal to children
@@ -4373,6 +4377,12 @@ D: Xiafs filesystem [defunct]
 S: 542 West 112th Street, 5N
 S: New York, New York 10025
 S: USA
+
+N: Masahiro Yamada
+E: masahiroy@kernel.org
+D: Kbuild Maintainer 2017-2025
+D: Kconfig Maintainer 2018-2025
+S: Japan
 
 N: Li Yang
 E: leoli@freescale.com

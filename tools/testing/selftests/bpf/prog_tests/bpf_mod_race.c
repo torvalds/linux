@@ -78,7 +78,7 @@ static int test_setup_uffd(void *fault_addr)
 	}
 
 	uffd_register.range.start = (unsigned long)fault_addr;
-	uffd_register.range.len = 4096;
+	uffd_register.range.len = getpagesize();
 	uffd_register.mode = UFFDIO_REGISTER_MODE_MISSING;
 	if (ioctl(uffd, UFFDIO_REGISTER, &uffd_register)) {
 		close(uffd);

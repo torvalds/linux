@@ -94,7 +94,6 @@ void xfs_buf_cache_destroy(struct xfs_buf_cache *bch);
  */
 struct xfs_buftarg {
 	dev_t			bt_dev;
-	struct file		*bt_bdev_file;
 	struct block_device	*bt_bdev;
 	struct dax_device	*bt_daxdev;
 	struct file		*bt_file;
@@ -112,9 +111,9 @@ struct xfs_buftarg {
 	struct percpu_counter	bt_readahead_count;
 	struct ratelimit_state	bt_ioerror_rl;
 
-	/* Atomic write unit values, bytes */
-	unsigned int		bt_bdev_awu_min;
-	unsigned int		bt_bdev_awu_max;
+	/* Hardware atomic write unit values, bytes */
+	unsigned int		bt_awu_min;
+	unsigned int		bt_awu_max;
 
 	/* built-in cache, if we're not using the perag one */
 	struct xfs_buf_cache	bt_cache[];
@@ -375,7 +374,6 @@ extern void xfs_buftarg_wait(struct xfs_buftarg *);
 extern void xfs_buftarg_drain(struct xfs_buftarg *);
 int xfs_configure_buftarg(struct xfs_buftarg *btp, unsigned int sectorsize);
 
-#define xfs_getsize_buftarg(buftarg)	block_size((buftarg)->bt_bdev)
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)
 
 int xfs_buf_reverify(struct xfs_buf *bp, const struct xfs_buf_ops *ops);

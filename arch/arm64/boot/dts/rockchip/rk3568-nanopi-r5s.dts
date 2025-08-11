@@ -17,6 +17,19 @@
 		ethernet0 = &gmac0;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&gpio4_a0_k1_pin>;
+		pinctrl-names = "default";
+
+		button-reset {
+			debounce-interval = <50>;
+			gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+			label = "RESET";
+			linux,code = <KEY_RESTART>;
+		};
+	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -29,7 +42,6 @@
 			function-enumerator = <1>;
 			gpios = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
 			label = "LAN-1";
-			linux,default-trigger = "netdev";
 		};
 
 		led-lan2 {
@@ -39,7 +51,6 @@
 			function-enumerator = <2>;
 			gpios = <&gpio3 RK_PD7 GPIO_ACTIVE_HIGH>;
 			label = "LAN-2";
-			linux,default-trigger = "netdev";
 		};
 
 		power_led: led-sys {
@@ -56,7 +67,6 @@
 			function = LED_FUNCTION_WAN;
 			gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
 			label = "WAN";
-			linux,default-trigger = "netdev";
 		};
 	};
 };
@@ -124,6 +134,12 @@
 	gmac0 {
 		eth_phy0_reset_pin: eth-phy0-reset-pin {
 			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	gpio-keys {
+		gpio4_a0_k1_pin: gpio4-a0-k1-pin {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

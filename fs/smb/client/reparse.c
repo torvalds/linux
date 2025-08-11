@@ -34,11 +34,11 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 					   const char *symname,
 					   bool *directory);
 
-int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
+int create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname)
 {
-	switch (get_cifs_symlink_type(CIFS_SB(inode->i_sb))) {
+	switch (cifs_symlink_type(CIFS_SB(inode->i_sb))) {
 	case CIFS_SYMLINK_TYPE_NATIVE:
 		return create_native_symlink(xid, inode, dentry, tcon, full_path, symname);
 	case CIFS_SYMLINK_TYPE_NFS:
@@ -227,7 +227,8 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 
 	iov.iov_base = buf;
 	iov.iov_len = len;
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb, xid,
 				     tcon, full_path, directory,
 				     &iov, NULL);
 	if (!IS_ERR(new))
@@ -399,7 +400,8 @@ static int create_native_socket(const unsigned int xid, struct inode *inode,
 	struct inode *new;
 	int rc = 0;
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb, xid,
 				     tcon, full_path, false, &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -492,7 +494,8 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 		.symlink_target = kstrdup(symname, GFP_KERNEL),
 	};
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb, xid,
 				     tcon, full_path, false, &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -685,7 +688,8 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 	memcpy(data.wsl.eas, &cc->ea, len);
 	data.wsl.eas_len = len;
 
-	new = smb2_get_reparse_inode(&data, inode->i_sb,
+	new = tcon->ses->server->ops->create_reparse_inode(
+				     &data, inode->i_sb,
 				     xid, tcon, full_path, false,
 				     &reparse_iov, &xattr_iov);
 	if (!IS_ERR(new))
@@ -698,7 +702,7 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 	return rc;
 }
 
-int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
+int mknod_reparse(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev)
 {

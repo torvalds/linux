@@ -34,24 +34,33 @@ static int sha3_512_init(struct shash_desc *desc)
 static int sha3_512_export(struct shash_desc *desc, void *out)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
-	struct sha3_state *octx = out;
-
+	union {
+		u8 *u8;
+		u64 *u64;
+	} p = { .u8 = out };
+	int i;
 
 	if (sctx->first_message_part) {
-		memset(sctx->state, 0, sizeof(sctx->state));
-		sctx->first_message_part = 0;
+		memset(out, 0, SHA3_STATE_SIZE);
+		return 0;
 	}
-	memcpy(octx->st, sctx->state, sizeof(octx->st));
+	for (i = 0; i < SHA3_STATE_SIZE / 8; i++)
+		put_unaligned(le64_to_cpu(sctx->sha3.state[i]), p.u64++);
 	return 0;
 }
 
 static int sha3_512_import(struct shash_desc *desc, const void *in)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
-	const struct sha3_state *ictx = in;
+	union {
+		const u8 *u8;
+		const u64 *u64;
+	} p = { .u8 = in };
+	int i;
 
+	for (i = 0; i < SHA3_STATE_SIZE / 8; i++)
+		sctx->sha3.state[i] = cpu_to_le64(get_unaligned(p.u64++));
 	sctx->count = 0;
-	memcpy(sctx->state, ictx->st, sizeof(ictx->st));
 	sctx->first_message_part = 0;
 	sctx->func = CPACF_KIMD_SHA3_512;
 

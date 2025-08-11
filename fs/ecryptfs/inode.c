@@ -635,10 +635,10 @@ ecryptfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 
 	rd.old_mnt_idmap	= &nop_mnt_idmap;
-	rd.old_dir		= d_inode(lower_old_dir_dentry);
+	rd.old_parent		= lower_old_dir_dentry;
 	rd.old_dentry		= lower_old_dentry;
 	rd.new_mnt_idmap	= &nop_mnt_idmap;
-	rd.new_dir		= d_inode(lower_new_dir_dentry);
+	rd.new_parent		= lower_new_dir_dentry;
 	rd.new_dentry		= lower_new_dentry;
 	rc = vfs_rename(&rd);
 	if (rc)
@@ -1124,13 +1124,13 @@ out:
 	return rc;
 }
 
-static int ecryptfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+static int ecryptfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	return vfs_fileattr_get(ecryptfs_dentry_to_lower(dentry), fa);
 }
 
 static int ecryptfs_fileattr_set(struct mnt_idmap *idmap,
-				 struct dentry *dentry, struct fileattr *fa)
+				 struct dentry *dentry, struct file_kattr *fa)
 {
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	int rc;

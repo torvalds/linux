@@ -28,15 +28,12 @@
 #ifndef __AMDGPU_ISP_H__
 #define __AMDGPU_ISP_H__
 
+#include <drm/amd/isp.h>
+#include <linux/pm_domain.h>
+
 #define ISP_REGS_OFFSET_END 0x629A4
 
 struct amdgpu_isp;
-
-struct isp_platform_data {
-	void *adev;
-	u32 asic_type;
-	resource_size_t base_rmmio_size;
-};
 
 struct isp_funcs {
 	int (*hw_init)(struct amdgpu_isp *isp);
@@ -54,6 +51,7 @@ struct amdgpu_isp {
 	struct isp_platform_data *isp_pdata;
 	unsigned int harvest_config;
 	const struct firmware	*fw;
+	struct generic_pm_domain ispgpd;
 };
 
 extern const struct amdgpu_ip_block_version isp_v4_1_0_ip_block;

@@ -41,16 +41,15 @@ static int core_clks_get(struct venus_core *core)
 static int core_clks_enable(struct venus_core *core)
 {
 	const struct venus_resources *res = core->res;
-	const struct freq_tbl *freq_tbl = core->res->freq_tbl;
-	unsigned int freq_tbl_size = core->res->freq_tbl_size;
-	unsigned long freq;
+	struct device *dev = core->dev;
+	unsigned long freq = 0;
+	struct dev_pm_opp *opp;
 	unsigned int i;
 	int ret;
 
-	if (!freq_tbl)
-		return -EINVAL;
-
-	freq = freq_tbl[freq_tbl_size - 1].freq;
+	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 	for (i = 0; i < res->clks_num; i++) {
 		if (IS_V6(core)) {
@@ -636,7 +635,9 @@ static int decide_core(struct venus_inst *inst)
 	u32 min_coreid, min_load, cur_inst_load;
 	u32 min_lp_coreid, min_lp_load, cur_inst_lp_load;
 	struct hfi_videocores_usage_type cu;
-	unsigned long max_freq;
+	unsigned long max_freq = ULONG_MAX;
+	struct device *dev = core->dev;
+	struct dev_pm_opp *opp;
 	int ret = 0;
 
 	if (legacy_binding) {
@@ -659,7 +660,9 @@ static int decide_core(struct venus_inst *inst)
 	cur_inst_lp_load *= inst->clk_data.low_power_freq;
 	/*TODO : divide this inst->load by work_route */
 
-	max_freq = core->res->freq_tbl[0].freq;
+	opp = dev_pm_opp_find_freq_floor(dev, &max_freq);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 	min_loaded_core(inst, &min_coreid, &min_load, false);
 	min_loaded_core(inst, &min_lp_coreid, &min_lp_load, true);
@@ -949,7 +952,10 @@ static int core_resets_get(struct venus_core *core)
 static int core_get_v4(struct venus_core *core)
 {
 	struct device *dev = core->dev;
+	const struct freq_tbl *freq_tbl = core->res->freq_tbl;
+	unsigned int num_rows = core->res->freq_tbl_size;
 	const struct venus_resources *res = core->res;
+	unsigned int i;
 	int ret;
 
 	ret = core_clks_get(core);
@@ -986,9 +992,17 @@ static int core_get_v4(struct venus_core *core)
 
 	if (core->res->opp_pmdomain) {
 		ret = devm_pm_opp_of_add_table(dev);
-		if (ret && ret != -ENODEV) {
-			dev_err(dev, "invalid OPP table in device tree\n");
-			return ret;
+		if (ret) {
+			if (ret == -ENODEV) {
+				for (i = 0; i < num_rows; i++) {
+					ret = dev_pm_opp_add(dev, freq_tbl[i].freq, 0);
+					if (ret)
+						return ret;
+				}
+			} else {
+				dev_err(dev, "invalid OPP table in device tree\n");
+				return ret;
+			}
 		}
 	}
 
@@ -1078,11 +1092,11 @@ static unsigned long calculate_inst_freq(struct venus_inst *inst,
 static int load_scale_v4(struct venus_inst *inst)
 {
 	struct venus_core *core = inst->core;
-	const struct freq_tbl *table = core->res->freq_tbl;
-	unsigned int num_rows = core->res->freq_tbl_size;
 	struct device *dev = core->dev;
 	unsigned long freq = 0, freq_core1 = 0, freq_core2 = 0;
+	unsigned long max_freq = ULONG_MAX;
 	unsigned long filled_len = 0;
+	struct dev_pm_opp *opp;
 	int i, ret = 0;
 
 	for (i = 0; i < inst->num_input_bufs; i++)
@@ -1108,20 +1122,20 @@ static int load_scale_v4(struct venus_inst *inst)
 
 	freq = max(freq_core1, freq_core2);
 
-	if (freq > table[0].freq) {
-		dev_dbg(dev, VDBGL "requested clock rate: %lu scaling clock rate : %lu\n",
-			freq, table[0].freq);
+	opp = dev_pm_opp_find_freq_floor(dev, &max_freq);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
-		freq = table[0].freq;
+	if (freq > max_freq) {
+		dev_dbg(dev, VDBGL "requested clock rate: %lu scaling clock rate : %lu\n",
+			freq, max_freq);
+		freq = max_freq;
 		goto set_freq;
 	}
 
-	for (i = num_rows - 1 ; i >= 0; i--) {
-		if (freq <= table[i].freq) {
-			freq = table[i].freq;
-			break;
-		}
-	}
+	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 set_freq:
 

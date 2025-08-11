@@ -373,6 +373,7 @@ static int zynqmp_dpsub_dumb_create(struct drm_file *file_priv,
 
 static struct drm_framebuffer *
 zynqmp_dpsub_fb_create(struct drm_device *drm, struct drm_file *file_priv,
+		       const struct drm_format_info *info,
 		       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct zynqmp_dpsub *dpsub = to_zynqmp_dpsub(drm);
@@ -383,7 +384,7 @@ zynqmp_dpsub_fb_create(struct drm_device *drm, struct drm_file *file_priv,
 	for (i = 0; i < ARRAY_SIZE(cmd.pitches); ++i)
 		cmd.pitches[i] = ALIGN(cmd.pitches[i], dpsub->dma_align);
 
-	return drm_gem_fb_create(drm, file_priv, &cmd);
+	return drm_gem_fb_create(drm, file_priv, info, &cmd);
 }
 
 static const struct drm_mode_config_funcs zynqmp_dpsub_mode_config_funcs = {

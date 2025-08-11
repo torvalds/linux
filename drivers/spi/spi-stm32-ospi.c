@@ -547,7 +547,6 @@ static int stm32_ospi_poll_status(struct spi_mem *mem,
 	ret = stm32_ospi_send(mem->spi, op);
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret;
@@ -571,7 +570,6 @@ static int stm32_ospi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	ret = stm32_ospi_send(mem->spi, op);
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret;
@@ -628,7 +626,6 @@ static ssize_t stm32_ospi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	ret = stm32_ospi_send(desc->mem->spi, &op);
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret ?: len;
@@ -713,7 +710,6 @@ end_of_transfer:
 	msg->status = ret;
 	spi_finalize_current_message(ctrl);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret;
@@ -750,7 +746,6 @@ static int stm32_ospi_setup(struct spi_device *spi)
 
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;
@@ -771,9 +766,7 @@ static int stm32_ospi_get_resources(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stm32_ospi *ospi = platform_get_drvdata(pdev);
-	struct resource *res;
-	struct reserved_mem *rmem = NULL;
-	struct device_node *node;
+	struct resource *res, _res;
 	int ret;
 
 	ospi->regs_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -825,18 +818,14 @@ static int stm32_ospi_get_resources(struct platform_device *pdev)
 			goto err_dma;
 	}
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node)
-		rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
-
-	if (rmem) {
-		ospi->mm_size = rmem->size;
-		ospi->mm_base = devm_ioremap(dev, rmem->base, rmem->size);
-		if (!ospi->mm_base) {
-			dev_err(dev, "unable to map memory region: %pa+%pa\n",
-				&rmem->base, &rmem->size);
-			ret = -ENOMEM;
+	res = &_res;
+	ret = of_reserved_mem_region_to_resource(dev->of_node, 0, res);
+	if (!ret) {
+		ospi->mm_size = resource_size(res);
+		ospi->mm_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(ospi->mm_base)) {
+			dev_err(dev, "unable to map memory region: %pR\n", res);
+			ret = PTR_ERR(ospi->mm_base);
 			goto err_dma;
 		}
 
@@ -953,7 +942,6 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 		goto err_pm_resume;
 	}
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;
@@ -1032,7 +1020,6 @@ static int __maybe_unused stm32_ospi_resume(struct device *dev)
 
 	writel_relaxed(ospi->cr_reg, regs_base + OSPI_CR);
 	writel_relaxed(ospi->dcr_reg, regs_base + OSPI_DCR1);
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;

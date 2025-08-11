@@ -166,8 +166,8 @@ static const struct bin_attribute sysfs_grcdump_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = qedf_sysfs_read_grcdump,
-	.write_new = qedf_sysfs_write_grcdump,
+	.read = qedf_sysfs_read_grcdump,
+	.write = qedf_sysfs_write_grcdump,
 };
 
 static struct sysfs_bin_attrs bin_file_entries[] = {

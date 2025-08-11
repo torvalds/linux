@@ -933,18 +933,25 @@ void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 			 struct tcf_idrinfo *idrinfo)
 {
 	struct idr *idr = &idrinfo->action_idr;
+	bool mutex_taken = false;
 	struct tc_action *p;
-	int ret;
 	unsigned long id = 1;
 	unsigned long tmp;
+	int ret;
 
 	idr_for_each_entry_ul(idr, p, tmp, id) {
+		if (tc_act_in_hw(p) && !mutex_taken) {
+			rtnl_lock();
+			mutex_taken = true;
+		}
 		ret = __tcf_idr_release(p, false, true);
 		if (ret == ACT_P_DELETED)
 			module_put(ops->owner);
 		else if (ret < 0)
 			return;
 	}
+	if (mutex_taken)
+		rtnl_unlock();
 	idr_destroy(&idrinfo->action_idr);
 }
 EXPORT_SYMBOL(tcf_idrinfo_destroy);

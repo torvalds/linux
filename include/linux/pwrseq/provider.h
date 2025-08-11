@@ -13,6 +13,9 @@ struct pwrseq_device;
 typedef int (*pwrseq_power_state_func)(struct pwrseq_device *);
 typedef int (*pwrseq_match_func)(struct pwrseq_device *, struct device *);
 
+#define PWRSEQ_NO_MATCH 0
+#define PWRSEQ_MATCH_OK 1
+
 /**
  * struct pwrseq_unit_data - Configuration of a single power sequencing
  *                           unit.

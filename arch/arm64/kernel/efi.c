@@ -215,11 +215,6 @@ static int __init arm64_efi_rt_init(void)
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return 0;
 
-	if (!IS_ENABLED(CONFIG_VMAP_STACK)) {
-		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
-		return -ENOMEM;
-	}
-
 	p = arch_alloc_vmap_stack(THREAD_SIZE, NUMA_NO_NODE);
 	if (!p) {
 		pr_warn("Failed to allocate EFI runtime stack\n");

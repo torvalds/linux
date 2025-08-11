@@ -26,6 +26,7 @@
 #include <linux/pgtable.h>
 #include <linux/stackprotector.h>
 #include <linux/utsname.h>
+#include <linux/efi.h>
 
 #include <asm/alternative.h>
 #include <asm/cmdline.h>
@@ -2536,6 +2537,12 @@ void __init arch_cpu_finalize_init(void)
 	 */
 	fpu__init_system();
 	fpu__init_cpu();
+
+	/*
+	 * This needs to follow the FPU initializtion, since EFI depends on it.
+	 */
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
+		efi_enter_virtual_mode();
 
 	/*
 	 * Ensure that access to the per CPU representation has the initial

@@ -10,12 +10,41 @@
 #include <linux/clk-provider.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include "a1-peripherals.h"
 #include "clk-dualdiv.h"
 #include "clk-regmap.h"
 #include "meson-clkc-utils.h"
 
 #include <dt-bindings/clock/amlogic,a1-peripherals-clkc.h>
+
+#define SYS_OSCIN_CTRL		0x0
+#define RTC_BY_OSCIN_CTRL0	0x4
+#define RTC_BY_OSCIN_CTRL1	0x8
+#define RTC_CTRL		0xc
+#define SYS_CLK_CTRL0		0x10
+#define SYS_CLK_EN0		0x1c
+#define SYS_CLK_EN1		0x20
+#define AXI_CLK_EN		0x24
+#define DSPA_CLK_EN		0x28
+#define DSPB_CLK_EN		0x2c
+#define DSPA_CLK_CTRL0		0x30
+#define DSPB_CLK_CTRL0		0x34
+#define CLK12_24_CTRL		0x38
+#define GEN_CLK_CTRL		0x3c
+#define SAR_ADC_CLK_CTRL	0xc0
+#define PWM_CLK_AB_CTRL		0xc4
+#define PWM_CLK_CD_CTRL		0xc8
+#define PWM_CLK_EF_CTRL		0xcc
+#define SPICC_CLK_CTRL		0xd0
+#define TS_CLK_CTRL		0xd4
+#define SPIFC_CLK_CTRL		0xd8
+#define USB_BUSCLK_CTRL		0xdc
+#define SD_EMMC_CLK_CTRL	0xe0
+#define CECA_CLK_CTRL0		0xe4
+#define CECA_CLK_CTRL1		0xe8
+#define CECB_CLK_CTRL0		0xec
+#define CECB_CLK_CTRL1		0xf0
+#define PSRAM_CLK_CTRL		0xf4
+#define DMC_CLK_CTRL		0xf8
 
 static struct clk_regmap xtal_in = {
 	.data = &(struct clk_regmap_gate_data){
@@ -2026,163 +2055,6 @@ static struct clk_hw *a1_periphs_hw_clks[] = {
 	[CLKID_DMC_SEL2]		= &dmc_sel2.hw,
 };
 
-/* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const a1_periphs_regmaps[] = {
-	&xtal_in,
-	&fixpll_in,
-	&usb_phy_in,
-	&usb_ctrl_in,
-	&hifipll_in,
-	&syspll_in,
-	&dds_in,
-	&sys,
-	&clktree,
-	&reset_ctrl,
-	&analog_ctrl,
-	&pwr_ctrl,
-	&pad_ctrl,
-	&sys_ctrl,
-	&temp_sensor,
-	&am2axi_dev,
-	&spicc_b,
-	&spicc_a,
-	&msr,
-	&audio,
-	&jtag_ctrl,
-	&saradc_en,
-	&pwm_ef,
-	&pwm_cd,
-	&pwm_ab,
-	&cec,
-	&i2c_s,
-	&ir_ctrl,
-	&i2c_m_d,
-	&i2c_m_c,
-	&i2c_m_b,
-	&i2c_m_a,
-	&acodec,
-	&otp,
-	&sd_emmc_a,
-	&usb_phy,
-	&usb_ctrl,
-	&sys_dspb,
-	&sys_dspa,
-	&dma,
-	&irq_ctrl,
-	&nic,
-	&gic,
-	&uart_c,
-	&uart_b,
-	&uart_a,
-	&sys_psram,
-	&rsa,
-	&coresight,
-	&am2axi_vad,
-	&audio_vad,
-	&axi_dmc,
-	&axi_psram,
-	&ramb,
-	&rama,
-	&axi_spifc,
-	&axi_nic,
-	&axi_dma,
-	&cpu_ctrl,
-	&rom,
-	&prod_i2c,
-	&dspa_sel,
-	&dspb_sel,
-	&dspa_en,
-	&dspa_en_nic,
-	&dspb_en,
-	&dspb_en_nic,
-	&rtc,
-	&ceca_32k_out,
-	&cecb_32k_out,
-	&clk_24m,
-	&clk_12m,
-	&fclk_div2_divn,
-	&gen,
-	&saradc_sel,
-	&saradc,
-	&pwm_a,
-	&pwm_b,
-	&pwm_c,
-	&pwm_d,
-	&pwm_e,
-	&pwm_f,
-	&spicc,
-	&ts,
-	&spifc,
-	&usb_bus,
-	&sd_emmc,
-	&psram,
-	&dmc,
-	&sys_a_sel,
-	&sys_a_div,
-	&sys_a,
-	&sys_b_sel,
-	&sys_b_div,
-	&sys_b,
-	&dspa_a_sel,
-	&dspa_a_div,
-	&dspa_a,
-	&dspa_b_sel,
-	&dspa_b_div,
-	&dspa_b,
-	&dspb_a_sel,
-	&dspb_a_div,
-	&dspb_a,
-	&dspb_b_sel,
-	&dspb_b_div,
-	&dspb_b,
-	&rtc_32k_in,
-	&rtc_32k_div,
-	&rtc_32k_xtal,
-	&rtc_32k_sel,
-	&cecb_32k_in,
-	&cecb_32k_div,
-	&cecb_32k_sel_pre,
-	&cecb_32k_sel,
-	&ceca_32k_in,
-	&ceca_32k_div,
-	&ceca_32k_sel_pre,
-	&ceca_32k_sel,
-	&fclk_div2_divn_pre,
-	&gen_sel,
-	&gen_div,
-	&saradc_div,
-	&pwm_a_sel,
-	&pwm_a_div,
-	&pwm_b_sel,
-	&pwm_b_div,
-	&pwm_c_sel,
-	&pwm_c_div,
-	&pwm_d_sel,
-	&pwm_d_div,
-	&pwm_e_sel,
-	&pwm_e_div,
-	&pwm_f_sel,
-	&pwm_f_div,
-	&spicc_sel,
-	&spicc_div,
-	&spicc_sel2,
-	&ts_div,
-	&spifc_sel,
-	&spifc_div,
-	&spifc_sel2,
-	&usb_bus_sel,
-	&usb_bus_div,
-	&sd_emmc_sel,
-	&sd_emmc_div,
-	&sd_emmc_sel2,
-	&psram_sel,
-	&psram_div,
-	&psram_sel2,
-	&dmc_sel,
-	&dmc_div,
-	&dmc_sel2,
-};
-
 static const struct regmap_config a1_periphs_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
@@ -2200,7 +2072,7 @@ static int meson_a1_periphs_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
 	struct regmap *map;
-	int clkid, i, err;
+	int clkid, err;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -2211,10 +2083,6 @@ static int meson_a1_periphs_probe(struct platform_device *pdev)
 	if (IS_ERR(map))
 		return dev_err_probe(dev, PTR_ERR(map),
 				     "can't init regmap mmio region\n");
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(a1_periphs_regmaps); i++)
-		a1_periphs_regmaps[i]->map = map;
 
 	for (clkid = 0; clkid < a1_periphs_clks.num; clkid++) {
 		err = devm_clk_hw_register(dev, a1_periphs_clks.hws[clkid]);

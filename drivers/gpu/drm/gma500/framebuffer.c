@@ -29,24 +29,23 @@ static const struct drm_framebuffer_funcs psb_fb_funcs = {
  */
 static int psb_framebuffer_init(struct drm_device *dev,
 					struct drm_framebuffer *fb,
+					const struct drm_format_info *info,
 					const struct drm_mode_fb_cmd2 *mode_cmd,
 					struct drm_gem_object *obj)
 {
-	const struct drm_format_info *info;
 	int ret;
 
 	/*
 	 * Reject unknown formats, YUV formats, and formats with more than
 	 * 4 bytes per pixel.
 	 */
-	info = drm_get_format_info(dev, mode_cmd);
-	if (!info || !info->depth || info->cpp[0] > 4)
+	if (!info->depth || info->cpp[0] > 4)
 		return -EINVAL;
 
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
-	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
 	fb->obj[0] = obj;
 	ret = drm_framebuffer_init(dev, fb, &psb_fb_funcs);
 	if (ret) {
@@ -59,6 +58,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 /**
  *	psb_framebuffer_create	-	create a framebuffer backed by gt
  *	@dev: our DRM device
+ *	@info: pixel format information
  *	@mode_cmd: the description of the requested mode
  *	@obj: the backing object
  *
@@ -68,6 +68,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
  *	TODO: review object references
  */
 struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
+					       const struct drm_format_info *info,
 					       const struct drm_mode_fb_cmd2 *mode_cmd,
 					       struct drm_gem_object *obj)
 {
@@ -78,7 +79,7 @@ struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	ret = psb_framebuffer_init(dev, fb, mode_cmd, obj);
+	ret = psb_framebuffer_init(dev, fb, info, mode_cmd, obj);
 	if (ret) {
 		kfree(fb);
 		return ERR_PTR(ret);
@@ -96,6 +97,7 @@ struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
  */
 static struct drm_framebuffer *psb_user_framebuffer_create
 			(struct drm_device *dev, struct drm_file *filp,
+			 const struct drm_format_info *info,
 			 const struct drm_mode_fb_cmd2 *cmd)
 {
 	struct drm_gem_object *obj;
@@ -110,7 +112,7 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 		return ERR_PTR(-ENOENT);
 
 	/* Let the core code do all the work */
-	fb = psb_framebuffer_create(dev, cmd, obj);
+	fb = psb_framebuffer_create(dev, info, cmd, obj);
 	if (IS_ERR(fb))
 		drm_gem_object_put(obj);
 

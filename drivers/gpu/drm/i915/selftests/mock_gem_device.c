@@ -28,6 +28,8 @@
 
 #include <drm/drm_managed.h>
 
+#include "display/intel_display_device.h"
+
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/mock_engine.h"
@@ -141,6 +143,7 @@ struct drm_i915_private *mock_gem_device(void)
 	static struct dev_iommu fake_iommu = { .priv = (void *)-1 };
 #endif
 	struct drm_i915_private *i915;
+	struct intel_display *display;
 	struct pci_dev *pdev;
 	int ret;
 
@@ -180,7 +183,11 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Set up device info and initial runtime info. */
 	intel_device_info_driver_create(i915, pdev->device, &mock_info);
 
-	intel_display_device_probe(pdev);
+	display = intel_display_device_probe(pdev);
+	if (IS_ERR(display))
+		goto err_device;
+
+	i915->display = display;
 
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
@@ -257,6 +264,7 @@ err_ttm:
 	intel_gt_driver_late_release_all(i915);
 	intel_memory_regions_driver_release(i915);
 	drm_mode_config_cleanup(&i915->drm);
+err_device:
 	mock_destroy_device(i915);
 
 	return NULL;
@@ -265,6 +273,8 @@ err_ttm:
 void mock_destroy_device(struct drm_i915_private *i915)
 {
 	struct device *dev = i915->drm.dev;
+
+	intel_display_device_remove(i915->display);
 
 	devres_release_group(dev, NULL);
 	put_device(dev);

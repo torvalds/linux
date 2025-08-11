@@ -6704,16 +6704,16 @@
 #define       MC_CMD_SENSOR_SET_LIMS_IN_SENSOR_LEN 4
 /*            Enum values, see field(s): */
 /*               MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK */
-/* interpretation is is sensor-specific. */
+/* interpretation is sensor-specific. */
 #define       MC_CMD_SENSOR_SET_LIMS_IN_LOW0_OFST 4
 #define       MC_CMD_SENSOR_SET_LIMS_IN_LOW0_LEN 4
-/* interpretation is is sensor-specific. */
+/* interpretation is sensor-specific. */
 #define       MC_CMD_SENSOR_SET_LIMS_IN_HI0_OFST 8
 #define       MC_CMD_SENSOR_SET_LIMS_IN_HI0_LEN 4
-/* interpretation is is sensor-specific. */
+/* interpretation is sensor-specific. */
 #define       MC_CMD_SENSOR_SET_LIMS_IN_LOW1_OFST 12
 #define       MC_CMD_SENSOR_SET_LIMS_IN_LOW1_LEN 4
-/* interpretation is is sensor-specific. */
+/* interpretation is sensor-specific. */
 #define       MC_CMD_SENSOR_SET_LIMS_IN_HI1_OFST 16
 #define       MC_CMD_SENSOR_SET_LIMS_IN_HI1_LEN 4
 
@@ -7823,7 +7823,7 @@
  * handles as returned by MC_CMD_DYNAMIC_SENSORS_LIST
  *
  * Any handles which do not correspond to a sensor currently managed by the MC
- * will be dropped from from the response. This may happen when a sensor table
+ * will be dropped from the response. This may happen when a sensor table
  * update is in progress, and effectively means the set of usable sensors is
  * the intersection between the sets of sensors known to the driver and the MC.
  *
@@ -7872,7 +7872,7 @@
  * provided should be treated as erroneous.
  *
  * Any handles which do not correspond to a sensor currently managed by the MC
- * will be dropped from from the response. This may happen when a sensor table
+ * will be dropped from the response. This may happen when a sensor table
  * update is in progress, and effectively means the set of usable sensors is
  * the intersection between the sets of sensors known to the driver and the MC.
  *

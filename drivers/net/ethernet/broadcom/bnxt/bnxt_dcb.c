@@ -16,7 +16,7 @@
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 #include <rdma/ib_verbs.h>
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_dcb.h"

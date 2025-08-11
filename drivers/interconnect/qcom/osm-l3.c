@@ -236,7 +236,12 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 			goto err;
 		}
 
-		node->name = qnodes[i]->name;
+		ret = icc_node_set_name(node, provider, qnodes[i]->name);
+		if (ret) {
+			icc_node_destroy(node->id);
+			goto err;
+		}
+
 		/* Cast away const and add it back in qcom_osm_l3_set() */
 		node->data = (void *)qnodes[i];
 		icc_node_add(node, provider);

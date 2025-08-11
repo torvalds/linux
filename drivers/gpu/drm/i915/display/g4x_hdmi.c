@@ -15,6 +15,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_power.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
 #include "intel_dpio_phy.h"

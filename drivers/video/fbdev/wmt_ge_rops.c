@@ -7,6 +7,7 @@
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/io.h>
