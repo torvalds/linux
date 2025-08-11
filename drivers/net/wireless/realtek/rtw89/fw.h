@@ -1602,6 +1602,28 @@ struct rtw89_h2c_bcn_upd_be {
 #define RTW89_H2C_BCN_UPD_BE_W7_ECSA_OFST GENMASK(30, 16)
 #define RTW89_H2C_BCN_UPD_BE_W7_PROTECTION_KEY_ID BIT(31)
 
+struct rtw89_h2c_tbtt_tuning {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_TBTT_TUNING_W0_BAND GENMASK(3, 0)
+#define RTW89_H2C_TBTT_TUNING_W0_PORT GENMASK(7, 4)
+#define RTW89_H2C_TBTT_TUNING_W1_SHIFT GENMASK(31, 0)
+
+struct rtw89_h2c_pwr_lvl {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_PWR_LVL_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_PWR_LVL_W0_BCN_TO_VAL GENMASK(15, 8)
+#define RTW89_H2C_PWR_LVL_W0_PS_LVL GENMASK(19, 16)
+#define RTW89_H2C_PWR_LVL_W0_TRX_LVL GENMASK(23, 20)
+#define RTW89_H2C_PWR_LVL_W0_BCN_TO_LVL GENMASK(27, 24)
+#define RTW89_H2C_PWR_LVL_W0_DTIM_TO_VAL GENMASK(31, 28)
+#define RTW89_H2C_PWR_LVL_W1_MACID_EXT GENMASK(7, 0)
+
 struct rtw89_h2c_role_maintain {
 	__le32 w0;
 };
@@ -4201,6 +4223,8 @@ enum rtw89_ps_h2c_func {
 	H2C_FUNC_MAC_LPS_PARM		= 0x0,
 	H2C_FUNC_P2P_ACT		= 0x1,
 	H2C_FUNC_IPS_CFG		= 0x3,
+	H2C_FUNC_PS_POWER_LEVEL		= 0x7,
+	H2C_FUNC_TBTT_TUNING		= 0xA,
 
 	NUM_OF_RTW89_PS_H2C_FUNC,
 };
@@ -4750,6 +4774,9 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_update_beacon_be(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link);
+int rtw89_fw_h2c_tbtt_tuning(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif_link *rtwvif_link, u32 offset);
+int rtw89_fw_h2c_pwr_lvl(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif_link *vif,
 		     struct rtw89_sta_link *rtwsta_link, const u8 *scan_mac_addr);
 int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
