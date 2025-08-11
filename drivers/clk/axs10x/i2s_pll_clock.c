@@ -108,21 +108,21 @@ static unsigned long i2s_pll_recalc_rate(struct clk_hw *hw,
 	return ((parent_rate / idiv) * fbdiv) / odiv;
 }
 
-static long i2s_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-			unsigned long *prate)
+static int i2s_pll_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct i2s_pll_clk *clk = to_i2s_pll_clk(hw);
-	const struct i2s_pll_cfg *pll_cfg = i2s_pll_get_cfg(*prate);
+	const struct i2s_pll_cfg *pll_cfg = i2s_pll_get_cfg(req->best_parent_rate);
 	int i;
 
 	if (!pll_cfg) {
-		dev_err(clk->dev, "invalid parent rate=%ld\n", *prate);
+		dev_err(clk->dev, "invalid parent rate=%ld\n", req->best_parent_rate);
 		return -EINVAL;
 	}
 
 	for (i = 0; pll_cfg[i].rate != 0; i++)
-		if (pll_cfg[i].rate == rate)
-			return rate;
+		if (pll_cfg[i].rate == req->rate)
+			return 0;
 
 	return -EINVAL;
 }
@@ -156,7 +156,7 @@ static int i2s_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops i2s_pll_ops = {
 	.recalc_rate = i2s_pll_recalc_rate,
-	.round_rate = i2s_pll_round_rate,
+	.determine_rate = i2s_pll_determine_rate,
 	.set_rate = i2s_pll_set_rate,
 };
 
