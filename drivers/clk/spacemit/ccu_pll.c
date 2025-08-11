@@ -125,12 +125,14 @@ static unsigned long ccu_pll_recalc_rate(struct clk_hw *hw,
 	return entry ? entry->rate : 0;
 }
 
-static long ccu_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *prate)
+static int ccu_pll_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct ccu_pll *pll = hw_to_ccu_pll(hw);
 
-	return ccu_pll_lookup_best_rate(pll, rate)->rate;
+	req->rate = ccu_pll_lookup_best_rate(pll, req->rate)->rate;
+
+	return 0;
 }
 
 static int ccu_pll_init(struct clk_hw *hw)
@@ -152,6 +154,6 @@ const struct clk_ops spacemit_ccu_pll_ops = {
 	.disable	= ccu_pll_disable,
 	.set_rate	= ccu_pll_set_rate,
 	.recalc_rate	= ccu_pll_recalc_rate,
-	.round_rate	= ccu_pll_round_rate,
+	.determine_rate = ccu_pll_determine_rate,
 	.is_enabled	= ccu_pll_is_enabled,
 };
