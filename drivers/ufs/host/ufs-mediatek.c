@@ -1543,10 +1543,10 @@ static int ufs_mtk_device_reset(struct ufs_hba *hba)
 {
 	struct arm_smccc_res res;
 
-	/* disable hba before device reset */
-	ufshcd_hba_stop(hba);
-
 	ufs_mtk_device_reset_ctrl(0, res);
+
+	/* disable hba in middle of device reset */
+	ufshcd_hba_stop(hba);
 
 	/*
 	 * The reset signal is active low. UFS devices shall detect
