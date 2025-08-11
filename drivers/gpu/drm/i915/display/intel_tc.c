@@ -23,6 +23,7 @@
 #include "intel_modeset_lock.h"
 #include "intel_tc.h"
 
+#define DP_PIN_ASSIGNMENT_NONE	0x0
 #define DP_PIN_ASSIGNMENT_C	0x3
 #define DP_PIN_ASSIGNMENT_D	0x4
 #define DP_PIN_ASSIGNMENT_E	0x5
@@ -308,6 +309,8 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 		REG_FIELD_GET(TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK, val);
 
 	switch (pin_assignment) {
+	case DP_PIN_ASSIGNMENT_NONE:
+		return 0;
 	default:
 		MISSING_CASE(pin_assignment);
 		fallthrough;
@@ -1159,6 +1162,12 @@ static void xelpdp_tc_phy_get_hw_state(struct intel_tc_port *tc)
 		tc->lock_wakeref = tc_cold_block(tc);
 
 		read_pin_configuration(tc);
+		/*
+		 * Set a valid lane count value for a DP-alt sink which got
+		 * disconnected. The driver can only disable the output on this PHY.
+		 */
+		if (tc->max_lane_count == 0)
+			tc->max_lane_count = 4;
 	}
 
 	drm_WARN_ON(display->drm,
