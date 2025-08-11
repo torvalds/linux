@@ -176,18 +176,6 @@ cannot be converted yet, but watch this space!
 
 -------------------------------------------------------------------------------
 
-Convert all GPIO chips to using the new, value returning line setters
-
-struct gpio_chip's set() and set_multiple() callbacks are now deprecated. They
-return void and thus do not allow drivers to indicate failure to set the line
-value back to the caller.
-
-We've now added new variants - set_rv() and set_multiple_rv() that return an
-integer. Let's convert all GPIO drivers treewide to use the new callbacks,
-remove the old ones and finally rename the new ones back to the old names.
-
--------------------------------------------------------------------------------
-
 Remove legacy sysfs features
 
 We have two parallel per-chip class devices and per-exported-line attribute
