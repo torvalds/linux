@@ -244,35 +244,43 @@ static unsigned long ma35d1_clk_pll_recalc_rate(struct clk_hw *hw, unsigned long
 	return 0;
 }
 
-static long ma35d1_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *parent_rate)
+static int ma35d1_clk_pll_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
 	struct ma35d1_clk_pll *pll = to_ma35d1_clk_pll(hw);
 	u32 reg_ctl[3] = { 0 };
 	unsigned long pll_freq;
 	long ret;
 
-	if (*parent_rate < PLL_FREF_MIN_FREQ || *parent_rate > PLL_FREF_MAX_FREQ)
+	if (req->best_parent_rate < PLL_FREF_MIN_FREQ || req->best_parent_rate > PLL_FREF_MAX_FREQ)
 		return -EINVAL;
 
-	ret = ma35d1_pll_find_closest(pll, rate, *parent_rate, reg_ctl, &pll_freq);
+	ret = ma35d1_pll_find_closest(pll, req->rate, req->best_parent_rate,
+				      reg_ctl, &pll_freq);
 	if (ret < 0)
 		return ret;
 
 	switch (pll->id) {
 	case CAPLL:
 		reg_ctl[0] = readl_relaxed(pll->ctl0_base);
-		pll_freq = ma35d1_calc_smic_pll_freq(reg_ctl[0], *parent_rate);
-		return pll_freq;
+		pll_freq = ma35d1_calc_smic_pll_freq(reg_ctl[0], req->best_parent_rate);
+		req->rate = pll_freq;
+
+		return 0;
 	case DDRPLL:
 	case APLL:
 	case EPLL:
 	case VPLL:
 		reg_ctl[0] = readl_relaxed(pll->ctl0_base);
 		reg_ctl[1] = readl_relaxed(pll->ctl1_base);
-		pll_freq = ma35d1_calc_pll_freq(pll->mode, reg_ctl, *parent_rate);
-		return pll_freq;
+		pll_freq = ma35d1_calc_pll_freq(pll->mode, reg_ctl, req->best_parent_rate);
+		req->rate = pll_freq;
+
+		return 0;
 	}
+
+	req->rate = 0;
+
 	return 0;
 }
 
@@ -311,12 +319,12 @@ static const struct clk_ops ma35d1_clk_pll_ops = {
 	.unprepare = ma35d1_clk_pll_unprepare,
 	.set_rate = ma35d1_clk_pll_set_rate,
 	.recalc_rate = ma35d1_clk_pll_recalc_rate,
-	.round_rate = ma35d1_clk_pll_round_rate,
+	.determine_rate = ma35d1_clk_pll_determine_rate,
 };
 
 static const struct clk_ops ma35d1_clk_fixed_pll_ops = {
 	.recalc_rate = ma35d1_clk_pll_recalc_rate,
-	.round_rate = ma35d1_clk_pll_round_rate,
+	.determine_rate = ma35d1_clk_pll_determine_rate,
 };
 
 struct clk_hw *ma35d1_reg_clk_pll(struct device *dev, u32 id, u8 u8mode, const char *name,
