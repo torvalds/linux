@@ -266,11 +266,9 @@ int __ref kasan_populate_early_shadow(const void *shadow_start,
 		}
 
 		if (pgd_none(*pgd)) {
-			p4d_t *p;
 
 			if (slab_is_available()) {
-				p = p4d_alloc(&init_mm, pgd, addr);
-				if (!p)
+				if (!p4d_alloc(&init_mm, pgd, addr))
 					return -ENOMEM;
 			} else {
 				pgd_populate_kernel(addr, pgd,
