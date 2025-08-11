@@ -111,7 +111,6 @@ impl<'a> IrqRequest<'a> {
     /// # Safety
     ///
     /// - `irq` should be a valid IRQ number for `dev`.
-    #[expect(dead_code)]
     pub(crate) unsafe fn new(dev: &'a Device<Bound>, irq: u32) -> Self {
         // INVARIANT: `irq` is a valid IRQ number for `dev`.
         IrqRequest { dev, irq }
