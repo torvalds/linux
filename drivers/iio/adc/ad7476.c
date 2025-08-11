@@ -57,9 +57,9 @@ static void ad7091_convst(struct ad7476_state *st)
 	if (!st->convst_gpio)
 		return;
 
-	gpiod_set_value(st->convst_gpio, 0);
+	gpiod_set_value_cansleep(st->convst_gpio, 0);
 	udelay(1); /* CONVST pulse width: 10 ns min */
-	gpiod_set_value(st->convst_gpio, 1);
+	gpiod_set_value_cansleep(st->convst_gpio, 1);
 	udelay(1); /* Conversion time: 650 ns max */
 }
 
