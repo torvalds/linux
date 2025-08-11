@@ -1298,7 +1298,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	mcp->gc->direction_input = mcp_gpio_direction_input;
 	mcp->gc->direction_output = mcp_gpio_direction_output;
 	mcp->gc->get_direction = mcp_gpio_get_direction;
-	mcp->gc->set_rv = mcp_gpio_set;
+	mcp->gc->set = mcp_gpio_set;
 	mcp->gc->get = mcp_gpio_get;
 	mcp->gc->ngpio = MCP_NGPIO;
 	mcp->gc->base = -1;

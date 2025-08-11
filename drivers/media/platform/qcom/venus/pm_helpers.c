@@ -48,7 +48,8 @@ static int core_clks_enable(struct venus_core *core)
 	int ret;
 
 	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
-	dev_pm_opp_put(opp);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 	for (i = 0; i < res->clks_num; i++) {
 		if (IS_V6(core)) {
@@ -660,7 +661,8 @@ static int decide_core(struct venus_inst *inst)
 	/*TODO : divide this inst->load by work_route */
 
 	opp = dev_pm_opp_find_freq_floor(dev, &max_freq);
-	dev_pm_opp_put(opp);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 	min_loaded_core(inst, &min_coreid, &min_load, false);
 	min_loaded_core(inst, &min_lp_coreid, &min_lp_load, true);
@@ -1121,7 +1123,8 @@ static int load_scale_v4(struct venus_inst *inst)
 	freq = max(freq_core1, freq_core2);
 
 	opp = dev_pm_opp_find_freq_floor(dev, &max_freq);
-	dev_pm_opp_put(opp);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 	if (freq > max_freq) {
 		dev_dbg(dev, VDBGL "requested clock rate: %lu scaling clock rate : %lu\n",
@@ -1131,7 +1134,8 @@ static int load_scale_v4(struct venus_inst *inst)
 	}
 
 	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
-	dev_pm_opp_put(opp);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 
 set_freq:
 

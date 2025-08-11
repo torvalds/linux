@@ -935,7 +935,7 @@ static blk_status_t nvme_pci_setup_data_sgl(struct request *req,
 
 	nvme_pci_sgl_set_seg(&iod->cmd.common.dptr.sgl, sgl_dma, mapped);
 	if (unlikely(iter->status))
-		nvme_free_sgls(req);
+		nvme_unmap_data(req);
 	return iter->status;
 }
 

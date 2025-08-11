@@ -9,6 +9,7 @@
 
 #include <linux/acpi.h>
 #include <linux/cleanup.h>
+#include <linux/export.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/log2.h>
@@ -1033,8 +1034,8 @@ static int intel_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(padcfg0 & PADCFG0_GPIORXSTATE);
 }
 
-static void intel_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			   int value)
+static int intel_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
 	void __iomem *reg;
@@ -1043,11 +1044,11 @@ static void intel_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	pin = intel_gpio_to_pin(pctrl, offset, NULL, NULL);
 	if (pin < 0)
-		return;
+		return -EINVAL;
 
 	reg = intel_get_padcfg(pctrl, pin, PADCFG0);
 	if (!reg)
-		return;
+		return -EINVAL;
 
 	guard(raw_spinlock_irqsave)(&pctrl->lock);
 
@@ -1057,6 +1058,8 @@ static void intel_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	else
 		padcfg0 &= ~PADCFG0_GPIOTXSTATE;
 	writel(padcfg0, reg);
+
+	return 0;
 }
 
 static int intel_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
@@ -1094,7 +1097,12 @@ static int intel_gpio_direction_input(struct gpio_chip *chip, unsigned int offse
 static int intel_gpio_direction_output(struct gpio_chip *chip, unsigned int offset,
 				       int value)
 {
-	intel_gpio_set(chip, offset, value);
+	int ret;
+
+	ret = intel_gpio_set(chip, offset, value);
+	if (ret)
+		return ret;
+
 	return pinctrl_gpio_direction_output(chip, offset);
 }
 

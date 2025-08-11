@@ -306,6 +306,22 @@ static void pcc_chan_acknowledge(struct pcc_chan_info *pchan)
 		pcc_chan_reg_read_modify_write(&pchan->db);
 }
 
+static void *write_response(struct pcc_chan_info *pchan)
+{
+	struct pcc_header pcc_header;
+	void *buffer;
+	int data_len;
+
+	memcpy_fromio(&pcc_header, pchan->chan.shmem,
+		      sizeof(pcc_header));
+	data_len = pcc_header.length - sizeof(u32) + sizeof(struct pcc_header);
+
+	buffer = pchan->chan.rx_alloc(pchan->chan.mchan->cl, data_len);
+	if (buffer != NULL)
+		memcpy_fromio(buffer, pchan->chan.shmem, data_len);
+	return buffer;
+}
+
 /**
  * pcc_mbox_irq - PCC mailbox interrupt handler
  * @irq:	interrupt number
@@ -317,6 +333,8 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 {
 	struct pcc_chan_info *pchan;
 	struct mbox_chan *chan = p;
+	struct pcc_header *pcc_header = chan->active_req;
+	void *handle = NULL;
 
 	pchan = chan->con_priv;
 
@@ -340,7 +358,17 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 	 * required to avoid any possible race in updatation of this flag.
 	 */
 	pchan->chan_in_use = false;
-	mbox_chan_received_data(chan, NULL);
+
+	if (pchan->chan.rx_alloc)
+		handle = write_response(pchan);
+
+	if (chan->active_req) {
+		pcc_header = chan->active_req;
+		if (pcc_header->flags & PCC_CMD_COMPLETION_NOTIFY)
+			mbox_chan_txdone(chan, 0);
+	}
+
+	mbox_chan_received_data(chan, handle);
 
 	pcc_chan_acknowledge(pchan);
 
@@ -384,9 +412,24 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 	pcc_mchan = &pchan->chan;
 	pcc_mchan->shmem = acpi_os_ioremap(pcc_mchan->shmem_base_addr,
 					   pcc_mchan->shmem_size);
-	if (pcc_mchan->shmem)
-		return pcc_mchan;
+	if (!pcc_mchan->shmem)
+		goto err;
 
+	pcc_mchan->manage_writes = false;
+
+	/* This indicates that the channel is ready to accept messages.
+	 * This needs to happen after the channel has registered
+	 * its callback. There is no access point to do that in
+	 * the mailbox API. That implies that the mailbox client must
+	 * have set the allocate callback function prior to
+	 * sending any messages.
+	 */
+	if (pchan->type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE)
+		pcc_chan_reg_read_modify_write(&pchan->cmd_update);
+
+	return pcc_mchan;
+
+err:
 	mbox_free_channel(chan);
 	return ERR_PTR(-ENXIO);
 }
@@ -417,8 +460,38 @@ void pcc_mbox_free_channel(struct pcc_mbox_chan *pchan)
 }
 EXPORT_SYMBOL_GPL(pcc_mbox_free_channel);
 
+static int pcc_write_to_buffer(struct mbox_chan *chan, void *data)
+{
+	struct pcc_chan_info *pchan = chan->con_priv;
+	struct pcc_mbox_chan *pcc_mbox_chan = &pchan->chan;
+	struct pcc_header *pcc_header = data;
+
+	if (!pchan->chan.manage_writes)
+		return 0;
+
+	/* The PCC header length includes the command field
+	 * but not the other values from the header.
+	 */
+	int len = pcc_header->length - sizeof(u32) + sizeof(struct pcc_header);
+	u64 val;
+
+	pcc_chan_reg_read(&pchan->cmd_complete, &val);
+	if (!val) {
+		pr_info("%s pchan->cmd_complete not set", __func__);
+		return -1;
+	}
+	memcpy_toio(pcc_mbox_chan->shmem,  data, len);
+	return 0;
+}
+
+
 /**
- * pcc_send_data - Called from Mailbox Controller code. Used
+ * pcc_send_data - Called from Mailbox Controller code. If
+ *		pchan->chan.rx_alloc is set, then the command complete
+ *		flag is checked and the data is written to the shared
+ *		buffer io memory.
+ *
+ *		If pchan->chan.rx_alloc is not set, then it is used
  *		here only to ring the channel doorbell. The PCC client
  *		specific read/write is done in the client driver in
  *		order to maintain atomicity over PCC channel once
@@ -434,16 +507,36 @@ static int pcc_send_data(struct mbox_chan *chan, void *data)
 	int ret;
 	struct pcc_chan_info *pchan = chan->con_priv;
 
+	ret = pcc_write_to_buffer(chan, data);
+	if (ret)
+		return ret;
+
 	ret = pcc_chan_reg_read_modify_write(&pchan->cmd_update);
 	if (ret)
 		return ret;
 
 	ret = pcc_chan_reg_read_modify_write(&pchan->db);
+
 	if (!ret && pchan->plat_irq > 0)
 		pchan->chan_in_use = true;
 
 	return ret;
 }
+
+
+static bool pcc_last_tx_done(struct mbox_chan *chan)
+{
+	struct pcc_chan_info *pchan = chan->con_priv;
+	u64 val;
+
+	pcc_chan_reg_read(&pchan->cmd_complete, &val);
+	if (!val)
+		return false;
+	else
+		return true;
+}
+
+
 
 /**
  * pcc_startup - Called from Mailbox Controller code. Used here
@@ -490,6 +583,7 @@ static const struct mbox_chan_ops pcc_chan_ops = {
 	.send_data = pcc_send_data,
 	.startup = pcc_startup,
 	.shutdown = pcc_shutdown,
+	.last_tx_done = pcc_last_tx_done,
 };
 
 /**
