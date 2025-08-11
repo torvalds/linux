@@ -454,12 +454,12 @@ static unsigned long clk_pm_cpu_recalc_rate(struct clk_hw *hw,
 	return DIV_ROUND_UP_ULL((u64)parent_rate, div);
 }
 
-static long clk_pm_cpu_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *parent_rate)
+static int clk_pm_cpu_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
 	struct clk_pm_cpu *pm_cpu = to_clk_pm_cpu(hw);
 	struct regmap *base = pm_cpu->nb_pm_base;
-	unsigned int div = *parent_rate / rate;
+	unsigned int div = req->best_parent_rate / req->rate;
 	unsigned int load_level;
 	/* only available when DVFS is enabled */
 	if (!armada_3700_pm_dvfs_is_enabled(base))
@@ -474,13 +474,16 @@ static long clk_pm_cpu_round_rate(struct clk_hw *hw, unsigned long rate,
 
 		val >>= offset;
 		val &= ARMADA_37XX_NB_TBG_DIV_MASK;
-		if (val == div)
+		if (val == div) {
 			/*
 			 * We found a load level matching the target
 			 * divider, switch to this load level and
 			 * return.
 			 */
-			return *parent_rate / div;
+			req->rate = req->best_parent_rate / div;
+
+			return 0;
+		}
 	}
 
 	/* We didn't find any valid divider */
@@ -600,7 +603,7 @@ static int clk_pm_cpu_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops clk_pm_cpu_ops = {
 	.get_parent = clk_pm_cpu_get_parent,
-	.round_rate = clk_pm_cpu_round_rate,
+	.determine_rate = clk_pm_cpu_determine_rate,
 	.set_rate = clk_pm_cpu_set_rate,
 	.recalc_rate = clk_pm_cpu_recalc_rate,
 };
