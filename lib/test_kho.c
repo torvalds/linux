@@ -67,13 +67,20 @@ static struct notifier_block kho_test_nb = {
 
 static int kho_test_save_data(struct kho_test_state *state, void *fdt)
 {
-	phys_addr_t *folios_info __free(kvfree) = NULL;
+	phys_addr_t *folios_info;
 	int err = 0;
 
-	folios_info = kvmalloc_array(state->nr_folios, sizeof(*folios_info),
-				     GFP_KERNEL);
-	if (!folios_info)
-		return -ENOMEM;
+	err |= fdt_begin_node(fdt, "data");
+	err |= fdt_property(fdt, "nr_folios", &state->nr_folios,
+			    sizeof(state->nr_folios));
+	err |= fdt_property_placeholder(fdt, "folios_info",
+					state->nr_folios * sizeof(*folios_info),
+					(void **)&folios_info);
+	err |= fdt_property(fdt, "csum", &state->csum, sizeof(state->csum));
+	err |= fdt_end_node(fdt);
+
+	if (err)
+		return err;
 
 	for (int i = 0; i < state->nr_folios; i++) {
 		struct folio *folio = state->folios[i];
@@ -83,16 +90,8 @@ static int kho_test_save_data(struct kho_test_state *state, void *fdt)
 
 		err = kho_preserve_folio(folio);
 		if (err)
-			return err;
+			break;
 	}
-
-	err |= fdt_begin_node(fdt, "data");
-	err |= fdt_property(fdt, "nr_folios", &state->nr_folios,
-			    sizeof(state->nr_folios));
-	err |= fdt_property(fdt, "folios_info", folios_info,
-			    state->nr_folios * sizeof(*folios_info));
-	err |= fdt_property(fdt, "csum", &state->csum, sizeof(state->csum));
-	err |= fdt_end_node(fdt);
 
 	return err;
 }
@@ -140,7 +139,10 @@ static int kho_test_generate_data(struct kho_test_state *state)
 		unsigned int size;
 		void *addr;
 
-		/* cap allocation so that we won't exceed max_mem */
+		/*
+		 * Since get_order() rounds up, make sure that actual
+		 * allocation is smaller so that we won't exceed max_mem
+		 */
 		if (alloc_size + (PAGE_SIZE << order) > max_mem) {
 			order = get_order(max_mem - alloc_size);
 			if (order)
@@ -165,13 +167,14 @@ static int kho_test_generate_data(struct kho_test_state *state)
 err_free_folios:
 	for (int i = 0; i < state->nr_folios; i++)
 		folio_put(state->folios[i]);
+	state->nr_folios = 0;
 	return -ENOMEM;
 }
 
 static int kho_test_save(void)
 {
 	struct kho_test_state *state = &kho_test_state;
-	struct folio **folios __free(kvfree) = NULL;
+	struct folio **folios;
 	unsigned long max_nr;
 	int err;
 
@@ -185,13 +188,23 @@ static int kho_test_save(void)
 
 	err = kho_test_generate_data(state);
 	if (err)
-		return err;
+		goto err_free_folios;
 
 	err = kho_test_prepare_fdt(state);
 	if (err)
-		return err;
+		goto err_free_folios;
 
-	return register_kho_notifier(&kho_test_nb);
+	err = register_kho_notifier(&kho_test_nb);
+	if (err)
+		goto err_free_fdt;
+
+	return 0;
+
+err_free_fdt:
+	folio_put(state->fdt);
+err_free_folios:
+	kvfree(folios);
+	return err;
 }
 
 static int kho_test_restore_data(const void *fdt, int node)
@@ -291,6 +304,7 @@ static void kho_test_cleanup(void)
 		folio_put(kho_test_state.folios[i]);
 
 	kvfree(kho_test_state.folios);
+	folio_put(kho_test_state.fdt);
 }
 
 static void __exit kho_test_exit(void)
