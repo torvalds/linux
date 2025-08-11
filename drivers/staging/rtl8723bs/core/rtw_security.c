@@ -638,36 +638,6 @@ exit:
 
 #define MAX_MSG_SIZE	2048
 
-/*****************************/
-/**** Function Prototypes ****/
-/*****************************/
-
-static void construct_mic_iv(u8 *mic_header1,
-			     signed int qc_exists,
-			     signed int a4_exists,
-			     u8 *mpdu,
-			     uint payload_length,
-			     u8 *pn_vector,
-			     uint frtype); /*  add for CONFIG_IEEE80211W, none 11w also can use */
-static void construct_mic_header1(u8 *mic_header1,
-				  signed int header_length,
-				  u8 *mpdu,
-				  uint frtype); /* for CONFIG_IEEE80211W, none 11w also can use */
-static void construct_mic_header2(u8 *mic_header2,
-				  u8 *mpdu,
-				  signed int a4_exists,
-				  signed int qc_exists);
-static void construct_ctr_preload(u8 *ctr_preload,
-				  signed int a4_exists,
-				  signed int qc_exists,
-				  u8 *mpdu,
-				  u8 *pn_vector,
-				  signed int c,
-				  uint frtype); /* for CONFIG_IEEE80211W, none 11w also can use */
-
-static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext);
-
-
 /****************************************/
 /* aes128k128d()                        */
 /* Performs a 128 bit AES encrypt with  */
