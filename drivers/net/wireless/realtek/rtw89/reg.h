@@ -9126,6 +9126,7 @@
 #define B_COEF_SEL_MDPD BIT(8)
 #define B_COEF_SEL_MDPD_V1 GENMASK(9, 8)
 #define B_COEF_SEL_EN BIT(31)
+#define R_CFIR_COEF 0x810c
 #define R_CFIR_SYS 0x8120
 #define R_IQK_RES 0x8124
 #define B_IQK_RES_K BIT(28)
