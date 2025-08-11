@@ -290,6 +290,83 @@ where
         Ok(Self::new(x, flags)?.into())
     }
 
+    /// Construct a pinned slice of elements `Pin<Box<[T], A>>`.
+    ///
+    /// This is a convenient means for creation of e.g. slices of structrures containing spinlocks
+    /// or mutexes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::{new_spinlock, SpinLock};
+    ///
+    /// struct Inner {
+    ///     a: u32,
+    ///     b: u32,
+    /// }
+    ///
+    /// #[pin_data]
+    /// struct Example {
+    ///     c: u32,
+    ///     #[pin]
+    ///     d: SpinLock<Inner>,
+    /// }
+    ///
+    /// impl Example {
+    ///     fn new() -> impl PinInit<Self, Error> {
+    ///         try_pin_init!(Self {
+    ///             c: 10,
+    ///             d <- new_spinlock!(Inner { a: 20, b: 30 }),
+    ///         })
+    ///     }
+    /// }
+    ///
+    /// // Allocate a boxed slice of 10 `Example`s.
+    /// let s = KBox::pin_slice(
+    ///     | _i | Example::new(),
+    ///     10,
+    ///     GFP_KERNEL
+    /// )?;
+    ///
+    /// assert_eq!(s[5].c, 10);
+    /// assert_eq!(s[3].d.lock().a, 20);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn pin_slice<Func, Item, E>(
+        mut init: Func,
+        len: usize,
+        flags: Flags,
+    ) -> Result<Pin<Box<[T], A>>, E>
+    where
+        Func: FnMut(usize) -> Item,
+        Item: PinInit<T, E>,
+        E: From<AllocError>,
+    {
+        let mut buffer = super::Vec::<T, A>::with_capacity(len, flags)?;
+        for i in 0..len {
+            let ptr = buffer.spare_capacity_mut().as_mut_ptr().cast();
+            // SAFETY:
+            // - `ptr` is a valid pointer to uninitialized memory.
+            // - `ptr` is not used if an error is returned.
+            // - `ptr` won't be moved until it is dropped, i.e. it is pinned.
+            unsafe { init(i).__pinned_init(ptr)? };
+
+            // SAFETY:
+            // - `i + 1 <= len`, hence we don't exceed the capacity, due to the call to
+            //   `with_capacity()` above.
+            // - The new value at index buffer.len() + 1 is the only element being added here, and
+            //   it has been initialized above by `init(i).__pinned_init(ptr)`.
+            unsafe { buffer.inc_len(1) };
+        }
+
+        let (ptr, _, _) = buffer.into_raw_parts();
+        let slice = core::ptr::slice_from_raw_parts_mut(ptr, len);
+
+        // SAFETY: `slice` points to an allocation allocated with `A` (`buffer`) and holds a valid
+        // `[T]`.
+        Ok(Pin::from(unsafe { Box::from_raw(slice) }))
+    }
+
     /// Convert a [`Box<T,A>`] to a [`Pin<Box<T,A>>`]. If `T` does not implement
     /// [`Unpin`], then `x` will be pinned in memory and can't be moved.
     pub fn into_pin(this: Self) -> Pin<Self> {
