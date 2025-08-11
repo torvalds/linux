@@ -2242,7 +2242,7 @@ static void wait_eb_writebacks(struct btrfs_block_group *block_group)
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	const u64 end = block_group->start + block_group->length;
 	struct extent_buffer *eb;
-	unsigned long index, start = (block_group->start >> fs_info->sectorsize_bits);
+	unsigned long index, start = (block_group->start >> fs_info->nodesize_bits);
 
 	rcu_read_lock();
 	xa_for_each_start(&fs_info->buffer_tree, index, eb, start) {
