@@ -10,6 +10,7 @@
 #include <linux/sort.h>
 #include <linux/idr.h>
 #include <linux/memory-tiers.h>
+#include <linux/string_choices.h>
 #include <cxlmem.h>
 #include <cxl.h>
 #include "core.h"
@@ -1468,9 +1469,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 				dev_name(port->uport_dev), dev_name(&port->dev),
 				__func__, cxld->interleave_ways,
 				cxld->interleave_granularity,
-				(cxld->flags & CXL_DECODER_F_ENABLE) ?
-					"enabled" :
-					"disabled",
+				str_enabled_disabled(cxld->flags & CXL_DECODER_F_ENABLE),
 				cxld->hpa_range.start, cxld->hpa_range.end);
 			return -ENXIO;
 		}
