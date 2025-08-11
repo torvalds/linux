@@ -205,6 +205,9 @@ definitions:
       -
         name: gtp-teid
       -
+        name: ip6-fl
+        doc: IPv6 Flow Label
+      -
         name: discard
         value: 31
 

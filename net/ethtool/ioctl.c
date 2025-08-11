@@ -1014,6 +1014,28 @@ static bool flow_type_hashable(u32 flow_type)
 	return false;
 }
 
+static bool flow_type_v6(u32 flow_type)
+{
+	switch (flow_type) {
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV6_FLOW:
+	case GTPU_V6_FLOW:
+	case GTPC_V6_FLOW:
+	case GTPC_TEID_V6_FLOW:
+	case GTPU_EH_V6_FLOW:
+	case GTPU_UL_V6_FLOW:
+	case GTPU_DL_V6_FLOW:
+		return true;
+	}
+
+	return false;
+}
+
 /* When adding a new type, update the assert and, if it's hashable, add it to
  * the flow_type_hashable switch case.
  */
@@ -1076,6 +1098,9 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
 	if (rc)
 		return rc;
+
+	if (info.data & RXH_IP6_FL && !flow_type_v6(info.flow_type))
+		return -EINVAL;
 
 	if (info.flow_type & FLOW_RSS && info.rss_context &&
 	    !ops->rxfh_per_ctx_fields)
