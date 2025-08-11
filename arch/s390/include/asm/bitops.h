@@ -130,7 +130,7 @@ static inline bool test_bit_inv(unsigned long nr,
  * where the most significant bit has bit number 0.
  * If no bit is set this function returns 64.
  */
-static inline unsigned char __flogr(unsigned long word)
+static __always_inline unsigned char __flogr(unsigned long word)
 {
 	if (__builtin_constant_p(word)) {
 		unsigned long bit = 0;
@@ -163,7 +163,7 @@ static inline unsigned char __flogr(unsigned long word)
 		}
 		return bit;
 	} else {
-		union register_pair rp;
+		union register_pair rp __uninitialized;
 
 		rp.even = word;
 		asm volatile(
@@ -179,7 +179,7 @@ static inline unsigned char __flogr(unsigned long word)
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-static inline unsigned long __ffs(unsigned long word)
+static __always_inline __flatten unsigned long __ffs(unsigned long word)
 {
 	return __flogr(-word & word) ^ (BITS_PER_LONG - 1);
 }
@@ -191,7 +191,7 @@ static inline unsigned long __ffs(unsigned long word)
  * This is defined the same way as the libc and
  * compiler builtin ffs routines (man ffs).
  */
-static inline int ffs(int word)
+static __always_inline __flatten int ffs(int word)
 {
 	unsigned int val = (unsigned int)word;
 
@@ -204,7 +204,7 @@ static inline int ffs(int word)
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-static inline unsigned long __fls(unsigned long word)
+static __always_inline __flatten unsigned long __fls(unsigned long word)
 {
 	return __flogr(word) ^ (BITS_PER_LONG - 1);
 }
@@ -220,7 +220,7 @@ static inline unsigned long __fls(unsigned long word)
  * set bit if value is nonzero. The last (most significant) bit is
  * at position 64.
  */
-static inline int fls64(unsigned long word)
+static __always_inline __flatten int fls64(unsigned long word)
 {
 	return BITS_PER_LONG - __flogr(word);
 }
@@ -232,7 +232,7 @@ static inline int fls64(unsigned long word)
  * This is defined the same way as ffs.
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
-static inline int fls(unsigned int word)
+static __always_inline __flatten int fls(unsigned int word)
 {
 	return fls64(word);
 }
