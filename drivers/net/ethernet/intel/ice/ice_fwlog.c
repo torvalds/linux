@@ -74,10 +74,12 @@ static void ice_fwlog_free_ring_buffs(struct ice_fwlog_ring *rings)
 /**
  * ice_fwlog_realloc_rings - reallocate the FW log rings
  * @hw: pointer to the HW structure
+ * @fwlog: pointer to the fwlog structure
  * @index: the new index to use to allocate memory for the log data
  *
  */
-void ice_fwlog_realloc_rings(struct ice_hw *hw, int index)
+void ice_fwlog_realloc_rings(struct ice_hw *hw, struct ice_fwlog *fwlog,
+			     int index)
 {
 	struct ice_fwlog_ring ring;
 	int status, ring_size;
@@ -92,7 +94,7 @@ void ice_fwlog_realloc_rings(struct ice_hw *hw, int index)
 	 * can be correctly parsed by the tools
 	 */
 	ring_size = ICE_FWLOG_INDEX_TO_BYTES(index) / ICE_AQ_MAX_BUF_LEN;
-	if (ring_size == hw->fwlog_ring.size)
+	if (ring_size == fwlog->ring.size)
 		return;
 
 	/* allocate space for the new rings and buffers then release the
@@ -113,26 +115,26 @@ void ice_fwlog_realloc_rings(struct ice_hw *hw, int index)
 		return;
 	}
 
-	ice_fwlog_free_ring_buffs(&hw->fwlog_ring);
-	kfree(hw->fwlog_ring.rings);
+	ice_fwlog_free_ring_buffs(&fwlog->ring);
+	kfree(fwlog->ring.rings);
 
-	hw->fwlog_ring.rings = ring.rings;
-	hw->fwlog_ring.size = ring.size;
-	hw->fwlog_ring.index = index;
-	hw->fwlog_ring.head = 0;
-	hw->fwlog_ring.tail = 0;
+	fwlog->ring.rings = ring.rings;
+	fwlog->ring.size = ring.size;
+	fwlog->ring.index = index;
+	fwlog->ring.head = 0;
+	fwlog->ring.tail = 0;
 }
 
 /**
  * ice_fwlog_supported - Cached for whether FW supports FW logging or not
- * @hw: pointer to the HW structure
+ * @fwlog: pointer to the fwlog structure
  *
  * This will always return false if called before ice_init_hw(), so it must be
  * called after ice_init_hw().
  */
-static bool ice_fwlog_supported(struct ice_hw *hw)
+static bool ice_fwlog_supported(struct ice_fwlog *fwlog)
 {
-	return hw->fwlog_supported;
+	return fwlog->supported;
 }
 
 /**
@@ -202,6 +204,7 @@ status_out:
 /**
  * ice_fwlog_set_supported - Set if FW logging is supported by FW
  * @hw: pointer to the HW struct
+ * @fwlog: pointer to the fwlog structure
  *
  * If FW returns success to the ice_aq_fwlog_get call then it supports FW
  * logging, else it doesn't. Set the fwlog_supported flag accordingly.
@@ -209,12 +212,12 @@ status_out:
  * This function is only meant to be called during driver init to determine if
  * the FW support FW logging.
  */
-static void ice_fwlog_set_supported(struct ice_hw *hw)
+static void ice_fwlog_set_supported(struct ice_hw *hw, struct ice_fwlog *fwlog)
 {
 	struct ice_fwlog_cfg *cfg;
 	int status;
 
-	hw->fwlog_supported = false;
+	fwlog->supported = false;
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
@@ -225,7 +228,7 @@ static void ice_fwlog_set_supported(struct ice_hw *hw)
 		ice_debug(hw, ICE_DBG_FW_LOG, "ice_aq_fwlog_get failed, FW logging is not supported on this version of FW, status %d\n",
 			  status);
 	else
-		hw->fwlog_supported = true;
+		fwlog->supported = true;
 
 	kfree(cfg);
 }
@@ -233,42 +236,43 @@ static void ice_fwlog_set_supported(struct ice_hw *hw)
 /**
  * ice_fwlog_init - Initialize FW logging configuration
  * @hw: pointer to the HW structure
+ * @fwlog: pointer to the fwlog structure
  *
  * This function should be called on driver initialization during
  * ice_init_hw().
  */
-int ice_fwlog_init(struct ice_hw *hw)
+int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog *fwlog)
 {
 	/* only support fw log commands on PF 0 */
 	if (hw->bus.func)
 		return -EINVAL;
 
-	ice_fwlog_set_supported(hw);
+	ice_fwlog_set_supported(hw, fwlog);
 
-	if (ice_fwlog_supported(hw)) {
+	if (ice_fwlog_supported(fwlog)) {
 		int status;
 
 		/* read the current config from the FW and store it */
-		status = ice_aq_fwlog_get(hw, &hw->fwlog_cfg);
+		status = ice_aq_fwlog_get(hw, &fwlog->cfg);
 		if (status)
 			return status;
 
-		hw->fwlog_ring.rings = kcalloc(ICE_FWLOG_RING_SIZE_DFLT,
-					       sizeof(*hw->fwlog_ring.rings),
-					       GFP_KERNEL);
-		if (!hw->fwlog_ring.rings) {
+		fwlog->ring.rings = kcalloc(ICE_FWLOG_RING_SIZE_DFLT,
+					    sizeof(*fwlog->ring.rings),
+					    GFP_KERNEL);
+		if (!fwlog->ring.rings) {
 			dev_warn(ice_hw_to_dev(hw), "Unable to allocate memory for FW log rings\n");
 			return -ENOMEM;
 		}
 
-		hw->fwlog_ring.size = ICE_FWLOG_RING_SIZE_DFLT;
-		hw->fwlog_ring.index = ICE_FWLOG_RING_SIZE_INDEX_DFLT;
+		fwlog->ring.size = ICE_FWLOG_RING_SIZE_DFLT;
+		fwlog->ring.index = ICE_FWLOG_RING_SIZE_INDEX_DFLT;
 
-		status = ice_fwlog_alloc_ring_buffs(&hw->fwlog_ring);
+		status = ice_fwlog_alloc_ring_buffs(&fwlog->ring);
 		if (status) {
 			dev_warn(ice_hw_to_dev(hw), "Unable to allocate memory for FW log ring data buffers\n");
-			ice_fwlog_free_ring_buffs(&hw->fwlog_ring);
-			kfree(hw->fwlog_ring.rings);
+			ice_fwlog_free_ring_buffs(&fwlog->ring);
+			kfree(fwlog->ring.rings);
 			return status;
 		}
 
@@ -283,10 +287,11 @@ int ice_fwlog_init(struct ice_hw *hw)
 /**
  * ice_fwlog_deinit - unroll FW logging configuration
  * @hw: pointer to the HW structure
+ * @fwlog: pointer to the fwlog structure
  *
  * This function should be called in ice_deinit_hw().
  */
-void ice_fwlog_deinit(struct ice_hw *hw)
+void ice_fwlog_deinit(struct ice_hw *hw, struct ice_fwlog *fwlog)
 {
 	struct ice_pf *pf = hw->back;
 	int status;
@@ -300,8 +305,8 @@ void ice_fwlog_deinit(struct ice_hw *hw)
 	/* make sure FW logging is disabled to not put the FW in a weird state
 	 * for the next driver load
 	 */
-	hw->fwlog_cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
-	status = ice_fwlog_set(hw, &hw->fwlog_cfg);
+	fwlog->cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
+	status = ice_fwlog_set(hw, &fwlog->cfg);
 	if (status)
 		dev_warn(ice_hw_to_dev(hw), "Unable to turn off FW logging, status: %d\n",
 			 status);
@@ -310,14 +315,14 @@ void ice_fwlog_deinit(struct ice_hw *hw)
 
 	pf->ice_debugfs_pf_fwlog_modules = NULL;
 
-	status = ice_fwlog_unregister(hw);
+	status = ice_fwlog_unregister(hw, fwlog);
 	if (status)
 		dev_warn(ice_hw_to_dev(hw), "Unable to unregister FW logging, status: %d\n",
 			 status);
 
-	if (hw->fwlog_ring.rings) {
-		ice_fwlog_free_ring_buffs(&hw->fwlog_ring);
-		kfree(hw->fwlog_ring.rings);
+	if (fwlog->ring.rings) {
+		ice_fwlog_free_ring_buffs(&fwlog->ring);
+		kfree(fwlog->ring.rings);
 	}
 }
 
@@ -387,7 +392,7 @@ ice_aq_fwlog_set(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
  */
 int ice_fwlog_set(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
-	if (!ice_fwlog_supported(hw))
+	if (!ice_fwlog_supported(&hw->fwlog))
 		return -EOPNOTSUPP;
 
 	return ice_aq_fwlog_set(hw, cfg->module_entries,
@@ -417,22 +422,23 @@ static int ice_aq_fwlog_register(struct ice_hw *hw, bool reg)
 /**
  * ice_fwlog_register - Register the PF for firmware logging
  * @hw: pointer to the HW structure
+ * @fwlog: pointer to the fwlog structure
  *
  * After this call the PF will start to receive firmware logging based on the
  * configuration set in ice_fwlog_set.
  */
-int ice_fwlog_register(struct ice_hw *hw)
+int ice_fwlog_register(struct ice_hw *hw, struct ice_fwlog *fwlog)
 {
 	int status;
 
-	if (!ice_fwlog_supported(hw))
+	if (!ice_fwlog_supported(fwlog))
 		return -EOPNOTSUPP;
 
 	status = ice_aq_fwlog_register(hw, true);
 	if (status)
 		ice_debug(hw, ICE_DBG_FW_LOG, "Failed to register for firmware logging events over ARQ\n");
 	else
-		hw->fwlog_cfg.options |= ICE_FWLOG_OPTION_IS_REGISTERED;
+		fwlog->cfg.options |= ICE_FWLOG_OPTION_IS_REGISTERED;
 
 	return status;
 }
@@ -440,44 +446,44 @@ int ice_fwlog_register(struct ice_hw *hw)
 /**
  * ice_fwlog_unregister - Unregister the PF from firmware logging
  * @hw: pointer to the HW structure
+ * @fwlog: pointer to the fwlog structure
  */
-int ice_fwlog_unregister(struct ice_hw *hw)
+int ice_fwlog_unregister(struct ice_hw *hw, struct ice_fwlog *fwlog)
 {
 	int status;
 
-	if (!ice_fwlog_supported(hw))
+	if (!ice_fwlog_supported(fwlog))
 		return -EOPNOTSUPP;
 
 	status = ice_aq_fwlog_register(hw, false);
 	if (status)
 		ice_debug(hw, ICE_DBG_FW_LOG, "Failed to unregister from firmware logging events over ARQ\n");
 	else
-		hw->fwlog_cfg.options &= ~ICE_FWLOG_OPTION_IS_REGISTERED;
+		fwlog->cfg.options &= ~ICE_FWLOG_OPTION_IS_REGISTERED;
 
 	return status;
 }
 
 /**
  * ice_get_fwlog_data - copy the FW log data from ARQ event
- * @hw: HW that the FW log event is associated with
+ * @fwlog: fwlog that the FW log event is associated with
  * @buf: event buffer pointer
  * @len: len of event descriptor
  */
-void ice_get_fwlog_data(struct ice_hw *hw, u8 *buf, u16 len)
+void ice_get_fwlog_data(struct ice_fwlog *fwlog, u8 *buf, u16 len)
 {
-	struct ice_fwlog_data *fwlog;
+	struct ice_fwlog_data *log;
 
-	fwlog = &hw->fwlog_ring.rings[hw->fwlog_ring.tail];
+	log = &fwlog->ring.rings[fwlog->ring.tail];
 
-	memset(fwlog->data, 0, PAGE_SIZE);
-	fwlog->data_size = len;
+	memset(log->data, 0, PAGE_SIZE);
+	log->data_size = len;
 
-	memcpy(fwlog->data, buf, fwlog->data_size);
-	ice_fwlog_ring_increment(&hw->fwlog_ring.tail, hw->fwlog_ring.size);
+	memcpy(log->data, buf, log->data_size);
+	ice_fwlog_ring_increment(&fwlog->ring.tail, fwlog->ring.size);
 
-	if (ice_fwlog_ring_full(&hw->fwlog_ring)) {
+	if (ice_fwlog_ring_full(&fwlog->ring)) {
 		/* the rings are full so bump the head to create room */
-		ice_fwlog_ring_increment(&hw->fwlog_ring.head,
-					 hw->fwlog_ring.size);
+		ice_fwlog_ring_increment(&fwlog->ring.head, fwlog->ring.size);
 	}
 }

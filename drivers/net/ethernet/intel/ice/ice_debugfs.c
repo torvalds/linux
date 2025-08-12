@@ -81,7 +81,7 @@ static const char * const ice_fwlog_log_size[] = {
 static void
 ice_fwlog_print_module_cfg(struct ice_hw *hw, int module, struct seq_file *s)
 {
-	struct ice_fwlog_cfg *cfg = &hw->fwlog_cfg;
+	struct ice_fwlog_cfg *cfg = &hw->fwlog.cfg;
 	struct ice_fwlog_module_entry *entry;
 
 	if (module != ICE_AQC_FW_LOG_ID_MAX) {
@@ -193,7 +193,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 	}
 
 	if (module != ICE_AQC_FW_LOG_ID_MAX) {
-		hw->fwlog_cfg.module_entries[module].log_level = log_level;
+		hw->fwlog.cfg.module_entries[module].log_level = log_level;
 	} else {
 		/* the module 'all' is a shortcut so that we can set
 		 * all of the modules to the same level quickly
@@ -201,7 +201,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 		int i;
 
 		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++)
-			hw->fwlog_cfg.module_entries[i].log_level = log_level;
+			hw->fwlog.cfg.module_entries[i].log_level = log_level;
 	}
 
 	return count;
@@ -231,7 +231,7 @@ static ssize_t ice_debugfs_nr_messages_read(struct file *filp,
 	char buff[32] = {};
 
 	snprintf(buff, sizeof(buff), "%d\n",
-		 hw->fwlog_cfg.log_resolution);
+		 hw->fwlog.cfg.log_resolution);
 
 	return simple_read_from_buffer(buffer, count, ppos, buff, strlen(buff));
 }
@@ -278,7 +278,7 @@ ice_debugfs_nr_messages_write(struct file *filp, const char __user *buf,
 		return -EINVAL;
 	}
 
-	hw->fwlog_cfg.log_resolution = nr_messages;
+	hw->fwlog.cfg.log_resolution = nr_messages;
 
 	return count;
 }
@@ -306,7 +306,7 @@ static ssize_t ice_debugfs_enable_read(struct file *filp,
 	char buff[32] = {};
 
 	snprintf(buff, sizeof(buff), "%u\n",
-		 (u16)(hw->fwlog_cfg.options &
+		 (u16)(hw->fwlog.cfg.options &
 		 ICE_FWLOG_OPTION_IS_REGISTERED) >> 3);
 
 	return simple_read_from_buffer(buffer, count, ppos, buff, strlen(buff));
@@ -346,18 +346,18 @@ ice_debugfs_enable_write(struct file *filp, const char __user *buf,
 		goto enable_write_error;
 
 	if (enable)
-		hw->fwlog_cfg.options |= ICE_FWLOG_OPTION_ARQ_ENA;
+		hw->fwlog.cfg.options |= ICE_FWLOG_OPTION_ARQ_ENA;
 	else
-		hw->fwlog_cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
+		hw->fwlog.cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
 
-	ret = ice_fwlog_set(hw, &hw->fwlog_cfg);
+	ret = ice_fwlog_set(hw, &hw->fwlog.cfg);
 	if (ret)
 		goto enable_write_error;
 
 	if (enable)
-		ret = ice_fwlog_register(hw);
+		ret = ice_fwlog_register(hw, &hw->fwlog);
 	else
-		ret = ice_fwlog_unregister(hw);
+		ret = ice_fwlog_unregister(hw, &hw->fwlog);
 
 	if (ret)
 		goto enable_write_error;
@@ -401,7 +401,7 @@ static ssize_t ice_debugfs_log_size_read(struct file *filp,
 	char buff[32] = {};
 	int index;
 
-	index = hw->fwlog_ring.index;
+	index = hw->fwlog.ring.index;
 	snprintf(buff, sizeof(buff), "%s\n", ice_fwlog_log_size[index]);
 
 	return simple_read_from_buffer(buffer, count, ppos, buff, strlen(buff));
@@ -443,14 +443,14 @@ ice_debugfs_log_size_write(struct file *filp, const char __user *buf,
 			 user_val);
 		ret = -EINVAL;
 		goto log_size_write_error;
-	} else if (hw->fwlog_cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED) {
+	} else if (hw->fwlog.cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED) {
 		dev_info(dev, "FW logging is currently running. Please disable FW logging to change log_size\n");
 		ret = -EINVAL;
 		goto log_size_write_error;
 	}
 
 	/* free all the buffers and the tracking info and resize */
-	ice_fwlog_realloc_rings(hw, index);
+	ice_fwlog_realloc_rings(hw, &hw->fwlog, index);
 
 	/* if we get here, nothing went wrong; return count since we didn't
 	 * really write anything
@@ -490,14 +490,14 @@ static ssize_t ice_debugfs_data_read(struct file *filp, char __user *buffer,
 	int data_copied = 0;
 	bool done = false;
 
-	if (ice_fwlog_ring_empty(&hw->fwlog_ring))
+	if (ice_fwlog_ring_empty(&hw->fwlog.ring))
 		return 0;
 
-	while (!ice_fwlog_ring_empty(&hw->fwlog_ring) && !done) {
+	while (!ice_fwlog_ring_empty(&hw->fwlog.ring) && !done) {
 		struct ice_fwlog_data *log;
 		u16 cur_buf_len;
 
-		log = &hw->fwlog_ring.rings[hw->fwlog_ring.head];
+		log = &hw->fwlog.ring.rings[hw->fwlog.ring.head];
 		cur_buf_len = log->data_size;
 		if (cur_buf_len >= count) {
 			done = true;
@@ -516,8 +516,8 @@ static ssize_t ice_debugfs_data_read(struct file *filp, char __user *buffer,
 		buffer += cur_buf_len;
 		count -= cur_buf_len;
 		*ppos += cur_buf_len;
-		ice_fwlog_ring_increment(&hw->fwlog_ring.head,
-					 hw->fwlog_ring.size);
+		ice_fwlog_ring_increment(&hw->fwlog.ring.head,
+					 hw->fwlog.ring.size);
 	}
 
 	return data_copied;
@@ -546,9 +546,9 @@ ice_debugfs_data_write(struct file *filp, const char __user *buf, size_t count,
 	/* any value is allowed to clear the buffer so no need to even look at
 	 * what the value is
 	 */
-	if (!(hw->fwlog_cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED)) {
-		hw->fwlog_ring.head = 0;
-		hw->fwlog_ring.tail = 0;
+	if (!(hw->fwlog.cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED)) {
+		hw->fwlog.ring.head = 0;
+		hw->fwlog.ring.tail = 0;
 	} else {
 		dev_info(dev, "Can't clear FW log data while FW log running\n");
 		ret = -EINVAL;

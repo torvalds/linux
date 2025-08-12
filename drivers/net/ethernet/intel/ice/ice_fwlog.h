@@ -64,13 +64,20 @@ struct ice_fwlog_ring {
 #define ICE_FWLOG_RING_SIZE_DFLT 256
 #define ICE_FWLOG_RING_SIZE_MAX 512
 
+struct ice_fwlog {
+	struct ice_fwlog_cfg cfg;
+	bool supported; /* does hardware support FW logging? */
+	struct ice_fwlog_ring ring;
+};
+
 bool ice_fwlog_ring_empty(struct ice_fwlog_ring *rings);
 void ice_fwlog_ring_increment(u16 *item, u16 size);
-int ice_fwlog_init(struct ice_hw *hw);
-void ice_fwlog_deinit(struct ice_hw *hw);
+int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog *fwlog);
+void ice_fwlog_deinit(struct ice_hw *hw, struct ice_fwlog *fwlog);
 int ice_fwlog_set(struct ice_hw *hw, struct ice_fwlog_cfg *cfg);
-int ice_fwlog_register(struct ice_hw *hw);
-int ice_fwlog_unregister(struct ice_hw *hw);
-void ice_fwlog_realloc_rings(struct ice_hw *hw, int index);
-void ice_get_fwlog_data(struct ice_hw *hw, u8 *buf, u16 len);
+int ice_fwlog_register(struct ice_hw *hw, struct ice_fwlog *fwlog);
+int ice_fwlog_unregister(struct ice_hw *hw, struct ice_fwlog *fwlog);
+void ice_fwlog_realloc_rings(struct ice_hw *hw, struct ice_fwlog *fwlog,
+			     int index);
+void ice_get_fwlog_data(struct ice_fwlog *fwlog, u8 *buf, u16 len);
 #endif /* _ICE_FWLOG_H_ */
