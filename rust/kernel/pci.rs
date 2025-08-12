@@ -60,7 +60,7 @@ impl<T: Driver + 'static> Adapter<T> {
     extern "C" fn probe_callback(
         pdev: *mut bindings::pci_dev,
         id: *const bindings::pci_device_id,
-    ) -> kernel::ffi::c_int {
+    ) -> c_int {
         // SAFETY: The PCI bus only ever calls the probe callback with a valid pointer to a
         // `struct pci_dev`.
         //
@@ -347,7 +347,7 @@ impl<const SIZE: usize> Bar<SIZE> {
         // `ioptr` is valid by the safety requirements.
         // `num` is valid by the safety requirements.
         unsafe {
-            bindings::pci_iounmap(pdev.as_raw(), ioptr as *mut kernel::ffi::c_void);
+            bindings::pci_iounmap(pdev.as_raw(), ioptr as *mut c_void);
             bindings::pci_release_region(pdev.as_raw(), num);
         }
     }
