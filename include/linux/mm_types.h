@@ -20,6 +20,7 @@
 #include <linux/seqlock.h>
 #include <linux/percpu_counter.h>
 #include <linux/types.h>
+#include <linux/bitmap.h>
 
 #include <asm/mmu.h>
 
@@ -927,6 +928,15 @@ struct mm_cid {
 };
 #endif
 
+/*
+ * Opaque type representing current mm_struct flag state. Must be accessed via
+ * mm_flags_xxx() helper functions.
+ */
+#define NUM_MM_FLAG_BITS BITS_PER_LONG
+typedef struct {
+	DECLARE_BITMAP(__mm_flags, NUM_MM_FLAG_BITS);
+} __private mm_flags_t;
+
 struct kioctx_table;
 struct iommu_mm_data;
 struct mm_struct {
@@ -1109,7 +1119,11 @@ struct mm_struct {
 		/* Architecture-specific MM context */
 		mm_context_t context;
 
-		unsigned long flags; /* Must use atomic bitops to access */
+		/* Temporary union while we convert users to mm_flags_t. */
+		union {
+			unsigned long flags; /* Must use atomic bitops to access */
+			mm_flags_t _flags;   /* Must use mm_flags_* helpers to access */
+		};
 
 #ifdef CONFIG_AIO
 		spinlock_t			ioctx_lock;
@@ -1218,6 +1232,28 @@ struct mm_struct {
 	 */
 	unsigned long cpu_bitmap[];
 };
+
+/* Set the first system word of mm flags, non-atomically. */
+static inline void __mm_flags_set_word(struct mm_struct *mm, unsigned long value)
+{
+	unsigned long *bitmap = ACCESS_PRIVATE(&mm->_flags, __mm_flags);
+
+	bitmap_copy(bitmap, &value, BITS_PER_LONG);
+}
+
+/* Obtain a read-only view of the bitmap. */
+static inline const unsigned long *__mm_flags_get_bitmap(const struct mm_struct *mm)
+{
+	return (const unsigned long *)ACCESS_PRIVATE(&mm->_flags, __mm_flags);
+}
+
+/* Read the first system word of mm flags, non-atomically. */
+static inline unsigned long __mm_flags_get_word(const struct mm_struct *mm)
+{
+	const unsigned long *bitmap = __mm_flags_get_bitmap(mm);
+
+	return bitmap_read(bitmap, 0, BITS_PER_LONG);
+}
 
 #define MM_MT_FLAGS	(MT_FLAGS_ALLOC_RANGE | MT_FLAGS_LOCK_EXTERN | \
 			 MT_FLAGS_USE_RCU)
