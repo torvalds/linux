@@ -456,6 +456,64 @@ class MissingCheckers(AncillaryMethods):
 
         return True
 
+    def get_system_release(self):
+        """
+        Determine the system type. There's no unique way that would work
+        with all distros with a minimal package install. So, several
+        methods are used here.
+
+        By default, it will use lsb_release function. If not available, it will
+        fail back to reading the known different places where the distro name
+        is stored.
+
+        Several modern distros now have /etc/os-release, which usually have
+        a decent coverage.
+        """
+
+        system_release = ""
+
+        if self.which("lsb_release"):
+            result = self.run(["lsb_release", "-d"], capture_output=True, text=True)
+            system_release = result.stdout.replace("Description:", "").strip()
+
+        release_files = [
+            "/etc/system-release",
+            "/etc/redhat-release",
+            "/etc/lsb-release",
+            "/etc/gentoo-release",
+        ]
+
+        if not system_release:
+            for f in release_files:
+                system_release = self.catcheck(f)
+                if system_release:
+                    break
+
+        # This seems more common than LSB these days
+        if not system_release:
+            os_var = {}
+            try:
+                with open("/etc/os-release", "r", encoding="utf-8") as f:
+                    for line in f:
+                        match = re.match(r"^([\w\d\_]+)=\"?([^\"]*)\"?\n", line)
+                        if match:
+                            os_var[match.group(1)] = match.group(2)
+
+                system_release = os_var.get("NAME", "")
+                if "VERSION_ID" in os_var:
+                    system_release += " " + os_var["VERSION_ID"]
+                elif "VERSION" in os_var:
+                    system_release += " " + os_var["VERSION"]
+            except IOError:
+                pass
+
+        if not system_release:
+            system_release = self.catcheck("/etc/issue")
+
+        system_release = system_release.strip()
+
+        return system_release
+
 class SphinxDependencyChecker(MissingCheckers):
 
     def __init__(self, args):
@@ -499,7 +557,7 @@ class SphinxDependencyChecker(MissingCheckers):
         self.need_pip = 0
         self.rec_sphinx_upgrade = 0
 
-        self.system_release = ""
+        self.system_release = self.get_system_release()
         self.python_cmd = ""
         self.activate_cmd = ""
 
@@ -1193,7 +1251,6 @@ class SphinxDependencyChecker(MissingCheckers):
               "\thttps://github.com/sphinx-doc/sphinx/pull/8313")
 
     def check_needs(self):
-        self.get_system_release()
         self.python_cmd = sys.executable
 
         # Check if Sphinx is already accessible from current environment
@@ -1269,60 +1326,6 @@ class SphinxDependencyChecker(MissingCheckers):
             sys.exit(f"Can't build as {self.need} mandatory dependencies are missing")
 
         print("Needed package dependencies are met.")
-
-    def get_system_release(self):
-        """
-        Determine the system type. There's no unique way that would work
-        with all distros with a minimal package install. So, several
-        methods are used here.
-
-        By default, it will use lsb_release function. If not available, it will
-        fail back to reading the known different places where the distro name
-        is stored.
-
-        Several modern distros now have /etc/os-release, which usually have
-        a decent coverage.
-        """
-
-        if self.which("lsb_release"):
-            result = self.run(["lsb_release", "-d"], capture_output=True, text=True)
-            self.system_release = result.stdout.replace("Description:", "").strip()
-
-        release_files = [
-            "/etc/system-release",
-            "/etc/redhat-release",
-            "/etc/lsb-release",
-            "/etc/gentoo-release",
-        ]
-
-        if not self.system_release:
-            for f in release_files:
-                self.system_release = self.catcheck(f)
-                if self.system_release:
-                    break
-
-        # This seems more common than LSB these days
-        if not self.system_release:
-            os_var = {}
-            try:
-                with open("/etc/os-release", "r", encoding="utf-8") as f:
-                    for line in f:
-                        match = re.match(r"^([\w\d\_]+)=\"?([^\"]*)\"?\n", line)
-                        if match:
-                            os_var[match.group(1)] = match.group(2)
-
-                self.system_release = os_var.get("NAME", "")
-                if "VERSION_ID" in os_var:
-                    self.system_release += " " + os_var["VERSION_ID"]
-                elif "VERSION" in os_var:
-                    self.system_release += " " + os_var["VERSION"]
-            except IOError:
-                pass
-
-        if not self.system_release:
-            self.system_release = self.catcheck("/etc/issue")
-
-        self.system_release = self.system_release.strip()
 
 DESCRIPTION = """
 Process some flags related to Sphinx installation and documentation build.
