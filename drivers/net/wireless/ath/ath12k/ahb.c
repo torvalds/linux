@@ -698,7 +698,7 @@ static int ath12k_ahb_map_service_to_pipe(struct ath12k_base *ab, u16 service_id
 	return 0;
 }
 
-static const struct ath12k_hif_ops ath12k_ahb_hif_ops_ipq5332 = {
+static const struct ath12k_hif_ops ath12k_ahb_hif_ops = {
 	.start = ath12k_ahb_start,
 	.stop = ath12k_ahb_stop,
 	.read32 = ath12k_ahb_read32,
@@ -1011,7 +1011,7 @@ static int ath12k_ahb_probe(struct platform_device *pdev)
 	hw_rev = (enum ath12k_hw_rev)(kernel_ulong_t)of_device_get_match_data(&pdev->dev);
 	switch (hw_rev) {
 	case ATH12K_HW_IPQ5332_HW10:
-		hif_ops = &ath12k_ahb_hif_ops_ipq5332;
+		hif_ops = &ath12k_ahb_hif_ops;
 		userpd_id = ATH12K_IPQ5332_USERPD_ID;
 		break;
 	default:
