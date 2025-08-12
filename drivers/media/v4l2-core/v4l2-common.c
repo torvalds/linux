@@ -708,24 +708,40 @@ int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
 }
 EXPORT_SYMBOL_GPL(v4l2_link_freq_to_bitmap);
 
-struct clk *devm_v4l2_sensor_clk_get(struct device *dev, const char *id)
+struct clk *__devm_v4l2_sensor_clk_get(struct device *dev, const char *id,
+				       bool legacy, bool fixed_rate,
+				       unsigned long clk_rate)
 {
+	bool of_node = is_of_node(dev_fwnode(dev));
 	const char *clk_id __free(kfree) = NULL;
 	struct clk_hw *clk_hw;
 	struct clk *clk;
-	bool of_node;
-	u32 rate;
-	int ret;
+	u32 rate = clk_rate;
+	int ret = 0;
 
 	clk = devm_clk_get_optional(dev, id);
 	if (IS_ERR(clk))
 		return clk;
 
-	ret = device_property_read_u32(dev, "clock-frequency", &rate);
-	of_node = is_of_node(dev_fwnode(dev));
+	/*
+	 * If the caller didn't request a fixed rate, retrieve it from the
+	 * clock-frequency property. -EINVAL indicates the property is absent,
+	 * and is not a failure. Other errors, or success with a clock-frequency
+	 * value of 0, are hard failures.
+	 */
+	if (!fixed_rate || !clk_rate) {
+		ret = device_property_read_u32(dev, "clock-frequency", &rate);
+		if ((ret && ret != -EINVAL) || (!ret && !rate))
+			return ERR_PTR(-EINVAL);
+	}
 
 	if (clk) {
-		if (!ret && !of_node) {
+		/*
+		 * On non-OF platforms, or when legacy behaviour is requested,
+		 * set the clock rate if a rate has been specified by the caller
+		 * or by the clock-frequency property.
+		 */
+		if (rate && (!of_node || legacy)) {
 			ret = clk_set_rate(clk, rate);
 			if (ret) {
 				dev_err(dev, "Failed to set clock rate: %u\n",
@@ -736,9 +752,14 @@ struct clk *devm_v4l2_sensor_clk_get(struct device *dev, const char *id)
 		return clk;
 	}
 
-	if (!IS_ENABLED(CONFIG_COMMON_CLK) || of_node)
+	/*
+	 * Register a dummy fixed clock on non-OF platforms or when legacy
+	 * behaviour is requested. This required the common clock framework.
+	 */
+	if (!IS_ENABLED(CONFIG_COMMON_CLK) || (of_node && !legacy))
 		return ERR_PTR(-ENOENT);
 
+	/* We need a rate to create a clock. */
 	if (ret)
 		return ERR_PTR(ret == -EINVAL ? -EPROBE_DEFER : ret);
 
@@ -755,4 +776,4 @@ struct clk *devm_v4l2_sensor_clk_get(struct device *dev, const char *id)
 
 	return clk_hw->clk;
 }
-EXPORT_SYMBOL_GPL(devm_v4l2_sensor_clk_get);
+EXPORT_SYMBOL_GPL(__devm_v4l2_sensor_clk_get);
