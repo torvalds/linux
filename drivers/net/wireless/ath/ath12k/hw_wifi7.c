@@ -1043,13 +1043,14 @@ int ath12k_hw_init(struct ath12k_base *ab)
 	}
 
 	if (i == ARRAY_SIZE(ath12k_hw_params)) {
-		ath12k_err(ab, "Unsupported hardware version: 0x%x\n", ab->hw_rev);
+		ath12k_err(ab, "Unsupported Wi-Fi 7 hardware version: 0x%x\n",
+			   ab->hw_rev);
 		return -EINVAL;
 	}
 
 	ab->hw_params = hw_params;
 
-	ath12k_info(ab, "Hardware name: %s\n", ab->hw_params->name);
+	ath12k_info(ab, "Wi-Fi 7 Hardware name: %s\n", ab->hw_params->name);
 
 	return 0;
 }
