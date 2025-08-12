@@ -395,7 +395,7 @@ void ubifs_init_node(struct ubifs_info *c, void *node, int len, int pad)
 	}
 }
 
-void ubifs_crc_node(struct ubifs_info *c, void *node, int len)
+void ubifs_crc_node(void *node, int len)
 {
 	struct ubifs_ch *ch = node;
 	uint32_t crc;
@@ -432,7 +432,7 @@ int ubifs_prepare_node_hmac(struct ubifs_info *c, void *node, int len,
 			return err;
 	}
 
-	ubifs_crc_node(c, node, len);
+	ubifs_crc_node(node, len);
 
 	return 0;
 }
