@@ -327,7 +327,7 @@ static inline bool vma_thp_disabled(struct vm_area_struct *vma,
 	 * example, s390 kvm.
 	 */
 	return (vm_flags & VM_NOHUGEPAGE) ||
-	       test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags);
+	       mm_flags_test(MMF_DISABLE_THP, vma->vm_mm);
 }
 
 static inline bool thp_disabled_by_hw(void)

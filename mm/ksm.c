@@ -1217,8 +1217,8 @@ mm_exiting:
 			spin_unlock(&ksm_mmlist_lock);
 
 			mm_slot_free(mm_slot_cache, mm_slot);
-			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-			clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+			mm_flags_clear(MMF_VM_MERGEABLE, mm);
+			mm_flags_clear(MMF_VM_MERGE_ANY, mm);
 			mmdrop(mm);
 		} else
 			spin_unlock(&ksm_mmlist_lock);
@@ -2620,8 +2620,8 @@ no_vmas:
 		spin_unlock(&ksm_mmlist_lock);
 
 		mm_slot_free(mm_slot_cache, mm_slot);
-		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-		clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+		mm_flags_clear(MMF_VM_MERGEABLE, mm);
+		mm_flags_clear(MMF_VM_MERGE_ANY, mm);
 		mmap_read_unlock(mm);
 		mmdrop(mm);
 	} else {
@@ -2742,7 +2742,7 @@ static int __ksm_del_vma(struct vm_area_struct *vma)
 vm_flags_t ksm_vma_flags(const struct mm_struct *mm, const struct file *file,
 			 vm_flags_t vm_flags)
 {
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags) &&
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm) &&
 	    __ksm_should_add_vma(file, vm_flags))
 		vm_flags |= VM_MERGEABLE;
 
@@ -2784,16 +2784,16 @@ int ksm_enable_merge_any(struct mm_struct *mm)
 {
 	int err;
 
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return 0;
 
-	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+	if (!mm_flags_test(MMF_VM_MERGEABLE, mm)) {
 		err = __ksm_enter(mm);
 		if (err)
 			return err;
 	}
 
-	set_bit(MMF_VM_MERGE_ANY, &mm->flags);
+	mm_flags_set(MMF_VM_MERGE_ANY, mm);
 	ksm_add_vmas(mm);
 
 	return 0;
@@ -2815,7 +2815,7 @@ int ksm_disable_merge_any(struct mm_struct *mm)
 {
 	int err;
 
-	if (!test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (!mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return 0;
 
 	err = ksm_del_vmas(mm);
@@ -2824,7 +2824,7 @@ int ksm_disable_merge_any(struct mm_struct *mm)
 		return err;
 	}
 
-	clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+	mm_flags_clear(MMF_VM_MERGE_ANY, mm);
 	return 0;
 }
 
@@ -2832,9 +2832,9 @@ int ksm_disable(struct mm_struct *mm)
 {
 	mmap_assert_write_locked(mm);
 
-	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
+	if (!mm_flags_test(MMF_VM_MERGEABLE, mm))
 		return 0;
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return ksm_disable_merge_any(mm);
 	return ksm_del_vmas(mm);
 }
@@ -2852,7 +2852,7 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		if (!vma_ksm_compatible(vma))
 			return 0;
 
-		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+		if (!mm_flags_test(MMF_VM_MERGEABLE, mm)) {
 			err = __ksm_enter(mm);
 			if (err)
 				return err;
@@ -2912,7 +2912,7 @@ int __ksm_enter(struct mm_struct *mm)
 		list_add_tail(&slot->mm_node, &ksm_scan.mm_slot->slot.mm_node);
 	spin_unlock(&ksm_mmlist_lock);
 
-	set_bit(MMF_VM_MERGEABLE, &mm->flags);
+	mm_flags_set(MMF_VM_MERGEABLE, mm);
 	mmgrab(mm);
 
 	if (needs_wakeup)
@@ -2954,8 +2954,8 @@ void __ksm_exit(struct mm_struct *mm)
 
 	if (easy_to_free) {
 		mm_slot_free(mm_slot_cache, mm_slot);
-		clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
-		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+		mm_flags_clear(MMF_VM_MERGE_ANY, mm);
+		mm_flags_clear(MMF_VM_MERGEABLE, mm);
 		mmdrop(mm);
 	} else if (mm_slot) {
 		mmap_write_lock(mm);

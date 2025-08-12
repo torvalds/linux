@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/mm/oom_kill.c
- * 
+ *
  *  Copyright (C)  1998,2000  Rik van Riel
  *	Thanks go out to Claus Fischer for some serious inspiration and
  *	for goading me into coding this file...
@@ -218,7 +218,7 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 	 */
 	adj = (long)p->signal->oom_score_adj;
 	if (adj == OOM_SCORE_ADJ_MIN ||
-			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
+			mm_flags_test(MMF_OOM_SKIP, p->mm) ||
 			in_vfork(p)) {
 		task_unlock(p);
 		return LONG_MIN;
@@ -325,7 +325,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 	 * any memory is quite low.
 	 */
 	if (!is_sysrq_oom(oc) && tsk_is_oom_victim(task)) {
-		if (test_bit(MMF_OOM_SKIP, &task->signal->oom_mm->flags))
+		if (mm_flags_test(MMF_OOM_SKIP, task->signal->oom_mm))
 			goto next;
 		goto abort;
 	}
@@ -524,7 +524,7 @@ static bool __oom_reap_task_mm(struct mm_struct *mm)
 	 * should imply barriers already and the reader would hit a page fault
 	 * if it stumbled over a reaped memory.
 	 */
-	set_bit(MMF_UNSTABLE, &mm->flags);
+	mm_flags_set(MMF_UNSTABLE, mm);
 
 	for_each_vma(vmi, vma) {
 		if (vma->vm_flags & (VM_HUGETLB|VM_PFNMAP))
@@ -583,7 +583,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 	 * under mmap_lock for reading because it serializes against the
 	 * mmap_write_lock();mmap_write_unlock() cycle in exit_mmap().
 	 */
-	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+	if (mm_flags_test(MMF_OOM_SKIP, mm)) {
 		trace_skip_task_reaping(tsk->pid);
 		goto out_unlock;
 	}
@@ -619,7 +619,7 @@ static void oom_reap_task(struct task_struct *tsk)
 		schedule_timeout_idle(HZ/10);
 
 	if (attempts <= MAX_OOM_REAP_RETRIES ||
-	    test_bit(MMF_OOM_SKIP, &mm->flags))
+	    mm_flags_test(MMF_OOM_SKIP, mm))
 		goto done;
 
 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
@@ -634,7 +634,7 @@ done:
 	 * Hide this mm from OOM killer because it has been either reaped or
 	 * somebody can't call mmap_write_unlock(mm).
 	 */
-	set_bit(MMF_OOM_SKIP, &mm->flags);
+	mm_flags_set(MMF_OOM_SKIP, mm);
 
 	/* Drop a reference taken by queue_oom_reaper */
 	put_task_struct(tsk);
@@ -670,7 +670,7 @@ static void wake_oom_reaper(struct timer_list *timer)
 	unsigned long flags;
 
 	/* The victim managed to terminate on its own - see exit_mmap */
-	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+	if (mm_flags_test(MMF_OOM_SKIP, mm)) {
 		put_task_struct(tsk);
 		return;
 	}
@@ -695,7 +695,7 @@ static void wake_oom_reaper(struct timer_list *timer)
 static void queue_oom_reaper(struct task_struct *tsk)
 {
 	/* mm is already queued? */
-	if (test_and_set_bit(MMF_OOM_REAP_QUEUED, &tsk->signal->oom_mm->flags))
+	if (mm_flags_test_and_set(MMF_OOM_REAP_QUEUED, tsk->signal->oom_mm))
 		return;
 
 	get_task_struct(tsk);
@@ -892,7 +892,7 @@ static bool task_will_free_mem(struct task_struct *task)
 	 * This task has already been drained by the oom reaper so there are
 	 * only small chances it will free some more
 	 */
-	if (test_bit(MMF_OOM_SKIP, &mm->flags))
+	if (mm_flags_test(MMF_OOM_SKIP, mm))
 		return false;
 
 	if (atomic_read(&mm->mm_users) <= 1)
@@ -977,7 +977,7 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 			continue;
 		if (is_global_init(p)) {
 			can_oom_reap = false;
-			set_bit(MMF_OOM_SKIP, &mm->flags);
+			mm_flags_set(MMF_OOM_SKIP, mm);
 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
 					task_pid_nr(victim), victim->comm,
 					task_pid_nr(p), p->comm);
@@ -1235,7 +1235,7 @@ SYSCALL_DEFINE2(process_mrelease, int, pidfd, unsigned int, flags)
 		reap = true;
 	else {
 		/* Error only if the work has not been done already */
-		if (!test_bit(MMF_OOM_SKIP, &mm->flags))
+		if (!mm_flags_test(MMF_OOM_SKIP, mm))
 			ret = -EINVAL;
 	}
 	task_unlock(p);
@@ -1251,7 +1251,7 @@ SYSCALL_DEFINE2(process_mrelease, int, pidfd, unsigned int, flags)
 	 * Check MMF_OOM_SKIP again under mmap_read_lock protection to ensure
 	 * possible change in exit_mmap is seen
 	 */
-	if (!test_bit(MMF_OOM_SKIP, &mm->flags) && !__oom_reap_task_mm(mm))
+	if (mm_flags_test(MMF_OOM_SKIP, mm) && !__oom_reap_task_mm(mm))
 		ret = -EAGAIN;
 	mmap_read_unlock(mm);
 

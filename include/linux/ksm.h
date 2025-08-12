@@ -56,13 +56,13 @@ static inline long mm_ksm_zero_pages(struct mm_struct *mm)
 static inline void ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
 	/* Adding mm to ksm is best effort on fork. */
-	if (test_bit(MMF_VM_MERGEABLE, &oldmm->flags))
+	if (mm_flags_test(MMF_VM_MERGEABLE, oldmm))
 		__ksm_enter(mm);
 }
 
 static inline int ksm_execve(struct mm_struct *mm)
 {
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return __ksm_enter(mm);
 
 	return 0;
@@ -70,7 +70,7 @@ static inline int ksm_execve(struct mm_struct *mm)
 
 static inline void ksm_exit(struct mm_struct *mm)
 {
-	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
+	if (mm_flags_test(MMF_VM_MERGEABLE, mm))
 		__ksm_exit(mm);
 }
 

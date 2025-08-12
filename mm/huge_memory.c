@@ -251,13 +251,13 @@ struct folio *mm_get_huge_zero_folio(struct mm_struct *mm)
 	if (IS_ENABLED(CONFIG_PERSISTENT_HUGE_ZERO_FOLIO))
 		return huge_zero_folio;
 
-	if (test_bit(MMF_HUGE_ZERO_FOLIO, &mm->flags))
+	if (mm_flags_test(MMF_HUGE_ZERO_FOLIO, mm))
 		return READ_ONCE(huge_zero_folio);
 
 	if (!get_huge_zero_folio())
 		return NULL;
 
-	if (test_and_set_bit(MMF_HUGE_ZERO_FOLIO, &mm->flags))
+	if (mm_flags_test_and_set(MMF_HUGE_ZERO_FOLIO, mm))
 		put_huge_zero_folio();
 
 	return READ_ONCE(huge_zero_folio);
@@ -268,7 +268,7 @@ void mm_put_huge_zero_folio(struct mm_struct *mm)
 	if (IS_ENABLED(CONFIG_PERSISTENT_HUGE_ZERO_FOLIO))
 		return;
 
-	if (test_bit(MMF_HUGE_ZERO_FOLIO, &mm->flags))
+	if (mm_flags_test(MMF_HUGE_ZERO_FOLIO, mm))
 		put_huge_zero_folio();
 }
 
@@ -1145,7 +1145,7 @@ static unsigned long __thp_get_unmapped_area(struct file *filp,
 
 	off_sub = (off - ret) & (size - 1);
 
-	if (test_bit(MMF_TOPDOWN, &current->mm->flags) && !off_sub)
+	if (mm_flags_test(MMF_TOPDOWN, current->mm) && !off_sub)
 		return ret + size;
 
 	ret += off_sub;
