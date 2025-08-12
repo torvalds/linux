@@ -569,7 +569,7 @@ class SphinxDependencyChecker:
                 progs.update({
                     "python-sphinx": "python311-Sphinx",
                     "virtualenv":    "python311-virtualenv",
-                    "yaml":          "python311-pyyaml",
+                    "yaml":          "python311-PyYAML",
                 })
 
         # FIXME: add support for installing CJK fonts
