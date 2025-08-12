@@ -647,6 +647,11 @@ class SphinxDependencyChecker:
             packager_cmd = "dnf install"
             noto_sans = "noto-sans-cjk-fonts"
             tex_pkgs = ["texlive-collection-fontsextra"]
+
+            # Tested on OpenMandriva Lx 4.3
+            progs["convert"] = "imagemagick"
+            progs["yaml"] = "python-pyyaml"
+
         else:
             packager_cmd = "urpmi"
             noto_sans = "google-noto-sans-cjk-ttc-fonts"
