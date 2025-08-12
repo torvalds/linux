@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020 Intel Corporation.
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -321,6 +322,8 @@ static const struct ov9734_mode supported_modes[] = {
 };
 
 struct ov9734 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -414,7 +417,6 @@ static int ov9734_write_reg(struct ov9734 *ov9734, u16 reg, u16 len, u32 val)
 static int ov9734_write_reg_list(struct ov9734 *ov9734,
 				 const struct ov9734_reg_list *r_list)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov9734->sd);
 	unsigned int i;
 	int ret;
 
@@ -422,7 +424,7 @@ static int ov9734_write_reg_list(struct ov9734 *ov9734,
 		ret = ov9734_write_reg(ov9734, r_list->regs[i].address, 1,
 				       r_list->regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(ov9734->dev,
 					    "write reg 0x%4.4x return err = %d",
 					    r_list->regs[i].address, ret);
 			return ret;
@@ -476,7 +478,6 @@ static int ov9734_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov9734 *ov9734 = container_of(ctrl->handler,
 					     struct ov9734, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov9734->sd);
 	s64 exposure_max;
 	int ret = 0;
 
@@ -492,7 +493,7 @@ static int ov9734_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov9734->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -525,7 +526,7 @@ static int ov9734_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov9734->dev);
 
 	return ret;
 }
@@ -610,7 +611,6 @@ static void ov9734_update_pad_format(const struct ov9734_mode *mode,
 
 static int ov9734_start_streaming(struct ov9734 *ov9734)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov9734->sd);
 	const struct ov9734_reg_list *reg_list;
 	int link_freq_index, ret;
 
@@ -618,14 +618,14 @@ static int ov9734_start_streaming(struct ov9734 *ov9734)
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
 	ret = ov9734_write_reg_list(ov9734, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls");
+		dev_err(ov9734->dev, "failed to set plls");
 		return ret;
 	}
 
 	reg_list = &ov9734->cur_mode->reg_list;
 	ret = ov9734_write_reg_list(ov9734, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(ov9734->dev, "failed to set mode");
 		return ret;
 	}
 
@@ -636,30 +636,27 @@ static int ov9734_start_streaming(struct ov9734 *ov9734)
 	ret = ov9734_write_reg(ov9734, OV9734_REG_MODE_SELECT,
 			       1, OV9734_MODE_STREAMING);
 	if (ret)
-		dev_err(&client->dev, "failed to start stream");
+		dev_err(ov9734->dev, "failed to start stream");
 
 	return ret;
 }
 
 static void ov9734_stop_streaming(struct ov9734 *ov9734)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov9734->sd);
-
 	if (ov9734_write_reg(ov9734, OV9734_REG_MODE_SELECT,
 			     1, OV9734_MODE_STANDBY))
-		dev_err(&client->dev, "failed to stop stream");
+		dev_err(ov9734->dev, "failed to stop stream");
 }
 
 static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov9734 *ov9734 = to_ov9734(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&ov9734->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov9734->dev);
 		if (ret < 0) {
 			mutex_unlock(&ov9734->mutex);
 			return ret;
@@ -669,11 +666,11 @@ static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 		if (ret) {
 			enable = 0;
 			ov9734_stop_streaming(ov9734);
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(ov9734->dev);
 		}
 	} else {
 		ov9734_stop_streaming(ov9734);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov9734->dev);
 	}
 
 	mutex_unlock(&ov9734->mutex);
@@ -808,7 +805,6 @@ static const struct v4l2_subdev_internal_ops ov9734_internal_ops = {
 
 static int ov9734_identify_module(struct ov9734 *ov9734)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov9734->sd);
 	int ret;
 	u32 val;
 
@@ -817,7 +813,7 @@ static int ov9734_identify_module(struct ov9734 *ov9734)
 		return ret;
 
 	if (val != OV9734_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+		dev_err(ov9734->dev, "chip id mismatch: %x!=%x",
 			OV9734_CHIP_ID, val);
 		return -ENXIO;
 	}
@@ -892,8 +888,8 @@ static void ov9734_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov9734->dev);
+	pm_runtime_set_suspended(ov9734->dev);
 	mutex_destroy(&ov9734->mutex);
 }
 
@@ -913,10 +909,12 @@ static int ov9734_probe(struct i2c_client *client)
 	if (!ov9734)
 		return -ENOMEM;
 
+	ov9734->dev = &client->dev;
+
 	v4l2_i2c_subdev_init(&ov9734->sd, client, &ov9734_subdev_ops);
 	ret = ov9734_identify_module(ov9734);
 	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
+		dev_err(ov9734->dev, "failed to find sensor: %d", ret);
 		return ret;
 	}
 
@@ -924,7 +922,7 @@ static int ov9734_probe(struct i2c_client *client)
 	ov9734->cur_mode = &supported_modes[0];
 	ret = ov9734_init_controls(ov9734);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(ov9734->dev, "failed to init controls: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -935,7 +933,7 @@ static int ov9734_probe(struct i2c_client *client)
 	ov9734->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov9734->sd.entity, 1, &ov9734->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov9734->dev, "failed to init entity pads: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -943,13 +941,13 @@ static int ov9734_probe(struct i2c_client *client)
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(ov9734->dev);
+	pm_runtime_enable(ov9734->dev);
+	pm_runtime_idle(ov9734->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov9734->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov9734->dev, "failed to register V4L2 subdev: %d",
 			ret);
 		goto probe_error_media_entity_cleanup_pm;
 	}
@@ -957,8 +955,8 @@ static int ov9734_probe(struct i2c_client *client)
 	return 0;
 
 probe_error_media_entity_cleanup_pm:
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov9734->dev);
+	pm_runtime_set_suspended(ov9734->dev);
 	media_entity_cleanup(&ov9734->sd.entity);
 
 probe_error_v4l2_ctrl_handler_free:
