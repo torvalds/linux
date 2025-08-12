@@ -142,8 +142,8 @@ static bool ice_fwlog_supported(struct ice_fwlog *fwlog)
  */
 static int ice_aq_fwlog_get(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg)
 {
-	struct ice_aqc_fw_log_cfg_resp *fw_modules;
-	struct ice_aqc_fw_log *cmd;
+	struct libie_aqc_fw_log_cfg_resp *fw_modules;
+	struct libie_aqc_fw_log *cmd;
 	struct libie_aq_desc desc;
 	u16 module_id_cnt;
 	int status;
@@ -156,10 +156,10 @@ static int ice_aq_fwlog_get(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg)
 	if (!buf)
 		return -ENOMEM;
 
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_query);
+	ice_fill_dflt_direct_cmd_desc(&desc, libie_aqc_opc_fw_logs_query);
 	cmd = libie_aq_raw(&desc);
 
-	cmd->cmd_flags = ICE_AQC_FW_LOG_AQ_QUERY;
+	cmd->cmd_flags = LIBIE_AQC_FW_LOG_AQ_QUERY;
 
 	status = fwlog->send_cmd(fwlog->priv, &desc, buf, ICE_AQ_MAX_BUF_LEN);
 	if (status) {
@@ -168,26 +168,26 @@ static int ice_aq_fwlog_get(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg)
 	}
 
 	module_id_cnt = le16_to_cpu(cmd->ops.cfg.mdl_cnt);
-	if (module_id_cnt < ICE_AQC_FW_LOG_ID_MAX) {
+	if (module_id_cnt < LIBIE_AQC_FW_LOG_ID_MAX) {
 		dev_dbg(&fwlog->pdev->dev, "FW returned less than the expected number of FW log module IDs\n");
-	} else if (module_id_cnt > ICE_AQC_FW_LOG_ID_MAX) {
+	} else if (module_id_cnt > LIBIE_AQC_FW_LOG_ID_MAX) {
 		dev_dbg(&fwlog->pdev->dev, "FW returned more than expected number of FW log module IDs, setting module_id_cnt to software expected max %u\n",
-			ICE_AQC_FW_LOG_ID_MAX);
-		module_id_cnt = ICE_AQC_FW_LOG_ID_MAX;
+			LIBIE_AQC_FW_LOG_ID_MAX);
+		module_id_cnt = LIBIE_AQC_FW_LOG_ID_MAX;
 	}
 
 	cfg->log_resolution = le16_to_cpu(cmd->ops.cfg.log_resolution);
-	if (cmd->cmd_flags & ICE_AQC_FW_LOG_CONF_AQ_EN)
+	if (cmd->cmd_flags & LIBIE_AQC_FW_LOG_CONF_AQ_EN)
 		cfg->options |= ICE_FWLOG_OPTION_ARQ_ENA;
-	if (cmd->cmd_flags & ICE_AQC_FW_LOG_CONF_UART_EN)
+	if (cmd->cmd_flags & LIBIE_AQC_FW_LOG_CONF_UART_EN)
 		cfg->options |= ICE_FWLOG_OPTION_UART_ENA;
-	if (cmd->cmd_flags & ICE_AQC_FW_LOG_QUERY_REGISTERED)
+	if (cmd->cmd_flags & LIBIE_AQC_FW_LOG_QUERY_REGISTERED)
 		cfg->options |= ICE_FWLOG_OPTION_IS_REGISTERED;
 
-	fw_modules = (struct ice_aqc_fw_log_cfg_resp *)buf;
+	fw_modules = (struct libie_aqc_fw_log_cfg_resp *)buf;
 
 	for (i = 0; i < module_id_cnt; i++) {
-		struct ice_aqc_fw_log_cfg_resp *fw_module = &fw_modules[i];
+		struct libie_aqc_fw_log_cfg_resp *fw_module = &fw_modules[i];
 
 		cfg->module_entries[i].module_id =
 			le16_to_cpu(fw_module->module_identifier);
@@ -325,8 +325,8 @@ ice_aq_fwlog_set(struct ice_fwlog *fwlog,
 		 struct ice_fwlog_module_entry *entries, u16 num_entries,
 		 u16 options, u16 log_resolution)
 {
-	struct ice_aqc_fw_log_cfg_resp *fw_modules;
-	struct ice_aqc_fw_log *cmd;
+	struct libie_aqc_fw_log_cfg_resp *fw_modules;
+	struct libie_aqc_fw_log *cmd;
 	struct libie_aq_desc desc;
 	int status;
 	int i;
@@ -341,19 +341,19 @@ ice_aq_fwlog_set(struct ice_fwlog *fwlog,
 		fw_modules[i].log_level = entries[i].log_level;
 	}
 
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_config);
+	ice_fill_dflt_direct_cmd_desc(&desc, libie_aqc_opc_fw_logs_config);
 	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	cmd = libie_aq_raw(&desc);
 
-	cmd->cmd_flags = ICE_AQC_FW_LOG_CONF_SET_VALID;
+	cmd->cmd_flags = LIBIE_AQC_FW_LOG_CONF_SET_VALID;
 	cmd->ops.cfg.log_resolution = cpu_to_le16(log_resolution);
 	cmd->ops.cfg.mdl_cnt = cpu_to_le16(num_entries);
 
 	if (options & ICE_FWLOG_OPTION_ARQ_ENA)
-		cmd->cmd_flags |= ICE_AQC_FW_LOG_CONF_AQ_EN;
+		cmd->cmd_flags |= LIBIE_AQC_FW_LOG_CONF_AQ_EN;
 	if (options & ICE_FWLOG_OPTION_UART_ENA)
-		cmd->cmd_flags |= ICE_AQC_FW_LOG_CONF_UART_EN;
+		cmd->cmd_flags |= LIBIE_AQC_FW_LOG_CONF_UART_EN;
 
 	status = fwlog->send_cmd(fwlog->priv, &desc, fw_modules,
 				 sizeof(*fw_modules) * num_entries);
@@ -382,7 +382,7 @@ int ice_fwlog_set(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg)
 		return -EOPNOTSUPP;
 
 	return ice_aq_fwlog_set(fwlog, cfg->module_entries,
-				ICE_AQC_FW_LOG_ID_MAX, cfg->options,
+				LIBIE_AQC_FW_LOG_ID_MAX, cfg->options,
 				cfg->log_resolution);
 }
 
@@ -393,14 +393,14 @@ int ice_fwlog_set(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg)
  */
 static int ice_aq_fwlog_register(struct ice_fwlog *fwlog, bool reg)
 {
-	struct ice_aqc_fw_log *cmd;
+	struct libie_aqc_fw_log *cmd;
 	struct libie_aq_desc desc;
 
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_register);
+	ice_fill_dflt_direct_cmd_desc(&desc, libie_aqc_opc_fw_logs_register);
 	cmd = libie_aq_raw(&desc);
 
 	if (reg)
-		cmd->cmd_flags = ICE_AQC_FW_LOG_AQ_REGISTER;
+		cmd->cmd_flags = LIBIE_AQC_FW_LOG_AQ_REGISTER;
 
 	return fwlog->send_cmd(fwlog->priv, &desc, NULL, 0);
 }

@@ -29,7 +29,7 @@ struct ice_fwlog_module_entry {
 
 struct ice_fwlog_cfg {
 	/* list of modules for configuring log level */
-	struct ice_fwlog_module_entry module_entries[ICE_AQC_FW_LOG_ID_MAX];
+	struct ice_fwlog_module_entry module_entries[LIBIE_AQC_FW_LOG_ID_MAX];
 	/* options used to configure firmware logging */
 	u16 options;
 #define ICE_FWLOG_OPTION_ARQ_ENA		BIT(0)

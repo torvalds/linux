@@ -12,10 +12,11 @@ static struct dentry *ice_debugfs_root;
 /* create a define that has an extra module that doesn't really exist. this
  * is so we can add a module 'all' to easily enable/disable all the modules
  */
-#define ICE_NR_FW_LOG_MODULES (ICE_AQC_FW_LOG_ID_MAX + 1)
+#define ICE_NR_FW_LOG_MODULES (LIBIE_AQC_FW_LOG_ID_MAX + 1)
 
 /* the ordering in this array is important. it matches the ordering of the
- * values in the FW so the index is the same value as in ice_aqc_fw_logging_mod
+ * values in the FW so the index is the same value as in
+ * libie_aqc_fw_logging_mod
  */
 static const char * const ice_fwlog_module_string[] = {
 	"general",
@@ -84,7 +85,7 @@ ice_fwlog_print_module_cfg(struct ice_fwlog_cfg *cfg, int module,
 {
 	struct ice_fwlog_module_entry *entry;
 
-	if (module != ICE_AQC_FW_LOG_ID_MAX) {
+	if (module != LIBIE_AQC_FW_LOG_ID_MAX) {
 		entry =	&cfg->module_entries[module];
 
 		seq_printf(s, "\tModule: %s, Log Level: %s\n",
@@ -93,7 +94,7 @@ ice_fwlog_print_module_cfg(struct ice_fwlog_cfg *cfg, int module,
 	} else {
 		int i;
 
-		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
+		for (i = 0; i < LIBIE_AQC_FW_LOG_ID_MAX; i++) {
 			entry =	&cfg->module_entries[i];
 
 			seq_printf(s, "\tModule: %s, Log Level: %s\n",
@@ -190,7 +191,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 		return -EINVAL;
 	}
 
-	if (module != ICE_AQC_FW_LOG_ID_MAX) {
+	if (module != LIBIE_AQC_FW_LOG_ID_MAX) {
 		fwlog->cfg.module_entries[module].log_level = log_level;
 	} else {
 		/* the module 'all' is a shortcut so that we can set
@@ -198,7 +199,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 		 */
 		int i;
 
-		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++)
+		for (i = 0; i < LIBIE_AQC_FW_LOG_ID_MAX; i++)
 			fwlog->cfg.module_entries[i].log_level = log_level;
 	}
 
@@ -266,11 +267,11 @@ ice_debugfs_nr_messages_write(struct file *filp, const char __user *buf,
 	if (ret)
 		return ret;
 
-	if (nr_messages < ICE_AQC_FW_LOG_MIN_RESOLUTION ||
-	    nr_messages > ICE_AQC_FW_LOG_MAX_RESOLUTION) {
+	if (nr_messages < LIBIE_AQC_FW_LOG_MIN_RESOLUTION ||
+	    nr_messages > LIBIE_AQC_FW_LOG_MAX_RESOLUTION) {
 		dev_err(dev, "Invalid FW log number of messages %d, value must be between %d - %d\n",
-			nr_messages, ICE_AQC_FW_LOG_MIN_RESOLUTION,
-			ICE_AQC_FW_LOG_MAX_RESOLUTION);
+			nr_messages, LIBIE_AQC_FW_LOG_MIN_RESOLUTION,
+			LIBIE_AQC_FW_LOG_MAX_RESOLUTION);
 		return -EINVAL;
 	}
 
