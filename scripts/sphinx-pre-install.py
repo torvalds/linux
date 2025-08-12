@@ -92,6 +92,10 @@ class SphinxDependencyChecker:
         # Some distros may not have a Sphinx shipped package compatible with
         # our minimal requirements
         self.package_supported = True
+
+        # Recommend a new python version
+        self.recommend_python = None
+
         # Certain hints are meant to be shown only once
         self.first_hint = True
 
@@ -511,11 +515,11 @@ class SphinxDependencyChecker:
                 print("ERROR: Distro not supported. Too old?")
                 return
 
-            # TODO: check if RHEL8 still works.
-            # On my tests with  docker "redhat/ubi8" image, there's no
-            # python3-sphinx (or similar) package. It comes with Python 3.6,
-            # but there are other python packages over there, so it may be
-            # possible to work with venv.
+            # RHEL 8 uses Python 3.6, which is not compatible with
+            # the build system anymore. Suggest Python 3.11
+            if rel == 8:
+                self.add_package("python39", 0)
+                self.recommend_python = True
 
             if self.first_hint:
                 print("Note: RHEL-based distros typically require extra repositories.\n" \
@@ -596,6 +600,7 @@ class SphinxDependencyChecker:
             # the build system anymore. Suggest Python 3.11
             if rel == 15:
                 if not self.which(self.python_cmd):
+                    self.recommend_python = True
                     self.add_package(self.python_cmd, 0)
 
                 progs.update({
@@ -999,6 +1004,11 @@ class SphinxDependencyChecker:
         #	- minimal PDF version;
         #	- recommended version.
         # It also needs to work fine with both distro's package and venv/virtualenv
+
+        if self.recommend_python:
+            print("\nPython version is incompatible with doc build.\n" \
+                  "Please upgrade it and re-run.\n")
+            return
 
         # Version is OK. Nothing to do.
         if self.cur_version != (0, 0, 0) and self.cur_version >= RECOMMENDED_VERSION:
