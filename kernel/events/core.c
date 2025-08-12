@@ -7130,30 +7130,29 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		if (rb_has_aux(rb)) {
 			atomic_inc(&rb->aux_mmap_count);
 			ret = 0;
-			goto aux_success;
+
+		} else {
+			if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
+				ret = -EPERM;
+				atomic_dec(&rb->mmap_count);
+				goto unlock;
+			}
+
+			WARN_ON(!rb && event->rb);
+
+			if (vma->vm_flags & VM_WRITE)
+				flags |= RING_BUFFER_WRITABLE;
+
+			ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
+					   event->attr.aux_watermark, flags);
+			if (ret) {
+				atomic_dec(&rb->mmap_count);
+				goto unlock;
+			}
+
+			atomic_set(&rb->aux_mmap_count, 1);
+			rb->aux_mmap_locked = extra;
 		}
-
-		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
-			ret = -EPERM;
-			atomic_dec(&rb->mmap_count);
-			goto unlock;
-		}
-
-		WARN_ON(!rb && event->rb);
-
-		if (vma->vm_flags & VM_WRITE)
-			flags |= RING_BUFFER_WRITABLE;
-
-		ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
-				   event->attr.aux_watermark, flags);
-		if (ret) {
-			atomic_dec(&rb->mmap_count);
-			goto unlock;
-		}
-
-		atomic_set(&rb->aux_mmap_count, 1);
-		rb->aux_mmap_locked = extra;
-aux_success:
 		perf_mmap_account(vma, user_extra, extra);
 		atomic_inc(&event->mmap_count);
 	}
