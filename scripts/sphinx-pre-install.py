@@ -737,22 +737,88 @@ class SphinxDependencyChecker:
             print("You should run:")
         print("\n")
 
+        # Handling dependencies is a nightmare, as Gentoo refuses to emerge
+        # some packages if there's no package.use file describing them.
+        # To make it worse, compilation flags shall also be present there
+        # for some packages. If USE is not perfect, error/warning messages
+        #   like those are shown:
+        #
+        #   !!! The following binary packages have been ignored due to non matching USE:
+        #
+        #    =media-gfx/graphviz-12.2.1-r1 X pdf -python_single_target_python3_13 qt6 svg
+        #    =media-gfx/graphviz-12.2.1-r1 X pdf python_single_target_python3_12 -python_single_target_python3_13 qt6 svg
+        #    =media-gfx/graphviz-12.2.1-r1 X pdf qt6 svg
+        #    =media-gfx/graphviz-12.2.1-r1 X pdf -python_single_target_python3_10 qt6 svg
+        #    =media-gfx/graphviz-12.2.1-r1 X pdf -python_single_target_python3_10 python_single_target_python3_12 -python_single_target_python3_13 qt6 svg
+        #    =media-fonts/noto-cjk-20190416 X
+        #    =app-text/texlive-core-2024-r1 X cjk -xetex
+        #    =app-text/texlive-core-2024-r1 X -xetex
+        #    =app-text/texlive-core-2024-r1 -xetex
+        #    =dev-libs/zziplib-0.13.79-r1 sdl
+        #
+        # And will ignore such packages, installing the remaining ones. That
+        # affects mostly the image extension and PDF generation.
 
-        portages = [
-            "media-gfx/imagemagick",
-            "media-gfx/graphviz",
-        ]
+        # Package dependencies and the minimal needed args:
+        portages = {
+            "graphviz": "media-gfx/graphviz",
+            "imagemagick": "media-gfx/imagemagick",
+            "media-libs": "media-libs/harfbuzz icu",
+            "media-fonts": "media-fonts/noto-cjk",
+            "texlive": "app-text/texlive-core xetex",
+            "zziblib": "dev-libs/zziplib sdl",
+        }
 
         if self.first_hint:
-            for p in portages:
-                result = self.run(["grep", p, "/etc/portage/package.use/*"],
-                                stdout=subprocess.PIPE, text=True)
-                if not result.stdout.strip():
-                    print(f"\tsudo emerge -av1 {p}")
+            use_base = "/etc/portage/package.use"
+            files = glob(f"{use_base}/*")
+
+            for fname, portage in portages.items():
+                install = False
+
+                while install == False:
+                    if not files:
+                        # No files under package.usage. Install all
+                        install = True
+                        break
+
+                    args = portage.split(" ")
+
+                    name = args.pop(0)
+
+                    cmd = ["grep", "-l", "-E", rf"^{name}\b" ] + files
+                    result = self.run(cmd, stdout=subprocess.PIPE, text=True)
+                    if result.returncode or not result.stdout.strip():
+                        # File containing portage name not found
+                        install = True
+                        break
+
+                    # Ensure that needed USE flags are present
+                    if args:
+                        match_fname = result.stdout.strip()
+                        with open(match_fname, 'r', encoding='utf8',
+                                errors='backslashreplace') as fp:
+                            for line in fp:
+                                for arg in args:
+                                    if arg.startswith("-"):
+                                        continue
+
+                                if not re.search(rf"\s*{arg}\b", line):
+                                    # Needed file argument not found
+                                    install = True
+                                    break
+
+                    # Everything looks ok, don't install
+                    break
+
+                # emit a code to setup missing USE
+                if install:
+                    print(f"\tsudo su -c 'echo \"{portage}\" > {use_base}/{fname}'")
 
             self.first_hint = False
 
-        print(f"\tsudo emerge --ask {self.install}")
+        # Now, we can use emerge and let it respect USE
+        print(f"\tsudo emerge --ask --changed-use --binpkg-respect-use=y {self.install}")
 
     #
     # Dispatch the check to an os_specific hinter
