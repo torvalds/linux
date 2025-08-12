@@ -2,6 +2,7 @@
 // Copyright (C) 2018 Intel Corporation
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -107,7 +108,6 @@ struct imx319_mode {
 };
 
 struct imx319_hwcfg {
-	u32 ext_clk;			/* sensor external clk */
 	unsigned long link_freq_bitmap;
 };
 
@@ -2347,20 +2347,6 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &cfg->ext_clk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		goto out_err;
-	}
-
-	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
-	if (cfg->ext_clk != IMX319_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
-			cfg->ext_clk);
-		goto out_err;
-	}
-
 	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
 				       bus_cfg.nr_of_link_frequencies,
 				       link_freq_menu_items,
@@ -2382,6 +2368,8 @@ out_err:
 static int imx319_probe(struct i2c_client *client)
 {
 	struct imx319 *imx319;
+	unsigned long freq;
+	struct clk *clk;
 	bool full_power;
 	int ret;
 
@@ -2392,6 +2380,17 @@ static int imx319_probe(struct i2c_client *client)
 	imx319->dev = &client->dev;
 
 	mutex_init(&imx319->mutex);
+
+	clk = devm_v4l2_sensor_clk_get(imx319->dev, NULL);
+	if (IS_ERR(clk))
+		return dev_err_probe(imx319->dev, PTR_ERR(clk),
+				     "failed to acquire clock\n");
+
+	freq = clk_get_rate(clk);
+	if (freq != IMX319_EXT_CLK)
+		return dev_err_probe(imx319->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx319->sd, client, &imx319_subdev_ops);
