@@ -32,11 +32,11 @@
 #define IMX93_ADC_PCDR0		0x100
 #define IMX93_ADC_PCDR1		0x104
 #define IMX93_ADC_PCDR2		0x108
-#define IMX93_ADC_PCDR3		0x10c
+#define IMX93_ADC_PCDR3		0x10C
 #define IMX93_ADC_PCDR4		0x110
 #define IMX93_ADC_PCDR5		0x114
 #define IMX93_ADC_PCDR6		0x118
-#define IMX93_ADC_PCDR7		0x11c
+#define IMX93_ADC_PCDR7		0x11C
 #define IMX93_ADC_CALSTAT	0x39C
 
 /* ADC bit shift */
