@@ -115,27 +115,6 @@ class SphinxDependencyChecker:
         return None
 
     @staticmethod
-    def find_python_no_venv():
-        # FIXME: does it makes sense now that this script is in Python?
-
-        result = SphinxDependencyChecker.run(["pwd"], capture_output=True,
-                                             text=True)
-        cur_dir = result.stdout.strip()
-
-        python_names = ["python3", "python"]
-
-        for d in os.environ.get("PATH", "").split(":"):
-            if f"{cur_dir}/sphinx" in d:
-                continue
-
-            for p in python_names:
-                if os.access(os.path.join(d, p), os.X_OK):
-                    return os.path.join(d, p)
-
-        # Python not found at the PATH
-        return python_names[-1]
-
-    @staticmethod
     def get_python_version(cmd):
 
         result = SphinxDependencyChecker.run([cmd, "--version"],
@@ -940,7 +919,7 @@ class SphinxDependencyChecker:
         else:
             print("\nSphinx needs to be installed either:\n1) via pip/pypi with:\n")
 
-        self.python_cmd = self.find_python_no_venv()
+        self.python_cmd = os.path.abspath(sys.argv[0])
 
         print(f"\t{virtualenv_cmd} {self.virtenv_dir}")
         print(f"\t. {self.virtenv_dir}/bin/activate")
