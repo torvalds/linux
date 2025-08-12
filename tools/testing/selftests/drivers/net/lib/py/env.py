@@ -4,7 +4,7 @@ import os
 import time
 from pathlib import Path
 from lib.py import KsftSkipEx, KsftXfailEx
-from lib.py import ksft_setup
+from lib.py import ksft_setup, wait_file
 from lib.py import cmd, ethtool, ip, CmdExitFailure
 from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
@@ -24,6 +24,9 @@ class NetDrvEnvBase:
         self.net_lib_dir = (Path(__file__).parent / "../../../../net/lib").resolve()
 
         self.env = self._load_env_file()
+
+        # Following attrs must be set be inheriting classes
+        self.dev = None
 
     def _load_env_file(self):
         env = os.environ.copy()
@@ -48,6 +51,22 @@ class NetDrvEnvBase:
                 env[pair[0]] = pair[1]
         return ksft_setup(env)
 
+    def __del__(self):
+        pass
+
+    def __enter__(self):
+        ip(f"link set dev {self.dev['ifname']} up")
+        wait_file(f"/sys/class/net/{self.dev['ifname']}/carrier",
+                  lambda x: x.strip() == "1")
+
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_tb):
+        """
+        __exit__ gets called at the end of a "with" block.
+        """
+        self.__del__()
+
 
 class NetDrvEnv(NetDrvEnvBase):
     """
@@ -71,17 +90,6 @@ class NetDrvEnv(NetDrvEnvBase):
             self.dev = self._ns.nsims[0].dev
         self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
-
-    def __enter__(self):
-        ip(f"link set dev {self.dev['ifname']} up")
-
-        return self
-
-    def __exit__(self, ex_type, ex_value, ex_tb):
-        """
-        __exit__ gets called at the end of a "with" block.
-        """
-        self.__del__()
 
     def __del__(self):
         if self._ns:
@@ -218,15 +226,6 @@ class NetDrvEpEnv(NetDrvEnvBase):
         if (v4 and len(v4) > 1) or (v6 and len(v6) > 1):
             raise Exception("Can't resolve remote interface name, multiple interfaces match")
         return v6[0]["ifname"] if v6 else v4[0]["ifname"]
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, ex_type, ex_value, ex_tb):
-        """
-        __exit__ gets called at the end of a "with" block.
-        """
-        self.__del__()
 
     def __del__(self):
         if self._ns:

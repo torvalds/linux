@@ -252,3 +252,21 @@ def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadlin
         if time.monotonic() > end:
             raise Exception("Waiting for port listen timed out")
         time.sleep(sleep)
+
+
+def wait_file(fname, test_fn, sleep=0.005, deadline=5, encoding='utf-8'):
+    """
+    Wait for file contents on the local system to satisfy a condition.
+    test_fn() should take one argument (file contents) and return whether
+    condition is met.
+    """
+    end = time.monotonic() + deadline
+
+    with open(fname, "r", encoding=encoding) as fp:
+        while True:
+            if test_fn(fp.read()):
+                break
+            fp.seek(0)
+            if time.monotonic() > end:
+                raise TimeoutError("Wait for file contents failed", fname)
+            time.sleep(sleep)
