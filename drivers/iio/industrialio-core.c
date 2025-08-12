@@ -790,6 +790,7 @@ static ssize_t iio_format_list(char *buf, const int *vals, int type, int length,
 
 	switch (type) {
 	case IIO_VAL_INT:
+	case IIO_VAL_CHAR:
 		stride = 1;
 		break;
 	default:
