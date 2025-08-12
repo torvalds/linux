@@ -89,6 +89,9 @@ class SphinxDependencyChecker:
         self.python_cmd = ""
         self.activate_cmd = ""
 
+        # Certain hints are meant to be shown only once
+        self.first_hint = True
+
         self.min_version = (0, 0, 0)
         self.cur_version = (0, 0, 0)
         self.latest_avail_ver = (0, 0, 0)
@@ -714,11 +717,14 @@ class SphinxDependencyChecker:
             "media-gfx/graphviz",
         ]
 
-        for p in portages:
-            result = self.run(["grep", p, "/etc/portage/package.use/*"],
-                               stdout=subprocess.PIPE, text=True)
-            if not result.stdout.strip():
-                print(f"\tsudo emerge -av1 {p}")
+        if self.first_hint:
+            for p in portages:
+                result = self.run(["grep", p, "/etc/portage/package.use/*"],
+                                stdout=subprocess.PIPE, text=True)
+                if not result.stdout.strip():
+                    print(f"\tsudo emerge -av1 {p}")
+
+            self.first_hint = False
 
         print(f"\tsudo emerge --ask {self.install}")
 
