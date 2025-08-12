@@ -1153,15 +1153,15 @@ static int install_breakpoint(struct uprobe *uprobe, struct vm_area_struct *vma,
 	 * set MMF_HAS_UPROBES in advance for uprobe_pre_sstep_notifier(),
 	 * the task can hit this breakpoint right after __replace_page().
 	 */
-	first_uprobe = !test_bit(MMF_HAS_UPROBES, &mm->flags);
+	first_uprobe = !mm_flags_test(MMF_HAS_UPROBES, mm);
 	if (first_uprobe)
-		set_bit(MMF_HAS_UPROBES, &mm->flags);
+		mm_flags_set(MMF_HAS_UPROBES, mm);
 
 	ret = set_swbp(&uprobe->arch, vma, vaddr);
 	if (!ret)
-		clear_bit(MMF_RECALC_UPROBES, &mm->flags);
+		mm_flags_clear(MMF_RECALC_UPROBES, mm);
 	else if (first_uprobe)
-		clear_bit(MMF_HAS_UPROBES, &mm->flags);
+		mm_flags_clear(MMF_HAS_UPROBES, mm);
 
 	return ret;
 }
@@ -1171,7 +1171,7 @@ static int remove_breakpoint(struct uprobe *uprobe, struct vm_area_struct *vma,
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	set_bit(MMF_RECALC_UPROBES, &mm->flags);
+	mm_flags_set(MMF_RECALC_UPROBES, mm);
 	return set_orig_insn(&uprobe->arch, vma, vaddr);
 }
 
@@ -1303,7 +1303,7 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 			/* consult only the "caller", new consumer. */
 			if (consumer_filter(new, mm))
 				err = install_breakpoint(uprobe, vma, info->vaddr);
-		} else if (test_bit(MMF_HAS_UPROBES, &mm->flags)) {
+		} else if (mm_flags_test(MMF_HAS_UPROBES, mm)) {
 			if (!filter_chain(uprobe, mm))
 				err |= remove_breakpoint(uprobe, vma, info->vaddr);
 		}
@@ -1595,7 +1595,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 
 	if (vma->vm_file &&
 	    (vma->vm_flags & (VM_WRITE|VM_SHARED)) == VM_WRITE &&
-	    test_bit(MMF_HAS_UPROBES, &vma->vm_mm->flags))
+	    mm_flags_test(MMF_HAS_UPROBES, vma->vm_mm))
 		delayed_ref_ctr_inc(vma);
 
 	if (!valid_vma(vma, true))
@@ -1655,12 +1655,12 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
 		return;
 
-	if (!test_bit(MMF_HAS_UPROBES, &vma->vm_mm->flags) ||
-	     test_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags))
+	if (!mm_flags_test(MMF_HAS_UPROBES, vma->vm_mm) ||
+	     mm_flags_test(MMF_RECALC_UPROBES, vma->vm_mm))
 		return;
 
 	if (vma_has_uprobes(vma, start, end))
-		set_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags);
+		mm_flags_set(MMF_RECALC_UPROBES, vma->vm_mm);
 }
 
 static vm_fault_t xol_fault(const struct vm_special_mapping *sm,
@@ -1823,10 +1823,10 @@ void uprobe_end_dup_mmap(void)
 
 void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
 {
-	if (test_bit(MMF_HAS_UPROBES, &oldmm->flags)) {
-		set_bit(MMF_HAS_UPROBES, &newmm->flags);
+	if (mm_flags_test(MMF_HAS_UPROBES, oldmm)) {
+		mm_flags_set(MMF_HAS_UPROBES, newmm);
 		/* unconditionally, dup_mmap() skips VM_DONTCOPY vmas */
-		set_bit(MMF_RECALC_UPROBES, &newmm->flags);
+		mm_flags_set(MMF_RECALC_UPROBES, newmm);
 	}
 }
 
@@ -2370,7 +2370,7 @@ static void mmf_recalc_uprobes(struct mm_struct *mm)
 			return;
 	}
 
-	clear_bit(MMF_HAS_UPROBES, &mm->flags);
+	mm_flags_clear(MMF_HAS_UPROBES, mm);
 }
 
 static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
@@ -2468,7 +2468,7 @@ static struct uprobe *find_active_uprobe_rcu(unsigned long bp_vaddr, int *is_swb
 		*is_swbp = -EFAULT;
 	}
 
-	if (!uprobe && test_and_clear_bit(MMF_RECALC_UPROBES, &mm->flags))
+	if (!uprobe && mm_flags_test_and_clear(MMF_RECALC_UPROBES, mm))
 		mmf_recalc_uprobes(mm);
 	mmap_read_unlock(mm);
 
@@ -2818,7 +2818,7 @@ int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 	if (!current->mm)
 		return 0;
 
-	if (!test_bit(MMF_HAS_UPROBES, &current->mm->flags) &&
+	if (!mm_flags_test(MMF_HAS_UPROBES, current->mm) &&
 	    (!current->utask || !current->utask->return_instances))
 		return 0;
 
