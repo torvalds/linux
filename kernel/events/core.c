@@ -6970,6 +6970,82 @@ static void perf_mmap_account(struct vm_area_struct *vma, long user_extra, long 
 	atomic64_add(extra, &vma->vm_mm->pinned_vm);
 }
 
+static int perf_mmap_aux(struct vm_area_struct *vma, struct perf_event *event,
+			 unsigned long nr_pages)
+{
+	long extra = 0, user_extra = nr_pages;
+	u64 aux_offset, aux_size;
+	struct perf_buffer *rb;
+	int ret, rb_flags = 0;
+
+	rb = event->rb;
+	if (!rb)
+		return -EINVAL;
+
+	guard(mutex)(&rb->aux_mutex);
+
+	/*
+	 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
+	 * mapped, all subsequent mappings should have the same size
+	 * and offset. Must be above the normal perf buffer.
+	 */
+	aux_offset = READ_ONCE(rb->user_page->aux_offset);
+	aux_size = READ_ONCE(rb->user_page->aux_size);
+
+	if (aux_offset < perf_data_size(rb) + PAGE_SIZE)
+		return -EINVAL;
+
+	if (aux_offset != vma->vm_pgoff << PAGE_SHIFT)
+		return -EINVAL;
+
+	/* already mapped with a different offset */
+	if (rb_has_aux(rb) && rb->aux_pgoff != vma->vm_pgoff)
+		return -EINVAL;
+
+	if (aux_size != nr_pages * PAGE_SIZE)
+		return -EINVAL;
+
+	/* already mapped with a different size */
+	if (rb_has_aux(rb) && rb->aux_nr_pages != nr_pages)
+		return -EINVAL;
+
+	if (!is_power_of_2(nr_pages))
+		return -EINVAL;
+
+	if (!atomic_inc_not_zero(&rb->mmap_count))
+		return -EINVAL;
+
+	if (rb_has_aux(rb)) {
+		atomic_inc(&rb->aux_mmap_count);
+
+	} else {
+		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
+			atomic_dec(&rb->mmap_count);
+			return -EPERM;
+		}
+
+		WARN_ON(!rb && event->rb);
+
+		if (vma->vm_flags & VM_WRITE)
+			rb_flags |= RING_BUFFER_WRITABLE;
+
+		ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
+				   event->attr.aux_watermark, rb_flags);
+		if (ret) {
+			atomic_dec(&rb->mmap_count);
+			return ret;
+		}
+
+		atomic_set(&rb->aux_mmap_count, 1);
+		rb->aux_mmap_locked = extra;
+	}
+
+	perf_mmap_account(vma, user_extra, extra);
+	atomic_inc(&event->mmap_count);
+
+	return 0;
+}
+
 static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct perf_event *event = file->private_data;
@@ -7088,73 +7164,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		perf_mmap_account(vma, user_extra, extra);
 		atomic_inc(&event->mmap_count);
 	} else {
-		/*
-		 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
-		 * mapped, all subsequent mappings should have the same size
-		 * and offset. Must be above the normal perf buffer.
-		 */
-		u64 aux_offset, aux_size;
-
-		rb = event->rb;
-		if (!rb)
-			goto unlock;
-
-		guard(mutex)(&rb->aux_mutex);
-
-		aux_offset = READ_ONCE(rb->user_page->aux_offset);
-		aux_size = READ_ONCE(rb->user_page->aux_size);
-
-		if (aux_offset < perf_data_size(rb) + PAGE_SIZE)
-			goto unlock;
-
-		if (aux_offset != vma->vm_pgoff << PAGE_SHIFT)
-			goto unlock;
-
-		/* already mapped with a different offset */
-		if (rb_has_aux(rb) && rb->aux_pgoff != vma->vm_pgoff)
-			goto unlock;
-
-		if (aux_size != nr_pages * PAGE_SIZE)
-			goto unlock;
-
-		/* already mapped with a different size */
-		if (rb_has_aux(rb) && rb->aux_nr_pages != nr_pages)
-			goto unlock;
-
-		if (!is_power_of_2(nr_pages))
-			goto unlock;
-
-		if (!atomic_inc_not_zero(&rb->mmap_count))
-			goto unlock;
-
-		if (rb_has_aux(rb)) {
-			atomic_inc(&rb->aux_mmap_count);
-			ret = 0;
-
-		} else {
-			if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
-				ret = -EPERM;
-				atomic_dec(&rb->mmap_count);
-				goto unlock;
-			}
-
-			WARN_ON(!rb && event->rb);
-
-			if (vma->vm_flags & VM_WRITE)
-				flags |= RING_BUFFER_WRITABLE;
-
-			ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
-					   event->attr.aux_watermark, flags);
-			if (ret) {
-				atomic_dec(&rb->mmap_count);
-				goto unlock;
-			}
-
-			atomic_set(&rb->aux_mmap_count, 1);
-			rb->aux_mmap_locked = extra;
-		}
-		perf_mmap_account(vma, user_extra, extra);
-		atomic_inc(&event->mmap_count);
+		ret = perf_mmap_aux(vma, event, nr_pages);
 	}
 
 unlock:
