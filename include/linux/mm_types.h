@@ -932,7 +932,7 @@ struct mm_cid {
  * Opaque type representing current mm_struct flag state. Must be accessed via
  * mm_flags_xxx() helper functions.
  */
-#define NUM_MM_FLAG_BITS BITS_PER_LONG
+#define NUM_MM_FLAG_BITS (64)
 typedef struct {
 	DECLARE_BITMAP(__mm_flags, NUM_MM_FLAG_BITS);
 } __private mm_flags_t;
@@ -1119,11 +1119,7 @@ struct mm_struct {
 		/* Architecture-specific MM context */
 		mm_context_t context;
 
-		/* Temporary union while we convert users to mm_flags_t. */
-		union {
-			unsigned long flags; /* Must use atomic bitops to access */
-			mm_flags_t _flags;   /* Must use mm_flags_* helpers to access */
-		};
+		mm_flags_t flags; /* Must use mm_flags_* hlpers to access */
 
 #ifdef CONFIG_AIO
 		spinlock_t			ioctx_lock;
@@ -1236,7 +1232,7 @@ struct mm_struct {
 /* Set the first system word of mm flags, non-atomically. */
 static inline void __mm_flags_set_word(struct mm_struct *mm, unsigned long value)
 {
-	unsigned long *bitmap = ACCESS_PRIVATE(&mm->_flags, __mm_flags);
+	unsigned long *bitmap = ACCESS_PRIVATE(&mm->flags, __mm_flags);
 
 	bitmap_copy(bitmap, &value, BITS_PER_LONG);
 }
@@ -1244,7 +1240,7 @@ static inline void __mm_flags_set_word(struct mm_struct *mm, unsigned long value
 /* Obtain a read-only view of the bitmap. */
 static inline const unsigned long *__mm_flags_get_bitmap(const struct mm_struct *mm)
 {
-	return (const unsigned long *)ACCESS_PRIVATE(&mm->_flags, __mm_flags);
+	return (const unsigned long *)ACCESS_PRIVATE(&mm->flags, __mm_flags);
 }
 
 /* Read the first system word of mm flags, non-atomically. */
@@ -1262,7 +1258,7 @@ static inline unsigned long __mm_flags_get_word(const struct mm_struct *mm)
 static inline void __mm_flags_set_mask_bits_word(struct mm_struct *mm,
 		unsigned long mask, unsigned long bits)
 {
-	unsigned long *bitmap = ACCESS_PRIVATE(&mm->_flags, __mm_flags);
+	unsigned long *bitmap = ACCESS_PRIVATE(&mm->flags, __mm_flags);
 
 	set_mask_bits(bitmap, mask, bits);
 }

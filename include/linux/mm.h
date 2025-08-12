@@ -724,32 +724,32 @@ static inline void assert_fault_locked(struct vm_fault *vmf)
 
 static inline bool mm_flags_test(int flag, const struct mm_struct *mm)
 {
-	return test_bit(flag, ACCESS_PRIVATE(&mm->_flags, __mm_flags));
+	return test_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
 }
 
 static inline bool mm_flags_test_and_set(int flag, struct mm_struct *mm)
 {
-	return test_and_set_bit(flag, ACCESS_PRIVATE(&mm->_flags, __mm_flags));
+	return test_and_set_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
 }
 
 static inline bool mm_flags_test_and_clear(int flag, struct mm_struct *mm)
 {
-	return test_and_clear_bit(flag, ACCESS_PRIVATE(&mm->_flags, __mm_flags));
+	return test_and_clear_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
 }
 
 static inline void mm_flags_set(int flag, struct mm_struct *mm)
 {
-	set_bit(flag, ACCESS_PRIVATE(&mm->_flags, __mm_flags));
+	set_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
 }
 
 static inline void mm_flags_clear(int flag, struct mm_struct *mm)
 {
-	clear_bit(flag, ACCESS_PRIVATE(&mm->_flags, __mm_flags));
+	clear_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
 }
 
 static inline void mm_flags_clear_all(struct mm_struct *mm)
 {
-	bitmap_zero(ACCESS_PRIVATE(&mm->_flags, __mm_flags), NUM_MM_FLAG_BITS);
+	bitmap_zero(ACCESS_PRIVATE(&mm->flags, __mm_flags), NUM_MM_FLAG_BITS);
 }
 
 extern const struct vm_operations_struct vma_dummy_vm_ops;

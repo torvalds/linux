@@ -249,6 +249,14 @@ struct mutex {};
 #define DEFINE_MUTEX(mutexname) \
 	struct mutex mutexname = {}
 
+#define DECLARE_BITMAP(name, bits) \
+	unsigned long name[BITS_TO_LONGS(bits)]
+
+#define NUM_MM_FLAG_BITS (64)
+typedef struct {
+	__private DECLARE_BITMAP(__mm_flags, NUM_MM_FLAG_BITS);
+} mm_flags_t;
+
 struct mm_struct {
 	struct maple_tree mm_mt;
 	int map_count;			/* number of VMAs */
@@ -260,7 +268,7 @@ struct mm_struct {
 
 	unsigned long def_flags;
 
-	unsigned long flags; /* Must use atomic bitops to access */
+	mm_flags_t flags; /* Must use mm_flags_* helpers to access */
 };
 
 struct vm_area_struct;
@@ -1333,6 +1341,13 @@ static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 {
 }
 
+# define ACCESS_PRIVATE(p, member) ((p)->member)
+
+static inline bool mm_flags_test(int flag, const struct mm_struct *mm)
+{
+	return test_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
+}
+
 /*
  * Denies creating a writable executable mapping or gaining executable permissions.
  *
@@ -1363,7 +1378,7 @@ static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 static inline bool map_deny_write_exec(unsigned long old, unsigned long new)
 {
 	/* If MDWE is disabled, we have nothing to deny. */
-	if (!test_bit(MMF_HAS_MDWE, &current->mm->flags))
+	if (mm_flags_test(MMF_HAS_MDWE, current->mm))
 		return false;
 
 	/* If the new VMA is not executable, we have nothing to deny. */
