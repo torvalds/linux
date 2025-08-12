@@ -2230,23 +2230,14 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x)
 	if (ret)
 		goto out_err;
 
-	ov08x->xvclk = devm_clk_get_optional(dev, NULL);
+	ov08x->xvclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(ov08x->xvclk)) {
 		ret = dev_err_probe(dev, PTR_ERR(ov08x->xvclk),
 				    "getting xvclk\n");
 		goto out_err;
 	}
-	if (ov08x->xvclk) {
-		xvclk_rate = clk_get_rate(ov08x->xvclk);
-	} else {
-		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					       &xvclk_rate);
-		if (ret) {
-			dev_err(dev, "can't get clock frequency\n");
-			goto out_err;
-		}
-	}
 
+	xvclk_rate = clk_get_rate(ov08x->xvclk);
 	if (xvclk_rate != OV08X40_XVCLK) {
 		dev_err(dev, "external clock %d is not supported\n",
 			xvclk_rate);
