@@ -691,7 +691,7 @@ class SphinxDependencyChecker(MissingCheckers):
 
         super().__init__(args, texlive)
 
-        self.need_pip = 0
+        self.need_pip = False
         self.rec_sphinx_upgrade = 0
 
         self.system_release = self.get_system_release()
@@ -840,8 +840,14 @@ class SphinxDependencyChecker(MissingCheckers):
             # RHEL 8 uses Python 3.6, which is not compatible with
             # the build system anymore. Suggest Python 3.11
             if rel == 8:
-                self.deps.add_package("python39", DepManager.SYSTEM_MANDATORY)
+                self.check_program("python3.9", DepManager.SYSTEM_MANDATORY)
+                progs["python3.9"] = "python39"
+                progs["yaml"] = "python39-pyyaml"
+
                 self.recommend_python = True
+
+                # There's no python39-sphinx package. Only pip is supported
+                self.package_supported = False
 
             if not self.distro_msg:
                 self.distro_msg = \
@@ -915,8 +921,9 @@ class SphinxDependencyChecker(MissingCheckers):
             # the build system anymore. Suggest Python 3.11
             if rel == 15:
                 if not self.which(self.python_cmd):
+                    self.check_program("python3.11", DepManager.SYSTEM_MANDATORY)
+                    progs["python3.11"] = "python311"
                     self.recommend_python = True
-                    self.deps.add_package(self.python_cmd, DepManager.SYSTEM_MANDATORY)
 
                 progs.update({
                     "python-sphinx": "python311-Sphinx",
@@ -1289,7 +1296,7 @@ class SphinxDependencyChecker(MissingCheckers):
             return self.latest_avail_ver
 
         # Either there are already a virtual env or a new one should be created
-        self.need_pip = 1
+        self.need_pip = True
 
         if not self.latest_avail_ver:
             return None
@@ -1344,10 +1351,11 @@ class SphinxDependencyChecker(MissingCheckers):
         """
 
         if self.recommend_python:
-            print("\nPython version is incompatible with doc build.\n" \
-                  "Please upgrade it and re-run.\n")
-            return
-
+            cur_ver = sys.version_info[:3]
+            if cur_ver < MIN_PYTHON_VERSION:
+                print(f"\nPython version {cur_ver} is incompatible with doc build.\n" \
+                    "Please upgrade it and re-run.\n")
+                return
 
         # Version is OK. Nothing to do.
         if self.cur_version != (0, 0, 0) and self.cur_version >= RECOMMENDED_VERSION:
@@ -1467,7 +1475,6 @@ class SphinxDependencyChecker(MissingCheckers):
             if sys.version_info < MIN_PYTHON_VERSION:
                 self.need_pip = False
                 print("Warning: python version is not supported.")
-
             else:
                 virtualenv_cmd = f"{self.python_cmd} -m venv"
                 self.check_python_module("ensurepip")
