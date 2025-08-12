@@ -5,6 +5,9 @@
 # pylint: disable=C0103,C0114,C0115,C0116,C0301
 # pylint: disable=R0902,R0904,R0912,R0915,R1705,R1710,E1121
 
+# Note: this script requires at least Python 3.6 to run.
+# Don't add changes not compatible with it, it is meant to report
+# incompatible python versions.
 
 import argparse
 import os
@@ -16,7 +19,6 @@ from glob import glob
 
 def parse_version(version):
     """Convert a major.minor.patch version into a tuple"""
-#
     return tuple(int(x) for x in version.split("."))
 
 
@@ -27,6 +29,7 @@ def ver_str(version):
 
 
 RECOMMENDED_VERSION = parse_version("3.4.3")
+MIN_PYTHON_VERSION = parse_version("3.7")
 
 
 class SphinxDependencyChecker:
@@ -131,6 +134,65 @@ class SphinxDependencyChecker:
 
         # Python not found at the PATH
         return python_names[-1]
+
+    @staticmethod
+    def get_python_version(cmd):
+
+        result = SphinxDependencyChecker.run([cmd, "--version"],
+                                            capture_output=True, text=True)
+        version = result.stdout.strip()
+
+        match = re.search(r"(\d+\.\d+\.\d+)", version)
+        if match:
+            return parse_version(match.group(1))
+
+        print(f"Can't parse version {version}")
+        return (0, 0, 0)
+
+    @staticmethod
+    def find_python():
+
+        patterns = [
+            "python3.[0-9]",
+            "python3.[0-9][0-9]",
+        ]
+
+        new_python_cmd = None
+
+        # Seek for a python binary newer than MIN_PYTHON_VERSION
+        for path in os.getenv("PATH", "").split(":"):
+            for pattern in patterns:
+                for cmd in glob(os.path.join(path, pattern)):
+                    if os.path.isfile(cmd) and os.access(cmd, os.X_OK):
+                        version = SphinxDependencyChecker.get_python_version(cmd)
+                        if version >= MIN_PYTHON_VERSION:
+                            return(cmd)
+
+    @staticmethod
+    def check_python():
+
+        cur_ver = sys.version_info[:3]
+        if cur_ver >= MIN_PYTHON_VERSION:
+            return
+
+        python_ver = ver_str(cur_ver)
+
+        new_python_cmd = SphinxDependencyChecker.find_python()
+        if not new_python_cmd:
+            print(f"ERROR: Python version {python_ver} is not spported anymore")
+            print(f"       Can't find a new version. This script may fail")
+            return
+
+        # Restart script using the newer version
+        script_path = os.path.abspath(sys.argv[0])
+        args = [new_python_cmd, script_path] + sys.argv[1:]
+
+        print(f"Python {python_ver} not supported. Changing to {new_python_cmd}")
+
+        try:
+            os.execv(new_python_cmd, args)
+        except OSError as e:
+            sys.exit(f"Failed to restart with {new_python_cmd}: {e}")
 
     @staticmethod
     def run(*args, **kwargs):
@@ -1107,6 +1169,7 @@ def main():
 
     checker = SphinxDependencyChecker(args)
 
+    checker.check_python()
     checker.check_needs()
 
 
