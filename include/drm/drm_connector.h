@@ -800,6 +800,11 @@ struct drm_display_info {
 	struct drm_hdmi_info hdmi;
 
 	/**
+	 * @hdr_sink_metadata: HDR Metadata Information read from sink
+	 */
+	struct hdr_sink_metadata hdr_sink_metadata;
+
+	/**
 	 * @non_desktop: Non desktop display (HMD).
 	 */
 	bool non_desktop;
@@ -2285,9 +2290,6 @@ struct drm_connector {
 	 * &drm_mode_config.connector_free_work.
 	 */
 	struct llist_node free_node;
-
-	/** @hdr_sink_metadata: HDR Metadata Information read from sink */
-	struct hdr_sink_metadata hdr_sink_metadata;
 
 	/**
 	 * @hdmi: HDMI-related variable and properties.

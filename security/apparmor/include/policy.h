@@ -59,6 +59,11 @@ extern const char *const aa_profile_mode_names[];
 
 #define on_list_rcu(X) (!list_empty(X) && (X)->prev != LIST_POISON2)
 
+/* flags in the dfa accept2 table */
+enum dfa_accept_flags {
+	ACCEPT_FLAG_OWNER = 1,
+};
+
 /*
  * FIXME: currently need a clean way to replace and remove profiles as a
  * set.  It should be done at the namespace level.
@@ -124,6 +129,7 @@ static inline void aa_put_pdb(struct aa_policydb *pdb)
 		kref_put(&pdb->count, aa_pdb_free_kref);
 }
 
+/* lookup perm that doesn't have and object conditional */
 static inline struct aa_perms *aa_lookup_perms(struct aa_policydb *policy,
 					       aa_state_t state)
 {
@@ -134,7 +140,6 @@ static inline struct aa_perms *aa_lookup_perms(struct aa_policydb *policy,
 
 	return &(policy->perms[index]);
 }
-
 
 /* struct aa_data - generic data structure
  * key: name for retrieving this data
@@ -160,8 +165,6 @@ struct aa_data {
  * @secmark: secmark label match info
  */
 struct aa_ruleset {
-	struct list_head list;
-
 	int size;
 
 	/* TODO: merge policy and file */
@@ -174,6 +177,7 @@ struct aa_ruleset {
 	int secmark_count;
 	struct aa_secmark *secmark;
 };
+
 
 /* struct aa_attachment - data and rules for a profiles attachment
  * @list:
@@ -193,7 +197,6 @@ struct aa_attachment {
 
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
- * @label - label this profile is an extension of
  * @parent: parent of profile
  * @ns: namespace the profile is in
  * @rename: optional profile name that this profile renamed
@@ -201,13 +204,20 @@ struct aa_attachment {
  * @audit: the auditing mode of the profile
  * @mode: the enforcement mode of the profile
  * @path_flags: flags controlling path generation behavior
+ * @signal: the signal that should be used when kill is used
  * @disconnected: what to prepend if attach_disconnected is specified
  * @attach: attachment rules for the profile
  * @rules: rules to be enforced
  *
+ * learning_cache: the accesses learned in complain mode
+ * raw_data: rawdata of the loaded profile policy
+ * hash: cryptographic hash of the profile
  * @dents: dentries for the profiles file entries in apparmorfs
  * @dirname: name of the profile dir in apparmorfs
+ * @dents: set of dentries associated with the profile
  * @data: hashtable for free-form policy aa_data
+ * @label - label this profile is an extension of
+ * @rules - label with the rule vec on its end
  *
  * The AppArmor profile contains the basic confinement data.  Each profile
  * has a name, and exists in a namespace.  The @name and @exec_match are
@@ -231,16 +241,19 @@ struct aa_profile {
 	enum audit_mode audit;
 	long mode;
 	u32 path_flags;
+	int signal;
 	const char *disconnected;
 
 	struct aa_attachment attach;
-	struct list_head rules;
 
 	struct aa_loaddata *rawdata;
 	unsigned char *hash;
 	char *dirname;
 	struct dentry *dents[AAFS_PROF_SIZEOF];
 	struct rhashtable *data;
+
+	int n_rules;
+	/* special - variable length must be last entry in profile */
 	struct aa_label label;
 };
 
@@ -298,24 +311,38 @@ static inline aa_state_t RULE_MEDIATES(struct aa_ruleset *rules,
 					rules->policy->start[0], &class, 1);
 }
 
-static inline aa_state_t RULE_MEDIATES_AF(struct aa_ruleset *rules, u16 AF)
+static inline aa_state_t RULE_MEDIATES_v9NET(struct aa_ruleset *rules)
 {
-	aa_state_t state = RULE_MEDIATES(rules, AA_CLASS_NET);
-	__be16 be_af = cpu_to_be16(AF);
-
-	if (!state)
-		return DFA_NOMATCH;
-	return aa_dfa_match_len(rules->policy->dfa, state, (char *) &be_af, 2);
+	return RULE_MEDIATES(rules, AA_CLASS_NETV9);
 }
 
-static inline aa_state_t ANY_RULE_MEDIATES(struct list_head *head,
-					   unsigned char class)
+static inline aa_state_t RULE_MEDIATES_NET(struct aa_ruleset *rules)
 {
-	struct aa_ruleset *rule;
+	/* can not use RULE_MEDIATE_v9AF here, because AF match fail
+	 * can not be distiguished from class match fail, and we only
+	 * fallback to checking older class on class match failure
+	 */
+	aa_state_t state = RULE_MEDIATES(rules, AA_CLASS_NETV9);
 
-	/* TODO: change to list walk */
-	rule = list_first_entry(head, typeof(*rule), list);
-	return RULE_MEDIATES(rule, class);
+	/* fallback and check v7/8 if v9 is NOT mediated */
+	if (!state)
+		state = RULE_MEDIATES(rules, AA_CLASS_NET);
+
+	return state;
+}
+
+
+void aa_compute_profile_mediates(struct aa_profile *profile);
+static inline bool profile_mediates(struct aa_profile *profile,
+				    unsigned char class)
+{
+	return label_mediates(&profile->label, class);
+}
+
+static inline bool profile_mediates_safe(struct aa_profile *profile,
+					 unsigned char class)
+{
+	return label_mediates_safe(&profile->label, class);
 }
 
 /**

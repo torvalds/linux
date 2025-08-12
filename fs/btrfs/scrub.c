@@ -556,8 +556,8 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
-		btrfs_warn_in_rcu(fs_info,
-"%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu, length %u, links %u (path: %s)",
+		btrfs_warn(fs_info,
+"scrub: %s at logical %llu on dev %s, physical %llu root %llu inode %llu offset %llu length %u links %u (path: %s)",
 				  swarn->errstr, swarn->logical,
 				  btrfs_dev_name(swarn->dev),
 				  swarn->physical,
@@ -570,8 +570,8 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
 	return 0;
 
 err:
-	btrfs_warn_in_rcu(fs_info,
-			  "%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
+	btrfs_warn(fs_info,
+			  "scrub: %s at logical %llu on dev %s, physical %llu root %llu inode %llu offset %llu: path resolving failed with ret=%d",
 			  swarn->errstr, swarn->logical,
 			  btrfs_dev_name(swarn->dev),
 			  swarn->physical,
@@ -596,7 +596,7 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 
 	/* Super block error, no need to search extent tree. */
 	if (is_super) {
-		btrfs_warn_in_rcu(fs_info, "%s on device %s, physical %llu",
+		btrfs_warn(fs_info, "scrub: %s on device %s, physical %llu",
 				  errstr, btrfs_dev_name(dev), physical);
 		return;
 	}
@@ -631,14 +631,14 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 						      &ref_level);
 			if (ret < 0) {
 				btrfs_warn(fs_info,
-				"failed to resolve tree backref for logical %llu: %d",
-						  swarn.logical, ret);
+		   "scrub: failed to resolve tree backref for logical %llu: %d",
+					   swarn.logical, ret);
 				break;
 			}
 			if (ret > 0)
 				break;
-			btrfs_warn_in_rcu(fs_info,
-"%s at logical %llu on dev %s, physical %llu: metadata %s (level %d) in tree %llu",
+			btrfs_warn(fs_info,
+"scrub: %s at logical %llu on dev %s, physical %llu: metadata %s (level %d) in tree %llu",
 				errstr, swarn.logical, btrfs_dev_name(dev),
 				swarn.physical, (ref_level ? "node" : "leaf"),
 				ref_level, ref_root);
@@ -718,7 +718,7 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 		scrub_bitmap_set_meta_error(stripe, sector_nr, sectors_per_tree);
 		scrub_bitmap_set_error(stripe, sector_nr, sectors_per_tree);
 		btrfs_warn_rl(fs_info,
-		"tree block %llu mirror %u has bad bytenr, has %llu want %llu",
+	  "scrub: tree block %llu mirror %u has bad bytenr, has %llu want %llu",
 			      logical, stripe->mirror_num,
 			      btrfs_stack_header_bytenr(header), logical);
 		return;
@@ -728,7 +728,7 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 		scrub_bitmap_set_meta_error(stripe, sector_nr, sectors_per_tree);
 		scrub_bitmap_set_error(stripe, sector_nr, sectors_per_tree);
 		btrfs_warn_rl(fs_info,
-		"tree block %llu mirror %u has bad fsid, has %pU want %pU",
+	      "scrub: tree block %llu mirror %u has bad fsid, has %pU want %pU",
 			      logical, stripe->mirror_num,
 			      header->fsid, fs_info->fs_devices->fsid);
 		return;
@@ -738,7 +738,7 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 		scrub_bitmap_set_meta_error(stripe, sector_nr, sectors_per_tree);
 		scrub_bitmap_set_error(stripe, sector_nr, sectors_per_tree);
 		btrfs_warn_rl(fs_info,
-		"tree block %llu mirror %u has bad chunk tree uuid, has %pU want %pU",
+   "scrub: tree block %llu mirror %u has bad chunk tree uuid, has %pU want %pU",
 			      logical, stripe->mirror_num,
 			      header->chunk_tree_uuid, fs_info->chunk_tree_uuid);
 		return;
@@ -760,7 +760,7 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 		scrub_bitmap_set_meta_error(stripe, sector_nr, sectors_per_tree);
 		scrub_bitmap_set_error(stripe, sector_nr, sectors_per_tree);
 		btrfs_warn_rl(fs_info,
-		"tree block %llu mirror %u has bad csum, has " CSUM_FMT " want " CSUM_FMT,
+"scrub: tree block %llu mirror %u has bad csum, has " CSUM_FMT " want " CSUM_FMT,
 			      logical, stripe->mirror_num,
 			      CSUM_FMT_VALUE(fs_info->csum_size, on_disk_csum),
 			      CSUM_FMT_VALUE(fs_info->csum_size, calculated_csum));
@@ -771,7 +771,7 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 		scrub_bitmap_set_meta_gen_error(stripe, sector_nr, sectors_per_tree);
 		scrub_bitmap_set_error(stripe, sector_nr, sectors_per_tree);
 		btrfs_warn_rl(fs_info,
-		"tree block %llu mirror %u has bad generation, has %llu want %llu",
+      "scrub: tree block %llu mirror %u has bad generation, has %llu want %llu",
 			      logical, stripe->mirror_num,
 			      btrfs_stack_header_generation(header),
 			      stripe->sectors[sector_nr].generation);
@@ -814,7 +814,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 		 */
 		if (unlikely(sector_nr + sectors_per_tree > stripe->nr_sectors)) {
 			btrfs_warn_rl(fs_info,
-			"tree block at %llu crosses stripe boundary %llu",
+			"scrub: tree block at %llu crosses stripe boundary %llu",
 				      stripe->logical +
 				      (sector_nr << fs_info->sectorsize_bits),
 				      stripe->logical);
@@ -1045,13 +1045,13 @@ skip:
 		 */
 		if (repaired) {
 			if (dev) {
-				btrfs_err_rl_in_rcu(fs_info,
-			"fixed up error at logical %llu on dev %s physical %llu",
+				btrfs_err_rl(fs_info,
+		"scrub: fixed up error at logical %llu on dev %s physical %llu",
 					    stripe->logical, btrfs_dev_name(dev),
 					    physical);
 			} else {
-				btrfs_err_rl_in_rcu(fs_info,
-			"fixed up error at logical %llu on mirror %u",
+				btrfs_err_rl(fs_info,
+			   "scrub: fixed up error at logical %llu on mirror %u",
 					    stripe->logical, stripe->mirror_num);
 			}
 			continue;
@@ -1059,13 +1059,13 @@ skip:
 
 		/* The remaining are all for unrepaired. */
 		if (dev) {
-			btrfs_err_rl_in_rcu(fs_info,
-	"unable to fixup (regular) error at logical %llu on dev %s physical %llu",
+			btrfs_err_rl(fs_info,
+"scrub: unable to fixup (regular) error at logical %llu on dev %s physical %llu",
 					    stripe->logical, btrfs_dev_name(dev),
 					    physical);
 		} else {
-			btrfs_err_rl_in_rcu(fs_info,
-	"unable to fixup (regular) error at logical %llu on mirror %u",
+			btrfs_err_rl(fs_info,
+	  "scrub: unable to fixup (regular) error at logical %llu on mirror %u",
 					    stripe->logical, stripe->mirror_num);
 		}
 
@@ -1593,8 +1593,7 @@ static int sync_write_pointer_for_zoned(struct scrub_ctx *sctx, u64 logical,
 						    physical,
 						    sctx->write_pointer);
 		if (ret)
-			btrfs_err(fs_info,
-				  "zoned: failed to recover write pointer");
+			btrfs_err(fs_info, "scrub: zoned: failed to recover write pointer");
 	}
 	mutex_unlock(&sctx->wr_lock);
 	btrfs_dev_clear_zone_empty(sctx->wr_tgtdev, physical);
@@ -1658,7 +1657,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 	int ret;
 
 	if (unlikely(!extent_root || !csum_root)) {
-		btrfs_err(fs_info, "no valid extent or csum root for scrub");
+		btrfs_err(fs_info, "scrub: no valid extent or csum root found");
 		return -EUCLEAN;
 	}
 	memset(stripe->sectors, 0, sizeof(struct scrub_sector_verification) *
@@ -1807,7 +1806,7 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			struct btrfs_io_context *bioc = NULL;
 			const u64 logical = stripe->logical +
 					    (i << fs_info->sectorsize_bits);
-			int err;
+			int ret;
 
 			io_stripe.rst_search_commit_root = true;
 			stripe_len = (nr_sectors - i) << fs_info->sectorsize_bits;
@@ -1815,11 +1814,11 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			 * For RST cases, we need to manually split the bbio to
 			 * follow the RST boundary.
 			 */
-			err = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+			ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
 					      &stripe_len, &bioc, &io_stripe, &mirror);
 			btrfs_put_bioc(bioc);
-			if (err < 0) {
-				if (err != -ENODATA) {
+			if (ret < 0) {
+				if (ret != -ENODATA) {
 					/*
 					 * Earlier btrfs_get_raid_extent_offset()
 					 * returned -ENODATA, which means there's
@@ -1907,7 +1906,7 @@ static bool stripe_has_metadata_error(struct scrub_stripe *stripe)
 			struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 
 			btrfs_err(fs_info,
-			"stripe %llu has unrepaired metadata sector at %llu",
+		    "scrub: stripe %llu has unrepaired metadata sector at logical %llu",
 				  stripe->logical,
 				  stripe->logical + (i << fs_info->sectorsize_bits));
 			return true;
@@ -2167,7 +2166,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 		bitmap_and(&error, &error, &has_extent, stripe->nr_sectors);
 		if (!bitmap_empty(&error, stripe->nr_sectors)) {
 			btrfs_err(fs_info,
-"unrepaired sectors detected, full stripe %llu data stripe %u errors %*pbl",
+"scrub: unrepaired sectors detected, full stripe %llu data stripe %u errors %*pbl",
 				  full_stripe_start, i, stripe->nr_sectors,
 				  &error);
 			ret = -EIO;
@@ -2789,14 +2788,14 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			ro_set = 0;
 		} else if (ret == -ETXTBSY) {
 			btrfs_warn(fs_info,
-		   "skipping scrub of block group %llu due to active swapfile",
+	     "scrub: skipping scrub of block group %llu due to active swapfile",
 				   cache->start);
 			scrub_pause_off(fs_info);
 			ret = 0;
 			goto skip_unfreeze;
 		} else {
-			btrfs_warn(fs_info,
-				   "failed setting block group ro: %d", ret);
+			btrfs_warn(fs_info, "scrub: failed setting block group ro: %d",
+				   ret);
 			btrfs_unfreeze_block_group(cache);
 			btrfs_put_block_group(cache);
 			scrub_pause_off(fs_info);
@@ -2892,13 +2891,13 @@ static int scrub_one_super(struct scrub_ctx *sctx, struct btrfs_device *dev,
 	ret = btrfs_check_super_csum(fs_info, sb);
 	if (ret != 0) {
 		btrfs_err_rl(fs_info,
-			"super block at physical %llu devid %llu has bad csum",
+		  "scrub: super block at physical %llu devid %llu has bad csum",
 			physical, dev->devid);
 		return -EIO;
 	}
 	if (btrfs_super_generation(sb) != generation) {
 		btrfs_err_rl(fs_info,
-"super block at physical %llu devid %llu has bad generation %llu expect %llu",
+"scrub: super block at physical %llu devid %llu has bad generation %llu expect %llu",
 			     physical, dev->devid,
 			     btrfs_super_generation(sb), generation);
 		return -EUCLEAN;
@@ -3058,8 +3057,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (!is_dev_replace && !readonly &&
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		btrfs_err_in_rcu(fs_info,
-			"scrub on devid %llu: filesystem on %s is not writable",
+		btrfs_err(fs_info,
+			"scrub: devid %llu: filesystem on %s is not writable",
 				 devid, btrfs_dev_name(dev));
 		ret = -EROFS;
 		goto out;

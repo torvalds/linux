@@ -218,12 +218,11 @@ i915-$(CONFIG_HWMON) += \
 # modesetting core code
 i915-y += \
 	display/hsw_ips.o \
-	display/i9xx_plane.o \
 	display/i9xx_display_sr.o \
+	display/i9xx_plane.o \
 	display/i9xx_wm.o \
 	display/intel_alpm.o \
 	display/intel_atomic.o \
-	display/intel_atomic_plane.o \
 	display/intel_audio.o \
 	display/intel_bios.o \
 	display/intel_bo.o \
@@ -265,6 +264,7 @@ i915-y += \
 	display/intel_fbc.o \
 	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
+	display/intel_flipq.o \
 	display/intel_frontbuffer.o \
 	display/intel_global_state.o \
 	display/intel_hdcp.o \
@@ -283,6 +283,7 @@ i915-y += \
 	display/intel_pch.o \
 	display/intel_pch_display.o \
 	display/intel_pch_refclk.o \
+	display/intel_plane.o \
 	display/intel_plane_initial.o \
 	display/intel_pmdemand.o \
 	display/intel_psr.o \

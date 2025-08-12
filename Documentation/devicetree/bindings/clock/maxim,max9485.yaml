@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/maxim,max9485.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX9485 Programmable Audio Clock Generator
+
+maintainers:
+  - Daniel Mack <daniel@zonque.org>
+
+description: >
+  Maxim MAX9485 Programmable Audio Clock Generator exposes 4 clocks in total:
+
+    - MAX9485_MCLKOUT:  A gated, buffered output of the input clock of 27 MHz
+    - MAX9485_CLKOUT:   A PLL that can be configured to 16 different discrete
+                        frequencies
+    - MAX9485_CLKOUT[1,2]:  Two gated outputs for MAX9485_CLKOUT
+
+  MAX9485_CLKOUT[1,2] are children of MAX9485_CLKOUT which upchain all rate set
+  requests.
+
+properties:
+  compatible:
+    const: maxim,max9485
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: Input clock. Must provide 27 MHz
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: xclk
+
+  '#clock-cells':
+    const: 1
+
+  reset-gpios:
+    description: >
+      GPIO descriptor connected to the #RESET input pin
+
+  vdd-supply:
+    description: A regulator node for Vdd
+
+  clock-output-names:
+    description: Name of output clocks, as defined in common clock bindings
+    items:
+      - const: mclkout
+      - const: clkout
+      - const: clkout1
+      - const: clkout2
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-controller@63 {
+            compatible = "maxim,max9485";
+            reg = <0x63>;
+            #clock-cells = <1>;
+            clock-names = "xclk";
+            clocks = <&xo_27mhz>;
+            reset-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+            vdd-supply = <&reg_3v3>;
+        };
+    };

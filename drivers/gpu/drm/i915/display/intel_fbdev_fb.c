@@ -62,7 +62,11 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fb = intel_framebuffer_create(intel_bo_to_drm_bo(obj), &mode_cmd);
+	fb = intel_framebuffer_create(intel_bo_to_drm_bo(obj),
+				      drm_get_format_info(display->drm,
+							  mode_cmd.pixel_format,
+							  mode_cmd.modifier[0]),
+				      &mode_cmd);
 	i915_gem_object_put(obj);
 
 	return to_intel_framebuffer(fb);

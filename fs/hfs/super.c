@@ -365,7 +365,7 @@ static int hfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!root_inode)
 		goto bail_no_root;
 
-	sb->s_d_op = &hfs_dentry_operations;
+	set_default_d_op(sb, &hfs_dentry_operations);
 	res = -ENOMEM;
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root)

@@ -480,6 +480,12 @@ struct intel_display {
 	} irq;
 
 	struct {
+		/* protected by wm.wm_mutex */
+		u16 linetime[I915_MAX_PIPES];
+		bool disable[I915_MAX_PIPES];
+	} pkgc;
+
+	struct {
 		wait_queue_head_t waitqueue;
 
 		/* mutex to protect pmdemand programming sequence */
@@ -570,6 +576,9 @@ struct intel_display {
 
 		/* hipri wq for commit cleanups */
 		struct workqueue_struct *cleanup;
+
+		/* unordered workqueue for all display unordered work */
+		struct workqueue_struct *unordered;
 	} wq;
 
 	/* Grouping using named structs. Keep sorted. */

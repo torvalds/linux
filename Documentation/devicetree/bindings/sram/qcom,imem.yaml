@@ -22,17 +22,32 @@ properties:
           - qcom,msm8974-imem
           - qcom,msm8976-imem
           - qcom,qcs404-imem
+          - qcom,qcs615-imem
           - qcom,qcs8300-imem
           - qcom,qdu1000-imem
           - qcom,sa8775p-imem
+          - qcom,sar2130p-imem
           - qcom,sc7180-imem
           - qcom,sc7280-imem
+          - qcom,sc8280xp-imem
           - qcom,sdm630-imem
           - qcom,sdm845-imem
           - qcom,sdx55-imem
           - qcom,sdx65-imem
+          - qcom,sdx75-imem
+          - qcom,sm6115-imem
+          - qcom,sm6125-imem
+          - qcom,sm6350-imem
           - qcom,sm6375-imem
+          - qcom,sm7150-imem
+          - qcom,sm8150-imem
+          - qcom,sm8250-imem
+          - qcom,sm8350-imem
           - qcom,sm8450-imem
+          - qcom,sm8550-imem
+          - qcom,sm8650-imem
+          - qcom,sm8750-imem
+          - qcom,x1e80100-imem
       - const: syscon
       - const: simple-mfd
 

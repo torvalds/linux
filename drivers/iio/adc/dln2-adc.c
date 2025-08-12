@@ -467,7 +467,7 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 	struct {
 		__le16 values[DLN2_ADC_MAX_CHANNELS];
 		aligned_s64 timestamp_space;
-	} data;
+	} data = { };
 	struct dln2_adc_get_all_vals dev_data;
 	struct dln2_adc *dln2 = iio_priv(indio_dev);
 	const struct dln2_adc_demux_table *t;
@@ -478,8 +478,6 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 	mutex_unlock(&dln2->mutex);
 	if (ret < 0)
 		goto done;
-
-	memset(&data, 0, sizeof(data));
 
 	/* Demux operation */
 	for (i = 0; i < dln2->demux_count; ++i) {

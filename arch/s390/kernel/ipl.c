@@ -596,7 +596,7 @@ static struct attribute *ipl_fcp_attrs[] = {
 
 static const struct attribute_group ipl_fcp_attr_group = {
 	.attrs = ipl_fcp_attrs,
-	.bin_attrs_new = ipl_fcp_bin_attrs,
+	.bin_attrs = ipl_fcp_bin_attrs,
 };
 
 static struct attribute *ipl_nvme_attrs[] = {
@@ -610,7 +610,7 @@ static struct attribute *ipl_nvme_attrs[] = {
 
 static const struct attribute_group ipl_nvme_attr_group = {
 	.attrs = ipl_nvme_attrs,
-	.bin_attrs_new = ipl_nvme_bin_attrs,
+	.bin_attrs = ipl_nvme_bin_attrs,
 };
 
 static struct attribute *ipl_eckd_attrs[] = {
@@ -623,7 +623,7 @@ static struct attribute *ipl_eckd_attrs[] = {
 
 static const struct attribute_group ipl_eckd_attr_group = {
 	.attrs = ipl_eckd_attrs,
-	.bin_attrs_new = ipl_eckd_bin_attrs,
+	.bin_attrs = ipl_eckd_bin_attrs,
 };
 
 /* CCW ipl device attributes */
@@ -920,7 +920,7 @@ static struct attribute *reipl_fcp_attrs[] = {
 
 static const struct attribute_group reipl_fcp_attr_group = {
 	.attrs = reipl_fcp_attrs,
-	.bin_attrs_new = reipl_fcp_bin_attrs,
+	.bin_attrs = reipl_fcp_bin_attrs,
 };
 
 static struct kobj_attribute sys_reipl_fcp_clear_attr =
@@ -958,7 +958,7 @@ static struct attribute *reipl_nvme_attrs[] = {
 
 static const struct attribute_group reipl_nvme_attr_group = {
 	.attrs = reipl_nvme_attrs,
-	.bin_attrs_new = reipl_nvme_bin_attrs
+	.bin_attrs = reipl_nvme_bin_attrs
 };
 
 static ssize_t reipl_nvme_clear_show(struct kobject *kobj,
@@ -1051,7 +1051,7 @@ static struct attribute *reipl_eckd_attrs[] = {
 
 static const struct attribute_group reipl_eckd_attr_group = {
 	.attrs = reipl_eckd_attrs,
-	.bin_attrs_new = reipl_eckd_bin_attrs
+	.bin_attrs = reipl_eckd_bin_attrs
 };
 
 static ssize_t reipl_eckd_clear_show(struct kobject *kobj,
@@ -1596,7 +1596,7 @@ static const struct bin_attribute *const dump_fcp_bin_attrs[] = {
 static const struct attribute_group dump_fcp_attr_group = {
 	.name  = IPL_FCP_STR,
 	.attrs = dump_fcp_attrs,
-	.bin_attrs_new = dump_fcp_bin_attrs,
+	.bin_attrs = dump_fcp_bin_attrs,
 };
 
 /* NVME dump device attributes */
@@ -1630,7 +1630,7 @@ static const struct bin_attribute *const dump_nvme_bin_attrs[] = {
 static const struct attribute_group dump_nvme_attr_group = {
 	.name  = IPL_NVME_STR,
 	.attrs = dump_nvme_attrs,
-	.bin_attrs_new = dump_nvme_bin_attrs,
+	.bin_attrs = dump_nvme_bin_attrs,
 };
 
 /* ECKD dump device attributes */
@@ -1664,7 +1664,7 @@ static const struct bin_attribute *const dump_eckd_bin_attrs[] = {
 static const struct attribute_group dump_eckd_attr_group = {
 	.name  = IPL_ECKD_STR,
 	.attrs = dump_eckd_attrs,
-	.bin_attrs_new = dump_eckd_bin_attrs,
+	.bin_attrs = dump_eckd_bin_attrs,
 };
 
 /* CCW dump device attributes */

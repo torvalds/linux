@@ -146,6 +146,8 @@ struct intel_framebuffer {
 
 	unsigned int min_alignment;
 	unsigned int vtd_guard;
+
+	unsigned int (*panic_tiling)(unsigned int x, unsigned int y, unsigned int width);
 };
 
 enum intel_hotplug_state {
@@ -1303,6 +1305,7 @@ struct intel_crtc_state {
 	/* For DSB based pipe updates */
 	struct intel_dsb *dsb_color, *dsb_commit;
 	bool use_dsb;
+	bool use_flipq;
 
 	u32 psr2_man_track_ctl;
 
@@ -1369,6 +1372,21 @@ struct intel_pipe_crc {
 	enum intel_pipe_crc_source source;
 };
 
+enum intel_flipq_id {
+	INTEL_FLIPQ_PLANE_1,
+	INTEL_FLIPQ_PLANE_2,
+	INTEL_FLIPQ_PLANE_3,
+	INTEL_FLIPQ_GENERAL,
+	INTEL_FLIPQ_FAST,
+	MAX_INTEL_FLIPQ,
+};
+
+struct intel_flipq {
+	u32 start_mmioaddr;
+	enum intel_flipq_id flipq_id;
+	u8 tail;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -1395,10 +1413,14 @@ struct intel_crtc {
 	struct drm_pending_vblank_event *flip_done_event;
 	/* armed event for DSB based updates */
 	struct drm_pending_vblank_event *dsb_event;
+	/* armed event for flip queue based updates */
+	struct drm_pending_vblank_event *flipq_event;
 
 	/* Access to these should be protected by display->irq.lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
+
+	struct intel_flipq flipq[MAX_INTEL_FLIPQ];
 
 	/* per-pipe watermark state */
 	struct {
@@ -1521,6 +1543,8 @@ struct intel_plane {
 			   bool async_flip);
 	void (*enable_flip_done)(struct intel_plane *plane);
 	void (*disable_flip_done)(struct intel_plane *plane);
+	/* For drm_panic */
+	void (*disable_tiling)(struct intel_plane *plane);
 };
 
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)

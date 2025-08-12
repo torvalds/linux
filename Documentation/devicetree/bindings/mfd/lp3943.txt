@@ -7,7 +7,7 @@ Required properties:
 LP3943 consists of two sub-devices, lp3943-gpio and lp3943-pwm.
 
 For the LP3943 GPIO properties please refer to:
-Documentation/devicetree/bindings/gpio/gpio-lp3943.txt
+Documentation/devicetree/bindings/gpio/trivial-gpio.yaml
 
 For the LP3943 PWM properties please refer to:
 Documentation/devicetree/bindings/pwm/pwm-lp3943.txt

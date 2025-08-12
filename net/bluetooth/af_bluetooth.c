@@ -364,6 +364,13 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			put_cmsg(msg, SOL_BLUETOOTH, BT_SCM_PKT_STATUS,
 				 sizeof(pkt_status), &pkt_status);
 		}
+
+		if (test_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags)) {
+			u16 pkt_seqnum = hci_skb_pkt_seqnum(skb);
+
+			put_cmsg(msg, SOL_BLUETOOTH, BT_SCM_PKT_SEQNUM,
+				 sizeof(pkt_seqnum), &pkt_seqnum);
+		}
 	}
 
 	skb_free_datagram(sk, skb);
@@ -815,7 +822,7 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 			   refcount_read(&sk->sk_refcnt),
 			   sk_rmem_alloc_get(sk),
 			   sk_wmem_alloc_get(sk),
-			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
+			   from_kuid(seq_user_ns(seq), sk_uid(sk)),
 			   sock_i_ino(sk),
 			   bt->parent ? sock_i_ino(bt->parent) : 0LU);
 

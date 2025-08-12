@@ -450,7 +450,6 @@ static int xvip_graph_dma_init_one(struct xvip_composite_device *xdev,
 static int xvip_graph_dma_init(struct xvip_composite_device *xdev)
 {
 	struct device_node *ports;
-	struct device_node *port;
 	int ret = 0;
 
 	ports = of_get_child_by_name(xdev->dev->of_node, "ports");
@@ -459,12 +458,10 @@ static int xvip_graph_dma_init(struct xvip_composite_device *xdev)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(ports, port) {
+	for_each_child_of_node_scoped(ports, port) {
 		ret = xvip_graph_dma_init_one(xdev, port);
-		if (ret) {
-			of_node_put(port);
+		if (ret)
 			break;
-		}
 	}
 
 	of_node_put(ports);

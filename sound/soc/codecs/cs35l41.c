@@ -483,7 +483,6 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 	}
 
 done:
-	pm_runtime_mark_last_busy(cs35l41->dev);
 	pm_runtime_put_autosuspend(cs35l41->dev);
 
 	return ret;
@@ -1328,7 +1327,6 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 
 	pm_runtime_set_autosuspend_delay(cs35l41->dev, 3000);
 	pm_runtime_use_autosuspend(cs35l41->dev);
-	pm_runtime_mark_last_busy(cs35l41->dev);
 	pm_runtime_set_active(cs35l41->dev);
 	pm_runtime_get_noresume(cs35l41->dev);
 	pm_runtime_enable(cs35l41->dev);

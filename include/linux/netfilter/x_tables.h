@@ -51,19 +51,9 @@ static inline struct net_device *xt_in(const struct xt_action_param *par)
 	return par->state->in;
 }
 
-static inline const char *xt_inname(const struct xt_action_param *par)
-{
-	return par->state->in->name;
-}
-
 static inline struct net_device *xt_out(const struct xt_action_param *par)
 {
 	return par->state->out;
-}
-
-static inline const char *xt_outname(const struct xt_action_param *par)
-{
-	return par->state->out->name;
 }
 
 static inline unsigned int xt_hooknum(const struct xt_action_param *par)

@@ -14,6 +14,7 @@
 #include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
+#include "intel_uncore.h"
 #include "vlv_iosf_sb.h"
 
 struct dram_dimm_info {
@@ -590,8 +591,8 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
 	u32 val = 0;
 	int ret;
 
-	ret = snb_pcode_read(&dev_priv->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
+	ret = intel_pcode_read(&dev_priv->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			       ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
 	if (ret)
 		return ret;
 

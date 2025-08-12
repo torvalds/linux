@@ -629,7 +629,8 @@ err_free_mtt:
 static void erdma_destroy_mtt_buf_sg(struct erdma_dev *dev,
 				     struct erdma_mtt *mtt)
 {
-	dma_unmap_sg(&dev->pdev->dev, mtt->sglist, mtt->nsg, DMA_TO_DEVICE);
+	dma_unmap_sg(&dev->pdev->dev, mtt->sglist,
+		     DIV_ROUND_UP(mtt->size, PAGE_SIZE), DMA_TO_DEVICE);
 	vfree(mtt->sglist);
 }
 
@@ -1199,12 +1200,16 @@ int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 }
 
 struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
-				u64 virt, int access, struct ib_udata *udata)
+				u64 virt, int access, struct ib_dmah *dmah,
+				struct ib_udata *udata)
 {
 	struct erdma_mr *mr = NULL;
 	struct erdma_dev *dev = to_edev(ibpd->device);
 	u32 stag;
 	int ret;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (!len || len > dev->attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);

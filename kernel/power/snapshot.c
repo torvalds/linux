@@ -1536,7 +1536,7 @@ static unsigned long copy_data_pages(struct memory_bitmap *copy_bm,
 	memory_bm_position_reset(orig_bm);
 	memory_bm_position_reset(copy_bm);
 	copy_pfn = memory_bm_next_pfn(copy_bm);
-	for(;;) {
+	for (;;) {
 		pfn = memory_bm_next_pfn(orig_bm);
 		if (unlikely(pfn == BM_END_OF_MAP))
 			break;
@@ -2161,13 +2161,13 @@ static const char *check_image_kernel(struct swsusp_info *info)
 {
 	if (info->version_code != LINUX_VERSION_CODE)
 		return "kernel version";
-	if (strcmp(info->uts.sysname,init_utsname()->sysname))
+	if (strcmp(info->uts.sysname, init_utsname()->sysname))
 		return "system type";
-	if (strcmp(info->uts.release,init_utsname()->release))
+	if (strcmp(info->uts.release, init_utsname()->release))
 		return "kernel release";
-	if (strcmp(info->uts.version,init_utsname()->version))
+	if (strcmp(info->uts.version, init_utsname()->version))
 		return "version";
-	if (strcmp(info->uts.machine,init_utsname()->machine))
+	if (strcmp(info->uts.machine, init_utsname()->machine))
 		return "machine";
 	return NULL;
 }
@@ -2361,7 +2361,7 @@ static int unpack_orig_pfns(unsigned long *buf, struct memory_bitmap *bm,
 		struct memory_bitmap *zero_bm)
 {
 	unsigned long decoded_pfn;
-        bool zero;
+	bool zero;
 	int j;
 
 	for (j = 0; j < PAGE_SIZE / sizeof(long); j++) {

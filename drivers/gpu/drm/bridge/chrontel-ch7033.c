@@ -215,7 +215,7 @@ static enum drm_connector_status ch7033_connector_detect(
 {
 	struct ch7033_priv *priv = conn_to_ch7033_priv(connector);
 
-	return drm_bridge_detect(priv->next_bridge);
+	return drm_bridge_detect(priv->next_bridge, connector);
 }
 
 static const struct drm_connector_funcs ch7033_connector_funcs = {

@@ -279,8 +279,8 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 		goto err_out;
 
 	priv->dev2 = dev2;
-	snprintf(priv->phys, sizeof(priv->phys),
-		 "%s/input1", psmouse->ps2dev.serio->phys);
+	scnprintf(priv->phys, sizeof(priv->phys),
+		  "%s/input1", psmouse->ps2dev.serio->phys);
 
 	dev2->phys = priv->phys;
 	dev2->name = "LBPS/2 Fujitsu Lifebook Touchpad";

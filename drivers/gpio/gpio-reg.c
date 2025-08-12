@@ -57,7 +57,7 @@ static int gpio_reg_direction_input(struct gpio_chip *gc, unsigned offset)
 	return r->direction & BIT(offset) ? 0 : -ENOTSUPP;
 }
 
-static void gpio_reg_set(struct gpio_chip *gc, unsigned offset, int value)
+static int gpio_reg_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct gpio_reg *r = to_gpio_reg(gc);
 	unsigned long flags;
@@ -72,6 +72,8 @@ static void gpio_reg_set(struct gpio_chip *gc, unsigned offset, int value)
 	r->out = val;
 	writel_relaxed(val, r->reg);
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	return 0;
 }
 
 static int gpio_reg_get(struct gpio_chip *gc, unsigned offset)
@@ -92,8 +94,8 @@ static int gpio_reg_get(struct gpio_chip *gc, unsigned offset)
 	return !!(val & mask);
 }
 
-static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
-	unsigned long *bits)
+static int gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+				 unsigned long *bits)
 {
 	struct gpio_reg *r = to_gpio_reg(gc);
 	unsigned long flags;
@@ -102,6 +104,8 @@ static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	r->out = (r->out & ~*mask) | (*bits & *mask);
 	writel_relaxed(r->out, r->reg);
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	return 0;
 }
 
 static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)

@@ -201,13 +201,13 @@
 };
 
 &gpio {
-	pin_gpio_c7 {
+	pin-gpio-c7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(C, 7) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "BIOS_SPI_MUX_S";
 	};
-	pin_gpio_d1 {
+	pin-gpio-d1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(D, 1) GPIO_ACTIVE_HIGH>;
 		output-high;

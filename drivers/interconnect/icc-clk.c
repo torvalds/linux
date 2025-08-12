@@ -117,6 +117,7 @@ struct icc_provider *icc_clk_register(struct device *dev,
 
 		node->name = devm_kasprintf(dev, GFP_KERNEL, "%s_master", data[i].name);
 		if (!node->name) {
+			icc_node_destroy(node->id);
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -135,6 +136,7 @@ struct icc_provider *icc_clk_register(struct device *dev,
 
 		node->name = devm_kasprintf(dev, GFP_KERNEL, "%s_slave", data[i].name);
 		if (!node->name) {
+			icc_node_destroy(node->id);
 			ret = -ENOMEM;
 			goto err;
 		}

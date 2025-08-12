@@ -104,7 +104,7 @@ struct bq25980_device {
 	int watchdog_timer;
 };
 
-static struct reg_default bq25980_reg_defs[] = {
+static const struct reg_default bq25980_reg_defs[] = {
 	{BQ25980_BATOVP, 0x5A},
 	{BQ25980_BATOVP_ALM, 0x46},
 	{BQ25980_BATOCP, 0x51},
@@ -159,7 +159,7 @@ static struct reg_default bq25980_reg_defs[] = {
 	{BQ25980_CHRGR_CTRL_6, 0x0},
 };
 
-static struct reg_default bq25975_reg_defs[] = {
+static const struct reg_default bq25975_reg_defs[] = {
 	{BQ25980_BATOVP, 0x5A},
 	{BQ25980_BATOVP_ALM, 0x46},
 	{BQ25980_BATOCP, 0x51},
@@ -214,7 +214,7 @@ static struct reg_default bq25975_reg_defs[] = {
 	{BQ25980_CHRGR_CTRL_6, 0x0},
 };
 
-static struct reg_default bq25960_reg_defs[] = {
+static const struct reg_default bq25960_reg_defs[] = {
 	{BQ25980_BATOVP, 0x5A},
 	{BQ25980_BATOVP_ALM, 0x46},
 	{BQ25980_BATOCP, 0x51},

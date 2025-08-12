@@ -14,6 +14,7 @@
 struct clk_pwm {
 	struct clk_hw hw;
 	struct pwm_device *pwm;
+	struct pwm_state state;
 	u32 fixed_rate;
 };
 
@@ -22,11 +23,28 @@ static inline struct clk_pwm *to_clk_pwm(struct clk_hw *hw)
 	return container_of(hw, struct clk_pwm, hw);
 }
 
+static int clk_pwm_enable(struct clk_hw *hw)
+{
+	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
+
+	return pwm_apply_atomic(clk_pwm->pwm, &clk_pwm->state);
+}
+
+static void clk_pwm_disable(struct clk_hw *hw)
+{
+	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
+	struct pwm_state state = clk_pwm->state;
+
+	state.enabled = false;
+
+	pwm_apply_atomic(clk_pwm->pwm, &state);
+}
+
 static int clk_pwm_prepare(struct clk_hw *hw)
 {
 	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
 
-	return pwm_enable(clk_pwm->pwm);
+	return pwm_apply_might_sleep(clk_pwm->pwm, &clk_pwm->state);
 }
 
 static void clk_pwm_unprepare(struct clk_hw *hw)
@@ -48,14 +66,24 @@ static int clk_pwm_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 {
 	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
 	struct pwm_state state;
+	int ret;
 
-	pwm_get_state(clk_pwm->pwm, &state);
+	ret = pwm_get_state_hw(clk_pwm->pwm, &state);
+	if (ret)
+		return ret;
 
 	duty->num = state.duty_cycle;
 	duty->den = state.period;
 
 	return 0;
 }
+
+static const struct clk_ops clk_pwm_ops_atomic = {
+	.enable = clk_pwm_enable,
+	.disable = clk_pwm_disable,
+	.recalc_rate = clk_pwm_recalc_rate,
+	.get_duty_cycle = clk_pwm_get_duty_cycle,
+};
 
 static const struct clk_ops clk_pwm_ops = {
 	.prepare = clk_pwm_prepare,
@@ -103,20 +131,19 @@ static int clk_pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to the
-	 * atomic PWM API.
-	 */
-	pwm_apply_args(pwm);
-	ret = pwm_config(pwm, (pargs.period + 1) >> 1, pargs.period);
-	if (ret < 0)
-		return ret;
+	pwm_init_state(pwm, &clk_pwm->state);
+	pwm_set_relative_duty_cycle(&clk_pwm->state, 1, 2);
+	clk_pwm->state.enabled = true;
 
 	clk_name = node->name;
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
-	init.ops = &clk_pwm_ops;
+	if (pwm_might_sleep(pwm))
+		init.ops = &clk_pwm_ops;
+	else
+		init.ops = &clk_pwm_ops_atomic;
+
 	init.flags = 0;
 	init.num_parents = 0;
 

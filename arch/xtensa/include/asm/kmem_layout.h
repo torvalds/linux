@@ -80,7 +80,7 @@
 
 #if (!XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY) && defined(CONFIG_USE_OF)
 #define XCHAL_KIO_PADDR			xtensa_get_kio_paddr()
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned long xtensa_kio_paddr;
 
 static inline unsigned long xtensa_get_kio_paddr(void)

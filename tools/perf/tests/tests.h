@@ -3,6 +3,7 @@
 #define TESTS_H
 
 #include <stdbool.h>
+#include "util/debug.h"
 
 enum {
 	TEST_OK   =  0,
@@ -68,6 +69,15 @@ struct test_suite {
 		.name = #_name,				\
 		.desc = description,			\
 		.run_case = test__##_name,		\
+		.exclusive = true,			\
+	}
+
+#define TEST_CASE_REASON_EXCLUSIVE(description, _name, _reason)	\
+	{						\
+		.name = #_name,				\
+		.desc = description,			\
+		.run_case = test__##_name,		\
+		.skip_reason = _reason,			\
 		.exclusive = true,			\
 	}
 
@@ -168,6 +178,7 @@ DECLARE_SUITE(sigtrap);
 DECLARE_SUITE(event_groups);
 DECLARE_SUITE(symbols);
 DECLARE_SUITE(util);
+DECLARE_SUITE(subcmd_help);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the

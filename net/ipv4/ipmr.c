@@ -901,7 +901,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 			vifc->vifc_flags | (!mrtsock ? VIFF_STATIC : 0),
 			(VIFF_TUNNEL | VIFF_REGISTER));
 
-	err = dev_get_port_parent_id(dev, &ppid, true);
+	err = netif_get_port_parent_id(dev, &ppid, true);
 	if (err == 0) {
 		memcpy(v->dev_parent_id.id, ppid.id, ppid.id_len);
 		v->dev_parent_id.id_len = ppid.id_len;
@@ -1853,20 +1853,19 @@ static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
 
 /* Processing handlers for ipmr_forward, under rcu_read_lock() */
 
-static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
-			    int in_vifi, struct sk_buff *skb, int vifi)
+static int ipmr_prepare_xmit(struct net *net, struct mr_table *mrt,
+			     struct sk_buff *skb, int vifi)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct vif_device *vif = &mrt->vif_table[vifi];
 	struct net_device *vif_dev;
-	struct net_device *dev;
 	struct rtable *rt;
 	struct flowi4 fl4;
 	int    encap = 0;
 
 	vif_dev = vif_dev_read(vif);
 	if (!vif_dev)
-		goto out_free;
+		return -1;
 
 	if (vif->flags & VIFF_REGISTER) {
 		WRITE_ONCE(vif->pkt_out, vif->pkt_out + 1);
@@ -1874,11 +1873,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		DEV_STATS_ADD(vif_dev, tx_bytes, skb->len);
 		DEV_STATS_INC(vif_dev, tx_packets);
 		ipmr_cache_report(mrt, skb, vifi, IGMPMSG_WHOLEPKT);
-		goto out_free;
+		return -1;
 	}
-
-	if (ipmr_forward_offloaded(skb, mrt, in_vifi, vifi))
-		goto out_free;
 
 	if (vif->flags & VIFF_TUNNEL) {
 		rt = ip_route_output_ports(net, &fl4, NULL,
@@ -1887,7 +1883,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 					   IPPROTO_IPIP,
 					   iph->tos & INET_DSCP_MASK, vif->link);
 		if (IS_ERR(rt))
-			goto out_free;
+			return -1;
 		encap = sizeof(struct iphdr);
 	} else {
 		rt = ip_route_output_ports(net, &fl4, NULL, iph->daddr, 0,
@@ -1895,10 +1891,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 					   IPPROTO_IPIP,
 					   iph->tos & INET_DSCP_MASK, vif->link);
 		if (IS_ERR(rt))
-			goto out_free;
+			return -1;
 	}
-
-	dev = rt->dst.dev;
 
 	if (skb->len+encap > dst_mtu(&rt->dst) && (ntohs(iph->frag_off) & IP_DF)) {
 		/* Do not fragment multicasts. Alas, IPv4 does not
@@ -1907,14 +1901,14 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		 */
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		ip_rt_put(rt);
-		goto out_free;
+		return -1;
 	}
 
-	encap += LL_RESERVED_SPACE(dev) + rt->dst.header_len;
+	encap += LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len;
 
 	if (skb_cow(skb, encap)) {
 		ip_rt_put(rt);
-		goto out_free;
+		return -1;
 	}
 
 	WRITE_ONCE(vif->pkt_out, vif->pkt_out + 1);
@@ -1934,6 +1928,22 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		DEV_STATS_ADD(vif_dev, tx_bytes, skb->len);
 	}
 
+	return 0;
+}
+
+static void ipmr_queue_fwd_xmit(struct net *net, struct mr_table *mrt,
+				int in_vifi, struct sk_buff *skb, int vifi)
+{
+	struct rtable *rt;
+
+	if (ipmr_forward_offloaded(skb, mrt, in_vifi, vifi))
+		goto out_free;
+
+	if (ipmr_prepare_xmit(net, mrt, skb, vifi))
+		goto out_free;
+
+	rt = skb_rtable(skb);
+
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
 
 	/* RFC1584 teaches, that DVMRP/PIM router must deliver packets locally
@@ -1947,8 +1957,21 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	 * result in receiving multiple packets.
 	 */
 	NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD,
-		net, NULL, skb, skb->dev, dev,
+		net, NULL, skb, skb->dev, rt->dst.dev,
 		ipmr_forward_finish);
+	return;
+
+out_free:
+	kfree_skb(skb);
+}
+
+static void ipmr_queue_output_xmit(struct net *net, struct mr_table *mrt,
+				   struct sk_buff *skb, int vifi)
+{
+	if (ipmr_prepare_xmit(net, mrt, skb, vifi))
+		goto out_free;
+
+	ip_mc_output(net, NULL, skb);
 	return;
 
 out_free:
@@ -2065,8 +2088,8 @@ forward:
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 				if (skb2)
-					ipmr_queue_xmit(net, mrt, true_vifi,
-							skb2, psend);
+					ipmr_queue_fwd_xmit(net, mrt, true_vifi,
+							    skb2, psend);
 			}
 			psend = ct;
 		}
@@ -2077,10 +2100,10 @@ last_forward:
 			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 			if (skb2)
-				ipmr_queue_xmit(net, mrt, true_vifi, skb2,
-						psend);
+				ipmr_queue_fwd_xmit(net, mrt, true_vifi, skb2,
+						    psend);
 		} else {
-			ipmr_queue_xmit(net, mrt, true_vifi, skb, psend);
+			ipmr_queue_fwd_xmit(net, mrt, true_vifi, skb, psend);
 			return;
 		}
 	}
@@ -2212,6 +2235,110 @@ dont_forward:
 		return ip_local_deliver(skb);
 	kfree_skb(skb);
 	return 0;
+}
+
+static void ip_mr_output_finish(struct net *net, struct mr_table *mrt,
+				struct net_device *dev, struct sk_buff *skb,
+				struct mfc_cache *c)
+{
+	int psend = -1;
+	int ct;
+
+	atomic_long_inc(&c->_c.mfc_un.res.pkt);
+	atomic_long_add(skb->len, &c->_c.mfc_un.res.bytes);
+	WRITE_ONCE(c->_c.mfc_un.res.lastuse, jiffies);
+
+	/* Forward the frame */
+	if (c->mfc_origin == htonl(INADDR_ANY) &&
+	    c->mfc_mcastgrp == htonl(INADDR_ANY)) {
+		if (ip_hdr(skb)->ttl >
+		    c->_c.mfc_un.res.ttls[c->_c.mfc_parent]) {
+			/* It's an (*,*) entry and the packet is not coming from
+			 * the upstream: forward the packet to the upstream
+			 * only.
+			 */
+			psend = c->_c.mfc_parent;
+			goto last_xmit;
+		}
+		goto dont_xmit;
+	}
+
+	for (ct = c->_c.mfc_un.res.maxvif - 1;
+	     ct >= c->_c.mfc_un.res.minvif; ct--) {
+		if (ip_hdr(skb)->ttl > c->_c.mfc_un.res.ttls[ct]) {
+			if (psend != -1) {
+				struct sk_buff *skb2;
+
+				skb2 = skb_clone(skb, GFP_ATOMIC);
+				if (skb2)
+					ipmr_queue_output_xmit(net, mrt,
+							       skb2, psend);
+			}
+			psend = ct;
+		}
+	}
+
+last_xmit:
+	if (psend != -1) {
+		ipmr_queue_output_xmit(net, mrt, skb, psend);
+		return;
+	}
+
+dont_xmit:
+	kfree_skb(skb);
+}
+
+/* Multicast packets for forwarding arrive here
+ * Called with rcu_read_lock();
+ */
+int ip_mr_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	struct rtable *rt = skb_rtable(skb);
+	struct mfc_cache *cache;
+	struct net_device *dev;
+	struct mr_table *mrt;
+	int vif;
+
+	guard(rcu)();
+
+	dev = rt->dst.dev;
+
+	if (IPCB(skb)->flags & IPSKB_FORWARDED)
+		goto mc_output;
+	if (!(IPCB(skb)->flags & IPSKB_MCROUTE))
+		goto mc_output;
+
+	skb->dev = dev;
+
+	mrt = ipmr_rt_fib_lookup(net, skb);
+	if (IS_ERR(mrt))
+		goto mc_output;
+
+	cache = ipmr_cache_find(mrt, ip_hdr(skb)->saddr, ip_hdr(skb)->daddr);
+	if (!cache) {
+		vif = ipmr_find_vif(mrt, dev);
+		if (vif >= 0)
+			cache = ipmr_cache_find_any(mrt, ip_hdr(skb)->daddr,
+						    vif);
+	}
+
+	/* No usable cache entry */
+	if (!cache) {
+		vif = ipmr_find_vif(mrt, dev);
+		if (vif >= 0)
+			return ipmr_cache_unresolved(mrt, vif, skb, dev);
+		goto mc_output;
+	}
+
+	vif = cache->_c.mfc_parent;
+	if (rcu_access_pointer(mrt->vif_table[vif].dev) != dev)
+		goto mc_output;
+
+	ip_mr_output_finish(net, mrt, dev, skb, cache);
+	return 0;
+
+mc_output:
+	return ip_mc_output(net, sk, skb);
 }
 
 #ifdef CONFIG_IP_PIMSM_V1

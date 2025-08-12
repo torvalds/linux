@@ -327,17 +327,17 @@ static int virtbt_probe(struct virtio_device *vdev)
 			hdev->setup = virtbt_setup_intel;
 			hdev->shutdown = virtbt_shutdown_generic;
 			hdev->set_bdaddr = virtbt_set_bdaddr_intel;
-			set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-			set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
-			set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+			hci_set_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER);
+			hci_set_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY);
+			hci_set_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 			break;
 
 		case VIRTIO_BT_CONFIG_VENDOR_REALTEK:
 			hdev->manufacturer = 93;
 			hdev->setup = virtbt_setup_realtek;
 			hdev->shutdown = virtbt_shutdown_generic;
-			set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
-			set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+			hci_set_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY);
+			hci_set_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 			break;
 		}
 	}

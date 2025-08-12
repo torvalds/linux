@@ -297,8 +297,9 @@ int panthor_gpu_block_power_on(struct panthor_device *ptdev,
 
 	gpu_write64(ptdev, pwron_reg, mask);
 
-	ret = gpu_read64_relaxed_poll_timeout(ptdev, pwrtrans_reg, val,
-					      !(mask & val), 100, timeout_us);
+	ret = gpu_read64_relaxed_poll_timeout(ptdev, rdy_reg, val,
+					      (mask & val) == val,
+					      100, timeout_us);
 	if (ret) {
 		drm_err(&ptdev->base, "timeout waiting on %s:%llx readiness",
 			blk_name, mask);

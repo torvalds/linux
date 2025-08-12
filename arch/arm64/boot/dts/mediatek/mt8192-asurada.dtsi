@@ -199,6 +199,13 @@
 		#size-cells = <2>;
 		ranges;
 
+		afe_dma_mem: audio-dma-pool {
+			compatible = "shared-dma-pool";
+			size = <0 0x100000>;
+			alignment = <0 0x10>;
+			no-map;
+		};
+
 		scp_mem_reserved: scp@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
@@ -276,6 +283,10 @@
 	};
 };
 
+&afe {
+	memory-region = <&afe_dma_mem>;
+};
+
 &dsi0 {
 	status = "okay";
 };
@@ -335,11 +346,13 @@
 	clock-frequency = <400000>;
 	clock-stretch-ns = <12600>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>, <&trackpad_pins>;
+	pinctrl-0 = <&i2c2_pins>;
 
-	trackpad@15 {
+	trackpad: trackpad@15 {
 		compatible = "elan,ekth3000";
 		reg = <0x15>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_pins>;
 		interrupts-extended = <&pio 15 IRQ_TYPE_LEVEL_LOW>;
 		vcc-supply = <&pp3300_u>;
 		wakeup-source;

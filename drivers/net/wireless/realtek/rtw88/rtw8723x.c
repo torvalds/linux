@@ -353,7 +353,6 @@ static int __rtw8723x_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 
 static int __rtw8723x_mac_init(struct rtw_dev *rtwdev)
 {
-	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 1, WLAN_TXQ_RPT_EN);
 	rtw_write32(rtwdev, REG_TCR, BIT_TCR_CFG);
 
 	rtw_write16(rtwdev, REG_RXFLTMAP0, WLAN_RX_FILTER0);
@@ -366,6 +365,13 @@ static int __rtw8723x_mac_init(struct rtw_dev *rtwdev)
 
 	rtw_write8(rtwdev, REG_MISC_CTRL, BIT_DIS_SECOND_CCA);
 	rtw_write8(rtwdev, REG_2ND_CCA_CTRL, 0);
+
+	return 0;
+}
+
+static int __rtw8723x_mac_postinit(struct rtw_dev *rtwdev)
+{
+	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 1, WLAN_TXQ_RPT_EN);
 
 	return 0;
 }
@@ -760,6 +766,7 @@ const struct rtw8723x_common rtw8723x_common = {
 	.lck = __rtw8723x_lck,
 	.read_efuse = __rtw8723x_read_efuse,
 	.mac_init = __rtw8723x_mac_init,
+	.mac_postinit = __rtw8723x_mac_postinit,
 	.cfg_ldo25 = __rtw8723x_cfg_ldo25,
 	.set_tx_power_index = __rtw8723x_set_tx_power_index,
 	.efuse_grant = __rtw8723x_efuse_grant,

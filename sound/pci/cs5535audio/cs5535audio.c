@@ -315,9 +315,9 @@ static int __snd_cs5535audio_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, DRIVER_NAME);
+	strscpy(card->driver, DRIVER_NAME);
 
-	strcpy(card->shortname, "CS5535 Audio");
+	strscpy(card->shortname, "CS5535 Audio");
 	sprintf(card->longname, "%s %s at 0x%lx, irq %i",
 		card->shortname, card->driver,
 		cs5535au->port, cs5535au->irq);

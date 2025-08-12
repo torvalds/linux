@@ -144,7 +144,7 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 			dev_dbg(dev, "Setting up panel for port %d\n", i);
 
 			switch (feat->vp_bus_type[i]) {
-			case DISPC_VP_OLDI:
+			case DISPC_VP_OLDI_AM65X:
 				enc_type = DRM_MODE_ENCODER_LVDS;
 				conn_type = DRM_MODE_CONNECTOR_LVDS;
 				break;

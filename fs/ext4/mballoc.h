@@ -192,8 +192,13 @@ struct ext4_allocation_context {
 	 */
 	ext4_grpblk_t	ac_orig_goal_len;
 
+	ext4_group_t ac_prefetch_grp;
+	unsigned int ac_prefetch_ios;
+	unsigned int ac_prefetch_nr;
+
+	int ac_first_err;
+
 	__u32 ac_flags;		/* allocation hints */
-	__u32 ac_groups_linear_remaining;
 	__u16 ac_groups_scanned;
 	__u16 ac_found;
 	__u16 ac_cX_found[EXT4_MB_NUM_CRS];
@@ -204,6 +209,8 @@ struct ext4_allocation_context {
 	__u8 ac_2order;		/* if request is to allocate 2^N blocks and
 				 * N > 0, the field stores N, otherwise 0 */
 	__u8 ac_op;		/* operation, for history only */
+
+	struct ext4_buddy *ac_e4b;
 	struct folio *ac_bitmap_folio;
 	struct folio *ac_buddy_folio;
 	struct ext4_prealloc_space *ac_pa;

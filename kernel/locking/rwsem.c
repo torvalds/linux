@@ -27,6 +27,7 @@
 #include <linux/export.h>
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
+#include <linux/hung_task.h>
 #include <trace/events/lock.h>
 
 #ifndef CONFIG_PREEMPT_RT
@@ -181,11 +182,11 @@ static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
 	__rwsem_set_reader_owned(sem, current);
 }
 
-#ifdef CONFIG_DEBUG_RWSEMS
+#if defined(CONFIG_DEBUG_RWSEMS) || defined(CONFIG_DETECT_HUNG_TASK_BLOCKER)
 /*
  * Return just the real task structure pointer of the owner
  */
-static inline struct task_struct *rwsem_owner(struct rw_semaphore *sem)
+struct task_struct *rwsem_owner(struct rw_semaphore *sem)
 {
 	return (struct task_struct *)
 		(atomic_long_read(&sem->owner) & ~RWSEM_OWNER_FLAGS_MASK);
@@ -194,7 +195,7 @@ static inline struct task_struct *rwsem_owner(struct rw_semaphore *sem)
 /*
  * Return true if the rwsem is owned by a reader.
  */
-static inline bool is_rwsem_reader_owned(struct rw_semaphore *sem)
+bool is_rwsem_reader_owned(struct rw_semaphore *sem)
 {
 	/*
 	 * Check the count to see if it is write-locked.
@@ -207,10 +208,10 @@ static inline bool is_rwsem_reader_owned(struct rw_semaphore *sem)
 }
 
 /*
- * With CONFIG_DEBUG_RWSEMS configured, it will make sure that if there
- * is a task pointer in owner of a reader-owned rwsem, it will be the
- * real owner or one of the real owners. The only exception is when the
- * unlock is done by up_read_non_owner().
+ * With CONFIG_DEBUG_RWSEMS or CONFIG_DETECT_HUNG_TASK_BLOCKER configured,
+ * it will make sure that the owner field of a reader-owned rwsem either
+ * points to a real reader-owner(s) or gets cleared. The only exception is
+ * when the unlock is done by up_read_non_owner().
  */
 static inline void rwsem_clear_reader_owned(struct rw_semaphore *sem)
 {
@@ -727,8 +728,6 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	return ret;
 }
 
-#define OWNER_SPINNABLE		(OWNER_NULL | OWNER_WRITER | OWNER_READER)
-
 static inline enum owner_state
 rwsem_owner_state(struct task_struct *owner, unsigned long flags)
 {
@@ -835,7 +834,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		enum owner_state owner_state;
 
 		owner_state = rwsem_spin_on_owner(sem);
-		if (!(owner_state & OWNER_SPINNABLE))
+		if (owner_state == OWNER_NONSPINNABLE)
 			break;
 
 		/*
@@ -1065,10 +1064,13 @@ queue:
 		wake_up_q(&wake_q);
 
 	trace_contention_begin(sem, LCB_F_READ);
+	set_current_state(state);
+
+	if (state == TASK_UNINTERRUPTIBLE)
+		hung_task_set_blocker(sem, BLOCKER_TYPE_RWSEM_READER);
 
 	/* wait to be given the lock */
 	for (;;) {
-		set_current_state(state);
 		if (!smp_load_acquire(&waiter.task)) {
 			/* Matches rwsem_mark_wake()'s smp_store_release(). */
 			break;
@@ -1083,7 +1085,11 @@ queue:
 		}
 		schedule_preempt_disabled();
 		lockevent_inc(rwsem_sleep_reader);
+		set_current_state(state);
 	}
+
+	if (state == TASK_UNINTERRUPTIBLE)
+		hung_task_clear_blocker();
 
 	__set_current_state(TASK_RUNNING);
 	lockevent_inc(rwsem_rlock);
@@ -1146,6 +1152,9 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 	set_current_state(state);
 	trace_contention_begin(sem, LCB_F_WRITE);
 
+	if (state == TASK_UNINTERRUPTIBLE)
+		hung_task_set_blocker(sem, BLOCKER_TYPE_RWSEM_WRITER);
+
 	for (;;) {
 		if (rwsem_try_write_lock(sem, &waiter)) {
 			/* rwsem_try_write_lock() implies ACQUIRE on success */
@@ -1179,6 +1188,10 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 trylock_again:
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
+
+	if (state == TASK_UNINTERRUPTIBLE)
+		hung_task_clear_blocker();
+
 	__set_current_state(TASK_RUNNING);
 	raw_spin_unlock_irq(&sem->wait_lock);
 	lockevent_inc(rwsem_wlock);

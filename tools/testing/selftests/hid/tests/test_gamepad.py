@@ -12,6 +12,7 @@ import pytest
 
 from .base_gamepad import BaseGamepad, JoystickGamepad, AxisMapping
 from hidtools.util import BusType
+from .base import HidBpf
 
 import logging
 
@@ -654,7 +655,7 @@ class TestAsusGamepad(BaseTest.TestGamepad):
 
 
 class TestRaptorMach2Joystick(BaseTest.TestGamepad):
-    hid_bpfs = [("FR-TEC__Raptor-Mach-2.bpf.o", True)]
+    hid_bpfs = [HidBpf("FR-TEC__Raptor-Mach-2.bpf.o", True)]
 
     def create_device(self):
         return RaptorMach2Joystick(

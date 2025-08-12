@@ -34,6 +34,18 @@
 #include "vlv_iosf_sb_reg.h"
 #include "vlv_sideband.h"
 
+/*
+ * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ *
+ * {ICL,SKL}_DISP_PW1_IDX..{ICL,SKL}_DISP_PW4_IDX -> PG1..PG4
+ */
+static enum skl_power_gate pw_idx_to_pg(struct intel_display *display, int pw_idx)
+{
+	int pw1_idx = DISPLAY_VER(display) >= 11 ? ICL_PW_CTL_IDX_PW_1 : SKL_PW_CTL_IDX_PW_1;
+
+	return pw_idx - pw1_idx + SKL_PG1;
+}
+
 struct i915_power_well_regs {
 	i915_reg_t bios;
 	i915_reg_t driver;
@@ -308,8 +320,8 @@ static void hsw_wait_for_power_well_disable(struct intel_display *display,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	int pw_idx = i915_power_well_instance(power_well)->hsw.idx;
-	bool disabled;
 	u32 reqs;
+	int ret;
 
 	/*
 	 * Bspec doesn't require waiting for PWs to get disabled, but still do
@@ -320,11 +332,17 @@ static void hsw_wait_for_power_well_disable(struct intel_display *display,
 	 * Skip the wait in case any of the request bits are set and print a
 	 * diagnostic message.
 	 */
-	wait_for((disabled = !(intel_de_read(display, regs->driver) &
-			       HSW_PWR_WELL_CTL_STATE(pw_idx))) ||
-		 (reqs = hsw_power_well_requesters(display, regs, pw_idx)), 1);
-	if (disabled)
+	reqs = hsw_power_well_requesters(display, regs, pw_idx);
+
+	ret = intel_de_wait_for_clear(display, regs->driver,
+				      HSW_PWR_WELL_CTL_STATE(pw_idx),
+				      reqs ? 0 : 1);
+	if (!ret)
 		return;
+
+	/* Refresh requesters in case they popped up during the wait. */
+	if (!reqs)
+		reqs = hsw_power_well_requesters(display, regs, pw_idx);
 
 	drm_dbg_kms(display->drm,
 		    "%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
@@ -350,8 +368,7 @@ static void hsw_power_well_enable(struct intel_display *display,
 	if (power_well->desc->has_fuses) {
 		enum skl_power_gate pg;
 
-		pg = DISPLAY_VER(display) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
-						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
+		pg = pw_idx_to_pg(display, pw_idx);
 
 		/* Wa_16013190616:adlp */
 		if (display->platform.alderlake_p && pg == SKL_PG1)
@@ -375,8 +392,8 @@ static void hsw_power_well_enable(struct intel_display *display,
 	if (power_well->desc->has_fuses) {
 		enum skl_power_gate pg;
 
-		pg = DISPLAY_VER(display) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
-						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
+		pg = pw_idx_to_pg(display, pw_idx);
+
 		gen9_wait_for_power_well_fuses(display, pg);
 	}
 
@@ -486,8 +503,7 @@ static void icl_tc_cold_exit(struct intel_display *display)
 	int ret, tries = 0;
 
 	while (1) {
-		ret = snb_pcode_write_timeout(&i915->uncore, ICL_PCODE_EXIT_TCCOLD, 0,
-					      250, 1);
+		ret = intel_pcode_write(display->drm, ICL_PCODE_EXIT_TCCOLD, 0);
 		if (ret != -EAGAIN || ++tries == 3)
 			break;
 		msleep(1);
@@ -829,7 +845,7 @@ static void assert_can_enable_dc5(struct intel_display *display)
 
 	assert_display_rpm_held(display);
 
-	assert_dmc_loaded(display);
+	assert_main_dmc_loaded(display);
 }
 
 void gen9_enable_dc5(struct intel_display *display)
@@ -860,7 +876,7 @@ static void assert_can_enable_dc6(struct intel_display *display)
 		       DC_STATE_EN_UPTO_DC6),
 		      "DC6 already programmed to be enabled.\n");
 
-	assert_dmc_loaded(display);
+	assert_main_dmc_loaded(display);
 }
 
 void skl_enable_dc6(struct intel_display *display)
@@ -1766,7 +1782,7 @@ tgl_tc_cold_request(struct intel_display *display, bool block)
 		 * Spec states that we should timeout the request after 200us
 		 * but the function below will timeout after 500us
 		 */
-		ret = snb_pcode_read(&i915->uncore, TGL_PCODE_TCCOLD, &low_val, &high_val);
+		ret = intel_pcode_read(display->drm, TGL_PCODE_TCCOLD, &low_val, &high_val);
 		if (ret == 0) {
 			if (block &&
 			    (low_val & TGL_PCODE_EXIT_TCCOLD_DATA_L_EXIT_FAILED))

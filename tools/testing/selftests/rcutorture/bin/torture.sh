@@ -30,6 +30,15 @@ then
 	VERBOSE_BATCH_CPUS=0
 fi
 
+# Machine architecture?  ("uname -p" is said to be less portable.)1
+thisarch="`uname -m`"
+if test "${thisarch}" = aarch64
+then
+	ifnotaarch64=no
+else
+	ifnotaarch64=yes
+fi
+
 # Configurations/scenarios.
 configs_rcutorture=
 configs_locktorture=
@@ -55,9 +64,9 @@ do_normal=yes
 explicit_normal=no
 do_kasan=yes
 do_kcsan=no
-do_clocksourcewd=yes
+do_clocksourcewd="${ifnotaarch64}"
 do_rt=yes
-do_rcutasksflavors=yes
+do_rcutasksflavors="${ifnotaarch64}" # FIXME: Back to "yes" when SMP=n auto-avoided
 do_srcu_lockdep=yes
 do_rcu_rust=no
 
@@ -124,7 +133,7 @@ do
 		;;
 	--do-all|--doall)
 		do_allmodconfig=yes
-		do_rcutasksflavor=yes
+		do_rcutasksflavors="${ifnotaarch64}" # FIXME: Back to "yes" when SMP=n auto-avoided
 		do_rcutorture=yes
 		do_locktorture=yes
 		do_scftorture=yes
@@ -136,7 +145,7 @@ do
 		explicit_normal=no
 		do_kasan=yes
 		do_kcsan=yes
-		do_clocksourcewd=yes
+		do_clocksourcewd="${ifnotaarch64}"
 		do_srcu_lockdep=yes
 		;;
 	--do-allmodconfig|--do-no-allmodconfig|--no-allmodconfig)
@@ -274,7 +283,7 @@ then
 	configs_rcutorture=CFLIST
 fi
 duration_rcutorture=$((duration_base*duration_rcutorture_frac/10))
-if test "$duration_rcutorture" -eq 0
+if test "$duration_rcutorture" -eq 0 && test "$do_locktorture" = "yes"
 then
 	echo " --- Zero time for rcutorture, disabling" | tee -a $T/log
 	do_rcutorture=no
@@ -286,7 +295,7 @@ then
 	configs_locktorture=CFLIST
 fi
 duration_locktorture=$((duration_base*duration_locktorture_frac/10))
-if test "$duration_locktorture" -eq 0
+if test "$duration_locktorture" -eq 0 && test "$do_locktorture" = "yes"
 then
 	echo " --- Zero time for locktorture, disabling" | tee -a $T/log
 	do_locktorture=no
@@ -298,10 +307,17 @@ then
 	configs_scftorture=CFLIST
 fi
 duration_scftorture=$((duration_base*duration_scftorture_frac/10))
-if test "$duration_scftorture" -eq 0
+if test "$duration_scftorture" -eq 0 && test "$do_scftorture" = "yes"
 then
 	echo " --- Zero time for scftorture, disabling" | tee -a $T/log
 	do_scftorture=no
+fi
+
+# CONFIG_EXPERT=y is currently required for arm64 KCSAN runs.
+kcsan_expert=
+if test "${thisarch}" = aarch64
+then
+	kcsan_expert="CONFIG_EXPERT=y"
 fi
 
 touch $T/failures
@@ -362,13 +378,19 @@ function torture_set {
 	then
 		curflavor=$flavor
 		torture_one "$@"
-		mv $T/last-resdir $T/last-resdir-nodebug || :
+		if test -e $T/last-resdir
+		then
+			mv $T/last-resdir $T/last-resdir-nodebug || :
+		fi
 	fi
 	if test "$do_kasan" = "yes"
 	then
 		curflavor=${flavor}-kasan
 		torture_one "$@" --kasan
-		mv $T/last-resdir $T/last-resdir-kasan || :
+		if test -e $T/last-resdir
+		then
+			mv $T/last-resdir $T/last-resdir-kasan || :
+		fi
 	fi
 	if test "$do_kcsan" = "yes"
 	then
@@ -378,8 +400,16 @@ function torture_set {
 			kcsan_kmake_tag="--kmake-args"
 			cur_kcsan_kmake_args="$kcsan_kmake_args"
 		fi
-		torture_one "$@" --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y" $kcsan_kmake_tag $cur_kcsan_kmake_args --kcsan
-		mv $T/last-resdir $T/last-resdir-kcsan || :
+		chk_rdr_state=
+		if test "${flavor}" = rcutorture
+		then
+			chk_rdr_state="CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE=y"
+		fi
+		torture_one "$@" --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y ${kcsan_expert} ${chk_rdr_state}" $kcsan_kmake_tag $cur_kcsan_kmake_args --kcsan
+		if test -e $T/last-resdir
+		then
+			mv $T/last-resdir $T/last-resdir-kcsan || :
+		fi
 	fi
 }
 
@@ -389,6 +419,7 @@ then
 	echo " --- allmodconfig:" Start `date` | tee -a $T/log
 	amcdir="tools/testing/selftests/rcutorture/res/$ds/allmodconfig"
 	mkdir -p "$amcdir"
+	mktestid.sh "$amcdir"
 	echo " --- make clean" | tee $amcdir/log > "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS clean >> "$amcdir/Make.out" 2>&1
 	retcode=$?
@@ -407,6 +438,10 @@ then
 		make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
 		retcode="$?"
 		echo $retcode > "$amcdir/Make.exitcode"
+		if grep -E -q "Stop|ERROR|Error|error:|warning:" < "$amcdir/Make.out"
+		then
+			retcode=99
+		fi
 		buildphase='"make"'
 	fi
 	if test "$retcode" -eq 0
@@ -495,6 +530,7 @@ then
 	echo " --- do-rcu-rust:" Start `date` | tee -a $T/log
 	rrdir="tools/testing/selftests/rcutorture/res/$ds/results-rcu-rust"
 	mkdir -p "$rrdir"
+	mktestid.sh "$rrdir"
 	echo " --- make LLVM=1 rustavailable " | tee -a $rrdir/log > $rrdir/rustavailable.out
 	make LLVM=1 rustavailable > $T/rustavailable.out 2>&1
 	retcode=$?
@@ -681,7 +717,14 @@ nfailures=0
 echo FAILURES: | tee -a $T/log
 if test -s "$T/failures"
 then
-	awk < "$T/failures" -v sq="'" '{ print "echo " sq $0 sq; print "sed -e " sq "1,/^ --- .* Test summary:$/d" sq " " $2 "/log | grep Summary: | sed -e " sq "s/^[^S]*/  /" sq; }' | sh | tee -a $T/log | tee "$T/failuresum"
+	awk < "$T/failures" -v sq="'" '
+	{
+		print "echo " sq $0 sq;
+		if ($2 != "")
+			print "sed -e " sq "1,/^ --- .* Test summary:$/d" sq " " $2 "/log | grep Summary: | sed -e " sq "s/^[^S]*/  /" sq;
+		else
+			print "echo " sq "  " sq "Run failed to produce results directory.";
+	}' | sh | tee -a $T/log | tee "$T/failuresum"
 	nfailures="`wc -l "$T/failures" | awk '{ print $1 }'`"
 	grep "^  Summary: " "$T/failuresum" |
 		grep -v '^  Summary: Bugs: [0-9]* (all bugs kcsan)$' > "$T/nonkcsan"
@@ -691,15 +734,18 @@ then
 	fi
 	ret=2
 fi
-if test "$do_kcsan" = "yes"
+if test "$do_kcsan" = "yes" && test -e tools/testing/selftests/rcutorture/res/$ds
 then
 	TORTURE_KCONFIG_KCSAN_ARG=1 tools/testing/selftests/rcutorture/bin/kcsan-collapse.sh tools/testing/selftests/rcutorture/res/$ds > tools/testing/selftests/rcutorture/res/$ds/kcsan.sum
 fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
-tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
-find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
-find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
+tdir="`cat $T/successes $T/failures | awk 'NF > 1 { print $NF }' | head -1 | sed -e 's,/[^/]\+/*$,,'`"
+if test -n "$tdir"
+then
+	find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
+	find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
+fi
 if test -s "$T/configerrors"
 then
 	echo "  Scenarios with .config errors: `wc -l "$T/configerrors" | awk '{ print $1 }'`"

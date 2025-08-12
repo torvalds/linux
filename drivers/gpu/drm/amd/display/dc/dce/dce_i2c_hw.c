@@ -292,9 +292,35 @@ static void set_speed(
 			     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
 }
 
+static bool acquire_engine(struct dce_i2c_hw *dce_i2c_hw)
+{
+	uint32_t arbitrate = 0;
+
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	switch (arbitrate) {
+	case DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW:
+		return true;
+	case DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_HW:
+		return false;
+	case DC_I2C_STATUS__DC_I2C_STATUS_IDLE:
+	default:
+		break;
+	}
+
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, true);
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	if (arbitrate != DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW)
+		return false;
+
+	return true;
+}
+
 static bool setup_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
+	// Deassert soft reset to unblock I2C engine registers
+	REG_UPDATE(DC_I2C_CONTROL, DC_I2C_SOFT_RESET, false);
+
 	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
 	uint32_t  reset_length = 0;
 
@@ -309,8 +335,8 @@ static bool setup_engine(
 		REG_UPDATE_N(SETUP, 1,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN), 1);
 
-	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
-	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
+	if (!acquire_engine(dce_i2c_hw))
+		return false;
 
 	/*set SW requested I2c speed to default, if API calls in it will be override later*/
 	set_speed(dce_i2c_hw, dce_i2c_hw->ctx->dc->caps.i2c_speed_in_khz);
@@ -319,9 +345,8 @@ static bool setup_engine(
 		i2c_setup_limit = dce_i2c_hw->setup_limit;
 
 	/* Program pin select */
-	REG_UPDATE_6(DC_I2C_CONTROL,
+	REG_UPDATE_5(DC_I2C_CONTROL,
 		     DC_I2C_GO, 0,
-		     DC_I2C_SOFT_RESET, 0,
 		     DC_I2C_SEND_RESET, 0,
 		     DC_I2C_SW_STATUS_RESET, 1,
 		     DC_I2C_TRANSACTION_COUNT, 0,
@@ -351,6 +376,32 @@ static bool setup_engine(
 	return true;
 }
 
+/**
+ * cntl_stuck_hw_workaround - Workaround for I2C engine stuck state
+ * @dce_i2c_hw: Pointer to dce_i2c_hw structure
+ *
+ * If we boot without an HDMI display, the I2C engine does not get initialized
+ * correctly. One of its symptoms is that SW_USE_I2C does not get cleared after
+ * acquire. After setting SW_DONE_USING_I2C on release, the engine gets
+ * immediately reacquired by SW, preventing DMUB from using it.
+ *
+ * This function checks the I2C arbitration status and applies a release
+ * workaround if necessary.
+ */
+static void cntl_stuck_hw_workaround(struct dce_i2c_hw *dce_i2c_hw)
+{
+	uint32_t arbitrate = 0;
+
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	if (arbitrate != DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW)
+		return;
+
+	// Still acquired after release, release again as a workaround
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, true);
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	ASSERT(arbitrate != DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_SW);
+}
+
 static void release_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
@@ -378,9 +429,9 @@ static void release_engine(
 
 	/*for HW HDCP Ri polling failure w/a test*/
 	set_speed(dce_i2c_hw, dce_i2c_hw->ctx->dc->caps.i2c_speed_in_khz_hdcp);
-	/* Release I2C after reset, so HW or DMCU could use it */
-	REG_UPDATE_2(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1,
-		DC_I2C_SW_USE_I2C_REG_REQ, 0);
+	// Release I2C engine so it can be used by HW or DMCU, automatically clears SW_USE_I2C
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, true);
+	cntl_stuck_hw_workaround(dce_i2c_hw);
 
 	if (dce_i2c_hw->ctx->dc->debug.enable_mem_low_power.bits.i2c) {
 		if (dce_i2c_hw->regs->DIO_MEM_PWR_CTRL)

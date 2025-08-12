@@ -65,6 +65,10 @@ static inline u32 avc_audit_required(u32 requested, struct av_decision *avd,
 				     int result, u32 auditdeny, u32 *deniedp)
 {
 	u32 denied, audited;
+
+	if (avd->flags & AVD_FLAGS_NEVERAUDIT)
+		return 0;
+
 	denied = requested & ~avd->allowed;
 	if (unlikely(denied)) {
 		audited = denied & avd->auditdeny;

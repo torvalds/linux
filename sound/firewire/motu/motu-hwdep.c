@@ -290,7 +290,7 @@ int snd_motu_create_hwdep_device(struct snd_motu *motu)
 	if (err < 0)
 		return err;
 
-	strcpy(hwdep->name, "MOTU");
+	strscpy(hwdep->name, "MOTU");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_MOTU;
 	hwdep->ops = ops;
 	hwdep->private_data = motu;

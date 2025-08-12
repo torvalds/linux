@@ -13,12 +13,15 @@
 
 #include <linux/dcache.h>
 
+#ifdef CONFIG_UNICODE
 int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
 		  const struct qstr *str, struct qstr *out_cf)
 {
 	*out_cf = (struct qstr) QSTR_INIT(NULL, 0);
 
-#ifdef CONFIG_UNICODE
+	if (!bch2_fs_casefold_enabled(trans->c))
+		return -EOPNOTSUPP;
+
 	unsigned char *buf = bch2_trans_kmalloc(trans, BCH_NAME_MAX + 1);
 	int ret = PTR_ERR_OR_ZERO(buf);
 	if (ret)
@@ -30,10 +33,8 @@ int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
 
 	*out_cf = (struct qstr) QSTR_INIT(buf, ret);
 	return 0;
-#else
-	return -EOPNOTSUPP;
-#endif
 }
+#endif
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
 {
@@ -231,7 +232,8 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c
 	prt_printf(out, " type %s", bch2_d_type_str(d.v->d_type));
 }
 
-int bch2_dirent_init_name(struct bkey_i_dirent *dirent,
+int bch2_dirent_init_name(struct bch_fs *c,
+			  struct bkey_i_dirent *dirent,
 			  const struct bch_hash_info *hash_info,
 			  const struct qstr *name,
 			  const struct qstr *cf_name)
@@ -251,6 +253,9 @@ int bch2_dirent_init_name(struct bkey_i_dirent *dirent,
 		       offsetof(struct bch_dirent, d_name) -
 		       name->len);
 	} else {
+		if (!bch2_fs_casefold_enabled(c))
+			return -EOPNOTSUPP;
+
 #ifdef CONFIG_UNICODE
 		memcpy(&dirent->v.d_cf_name_block.d_names[0], name->name, name->len);
 
@@ -277,8 +282,6 @@ int bch2_dirent_init_name(struct bkey_i_dirent *dirent,
 		dirent->v.d_cf_name_block.d_cf_name_len = cpu_to_le16(cf_len);
 
 		EBUG_ON(bch2_dirent_get_casefold_name(dirent_i_to_s_c(dirent)).len != cf_len);
-#else
-	return -EOPNOTSUPP;
 #endif
 	}
 
@@ -313,7 +316,7 @@ struct bkey_i_dirent *bch2_dirent_create_key(struct btree_trans *trans,
 	dirent->v.d_type = type;
 	dirent->v.d_unused = 0;
 
-	int ret = bch2_dirent_init_name(dirent, hash_info, name, cf_name);
+	int ret = bch2_dirent_init_name(trans->c, dirent, hash_info, name, cf_name);
 	if (ret)
 		return ERR_PTR(ret);
 

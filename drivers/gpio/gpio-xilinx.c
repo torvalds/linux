@@ -148,7 +148,7 @@ static int xgpio_get(struct gpio_chip *gc, unsigned int gpio)
  * This function writes the specified value in to the specified signal of the
  * GPIO device.
  */
-static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
+static int xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	unsigned long flags;
 	struct xgpio_instance *chip = gpiochip_get_data(gc);
@@ -162,6 +162,8 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	xgpio_write_ch(chip, XGPIO_DATA_OFFSET, bit, chip->state);
 
 	raw_spin_unlock_irqrestore(&chip->gpio_lock, flags);
+
+	return 0;
 }
 
 /**
@@ -173,8 +175,8 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
  * This function writes the specified values into the specified signals of the
  * GPIO devices.
  */
-static void xgpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
-			       unsigned long *bits)
+static int xgpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+			      unsigned long *bits)
 {
 	DECLARE_BITMAP(hw_mask, 64);
 	DECLARE_BITMAP(hw_bits, 64);
@@ -194,6 +196,8 @@ static void xgpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	bitmap_copy(chip->state, state, 64);
 
 	raw_spin_unlock_irqrestore(&chip->gpio_lock, flags);
+
+	return 0;
 }
 
 /**

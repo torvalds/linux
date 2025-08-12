@@ -399,8 +399,8 @@ static inline struct adv7511 *bridge_to_adv7511(struct drm_bridge *bridge)
 }
 
 #ifdef CONFIG_DRM_I2C_ADV7511_CEC
-int adv7511_cec_init(struct drm_connector *connector,
-		     struct drm_bridge *bridge);
+int adv7511_cec_init(struct drm_bridge *bridge,
+		     struct drm_connector *connector);
 int adv7511_cec_enable(struct drm_bridge *bridge, bool enable);
 int adv7511_cec_log_addr(struct drm_bridge *bridge, u8 addr);
 int adv7511_cec_transmit(struct drm_bridge *bridge, u8 attempts,
@@ -424,12 +424,12 @@ int adv7533_attach_dsi(struct adv7511 *adv);
 int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
 
 #ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
-int adv7511_hdmi_audio_startup(struct drm_connector *connector,
-			       struct drm_bridge *bridge);
-void adv7511_hdmi_audio_shutdown(struct drm_connector *connector,
-				 struct drm_bridge *bridge);
-int adv7511_hdmi_audio_prepare(struct drm_connector *connector,
-			       struct drm_bridge *bridge,
+int adv7511_hdmi_audio_startup(struct drm_bridge *bridge,
+			       struct drm_connector *connector);
+void adv7511_hdmi_audio_shutdown(struct drm_bridge *bridge,
+				 struct drm_connector *connector);
+int adv7511_hdmi_audio_prepare(struct drm_bridge *bridge,
+			       struct drm_connector *connector,
 			       struct hdmi_codec_daifmt *fmt,
 			       struct hdmi_codec_params *hparms);
 #else /*CONFIG_DRM_I2C_ADV7511_AUDIO */

@@ -190,8 +190,21 @@ Gamepads report the following events:
 
   Rumble is advertised as FF_RUMBLE.
 
+- Grip buttons:
+
+  Many pads include buttons on the rear, usually referred to as either grip or
+  rear buttons, or paddles. These are often reprogrammable by the firmware to
+  appear as "normal" buttons, but are sometimes exposed to software too. Some
+  notable examples of this are the Steam Deck, which has R4, R5, L4, and L5 on
+  the back; the Xbox Elite pads, which have P1-P4; and the Switch 2 Pro
+  Controller, which has GL and GR.
+
+  For these controllers, BTN_GRIPR and BTN_GRIPR2 should be used for the top
+  and bottom (if present) right grip button(s), and BTN_GRIPL and BTN_GRIPL2
+  should be used for the top and bottom (if present) left grip button(s).
+
 - Profile:
 
-  Some pads provide a multi-value profile selection switch.  An example is the
-  XBox Adaptive and the XBox Elite 2 controllers.  When the active profile is
-  switched, its newly selected value is emitted as an ABS_PROFILE event.
+  Some pads provide a multi-value profile selection switch. Examples include
+  the Xbox Adaptive and the Xbox Elite 2 controllers. When the active profile
+  is switched, its newly selected value is emitted as an ABS_PROFILE event.

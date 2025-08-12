@@ -327,6 +327,35 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 		}
 	}
 
+	DTN_INFO("\n=======HUBP FL======\n");
+	DTN_INFO(
+		"HUBP FL:  Enabled  Done  adr_mode  width  tmz  xbar_sel_R  xbar_sel_G  xbar_sel_B  adr_hi  adr_low  REFCYC  Bias   Scale       Mode      Format\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(pool->hubps[i])->state);
+		struct dcn_fl_regs_st *fl_regs = &s->fl_regs;
+
+		if (!s->blank_en) {
+			DTN_INFO("[%2d]:  %5xh  %6xh  %5d  %6d  %8xh  %2xh  %6xh  %6d  %8d  %8d  %7d  %8xh %5x %5x %5x",
+					pool->hubps[i]->inst,
+					fl_regs->lut_enable,
+					fl_regs->lut_done,
+					fl_regs->lut_addr_mode,
+					fl_regs->lut_width,
+					fl_regs->lut_tmz,
+					fl_regs->lut_crossbar_sel_r,
+					fl_regs->lut_crossbar_sel_g,
+					fl_regs->lut_crossbar_sel_b,
+					fl_regs->lut_addr_hi,
+					fl_regs->lut_addr_lo,
+					fl_regs->refcyc_3dlut_group,
+					fl_regs->lut_fl_bias,
+					fl_regs->lut_fl_scale,
+					fl_regs->lut_fl_mode,
+					fl_regs->lut_fl_format);
+			DTN_INFO("\n");
+		}
+	}
+
 	DTN_INFO("\n=========RQ========\n");
 	DTN_INFO("HUBP:  drq_exp_m  prq_exp_m  mrq_exp_m  crq_exp_m  plane1_ba  L:chunk_s  min_chu_s  meta_ch_s"
 		"  min_m_c_s  dpte_gr_s  mpte_gr_s  swath_hei  pte_row_h  C:chunk_s  min_chu_s  meta_ch_s"
@@ -511,6 +540,36 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.mpc.num_3dluts,
 		 dc->caps.color.mpc.ogam_ram,
 		 dc->caps.color.mpc.ocsc);
+	DTN_INFO("===== MPC RMCM 3DLUT =====\n");
+	DTN_INFO("MPCC:  SIZE  MODE  MODE_CUR  RD_SEL  30BIT_EN  WR_EN_MASK  RAM_SEL  OUT_NORM_FACTOR	FL_SEL	OUT_OFFSET	OUT_SCALE	FL_DONE	SOFT_UNDERFLOW	HARD_UNDERFLOW MEM_PWR_ST	FORCE	DIS	MODE\n");
+	for (i = 0; i < pool->mpcc_count; i++) {
+		struct mpcc_state s = {0};
+
+		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
+		if (s.opp_id != 0xf)
+			DTN_INFO("[%2d]:  %4xh  %4xh  %6xh  %4x  %4x  %4x  %4x  %4x %4xh  %4xh  %6xh  %4x  %4x  %4x  %4x  %4x  %4x  %4x\n",
+				i, s.rmcm_regs.rmcm_3dlut_size, s.rmcm_regs.rmcm_3dlut_mode, s.rmcm_regs.rmcm_3dlut_mode_cur,
+				s.rmcm_regs.rmcm_3dlut_read_sel, s.rmcm_regs.rmcm_3dlut_30bit_en, s.rmcm_regs.rmcm_3dlut_wr_en_mask,
+				s.rmcm_regs.rmcm_3dlut_ram_sel, s.rmcm_regs.rmcm_3dlut_out_norm_factor, s.rmcm_regs.rmcm_3dlut_fl_sel,
+				s.rmcm_regs.rmcm_3dlut_out_offset_r, s.rmcm_regs.rmcm_3dlut_out_scale_r, s.rmcm_regs.rmcm_3dlut_fl_done,
+				s.rmcm_regs.rmcm_3dlut_fl_soft_underflow, s.rmcm_regs.rmcm_3dlut_fl_hard_underflow, s.rmcm_regs.rmcm_3dlut_mem_pwr_state,
+				s.rmcm_regs.rmcm_3dlut_mem_pwr_force, s.rmcm_regs.rmcm_3dlut_mem_pwr_dis, s.rmcm_regs.rmcm_3dlut_mem_pwr_mode);
+	}
+	DTN_INFO("\n");
+	DTN_INFO("===== MPC RMCM Shaper =====\n");
+	DTN_INFO("MPCC:  CNTL  LUT_MODE  MODE_CUR  WR_EN_MASK  WR_SEL  OFFSET  SCALE  START_B	START_SEG_B	END_B	END_BASE_B	MEM_PWR_ST	FORCE	DIS	MODE\n");
+	for (i = 0; i < pool->mpcc_count; i++) {
+		struct mpcc_state s = {0};
+
+		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
+		if (s.opp_id != 0xf)
+			DTN_INFO("[%2d]:  %4xh  %4xh  %6xh  %4x  %4x  %4x  %4x  %4x %4xh  %4xh  %6xh  %4x  %4x  %4x  %4x\n",
+				i, s.rmcm_regs.rmcm_cntl, s.rmcm_regs.rmcm_shaper_lut_mode, s.rmcm_regs.rmcm_shaper_mode_cur,
+				s.rmcm_regs.rmcm_shaper_lut_write_en_mask, s.rmcm_regs.rmcm_shaper_lut_write_sel, s.rmcm_regs.rmcm_shaper_offset_b,
+				s.rmcm_regs.rmcm_shaper_scale_b, s.rmcm_regs.rmcm_shaper_rama_exp_region_start_b, s.rmcm_regs.rmcm_shaper_rama_exp_region_start_seg_b,
+				s.rmcm_regs.rmcm_shaper_rama_exp_region_end_b, s.rmcm_regs.rmcm_shaper_rama_exp_region_end_base_b, s.rmcm_regs.rmcm_shaper_mem_pwr_state,
+				s.rmcm_regs.rmcm_shaper_mem_pwr_force, s.rmcm_regs.rmcm_shaper_mem_pwr_dis, s.rmcm_regs.rmcm_shaper_mem_pwr_mode);
+	}
 }
 
 void dcn10_log_hw_state(struct dc *dc,

@@ -525,6 +525,19 @@ static inline void btrfs_update_inode_mapping_flags(struct btrfs_inode *inode)
 		mapping_set_stable_writes(inode->vfs_inode.i_mapping);
 }
 
+static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
+{
+	/* Metadata inode should not reach here. */
+	ASSERT(is_data_inode(inode));
+
+	/* We only allow BITS_PER_LONGS blocks for each bitmap. */
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	mapping_set_folio_order_range(inode->vfs_inode.i_mapping, 0,
+			ilog2(((BITS_PER_LONG << inode->root->fs_info->sectorsize_bits)
+				>> PAGE_SHIFT)));
+#endif
+}
+
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes

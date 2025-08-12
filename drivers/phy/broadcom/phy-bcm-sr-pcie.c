@@ -277,8 +277,6 @@ static int sr_pcie_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(provider);
 	}
 
-	dev_info(dev, "Stingray PCIe PHY driver initialized\n");
-
 	return 0;
 }
 

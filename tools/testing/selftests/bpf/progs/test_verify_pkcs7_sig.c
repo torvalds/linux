@@ -17,7 +17,7 @@
 #define MAX_SIG_SIZE 1024
 
 __u32 monitored_pid;
-__u32 user_keyring_serial;
+__s32 user_keyring_serial;
 __u64 system_keyring_id;
 
 struct data {

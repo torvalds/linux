@@ -193,40 +193,34 @@ static bool detection_work_enabled(struct intel_display *display)
 static bool
 mod_delayed_detection_work(struct intel_display *display, struct delayed_work *work, int delay)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	lockdep_assert_held(&display->irq.lock);
 
 	if (!detection_work_enabled(display))
 		return false;
 
-	return mod_delayed_work(i915->unordered_wq, work, delay);
+	return mod_delayed_work(display->wq.unordered, work, delay);
 }
 
 static bool
 queue_delayed_detection_work(struct intel_display *display, struct delayed_work *work, int delay)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	lockdep_assert_held(&display->irq.lock);
 
 	if (!detection_work_enabled(display))
 		return false;
 
-	return queue_delayed_work(i915->unordered_wq, work, delay);
+	return queue_delayed_work(display->wq.unordered, work, delay);
 }
 
 static bool
 queue_detection_work(struct intel_display *display, struct work_struct *work)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	lockdep_assert_held(&display->irq.lock);
 
 	if (!detection_work_enabled(display))
 		return false;
 
-	return queue_work(i915->unordered_wq, work);
+	return queue_work(display->wq.unordered, work);
 }
 
 static void

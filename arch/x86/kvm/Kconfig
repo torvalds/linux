@@ -166,6 +166,16 @@ config KVM_AMD_SEV
 	  Encrypted State (SEV-ES), and Secure Encrypted Virtualization with
 	  Secure Nested Paging (SEV-SNP) technologies on AMD processors.
 
+config KVM_IOAPIC
+	bool "I/O APIC, PIC, and PIT emulation"
+	default y
+	depends on KVM
+	help
+	  Provides support for KVM to emulate an I/O APIC, PIC, and PIT, i.e.
+	  for full in-kernel APIC emulation.
+
+	  If unsure, say Y.
+
 config KVM_SMM
 	bool "System Management Mode emulation"
 	default y

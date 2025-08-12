@@ -800,6 +800,56 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	return rc;
 }
 
+int efx_ethtool_get_rxfh_fields(struct net_device *net_dev,
+				struct ethtool_rxfh_fields *info)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	struct efx_rss_context_priv *ctx;
+	__u64 data;
+	int rc = 0;
+
+	ctx = &efx->rss_context.priv;
+
+	if (info->rss_context) {
+		ctx = efx_find_rss_context_entry(efx, info->rss_context);
+		if (!ctx)
+			return -ENOENT;
+	}
+
+	data = 0;
+	if (!efx_rss_active(ctx)) /* No RSS */
+		goto out_setdata_unlock;
+
+	switch (info->flow_type) {
+	case UDP_V4_FLOW:
+	case UDP_V6_FLOW:
+		if (ctx->rx_hash_udp_4tuple)
+			data = (RXH_L4_B_0_1 | RXH_L4_B_2_3 |
+				RXH_IP_SRC | RXH_IP_DST);
+		else
+			data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		data = (RXH_L4_B_0_1 | RXH_L4_B_2_3 |
+			RXH_IP_SRC | RXH_IP_DST);
+		break;
+	case SCTP_V4_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_ESP_V6_FLOW:
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		break;
+	}
+out_setdata_unlock:
+	info->data = data;
+	return rc;
+}
+
 int efx_ethtool_get_rxnfc(struct net_device *net_dev,
 			  struct ethtool_rxnfc *info, u32 *rule_locs)
 {
@@ -811,55 +861,6 @@ int efx_ethtool_get_rxnfc(struct net_device *net_dev,
 	case ETHTOOL_GRXRINGS:
 		info->data = efx->n_rx_channels;
 		return 0;
-
-	case ETHTOOL_GRXFH: {
-		struct efx_rss_context_priv *ctx = &efx->rss_context.priv;
-		__u64 data;
-
-		mutex_lock(&net_dev->ethtool->rss_lock);
-		if (info->flow_type & FLOW_RSS && info->rss_context) {
-			ctx = efx_find_rss_context_entry(efx, info->rss_context);
-			if (!ctx) {
-				rc = -ENOENT;
-				goto out_unlock;
-			}
-		}
-
-		data = 0;
-		if (!efx_rss_active(ctx)) /* No RSS */
-			goto out_setdata_unlock;
-
-		switch (info->flow_type & ~FLOW_RSS) {
-		case UDP_V4_FLOW:
-		case UDP_V6_FLOW:
-			if (ctx->rx_hash_udp_4tuple)
-				data = (RXH_L4_B_0_1 | RXH_L4_B_2_3 |
-					RXH_IP_SRC | RXH_IP_DST);
-			else
-				data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		case TCP_V4_FLOW:
-		case TCP_V6_FLOW:
-			data = (RXH_L4_B_0_1 | RXH_L4_B_2_3 |
-				RXH_IP_SRC | RXH_IP_DST);
-			break;
-		case SCTP_V4_FLOW:
-		case SCTP_V6_FLOW:
-		case AH_ESP_V4_FLOW:
-		case AH_ESP_V6_FLOW:
-		case IPV4_FLOW:
-		case IPV6_FLOW:
-			data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		default:
-			break;
-		}
-out_setdata_unlock:
-		info->data = data;
-out_unlock:
-		mutex_unlock(&net_dev->ethtool->rss_lock);
-		return rc;
-	}
 
 	case ETHTOOL_GRXCLSRLCNT:
 		info->data = efx_filter_get_rx_id_limit(efx);

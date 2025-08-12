@@ -151,9 +151,10 @@ static void otx2_qos_sq_free_sqbs(struct otx2_nic *pfvf, int qidx)
 static void otx2_qos_sqb_flush(struct otx2_nic *pfvf, int qidx)
 {
 	int sqe_tail, sqe_head;
-	u64 incr, *ptr, val;
+	void __iomem *ptr;
+	u64 incr, val;
 
-	ptr = (__force u64 *)otx2_get_regaddr(pfvf, NIX_LF_SQ_OP_STATUS);
+	ptr = otx2_get_regaddr(pfvf, NIX_LF_SQ_OP_STATUS);
 	incr = (u64)qidx << 32;
 	val = otx2_atomic64_add(incr, ptr);
 	sqe_head = (val >> 20) & 0x3F;

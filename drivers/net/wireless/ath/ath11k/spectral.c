@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/relay.h>
@@ -205,7 +206,7 @@ static int ath11k_spectral_scan_trigger(struct ath11k *ar)
 static int ath11k_spectral_scan_config(struct ath11k *ar,
 				       enum ath11k_spectral_mode mode)
 {
-	struct ath11k_wmi_vdev_spectral_conf_param param = { 0 };
+	struct ath11k_wmi_vdev_spectral_conf_param param = {};
 	struct ath11k_vif *arvif;
 	int ret, count;
 

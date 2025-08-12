@@ -3238,7 +3238,7 @@ static void it6505_bridge_atomic_post_disable(struct drm_bridge *bridge,
 }
 
 static enum drm_connector_status
-it6505_bridge_detect(struct drm_bridge *bridge)
+it6505_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 

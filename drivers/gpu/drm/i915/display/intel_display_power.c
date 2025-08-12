@@ -1257,10 +1257,8 @@ static u32 hsw_read_dcomp(struct intel_display *display)
 
 static void hsw_write_dcomp(struct intel_display *display, u32 val)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (display->platform.haswell) {
-		if (snb_pcode_write(&dev_priv->uncore, GEN6_PCODE_WRITE_D_COMP, val))
+		if (intel_pcode_write(display->drm, GEN6_PCODE_WRITE_D_COMP, val))
 			drm_dbg_kms(display->drm, "Failed to write to D_COMP\n");
 	} else {
 		intel_de_write(display, D_COMP_BDW, val);

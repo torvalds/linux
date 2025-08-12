@@ -66,8 +66,6 @@ struct intel_display;
 struct intel_pxp;
 struct vlv_s0ix_state;
 
-#define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
-
 /* Data Stolen Memory (DSM) aka "i915 stolen memory" */
 struct i915_dsm {
 	/*
@@ -354,14 +352,6 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 	return i915->gt[0];
 }
 
-#define rb_to_uabi_engine(rb) \
-	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
-
-#define for_each_uabi_engine(engine__, i915__) \
-	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
-	     (engine__); \
-	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
-
 #define INTEL_INFO(i915)	((i915)->__info)
 #define RUNTIME_INFO(i915)	(&(i915)->__runtime)
 #define DRIVER_CAPS(i915)	(&(i915)->caps)
@@ -569,29 +559,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define IS_GEN9_LP(i915)	(IS_BROXTON(i915) || IS_GEMINILAKE(i915))
 #define IS_GEN9_BC(i915)	(GRAPHICS_VER(i915) == 9 && !IS_GEN9_LP(i915))
-
-#define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
-#define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
-
-#define __ENGINE_INSTANCES_MASK(mask, first, count) ({			\
-	unsigned int first__ = (first);					\
-	unsigned int count__ = (count);					\
-	((mask) & GENMASK(first__ + count__ - 1, first__)) >> first__;	\
-})
-
-#define ENGINE_INSTANCES_MASK(gt, first, count) \
-	__ENGINE_INSTANCES_MASK((gt)->info.engine_mask, first, count)
-
-#define RCS_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
-#define BCS_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, BCS0, I915_MAX_BCS)
-#define VDBOX_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, VCS0, I915_MAX_VCS)
-#define VEBOX_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, VECS0, I915_MAX_VECS)
-#define CCS_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, CCS0, I915_MAX_CCS)
 
 #define HAS_MEDIA_RATIO_MODE(i915) (INTEL_INFO(i915)->has_media_ratio_mode)
 

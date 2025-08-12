@@ -337,9 +337,6 @@ static int kingdisplay_panel_add(struct kingdisplay_panel *kingdisplay)
 		kingdisplay->enable_gpio = NULL;
 	}
 
-	drm_panel_init(&kingdisplay->base, &kingdisplay->link->dev,
-		       &kingdisplay_panel_funcs, DRM_MODE_CONNECTOR_DSI);
-
 	err = drm_panel_of_backlight(&kingdisplay->base);
 	if (err)
 		return err;
@@ -364,9 +361,12 @@ static int kingdisplay_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM;
 
-	kingdisplay = devm_kzalloc(&dsi->dev, sizeof(*kingdisplay), GFP_KERNEL);
-	if (!kingdisplay)
-		return -ENOMEM;
+	kingdisplay = devm_drm_panel_alloc(&dsi->dev, __typeof(*kingdisplay), base,
+					   &kingdisplay_panel_funcs,
+					   DRM_MODE_CONNECTOR_DSI);
+
+	if (IS_ERR(kingdisplay))
+		return PTR_ERR(kingdisplay);
 
 	mipi_dsi_set_drvdata(dsi, kingdisplay);
 	kingdisplay->link = dsi;

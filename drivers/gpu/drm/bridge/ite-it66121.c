@@ -843,7 +843,8 @@ static enum drm_mode_status it66121_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static enum drm_connector_status it66121_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+it66121_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct it66121_ctx *ctx = container_of(bridge, struct it66121_ctx, bridge);
 

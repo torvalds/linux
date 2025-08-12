@@ -46,7 +46,7 @@ static size_t bmof_bin_size(struct kobject *kobj, const struct bin_attribute *at
 
 static const struct attribute_group bmof_group = {
 	.bin_size = bmof_bin_size,
-	.bin_attrs_new = bmof_attrs,
+	.bin_attrs = bmof_attrs,
 };
 
 static const struct attribute_group *bmof_groups[] = {

@@ -1483,14 +1483,28 @@ static u32 uvc_get_ctrl_bitmap(struct uvc_control *ctrl,
 	return ~0;
 }
 
+/*
+ * Maximum retry count to avoid spurious errors with controls. Increasing this
+ * value does no seem to produce better results in the tested hardware.
+ */
+#define MAX_QUERY_RETRIES 2
+
 static int __uvc_queryctrl_boundaries(struct uvc_video_chain *chain,
 				      struct uvc_control *ctrl,
 				      struct uvc_control_mapping *mapping,
 				      struct v4l2_query_ext_ctrl *v4l2_ctrl)
 {
 	if (!ctrl->cached) {
-		int ret = uvc_ctrl_populate_cache(chain, ctrl);
-		if (ret < 0)
+		unsigned int retries;
+		int ret;
+
+		for (retries = 0; retries < MAX_QUERY_RETRIES; retries++) {
+			ret = uvc_ctrl_populate_cache(chain, ctrl);
+			if (ret != -EIO)
+				break;
+		}
+
+		if (ret)
 			return ret;
 	}
 
@@ -1567,6 +1581,7 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 {
 	struct uvc_control_mapping *master_map = NULL;
 	struct uvc_control *master_ctrl = NULL;
+	int ret;
 
 	memset(v4l2_ctrl, 0, sizeof(*v4l2_ctrl));
 	v4l2_ctrl->id = mapping->id;
@@ -1587,18 +1602,31 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		__uvc_find_control(ctrl->entity, mapping->master_id,
 				   &master_map, &master_ctrl, 0, 0);
 	if (master_ctrl && (master_ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR)) {
+		unsigned int retries;
 		s32 val;
 		int ret;
 
 		if (WARN_ON(uvc_ctrl_mapping_is_compound(master_map)))
 			return -EIO;
 
-		ret = __uvc_ctrl_get(chain, master_ctrl, master_map, &val);
-		if (ret < 0)
-			return ret;
+		for (retries = 0; retries < MAX_QUERY_RETRIES; retries++) {
+			ret = __uvc_ctrl_get(chain, master_ctrl, master_map,
+					     &val);
+			if (!ret)
+				break;
+			if (ret < 0 && ret != -EIO)
+				return ret;
+		}
 
-		if (val != mapping->master_manual)
-			v4l2_ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (ret == -EIO) {
+			dev_warn_ratelimited(&chain->dev->udev->dev,
+					     "UVC non compliance: Error %d querying master control %x (%s)\n",
+					     ret, master_map->id,
+					     uvc_map_get_name(master_map));
+		} else {
+			if (val != mapping->master_manual)
+				v4l2_ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		}
 	}
 
 	v4l2_ctrl->elem_size = uvc_mapping_v4l2_size(mapping);
@@ -1613,7 +1641,18 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		return 0;
 	}
 
-	return __uvc_queryctrl_boundaries(chain, ctrl, mapping, v4l2_ctrl);
+	ret = __uvc_queryctrl_boundaries(chain, ctrl, mapping, v4l2_ctrl);
+	if (ret && !mapping->disabled) {
+		dev_warn(&chain->dev->udev->dev,
+			 "UVC non compliance: permanently disabling control %x (%s), due to error %d\n",
+			 mapping->id, uvc_map_get_name(mapping), ret);
+		mapping->disabled = true;
+	}
+
+	if (mapping->disabled)
+		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
+
+	return 0;
 }
 
 int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
@@ -1812,48 +1851,48 @@ static void uvc_ctrl_send_slave_event(struct uvc_video_chain *chain,
 	uvc_ctrl_send_event(chain, handle, ctrl, mapping, val, changes);
 }
 
-static int uvc_ctrl_set_handle(struct uvc_fh *handle, struct uvc_control *ctrl,
-			       struct uvc_fh *new_handle)
+static int uvc_ctrl_set_handle(struct uvc_control *ctrl, struct uvc_fh *handle)
 {
+	int ret;
+
 	lockdep_assert_held(&handle->chain->ctrl_mutex);
 
-	if (new_handle) {
-		int ret;
+	if (ctrl->handle) {
+		dev_warn_ratelimited(&handle->stream->dev->udev->dev,
+				     "UVC non compliance: Setting an async control with a pending operation.");
 
-		if (ctrl->handle)
-			dev_warn_ratelimited(&handle->stream->dev->udev->dev,
-					     "UVC non compliance: Setting an async control with a pending operation.");
-
-		if (new_handle == ctrl->handle)
+		if (ctrl->handle == handle)
 			return 0;
 
-		if (ctrl->handle) {
-			WARN_ON(!ctrl->handle->pending_async_ctrls);
-			if (ctrl->handle->pending_async_ctrls)
-				ctrl->handle->pending_async_ctrls--;
-			ctrl->handle = new_handle;
-			handle->pending_async_ctrls++;
-			return 0;
-		}
-
-		ret = uvc_pm_get(handle->chain->dev);
-		if (ret)
-			return ret;
-
-		ctrl->handle = new_handle;
-		handle->pending_async_ctrls++;
+		WARN_ON(!ctrl->handle->pending_async_ctrls);
+		if (ctrl->handle->pending_async_ctrls)
+			ctrl->handle->pending_async_ctrls--;
+		ctrl->handle = handle;
+		ctrl->handle->pending_async_ctrls++;
 		return 0;
 	}
 
-	/* Cannot clear the handle for a control not owned by us.*/
-	if (WARN_ON(ctrl->handle != handle))
-		return -EINVAL;
+	ret = uvc_pm_get(handle->chain->dev);
+	if (ret)
+		return ret;
 
-	ctrl->handle = NULL;
-	if (WARN_ON(!handle->pending_async_ctrls))
+	ctrl->handle = handle;
+	ctrl->handle->pending_async_ctrls++;
+	return 0;
+}
+
+static int uvc_ctrl_clear_handle(struct uvc_control *ctrl)
+{
+	lockdep_assert_held(&ctrl->handle->chain->ctrl_mutex);
+
+	if (WARN_ON(!ctrl->handle->pending_async_ctrls)) {
+		ctrl->handle = NULL;
 		return -EINVAL;
-	handle->pending_async_ctrls--;
-	uvc_pm_put(handle->chain->dev);
+	}
+
+	ctrl->handle->pending_async_ctrls--;
+	uvc_pm_put(ctrl->handle->chain->dev);
+	ctrl->handle = NULL;
 	return 0;
 }
 
@@ -1871,7 +1910,7 @@ void uvc_ctrl_status_event(struct uvc_video_chain *chain,
 
 	handle = ctrl->handle;
 	if (handle)
-		uvc_ctrl_set_handle(handle, ctrl, NULL);
+		uvc_ctrl_clear_handle(ctrl);
 
 	list_for_each_entry(mapping, &ctrl->info.mappings, list) {
 		s32 value;
@@ -2033,11 +2072,14 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 		goto done;
 	}
 
-	list_add_tail(&sev->node, &mapping->ev_subs);
 	if (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL) {
 		struct v4l2_event ev;
 		u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
 		s32 val = 0;
+
+		ret = uvc_pm_get(handle->chain->dev);
+		if (ret)
+			goto done;
 
 		if (uvc_ctrl_mapping_is_compound(mapping) ||
 		    __uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
@@ -2045,6 +2087,9 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 
 		uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, val,
 				    changes);
+
+		uvc_pm_put(handle->chain->dev);
+
 		/*
 		 * Mark the queue as active, allowing this initial event to be
 		 * accepted.
@@ -2052,6 +2097,8 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 		sev->elems = elems;
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
+
+	list_add_tail(&sev->node, &mapping->ev_subs);
 
 done:
 	mutex_unlock(&handle->chain->ctrl_mutex);
@@ -2161,7 +2208,7 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 
 		if (!rollback && handle && !ret &&
 		    ctrl->info.flags & UVC_CTRL_FLAG_ASYNCHRONOUS)
-			ret = uvc_ctrl_set_handle(handle, ctrl, handle);
+			ret = uvc_ctrl_set_handle(ctrl, handle);
 
 		if (ret < 0 && !rollback) {
 			if (err_ctrl)
@@ -3271,7 +3318,7 @@ void uvc_ctrl_cleanup_fh(struct uvc_fh *handle)
 		for (unsigned int i = 0; i < entity->ncontrols; ++i) {
 			if (entity->controls[i].handle != handle)
 				continue;
-			uvc_ctrl_set_handle(handle, &entity->controls[i], NULL);
+			uvc_ctrl_clear_handle(&entity->controls[i]);
 		}
 	}
 

@@ -21,3 +21,11 @@
 		      <0x8 0x02000000 0x0 0x7E000000>;
 	};
 };
+
+&i2c2 {
+	temperature-sensor@48 {
+		compatible = "ti,tmp112";
+		reg = <0x48>;
+		label = "U60";
+	};
+};

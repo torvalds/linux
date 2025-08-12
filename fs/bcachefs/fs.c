@@ -722,7 +722,6 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		inode = NULL;
 
-#ifdef CONFIG_UNICODE
 	if (!inode && IS_CASEFOLDED(vdir)) {
 		/*
 		 * Do not cache a negative dentry in casefolded directories
@@ -737,7 +736,6 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 		 */
 		return NULL;
 	}
-#endif
 
 	return d_splice_alias(&inode->v, dentry);
 }
@@ -1553,11 +1551,11 @@ static const struct vm_operations_struct bch_vm_ops = {
 	.page_mkwrite   = bch2_page_mkwrite,
 };
 
-static int bch2_mmap(struct file *file, struct vm_area_struct *vma)
+static int bch2_mmap_prepare(struct vm_area_desc *desc)
 {
-	file_accessed(file);
+	file_accessed(desc->file);
 
-	vma->vm_ops = &bch_vm_ops;
+	desc->vm_ops = &bch_vm_ops;
 	return 0;
 }
 
@@ -1619,7 +1617,7 @@ static const __maybe_unused unsigned bch_flags_to_xflags[] = {
 };
 
 static int bch2_fileattr_get(struct dentry *dentry,
-			     struct fileattr *fa)
+			     struct file_kattr *fa)
 {
 	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -1682,7 +1680,7 @@ static int fssetxattr_inode_update_fn(struct btree_trans *trans,
 
 static int bch2_fileattr_set(struct mnt_idmap *idmap,
 			     struct dentry *dentry,
-			     struct fileattr *fa)
+			     struct file_kattr *fa)
 {
 	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -1732,7 +1730,8 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 		bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
 			       ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
-	return ret;
+
+	return bch2_err_class(ret);
 }
 
 static const struct file_operations bch_file_operations = {
@@ -1740,7 +1739,7 @@ static const struct file_operations bch_file_operations = {
 	.llseek		= bch2_llseek,
 	.read_iter	= bch2_read_iter,
 	.write_iter	= bch2_write_iter,
-	.mmap		= bch2_mmap,
+	.mmap_prepare	= bch2_mmap_prepare,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.fsync		= bch2_fsync,
 	.splice_read	= filemap_splice_read,
@@ -2565,9 +2564,10 @@ got_sb:
 	sb->s_shrink->seeks = 0;
 
 #ifdef CONFIG_UNICODE
-	sb->s_encoding = c->cf_encoding;
-#endif
+	if (bch2_fs_casefold_enabled(c))
+		sb->s_encoding = c->cf_encoding;
 	generic_set_sb_d_ops(sb);
+#endif
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);

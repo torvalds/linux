@@ -3,6 +3,7 @@
 #define __PERF_CAP_H
 
 #include <stdbool.h>
+#include <linux/capability.h>
 
 /* For older systems */
 #ifndef CAP_SYSLOG
@@ -11,6 +12,10 @@
 
 #ifndef CAP_PERFMON
 #define CAP_PERFMON	38
+#endif
+
+#ifndef CAP_BPF
+#define CAP_BPF		39
 #endif
 
 /* Query if a capability is supported, used_root is set if the fallback root check was used. */

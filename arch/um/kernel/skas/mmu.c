@@ -20,8 +20,8 @@
 /* Ensure the stub_data struct covers the allocated area */
 static_assert(sizeof(struct stub_data) == STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 
-spinlock_t mm_list_lock;
-struct list_head mm_list;
+static spinlock_t mm_list_lock;
+static struct list_head mm_list;
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)
 {

@@ -230,7 +230,13 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 	case DRM_FORMAT_XRGB8888:
 		switch (dbidev->pixel_format) {
 		case DRM_FORMAT_RGB565:
-			drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
+			if (swap) {
+				drm_fb_xrgb8888_to_rgb565be(&dst_map, NULL, src, fb, clip,
+							    fmtcnv_state);
+			} else {
+				drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip,
+							  fmtcnv_state);
+			}
 			break;
 		case DRM_FORMAT_RGB888:
 			drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip, fmtcnv_state);

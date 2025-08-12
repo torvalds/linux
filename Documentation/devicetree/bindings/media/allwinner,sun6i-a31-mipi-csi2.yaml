@@ -103,7 +103,7 @@ examples:
         reg = <0x01cb1000 0x1000>;
         interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&ccu CLK_BUS_CSI>,
-                 <&ccu CLK_CSI1_SCLK>;
+                 <&ccu CLK_CSI_SCLK>;
         clock-names = "bus", "mod";
         resets = <&ccu RST_BUS_CSI>;
 
