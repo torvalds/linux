@@ -2655,16 +2655,12 @@ static int ov5670_probe(struct i2c_client *client)
 
 	ov5670->dev = &client->dev;
 
-	ov5670->xvclk = devm_clk_get_optional(ov5670->dev, NULL);
-	if (!IS_ERR_OR_NULL(ov5670->xvclk))
-		input_clk = clk_get_rate(ov5670->xvclk);
-	else if (!ov5670->xvclk || PTR_ERR(ov5670->xvclk) == -ENOENT)
-		device_property_read_u32(ov5670->dev, "clock-frequency",
-					 &input_clk);
-	else
+	ov5670->xvclk = devm_v4l2_sensor_clk_get(ov5670->dev, NULL);
+	if (IS_ERR(ov5670->xvclk))
 		return dev_err_probe(ov5670->dev, PTR_ERR(ov5670->xvclk),
 				     "error getting clock\n");
 
+	input_clk = clk_get_rate(ov5670->xvclk);
 	if (input_clk != OV5670_XVCLK_FREQ) {
 		dev_err(ov5670->dev,
 			"Unsupported clock frequency %u\n", input_clk);
