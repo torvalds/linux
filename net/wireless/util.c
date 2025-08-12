@@ -2584,7 +2584,7 @@ int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
 		}
 	}
 
-	return -ENOENT;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(cfg80211_get_radio_idx_by_chan);
 

@@ -9548,7 +9548,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
  * @wiphy: the wiphy
  * @chan: channel for which the supported radio index is required
  *
- * Return: radio index on success or a negative error code
+ * Return: radio index on success or -EINVAL otherwise
  */
 int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
 				   const struct ieee80211_channel *chan);
