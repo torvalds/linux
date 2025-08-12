@@ -498,8 +498,6 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			server->smbd_conn->receive_credit_target);
 		seq_printf(m, "\nPending send_pending: %u ",
 			atomic_read(&sc->send_io.pending.count));
-		seq_printf(m, "\nReceive buffers count_receive_queue: %u ",
-			server->smbd_conn->count_receive_queue);
 		seq_printf(m, "\nMR responder_resources: %u "
 			"max_frmr_depth: %u mr_type: 0x%x",
 			server->smbd_conn->responder_resources,

@@ -541,7 +541,6 @@ static void smbd_post_send_credits(struct work_struct *work)
 	struct smbdirect_socket *sc = &info->socket;
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED) {
-		wake_up_all(&info->wait_receive_queues);
 		return;
 	}
 
@@ -1378,7 +1377,6 @@ static struct smbdirect_recv_io *get_receive_buffer(struct smbd_connection *info
 			&sc->recv_io.free.list,
 			struct smbdirect_recv_io, list);
 		list_del(&ret->list);
-		info->count_receive_queue--;
 		info->count_get_receive_buffer++;
 	}
 	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
@@ -1408,7 +1406,6 @@ static void put_receive_buffer(
 
 	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
 	list_add_tail(&response->list, &sc->recv_io.free.list);
-	info->count_receive_queue++;
 	info->count_put_receive_buffer++;
 	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
@@ -1422,10 +1419,6 @@ static int allocate_receive_buffers(struct smbd_connection *info, int num_buf)
 	struct smbdirect_recv_io *response;
 	int i;
 
-	info->count_receive_queue = 0;
-
-	init_waitqueue_head(&info->wait_receive_queues);
-
 	for (i = 0; i < num_buf; i++) {
 		response = mempool_alloc(sc->recv_io.mem.pool, GFP_KERNEL);
 		if (!response)
@@ -1434,7 +1427,6 @@ static int allocate_receive_buffers(struct smbd_connection *info, int num_buf)
 		response->socket = sc;
 		response->sge.length = 0;
 		list_add_tail(&response->list, &sc->recv_io.free.list);
-		info->count_receive_queue++;
 	}
 
 	return 0;
@@ -1445,7 +1437,6 @@ allocate_failed:
 				&sc->recv_io.free.list,
 				struct smbdirect_recv_io, list);
 		list_del(&response->list);
-		info->count_receive_queue--;
 
 		mempool_free(response, sc->recv_io.mem.pool);
 	}
@@ -1495,7 +1486,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 {
 	struct smbd_connection *info = server->smbd_conn;
 	struct smbdirect_socket *sc;
-	struct smbdirect_socket_parameters *sp;
 	struct smbdirect_recv_io *response;
 	unsigned long flags;
 
@@ -1504,7 +1494,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 		return;
 	}
 	sc = &info->socket;
-	sp = &sc->parameters;
 
 	log_rdma_event(INFO, "cancelling and disable disconnect_work\n");
 	disable_work_sync(&sc->disconnect_work);
@@ -1546,8 +1535,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	sc->recv_io.reassembly.data_length = 0;
 
 	log_rdma_event(INFO, "free receive buffers\n");
-	wait_event(info->wait_receive_queues,
-		info->count_receive_queue == sp->recv_credit_max);
 	destroy_receive_buffers(info);
 
 	/*
