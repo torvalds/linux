@@ -328,7 +328,7 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 	}
 
 	DTN_INFO("\n=======HUBP FL======\n");
-	char pLabels[18][50] = {
+	static const char * const pLabels[] = {
 		"inst", "Enabled ", "Done ", "adr_mode ", "width ", "mpc_width ",
 		"tmz", "xbar_sel_R", "xbar_sel_G", "xbar_sel_B", "adr_hi ",
 		"adr_low", "REFCYC", "Bias", "Scale", "Mode",
@@ -552,7 +552,7 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.mpc.ogam_ram,
 		 dc->caps.color.mpc.ocsc);
 	DTN_INFO("===== MPC RMCM 3DLUT =====\n");
-	char pLabels[19][50] = {
+	static const char * const pLabels[] = {
 		"MPCC", "SIZE", "MODE", "MODE_CUR", "RD_SEL",
 		"30BIT_EN", "WR_EN_MASK", "RAM_SEL", "OUT_NORM_FACTOR", "FL_SEL",
 		"OUT_OFFSET", "OUT_SCALE", "FL_DONE", "SOFT_UNDERFLOW", "HARD_UNDERFLOW",
