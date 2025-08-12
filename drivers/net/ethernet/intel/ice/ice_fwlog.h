@@ -1,77 +1,75 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2022, Intel Corporation. */
 
-#ifndef _ICE_FWLOG_H_
-#define _ICE_FWLOG_H_
+#ifndef _LIBIE_FWLOG_H_
+#define _LIBIE_FWLOG_H_
 #include "ice_adminq_cmd.h"
 
-struct ice_hw;
-
 /* Only a single log level should be set and all log levels under the set value
- * are enabled, e.g. if log level is set to ICE_FW_LOG_LEVEL_VERBOSE, then all
- * other log levels are included (except ICE_FW_LOG_LEVEL_NONE)
+ * are enabled, e.g. if log level is set to LIBIE_FW_LOG_LEVEL_VERBOSE, then all
+ * other log levels are included (except LIBIE_FW_LOG_LEVEL_NONE)
  */
-enum ice_fwlog_level {
-	ICE_FWLOG_LEVEL_NONE = 0,
-	ICE_FWLOG_LEVEL_ERROR = 1,
-	ICE_FWLOG_LEVEL_WARNING = 2,
-	ICE_FWLOG_LEVEL_NORMAL = 3,
-	ICE_FWLOG_LEVEL_VERBOSE = 4,
-	ICE_FWLOG_LEVEL_INVALID, /* all values >= this entry are invalid */
+enum libie_fwlog_level {
+	LIBIE_FWLOG_LEVEL_NONE = 0,
+	LIBIE_FWLOG_LEVEL_ERROR = 1,
+	LIBIE_FWLOG_LEVEL_WARNING = 2,
+	LIBIE_FWLOG_LEVEL_NORMAL = 3,
+	LIBIE_FWLOG_LEVEL_VERBOSE = 4,
+	LIBIE_FWLOG_LEVEL_INVALID, /* all values >= this entry are invalid */
 };
 
-struct ice_fwlog_module_entry {
+struct libie_fwlog_module_entry {
 	/* module ID for the corresponding firmware logging event */
 	u16 module_id;
 	/* verbosity level for the module_id */
 	u8 log_level;
 };
 
-struct ice_fwlog_cfg {
+struct libie_fwlog_cfg {
 	/* list of modules for configuring log level */
-	struct ice_fwlog_module_entry module_entries[LIBIE_AQC_FW_LOG_ID_MAX];
+	struct libie_fwlog_module_entry module_entries[LIBIE_AQC_FW_LOG_ID_MAX];
 	/* options used to configure firmware logging */
 	u16 options;
-#define ICE_FWLOG_OPTION_ARQ_ENA		BIT(0)
-#define ICE_FWLOG_OPTION_UART_ENA		BIT(1)
-	/* set before calling ice_fwlog_init() so the PF registers for firmware
-	 * logging on initialization
+#define LIBIE_FWLOG_OPTION_ARQ_ENA		BIT(0)
+#define LIBIE_FWLOG_OPTION_UART_ENA		BIT(1)
+	/* set before calling libie_fwlog_init() so the PF registers for
+	 * firmware logging on initialization
 	 */
-#define ICE_FWLOG_OPTION_REGISTER_ON_INIT	BIT(2)
-	/* set in the ice_aq_fwlog_get() response if the PF is registered for FW
-	 * logging events over ARQ
+#define LIBIE_FWLOG_OPTION_REGISTER_ON_INIT	BIT(2)
+	/* set in the libie_aq_fwlog_get() response if the PF is registered for
+	 * FW logging events over ARQ
 	 */
-#define ICE_FWLOG_OPTION_IS_REGISTERED		BIT(3)
+#define LIBIE_FWLOG_OPTION_IS_REGISTERED	BIT(3)
 
 	/* minimum number of log events sent per Admin Receive Queue event */
 	u16 log_resolution;
 };
 
-struct ice_fwlog_data {
+struct libie_fwlog_data {
 	u16 data_size;
 	u8 *data;
 };
 
-struct ice_fwlog_ring {
-	struct ice_fwlog_data *rings;
+struct libie_fwlog_ring {
+	struct libie_fwlog_data *rings;
 	u16 index;
 	u16 size;
 	u16 head;
 	u16 tail;
 };
 
-#define ICE_FWLOG_RING_SIZE_INDEX_DFLT 3
-#define ICE_FWLOG_RING_SIZE_DFLT 256
-#define ICE_FWLOG_RING_SIZE_MAX 512
+#define LIBIE_FWLOG_RING_SIZE_INDEX_DFLT 3
+#define LIBIE_FWLOG_RING_SIZE_DFLT 256
+#define LIBIE_FWLOG_RING_SIZE_MAX 512
 
-struct ice_fwlog {
-	struct ice_fwlog_cfg cfg;
+struct libie_fwlog {
+	struct libie_fwlog_cfg cfg;
 	bool supported; /* does hardware support FW logging? */
-	struct ice_fwlog_ring ring;
+	struct libie_fwlog_ring ring;
 	struct dentry *debugfs;
 	/* keep track of all the dentrys for FW log modules */
 	struct dentry **debugfs_modules;
-	struct_group_tagged(ice_fwlog_api, api,
+	struct_group_tagged(libie_fwlog_api, api,
 		struct pci_dev *pdev;
 		int (*send_cmd)(void *, struct libie_aq_desc *, void *, u16);
 		void *priv;
@@ -79,10 +77,8 @@ struct ice_fwlog {
 	);
 };
 
-int ice_fwlog_init(struct ice_fwlog *fwlog, struct ice_fwlog_api *api);
-void ice_fwlog_deinit(struct ice_fwlog *fwlog);
-int ice_fwlog_set(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg);
-int ice_fwlog_register(struct ice_fwlog *fwlog);
-int ice_fwlog_unregister(struct ice_fwlog *fwlog);
-void ice_get_fwlog_data(struct ice_fwlog *fwlog, u8 *buf, u16 len);
-#endif /* _ICE_FWLOG_H_ */
+int libie_fwlog_init(struct libie_fwlog *fwlog, struct libie_fwlog_api *api);
+void libie_fwlog_deinit(struct libie_fwlog *fwlog);
+int libie_fwlog_register(struct libie_fwlog *fwlog);
+void libie_get_fwlog_data(struct libie_fwlog *fwlog, u8 *buf, u16 len);
+#endif /* _LIBIE_FWLOG_H_ */

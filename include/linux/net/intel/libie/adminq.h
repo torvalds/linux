@@ -9,6 +9,7 @@
 
 #define LIBIE_CHECK_STRUCT_LEN(n, X)	\
 	static_assert((n) == sizeof(struct X))
+#define LIBIE_AQ_MAX_BUF_LEN 4096
 
 /**
  * struct libie_aqc_generic - Generic structure used in adminq communication

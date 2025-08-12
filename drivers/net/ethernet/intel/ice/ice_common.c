@@ -995,7 +995,7 @@ static int __fwlog_send_cmd(void *priv, struct libie_aq_desc *desc, void *buf,
 static int __fwlog_init(struct ice_hw *hw)
 {
 	struct ice_pf *pf = hw->back;
-	struct ice_fwlog_api api = {
+	struct libie_fwlog_api api = {
 		.pdev = pf->pdev,
 		.send_cmd = __fwlog_send_cmd,
 		.priv = hw,
@@ -1012,7 +1012,7 @@ static int __fwlog_init(struct ice_hw *hw)
 
 	api.debugfs_root = pf->ice_debugfs_pf;
 
-	return ice_fwlog_init(&hw->fwlog, &api);
+	return libie_fwlog_init(&hw->fwlog, &api);
 }
 
 /**
@@ -1197,7 +1197,7 @@ static void __fwlog_deinit(struct ice_hw *hw)
 		return;
 
 	ice_debugfs_pf_deinit(hw->back);
-	ice_fwlog_deinit(&hw->fwlog);
+	libie_fwlog_deinit(&hw->fwlog);
 }
 
 /**
