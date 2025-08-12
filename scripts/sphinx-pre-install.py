@@ -556,6 +556,22 @@ class SphinxDependencyChecker:
 
         progs["latexmk"] = "texlive-latexmk-bin"
 
+        match = re.search(r"(Leap)\s+(\d+).(\d)", self.system_release)
+        if match:
+            rel = int(match.group(2))
+
+            # Leap 15.x uses Python 3.6, which is not compatible with
+            # the build system anymore. Suggest Python 3.11
+            if rel == 15:
+                if not self.which(self.python_cmd):
+                    self.add_package(self.python_cmd, 0)
+
+                progs.update({
+                    "python-sphinx": "python311-Sphinx",
+                    "virtualenv":    "python311-virtualenv",
+                    "yaml":          "python311-pyyaml",
+                })
+
         # FIXME: add support for installing CJK fonts
         #
         # I tried hard, but was unable to find a way to install
