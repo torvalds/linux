@@ -31,19 +31,19 @@ typedef long (*vdso_clock_gettime_t)(clockid_t clk_id, struct timespec *ts);
 typedef long (*vdso_clock_getres_t)(clockid_t clk_id, struct timespec *ts);
 typedef time_t (*vdso_time_t)(time_t *t);
 
-const char *vdso_clock_name[12] = {
-	"CLOCK_REALTIME",
-	"CLOCK_MONOTONIC",
-	"CLOCK_PROCESS_CPUTIME_ID",
-	"CLOCK_THREAD_CPUTIME_ID",
-	"CLOCK_MONOTONIC_RAW",
-	"CLOCK_REALTIME_COARSE",
-	"CLOCK_MONOTONIC_COARSE",
-	"CLOCK_BOOTTIME",
-	"CLOCK_REALTIME_ALARM",
-	"CLOCK_BOOTTIME_ALARM",
-	"CLOCK_SGI_CYCLE",
-	"CLOCK_TAI",
+static const char * const vdso_clock_name[] = {
+	[CLOCK_REALTIME]		= "CLOCK_REALTIME",
+	[CLOCK_MONOTONIC]		= "CLOCK_MONOTONIC",
+	[CLOCK_PROCESS_CPUTIME_ID]	= "CLOCK_PROCESS_CPUTIME_ID",
+	[CLOCK_THREAD_CPUTIME_ID]	= "CLOCK_THREAD_CPUTIME_ID",
+	[CLOCK_MONOTONIC_RAW]		= "CLOCK_MONOTONIC_RAW",
+	[CLOCK_REALTIME_COARSE]		= "CLOCK_REALTIME_COARSE",
+	[CLOCK_MONOTONIC_COARSE]	= "CLOCK_MONOTONIC_COARSE",
+	[CLOCK_BOOTTIME]		= "CLOCK_BOOTTIME",
+	[CLOCK_REALTIME_ALARM]		= "CLOCK_REALTIME_ALARM",
+	[CLOCK_BOOTTIME_ALARM]		= "CLOCK_BOOTTIME_ALARM",
+	[10 /* CLOCK_SGI_CYCLE */]	= "CLOCK_SGI_CYCLE",
+	[CLOCK_TAI]			= "CLOCK_TAI",
 };
 
 static void vdso_test_gettimeofday(void)
