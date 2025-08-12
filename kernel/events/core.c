@@ -7043,7 +7043,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		if (rb_has_aux(rb) && rb->aux_pgoff != vma->vm_pgoff)
 			goto aux_unlock;
 
-		if (aux_size != vma_size || aux_size != nr_pages * PAGE_SIZE)
+		if (aux_size != nr_pages * PAGE_SIZE)
 			goto aux_unlock;
 
 		/* already mapped with a different size */
