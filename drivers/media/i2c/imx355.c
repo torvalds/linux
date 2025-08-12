@@ -2,6 +2,7 @@
 // Copyright (C) 2018 Intel Corporation
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -93,12 +94,12 @@ struct imx355_mode {
 };
 
 struct imx355_hwcfg {
-	u32 ext_clk;			/* sensor external clk */
 	unsigned long link_freq_bitmap;
 };
 
 struct imx355 {
 	struct device *dev;
+	struct clk *clk;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -1645,20 +1646,6 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &cfg->ext_clk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		goto out_err;
-	}
-
-	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
-	if (cfg->ext_clk != IMX355_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
-			cfg->ext_clk);
-		goto out_err;
-	}
-
 	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
 				       bus_cfg.nr_of_link_frequencies,
 				       link_freq_menu_items,
@@ -1680,6 +1667,7 @@ out_err:
 static int imx355_probe(struct i2c_client *client)
 {
 	struct imx355 *imx355;
+	unsigned long freq;
 	int ret;
 
 	imx355 = devm_kzalloc(&client->dev, sizeof(*imx355), GFP_KERNEL);
@@ -1689,6 +1677,17 @@ static int imx355_probe(struct i2c_client *client)
 	imx355->dev = &client->dev;
 
 	mutex_init(&imx355->mutex);
+
+	imx355->clk = devm_v4l2_sensor_clk_get(imx355->dev, NULL);
+	if (IS_ERR(imx355->clk))
+		return dev_err_probe(imx355->dev, PTR_ERR(imx355->clk),
+				     "failed to get clock\n");
+
+	freq = clk_get_rate(imx355->clk);
+	if (freq != IMX355_EXT_CLK)
+		return dev_err_probe(imx355->dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx355->sd, client, &imx355_subdev_ops);
