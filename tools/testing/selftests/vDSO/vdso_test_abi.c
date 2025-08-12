@@ -26,8 +26,15 @@
 static const char *version;
 static const char **name;
 
+/* The same as struct __kernel_timespec */
+struct vdso_timespec64 {
+	uint64_t tv_sec;
+	uint64_t tv_nsec;
+};
+
 typedef long (*vdso_gettimeofday_t)(struct timeval *tv, struct timezone *tz);
 typedef long (*vdso_clock_gettime_t)(clockid_t clk_id, struct timespec *ts);
+typedef long (*vdso_clock_gettime64_t)(clockid_t clk_id, struct vdso_timespec64 *ts);
 typedef long (*vdso_clock_getres_t)(clockid_t clk_id, struct timespec *ts);
 typedef time_t (*vdso_time_t)(time_t *t);
 
@@ -67,6 +74,33 @@ static void vdso_test_gettimeofday(void)
 		ksft_test_result_pass("%s\n", name[0]);
 	} else {
 		ksft_test_result_fail("%s\n", name[0]);
+	}
+}
+
+static void vdso_test_clock_gettime64(clockid_t clk_id)
+{
+	/* Find clock_gettime64. */
+	vdso_clock_gettime64_t vdso_clock_gettime64 =
+		(vdso_clock_gettime64_t)vdso_sym(version, name[5]);
+
+	if (!vdso_clock_gettime64) {
+		ksft_print_msg("Couldn't find %s\n", name[5]);
+		ksft_test_result_skip("%s %s\n", name[5],
+				      vdso_clock_name[clk_id]);
+		return;
+	}
+
+	struct vdso_timespec64 ts;
+	long ret = VDSO_CALL(vdso_clock_gettime64, 2, clk_id, &ts);
+
+	if (ret == 0) {
+		ksft_print_msg("The time is %lld.%06lld\n",
+			       (long long)ts.tv_sec, (long long)ts.tv_nsec);
+		ksft_test_result_pass("%s %s\n", name[5],
+				      vdso_clock_name[clk_id]);
+	} else {
+		ksft_test_result_fail("%s %s\n", name[5],
+				      vdso_clock_name[clk_id]);
 	}
 }
 
@@ -171,11 +205,12 @@ static inline void vdso_test_clock(clockid_t clock_id)
 	ksft_print_msg("clock_id: %s\n", vdso_clock_name[clock_id]);
 
 	vdso_test_clock_gettime(clock_id);
+	vdso_test_clock_gettime64(clock_id);
 
 	vdso_test_clock_getres(clock_id);
 }
 
-#define VDSO_TEST_PLAN	20
+#define VDSO_TEST_PLAN	29
 
 int main(int argc, char **argv)
 {
