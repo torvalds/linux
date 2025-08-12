@@ -32,6 +32,53 @@ RECOMMENDED_VERSION = parse_version("3.4.3")
 MIN_PYTHON_VERSION = parse_version("3.7")
 
 
+class DepType:
+
+    # Internal types of dependencies.
+    _SYS_TYPE = 0
+    _PHY_TYPE = 1
+    _PDF_TYPE = 2
+
+    # Let's define keys as a tuple with the type and mandatory/optional.
+    # This way, checking for optional or type is easy.
+
+    SYSTEM_MANDATORY = (_SYS_TYPE, True)
+    PYTHON_MANDATORY = (_PHY_TYPE, True)
+    PDF_MANDATORY = (_PDF_TYPE, True)
+
+    # Currently we're not using all optional types, but let's keep all
+    # combinations here, as we may end needing them in the future. Also,
+    # it allows a name() function that handles all possibilities.
+    SYSTEM_OPTIONAL = (_SYS_TYPE, False)
+    PYTHON_OPTIONAL = (_PHY_TYPE, False)
+    PDF_OPTIONAL = (_PDF_TYPE, True)
+
+    @staticmethod
+    def name(dtype):
+        if dtype[0] == DepType._SYS_TYPE:
+            msg = "build"
+        elif dtype[0] == DepType._PHY_TYPE:
+            msg = "Python"
+        else:
+            msg = "PDF"
+
+        if dtype[1]:
+            return f"ERROR: {msg} mandatory deps missing"
+        else:
+            out = f"Warning: {msg} optional deps missing"
+
+    @staticmethod
+    def is_optional(dtype):
+        return not dtype[1]
+
+    @staticmethod
+    def is_pdf(dtype):
+        if (dtype[0] == DepType._PDF_TYPE):
+            return True
+
+        return False
+
+
 class SphinxDependencyChecker:
     # List of required texlive packages on Fedora and OpenSuse
     texlive = {
@@ -223,56 +270,68 @@ class SphinxDependencyChecker:
     # Methods to check if a feature exists
     #
 
-    # Note: is_optional has 3 states:
-    #   - 0: mandatory
-    #   - 1: optional, but nice to have
-    #   - 2: LaTeX optional - pdf builds without it, but may have visual impact
-
     def check_missing(self, progs):
-        for prog, is_optional in sorted(self.missing.items()):
+        run = {}
+
+        for prog, dtype in sorted(self.missing.items()):
             # At least on some LTS distros like CentOS 7, texlive doesn't
             # provide all packages we need. When such distros are
             # detected, we have to disable PDF output.
             #
             # So, we need to ignore the packages that distros would
             # need for LaTeX to work
-            if is_optional == 2 and not self.pdf:
+            if DepType.is_pdf(dtype) and not self.pdf:
                 self.optional -= 1
                 continue
 
-            if self.verbose_warn_install:
-                if is_optional:
-                    print(f'Warning: better to also install "{prog}".')
-                else:
-                    print(f'ERROR: please install "{prog}", otherwise, build won\'t work.')
+            if not dtype in run:
+                run[dtype] = []
 
-            self.install += " " + progs.get(prog, prog)
+            run[dtype].append(prog)
+
+        output_msg = ""
+
+        for dtype in sorted(run.keys()):
+            progs = " ".join(run[dtype])
+
+            if self.verbose_warn_install:
+                try:
+                    name = DepType.name(dtype)
+                    output_msg += f'{name}:\t{progs}\n'
+                except KeyError:
+                    raise KeyError(f"ERROR!!!: invalid dtype for {progs}: {dtype}")
+
+            self.install += " " + progs
+
+        if output_msg:
+            print(f"\n{output_msg}\n")
 
         self.install = self.install.lstrip()
 
-    def add_package(self, package, is_optional):
-        self.missing[package] = is_optional
+    def add_package(self, package, dtype):
+        is_optional = DepType.is_optional(dtype)
+        self.missing[package] = dtype
         if is_optional:
             self.optional += 1
         else:
             self.need += 1
 
-    def check_missing_file(self, files, package, is_optional):
+    def check_missing_file(self, files, package, dtype):
         for f in files:
             if os.path.exists(f):
                 return
-        self.add_package(package, is_optional)
+        self.add_package(package, dtype)
 
-    def check_program(self, prog, is_optional):
+    def check_program(self, prog, dtype):
         found = self.which(prog)
         if found:
             return found
 
-        self.add_package(prog, is_optional)
+        self.add_package(prog, dtype)
 
         return None
 
-    def check_perl_module(self, prog, is_optional):
+    def check_perl_module(self, prog, dtype):
         # While testing with lxc download template, one of the
         # distros (Oracle) didn't have perl - nor even an option to install
         # before installing oraclelinux-release-el9 package.
@@ -281,46 +340,52 @@ class SphinxDependencyChecker:
         # add it as a mandatory package, as some parts of the doc builder
         # needs it.
         if not self.which("perl"):
-            self.add_package("perl", 0)
-            self.add_package(prog, is_optional)
+            self.add_package("perl", DepType.SYSTEM_MANDATORY)
+            self.add_package(prog, dtype)
             return
 
         try:
             self.run(["perl", f"-M{prog}", "-e", "1"], check=True)
         except subprocess.CalledProcessError:
-            self.add_package(prog, is_optional)
+            self.add_package(prog, dtype)
 
-    def check_python_module(self, module, is_optional):
-        # FIXME: is it needed at the Python version? Maybe due to venv?
-        if not self.python_cmd:
-            return
+    def check_python_module(self, module, is_optional=False):
+        if is_optional:
+            dtype = DepType.PYTHON_OPTIONAL
+        else:
+            dtype = DepType.PYTHON_MANDATORY
 
         try:
             self.run([self.python_cmd, "-c", f"import {module}"], check=True)
         except subprocess.CalledProcessError:
-            self.add_package(module, is_optional)
+            self.add_package(module, dtype)
 
-    def check_rpm_missing(self, pkgs, is_optional):
+    def check_rpm_missing(self, pkgs, dtype):
         for prog in pkgs:
             try:
                 self.run(["rpm", "-q", prog], check=True)
             except subprocess.CalledProcessError:
-                self.add_package(prog, is_optional)
+                self.add_package(prog, dtype)
 
-    def check_pacman_missing(self, pkgs, is_optional):
+    def check_pacman_missing(self, pkgs, dtype):
         for prog in pkgs:
             try:
                 self.run(["pacman", "-Q", prog], check=True)
             except subprocess.CalledProcessError:
-                self.add_package(prog, is_optional)
+                self.add_package(prog, dtype)
 
-    def check_missing_tex(self, is_optional):
+    def check_missing_tex(self, is_optional=False):
+        if is_optional:
+            dtype = DepType.PDF_OPTIONAL
+        else:
+            dtype = DepType.PDF_MANDATORY
+
         kpsewhich = self.which("kpsewhich")
         for prog, package in self.texlive.items():
 
             # If kpsewhich is not there, just add it to deps
             if not kpsewhich:
-                self.add_package(package, is_optional)
+                self.add_package(package, dtype)
                 continue
 
             # Check if the package is needed
@@ -331,11 +396,11 @@ class SphinxDependencyChecker:
 
                 # Didn't find. Add it
                 if not result.stdout.strip():
-                    self.add_package(package, is_optional)
+                    self.add_package(package, dtype)
 
             except subprocess.CalledProcessError:
                 # kpsewhich returned an error. Add it, just in case
-                self.add_package(package, is_optional)
+                self.add_package(package, dtype)
 
     def get_sphinx_fname(self):
         if "SPHINXBUILD" in os.environ:
@@ -446,9 +511,9 @@ class SphinxDependencyChecker:
             }
 
             for package, files in pdf_pkgs.items():
-                self.check_missing_file(files, package, 2)
+                self.check_missing_file(files, package, DepType.PDF_MANDATORY)
 
-            self.check_program("dvipng", 2)
+            self.check_program("dvipng", DepType.PDF_MANDATORY)
 
         self.check_missing(progs)
 
@@ -518,7 +583,7 @@ class SphinxDependencyChecker:
             # RHEL 8 uses Python 3.6, which is not compatible with
             # the build system anymore. Suggest Python 3.11
             if rel == 8:
-                self.add_package("python39", 0)
+                self.add_package("python39", DepType.SYSTEM_MANDATORY)
                 self.recommend_python = True
 
             if self.first_hint:
@@ -540,13 +605,13 @@ class SphinxDependencyChecker:
                 "/usr/share/fonts/google-noto-sans-cjk-fonts/NotoSansCJK-Regular.ttc",
             ]
 
-            self.check_missing_file(pdf_pkgs, noto_sans_redhat, 2)
+            self.check_missing_file(pdf_pkgs, noto_sans_redhat, DepType.PDF_MANDATORY)
 
             if not old:
-                self.check_rpm_missing(fedora26_opt_pkgs, 2)
-                self.check_rpm_missing(fedora_tex_pkgs, 2)
+                self.check_rpm_missing(fedora26_opt_pkgs, DepType.PDF_MANDATORY)
+                self.check_rpm_missing(fedora_tex_pkgs, DepType.PDF_MANDATORY)
 
-            self.check_missing_tex(2)
+            self.check_missing_tex()
 
         self.check_missing(progs)
 
@@ -601,7 +666,7 @@ class SphinxDependencyChecker:
             if rel == 15:
                 if not self.which(self.python_cmd):
                     self.recommend_python = True
-                    self.add_package(self.python_cmd, 0)
+                    self.add_package(self.python_cmd, DepType.SYSTEM_MANDATORY)
 
                 progs.update({
                     "python-sphinx": "python311-Sphinx",
@@ -623,9 +688,9 @@ class SphinxDependencyChecker:
         # "Noto Sans CJK SC" on openSUSE
 
         if self.pdf:
-            self.check_rpm_missing(suse_tex_pkgs, 2)
+            self.check_rpm_missing(suse_tex_pkgs, DepType.PDF_MANDATORY)
         if self.pdf:
-            self.check_missing_tex(2)
+            self.check_missing_tex()
         self.check_missing(progs)
 
         if not self.need and not self.optional:
@@ -672,8 +737,8 @@ class SphinxDependencyChecker:
                 "/usr/share/fonts/TTF/NotoSans-Regular.ttf",
             ]
 
-            self.check_missing_file(pdf_pkgs, noto_sans, 2)
-            self.check_rpm_missing(tex_pkgs, 2)
+            self.check_missing_file(pdf_pkgs, noto_sans, DepType.PDF_MANDATORY)
+            self.check_rpm_missing(tex_pkgs, DepType.PDF_MANDATORY)
 
         self.check_missing(progs)
 
@@ -701,7 +766,7 @@ class SphinxDependencyChecker:
         ]
 
         if self.pdf:
-            self.check_pacman_missing(archlinux_tex_pkgs, 2)
+            self.check_pacman_missing(archlinux_tex_pkgs, DepType.PDF_MANDATORY)
 
             self.check_missing_file(
                 ["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"],
@@ -739,7 +804,7 @@ class SphinxDependencyChecker:
                 ],
             }
             for package, files in pdf_pkgs.items():
-                self.check_missing_file(files, package, 2)
+                self.check_missing_file(files, package, DepType.PDF_MANDATORY)
 
         self.check_missing(progs)
 
@@ -878,7 +943,7 @@ class SphinxDependencyChecker:
         #
         progs = {"sphinx-build": "sphinx"}
         if self.pdf:
-            self.check_missing_tex(2)
+            self.check_missing_tex()
 
         self.check_missing(progs)
 
@@ -990,7 +1055,7 @@ class SphinxDependencyChecker:
         old_verbose = self.verbose_warn_install
         self.verbose_warn_install = 0
 
-        self.add_package("python-sphinx", 0)
+        self.add_package("python-sphinx", DepType.PYTHON_MANDATORY)
 
         self.check_distros()
 
@@ -1009,6 +1074,7 @@ class SphinxDependencyChecker:
             print("\nPython version is incompatible with doc build.\n" \
                   "Please upgrade it and re-run.\n")
             return
+
 
         # Version is OK. Nothing to do.
         if self.cur_version != (0, 0, 0) and self.cur_version >= RECOMMENDED_VERSION:
@@ -1128,21 +1194,23 @@ class SphinxDependencyChecker:
 
             else:
                 virtualenv_cmd = f"{self.python_cmd} -m venv"
-                self.check_python_module("ensurepip", 0)
+                self.check_python_module("ensurepip")
 
         # Check for needed programs/tools
-        self.check_perl_module("Pod::Usage", 0)
-        self.check_python_module("yaml", 0)
-        self.check_program("make", 0)
-        self.check_program("gcc", 0)
-        self.check_program("dot", 1)
-        self.check_program("convert", 1)
+        self.check_perl_module("Pod::Usage", DepType.SYSTEM_MANDATORY)
+
+        self.check_program("make", DepType.SYSTEM_MANDATORY)
+        self.check_program("gcc", DepType.SYSTEM_MANDATORY)
+
+        self.check_program("dot", DepType.SYSTEM_OPTIONAL)
+        self.check_program("convert", DepType.SYSTEM_OPTIONAL)
+
+        self.check_python_module("yaml")
 
         if self.pdf:
-            # Extra PDF files - should use 2 for LaTeX is_optional
-            self.check_program("xelatex", 2)
-            self.check_program("rsvg-convert", 2)
-            self.check_program("latexmk", 2)
+            self.check_program("xelatex", DepType.PDF_MANDATORY)
+            self.check_program("rsvg-convert", DepType.PDF_MANDATORY)
+            self.check_program("latexmk", DepType.PDF_MANDATORY)
 
         # Do distro-specific checks and output distro-install commands
         self.check_distros()
