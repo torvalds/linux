@@ -1630,7 +1630,6 @@ static int ov7251_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ov7251 *ov7251;
-	unsigned int rate = 0, clk_rate = 0;
 	int ret;
 	int i;
 
@@ -1646,33 +1645,12 @@ static int ov7251_probe(struct i2c_client *client)
 		return ret;
 
 	/* get system clock (xclk) */
-	ov7251->xclk = devm_clk_get_optional(dev, NULL);
+	ov7251->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(ov7251->xclk))
 		return dev_err_probe(dev, PTR_ERR(ov7251->xclk),
 				     "could not get xclk");
 
-	/*
-	 * We could have either a 24MHz or 19.2MHz clock rate from either DT or
-	 * ACPI. We also need to support the IPU3 case which will have both an
-	 * external clock AND a clock-frequency property.
-	 */
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &rate);
-	if (ret && !ov7251->xclk)
-		return dev_err_probe(dev, ret, "invalid clock config\n");
-
-	clk_rate = clk_get_rate(ov7251->xclk);
-	ov7251->xclk_freq = clk_rate ? clk_rate : rate;
-
-	if (ov7251->xclk_freq == 0)
-		return dev_err_probe(dev, -EINVAL, "invalid clock frequency\n");
-
-	if (!ret && ov7251->xclk) {
-		ret = clk_set_rate(ov7251->xclk, rate);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to set clock rate\n");
-	}
+	ov7251->xclk_freq = clk_get_rate(ov7251->xclk);
 
 	for (i = 0; i < ARRAY_SIZE(supported_xclk_rates); i++)
 		if (ov7251->xclk_freq == supported_xclk_rates[i])
