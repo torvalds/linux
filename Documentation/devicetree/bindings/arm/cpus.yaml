@@ -80,6 +80,8 @@ properties:
 
   compatible:
     enum:
+      - apm,potenza
+      - apm,strega
       - apple,avalanche
       - apple,blizzard
       - apple,cyclone
