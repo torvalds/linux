@@ -2,6 +2,7 @@
 // Copyright (C) 2021 Intel Corporation
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -270,6 +271,7 @@ static const struct imx208_mode supported_modes[] = {
 
 struct imx208 {
 	struct device *dev;
+	struct clk *clk;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -934,23 +936,26 @@ static void imx208_free_controls(struct imx208 *imx208)
 static int imx208_probe(struct i2c_client *client)
 {
 	struct imx208 *imx208;
+	unsigned long freq;
 	int ret;
 	bool full_power;
-	u32 val = 0;
-
-	device_property_read_u32(&client->dev, "clock-frequency", &val);
-	if (val != 19200000) {
-		dev_err(&client->dev,
-			"Unsupported clock-frequency %u. Expected 19200000.\n",
-			val);
-		return -EINVAL;
-	}
 
 	imx208 = devm_kzalloc(&client->dev, sizeof(*imx208), GFP_KERNEL);
 	if (!imx208)
 		return -ENOMEM;
 
 	imx208->dev = &client->dev;
+
+	imx208->clk = devm_v4l2_sensor_clk_get(imx208->dev, NULL);
+	if (IS_ERR(imx208->clk))
+		return dev_err_probe(imx208->dev, PTR_ERR(imx208->clk),
+				     "failed to get clock\n");
+
+	freq = clk_get_rate(imx208->clk);
+	if (freq != 19200000)
+		return dev_err_probe(imx208->dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx208->sd, client, &imx208_subdev_ops);
