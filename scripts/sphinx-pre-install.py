@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (c) 2017-2025 Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 #
-# pylint: disable=C0103,C0114,C0115,C0116,C0301
-# pylint: disable=R0902,R0904,R0912,R0915,R1705,R1710,E1121
+# pylint: disable=C0103,C0114,C0115,C0116,C0301,C0302
+# pylint: disable=R0902,R0904,R0911,R0912,R0914,R0915,R1705,R1710,E1121
 
 # Note: this script requires at least Python 3.6 to run.
 # Don't add changes not compatible with it, it is meant to report
@@ -115,7 +115,7 @@ class DepManager:
         if dtype[1]:
             return f"ERROR: {msg} mandatory deps missing"
         else:
-            out = f"Warning: {msg} optional deps missing"
+            return f"Warning: {msg} optional deps missing"
 
     @staticmethod
     def is_optional(dtype):
@@ -125,7 +125,7 @@ class DepManager:
     @staticmethod
     def is_pdf(dtype):
         """Ancillary routine to report if a dependency is for PDF generation"""
-        if (dtype[0] == DepManager._PDF_TYPE):
+        if dtype[0] == DepManager._PDF_TYPE:
             return True
 
         return False
@@ -191,8 +191,8 @@ class DepManager:
             self.missing_pkg[dtype].append(progs.get(prog, prog))
 
         install = []
-        for dtype in self.missing_pkg.keys():
-            install += self.missing_pkg[dtype]
+        for dtype, pkgs in self.missing_pkg.items():
+            install += pkgs
 
         return " ".join(sorted(set(install)))
 
@@ -267,8 +267,6 @@ class AncillaryMethods:
             "python3.[0-9][0-9]",
         ]
 
-        new_python_cmd = None
-
         # Seek for a python binary newer than MIN_PYTHON_VERSION
         for path in os.getenv("PATH", "").split(":"):
             for pattern in patterns:
@@ -276,7 +274,7 @@ class AncillaryMethods:
                     if os.path.isfile(cmd) and os.access(cmd, os.X_OK):
                         version = SphinxDependencyChecker.get_python_version(cmd)
                         if version >= MIN_PYTHON_VERSION:
-                            return(cmd)
+                            return cmd
 
     @staticmethod
     def check_python():
@@ -306,8 +304,8 @@ class AncillaryMethods:
 
         new_python_cmd = SphinxDependencyChecker.find_python()
         if not new_python_cmd:
-            print(f"ERROR: Python version {python_ver} is not spported anymore")
-            print(f"       Can't find a new version. This script may fail")
+            print(f"ERROR: Python version {python_ver} is not spported anymore\n")
+            print("       Can't find a new version. This script may fail")
             return
 
         # Restart script using the newer version
@@ -362,6 +360,9 @@ class MissingCheckers(AncillaryMethods):
         self.version_check = args.version_check
         self.texlive = texlive
 
+        self.min_version = (0, 0, 0)
+        self.cur_version = (0, 0, 0)
+
         self.deps = DepManager(self.pdf)
 
         self.need_symlink = 0
@@ -370,8 +371,10 @@ class MissingCheckers(AncillaryMethods):
         self.verbose_warn_install = 1
 
         self.virtenv_dir = ""
-
         self.install = ""
+        self.python_cmd = ""
+
+        self.virtenv_prefix = ["sphinx_", "Sphinx_" ]
 
     def check_missing_file(self, files, package, dtype):
         """
@@ -542,10 +545,10 @@ class MissingCheckers(AncillaryMethods):
                         self.min_version = parse_version(match.group(1))
                         break
         except IOError:
-            sys.exit(f"Can't open {self.conf}")
+            sys.exit(f"Can't open {conf}")
 
         if not self.min_version:
-            sys.exit(f"Can't get needs_sphinx version from {self.conf}")
+            sys.exit(f"Can't get needs_sphinx version from {conf}")
 
         self.virtenv_dir = self.virtenv_prefix[0] + "latest"
 
@@ -709,7 +712,6 @@ class SphinxDependencyChecker(MissingCheckers):
         self.rec_sphinx_upgrade = 0
 
         self.system_release = self.get_system_release()
-        self.python_cmd = ""
         self.activate_cmd = ""
 
         # Some distros may not have a Sphinx shipped package compatible with
@@ -722,8 +724,6 @@ class SphinxDependencyChecker(MissingCheckers):
         # Certain hints are meant to be shown only once
         self.first_hint = True
 
-        self.min_version = (0, 0, 0)
-        self.cur_version = (0, 0, 0)
         self.latest_avail_ver = (0, 0, 0)
         self.venv_ver = (0, 0, 0)
 
@@ -731,7 +731,6 @@ class SphinxDependencyChecker(MissingCheckers):
 
         self.conf = prefix + "Documentation/conf.py"
         self.requirement_file = prefix + "Documentation/sphinx/requirements.txt"
-        self.virtenv_prefix = ["sphinx_", "Sphinx_" ]
 
     #
     # Distro-specific hints methods
@@ -814,6 +813,7 @@ class SphinxDependencyChecker(MissingCheckers):
 
         if not rel:
             print("Couldn't identify release number")
+            noto_sans_redhat = None
             self.pdf = False
         elif re.search("Fedora", self.system_release):
             # Fedora 38 and upper use this CJK font
@@ -1111,7 +1111,7 @@ class SphinxDependencyChecker(MissingCheckers):
             for fname, portage in portages.items():
                 install = False
 
-                while install == False:
+                while install is False:
                     if not files:
                         # No files under package.usage. Install all
                         install = True
@@ -1335,7 +1335,7 @@ class SphinxDependencyChecker(MissingCheckers):
         old_optional = self.deps.optional
 
         self.pdf = False
-        self.optional = 0
+        self.deps.optional = 0
         self.install = ""
         old_verbose = self.verbose_warn_install
         self.verbose_warn_install = 0
@@ -1346,8 +1346,8 @@ class SphinxDependencyChecker(MissingCheckers):
 
         self.check_distros()
 
-        self.need = old_need
-        self.optional = old_optional
+        self.deps.need = old_need
+        self.deps.optional = old_optional
         self.verbose_warn_install = old_verbose
 
     def recommend_sphinx_version(self, virtualenv_cmd):
@@ -1528,13 +1528,13 @@ class SphinxDependencyChecker(MissingCheckers):
         self.recommend_sphinx_version(virtualenv_cmd)
         print("")
 
-        if not self.optional:
+        if not self.deps.optional:
             print("All optional dependencies are met.")
 
-        if self.need == 1:
+        if self.deps.need == 1:
             sys.exit("Can't build as 1 mandatory dependency is missing")
-        elif self.need:
-            sys.exit(f"Can't build as {self.need} mandatory dependencies are missing")
+        elif self.deps.need:
+            sys.exit(f"Can't build as {self.deps.need} mandatory dependencies are missing")
 
         print("Needed package dependencies are met.")
 
