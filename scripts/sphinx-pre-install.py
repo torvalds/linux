@@ -769,7 +769,6 @@ class SphinxDependencyChecker:
             re.compile("openEuler"):                  self.give_redhat_hints,
             re.compile("Oracle Linux Server"):        self.give_redhat_hints,
             re.compile("Rocky Linux"):                self.give_redhat_hints,
-            re.compile("Scientific Linux"):           self.give_redhat_hints,
             re.compile("Springdale Open Enterprise"): self.give_redhat_hints,
 
             re.compile("Ubuntu"):                     self.give_debian_hints,
