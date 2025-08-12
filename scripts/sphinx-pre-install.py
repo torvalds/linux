@@ -1081,8 +1081,8 @@ class SphinxDependencyChecker:
             self.recommend_package()
 
         print("\n" \
-              "    Please note that Sphinx >= 3.0 will currently produce false-positive\n" \
-              "   warning when the same name is used for more than one type (functions,\n" \
+              "   Please note that Sphinx currentlys produce false-positive\n" \
+              "   warnings when the same name is used for more than one type (functions,\n" \
               "   structs, enums,...). This is known Sphinx bug. For more details, see:\n" \
               "\thttps://github.com/sphinx-doc/sphinx/pull/8313")
 
