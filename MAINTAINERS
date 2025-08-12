@@ -1895,7 +1895,7 @@ APPLIED MICRO (APM) X-GENE SOC PMU
 M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
 F:	Documentation/admin-guide/perf/xgene-pmu.rst
-F:	Documentation/devicetree/bindings/perf/apm-xgene-pmu.txt
+F:	Documentation/devicetree/bindings/perf/apm,xgene-pmu.yaml
 F:	drivers/perf/xgene_pmu.c
 
 APPLIED MICRO QT2025 PHY DRIVER
