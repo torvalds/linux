@@ -669,12 +669,13 @@ class SphinxDependencyChecker:
 
     def give_gentoo_hints(self):
         progs = {
-            "convert":      "media-gfx/imagemagick",
-            "dot":          "media-gfx/graphviz",
-            "rsvg-convert": "gnome-base/librsvg",
-            "virtualenv":   "dev-python/virtualenv",
-            "xelatex":      "dev-texlive/texlive-xetex media-fonts/dejavu",
-            "yaml":         "dev-python/pyyaml",
+            "convert":       "media-gfx/imagemagick",
+            "dot":           "media-gfx/graphviz",
+            "rsvg-convert":  "gnome-base/librsvg",
+            "virtualenv":    "dev-python/virtualenv",
+            "xelatex":       "dev-texlive/texlive-xetex media-fonts/dejavu",
+            "yaml":          "dev-python/pyyaml",
+            "python-sphinx": "dev-python/sphinx",
         }
 
         if self.pdf:
@@ -699,21 +700,17 @@ class SphinxDependencyChecker:
             print("You should run:")
         print("\n")
 
-        imagemagick = "media-gfx/imagemagick svg png"
-        cairo = "media-gfx/graphviz cairo pdf"
-        portage_imagemagick = "/etc/portage/package.use/imagemagick"
-        portage_cairo = "/etc/portage/package.use/graphviz"
 
-        result = self.run(["grep", "imagemagick", portage_imagemagick],
-                          stdout=subprocess.PIPE, text=True)
-        if not result.stdout.strip():
-            print(f"\tsudo su -c 'echo \"{imagemagick}\" > {portage_imagemagick}'")
+        portages = [
+            "media-gfx/imagemagick",
+            "media-gfx/graphviz",
+        ]
 
-        result = self.run(["grep", "graphviz", portage_cairo],
-                          stdout=subprocess.PIPE, text=True)
-
-        if not result.stdout.strip():
-            print(f"\tsudo su -c 'echo \"{cairo}\" > {portage_cairo}'")
+        for p in portages:
+            result = self.run(["grep", p, "/etc/portage/package.use/*"],
+                               stdout=subprocess.PIPE, text=True)
+            if not result.stdout.strip():
+                print(f"\tsudo emerge -av1 {p}")
 
         print(f"\tsudo emerge --ask {self.install}")
 
