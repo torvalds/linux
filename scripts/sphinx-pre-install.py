@@ -150,85 +150,11 @@ class DepManager:
         if output_msg:
             print(f"\n{output_msg}\n")
 
-class SphinxDependencyChecker:
-    # List of required texlive packages on Fedora and OpenSuse
-    texlive = {
-        "amsfonts.sty":       "texlive-amsfonts",
-        "amsmath.sty":        "texlive-amsmath",
-        "amssymb.sty":        "texlive-amsfonts",
-        "amsthm.sty":         "texlive-amscls",
-        "anyfontsize.sty":    "texlive-anyfontsize",
-        "atbegshi.sty":       "texlive-oberdiek",
-        "bm.sty":             "texlive-tools",
-        "capt-of.sty":        "texlive-capt-of",
-        "cmap.sty":           "texlive-cmap",
-        "ctexhook.sty":       "texlive-ctex",
-        "ecrm1000.tfm":       "texlive-ec",
-        "eqparbox.sty":       "texlive-eqparbox",
-        "eu1enc.def":         "texlive-euenc",
-        "fancybox.sty":       "texlive-fancybox",
-        "fancyvrb.sty":       "texlive-fancyvrb",
-        "float.sty":          "texlive-float",
-        "fncychap.sty":       "texlive-fncychap",
-        "footnote.sty":       "texlive-mdwtools",
-        "framed.sty":         "texlive-framed",
-        "luatex85.sty":       "texlive-luatex85",
-        "multirow.sty":       "texlive-multirow",
-        "needspace.sty":      "texlive-needspace",
-        "palatino.sty":       "texlive-psnfss",
-        "parskip.sty":        "texlive-parskip",
-        "polyglossia.sty":    "texlive-polyglossia",
-        "tabulary.sty":       "texlive-tabulary",
-        "threeparttable.sty": "texlive-threeparttable",
-        "titlesec.sty":       "texlive-titlesec",
-        "ucs.sty":            "texlive-ucs",
-        "upquote.sty":        "texlive-upquote",
-        "wrapfig.sty":        "texlive-wrapfig",
-    }
-
-    def __init__(self, args):
-        self.pdf = args.pdf
-        self.virtualenv = args.virtualenv
-        self.version_check = args.version_check
-
-        self.deps = DepManager(self.pdf)
-
-        self.need_symlink = 0
-        self.need_sphinx = 0
-        self.need_pip = 0
-        self.rec_sphinx_upgrade = 0
-        self.verbose_warn_install = 1
-
-        self.system_release = ""
-        self.install = ""
-        self.virtenv_dir = ""
-        self.python_cmd = ""
-        self.activate_cmd = ""
-
-        # Some distros may not have a Sphinx shipped package compatible with
-        # our minimal requirements
-        self.package_supported = True
-
-        # Recommend a new python version
-        self.recommend_python = None
-
-        # Certain hints are meant to be shown only once
-        self.first_hint = True
-
-        self.min_version = (0, 0, 0)
-        self.cur_version = (0, 0, 0)
-        self.latest_avail_ver = (0, 0, 0)
-        self.venv_ver = (0, 0, 0)
-
-        prefix = os.environ.get("srctree", ".") + "/"
-
-        self.conf = prefix + "Documentation/conf.py"
-        self.requirement_file = prefix + "Documentation/sphinx/requirements.txt"
-        self.virtenv_prefix = ["sphinx_", "Sphinx_" ]
-
-    #
-    # Ancillary methods that don't depend on self
-    #
+class AncillaryCheckers:
+    """
+    Ancillary methods that checks for missing dependencies for different
+    types of types, like binaries, python modules, rpm deps, etc.
+    """
 
     @staticmethod
     def which(prog):
@@ -334,6 +260,82 @@ class SphinxDependencyChecker:
             kwargs['universal_newlines'] = kwargs.pop('text')
 
         return subprocess.run(*args, **kwargs)
+
+class SphinxDependencyChecker(AncillaryCheckers):
+    # List of required texlive packages on Fedora and OpenSuse
+    texlive = {
+        "amsfonts.sty":       "texlive-amsfonts",
+        "amsmath.sty":        "texlive-amsmath",
+        "amssymb.sty":        "texlive-amsfonts",
+        "amsthm.sty":         "texlive-amscls",
+        "anyfontsize.sty":    "texlive-anyfontsize",
+        "atbegshi.sty":       "texlive-oberdiek",
+        "bm.sty":             "texlive-tools",
+        "capt-of.sty":        "texlive-capt-of",
+        "cmap.sty":           "texlive-cmap",
+        "ctexhook.sty":       "texlive-ctex",
+        "ecrm1000.tfm":       "texlive-ec",
+        "eqparbox.sty":       "texlive-eqparbox",
+        "eu1enc.def":         "texlive-euenc",
+        "fancybox.sty":       "texlive-fancybox",
+        "fancyvrb.sty":       "texlive-fancyvrb",
+        "float.sty":          "texlive-float",
+        "fncychap.sty":       "texlive-fncychap",
+        "footnote.sty":       "texlive-mdwtools",
+        "framed.sty":         "texlive-framed",
+        "luatex85.sty":       "texlive-luatex85",
+        "multirow.sty":       "texlive-multirow",
+        "needspace.sty":      "texlive-needspace",
+        "palatino.sty":       "texlive-psnfss",
+        "parskip.sty":        "texlive-parskip",
+        "polyglossia.sty":    "texlive-polyglossia",
+        "tabulary.sty":       "texlive-tabulary",
+        "threeparttable.sty": "texlive-threeparttable",
+        "titlesec.sty":       "texlive-titlesec",
+        "ucs.sty":            "texlive-ucs",
+        "upquote.sty":        "texlive-upquote",
+        "wrapfig.sty":        "texlive-wrapfig",
+    }
+
+    def __init__(self, args):
+        self.pdf = args.pdf
+        self.virtualenv = args.virtualenv
+        self.version_check = args.version_check
+
+        self.deps = DepManager(self.pdf)
+
+        self.need_symlink = 0
+        self.need_sphinx = 0
+        self.need_pip = 0
+        self.rec_sphinx_upgrade = 0
+        self.verbose_warn_install = 1
+
+        self.system_release = ""
+        self.install = ""
+        self.virtenv_dir = ""
+        self.python_cmd = ""
+        self.activate_cmd = ""
+
+        # Some distros may not have a Sphinx shipped package compatible with
+        # our minimal requirements
+        self.package_supported = True
+
+        # Recommend a new python version
+        self.recommend_python = None
+
+        # Certain hints are meant to be shown only once
+        self.first_hint = True
+
+        self.min_version = (0, 0, 0)
+        self.cur_version = (0, 0, 0)
+        self.latest_avail_ver = (0, 0, 0)
+        self.venv_ver = (0, 0, 0)
+
+        prefix = os.environ.get("srctree", ".") + "/"
+
+        self.conf = prefix + "Documentation/conf.py"
+        self.requirement_file = prefix + "Documentation/sphinx/requirements.txt"
+        self.virtenv_prefix = ["sphinx_", "Sphinx_" ]
 
     #
     # Methods to check if a feature exists
