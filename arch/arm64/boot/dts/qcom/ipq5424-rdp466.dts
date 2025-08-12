@@ -224,6 +224,13 @@
 		};
 	};
 
+	uart0_pins: uart0-default-state {
+		pins = "gpio10", "gpio11", "gpio12", "gpio13";
+		function = "uart0";
+		drive-strength = <8>;
+		bias-pull-down;
+	};
+
 	pcie2_default_state: pcie2-default-state {
 		pins = "gpio31";
 		function = "gpio";
@@ -237,6 +244,17 @@
 		drive-strength = <8>;
 		bias-pull-up;
 	};
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+	/*
+	 * The required initialization for this SE is not handled by the
+	 * bootloader. Therefore, keep the device in "reserved" state until
+	 * linux gains support for configuring the SE.
+	 */
+	status = "reserved";
 };
 
 &uart1 {
