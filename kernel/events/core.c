@@ -6970,6 +6970,75 @@ static void perf_mmap_account(struct vm_area_struct *vma, long user_extra, long 
 	atomic64_add(extra, &vma->vm_mm->pinned_vm);
 }
 
+static int perf_mmap_rb(struct vm_area_struct *vma, struct perf_event *event,
+			unsigned long nr_pages)
+{
+	long extra = 0, user_extra = nr_pages;
+	struct perf_buffer *rb;
+	int rb_flags = 0;
+
+	nr_pages -= 1;
+
+	/*
+	 * If we have rb pages ensure they're a power-of-two number, so we
+	 * can do bitmasks instead of modulo.
+	 */
+	if (nr_pages != 0 && !is_power_of_2(nr_pages))
+		return -EINVAL;
+
+	WARN_ON_ONCE(event->ctx->parent_ctx);
+
+	if (event->rb) {
+		if (data_page_nr(event->rb) != nr_pages)
+			return -EINVAL;
+
+		if (atomic_inc_not_zero(&event->rb->mmap_count)) {
+			/*
+			 * Success -- managed to mmap() the same buffer
+			 * multiple times.
+			 */
+			perf_mmap_account(vma, user_extra, extra);
+			atomic_inc(&event->mmap_count);
+			return 0;
+		}
+
+		/*
+		 * Raced against perf_mmap_close()'s
+		 * atomic_dec_and_mutex_lock() remove the
+		 * event and continue as if !event->rb
+		 */
+		ring_buffer_attach(event, NULL);
+	}
+
+	if (!perf_mmap_calc_limits(vma, &user_extra, &extra))
+		return -EPERM;
+
+	if (vma->vm_flags & VM_WRITE)
+		rb_flags |= RING_BUFFER_WRITABLE;
+
+	rb = rb_alloc(nr_pages,
+		      event->attr.watermark ? event->attr.wakeup_watermark : 0,
+		      event->cpu, rb_flags);
+
+	if (!rb)
+		return -ENOMEM;
+
+	atomic_set(&rb->mmap_count, 1);
+	rb->mmap_user = get_current_user();
+	rb->mmap_locked = extra;
+
+	ring_buffer_attach(event, rb);
+
+	perf_event_update_time(event);
+	perf_event_init_userpage(event);
+	perf_event_update_userpage(event);
+
+	perf_mmap_account(vma, user_extra, extra);
+	atomic_inc(&event->mmap_count);
+
+	return 0;
+}
+
 static int perf_mmap_aux(struct vm_area_struct *vma, struct perf_event *event,
 			 unsigned long nr_pages)
 {
@@ -7050,10 +7119,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct perf_event *event = file->private_data;
 	unsigned long vma_size, nr_pages;
-	long user_extra = 0, extra = 0;
-	struct perf_buffer *rb = NULL;
-	int ret, flags = 0;
 	mapped_f mapped;
+	int ret;
 
 	/*
 	 * Don't allow mmap() of inherited per-task counters. This would
@@ -7079,8 +7146,6 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma_size != PAGE_SIZE * nr_pages)
 		return -EINVAL;
 
-	user_extra = nr_pages;
-
 	mutex_lock(&event->mmap_mutex);
 	ret = -EINVAL;
 
@@ -7094,74 +7159,10 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		goto unlock;
 	}
 
-	if (vma->vm_pgoff == 0) {
-		nr_pages -= 1;
-
-		/*
-		 * If we have rb pages ensure they're a power-of-two number, so we
-		 * can do bitmasks instead of modulo.
-		 */
-		if (nr_pages != 0 && !is_power_of_2(nr_pages))
-			goto unlock;
-
-		WARN_ON_ONCE(event->ctx->parent_ctx);
-
-		if (event->rb) {
-			if (data_page_nr(event->rb) != nr_pages)
-				goto unlock;
-
-			if (atomic_inc_not_zero(&event->rb->mmap_count)) {
-				/*
-				 * Success -- managed to mmap() the same buffer
-				 * multiple times.
-				 */
-				ret = 0;
-				perf_mmap_account(vma, user_extra, extra);
-				atomic_inc(&event->mmap_count);
-				goto unlock;
-			}
-
-			/*
-			 * Raced against perf_mmap_close()'s
-			 * atomic_dec_and_mutex_lock() remove the
-			 * event and continue as if !event->rb
-			 */
-			ring_buffer_attach(event, NULL);
-		}
-
-		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
-			ret = -EPERM;
-			goto unlock;
-		}
-
-		if (vma->vm_flags & VM_WRITE)
-			flags |= RING_BUFFER_WRITABLE;
-
-		rb = rb_alloc(nr_pages,
-			      event->attr.watermark ? event->attr.wakeup_watermark : 0,
-			      event->cpu, flags);
-
-		if (!rb) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-
-		atomic_set(&rb->mmap_count, 1);
-		rb->mmap_user = get_current_user();
-		rb->mmap_locked = extra;
-
-		ring_buffer_attach(event, rb);
-
-		perf_event_update_time(event);
-		perf_event_init_userpage(event);
-		perf_event_update_userpage(event);
-		ret = 0;
-
-		perf_mmap_account(vma, user_extra, extra);
-		atomic_inc(&event->mmap_count);
-	} else {
+	if (vma->vm_pgoff == 0)
+		ret = perf_mmap_rb(vma, event, nr_pages);
+	else
 		ret = perf_mmap_aux(vma, event, nr_pages);
-	}
 
 unlock:
 	mutex_unlock(&event->mmap_mutex);
