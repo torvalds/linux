@@ -2392,9 +2392,9 @@ static inline unsigned long get_current_mdwe(void)
 {
 	unsigned long ret = 0;
 
-	if (test_bit(MMF_HAS_MDWE, &current->mm->flags))
+	if (mm_flags_test(MMF_HAS_MDWE, current->mm))
 		ret |= PR_MDWE_REFUSE_EXEC_GAIN;
-	if (test_bit(MMF_HAS_MDWE_NO_INHERIT, &current->mm->flags))
+	if (mm_flags_test(MMF_HAS_MDWE_NO_INHERIT, current->mm))
 		ret |= PR_MDWE_NO_INHERIT;
 
 	return ret;
@@ -2427,9 +2427,9 @@ static inline int prctl_set_mdwe(unsigned long bits, unsigned long arg3,
 		return -EPERM; /* Cannot unset the flags */
 
 	if (bits & PR_MDWE_NO_INHERIT)
-		set_bit(MMF_HAS_MDWE_NO_INHERIT, &current->mm->flags);
+		mm_flags_set(MMF_HAS_MDWE_NO_INHERIT, current->mm);
 	if (bits & PR_MDWE_REFUSE_EXEC_GAIN)
-		set_bit(MMF_HAS_MDWE, &current->mm->flags);
+		mm_flags_set(MMF_HAS_MDWE, current->mm);
 
 	return 0;
 }
@@ -2627,7 +2627,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	case PR_GET_THP_DISABLE:
 		if (arg2 || arg3 || arg4 || arg5)
 			return -EINVAL;
-		error = !!test_bit(MMF_DISABLE_THP, &me->mm->flags);
+		error = !!mm_flags_test(MMF_DISABLE_THP, me->mm);
 		break;
 	case PR_SET_THP_DISABLE:
 		if (arg3 || arg4 || arg5)
@@ -2635,9 +2635,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		if (mmap_write_lock_killable(me->mm))
 			return -EINTR;
 		if (arg2)
-			set_bit(MMF_DISABLE_THP, &me->mm->flags);
+			mm_flags_set(MMF_DISABLE_THP, me->mm);
 		else
-			clear_bit(MMF_DISABLE_THP, &me->mm->flags);
+			mm_flags_clear(MMF_DISABLE_THP, me->mm);
 		mmap_write_unlock(me->mm);
 		break;
 	case PR_MPX_ENABLE_MANAGEMENT:
@@ -2770,7 +2770,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		if (arg2 || arg3 || arg4 || arg5)
 			return -EINVAL;
 
-		error = !!test_bit(MMF_VM_MERGE_ANY, &me->mm->flags);
+		error = !!mm_flags_test(MMF_VM_MERGE_ANY, me->mm);
 		break;
 #endif
 	case PR_RISCV_V_SET_CONTROL:
