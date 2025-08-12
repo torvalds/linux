@@ -536,10 +536,6 @@ class SphinxDependencyChecker:
             "yaml":             "python3-pyyaml",
         }
 
-        fedora26_opt_pkgs = [
-            "graphviz-gd",  # Fedora 26: needed for PDF support
-        ]
-
         fedora_tex_pkgs = [
             "dejavu-sans-fonts",
             "dejavu-sans-mono-fonts",
@@ -549,9 +545,8 @@ class SphinxDependencyChecker:
             "texlive-xecjk",
         ]
 
-        old = 0
+        fedora = False
         rel = None
-        pkg_manager = "dnf"
 
         match = re.search(r"(release|Linux)\s+(\d+)", self.system_release)
         if match:
@@ -559,12 +554,12 @@ class SphinxDependencyChecker:
 
         if not rel:
             print("Couldn't identify release number")
-            old = 1
             self.pdf = False
         elif re.search("Fedora", self.system_release):
             # Fedora 38 and upper use this CJK font
 
             noto_sans_redhat = "google-noto-sans-cjk-fonts"
+            fedora = True
         else:
             # Almalinux, CentOS, RHEL, ...
 
@@ -574,9 +569,6 @@ class SphinxDependencyChecker:
             progs["virtualenv"] = "python-virtualenv"
 
             if not rel or rel < 8:
-                old = 1
-                self.pdf = False
-
                 print("ERROR: Distro not supported. Too old?")
                 return
 
@@ -607,11 +599,16 @@ class SphinxDependencyChecker:
 
             self.check_missing_file(pdf_pkgs, noto_sans_redhat, DepType.PDF_MANDATORY)
 
-            if not old:
-                self.check_rpm_missing(fedora26_opt_pkgs, DepType.PDF_MANDATORY)
-                self.check_rpm_missing(fedora_tex_pkgs, DepType.PDF_MANDATORY)
+            self.check_rpm_missing(fedora_tex_pkgs, DepType.PDF_MANDATORY)
 
-            self.check_missing_tex()
+            self.check_missing_tex(DepType.PDF_MANDATORY)
+
+            # There's no texlive-ctex on RHEL 8 repositories. This will
+            # likely affect CJK pdf build only.
+            if not fedora and rel == 8:
+                if "texlive-ctex" in self.missing:
+                    del self.missing["texlive-ctex"]
+
 
         self.check_missing(progs)
 
@@ -621,11 +618,7 @@ class SphinxDependencyChecker:
         if self.verbose_warn_install:
             print("You should run:")
 
-        if old:
-            # dnf is there since Fedora 18+ and RHEL 8
-            pkg_manager = "yum"
-
-        print(f"\n\tsudo {pkg_manager} install -y {self.install}")
+        print(f"\n\tsudo dnf install -y {self.install}")
 
     def give_opensuse_hints(self):
         progs = {
