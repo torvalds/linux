@@ -18,10 +18,17 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - const: nvidia,tegra20-apbdma
+      - enum:
+          - nvidia,tegra114-apbdma
+          - nvidia,tegra20-apbdma
       - items:
           - const: nvidia,tegra30-apbdma
           - const: nvidia,tegra20-apbdma
+      - items:
+          - enum:
+              - nvidia,tegra124-apbdma
+              - nvidia,tegra210-apbdma
+          - const: nvidia,tegra148-apbdma
 
   reg:
     maxItems: 1
@@ -31,6 +38,9 @@ properties:
 
   clocks:
     maxItems: 1
+
+  clock-names:
+    const: dma
 
   interrupts:
     description:
