@@ -122,9 +122,9 @@ static void arch_pick_mmap_base(unsigned long *base, unsigned long *legacy_base,
 void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 {
 	if (mmap_is_legacy())
-		clear_bit(MMF_TOPDOWN, &mm->flags);
+		mm_flags_clear(MMF_TOPDOWN, mm);
 	else
-		set_bit(MMF_TOPDOWN, &mm->flags);
+		mm_flags_set(MMF_TOPDOWN, mm);
 
 	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
 			arch_rnd(mmap64_rnd_bits), task_size_64bit(0),
