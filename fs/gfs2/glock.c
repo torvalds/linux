@@ -2078,7 +2078,7 @@ static void dump_glock_func(struct gfs2_glock *gl)
 	dump_glock(NULL, gl, true);
 }
 
-static void withdraw_dq(struct gfs2_glock *gl)
+static void withdraw_glock(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_lockref.lock);
 	if (!__lockref_is_dead(&gl->gl_lockref))
@@ -2086,9 +2086,9 @@ static void withdraw_dq(struct gfs2_glock *gl)
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
-void gfs2_gl_dq_holders(struct gfs2_sbd *sdp)
+void gfs2_withdraw_glocks(struct gfs2_sbd *sdp)
 {
-	glock_hash_walk(withdraw_dq, sdp);
+	glock_hash_walk(withdraw_glock, sdp);
 }
 
 /**
