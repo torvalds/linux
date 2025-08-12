@@ -1375,18 +1375,13 @@ static int imx258_probe(struct i2c_client *client)
 		return dev_err_probe(imx258->dev, ret,
 				     "failed to get regulators\n");
 
-	imx258->clk = devm_clk_get_optional(imx258->dev, NULL);
+	imx258->clk = devm_v4l2_sensor_clk_get_legacy(imx258->dev, NULL, false,
+						      0);
 	if (IS_ERR(imx258->clk))
 		return dev_err_probe(imx258->dev, PTR_ERR(imx258->clk),
 				     "error getting clock\n");
-	if (!imx258->clk) {
-		dev_dbg(imx258->dev,
-			"no clock provided, using clock-frequency property\n");
 
-		device_property_read_u32(imx258->dev, "clock-frequency", &val);
-	} else {
-		val = clk_get_rate(imx258->clk);
-	}
+	val = clk_get_rate(imx258->clk);
 
 	switch (val) {
 	case 19200000:
