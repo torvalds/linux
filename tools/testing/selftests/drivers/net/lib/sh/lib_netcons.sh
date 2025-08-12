@@ -148,12 +148,20 @@ function create_dynamic_target() {
 # Generate the command line argument for netconsole following:
 #  netconsole=[+][src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
 function create_cmdline_str() {
+	local BINDMODE=${1:-"ifname"}
+	if [ "${BINDMODE}" == "ifname" ]
+	then
+		SRCDEV=${SRCIF}
+	else
+		SRCDEV=$(mac_get "${SRCIF}")
+	fi
+
 	DSTMAC=$(ip netns exec "${NAMESPACE}" \
 		 ip link show "${DSTIF}" | awk '/ether/ {print $2}')
 	SRCPORT="1514"
 	TGTPORT="6666"
 
-	echo "netconsole=\"+${SRCPORT}@${SRCIP}/${SRCIF},${TGTPORT}@${DSTIP}/${DSTMAC}\""
+	echo "netconsole=\"+${SRCPORT}@${SRCIP}/${SRCDEV},${TGTPORT}@${DSTIP}/${DSTMAC}\""
 }
 
 # Do not append the release to the header of the message
