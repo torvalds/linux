@@ -782,6 +782,11 @@ class SphinxDependencyChecker(MissingCheckers):
 
             self.check_program("dvipng", DepManager.PDF_MANDATORY)
 
+        if not self.distro_msg:
+            self.distro_msg = \
+                "Note: ImageMagick is broken on some distros, affecting PDF output. For more details:\n" \
+                "\thttps://askubuntu.com/questions/1158894/imagemagick-still-broken-using-with-usr-bin-convert"
+
         return self.get_install_progs(progs, "apt-get install")
 
     def give_redhat_hints(self):
@@ -1193,7 +1198,7 @@ class SphinxDependencyChecker(MissingCheckers):
         self.distro_msg = \
             f"I don't know distro {self.system_release}.\n" \
             "So, I can't provide you a hint with the install procedure.\n" \
-            "There are likely missing dependencies.\n"
+            "There are likely missing dependencies."
 
         return self.get_install_progs(progs, None)
 
