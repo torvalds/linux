@@ -85,6 +85,7 @@ struct ce_ie_addr {
 struct ce_remap {
 	u32 base;
 	u32 size;
+	u32 cmem_offset;
 };
 
 struct ce_attr {

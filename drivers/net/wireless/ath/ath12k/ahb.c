@@ -123,7 +123,7 @@ enum ext_irq_num {
 
 static u32 ath12k_ahb_read32(struct ath12k_base *ab, u32 offset)
 {
-	if (ab->ce_remap && offset < HAL_SEQ_WCSS_CMEM_OFFSET)
+	if (ab->ce_remap && offset < ab->cmem_offset)
 		return ioread32(ab->mem_ce + offset);
 	return ioread32(ab->mem + offset);
 }
@@ -131,7 +131,7 @@ static u32 ath12k_ahb_read32(struct ath12k_base *ab, u32 offset)
 static void ath12k_ahb_write32(struct ath12k_base *ab, u32 offset,
 			       u32 value)
 {
-	if (ab->ce_remap && offset < HAL_SEQ_WCSS_CMEM_OFFSET)
+	if (ab->ce_remap && offset < ab->cmem_offset)
 		iowrite32(value, ab->mem_ce + offset);
 	else
 		iowrite32(value, ab->mem + offset);
@@ -928,7 +928,8 @@ static int ath12k_ahb_resource_init(struct ath12k_base *ab)
 			goto err_mem_unmap;
 		}
 		ab->ce_remap = true;
-		ab->ce_remap_base_addr = HAL_IPQ5332_CE_WFSS_REG_BASE;
+		ab->cmem_offset = ce_remap->cmem_offset;
+		ab->ce_remap_base_addr = ce_remap->base;
 	}
 
 	ab_ahb->xo_clk = devm_clk_get(ab->dev, "xo");
