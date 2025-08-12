@@ -267,9 +267,10 @@ config OVMF_DEBUG_LOG
 	bool "Expose OVMF firmware debug log via sysfs"
 	depends on EFI
 	help
-	  Recent OVMF versions (edk2-stable202508 + newer) can write
-	  their debug log to a memory buffer.  This driver exposes the
-	  log content via sysfs (/sys/firmware/efi/ovmf_debug_log).
+	  Recent versions of the Open Virtual Machine Firmware
+	  (edk2-stable202508 + newer) can write their debug log to a memory
+	  buffer.  This driver exposes the log content via sysfs
+	  (/sys/firmware/efi/ovmf_debug_log).
 
 config UNACCEPTED_MEMORY
 	bool
