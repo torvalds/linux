@@ -722,42 +722,18 @@ struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(struct snd_kcontrol *kco
 struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(struct snd_kcontrol *kcontrol);
 
 int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level);
+enum snd_soc_bias_level snd_soc_dapm_get_bias_level(struct snd_soc_dapm_context *dapm);
+void snd_soc_dapm_init_bias_level(struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level);
+
+// REMOVE ME !!
+#define snd_soc_component_force_bias_level(c, l)	snd_soc_dapm_force_bias_level(&(c)->dapm, l)
+#define snd_soc_component_get_bias_level(c)		snd_soc_dapm_get_bias_level(&(c)->dapm)
+#define snd_soc_component_init_bias_level(c, l)		snd_soc_dapm_init_bias_level(&(c)->dapm, l)
 
 #define for_each_dapm_widgets(list, i, widget)				\
 	for ((i) = 0;							\
 	     (i) < list->num_widgets && (widget = list->widgets[i]);	\
 	     (i)++)
-
-/**
- * snd_soc_dapm_init_bias_level() - Initialize DAPM bias level
- * @dapm: The DAPM context to initialize
- * @level: The DAPM level to initialize to
- *
- * This function only sets the driver internal state of the DAPM level and will
- * not modify the state of the device. Hence it should not be used during normal
- * operation, but only to synchronize the internal state to the device state.
- * E.g. during driver probe to set the DAPM level to the one corresponding with
- * the power-on reset state of the device.
- *
- * To change the DAPM state of the device use snd_soc_dapm_set_bias_level().
- */
-static inline void snd_soc_dapm_init_bias_level(
-	struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level)
-{
-	dapm->bias_level = level;
-}
-
-/**
- * snd_soc_dapm_get_bias_level() - Get current DAPM bias level
- * @dapm: The context for which to get the bias level
- *
- * Returns: The current bias level of the passed DAPM context.
- */
-static inline enum snd_soc_bias_level snd_soc_dapm_get_bias_level(
-	struct snd_soc_dapm_context *dapm)
-{
-	return dapm->bias_level;
-}
 
 /**
  * snd_soc_dapm_widget_for_each_path - Iterates over all paths in the
