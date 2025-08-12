@@ -7043,6 +7043,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 				ret = 0;
 				/* We need the rb to map pages. */
 				rb = event->rb;
+				perf_mmap_account(vma, user_extra, extra);
+				atomic_inc(&event->mmap_count);
 				goto unlock;
 			}
 
@@ -7083,6 +7085,9 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		perf_event_init_userpage(event);
 		perf_event_update_userpage(event);
 		ret = 0;
+
+		perf_mmap_account(vma, user_extra, extra);
+		atomic_inc(&event->mmap_count);
 	} else {
 		/*
 		 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
@@ -7127,11 +7132,12 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		if (rb_has_aux(rb)) {
 			atomic_inc(&rb->aux_mmap_count);
 			ret = 0;
-			goto unlock;
+			goto aux_success;
 		}
 
 		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
 			ret = -EPERM;
+			atomic_dec(&rb->mmap_count);
 			goto unlock;
 		}
 
@@ -7142,20 +7148,19 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 		ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
 				   event->attr.aux_watermark, flags);
-		if (!ret) {
-			atomic_set(&rb->aux_mmap_count, 1);
-			rb->aux_mmap_locked = extra;
+		if (ret) {
+			atomic_dec(&rb->mmap_count);
+			goto unlock;
 		}
+
+		atomic_set(&rb->aux_mmap_count, 1);
+		rb->aux_mmap_locked = extra;
+aux_success:
+		perf_mmap_account(vma, user_extra, extra);
+		atomic_inc(&event->mmap_count);
 	}
 
 unlock:
-	if (!ret) {
-		perf_mmap_account(vma, user_extra, extra);
-		atomic_inc(&event->mmap_count);
-	} else if (rb) {
-		/* AUX allocation failed */
-		atomic_dec(&rb->mmap_count);
-	}
 aux_unlock:
 	if (aux_mutex)
 		mutex_unlock(aux_mutex);
