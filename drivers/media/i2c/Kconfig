@@ -593,15 +593,6 @@ config VIDEO_OV64A40
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov64a40.
 
-config VIDEO_OV6650
-	tristate "OmniVision OV6650 sensor support"
-	help
-	  This is a Video4Linux2 sensor driver for the OmniVision
-	  OV6650 camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ov6650.
-
 config VIDEO_OV7251
 	tristate "OmniVision OV7251 sensor support"
 	help
