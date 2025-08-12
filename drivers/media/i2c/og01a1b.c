@@ -910,27 +910,11 @@ static int og01a1b_check_hwcfg(struct og01a1b *og01a1b)
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
 	if (!fwnode)
 		return -ENXIO;
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-	if (ret) {
-		if (!og01a1b->xvclk) {
-			dev_err(dev, "can't get clock frequency");
-			return ret;
-		}
-
-		mclk = clk_get_rate(og01a1b->xvclk);
-	}
-
-	if (mclk != OG01A1B_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
-		return -EINVAL;
-	}
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -1067,6 +1051,7 @@ static void og01a1b_remove(struct i2c_client *client)
 static int og01a1b_probe(struct i2c_client *client)
 {
 	struct og01a1b *og01a1b;
+	unsigned long freq;
 	int ret;
 
 	og01a1b = devm_kzalloc(&client->dev, sizeof(*og01a1b), GFP_KERNEL);
@@ -1077,12 +1062,16 @@ static int og01a1b_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&og01a1b->sd, client, &og01a1b_subdev_ops);
 
-	og01a1b->xvclk = devm_clk_get_optional(og01a1b->dev, NULL);
-	if (IS_ERR(og01a1b->xvclk)) {
-		ret = PTR_ERR(og01a1b->xvclk);
-		dev_err(og01a1b->dev, "failed to get xvclk clock: %d\n", ret);
-		return ret;
-	}
+	og01a1b->xvclk = devm_v4l2_sensor_clk_get(og01a1b->dev, NULL);
+	if (IS_ERR(og01a1b->xvclk))
+		return dev_err_probe(og01a1b->dev, PTR_ERR(og01a1b->xvclk),
+				     "failed to get xvclk clock\n");
+
+	freq = clk_get_rate(og01a1b->xvclk);
+	if (freq != OG01A1B_MCLK)
+		return dev_err_probe(og01a1b->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
 
 	ret = og01a1b_check_hwcfg(og01a1b);
 	if (ret) {
