@@ -141,10 +141,8 @@ static int kempld_create_platform_device(const struct kempld_platform_data *pdat
 	};
 
 	kempld_pdev = platform_device_register_full(&pdevinfo);
-	if (IS_ERR(kempld_pdev))
-		return PTR_ERR(kempld_pdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(kempld_pdev);
 }
 
 /**
