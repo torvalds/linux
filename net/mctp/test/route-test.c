@@ -1586,7 +1586,6 @@ static void mctp_test_bind_lookup(struct kunit *test)
 
 cleanup:
 	kfree_skb(skb_sock);
-	kfree_skb(skb_pkt);
 
 	/* Drop all binds */
 	for (size_t i = 0; i < ARRAY_SIZE(lookup_binds); i++)
