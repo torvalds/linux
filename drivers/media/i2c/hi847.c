@@ -2,6 +2,7 @@
 // Copyright (c) 2022 Intel Corporation.
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -2168,6 +2169,7 @@ static const struct hi847_mode supported_modes[] = {
 
 struct hi847 {
 	struct device *dev;
+	struct clk *clk;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -2789,23 +2791,11 @@ static int hi847_check_hwcfg(struct device *dev)
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
 	if (!fwnode)
 		return -ENXIO;
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		return ret;
-	}
-
-	if (mclk != HI847_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
-		return -EINVAL;
-	}
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -2865,6 +2855,7 @@ static void hi847_remove(struct i2c_client *client)
 static int hi847_probe(struct i2c_client *client)
 {
 	struct hi847 *hi847;
+	unsigned long freq;
 	int ret;
 
 	hi847 = devm_kzalloc(&client->dev, sizeof(*hi847), GFP_KERNEL);
@@ -2872,6 +2863,17 @@ static int hi847_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	hi847->dev = &client->dev;
+
+	hi847->clk = devm_v4l2_sensor_clk_get(hi847->dev, NULL);
+	if (IS_ERR(hi847->clk))
+		return dev_err_probe(hi847->dev, PTR_ERR(hi847->clk),
+				     "failed to get clock\n");
+
+	freq = clk_get_rate(hi847->clk);
+	if (freq != HI847_MCLK)
+		return dev_err_probe(hi847->dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
 
 	ret = hi847_check_hwcfg(hi847->dev);
 	if (ret) {
