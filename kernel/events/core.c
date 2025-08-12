@@ -7054,6 +7054,16 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 			ring_buffer_attach(event, NULL);
 		}
 
+		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
+			ret = -EPERM;
+			goto unlock;
+		}
+
+		WARN_ON(!rb && event->rb);
+
+		if (vma->vm_flags & VM_WRITE)
+			flags |= RING_BUFFER_WRITABLE;
+
 	} else {
 		/*
 		 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
@@ -7100,17 +7110,17 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 			ret = 0;
 			goto unlock;
 		}
+
+		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
+			ret = -EPERM;
+			goto unlock;
+		}
+
+		WARN_ON(!rb && event->rb);
+
+		if (vma->vm_flags & VM_WRITE)
+			flags |= RING_BUFFER_WRITABLE;
 	}
-
-	if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
-		ret = -EPERM;
-		goto unlock;
-	}
-
-	WARN_ON(!rb && event->rb);
-
-	if (vma->vm_flags & VM_WRITE)
-		flags |= RING_BUFFER_WRITABLE;
 
 	if (!rb) {
 		rb = rb_alloc(nr_pages,
