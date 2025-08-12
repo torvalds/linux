@@ -1028,6 +1028,12 @@ struct ath12k_mem_profile_based_param {
 	struct ath12k_dp_profile_params dp_params;
 };
 
+enum ath12k_device_family {
+	ATH12K_DEVICE_FAMILY_START,
+	ATH12K_DEVICE_FAMILY_WIFI7 = ATH12K_DEVICE_FAMILY_START,
+	ATH12K_DEVICE_FAMILY_MAX,
+};
+
 /* Master structure to hold the hw data which may be used in core module */
 struct ath12k_base {
 	enum ath12k_hw_rev hw_rev;
