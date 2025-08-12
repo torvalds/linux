@@ -2954,6 +2954,19 @@ config BLACKHOLE_DEV_KUNIT_TEST
 
 	  If unsure, say N.
 
+config PKCS7_MESSAGE_PARSER_KFUZZ
+	bool "Build fuzz target for PKCS#7 parser"
+	depends on KFUZZTEST
+	depends on PKCS7_MESSAGE_PARSER
+	help
+	  Builds the KFuzzTest targets for PKCS#7.
+
+config RSA_HELPER_KFUZZ
+	bool "Build fuzz targets for RSA helpers"
+	depends on KFUZZTEST
+	help
+	  Builds the KFuzzTest targets for RSA helper functions.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	help

@@ -48,3 +48,6 @@ obj-$(CONFIG_USERCOPY_KUNIT_TEST) += usercopy_kunit.o
 obj-$(CONFIG_UTIL_MACROS_KUNIT) += util_macros_kunit.o
 
 obj-$(CONFIG_TEST_RUNTIME_MODULE)		+= module/
+
+obj-$(CONFIG_PKCS7_MESSAGE_PARSER_KFUZZ) += pkcs7_kfuzz.o
+obj-$(CONFIG_RSA_HELPER_KFUZZ) += rsa_helper_kfuzz.o
