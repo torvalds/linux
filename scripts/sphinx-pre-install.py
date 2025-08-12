@@ -89,6 +89,9 @@ class SphinxDependencyChecker:
         self.python_cmd = ""
         self.activate_cmd = ""
 
+        # Some distros may not have a Sphinx shipped package compatible with
+        # our minimal requirements
+        self.package_supported = True
         # Certain hints are meant to be shown only once
         self.first_hint = True
 
@@ -969,6 +972,27 @@ class SphinxDependencyChecker:
 
         return self.latest_avail_ver
 
+    def recommend_package(self):
+
+        print("\n2) As a package with:")
+
+        old_need = self.need
+        old_optional = self.optional
+        self.missing = {}
+        self.pdf = False
+        self.optional = 0
+        self.install = ""
+        old_verbose = self.verbose_warn_install
+        self.verbose_warn_install = 0
+
+        self.add_package("python-sphinx", 0)
+
+        self.check_distros()
+
+        self.need = old_need
+        self.optional = old_optional
+        self.verbose_warn_install = old_verbose
+
     def recommend_sphinx_version(self, virtualenv_cmd):
         # The logic here is complex, as it have to deal with different versions:
         #	- minimal supported version;
@@ -1053,24 +1077,8 @@ class SphinxDependencyChecker:
             print(f"\tpip install -r {self.requirement_file}")
             self.deactivate_help()
 
-        print("\n2) As a package with:")
-
-        old_need = self.need
-        old_optional = self.optional
-        self.missing = {}
-        self.pdf = False
-        self.optional = 0
-        self.install = ""
-        old_verbose = self.verbose_warn_install
-        self.verbose_warn_install = 0
-
-        self.add_package("python-sphinx", 0)
-
-        self.check_distros()
-
-        self.need = old_need
-        self.optional = old_optional
-        self.verbose_warn_install = old_verbose
+        if self.package_supported:
+            self.recommend_package()
 
         print("\n" \
               "    Please note that Sphinx >= 3.0 will currently produce false-positive\n" \
