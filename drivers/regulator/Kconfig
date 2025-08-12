@@ -1006,6 +1006,14 @@ config REGULATOR_PCAP
 	 This driver provides support for the voltage regulators of the
 	 PCAP2 PMIC.
 
+config REGULATOR_PF0900
+	tristate "NXP PF0900/PF0901/PF09XX regulator driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	Say y here to support the NXP PF0900/PF0901/PF09XX PMIC
+	regulator driver.
+
 config REGULATOR_PF8X00
 	tristate "NXP PF8100/PF8121A/PF8200 regulator driver"
 	depends on I2C && OF
