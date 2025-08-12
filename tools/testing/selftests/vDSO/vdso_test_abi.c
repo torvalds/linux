@@ -231,6 +231,5 @@ int main(int argc, char **argv)
 
 	vdso_test_time();
 
-	ksft_print_cnts();
-	return ksft_get_fail_cnt() == 0 ? KSFT_PASS : KSFT_FAIL;
+	ksft_finished();
 }
