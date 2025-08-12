@@ -99,6 +99,11 @@ struct ath12k_pci_device_family_ops {
 	int (*probe)(struct pci_dev *pdev, const struct pci_device_id *pci_dev);
 };
 
+struct ath12k_pci_reg_base {
+	u32 umac_base;
+	u32 ce_reg_base;
+};
+
 struct ath12k_pci {
 	struct pci_dev *pdev;
 	struct ath12k_base *ab;
@@ -122,6 +127,7 @@ struct ath12k_pci {
 	u32 qmi_instance;
 	u64 dma_mask;
 	const struct ath12k_pci_device_family_ops *device_family_ops;
+	const struct ath12k_pci_reg_base *reg_base;
 };
 
 struct ath12k_pci_driver {
@@ -129,6 +135,7 @@ struct ath12k_pci_driver {
 	const struct pci_device_id *id_table;
 	struct ath12k_pci_device_family_ops ops;
 	struct pci_driver driver;
+	const struct ath12k_pci_reg_base *reg_base;
 };
 
 static inline struct ath12k_pci *ath12k_pci_priv(struct ath12k_base *ab)

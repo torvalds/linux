@@ -132,10 +132,12 @@ static void ath12k_pci_select_window(struct ath12k_pci *ab_pci, u32 offset)
 
 static void ath12k_pci_select_static_window(struct ath12k_pci *ab_pci)
 {
-	u32 umac_window = u32_get_bits(HAL_SEQ_WCSS_UMAC_OFFSET, WINDOW_VALUE_MASK);
-	u32 ce_window = u32_get_bits(HAL_CE_WFSS_CE_REG_BASE, WINDOW_VALUE_MASK);
+	u32 umac_window;
+	u32 ce_window;
 	u32 window;
 
+	umac_window = u32_get_bits(ab_pci->reg_base->umac_base, WINDOW_VALUE_MASK);
+	ce_window = u32_get_bits(ab_pci->reg_base->ce_reg_base, WINDOW_VALUE_MASK);
 	window = (umac_window << 12) | (ce_window << 6);
 
 	spin_lock_bh(&ab_pci->window_lock);
@@ -148,13 +150,14 @@ static void ath12k_pci_select_static_window(struct ath12k_pci *ab_pci)
 static u32 ath12k_pci_get_window_start(struct ath12k_base *ab,
 				       u32 offset)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 	u32 window_start;
 
 	/* If offset lies within DP register range, use 3rd window */
-	if ((offset ^ HAL_SEQ_WCSS_UMAC_OFFSET) < WINDOW_RANGE_MASK)
+	if ((offset ^ ab_pci->reg_base->umac_base) < WINDOW_RANGE_MASK)
 		window_start = 3 * WINDOW_START;
 	/* If offset lies within CE register range, use 2nd window */
-	else if ((offset ^ HAL_CE_WFSS_CE_REG_BASE) < WINDOW_RANGE_MASK)
+	else if ((offset ^ ab_pci->reg_base->ce_reg_base) < WINDOW_RANGE_MASK)
 		window_start = 2 * WINDOW_START;
 	else
 		window_start = WINDOW_START;
@@ -1553,6 +1556,7 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	ath12k_dbg(ab, ATH12K_DBG_PCI, "PCI device family id: %d\n", device_id);
 
 	ab_pci->device_family_ops = &ath12k_pci_family_drivers[device_id]->ops;
+	ab_pci->reg_base = ath12k_pci_family_drivers[device_id]->reg_base;
 
 	/* Call device specific probe. This is the callback that can
 	 * be used to override any ops in future

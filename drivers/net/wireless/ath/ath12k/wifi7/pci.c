@@ -155,10 +155,16 @@ static int ath12k_wifi7_pci_probe(struct pci_dev *pdev,
 	return 0;
 }
 
+static const struct ath12k_pci_reg_base ath12k_wifi7_reg_base = {
+	.umac_base = HAL_SEQ_WCSS_UMAC_OFFSET,
+	.ce_reg_base = HAL_CE_WFSS_CE_REG_BASE,
+};
+
 static struct ath12k_pci_driver ath12k_wifi7_pci_driver = {
 	.name = "ath12k_wifi7_pci",
 	.id_table = ath12k_wifi7_pci_id_table,
 	.ops.probe = ath12k_wifi7_pci_probe,
+	.reg_base = &ath12k_wifi7_reg_base,
 };
 
 int ath12k_wifi7_pci_init(void)
