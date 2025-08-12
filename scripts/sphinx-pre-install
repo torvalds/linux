@@ -1476,7 +1476,7 @@ class SphinxDependencyChecker(MissingCheckers):
         self.check_perl_module("Pod::Usage", DepManager.SYSTEM_MANDATORY)
 
         self.check_program("make", DepManager.SYSTEM_MANDATORY)
-        self.check_program("gcc", DepManager.SYSTEM_MANDATORY)
+        self.check_program("which", DepManager.SYSTEM_MANDATORY)
 
         self.check_program("dot", DepManager.SYSTEM_OPTIONAL)
         self.check_program("convert", DepManager.SYSTEM_OPTIONAL)
