@@ -102,7 +102,6 @@ struct ov02a10_mode {
 struct ov02a10 {
 	struct device *dev;
 
-	u32 eclk_freq;
 	/* Indication of MIPI transmission speed select */
 	u32 mipi_clock_voltage;
 
@@ -886,21 +885,10 @@ static int ov02a10_probe(struct i2c_client *client)
 		ov02a10->fmt.code = MEDIA_BUS_FMT_SRGGB10_1X10;
 	}
 
-	ov02a10->eclk = devm_v4l2_sensor_clk_get(dev, "eclk");
+	ov02a10->eclk = devm_v4l2_sensor_clk_get_legacy(dev, "eclk", false, 0);
 	if (IS_ERR(ov02a10->eclk))
 		return dev_err_probe(dev, PTR_ERR(ov02a10->eclk),
 				     "failed to get eclk\n");
-
-	ret = device_property_read_u32(dev, "clock-frequency",
-				       &ov02a10->eclk_freq);
-	if (ret < 0)
-		return dev_err_probe(dev, ret,
-				     "failed to get eclk frequency\n");
-
-	ret = clk_set_rate(ov02a10->eclk, ov02a10->eclk_freq);
-	if (ret < 0)
-		return dev_err_probe(dev, ret,
-				     "failed to set eclk frequency (24MHz)\n");
 
 	if (clk_get_rate(ov02a10->eclk) != OV02A10_ECLK_FREQ)
 		dev_warn(dev, "eclk mismatched, mode is based on 24MHz\n");
