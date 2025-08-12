@@ -3683,12 +3683,7 @@ static bool ieee80211_is_scan_ongoing(struct wiphy *wiphy,
 	if (list_empty(&local->roc_list) && !local->scanning)
 		return false;
 
-	if (wiphy->n_radio < 2)
-		return true;
-
 	req_radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chandef->chan);
-	if (req_radio_idx < 0)
-		return true;
 
 	if (local->scanning) {
 		scan_req = wiphy_dereference(wiphy, local->scan_req);
@@ -3707,14 +3702,6 @@ static bool ieee80211_is_scan_ongoing(struct wiphy *wiphy,
 	list_for_each_entry(roc, &local->roc_list, list) {
 		chan_radio_idx = cfg80211_get_radio_idx_by_chan(wiphy,
 								roc->chan);
-		/*
-		 * The roc work is added but chan_radio_idx is invalid.
-		 * Should not happen but if it does, let's not take
-		 * risk and return true.
-		 */
-		if (chan_radio_idx < 0)
-			return true;
-
 		if (chan_radio_idx == req_radio_idx)
 			return true;
 	}

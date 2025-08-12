@@ -4022,16 +4022,13 @@ bool ieee80211_is_radio_idx_in_scan_req(struct wiphy *wiphy,
 	for (i = 0; i < scan_req->n_channels; i++) {
 		chan = scan_req->channels[i];
 		chan_radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chan);
-		/*
-		 * The chan_radio_idx should be valid since it's taken from a
-		 * valid scan request.
-		 * However, if chan_radio_idx is unexpectedly invalid (negative),
-		 * we take a conservative approach and assume the scan request
-		 * might use the specified radio_idx. Hence, return true.
-		 */
-		if (WARN_ON(chan_radio_idx < 0))
-			return true;
 
+		/* The radio index either matched successfully, or an error
+		 * occurred. For example, if radio-level information is
+		 * missing, the same error value is returned. This
+		 * typically implies a single-radio setup, in which case
+		 * the operation should not be allowed.
+		 */
 		if (chan_radio_idx == radio_idx)
 			return true;
 	}
