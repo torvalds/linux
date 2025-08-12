@@ -5,6 +5,7 @@ ath12k-y += core.o \
 	    hal_tx.o \
 	    hal_rx.o \
 	    wmi.o \
+	    wmi_wifi7.o \
 	    mac.o \
 	    reg.o \
 	    htc.o \
