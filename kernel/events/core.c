@@ -7098,7 +7098,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 		rb = event->rb;
 		if (!rb)
-			goto aux_unlock;
+			goto unlock;
 
 		aux_mutex = &rb->aux_mutex;
 		mutex_lock(aux_mutex);
@@ -7107,27 +7107,27 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		aux_size = READ_ONCE(rb->user_page->aux_size);
 
 		if (aux_offset < perf_data_size(rb) + PAGE_SIZE)
-			goto aux_unlock;
+			goto unlock;
 
 		if (aux_offset != vma->vm_pgoff << PAGE_SHIFT)
-			goto aux_unlock;
+			goto unlock;
 
 		/* already mapped with a different offset */
 		if (rb_has_aux(rb) && rb->aux_pgoff != vma->vm_pgoff)
-			goto aux_unlock;
+			goto unlock;
 
 		if (aux_size != nr_pages * PAGE_SIZE)
-			goto aux_unlock;
+			goto unlock;
 
 		/* already mapped with a different size */
 		if (rb_has_aux(rb) && rb->aux_nr_pages != nr_pages)
-			goto aux_unlock;
+			goto unlock;
 
 		if (!is_power_of_2(nr_pages))
-			goto aux_unlock;
+			goto unlock;
 
 		if (!atomic_inc_not_zero(&rb->mmap_count))
-			goto aux_unlock;
+			goto unlock;
 
 		if (rb_has_aux(rb)) {
 			atomic_inc(&rb->aux_mmap_count);
@@ -7161,7 +7161,6 @@ aux_success:
 	}
 
 unlock:
-aux_unlock:
 	if (aux_mutex)
 		mutex_unlock(aux_mutex);
 	mutex_unlock(&event->mmap_mutex);
