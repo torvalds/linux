@@ -3968,7 +3968,7 @@ static noinline int visit_groups_merge(struct perf_event_context *ctx,
  */
 static inline bool event_update_userpage(struct perf_event *event)
 {
-	if (likely(!atomic_read(&event->mmap_count)))
+	if (likely(!refcount_read(&event->mmap_count)))
 		return false;
 
 	perf_event_update_time(event);
@@ -6704,11 +6704,11 @@ static void perf_mmap_open(struct vm_area_struct *vma)
 	struct perf_event *event = vma->vm_file->private_data;
 	mapped_f mapped = get_mapped(event, event_mapped);
 
-	atomic_inc(&event->mmap_count);
-	atomic_inc(&event->rb->mmap_count);
+	refcount_inc(&event->mmap_count);
+	refcount_inc(&event->rb->mmap_count);
 
 	if (vma->vm_pgoff)
-		atomic_inc(&event->rb->aux_mmap_count);
+		refcount_inc(&event->rb->aux_mmap_count);
 
 	if (mapped)
 		mapped(event, vma->vm_mm);
@@ -6743,7 +6743,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 	 * to avoid complications.
 	 */
 	if (rb_has_aux(rb) && vma->vm_pgoff == rb->aux_pgoff &&
-	    atomic_dec_and_mutex_lock(&rb->aux_mmap_count, &rb->aux_mutex)) {
+	    refcount_dec_and_mutex_lock(&rb->aux_mmap_count, &rb->aux_mutex)) {
 		/*
 		 * Stop all AUX events that are writing to this buffer,
 		 * so that we can free its AUX pages and corresponding PMU
@@ -6763,10 +6763,10 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 		mutex_unlock(&rb->aux_mutex);
 	}
 
-	if (atomic_dec_and_test(&rb->mmap_count))
+	if (refcount_dec_and_test(&rb->mmap_count))
 		detach_rest = true;
 
-	if (!atomic_dec_and_mutex_lock(&event->mmap_count, &event->mmap_mutex))
+	if (!refcount_dec_and_mutex_lock(&event->mmap_count, &event->mmap_mutex))
 		goto out_put;
 
 	ring_buffer_attach(event, NULL);
@@ -6992,19 +6992,19 @@ static int perf_mmap_rb(struct vm_area_struct *vma, struct perf_event *event,
 		if (data_page_nr(event->rb) != nr_pages)
 			return -EINVAL;
 
-		if (atomic_inc_not_zero(&event->rb->mmap_count)) {
+		if (refcount_inc_not_zero(&event->rb->mmap_count)) {
 			/*
 			 * Success -- managed to mmap() the same buffer
 			 * multiple times.
 			 */
 			perf_mmap_account(vma, user_extra, extra);
-			atomic_inc(&event->mmap_count);
+			refcount_inc(&event->mmap_count);
 			return 0;
 		}
 
 		/*
 		 * Raced against perf_mmap_close()'s
-		 * atomic_dec_and_mutex_lock() remove the
+		 * refcount_dec_and_mutex_lock() remove the
 		 * event and continue as if !event->rb
 		 */
 		ring_buffer_attach(event, NULL);
@@ -7023,7 +7023,7 @@ static int perf_mmap_rb(struct vm_area_struct *vma, struct perf_event *event,
 	if (!rb)
 		return -ENOMEM;
 
-	atomic_set(&rb->mmap_count, 1);
+	refcount_set(&rb->mmap_count, 1);
 	rb->mmap_user = get_current_user();
 	rb->mmap_locked = extra;
 
@@ -7034,7 +7034,7 @@ static int perf_mmap_rb(struct vm_area_struct *vma, struct perf_event *event,
 	perf_event_update_userpage(event);
 
 	perf_mmap_account(vma, user_extra, extra);
-	atomic_set(&event->mmap_count, 1);
+	refcount_set(&event->mmap_count, 1);
 
 	return 0;
 }
@@ -7081,15 +7081,15 @@ static int perf_mmap_aux(struct vm_area_struct *vma, struct perf_event *event,
 	if (!is_power_of_2(nr_pages))
 		return -EINVAL;
 
-	if (!atomic_inc_not_zero(&rb->mmap_count))
+	if (!refcount_inc_not_zero(&rb->mmap_count))
 		return -EINVAL;
 
 	if (rb_has_aux(rb)) {
-		atomic_inc(&rb->aux_mmap_count);
+		refcount_inc(&rb->aux_mmap_count);
 
 	} else {
 		if (!perf_mmap_calc_limits(vma, &user_extra, &extra)) {
-			atomic_dec(&rb->mmap_count);
+			refcount_dec(&rb->mmap_count);
 			return -EPERM;
 		}
 
@@ -7101,16 +7101,16 @@ static int perf_mmap_aux(struct vm_area_struct *vma, struct perf_event *event,
 		ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
 				   event->attr.aux_watermark, rb_flags);
 		if (ret) {
-			atomic_dec(&rb->mmap_count);
+			refcount_dec(&rb->mmap_count);
 			return ret;
 		}
 
-		atomic_set(&rb->aux_mmap_count, 1);
+		refcount_set(&rb->aux_mmap_count, 1);
 		rb->aux_mmap_locked = extra;
 	}
 
 	perf_mmap_account(vma, user_extra, extra);
-	atomic_inc(&event->mmap_count);
+	refcount_inc(&event->mmap_count);
 
 	return 0;
 }
@@ -13254,7 +13254,7 @@ perf_event_set_output(struct perf_event *event, struct perf_event *output_event)
 	mutex_lock_double(&event->mmap_mutex, &output_event->mmap_mutex);
 set:
 	/* Can't redirect output if we've got an active mmap() */
-	if (atomic_read(&event->mmap_count))
+	if (refcount_read(&event->mmap_count))
 		goto unlock;
 
 	if (output_event) {
@@ -13267,7 +13267,7 @@ set:
 			goto unlock;
 
 		/* did we race against perf_mmap_close() */
-		if (!atomic_read(&rb->mmap_count)) {
+		if (!refcount_read(&rb->mmap_count)) {
 			ring_buffer_put(rb);
 			goto unlock;
 		}
