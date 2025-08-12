@@ -928,6 +928,14 @@ config SERIAL_QCOM_GENI_CONSOLE
 	  Serial console driver for Qualcomm Technologies Inc's GENI based
 	  QUP hardware.
 
+config SERIAL_QCOM_GENI_UART_PORTS
+	int "Maximum number of GENI UART ports"
+	depends on SERIAL_QCOM_GENI
+	default "8"
+	help
+	  Set this to the maximum number of serial ports you want the driver
+	  to support.
+
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
 	depends on ARCH_VT8500 || COMPILE_TEST
