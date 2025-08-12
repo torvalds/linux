@@ -749,7 +749,6 @@ static int ov02e10_check_hwcfg(struct ov02e10 *ov02e10)
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	unsigned long link_freq_bitmap;
-	u32 ext_clk;
 	int ret;
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
@@ -761,31 +760,6 @@ static int ov02e10_check_hwcfg(struct ov02e10 *ov02e10)
 	fwnode_handle_put(ep);
 	if (ret)
 		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
-
-	ov02e10->img_clk = devm_clk_get_optional(dev, NULL);
-	if (IS_ERR(ov02e10->img_clk)) {
-		ret = dev_err_probe(dev, PTR_ERR(ov02e10->img_clk),
-				    "failed to get imaging clock\n");
-		goto out_err;
-	}
-
-	if (ov02e10->img_clk) {
-		ext_clk = clk_get_rate(ov02e10->img_clk);
-	} else {
-		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					       &ext_clk);
-		if (ret) {
-			dev_err(dev, "can't get clock frequency\n");
-			goto out_err;
-		}
-	}
-
-	if (ext_clk != OV02E10_MCLK) {
-		dev_err(dev, "external clock %d is not supported\n",
-			ext_clk);
-		ret = -EINVAL;
-		goto out_err;
-	}
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV02E10_DATA_LANES) {
 		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
@@ -838,6 +812,7 @@ static void ov02e10_remove(struct i2c_client *client)
 static int ov02e10_probe(struct i2c_client *client)
 {
 	struct ov02e10 *ov02e10;
+	unsigned long freq;
 	int ret;
 
 	ov02e10 = devm_kzalloc(&client->dev, sizeof(*ov02e10), GFP_KERNEL);
@@ -845,6 +820,17 @@ static int ov02e10_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ov02e10->dev = &client->dev;
+
+	ov02e10->img_clk = devm_v4l2_sensor_clk_get(ov02e10->dev, NULL);
+	if (IS_ERR(ov02e10->img_clk))
+		return dev_err_probe(ov02e10->dev, PTR_ERR(ov02e10->img_clk),
+				     "failed to get imaging clock\n");
+
+	freq = clk_get_rate(ov02e10->img_clk);
+	if (freq != OV02E10_MCLK)
+		return dev_err_probe(ov02e10->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
 
 	v4l2_i2c_subdev_init(&ov02e10->sd, client, &ov02e10_subdev_ops);
 
