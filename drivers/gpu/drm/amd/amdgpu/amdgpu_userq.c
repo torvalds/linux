@@ -567,7 +567,6 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 		    args->in.queue_size ||
 		    args->in.rptr_va ||
 		    args->in.wptr_va ||
-		    args->in.wptr_va ||
 		    args->in.mqd ||
 		    args->in.mqd_size)
 			return -EINVAL;
