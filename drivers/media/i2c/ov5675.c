@@ -1181,24 +1181,13 @@ static int ov5675_get_hwcfg(struct ov5675 *ov5675)
 	if (!fwnode)
 		return -ENXIO;
 
-	ov5675->xvclk = devm_clk_get_optional(dev, NULL);
+	ov5675->xvclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(ov5675->xvclk))
 		return dev_err_probe(dev, PTR_ERR(ov5675->xvclk),
 				     "failed to get xvclk: %ld\n",
 				     PTR_ERR(ov5675->xvclk));
 
-	if (ov5675->xvclk) {
-		xvclk_rate = clk_get_rate(ov5675->xvclk);
-	} else {
-		ret = fwnode_property_read_u32(fwnode, "clock-frequency",
-					       &xvclk_rate);
-
-		if (ret) {
-			dev_err(dev, "can't get clock frequency");
-			return ret;
-		}
-	}
-
+	xvclk_rate = clk_get_rate(ov5675->xvclk);
 	if (xvclk_rate != OV5675_XVCLK_19_2) {
 		dev_err(dev, "external clock rate %u is unsupported",
 			xvclk_rate);
