@@ -175,7 +175,7 @@ static inline void vdso_test_clock(clockid_t clock_id)
 	vdso_test_clock_getres(clock_id);
 }
 
-#define VDSO_TEST_PLAN	16
+#define VDSO_TEST_PLAN	20
 
 int main(int argc, char **argv)
 {
@@ -204,6 +204,8 @@ int main(int argc, char **argv)
 	vdso_test_clock(CLOCK_MONOTONIC);
 	vdso_test_clock(CLOCK_MONOTONIC_RAW);
 	vdso_test_clock(CLOCK_MONOTONIC_COARSE);
+	vdso_test_clock(CLOCK_PROCESS_CPUTIME_ID);
+	vdso_test_clock(CLOCK_THREAD_CPUTIME_ID);
 
 	vdso_test_time();
 
