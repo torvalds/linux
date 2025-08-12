@@ -816,7 +816,6 @@ static int et8ek8_power_on(struct et8ek8_sensor *sensor)
 {
 	struct v4l2_subdev *subdev = &sensor->subdev;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
-	unsigned int xclk_freq = 9600000;
 	int val, rval;
 
 	rval = regulator_enable(sensor->vana);
@@ -825,12 +824,6 @@ static int et8ek8_power_on(struct et8ek8_sensor *sensor)
 		return rval;
 	}
 
-	rval = clk_set_rate(sensor->ext_clk, xclk_freq);
-	if (rval < 0) {
-		dev_err(&client->dev, "unable to set extclk clock freq to %u\n",
-			xclk_freq);
-		goto out;
-	}
 	rval = clk_prepare_enable(sensor->ext_clk);
 	if (rval < 0) {
 		dev_err(&client->dev, "failed to enable extclk\n");
@@ -844,7 +837,7 @@ static int et8ek8_power_on(struct et8ek8_sensor *sensor)
 
 	gpiod_set_value(sensor->reset, 1);
 
-	msleep(5000 * 1000 / xclk_freq + 1); /* Wait 5000 cycles */
+	msleep(5000 * 1000 / sensor->xclk_freq + 1); /* Wait 5000 cycles */
 
 	rval = et8ek8_i2c_reglist_find_write(client, &meta_reglist,
 					     ET8EK8_REGLIST_POWERON);
@@ -1425,17 +1418,13 @@ static int et8ek8_probe(struct i2c_client *client)
 		return PTR_ERR(sensor->vana);
 	}
 
-	sensor->ext_clk = devm_v4l2_sensor_clk_get(dev, NULL);
+	sensor->ext_clk = devm_v4l2_sensor_clk_get_legacy(dev, NULL, true,
+							  9600000);
 	if (IS_ERR(sensor->ext_clk))
 		return dev_err_probe(&client->dev, PTR_ERR(sensor->ext_clk),
 				     "could not get clock\n");
 
-	ret = of_property_read_u32(dev->of_node, "clock-frequency",
-				   &sensor->xclk_freq);
-	if (ret) {
-		dev_warn(dev, "can't get clock-frequency\n");
-		return ret;
-	}
+	sensor->xclk_freq = clk_get_rate(sensor->ext_clk);
 
 	mutex_init(&sensor->power_lock);
 
