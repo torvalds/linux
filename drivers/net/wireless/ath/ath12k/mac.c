@@ -1822,22 +1822,16 @@ void ath12k_mac_handle_beacon(struct ath12k *ar, struct sk_buff *skb)
 						   skb);
 }
 
-static void ath12k_mac_handle_beacon_miss_iter(void *data, u8 *mac,
-					       struct ieee80211_vif *vif)
+void ath12k_mac_handle_beacon_miss(struct ath12k *ar,
+				   struct ath12k_link_vif *arvif)
 {
-	u32 *vdev_id = data;
-	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
-	struct ath12k_link_vif *arvif = &ahvif->deflink;
-	struct ieee80211_hw *hw;
+	struct ieee80211_hw *hw = ath12k_ar_to_hw(ar);
+	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
 
-	if (!arvif->is_created || arvif->vdev_id != *vdev_id)
-		return;
-
-	if (!arvif->is_up)
+	if (!(arvif->is_created && arvif->is_up))
 		return;
 
 	ieee80211_beacon_loss(vif);
-	hw = ath12k_ar_to_hw(arvif->ar);
 
 	/* Firmware doesn't report beacon loss events repeatedly. If AP probe
 	 * (done by mac80211) succeeds but beacons do not resume then it
@@ -1846,14 +1840,6 @@ static void ath12k_mac_handle_beacon_miss_iter(void *data, u8 *mac,
 	 */
 	ieee80211_queue_delayed_work(hw, &arvif->connection_loss_work,
 				     ATH12K_CONNECTION_LOSS_HZ);
-}
-
-void ath12k_mac_handle_beacon_miss(struct ath12k *ar, u32 vdev_id)
-{
-	ieee80211_iterate_active_interfaces_atomic(ath12k_ar_to_hw(ar),
-						   IEEE80211_IFACE_ITER_NORMAL,
-						   ath12k_mac_handle_beacon_miss_iter,
-						   &vdev_id);
 }
 
 static void ath12k_mac_vif_sta_connection_loss_work(struct work_struct *work)
