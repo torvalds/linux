@@ -1010,7 +1010,9 @@ static int __fwlog_init(struct ice_hw *hw)
 	if (err)
 		return err;
 
-	return ice_fwlog_init(hw, &hw->fwlog, &api);
+	api.debugfs_root = pf->ice_debugfs_pf;
+
+	return ice_fwlog_init(&hw->fwlog, &api);
 }
 
 /**
@@ -1195,7 +1197,7 @@ static void __fwlog_deinit(struct ice_hw *hw)
 		return;
 
 	ice_debugfs_pf_deinit(hw->back);
-	ice_fwlog_deinit(hw, &hw->fwlog);
+	ice_fwlog_deinit(&hw->fwlog);
 }
 
 /**

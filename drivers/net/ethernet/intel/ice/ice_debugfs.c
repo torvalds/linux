@@ -74,14 +74,14 @@ static const char * const ice_fwlog_log_size[] = {
 
 /**
  * ice_fwlog_print_module_cfg - print current FW logging module configuration
- * @hw: pointer to the HW structure
+ * @cfg: pointer to the fwlog cfg structure
  * @module: module to print
  * @s: the seq file to put data into
  */
 static void
-ice_fwlog_print_module_cfg(struct ice_hw *hw, int module, struct seq_file *s)
+ice_fwlog_print_module_cfg(struct ice_fwlog_cfg *cfg, int module,
+			   struct seq_file *s)
 {
-	struct ice_fwlog_cfg *cfg = &hw->fwlog.cfg;
 	struct ice_fwlog_module_entry *entry;
 
 	if (module != ICE_AQC_FW_LOG_ID_MAX) {
@@ -103,14 +103,14 @@ ice_fwlog_print_module_cfg(struct ice_hw *hw, int module, struct seq_file *s)
 	}
 }
 
-static int ice_find_module_by_dentry(struct ice_pf *pf, struct dentry *d)
+static int ice_find_module_by_dentry(struct dentry **modules, struct dentry *d)
 {
 	int i, module;
 
 	module = -1;
 	/* find the module based on the dentry */
 	for (i = 0; i < ICE_NR_FW_LOG_MODULES; i++) {
-		if (d == pf->ice_debugfs_pf_fwlog_modules[i]) {
+		if (d == modules[i]) {
 			module = i;
 			break;
 		}
@@ -126,21 +126,20 @@ static int ice_find_module_by_dentry(struct ice_pf *pf, struct dentry *d)
  */
 static int ice_debugfs_module_show(struct seq_file *s, void *v)
 {
+	struct ice_fwlog *fwlog = s->private;
 	const struct file *filp = s->file;
 	struct dentry *dentry;
-	struct ice_pf *pf;
 	int module;
 
 	dentry = file_dentry(filp);
-	pf = s->private;
 
-	module = ice_find_module_by_dentry(pf, dentry);
+	module = ice_find_module_by_dentry(fwlog->debugfs_modules, dentry);
 	if (module < 0) {
-		dev_info(ice_pf_to_dev(pf), "unknown module\n");
+		dev_info(&fwlog->pdev->dev, "unknown module\n");
 		return -EINVAL;
 	}
 
-	ice_fwlog_print_module_cfg(&pf->hw, module, s);
+	ice_fwlog_print_module_cfg(&fwlog->cfg, module, s);
 
 	return 0;
 }
@@ -161,10 +160,9 @@ static ssize_t
 ice_debugfs_module_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct ice_pf *pf = file_inode(filp)->i_private;
+	struct ice_fwlog *fwlog = file_inode(filp)->i_private;
 	struct dentry *dentry = file_dentry(filp);
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
+	struct device *dev = &fwlog->pdev->dev;
 	char user_val[16], *cmd_buf;
 	int module, log_level, cnt;
 
@@ -176,7 +174,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 	if (IS_ERR(cmd_buf))
 		return PTR_ERR(cmd_buf);
 
-	module = ice_find_module_by_dentry(pf, dentry);
+	module = ice_find_module_by_dentry(fwlog->debugfs_modules, dentry);
 	if (module < 0) {
 		dev_info(dev, "unknown module\n");
 		return -EINVAL;
@@ -193,7 +191,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 	}
 
 	if (module != ICE_AQC_FW_LOG_ID_MAX) {
-		hw->fwlog.cfg.module_entries[module].log_level = log_level;
+		fwlog->cfg.module_entries[module].log_level = log_level;
 	} else {
 		/* the module 'all' is a shortcut so that we can set
 		 * all of the modules to the same level quickly
@@ -201,7 +199,7 @@ ice_debugfs_module_write(struct file *filp, const char __user *buf,
 		int i;
 
 		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++)
-			hw->fwlog.cfg.module_entries[i].log_level = log_level;
+			fwlog->cfg.module_entries[i].log_level = log_level;
 	}
 
 	return count;
@@ -226,12 +224,11 @@ static ssize_t ice_debugfs_nr_messages_read(struct file *filp,
 					    char __user *buffer, size_t count,
 					    loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
 	char buff[32] = {};
 
 	snprintf(buff, sizeof(buff), "%d\n",
-		 hw->fwlog.cfg.log_resolution);
+		 fwlog->cfg.log_resolution);
 
 	return simple_read_from_buffer(buffer, count, ppos, buff, strlen(buff));
 }
@@ -247,9 +244,8 @@ static ssize_t
 ice_debugfs_nr_messages_write(struct file *filp, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
+	struct device *dev = &fwlog->pdev->dev;
 	char user_val[8], *cmd_buf;
 	s16 nr_messages;
 	ssize_t ret;
@@ -278,7 +274,7 @@ ice_debugfs_nr_messages_write(struct file *filp, const char __user *buf,
 		return -EINVAL;
 	}
 
-	hw->fwlog.cfg.log_resolution = nr_messages;
+	fwlog->cfg.log_resolution = nr_messages;
 
 	return count;
 }
@@ -301,12 +297,11 @@ static ssize_t ice_debugfs_enable_read(struct file *filp,
 				       char __user *buffer, size_t count,
 				       loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
 	char buff[32] = {};
 
 	snprintf(buff, sizeof(buff), "%u\n",
-		 (u16)(hw->fwlog.cfg.options &
+		 (u16)(fwlog->cfg.options &
 		 ICE_FWLOG_OPTION_IS_REGISTERED) >> 3);
 
 	return simple_read_from_buffer(buffer, count, ppos, buff, strlen(buff));
@@ -323,8 +318,7 @@ static ssize_t
 ice_debugfs_enable_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
 	char user_val[8], *cmd_buf;
 	bool enable;
 	ssize_t ret;
@@ -346,18 +340,18 @@ ice_debugfs_enable_write(struct file *filp, const char __user *buf,
 		goto enable_write_error;
 
 	if (enable)
-		hw->fwlog.cfg.options |= ICE_FWLOG_OPTION_ARQ_ENA;
+		fwlog->cfg.options |= ICE_FWLOG_OPTION_ARQ_ENA;
 	else
-		hw->fwlog.cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
+		fwlog->cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
 
-	ret = ice_fwlog_set(&hw->fwlog, &hw->fwlog.cfg);
+	ret = ice_fwlog_set(fwlog, &fwlog->cfg);
 	if (ret)
 		goto enable_write_error;
 
 	if (enable)
-		ret = ice_fwlog_register(&hw->fwlog);
+		ret = ice_fwlog_register(fwlog);
 	else
-		ret = ice_fwlog_unregister(&hw->fwlog);
+		ret = ice_fwlog_unregister(fwlog);
 
 	if (ret)
 		goto enable_write_error;
@@ -396,12 +390,11 @@ static ssize_t ice_debugfs_log_size_read(struct file *filp,
 					 char __user *buffer, size_t count,
 					 loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
 	char buff[32] = {};
 	int index;
 
-	index = hw->fwlog.ring.index;
+	index = fwlog->ring.index;
 	snprintf(buff, sizeof(buff), "%s\n", ice_fwlog_log_size[index]);
 
 	return simple_read_from_buffer(buffer, count, ppos, buff, strlen(buff));
@@ -418,9 +411,8 @@ static ssize_t
 ice_debugfs_log_size_write(struct file *filp, const char __user *buf,
 			   size_t count, loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
+	struct device *dev = &fwlog->pdev->dev;
 	char user_val[8], *cmd_buf;
 	ssize_t ret;
 	int index;
@@ -443,14 +435,14 @@ ice_debugfs_log_size_write(struct file *filp, const char __user *buf,
 			 user_val);
 		ret = -EINVAL;
 		goto log_size_write_error;
-	} else if (hw->fwlog.cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED) {
+	} else if (fwlog->cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED) {
 		dev_info(dev, "FW logging is currently running. Please disable FW logging to change log_size\n");
 		ret = -EINVAL;
 		goto log_size_write_error;
 	}
 
 	/* free all the buffers and the tracking info and resize */
-	ice_fwlog_realloc_rings(&hw->fwlog, index);
+	ice_fwlog_realloc_rings(fwlog, index);
 
 	/* if we get here, nothing went wrong; return count since we didn't
 	 * really write anything
@@ -485,19 +477,18 @@ static const struct file_operations ice_debugfs_log_size_fops = {
 static ssize_t ice_debugfs_data_read(struct file *filp, char __user *buffer,
 				     size_t count, loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
 	int data_copied = 0;
 	bool done = false;
 
-	if (ice_fwlog_ring_empty(&hw->fwlog.ring))
+	if (ice_fwlog_ring_empty(&fwlog->ring))
 		return 0;
 
-	while (!ice_fwlog_ring_empty(&hw->fwlog.ring) && !done) {
+	while (!ice_fwlog_ring_empty(&fwlog->ring) && !done) {
 		struct ice_fwlog_data *log;
 		u16 cur_buf_len;
 
-		log = &hw->fwlog.ring.rings[hw->fwlog.ring.head];
+		log = &fwlog->ring.rings[fwlog->ring.head];
 		cur_buf_len = log->data_size;
 		if (cur_buf_len >= count) {
 			done = true;
@@ -516,8 +507,7 @@ static ssize_t ice_debugfs_data_read(struct file *filp, char __user *buffer,
 		buffer += cur_buf_len;
 		count -= cur_buf_len;
 		*ppos += cur_buf_len;
-		ice_fwlog_ring_increment(&hw->fwlog.ring.head,
-					 hw->fwlog.ring.size);
+		ice_fwlog_ring_increment(&fwlog->ring.head, fwlog->ring.size);
 	}
 
 	return data_copied;
@@ -534,9 +524,8 @@ static ssize_t
 ice_debugfs_data_write(struct file *filp, const char __user *buf, size_t count,
 		       loff_t *ppos)
 {
-	struct ice_pf *pf = filp->private_data;
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
+	struct ice_fwlog *fwlog = filp->private_data;
+	struct device *dev = &fwlog->pdev->dev;
 	ssize_t ret;
 
 	/* don't allow partial writes */
@@ -546,9 +535,9 @@ ice_debugfs_data_write(struct file *filp, const char __user *buf, size_t count,
 	/* any value is allowed to clear the buffer so no need to even look at
 	 * what the value is
 	 */
-	if (!(hw->fwlog.cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED)) {
-		hw->fwlog.ring.head = 0;
-		hw->fwlog.ring.tail = 0;
+	if (!(fwlog->cfg.options & ICE_FWLOG_OPTION_IS_REGISTERED)) {
+		fwlog->ring.head = 0;
+		fwlog->ring.tail = 0;
 	} else {
 		dev_info(dev, "Can't clear FW log data while FW log running\n");
 		ret = -EINVAL;
@@ -580,9 +569,10 @@ static const struct file_operations ice_debugfs_data_fops = {
 
 /**
  * ice_debugfs_fwlog_init - setup the debugfs directory
- * @pf: the ice that is starting up
+ * @fwlog: pointer to the fwlog structure
+ * @root: debugfs root entry on which fwlog director will be registered
  */
-void ice_debugfs_fwlog_init(struct ice_pf *pf)
+void ice_debugfs_fwlog_init(struct ice_fwlog *fwlog, struct dentry *root)
 {
 	struct dentry *fw_modules_dir;
 	struct dentry **fw_modules;
@@ -596,43 +586,40 @@ void ice_debugfs_fwlog_init(struct ice_pf *pf)
 	if (!fw_modules)
 		return;
 
-	pf->ice_debugfs_pf_fwlog = debugfs_create_dir("fwlog",
-						      pf->ice_debugfs_pf);
-	if (IS_ERR(pf->ice_debugfs_pf_fwlog))
+	fwlog->debugfs = debugfs_create_dir("fwlog", root);
+	if (IS_ERR(fwlog->debugfs))
 		goto err_create_module_files;
 
-	fw_modules_dir = debugfs_create_dir("modules",
-					    pf->ice_debugfs_pf_fwlog);
+	fw_modules_dir = debugfs_create_dir("modules", fwlog->debugfs);
 	if (IS_ERR(fw_modules_dir))
 		goto err_create_module_files;
 
 	for (i = 0; i < ICE_NR_FW_LOG_MODULES; i++) {
 		fw_modules[i] = debugfs_create_file(ice_fwlog_module_string[i],
-						    0600, fw_modules_dir, pf,
+						    0600, fw_modules_dir, fwlog,
 						    &ice_debugfs_module_fops);
 		if (IS_ERR(fw_modules[i]))
 			goto err_create_module_files;
 	}
 
-	debugfs_create_file("nr_messages", 0600,
-			    pf->ice_debugfs_pf_fwlog, pf,
+	debugfs_create_file("nr_messages", 0600, fwlog->debugfs, fwlog,
 			    &ice_debugfs_nr_messages_fops);
 
-	pf->ice_debugfs_pf_fwlog_modules = fw_modules;
+	fwlog->debugfs_modules = fw_modules;
 
-	debugfs_create_file("enable", 0600, pf->ice_debugfs_pf_fwlog,
-			    pf, &ice_debugfs_enable_fops);
+	debugfs_create_file("enable", 0600, fwlog->debugfs, fwlog,
+			    &ice_debugfs_enable_fops);
 
-	debugfs_create_file("log_size", 0600, pf->ice_debugfs_pf_fwlog,
-			    pf, &ice_debugfs_log_size_fops);
+	debugfs_create_file("log_size", 0600, fwlog->debugfs, fwlog,
+			    &ice_debugfs_log_size_fops);
 
-	debugfs_create_file("data", 0600, pf->ice_debugfs_pf_fwlog,
-			    pf, &ice_debugfs_data_fops);
+	debugfs_create_file("data", 0600, fwlog->debugfs, fwlog,
+			    &ice_debugfs_data_fops);
 
 	return;
 
 err_create_module_files:
-	debugfs_remove_recursive(pf->ice_debugfs_pf_fwlog);
+	debugfs_remove_recursive(fwlog->debugfs);
 	kfree(fw_modules);
 }
 

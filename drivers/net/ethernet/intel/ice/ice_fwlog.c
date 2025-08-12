@@ -232,15 +232,13 @@ static void ice_fwlog_set_supported(struct ice_fwlog *fwlog)
 
 /**
  * ice_fwlog_init - Initialize FW logging configuration
- * @hw: pointer to the HW structure
  * @fwlog: pointer to the fwlog structure
  * @api: api structure to init fwlog
  *
  * This function should be called on driver initialization during
  * ice_init_hw().
  */
-int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog *fwlog,
-		   struct ice_fwlog_api *api)
+int ice_fwlog_init(struct ice_fwlog *fwlog, struct ice_fwlog_api *api)
 {
 	fwlog->api = *api;
 	ice_fwlog_set_supported(fwlog);
@@ -272,7 +270,7 @@ int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog *fwlog,
 			return status;
 		}
 
-		ice_debugfs_fwlog_init(hw->back);
+		ice_debugfs_fwlog_init(fwlog, api->debugfs_root);
 	} else {
 		dev_warn(&fwlog->pdev->dev, "FW logging is not supported in this NVM image. Please update the NVM to get FW log support\n");
 	}
@@ -282,14 +280,12 @@ int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog *fwlog,
 
 /**
  * ice_fwlog_deinit - unroll FW logging configuration
- * @hw: pointer to the HW structure
  * @fwlog: pointer to the fwlog structure
  *
  * This function should be called in ice_deinit_hw().
  */
-void ice_fwlog_deinit(struct ice_hw *hw, struct ice_fwlog *fwlog)
+void ice_fwlog_deinit(struct ice_fwlog *fwlog)
 {
-	struct ice_pf *pf = hw->back;
 	int status;
 
 	/* make sure FW logging is disabled to not put the FW in a weird state
@@ -301,9 +297,9 @@ void ice_fwlog_deinit(struct ice_hw *hw, struct ice_fwlog *fwlog)
 		dev_warn(&fwlog->pdev->dev, "Unable to turn off FW logging, status: %d\n",
 			 status);
 
-	kfree(pf->ice_debugfs_pf_fwlog_modules);
+	kfree(fwlog->debugfs_modules);
 
-	pf->ice_debugfs_pf_fwlog_modules = NULL;
+	fwlog->debugfs_modules = NULL;
 
 	status = ice_fwlog_unregister(fwlog);
 	if (status)
