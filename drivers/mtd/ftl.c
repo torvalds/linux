@@ -263,7 +263,7 @@ static int build_maps(partition_t *part)
 
     /* Set up virtual page map */
     blocks = le32_to_cpu(header.FormattedSize) >> header.BlockSize;
-    part->VirtualBlockMap = vmalloc(array_size(blocks, sizeof(uint32_t)));
+    part->VirtualBlockMap = vmalloc_array(blocks, sizeof(uint32_t));
     if (!part->VirtualBlockMap)
 	    goto out_XferInfo;
 
