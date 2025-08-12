@@ -4629,19 +4629,6 @@ static void ice_print_wake_reason(struct ice_pf *pf)
 }
 
 /**
- * ice_pf_fwlog_update_module - update 1 module
- * @pf: pointer to the PF struct
- * @log_level: log_level to use for the @module
- * @module: module to update
- */
-void ice_pf_fwlog_update_module(struct ice_pf *pf, int log_level, int module)
-{
-	struct ice_hw *hw = &pf->hw;
-
-	hw->fwlog_cfg.module_entries[module].log_level = log_level;
-}
-
-/**
  * ice_register_netdev - register netdev
  * @vsi: pointer to the VSI struct
  */
