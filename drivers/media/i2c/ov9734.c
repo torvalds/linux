@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Intel Corporation.
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -323,6 +324,7 @@ static const struct ov9734_mode supported_modes[] = {
 
 struct ov9734 {
 	struct device *dev;
+	struct clk *clk;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -828,21 +830,11 @@ static int ov9734_check_hwcfg(struct device *dev)
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
 	if (!fwnode)
 		return -ENXIO;
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-	if (ret)
-		return ret;
-
-	if (mclk != OV9734_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
-		return -EINVAL;
-	}
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -896,6 +888,7 @@ static void ov9734_remove(struct i2c_client *client)
 static int ov9734_probe(struct i2c_client *client)
 {
 	struct ov9734 *ov9734;
+	unsigned long freq;
 	int ret;
 
 	ret = ov9734_check_hwcfg(&client->dev);
@@ -910,6 +903,17 @@ static int ov9734_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ov9734->dev = &client->dev;
+
+	ov9734->clk = devm_v4l2_sensor_clk_get(ov9734->dev, NULL);
+	if (IS_ERR(ov9734->clk))
+		return dev_err_probe(ov9734->dev, PTR_ERR(ov9734->clk),
+				     "failed to get clock\n");
+
+	freq = clk_get_rate(ov9734->clk);
+	if (freq != OV9734_MCLK)
+		return dev_err_probe(ov9734->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
 
 	v4l2_i2c_subdev_init(&ov9734->sd, client, &ov9734_subdev_ops);
 	ret = ov9734_identify_module(ov9734);
