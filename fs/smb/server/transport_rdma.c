@@ -381,13 +381,19 @@ static void free_transport(struct smb_direct_transport *t)
 	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_recv_io *recvmsg;
 
+	disable_work_sync(&t->disconnect_work);
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING) {
+		smb_direct_disconnect_rdma_work(&t->disconnect_work);
+		wait_event_interruptible(sc->status_wait,
+					 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
+	}
+
 	wake_up_all(&t->wait_send_credits);
 
 	ksmbd_debug(RDMA, "wait for all send posted to IB to finish\n");
 	wait_event(t->wait_send_pending,
 		   atomic_read(&t->send_pending) == 0);
 
-	disable_work_sync(&t->disconnect_work);
 	disable_work_sync(&t->post_recv_credits_work);
 	disable_work_sync(&t->send_immediate_work);
 
@@ -1551,9 +1557,6 @@ static void smb_direct_disconnect(struct ksmbd_transport *t)
 
 	ksmbd_debug(RDMA, "Disconnecting cm_id=%p\n", sc->rdma.cm_id);
 
-	smb_direct_disconnect_rdma_work(&st->disconnect_work);
-	wait_event_interruptible(sc->status_wait,
-				 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 	free_transport(st);
 }
 
