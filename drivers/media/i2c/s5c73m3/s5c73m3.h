@@ -382,8 +382,6 @@ struct s5c73m3 {
 
 	struct clk *clock;
 
-	/* External master clock frequency */
-	u32 mclk_frequency;
 	/* Video bus type - MIPI-CSI2/parallel */
 	enum v4l2_mbus_type bus_type;
 
