@@ -20,6 +20,7 @@ ath12k-y += core.o \
 	    dbring.o \
 	    hw.o \
 	    mhi.o \
+	    mhi_wifi7.o \
 	    pci.o \
 	    pci_wifi7.o \
 	    dp_mon.o \

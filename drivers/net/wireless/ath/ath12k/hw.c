@@ -17,6 +17,7 @@
 #include "dp_rx.h"
 #include "peer.h"
 #include "wmi_wifi7.h"
+#include "mhi_wifi7.h"
 
 static const guid_t wcn7850_uuid = GUID_INIT(0xf634f534, 0x6147, 0x11ec,
 					     0x90, 0xd6, 0x02, 0x42,
