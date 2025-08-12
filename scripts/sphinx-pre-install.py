@@ -519,9 +519,9 @@ class SphinxDependencyChecker:
                       "For most, enabling epel and crb are enough:\n" \
                       "\tsudo dnf install -y epel-release", \
                       "\tsudo dnf config-manager --set-enabled crb\n" \
-                      "Yet, some may have other required repositories. Those commands could be useful:" \
-                      "\tsudo dnf repolist all" \
-                      "\tsudo repoquery --available --info <pkgs>",
+                      "Yet, some may have other required repositories. Those commands could be useful:\n" \
+                      "\tsudo dnf repolist all\n" \
+                      "\tsudo dnf repoquery --available --info <pkgs>\n",
                       "\tsudo dnf config-manager --set-enabled '*' # enable all - probably not what you want")
 
                 self.first_hint = False
