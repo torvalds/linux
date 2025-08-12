@@ -7034,7 +7034,7 @@ static int perf_mmap_rb(struct vm_area_struct *vma, struct perf_event *event,
 	perf_event_update_userpage(event);
 
 	perf_mmap_account(vma, user_extra, extra);
-	atomic_inc(&event->mmap_count);
+	atomic_set(&event->mmap_count, 1);
 
 	return 0;
 }
