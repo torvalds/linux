@@ -173,10 +173,6 @@ struct ath12k_ce {
 	struct ath12k_hp_update_timer hp_timer[CE_COUNT_MAX];
 };
 
-extern const struct ce_attr ath12k_host_ce_config_qcn9274[];
-extern const struct ce_attr ath12k_host_ce_config_wcn7850[];
-extern const struct ce_attr ath12k_host_ce_config_ipq5332[];
-
 void ath12k_ce_cleanup_pipes(struct ath12k_base *ab);
 void ath12k_ce_rx_replenish_retry(struct timer_list *t);
 void ath12k_ce_per_engine_service(struct ath12k_base *ab, u16 ce_id);

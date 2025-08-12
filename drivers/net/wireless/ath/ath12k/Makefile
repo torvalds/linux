@@ -14,6 +14,7 @@ ath12k-y += core.o \
 	    dp_rx.o \
 	    debug.o \
 	    ce.o \
+	    ce_wifi7.o \
 	    peer.o \
 	    dbring.o \
 	    hw.o \
