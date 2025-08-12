@@ -12,6 +12,7 @@
 #include "../hif.h"
 #include "../mhi.h"
 #include "hw.h"
+#include "../hal.h"
 
 #define QCN9274_DEVICE_ID		0x1109
 #define WCN7850_DEVICE_ID		0x1107
@@ -44,7 +45,7 @@ static const struct ath12k_msi_config ath12k_wifi7_msi_config[] = {
 	},
 };
 
-static const struct ath12k_pci_ops ath12k_pci_ops_qcn9274 = {
+static const struct ath12k_pci_ops ath12k_wifi7_pci_ops_qcn9274 = {
 	.wakeup = NULL,
 	.release = NULL,
 };
@@ -63,7 +64,7 @@ static void ath12k_wifi7_pci_bus_release(struct ath12k_base *ab)
 	mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
 }
 
-static const struct ath12k_pci_ops ath12k_pci_ops_wcn7850 = {
+static const struct ath12k_pci_ops ath12k_wifi7_pci_ops_wcn7850 = {
 	.wakeup = ath12k_wifi7_pci_bus_wake_up,
 	.release = ath12k_wifi7_pci_bus_release,
 };
@@ -99,7 +100,7 @@ static int ath12k_wifi7_pci_probe(struct pci_dev *pdev,
 	case QCN9274_DEVICE_ID:
 		ab_pci->msi_config = &ath12k_wifi7_msi_config[0];
 		ab->static_window_map = true;
-		ab_pci->pci_ops = &ath12k_pci_ops_qcn9274;
+		ab_pci->pci_ops = &ath12k_wifi7_pci_ops_qcn9274;
 		ab->hal_rx_ops = &hal_rx_qcn9274_ops;
 		ath12k_wifi7_pci_read_hw_version(ab, &soc_hw_version_major,
 						 &soc_hw_version_minor);
@@ -122,7 +123,7 @@ static int ath12k_wifi7_pci_probe(struct pci_dev *pdev,
 		ab->id.bdf_search = ATH12K_BDF_SEARCH_BUS_AND_BOARD;
 		ab_pci->msi_config = &ath12k_wifi7_msi_config[0];
 		ab->static_window_map = false;
-		ab_pci->pci_ops = &ath12k_pci_ops_wcn7850;
+		ab_pci->pci_ops = &ath12k_wifi7_pci_ops_wcn7850;
 		ab->hal_rx_ops = &hal_rx_wcn7850_ops;
 		ath12k_wifi7_pci_read_hw_version(ab, &soc_hw_version_major,
 						 &soc_hw_version_minor);
@@ -154,7 +155,7 @@ static int ath12k_wifi7_pci_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static struct ath12k_pci_driver ath12k_pci_wifi7_driver = {
+static struct ath12k_pci_driver ath12k_wifi7_pci_driver = {
 	.name = "ath12k_wifi7_pci",
 	.id_table = ath12k_wifi7_pci_id_table,
 	.ops.probe = ath12k_wifi7_pci_probe,
@@ -165,7 +166,7 @@ int ath12k_wifi7_pci_init(void)
 	int ret;
 
 	ret = ath12k_pci_register_driver(ATH12K_DEVICE_FAMILY_WIFI7,
-					 &ath12k_pci_wifi7_driver);
+					 &ath12k_wifi7_pci_driver);
 	if (ret) {
 		pr_err("Failed to register ath12k Wi-Fi 7 driver: %d\n",
 		       ret);

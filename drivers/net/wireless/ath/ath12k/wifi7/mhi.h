@@ -6,6 +6,6 @@
 
 #ifndef _ATH12K_WIFI7_MHI_H
 #define _ATH12K_WIFI7_MHI_H
-extern const struct mhi_controller_config ath12k_mhi_config_qcn9274;
-extern const struct mhi_controller_config ath12k_mhi_config_wcn7850;
+extern const struct mhi_controller_config ath12k_wifi7_mhi_config_qcn9274;
+extern const struct mhi_controller_config ath12k_wifi7_mhi_config_wcn7850;
 #endif /* _ATH12K_WIFI7_MHI_H */

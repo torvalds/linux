@@ -7,8 +7,8 @@
 #include "../core.h"
 #include "wmi.h"
 
-void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
-			     struct ath12k_wmi_resource_config_arg *config)
+void ath12k_wifi7_wmi_init_qcn9274(struct ath12k_base *ab,
+				   struct ath12k_wmi_resource_config_arg *config)
 {
 	config->num_vdevs = ab->num_radios * TARGET_NUM_VDEVS(ab);
 	config->num_peers = ab->num_radios *
@@ -58,8 +58,8 @@ void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 		config->peer_metadata_ver = ATH12K_PEER_METADATA_V1B;
 }
 
-void ath12k_wmi_init_wcn7850(struct ath12k_base *ab,
-			     struct ath12k_wmi_resource_config_arg *config)
+void ath12k_wifi7_wmi_init_wcn7850(struct ath12k_base *ab,
+				   struct ath12k_wmi_resource_config_arg *config)
 {
 	config->num_vdevs = 4;
 	config->num_peers = 16;

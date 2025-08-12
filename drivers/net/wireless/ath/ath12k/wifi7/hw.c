@@ -24,29 +24,31 @@ static const guid_t wcn7850_uuid = GUID_INIT(0xf634f534, 0x6147, 0x11ec,
 					     0x90, 0xd6, 0x02, 0x42,
 					     0xac, 0x12, 0x00, 0x03);
 
-static u8 ath12k_hw_qcn9274_mac_from_pdev_id(int pdev_idx)
+static u8 ath12k_wifi7_hw_qcn9274_mac_from_pdev_id(int pdev_idx)
 {
 	return pdev_idx;
 }
 
-static int ath12k_hw_mac_id_to_pdev_id_qcn9274(const struct ath12k_hw_params *hw,
-					       int mac_id)
+static int
+ath12k_wifi7_hw_mac_id_to_pdev_id_qcn9274(const struct ath12k_hw_params *hw,
+					  int mac_id)
 {
 	return mac_id;
 }
 
-static int ath12k_hw_mac_id_to_srng_id_qcn9274(const struct ath12k_hw_params *hw,
-					       int mac_id)
+static int
+ath12k_wifi7_hw_mac_id_to_srng_id_qcn9274(const struct ath12k_hw_params *hw,
+					  int mac_id)
 {
 	return 0;
 }
 
-static u8 ath12k_hw_get_ring_selector_qcn9274(struct sk_buff *skb)
+static u8 ath12k_wifi7_hw_get_ring_selector_qcn9274(struct sk_buff *skb)
 {
 	return smp_processor_id();
 }
 
-static bool ath12k_dp_srng_is_comp_ring_qcn9274(int ring_num)
+static bool ath12k_wifi7_dp_srng_is_comp_ring_qcn9274(int ring_num)
 {
 	if (ring_num < 3 || ring_num == 4)
 		return true;
@@ -54,30 +56,33 @@ static bool ath12k_dp_srng_is_comp_ring_qcn9274(int ring_num)
 	return false;
 }
 
-static bool ath12k_is_frame_link_agnostic_qcn9274(struct ath12k_link_vif *arvif,
-						  struct ieee80211_mgmt *mgmt)
+static bool
+ath12k_wifi7_is_frame_link_agnostic_qcn9274(struct ath12k_link_vif *arvif,
+					    struct ieee80211_mgmt *mgmt)
 {
 	return ieee80211_is_action(mgmt->frame_control);
 }
 
-static int ath12k_hw_mac_id_to_pdev_id_wcn7850(const struct ath12k_hw_params *hw,
-					       int mac_id)
+static int
+ath12k_wifi7_hw_mac_id_to_pdev_id_wcn7850(const struct ath12k_hw_params *hw,
+					  int mac_id)
 {
 	return 0;
 }
 
-static int ath12k_hw_mac_id_to_srng_id_wcn7850(const struct ath12k_hw_params *hw,
-					       int mac_id)
+static int
+ath12k_wifi7_hw_mac_id_to_srng_id_wcn7850(const struct ath12k_hw_params *hw,
+					  int mac_id)
 {
 	return mac_id;
 }
 
-static u8 ath12k_hw_get_ring_selector_wcn7850(struct sk_buff *skb)
+static u8 ath12k_wifi7_hw_get_ring_selector_wcn7850(struct sk_buff *skb)
 {
 	return skb_get_queue_mapping(skb);
 }
 
-static bool ath12k_dp_srng_is_comp_ring_wcn7850(int ring_num)
+static bool ath12k_wifi7_dp_srng_is_comp_ring_wcn7850(int ring_num)
 {
 	if (ring_num == 0 || ring_num == 2 || ring_num == 4)
 		return true;
@@ -99,8 +104,9 @@ static bool ath12k_is_addba_resp_action_code(struct ieee80211_mgmt *mgmt)
 	return true;
 }
 
-static bool ath12k_is_frame_link_agnostic_wcn7850(struct ath12k_link_vif *arvif,
-						  struct ieee80211_mgmt *mgmt)
+static bool
+ath12k_wifi7_is_frame_link_agnostic_wcn7850(struct ath12k_link_vif *arvif,
+					    struct ieee80211_mgmt *mgmt)
 {
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
 	struct ath12k_hw *ah = ath12k_ar_to_ah(arvif->ar);
@@ -132,23 +138,23 @@ static bool ath12k_is_frame_link_agnostic_wcn7850(struct ath12k_link_vif *arvif,
 }
 
 static const struct ath12k_hw_ops qcn9274_ops = {
-	.get_hw_mac_from_pdev_id = ath12k_hw_qcn9274_mac_from_pdev_id,
-	.mac_id_to_pdev_id = ath12k_hw_mac_id_to_pdev_id_qcn9274,
-	.mac_id_to_srng_id = ath12k_hw_mac_id_to_srng_id_qcn9274,
+	.get_hw_mac_from_pdev_id = ath12k_wifi7_hw_qcn9274_mac_from_pdev_id,
+	.mac_id_to_pdev_id = ath12k_wifi7_hw_mac_id_to_pdev_id_qcn9274,
+	.mac_id_to_srng_id = ath12k_wifi7_hw_mac_id_to_srng_id_qcn9274,
 	.rxdma_ring_sel_config = ath12k_dp_rxdma_ring_sel_config_qcn9274,
-	.get_ring_selector = ath12k_hw_get_ring_selector_qcn9274,
-	.dp_srng_is_tx_comp_ring = ath12k_dp_srng_is_comp_ring_qcn9274,
-	.is_frame_link_agnostic = ath12k_is_frame_link_agnostic_qcn9274,
+	.get_ring_selector = ath12k_wifi7_hw_get_ring_selector_qcn9274,
+	.dp_srng_is_tx_comp_ring = ath12k_wifi7_dp_srng_is_comp_ring_qcn9274,
+	.is_frame_link_agnostic = ath12k_wifi7_is_frame_link_agnostic_qcn9274,
 };
 
 static const struct ath12k_hw_ops wcn7850_ops = {
-	.get_hw_mac_from_pdev_id = ath12k_hw_qcn9274_mac_from_pdev_id,
-	.mac_id_to_pdev_id = ath12k_hw_mac_id_to_pdev_id_wcn7850,
-	.mac_id_to_srng_id = ath12k_hw_mac_id_to_srng_id_wcn7850,
+	.get_hw_mac_from_pdev_id = ath12k_wifi7_hw_qcn9274_mac_from_pdev_id,
+	.mac_id_to_pdev_id = ath12k_wifi7_hw_mac_id_to_pdev_id_wcn7850,
+	.mac_id_to_srng_id = ath12k_wifi7_hw_mac_id_to_srng_id_wcn7850,
 	.rxdma_ring_sel_config = ath12k_dp_rxdma_ring_sel_config_wcn7850,
-	.get_ring_selector = ath12k_hw_get_ring_selector_wcn7850,
-	.dp_srng_is_tx_comp_ring = ath12k_dp_srng_is_comp_ring_wcn7850,
-	.is_frame_link_agnostic = ath12k_is_frame_link_agnostic_wcn7850,
+	.get_ring_selector = ath12k_wifi7_hw_get_ring_selector_wcn7850,
+	.dp_srng_is_tx_comp_ring = ath12k_wifi7_dp_srng_is_comp_ring_wcn7850,
+	.is_frame_link_agnostic = ath12k_wifi7_is_frame_link_agnostic_wcn7850,
 };
 
 #define ATH12K_TX_RING_MASK_0 0x1
@@ -181,7 +187,7 @@ static const struct ath12k_hw_ops wcn7850_ops = {
 #define ATH12K_RX_MON_STATUS_RING_MASK_1 0x2
 #define ATH12K_RX_MON_STATUS_RING_MASK_2 0x4
 
-static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_qcn9274 = {
+static const struct ath12k_hw_ring_mask ath12k_wifi7_hw_ring_mask_qcn9274 = {
 	.tx  = {
 		ATH12K_TX_RING_MASK_0,
 		ATH12K_TX_RING_MASK_1,
@@ -223,7 +229,7 @@ static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_qcn9274 = {
 	},
 };
 
-static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_ipq5332 = {
+static const struct ath12k_hw_ring_mask ath12k_wifi7_hw_ring_mask_ipq5332 = {
 	.tx  = {
 		ATH12K_TX_RING_MASK_0,
 		ATH12K_TX_RING_MASK_1,
@@ -263,7 +269,7 @@ static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_ipq5332 = {
 	},
 };
 
-static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_wcn7850 = {
+static const struct ath12k_hw_ring_mask ath12k_wifi7_hw_ring_mask_wcn7850 = {
 	.tx  = {
 		ATH12K_TX_RING_MASK_0,
 		ATH12K_TX_RING_MASK_1,
@@ -654,7 +660,7 @@ static const struct ath12k_hw_regs wcn7850_regs = {
 	.gcc_gcc_pcie_hot_rst = 0x1e40304,
 };
 
-static const struct ath12k_hw_hal_params ath12k_hw_hal_params_qcn9274 = {
+static const struct ath12k_hw_hal_params ath12k_wifi7_hw_hal_params_qcn9274 = {
 	.rx_buf_rbm = HAL_RX_BUF_RBM_SW3_BM,
 	.wbm2sw_cc_enable = HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW0_EN |
 			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW1_EN |
@@ -663,7 +669,7 @@ static const struct ath12k_hw_hal_params ath12k_hw_hal_params_qcn9274 = {
 			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW4_EN,
 };
 
-static const struct ath12k_hw_hal_params ath12k_hw_hal_params_wcn7850 = {
+static const struct ath12k_hw_hal_params ath12k_wifi7_hw_hal_params_wcn7850 = {
 	.rx_buf_rbm = HAL_RX_BUF_RBM_SW1_BM,
 	.wbm2sw_cc_enable = HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW0_EN |
 			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW2_EN |
@@ -671,7 +677,7 @@ static const struct ath12k_hw_hal_params ath12k_hw_hal_params_wcn7850 = {
 			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW4_EN,
 };
 
-static const struct ath12k_hw_hal_params ath12k_hw_hal_params_ipq5332 = {
+static const struct ath12k_hw_hal_params ath12k_wifi7_hw_hal_params_ipq5332 = {
 	.rx_buf_rbm = HAL_RX_BUF_RBM_SW3_BM,
 	.wbm2sw_cc_enable = HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW0_EN |
 			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW1_EN |
@@ -680,18 +686,18 @@ static const struct ath12k_hw_hal_params ath12k_hw_hal_params_ipq5332 = {
 			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW4_EN,
 };
 
-static const struct ce_ie_addr ath12k_ce_ie_addr_ipq5332 = {
+static const struct ce_ie_addr ath12k_wifi7_ce_ie_addr_ipq5332 = {
 	.ie1_reg_addr = CE_HOST_IE_ADDRESS - HAL_IPQ5332_CE_WFSS_REG_BASE,
 	.ie2_reg_addr = CE_HOST_IE_2_ADDRESS - HAL_IPQ5332_CE_WFSS_REG_BASE,
 	.ie3_reg_addr = CE_HOST_IE_3_ADDRESS - HAL_IPQ5332_CE_WFSS_REG_BASE,
 };
 
-static const struct ce_remap ath12k_ce_remap_ipq5332 = {
+static const struct ce_remap ath12k_wifi7_ce_remap_ipq5332 = {
 	.base = HAL_IPQ5332_CE_WFSS_REG_BASE,
 	.size = HAL_IPQ5332_CE_SIZE,
 };
 
-static const struct ath12k_hw_params ath12k_hw_params[] = {
+static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 	{
 		.name = "qcn9274 hw1.0",
 		.hw_rev = ATH12K_HW_QCN9274_HW10,
@@ -707,17 +713,18 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.internal_sleep_clock = false,
 
 		.hw_ops = &qcn9274_ops,
-		.ring_mask = &ath12k_hw_ring_mask_qcn9274,
+		.ring_mask = &ath12k_wifi7_hw_ring_mask_qcn9274,
 		.regs = &qcn9274_v1_regs,
 
-		.host_ce_config = ath12k_host_ce_config_qcn9274,
+		.host_ce_config = ath12k_wifi7_host_ce_config_qcn9274,
 		.ce_count = 16,
-		.target_ce_config = ath12k_target_ce_config_wlan_qcn9274,
+		.target_ce_config = ath12k_wifi7_target_ce_config_wlan_qcn9274,
 		.target_ce_count = 12,
-		.svc_to_ce_map = ath12k_target_service_to_ce_map_wlan_qcn9274,
+		.svc_to_ce_map =
+			ath12k_wifi7_target_service_to_ce_map_wlan_qcn9274,
 		.svc_to_ce_map_len = 18,
 
-		.hal_params = &ath12k_hw_hal_params_qcn9274,
+		.hal_params = &ath12k_wifi7_hw_hal_params_qcn9274,
 
 		.rxdma1_enable = false,
 		.num_rxdma_per_pdev = 1,
@@ -741,9 +748,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.num_tcl_banks = 48,
 		.max_tx_ring = 4,
 
-		.mhi_config = &ath12k_mhi_config_qcn9274,
+		.mhi_config = &ath12k_wifi7_mhi_config_qcn9274,
 
-		.wmi_init = ath12k_wmi_init_qcn9274,
+		.wmi_init = ath12k_wifi7_wmi_init_qcn9274,
 
 		.hal_ops = &hal_qcn9274_ops,
 
@@ -794,17 +801,18 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.internal_sleep_clock = true,
 
 		.hw_ops = &wcn7850_ops,
-		.ring_mask = &ath12k_hw_ring_mask_wcn7850,
+		.ring_mask = &ath12k_wifi7_hw_ring_mask_wcn7850,
 		.regs = &wcn7850_regs,
 
-		.host_ce_config = ath12k_host_ce_config_wcn7850,
+		.host_ce_config = ath12k_wifi7_host_ce_config_wcn7850,
 		.ce_count = 9,
-		.target_ce_config = ath12k_target_ce_config_wlan_wcn7850,
+		.target_ce_config = ath12k_wifi7_target_ce_config_wlan_wcn7850,
 		.target_ce_count = 9,
-		.svc_to_ce_map = ath12k_target_service_to_ce_map_wlan_wcn7850,
+		.svc_to_ce_map =
+			ath12k_wifi7_target_service_to_ce_map_wlan_wcn7850,
 		.svc_to_ce_map_len = 14,
 
-		.hal_params = &ath12k_hw_hal_params_wcn7850,
+		.hal_params = &ath12k_wifi7_hw_hal_params_wcn7850,
 
 		.rxdma1_enable = false,
 		.num_rxdma_per_pdev = 2,
@@ -829,9 +837,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.num_tcl_banks = 7,
 		.max_tx_ring = 3,
 
-		.mhi_config = &ath12k_mhi_config_wcn7850,
+		.mhi_config = &ath12k_wifi7_mhi_config_wcn7850,
 
-		.wmi_init = ath12k_wmi_init_wcn7850,
+		.wmi_init = ath12k_wifi7_wmi_init_wcn7850,
 
 		.hal_ops = &hal_wcn7850_ops,
 
@@ -881,17 +889,18 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.internal_sleep_clock = false,
 
 		.hw_ops = &qcn9274_ops,
-		.ring_mask = &ath12k_hw_ring_mask_qcn9274,
+		.ring_mask = &ath12k_wifi7_hw_ring_mask_qcn9274,
 		.regs = &qcn9274_v2_regs,
 
-		.host_ce_config = ath12k_host_ce_config_qcn9274,
+		.host_ce_config = ath12k_wifi7_host_ce_config_qcn9274,
 		.ce_count = 16,
-		.target_ce_config = ath12k_target_ce_config_wlan_qcn9274,
+		.target_ce_config = ath12k_wifi7_target_ce_config_wlan_qcn9274,
 		.target_ce_count = 12,
-		.svc_to_ce_map = ath12k_target_service_to_ce_map_wlan_qcn9274,
+		.svc_to_ce_map =
+			ath12k_wifi7_target_service_to_ce_map_wlan_qcn9274,
 		.svc_to_ce_map_len = 18,
 
-		.hal_params = &ath12k_hw_hal_params_qcn9274,
+		.hal_params = &ath12k_wifi7_hw_hal_params_qcn9274,
 
 		.rxdma1_enable = true,
 		.num_rxdma_per_pdev = 1,
@@ -915,9 +924,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.num_tcl_banks = 48,
 		.max_tx_ring = 4,
 
-		.mhi_config = &ath12k_mhi_config_qcn9274,
+		.mhi_config = &ath12k_wifi7_mhi_config_qcn9274,
 
-		.wmi_init = ath12k_wmi_init_qcn9274,
+		.wmi_init = ath12k_wifi7_wmi_init_qcn9274,
 
 		.hal_ops = &hal_qcn9274_ops,
 
@@ -967,16 +976,17 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 
 		.hw_ops = &qcn9274_ops,
 		.regs = &ipq5332_regs,
-		.ring_mask = &ath12k_hw_ring_mask_ipq5332,
+		.ring_mask = &ath12k_wifi7_hw_ring_mask_ipq5332,
 
-		.host_ce_config = ath12k_host_ce_config_ipq5332,
+		.host_ce_config = ath12k_wifi7_host_ce_config_ipq5332,
 		.ce_count = 12,
-		.target_ce_config = ath12k_target_ce_config_wlan_ipq5332,
+		.target_ce_config = ath12k_wifi7_target_ce_config_wlan_ipq5332,
 		.target_ce_count = 12,
-		.svc_to_ce_map = ath12k_target_service_to_ce_map_wlan_ipq5332,
+		.svc_to_ce_map =
+			ath12k_wifi7_target_service_to_ce_map_wlan_ipq5332,
 		.svc_to_ce_map_len = 18,
 
-		.hal_params = &ath12k_hw_hal_params_ipq5332,
+		.hal_params = &ath12k_wifi7_hw_hal_params_ipq5332,
 
 		.rxdma1_enable = false,
 		.num_rxdma_per_pdev = 1,
@@ -999,7 +1009,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.num_tcl_banks = 48,
 		.max_tx_ring = 4,
 
-		.wmi_init = &ath12k_wmi_init_qcn9274,
+		.wmi_init = &ath12k_wifi7_wmi_init_qcn9274,
 
 		.hal_ops = &hal_qcn9274_ops,
 
@@ -1023,8 +1033,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.iova_mask = 0,
 		.supports_aspm = false,
 
-		.ce_ie_addr = &ath12k_ce_ie_addr_ipq5332,
-		.ce_remap = &ath12k_ce_remap_ipq5332,
+		.ce_ie_addr = &ath12k_wifi7_ce_ie_addr_ipq5332,
+		.ce_remap = &ath12k_wifi7_ce_remap_ipq5332,
 		.bdf_addr_offset = 0xC00000,
 
 		.dp_primary_link_only = true,
@@ -1036,14 +1046,14 @@ int ath12k_wifi7_hw_init(struct ath12k_base *ab)
 	const struct ath12k_hw_params *hw_params = NULL;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ath12k_hw_params); i++) {
-		hw_params = &ath12k_hw_params[i];
+	for (i = 0; i < ARRAY_SIZE(ath12k_wifi7_hw_params); i++) {
+		hw_params = &ath12k_wifi7_hw_params[i];
 
 		if (hw_params->hw_rev == ab->hw_rev)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(ath12k_hw_params)) {
+	if (i == ARRAY_SIZE(ath12k_wifi7_hw_params)) {
 		ath12k_err(ab, "Unsupported Wi-Fi 7 hardware version: 0x%x\n",
 			   ab->hw_rev);
 		return -EINVAL;

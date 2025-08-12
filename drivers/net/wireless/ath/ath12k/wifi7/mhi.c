@@ -7,7 +7,7 @@
 #include "../mhi.h"
 #include "mhi.h"
 
-static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
+static const struct mhi_channel_config ath12k_wifi7_mhi_channels_qcn9274[] = {
 	{
 		.num = 20,
 		.name = "IPCR",
@@ -38,7 +38,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 	},
 };
 
-static struct mhi_event_config ath12k_mhi_events_qcn9274[] = {
+static struct mhi_event_config ath12k_wifi7_mhi_events_qcn9274[] = {
 	{
 		.num_elements = 32,
 		.irq_moderation_ms = 0,
@@ -61,18 +61,18 @@ static struct mhi_event_config ath12k_mhi_events_qcn9274[] = {
 	},
 };
 
-const struct mhi_controller_config ath12k_mhi_config_qcn9274 = {
+const struct mhi_controller_config ath12k_wifi7_mhi_config_qcn9274 = {
 	.max_channels = 30,
 	.timeout_ms = 10000,
 	.use_bounce_buf = false,
 	.buf_len = 0,
-	.num_channels = ARRAY_SIZE(ath12k_mhi_channels_qcn9274),
-	.ch_cfg = ath12k_mhi_channels_qcn9274,
-	.num_events = ARRAY_SIZE(ath12k_mhi_events_qcn9274),
-	.event_cfg = ath12k_mhi_events_qcn9274,
+	.num_channels = ARRAY_SIZE(ath12k_wifi7_mhi_channels_qcn9274),
+	.ch_cfg = ath12k_wifi7_mhi_channels_qcn9274,
+	.num_events = ARRAY_SIZE(ath12k_wifi7_mhi_events_qcn9274),
+	.event_cfg = ath12k_wifi7_mhi_events_qcn9274,
 };
 
-static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
+static const struct mhi_channel_config ath12k_wifi7_mhi_channels_wcn7850[] = {
 	{
 		.num = 20,
 		.name = "IPCR",
@@ -103,7 +103,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
 	},
 };
 
-static struct mhi_event_config ath12k_mhi_events_wcn7850[] = {
+static struct mhi_event_config ath12k_wifi7_mhi_events_wcn7850[] = {
 	{
 		.num_elements = 32,
 		.irq_moderation_ms = 0,
@@ -126,13 +126,13 @@ static struct mhi_event_config ath12k_mhi_events_wcn7850[] = {
 	},
 };
 
-const struct mhi_controller_config ath12k_mhi_config_wcn7850 = {
+const struct mhi_controller_config ath12k_wifi7_mhi_config_wcn7850 = {
 	.max_channels = 128,
 	.timeout_ms = 2000,
 	.use_bounce_buf = false,
 	.buf_len = 8192,
-	.num_channels = ARRAY_SIZE(ath12k_mhi_channels_wcn7850),
-	.ch_cfg = ath12k_mhi_channels_wcn7850,
-	.num_events = ARRAY_SIZE(ath12k_mhi_events_wcn7850),
-	.event_cfg = ath12k_mhi_events_wcn7850,
+	.num_channels = ARRAY_SIZE(ath12k_wifi7_mhi_channels_wcn7850),
+	.ch_cfg = ath12k_wifi7_mhi_channels_wcn7850,
+	.num_events = ARRAY_SIZE(ath12k_wifi7_mhi_events_wcn7850),
+	.event_cfg = ath12k_wifi7_mhi_events_wcn7850,
 };

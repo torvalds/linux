@@ -15,7 +15,7 @@
 
 /* Copy Engine (CE) configs for QCN9274 */
 /* Target firmware's Copy Engine configuration. */
-const struct ce_pipe_config ath12k_target_ce_config_wlan_qcn9274[] = {
+const struct ce_pipe_config ath12k_wifi7_target_ce_config_wlan_qcn9274[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.pipenum = __cpu_to_le32(0),
@@ -148,7 +148,8 @@ const struct ce_pipe_config ath12k_target_ce_config_wlan_qcn9274[] = {
  *      PIPEDIR_OUT = UL = host -> target
  *      PIPEDIR_IN = DL = target -> host
  */
-const struct service_to_pipe ath12k_target_service_to_ce_map_wlan_qcn9274[] = {
+const struct service_to_pipe
+ath12k_wifi7_target_service_to_ce_map_wlan_qcn9274[] = {
 	{
 		__cpu_to_le32(ATH12K_HTC_SVC_ID_WMI_DATA_VO),
 		__cpu_to_le32(PIPEDIR_OUT),
@@ -259,7 +260,7 @@ const struct service_to_pipe ath12k_target_service_to_ce_map_wlan_qcn9274[] = {
 	},
 };
 
-const struct ce_attr ath12k_host_ce_config_qcn9274[] = {
+const struct ce_attr ath12k_wifi7_host_ce_config_qcn9274[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.flags = CE_ATTR_FLAGS,
@@ -395,7 +396,7 @@ const struct ce_attr ath12k_host_ce_config_qcn9274[] = {
 
 /* Copy Engine (CE) configs for WCN7850 */
 /* Target firmware's Copy Engine configuration. */
-const struct ce_pipe_config ath12k_target_ce_config_wlan_wcn7850[] = {
+const struct ce_pipe_config ath12k_wifi7_target_ce_config_wlan_wcn7850[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.pipenum = __cpu_to_le32(0),
@@ -488,7 +489,8 @@ const struct ce_pipe_config ath12k_target_ce_config_wlan_wcn7850[] = {
 	/* CE 9, 10, 11 are used by MHI driver */
 };
 
-const struct service_to_pipe ath12k_target_service_to_ce_map_wlan_wcn7850[] = {
+const struct service_to_pipe
+ath12k_wifi7_target_service_to_ce_map_wlan_wcn7850[] = {
 	{
 		__cpu_to_le32(ATH12K_HTC_SVC_ID_WMI_DATA_VO),
 		__cpu_to_le32(PIPEDIR_OUT),
@@ -569,7 +571,7 @@ const struct service_to_pipe ath12k_target_service_to_ce_map_wlan_wcn7850[] = {
 	},
 };
 
-const struct ce_attr ath12k_host_ce_config_wcn7850[] = {
+const struct ce_attr ath12k_wifi7_host_ce_config_wcn7850[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.flags = CE_ATTR_FLAGS,
@@ -647,7 +649,7 @@ const struct ce_attr ath12k_host_ce_config_wcn7850[] = {
 
 /* Copy Engine (CE) configs for IPQ5332 */
 /* Target firmware's Copy Engine configuration. */
-const struct ce_pipe_config ath12k_target_ce_config_wlan_ipq5332[] = {
+const struct ce_pipe_config ath12k_wifi7_target_ce_config_wlan_ipq5332[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.pipenum = __cpu_to_le32(0),
@@ -768,7 +770,8 @@ const struct ce_pipe_config ath12k_target_ce_config_wlan_ipq5332[] = {
 	},
 };
 
-const struct service_to_pipe ath12k_target_service_to_ce_map_wlan_ipq5332[] = {
+const struct service_to_pipe
+ath12k_wifi7_target_service_to_ce_map_wlan_ipq5332[] = {
 	{
 		__cpu_to_le32(ATH12K_HTC_SVC_ID_WMI_DATA_VO),
 		__cpu_to_le32(PIPEDIR_OUT),
@@ -868,7 +871,7 @@ const struct service_to_pipe ath12k_target_service_to_ce_map_wlan_ipq5332[] = {
 	},
 };
 
-const struct ce_attr ath12k_host_ce_config_ipq5332[] = {
+const struct ce_attr ath12k_wifi7_host_ce_config_ipq5332[] = {
 	/* CE0: host->target HTC control and raw streams */
 	{
 		.flags = CE_ATTR_FLAGS,
