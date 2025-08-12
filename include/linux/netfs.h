@@ -21,7 +21,7 @@
 #include <linux/rolling_buffer.h>
 
 enum netfs_sreq_ref_trace;
-typedef struct mempool_s mempool_t;
+typedef struct mempool mempool_t;
 struct folio_queue;
 
 /**
