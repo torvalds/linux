@@ -115,7 +115,8 @@ class SphinxDependencyChecker:
     def find_python_no_venv():
         # FIXME: does it makes sense now that this script is in Python?
 
-        result = subprocess.run(["pwd"], capture_output=True, text=True)
+        result = SphinxDependencyChecker.run(["pwd"], capture_output=True,
+                                             text=True)
         cur_dir = result.stdout.strip()
 
         python_names = ["python3", "python"]
@@ -135,11 +136,22 @@ class SphinxDependencyChecker:
     def run(*args, **kwargs):
         """Excecute a command, hiding its output by default"""
 
-        if not kwargs.get('capture_output', False):
+        capture_output = kwargs.pop('capture_output', False)
+
+        if capture_output:
+            if 'stdout' not in kwargs:
+                kwargs['stdout'] = subprocess.PIPE
+            if 'stderr' not in kwargs:
+                kwargs['stderr'] = subprocess.PIPE
+        else:
             if 'stdout' not in kwargs:
                 kwargs['stdout'] = subprocess.DEVNULL
             if 'stderr' not in kwargs:
                 kwargs['stderr'] = subprocess.DEVNULL
+
+        # Don't break with older Python versions
+        if 'text' in kwargs and sys.version_info < (3, 7):
+            kwargs['universal_newlines'] = kwargs.pop('text')
 
         return subprocess.run(*args, **kwargs)
 
