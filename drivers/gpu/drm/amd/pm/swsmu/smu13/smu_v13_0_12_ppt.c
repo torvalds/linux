@@ -161,8 +161,10 @@ int smu_v13_0_12_tables_init(struct smu_context *smu)
 	/* Initialize GPU board temperature metrics */
 	ret = smu_table_cache_init(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS,
 				   sizeof(*gpuboard_temp_metrics), 50);
-	if (ret)
+	if (ret) {
+		smu_table_cache_fini(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS);
 		return ret;
+	}
 	cache = &(tables[SMU_TABLE_GPUBOARD_TEMP_METRICS].cache);
 	gpuboard_temp_metrics = (struct amdgpu_gpuboard_temp_metrics_v1_0 *)cache->buffer;
 	smu_cmn_init_gpuboard_temp_metrics(gpuboard_temp_metrics, 1, 0);

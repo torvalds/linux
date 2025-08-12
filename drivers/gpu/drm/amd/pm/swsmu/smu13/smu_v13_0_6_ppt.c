@@ -537,6 +537,7 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 	struct smu_table *tables = smu_table->tables;
 	struct amdgpu_device *adev = smu->adev;
 	int gpu_metrcs_size = METRICS_TABLE_SIZE;
+	int ret;
 
 	if (!(adev->flags & AMD_IS_APU))
 		SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU13_TOOL_SIZE,
@@ -573,8 +574,15 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	}
 
-	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12))
-		return smu_v13_0_12_tables_init(smu);
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) ==
+	    IP_VERSION(13, 0, 12)) {
+		ret = smu_v13_0_12_tables_init(smu);
+		if (ret) {
+			kfree(smu_table->metrics_table);
+			kfree(smu_table->gpu_metrics_table);
+			return ret;
+		}
+	}
 
 	return 0;
 }
