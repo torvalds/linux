@@ -584,7 +584,6 @@ static const struct file_operations ice_debugfs_data_fops = {
  */
 void ice_debugfs_fwlog_init(struct ice_pf *pf)
 {
-	const char *name = pci_name(pf->pdev);
 	struct dentry *fw_modules_dir;
 	struct dentry **fw_modules;
 	int i;
@@ -600,10 +599,6 @@ void ice_debugfs_fwlog_init(struct ice_pf *pf)
 			     GFP_KERNEL);
 	if (!fw_modules)
 		return;
-
-	pf->ice_debugfs_pf = debugfs_create_dir(name, ice_debugfs_root);
-	if (IS_ERR(pf->ice_debugfs_pf))
-		goto err_create_module_files;
 
 	pf->ice_debugfs_pf_fwlog = debugfs_create_dir("fwlog",
 						      pf->ice_debugfs_pf);
@@ -643,6 +638,17 @@ void ice_debugfs_fwlog_init(struct ice_pf *pf)
 err_create_module_files:
 	debugfs_remove_recursive(pf->ice_debugfs_pf_fwlog);
 	kfree(fw_modules);
+}
+
+int ice_debugfs_pf_init(struct ice_pf *pf)
+{
+	const char *name = pci_name(pf->pdev);
+
+	pf->ice_debugfs_pf = debugfs_create_dir(name, ice_debugfs_root);
+	if (IS_ERR(pf->ice_debugfs_pf))
+		return PTR_ERR(pf->ice_debugfs_pf);
+
+	return 0;
 }
 
 /**
