@@ -1057,11 +1057,14 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	mm_init_uprobes_state(mm);
 	hugetlb_count_init(mm);
 
+	mm_flags_clear_all(mm);
 	if (current->mm) {
-		mm->flags = mmf_init_flags(current->mm->flags);
+		unsigned long flags = __mm_flags_get_word(current->mm);
+
+		__mm_flags_set_word(mm, mmf_init_legacy_flags(flags));
 		mm->def_flags = current->mm->def_flags & VM_INIT_DEF_MASK;
 	} else {
-		mm->flags = default_dump_filter;
+		__mm_flags_set_word(mm, default_dump_filter);
 		mm->def_flags = 0;
 	}
 

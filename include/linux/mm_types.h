@@ -1831,16 +1831,23 @@ enum {
 #define MMF_TOPDOWN		31	/* mm searches top down by default */
 #define MMF_TOPDOWN_MASK	BIT(MMF_TOPDOWN)
 
-#define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
+#define MMF_INIT_LEGACY_MASK	(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
 				 MMF_DISABLE_THP_MASK | MMF_HAS_MDWE_MASK |\
 				 MMF_VM_MERGE_ANY_MASK | MMF_TOPDOWN_MASK)
 
-static inline unsigned long mmf_init_flags(unsigned long flags)
+/* Legacy flags must fit within 32 bits. */
+static_assert((u64)MMF_INIT_LEGACY_MASK <= (u64)UINT_MAX);
+
+/*
+ * Initialise legacy flags according to masks, propagating selected flags on
+ * fork. Further flag manipulation can be performed by the caller.
+ */
+static inline unsigned long mmf_init_legacy_flags(unsigned long flags)
 {
 	if (flags & (1UL << MMF_HAS_MDWE_NO_INHERIT))
 		flags &= ~((1UL << MMF_HAS_MDWE) |
 			   (1UL << MMF_HAS_MDWE_NO_INHERIT));
-	return flags & MMF_INIT_MASK;
+	return flags & MMF_INIT_LEGACY_MASK;
 }
 
 #endif /* _LINUX_MM_TYPES_H */
