@@ -159,6 +159,18 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, disconnect_work);
+	struct smbd_connection *info =
+		container_of(sc, struct smbd_connection, socket);
+
+	/*
+	 * make sure this and other work is not queued again
+	 * but here we don't block and avoid
+	 * disable[_delayed]_work_sync()
+	 */
+	disable_work(&sc->disconnect_work);
+	disable_work(&info->post_send_credits_work);
+	disable_work(&info->mr_recovery_work);
+	disable_delayed_work(&info->idle_timer_work);
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
@@ -342,11 +354,13 @@ static int smbd_conn_upcall(
 		if (sc->status == SMBDIRECT_SOCKET_NEGOTIATE_FAILED) {
 			log_rdma_event(ERR, "event=%s during negotiation\n", event_name);
 			sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+			smbd_disconnect_rdma_work(&sc->disconnect_work);
 			wake_up_all(&sc->status_wait);
 			break;
 		}
 
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		smbd_disconnect_rdma_work(&sc->disconnect_work);
 		wake_up_all(&sc->status_wait);
 		wake_up_all(&sc->recv_io.reassembly.wait_queue);
 		wake_up_all(&sc->send_io.credits.wait_queue);
@@ -1483,9 +1497,12 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	sc = &info->socket;
 	sp = &sc->parameters;
 
+	log_rdma_event(INFO, "cancelling and disable disconnect_work\n");
+	disable_work_sync(&sc->disconnect_work);
+
 	log_rdma_event(INFO, "destroying rdma session\n");
-	if (sc->status != SMBDIRECT_SOCKET_DISCONNECTED) {
-		rdma_disconnect(sc->rdma.cm_id);
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING) {
+		smbd_disconnect_rdma_work(&sc->disconnect_work);
 		log_rdma_event(INFO, "wait for transport being disconnected\n");
 		wait_event_interruptible(
 			sc->status_wait,
