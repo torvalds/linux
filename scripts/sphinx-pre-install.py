@@ -566,10 +566,6 @@ class SphinxDependencyChecker:
             "yaml":          "python3-pyyaml",
         }
 
-        # On Tumbleweed, this package is also named rsvg-convert
-        if not re.search(r"Tumbleweed", self.system_release):
-            progs["rsvg-convert"] = "rsvg-view"
-
         suse_tex_pkgs = [
             "texlive-babel-english",
             "texlive-caption",
