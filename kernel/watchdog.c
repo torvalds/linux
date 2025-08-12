@@ -425,7 +425,11 @@ static DEFINE_PER_CPU(u8, cpustat_tail);
  */
 static u16 get_16bit_precision(u64 data_ns)
 {
-	return data_ns >> 24LL; /* 2^24ns ~= 16.8ms */
+	/*
+	 * 2^24ns ~= 16.8ms
+	 * Round to the nearest multiple of 16.8 milliseconds.
+	 */
+	return (data_ns + (1 << 23)) >> 24LL;
 }
 
 static void update_cpustat(void)
@@ -444,6 +448,14 @@ static void update_cpustat(void)
 		old_stat = __this_cpu_read(cpustat_old[i]);
 		new_stat = get_16bit_precision(cpustat[tracked_stats[i]]);
 		util = DIV_ROUND_UP(100 * (new_stat - old_stat), sample_period_16);
+		/*
+		 * Since we use 16-bit precision, the raw data will undergo
+		 * integer division, which may sometimes result in data loss,
+		 * and then result might exceed 100%. To avoid confusion,
+		 * we enforce a 100% display cap when calculations exceed this threshold.
+		 */
+		if (util > 100)
+			util = 100;
 		__this_cpu_write(cpustat_util[tail][i], util);
 		__this_cpu_write(cpustat_old[i], new_stat);
 	}
