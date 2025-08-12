@@ -46,6 +46,8 @@ properties:
 required:
   - compatible
   - reg
+  - clocks
+  - clock-names
   - port
 
 additionalProperties: false
@@ -59,6 +61,8 @@ examples:
         imx274: camera-sensor@1a {
             compatible = "sony,imx274";
             reg = <0x1a>;
+            clocks = <&imx274_clk>;
+            clock-names = "inck";
             reset-gpios = <&gpio_sensor 0 0>;
 
             port {
