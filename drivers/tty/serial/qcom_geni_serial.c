@@ -164,33 +164,6 @@ static inline struct qcom_geni_serial_port *to_dev_port(struct uart_port *uport)
 	return container_of(uport, struct qcom_geni_serial_port, uport);
 }
 
-static struct qcom_geni_serial_port qcom_geni_uart_ports[GENI_UART_PORTS] = {
-	[0] = {
-		.uport = {
-			.iotype = UPIO_MEM,
-			.ops = &qcom_geni_uart_pops,
-			.flags = UPF_BOOT_AUTOCONF,
-			.line = 0,
-		},
-	},
-	[1] = {
-		.uport = {
-			.iotype = UPIO_MEM,
-			.ops = &qcom_geni_uart_pops,
-			.flags = UPF_BOOT_AUTOCONF,
-			.line = 1,
-		},
-	},
-	[2] = {
-		.uport = {
-			.iotype = UPIO_MEM,
-			.ops = &qcom_geni_uart_pops,
-			.flags = UPF_BOOT_AUTOCONF,
-			.line = 2,
-		},
-	},
-};
-
 static struct qcom_geni_serial_port qcom_geni_console_port = {
 	.uport = {
 		.iotype = UPIO_MEM,
@@ -285,7 +258,7 @@ static const char *qcom_geni_serial_get_type(struct uart_port *uport)
 	return "MSM";
 }
 
-static struct qcom_geni_serial_port *get_port_from_line(int line, bool console)
+static struct qcom_geni_serial_port *get_port_from_line(int line, bool console, struct device *dev)
 {
 	struct qcom_geni_serial_port *port;
 	int nr_ports = console ? GENI_UART_CONS_PORTS : GENI_UART_PORTS;
@@ -306,7 +279,14 @@ static struct qcom_geni_serial_port *get_port_from_line(int line, bool console)
 		if (line < 0)
 			return ERR_PTR(-ENXIO);
 
-		port = &qcom_geni_uart_ports[line];
+		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+		if (!port)
+			return ERR_PTR(-ENOMEM);
+
+		port->uport.iotype = UPIO_MEM;
+		port->uport.ops = &qcom_geni_uart_pops;
+		port->uport.flags = UPF_BOOT_AUTOCONF;
+		port->uport.line = line;
 	}
 	return port;
 }
@@ -554,7 +534,7 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 
 	WARN_ON(co->index < 0 || co->index >= GENI_UART_CONS_PORTS);
 
-	port = get_port_from_line(co->index, true);
+	port = get_port_from_line(co->index, true, NULL);
 	if (IS_ERR(port))
 		return;
 
@@ -1511,7 +1491,7 @@ static int qcom_geni_console_setup(struct console *co, char *options)
 	if (co->index >= GENI_UART_CONS_PORTS  || co->index < 0)
 		return -ENXIO;
 
-	port = get_port_from_line(co->index, true);
+	port = get_port_from_line(co->index, true, NULL);
 	if (IS_ERR(port)) {
 		pr_err("Invalid line %d\n", co->index);
 		return PTR_ERR(port);
@@ -1866,7 +1846,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 			line = of_alias_get_id(pdev->dev.of_node, "hsuart");
 	}
 
-	port = get_port_from_line(line, data->console);
+	port = get_port_from_line(line, data->console, &pdev->dev);
 	if (IS_ERR(port)) {
 		dev_err(&pdev->dev, "Invalid line %d\n", line);
 		return PTR_ERR(port);
