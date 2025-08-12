@@ -79,13 +79,10 @@ struct ice_fwlog {
 	);
 };
 
-bool ice_fwlog_ring_empty(struct ice_fwlog_ring *rings);
-void ice_fwlog_ring_increment(u16 *item, u16 size);
 int ice_fwlog_init(struct ice_fwlog *fwlog, struct ice_fwlog_api *api);
 void ice_fwlog_deinit(struct ice_fwlog *fwlog);
 int ice_fwlog_set(struct ice_fwlog *fwlog, struct ice_fwlog_cfg *cfg);
 int ice_fwlog_register(struct ice_fwlog *fwlog);
 int ice_fwlog_unregister(struct ice_fwlog *fwlog);
-void ice_fwlog_realloc_rings(struct ice_fwlog *fwlog, int index);
 void ice_get_fwlog_data(struct ice_fwlog *fwlog, u8 *buf, u16 len);
 #endif /* _ICE_FWLOG_H_ */
