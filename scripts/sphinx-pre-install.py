@@ -154,6 +154,20 @@ class SphinxDependencyChecker:
 
         cur_ver = sys.version_info[:3]
         if cur_ver >= MIN_PYTHON_VERSION:
+            ver = ver_str(cur_ver)
+            print(f"Python version: {ver}")
+
+            # This could be useful for debugging purposes
+            if SphinxDependencyChecker.which("docutils"):
+                result = SphinxDependencyChecker.run(["docutils", "--version"],
+                                                    capture_output=True, text=True)
+                ver = result.stdout.strip()
+                match = re.search(r"(\d+\.\d+\.\d+)", ver)
+                if match:
+                    ver = match.group(1)
+
+                print(f"Docutils version: {ver}")
+
             return
 
         python_ver = ver_str(cur_ver)
