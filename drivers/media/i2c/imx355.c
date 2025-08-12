@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Intel Corporation
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -97,6 +98,8 @@ struct imx355_hwcfg {
 };
 
 struct imx355 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
@@ -1136,14 +1139,13 @@ static int imx355_write_reg(struct imx355 *imx355, u16 reg, u32 len, u32 val)
 static int imx355_write_regs(struct imx355 *imx355,
 			     const struct imx355_reg *regs, u32 len)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
 	int ret;
 	u32 i;
 
 	for (i = 0; i < len; i++) {
 		ret = imx355_write_reg(imx355, regs[i].address, 1, regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(imx355->dev,
 					    "write reg 0x%4.4x return err %d",
 					    regs[i].address, ret);
 
@@ -1178,7 +1180,6 @@ static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx355 *imx355 = container_of(ctrl->handler,
 					     struct imx355, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
 	s64 max;
 	int ret;
 
@@ -1197,7 +1198,7 @@ static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 	 * Applying V4L2 control value only happens
 	 * when power is up for streaming
 	 */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(imx355->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1231,12 +1232,12 @@ static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		ret = -EINVAL;
-		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
+		dev_info(imx355->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
 			 ctrl->id, ctrl->val);
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(imx355->dev);
 
 	return ret;
 }
@@ -1385,7 +1386,6 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 /* Start streaming */
 static int imx355_start_streaming(struct imx355 *imx355)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
 	const struct imx355_reg_list *reg_list;
 	int ret;
 
@@ -1393,7 +1393,7 @@ static int imx355_start_streaming(struct imx355 *imx355)
 	reg_list = &imx355_global_setting;
 	ret = imx355_write_regs(imx355, reg_list->regs, reg_list->num_of_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set global settings");
+		dev_err(imx355->dev, "failed to set global settings");
 		return ret;
 	}
 
@@ -1401,7 +1401,7 @@ static int imx355_start_streaming(struct imx355 *imx355)
 	reg_list = &imx355->cur_mode->reg_list;
 	ret = imx355_write_regs(imx355, reg_list->regs, reg_list->num_of_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(imx355->dev, "failed to set mode");
 		return ret;
 	}
 
@@ -1429,13 +1429,12 @@ static int imx355_stop_streaming(struct imx355 *imx355)
 static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx355 *imx355 = to_imx355(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&imx355->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(imx355->dev);
 		if (ret < 0)
 			goto err_unlock;
 
@@ -1448,7 +1447,7 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 			goto err_rpm_put;
 	} else {
 		imx355_stop_streaming(imx355);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(imx355->dev);
 	}
 
 	/* vflip and hflip cannot change during streaming */
@@ -1460,7 +1459,7 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 
 err_rpm_put:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(imx355->dev);
 err_unlock:
 	mutex_unlock(&imx355->mutex);
 
@@ -1470,7 +1469,6 @@ err_unlock:
 /* Verify chip ID */
 static int imx355_identify_module(struct imx355 *imx355)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
 	int ret;
 	u32 val;
 
@@ -1479,7 +1477,7 @@ static int imx355_identify_module(struct imx355 *imx355)
 		return ret;
 
 	if (val != IMX355_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+		dev_err(imx355->dev, "chip id mismatch: %x!=%x",
 			IMX355_CHIP_ID, val);
 		return -EIO;
 	}
@@ -1519,7 +1517,6 @@ static const struct v4l2_subdev_internal_ops imx355_internal_ops = {
 /* Initialize control handlers */
 static int imx355_init_controls(struct imx355 *imx355)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
@@ -1600,11 +1597,11 @@ static int imx355_init_controls(struct imx355 *imx355)
 				     0, 0, imx355_test_pattern_menu);
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
-		dev_err(&client->dev, "control init failed: %d", ret);
+		dev_err(imx355->dev, "control init failed: %d", ret);
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(imx355->dev, &props);
 	if (ret)
 		goto error;
 
@@ -1689,6 +1686,8 @@ static int imx355_probe(struct i2c_client *client)
 	if (!imx355)
 		return -ENOMEM;
 
+	imx355->dev = &client->dev;
+
 	mutex_init(&imx355->mutex);
 
 	/* Initialize subdev */
@@ -1697,13 +1696,13 @@ static int imx355_probe(struct i2c_client *client)
 	/* Check module identity */
 	ret = imx355_identify_module(imx355);
 	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
+		dev_err(imx355->dev, "failed to find sensor: %d", ret);
 		goto error_probe;
 	}
 
-	imx355->hwcfg = imx355_get_hwcfg(&client->dev);
+	imx355->hwcfg = imx355_get_hwcfg(imx355->dev);
 	if (!imx355->hwcfg) {
-		dev_err(&client->dev, "failed to get hwcfg");
+		dev_err(imx355->dev, "failed to get hwcfg");
 		ret = -ENODEV;
 		goto error_probe;
 	}
@@ -1713,7 +1712,7 @@ static int imx355_probe(struct i2c_client *client)
 
 	ret = imx355_init_controls(imx355);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(imx355->dev, "failed to init controls: %d", ret);
 		goto error_probe;
 	}
 
@@ -1728,7 +1727,7 @@ static int imx355_probe(struct i2c_client *client)
 	imx355->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx355->sd.entity, 1, &imx355->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(imx355->dev, "failed to init entity pads: %d", ret);
 		goto error_handler_free;
 	}
 
@@ -1736,9 +1735,9 @@ static int imx355_probe(struct i2c_client *client)
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(imx355->dev);
+	pm_runtime_enable(imx355->dev);
+	pm_runtime_idle(imx355->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&imx355->sd);
 	if (ret < 0)
@@ -1747,8 +1746,8 @@ static int imx355_probe(struct i2c_client *client)
 	return 0;
 
 error_media_entity_runtime_pm:
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(imx355->dev);
+	pm_runtime_set_suspended(imx355->dev);
 	media_entity_cleanup(&imx355->sd.entity);
 
 error_handler_free:
@@ -1769,8 +1768,8 @@ static void imx355_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(imx355->dev);
+	pm_runtime_set_suspended(imx355->dev);
 
 	mutex_destroy(&imx355->mutex);
 }
