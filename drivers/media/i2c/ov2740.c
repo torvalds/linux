@@ -1133,7 +1133,6 @@ static int ov2740_check_hwcfg(struct ov2740 *ov2740)
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
@@ -1145,20 +1144,6 @@ static int ov2740_check_hwcfg(struct ov2740 *ov2740)
 	if (!ep)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "waiting for fwnode graph endpoint\n");
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-	if (ret) {
-		fwnode_handle_put(ep);
-		return dev_err_probe(dev, ret,
-				     "reading clock-frequency property\n");
-	}
-
-	if (mclk != OV2740_MCLK) {
-		fwnode_handle_put(ep);
-		return dev_err_probe(dev, -EINVAL,
-				     "external clock %d is not supported\n",
-				     mclk);
-	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
@@ -1342,6 +1327,7 @@ static int ov2740_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ov2740 *ov2740;
+	unsigned long freq;
 	bool full_power;
 	unsigned int i;
 	int ret;
@@ -1379,10 +1365,16 @@ static int ov2740_probe(struct i2c_client *client)
 		msleep(20);
 	}
 
-	ov2740->clk = devm_clk_get_optional(dev, "clk");
+	ov2740->clk = devm_v4l2_sensor_clk_get(dev, "clk");
 	if (IS_ERR(ov2740->clk))
 		return dev_err_probe(dev, PTR_ERR(ov2740->clk),
 				     "failed to get clock\n");
+
+	freq = clk_get_rate(ov2740->clk);
+	if (freq != OV2740_MCLK)
+		return dev_err_probe(dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
 
 	for (i = 0; i < ARRAY_SIZE(ov2740_supply_name); i++)
 		ov2740->supplies[i].supply = ov2740_supply_name[i];
