@@ -487,15 +487,31 @@ class SphinxDependencyChecker:
 
             progs["virtualenv"] = "python-virtualenv"
 
-            if rel and rel < 8:
+            if not rel or rel < 8:
                 old = 1
                 self.pdf = False
 
-                # RHEL 7 is in ELS, currently up to Jun, 2026
+                print("ERROR: Distro not supported. Too old?")
+                return
 
-                print("Note: texlive packages on RHEL/CENTOS <= 7 are incomplete. Can't support PDF output")
-                print("If you want to build PDF, please read:")
-                print("\thttps://www.systutorials.com/241660/how-to-install-tex-live-on-centos-7-linux/")
+            # TODO: check if RHEL8 still works.
+            # On my tests with  docker "redhat/ubi8" image, there's no
+            # python3-sphinx (or similar) package. It comes with Python 3.6,
+            # but there are other python packages over there, so it may be
+            # possible to work with venv.
+
+            if self.first_hint:
+                print("Note: RHEL-based distros typically require extra repositories.\n" \
+                      "For most, enabling epel and crb are enough:\n" \
+                      "\tsudo dnf install -y epel-release", \
+                      "\tsudo dnf config-manager --set-enabled crb\n" \
+                      "Yet, some may have other required repositories. Those commands could be useful:" \
+                      "\tsudo dnf repolist all" \
+                      "\tsudo repoquery --available --info <pkgs>",
+                      "\tsudo dnf config-manager --set-enabled '*' # enable all - probably not what you want")
+
+                self.first_hint = False
+
 
         if self.pdf:
             pdf_pkgs = [
