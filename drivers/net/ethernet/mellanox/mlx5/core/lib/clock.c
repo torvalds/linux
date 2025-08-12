@@ -247,27 +247,24 @@ static bool mlx5_is_ptm_source_time_available(struct mlx5_core_dev *dev)
 	return !!MLX5_GET(mtptm_reg, out, psta);
 }
 
-static int mlx5_mtctr_syncdevicetime(ktime_t *device_time,
-				     struct system_counterval_t *sys_counterval,
-				     void *ctx)
+static int mlx5_mtctr_read(struct mlx5_core_dev *mdev,
+			   bool real_time_mode,
+			   struct system_counterval_t *sys_counterval,
+			   u64 *device)
 {
 	u32 out[MLX5_ST_SZ_DW(mtctr_reg)] = {0};
 	u32 in[MLX5_ST_SZ_DW(mtctr_reg)] = {0};
-	struct mlx5_core_dev *mdev = ctx;
-	bool real_time_mode;
-	u64 host, device;
+	u64 host;
 	int err;
-
-	real_time_mode = mlx5_real_time_mode(mdev);
 
 	MLX5_SET(mtctr_reg, in, first_clock_timestamp_request,
 		 MLX5_MTCTR_REQUEST_PTM_ROOT_CLOCK);
 	MLX5_SET(mtctr_reg, in, second_clock_timestamp_request,
 		 real_time_mode ? MLX5_MTCTR_REQUEST_REAL_TIME_CLOCK :
-		 MLX5_MTCTR_REQUEST_FREE_RUNNING_COUNTER);
+				  MLX5_MTCTR_REQUEST_FREE_RUNNING_COUNTER);
 
-	err = mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out), MLX5_REG_MTCTR,
-				   0, 0);
+	err = mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out),
+				   MLX5_REG_MTCTR, 0, 0);
 	if (err)
 		return err;
 
@@ -281,8 +278,26 @@ static int mlx5_mtctr_syncdevicetime(ktime_t *device_time,
 			.cs_id = CSID_X86_ART,
 			.use_nsecs = true,
 	};
+	*device = MLX5_GET64(mtctr_reg, out, second_clock_timestamp);
 
-	device = MLX5_GET64(mtctr_reg, out, second_clock_timestamp);
+	return 0;
+}
+
+static int mlx5_mtctr_syncdevicetime(ktime_t *device_time,
+				     struct system_counterval_t *sys_counterval,
+				     void *ctx)
+{
+	struct mlx5_core_dev *mdev = ctx;
+	bool real_time_mode;
+	u64 device;
+	int err;
+
+	real_time_mode = mlx5_real_time_mode(mdev);
+
+	err = mlx5_mtctr_read(mdev, real_time_mode, sys_counterval, &device);
+	if (err)
+		return err;
+
 	if (real_time_mode)
 		*device_time = ns_to_ktime(REAL_TIME_TO_NS(device >> 32, device & U32_MAX));
 	else
