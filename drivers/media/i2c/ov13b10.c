@@ -1472,6 +1472,7 @@ static void ov13b10_free_controls(struct ov13b10 *ov13b)
 
 static int ov13b10_get_pm_resources(struct ov13b10 *ov13b)
 {
+	unsigned long freq;
 	int ret;
 
 	ov13b->reset = devm_gpiod_get_optional(ov13b->dev, "reset", GPIOD_OUT_LOW);
@@ -1479,10 +1480,16 @@ static int ov13b10_get_pm_resources(struct ov13b10 *ov13b)
 		return dev_err_probe(ov13b->dev, PTR_ERR(ov13b->reset),
 				     "failed to get reset gpio\n");
 
-	ov13b->img_clk = devm_clk_get_optional(ov13b->dev, NULL);
+	ov13b->img_clk = devm_v4l2_sensor_clk_get(ov13b->dev, NULL);
 	if (IS_ERR(ov13b->img_clk))
 		return dev_err_probe(ov13b->dev, PTR_ERR(ov13b->img_clk),
 				     "failed to get imaging clock\n");
+
+	freq = clk_get_rate(ov13b->img_clk);
+	if (freq != OV13B10_EXT_CLK)
+		return dev_err_probe(ov13b->dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
 
 	ov13b->avdd = devm_regulator_get_optional(ov13b->dev, "avdd");
 	if (IS_ERR(ov13b->avdd)) {
@@ -1506,7 +1513,6 @@ static int ov13b10_check_hwcfg(struct ov13b10 *ov13b)
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	unsigned int i, j;
 	int ret;
-	u32 ext_clk;
 	u8 dlane;
 
 	if (!fwnode)
@@ -1515,19 +1521,6 @@ static int ov13b10_check_hwcfg(struct ov13b10 *ov13b)
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
 		return -EPROBE_DEFER;
-
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &ext_clk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		return ret;
-	}
-
-	if (ext_clk != OV13B10_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
-			ext_clk);
-		return -EINVAL;
-	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
