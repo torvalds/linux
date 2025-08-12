@@ -228,9 +228,7 @@ static void die_oom(unsigned long size, unsigned long align, unsigned long min, 
 	boot_emerg("Usable online memory total: %lu Reserved: %lu Free: %lu\n",
 		   total_mem, total_reserved_mem,
 		   total_mem > total_reserved_mem ? total_mem - total_reserved_mem : 0);
-	print_stacktrace(current_frame_address());
-	boot_emerg(" -- System halted\n");
-	disabled_wait();
+	boot_panic("Oom\n");
 }
 
 static void _physmem_reserve(enum reserved_range_type type, unsigned long addr, unsigned long size)
