@@ -1016,8 +1016,7 @@ static int enetc4_pf_probe(struct pci_dev *pdev,
 
 	err = devm_add_action_or_reset(dev, enetc4_pci_remove, pdev);
 	if (err)
-		return dev_err_probe(dev, err,
-				     "Add enetc4_pci_remove() action failed\n");
+		return err;
 
 	/* si is the private data. */
 	si = pci_get_drvdata(pdev);
