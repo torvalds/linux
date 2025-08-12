@@ -527,8 +527,16 @@ static void rts5264_init_from_hw(struct rtsx_pcr *pcr)
 
 	pcr->rtd3_en = rts5264_reg_to_rtd3(lval2);
 
-	if (rts5264_reg_check_reverse_socket(lval2))
-		pcr->flags |= PCR_REVERSE_SOCKET;
+	if (rts5264_reg_check_reverse_socket(lval2)) {
+		if (is_version_higher_than(pcr, PID_5264, RTS5264_IC_VER_B))
+			pcr->option.sd_cd_reverse_en = 1;
+		else
+			pcr->flags |= PCR_REVERSE_SOCKET;
+	}
+
+	if (rts5264_reg_check_wp_reverse(lval2) &&
+		is_version_higher_than(pcr, PID_5264, RTS5264_IC_VER_B))
+		pcr->option.sd_wp_reverse_en = 1;
 
 	pci_read_config_dword(pdev, setting_reg1, &lval1);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", setting_reg1, lval1);
@@ -622,8 +630,10 @@ static int rts5264_extra_init_hw(struct rtsx_pcr *pcr)
 
 	if (pcr->flags & PCR_REVERSE_SOCKET)
 		rtsx_pci_write_register(pcr, PETXCFG, 0x30, 0x30);
-	else
-		rtsx_pci_write_register(pcr, PETXCFG, 0x30, 0x00);
+	else {
+		rtsx_pci_write_register(pcr, PETXCFG, 0x20, option->sd_cd_reverse_en << 5);
+		rtsx_pci_write_register(pcr, PETXCFG, 0x10, option->sd_wp_reverse_en << 4);
+	}
 
 	/*
 	 * If u_force_clkreq_0 is enabled, CLKREQ# PIN will be forced
@@ -957,4 +967,6 @@ void rts5264_init_params(struct rtsx_pcr *pcr)
 	hw_param->interrupt_en |= (SD_OC_INT_EN | SD_OVP_INT_EN);
 	hw_param->ocp_glitch =  SD_OCP_GLITCH_800U | SDVIO_OCP_GLITCH_800U;
 	option->sd_800mA_ocp_thd =  RTS5264_LDO1_OCP_THD_1150;
+	option->sd_cd_reverse_en = 0;
+	option->sd_wp_reverse_en = 0;
 }
