@@ -7146,29 +7146,22 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma_size != PAGE_SIZE * nr_pages)
 		return -EINVAL;
 
-	mutex_lock(&event->mmap_mutex);
-	ret = -EINVAL;
+	scoped_guard (mutex, &event->mmap_mutex) {
+		/*
+		 * This relies on __pmu_detach_event() taking mmap_mutex after marking
+		 * the event REVOKED. Either we observe the state, or __pmu_detach_event()
+		 * will detach the rb created here.
+		 */
+		if (event->state <= PERF_EVENT_STATE_REVOKED)
+			return -ENODEV;
 
-	/*
-	 * This relies on __pmu_detach_event() taking mmap_mutex after marking
-	 * the event REVOKED. Either we observe the state, or __pmu_detach_event()
-	 * will detach the rb created here.
-	 */
-	if (event->state <= PERF_EVENT_STATE_REVOKED) {
-		ret = -ENODEV;
-		goto unlock;
+		if (vma->vm_pgoff == 0)
+			ret = perf_mmap_rb(vma, event, nr_pages);
+		else
+			ret = perf_mmap_aux(vma, event, nr_pages);
+		if (ret)
+			return ret;
 	}
-
-	if (vma->vm_pgoff == 0)
-		ret = perf_mmap_rb(vma, event, nr_pages);
-	else
-		ret = perf_mmap_aux(vma, event, nr_pages);
-
-unlock:
-	mutex_unlock(&event->mmap_mutex);
-
-	if (ret)
-		return ret;
 
 	/*
 	 * Since pinned accounting is per vm we cannot allow fork() to copy our
