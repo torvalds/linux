@@ -455,17 +455,17 @@ static void print_cpustat(void)
 {
 	int i, group;
 	u8 tail = __this_cpu_read(cpustat_tail);
-	u64 sample_period_second = sample_period;
+	u64 sample_period_msecond = sample_period;
 
-	do_div(sample_period_second, NSEC_PER_SEC);
+	do_div(sample_period_msecond, NSEC_PER_MSEC);
 
 	/*
 	 * Outputting the "watchdog" prefix on every line is redundant and not
 	 * concise, and the original alarm information is sufficient for
 	 * positioning in logs, hence here printk() is used instead of pr_crit().
 	 */
-	printk(KERN_CRIT "CPU#%d Utilization every %llus during lockup:\n",
-	       smp_processor_id(), sample_period_second);
+	printk(KERN_CRIT "CPU#%d Utilization every %llums during lockup:\n",
+	       smp_processor_id(), sample_period_msecond);
 
 	for (i = 0; i < NUM_SAMPLE_PERIODS; i++) {
 		group = (tail + i) % NUM_SAMPLE_PERIODS;
