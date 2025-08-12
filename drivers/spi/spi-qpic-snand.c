@@ -78,7 +78,6 @@ struct qcom_ecc_stats {
 };
 
 struct qpic_ecc {
-	struct device *dev;
 	int ecc_bytes_hw;
 	int spare_bytes;
 	int bbm_size;
@@ -95,8 +94,6 @@ struct qpic_ecc {
 	u32 cfg1_raw;
 	u32 ecc_buf_cfg;
 	u32 ecc_bch_cfg;
-	u32 clrflashstatus;
-	u32 clrreadstatus;
 	bool bch_enabled;
 };
 
@@ -382,12 +379,12 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 			       FIELD_PREP(ECC_PARITY_SIZE_BYTES_BCH_MASK, ecc_cfg->ecc_bytes_hw);
 
 	ecc_cfg->ecc_buf_cfg = FIELD_PREP(NUM_STEPS_MASK, 0x203);
-	ecc_cfg->clrflashstatus = FS_READY_BSY_N;
-	ecc_cfg->clrreadstatus = 0xc0;
 
 	conf->step_size = ecc_cfg->step_size;
 	conf->strength = ecc_cfg->strength;
 
+	snandc->regs->clrflashstatus = cpu_to_le32(FS_READY_BSY_N);
+	snandc->regs->clrreadstatus = cpu_to_le32(0xc0);
 	snandc->regs->erased_cw_detect_cfg_clr = cpu_to_le32(CLR_ERASED_PAGE_DET);
 	snandc->regs->erased_cw_detect_cfg_set = cpu_to_le32(SET_ERASED_PAGE_DET);
 
@@ -599,8 +596,6 @@ static int qcom_spi_read_last_cw(struct qcom_nand_controller *snandc,
 	snandc->regs->cfg0 = cpu_to_le32(cfg0);
 	snandc->regs->cfg1 = cpu_to_le32(cfg1);
 	snandc->regs->ecc_bch_cfg = cpu_to_le32(ecc_bch_cfg);
-	snandc->regs->clrflashstatus = cpu_to_le32(ecc_cfg->clrflashstatus);
-	snandc->regs->clrreadstatus = cpu_to_le32(ecc_cfg->clrreadstatus);
 	snandc->regs->exec = cpu_to_le32(1);
 
 	qcom_spi_set_read_loc(snandc, num_cw - 1, 0, 0, ecc_cfg->cw_size, 1);
@@ -734,8 +729,6 @@ static int qcom_spi_read_cw_raw(struct qcom_nand_controller *snandc, u8 *data_bu
 	snandc->regs->cfg0 = cpu_to_le32(cfg0);
 	snandc->regs->cfg1 = cpu_to_le32(cfg1);
 	snandc->regs->ecc_bch_cfg = cpu_to_le32(ecc_bch_cfg);
-	snandc->regs->clrflashstatus = cpu_to_le32(ecc_cfg->clrflashstatus);
-	snandc->regs->clrreadstatus = cpu_to_le32(ecc_cfg->clrreadstatus);
 	snandc->regs->exec = cpu_to_le32(1);
 
 	qcom_spi_set_read_loc(snandc, raw_cw, 0, 0, ecc_cfg->cw_size, 1);
@@ -850,8 +843,6 @@ static int qcom_spi_read_page_ecc(struct qcom_nand_controller *snandc,
 	snandc->regs->cfg0 = cpu_to_le32(cfg0);
 	snandc->regs->cfg1 = cpu_to_le32(cfg1);
 	snandc->regs->ecc_bch_cfg = cpu_to_le32(ecc_bch_cfg);
-	snandc->regs->clrflashstatus = cpu_to_le32(ecc_cfg->clrflashstatus);
-	snandc->regs->clrreadstatus = cpu_to_le32(ecc_cfg->clrreadstatus);
 	snandc->regs->exec = cpu_to_le32(1);
 
 	qcom_spi_set_read_loc(snandc, 0, 0, 0, ecc_cfg->cw_data, 1);
@@ -943,8 +934,6 @@ static int qcom_spi_read_page_oob(struct qcom_nand_controller *snandc,
 	snandc->regs->cfg0 = cpu_to_le32(cfg0);
 	snandc->regs->cfg1 = cpu_to_le32(cfg1);
 	snandc->regs->ecc_bch_cfg = cpu_to_le32(ecc_bch_cfg);
-	snandc->regs->clrflashstatus = cpu_to_le32(ecc_cfg->clrflashstatus);
-	snandc->regs->clrreadstatus = cpu_to_le32(ecc_cfg->clrreadstatus);
 	snandc->regs->exec = cpu_to_le32(1);
 
 	qcom_spi_set_read_loc(snandc, 0, 0, 0, ecc_cfg->cw_data, 1);
@@ -1064,8 +1053,6 @@ static int qcom_spi_program_raw(struct qcom_nand_controller *snandc,
 	snandc->regs->cfg0 = cpu_to_le32(cfg0);
 	snandc->regs->cfg1 = cpu_to_le32(cfg1);
 	snandc->regs->ecc_bch_cfg = cpu_to_le32(ecc_bch_cfg);
-	snandc->regs->clrflashstatus = cpu_to_le32(ecc_cfg->clrflashstatus);
-	snandc->regs->clrreadstatus = cpu_to_le32(ecc_cfg->clrreadstatus);
 	snandc->regs->exec = cpu_to_le32(1);
 
 	qcom_spi_config_page_write(snandc);
