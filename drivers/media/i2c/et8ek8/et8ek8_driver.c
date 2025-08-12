@@ -816,7 +816,7 @@ static int et8ek8_power_on(struct et8ek8_sensor *sensor)
 {
 	struct v4l2_subdev *subdev = &sensor->subdev;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
-	unsigned int xclk_freq;
+	unsigned int xclk_freq = 9600000;
 	int val, rval;
 
 	rval = regulator_enable(sensor->vana);
@@ -824,11 +824,6 @@ static int et8ek8_power_on(struct et8ek8_sensor *sensor)
 		dev_err(&client->dev, "failed to enable vana regulator\n");
 		return rval;
 	}
-
-	if (sensor->current_reglist)
-		xclk_freq = sensor->current_reglist->mode.ext_clock;
-	else
-		xclk_freq = sensor->xclk_freq;
 
 	rval = clk_set_rate(sensor->ext_clk, xclk_freq);
 	if (rval < 0) {
@@ -1083,9 +1078,6 @@ static int et8ek8_set_frame_interval(struct v4l2_subdev *subdev,
 						&fi->interval);
 
 	if (!reglist)
-		return -EINVAL;
-
-	if (sensor->current_reglist->mode.ext_clock != reglist->mode.ext_clock)
 		return -EINVAL;
 
 	sensor->current_reglist = reglist;
