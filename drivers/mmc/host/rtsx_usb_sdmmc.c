@@ -48,7 +48,7 @@ struct rtsx_usb_sdmmc {
 	bool			ddr_mode;
 
 	unsigned char		power_mode;
-
+	u16			ocp_stat;
 #ifdef RTSX_USB_USE_LEDS_CLASS
 	struct led_classdev	led;
 	char			led_name[32];
@@ -785,6 +785,9 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 
 	mutex_unlock(&ucr->dev_mutex);
 
+	/* get OCP status */
+	host->ocp_stat = (val >> 4) & 0x03;
+
 	/* Treat failed detection as non-exist */
 	if (err)
 		goto no_card;
@@ -795,6 +798,11 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 	}
 
 no_card:
+	/* clear OCP status */
+	if (host->ocp_stat & (MS_OCP_NOW | MS_OCP_EVER)) {
+		rtsx_usb_write_register(ucr, OCPCTL, MS_OCP_CLEAR, MS_OCP_CLEAR);
+		host->ocp_stat = 0;
+	}
 	host->card_exist = false;
 	return 0;
 }
@@ -818,7 +826,11 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		cmd->error = -ENOMEDIUM;
 		goto finish_detect_card;
 	}
-
+	/* check OCP stat */
+	if (host->ocp_stat & (MS_OCP_NOW | MS_OCP_EVER)) {
+		cmd->error = -ENOMEDIUM;
+		goto finish_detect_card;
+	}
 	mutex_lock(&ucr->dev_mutex);
 
 	mutex_lock(&host->host_mutex);
@@ -952,6 +964,10 @@ static int sd_power_on(struct rtsx_usb_sdmmc *host)
 	struct rtsx_ucr *ucr = host->ucr;
 	int err;
 
+	if (host->ocp_stat & (MS_OCP_NOW | MS_OCP_EVER)) {
+		dev_dbg(sdmmc_dev(host), "over current\n");
+		return -EIO;
+	}
 	dev_dbg(sdmmc_dev(host), "%s\n", __func__);
 	rtsx_usb_init_cmd(ucr);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_SELECT, 0x07, SD_MOD_SEL);
@@ -978,8 +994,18 @@ static int sd_power_on(struct rtsx_usb_sdmmc *host)
 	usleep_range(800, 1000);
 
 	rtsx_usb_init_cmd(ucr);
+	/* WA OCP issue: after OCP, there were problems with reopen card power */
+	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_PWR_CTL, POWER_MASK, POWER_ON);
+	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, FPDCTL, SSC_POWER_MASK, SSC_POWER_DOWN);
+	err = rtsx_usb_send_cmd(ucr, MODE_C, 100);
+	if (err)
+		return err;
+	msleep(20);
+	rtsx_usb_write_register(ucr, FPDCTL, SSC_POWER_MASK, SSC_POWER_ON);
+	usleep_range(180, 200);
+	rtsx_usb_init_cmd(ucr);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_PWR_CTL,
-			POWER_MASK|LDO3318_PWR_MASK, POWER_ON|LDO_ON);
+			LDO3318_PWR_MASK, LDO_ON);
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, CARD_OE,
 			SD_OUTPUT_EN, SD_OUTPUT_EN);
 
@@ -1332,6 +1358,7 @@ static void rtsx_usb_init_host(struct rtsx_usb_sdmmc *host)
 	mmc->max_req_size = 524288;
 
 	host->power_mode = MMC_POWER_OFF;
+	host->ocp_stat = 0;
 }
 
 static int rtsx_usb_sdmmc_drv_probe(struct platform_device *pdev)
