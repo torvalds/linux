@@ -9,6 +9,22 @@
 # Don't add changes not compatible with it, it is meant to report
 # incompatible python versions.
 
+"""
+Dependency checker for Sphinx documentation Kernel build.
+
+This module provides tools to check for all required dependencies needed to
+build documentation using Sphinx, including system packages, Python modules
+and LaTeX packages for PDF generation.
+
+It detect packages for a subset of Linux distributions used by Kernel
+maintainers, showing hints and missing dependencies.
+
+The main class SphinxDependencyChecker handles the dependency checking logic
+and provides recommendations for installing missing packages. It supports both
+system package installations and  Python virtual environments. By default,
+system pacage install is recommended.
+"""
+
 import argparse
 import os
 import re
@@ -75,7 +91,7 @@ class DepManager:
                        distro namespace, organized by type.
         - need: total number of needed dependencies. Never cleaned.
         - optional: total number of optional dependencies. Never cleaned.
-        - pdf: PDF support is enabled?
+        - pdf: Is PDF support enabled?
         """
         self.missing = {}
         self.missing_pkg = {}
@@ -565,6 +581,13 @@ class MissingCheckers(AncillaryMethods):
         return ""
 
     def check_missing(self, progs):
+        """
+        Check for missing dependencies using the provided program mapping.
+
+        The actual distro-specific programs are mapped via progs argument.
+
+        Returns True if there are missing dependencies, False otherwise.
+        """
         self.install += self.deps.check_missing(progs)
         if self.verbose_warn_install:
             self.deps.warn_install()
@@ -633,8 +656,18 @@ class MissingCheckers(AncillaryMethods):
         return system_release
 
 class SphinxDependencyChecker(MissingCheckers):
+    """
+    Main class for checking Sphinx documentation build dependencies.
 
+    - Check for missing system packages;
+    - Check for missing Python modules;
+    - Check for missing LaTeX packages needed by PDF generation;
+    - Propose Sphinx install via Python Virtual environment;
+    - Propose Sphinx install via distro-specific package install.
+    """
     def __init__(self, args):
+        """Initialize checker variables"""
+
         # List of required texlive packages on Fedora and OpenSuse
         texlive = {
             "amsfonts.sty":       "texlive-amsfonts",
@@ -705,6 +738,9 @@ class SphinxDependencyChecker(MissingCheckers):
     #
 
     def give_debian_hints(self):
+        """
+        Provide package installation hints for Debian-based distros.
+        """
         progs = {
             "Pod::Usage":    "perl-modules",
             "convert":       "imagemagick",
@@ -745,6 +781,10 @@ class SphinxDependencyChecker(MissingCheckers):
         print(f"\n\tsudo apt-get install {self.install}")
 
     def give_redhat_hints(self):
+        """
+        Provide package installation hints for RedHat-based distros
+        (Fedora, RHEL and RHEL-based variants).
+        """
         progs = {
             "Pod::Usage":       "perl-Pod-Usage",
             "convert":          "ImageMagick",
@@ -837,6 +877,10 @@ class SphinxDependencyChecker(MissingCheckers):
         print(f"\n\tsudo dnf install -y {self.install}")
 
     def give_opensuse_hints(self):
+        """
+        Provide package installation hints for openSUSE-based distros
+        (Leap and Tumbleweed).
+        """
         progs = {
             "Pod::Usage":    "perl-Pod-Usage",
             "convert":       "ImageMagick",
@@ -909,6 +953,9 @@ class SphinxDependencyChecker(MissingCheckers):
         print(f"\n\tsudo zypper install --no-recommends {self.install}")
 
     def give_mageia_hints(self):
+        """
+        Provide package installation hints for Mageia and OpenMandriva.
+        """
         progs = {
             "Pod::Usage":    "perl-Pod-Usage",
             "convert":       "ImageMagick",
@@ -956,6 +1003,9 @@ class SphinxDependencyChecker(MissingCheckers):
         print(f"\n\tsudo {packager_cmd} {self.install}")
 
     def give_arch_linux_hints(self):
+        """
+        Provide package installation hints for ArchLinux.
+        """
         progs = {
             "convert":      "imagemagick",
             "dot":          "graphviz",
@@ -989,6 +1039,9 @@ class SphinxDependencyChecker(MissingCheckers):
         print(f"\n\tsudo pacman -S {self.install}")
 
     def give_gentoo_hints(self):
+        """
+        Provide package installation hints for Gentoo.
+        """
         progs = {
             "convert":       "media-gfx/imagemagick",
             "dot":           "media-gfx/graphviz",
@@ -1107,7 +1160,12 @@ class SphinxDependencyChecker(MissingCheckers):
     #
 
     def check_distros(self):
-        # OS-specific hints logic
+        """
+        OS-specific hints logic. Seeks for a hinter. If found, provide
+        package-manager-specific install commands.
+
+        Otherwise, just lists the missing dependencies.
+        """
         os_hints = {
             re.compile("Red Hat Enterprise Linux"):   self.give_redhat_hints,
             re.compile("Fedora"):                     self.give_redhat_hints,
@@ -1159,10 +1217,22 @@ class SphinxDependencyChecker(MissingCheckers):
     # Common dependencies
     #
     def deactivate_help(self):
+        """
+        Print a helper message to disable a virtual environment.
+        """
+
         print("\n    If you want to exit the virtualenv, you can use:")
         print("\tdeactivate")
 
     def get_virtenv(self):
+        """
+        Give a hint about how to activate an already-existing virtual
+        environment containing sphinx-build.
+
+        Returns a tuble with (activate_cmd_path, sphinx_version) with
+        the newest available virtual env.
+        """
+
         cwd = os.getcwd()
 
         activates = []
@@ -1207,6 +1277,14 @@ class SphinxDependencyChecker(MissingCheckers):
         return ("", ver)
 
     def recommend_sphinx_upgrade(self):
+        """
+        Check if Sphinx needs to be upgraded.
+
+        Returns a tuple with the higest available Sphinx version if found.
+        Otherwise, returns None to indicate either that no upgrade is needed
+        or no venv was found.
+        """
+
         # Avoid running sphinx-builds from venv if cur_version is good
         if self.cur_version and self.cur_version >= RECOMMENDED_VERSION:
             self.latest_avail_ver = self.cur_version
@@ -1247,6 +1325,9 @@ class SphinxDependencyChecker(MissingCheckers):
         return self.latest_avail_ver
 
     def recommend_package(self):
+        """
+        Recommend installing Sphinx as a distro-specific package.
+        """
 
         print("\n2) As a package with:")
 
@@ -1270,11 +1351,19 @@ class SphinxDependencyChecker(MissingCheckers):
         self.verbose_warn_install = old_verbose
 
     def recommend_sphinx_version(self, virtualenv_cmd):
-        # The logic here is complex, as it have to deal with different versions:
-        #	- minimal supported version;
-        #	- minimal PDF version;
-        #	- recommended version.
-        # It also needs to work fine with both distro's package and venv/virtualenv
+        """
+        Provide recommendations for installing or upgrading Sphinx based
+        on current version.
+
+        The logic here is complex, as it have to deal with different versions:
+
+        - minimal supported version;
+        - minimal PDF version;
+        - recommended version.
+
+        It also needs to work fine with both distro's package and
+        venv/virtualenv
+        """
 
         if self.recommend_python:
             print("\nPython version is incompatible with doc build.\n" \
@@ -1369,6 +1458,10 @@ class SphinxDependencyChecker(MissingCheckers):
               "\thttps://github.com/sphinx-doc/sphinx/pull/8313")
 
     def check_needs(self):
+        """
+        Main method that checks needed dependencies and provides
+        recommendations.
+        """
         self.python_cmd = sys.executable
 
         # Check if Sphinx is already accessible from current environment
@@ -1451,6 +1544,7 @@ Process some flags related to Sphinx installation and documentation build.
 
 
 def main():
+    """Main function"""
     parser = argparse.ArgumentParser(description=DESCRIPTION)
 
     parser.add_argument(
@@ -1481,6 +1575,6 @@ def main():
     checker.check_python()
     checker.check_needs()
 
-
+# Call main if not used as module
 if __name__ == "__main__":
     main()
