@@ -12401,6 +12401,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct fpstate *fpstate = vcpu->arch.guest_fpu.fpstate;
+	u64 xfeatures_mask;
+	int i;
 
 	/*
 	 * Guest FPU state is zero allocated and so doesn't need to be manually
@@ -12414,16 +12416,20 @@ static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
 	 * are unchanged.  Currently, the only components that are zeroed and
 	 * supported by KVM are MPX related.
 	 */
-	if (!kvm_mpx_supported())
+	xfeatures_mask = (kvm_caps.supported_xcr0 | kvm_caps.supported_xss) &
+			 (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+	if (!xfeatures_mask)
 		return;
+
+	BUILD_BUG_ON(sizeof(xfeatures_mask) * BITS_PER_BYTE <= XFEATURE_MAX);
 
 	/*
 	 * All paths that lead to INIT are required to load the guest's FPU
 	 * state (because most paths are buried in KVM_RUN).
 	 */
 	kvm_put_guest_fpu(vcpu);
-	fpstate_clear_xstate_component(fpstate, XFEATURE_BNDREGS);
-	fpstate_clear_xstate_component(fpstate, XFEATURE_BNDCSR);
+	for_each_set_bit(i, (unsigned long *)&xfeatures_mask, XFEATURE_MAX)
+		fpstate_clear_xstate_component(fpstate, i);
 	kvm_load_guest_fpu(vcpu);
 }
 
