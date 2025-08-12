@@ -1213,7 +1213,6 @@ static int hi556_check_hwcfg(struct device *dev)
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 mclk;
 	int ret = 0;
 	unsigned int i, j;
 
@@ -1230,18 +1229,6 @@ static int hi556_check_hwcfg(struct device *dev)
 	fwnode_handle_put(ep);
 	if (ret)
 		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency\n");
-		goto check_hwcfg_error;
-	}
-
-	if (mclk != HI556_MCLK) {
-		dev_err(dev, "external clock %d is not supported\n", mclk);
-		ret = -EINVAL;
-		goto check_hwcfg_error;
-	}
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
 		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
@@ -1332,6 +1319,7 @@ static int hi556_resume(struct device *dev)
 static int hi556_probe(struct i2c_client *client)
 {
 	struct hi556 *hi556;
+	unsigned long freq;
 	bool full_power;
 	int i, ret;
 
@@ -1353,10 +1341,16 @@ static int hi556_probe(struct i2c_client *client)
 		return dev_err_probe(hi556->dev, PTR_ERR(hi556->reset_gpio),
 				     "failed to get reset GPIO\n");
 
-	hi556->clk = devm_clk_get_optional(hi556->dev, "clk");
+	hi556->clk = devm_v4l2_sensor_clk_get(hi556->dev, "clk");
 	if (IS_ERR(hi556->clk))
 		return dev_err_probe(hi556->dev, PTR_ERR(hi556->clk),
 				     "failed to get clock\n");
+
+	freq = clk_get_rate(hi556->clk);
+	if (freq != HI556_MCLK)
+		return dev_err_probe(hi556->dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
 
 	for (i = 0; i < ARRAY_SIZE(hi556_supply_names); i++)
 		hi556->supplies[i].supply = hi556_supply_names[i];
