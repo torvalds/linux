@@ -914,12 +914,15 @@ class SphinxDependencyChecker:
         if self.cur_version != (0, 0, 0) and self.cur_version >= RECOMMENDED_VERSION:
             return
 
+        if self.latest_avail_ver:
+            latest_avail_ver = ver_str(self.latest_avail_ver)
+
         if not self.need_sphinx:
             # sphinx-build is present and its version is >= $min_version
 
             # only recommend enabling a newer virtenv version if makes sense.
             if self.latest_avail_ver and self.latest_avail_ver > self.cur_version:
-                print("\nYou may also use the newer Sphinx version {self.latest_avail_ver} with:")
+                print(f"\nYou may also use the newer Sphinx version {latest_avail_ver} with:")
                 if f"{self.virtenv_prefix}" in os.getcwd():
                     print("\tdeactivate")
                 print(f"\t. {self.activate_cmd}")
@@ -940,7 +943,7 @@ class SphinxDependencyChecker:
             # installed one via virtenv with a newer version.
             # So, print commands to enable it
             if self.latest_avail_ver > self.cur_version:
-                print("\nYou may also use the Sphinx virtualenv version {self.latest_avail_ver} with:")
+                print(f"\nYou may also use the Sphinx virtualenv version {latest_avail_ver} with:")
                 if f"{self.virtenv_prefix}" in os.getcwd():
                     print("\tdeactivate")
                 print(f"\t. {self.activate_cmd}")
@@ -954,7 +957,7 @@ class SphinxDependencyChecker:
         # Suggest newer versions if current ones are too old
         if self.latest_avail_ver and self.latest_avail_ver >= self.min_version:
             if self.latest_avail_ver >= RECOMMENDED_VERSION:
-                print("\nNeed to activate Sphinx (version {self.latest_avail_ver}) on virtualenv with:")
+                print(f"\nNeed to activate Sphinx (version {latest_avail_ver}) on virtualenv with:")
                 print(f"\t. {self.activate_cmd}")
                 self.deactivate_help()
                 return
