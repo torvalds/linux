@@ -377,6 +377,4 @@ static inline const char *ath12k_bd_ie_type_str(enum ath12k_bd_ie_type type)
 	return "unknown";
 }
 
-int ath12k_hw_init(struct ath12k_base *ab);
-
 #endif

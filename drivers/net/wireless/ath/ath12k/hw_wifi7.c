@@ -13,6 +13,7 @@
 #include "ce.h"
 #include "ce_wifi7.h"
 #include "hw.h"
+#include "hw_wifi7.h"
 #include "mhi.h"
 #include "dp_rx.h"
 #include "peer.h"
@@ -1030,7 +1031,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 	},
 };
 
-int ath12k_hw_init(struct ath12k_base *ab)
+int ath12k_wifi7_hw_init(struct ath12k_base *ab)
 {
 	const struct ath12k_hw_params *hw_params = NULL;
 	int i;

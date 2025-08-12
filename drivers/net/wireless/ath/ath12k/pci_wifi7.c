@@ -11,6 +11,7 @@
 #include "core.h"
 #include "hif.h"
 #include "mhi.h"
+#include "hw_wifi7.h"
 
 #define QCN9274_DEVICE_ID		0x1109
 #define WCN7850_DEVICE_ID		0x1107
@@ -84,6 +85,7 @@ static int ath12k_wifi7_pci_probe(struct pci_dev *pdev,
 	u32 soc_hw_version_major, soc_hw_version_minor;
 	struct ath12k_pci *ab_pci;
 	struct ath12k_base *ab;
+	int ret;
 
 	ab = pci_get_drvdata(pdev);
 	if (!ab)
@@ -141,6 +143,12 @@ static int ath12k_wifi7_pci_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Unknown Wi-Fi 7 PCI device found: 0x%x\n",
 			pci_dev->device);
 		return -EOPNOTSUPP;
+	}
+
+	ret = ath12k_wifi7_hw_init(ab);
+	if (ret) {
+		dev_err(&pdev->dev, "WiFi-7 hw_init for PCI failed: %d\n", ret);
+		return ret;
 	}
 
 	return 0;

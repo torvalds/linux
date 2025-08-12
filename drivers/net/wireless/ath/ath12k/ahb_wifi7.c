@@ -11,6 +11,7 @@
 #include "ahb_wifi7.h"
 #include "debug.h"
 #include "hif.h"
+#include "hw_wifi7.h"
 
 static const struct of_device_id ath12k_wifi7_ahb_of_match[] = {
 	{ .compatible = "qcom,ipq5332-wifi",
@@ -26,6 +27,7 @@ static int ath12k_wifi7_ahb_probe(struct platform_device *pdev)
 	struct ath12k_ahb *ab_ahb;
 	enum ath12k_hw_rev hw_rev;
 	struct ath12k_base *ab;
+	int ret;
 
 	ab = platform_get_drvdata(pdev);
 	ab_ahb = ath12k_ab_to_ahb(ab);
@@ -41,6 +43,12 @@ static int ath12k_wifi7_ahb_probe(struct platform_device *pdev)
 
 	ab->target_mem_mode = ATH12K_QMI_MEMORY_MODE_DEFAULT;
 	ab->hw_rev = hw_rev;
+
+	ret = ath12k_wifi7_hw_init(ab);
+	if (ret) {
+		ath12k_err(ab, "WiFi-7 hw_init for AHB failed: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
