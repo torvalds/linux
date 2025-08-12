@@ -7,11 +7,11 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include "../ahb.h"
 #include "ahb.h"
-#include "ahb_wifi7.h"
-#include "debug.h"
-#include "hif.h"
-#include "hw_wifi7.h"
+#include "../debug.h"
+#include "../hif.h"
+#include "hw.h"
 
 static const struct of_device_id ath12k_wifi7_ahb_of_match[] = {
 	{ .compatible = "qcom,ipq5332-wifi",

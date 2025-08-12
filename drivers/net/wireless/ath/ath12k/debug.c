@@ -21,6 +21,7 @@ void ath12k_info(struct ath12k_base *ab, const char *fmt, ...)
 	/* TODO: Trace the log */
 	va_end(args);
 }
+EXPORT_SYMBOL(ath12k_info);
 
 void ath12k_err(struct ath12k_base *ab, const char *fmt, ...)
 {
@@ -35,6 +36,7 @@ void ath12k_err(struct ath12k_base *ab, const char *fmt, ...)
 	/* TODO: Trace the log */
 	va_end(args);
 }
+EXPORT_SYMBOL(ath12k_err);
 
 void __ath12k_warn(struct device *dev, const char *fmt, ...)
 {
@@ -49,6 +51,7 @@ void __ath12k_warn(struct device *dev, const char *fmt, ...)
 	/* TODO: Trace the log */
 	va_end(args);
 }
+EXPORT_SYMBOL(__ath12k_warn);
 
 #ifdef CONFIG_ATH12K_DEBUG
 
@@ -72,6 +75,7 @@ void __ath12k_dbg(struct ath12k_base *ab, enum ath12k_debug_mask mask,
 
 	va_end(args);
 }
+EXPORT_SYMBOL(__ath12k_dbg);
 
 void ath12k_dbg_dump(struct ath12k_base *ab,
 		     enum ath12k_debug_mask mask,

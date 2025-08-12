@@ -6,12 +6,12 @@
 
 #include <linux/pci.h>
 
+#include "../pci.h"
 #include "pci.h"
-#include "pci_wifi7.h"
-#include "core.h"
-#include "hif.h"
-#include "mhi.h"
-#include "hw_wifi7.h"
+#include "../core.h"
+#include "../hif.h"
+#include "../mhi.h"
+#include "hw.h"
 
 #define QCN9274_DEVICE_ID		0x1109
 #define WCN7850_DEVICE_ID		0x1107

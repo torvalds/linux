@@ -8,17 +8,17 @@
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
 
-#include "debug.h"
-#include "core.h"
+#include "../debug.h"
+#include "../core.h"
+#include "../ce.h"
 #include "ce.h"
-#include "ce_wifi7.h"
+#include "../hw.h"
 #include "hw.h"
-#include "hw_wifi7.h"
+#include "../mhi.h"
 #include "mhi.h"
-#include "dp_rx.h"
-#include "peer.h"
-#include "wmi_wifi7.h"
-#include "mhi_wifi7.h"
+#include "../dp_rx.h"
+#include "../peer.h"
+#include "wmi.h"
 
 static const guid_t wcn7850_uuid = GUID_INIT(0xf634f534, 0x6147, 0x11ec,
 					     0x90, 0xd6, 0x02, 0x42,

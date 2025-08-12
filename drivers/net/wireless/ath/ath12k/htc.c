@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
@@ -376,6 +377,7 @@ void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 out:
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL(ath12k_htc_rx_completion_handler);
 
 static void ath12k_htc_control_rx_complete(struct ath12k_base *ab,
 					   struct sk_buff *skb)

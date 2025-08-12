@@ -5,10 +5,10 @@
  */
 
 #include <linux/module.h>
-#include "ahb.h"
+#include "../ahb.h"
+#include "../pci.h"
 #include "pci.h"
-#include "pci_wifi7.h"
-#include "ahb_wifi7.h"
+#include "ahb.h"
 
 static int ahb_err, pci_err;
 

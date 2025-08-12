@@ -746,6 +746,7 @@ const struct hal_rx_ops hal_rx_qcn9274_ops = {
 	.rx_desc_get_desc_size = ath12k_hw_qcn9274_get_rx_desc_size,
 	.rx_desc_get_msdu_src_link_id = ath12k_hw_qcn9274_rx_desc_get_msdu_src_link,
 };
+EXPORT_SYMBOL(hal_rx_qcn9274_ops);
 
 static bool ath12k_hw_qcn9274_compact_rx_desc_get_first_msdu(struct hal_rx_desc *desc)
 {
@@ -1093,6 +1094,7 @@ const struct hal_ops hal_qcn9274_ops = {
 	.rxdma_ring_wmask_rx_msdu_end = ath12k_hal_qcn9274_rx_msdu_end_wmask_get,
 	.get_hal_rx_compact_ops = ath12k_hal_qcn9274_get_hal_rx_compact_ops,
 };
+EXPORT_SYMBOL(hal_qcn9274_ops);
 
 static bool ath12k_hw_wcn7850_rx_desc_get_first_msdu(struct hal_rx_desc *desc)
 {
@@ -1552,6 +1554,7 @@ const struct hal_rx_ops hal_rx_wcn7850_ops = {
 	.rx_desc_get_desc_size = ath12k_hw_wcn7850_get_rx_desc_size,
 	.rx_desc_get_msdu_src_link_id = ath12k_hw_wcn7850_rx_desc_get_msdu_src_link,
 };
+EXPORT_SYMBOL(hal_rx_wcn7850_ops);
 
 const struct hal_ops hal_wcn7850_ops = {
 	.create_srng_config = ath12k_hal_srng_create_config_wcn7850,
@@ -1560,6 +1563,7 @@ const struct hal_ops hal_wcn7850_ops = {
 	.rxdma_ring_wmask_rx_msdu_end = NULL,
 	.get_hal_rx_compact_ops = NULL,
 };
+EXPORT_SYMBOL(hal_wcn7850_ops);
 
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_base *ab)
 {

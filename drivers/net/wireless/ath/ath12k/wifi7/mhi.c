@@ -4,8 +4,8 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include "../mhi.h"
 #include "mhi.h"
-#include "mhi_wifi7.h"
 
 static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 	{

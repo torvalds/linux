@@ -23,6 +23,7 @@ struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
 
 	return NULL;
 }
+EXPORT_SYMBOL(ath12k_peer_ml_find);
 
 struct ath12k_peer *ath12k_peer_find(struct ath12k_base *ab, int vdev_id,
 				     const u8 *addr)
@@ -78,6 +79,7 @@ struct ath12k_peer *ath12k_peer_find_by_addr(struct ath12k_base *ab,
 
 	return NULL;
 }
+EXPORT_SYMBOL(ath12k_peer_find_by_addr);
 
 static struct ath12k_peer *ath12k_peer_find_by_ml_id(struct ath12k_base *ab,
 						     int ml_peer_id)

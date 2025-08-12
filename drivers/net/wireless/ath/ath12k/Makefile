@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 obj-$(CONFIG_ATH12K) += ath12k.o
 ath12k-y += core.o \
-	    core_wifi7.o \
 	    hal.o \
 	    hal_tx.o \
 	    hal_rx.o \
 	    wmi.o \
-	    wmi_wifi7.o \
 	    mac.o \
 	    reg.o \
 	    htc.o \
@@ -16,19 +14,18 @@ ath12k-y += core.o \
 	    dp_rx.o \
 	    debug.o \
 	    ce.o \
-	    ce_wifi7.o \
 	    peer.o \
 	    dbring.o \
-	    hw_wifi7.o \
 	    mhi.o \
-	    mhi_wifi7.o \
 	    pci.o \
-	    pci_wifi7.o \
 	    dp_mon.o \
 	    fw.o \
 	    p2p.o
 
-ath12k-$(CONFIG_ATH12K_AHB) += ahb.o ahb_wifi7.o
+ath12k-$(CONFIG_ATH12K_AHB) += ahb.o
+
+obj-$(CONFIG_ATH12K) += wifi7/
+
 ath12k-$(CONFIG_ATH12K_DEBUGFS) += debugfs.o debugfs_htt_stats.o debugfs_sta.o
 ath12k-$(CONFIG_ACPI) += acpi.o
 ath12k-$(CONFIG_ATH12K_TRACING) += trace.o

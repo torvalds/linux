@@ -8,10 +8,10 @@
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
 
-#include "core.h"
+#include "../core.h"
+#include "../ce.h"
 #include "ce.h"
-#include "ce_wifi7.h"
-#include "dp_rx.h"
+#include "../dp_rx.h"
 
 /* Copy Engine (CE) configs for QCN9274 */
 /* Target firmware's Copy Engine configuration. */
