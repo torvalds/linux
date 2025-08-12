@@ -6975,7 +6975,6 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	struct perf_event *event = file->private_data;
 	unsigned long vma_size, nr_pages;
 	long user_extra = 0, extra = 0;
-	struct mutex *aux_mutex = NULL;
 	struct perf_buffer *rb = NULL;
 	int ret, flags = 0;
 	mapped_f mapped;
@@ -7100,8 +7099,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		if (!rb)
 			goto unlock;
 
-		aux_mutex = &rb->aux_mutex;
-		mutex_lock(aux_mutex);
+		guard(mutex)(&rb->aux_mutex);
 
 		aux_offset = READ_ONCE(rb->user_page->aux_offset);
 		aux_size = READ_ONCE(rb->user_page->aux_size);
@@ -7161,8 +7159,6 @@ aux_success:
 	}
 
 unlock:
-	if (aux_mutex)
-		mutex_unlock(aux_mutex);
 	mutex_unlock(&event->mmap_mutex);
 
 	if (ret)
