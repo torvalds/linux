@@ -880,12 +880,10 @@ struct btrfs_fs_info {
 	struct lockdep_map btrfs_trans_pending_ordered_map;
 	struct lockdep_map btrfs_ordered_extent_map;
 
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+#ifdef CONFIG_BTRFS_DEBUG
 	spinlock_t ref_verify_lock;
 	struct rb_root block_tree;
-#endif
 
-#ifdef CONFIG_BTRFS_DEBUG
 	struct kobject *debug_kobj;
 	struct list_head allocated_roots;
 

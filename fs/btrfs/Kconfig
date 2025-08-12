@@ -117,14 +117,3 @@ config BTRFS_EXPERIMENTAL
 	  - large folio support
 
 	  If unsure, say N.
-
-config BTRFS_FS_REF_VERIFY
-	bool "Btrfs with the ref verify tool compiled in"
-	depends on BTRFS_FS
-	default n
-	help
-	  Enable run-time extent reference verification instrumentation.  This
-	  is meant to be used by btrfs developers for tracking down extent
-	  reference problems or verifying they didn't break something.
-
-	  If unsure, say N.

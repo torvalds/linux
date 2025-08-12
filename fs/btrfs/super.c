@@ -133,8 +133,6 @@ enum {
 	Opt_enospc_debug,
 #ifdef CONFIG_BTRFS_DEBUG
 	Opt_fragment, Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
-#endif
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	Opt_ref_verify,
 #endif
 	Opt_err,
@@ -257,8 +255,6 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 	fsparam_flag_no("enospc_debug", Opt_enospc_debug),
 #ifdef CONFIG_BTRFS_DEBUG
 	fsparam_enum("fragment", Opt_fragment, btrfs_parameter_fragment),
-#endif
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	fsparam_flag("ref_verify", Opt_ref_verify),
 #endif
 	{}
@@ -646,8 +642,6 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			return -EINVAL;
 		}
 		break;
-#endif
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	case Opt_ref_verify:
 		btrfs_set_opt(ctx->mount_opt, REF_VERIFY);
 		break;
@@ -2482,9 +2476,6 @@ static int __init btrfs_print_mod_info(void)
 #endif
 #ifdef CONFIG_BTRFS_ASSERT
 			", assert=on"
-#endif
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
-			", ref-verify=on"
 #endif
 #ifdef CONFIG_BLK_DEV_ZONED
 			", zoned=yes"
