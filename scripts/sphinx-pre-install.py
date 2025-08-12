@@ -80,7 +80,6 @@ class SphinxDependencyChecker:
         self.need_symlink = 0
         self.need_sphinx = 0
         self.need_pip = 0
-        self.need_virtualenv = 0
         self.rec_sphinx_upgrade = 0
         self.verbose_warn_install = 1
 
@@ -919,12 +918,14 @@ class SphinxDependencyChecker:
         else:
             print("\nSphinx needs to be installed either:\n1) via pip/pypi with:\n")
 
-        self.python_cmd = os.path.abspath(sys.argv[0])
-
-        print(f"\t{virtualenv_cmd} {self.virtenv_dir}")
-        print(f"\t. {self.virtenv_dir}/bin/activate")
-        print(f"\tpip install -r {self.requirement_file}")
-        self.deactivate_help()
+        if not virtualenv_cmd:
+            print("   Currently not possible.\n")
+            print("   Please upgrade Python to a newer version and run this script again")
+        else:
+            print(f"\t{virtualenv_cmd} {self.virtenv_dir}")
+            print(f"\t. {self.virtenv_dir}/bin/activate")
+            print(f"\tpip install -r {self.requirement_file}")
+            self.deactivate_help()
 
         print("\n2) As a package with:")
 
@@ -953,6 +954,7 @@ class SphinxDependencyChecker:
 
     def check_needs(self):
         self.get_system_release()
+        self.python_cmd = sys.executable
 
         # Check if Sphinx is already accessible from current environment
         self.check_sphinx()
@@ -965,56 +967,21 @@ class SphinxDependencyChecker:
             ver = ver_str(self.cur_version)
             print(f"Sphinx version: {ver}\n")
 
-        # FIXME: Check python command line, trying first python3
-        self.python_cmd = self.which("python3")
-        if not self.python_cmd:
-            self.python_cmd = self.check_program("python", 0)
-
         # Check the type of virtual env, depending on Python version
-        if self.python_cmd:
-            if self.virtualenv:
-                try:
-                    result = self.run(
-                        [self.python_cmd, "--version"],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    )
+        virtualenv_cmd = None
 
-                    output = result.stdout + result.stderr
-
-                    match = re.search(r"(\d+)\.(\d+)\.", output)
-                    if match:
-                        major = int(match.group(1))
-                        minor = int(match.group(2))
-
-                        if major < 3:
-                            sys.exit("Python 3 is required to build the kernel docs")
-                        if major == 3 and minor < 3:
-                            self.need_virtualenv = True
-                    else:
-                        sys.exit(f"Warning: couldn't identify {self.python_cmd} version!")
-
-                except subprocess.CalledProcessError as e:
-                    sys.exit(f"Error checking Python version: {e}")
-            else:
-                self.add_package("python-sphinx", 0)
+        if sys.version_info < MIN_PYTHON_VERSION:
+            min_ver = ver_str(MIN_PYTHON_VERSION)
+            print(f"ERROR: at least python {min_ver} is required to build the kernel docs")
+            self.need_sphinx = 1
 
         self.venv_ver = self.recommend_sphinx_upgrade()
 
-        virtualenv_cmd = ""
-
         if self.need_pip:
-            # Set virtualenv command line, if python < 3.3
-            # FIXME: can be removed as we're now with an upper min requirement
-            #        but then we need to check python version
-            if self.need_virtualenv:
-                virtualenv_cmd = self.which("virtualenv-3")
-                if not virtualenv_cmd:
-                    virtualenv_cmd = self.which("virtualenv-3.5")
-                if not virtualenv_cmd:
-                    self.check_program("virtualenv", 0)
-                    virtualenv_cmd = "virtualenv"
+            if sys.version_info < MIN_PYTHON_VERSION:
+                self.need_pip = False
+                print("Warning: python version is not supported.")
+
             else:
                 virtualenv_cmd = f"{self.python_cmd} -m venv"
                 self.check_python_module("ensurepip", 0)
