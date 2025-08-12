@@ -799,7 +799,6 @@ static int ov02c10_check_hwcfg(struct ov02c10 *ov02c10)
 	struct device *dev = ov02c10->dev;
 	struct fwnode_handle *ep, *fwnode = dev_fwnode(dev);
 	unsigned long link_freq_bitmap;
-	u32 mclk;
 	int ret;
 
 	/*
@@ -810,31 +809,6 @@ static int ov02c10_check_hwcfg(struct ov02c10 *ov02c10)
 	if (!ep)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "waiting for fwnode graph endpoint\n");
-
-	ov02c10->img_clk = devm_clk_get_optional(dev, NULL);
-	if (IS_ERR(ov02c10->img_clk)) {
-		fwnode_handle_put(ep);
-		return dev_err_probe(dev, PTR_ERR(ov02c10->img_clk),
-				     "failed to get imaging clock\n");
-	}
-
-	if (ov02c10->img_clk) {
-		mclk = clk_get_rate(ov02c10->img_clk);
-	} else {
-		ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
-		if (ret) {
-			fwnode_handle_put(ep);
-			return dev_err_probe(dev, ret,
-					     "reading clock-frequency property\n");
-		}
-	}
-
-	if (mclk != OV02C10_MCLK) {
-		fwnode_handle_put(ep);
-		return dev_err_probe(dev, -EINVAL,
-				     "external clock %u is not supported\n",
-				     mclk);
-	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
@@ -886,6 +860,7 @@ static void ov02c10_remove(struct i2c_client *client)
 static int ov02c10_probe(struct i2c_client *client)
 {
 	struct ov02c10 *ov02c10;
+	unsigned long freq;
 	int ret;
 
 	ov02c10 = devm_kzalloc(&client->dev, sizeof(*ov02c10), GFP_KERNEL);
@@ -893,6 +868,17 @@ static int ov02c10_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ov02c10->dev = &client->dev;
+
+	ov02c10->img_clk = devm_v4l2_sensor_clk_get(ov02c10->dev, NULL);
+	if (IS_ERR(ov02c10->img_clk))
+		return dev_err_probe(ov02c10->dev, PTR_ERR(ov02c10->img_clk),
+				     "failed to get imaging clock\n");
+
+	freq = clk_get_rate(ov02c10->img_clk);
+	if (freq != OV02C10_MCLK)
+		return dev_err_probe(ov02c10->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
 
 	v4l2_i2c_subdev_init(&ov02c10->sd, client, &ov02c10_subdev_ops);
 
