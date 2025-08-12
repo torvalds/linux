@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2022 Intel Corporation.
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -2166,6 +2167,8 @@ static const struct hi847_mode supported_modes[] = {
 };
 
 struct hi847 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -2244,7 +2247,6 @@ static int hi847_write_reg(struct hi847 *hi847, u16 reg, u16 len, u32 val)
 static int hi847_write_reg_list(struct hi847 *hi847,
 				const struct hi847_reg_list *r_list)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&hi847->sd);
 	unsigned int i;
 	int ret;
 
@@ -2253,7 +2255,7 @@ static int hi847_write_reg_list(struct hi847 *hi847,
 				      HI847_REG_VALUE_16BIT,
 				      r_list->regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(hi847->dev,
 					    "failed to write reg 0x%4.4x. error = %d",
 					    r_list->regs[i].address, ret);
 			return ret;
@@ -2408,7 +2410,6 @@ static int hi847_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct hi847 *hi847 = container_of(ctrl->handler,
 					     struct hi847, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&hi847->sd);
 	s64 exposure_max;
 	int ret = 0;
 
@@ -2424,7 +2425,7 @@ static int hi847_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(hi847->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -2466,7 +2467,7 @@ static int hi847_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(hi847->dev);
 
 	return ret;
 }
@@ -2557,7 +2558,6 @@ static void hi847_assign_pad_format(const struct hi847_mode *mode,
 
 static int hi847_start_streaming(struct hi847 *hi847)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&hi847->sd);
 	const struct hi847_reg_list *reg_list;
 	int link_freq_index, ret;
 
@@ -2565,14 +2565,14 @@ static int hi847_start_streaming(struct hi847 *hi847)
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
 	ret = hi847_write_reg_list(hi847, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls");
+		dev_err(hi847->dev, "failed to set plls");
 		return ret;
 	}
 
 	reg_list = &hi847->cur_mode->reg_list;
 	ret = hi847_write_reg_list(hi847, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(hi847->dev, "failed to set mode");
 		return ret;
 	}
 
@@ -2587,7 +2587,7 @@ static int hi847_start_streaming(struct hi847 *hi847)
 			      HI847_REG_VALUE_16BIT, HI847_MODE_STREAMING);
 
 	if (ret) {
-		dev_err(&client->dev, "failed to set stream");
+		dev_err(hi847->dev, "failed to set stream");
 		return ret;
 	}
 
@@ -2596,28 +2596,25 @@ static int hi847_start_streaming(struct hi847 *hi847)
 
 static void hi847_stop_streaming(struct hi847 *hi847)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&hi847->sd);
-
 	if (hi847_write_reg(hi847, HI847_REG_MODE_TG,
 			    HI847_REG_VALUE_16BIT, HI847_REG_MODE_TG_DISABLE))
-		dev_err(&client->dev, "failed to set stream 0x%x",
+		dev_err(hi847->dev, "failed to set stream 0x%x",
 			HI847_REG_MODE_TG);
 
 	if (hi847_write_reg(hi847, HI847_REG_MODE_SELECT,
 			    HI847_REG_VALUE_16BIT, HI847_MODE_STANDBY))
-		dev_err(&client->dev, "failed to set stream 0x%x",
+		dev_err(hi847->dev, "failed to set stream 0x%x",
 		HI847_REG_MODE_SELECT);
 }
 
 static int hi847_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct hi847 *hi847 = to_hi847(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&hi847->mutex);
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(hi847->dev);
 		if (ret) {
 			mutex_unlock(&hi847->mutex);
 			return ret;
@@ -2627,11 +2624,11 @@ static int hi847_set_stream(struct v4l2_subdev *sd, int enable)
 		if (ret) {
 			enable = 0;
 			hi847_stop_streaming(hi847);
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(hi847->dev);
 		}
 	} else {
 		hi847_stop_streaming(hi847);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(hi847->dev);
 	}
 
 	mutex_unlock(&hi847->mutex);
@@ -2768,7 +2765,6 @@ static const struct v4l2_subdev_internal_ops hi847_internal_ops = {
 
 static int hi847_identify_module(struct hi847 *hi847)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&hi847->sd);
 	int ret;
 	u32 val;
 
@@ -2778,7 +2774,7 @@ static int hi847_identify_module(struct hi847 *hi847)
 		return ret;
 
 	if (val != HI847_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+		dev_err(hi847->dev, "chip id mismatch: %x!=%x",
 			HI847_CHIP_ID, val);
 		return -ENXIO;
 	}
@@ -2862,7 +2858,7 @@ static void hi847_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(hi847->dev);
 	mutex_destroy(&hi847->mutex);
 }
 
@@ -2875,9 +2871,11 @@ static int hi847_probe(struct i2c_client *client)
 	if (!hi847)
 		return -ENOMEM;
 
-	ret = hi847_check_hwcfg(&client->dev);
+	hi847->dev = &client->dev;
+
+	ret = hi847_check_hwcfg(hi847->dev);
 	if (ret) {
-		dev_err(&client->dev, "failed to get HW configuration: %d",
+		dev_err(hi847->dev, "failed to get HW configuration: %d",
 			ret);
 		return ret;
 	}
@@ -2885,7 +2883,7 @@ static int hi847_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&hi847->sd, client, &hi847_subdev_ops);
 	ret = hi847_identify_module(hi847);
 	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
+		dev_err(hi847->dev, "failed to find sensor: %d", ret);
 		return ret;
 	}
 
@@ -2893,7 +2891,7 @@ static int hi847_probe(struct i2c_client *client)
 	hi847->cur_mode = &supported_modes[0];
 	ret = hi847_init_controls(hi847);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(hi847->dev, "failed to init controls: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -2904,20 +2902,20 @@ static int hi847_probe(struct i2c_client *client)
 	hi847->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&hi847->sd.entity, 1, &hi847->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(hi847->dev, "failed to init entity pads: %d", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
 	ret = v4l2_async_register_subdev_sensor(&hi847->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+		dev_err(hi847->dev, "failed to register V4L2 subdev: %d",
 			ret);
 		goto probe_error_media_entity_cleanup;
 	}
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(hi847->dev);
+	pm_runtime_enable(hi847->dev);
+	pm_runtime_idle(hi847->dev);
 
 	return 0;
 
