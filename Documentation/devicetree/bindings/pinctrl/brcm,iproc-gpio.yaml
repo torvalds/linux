@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/brcm,iproc-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom iProc GPIO/PINCONF Controller
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - brcm,cygnus-asiu-gpio
+          - brcm,cygnus-ccm-gpio
+          - brcm,cygnus-crmu-gpio
+          - brcm,iproc-gpio
+          - brcm,iproc-stingray-gpio
+      - items:
+          - enum:
+              - brcm,iproc-hr2-gpio
+              - brcm,iproc-nsp-gpio
+          - const: brcm,iproc-gpio
+
+  reg:
+    minItems: 1
+    items:
+      - description: GPIO Bank registers
+      - description: IO Ctrl registers
+
+  "#gpio-cells":
+    const: 2
+
+  gpio-controller: true
+
+  gpio-ranges: true
+
+  ngpios: true
+
+  "#interrupt-cells":
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+required:
+  - compatible
+  - reg
+  - "#gpio-cells"
+  - gpio-controller
+  - ngpios
+
+patternProperties:
+  '-pins$':
+    type: object
+    additionalProperties:
+      description: Pin configuration child nodes.
+      allOf:
+        - $ref: pincfg-node.yaml#
+        - $ref: pinmux-node.yaml#
+      additionalProperties: false
+
+      properties:
+        pins:
+          items:
+            pattern: '^gpio-'
+
+        bias-disable: true
+        bias-pull-up: true
+        bias-pull-down: true
+
+        drive-strength:
+          enum: [ 2, 4, 6, 8, 10, 12, 14, 16 ]
+
+      required:
+        - pins
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpio@1800a000 {
+        compatible = "brcm,cygnus-ccm-gpio";
+        reg = <0x1800a000 0x50>,
+              <0x0301d164 0x20>;
+        ngpios = <24>;
+        #gpio-cells = <2>;
+        gpio-controller;
+        #interrupt-cells = <2>;
+        interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+
+        touch-pins {
+            pwr {
+                pins = "gpio-0";
+                drive-strength = <16>;
+            };
+
+            event {
+                pins = "gpio-1";
+                bias-pull-up;
+            };
+        };
+    };
