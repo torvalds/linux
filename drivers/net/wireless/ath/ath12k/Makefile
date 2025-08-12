@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 obj-$(CONFIG_ATH12K) += ath12k.o
 ath12k-y += core.o \
+	    core_wifi7.o \
 	    hal.o \
 	    hal_tx.o \
 	    hal_rx.o \
