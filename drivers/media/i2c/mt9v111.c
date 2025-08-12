@@ -365,8 +365,6 @@ static int __mt9v111_power_on(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	clk_set_rate(mt9v111->clk, mt9v111->sysclk);
-
 	gpiod_set_value(mt9v111->standby, 0);
 	usleep_range(500, 1000);
 
