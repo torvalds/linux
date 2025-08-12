@@ -242,10 +242,6 @@ static void ice_fwlog_set_supported(struct ice_fwlog *fwlog)
 int ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog *fwlog,
 		   struct ice_fwlog_api *api)
 {
-	/* only support fw log commands on PF 0 */
-	if (hw->bus.func)
-		return -EINVAL;
-
 	fwlog->api = *api;
 	ice_fwlog_set_supported(fwlog);
 
@@ -295,10 +291,6 @@ void ice_fwlog_deinit(struct ice_hw *hw, struct ice_fwlog *fwlog)
 {
 	struct ice_pf *pf = hw->back;
 	int status;
-
-	/* only support fw log commands on PF 0 */
-	if (hw->bus.func)
-		return;
 
 	/* make sure FW logging is disabled to not put the FW in a weird state
 	 * for the next driver load
