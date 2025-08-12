@@ -2274,10 +2274,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 		device = btrfs_scan_one_device(vol->name, false);
 		if (IS_ERR_OR_NULL(device)) {
 			mutex_unlock(&uuid_mutex);
-			if (IS_ERR(device))
-				ret = PTR_ERR(device);
-			else
-				ret = 0;
+			ret = PTR_ERR_OR_ZERO(device);
 			break;
 		}
 		ret = !(device->fs_devices->num_devices ==
