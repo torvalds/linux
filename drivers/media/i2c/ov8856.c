@@ -2266,19 +2266,17 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856)
 	if (!fwnode)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &xvclk_rate);
-	if (ret)
-		return ret;
+	ov8856->xvclk = devm_v4l2_sensor_clk_get_legacy(dev, "xvclk", false, 0);
+	if (IS_ERR(ov8856->xvclk))
+		return dev_err_probe(dev, PTR_ERR(ov8856->xvclk),
+				     "could not get xvclk clock\n");
+
+	xvclk_rate = clk_get_rate(ov8856->xvclk);
+	if (xvclk_rate != OV8856_XVCLK_19_2)
+		dev_warn(dev, "external clock rate %u is unsupported",
+			 xvclk_rate);
 
 	if (!is_acpi_node(fwnode)) {
-		ov8856->xvclk = devm_v4l2_sensor_clk_get(dev, "xvclk");
-		if (IS_ERR(ov8856->xvclk))
-			return dev_err_probe(dev, PTR_ERR(ov8856->xvclk),
-					     "could not get xvclk clock\n");
-
-		clk_set_rate(ov8856->xvclk, xvclk_rate);
-		xvclk_rate = clk_get_rate(ov8856->xvclk);
-
 		ov8856->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 							     GPIOD_OUT_LOW);
 		if (IS_ERR(ov8856->reset_gpio))
@@ -2293,10 +2291,6 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856)
 		if (ret)
 			return ret;
 	}
-
-	if (xvclk_rate != OV8856_XVCLK_19_2)
-		dev_warn(dev, "external clock rate %u is unsupported",
-			 xvclk_rate);
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
