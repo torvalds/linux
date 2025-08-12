@@ -217,8 +217,8 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 
 	if (efx_siena_separate_tx_channels) {
 		efx->n_tx_channels =
-			min(max(n_channels / 2, 1U),
-			    efx->max_tx_channels);
+			clamp(n_channels / 2, 1U,
+			      efx->max_tx_channels);
 		efx->tx_channel_offset =
 			n_channels - efx->n_tx_channels;
 		efx->n_rx_channels =
