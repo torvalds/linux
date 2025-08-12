@@ -320,11 +320,8 @@ struct swap_info_struct {
 	struct completion comp;		/* seldom referenced */
 	spinlock_t lock;		/*
 					 * protect map scan related fields like
-					 * swap_map, lowest_bit, highest_bit,
-					 * inuse_pages, cluster_next,
-					 * cluster_nr, lowest_alloc,
-					 * highest_alloc, free/discard cluster
-					 * list. other fields are only changed
+					 * swap_map, inuse_pages and all cluster
+					 * lists. other fields are only changed
 					 * at swapon/swapoff, so are protected
 					 * by swap_lock. changing flags need
 					 * hold this lock and swap_lock. If
