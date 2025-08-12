@@ -24,7 +24,6 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
 
-#include <media/i2c/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -182,6 +181,13 @@ static const struct mt9v032_model_version mt9v032_versions[] = {
 	{ MT9V034_CHIP_ID_REV1, "MT9V024/MT9V034 rev1" },
 };
 
+struct mt9v032_platform_data {
+	unsigned int clk_pol:1;
+
+	const s64 *link_freqs;
+	s64 link_def_freq;
+};
+
 struct mt9v032 {
 	struct device *dev;
 
@@ -207,7 +213,7 @@ struct mt9v032 {
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *standby_gpio;
 
-	struct mt9v032_platform_data *pdata;
+	struct mt9v032_platform_data pdata;
 	const struct mt9v032_model_info *model;
 	const struct mt9v032_model_version *version;
 
@@ -332,7 +338,7 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
 		return ret;
 
 	/* Configure the pixel clock polarity */
-	if (mt9v032->pdata && mt9v032->pdata->clk_pol) {
+	if (mt9v032->pdata.clk_pol) {
 		ret = regmap_write(map, mt9v032->model->data->pclk_reg,
 				MT9V032_PIXEL_CLOCK_INV_PXL_CLK);
 		if (ret < 0)
@@ -683,7 +689,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (mt9v032->link_freq == NULL)
 			break;
 
-		freq = mt9v032->pdata->link_freqs[mt9v032->link_freq->val];
+		freq = mt9v032->pdata.link_freqs[mt9v032->link_freq->val];
 		*mt9v032->pixel_rate->p_new.p_s64 = freq;
 		mt9v032->sysclk = freq;
 		break;
@@ -996,26 +1002,19 @@ static const struct regmap_config mt9v032_regmap_config = {
  * Driver initialization and probing
  */
 
-static struct mt9v032_platform_data *mt9v032_get_pdata(struct mt9v032 *mt9v032)
+static int mt9v032_get_pdata(struct mt9v032 *mt9v032)
 {
-	struct mt9v032_platform_data *pdata = NULL;
+	struct mt9v032_platform_data *pdata = &mt9v032->pdata;
 	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
-	struct device_node *np;
+	struct device_node *np __free(device_node) = NULL;
 	struct property *prop;
-
-	if (!IS_ENABLED(CONFIG_OF) || !mt9v032->dev->of_node)
-		return mt9v032->dev->platform_data;
 
 	np = of_graph_get_endpoint_by_regs(mt9v032->dev->of_node, 0, -1);
 	if (!np)
-		return NULL;
+		return -EINVAL;
 
 	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint) < 0)
-		goto done;
-
-	pdata = devm_kzalloc(mt9v032->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		goto done;
+		return -EINVAL;
 
 	prop = of_find_property(np, "link-frequencies", NULL);
 	if (prop) {
@@ -1025,11 +1024,11 @@ static struct mt9v032_platform_data *mt9v032_get_pdata(struct mt9v032 *mt9v032)
 		link_freqs = devm_kcalloc(mt9v032->dev, size,
 					  sizeof(*link_freqs), GFP_KERNEL);
 		if (!link_freqs)
-			goto done;
+			return -EINVAL;
 
 		if (of_property_read_u64_array(np, "link-frequencies",
 					       link_freqs, size) < 0)
-			goto done;
+			return -EINVAL;
 
 		pdata->link_freqs = link_freqs;
 		pdata->link_def_freq = link_freqs[0];
@@ -1038,9 +1037,7 @@ static struct mt9v032_platform_data *mt9v032_get_pdata(struct mt9v032 *mt9v032)
 	pdata->clk_pol = !!(endpoint.bus.parallel.flags &
 			    V4L2_MBUS_PCLK_SAMPLE_RISING);
 
-done:
-	of_node_put(np);
-	return pdata;
+	return 0;
 }
 
 static int mt9v032_probe(struct i2c_client *client)
@@ -1075,8 +1072,13 @@ static int mt9v032_probe(struct i2c_client *client)
 		return PTR_ERR(mt9v032->standby_gpio);
 
 	mutex_init(&mt9v032->power_lock);
-	mt9v032->pdata = mt9v032_get_pdata(mt9v032);
-	mt9v032->model = i2c_get_match_data(client);
+
+	ret = mt9v032_get_pdata(mt9v032);
+	if (ret)
+		return dev_err_probe(mt9v032->dev, -EINVAL,
+				     "Failed to parse DT properties\n");
+
+	mt9v032->model = device_get_match_data(mt9v032->dev);
 
 	v4l2_ctrl_handler_init(&mt9v032->ctrls, 11 +
 			       ARRAY_SIZE(mt9v032_aegc_controls));
@@ -1121,8 +1123,8 @@ static int mt9v032_probe(struct i2c_client *client)
 		v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
 				  V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
 
-	if (mt9v032->pdata && mt9v032->pdata->link_freqs) {
-		const struct mt9v032_platform_data *pdata = mt9v032->pdata;
+	if (mt9v032->pdata.link_freqs) {
+		const struct mt9v032_platform_data *pdata = &mt9v032->pdata;
 		unsigned int def = 0;
 
 		for (i = 0; pdata->link_freqs[i]; ++i) {
@@ -1264,19 +1266,6 @@ static const struct mt9v032_model_info mt9v032_models[] = {
 	},
 };
 
-static const struct i2c_device_id mt9v032_id[] = {
-	{ "mt9v022", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_COLOR] },
-	{ "mt9v022m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_MONO] },
-	{ "mt9v024", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_COLOR] },
-	{ "mt9v024m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_MONO] },
-	{ "mt9v032", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_COLOR] },
-	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
-	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },
-	{ "mt9v034m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_MONO] },
-	{ /* Sentinel */ }
-};
-MODULE_DEVICE_TABLE(i2c, mt9v032_id);
-
 static const struct of_device_id mt9v032_of_match[] = {
 	{ .compatible = "aptina,mt9v022", .data = &mt9v032_models[MT9V032_MODEL_V022_COLOR] },
 	{ .compatible = "aptina,mt9v022m", .data = &mt9v032_models[MT9V032_MODEL_V022_MONO] },
@@ -1297,7 +1286,6 @@ static struct i2c_driver mt9v032_driver = {
 	},
 	.probe		= mt9v032_probe,
 	.remove		= mt9v032_remove,
-	.id_table	= mt9v032_id,
 };
 
 module_i2c_driver(mt9v032_driver);

@@ -17273,7 +17273,6 @@ S:	Maintained
 T:	git git://linuxtv.org/media.git
 F:	Documentation/devicetree/bindings/media/i2c/aptina,mt9v032.txt
 F:	drivers/media/i2c/mt9v032.c
-F:	include/media/i2c/mt9v032.h
 
 MT9V111 APTINA CAMERA SENSOR
 M:	Jacopo Mondi <jacopo@jmondi.org>
