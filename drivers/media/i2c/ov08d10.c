@@ -516,12 +516,11 @@ static const char * const ov08d10_test_pattern_menu[] = {
 
 struct ov08d10 {
 	struct device *dev;
+	struct clk *clk;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
-
-	struct clk		*xvclk;
 
 	/* V4L2 Controls */
 	struct v4l2_ctrl *link_freq;
@@ -1309,20 +1308,11 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	u32 xvclk_rate;
 	unsigned int i, j;
 	int ret;
 
 	if (!fwnode)
 		return -ENXIO;
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &xvclk_rate);
-	if (ret)
-		return ret;
-
-	if (xvclk_rate != OV08D10_XVCLK_19_2)
-		dev_warn(dev, "external clock rate %u is unsupported",
-			 xvclk_rate);
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -1388,6 +1378,7 @@ static void ov08d10_remove(struct i2c_client *client)
 static int ov08d10_probe(struct i2c_client *client)
 {
 	struct ov08d10 *ov08d10;
+	unsigned long freq;
 	int ret;
 
 	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
@@ -1395,6 +1386,16 @@ static int ov08d10_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ov08d10->dev = &client->dev;
+
+	ov08d10->clk = devm_v4l2_sensor_clk_get(ov08d10->dev, NULL);
+	if (IS_ERR(ov08d10->clk))
+		return dev_err_probe(ov08d10->dev, PTR_ERR(ov08d10->clk),
+				     "failed to get clock\n");
+
+	freq = clk_get_rate(ov08d10->clk);
+	if (freq != OV08D10_XVCLK_19_2)
+		dev_warn(ov08d10->dev,
+			 "external clock rate %lu is not supported\n", freq);
 
 	ret = ov08d10_get_hwcfg(ov08d10);
 	if (ret) {
