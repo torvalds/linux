@@ -95,19 +95,27 @@ static int do_child(void)
 static int get_fpsimd(pid_t pid, struct user_fpsimd_state *fpsimd)
 {
 	struct iovec iov;
+	int ret;
 
 	iov.iov_base = fpsimd;
 	iov.iov_len = sizeof(*fpsimd);
-	return ptrace(PTRACE_GETREGSET, pid, NT_PRFPREG, &iov);
+	ret = ptrace(PTRACE_GETREGSET, pid, NT_PRFPREG, &iov);
+	if (ret == -1)
+		ksft_perror("ptrace(PTRACE_GETREGSET)");
+	return ret;
 }
 
 static int set_fpsimd(pid_t pid, struct user_fpsimd_state *fpsimd)
 {
 	struct iovec iov;
+	int ret;
 
 	iov.iov_base = fpsimd;
 	iov.iov_len = sizeof(*fpsimd);
-	return ptrace(PTRACE_SETREGSET, pid, NT_PRFPREG, &iov);
+	ret = ptrace(PTRACE_SETREGSET, pid, NT_PRFPREG, &iov);
+	if (ret == -1)
+		ksft_perror("ptrace(PTRACE_SETREGSET)");
+	return ret;
 }
 
 static struct user_sve_header *get_sve(pid_t pid, const struct vec_type *type,
@@ -117,6 +125,7 @@ static struct user_sve_header *get_sve(pid_t pid, const struct vec_type *type,
 	void *p;
 	size_t sz = sizeof *sve;
 	struct iovec iov;
+	int ret;
 
 	while (1) {
 		if (*size < sz) {
@@ -132,8 +141,11 @@ static struct user_sve_header *get_sve(pid_t pid, const struct vec_type *type,
 
 		iov.iov_base = *buf;
 		iov.iov_len = sz;
-		if (ptrace(PTRACE_GETREGSET, pid, type->regset, &iov))
+		ret = ptrace(PTRACE_GETREGSET, pid, type->regset, &iov);
+		if (ret) {
+			ksft_perror("ptrace(PTRACE_GETREGSET)");
 			goto error;
+		}
 
 		sve = *buf;
 		if (sve->size <= sz)
@@ -152,10 +164,14 @@ static int set_sve(pid_t pid, const struct vec_type *type,
 		   const struct user_sve_header *sve)
 {
 	struct iovec iov;
+	int ret;
 
 	iov.iov_base = (void *)sve;
 	iov.iov_len = sve->size;
-	return ptrace(PTRACE_SETREGSET, pid, type->regset, &iov);
+	ret = ptrace(PTRACE_SETREGSET, pid, type->regset, &iov);
+	if (ret == -1)
+		ksft_perror("ptrace(PTRACE_SETREGSET)");
+	return ret;
 }
 
 /* Validate setting and getting the inherit flag */
