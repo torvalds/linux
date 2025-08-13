@@ -1845,16 +1845,14 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	info->thread = kzalloc(offsetof(struct elf_thread_core_info,
-				     notes[info->thread_notes]),
-			    GFP_KERNEL);
+	info->thread = kzalloc(struct_size(info->thread, notes, info->thread_notes),
+			       GFP_KERNEL);
 	if (unlikely(!info->thread))
 		return 0;
 
 	info->thread->task = dump_task;
 	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
-		t = kzalloc(offsetof(struct elf_thread_core_info,
-				     notes[info->thread_notes]),
+		t = kzalloc(struct_size(t, notes, info->thread_notes),
 			    GFP_KERNEL);
 		if (unlikely(!t))
 			return 0;
