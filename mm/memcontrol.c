@@ -2203,7 +2203,7 @@ static unsigned long calculate_high_delay(struct mem_cgroup *memcg,
  * try_charge() (context permitting), as well as from the userland
  * return path where reclaim is always able to block.
  */
-void mem_cgroup_handle_over_high(gfp_t gfp_mask)
+void __mem_cgroup_handle_over_high(gfp_t gfp_mask)
 {
 	unsigned long penalty_jiffies;
 	unsigned long pflags;
@@ -2212,9 +2212,6 @@ void mem_cgroup_handle_over_high(gfp_t gfp_mask)
 	int nr_retries = MAX_RECLAIM_RETRIES;
 	struct mem_cgroup *memcg;
 	bool in_retry = false;
-
-	if (likely(!nr_pages))
-		return;
 
 	memcg = get_mem_cgroup_from_mm(current->mm);
 	current->memcg_nr_pages_over_high = 0;
@@ -2486,7 +2483,7 @@ done_restock:
 	if (current->memcg_nr_pages_over_high > MEMCG_CHARGE_BATCH &&
 	    !(current->flags & PF_MEMALLOC) &&
 	    gfpflags_allow_blocking(gfp_mask))
-		mem_cgroup_handle_over_high(gfp_mask);
+		__mem_cgroup_handle_over_high(gfp_mask);
 	return 0;
 }
 
