@@ -316,6 +316,9 @@ bool dc_stream_set_cursor_attributes(
 {
 	bool result = false;
 
+	if (!stream)
+		return false;
+
 	if (dc_stream_check_cursor_attributes(stream, stream->ctx->dc->current_state, attributes)) {
 		stream->cursor_attributes = *attributes;
 		result = true;
@@ -331,7 +334,10 @@ bool dc_stream_program_cursor_attributes(
 	struct dc  *dc;
 	bool reset_idle_optimizations = false;
 
-	dc = stream ? stream->ctx->dc : NULL;
+	if (!stream)
+		return false;
+
+	dc = stream->ctx->dc;
 
 	if (dc_stream_set_cursor_attributes(stream, attributes)) {
 		dc_z10_restore(dc);
