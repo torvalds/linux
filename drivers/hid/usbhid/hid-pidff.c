@@ -940,52 +940,81 @@ static void pidff_set_autocenter(struct input_dev *dev, u16 magnitude)
 }
 
 /*
+ * Find specific usage in a given hid_field
+ */
+static int pidff_find_usage(struct hid_field *fld, unsigned int usage_code)
+{
+	for (int i = 0; i < fld->maxusage; i++) {
+		if (fld->usage[i].hid == usage_code)
+			return i;
+	}
+	return -1;
+}
+
+/*
+ * Find hid_field with a specific usage. Return the usage index as well
+ */
+static int pidff_find_field_with_usage(int *usage_index,
+				       struct hid_report *report,
+				       unsigned int usage_code)
+{
+	for (int i = 0; i < report->maxfield; i++) {
+		struct hid_field *fld = report->field[i];
+
+		if (fld->maxusage != fld->report_count) {
+			pr_debug("maxusage and report_count do not match, skipping\n");
+			continue;
+		}
+
+		int index = pidff_find_usage(fld, usage_code);
+
+		if (index >= 0) {
+			*usage_index = index;
+			return i;
+		}
+	}
+	return -1;
+}
+
+/*
  * Find fields from a report and fill a pidff_usage
  */
 static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 			     struct hid_report *report, int count, int strict,
 			     u32 *quirks)
 {
+	const u8 block_offset = pidff_set_condition[PID_PARAM_BLOCK_OFFSET];
+	const u8 delay = pidff_set_effect[PID_START_DELAY];
+
 	if (!report) {
 		pr_debug("%s, null report\n", __func__);
 		return -1;
 	}
 
-	int i, j, k, found;
+	for (int i = 0; i < count; i++) {
+		int index;
+		int found = pidff_find_field_with_usage(&index, report,
+							HID_UP_PID | table[i]);
 
-	for (k = 0; k < count; k++) {
-		found = 0;
-		for (i = 0; i < report->maxfield; i++) {
-			if (report->field[i]->maxusage !=
-			    report->field[i]->report_count) {
-				pr_debug("maxusage and report_count do not match, skipping\n");
-				continue;
-			}
-			for (j = 0; j < report->field[i]->maxusage; j++) {
-				if (report->field[i]->usage[j].hid ==
-				    (HID_UP_PID | table[k])) {
-					pr_debug("found %d at %d->%d\n",
-						 k, i, j);
-					usage[k].field = report->field[i];
-					usage[k].value =
-						&report->field[i]->value[j];
-					found = 1;
-					break;
-				}
-			}
-			if (found)
-				break;
+		if (found >= 0) {
+			pr_debug("found %d at %d->%d\n", i, found, index);
+			usage[i].field = report->field[found];
+			usage[i].value = &report->field[found]->value[index];
+			continue;
 		}
-		if (!found && table[k] == pidff_set_effect[PID_START_DELAY]) {
+
+		if (table[i] == delay) {
 			pr_debug("Delay field not found, but that's OK\n");
 			pr_debug("Setting MISSING_DELAY quirk\n");
 			*quirks |= HID_PIDFF_QUIRK_MISSING_DELAY;
-		} else if (!found && table[k] == pidff_set_condition[PID_PARAM_BLOCK_OFFSET]) {
+
+		} else if (table[i] == block_offset) {
 			pr_debug("PBO field not found, but that's OK\n");
 			pr_debug("Setting MISSING_PBO quirk\n");
 			*quirks |= HID_PIDFF_QUIRK_MISSING_PBO;
-		} else if (!found && strict) {
-			pr_debug("failed to locate %d\n", k);
+
+		} else if (strict) {
+			pr_debug("failed to locate %d\n", i);
 			return -1;
 		}
 	}
@@ -1054,9 +1083,7 @@ static void pidff_find_reports(struct hid_device *hid, int report_type,
  */
 static int pidff_reports_ok(struct pidff_device *pidff)
 {
-	int i;
-
-	for (i = 0; i < PID_REQUIRED_REPORTS; i++) {
+	for (int i = 0; i < PID_REQUIRED_REPORTS; i++) {
 		if (!pidff->reports[i]) {
 			hid_dbg(pidff->hid, "%d missing\n", i);
 			return 0;
@@ -1077,9 +1104,7 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 		return NULL;
 	}
 
-	int i;
-
-	for (i = 0; i < report->maxfield; i++) {
+	for (int i = 0; i < report->maxfield; i++) {
 		if (report->field[i]->logical == (HID_UP_PID | usage) &&
 		    report->field[i]->report_count > 0) {
 			if (!enforce_min ||
@@ -1099,18 +1124,12 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 static int pidff_find_special_keys(int *keys, struct hid_field *fld,
 				   const u8 *usagetable, int count)
 {
-
-	int i, j;
 	int found = 0;
 
-	for (i = 0; i < count; i++) {
-		for (j = 0; j < fld->maxusage; j++) {
-			if (fld->usage[j].hid == (HID_UP_PID | usagetable[i])) {
-				keys[i] = j + 1;
-				found++;
-				break;
-			}
-		}
+	for (int i = 0; i < count; i++) {
+		keys[i] = pidff_find_usage(fld, HID_UP_PID | usagetable[i]) + 1;
+		if (keys[i])
+			found++;
 	}
 	return found;
 }
