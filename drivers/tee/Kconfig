@@ -13,6 +13,11 @@ menuconfig TEE
 
 if TEE
 
+config TEE_DMABUF_HEAPS
+	bool
+	depends on HAS_DMA && DMABUF_HEAPS
+	default y
+
 source "drivers/tee/optee/Kconfig"
 source "drivers/tee/amdtee/Kconfig"
 source "drivers/tee/tstee/Kconfig"
