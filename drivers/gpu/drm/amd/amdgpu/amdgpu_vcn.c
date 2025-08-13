@@ -357,8 +357,6 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev, int i)
 	if (adev->vcn.harvest_config & (1 << i))
 		return 0;
 
-	cancel_delayed_work_sync(&adev->vcn.inst[i].idle_work);
-
 	/* err_event_athub and dpc recovery will corrupt VCPU buffer, so we need to
 	 * restore fw data and clear buffer in amdgpu_vcn_resume() */
 	if (in_ras_intr || adev->pcie_reset_ctx.in_link_reset)
