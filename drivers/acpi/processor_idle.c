@@ -1453,3 +1453,5 @@ int acpi_processor_power_exit(struct acpi_processor *pr)
 	pr->flags.power_setup_done = 0;
 	return 0;
 }
+
+MODULE_IMPORT_NS("ACPI_PROCESSOR_IDLE");
