@@ -438,9 +438,15 @@ static int ks8995_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	/* de-assert switch reset */
-	/* FIXME: this likely requires a delay */
-	gpiod_set_value_cansleep(ks->reset_gpio, 0);
+	if (ks->reset_gpio) {
+		/*
+		 * If a reset line was obtained, wait for 100us after
+		 * de-asserting RESET before accessing any registers, see
+		 * the KS8995MA datasheet, page 44.
+		 */
+		gpiod_set_value_cansleep(ks->reset_gpio, 0);
+		udelay(100);
+	}
 
 	spi_set_drvdata(spi, ks);
 
