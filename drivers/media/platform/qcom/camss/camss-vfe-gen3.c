@@ -13,7 +13,8 @@
 #include "camss-vfe.h"
 
 #define IS_VFE_690(vfe) \
-	    (vfe->camss->res->version == CAMSS_8775P)
+	    ((vfe->camss->res->version == CAMSS_8775P) \
+	    || (vfe->camss->res->version == CAMSS_8300))
 
 #define BUS_REG_BASE_690 \
 	    (vfe_is_lite(vfe) ? 0x480 : 0x400)
