@@ -248,7 +248,6 @@ static const struct regmap_config stm32_cec_regmap_cfg = {
 	.val_bits = 32,
 	.reg_stride = sizeof(u32),
 	.max_register = 0x14,
-	.fast_io = true,
 };
 
 static int stm32_cec_probe(struct platform_device *pdev)
