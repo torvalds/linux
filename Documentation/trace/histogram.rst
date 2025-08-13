@@ -840,7 +840,7 @@ Extended error information
 
   The compound key examples used a key and a sum value (hitcount) to
   sort the output, but we can just as easily use two keys instead.
-  Here's an example where we use a compound key composed of the the
+  Here's an example where we use a compound key composed of the
   common_pid and size event fields.  Sorting with pid as the primary
   key and 'size' as the secondary key allows us to display an
   ordered summary of the recvfrom sizes, with counts, received by
