@@ -437,7 +437,7 @@ git email 默认会抄送给您一份，所以您可以切换为审阅者的角�
 对于首次参与 Linux 内核中文文档翻译的新手，建议您在 linux 目录中运行以下命令：
 ::
 
-	./script/checktransupdate.py -l zh_CN``
+	tools/docs/checktransupdate.py -l zh_CN``
 
 该命令会列出需要翻译或更新的英文文档，结果同时保存在 checktransupdate.log 中。
 
