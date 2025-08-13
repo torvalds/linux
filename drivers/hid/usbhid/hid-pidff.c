@@ -339,10 +339,6 @@ static void pidff_set_envelope_report(struct pidff_device *pidff,
 	pidff_set_time(&pidff->set_envelope[PID_FADE_TIME],
 			envelope->fade_length);
 
-	hid_dbg(pidff->hid, "attack %u => %d\n",
-		envelope->attack_level,
-		pidff->set_envelope[PID_ATTACK_LEVEL].value[0]);
-
 	hid_hw_request(pidff->hid, pidff->reports[PID_SET_ENVELOPE],
 			HID_REQ_SET_REPORT);
 }
