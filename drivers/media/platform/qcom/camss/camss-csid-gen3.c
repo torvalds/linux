@@ -45,7 +45,8 @@
 #define CSID_CSI2_RX_IRQ_CLEAR		0xA4
 #define CSID_CSI2_RX_IRQ_SET		0xA8
 
-#define IS_CSID_690(csid)	(csid->camss->res->version == CAMSS_8775P)
+#define IS_CSID_690(csid)	((csid->camss->res->version == CAMSS_8775P) \
+				 || (csid->camss->res->version == CAMSS_8300))
 #define CSID_BUF_DONE_IRQ_STATUS	0x8C
 #define BUF_DONE_IRQ_STATUS_RDI_OFFSET  (csid_is_lite(csid) ?\
 						1 : (IS_CSID_690(csid) ?\
