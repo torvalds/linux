@@ -116,7 +116,6 @@ static const struct regmap_config th1520_reset_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.fast_io = true,
 };
 
 static int th1520_reset_probe(struct platform_device *pdev)
