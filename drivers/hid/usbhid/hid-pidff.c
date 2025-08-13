@@ -33,7 +33,7 @@
 #define PID_DEVICE_CONTROL	6
 #define PID_CREATE_NEW_EFFECT	7
 
-#define PID_REQUIRED_REPORTS	7
+#define PID_REQUIRED_REPORTS	8
 
 #define PID_SET_ENVELOPE	8
 #define PID_SET_CONDITION	9
@@ -1056,7 +1056,7 @@ static int pidff_reports_ok(struct pidff_device *pidff)
 {
 	int i;
 
-	for (i = 0; i <= PID_REQUIRED_REPORTS; i++) {
+	for (i = 0; i < PID_REQUIRED_REPORTS; i++) {
 		if (!pidff->reports[i]) {
 			hid_dbg(pidff->hid, "%d missing\n", i);
 			return 0;
