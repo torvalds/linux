@@ -2230,10 +2230,12 @@ static void ufshcd_exit_clk_gating(struct ufs_hba *hba)
 static void ufshcd_clk_scaling_start_busy(struct ufs_hba *hba)
 {
 	bool queue_resume_work = false;
-	ktime_t curr_t = ktime_get();
+	ktime_t curr_t;
 
 	if (!ufshcd_is_clkscaling_supported(hba))
 		return;
+
+	curr_t = ktime_get();
 
 	guard(spinlock_irqsave)(&hba->clk_scaling.lock);
 
