@@ -544,10 +544,8 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 
 	watchdog_set_drvdata(&data->wddev, data);
 	err = devm_watchdog_register_device(parent, &data->wddev);
-	if (err) {
-		pr_err("Registering watchdog chardev: %d\n", err);
+	if (err)
 		devm_kfree(parent, data);
-	}
 }
 EXPORT_SYMBOL(sch56xx_watchdog_register);
 
