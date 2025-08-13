@@ -329,6 +329,17 @@ fbnic_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 		return -EINVAL;
 	}
 
+	/* If an XDP program is attached, we should check for potential frame
+	 * splitting. If the new HDS threshold can cause splitting, we should
+	 * only allow if the attached XDP program can handle frags.
+	 */
+	if (fbnic_check_split_frames(fbn->xdp_prog, netdev->mtu,
+				     kernel_ring->hds_thresh)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Use higher HDS threshold or multi-buf capable program");
+		return -EINVAL;
+	}
+
 	if (!netif_running(netdev)) {
 		fbnic_set_rings(fbn, ring, kernel_ring);
 		return 0;

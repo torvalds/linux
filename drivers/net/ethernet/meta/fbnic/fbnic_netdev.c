@@ -508,6 +508,40 @@ static void fbnic_get_stats64(struct net_device *dev,
 	}
 }
 
+bool fbnic_check_split_frames(struct bpf_prog *prog, unsigned int mtu,
+			      u32 hds_thresh)
+{
+	if (!prog)
+		return false;
+
+	if (prog->aux->xdp_has_frags)
+		return false;
+
+	return mtu + ETH_HLEN > hds_thresh;
+}
+
+static int fbnic_bpf(struct net_device *netdev, struct netdev_bpf *bpf)
+{
+	struct bpf_prog *prog = bpf->prog, *prev_prog;
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	if (bpf->command != XDP_SETUP_PROG)
+		return -EINVAL;
+
+	if (fbnic_check_split_frames(prog, netdev->mtu,
+				     fbn->hds_thresh)) {
+		NL_SET_ERR_MSG_MOD(bpf->extack,
+				   "MTU too high, or HDS threshold is too low for single buffer XDP");
+		return -EOPNOTSUPP;
+	}
+
+	prev_prog = xchg(&fbn->xdp_prog, prog);
+	if (prev_prog)
+		bpf_prog_put(prev_prog);
+
+	return 0;
+}
+
 static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_open		= fbnic_open,
 	.ndo_stop		= fbnic_stop,
@@ -517,6 +551,7 @@ static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_set_mac_address	= fbnic_set_mac,
 	.ndo_set_rx_mode	= fbnic_set_rx_mode,
 	.ndo_get_stats64	= fbnic_get_stats64,
+	.ndo_bpf		= fbnic_bpf,
 	.ndo_hwtstamp_get	= fbnic_hwtstamp_get,
 	.ndo_hwtstamp_set	= fbnic_hwtstamp_set,
 };

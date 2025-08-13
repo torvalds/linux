@@ -18,6 +18,8 @@
 #define FBNIC_TUN_GSO_FEATURES		NETIF_F_GSO_IPXIP6
 
 struct fbnic_net {
+	struct bpf_prog *xdp_prog;
+
 	struct fbnic_ring *tx[FBNIC_MAX_TXQS];
 	struct fbnic_ring *rx[FBNIC_MAX_RXQS];
 
@@ -104,4 +106,7 @@ int fbnic_phylink_ethtool_ksettings_get(struct net_device *netdev,
 int fbnic_phylink_get_fecparam(struct net_device *netdev,
 			       struct ethtool_fecparam *fecparam);
 int fbnic_phylink_init(struct net_device *netdev);
+
+bool fbnic_check_split_frames(struct bpf_prog *prog,
+			      unsigned int mtu, u32 hds_threshold);
 #endif /* _FBNIC_NETDEV_H_ */
