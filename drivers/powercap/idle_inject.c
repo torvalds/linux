@@ -133,7 +133,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 	duration_us = READ_ONCE(ii_dev->run_duration_us);
 	duration_us += READ_ONCE(ii_dev->idle_duration_us);
 
-	hrtimer_forward_now(timer, ns_to_ktime(duration_us * NSEC_PER_USEC));
+	hrtimer_forward_now(timer, us_to_ktime(duration_us));
 
 	return HRTIMER_RESTART;
 }
@@ -232,8 +232,7 @@ int idle_inject_start(struct idle_inject_device *ii_dev)
 	idle_inject_wakeup(ii_dev);
 
 	hrtimer_start(&ii_dev->timer,
-		      ns_to_ktime((idle_duration_us + run_duration_us) *
-				  NSEC_PER_USEC),
+		      us_to_ktime(idle_duration_us + run_duration_us),
 		      HRTIMER_MODE_REL);
 
 	return 0;
