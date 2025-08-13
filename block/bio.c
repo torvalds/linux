@@ -981,7 +981,7 @@ void __bio_add_page(struct bio *bio, struct page *page,
 	WARN_ON_ONCE(bio_full(bio, len));
 
 	if (is_pci_p2pdma_page(page))
-		bio->bi_opf |= REQ_P2PDMA | REQ_NOMERGE;
+		bio->bi_opf |= REQ_NOMERGE;
 
 	bvec_set_page(&bio->bi_io_vec[bio->bi_vcnt], page, len, off);
 	bio->bi_iter.bi_size += len;
