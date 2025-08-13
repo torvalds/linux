@@ -609,6 +609,27 @@ static inline void dw_pcie_writel_dbi2(struct dw_pcie *pci, u32 reg, u32 val)
 	dw_pcie_write_dbi2(pci, reg, 0x4, val);
 }
 
+static inline int dw_pcie_read_cfg_byte(struct dw_pcie *pci, int where,
+					u8 *val)
+{
+	*val = dw_pcie_readb_dbi(pci, where);
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static inline int dw_pcie_read_cfg_word(struct dw_pcie *pci, int where,
+					u16 *val)
+{
+	*val = dw_pcie_readw_dbi(pci, where);
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static inline int dw_pcie_read_cfg_dword(struct dw_pcie *pci, int where,
+					 u32 *val)
+{
+	*val = dw_pcie_readl_dbi(pci, where);
+	return PCIBIOS_SUCCESSFUL;
+}
+
 static inline unsigned int dw_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep,
 						     u8 func_no)
 {
