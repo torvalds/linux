@@ -773,6 +773,40 @@ static void free_workspace(int type, struct list_head *ws)
 	}
 }
 
+static int alloc_workspace_manager(struct btrfs_fs_info *fs_info,
+				   enum btrfs_compression_type type)
+{
+	struct workspace_manager *gwsm;
+	struct list_head *workspace;
+
+	ASSERT(fs_info->compr_wsm[type] == NULL);
+	gwsm = kzalloc(sizeof(*gwsm), GFP_KERNEL);
+	if (!gwsm)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&gwsm->idle_ws);
+	spin_lock_init(&gwsm->ws_lock);
+	atomic_set(&gwsm->total_ws, 0);
+	init_waitqueue_head(&gwsm->ws_wait);
+	fs_info->compr_wsm[type] = gwsm;
+
+	/*
+	 * Preallocate one workspace for each compression type so we can
+	 * guarantee forward progress in the worst case
+	 */
+	workspace = alloc_workspace(fs_info, type, 0);
+	if (IS_ERR(workspace)) {
+		btrfs_warn(fs_info,
+	"cannot preallocate compression workspace for %s, will try later",
+			   btrfs_compress_type2str(type));
+	} else {
+		atomic_set(&gwsm->total_ws, 1);
+		gwsm->free_ws = 1;
+		list_add(workspace, &gwsm->idle_ws);
+	}
+	return 0;
+}
+
 static void btrfs_init_workspace_manager(struct btrfs_fs_info *fs_info, int type)
 {
 	struct workspace_manager *wsm;
@@ -797,6 +831,26 @@ static void btrfs_init_workspace_manager(struct btrfs_fs_info *fs_info, int type
 		wsm->free_ws = 1;
 		list_add(workspace, &wsm->idle_ws);
 	}
+}
+
+static void free_workspace_manager(struct btrfs_fs_info *fs_info,
+				   enum btrfs_compression_type type)
+{
+	struct list_head *ws;
+	struct workspace_manager *gwsm = fs_info->compr_wsm[type];
+
+	/* ZSTD uses its own workspace manager, should enter here. */
+	ASSERT(type != BTRFS_COMPRESS_ZSTD && type < BTRFS_NR_COMPRESS_TYPES);
+	if (!gwsm)
+		return;
+	fs_info->compr_wsm[type] = NULL;
+	while (!list_empty(&gwsm->idle_ws)) {
+		ws = gwsm->idle_ws.next;
+		list_del(ws);
+		free_workspace(type, ws);
+		atomic_dec(&gwsm->total_ws);
+	}
+	kfree(gwsm);
 }
 
 static void btrfs_cleanup_workspace_manager(int type)
@@ -1101,6 +1155,15 @@ int btrfs_alloc_compress_wsm(struct btrfs_fs_info *fs_info)
 {
 	int ret;
 
+	ret = alloc_workspace_manager(fs_info, BTRFS_COMPRESS_NONE);
+	if (ret < 0)
+		goto error;
+	ret = alloc_workspace_manager(fs_info, BTRFS_COMPRESS_ZLIB);
+	if (ret < 0)
+		goto error;
+	ret = alloc_workspace_manager(fs_info, BTRFS_COMPRESS_LZO);
+	if (ret < 0)
+		goto error;
 	ret = zstd_alloc_workspace_manager(fs_info);
 	if (ret < 0)
 		goto error;
@@ -1112,6 +1175,9 @@ error:
 
 void btrfs_free_compress_wsm(struct btrfs_fs_info *fs_info)
 {
+	free_workspace_manager(fs_info, BTRFS_COMPRESS_NONE);
+	free_workspace_manager(fs_info, BTRFS_COMPRESS_ZLIB);
+	free_workspace_manager(fs_info, BTRFS_COMPRESS_LZO);
 	zstd_free_workspace_manager(fs_info);
 }
 
