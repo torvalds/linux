@@ -379,4 +379,49 @@ bool blk_rq_integrity_dma_map_iter_next(struct request *req,
 	return blk_dma_map_direct(req, dma_dev, iter, &vec);
 }
 EXPORT_SYMBOL_GPL(blk_rq_integrity_dma_map_iter_next);
+
+/**
+ * blk_rq_map_integrity_sg - Map integrity metadata into a scatterlist
+ * @rq:		request to map
+ * @sglist:	target scatterlist
+ *
+ * Description: Map the integrity vectors in request into a
+ * scatterlist.  The scatterlist must be big enough to hold all
+ * elements.  I.e. sized using blk_rq_count_integrity_sg() or
+ * rq->nr_integrity_segments.
+ */
+int blk_rq_map_integrity_sg(struct request *rq, struct scatterlist *sglist)
+{
+	struct request_queue *q = rq->q;
+	struct scatterlist *sg = NULL;
+	struct bio *bio = rq->bio;
+	unsigned int segments = 0;
+	struct phys_vec vec;
+
+	struct blk_map_iter iter = {
+		.bio = bio,
+		.iter = bio_integrity(bio)->bip_iter,
+		.bvecs = bio_integrity(bio)->bip_vec,
+		.is_integrity = true,
+	};
+
+	while (blk_map_iter_next(rq, &iter, &vec)) {
+		sg = blk_next_sg(&sg, sglist);
+		sg_set_page(sg, phys_to_page(vec.paddr), vec.len,
+				offset_in_page(vec.paddr));
+		segments++;
+	}
+
+	if (sg)
+	        sg_mark_end(sg);
+
+	/*
+	 * Something must have been wrong if the figured number of segment
+	 * is bigger than number of req's physical integrity segments
+	 */
+	BUG_ON(segments > rq->nr_integrity_segments);
+	BUG_ON(segments > queue_max_integrity_segments(q));
+	return segments;
+}
+EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 #endif
