@@ -34,6 +34,10 @@ trap_cleanup() {
 }
 trap trap_cleanup EXIT TERM INT
 
+is_arm64() {
+	[ "$(uname -m)" = "aarch64" ];
+}
+
 check_branches() {
 	if ! tr -s ' ' '\n' < "$TMPDIR/perf.script" | grep -E -m1 -q "$1"; then
 		echo "Branches missing $1"
@@ -76,9 +80,24 @@ test_user_branches() {
 		err=1
 	fi
 	# some branch types are still not being tested:
-	# IND COND_CALL COND_RET SYSRET IRQ SERROR NO_TX
+	# IND COND_CALL COND_RET SYSRET SERROR NO_TX
 }
 
+test_trap_eret_branches() {
+	echo "Testing trap & eret branches"
+	if ! is_arm64; then
+		echo "skip: not arm64"
+	else
+		perf record -o $TMPDIR/perf.data --branch-filter any,save_type,u,k -- \
+			perf test -w traploop 1000
+		perf script -i $TMPDIR/perf.data --fields brstacksym | \
+			tr ' ' '\n' > $TMPDIR/perf.script
+
+		# BRBINF<n>.TYPE == TRAP are mapped to PERF_BR_IRQ by the BRBE driver
+		check_branches "^trap_bench\+[^ ]+/[^ ]/IRQ/"
+		check_branches "^[^ ]+/trap_bench\+[^ ]+/ERET/"
+	fi
+}
 
 test_kernel_branches() {
 	echo "Testing that k option only includes kernel source addresses"
@@ -162,8 +181,13 @@ set -e
 test_user_branches
 test_syscall
 test_kernel_branches
+test_trap_eret_branches
 
 any_call="CALL|IND_CALL|COND_CALL|SYSCALL|IRQ"
+
+if is_arm64; then
+	any_call="$any_call|FAULT_DATA|FAULT_INST"
+fi
 
 test_filter "any_call" "$any_call"
 test_filter "call"	"CALL|SYSCALL"
