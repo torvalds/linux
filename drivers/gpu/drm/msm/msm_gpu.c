@@ -558,8 +558,15 @@ static void recover_worker(struct kthread_work *work)
 			unsigned long flags;
 
 			spin_lock_irqsave(&ring->submit_lock, flags);
-			list_for_each_entry(submit, &ring->submits, node)
+			list_for_each_entry(submit, &ring->submits, node) {
+				/*
+				 * If the submit uses an unusable vm make sure
+				 * we don't actually run it
+				 */
+				if (to_msm_vm(submit->vm)->unusable)
+					submit->nr_cmds = 0;
 				gpu->funcs->submit(gpu, submit);
+			}
 			spin_unlock_irqrestore(&ring->submit_lock, flags);
 		}
 	}
