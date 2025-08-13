@@ -922,7 +922,7 @@ static int imx296_read_temperature(struct imx296 *sensor, int *temp)
 
 	tmdout &= IMX296_TMDOUT_MASK;
 
-	/* T(°C) = 246.312 - 0.304 * TMDOUT */;
+	/* T(°C) = 246.312 - 0.304 * TMDOUT */
 	*temp = 246312 - 304 * tmdout;
 
 	return imx296_write(sensor, IMX296_TMDCTRL, 0, NULL);
