@@ -209,9 +209,10 @@ examples:
                 svdda-supply = <&cam_io_reg>;
                 svddio-supply = <&ldo19_reg>;
                 afvdd-supply = <&ldo19_reg>;
-                clock-frequency = <24000000>;
                 clocks = <&camera 1>;
                 clock-names = "extclk";
+                assigned-clocks = <&camera 1>;
+                assigned-clock-rates = <24000000>;
                 gpios = <&gpm1 6 GPIO_ACTIVE_LOW>;
 
                 port {
