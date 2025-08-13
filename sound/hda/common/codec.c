@@ -300,7 +300,7 @@ EXPORT_SYMBOL_GPL(snd_hda_get_conn_index);
 unsigned int snd_hda_get_num_devices(struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int wcaps = get_wcaps(codec, nid);
-	unsigned int parm;
+	int parm;
 
 	if (!codec->dp_mst || !(wcaps & AC_WCAP_DIGITAL) ||
 	    get_wcaps_type(wcaps) != AC_WID_PIN)
