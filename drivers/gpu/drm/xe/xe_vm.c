@@ -3567,7 +3567,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		q = xe_exec_queue_lookup(xef, args->exec_queue_id);
 		if (XE_IOCTL_DBG(xe, !q)) {
 			err = -ENOENT;
-			goto put_vm;
+			goto free_bind_ops;
 		}
 
 		if (XE_IOCTL_DBG(xe, !(q->flags & EXEC_QUEUE_FLAG_VM))) {
@@ -3613,7 +3613,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			       __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 		if (!ops) {
 			err = -ENOMEM;
-			goto release_vm_lock;
+			goto free_bos;
 		}
 	}
 
@@ -3747,17 +3747,20 @@ free_syncs:
 put_obj:
 	for (i = 0; i < args->num_binds; ++i)
 		xe_bo_put(bos[i]);
+
+	kvfree(ops);
+free_bos:
+	kvfree(bos);
 release_vm_lock:
 	up_write(&vm->lock);
 put_exec_queue:
 	if (q)
 		xe_exec_queue_put(q);
-put_vm:
-	xe_vm_put(vm);
-	kvfree(bos);
-	kvfree(ops);
+free_bind_ops:
 	if (args->num_binds > 1)
 		kvfree(bind_ops);
+put_vm:
+	xe_vm_put(vm);
 	return err;
 }
 
