@@ -182,6 +182,36 @@ static void zstd_calc_ws_mem_sizes(void)
 	}
 }
 
+int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info)
+{
+	struct zstd_workspace_manager *zwsm;
+	struct list_head *ws;
+
+	ASSERT(fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD] == NULL);
+	zwsm = kzalloc(sizeof(*zwsm), GFP_KERNEL);
+	if (!zwsm)
+		return -ENOMEM;
+	zstd_calc_ws_mem_sizes();
+	zwsm->ops = &btrfs_zstd_compress;
+	spin_lock_init(&zwsm->lock);
+	init_waitqueue_head(&zwsm->wait);
+	timer_setup(&zwsm->timer, zstd_reclaim_timer_fn, 0);
+
+	INIT_LIST_HEAD(&zwsm->lru_list);
+	for (int i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++)
+		INIT_LIST_HEAD(&zwsm->idle_ws[i]);
+	fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD] = zwsm;
+
+	ws = zstd_alloc_workspace(fs_info, ZSTD_BTRFS_MAX_LEVEL);
+	if (IS_ERR(ws)) {
+		btrfs_warn(NULL, "cannot preallocate zstd compression workspace");
+	} else {
+		set_bit(ZSTD_BTRFS_MAX_LEVEL - 1, &zwsm->active_map);
+		list_add(ws, &zwsm->idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1]);
+	}
+	return 0;
+}
+
 void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info)
 {
 	struct list_head *ws;
@@ -205,6 +235,29 @@ void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info)
 		set_bit(ZSTD_BTRFS_MAX_LEVEL - 1, &wsm.active_map);
 		list_add(ws, &wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1]);
 	}
+}
+
+void zstd_free_workspace_manager(struct btrfs_fs_info *fs_info)
+{
+	struct zstd_workspace_manager *zwsm = fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD];
+	struct workspace *workspace;
+
+	if (!zwsm)
+		return;
+	fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD] = NULL;
+	spin_lock_bh(&zwsm->lock);
+	for (int i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++) {
+		while (!list_empty(&zwsm->idle_ws[i])) {
+			workspace = container_of(zwsm->idle_ws[i].next,
+						 struct workspace, list);
+			list_del(&workspace->list);
+			list_del(&workspace->lru_list);
+			zstd_free_workspace(&workspace->list);
+		}
+	}
+	spin_unlock_bh(&zwsm->lock);
+	timer_delete_sync(&zwsm->timer);
+	kfree(zwsm);
 }
 
 void zstd_cleanup_workspace_manager(void)

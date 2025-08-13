@@ -89,6 +89,9 @@ static inline u32 btrfs_calc_input_length(struct folio *folio, u64 range_end, u6
 	return min(range_end, folio_end(folio)) - cur;
 }
 
+int btrfs_alloc_compress_wsm(struct btrfs_fs_info *fs_info);
+void btrfs_free_compress_wsm(struct btrfs_fs_info *fs_info);
+
 int __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
@@ -111,16 +114,6 @@ int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret)
 
 struct folio *btrfs_alloc_compr_folio(void);
 void btrfs_free_compr_folio(struct folio *folio);
-
-enum btrfs_compression_type {
-	BTRFS_COMPRESS_NONE  = 0,
-	BTRFS_COMPRESS_ZLIB  = 1,
-	BTRFS_COMPRESS_LZO   = 2,
-	BTRFS_COMPRESS_ZSTD  = 3,
-	BTRFS_NR_COMPRESS_TYPES = 4,
-
-	BTRFS_DEFRAG_DONT_COMPRESS,
-};
 
 struct workspace_manager {
 	struct list_head idle_ws;
@@ -188,6 +181,8 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
+int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info);
+void zstd_free_workspace_manager(struct btrfs_fs_info *fs_info);
 void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info);
 void zstd_cleanup_workspace_manager(void);
 struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level);

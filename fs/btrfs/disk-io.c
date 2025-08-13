@@ -1248,6 +1248,7 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 
 	if (fs_info->fs_devices)
 		btrfs_close_devices(fs_info->fs_devices);
+	btrfs_free_compress_wsm(fs_info);
 	percpu_counter_destroy(&fs_info->stats_read_blocks);
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
@@ -3407,6 +3408,9 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 */
 	fs_info->max_inline = min_t(u64, fs_info->max_inline, fs_info->sectorsize);
 
+	ret = btrfs_alloc_compress_wsm(fs_info);
+	if (ret)
+		goto fail_sb_buffer;
 	ret = btrfs_init_workqueues(fs_info);
 	if (ret)
 		goto fail_sb_buffer;

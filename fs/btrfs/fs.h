@@ -306,6 +306,16 @@ enum {
 #define BTRFS_WARNING_COMMIT_INTERVAL	(300)
 #define BTRFS_DEFAULT_MAX_INLINE	(2048)
 
+enum btrfs_compression_type {
+	BTRFS_COMPRESS_NONE  = 0,
+	BTRFS_COMPRESS_ZLIB  = 1,
+	BTRFS_COMPRESS_LZO   = 2,
+	BTRFS_COMPRESS_ZSTD  = 3,
+	BTRFS_NR_COMPRESS_TYPES = 4,
+
+	BTRFS_DEFRAG_DONT_COMPRESS,
+};
+
 struct btrfs_dev_replace {
 	/* See #define above */
 	u64 replace_state;
@@ -507,6 +517,9 @@ struct btrfs_fs_info {
 	 */
 	u64 last_trans_log_full_commit;
 	unsigned long long mount_opt;
+
+	/* Compress related structures. */
+	void *compr_wsm[BTRFS_NR_COMPRESS_TYPES];
 
 	int compress_type;
 	int compress_level;

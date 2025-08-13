@@ -1097,6 +1097,24 @@ int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
 	return ret;
 }
 
+int btrfs_alloc_compress_wsm(struct btrfs_fs_info *fs_info)
+{
+	int ret;
+
+	ret = zstd_alloc_workspace_manager(fs_info);
+	if (ret < 0)
+		goto error;
+	return 0;
+error:
+	btrfs_free_compress_wsm(fs_info);
+	return ret;
+}
+
+void btrfs_free_compress_wsm(struct btrfs_fs_info *fs_info)
+{
+	zstd_free_workspace_manager(fs_info);
+}
+
 int __init btrfs_init_compress(void)
 {
 	if (bioset_init(&btrfs_compressed_bioset, BIO_POOL_SIZE,
