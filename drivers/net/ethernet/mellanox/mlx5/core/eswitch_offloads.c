@@ -1213,7 +1213,8 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 			    misc_parameters);
 
-	if (mlx5_core_is_ecpf_esw_manager(peer_dev)) {
+	if (mlx5_core_is_ecpf_esw_manager(peer_dev) &&
+	    mlx5_esw_host_functions_enabled(peer_dev)) {
 		peer_vport = mlx5_eswitch_get_vport(peer_esw, MLX5_VPORT_PF);
 		esw_set_peer_miss_rule_source_port(esw, peer_esw, spec,
 						   MLX5_VPORT_PF);
@@ -1239,19 +1240,21 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 		flows[peer_vport->index] = flow;
 	}
 
-	mlx5_esw_for_each_vf_vport(peer_esw, i, peer_vport,
-				   mlx5_core_max_vfs(peer_dev)) {
-		esw_set_peer_miss_rule_source_port(esw,
-						   peer_esw,
-						   spec, peer_vport->vport);
+	if (mlx5_esw_host_functions_enabled(esw->dev)) {
+		mlx5_esw_for_each_vf_vport(peer_esw, i, peer_vport,
+					   mlx5_core_max_vfs(peer_dev)) {
+			esw_set_peer_miss_rule_source_port(esw, peer_esw,
+							   spec,
+							   peer_vport->vport);
 
-		flow = mlx5_add_flow_rules(mlx5_eswitch_get_slow_fdb(esw),
-					   spec, &flow_act, &dest, 1);
-		if (IS_ERR(flow)) {
-			err = PTR_ERR(flow);
-			goto add_vf_flow_err;
+			flow = mlx5_add_flow_rules(mlx5_eswitch_get_slow_fdb(esw),
+						   spec, &flow_act, &dest, 1);
+			if (IS_ERR(flow)) {
+				err = PTR_ERR(flow);
+				goto add_vf_flow_err;
+			}
+			flows[peer_vport->index] = flow;
 		}
-		flows[peer_vport->index] = flow;
 	}
 
 	if (mlx5_core_ec_sriov_enabled(peer_dev)) {
@@ -1301,7 +1304,9 @@ add_vf_flow_err:
 		mlx5_del_flow_rules(flows[peer_vport->index]);
 	}
 add_ecpf_flow_err:
-	if (mlx5_core_is_ecpf_esw_manager(peer_dev)) {
+
+	if (mlx5_core_is_ecpf_esw_manager(peer_dev) &&
+	    mlx5_esw_host_functions_enabled(peer_dev)) {
 		peer_vport = mlx5_eswitch_get_vport(peer_esw, MLX5_VPORT_PF);
 		mlx5_del_flow_rules(flows[peer_vport->index]);
 	}
@@ -4059,7 +4064,8 @@ mlx5_eswitch_vport_has_rep(const struct mlx5_eswitch *esw, u16 vport_num)
 {
 	/* Currently, only ECPF based device has representor for host PF. */
 	if (vport_num == MLX5_VPORT_PF &&
-	    !mlx5_core_is_ecpf_esw_manager(esw->dev))
+	    (!mlx5_core_is_ecpf_esw_manager(esw->dev) ||
+	     !mlx5_esw_host_functions_enabled(esw->dev)))
 		return false;
 
 	if (vport_num == MLX5_VPORT_ECPF &&

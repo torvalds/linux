@@ -1297,17 +1297,19 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 		    esw->mode == MLX5_ESWITCH_LEGACY;
 
 	/* Enable PF vport */
-	if (pf_needed) {
+	if (pf_needed && mlx5_esw_host_functions_enabled(esw->dev)) {
 		ret = mlx5_eswitch_load_pf_vf_vport(esw, MLX5_VPORT_PF,
 						    enabled_events);
 		if (ret)
 			return ret;
 	}
 
-	/* Enable external host PF HCA */
-	ret = host_pf_enable_hca(esw->dev);
-	if (ret)
-		goto pf_hca_err;
+	if (mlx5_esw_host_functions_enabled(esw->dev)) {
+		/* Enable external host PF HCA */
+		ret = host_pf_enable_hca(esw->dev);
+		if (ret)
+			goto pf_hca_err;
+	}
 
 	/* Enable ECPF vport */
 	if (mlx5_ecpf_vport_exists(esw->dev)) {
@@ -1339,9 +1341,10 @@ ec_vf_err:
 	if (mlx5_ecpf_vport_exists(esw->dev))
 		mlx5_eswitch_unload_pf_vf_vport(esw, MLX5_VPORT_ECPF);
 ecpf_err:
-	host_pf_disable_hca(esw->dev);
+	if (mlx5_esw_host_functions_enabled(esw->dev))
+		host_pf_disable_hca(esw->dev);
 pf_hca_err:
-	if (pf_needed)
+	if (pf_needed && mlx5_esw_host_functions_enabled(esw->dev))
 		mlx5_eswitch_unload_pf_vf_vport(esw, MLX5_VPORT_PF);
 	return ret;
 }
@@ -1361,10 +1364,12 @@ void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
 		mlx5_eswitch_unload_pf_vf_vport(esw, MLX5_VPORT_ECPF);
 	}
 
-	host_pf_disable_hca(esw->dev);
+	if (mlx5_esw_host_functions_enabled(esw->dev))
+		host_pf_disable_hca(esw->dev);
 
-	if (mlx5_core_is_ecpf_esw_manager(esw->dev) ||
-	    esw->mode == MLX5_ESWITCH_LEGACY)
+	if ((mlx5_core_is_ecpf_esw_manager(esw->dev) ||
+	     esw->mode == MLX5_ESWITCH_LEGACY) &&
+	    mlx5_esw_host_functions_enabled(esw->dev))
 		mlx5_eswitch_unload_pf_vf_vport(esw, MLX5_VPORT_PF);
 }
 
@@ -1693,7 +1698,8 @@ int mlx5_esw_sf_max_hpf_functions(struct mlx5_core_dev *dev, u16 *max_sfs, u16 *
 	void *hca_caps;
 	int err;
 
-	if (!mlx5_core_is_ecpf(dev)) {
+	if (!mlx5_core_is_ecpf(dev) ||
+	    !mlx5_esw_host_functions_enabled(dev)) {
 		*max_sfs = 0;
 		return 0;
 	}
@@ -1769,21 +1775,23 @@ static int mlx5_esw_vports_init(struct mlx5_eswitch *esw)
 
 	xa_init(&esw->vports);
 
-	err = mlx5_esw_vport_alloc(esw, idx, MLX5_VPORT_PF);
-	if (err)
-		goto err;
-	if (esw->first_host_vport == MLX5_VPORT_PF)
-		xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_HOST_FN);
-	idx++;
-
-	for (i = 0; i < mlx5_core_max_vfs(dev); i++) {
-		err = mlx5_esw_vport_alloc(esw, idx, idx);
+	if (mlx5_esw_host_functions_enabled(dev)) {
+		err = mlx5_esw_vport_alloc(esw, idx, MLX5_VPORT_PF);
 		if (err)
 			goto err;
-		xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_VF);
-		xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_HOST_FN);
+		if (esw->first_host_vport == MLX5_VPORT_PF)
+			xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_HOST_FN);
 		idx++;
+		for (i = 0; i < mlx5_core_max_vfs(dev); i++) {
+			err = mlx5_esw_vport_alloc(esw, idx, idx);
+			if (err)
+				goto err;
+			xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_VF);
+			xa_set_mark(&esw->vports, idx, MLX5_ESW_VPT_HOST_FN);
+			idx++;
+		}
 	}
+
 	base_sf_num = mlx5_sf_start_function_id(dev);
 	for (i = 0; i < mlx5_sf_max_functions(dev); i++) {
 		err = mlx5_esw_vport_alloc(esw, idx, base_sf_num + i);
@@ -1883,6 +1891,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto free_esw;
 
 	esw->dev = dev;
+	dev->priv.eswitch = esw;
 	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
 	esw->first_host_vport = mlx5_eswitch_first_host_vport_num(dev);
 
@@ -1901,7 +1910,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (err)
 		goto abort;
 
-	dev->priv.eswitch = esw;
 	err = esw_offloads_init(esw);
 	if (err)
 		goto reps_err;
@@ -2432,4 +2440,12 @@ void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev)
 	mutex_lock(&esw->state_lock);
 	dev->num_ipsec_offloads--;
 	mutex_unlock(&esw->state_lock);
+}
+
+bool mlx5_esw_host_functions_enabled(const struct mlx5_core_dev *dev)
+{
+	if (!dev->priv.eswitch)
+		return true;
+
+	return !dev->priv.eswitch->esw_funcs.host_funcs_disabled;
 }
