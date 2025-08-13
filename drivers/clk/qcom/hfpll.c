@@ -99,7 +99,6 @@ static const struct regmap_config hfpll_regmap_config = {
 	.reg_stride	= 4,
 	.val_bits	= 32,
 	.max_register	= 0x30,
-	.fast_io	= true,
 };
 
 static int qcom_hfpll_probe(struct platform_device *pdev)
