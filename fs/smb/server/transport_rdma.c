@@ -389,10 +389,7 @@ static void free_transport(struct smb_direct_transport *t)
 	}
 
 	wake_up_all(&t->wait_send_credits);
-
-	ksmbd_debug(RDMA, "wait for all send posted to IB to finish\n");
-	wait_event(t->wait_send_pending,
-		   atomic_read(&t->send_pending) == 0);
+	wake_up_all(&t->wait_send_pending);
 
 	disable_work_sync(&t->post_recv_credits_work);
 	disable_work_sync(&t->send_immediate_work);
@@ -1356,7 +1353,11 @@ done:
 	 */
 
 	wait_event(st->wait_send_pending,
-		   atomic_read(&st->send_pending) == 0);
+		   atomic_read(&st->send_pending) == 0 ||
+		   sc->status != SMBDIRECT_SOCKET_CONNECTED);
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED && ret == 0)
+		ret = -ENOTCONN;
+
 	return ret;
 }
 
@@ -1689,7 +1690,11 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 	}
 
 	wait_event(t->wait_send_pending,
-		   atomic_read(&t->send_pending) == 0);
+		   atomic_read(&t->send_pending) == 0 ||
+		   sc->status != SMBDIRECT_SOCKET_CONNECTED);
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
+		return -ENOTCONN;
+
 	return 0;
 }
 
