@@ -20,7 +20,7 @@
 struct fbnic_net {
 	struct bpf_prog *xdp_prog;
 
-	struct fbnic_ring *tx[FBNIC_MAX_TXQS];
+	struct fbnic_ring *tx[FBNIC_MAX_TXQS + FBNIC_MAX_XDPQS];
 	struct fbnic_ring *rx[FBNIC_MAX_RXQS];
 
 	struct fbnic_napi_vector *napi[FBNIC_MAX_NAPI_VECTORS];

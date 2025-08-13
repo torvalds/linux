@@ -35,6 +35,7 @@ struct fbnic_net;
 
 #define FBNIC_MAX_TXQS			128u
 #define FBNIC_MAX_RXQS			128u
+#define FBNIC_MAX_XDPQS			128u
 
 /* These apply to TWQs, TCQ, RCQ */
 #define FBNIC_QUEUE_SIZE_MIN		16u
@@ -118,6 +119,12 @@ struct fbnic_ring {
 	u8 flags;			/* Ring flags (FBNIC_RING_F_*) */
 
 	u32 head, tail;			/* Head/Tail of ring */
+
+	/* Deferred_head is used to cache the head for TWQ1 if an attempt
+	 * is made to clean TWQ1 with zero napi_budget. We do not use it for
+	 * any other ring.
+	 */
+	s32 deferred_head;
 
 	struct fbnic_queue_stats stats;
 
