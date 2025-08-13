@@ -2232,13 +2232,22 @@ static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 {
 	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
 	u32 log_size = fls(rcq->size_mask);
-	u32 rcq_ctl;
+	u32 hds_thresh = fbn->hds_thresh;
+	u32 rcq_ctl = 0;
 
 	fbnic_config_drop_mode_rcq(nv, rcq);
 
-	rcq_ctl = FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PADLEN_MASK, FBNIC_RX_PAD) |
-		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_MAX_HDR_MASK,
-			      FBNIC_RX_MAX_HDR) |
+	/* Force lower bound on MAX_HEADER_BYTES. Below this, all frames should
+	 * be split at L4. It would also result in the frames being split at
+	 * L2/L3 depending on the frame size.
+	 */
+	if (fbn->hds_thresh < FBNIC_HDR_BYTES_MIN) {
+		rcq_ctl = FBNIC_QUEUE_RDE_CTL0_EN_HDR_SPLIT;
+		hds_thresh = FBNIC_HDR_BYTES_MIN;
+	}
+
+	rcq_ctl |= FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PADLEN_MASK, FBNIC_RX_PAD) |
+		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_MAX_HDR_MASK, hds_thresh) |
 		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PAYLD_OFF_MASK,
 			      FBNIC_RX_PAYLD_OFFSET) |
 		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PAYLD_PG_CL_MASK,

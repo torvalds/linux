@@ -31,6 +31,8 @@ struct fbnic_net {
 	u32 ppq_size;
 	u32 rcq_size;
 
+	u32 hds_thresh;
+
 	u16 rx_usecs;
 	u16 tx_usecs;
 
