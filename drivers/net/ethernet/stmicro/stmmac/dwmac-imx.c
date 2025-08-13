@@ -49,7 +49,7 @@ struct imx_dwmac_ops {
 	u32 flags;
 	bool mac_rgmii_txclk_auto_adj;
 
-	int (*fix_soc_reset)(void *priv, void __iomem *ioaddr);
+	int (*fix_soc_reset)(struct stmmac_priv *priv, void __iomem *ioaddr);
 	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat);
 	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
@@ -265,9 +265,9 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	writel(old_ctrl, dwmac->base_addr + MAC_CTRL_REG);
 }
 
-static int imx_dwmac_mx93_reset(void *priv, void __iomem *ioaddr)
+static int imx_dwmac_mx93_reset(struct stmmac_priv *priv, void __iomem *ioaddr)
 {
-	struct plat_stmmacenet_data *plat_dat = priv;
+	struct plat_stmmacenet_data *plat_dat = priv->plat;
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 
 	/* DMA SW reset */
