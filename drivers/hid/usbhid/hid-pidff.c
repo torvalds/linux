@@ -242,6 +242,11 @@ static int pidff_is_effect_conditional(struct ff_effect *effect)
 	       effect->type == FF_FRICTION;
 }
 
+static int pidff_is_duration_infinite(u16 duration)
+{
+	return duration == FF_INFINITE || duration == PID_INFINITE;
+}
+
 /*
  * Get PID effect index from FF effect type.
  * Return 0 if invalid.
@@ -374,12 +379,8 @@ static void pidff_set_time(struct pidff_usage *usage, u16 time)
 
 static void pidff_set_duration(struct pidff_usage *usage, u16 duration)
 {
-	/* Infinite value conversion from Linux API -> PID */
-	if (duration == FF_INFINITE)
-		duration = PID_INFINITE;
-
 	/* PID defines INFINITE as the max possible value for duration field */
-	if (duration == PID_INFINITE) {
+	if (pidff_is_duration_infinite(duration)) {
 		usage->value[0] = (1U << usage->field->report_size) - 1;
 		return;
 	}
