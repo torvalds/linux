@@ -482,7 +482,6 @@ static void gmc_v12_1_get_vm_pde(struct amdgpu_device *adev, int level,
 	}
 }
 
-#if 0
 static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 					  struct amdgpu_bo *bo,
 					  uint64_t *flags)
@@ -536,7 +535,6 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 
 	*flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
 }
-#endif
 
 static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm,
@@ -582,8 +580,8 @@ static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 	if (adev->have_atomics_support)
 		*flags |= AMDGPU_PTE_BUS_ATOMICS;
 
-	if (bo && bo->flags & AMDGPU_GEM_CREATE_UNCACHED)
-		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
+	if ((*flags & AMDGPU_PTE_VALID) && bo)
+		gmc_v12_1_get_coherence_flags(adev, bo, flags);
 }
 
 static const struct amdgpu_gmc_funcs gmc_v12_1_gmc_funcs = {
