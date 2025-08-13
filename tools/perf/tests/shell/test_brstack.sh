@@ -34,6 +34,13 @@ trap_cleanup() {
 }
 trap trap_cleanup EXIT TERM INT
 
+check_branches() {
+	if ! tr -s ' ' '\n' < "$TMPDIR/perf.script" | grep -E -m1 -q "$1"; then
+		echo "Branches missing $1"
+		err=1
+	fi
+}
+
 test_user_branches() {
 	echo "Testing user branch stack sampling"
 
@@ -55,11 +62,7 @@ test_user_branches() {
 	)
 	for x in "${expected[@]}"
 	do
-		if ! tr -s ' ' '\n' < "$TMPDIR/perf.script" | grep -E -m1 -q "$x"
-		then
-			echo "Branches missing $x"
-			err=1
-		fi
+		check_branches "$x"
 	done
 	# some branch types are still not being tested:
 	# IND COND_CALL COND_RET SYSCALL SYSRET IRQ SERROR NO_TX
@@ -101,14 +104,16 @@ set -e
 
 test_user_branches
 
-test_filter "any_call"	"CALL|IND_CALL|COND_CALL|SYSCALL|IRQ"
+any_call="CALL|IND_CALL|COND_CALL|SYSCALL|IRQ"
+
+test_filter "any_call" "$any_call"
 test_filter "call"	"CALL|SYSCALL"
 test_filter "cond"	"COND"
 test_filter "any_ret"	"RET|COND_RET|SYSRET|ERET"
 
 test_filter "call,cond"		"CALL|SYSCALL|COND"
-test_filter "any_call,cond"		"CALL|IND_CALL|COND_CALL|IRQ|SYSCALL|COND"
-test_filter "cond,any_call,any_ret"	"COND|CALL|IND_CALL|COND_CALL|SYSCALL|IRQ|RET|COND_RET|SYSRET|ERET"
+test_filter "any_call,cond"	    "$any_call|COND"
+test_filter "any_call,cond,any_ret" "$any_call|COND|RET|COND_RET"
 
 cleanup
 exit $err
