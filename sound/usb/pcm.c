@@ -614,11 +614,11 @@ int snd_usb_hw_free(struct snd_usb_substream *subs)
 	scoped_guard(mutex, &chip->mutex) {
 		subs->cur_audiofmt = NULL;
 	}
-	if (!snd_usb_lock_shutdown(chip)) {
+	CLASS(snd_usb_lock, pm)(chip);
+	if (!pm.err) {
 		if (stop_endpoints(subs, false))
 			sync_pending_stops(subs);
 		close_endpoints(chip, subs);
-		snd_usb_unlock_shutdown(chip);
 	}
 
 	return 0;
@@ -675,28 +675,26 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	int retry = 0;
 	int ret;
 
-	ret = snd_usb_lock_shutdown(chip);
-	if (ret < 0)
-		return ret;
-	if (snd_BUG_ON(!subs->data_endpoint)) {
-		ret = -EIO;
-		goto unlock;
-	}
+	CLASS(snd_usb_lock, pm)(chip);
+	if (pm.err < 0)
+		return pm.err;
+	if (snd_BUG_ON(!subs->data_endpoint))
+		return -EIO;
 
 	ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D0);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
  again:
 	if (subs->sync_endpoint) {
 		ret = snd_usb_endpoint_prepare(chip, subs->sync_endpoint);
 		if (ret < 0)
-			goto unlock;
+			return ret;
 	}
 
 	ret = snd_usb_endpoint_prepare(chip, subs->data_endpoint);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 	else if (ret > 0)
 		snd_usb_set_format_quirk(subs, subs->cur_audiofmt);
 	ret = 0;
@@ -722,8 +720,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 			goto again;
 		}
 	}
- unlock:
-	snd_usb_unlock_shutdown(chip);
+
 	return ret;
 }
 
@@ -1296,9 +1293,11 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 
 	snd_media_stop_pipeline(subs);
 
-	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
+	{
+		CLASS(snd_usb_lock, pm)(subs->stream->chip);
+		if (pm.err)
+			return pm.err;
 		ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D1);
-		snd_usb_unlock_shutdown(subs->stream->chip);
 		if (ret < 0)
 			return ret;
 	}
