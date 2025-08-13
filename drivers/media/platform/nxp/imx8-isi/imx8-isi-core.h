@@ -202,9 +202,8 @@ struct mxc_isi_video {
 	struct video_device		vdev;
 	struct media_pad		pad;
 
-	/* Protects is_streaming, and the vdev and vb2_q operations */
+	/* Protects the vdev and vb2_q operations */
 	struct mutex			lock;
-	bool				is_streaming;
 
 	struct v4l2_pix_format_mplane	pix;
 	const struct mxc_isi_format_info *fmtinfo;

@@ -969,8 +969,6 @@ static int mxc_isi_vb2_prepare_streaming(struct vb2_queue *q)
 	if (ret)
 		goto err_stop;
 
-	video->is_streaming = true;
-
 	return 0;
 
 err_stop:
@@ -1035,8 +1033,6 @@ static void mxc_isi_vb2_unprepare_streaming(struct vb2_queue *q)
 	mxc_isi_video_free_discard_buffers(video);
 	video_device_pipeline_stop(&video->vdev);
 	mxc_isi_pipe_release(video->pipe);
-
-	video->is_streaming = false;
 }
 
 static const struct vb2_ops mxc_isi_vb2_qops = {
@@ -1317,7 +1313,7 @@ void mxc_isi_video_suspend(struct mxc_isi_pipe *pipe)
 {
 	struct mxc_isi_video *video = &pipe->video;
 
-	if (!video->is_streaming)
+	if (!vb2_is_streaming(&video->vb2_q))
 		return;
 
 	mxc_isi_pipe_disable(pipe);
@@ -1348,7 +1344,7 @@ int mxc_isi_video_resume(struct mxc_isi_pipe *pipe)
 {
 	struct mxc_isi_video *video = &pipe->video;
 
-	if (!video->is_streaming)
+	if (!vb2_is_streaming(&video->vb2_q))
 		return 0;
 
 	mxc_isi_video_init_channel(video);
