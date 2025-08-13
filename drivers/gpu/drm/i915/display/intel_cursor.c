@@ -662,7 +662,7 @@ static void i9xx_cursor_update_arm(struct intel_dsb *dsb,
 		cntl = plane_state->ctl |
 			i9xx_cursor_ctl_crtc(crtc_state);
 
-		if (width != height)
+		if (DISPLAY_VER(display) < 14 && width != height)
 			fbc_ctl = CUR_FBC_EN | CUR_FBC_HEIGHT(height - 1);
 
 		base = plane_state->surf;
