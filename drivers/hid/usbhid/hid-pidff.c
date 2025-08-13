@@ -943,7 +943,8 @@ static void pidff_set_autocenter(struct input_dev *dev, u16 magnitude)
  * Find fields from a report and fill a pidff_usage
  */
 static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
-			     struct hid_report *report, int count, int strict)
+			     struct hid_report *report, int count, int strict,
+			     u32 *quirks)
 {
 	if (!report) {
 		pr_debug("%s, null report\n", __func__);
@@ -951,7 +952,6 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 	}
 
 	int i, j, k, found;
-	int return_value = 0;
 
 	for (k = 0; k < count; k++) {
 		found = 0;
@@ -979,17 +979,17 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 		if (!found && table[k] == pidff_set_effect[PID_START_DELAY]) {
 			pr_debug("Delay field not found, but that's OK\n");
 			pr_debug("Setting MISSING_DELAY quirk\n");
-			return_value |= HID_PIDFF_QUIRK_MISSING_DELAY;
+			*quirks |= HID_PIDFF_QUIRK_MISSING_DELAY;
 		} else if (!found && table[k] == pidff_set_condition[PID_PARAM_BLOCK_OFFSET]) {
 			pr_debug("PBO field not found, but that's OK\n");
 			pr_debug("Setting MISSING_PBO quirk\n");
-			return_value |= HID_PIDFF_QUIRK_MISSING_PBO;
+			*quirks |= HID_PIDFF_QUIRK_MISSING_PBO;
 		} else if (!found && strict) {
 			pr_debug("failed to locate %d\n", k);
 			return -1;
 		}
 	}
-	return return_value;
+	return 0;
 }
 
 /*
@@ -1258,26 +1258,17 @@ static int pidff_find_effects(struct pidff_device *pidff,
 #define PIDFF_FIND_FIELDS(name, report, strict) \
 	pidff_find_fields(pidff->name, pidff_ ## name, \
 		pidff->reports[report], \
-		ARRAY_SIZE(pidff_ ## name), strict)
+		ARRAY_SIZE(pidff_ ## name), strict, &pidff->quirks)
 
 /*
  * Fill and check the pidff_usages
  */
 static int pidff_init_fields(struct pidff_device *pidff, struct input_dev *dev)
 {
-	int status = 0;
-
-	/* Save info about the device not having the DELAY ffb field. */
-	status = PIDFF_FIND_FIELDS(set_effect, PID_SET_EFFECT, 1);
-	if (status == -1) {
+	if (PIDFF_FIND_FIELDS(set_effect, PID_SET_EFFECT, 1)) {
 		hid_err(pidff->hid, "unknown set_effect report layout\n");
 		return -ENODEV;
 	}
-	pidff->quirks |= status;
-
-	if (status & HID_PIDFF_QUIRK_MISSING_DELAY)
-		hid_dbg(pidff->hid, "Adding MISSING_DELAY quirk\n");
-
 
 	PIDFF_FIND_FIELDS(block_load, PID_BLOCK_LOAD, 0);
 	if (!pidff->block_load[PID_EFFECT_BLOCK_INDEX].value) {
@@ -1311,39 +1302,25 @@ static int pidff_init_fields(struct pidff_device *pidff, struct input_dev *dev)
 				 "has periodic effect but no envelope\n");
 	}
 
-	if (test_bit(FF_CONSTANT, dev->ffbit) &&
-	    PIDFF_FIND_FIELDS(set_constant, PID_SET_CONSTANT, 1)) {
+	if (PIDFF_FIND_FIELDS(set_constant, PID_SET_CONSTANT, 1) &&
+	    test_and_clear_bit(FF_CONSTANT, dev->ffbit))
 		hid_warn(pidff->hid, "unknown constant effect layout\n");
-		clear_bit(FF_CONSTANT, dev->ffbit);
-	}
 
-	if (test_bit(FF_RAMP, dev->ffbit) &&
-	    PIDFF_FIND_FIELDS(set_ramp, PID_SET_RAMP, 1)) {
+	if (PIDFF_FIND_FIELDS(set_ramp, PID_SET_RAMP, 1) &&
+	    test_and_clear_bit(FF_RAMP, dev->ffbit))
 		hid_warn(pidff->hid, "unknown ramp effect layout\n");
-		clear_bit(FF_RAMP, dev->ffbit);
-	}
 
-	if (test_bit(FF_SPRING, dev->ffbit) ||
-	    test_bit(FF_DAMPER, dev->ffbit) ||
-	    test_bit(FF_FRICTION, dev->ffbit) ||
-	    test_bit(FF_INERTIA, dev->ffbit)) {
-		status = PIDFF_FIND_FIELDS(set_condition, PID_SET_CONDITION, 1);
-
-		if (status < 0) {
+	if (PIDFF_FIND_FIELDS(set_condition, PID_SET_CONDITION, 1)) {
+		if (test_and_clear_bit(FF_SPRING, dev->ffbit)   ||
+		    test_and_clear_bit(FF_DAMPER, dev->ffbit)   ||
+		    test_and_clear_bit(FF_FRICTION, dev->ffbit) ||
+		    test_and_clear_bit(FF_INERTIA, dev->ffbit))
 			hid_warn(pidff->hid, "unknown condition effect layout\n");
-			clear_bit(FF_SPRING, dev->ffbit);
-			clear_bit(FF_DAMPER, dev->ffbit);
-			clear_bit(FF_FRICTION, dev->ffbit);
-			clear_bit(FF_INERTIA, dev->ffbit);
-		}
-		pidff->quirks |= status;
 	}
 
-	if (test_bit(FF_PERIODIC, dev->ffbit) &&
-	    PIDFF_FIND_FIELDS(set_periodic, PID_SET_PERIODIC, 1)) {
+	if (PIDFF_FIND_FIELDS(set_periodic, PID_SET_PERIODIC, 1) &&
+	    test_and_clear_bit(FF_PERIODIC, dev->ffbit))
 		hid_warn(pidff->hid, "unknown periodic effect layout\n");
-		clear_bit(FF_PERIODIC, dev->ffbit);
-	}
 
 	PIDFF_FIND_FIELDS(pool, PID_POOL, 0);
 
