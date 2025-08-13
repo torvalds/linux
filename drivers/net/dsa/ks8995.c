@@ -288,30 +288,6 @@ static int ks8995_reset(struct ks8995_switch *ks)
 	return ks8995_start(ks);
 }
 
-static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
-	const struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
-{
-	struct device *dev;
-	struct ks8995_switch *ks8995;
-
-	dev = kobj_to_dev(kobj);
-	ks8995 = dev_get_drvdata(dev);
-
-	return ks8995_read(ks8995, buf, off, count);
-}
-
-static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
-	const struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
-{
-	struct device *dev;
-	struct ks8995_switch *ks8995;
-
-	dev = kobj_to_dev(kobj);
-	ks8995 = dev_get_drvdata(dev);
-
-	return ks8995_write(ks8995, buf, off, count);
-}
-
 /* ks8995_get_revision - get chip revision
  * @ks: pointer to switch instance
  *
@@ -395,16 +371,6 @@ err_out:
 	return err;
 }
 
-static const struct bin_attribute ks8995_registers_attr = {
-	.attr = {
-		.name   = "registers",
-		.mode   = 0600,
-	},
-	.size   = KS8995_REGS_SIZE,
-	.read   = ks8995_registers_read,
-	.write  = ks8995_registers_write,
-};
-
 /* ------------------------------------------------------------------------ */
 static int ks8995_probe(struct spi_device *spi)
 {
@@ -462,20 +428,9 @@ static int ks8995_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	memcpy(&ks->regs_attr, &ks8995_registers_attr, sizeof(ks->regs_attr));
-	ks->regs_attr.size = ks->chip->regs_size;
-
 	err = ks8995_reset(ks);
 	if (err)
 		return err;
-
-	sysfs_attr_init(&ks->regs_attr.attr);
-	err = sysfs_create_bin_file(&spi->dev.kobj, &ks->regs_attr);
-	if (err) {
-		dev_err(&spi->dev, "unable to create sysfs file, err=%d\n",
-				    err);
-		return err;
-	}
 
 	dev_info(&spi->dev, "%s device found, Chip ID:%x, Revision:%x\n",
 		 ks->chip->name, ks->chip->chip_id, ks->revision_id);
@@ -486,8 +441,6 @@ static int ks8995_probe(struct spi_device *spi)
 static void ks8995_remove(struct spi_device *spi)
 {
 	struct ks8995_switch *ks = spi_get_drvdata(spi);
-
-	sysfs_remove_bin_file(&spi->dev.kobj, &ks->regs_attr);
 
 	/* assert reset */
 	gpiod_set_value_cansleep(ks->reset_gpio, 1);
