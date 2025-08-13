@@ -18,7 +18,7 @@ my $enable_fname;
 my $basename = abs_path($0);
 $basename =~ s,/[^/]+$,/,;
 
-my $prefix=$basename . "../Documentation/features";
+my $prefix=$basename . "../../Documentation/features";
 
 # Used only at for full features output. The script will auto-adjust
 # such values for the minimal possible values
