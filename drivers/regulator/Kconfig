@@ -1248,6 +1248,18 @@ config REGULATOR_RT5120
 	  600mV to 1395mV, per step 6.250mV. The others are all fixed voltage
 	  by external hardware circuit.
 
+config REGULATOR_RT5133
+	tristate "Richtek RT5133 PMIC Regulators"
+	depends on I2C && GPIOLIB && OF
+	select REGMAP
+	select CRC8
+	select OF_GPIO
+	help
+	  This driver adds support for RT5133 PMIC regulators.
+	  RT5133 is an integrated chip. It includes 8 LDOs and 3 GPOs that
+	  can be used to drive output high/low purpose. The dependency of the
+	  GPO block is internally LDO1 Voltage.
+
 config REGULATOR_RT5190A
 	tristate "Richtek RT5190A PMIC"
 	depends on I2C
