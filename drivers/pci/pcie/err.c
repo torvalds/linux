@@ -110,7 +110,19 @@ static int report_normal_detected(struct pci_dev *dev, void *data)
 
 static int report_perm_failure_detected(struct pci_dev *dev, void *data)
 {
+	struct pci_driver *pdrv;
+	const struct pci_error_handlers *err_handler;
+
+	device_lock(&dev->dev);
+	pdrv = dev->driver;
+	if (!pdrv || !pdrv->err_handler || !pdrv->err_handler->error_detected)
+		goto out;
+
+	err_handler = pdrv->err_handler;
+	err_handler->error_detected(dev, pci_channel_io_perm_failure);
+out:
 	pci_uevent_ers(dev, PCI_ERS_RESULT_DISCONNECT);
+	device_unlock(&dev->dev);
 	return 0;
 }
 
