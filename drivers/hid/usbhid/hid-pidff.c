@@ -184,6 +184,12 @@ struct pidff_usage {
 	s32 *value;
 };
 
+struct pidff_effect {
+	int pid_id;
+	int is_infinite;
+	unsigned int loop_count;
+};
+
 struct pidff_device {
 	struct hid_device *hid;
 
@@ -201,6 +207,8 @@ struct pidff_device {
 	struct pidff_usage pool[ARRAY_SIZE(pidff_pool)];
 	struct pidff_usage effect_operation[ARRAY_SIZE(pidff_effect_operation)];
 	struct pidff_usage block_free[ARRAY_SIZE(pidff_block_free)];
+
+	struct pidff_effect effect[PID_EFFECTS_MAX];
 
 	/*
 	 * Special field is a field that is not composed of
@@ -229,8 +237,6 @@ struct pidff_device {
 	int status_id[ARRAY_SIZE(pidff_block_load_status)];
 	int operation_id[ARRAY_SIZE(pidff_effect_operation_status)];
 	int direction_axis_id[ARRAY_SIZE(pidff_direction_axis)];
-
-	int pid_id[PID_EFFECTS_MAX];
 
 	u32 quirks;
 	u8 effect_count;
@@ -798,6 +804,12 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 	return -EIO;
 }
 
+static int pidff_needs_playback(struct pidff_device *pidff, int effect_id, int n)
+{
+	return pidff->effect[effect_id].is_infinite ||
+	       pidff->effect[effect_id].loop_count != n;
+}
+
 /*
  * Play the effect with PID id n times
  */
@@ -829,9 +841,14 @@ static int pidff_playback(struct input_dev *dev, int effect_id, int value)
 {
 	struct pidff_device *pidff = dev->ff->private;
 
+	if (!pidff_needs_playback(pidff, effect_id, value))
+		return 0;
+
 	hid_dbg(pidff->hid, "requesting %s on FF effect %d",
 		value == 0 ? "stop" : "playback", effect_id);
-	pidff_playback_pid(pidff, pidff->pid_id[effect_id], value);
+
+	pidff->effect[effect_id].loop_count = value;
+	pidff_playback_pid(pidff, pidff->effect[effect_id].pid_id, value);
 	return 0;
 }
 
@@ -852,10 +869,9 @@ static void pidff_erase_pid(struct pidff_device *pidff, int pid_id)
 static int pidff_erase_effect(struct input_dev *dev, int effect_id)
 {
 	struct pidff_device *pidff = dev->ff->private;
-	int pid_id = pidff->pid_id[effect_id];
+	int pid_id = pidff->effect[effect_id].pid_id;
 
-	hid_dbg(pidff->hid, "starting to erase %d/%d\n", effect_id,
-		pidff->pid_id[effect_id]);
+	hid_dbg(pidff->hid, "starting to erase %d/%d\n", effect_id, pid_id);
 
 	/*
 	 * Wait for the queue to clear. We do not want
@@ -906,12 +922,16 @@ static int pidff_upload_effect(struct input_dev *dev, struct ff_effect *new,
 
 		pidff->effect_count++;
 		hid_dbg(pidff->hid, "current effect count: %d", pidff->effect_count);
-		pidff->pid_id[new->id] =
+		pidff->effect[new->id].loop_count = 0;
+		pidff->effect[new->id].pid_id =
 			pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0];
 	}
 
+	pidff->effect[new->id].is_infinite =
+		pidff_is_duration_infinite(new->replay.length);
+
 	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] =
-		pidff->pid_id[new->id];
+		pidff->effect[new->id].pid_id;
 
 	PIDFF_SET_REPORT_IF_NEEDED(effect, new, old);
 	switch (new->type) {
