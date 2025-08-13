@@ -973,7 +973,7 @@ typedef int (*iterate_inode_ref_t)(u64 dir, struct fs_path *p, void *ctx);
  * path must point to the INODE_REF or INODE_EXTREF when called.
  */
 static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
-			     struct btrfs_key *found_key, int resolve,
+			     struct btrfs_key *found_key, bool resolve,
 			     iterate_inode_ref_t iterate, void *ctx)
 {
 	struct extent_buffer *eb = path->nodes[0];
@@ -1251,8 +1251,7 @@ static int get_inode_path(struct btrfs_root *root,
 		goto out;
 	}
 
-	ret = iterate_inode_ref(root, p, &found_key, 1,
-				__copy_first_ref, path);
+	ret = iterate_inode_ref(root, p, &found_key, true, __copy_first_ref, path);
 	if (ret < 0)
 		goto out;
 	ret = 0;
@@ -4756,8 +4755,8 @@ static int record_new_ref(struct send_ctx *sctx)
 {
 	int ret;
 
-	ret = iterate_inode_ref(sctx->send_root, sctx->left_path,
-				sctx->cmp_key, 0, record_new_ref_if_needed, sctx);
+	ret = iterate_inode_ref(sctx->send_root, sctx->left_path, sctx->cmp_key,
+				false, record_new_ref_if_needed, sctx);
 	if (ret < 0)
 		return ret;
 
@@ -4768,9 +4767,8 @@ static int record_deleted_ref(struct send_ctx *sctx)
 {
 	int ret;
 
-	ret = iterate_inode_ref(sctx->parent_root, sctx->right_path,
-				sctx->cmp_key, 0, record_deleted_ref_if_needed,
-				sctx);
+	ret = iterate_inode_ref(sctx->parent_root, sctx->right_path, sctx->cmp_key,
+				false, record_deleted_ref_if_needed, sctx);
 	if (ret < 0)
 		return ret;
 
@@ -4781,12 +4779,12 @@ static int record_changed_ref(struct send_ctx *sctx)
 {
 	int ret;
 
-	ret = iterate_inode_ref(sctx->send_root, sctx->left_path,
-			sctx->cmp_key, 0, record_new_ref_if_needed, sctx);
+	ret = iterate_inode_ref(sctx->send_root, sctx->left_path, sctx->cmp_key,
+				false, record_new_ref_if_needed, sctx);
 	if (ret < 0)
 		return ret;
-	ret = iterate_inode_ref(sctx->parent_root, sctx->right_path,
-			sctx->cmp_key, 0, record_deleted_ref_if_needed, sctx);
+	ret = iterate_inode_ref(sctx->parent_root, sctx->right_path, sctx->cmp_key,
+				false, record_deleted_ref_if_needed, sctx);
 	if (ret < 0)
 		return ret;
 
@@ -4835,7 +4833,7 @@ static int process_all_refs(struct send_ctx *sctx,
 		     found_key.type != BTRFS_INODE_EXTREF_KEY))
 			break;
 
-		ret = iterate_inode_ref(root, path, &found_key, 0, cb, sctx);
+		ret = iterate_inode_ref(root, path, &found_key, false, cb, sctx);
 		if (ret < 0)
 			goto out;
 	}
@@ -6578,7 +6576,7 @@ static int process_all_extents(struct send_ctx *sctx)
 	return ret;
 }
 
-static int process_recorded_refs_if_needed(struct send_ctx *sctx, int at_end,
+static int process_recorded_refs_if_needed(struct send_ctx *sctx, bool at_end,
 					   int *pending_move,
 					   int *refs_processed)
 {
@@ -6601,7 +6599,7 @@ out:
 	return ret;
 }
 
-static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
+static int finish_inode_if_needed(struct send_ctx *sctx, bool at_end)
 {
 	int ret = 0;
 	struct btrfs_inode_info info;

@@ -6671,7 +6671,7 @@ out:
  */
 int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
-		   const struct fscrypt_str *name, int add_backref, u64 index)
+		   const struct fscrypt_str *name, bool add_backref, u64 index)
 {
 	int ret = 0;
 	struct btrfs_key key;

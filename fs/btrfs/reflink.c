@@ -23,7 +23,7 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 				     u64 endoff,
 				     const u64 destoff,
 				     const u64 olen,
-				     int no_time_update)
+				     bool no_time_update)
 {
 	int ret;
 
@@ -337,7 +337,7 @@ copy_to_page:
  */
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       const u64 off, const u64 olen, const u64 olen_aligned,
-		       const u64 destoff, int no_time_update)
+		       const u64 destoff, bool no_time_update)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct btrfs_path *path = NULL;

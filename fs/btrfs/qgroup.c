@@ -2729,7 +2729,7 @@ static void qgroup_iterator_nested_clean(struct list_head *head)
  */
 static void qgroup_update_refcnt(struct btrfs_fs_info *fs_info,
 				 struct ulist *roots, struct list_head *qgroups,
-				 u64 seq, int update_old)
+				 u64 seq, bool update_old)
 {
 	struct ulist_node *unode;
 	struct ulist_iterator uiter;

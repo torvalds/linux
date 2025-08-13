@@ -404,7 +404,7 @@ loop:
  */
 static int record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       int force)
+			       bool force)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret = 0;
@@ -2657,9 +2657,9 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_fs_info *fs_info)
 
 	if (btrfs_header_backref_rev(root->node) <
 			BTRFS_MIXED_BACKREF_REV)
-		ret = btrfs_drop_snapshot(root, 0, 0);
+		ret = btrfs_drop_snapshot(root, false, false);
 	else
-		ret = btrfs_drop_snapshot(root, 1, 0);
+		ret = btrfs_drop_snapshot(root, true, false);
 
 	btrfs_put_root(root);
 	return (ret < 0) ? 0 : 1;

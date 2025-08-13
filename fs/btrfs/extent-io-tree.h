@@ -163,7 +163,7 @@ void __cold btrfs_extent_state_free_cachep(void);
 
 u64 btrfs_count_range_bits(struct extent_io_tree *tree,
 			   u64 *start, u64 search_end,
-			   u64 max_bytes, u32 bits, int contig,
+			   u64 max_bytes, u32 bits, bool contig,
 			   struct extent_state **cached_state);
 
 void btrfs_free_extent_state(struct extent_state *state);

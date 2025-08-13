@@ -379,7 +379,7 @@ static int process_one_buffer(struct btrfs_root *log,
 			return ret;
 		}
 
-		if (btrfs_buffer_uptodate(eb, gen, 0) &&
+		if (btrfs_buffer_uptodate(eb, gen, false) &&
 		    btrfs_header_level(eb) == 0) {
 			ret = btrfs_exclude_logged_extents(eb);
 			if (ret)
@@ -4398,7 +4398,7 @@ static int truncate_inode_items(struct btrfs_trans_handle *trans,
 static void fill_inode_item(struct btrfs_trans_handle *trans,
 			    struct extent_buffer *leaf,
 			    struct btrfs_inode_item *item,
-			    struct inode *inode, int log_inode_only,
+			    struct inode *inode, bool log_inode_only,
 			    u64 logged_isize)
 {
 	u64 flags;
@@ -4494,7 +4494,7 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				    struct btrfs_inode_item);
 	fill_inode_item(trans, path->nodes[0], inode_item, &inode->vfs_inode,
-			0, 0);
+			false, 0);
 	btrfs_release_path(path);
 	return 0;
 }
