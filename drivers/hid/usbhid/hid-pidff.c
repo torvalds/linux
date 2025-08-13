@@ -148,8 +148,12 @@ static const u8 pidff_block_load_status[] = { 0x8c, 0x8d, 0x8e };
 #define PID_EFFECT_STOP		1
 static const u8 pidff_effect_operation_status[] = { 0x79, 0x7b };
 
-/* Polar direction 90 degrees (East) */
-#define PIDFF_FIXED_WHEEL_DIRECTION	0x4000
+#define PID_DIRECTION_NORTH	0x0000
+#define PID_DIRECTION_EAST	0x4000
+#define PID_DIRECTION_SOUTH	0x8000
+#define PID_DIRECTION_WEST	0xc000
+
+#define PIDFF_FIXED_WHEEL_DIRECTION	PID_DIRECTION_EAST
 
 /* AXES_ENABLE and DIRECTION axes */
 enum pid_axes {
