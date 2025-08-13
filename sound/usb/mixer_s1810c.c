@@ -338,18 +338,16 @@ snd_s1810c_get_switch_state(struct usb_mixer_interface *mixer,
 	struct s1810_mixer_state *private = mixer->private_data;
 	u32 field = 0;
 	u32 ctl_idx = (u32) (kctl->private_value & 0xFF);
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&private->usb_mutex);
+	guard(mutex)(&private->usb_mutex);
 	ret = snd_sc1810c_get_status_field(chip->dev, &field,
 					   ctl_idx, &private->seqnum);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
 	*state = field;
- unlock:
-	mutex_unlock(&private->usb_mutex);
-	return ret ? ret : 0;
+	return ret;
 }
 
 /*
@@ -366,12 +364,9 @@ snd_s1810c_set_switch_state(struct usb_mixer_interface *mixer,
 	u32 pval = (u32) kctl->private_value;
 	u32 ctl_id = (pval >> 8) & 0xFF;
 	u32 ctl_val = (pval >> 16) & 0x1;
-	int ret = 0;
 
-	mutex_lock(&private->usb_mutex);
-	ret = snd_s1810c_send_ctl_packet(chip->dev, 0, 0, 0, ctl_id, ctl_val);
-	mutex_unlock(&private->usb_mutex);
-	return ret;
+	guard(mutex)(&private->usb_mutex);
+	return snd_s1810c_send_ctl_packet(chip->dev, 0, 0, 0, ctl_id, ctl_val);
 }
 
 /* Generic get/set/init functions for switch controls */
@@ -386,12 +381,12 @@ snd_s1810c_switch_get(struct snd_kcontrol *kctl,
 	u32 pval = (u32) kctl->private_value;
 	u32 ctl_idx = pval & 0xFF;
 	u32 state = 0;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&private->data_mutex);
+	guard(mutex)(&private->data_mutex);
 	ret = snd_s1810c_get_switch_state(mixer, kctl, &state);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
 	switch (ctl_idx) {
 	case SC1810C_STATE_LINE_SW:
@@ -402,9 +397,7 @@ snd_s1810c_switch_get(struct snd_kcontrol *kctl,
 		ctl_elem->value.integer.value[0] = (long)state;
 	}
 
- unlock:
-	mutex_unlock(&private->data_mutex);
-	return (ret < 0) ? ret : 0;
+	return 0;
 }
 
 static int
@@ -420,10 +413,10 @@ snd_s1810c_switch_set(struct snd_kcontrol *kctl,
 	u32 newval = 0;
 	int ret = 0;
 
-	mutex_lock(&private->data_mutex);
+	guard(mutex)(&private->data_mutex);
 	ret = snd_s1810c_get_switch_state(mixer, kctl, &curval);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
 	switch (ctl_idx) {
 	case SC1810C_STATE_LINE_SW:
@@ -435,14 +428,12 @@ snd_s1810c_switch_set(struct snd_kcontrol *kctl,
 	}
 
 	if (curval == newval)
-		goto unlock;
+		return 0;
 
 	kctl->private_value &= ~(0x1 << 16);
 	kctl->private_value |= (unsigned int)(newval & 0x1) << 16;
 	ret = snd_s1810c_set_switch_state(mixer, kctl);
 
- unlock:
-	mutex_unlock(&private->data_mutex);
 	return (ret < 0) ? 0 : 1;
 }
 
