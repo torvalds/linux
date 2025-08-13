@@ -142,7 +142,7 @@ static const u8 pidff_effect_types[] = {
 #define PID_BLOCK_LOAD_SUCCESS	0
 #define PID_BLOCK_LOAD_FULL	1
 #define PID_BLOCK_LOAD_ERROR	2
-static const u8 pidff_block_load_status[] = { 0x8c, 0x8d, 0x8e};
+static const u8 pidff_block_load_status[] = { 0x8c, 0x8d, 0x8e };
 
 #define PID_EFFECT_START	0
 #define PID_EFFECT_STOP		1
@@ -240,6 +240,62 @@ static int pidff_is_effect_conditional(struct ff_effect *effect)
 	       effect->type == FF_DAMPER  ||
 	       effect->type == FF_INERTIA ||
 	       effect->type == FF_FRICTION;
+}
+
+/*
+ * Get PID effect index from FF effect type.
+ * Return 0 if invalid.
+ */
+static int pidff_effect_ff_to_pid(struct ff_effect *effect)
+{
+	switch (effect->type) {
+	case FF_CONSTANT:
+		return PID_CONSTANT;
+	case FF_RAMP:
+		return PID_RAMP;
+	case FF_SPRING:
+		return PID_SPRING;
+	case FF_DAMPER:
+		return PID_DAMPER;
+	case FF_INERTIA:
+		return PID_INERTIA;
+	case FF_FRICTION:
+		return PID_FRICTION;
+	case FF_PERIODIC:
+		switch (effect->u.periodic.waveform) {
+		case FF_SQUARE:
+			return PID_SQUARE;
+		case FF_TRIANGLE:
+			return PID_TRIANGLE;
+		case FF_SINE:
+			return PID_SINE;
+		case FF_SAW_UP:
+			return PID_SAW_UP;
+		case FF_SAW_DOWN:
+			return PID_SAW_DOWN;
+		}
+	}
+	pr_err("invalid effect type\n");
+	return -EINVAL;
+}
+
+/*
+ * Get effect id in the device descriptor.
+ * Return 0 if invalid.
+ */
+static int pidff_get_effect_type_id(struct pidff_device *pidff,
+				    struct ff_effect *effect)
+{
+	int id = pidff_effect_ff_to_pid(effect);
+
+	if (id < 0)
+		return 0;
+
+	if (effect->type == FF_PERIODIC &&
+	    pidff->quirks & HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY)
+		id = PID_SINE;
+
+	return pidff->type_id[id];
 }
 
 /*
@@ -387,12 +443,12 @@ static void pidff_set_envelope_report(struct pidff_device *pidff,
 			pidff->set_envelope[PID_FADE_LEVEL].field);
 
 	pidff_set_time(&pidff->set_envelope[PID_ATTACK_TIME],
-			envelope->attack_length);
+		       envelope->attack_length);
 	pidff_set_time(&pidff->set_envelope[PID_FADE_TIME],
-			envelope->fade_length);
+		       envelope->fade_length);
 
 	hid_hw_request(pidff->hid, pidff->reports[PID_SET_ENVELOPE],
-			HID_REQ_SET_REPORT);
+		       HID_REQ_SET_REPORT);
 }
 
 /*
@@ -401,7 +457,7 @@ static void pidff_set_envelope_report(struct pidff_device *pidff,
 static int pidff_needs_set_envelope(struct ff_envelope *envelope,
 				    struct ff_envelope *old)
 {
-	bool needs_new_envelope;
+	int needs_new_envelope;
 
 	needs_new_envelope = envelope->attack_level  != 0 ||
 			     envelope->fade_level    != 0 ||
@@ -409,8 +465,7 @@ static int pidff_needs_set_envelope(struct ff_envelope *envelope,
 			     envelope->fade_length   != 0;
 
 	if (!needs_new_envelope)
-		return false;
-
+		return 0;
 	if (!old)
 		return needs_new_envelope;
 
@@ -423,8 +478,8 @@ static int pidff_needs_set_envelope(struct ff_envelope *envelope,
 /*
  * Send constant force report to the device
  */
-static void pidff_set_constant_force_report(struct pidff_device *pidff,
-					    struct ff_effect *effect)
+static void pidff_set_constant_report(struct pidff_device *pidff,
+				      struct ff_effect *effect)
 {
 	pidff->set_constant[PID_EFFECT_BLOCK_INDEX].value[0] =
 		pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0];
@@ -432,7 +487,7 @@ static void pidff_set_constant_force_report(struct pidff_device *pidff,
 			 effect->u.constant.level);
 
 	hid_hw_request(pidff->hid, pidff->reports[PID_SET_CONSTANT],
-			HID_REQ_SET_REPORT);
+		       HID_REQ_SET_REPORT);
 }
 
 /*
@@ -583,8 +638,8 @@ static int pidff_needs_set_condition(struct ff_effect *effect,
 /*
  * Send ramp force report to the device
  */
-static void pidff_set_ramp_force_report(struct pidff_device *pidff,
-					struct ff_effect *effect)
+static void pidff_set_ramp_report(struct pidff_device *pidff,
+				  struct ff_effect *effect)
 {
 	pidff->set_ramp[PID_EFFECT_BLOCK_INDEX].value[0] =
 		pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0];
@@ -593,7 +648,7 @@ static void pidff_set_ramp_force_report(struct pidff_device *pidff,
 	pidff_set_signed(&pidff->set_ramp[PID_RAMP_END],
 			 effect->u.ramp.end_level);
 	hid_hw_request(pidff->hid, pidff->reports[PID_SET_RAMP],
-			HID_REQ_SET_REPORT);
+		       HID_REQ_SET_REPORT);
 }
 
 /*
@@ -703,9 +758,6 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 {
 	int j;
 
-	if (!pidff->effect_count)
-		pidff_reset(pidff);
-
 	pidff->create_new_effect_type->value[0] = efnum;
 	hid_hw_request(pidff->hid, pidff->reports[PID_CREATE_NEW_EFFECT],
 			HID_REQ_SET_REPORT);
@@ -725,8 +777,6 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 			hid_dbg(pidff->hid, "device reported free memory: %d bytes\n",
 				 pidff->block_load[PID_RAM_POOL_AVAILABLE].value ?
 				 pidff->block_load[PID_RAM_POOL_AVAILABLE].value[0] : -1);
-
-			pidff->effect_count++;
 			return 0;
 		}
 		if (pidff->block_load_status->value[0] ==
@@ -767,7 +817,7 @@ static void pidff_playback_pid(struct pidff_device *pidff, int pid_id, int n)
 	}
 
 	hid_hw_request(pidff->hid, pidff->reports[PID_EFFECT_OPERATION],
-			HID_REQ_SET_REPORT);
+		       HID_REQ_SET_REPORT);
 }
 
 /*
@@ -791,10 +841,7 @@ static void pidff_erase_pid(struct pidff_device *pidff, int pid_id)
 {
 	pidff->block_free[PID_EFFECT_BLOCK_INDEX].value[0] = pid_id;
 	hid_hw_request(pidff->hid, pidff->reports[PID_BLOCK_FREE],
-			HID_REQ_SET_REPORT);
-
-	if (pidff->effect_count > 0)
-		pidff->effect_count--;
+		       HID_REQ_SET_REPORT);
 }
 
 /*
@@ -816,139 +863,79 @@ static int pidff_erase_effect(struct input_dev *dev, int effect_id)
 	pidff_playback_pid(pidff, pid_id, 0);
 	pidff_erase_pid(pidff, pid_id);
 
+	if (pidff->effect_count > 0)
+		pidff->effect_count--;
+
+	hid_dbg(pidff->hid, "current effect count: %d", pidff->effect_count);
 	return 0;
 }
+
+#define PIDFF_SET_REPORT_IF_NEEDED(type, effect, old) \
+	({ if (!old || pidff_needs_set_## type(effect, old)) \
+		pidff_set_ ##type## _report(pidff, effect); })
+
+#define PIDFF_SET_ENVELOPE_IF_NEEDED(type, effect, old) \
+	({ if (pidff_needs_set_envelope(&effect->u.type.envelope, \
+	       old ? &old->u.type.envelope : NULL)) \
+		pidff_set_envelope_report(pidff, &effect->u.type.envelope); })
 
 /*
  * Effect upload handler
  */
-static int pidff_upload_effect(struct input_dev *dev, struct ff_effect *effect,
+static int pidff_upload_effect(struct input_dev *dev, struct ff_effect *new,
 			       struct ff_effect *old)
 {
 	struct pidff_device *pidff = dev->ff->private;
-	int type_id;
-	int error;
+	const int type_id = pidff_get_effect_type_id(pidff, new);
 
-	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] = 0;
-	if (old) {
-		pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] =
-			pidff->pid_id[effect->id];
+	if (!type_id) {
+		hid_err(pidff->hid, "effect type not supported\n");
+		return -EINVAL;
 	}
 
-	switch (effect->type) {
+	if (!pidff->effect_count)
+		pidff_reset(pidff);
+
+	if (!old) {
+		int error = pidff_request_effect_upload(pidff, type_id);
+
+		if (error)
+			return error;
+
+		pidff->effect_count++;
+		hid_dbg(pidff->hid, "current effect count: %d", pidff->effect_count);
+		pidff->pid_id[new->id] =
+			pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0];
+	}
+
+	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] =
+		pidff->pid_id[new->id];
+
+	PIDFF_SET_REPORT_IF_NEEDED(effect, new, old);
+	switch (new->type) {
 	case FF_CONSTANT:
-		if (!old) {
-			error = pidff_request_effect_upload(pidff,
-					pidff->type_id[PID_CONSTANT]);
-			if (error)
-				return error;
-		}
-		if (!old || pidff_needs_set_effect(effect, old))
-			pidff_set_effect_report(pidff, effect);
-		if (!old || pidff_needs_set_constant(effect, old))
-			pidff_set_constant_force_report(pidff, effect);
-		if (pidff_needs_set_envelope(&effect->u.constant.envelope,
-					old ? &old->u.constant.envelope : NULL))
-			pidff_set_envelope_report(pidff, &effect->u.constant.envelope);
+		PIDFF_SET_REPORT_IF_NEEDED(constant, new, old);
+		PIDFF_SET_ENVELOPE_IF_NEEDED(constant, new, old);
 		break;
 
 	case FF_PERIODIC:
-		if (!old) {
-			switch (effect->u.periodic.waveform) {
-			case FF_SQUARE:
-				type_id = PID_SQUARE;
-				break;
-			case FF_TRIANGLE:
-				type_id = PID_TRIANGLE;
-				break;
-			case FF_SINE:
-				type_id = PID_SINE;
-				break;
-			case FF_SAW_UP:
-				type_id = PID_SAW_UP;
-				break;
-			case FF_SAW_DOWN:
-				type_id = PID_SAW_DOWN;
-				break;
-			default:
-				hid_err(pidff->hid, "invalid waveform\n");
-				return -EINVAL;
-			}
-
-			if (pidff->quirks & HID_PIDFF_QUIRK_PERIODIC_SINE_ONLY)
-				type_id = PID_SINE;
-
-			error = pidff_request_effect_upload(pidff,
-					pidff->type_id[type_id]);
-			if (error)
-				return error;
-		}
-		if (!old || pidff_needs_set_effect(effect, old))
-			pidff_set_effect_report(pidff, effect);
-		if (!old || pidff_needs_set_periodic(effect, old))
-			pidff_set_periodic_report(pidff, effect);
-		if (pidff_needs_set_envelope(&effect->u.periodic.envelope,
-					old ? &old->u.periodic.envelope : NULL))
-			pidff_set_envelope_report(pidff, &effect->u.periodic.envelope);
+		PIDFF_SET_REPORT_IF_NEEDED(periodic, new, old);
+		PIDFF_SET_ENVELOPE_IF_NEEDED(periodic, new, old);
 		break;
 
 	case FF_RAMP:
-		if (!old) {
-			error = pidff_request_effect_upload(pidff,
-					pidff->type_id[PID_RAMP]);
-			if (error)
-				return error;
-		}
-		if (!old || pidff_needs_set_effect(effect, old))
-			pidff_set_effect_report(pidff, effect);
-		if (!old || pidff_needs_set_ramp(effect, old))
-			pidff_set_ramp_force_report(pidff, effect);
-		if (pidff_needs_set_envelope(&effect->u.ramp.envelope,
-					old ? &old->u.ramp.envelope : NULL))
-			pidff_set_envelope_report(pidff, &effect->u.ramp.envelope);
+		PIDFF_SET_REPORT_IF_NEEDED(ramp, new, old);
+		PIDFF_SET_ENVELOPE_IF_NEEDED(ramp, new, old);
 		break;
 
 	case FF_SPRING:
 	case FF_DAMPER:
 	case FF_INERTIA:
 	case FF_FRICTION:
-		if (!old) {
-			switch (effect->type) {
-			case FF_SPRING:
-				type_id = PID_SPRING;
-				break;
-			case FF_DAMPER:
-				type_id = PID_DAMPER;
-				break;
-			case FF_INERTIA:
-				type_id = PID_INERTIA;
-				break;
-			case FF_FRICTION:
-				type_id = PID_FRICTION;
-				break;
-			}
-			error = pidff_request_effect_upload(pidff,
-					pidff->type_id[type_id]);
-			if (error)
-				return error;
-		}
-		if (!old || pidff_needs_set_effect(effect, old))
-			pidff_set_effect_report(pidff, effect);
-		if (!old || pidff_needs_set_condition(effect, old))
-			pidff_set_condition_report(pidff, effect);
+		PIDFF_SET_REPORT_IF_NEEDED(condition, new, old);
 		break;
-
-	default:
-		hid_err(pidff->hid, "invalid type\n");
-		return -EINVAL;
 	}
-
-	if (!old)
-		pidff->pid_id[effect->id] =
-		    pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0];
-
 	hid_dbg(pidff->hid, "uploaded\n");
-
 	return 0;
 }
 
