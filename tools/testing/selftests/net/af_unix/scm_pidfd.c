@@ -137,7 +137,6 @@ struct cmsg_data {
 static int parse_cmsg(struct msghdr *msg, struct cmsg_data *res)
 {
 	struct cmsghdr *cmsg;
-	int data = 0;
 
 	if (msg->msg_flags & (MSG_TRUNC | MSG_CTRUNC)) {
 		log_err("recvmsg: truncated");
@@ -243,7 +242,6 @@ static int cmsg_check_dead(int fd, int expected_pid)
 	int data = 0;
 	char control[CMSG_SPACE(sizeof(struct ucred)) +
 		     CMSG_SPACE(sizeof(int))] = { 0 };
-	pid_t client_pid;
 	struct pidfd_info info = {
 		.mask = PIDFD_INFO_EXIT,
 	};
