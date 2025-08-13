@@ -109,8 +109,8 @@ uring channel. It is 2 bits. Some important codes are as follows:
 - 2'b11: count the events which sent to the uring_ext (MATA) channel;
 - 2'b01: is the same as 2'b11;
 - 2'b10: count the events which sent to the uring (non-MATA) channel;
-- 2'b00: default value, count the events which sent to the both uring and
-  uring_ext channel;
+- 2'b00: default value, count the events which sent to both uring and
+  uring_ext channels;
 
 Users could configure IDs to count data come from specific CCL/ICL, by setting
 srcid_cmd & srcid_msk, and data desitined for specific CCL/ICL by setting

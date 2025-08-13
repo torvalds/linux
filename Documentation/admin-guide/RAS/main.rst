@@ -253,7 +253,7 @@ interface.
 Some architectures have ECC detectors for L1, L2 and L3 caches,
 along with DMA engines, fabric switches, main data path switches,
 interconnections, and various other hardware data paths. If the hardware
-reports it, then a edac_device device probably can be constructed to
+reports it, then an edac_device device probably can be constructed to
 harvest and present that to userspace.
 
 
