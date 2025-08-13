@@ -761,7 +761,11 @@ _mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags, bool dd,
 
 		if (dd) {
 			cur_ksm->va = cpu_to_be64(rdma_block_iter_dma_address(&biter));
-			cur_ksm->key = cpu_to_be32(dev->ddr.mkey);
+			if (mr->access_flags & IB_ACCESS_RELAXED_ORDERING &&
+			    dev->ddr.mkey_ro_valid)
+				cur_ksm->key = cpu_to_be32(dev->ddr.mkey_ro);
+			else
+				cur_ksm->key = cpu_to_be32(dev->ddr.mkey);
 			if (mr->umem->is_dmabuf &&
 			    (flags & MLX5_IB_UPD_XLT_ZAP)) {
 				cur_ksm->va = 0;
