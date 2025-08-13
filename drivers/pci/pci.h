@@ -133,6 +133,46 @@ bool pcie_cap_has_rtctl(const struct pci_dev *dev);
 	__found_pos;							\
 })
 
+/* Extended Capability finder */
+/**
+ * PCI_FIND_NEXT_EXT_CAP - Find a PCI extended capability
+ * @read_cfg: Function pointer for reading PCI config space
+ * @start: Starting position to begin search (0 for initial search)
+ * @cap: Extended capability ID to find
+ * @args: Arguments to pass to read_cfg function
+ *
+ * Search the extended capability list in PCI config space to find @cap.
+ * Implements TTL protection against infinite loops using a calculated
+ * maximum search count.
+ *
+ * Return: Position of the capability if found, 0 otherwise.
+ */
+#define PCI_FIND_NEXT_EXT_CAP(read_cfg, start, cap, args...)		\
+({									\
+	u16 __pos = (start) ?: PCI_CFG_SPACE_SIZE;			\
+	u16 __found_pos = 0;						\
+	int __ttl, __ret;						\
+	u32 __header;							\
+									\
+	__ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;	\
+	while (__ttl-- > 0 && __pos >= PCI_CFG_SPACE_SIZE) {		\
+		__ret = read_cfg##_dword(args, __pos, &__header);	\
+		if (__ret != PCIBIOS_SUCCESSFUL)			\
+			break;						\
+									\
+		if (__header == 0)					\
+			break;						\
+									\
+		if (PCI_EXT_CAP_ID(__header) == (cap) && __pos != start) {\
+			__found_pos = __pos;				\
+			break;						\
+		}							\
+									\
+		__pos = PCI_EXT_CAP_NEXT(__header);			\
+	}								\
+	__found_pos;							\
+})
+
 /* Functions internal to the PCI core code */
 
 #ifdef CONFIG_DMI
