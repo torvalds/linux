@@ -693,25 +693,23 @@ static void nvme_free_prps(struct request *req)
 	mempool_free(iod->dma_vecs, nvmeq->dev->dmavec_mempool);
 }
 
-static void nvme_free_sgls(struct request *req)
+static void nvme_free_sgls(struct request *req, struct nvme_sgl_desc *sge,
+		struct nvme_sgl_desc *sg_list)
 {
-	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
-	struct device *dma_dev = nvmeq->dev->dev;
-	dma_addr_t sqe_dma_addr = le64_to_cpu(iod->cmd.common.dptr.sgl.addr);
-	unsigned int sqe_dma_len = le32_to_cpu(iod->cmd.common.dptr.sgl.length);
-	struct nvme_sgl_desc *sg_list = iod->descriptors[0];
 	enum dma_data_direction dir = rq_dma_dir(req);
+	unsigned int len = le32_to_cpu(sge->length);
+	struct device *dma_dev = nvmeq->dev->dev;
+	unsigned int i;
 
-	if (iod->nr_descriptors) {
-		unsigned int nr_entries = sqe_dma_len / sizeof(*sg_list), i;
-
-		for (i = 0; i < nr_entries; i++)
-			dma_unmap_page(dma_dev, le64_to_cpu(sg_list[i].addr),
-				le32_to_cpu(sg_list[i].length), dir);
-	} else {
-		dma_unmap_page(dma_dev, sqe_dma_addr, sqe_dma_len, dir);
+	if (sge->type == (NVME_SGL_FMT_DATA_DESC << 4)) {
+		dma_unmap_page(dma_dev, le64_to_cpu(sge->addr), len, dir);
+		return;
 	}
+
+	for (i = 0; i < len / sizeof(*sg_list); i++)
+		dma_unmap_page(dma_dev, le64_to_cpu(sg_list[i].addr),
+			le32_to_cpu(sg_list[i].length), dir);
 }
 
 static void nvme_unmap_data(struct request *req)
@@ -731,7 +729,8 @@ static void nvme_unmap_data(struct request *req)
 	if (!blk_rq_dma_unmap(req, dma_dev, &iod->dma_state, iod->total_len,
 				iod->flags & IOD_P2P_BUS_ADDR)) {
 		if (nvme_pci_cmd_use_sgl(&iod->cmd))
-			nvme_free_sgls(req);
+			nvme_free_sgls(req, iod->descriptors[0],
+				       &iod->cmd.common.dptr.sgl);
 		else
 			nvme_free_prps(req);
 	}
