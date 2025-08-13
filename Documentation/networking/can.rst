@@ -539,7 +539,7 @@ CAN Filter Usage Optimisation
 The CAN filters are processed in per-device filter lists at CAN frame
 reception time. To reduce the number of checks that need to be performed
 while walking through the filter lists the CAN core provides an optimized
-filter handling when the filter subscription focusses on a single CAN ID.
+filter handling when the filter subscription focuses on a single CAN ID.
 
 For the possible 2048 SFF CAN identifiers the identifier is used as an index
 to access the corresponding subscription list without any further checks.
