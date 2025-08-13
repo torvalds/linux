@@ -159,7 +159,6 @@ sub check_sizetypes
 		              "found __[us]{8,16,32,64} type " .
 		              "without #include <linux/types.h>\n";
 		$linux_types = 2;
-		# Warn until headers are all fixed
-		#$ret = 1;
+		$ret = 1;
 	}
 }
