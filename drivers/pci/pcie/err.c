@@ -217,20 +217,23 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	pci_walk_bridge(bridge, pci_pm_runtime_get_sync, NULL);
 
 	pci_dbg(bridge, "broadcast error_detected message\n");
-	if (state == pci_channel_io_frozen) {
+	if (state == pci_channel_io_frozen)
 		pci_walk_bridge(bridge, report_frozen_detected, &status);
-		if (reset_subordinates(bridge) != PCI_ERS_RESULT_RECOVERED) {
-			pci_warn(bridge, "subordinate device reset failed\n");
-			goto failed;
-		}
-	} else {
+	else
 		pci_walk_bridge(bridge, report_normal_detected, &status);
-	}
 
 	if (status == PCI_ERS_RESULT_CAN_RECOVER) {
 		status = PCI_ERS_RESULT_RECOVERED;
 		pci_dbg(bridge, "broadcast mmio_enabled message\n");
 		pci_walk_bridge(bridge, report_mmio_enabled, &status);
+	}
+
+	if (status == PCI_ERS_RESULT_NEED_RESET ||
+	    state == pci_channel_io_frozen) {
+		if (reset_subordinates(bridge) != PCI_ERS_RESULT_RECOVERED) {
+			pci_warn(bridge, "subordinate device reset failed\n");
+			goto failed;
+		}
 	}
 
 	if (status == PCI_ERS_RESULT_NEED_RESET) {
