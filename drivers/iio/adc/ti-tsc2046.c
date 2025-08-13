@@ -535,8 +535,7 @@ static enum hrtimer_restart tsc2046_adc_timer(struct hrtimer *hrtimer)
 		if (priv->poll_cnt < TI_TSC2046_POLL_CNT) {
 			priv->poll_cnt++;
 			hrtimer_start(&priv->trig_timer,
-				      ns_to_ktime(priv->scan_interval_us *
-						  NSEC_PER_USEC),
+				      us_to_ktime(priv->scan_interval_us),
 				      HRTIMER_MODE_REL_SOFT);
 
 			if (priv->poll_cnt >= TI_TSC2046_MIN_POLL_CNT) {
@@ -605,8 +604,7 @@ static void tsc2046_adc_reenable_trigger(struct iio_trigger *trig)
 	 * many samples. Reduce the sample rate for default (touchscreen) use
 	 * case.
 	 */
-	tim = ns_to_ktime((priv->scan_interval_us - priv->time_per_scan_us) *
-			  NSEC_PER_USEC);
+	tim = us_to_ktime(priv->scan_interval_us - priv->time_per_scan_us);
 	hrtimer_start(&priv->trig_timer, tim, HRTIMER_MODE_REL_SOFT);
 }
 
