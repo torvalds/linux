@@ -85,7 +85,7 @@ quiet_cmd_hdrtest = HDRTEST $<
 		$(PERL) $(src)/headers_check.pl $(obj) $<; \
 		touch $@
 
-$(obj)/%.hdrtest: $(obj)/%.h FORCE
+$(obj)/%.hdrtest: $(obj)/%.h $(src)/headers_check.pl FORCE
 	$(call if_changed_dep,hdrtest)
 
 # Since GNU Make 4.3, $(patsubst $(obj)/%/,%,$(wildcard $(obj)/*/)) works.
