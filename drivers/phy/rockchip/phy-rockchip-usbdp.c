@@ -1430,7 +1430,6 @@ static const struct regmap_config rk_udphy_pma_regmap_cfg = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.fast_io = true,
 	.max_register = 0x20dc,
 };
 
