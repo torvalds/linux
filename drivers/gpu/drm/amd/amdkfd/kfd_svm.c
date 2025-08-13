@@ -1313,7 +1313,7 @@ svm_range_unmap_from_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			 uint64_t start, uint64_t last,
 			 struct dma_fence **fence)
 {
-	uint64_t init_pte_value = 0;
+	uint64_t init_pte_value = adev->gmc.init_pte_flags;
 
 	pr_debug("[0x%llx 0x%llx]\n", start, last);
 
