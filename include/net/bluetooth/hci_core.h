@@ -487,6 +487,7 @@ struct hci_dev {
 
 	unsigned long	acl_last_tx;
 	unsigned long	le_last_tx;
+	unsigned long	iso_last_tx;
 
 	__u8		le_tx_def_phys;
 	__u8		le_rx_def_phys;

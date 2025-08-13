@@ -3585,24 +3585,37 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 
 static void __check_timeout(struct hci_dev *hdev, unsigned int cnt, u8 type)
 {
-	unsigned long last_tx;
+	unsigned long timeout;
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
 		return;
 
 	switch (type) {
+	case ACL_LINK:
+		/* tx timeout must be longer than maximum link supervision
+		 * timeout (40.9 seconds)
+		 */
+		timeout = hdev->acl_last_tx + HCI_ACL_TX_TIMEOUT;
+		break;
 	case LE_LINK:
-		last_tx = hdev->le_last_tx;
+		/* tx timeout must be longer than maximum link supervision
+		 * timeout (40.9 seconds)
+		 */
+		timeout = hdev->le_last_tx + HCI_ACL_TX_TIMEOUT;
+		break;
+	case CIS_LINK:
+	case BIS_LINK:
+	case PA_LINK:
+		/* tx timeout must be longer than the maximum transport latency
+		 * (8.388607 seconds)
+		 */
+		timeout = hdev->iso_last_tx + HCI_ISO_TX_TIMEOUT;
 		break;
 	default:
-		last_tx = hdev->acl_last_tx;
-		break;
+		return;
 	}
 
-	/* tx timeout must be longer than maximum link supervision timeout
-	 * (40.9 seconds)
-	 */
-	if (!cnt && time_after(jiffies, last_tx + HCI_ACL_TX_TIMEOUT))
+	if (!cnt && time_after(jiffies, timeout))
 		hci_link_tx_to(hdev, type);
 }
 
@@ -3759,10 +3772,15 @@ static void hci_sched_iso(struct hci_dev *hdev, __u8 type)
 		return;
 
 	cnt = &hdev->iso_cnt;
+
+	__check_timeout(hdev, *cnt, type);
+
 	while (*cnt && (conn = hci_low_sent(hdev, type, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
+
 			hci_send_conn_frame(hdev, conn, skb);
+			hdev->iso_last_tx = jiffies;
 
 			conn->sent++;
 			if (conn->sent == ~0)
