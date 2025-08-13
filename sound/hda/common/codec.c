@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/minmax.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/pm.h>
@@ -323,18 +324,16 @@ EXPORT_SYMBOL_GPL(snd_hda_get_num_devices);
  * Copy the device list. This info is dynamic and so not cached.
  * Currently called only from hda_proc.c, so not exported.
  */
-int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
-			u8 *dev_list, int max_devices)
+unsigned int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
+				u8 *dev_list, unsigned int max_devices)
 {
-	unsigned int parm;
-	int i, dev_len, devices;
+	unsigned int parm, i, dev_len, devices;
 
 	parm = snd_hda_get_num_devices(codec, nid);
 	if (!parm)	/* not multi-stream capable */
 		return 0;
 
-	dev_len = parm + 1;
-	dev_len = dev_len < max_devices ? dev_len : max_devices;
+	dev_len = min(parm + 1, max_devices);
 
 	devices = 0;
 	while (devices < dev_len) {
