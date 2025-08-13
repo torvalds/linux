@@ -892,9 +892,8 @@ static void fbnic_pkt_prepare(struct fbnic_napi_vector *nv, u64 rcd,
 	xdp_prepare_buff(&pkt->buff, hdr_start, headroom,
 			 len - FBNIC_RX_PAD, true);
 
-	pkt->data_truesize = 0;
-	pkt->data_len = 0;
-	pkt->nr_frags = 0;
+	pkt->hwtstamp = 0;
+	pkt->add_frag_failed = false;
 }
 
 static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
@@ -905,8 +904,8 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 	unsigned int pg_off = FIELD_GET(FBNIC_RCD_AL_BUFF_OFF_MASK, rcd);
 	unsigned int len = FIELD_GET(FBNIC_RCD_AL_BUFF_LEN_MASK, rcd);
 	struct page *page = fbnic_page_pool_get(&qt->sub1, pg_idx);
-	struct skb_shared_info *shinfo;
 	unsigned int truesize;
+	bool added;
 
 	truesize = FIELD_GET(FBNIC_RCD_AL_PAGE_FIN, rcd) ?
 		   FBNIC_BD_FRAG_SIZE - pg_off : ALIGN(len, 128);
@@ -918,34 +917,34 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 	dma_sync_single_range_for_cpu(nv->dev, page_pool_get_dma_addr(page),
 				      pg_off, truesize, DMA_BIDIRECTIONAL);
 
-	/* Add page to xdp shared info */
-	shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
-
-	/* We use gso_segs to store truesize */
-	pkt->data_truesize += truesize;
-
-	__skb_fill_page_desc_noacc(shinfo, pkt->nr_frags++, page, pg_off, len);
-
-	/* Store data_len in gso_size */
-	pkt->data_len += len;
+	added = xdp_buff_add_frag(&pkt->buff, page_to_netmem(page), pg_off, len,
+				  truesize);
+	if (unlikely(!added)) {
+		pkt->add_frag_failed = true;
+		netdev_err_once(nv->napi.dev,
+				"Failed to add fragment to xdp_buff\n");
+	}
 }
 
 static void fbnic_put_pkt_buff(struct fbnic_napi_vector *nv,
 			       struct fbnic_pkt_buff *pkt, int budget)
 {
-	struct skb_shared_info *shinfo;
 	struct page *page;
-	int nr_frags;
 
 	if (!pkt->buff.data_hard_start)
 		return;
 
-	shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
-	nr_frags = pkt->nr_frags;
+	if (xdp_buff_has_frags(&pkt->buff)) {
+		struct skb_shared_info *shinfo;
+		int nr_frags;
 
-	while (nr_frags--) {
-		page = skb_frag_page(&shinfo->frags[nr_frags]);
-		page_pool_put_full_page(nv->page_pool, page, !!budget);
+		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
+		nr_frags = shinfo->nr_frags;
+
+		while (nr_frags--) {
+			page = skb_frag_page(&shinfo->frags[nr_frags]);
+			page_pool_put_full_page(nv->page_pool, page, !!budget);
+		}
 	}
 
 	page = virt_to_page(pkt->buff.data_hard_start);
@@ -955,42 +954,11 @@ static void fbnic_put_pkt_buff(struct fbnic_napi_vector *nv,
 static struct sk_buff *fbnic_build_skb(struct fbnic_napi_vector *nv,
 				       struct fbnic_pkt_buff *pkt)
 {
-	unsigned int nr_frags = pkt->nr_frags;
-	struct skb_shared_info *shinfo;
-	unsigned int truesize;
 	struct sk_buff *skb;
 
-	truesize = xdp_data_hard_end(&pkt->buff) + FBNIC_RX_TROOM -
-		   pkt->buff.data_hard_start;
-
-	/* Build frame around buffer */
-	skb = napi_build_skb(pkt->buff.data_hard_start, truesize);
-	if (unlikely(!skb))
+	skb = xdp_build_skb_from_buff(&pkt->buff);
+	if (!skb)
 		return NULL;
-
-	/* Push data pointer to start of data, put tail to end of data */
-	skb_reserve(skb, pkt->buff.data - pkt->buff.data_hard_start);
-	__skb_put(skb, pkt->buff.data_end - pkt->buff.data);
-
-	/* Add tracking for metadata at the start of the frame */
-	skb_metadata_set(skb, pkt->buff.data - pkt->buff.data_meta);
-
-	/* Add Rx frags */
-	if (nr_frags) {
-		/* Verify that shared info didn't move */
-		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
-		WARN_ON(skb_shinfo(skb) != shinfo);
-
-		skb->truesize += pkt->data_truesize;
-		skb->data_len += pkt->data_len;
-		shinfo->nr_frags = nr_frags;
-		skb->len += pkt->data_len;
-	}
-
-	skb_mark_for_recycle(skb);
-
-	/* Set MAC header specific fields */
-	skb->protocol = eth_type_trans(skb, nv->napi.dev);
 
 	/* Add timestamp if present */
 	if (pkt->hwtstamp)
@@ -1094,7 +1062,9 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			/* We currently ignore the action table index */
 			break;
 		case FBNIC_RCD_TYPE_META:
-			if (likely(!fbnic_rcd_metadata_err(rcd)))
+			if (unlikely(pkt->add_frag_failed))
+				skb = NULL;
+			else if (likely(!fbnic_rcd_metadata_err(rcd)))
 				skb = fbnic_build_skb(nv, pkt);
 
 			/* Populate skb and invalidate XDP */

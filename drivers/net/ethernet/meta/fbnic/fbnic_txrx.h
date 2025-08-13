@@ -70,9 +70,7 @@ struct fbnic_net;
 struct fbnic_pkt_buff {
 	struct xdp_buff buff;
 	ktime_t hwtstamp;
-	u32 data_truesize;
-	u16 data_len;
-	u16 nr_frags;
+	bool add_frag_failed;
 };
 
 struct fbnic_queue_stats {
