@@ -744,7 +744,7 @@ int gpiochip_fwd_desc_add(struct gpiochip_fwd *fwd, struct gpio_desc *desc,
 {
 	struct gpio_chip *chip = &fwd->chip;
 
-	if (offset > chip->ngpio)
+	if (offset >= chip->ngpio)
 		return -EINVAL;
 
 	if (test_and_set_bit(offset, fwd->valid_mask))
