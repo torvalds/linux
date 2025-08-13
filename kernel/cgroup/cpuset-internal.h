@@ -38,7 +38,6 @@ enum prs_errcode {
 
 /* bits in struct cpuset flags field */
 typedef enum {
-	CS_ONLINE,
 	CS_CPU_EXCLUSIVE,
 	CS_MEM_EXCLUSIVE,
 	CS_MEM_HARDWALL,
@@ -202,7 +201,7 @@ static inline struct cpuset *parent_cs(struct cpuset *cs)
 /* convenient tests for these bits */
 static inline bool is_cpuset_online(struct cpuset *cs)
 {
-	return test_bit(CS_ONLINE, &cs->flags) && !css_is_dying(&cs->css);
+	return css_is_online(&cs->css) && !css_is_dying(&cs->css);
 }
 
 static inline int is_cpu_exclusive(const struct cpuset *cs)

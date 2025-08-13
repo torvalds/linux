@@ -207,7 +207,7 @@ static inline void notify_partition_change(struct cpuset *cs, int old_prs)
  * parallel, we may leave an offline CPU in cpu_allowed or some other masks.
  */
 static struct cpuset top_cpuset = {
-	.flags = BIT(CS_ONLINE) | BIT(CS_CPU_EXCLUSIVE) |
+	.flags = BIT(CS_CPU_EXCLUSIVE) |
 		 BIT(CS_MEM_EXCLUSIVE) | BIT(CS_SCHED_LOAD_BALANCE),
 	.partition_root_state = PRS_ROOT,
 	.relax_domain_level = -1,
@@ -3496,7 +3496,6 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
 	cpus_read_lock();
 	mutex_lock(&cpuset_mutex);
 
-	set_bit(CS_ONLINE, &cs->flags);
 	if (is_spread_page(parent))
 		set_bit(CS_SPREAD_PAGE, &cs->flags);
 	if (is_spread_slab(parent))
@@ -3571,7 +3570,6 @@ static void cpuset_css_offline(struct cgroup_subsys_state *css)
 		cpuset_update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
 
 	cpuset_dec();
-	clear_bit(CS_ONLINE, &cs->flags);
 
 	mutex_unlock(&cpuset_mutex);
 	cpus_read_unlock();
