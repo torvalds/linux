@@ -75,6 +75,11 @@ struct compressed_bio {
 	struct btrfs_bio bbio;
 };
 
+static inline struct btrfs_fs_info *cb_to_fs_info(const struct compressed_bio *cb)
+{
+	return cb->bbio.fs_info;
+}
+
 /* @range_end must be exclusive. */
 static inline u32 btrfs_calc_input_length(struct folio *folio, u64 range_end, u64 cur)
 {
@@ -128,8 +133,8 @@ struct workspace_manager {
 	wait_queue_head_t ws_wait;
 };
 
-struct list_head *btrfs_get_workspace(int type, int level);
-void btrfs_put_workspace(int type, struct list_head *ws);
+struct list_head *btrfs_get_workspace(struct btrfs_fs_info *fs_info, int type, int level);
+void btrfs_put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_head *ws);
 
 struct btrfs_compress_op {
 	struct workspace_manager *workspace_manager;
@@ -162,9 +167,9 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zlib_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-struct list_head *zlib_alloc_workspace(unsigned int level);
+struct list_head *zlib_alloc_workspace(struct btrfs_fs_info *fs_info, unsigned int level);
 void zlib_free_workspace(struct list_head *ws);
-struct list_head *zlib_get_workspace(unsigned int level);
+struct list_head *zlib_get_workspace(struct btrfs_fs_info *fs_info, unsigned int level);
 
 int lzo_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			u64 start, struct folio **folios, unsigned long *out_folios,
@@ -173,7 +178,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-struct list_head *lzo_alloc_workspace(void);
+struct list_head *lzo_alloc_workspace(struct btrfs_fs_info *fs_info);
 void lzo_free_workspace(struct list_head *ws);
 
 int zstd_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
@@ -183,11 +188,11 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
 		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
-void zstd_init_workspace_manager(void);
+void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info);
 void zstd_cleanup_workspace_manager(void);
-struct list_head *zstd_alloc_workspace(int level);
+struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level);
 void zstd_free_workspace(struct list_head *ws);
-struct list_head *zstd_get_workspace(int level);
-void zstd_put_workspace(struct list_head *ws);
+struct list_head *zstd_get_workspace(struct btrfs_fs_info *fs_info, int level);
+void zstd_put_workspace(struct btrfs_fs_info *fs_info, struct list_head *ws);
 
 #endif

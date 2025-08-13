@@ -80,7 +80,7 @@ void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-struct list_head *lzo_alloc_workspace(void)
+struct list_head *lzo_alloc_workspace(struct btrfs_fs_info *fs_info)
 {
 	struct workspace *workspace;
 

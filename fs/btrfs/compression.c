@@ -702,7 +702,7 @@ static void free_heuristic_ws(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *alloc_heuristic_ws(void)
+static struct list_head *alloc_heuristic_ws(struct btrfs_fs_info *fs_info)
 {
 	struct heuristic_ws *ws;
 
@@ -741,13 +741,13 @@ static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zstd_compress,
 };
 
-static struct list_head *alloc_workspace(int type, int level)
+static struct list_head *alloc_workspace(struct btrfs_fs_info *fs_info, int type, int level)
 {
 	switch (type) {
-	case BTRFS_COMPRESS_NONE: return alloc_heuristic_ws();
-	case BTRFS_COMPRESS_ZLIB: return zlib_alloc_workspace(level);
-	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace();
-	case BTRFS_COMPRESS_ZSTD: return zstd_alloc_workspace(level);
+	case BTRFS_COMPRESS_NONE: return alloc_heuristic_ws(fs_info);
+	case BTRFS_COMPRESS_ZLIB: return zlib_alloc_workspace(fs_info, level);
+	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace(fs_info);
+	case BTRFS_COMPRESS_ZSTD: return zstd_alloc_workspace(fs_info, level);
 	default:
 		/*
 		 * This can't happen, the type is validated several times
@@ -773,7 +773,7 @@ static void free_workspace(int type, struct list_head *ws)
 	}
 }
 
-static void btrfs_init_workspace_manager(int type)
+static void btrfs_init_workspace_manager(struct btrfs_fs_info *fs_info, int type)
 {
 	struct workspace_manager *wsm;
 	struct list_head *workspace;
@@ -788,9 +788,9 @@ static void btrfs_init_workspace_manager(int type)
 	 * Preallocate one workspace for each compression type so we can
 	 * guarantee forward progress in the worst case
 	 */
-	workspace = alloc_workspace(type, 0);
+	workspace = alloc_workspace(fs_info, type, 0);
 	if (IS_ERR(workspace)) {
-		btrfs_warn(NULL,
+		btrfs_warn(fs_info,
 			   "cannot preallocate compression workspace, will try later");
 	} else {
 		atomic_set(&wsm->total_ws, 1);
@@ -819,7 +819,7 @@ static void btrfs_cleanup_workspace_manager(int type)
  * Preallocation makes a forward progress guarantees and we do not return
  * errors.
  */
-struct list_head *btrfs_get_workspace(int type, int level)
+struct list_head *btrfs_get_workspace(struct btrfs_fs_info *fs_info, int type, int level)
 {
 	struct workspace_manager *wsm;
 	struct list_head *workspace;
@@ -867,7 +867,7 @@ again:
 	 * context of btrfs_compress_bio/btrfs_compress_pages
 	 */
 	nofs_flag = memalloc_nofs_save();
-	workspace = alloc_workspace(type, level);
+	workspace = alloc_workspace(fs_info, type, level);
 	memalloc_nofs_restore(nofs_flag);
 
 	if (IS_ERR(workspace)) {
@@ -890,7 +890,7 @@ again:
 					/* no burst */ 1);
 
 			if (__ratelimit(&_rs))
-				btrfs_warn(NULL,
+				btrfs_warn(fs_info,
 				"no compression workspaces, low memory, retrying");
 		}
 		goto again;
@@ -898,13 +898,13 @@ again:
 	return workspace;
 }
 
-static struct list_head *get_workspace(int type, int level)
+static struct list_head *get_workspace(struct btrfs_fs_info *fs_info, int type, int level)
 {
 	switch (type) {
-	case BTRFS_COMPRESS_NONE: return btrfs_get_workspace(type, level);
-	case BTRFS_COMPRESS_ZLIB: return zlib_get_workspace(level);
-	case BTRFS_COMPRESS_LZO:  return btrfs_get_workspace(type, level);
-	case BTRFS_COMPRESS_ZSTD: return zstd_get_workspace(level);
+	case BTRFS_COMPRESS_NONE: return btrfs_get_workspace(fs_info, type, level);
+	case BTRFS_COMPRESS_ZLIB: return zlib_get_workspace(fs_info, level);
+	case BTRFS_COMPRESS_LZO:  return btrfs_get_workspace(fs_info, type, level);
+	case BTRFS_COMPRESS_ZSTD: return zstd_get_workspace(fs_info, level);
 	default:
 		/*
 		 * This can't happen, the type is validated several times
@@ -918,7 +918,7 @@ static struct list_head *get_workspace(int type, int level)
  * put a workspace struct back on the list or free it if we have enough
  * idle ones sitting around
  */
-void btrfs_put_workspace(int type, struct list_head *ws)
+void btrfs_put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_head *ws)
 {
 	struct workspace_manager *wsm;
 	struct list_head *idle_ws;
@@ -949,13 +949,13 @@ wake:
 	cond_wake_up(ws_wait);
 }
 
-static void put_workspace(int type, struct list_head *ws)
+static void put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_head *ws)
 {
 	switch (type) {
-	case BTRFS_COMPRESS_NONE: return btrfs_put_workspace(type, ws);
-	case BTRFS_COMPRESS_ZLIB: return btrfs_put_workspace(type, ws);
-	case BTRFS_COMPRESS_LZO:  return btrfs_put_workspace(type, ws);
-	case BTRFS_COMPRESS_ZSTD: return zstd_put_workspace(ws);
+	case BTRFS_COMPRESS_NONE: return btrfs_put_workspace(fs_info, type, ws);
+	case BTRFS_COMPRESS_ZLIB: return btrfs_put_workspace(fs_info, type, ws);
+	case BTRFS_COMPRESS_LZO:  return btrfs_put_workspace(fs_info, type, ws);
+	case BTRFS_COMPRESS_ZSTD: return zstd_put_workspace(fs_info, ws);
 	default:
 		/*
 		 * This can't happen, the type is validated several times
@@ -1038,29 +1038,31 @@ int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inod
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	const unsigned long orig_len = *total_out;
 	struct list_head *workspace;
 	int ret;
 
 	level = btrfs_compress_set_level(type, level);
-	workspace = get_workspace(type, level);
+	workspace = get_workspace(fs_info, type, level);
 	ret = compression_compress_pages(type, workspace, inode, start, folios,
 					 out_folios, total_in, total_out);
 	/* The total read-in bytes should be no larger than the input. */
 	ASSERT(*total_in <= orig_len);
-	put_workspace(type, workspace);
+	put_workspace(fs_info, type, workspace);
 	return ret;
 }
 
 static int btrfs_decompress_bio(struct compressed_bio *cb)
 {
+	struct btrfs_fs_info *fs_info = cb_to_fs_info(cb);
 	struct list_head *workspace;
 	int ret;
 	int type = cb->compress_type;
 
-	workspace = get_workspace(type, 0);
+	workspace = get_workspace(fs_info, type, 0);
 	ret = compression_decompress_bio(workspace, cb);
-	put_workspace(type, workspace);
+	put_workspace(fs_info, type, workspace);
 
 	if (!ret)
 		zero_fill_bio(&cb->orig_bbio->bio);
@@ -1087,10 +1089,10 @@ int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
 	 */
 	ASSERT(dest_pgoff + destlen <= PAGE_SIZE && destlen <= sectorsize);
 
-	workspace = get_workspace(type, 0);
+	workspace = get_workspace(fs_info, type, 0);
 	ret = compression_decompress(type, workspace, data_in, dest_folio,
 				     dest_pgoff, srclen, destlen);
-	put_workspace(type, workspace);
+	put_workspace(fs_info, type, workspace);
 
 	return ret;
 }
@@ -1106,10 +1108,10 @@ int __init btrfs_init_compress(void)
 	if (!compr_pool.shrinker)
 		return -ENOMEM;
 
-	btrfs_init_workspace_manager(BTRFS_COMPRESS_NONE);
-	btrfs_init_workspace_manager(BTRFS_COMPRESS_ZLIB);
-	btrfs_init_workspace_manager(BTRFS_COMPRESS_LZO);
-	zstd_init_workspace_manager();
+	btrfs_init_workspace_manager(NULL, BTRFS_COMPRESS_NONE);
+	btrfs_init_workspace_manager(NULL, BTRFS_COMPRESS_ZLIB);
+	btrfs_init_workspace_manager(NULL, BTRFS_COMPRESS_LZO);
+	zstd_init_workspace_manager(NULL);
 
 	spin_lock_init(&compr_pool.lock);
 	INIT_LIST_HEAD(&compr_pool.list);
@@ -1543,7 +1545,8 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
  */
 int btrfs_compress_heuristic(struct btrfs_inode *inode, u64 start, u64 end)
 {
-	struct list_head *ws_list = get_workspace(0, 0);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct list_head *ws_list = get_workspace(fs_info, 0, 0);
 	struct heuristic_ws *ws;
 	u32 i;
 	u8 byte;
@@ -1612,7 +1615,7 @@ int btrfs_compress_heuristic(struct btrfs_inode *inode, u64 start, u64 end)
 	}
 
 out:
-	put_workspace(0, ws_list);
+	put_workspace(fs_info, 0, ws_list);
 	return ret;
 }
 

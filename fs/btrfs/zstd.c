@@ -182,7 +182,7 @@ static void zstd_calc_ws_mem_sizes(void)
 	}
 }
 
-void zstd_init_workspace_manager(void)
+void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info)
 {
 	struct list_head *ws;
 	int i;
@@ -198,7 +198,7 @@ void zstd_init_workspace_manager(void)
 	for (i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++)
 		INIT_LIST_HEAD(&wsm.idle_ws[i]);
 
-	ws = zstd_alloc_workspace(ZSTD_BTRFS_MAX_LEVEL);
+	ws = zstd_alloc_workspace(fs_info, ZSTD_BTRFS_MAX_LEVEL);
 	if (IS_ERR(ws)) {
 		btrfs_warn(NULL, "cannot preallocate zstd compression workspace");
 	} else {
@@ -276,7 +276,7 @@ static struct list_head *zstd_find_workspace(int level)
  * attempt to allocate a new workspace.  If we fail to allocate one due to
  * memory pressure, go to sleep waiting for the max level workspace to free up.
  */
-struct list_head *zstd_get_workspace(int level)
+struct list_head *zstd_get_workspace(struct btrfs_fs_info *fs_info, int level)
 {
 	struct list_head *ws;
 	unsigned int nofs_flag;
@@ -291,7 +291,7 @@ again:
 		return ws;
 
 	nofs_flag = memalloc_nofs_save();
-	ws = zstd_alloc_workspace(level);
+	ws = zstd_alloc_workspace(fs_info, level);
 	memalloc_nofs_restore(nofs_flag);
 
 	if (IS_ERR(ws)) {
@@ -318,7 +318,7 @@ again:
  * isn't set, it is also set here.  Only the max level workspace tries and wakes
  * up waiting workspaces.
  */
-void zstd_put_workspace(struct list_head *ws)
+void zstd_put_workspace(struct btrfs_fs_info *fs_info, struct list_head *ws)
 {
 	struct workspace *workspace = list_to_workspace(ws);
 
@@ -357,7 +357,7 @@ void zstd_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-struct list_head *zstd_alloc_workspace(int level)
+struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level)
 {
 	struct workspace *workspace;
 
