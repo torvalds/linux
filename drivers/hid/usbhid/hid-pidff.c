@@ -606,16 +606,6 @@ static void pidff_set_device_control(struct pidff_device *pidff, int field)
 }
 
 /*
- * Modify actuators state
- */
-static void pidff_set_actuators(struct pidff_device *pidff, bool enable)
-{
-	hid_dbg(pidff->hid, "%s actuators\n", enable ? "Enable" : "Disable");
-	pidff_set_device_control(pidff,
-		enable ? PID_ENABLE_ACTUATORS : PID_DISABLE_ACTUATORS);
-}
-
-/*
  * Reset the device, stop all effects, enable actuators
  */
 static void pidff_reset(struct pidff_device *pidff)
@@ -626,7 +616,7 @@ static void pidff_reset(struct pidff_device *pidff)
 	pidff->effect_count = 0;
 
 	pidff_set_device_control(pidff, PID_STOP_ALL_EFFECTS);
-	pidff_set_actuators(pidff, 1);
+	pidff_set_device_control(pidff, PID_ENABLE_ACTUATORS);
 }
 
 /*
