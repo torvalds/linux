@@ -10,7 +10,7 @@ struct phys_vec {
 	u32		len;
 };
 
-static bool blk_map_iter_next(struct request *req, struct req_iterator *iter,
+static bool blk_map_iter_next(struct request *req, struct blk_map_iter *iter,
 			      struct phys_vec *vec)
 {
 	unsigned int max_size;
@@ -246,7 +246,7 @@ blk_next_sg(struct scatterlist **sg, struct scatterlist *sglist)
 int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
 		    struct scatterlist **last_sg)
 {
-	struct req_iterator iter = {
+	struct blk_map_iter iter = {
 		.bio	= rq->bio,
 	};
 	struct phys_vec vec;

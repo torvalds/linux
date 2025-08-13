@@ -5,6 +5,11 @@
 #include <linux/blk-mq.h>
 #include <linux/pci-p2pdma.h>
 
+struct blk_map_iter {
+	struct bvec_iter		iter;
+	struct bio			*bio;
+};
+
 struct blk_dma_iter {
 	/* Output address range for this iteration */
 	dma_addr_t			addr;
@@ -14,7 +19,7 @@ struct blk_dma_iter {
 	blk_status_t			status;
 
 	/* Internal to blk_rq_dma_map_iter_* */
-	struct req_iterator		iter;
+	struct blk_map_iter		iter;
 	struct pci_p2pdma_map_state	p2pdma;
 };
 
