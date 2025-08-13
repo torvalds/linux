@@ -64,8 +64,50 @@ test_user_branches() {
 	do
 		check_branches "$x"
 	done
+
+	# Dump addresses only this time
+	perf script -i "$TMPDIR/perf.data" --fields brstack | \
+		tr ' ' '\n' > "$TMPDIR/perf.script"
+
+	# There should be no kernel addresses with the u option, in either
+	# source or target addresses.
+	if grep -E -m1 "0x[89a-f][0-9a-f]{15}" $TMPDIR/perf.script; then
+		echo "ERROR: Kernel address found in user mode"
+		err=1
+	fi
 	# some branch types are still not being tested:
-	# IND COND_CALL COND_RET SYSCALL SYSRET IRQ SERROR NO_TX
+	# IND COND_CALL COND_RET SYSRET IRQ SERROR NO_TX
+}
+
+
+test_kernel_branches() {
+	echo "Testing that k option only includes kernel source addresses"
+
+	if ! perf record --branch-filter any,k -o- -- true > /dev/null; then
+		echo "skip: not enough privileges"
+	else
+		perf record -o $TMPDIR/perf.data --branch-filter any,k -- \
+			perf bench syscall basic --loop 1000
+		perf script -i $TMPDIR/perf.data --fields brstack | \
+			tr ' ' '\n' > $TMPDIR/perf.script
+
+		# Example of branch entries:
+		#       "0xffffffff93bda241/0xffffffff93bda20f/M/-/-/..."
+		# Source addresses come first and target address can be either
+		# userspace or kernel even with k option, as long as the source
+		# is in kernel.
+
+		#Look for source addresses with top bit set
+		if ! grep -E -m1 "^0x[89a-f][0-9a-f]{15}" $TMPDIR/perf.script; then
+			echo "ERROR: Kernel branches missing"
+			err=1
+		fi
+		# Look for no source addresses without top bit set
+		if grep -E -m1 "^0x[0-7][0-9a-f]{0,15}" $TMPDIR/perf.script; then
+			echo "ERROR: User branches found with kernel filter"
+			err=1
+		fi
+	fi
 }
 
 # first argument <arg0> is the argument passed to "--branch-stack <arg0>,save_type,u"
@@ -100,9 +142,26 @@ test_filter() {
 	fi
 }
 
+test_syscall() {
+	echo "Testing syscalls"
+	# skip if perf doesn't have enough privileges
+	if ! perf record --branch-filter any,k -o- -- true > /dev/null; then
+		echo "skip: not enough privileges"
+	else
+		perf record -o $TMPDIR/perf.data --branch-filter \
+			any_call,save_type,u,k -c 10000 -- \
+			perf bench syscall basic --loop 1000
+		perf script -i $TMPDIR/perf.data --fields brstacksym | \
+			tr ' ' '\n' > $TMPDIR/perf.script
+
+		check_branches "getppid[^ ]*/SYSCALL/"
+	fi
+}
 set -e
 
 test_user_branches
+test_syscall
+test_kernel_branches
 
 any_call="CALL|IND_CALL|COND_CALL|SYSCALL|IRQ"
 
