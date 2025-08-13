@@ -74,6 +74,7 @@ sub check_declarations
 		printf STDERR "$filename:$lineno: " .
 			      "userspace cannot reference function or " .
 			      "variable defined in the kernel\n";
+		$ret = 1;
 	}
 }
 
