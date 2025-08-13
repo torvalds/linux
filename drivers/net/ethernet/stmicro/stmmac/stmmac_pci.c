@@ -138,6 +138,37 @@ static const struct stmmac_pci_info snps_gmac5_pci_info = {
 	.setup = snps_gmac5_default_data,
 };
 
+static int stmmac_pci_suspend(struct device *dev, void *bsp_priv)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int ret;
+
+	ret = pci_save_state(pdev);
+	if (ret)
+		return ret;
+
+	pci_disable_device(pdev);
+	pci_wake_from_d3(pdev, true);
+	return 0;
+}
+
+static int stmmac_pci_resume(struct device *dev, void *bsp_priv)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int ret;
+
+	pci_restore_state(pdev);
+	pci_set_power_state(pdev, PCI_D0);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	pci_set_master(pdev);
+
+	return 0;
+}
+
 /**
  * stmmac_pci_probe
  *
@@ -217,6 +248,9 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	plat->safety_feat_cfg->prtyen = 1;
 	plat->safety_feat_cfg->tmouten = 1;
 
+	plat->suspend = stmmac_pci_suspend;
+	plat->resume = stmmac_pci_resume;
+
 	return stmmac_dvr_probe(&pdev->dev, plat, &res);
 }
 
@@ -230,43 +264,6 @@ static void stmmac_pci_remove(struct pci_dev *pdev)
 {
 	stmmac_dvr_remove(&pdev->dev);
 }
-
-static int __maybe_unused stmmac_pci_suspend(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	int ret;
-
-	ret = stmmac_suspend(dev);
-	if (ret)
-		return ret;
-
-	ret = pci_save_state(pdev);
-	if (ret)
-		return ret;
-
-	pci_disable_device(pdev);
-	pci_wake_from_d3(pdev, true);
-	return 0;
-}
-
-static int __maybe_unused stmmac_pci_resume(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	int ret;
-
-	pci_restore_state(pdev);
-	pci_set_power_state(pdev, PCI_D0);
-
-	ret = pci_enable_device(pdev);
-	if (ret)
-		return ret;
-
-	pci_set_master(pdev);
-
-	return stmmac_resume(dev);
-}
-
-static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
 /* synthetic ID, no official vendor */
 #define PCI_VENDOR_ID_STMMAC		0x0700
@@ -289,7 +286,7 @@ static struct pci_driver stmmac_pci_driver = {
 	.probe = stmmac_pci_probe,
 	.remove = stmmac_pci_remove,
 	.driver         = {
-		.pm     = &stmmac_pm_ops,
+		.pm     = &stmmac_simple_pm_ops,
 	},
 };
 

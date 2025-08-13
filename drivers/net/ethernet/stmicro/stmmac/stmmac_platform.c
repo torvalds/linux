@@ -811,6 +811,22 @@ static void stmmac_pltfr_exit(struct platform_device *pdev,
 		plat->exit(pdev, plat->bsp_priv);
 }
 
+static int stmmac_plat_suspend(struct device *dev, void *bsp_priv)
+{
+	struct stmmac_priv *priv = netdev_priv(dev_get_drvdata(dev));
+
+	stmmac_pltfr_exit(to_platform_device(dev), priv->plat);
+
+	return 0;
+}
+
+static int stmmac_plat_resume(struct device *dev, void *bsp_priv)
+{
+	struct stmmac_priv *priv = netdev_priv(dev_get_drvdata(dev));
+
+	return stmmac_pltfr_init(to_platform_device(dev), priv->plat);
+}
+
 /**
  * stmmac_pltfr_probe
  * @pdev: platform device pointer
@@ -824,6 +840,11 @@ int stmmac_pltfr_probe(struct platform_device *pdev,
 		       struct stmmac_resources *res)
 {
 	int ret;
+
+	if (!plat->suspend && plat->exit)
+		plat->suspend = stmmac_plat_suspend;
+	if (!plat->resume && plat->init)
+		plat->resume = stmmac_plat_resume;
 
 	ret = stmmac_pltfr_init(pdev, plat);
 	if (ret)
@@ -885,47 +906,6 @@ void stmmac_pltfr_remove(struct platform_device *pdev)
 	stmmac_pltfr_exit(pdev, plat);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
-
-/**
- * stmmac_pltfr_suspend
- * @dev: device pointer
- * Description: this function is invoked when suspend the driver and it direcly
- * call the main suspend function and then, if required, on some platform, it
- * can call an exit helper.
- */
-static int __maybe_unused stmmac_pltfr_suspend(struct device *dev)
-{
-	int ret;
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct platform_device *pdev = to_platform_device(dev);
-
-	ret = stmmac_suspend(dev);
-	stmmac_pltfr_exit(pdev, priv->plat);
-
-	return ret;
-}
-
-/**
- * stmmac_pltfr_resume
- * @dev: device pointer
- * Description: this function is invoked when resume the driver before calling
- * the main resume function, on some platforms, it can call own init helper
- * if required.
- */
-static int __maybe_unused stmmac_pltfr_resume(struct device *dev)
-{
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct platform_device *pdev = to_platform_device(dev);
-	int ret;
-
-	ret = stmmac_pltfr_init(pdev, priv->plat);
-	if (ret)
-		return ret;
-
-	return stmmac_resume(dev);
-}
 
 static int __maybe_unused stmmac_runtime_suspend(struct device *dev)
 {
@@ -994,7 +974,7 @@ static int __maybe_unused stmmac_pltfr_noirq_resume(struct device *dev)
 }
 
 const struct dev_pm_ops stmmac_pltfr_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_suspend, stmmac_pltfr_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(stmmac_suspend, stmmac_resume)
 	SET_RUNTIME_PM_OPS(stmmac_runtime_suspend, stmmac_runtime_resume, NULL)
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_noirq_suspend, stmmac_pltfr_noirq_resume)
 };
