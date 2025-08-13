@@ -212,6 +212,7 @@ static const struct msi_parent_ops sg2042_msi_parent_ops = {
 				   MSI_FLAG_PCI_MSI_STARTUP_PARENT)
 
 #define SG2044_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK |		\
+				    MSI_FLAG_MULTI_PCI_MSI |		\
 				    MSI_FLAG_PCI_MSIX)
 
 static const struct msi_parent_ops sg2044_msi_parent_ops = {
