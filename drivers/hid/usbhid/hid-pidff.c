@@ -623,8 +623,7 @@ static void pidff_set_gain_report(struct pidff_device *pidff, u16 gain)
  */
 static void pidff_set_device_control(struct pidff_device *pidff, int field)
 {
-	int i, index;
-	int field_index = pidff->control_id[field];
+	const int field_index = pidff->control_id[field];
 
 	if (field_index < 1)
 		return;
@@ -634,8 +633,9 @@ static void pidff_set_device_control(struct pidff_device *pidff, int field)
 		hid_dbg(pidff->hid, "DEVICE_CONTROL is a bitmask\n");
 
 		/* Clear current bitmask */
-		for (i = 0; i < ARRAY_SIZE(pidff_device_control); i++) {
-			index = pidff->control_id[i];
+		for (int i = 0; i < ARRAY_SIZE(pidff_device_control); i++) {
+			int index = pidff->control_id[i];
+
 			if (index < 1)
 				continue;
 
@@ -650,6 +650,8 @@ static void pidff_set_device_control(struct pidff_device *pidff, int field)
 
 	hid_hw_request(pidff->hid, pidff->reports[PID_DEVICE_CONTROL], HID_REQ_SET_REPORT);
 	hid_hw_wait(pidff->hid);
+	hid_dbg(pidff->hid, "Device control command 0x%02x sent",
+		pidff_device_control[field]);
 }
 
 /*
@@ -751,6 +753,9 @@ static void pidff_playback_pid(struct pidff_device *pidff, int pid_id, int n)
 {
 	pidff->effect_operation[PID_EFFECT_BLOCK_INDEX].value[0] = pid_id;
 
+	hid_dbg(pidff->hid, "%s PID effect %d", n == 0 ? "stopping" : "playing",
+		pid_id);
+
 	if (n == 0) {
 		pidff->effect_operation_status->value[0] =
 			pidff->operation_id[PID_EFFECT_STOP];
@@ -772,6 +777,8 @@ static int pidff_playback(struct input_dev *dev, int effect_id, int value)
 {
 	struct pidff_device *pidff = dev->ff->private;
 
+	hid_dbg(pidff->hid, "requesting %s on FF effect %d",
+		value == 0 ? "stop" : "playback", effect_id);
 	pidff_playback_pid(pidff, pidff->pid_id[effect_id], value);
 	return 0;
 }
