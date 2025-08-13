@@ -160,3 +160,14 @@ behavior and potential performance bottlenecks.
 	  credit exhaustion
         - ``pcie_ob_rd_no_np_cred``: Read requests dropped due to non-posted
 	  credit exhaustion
+
+XDP Length Error:
+~~~~~~~~~~~~~~~~~
+
+For XDP programs without frags support, fbnic tries to make sure that MTU fits
+into a single buffer. If an oversized frame is received and gets fragmented,
+it is dropped and the following netlink counters are updated
+
+   - ``rx-length``: number of frames dropped due to lack of fragmentation
+     support in the attached XDP program
+   - ``rx-errors``: total number of packets with errors received on the interface
