@@ -357,7 +357,7 @@ static void free_transport(struct smb_direct_transport *t)
 	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_recv_io *recvmsg;
 
-	wake_up_interruptible(&t->wait_send_credits);
+	wake_up_all(&t->wait_send_credits);
 
 	ksmbd_debug(RDMA, "wait for all send posted to IB to finish\n");
 	wait_event(t->wait_send_pending,
@@ -524,7 +524,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		sc->recv_io.reassembly.full_packet_received = true;
 		sc->status = SMBDIRECT_SOCKET_CONNECTED;
 		enqueue_reassembly(t, recvmsg, 0);
-		wake_up_interruptible(&t->wait_status);
+		wake_up(&t->wait_status);
 		return;
 	case SMBDIRECT_EXPECT_DATA_TRANSFER: {
 		struct smbdirect_data_transfer *data_transfer =
@@ -587,14 +587,14 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			queue_work(smb_direct_wq, &t->send_immediate_work);
 
 		if (atomic_read(&t->send_credits) > 0)
-			wake_up_interruptible(&t->wait_send_credits);
+			wake_up(&t->wait_send_credits);
 
 		if (is_receive_credit_post_required(receive_credits, avail_recvmsg_count))
 			queue_work(smb_direct_wq, &t->post_recv_credits_work);
 
 		if (data_length) {
 			enqueue_reassembly(t, recvmsg, (int)data_length);
-			wake_up_interruptible(&sc->recv_io.reassembly.wait_queue);
+			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
 			put_recvmsg(t, recvmsg);
 
@@ -1570,7 +1570,7 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED: {
 		sc->status = SMBDIRECT_SOCKET_CONNECTED;
-		wake_up_interruptible(&t->wait_status);
+		wake_up(&t->wait_status);
 		break;
 	}
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
@@ -1578,14 +1578,14 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 		ib_drain_qp(sc->ib.qp);
 
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		wake_up_interruptible(&t->wait_status);
-		wake_up_interruptible(&sc->recv_io.reassembly.wait_queue);
-		wake_up(&t->wait_send_credits);
+		wake_up_all(&t->wait_status);
+		wake_up_all(&sc->recv_io.reassembly.wait_queue);
+		wake_up_all(&t->wait_send_credits);
 		break;
 	}
 	case RDMA_CM_EVENT_CONNECT_ERROR: {
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		wake_up_interruptible(&t->wait_status);
+		wake_up_all(&t->wait_status);
 		break;
 	}
 	default:
