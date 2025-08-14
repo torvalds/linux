@@ -375,7 +375,7 @@ int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context)
 	if (!ctx)
 		return -EINVAL;
 
-	if (sgid_tbl && sgid_tbl->active) {
+	if (sgid_tbl->active) {
 		if (ctx->idx >= sgid_tbl->max)
 			return -EINVAL;
 		gid_to_del = &sgid_tbl->tbl[ctx->idx].gid;
