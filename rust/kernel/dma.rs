@@ -9,8 +9,8 @@ use crate::{
     device::{Bound, Core},
     error::{to_result, Result},
     prelude::*,
+    sync::aref::ARef,
     transmute::{AsBytes, FromBytes},
-    types::ARef,
 };
 
 /// Trait to be implemented by DMA capable bus devices.
