@@ -219,6 +219,8 @@ ifneq ($(findstring e, $(KBUILD_EXTRA_WARN))$(CONFIG_WERROR),)
 KBUILD_CPPFLAGS		+= -Werror
 KBUILD_AFLAGS		+= -Wa,--fatal-warnings
 KBUILD_LDFLAGS		+= --fatal-warnings
+KBUILD_USERCFLAGS	+= -Werror
+KBUILD_USERLDFLAGS	+= -Wl,--fatal-warnings
 KBUILD_RUSTFLAGS	+= -Dwarnings
 
 endif
