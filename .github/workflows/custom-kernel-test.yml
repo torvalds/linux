@@ -50,7 +50,7 @@ jobs:
           image-type: ${{ inputs.image-type || 'ubuntu-22.04' }}
           volume-size: '20'
           runner-home-dir: '/tmp'
-          packages: '["kexec-tools", "awscli"]'
+          packages: '["kexec-tools", "curl", "unzip"]'
           pre-runner-script: |
             # Custom Kernel Kexec Setup
             # =========================
@@ -68,6 +68,13 @@ jobs:
             echo "Build ID: $BUILD_ID" | tee -a /var/log/kexec-setup.log
             echo "Kernel S3 key: $KERNEL_S3_KEY" | tee -a /var/log/kexec-setup.log
             echo "Initrd S3 key: $INITRD_S3_KEY" | tee -a /var/log/kexec-setup.log
+
+            # Install AWS CLI
+            echo "Installing AWS CLI" | tee -a /var/log/kexec-setup.log
+            cd /tmp
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install | tee -a /var/log/kexec-setup.log
 
             # Create persistent directory and download the GitHub Actions runner
             mkdir -p /persist/actions-runner
