@@ -203,6 +203,14 @@ static inline bool dev_is_expander(enum sas_device_type type)
 	       type == SAS_FANOUT_EXPANDER_DEVICE;
 }
 
+static inline bool dev_parent_is_expander(struct domain_device *dev)
+{
+	if (!dev->parent)
+		return false;
+
+	return dev_is_expander(dev->parent->dev_type);
+}
+
 static inline void INIT_SAS_WORK(struct sas_work *sw, void (*fn)(struct work_struct *))
 {
 	INIT_WORK(&sw->work, fn);
