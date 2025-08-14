@@ -168,7 +168,7 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 	 * disable[_delayed]_work_sync()
 	 */
 	disable_work(&sc->disconnect_work);
-	disable_work(&info->post_send_credits_work);
+	disable_work(&sc->recv_io.posted.refill_work);
 	disable_work(&info->mr_recovery_work);
 	disable_delayed_work(&info->idle_timer_work);
 
@@ -482,17 +482,14 @@ static bool process_negotiation_response(
 		log_rdma_event(ERR, "error: credits_requested==0\n");
 		return false;
 	}
-	info->receive_credit_target = le16_to_cpu(packet->credits_requested);
-	info->receive_credit_target = min_t(u16, info->receive_credit_target, sp->recv_credit_max);
+	sc->recv_io.credits.target = le16_to_cpu(packet->credits_requested);
+	sc->recv_io.credits.target = min_t(u16, sc->recv_io.credits.target, sp->recv_credit_max);
 
 	if (packet->credits_granted == 0) {
 		log_rdma_event(ERR, "error: credits_granted==0\n");
 		return false;
 	}
 	atomic_set(&sc->send_io.credits.count, le16_to_cpu(packet->credits_granted));
-
-	atomic_set(&info->receive_credits, 0);
-	atomic_set(&info->receive_posted, 0);
 
 	if (le32_to_cpu(packet->preferred_send_size) > sp->max_recv_size) {
 		log_rdma_event(ERR, "error: preferred_send_size=%d\n",
@@ -536,17 +533,17 @@ static void smbd_post_send_credits(struct work_struct *work)
 {
 	int rc;
 	struct smbdirect_recv_io *response;
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, recv_io.posted.refill_work);
 	struct smbd_connection *info =
-		container_of(work, struct smbd_connection,
-			post_send_credits_work);
-	struct smbdirect_socket *sc = &info->socket;
+		container_of(sc, struct smbd_connection, socket);
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED) {
 		return;
 	}
 
-	if (info->receive_credit_target >
-		atomic_read(&info->receive_credits)) {
+	if (sc->recv_io.credits.target >
+		atomic_read(&sc->recv_io.credits.count)) {
 		while (true) {
 			response = get_receive_buffer(info);
 			if (!response)
@@ -561,14 +558,14 @@ static void smbd_post_send_credits(struct work_struct *work)
 				break;
 			}
 
-			atomic_inc(&info->receive_posted);
+			atomic_inc(&sc->recv_io.posted.count);
 		}
 	}
 
 	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
 	info->send_immediate = true;
-	if (atomic_read(&info->receive_credits) <
-		info->receive_credit_target - 1) {
+	if (atomic_read(&sc->recv_io.credits.count) <
+		sc->recv_io.credits.target - 1) {
 		if (info->keep_alive_requested == KEEP_ALIVE_PENDING ||
 		    info->send_immediate) {
 			log_keep_alive(INFO, "send an empty message\n");
@@ -661,15 +658,15 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 				sc->recv_io.reassembly.full_packet_received = true;
 		}
 
-		atomic_dec(&info->receive_posted);
-		atomic_dec(&info->receive_credits);
-		old_recv_credit_target = info->receive_credit_target;
-		info->receive_credit_target =
+		atomic_dec(&sc->recv_io.posted.count);
+		atomic_dec(&sc->recv_io.credits.count);
+		old_recv_credit_target = sc->recv_io.credits.target;
+		sc->recv_io.credits.target =
 			le16_to_cpu(data_transfer->credits_requested);
-		info->receive_credit_target =
-			min_t(u16, info->receive_credit_target, sp->recv_credit_max);
-		info->receive_credit_target =
-			max_t(u16, info->receive_credit_target, 1);
+		sc->recv_io.credits.target =
+			min_t(u16, sc->recv_io.credits.target, sp->recv_credit_max);
+		sc->recv_io.credits.target =
+			max_t(u16, sc->recv_io.credits.target, 1);
 		if (le16_to_cpu(data_transfer->credits_granted)) {
 			atomic_add(le16_to_cpu(data_transfer->credits_granted),
 				&sc->send_io.credits.count);
@@ -698,8 +695,8 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		 * reassembly queue and wake up the reading thread
 		 */
 		if (data_length) {
-			if (info->receive_credit_target > old_recv_credit_target)
-				queue_work(info->workqueue, &info->post_send_credits_work);
+			if (sc->recv_io.credits.target > old_recv_credit_target)
+				queue_work(info->workqueue, &sc->recv_io.posted.refill_work);
 
 			enqueue_reassembly(info, response, data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
@@ -960,16 +957,17 @@ dma_mapping_failed:
  */
 static int manage_credits_prior_sending(struct smbd_connection *info)
 {
+	struct smbdirect_socket *sc = &info->socket;
 	int new_credits;
 
-	if (atomic_read(&info->receive_credits) >= info->receive_credit_target)
+	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
 		return 0;
 
-	new_credits = atomic_read(&info->receive_posted);
+	new_credits = atomic_read(&sc->recv_io.posted.count);
 	if (new_credits == 0)
 		return 0;
 
-	new_credits -= atomic_read(&info->receive_credits);
+	new_credits -= atomic_read(&sc->recv_io.credits.count);
 	if (new_credits <= 0)
 		return 0;
 
@@ -1123,7 +1121,7 @@ wait_send_queue:
 	packet->credits_requested = cpu_to_le16(sp->send_credit_target);
 
 	new_credits = manage_credits_prior_sending(info);
-	atomic_add(new_credits, &info->receive_credits);
+	atomic_add(new_credits, &sc->recv_io.credits.count);
 	packet->credits_granted = cpu_to_le16(new_credits);
 
 	info->send_immediate = false;
@@ -1181,7 +1179,7 @@ err_dma:
 	mempool_free(request, sc->send_io.mem.pool);
 
 	/* roll back the granted receive credits */
-	atomic_sub(new_credits, &info->receive_credits);
+	atomic_sub(new_credits, &sc->recv_io.credits.count);
 
 err_alloc:
 	if (atomic_dec_and_test(&sc->send_io.pending.count))
@@ -1414,7 +1412,7 @@ static void put_receive_buffer(
 	info->count_put_receive_buffer++;
 	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
-	queue_work(info->workqueue, &info->post_send_credits_work);
+	queue_work(info->workqueue, &sc->recv_io.posted.refill_work);
 }
 
 /* Preallocate all receive buffer on transport establishment */
@@ -1512,8 +1510,8 @@ void smbd_destroy(struct TCP_Server_Info *server)
 			sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 	}
 
-	log_rdma_event(INFO, "cancelling post_send_credits_work\n");
-	disable_work_sync(&info->post_send_credits_work);
+	log_rdma_event(INFO, "cancelling recv_io.posted.refill_work\n");
+	disable_work_sync(&sc->recv_io.posted.refill_work);
 
 	log_rdma_event(INFO, "destroying qp\n");
 	ib_drain_qp(sc->ib.qp);
@@ -1865,7 +1863,7 @@ static struct smbd_connection *_smbd_get_connection(
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		msecs_to_jiffies(sp->keepalive_interval_msec));
 
-	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
+	INIT_WORK(&sc->recv_io.posted.refill_work, smbd_post_send_credits);
 
 	rc = smbd_negotiate(info);
 	if (rc) {

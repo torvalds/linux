@@ -494,8 +494,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "\nCurrent Credits send_credits: %u "
 			"receive_credits: %u receive_credit_target: %u",
 			atomic_read(&sc->send_io.credits.count),
-			atomic_read(&server->smbd_conn->receive_credits),
-			server->smbd_conn->receive_credit_target);
+			atomic_read(&sc->recv_io.credits.count),
+			sc->recv_io.credits.target);
 		seq_printf(m, "\nPending send_pending: %u ",
 			atomic_read(&sc->send_io.pending.count));
 		seq_printf(m, "\nMR responder_resources: %u "
