@@ -574,8 +574,8 @@ const struct software_node *
 software_node_find_by_name(const struct software_node *parent,
 			   const char *name);
 
-int software_node_register_node_group(const struct software_node **node_group);
-void software_node_unregister_node_group(const struct software_node **node_group);
+int software_node_register_node_group(const struct software_node * const *node_group);
+void software_node_unregister_node_group(const struct software_node * const *node_group);
 
 int software_node_register(const struct software_node *node);
 void software_node_unregister(const struct software_node *node);
