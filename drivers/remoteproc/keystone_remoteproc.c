@@ -349,6 +349,13 @@ static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 	return 0;
 }
 
+static void keystone_rproc_mem_release(void *data)
+{
+	struct device *dev = data;
+
+	of_reserved_mem_device_release(dev);
+}
+
 static int keystone_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -425,8 +432,14 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	if (of_reserved_mem_device_init(dev))
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
 		dev_warn(dev, "device does not have specific CMA pool\n");
+	} else {
+		ret = devm_add_action_or_reset(dev, keystone_rproc_mem_release, dev);
+		if (ret)
+			goto disable_clk;
+	}
 
 	/* ensure the DSP is in reset before loading firmware */
 	ret = reset_control_status(ksproc->reset);
@@ -450,7 +463,6 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	return 0;
 
 release_mem:
-	of_reserved_mem_device_release(dev);
 	gpiod_put(ksproc->kick_gpio);
 disable_clk:
 	pm_runtime_put_sync(dev);
@@ -467,7 +479,6 @@ static void keystone_rproc_remove(struct platform_device *pdev)
 	gpiod_put(ksproc->kick_gpio);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	of_reserved_mem_device_release(&pdev->dev);
 }
 
 static const struct of_device_id keystone_rproc_of_match[] = {
