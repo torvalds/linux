@@ -496,7 +496,7 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
 	unsigned int mtype, mtype_local;
 	bool snoop = false;
-	bool is_local;
+	bool is_local = false;
 
 	switch (gc_ip_version) {
 	case IP_VERSION(12, 1, 0):
@@ -532,6 +532,9 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 
 	if (mtype != MTYPE_NC)
 		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, mtype);
+
+	if (is_local || adev->have_atomics_support)
+		*flags |= AMDGPU_PTE_BUS_ATOMICS;
 
 	*flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
 }
@@ -576,9 +579,6 @@ static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 			       AMDGPU_GEM_CREATE_EXT_COHERENT |
 			       AMDGPU_GEM_CREATE_UNCACHED))
 		*flags = AMDGPU_PTE_MTYPE_NV10(*flags, MTYPE_UC);
-
-	if (adev->have_atomics_support)
-		*flags |= AMDGPU_PTE_BUS_ATOMICS;
 
 	if ((*flags & AMDGPU_PTE_VALID) && bo)
 		gmc_v12_1_get_coherence_flags(adev, bo, flags);
