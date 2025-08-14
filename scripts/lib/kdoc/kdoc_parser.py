@@ -553,18 +553,18 @@ class KernelDoc:
                 arg = KernRe(r'\s*\[').sub('[', arg)
                 args = KernRe(r'\s*,\s*').split(arg)
                 args[0] = re.sub(r'(\*+)\s*', r' \1', args[0])
-
-                first_arg = []
-                r = KernRe(r'^(.*\s+)(.*?\[.*\].*)$')
-                if args[0] and r.match(args[0]):
-                    args.pop(0)
-                    first_arg.extend(r.group(1))
-                    first_arg.append(r.group(2))
+                #
+                # args[0] has a string of "type a".  If "a" includes an [array]
+                # declaration, we want to not be fooled by any white space inside
+                # the brackets, so detect and handle that case specially.
+                #
+                r = KernRe(r'^([^[\]]*\s+)(.*)$')
+                if r.match(args[0]):
+                    args[0] = r.group(2)
+                    dtype = r.group(1)
                 else:
-                    first_arg = KernRe(r'\s+').split(args.pop(0))
-
-                args.insert(0, first_arg.pop())
-                dtype = ' '.join(first_arg)
+                    # No space in args[0]; this seems wrong but preserves previous behavior
+                    dtype = ''
 
                 bitfield_re = KernRe(r'(.*?):(\w+)')
                 for param in args:
