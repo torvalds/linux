@@ -359,6 +359,8 @@ torture_onoff(void *arg)
 		torture_hrtimeout_jiffies(onoff_holdoff, &rand);
 		VERBOSE_TOROUT_STRING("torture_onoff end holdoff");
 	}
+	while (!rcu_inkernel_boot_has_ended())
+		schedule_timeout_interruptible(HZ / 10);
 	while (!torture_must_stop()) {
 		if (disable_onoff_at_boot && !rcu_inkernel_boot_has_ended()) {
 			torture_hrtimeout_jiffies(HZ / 10, &rand);
