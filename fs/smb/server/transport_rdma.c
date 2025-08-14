@@ -92,11 +92,6 @@ struct smb_direct_transport {
 
 	struct smbdirect_socket socket;
 
-	atomic_t		recv_credits;
-	u16			recv_credit_target;
-
-	atomic_t		recv_posted;
-	struct work_struct	post_recv_credits_work;
 	struct work_struct	send_immediate_work;
 
 	bool			legacy_iwarp;
@@ -180,7 +175,7 @@ static void put_recvmsg(struct smb_direct_transport *t,
 	list_add(&recvmsg->list, &sc->recv_io.free.list);
 	spin_unlock(&sc->recv_io.free.lock);
 
-	queue_work(smb_direct_wq, &t->post_recv_credits_work);
+	queue_work(smb_direct_wq, &sc->recv_io.posted.refill_work);
 }
 
 static void enqueue_reassembly(struct smb_direct_transport *t,
@@ -227,7 +222,7 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	 * disable[_delayed]_work_sync()
 	 */
 	disable_work(&sc->disconnect_work);
-	disable_work(&t->post_recv_credits_work);
+	disable_work(&sc->recv_io.posted.refill_work);
 	disable_work(&t->send_immediate_work);
 
 	switch (sc->status) {
@@ -306,10 +301,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
-	atomic_set(&t->recv_posted, 0);
-	atomic_set(&t->recv_credits, 0);
-
-	INIT_WORK(&t->post_recv_credits_work,
+	INIT_WORK(&sc->recv_io.posted.refill_work,
 		  smb_direct_post_recv_credits);
 	INIT_WORK(&t->send_immediate_work, smb_direct_send_immediate_work);
 
@@ -345,7 +337,7 @@ static void free_transport(struct smb_direct_transport *t)
 	wake_up_all(&sc->send_io.credits.wait_queue);
 	wake_up_all(&sc->send_io.pending.zero_wait_queue);
 
-	disable_work_sync(&t->post_recv_credits_work);
+	disable_work_sync(&sc->recv_io.posted.refill_work);
 	disable_work_sync(&t->send_immediate_work);
 
 	if (sc->ib.qp) {
@@ -548,16 +540,16 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 				sc->recv_io.reassembly.full_packet_received = true;
 		}
 
-		atomic_dec(&t->recv_posted);
-		atomic_dec(&t->recv_credits);
+		atomic_dec(&sc->recv_io.posted.count);
+		atomic_dec(&sc->recv_io.credits.count);
 
-		old_recv_credit_target = t->recv_credit_target;
-		t->recv_credit_target =
+		old_recv_credit_target = sc->recv_io.credits.target;
+		sc->recv_io.credits.target =
 				le16_to_cpu(data_transfer->credits_requested);
-		t->recv_credit_target =
-			min_t(u16, t->recv_credit_target, sp->recv_credit_max);
-		t->recv_credit_target =
-			max_t(u16, t->recv_credit_target, 1);
+		sc->recv_io.credits.target =
+			min_t(u16, sc->recv_io.credits.target, sp->recv_credit_max);
+		sc->recv_io.credits.target =
+			max_t(u16, sc->recv_io.credits.target, 1);
 		atomic_add(le16_to_cpu(data_transfer->credits_granted),
 			   &sc->send_io.credits.count);
 
@@ -569,8 +561,8 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			wake_up(&sc->send_io.credits.wait_queue);
 
 		if (data_length) {
-			if (t->recv_credit_target > old_recv_credit_target)
-				queue_work(smb_direct_wq, &t->post_recv_credits_work);
+			if (sc->recv_io.credits.target > old_recv_credit_target)
+				queue_work(smb_direct_wq, &sc->recv_io.posted.refill_work);
 
 			enqueue_reassembly(t, recvmsg, (int)data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
@@ -750,13 +742,15 @@ read_rfc1002_done:
 
 static void smb_direct_post_recv_credits(struct work_struct *work)
 {
-	struct smb_direct_transport *t = container_of(work,
-		struct smb_direct_transport, post_recv_credits_work);
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, recv_io.posted.refill_work);
+	struct smb_direct_transport *t =
+		container_of(sc, struct smb_direct_transport, socket);
 	struct smbdirect_recv_io *recvmsg;
 	int credits = 0;
 	int ret;
 
-	if (atomic_read(&t->recv_credits) < t->recv_credit_target) {
+	if (atomic_read(&sc->recv_io.credits.count) < sc->recv_io.credits.target) {
 		while (true) {
 			recvmsg = get_free_recvmsg(t);
 			if (!recvmsg)
@@ -772,7 +766,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 			}
 			credits++;
 
-			atomic_inc(&t->recv_posted);
+			atomic_inc(&sc->recv_io.posted.count);
 		}
 	}
 
@@ -820,20 +814,21 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 
 static int manage_credits_prior_sending(struct smb_direct_transport *t)
 {
+	struct smbdirect_socket *sc = &t->socket;
 	int new_credits;
 
-	if (atomic_read(&t->recv_credits) >= t->recv_credit_target)
+	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
 		return 0;
 
-	new_credits = atomic_read(&t->recv_posted);
+	new_credits = atomic_read(&sc->recv_io.posted.count);
 	if (new_credits == 0)
 		return 0;
 
-	new_credits -= atomic_read(&t->recv_credits);
+	new_credits -= atomic_read(&sc->recv_io.credits.count);
 	if (new_credits <= 0)
 		return 0;
 
-	atomic_add(new_credits, &t->recv_credits);
+	atomic_add(new_credits, &sc->recv_io.credits.count);
 	return new_credits;
 }
 
@@ -1729,7 +1724,7 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 		goto out_err;
 	}
 
-	smb_direct_post_recv_credits(&t->post_recv_credits_work);
+	smb_direct_post_recv_credits(&sc->recv_io.posted.refill_work);
 	return 0;
 out_err:
 	put_recvmsg(t, recvmsg);
@@ -1817,7 +1812,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	}
 
 	sp->recv_credit_max = smb_direct_receive_credit_max;
-	t->recv_credit_target = 1;
+	sc->recv_io.credits.target = 1;
 
 	sp->send_credit_target = smb_direct_send_credit_target;
 	atomic_set(&sc->rw_io.credits.count, sc->rw_io.credits.max);
@@ -2042,9 +2037,9 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 		le32_to_cpu(req->max_fragmented_size);
 	sp->max_fragmented_recv_size =
 		(sp->recv_credit_max * sp->max_recv_size) / 2;
-	st->recv_credit_target = le16_to_cpu(req->credits_requested);
-	st->recv_credit_target = min_t(u16, st->recv_credit_target, sp->recv_credit_max);
-	st->recv_credit_target = max_t(u16, st->recv_credit_target, 1);
+	sc->recv_io.credits.target = le16_to_cpu(req->credits_requested);
+	sc->recv_io.credits.target = min_t(u16, sc->recv_io.credits.target, sp->recv_credit_max);
+	sc->recv_io.credits.target = max_t(u16, sc->recv_io.credits.target, 1);
 
 	ret = smb_direct_send_negotiate_response(st, ret);
 out:
