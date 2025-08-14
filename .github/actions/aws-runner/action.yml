@@ -246,13 +246,19 @@ runs:
       id: runner-outputs
       shell: bash
       run: |
-        # Pass through the runner outputs
+        # Always pass through the runner outputs (even if empty on failure)
         echo "label=${{ steps.start-ec2-runner.outputs.label }}" >> $GITHUB_OUTPUT
         echo "ec2-instance-id=${{ steps.start-ec2-runner.outputs.ec2-instance-id }}" >> $GITHUB_OUTPUT
         echo "region=${{ steps.start-ec2-runner.outputs.region }}" >> $GITHUB_OUTPUT
-        if [ -n "${{ steps.start-ec2-runner.outputs.label }}" ]; then
+        
+        # Check if the ec2-runner step failed and exit at the end
+        if [ "${{ steps.start-ec2-runner.outcome }}" != "success" ]; then
+          echo "EC2 runner step failed with outcome: ${{ steps.start-ec2-runner.outcome }}"
+          echo "All runner attempts failed. Please check AWS capacity availability across regions."
+          exit 1
+        elif [ -n "${{ steps.start-ec2-runner.outputs.label }}" ]; then
           echo "Runner successfully started in region: ${{ steps.start-ec2-runner.outputs.region }}"
         else
-          echo "All runner attempts failed. Please check AWS capacity availability across regions."
+          echo "EC2 runner step succeeded but no runner label was returned"
           exit 1
         fi 
