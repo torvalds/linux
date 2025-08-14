@@ -483,6 +483,7 @@ static bool process_negotiation_response(
 		return false;
 	}
 	info->receive_credit_target = le16_to_cpu(packet->credits_requested);
+	info->receive_credit_target = min_t(u16, info->receive_credit_target, sp->recv_credit_max);
 
 	if (packet->credits_granted == 0) {
 		log_rdma_event(ERR, "error: credits_granted==0\n");
@@ -590,7 +591,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbd_connection *info =
 		container_of(sc, struct smbd_connection, socket);
-	int old_recv_credit_target;
+	u16 old_recv_credit_target;
 	u32 data_offset = 0;
 	u32 data_length = 0;
 	u32 remaining_data_length = 0;
@@ -668,6 +669,10 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		old_recv_credit_target = info->receive_credit_target;
 		info->receive_credit_target =
 			le16_to_cpu(data_transfer->credits_requested);
+		info->receive_credit_target =
+			min_t(u16, info->receive_credit_target, sp->recv_credit_max);
+		info->receive_credit_target =
+			max_t(u16, info->receive_credit_target, 1);
 		if (le16_to_cpu(data_transfer->credits_granted)) {
 			atomic_add(le16_to_cpu(data_transfer->credits_granted),
 				&sc->send_io.credits.count);

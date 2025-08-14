@@ -54,7 +54,7 @@ struct smbd_connection {
 	enum keep_alive_status keep_alive_requested;
 	int protocol;
 	atomic_t receive_credits;
-	int receive_credit_target;
+	u16 receive_credit_target;
 
 	/* Memory registrations */
 	/* Maximum number of RDMA read/write outstanding on this connection */
