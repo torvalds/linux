@@ -545,12 +545,14 @@ class KernelDoc:
                                     arg, declaration_name)
 
             elif arg:
+                #
+                # Clean up extraneous spaces and split the string at commas; the first
+                # element of the resulting list will also include the type information.
+                #
                 arg = KernRe(r'\s*:\s*').sub(":", arg)
                 arg = KernRe(r'\s*\[').sub('[', arg)
-
                 args = KernRe(r'\s*,\s*').split(arg)
-                if args[0] and '*' in args[0]:
-                    args[0] = re.sub(r'(\*+)\s*', r' \1', args[0])
+                args[0] = re.sub(r'(\*+)\s*', r' \1', args[0])
 
                 first_arg = []
                 r = KernRe(r'^(.*\s+)(.*?\[.*\].*)$')
