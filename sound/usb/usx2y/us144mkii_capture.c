@@ -55,6 +55,7 @@ static int tascam_capture_prepare(struct snd_pcm_substream *substream)
 
 	tascam->driver_capture_pos = 0;
 	tascam->capture_frames_processed = 0;
+	tascam->last_capture_period_pos = 0;
 
 	return 0;
 }

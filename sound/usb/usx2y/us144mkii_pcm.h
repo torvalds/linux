@@ -29,6 +29,38 @@ extern const struct snd_pcm_ops tascam_playback_ops;
 extern const struct snd_pcm_ops tascam_capture_ops;
 
 /**
+ * playback_urb_complete() - Completion handler for playback isochronous URBs.
+ * @urb: the completed URB
+ *
+ * This function runs in interrupt context. It calculates the number of bytes
+ * to send in the next set of packets based on the feedback-driven clock,
+ * copies the audio data from the ALSA ring buffer, and resubmits the URB.
+ */
+void playback_urb_complete(struct urb *urb);
+
+/**
+ * feedback_urb_complete() - Completion handler for feedback isochronous URBs.
+ * @urb: the completed URB
+ *
+ * This is the master clock for the driver. It runs in interrupt context.
+ * It reads the feedback value from the device, which indicates how many
+ * samples the device has consumed. This information is used to adjust the
+ * playback rate and to advance the capture stream pointer, keeping both
+ * streams in sync. It then calls snd_pcm_period_elapsed if necessary and
+ * resubmits itself.
+ */
+void feedback_urb_complete(struct urb *urb);
+
+/**
+ * tascam_stop_pcm_work_handler() - Work handler to stop PCM streams.
+ * @work: Pointer to the work_struct.
+ *
+ * This function is scheduled to stop PCM streams (playback and capture)
+ * from a workqueue context, avoiding blocking operations in interrupt context.
+ */
+void tascam_stop_pcm_work_handler(struct work_struct *work);
+
+/**
  * tascam_init_pcm() - Initializes the ALSA PCM device.
  * @pcm: Pointer to the ALSA PCM device to initialize.
  *
@@ -40,13 +72,39 @@ extern const struct snd_pcm_ops tascam_capture_ops;
 int tascam_init_pcm(struct snd_pcm *pcm);
 
 /**
+ * us144mkii_configure_device_for_rate() - Set sample rate via USB control msgs
+ * @tascam: the tascam_card instance
+ * @rate: the target sample rate (e.g., 44100, 96000)
+ *
+ * This function sends a sequence of vendor-specific and UAC control messages
+ * to configure the device hardware for the specified sample rate.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+int us144mkii_configure_device_for_rate(struct tascam_card *tascam, int rate);
+
+/**
+ * process_playback_routing_us144mkii() - Apply playback routing matrix
+ * @tascam: The driver instance.
+ * @src_buffer: Buffer containing 4 channels of S24_3LE audio from ALSA.
+ * @dst_buffer: Buffer to be filled for the USB device.
+ * @frames: Number of frames to process.
+ */
+void process_playback_routing_us144mkii(struct tascam_card *tascam,
+					const u8 *src_buffer, u8 *dst_buffer,
+					size_t frames);
+
+/**
  * tascam_pcm_hw_params() - Configures hardware parameters for PCM streams.
  * @substream: The ALSA PCM substream.
  * @params: The hardware parameters to apply.
  *
- * This function is a stub for handling hardware parameter configuration.
+ * This function allocates pages for the PCM buffer and, for playback streams,
+ * selects the appropriate feedback patterns based on the requested sample rate.
+ * It also configures the device hardware for the selected sample rate if it
+ * has changed.
  *
- * Return: 0 on success.
+ * Return: 0 on success, or a negative error code on failure.
  */
 int tascam_pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params);
@@ -67,7 +125,7 @@ int tascam_pcm_hw_free(struct snd_pcm_substream *substream);
  * @cmd: The trigger command (e.g., SNDRV_PCM_TRIGGER_START).
  *
  * This function handles starting and stopping of playback and capture streams
- * by setting atomic flags.
+ * by submitting or killing the associated URBs.
  *
  * Return: 0 on success, or a negative error code on failure.
  */
