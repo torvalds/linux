@@ -31,6 +31,7 @@
 #define BCM63XX_EPHY_REG 0x3C
 
 struct b53_phy_info {
+	u32 gphy_port_mask;
 	u32 ephy_enable_mask;
 	u32 ephy_port_mask;
 	u32 ephy_bias_bit;
@@ -65,6 +66,7 @@ static const struct b53_phy_info bcm6368_ephy_info = {
 static const u32 bcm63268_ephy_offsets[] = {4, 9, 14};
 
 static const struct b53_phy_info bcm63268_ephy_info = {
+	.gphy_port_mask = BIT(3),
 	.ephy_enable_mask = GENMASK(4, 0),
 	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm63268_ephy_offsets) - 1), 0),
 	.ephy_bias_bit = 24,
