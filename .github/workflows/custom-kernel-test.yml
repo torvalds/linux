@@ -67,6 +67,13 @@ jobs:
             echo "Build ID: $BUILD_ID" | tee -a /var/log/kexec-setup.log
             echo "Metadata S3 key: $METADATA_S3_KEY" | tee -a /var/log/kexec-setup.log
 
+            # Install AWS CLI
+            echo "Installing AWS CLI" | tee -a /var/log/kexec-setup.log
+            cd /tmp
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install | tee -a /var/log/kexec-setup.log
+
             # Download and parse metadata JSON to get kernel and initrd paths
             echo "Downloading metadata.json from S3..." | tee -a /var/log/kexec-setup.log
             aws s3 cp "s3://${S3_BUCKET}/${METADATA_S3_KEY}" /tmp/metadata.json --region "$S3_REGION"
@@ -85,17 +92,6 @@ jobs:
             
             echo "Kernel S3 key from metadata: $KERNEL_S3_KEY" | tee -a /var/log/kexec-setup.log
             echo "Initrd S3 key from metadata: $INITRD_S3_KEY" | tee -a /var/log/kexec-setup.log
-
-            # Install AWS CLI
-            echo "Installing AWS CLI" | tee -a /var/log/kexec-setup.log
-            cd /tmp
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install | tee -a /var/log/kexec-setup.log
-
-            # Create persistent directory and download the GitHub Actions runner
-            mkdir -p /persist/actions-runner
-            cd /persist/actions-runner
             
             # Download custom kernel artifacts from S3
             echo "Downloading custom kernel from S3..." | tee -a /var/log/kexec-setup.log
@@ -109,6 +105,10 @@ jobs:
             
             echo "Custom kernel artifacts downloaded successfully" | tee -a /var/log/kexec-setup.log
             ls -la /tmp/custom-* | tee -a /var/log/kexec-setup.log
+
+            # Create persistent directory and download the GitHub Actions runner
+            mkdir -p /persist/actions-runner
+            cd /persist/actions-runner
                         
             # Create post-kexec init script that starts the runner
             cat > /persist/kexec-runner.sh << 'EOF'
