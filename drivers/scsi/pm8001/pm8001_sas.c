@@ -780,8 +780,11 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 		 * The phy array only contains local phys. Thus, we cannot clear
 		 * phy_attached for a device behind an expander.
 		 */
-		if (!dev_parent_is_expander(dev))
-			pm8001_ha->phy[pm8001_dev->attached_phy].phy_attached = 0;
+		if (!dev_parent_is_expander(dev)) {
+			u32 phy_id = pm80xx_get_local_phy_id(dev);
+
+			pm8001_ha->phy[phy_id].phy_attached = 0;
+		}
 		pm8001_free_dev(pm8001_dev);
 	} else {
 		pm8001_dbg(pm8001_ha, DISC, "Found dev has gone.\n");
