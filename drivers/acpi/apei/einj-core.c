@@ -1094,7 +1094,7 @@ err_put_table:
 	return rc;
 }
 
-static void __exit einj_remove(struct faux_device *fdev)
+static void einj_remove(struct faux_device *fdev)
 {
 	struct apei_exec_context ctx;
 
@@ -1117,15 +1117,9 @@ static void __exit einj_remove(struct faux_device *fdev)
 }
 
 static struct faux_device *einj_dev;
-/*
- * einj_remove() lives in .exit.text. For drivers registered via
- * platform_driver_probe() this is ok because they cannot get unbound at
- * runtime. So mark the driver struct with __refdata to prevent modpost
- * triggering a section mismatch warning.
- */
-static struct faux_device_ops einj_device_ops __refdata = {
+static struct faux_device_ops einj_device_ops = {
 	.probe = einj_probe,
-	.remove = __exit_p(einj_remove),
+	.remove = einj_remove,
 };
 
 static int __init einj_init(void)
