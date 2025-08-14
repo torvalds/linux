@@ -401,12 +401,13 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 		return PTR_ERR(ksproc->reset);
 
 	/* enable clock for accessing DSP internal memories */
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to enable runtime PM\n");
+
 	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable clock, status = %d\n", ret);
-		goto disable_rpm;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to enable clock\n");
 
 	ret = keystone_rproc_of_get_memories(pdev, ksproc);
 	if (ret)
@@ -466,8 +467,6 @@ release_mem:
 	gpiod_put(ksproc->kick_gpio);
 disable_clk:
 	pm_runtime_put_sync(dev);
-disable_rpm:
-	pm_runtime_disable(dev);
 	return ret;
 }
 
@@ -478,7 +477,6 @@ static void keystone_rproc_remove(struct platform_device *pdev)
 	rproc_del(ksproc->rproc);
 	gpiod_put(ksproc->kick_gpio);
 	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 }
 
 static const struct of_device_id keystone_rproc_of_match[] = {
