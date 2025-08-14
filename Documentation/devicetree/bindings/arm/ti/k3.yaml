@@ -58,6 +58,13 @@ properties:
               - ti,am62-lp-sk
           - const: ti,am625
 
+      - description: K3 AM6254atl SiP
+        items:
+          - enum:
+              - ti,am6254atl-sk
+          - const: ti,am6254atl
+          - const: ti,am625
+
       - description: K3 AM62x SoC Toradex Verdin Modules and Carrier Boards
         items:
           - enum:
