@@ -165,8 +165,8 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to add disable pm devm action\n");
 
-	rproc = rproc_alloc(dev, "wkup_m3", &wkup_m3_rproc_ops,
-			    fw_name, sizeof(*wkupm3));
+	rproc = devm_rproc_alloc(dev, "wkup_m3", &wkup_m3_rproc_ops,
+				 fw_name, sizeof(*wkupm3));
 	if (!rproc)
 		return -ENOMEM;
 
@@ -183,9 +183,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	if (!wkupm3->rsts) {
 		if (!(pdata && pdata->deassert_reset && pdata->assert_reset &&
 		      pdata->reset_name)) {
-			dev_err(dev, "Platform data missing!\n");
-			ret = -ENODEV;
-			goto err_put_rproc;
+			return dev_err_probe(dev, -ENODEV, "Platform data missing!\n");
 		}
 	}
 
@@ -193,12 +191,9 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   mem_names[i]);
 		wkupm3->mem[i].cpu_addr = devm_ioremap_resource(dev, res);
-		if (IS_ERR(wkupm3->mem[i].cpu_addr)) {
-			dev_err(&pdev->dev, "devm_ioremap_resource failed for resource %d\n",
-				i);
-			ret = PTR_ERR(wkupm3->mem[i].cpu_addr);
-			goto err_put_rproc;
-		}
+		if (IS_ERR(wkupm3->mem[i].cpu_addr))
+			return dev_err_probe(dev, PTR_ERR(wkupm3->mem[i].cpu_addr),
+					     "devm_ioremap_resource failed for resource %d\n", i);
 		wkupm3->mem[i].bus_addr = res->start;
 		wkupm3->mem[i].size = resource_size(res);
 		addrp = of_get_address(dev->of_node, i, &size, NULL);
@@ -216,16 +211,10 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, rproc);
 
 	ret = rproc_add(rproc);
-	if (ret) {
-		dev_err(dev, "rproc_add failed\n");
-		goto err_put_rproc;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "rproc_add failed\n");
 
 	return 0;
-
-err_put_rproc:
-	rproc_free(rproc);
-	return ret;
 }
 
 static void wkup_m3_rproc_remove(struct platform_device *pdev)
@@ -233,7 +222,6 @@ static void wkup_m3_rproc_remove(struct platform_device *pdev)
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
 	rproc_del(rproc);
-	rproc_free(rproc);
 }
 
 #ifdef CONFIG_PM
