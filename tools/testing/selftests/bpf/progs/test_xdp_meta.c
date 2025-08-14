@@ -26,6 +26,8 @@ struct {
 	__uint(value_size, META_SIZE);
 } test_result SEC(".maps");
 
+bool test_pass;
+
 SEC("tc")
 int ing_cls(struct __sk_buff *ctx)
 {
@@ -299,6 +301,195 @@ int ing_xdp(struct xdp_md *ctx)
 
 	__builtin_memcpy(data_meta, payload, META_SIZE);
 	return XDP_PASS;
+}
+
+/*
+ * Check that skb->data_meta..skb->data is empty if prog writes to packet
+ * _payload_ using packet pointers. Applies only to cloned skbs.
+ */
+SEC("tc")
+int clone_data_meta_empty_on_data_write(struct __sk_buff *ctx)
+{
+	struct ethhdr *eth = ctx_ptr(ctx, data);
+
+	if (eth + 1 > ctx_ptr(ctx, data_end))
+		goto out;
+	/* Ignore non-test packets */
+	if (eth->h_proto != 0)
+		goto out;
+
+	/* Expect no metadata */
+	if (ctx->data_meta != ctx->data)
+		goto out;
+
+	/* Packet write to trigger unclone in prologue */
+	eth->h_proto = 42;
+
+	test_pass = true;
+out:
+	return TC_ACT_SHOT;
+}
+
+/*
+ * Check that skb->data_meta..skb->data is empty if prog writes to packet
+ * _metadata_ using packet pointers. Applies only to cloned skbs.
+ */
+SEC("tc")
+int clone_data_meta_empty_on_meta_write(struct __sk_buff *ctx)
+{
+	struct ethhdr *eth = ctx_ptr(ctx, data);
+	__u8 *md = ctx_ptr(ctx, data_meta);
+
+	if (eth + 1 > ctx_ptr(ctx, data_end))
+		goto out;
+	/* Ignore non-test packets */
+	if (eth->h_proto != 0)
+		goto out;
+
+	if (md + 1 > ctx_ptr(ctx, data)) {
+		/* Expect no metadata */
+		test_pass = true;
+	} else {
+		/* Metadata write to trigger unclone in prologue */
+		*md = 42;
+	}
+out:
+	return TC_ACT_SHOT;
+}
+
+/*
+ * Check that skb_meta dynptr is writable but empty if prog writes to packet
+ * _payload_ using a dynptr slice. Applies only to cloned skbs.
+ */
+SEC("tc")
+int clone_dynptr_empty_on_data_slice_write(struct __sk_buff *ctx)
+{
+	struct bpf_dynptr data, meta;
+	struct ethhdr *eth;
+
+	bpf_dynptr_from_skb(ctx, 0, &data);
+	eth = bpf_dynptr_slice_rdwr(&data, 0, NULL, sizeof(*eth));
+	if (!eth)
+		goto out;
+	/* Ignore non-test packets */
+	if (eth->h_proto != 0)
+		goto out;
+
+	/* Expect no metadata */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	if (bpf_dynptr_is_rdonly(&meta) || bpf_dynptr_size(&meta) > 0)
+		goto out;
+
+	/* Packet write to trigger unclone in prologue */
+	eth->h_proto = 42;
+
+	test_pass = true;
+out:
+	return TC_ACT_SHOT;
+}
+
+/*
+ * Check that skb_meta dynptr is writable but empty if prog writes to packet
+ * _metadata_ using a dynptr slice. Applies only to cloned skbs.
+ */
+SEC("tc")
+int clone_dynptr_empty_on_meta_slice_write(struct __sk_buff *ctx)
+{
+	struct bpf_dynptr data, meta;
+	const struct ethhdr *eth;
+	__u8 *md;
+
+	bpf_dynptr_from_skb(ctx, 0, &data);
+	eth = bpf_dynptr_slice(&data, 0, NULL, sizeof(*eth));
+	if (!eth)
+		goto out;
+	/* Ignore non-test packets */
+	if (eth->h_proto != 0)
+		goto out;
+
+	/* Expect no metadata */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	if (bpf_dynptr_is_rdonly(&meta) || bpf_dynptr_size(&meta) > 0)
+		goto out;
+
+	/* Metadata write to trigger unclone in prologue */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	md = bpf_dynptr_slice_rdwr(&meta, 0, NULL, sizeof(*md));
+	if (md)
+		*md = 42;
+
+	test_pass = true;
+out:
+	return TC_ACT_SHOT;
+}
+
+/*
+ * Check that skb_meta dynptr is read-only before prog writes to packet payload
+ * using dynptr_write helper. Applies only to cloned skbs.
+ */
+SEC("tc")
+int clone_dynptr_rdonly_before_data_dynptr_write(struct __sk_buff *ctx)
+{
+	struct bpf_dynptr data, meta;
+	const struct ethhdr *eth;
+
+	bpf_dynptr_from_skb(ctx, 0, &data);
+	eth = bpf_dynptr_slice(&data, 0, NULL, sizeof(*eth));
+	if (!eth)
+		goto out;
+	/* Ignore non-test packets */
+	if (eth->h_proto != 0)
+		goto out;
+
+	/* Expect read-only metadata before unclone */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	if (!bpf_dynptr_is_rdonly(&meta) || bpf_dynptr_size(&meta) != META_SIZE)
+		goto out;
+
+	/* Helper write to payload will unclone the packet */
+	bpf_dynptr_write(&data, offsetof(struct ethhdr, h_proto), "x", 1, 0);
+
+	/* Expect no metadata after unclone */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	if (bpf_dynptr_is_rdonly(&meta) || bpf_dynptr_size(&meta) != 0)
+		goto out;
+
+	test_pass = true;
+out:
+	return TC_ACT_SHOT;
+}
+
+/*
+ * Check that skb_meta dynptr is read-only if prog writes to packet
+ * metadata using dynptr_write helper. Applies only to cloned skbs.
+ */
+SEC("tc")
+int clone_dynptr_rdonly_before_meta_dynptr_write(struct __sk_buff *ctx)
+{
+	struct bpf_dynptr data, meta;
+	const struct ethhdr *eth;
+
+	bpf_dynptr_from_skb(ctx, 0, &data);
+	eth = bpf_dynptr_slice(&data, 0, NULL, sizeof(*eth));
+	if (!eth)
+		goto out;
+	/* Ignore non-test packets */
+	if (eth->h_proto != 0)
+		goto out;
+
+	/* Expect read-only metadata */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	if (!bpf_dynptr_is_rdonly(&meta) || bpf_dynptr_size(&meta) != META_SIZE)
+		goto out;
+
+	/* Metadata write. Expect failure. */
+	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
+	if (bpf_dynptr_write(&meta, 0, "x", 1, 0) != -EINVAL)
+		goto out;
+
+	test_pass = true;
+out:
+	return TC_ACT_SHOT;
 }
 
 char _license[] SEC("license") = "GPL";
