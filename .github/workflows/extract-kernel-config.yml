@@ -1,0 +1,247 @@
+name: Extract Kernel and Initramfs Configuration
+on: 
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      instance-type:
+        description: 'EC2 instance type to use'
+        required: false
+        default: 'm7i.metal-24xl'
+        type: string
+      image-type:
+        description: 'Image type to use (ubuntu-22.04 or ubuntu-24.04)'
+        required: false
+        default: 'ubuntu-24.04'
+        type: string
+
+permissions:
+  id-token: write # Required for requesting the JWT
+  contents: read
+  actions: write
+
+jobs:
+  setup-runner:
+    name: Start EC2 runner for config extraction
+    runs-on: ubuntu-latest
+    outputs:
+      runner-label: ${{ steps.start-runner.outputs.runner-label }}
+      ec2-instance-id: ${{ steps.start-runner.outputs.ec2-instance-id }}
+      region: ${{ steps.start-runner.outputs.region }}
+    steps:
+      - name: Checkout repository (sparse)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/
+          sparse-checkout-cone-mode: false
+        
+      - name: Start AWS Runner (standard setup)
+        id: start-runner
+        uses: ./.github/actions/aws-runner
+        with:
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          iam-role-name: github-actions-runner          
+          instance-type: ${{ inputs.instance-type || 'm7i.metal-24xl' }}
+          image-type: ${{ inputs.image-type || 'ubuntu-24.04' }}
+          volume-size: '20'
+          runner-home-dir: '/tmp'
+          packages: '["curl", "gzip", "tar"]'
+
+  extract-configs:
+    needs: [setup-runner]
+    runs-on: ${{ needs.setup-runner.outputs.runner-label }}
+    timeout-minutes: 15
+    steps:
+      - name: Verify system info
+        run: |
+          echo "================================================"
+          echo "🖥️  EXTRACTING KERNEL AND INITRAMFS CONFIG"
+          echo "================================================"
+          echo ""
+          echo "📍 Kernel version: $(uname -r)"
+          echo "📍 Ubuntu version: $(lsb_release -d | cut -f2)"
+          echo "📍 Architecture: $(uname -m)"
+          echo "📍 Instance type: ${{ inputs.instance-type || 'm7i.metal-24xl' }}"
+          echo "⏰ System uptime: $(uptime)"
+          echo "📅 Date: $(date)"
+          echo ""
+        
+      - name: Extract kernel configuration
+        run: |
+          echo "🔍 Extracting kernel configuration..."
+          mkdir -p /tmp/kernel-config
+          
+          # Try to get config from /proc/config.gz first
+          if [ -f /proc/config.gz ]; then
+            echo "✅ Found /proc/config.gz"
+            zcat /proc/config.gz > /tmp/kernel-config/config-from-proc
+          else
+            echo "⚠️ /proc/config.gz not available"
+          fi
+          
+          # Get config from /boot/config-* files
+          if ls /boot/config-* 1> /dev/null 2>&1; then
+            echo "✅ Found boot config files:"
+            ls -la /boot/config-*
+            cp /boot/config-* /tmp/kernel-config/
+          else
+            echo "⚠️ No boot config files found"
+          fi
+          
+          # Get kernel version and other info
+          uname -r > /tmp/kernel-config/kernel-version.txt
+          uname -a > /tmp/kernel-config/kernel-info.txt
+          lsb_release -a > /tmp/kernel-config/ubuntu-version.txt 2>/dev/null || echo "lsb_release not available" > /tmp/kernel-config/ubuntu-version.txt
+          
+          echo "📦 Kernel config files extracted:"
+          ls -la /tmp/kernel-config/
+          
+      - name: Extract initramfs-tools configuration
+        run: |
+          echo "🔧 Extracting initramfs-tools configuration..."
+          mkdir -p /tmp/initramfs-config
+          
+          # Copy the entire /etc/initramfs-tools directory
+          if [ -d /etc/initramfs-tools ]; then
+            echo "✅ Found /etc/initramfs-tools directory"
+            cp -r /etc/initramfs-tools /tmp/initramfs-config/
+            
+            echo "📋 Contents of /etc/initramfs-tools:"
+            find /etc/initramfs-tools -type f -exec ls -la {} \;
+            echo ""
+            
+            # Show key configuration files content
+            echo "📄 Contents of initramfs.conf:"
+            if [ -f /etc/initramfs-tools/initramfs.conf ]; then
+              cat /etc/initramfs-tools/initramfs.conf
+            else
+              echo "initramfs.conf not found"
+            fi
+            echo ""
+            
+            echo "📄 Contents of modules file:"
+            if [ -f /etc/initramfs-tools/modules ]; then
+              cat /etc/initramfs-tools/modules
+            else
+              echo "modules file not found"
+            fi
+            echo ""
+            
+            echo "📄 Contents of conf.d directory:"
+            if [ -d /etc/initramfs-tools/conf.d ]; then
+              ls -la /etc/initramfs-tools/conf.d/
+              find /etc/initramfs-tools/conf.d -type f -exec echo "--- {} ---" \; -exec cat {} \;
+            else
+              echo "conf.d directory not found"
+            fi
+            
+          else
+            echo "❌ /etc/initramfs-tools directory not found"
+          fi
+          
+          # Also check for initramfs-related packages
+          echo "📦 Installed initramfs-related packages:"
+          dpkg -l | grep -i initramfs || echo "No initramfs packages found"
+          
+          echo "📦 Initramfs config files extracted:"
+          find /tmp/initramfs-config -type f -exec ls -la {} \;
+          
+      - name: Package configuration files as artifacts
+        run: |
+          echo "📦 Creating tar archives for artifacts..."
+          
+          # Create kernel config archive
+          cd /tmp
+          if [ -d kernel-config ] && [ "$(ls -A kernel-config)" ]; then
+            tar -czf kernel-config.tar.gz kernel-config/
+            echo "✅ Created kernel-config.tar.gz ($(du -h kernel-config.tar.gz | cut -f1))"
+          else
+            echo "⚠️ No kernel config files to archive"
+            touch kernel-config.tar.gz
+          fi
+          
+          # Create initramfs config archive  
+          if [ -d initramfs-config ] && [ "$(ls -A initramfs-config)" ]; then
+            tar -czf initramfs-tools-config.tar.gz initramfs-config/
+            echo "✅ Created initramfs-tools-config.tar.gz ($(du -h initramfs-tools-config.tar.gz | cut -f1))"
+          else
+            echo "⚠️ No initramfs config files to archive"
+            touch initramfs-tools-config.tar.gz
+          fi
+          
+          # Create system info summary
+          cat > system-info.txt << EOF
+          System Information Summary
+          =========================
+          Date: $(date)
+          Instance Type: ${{ inputs.instance-type || 'm7i.metal-24xl' }}
+          Image Type: ${{ inputs.image-type || 'ubuntu-24.04' }}
+          Kernel Version: $(uname -r)
+          Kernel Info: $(uname -a)
+          Ubuntu Version: $(lsb_release -d | cut -f2 2>/dev/null || echo "Unknown")
+          Architecture: $(uname -m)
+          Uptime: $(uptime)
+          
+          Package Information:
+          $(dpkg -l | grep -E "(linux-image|linux-headers|initramfs)" | head -20)
+          EOF
+          
+          echo "✅ Created system-info.txt"
+          
+          ls -la *.tar.gz *.txt
+          
+      - name: Upload kernel config artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-config-${{ inputs.instance-type || 'm7i.metal-24xl' }}-${{ inputs.image-type || 'ubuntu-24.04' }}
+          path: /tmp/kernel-config.tar.gz
+          retention-days: 30
+          
+      - name: Upload initramfs config artifact  
+        uses: actions/upload-artifact@v4
+        with:
+          name: initramfs-tools-config-${{ inputs.instance-type || 'm7i.metal-24xl' }}-${{ inputs.image-type || 'ubuntu-24.04' }}
+          path: /tmp/initramfs-tools-config.tar.gz
+          retention-days: 30
+          
+      - name: Upload system info artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-info-${{ inputs.instance-type || 'm7i.metal-24xl' }}-${{ inputs.image-type || 'ubuntu-24.04' }}
+          path: /tmp/system-info.txt
+          retention-days: 30
+          
+      - name: Extraction summary
+        run: |
+          echo ""
+          echo "🎯 CONFIGURATION EXTRACTION COMPLETED!"
+          echo "======================================"
+          echo "✅ Kernel configuration extracted from AWS AMI"
+          echo "✅ Initramfs-tools configuration extracted"
+          echo "✅ System information documented"
+          echo ""
+          echo "📋 Artifacts created:"
+          echo "  - kernel-config-${{ inputs.instance-type || 'm7i.metal-24xl' }}-${{ inputs.image-type || 'ubuntu-24.04' }}"
+          echo "  - initramfs-tools-config-${{ inputs.instance-type || 'm7i.metal-24xl' }}-${{ inputs.image-type || 'ubuntu-24.04' }}"
+          echo "  - system-info-${{ inputs.instance-type || 'm7i.metal-24xl' }}-${{ inputs.image-type || 'ubuntu-24.04' }}"
+          echo ""
+          echo "💡 You can now use these configurations to make your build-initrd.sh"
+          echo "   script generate initrds that match the AWS AMI configuration!"
+
+  stop-runner:
+    name: Stop EC2 runner
+    needs: [setup-runner, extract-configs]
+    runs-on: ubuntu-latest
+    if: always()  # Run even if previous jobs fail
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Stop AWS Runner
+        uses: ./.github/actions/aws-runner/cleanup
+        with:
+          runner-label: ${{ needs.setup-runner.outputs.runner-label }}
+          ec2-instance-id: ${{ needs.setup-runner.outputs.ec2-instance-id }}
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ needs.setup-runner.outputs.region }}
