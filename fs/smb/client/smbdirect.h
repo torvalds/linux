@@ -74,8 +74,6 @@ struct smbd_connection {
 	/* Used by transport to wait until all MRs are returned */
 	wait_queue_head_t wait_for_mr_cleanup;
 
-	bool send_immediate;
-
 	struct workqueue_struct *workqueue;
 	struct delayed_work idle_timer_work;
 

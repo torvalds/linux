@@ -563,14 +563,10 @@ static void smbd_post_send_credits(struct work_struct *work)
 	}
 
 	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
-	info->send_immediate = true;
 	if (atomic_read(&sc->recv_io.credits.count) <
 		sc->recv_io.credits.target - 1) {
-		if (info->keep_alive_requested == KEEP_ALIVE_PENDING ||
-		    info->send_immediate) {
-			log_keep_alive(INFO, "send an empty message\n");
-			smbd_post_send_empty(info);
-		}
+		log_keep_alive(INFO, "send an empty message\n");
+		smbd_post_send_empty(info);
 	}
 }
 
@@ -1123,8 +1119,6 @@ wait_send_queue:
 	new_credits = manage_credits_prior_sending(info);
 	atomic_add(new_credits, &sc->recv_io.credits.count);
 	packet->credits_granted = cpu_to_le16(new_credits);
-
-	info->send_immediate = false;
 
 	packet->flags = 0;
 	if (manage_keep_alive_before_sending(info))
