@@ -224,3 +224,8 @@ KBUILD_USERLDFLAGS	+= -Wl,--fatal-warnings
 KBUILD_RUSTFLAGS	+= -Dwarnings
 
 endif
+
+# Hostprog flags are used during build bootstrapping and can not rely on CONFIG_ symbols.
+KBUILD_HOSTCFLAGS	+= -Werror
+KBUILD_HOSTLDFLAGS	+= -Wl,--fatal-warnings
+KBUILD_HOSTRUSTFLAGS	+= -Dwarnings
