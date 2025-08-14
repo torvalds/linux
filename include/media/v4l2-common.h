@@ -623,7 +623,7 @@ int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
 
 /**
  * devm_v4l2_sensor_clk_get - lookup and obtain a reference to a clock producer
- *	for a camera sensor.
+ *	for a camera sensor
  *
  * @dev: device for v4l2 sensor clock "consumer"
  * @id: clock consumer ID
@@ -642,6 +642,14 @@ int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
  *   by a camera sensor PMIC driver (e.g. int3472/tps68470.c)
  *
  * In this case try to set the clock-frequency value to the provided clock.
+ *
+ * As the name indicates, this function may only be used on camera sensor
+ * devices. This is because generally only camera sensors do need a clock to
+ * query the frequency from, due to the requirement to configure the PLL for a
+ * given CSI-2 interface frequency where the sensor's external clock frequency
+ * is a factor. Additionally, the clock frequency tends to be available on ACPI
+ * firmware based systems for camera sensors specifically (if e.g. DisCo for
+ * Imaging compliant).
  *
  * Returns a pointer to a struct clk on success or an error pointer on failure.
  */
