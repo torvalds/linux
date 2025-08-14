@@ -142,8 +142,14 @@ static inline void rq_qos_done_bio(struct bio *bio)
 	    bio->bi_bdev && (bio_flagged(bio, BIO_QOS_THROTTLED) ||
 			     bio_flagged(bio, BIO_QOS_MERGED))) {
 		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-		if (q->rq_qos)
-			__rq_qos_done_bio(q->rq_qos, bio);
+
+		/*
+		 * If a bio has BIO_QOS_xxx set, it implicitly implies that
+		 * q->rq_qos is present. So, we skip re-checking q->rq_qos
+		 * here as an extra optimization and directly call
+		 * __rq_qos_done_bio().
+		 */
+		__rq_qos_done_bio(q->rq_qos, bio);
 	}
 }
 
