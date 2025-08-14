@@ -2748,17 +2748,18 @@ TEST(data_steal) {
 	pid = fork();
 	ASSERT_GE(pid, 0);
 	if (!pid) {
-		EXPECT_EQ(recv(cfd, buf, sizeof(buf), MSG_WAITALL),
-			  sizeof(buf));
+		EXPECT_EQ(recv(cfd, buf, sizeof(buf) / 2, MSG_WAITALL),
+			  sizeof(buf) / 2);
 		exit(!__test_passed(_metadata));
 	}
 
-	usleep(2000);
+	usleep(10000);
 	ASSERT_EQ(setsockopt(fd, SOL_TLS, TLS_TX, &tls, tls.len), 0);
 	ASSERT_EQ(setsockopt(cfd, SOL_TLS, TLS_RX, &tls, tls.len), 0);
 
 	EXPECT_EQ(send(fd, buf, sizeof(buf), 0), sizeof(buf));
-	usleep(2000);
+	EXPECT_EQ(wait(&status), pid);
+	EXPECT_EQ(status, 0);
 	EXPECT_EQ(recv(cfd, buf2, sizeof(buf2), MSG_DONTWAIT), -1);
 	/* Don't check errno, the error will be different depending
 	 * on what random bytes TLS interpreted as the record length.
@@ -2766,9 +2767,6 @@ TEST(data_steal) {
 
 	close(fd);
 	close(cfd);
-
-	EXPECT_EQ(wait(&status), pid);
-	EXPECT_EQ(status, 0);
 }
 
 static void __attribute__((constructor)) fips_check(void) {
