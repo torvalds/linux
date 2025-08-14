@@ -1207,6 +1207,8 @@ static int bnxt_re_fill_res_srq_entry(struct sk_buff *msg, struct ib_srq *ib_srq
 		goto err;
 	if (rdma_nl_put_driver_u32_hex(msg, "max_sge", srq->qplib_srq.max_sge))
 		goto err;
+	if (rdma_nl_put_driver_u32_hex(msg, "srq_limit", srq->qplib_srq.threshold))
+		goto err;
 
 	nla_nest_end(msg, table_attr);
 	return 0;
