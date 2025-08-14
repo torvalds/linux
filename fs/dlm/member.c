@@ -571,7 +571,13 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 
 	list_for_each_entry_safe(memb, safe, &ls->ls_nodes, list) {
 		node = find_config_node(rv, memb->nodeid);
-		if (node && !node->new && !node->gone)
+		if (!node) {
+			log_error(ls, "remove member %d invalid",
+				  memb->nodeid);
+			return -EFAULT;
+		}
+
+		if (!node->new && !node->gone)
 			continue;
 
 		release_recover = 0;
