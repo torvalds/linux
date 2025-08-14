@@ -1776,7 +1776,7 @@ struct dc {
 	struct dml2_configuration_options dml2_options;
 	struct dml2_configuration_options dml2_dc_power_options;
 	enum dc_acpi_cm_power_state power_state;
-
+	struct soc_and_ip_translator *soc_and_ip_translator;
 };
 
 struct dc_scaling_info {

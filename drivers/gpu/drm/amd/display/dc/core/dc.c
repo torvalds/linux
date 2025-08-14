@@ -84,6 +84,7 @@
 
 #if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dml2/dml2_internal_types.h"
+#include "soc_and_ip_translator.h"
 #endif
 
 #include "dce/dmub_outbox.h"
@@ -949,7 +950,9 @@ static void dc_destruct(struct dc *dc)
 	}
 
 	dc_destroy_resource_pool(dc);
-
+#ifdef CONFIG_DRM_AMD_DC_FP
+	dc_destroy_soc_and_ip_translator(&dc->soc_and_ip_translator);
+#endif
 	if (dc->link_srv)
 		link_destroy_link_service(&dc->link_srv);
 
@@ -1153,6 +1156,9 @@ static bool dc_construct(struct dc *dc,
 		dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
 		DC_FP_END();
 	}
+	dc->soc_and_ip_translator = dc_create_soc_and_ip_translator(dc_ctx->dce_version);
+	if (!dc->soc_and_ip_translator)
+		goto fail;
 #endif
 
 	if (!create_links(dc, init_params->num_virtual_links))
