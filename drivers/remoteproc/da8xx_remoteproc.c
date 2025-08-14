@@ -276,8 +276,8 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, ret, "device does not have specific CMA pool\n");
 	}
 
-	rproc = rproc_alloc(dev, "dsp", &da8xx_rproc_ops, da8xx_fw_name,
-		sizeof(*drproc));
+	rproc = devm_rproc_alloc(dev, "dsp", &da8xx_rproc_ops, da8xx_fw_name,
+				 sizeof(*drproc));
 	if (!rproc) {
 		ret = -ENOMEM;
 		goto free_mem;
@@ -294,7 +294,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 	ret = da8xx_rproc_get_internal_memories(pdev, drproc);
 	if (ret)
-		goto free_rproc;
+		goto free_mem;
 
 	platform_set_drvdata(pdev, rproc);
 
@@ -304,7 +304,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 					rproc);
 	if (ret) {
 		dev_err(dev, "devm_request_threaded_irq error: %d\n", ret);
-		goto free_rproc;
+		goto free_mem;
 	}
 
 	/*
@@ -314,7 +314,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	 */
 	ret = reset_control_assert(dsp_reset);
 	if (ret)
-		goto free_rproc;
+		goto free_mem;
 
 	drproc->chipsig = chipsig;
 	drproc->bootreg = bootreg;
@@ -325,13 +325,11 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	ret = rproc_add(rproc);
 	if (ret) {
 		dev_err(dev, "rproc_add failed: %d\n", ret);
-		goto free_rproc;
+		goto free_mem;
 	}
 
 	return 0;
 
-free_rproc:
-	rproc_free(rproc);
 free_mem:
 	if (dev->of_node)
 		of_reserved_mem_device_release(dev);
@@ -352,7 +350,6 @@ static void da8xx_rproc_remove(struct platform_device *pdev)
 	disable_irq(drproc->irq);
 
 	rproc_del(rproc);
-	rproc_free(rproc);
 	if (dev->of_node)
 		of_reserved_mem_device_release(dev);
 }
