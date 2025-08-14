@@ -2088,8 +2088,9 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 		rc = bnxt_re_register_netdev(rdev);
 		if (rc) {
 			ibdev_err(&rdev->ibdev,
-				  "Failed to register with netedev: %#x\n", rc);
-			return -EINVAL;
+				  "Failed to register with Ethernet driver, rc %d\n",
+				  rc);
+			return rc;
 		}
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
