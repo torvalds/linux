@@ -448,6 +448,9 @@ static int amd_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	u32 wake_mask = BIT(WAKE_CNTRL_OFF_S0I3) | BIT(WAKE_CNTRL_OFF_S3);
 	int err;
 
+	pm_pr_dbg("Setting wake for GPIO %lu to %s\n",
+		   d->hwirq, str_enable_disable(on));
+
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 	pin_reg = readl(gpio_dev->base + (d->hwirq)*4);
 
