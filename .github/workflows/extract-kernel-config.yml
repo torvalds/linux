@@ -44,7 +44,6 @@ jobs:
           instance-type: ${{ inputs.instance-type || 'm7i.metal-24xl' }}
           image-type: ${{ inputs.image-type || 'ubuntu-24.04' }}
           volume-size: '20'
-          runner-home-dir: '/tmp'
           packages: '["curl", "gzip", "tar"]'
 
   extract-configs:
