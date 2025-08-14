@@ -506,10 +506,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		if (cw_bat->battery->charge_full_design_uah > 0)
-			val->intval = cw_bat->battery->charge_full_design_uah;
-		else
-			val->intval = 0;
+		val->intval = max(cw_bat->battery->charge_full_design_uah, 0);
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
