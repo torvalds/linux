@@ -1063,7 +1063,7 @@ int pm8001_abort_task(struct sas_task *task)
 	struct pm8001_hba_info *pm8001_ha;
 	struct pm8001_device *pm8001_dev;
 	int rc = TMF_RESP_FUNC_FAILED, ret;
-	u32 phy_id, port_id;
+	u32 port_id;
 	struct sas_task_slow slow_task;
 
 	if (!task->lldd_task || !task->dev)
@@ -1072,7 +1072,6 @@ int pm8001_abort_task(struct sas_task *task)
 	dev = task->dev;
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
-	phy_id = pm8001_dev->attached_phy;
 
 	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
 		// If the controller is seeing fatal errors
@@ -1104,7 +1103,8 @@ int pm8001_abort_task(struct sas_task *task)
 		if (pm8001_ha->chip_id == chip_8006) {
 			DECLARE_COMPLETION_ONSTACK(completion_reset);
 			DECLARE_COMPLETION_ONSTACK(completion);
-			struct pm8001_phy *phy = pm8001_ha->phy + phy_id;
+			u32 phy_id = pm80xx_get_local_phy_id(dev);
+			struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 			port_id = phy->port->port_id;
 
 			/* 1. Set Device state as Recovery */
