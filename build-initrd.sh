@@ -6,6 +6,7 @@ S3_BUCKET="${S3_BUCKET:-unvariance-kernel-dev}"
 S3_REGION="${S3_REGION:-us-east-2}"
 # Dynamically determine kernel version (including git state and LOCALVERSION)
 KERNEL_VERSION=$(make kernelrelease)
+CC="ccache gcc"
 
 # Create temporary directory in user home for builds
 TEMP_BUILD_DIR="$HOME/.kernel-initrd-tmp-$$"
@@ -123,6 +124,10 @@ create_initrd() {
     
     # Only install modules if they don't exist or if forced
     if [[ ! -d "${PERSISTENT_MODULES}/lib/modules/${KERNEL_VERSION}" || "${FORCE_INITRD:-}" == "1" ]]; then
+        log "Building kernel modules..."
+        NPROC=$(nproc)
+        make CC="$CC" -j${NPROC} modules
+
         log "Installing/updating kernel modules..."
         make INSTALL_MOD_PATH="${PERSISTENT_MODULES}" modules_install
     else

@@ -111,9 +111,6 @@ build_kernel() {
     # Build kernel image
     make CC="$CC" -j${NPROC} bzImage
     
-    # Build modules (if any are needed)
-    make CC="$CC" -j${NPROC} modules
-    
     log "Kernel build completed successfully"
 }
 
