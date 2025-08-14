@@ -97,9 +97,9 @@ enum extend_mode_bits {
 	TR3_TRIG_ENABLE_BIT = 0x1,	// enable generation of trigger pulse T/R3 pin
 	// clear message available status bit when chip writes byte with EOI true
 	MAV_ENABLE_BIT = 0x2,
-	EOS1_ENABLE_BIT = 0x4,	// enable eos register 1
-	EOS2_ENABLE_BIT = 0x8,	// enable eos register 2
-	EOIDIS_BIT = 0x10,	// disable EOI interrupt when doing rfd holdoff on end?
+	EOS1_ENABLE_BIT = 0x4,		// enable eos register 1
+	EOS2_ENABLE_BIT = 0x8,		// enable eos register 2
+	EOIDIS_BIT = 0x10,		// disable EOI interrupt when doing rfd holdoff on end?
 	XFER_COUNTER_ENABLE_BIT = 0x20,
 	XFER_COUNTER_OUTPUT_BIT = 0x40,	// use counter for output, clear for input
 	// when xfer counter hits 0, assert EOI on write or RFD holdoff on read
@@ -121,10 +121,10 @@ enum ines_admr_bits {
 };
 
 enum xdma_control_bits {
-	DMA_OUTPUT_BIT = 0x1,	// use dma for output, clear for input
+	DMA_OUTPUT_BIT = 0x1,		// use dma for output, clear for input
 	ENABLE_SYNC_DMA_BIT = 0x2,
-	DMA_ACCESS_EVERY_CYCLE = 0x4,// dma accesses fifo every cycle, clear for every other cycle
-	DMA_16BIT = 0x8,	// clear for 8 bit transfers
+	DMA_ACCESS_EVERY_CYCLE = 0x4,	// dma accesses fifo every cycle, clear for every other cycle
+	DMA_16BIT = 0x8,		// clear for 8 bit transfers
 };
 
 enum bus_control_monitor_bits {

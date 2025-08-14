@@ -523,7 +523,7 @@ static int fmh_gpib_accel_write(struct gpib_board *board, u8 *buffer,
 	}
 	if (retval < 0)
 		return retval;
-	//handle sending of last byte with eoi
+	// handle sending of last byte with eoi
 	if (send_eoi) {
 		size_t num_bytes;
 

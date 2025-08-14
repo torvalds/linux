@@ -647,7 +647,7 @@ static void check_my_address_state(struct gpib_board *board,
 	} else if (cmd_byte == MTA(board->pad))	{
 		priv->primary_talk_addressed = 1;
 		if (board->sad < 0)
-			//make active talker
+			// make active talker
 			write_byte(priv, AUX_TON | AUX_CS, AUXCR);
 	} else if (board->sad >= 0 && priv->primary_talk_addressed &&
 		   cmd_byte == MSA(board->sad)) {
@@ -730,7 +730,7 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 	if (status0 & HR_SPAS) {
 		priv->spoll_status &= ~request_service_bit;
 		write_byte(priv, priv->spoll_status, SPMR);
-		//FIXME: set SPOLL status bit
+		// FIXME: set SPOLL status bit
 	}
 	// record service request in status
 	if (status1 & HR_SRQ)
@@ -841,7 +841,7 @@ void tms9914_board_reset(struct tms9914_priv *priv)
 
 	/* parallel poll unconfigure */
 	write_byte(priv, 0, PPR);
-	// request for data holdoff
+	/* request for data holdoff */
 	tms9914_set_holdoff_mode(priv, TMS9914_HOLDOFF_ALL);
 }
 EXPORT_SYMBOL_GPL(tms9914_board_reset);
@@ -852,7 +852,7 @@ void tms9914_online(struct gpib_board *board, struct tms9914_priv *priv)
 	tms9914_primary_address(board, priv, board->pad);
 	tms9914_secondary_address(board, priv, board->sad, board->sad >= 0);
 
-	// enable tms9914 interrupts
+	/* enable tms9914 interrupts */
 	priv->imr0_bits |= HR_MACIE | HR_RLCIE | HR_ENDIE | HR_BOIE | HR_BIIE |
 		HR_SPASIE;
 	priv->imr1_bits |= HR_MAIE | HR_SRQIE | HR_UNCIE | HR_ERRIE | HR_IFCIE |
@@ -861,7 +861,7 @@ void tms9914_online(struct gpib_board *board, struct tms9914_priv *priv)
 	write_byte(priv, priv->imr1_bits, IMR1);
 	write_byte(priv, AUX_DAI, AUXCR);
 
-	// turn off reset state
+	/* turn off reset state */
 	write_byte(priv, AUX_CHIP_RESET, AUXCR);
 }
 EXPORT_SYMBOL_GPL(tms9914_online);

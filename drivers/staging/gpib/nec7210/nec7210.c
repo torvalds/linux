@@ -779,10 +779,10 @@ int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
 
 	*bytes_written = 0;
 
-	clear_bit(DEV_CLEAR_BN, &priv->state); //XXX
+	clear_bit(DEV_CLEAR_BN, &priv->state); // XXX
 
 	if (send_eoi)
-		length-- ; /* save the last byte for sending EOI */
+		length-- ; // save the last byte for sending EOI
 
 	if (length > 0)	{
 		// isa dma transfer
@@ -1005,7 +1005,7 @@ void nec7210_board_online(struct nec7210_priv *priv, const struct gpib_board *bo
 	nec7210_primary_address(board, priv, board->pad);
 	nec7210_secondary_address(board, priv, board->sad, board->sad >= 0);
 
-	// enable interrupts
+	/* enable interrupts */
 	priv->reg_bits[IMR1] = HR_ERRIE | HR_DECIE | HR_ENDIE |
 		HR_DETIE | HR_CPTIE | HR_DOIE | HR_DIIE;
 	priv->reg_bits[IMR2] = IMR2_ENABLE_INTR_MASK;

@@ -38,7 +38,7 @@ static int hp_82341_accel_read(struct gpib_board *board, u8 *buffer, size_t leng
 	unsigned short event_status;
 	int i;
 	int num_fifo_bytes;
-	//hardware doesn't support checking for end-of-string character when using fifo
+	// hardware doesn't support checking for end-of-string character when using fifo
 	if (tms_priv->eos_flags & REOS)
 		return tms9914_read(board, tms_priv, buffer, length, end, bytes_read);
 
@@ -49,7 +49,7 @@ static int hp_82341_accel_read(struct gpib_board *board, u8 *buffer, size_t leng
 	*bytes_read = 0;
 	if (length == 0)
 		return 0;
-	//disable fifo for the moment
+	// disable fifo for the moment
 	outb(DIRECTION_GPIB_TO_HOST_BIT, hp_priv->iobase[3] + BUFFER_CONTROL_REG);
 	/*
 	 * Handle corner case of board not in holdoff and one byte has slipped in already.
@@ -154,7 +154,7 @@ static int restart_write_fifo(struct gpib_board *board, struct hp_82341_priv *hp
 	while (1) {
 		int status;
 
-		//restart doesn't work if data holdoff is in effect
+		// restart doesn't work if data holdoff is in effect
 		status = tms9914_line_status(board, tms_priv);
 		if ((status & BUS_NRFD) == 0) {
 			outb(RESTART_STREAM_BIT, hp_priv->iobase[0] + STREAM_STATUS_REG);
@@ -764,7 +764,7 @@ static int hp_82341_attach(struct gpib_board *board, const struct gpib_board_con
 	     ENABLE_TI_INTERRUPT_EVENT_BIT, hp_priv->iobase[0] +  EVENT_ENABLE_REG);
 	outb(ENABLE_BUFFER_END_INTERRUPT_BIT | ENABLE_TERMINAL_COUNT_INTERRUPT_BIT |
 	     ENABLE_TI_INTERRUPT_BIT, hp_priv->iobase[0] + INTERRUPT_ENABLE_REG);
-	//write clear event register
+	// write clear event register
 	outb((TI_INTERRUPT_EVENT_BIT | POINTERS_EQUAL_EVENT_BIT |
 	      BUFFER_END_EVENT_BIT | TERMINAL_COUNT_EVENT_BIT),
 	     hp_priv->iobase[0] + EVENT_STATUS_REG);
@@ -867,7 +867,7 @@ static irqreturn_t hp_82341_interrupt(int irq, void *arg)
 	event_status = inb(hp_priv->iobase[0] + EVENT_STATUS_REG);
 	if (event_status & INTERRUPT_PENDING_EVENT_BIT)
 		retval = IRQ_HANDLED;
-	//write-clear status bits
+	// write-clear status bits
 	if (event_status & (TI_INTERRUPT_EVENT_BIT | POINTERS_EQUAL_EVENT_BIT |
 			    BUFFER_END_EVENT_BIT | TERMINAL_COUNT_EVENT_BIT)) {
 		outb(event_status & (TI_INTERRUPT_EVENT_BIT | POINTERS_EQUAL_EVENT_BIT |
@@ -901,7 +901,7 @@ static void set_transfer_counter(struct hp_82341_priv *hp_priv, int count)
 
 	outb(complement & 0xff, hp_priv->iobase[1] + TRANSFER_COUNT_LOW_REG);
 	outb((complement >> 8) & 0xff, hp_priv->iobase[1] + TRANSFER_COUNT_MID_REG);
-	//I don't think the hi count reg is even used, but oh well
+	// I don't think the hi count reg is even used, but oh well
 	outb((complement >> 16) & 0xf, hp_priv->iobase[1] + TRANSFER_COUNT_HIGH_REG);
 }
 
