@@ -75,6 +75,30 @@ void tascam_free_urbs(struct tascam_card *tascam)
 		}
 	}
 
+	usb_kill_anchored_urbs(&tascam->midi_in_anchor);
+	for (i = 0; i < NUM_MIDI_IN_URBS; i++) {
+		if (tascam->midi_in_urbs[i]) {
+			usb_free_coherent(
+				tascam->dev, MIDI_IN_BUF_SIZE,
+				tascam->midi_in_urbs[i]->transfer_buffer,
+				tascam->midi_in_urbs[i]->transfer_dma);
+			usb_free_urb(tascam->midi_in_urbs[i]);
+			tascam->midi_in_urbs[i] = NULL;
+		}
+	}
+
+	usb_kill_anchored_urbs(&tascam->midi_out_anchor);
+	for (i = 0; i < NUM_MIDI_OUT_URBS; i++) {
+		if (tascam->midi_out_urbs[i]) {
+			usb_free_coherent(
+				tascam->dev, MIDI_OUT_BUF_SIZE,
+				tascam->midi_out_urbs[i]->transfer_buffer,
+				tascam->midi_out_urbs[i]->transfer_dma);
+			usb_free_urb(tascam->midi_out_urbs[i]);
+			tascam->midi_out_urbs[i] = NULL;
+		}
+	}
+
 	kfree(tascam->capture_routing_buffer);
 	tascam->capture_routing_buffer = NULL;
 	kfree(tascam->capture_decode_dst_block);
@@ -164,6 +188,44 @@ int tascam_alloc_urbs(struct tascam_card *tascam)
 		c_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	}
 
+	/* MIDI URB and buffer allocation */
+	for (i = 0; i < NUM_MIDI_IN_URBS; i++) {
+		struct urb *m_urb = usb_alloc_urb(0, GFP_KERNEL);
+
+		if (!m_urb)
+			goto error;
+		tascam->midi_in_urbs[i] = m_urb;
+		m_urb->transfer_buffer =
+			usb_alloc_coherent(tascam->dev, MIDI_IN_BUF_SIZE,
+					   GFP_KERNEL, &m_urb->transfer_dma);
+		if (!m_urb->transfer_buffer)
+			goto error;
+		usb_fill_bulk_urb(m_urb, tascam->dev,
+				  usb_rcvbulkpipe(tascam->dev, EP_MIDI_IN),
+				  m_urb->transfer_buffer, MIDI_IN_BUF_SIZE,
+				  tascam_midi_in_urb_complete, tascam);
+		m_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	}
+
+	for (i = 0; i < NUM_MIDI_OUT_URBS; i++) {
+		struct urb *m_urb = usb_alloc_urb(0, GFP_KERNEL);
+
+		if (!m_urb)
+			goto error;
+		tascam->midi_out_urbs[i] = m_urb;
+		m_urb->transfer_buffer =
+			usb_alloc_coherent(tascam->dev, MIDI_OUT_BUF_SIZE,
+					   GFP_KERNEL, &m_urb->transfer_dma);
+		if (!m_urb->transfer_buffer)
+			goto error;
+		usb_fill_bulk_urb(m_urb, tascam->dev,
+				  usb_sndbulkpipe(tascam->dev, EP_MIDI_OUT),
+				  m_urb->transfer_buffer,
+				  0, /* length set later */
+				  tascam_midi_out_urb_complete, tascam);
+		m_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	}
+
 	tascam->capture_ring_buffer =
 		kmalloc(CAPTURE_RING_BUFFER_SIZE, GFP_KERNEL);
 	if (!tascam->capture_ring_buffer)
@@ -213,16 +275,112 @@ void tascam_stop_work_handler(struct work_struct *work)
  * @card: Pointer to the ALSA sound card instance.
  *
  * This function is called when the sound card is being freed. It releases
- * the reference to the USB device.
+ * resources allocated for the tascam_card structure, including the MIDI
+ * input FIFO and decrements the USB device reference count.
  */
 static void tascam_card_private_free(struct snd_card *card)
 {
 	struct tascam_card *tascam = card->private_data;
 
-	if (tascam && tascam->dev) {
-		usb_put_dev(tascam->dev);
-		tascam->dev = NULL;
+	if (tascam) {
+		kfifo_free(&tascam->midi_in_fifo);
+		if (tascam->dev) {
+			usb_put_dev(tascam->dev);
+			tascam->dev = NULL;
+		}
 	}
+}
+
+/**
+ * tascam_suspend() - Handles device suspension.
+ * @intf: The USB interface being suspended.
+ * @message: Power management message.
+ *
+ * This function is called when the device is suspended. It stops all active
+ * streams, kills all URBs, and sends a vendor-specific deep sleep command
+ * to the device to ensure a stable low-power state.
+ *
+ * Return: 0 on success.
+ */
+static int tascam_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct tascam_card *tascam = usb_get_intfdata(intf);
+
+	if (!tascam)
+		return 0;
+
+	snd_pcm_suspend_all(tascam->pcm);
+
+	cancel_work_sync(&tascam->stop_work);
+	cancel_work_sync(&tascam->capture_work);
+	cancel_work_sync(&tascam->midi_in_work);
+	cancel_work_sync(&tascam->midi_out_work);
+	cancel_work_sync(&tascam->stop_pcm_work);
+	usb_kill_anchored_urbs(&tascam->playback_anchor);
+	usb_kill_anchored_urbs(&tascam->capture_anchor);
+	usb_kill_anchored_urbs(&tascam->feedback_anchor);
+	usb_kill_anchored_urbs(&tascam->midi_in_anchor);
+	usb_kill_anchored_urbs(&tascam->midi_out_anchor);
+
+	return 0;
+}
+
+/**
+ * tascam_resume() - Handles device resumption from suspend.
+ * @intf: The USB interface being resumed.
+ *
+ * This function is called when the device resumes from suspend. It
+ * re-establishes the active USB interface settings and re-configures the sample
+ * rate if it was previously active.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int tascam_resume(struct usb_interface *intf)
+{
+	struct tascam_card *tascam = usb_get_intfdata(intf);
+	int err;
+
+	if (!tascam)
+		return 0;
+
+	dev_info(&intf->dev, "resuming TASCAM US-144MKII\n");
+
+	/*
+	 * The device requires a full re-initialization sequence upon resume.
+	 * First, re-establish the active USB interface settings.
+	 */
+	err = usb_set_interface(tascam->dev, 0, 1);
+	if (err < 0) {
+		dev_err(&intf->dev,
+			"resume: failed to set alt setting on intf 0: %d\n",
+			err);
+		return err;
+	}
+	err = usb_set_interface(tascam->dev, 1, 1);
+	if (err < 0) {
+		dev_err(&intf->dev,
+			"resume: failed to set alt setting on intf 1: %d\n",
+			err);
+		return err;
+	}
+
+	/* Re-configure the sample rate if one was previously active */
+	if (tascam->current_rate > 0)
+		us144mkii_configure_device_for_rate(tascam,
+						    tascam->current_rate);
+
+	return 0;
+}
+
+static void tascam_error_timer(struct timer_list *t)
+{
+	struct tascam_card *tascam =
+		container_of(t, struct tascam_card, error_timer);
+
+	if (atomic_read(&tascam->midi_in_active))
+		schedule_work(&tascam->midi_in_work);
+	if (atomic_read(&tascam->midi_out_active))
+		schedule_work(&tascam->midi_out_work);
 }
 
 /**
@@ -235,8 +393,8 @@ static void tascam_card_private_free(struct snd_card *card)
  * - Checking for the second interface (MIDI) and associating it.
  * - Performing a vendor-specific handshake with the device.
  * - Setting alternate settings for USB interfaces.
- * - Creating and registering the ALSA sound card and PCM device.
- * - Allocating and initializing URBs for audio transfers.
+ * - Creating and registering the ALSA sound card, PCM device, and MIDI device.
+ * - Allocating and initializing URBs for audio and MIDI transfers.
  *
  * Return: 0 on success, or a negative error code on failure.
  */
@@ -328,27 +486,25 @@ static int tascam_probe(struct usb_interface *intf,
 	tascam->capture_34_source = 1;
 
 	spin_lock_init(&tascam->lock);
+	spin_lock_init(&tascam->midi_in_lock);
+	spin_lock_init(&tascam->midi_out_lock);
 	init_usb_anchor(&tascam->playback_anchor);
 	init_usb_anchor(&tascam->capture_anchor);
 	init_usb_anchor(&tascam->feedback_anchor);
+	init_usb_anchor(&tascam->midi_in_anchor);
+	init_usb_anchor(&tascam->midi_out_anchor);
+
+	timer_setup(&tascam->error_timer, tascam_error_timer, 0);
 
 	INIT_WORK(&tascam->stop_work, tascam_stop_work_handler);
 	INIT_WORK(&tascam->stop_pcm_work, tascam_stop_pcm_work_handler);
 	INIT_WORK(&tascam->capture_work, tascam_capture_work_handler);
+	init_completion(&tascam->midi_out_drain_completion);
 
-	err = snd_pcm_new(card, "US144MKII PCM", 0, 1, 1, &tascam->pcm);
-	if (err < 0)
-		goto free_card;
-	tascam->pcm->private_data = tascam;
-	strscpy(tascam->pcm->name, "US144MKII PCM", sizeof(tascam->pcm->name));
-
-	err = tascam_init_pcm(tascam->pcm);
-	if (err < 0)
-		goto free_card;
-
-	err = tascam_alloc_urbs(tascam);
-	if (err < 0)
-		goto free_card;
+	if (kfifo_alloc(&tascam->midi_in_fifo, MIDI_IN_FIFO_SIZE, GFP_KERNEL)) {
+		snd_card_free(card);
+		return -ENOMEM;
+	}
 
 	strscpy(card->driver, DRIVER_NAME, sizeof(card->driver));
 	if (dev->descriptor.idProduct == USB_PID_TASCAM_US144) {
@@ -364,6 +520,28 @@ static int tascam_probe(struct usb_interface *intf,
 	snprintf(card->longname, sizeof(card->longname), "%s (%04x:%04x) at %s",
 		 card->shortname, USB_VID_TASCAM, dev->descriptor.idProduct,
 		 dev_name(&dev->dev));
+
+	err = snd_pcm_new(card, "US144MKII PCM", 0, 1, 1, &tascam->pcm);
+	if (err < 0)
+		goto free_card;
+	tascam->pcm->private_data = tascam;
+	strscpy(tascam->pcm->name, "US144MKII PCM", sizeof(tascam->pcm->name));
+
+	err = tascam_init_pcm(tascam->pcm);
+	if (err < 0)
+		goto free_card;
+
+	err = tascam_create_midi(tascam);
+	if (err < 0)
+		goto free_card;
+
+	err = tascam_create_controls(tascam);
+	if (err < 0)
+		goto free_card;
+
+	err = tascam_alloc_urbs(tascam);
+	if (err < 0)
+		goto free_card;
 
 	err = snd_card_register(card);
 	if (err < 0)
@@ -385,8 +563,8 @@ free_card:
  * @intf: The USB interface being disconnected.
  *
  * This function is called when the device is disconnected from the system.
- * It cleans up all allocated resources by freeing the sound card, which in
- * turn triggers freeing of URBs and other resources.
+ * It cleans up all allocated resources, including killing URBs, freeing
+ * the sound card, and releasing memory.
  */
 static void tascam_disconnect(struct usb_interface *intf)
 {
@@ -396,87 +574,24 @@ static void tascam_disconnect(struct usb_interface *intf)
 		return;
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
+		/* Ensure all deferred work is complete before freeing resources */
 		snd_card_disconnect(tascam->card);
 		cancel_work_sync(&tascam->stop_work);
 		cancel_work_sync(&tascam->capture_work);
+		cancel_work_sync(&tascam->midi_in_work);
+		cancel_work_sync(&tascam->midi_out_work);
 		cancel_work_sync(&tascam->stop_pcm_work);
+
+		usb_kill_anchored_urbs(&tascam->playback_anchor);
+		usb_kill_anchored_urbs(&tascam->capture_anchor);
+		usb_kill_anchored_urbs(&tascam->feedback_anchor);
+		usb_kill_anchored_urbs(&tascam->midi_in_anchor);
+		usb_kill_anchored_urbs(&tascam->midi_out_anchor);
+		timer_delete_sync(&tascam->error_timer);
 		tascam_free_urbs(tascam);
 		snd_card_free(tascam->card);
 		dev_idx--;
 	}
-}
-
-/**
- * tascam_suspend() - Handles device suspension.
- * @intf: The USB interface being suspended.
- * @message: Power management message.
- *
- * This function is called when the device is suspended. It stops all active
- * streams and kills all URBs.
- *
- * Return: 0 on success.
- */
-static int tascam_suspend(struct usb_interface *intf, pm_message_t message)
-{
-	struct tascam_card *tascam = usb_get_intfdata(intf);
-
-	if (!tascam)
-		return 0;
-
-	snd_pcm_suspend_all(tascam->pcm);
-
-	cancel_work_sync(&tascam->stop_work);
-	cancel_work_sync(&tascam->capture_work);
-	cancel_work_sync(&tascam->stop_pcm_work);
-	usb_kill_anchored_urbs(&tascam->playback_anchor);
-	usb_kill_anchored_urbs(&tascam->capture_anchor);
-	usb_kill_anchored_urbs(&tascam->feedback_anchor);
-
-	return 0;
-}
-
-/**
- * tascam_resume() - Handles device resumption from suspend.
- * @intf: The USB interface being resumed.
- *
- * This function is called when the device resumes from suspend. It
- * re-establishes the active USB interface settings and re-configures the sample
- * rate if it was previously active.
- *
- * Return: 0 on success, or a negative error code on failure.
- */
-static int tascam_resume(struct usb_interface *intf)
-{
-	struct tascam_card *tascam = usb_get_intfdata(intf);
-	int err;
-
-	if (!tascam)
-		return 0;
-
-	dev_info(&intf->dev, "resuming TASCAM US-144MKII\n");
-
-	/* Re-establish the active USB interface settings. */
-	err = usb_set_interface(tascam->dev, 0, 1);
-	if (err < 0) {
-		dev_err(&intf->dev,
-			"resume: failed to set alt setting on intf 0: %d\n",
-			err);
-		return err;
-	}
-	err = usb_set_interface(tascam->dev, 1, 1);
-	if (err < 0) {
-		dev_err(&intf->dev,
-			"resume: failed to set alt setting on intf 1: %d\n",
-			err);
-		return err;
-	}
-
-	/* Re-configure the sample rate if one was previously active */
-	if (tascam->current_rate > 0)
-		us144mkii_configure_device_for_rate(tascam,
-						    tascam->current_rate);
-
-	return 0;
 }
 
 static const struct usb_device_id tascam_usb_ids[] = {
