@@ -46,9 +46,7 @@ struct smbd_connection {
 	struct smbdirect_socket socket;
 
 	struct work_struct post_send_credits_work;
-
-	spinlock_t lock_new_credits_offered;
-	int new_credits_offered;
+	atomic_t receive_posted;
 
 	/* dynamic connection parameters defined in [MS-SMBD] 3.1.1.1 */
 	enum keep_alive_status keep_alive_requested;

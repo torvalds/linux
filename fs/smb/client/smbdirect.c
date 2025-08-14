@@ -492,6 +492,7 @@ static bool process_negotiation_response(
 	atomic_set(&sc->send_io.credits.count, le16_to_cpu(packet->credits_granted));
 
 	atomic_set(&info->receive_credits, 0);
+	atomic_set(&info->receive_posted, 0);
 
 	if (le32_to_cpu(packet->preferred_send_size) > sp->max_recv_size) {
 		log_rdma_event(ERR, "error: preferred_send_size=%d\n",
@@ -533,7 +534,6 @@ static bool process_negotiation_response(
 
 static void smbd_post_send_credits(struct work_struct *work)
 {
-	int ret = 0;
 	int rc;
 	struct smbdirect_recv_io *response;
 	struct smbd_connection *info =
@@ -561,13 +561,9 @@ static void smbd_post_send_credits(struct work_struct *work)
 				break;
 			}
 
-			ret++;
+			atomic_inc(&info->receive_posted);
 		}
 	}
-
-	spin_lock(&info->lock_new_credits_offered);
-	info->new_credits_offered += ret;
-	spin_unlock(&info->lock_new_credits_offered);
 
 	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
 	info->send_immediate = true;
@@ -665,6 +661,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 				sc->recv_io.reassembly.full_packet_received = true;
 		}
 
+		atomic_dec(&info->receive_posted);
 		atomic_dec(&info->receive_credits);
 		old_recv_credit_target = info->receive_credit_target;
 		info->receive_credit_target =
@@ -965,10 +962,16 @@ static int manage_credits_prior_sending(struct smbd_connection *info)
 {
 	int new_credits;
 
-	spin_lock(&info->lock_new_credits_offered);
-	new_credits = info->new_credits_offered;
-	info->new_credits_offered = 0;
-	spin_unlock(&info->lock_new_credits_offered);
+	if (atomic_read(&info->receive_credits) >= info->receive_credit_target)
+		return 0;
+
+	new_credits = atomic_read(&info->receive_posted);
+	if (new_credits == 0)
+		return 0;
+
+	new_credits -= atomic_read(&info->receive_credits);
+	if (new_credits <= 0)
+		return 0;
 
 	return new_credits;
 }
@@ -1177,10 +1180,7 @@ err_dma:
 					    DMA_TO_DEVICE);
 	mempool_free(request, sc->send_io.mem.pool);
 
-	/* roll back receive credits and credits to be offered */
-	spin_lock(&info->lock_new_credits_offered);
-	info->new_credits_offered += new_credits;
-	spin_unlock(&info->lock_new_credits_offered);
+	/* roll back the granted receive credits */
 	atomic_sub(new_credits, &info->receive_credits);
 
 err_alloc:
@@ -1866,8 +1866,6 @@ static struct smbd_connection *_smbd_get_connection(
 		msecs_to_jiffies(sp->keepalive_interval_msec));
 
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
-	info->new_credits_offered = 0;
-	spin_lock_init(&info->lock_new_credits_offered);
 
 	rc = smbd_negotiate(info);
 	if (rc) {
