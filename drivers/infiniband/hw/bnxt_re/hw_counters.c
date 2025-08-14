@@ -79,22 +79,22 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_TX_DISCARDS].name              =  "tx_roce_discards",
 	[BNXT_RE_RX_ERRORS].name		=  "rx_roce_errors",
 	[BNXT_RE_RX_DISCARDS].name		=  "rx_roce_discards",
-	[BNXT_RE_TO_RETRANSMITS].name        = "to_retransmits",
-	[BNXT_RE_SEQ_ERR_NAKS_RCVD].name     = "seq_err_naks_rcvd",
-	[BNXT_RE_MAX_RETRY_EXCEEDED].name    = "max_retry_exceeded",
-	[BNXT_RE_RNR_NAKS_RCVD].name         = "rnr_naks_rcvd",
-	[BNXT_RE_MISSING_RESP].name          = "missing_resp",
+	[BNXT_RE_TO_RETRANSMITS].name           =  "local_ack_timeout_err",
+	[BNXT_RE_SEQ_ERR_NAKS_RCVD].name        =  "packet_seq_err",
+	[BNXT_RE_MAX_RETRY_EXCEEDED].name	=  "max_retry_exceeded",
+	[BNXT_RE_RNR_NAKS_RCVD].name            =  "rnr_nak_retry_err",
+	[BNXT_RE_MISSING_RESP].name             =  "implied_nak_seq_err",
 	[BNXT_RE_UNRECOVERABLE_ERR].name     = "unrecoverable_err",
 	[BNXT_RE_BAD_RESP_ERR].name          = "bad_resp_err",
 	[BNXT_RE_LOCAL_QP_OP_ERR].name       = "local_qp_op_err",
 	[BNXT_RE_LOCAL_PROTECTION_ERR].name  = "local_protection_err",
 	[BNXT_RE_MEM_MGMT_OP_ERR].name       = "mem_mgmt_op_err",
-	[BNXT_RE_REMOTE_INVALID_REQ_ERR].name = "remote_invalid_req_err",
-	[BNXT_RE_REMOTE_ACCESS_ERR].name     = "remote_access_err",
+	[BNXT_RE_REMOTE_INVALID_REQ_ERR].name   = "req_remote_invalid_request",
+	[BNXT_RE_REMOTE_ACCESS_ERR].name        = "req_remote_access_errors",
 	[BNXT_RE_REMOTE_OP_ERR].name         = "remote_op_err",
-	[BNXT_RE_DUP_REQ].name               = "dup_req",
+	[BNXT_RE_DUP_REQ].name               = "duplicate_request",
 	[BNXT_RE_RES_EXCEED_MAX].name        = "res_exceed_max",
-	[BNXT_RE_RES_LENGTH_MISMATCH].name   = "res_length_mismatch",
+	[BNXT_RE_RES_LENGTH_MISMATCH].name   = "resp_local_length_error",
 	[BNXT_RE_RES_EXCEEDS_WQE].name       = "res_exceeds_wqe",
 	[BNXT_RE_RES_OPCODE_ERR].name        = "res_opcode_err",
 	[BNXT_RE_RES_RX_INVALID_RKEY].name   = "res_rx_invalid_rkey",
@@ -118,7 +118,7 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_RES_SRQ_LOAD_ERR].name      = "res_srq_load_err",
 	[BNXT_RE_RES_TX_PCI_ERR].name        = "res_tx_pci_err",
 	[BNXT_RE_RES_RX_PCI_ERR].name        = "res_rx_pci_err",
-	[BNXT_RE_OUT_OF_SEQ_ERR].name        = "oos_drop_count",
+	[BNXT_RE_OUT_OF_SEQ_ERR].name        = "out_of_sequence",
 	[BNXT_RE_TX_ATOMIC_REQ].name	     = "tx_atomic_req",
 	[BNXT_RE_TX_READ_REQ].name	     = "tx_read_req",
 	[BNXT_RE_TX_READ_RES].name	     = "tx_read_resp",
@@ -126,23 +126,26 @@ static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
 	[BNXT_RE_TX_SEND_REQ].name	     = "tx_send_req",
 	[BNXT_RE_TX_ROCE_PKTS].name          = "tx_roce_only_pkts",
 	[BNXT_RE_TX_ROCE_BYTES].name         = "tx_roce_only_bytes",
-	[BNXT_RE_RX_ATOMIC_REQ].name	     = "rx_atomic_req",
-	[BNXT_RE_RX_READ_REQ].name	     = "rx_read_req",
+	[BNXT_RE_RX_ATOMIC_REQ].name	     = "rx_atomic_requests",
+	[BNXT_RE_RX_READ_REQ].name	     = "rx_read_requests",
 	[BNXT_RE_RX_READ_RESP].name	     = "rx_read_resp",
-	[BNXT_RE_RX_WRITE_REQ].name	     = "rx_write_req",
+	[BNXT_RE_RX_WRITE_REQ].name	     = "rx_write_requests",
 	[BNXT_RE_RX_SEND_REQ].name	     = "rx_send_req",
 	[BNXT_RE_RX_ROCE_PKTS].name          = "rx_roce_only_pkts",
 	[BNXT_RE_RX_ROCE_BYTES].name         = "rx_roce_only_bytes",
 	[BNXT_RE_RX_ROCE_GOOD_PKTS].name     = "rx_roce_good_pkts",
 	[BNXT_RE_RX_ROCE_GOOD_BYTES].name    = "rx_roce_good_bytes",
-	[BNXT_RE_OOB].name		     = "rx_out_of_buffer",
-	[BNXT_RE_TX_CNP].name                = "tx_cnp_pkts",
-	[BNXT_RE_RX_CNP].name                = "rx_cnp_pkts",
-	[BNXT_RE_RX_ECN].name                = "rx_ecn_marked_pkts",
+	[BNXT_RE_OOB].name		     = "out_of_buffer",
+	[BNXT_RE_TX_CNP].name                = "np_cnp_pkts",
+	[BNXT_RE_RX_CNP].name                = "rp_cnp_handled",
+	[BNXT_RE_RX_ECN].name                = "np_ecn_marked_roce_packets",
 	[BNXT_RE_PACING_RESCHED].name        = "pacing_reschedule",
 	[BNXT_RE_PACING_CMPL].name           = "pacing_complete",
 	[BNXT_RE_PACING_ALERT].name          = "pacing_alerts",
 	[BNXT_RE_DB_FIFO_REG].name           = "db_fifo_register",
+	[BNXT_RE_REQ_CQE_ERROR].name            = "req_cqe_error",
+	[BNXT_RE_RESP_CQE_ERROR].name           = "resp_cqe_error",
+	[BNXT_RE_RESP_REMOTE_ACCESS_ERRS].name  = "resp_remote_access_errors",
 };
 
 static void bnxt_re_copy_ext_stats(struct bnxt_re_dev *rdev,
@@ -273,6 +276,20 @@ static void bnxt_re_copy_err_stats(struct bnxt_re_dev *rdev,
 			err_s->res_rx_pci_err;
 	stats->value[BNXT_RE_OUT_OF_SEQ_ERR]    =
 			err_s->res_oos_drop_count;
+	stats->value[BNXT_RE_REQ_CQE_ERROR]     =
+			err_s->bad_resp_err +
+			err_s->local_qp_op_err +
+			err_s->local_protection_err +
+			err_s->mem_mgmt_op_err +
+			err_s->remote_invalid_req_err +
+			err_s->remote_access_err +
+			err_s->remote_op_err;
+	stats->value[BNXT_RE_RESP_CQE_ERROR] =
+			err_s->res_cmp_err +
+			err_s->res_cq_load_err;
+	stats->value[BNXT_RE_RESP_REMOTE_ACCESS_ERRS] =
+			err_s->res_rx_no_perm +
+			err_s->res_tx_no_perm;
 }
 
 static void bnxt_re_copy_db_pacing_stats(struct bnxt_re_dev *rdev,
