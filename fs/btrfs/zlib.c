@@ -55,6 +55,7 @@ void zlib_free_workspace(struct list_head *ws)
 
 struct list_head *zlib_alloc_workspace(struct btrfs_fs_info *fs_info, unsigned int level)
 {
+	const u32 blocksize = fs_info->sectorsize;
 	struct workspace *workspace;
 	int workspacesize;
 
@@ -78,8 +79,8 @@ struct list_head *zlib_alloc_workspace(struct btrfs_fs_info *fs_info, unsigned i
 		workspace->buf_size = ZLIB_DFLTCC_BUF_SIZE;
 	}
 	if (!workspace->buf) {
-		workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		workspace->buf_size = PAGE_SIZE;
+		workspace->buf = kmalloc(blocksize, GFP_KERNEL);
+		workspace->buf_size = blocksize;
 	}
 	if (!workspace->strm.workspace || !workspace->buf)
 		goto fail;

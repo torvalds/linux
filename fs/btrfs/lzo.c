@@ -58,15 +58,21 @@
  * 0x1000   | SegHdr N+1| Data payload N+1 ...                |
  */
 
-#define WORKSPACE_BUF_LENGTH	(lzo1x_worst_compress(PAGE_SIZE))
-#define WORKSPACE_CBUF_LENGTH	(lzo1x_worst_compress(PAGE_SIZE))
-
 struct workspace {
 	void *mem;
 	void *buf;	/* where decompressed data goes */
 	void *cbuf;	/* where compressed data goes */
 	struct list_head list;
 };
+
+static u32 workspace_buf_length(const struct btrfs_fs_info *fs_info)
+{
+	return lzo1x_worst_compress(fs_info->sectorsize);
+}
+static u32 workspace_cbuf_length(const struct btrfs_fs_info *fs_info)
+{
+	return lzo1x_worst_compress(fs_info->sectorsize);
+}
 
 void lzo_free_workspace(struct list_head *ws)
 {
@@ -87,8 +93,8 @@ struct list_head *lzo_alloc_workspace(struct btrfs_fs_info *fs_info)
 		return ERR_PTR(-ENOMEM);
 
 	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_NOWARN);
-	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
-	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
+	workspace->buf = kvmalloc(workspace_buf_length(fs_info), GFP_KERNEL | __GFP_NOWARN);
+	workspace->cbuf = kvmalloc(workspace_cbuf_length(fs_info), GFP_KERNEL | __GFP_NOWARN);
 	if (!workspace->mem || !workspace->buf || !workspace->cbuf)
 		goto fail;
 
@@ -384,7 +390,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		kunmap_local(kaddr);
 		cur_in += LZO_LEN;
 
-		if (unlikely(seg_len > WORKSPACE_CBUF_LENGTH)) {
+		if (unlikely(seg_len > workspace_cbuf_length(fs_info))) {
 			struct btrfs_inode *inode = cb->bbio.inode;
 
 			/*
@@ -444,7 +450,7 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	const u32 sectorsize = fs_info->sectorsize;
 	size_t in_len;
 	size_t out_len;
-	size_t max_segment_len = WORKSPACE_BUF_LENGTH;
+	size_t max_segment_len = workspace_buf_length(fs_info);
 	int ret = 0;
 
 	if (srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2)

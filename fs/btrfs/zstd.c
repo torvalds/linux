@@ -370,6 +370,7 @@ void zstd_free_workspace(struct list_head *ws)
 
 struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level)
 {
+	const u32 blocksize = fs_info->sectorsize;
 	struct workspace *workspace;
 
 	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
@@ -382,7 +383,7 @@ struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level)
 	workspace->req_level = level;
 	workspace->last_used = jiffies;
 	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL | __GFP_NOWARN);
-	workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	workspace->buf = kmalloc(blocksize, GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf)
 		goto fail;
 
@@ -590,6 +591,7 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	size_t srclen = cb->compressed_len;
 	zstd_dstream *stream;
 	int ret = 0;
+	const u32 blocksize = cb_to_fs_info(cb)->sectorsize;
 	unsigned long folio_in_index = 0;
 	unsigned long total_folios_in = DIV_ROUND_UP(srclen, PAGE_SIZE);
 	unsigned long buf_start;
@@ -613,7 +615,7 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 	workspace->out_buf.dst = workspace->buf;
 	workspace->out_buf.pos = 0;
-	workspace->out_buf.size = PAGE_SIZE;
+	workspace->out_buf.size = blocksize;
 
 	while (1) {
 		size_t ret2;
