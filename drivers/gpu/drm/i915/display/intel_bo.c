@@ -2,7 +2,7 @@
 /* Copyright © 2024 Intel Corporation */
 
 #include <drm/drm_panic.h>
-#include "display/intel_display_types.h"
+
 #include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_object.h"
 #include "gem/i915_gem_object_frontbuffer.h"
