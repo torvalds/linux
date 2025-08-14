@@ -217,5 +217,6 @@ endif
 ifneq ($(findstring e, $(KBUILD_EXTRA_WARN))$(CONFIG_WERROR),)
 
 KBUILD_CPPFLAGS		+= -Werror
+KBUILD_RUSTFLAGS	+= -Dwarnings
 
 endif
