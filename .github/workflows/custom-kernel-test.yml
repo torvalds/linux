@@ -50,7 +50,7 @@ jobs:
           image-type: ${{ inputs.image-type || 'ubuntu-22.04' }}
           volume-size: '20'
           runner-home-dir: '/tmp'
-          packages: '["kexec-tools"]'
+          packages: '["kexec-tools", "awscli"]'
           pre-runner-script: |
             # Custom Kernel Kexec Setup
             # =========================
