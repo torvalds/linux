@@ -653,13 +653,6 @@ void irq_mark_irq(unsigned int irq)
 	irq_insert_desc(irq, irq_desc + irq);
 }
 
-#ifdef CONFIG_GENERIC_IRQ_LEGACY
-void irq_init_desc(unsigned int irq)
-{
-	free_desc(irq);
-}
-#endif
-
 #endif /* !CONFIG_SPARSE_IRQ */
 
 int handle_irq_desc(struct irq_desc *desc)
