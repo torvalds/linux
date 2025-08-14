@@ -112,19 +112,19 @@ static inline int clip_level(int level)
  */
 static void zstd_reclaim_timer_fn(struct timer_list *timer)
 {
+	struct zstd_workspace_manager *zwsm =
+		container_of(timer, struct zstd_workspace_manager, timer);
 	unsigned long reclaim_threshold = jiffies - ZSTD_BTRFS_RECLAIM_JIFFIES;
 	struct list_head *pos, *next;
 
-	ASSERT(timer == &wsm.timer);
+	spin_lock(&zwsm->lock);
 
-	spin_lock(&wsm.lock);
-
-	if (list_empty(&wsm.lru_list)) {
-		spin_unlock(&wsm.lock);
+	if (list_empty(&zwsm->lru_list)) {
+		spin_unlock(&zwsm->lock);
 		return;
 	}
 
-	list_for_each_prev_safe(pos, next, &wsm.lru_list) {
+	list_for_each_prev_safe(pos, next, &zwsm->lru_list) {
 		struct workspace *victim = container_of(pos, struct workspace,
 							lru_list);
 		int level;
@@ -141,15 +141,15 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 		list_del(&victim->list);
 		zstd_free_workspace(&victim->list);
 
-		if (list_empty(&wsm.idle_ws[level]))
-			clear_bit(level, &wsm.active_map);
+		if (list_empty(&zwsm->idle_ws[level]))
+			clear_bit(level, &zwsm->active_map);
 
 	}
 
-	if (!list_empty(&wsm.lru_list))
-		mod_timer(&wsm.timer, jiffies + ZSTD_BTRFS_RECLAIM_JIFFIES);
+	if (!list_empty(&zwsm->lru_list))
+		mod_timer(&zwsm->timer, jiffies + ZSTD_BTRFS_RECLAIM_JIFFIES);
 
-	spin_unlock(&wsm.lock);
+	spin_unlock(&zwsm->lock);
 }
 
 /*
@@ -292,29 +292,31 @@ void zstd_cleanup_workspace_manager(void)
  * offer the opportunity to reclaim the workspace in favor of allocating an
  * appropriately sized one in the future.
  */
-static struct list_head *zstd_find_workspace(int level)
+static struct list_head *zstd_find_workspace(struct btrfs_fs_info *fs_info, int level)
 {
+	struct zstd_workspace_manager *zwsm = fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD];
 	struct list_head *ws;
 	struct workspace *workspace;
 	int i = clip_level(level);
 
-	spin_lock_bh(&wsm.lock);
-	for_each_set_bit_from(i, &wsm.active_map, ZSTD_BTRFS_MAX_LEVEL) {
-		if (!list_empty(&wsm.idle_ws[i])) {
-			ws = wsm.idle_ws[i].next;
+	ASSERT(zwsm);
+	spin_lock_bh(&zwsm->lock);
+	for_each_set_bit_from(i, &zwsm->active_map, ZSTD_BTRFS_MAX_LEVEL) {
+		if (!list_empty(&zwsm->idle_ws[i])) {
+			ws = zwsm->idle_ws[i].next;
 			workspace = list_to_workspace(ws);
 			list_del_init(ws);
 			/* keep its place if it's a lower level using this */
 			workspace->req_level = level;
 			if (clip_level(level) == workspace->level)
 				list_del(&workspace->lru_list);
-			if (list_empty(&wsm.idle_ws[i]))
-				clear_bit(i, &wsm.active_map);
-			spin_unlock_bh(&wsm.lock);
+			if (list_empty(&zwsm->idle_ws[i]))
+				clear_bit(i, &zwsm->active_map);
+			spin_unlock_bh(&zwsm->lock);
 			return ws;
 		}
 	}
-	spin_unlock_bh(&wsm.lock);
+	spin_unlock_bh(&zwsm->lock);
 
 	return NULL;
 }
@@ -331,15 +333,18 @@ static struct list_head *zstd_find_workspace(int level)
  */
 struct list_head *zstd_get_workspace(struct btrfs_fs_info *fs_info, int level)
 {
+	struct zstd_workspace_manager *zwsm = fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD];
 	struct list_head *ws;
 	unsigned int nofs_flag;
+
+	ASSERT(zwsm);
 
 	/* level == 0 means we can use any workspace */
 	if (!level)
 		level = 1;
 
 again:
-	ws = zstd_find_workspace(level);
+	ws = zstd_find_workspace(fs_info, level);
 	if (ws)
 		return ws;
 
@@ -350,9 +355,9 @@ again:
 	if (IS_ERR(ws)) {
 		DEFINE_WAIT(wait);
 
-		prepare_to_wait(&wsm.wait, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(&zwsm->wait, &wait, TASK_UNINTERRUPTIBLE);
 		schedule();
-		finish_wait(&wsm.wait, &wait);
+		finish_wait(&zwsm->wait, &wait);
 
 		goto again;
 	}
@@ -373,32 +378,34 @@ again:
  */
 void zstd_put_workspace(struct btrfs_fs_info *fs_info, struct list_head *ws)
 {
+	struct zstd_workspace_manager *zwsm = fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD];
 	struct workspace *workspace = list_to_workspace(ws);
 
-	spin_lock_bh(&wsm.lock);
+	ASSERT(zwsm);
+	spin_lock_bh(&zwsm->lock);
 
 	/* A node is only taken off the lru if we are the corresponding level */
 	if (clip_level(workspace->req_level) == workspace->level) {
 		/* Hide a max level workspace from reclaim */
-		if (list_empty(&wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1])) {
+		if (list_empty(&zwsm->idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1])) {
 			INIT_LIST_HEAD(&workspace->lru_list);
 		} else {
 			workspace->last_used = jiffies;
-			list_add(&workspace->lru_list, &wsm.lru_list);
-			if (!timer_pending(&wsm.timer))
-				mod_timer(&wsm.timer,
+			list_add(&workspace->lru_list, &zwsm->lru_list);
+			if (!timer_pending(&zwsm->timer))
+				mod_timer(&zwsm->timer,
 					  jiffies + ZSTD_BTRFS_RECLAIM_JIFFIES);
 		}
 	}
 
-	set_bit(workspace->level, &wsm.active_map);
-	list_add(&workspace->list, &wsm.idle_ws[workspace->level]);
+	set_bit(workspace->level, &zwsm->active_map);
+	list_add(&workspace->list, &zwsm->idle_ws[workspace->level]);
 	workspace->req_level = 0;
 
-	spin_unlock_bh(&wsm.lock);
+	spin_unlock_bh(&zwsm->lock);
 
 	if (workspace->level == clip_level(ZSTD_BTRFS_MAX_LEVEL))
-		cond_wake_up(&wsm.wait);
+		cond_wake_up(&zwsm->wait);
 }
 
 void zstd_free_workspace(struct list_head *ws)

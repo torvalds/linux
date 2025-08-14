@@ -875,7 +875,7 @@ static void btrfs_cleanup_workspace_manager(int type)
  */
 struct list_head *btrfs_get_workspace(struct btrfs_fs_info *fs_info, int type, int level)
 {
-	struct workspace_manager *wsm;
+	struct workspace_manager *wsm = fs_info->compr_wsm[type];
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
 	unsigned nofs_flag;
@@ -885,7 +885,7 @@ struct list_head *btrfs_get_workspace(struct btrfs_fs_info *fs_info, int type, i
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
 
-	wsm = btrfs_compress_op[type]->workspace_manager;
+	ASSERT(wsm);
 	idle_ws	 = &wsm->idle_ws;
 	ws_lock	 = &wsm->ws_lock;
 	total_ws = &wsm->total_ws;
@@ -974,19 +974,19 @@ static struct list_head *get_workspace(struct btrfs_fs_info *fs_info, int type, 
  */
 void btrfs_put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_head *ws)
 {
-	struct workspace_manager *wsm;
+	struct workspace_manager *gwsm = fs_info->compr_wsm[type];
 	struct list_head *idle_ws;
 	spinlock_t *ws_lock;
 	atomic_t *total_ws;
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
 
-	wsm = btrfs_compress_op[type]->workspace_manager;
-	idle_ws	 = &wsm->idle_ws;
-	ws_lock	 = &wsm->ws_lock;
-	total_ws = &wsm->total_ws;
-	ws_wait	 = &wsm->ws_wait;
-	free_ws	 = &wsm->free_ws;
+	ASSERT(gwsm);
+	idle_ws	 = &gwsm->idle_ws;
+	ws_lock	 = &gwsm->ws_lock;
+	total_ws = &gwsm->total_ws;
+	ws_wait	 = &gwsm->ws_wait;
+	free_ws	 = &gwsm->free_ws;
 
 	spin_lock(ws_lock);
 	if (*free_ws <= num_online_cpus()) {
