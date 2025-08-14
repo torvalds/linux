@@ -4602,6 +4602,10 @@ static int macb_init(struct platform_device *pdev)
 		dev->hw_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	if (bp->caps & MACB_CAPS_SG_DISABLED)
 		dev->hw_features &= ~NETIF_F_SG;
+	/* Enable HW_TC if hardware supports QBV */
+	if (bp->caps & MACB_CAPS_QBV)
+		dev->hw_features |= NETIF_F_HW_TC;
+
 	dev->features = dev->hw_features;
 
 	/* Check RX Flow Filters support.
@@ -5354,8 +5358,9 @@ static const struct macb_config sama7g5_emac_config = {
 
 static const struct macb_config versal_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_JUMBO |
-		MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_BD_RD_PREFETCH | MACB_CAPS_NEED_TSUCLK |
-		MACB_CAPS_QUEUE_DISABLE,
+		MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_BD_RD_PREFETCH |
+		MACB_CAPS_NEED_TSUCLK | MACB_CAPS_QUEUE_DISABLE |
+		MACB_CAPS_QBV,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = init_reset_optional,
