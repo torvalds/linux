@@ -260,7 +260,7 @@ nvgrace_gpu_ioctl_get_region_info(struct vfio_device *core_vdev,
 	info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
 	/*
 	 * The region memory size may not be power-of-2 aligned.
-	 * Given that the memory  as a BAR and may not be
+	 * Given that the memory is a BAR and may not be
 	 * aligned, roundup to the next power-of-2.
 	 */
 	info.size = memregion->bar_size;
