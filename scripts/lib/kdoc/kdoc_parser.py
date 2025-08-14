@@ -568,12 +568,18 @@ class KernelDoc:
 
                 bitfield_re = KernRe(r'(.*?):(\w+)')
                 for param in args:
+                    #
+                    # For pointers, shift the star(s) from the variable name to the
+                    # type declaration.
+                    #
                     r = KernRe(r'^(\*+)\s*(.*)')
                     if r.match(param):
                         self.push_parameter(ln, decl_type, r.group(2),
                                             f"{dtype} {r.group(1)}",
                                             arg, declaration_name)
-
+                    #
+                    # Perform a similar shift for bitfields.
+                    #
                     elif bitfield_re.search(param):
                         if dtype != "":  # Skip unnamed bit-fields
                             self.push_parameter(ln, decl_type, bitfield_re.group(1),
