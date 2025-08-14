@@ -71,8 +71,8 @@ jobs:
             echo "Installing AWS CLI" | tee -a /var/log/kexec-setup.log
             cd /tmp
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install | tee -a /var/log/kexec-setup.log
+            unzip awscliv2.zip 2>&1 > /dev/null
+            sudo ./aws/install 2>&1 > /dev/null
 
             # Download and parse metadata JSON to get kernel and initrd paths
             echo "Downloading metadata.json from S3..." | tee -a /var/log/kexec-setup.log
