@@ -145,7 +145,7 @@ struct vma_merge_struct {
 	 */
 	bool __remove_middle :1;
 	/*
-	 * Internal flag used during the merge operationr to indicate we will
+	 * Internal flag used during the merge operation to indicate we will
 	 * remove vmg->next.
 	 */
 	bool __remove_next :1;
