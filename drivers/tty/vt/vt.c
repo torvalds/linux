@@ -4801,57 +4801,51 @@ void reset_palette(struct vc_data *vc)
 static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 {
 	struct console_font font;
-	int rc = -EINVAL;
 	int c;
 	unsigned int vpitch = op->op == KD_FONT_OP_GET_TALL ? op->height : 32;
 
 	if (vpitch > max_font_height)
 		return -EINVAL;
 
+	void *font_data __free(kvfree) = NULL;
 	if (op->data) {
-		font.data = kvzalloc(max_font_size, GFP_KERNEL);
+		font.data = font_data = kvzalloc(max_font_size, GFP_KERNEL);
 		if (!font.data)
 			return -ENOMEM;
 	} else
 		font.data = NULL;
 
-	console_lock();
-	if (vc->vc_mode != KD_TEXT)
-		rc = -EINVAL;
-	else if (vc->vc_sw->con_font_get)
-		rc = vc->vc_sw->con_font_get(vc, &font, vpitch);
-	else
-		rc = -ENOSYS;
-	console_unlock();
+	scoped_guard(console_lock) {
+		if (vc->vc_mode != KD_TEXT)
+			return -EINVAL;
+		if (!vc->vc_sw->con_font_get)
+			return -ENOSYS;
 
-	if (rc)
-		goto out;
+		int ret = vc->vc_sw->con_font_get(vc, &font, vpitch);
+		if (ret)
+			return ret;
+	}
 
 	c = (font.width+7)/8 * vpitch * font.charcount;
 
 	if (op->data && font.charcount > op->charcount)
-		rc = -ENOSPC;
+		return -ENOSPC;
 	if (font.width > op->width || font.height > op->height)
-		rc = -ENOSPC;
-	if (rc)
-		goto out;
+		return -ENOSPC;
 
 	op->height = font.height;
 	op->width = font.width;
 	op->charcount = font.charcount;
 
 	if (op->data && copy_to_user(op->data, font.data, c))
-		rc = -EFAULT;
+		return -EFAULT;
 
-out:
-	kvfree(font.data);
-	return rc;
+	return 0;
 }
 
 static int con_font_set(struct vc_data *vc, const struct console_font_op *op)
 {
 	struct console_font font;
-	int rc = -EINVAL;
 	int size;
 	unsigned int vpitch = op->op == KD_FONT_OP_SET_TALL ? op->height : 32;
 
@@ -4870,7 +4864,7 @@ static int con_font_set(struct vc_data *vc, const struct console_font_op *op)
 	if (size > max_font_size)
 		return -ENOSPC;
 
-	font.data = memdup_user(op->data, size);
+	void *font_data __free(kfree) = font.data = memdup_user(op->data, size);
 	if (IS_ERR(font.data))
 		return PTR_ERR(font.data);
 
@@ -4878,18 +4872,17 @@ static int con_font_set(struct vc_data *vc, const struct console_font_op *op)
 	font.width = op->width;
 	font.height = op->height;
 
-	console_lock();
+	guard(console_lock)();
+
 	if (vc->vc_mode != KD_TEXT)
-		rc = -EINVAL;
-	else if (vc->vc_sw->con_font_set) {
-		if (vc_is_sel(vc))
-			clear_selection();
-		rc = vc->vc_sw->con_font_set(vc, &font, vpitch, op->flags);
-	} else
-		rc = -ENOSYS;
-	console_unlock();
-	kfree(font.data);
-	return rc;
+		return -EINVAL;
+	if (!vc->vc_sw->con_font_set)
+		return -ENOSYS;
+
+	if (vc_is_sel(vc))
+		clear_selection();
+
+	return vc->vc_sw->con_font_set(vc, &font, vpitch, op->flags);
 }
 
 static int con_font_default(struct vc_data *vc, struct console_font_op *op)
@@ -4897,8 +4890,6 @@ static int con_font_default(struct vc_data *vc, struct console_font_op *op)
 	struct console_font font = {.width = op->width, .height = op->height};
 	char name[MAX_FONT_NAME];
 	char *s = name;
-	int rc;
-
 
 	if (!op->data)
 		s = NULL;
@@ -4907,23 +4898,23 @@ static int con_font_default(struct vc_data *vc, struct console_font_op *op)
 	else
 		name[MAX_FONT_NAME - 1] = 0;
 
-	console_lock();
-	if (vc->vc_mode != KD_TEXT) {
-		console_unlock();
-		return -EINVAL;
-	}
-	if (vc->vc_sw->con_font_default) {
+	scoped_guard(console_lock) {
+		if (vc->vc_mode != KD_TEXT)
+			return -EINVAL;
+		if (!vc->vc_sw->con_font_default)
+			return -ENOSYS;
+
 		if (vc_is_sel(vc))
 			clear_selection();
-		rc = vc->vc_sw->con_font_default(vc, &font, s);
-	} else
-		rc = -ENOSYS;
-	console_unlock();
-	if (!rc) {
-		op->width = font.width;
-		op->height = font.height;
+		int ret = vc->vc_sw->con_font_default(vc, &font, s);
+		if (ret)
+			return ret;
 	}
-	return rc;
+
+	op->width = font.width;
+	op->height = font.height;
+
+	return 0;
 }
 
 int con_font_op(struct vc_data *vc, struct console_font_op *op)
