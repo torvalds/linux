@@ -486,7 +486,7 @@ out:
 	return ret;
 }
 
-const struct btrfs_compress_op btrfs_lzo_compress = {
+const struct btrfs_compress_levels  btrfs_lzo_compress = {
 	.max_level		= 1,
 	.default_level		= 1,
 };

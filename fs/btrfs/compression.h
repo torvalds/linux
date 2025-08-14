@@ -129,8 +129,7 @@ struct workspace_manager {
 struct list_head *btrfs_get_workspace(struct btrfs_fs_info *fs_info, int type, int level);
 void btrfs_put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_head *ws);
 
-struct btrfs_compress_op {
-	struct workspace_manager *workspace_manager;
+struct btrfs_compress_levels {
 	/* Maximum level supported by the compression algorithm */
 	int min_level;
 	int max_level;
@@ -140,10 +139,10 @@ struct btrfs_compress_op {
 /* The heuristic workspaces are managed via the 0th workspace manager */
 #define BTRFS_NR_WORKSPACE_MANAGERS	BTRFS_NR_COMPRESS_TYPES
 
-extern const struct btrfs_compress_op btrfs_heuristic_compress;
-extern const struct btrfs_compress_op btrfs_zlib_compress;
-extern const struct btrfs_compress_op btrfs_lzo_compress;
-extern const struct btrfs_compress_op btrfs_zstd_compress;
+extern const struct btrfs_compress_levels btrfs_heuristic_compress;
+extern const struct btrfs_compress_levels btrfs_zlib_compress;
+extern const struct btrfs_compress_levels btrfs_lzo_compress;
+extern const struct btrfs_compress_levels btrfs_zstd_compress;
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 bool btrfs_compress_is_valid_type(const char *str, size_t len);

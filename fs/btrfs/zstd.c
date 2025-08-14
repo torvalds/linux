@@ -77,7 +77,6 @@ struct workspace {
  */
 
 struct zstd_workspace_manager {
-	const struct btrfs_compress_op *ops;
 	spinlock_t lock;
 	struct list_head lru_list;
 	struct list_head idle_ws[ZSTD_BTRFS_MAX_LEVEL];
@@ -190,7 +189,6 @@ int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info)
 	if (!zwsm)
 		return -ENOMEM;
 	zstd_calc_ws_mem_sizes();
-	zwsm->ops = &btrfs_zstd_compress;
 	spin_lock_init(&zwsm->lock);
 	init_waitqueue_head(&zwsm->wait);
 	timer_setup(&zwsm->timer, zstd_reclaim_timer_fn, 0);
@@ -727,7 +725,7 @@ finish:
 	return ret;
 }
 
-const struct btrfs_compress_op btrfs_zstd_compress = {
+const struct btrfs_compress_levels btrfs_zstd_compress = {
 	.min_level	= ZSTD_BTRFS_MIN_LEVEL,
 	.max_level	= ZSTD_BTRFS_MAX_LEVEL,
 	.default_level	= ZSTD_BTRFS_DEFAULT_LEVEL,

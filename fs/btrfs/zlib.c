@@ -480,7 +480,7 @@ out:
 	return ret;
 }
 
-const struct btrfs_compress_op btrfs_zlib_compress = {
+const struct btrfs_compress_levels btrfs_zlib_compress = {
 	.min_level		= 1,
 	.max_level		= 9,
 	.default_level		= BTRFS_ZLIB_DEFAULT_LEVEL,

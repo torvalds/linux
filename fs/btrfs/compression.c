@@ -727,9 +727,9 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-const struct btrfs_compress_op btrfs_heuristic_compress = { 0 };
+const struct btrfs_compress_levels btrfs_heuristic_compress = { 0 };
 
-static const struct btrfs_compress_op * const btrfs_compress_op[] = {
+static const struct btrfs_compress_levels * const btrfs_compress_levels[] = {
 	/* The heuristic is represented as compression type 0 */
 	&btrfs_heuristic_compress,
 	&btrfs_zlib_compress,
@@ -981,12 +981,12 @@ static void put_workspace(struct btrfs_fs_info *fs_info, int type, struct list_h
  */
 static int btrfs_compress_set_level(unsigned int type, int level)
 {
-	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
+	const struct btrfs_compress_levels *levels = btrfs_compress_levels[type];
 
 	if (level == 0)
-		level = ops->default_level;
+		level = levels->default_level;
 	else
-		level = clamp(level, ops->min_level, ops->max_level);
+		level = clamp(level, levels->min_level, levels->max_level);
 
 	return level;
 }
@@ -996,9 +996,9 @@ static int btrfs_compress_set_level(unsigned int type, int level)
  */
 bool btrfs_compress_level_valid(unsigned int type, int level)
 {
-	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
+	const struct btrfs_compress_levels *levels = btrfs_compress_levels[type];
 
-	return ops->min_level <= level && level <= ops->max_level;
+	return levels->min_level <= level && level <= levels->max_level;
 }
 
 /* Wrapper around find_get_page(), with extra error message. */
