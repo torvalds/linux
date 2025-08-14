@@ -3229,7 +3229,7 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 			j = 0;
 			// create the final dcfclk and uclk table
 			while (i < num_dcfclk_sta_targets && j < num_uclk_states && num_states < DC__VOLTAGE_STATES) {
-				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j] && i < num_dcfclk_sta_targets) {
+				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j]) {
 					dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
 					dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
 				} else {
