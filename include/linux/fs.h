@@ -3740,13 +3740,18 @@ static inline bool generic_ci_validate_strict_name(struct inode *dir, struct qst
 }
 #endif
 
-static inline bool sb_has_encoding(const struct super_block *sb)
+static inline struct unicode_map *sb_encoding(const struct super_block *sb)
 {
 #if IS_ENABLED(CONFIG_UNICODE)
-	return !!sb->s_encoding;
+	return sb->s_encoding;
 #else
-	return false;
+	return NULL;
 #endif
+}
+
+static inline bool sb_has_encoding(const struct super_block *sb)
+{
+	return !!sb_encoding(sb);
 }
 
 int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
