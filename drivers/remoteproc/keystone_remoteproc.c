@@ -432,7 +432,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	if (ksproc->irq_fault < 0)
 		return ksproc->irq_fault;
 
-	ksproc->kick_gpio = gpiod_get(dev, "kick", GPIOD_ASIS);
+	ksproc->kick_gpio = devm_gpiod_get(dev, "kick", GPIOD_ASIS);
 	ret = PTR_ERR_OR_ZERO(ksproc->kick_gpio);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get gpio for virtio kicks\n");
@@ -449,27 +449,19 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	/* ensure the DSP is in reset before loading firmware */
 	ret = reset_control_status(ksproc->reset);
 	if (ret < 0) {
-		dev_err(dev, "failed to get reset status, status = %d\n", ret);
-		goto release_mem;
+		return dev_err_probe(dev, ret, "failed to get reset status\n");
 	} else if (ret == 0) {
 		WARN(1, "device is not in reset\n");
 		keystone_rproc_dsp_reset(ksproc);
 	}
 
 	ret = rproc_add(rproc);
-	if (ret) {
-		dev_err(dev, "failed to add register device with remoteproc core, status = %d\n",
-			ret);
-		goto release_mem;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register device with remoteproc core\n");
 
 	platform_set_drvdata(pdev, ksproc);
 
 	return 0;
-
-release_mem:
-	gpiod_put(ksproc->kick_gpio);
-	return ret;
 }
 
 static void keystone_rproc_remove(struct platform_device *pdev)
@@ -477,7 +469,6 @@ static void keystone_rproc_remove(struct platform_device *pdev)
 	struct keystone_rproc *ksproc = platform_get_drvdata(pdev);
 
 	rproc_del(ksproc->rproc);
-	gpiod_put(ksproc->kick_gpio);
 }
 
 static const struct of_device_id keystone_rproc_of_match[] = {
