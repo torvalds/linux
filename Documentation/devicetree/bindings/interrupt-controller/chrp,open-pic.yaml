@@ -36,11 +36,26 @@ properties:
     const: 0
 
   '#interrupt-cells':
-    const: 2
+    description:
+      A value of 4 means that interrupt specifiers contain the interrupt-type or
+      type-specific information cells.
+    enum: [ 2, 4 ]
 
   pic-no-reset:
     description: Indicates the PIC shall not be reset during runtime initialization.
     type: boolean
+
+  single-cpu-affinity:
+    description:
+      If present, non-IPI interrupts will be routed to a single CPU at a time.
+    type: boolean
+
+  last-interrupt-source:
+    description:
+      Some MPICs do not correctly report the number of hardware sources in the
+      global feature registers. This value, if specified, overrides the value
+      read from MPIC_GREG_FEATURE_LAST_SRC.
+    $ref: /schemas/types.yaml#/definitions/uint32
 
 required:
   - compatible
