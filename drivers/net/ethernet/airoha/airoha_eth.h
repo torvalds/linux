@@ -252,6 +252,10 @@ enum {
 #define AIROHA_FOE_MAC_SMAC_ID		GENMASK(20, 16)
 #define AIROHA_FOE_MAC_PPPOE_ID		GENMASK(15, 0)
 
+#define AIROHA_FOE_MAC_WDMA_QOS		GENMASK(15, 12)
+#define AIROHA_FOE_MAC_WDMA_BAND	BIT(11)
+#define AIROHA_FOE_MAC_WDMA_WCID	GENMASK(10, 0)
+
 struct airoha_foe_mac_info_common {
 	u16 vlan1;
 	u16 etype;
@@ -479,6 +483,13 @@ struct airoha_flow_table_entry {
 
 	struct rhash_head node;
 	unsigned long cookie;
+};
+
+struct airoha_wdma_info {
+	u8 idx;
+	u8 queue;
+	u16 wcid;
+	u8 bss;
 };
 
 /* RX queue to IRQ mapping: BIT(q) in IRQ(n) */
