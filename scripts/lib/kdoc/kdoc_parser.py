@@ -564,28 +564,18 @@ class KernelDoc:
                 args.insert(0, first_arg.pop())
                 dtype = ' '.join(first_arg)
 
+                bitfield_re = KernRe(r'(.*?):(\w+)')
                 for param in args:
-                    if KernRe(r'^(\*+)\s*(.*)').match(param):
-                        r = KernRe(r'^(\*+)\s*(.*)')
-                        if not r.match(param):
-                            self.emit_msg(ln, f"Invalid param: {param}")
-                            continue
-
-                        param = r.group(1)
-
+                    r = KernRe(r'^(\*+)\s*(.*)')
+                    if r.match(param):
                         self.push_parameter(ln, decl_type, r.group(2),
                                             f"{dtype} {r.group(1)}",
                                             arg, declaration_name)
 
-                    elif KernRe(r'(.*?):(\w+)').search(param):
-                        r = KernRe(r'(.*?):(\w+)')
-                        if not r.match(param):
-                            self.emit_msg(ln, f"Invalid param: {param}")
-                            continue
-
+                    elif bitfield_re.search(param):
                         if dtype != "":  # Skip unnamed bit-fields
-                            self.push_parameter(ln, decl_type, r.group(1),
-                                                f"{dtype}:{r.group(2)}",
+                            self.push_parameter(ln, decl_type, bitfield_re.group(1),
+                                                f"{dtype}:{bitfield_re.group(2)}",
                                                 arg, declaration_name)
                     else:
                         self.push_parameter(ln, decl_type, param, dtype,
