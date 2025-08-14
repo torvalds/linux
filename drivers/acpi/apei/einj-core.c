@@ -315,7 +315,7 @@ static void __iomem *einj_get_parameter_address(void)
 			memcpy_fromio(&v5param, p, v5param_size);
 			acpi5 = 1;
 			check_vendor_extension(pa_v5, &v5param);
-			if (available_error_type & ACPI65_EINJV2_SUPP) {
+			if (is_v2 && available_error_type & ACPI65_EINJV2_SUPP) {
 				len = v5param.einjv2_struct.length;
 				offset = offsetof(struct einjv2_extension_struct, component_arr);
 				max_nr_components = (len - offset) /
