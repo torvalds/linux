@@ -7,6 +7,7 @@
 
 /dts-v1/;
 
+#include "k3-am625.dtsi"
 #include "k3-am62x-sk-common.dtsi"
 
 / {
@@ -23,10 +24,10 @@
 	};
 
 	memory@80000000 {
-		device_type = "memory";
 		/* 2G RAM */
 		reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
-
+		device_type = "memory";
+		bootph-pre-ram;
 	};
 
 	vmain_pd: regulator-0 {
