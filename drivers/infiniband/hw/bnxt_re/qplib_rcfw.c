@@ -366,6 +366,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 	wmb();
 	writel(cmdq_prod, cmdq->cmdq_mbox.prod);
 	writel(RCFW_CMDQ_TRIG_VAL, cmdq->cmdq_mbox.db);
+	print_hex_dump_bytes("req: ", DUMP_PREFIX_OFFSET, msg->req, msg->req_sz);
 	spin_unlock_bh(&hwq->lock);
 	/* Return the CREQ response pointer */
 	return 0;
@@ -631,6 +632,7 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 	int rc = 0;
 
 	pdev = rcfw->pdev;
+	print_hex_dump_bytes("event: ", DUMP_PREFIX_OFFSET, qp_event, sizeof(*qp_event));
 	switch (qp_event->event) {
 	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
 		err_event = (struct creq_qp_error_notification *)qp_event;
