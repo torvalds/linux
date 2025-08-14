@@ -477,7 +477,7 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	bool internal_abort = sas_is_internal_abort(task);
 	struct pm8001_hba_info *pm8001_ha;
-	struct pm8001_port *port = NULL;
+	struct pm8001_port *port;
 	struct pm8001_ccb_info *ccb;
 	unsigned long flags;
 	u32 n_elem = 0;
@@ -502,8 +502,7 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
 
-	pm8001_dev = dev->lldd_dev;
-	port = pm8001_ha->phy[pm8001_dev->attached_phy].port;
+	port = dev->port->lldd_port;
 
 	if (!internal_abort &&
 	    (DEV_IS_GONE(pm8001_dev) || !port || !port->port_attached)) {
