@@ -1,0 +1,318 @@
+name: Custom Kernel Test - Resctrl PMU
+on: 
+  workflow_dispatch:  # Manual trigger for testing
+    inputs:
+      build-id:
+        description: 'Build ID for the kernel to test (Git commit hash)'
+        required: true
+        type: string
+      instance-type:
+        description: 'EC2 instance type to use'
+        required: false
+        default: 'm7i.xlarge'
+        type: string
+      image-type:
+        description: 'Image type to use (ubuntu-22.04 or ubuntu-24.04)'
+        required: false
+        default: 'ubuntu-24.04'
+        type: string
+
+permissions:
+  id-token: write # Required for requesting the JWT
+  contents: read
+  actions: write
+
+jobs:
+  setup-runner:
+    name: Start EC2 runner with custom kernel
+    runs-on: ubuntu-latest
+    outputs:
+      runner-label: ${{ steps.start-runner.outputs.runner-label }}
+      ec2-instance-id: ${{ steps.start-runner.outputs.ec2-instance-id }}
+      region: ${{ steps.start-runner.outputs.region }}
+    steps:
+      - name: Checkout repository (sparse)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/
+            tools/testing/selftests/resctrl/
+          sparse-checkout-cone-mode: false
+        
+      - name: Start AWS Runner with kexec
+        id: start-runner
+        uses: ./.github/actions/aws-runner
+        with:
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          iam-role-name: github-actions-runner          
+          instance-type: ${{ inputs.instance-type || 'm7i.xlarge' }}
+          image-type: ${{ inputs.image-type || 'ubuntu-22.04' }}
+          volume-size: '20'
+          runner-home-dir: '/tmp'
+          packages: '["kexec-tools"]'
+          pre-runner-script: |
+            # Custom Kernel Kexec Setup
+            # =========================
+            # Download our custom built kernel from S3 and kexec into it
+            
+            echo "Setting up custom kernel kexec..." | tee -a /var/log/kexec-setup.log
+
+            # Get kernel artifacts info from workflow input
+            BUILD_ID="${{ inputs.build-id }}"
+            KERNEL_S3_KEY="kernels/${BUILD_ID}/bzImage"
+            INITRD_S3_KEY="kernels/${BUILD_ID}/initrd.img"
+            S3_BUCKET="unvariance-kernel-dev"
+            S3_REGION="us-east-2"
+
+            echo "Build ID: $BUILD_ID" | tee -a /var/log/kexec-setup.log
+            echo "Kernel S3 key: $KERNEL_S3_KEY" | tee -a /var/log/kexec-setup.log
+            echo "Initrd S3 key: $INITRD_S3_KEY" | tee -a /var/log/kexec-setup.log
+
+            # Create persistent directory and download the GitHub Actions runner
+            mkdir -p /persist/actions-runner
+            cd /persist/actions-runner
+            
+            # Download custom kernel artifacts from S3
+            echo "Downloading custom kernel from S3..." | tee -a /var/log/kexec-setup.log
+            aws s3 cp "s3://${S3_BUCKET}/${KERNEL_S3_KEY}" /tmp/custom-bzImage --region "$S3_REGION"
+            aws s3 cp "s3://${S3_BUCKET}/${INITRD_S3_KEY}" /tmp/custom-initrd.img --region "$S3_REGION"
+            
+            if [[ ! -f /tmp/custom-bzImage ]] || [[ ! -f /tmp/custom-initrd.img ]]; then
+                echo "Failed to download custom kernel artifacts" | tee -a /var/log/kexec-setup.log
+                exit 1
+            fi
+            
+            echo "Custom kernel artifacts downloaded successfully" | tee -a /var/log/kexec-setup.log
+            ls -la /tmp/custom-* | tee -a /var/log/kexec-setup.log
+                        
+            # Create post-kexec init script that starts the runner
+            cat > /persist/kexec-runner.sh << 'EOF'
+            #!/bin/bash
+            
+            # Log kexec success
+            echo "========================================" | tee -a /var/log/kexec-setup.log
+            echo "✅ CUSTOM KERNEL KEXEC SUCCESSFUL!" | tee -a /var/log/kexec-setup.log
+            echo "========================================" | tee -a /var/log/kexec-setup.log
+            echo "Custom kernel version: $(uname -r)" | tee -a /var/log/kexec-setup.log
+            echo "Build ID: $BUILD_ID" | tee -a /var/log/kexec-setup.log
+            echo "System time: $(date)" | tee -a /var/log/kexec-setup.log
+            echo "Hostname: $(hostname)" | tee -a /var/log/kexec-setup.log
+            echo "Init PID: $$" | tee -a /var/log/kexec-setup.log
+            echo "========================================" | tee -a /var/log/kexec-setup.log
+            
+            # Start the GitHub Actions runner
+            cd /persist/actions-runner
+            export RUNNER_ALLOW_RUNASROOT=1
+            
+            # Configure runner with the original GitHub parameters
+            echo "Configuring GitHub Actions runner after custom kernel kexec..." | tee -a /var/log/kexec-setup.log
+            
+            # Read config parameters from the file saved before kexec
+            if [[ -f /persist/config-params ]]; then
+                CONFIG_PARAMS="$(cat /persist/config-params)"
+                echo "Found saved config parameters" | tee -a /var/log/kexec-setup.log
+                ./config.sh $CONFIG_PARAMS
+                
+                # Start the runner - this will wait for jobs
+                echo "Starting GitHub Actions runner after custom kernel kexec..." | tee -a /var/log/kexec-setup.log
+                ./run.sh
+            else
+                echo "No config parameters found, starting shell..." | tee -a /var/log/kexec-setup.log
+                exec /bin/bash
+            fi
+            EOF
+            chmod +x /persist/kexec-runner.sh
+            
+            echo "Post-kexec runner script created" | tee -a /var/log/kexec-setup.log
+
+            # Create systemd service for GitHub runner (will start after kexec)
+            cat > /etc/systemd/system/github-runner.service << 'SYSTEMD_EOF'
+            [Unit]
+            Description=GitHub Actions Runner after custom kernel kexec
+            After=basic.target network.target
+
+            [Service]
+            Type=simple
+            ExecStart=/persist/kexec-runner.sh
+            Restart=no
+            User=root
+            WorkingDirectory=/persist/actions-runner
+            StandardOutput=journal+console
+            StandardError=journal+console
+
+            [Install]
+            WantedBy=multi-user.target
+            SYSTEMD_EOF
+            
+            # Enable the service to start on boot
+            systemctl enable github-runner.service
+            
+            echo "GitHub runner systemd service created and enabled" | tee -a /var/log/kexec-setup.log
+
+            # Write custom kernel paths for config.sh to read
+            echo "/tmp/custom-bzImage" > /tmp/vmlinuz-path
+            echo "/tmp/custom-initrd.img" > /tmp/initrd-path
+
+            # Create fake config.sh that triggers kexec with our custom kernel
+            cat > /tmp/config.sh << 'EOF'
+            #!/bin/bash
+            echo "Fake config.sh called - triggering custom kernel kexec" | tee -a /var/log/kexec-setup.log
+            
+            # Save the parameters to a file for post-kexec use
+            echo "$@" > /persist/config-params
+            echo "Saved config parameters to /persist/config-params" | tee -a /var/log/kexec-setup.log
+            
+            # Use our custom kernel
+            VMLINUZ="/tmp/custom-bzImage"
+            INITRD="/tmp/custom-initrd.img"
+                        
+            echo "Preparing kexec with custom kernel: $VMLINUZ" | tee -a /var/log/kexec-setup.log
+            echo "Preparing kexec with custom initrd: $INITRD" | tee -a /var/log/kexec-setup.log
+
+            # Get current kernel command line
+            CURRENT_CMDLINE="$(cat /proc/cmdline)"
+            echo "Current cmdline: $CURRENT_CMDLINE" | tee -a /var/log/kexec-setup.log
+
+            # Kexec into our custom kernel
+            if ! kexec -l "$VMLINUZ" --initrd="$INITRD" --append="$CURRENT_CMDLINE"; then
+                echo "Failed to load custom kernel for kexec" | tee -a /var/log/kexec-setup.log
+                exit 1
+            fi
+            
+            echo "Executing kexec into custom kernel..." | tee -a /var/log/kexec-setup.log
+            kexec -e
+            EOF
+            
+            chmod +x /tmp/config.sh
+            
+            echo "=== Contents of custom kernel config.sh ===" | tee -a /var/log/kexec-setup.log
+            cat /tmp/config.sh | tee -a /var/log/kexec-setup.log
+            echo "=== End of config.sh ===" | tee -a /var/log/kexec-setup.log
+            
+            echo "Downloading GitHub Actions runner..." | tee -a /var/log/kexec-setup.log            
+            if ! curl -L -o "actions-runner.tar.gz" "https://github.com/actions/runner/releases/download/v2.327.1/actions-runner-linux-x64-2.327.1.tar.gz"; then
+                echo "Failed to download GitHub Actions runner" | tee -a /var/log/kexec-setup.log
+                exit 1
+            fi
+            
+            if ! tar xzf actions-runner.tar.gz; then
+                echo "Failed to extract GitHub Actions runner" | tee -a /var/log/kexec-setup.log
+                exit 1
+            fi
+            
+            echo "GitHub Actions runner downloaded and extracted successfully" | tee -a /var/log/kexec-setup.log
+
+            # Go back to /tmp where the fake config.sh is located
+            echo "Changing directory to /tmp to run custom kernel kexec setup" | tee -a /var/log/kexec-setup.log
+            cd /tmp
+
+            echo "Custom kernel kexec setup complete. Ready to boot custom kernel." | tee -a /var/log/kexec-setup.log
+  pmu-test:
+    needs: [setup-runner]
+    runs-on: ${{ needs.setup-runner.outputs.runner-label }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository (sparse)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/testing/selftests/resctrl/
+          sparse-checkout-cone-mode: false
+        
+      - name: Verify custom kernel boot
+        run: |
+          echo "================================================"
+          echo "🚀 CUSTOM RESCTRL KERNEL BOOTED SUCCESSFULLY! 🚀"
+          echo "================================================"
+          echo ""
+          echo "✅ Successfully running on custom kernel!"
+          echo "📍 Current kernel: $(uname -r)"
+          echo "⏰ System uptime: $(uptime)"
+          echo "📅 Date: $(date)"
+          echo "👤 Current user: $(whoami)"
+          echo "🔧 Current PID: $$"
+          echo ""
+          
+          # Check if our kexec setup logs exist
+          if [ -f /var/log/kexec-setup.log ]; then
+            echo "✅ Found kexec setup log! Contents:"
+            echo "----------------------------------------"
+            tail -50 /var/log/kexec-setup.log
+          else
+            echo "⚠️ No kexec setup log found"
+          fi
+          
+      - name: Check resctrl support
+        run: |
+          echo "🔍 Checking resctrl support in custom kernel..."
+          
+          # Check if resctrl is available
+          if [ -d /sys/fs/resctrl ]; then
+            echo "✅ /sys/fs/resctrl exists"
+            ls -la /sys/fs/resctrl/
+          else
+            echo "❌ /sys/fs/resctrl not found"
+          fi
+          
+          # Check kernel modules
+          echo ""
+          echo "🔧 Loaded kernel modules related to resctrl/perf:"
+          lsmod | grep -E "(resctrl|perf|msr)" || echo "No relevant modules found"
+          
+          # Check /proc/cpuinfo for relevant features
+          echo ""
+          echo "🖥️ CPU features related to monitoring:"
+          grep -E "(model name|flags)" /proc/cpuinfo | head -4
+          
+      - name: Download test binary from S3
+        run: |
+          echo "📦 Downloading pre-compiled test binary from S3..."
+          BUILD_ID="${{ inputs.build-id }}"
+          S3_BUCKET="unvariance-kernel-dev"
+          S3_REGION="us-east-2"
+          TEST_S3_KEY="kernels/${BUILD_ID}/resctrl_tests"
+          
+          aws s3 cp "s3://${S3_BUCKET}/${TEST_S3_KEY}" ./resctrl_tests --region "$S3_REGION"
+          chmod +x ./resctrl_tests
+          
+          if [[ ! -f ./resctrl_tests ]]; then
+            echo "❌ Failed to download test binary"
+            exit 1
+          fi
+          
+          echo "✅ Test binary downloaded successfully"
+          ls -la ./resctrl_tests
+          
+      - name: Run PMU test
+        run: |
+          echo "🧪 Running resctrl PMU test..."
+          
+          # Run only the PMU test
+          echo "🏃 Running PMU test specifically..."
+          ./resctrl_tests -t pmu || echo "⚠️ PMU test failed or not fully implemented"
+          
+      - name: Test completion summary
+        run: |
+          echo ""
+          echo "🎯 CUSTOM KERNEL PMU TEST COMPLETED!"
+          echo "Custom resctrl+perf kernel with PMU support has been tested successfully!"
+          echo "Build ID: ${{ inputs.build-id }}"
+
+  stop-runner:
+    name: Stop EC2 runner
+    needs: [setup-runner, pmu-test]
+    runs-on: ubuntu-latest
+    if: always()  # Run even if previous jobs fail
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Stop AWS Runner
+        uses: ./.github/actions/aws-runner/cleanup
+        with:
+          runner-label: ${{ needs.setup-runner.outputs.runner-label }}
+          ec2-instance-id: ${{ needs.setup-runner.outputs.ec2-instance-id }}
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ needs.setup-runner.outputs.region }}

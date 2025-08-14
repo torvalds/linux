@@ -1,0 +1,258 @@
+name: 'AWS EC2 GitHub Runner'
+description: 'Start a self-hosted GitHub runner on AWS EC2 across multiple regions to find capacity'
+author: 'Memory Collector Team'
+
+inputs:
+  instance-type:
+    description: 'EC2 instance type to use (e.g., "m7i.xlarge")'
+    required: false
+    default: 'm7i.xlarge'
+  image-type:
+    description: 'Image type identifier (e.g., "ubuntu-22.04")'
+    required: false
+    default: 'ubuntu-22.04'
+  market-type:
+    description: 'EC2 market type (spot or on-demand)'
+    required: false
+    default: 'spot'
+  github-token:
+    description: 'GitHub token for creating runners'
+    required: true
+  aws-role-arn:
+    description: 'ARN of the AWS role to assume'
+    required: true
+  volume-size:
+    description: 'EC2 volume size in GB'
+    required: false
+    default: '8'
+  pre-runner-script:
+    description: 'Script to run before installing the GitHub runner'
+    required: false
+    default: ''
+  runner-home-dir:
+    description: 'Home directory for the GitHub runner'
+    required: false
+    default: ''
+  aws-resource-tags:
+    description: 'Custom resource tags in JSON format'
+    required: false
+    default: ''
+  runner-name-prefix:
+    description: 'Prefix for the runner name'
+    required: false
+    default: 'github-runner'
+  iam-role-name:
+    description: 'IAM role name for the EC2 instance'
+    required: false
+    default: ''
+  region-priority:
+    description: 'Ordered list of regions to try in priority order'
+    required: false
+    default: '["us-east-2", "us-west-2", "us-east-1", "eu-west-1"]'
+  region-configs:
+    description: 'Configuration for regions in JSON format with subnets and security groups'
+    required: false
+    default: >
+      {
+        "us-east-1": {
+          "security-group-id": "sg-0c0fb801b9d5afb42",
+          "subnets": ["subnet-0f218a8f807b24b43", "subnet-03760fcc21de05dcf", "subnet-07f33ad4e85154757", "subnet-06a59c6d0f0ae0acf", "subnet-01411d66f3c3b03ab", "subnet-0aacbbfdb4730c3ae"]
+        },
+        "us-east-2": {
+          "security-group-id": "sg-0da5b1b4abff16f01",
+          "subnets": ["subnet-057997a168b11832e", "subnet-04231f222c6778d25", "subnet-085a10d33b29607cd"]
+        },
+        "us-west-2": {
+          "security-group-id": "sg-065a194f058366e19",
+          "subnets": ["subnet-03312d0e183ac6bd2", "subnet-0504fa9cacd9bece7", "subnet-07669de00a10cb45a", "subnet-027770cb161c110b2"]
+        },
+        "eu-west-1": {
+          "security-group-id": "sg-0eb8174e90d14cb8c",
+          "subnets": ["subnet-06bc798bc93c2d33d", "subnet-0e7134127c7fb199a", "subnet-0a2b8f49046507b4a"]
+        }
+      }
+  ami-mappings:
+    description: 'Mapping from image-type to region-specific AMI IDs'
+    required: false
+    default: >
+      {
+        "ubuntu-22.04": {
+          "us-east-1": "ami-0f9de6e2d2f067fca",
+          "us-west-2": "ami-03f8acd418785369b",
+          "eu-west-1": "ami-0f0c3baa60262d5b9",
+          "us-east-2": "ami-0c3b809fcf2445b6a"
+        },
+        "ubuntu-24.04": {
+          "us-east-1": "ami-084568db4383264d4",
+          "us-west-2": "ami-075686beab831bb7f",
+          "eu-west-1": "ami-0df368112825f8d8f",
+          "us-east-2": "ami-04f167a56786e4b09"
+        }
+      }
+  packages:
+    description: 'Additional packages to install on the runner as JSON array'
+    required: false
+    default: '[]'
+
+outputs:
+  runner-label:
+    description: 'The label of the created runner (for use in runs-on)'
+    value: ${{ steps.runner-outputs.outputs.label }}
+  ec2-instance-id:
+    description: 'The ID of the created EC2 instance'
+    value: ${{ steps.runner-outputs.outputs.ec2-instance-id }}
+  region:
+    description: 'AWS region where the EC2 instance was created'
+    value: ${{ steps.runner-outputs.outputs.region }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate Region Configurations
+      id: generate-configs
+      shell: bash
+      run: |
+        # Parse the region configs
+        echo "Region configs: ${{ inputs.region-configs }}"
+        echo "AMI mappings: ${{ inputs.ami-mappings }}"
+        echo "Image type: ${{ inputs.image-type }}"
+        echo "Region priority: ${{ inputs.region-priority }}"
+        
+        # Convert the JSON strings to files for jq processing
+        echo '${{ inputs.region-configs }}' > /tmp/region_configs.json
+        echo '${{ inputs.ami-mappings }}' > /tmp/ami_mappings.json
+        echo '${{ inputs.region-priority }}' > /tmp/region_priority.json
+        
+        # Get prioritized regions
+        PRIORITY_REGIONS=$(jq -r 'join(",")' /tmp/region_priority.json)
+        echo "Prioritized regions: $PRIORITY_REGIONS"
+        
+        # Get all available regions from region configs
+        AVAILABLE_REGIONS=$(jq -r 'keys | join(",")' /tmp/region_configs.json)
+        echo "Available regions: $AVAILABLE_REGIONS"
+        
+        # Create an array to hold all AZ configurations
+        echo "Generating availability zone configurations in priority order..."
+        echo "[" > /tmp/az_configs.json
+        
+        FIRST=true
+        
+        # Process regions in priority order
+        for region in $(jq -r '.[]' /tmp/region_priority.json); do
+          echo "Processing region: $region"
+          
+          # Check if region exists in region configs
+          if ! jq -e --arg r "$region" '.[$r]' /tmp/region_configs.json > /dev/null; then
+            echo "Warning: Region $region specified in priority list not found in region configs, skipping"
+            continue
+          fi
+          
+          # Get AMI ID for this region
+          AMI_ID=$(jq -r --arg r "$region" --arg it "${{ inputs.image-type }}" '.[$it][$r]' /tmp/ami_mappings.json)
+          if [ -z "$AMI_ID" ] || [ "$AMI_ID" == "null" ]; then
+            echo "Warning: No AMI found for ${{ inputs.image-type }} in region $region, skipping"
+            continue
+          fi
+          
+          # Get security group for this region
+          SG_ID=$(jq -r --arg r "$region" '.[$r]["security-group-id"]' /tmp/region_configs.json)
+          if [ -z "$SG_ID" ] || [ "$SG_ID" == "null" ]; then
+            echo "Warning: No security group found for region $region, skipping"
+            continue
+          fi
+          
+          # Get subnets for this region
+          SUBNETS=$(jq -r --arg r "$region" '.[$r].subnets[]' /tmp/region_configs.json)
+          if [ -z "$SUBNETS" ]; then
+            echo "Warning: No subnets found for region $region, skipping"
+            continue
+          fi
+          
+          # Add each subnet as a separate AZ configuration
+          for subnet in $SUBNETS; do
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              echo "," >> /tmp/az_configs.json
+            fi
+            
+            # Add this AZ configuration to the JSON array using printf instead of heredoc
+            printf '  {\n    "region": "%s",\n    "imageId": "%s",\n    "subnetId": "%s",\n    "securityGroupId": "%s"\n  }' "$region" "$AMI_ID" "$subnet" "$SG_ID" >> /tmp/az_configs.json
+          done
+        done
+        
+        echo "]" >> /tmp/az_configs.json
+        
+        # Create a JSON array for each region's AZ configurations
+        echo "Creating per-region AZ configurations..."
+        
+        # Read the full AZ configs
+        AZ_CONFIGS=$(cat /tmp/az_configs.json)
+        
+        # Properly escape the multiline JSON for GitHub Actions output
+        # See: https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+        echo "availability_zones_config<<EOF" >> $GITHUB_OUTPUT
+        echo "$AZ_CONFIGS" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+        # Get the first region for the initial AWS credentials
+        FIRST_REGION=$(jq -r '.[0].region' /tmp/az_configs.json)
+        echo "first_region=$FIRST_REGION" >> $GITHUB_OUTPUT
+        
+        # For debugging, show the AZ configurations
+        echo "Generated availability zone configurations:"
+        cat /tmp/az_configs.json
+
+    # Configure AWS credentials for the first region
+    - name: Configure AWS credentials
+      id: aws-credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-arn }}
+        aws-region: ${{ steps.generate-configs.outputs.first_region }}
+        role-session-name: github-runner-session
+
+    # Start EC2 runner with availability-zones-config
+    - name: Start EC2 runner
+      id: start-ec2-runner
+      uses: yonch/ec2-github-runner@feature/packages-installation
+      continue-on-error: true
+      with:
+        mode: start
+        startup-quiet-period-seconds: 10
+        startup-retry-interval-seconds: 5
+        github-token: ${{ inputs.github-token }}
+        ec2-instance-type: ${{ inputs.instance-type }}
+        market-type: ${{ inputs.market-type }}
+        ec2-volume-size: ${{ inputs.volume-size }}
+        pre-runner-script: ${{ inputs.pre-runner-script }}
+        runner-home-dir: ${{ inputs.runner-home-dir }}
+        iam-role-name: ${{ inputs.iam-role-name }}
+        availability-zones-config: ${{ steps.generate-configs.outputs.availability_zones_config }}
+        packages: ${{ inputs.packages }}
+        aws-resource-tags: >
+          [
+            {"Key": "Name", "Value": "${{ inputs.runner-name-prefix }}"},
+            {"Key": "Repository", "Value": "${{ github.repository }}"},
+            {"Key": "Workflow", "Value": "${{ github.workflow }}"},
+            {"Key": "RunId", "Value": "${{ github.run_id }}"},
+            {"Key": "RunNumber", "Value": "${{ github.run_number }}"},
+            {"Key": "SHA", "Value": "${{ github.sha }}"},
+            {"Key": "Branch", "Value": "${{ github.ref_name }}"},
+            {"Key": "Actor", "Value": "${{ github.actor }}"}
+          ]
+
+    - name: Collect outputs
+      id: runner-outputs
+      shell: bash
+      run: |
+        # Pass through the runner outputs
+        echo "label=${{ steps.start-ec2-runner.outputs.label }}" >> $GITHUB_OUTPUT
+        echo "ec2-instance-id=${{ steps.start-ec2-runner.outputs.ec2-instance-id }}" >> $GITHUB_OUTPUT
+        echo "region=${{ steps.start-ec2-runner.outputs.region }}" >> $GITHUB_OUTPUT
+        if [ -n "${{ steps.start-ec2-runner.outputs.label }}" ]; then
+          echo "Runner successfully started in region: ${{ steps.start-ec2-runner.outputs.region }}"
+        else
+          echo "All runner attempts failed. Please check AWS capacity availability across regions."
+          exit 1
+        fi 

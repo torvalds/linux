@@ -1,0 +1,38 @@
+name: 'AWS EC2 GitHub Runner Cleanup'
+description: 'Stop a self-hosted GitHub runner on AWS EC2'
+author: 'Memory Collector Team'
+
+inputs:
+  runner-label:
+    description: 'The label of the runner to stop'
+    required: true
+  ec2-instance-id:
+    description: 'The ID of the EC2 instance to stop'
+    required: true
+  github-token:
+    description: 'GitHub token for managing runners'
+    required: true
+  aws-role-arn:
+    description: 'ARN of the AWS role to assume'
+    required: true
+  aws-region:
+    description: 'AWS region where the instance is located'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-arn }}
+        aws-region: ${{ inputs.aws-region }}
+        role-session-name: github-runner-session
+
+    - name: Stop EC2 runner
+      uses: yonch/ec2-github-runner@feature/multiple-az
+      with:
+        mode: stop
+        github-token: ${{ inputs.github-token }}
+        label: ${{ inputs.runner-label }}
+        ec2-instance-id: ${{ inputs.ec2-instance-id }} 
