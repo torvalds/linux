@@ -45,6 +45,7 @@ enum arch_timer_access {
 
 struct arch_timer {
 	struct clock_event_device	evt;
+	struct clocksource		cs;
 	struct arch_timer_mem		*gt_block;
 	void __iomem			*base;
 	enum arch_timer_access		access;
@@ -52,6 +53,7 @@ struct arch_timer {
 };
 
 #define evt_to_arch_timer(e) container_of(e, struct arch_timer, evt)
+#define cs_to_arch_timer(c) container_of(c, struct arch_timer, cs)
 
 static void arch_timer_mmio_write(struct arch_timer *timer,
 				  enum arch_timer_reg reg, u64 val)
@@ -126,6 +128,13 @@ static noinstr u64 arch_counter_mmio_get_cnt(struct arch_timer *t)
 	} while (cnt_hi != tmp_hi);
 
 	return ((u64) cnt_hi << 32) | cnt_lo;
+}
+
+static u64 arch_mmio_counter_read(struct clocksource *cs)
+{
+	struct arch_timer *at = cs_to_arch_timer(cs);
+
+	return arch_counter_mmio_get_cnt(at);
 }
 
 static int arch_timer_mmio_shutdown(struct clock_event_device *clk)
@@ -256,6 +265,16 @@ static void arch_timer_mmio_setup(struct arch_timer *at, int irq)
 					(unsigned long)CLOCKSOURCE_MASK(56));
 
 	enable_irq(at->evt.irq);
+
+	at->cs = (struct clocksource) {
+		.name	= "arch_mmio_counter",
+		.rating	= 300,
+		.read	= arch_mmio_counter_read,
+		.mask	= CLOCKSOURCE_MASK(56),
+		.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	};
+
+	clocksource_register_hz(&at->cs, at->rate);
 }
 
 static int arch_timer_mmio_frame_register(struct platform_device *pdev,
