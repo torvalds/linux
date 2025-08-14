@@ -94,7 +94,7 @@ struct smb_direct_transport {
 
 	spinlock_t		receive_credit_lock;
 	int			recv_credits;
-	int			recv_credit_target;
+	u16			recv_credit_target;
 
 	spinlock_t		lock_new_recv_credits;
 	int			new_recv_credits;
@@ -515,7 +515,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		struct smbdirect_data_transfer *data_transfer =
 			(struct smbdirect_data_transfer *)recvmsg->packet;
 		u32 remaining_data_length, data_offset, data_length;
-		int old_recv_credit_target;
+		u16 old_recv_credit_target;
 
 		if (wc->byte_len <
 		    offsetof(struct smbdirect_data_transfer, padding)) {
@@ -559,6 +559,10 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		old_recv_credit_target = t->recv_credit_target;
 		t->recv_credit_target =
 				le16_to_cpu(data_transfer->credits_requested);
+		t->recv_credit_target =
+			min_t(u16, t->recv_credit_target, sp->recv_credit_max);
+		t->recv_credit_target =
+			max_t(u16, t->recv_credit_target, 1);
 		atomic_add(le16_to_cpu(data_transfer->credits_granted),
 			   &sc->send_io.credits.count);
 
@@ -1823,7 +1827,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	t->recv_credits = 0;
 
 	sp->recv_credit_max = smb_direct_receive_credit_max;
-	t->recv_credit_target = 10;
+	t->recv_credit_target = 1;
 	t->new_recv_credits = 0;
 
 	sp->send_credit_target = smb_direct_send_credit_target;
@@ -2049,6 +2053,9 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 		le32_to_cpu(req->max_fragmented_size);
 	sp->max_fragmented_recv_size =
 		(sp->recv_credit_max * sp->max_recv_size) / 2;
+	st->recv_credit_target = le16_to_cpu(req->credits_requested);
+	st->recv_credit_target = min_t(u16, st->recv_credit_target, sp->recv_credit_max);
+	st->recv_credit_target = max_t(u16, st->recv_credit_target, 1);
 
 	ret = smb_direct_send_negotiate_response(st, ret);
 out:
