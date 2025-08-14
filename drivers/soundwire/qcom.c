@@ -924,10 +924,7 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 
 	if (msg->flags == SDW_MSG_FLAG_READ) {
 		for (i = 0; i < msg->len;) {
-			if ((msg->len - i) < QCOM_SWRM_MAX_RD_LEN)
-				len = msg->len - i;
-			else
-				len = QCOM_SWRM_MAX_RD_LEN;
+			len = min(msg->len - i, QCOM_SWRM_MAX_RD_LEN);
 
 			ret = qcom_swrm_cmd_fifo_rd_cmd(ctrl, msg->dev_num,
 							msg->addr + i, len,
