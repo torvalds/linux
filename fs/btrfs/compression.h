@@ -183,8 +183,6 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 		size_t destlen);
 int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info);
 void zstd_free_workspace_manager(struct btrfs_fs_info *fs_info);
-void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info);
-void zstd_cleanup_workspace_manager(void);
 struct list_head *zstd_alloc_workspace(struct btrfs_fs_info *fs_info, int level);
 void zstd_free_workspace(struct list_head *ws);
 struct list_head *zstd_get_workspace(struct btrfs_fs_info *fs_info, int level);

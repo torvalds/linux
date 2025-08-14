@@ -688,8 +688,6 @@ struct heuristic_ws {
 	struct list_head list;
 };
 
-static struct workspace_manager heuristic_wsm;
-
 static void free_heuristic_ws(struct list_head *ws)
 {
 	struct heuristic_ws *workspace;
@@ -729,9 +727,7 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-const struct btrfs_compress_op btrfs_heuristic_compress = {
-	.workspace_manager = &heuristic_wsm,
-};
+const struct btrfs_compress_op btrfs_heuristic_compress = { 0 };
 
 static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	/* The heuristic is represented as compression type 0 */
@@ -807,32 +803,6 @@ static int alloc_workspace_manager(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-static void btrfs_init_workspace_manager(struct btrfs_fs_info *fs_info, int type)
-{
-	struct workspace_manager *wsm;
-	struct list_head *workspace;
-
-	wsm = btrfs_compress_op[type]->workspace_manager;
-	INIT_LIST_HEAD(&wsm->idle_ws);
-	spin_lock_init(&wsm->ws_lock);
-	atomic_set(&wsm->total_ws, 0);
-	init_waitqueue_head(&wsm->ws_wait);
-
-	/*
-	 * Preallocate one workspace for each compression type so we can
-	 * guarantee forward progress in the worst case
-	 */
-	workspace = alloc_workspace(fs_info, type, 0);
-	if (IS_ERR(workspace)) {
-		btrfs_warn(fs_info,
-			   "cannot preallocate compression workspace, will try later");
-	} else {
-		atomic_set(&wsm->total_ws, 1);
-		wsm->free_ws = 1;
-		list_add(workspace, &wsm->idle_ws);
-	}
-}
-
 static void free_workspace_manager(struct btrfs_fs_info *fs_info,
 				   enum btrfs_compression_type type)
 {
@@ -851,20 +821,6 @@ static void free_workspace_manager(struct btrfs_fs_info *fs_info,
 		atomic_dec(&gwsm->total_ws);
 	}
 	kfree(gwsm);
-}
-
-static void btrfs_cleanup_workspace_manager(int type)
-{
-	struct workspace_manager *wsman;
-	struct list_head *ws;
-
-	wsman = btrfs_compress_op[type]->workspace_manager;
-	while (!list_empty(&wsman->idle_ws)) {
-		ws = wsman->idle_ws.next;
-		list_del(ws);
-		free_workspace(type, ws);
-		atomic_dec(&wsman->total_ws);
-	}
 }
 
 /*
@@ -1192,11 +1148,6 @@ int __init btrfs_init_compress(void)
 	if (!compr_pool.shrinker)
 		return -ENOMEM;
 
-	btrfs_init_workspace_manager(NULL, BTRFS_COMPRESS_NONE);
-	btrfs_init_workspace_manager(NULL, BTRFS_COMPRESS_ZLIB);
-	btrfs_init_workspace_manager(NULL, BTRFS_COMPRESS_LZO);
-	zstd_init_workspace_manager(NULL);
-
 	spin_lock_init(&compr_pool.lock);
 	INIT_LIST_HEAD(&compr_pool.list);
 	compr_pool.count = 0;
@@ -1217,10 +1168,6 @@ void __cold btrfs_exit_compress(void)
 	btrfs_compr_pool_scan(NULL, NULL);
 	shrinker_free(compr_pool.shrinker);
 
-	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_NONE);
-	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_ZLIB);
-	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_LZO);
-	zstd_cleanup_workspace_manager();
 	bioset_exit(&btrfs_compressed_bioset);
 }
 

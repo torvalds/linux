@@ -68,8 +68,6 @@ struct workspace {
 	struct list_head list;
 };
 
-static struct workspace_manager wsm;
-
 void lzo_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -489,7 +487,6 @@ out:
 }
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
-	.workspace_manager	= &wsm,
 	.max_level		= 1,
 	.default_level		= 1,
 };

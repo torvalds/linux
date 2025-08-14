@@ -86,8 +86,6 @@ struct zstd_workspace_manager {
 	struct timer_list timer;
 };
 
-static struct zstd_workspace_manager wsm;
-
 static size_t zstd_ws_mem_sizes[ZSTD_BTRFS_MAX_LEVEL];
 
 static inline struct workspace *list_to_workspace(struct list_head *list)
@@ -212,31 +210,6 @@ int zstd_alloc_workspace_manager(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-void zstd_init_workspace_manager(struct btrfs_fs_info *fs_info)
-{
-	struct list_head *ws;
-	int i;
-
-	zstd_calc_ws_mem_sizes();
-
-	wsm.ops = &btrfs_zstd_compress;
-	spin_lock_init(&wsm.lock);
-	init_waitqueue_head(&wsm.wait);
-	timer_setup(&wsm.timer, zstd_reclaim_timer_fn, 0);
-
-	INIT_LIST_HEAD(&wsm.lru_list);
-	for (i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++)
-		INIT_LIST_HEAD(&wsm.idle_ws[i]);
-
-	ws = zstd_alloc_workspace(fs_info, ZSTD_BTRFS_MAX_LEVEL);
-	if (IS_ERR(ws)) {
-		btrfs_warn(NULL, "cannot preallocate zstd compression workspace");
-	} else {
-		set_bit(ZSTD_BTRFS_MAX_LEVEL - 1, &wsm.active_map);
-		list_add(ws, &wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1]);
-	}
-}
-
 void zstd_free_workspace_manager(struct btrfs_fs_info *fs_info)
 {
 	struct zstd_workspace_manager *zwsm = fs_info->compr_wsm[BTRFS_COMPRESS_ZSTD];
@@ -258,26 +231,6 @@ void zstd_free_workspace_manager(struct btrfs_fs_info *fs_info)
 	spin_unlock_bh(&zwsm->lock);
 	timer_delete_sync(&zwsm->timer);
 	kfree(zwsm);
-}
-
-void zstd_cleanup_workspace_manager(void)
-{
-	struct workspace *workspace;
-	int i;
-
-	spin_lock_bh(&wsm.lock);
-	for (i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++) {
-		while (!list_empty(&wsm.idle_ws[i])) {
-			workspace = container_of(wsm.idle_ws[i].next,
-						 struct workspace, list);
-			list_del(&workspace->list);
-			list_del(&workspace->lru_list);
-			zstd_free_workspace(&workspace->list);
-		}
-	}
-	spin_unlock_bh(&wsm.lock);
-
-	timer_delete_sync(&wsm.timer);
 }
 
 /*
@@ -775,8 +728,6 @@ finish:
 }
 
 const struct btrfs_compress_op btrfs_zstd_compress = {
-	/* ZSTD uses own workspace manager */
-	.workspace_manager = NULL,
 	.min_level	= ZSTD_BTRFS_MIN_LEVEL,
 	.max_level	= ZSTD_BTRFS_MAX_LEVEL,
 	.default_level	= ZSTD_BTRFS_DEFAULT_LEVEL,
