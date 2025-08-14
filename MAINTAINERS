@@ -22790,6 +22790,7 @@ F:	include/linux/security.h
 F:	include/uapi/linux/lsm.h
 F:	security/
 F:	tools/testing/selftests/lsm/
+F:	rust/kernel/security.rs
 X:	security/selinux/
 K:	\bsecurity_[a-z_0-9]\+\b
 
