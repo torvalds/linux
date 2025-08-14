@@ -92,13 +92,10 @@ struct smb_direct_transport {
 
 	struct smbdirect_socket socket;
 
-	spinlock_t		receive_credit_lock;
-	int			recv_credits;
+	atomic_t		recv_credits;
 	u16			recv_credit_target;
 
-	spinlock_t		lock_new_recv_credits;
-	int			new_recv_credits;
-
+	atomic_t		recv_posted;
 	struct work_struct	post_recv_credits_work;
 	struct work_struct	send_immediate_work;
 
@@ -309,9 +306,8 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
-	spin_lock_init(&t->receive_credit_lock);
-
-	spin_lock_init(&t->lock_new_recv_credits);
+	atomic_set(&t->recv_posted, 0);
+	atomic_set(&t->recv_credits, 0);
 
 	INIT_WORK(&t->post_recv_credits_work,
 		  smb_direct_post_recv_credits);
@@ -552,9 +548,8 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 				sc->recv_io.reassembly.full_packet_received = true;
 		}
 
-		spin_lock(&t->receive_credit_lock);
-		t->recv_credits -= 1;
-		spin_unlock(&t->receive_credit_lock);
+		atomic_dec(&t->recv_posted);
+		atomic_dec(&t->recv_credits);
 
 		old_recv_credit_target = t->recv_credit_target;
 		t->recv_credit_target =
@@ -758,14 +753,10 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 	struct smb_direct_transport *t = container_of(work,
 		struct smb_direct_transport, post_recv_credits_work);
 	struct smbdirect_recv_io *recvmsg;
-	int receive_credits, credits = 0;
+	int credits = 0;
 	int ret;
 
-	spin_lock(&t->receive_credit_lock);
-	receive_credits = t->recv_credits;
-	spin_unlock(&t->receive_credit_lock);
-
-	if (receive_credits < t->recv_credit_target) {
+	if (atomic_read(&t->recv_credits) < t->recv_credit_target) {
 		while (true) {
 			recvmsg = get_free_recvmsg(t);
 			if (!recvmsg)
@@ -780,16 +771,10 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 				break;
 			}
 			credits++;
+
+			atomic_inc(&t->recv_posted);
 		}
 	}
-
-	spin_lock(&t->receive_credit_lock);
-	t->recv_credits += credits;
-	spin_unlock(&t->receive_credit_lock);
-
-	spin_lock(&t->lock_new_recv_credits);
-	t->new_recv_credits += credits;
-	spin_unlock(&t->lock_new_recv_credits);
 
 	if (credits)
 		queue_work(smb_direct_wq, &t->send_immediate_work);
@@ -837,11 +822,18 @@ static int manage_credits_prior_sending(struct smb_direct_transport *t)
 {
 	int new_credits;
 
-	spin_lock(&t->lock_new_recv_credits);
-	new_credits = t->new_recv_credits;
-	t->new_recv_credits = 0;
-	spin_unlock(&t->lock_new_recv_credits);
+	if (atomic_read(&t->recv_credits) >= t->recv_credit_target)
+		return 0;
 
+	new_credits = atomic_read(&t->recv_posted);
+	if (new_credits == 0)
+		return 0;
+
+	new_credits -= atomic_read(&t->recv_credits);
+	if (new_credits <= 0)
+		return 0;
+
+	atomic_add(new_credits, &t->recv_credits);
 	return new_credits;
 }
 
@@ -1824,11 +1816,8 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 		return -EINVAL;
 	}
 
-	t->recv_credits = 0;
-
 	sp->recv_credit_max = smb_direct_receive_credit_max;
 	t->recv_credit_target = 1;
-	t->new_recv_credits = 0;
 
 	sp->send_credit_target = smb_direct_send_credit_target;
 	atomic_set(&sc->rw_io.credits.count, sc->rw_io.credits.max);
