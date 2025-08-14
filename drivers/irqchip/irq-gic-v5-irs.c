@@ -626,12 +626,14 @@ static int __init gicv5_irs_of_init_affinity(struct device_node *node,
 		int cpu;
 
 		cpu_node = of_parse_phandle(node, "cpus", i);
-		if (WARN_ON(!cpu_node))
+		if (!cpu_node) {
+			pr_warn(FW_BUG "Erroneous CPU node phandle\n");
 			continue;
+		}
 
 		cpu = of_cpu_node_to_id(cpu_node);
 		of_node_put(cpu_node);
-		if (WARN_ON(cpu < 0))
+		if (cpu < 0)
 			continue;
 
 		if (iaffids[i] & ~iaffid_mask) {
