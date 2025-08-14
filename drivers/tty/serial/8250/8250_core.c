@@ -178,20 +178,22 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
 	struct irq_info *i;
 
-	mutex_lock(&hash_mutex);
+	guard(mutex)(&hash_mutex);
 
 	hash_for_each_possible(irq_lists, i, node, up->port.irq)
-		if (i->irq == up->port.irq)
-			break;
+		if (i->irq == up->port.irq) {
+			if (WARN_ON(i->head == NULL))
+				return;
 
-	BUG_ON(i == NULL);
-	BUG_ON(i->head == NULL);
+			if (list_empty(i->head))
+				free_irq(up->port.irq, i);
 
-	if (list_empty(i->head))
-		free_irq(up->port.irq, i);
+			serial_do_unlink(i, up);
 
-	serial_do_unlink(i, up);
-	mutex_unlock(&hash_mutex);
+			return;
+		}
+
+	WARN_ON(1);
 }
 
 /*
