@@ -299,6 +299,7 @@ struct bnxt_qplib_qp {
 	u8				smac[6];
 	u16				vlan_id;
 	u16				port_id;
+	u16				udp_sport;
 	u8				nw_type;
 	struct bnxt_qplib_ah		ah;
 

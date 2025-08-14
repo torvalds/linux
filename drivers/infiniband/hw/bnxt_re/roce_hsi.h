@@ -788,7 +788,8 @@ struct creq_query_qp_resp_sb {
 	#define CREQ_QUERY_QP_RESP_SB_ACCESS_REMOTE_ATOMIC 0x8UL
 	__le16	pkey;
 	__le32	qkey;
-	__le32	reserved32;
+	__le16	udp_src_port;
+	__le16	reserved16;
 	__le32	dgid[4];
 	__le32	flow_label;
 	__le16	sgid_index;

@@ -1492,6 +1492,7 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	qp->access = sb->access;
 	qp->pkey_index = le16_to_cpu(sb->pkey);
 	qp->qkey = le32_to_cpu(sb->qkey);
+	qp->udp_sport = le16_to_cpu(sb->udp_src_port);
 
 	temp32[0] = le32_to_cpu(sb->dgid[0]);
 	temp32[1] = le32_to_cpu(sb->dgid[1]);
