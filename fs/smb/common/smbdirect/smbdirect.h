@@ -23,6 +23,10 @@ struct smbdirect_buffer_descriptor_v1 {
  * Some values are important for the upper layer.
  */
 struct smbdirect_socket_parameters {
+	__u32 resolve_addr_timeout_msec;
+	__u32 resolve_route_timeout_msec;
+	__u32 rdma_connect_timeout_msec;
+	__u32 negotiate_timeout_msec;
 	__u16 recv_credit_max;
 	__u16 send_credit_target;
 	__u32 max_send_size;
