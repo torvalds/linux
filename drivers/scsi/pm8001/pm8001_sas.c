@@ -700,7 +700,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 	dev->lldd_dev = pm8001_device;
 	pm8001_device->dev_type = dev->dev_type;
 	pm8001_device->dcompletion = &completion;
-	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
+	if (dev_parent_is_expander(dev)) {
 		int phy_id;
 
 		phy_id = sas_find_attached_phy_id(&parent_dev->ex_dev, dev);
@@ -749,7 +749,6 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 	unsigned long flags = 0;
 	struct pm8001_hba_info *pm8001_ha;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
-	struct domain_device *parent_dev = dev->parent;
 
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
@@ -771,7 +770,7 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 		 * The phy array only contains local phys. Thus, we cannot clear
 		 * phy_attached for a device behind an expander.
 		 */
-		if (!(parent_dev && dev_is_expander(parent_dev->dev_type)))
+		if (!dev_parent_is_expander(dev))
 			pm8001_ha->phy[pm8001_dev->attached_phy].phy_attached = 0;
 		pm8001_free_dev(pm8001_dev);
 	} else {
