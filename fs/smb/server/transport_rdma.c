@@ -98,11 +98,6 @@ struct smb_direct_transport {
 
 	spinlock_t		lock_new_recv_credits;
 	int			new_recv_credits;
-	int			max_rw_credits;
-	int			pages_per_rw_credit;
-	atomic_t		rw_credits;
-
-	wait_queue_head_t	wait_rw_credits;
 
 	struct work_struct	post_recv_credits_work;
 	struct work_struct	send_immediate_work;
@@ -324,8 +319,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	t->responder_resources = 1;
 
 	sc->ib.dev = sc->rdma.cm_id->device;
-
-	init_waitqueue_head(&t->wait_rw_credits);
 
 	spin_lock_init(&t->receive_credit_lock);
 
@@ -969,14 +962,21 @@ static int wait_for_send_credits(struct smb_direct_transport *t,
 
 static int wait_for_rw_credits(struct smb_direct_transport *t, int credits)
 {
-	return wait_for_credits(t, &t->wait_rw_credits, &t->rw_credits, credits);
+	struct smbdirect_socket *sc = &t->socket;
+
+	return wait_for_credits(t,
+				&sc->rw_io.credits.wait_queue,
+				&sc->rw_io.credits.count,
+				credits);
 }
 
 static int calc_rw_credits(struct smb_direct_transport *t,
 			   char *buf, unsigned int len)
 {
+	struct smbdirect_socket *sc = &t->socket;
+
 	return DIV_ROUND_UP(get_buf_page_count(buf, len),
-			    t->pages_per_rw_credit);
+			    sc->rw_io.credits.num_pages);
 }
 
 static int smb_direct_create_header(struct smb_direct_transport *t,
@@ -1506,8 +1506,8 @@ out:
 		smb_direct_free_rdma_rw_msg(t, msg,
 					    is_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 	}
-	atomic_add(credits_needed, &t->rw_credits);
-	wake_up(&t->wait_rw_credits);
+	atomic_add(credits_needed, &sc->rw_io.credits.count);
+	wake_up(&sc->rw_io.credits.wait_queue);
 	return ret;
 }
 
@@ -1785,9 +1785,9 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	 * MR invalidation.
 	 */
 	sp->max_read_write_size = smb_direct_max_read_write_size;
-	t->pages_per_rw_credit = smb_direct_get_max_fr_pages(t);
-	t->max_rw_credits = DIV_ROUND_UP(sp->max_read_write_size,
-					 (t->pages_per_rw_credit - 1) *
+	sc->rw_io.credits.num_pages = smb_direct_get_max_fr_pages(t);
+	sc->rw_io.credits.max = DIV_ROUND_UP(sp->max_read_write_size,
+					 (sc->rw_io.credits.num_pages - 1) *
 					 PAGE_SIZE);
 
 	max_sge_per_wr = min_t(unsigned int, device->attrs.max_send_sge,
@@ -1795,9 +1795,9 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	max_sge_per_wr = max_t(unsigned int, max_sge_per_wr,
 			       max_send_sges);
 	wrs_per_credit = max_t(unsigned int, 4,
-			       DIV_ROUND_UP(t->pages_per_rw_credit,
+			       DIV_ROUND_UP(sc->rw_io.credits.num_pages,
 					    max_sge_per_wr) + 1);
-	max_rw_wrs = t->max_rw_credits * wrs_per_credit;
+	max_rw_wrs = sc->rw_io.credits.max * wrs_per_credit;
 
 	max_send_wrs = smb_direct_send_credit_target + max_rw_wrs;
 	if (max_send_wrs > device->attrs.max_cqe ||
@@ -1836,7 +1836,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	t->new_recv_credits = 0;
 
 	sp->send_credit_target = smb_direct_send_credit_target;
-	atomic_set(&t->rw_credits, t->max_rw_credits);
+	atomic_set(&sc->rw_io.credits.count, sc->rw_io.credits.max);
 
 	sp->max_send_size = smb_direct_max_send_size;
 	sp->max_recv_size = smb_direct_max_receive_size;
@@ -1847,7 +1847,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	cap->max_send_sge = SMBDIRECT_SEND_IO_MAX_SGE;
 	cap->max_recv_sge = SMBDIRECT_RECV_IO_MAX_SGE;
 	cap->max_inline_data = 0;
-	cap->max_rdma_ctxs = t->max_rw_credits;
+	cap->max_rdma_ctxs = sc->rw_io.credits.max;
 	return 0;
 }
 
@@ -1981,11 +1981,11 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 	pages_per_rw = DIV_ROUND_UP(sp->max_read_write_size, PAGE_SIZE) + 1;
 	if (pages_per_rw > sc->ib.dev->attrs.max_sgl_rd) {
 		ret = ib_mr_pool_init(sc->ib.qp, &sc->ib.qp->rdma_mrs,
-				      t->max_rw_credits, IB_MR_TYPE_MEM_REG,
-				      t->pages_per_rw_credit, 0);
+				      sc->rw_io.credits.max, IB_MR_TYPE_MEM_REG,
+				      sc->rw_io.credits.num_pages, 0);
 		if (ret) {
-			pr_err("failed to init mr pool count %d pages %d\n",
-			       t->max_rw_credits, t->pages_per_rw_credit);
+			pr_err("failed to init mr pool count %zu pages %zu\n",
+			       sc->rw_io.credits.max, sc->rw_io.credits.num_pages);
 			goto err;
 		}
 	}
