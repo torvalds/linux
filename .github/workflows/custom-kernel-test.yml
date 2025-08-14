@@ -50,7 +50,7 @@ jobs:
           image-type: ${{ inputs.image-type || 'ubuntu-22.04' }}
           volume-size: '20'
           runner-home-dir: '/tmp'
-          packages: '["kexec-tools", "curl", "unzip"]'
+          packages: '["kexec-tools", "curl", "unzip", "jq"]'
           pre-runner-script: |
             # Custom Kernel Kexec Setup
             # =========================
@@ -60,14 +60,31 @@ jobs:
 
             # Get kernel artifacts info from workflow input
             BUILD_ID="${{ inputs.build-id }}"
-            KERNEL_S3_KEY="kernels/${BUILD_ID}/bzImage"
-            INITRD_S3_KEY="kernels/${BUILD_ID}/initrd.img"
             S3_BUCKET="unvariance-kernel-dev"
             S3_REGION="us-east-2"
+            METADATA_S3_KEY="kernels/${BUILD_ID}/metadata.json"
 
             echo "Build ID: $BUILD_ID" | tee -a /var/log/kexec-setup.log
-            echo "Kernel S3 key: $KERNEL_S3_KEY" | tee -a /var/log/kexec-setup.log
-            echo "Initrd S3 key: $INITRD_S3_KEY" | tee -a /var/log/kexec-setup.log
+            echo "Metadata S3 key: $METADATA_S3_KEY" | tee -a /var/log/kexec-setup.log
+
+            # Download and parse metadata JSON to get kernel and initrd paths
+            echo "Downloading metadata.json from S3..." | tee -a /var/log/kexec-setup.log
+            aws s3 cp "s3://${S3_BUCKET}/${METADATA_S3_KEY}" /tmp/metadata.json --region "$S3_REGION"
+            
+            if [[ ! -f /tmp/metadata.json ]]; then
+                echo "Failed to download metadata.json" | tee -a /var/log/kexec-setup.log
+                exit 1
+            fi
+            
+            echo "Contents of metadata.json:" | tee -a /var/log/kexec-setup.log
+            cat /tmp/metadata.json | tee -a /var/log/kexec-setup.log
+            
+            # Extract kernel and initrd paths from metadata
+            KERNEL_S3_KEY=$(jq -r '.kernel_path // "kernels/'${BUILD_ID}'/bzImage"' /tmp/metadata.json)
+            INITRD_S3_KEY=$(jq -r '.initrd_path // "kernels/'${BUILD_ID}'/initrd.img"' /tmp/metadata.json)
+            
+            echo "Kernel S3 key from metadata: $KERNEL_S3_KEY" | tee -a /var/log/kexec-setup.log
+            echo "Initrd S3 key from metadata: $INITRD_S3_KEY" | tee -a /var/log/kexec-setup.log
 
             # Install AWS CLI
             echo "Installing AWS CLI" | tee -a /var/log/kexec-setup.log
