@@ -222,6 +222,10 @@ static struct amba_id trace_noc_ids[] = {
 		.id     = 0x000f0c00,
 		.mask   = 0x00ffff00,
 	},
+	{
+		.id     = 0x001f0c00,
+		.mask   = 0x00ffff00,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(amba, trace_noc_ids);
