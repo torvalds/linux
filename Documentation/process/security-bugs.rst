@@ -8,17 +8,6 @@ like to know when a security bug is found so that it can be fixed and
 disclosed as quickly as possible.  Please report security bugs to the
 Linux kernel security team.
 
-Contact
--------
-
-The Linux kernel security team can be contacted by email at
-<security@kernel.org>.  This is a private list of security officers
-who will help verify the bug report and develop and release a fix.
-If you already have a fix, please include it with your report, as
-that can speed up the process considerably.  It is possible that the
-security team will bring in extra help from area maintainers to
-understand and fix the security vulnerability.
-
 The security team and maintainers almost always require additional
 information beyond what was initially provided in a report and rely on
 active and efficient collaboration with the reporter to perform further
@@ -35,6 +24,14 @@ will be to diagnose and fix.  Please review the procedure outlined in
 information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.
+
+The Linux kernel security team can be contacted by email at
+<security@kernel.org>.  This is a private list of security officers
+who will help verify the bug report and develop and release a fix.
+If you already have a fix, please include it with your report, as
+that can speed up the process considerably.  It is possible that the
+security team will bring in extra help from area maintainers to
+understand and fix the security vulnerability.
 
 Please send plain text emails without attachments where possible.
 It is much harder to have a context-quoted discussion about a complex
