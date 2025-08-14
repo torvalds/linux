@@ -768,6 +768,9 @@ struct amdgpu_dm_connector {
 	uint16_t vc_full_pbn;
 	struct mutex handle_mst_msg_ready;
 
+	/* branch device specific data */
+	uint32_t branch_ieee_oui;
+
 	/* TODO see if we can merge with ddc_bus or make a dm_connector */
 	struct amdgpu_i2c_adapter *i2c;
 

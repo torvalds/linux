@@ -330,6 +330,34 @@ static bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnect
 	return true;
 }
 
+static bool retrieve_branch_specific_data(struct amdgpu_dm_connector *aconnector)
+{
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_dp_mst_port *port = aconnector->mst_output_port;
+	struct drm_dp_mst_port *port_parent;
+	struct drm_dp_aux *immediate_upstream_aux;
+	struct drm_dp_desc branch_desc;
+
+	if (!port->parent)
+		return false;
+
+	port_parent = port->parent->port_parent;
+
+	immediate_upstream_aux = port_parent ? &port_parent->aux : port->mgr->aux;
+
+	if (drm_dp_read_desc(immediate_upstream_aux, &branch_desc, true))
+		return false;
+
+	aconnector->branch_ieee_oui = (branch_desc.ident.oui[0] << 16) +
+				      (branch_desc.ident.oui[1] << 8) +
+				      (branch_desc.ident.oui[2]);
+
+	drm_dbg_dp(port->aux.drm_dev, "MST branch oui 0x%x detected at %s\n",
+		   aconnector->branch_ieee_oui, connector->name);
+
+	return true;
+}
+
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
@@ -668,6 +696,9 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 		drm_connector_attach_colorspace_property(connector);
 
 	drm_connector_set_path_property(connector, pathprop);
+
+	if (!retrieve_branch_specific_data(aconnector))
+		aconnector->branch_ieee_oui = 0;
 
 	/*
 	 * Initialize connector state before adding the connectror to drm and
@@ -1774,6 +1805,9 @@ static bool dp_get_link_current_set_bw(struct drm_dp_aux *aux, uint32_t *cur_lin
 	link_bw_set = data[DP_LINK_BW_SET - DP_LINK_BW_SET];
 	lane_count.raw = data[DP_LANE_COUNT_SET - DP_LINK_BW_SET];
 
+	drm_dbg_dp(aux->drm_dev, "MST_DSC downlink setting: %d, 0x%x x %d\n",
+		   dp_link_encoding, link_bw_set, lane_count.bits.LANE_COUNT_SET);
+
 	switch (dp_link_encoding) {
 	case DP_8b_10b_ENCODING:
 		link_rate = link_bw_set;
@@ -1870,8 +1904,10 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 					end_link_bw = aconnector->mst_local_bw;
 				}
 
-				if (end_link_bw > 0 && stream_kbps > end_link_bw) {
-					DRM_DEBUG_DRIVER("MST_DSC dsc decode at last link."
+				if (end_link_bw > 0 &&
+				    stream_kbps > end_link_bw &&
+				    aconnector->branch_ieee_oui != DP_BRANCH_DEVICE_ID_90CC24) {
+					DRM_DEBUG_DRIVER("MST_DSC dsc decode at last link. "
 							 "Mode required bw can't fit into last link\n");
 					return DC_FAIL_BANDWIDTH_VALIDATE;
 				}
