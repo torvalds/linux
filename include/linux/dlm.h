@@ -122,7 +122,8 @@ int dlm_new_lockspace(const char *name, const char *cluster,
  * release_option: see DLM_RELEASE values above.
  */
 
-int dlm_release_lockspace(dlm_lockspace_t *lockspace, int release_option);
+int dlm_release_lockspace(dlm_lockspace_t *lockspace,
+			  unsigned int release_option);
 
 /*
  * dlm_lock
