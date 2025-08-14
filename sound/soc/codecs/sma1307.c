@@ -1749,7 +1749,7 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 	       sma1307->set.header_size * sizeof(int));
 
 	if ((sma1307->set.checksum >> 8) != SMA1307_SETTING_CHECKSUM) {
-		dev_err(sma1307->dev, "%s: failed by dismatch \"%s\"\n",
+		dev_err(sma1307->dev, "%s: checksum failed \"%s\"\n",
 			__func__, setting_file);
 		sma1307->set.status = false;
 		return;
