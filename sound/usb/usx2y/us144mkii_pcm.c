@@ -61,6 +61,16 @@ void process_playback_routing_us144mkii(struct tascam_card *tascam,
 		memcpy(dst_buffer, src_buffer, frames * BYTES_PER_FRAME);
 }
 
+void process_capture_routing_us144mkii(struct tascam_card *tascam,
+				       const s32 *decoded_block,
+				       s32 *routed_block)
+{
+	/* This is a stub. Routing will be added in a later commit. */
+	memcpy(routed_block, decoded_block,
+	       FRAMES_PER_DECODE_BLOCK * DECODED_CHANNELS_PER_FRAME *
+		       DECODED_SAMPLE_SIZE);
+}
+
 int us144mkii_configure_device_for_rate(struct tascam_card *tascam, int rate)
 {
 	struct usb_device *dev = tascam->dev;
@@ -106,6 +116,12 @@ int us144mkii_configure_device_for_rate(struct tascam_card *tascam, int rate)
 	err = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      VENDOR_REQ_MODE_CONTROL, RT_H2D_VENDOR_DEV,
 			      MODE_VAL_CONFIG, 0x0000, NULL, 0,
+			      USB_CTRL_TIMEOUT_MS);
+	if (err < 0)
+		goto fail;
+	err = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
+			      RT_H2D_CLASS_EP, UAC_SAMPLING_FREQ_CONTROL,
+			      EP_AUDIO_IN, rate_payload_buf, 3,
 			      USB_CTRL_TIMEOUT_MS);
 	if (err < 0)
 		goto fail;
@@ -265,6 +281,20 @@ int tascam_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			if (err < 0) {
 				usb_unanchor_urb(tascam->playback_urbs[i]);
 				usb_put_urb(tascam->playback_urbs[i]);
+				atomic_dec(&tascam->active_urbs);
+				goto start_rollback;
+			}
+			atomic_inc(&tascam->active_urbs);
+		}
+		for (i = 0; i < NUM_CAPTURE_URBS; i++) {
+			usb_get_urb(tascam->capture_urbs[i]);
+			usb_anchor_urb(tascam->capture_urbs[i],
+				       &tascam->capture_anchor);
+			err = usb_submit_urb(tascam->capture_urbs[i],
+					     GFP_ATOMIC);
+			if (err < 0) {
+				usb_unanchor_urb(tascam->capture_urbs[i]);
+				usb_put_urb(tascam->capture_urbs[i]);
 				atomic_dec(&tascam->active_urbs);
 				goto start_rollback;
 			}
