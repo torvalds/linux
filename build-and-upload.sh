@@ -11,8 +11,6 @@ CC="ccache gcc"
 
 # Create temporary directory in user home for builds
 TEMP_BUILD_DIR="$HOME/.kernel-build-tmp-$$"
-# Cache directory for reusable initrds
-INITRD_CACHE_DIR="$HOME/.kernel-initrd-cache"
 trap 'cleanup_temp_dir' EXIT
 
 # Colors for output
@@ -45,9 +43,7 @@ cleanup_temp_dir() {
 # Create temporary directory
 create_temp_dir() {
     mkdir -p "$TEMP_BUILD_DIR"
-    mkdir -p "$INITRD_CACHE_DIR"
     log "Using temporary directory: $TEMP_BUILD_DIR"
-    log "Using initrd cache directory: $INITRD_CACHE_DIR"
 }
 
 # Check dependencies
@@ -149,102 +145,29 @@ build_tests() {
     log "Resctrl tests built successfully"
 }
 
-# Create initrd using mkinitramfs (with caching)
+# Build initrd using the separate script
 create_initrd() {
-    # Check for cached initrd first
-    local cached_initrd="${INITRD_CACHE_DIR}/initrd-${KERNEL_VERSION}.img"
+    log "Building initrd using separate script..."
     
-    if [[ -f "$cached_initrd" && "${FORCE_INITRD:-}" != "1" ]]; then
-        log "Using cached initrd: $cached_initrd"
-        cp "$cached_initrd" "${TEMP_BUILD_DIR}/initrd-${KERNEL_VERSION}.img"
-        return 0
+    if [[ ! -f "./build-initrd.sh" ]]; then
+        error "build-initrd.sh not found in current directory"
     fi
     
-    log "Creating Ubuntu-compatible initrd using mkinitramfs..."
+    # Run the initrd build script with upload flag
+    local initrd_output
+    initrd_output=$(./build-initrd.sh --upload 2>&1) || error "Failed to build and upload initrd"
     
-    # Check if mkinitramfs is available
-    if ! command -v mkinitramfs >/dev/null 2>&1; then
-        error "mkinitramfs not found. Please install initramfs-tools: apt-get install initramfs-tools"
+    # Extract SHA256 and S3 key from output
+    INITRD_SHA256=$(echo "$initrd_output" | grep "INITRD_SHA256=" | cut -d'=' -f2)
+    INITRD_S3_KEY=$(echo "$initrd_output" | grep "INITRD_S3_KEY=" | cut -d'=' -f2)
+    
+    if [[ -z "$INITRD_SHA256" || -z "$INITRD_S3_KEY" ]]; then
+        error "Failed to extract initrd information from build script output"
     fi
     
-    # Install kernel modules to persistent location for reuse
-    PERSISTENT_MODULES="$HOME/kernel-modules"
-    log "Checking kernel modules in ${PERSISTENT_MODULES}..."
-    
-    # Only install modules if they don't exist or if forced
-    if [[ ! -d "${PERSISTENT_MODULES}/lib/modules/${KERNEL_VERSION}" || "${FORCE_INITRD:-}" == "1" ]]; then
-        log "Installing/updating kernel modules..."
-        make INSTALL_MOD_PATH="${PERSISTENT_MODULES}" modules_install
-    else
-        log "Reusing existing kernel modules from ${PERSISTENT_MODULES}..."
-    fi
-    
-    # Path to our modules
-    MODULES_DIR="${PERSISTENT_MODULES}/lib/modules/${KERNEL_VERSION}"
-    
-    if [[ ! -d "${MODULES_DIR}" ]]; then
-        error "Modules directory not found: ${MODULES_DIR}"
-    fi
-    
-    # Use mkinitramfs with system configuration and temporarily install our modules
-    log "Creating initramfs using system configuration..."
-    
-    # Temporarily install our modules to the system location
-    SYSTEM_MODULES_DIR="/lib/modules/${KERNEL_VERSION}"
-    BACKUP_MODULES=""
-    
-    # Create /lib/modules directory if it doesn't exist
-    sudo mkdir -p "/lib/modules"
-    
-    # Back up existing modules if they exist
-    if [[ -d "${SYSTEM_MODULES_DIR}" ]]; then
-        BACKUP_MODULES="${TEMP_BUILD_DIR}/backup-modules"
-        log "Backing up existing modules to ${BACKUP_MODULES}..."
-        sudo mv "${SYSTEM_MODULES_DIR}" "${BACKUP_MODULES}"
-    fi
-    
-    # Symlink our modules to system location (much faster than copying)
-    log "Temporarily symlinking kernel modules to system location..."
-    sudo ln -sf "${MODULES_DIR}" "${SYSTEM_MODULES_DIR}"
-    
-    # Symlink kernel config to fix mkinitramfs warning
-    BOOT_CONFIG="/boot/config-${KERNEL_VERSION}"
-    BACKUP_CONFIG=""
-    if [[ -f "${BOOT_CONFIG}" ]]; then
-        BACKUP_CONFIG="${TEMP_BUILD_DIR}/backup-config"
-        log "Backing up existing config to ${BACKUP_CONFIG}..."
-        sudo mv "${BOOT_CONFIG}" "${BACKUP_CONFIG}"
-    fi
-    log "Temporarily symlinking kernel config to ${BOOT_CONFIG}..."
-    sudo ln -sf "$(pwd)/.config" "${BOOT_CONFIG}"
-    
-    # Generate module dependencies (needed for mkinitramfs)
-    log "Generating module dependencies..."
-    sudo depmod "${KERNEL_VERSION}"
-    
-    # Use mkinitramfs with system config directory
-    log "Generating initramfs..."
-    mkinitramfs -d /etc/initramfs-tools -o "${TEMP_BUILD_DIR}/initrd-${KERNEL_VERSION}.img" "${KERNEL_VERSION}"
-    
-    # Clean up - remove our symlinks and restore backups if needed
-    sudo rm -f "${SYSTEM_MODULES_DIR}"
-    if [[ -n "${BACKUP_MODULES}" && -d "${BACKUP_MODULES}" ]]; then
-        log "Restoring original modules..."
-        sudo mv "${BACKUP_MODULES}" "${SYSTEM_MODULES_DIR}"
-    fi
-    
-    sudo rm -f "${BOOT_CONFIG}"
-    if [[ -n "${BACKUP_CONFIG}" && -f "${BACKUP_CONFIG}" ]]; then
-        log "Restoring original config..."
-        sudo mv "${BACKUP_CONFIG}" "${BOOT_CONFIG}"
-    fi
-    
-    # Cache the initrd for future use
-    log "Caching initrd for future builds..."
-    cp "${TEMP_BUILD_DIR}/initrd-${KERNEL_VERSION}.img" "$cached_initrd"
-    
-    log "Ubuntu-compatible initrd created: ${TEMP_BUILD_DIR}/initrd-${KERNEL_VERSION}.img"
-    log "Kernel modules preserved in: ${PERSISTENT_MODULES}"
+    log "Initrd build completed successfully"
+    log "Initrd SHA256: $INITRD_SHA256"
+    log "Initrd S3 key: $INITRD_S3_KEY"
 }
 
 # Upload artifacts to S3
@@ -252,19 +175,19 @@ upload_to_s3() {
     log "Uploading kernel artifacts to S3..."
     
     local kernel_path="arch/x86/boot/bzImage"
-    local initrd_path="${TEMP_BUILD_DIR}/initrd-${KERNEL_VERSION}.img"
     local test_path="${TEMP_BUILD_DIR}/resctrl_tests-${KERNEL_VERSION}"
     
     if [[ ! -f "$kernel_path" ]]; then
         error "Kernel image not found at $kernel_path"
     fi
     
-    if [[ ! -f "$initrd_path" ]]; then
-        error "Initrd not found at $initrd_path"
-    fi
-    
     if [[ ! -f "$test_path" ]]; then
         error "Test binary not found at $test_path"
+    fi
+    
+    # Validate initrd information from build-initrd.sh
+    if [[ -z "$INITRD_SHA256" || -z "$INITRD_S3_KEY" ]]; then
+        error "Initrd information not available. Make sure create_initrd() was called successfully."
     fi
     
     # Upload kernel
@@ -272,10 +195,8 @@ upload_to_s3() {
     log "Uploading kernel to s3://${S3_BUCKET}/${s3_kernel_key}"
     aws s3 cp "$kernel_path" "s3://${S3_BUCKET}/${s3_kernel_key}" --region "$S3_REGION"
     
-    # Upload initrd
-    local s3_initrd_key="kernels/${BUILD_ID}/initrd.img"
-    log "Uploading initrd to s3://${S3_BUCKET}/${s3_initrd_key}"
-    aws s3 cp "$initrd_path" "s3://${S3_BUCKET}/${s3_initrd_key}" --region "$S3_REGION"
+    # Note: initrd is already uploaded by build-initrd.sh
+    log "Using pre-uploaded initrd: s3://${S3_BUCKET}/${INITRD_S3_KEY}"
     
     # Upload test binary
     local s3_test_key="kernels/${BUILD_ID}/resctrl_tests"
@@ -292,7 +213,8 @@ upload_to_s3() {
     "git_commit": "$(git rev-parse HEAD)",
     "git_branch": "$(git rev-parse --abbrev-ref HEAD)",
     "kernel_path": "${s3_kernel_key}",
-    "initrd_path": "${s3_initrd_key}",
+    "initrd_path": "${INITRD_S3_KEY}",
+    "initrd_sha256": "${INITRD_SHA256}",
     "test_path": "${s3_test_key}",
     "s3_bucket": "${S3_BUCKET}",
     "s3_region": "${S3_REGION}"
@@ -310,14 +232,15 @@ EOF
     log "Upload completed successfully!"
     log "Kernel artifacts available at:"
     log "  bzImage:   s3://${S3_BUCKET}/${s3_kernel_key}"
-    log "  initrd:    s3://${S3_BUCKET}/${s3_initrd_key}"
+    log "  initrd:    s3://${S3_BUCKET}/${INITRD_S3_KEY} (SHA256: ${INITRD_SHA256})"
     log "  test:      s3://${S3_BUCKET}/${s3_test_key}"
     log "  metadata:  s3://${S3_BUCKET}/${s3_metadata_key}"
     
     # Output for GitHub Actions (if running in GitHub Actions)
     if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
         echo "kernel_s3_key=${s3_kernel_key}" >> "$GITHUB_OUTPUT"
-        echo "initrd_s3_key=${s3_initrd_key}" >> "$GITHUB_OUTPUT"
+        echo "initrd_s3_key=${INITRD_S3_KEY}" >> "$GITHUB_OUTPUT"
+        echo "initrd_sha256=${INITRD_SHA256}" >> "$GITHUB_OUTPUT"
         echo "test_s3_key=${s3_test_key}" >> "$GITHUB_OUTPUT"
         echo "metadata_s3_key=${s3_metadata_key}" >> "$GITHUB_OUTPUT"
         echo "build_id=${BUILD_ID}" >> "$GITHUB_OUTPUT"
@@ -326,7 +249,8 @@ EOF
     # Save build info locally
     echo "BUILD_ID=${BUILD_ID}" > .last-build-info
     echo "KERNEL_S3_KEY=${s3_kernel_key}" >> .last-build-info
-    echo "INITRD_S3_KEY=${s3_initrd_key}" >> .last-build-info
+    echo "INITRD_S3_KEY=${INITRD_S3_KEY}" >> .last-build-info
+    echo "INITRD_SHA256=${INITRD_SHA256}" >> .last-build-info
     echo "TEST_S3_KEY=${s3_test_key}" >> .last-build-info
     echo "METADATA_S3_KEY=${s3_metadata_key}" >> .last-build-info
 }
@@ -343,7 +267,7 @@ usage() {
     echo "Environment variables:"
     echo "  S3_BUCKET     S3 bucket name (default: unvariance-kernel-dev)"
     echo "  S3_REGION     S3 region (default: us-east-2)"
-    echo "  FORCE_INITRD  Set to 1 to force initrd rebuild (default: use cache)"
+    echo "  FORCE_INITRD  Set to 1 to force initrd rebuild (passed to build-initrd.sh)"
     echo ""
     echo "Examples:"
     echo "  $0                      # Build with current HEAD as build ID"
