@@ -527,23 +527,21 @@ class KernelDoc:
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
                 self.push_parameter(ln, decl_type, param, dtype,
                                     arg, declaration_name)
-
+            #
+            # The array-of-pointers case.  Dig the parameter name out from the middle
+            # of the declaration.
+            #
             elif KernRe(r'\(.+\)\s*\[').search(arg):
-                # Array-of-pointers
-
-                arg = arg.replace('#', ',')
-                r = KernRe(r'[^\(]+\(\s*\*\s*([\w\[\].]*?)\s*(\s*\[\s*[\w]+\s*\]\s*)*\)')
+                r = KernRe(r'[^\(]+\(\s*\*\s*'		# Up to "(" and maybe "*"
+                           r'([\w.]*?)'			# The actual pointer name
+                           r'\s*(\[\s*\w+\s*\]\s*)*\)') # The [array portion]
                 if r.match(arg):
                     param = r.group(1)
                 else:
                     self.emit_msg(ln, f"Invalid param: {arg}")
                     param = arg
-
-                dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
-
-                self.push_parameter(ln, decl_type, param, dtype,
-                                    arg, declaration_name)
-
+                dtype = arg.replace(param, '')
+                self.push_parameter(ln, decl_type, param, dtype, arg, declaration_name)
             elif arg:
                 #
                 # Clean up extraneous spaces and split the string at commas; the first
