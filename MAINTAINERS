@@ -10666,7 +10666,8 @@ S:	Maintained
 F:	block/partitions/efi.*
 
 HABANALABS PCI DRIVER
-M:	Yaron Avizrat <yaron.avizrat@intel.com>
+M:	Koby Elbaz <koby.elbaz@intel.com>
+M:	Konstantin Sinyuk <konstantin.sinyuk@intel.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 C:	irc://irc.oftc.net/dri-devel
