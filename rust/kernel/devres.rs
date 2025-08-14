@@ -13,8 +13,8 @@ use crate::{
     ffi::c_void,
     prelude::*,
     revocable::{Revocable, RevocableGuard},
-    sync::{rcu, Completion},
-    types::{ARef, ForeignOwnable, Opaque, ScopeGuard},
+    sync::{aref::ARef, rcu, Completion},
+    types::{ForeignOwnable, Opaque, ScopeGuard},
 };
 
 use pin_init::Wrapper;
