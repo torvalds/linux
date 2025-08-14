@@ -1116,3 +1116,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ankit Agrawal <ankita@nvidia.com>");
 MODULE_AUTHOR("Aniket Agashe <aniketa@nvidia.com>");
 MODULE_DESCRIPTION("VFIO NVGRACE GPU PF - User Level driver for NVIDIA devices with CPU coherently accessible device memory");
+MODULE_SOFTDEP("pre: nvgrace-egm");

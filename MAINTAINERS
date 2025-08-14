@@ -26476,6 +26476,12 @@ F:	drivers/vfio/pci/nvgrace-gpu/egm_dev.h
 F:	drivers/vfio/pci/nvgrace-gpu/main.c
 F:	include/linux/nvgrace-egm.h
 
+VFIO NVIDIA GRACE EGM DRIVER
+M:	Ankit Agrawal <ankita@nvidia.com>
+L:	kvm@vger.kernel.org
+S:	Supported
+F:	drivers/vfio/pci/nvgrace-gpu/egm.c
+
 VFIO PCI DEVICE SPECIFIC DRIVERS
 R:	Jason Gunthorpe <jgg@nvidia.com>
 R:	Yishai Hadas <yishaih@nvidia.com>

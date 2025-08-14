@@ -1,8 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config NVGRACE_EGM
+	tristate "EGM driver for NVIDIA Grace Hopper and Blackwell Superchip"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Extended GPU Memory (EGM) support for the GPU in the NVIDIA Grace
+	  based chips required to avail the CPU memory as additional
+	  cross-node/cross-socket memory for GPU using KVM/qemu.
+
+	  If you don't know what to do here, say N.
+
 config NVGRACE_GPU_VFIO_PCI
 	tristate "VFIO support for the GPU in the NVIDIA Grace Hopper Superchip"
 	depends on ARM64 || (COMPILE_TEST && 64BIT)
 	select VFIO_PCI_CORE
+	select NVGRACE_EGM
 	help
 	  VFIO support for the GPU in the NVIDIA Grace Hopper Superchip is
 	  required to assign the GPU device to userspace using KVM/qemu/etc.
