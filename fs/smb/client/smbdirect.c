@@ -57,6 +57,9 @@ static ssize_t smb_extract_iter_to_rdma(struct iov_iter *iter, size_t len,
 /* SMBD negotiation timeout in seconds */
 #define SMBD_NEGOTIATE_TIMEOUT	120
 
+/* The timeout to wait for a keepalive message from peer in seconds */
+#define KEEPALIVE_RECV_TIMEOUT 5
+
 /* SMBD minimum receive size and fragmented sized defined in [MS-SMBD] */
 #define SMBD_MIN_RECEIVE_SIZE		128
 #define SMBD_MIN_FRAGMENTED_SIZE	131072
@@ -721,6 +724,7 @@ static struct rdma_cm_id *smbd_create_id(
 		struct sockaddr *dstaddr, int port)
 {
 	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct rdma_cm_id *id;
 	int rc;
 	__be16 *sport;
@@ -743,7 +747,7 @@ static struct rdma_cm_id *smbd_create_id(
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED);
 	sc->status = SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING;
 	rc = rdma_resolve_addr(id, NULL, (struct sockaddr *)dstaddr,
-		RDMA_RESOLVE_TIMEOUT);
+		sp->resolve_addr_timeout_msec);
 	if (rc) {
 		log_rdma_event(ERR, "rdma_resolve_addr() failed %i\n", rc);
 		goto out;
@@ -751,7 +755,7 @@ static struct rdma_cm_id *smbd_create_id(
 	rc = wait_event_interruptible_timeout(
 		sc->status_wait,
 		sc->status != SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING,
-		msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT));
+		msecs_to_jiffies(sp->resolve_addr_timeout_msec));
 	/* e.g. if interrupted returns -ERESTARTSYS */
 	if (rc < 0) {
 		log_rdma_event(ERR, "rdma_resolve_addr timeout rc: %i\n", rc);
@@ -770,7 +774,7 @@ static struct rdma_cm_id *smbd_create_id(
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RESOLVE_ROUTE_NEEDED);
 	sc->status = SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING;
-	rc = rdma_resolve_route(id, RDMA_RESOLVE_TIMEOUT);
+	rc = rdma_resolve_route(id, sp->resolve_route_timeout_msec);
 	if (rc) {
 		log_rdma_event(ERR, "rdma_resolve_route() failed %i\n", rc);
 		goto out;
@@ -778,7 +782,7 @@ static struct rdma_cm_id *smbd_create_id(
 	rc = wait_event_interruptible_timeout(
 		sc->status_wait,
 		sc->status != SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING,
-		msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT));
+		msecs_to_jiffies(sp->resolve_route_timeout_msec));
 	/* e.g. if interrupted returns -ERESTARTSYS */
 	if (rc < 0)  {
 		log_rdma_event(ERR, "rdma_resolve_addr timeout rc: %i\n", rc);
@@ -1266,6 +1270,7 @@ static int smbd_post_recv(
 static int smbd_negotiate(struct smbd_connection *info)
 {
 	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int rc;
 	struct smbdirect_recv_io *response = get_receive_buffer(info);
 
@@ -1289,7 +1294,7 @@ static int smbd_negotiate(struct smbd_connection *info)
 	rc = wait_event_interruptible_timeout(
 		sc->status_wait,
 		sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING,
-		secs_to_jiffies(SMBD_NEGOTIATE_TIMEOUT));
+		msecs_to_jiffies(sp->negotiate_timeout_msec));
 	log_rdma_event(INFO, "wait_event_interruptible_timeout rc=%d\n", rc);
 
 	if (sc->status == SMBDIRECT_SOCKET_CONNECTED)
@@ -1718,12 +1723,17 @@ static struct smbd_connection *_smbd_get_connection(
 
 	INIT_WORK(&sc->disconnect_work, smbd_disconnect_rdma_work);
 
+	sp->resolve_addr_timeout_msec = RDMA_RESOLVE_TIMEOUT;
+	sp->resolve_route_timeout_msec = RDMA_RESOLVE_TIMEOUT;
+	sp->rdma_connect_timeout_msec = RDMA_RESOLVE_TIMEOUT;
+	sp->negotiate_timeout_msec = SMBD_NEGOTIATE_TIMEOUT * 1000;
 	sp->recv_credit_max = smbd_receive_credit_max;
 	sp->send_credit_target = smbd_send_credit_target;
 	sp->max_send_size = smbd_max_send_size;
 	sp->max_fragmented_recv_size = smbd_max_fragmented_recv_size;
 	sp->max_recv_size = smbd_max_receive_size;
 	sp->keepalive_interval_msec = smbd_keep_alive_interval * 1000;
+	sp->keepalive_timeout_msec = KEEPALIVE_RECV_TIMEOUT * 1000;
 
 	rc = smbd_ia_open(info, dstaddr, port);
 	if (rc) {
@@ -1838,7 +1848,7 @@ static struct smbd_connection *_smbd_get_connection(
 	wait_event_interruptible_timeout(
 		sc->status_wait,
 		sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING,
-		msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT));
+		msecs_to_jiffies(sp->rdma_connect_timeout_msec));
 
 	if (sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED) {
 		log_rdma_event(ERR, "rdma_connect failed port=%d\n", port);
