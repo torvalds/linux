@@ -1600,54 +1600,50 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 
 static bool mxser_port_isr(struct mxser_port *port)
 {
-	struct tty_struct *tty;
 	u8 iir, status;
-	bool error = false;
 
 	iir = inb(port->ioaddr + UART_IIR);
 	if (iir & UART_IIR_NO_INT)
 		return true;
 
 	iir &= MOXA_MUST_IIR_MASK;
-	tty = tty_port_tty_get(&port->port);
-	if (!tty) {
-		status = inb(port->ioaddr + UART_LSR);
-		outb(port->FCR | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
-				port->ioaddr + UART_FCR);
-		inb(port->ioaddr + UART_MSR);
 
-		error = true;
-		goto put_tty;
+	scoped_guard(tty_port_tty, &port->port) {
+		struct tty_struct *tty = scoped_tty();
+
+		status = inb(port->ioaddr + UART_LSR);
+
+		if (port->board->must_hwid) {
+			if (iir == MOXA_MUST_IIR_GDA ||
+			    iir == MOXA_MUST_IIR_RDA ||
+			    iir == MOXA_MUST_IIR_RTO ||
+			    iir == MOXA_MUST_IIR_LSR)
+				status = mxser_receive_chars(tty, port, status);
+		} else {
+			status &= port->read_status_mask;
+			if (status & UART_LSR_DR)
+				status = mxser_receive_chars(tty, port, status);
+		}
+
+		mxser_check_modem_status(tty, port);
+
+		if (port->board->must_hwid) {
+			if (iir == 0x02 && (status & UART_LSR_THRE))
+				mxser_transmit_chars(tty, port);
+		} else {
+			if (status & UART_LSR_THRE)
+				mxser_transmit_chars(tty, port);
+		}
+
+		return false;
 	}
 
 	status = inb(port->ioaddr + UART_LSR);
+	outb(port->FCR | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
+			port->ioaddr + UART_FCR);
+	inb(port->ioaddr + UART_MSR);
 
-	if (port->board->must_hwid) {
-		if (iir == MOXA_MUST_IIR_GDA ||
-		    iir == MOXA_MUST_IIR_RDA ||
-		    iir == MOXA_MUST_IIR_RTO ||
-		    iir == MOXA_MUST_IIR_LSR)
-			status = mxser_receive_chars(tty, port, status);
-	} else {
-		status &= port->read_status_mask;
-		if (status & UART_LSR_DR)
-			status = mxser_receive_chars(tty, port, status);
-	}
-
-	mxser_check_modem_status(tty, port);
-
-	if (port->board->must_hwid) {
-		if (iir == 0x02 && (status & UART_LSR_THRE))
-			mxser_transmit_chars(tty, port);
-	} else {
-		if (status & UART_LSR_THRE)
-			mxser_transmit_chars(tty, port);
-	}
-
-put_tty:
-	tty_kref_put(tty);
-
-	return error;
+	return true;
 }
 
 /*
