@@ -374,6 +374,7 @@ void rq_qos_del(struct rq_qos *rqos)
 	for (cur = &q->rq_qos; *cur; cur = &(*cur)->next) {
 		if (*cur == rqos) {
 			*cur = rqos->next;
+			static_branch_dec(&block_rq_qos);
 			break;
 		}
 	}
