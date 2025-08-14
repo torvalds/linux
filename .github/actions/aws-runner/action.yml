@@ -215,7 +215,7 @@ runs:
     # Start EC2 runner with availability-zones-config
     - name: Start EC2 runner
       id: start-ec2-runner
-      uses: yonch/ec2-github-runner@703f4a7887ec5b30734280ff62b324b9a52d66d2
+      uses: yonch/ec2-github-runner@feature/packages-installation
       continue-on-error: true
       with:
         mode: start
