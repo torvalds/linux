@@ -511,7 +511,7 @@ static int rt5133_validate_vendor_info(struct rt5133_priv *priv)
 		}
 	}
 	if (IS_ERR(priv->cdata)) {
-		dev_err(priv->dev, "Failed to find regualtor match version\n");
+		dev_err(priv->dev, "Failed to find regulator match version\n");
 		return -ENODEV;
 	}
 
