@@ -2,7 +2,7 @@
 
 config DRM_ACCEL_ROCKET
 	tristate "Rocket (support for Rockchip NPUs)"
-	depends on DRM
+	depends on DRM_ACCEL
 	depends on (ARCH_ROCKCHIP && ARM64) || COMPILE_TEST
 	depends on ROCKCHIP_IOMMU || COMPILE_TEST
 	depends on MMU
