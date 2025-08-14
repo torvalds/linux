@@ -633,7 +633,9 @@ out:
 static const enum power_supply_property rt9467_chg_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
@@ -656,6 +658,8 @@ static int rt9467_psy_get_property(struct power_supply *psy,
 		return rt9467_psy_get_status(data, &val->intval);
 	case POWER_SUPPLY_PROP_ONLINE:
 		return regmap_field_read(data->rm_field[F_PWR_RDY], &val->intval);
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		return rt9467_get_adc(data, RT9467_ADC_VBUS_DIV5, &val->intval);
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		mutex_lock(&data->attach_lock);
 		if (data->psy_usb_type == POWER_SUPPLY_USB_TYPE_UNKNOWN ||
@@ -665,6 +669,8 @@ static int rt9467_psy_get_property(struct power_supply *psy,
 			val->intval = 1500000;
 		mutex_unlock(&data->attach_lock);
 		return 0;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		return rt9467_get_adc(data, RT9467_ADC_IBUS, &val->intval);
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		mutex_lock(&data->ichg_ieoc_lock);
 		val->intval = data->ichg_ua;
