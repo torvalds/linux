@@ -302,8 +302,6 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	platform_set_drvdata(pdev, rproc);
-
 	/* everything the ISR needs is now setup, so hook it up */
 	ret = devm_request_threaded_irq(dev, irq, da8xx_rproc_callback,
 					handle_event, 0, "da8xx-remoteproc",
@@ -328,28 +326,13 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	drproc->irq_data = irq_data;
 	drproc->irq = irq;
 
-	ret = rproc_add(rproc);
+	ret = devm_rproc_add(dev, rproc);
 	if (ret) {
 		dev_err(dev, "rproc_add failed: %d\n", ret);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void da8xx_rproc_remove(struct platform_device *pdev)
-{
-	struct rproc *rproc = platform_get_drvdata(pdev);
-	struct da8xx_rproc *drproc = rproc->priv;
-
-	/*
-	 * The devm subsystem might end up releasing things before
-	 * freeing the irq, thus allowing an interrupt to sneak in while
-	 * the device is being removed.  This should prevent that.
-	 */
-	disable_irq(drproc->irq);
-
-	rproc_del(rproc);
 }
 
 static const struct of_device_id davinci_rproc_of_match[] __maybe_unused = {
@@ -360,7 +343,6 @@ MODULE_DEVICE_TABLE(of, davinci_rproc_of_match);
 
 static struct platform_driver da8xx_rproc_driver = {
 	.probe = da8xx_rproc_probe,
-	.remove = da8xx_rproc_remove,
 	.driver = {
 		.name = "davinci-rproc",
 		.of_match_table = of_match_ptr(davinci_rproc_of_match),
