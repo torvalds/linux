@@ -4049,8 +4049,7 @@ int br_multicast_rcv(struct net_bridge_mcast **brmctx,
 }
 
 static void br_multicast_query_expired(struct net_bridge_mcast *brmctx,
-				       struct bridge_mcast_own_query *query,
-				       struct bridge_mcast_querier *querier)
+				       struct bridge_mcast_own_query *query)
 {
 	spin_lock(&brmctx->br->multicast_lock);
 	if (br_multicast_ctx_vlan_disabled(brmctx))
@@ -4069,8 +4068,7 @@ static void br_ip4_multicast_query_expired(struct timer_list *t)
 	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
 							     ip4_own_query.timer);
 
-	br_multicast_query_expired(brmctx, &brmctx->ip4_own_query,
-				   &brmctx->ip4_querier);
+	br_multicast_query_expired(brmctx, &brmctx->ip4_own_query);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -4079,8 +4077,7 @@ static void br_ip6_multicast_query_expired(struct timer_list *t)
 	struct net_bridge_mcast *brmctx = timer_container_of(brmctx, t,
 							     ip6_own_query.timer);
 
-	br_multicast_query_expired(brmctx, &brmctx->ip6_own_query,
-				   &brmctx->ip6_querier);
+	br_multicast_query_expired(brmctx, &brmctx->ip6_own_query);
 }
 #endif
 
