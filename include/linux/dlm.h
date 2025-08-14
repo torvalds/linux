@@ -113,6 +113,7 @@ int dlm_new_lockspace(const char *name, const char *cluster,
 #define DLM_RELEASE_NORMAL		2
 #define DLM_RELEASE_NO_EVENT		3
 #define DLM_RELEASE_RECOVER		4
+#define __DLM_RELEASE_MAX		DLM_RELEASE_RECOVER
 
 /*
  * dlm_release_lockspace

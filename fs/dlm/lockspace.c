@@ -797,6 +797,9 @@ int dlm_release_lockspace(void *lockspace, unsigned int release_option)
 	struct dlm_ls *ls;
 	int error;
 
+	if (release_option > __DLM_RELEASE_MAX)
+		return -EINVAL;
+
 	ls = dlm_find_lockspace_local(lockspace);
 	if (!ls)
 		return -EINVAL;
