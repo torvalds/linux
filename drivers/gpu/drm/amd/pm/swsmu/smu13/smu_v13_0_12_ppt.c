@@ -58,7 +58,7 @@
 
 #define NUM_JPEG_RINGS_FW	10
 #define NUM_JPEG_RINGS_GPU_METRICS(gpu_metrics) \
-	(ARRAY_SIZE(gpu_metrics->xcp_stats[0].jpeg_busy) / 4)
+	(ARRAY_SIZE(gpu_metrics->jpeg_busy) / 4)
 
 const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[SMU_FEATURE_COUNT] = {
 	SMU_13_0_12_FEA_MAP(SMU_FEATURE_DATA_CALCULATIONS_BIT, 		FEATURE_DATA_CALCULATION),
@@ -772,21 +772,16 @@ ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu, struct amdgpu_xcp 
 	return sizeof(*xcp_metrics);
 }
 
-ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table, void *smu_metrics)
+void smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table,
+				  void *smu_metrics,
+				  struct smu_v13_0_6_gpu_metrics *gpu_metrics)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_8 *gpu_metrics =
-		(struct gpu_metrics_v1_8 *)smu_table->gpu_metrics_table;
-	int ret = 0, xcc_id, inst, i, j, k, idx;
 	struct amdgpu_device *adev = smu->adev;
+	int ret = 0, xcc_id, inst, i, j;
 	u8 num_jpeg_rings_gpu_metrics;
 	MetricsTable_t *metrics;
-	struct amdgpu_xcp *xcp;
-	u32 inst_mask;
 
 	metrics = (MetricsTable_t *)smu_metrics;
-
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 8);
 
 	gpu_metrics->temperature_hotspot =
 		SMUQ10_ROUND(metrics->MaxSocketTemperature);
@@ -877,57 +872,47 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table, void
 			gpu_metrics->xgmi_link_status[j] = ret;
 	}
 
-	gpu_metrics->num_partition = adev->xcp_mgr->num_xcps;
-
 	num_jpeg_rings_gpu_metrics = NUM_JPEG_RINGS_GPU_METRICS(gpu_metrics);
-	for_each_xcp(adev->xcp_mgr, xcp, i) {
-		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
-		idx = 0;
-		for_each_inst(k, inst_mask) {
-			/* Both JPEG and VCN has same instances */
-			inst = GET_INST(VCN, k);
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		inst = GET_INST(VCN, i);
 
-			for (j = 0; j < num_jpeg_rings_gpu_metrics; ++j) {
-				gpu_metrics->xcp_stats[i].jpeg_busy
-					[(idx * num_jpeg_rings_gpu_metrics) + j] =
-					SMUQ10_ROUND(metrics->JpegBusy
-							[(inst * NUM_JPEG_RINGS_FW) + j]);
-			}
-			gpu_metrics->xcp_stats[i].vcn_busy[idx] =
-			       SMUQ10_ROUND(metrics->VcnBusy[inst]);
-			idx++;
+		for (j = 0; j < num_jpeg_rings_gpu_metrics; ++j) {
+			gpu_metrics->jpeg_busy[(i * num_jpeg_rings_gpu_metrics) +
+					       j] =
+				SMUQ10_ROUND(
+					metrics->JpegBusy[(inst *
+							   NUM_JPEG_RINGS_FW) +
+							  j]);
 		}
+		gpu_metrics->vcn_busy[i] = SMUQ10_ROUND(metrics->VcnBusy[inst]);
+	}
 
-		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
-		idx = 0;
-		for_each_inst(k, inst_mask) {
-			inst = GET_INST(GC, k);
-			gpu_metrics->xcp_stats[i].gfx_busy_inst[idx] =
-				SMUQ10_ROUND(metrics->GfxBusy[inst]);
-			gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
-				SMUQ10_ROUND(metrics->GfxBusyAcc[inst]);
-			if (smu_v13_0_6_cap_supported(smu, SMU_CAP(HST_LIMIT_METRICS))) {
-				gpu_metrics->xcp_stats[i].gfx_below_host_limit_ppt_acc[idx] =
-					SMUQ10_ROUND(metrics->GfxclkBelowHostLimitPptAcc[inst]);
-				gpu_metrics->xcp_stats[i].gfx_below_host_limit_thm_acc[idx] =
-					SMUQ10_ROUND(metrics->GfxclkBelowHostLimitThmAcc[inst]);
-				gpu_metrics->xcp_stats[i].gfx_low_utilization_acc[idx] =
-					SMUQ10_ROUND(metrics->GfxclkLowUtilizationAcc[inst]);
-				gpu_metrics->xcp_stats[i].gfx_below_host_limit_total_acc[idx] =
-					SMUQ10_ROUND(metrics->GfxclkBelowHostLimitTotalAcc[inst]);
-			}
-			idx++;
-		}
+	for (i = 0; i < NUM_XCC(adev->gfx.xcc_mask); ++i) {
+		inst = GET_INST(GC, i);
+		gpu_metrics->gfx_busy_inst[i] =
+			SMUQ10_ROUND(metrics->GfxBusy[inst]);
+		gpu_metrics->gfx_busy_acc[i] =
+			SMUQ10_ROUND(metrics->GfxBusyAcc[inst]);
+		if (smu_v13_0_6_cap_supported(smu,
+					      SMU_CAP(HST_LIMIT_METRICS))) {
+			gpu_metrics
+				->gfx_below_host_limit_ppt_acc[i] = SMUQ10_ROUND(
+				metrics->GfxclkBelowHostLimitPptAcc[inst]);
+			gpu_metrics
+				->gfx_below_host_limit_thm_acc[i] = SMUQ10_ROUND(
+				metrics->GfxclkBelowHostLimitThmAcc[inst]);
+			gpu_metrics->gfx_low_utilization_acc[i] = SMUQ10_ROUND(
+				metrics->GfxclkLowUtilizationAcc[inst]);
+			gpu_metrics->gfx_below_host_limit_total_acc
+				[i] = SMUQ10_ROUND(
+				metrics->GfxclkBelowHostLimitTotalAcc[inst]);
+		};
 	}
 
 	gpu_metrics->xgmi_link_width = metrics->XgmiWidth;
 	gpu_metrics->xgmi_link_speed = metrics->XgmiBitrate;
 
 	gpu_metrics->firmware_timestamp = metrics->Timestamp;
-
-	*table = (void *)gpu_metrics;
-
-	return sizeof(*gpu_metrics);
 }
 
 const struct smu_temp_funcs smu_v13_0_12_temp_funcs = {
