@@ -361,10 +361,10 @@ int con_set_trans_old(unsigned char __user * arg)
 		inbuf[i] = UNI_DIRECT_BASE | ch;
 	}
 
-	console_lock();
+	guard(console_lock)();
 	memcpy(translations[USER_MAP], inbuf, sizeof(inbuf));
 	update_user_maps();
-	console_unlock();
+
 	return 0;
 }
 
@@ -374,13 +374,11 @@ int con_get_trans_old(unsigned char __user * arg)
 	unsigned short *p = translations[USER_MAP];
 	unsigned char outbuf[E_TABSZ];
 
-	console_lock();
-	for (i = 0; i < ARRAY_SIZE(outbuf); i++)
-	{
-		ch = conv_uni_to_pc(vc_cons[fg_console].d, p[i]);
-		outbuf[i] = (ch & ~0xff) ? 0 : ch;
-	}
-	console_unlock();
+	scoped_guard(console_lock)
+		for (i = 0; i < ARRAY_SIZE(outbuf); i++) {
+			ch = conv_uni_to_pc(vc_cons[fg_console].d, p[i]);
+			outbuf[i] = (ch & ~0xff) ? 0 : ch;
+		}
 
 	return copy_to_user(arg, outbuf, sizeof(outbuf)) ? -EFAULT : 0;
 }
@@ -392,10 +390,10 @@ int con_set_trans_new(ushort __user * arg)
 	if (copy_from_user(inbuf, arg, sizeof(inbuf)))
 		return -EFAULT;
 
-	console_lock();
+	guard(console_lock)();
 	memcpy(translations[USER_MAP], inbuf, sizeof(inbuf));
 	update_user_maps();
-	console_unlock();
+
 	return 0;
 }
 
@@ -403,9 +401,8 @@ int con_get_trans_new(ushort __user * arg)
 {
 	unsigned short outbuf[E_TABSZ];
 
-	console_lock();
-	memcpy(outbuf, translations[USER_MAP], sizeof(outbuf));
-	console_unlock();
+	scoped_guard(console_lock)
+		memcpy(outbuf, translations[USER_MAP], sizeof(outbuf));
 
 	return copy_to_user(arg, outbuf, sizeof(outbuf)) ? -EFAULT : 0;
 }
@@ -571,11 +568,8 @@ static int con_do_clear_unimap(struct vc_data *vc)
 
 int con_clear_unimap(struct vc_data *vc)
 {
-	int ret;
-	console_lock();
-	ret = con_do_clear_unimap(vc);
-	console_unlock();
-	return ret;
+	guard(console_lock)();
+	return con_do_clear_unimap(vc);
 }
 
 static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
