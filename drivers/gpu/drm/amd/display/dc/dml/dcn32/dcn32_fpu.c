@@ -3401,7 +3401,7 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 		uint32_t height = subvp_active_margin_list.res[i].height;
 
 		refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
-			pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+			(uint64_t)pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
 		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 
