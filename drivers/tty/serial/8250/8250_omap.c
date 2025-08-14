@@ -369,18 +369,12 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
 		serial8250_em485_stop_tx(up, true);
 }
 
-/*
- * OMAP can use "CLK / (16 or 13) / div" for baud rate. And then we have have
- * some differences in how we want to handle flow control.
- */
-static void omap_8250_set_termios(struct uart_port *port,
-				  struct ktermios *termios,
-				  const struct ktermios *old)
+static void omap_8250_set_termios_atomic(struct uart_port *port, struct ktermios *termios,
+					 const struct ktermios *old, unsigned int baud)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = port->private_data;
-	unsigned char cval = 0;
-	unsigned int baud;
+	u8 cval;
 
 	cval = UART_LCR_WLEN(tty_get_char_size(termios->c_cflag));
 
@@ -393,12 +387,6 @@ static void omap_8250_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
 
-	/*
-	 * Ask the core to calculate the divisor for us.
-	 */
-	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / UART_DIV_MAX,
-				  port->uartclk / 13);
 	omap_8250_get_divisor(port, baud, priv);
 
 	/*
@@ -518,6 +506,27 @@ static void omap_8250_set_termios(struct uart_port *port,
 	uart_port_unlock_irq(&up->port);
 	pm_runtime_mark_last_busy(port->dev);
 	pm_runtime_put_autosuspend(port->dev);
+}
+
+/*
+ * OMAP can use "CLK / (16 or 13) / div" for baud rate. And then we have have
+ * some differences in how we want to handle flow control.
+ */
+static void omap_8250_set_termios(struct uart_port *port,
+				  struct ktermios *termios,
+				  const struct ktermios *old)
+{
+	struct omap8250_priv *priv = port->private_data;
+	unsigned int baud;
+
+	/*
+	 * Ask the core to calculate the divisor for us.
+	 */
+	baud = uart_get_baud_rate(port, termios, old,
+				  port->uartclk / 16 / UART_DIV_MAX,
+				  port->uartclk / 13);
+
+	omap_8250_set_termios_atomic(port, termios, old, baud);
 
 	/* calculate wakeup latency constraint */
 	priv->calc_latency = USEC_PER_SEC * 64 * 8 / baud;
