@@ -14,10 +14,15 @@ static const struct ubuf_info_ops io_ubuf_ops;
 static void io_notif_tw_complete(struct io_kiocb *notif, io_tw_token_t tw)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
+	struct io_ring_ctx *ctx = notif->ctx;
+
+	lockdep_assert_held(&ctx->uring_lock);
 
 	do {
 		notif = cmd_to_io_kiocb(nd);
 
+		if (WARN_ON_ONCE(ctx != notif->ctx))
+			return;
 		lockdep_assert(refcount_read(&nd->uarg.refcnt) == 0);
 
 		if (unlikely(nd->zc_report) && (nd->zc_copied || !nd->zc_used))
