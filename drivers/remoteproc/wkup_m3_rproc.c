@@ -125,6 +125,13 @@ static const struct of_device_id wkup_m3_rproc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wkup_m3_rproc_of_match);
 
+static void wkup_m3_rproc_pm_runtime_put(void *data)
+{
+	struct device *dev = data;
+
+	pm_runtime_put_sync(dev);
+}
+
 static int wkup_m3_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -152,17 +159,16 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to enable runtime PM\n");
 	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
-		goto err;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "pm_runtime_get_sync() failed\n");
+	ret = devm_add_action_or_reset(dev, wkup_m3_rproc_pm_runtime_put, dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add disable pm devm action\n");
 
 	rproc = rproc_alloc(dev, "wkup_m3", &wkup_m3_rproc_ops,
 			    fw_name, sizeof(*wkupm3));
-	if (!rproc) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!rproc)
+		return -ENOMEM;
 
 	rproc->auto_boot = false;
 	rproc->sysfs_read_only = true;
@@ -219,8 +225,6 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 
 err_put_rproc:
 	rproc_free(rproc);
-err:
-	pm_runtime_put_noidle(dev);
 	return ret;
 }
 
@@ -230,7 +234,6 @@ static void wkup_m3_rproc_remove(struct platform_device *pdev)
 
 	rproc_del(rproc);
 	rproc_free(rproc);
-	pm_runtime_put_sync(&pdev->dev);
 }
 
 #ifdef CONFIG_PM
