@@ -288,6 +288,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 {
 	struct smb_direct_transport *t;
 	struct smbdirect_socket *sc;
+	struct smbdirect_socket_parameters *sp;
 	struct ksmbd_conn *conn;
 
 	t = kzalloc(sizeof(*t), KSMBD_DEFAULT_GFP);
@@ -295,8 +296,16 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 		return NULL;
 	sc = &t->socket;
 	smbdirect_socket_init(sc);
+	sp = &sc->parameters;
 
 	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
+
+	sp->recv_credit_max = smb_direct_receive_credit_max;
+	sp->send_credit_target = smb_direct_send_credit_target;
+	sp->max_send_size = smb_direct_max_send_size;
+	sp->max_fragmented_recv_size = smb_direct_max_fragmented_recv_size;
+	sp->max_recv_size = smb_direct_max_receive_size;
+	sp->max_read_write_size = smb_direct_max_read_write_size;
 
 	sc->rdma.cm_id = cm_id;
 	cm_id->context = t;
@@ -1757,7 +1766,6 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	/* need 3 more sge. because a SMB_DIRECT header, SMB2 header,
 	 * SMB2 response could be mapped.
 	 */
-	sp->max_send_size = smb_direct_max_send_size;
 	max_send_sges = DIV_ROUND_UP(sp->max_send_size, PAGE_SIZE) + 3;
 	if (max_send_sges > SMBDIRECT_SEND_IO_MAX_SGE) {
 		pr_err("max_send_size %d is too large\n", sp->max_send_size);
@@ -1771,7 +1779,6 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	 * are needed for MR registration, RDMA R/W, local & remote
 	 * MR invalidation.
 	 */
-	sp->max_read_write_size = smb_direct_max_read_write_size;
 	sc->rw_io.credits.num_pages = smb_direct_get_max_fr_pages(t);
 	sc->rw_io.credits.max = DIV_ROUND_UP(sp->max_read_write_size,
 					 (sc->rw_io.credits.num_pages - 1) *
@@ -1786,20 +1793,20 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 					    max_sge_per_wr) + 1);
 	max_rw_wrs = sc->rw_io.credits.max * wrs_per_credit;
 
-	max_send_wrs = smb_direct_send_credit_target + max_rw_wrs;
+	max_send_wrs = sp->send_credit_target + max_rw_wrs;
 	if (max_send_wrs > device->attrs.max_cqe ||
 	    max_send_wrs > device->attrs.max_qp_wr) {
 		pr_err("consider lowering send_credit_target = %d\n",
-		       smb_direct_send_credit_target);
+		       sp->send_credit_target);
 		pr_err("Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
 		       device->attrs.max_cqe, device->attrs.max_qp_wr);
 		return -EINVAL;
 	}
 
-	if (smb_direct_receive_credit_max > device->attrs.max_cqe ||
-	    smb_direct_receive_credit_max > device->attrs.max_qp_wr) {
+	if (sp->recv_credit_max > device->attrs.max_cqe ||
+	    sp->recv_credit_max > device->attrs.max_qp_wr) {
 		pr_err("consider lowering receive_credit_max = %d\n",
-		       smb_direct_receive_credit_max);
+		       sp->recv_credit_max);
 		pr_err("Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
 		       device->attrs.max_cqe, device->attrs.max_qp_wr);
 		return -EINVAL;
@@ -1816,15 +1823,9 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 		return -EINVAL;
 	}
 
-	sp->recv_credit_max = smb_direct_receive_credit_max;
 	sc->recv_io.credits.target = 1;
 
-	sp->send_credit_target = smb_direct_send_credit_target;
 	atomic_set(&sc->rw_io.credits.count, sc->rw_io.credits.max);
-
-	sp->max_send_size = smb_direct_max_send_size;
-	sp->max_recv_size = smb_direct_max_receive_size;
-	sp->max_fragmented_recv_size = smb_direct_max_fragmented_recv_size;
 
 	cap->max_send_wr = max_send_wrs;
 	cap->max_recv_wr = sp->recv_credit_max;
@@ -1925,7 +1926,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 	}
 
 	sc->ib.send_cq = ib_alloc_cq(sc->ib.dev, t,
-				 smb_direct_send_credit_target + cap->max_rdma_ctxs,
+				 sp->send_credit_target + cap->max_rdma_ctxs,
 				 0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(sc->ib.send_cq)) {
 		pr_err("Can't create RDMA send CQ\n");
