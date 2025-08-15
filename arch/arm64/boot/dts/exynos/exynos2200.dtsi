@@ -306,7 +306,7 @@
 
 		syscon_peric0: syscon@10420000 {
 			compatible = "samsung,exynos2200-peric0-sysreg", "syscon";
-			reg = <0x10420000 0x2000>;
+			reg = <0x10420000 0x10000>;
 		};
 
 		pinctrl_peric0: pinctrl@10430000 {
@@ -328,7 +328,7 @@
 
 		syscon_peric1: syscon@10720000 {
 			compatible = "samsung,exynos2200-peric1-sysreg", "syscon";
-			reg = <0x10720000 0x2000>;
+			reg = <0x10720000 0x10000>;
 		};
 
 		pinctrl_peric1: pinctrl@10730000 {
@@ -418,7 +418,7 @@
 
 		syscon_ufs: syscon@11020000 {
 			compatible = "samsung,exynos2200-ufs-sysreg", "syscon";
-			reg = <0x11020000 0x2000>;
+			reg = <0x11020000 0x10000>;
 		};
 
 		pinctrl_ufs: pinctrl@11040000 {
@@ -450,7 +450,7 @@
 
 		syscon_peric2: syscon@11c20000 {
 			compatible = "samsung,exynos2200-peric2-sysreg", "syscon";
-			reg = <0x11c20000 0x4000>;
+			reg = <0x11c20000 0x10000>;
 		};
 
 		pinctrl_peric2: pinctrl@11c30000 {
@@ -471,7 +471,7 @@
 
 		syscon_cmgp: syscon@14e20000 {
 			compatible = "samsung,exynos2200-cmgp-sysreg", "syscon";
-			reg = <0x14e20000 0x2000>;
+			reg = <0x14e20000 0x10000>;
 		};
 
 		pinctrl_cmgp: pinctrl@14e30000 {
