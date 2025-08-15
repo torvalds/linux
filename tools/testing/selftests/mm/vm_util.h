@@ -127,9 +127,9 @@ static inline void log_test_result(int result)
 	ksft_test_result_report(result, "%s\n", test_name);
 }
 
-static inline int sz2ord(size_t size)
+static inline int sz2ord(size_t size, size_t pagesize)
 {
-	return __builtin_ctzll(size / getpagesize());
+	return __builtin_ctzll(size / pagesize);
 }
 
 void *sys_mremap(void *old_address, unsigned long old_size,
