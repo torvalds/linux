@@ -81,7 +81,6 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 		ret = -ENODEV;
 		goto unbind_sva;
 	}
-	mutex_init(&client->hwctx_lock);
 	init_srcu_struct(&client->hwctx_srcu);
 	xa_init_flags(&client->hwctx_xa, XA_FLAGS_ALLOC);
 	mutex_init(&client->mm_lock);
@@ -116,7 +115,6 @@ static void amdxdna_drm_close(struct drm_device *ddev, struct drm_file *filp)
 
 	xa_destroy(&client->hwctx_xa);
 	cleanup_srcu_struct(&client->hwctx_srcu);
-	mutex_destroy(&client->hwctx_lock);
 	mutex_destroy(&client->mm_lock);
 	if (client->dev_heap)
 		drm_gem_object_put(to_gobj(client->dev_heap));
@@ -142,8 +140,8 @@ static int amdxdna_flush(struct file *f, fl_owner_t id)
 
 	mutex_lock(&xdna->dev_lock);
 	list_del_init(&client->node);
-	mutex_unlock(&xdna->dev_lock);
 	amdxdna_hwctx_remove_all(client);
+	mutex_unlock(&xdna->dev_lock);
 
 	drm_dev_exit(idx);
 	return 0;
@@ -330,11 +328,8 @@ static void amdxdna_remove(struct pci_dev *pdev)
 					  struct amdxdna_client, node);
 	while (client) {
 		list_del_init(&client->node);
-		mutex_unlock(&xdna->dev_lock);
-
 		amdxdna_hwctx_remove_all(client);
 
-		mutex_lock(&xdna->dev_lock);
 		client = list_first_entry_or_null(&xdna->client_list,
 						  struct amdxdna_client, node);
 	}

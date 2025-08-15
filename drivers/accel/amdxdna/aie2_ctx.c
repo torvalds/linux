@@ -133,11 +133,20 @@ static void aie2_hwctx_wait_for_idle(struct amdxdna_hwctx *hwctx)
 	dma_fence_put(fence);
 }
 
+static int aie2_hwctx_suspend_cb(struct amdxdna_hwctx *hwctx, void *arg)
+{
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+
+	aie2_hwctx_wait_for_idle(hwctx);
+	aie2_hwctx_stop(xdna, hwctx, NULL);
+	aie2_hwctx_status_shift_stop(hwctx);
+
+	return 0;
+}
+
 void aie2_hwctx_suspend(struct amdxdna_client *client)
 {
 	struct amdxdna_dev *xdna = client->xdna;
-	struct amdxdna_hwctx *hwctx;
-	unsigned long hwctx_id;
 
 	/*
 	 * Command timeout is unlikely. But if it happens, it doesn't
@@ -145,19 +154,20 @@ void aie2_hwctx_suspend(struct amdxdna_client *client)
 	 * and abort all commands.
 	 */
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
-	guard(mutex)(&client->hwctx_lock);
-	amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
-		aie2_hwctx_wait_for_idle(hwctx);
-		aie2_hwctx_stop(xdna, hwctx, NULL);
-		aie2_hwctx_status_shift_stop(hwctx);
-	}
+	amdxdna_hwctx_walk(client, NULL, aie2_hwctx_suspend_cb);
 }
 
-void aie2_hwctx_resume(struct amdxdna_client *client)
+static int aie2_hwctx_resume_cb(struct amdxdna_hwctx *hwctx, void *arg)
+{
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+
+	aie2_hwctx_status_restore(hwctx);
+	return aie2_hwctx_restart(xdna, hwctx);
+}
+
+int aie2_hwctx_resume(struct amdxdna_client *client)
 {
 	struct amdxdna_dev *xdna = client->xdna;
-	struct amdxdna_hwctx *hwctx;
-	unsigned long hwctx_id;
 
 	/*
 	 * The resume path cannot guarantee that mailbox channel can be
@@ -165,11 +175,7 @@ void aie2_hwctx_resume(struct amdxdna_client *client)
 	 * mailbox channel, error will return.
 	 */
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
-	guard(mutex)(&client->hwctx_lock);
-	amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
-		aie2_hwctx_status_restore(hwctx);
-		aie2_hwctx_restart(xdna, hwctx);
-	}
+	return amdxdna_hwctx_walk(client, NULL, aie2_hwctx_resume_cb);
 }
 
 static void
