@@ -6021,6 +6021,8 @@ enum ips_residency_mode {
 	IPS_RESIDENCY__IPS1_RCG,
 	IPS_RESIDENCY__IPS1_ONO2_ON,
 	IPS_RESIDENCY__IPS1_Z8_RETENTION,
+	IPS_RESIDENCY__PG_ONO_LAST_SEEN_IN_IPS,
+	IPS_RESIDENCY__PG_ONO_CURRENT_STATE
 };
 
 #define NUM_IPS_HISTOGRAM_BUCKETS 16
@@ -6034,6 +6036,8 @@ struct dmub_ips_residency_info {
 	uint32_t histogram[NUM_IPS_HISTOGRAM_BUCKETS];
 	uint64_t total_time_us;
 	uint64_t total_inactive_time_us;
+	uint32_t ono_pg_state_at_collection;
+	uint32_t ono_pg_state_last_seen_in_ips;
 };
 
 /**
