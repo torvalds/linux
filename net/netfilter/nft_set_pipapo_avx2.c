@@ -1149,9 +1149,9 @@ static inline void pipapo_resmap_init_avx2(const struct nft_pipapo_match *m, uns
  *
  * Return: pointer to &struct nft_pipapo_elem on match, NULL otherwise.
  */
-static struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
-					       const u8 *data, u8 genmask,
-					       u64 tstamp)
+struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
+					const u8 *data, u8 genmask,
+					u64 tstamp)
 {
 	struct nft_pipapo_scratch *scratch;
 	const struct nft_pipapo_field *f;
@@ -1261,7 +1261,7 @@ next_match:
  *
  * This function is called from the data path.  It will search for
  * an element matching the given key in the current active copy using
- * the AVX2 routines if the fpu is usable or fall back to the generic
+ * the AVX2 routines if the FPU is usable or fall back to the generic
  * implementation of the algorithm otherwise.
  *
  * Return: nftables API extension pointer or NULL if no match.
