@@ -1718,36 +1718,36 @@ static struct smbd_connection *_smbd_get_connection(
 
 	INIT_WORK(&sc->disconnect_work, smbd_disconnect_rdma_work);
 
-	rc = smbd_ia_open(info, dstaddr, port);
-	if (rc) {
-		log_rdma_event(INFO, "smbd_ia_open rc=%d\n", rc);
-		goto create_id_failed;
-	}
-
-	if (smbd_send_credit_target > sc->ib.dev->attrs.max_cqe ||
-	    smbd_send_credit_target > sc->ib.dev->attrs.max_qp_wr) {
-		log_rdma_event(ERR, "consider lowering send_credit_target = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
-			       smbd_send_credit_target,
-			       sc->ib.dev->attrs.max_cqe,
-			       sc->ib.dev->attrs.max_qp_wr);
-		goto config_failed;
-	}
-
-	if (smbd_receive_credit_max > sc->ib.dev->attrs.max_cqe ||
-	    smbd_receive_credit_max > sc->ib.dev->attrs.max_qp_wr) {
-		log_rdma_event(ERR, "consider lowering receive_credit_max = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
-			       smbd_receive_credit_max,
-			       sc->ib.dev->attrs.max_cqe,
-			       sc->ib.dev->attrs.max_qp_wr);
-		goto config_failed;
-	}
-
 	sp->recv_credit_max = smbd_receive_credit_max;
 	sp->send_credit_target = smbd_send_credit_target;
 	sp->max_send_size = smbd_max_send_size;
 	sp->max_fragmented_recv_size = smbd_max_fragmented_recv_size;
 	sp->max_recv_size = smbd_max_receive_size;
 	sp->keepalive_interval_msec = smbd_keep_alive_interval * 1000;
+
+	rc = smbd_ia_open(info, dstaddr, port);
+	if (rc) {
+		log_rdma_event(INFO, "smbd_ia_open rc=%d\n", rc);
+		goto create_id_failed;
+	}
+
+	if (sp->send_credit_target > sc->ib.dev->attrs.max_cqe ||
+	    sp->send_credit_target > sc->ib.dev->attrs.max_qp_wr) {
+		log_rdma_event(ERR, "consider lowering send_credit_target = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
+			       sp->send_credit_target,
+			       sc->ib.dev->attrs.max_cqe,
+			       sc->ib.dev->attrs.max_qp_wr);
+		goto config_failed;
+	}
+
+	if (sp->recv_credit_max > sc->ib.dev->attrs.max_cqe ||
+	    sp->recv_credit_max > sc->ib.dev->attrs.max_qp_wr) {
+		log_rdma_event(ERR, "consider lowering receive_credit_max = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
+			       sp->recv_credit_max,
+			       sc->ib.dev->attrs.max_cqe,
+			       sc->ib.dev->attrs.max_qp_wr);
+		goto config_failed;
+	}
 
 	if (sc->ib.dev->attrs.max_send_sge < SMBDIRECT_SEND_IO_MAX_SGE ||
 	    sc->ib.dev->attrs.max_recv_sge < SMBDIRECT_RECV_IO_MAX_SGE) {
