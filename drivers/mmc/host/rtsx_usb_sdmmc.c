@@ -1455,7 +1455,6 @@ static void rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 		": Realtek USB SD/MMC module has been removed\n");
 }
 
-#ifdef CONFIG_PM
 static int rtsx_usb_sdmmc_runtime_suspend(struct device *dev)
 {
 	struct rtsx_usb_sdmmc *host = dev_get_drvdata(dev);
@@ -1473,11 +1472,9 @@ static int rtsx_usb_sdmmc_runtime_resume(struct device *dev)
 		mmc_detect_change(host->mmc, 0);
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops rtsx_usb_sdmmc_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(rtsx_usb_sdmmc_runtime_suspend,
-			   rtsx_usb_sdmmc_runtime_resume, NULL)
+	RUNTIME_PM_OPS(rtsx_usb_sdmmc_runtime_suspend, rtsx_usb_sdmmc_runtime_resume, NULL)
 };
 
 static const struct platform_device_id rtsx_usb_sdmmc_ids[] = {
@@ -1496,7 +1493,7 @@ static struct platform_driver rtsx_usb_sdmmc_driver = {
 	.driver		= {
 		.name	= "rtsx_usb_sdmmc",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm	= &rtsx_usb_sdmmc_dev_pm_ops,
+		.pm	= pm_ptr(&rtsx_usb_sdmmc_dev_pm_ops),
 	},
 };
 module_platform_driver(rtsx_usb_sdmmc_driver);
