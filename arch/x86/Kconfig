@@ -1753,11 +1753,7 @@ config X86_UMIP
 config CC_HAS_IBT
 	# GCC >= 9 and binutils >= 2.29
 	# Retpoline check to work around https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93654
-	# Clang/LLVM >= 14
-	# https://github.com/llvm/llvm-project/commit/e0b89df2e0f0130881bf6c39bf31d7f6aac00e0f
-	# https://github.com/llvm/llvm-project/commit/dfcf69770bc522b9e411c66454934a37c1f35332
-	def_bool ((CC_IS_GCC && $(cc-option, -fcf-protection=branch -mindirect-branch-register)) || \
-		  (CC_IS_CLANG && CLANG_VERSION >= 140000)) && \
+	def_bool ((CC_IS_GCC && $(cc-option, -fcf-protection=branch -mindirect-branch-register)) || CC_IS_CLANG) && \
 		  $(as-instr,endbr64)
 
 config X86_CET
@@ -1769,8 +1765,6 @@ config X86_KERNEL_IBT
 	prompt "Indirect Branch Tracking"
 	def_bool y
 	depends on X86_64 && CC_HAS_IBT && HAVE_OBJTOOL
-	# https://github.com/llvm/llvm-project/commit/9d7001eba9c4cb311e03cd8cdc231f9e579f2d0f
-	depends on !LD_IS_LLD || LLD_VERSION >= 140000
 	select OBJTOOL
 	select X86_CET
 	help
