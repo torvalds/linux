@@ -523,7 +523,6 @@ static void sdhci_pxav3_remove(struct platform_device *pdev)
 	clk_disable_unprepare(pxa->clk_core);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_pxav3_suspend(struct device *dev)
 {
 	int ret;
@@ -549,9 +548,7 @@ static int sdhci_pxav3_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int sdhci_pxav3_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -583,12 +580,10 @@ static int sdhci_pxav3_runtime_resume(struct device *dev)
 	sdhci_runtime_resume_host(host, 0);
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_pxav3_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pxav3_suspend, sdhci_pxav3_resume)
-	SET_RUNTIME_PM_OPS(sdhci_pxav3_runtime_suspend,
-		sdhci_pxav3_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(sdhci_pxav3_suspend, sdhci_pxav3_resume)
+	RUNTIME_PM_OPS(sdhci_pxav3_runtime_suspend, sdhci_pxav3_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_pxav3_driver = {
@@ -596,7 +591,7 @@ static struct platform_driver sdhci_pxav3_driver = {
 		.name	= "sdhci-pxav3",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(sdhci_pxav3_of_match),
-		.pm	= &sdhci_pxav3_pmops,
+		.pm	= pm_ptr(&sdhci_pxav3_pmops),
 	},
 	.probe		= sdhci_pxav3_probe,
 	.remove		= sdhci_pxav3_remove,
