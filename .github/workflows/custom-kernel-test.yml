@@ -288,13 +288,65 @@ jobs:
             if mount -t resctrl resctrl /sys/fs/resctrl 2>&1; then
               echo "✅ Successfully mounted resctrl!"
               echo "📁 Contents after mounting:"
-              ls -la /sys/fs/resctrl/
+              ls -la /sys/fs/resctrl/ 2>&1 || echo "❌ ls failed on mounted resctrl"
+              
+              # Check /sys filesystem health after kexec
+              echo ""
+              echo "🔍 Checking /sys filesystem health after kexec:"
+              echo "📊 /sys mount status:"
+              mount | grep "/sys " || echo "❌ /sys not properly mounted"
+              
+              echo "🔧 /sys filesystem type and options:"
+              stat -f /sys 2>/dev/null || echo "❌ Cannot stat /sys filesystem"
+              
+              # Try remounting /sys to fix potential kexec issues
+              echo ""
+              echo "🔄 Attempting to remount /sys to fix kexec issues..."
+              if mount -o remount /sys 2>&1; then
+                echo "✅ Successfully remounted /sys"
+              else
+                echo "⚠️ Failed to remount /sys, trying to unmount and remount..."
+                umount /sys 2>/dev/null
+                if mount -t sysfs none /sys 2>&1; then
+                  echo "✅ Successfully remounted /sys from scratch"
+                  # Remount resctrl after fixing /sys
+                  echo "🔄 Remounting resctrl after /sys fix..."
+                  mount -t resctrl resctrl /sys/fs/resctrl 2>&1
+                else
+                  echo "❌ Failed to remount /sys"
+                fi
+              fi
+              
+              # Test file access with more detailed error reporting
+              echo ""
+              echo "🧪 Testing file access with detailed error reporting:"
+              TEST_FILE="/sys/fs/resctrl/info/L3_MON/mon_features"
+              if [ -f "$TEST_FILE" ]; then
+                echo "📄 Testing access to $TEST_FILE:"
+                echo "  File exists: ✅"
+                echo "  File permissions: $(ls -l "$TEST_FILE" 2>/dev/null || echo 'unable to check')"
+                echo "  File size: $(stat -c %s "$TEST_FILE" 2>/dev/null || echo 'unable to check')"
+                echo "  Direct read attempt:"
+                cat "$TEST_FILE" 2>&1 || echo "❌ Read failed with error code $?"
+                echo "  Hexdump of first 64 bytes:"
+                hexdump -C "$TEST_FILE" 2>/dev/null | head -4 || echo "❌ hexdump failed"
+              else
+                echo "❌ $TEST_FILE does not exist"
+              fi
               
               # Check for info directory and its contents
               if [ -d /sys/fs/resctrl/info ]; then
                 echo ""
-                echo "📊 Resctrl info directory contents:"
-                find /sys/fs/resctrl/info -type f -exec echo "📄 {}: $(cat {} 2>/dev/null || echo 'unable to read')" \;
+                echo "📊 Resctrl info directory contents (with error codes):"
+                find /sys/fs/resctrl/info -type f | while read file; do
+                  content=$(cat "$file" 2>&1)
+                  status=$?
+                  if [ $status -eq 0 ]; then
+                    echo "📄 $file: $content"
+                  else
+                    echo "❌ $file: failed with exit code $status, error: $content"
+                  fi
+                done
               fi
             else
               echo "❌ Failed to mount resctrl filesystem"
