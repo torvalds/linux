@@ -99,8 +99,8 @@ struct smb_direct_transport {
 	u8			responder_resources;
 };
 
-#define KSMBD_TRANS(t) ((struct ksmbd_transport *)&((t)->transport))
-#define SMBD_TRANS(t)	((struct smb_direct_transport *)container_of(t, \
+#define KSMBD_TRANS(t) (&(t)->transport)
+#define SMBD_TRANS(t)	(container_of(t, \
 				struct smb_direct_transport, transport))
 
 static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops;
