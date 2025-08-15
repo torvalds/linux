@@ -7240,7 +7240,6 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		priv->plat->enh_desc = priv->dma_cap.enh_desc;
 		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up &&
 				!(priv->plat->flags & STMMAC_FLAG_USE_PHY_WOL);
-		priv->hw->pmt = priv->plat->pmt;
 		if (priv->dma_cap.hash_tb_sz) {
 			priv->hw->multicast_filter_bins =
 					(BIT(priv->dma_cap.hash_tb_sz) << 5);

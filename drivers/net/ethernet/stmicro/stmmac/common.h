@@ -602,7 +602,6 @@ struct mac_device_info {
 	unsigned int mcast_bits_log2;
 	unsigned int rx_csum;
 	unsigned int pcs;
-	unsigned int pmt;
 	unsigned int ps;
 	unsigned int xlgmac;
 	unsigned int num_vlan;
