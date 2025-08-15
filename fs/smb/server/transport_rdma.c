@@ -129,12 +129,6 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 				     struct kvec *iov, int niov,
 				     int remaining_data_length);
 
-static inline struct smb_direct_transport *
-smb_trans_direct_transfort(struct ksmbd_transport *t)
-{
-	return container_of(t, struct smb_direct_transport, transport);
-}
-
 static inline void
 *smbdirect_recv_io_payload(struct smbdirect_recv_io *recvmsg)
 {
@@ -629,7 +623,7 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 	int to_copy, to_read, data_read, offset;
 	u32 data_length, remaining_data_length, data_offset;
 	int rc;
-	struct smb_direct_transport *st = smb_trans_direct_transfort(t);
+	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = &st->socket;
 
 again:
@@ -1175,7 +1169,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 			     struct kvec *iov, int niovs, int buflen,
 			     bool need_invalidate, unsigned int remote_key)
 {
-	struct smb_direct_transport *st = smb_trans_direct_transfort(t);
+	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = &st->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	size_t remaining_data_length;
@@ -1498,7 +1492,7 @@ static int smb_direct_rdma_write(struct ksmbd_transport *t,
 				 struct smbdirect_buffer_descriptor_v1 *desc,
 				 unsigned int desc_len)
 {
-	return smb_direct_rdma_xmit(smb_trans_direct_transfort(t), buf, buflen,
+	return smb_direct_rdma_xmit(SMBD_TRANS(t), buf, buflen,
 				    desc, desc_len, false);
 }
 
@@ -1507,13 +1501,13 @@ static int smb_direct_rdma_read(struct ksmbd_transport *t,
 				struct smbdirect_buffer_descriptor_v1 *desc,
 				unsigned int desc_len)
 {
-	return smb_direct_rdma_xmit(smb_trans_direct_transfort(t), buf, buflen,
+	return smb_direct_rdma_xmit(SMBD_TRANS(t), buf, buflen,
 				    desc, desc_len, true);
 }
 
 static void smb_direct_disconnect(struct ksmbd_transport *t)
 {
-	struct smb_direct_transport *st = smb_trans_direct_transfort(t);
+	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = &st->socket;
 
 	ksmbd_debug(RDMA, "Disconnecting cm_id=%p\n", sc->rdma.cm_id);
@@ -1523,7 +1517,7 @@ static void smb_direct_disconnect(struct ksmbd_transport *t)
 
 static void smb_direct_shutdown(struct ksmbd_transport *t)
 {
-	struct smb_direct_transport *st = smb_trans_direct_transfort(t);
+	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = &st->socket;
 
 	ksmbd_debug(RDMA, "smb-direct shutdown cm_id=%p\n", sc->rdma.cm_id);
@@ -1992,7 +1986,7 @@ err:
 
 static int smb_direct_prepare(struct ksmbd_transport *t)
 {
-	struct smb_direct_transport *st = smb_trans_direct_transfort(t);
+	struct smb_direct_transport *st = SMBD_TRANS(t);
 	struct smbdirect_socket *sc = &st->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_recv_io *recvmsg;
