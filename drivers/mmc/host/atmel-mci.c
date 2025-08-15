@@ -2622,7 +2622,6 @@ static void atmci_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(dev);
 }
 
-#ifdef CONFIG_PM
 static int atmci_runtime_suspend(struct device *dev)
 {
 	struct atmel_mci *host = dev_get_drvdata(dev);
@@ -2642,12 +2641,10 @@ static int atmci_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(host->mck);
 }
-#endif
 
 static const struct dev_pm_ops atmci_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(atmci_runtime_suspend, atmci_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(atmci_runtime_suspend, atmci_runtime_resume, NULL)
 };
 
 static struct platform_driver atmci_driver = {
@@ -2657,7 +2654,7 @@ static struct platform_driver atmci_driver = {
 		.name		= "atmel_mci",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= atmci_dt_ids,
-		.pm		= &atmci_dev_pm_ops,
+		.pm		= pm_ptr(&atmci_dev_pm_ops),
 	},
 };
 module_platform_driver(atmci_driver);
