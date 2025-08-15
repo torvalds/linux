@@ -1943,7 +1943,7 @@ static void sdhci_msm_ice_enable(struct sdhci_msm_host *msm_host)
 		qcom_ice_enable(msm_host->ice);
 }
 
-static __maybe_unused int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
+static int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 {
 	if (msm_host->mmc->caps2 & MMC_CAP2_CRYPTO)
 		return qcom_ice_resume(msm_host->ice);
@@ -1951,7 +1951,7 @@ static __maybe_unused int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 	return 0;
 }
 
-static __maybe_unused int sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
+static int sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
 {
 	if (msm_host->mmc->caps2 & MMC_CAP2_CRYPTO)
 		return qcom_ice_suspend(msm_host->ice);
@@ -2011,13 +2011,13 @@ static inline void sdhci_msm_ice_enable(struct sdhci_msm_host *msm_host)
 {
 }
 
-static inline __maybe_unused int
+static inline int
 sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 {
 	return 0;
 }
 
-static inline __maybe_unused int
+static inline int
 sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
 {
 	return 0;
@@ -2801,7 +2801,7 @@ static void sdhci_msm_remove(struct platform_device *pdev)
 		clk_disable_unprepare(msm_host->bus_clk);
 }
 
-static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)
+static int sdhci_msm_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2820,7 +2820,7 @@ static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)
 	return sdhci_msm_ice_suspend(msm_host);
 }
 
-static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
+static int sdhci_msm_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2856,11 +2856,8 @@ static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sdhci_msm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(sdhci_msm_runtime_suspend,
-			   sdhci_msm_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(sdhci_msm_runtime_suspend, sdhci_msm_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_msm_driver = {
@@ -2869,7 +2866,7 @@ static struct platform_driver sdhci_msm_driver = {
 	.driver = {
 		   .name = "sdhci_msm",
 		   .of_match_table = sdhci_msm_dt_match,
-		   .pm = &sdhci_msm_pm_ops,
+		   .pm = pm_ptr(&sdhci_msm_pm_ops),
 		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
