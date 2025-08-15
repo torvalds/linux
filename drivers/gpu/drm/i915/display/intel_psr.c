@@ -3216,6 +3216,9 @@ static void intel_psr_work(struct work_struct *work)
 		goto unlock;
 	}
 
+	if (intel_dp->psr.pause_counter)
+		goto unlock;
+
 	/*
 	 * We have to make sure PSR is ready for re-enable
 	 * otherwise it keeps disabled until next full enable/disable cycle.
