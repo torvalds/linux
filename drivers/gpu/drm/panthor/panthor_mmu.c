@@ -569,15 +569,37 @@ static void lock_region(struct panthor_device *ptdev, u32 as_nr,
 	write_cmd(ptdev, as_nr, AS_COMMAND_LOCK);
 }
 
-static int mmu_hw_do_flush_on_gpu_ctrl(struct panthor_device *ptdev, int as_nr,
-				       u32 op)
+static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
+				      u64 iova, u64 size, u32 op)
 {
 	const u32 l2_flush_op = CACHE_CLEAN | CACHE_INV;
-	u32 lsc_flush_op = 0;
+	u32 lsc_flush_op;
 	int ret;
 
-	if (op == AS_COMMAND_FLUSH_MEM)
+	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
+
+	switch (op) {
+	case AS_COMMAND_FLUSH_MEM:
 		lsc_flush_op = CACHE_CLEAN | CACHE_INV;
+		break;
+	case AS_COMMAND_FLUSH_PT:
+		lsc_flush_op = 0;
+		break;
+	default:
+		drm_WARN(&ptdev->base, 1, "Unexpected AS_COMMAND: %d", op);
+		return -EINVAL;
+	}
+
+	if (as_nr < 0)
+		return 0;
+
+	/*
+	 * If the AS number is greater than zero, then we can be sure
+	 * the device is up and running, so we don't need to explicitly
+	 * power it up
+	 */
+
+	lock_region(ptdev, as_nr, iova, size);
 
 	ret = wait_ready(ptdev, as_nr);
 	if (ret)
@@ -595,33 +617,6 @@ static int mmu_hw_do_flush_on_gpu_ctrl(struct panthor_device *ptdev, int as_nr,
 	write_cmd(ptdev, as_nr, AS_COMMAND_UNLOCK);
 
 	/* Wait for the unlock command to complete */
-	return wait_ready(ptdev, as_nr);
-}
-
-static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
-				      u64 iova, u64 size, u32 op)
-{
-	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
-
-	if (as_nr < 0)
-		return 0;
-
-	/*
-	 * If the AS number is greater than zero, then we can be sure
-	 * the device is up and running, so we don't need to explicitly
-	 * power it up
-	 */
-
-	if (op != AS_COMMAND_UNLOCK)
-		lock_region(ptdev, as_nr, iova, size);
-
-	if (op == AS_COMMAND_FLUSH_MEM || op == AS_COMMAND_FLUSH_PT)
-		return mmu_hw_do_flush_on_gpu_ctrl(ptdev, as_nr, op);
-
-	/* Run the MMU operation */
-	write_cmd(ptdev, as_nr, op);
-
-	/* Wait for the flush to complete */
 	return wait_ready(ptdev, as_nr);
 }
 
