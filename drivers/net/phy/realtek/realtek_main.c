@@ -1146,7 +1146,7 @@ static int rtl822x_probe(struct phy_device *phydev)
 	return 0;
 }
 
-static int rtl822xb_config_init(struct phy_device *phydev)
+static int rtl822x_set_serdes_option_mode(struct phy_device *phydev, bool gen1)
 {
 	bool has_2500, has_sgmii;
 	u16 mode;
@@ -1181,15 +1181,18 @@ static int rtl822xb_config_init(struct phy_device *phydev)
 	/* the following sequence with magic numbers sets up the SerDes
 	 * option mode
 	 */
-	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x75f3, 0);
-	if (ret < 0)
-		return ret;
+
+	if (!gen1) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x75f3, 0);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_VEND1,
 				     RTL822X_VND1_SERDES_OPTION,
 				     RTL822X_VND1_SERDES_OPTION_MODE_MASK,
 				     mode);
-	if (ret < 0)
+	if (gen1 || ret < 0)
 		return ret;
 
 	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x6a04, 0x0503);
@@ -1201,6 +1204,16 @@ static int rtl822xb_config_init(struct phy_device *phydev)
 		return ret;
 
 	return phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x6f11, 0x8020);
+}
+
+static int rtl822x_config_init(struct phy_device *phydev)
+{
+	return rtl822x_set_serdes_option_mode(phydev, true);
+}
+
+static int rtl822xb_config_init(struct phy_device *phydev)
+{
+	return rtl822x_set_serdes_option_mode(phydev, false);
 }
 
 static int rtl822xb_get_rate_matching(struct phy_device *phydev,
@@ -1801,7 +1814,8 @@ static struct phy_driver realtek_drvs[] = {
 		.soft_reset     = rtl822x_c45_soft_reset,
 		.get_features   = rtl822x_c45_get_features,
 		.config_aneg    = rtl822x_c45_config_aneg,
-		.read_status    = rtl822x_c45_read_status,
+		.config_init    = rtl822x_config_init,
+		.read_status    = rtl822xb_c45_read_status,
 		.suspend        = genphy_c45_pma_suspend,
 		.resume         = rtlgen_c45_resume,
 	}, {
