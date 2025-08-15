@@ -637,10 +637,11 @@ void propagate_umount(struct list_head *set)
 	}
 
 	// now to_umount consists of all acceptable candidates
-	// deal with reparenting of remaining overmounts on those
+	// deal with reparenting of surviving overmounts on those
 	list_for_each_entry(m, &to_umount, mnt_list) {
-		if (m->overmount)
-			reparent(m->overmount);
+		struct mount *over = m->overmount;
+		if (over && !will_be_unmounted(over))
+			reparent(over);
 	}
 
 	// and fold them into the set
