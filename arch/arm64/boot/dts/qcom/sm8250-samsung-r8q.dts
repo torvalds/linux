@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "sm8250.dtsi"
+
+/ {
+	model = "Samsung Galaxy S20 FE";
+	compatible = "samsung,r8q", "qcom,sm8250";
+	chassis-type = "handset";
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer: framebuffer@9c000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x0 0x9c000000 0x0 (1080 * 2400 * 4)>;
+			width = <1080>;
+			height = <2400>;
+			stride = <(1080 * 4)>;
+			format = "a8r8g8b8";
+		};
+	};
+
+	reserved-memory {
+		cont_splash_mem: memory@9c000000 {
+			reg = <0x0 0x9c000000 0x0 (1080 * 2400 * 4)>;
+			no-map;
+		};
+
+		ramoops@9fa00000 {
+			compatible = "ramoops";
+			reg = <0x0 0x9fa00000 0x0 0x100000>;
+			record-size = <0x4000>;
+			console-size = <0x40000>;
+			pmsg-size = <0x40000>;
+			ecc-size = <16>;
+			no-map;
+		};
+	};
+};
+
+&tlmm {
+	gpio-reserved-ranges = <40 4>; /* I2C (not linked to anything) */
+};
