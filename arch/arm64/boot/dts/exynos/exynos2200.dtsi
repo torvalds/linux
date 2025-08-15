@@ -221,22 +221,22 @@
 		method = "smc";
 	};
 
-	soc {
+	soc@0 {
 		compatible = "simple-bus";
-		ranges;
+		ranges = <0x0 0x0 0x0 0x20000000>;
 
-		#address-cells = <2>;
-		#size-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		chipid@10000000 {
 			compatible = "samsung,exynos2200-chipid",
 				     "samsung,exynos850-chipid";
-			reg = <0x0 0x10000000 0x0 0x24>;
+			reg = <0x10000000 0x24>;
 		};
 
 		cmu_peris: clock-controller@10020000 {
 			compatible = "samsung,exynos2200-cmu-peris";
-			reg = <0x0 0x10020000 0x0 0x8000>;
+			reg = <0x10020000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&cmu_top CLK_DOUT_TCXO_DIV3>,
@@ -250,7 +250,7 @@
 		mct_peris: timer@10040000 {
 			compatible = "samsung,exynos2200-mct-peris",
 				     "samsung,exynos4210-mct";
-			reg = <0x0 0x10040000 0x0 0x800>;
+			reg = <0x10040000 0x800>;
 			clocks = <&cmu_top CLK_DOUT_TCXO_DIV3>, <&cmu_peris CLK_MOUT_PERIS_GIC>;
 			clock-names = "fin_pll", "mct";
 			interrupts = <GIC_SPI 943 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -270,8 +270,8 @@
 
 		gic: interrupt-controller@10200000 {
 			compatible = "arm,gic-v3";
-			reg = <0x0 0x10200000 0x0 0x10000>,     /* GICD */
-			      <0x0 0x10240000 0x0 0x200000>;    /* GICR * 8 */
+			reg = <0x10200000 0x10000>,     /* GICD */
+			      <0x10240000 0x200000>;    /* GICR * 8 */
 
 			#interrupt-cells = <4>;
 			interrupt-controller;
@@ -294,7 +294,7 @@
 
 		cmu_peric0: clock-controller@10400000 {
 			compatible = "samsung,exynos2200-cmu-peric0";
-			reg = <0x0 0x10400000 0x0 0x8000>;
+			reg = <0x10400000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -306,17 +306,17 @@
 
 		syscon_peric0: syscon@10420000 {
 			compatible = "samsung,exynos2200-peric0-sysreg", "syscon";
-			reg = <0x0 0x10420000 0x0 0x2000>;
+			reg = <0x10420000 0x2000>;
 		};
 
 		pinctrl_peric0: pinctrl@10430000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x10430000 0x0 0x1000>;
+			reg = <0x10430000 0x1000>;
 		};
 
 		cmu_peric1: clock-controller@10700000 {
 			compatible = "samsung,exynos2200-cmu-peric1";
-			reg = <0x0 0x10700000 0x0 0x8000>;
+			reg = <0x10700000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -328,23 +328,23 @@
 
 		syscon_peric1: syscon@10720000 {
 			compatible = "samsung,exynos2200-peric1-sysreg", "syscon";
-			reg = <0x0 0x10720000 0x0 0x2000>;
+			reg = <0x10720000 0x2000>;
 		};
 
 		pinctrl_peric1: pinctrl@10730000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x10730000 0x0 0x1000>;
+			reg = <0x10730000 0x1000>;
 		};
 
 		cmu_hsi0: clock-controller@10a00000 {
 			compatible = "samsung,exynos2200-cmu-hsi0";
-			reg = <0x0 0x10a00000 0x0 0x8000>;
+			reg = <0x10a00000 0x8000>;
 			#clock-cells = <1>;
 		};
 
 		usb32drd: phy@10aa0000 {
 			compatible = "samsung,exynos2200-usb32drd-phy";
-			reg = <0x0 0x10aa0000 0x0 0x10000>;
+			reg = <0x10aa0000 0x10000>;
 
 			clocks = <&cmu_hsi0 CLK_MOUT_HSI0_NOC>;
 			clock-names = "phy";
@@ -360,7 +360,7 @@
 
 		usb_hsphy: phy@10ab0000 {
 			compatible = "samsung,exynos2200-eusb2-phy";
-			reg = <0x0 0x10ab0000 0x0 0x10000>;
+			reg = <0x10ab0000 0x10000>;
 
 			clocks = <&cmu_hsi0 CLK_MOUT_HSI0_USB32DRD>,
 				 <&cmu_hsi0 CLK_MOUT_HSI0_NOC>,
@@ -374,7 +374,7 @@
 
 		usb: usb@10b00000 {
 			compatible = "samsung,exynos2200-dwusb3";
-			ranges = <0x0 0x0 0x10b00000 0x10000>;
+			ranges = <0x0 0x10b00000 0x10000>;
 
 			clocks = <&cmu_hsi0 CLK_MOUT_HSI0_NOC>;
 			clock-names = "link_aclk";
@@ -406,7 +406,7 @@
 
 		cmu_ufs: clock-controller@11000000 {
 			compatible = "samsung,exynos2200-cmu-ufs";
-			reg = <0x0 0x11000000 0x0 0x8000>;
+			reg = <0x11000000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -418,27 +418,27 @@
 
 		syscon_ufs: syscon@11020000 {
 			compatible = "samsung,exynos2200-ufs-sysreg", "syscon";
-			reg = <0x0 0x11020000 0x0 0x2000>;
+			reg = <0x11020000 0x2000>;
 		};
 
 		pinctrl_ufs: pinctrl@11040000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x11040000 0x0 0x1000>;
+			reg = <0x11040000 0x1000>;
 		};
 
 		pinctrl_hsi1ufs: pinctrl@11060000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x11060000 0x0 0x1000>;
+			reg = <0x11060000 0x1000>;
 		};
 
 		pinctrl_hsi1: pinctrl@11240000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x11240000 0x0 0x1000>;
+			reg = <0x11240000 0x1000>;
 		};
 
 		cmu_peric2: clock-controller@11c00000 {
 			compatible = "samsung,exynos2200-cmu-peric2";
-			reg = <0x0 0x11c00000 0x0 0x8000>;
+			reg = <0x11c00000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -450,17 +450,17 @@
 
 		syscon_peric2: syscon@11c20000 {
 			compatible = "samsung,exynos2200-peric2-sysreg", "syscon";
-			reg = <0x0 0x11c20000 0x0 0x4000>;
+			reg = <0x11c20000 0x4000>;
 		};
 
 		pinctrl_peric2: pinctrl@11c30000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x11c30000 0x0 0x1000>;
+			reg = <0x11c30000 0x1000>;
 		};
 
 		cmu_cmgp: clock-controller@14e00000 {
 			compatible = "samsung,exynos2200-cmu-cmgp";
-			reg = <0x0 0x14e00000 0x0 0x8000>;
+			reg = <0x14e00000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -471,12 +471,12 @@
 
 		syscon_cmgp: syscon@14e20000 {
 			compatible = "samsung,exynos2200-cmgp-sysreg", "syscon";
-			reg = <0x0 0x14e20000 0x0 0x2000>;
+			reg = <0x14e20000 0x2000>;
 		};
 
 		pinctrl_cmgp: pinctrl@14e30000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x14e30000 0x0 0x1000>;
+			reg = <0x14e30000 0x1000>;
 
 			wakeup-interrupt-controller {
 				compatible = "samsung,exynos2200-wakeup-eint",
@@ -487,7 +487,7 @@
 
 		cmu_vts: clock-controller@15300000 {
 			compatible = "samsung,exynos2200-cmu-vts";
-			reg = <0x0 0x15300000 0x0 0x8000>;
+			reg = <0x15300000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -497,12 +497,12 @@
 
 		pinctrl_vts: pinctrl@15320000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x15320000 0x0 0x1000>;
+			reg = <0x15320000 0x1000>;
 		};
 
 		cmu_alive: clock-controller@15800000 {
 			compatible = "samsung,exynos2200-cmu-alive";
-			reg = <0x0 0x15800000 0x0 0x8000>;
+			reg = <0x15800000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>,
@@ -512,7 +512,7 @@
 
 		pinctrl_alive: pinctrl@15850000 {
 			compatible = "samsung,exynos2200-pinctrl";
-			reg = <0x0 0x15850000 0x0 0x1000>;
+			reg = <0x15850000 0x1000>;
 
 			wakeup-interrupt-controller {
 				compatible = "samsung,exynos2200-wakeup-eint",
@@ -524,7 +524,7 @@
 		pmu_system_controller: system-controller@15860000 {
 			compatible = "samsung,exynos2200-pmu",
 				     "samsung,exynos7-pmu", "syscon";
-			reg = <0x0 0x15860000 0x0 0x10000>;
+			reg = <0x15860000 0x10000>;
 
 			reboot: syscon-reboot {
 				compatible = "syscon-reboot";
@@ -536,7 +536,7 @@
 
 		cmu_top: clock-controller@1a320000 {
 			compatible = "samsung,exynos2200-cmu-top";
-			reg = <0x0 0x1a320000 0x0 0x8000>;
+			reg = <0x1a320000 0x8000>;
 			#clock-cells = <1>;
 
 			clocks = <&xtcxo>;
