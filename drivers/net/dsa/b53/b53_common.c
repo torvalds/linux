@@ -2078,7 +2078,7 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 
 	/* Start search operation */
 	reg = ARL_SRCH_STDN;
-	b53_write8(priv, offset, B53_ARL_SRCH_CTL, reg);
+	b53_write8(priv, B53_ARLIO_PAGE, offset, reg);
 
 	do {
 		ret = b53_arl_search_wait(priv);
