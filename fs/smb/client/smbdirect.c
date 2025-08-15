@@ -173,6 +173,7 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 	disable_work(&sc->disconnect_work);
 	disable_work(&sc->recv_io.posted.refill_work);
 	disable_work(&info->mr_recovery_work);
+	disable_work(&info->send_immediate_work);
 	disable_delayed_work(&info->idle_timer_work);
 
 	switch (sc->status) {
@@ -569,8 +570,8 @@ static void smbd_post_send_credits(struct work_struct *work)
 	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
 	if (atomic_read(&sc->recv_io.credits.count) <
 		sc->recv_io.credits.target - 1) {
-		log_keep_alive(INFO, "send an empty message\n");
-		smbd_post_send_empty(info);
+		log_keep_alive(INFO, "schedule send of an empty message\n");
+		queue_work(info->workqueue, &info->send_immediate_work);
 	}
 }
 
@@ -1455,6 +1456,19 @@ static void destroy_receive_buffers(struct smbd_connection *info)
 		mempool_free(response, sc->recv_io.mem.pool);
 }
 
+static void send_immediate_empty_message(struct work_struct *work)
+{
+	struct smbd_connection *info =
+		container_of(work, struct smbd_connection, send_immediate_work);
+	struct smbdirect_socket *sc = &info->socket;
+
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
+		return;
+
+	log_keep_alive(INFO, "send an empty message\n");
+	smbd_post_send_empty(info);
+}
+
 /* Implement idle connection timer [MS-SMBD] 3.1.6.2 */
 static void idle_connection_timer(struct work_struct *work)
 {
@@ -1472,8 +1486,8 @@ static void idle_connection_timer(struct work_struct *work)
 		return;
 	}
 
-	log_keep_alive(INFO, "about to send an empty idle message\n");
-	smbd_post_send_empty(info);
+	log_keep_alive(INFO, "schedule send of empty idle message\n");
+	queue_work(info->workqueue, &info->send_immediate_work);
 
 	/* Setup the next idle timeout work */
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
@@ -1520,6 +1534,8 @@ void smbd_destroy(struct TCP_Server_Info *server)
 
 	log_rdma_event(INFO, "cancelling idle timer\n");
 	disable_delayed_work_sync(&info->idle_timer_work);
+	log_rdma_event(INFO, "cancelling send immediate work\n");
+	disable_work_sync(&info->send_immediate_work);
 
 	/* It's not possible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
@@ -1863,6 +1879,7 @@ static struct smbd_connection *_smbd_get_connection(
 		goto allocate_cache_failed;
 	}
 
+	INIT_WORK(&info->send_immediate_work, send_immediate_empty_message);
 	INIT_DELAYED_WORK(&info->idle_timer_work, idle_connection_timer);
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		msecs_to_jiffies(sp->keepalive_interval_msec));
