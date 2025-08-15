@@ -1831,7 +1831,7 @@ static void sdhci_tegra_remove(struct platform_device *pdev)
 	clk_disable_unprepare(tegra_host->tmclk);
 }
 
-static int __maybe_unused sdhci_tegra_runtime_suspend(struct device *dev)
+static int sdhci_tegra_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -1841,7 +1841,7 @@ static int __maybe_unused sdhci_tegra_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused sdhci_tegra_runtime_resume(struct device *dev)
+static int sdhci_tegra_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -1849,7 +1849,6 @@ static int __maybe_unused sdhci_tegra_runtime_resume(struct device *dev)
 	return clk_prepare_enable(pltfm_host->clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_tegra_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -1910,12 +1909,10 @@ disable_clk:
 	pm_runtime_force_suspend(dev);
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_tegra_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(sdhci_tegra_runtime_suspend, sdhci_tegra_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_tegra_suspend, sdhci_tegra_resume)
+	RUNTIME_PM_OPS(sdhci_tegra_runtime_suspend, sdhci_tegra_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(sdhci_tegra_suspend, sdhci_tegra_resume)
 };
 
 static struct platform_driver sdhci_tegra_driver = {
@@ -1923,7 +1920,7 @@ static struct platform_driver sdhci_tegra_driver = {
 		.name	= "sdhci-tegra",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_tegra_dt_match,
-		.pm	= &sdhci_tegra_dev_pm_ops,
+		.pm	= pm_ptr(&sdhci_tegra_dev_pm_ops),
 	},
 	.probe		= sdhci_tegra_probe,
 	.remove		= sdhci_tegra_remove,
