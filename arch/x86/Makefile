@@ -160,7 +160,7 @@ else
         KBUILD_CFLAGS += $(cc_stack_align8)
 
 	# Use -mskip-rax-setup if supported.
-	KBUILD_CFLAGS += $(call cc-option,-mskip-rax-setup)
+	KBUILD_CFLAGS += -mskip-rax-setup
 
 ifdef CONFIG_X86_NATIVE_CPU
         KBUILD_CFLAGS += -march=native
