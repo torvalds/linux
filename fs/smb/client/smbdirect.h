@@ -27,12 +27,6 @@ extern int smbd_max_send_size;
 extern int smbd_send_credit_target;
 extern int smbd_receive_credit_max;
 
-enum keep_alive_status {
-	KEEP_ALIVE_NONE,
-	KEEP_ALIVE_PENDING,
-	KEEP_ALIVE_SENT,
-};
-
 /*
  * The context for the SMBDirect transport
  * Everything related to the transport is here. It has several logical parts
@@ -46,7 +40,6 @@ struct smbd_connection {
 	struct smbdirect_socket socket;
 
 	/* dynamic connection parameters defined in [MS-SMBD] 3.1.1.1 */
-	enum keep_alive_status keep_alive_requested;
 	int protocol;
 
 	/* Memory registrations */
@@ -71,8 +64,6 @@ struct smbd_connection {
 	wait_queue_head_t wait_for_mr_cleanup;
 
 	struct workqueue_struct *workqueue;
-	struct work_struct send_immediate_work;
-	struct delayed_work idle_timer_work;
 
 	/* for debug purposes */
 	unsigned int count_get_receive_buffer;

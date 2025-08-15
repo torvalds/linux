@@ -173,8 +173,8 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 	disable_work(&sc->disconnect_work);
 	disable_work(&sc->recv_io.posted.refill_work);
 	disable_work(&info->mr_recovery_work);
-	disable_work(&info->send_immediate_work);
-	disable_delayed_work(&info->idle_timer_work);
+	disable_work(&sc->idle.immediate_work);
+	disable_delayed_work(&sc->idle.timer_work);
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
@@ -571,7 +571,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 	if (atomic_read(&sc->recv_io.credits.count) <
 		sc->recv_io.credits.target - 1) {
 		log_keep_alive(INFO, "schedule send of an empty message\n");
-		queue_work(info->workqueue, &info->send_immediate_work);
+		queue_work(info->workqueue, &sc->idle.immediate_work);
 	}
 }
 
@@ -614,8 +614,8 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 * Reset timer to the keepalive interval in
 	 * order to trigger our next keepalive message.
 	 */
-	info->keep_alive_requested = KEEP_ALIVE_NONE;
-	mod_delayed_work(info->workqueue, &info->idle_timer_work,
+	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
+	mod_delayed_work(info->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_interval_msec));
 
 	switch (sc->recv_io.expected) {
@@ -696,7 +696,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (le16_to_cpu(data_transfer->flags) &
 				SMBDIRECT_FLAG_RESPONSE_REQUESTED) {
 			log_keep_alive(INFO, "schedule send of immediate response\n");
-			queue_work(info->workqueue, &info->send_immediate_work);
+			queue_work(info->workqueue, &sc->idle.immediate_work);
 		}
 
 		/*
@@ -998,13 +998,13 @@ static int manage_keep_alive_before_sending(struct smbd_connection *info)
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 
-	if (info->keep_alive_requested == KEEP_ALIVE_PENDING) {
-		info->keep_alive_requested = KEEP_ALIVE_SENT;
+	if (sc->idle.keepalive == SMBDIRECT_KEEPALIVE_PENDING) {
+		sc->idle.keepalive = SMBDIRECT_KEEPALIVE_SENT;
 		/*
 		 * Now use the keepalive timeout (instead of keepalive interval)
 		 * in order to wait for a response
 		 */
-		mod_delayed_work(info->workqueue, &info->idle_timer_work,
+		mod_delayed_work(info->workqueue, &sc->idle.timer_work,
 				 msecs_to_jiffies(sp->keepalive_timeout_msec));
 		return 1;
 	}
@@ -1471,9 +1471,10 @@ static void destroy_receive_buffers(struct smbd_connection *info)
 
 static void send_immediate_empty_message(struct work_struct *work)
 {
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, idle.immediate_work);
 	struct smbd_connection *info =
-		container_of(work, struct smbd_connection, send_immediate_work);
-	struct smbdirect_socket *sc = &info->socket;
+		container_of(sc, struct smbd_connection, socket);
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
 		return;
@@ -1485,16 +1486,16 @@ static void send_immediate_empty_message(struct work_struct *work)
 /* Implement idle connection timer [MS-SMBD] 3.1.6.2 */
 static void idle_connection_timer(struct work_struct *work)
 {
-	struct smbd_connection *info = container_of(
-					work, struct smbd_connection,
-					idle_timer_work.work);
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, idle.timer_work.work);
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
+	struct smbd_connection *info =
+		container_of(sc, struct smbd_connection, socket);
 
-	if (info->keep_alive_requested != KEEP_ALIVE_NONE) {
+	if (sc->idle.keepalive != SMBDIRECT_KEEPALIVE_NONE) {
 		log_keep_alive(ERR,
-			"error status info->keep_alive_requested=%d\n",
-			info->keep_alive_requested);
+			"error status sc->idle.keepalive=%d\n",
+			sc->idle.keepalive);
 		smbd_disconnect_rdma_connection(info);
 		return;
 	}
@@ -1506,11 +1507,11 @@ static void idle_connection_timer(struct work_struct *work)
 	 * Now use the keepalive timeout (instead of keepalive interval)
 	 * in order to wait for a response
 	 */
-	info->keep_alive_requested = KEEP_ALIVE_PENDING;
-	mod_delayed_work(info->workqueue, &info->idle_timer_work,
+	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
+	mod_delayed_work(info->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_timeout_msec));
 	log_keep_alive(INFO, "schedule send of empty idle message\n");
-	queue_work(info->workqueue, &info->send_immediate_work);
+	queue_work(info->workqueue, &sc->idle.immediate_work);
 }
 
 /*
@@ -1552,9 +1553,9 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	sc->ib.qp = NULL;
 
 	log_rdma_event(INFO, "cancelling idle timer\n");
-	disable_delayed_work_sync(&info->idle_timer_work);
+	disable_delayed_work_sync(&sc->idle.timer_work);
 	log_rdma_event(INFO, "cancelling send immediate work\n");
-	disable_work_sync(&info->send_immediate_work);
+	disable_work_sync(&sc->idle.immediate_work);
 
 	/* It's not possible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
@@ -1898,14 +1899,14 @@ static struct smbd_connection *_smbd_get_connection(
 		goto allocate_cache_failed;
 	}
 
-	INIT_WORK(&info->send_immediate_work, send_immediate_empty_message);
-	INIT_DELAYED_WORK(&info->idle_timer_work, idle_connection_timer);
+	INIT_WORK(&sc->idle.immediate_work, send_immediate_empty_message);
+	INIT_DELAYED_WORK(&sc->idle.timer_work, idle_connection_timer);
 	/*
-	 * start with the negotiate timeout and KEEP_ALIVE_PENDING
+	 * start with the negotiate timeout and SMBDIRECT_KEEPALIVE_PENDING
 	 * so that the timer will cause a disconnect.
 	 */
-	info->keep_alive_requested = KEEP_ALIVE_PENDING;
-	mod_delayed_work(info->workqueue, &info->idle_timer_work,
+	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
+	mod_delayed_work(info->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->negotiate_timeout_msec));
 
 	INIT_WORK(&sc->recv_io.posted.refill_work, smbd_post_send_credits);
@@ -1931,7 +1932,7 @@ allocate_mr_failed:
 	return NULL;
 
 negotiation_failed:
-	disable_delayed_work_sync(&info->idle_timer_work);
+	disable_delayed_work_sync(&sc->idle.timer_work);
 	destroy_caches_and_workqueue(info);
 	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
 	rdma_disconnect(sc->rdma.cm_id);
