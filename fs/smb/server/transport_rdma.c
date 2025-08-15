@@ -111,9 +111,20 @@ void init_smbd_max_io_size(unsigned int sz)
 	smb_direct_max_read_write_size = sz;
 }
 
-unsigned int get_smbd_max_read_write_size(void)
+unsigned int get_smbd_max_read_write_size(struct ksmbd_transport *kt)
 {
-	return smb_direct_max_read_write_size;
+	struct smb_direct_transport *t;
+	struct smbdirect_socket *sc;
+	struct smbdirect_socket_parameters *sp;
+
+	if (kt->ops != &ksmbd_smb_direct_transport_ops)
+		return 0;
+
+	t = SMBD_TRANS(kt);
+	sc = &t->socket;
+	sp = &sc->parameters;
+
+	return sp->max_read_write_size;
 }
 
 static inline int get_buf_page_count(void *buf, int size)

@@ -6762,7 +6762,11 @@ int smb2_read(struct ksmbd_work *work)
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE ||
 	    req->Channel == SMB2_CHANNEL_RDMA_V1) {
 		is_rdma_channel = true;
-		max_read_size = get_smbd_max_read_write_size();
+		max_read_size = get_smbd_max_read_write_size(work->conn->transport);
+		if (max_read_size == 0) {
+			err = -EINVAL;
+			goto out;
+		}
 	}
 
 	if (is_rdma_channel == true) {
@@ -7020,7 +7024,11 @@ int smb2_write(struct ksmbd_work *work)
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1 ||
 	    req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE) {
 		is_rdma_channel = true;
-		max_write_size = get_smbd_max_read_write_size();
+		max_write_size = get_smbd_max_read_write_size(work->conn->transport);
+		if (max_write_size == 0) {
+			err = -EINVAL;
+			goto out;
+		}
 		length = le32_to_cpu(req->RemainingBytes);
 	}
 
