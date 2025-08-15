@@ -418,8 +418,8 @@ static struct nft_pipapo_elem *pipapo_get_slow(const struct nft_pipapo_match *m,
 					       const u8 *data, u8 genmask,
 					       u64 tstamp)
 {
+	unsigned long *res_map, *fill_map, *map;
 	struct nft_pipapo_scratch *scratch;
-	unsigned long *res_map, *fill_map;
 	const struct nft_pipapo_field *f;
 	bool map_index;
 	int i;
@@ -432,8 +432,9 @@ static struct nft_pipapo_elem *pipapo_get_slow(const struct nft_pipapo_match *m,
 
 	map_index = scratch->map_index;
 
-	res_map  = scratch->map + (map_index ? m->bsize_max : 0);
-	fill_map = scratch->map + (map_index ? 0 : m->bsize_max);
+	map = NFT_PIPAPO_LT_ALIGN(&scratch->__map[0]);
+	res_map  = map + (map_index ? m->bsize_max : 0);
+	fill_map = map + (map_index ? 0 : m->bsize_max);
 
 	pipapo_resmap_init(m, res_map);
 
@@ -1171,22 +1172,17 @@ static void pipapo_map(struct nft_pipapo_match *m,
 }
 
 /**
- * pipapo_free_scratch() - Free per-CPU map at original (not aligned) address
+ * pipapo_free_scratch() - Free per-CPU map at original address
  * @m:		Matching data
  * @cpu:	CPU number
  */
 static void pipapo_free_scratch(const struct nft_pipapo_match *m, unsigned int cpu)
 {
 	struct nft_pipapo_scratch *s;
-	void *mem;
 
 	s = *per_cpu_ptr(m->scratch, cpu);
-	if (!s)
-		return;
 
-	mem = s;
-	mem -= s->align_off;
-	kvfree(mem);
+	kvfree(s);
 }
 
 /**
@@ -1203,11 +1199,8 @@ static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
 
 	for_each_possible_cpu(i) {
 		struct nft_pipapo_scratch *scratch;
-#ifdef NFT_PIPAPO_ALIGN
-		void *scratch_aligned;
-		u32 align_off;
-#endif
-		scratch = kvzalloc_node(struct_size(scratch, map, bsize_max * 2) +
+
+		scratch = kvzalloc_node(struct_size(scratch, __map, bsize_max * 2) +
 					NFT_PIPAPO_ALIGN_HEADROOM,
 					GFP_KERNEL_ACCOUNT, cpu_to_node(i));
 		if (!scratch) {
@@ -1222,23 +1215,6 @@ static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
 		}
 
 		pipapo_free_scratch(clone, i);
-
-#ifdef NFT_PIPAPO_ALIGN
-		/* Align &scratch->map (not the struct itself): the extra
-		 * %NFT_PIPAPO_ALIGN_HEADROOM bytes passed to kzalloc_node()
-		 * above guarantee we can waste up to those bytes in order
-		 * to align the map field regardless of its offset within
-		 * the struct.
-		 */
-		BUILD_BUG_ON(offsetof(struct nft_pipapo_scratch, map) > NFT_PIPAPO_ALIGN_HEADROOM);
-
-		scratch_aligned = NFT_PIPAPO_LT_ALIGN(&scratch->map);
-		scratch_aligned -= offsetof(struct nft_pipapo_scratch, map);
-		align_off = scratch_aligned - (void *)scratch;
-
-		scratch = scratch_aligned;
-		scratch->align_off = align_off;
-#endif
 		*per_cpu_ptr(clone->scratch, i) = scratch;
 	}
 

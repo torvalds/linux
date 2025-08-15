@@ -1155,7 +1155,7 @@ struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
 {
 	struct nft_pipapo_scratch *scratch;
 	const struct nft_pipapo_field *f;
-	unsigned long *res, *fill;
+	unsigned long *res, *fill, *map;
 	bool map_index;
 	int i;
 
@@ -1164,9 +1164,9 @@ struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
 		return NULL;
 
 	map_index = scratch->map_index;
-
-	res  = scratch->map + (map_index ? m->bsize_max : 0);
-	fill = scratch->map + (map_index ? 0 : m->bsize_max);
+	map = NFT_PIPAPO_LT_ALIGN(&scratch->__map[0]);
+	res  = map + (map_index ? m->bsize_max : 0);
+	fill = map + (map_index ? 0 : m->bsize_max);
 
 	pipapo_resmap_init_avx2(m, res);
 
