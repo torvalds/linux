@@ -1423,7 +1423,7 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *freshest, stru
 		else {
 			if (sb->events_hi == sb->cp_events_hi &&
 				sb->events_lo == sb->cp_events_lo) {
-				mddev->resync_offset = sb->resync_offset;
+				mddev->resync_offset = sb->recovery_cp;
 			} else
 				mddev->resync_offset = 0;
 		}
@@ -1551,13 +1551,13 @@ static void super_90_sync(struct mddev *mddev, struct md_rdev *rdev)
 	mddev->minor_version = sb->minor_version;
 	if (mddev->in_sync)
 	{
-		sb->resync_offset = mddev->resync_offset;
+		sb->recovery_cp = mddev->resync_offset;
 		sb->cp_events_hi = (mddev->events>>32);
 		sb->cp_events_lo = (u32)mddev->events;
 		if (mddev->resync_offset == MaxSector)
 			sb->state = (1<< MD_SB_CLEAN);
 	} else
-		sb->resync_offset = 0;
+		sb->recovery_cp = 0;
 
 	sb->layout = mddev->layout;
 	sb->chunk_size = mddev->chunk_sectors << 9;
