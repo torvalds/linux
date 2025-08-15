@@ -2662,10 +2662,8 @@ static void complete_scsi_command(struct CommandList *cp)
 	case CMD_TARGET_STATUS:
 		cmd->result |= ei->ScsiStatus;
 		/* copy the sense data */
-		if (SCSI_SENSE_BUFFERSIZE < sizeof(ei->SenseInfo))
-			sense_data_size = SCSI_SENSE_BUFFERSIZE;
-		else
-			sense_data_size = sizeof(ei->SenseInfo);
+		sense_data_size = min_t(unsigned long, SCSI_SENSE_BUFFERSIZE,
+					sizeof(ei->SenseInfo));
 		if (ei->SenseLen < sense_data_size)
 			sense_data_size = ei->SenseLen;
 		memcpy(cmd->sense_buffer, ei->SenseInfo, sense_data_size);
@@ -3628,10 +3626,7 @@ static bool hpsa_vpd_page_supported(struct ctlr_info *h,
 	if (rc != 0)
 		goto exit_unsupported;
 	pages = buf[3];
-	if ((pages + HPSA_VPD_HEADER_SZ) <= 255)
-		bufsize = pages + HPSA_VPD_HEADER_SZ;
-	else
-		bufsize = 255;
+	bufsize = min(pages + HPSA_VPD_HEADER_SZ, 255);
 
 	/* Get the whole VPD page list */
 	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
