@@ -8,7 +8,7 @@ use crate::{
     bindings, device, devres, drm,
     error::{to_result, Result},
     prelude::*,
-    types::ARef,
+    sync::aref::ARef,
 };
 use macros::vtable;
 
