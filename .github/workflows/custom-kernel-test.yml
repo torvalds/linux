@@ -274,12 +274,55 @@ jobs:
           # Check if resctrl is available
           if [ -d /sys/fs/resctrl ]; then
             echo "✅ /sys/fs/resctrl exists"
+            echo "📁 Contents of /sys/fs/resctrl/:"
             ls -la /sys/fs/resctrl/
+            
+            # Check if resctrl is mounted
+            echo ""
+            echo "🔧 Mount status of resctrl:"
+            mount | grep resctrl || echo "❌ resctrl filesystem not mounted"
+            
+            # Check if we can mount resctrl
+            echo ""
+            echo "🚀 Attempting to mount resctrl filesystem..."
+            if mount -t resctrl resctrl /sys/fs/resctrl 2>&1; then
+              echo "✅ Successfully mounted resctrl!"
+              echo "📁 Contents after mounting:"
+              ls -la /sys/fs/resctrl/
+              
+              # Check for info directory and its contents
+              if [ -d /sys/fs/resctrl/info ]; then
+                echo ""
+                echo "📊 Resctrl info directory contents:"
+                find /sys/fs/resctrl/info -type f -exec echo "📄 {}: $(cat {} 2>/dev/null || echo 'unable to read')" \;
+              fi
+            else
+              echo "❌ Failed to mount resctrl filesystem"
+              echo "💡 This might indicate missing kernel config or hardware support"
+            fi
           else
             echo "❌ /sys/fs/resctrl not found"
           fi
           
-          # Check kernel modules
+          # Check kernel config for resctrl support
+          echo ""
+          echo "🔧 Kernel configuration for resctrl:"
+          if [ -f /proc/config.gz ]; then
+            echo "📋 Resctrl-related config options:"
+            zcat /proc/config.gz | grep -E "(RESCTRL|RDT)" || echo "No resctrl config found"
+          elif [ -f /boot/config-$(uname -r) ]; then
+            echo "📋 Resctrl-related config options:"
+            grep -E "(RESCTRL|RDT)" /boot/config-$(uname -r) || echo "No resctrl config found"
+          else
+            echo "❌ Kernel config not available"
+          fi
+          
+          # Check dmesg for resctrl messages
+          echo ""
+          echo "📋 Kernel log messages about resctrl:"
+          dmesg | grep -i resctrl | head -10 || echo "No resctrl messages in dmesg"
+          
+          # Check loaded kernel modules
           echo ""
           echo "🔧 Loaded kernel modules related to resctrl/perf:"
           lsmod | grep -E "(resctrl|perf|msr)" || echo "No relevant modules found"
@@ -288,6 +331,33 @@ jobs:
           echo ""
           echo "🖥️ CPU features related to monitoring:"
           grep -E "(model name|flags)" /proc/cpuinfo | head -4
+          
+          # Look for specific CPU features that enable resctrl
+          echo ""
+          echo "🎯 Specific CPU features for resctrl support:"
+          if grep -q "rdt_a" /proc/cpuinfo; then
+            echo "✅ RDT allocation support detected"
+          else
+            echo "❌ RDT allocation (rdt_a) not found"
+          fi
+          
+          if grep -q "cqm" /proc/cpuinfo; then
+            echo "✅ Cache Quality Monitoring (cqm) support detected"
+          else
+            echo "❌ Cache Quality Monitoring (cqm) not found"
+          fi
+          
+          if grep -qE "(cat_l3|cat_l2)" /proc/cpuinfo; then
+            echo "✅ Cache Allocation Technology support detected"
+          else
+            echo "❌ Cache Allocation Technology not found"
+          fi
+          
+          if grep -q "mba" /proc/cpuinfo; then
+            echo "✅ Memory Bandwidth Allocation support detected"  
+          else
+            echo "❌ Memory Bandwidth Allocation not found"
+          fi
           
       - name: Download test binary from S3
         run: |
