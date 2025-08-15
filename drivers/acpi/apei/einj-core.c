@@ -540,6 +540,9 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 		struct set_error_type_with_address *v5param;
 
 		v5param = kmalloc(v5param_size, GFP_KERNEL);
+		if (!v5param)
+			return -ENOMEM;
+
 		memcpy_fromio(v5param, einj_param, v5param_size);
 		v5param->type = type;
 		if (type & ACPI5_VENDOR_BIT) {
