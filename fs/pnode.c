@@ -111,7 +111,8 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		return;
 	}
 	if (IS_MNT_SHARED(mnt)) {
-		m = propagation_source(mnt);
+		if (type == MS_SLAVE || !hlist_empty(&mnt->mnt_slave_list))
+			m = propagation_source(mnt);
 		if (list_empty(&mnt->mnt_share)) {
 			mnt_release_group_id(mnt);
 		} else {
