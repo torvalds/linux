@@ -611,7 +611,6 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	return sdhci_add_host(host);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_cdns_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -638,11 +637,8 @@ disable_clk:
 
 	return ret;
 }
-#endif
 
-static const struct dev_pm_ops sdhci_cdns_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pltfm_suspend, sdhci_cdns_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(sdhci_cdns_pm_ops, sdhci_pltfm_suspend, sdhci_cdns_resume);
 
 static const struct of_device_id sdhci_cdns_match[] = {
 	{
@@ -666,7 +662,7 @@ static struct platform_driver sdhci_cdns_driver = {
 	.driver = {
 		.name = "sdhci-cdns",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm = &sdhci_cdns_pm_ops,
+		.pm = pm_sleep_ptr(&sdhci_cdns_pm_ops),
 		.of_match_table = sdhci_cdns_match,
 	},
 	.probe = sdhci_cdns_probe,
