@@ -41,6 +41,12 @@ const char *smbdirect_socket_status_string(enum smbdirect_socket_status status)
 	return "<unknown>";
 }
 
+enum smbdirect_keepalive_status {
+	SMBDIRECT_KEEPALIVE_NONE,
+	SMBDIRECT_KEEPALIVE_PENDING,
+	SMBDIRECT_KEEPALIVE_SENT
+};
+
 struct smbdirect_socket {
 	enum smbdirect_socket_status status;
 	wait_queue_head_t status_wait;
@@ -70,6 +76,15 @@ struct smbdirect_socket {
 	} ib;
 
 	struct smbdirect_socket_parameters parameters;
+
+	/*
+	 * The state for keepalive and timeout handling
+	 */
+	struct {
+		enum smbdirect_keepalive_status keepalive;
+		struct work_struct immediate_work;
+		struct delayed_work timer_work;
+	} idle;
 
 	/*
 	 * The state for posted send buffers
