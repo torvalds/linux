@@ -211,7 +211,7 @@
 	status = "okay";
 	bus-frequency = <90000>;
 	HotSwap@10 {
-		compatible = "adm1272";
+		compatible = "adi,adm1272";
 		reg = <0x10>;
 	};
 

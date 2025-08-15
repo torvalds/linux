@@ -151,7 +151,7 @@
 	};
 
 	rtc@68 {
-		compatible = "dallas,ds3231";
+		compatible = "maxim,ds3231";
 		reg = <0x68>;
 	};
 };

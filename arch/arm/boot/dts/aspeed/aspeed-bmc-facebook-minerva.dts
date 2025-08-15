@@ -313,10 +313,8 @@
 			};
 
 			pwm@5e {
-				compatible = "max31790";
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -436,10 +434,8 @@
 			};
 
 			pwm@5e {
-				compatible = "max31790";
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -559,10 +555,8 @@
 			};
 
 			pwm@5e {
-				compatible = "max31790";
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -682,10 +676,8 @@
 			};
 
 			pwm@5e {
-				compatible = "max31790";
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -805,10 +797,8 @@
 			};
 
 			pwm@5e {
-				compatible = "max31790";
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -927,10 +917,8 @@
 			};
 
 			pwm@5e {
-				compatible = "max31790";
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
