@@ -91,8 +91,6 @@ struct smb_direct_transport {
 	struct ksmbd_transport	transport;
 
 	struct smbdirect_socket socket;
-
-	struct work_struct	send_immediate_work;
 };
 
 #define KSMBD_TRANS(t) (&(t)->transport)
@@ -214,8 +212,6 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, disconnect_work);
-	struct smb_direct_transport *t =
-		container_of(sc, struct smb_direct_transport, socket);
 
 	/*
 	 * make sure this and other work is not queued again
@@ -224,7 +220,7 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	 */
 	disable_work(&sc->disconnect_work);
 	disable_work(&sc->recv_io.posted.refill_work);
-	disable_work(&t->send_immediate_work);
+	disable_work(&sc->idle.immediate_work);
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
@@ -270,9 +266,10 @@ smb_direct_disconnect_rdma_connection(struct smb_direct_transport *t)
 
 static void smb_direct_send_immediate_work(struct work_struct *work)
 {
-	struct smb_direct_transport *t = container_of(work,
-			struct smb_direct_transport, send_immediate_work);
-	struct smbdirect_socket *sc = &t->socket;
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, idle.immediate_work);
+	struct smb_direct_transport *t =
+		container_of(sc, struct smb_direct_transport, socket);
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
 		return;
@@ -313,7 +310,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	INIT_WORK(&sc->recv_io.posted.refill_work,
 		  smb_direct_post_recv_credits);
-	INIT_WORK(&t->send_immediate_work, smb_direct_send_immediate_work);
+	INIT_WORK(&sc->idle.immediate_work, smb_direct_send_immediate_work);
 
 	conn = ksmbd_conn_alloc();
 	if (!conn)
@@ -348,7 +345,7 @@ static void free_transport(struct smb_direct_transport *t)
 	wake_up_all(&sc->send_io.pending.zero_wait_queue);
 
 	disable_work_sync(&sc->recv_io.posted.refill_work);
-	disable_work_sync(&t->send_immediate_work);
+	disable_work_sync(&sc->idle.immediate_work);
 
 	if (sc->ib.qp) {
 		ib_drain_qp(sc->ib.qp);
@@ -565,7 +562,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 		if (le16_to_cpu(data_transfer->flags) &
 		    SMBDIRECT_FLAG_RESPONSE_REQUESTED)
-			queue_work(smb_direct_wq, &t->send_immediate_work);
+			queue_work(smb_direct_wq, &sc->idle.immediate_work);
 
 		if (atomic_read(&sc->send_io.credits.count) > 0)
 			wake_up(&sc->send_io.credits.wait_queue);
@@ -781,7 +778,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 	}
 
 	if (credits)
-		queue_work(smb_direct_wq, &t->send_immediate_work);
+		queue_work(smb_direct_wq, &sc->idle.immediate_work);
 }
 
 static void send_done(struct ib_cq *cq, struct ib_wc *wc)
