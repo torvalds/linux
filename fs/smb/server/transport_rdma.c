@@ -33,8 +33,8 @@
 
 #define SMB_DIRECT_VERSION_LE		cpu_to_le16(SMBDIRECT_V1)
 
-/* SMB_DIRECT negotiation timeout in seconds */
-#define SMB_DIRECT_NEGOTIATE_TIMEOUT		120
+/* SMB_DIRECT negotiation timeout (for the server) in seconds */
+#define SMB_DIRECT_NEGOTIATE_TIMEOUT		5
 
 /*
  * Default maximum number of RDMA read/write outstanding on this connection
@@ -300,6 +300,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
 
+	sp->negotiate_timeout_msec = SMB_DIRECT_NEGOTIATE_TIMEOUT * 1000;
 	sp->recv_credit_max = smb_direct_receive_credit_max;
 	sp->send_credit_target = smb_direct_send_credit_target;
 	sp->max_send_size = smb_direct_max_send_size;
@@ -2022,7 +2023,7 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 					sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED &&
 					sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING &&
 					sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED,
-					SMB_DIRECT_NEGOTIATE_TIMEOUT * HZ);
+					msecs_to_jiffies(sp->negotiate_timeout_msec));
 	if (ret <= 0 || sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING)
 		return ret < 0 ? ret : -ETIMEDOUT;
 
