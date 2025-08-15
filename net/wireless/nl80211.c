@@ -411,6 +411,14 @@ static const struct nla_policy nl80211_txattr_policy[NL80211_TXRATE_MAX + 1] = {
 	[NL80211_TXRATE_HE_LTF] = NLA_POLICY_RANGE(NLA_U8,
 						   NL80211_RATE_INFO_HE_1XLTF,
 						   NL80211_RATE_INFO_HE_4XLTF),
+	[NL80211_TXRATE_EHT] = NLA_POLICY_EXACT_LEN(sizeof(struct nl80211_txrate_eht)),
+	[NL80211_TXRATE_EHT_GI] =  NLA_POLICY_RANGE(NLA_U8,
+						   NL80211_RATE_INFO_EHT_GI_0_8,
+						   NL80211_RATE_INFO_EHT_GI_3_2),
+	[NL80211_TXRATE_EHT_LTF] = NLA_POLICY_RANGE(NLA_U8,
+						   NL80211_RATE_INFO_EHT_1XLTF,
+						   NL80211_RATE_INFO_EHT_8XLTF),
+
 };
 
 static const struct nla_policy
@@ -5393,6 +5401,164 @@ static bool he_set_mcs_mask(struct genl_info *info,
 	return true;
 }
 
+static void eht_build_mcs_mask(struct genl_info *info,
+			       const struct ieee80211_sta_eht_cap *eht_cap,
+			       u8 mcs_nss_len, u16 *mcs_mask)
+{
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	u8 nss, mcs_7 = 0, mcs_9 = 0, mcs_11 = 0, mcs_13 = 0;
+	unsigned int link_id = nl80211_link_id(info->attrs);
+
+	if (mcs_nss_len == 4) {
+		const struct ieee80211_eht_mcs_nss_supp_20mhz_only *mcs =
+					&eht_cap->eht_mcs_nss_supp.only_20mhz;
+
+		mcs_7 = u8_get_bits(mcs->rx_tx_mcs7_max_nss,
+				    IEEE80211_EHT_MCS_NSS_TX);
+		mcs_9 = u8_get_bits(mcs->rx_tx_mcs9_max_nss,
+				    IEEE80211_EHT_MCS_NSS_TX);
+		mcs_11 = u8_get_bits(mcs->rx_tx_mcs11_max_nss,
+				     IEEE80211_EHT_MCS_NSS_TX);
+		mcs_13 = u8_get_bits(mcs->rx_tx_mcs13_max_nss,
+				     IEEE80211_EHT_MCS_NSS_TX);
+
+	} else {
+		const struct ieee80211_eht_mcs_nss_supp_bw *mcs;
+		enum nl80211_chan_width width;
+
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_ADHOC:
+			width = wdev->u.ibss.chandef.width;
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			width = wdev->u.mesh.chandef.width;
+			break;
+		case NL80211_IFTYPE_OCB:
+			width = wdev->u.ocb.chandef.width;
+			break;
+		default:
+			if (wdev->valid_links)
+				width = wdev->links[link_id].ap.chandef.width;
+			else
+				width = wdev->u.ap.preset_chandef.width;
+			break;
+		}
+
+		switch (width) {
+		case NL80211_CHAN_WIDTH_320:
+			mcs = &eht_cap->eht_mcs_nss_supp.bw._320;
+			break;
+		case NL80211_CHAN_WIDTH_160:
+			mcs = &eht_cap->eht_mcs_nss_supp.bw._160;
+			break;
+		default:
+			mcs = &eht_cap->eht_mcs_nss_supp.bw._80;
+			break;
+		}
+
+		mcs_7 = u8_get_bits(mcs->rx_tx_mcs9_max_nss,
+				    IEEE80211_EHT_MCS_NSS_TX);
+		mcs_9 = u8_get_bits(mcs->rx_tx_mcs9_max_nss,
+				    IEEE80211_EHT_MCS_NSS_TX);
+		mcs_11 = u8_get_bits(mcs->rx_tx_mcs11_max_nss,
+				     IEEE80211_EHT_MCS_NSS_TX);
+		mcs_13 = u8_get_bits(mcs->rx_tx_mcs13_max_nss,
+				     IEEE80211_EHT_MCS_NSS_TX);
+	}
+
+	/* Enable MCS 14 for NSS 0 */
+	if (eht_cap->eht_cap_elem.phy_cap_info[6] &
+	    IEEE80211_EHT_PHY_CAP6_EHT_DUP_6GHZ_SUPP)
+		mcs_mask[0] |= 0x4000;
+
+	/* Enable MCS 15 for NSS 0 */
+	mcs_mask[0] |= 0x8000;
+
+	for (nss = 0; nss < NL80211_EHT_NSS_MAX; nss++) {
+		if (!mcs_7)
+			continue;
+		mcs_mask[nss] |= 0x00FF;
+		mcs_7--;
+
+		if (!mcs_9)
+			continue;
+		mcs_mask[nss] |= 0x0300;
+		mcs_9--;
+
+		if (!mcs_11)
+			continue;
+		mcs_mask[nss] |= 0x0C00;
+		mcs_11--;
+
+		if (!mcs_13)
+			continue;
+		mcs_mask[nss] |= 0x3000;
+		mcs_13--;
+	}
+}
+
+static bool eht_set_mcs_mask(struct genl_info *info, struct wireless_dev *wdev,
+			     struct ieee80211_supported_band *sband,
+			     struct nl80211_txrate_eht *txrate,
+			     u16 mcs[NL80211_EHT_NSS_MAX])
+{
+	const struct ieee80211_sta_he_cap *he_cap;
+	const struct ieee80211_sta_eht_cap *eht_cap;
+	u16 tx_mcs_mask[NL80211_EHT_NSS_MAX] = { 0 };
+	u8 i, mcs_nss_len;
+
+	he_cap = ieee80211_get_he_iftype_cap(sband, wdev->iftype);
+	if (!he_cap)
+		return false;
+
+	eht_cap = ieee80211_get_eht_iftype_cap(sband, wdev->iftype);
+	if (!eht_cap)
+		return false;
+
+	/* Checks for MCS 14 */
+	if (txrate->mcs[0] & 0x4000) {
+		if (sband->band != NL80211_BAND_6GHZ)
+			return false;
+
+		if (!(eht_cap->eht_cap_elem.phy_cap_info[6] &
+		      IEEE80211_EHT_PHY_CAP6_EHT_DUP_6GHZ_SUPP))
+			return false;
+	}
+
+	mcs_nss_len = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
+						 &eht_cap->eht_cap_elem,
+						 wdev->iftype ==
+							NL80211_IFTYPE_STATION);
+
+	if (mcs_nss_len == 3) {
+		/* Supported iftypes for setting non-20 MHZ only EHT MCS */
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+		case NL80211_IFTYPE_MESH_POINT:
+		case NL80211_IFTYPE_OCB:
+			break;
+		default:
+			return false;
+		}
+	}
+
+	/* Build eht_mcs_mask from EHT and HE capabilities */
+	eht_build_mcs_mask(info, eht_cap, mcs_nss_len, tx_mcs_mask);
+
+	memset(mcs, 0, sizeof(u16) * NL80211_EHT_NSS_MAX);
+	for (i = 0; i < NL80211_EHT_NSS_MAX; i++) {
+		if ((tx_mcs_mask[i] & txrate->mcs[i]) == txrate->mcs[i])
+			mcs[i] = txrate->mcs[i];
+		else
+			return false;
+	}
+
+	return true;
+}
+
 static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 					 struct nlattr *attrs[],
 					 enum nl80211_attrs attr,
@@ -5413,6 +5579,8 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 	/* Default to all rates enabled */
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		const struct ieee80211_sta_he_cap *he_cap;
+		const struct ieee80211_sta_eht_cap *eht_cap;
+		u8 mcs_nss_len;
 
 		if (!default_all_enabled)
 			break;
@@ -5441,6 +5609,21 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 
 		mask->control[i].he_gi = 0xFF;
 		mask->control[i].he_ltf = 0xFF;
+
+		eht_cap = ieee80211_get_eht_iftype_cap(sband, wdev->iftype);
+		if (!eht_cap)
+			continue;
+
+		mcs_nss_len = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
+							 &eht_cap->eht_cap_elem,
+							 wdev->iftype ==
+							 NL80211_IFTYPE_STATION);
+
+		eht_build_mcs_mask(info, eht_cap, mcs_nss_len,
+				   mask->control[i].eht_mcs);
+
+		mask->control[i].eht_gi = 0xFF;
+		mask->control[i].eht_ltf = 0xFF;
 	}
 
 	/* if no rates are given set it back to the defaults */
@@ -5512,13 +5695,27 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 			mask->control[band].he_ltf =
 				nla_get_u8(tb[NL80211_TXRATE_HE_LTF]);
 
+		if (tb[NL80211_TXRATE_EHT] &&
+		    !eht_set_mcs_mask(info, wdev, sband,
+				      nla_data(tb[NL80211_TXRATE_EHT]),
+				      mask->control[band].eht_mcs))
+			return -EINVAL;
+
+		if (tb[NL80211_TXRATE_EHT_GI])
+			mask->control[band].eht_gi =
+				nla_get_u8(tb[NL80211_TXRATE_EHT_GI]);
+		if (tb[NL80211_TXRATE_EHT_LTF])
+			mask->control[band].eht_ltf =
+				nla_get_u8(tb[NL80211_TXRATE_EHT_LTF]);
+
 		if (mask->control[band].legacy == 0) {
-			/* don't allow empty legacy rates if HT, VHT or HE
+			/* don't allow empty legacy rates if HT, VHT, HE or EHT
 			 * are not even supported.
 			 */
 			if (!(rdev->wiphy.bands[band]->ht_cap.ht_supported ||
 			      rdev->wiphy.bands[band]->vht_cap.vht_supported ||
-			      ieee80211_get_he_iftype_cap(sband, wdev->iftype)))
+			      ieee80211_get_he_iftype_cap(sband, wdev->iftype) ||
+			      ieee80211_get_eht_iftype_cap(sband, wdev->iftype)))
 				return -EINVAL;
 
 			for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
@@ -5531,6 +5728,10 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 
 			for (i = 0; i < NL80211_HE_NSS_MAX; i++)
 				if (mask->control[band].he_mcs[i])
+					goto out;
+
+			for (i = 0; i < NL80211_EHT_NSS_MAX; i++)
+				if (mask->control[band].eht_mcs[i])
 					goto out;
 
 			/* legacy and mcs rates may not be both empty */
@@ -5546,7 +5747,7 @@ static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
 				   enum nl80211_band band,
 				   struct cfg80211_bitrate_mask *beacon_rate)
 {
-	u32 count_ht, count_vht, count_he, i;
+	u32 count_ht, count_vht, count_he, count_eht, i;
 	u32 rate = beacon_rate->control[band].legacy;
 
 	/* Allow only one rate */
@@ -5592,8 +5793,21 @@ static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 	}
 
-	if ((count_ht && count_vht && count_he) ||
-	    (!rate && !count_ht && !count_vht && !count_he))
+	count_eht = 0;
+	for (i = 0; i < NL80211_EHT_NSS_MAX; i++) {
+		if (hweight16(beacon_rate->control[band].eht_mcs[i]) > 1) {
+			return -EINVAL;
+		} else if (beacon_rate->control[band].eht_mcs[i]) {
+			count_eht++;
+			if (count_eht > 1)
+				return -EINVAL;
+		}
+		if (count_eht && rate)
+			return -EINVAL;
+	}
+
+	if ((count_ht && count_vht && count_he && count_eht) ||
+	    (!rate && !count_ht && !count_vht && !count_he && !count_eht))
 		return -EINVAL;
 
 	if (rate &&
@@ -5611,6 +5825,11 @@ static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
 	if (count_he &&
 	    !wiphy_ext_feature_isset(&rdev->wiphy,
 				     NL80211_EXT_FEATURE_BEACON_RATE_HE))
+		return -EINVAL;
+
+	if (count_eht &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_BEACON_RATE_EHT))
 		return -EINVAL;
 
 	return 0;
