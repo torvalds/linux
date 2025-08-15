@@ -1279,14 +1279,10 @@ int nfp_nfdk_poll(struct napi_struct *napi, int budget)
 
 	if (r_vec->nfp_net->rx_coalesce_adapt_on && r_vec->rx_ring) {
 		struct dim_sample dim_sample = {};
-		unsigned int start;
 		u64 pkts, bytes;
 
-		do {
-			start = u64_stats_fetch_begin(&r_vec->rx_sync);
-			pkts = r_vec->rx_pkts;
-			bytes = r_vec->rx_bytes;
-		} while (u64_stats_fetch_retry(&r_vec->rx_sync, start));
+		pkts = r_vec->rx_pkts;
+		bytes = r_vec->rx_bytes;
 
 		dim_update_sample(r_vec->event_ctr, pkts, bytes, &dim_sample);
 		net_dim(&r_vec->rx_dim, &dim_sample);
@@ -1294,14 +1290,10 @@ int nfp_nfdk_poll(struct napi_struct *napi, int budget)
 
 	if (r_vec->nfp_net->tx_coalesce_adapt_on && r_vec->tx_ring) {
 		struct dim_sample dim_sample = {};
-		unsigned int start;
 		u64 pkts, bytes;
 
-		do {
-			start = u64_stats_fetch_begin(&r_vec->tx_sync);
-			pkts = r_vec->tx_pkts;
-			bytes = r_vec->tx_bytes;
-		} while (u64_stats_fetch_retry(&r_vec->tx_sync, start));
+		pkts = r_vec->tx_pkts;
+		bytes = r_vec->tx_bytes;
 
 		dim_update_sample(r_vec->event_ctr, pkts, bytes, &dim_sample);
 		net_dim(&r_vec->tx_dim, &dim_sample);
