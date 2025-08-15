@@ -731,6 +731,40 @@ static const struct v4l2_file_operations mxc_isi_m2m_fops = {
 };
 
 /* -----------------------------------------------------------------------------
+ * Suspend & resume
+ */
+
+void mxc_isi_m2m_suspend(struct mxc_isi_m2m *m2m)
+{
+	if (m2m->usage_count == 0)
+		return;
+
+	v4l2_m2m_suspend(m2m->m2m_dev);
+
+	if (m2m->chained_count > 0)
+		mxc_isi_channel_unchain(m2m->pipe);
+
+	mxc_isi_channel_disable(m2m->pipe);
+	mxc_isi_channel_put(m2m->pipe);
+}
+
+int mxc_isi_m2m_resume(struct mxc_isi_m2m *m2m)
+{
+	if (m2m->usage_count == 0)
+		return 0;
+
+	mxc_isi_channel_get(m2m->pipe);
+
+	if (m2m->chained_count > 0)
+		mxc_isi_channel_chain(m2m->pipe);
+
+	m2m->last_ctx = NULL;
+	v4l2_m2m_resume(m2m->m2m_dev);
+
+	return 0;
+}
+
+/* -----------------------------------------------------------------------------
  * Registration
  */
 

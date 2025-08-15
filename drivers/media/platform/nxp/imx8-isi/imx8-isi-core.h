@@ -342,6 +342,8 @@ int mxc_isi_video_buffer_prepare(struct mxc_isi_dev *isi, struct vb2_buffer *vb2
 #ifdef CONFIG_VIDEO_IMX8_ISI_M2M
 int mxc_isi_m2m_register(struct mxc_isi_dev *isi, struct v4l2_device *v4l2_dev);
 int mxc_isi_m2m_unregister(struct mxc_isi_dev *isi);
+void mxc_isi_m2m_suspend(struct mxc_isi_m2m *m2m);
+int mxc_isi_m2m_resume(struct mxc_isi_m2m *m2m);
 #else
 static inline int mxc_isi_m2m_register(struct mxc_isi_dev *isi,
 				       struct v4l2_device *v4l2_dev)
@@ -349,6 +351,13 @@ static inline int mxc_isi_m2m_register(struct mxc_isi_dev *isi,
 	return 0;
 }
 static inline int mxc_isi_m2m_unregister(struct mxc_isi_dev *isi)
+{
+	return 0;
+}
+static inline void mxc_isi_m2m_suspend(struct mxc_isi_m2m *m2m)
+{
+}
+static inline int mxc_isi_m2m_resume(struct mxc_isi_m2m *m2m)
 {
 	return 0;
 }
