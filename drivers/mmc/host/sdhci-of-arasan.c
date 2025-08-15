@@ -605,7 +605,6 @@ static const struct sdhci_pltfm_data sdhci_arasan_cqe_pdata = {
 			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 };
 
-#ifdef CONFIG_PM_SLEEP
 /**
  * sdhci_arasan_suspend - Suspend method for the driver
  * @dev:	Address of the device structure
@@ -699,10 +698,9 @@ static int sdhci_arasan_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* ! CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(sdhci_arasan_dev_pm_ops, sdhci_arasan_suspend,
-			 sdhci_arasan_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sdhci_arasan_dev_pm_ops, sdhci_arasan_suspend,
+				sdhci_arasan_resume);
 
 /**
  * sdhci_arasan_sdcardclk_recalc_rate - Return the card clock rate
@@ -2080,7 +2078,7 @@ static struct platform_driver sdhci_arasan_driver = {
 		.name = "sdhci-arasan",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_arasan_of_match,
-		.pm = &sdhci_arasan_dev_pm_ops,
+		.pm = pm_sleep_ptr(&sdhci_arasan_dev_pm_ops),
 	},
 	.probe = sdhci_arasan_probe,
 	.remove = sdhci_arasan_remove,
