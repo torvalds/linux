@@ -308,7 +308,7 @@ output_json_results() {
     
     # Get workflow run information
     local run_info
-    run_info=$(gh run view "$run_id" --repo "$REPO_OWNER/$REPO_NAME" --json status,conclusion,startedAt,updatedAt,url,headSha,headBranch,event,actor,workflowName,displayTitle)
+    run_info=$(gh run view "$run_id" --repo "$REPO_OWNER/$REPO_NAME" --json status,conclusion,startedAt,updatedAt,url,headSha,headBranch,event,workflowName,displayTitle)
     
     # Get job information with steps
     local jobs_info
@@ -320,28 +320,52 @@ output_json_results() {
     local step_outputs="[]"
     
     # Get full logs from the workflow run
-    local logs_output
-    logs_output=$(gh run view "$run_id" --repo "$REPO_OWNER/$REPO_NAME" --log 2>/dev/null || echo "")
+    local logs_output=""
+    local job_logs_json="[]"
     
-    # If main logs are empty, try getting logs from individual jobs
-    if [[ -z "$logs_output" ]]; then
-        # Try to get logs from each job individually
-        local job_ids
-        job_ids=$(echo "$jobs_info" | jq -r '.[].databaseId')
+    # Get logs from individual jobs using gh run view --log --job=<job_id>
+    local job_ids job_names
+    job_ids=$(echo "$jobs_info" | jq -r '.[].databaseId')
+    job_names=$(echo "$jobs_info" | jq -r '.[].name')
+    
+    # Create array to store individual job logs
+    local job_logs_array=()
+    
+    # Get logs for each job
+    local job_count=0
+    while IFS= read -r job_id && IFS= read -r job_name <&3; do
+        [[ -z "$job_id" ]] && continue
         
-        for job_id in $job_ids; do
-            local job_logs
-            job_logs=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/jobs/$job_id/logs" 2>/dev/null || echo "")
-            if [[ -n "$job_logs" ]]; then
-                logs_output="${logs_output}\n--- Job $job_id ---\n${job_logs}"
-            fi
-        done
+        local individual_job_logs
+        individual_job_logs=$(gh run view --log --job="$job_id" --repo "$REPO_OWNER/$REPO_NAME" 2>/dev/null || echo "")
+        
+        if [[ -n "$individual_job_logs" ]]; then
+            # Add to combined logs output
+            logs_output="${logs_output}\n=== Job: $job_name (ID: $job_id) ===\n${individual_job_logs}\n"
+            
+            # Escape the logs for JSON using base64 encoding to avoid escaping issues
+            local encoded_logs
+            encoded_logs=$(echo "$individual_job_logs" | base64 -w 0)
+            job_logs_array+=("{\"job_id\": \"$job_id\", \"job_name\": \"$job_name\", \"logs_base64\": \"$encoded_logs\"}")
+        else
+            # Add placeholder for jobs without logs
+            job_logs_array+=("{\"job_id\": \"$job_id\", \"job_name\": \"$job_name\", \"logs_base64\": \"$(echo 'No logs available' | base64 -w 0)\"}")
+        fi
+        
+        ((job_count++))
+    done < <(echo "$job_ids") 3< <(echo "$job_names")
+    
+    # Convert job logs array to JSON
+    if [[ ${#job_logs_array[@]} -gt 0 ]]; then
+        local job_logs_string
+        job_logs_string=$(IFS=,; echo "${job_logs_array[*]}")
+        job_logs_json="[$job_logs_string]"
     fi
     
     # Extract step outputs for key test steps
     if [[ -n "$logs_output" ]]; then
-        # Store comprehensive logs (last 5000 characters to capture more context)
-        all_logs=$(echo "$logs_output" | tail -c 5000 | sed 's/"/\\"/g' | tr '\n' '\\n')
+        # Store comprehensive logs (last 5000 characters to capture more context) - encoded as base64
+        all_logs=$(echo "$logs_output" | tail -c 5000 | base64 -w 0)
         
         # Look for test-specific output patterns
         local test_step_output=""
@@ -367,12 +391,14 @@ output_json_results() {
             failed_count=$(echo "$logs_output" | grep -c -E "(FAIL|ERROR|✗|Test.*failed)" || echo "0")
             
             if [[ "$passed_count" -gt 0 ]] || [[ "$failed_count" -gt 0 ]]; then
+                local escaped_test_output
+                escaped_test_output=$(echo "$test_step_output" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/\t/\\t/g' | sed 's/\r/\\r/g' | tr -d '\000-\010\013-\014\016-\037' | tr '\n' '\\n')
                 test_results=$(cat <<EOF
 {
   "passed": $passed_count,
   "failed": $failed_count,
   "total": $((passed_count + failed_count)),
-  "test_output": "$(echo "$test_step_output" | sed 's/"/\\"/g' | tr '\n' '\\n')"
+  "test_output": "$escaped_test_output"
 }
 EOF
 )
@@ -389,11 +415,12 @@ EOF
 {
   "workflow_run": $run_info,
   "jobs": $jobs_info,
+  "job_logs": $job_logs_json,
   "test_results": $test_results,
   "build_id": "$BUILD_ID",
   "instance_type": "$INSTANCE_TYPE",
   "image_type": "$IMAGE_TYPE",
-  "logs": "$all_logs",
+  "logs_base64": "$all_logs",
   "recent_output": $step_outputs
 }
 EOF
