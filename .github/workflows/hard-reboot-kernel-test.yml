@@ -190,13 +190,40 @@ jobs:
             echo "Installing custom kernel to /boot: $VMLINUZ" | tee -a /var/log/reboot-setup.log
             echo "Installing custom initrd to /boot: $INITRD" | tee -a /var/log/reboot-setup.log
 
-            # Install custom kernel to /boot
+            # Install custom kernel to /boot with proper permissions
             cp "$VMLINUZ" /boot/vmlinuz-custom
             cp "$INITRD" /boot/initrd-custom
+            chmod 644 /boot/vmlinuz-custom /boot/initrd-custom
             
-            # Get current kernel command line
-            CURRENT_CMDLINE="$(cat /proc/cmdline)"
-            echo "Current cmdline: $CURRENT_CMDLINE" | tee -a /var/log/reboot-setup.log
+            # Verify files are in place
+            echo "Verifying kernel files in /boot:" | tee -a /var/log/reboot-setup.log
+            ls -la /boot/vmlinuz-custom /boot/initrd-custom | tee -a /var/log/reboot-setup.log
+            
+            # Get current kernel command line and extract root device
+            FULL_CMDLINE="$(cat /proc/cmdline)"
+            echo "Full cmdline: $FULL_CMDLINE" | tee -a /var/log/reboot-setup.log
+            
+            ROOT_DEVICE=$(echo "$FULL_CMDLINE" | grep -o 'root=[^ ]*')
+            if [ -z "$ROOT_DEVICE" ]; then
+                echo "ERROR: Could not extract root device from kernel command line" | tee -a /var/log/reboot-setup.log
+                echo "Current cmdline: $FULL_CMDLINE" | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            
+            KERNEL_PARAMS=$(echo "$FULL_CMDLINE" | sed 's/BOOT_IMAGE=[^ ]* //' | sed 's/root=[^ ]* //')
+            CURRENT_CMDLINE="$ROOT_DEVICE ro $KERNEL_PARAMS"
+            echo "Extracted cmdline: $CURRENT_CMDLINE" | tee -a /var/log/reboot-setup.log
+
+            # Find the boot partition UUID for GRUB
+            BOOT_UUID=$(findmnt /boot -n -o UUID 2>/dev/null || findmnt / -n -o UUID)
+            if [ -z "$BOOT_UUID" ]; then
+                echo "ERROR: Could not determine boot partition UUID" | tee -a /var/log/reboot-setup.log
+                echo "Boot mount info:" | tee -a /var/log/reboot-setup.log
+                findmnt /boot 2>&1 | tee -a /var/log/reboot-setup.log
+                findmnt / 2>&1 | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            echo "Boot partition UUID: $BOOT_UUID" | tee -a /var/log/reboot-setup.log
 
             # Update GRUB to boot custom kernel by default
             echo "Updating GRUB configuration..." | tee -a /var/log/reboot-setup.log
@@ -205,14 +232,12 @@ jobs:
             sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=0/' /etc/default/grub
             echo 'GRUB_DISABLE_SUBMENU=y' >> /etc/default/grub
 
-            # Create a custom kernel entry as the first entry by making it 10_custom
-            cat > /etc/grub.d/10_custom << GRUB_EOF
+            # Create a custom kernel entry as the first entry by making it 05_custom (earlier than 10_linux)
+            cat > /etc/grub.d/05_custom << GRUB_EOF
             #!/bin/sh
             exec tail -n +3 \$0
-            # This file provides an easy way to add custom menu entries.  Simply type the
-            # menu entries you want to add after this comment.  Be careful not to change
-            # the 'exec tail' line above.
-            menuentry 'Custom Kernel' --class ubuntu --class gnu-linux --class gnu --class os \$menuentry_id_option 'gnulinux-custom' {
+            # Custom kernel entry
+            menuentry 'Custom Kernel' --class ubuntu --class gnu-linux --class gnu --class os \$menuentry_id_option 'gnulinux-custom-kernel' {
               recordfail
               load_video
               gfxmode \$linux_gfx_mode
@@ -220,11 +245,12 @@ jobs:
               if [ x\$grub_platform = xxen ]; then insmod xzio; insmod lzopio; fi
               insmod part_gpt
               insmod ext2
-              linux	/boot/vmlinuz-custom $CURRENT_CMDLINE
-              initrd	/boot/initrd-custom
+              search --no-floppy --fs-uuid --set=root $BOOT_UUID
+              linux	/vmlinuz-custom $CURRENT_CMDLINE
+              initrd	/initrd-custom
             }
             GRUB_EOF
-            chmod +x /etc/grub.d/10_custom
+            chmod +x /etc/grub.d/05_custom
 
             # Apply GRUB changes
             echo "Running update-grub..." | tee -a /var/log/reboot-setup.log
