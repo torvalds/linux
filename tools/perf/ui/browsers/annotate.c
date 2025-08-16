@@ -12,6 +12,7 @@
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
+#include "../../util/thread.h"
 #include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -27,9 +28,17 @@ struct annotate_browser {
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
 	struct arch		   *arch;
+	/*
+	 * perf top can delete hist_entry anytime.  Callers should make sure
+	 * its lifetime.
+	 */
+	struct hist_entry	   *he;
 	bool			    searching_backwards;
 	char			    search_bf[128];
 };
+
+/* A copy of target hist_entry for perf top. */
+static struct hist_entry annotate_he;
 
 static inline struct annotation *browser__annotation(struct ui_browser *browser)
 {
@@ -557,7 +566,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	target_ms.map = ms->map;
 	target_ms.sym = dl->ops.target.sym;
 	annotation__unlock(notes);
-	symbol__tui_annotate(&target_ms, evsel, hbt);
+	__hist_entry__tui_annotate(browser->he, &target_ms, evsel, hbt);
 	sym_title(ms->sym, ms->map, title, sizeof(title), annotate_opts.percent_type);
 	ui_browser__show_title(&browser->b, title);
 	return true;
@@ -1032,12 +1041,6 @@ out:
 	return key;
 }
 
-int map_symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
-			     struct hist_browser_timer *hbt)
-{
-	return symbol__tui_annotate(ms, evsel, hbt);
-}
-
 int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
@@ -1046,11 +1049,12 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
 	SLang_init_tty(0, 0, 0);
 	SLtty_set_suspend_state(true);
 
-	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
+	return __hist_entry__tui_annotate(he, &he->ms, evsel, hbt);
 }
 
-int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
-			 struct hist_browser_timer *hbt)
+int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
+			       struct evsel *evsel,
+			       struct hist_browser_timer *hbt)
 {
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
@@ -1064,6 +1068,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 			.priv	 = ms,
 			.use_navkeypressed = true,
 		},
+		.he = he,
 	};
 	struct dso *dso;
 	int ret = -1, err;
@@ -1093,6 +1098,16 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 		}
 	}
 
+	/* Copy necessary information when it's called from perf top */
+	if (hbt != NULL && he != &annotate_he) {
+		annotate_he.hists = he->hists;
+		annotate_he.thread = thread__get(he->thread);
+		annotate_he.cpumode = he->cpumode;
+		map_symbol__copy(&annotate_he.ms, ms);
+
+		browser.he = &annotate_he;
+	}
+
 	ui_helpline__push("Press ESC to exit");
 
 	browser.b.width = notes->src->widths.max_line_len;
@@ -1107,6 +1122,11 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	if (not_annotated && !notes->src->tried_source)
 		annotated_source__purge(notes->src);
+
+	if (hbt != NULL && he != &annotate_he) {
+		thread__zput(annotate_he.thread);
+		map_symbol__exit(&annotate_he.ms);
+	}
 
 	return ret;
 }
