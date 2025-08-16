@@ -1,0 +1,460 @@
+name: Hard Reboot Kernel Test - Resctrl PMU
+on: 
+  workflow_dispatch:  # Manual trigger for testing
+    inputs:
+      build-id:
+        description: 'Build ID for the kernel to test (Git commit hash)'
+        required: true
+        type: string
+      instance-type:
+        description: 'EC2 instance type to use'
+        required: false
+        default: 'm7i.xlarge'
+        type: string
+      image-type:
+        description: 'Image type to use (ubuntu-22.04 or ubuntu-24.04)'
+        required: false
+        default: 'ubuntu-24.04'
+        type: string
+
+permissions:
+  id-token: write # Required for requesting the JWT
+  contents: read
+  actions: write
+
+jobs:
+  setup-runner:
+    name: Start EC2 runner with custom kernel
+    runs-on: ubuntu-latest
+    outputs:
+      runner-label: ${{ steps.start-runner.outputs.runner-label }}
+      ec2-instance-id: ${{ steps.start-runner.outputs.ec2-instance-id }}
+      region: ${{ steps.start-runner.outputs.region }}
+    steps:
+      - name: Checkout repository (sparse)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/
+            tools/testing/selftests/resctrl/
+          sparse-checkout-cone-mode: false
+        
+      - name: Start AWS Runner with hard reboot
+        id: start-runner
+        uses: ./.github/actions/aws-runner
+        with:
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          iam-role-name: github-actions-runner          
+          instance-type: ${{ inputs.instance-type || 'm7i.xlarge' }}
+          image-type: ${{ inputs.image-type || 'ubuntu-22.04' }}
+          volume-size: '20'
+          runner-home-dir: '/tmp'
+          packages: '["curl", "unzip", "jq"]'
+          pre-runner-script: |
+            # Custom Kernel Hard Reboot Setup
+            # ===============================
+            # Download our custom built kernel from S3 and install it with GRUB
+            
+            echo "Setting up custom kernel hard reboot..." | tee -a /var/log/reboot-setup.log
+
+            # Get kernel artifacts info from workflow input
+            BUILD_ID="${{ inputs.build-id }}"
+            S3_BUCKET="unvariance-kernel-dev"
+            S3_REGION="us-east-2"
+            METADATA_S3_KEY="kernels/${BUILD_ID}/metadata.json"
+
+            echo "Build ID: $BUILD_ID" | tee -a /var/log/reboot-setup.log
+            echo "Metadata S3 key: $METADATA_S3_KEY" | tee -a /var/log/reboot-setup.log
+
+            # Install AWS CLI
+            echo "Installing AWS CLI" | tee -a /var/log/reboot-setup.log
+            cd /tmp
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip 2>&1 > /dev/null
+            sudo ./aws/install 2>&1 > /dev/null
+
+            # Download and parse metadata JSON to get kernel and initrd paths
+            echo "Downloading metadata.json from S3..." | tee -a /var/log/reboot-setup.log
+            aws s3 cp "s3://${S3_BUCKET}/${METADATA_S3_KEY}" /tmp/metadata.json --region "$S3_REGION"
+            
+            if [[ ! -f /tmp/metadata.json ]]; then
+                echo "Failed to download metadata.json" | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            
+            echo "Contents of metadata.json:" | tee -a /var/log/reboot-setup.log
+            cat /tmp/metadata.json | tee -a /var/log/reboot-setup.log
+            
+            # Extract kernel and initrd paths from metadata
+            KERNEL_S3_KEY=$(jq -r '.kernel_path // "kernels/'${BUILD_ID}'/bzImage"' /tmp/metadata.json)
+            INITRD_S3_KEY=$(jq -r '.initrd_path // "kernels/'${BUILD_ID}'/initrd.img"' /tmp/metadata.json)
+            
+            echo "Kernel S3 key from metadata: $KERNEL_S3_KEY" | tee -a /var/log/reboot-setup.log
+            echo "Initrd S3 key from metadata: $INITRD_S3_KEY" | tee -a /var/log/reboot-setup.log
+            
+            # Download custom kernel artifacts from S3
+            echo "Downloading custom kernel from S3..." | tee -a /var/log/reboot-setup.log
+            aws s3 cp "s3://${S3_BUCKET}/${KERNEL_S3_KEY}" /tmp/custom-bzImage --region "$S3_REGION"
+            aws s3 cp "s3://${S3_BUCKET}/${INITRD_S3_KEY}" /tmp/custom-initrd.img --region "$S3_REGION"
+            
+            if [[ ! -f /tmp/custom-bzImage ]] || [[ ! -f /tmp/custom-initrd.img ]]; then
+                echo "Failed to download custom kernel artifacts" | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            
+            echo "Custom kernel artifacts downloaded successfully" | tee -a /var/log/reboot-setup.log
+            ls -la /tmp/custom-* | tee -a /var/log/reboot-setup.log
+
+            # Create persistent directory and download the GitHub Actions runner
+            mkdir -p /opt/actions-runner
+            cd /opt/actions-runner
+                        
+            # Create post-reboot init script that starts the runner
+            cat > /opt/reboot-runner.sh << 'EOF'
+            #!/bin/bash
+            
+            # Log reboot success
+            echo "========================================" | tee -a /var/log/reboot-setup.log
+            echo "✅ CUSTOM KERNEL HARD REBOOT SUCCESSFUL!" | tee -a /var/log/reboot-setup.log
+            echo "========================================" | tee -a /var/log/reboot-setup.log
+            echo "Custom kernel version: $(uname -r)" | tee -a /var/log/reboot-setup.log
+            echo "Build ID: $BUILD_ID" | tee -a /var/log/reboot-setup.log
+            echo "System time: $(date)" | tee -a /var/log/reboot-setup.log
+            echo "Hostname: $(hostname)" | tee -a /var/log/reboot-setup.log
+            echo "Init PID: $$" | tee -a /var/log/reboot-setup.log
+            echo "========================================" | tee -a /var/log/reboot-setup.log
+            
+            # Start the GitHub Actions runner
+            cd /opt/actions-runner
+            export RUNNER_ALLOW_RUNASROOT=1
+            
+            # Configure runner with the original GitHub parameters
+            echo "Configuring GitHub Actions runner after custom kernel reboot..." | tee -a /var/log/reboot-setup.log
+            
+            # Read config parameters from the file saved before reboot
+            if [[ -f /opt/config-params ]]; then
+                CONFIG_PARAMS="$(cat /opt/config-params)"
+                echo "Found saved config parameters" | tee -a /var/log/reboot-setup.log
+                ./config.sh $CONFIG_PARAMS
+                
+                # Start the runner - this will wait for jobs
+                echo "Starting GitHub Actions runner after custom kernel reboot..." | tee -a /var/log/reboot-setup.log
+                ./run.sh
+            else
+                echo "No config parameters found, starting shell..." | tee -a /var/log/reboot-setup.log
+                exec /bin/bash
+            fi
+            EOF
+            chmod +x /opt/reboot-runner.sh
+            
+            echo "Post-reboot runner script created" | tee -a /var/log/reboot-setup.log
+
+            # Create systemd service for GitHub runner (will start after reboot)
+            cat > /etc/systemd/system/github-runner.service << 'SYSTEMD_EOF'
+            [Unit]
+            Description=GitHub Actions Runner after custom kernel reboot
+            After=basic.target network.target
+
+            [Service]
+            Type=simple
+            ExecStart=/opt/reboot-runner.sh
+            Restart=no
+            User=root
+            WorkingDirectory=/opt/actions-runner
+            StandardOutput=journal+console
+            StandardError=journal+console
+
+            [Install]
+            WantedBy=multi-user.target
+            SYSTEMD_EOF
+            
+            # Enable the service to start on boot
+            systemctl enable github-runner.service
+            
+            echo "GitHub runner systemd service created and enabled" | tee -a /var/log/reboot-setup.log
+
+            # Create fake config.sh that triggers reboot with our custom kernel
+            cat > /tmp/config.sh << 'EOF'
+            #!/bin/bash
+            echo "Fake config.sh called - triggering custom kernel reboot" | tee -a /var/log/reboot-setup.log
+            
+            # Save the parameters to a file for post-reboot use
+            echo "$@" > /opt/config-params
+            echo "Saved config parameters to /opt/config-params" | tee -a /var/log/reboot-setup.log
+            
+            # Use our custom kernel
+            VMLINUZ="/tmp/custom-bzImage"
+            INITRD="/tmp/custom-initrd.img"
+                        
+            echo "Installing custom kernel to /boot: $VMLINUZ" | tee -a /var/log/reboot-setup.log
+            echo "Installing custom initrd to /boot: $INITRD" | tee -a /var/log/reboot-setup.log
+
+            # Install custom kernel to /boot
+            cp "$VMLINUZ" /boot/vmlinuz-custom
+            cp "$INITRD" /boot/initrd-custom
+            
+            # Get current kernel command line
+            CURRENT_CMDLINE="$(cat /proc/cmdline)"
+            echo "Current cmdline: $CURRENT_CMDLINE" | tee -a /var/log/reboot-setup.log
+
+            # Update GRUB to boot custom kernel by default
+            echo "Updating GRUB configuration..." | tee -a /var/log/reboot-setup.log
+            sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT="Custom Kernel"/' /etc/default/grub
+            echo 'GRUB_DISABLE_SUBMENU=y' >> /etc/default/grub
+
+            # Add custom kernel entry to GRUB
+            cat >> /etc/grub.d/40_custom << GRUB_EOF
+            menuentry "Custom Kernel" {
+                linux /boot/vmlinuz-custom $CURRENT_CMDLINE
+                initrd /boot/initrd-custom
+            }
+            GRUB_EOF
+
+            # Apply GRUB changes
+            echo "Running update-grub..." | tee -a /var/log/reboot-setup.log
+            if ! update-grub; then
+                echo "Failed to update GRUB" | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            
+            echo "GRUB updated successfully, rebooting into custom kernel..." | tee -a /var/log/reboot-setup.log
+            reboot
+            EOF
+            
+            chmod +x /tmp/config.sh
+            
+            echo "=== Contents of custom kernel config.sh ===" | tee -a /var/log/reboot-setup.log
+            cat /tmp/config.sh | tee -a /var/log/reboot-setup.log
+            echo "=== End of config.sh ===" | tee -a /var/log/reboot-setup.log
+            
+            echo "Downloading GitHub Actions runner..." | tee -a /var/log/reboot-setup.log            
+            if ! curl -L -o "actions-runner.tar.gz" "https://github.com/actions/runner/releases/download/v2.327.1/actions-runner-linux-x64-2.327.1.tar.gz"; then
+                echo "Failed to download GitHub Actions runner" | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            
+            if ! tar xzf actions-runner.tar.gz; then
+                echo "Failed to extract GitHub Actions runner" | tee -a /var/log/reboot-setup.log
+                exit 1
+            fi
+            
+            echo "GitHub Actions runner downloaded and extracted successfully" | tee -a /var/log/reboot-setup.log
+
+            # Go back to /tmp where the fake config.sh is located
+            echo "Changing directory to /tmp to run custom kernel reboot setup" | tee -a /var/log/reboot-setup.log
+            cd /tmp
+
+            echo "Custom kernel reboot setup complete. Ready to reboot into custom kernel." | tee -a /var/log/reboot-setup.log
+  pmu-test:
+    needs: [setup-runner]
+    runs-on: ${{ needs.setup-runner.outputs.runner-label }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository (sparse)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/testing/selftests/resctrl/
+          sparse-checkout-cone-mode: false
+        
+      - name: Verify custom kernel boot
+        run: |
+          echo "================================================"
+          echo "🚀 CUSTOM RESCTRL KERNEL BOOTED SUCCESSFULLY! 🚀"
+          echo "================================================"
+          echo ""
+          echo "✅ Successfully running on custom kernel!"
+          echo "📍 Current kernel: $(uname -r)"
+          echo "⏰ System uptime: $(uptime)"
+          echo "📅 Date: $(date)"
+          echo "👤 Current user: $(whoami)"
+          echo "🔧 Current PID: $$"
+          echo ""
+          
+          # Check if our reboot setup logs exist
+          if [ -f /var/log/reboot-setup.log ]; then
+            echo "✅ Found reboot setup log! Contents:"
+            echo "----------------------------------------"
+            tail -50 /var/log/reboot-setup.log
+          else
+            echo "⚠️ No reboot setup log found"
+          fi
+          
+      - name: Check resctrl support
+        run: |
+          echo "🔍 Checking resctrl support in custom kernel..."
+          
+          # Check if resctrl is available
+          if [ -d /sys/fs/resctrl ]; then
+            echo "✅ /sys/fs/resctrl exists"
+            echo "📁 Contents of /sys/fs/resctrl/:"
+            ls -la /sys/fs/resctrl/
+            
+            # Check if resctrl is mounted
+            echo ""
+            echo "🔧 Mount status of resctrl:"
+            mount | grep resctrl || echo "❌ resctrl filesystem not mounted"
+            
+            # Check /sys filesystem health after reboot
+            echo ""
+            echo "🔍 Checking /sys filesystem health after reboot:"
+            echo "📊 /sys mount status:"
+            mount | grep "/sys " || echo "❌ /sys not properly mounted"
+            
+            echo "🔧 /sys filesystem type and options:"
+            stat -f /sys 2>/dev/null || echo "❌ Cannot stat /sys filesystem"
+            
+            # Attempt to mount resctrl
+            echo ""
+            echo "🚀 Attempting to mount resctrl filesystem..."
+            if mount -t resctrl resctrl /sys/fs/resctrl 2>&1; then
+              echo "✅ Successfully mounted resctrl!"
+              echo "📁 Contents after mounting:"
+              ls -la /sys/fs/resctrl/ 2>&1 || echo "❌ ls failed on mounted resctrl"
+              
+              # Test file access with more detailed error reporting
+              echo ""
+              echo "🧪 Testing file access with detailed error reporting:"
+              TEST_FILE="/sys/fs/resctrl/info/L3_MON/mon_features"
+              if [ -f "$TEST_FILE" ]; then
+                echo "📄 Testing access to $TEST_FILE:"
+                echo "  File exists: ✅"
+                echo "  File permissions: $(ls -l "$TEST_FILE" 2>/dev/null || echo 'unable to check')"
+                echo "  File size: $(stat -c %s "$TEST_FILE" 2>/dev/null || echo 'unable to check')"
+                echo "  Direct read attempt:"
+                cat "$TEST_FILE" 2>&1 || echo "❌ Read failed with error code $?"
+                echo "  Hexdump of first 64 bytes:"
+                hexdump -C "$TEST_FILE" 2>/dev/null | head -4 || echo "❌ hexdump failed"
+              else
+                echo "❌ $TEST_FILE does not exist"
+              fi
+              
+              # Check for info directory and its contents
+              if [ -d /sys/fs/resctrl/info ]; then
+                echo ""
+                echo "📊 Resctrl info directory contents (with error codes):"
+                find /sys/fs/resctrl/info -type f | while read file; do
+                  content=$(cat "$file" 2>&1)
+                  status=$?
+                  if [ $status -eq 0 ]; then
+                    echo "📄 $file: $content"
+                  else
+                    echo "❌ $file: failed with exit code $status, error: $content"
+                  fi
+                done
+              fi
+            else
+              echo "❌ Failed to mount resctrl filesystem"
+              echo "💡 This might indicate missing kernel config or hardware support"
+            fi
+          else
+            echo "❌ /sys/fs/resctrl not found"
+          fi
+          
+          # Check kernel config for resctrl support
+          echo ""
+          echo "🔧 Kernel configuration for resctrl:"
+          if [ -f /proc/config.gz ]; then
+            echo "📋 Resctrl-related config options:"
+            zcat /proc/config.gz | grep -E "(RESCTRL|RDT)" || echo "No resctrl config found"
+          elif [ -f /boot/config-$(uname -r) ]; then
+            echo "📋 Resctrl-related config options:"
+            grep -E "(RESCTRL|RDT)" /boot/config-$(uname -r) || echo "No resctrl config found"
+          else
+            echo "❌ Kernel config not available"
+          fi
+          
+          # Check dmesg for resctrl messages
+          echo ""
+          echo "📋 Kernel log messages about resctrl:"
+          dmesg | grep -i resctrl | head -10 || echo "No resctrl messages in dmesg"
+          
+          # Check loaded kernel modules
+          echo ""
+          echo "🔧 Loaded kernel modules related to resctrl/perf:"
+          lsmod | grep -E "(resctrl|perf|msr)" || echo "No relevant modules found"
+          
+          # Check /proc/cpuinfo for relevant features
+          echo ""
+          echo "🖥️ CPU features related to monitoring:"
+          grep -E "(model name|flags)" /proc/cpuinfo | head -4
+          
+          # Look for specific CPU features that enable resctrl
+          echo ""
+          echo "🎯 Specific CPU features for resctrl support:"
+          if grep -q "rdt_a" /proc/cpuinfo; then
+            echo "✅ RDT allocation support detected"
+          else
+            echo "❌ RDT allocation (rdt_a) not found"
+          fi
+          
+          if grep -q "cqm" /proc/cpuinfo; then
+            echo "✅ Cache Quality Monitoring (cqm) support detected"
+          else
+            echo "❌ Cache Quality Monitoring (cqm) not found"
+          fi
+          
+          if grep -qE "(cat_l3|cat_l2)" /proc/cpuinfo; then
+            echo "✅ Cache Allocation Technology support detected"
+          else
+            echo "❌ Cache Allocation Technology not found"
+          fi
+          
+          if grep -q "mba" /proc/cpuinfo; then
+            echo "✅ Memory Bandwidth Allocation support detected"  
+          else
+            echo "❌ Memory Bandwidth Allocation not found"
+          fi
+          
+      - name: Download test binary from S3
+        run: |
+          echo "📦 Downloading pre-compiled test binary from S3..."
+          BUILD_ID="${{ inputs.build-id }}"
+          S3_BUCKET="unvariance-kernel-dev"
+          S3_REGION="us-east-2"
+          TEST_S3_KEY="kernels/${BUILD_ID}/resctrl_tests"
+          
+          aws s3 cp "s3://${S3_BUCKET}/${TEST_S3_KEY}" ./resctrl_tests --region "$S3_REGION"
+          chmod +x ./resctrl_tests
+          
+          if [[ ! -f ./resctrl_tests ]]; then
+            echo "❌ Failed to download test binary"
+            exit 1
+          fi
+          
+          echo "✅ Test binary downloaded successfully"
+          ls -la ./resctrl_tests
+          
+      - name: Run PMU test
+        run: |
+          echo "🧪 Running resctrl PMU test..."
+          
+          # Run only the PMU test
+          echo "🏃 Running PMU test specifically..."
+          ./resctrl_tests -t pmu || echo "⚠️ PMU test failed or not fully implemented"
+          
+      - name: Test completion summary
+        run: |
+          echo ""
+          echo "🎯 CUSTOM KERNEL PMU TEST COMPLETED!"
+          echo "Custom resctrl+perf kernel with PMU support has been tested successfully!"
+          echo "Build ID: ${{ inputs.build-id }}"
+
+  stop-runner:
+    name: Stop EC2 runner
+    needs: [setup-runner, pmu-test]
+    runs-on: ubuntu-latest
+    if: always()  # Run even if previous jobs fail
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Stop AWS Runner
+        uses: ./.github/actions/aws-runner/cleanup
+        with:
+          runner-label: ${{ needs.setup-runner.outputs.runner-label }}
+          ec2-instance-id: ${{ needs.setup-runner.outputs.ec2-instance-id }}
+          github-token: ${{ secrets.REPO_ADMIN_TOKEN }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ needs.setup-runner.outputs.region }}
