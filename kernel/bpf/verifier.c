@@ -20193,8 +20193,11 @@ static int __add_used_btf(struct bpf_verifier_env *env, struct btf *btf)
 		if (env->used_btfs[i].btf == btf)
 			return i;
 
-	if (env->used_btf_cnt >= MAX_USED_BTFS)
+	if (env->used_btf_cnt >= MAX_USED_BTFS) {
+		verbose(env, "The total number of btfs per program has reached the limit of %u\n",
+			MAX_USED_BTFS);
 		return -E2BIG;
+	}
 
 	btf_get(btf);
 
