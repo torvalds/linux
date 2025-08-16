@@ -770,7 +770,6 @@ struct annotation_print_data {
 	struct evsel *evsel;
 	struct arch *arch;
 	struct debuginfo *dbg;
-	u64 start;
 	int addr_fmt_width;
 };
 
@@ -845,7 +844,7 @@ annotation_line__print(struct annotation_line *al, struct annotation_print_data 
 
 		printf(" : ");
 
-		disasm_line__print(dl, apd->start, apd->addr_fmt_width);
+		disasm_line__print(dl, notes->src->start, apd->addr_fmt_width);
 
 		if (opts->code_with_type && apd->dbg) {
 			struct annotated_data_type *data_type;
@@ -1230,7 +1229,6 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 	struct annotation_print_data apd = {
 		.he = he,
 		.evsel = evsel,
-		.start = map__rip_2objdump(map, sym->start),
 	};
 	int printed = 2, queue_len = 0;
 	int more = 0;
@@ -1267,7 +1265,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 		symbol__annotate_hits(sym, evsel);
 
 	apd.addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source,
-							      apd.start);
+							      notes->src->start);
 	evsel__get_arch(evsel, &apd.arch);
 	apd.dbg = debuginfo__new(filename);
 
