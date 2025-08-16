@@ -35,7 +35,7 @@ static void sha256_blocks(struct sha256_block_state *state,
 
 #ifdef CONFIG_KERNEL_MODE_NEON
 #define sha256_mod_init_arch sha256_mod_init_arch
-static inline void sha256_mod_init_arch(void)
+static void sha256_mod_init_arch(void)
 {
 	if (elf_hwcap & HWCAP_NEON) {
 		static_branch_enable(&have_neon);

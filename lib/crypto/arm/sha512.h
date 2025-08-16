@@ -29,7 +29,7 @@ static void sha512_blocks(struct sha512_block_state *state,
 
 #ifdef CONFIG_KERNEL_MODE_NEON
 #define sha512_mod_init_arch sha512_mod_init_arch
-static inline void sha512_mod_init_arch(void)
+static void sha512_mod_init_arch(void)
 {
 	if (cpu_has_neon())
 		static_branch_enable(&have_neon);

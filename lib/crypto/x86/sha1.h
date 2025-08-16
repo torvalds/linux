@@ -55,7 +55,7 @@ static void sha1_blocks(struct sha1_block_state *state,
 }
 
 #define sha1_mod_init_arch sha1_mod_init_arch
-static inline void sha1_mod_init_arch(void)
+static void sha1_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_SHA_NI)) {
 		static_call_update(sha1_blocks_x86, sha1_blocks_ni);

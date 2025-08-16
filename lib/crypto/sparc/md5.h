@@ -32,7 +32,7 @@ static void md5_blocks(struct md5_block_state *state,
 }
 
 #define md5_mod_init_arch md5_mod_init_arch
-static inline void md5_mod_init_arch(void)
+static void md5_mod_init_arch(void)
 {
 	unsigned long cfr;
 

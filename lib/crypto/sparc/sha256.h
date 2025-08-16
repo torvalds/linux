@@ -27,7 +27,7 @@ static void sha256_blocks(struct sha256_block_state *state,
 }
 
 #define sha256_mod_init_arch sha256_mod_init_arch
-static inline void sha256_mod_init_arch(void)
+static void sha256_mod_init_arch(void)
 {
 	unsigned long cfr;
 
