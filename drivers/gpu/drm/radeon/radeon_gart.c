@@ -346,14 +346,14 @@ int radeon_gart_init(struct radeon_device *rdev)
 	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
 		 rdev->gart.num_cpu_pages, rdev->gart.num_gpu_pages);
 	/* Allocate pages table */
-	rdev->gart.pages = vzalloc(array_size(sizeof(void *),
-				   rdev->gart.num_cpu_pages));
+	rdev->gart.pages = vcalloc(rdev->gart.num_cpu_pages,
+				   sizeof(void *));
 	if (rdev->gart.pages == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
 	}
-	rdev->gart.pages_entry = vmalloc(array_size(sizeof(uint64_t),
-						    rdev->gart.num_gpu_pages));
+	rdev->gart.pages_entry = vmalloc_array(rdev->gart.num_gpu_pages,
+					       sizeof(uint64_t));
 	if (rdev->gart.pages_entry == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
