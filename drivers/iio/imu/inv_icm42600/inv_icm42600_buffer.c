@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/minmax.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -100,7 +101,7 @@ ssize_t inv_icm42600_fifo_decode_packet(const void *packet, const void **accel,
 
 void inv_icm42600_buffer_update_fifo_period(struct inv_icm42600_state *st)
 {
-	u32 period_gyro, period_accel, period;
+	u32 period_gyro, period_accel;
 
 	if (st->fifo.en & INV_ICM42600_SENSOR_GYRO)
 		period_gyro = inv_icm42600_odr_to_period(st->conf.gyro.odr);
@@ -112,12 +113,7 @@ void inv_icm42600_buffer_update_fifo_period(struct inv_icm42600_state *st)
 	else
 		period_accel = U32_MAX;
 
-	if (period_gyro <= period_accel)
-		period = period_gyro;
-	else
-		period = period_accel;
-
-	st->fifo.period = period;
+	st->fifo.period = min(period_gyro, period_accel);
 }
 
 int inv_icm42600_buffer_set_fifo_en(struct inv_icm42600_state *st,
@@ -204,7 +200,7 @@ int inv_icm42600_buffer_update_watermark(struct inv_icm42600_state *st)
 {
 	size_t packet_size, wm_size;
 	unsigned int wm_gyro, wm_accel, watermark;
-	u32 period_gyro, period_accel, period;
+	u32 period_gyro, period_accel;
 	u32 latency_gyro, latency_accel, latency;
 	bool restore;
 	__le16 raw_wm;
@@ -237,13 +233,8 @@ int inv_icm42600_buffer_update_watermark(struct inv_icm42600_state *st)
 			latency = latency_gyro - (latency_accel % latency_gyro);
 		else
 			latency = latency_accel - (latency_gyro % latency_accel);
-		/* use the shortest period */
-		if (period_gyro <= period_accel)
-			period = period_gyro;
-		else
-			period = period_accel;
 		/* all this works because periods are multiple of each others */
-		watermark = latency / period;
+		watermark = latency / min(period_gyro, period_accel);
 		if (watermark < 1)
 			watermark = 1;
 		/* update effective watermark */
