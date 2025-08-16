@@ -463,11 +463,7 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 				(stream->timing.h_total * (long long)calc_max_hardware_v_total(stream)));
 	}
 
-	if (stream->timing.min_refresh_in_uhz > min_hardware_refresh_in_uhz) {
-		timing->drr_config.min_refresh_uhz = stream->timing.min_refresh_in_uhz;
-	} else {
-		timing->drr_config.min_refresh_uhz = min_hardware_refresh_in_uhz;
-	}
+	timing->drr_config.min_refresh_uhz = max(stream->timing.min_refresh_in_uhz, min_hardware_refresh_in_uhz);
 
 	if (dml_ctx->config.callbacks.get_max_flickerless_instant_vtotal_increase &&
 			stream->ctx->dc->config.enable_fpo_flicker_detection == 1)
