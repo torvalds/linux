@@ -288,12 +288,6 @@
 	};
 };
 
-&gcc {
-	clocks = <&rpmhcc RPMH_CXO_CLK>,
-		 <&rpmhcc RPMH_CXO_CLK_A>,
-		 <&sleep_clk>;
-};
-
 &pcie {
 	perst-gpios = <&tlmm 101 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
@@ -367,10 +361,6 @@
 	firmware-name = "qcom/qcs615/cdsp.mbn";
 
 	status = "okay";
-};
-
-&rpmhcc {
-	clocks = <&xo_board_clk>;
 };
 
 &tlmm {
@@ -522,8 +512,4 @@
 	vdda-pll-supply = <&vreg_l12a>;
 
 	status = "okay";
-};
-
-&watchdog {
-	clocks = <&sleep_clk>;
 };

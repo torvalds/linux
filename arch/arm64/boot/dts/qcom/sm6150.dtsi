@@ -495,6 +495,9 @@
 		gcc: clock-controller@100000 {
 			compatible = "qcom,qcs615-gcc";
 			reg = <0 0x00100000 0 0x1f0000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&rpmhcc RPMH_CXO_CLK_A>,
+				 <&sleep_clk>;
 
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -3676,6 +3679,7 @@
 			compatible = "qcom,apss-wdt-qcs615", "qcom,kpss-wdt";
 			reg = <0x0 0x17c10000 0x0 0x1000>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sleep_clk>;
 		};
 
 		timer@17c20000 {
@@ -3765,6 +3769,7 @@
 
 			rpmhcc: clock-controller {
 				compatible = "qcom,qcs615-rpmh-clk";
+				clocks = <&xo_board_clk>;
 				clock-names = "xo";
 
 				#clock-cells = <1>;
