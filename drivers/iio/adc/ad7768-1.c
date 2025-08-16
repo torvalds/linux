@@ -687,8 +687,6 @@ static int ad7768_set_freq(struct ad7768_state *st,
 	int ret;
 
 	freq = clamp(freq, 50, 1024000);
-	if (freq == 0)
-		return -EINVAL;
 
 	mclk_div = DIV_ROUND_CLOSEST(st->mclk_freq, freq * st->oversampling_ratio);
 	/* Find the closest match for the desired sampling frequency */
