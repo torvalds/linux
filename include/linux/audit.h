@@ -151,6 +151,7 @@ extern unsigned compat_signal_class[];
 
 /* bit values for audit_cfg_lsm */
 #define AUDIT_CFG_LSM_SECCTX_SUBJECT	BIT(0)
+#define AUDIT_CFG_LSM_SECCTX_OBJECT	BIT(1)
 
 struct filename;
 
@@ -191,6 +192,7 @@ extern void		    audit_log_path_denied(int type,
 extern void		    audit_log_lost(const char *message);
 
 extern int audit_log_subj_ctx(struct audit_buffer *ab, struct lsm_prop *prop);
+extern int audit_log_obj_ctx(struct audit_buffer *ab, struct lsm_prop *prop);
 extern int audit_log_task_context(struct audit_buffer *ab);
 extern void audit_log_task_info(struct audit_buffer *ab);
 
@@ -255,6 +257,11 @@ static inline void audit_log_path_denied(int type, const char *operation)
 { }
 static inline int audit_log_subj_ctx(struct audit_buffer *ab,
 				     struct lsm_prop *prop)
+{
+	return 0;
+}
+static inline int audit_log_obj_ctx(struct audit_buffer *ab,
+				    struct lsm_prop *prop)
 {
 	return 0;
 }
