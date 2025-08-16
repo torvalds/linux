@@ -210,9 +210,18 @@ jobs:
                 exit 1
             fi
             
+            # Extract all kernel parameters and ensure we preserve console settings for serial access
             KERNEL_PARAMS=$(echo "$FULL_CMDLINE" | sed 's/BOOT_IMAGE=[^ ]* //' | sed 's/root=[^ ]* //')
-            CURRENT_CMDLINE="$ROOT_DEVICE ro $KERNEL_PARAMS"
-            echo "Extracted cmdline: $CURRENT_CMDLINE" | tee -a /var/log/reboot-setup.log
+            
+            # Ensure we have proper console parameters for AWS bare metal serial access
+            if ! echo "$KERNEL_PARAMS" | grep -q "console=ttyS0"; then
+                KERNEL_PARAMS="$KERNEL_PARAMS console=ttyS0,115200n8"
+                echo "Added serial console parameter for bare metal" | tee -a /var/log/reboot-setup.log
+            fi
+            
+            # Add additional debugging and early console parameters for bare metal
+            CURRENT_CMDLINE="$ROOT_DEVICE ro $KERNEL_PARAMS earlyprintk=serial,ttyS0,115200"
+            echo "Final cmdline: $CURRENT_CMDLINE" | tee -a /var/log/reboot-setup.log
 
             # Find the boot partition UUID for GRUB
             BOOT_UUID=$(findmnt /boot -n -o UUID 2>/dev/null || findmnt / -n -o UUID)
@@ -236,8 +245,9 @@ jobs:
             cat > /etc/grub.d/05_custom << GRUB_EOF
             #!/bin/sh
             exec tail -n +3 \$0
-            # Custom kernel entry
-            menuentry 'Custom Kernel' --class ubuntu --class gnu-linux --class gnu --class os \$menuentry_id_option 'gnulinux-custom-kernel' {
+            # Custom kernel entry for debugging
+            menuentry 'Custom Kernel (Debug)' --class ubuntu --class gnu-linux --class gnu --class os \$menuentry_id_option 'gnulinux-custom-kernel' {
+              echo 'Loading custom kernel...'
               recordfail
               load_video
               gfxmode \$linux_gfx_mode
@@ -245,9 +255,13 @@ jobs:
               if [ x\$grub_platform = xxen ]; then insmod xzio; insmod lzopio; fi
               insmod part_gpt
               insmod ext2
+              echo 'Searching for boot partition...'
               search --no-floppy --fs-uuid --set=root $BOOT_UUID
+              echo 'Loading kernel /vmlinuz-custom...'
               linux	/vmlinuz-custom $CURRENT_CMDLINE
+              echo 'Loading initrd /initrd-custom...'
               initrd	/initrd-custom
+              echo 'Starting custom kernel boot...'
             }
             GRUB_EOF
             chmod +x /etc/grub.d/05_custom
@@ -259,8 +273,16 @@ jobs:
                 exit 1
             fi
             
-            echo "GRUB updated successfully, rebooting into custom kernel..." | tee -a /var/log/reboot-setup.log
-            reboot
+            echo "GRUB updated successfully, forcing hardware reboot into custom kernel..." | tee -a /var/log/reboot-setup.log
+            
+            # Sync filesystem to ensure all changes are written
+            sync
+            sync
+            sync
+            
+            # Force a hard hardware reboot (not just soft reboot)
+            echo "Forcing immediate hardware reset..." | tee -a /var/log/reboot-setup.log
+            echo b > /proc/sysrq-trigger || reboot -f
             EOF
             
             chmod +x /tmp/config.sh
