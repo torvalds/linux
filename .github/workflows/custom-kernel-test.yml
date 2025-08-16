@@ -285,6 +285,36 @@ jobs:
             echo "⚠️ No kexec setup log found"
           fi
           
+      - name: Check filesystem mounts
+        run: |
+          echo "🗂️ Checking all filesystem mounts..."
+          echo ""
+          echo "📋 All mounted filesystems:"
+          echo "----------------------------"
+          mount | sort
+          echo ""
+          echo "📋 /proc/mounts content:"
+          echo "------------------------"
+          cat /proc/mounts | sort
+          echo ""
+          echo "🔍 Boot-related mounts:"
+          echo "----------------------"
+          mount | grep -E "(boot|efi)" || echo "No boot/EFI mounts found"
+          echo ""
+          echo "🔍 Specific filesystem checks:"
+          echo "------------------------------"
+          echo "Root filesystem: $(findmnt -n -o SOURCE /)"
+          echo "Boot filesystem: $(findmnt -n -o SOURCE /boot 2>/dev/null || echo 'not mounted')"
+          echo "EFI filesystem: $(findmnt -n -o SOURCE /boot/efi 2>/dev/null || echo 'not mounted')"
+          echo ""
+          echo "📁 /boot directory contents:"
+          echo "----------------------------"
+          ls -la /boot/ 2>/dev/null || echo "Cannot access /boot directory"
+          echo ""
+          echo "📁 /boot/efi directory contents:"
+          echo "--------------------------------"
+          ls -la /boot/efi/ 2>/dev/null || echo "Cannot access /boot/efi directory"
+          
       - name: Check resctrl support
         run: |
           echo "🔍 Checking resctrl support in custom kernel..."
