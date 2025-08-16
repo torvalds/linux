@@ -14,20 +14,20 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 log() {
-    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}" >&2
 }
 
 warn() {
-    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
+    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}" >&2
 }
 
 error() {
-    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}"
+    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}" >&2
     exit 1
 }
 
 info() {
-    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $1${NC}" >&2
 }
 
 usage() {
@@ -39,13 +39,17 @@ usage() {
     echo "  -b, --build-id BUILD_ID    Git commit hash of the kernel build (default: current HEAD)"
     echo "  -i, --instance-type TYPE   EC2 instance type (default: m7i.xlarge)"
     echo "  -t, --image-type TYPE      Image type ubuntu-22.04 or ubuntu-24.04 (default: ubuntu-24.04)"
-    echo "  -w, --wait                 Wait for workflow completion and show logs"
+    echo "  -w, --wait                 Trigger workflow and wait for completion (output JSON)"
+    echo "  --wait-existing            Wait for existing latest workflow run (output JSON)"
+    echo "  -o, --output FILE          JSON output file (default: kernel-test-results.json)"
     echo "  -h, --help                 Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                         # Test kernel at current HEAD"
+    echo "  $0                         # Trigger workflow only (default)"
     echo "  $0 -b abc123def            # Test specific commit"
-    echo "  $0 -w                      # Wait for completion"
+    echo "  $0 -w                      # Trigger and wait, output JSON"
+    echo "  $0 --wait-existing         # Wait for existing run, output JSON"
+    echo "  $0 -w -o results.json      # Custom output file"
     echo "  $0 -i m7i.2xlarge -w       # Use larger instance and wait"
 }
 
@@ -53,7 +57,8 @@ usage() {
 BUILD_ID="$(git rev-parse HEAD)"
 INSTANCE_TYPE="m7i.metal-24xl"
 IMAGE_TYPE="ubuntu-24.04"
-WAIT_FOR_COMPLETION=false
+MODE="trigger-only"  # trigger-only, wait-existing, trigger-and-wait
+OUTPUT_FILE="kernel-test-results.json"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -71,8 +76,16 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -w|--wait)
-            WAIT_FOR_COMPLETION=true
+            MODE="trigger-and-wait"
             shift
+            ;;
+        --wait-existing)
+            MODE="wait-existing"
+            shift
+            ;;
+        -o|--output)
+            OUTPUT_FILE="$2"
+            shift 2
             ;;
         -h|--help)
             usage
@@ -174,8 +187,8 @@ check_kernel_artifacts() {
     fi
 }
 
-# Trigger the workflow
-trigger_workflow() {
+# Trigger the workflow and return run ID
+trigger_workflow_get_id() {
     log "Triggering GitHub Actions workflow..."
     
     if [[ -z "$REPO_OWNER" ]] || [[ -z "$REPO_NAME" ]]; then
@@ -188,7 +201,7 @@ trigger_workflow() {
     info "Instance Type: $INSTANCE_TYPE"
     info "Image Type: $IMAGE_TYPE"
     
-    # Trigger the workflow
+    # Trigger the workflow and capture output
     local run_output
     run_output=$(gh workflow run "$WORKFLOW_NAME" \
         --repo "$REPO_OWNER/$REPO_NAME" \
@@ -200,23 +213,66 @@ trigger_workflow() {
     
     log "✅ Workflow triggered successfully!"
     
-    # Get the run ID
-    sleep 3  # Give GitHub a moment to create the run
+    # Extract run URL from output and get run ID
+    local run_url
+    run_url=$(echo "$run_output" | grep -o 'https://github.com/.*/actions/runs/[0-9]*' | head -1)
+    
     local run_id
-    run_id=$(gh run list --repo "$REPO_OWNER/$REPO_NAME" --workflow="$WORKFLOW_NAME" --limit=1 --json databaseId --jq '.[0].databaseId')
+    if [[ -n "$run_url" ]]; then
+        run_id=$(echo "$run_url" | grep -o '[0-9]*$')
+    else
+        # Fallback to API query if URL extraction fails
+        sleep 3  # Give GitHub a moment to create the run
+        run_id=$(gh run list --repo "$REPO_OWNER/$REPO_NAME" --workflow="$WORKFLOW_NAME" --limit=1 --json databaseId --jq '.[0].databaseId')
+    fi
     
     if [[ -n "$run_id" ]]; then
         info "Workflow run ID: $run_id"
         info "View workflow: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
         
-        # Store run ID for potential waiting
+        # Store run ID for backward compatibility
         echo "$run_id" > /tmp/last_workflow_run_id
+        
+        # Return the run ID
+        echo "$run_id"
     else
-        warn "Could not determine run ID"
+        error "Could not determine run ID"
     fi
 }
 
-# Wait for workflow completion
+# Get latest workflow run ID
+get_latest_workflow_id() {
+    local run_id
+    run_id=$(gh run list --repo "$REPO_OWNER/$REPO_NAME" --workflow="$WORKFLOW_NAME" --limit=1 --json databaseId --jq '.[0].databaseId')
+    
+    if [[ -n "$run_id" ]]; then
+        echo "$run_id"
+    else
+        error "No workflow runs found for workflow: $WORKFLOW_NAME"
+    fi
+}
+
+# Wait for workflow completion and write JSON results
+wait_and_write_json() {
+    local run_id="$1"
+    local output_path="$2"
+    
+    if [[ -z "$run_id" ]]; then
+        error "No run ID provided to wait function"
+    fi
+    
+    # Wait for the workflow to complete (silently)
+    gh run watch "$run_id" --repo "$REPO_OWNER/$REPO_NAME" >/dev/null 2>&1 || true
+    
+    # Generate and write JSON results
+    local json_results
+    json_results=$(output_json_results "$run_id")
+    
+    echo "$json_results" > "$output_path"
+    echo "$output_path"  # Return the output path for confirmation
+}
+
+# Wait for workflow completion (legacy function for backward compatibility)
 wait_for_completion() {
     if [[ ! -f /tmp/last_workflow_run_id ]]; then
         error "No workflow run ID found. Cannot wait for completion."
@@ -246,22 +302,142 @@ wait_for_completion() {
     info "View full logs: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
 }
 
-# Main execution
-main() {
-    log "Starting kernel test workflow trigger..."
+# Output results as JSON
+output_json_results() {
+    local run_id="$1"
     
-    check_dependencies
-    validate_build_id
-    check_kernel_artifacts
-    trigger_workflow
+    # Get workflow run information
+    local run_info
+    run_info=$(gh run view "$run_id" --repo "$REPO_OWNER/$REPO_NAME" --json status,conclusion,startedAt,updatedAt,url,headSha,headBranch,event,actor,workflowName,displayTitle)
     
-    if [[ "$WAIT_FOR_COMPLETION" == true ]]; then
-        wait_for_completion
-    else
-        info "Workflow triggered. Use -w flag to wait for completion, or check GitHub Actions manually."
+    # Get job information with steps
+    local jobs_info
+    jobs_info=$(gh run view "$run_id" --repo "$REPO_OWNER/$REPO_NAME" --json jobs --jq '.jobs')
+    
+    # Try to extract test results and logs from job outputs
+    local test_results="null"
+    local all_logs=""
+    local step_outputs="[]"
+    
+    # Get full logs from the workflow run
+    local logs_output
+    logs_output=$(gh run view "$run_id" --repo "$REPO_OWNER/$REPO_NAME" --log 2>/dev/null || echo "")
+    
+    # If main logs are empty, try getting logs from individual jobs
+    if [[ -z "$logs_output" ]]; then
+        # Try to get logs from each job individually
+        local job_ids
+        job_ids=$(echo "$jobs_info" | jq -r '.[].databaseId')
+        
+        for job_id in $job_ids; do
+            local job_logs
+            job_logs=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/jobs/$job_id/logs" 2>/dev/null || echo "")
+            if [[ -n "$job_logs" ]]; then
+                logs_output="${logs_output}\n--- Job $job_id ---\n${job_logs}"
+            fi
+        done
     fi
     
-    log "Done!"
+    # Extract step outputs for key test steps
+    if [[ -n "$logs_output" ]]; then
+        # Store comprehensive logs (last 5000 characters to capture more context)
+        all_logs=$(echo "$logs_output" | tail -c 5000 | sed 's/"/\\"/g' | tr '\n' '\\n')
+        
+        # Look for test-specific output patterns
+        local test_step_output=""
+        
+        # Look for PMU test output
+        if echo "$logs_output" | grep -q "Run PMU test\|PMU\|perf_event_open"; then
+            test_step_output=$(echo "$logs_output" | sed -n '/Run PMU test/,/##\[endgroup\]/p' | tail -50)
+        fi
+        
+        # Look for resctrl test output  
+        if echo "$logs_output" | grep -q "resctrl\|Check resctrl support"; then
+            local resctrl_output
+            resctrl_output=$(echo "$logs_output" | sed -n '/Check resctrl support/,/##\[endgroup\]/p' | tail -20)
+            test_step_output="${test_step_output}\n${resctrl_output}"
+        fi
+        
+        # Try to extract structured test results
+        if echo "$logs_output" | grep -q -E "(PASS|FAIL|SUCCESS|ERROR|Test.*completed|Tests.*run)"; then
+            local passed_count failed_count
+            
+            # Look for various test result patterns
+            passed_count=$(echo "$logs_output" | grep -c -E "(PASS|SUCCESS|✓|Test.*passed)" || echo "0")
+            failed_count=$(echo "$logs_output" | grep -c -E "(FAIL|ERROR|✗|Test.*failed)" || echo "0")
+            
+            if [[ "$passed_count" -gt 0 ]] || [[ "$failed_count" -gt 0 ]]; then
+                test_results=$(cat <<EOF
+{
+  "passed": $passed_count,
+  "failed": $failed_count,
+  "total": $((passed_count + failed_count)),
+  "test_output": "$(echo "$test_step_output" | sed 's/"/\\"/g' | tr '\n' '\\n')"
+}
+EOF
+)
+            fi
+        fi
+        
+        # Create step outputs array with key information
+        step_outputs=$(echo "$logs_output" | grep -E "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z.*" | tail -10 | jq -R -s 'split("\n")[:-1] | map(select(length > 0))' 2>/dev/null || echo "[]")
+    fi
+    
+    # Combine all information into final JSON
+    local final_json
+    final_json=$(cat <<EOF
+{
+  "workflow_run": $run_info,
+  "jobs": $jobs_info,
+  "test_results": $test_results,
+  "build_id": "$BUILD_ID",
+  "instance_type": "$INSTANCE_TYPE",
+  "image_type": "$IMAGE_TYPE",
+  "logs": "$all_logs",
+  "recent_output": $step_outputs
+}
+EOF
+)
+    
+    echo "$final_json"
+}
+
+# Main execution
+main() {
+    local run_id
+    
+    case "$MODE" in
+        "trigger-only")
+            log "Starting kernel test workflow trigger..."
+            check_dependencies
+            validate_build_id
+            check_kernel_artifacts
+            run_id=$(trigger_workflow_get_id)
+            info "Workflow triggered. Use -w flag to wait for completion, or check GitHub Actions manually."
+            log "Done!"
+            ;;
+            
+        "wait-existing")
+            check_dependencies
+            run_id=$(get_latest_workflow_id)
+            local output_path
+            output_path=$(wait_and_write_json "$run_id" "$OUTPUT_FILE")
+            echo "Results written to: $output_path"
+            ;;
+            
+        "trigger-and-wait")
+            check_dependencies
+            validate_build_id
+            run_id=$(trigger_workflow_get_id)
+            local output_path
+            output_path=$(wait_and_write_json "$run_id" "$OUTPUT_FILE")
+            echo "Results written to: $output_path"
+            ;;
+            
+        *)
+            error "Invalid mode: $MODE"
+            ;;
+    esac
 }
 
 # Run if executed directly
