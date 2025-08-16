@@ -12,3 +12,9 @@ Contact:	Anshuman Khandual <anshuman.khandual@arm.com>
 Description:	(Read) Shows if TRBE updates in the memory are with access
 		and dirty flag updates as well. This value is fetched from
 		the TRBIDR register.
+
+What:           /sys/bus/coresight/devices/trbe<cpu>/label
+Date:           Aug 2025
+KernelVersion   6.18
+Contact:        Mao Jinlong <quic_jinlmao@quicinc.com>
+Description:    (Read) Show hardware context information of device.
