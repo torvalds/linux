@@ -165,7 +165,6 @@ jobs:
             Restart=on-failure
             RestartSec=10
             StartLimitBurst=5
-            StartLimitIntervalSec=300
             User=root
             WorkingDirectory=/persist/actions-runner
             StandardOutput=journal+console
