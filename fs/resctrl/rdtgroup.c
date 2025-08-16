@@ -338,6 +338,8 @@ static const struct kernfs_ops rdtgroup_kf_single_ops = {
 static const struct kernfs_ops kf_mondata_ops = {
 	.atomic_write_len	= PAGE_SIZE,
 	.seq_show		= rdtgroup_mondata_show,
+	.open			= rdtgroup_mondata_open,
+	.release		= rdtgroup_mondata_release,
 };
 
 static bool is_cpu_list(struct kernfs_open_file *of)
@@ -2387,6 +2389,30 @@ static void rdtgroup_kn_get(struct rdtgroup *rdtgrp, struct kernfs_node *kn)
 	kernfs_break_active_protection(kn);
 }
 
+/*
+ * Increment rdtgroup reference count
+ * Can be called without rdtgroup_mutex held (uses atomic operations)
+ */
+void rdtgroup_get(struct rdtgroup *rdtgrp)
+{
+	atomic_inc(&rdtgrp->waitcount);
+}
+
+/*
+ * Decrement rdtgroup reference count and cleanup if needed
+ * Can be called without rdtgroup_mutex held (uses atomic operations)
+ */
+void rdtgroup_put(struct rdtgroup *rdtgrp)
+{
+	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
+	    (rdtgrp->flags & RDT_DELETED)) {
+		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP ||
+		    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED)
+			rdtgroup_pseudo_lock_remove(rdtgrp);
+		rdtgroup_remove(rdtgrp);
+	}
+}
+
 static void rdtgroup_kn_put(struct rdtgroup *rdtgrp, struct kernfs_node *kn)
 {
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
@@ -3227,6 +3253,42 @@ static int mkdir_mondata_all(struct kernfs_node *parent_kn,
 out_destroy:
 	kernfs_remove(kn);
 	return ret;
+}
+
+int rdtgroup_mondata_open(struct kernfs_open_file *of)
+{
+	struct rdtgroup *rdtgrp;
+
+	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+	if (!rdtgrp) {
+		rdtgroup_kn_unlock(of->kn);
+		return -ENOENT;
+	}
+
+	/*
+	 * Take an additional reference on the rdtgroup to ensure it
+	 * remains valid while this file descriptor is open, even if
+	 * the kernfs node is removed.
+	 */
+	rdtgroup_get(rdtgrp);
+	of->priv = rdtgrp;
+
+	rdtgroup_kn_unlock(of->kn);
+	return 0;
+}
+
+void rdtgroup_mondata_release(struct kernfs_open_file *of)
+{
+	struct rdtgroup *rdtgrp = of->priv;
+
+	if (rdtgrp) {
+		/*
+		 * Release the reference taken during open. This may allow
+		 * the rdtgroup to be freed if this was the last reference.
+		 */
+		rdtgroup_put(rdtgrp);
+		of->priv = NULL;
+	}
 }
 
 /**

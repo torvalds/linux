@@ -343,6 +343,8 @@ void resctrl_mon_resource_exit(void);
 void mon_event_count(void *info);
 
 int rdtgroup_mondata_show(struct seq_file *m, void *arg);
+int rdtgroup_mondata_open(struct kernfs_open_file *of);
+void rdtgroup_mondata_release(struct kernfs_open_file *of);
 
 void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 		    struct rdt_mon_domain *d, struct rdtgroup *rdtgrp,
