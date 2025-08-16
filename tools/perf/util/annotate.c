@@ -1362,6 +1362,11 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 	};
 	struct annotation_line *al;
 
+	if (annotate_opts.code_with_type) {
+		evsel__get_arch(apd->evsel, &apd->arch);
+		apd->dbg = debuginfo__new(dso__long_name(map__dso(apd->he->ms.map)));
+	}
+
 	list_for_each_entry(al, &notes->src->source, node) {
 		if (annotation_line__filter(al))
 			continue;
@@ -1369,6 +1374,9 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 		fputc('\n', fp);
 		wops.first_line = false;
 	}
+
+	if (annotate_opts.code_with_type)
+		debuginfo__delete(apd->dbg);
 
 	return 0;
 }
@@ -1935,6 +1943,36 @@ err:
 	return -ENOMEM;
 }
 
+static int disasm_line__snprint_type_info(struct disasm_line *dl,
+					  char *buf, int len,
+					  struct annotation_print_data *apd)
+{
+	struct annotated_data_type *data_type;
+	char member[256];
+	int offset = 0;
+	int printed;
+
+	scnprintf(buf, len, " ");
+
+	if (!annotate_opts.code_with_type || apd->dbg == NULL)
+		return 1;
+
+	data_type = __hist_entry__get_data_type(apd->he, apd->arch, apd->dbg, dl, &offset);
+	if (data_type == NULL || data_type == NO_TYPE)
+		return 1;
+
+	printed = scnprintf(buf, len, "\t\t# data-type: %s", data_type->self.type_name);
+
+	if (data_type != &stackop_type && data_type != &canary_type && len > printed)
+		printed += scnprintf(buf + printed, len - printed, " +%#x", offset);
+
+	if (annotated_data_type__get_member_name(data_type, member, sizeof(member), offset) &&
+	    len > printed) {
+		printed += scnprintf(buf + printed, len - printed, " (%s)", member);
+	}
+	return printed;
+}
+
 void annotation_line__write(struct annotation_line *al, struct annotation *notes,
 			    const struct annotation_write_ops *wops,
 			    struct annotation_print_data *apd)
@@ -2118,11 +2156,14 @@ print_addr:
 
 		width -= printed;
 
-		disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf), obj__printf, obj__write_graph);
+		printed = disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf),
+					     obj__printf, obj__write_graph);
 
+		obj__printf(obj, "%s", bf);
+		width -= printed;
+
+		disasm_line__snprint_type_info(disasm_line(al), bf, sizeof(bf), apd);
 		obj__printf(obj, "%-*s", width, bf);
-
-		(void)apd;
 	}
 
 }
