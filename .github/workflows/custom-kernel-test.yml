@@ -130,6 +130,8 @@ jobs:
             export RUNNER_ALLOW_RUNASROOT=1
             
             # Configure runner with the original GitHub parameters
+            echo "Starting GitHub runner at $(date)..." | tee -a /var/log/kexec-setup.log
+            echo "Checking prerequisites..." | tee -a /var/log/kexec-setup.log
             echo "Configuring GitHub Actions runner after custom kernel kexec..." | tee -a /var/log/kexec-setup.log
             
             # Read config parameters from the file saved before kexec
@@ -154,12 +156,16 @@ jobs:
             cat > /etc/systemd/system/github-runner.service << 'SYSTEMD_EOF'
             [Unit]
             Description=GitHub Actions Runner after custom kernel kexec
-            After=basic.target network.target
+            After=sysinit.target network-online.target
+            Wants=network-online.target
 
             [Service]
             Type=simple
             ExecStart=/persist/kexec-runner.sh
-            Restart=no
+            Restart=on-failure
+            RestartSec=10
+            StartLimitBurst=5
+            StartLimitIntervalSec=300
             User=root
             WorkingDirectory=/persist/actions-runner
             StandardOutput=journal+console
@@ -222,6 +228,9 @@ jobs:
                 echo "No /sys mounts found to unmount" | tee -a /var/log/kexec-setup.log
             fi
             
+            echo "Syncing filesystems before kexec..." | tee -a /var/log/kexec-setup.log
+            sync
+            sleep 2
             echo "Executing kexec into custom kernel..." | tee -a /var/log/kexec-setup.log
             kexec -e
             EOF
