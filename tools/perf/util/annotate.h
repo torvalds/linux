@@ -204,6 +204,8 @@ struct annotation_print_data {
 	struct evsel *evsel;
 	struct arch *arch;
 	struct debuginfo *dbg;
+	/* save data type info keyed by al->offset */
+	struct hashmap *type_hash;
 	/* It'll be set in hist_entry__annotate_printf() */
 	int addr_fmt_width;
 };

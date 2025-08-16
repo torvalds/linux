@@ -6,6 +6,7 @@
 #include "../../util/debug.h"
 #include "../../util/debuginfo.h"
 #include "../../util/dso.h"
+#include "../../util/hashmap.h"
 #include "../../util/hist.h"
 #include "../../util/sort.h"
 #include "../../util/map.h"
@@ -15,6 +16,7 @@
 #include "../../util/evlist.h"
 #include "../../util/thread.h"
 #include <inttypes.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
@@ -36,12 +38,23 @@ struct annotate_browser {
 	struct hist_entry	   *he;
 	struct debuginfo	   *dbg;
 	struct evsel		   *evsel;
+	struct hashmap		   *type_hash;
 	bool			    searching_backwards;
 	char			    search_bf[128];
 };
 
 /* A copy of target hist_entry for perf top. */
 static struct hist_entry annotate_he;
+
+static size_t type_hash(long key, void *ctx __maybe_unused)
+{
+	return key;
+}
+
+static bool type_equal(long key1, long key2, void *ctx __maybe_unused)
+{
+	return key1 == key2;
+}
 
 static inline struct annotation *browser__annotation(struct ui_browser *browser)
 {
@@ -129,6 +142,9 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	/* The scroll bar isn't being used */
 	if (!browser->navkeypressed)
 		ops.width += 1;
+
+	if (!IS_ERR_OR_NULL(ab->type_hash))
+		apd.type_hash = ab->type_hash;
 
 	annotation_line__write(al, notes, &ops, &apd);
 
@@ -1051,6 +1067,10 @@ show_sup_ins:
 			annotate_opts.code_with_type ^= 1;
 			if (browser->dbg == NULL)
 				browser->dbg = dso__debuginfo(map__dso(ms->map));
+			if (browser->type_hash == NULL) {
+				browser->type_hash = hashmap__new(type_hash, type_equal,
+								  /*ctx=*/NULL);
+			}
 			annotate_browser__show(&browser->b, title, help);
 			annotate_browser__debuginfo_warning(browser);
 			continue;
@@ -1145,8 +1165,10 @@ int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
 
 	ui_helpline__push("Press ESC to exit");
 
-	if (annotate_opts.code_with_type)
+	if (annotate_opts.code_with_type) {
 		browser.dbg = dso__debuginfo(dso);
+		browser.type_hash = hashmap__new(type_hash, type_equal, /*ctx=*/NULL);
+	}
 
 	browser.b.width = notes->src->widths.max_line_len;
 	browser.b.nr_entries = notes->src->nr_entries;
@@ -1159,6 +1181,16 @@ int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
 	ret = annotate_browser__run(&browser, evsel, hbt);
 
 	debuginfo__delete(browser.dbg);
+
+	if (!IS_ERR_OR_NULL(browser.type_hash)) {
+		struct hashmap_entry *cur;
+		size_t bkt;
+
+		hashmap__for_each_entry(browser.type_hash, cur, bkt)
+			zfree(&cur->pvalue);
+		hashmap__free(browser.type_hash);
+	}
+
 	if (not_annotated && !notes->src->tried_source)
 		annotated_source__purge(notes->src);
 

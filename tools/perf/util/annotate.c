@@ -1954,11 +1954,17 @@ err:
 	return -ENOMEM;
 }
 
+struct type_hash_entry {
+	struct annotated_data_type *type;
+	int offset;
+};
+
 static int disasm_line__snprint_type_info(struct disasm_line *dl,
 					  char *buf, int len,
 					  struct annotation_print_data *apd)
 {
-	struct annotated_data_type *data_type;
+	struct annotated_data_type *data_type = NULL;
+	struct type_hash_entry *entry = NULL;
 	char member[256];
 	int offset = 0;
 	int printed;
@@ -1968,7 +1974,26 @@ static int disasm_line__snprint_type_info(struct disasm_line *dl,
 	if (!annotate_opts.code_with_type || apd->dbg == NULL)
 		return 1;
 
-	data_type = __hist_entry__get_data_type(apd->he, apd->arch, apd->dbg, dl, &offset);
+	if (apd->type_hash) {
+		hashmap__find(apd->type_hash, dl->al.offset, &entry);
+		if (entry != NULL) {
+			data_type = entry->type;
+			offset = entry->offset;
+		}
+	}
+
+	if (data_type == NULL)
+		data_type = __hist_entry__get_data_type(apd->he, apd->arch, apd->dbg, dl, &offset);
+
+	if (apd->type_hash && entry == NULL) {
+		entry = malloc(sizeof(*entry));
+		if (entry != NULL) {
+			entry->type = data_type;
+			entry->offset = offset;
+			hashmap__add(apd->type_hash, dl->al.offset, entry);
+		}
+	}
+
 	if (!needs_type_info(data_type))
 		return 1;
 
