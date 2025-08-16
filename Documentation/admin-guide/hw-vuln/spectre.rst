@@ -664,7 +664,7 @@ Intel white papers:
 
 .. _spec_ref1:
 
-[1] `Intel analysis of speculative execution side channels <https://newsroom.intel.com/wp-content/uploads/sites/11/2018/01/Intel-Analysis-of-Speculative-Execution-Side-Channels.pdf>`_.
+[1] `Intel analysis of speculative execution side channels <https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/analysis-of-speculative-execution-side-channels-white-paper.pdf>`_.
 
 .. _spec_ref2:
 
@@ -682,7 +682,7 @@ AMD white papers:
 
 .. _spec_ref5:
 
-[5] `AMD64 technology indirect branch control extension <https://developer.amd.com/wp-content/resources/Architecture_Guidelines_Update_Indirect_Branch_Control.pdf>`_.
+[5] `AMD64 technology indirect branch control extension <https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/white-papers/111006-architecture-guidelines-update-amd64-technology-indirect-branch-control-extension.pdf>`_.
 
 .. _spec_ref6:
 
@@ -708,7 +708,7 @@ MIPS white paper:
 
 .. _spec_ref10:
 
-[10] `MIPS: response on speculative execution and side channel vulnerabilities <https://www.mips.com/blog/mips-response-on-speculative-execution-and-side-channel-vulnerabilities/>`_.
+[10] `MIPS: response on speculative execution and side channel vulnerabilities <https://web.archive.org/web/20220512003005if_/https://www.mips.com/blog/mips-response-on-speculative-execution-and-side-channel-vulnerabilities/>`_.
 
 Academic papers:
 
