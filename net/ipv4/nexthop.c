@@ -3511,12 +3511,42 @@ static int rtm_dump_walk_nexthops(struct sk_buff *skb,
 	int err;
 
 	s_idx = ctx->idx;
-	for (node = rb_first(root); node; node = rb_next(node)) {
+
+	/* If this is not the first invocation, ctx->idx will contain the id of
+	 * the last nexthop we processed. Instead of starting from the very
+	 * first element of the red/black tree again and linearly skipping the
+	 * (potentially large) set of nodes with an id smaller than s_idx, walk
+	 * the tree and find the left-most node whose id is >= s_idx.  This
+	 * provides an efficient O(log n) starting point for the dump
+	 * continuation.
+	 */
+	if (s_idx != 0) {
+		struct rb_node *tmp = root->rb_node;
+
+		node = NULL;
+		while (tmp) {
+			struct nexthop *nh;
+
+			nh = rb_entry(tmp, struct nexthop, rb_node);
+			if (nh->id < s_idx) {
+				tmp = tmp->rb_right;
+			} else {
+				/* Track current candidate and keep looking on
+				 * the left side to find the left-most
+				 * (smallest id) that is still >= s_idx.
+				 */
+				node = tmp;
+				tmp = tmp->rb_left;
+			}
+		}
+	} else {
+		node = rb_first(root);
+	}
+
+	for (; node; node = rb_next(node)) {
 		struct nexthop *nh;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		if (nh->id < s_idx)
-			continue;
 
 		ctx->idx = nh->id;
 		err = nh_cb(skb, cb, nh, data);
