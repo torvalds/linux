@@ -242,11 +242,7 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	r = amdgpu_vcn_sysfs_reset_mask_init(adev);
-	if (r)
-		return r;
-
-	return 0;
+	return amdgpu_vcn_sysfs_reset_mask_init(adev);
 }
 
 /**
