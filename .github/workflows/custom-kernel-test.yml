@@ -204,6 +204,24 @@ jobs:
                 exit 1
             fi
             
+            echo "Unmounting /sys filesystem and nested mounts before kexec..." | tee -a /var/log/kexec-setup.log
+            
+            # Get all mounted filesystems under /sys in reverse order (deepest first)
+            SYS_MOUNTS=$(mount | grep '/sys' | awk '{print $3}' | sort -r)
+            
+            if [[ -n "$SYS_MOUNTS" ]]; then
+                echo "Found /sys mounts to unmount:" | tee -a /var/log/kexec-setup.log
+                echo "$SYS_MOUNTS" | tee -a /var/log/kexec-setup.log
+                
+                # Unmount each filesystem
+                echo "$SYS_MOUNTS" | while read mount_point; do
+                    echo "Unmounting $mount_point..." | tee -a /var/log/kexec-setup.log
+                    umount "$mount_point" 2>&1 | tee -a /var/log/kexec-setup.log || echo "Failed to unmount $mount_point (may be okay)" | tee -a /var/log/kexec-setup.log
+                done
+            else
+                echo "No /sys mounts found to unmount" | tee -a /var/log/kexec-setup.log
+            fi
+            
             echo "Executing kexec into custom kernel..." | tee -a /var/log/kexec-setup.log
             kexec -e
             EOF
