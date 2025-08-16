@@ -293,8 +293,10 @@ struct ice_hw_common_caps {
 	u8 dcb;
 	u8 ieee_1588;
 	u8 rdma;
-	u8 roce_lag;
-	u8 sriov_lag;
+
+	bool roce_lag;
+	bool sriov_lag;
+	bool sriov_aa_lag;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;
