@@ -345,7 +345,7 @@ static void *mlx5ctl_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
 	 */
 	if (ret && ret != -EREMOTEIO) {
 		if (rpc_out != rpc_in)
-			kfree(rpc_out);
+			kvfree(rpc_out);
 		return ERR_PTR(ret);
 	}
 	return rpc_out;
