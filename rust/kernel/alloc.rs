@@ -2,17 +2,10 @@
 
 //! Implementation of the kernel's memory allocation infrastructure.
 
-#[cfg(not(testlib))]
 pub mod allocator;
 pub mod kbox;
 pub mod kvec;
 pub mod layout;
-
-#[cfg(testlib)]
-pub mod allocator_test;
-
-#[cfg(testlib)]
-pub use self::allocator_test as allocator;
 
 pub use self::kbox::Box;
 pub use self::kbox::KBox;
