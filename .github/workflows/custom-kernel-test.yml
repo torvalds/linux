@@ -453,6 +453,42 @@ jobs:
           echo "🏃 Running PMU test specifically..."
           ./resctrl_tests -t pmu || echo "⚠️ PMU test failed or not fully implemented"
           
+      - name: Capture full dmesg output
+        run: |
+          echo "🔍 Full dmesg output (all boot logs):"
+          echo "------------------------------------"
+          dmesg || echo "❌ Failed to capture dmesg"
+          
+      - name: Capture recent kernel messages  
+        run: |
+          echo "🔍 Recent kernel messages (last 400 lines):"
+          echo "-------------------------------------------"
+          dmesg | tail -400 || echo "❌ Failed to capture recent dmesg"
+          
+          # Look specifically for PMU-related messages
+          echo ""
+          echo "🎯 PMU-related kernel messages:"
+          echo "------------------------------"
+          dmesg | grep -i -E "(pmu|perf|resctrl|rdt|cache.*monitor|cqm)" || echo "ℹ️ No PMU-related messages found"
+          
+          # Look for our custom printk messages from PMU code
+          echo ""
+          echo "🔧 Custom PMU printk messages:"
+          echo "-----------------------------"
+          dmesg | grep -i -E "(resctrl.*pmu|pmu.*resctrl|cache.*occupancy)" || echo "ℹ️ No custom PMU printk messages found"
+          
+          # Check for any kernel oops or warnings
+          echo ""
+          echo "⚠️ Kernel warnings and errors:"
+          echo "-----------------------------"
+          dmesg | grep -i -E "(warning|error|oops|panic|bug|fault)" | tail -20 || echo "✅ No recent kernel warnings/errors found"
+          
+      - name: Capture systemd journal
+        run: |
+          echo "📖 Recent systemd journal entries (last 400 lines):"
+          echo "---------------------------------------------------"
+          journalctl --no-pager -n 400 || echo "❌ Failed to capture journal"
+          
       - name: Test completion summary
         run: |
           echo ""
