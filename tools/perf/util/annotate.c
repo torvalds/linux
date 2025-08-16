@@ -1270,7 +1270,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 	apd.addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source,
 							      notes->src->start);
 	evsel__get_arch(evsel, &apd.arch);
-	apd.dbg = debuginfo__new(filename);
+	apd.dbg = dso__debuginfo(dso);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		int err;
@@ -1375,7 +1375,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 
 	if (annotate_opts.code_with_type) {
 		evsel__get_arch(apd->evsel, &apd->arch);
-		apd->dbg = debuginfo__new(dso__long_name(map__dso(apd->he->ms.map)));
+		apd->dbg = dso__debuginfo(map__dso(apd->he->ms.map));
 	}
 
 	list_for_each_entry(al, &notes->src->source, node) {
@@ -2882,7 +2882,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		di_cache.dso = dso__get(map__dso(ms->map));
 
 		debuginfo__delete(di_cache.dbg);
-		di_cache.dbg = debuginfo__new(dso__long_name(di_cache.dso));
+		di_cache.dbg = dso__debuginfo(di_cache.dso);
 	}
 
 	if (di_cache.dbg == NULL) {

@@ -1050,7 +1050,7 @@ show_sup_ins:
 		case 'T':
 			annotate_opts.code_with_type ^= 1;
 			if (browser->dbg == NULL)
-				browser->dbg = debuginfo__new(dso__long_name(map__dso(ms->map)));
+				browser->dbg = dso__debuginfo(map__dso(ms->map));
 			annotate_browser__show(&browser->b, title, help);
 			annotate_browser__debuginfo_warning(browser);
 			continue;
@@ -1146,7 +1146,7 @@ int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
 	ui_helpline__push("Press ESC to exit");
 
 	if (annotate_opts.code_with_type)
-		browser.dbg = debuginfo__new(dso__long_name(dso));
+		browser.dbg = dso__debuginfo(dso);
 
 	browser.b.width = notes->src->widths.max_line_len;
 	browser.b.nr_entries = notes->src->nr_entries;

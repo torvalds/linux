@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <linux/bitops.h>
 #include "build-id.h"
+#include "debuginfo.h"
 #include "mutex.h"
 #include <internal/rc_check.h>
 
@@ -913,5 +914,14 @@ u64 dso__findnew_global_type(struct dso *dso, u64 addr, u64 offset);
 /* Check if dso name is of format "/tmp/perf-%d.map" */
 bool perf_pid_map_tid(const char *dso_name, int *tid);
 bool is_perf_pid_map_name(const char *dso_name);
+
+/*
+ * In the future, we may get debuginfo using build-ID (w/o path).
+ * Add this helper is for the smooth conversion.
+ */
+static inline struct debuginfo *dso__debuginfo(struct dso *dso)
+{
+	return debuginfo__new(dso__long_name(dso));
+}
 
 #endif /* __PERF_DSO */
