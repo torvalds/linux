@@ -812,6 +812,20 @@ static int annotate__scnprintf_title(struct hists *hists, char *bf, size_t size)
 	return printed;
 }
 
+static void annotate_browser__debuginfo_warning(struct annotate_browser *browser)
+{
+	struct map_symbol *ms = browser->b.priv;
+	struct dso *dso = map__dso(ms->map);
+
+	if (browser->dbg == NULL && annotate_opts.code_with_type &&
+	    !dso__debuginfo_warned(dso)) {
+		ui__warning("DWARF debuginfo not found.\n\n"
+			    "Data-type in this DSO will not be displayed.\n"
+			    "Please make sure to have debug information.");
+		dso__set_debuginfo_warned(dso);
+	}
+}
+
 static int annotate_browser__run(struct annotate_browser *browser,
 				 struct evsel *evsel,
 				 struct hist_browser_timer *hbt)
@@ -841,6 +855,8 @@ static int annotate_browser__run(struct annotate_browser *browser,
 	nd = browser->curr_hot;
 
 	annotation_br_cntr_abbr_list(&br_cntr_text, evsel, false);
+
+	annotate_browser__debuginfo_warning(browser);
 
 	while (1) {
 		key = ui_browser__run(&browser->b, delay_secs);
@@ -1036,6 +1052,7 @@ show_sup_ins:
 			if (browser->dbg == NULL)
 				browser->dbg = debuginfo__new(dso__long_name(map__dso(ms->map)));
 			annotate_browser__show(&browser->b, title, help);
+			annotate_browser__debuginfo_warning(browser);
 			continue;
 		case K_LEFT:
 		case '<':

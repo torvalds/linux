@@ -299,6 +299,7 @@ DECLARE_RC_STRUCT(dso) {
 	u8		 hit:1;
 	u8		 annotate_warned:1;
 	u8		 auxtrace_warned:1;
+	u8		 debuginfo_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
@@ -360,6 +361,16 @@ static inline bool dso__annotate_warned(const struct dso *dso)
 static inline void dso__set_annotate_warned(struct dso *dso)
 {
 	RC_CHK_ACCESS(dso)->annotate_warned = 1;
+}
+
+static inline bool dso__debuginfo_warned(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->debuginfo_warned;
+}
+
+static inline void dso__set_debuginfo_warned(struct dso *dso)
+{
+	RC_CHK_ACCESS(dso)->debuginfo_warned = 1;
 }
 
 static inline bool dso__auxtrace_warned(const struct dso *dso)
