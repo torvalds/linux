@@ -200,16 +200,31 @@ jobs:
 
             # Update GRUB to boot custom kernel by default
             echo "Updating GRUB configuration..." | tee -a /var/log/reboot-setup.log
-            sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT="Custom Kernel"/' /etc/default/grub
+            
+            # Set custom kernel as default (position 0)
+            sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=0/' /etc/default/grub
             echo 'GRUB_DISABLE_SUBMENU=y' >> /etc/default/grub
 
-            # Add custom kernel entry to GRUB
-            cat >> /etc/grub.d/40_custom << GRUB_EOF
-            menuentry "Custom Kernel" {
-                linux /boot/vmlinuz-custom $CURRENT_CMDLINE
-                initrd /boot/initrd-custom
+            # Create a custom kernel entry as the first entry by making it 10_custom
+            cat > /etc/grub.d/10_custom << GRUB_EOF
+            #!/bin/sh
+            exec tail -n +3 \$0
+            # This file provides an easy way to add custom menu entries.  Simply type the
+            # menu entries you want to add after this comment.  Be careful not to change
+            # the 'exec tail' line above.
+            menuentry 'Custom Kernel' --class ubuntu --class gnu-linux --class gnu --class os \$menuentry_id_option 'gnulinux-custom' {
+              recordfail
+              load_video
+              gfxmode \$linux_gfx_mode
+              insmod gzio
+              if [ x\$grub_platform = xxen ]; then insmod xzio; insmod lzopio; fi
+              insmod part_gpt
+              insmod ext2
+              linux	/boot/vmlinuz-custom $CURRENT_CMDLINE
+              initrd	/boot/initrd-custom
             }
             GRUB_EOF
+            chmod +x /etc/grub.d/10_custom
 
             # Apply GRUB changes
             echo "Running update-grub..." | tee -a /var/log/reboot-setup.log
