@@ -282,40 +282,37 @@ jobs:
             echo "🔧 Mount status of resctrl:"
             mount | grep resctrl || echo "❌ resctrl filesystem not mounted"
             
-            # Check if we can mount resctrl
+            # Check /sys filesystem health after kexec first
+            echo ""
+            echo "🔍 Checking /sys filesystem health after kexec:"
+            echo "📊 /sys mount status:"
+            mount | grep "/sys " || echo "❌ /sys not properly mounted"
+            
+            echo "🔧 /sys filesystem type and options:"
+            stat -f /sys 2>/dev/null || echo "❌ Cannot stat /sys filesystem"
+            
+            # Try remounting /sys to fix potential kexec issues
+            echo ""
+            echo "🔄 Attempting to remount /sys to fix kexec issues..."
+            if mount -o remount /sys 2>&1; then
+              echo "✅ Successfully remounted /sys"
+            else
+              echo "⚠️ Failed to remount /sys, trying to unmount and remount..."
+              umount /sys 2>/dev/null
+              if mount -t sysfs none /sys 2>&1; then
+                echo "✅ Successfully remounted /sys from scratch"
+              else
+                echo "❌ Failed to remount /sys"
+              fi
+            fi
+            
+            # Now attempt to mount resctrl after fixing /sys
             echo ""
             echo "🚀 Attempting to mount resctrl filesystem..."
             if mount -t resctrl resctrl /sys/fs/resctrl 2>&1; then
               echo "✅ Successfully mounted resctrl!"
               echo "📁 Contents after mounting:"
               ls -la /sys/fs/resctrl/ 2>&1 || echo "❌ ls failed on mounted resctrl"
-              
-              # Check /sys filesystem health after kexec
-              echo ""
-              echo "🔍 Checking /sys filesystem health after kexec:"
-              echo "📊 /sys mount status:"
-              mount | grep "/sys " || echo "❌ /sys not properly mounted"
-              
-              echo "🔧 /sys filesystem type and options:"
-              stat -f /sys 2>/dev/null || echo "❌ Cannot stat /sys filesystem"
-              
-              # Try remounting /sys to fix potential kexec issues
-              echo ""
-              echo "🔄 Attempting to remount /sys to fix kexec issues..."
-              if mount -o remount /sys 2>&1; then
-                echo "✅ Successfully remounted /sys"
-              else
-                echo "⚠️ Failed to remount /sys, trying to unmount and remount..."
-                umount /sys 2>/dev/null
-                if mount -t sysfs none /sys 2>&1; then
-                  echo "✅ Successfully remounted /sys from scratch"
-                  # Remount resctrl after fixing /sys
-                  echo "🔄 Remounting resctrl after /sys fix..."
-                  mount -t resctrl resctrl /sys/fs/resctrl 2>&1
-                else
-                  echo "❌ Failed to remount /sys"
-                fi
-              fi
               
               # Test file access with more detailed error reporting
               echo ""
