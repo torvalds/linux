@@ -299,13 +299,25 @@
 		nvdec@54480000 {
 			compatible = "nvidia,tegra210-nvdec";
 			reg = <0x0 0x54480000 0x0 0x00040000>;
-			status = "disabled";
+			clocks = <&tegra_car TEGRA210_CLK_NVDEC>;
+			clock-names = "nvdec";
+			resets = <&tegra_car 194>;
+			reset-names = "nvdec";
+
+			iommus = <&mc TEGRA_SWGROUP_NVDEC>;
+			power-domains = <&pd_nvdec>;
 		};
 
 		nvenc@544c0000 {
 			compatible = "nvidia,tegra210-nvenc";
 			reg = <0x0 0x544c0000 0x0 0x00040000>;
-			status = "disabled";
+			clocks = <&tegra_car TEGRA210_CLK_NVENC>;
+			clock-names = "nvenc";
+			resets = <&tegra_car 219>;
+			reset-names = "nvenc";
+
+			iommus = <&mc TEGRA_SWGROUP_NVENC>;
+			power-domains = <&pd_nvenc>;
 		};
 
 		tsec@54500000 {
@@ -929,6 +941,18 @@
 				clocks = <&tegra_car TEGRA210_CLK_APE>,
 					 <&tegra_car TEGRA210_CLK_APB2APE>;
 				resets = <&tegra_car 198>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_nvenc: mpe {
+				clocks = <&tegra_car TEGRA210_CLK_NVENC>;
+				resets = <&tegra_car 219>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_nvdec: nvdec {
+				clocks = <&tegra_car TEGRA210_CLK_NVDEC>;
+				resets = <&tegra_car 194>;
 				#power-domain-cells = <0>;
 			};
 
