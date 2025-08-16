@@ -62,7 +62,7 @@ static inline u16 crc_t10dif_arch(u16 crci, const u8 *p, size_t len)
 }
 
 #define crc_t10dif_mod_init_arch crc_t10dif_mod_init_arch
-static inline void crc_t10dif_mod_init_arch(void)
+static void crc_t10dif_mod_init_arch(void)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
 	    (cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_VEC_CRYPTO))

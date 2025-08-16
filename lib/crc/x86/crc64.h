@@ -27,7 +27,7 @@ static inline u64 crc64_nvme_arch(u64 crc, const u8 *p, size_t len)
 }
 
 #define crc64_mod_init_arch crc64_mod_init_arch
-static inline void crc64_mod_init_arch(void)
+static void crc64_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		static_branch_enable(&have_pclmulqdq);

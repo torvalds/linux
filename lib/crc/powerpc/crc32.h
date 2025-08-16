@@ -55,7 +55,7 @@ static inline u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 }
 
 #define crc32_mod_init_arch crc32_mod_init_arch
-static inline void crc32_mod_init_arch(void)
+static void crc32_mod_init_arch(void)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
 	    (cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_VEC_CRYPTO))

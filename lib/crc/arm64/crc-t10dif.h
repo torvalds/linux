@@ -45,7 +45,7 @@ static inline u16 crc_t10dif_arch(u16 crc, const u8 *data, size_t length)
 }
 
 #define crc_t10dif_mod_init_arch crc_t10dif_mod_init_arch
-static inline void crc_t10dif_mod_init_arch(void)
+static void crc_t10dif_mod_init_arch(void)
 {
 	if (cpu_have_named_feature(ASIMD)) {
 		static_branch_enable(&have_asimd);

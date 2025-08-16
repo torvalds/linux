@@ -44,7 +44,7 @@ static inline u32 crc32c_arch(u32 crc, const u8 *data, size_t len)
 }
 
 #define crc32_mod_init_arch crc32_mod_init_arch
-static inline void crc32_mod_init_arch(void)
+static void crc32_mod_init_arch(void)
 {
 	unsigned long cfr;
 
