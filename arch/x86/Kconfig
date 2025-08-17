@@ -1536,6 +1536,13 @@ config X86_64_ACPI_NUMA
 	help
 	  Enable ACPI SRAT based node topology detection.
 
+config PGTABLE_REPLICATION
+    bool "Enable support for page-table replication"
+    depends on PARAVIRT
+    depends on NUMA
+    help
+      Include a PV-Ops backend for page-table replication on NUMA nodes.
+
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
 	range 1 10
