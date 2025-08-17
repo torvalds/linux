@@ -21,13 +21,13 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include <linux/platform_data/keypad-pxa27x.h>
 /*
  * Keypad Controller registers
  */
@@ -100,54 +100,69 @@
 #define keypad_readl(off)	__raw_readl(keypad->mmio_base + (off))
 #define keypad_writel(off, v)	__raw_writel((v), keypad->mmio_base + (off))
 
+#define MAX_MATRIX_KEY_ROWS	8
+#define MAX_MATRIX_KEY_COLS	8
+#define MAX_DIRECT_KEY_NUM	8
+#define MAX_ROTARY_ENCODERS	2
+
 #define MAX_MATRIX_KEY_NUM	(MAX_MATRIX_KEY_ROWS * MAX_MATRIX_KEY_COLS)
 #define MAX_KEYPAD_KEYS		(MAX_MATRIX_KEY_NUM + MAX_DIRECT_KEY_NUM)
 
-struct pxa27x_keypad {
-	const struct pxa27x_keypad_platform_data *pdata;
+struct pxa27x_keypad_rotary {
+	unsigned short *key_codes;
+	int rel_code;
+	bool enabled;
+};
 
+struct pxa27x_keypad {
 	struct clk *clk;
 	struct input_dev *input_dev;
 	void __iomem *mmio_base;
 
 	int irq;
 
-	unsigned short keycodes[MAX_KEYPAD_KEYS];
-	int rotary_rel_code[2];
-
+	unsigned int matrix_key_rows;
+	unsigned int matrix_key_cols;
 	unsigned int row_shift;
+
+	unsigned int direct_key_num;
+	unsigned int direct_key_mask;
+	bool direct_key_low_active;
+
+	/* key debounce interval */
+	unsigned int debounce_interval;
+
+	unsigned short keycodes[MAX_KEYPAD_KEYS];
 
 	/* state row bits of each column scan */
 	u32 matrix_key_state[MAX_MATRIX_KEY_COLS];
 	u32 direct_key_state;
 
-	unsigned int direct_key_mask;
+	struct pxa27x_keypad_rotary rotary[MAX_ROTARY_ENCODERS];
 };
 
-#ifdef CONFIG_OF
-static int pxa27x_keypad_matrix_key_parse_dt(struct pxa27x_keypad *keypad,
-				struct pxa27x_keypad_platform_data *pdata)
+static int pxa27x_keypad_matrix_key_parse(struct pxa27x_keypad *keypad)
 {
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	u32 rows, cols;
 	int error;
 
-	error = matrix_keypad_parse_properties(dev, &rows, &cols);
+	error = matrix_keypad_parse_properties(dev, &keypad->matrix_key_rows,
+					       &keypad->matrix_key_cols);
 	if (error)
 		return error;
 
-	if (rows > MAX_MATRIX_KEY_ROWS || cols > MAX_MATRIX_KEY_COLS) {
+	if (keypad->matrix_key_rows > MAX_MATRIX_KEY_ROWS ||
+	    keypad->matrix_key_cols > MAX_MATRIX_KEY_COLS) {
 		dev_err(dev, "rows or cols exceeds maximum value\n");
 		return -EINVAL;
 	}
 
-	pdata->matrix_key_rows = rows;
-	pdata->matrix_key_cols = cols;
+	keypad->row_shift = get_count_order(keypad->matrix_key_cols);
 
 	error = matrix_keypad_build_keymap(NULL, NULL,
-					   pdata->matrix_key_rows,
-					   pdata->matrix_key_cols,
+					   keypad->matrix_key_rows,
+					   keypad->matrix_key_cols,
 					   keypad->keycodes, input_dev);
 	if (error)
 		return error;
@@ -155,20 +170,17 @@ static int pxa27x_keypad_matrix_key_parse_dt(struct pxa27x_keypad *keypad,
 	return 0;
 }
 
-static int pxa27x_keypad_direct_key_parse_dt(struct pxa27x_keypad *keypad,
-				struct pxa27x_keypad_platform_data *pdata)
+static int pxa27x_keypad_direct_key_parse(struct pxa27x_keypad *keypad)
 {
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
-	const __be16 *prop;
 	unsigned short code;
-	unsigned int proplen, size;
+	int count;
 	int i;
 	int error;
 
-	error = of_property_read_u32(np, "marvell,direct-key-count",
-				     &pdata->direct_key_num);
+	error = device_property_read_u32(dev, "marvell,direct-key-count",
+					 &keypad->direct_key_num);
 	if (error) {
 		/*
 		 * If do not have marvel,direct-key-count defined,
@@ -177,151 +189,121 @@ static int pxa27x_keypad_direct_key_parse_dt(struct pxa27x_keypad *keypad,
 		return error == -EINVAL ? 0 : error;
 	}
 
-	error = of_property_read_u32(np, "marvell,direct-key-mask",
-				     &pdata->direct_key_mask);
+	error = device_property_read_u32(dev, "marvell,direct-key-mask",
+					 &keypad->direct_key_mask);
 	if (error) {
 		if (error != -EINVAL)
 			return error;
 
 		/*
 		 * If marvell,direct-key-mask is not defined, driver will use
-		 * default value. Default value is set when configure the keypad.
+		 * a default value based on number of direct keys set up.
+		 * The default value is calculated in pxa27x_keypad_config().
 		 */
-		pdata->direct_key_mask = 0;
+		keypad->direct_key_mask = 0;
 	}
 
-	pdata->direct_key_low_active = of_property_read_bool(np,
-					"marvell,direct-key-low-active");
+	keypad->direct_key_low_active =
+		device_property_read_bool(dev, "marvell,direct-key-low-active");
 
-	prop = of_get_property(np, "marvell,direct-key-map", &proplen);
-	if (!prop)
+	count = device_property_count_u16(dev, "marvell,direct-key-map");
+	if (count <= 0 || count > MAX_DIRECT_KEY_NUM)
 		return -EINVAL;
 
-	if (proplen % sizeof(u16))
-		return -EINVAL;
+	error = device_property_read_u16_array(dev, "marvell,direct-key-map",
+					       &keypad->keycodes[MAX_MATRIX_KEY_NUM],
+					       count);
 
-	size = proplen / sizeof(u16);
-
-	/* Only MAX_DIRECT_KEY_NUM is accepted.*/
-	if (size > MAX_DIRECT_KEY_NUM)
-		return -EINVAL;
-
-	for (i = 0; i < size; i++) {
-		code = be16_to_cpup(prop + i);
-		keypad->keycodes[MAX_MATRIX_KEY_NUM + i] = code;
+	for (i = 0; i < count; i++) {
+		code = keypad->keycodes[MAX_MATRIX_KEY_NUM + i];
 		__set_bit(code, input_dev->keybit);
 	}
 
 	return 0;
 }
 
-static int pxa27x_keypad_rotary_parse_dt(struct pxa27x_keypad *keypad,
-				struct pxa27x_keypad_platform_data *pdata)
+static int pxa27x_keypad_rotary_parse(struct pxa27x_keypad *keypad)
 {
-	const __be32 *prop;
-	int i, relkey_ret;
-	unsigned int code, proplen;
-	const char *rotaryname[2] = {
-			"marvell,rotary0", "marvell,rotary1"};
-	const char relkeyname[] = {"marvell,rotary-rel-key"};
+	static const char * const rotaryname[] = { "marvell,rotary0", "marvell,rotary1" };
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct pxa27x_keypad_rotary *encoder;
+	unsigned int code;
+	int i;
+	int error;
 
-	relkey_ret = of_property_read_u32(np, relkeyname, &code);
-	/* if can read correct rotary key-code, we do not need this. */
-	if (relkey_ret == 0) {
-		unsigned short relcode;
+	error = device_property_read_u32(dev, "marvell,rotary-rel-key", &code);
+	if (!error) {
+		for (i = 0; i < MAX_ROTARY_ENCODERS; i++, code >>= 16) {
+			encoder = &keypad->rotary[i];
+			encoder->enabled = true;
+			encoder->rel_code = code & 0xffff;
+			input_set_capability(input_dev, EV_REL, encoder->rel_code);
+		}
 
-		/* rotary0 taks lower half, rotary1 taks upper half. */
-		relcode = code & 0xffff;
-		pdata->rotary0_rel_code = (code & 0xffff);
-		__set_bit(relcode, input_dev->relbit);
-
-		relcode = code >> 16;
-		pdata->rotary1_rel_code = relcode;
-		__set_bit(relcode, input_dev->relbit);
+		return 0;
 	}
 
-	for (i = 0; i < 2; i++) {
-		prop = of_get_property(np, rotaryname[i], &proplen);
+	for (i = 0; i < MAX_ROTARY_ENCODERS; i++) {
+		encoder = &keypad->rotary[i];
+
 		/*
 		 * If the prop is not set, it means keypad does not need
 		 * initialize the rotaryX.
 		 */
-		if (!prop)
+		if (!device_property_present(dev, rotaryname[i]))
 			continue;
 
-		code = be32_to_cpup(prop);
+		error = device_property_read_u32(dev, rotaryname[i], &code);
+		if (error)
+			return error;
+
 		/*
 		 * Not all up/down key code are valid.
 		 * Now we depends on direct-rel-code.
 		 */
-		if ((!(code & 0xffff) || !(code >> 16)) && relkey_ret) {
-			return relkey_ret;
-		} else {
-			unsigned int n = MAX_MATRIX_KEY_NUM + (i << 1);
-			unsigned short keycode;
+		if (!(code & 0xffff) || !(code >> 16))
+			return -EINVAL;
 
-			keycode = code & 0xffff;
-			keypad->keycodes[n] = keycode;
-			__set_bit(keycode, input_dev->keybit);
+		encoder->enabled = true;
+		encoder->rel_code = -1;
+		encoder->key_codes = &keypad->keycodes[MAX_MATRIX_KEY_NUM + i * 2];
+		encoder->key_codes[0] = code & 0xffff;
+		encoder->key_codes[1] = code >> 16;
 
-			keycode = code >> 16;
-			keypad->keycodes[n + 1] = keycode;
-			__set_bit(keycode, input_dev->keybit);
-
-			if (i == 0)
-				pdata->rotary0_rel_code = -1;
-			else
-				pdata->rotary1_rel_code = -1;
-		}
-		if (i == 0)
-			pdata->enable_rotary0 = 1;
-		else
-			pdata->enable_rotary1 = 1;
+		input_set_capability(input_dev, EV_KEY, encoder->key_codes[0]);
+		input_set_capability(input_dev, EV_KEY, encoder->key_codes[1]);
 	}
-
-	keypad->rotary_rel_code[0] = pdata->rotary0_rel_code;
-	keypad->rotary_rel_code[1] = pdata->rotary1_rel_code;
 
 	return 0;
 }
 
-static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
+static int pxa27x_keypad_parse_properties(struct pxa27x_keypad *keypad)
 {
 	struct input_dev *input_dev = keypad->input_dev;
 	struct device *dev = input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
-	struct pxa27x_keypad_platform_data *pdata;
 	int error;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "failed to allocate memory for pdata\n");
-		return -ENOMEM;
-	}
-
-	error = pxa27x_keypad_matrix_key_parse_dt(keypad, pdata);
+	error = pxa27x_keypad_matrix_key_parse(keypad);
 	if (error) {
 		dev_err(dev, "failed to parse matrix key\n");
 		return error;
 	}
 
-	error = pxa27x_keypad_direct_key_parse_dt(keypad, pdata);
+	error = pxa27x_keypad_direct_key_parse(keypad);
 	if (error) {
 		dev_err(dev, "failed to parse direct key\n");
 		return error;
 	}
 
-	error = pxa27x_keypad_rotary_parse_dt(keypad, pdata);
+	error = pxa27x_keypad_rotary_parse(keypad);
 	if (error) {
 		dev_err(dev, "failed to parse rotary key\n");
 		return error;
 	}
 
-	error = of_property_read_u32(np, "marvell,debounce-interval",
-				     &pdata->debounce_interval);
+	error = device_property_read_u32(dev, "marvell,debounce-interval",
+					 &keypad->debounce_interval);
 	if (error) {
 		dev_err(dev, "failed to parse debounce-interval\n");
 		return error;
@@ -333,91 +315,11 @@ static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
 	 */
 	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
 
-	keypad->pdata = pdata;
-	return 0;
-}
-
-#else
-
-static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
-{
-	dev_info(keypad->input_dev->dev.parent, "missing platform data\n");
-
-	return -EINVAL;
-}
-
-#endif
-
-static int pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
-{
-	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
-	struct input_dev *input_dev = keypad->input_dev;
-	unsigned short keycode;
-	int i;
-	int error;
-
-	error = matrix_keypad_build_keymap(pdata->matrix_keymap_data, NULL,
-					   pdata->matrix_key_rows,
-					   pdata->matrix_key_cols,
-					   keypad->keycodes, input_dev);
-	if (error)
-		return error;
-
-	/*
-	 * The keycodes may not only include matrix keys but also the direct
-	 * or rotary keys.
-	 */
-	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
-
-	/* For direct keys. */
-	for (i = 0; i < pdata->direct_key_num; i++) {
-		keycode = pdata->direct_key_map[i];
-		keypad->keycodes[MAX_MATRIX_KEY_NUM + i] = keycode;
-		__set_bit(keycode, input_dev->keybit);
-	}
-
-	if (pdata->enable_rotary0) {
-		if (pdata->rotary0_up_key && pdata->rotary0_down_key) {
-			keycode = pdata->rotary0_up_key;
-			keypad->keycodes[MAX_MATRIX_KEY_NUM + 0] = keycode;
-			__set_bit(keycode, input_dev->keybit);
-
-			keycode = pdata->rotary0_down_key;
-			keypad->keycodes[MAX_MATRIX_KEY_NUM + 1] = keycode;
-			__set_bit(keycode, input_dev->keybit);
-
-			keypad->rotary_rel_code[0] = -1;
-		} else {
-			keypad->rotary_rel_code[0] = pdata->rotary0_rel_code;
-			__set_bit(pdata->rotary0_rel_code, input_dev->relbit);
-		}
-	}
-
-	if (pdata->enable_rotary1) {
-		if (pdata->rotary1_up_key && pdata->rotary1_down_key) {
-			keycode = pdata->rotary1_up_key;
-			keypad->keycodes[MAX_MATRIX_KEY_NUM + 2] = keycode;
-			__set_bit(keycode, input_dev->keybit);
-
-			keycode = pdata->rotary1_down_key;
-			keypad->keycodes[MAX_MATRIX_KEY_NUM + 3] = keycode;
-			__set_bit(keycode, input_dev->keybit);
-
-			keypad->rotary_rel_code[1] = -1;
-		} else {
-			keypad->rotary_rel_code[1] = pdata->rotary1_rel_code;
-			__set_bit(pdata->rotary1_rel_code, input_dev->relbit);
-		}
-	}
-
-	__clear_bit(KEY_RESERVED, input_dev->keybit);
-
 	return 0;
 }
 
 static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 {
-	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
 	int row, col, num_keys_pressed = 0;
 	u32 new_state[MAX_MATRIX_KEY_COLS];
@@ -435,8 +337,8 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 		row = KPAS_RP(kpas);
 
 		/* if invalid row/col, treat as no key pressed */
-		if (col >= pdata->matrix_key_cols ||
-		    row >= pdata->matrix_key_rows)
+		if (col >= keypad->matrix_key_cols ||
+		    row >= keypad->matrix_key_rows)
 			goto scan;
 
 		new_state[col] = BIT(row);
@@ -459,7 +361,7 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 		new_state[7] = (kpasmkp3 >> 16) & KPASMKP_MKC_MASK;
 	}
 scan:
-	for (col = 0; col < pdata->matrix_key_cols; col++) {
+	for (col = 0; col < keypad->matrix_key_cols; col++) {
 		u32 bits_changed;
 		int code;
 
@@ -467,7 +369,7 @@ scan:
 		if (bits_changed == 0)
 			continue;
 
-		for (row = 0; row < pdata->matrix_key_rows; row++) {
+		for (row = 0; row < keypad->matrix_key_rows; row++) {
 			if ((bits_changed & BIT(row)) == 0)
 				continue;
 
@@ -496,14 +398,16 @@ static inline int rotary_delta(u32 kprec)
 
 static void report_rotary_event(struct pxa27x_keypad *keypad, int r, int delta)
 {
+	struct pxa27x_keypad_rotary *encoder = &keypad->rotary[r];
 	struct input_dev *dev = keypad->input_dev;
 
-	if (delta == 0)
+	if (!encoder->enabled || delta == 0)
 		return;
 
-	if (keypad->rotary_rel_code[r] == -1) {
-		int code = MAX_MATRIX_KEY_NUM + 2 * r + (delta > 0 ? 0 : 1);
-		unsigned char keycode = keypad->keycodes[code];
+	if (encoder->rel_code == -1) {
+		int idx = delta > 0 ? 0 : 1;
+		int code = MAX_MATRIX_KEY_NUM + 2 * r + idx;
+		unsigned char keycode = encoder->key_codes[idx];
 
 		/* simulate a press-n-release */
 		input_event(dev, EV_MSC, MSC_SCAN, code);
@@ -513,30 +417,28 @@ static void report_rotary_event(struct pxa27x_keypad *keypad, int r, int delta)
 		input_report_key(dev, keycode, 0);
 		input_sync(dev);
 	} else {
-		input_report_rel(dev, keypad->rotary_rel_code[r], delta);
+		input_report_rel(dev, encoder->rel_code, delta);
 		input_sync(dev);
 	}
 }
 
 static void pxa27x_keypad_scan_rotary(struct pxa27x_keypad *keypad)
 {
-	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	u32 kprec;
+	int i;
 
 	/* read and reset to default count value */
 	kprec = keypad_readl(KPREC);
 	keypad_writel(KPREC, DEFAULT_KPREC);
 
-	if (pdata->enable_rotary0)
+	for (i = 0; i < MAX_ROTARY_ENCODERS; i++) {
 		report_rotary_event(keypad, 0, rotary_delta(kprec));
-
-	if (pdata->enable_rotary1)
-		report_rotary_event(keypad, 1, rotary_delta(kprec >> 16));
+		kprec >>= 16;
+	}
 }
 
 static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 {
-	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
 	unsigned int new_state;
 	u32 kpdk, bits_changed;
@@ -544,14 +446,14 @@ static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 
 	kpdk = keypad_readl(KPDK);
 
-	if (pdata->enable_rotary0 || pdata->enable_rotary1)
+	if (keypad->rotary[0].enabled || keypad->rotary[1].enabled)
 		pxa27x_keypad_scan_rotary(keypad);
 
 	/*
 	 * The KPDR_DK only output the key pin level, so it relates to board,
 	 * and low level may be active.
 	 */
-	if (pdata->direct_key_low_active)
+	if (keypad->direct_key_low_active)
 		new_state = ~KPDK_DK(kpdk) & keypad->direct_key_mask;
 	else
 		new_state = KPDK_DK(kpdk) & keypad->direct_key_mask;
@@ -561,7 +463,7 @@ static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 	if (bits_changed == 0)
 		return;
 
-	for (i = 0; i < pdata->direct_key_num; i++) {
+	for (i = 0; i < keypad->direct_key_num; i++) {
 		if (bits_changed & BIT(i)) {
 			int code = MAX_MATRIX_KEY_NUM + i;
 
@@ -574,20 +476,10 @@ static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 	keypad->direct_key_state = new_state;
 }
 
-static void clear_wakeup_event(struct pxa27x_keypad *keypad)
-{
-	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
-
-	if (pdata->clear_wakeup_event)
-		(pdata->clear_wakeup_event)();
-}
-
 static irqreturn_t pxa27x_keypad_irq_handler(int irq, void *dev_id)
 {
 	struct pxa27x_keypad *keypad = dev_id;
 	unsigned long kpc = keypad_readl(KPC);
-
-	clear_wakeup_event(keypad);
 
 	if (kpc & KPC_DI)
 		pxa27x_keypad_scan_direct(keypad);
@@ -600,7 +492,6 @@ static irqreturn_t pxa27x_keypad_irq_handler(int irq, void *dev_id)
 
 static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 {
-	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	unsigned int mask = 0, direct_key_num = 0;
 	unsigned long kpc = 0;
 
@@ -608,35 +499,33 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 	keypad_readl(KPC);
 
 	/* enable matrix keys with automatic scan */
-	if (pdata->matrix_key_rows && pdata->matrix_key_cols) {
+	if (keypad->matrix_key_rows && keypad->matrix_key_cols) {
 		kpc |= KPC_ASACT | KPC_MIE | KPC_ME | KPC_MS_ALL;
-		kpc |= KPC_MKRN(pdata->matrix_key_rows) |
-		       KPC_MKCN(pdata->matrix_key_cols);
+		kpc |= KPC_MKRN(keypad->matrix_key_rows) |
+		       KPC_MKCN(keypad->matrix_key_cols);
 	}
 
 	/* enable rotary key, debounce interval same as direct keys */
-	if (pdata->enable_rotary0) {
+	if (keypad->rotary[0].enabled) {
 		mask |= 0x03;
 		direct_key_num = 2;
 		kpc |= KPC_REE0;
 	}
 
-	if (pdata->enable_rotary1) {
+	if (keypad->rotary[1].enabled) {
 		mask |= 0x0c;
 		direct_key_num = 4;
 		kpc |= KPC_REE1;
 	}
 
-	if (pdata->direct_key_num > direct_key_num)
-		direct_key_num = pdata->direct_key_num;
+	if (keypad->direct_key_num > direct_key_num)
+		direct_key_num = keypad->direct_key_num;
 
 	/*
 	 * Direct keys usage may not start from KP_DKIN0, check the platfrom
 	 * mask data to config the specific.
 	 */
-	if (pdata->direct_key_mask)
-		keypad->direct_key_mask = pdata->direct_key_mask;
-	else
+	if (!keypad->direct_key_mask)
 		keypad->direct_key_mask = GENMASK(direct_key_num - 1, 0) & ~mask;
 
 	/* enable direct key */
@@ -645,7 +534,7 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 
 	keypad_writel(KPC, kpc | KPC_RE_ZERO_DEB);
 	keypad_writel(KPREC, DEFAULT_KPREC);
-	keypad_writel(KPKDI, pdata->debounce_interval);
+	keypad_writel(KPKDI, keypad->debounce_interval);
 }
 
 static int pxa27x_keypad_open(struct input_dev *dev)
@@ -719,19 +608,12 @@ static int pxa27x_keypad_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(pxa27x_keypad_pm_ops,
 				pxa27x_keypad_suspend, pxa27x_keypad_resume);
 
-
 static int pxa27x_keypad_probe(struct platform_device *pdev)
 {
-	const struct pxa27x_keypad_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
 	struct pxa27x_keypad *keypad;
 	struct input_dev *input_dev;
-	int irq, error;
-
-	/* Driver need build keycode from device tree or pdata */
-	if (!np && !pdata)
-		return -EINVAL;
+	int irq;
+	int error;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -746,7 +628,6 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	if (!input_dev)
 		return -ENOMEM;
 
-	keypad->pdata = pdata;
 	keypad->input_dev = input_dev;
 	keypad->irq = irq;
 
@@ -775,27 +656,10 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	if (pdata) {
-		error = pxa27x_keypad_build_keycode(keypad);
-	} else {
-		error = pxa27x_keypad_build_keycode_from_dt(keypad);
-		/*
-		 * Data that we get from DT resides in dynamically
-		 * allocated memory so we need to update our pdata
-		 * pointer.
-		 */
-		pdata = keypad->pdata;
-	}
+	error = pxa27x_keypad_parse_properties(keypad);
 	if (error) {
-		dev_err(&pdev->dev, "failed to build keycode\n");
+		dev_err(&pdev->dev, "failed to parse keypad properties\n");
 		return error;
-	}
-
-	keypad->row_shift = get_count_order(pdata->matrix_key_cols);
-
-	if ((pdata->enable_rotary0 && keypad->rotary_rel_code[0] != -1) ||
-	    (pdata->enable_rotary1 && keypad->rotary_rel_code[1] != -1)) {
-		input_dev->evbit[0] |= BIT_MASK(EV_REL);
 	}
 
 	error = devm_request_irq(&pdev->dev, irq, pxa27x_keypad_irq_handler,
