@@ -573,15 +573,15 @@ void aarch64_get_supported_page_sizes(uint32_t ipa, uint32_t *ipa4k,
 	err = ioctl(vcpu_fd, KVM_GET_ONE_REG, &reg);
 	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_GET_ONE_REG, vcpu_fd));
 
-	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN4), val);
+	gran = FIELD_GET(ID_AA64MMFR0_EL1_TGRAN4, val);
 	*ipa4k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN4_NI,
 					ID_AA64MMFR0_EL1_TGRAN4_52_BIT);
 
-	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN64), val);
+	gran = FIELD_GET(ID_AA64MMFR0_EL1_TGRAN64, val);
 	*ipa64k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN64_NI,
 					ID_AA64MMFR0_EL1_TGRAN64_IMP);
 
-	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN16), val);
+	gran = FIELD_GET(ID_AA64MMFR0_EL1_TGRAN16, val);
 	*ipa16k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN16_NI,
 					ID_AA64MMFR0_EL1_TGRAN16_52_BIT);
 

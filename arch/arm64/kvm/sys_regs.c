@@ -1615,18 +1615,18 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		break;
 	case SYS_ID_AA64ISAR1_EL1:
 		if (!vcpu_has_ptrauth(vcpu))
-			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_APA) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_API) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_GPA) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_GPI));
+			val &= ~(ID_AA64ISAR1_EL1_APA |
+				 ID_AA64ISAR1_EL1_API |
+				 ID_AA64ISAR1_EL1_GPA |
+				 ID_AA64ISAR1_EL1_GPI);
 		break;
 	case SYS_ID_AA64ISAR2_EL1:
 		if (!vcpu_has_ptrauth(vcpu))
-			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_APA3) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_GPA3));
+			val &= ~(ID_AA64ISAR2_EL1_APA3 |
+				 ID_AA64ISAR2_EL1_GPA3);
 		if (!cpus_have_final_cap(ARM64_HAS_WFXT) ||
 		    has_broken_cntvoff())
-			val &= ~ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_WFxT);
+			val &= ~ID_AA64ISAR2_EL1_WFxT;
 		break;
 	case SYS_ID_AA64ISAR3_EL1:
 		val &= ID_AA64ISAR3_EL1_FPRCVT | ID_AA64ISAR3_EL1_FAMINMAX;
@@ -1642,7 +1642,7 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		       ID_AA64MMFR3_EL1_S1PIE;
 		break;
 	case SYS_ID_MMFR4_EL1:
-		val &= ~ARM64_FEATURE_MASK(ID_MMFR4_EL1_CCIDX);
+		val &= ~ID_MMFR4_EL1_CCIDX;
 		break;
 	}
 
@@ -1828,22 +1828,22 @@ static u64 sanitise_id_aa64pfr1_el1(const struct kvm_vcpu *vcpu, u64 val)
 	u64 pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
 
 	if (!kvm_has_mte(vcpu->kvm)) {
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac);
+		val &= ~ID_AA64PFR1_EL1_MTE;
+		val &= ~ID_AA64PFR1_EL1_MTE_frac;
 	}
 
 	if (!(cpus_have_final_cap(ARM64_HAS_RASV1P1_EXTN) &&
 	      SYS_FIELD_GET(ID_AA64PFR0_EL1, RAS, pfr0) == ID_AA64PFR0_EL1_RAS_IMP))
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RAS_frac);
+		val &= ~ID_AA64PFR1_EL1_RAS_frac;
 
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SME);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RNDR_trap);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_NMI);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_GCS);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_THE);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTEX);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_PFAR);
-	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MPAM_frac);
+	val &= ~ID_AA64PFR1_EL1_SME;
+	val &= ~ID_AA64PFR1_EL1_RNDR_trap;
+	val &= ~ID_AA64PFR1_EL1_NMI;
+	val &= ~ID_AA64PFR1_EL1_GCS;
+	val &= ~ID_AA64PFR1_EL1_THE;
+	val &= ~ID_AA64PFR1_EL1_MTEX;
+	val &= ~ID_AA64PFR1_EL1_PFAR;
+	val &= ~ID_AA64PFR1_EL1_MPAM_frac;
 
 	return val;
 }

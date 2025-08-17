@@ -594,8 +594,8 @@ static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
 	 */
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
 
-	mte = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE), val);
-	mte_frac = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac), val);
+	mte = FIELD_GET(ID_AA64PFR1_EL1_MTE, val);
+	mte_frac = FIELD_GET(ID_AA64PFR1_EL1_MTE_frac, val);
 	if (mte != ID_AA64PFR1_EL1_MTE_MTE2 ||
 	    mte_frac != ID_AA64PFR1_EL1_MTE_frac_NI) {
 		ksft_test_result_skip("MTE_ASYNC or MTE_ASYMM are supported, nothing to test\n");
@@ -612,7 +612,7 @@ static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
 	}
 
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
-	mte_frac = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac), val);
+	mte_frac = FIELD_GET(ID_AA64PFR1_EL1_MTE_frac, val);
 	if (mte_frac == ID_AA64PFR1_EL1_MTE_frac_NI)
 		ksft_test_result_pass("ID_AA64PFR1_EL1.MTE_frac=0 accepted and still 0xF\n");
 	else
@@ -774,7 +774,7 @@ int main(void)
 
 	/* Check for AARCH64 only system */
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
-	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL0), val);
+	el0 = FIELD_GET(ID_AA64PFR0_EL1_EL0, val);
 	aarch64_only = (el0 == ID_AA64PFR0_EL1_EL0_IMP);
 
 	ksft_print_header();
