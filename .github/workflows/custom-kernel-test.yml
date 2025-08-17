@@ -114,6 +114,11 @@ jobs:
             cat > /persist/kexec-runner.sh << 'EOF'
             #!/bin/bash
             
+            # Ensure filesystems are mounted read-write
+            echo "Ensuring filesystems are read-write..." 
+            mount -o remount,rw /
+            mount -o remount,rw /persist 2>/dev/null || true
+            
             # Log kexec success
             echo "========================================" | tee -a /var/log/kexec-setup.log
             echo "✅ CUSTOM KERNEL KEXEC SUCCESSFUL!" | tee -a /var/log/kexec-setup.log
