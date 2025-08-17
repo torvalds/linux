@@ -74,9 +74,9 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 static int
 hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
-	bool move_error = false, poll_error = false, drain_error = false;
 	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
 	struct mlx5hws_matcher *matcher = bwc_matcher->matcher;
+	int drain_error = 0, move_error = 0, poll_error = 0;
 	u16 bwc_queues = mlx5hws_bwc_queues(ctx);
 	struct mlx5hws_rule_attr rule_attr;
 	struct mlx5hws_bwc_rule *bwc_rule;
@@ -99,11 +99,15 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 			ret = mlx5hws_matcher_resize_rule_move(matcher,
 							       bwc_rule->rule,
 							       &rule_attr);
-			if (unlikely(ret && !move_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				move_error = true;
+			if (unlikely(ret)) {
+				if (!move_error) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
+						    ret);
+					move_error = ret;
+				}
+				/* Rule wasn't queued, no need to poll */
+				continue;
 			}
 
 			pending_rules++;
@@ -111,11 +115,19 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 						     rule_attr.queue_id,
 						     &pending_rules,
 						     false);
-			if (unlikely(ret && !poll_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: poll failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				poll_error = true;
+			if (unlikely(ret)) {
+				if (ret == -ETIMEDOUT) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule: timeout polling for completions (%d), aborting rehash\n",
+						    ret);
+					return ret;
+				}
+				if (!poll_error) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule: polling for completions failed (%d), attempting to move rest of the rules\n",
+						    ret);
+					poll_error = ret;
+				}
 			}
 		}
 
@@ -126,17 +138,30 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 						     rule_attr.queue_id,
 						     &pending_rules,
 						     true);
-			if (unlikely(ret && !drain_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: drain failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				drain_error = true;
+			if (unlikely(ret)) {
+				if (ret == -ETIMEDOUT) {
+					mlx5hws_err(ctx,
+						    "Moving bwc rule: timeout draining completions (%d), aborting rehash\n",
+						    ret);
+					return ret;
+				}
+				if (!drain_error) {
+					mlx5hws_err(ctx,
+						    "Moving bwc rule: drain failed (%d), attempting to move rest of the rules\n",
+						    ret);
+					drain_error = ret;
+				}
 			}
 		}
 	}
 
-	if (move_error || poll_error || drain_error)
-		ret = -EINVAL;
+	/* Return the first error that happened */
+	if (unlikely(move_error))
+		return move_error;
+	if (unlikely(poll_error))
+		return poll_error;
+	if (unlikely(drain_error))
+		return drain_error;
 
 	return ret;
 }
