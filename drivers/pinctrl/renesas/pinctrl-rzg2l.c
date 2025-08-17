@@ -3165,6 +3165,8 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
 	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
 	struct rzg2l_pinctrl_reg_cache *cache = pctrl->cache;
+	unsigned long flags;
+	u8 pwpr;
 	int ret;
 
 	if (!atomic_read(&pctrl->wakeup_path)) {
@@ -3174,7 +3176,16 @@ static int rzg2l_pinctrl_resume_noirq(struct device *dev)
 	}
 
 	writeb(cache->qspi, pctrl->base + QSPI);
+	if (pctrl->data->hwcfg->oen_pwpr_lock) {
+		spin_lock_irqsave(&pctrl->lock, flags);
+		pwpr = readb(pctrl->base + regs->pwpr);
+		writeb(pwpr | PWPR_REGWE_B, pctrl->base + regs->pwpr);
+	}
 	writeb(cache->oen, pctrl->base + pctrl->data->hwcfg->regs.oen);
+	if (pctrl->data->hwcfg->oen_pwpr_lock) {
+		writeb(pwpr & ~PWPR_REGWE_B, pctrl->base + regs->pwpr);
+		spin_unlock_irqrestore(&pctrl->lock, flags);
+	}
 	for (u8 i = 0; i < 2; i++) {
 		if (regs->sd_ch)
 			writeb(cache->sd_ch[i], pctrl->base + SD_CH(regs->sd_ch, i));
