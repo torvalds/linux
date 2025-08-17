@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Microsemi Corporation
  */
+#include <linux/string.h>
 #include <asm/machine.h>
 #include <asm/prom.h>
 
@@ -41,7 +42,7 @@ static __init bool ocelot_detect(void)
 
 		if (prom_argc > 1 && strlen(prom_argv[1]) > 0)
 			/* ignore all built-in args if any f/w args given */
-			strcpy(arcs_cmdline, prom_argv[1]);
+			strscpy(arcs_cmdline, prom_argv[1]);
 	}
 
 	return true;
