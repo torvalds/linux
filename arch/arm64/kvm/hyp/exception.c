@@ -22,36 +22,28 @@
 
 static inline u64 __vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 {
-	u64 val;
-
-	if (unlikely(vcpu_has_nv(vcpu)))
+	if (has_vhe())
 		return vcpu_read_sys_reg(vcpu, reg);
-	else if (vcpu_get_flag(vcpu, SYSREGS_ON_CPU) &&
-		 __vcpu_read_sys_reg_from_cpu(reg, &val))
-		return val;
 
 	return __vcpu_sys_reg(vcpu, reg);
 }
 
 static inline void __vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 {
-	if (unlikely(vcpu_has_nv(vcpu)))
+	if (has_vhe())
 		vcpu_write_sys_reg(vcpu, val, reg);
-	else if (!vcpu_get_flag(vcpu, SYSREGS_ON_CPU) ||
-		 !__vcpu_write_sys_reg_to_cpu(val, reg))
+	else
 		__vcpu_assign_sys_reg(vcpu, reg, val);
 }
 
 static void __vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long target_mode,
 			      u64 val)
 {
-	if (unlikely(vcpu_has_nv(vcpu))) {
+	if (has_vhe()) {
 		if (target_mode == PSR_MODE_EL1h)
 			vcpu_write_sys_reg(vcpu, val, SPSR_EL1);
 		else
 			vcpu_write_sys_reg(vcpu, val, SPSR_EL2);
-	} else if (has_vhe()) {
-		write_sysreg_el1(val, SYS_SPSR);
 	} else {
 		__vcpu_assign_sys_reg(vcpu, SPSR_EL1, val);
 	}
