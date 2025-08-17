@@ -1748,7 +1748,7 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 				nr_pages = folio_large_nr_pages(folio);
 				if (level == PGTABLE_LEVEL_PMD)
 					nr_pmdmapped = nr_pages;
-				nr = nr_pages - (nr & FOLIO_PAGES_MAPPED);
+				nr = nr_pages - nr;
 				/* Raced ahead of another remove and an add? */
 				if (unlikely(nr < 0))
 					nr = 0;
