@@ -419,6 +419,22 @@ static void damos_test_new_filter(struct kunit *test)
 	damos_destroy_filter(filter);
 }
 
+static void damos_test_commit_filter(struct kunit *test)
+{
+	struct damos_filter *src_filter = damos_new_filter(
+		DAMOS_FILTER_TYPE_ANON, true, true);
+	struct damos_filter *dst_filter = damos_new_filter(
+		DAMOS_FILTER_TYPE_ACTIVE, false, false);
+
+	damos_commit_filter(dst_filter, src_filter);
+	KUNIT_EXPECT_EQ(test, dst_filter->type, src_filter->type);
+	KUNIT_EXPECT_EQ(test, dst_filter->matching, src_filter->matching);
+	KUNIT_EXPECT_EQ(test, dst_filter->allow, src_filter->allow);
+
+	damos_destroy_filter(src_filter);
+	damos_destroy_filter(dst_filter);
+}
+
 static void damos_test_filter_out(struct kunit *test)
 {
 	struct damon_target *t;
@@ -594,6 +610,7 @@ static struct kunit_case damon_test_cases[] = {
 	KUNIT_CASE(damon_test_set_attrs),
 	KUNIT_CASE(damon_test_moving_sum),
 	KUNIT_CASE(damos_test_new_filter),
+	KUNIT_CASE(damos_test_commit_filter),
 	KUNIT_CASE(damos_test_filter_out),
 	KUNIT_CASE(damon_test_feed_loop_next_input),
 	KUNIT_CASE(damon_test_set_filters_default_reject),
