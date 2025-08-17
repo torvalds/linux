@@ -199,12 +199,16 @@ jobs:
             echo "Preparing kexec with custom kernel: $VMLINUZ" | tee -a /var/log/kexec-setup.log
             echo "Preparing kexec with custom initrd: $INITRD" | tee -a /var/log/kexec-setup.log
 
-            # Get current kernel command line
+            # Get current kernel command line and enhance it for better boot reliability
             CURRENT_CMDLINE="$(cat /proc/cmdline)"
             echo "Current cmdline: $CURRENT_CMDLINE" | tee -a /var/log/kexec-setup.log
+            
+            # Add kernel parameters to improve boot reliability without changing init
+            ENHANCED_CMDLINE="$CURRENT_CMDLINE systemd.mask=multipathd.service systemd.mask=boot-efi.mount"
+            echo "Enhanced cmdline: $ENHANCED_CMDLINE" | tee -a /var/log/kexec-setup.log
 
             # Kexec into our custom kernel
-            if ! kexec -l "$VMLINUZ" --initrd="$INITRD" --append="$CURRENT_CMDLINE"; then
+            if ! kexec -l "$VMLINUZ" --initrd="$INITRD" --append="$ENHANCED_CMDLINE"; then
                 echo "Failed to load custom kernel for kexec" | tee -a /var/log/kexec-setup.log
                 exit 1
             fi
