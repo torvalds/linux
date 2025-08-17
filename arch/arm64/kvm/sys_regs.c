@@ -216,6 +216,82 @@ static void locate_register(const struct kvm_vcpu *vcpu, enum vcpu_sysreg reg,
 	}
 }
 
+static u64 read_sr_from_cpu(enum vcpu_sysreg reg)
+{
+	u64 val = 0x8badf00d8badf00d;
+
+	switch (reg) {
+	case SCTLR_EL1:		val = read_sysreg_s(SYS_SCTLR_EL12);	break;
+	case CPACR_EL1:		val = read_sysreg_s(SYS_CPACR_EL12);	break;
+	case TTBR0_EL1:		val = read_sysreg_s(SYS_TTBR0_EL12);	break;
+	case TTBR1_EL1:		val = read_sysreg_s(SYS_TTBR1_EL12);	break;
+	case TCR_EL1:		val = read_sysreg_s(SYS_TCR_EL12);	break;
+	case TCR2_EL1:		val = read_sysreg_s(SYS_TCR2_EL12);	break;
+	case PIR_EL1:		val = read_sysreg_s(SYS_PIR_EL12);	break;
+	case PIRE0_EL1:		val = read_sysreg_s(SYS_PIRE0_EL12);	break;
+	case POR_EL1:		val = read_sysreg_s(SYS_POR_EL12);	break;
+	case ESR_EL1:		val = read_sysreg_s(SYS_ESR_EL12);	break;
+	case AFSR0_EL1:		val = read_sysreg_s(SYS_AFSR0_EL12);	break;
+	case AFSR1_EL1:		val = read_sysreg_s(SYS_AFSR1_EL12);	break;
+	case FAR_EL1:		val = read_sysreg_s(SYS_FAR_EL12);	break;
+	case MAIR_EL1:		val = read_sysreg_s(SYS_MAIR_EL12);	break;
+	case VBAR_EL1:		val = read_sysreg_s(SYS_VBAR_EL12);	break;
+	case CONTEXTIDR_EL1:	val = read_sysreg_s(SYS_CONTEXTIDR_EL12);break;
+	case AMAIR_EL1:		val = read_sysreg_s(SYS_AMAIR_EL12);	break;
+	case CNTKCTL_EL1:	val = read_sysreg_s(SYS_CNTKCTL_EL12);	break;
+	case ELR_EL1:		val = read_sysreg_s(SYS_ELR_EL12);	break;
+	case SPSR_EL1:		val = read_sysreg_s(SYS_SPSR_EL12);	break;
+	case ZCR_EL1:		val = read_sysreg_s(SYS_ZCR_EL12);	break;
+	case SCTLR2_EL1:	val = read_sysreg_s(SYS_SCTLR2_EL12);	break;
+	case TPIDR_EL0:		val = read_sysreg_s(SYS_TPIDR_EL0);	break;
+	case TPIDRRO_EL0:	val = read_sysreg_s(SYS_TPIDRRO_EL0);	break;
+	case TPIDR_EL1:		val = read_sysreg_s(SYS_TPIDR_EL1);	break;
+	case PAR_EL1:		val = read_sysreg_par();		break;
+	case DACR32_EL2:	val = read_sysreg_s(SYS_DACR32_EL2);	break;
+	case IFSR32_EL2:	val = read_sysreg_s(SYS_IFSR32_EL2);	break;
+	case DBGVCR32_EL2:	val = read_sysreg_s(SYS_DBGVCR32_EL2);	break;
+	default:		WARN_ON_ONCE(1);
+	}
+
+	return val;
+}
+
+static void write_sr_to_cpu(enum vcpu_sysreg reg, u64 val)
+{
+	switch (reg) {
+	case SCTLR_EL1:		write_sysreg_s(val, SYS_SCTLR_EL12);	break;
+	case CPACR_EL1:		write_sysreg_s(val, SYS_CPACR_EL12);	break;
+	case TTBR0_EL1:		write_sysreg_s(val, SYS_TTBR0_EL12);	break;
+	case TTBR1_EL1:		write_sysreg_s(val, SYS_TTBR1_EL12);	break;
+	case TCR_EL1:		write_sysreg_s(val, SYS_TCR_EL12);	break;
+	case TCR2_EL1:		write_sysreg_s(val, SYS_TCR2_EL12);	break;
+	case PIR_EL1:		write_sysreg_s(val, SYS_PIR_EL12);	break;
+	case PIRE0_EL1:		write_sysreg_s(val, SYS_PIRE0_EL12);	break;
+	case POR_EL1:		write_sysreg_s(val, SYS_POR_EL12);	break;
+	case ESR_EL1:		write_sysreg_s(val, SYS_ESR_EL12);	break;
+	case AFSR0_EL1:		write_sysreg_s(val, SYS_AFSR0_EL12);	break;
+	case AFSR1_EL1:		write_sysreg_s(val, SYS_AFSR1_EL12);	break;
+	case FAR_EL1:		write_sysreg_s(val, SYS_FAR_EL12);	break;
+	case MAIR_EL1:		write_sysreg_s(val, SYS_MAIR_EL12);	break;
+	case VBAR_EL1:		write_sysreg_s(val, SYS_VBAR_EL12);	break;
+	case CONTEXTIDR_EL1:	write_sysreg_s(val, SYS_CONTEXTIDR_EL12);break;
+	case AMAIR_EL1:		write_sysreg_s(val, SYS_AMAIR_EL12);	break;
+	case CNTKCTL_EL1:	write_sysreg_s(val, SYS_CNTKCTL_EL12);	break;
+	case ELR_EL1:		write_sysreg_s(val, SYS_ELR_EL12);	break;
+	case SPSR_EL1:		write_sysreg_s(val, SYS_SPSR_EL12);	break;
+	case ZCR_EL1:		write_sysreg_s(val, SYS_ZCR_EL12);	break;
+	case SCTLR2_EL1:	write_sysreg_s(val, SYS_SCTLR2_EL12);	break;
+	case TPIDR_EL0:		write_sysreg_s(val, SYS_TPIDR_EL0);	break;
+	case TPIDRRO_EL0:	write_sysreg_s(val, SYS_TPIDRRO_EL0);	break;
+	case TPIDR_EL1:		write_sysreg_s(val, SYS_TPIDR_EL1);	break;
+	case PAR_EL1:		write_sysreg_s(val, SYS_PAR_EL1);	break;
+	case DACR32_EL2:	write_sysreg_s(val, SYS_DACR32_EL2);	break;
+	case IFSR32_EL2:	write_sysreg_s(val, SYS_IFSR32_EL2);	break;
+	case DBGVCR32_EL2:	write_sysreg_s(val, SYS_DBGVCR32_EL2);	break;
+	default:		WARN_ON_ONCE(1);
+	}
+}
+
 u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, enum vcpu_sysreg reg)
 {
 	struct sr_loc loc = {};
@@ -246,13 +322,13 @@ u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, enum vcpu_sysreg reg)
 
 	if (loc.loc & SR_LOC_LOADED) {
 		enum vcpu_sysreg map_reg = reg;
-		u64 val = 0x8badf00d8badf00d;
 
 		if (loc.loc & SR_LOC_MAPPED)
 			map_reg = loc.map_reg;
 
-		if (!(loc.loc & SR_LOC_XLATED) &&
-		    __vcpu_read_sys_reg_from_cpu(map_reg, &val)) {
+		if (!(loc.loc & SR_LOC_XLATED)) {
+			u64 val = read_sr_from_cpu(map_reg);
+
 			if (reg >= __SANITISED_REG_START__)
 				val = kvm_vcpu_apply_reg_masks(vcpu, reg, val);
 
@@ -304,7 +380,7 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, enum vcpu_sysreg reg)
 		else
 			xlated_val = val;
 
-		__vcpu_write_sys_reg_to_cpu(xlated_val, map_reg);
+		write_sr_to_cpu(map_reg, xlated_val);
 
 		/*
 		 * Fall through to write the backing store anyway, which
