@@ -12,7 +12,8 @@
  * on some suggestions by Nicolas Pitre <nico@fluxnic.net>.
  */
 
-
+#include <linux/bits.h>
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -30,62 +31,71 @@
 /*
  * Keypad Controller registers
  */
-#define KPC             0x0000 /* Keypad Control register */
-#define KPDK            0x0008 /* Keypad Direct Key register */
-#define KPREC           0x0010 /* Keypad Rotary Encoder register */
-#define KPMK            0x0018 /* Keypad Matrix Key register */
-#define KPAS            0x0020 /* Keypad Automatic Scan register */
+#define KPC		0x0000 /* Keypad Control register */
+#define KPDK		0x0008 /* Keypad Direct Key register */
+#define KPREC		0x0010 /* Keypad Rotary Encoder register */
+#define KPMK		0x0018 /* Keypad Matrix Key register */
+#define KPAS		0x0020 /* Keypad Automatic Scan register */
 
 /* Keypad Automatic Scan Multiple Key Presser register 0-3 */
-#define KPASMKP0        0x0028
-#define KPASMKP1        0x0030
-#define KPASMKP2        0x0038
-#define KPASMKP3        0x0040
-#define KPKDI           0x0048
+#define KPASMKP0	0x0028
+#define KPASMKP1	0x0030
+#define KPASMKP2	0x0038
+#define KPASMKP3	0x0040
+#define KPKDI		0x0048
 
 /* bit definitions */
-#define KPC_MKRN(n)	((((n) - 1) & 0x7) << 26) /* matrix key row number */
-#define KPC_MKCN(n)	((((n) - 1) & 0x7) << 23) /* matrix key column number */
-#define KPC_DKN(n)	((((n) - 1) & 0x7) << 6)  /* direct key number */
+#define KPC_MKRN_MASK	GENMASK(28, 26)
+#define KPC_MKCN_MASK	GENMASK(25, 23)
+#define KPC_DKN_MASK	GENMASK(8, 6)
+#define KPC_MKRN(n)	FIELD_PREP(KPC_MKRN_MASK, (n) - 1)
+#define KPC_MKCN(n)	FIELD_PREP(KPC_MKCN_MASK, (n) - 1)
+#define KPC_DKN(n)	FIELD_PREP(KPC_DKN_MASK, (n) - 1)
 
-#define KPC_AS          (0x1 << 30)  /* Automatic Scan bit */
-#define KPC_ASACT       (0x1 << 29)  /* Automatic Scan on Activity */
-#define KPC_MI          (0x1 << 22)  /* Matrix interrupt bit */
-#define KPC_IMKP        (0x1 << 21)  /* Ignore Multiple Key Press */
+#define KPC_AS		BIT(30)  /* Automatic Scan bit */
+#define KPC_ASACT	BIT(29)  /* Automatic Scan on Activity */
+#define KPC_MI		BIT(22)  /* Matrix interrupt bit */
+#define KPC_IMKP	BIT(21)  /* Ignore Multiple Key Press */
 
-#define KPC_MS(n)	(0x1 << (13 + (n)))	/* Matrix scan line 'n' */
-#define KPC_MS_ALL      (0xff << 13)
+#define KPC_MS(n)	BIT(13 + (n))	/* Matrix scan line 'n' */
+#define KPC_MS_ALL	GENMASK(20, 13)
 
-#define KPC_ME          (0x1 << 12)  /* Matrix Keypad Enable */
-#define KPC_MIE         (0x1 << 11)  /* Matrix Interrupt Enable */
-#define KPC_DK_DEB_SEL	(0x1 <<  9)  /* Direct Keypad Debounce Select */
-#define KPC_DI          (0x1 <<  5)  /* Direct key interrupt bit */
-#define KPC_RE_ZERO_DEB (0x1 <<  4)  /* Rotary Encoder Zero Debounce */
-#define KPC_REE1        (0x1 <<  3)  /* Rotary Encoder1 Enable */
-#define KPC_REE0        (0x1 <<  2)  /* Rotary Encoder0 Enable */
-#define KPC_DE          (0x1 <<  1)  /* Direct Keypad Enable */
-#define KPC_DIE         (0x1 <<  0)  /* Direct Keypad interrupt Enable */
+#define KPC_ME		BIT(12)  /* Matrix Keypad Enable */
+#define KPC_MIE		BIT(11)  /* Matrix Interrupt Enable */
+#define KPC_DK_DEB_SEL	BIT(9)   /* Direct Keypad Debounce Select */
+#define KPC_DI		BIT(5)   /* Direct key interrupt bit */
+#define KPC_RE_ZERO_DEB	BIT(4)   /* Rotary Encoder Zero Debounce */
+#define KPC_REE1	BIT(3)   /* Rotary Encoder1 Enable */
+#define KPC_REE0	BIT(2)   /* Rotary Encoder0 Enable */
+#define KPC_DE		BIT(1)   /* Direct Keypad Enable */
+#define KPC_DIE		BIT(0)   /* Direct Keypad interrupt Enable */
 
-#define KPDK_DKP        (0x1 << 31)
-#define KPDK_DK(n)	((n) & 0xff)
+#define KPDK_DKP	BIT(31)
+#define KPDK_DK_MASK	GENMASK(7, 0)
+#define KPDK_DK(n)	FIELD_GET(KPDK_DK_MASK, n)
 
-#define KPREC_OF1       (0x1 << 31)
-#define kPREC_UF1       (0x1 << 30)
-#define KPREC_OF0       (0x1 << 15)
-#define KPREC_UF0       (0x1 << 14)
+#define KPREC_OF1	BIT(31)
+#define KPREC_UF1	BIT(30)
+#define KPREC_OF0	BIT(15)
+#define KPREC_UF0	BIT(14)
 
-#define KPREC_RECOUNT0(n)	((n) & 0xff)
-#define KPREC_RECOUNT1(n)	(((n) >> 16) & 0xff)
+#define KPREC_RECOUNT0_MASK	GENMASK(7, 0)
+#define KPREC_RECOUNT1_MASK	GENMASK(23, 16)
+#define KPREC_RECOUNT0(n)	FIELD_GET(KPREC_RECOUNT0_MASK, n)
+#define KPREC_RECOUNT1(n)	FIELD_GET(KPREC_RECOUNT1_MASK, n)
 
-#define KPMK_MKP        (0x1 << 31)
-#define KPAS_SO         (0x1 << 31)
-#define KPASMKPx_SO     (0x1 << 31)
+#define KPMK_MKP	BIT(31)
+#define KPAS_SO		BIT(31)
+#define KPASMKPx_SO	BIT(31)
 
-#define KPAS_MUKP(n)	(((n) >> 26) & 0x1f)
-#define KPAS_RP(n)	(((n) >> 4) & 0xf)
-#define KPAS_CP(n)	((n) & 0xf)
+#define KPAS_MUKP_MASK	GENMASK(30, 26)
+#define KPAS_RP_MASK	GENMASK(7, 4)
+#define KPAS_CP_MASK	GENMASK(3, 0)
+#define KPAS_MUKP(n)	FIELD_GET(KPAS_MUKP_MASK, n)
+#define KPAS_RP(n)	FIELD_GET(KPAS_RP_MASK, n)
+#define KPAS_CP(n)	FIELD_GET(KPAS_CP_MASK, n)
 
-#define KPASMKP_MKC_MASK	(0xff)
+#define KPASMKP_MKC_MASK	GENMASK(7, 0)
 
 #define keypad_readl(off)	__raw_readl(keypad->mmio_base + (off))
 #define keypad_writel(off, v)	__raw_writel((v), keypad->mmio_base + (off))
@@ -429,7 +439,7 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 		    row >= pdata->matrix_key_rows)
 			goto scan;
 
-		new_state[col] = (1 << row);
+		new_state[col] = BIT(row);
 		goto scan;
 	}
 
@@ -458,14 +468,14 @@ scan:
 			continue;
 
 		for (row = 0; row < pdata->matrix_key_rows; row++) {
-			if ((bits_changed & (1 << row)) == 0)
+			if ((bits_changed & BIT(row)) == 0)
 				continue;
 
 			code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
 
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(input_dev, keypad->keycodes[code],
-					 new_state[col] & (1 << row));
+					 new_state[col] & BIT(row));
 		}
 	}
 	input_sync(input_dev);
@@ -552,12 +562,12 @@ static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 		return;
 
 	for (i = 0; i < pdata->direct_key_num; i++) {
-		if (bits_changed & (1 << i)) {
+		if (bits_changed & BIT(i)) {
 			int code = MAX_MATRIX_KEY_NUM + i;
 
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(input_dev, keypad->keycodes[code],
-					 new_state & (1 << i));
+					 new_state & BIT(i));
 		}
 	}
 	input_sync(input_dev);
@@ -627,7 +637,7 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 	if (pdata->direct_key_mask)
 		keypad->direct_key_mask = pdata->direct_key_mask;
 	else
-		keypad->direct_key_mask = ((1 << direct_key_num) - 1) & ~mask;
+		keypad->direct_key_mask = GENMASK(direct_key_num - 1, 0) & ~mask;
 
 	/* enable direct key */
 	if (direct_key_num)
