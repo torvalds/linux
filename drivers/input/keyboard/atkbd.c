@@ -74,6 +74,7 @@ MODULE_PARM_DESC(terminal, "Enable break codes on an IBM Terminal keyboard conne
  */
 
 #define ATKBD_KEYMAP_SIZE	512
+#define AMITS_KEYBOARD
 
 static const unsigned short atkbd_set2_keycode[ATKBD_KEYMAP_SIZE] = {
 
@@ -82,6 +83,27 @@ static const unsigned short atkbd_set2_keycode[ATKBD_KEYMAP_SIZE] = {
 /* XXX: need a more general approach */
 
 #include "hpps2atkbd.h"	/* include the keyboard scancodes */
+
+#elif defined (AMITS_KEYBOARD)
+	  0, 67, 65, 63, 61, 59, 60, 88,  0, 68, 66, 64, 62, 15, 41,117,
+	  0, 56, 42, 93, 29, 16,  2,  0,  0,  0, 44, 31, 30, 17,  3,  0,
+	  0, 46, 45, 32, 18,  5,  4, 95,  0, 57, 47, 33, 20, 19,  6,183,
+	  0, 49, 48, 35, 34, 21,  7,184,  0,  0, 50, 36, 22,  8,  9,185,
+	  0, 51, 37, 23, 24, 11, 10,  0,  0, 52, 53, 38, 39, 25, 12,  0,
+	  0, 89, 40,  0, 26, 13,  0,193, 58, 54, 28, 27,  0, 43,  0, 85,
+	  0, 86, 91, 90, 92,  0, 14, 94,  0, 79,124, 75, 71,121,  0,  0,
+	 82, 83, 80, 76, 77, 72,  1, 69, 87, 78, 81, 74, 55, 73, 70, 99,
+
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	217,100,255,  0, 97,165,  0,  0,156,  0,  0,  0,  0,  0,  0,125,
+	173,114,  0,113,  0,  0,  0,126,128,  0,  0,140,  0,  0,  0,127,
+	159,  0,115,  0,164,  0,  0,116,158,  0,172,166,  0,  0,  0,142,
+	157,  0,  0,  0,  0,  0,  0,  0,155,  0, 98,  0,  0,163,  0,  0,
+	226,  0,  0,  0,  0,  0,  0,  0,  0,255, 96,  0,  0,  0,143,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,107,  0,105,102,  0,  0,112,
+	110,111,108,112,106,103,  0,119,  0,118,109,  0, 99,104,119,  0,
+
+	  0,  0,  0, 65, 99,
 
 #else
 	  0, 67, 65, 63, 61, 59, 60, 88,  0, 68, 66, 64, 62, 15, 41,117,
@@ -505,6 +527,7 @@ static void atkbd_receive_byte(struct ps2dev *ps2dev, u8 data)
 		return;
 
 	keycode = atkbd->keycode[code];
+	dev_dbg(&serio->dev, "Parsed byte %04X to keycode %04X.\n", code, keycode);
 
 	if (!(atkbd->release && test_bit(code, atkbd->force_release_mask)))
 		if (keycode != ATKBD_KEY_NULL)
@@ -1138,6 +1161,10 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 			scancode = atkbd_unxlate_table[i];
 			atkbd->keycode[i] = atkbd_set2_keycode[scancode];
 			atkbd->keycode[i | 0x80] = atkbd_set2_keycode[scancode | 0x80];
+			dev_info(dev, "atkbd: setting keycode[%04X]=set2[%04X]=%04X ",
+					i, scancode, atkbd_set2_keycode[scancode]);
+			dev_info(dev, "setting keycode[%04X]=set2[%04X]=%04X.\n",
+					i | 0x80, scancode | 0x80, atkbd_set2_keycode[scancode | 0x80]);
 			if (atkbd->scroll)
 				for (j = 0; j < ARRAY_SIZE(atkbd_scroll_keys); j++)
 					if ((scancode | 0x80) == atkbd_scroll_keys[j].set2)
