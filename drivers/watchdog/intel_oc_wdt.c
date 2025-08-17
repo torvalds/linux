@@ -41,6 +41,7 @@
 struct intel_oc_wdt {
 	struct watchdog_device wdd;
 	struct resource *ctrl_res;
+	struct watchdog_info info;
 	bool locked;
 };
 
@@ -115,7 +116,6 @@ static const struct watchdog_ops intel_oc_wdt_ops = {
 
 static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
 {
-	struct watchdog_info *info;
 	unsigned long val;
 
 	val = inl(INTEL_OC_WDT_CTRL_REG(oc_wdt));
@@ -134,7 +134,6 @@ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
 		set_bit(WDOG_HW_RUNNING, &oc_wdt->wdd.status);
 
 		if (oc_wdt->locked) {
-			info = (struct watchdog_info *)&intel_oc_wdt_info;
 			/*
 			 * Set nowayout unconditionally as we cannot stop
 			 * the watchdog.
@@ -145,7 +144,7 @@ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
 			 * and inform the core we can't change it.
 			 */
 			oc_wdt->wdd.timeout = (val & INTEL_OC_WDT_TOV) + 1;
-			info->options &= ~WDIOF_SETTIMEOUT;
+			oc_wdt->info.options &= ~WDIOF_SETTIMEOUT;
 
 			dev_info(oc_wdt->wdd.parent,
 				 "Register access locked, heartbeat fixed at: %u s\n",
@@ -193,7 +192,8 @@ static int intel_oc_wdt_probe(struct platform_device *pdev)
 	wdd->min_timeout = INTEL_OC_WDT_MIN_TOV;
 	wdd->max_timeout = INTEL_OC_WDT_MAX_TOV;
 	wdd->timeout = INTEL_OC_WDT_DEF_TOV;
-	wdd->info = &intel_oc_wdt_info;
+	oc_wdt->info = intel_oc_wdt_info;
+	wdd->info = &oc_wdt->info;
 	wdd->ops = &intel_oc_wdt_ops;
 	wdd->parent = dev;
 
