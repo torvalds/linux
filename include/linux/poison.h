@@ -90,4 +90,7 @@
 /********** lib/stackdepot.c **********/
 #define STACK_DEPOT_POISON ((void *)(0xD390 + POISON_POINTER_DELTA))
 
+/********** io_uring/ **********/
+#define IO_URING_PTR_POISON ((void *)(0x1091UL + POISON_POINTER_DELTA))
+
 #endif
