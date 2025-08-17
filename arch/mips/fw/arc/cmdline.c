@@ -42,12 +42,13 @@ static char __init *move_firmware_args(int argc, LONG *argv, char *cp)
 {
 	char *s;
 	int actr, i;
+	size_t len;
 
 	actr = 1; /* Always ignore argv[0] */
 
 	while (actr < argc) {
-		for(i = 0; i < ARRAY_SIZE(used_arc); i++) {
-			int len = strlen(used_arc[i][0]);
+		for (i = 0; i < ARRAY_SIZE(used_arc); i++) {
+			len = strlen(used_arc[i][0]);
 
 			if (!strncmp(prom_argv(actr), used_arc[i][0], len)) {
 			/* Ok, we want it. First append the replacement... */
@@ -57,8 +58,9 @@ static char __init *move_firmware_args(int argc, LONG *argv, char *cp)
 				s = strchr(prom_argv(actr), '=');
 				if (s) {
 					s++;
-					strcpy(cp, s);
-					cp += strlen(s);
+					len = strlen(s);
+					memcpy(cp, s, len + 1);
+					cp += len;
 				}
 				*cp++ = ' ';
 				break;
@@ -74,6 +76,7 @@ void __init prom_init_cmdline(int argc, LONG *argv)
 {
 	char *cp;
 	int actr, i;
+	size_t len;
 
 	actr = 1; /* Always ignore argv[0] */
 
@@ -86,14 +89,15 @@ void __init prom_init_cmdline(int argc, LONG *argv)
 
 	while (actr < argc) {
 		for (i = 0; i < ARRAY_SIZE(ignored); i++) {
-			int len = strlen(ignored[i]);
-
+			len = strlen(ignored[i]);
 			if (!strncmp(prom_argv(actr), ignored[i], len))
 				goto pic_cont;
 		}
+
 		/* Ok, we want it. */
-		strcpy(cp, prom_argv(actr));
-		cp += strlen(prom_argv(actr));
+		len = strlen(prom_argv(actr));
+		memcpy(cp, prom_argv(actr), len + 1);
+		cp += len;
 		*cp++ = ' ';
 
 	pic_cont:
@@ -105,6 +109,6 @@ void __init prom_init_cmdline(int argc, LONG *argv)
 	*cp = '\0';
 
 #ifdef DEBUG_CMDLINE
-	printk(KERN_DEBUG "prom cmdline: %s\n", arcs_cmdline);
+	pr_debug("prom cmdline: %s\n", arcs_cmdline);
 #endif
 }
