@@ -230,8 +230,8 @@ jobs:
             CURRENT_CMDLINE="$(cat /proc/cmdline)"
             echo "Current cmdline: $CURRENT_CMDLINE" | tee -a /var/log/kexec-setup.log
             
-            # Add kernel parameters to improve boot reliability without changing init
-            ENHANCED_CMDLINE="$CURRENT_CMDLINE systemd.mask=multipathd.service systemd.mask=boot-efi.mount loglevel=4"
+            # Add kernel parameters to improve boot reliability and enable network
+            ENHANCED_CMDLINE="$CURRENT_CMDLINE systemd.mask=multipathd.service systemd.mask=boot-efi.mount loglevel=4 ip=dhcp"
             echo "Enhanced cmdline: $ENHANCED_CMDLINE" | tee -a /var/log/kexec-setup.log
 
             # Kexec into our custom kernel
