@@ -59,7 +59,7 @@ static void __vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long target_mode,
 
 static void __vcpu_write_spsr_abt(struct kvm_vcpu *vcpu, u64 val)
 {
-	if (has_vhe())
+	if (has_vhe() && vcpu_get_flag(vcpu, SYSREGS_ON_CPU))
 		write_sysreg(val, spsr_abt);
 	else
 		vcpu->arch.ctxt.spsr_abt = val;
@@ -67,7 +67,7 @@ static void __vcpu_write_spsr_abt(struct kvm_vcpu *vcpu, u64 val)
 
 static void __vcpu_write_spsr_und(struct kvm_vcpu *vcpu, u64 val)
 {
-	if (has_vhe())
+	if (has_vhe() && vcpu_get_flag(vcpu, SYSREGS_ON_CPU))
 		write_sysreg(val, spsr_und);
 	else
 		vcpu->arch.ctxt.spsr_und = val;
