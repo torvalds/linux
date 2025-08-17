@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/console.h>
 #include <linux/screen_info.h>
+#include <linux/string.h>
 
 #ifdef CONFIG_FW_ARC
 #include <asm/fw/arc/types.h>
@@ -80,7 +81,7 @@ static void __init sni_console_setup(void)
 			break;
 		}
 		if (baud)
-			strcpy(options, baud);
+			strscpy(options, baud);
 		if (strncmp(cdev, "tty552", 6) == 0)
 			add_preferred_console("ttyS", port,
 					      baud ? options : NULL);
