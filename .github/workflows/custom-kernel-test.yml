@@ -184,6 +184,28 @@ jobs:
             
             echo "GitHub runner systemd service created and enabled" | tee -a /var/log/kexec-setup.log
 
+            # Create early remount service to fix read-only filesystem issue
+            cat > /etc/systemd/system/early-remount.service << 'REMOUNT_EOF'
+            [Unit]
+            Description=Early remount root filesystem as read-write
+            Before=cloud-init-local.service
+            After=systemd-remount-fs.service
+            DefaultDependencies=no
+
+            [Service]
+            Type=oneshot
+            ExecStart=/bin/bash -c 'echo "Early remount: checking filesystem status"; mount | grep " / "; mount -o remount,rw /; echo "Early remount: root filesystem remounted"; mount | grep " / "'
+            RemainAfterExit=yes
+
+            [Install]
+            WantedBy=sysinit.target
+            REMOUNT_EOF
+            
+            # Enable the early remount service
+            systemctl enable early-remount.service
+            
+            echo "Early remount service created and enabled" | tee -a /var/log/kexec-setup.log
+
             # Write custom kernel paths for config.sh to read
             echo "/tmp/custom-bzImage" > /tmp/vmlinuz-path
             echo "/tmp/custom-initrd.img" > /tmp/initrd-path
