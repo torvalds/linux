@@ -1063,6 +1063,21 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 		return 0; /* rule inserted successfully */
 	}
 
+	/* Rule insertion could fail due to queue being full, timeout, or
+	 * matcher in resize. In such cases, no point in trying to rehash.
+	 */
+	if (ret == -EBUSY || ret == -ETIMEDOUT || ret == -EAGAIN) {
+		mutex_unlock(queue_lock);
+		mlx5hws_err(ctx,
+			    "BWC rule insertion failed - %s (%d)\n",
+			    ret == -EBUSY ? "queue is full" :
+			    ret == -ETIMEDOUT ? "timeout" :
+			    ret == -EAGAIN ? "matcher in resize" : "N/A",
+			    ret);
+		hws_bwc_rule_cnt_dec(bwc_rule);
+		return ret;
+	}
+
 	/* At this point the rule wasn't added.
 	 * It could be because there was collision, or some other problem.
 	 * Try rehash by size and insert rule again - last chance.
