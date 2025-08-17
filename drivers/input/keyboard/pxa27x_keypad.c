@@ -108,8 +108,8 @@ struct pxa27x_keypad {
 	unsigned int row_shift;
 
 	/* state row bits of each column scan */
-	uint32_t matrix_key_state[MAX_MATRIX_KEY_COLS];
-	uint32_t direct_key_state;
+	u32 matrix_key_state[MAX_MATRIX_KEY_COLS];
+	u32 direct_key_state;
 
 	unsigned int direct_key_mask;
 };
@@ -410,8 +410,8 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
 	int row, col, num_keys_pressed = 0;
-	uint32_t new_state[MAX_MATRIX_KEY_COLS];
-	uint32_t kpas = keypad_readl(KPAS);
+	u32 new_state[MAX_MATRIX_KEY_COLS];
+	u32 kpas = keypad_readl(KPAS);
 
 	num_keys_pressed = KPAS_MUKP(kpas);
 
@@ -434,10 +434,10 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 	}
 
 	if (num_keys_pressed > 1) {
-		uint32_t kpasmkp0 = keypad_readl(KPASMKP0);
-		uint32_t kpasmkp1 = keypad_readl(KPASMKP1);
-		uint32_t kpasmkp2 = keypad_readl(KPASMKP2);
-		uint32_t kpasmkp3 = keypad_readl(KPASMKP3);
+		u32 kpasmkp0 = keypad_readl(KPASMKP0);
+		u32 kpasmkp1 = keypad_readl(KPASMKP1);
+		u32 kpasmkp2 = keypad_readl(KPASMKP2);
+		u32 kpasmkp3 = keypad_readl(KPASMKP3);
 
 		new_state[0] = kpasmkp0 & KPASMKP_MKC_MASK;
 		new_state[1] = (kpasmkp0 >> 16) & KPASMKP_MKC_MASK;
@@ -450,7 +450,7 @@ static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
 	}
 scan:
 	for (col = 0; col < pdata->matrix_key_cols; col++) {
-		uint32_t bits_changed;
+		u32 bits_changed;
 		int code;
 
 		bits_changed = keypad->matrix_key_state[col] ^ new_state[col];
@@ -474,7 +474,7 @@ scan:
 
 #define DEFAULT_KPREC	(0x007f007f)
 
-static inline int rotary_delta(uint32_t kprec)
+static inline int rotary_delta(u32 kprec)
 {
 	if (kprec & KPREC_OF0)
 		return (kprec & 0xff) + 0x7f;
@@ -511,7 +511,7 @@ static void report_rotary_event(struct pxa27x_keypad *keypad, int r, int delta)
 static void pxa27x_keypad_scan_rotary(struct pxa27x_keypad *keypad)
 {
 	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
-	uint32_t kprec;
+	u32 kprec;
 
 	/* read and reset to default count value */
 	kprec = keypad_readl(KPREC);
@@ -529,7 +529,7 @@ static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
 	unsigned int new_state;
-	uint32_t kpdk, bits_changed;
+	u32 kpdk, bits_changed;
 	int i;
 
 	kpdk = keypad_readl(KPDK);
