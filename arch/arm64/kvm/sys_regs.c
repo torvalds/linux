@@ -1584,6 +1584,7 @@ static u8 pmuver_to_perfmon(u8 pmuver)
 }
 
 static u64 sanitise_id_aa64pfr0_el1(const struct kvm_vcpu *vcpu, u64 val);
+static u64 sanitise_id_aa64pfr1_el1(const struct kvm_vcpu *vcpu, u64 val);
 static u64 sanitise_id_aa64dfr0_el1(const struct kvm_vcpu *vcpu, u64 val);
 
 /* Read a sanitised cpufeature ID register by sys_reg_desc */
@@ -1606,19 +1607,7 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		val = sanitise_id_aa64pfr0_el1(vcpu, val);
 		break;
 	case SYS_ID_AA64PFR1_EL1:
-		if (!kvm_has_mte(vcpu->kvm)) {
-			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE);
-			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac);
-		}
-
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SME);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RNDR_trap);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_NMI);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_GCS);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_THE);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTEX);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_PFAR);
-		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MPAM_frac);
+		val = sanitise_id_aa64pfr1_el1(vcpu, val);
 		break;
 	case SYS_ID_AA64PFR2_EL1:
 		/* We only expose FPMR */
@@ -1830,6 +1819,31 @@ static u64 sanitise_id_aa64pfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 	 * older kernels let the guest see the ID bit.
 	 */
 	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
+
+	return val;
+}
+
+static u64 sanitise_id_aa64pfr1_el1(const struct kvm_vcpu *vcpu, u64 val)
+{
+	u64 pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
+
+	if (!kvm_has_mte(vcpu->kvm)) {
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac);
+	}
+
+	if (!(cpus_have_final_cap(ARM64_HAS_RASV1P1_EXTN) &&
+	      SYS_FIELD_GET(ID_AA64PFR0_EL1, RAS, pfr0) == ID_AA64PFR0_EL1_RAS_IMP))
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RAS_frac);
+
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SME);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RNDR_trap);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_NMI);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_GCS);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_THE);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTEX);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_PFAR);
+	val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MPAM_frac);
 
 	return val;
 }
@@ -2952,7 +2966,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 				       ID_AA64PFR1_EL1_SME |
 				       ID_AA64PFR1_EL1_RES0 |
 				       ID_AA64PFR1_EL1_MPAM_frac |
-				       ID_AA64PFR1_EL1_RAS_frac |
 				       ID_AA64PFR1_EL1_MTE)),
 	ID_WRITABLE(ID_AA64PFR2_EL1, ID_AA64PFR2_EL1_FPMR),
 	ID_UNALLOCATED(4,3),
