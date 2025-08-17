@@ -76,7 +76,7 @@ jobs:
 
             # Download and parse metadata JSON to get kernel and initrd paths
             echo "Downloading metadata.json from S3..." | tee -a /var/log/kexec-setup.log
-            aws s3 cp "s3://${S3_BUCKET}/${METADATA_S3_KEY}" /tmp/metadata.json --region "$S3_REGION"
+            aws s3 cp "s3://${S3_BUCKET}/${METADATA_S3_KEY}" /tmp/metadata.json --region "$S3_REGION" --no-progress
             
             if [[ ! -f /tmp/metadata.json ]]; then
                 echo "Failed to download metadata.json" | tee -a /var/log/kexec-setup.log
@@ -95,8 +95,8 @@ jobs:
             
             # Download custom kernel artifacts from S3
             echo "Downloading custom kernel from S3..." | tee -a /var/log/kexec-setup.log
-            aws s3 cp "s3://${S3_BUCKET}/${KERNEL_S3_KEY}" /tmp/custom-bzImage --region "$S3_REGION"
-            aws s3 cp "s3://${S3_BUCKET}/${INITRD_S3_KEY}" /tmp/custom-initrd.img --region "$S3_REGION"
+            aws s3 cp "s3://${S3_BUCKET}/${KERNEL_S3_KEY}" /tmp/custom-bzImage --region "$S3_REGION" --no-progress
+            aws s3 cp "s3://${S3_BUCKET}/${INITRD_S3_KEY}" /tmp/custom-initrd.img --region "$S3_REGION" --no-progress
             
             if [[ ! -f /tmp/custom-bzImage ]] || [[ ! -f /tmp/custom-initrd.img ]]; then
                 echo "Failed to download custom kernel artifacts" | tee -a /var/log/kexec-setup.log
@@ -472,7 +472,7 @@ jobs:
           S3_REGION="us-east-2"
           TEST_S3_KEY="kernels/${BUILD_ID}/resctrl_tests"
           
-          aws s3 cp "s3://${S3_BUCKET}/${TEST_S3_KEY}" ./resctrl_tests --region "$S3_REGION"
+          aws s3 cp "s3://${S3_BUCKET}/${TEST_S3_KEY}" ./resctrl_tests --region "$S3_REGION" --no-progress
           chmod +x ./resctrl_tests
           
           if [[ ! -f ./resctrl_tests ]]; then
