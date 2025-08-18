@@ -4362,7 +4362,7 @@ static enum sctp_ierror sctp_sf_authenticate(
 	struct sctp_shared_key *sh_key = NULL;
 	struct sctp_authhdr *auth_hdr;
 	__u8 *save_digest, *digest;
-	struct sctp_hmac *hmac;
+	const struct sctp_hmac *hmac;
 	unsigned int sig_len;
 	__u16 key_id;
 

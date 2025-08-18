@@ -1320,7 +1320,7 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc,
 				  __u16 key_id)
 {
 	struct sctp_authhdr auth_hdr;
-	struct sctp_hmac *hmac_desc;
+	const struct sctp_hmac *hmac_desc;
 	struct sctp_chunk *retval;
 
 	/* Get the first hmac that the peer told us to use */

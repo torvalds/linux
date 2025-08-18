@@ -1329,11 +1329,6 @@ struct sctp_endpoint {
 	/* rcvbuf acct. policy.	*/
 	__u32 rcvbuf_policy;
 
-	/* SCTP AUTH: array of the HMACs that will be allocated
-	 * we need this per association so that we don't serialize
-	 */
-	struct crypto_shash **auth_hmacs;
-
 	/* SCTP-AUTH: hmacs for the endpoint encoded into parameter */
 	 struct sctp_hmac_algo_param *auth_hmacs_list;
 
