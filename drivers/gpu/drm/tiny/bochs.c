@@ -252,7 +252,7 @@ static int bochs_hw_init(struct bochs_device *bochs)
 		}
 		bochs->ioports = 1;
 	} else {
-		dev_err(dev->dev, "I/O ports are not supported\n");
+		drm_err(dev, "I/O ports are not supported\n");
 		return -EIO;
 	}
 
