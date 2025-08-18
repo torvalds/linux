@@ -31,9 +31,18 @@ Overall design
   devices only need child nodes when the child nodes have their own DT
   resources. A single node can be multiple providers (e.g. clocks and resets).
 
+- DON'T treat device node names as a stable ABI, but instead use phandles or
+  compatibles to find sibling devices. Exception: sub-nodes of given device
+  could be treated as ABI, if explicitly documented in the bindings.
+
 - DON'T use 'syscon' alone without a specific compatible string. A 'syscon'
   hardware block should have a compatible string unique enough to infer the
   register layout of the entire block (at a minimum).
+
+- DON'T use 'simple-mfd' compatible for non-trivial devices, where children
+  depend on some resources from the parent. Similarly, 'simple-bus' should not
+  be used for complex buses and even 'regs' property means device is not
+  a simple bus.
 
 
 Properties
