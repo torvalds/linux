@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include "soc/intel_dram.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
@@ -85,7 +87,8 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 
 static const struct cxsr_latency *pnv_get_cxsr_latency(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	bool is_ddr3 = dram_info->type == INTEL_DRAM_DDR3;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
@@ -93,15 +96,15 @@ static const struct cxsr_latency *pnv_get_cxsr_latency(struct intel_display *dis
 		bool is_desktop = !display->platform.mobile;
 
 		if (is_desktop == latency->is_desktop &&
-		    i915->is_ddr3 == latency->is_ddr3 &&
-		    DIV_ROUND_CLOSEST(i915->fsb_freq, 1000) == latency->fsb_freq &&
-		    DIV_ROUND_CLOSEST(i915->mem_freq, 1000) == latency->mem_freq)
+		    is_ddr3 == latency->is_ddr3 &&
+		    DIV_ROUND_CLOSEST(dram_info->fsb_freq, 1000) == latency->fsb_freq &&
+		    DIV_ROUND_CLOSEST(dram_info->mem_freq, 1000) == latency->mem_freq)
 			return latency;
 	}
 
 	drm_dbg_kms(display->drm,
 		    "Could not find CxSR latency for DDR%s, FSB %u kHz, MEM %u kHz\n",
-		    i915->is_ddr3 ? "3" : "2", i915->fsb_freq, i915->mem_freq);
+		    is_ddr3 ? "3" : "2", dram_info->fsb_freq, dram_info->mem_freq);
 
 	return NULL;
 }

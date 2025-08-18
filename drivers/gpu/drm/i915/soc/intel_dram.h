@@ -29,6 +29,8 @@ struct dram_info {
 	} type;
 	u8 num_qgv_points;
 	u8 num_psf_gv_points;
+	unsigned int fsb_freq;
+	unsigned int mem_freq;
 };
 
 void intel_dram_edram_detect(struct drm_i915_private *i915);
