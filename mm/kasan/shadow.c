@@ -305,6 +305,8 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 	pte_t pte;
 	int index;
 
+	arch_leave_lazy_mmu_mode();
+
 	index = PFN_DOWN(addr - data->start);
 	page = data->pages[index];
 	__memset(page_to_virt(page), KASAN_VMALLOC_INVALID, PAGE_SIZE);
@@ -316,6 +318,8 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 		data->pages[index] = NULL;
 	}
 	spin_unlock(&init_mm.page_table_lock);
+
+	arch_enter_lazy_mmu_mode();
 
 	return 0;
 }
@@ -461,6 +465,8 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 	pte_t pte;
 	int none;
 
+	arch_leave_lazy_mmu_mode();
+
 	spin_lock(&init_mm.page_table_lock);
 	pte = ptep_get(ptep);
 	none = pte_none(pte);
@@ -470,6 +476,8 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 
 	if (likely(!none))
 		__free_page(pfn_to_page(pte_pfn(pte)));
+
+	arch_enter_lazy_mmu_mode();
 
 	return 0;
 }
