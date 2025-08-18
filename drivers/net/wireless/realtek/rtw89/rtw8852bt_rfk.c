@@ -1803,10 +1803,7 @@ static void _dpk_onoff(struct rtw89_dev *rtwdev, enum rtw89_rf_path path, bool o
 
 	val = dpk->is_dpk_enable && !off && dpk->bp[path][kidx].path_ok;
 
-	if (off)
-		off_reverse = false;
-	else
-		off_reverse = true;
+	off_reverse = !off;
 
 	val = dpk->is_dpk_enable & off_reverse & dpk->bp[path][kidx].path_ok;
 
