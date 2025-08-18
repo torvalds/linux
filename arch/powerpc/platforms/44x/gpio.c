@@ -18,6 +18,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #define GPIO_MASK(gpio)		(0x80000000 >> (gpio))
 #define GPIO_MASK2(gpio)	(0xc0000000 >> ((gpio) * 2))
@@ -155,42 +156,50 @@ ppc4xx_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
-static int __init ppc4xx_add_gpiochips(void)
+static int ppc4xx_gpio_probe(struct platform_device *ofdev)
 {
-	struct device_node *np;
+	struct device *dev = &ofdev->dev;
+	struct device_node *np = dev->of_node;
+	struct ppc4xx_gpio_chip *chip;
+	struct of_mm_gpio_chip *mm_gc;
+	struct gpio_chip *gc;
 
-	for_each_compatible_node(np, NULL, "ibm,ppc4xx-gpio") {
-		int ret;
-		struct ppc4xx_gpio_chip *ppc4xx_gc;
-		struct of_mm_gpio_chip *mm_gc;
-		struct gpio_chip *gc;
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
 
-		ppc4xx_gc = kzalloc(sizeof(*ppc4xx_gc), GFP_KERNEL);
-		if (!ppc4xx_gc) {
-			ret = -ENOMEM;
-			goto err;
-		}
+	spin_lock_init(&chip->lock);
 
-		spin_lock_init(&ppc4xx_gc->lock);
+	mm_gc = &chip->mm_gc;
+	gc = &mm_gc->gc;
 
-		mm_gc = &ppc4xx_gc->mm_gc;
-		gc = &mm_gc->gc;
+	gc->ngpio = 32;
+	gc->direction_input = ppc4xx_gpio_dir_in;
+	gc->direction_output = ppc4xx_gpio_dir_out;
+	gc->get = ppc4xx_gpio_get;
+	gc->set = ppc4xx_gpio_set;
 
-		gc->ngpio = 32;
-		gc->direction_input = ppc4xx_gpio_dir_in;
-		gc->direction_output = ppc4xx_gpio_dir_out;
-		gc->get = ppc4xx_gpio_get;
-		gc->set = ppc4xx_gpio_set;
-
-		ret = of_mm_gpiochip_add_data(np, mm_gc, ppc4xx_gc);
-		if (ret)
-			goto err;
-		continue;
-err:
-		pr_err("%pOF: registration failed with status %d\n", np, ret);
-		kfree(ppc4xx_gc);
-		/* try others anyway */
-	}
-	return 0;
+	return of_mm_gpiochip_add_data(np, mm_gc, chip);
 }
-arch_initcall(ppc4xx_add_gpiochips);
+
+static const struct of_device_id ppc4xx_gpio_match[] = {
+	{
+		.compatible = "ibm,ppc4xx-gpio",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ppc4xx_gpio_match);
+
+static struct platform_driver ppc4xx_gpio_driver = {
+	.probe		= ppc4xx_gpio_probe,
+	.driver		= {
+		.name	= "ppc4xx-gpio",
+		.of_match_table	= ppc4xx_gpio_match,
+	},
+};
+
+static int __init ppc4xx_gpio_init(void)
+{
+	return platform_driver_register(&ppc4xx_gpio_driver);
+}
+arch_initcall(ppc4xx_gpio_init);
