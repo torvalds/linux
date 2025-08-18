@@ -39,8 +39,6 @@ extern int smbd_receive_credit_max;
 struct smbd_connection {
 	struct smbdirect_socket socket;
 
-	/* dynamic connection parameters defined in [MS-SMBD] 3.1.1.1 */
-	int protocol;
 
 	/* Memory registrations */
 	/* Maximum number of pages in a single RDMA write/read on this connection */

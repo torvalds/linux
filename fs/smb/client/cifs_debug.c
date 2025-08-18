@@ -24,6 +24,7 @@
 #endif
 #ifdef CONFIG_CIFS_SMB_DIRECT
 #include "smbdirect.h"
+#include "../common/smbdirect/smbdirect_pdu.h"
 #endif
 #include "cifs_swn.h"
 #include "cached_dir.h"
@@ -458,7 +459,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 
 		seq_printf(m, "\nSMBDirect protocol version: 0x%x "
 			"transport status: %s (%u)",
-			server->smbd_conn->protocol,
+			SMBDIRECT_V1,
 			smbdirect_socket_status_string(sc->status),
 			sc->status);
 		seq_printf(m, "\nConn receive_credit_max: %u "

@@ -481,7 +481,6 @@ static bool process_negotiation_response(
 			le16_to_cpu(packet->negotiated_version));
 		return false;
 	}
-	info->protocol = le16_to_cpu(packet->negotiated_version);
 
 	if (packet->credits_requested == 0) {
 		log_rdma_event(ERR, "error: credits_requested==0\n");
