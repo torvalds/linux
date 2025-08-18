@@ -2666,11 +2666,6 @@ static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 		gfx_v12_1_xcc_enable_atomics(adev, i);
 		gfx_v12_1_xcc_setup_tcp_thrashing_ctrl(adev, i);
 	}
-
-	if (adev->gfx.imu.funcs &&
-	    adev->gfx.imu.funcs->init_mcm_addr_lut &&
-	    amdgpu_emu_mode)
-		adev->gfx.imu.funcs->init_mcm_addr_lut(adev);
 }
 
 static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)

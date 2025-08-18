@@ -658,8 +658,15 @@ static int soc_v1_0_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 
 	num_xcc_per_xcp = __soc_v1_0_get_xcc_per_xcp(xcp_mgr, mode);
 	if (adev->gfx.imu.funcs &&
-	    adev->gfx.imu.funcs->switch_compute_partition)
-		adev->gfx.imu.funcs->switch_compute_partition(xcp_mgr->adev, num_xcc_per_xcp, mode);
+	    adev->gfx.imu.funcs->switch_compute_partition) {
+		ret = adev->gfx.imu.funcs->switch_compute_partition(xcp_mgr->adev, num_xcc_per_xcp, mode);
+		if (ret)
+			goto out;
+	}
+	if (adev->gfx.imu.funcs &&
+	    adev->gfx.imu.funcs->init_mcm_addr_lut &&
+	    amdgpu_emu_mode)
+		adev->gfx.imu.funcs->init_mcm_addr_lut(adev);
 
 	/* Init info about new xcps */
 	*num_xcps = num_xcc / num_xcc_per_xcp;
