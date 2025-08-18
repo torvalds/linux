@@ -171,14 +171,14 @@ static inline void chtls_set_req_addr(struct request_sock *oreq,
 
 static inline void chtls_free_skb(struct sock *sk, struct sk_buff *skb)
 {
-	skb_dst_set(skb, NULL);
+	skb_dstref_steal(skb);
 	__skb_unlink(skb, &sk->sk_receive_queue);
 	__kfree_skb(skb);
 }
 
 static inline void chtls_kfree_skb(struct sock *sk, struct sk_buff *skb)
 {
-	skb_dst_set(skb, NULL);
+	skb_dstref_steal(skb);
 	__skb_unlink(skb, &sk->sk_receive_queue);
 	kfree_skb(skb);
 }
