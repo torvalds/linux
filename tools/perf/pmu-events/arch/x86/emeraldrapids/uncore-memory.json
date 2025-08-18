@@ -2770,6 +2770,88 @@
         "Unit": "iMC"
     },
     {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.HIGH",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of DRAM Refreshes Issued : Counts the number of refreshes issued.",
+        "UMask": "0x24",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.HIGH_ALL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x24",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.HIGH_PCH0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.HIGH_PCH1",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.PANIC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of DRAM Refreshes Issued : Counts the number of refreshes issued.",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.PANIC_ALL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.PANIC_PCH0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.PANIC_PCH1",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
         "BriefDescription": "ECC Correctable Errors",
         "Counter": "0,1,2,3",
         "EventCode": "0x09",
