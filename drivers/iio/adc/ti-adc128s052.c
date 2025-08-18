@@ -99,7 +99,19 @@ static int adc128_read_raw(struct iio_dev *indio_dev,
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) \
 	}
 
-static const struct iio_chan_spec adc128s052_channels[] = {
+static const struct iio_chan_spec simple_2chan_adc_channels[] = {
+	ADC128_VOLTAGE_CHANNEL(0),
+	ADC128_VOLTAGE_CHANNEL(1),
+};
+
+static const struct iio_chan_spec simple_4chan_adc_channels[] = {
+	ADC128_VOLTAGE_CHANNEL(0),
+	ADC128_VOLTAGE_CHANNEL(1),
+	ADC128_VOLTAGE_CHANNEL(2),
+	ADC128_VOLTAGE_CHANNEL(3),
+};
+
+static const struct iio_chan_spec simple_8chan_adc_channels[] = {
 	ADC128_VOLTAGE_CHANNEL(0),
 	ADC128_VOLTAGE_CHANNEL(1),
 	ADC128_VOLTAGE_CHANNEL(2),
@@ -110,41 +122,29 @@ static const struct iio_chan_spec adc128s052_channels[] = {
 	ADC128_VOLTAGE_CHANNEL(7),
 };
 
-static const struct iio_chan_spec adc122s021_channels[] = {
-	ADC128_VOLTAGE_CHANNEL(0),
-	ADC128_VOLTAGE_CHANNEL(1),
-};
-
-static const struct iio_chan_spec adc124s021_channels[] = {
-	ADC128_VOLTAGE_CHANNEL(0),
-	ADC128_VOLTAGE_CHANNEL(1),
-	ADC128_VOLTAGE_CHANNEL(2),
-	ADC128_VOLTAGE_CHANNEL(3),
-};
-
 static const char * const bd79104_regulators[] = { "iovdd" };
 
 static const struct adc128_configuration adc122s_config = {
-	.channels = adc122s021_channels,
-	.num_channels = ARRAY_SIZE(adc122s021_channels),
+	.channels = simple_2chan_adc_channels,
+	.num_channels = ARRAY_SIZE(simple_2chan_adc_channels),
 	.refname = "vref",
 };
 
 static const struct adc128_configuration adc124s_config = {
-	.channels = adc124s021_channels,
-	.num_channels = ARRAY_SIZE(adc124s021_channels),
+	.channels = simple_4chan_adc_channels,
+	.num_channels = ARRAY_SIZE(simple_4chan_adc_channels),
 	.refname = "vref",
 };
 
 static const struct adc128_configuration adc128s_config = {
-	.channels = adc128s052_channels,
-	.num_channels = ARRAY_SIZE(adc128s052_channels),
+	.channels = simple_8chan_adc_channels,
+	.num_channels = ARRAY_SIZE(simple_8chan_adc_channels),
 	.refname = "vref",
 };
 
 static const struct adc128_configuration bd79104_config = {
-	.channels = adc128s052_channels,
-	.num_channels = ARRAY_SIZE(adc128s052_channels),
+	.channels = simple_8chan_adc_channels,
+	.num_channels = ARRAY_SIZE(simple_8chan_adc_channels),
 	.refname = "vdd",
 	.other_regulators = &bd79104_regulators,
 	.num_other_regulators = 1,
