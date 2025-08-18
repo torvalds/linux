@@ -32,4 +32,6 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 void
 ice_fill_txq_meta(const struct ice_vsi *vsi, struct ice_tx_ring *ring,
 		  struct ice_txq_meta *txq_meta);
+int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx);
+int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx);
 #endif /* _ICE_BASE_H_ */
