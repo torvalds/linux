@@ -448,6 +448,17 @@ struct kszphy_priv {
 	struct kszphy_phy_stats phy_stats;
 };
 
+struct lan8842_phy_stats {
+	u64 rx_packets;
+	u64 rx_errors;
+	u64 tx_packets;
+	u64 tx_errors;
+};
+
+struct lan8842_priv {
+	struct lan8842_phy_stats phy_stats;
+};
+
 static const struct kszphy_type lan8814_type = {
 	.led_mode_reg		= ~LAN8814_LED_CTRL_1,
 	.cable_diag_reg		= LAN8814_CABLE_DIAG,
@@ -5768,6 +5779,188 @@ static int ksz9131_resume(struct phy_device *phydev)
 	return kszphy_resume(phydev);
 }
 
+#define LAN8842_SELF_TEST			14 /* 0x0e */
+#define LAN8842_SELF_TEST_RX_CNT_ENA		BIT(8)
+#define LAN8842_SELF_TEST_TX_CNT_ENA		BIT(4)
+
+static int lan8842_probe(struct phy_device *phydev)
+{
+	struct lan8842_priv *priv;
+	int ret;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	/* Similar to lan8814 this PHY has a pin which needs to be pulled down
+	 * to enable to pass any traffic through it. Therefore use the same
+	 * function as lan8814
+	 */
+	ret = lan8814_release_coma_mode(phydev);
+	if (ret)
+		return ret;
+
+	/* Enable to count the RX and TX packets */
+	ret = lanphy_write_page_reg(phydev, LAN8814_PAGE_PCS_DIGITAL,
+				    LAN8842_SELF_TEST,
+				    LAN8842_SELF_TEST_RX_CNT_ENA |
+				    LAN8842_SELF_TEST_TX_CNT_ENA);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int lan8842_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Reset the PHY */
+	ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+				     LAN8814_QSGMII_SOFT_RESET,
+				     LAN8814_QSGMII_SOFT_RESET_BIT,
+				     LAN8814_QSGMII_SOFT_RESET_BIT);
+	if (ret < 0)
+		return ret;
+
+	/* To allow the PHY to control the LEDs the GPIOs of the PHY should have
+	 * a function mode and not the GPIO. Apparently by default the value is
+	 * GPIO and not function even though the datasheet it says that it is
+	 * function. Therefore set this value.
+	 */
+	return lanphy_write_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+				     LAN8814_GPIO_EN2, 0);
+}
+
+#define LAN8842_INTR_CTRL_REG			52 /* 0x34 */
+
+static int lan8842_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	lanphy_write_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+			      LAN8842_INTR_CTRL_REG,
+			      LAN8814_INTR_CTRL_REG_INTR_ENABLE);
+
+	/* enable / disable interrupts */
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = lan8814_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, LAN8814_INTC, LAN8814_INT_LINK);
+	} else {
+		err = phy_write(phydev, LAN8814_INTC, 0);
+		if (err)
+			return err;
+
+		err = lan8814_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
+static unsigned int lan8842_inband_caps(struct phy_device *phydev,
+					phy_interface_t interface)
+{
+	/* Inband configuration can be enabled or disabled using the registers
+	 * PCS1G_ANEG_CONFIG.
+	 */
+	return LINK_INBAND_DISABLE | LINK_INBAND_ENABLE;
+}
+
+static int lan8842_config_inband(struct phy_device *phydev, unsigned int modes)
+{
+	bool enable;
+
+	if (modes == LINK_INBAND_DISABLE)
+		enable = false;
+	else
+		enable = true;
+
+	/* Disable or enable in-band autoneg with PCS Host side
+	 * It has the same address as lan8814
+	 */
+	return lanphy_modify_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
+				      LAN8814_QSGMII_PCS1G_ANEG_CONFIG,
+				      LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA,
+				      enable ? LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA : 0);
+}
+
+static irqreturn_t lan8842_handle_interrupt(struct phy_device *phydev)
+{
+	int ret = IRQ_NONE;
+	int irq_status;
+
+	irq_status = phy_read(phydev, LAN8814_INTS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (irq_status & LAN8814_INT_LINK) {
+		phy_trigger_machine(phydev);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
+static u64 lan8842_get_stat(struct phy_device *phydev, int count, int *regs)
+{
+	u64 ret = 0;
+	int val;
+
+	for (int j = 0; j < count; ++j) {
+		val = lanphy_read_page_reg(phydev, LAN8814_PAGE_PCS_DIGITAL,
+					   regs[j]);
+		if (val < 0)
+			return U64_MAX;
+
+		ret <<= 16;
+		ret += val;
+	}
+	return ret;
+}
+
+static int lan8842_update_stats(struct phy_device *phydev)
+{
+	struct lan8842_priv *priv = phydev->priv;
+	int rx_packets_regs[] = {88, 61, 60};
+	int rx_errors_regs[] = {63, 62};
+	int tx_packets_regs[] = {89, 85, 84};
+	int tx_errors_regs[] = {87, 86};
+
+	priv->phy_stats.rx_packets = lan8842_get_stat(phydev,
+						      ARRAY_SIZE(rx_packets_regs),
+						      rx_packets_regs);
+	priv->phy_stats.rx_errors = lan8842_get_stat(phydev,
+						     ARRAY_SIZE(rx_errors_regs),
+						     rx_errors_regs);
+	priv->phy_stats.tx_packets = lan8842_get_stat(phydev,
+						      ARRAY_SIZE(tx_packets_regs),
+						      tx_packets_regs);
+	priv->phy_stats.tx_errors = lan8842_get_stat(phydev,
+						     ARRAY_SIZE(tx_errors_regs),
+						     tx_errors_regs);
+
+	return 0;
+}
+
+static void lan8842_get_phy_stats(struct phy_device *phydev,
+				  struct ethtool_eth_phy_stats *eth_stats,
+				  struct ethtool_phy_stats *stats)
+{
+	struct lan8842_priv *priv = phydev->priv;
+
+	stats->rx_packets = priv->phy_stats.rx_packets;
+	stats->rx_errors = priv->phy_stats.rx_errors;
+	stats->tx_packets = priv->phy_stats.tx_packets;
+	stats->tx_errors = priv->phy_stats.tx_errors;
+}
+
 static struct phy_driver ksphy_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_KS8737),
@@ -5988,6 +6181,21 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_start	= lan8814_cable_test_start,
 	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
+	PHY_ID_MATCH_MODEL(PHY_ID_LAN8842),
+	.name		= "Microchip LAN8842 Gigabit PHY",
+	.flags		= PHY_POLL_CABLE_TEST,
+	.driver_data	= &lan8814_type,
+	.probe		= lan8842_probe,
+	.config_init	= lan8842_config_init,
+	.config_intr	= lan8842_config_intr,
+	.inband_caps	= lan8842_inband_caps,
+	.config_inband	= lan8842_config_inband,
+	.handle_interrupt = lan8842_handle_interrupt,
+	.get_phy_stats	= lan8842_get_phy_stats,
+	.update_stats	= lan8842_update_stats,
+	.cable_test_start	= lan8814_cable_test_start,
+	.cable_test_get_status	= ksz886x_cable_test_get_status,
+}, {
 	PHY_ID_MATCH_MODEL(PHY_ID_KSZ9131),
 	.name		= "Microchip KSZ9131 Gigabit PHY",
 	/* PHY_GBIT_FEATURES */
@@ -6082,6 +6290,7 @@ static const struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8814) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8804) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8841) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8842) },
 	{ }
 };
 
