@@ -440,6 +440,37 @@ disable_dev:
 	return ret;
 }
 
+static int aie2_hw_suspend(struct amdxdna_dev *xdna)
+{
+	struct amdxdna_client *client;
+
+	guard(mutex)(&xdna->dev_lock);
+	list_for_each_entry(client, &xdna->client_list, node)
+		aie2_hwctx_suspend(client);
+
+	aie2_hw_stop(xdna);
+
+	return 0;
+}
+
+static int aie2_hw_resume(struct amdxdna_dev *xdna)
+{
+	struct amdxdna_client *client;
+	int ret;
+
+	guard(mutex)(&xdna->dev_lock);
+	ret = aie2_hw_start(xdna);
+	if (ret) {
+		XDNA_ERR(xdna, "Start hardware failed, %d", ret);
+		return ret;
+	}
+
+	list_for_each_entry(client, &xdna->client_list, node)
+		aie2_hwctx_resume(client);
+
+	return ret;
+}
+
 static int aie2_init(struct amdxdna_dev *xdna)
 {
 	struct pci_dev *pdev = to_pci_dev(xdna->ddev.dev);
@@ -520,14 +551,14 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	if (!ndev->psp_hdl) {
 		XDNA_ERR(xdna, "failed to create psp");
 		ret = -ENOMEM;
-		goto free_irq;
+		goto release_fw;
 	}
 	xdna->dev_handle = ndev;
 
 	ret = aie2_hw_start(xdna);
 	if (ret) {
 		XDNA_ERR(xdna, "start npu failed, ret %d", ret);
-		goto free_irq;
+		goto release_fw;
 	}
 
 	ret = aie2_mgmt_fw_query(ndev);
@@ -578,8 +609,6 @@ async_event_free:
 	aie2_error_async_events_free(ndev);
 stop_hw:
 	aie2_hw_stop(xdna);
-free_irq:
-	pci_free_irq_vectors(pdev);
 release_fw:
 	release_firmware(fw);
 
@@ -588,12 +617,10 @@ release_fw:
 
 static void aie2_fini(struct amdxdna_dev *xdna)
 {
-	struct pci_dev *pdev = to_pci_dev(xdna->ddev.dev);
 	struct amdxdna_dev_hdl *ndev = xdna->dev_handle;
 
 	aie2_hw_stop(xdna);
 	aie2_error_async_events_free(ndev);
-	pci_free_irq_vectors(pdev);
 }
 
 static int aie2_get_aie_status(struct amdxdna_client *client,
@@ -905,8 +932,8 @@ static int aie2_set_state(struct amdxdna_client *client,
 const struct amdxdna_dev_ops aie2_ops = {
 	.init           = aie2_init,
 	.fini           = aie2_fini,
-	.resume         = aie2_hw_start,
-	.suspend        = aie2_hw_stop,
+	.resume         = aie2_hw_resume,
+	.suspend        = aie2_hw_suspend,
 	.get_aie_info   = aie2_get_info,
 	.set_aie_state	= aie2_set_state,
 	.hwctx_init     = aie2_hwctx_init,
@@ -914,6 +941,4 @@ const struct amdxdna_dev_ops aie2_ops = {
 	.hwctx_config   = aie2_hwctx_config,
 	.cmd_submit     = aie2_cmd_submit,
 	.hmm_invalidate = aie2_hmm_invalidate,
-	.hwctx_suspend  = aie2_hwctx_suspend,
-	.hwctx_resume   = aie2_hwctx_resume,
 };

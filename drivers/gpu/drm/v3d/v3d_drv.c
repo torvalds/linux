@@ -46,6 +46,7 @@ MODULE_PARM_DESC(super_pages, "Enable/Disable Super Pages support.");
 static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
 {
+	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct drm_v3d_get_param *args = data;
 	static const u32 reg_map[] = {
@@ -106,6 +107,16 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	case DRM_V3D_PARAM_SUPPORTS_SUPER_PAGES:
 		args->value = !!v3d->gemfs;
+		return 0;
+	case DRM_V3D_PARAM_GLOBAL_RESET_COUNTER:
+		mutex_lock(&v3d->reset_lock);
+		args->value = v3d->reset_counter;
+		mutex_unlock(&v3d->reset_lock);
+		return 0;
+	case DRM_V3D_PARAM_CONTEXT_RESET_COUNTER:
+		mutex_lock(&v3d->reset_lock);
+		args->value = v3d_priv->reset_counter;
+		mutex_unlock(&v3d->reset_lock);
 		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);

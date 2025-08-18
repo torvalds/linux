@@ -721,6 +721,8 @@ v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 static enum drm_gpu_sched_stat
 v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 {
+	struct v3d_job *job = to_v3d_job(sched_job);
+	struct v3d_file_priv *v3d_priv = job->file->driver_priv;
 	enum v3d_queue q;
 
 	mutex_lock(&v3d->reset_lock);
@@ -734,6 +736,9 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 
 	/* get the GPU back into the init state */
 	v3d_reset(v3d);
+
+	v3d->reset_counter++;
+	v3d_priv->reset_counter++;
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++)
 		drm_sched_resubmit_jobs(&v3d->queue[q].sched);
