@@ -107,16 +107,15 @@ int ovs_flow_tbl_count(const struct flow_table *table)
 
 static void flow_free(struct sw_flow *flow)
 {
-	int cpu;
+	unsigned int cpu;
 
 	if (ovs_identifier_is_key(&flow->id))
 		kfree(flow->id.unmasked_key);
 	if (flow->sf_acts)
 		ovs_nla_free_flow_actions((struct sw_flow_actions __force *)
 					  flow->sf_acts);
-	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids;
-	     cpu = cpumask_next(cpu, flow->cpu_used_mask)) {
+
+	for_each_cpu(cpu, flow->cpu_used_mask) {
 		if (flow->stats[cpu])
 			kmem_cache_free(flow_stats_cache,
 					(struct sw_flow_stats __force *)flow->stats[cpu]);
