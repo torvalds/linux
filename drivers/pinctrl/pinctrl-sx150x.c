@@ -863,6 +863,7 @@ static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1509q", .data = &sx1509q_device_data },
 	{},
 };
+MODULE_DEVICE_TABLE(of, sx150x_of_match);
 
 static int sx150x_reset(struct sx150x_pinctrl *pctl)
 {
@@ -1266,3 +1267,6 @@ static int __init sx150x_init(void)
 	return i2c_add_driver(&sx150x_driver);
 }
 subsys_initcall(sx150x_init);
+
+MODULE_DESCRIPTION("Semtech SX150x I2C GPIO expander pinctrl driver");
+MODULE_LICENSE("GPL");
