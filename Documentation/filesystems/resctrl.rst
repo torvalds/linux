@@ -563,7 +563,7 @@ this would be dependent on number of cores the benchmark is run on.
    depending on # of threads:
 
 For the same SKU in #1, a 'single thread, with 10% bandwidth' and '4
-thread, with 10% bandwidth' can consume upto 10GBps and 40GBps although
+thread, with 10% bandwidth' can consume up to 10GBps and 40GBps although
 they have same percentage bandwidth of 10%. This is simply because as
 threads start using more cores in an rdtgroup, the actual bandwidth may
 increase or vary although user specified bandwidth percentage is same.

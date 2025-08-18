@@ -454,7 +454,7 @@ filesystem so that it can apply pending filesystem updates to the staging
 information.
 Once the scan is done, the owning object is re-locked, the live data is used to
 write a new ondisk structure, and the repairs are committed atomically.
-The hooks are disabled and the staging staging area is freed.
+The hooks are disabled and the staging area is freed.
 Finally, the storage from the old data structure are carefully reaped.
 
 Introducing concurrency helps online repair avoid various locking problems, but
@@ -2185,7 +2185,7 @@ The chapter about :ref:`secondary metadata<secondary_metadata>` mentioned that
 checking and repairing of secondary metadata commonly requires coordination
 between a live metadata scan of the filesystem and writer threads that are
 updating that metadata.
-Keeping the scan data up to date requires requires the ability to propagate
+Keeping the scan data up to date requires the ability to propagate
 metadata updates from the filesystem into the data being collected by the scan.
 This *can* be done by appending concurrent updates into a separate log file and
 applying them before writing the new metadata to disk, but this leads to

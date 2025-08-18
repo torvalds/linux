@@ -214,7 +214,7 @@ XEON PHI specific considerations
   command line with the 'ring3mwait=disable' command line option.
 
   XEON PHI is not affected by the other MDS variants and MSBDS is mitigated
-  before the CPU enters a idle state. As XEON PHI is not affected by L1TF
+  before the CPU enters an idle state. As XEON PHI is not affected by L1TF
   either disabling SMT is not required for full protection.
 
 .. _mds_smt_control:
