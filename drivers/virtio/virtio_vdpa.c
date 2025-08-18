@@ -176,7 +176,7 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 	if (ops->get_vq_num_min)
 		min_num = ops->get_vq_num_min(vdpa);
 
-	may_reduce_num = (max_num == min_num) ? false : true;
+	may_reduce_num = (max_num != min_num);
 
 	/* Create the vring */
 	align = ops->get_vq_align(vdpa);
