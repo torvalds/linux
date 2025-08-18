@@ -11,6 +11,7 @@
 #include <sound/hdaudio.h>
 #include <sound/soc.h>
 #include "avs.h"
+#include "debug.h"
 #include "messages.h"
 
 static int avs_dsp_init_probe(struct avs_dev *adev, union avs_connector_node_id node_id,

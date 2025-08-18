@@ -17,6 +17,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-component.h>
 #include "avs.h"
+#include "debug.h"
 #include "utils.h"
 
 static char *i2s_test;
