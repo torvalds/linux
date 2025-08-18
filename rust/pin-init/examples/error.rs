@@ -24,4 +24,6 @@ impl From<AllocError> for Error {
 }
 
 #[allow(dead_code)]
-fn main() {}
+fn main() {
+    let _ = Error;
+}
