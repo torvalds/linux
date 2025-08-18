@@ -157,16 +157,14 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 	switch (bi->csum_type) {
 	case BLK_INTEGRITY_CSUM_NONE:
 		if (bi->pi_tuple_size) {
-			pr_warn("pi_tuple_size must be 0 when checksum type \
-				 is none\n");
+			pr_warn("pi_tuple_size must be 0 when checksum type is none\n");
 			return -EINVAL;
 		}
 		break;
 	case BLK_INTEGRITY_CSUM_CRC:
 	case BLK_INTEGRITY_CSUM_IP:
 		if (bi->pi_tuple_size != sizeof(struct t10_pi_tuple)) {
-			pr_warn("pi_tuple_size mismatch for T10 PI: expected \
-				 %zu, got %u\n",
+			pr_warn("pi_tuple_size mismatch for T10 PI: expected %zu, got %u\n",
 				 sizeof(struct t10_pi_tuple),
 				 bi->pi_tuple_size);
 			return -EINVAL;
@@ -174,8 +172,7 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 		break;
 	case BLK_INTEGRITY_CSUM_CRC64:
 		if (bi->pi_tuple_size != sizeof(struct crc64_pi_tuple)) {
-			pr_warn("pi_tuple_size mismatch for CRC64 PI: \
-				 expected %zu, got %u\n",
+			pr_warn("pi_tuple_size mismatch for CRC64 PI: expected %zu, got %u\n",
 				 sizeof(struct crc64_pi_tuple),
 				 bi->pi_tuple_size);
 			return -EINVAL;
