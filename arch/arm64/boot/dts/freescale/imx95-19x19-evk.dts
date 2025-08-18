@@ -136,6 +136,13 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&i2c7_pcal6524 20 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		/*
+		 * M.2 device only can be enabled(W_DISABLE1#) after all Power
+		 * Rails reach their minimum operating voltage (PCI Express M.2
+		 * Specification r5.1 3.1.4 Power-up Timing).
+		 * Set a delay equal to the max value of Tsettle here.
+		 */
+		startup-delay-us = <5000>;
 	};
 
 	reg_pcie0: regulator-pcie {
