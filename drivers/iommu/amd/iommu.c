@@ -14,6 +14,7 @@
 #include <linux/pci-ats.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-map-ops.h>
@@ -265,7 +266,7 @@ static inline int get_acpihid_device_id(struct device *dev,
 		return -EINVAL;
 	if (fw_bug)
 		dev_err_once(dev, FW_BUG "No ACPI device matched UID, but %d device%s matched HID.\n",
-			     hid_count, hid_count > 1 ? "s" : "");
+			     hid_count, str_plural(hid_count));
 	if (hid_count > 1)
 		return -EINVAL;
 	if (entry)
