@@ -15,6 +15,7 @@
 #include <linux/reset.h>
 
 #include "ppe.h"
+#include "ppe_config.h"
 
 #define PPE_PORT_MAX		8
 #define PPE_CLK_RATE		353000000
@@ -198,6 +199,10 @@ static int qcom_ppe_probe(struct platform_device *pdev)
 	ret = ppe_clock_init_and_reset(ppe_dev);
 	if (ret)
 		return dev_err_probe(dev, ret, "PPE clock config failed\n");
+
+	ret = ppe_hw_config(ppe_dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "PPE HW config failed\n");
 
 	platform_set_drvdata(pdev, ppe_dev);
 
