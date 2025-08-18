@@ -34,4 +34,5 @@ ice_fill_txq_meta(const struct ice_vsi *vsi, struct ice_tx_ring *ring,
 		  struct ice_txq_meta *txq_meta);
 int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx);
 int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx);
+u16 ice_calc_ts_ring_count(struct ice_tx_ring *tx_ring);
 #endif /* _ICE_BASE_H_ */

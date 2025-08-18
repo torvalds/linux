@@ -1733,6 +1733,44 @@ int ice_write_txq_ctx(struct ice_hw *hw, struct ice_tlan_ctx *tlan_ctx,
 	return 0;
 }
 
+/* Tx time Queue Context */
+static const struct packed_field_u8 ice_txtime_ctx_fields[] = {
+				    /* Field			Width	LSB */
+	ICE_CTX_STORE(ice_txtime_ctx, base,			57,	0),
+	ICE_CTX_STORE(ice_txtime_ctx, pf_num,			3,	57),
+	ICE_CTX_STORE(ice_txtime_ctx, vmvf_num,			10,	60),
+	ICE_CTX_STORE(ice_txtime_ctx, vmvf_type,		2,	70),
+	ICE_CTX_STORE(ice_txtime_ctx, src_vsi,			10,	72),
+	ICE_CTX_STORE(ice_txtime_ctx, cpuid,			8,	82),
+	ICE_CTX_STORE(ice_txtime_ctx, tphrd_desc,		1,	90),
+	ICE_CTX_STORE(ice_txtime_ctx, qlen,			13,	91),
+	ICE_CTX_STORE(ice_txtime_ctx, timer_num,		1,	104),
+	ICE_CTX_STORE(ice_txtime_ctx, txtime_ena_q,		1,	105),
+	ICE_CTX_STORE(ice_txtime_ctx, drbell_mode_32,		1,	106),
+	ICE_CTX_STORE(ice_txtime_ctx, ts_res,			4,	107),
+	ICE_CTX_STORE(ice_txtime_ctx, ts_round_type,		2,	111),
+	ICE_CTX_STORE(ice_txtime_ctx, ts_pacing_slot,		3,	113),
+	ICE_CTX_STORE(ice_txtime_ctx, merging_ena,		1,	116),
+	ICE_CTX_STORE(ice_txtime_ctx, ts_fetch_prof_id,		4,	117),
+	ICE_CTX_STORE(ice_txtime_ctx, ts_fetch_cache_line_aln_thld, 4,	121),
+	ICE_CTX_STORE(ice_txtime_ctx, tx_pipe_delay_mode,	1,	125),
+};
+
+/**
+ * ice_pack_txtime_ctx - pack Tx time queue context into a HW buffer
+ * @ctx: the Tx time queue context to pack
+ * @buf: the HW buffer to pack into
+ *
+ * Pack the Tx time queue context from the CPU-friendly unpacked buffer into
+ * its bit-packed HW layout.
+ */
+void ice_pack_txtime_ctx(const struct ice_txtime_ctx *ctx,
+			 ice_txtime_ctx_buf_t *buf)
+{
+	pack_fields(buf, sizeof(*buf), ctx, ice_txtime_ctx_fields,
+		    QUIRK_LITTLE_ENDIAN | QUIRK_LSW32_IS_FIRST);
+}
+
 /* Sideband Queue command wrappers */
 
 /**
@@ -4844,6 +4882,46 @@ ice_aq_add_rdma_qsets(struct ice_hw *hw, u8 num_qset_grps,
 	cmd->num_qset_grps = num_qset_grps;
 
 	return ice_aq_send_cmd(hw, &desc, qset_list, buf_size, cd);
+}
+
+/**
+ * ice_aq_set_txtimeq - set Tx time queues
+ * @hw: pointer to the hardware structure
+ * @txtimeq: first Tx time queue id to configure
+ * @q_count: number of queues to configure
+ * @txtime_qg: queue group to be set
+ * @buf_size: size of buffer for indirect command
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set Tx Time queue (0x0C35)
+ * Return: 0 on success or negative value on failure.
+ */
+int
+ice_aq_set_txtimeq(struct ice_hw *hw, u16 txtimeq, u8 q_count,
+		   struct ice_aqc_set_txtime_qgrp *txtime_qg, u16 buf_size,
+		   struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_txtimeqs *cmd;
+	struct libie_aq_desc desc;
+	u16 size;
+
+	if (!txtime_qg || txtimeq > ICE_TXTIME_MAX_QUEUE ||
+	    q_count < 1 || q_count > ICE_SET_TXTIME_MAX_Q_AMOUNT)
+		return -EINVAL;
+
+	size = struct_size(txtime_qg, txtimeqs, q_count);
+	if (buf_size != size)
+		return -EINVAL;
+
+	cmd = libie_aq_raw(&desc);
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_txtimeqs);
+
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
+
+	cmd->q_id = cpu_to_le16(txtimeq);
+	cmd->q_amount = cpu_to_le16(q_count);
+	return ice_aq_send_cmd(hw, &desc, txtime_qg, buf_size, cd);
 }
 
 /* End of FW Admin Queue command wrappers */

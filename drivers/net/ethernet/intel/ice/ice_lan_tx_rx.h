@@ -569,4 +569,45 @@ struct ice_tlan_ctx {
 	u8 pkt_shaper_prof_idx;
 };
 
+#define ICE_TXTIME_TX_DESC_IDX_M	GENMASK(12, 0)
+#define ICE_TXTIME_STAMP_M		GENMASK(31, 13)
+
+/* Tx time stamp descriptor */
+struct ice_ts_desc {
+	__le32 tx_desc_idx_tstamp;
+};
+
+#define ICE_TS_DESC(R, i) (&(((struct ice_ts_desc *)((R)->desc))[i]))
+
+#define ICE_TXTIME_MAX_QUEUE		2047
+#define ICE_SET_TXTIME_MAX_Q_AMOUNT	127
+#define ICE_TXTIME_FETCH_TS_DESC_DFLT	8
+#define ICE_TXTIME_FETCH_PROFILE_CNT	16
+
+/* Tx Time queue context data */
+struct ice_txtime_ctx {
+#define ICE_TXTIME_CTX_BASE_S		7
+	u64 base;			/* base is defined in 128-byte units */
+	u8 pf_num;
+	u16 vmvf_num;
+	u8 vmvf_type;
+	u16 src_vsi;
+	u8 cpuid;
+	u8 tphrd_desc;
+	u16 qlen;
+	u8 timer_num;
+	u8 txtime_ena_q;
+	u8 drbell_mode_32;
+#define ICE_TXTIME_CTX_DRBELL_MODE_32	1
+	u8 ts_res;
+#define ICE_TXTIME_CTX_RESOLUTION_128NS 7
+	u8 ts_round_type;
+	u8 ts_pacing_slot;
+#define ICE_TXTIME_CTX_FETCH_PROF_ID_0 0
+	u8 merging_ena;
+	u8 ts_fetch_prof_id;
+	u8 ts_fetch_cache_line_aln_thld;
+	u8 tx_pipe_delay_mode;
+};
+
 #endif /* _ICE_LAN_TX_RX_H_ */

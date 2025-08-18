@@ -54,7 +54,7 @@ static bool ice_vc_isvalid_ring_len(u16 ring_len)
 {
 	return ring_len == 0 ||
 	       (ring_len >= ICE_MIN_NUM_DESC &&
-		ring_len <= ICE_MAX_NUM_DESC &&
+		ring_len <= ICE_MAX_NUM_DESC_E810 &&
 		!(ring_len % ICE_REQ_DESC_MULTIPLE));
 }
 
