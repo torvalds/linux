@@ -1717,10 +1717,10 @@ static void usb_giveback_urb_bh(struct work_struct *work)
  * @urb: urb being returned to the USB device driver.
  * @status: completion status code for the URB.
  *
- * Context: atomic. The completion callback is invoked in caller's context.
- * For HCDs with HCD_BH flag set, the completion callback is invoked in BH
- * context (except for URBs submitted to the root hub which always complete in
- * caller's context).
+ * Context: atomic. The completion callback is invoked either in a work queue
+ * (BH) context or in the caller's context, depending on whether the HCD_BH
+ * flag is set in the @hcd structure, except that URBs submitted to the
+ * root hub always complete in BH context.
  *
  * This hands the URB from HCD to its USB device driver, using its
  * completion function.  The HCD has freed all per-urb resources
