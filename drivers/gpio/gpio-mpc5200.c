@@ -8,7 +8,7 @@
 #include <linux/of.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/gpio/legacy-of-mm-gpiochip.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -19,7 +19,8 @@
 static DEFINE_SPINLOCK(gpio_lock);
 
 struct mpc52xx_gpiochip {
-	struct of_mm_gpio_chip mmchip;
+	struct gpio_chip gc;
+	void __iomem *regs;
 	unsigned int shadow_dvo;
 	unsigned int shadow_gpioe;
 	unsigned int shadow_ddr;
@@ -43,8 +44,8 @@ struct mpc52xx_gpiochip {
  */
 static int mpc52xx_wkup_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
+	struct mpc52xx_gpio_wkup __iomem *regs = chip->regs;
 	unsigned int ret;
 
 	ret = (in_8(&regs->wkup_ival) >> (7 - gpio)) & 1;
@@ -57,9 +58,8 @@ static int mpc52xx_wkup_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 static inline void
 __mpc52xx_wkup_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
-	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpio_wkup __iomem *regs = chip->regs;
 
 	if (val)
 		chip->shadow_dvo |= 1 << (7 - gpio);
@@ -87,9 +87,8 @@ mpc52xx_wkup_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int mpc52xx_wkup_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
-	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpio_wkup __iomem *regs = chip->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -110,9 +109,8 @@ static int mpc52xx_wkup_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 static int
 mpc52xx_wkup_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
 	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
+	struct mpc52xx_gpio_wkup __iomem *regs = chip->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -136,42 +134,46 @@ mpc52xx_wkup_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int mpc52xx_wkup_gpiochip_probe(struct platform_device *ofdev)
 {
+	struct device *dev = &ofdev->dev;
+	struct device_node *np = dev->of_node;
 	struct mpc52xx_gpiochip *chip;
 	struct mpc52xx_gpio_wkup __iomem *regs;
 	struct gpio_chip *gc;
 	int ret;
 
-	chip = devm_kzalloc(&ofdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
 	platform_set_drvdata(ofdev, chip);
 
-	gc = &chip->mmchip.gc;
+	gc = &chip->gc;
 
+	gc->base             = -1;
 	gc->ngpio            = 8;
 	gc->direction_input  = mpc52xx_wkup_gpio_dir_in;
 	gc->direction_output = mpc52xx_wkup_gpio_dir_out;
 	gc->get              = mpc52xx_wkup_gpio_get;
 	gc->set              = mpc52xx_wkup_gpio_set;
 
-	ret = of_mm_gpiochip_add_data(ofdev->dev.of_node, &chip->mmchip, chip);
+	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
+	if (!gc->label)
+		return -ENOMEM;
+
+	chip->regs = devm_of_iomap(dev, np, 0, NULL);
+	if (IS_ERR(chip->regs))
+		return PTR_ERR(chip->regs);
+
+	ret = devm_gpiochip_add_data(dev, gc, chip);
 	if (ret)
 		return ret;
 
-	regs = chip->mmchip.regs;
+	regs = chip->regs;
 	chip->shadow_gpioe = in_8(&regs->wkup_gpioe);
 	chip->shadow_ddr = in_8(&regs->wkup_ddr);
 	chip->shadow_dvo = in_8(&regs->wkup_dvo);
 
 	return 0;
-}
-
-static void mpc52xx_gpiochip_remove(struct platform_device *ofdev)
-{
-	struct mpc52xx_gpiochip *chip = platform_get_drvdata(ofdev);
-
-	of_mm_gpiochip_remove(&chip->mmchip);
 }
 
 static const struct of_device_id mpc52xx_wkup_gpiochip_match[] = {
@@ -185,7 +187,6 @@ static struct platform_driver mpc52xx_wkup_gpiochip_driver = {
 		.of_match_table = mpc52xx_wkup_gpiochip_match,
 	},
 	.probe = mpc52xx_wkup_gpiochip_probe,
-	.remove = mpc52xx_gpiochip_remove,
 };
 
 /*
@@ -207,8 +208,8 @@ static struct platform_driver mpc52xx_wkup_gpiochip_driver = {
  */
 static int mpc52xx_simple_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
+	struct mpc52xx_gpio __iomem *regs = chip->regs;
 	unsigned int ret;
 
 	ret = (in_be32(&regs->simple_ival) >> (31 - gpio)) & 1;
@@ -219,9 +220,8 @@ static int mpc52xx_simple_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 static inline void
 __mpc52xx_simple_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
-	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpio __iomem *regs = chip->regs;
 
 	if (val)
 		chip->shadow_dvo |= 1 << (31 - gpio);
@@ -248,9 +248,8 @@ mpc52xx_simple_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int mpc52xx_simple_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
-	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpio __iomem *regs = chip->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -271,9 +270,8 @@ static int mpc52xx_simple_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 static int
 mpc52xx_simple_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
-	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
+	struct mpc52xx_gpio __iomem *regs = chip->regs;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -298,30 +296,41 @@ mpc52xx_simple_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int mpc52xx_simple_gpiochip_probe(struct platform_device *ofdev)
 {
+	struct device *dev = &ofdev->dev;
+	struct device_node *np = dev->of_node;
 	struct mpc52xx_gpiochip *chip;
 	struct gpio_chip *gc;
 	struct mpc52xx_gpio __iomem *regs;
 	int ret;
 
-	chip = devm_kzalloc(&ofdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
 	platform_set_drvdata(ofdev, chip);
 
-	gc = &chip->mmchip.gc;
+	gc = &chip->gc;
 
+	gc->base             = -1;
 	gc->ngpio            = 32;
 	gc->direction_input  = mpc52xx_simple_gpio_dir_in;
 	gc->direction_output = mpc52xx_simple_gpio_dir_out;
 	gc->get              = mpc52xx_simple_gpio_get;
 	gc->set              = mpc52xx_simple_gpio_set;
 
-	ret = of_mm_gpiochip_add_data(ofdev->dev.of_node, &chip->mmchip, chip);
+	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
+	if (!gc->label)
+		return -ENOMEM;
+
+	chip->regs = devm_of_iomap(dev, np, 0, NULL);
+	if (IS_ERR(chip->regs))
+		return PTR_ERR(chip->regs);
+
+	ret = devm_gpiochip_add_data(dev, gc, chip);
 	if (ret)
 		return ret;
 
-	regs = chip->mmchip.regs;
+	regs = chip->regs;
 	chip->shadow_gpioe = in_be32(&regs->simple_gpioe);
 	chip->shadow_ddr = in_be32(&regs->simple_ddr);
 	chip->shadow_dvo = in_be32(&regs->simple_dvo);
@@ -340,7 +349,6 @@ static struct platform_driver mpc52xx_simple_gpiochip_driver = {
 		.of_match_table = mpc52xx_simple_gpiochip_match,
 	},
 	.probe = mpc52xx_simple_gpiochip_probe,
-	.remove = mpc52xx_gpiochip_remove,
 };
 
 static struct platform_driver * const drivers[] = {
