@@ -684,7 +684,7 @@ static const struct nft_expr_ops nft_payload_inner_ops = {
 
 static inline void nft_csum_replace(__sum16 *sum, __wsum fsum, __wsum tsum)
 {
-	*sum = csum_fold(csum_add(csum_sub(~csum_unfold(*sum), fsum), tsum));
+	csum_replace4(sum, (__force __be32)fsum, (__force __be32)tsum);
 	if (*sum == 0)
 		*sum = CSUM_MANGLED_0;
 }
