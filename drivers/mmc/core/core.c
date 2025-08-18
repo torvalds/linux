@@ -1875,6 +1875,15 @@ bool mmc_card_can_secure_erase_trim(struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_card_can_secure_erase_trim);
 
+bool mmc_card_can_cmd23(struct mmc_card *card)
+{
+	return ((mmc_card_mmc(card) &&
+		 card->csd.mmca_vsn >= CSD_SPEC_VER_3) ||
+		(mmc_card_sd(card) && !mmc_card_ult_capacity(card) &&
+		 card->scr.cmds & SD_SCR_CMD23_SUPPORT));
+}
+EXPORT_SYMBOL(mmc_card_can_cmd23);
+
 int mmc_erase_group_aligned(struct mmc_card *card, sector_t from,
 			    unsigned int nr)
 {

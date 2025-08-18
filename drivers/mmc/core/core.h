@@ -123,6 +123,7 @@ bool mmc_card_can_trim(struct mmc_card *card);
 bool mmc_card_can_discard(struct mmc_card *card);
 bool mmc_card_can_sanitize(struct mmc_card *card);
 bool mmc_card_can_secure_erase_trim(struct mmc_card *card);
+bool mmc_card_can_cmd23(struct mmc_card *card);
 int mmc_erase_group_aligned(struct mmc_card *card, sector_t from, unsigned int nr);
 unsigned int mmc_calc_max_discard(struct mmc_card *card);
 
