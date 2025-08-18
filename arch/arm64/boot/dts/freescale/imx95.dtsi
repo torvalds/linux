@@ -492,6 +492,110 @@
 		#size-cells = <2>;
 		ranges;
 
+		etm0: etm@40840000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0x0 0x40840000 0x0 0x10000>;
+			arm,primecell-periphid = <0xbb95d>;
+			cpu = <&A55_0>;
+			clocks = <&scmi_clk IMX95_CLK_A55PERIPH>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+
+			out-ports {
+				port {
+					etm0_out_port: endpoint {
+						remote-endpoint = <&ca_funnel_in_port0>;
+					};
+				};
+			};
+		};
+
+		funnel0: funnel {
+			/*
+			 * non-configurable funnel don't show up on the AMBA
+			 * bus.  As such no need to add "arm,primecell".
+			 */
+			compatible = "arm,coresight-static-funnel";
+			status = "disabled";
+
+			in-ports {
+				port {
+					ca_funnel_in_port0: endpoint {
+						remote-endpoint = <&etm0_out_port>;
+					};
+				};
+			};
+
+			out-ports {
+				port {
+					ca_funnel_out_port0: endpoint {
+						remote-endpoint = <&hugo_funnel_in_port0>;
+					};
+				};
+			};
+		};
+
+		funnel1: funnel-sys {
+			compatible = "arm,coresight-static-funnel";
+			status = "disabled";
+
+			in-ports {
+				port {
+					hugo_funnel_in_port0: endpoint {
+						remote-endpoint = <&ca_funnel_out_port0>;
+					};
+				};
+			};
+
+			out-ports {
+				port {
+					hugo_funnel_out_port0: endpoint {
+						remote-endpoint = <&etf_in_port>;
+					};
+				};
+			};
+		};
+
+		etf: etf@41030000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0x0 0x41030000 0x0 0x1000>;
+			clocks = <&scmi_clk IMX95_CLK_A55PERIPH>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+
+			in-ports {
+				port {
+					etf_in_port: endpoint {
+						remote-endpoint = <&hugo_funnel_out_port0>;
+					};
+				};
+			};
+
+			out-ports {
+				port {
+					etf_out_port: endpoint {
+						remote-endpoint = <&etr_in_port>;
+					};
+				};
+			};
+		};
+
+		etr: etr@41040000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0x0 0x41040000 0x0 0x1000>;
+			clocks = <&scmi_clk IMX95_CLK_A55PERIPH>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+
+			in-ports {
+				port {
+					etr_in_port: endpoint {
+						remote-endpoint = <&etf_out_port>;
+					};
+				};
+			};
+		};
+
 		aips2: bus@42000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0x0 0x42000000 0x0 0x800000>;
