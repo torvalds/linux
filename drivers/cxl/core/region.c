@@ -3660,15 +3660,15 @@ static int validate_region_offset(struct cxl_region *cxlr, u64 offset)
 
 	if (offset < p->cache_size) {
 		dev_err(&cxlr->dev,
-			"Offset %#llx is within extended linear cache %#llx\n",
-			offset, p->cache_size);
+			"Offset %#llx is within extended linear cache %pr\n",
+			offset, &p->cache_size);
 		return -EINVAL;
 	}
 
 	region_size = resource_size(p->res);
 	if (offset >= region_size) {
-		dev_err(&cxlr->dev, "Offset %#llx exceeds region size %#llx\n",
-			offset, region_size);
+		dev_err(&cxlr->dev, "Offset %#llx exceeds region size %pr\n",
+			offset, &region_size);
 		return -EINVAL;
 	}
 
