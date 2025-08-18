@@ -2155,7 +2155,7 @@ static int amdgpu_pt_info_read(struct seq_file *m, void *unused)
 		return -EINVAL;
 	}
 
-	seq_printf(m, "gpu_address: 0x%llx\n", amdgpu_bo_gpu_offset(fpriv->vm.root.bo));
+	seq_printf(m, "pd_address: 0x%llx\n", amdgpu_gmc_pd_addr(fpriv->vm.root.bo));
 	seq_printf(m, "max_pfn: 0x%llx\n", adev->vm_manager.max_pfn);
 	seq_printf(m, "num_level: 0x%x\n", adev->vm_manager.num_level);
 	seq_printf(m, "block_size: 0x%x\n", adev->vm_manager.block_size);
