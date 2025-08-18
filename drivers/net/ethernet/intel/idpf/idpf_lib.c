@@ -776,6 +776,7 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	np->vport_idx = vport->idx;
 	np->vport_id = vport->vport_id;
 	np->max_tx_hdr_size = idpf_get_max_tx_hdr_size(adapter);
+	np->tx_max_bufs = idpf_get_max_tx_bufs(adapter);
 
 	spin_lock_init(&np->stats_lock);
 
@@ -2272,6 +2273,92 @@ static int idpf_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /**
+ * idpf_chk_tso_segment - Check skb is not using too many buffers
+ * @skb: send buffer
+ * @max_bufs: maximum number of buffers
+ *
+ * For TSO we need to count the TSO header and segment payload separately.  As
+ * such we need to check cases where we have max_bufs-1 fragments or more as we
+ * can potentially require max_bufs+1 DMA transactions, 1 for the TSO header, 1
+ * for the segment payload in the first descriptor, and another max_buf-1 for
+ * the fragments.
+ *
+ * Returns true if the packet needs to be software segmented by core stack.
+ */
+static bool idpf_chk_tso_segment(const struct sk_buff *skb,
+				 unsigned int max_bufs)
+{
+	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+	const skb_frag_t *frag, *stale;
+	int nr_frags, sum;
+
+	/* no need to check if number of frags is less than max_bufs - 1 */
+	nr_frags = shinfo->nr_frags;
+	if (nr_frags < (max_bufs - 1))
+		return false;
+
+	/* We need to walk through the list and validate that each group
+	 * of max_bufs-2 fragments totals at least gso_size.
+	 */
+	nr_frags -= max_bufs - 2;
+	frag = &shinfo->frags[0];
+
+	/* Initialize size to the negative value of gso_size minus 1.  We use
+	 * this as the worst case scenario in which the frag ahead of us only
+	 * provides one byte which is why we are limited to max_bufs-2
+	 * descriptors for a single transmit as the header and previous
+	 * fragment are already consuming 2 descriptors.
+	 */
+	sum = 1 - shinfo->gso_size;
+
+	/* Add size of frags 0 through 4 to create our initial sum */
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+	sum += skb_frag_size(frag++);
+
+	/* Walk through fragments adding latest fragment, testing it, and
+	 * then removing stale fragments from the sum.
+	 */
+	for (stale = &shinfo->frags[0];; stale++) {
+		int stale_size = skb_frag_size(stale);
+
+		sum += skb_frag_size(frag++);
+
+		/* The stale fragment may present us with a smaller
+		 * descriptor than the actual fragment size. To account
+		 * for that we need to remove all the data on the front and
+		 * figure out what the remainder would be in the last
+		 * descriptor associated with the fragment.
+		 */
+		if (stale_size > IDPF_TX_MAX_DESC_DATA) {
+			int align_pad = -(skb_frag_off(stale)) &
+					(IDPF_TX_MAX_READ_REQ_SIZE - 1);
+
+			sum -= align_pad;
+			stale_size -= align_pad;
+
+			do {
+				sum -= IDPF_TX_MAX_DESC_DATA_ALIGNED;
+				stale_size -= IDPF_TX_MAX_DESC_DATA_ALIGNED;
+			} while (stale_size > IDPF_TX_MAX_DESC_DATA);
+		}
+
+		/* if sum is negative we failed to make sufficient progress */
+		if (sum < 0)
+			return true;
+
+		if (!nr_frags--)
+			break;
+
+		sum -= stale_size;
+	}
+
+	return false;
+}
+
+/**
  * idpf_features_check - Validate packet conforms to limits
  * @skb: skb buffer
  * @netdev: This port's netdev
@@ -2292,12 +2379,15 @@ static netdev_features_t idpf_features_check(struct sk_buff *skb,
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return features;
 
-	/* We cannot support GSO if the MSS is going to be less than
-	 * 88 bytes. If it is then we need to drop support for GSO.
-	 */
-	if (skb_is_gso(skb) &&
-	    (skb_shinfo(skb)->gso_size < IDPF_TX_TSO_MIN_MSS))
-		features &= ~NETIF_F_GSO_MASK;
+	if (skb_is_gso(skb)) {
+		/* We cannot support GSO if the MSS is going to be less than
+		 * 88 bytes. If it is then we need to drop support for GSO.
+		 */
+		if (skb_shinfo(skb)->gso_size < IDPF_TX_TSO_MIN_MSS)
+			features &= ~NETIF_F_GSO_MASK;
+		else if (idpf_chk_tso_segment(skb, np->tx_max_bufs))
+			features &= ~NETIF_F_GSO_MASK;
+	}
 
 	/* Ensure MACLEN is <= 126 bytes (63 words) and not an odd size */
 	len = skb_network_offset(skb);

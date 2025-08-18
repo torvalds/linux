@@ -148,6 +148,7 @@ enum idpf_vport_state {
  * @link_speed_mbps: Link speed in mbps
  * @vport_idx: Relative vport index
  * @max_tx_hdr_size: Max header length hardware can support
+ * @tx_max_bufs: Max buffers that can be transmitted with scatter-gather
  * @state: See enum idpf_vport_state
  * @netstats: Packet and byte stats
  * @stats_lock: Lock to protect stats update
@@ -159,6 +160,7 @@ struct idpf_netdev_priv {
 	u32 link_speed_mbps;
 	u16 vport_idx;
 	u16 max_tx_hdr_size;
+	u16 tx_max_bufs;
 	enum idpf_vport_state state;
 	struct rtnl_link_stats64 netstats;
 	spinlock_t stats_lock;
