@@ -26,7 +26,7 @@ static int nfsd_dsr_get(void *data, u64 *val)
 
 static int nfsd_dsr_set(void *data, u64 val)
 {
-	nfsd_disable_splice_read = (val > 0) ? true : false;
+	nfsd_disable_splice_read = (val > 0);
 	return 0;
 }
 
