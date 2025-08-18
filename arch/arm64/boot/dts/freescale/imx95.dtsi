@@ -1553,6 +1553,25 @@
 			status = "disabled";
 		};
 
+		ocotp: efuse@47510000 {
+			compatible = "fsl,imx95-ocotp", "syscon";
+			reg = <0x0 0x47510000 0x0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eth_mac0: mac-address@0 {
+				reg = <0x0514 0x6>;
+			};
+
+			eth_mac1: mac-address@1 {
+				reg = <0x1514 0x6>;
+			};
+
+			eth_mac2: mac-address@2 {
+				reg = <0x2514 0x6>;
+			};
+		};
+
 		elemu0: mailbox@47520000 {
 			compatible = "fsl,imx95-mu-ele";
 			reg = <0x0 0x47520000 0x0 0x10000>;
