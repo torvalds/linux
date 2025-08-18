@@ -210,6 +210,23 @@ struct smbdirect_send_io {
 	u8 packet[];
 };
 
+struct smbdirect_send_batch {
+	/*
+	 * List of smbdirect_send_io messages
+	 */
+	struct list_head msg_list;
+	/*
+	 * Number of list entries
+	 */
+	size_t wr_cnt;
+
+	/*
+	 * Possible remote key invalidation state
+	 */
+	bool need_invalidate_rkey;
+	u32 remote_key;
+};
+
 struct smbdirect_recv_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
