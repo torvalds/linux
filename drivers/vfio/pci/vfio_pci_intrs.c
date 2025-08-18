@@ -677,7 +677,7 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_core_device *vdev,
 {
 	struct vfio_pci_irq_ctx *ctx;
 	unsigned int i;
-	bool msix = (index == VFIO_PCI_MSIX_IRQ_INDEX) ? true : false;
+	bool msix = (index == VFIO_PCI_MSIX_IRQ_INDEX);
 
 	if (irq_is(vdev, index) && !count && (flags & VFIO_IRQ_SET_DATA_NONE)) {
 		vfio_msi_disable(vdev, msix);
