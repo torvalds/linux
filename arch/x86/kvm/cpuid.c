@@ -1820,7 +1820,8 @@ static int get_cpuid_func(struct kvm_cpuid_array *array, u32 func,
 	int r;
 
 	if (func == CENTAUR_CPUID_SIGNATURE &&
-	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR)
+	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
 		return 0;
 
 	r = do_cpuid_func(array, func, type);
