@@ -2134,12 +2134,12 @@ deferred_init_maxorder(u64 *i, struct zone *zone, unsigned long *start_pfn,
 	return nr_pages;
 }
 
-static void __init
+static unsigned long __init
 deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
-			   void *arg)
+			   struct zone *zone)
 {
+	unsigned long nr_pages = 0;
 	unsigned long spfn, epfn;
-	struct zone *zone = arg;
 	u64 i = 0;
 
 	deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn, start_pfn);
@@ -2149,9 +2149,23 @@ deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
 	 * we can avoid introducing any issues with the buddy allocator.
 	 */
 	while (spfn < end_pfn) {
-		deferred_init_maxorder(&i, zone, &spfn, &epfn);
-		cond_resched();
+		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
+		if (irqs_disabled())
+			touch_nmi_watchdog();
+		else
+			cond_resched();
 	}
+
+	return nr_pages;
+}
+
+static void __init
+deferred_init_memmap_job(unsigned long start_pfn, unsigned long end_pfn,
+			 void *arg)
+{
+	struct zone *zone = arg;
+
+	deferred_init_memmap_chunk(start_pfn, end_pfn, zone);
 }
 
 static unsigned int __init
@@ -2204,7 +2218,7 @@ static int __init deferred_init_memmap(void *data)
 	while (deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn, first_init_pfn)) {
 		first_init_pfn = ALIGN(epfn, PAGES_PER_SECTION);
 		struct padata_mt_job job = {
-			.thread_fn   = deferred_init_memmap_chunk,
+			.thread_fn   = deferred_init_memmap_job,
 			.fn_arg      = zone,
 			.start       = spfn,
 			.size        = first_init_pfn - spfn,
@@ -2240,12 +2254,11 @@ static int __init deferred_init_memmap(void *data)
  */
 bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 {
-	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
+	unsigned long nr_pages_needed = SECTION_ALIGN_UP(1 << order);
 	pg_data_t *pgdat = zone->zone_pgdat;
 	unsigned long first_deferred_pfn = pgdat->first_deferred_pfn;
 	unsigned long spfn, epfn, flags;
 	unsigned long nr_pages = 0;
-	u64 i = 0;
 
 	/* Only the last zone may have deferred pages */
 	if (zone_end_pfn(zone) != pgdat_end_pfn(pgdat))
@@ -2262,37 +2275,26 @@ bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 		return true;
 	}
 
-	/* If the zone is empty somebody else may have cleared out the zone */
-	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
-						 first_deferred_pfn)) {
-		pgdat->first_deferred_pfn = ULONG_MAX;
-		pgdat_resize_unlock(pgdat, &flags);
-		/* Retry only once. */
-		return first_deferred_pfn != ULONG_MAX;
+	/*
+	 * Initialize at least nr_pages_needed in section chunks.
+	 * If a section has less free memory than nr_pages_needed, the next
+	 * section will be also initialized.
+	 * Note, that it still does not guarantee that allocation of order can
+	 * be satisfied if the sections are fragmented because of memblock
+	 * allocations.
+	 */
+	for (spfn = first_deferred_pfn, epfn = SECTION_ALIGN_UP(spfn + 1);
+	     nr_pages < nr_pages_needed && spfn < zone_end_pfn(zone);
+	     spfn = epfn, epfn += PAGES_PER_SECTION) {
+		nr_pages += deferred_init_memmap_chunk(spfn, epfn, zone);
 	}
 
 	/*
-	 * Initialize and free pages in MAX_PAGE_ORDER sized increments so
-	 * that we can avoid introducing any issues with the buddy
-	 * allocator.
+	 * There were no pages to initialize and free which means the zone's
+	 * memory map is completely initialized.
 	 */
-	while (spfn < epfn) {
-		/* update our first deferred PFN for this section */
-		first_deferred_pfn = spfn;
+	pgdat->first_deferred_pfn = nr_pages ? spfn : ULONG_MAX;
 
-		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
-		touch_nmi_watchdog();
-
-		/* We should only stop along section boundaries */
-		if ((first_deferred_pfn ^ spfn) < PAGES_PER_SECTION)
-			continue;
-
-		/* If our quota has been met we can stop here */
-		if (nr_pages >= nr_pages_needed)
-			break;
-	}
-
-	pgdat->first_deferred_pfn = spfn;
 	pgdat_resize_unlock(pgdat, &flags);
 
 	return nr_pages > 0;
