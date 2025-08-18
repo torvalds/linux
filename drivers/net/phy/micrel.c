@@ -5645,8 +5645,7 @@ static int ksz9131_resume(struct phy_device *phydev)
 
 static struct phy_driver ksphy_driver[] = {
 {
-	.phy_id		= PHY_ID_KS8737,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KS8737),
 	.name		= "Micrel KS8737",
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ks8737_type,
@@ -5687,8 +5686,7 @@ static struct phy_driver ksphy_driver[] = {
 	.suspend	= kszphy_suspend,
 	.resume		= kszphy_resume,
 }, {
-	.phy_id		= PHY_ID_KSZ8041,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ8041),
 	.name		= "Micrel KSZ8041",
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ksz8041_type,
@@ -5703,8 +5701,7 @@ static struct phy_driver ksphy_driver[] = {
 	.suspend	= ksz8041_suspend,
 	.resume		= ksz8041_resume,
 }, {
-	.phy_id		= PHY_ID_KSZ8041RNLI,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ8041RNLI),
 	.name		= "Micrel KSZ8041RNLI",
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ksz8041_type,
@@ -5747,9 +5744,8 @@ static struct phy_driver ksphy_driver[] = {
 	.suspend	= kszphy_suspend,
 	.resume		= kszphy_resume,
 }, {
-	.phy_id		= PHY_ID_KSZ8081,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ8081),
 	.name		= "Micrel KSZ8081 or KSZ8091",
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.flags		= PHY_POLL_CABLE_TEST,
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ksz8081_type,
@@ -5768,9 +5764,8 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_start	= ksz886x_cable_test_start,
 	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
-	.phy_id		= PHY_ID_KSZ8061,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ8061),
 	.name		= "Micrel KSZ8061",
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	/* PHY_BASIC_FEATURES */
 	.probe		= kszphy_probe,
 	.config_init	= ksz8061_config_init,
@@ -5798,8 +5793,7 @@ static struct phy_driver ksphy_driver[] = {
 	.read_mmd	= genphy_read_mmd_unsupported,
 	.write_mmd	= genphy_write_mmd_unsupported,
 }, {
-	.phy_id		= PHY_ID_KSZ9031,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ9031),
 	.name		= "Micrel KSZ9031 Gigabit PHY",
 	.flags		= PHY_POLL_CABLE_TEST,
 	.driver_data	= &ksz9021_type,
@@ -5819,8 +5813,7 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_get_status	= ksz9x31_cable_test_get_status,
 	.set_loopback	= ksz9031_set_loopback,
 }, {
-	.phy_id		= PHY_ID_LAN8814,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_LAN8814),
 	.name		= "Microchip INDY Gigabit Quad PHY",
 	.flags          = PHY_POLL_CABLE_TEST,
 	.config_init	= lan8814_config_init,
@@ -5838,8 +5831,7 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_start	= lan8814_cable_test_start,
 	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
-	.phy_id		= PHY_ID_LAN8804,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_LAN8804),
 	.name		= "Microchip LAN966X Gigabit PHY",
 	.config_init	= lan8804_config_init,
 	.driver_data	= &ksz9021_type,
@@ -5854,8 +5846,7 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= lan8804_config_intr,
 	.handle_interrupt = lan8804_handle_interrupt,
 }, {
-	.phy_id		= PHY_ID_LAN8841,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_LAN8841),
 	.name		= "Microchip LAN8841 Gigabit PHY",
 	.flags		= PHY_POLL_CABLE_TEST,
 	.driver_data	= &lan8841_type,
@@ -5872,8 +5863,7 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_start	= lan8814_cable_test_start,
 	.cable_test_get_status	= ksz886x_cable_test_get_status,
 }, {
-	.phy_id		= PHY_ID_KSZ9131,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ9131),
 	.name		= "Microchip KSZ9131 Gigabit PHY",
 	/* PHY_GBIT_FEATURES */
 	.flags		= PHY_POLL_CABLE_TEST,
@@ -5894,8 +5884,7 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_get_status	= ksz9x31_cable_test_get_status,
 	.get_features	= ksz9477_get_features,
 }, {
-	.phy_id		= PHY_ID_KSZ8873MLL,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ8873MLL),
 	.name		= "Micrel KSZ8873MLL Switch",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= kszphy_config_init,
@@ -5904,8 +5893,7 @@ static struct phy_driver ksphy_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
-	.phy_id		= PHY_ID_KSZ886X,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ886X),
 	.name		= "Micrel KSZ8851 Ethernet MAC or KSZ886X Switch",
 	.driver_data	= &ksz886x_type,
 	/* PHY_BASIC_FEATURES */
@@ -5925,8 +5913,7 @@ static struct phy_driver ksphy_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
-	.phy_id		= PHY_ID_KSZ9477,
-	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	PHY_ID_MATCH_MODEL(PHY_ID_KSZ9477),
 	.name		= "Microchip KSZ9477",
 	.probe		= kszphy_probe,
 	/* PHY_GBIT_FEATURES */
@@ -5953,22 +5940,23 @@ MODULE_LICENSE("GPL");
 
 static const struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ9021, 0x000ffffe },
-	{ PHY_ID_KSZ9031, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ9131, MICREL_PHY_ID_MASK },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ9031) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ9131) },
 	{ PHY_ID_KSZ8001, 0x00fffffc },
-	{ PHY_ID_KS8737, MICREL_PHY_ID_MASK },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KS8737) },
 	{ PHY_ID_KSZ8021, 0x00ffffff },
 	{ PHY_ID_KSZ8031, 0x00ffffff },
-	{ PHY_ID_KSZ8041, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ8051, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ8061, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ8081, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ8873MLL, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ886X, MICREL_PHY_ID_MASK },
-	{ PHY_ID_KSZ9477, MICREL_PHY_ID_MASK },
-	{ PHY_ID_LAN8814, MICREL_PHY_ID_MASK },
-	{ PHY_ID_LAN8804, MICREL_PHY_ID_MASK },
-	{ PHY_ID_LAN8841, MICREL_PHY_ID_MASK },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ8041) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ8041RNLI) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ8051) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ8061) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ8081) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ8873MLL) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ886X) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_KSZ9477) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8814) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8804) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_LAN8841) },
 	{ }
 };
 
