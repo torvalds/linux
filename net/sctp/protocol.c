@@ -1334,14 +1334,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	net->sctp.cookie_preserve_enable 	= 1;
 
-	/* Default sctp sockets to use md5 as their hmac alg */
-#if defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_MD5)
-	net->sctp.sctp_hmac_alg			= "md5";
-#elif defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_SHA1)
-	net->sctp.sctp_hmac_alg			= "sha1";
-#else
-	net->sctp.sctp_hmac_alg			= NULL;
-#endif
+	/* Whether cookie authentication is enabled(1) or not(0) */
+	net->sctp.cookie_auth_enable =
+		!IS_ENABLED(CONFIG_SCTP_DEFAULT_COOKIE_HMAC_NONE);
 
 	/* Max.Burst		    - 4 */
 	net->sctp.max_burst			= SCTP_DEFAULT_MAX_BURST;
