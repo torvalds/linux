@@ -172,7 +172,6 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 		return NULL;
 
 	cmem->max_nr_ranges = nr_ranges;
-	cmem->nr_ranges = 0;
 
 	return cmem;
 }
@@ -332,7 +331,6 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 		return -ENOMEM;
 
 	cmem->max_nr_ranges = nr_ranges;
-	cmem->nr_ranges = 0;
 
 	memset(&cmd, 0, sizeof(struct crash_memmap_data));
 	cmd.params = params;
