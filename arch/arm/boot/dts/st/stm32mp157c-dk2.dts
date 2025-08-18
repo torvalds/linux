@@ -45,7 +45,6 @@
 		reg = <0>;
 		reset-gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
 		power-supply = <&v3v3>;
-		status = "okay";
 
 		port {
 			panel_in: endpoint {
@@ -71,7 +70,6 @@
 		interrupt-parent = <&gpiof>;
 		touchscreen-size-x = <480>;
 		touchscreen-size-y = <800>;
-		status = "okay";
 	};
 };
 
