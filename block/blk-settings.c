@@ -972,6 +972,8 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 			goto incompatible;
 		if (ti->csum_type != bi->csum_type)
 			goto incompatible;
+		if (ti->pi_tuple_size != bi->pi_tuple_size)
+			goto incompatible;
 		if ((ti->flags & BLK_INTEGRITY_REF_TAG) !=
 		    (bi->flags & BLK_INTEGRITY_REF_TAG))
 			goto incompatible;
@@ -980,6 +982,7 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 		ti->flags |= (bi->flags & BLK_INTEGRITY_DEVICE_CAPABLE) |
 			     (bi->flags & BLK_INTEGRITY_REF_TAG);
 		ti->csum_type = bi->csum_type;
+		ti->pi_tuple_size = bi->pi_tuple_size;
 		ti->metadata_size = bi->metadata_size;
 		ti->pi_offset = bi->pi_offset;
 		ti->interval_exp = bi->interval_exp;
