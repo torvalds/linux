@@ -727,10 +727,13 @@ int intel_dram_detect(struct drm_i915_private *i915)
 	struct dram_info *dram_info;
 	int ret;
 
+	if (IS_DG2(i915) || !HAS_DISPLAY(display))
+		return 0;
+
 	detect_fsb_freq(i915);
 	detect_mem_freq(i915);
 
-	if (GRAPHICS_VER(i915) < 9 || IS_DG2(i915) || !HAS_DISPLAY(display))
+	if (GRAPHICS_VER(i915) < 9)
 		return 0;
 
 	dram_info = drmm_kzalloc(&i915->drm, sizeof(*dram_info), GFP_KERNEL);
