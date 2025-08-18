@@ -118,13 +118,6 @@ struct smb_direct_transport {
 
 static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops;
 
-struct smb_direct_send_ctx {
-	struct list_head	msg_list;
-	int			wr_cnt;
-	bool			need_invalidate_rkey;
-	unsigned int		remote_key;
-};
-
 struct smb_direct_rdma_rw_msg {
 	struct smb_direct_transport	*t;
 	struct ib_cqe		cqe;
@@ -156,7 +149,7 @@ static inline int get_buf_page_count(void *buf, int size)
 static void smb_direct_destroy_pools(struct smb_direct_transport *transport);
 static void smb_direct_post_recv_credits(struct work_struct *work);
 static int smb_direct_post_send_data(struct smb_direct_transport *t,
-				     struct smb_direct_send_ctx *send_ctx,
+				     struct smbdirect_send_batch *send_ctx,
 				     struct kvec *iov, int niov,
 				     int remaining_data_length);
 
@@ -884,7 +877,7 @@ static int smb_direct_post_send(struct smb_direct_transport *t,
 }
 
 static void smb_direct_send_ctx_init(struct smb_direct_transport *t,
-				     struct smb_direct_send_ctx *send_ctx,
+				     struct smbdirect_send_batch *send_ctx,
 				     bool need_invalidate_rkey,
 				     unsigned int remote_key)
 {
@@ -895,7 +888,7 @@ static void smb_direct_send_ctx_init(struct smb_direct_transport *t,
 }
 
 static int smb_direct_flush_send_list(struct smb_direct_transport *t,
-				      struct smb_direct_send_ctx *send_ctx,
+				      struct smbdirect_send_batch *send_ctx,
 				      bool is_last)
 {
 	struct smbdirect_socket *sc = &t->socket;
@@ -959,7 +952,7 @@ static int wait_for_credits(struct smb_direct_transport *t,
 }
 
 static int wait_for_send_credits(struct smb_direct_transport *t,
-				 struct smb_direct_send_ctx *send_ctx)
+				 struct smbdirect_send_batch *send_ctx)
 {
 	struct smbdirect_socket *sc = &t->socket;
 	int ret;
@@ -1094,7 +1087,7 @@ static int get_mapped_sg_list(struct ib_device *device, void *buf, int size,
 }
 
 static int post_sendmsg(struct smb_direct_transport *t,
-			struct smb_direct_send_ctx *send_ctx,
+			struct smbdirect_send_batch *send_ctx,
 			struct smbdirect_send_io *msg)
 {
 	struct smbdirect_socket *sc = &t->socket;
@@ -1133,7 +1126,7 @@ static int post_sendmsg(struct smb_direct_transport *t,
 }
 
 static int smb_direct_post_send_data(struct smb_direct_transport *t,
-				     struct smb_direct_send_ctx *send_ctx,
+				     struct smbdirect_send_batch *send_ctx,
 				     struct kvec *iov, int niov,
 				     int remaining_data_length)
 {
@@ -1211,7 +1204,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 	size_t max_iov_size = sp->max_send_size -
 			sizeof(struct smbdirect_data_transfer);
 	int ret;
-	struct smb_direct_send_ctx send_ctx;
+	struct smbdirect_send_batch send_ctx;
 	int error = 0;
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
