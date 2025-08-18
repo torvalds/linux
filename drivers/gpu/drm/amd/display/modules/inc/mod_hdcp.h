@@ -220,6 +220,7 @@ struct mod_hdcp_link_adjustment_hdcp2 {
 
 struct mod_hdcp_link_adjustment {
 	uint8_t auth_delay;
+	uint8_t retry_limit;
 	struct mod_hdcp_link_adjustment_hdcp1 hdcp1;
 	struct mod_hdcp_link_adjustment_hdcp2 hdcp2;
 };
