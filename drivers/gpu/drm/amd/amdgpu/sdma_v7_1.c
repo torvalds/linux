@@ -42,6 +42,7 @@
 #include "sdma_v7_1.h"
 #include "v12_structs.h"
 #include "mes_userqueue.h"
+#include "soc_v1_0.h"
 
 MODULE_FIRMWARE("amdgpu/sdma_7_1_0.bin");
 
@@ -1220,7 +1221,7 @@ static void sdma_v7_1_ring_emit_wreg(struct amdgpu_ring *ring,
 	 * Use Register WRITE command instead, which OPCODE is same as SRBM WRITE
 	 */
 	amdgpu_ring_write(ring, SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_SRBM_WRITE));
-	amdgpu_ring_write(ring, reg << 2);
+	amdgpu_ring_write(ring, soc_v1_0_normalize_xcc_reg_offset(reg) << 2);
 	amdgpu_ring_write(ring, val);
 }
 
@@ -1229,7 +1230,7 @@ static void sdma_v7_1_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 {
 	amdgpu_ring_write(ring, SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_POLL_REGMEM) |
 			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* equal */
-	amdgpu_ring_write(ring, reg << 2);
+	amdgpu_ring_write(ring, soc_v1_0_normalize_xcc_reg_offset(reg) << 2);
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, val); /* reference */
 	amdgpu_ring_write(ring, mask); /* mask */

@@ -45,14 +45,7 @@ static int mes_v12_1_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id);
 #define MES_EOP_SIZE   2048
 
 #define regCP_HQD_IB_CONTROL_MES_12_1_DEFAULT 0x100000
-#define XCC_REG_RANGE_0_LOW  0x1260     /* XCC gfxdec0 lower Bound */
-#define XCC_REG_RANGE_0_HIGH 0x3C00     /* XCC gfxdec0 upper Bound */
-#define XCC_REG_RANGE_1_LOW  0xA000     /* XCC gfxdec1 lower Bound */
-#define XCC_REG_RANGE_1_HIGH 0x10000    /* XCC gfxdec1 upper Bound */
 #define XCC_MID_MASK 0x41000000
-
-#define NORMALIZE_XCC_REG_OFFSET(offset) \
-	(offset & 0x3FFFF)
 
 static void mes_v12_1_ring_set_wptr(struct amdgpu_ring *ring)
 {
@@ -508,10 +501,9 @@ static uint32_t mes_v12_1_get_xcc_from_reg(uint32_t reg_offset)
 static void mes_v12_1_get_rrmt(uint32_t reg, uint32_t xcc_id,
 				 struct RRMT_OPTION *rrmt_opt)
 {
-	uint32_t normalized_reg = NORMALIZE_XCC_REG_OFFSET(reg);
+	uint32_t normalized_reg = soc_v1_0_normalize_xcc_reg_offset(reg);
 
-	if (((normalized_reg >= XCC_REG_RANGE_0_LOW) && (normalized_reg < XCC_REG_RANGE_0_HIGH)) ||
-		((normalized_reg >= XCC_REG_RANGE_1_LOW) && (normalized_reg < XCC_REG_RANGE_1_HIGH))) {
+	if (soc_v1_0_normalize_xcc_reg_range(normalized_reg)) {
 		rrmt_opt->xcd_die_id = mes_v12_1_get_xcc_from_reg(reg);
 		rrmt_opt->mode = (xcc_id == rrmt_opt->xcd_die_id) ?
 			 MES_RRMT_MODE_LOCAL_XCD : MES_RRMT_MODE_REMOTE_XCD;
@@ -548,7 +540,7 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 				   &misc_pkt.read_reg.rrmt_opt);
 		if (misc_pkt.read_reg.rrmt_opt.mode != MES_RRMT_MODE_REMOTE_MID) {
 			misc_pkt.read_reg.reg_offset =
-				NORMALIZE_XCC_REG_OFFSET(misc_pkt.read_reg.reg_offset);
+				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.read_reg.reg_offset);
 		}
 		break;
 	case MES_MISC_OP_WRITE_REG:
@@ -560,7 +552,7 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 				   &misc_pkt.write_reg.rrmt_opt);
 		if (misc_pkt.write_reg.rrmt_opt.mode != MES_RRMT_MODE_REMOTE_MID) {
 			misc_pkt.write_reg.reg_offset =
-				NORMALIZE_XCC_REG_OFFSET(misc_pkt.write_reg.reg_offset);
+				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.write_reg.reg_offset);
 		}
 		break;
 	case MES_MISC_OP_WRM_REG_WAIT:
@@ -575,7 +567,7 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 				   &misc_pkt.wait_reg_mem.rrmt_opt1);
 		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
 			misc_pkt.wait_reg_mem.reg_offset1 =
-				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset1);
+				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.wait_reg_mem.reg_offset1);
 		}
 		break;
 	case MES_MISC_OP_WRM_REG_WR_WAIT:
@@ -594,11 +586,11 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 
 		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
 			misc_pkt.wait_reg_mem.reg_offset1 =
-				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset1);
+				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.wait_reg_mem.reg_offset1);
 		}
 		if (misc_pkt.wait_reg_mem.rrmt_opt2.mode != MES_RRMT_MODE_REMOTE_MID) {
 			misc_pkt.wait_reg_mem.reg_offset2 =
-				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset2);
+				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.wait_reg_mem.reg_offset2);
 		}
 		break;
 	case MES_MISC_OP_SET_SHADER_DEBUGGER:

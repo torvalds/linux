@@ -34,6 +34,13 @@
 #include "gc/gc_12_1_0_sh_mask.h"
 #include "mp/mp_15_0_8_offset.h"
 
+#define XCC_REG_RANGE_0_LOW  0x1260     /* XCC gfxdec0 lower Bound */
+#define XCC_REG_RANGE_0_HIGH 0x3C00     /* XCC gfxdec0 upper Bound */
+#define XCC_REG_RANGE_1_LOW  0xA000     /* XCC gfxdec1 lower Bound */
+#define XCC_REG_RANGE_1_HIGH 0x10000    /* XCC gfxdec1 upper Bound */
+#define NORMALIZE_XCC_REG_OFFSET(offset) \
+	(offset & 0xFFFF)
+
 /* Initialized doorbells for amdgpu including multimedia
  * KFD can use all the rest in 2M doorbell bar */
 static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
@@ -783,4 +790,26 @@ int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 	amdgpu_ip_map_init(adev);
 
 	return 0;
+}
+
+bool soc_v1_0_normalize_xcc_reg_range(uint32_t reg)
+{
+	if (((reg >= XCC_REG_RANGE_0_LOW) && (reg < XCC_REG_RANGE_0_HIGH)) ||
+	    ((reg >= XCC_REG_RANGE_1_LOW) && (reg < XCC_REG_RANGE_1_HIGH)))
+		return true;
+	else
+		return false;
+}
+
+uint32_t soc_v1_0_normalize_xcc_reg_offset(uint32_t reg)
+{
+	uint32_t normalized_reg = NORMALIZE_XCC_REG_OFFSET(reg);
+
+	/* If it is an XCC reg, normalize the reg to keep
+	 * lower 16 bits in local xcc */
+
+	if (soc_v1_0_normalize_xcc_reg_range(normalized_reg))
+		return normalized_reg;
+	else
+		return reg;
 }
