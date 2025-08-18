@@ -244,7 +244,7 @@ def add_and_resolve_xref(app, docname, domain, reftype, target, contnode=None):
     return contnode
 
 #
-# Variant of markup_abi_ref() that warns whan a reference is not found
+# Variant of markup_abi_ref() that warns when a reference is not found
 #
 def markup_abi_file_ref(docname, app, match):
     return markup_abi_ref(docname, app, match, warning=True)
