@@ -1163,6 +1163,7 @@ struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
 	if (unlikely(!scratch))
 		return NULL;
 
+	__local_lock_nested_bh(&scratch->bh_lock);
 	map_index = scratch->map_index;
 	map = NFT_PIPAPO_LT_ALIGN(&scratch->__map[0]);
 	res  = map + (map_index ? m->bsize_max : 0);
@@ -1228,6 +1229,7 @@ next_match:
 		if (ret < 0) {
 			scratch->map_index = map_index;
 			kernel_fpu_end();
+			__local_unlock_nested_bh(&scratch->bh_lock);
 			return NULL;
 		}
 
@@ -1241,6 +1243,7 @@ next_match:
 
 			scratch->map_index = map_index;
 			kernel_fpu_end();
+			__local_unlock_nested_bh(&scratch->bh_lock);
 			return e;
 		}
 
@@ -1250,6 +1253,7 @@ next_match:
 	}
 
 	kernel_fpu_end();
+	__local_unlock_nested_bh(&scratch->bh_lock);
 	return NULL;
 }
 
