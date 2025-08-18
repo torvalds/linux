@@ -97,7 +97,7 @@ impl<T: AlwaysRefCounted> ARef<T> {
     ///
     /// ```
     /// use core::ptr::NonNull;
-    /// use kernel::types::{ARef, AlwaysRefCounted};
+    /// use kernel::sync::aref::{ARef, AlwaysRefCounted};
     ///
     /// struct Empty {}
     ///
