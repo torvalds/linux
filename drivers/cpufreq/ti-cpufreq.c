@@ -311,10 +311,10 @@ static struct ti_cpufreq_soc_data am3517_soc_data = {
 };
 
 static const struct soc_device_attribute k3_cpufreq_soc[] = {
-	{ .family = "AM62X", .revision = "SR1.0" },
-	{ .family = "AM62AX", .revision = "SR1.0" },
-	{ .family = "AM62PX", .revision = "SR1.0" },
-	{ .family = "AM62DX", .revision = "SR1.0" },
+	{ .family = "AM62X", },
+	{ .family = "AM62AX", },
+	{ .family = "AM62PX", },
+	{ .family = "AM62DX", },
 	{ /* sentinel */ }
 };
 
