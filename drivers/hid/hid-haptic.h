@@ -103,19 +103,25 @@ int hid_haptic_input_configured(struct hid_device *hdev,
 {
 	return 0;
 }
+static inline
+void hid_haptic_reset(struct hid_device *hdev, struct hid_haptic_device *haptic)
+{}
+static inline
 int hid_haptic_init(struct hid_device *hdev, struct hid_haptic_device **haptic_ptr)
 {
 	return 0;
 }
 static inline
-void hid_haptic_handle_press_release(struct hid_haptic_device *haptic)
-{}
+void hid_haptic_handle_press_release(struct hid_haptic_device *haptic) {}
 static inline
-void hid_haptic_pressure_reset(struct hid_haptic_device *haptic)
-{}
+bool hid_haptic_handle_input(struct hid_haptic_device *haptic)
+{
+	return false;
+}
+static inline
+void hid_haptic_pressure_reset(struct hid_haptic_device *haptic) {}
 static inline
 void hid_haptic_pressure_increase(struct hid_haptic_device *haptic,
 				  __s32 pressure)
 {}
 #endif
-
