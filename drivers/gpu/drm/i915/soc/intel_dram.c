@@ -154,7 +154,7 @@ static void detect_mem_freq(struct drm_i915_private *i915)
 		drm_dbg(&i915->drm, "DDR speed: %d kHz\n", i915->mem_freq);
 }
 
-unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
+static unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
 {
 	u32 fsb;
 
@@ -236,13 +236,19 @@ static unsigned int ilk_fsb_freq(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void detect_fsb_freq(struct drm_i915_private *i915)
+unsigned int intel_fsb_freq(struct drm_i915_private *i915)
 {
 	if (GRAPHICS_VER(i915) == 5)
-		i915->fsb_freq = ilk_fsb_freq(i915);
+		return ilk_fsb_freq(i915);
 	else if (GRAPHICS_VER(i915) == 3 || GRAPHICS_VER(i915) == 4)
-		i915->fsb_freq = i9xx_fsb_freq(i915);
+		return i9xx_fsb_freq(i915);
+	else
+		return 0;
+}
 
+static void detect_fsb_freq(struct drm_i915_private *i915)
+{
+	i915->fsb_freq = intel_fsb_freq(i915);
 	if (i915->fsb_freq)
 		drm_dbg(&i915->drm, "FSB frequency: %d kHz\n", i915->fsb_freq);
 }
