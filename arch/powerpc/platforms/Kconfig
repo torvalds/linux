@@ -243,7 +243,6 @@ config CPM2
 	select CPM
 	select HAVE_PCI
 	select GPIOLIB
-	select OF_GPIO_MM_GPIOCHIP
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
