@@ -50,7 +50,7 @@ static_assert(sizeof(struct avs_apl_log_buffer_layout) == 8);
 	(addr + sizeof(struct avs_apl_log_buffer_layout))
 
 #ifdef CONFIG_DEBUG_FS
-int avs_probe_platform_register(struct avs_dev *adev, const char *name);
+int avs_register_probe_component(struct avs_dev *adev, const char *name);
 
 #define AVS_SET_ENABLE_LOGS_OP(name) \
 	.enable_logs = avs_##name##_enable_logs
@@ -63,7 +63,7 @@ void avs_debugfs_init(struct avs_dev *adev);
 void avs_debugfs_exit(struct avs_dev *adev);
 
 #else
-static inline int avs_probe_platform_register(struct avs_dev *adev, const char *name)
+static inline int avs_register_probe_component(struct avs_dev *adev, const char *name)
 {
 	return -EOPNOTSUPP;
 }

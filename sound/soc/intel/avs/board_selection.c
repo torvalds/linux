@@ -18,6 +18,7 @@
 #include <sound/soc-component.h>
 #include "avs.h"
 #include "debug.h"
+#include "pcm.h"
 #include "utils.h"
 
 static char *i2s_test;
@@ -410,7 +411,7 @@ static int __maybe_unused avs_register_probe_board(struct avs_dev *adev)
 	struct snd_soc_acpi_mach mach = {{0}};
 	int ret;
 
-	ret = avs_probe_platform_register(adev, "probe-platform");
+	ret = avs_register_probe_component(adev, "probe-platform");
 	if (ret < 0)
 		return ret;
 
@@ -455,7 +456,7 @@ static int avs_register_dmic_board(struct avs_dev *adev)
 		return ret;
 	}
 
-	ret = avs_dmic_platform_register(adev, "dmic-platform");
+	ret = avs_register_dmic_component(adev, "dmic-platform");
 	if (ret < 0)
 		return ret;
 
@@ -516,7 +517,7 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 	if (!name)
 		return -ENOMEM;
 
-	ret = avs_i2s_platform_register(adev, name, mach->mach_params.i2s_link_mask, pdata->tdms);
+	ret = avs_register_i2s_component(adev, name, mach->mach_params.i2s_link_mask, pdata->tdms);
 	if (ret < 0)
 		return ret;
 
@@ -655,7 +656,7 @@ static int avs_register_hda_board(struct avs_dev *adev, struct hda_codec *codec)
 	pdata->obsolete_card_names = obsolete_card_names;
 	pdata->codec = codec;
 
-	ret = avs_hda_platform_register(adev, pname);
+	ret = avs_register_hda_component(adev, pname);
 	if (ret < 0)
 		return ret;
 

@@ -291,7 +291,7 @@ static const struct snd_soc_component_driver avs_probe_component_driver = {
 	.module_get_upon_open	= 1, /* increment refcount when a stream is opened */
 };
 
-int avs_probe_platform_register(struct avs_dev *adev, const char *name)
+int avs_register_probe_component(struct avs_dev *adev, const char *name)
 {
 	struct snd_soc_component *component;
 	int ret;
