@@ -285,7 +285,7 @@ static struct snd_soc_dai_driver probe_cpu_dais[] = {
 },
 };
 
-static struct snd_soc_component_driver avs_probe_component_driver = {
+static const struct snd_soc_component_driver avs_probe_component_driver = {
 	.name			= "avs-probe-compr",
 	.compress_ops		= &avs_probe_compress_ops,
 	.module_get_upon_open	= 1, /* increment refcount when a stream is opened */
@@ -293,6 +293,20 @@ static struct snd_soc_component_driver avs_probe_component_driver = {
 
 int avs_probe_platform_register(struct avs_dev *adev, const char *name)
 {
-	return avs_soc_component_register(adev->dev, name, &avs_probe_component_driver,
-					  probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
+	struct snd_soc_component *component;
+	int ret;
+
+	component = devm_kzalloc(adev->dev, sizeof(*component), GFP_KERNEL);
+	if (!component)
+		return -ENOMEM;
+
+	component->name = devm_kstrdup(adev->dev, name, GFP_KERNEL);
+	if (!component->name)
+		return -ENOMEM;
+
+	ret = snd_soc_component_initialize(component, &avs_probe_component_driver, adev->dev);
+	if (ret)
+		return ret;
+
+	return snd_soc_add_component(component, probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
 }
