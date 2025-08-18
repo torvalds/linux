@@ -15,7 +15,7 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 				      enum vga_switcheroo_state state)
 {
 	struct drm_i915_private *i915 = pdev_to_i915(pdev);
-	struct intel_display *display = i915->display;
+	struct intel_display *display = i915 ? i915->display : NULL;
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 
 	if (!i915) {
@@ -45,7 +45,7 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_i915_private *i915 = pdev_to_i915(pdev);
-	struct intel_display *display = i915->display;
+	struct intel_display *display = i915 ? i915->display : NULL;
 
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
