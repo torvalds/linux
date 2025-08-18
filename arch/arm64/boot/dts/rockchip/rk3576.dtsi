@@ -2275,7 +2275,6 @@
 			clocks = <&cru TCLK_WDT0>, <&cru PCLK_WDT0>;
 			clock-names = "tclk", "pclk";
 			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
 		};
 
 		spi0: spi@2acf0000 {
