@@ -138,7 +138,7 @@ error message to the Root Port above it when it captures
 an error. The Root Port, upon receiving an error reporting message,
 internally processes and logs the error message in its AER
 Capability structure. Error information being logged includes storing
-the error reporting agent's requestor ID into the Error Source
+the error reporting agent's Requester ID into the Error Source
 Identification Registers and setting the error bits of the Root Error
 Status Register accordingly. If AER error reporting is enabled in the Root
 Error Command Register, the Root Port generates an interrupt when an
