@@ -78,3 +78,5 @@ obj-$(CONFIG_THEAD_TH1520_MBOX)	+= mailbox-th1520.o
 obj-$(CONFIG_CIX_MBOX)	+= cix-mailbox.o
 
 obj-$(CONFIG_BCM74110_MAILBOX)	+= bcm74110-mailbox.o
+
+obj-$(CONFIG_RISCV_SBI_MPXY_MBOX)	+= riscv-sbi-mpxy-mbox.o
