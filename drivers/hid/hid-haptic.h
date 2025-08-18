@@ -69,6 +69,7 @@ int hid_haptic_input_mapping(struct hid_device *hdev,
 int hid_haptic_input_configured(struct hid_device *hdev,
 				struct hid_haptic_device *haptic,
 				struct hid_input *hi);
+int hid_haptic_init(struct hid_device *hdev, struct hid_haptic_device **haptic_ptr);
 #else
 static inline
 void hid_haptic_feature_mapping(struct hid_device *hdev,
@@ -95,6 +96,10 @@ static inline
 int hid_haptic_input_configured(struct hid_device *hdev,
 				struct hid_haptic_device *haptic,
 				struct hid_input *hi)
+{
+	return 0;
+}
+int hid_haptic_init(struct hid_device *hdev, struct hid_haptic_device **haptic_ptr)
 {
 	return 0;
 }
