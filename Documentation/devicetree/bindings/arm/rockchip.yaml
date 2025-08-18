@@ -683,6 +683,13 @@ properties:
           - const: hardkernel,odroid-m2
           - const: rockchip,rk3588s
 
+      - description: HINLINK H66K / H68K
+        items:
+          - enum:
+              - hinlink,h66k
+              - hinlink,h68k
+          - const: rockchip,rk3568
+
       - description: Hugsun X99 TV Box
         items:
           - const: hugsun,x99
