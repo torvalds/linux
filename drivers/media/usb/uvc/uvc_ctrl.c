@@ -376,6 +376,15 @@ static const struct uvc_control_info uvc_ctrls[] = {
 				| UVC_CTRL_FLAG_GET_DEF
 				| UVC_CTRL_FLAG_AUTO_UPDATE,
 	},
+	{
+		.entity		= UVC_GUID_CHROMEOS_XU,
+		.selector	= UVC_CROSXU_CONTROL_IQ_PROFILE,
+		.index		= 3,
+		.size		= 1,
+		.flags		= UVC_CTRL_FLAG_SET_CUR
+				| UVC_CTRL_FLAG_GET_RANGE
+				| UVC_CTRL_FLAG_RESTORE,
+	},
 };
 
 static const u32 uvc_control_classes[] = {
@@ -384,6 +393,19 @@ static const u32 uvc_control_classes[] = {
 };
 
 static const int exposure_auto_mapping[] = { 2, 1, 4, 8 };
+static const int cros_colorfx_mapping[] = {
+	1,	/* V4L2_COLORFX_NONE */
+	-1,	/* V4L2_COLORFX_BW */
+	-1,	/* V4L2_COLORFX_SEPIA */
+	-1,	/* V4L2_COLORFX_NEGATIVE */
+	-1,	/* V4L2_COLORFX_EMBOSS */
+	-1,	/* V4L2_COLORFX_SKETCH */
+	-1,	/* V4L2_COLORFX_SKY_BLUE */
+	-1,	/* V4L2_COLORFX_GRASS_GREEN */
+	-1,	/* V4L2_COLORFX_SKIN_WHITEN */
+	0,	/* V4L2_COLORFX_VIVID */
+};
+
 
 static bool uvc_ctrl_mapping_is_compound(struct uvc_control_mapping *mapping)
 {
@@ -974,6 +996,18 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.v4l2_type	= V4L2_CTRL_TYPE_BITMASK,
 		.data_type	= UVC_CTRL_DATA_TYPE_BITMASK,
 		.name		= "Region of Interest Auto Ctrls",
+	},
+	{
+		.id		= V4L2_CID_COLORFX,
+		.entity		= UVC_GUID_CHROMEOS_XU,
+		.selector	= UVC_CROSXU_CONTROL_IQ_PROFILE,
+		.size		= 8,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_MENU,
+		.data_type	= UVC_CTRL_DATA_TYPE_ENUM,
+		.menu_mapping	= cros_colorfx_mapping,
+		.menu_mask	= BIT(V4L2_COLORFX_VIVID) |
+				  BIT(V4L2_COLORFX_NONE),
 	},
 };
 
