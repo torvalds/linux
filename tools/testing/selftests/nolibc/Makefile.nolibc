@@ -267,7 +267,7 @@ help:
 	@echo "  all               call the \"run\" target below"
 	@echo "  help              this help"
 	@echo "  sysroot           create the nolibc sysroot here (uses \$$ARCH)"
-	@echo "  nolibc-test       build the executable (uses \$$CC and \$$CROSS_COMPILE)"
+	@echo "  nolibc-test       build the executable (uses \$$CC or \$$CROSS_COMPILE)"
 	@echo "  libc-test         build an executable using the compiler's default libc instead"
 	@echo "  run-user          runs the executable under QEMU (uses \$$XARCH, \$$TEST)"
 	@echo "  initramfs.cpio    prepare the initramfs archive with nolibc-test"
