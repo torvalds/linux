@@ -401,9 +401,7 @@ static int proc_sctp_do_hmac_alg(const struct ctl_table *ctl, int write,
 		ret = proc_dostring(&tbl, 1, buffer, lenp, ppos);
 		if (ret)
 			return ret;
-		if (!strcmp(tmp, "sha256") ||
-		    /* for backwards compatibility */
-		    !strcmp(tmp, "md5") || !strcmp(tmp, "sha1")) {
+		if (!strcmp(tmp, "sha256")) {
 			net->sctp.cookie_auth_enable = 1;
 			return 0;
 		}

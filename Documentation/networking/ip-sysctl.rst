@@ -3511,9 +3511,6 @@ cookie_hmac_alg - STRING
 	* sha256
 	* none
 
-	md5 and sha1 are also accepted for backwards compatibility, but cause
-	sha256 to be selected.
-
 	Default: sha256
 
 rcvbuf_policy - INTEGER
