@@ -21,6 +21,7 @@
 #include <vdso/datapage.h>
 
 #include <asm/syscall.h>
+#include <asm/syscalls.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -39,8 +40,6 @@ static_assert(__VDSO_PAGES == VDSO_NR_PAGES);
 
 extern char vdso32_start, vdso32_end;
 extern char vdso64_start, vdso64_end;
-
-long sys_ni_syscall(void);
 
 static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma,
 		       unsigned long text_size)
