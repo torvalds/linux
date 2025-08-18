@@ -6,6 +6,8 @@
 #ifndef __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__
 #define __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__
 
+#include <rdma/rw.h>
+
 enum smbdirect_socket_status {
 	SMBDIRECT_SOCKET_CREATED,
 	SMBDIRECT_SOCKET_CONNECTING,
@@ -271,6 +273,20 @@ struct smbdirect_recv_io {
 
 	/* SMBD packet header and payload follows this structure */
 	u8 packet[];
+};
+
+struct smbdirect_rw_io {
+	struct smbdirect_socket *socket;
+	struct ib_cqe cqe;
+
+	struct list_head list;
+
+	int error;
+	struct completion *completion;
+
+	struct rdma_rw_ctx rdma_ctx;
+	struct sg_table sgt;
+	struct scatterlist sg_list[];
 };
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__ */
