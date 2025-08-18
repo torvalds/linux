@@ -136,16 +136,23 @@ static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 	return 0;
 }
 
-static void detect_mem_freq(struct drm_i915_private *i915)
+unsigned int intel_mem_freq(struct drm_i915_private *i915)
 {
 	if (IS_PINEVIEW(i915))
-		i915->mem_freq = pnv_mem_freq(i915);
+		return pnv_mem_freq(i915);
 	else if (GRAPHICS_VER(i915) == 5)
-		i915->mem_freq = ilk_mem_freq(i915);
+		return ilk_mem_freq(i915);
 	else if (IS_CHERRYVIEW(i915))
-		i915->mem_freq = chv_mem_freq(i915);
+		return chv_mem_freq(i915);
 	else if (IS_VALLEYVIEW(i915))
-		i915->mem_freq = vlv_mem_freq(i915);
+		return vlv_mem_freq(i915);
+	else
+		return 0;
+}
+
+static void detect_mem_freq(struct drm_i915_private *i915)
+{
+	i915->mem_freq = intel_mem_freq(i915);
 
 	if (IS_PINEVIEW(i915))
 		i915->is_ddr3 = pnv_is_ddr3(i915);
