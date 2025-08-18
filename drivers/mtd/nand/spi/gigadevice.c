@@ -4,6 +4,7 @@
  *	Chuanhong Guo <gch981213@gmail.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/mtd/spinand.h>
@@ -22,6 +23,18 @@
 #define GD5FXGQ4UXFXXG_STATUS_ECC_NO_BITFLIPS	(0 << 4)
 #define GD5FXGQ4UXFXXG_STATUS_ECC_1_3_BITFLIPS	(1 << 4)
 #define GD5FXGQ4UXFXXG_STATUS_ECC_UNCOR_ERROR	(7 << 4)
+
+/* Feature bit definitions */
+#define GD_FEATURE_NR	BIT(3)	/* Normal Read(1=normal,0=continuous) */
+#define GD_FEATURE_CRDC	BIT(2)	/* Continuous Read Dummy */
+
+/* ECC status extraction helpers */
+#define GD_ECCSR_LAST_PAGE(eccsr)	FIELD_GET(GENMASK(3, 0), eccsr)
+#define GD_ECCSR_ACCUMULATED(eccsr)	FIELD_GET(GENMASK(7, 4), eccsr)
+
+struct gigadevice_priv {
+	bool continuous_read;
+};
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_1S_4S_4S_OP(0, 1, NULL, 0, 0),
@@ -62,6 +75,74 @@ static SPINAND_OP_VARIANTS(write_cache_variants,
 static SPINAND_OP_VARIANTS(update_cache_variants,
 		SPINAND_PROG_LOAD_1S_1S_4S_OP(false, 0, NULL, 0),
 		SPINAND_PROG_LOAD_1S_1S_1S_OP(false, 0, NULL, 0));
+
+static int gd5fxgm9_get_eccsr(struct spinand_device *spinand, u8 *eccsr)
+{
+	struct gigadevice_priv *priv = spinand->priv;
+	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(0x7c, 1),
+					SPI_MEM_OP_NO_ADDR,
+					SPI_MEM_OP_DUMMY(1, 1),
+					SPI_MEM_OP_DATA_IN(1, eccsr, 1));
+	int ret;
+
+	ret = spi_mem_exec_op(spinand->spimem, &op);
+	if (ret)
+		return ret;
+
+	if (priv->continuous_read)
+		*eccsr = GD_ECCSR_ACCUMULATED(*eccsr);
+	else
+		*eccsr = GD_ECCSR_LAST_PAGE(*eccsr);
+
+	return 0;
+}
+
+static int gd5fxgm9_ecc_get_status(struct spinand_device *spinand, u8 status)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+	u8 eccsr;
+	int ret;
+
+	switch (status & STATUS_ECC_MASK) {
+	case STATUS_ECC_NO_BITFLIPS:
+		return 0;
+
+	case GD5FXGQ4XA_STATUS_ECC_1_7_BITFLIPS:
+		ret = gd5fxgm9_get_eccsr(spinand, spinand->scratchbuf);
+		if (ret)
+			return nanddev_get_ecc_conf(nand)->strength;
+
+		eccsr = *spinand->scratchbuf;
+		if (WARN_ON(!eccsr || eccsr > nanddev_get_ecc_conf(nand)->strength))
+			return nanddev_get_ecc_conf(nand)->strength;
+
+		return eccsr;
+
+	case GD5FXGQ4XA_STATUS_ECC_8_BITFLIPS:
+		return 8;
+
+	case STATUS_ECC_UNCOR_ERROR:
+		return -EBADMSG;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int gd5fxgm9_set_continuous_read(struct spinand_device *spinand, bool enable)
+{
+	struct gigadevice_priv *priv = spinand->priv;
+	int ret;
+
+	ret = spinand_upd_cfg(spinand, GD_FEATURE_NR,
+				enable ? 0 : GD_FEATURE_NR);
+	if (ret)
+		return ret;
+
+	priv->continuous_read = enable;
+
+	return 0;
+}
 
 static int gd5fxgq4xa_ooblayout_ecc(struct mtd_info *mtd, int section,
 				  struct mtd_oob_region *region)
@@ -542,7 +623,8 @@ static const struct spinand_info gigadevice_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&gd5fxgqx_variant2_ooblayout,
-				     gd5fxgq4uexxg_ecc_get_status)),
+				     gd5fxgm9_ecc_get_status),
+			SPINAND_CONT_READ(gd5fxgm9_set_continuous_read)),
 	SPINAND_INFO("GD5F1GM9RExxG",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x81, 0x01),
 		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
@@ -552,10 +634,31 @@ static const struct spinand_info gigadevice_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&gd5fxgqx_variant2_ooblayout,
-				     gd5fxgq4uexxg_ecc_get_status)),
+				     gd5fxgm9_ecc_get_status),
+			SPINAND_CONT_READ(gd5fxgm9_set_continuous_read)),
 };
 
+static int gd5fxgm9_spinand_init(struct spinand_device *spinand)
+{
+	struct gigadevice_priv *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spinand->priv =  priv;
+
+	return 0;
+}
+
+static void gd5fxgm9_spinand_cleanup(struct spinand_device *spinand)
+{
+	kfree(spinand->priv);
+}
+
 static const struct spinand_manufacturer_ops gigadevice_spinand_manuf_ops = {
+	.init = gd5fxgm9_spinand_init,
+	.cleanup = gd5fxgm9_spinand_cleanup,
 };
 
 const struct spinand_manufacturer gigadevice_spinand_manufacturer = {
