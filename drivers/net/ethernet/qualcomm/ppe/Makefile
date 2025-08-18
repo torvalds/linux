@@ -4,4 +4,4 @@
 #
 
 obj-$(CONFIG_QCOM_PPE) += qcom-ppe.o
-qcom-ppe-objs := ppe.o ppe_config.o
+qcom-ppe-objs := ppe.o ppe_config.o ppe_debugfs.o

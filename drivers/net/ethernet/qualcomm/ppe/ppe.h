@@ -11,6 +11,7 @@
 
 struct device;
 struct regmap;
+struct dentry;
 
 /**
  * struct ppe_device - PPE device private data.
@@ -18,6 +19,7 @@ struct regmap;
  * @regmap: PPE register map.
  * @clk_rate: PPE clock rate.
  * @num_ports: Number of PPE ports.
+ * @debugfs_root: Debugfs root entry.
  * @num_icc_paths: Number of interconnect paths.
  * @icc_paths: Interconnect path array.
  *
@@ -30,6 +32,7 @@ struct ppe_device {
 	struct regmap *regmap;
 	unsigned long clk_rate;
 	unsigned int num_ports;
+	struct dentry *debugfs_root;
 	unsigned int num_icc_paths;
 	struct icc_bulk_data icc_paths[] __counted_by(num_icc_paths);
 };

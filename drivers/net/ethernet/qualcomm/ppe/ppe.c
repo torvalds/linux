@@ -16,6 +16,7 @@
 
 #include "ppe.h"
 #include "ppe_config.h"
+#include "ppe_debugfs.h"
 
 #define PPE_PORT_MAX		8
 #define PPE_CLK_RATE		353000000
@@ -204,9 +205,18 @@ static int qcom_ppe_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "PPE HW config failed\n");
 
+	ppe_debugfs_setup(ppe_dev);
 	platform_set_drvdata(pdev, ppe_dev);
 
 	return 0;
+}
+
+static void qcom_ppe_remove(struct platform_device *pdev)
+{
+	struct ppe_device *ppe_dev;
+
+	ppe_dev = platform_get_drvdata(pdev);
+	ppe_debugfs_teardown(ppe_dev);
 }
 
 static const struct of_device_id qcom_ppe_of_match[] = {
@@ -221,6 +231,7 @@ static struct platform_driver qcom_ppe_driver = {
 		.of_match_table = qcom_ppe_of_match,
 	},
 	.probe	= qcom_ppe_probe,
+	.remove = qcom_ppe_remove,
 };
 module_platform_driver(qcom_ppe_driver);
 
