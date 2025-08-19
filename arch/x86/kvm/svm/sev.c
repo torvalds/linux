@@ -4480,7 +4480,7 @@ void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm)
 		vcpu->arch.reserved_gpa_bits &= ~(1UL << (best->ebx & 0x3f));
 }
 
-static void sev_es_init_vmcb(struct vcpu_svm *svm)
+static void sev_es_init_vmcb(struct vcpu_svm *svm, bool init_event)
 {
 	struct kvm_sev_info *sev = to_kvm_sev_info(svm->vcpu.kvm);
 	struct vmcb *vmcb = svm->vmcb01.ptr;
@@ -4541,6 +4541,15 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 
 	/* Can't intercept XSETBV, HV can't modify XCR0 directly */
 	svm_clr_intercept(svm, INTERCEPT_XSETBV);
+
+	/*
+	 * Set the GHCB MSR value as per the GHCB specification when emulating
+	 * vCPU RESET for an SEV-ES guest.
+	 */
+	if (!init_event)
+		set_ghcb_msr(svm, GHCB_MSR_SEV_INFO((__u64)sev->ghcb_version,
+						    GHCB_VERSION_MIN,
+						    sev_enc_bit));
 }
 
 void sev_init_vmcb(struct vcpu_svm *svm, bool init_event)
@@ -4560,7 +4569,7 @@ void sev_init_vmcb(struct vcpu_svm *svm, bool init_event)
 		sev_snp_init_protected_guest_state(vcpu);
 
 	if (sev_es_guest(vcpu->kvm))
-		sev_es_init_vmcb(svm);
+		sev_es_init_vmcb(svm, init_event);
 }
 
 int sev_vcpu_create(struct kvm_vcpu *vcpu)
@@ -4585,17 +4594,6 @@ int sev_vcpu_create(struct kvm_vcpu *vcpu)
 
 void sev_es_vcpu_reset(struct vcpu_svm *svm)
 {
-	struct kvm_vcpu *vcpu = &svm->vcpu;
-	struct kvm_sev_info *sev = to_kvm_sev_info(vcpu->kvm);
-
-	/*
-	 * Set the GHCB MSR value as per the GHCB specification when emulating
-	 * vCPU RESET for an SEV-ES guest.
-	 */
-	set_ghcb_msr(svm, GHCB_MSR_SEV_INFO((__u64)sev->ghcb_version,
-					    GHCB_VERSION_MIN,
-					    sev_enc_bit));
-
 	mutex_init(&svm->sev_es.snp_vmsa_mutex);
 }
 
