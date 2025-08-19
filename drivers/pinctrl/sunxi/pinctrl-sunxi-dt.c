@@ -103,7 +103,7 @@ static struct sunxi_desc_pin *init_pins_table(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pins = devm_kzalloc(dev, desc->npins * sizeof(*pins), GFP_KERNEL);
+	pins = devm_kcalloc(dev, desc->npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		return ERR_PTR(-ENOMEM);
 
@@ -199,7 +199,7 @@ static int prepare_function_table(struct device *dev, struct device_node *pnode,
 	 * Allocate the memory needed for the functions in one table.
 	 * We later use pointers into this table to mark each pin.
 	 */
-	func = devm_kzalloc(dev, num_funcs * sizeof(*func), GFP_KERNEL);
+	func = devm_kcalloc(dev, num_funcs, sizeof(*func), GFP_KERNEL);
 	if (!func)
 		return -ENOMEM;
 
