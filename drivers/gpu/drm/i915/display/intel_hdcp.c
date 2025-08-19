@@ -2446,12 +2446,6 @@ static int _intel_hdcp_enable(struct intel_atomic_state *state,
 	if (!hdcp->shim)
 		return -ENOENT;
 
-	if (!connector->encoder) {
-		drm_err(display->drm, "[CONNECTOR:%d:%s] encoder is not initialized\n",
-			connector->base.base.id, connector->base.name);
-		return -ENODEV;
-	}
-
 	mutex_lock(&hdcp->mutex);
 	mutex_lock(&dig_port->hdcp.mutex);
 	drm_WARN_ON(display->drm,
