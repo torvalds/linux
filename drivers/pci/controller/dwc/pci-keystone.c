@@ -1213,11 +1213,11 @@ static int ks_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		num_lanes = 1;
 
-	phy = devm_kzalloc(dev, sizeof(*phy) * num_lanes, GFP_KERNEL);
+	phy = devm_kcalloc(dev, num_lanes, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	link = devm_kzalloc(dev, sizeof(*link) * num_lanes, GFP_KERNEL);
+	link = devm_kcalloc(dev, num_lanes, sizeof(*link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
 
