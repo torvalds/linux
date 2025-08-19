@@ -252,7 +252,7 @@ bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
  * @return 0, on success; negative error code, otherwise, error code is
  * stored in errno
  */
-int bpf_object__prepare(struct bpf_object *obj);
+LIBBPF_API int bpf_object__prepare(struct bpf_object *obj);
 
 /**
  * @brief **bpf_object__load()** loads BPF object into kernel.
