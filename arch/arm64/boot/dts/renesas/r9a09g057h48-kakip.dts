@@ -84,7 +84,7 @@
 
 &pinctrl {
 	scif_pins: scif {
-		pins =  "SCIF_RXD", "SCIF_TXD";
+		pins = "SCIF_RXD", "SCIF_TXD";
 	};
 
 	sd0-pwr-en-hog {
