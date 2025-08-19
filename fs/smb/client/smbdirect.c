@@ -222,6 +222,7 @@ static int smbd_conn_upcall(
 {
 	struct smbd_connection *info = id->context;
 	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	const char *event_name = rdma_event_msg(event->event);
 	u8 peer_initiator_depth;
 	u8 peer_responder_resources;
@@ -329,12 +330,12 @@ static int smbd_conn_upcall(
 		 * non 0 values.
 		 */
 		if (peer_initiator_depth != 0)
-			info->initiator_depth =
-					min_t(u8, info->initiator_depth,
+			sp->initiator_depth =
+					min_t(u8, sp->initiator_depth,
 					      peer_initiator_depth);
 		if (peer_responder_resources != 0)
-			info->responder_resources =
-					min_t(u8, info->responder_resources,
+			sp->responder_resources =
+					min_t(u8, sp->responder_resources,
 					      peer_responder_resources);
 
 		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING);
@@ -1718,15 +1719,14 @@ static struct smbd_connection *_smbd_get_connection(
 	smbdirect_socket_init(sc);
 	sp = &sc->parameters;
 
-	info->initiator_depth = 1;
-	info->responder_resources = SMBD_CM_RESPONDER_RESOURCES;
-
 	INIT_WORK(&sc->disconnect_work, smbd_disconnect_rdma_work);
 
 	sp->resolve_addr_timeout_msec = RDMA_RESOLVE_TIMEOUT;
 	sp->resolve_route_timeout_msec = RDMA_RESOLVE_TIMEOUT;
 	sp->rdma_connect_timeout_msec = RDMA_RESOLVE_TIMEOUT;
 	sp->negotiate_timeout_msec = SMBD_NEGOTIATE_TIMEOUT * 1000;
+	sp->initiator_depth = 1;
+	sp->responder_resources = SMBD_CM_RESPONDER_RESOURCES;
 	sp->recv_credit_max = smbd_receive_credit_max;
 	sp->send_credit_target = smbd_send_credit_target;
 	sp->max_send_size = smbd_max_send_size;
@@ -1807,15 +1807,15 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 	sc->ib.qp = sc->rdma.cm_id->qp;
 
-	info->responder_resources =
-		min_t(u8, info->responder_resources,
+	sp->responder_resources =
+		min_t(u8, sp->responder_resources,
 		      sc->ib.dev->attrs.max_qp_rd_atom);
 	log_rdma_mr(INFO, "responder_resources=%d\n",
-		info->responder_resources);
+		sp->responder_resources);
 
 	memset(&conn_param, 0, sizeof(conn_param));
-	conn_param.initiator_depth = info->initiator_depth;
-	conn_param.responder_resources = info->responder_resources;
+	conn_param.initiator_depth = sp->initiator_depth;
+	conn_param.responder_resources = sp->responder_resources;
 
 	/* Need to send IRD/ORD in private data for iWARP */
 	sc->ib.dev->ops.get_port_immutable(
@@ -2270,6 +2270,7 @@ static void destroy_mr_list(struct smbd_connection *info)
 static int allocate_mr_list(struct smbd_connection *info)
 {
 	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int i;
 	struct smbd_mr *smbdirect_mr, *tmp;
 
@@ -2281,13 +2282,13 @@ static int allocate_mr_list(struct smbd_connection *info)
 	init_waitqueue_head(&info->wait_for_mr_cleanup);
 	INIT_WORK(&info->mr_recovery_work, smbd_mr_recovery_work);
 
-	if (info->responder_resources == 0) {
+	if (sp->responder_resources == 0) {
 		log_rdma_mr(ERR, "responder_resources negotiated as 0\n");
 		return -EINVAL;
 	}
 
 	/* Allocate more MRs (2x) than hardware responder_resources */
-	for (i = 0; i < info->responder_resources * 2; i++) {
+	for (i = 0; i < sp->responder_resources * 2; i++) {
 		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
 		if (!smbdirect_mr)
 			goto cleanup_entries;

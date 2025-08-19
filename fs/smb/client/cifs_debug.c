@@ -500,7 +500,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			atomic_read(&sc->send_io.pending.count));
 		seq_printf(m, "\nMR responder_resources: %u "
 			"max_frmr_depth: %u mr_type: 0x%x",
-			server->smbd_conn->responder_resources,
+			sp->responder_resources,
 			server->smbd_conn->max_frmr_depth,
 			server->smbd_conn->mr_type);
 		seq_printf(m, "\nMR mr_ready_count: %u mr_used_count: %u",
