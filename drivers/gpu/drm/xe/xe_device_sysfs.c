@@ -76,7 +76,7 @@ lb_fan_control_version_show(struct device *dev, struct device_attribute *attr, c
 {
 	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
 	struct xe_tile *root = xe_device_get_root_tile(xe);
-	u32 cap, ver_low = FAN_TABLE, ver_high = FAN_TABLE;
+	u32 cap = 0, ver_low = FAN_TABLE, ver_high = FAN_TABLE;
 	u16 major = 0, minor = 0, hotfix = 0, build = 0;
 	int ret;
 
@@ -115,7 +115,7 @@ lb_voltage_regulator_version_show(struct device *dev, struct device_attribute *a
 {
 	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
 	struct xe_tile *root = xe_device_get_root_tile(xe);
-	u32 cap, ver_low = VR_CONFIG, ver_high = VR_CONFIG;
+	u32 cap = 0, ver_low = VR_CONFIG, ver_high = VR_CONFIG;
 	u16 major = 0, minor = 0, hotfix = 0, build = 0;
 	int ret;
 
@@ -153,7 +153,7 @@ static int late_bind_create_files(struct device *dev)
 {
 	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
 	struct xe_tile *root = xe_device_get_root_tile(xe);
-	u32 cap;
+	u32 cap = 0;
 	int ret;
 
 	xe_pm_runtime_get(xe);
@@ -186,7 +186,7 @@ static void late_bind_remove_files(struct device *dev)
 {
 	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
 	struct xe_tile *root = xe_device_get_root_tile(xe);
-	u32 cap;
+	u32 cap = 0;
 	int ret;
 
 	xe_pm_runtime_get(xe);
