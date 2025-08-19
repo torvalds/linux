@@ -717,7 +717,7 @@
 			max-link-speed = <2>;
 
 			phys = <&pcie1_phy>;
-			phy-names ="pciephy";
+			phy-names = "pciephy";
 
 			ranges = <0x01000000 0 0x00000000 0x80200000 0 0x00100000>,
 				 <0x02000000 0 0x80300000 0x80300000 0 0x10000000>;
@@ -818,7 +818,7 @@
 			max-link-speed = <2>;
 
 			phys = <&pcie0_phy>;
-			phy-names ="pciephy";
+			phy-names = "pciephy";
 
 			ranges = <0x01000000 0 0x00000000 0xa0200000 0 0x00100000>,
 				 <0x02000000 0 0xa0300000 0xa0300000 0 0x10000000>;

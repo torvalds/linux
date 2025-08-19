@@ -701,7 +701,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 			"AMIC2", "MIC BIAS2",	/* Headset Mic */
 			"AMIC3", "MIC BIAS2",	/* FM radio left Tx */
 			"AMIC4", "MIC BIAS2",	/* FM radio right Tx */
