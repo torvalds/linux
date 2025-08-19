@@ -219,9 +219,16 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 	struct amdgpu_vram_block_info blk_info;
 	uint64_t page_pfns[32] = {0};
 	int i, ret, count;
+	bool hit = false;
 
 	if (amdgpu_ip_version(adev, UMC_HWIP, 0) < IP_VERSION(12, 0, 0))
 		return 0;
+
+	if (amdgpu_sriov_vf(adev)) {
+		if (amdgpu_virt_check_vf_critical_region(adev, address, &hit))
+			return -EPERM;
+		return hit ? -EACCES : 0;
+	}
 
 	if ((address >= adev->gmc.mc_vram_size) ||
 	    (address >= RAS_UMC_INJECT_ADDR_LIMIT))
