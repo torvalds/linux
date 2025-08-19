@@ -1863,8 +1863,6 @@ void dc_3dlut_func_retain(struct dc_3dlut *lut);
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
-#include "dc_stream.h"
-
 /**
  * struct dc_validation_set - Struct to store surface/stream associations for validation
  */
