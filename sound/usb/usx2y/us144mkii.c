@@ -514,10 +514,10 @@ static int tascam_probe(struct usb_interface *intf,
 	}
 
 	strscpy(card->driver, DRIVER_NAME, sizeof(card->driver));
-	if (dev->descriptor.idProduct == USB_PID_TASCAM_US144) {
+	if (le16_to_cpu(dev->descriptor.idProduct) == USB_PID_TASCAM_US144) {
 		strscpy(card->shortname, "TASCAM US-144",
 			sizeof(card->shortname));
-	} else if (dev->descriptor.idProduct == USB_PID_TASCAM_US144MKII) {
+	} else if (le16_to_cpu(dev->descriptor.idProduct) == USB_PID_TASCAM_US144MKII) {
 		strscpy(card->shortname, "TASCAM US-144MKII",
 			sizeof(card->shortname));
 	} else {
