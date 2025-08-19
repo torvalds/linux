@@ -1448,7 +1448,7 @@ static void gfx_v12_1_xcc_constants_init(struct amdgpu_device *adev,
 			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSH_MEM_BASES, tmp);
 		}
 	}
-	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
+	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 
 	mutex_unlock(&adev->srbm_mutex);
 
@@ -1776,7 +1776,7 @@ static void gfx_v12_1_xcc_config_gfx_rs64(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_RS64_PRGRM_CNTR_START_HI,
 					mec_hdr->ucode_start_addr_hi >> 2);
 	}
-	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
+	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 
 	/* reset mec pipe */
 	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_RS64_CNTL);
@@ -1821,7 +1821,7 @@ static void gfx_v12_1_xcc_set_mec_ucode_start_addr(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_RS64_PRGRM_CNTR_START_HI,
 			     cp_hdr->ucode_start_addr_hi >> 2);
 	}
-	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
+	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 	mutex_unlock(&adev->srbm_mutex);
 }
 
@@ -2017,7 +2017,7 @@ static int gfx_v12_1_xcc_cp_compute_load_microcode_rs64(struct amdgpu_device *ad
 				upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
 	}
 	mutex_unlock(&adev->srbm_mutex);
-	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
+	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 
 	/* Trigger an invalidation of the L1 instruction caches */
 	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DC_OP_CNTL);
