@@ -364,7 +364,7 @@ systems must come first.
 The kvm.sh ``--dryrun scenarios`` argument is useful for working out
 how many scenarios may be run in one batch across a group of systems.
 
-You can also re-run a previous remote run in a manner similar to kvm.sh:
+You can also re-run a previous remote run in a manner similar to kvm.sh::
 
 	kvm-remote.sh "system0 system1 system2 system3 system4 system5" \
 		tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28-remote \
