@@ -2543,6 +2543,7 @@ struct bnxt {
 	u16			fw_rx_stats_ext_size;
 	u16			fw_tx_stats_ext_size;
 	u16			hw_ring_stats_size;
+	u16			pcie_stat_len;
 	u8			pri2cos_idx[8];
 	u8			pri2cos_valid;
 

@@ -2061,17 +2061,11 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 static int bnxt_get_regs_len(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	int reg_len;
 
 	if (!BNXT_PF(bp))
 		return -EOPNOTSUPP;
 
-	reg_len = BNXT_PXP_REG_LEN;
-
-	if (bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED)
-		reg_len += sizeof(struct pcie_ctx_hw_stats);
-
-	return reg_len;
+	return BNXT_PXP_REG_LEN + bp->pcie_stat_len;
 }
 
 static void *
@@ -2107,6 +2101,7 @@ static const struct {
 static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *_p)
 {
+	struct hwrm_pcie_qstats_output *resp;
 	struct hwrm_pcie_qstats_input *req;
 	struct bnxt *bp = netdev_priv(dev);
 	u8 *src;
@@ -2121,14 +2116,15 @@ static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	if (hwrm_req_init(bp, req, HWRM_PCIE_QSTATS))
 		return;
 
-	hwrm_req_hold(bp, req);
+	resp = hwrm_req_hold(bp, req);
 	src = __bnxt_hwrm_pcie_qstats(bp, req);
 	if (src) {
 		u8 *dst = (u8 *)(_p + BNXT_PXP_REG_LEN);
-		int i, j;
+		int i, j, len;
 
+		len = min(bp->pcie_stat_len, le16_to_cpu(resp->pcie_stat_size));
 		regs->version = 1;
-		for (i = 0, j = 0; i < sizeof(struct pcie_ctx_hw_stats); ) {
+		for (i = 0, j = 0; i < len; ) {
 			if (i >= bnxt_pcie_32b_entries[j].start &&
 			    i <= bnxt_pcie_32b_entries[j].end) {
 				u32 *dst32 = (u32 *)(dst + i);
@@ -5273,6 +5269,26 @@ static int bnxt_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static void bnxt_hwrm_pcie_qstats(struct bnxt *bp)
+{
+	struct hwrm_pcie_qstats_output *resp;
+	struct hwrm_pcie_qstats_input *req;
+
+	bp->pcie_stat_len = 0;
+	if (!(bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED))
+		return;
+
+	if (hwrm_req_init(bp, req, HWRM_PCIE_QSTATS))
+		return;
+
+	resp = hwrm_req_hold(bp, req);
+	if (__bnxt_hwrm_pcie_qstats(bp, req))
+		bp->pcie_stat_len = min_t(u16,
+					  le16_to_cpu(resp->pcie_stat_size),
+					  sizeof(struct pcie_ctx_hw_stats_v2));
+	hwrm_req_drop(bp, req);
+}
+
 void bnxt_ethtool_init(struct bnxt *bp)
 {
 	struct hwrm_selftest_qlist_output *resp;
@@ -5281,6 +5297,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	struct net_device *dev = bp->dev;
 	int i, rc;
 
+	bnxt_hwrm_pcie_qstats(bp);
 	if (!(bp->fw_cap & BNXT_FW_CAP_PKG_VER))
 		bnxt_get_pkgver(dev);
 
