@@ -342,7 +342,7 @@ struct rcar_pm_domains {
 };
 
 static struct genpd_onecell_data *rcar_sysc_onecell_data;
-static struct device_node *rcar_sysc_onecell_np;
+static struct device_node *rcar_sysc_onecell_np __initdata = NULL;
 
 static int __init rcar_sysc_pd_init(void)
 {
