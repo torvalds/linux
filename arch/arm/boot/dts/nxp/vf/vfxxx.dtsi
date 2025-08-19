@@ -682,7 +682,7 @@
 				status = "disabled";
 			};
 
-			nfc: nand@400e0000 {
+			nfc: nand-controller@400e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-nfc";
