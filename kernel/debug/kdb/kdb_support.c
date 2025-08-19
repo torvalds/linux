@@ -256,6 +256,35 @@ char *kdb_strdup(const char *str, gfp_t type)
 }
 
 /*
+ * kdb_strdup_dequote - same as kdb_strdup(), but trims surrounding quotes from
+ *			the input string if present.
+ * Remarks:
+ *	Quotes are only removed if there is both a leading and a trailing quote.
+ */
+char *kdb_strdup_dequote(const char *str, gfp_t type)
+{
+	size_t len = strlen(str);
+	char *s;
+
+	if (str[0] == '"' && len > 1 && str[len - 1] == '"') {
+		/* trim both leading and trailing quotes */
+		str++;
+		len -= 2;
+	}
+
+	len++; /* add space for NUL terminator */
+
+	s = kmalloc(len, type);
+	if (!s)
+		return NULL;
+
+	memcpy(s, str, len - 1);
+	s[len - 1] = '\0';
+
+	return s;
+}
+
+/*
  * kdb_getarea_size - Read an area of data.  The kdb equivalent of
  *	copy_from_user, with kdb messages for invalid addresses.
  * Inputs:
