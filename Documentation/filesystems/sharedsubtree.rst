@@ -90,37 +90,42 @@ replicas continue to be exactly same.
 
 	Here is an example:
 
-	Let's say /mnt has a mount which is shared.
-	# mount --make-shared /mnt
+	Let's say /mnt has a mount which is shared::
 
-	Let's bind mount /mnt to /tmp
-	# mount --bind /mnt /tmp
+	  # mount --make-shared /mnt
+
+	Let's bind mount /mnt to /tmp::
+
+	  # mount --bind /mnt /tmp
 
 	the new mount at /tmp becomes a shared mount and it is a replica of
 	the mount at /mnt.
 
-	Now let's make the mount at /tmp; a slave of /mnt
-	# mount --make-slave /tmp
+	Now let's make the mount at /tmp; a slave of /mnt::
 
-	let's mount /dev/sd0 on /mnt/a
-	# mount /dev/sd0 /mnt/a
+	  # mount --make-slave /tmp
 
-	#ls /mnt/a
-	t1 t2 t3
+	let's mount /dev/sd0 on /mnt/a::
 
-	#ls /tmp/a
-	t1 t2 t3
+	  # mount /dev/sd0 /mnt/a
+
+	  # ls /mnt/a
+	  t1 t2 t3
+
+	  # ls /tmp/a
+	  t1 t2 t3
 
 	Note the mount event has propagated to the mount at /tmp
 
-	However let's see what happens if we mount something on the mount at /tmp
+	However let's see what happens if we mount something on the mount at
+        /tmp::
 
-	# mount /dev/sd1 /tmp/b
+	  # mount /dev/sd1 /tmp/b
 
-	#ls /tmp/b
-	s1 s2 s3
+	  # ls /tmp/b
+	  s1 s2 s3
 
-	#ls /mnt/b
+	  # ls /mnt/b
 
 	Note how the mount event has not propagated to the mount at
 	/mnt
@@ -137,7 +142,7 @@ replicas continue to be exactly same.
 
 	    # mount --make-unbindable /mnt
 
-	 Let's try to bind mount this mount somewhere else::
+	Let's try to bind mount this mount somewhere else::
 
 	    # mount --bind /mnt /tmp
 	    mount: wrong fs type, bad option, bad superblock on /mnt,
@@ -471,9 +476,9 @@ replicas continue to be exactly same.
 
 5d) Move semantics
 
-	Consider the following command
+	Consider the following command::
 
-	mount --move A  B/b
+	  mount --move A  B/b
 
 	where 'A' is the source mount, 'B' is the destination mount and 'b' is
 	the dentry in the destination mount.
@@ -663,9 +668,9 @@ replicas continue to be exactly same.
 		'B' is the slave of 'A' and 'C' is a slave of 'B'
 		A -> B -> C
 
-		at this point if we execute the following command
+		at this point if we execute the following command::
 
-		mount --bind /bin /tmp/test
+		  mount --bind /bin /tmp/test
 
 		The mount is attempted on 'A'
 
@@ -706,8 +711,8 @@ replicas continue to be exactly same.
 				   /    \
 				  tmp    usr
 
-		    And we want to replicate the tree at multiple
-		    mountpoints under /root/tmp
+		   And we want to replicate the tree at multiple
+		   mountpoints under /root/tmp
 
 		step 2:
 		      ::
@@ -731,7 +736,7 @@ replicas continue to be exactly same.
 			     /
 			    m1
 
-			  it has two vfsmounts
+		      it has two vfsmounts
 
 		step 3:
 		    ::
@@ -739,7 +744,7 @@ replicas continue to be exactly same.
 			    mkdir -p /tmp/m2
 			    mount --rbind /root /tmp/m2
 
-			the new tree now looks like this::
+		    the new tree now looks like this::
 
 				      root
 				     /    \
@@ -759,14 +764,15 @@ replicas continue to be exactly same.
 			  /  \
 			 m1   m2
 
-		       it has 6 vfsmounts
+		    it has 6 vfsmounts
 
 		step 4:
-		      ::
+                    ::
+
 			  mkdir -p /tmp/m3
 			  mount --rbind /root /tmp/m3
 
-			  I won't draw the tree..but it has 24 vfsmounts
+		I won't draw the tree..but it has 24 vfsmounts
 
 
 		at step i the number of vfsmounts is V[i] = i*V[i-1].
@@ -785,8 +791,8 @@ replicas continue to be exactly same.
 				   /    \
 				  tmp    usr
 
-		    How do we set up the same tree at multiple locations under
-		    /root/tmp
+		   How do we set up the same tree at multiple locations under
+		   /root/tmp
 
 		step 2:
 		      ::
