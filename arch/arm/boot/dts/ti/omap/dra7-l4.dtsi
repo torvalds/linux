@@ -267,8 +267,8 @@
 					syscon-phy-power = <&scm_conf 0x300>;
 					clocks = <&usb_phy1_always_on_clk32k>,
 						 <&l3init_clkctrl DRA7_L3INIT_USB_OTG_SS1_CLKCTRL 8>;
-					clock-names =	"wkupclk",
-							"refclk";
+					clock-names = "wkupclk",
+						      "refclk";
 					#phy-cells = <0>;
 				};
 
@@ -279,8 +279,8 @@
 					syscon-phy-power = <&scm_conf 0xe74>;
 					clocks = <&usb_phy2_always_on_clk32k>,
 						 <&l3init_clkctrl DRA7_L3INIT_USB_OTG_SS2_CLKCTRL 8>;
-					clock-names =	"wkupclk",
-							"refclk";
+					clock-names = "wkupclk",
+						      "refclk";
 					#phy-cells = <0>;
 				};
 
@@ -294,9 +294,9 @@
 					clocks = <&usb_phy3_always_on_clk32k>,
 						 <&sys_clkin1>,
 						 <&l3init_clkctrl DRA7_L3INIT_USB_OTG_SS1_CLKCTRL 8>;
-					clock-names =	"wkupclk",
-							"sysclk",
-							"refclk";
+					clock-names = "wkupclk",
+						      "sysclk",
+						      "refclk";
 					#phy-cells = <0>;
 				};
 			};

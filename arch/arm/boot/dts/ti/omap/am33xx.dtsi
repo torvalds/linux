@@ -461,10 +461,10 @@
 
 			cppi41dma: dma-controller@2000 {
 				compatible = "ti,am3359-cppi41";
-				reg =  <0x0000 0x1000>,
-				       <0x2000 0x1000>,
-				       <0x3000 0x1000>,
-				       <0x4000 0x4000>;
+				reg = <0x0000 0x1000>,
+				      <0x2000 0x1000>,
+				      <0x3000 0x1000>,
+				      <0x4000 0x4000>;
 				reg-names = "glue", "controller", "scheduler", "queuemgr";
 				interrupts = <17>;
 				interrupt-names = "glue";

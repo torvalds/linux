@@ -1457,10 +1457,10 @@
 
 			gpio1: gpio@0 {
 				compatible = "ti,omap4-gpio";
-				gpio-ranges =   <&am33xx_pinmux  0  0  8>,
-						<&am33xx_pinmux  8 90  4>,
-						<&am33xx_pinmux 12 12 16>,
-						<&am33xx_pinmux 28 30  4>;
+				gpio-ranges = <&am33xx_pinmux  0  0  8>,
+					      <&am33xx_pinmux  8 90  4>,
+					      <&am33xx_pinmux 12 12 16>,
+					      <&am33xx_pinmux 28 30  4>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
