@@ -2074,6 +2074,25 @@ static int bnxt_get_regs_len(struct net_device *dev)
 	return reg_len;
 }
 
+static void *
+__bnxt_hwrm_pcie_qstats(struct bnxt *bp, struct hwrm_pcie_qstats_input *req)
+{
+	struct pcie_ctx_hw_stats_v2 *hw_pcie_stats;
+	dma_addr_t hw_pcie_stats_addr;
+	int rc;
+
+	hw_pcie_stats = hwrm_req_dma_slice(bp, req, sizeof(*hw_pcie_stats),
+					   &hw_pcie_stats_addr);
+	if (!hw_pcie_stats)
+		return NULL;
+
+	req->pcie_stat_size = cpu_to_le16(sizeof(*hw_pcie_stats));
+	req->pcie_stat_host_addr = cpu_to_le64(hw_pcie_stats_addr);
+	rc = hwrm_req_send(bp, req);
+
+	return rc ? NULL : hw_pcie_stats;
+}
+
 #define BNXT_PCIE_32B_ENTRY(start, end)			\
 	 { offsetof(struct pcie_ctx_hw_stats, start),	\
 	   offsetof(struct pcie_ctx_hw_stats, end) }
@@ -2088,11 +2107,9 @@ static const struct {
 static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			  void *_p)
 {
-	struct pcie_ctx_hw_stats *hw_pcie_stats;
 	struct hwrm_pcie_qstats_input *req;
 	struct bnxt *bp = netdev_priv(dev);
-	dma_addr_t hw_pcie_stats_addr;
-	int rc;
+	u8 *src;
 
 	regs->version = 0;
 	if (!(bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_REG_ACCESS_RESTRICTED))
@@ -2104,24 +2121,14 @@ static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	if (hwrm_req_init(bp, req, HWRM_PCIE_QSTATS))
 		return;
 
-	hw_pcie_stats = hwrm_req_dma_slice(bp, req, sizeof(*hw_pcie_stats),
-					   &hw_pcie_stats_addr);
-	if (!hw_pcie_stats) {
-		hwrm_req_drop(bp, req);
-		return;
-	}
-
-	regs->version = 1;
-	hwrm_req_hold(bp, req); /* hold on to slice */
-	req->pcie_stat_size = cpu_to_le16(sizeof(*hw_pcie_stats));
-	req->pcie_stat_host_addr = cpu_to_le64(hw_pcie_stats_addr);
-	rc = hwrm_req_send(bp, req);
-	if (!rc) {
+	hwrm_req_hold(bp, req);
+	src = __bnxt_hwrm_pcie_qstats(bp, req);
+	if (src) {
 		u8 *dst = (u8 *)(_p + BNXT_PXP_REG_LEN);
-		u8 *src = (u8 *)hw_pcie_stats;
 		int i, j;
 
-		for (i = 0, j = 0; i < sizeof(*hw_pcie_stats); ) {
+		regs->version = 1;
+		for (i = 0, j = 0; i < sizeof(struct pcie_ctx_hw_stats); ) {
 			if (i >= bnxt_pcie_32b_entries[j].start &&
 			    i <= bnxt_pcie_32b_entries[j].end) {
 				u32 *dst32 = (u32 *)(dst + i);
