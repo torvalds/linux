@@ -28,7 +28,7 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp-1200000000{
+		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <750000 750000 950000>;
 			clock-latency-ns = <40000>;
@@ -49,7 +49,7 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp-1200000000{
+		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <750000 750000 950000>;
 			clock-latency-ns = <40000>;
