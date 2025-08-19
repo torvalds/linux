@@ -1283,7 +1283,7 @@ int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp,
 	else
 		controller = devm_spi_alloc_host(dev, sizeof(*drv_data));
 	if (!controller)
-		return dev_err_probe(dev, -ENOMEM, "cannot alloc spi_controller\n");
+		return -ENOMEM;
 
 	drv_data = spi_controller_get_devdata(controller);
 	drv_data->controller = controller;
