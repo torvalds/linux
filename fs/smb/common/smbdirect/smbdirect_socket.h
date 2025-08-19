@@ -207,6 +207,44 @@ struct smbdirect_socket {
 	} recv_io;
 
 	/*
+	 * The state for Memory registrations on the client
+	 */
+	struct {
+		enum ib_mr_type type;
+
+		/*
+		 * The list of free smbdirect_mr_io
+		 * structures
+		 */
+		struct {
+			struct list_head list;
+			spinlock_t lock;
+		} all;
+
+		/*
+		 * The number of available MRs ready for memory registration
+		 */
+		struct {
+			atomic_t count;
+			wait_queue_head_t wait_queue;
+		} ready;
+
+		/*
+		 * The number of used MRs
+		 */
+		struct {
+			atomic_t count;
+		} used;
+
+		struct work_struct recovery_work;
+
+		/* Used by transport to wait until all MRs are returned */
+		struct {
+			wait_queue_head_t wait_queue;
+		} cleanup;
+	} mr_io;
+
+	/*
 	 * The state for RDMA read/write requests on the server
 	 */
 	struct {
@@ -269,6 +307,13 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 	atomic_set(&sc->rw_io.credits.count, 0);
 	init_waitqueue_head(&sc->rw_io.credits.wait_queue);
+
+	spin_lock_init(&sc->mr_io.all.lock);
+	INIT_LIST_HEAD(&sc->mr_io.all.list);
+	atomic_set(&sc->mr_io.ready.count, 0);
+	init_waitqueue_head(&sc->mr_io.ready.wait_queue);
+	atomic_set(&sc->mr_io.used.count, 0);
+	init_waitqueue_head(&sc->mr_io.cleanup.wait_queue);
 }
 
 struct smbdirect_send_io {
