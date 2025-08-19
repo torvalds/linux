@@ -5081,7 +5081,7 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 		sb->s_flags |= SB_NOUSER;
 	}
 	sb->s_export_op = &shmem_export_ops;
-	sb->s_flags |= SB_NOSEC | SB_I_VERSION;
+	sb->s_flags |= SB_NOSEC;
 
 #if IS_ENABLED(CONFIG_UNICODE)
 	if (!ctx->encoding && ctx->strict_encoding) {
@@ -5385,6 +5385,9 @@ int shmem_init_fs_context(struct fs_context *fc)
 
 	fc->fs_private = ctx;
 	fc->ops = &shmem_fs_context_ops;
+#ifdef CONFIG_TMPFS
+	fc->sb_flags |= SB_I_VERSION;
+#endif
 	return 0;
 }
 
