@@ -202,6 +202,9 @@ send_request:
 	case IDH_REQ_RAS_CPER_DUMP:
 		event = IDH_RAS_CPER_DUMP_READY;
 		break;
+	case IDH_REQ_RAS_CHK_CRITI:
+		event = IDH_REQ_RAS_CHK_CRITI_READY;
+		break;
 	default:
 		break;
 	}
@@ -556,6 +559,16 @@ static int xgpu_nv_req_ras_bad_pages(struct amdgpu_device *adev)
 	return xgpu_nv_send_access_requests(adev, IDH_REQ_RAS_BAD_PAGES);
 }
 
+static int xgpu_nv_check_vf_critical_region(struct amdgpu_device *adev, u64 addr)
+{
+	uint32_t addr_hi, addr_lo;
+
+	addr_hi = (uint32_t)(addr >> 32);
+	addr_lo = (uint32_t)(addr & 0xFFFFFFFF);
+	return xgpu_nv_send_access_requests_with_param(
+		adev, IDH_REQ_RAS_CHK_CRITI, addr_hi, addr_lo, 0);
+}
+
 const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_full_gpu	= xgpu_nv_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_nv_release_full_gpu_access,
@@ -569,4 +582,5 @@ const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_ras_err_count = xgpu_nv_req_ras_err_count,
 	.req_ras_cper_dump = xgpu_nv_req_ras_cper_dump,
 	.req_bad_pages = xgpu_nv_req_ras_bad_pages,
+	.req_ras_chk_criti = xgpu_nv_check_vf_critical_region
 };

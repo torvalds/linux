@@ -98,6 +98,7 @@ struct amdgpu_virt_ops {
 	int (*req_ras_err_count)(struct amdgpu_device *adev);
 	int (*req_ras_cper_dump)(struct amdgpu_device *adev, u64 vf_rptr);
 	int (*req_bad_pages)(struct amdgpu_device *adev);
+	int (*req_ras_chk_criti)(struct amdgpu_device *adev, u64 addr);
 };
 
 /*
@@ -252,6 +253,7 @@ struct amdgpu_virt_ras_err_handler_data {
 struct amdgpu_virt_ras {
 	struct ratelimit_state ras_error_cnt_rs;
 	struct ratelimit_state ras_cper_dump_rs;
+	struct ratelimit_state ras_chk_criti_rs;
 	struct mutex ras_telemetry_mutex;
 	uint64_t cper_rptr;
 };
@@ -453,4 +455,5 @@ int amdgpu_virt_ras_telemetry_post_reset(struct amdgpu_device *adev);
 bool amdgpu_virt_ras_telemetry_block_en(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);
 void amdgpu_virt_request_bad_pages(struct amdgpu_device *adev);
+int amdgpu_virt_check_vf_critical_region(struct amdgpu_device *adev, u64 addr, bool *hit);
 #endif
