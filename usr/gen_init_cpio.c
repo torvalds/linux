@@ -23,64 +23,71 @@
 #define xstr(s) #s
 #define str(s) xstr(s)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define CPIO_HDR_LEN 110
+#define padlen(_off, _align) (((_align) - ((_off) & ((_align) - 1))) % (_align))
 
+static char padding[512];
 static unsigned int offset;
 static unsigned int ino = 721;
 static time_t default_mtime;
 static bool do_file_mtime;
 static bool do_csum = false;
+static int outfd = STDOUT_FILENO;
 
 struct file_handler {
 	const char *type;
 	int (*handler)(const char *line);
 };
 
-static void push_string(const char *name)
+static int push_string(const char *name)
 {
 	unsigned int name_len = strlen(name) + 1;
+	ssize_t len;
 
-	fputs(name, stdout);
-	putchar(0);
+	len = write(outfd, name, name_len);
+	if (len != name_len)
+		return -1;
+
 	offset += name_len;
+	return 0;
 }
 
-static void push_pad (void)
+static int push_pad(size_t padlen)
 {
-	while (offset & 3) {
-		putchar(0);
-		offset++;
-	}
+	ssize_t len = 0;
+
+	if (!padlen)
+		return 0;
+
+	if (padlen < sizeof(padding))
+		len = write(outfd, padding, padlen);
+	if (len != padlen)
+		return -1;
+
+	offset += padlen;
+	return 0;
 }
 
-static void push_rest(const char *name)
+static int push_rest(const char *name)
 {
 	unsigned int name_len = strlen(name) + 1;
-	unsigned int tmp_ofs;
+	ssize_t len;
 
-	fputs(name, stdout);
-	putchar(0);
+	len = write(outfd, name, name_len);
+	if (len != name_len)
+		return -1;
+
 	offset += name_len;
 
-	tmp_ofs = name_len + 110;
-	while (tmp_ofs & 3) {
-		putchar(0);
-		offset++;
-		tmp_ofs++;
-	}
+	return push_pad(padlen(name_len + CPIO_HDR_LEN, 4));
 }
 
-static void push_hdr(const char *s)
+static int cpio_trailer(void)
 {
-	fputs(s, stdout);
-	offset += 110;
-}
-
-static void cpio_trailer(void)
-{
-	char s[256];
 	const char name[] = "TRAILER!!!";
+	int len;
 
-	sprintf(s, "%s%08X%08X%08lX%08lX%08X%08lX"
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		0,			/* ino */
@@ -96,23 +103,24 @@ static void cpio_trailer(void)
 		0,			/* rminor */
 		(unsigned)strlen(name)+1, /* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_rest(name);
+	offset += len;
 
-	while (offset % 512) {
-		putchar(0);
-		offset++;
-	}
+	if (len != CPIO_HDR_LEN ||
+	    push_rest(name) < 0 ||
+	    push_pad(padlen(offset, 512)) < 0)
+		return -1;
+
+	return 0;
 }
 
 static int cpio_mkslink(const char *name, const char *target,
 			 unsigned int mode, uid_t uid, gid_t gid)
 {
-	char s[256];
+	int len;
 
 	if (name[0] == '/')
 		name++;
-	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		ino++,			/* ino */
@@ -128,12 +136,17 @@ static int cpio_mkslink(const char *name, const char *target,
 		0,			/* rminor */
 		(unsigned)strlen(name) + 1,/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_string(name);
-	push_pad();
-	push_string(target);
-	push_pad();
+	offset += len;
+
+	if (len != CPIO_HDR_LEN ||
+	    push_string(name) < 0 ||
+	    push_pad(padlen(offset, 4)) < 0 ||
+	    push_string(target) < 0 ||
+	    push_pad(padlen(offset, 4)) < 0)
+		return -1;
+
 	return 0;
+
 }
 
 static int cpio_mkslink_line(const char *line)
@@ -157,11 +170,11 @@ static int cpio_mkslink_line(const char *line)
 static int cpio_mkgeneric(const char *name, unsigned int mode,
 		       uid_t uid, gid_t gid)
 {
-	char s[256];
+	int len;
 
 	if (name[0] == '/')
 		name++;
-	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		ino++,			/* ino */
@@ -177,8 +190,12 @@ static int cpio_mkgeneric(const char *name, unsigned int mode,
 		0,			/* rminor */
 		(unsigned)strlen(name) + 1,/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_rest(name);
+	offset += len;
+
+	if (len != CPIO_HDR_LEN ||
+	    push_rest(name) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -246,7 +263,7 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		       uid_t uid, gid_t gid, char dev_type,
 		       unsigned int maj, unsigned int min)
 {
-	char s[256];
+	int len;
 
 	if (dev_type == 'b')
 		mode |= S_IFBLK;
@@ -255,7 +272,7 @@ static int cpio_mknod(const char *name, unsigned int mode,
 
 	if (name[0] == '/')
 		name++;
-	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
 		ino++,			/* ino */
@@ -271,8 +288,12 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		min,			/* rminor */
 		(unsigned)strlen(name) + 1,/* namesize */
 		0);			/* chksum */
-	push_hdr(s);
-	push_rest(name);
+	offset += len;
+
+	if (len != CPIO_HDR_LEN ||
+	    push_rest(name) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -324,11 +345,9 @@ static int cpio_mkfile(const char *name, const char *location,
 			unsigned int mode, uid_t uid, gid_t gid,
 			unsigned int nlinks)
 {
-	char s[256];
 	struct stat buf;
 	unsigned long size;
-	int file;
-	int retval;
+	int file, retval, len;
 	int rc = -1;
 	time_t mtime;
 	int namesize;
@@ -386,7 +405,7 @@ static int cpio_mkfile(const char *name, const char *location,
 		if (name[0] == '/')
 			name++;
 		namesize = strlen(name) + 1;
-		sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
+		len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 		       "%08lX%08X%08X%08X%08X%08X%08X",
 			do_csum ? "070702" : "070701", /* magic */
 			ino,			/* ino */
@@ -402,9 +421,12 @@ static int cpio_mkfile(const char *name, const char *location,
 			0,			/* rminor */
 			namesize,		/* namesize */
 			size ? csum : 0);	/* chksum */
-		push_hdr(s);
-		push_string(name);
-		push_pad();
+		offset += len;
+
+		if (len != CPIO_HDR_LEN ||
+		    push_string(name) < 0 ||
+		    push_pad(padlen(offset, 4)) < 0)
+			goto error;
 
 		while (size) {
 			unsigned char filebuf[65536];
@@ -417,14 +439,15 @@ static int cpio_mkfile(const char *name, const char *location,
 				goto error;
 			}
 
-			if (fwrite(filebuf, this_read, 1, stdout) != 1) {
+			if (write(outfd, filebuf, this_read) != this_read) {
 				fprintf(stderr, "writing filebuf failed\n");
 				goto error;
 			}
 			offset += this_read;
 			size -= this_read;
 		}
-		push_pad();
+		if (push_pad(padlen(offset, 4)) < 0)
+			goto error;
 
 		name += namesize;
 	}
@@ -691,7 +714,7 @@ int main (int argc, char *argv[])
 		}
 	}
 	if (ec == 0)
-		cpio_trailer();
+		ec = cpio_trailer();
 
 	exit(ec);
 }
