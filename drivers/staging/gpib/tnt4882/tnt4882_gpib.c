@@ -1522,7 +1522,6 @@ static void __exit tnt4882_exit_module(void)
 #include <linux/moduleparam.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
-#include <linux/ioport.h>
 #include <linux/io.h>
 
 #include <pcmcia/cistpl.h>
