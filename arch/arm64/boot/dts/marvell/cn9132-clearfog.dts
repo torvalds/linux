@@ -559,7 +559,7 @@
 };
 
 &cp2_ethernet {
-	status =  "okay";
+	status = "okay";
 };
 
 /* SRDS #2 - 5GE */
@@ -572,7 +572,7 @@
 };
 
 &cp2_gpio1 {
-	pinctrl-names= "default";
+	pinctrl-names = "default";
 	pinctrl-0 = <&cp2_rsvd9_pins>;
 
 	/* J21 */
