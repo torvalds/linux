@@ -25,6 +25,7 @@
 #define str(s) xstr(s)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define CPIO_HDR_LEN 110
+#define CPIO_TRAILER "TRAILER!!!"
 #define padlen(_off, _align) (((_align) - ((_off) & ((_align) - 1))) % (_align))
 
 static char padding[512];
@@ -40,9 +41,8 @@ struct file_handler {
 	int (*handler)(const char *line);
 };
 
-static int push_string(const char *name)
+static int push_buf(const char *name, size_t name_len)
 {
-	unsigned int name_len = strlen(name) + 1;
 	ssize_t len;
 
 	len = write(outfd, name, name_len);
@@ -69,9 +69,8 @@ static int push_pad(size_t padlen)
 	return 0;
 }
 
-static int push_rest(const char *name)
+static int push_rest(const char *name, size_t name_len)
 {
-	unsigned int name_len = strlen(name) + 1;
 	ssize_t len;
 
 	len = write(outfd, name, name_len);
@@ -85,8 +84,8 @@ static int push_rest(const char *name)
 
 static int cpio_trailer(void)
 {
-	const char name[] = "TRAILER!!!";
 	int len;
+	unsigned int namesize = sizeof(CPIO_TRAILER);
 
 	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
@@ -102,12 +101,12 @@ static int cpio_trailer(void)
 		0,			/* minor */
 		0,			/* rmajor */
 		0,			/* rminor */
-		(unsigned)strlen(name)+1, /* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
 	offset += len;
 
 	if (len != CPIO_HDR_LEN ||
-	    push_rest(name) < 0 ||
+	    push_rest(CPIO_TRAILER, namesize) < 0 ||
 	    push_pad(padlen(offset, 512)) < 0)
 		return -1;
 
@@ -118,9 +117,12 @@ static int cpio_mkslink(const char *name, const char *target,
 			 unsigned int mode, uid_t uid, gid_t gid)
 {
 	int len;
+	unsigned int namesize, targetsize = strlen(target) + 1;
 
 	if (name[0] == '/')
 		name++;
+	namesize = strlen(name) + 1;
+
 	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
@@ -130,19 +132,19 @@ static int cpio_mkslink(const char *name, const char *target,
 		(long) gid,		/* gid */
 		1,			/* nlink */
 		(long) default_mtime,	/* mtime */
-		(unsigned)strlen(target)+1, /* filesize */
+		targetsize,		/* filesize */
 		3,			/* major */
 		1,			/* minor */
 		0,			/* rmajor */
 		0,			/* rminor */
-		(unsigned)strlen(name) + 1,/* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
 	offset += len;
 
 	if (len != CPIO_HDR_LEN ||
-	    push_string(name) < 0 ||
+	    push_buf(name, namesize) < 0 ||
 	    push_pad(padlen(offset, 4)) < 0 ||
-	    push_string(target) < 0 ||
+	    push_buf(target, targetsize) < 0 ||
 	    push_pad(padlen(offset, 4)) < 0)
 		return -1;
 
@@ -172,9 +174,12 @@ static int cpio_mkgeneric(const char *name, unsigned int mode,
 		       uid_t uid, gid_t gid)
 {
 	int len;
+	unsigned int namesize;
 
 	if (name[0] == '/')
 		name++;
+	namesize = strlen(name) + 1;
+
 	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
@@ -189,12 +194,12 @@ static int cpio_mkgeneric(const char *name, unsigned int mode,
 		1,			/* minor */
 		0,			/* rmajor */
 		0,			/* rminor */
-		(unsigned)strlen(name) + 1,/* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
 	offset += len;
 
 	if (len != CPIO_HDR_LEN ||
-	    push_rest(name) < 0)
+	    push_rest(name, namesize) < 0)
 		return -1;
 
 	return 0;
@@ -265,6 +270,7 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		       unsigned int maj, unsigned int min)
 {
 	int len;
+	unsigned int namesize;
 
 	if (dev_type == 'b')
 		mode |= S_IFBLK;
@@ -273,6 +279,8 @@ static int cpio_mknod(const char *name, unsigned int mode,
 
 	if (name[0] == '/')
 		name++;
+	namesize = strlen(name) + 1;
+
 	len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
@@ -287,12 +295,12 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		1,			/* minor */
 		maj,			/* rmajor */
 		min,			/* rminor */
-		(unsigned)strlen(name) + 1,/* namesize */
+		namesize,		/* namesize */
 		0);			/* chksum */
 	offset += len;
 
 	if (len != CPIO_HDR_LEN ||
-	    push_rest(name) < 0)
+	    push_rest(name, namesize) < 0)
 		return -1;
 
 	return 0;
@@ -426,7 +434,7 @@ static int cpio_mkfile(const char *name, const char *location,
 		offset += len;
 
 		if (len != CPIO_HDR_LEN ||
-		    push_string(name) < 0 ||
+		    push_buf(name, namesize) < 0 ||
 		    push_pad(padlen(offset, 4)) < 0)
 			goto error;
 
