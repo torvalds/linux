@@ -1457,7 +1457,6 @@ struct kvm_arch {
 	u64 master_kernel_ns;
 	u64 master_cycle_now;
 	struct delayed_work kvmclock_update_work;
-	struct delayed_work kvmclock_sync_work;
 
 #ifdef CONFIG_KVM_HYPERV
 	struct kvm_hv hyperv;
