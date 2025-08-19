@@ -2088,14 +2088,16 @@ __bnxt_hwrm_pcie_qstats(struct bnxt *bp, struct hwrm_pcie_qstats_input *req)
 }
 
 #define BNXT_PCIE_32B_ENTRY(start, end)			\
-	 { offsetof(struct pcie_ctx_hw_stats, start),	\
-	   offsetof(struct pcie_ctx_hw_stats, end) }
+	 { offsetof(struct pcie_ctx_hw_stats_v2, start),\
+	   offsetof(struct pcie_ctx_hw_stats_v2, end) }
 
 static const struct {
 	u16 start;
 	u16 end;
 } bnxt_pcie_32b_entries[] = {
 	BNXT_PCIE_32B_ENTRY(pcie_ltssm_histogram[0], pcie_ltssm_histogram[3]),
+	BNXT_PCIE_32B_ENTRY(pcie_tl_credit_nph_histogram[0], unused_1),
+	BNXT_PCIE_32B_ENTRY(pcie_rd_latency_histogram[0], unused_2),
 };
 
 static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
@@ -2123,7 +2125,13 @@ static void bnxt_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		int i, j, len;
 
 		len = min(bp->pcie_stat_len, le16_to_cpu(resp->pcie_stat_size));
-		regs->version = 1;
+		if (len <= sizeof(struct pcie_ctx_hw_stats))
+			regs->version = 1;
+		else if (len < sizeof(struct pcie_ctx_hw_stats_v2))
+			regs->version = 2;
+		else
+			regs->version = 3;
+
 		for (i = 0, j = 0; i < len; ) {
 			if (i >= bnxt_pcie_32b_entries[j].start &&
 			    i <= bnxt_pcie_32b_entries[j].end) {
