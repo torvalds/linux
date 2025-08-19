@@ -72,7 +72,7 @@ static const struct mtk_cpufreq_variant cpufreq_mtk_base_variant = {
 static int mtk_cpufreq_hw_mt8196_init(struct mtk_cpufreq_priv *priv)
 {
 	priv->fdvfs = devm_of_iomap(priv->dev, priv->dev->of_node, 0, NULL);
-	if (IS_ERR_OR_NULL(priv->fdvfs))
+	if (IS_ERR(priv->fdvfs))
 		return dev_err_probe(priv->dev, PTR_ERR(priv->fdvfs),
 				     "failed to get fdvfs iomem\n");
 
