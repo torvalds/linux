@@ -188,6 +188,12 @@ enum rtw89_env_monitor_result_level {
 	RTW89_PHY_ENV_MON_EDCCA_CLM = BIT(4),
 };
 
+#define RTW89_NHM_WEIGHT_OFFSET 2
+#define RTW89_NHM_WA_TH (109 << 1)
+#define RTW89_NOISE_DEFAULT -96
+#define RTW89_NHM_MNTR_TIME 40
+#define RTW89_NHM_TH_FACTOR 1
+
 #define CCX_US_BASE_RATIO 4
 enum rtw89_ccx_unit {
 	RTW89_CCX_4_US = 0,
@@ -428,6 +434,15 @@ struct rtw89_ccx_regs {
 	u32 ifs_total_addr;
 	u32 ifs_cnt_done_mask;
 	u32 ifs_total_mask;
+	u32 nhm;
+	u32 nhm_ready;
+	u32 nhm_config;
+	u32 nhm_period_mask;
+	u32 nhm_unit_mask;
+	u32 nhm_include_cca_mask;
+	u32 nhm_en_mask;
+	u32 nhm_method;
+	u32 nhm_pwr_method_msk;
 };
 
 struct rtw89_physts_regs {
@@ -821,6 +836,7 @@ void rtw89_phy_config_rf_reg_v1(struct rtw89_dev *rtwdev,
 				void *extra_data);
 void rtw89_phy_dm_init(struct rtw89_dev *rtwdev);
 void rtw89_phy_dm_reinit(struct rtw89_dev *rtwdev);
+void rtw89_phy_dm_init_data(struct rtw89_dev *rtwdev);
 void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			   u32 data, enum rtw89_phy_idx phy_idx);
 void rtw89_phy_write32_idx_set(struct rtw89_dev *rtwdev, u32 addr, u32 bits,
@@ -1038,5 +1054,9 @@ enum rtw89_rf_path rtw89_phy_get_syn_sel(struct rtw89_dev *rtwdev,
 u8 rtw89_rfk_chan_lookup(struct rtw89_dev *rtwdev,
 			 const struct rtw89_rfk_chan_desc *desc, u8 desc_nr,
 			 const struct rtw89_chan *target_chan);
+void rtw89_phy_nhm_setting_init(struct rtw89_dev *rtwdev);
+void rtw89_phy_nhm_get_result(struct rtw89_dev *rtwdev, enum rtw89_band hw_band,
+			      u16 ch_hw_value);
+void rtw89_phy_nhm_trigger(struct rtw89_dev *rtwdev);
 
 #endif

@@ -426,6 +426,35 @@ static const struct rtw89_reg_def rtw8852a_dcfo_comp = {
 	R_DCFO_COMP_S0, B_DCFO_COMP_S0_MSK
 };
 
+static const struct rtw89_reg_def rtw8852a_nhm_th[RTW89_NHM_TH_NUM] = {
+	{R_NHM_CFG, B_NHM_TH0_MSK},
+	{R_NHM_TH1, B_NHM_TH1_MSK},
+	{R_NHM_TH1, B_NHM_TH2_MSK},
+	{R_NHM_TH1, B_NHM_TH3_MSK},
+	{R_NHM_TH1, B_NHM_TH4_MSK},
+	{R_NHM_TH5, B_NHM_TH5_MSK},
+	{R_NHM_TH5, B_NHM_TH6_MSK},
+	{R_NHM_TH5, B_NHM_TH7_MSK},
+	{R_NHM_TH5, B_NHM_TH8_MSK},
+	{R_NHM_TH9, B_NHM_TH9_MSK},
+	{R_NHM_TH9, B_NHM_TH10_MSK},
+};
+
+static const struct rtw89_reg_def rtw8852a_nhm_rpt[RTW89_NHM_RPT_NUM] = {
+	{R_NHM_CNT0, B_NHM_CNT0_MSK},
+	{R_NHM_CNT0, B_NHM_CNT1_MSK},
+	{R_NHM_CNT2, B_NHM_CNT2_MSK},
+	{R_NHM_CNT2, B_NHM_CNT3_MSK},
+	{R_NHM_CNT4, B_NHM_CNT4_MSK},
+	{R_NHM_CNT4, B_NHM_CNT5_MSK},
+	{R_NHM_CNT6, B_NHM_CNT6_MSK},
+	{R_NHM_CNT6, B_NHM_CNT7_MSK},
+	{R_NHM_CNT8, B_NHM_CNT8_MSK},
+	{R_NHM_CNT8, B_NHM_CNT9_MSK},
+	{R_NHM_CNT10, B_NHM_CNT10_MSK},
+	{R_NHM_CNT10, B_NHM_CNT11_MSK},
+};
+
 static const struct rtw89_imr_info rtw8852a_imr_info = {
 	.wdrls_imr_set		= B_AX_WDRLS_IMR_SET,
 	.wsec_imr_reg		= R_AX_SEC_DEBUG,
@@ -2220,6 +2249,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.support_ant_gain	= false,
 	.support_tas		= false,
 	.support_sar_by_ant	= false,
+	.support_noise		= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
 	.rx_freq_frome_ie	= true,
@@ -2282,6 +2312,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.cfo_hw_comp            = false,
 	.dcfo_comp		= &rtw8852a_dcfo_comp,
 	.dcfo_comp_sft		= 10,
+	.nhm_report		= &rtw8852a_nhm_rpt,
+	.nhm_th			= &rtw8852a_nhm_th,
 	.imr_info		= &rtw8852a_imr_info,
 	.imr_dmac_table		= NULL,
 	.imr_cmac_table		= NULL,

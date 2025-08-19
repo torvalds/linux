@@ -9,6 +9,7 @@
 #include "fw.h"
 #include "mac.h"
 #include "pci.h"
+#include "phy.h"
 #include "ps.h"
 #include "reg.h"
 #include "util.h"
@@ -5045,6 +5046,8 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		if (op_chan) {
 			rtw89_mac_enable_aps_bcn_by_chan(rtwdev, op_chan, false);
 			ieee80211_stop_queues(rtwdev->hw);
+		} else {
+			rtw89_phy_nhm_get_result(rtwdev, band, chan);
 		}
 		return;
 	case RTW89_SCAN_END_SCAN_NOTIFY:
@@ -5075,6 +5078,7 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 					  RTW89_CHANNEL_WIDTH_20);
 			rtw89_assign_entity_chan(rtwdev, rtwvif_link->chanctx_idx,
 						 &new);
+			rtw89_phy_nhm_trigger(rtwdev);
 		}
 		break;
 	default:

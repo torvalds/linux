@@ -6258,6 +6258,7 @@ int rtw89_core_register(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
+	rtw89_phy_dm_init_data(rtwdev);
 	rtw89_debugfs_init(rtwdev);
 
 	return 0;
@@ -6307,6 +6308,9 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 		ops->remain_on_channel = NULL;
 		ops->cancel_remain_on_channel = NULL;
 	}
+
+	if (!chip->support_noise)
+		ops->get_survey = NULL;
 
 	driver_data_size = sizeof(struct rtw89_dev) + bus_data_size;
 	hw = ieee80211_alloc_hw(driver_data_size, ops);
