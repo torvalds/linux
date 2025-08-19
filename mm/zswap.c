@@ -42,8 +42,10 @@
 /*********************************
 * statistics
 **********************************/
-/* The number of compressed pages currently stored in zswap */
+/* The number of pages currently stored in zswap */
 atomic_long_t zswap_stored_pages = ATOMIC_LONG_INIT(0);
+/* The number of incompressible pages currently stored in zswap */
+static atomic_long_t zswap_stored_incompressible_pages = ATOMIC_LONG_INIT(0);
 
 /*
  * The statistics below are not protected from concurrent access for
@@ -811,6 +813,8 @@ static void zswap_entry_free(struct zswap_entry *entry)
 		obj_cgroup_uncharge_zswap(entry->objcg, entry->length);
 		obj_cgroup_put(entry->objcg);
 	}
+	if (entry->length == PAGE_SIZE)
+		atomic_long_dec(&zswap_stored_incompressible_pages);
 	zswap_entry_cache_free(entry);
 	atomic_long_dec(&zswap_stored_pages);
 }
@@ -948,6 +952,7 @@ static bool zswap_compress(struct page *page, struct zswap_entry *entry,
 	struct zpool *zpool;
 	gfp_t gfp;
 	u8 *dst;
+	bool mapped = false;
 
 	acomp_ctx = acomp_ctx_get_cpu_lock(pool);
 	dst = acomp_ctx->buffer;
@@ -976,8 +981,26 @@ static bool zswap_compress(struct page *page, struct zswap_entry *entry,
 	 */
 	comp_ret = crypto_wait_req(crypto_acomp_compress(acomp_ctx->req), &acomp_ctx->wait);
 	dlen = acomp_ctx->req->dlen;
-	if (comp_ret)
-		goto unlock;
+
+	/*
+	 * If a page cannot be compressed into a size smaller than PAGE_SIZE,
+	 * save the content as is without a compression, to keep the LRU order
+	 * of writebacks.  If writeback is disabled, reject the page since it
+	 * only adds metadata overhead.  swap_writeout() will put the page back
+	 * to the active LRU list in the case.
+	 */
+	if (comp_ret || !dlen || dlen >= PAGE_SIZE) {
+		dlen = PAGE_SIZE;
+		if (!mem_cgroup_zswap_writeback_enabled(
+					folio_memcg(page_folio(page)))) {
+			comp_ret = comp_ret ? comp_ret : -EINVAL;
+			goto unlock;
+		}
+		comp_ret = 0;
+		dlen = PAGE_SIZE;
+		dst = kmap_local_page(page);
+		mapped = true;
+	}
 
 	zpool = pool->zpool;
 	gfp = GFP_NOWAIT | __GFP_NORETRY | __GFP_HIGHMEM | __GFP_MOVABLE;
@@ -990,6 +1013,8 @@ static bool zswap_compress(struct page *page, struct zswap_entry *entry,
 	entry->length = dlen;
 
 unlock:
+	if (mapped)
+		kunmap_local(dst);
 	if (comp_ret == -ENOSPC || alloc_ret == -ENOSPC)
 		zswap_reject_compress_poor++;
 	else if (comp_ret)
@@ -1006,11 +1031,17 @@ static bool zswap_decompress(struct zswap_entry *entry, struct folio *folio)
 	struct zpool *zpool = entry->pool->zpool;
 	struct scatterlist input, output;
 	struct crypto_acomp_ctx *acomp_ctx;
-	int decomp_ret, dlen;
+	int decomp_ret = 0, dlen = PAGE_SIZE;
 	u8 *src, *obj;
 
 	acomp_ctx = acomp_ctx_get_cpu_lock(entry->pool);
 	obj = zpool_obj_read_begin(zpool, entry->handle, acomp_ctx->buffer);
+
+	/* zswap entries of length PAGE_SIZE are not compressed. */
+	if (entry->length == PAGE_SIZE) {
+		memcpy_to_folio(folio, 0, obj, entry->length);
+		goto read_done;
+	}
 
 	/*
 	 * zpool_obj_read_begin() might return a kmap address of highmem when
@@ -1032,6 +1063,7 @@ static bool zswap_decompress(struct zswap_entry *entry, struct folio *folio)
 	decomp_ret = crypto_wait_req(crypto_acomp_decompress(acomp_ctx->req), &acomp_ctx->wait);
 	dlen = acomp_ctx->req->dlen;
 
+read_done:
 	zpool_obj_read_end(zpool, entry->handle, obj);
 	acomp_ctx_put_unlock(acomp_ctx);
 
@@ -1524,6 +1556,8 @@ static bool zswap_store_page(struct page *page,
 		obj_cgroup_charge_zswap(objcg, entry->length);
 	}
 	atomic_long_inc(&zswap_stored_pages);
+	if (entry->length == PAGE_SIZE)
+		atomic_long_inc(&zswap_stored_incompressible_pages);
 
 	/*
 	 * We finish initializing the entry while it's already in xarray.
@@ -1792,6 +1826,14 @@ static int debugfs_get_stored_pages(void *data, u64 *val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(stored_pages_fops, debugfs_get_stored_pages, NULL, "%llu\n");
 
+static int debugfs_get_stored_incompressible_pages(void *data, u64 *val)
+{
+	*val = atomic_long_read(&zswap_stored_incompressible_pages);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(stored_incompressible_pages_fops,
+		debugfs_get_stored_incompressible_pages, NULL, "%llu\n");
+
 static int zswap_debugfs_init(void)
 {
 	if (!debugfs_initialized())
@@ -1819,6 +1861,9 @@ static int zswap_debugfs_init(void)
 			    zswap_debugfs_root, NULL, &total_size_fops);
 	debugfs_create_file("stored_pages", 0444,
 			    zswap_debugfs_root, NULL, &stored_pages_fops);
+	debugfs_create_file("stored_incompressible_pages", 0444,
+			    zswap_debugfs_root, NULL,
+			    &stored_incompressible_pages_fops);
 
 	return 0;
 }
