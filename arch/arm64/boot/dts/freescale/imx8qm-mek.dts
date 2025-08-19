@@ -407,7 +407,7 @@
 		audio-cpu = <&sai1>;
 		audio-codec = <&wm8960>;
 		hp-det-gpios = <&lsio_gpio0 31 GPIO_ACTIVE_HIGH>;
-		audio-routing =	"Headphone Jack", "HP_L",
+		audio-routing = "Headphone Jack", "HP_L",
 				"Headphone Jack", "HP_R",
 				"Ext Spk", "SPK_LP",
 				"Ext Spk", "SPK_LN",
