@@ -824,7 +824,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	pctl_desc->confops = &sgpio_confops;
 	pctl_desc->owner = THIS_MODULE;
 
-	pins = devm_kzalloc(dev, sizeof(*pins)*ngpios, GFP_KERNEL);
+	pins = devm_kcalloc(dev, ngpios, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;
 
