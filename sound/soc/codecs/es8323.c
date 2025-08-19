@@ -182,13 +182,13 @@ static const struct snd_kcontrol_new es8323_mono_adc_mux_controls =
 
 /* Left Mixer */
 static const struct snd_kcontrol_new es8323_left_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left Playback Switch", SND_SOC_NOPM, 7, 1, 1),
+	SOC_DAPM_SINGLE("Left Playback Switch", ES8323_DACCONTROL17, 7, 1, 0),
 	SOC_DAPM_SINGLE("Left Bypass Switch", ES8323_DACCONTROL17, 6, 1, 0),
 };
 
 /* Right Mixer */
 static const struct snd_kcontrol_new es8323_right_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Right Playback Switch", SND_SOC_NOPM, 6, 1, 1),
+	SOC_DAPM_SINGLE("Right Playback Switch", ES8323_DACCONTROL20, 7, 1, 0),
 	SOC_DAPM_SINGLE("Right Bypass Switch", ES8323_DACCONTROL20, 6, 1, 0),
 };
 
@@ -632,7 +632,6 @@ static int es8323_probe(struct snd_soc_component *component)
 
 	snd_soc_component_write(component, ES8323_CONTROL2, 0x60);
 	snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
-	snd_soc_component_write(component, ES8323_DACCONTROL17, 0xB8);
 
 	return 0;
 }
