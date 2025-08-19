@@ -171,8 +171,7 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 
 	chip = devm_kzalloc(sdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return dev_err_probe(sdev->dev, -ENOMEM,
-				     "failed to allocate chip data\n");
+		return -ENOMEM;
 
 	chip->dap = devm_ioremap(sdev->dev, IMX8M_DAP_DEBUG, IMX8M_DAP_DEBUG_SIZE);
 	if (!chip->dap)

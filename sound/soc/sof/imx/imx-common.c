@@ -354,8 +354,8 @@ static int imx_probe(struct snd_sof_dev *sdev)
 
 	common = devm_kzalloc(sdev->dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
-		return dev_err_probe(sdev->dev, -ENOMEM,
-				     "failed to allocate common data\n");
+		return -ENOMEM;
+
 	sdev->pdata->hw_pdata = common;
 
 	common->ipc_dev = platform_device_register_data(sdev->dev, "imx-dsp",
