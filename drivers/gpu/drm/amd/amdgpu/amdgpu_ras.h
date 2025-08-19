@@ -587,6 +587,8 @@ struct amdgpu_ras {
 	struct list_head critical_region_head;
 	struct mutex critical_region_lock;
 
+	/* Protect poison injection */
+	struct mutex poison_lock;
 };
 
 struct ras_fs_data {
