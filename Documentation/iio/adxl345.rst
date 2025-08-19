@@ -157,6 +157,7 @@ sensor terms, free-fall is defined using an inactivity period ranging from 0.000
 to 1.000 seconds.
 
 The driver behaves as follows:
+
 * If the configured inactivity period is 1 second or more, the driver uses the
   sensor's inactivity register. This allows the event to be linked with
   activity detection, use auto-sleep, and be either AC- or DC-coupled.
