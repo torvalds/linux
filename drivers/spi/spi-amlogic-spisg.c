@@ -733,7 +733,7 @@ static int aml_spisg_probe(struct platform_device *pdev)
 	else
 		ctlr = spi_alloc_host(dev, sizeof(*spisg));
 	if (!ctlr)
-		return dev_err_probe(dev, -ENOMEM, "controller allocation failed\n");
+		return -ENOMEM;
 
 	spisg = spi_controller_get_devdata(ctlr);
 	spisg->controller = ctlr;
