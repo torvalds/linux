@@ -151,16 +151,10 @@ extern void cleanup_module(void);
 #define __init_or_module
 #define __initdata_or_module
 #define __initconst_or_module
-#define __INIT_OR_MODULE	.text
-#define __INITDATA_OR_MODULE	.data
-#define __INITRODATA_OR_MODULE	.section ".rodata","a",%progbits
 #else
 #define __init_or_module __init
 #define __initdata_or_module __initdata
 #define __initconst_or_module __initconst
-#define __INIT_OR_MODULE __INIT
-#define __INITDATA_OR_MODULE __INITDATA
-#define __INITRODATA_OR_MODULE __INITRODATA
 #endif /*CONFIG_MODULES*/
 
 struct module_kobject *lookup_or_create_module_kobject(const char *name);
