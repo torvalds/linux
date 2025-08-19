@@ -633,14 +633,18 @@ err:
 }
 
 /*
- * Convert TDX private pages back to normal by using MOVDIR64B to
- * clear these pages.  Note this function doesn't flush cache of
- * these TDX private pages.  The caller should make sure of that.
+ * Convert TDX private pages back to normal by using MOVDIR64B to clear these
+ * pages. Typically, any write to the page will convert it from TDX private back
+ * to normal kernel memory. Systems with the X86_BUG_TDX_PW_MCE erratum need to
+ * do the conversion explicitly via MOVDIR64B.
  */
 static void tdx_quirk_reset_paddr(unsigned long base, unsigned long size)
 {
 	const void *zero_page = (const void *)page_address(ZERO_PAGE(0));
 	unsigned long phys, end;
+
+	if (!boot_cpu_has_bug(X86_BUG_TDX_PW_MCE))
+		return;
 
 	end = base + size;
 	for (phys = base; phys < end; phys += 64)
