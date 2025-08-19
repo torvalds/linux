@@ -53,6 +53,7 @@ static void __init prom_setup_cmdline(void)
 	int prom_argc;
 	char **prom_argv;
 	int i;
+	size_t len;
 
 	prom_argc = fw_arg0;
 	prom_argv = (char **) fw_arg1;
@@ -82,20 +83,20 @@ static void __init prom_setup_cmdline(void)
 				mips_machtype = MACH_MIKROTIK_RB532;
 		}
 
-		strcpy(cp, prom_argv[i]);
-		cp += strlen(prom_argv[i]);
+		len = strlen(prom_argv[i]);
+		memcpy(cp, prom_argv[i], len + 1);
+		cp += len;
 	}
 	*(cp++) = ' ';
 
-	i = strlen(arcs_cmdline);
-	if (i > 0) {
+	len = strlen(arcs_cmdline);
+	if (len > 0) {
 		*(cp++) = ' ';
-		strcpy(cp, arcs_cmdline);
-		cp += strlen(arcs_cmdline);
+		memcpy(cp, arcs_cmdline, len + 1);
+		cp += len;
 	}
 	cmd_line[COMMAND_LINE_SIZE - 1] = '\0';
-
-	strcpy(arcs_cmdline, cmd_line);
+	strscpy(arcs_cmdline, cmd_line);
 }
 
 void __init prom_init(void)
