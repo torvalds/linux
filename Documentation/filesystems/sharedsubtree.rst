@@ -39,8 +39,8 @@ precise
 	d. unbindable mount
 
 
-2a) A shared mount can be replicated to as many mountpoints and all the
-replicas continue to be exactly same.
+a) A shared mount can be replicated to as many mountpoints and all the
+   replicas continue to be exactly same.
 
 	Here is an example:
 
@@ -83,8 +83,8 @@ replicas continue to be exactly same.
 	contents will be visible under /tmp/a too.
 
 
-2b) A slave mount is like a shared mount except that mount and umount events
-	only propagate towards it.
+b) A slave mount is like a shared mount except that mount and umount events
+   only propagate towards it.
 
 	All slave mounts have a master mount which is a shared.
 
@@ -131,12 +131,12 @@ replicas continue to be exactly same.
 	/mnt
 
 
-2c) A private mount does not forward or receive propagation.
+c) A private mount does not forward or receive propagation.
 
 	This is the mount we are familiar with. Its the default type.
 
 
-2d) A unbindable mount is a unbindable private mount
+d) A unbindable mount is a unbindable private mount
 
 	let's say we have a mount at /mnt and we make it unbindable::
 
@@ -185,7 +185,7 @@ replicas continue to be exactly same.
 		namespaces.
 
 	B) A process wants its mounts invisible to any other process, but
-	still be able to see the other system mounts.
+	   still be able to see the other system mounts.
 
 	   Solution:
 
@@ -250,7 +250,7 @@ replicas continue to be exactly same.
 	Note: the word 'vfsmount' and the noun 'mount' have been used
 	to mean the same thing, throughout this document.
 
-5a) Mount states
+a) Mount states
 
 	A given mount can be in one of the following states
 
@@ -360,7 +360,7 @@ replicas continue to be exactly same.
 	the state of a mount depending on type of the destination mount. Its
 	explained in section 5d.
 
-5b) Bind semantics
+b) Bind semantics
 
 	Consider the following command::
 
@@ -437,7 +437,7 @@ replicas continue to be exactly same.
     8. 'A' is a unbindable mount and 'B' is a non-shared mount. This is a
 	invalid operation. A unbindable mount cannot be bind mounted.
 
-5c) Rbind semantics
+c) Rbind semantics
 
 	rbind is same as bind. Bind replicates the specified mount.  Rbind
 	replicates all the mounts in the tree belonging to the specified mount.
@@ -474,7 +474,7 @@ replicas continue to be exactly same.
 
 
 
-5d) Move semantics
+d) Move semantics
 
 	Consider the following command::
 
@@ -551,7 +551,7 @@ replicas continue to be exactly same.
 	'A' is mounted on mount 'B' at dentry 'b'. Mount 'A' continues to be a
 	unbindable mount.
 
-5e) Mount semantics
+e) Mount semantics
 
 	Consider the following command::
 
@@ -564,7 +564,7 @@ replicas continue to be exactly same.
 	that the source mount is always a private mount.
 
 
-5f) Unmount semantics
+f) Unmount semantics
 
 	Consider the following command::
 
@@ -598,7 +598,7 @@ replicas continue to be exactly same.
 	to be unmounted and 'C1' has some sub-mounts, the umount operation is
 	failed entirely.
 
-5g) Clone Namespace
+g) Clone Namespace
 
 	A cloned namespace contains all the mounts as that of the parent
 	namespace.
@@ -682,18 +682,18 @@ replicas continue to be exactly same.
 7) FAQ
 ------
 
-	Q1. Why is bind mount needed? How is it different from symbolic links?
+	1. Why is bind mount needed? How is it different from symbolic links?
 		symbolic links can get stale if the destination mount gets
 		unmounted or moved. Bind mounts continue to exist even if the
 		other mount is unmounted or moved.
 
-	Q2. Why can't the shared subtree be implemented using exportfs?
+	2. Why can't the shared subtree be implemented using exportfs?
 
 		exportfs is a heavyweight way of accomplishing part of what
 		shared subtree can do. I cannot imagine a way to implement the
 		semantics of slave mount using exportfs?
 
-	Q3 Why is unbindable mount needed?
+	3. Why is unbindable mount needed?
 
 		Let's say we want to replicate the mount tree at multiple
 		locations within the same subtree.
@@ -852,7 +852,7 @@ replicas continue to be exactly same.
 8) Implementation
 -----------------
 
-8A) Datastructure
+A) Datastructure
 
 	4 new fields are introduced to struct vfsmount:
 
@@ -941,7 +941,7 @@ replicas continue to be exactly same.
 
 	NOTE: The propagation tree is orthogonal to the mount tree.
 
-8B Locking:
+B) Locking:
 
 	->mnt_share, ->mnt_slave, ->mnt_slave_list, ->mnt_master are protected
 	by namespace_sem (exclusive for modifications, shared for reading).
@@ -953,7 +953,7 @@ replicas continue to be exactly same.
 	The latter holds namespace_sem and the only references to vfsmount
 	are in lists that can't be traversed without namespace_sem.
 
-8C Algorithm:
+C) Algorithm:
 
 	The crux of the implementation resides in rbind/move operation.
 
