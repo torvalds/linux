@@ -344,7 +344,7 @@ painstaking and error-prone.
 
 And this is why the kvm-remote.sh script exists.
 
-If you the following command works::
+If the following command works::
 
 	ssh system0 date
 
