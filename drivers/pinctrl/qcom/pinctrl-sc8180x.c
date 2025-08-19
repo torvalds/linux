@@ -1634,7 +1634,7 @@ static int sc8180x_pinctrl_add_tile_resources(struct platform_device *pdev)
 		return 0;
 
 	/* Allocate for new resources */
-	nres = devm_kzalloc(&pdev->dev, sizeof(*nres) * nres_num, GFP_KERNEL);
+	nres = devm_kcalloc(&pdev->dev, nres_num, sizeof(*nres), GFP_KERNEL);
 	if (!nres)
 		return -ENOMEM;
 
