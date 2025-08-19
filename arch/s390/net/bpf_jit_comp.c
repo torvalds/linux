@@ -675,20 +675,6 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp)
 } while (0)
 
 /*
- * Call r1 either directly or via __s390_indirect_jump_r1 thunk
- */
-static void call_r1(struct bpf_jit *jit)
-{
-	if (nospec_uses_trampoline())
-		/* brasl %r14,__s390_indirect_jump_r1 */
-		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14,
-				     __s390_indirect_jump_r1);
-	else
-		/* basr %r14,%r1 */
-		EMIT2(0x0d00, REG_14, REG_1);
-}
-
-/*
  * Function epilogue
  */
 static void bpf_jit_epilogue(struct bpf_jit *jit)
@@ -1820,10 +1806,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			}
 		}
 
-		/* lgrl %w1,func */
-		EMIT6_PCREL_RILB(0xc4080000, REG_W1, _EMIT_CONST_U64(func));
-		/* %r1() */
-		call_r1(jit);
+		/* brasl %r14,func */
+		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, (void *)func);
 		/* lgr %b0,%r2: load return value into %b0 */
 		EMIT4(0xb9040000, BPF_REG_0, REG_2);
 
@@ -2534,14 +2518,12 @@ static int invoke_bpf_prog(struct bpf_tramp_jit *tjit,
 	 *         goto skip;
 	 */
 
-	/* %r1 = __bpf_prog_enter */
-	load_imm64(jit, REG_1, (u64)bpf_trampoline_enter(p));
 	/* %r2 = p */
 	load_imm64(jit, REG_2, (u64)p);
 	/* la %r3,run_ctx_off(%r15) */
 	EMIT4_DISP(0x41000000, REG_3, REG_15, tjit->run_ctx_off);
-	/* %r1() */
-	call_r1(jit);
+	/* brasl %r14,__bpf_prog_enter */
+	EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, bpf_trampoline_enter(p));
 	/* ltgr %r7,%r2 */
 	EMIT4(0xb9020000, REG_7, REG_2);
 	/* brcl 8,skip */
@@ -2552,15 +2534,13 @@ static int invoke_bpf_prog(struct bpf_tramp_jit *tjit,
 	 * retval = bpf_func(args, p->insnsi);
 	 */
 
-	/* %r1 = p->bpf_func */
-	load_imm64(jit, REG_1, (u64)p->bpf_func);
 	/* la %r2,bpf_args_off(%r15) */
 	EMIT4_DISP(0x41000000, REG_2, REG_15, tjit->bpf_args_off);
 	/* %r3 = p->insnsi */
 	if (!p->jited)
 		load_imm64(jit, REG_3, (u64)p->insnsi);
-	/* %r1() */
-	call_r1(jit);
+	/* brasl %r14,p->bpf_func */
+	EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, p->bpf_func);
 	/* stg %r2,retval_off(%r15) */
 	if (save_ret) {
 		if (sign_extend(jit, REG_2, m->ret_size, m->ret_flags))
@@ -2577,16 +2557,14 @@ static int invoke_bpf_prog(struct bpf_tramp_jit *tjit,
 	 * __bpf_prog_exit(p, start, &run_ctx);
 	 */
 
-	/* %r1 = __bpf_prog_exit */
-	load_imm64(jit, REG_1, (u64)bpf_trampoline_exit(p));
 	/* %r2 = p */
 	load_imm64(jit, REG_2, (u64)p);
 	/* lgr %r3,%r7 */
 	EMIT4(0xb9040000, REG_3, REG_7);
 	/* la %r4,run_ctx_off(%r15) */
 	EMIT4_DISP(0x41000000, REG_4, REG_15, tjit->run_ctx_off);
-	/* %r1() */
-	call_r1(jit);
+	/* brasl %r14,__bpf_prog_exit */
+	EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, bpf_trampoline_exit(p));
 
 	return 0;
 }
@@ -2746,9 +2724,6 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 
 		/* lgr %r8,%r0 */
 		EMIT4(0xb9040000, REG_8, REG_0);
-	} else {
-		/* %r8 = func_addr + S390X_PATCH_SIZE */
-		load_imm64(jit, REG_8, (u64)func_addr + S390X_PATCH_SIZE);
 	}
 
 	/*
@@ -2774,12 +2749,10 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		 * __bpf_tramp_enter(im);
 		 */
 
-		/* %r1 = __bpf_tramp_enter */
-		load_imm64(jit, REG_1, (u64)__bpf_tramp_enter);
 		/* %r2 = im */
 		load_imm64(jit, REG_2, (u64)im);
-		/* %r1() */
-		call_r1(jit);
+		/* brasl %r14,__bpf_tramp_enter */
+		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, __bpf_tramp_enter);
 	}
 
 	for (i = 0; i < fentry->nr_links; i++)
@@ -2832,10 +2805,19 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		/* mvc tail_call_cnt(4,%r15),tccnt_off(%r15) */
 		_EMIT6(0xd203f000 | offsetof(struct prog_frame, tail_call_cnt),
 		       0xf000 | tjit->tccnt_off);
-		/* lgr %r1,%r8 */
-		EMIT4(0xb9040000, REG_1, REG_8);
-		/* %r1() */
-		call_r1(jit);
+		if (flags & BPF_TRAMP_F_ORIG_STACK) {
+			if (nospec_uses_trampoline())
+				/* brasl %r14,__s390_indirect_jump_r8 */
+				EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14,
+						     __s390_indirect_jump_r8);
+			else
+				/* basr %r14,%r8 */
+				EMIT2(0x0d00, REG_14, REG_8);
+		} else {
+			/* brasl %r14,func_addr+S390X_PATCH_SIZE */
+			EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14,
+					     func_addr + S390X_PATCH_SIZE);
+		}
 		/* stg %r2,retval_off(%r15) */
 		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_2, REG_0, REG_15,
 			      tjit->retval_off);
@@ -2866,12 +2848,10 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		 * __bpf_tramp_exit(im);
 		 */
 
-		/* %r1 = __bpf_tramp_exit */
-		load_imm64(jit, REG_1, (u64)__bpf_tramp_exit);
 		/* %r2 = im */
 		load_imm64(jit, REG_2, (u64)im);
-		/* %r1() */
-		call_r1(jit);
+		/* brasl %r14,__bpf_tramp_exit */
+		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, __bpf_tramp_exit);
 	}
 
 	/* lmg %r2,%rN,reg_args_off(%r15) */
@@ -2880,7 +2860,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 			      REG_2 + (nr_reg_args - 1), REG_15,
 			      tjit->reg_args_off);
 	/* lgr %r1,%r8 */
-	if (!(flags & BPF_TRAMP_F_SKIP_FRAME))
+	if (!(flags & BPF_TRAMP_F_SKIP_FRAME) &&
+	    (flags & BPF_TRAMP_F_ORIG_STACK))
 		EMIT4(0xb9040000, REG_1, REG_8);
 	/* lmg %r7,%r8,r7_r8_off(%r15) */
 	EMIT6_DISP_LH(0xeb000000, 0x0004, REG_7, REG_8, REG_15,
@@ -2899,9 +2880,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	EMIT4_IMM(0xa70b0000, REG_15, tjit->stack_size);
 	if (flags & BPF_TRAMP_F_SKIP_FRAME)
 		EMIT_JUMP_REG(14);
-	else
+	else if (flags & BPF_TRAMP_F_ORIG_STACK)
 		EMIT_JUMP_REG(1);
-
+	else
+		/* brcl 0xf,func_addr+S390X_PATCH_SIZE */
+		EMIT6_PCREL_RILC_PTR(0xc0040000, 0xf,
+				     func_addr + S390X_PATCH_SIZE);
 	return 0;
 }
 
