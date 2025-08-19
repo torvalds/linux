@@ -313,6 +313,8 @@ kci_test_addrlft()
 
 	slowwait 5 check_addr_not_exist "$devdummy" "10.23.11."
 	if [ $? -eq 1 ]; then
+		# troubleshoot the reason for our failure
+		run_cmd ip addr show dev "$devdummy"
 		check_err 1
 		end_test "FAIL: preferred_lft addresses remaining"
 		return
