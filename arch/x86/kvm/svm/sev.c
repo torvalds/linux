@@ -4577,6 +4577,8 @@ int sev_vcpu_create(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct page *vmsa_page;
 
+	mutex_init(&svm->sev_es.snp_vmsa_mutex);
+
 	if (!sev_es_guest(vcpu->kvm))
 		return 0;
 
@@ -4590,11 +4592,6 @@ int sev_vcpu_create(struct kvm_vcpu *vcpu)
 
 	svm->sev_es.vmsa = page_address(vmsa_page);
 	return 0;
-}
-
-void sev_es_vcpu_reset(struct vcpu_svm *svm)
-{
-	mutex_init(&svm->sev_es.snp_vmsa_mutex);
 }
 
 void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_area *hostsa)
