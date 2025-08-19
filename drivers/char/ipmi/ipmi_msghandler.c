@@ -464,7 +464,7 @@ struct ipmi_smi {
 	 * interface to match them up with their responses.  A routine
 	 * is called periodically to time the items in this list.
 	 */
-	spinlock_t       seq_lock;
+	struct mutex seq_lock;
 	struct seq_table seq_table[IPMI_IPMB_NUM_SEQ];
 	int curr_seq;
 
@@ -1116,12 +1116,11 @@ static int intf_find_seq(struct ipmi_smi      *intf,
 			 struct ipmi_recv_msg **recv_msg)
 {
 	int           rv = -ENODEV;
-	unsigned long flags;
 
 	if (seq >= IPMI_IPMB_NUM_SEQ)
 		return -EINVAL;
 
-	spin_lock_irqsave(&intf->seq_lock, flags);
+	mutex_lock(&intf->seq_lock);
 	if (intf->seq_table[seq].inuse) {
 		struct ipmi_recv_msg *msg = intf->seq_table[seq].recv_msg;
 
@@ -1134,7 +1133,7 @@ static int intf_find_seq(struct ipmi_smi      *intf,
 			rv = 0;
 		}
 	}
-	spin_unlock_irqrestore(&intf->seq_lock, flags);
+	mutex_unlock(&intf->seq_lock);
 
 	return rv;
 }
@@ -1145,14 +1144,13 @@ static int intf_start_seq_timer(struct ipmi_smi *intf,
 				long       msgid)
 {
 	int           rv = -ENODEV;
-	unsigned long flags;
 	unsigned char seq;
 	unsigned long seqid;
 
 
 	GET_SEQ_FROM_MSGID(msgid, seq, seqid);
 
-	spin_lock_irqsave(&intf->seq_lock, flags);
+	mutex_lock(&intf->seq_lock);
 	/*
 	 * We do this verification because the user can be deleted
 	 * while a message is outstanding.
@@ -1163,7 +1161,7 @@ static int intf_start_seq_timer(struct ipmi_smi *intf,
 		ent->timeout = ent->orig_timeout;
 		rv = 0;
 	}
-	spin_unlock_irqrestore(&intf->seq_lock, flags);
+	mutex_unlock(&intf->seq_lock);
 
 	return rv;
 }
@@ -1174,7 +1172,6 @@ static int intf_err_seq(struct ipmi_smi *intf,
 			unsigned int err)
 {
 	int                  rv = -ENODEV;
-	unsigned long        flags;
 	unsigned char        seq;
 	unsigned long        seqid;
 	struct ipmi_recv_msg *msg = NULL;
@@ -1182,7 +1179,7 @@ static int intf_err_seq(struct ipmi_smi *intf,
 
 	GET_SEQ_FROM_MSGID(msgid, seq, seqid);
 
-	spin_lock_irqsave(&intf->seq_lock, flags);
+	mutex_lock(&intf->seq_lock);
 	/*
 	 * We do this verification because the user can be deleted
 	 * while a message is outstanding.
@@ -1196,7 +1193,7 @@ static int intf_err_seq(struct ipmi_smi *intf,
 		msg = ent->recv_msg;
 		rv = 0;
 	}
-	spin_unlock_irqrestore(&intf->seq_lock, flags);
+	mutex_unlock(&intf->seq_lock);
 
 	if (msg)
 		deliver_err_response(intf, msg, err);
@@ -1209,7 +1206,6 @@ int ipmi_create_user(unsigned int          if_num,
 		     void                  *handler_data,
 		     struct ipmi_user      **user)
 {
-	unsigned long flags;
 	struct ipmi_user *new_user = NULL;
 	int           rv = 0;
 	struct ipmi_smi *intf;
@@ -1277,9 +1273,9 @@ int ipmi_create_user(unsigned int          if_num,
 	new_user->gets_events = false;
 
 	mutex_lock(&intf->users_mutex);
-	spin_lock_irqsave(&intf->seq_lock, flags);
+	mutex_lock(&intf->seq_lock);
 	list_add(&new_user->link, &intf->users);
-	spin_unlock_irqrestore(&intf->seq_lock, flags);
+	mutex_unlock(&intf->seq_lock);
 	mutex_unlock(&intf->users_mutex);
 
 	if (handler->ipmi_watchdog_pretimeout)
@@ -1325,7 +1321,6 @@ static void _ipmi_destroy_user(struct ipmi_user *user)
 {
 	struct ipmi_smi  *intf = user->intf;
 	int              i;
-	unsigned long    flags;
 	struct cmd_rcvr  *rcvr;
 	struct cmd_rcvr  *rcvrs = NULL;
 	struct ipmi_recv_msg *msg, *msg2;
@@ -1346,7 +1341,7 @@ static void _ipmi_destroy_user(struct ipmi_user *user)
 	list_del(&user->link);
 	atomic_dec(&intf->nr_users);
 
-	spin_lock_irqsave(&intf->seq_lock, flags);
+	mutex_lock(&intf->seq_lock);
 	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++) {
 		if (intf->seq_table[i].inuse
 		    && (intf->seq_table[i].recv_msg->user == user)) {
@@ -1355,7 +1350,7 @@ static void _ipmi_destroy_user(struct ipmi_user *user)
 			ipmi_free_recv_msg(intf->seq_table[i].recv_msg);
 		}
 	}
-	spin_unlock_irqrestore(&intf->seq_lock, flags);
+	mutex_unlock(&intf->seq_lock);
 
 	/*
 	 * Remove the user from the command receiver's table.  First
@@ -2026,10 +2021,7 @@ static int i_ipmi_req_ipmb(struct ipmi_smi        *intf,
 		 */
 		smi_msg->user_data = recv_msg;
 	} else {
-		/* It's a command, so get a sequence for it. */
-		unsigned long flags;
-
-		spin_lock_irqsave(&intf->seq_lock, flags);
+		mutex_lock(&intf->seq_lock);
 
 		if (is_maintenance_mode_cmd(msg))
 			intf->ipmb_maintenance_mode_timeout =
@@ -2087,7 +2079,7 @@ static int i_ipmi_req_ipmb(struct ipmi_smi        *intf,
 		 * to be correct.
 		 */
 out_err:
-		spin_unlock_irqrestore(&intf->seq_lock, flags);
+		mutex_unlock(&intf->seq_lock);
 	}
 
 	return rv;
@@ -2205,10 +2197,7 @@ static int i_ipmi_req_lan(struct ipmi_smi        *intf,
 		 */
 		smi_msg->user_data = recv_msg;
 	} else {
-		/* It's a command, so get a sequence for it. */
-		unsigned long flags;
-
-		spin_lock_irqsave(&intf->seq_lock, flags);
+		mutex_lock(&intf->seq_lock);
 
 		/*
 		 * Create a sequence number with a 1 second
@@ -2257,7 +2246,7 @@ static int i_ipmi_req_lan(struct ipmi_smi        *intf,
 		 * to be correct.
 		 */
 out_err:
-		spin_unlock_irqrestore(&intf->seq_lock, flags);
+		mutex_unlock(&intf->seq_lock);
 	}
 
 	return rv;
@@ -3575,7 +3564,7 @@ int ipmi_add_smi(struct module         *owner,
 	atomic_set(&intf->nr_users, 0);
 	intf->handlers = handlers;
 	intf->send_info = send_info;
-	spin_lock_init(&intf->seq_lock);
+	mutex_init(&intf->seq_lock);
 	for (j = 0; j < IPMI_IPMB_NUM_SEQ; j++) {
 		intf->seq_table[j].inuse = 0;
 		intf->seq_table[j].seqid = 0;
@@ -4529,9 +4518,10 @@ static int handle_one_recv_msg(struct ipmi_smi *intf,
 
 	if (msg->rsp_size < 2) {
 		/* Message is too small to be correct. */
-		dev_warn(intf->si_dev,
-			 "BMC returned too small a message for netfn %x cmd %x, got %d bytes\n",
-			 (msg->data[0] >> 2) | 1, msg->data[1], msg->rsp_size);
+		dev_warn_ratelimited(intf->si_dev,
+				     "BMC returned too small a message for netfn %x cmd %x, got %d bytes\n",
+				     (msg->data[0] >> 2) | 1,
+				     msg->data[1], msg->rsp_size);
 
 return_unspecified:
 		/* Generate an error response for the message. */
@@ -4951,8 +4941,7 @@ smi_from_recv_msg(struct ipmi_smi *intf, struct ipmi_recv_msg *recv_msg,
 static void check_msg_timeout(struct ipmi_smi *intf, struct seq_table *ent,
 			      struct list_head *timeouts,
 			      unsigned long timeout_period,
-			      int slot, unsigned long *flags,
-			      bool *need_timer)
+			      int slot, bool *need_timer)
 {
 	struct ipmi_recv_msg *msg;
 
@@ -5004,7 +4993,7 @@ static void check_msg_timeout(struct ipmi_smi *intf, struct seq_table *ent,
 			return;
 		}
 
-		spin_unlock_irqrestore(&intf->seq_lock, *flags);
+		mutex_unlock(&intf->seq_lock);
 
 		/*
 		 * Send the new message.  We send with a zero
@@ -5025,7 +5014,7 @@ static void check_msg_timeout(struct ipmi_smi *intf, struct seq_table *ent,
 		} else
 			ipmi_free_smi_msg(smi_msg);
 
-		spin_lock_irqsave(&intf->seq_lock, *flags);
+		mutex_lock(&intf->seq_lock);
 	}
 }
 
@@ -5052,7 +5041,7 @@ static bool ipmi_timeout_handler(struct ipmi_smi *intf,
 	 * list.
 	 */
 	INIT_LIST_HEAD(&timeouts);
-	spin_lock_irqsave(&intf->seq_lock, flags);
+	mutex_lock(&intf->seq_lock);
 	if (intf->ipmb_maintenance_mode_timeout) {
 		if (intf->ipmb_maintenance_mode_timeout <= timeout_period)
 			intf->ipmb_maintenance_mode_timeout = 0;
@@ -5062,8 +5051,8 @@ static bool ipmi_timeout_handler(struct ipmi_smi *intf,
 	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++)
 		check_msg_timeout(intf, &intf->seq_table[i],
 				  &timeouts, timeout_period, i,
-				  &flags, &need_timer);
-	spin_unlock_irqrestore(&intf->seq_lock, flags);
+				  &need_timer);
+	mutex_unlock(&intf->seq_lock);
 
 	list_for_each_entry_safe(msg, msg2, &timeouts, link)
 		deliver_err_response(intf, msg, IPMI_TIMEOUT_COMPLETION_CODE);
