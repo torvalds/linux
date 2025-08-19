@@ -218,6 +218,17 @@ struct smbdirect_socket {
 			wait_queue_head_t wait_queue;
 		} credits;
 	} rw_io;
+
+	/*
+	 * For debug purposes
+	 */
+	struct {
+		u64 get_receive_buffer;
+		u64 put_receive_buffer;
+		u64 enqueue_reassembly_queue;
+		u64 dequeue_reassembly_queue;
+		u64 send_empty;
+	} statistics;
 };
 
 static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
