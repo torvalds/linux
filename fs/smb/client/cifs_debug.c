@@ -477,18 +477,18 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			sp->keepalive_interval_msec * 1000,
 			sp->max_read_write_size,
 			server->smbd_conn->rdma_readwrite_threshold);
-		seq_printf(m, "\nDebug count_get_receive_buffer: %u "
-			"count_put_receive_buffer: %u count_send_empty: %u",
-			server->smbd_conn->count_get_receive_buffer,
-			server->smbd_conn->count_put_receive_buffer,
-			server->smbd_conn->count_send_empty);
+		seq_printf(m, "\nDebug count_get_receive_buffer: %llu "
+			"count_put_receive_buffer: %llu count_send_empty: %llu",
+			sc->statistics.get_receive_buffer,
+			sc->statistics.put_receive_buffer,
+			sc->statistics.send_empty);
 		seq_printf(m, "\nRead Queue "
-			"count_enqueue_reassembly_queue: %u "
-			"count_dequeue_reassembly_queue: %u "
+			"count_enqueue_reassembly_queue: %llu "
+			"count_dequeue_reassembly_queue: %llu "
 			"reassembly_data_length: %u "
 			"reassembly_queue_length: %u",
-			server->smbd_conn->count_enqueue_reassembly_queue,
-			server->smbd_conn->count_dequeue_reassembly_queue,
+			sc->statistics.enqueue_reassembly_queue,
+			sc->statistics.dequeue_reassembly_queue,
 			sc->recv_io.reassembly.data_length,
 			sc->recv_io.reassembly.queue_length);
 		seq_printf(m, "\nCurrent Credits send_credits: %u "

@@ -1212,9 +1212,10 @@ err_wait_credit:
  */
 static int smbd_post_send_empty(struct smbd_connection *info)
 {
+	struct smbdirect_socket *sc = &info->socket;
 	int remaining_data_length = 0;
 
-	info->count_send_empty++;
+	sc->statistics.send_empty++;
 	return smbd_post_send_iter(info, NULL, &remaining_data_length);
 }
 
@@ -1353,7 +1354,7 @@ static void enqueue_reassembly(
 	virt_wmb();
 	sc->recv_io.reassembly.data_length += data_length;
 	spin_unlock(&sc->recv_io.reassembly.lock);
-	info->count_enqueue_reassembly_queue++;
+	sc->statistics.enqueue_reassembly_queue++;
 }
 
 /*
@@ -1392,7 +1393,7 @@ static struct smbdirect_recv_io *get_receive_buffer(struct smbd_connection *info
 			&sc->recv_io.free.list,
 			struct smbdirect_recv_io, list);
 		list_del(&ret->list);
-		info->count_get_receive_buffer++;
+		sc->statistics.get_receive_buffer++;
 	}
 	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
@@ -1421,7 +1422,7 @@ static void put_receive_buffer(
 
 	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
 	list_add_tail(&response->list, &sc->recv_io.free.list);
-	info->count_put_receive_buffer++;
+	sc->statistics.put_receive_buffer++;
 	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
 	queue_work(info->workqueue, &sc->recv_io.posted.refill_work);
@@ -2078,7 +2079,7 @@ again:
 						&sc->recv_io.reassembly.lock);
 				}
 				queue_removed++;
-				info->count_dequeue_reassembly_queue++;
+				sc->statistics.dequeue_reassembly_queue++;
 				put_receive_buffer(info, response);
 				offset = 0;
 				log_read(INFO, "put_receive_buffer offset=0\n");

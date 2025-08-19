@@ -62,13 +62,6 @@ struct smbd_connection {
 	wait_queue_head_t wait_for_mr_cleanup;
 
 	struct workqueue_struct *workqueue;
-
-	/* for debug purposes */
-	unsigned int count_get_receive_buffer;
-	unsigned int count_put_receive_buffer;
-	unsigned int count_enqueue_reassembly_queue;
-	unsigned int count_dequeue_reassembly_queue;
-	unsigned int count_send_empty;
 };
 
 /* Create a SMBDirect session */
