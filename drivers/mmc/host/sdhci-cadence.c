@@ -288,13 +288,12 @@ static int sdhci_cdns_tune_blkgap(struct mmc_host *mmc)
 	void __iomem *hrs38_reg = priv->hrs_addr + SDHCI_CDNS_HRS38;
 	int ret;
 	u32 gap;
-	u32 hrs37_mode;
 
 	/* Currently only needed in HS200 mode */
 	if (host->timing != MMC_TIMING_MMC_HS200)
 		return 0;
 
-	writel(hrs37_mode, hrs37_reg);
+	writel(SDHCI_CDNS_HRS37_MODE_MMC_HS200, hrs37_reg);
 
 	for (gap = 0; gap <= SDHCI_CDNS_HRS38_BLKGAP_MAX; gap++) {
 		writel(gap, hrs38_reg);
