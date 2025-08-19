@@ -375,8 +375,9 @@ struct snd_soc_component
 	for_each_component(component) {
 		if ((dev == component->dev) &&
 		    (!driver_name ||
-		     (driver_name == component->driver->name) ||
-		     (strcmp(component->driver->name, driver_name) == 0))) {
+		     (component->driver->name &&
+		      ((component->driver->name == driver_name) ||
+		       (strcmp(component->driver->name, driver_name) == 0))))) {
 			found_component = component;
 			break;
 		}
