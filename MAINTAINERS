@@ -11013,7 +11013,7 @@ F:	Documentation/admin-guide/perf/hns3-pmu.rst
 F:	drivers/perf/hisilicon/hns3_pmu.c
 
 HISILICON I2C CONTROLLER DRIVER
-M:	Yicong Yang <yangyicong@hisilicon.com>
+M:	Devyn Liu <liudingyuan@h-partners.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 W:	https://www.hisilicon.com
