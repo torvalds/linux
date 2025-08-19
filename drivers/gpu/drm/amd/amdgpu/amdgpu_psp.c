@@ -506,8 +506,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-				      (amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf) ?
-				      AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->fw_pri_bo,
 				      &psp->fw_pri_mc_addr,
 				      &psp->fw_pri_buf);
