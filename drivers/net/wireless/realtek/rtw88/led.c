@@ -6,8 +6,8 @@
 #include "debug.h"
 #include "led.h"
 
-static void rtw_led_set(struct led_classdev *led,
-			enum led_brightness brightness)
+static int rtw_led_set(struct led_classdev *led,
+		       enum led_brightness brightness)
 {
 	struct rtw_dev *rtwdev = container_of(led, struct rtw_dev, led_cdev);
 
@@ -16,12 +16,6 @@ static void rtw_led_set(struct led_classdev *led,
 	rtwdev->chip->ops->led_set(led, brightness);
 
 	mutex_unlock(&rtwdev->mutex);
-}
-
-static int rtw_led_set_blocking(struct led_classdev *led,
-				enum led_brightness brightness)
-{
-	rtw_led_set(led, brightness);
 
 	return 0;
 }
@@ -46,10 +40,7 @@ void rtw_led_init(struct rtw_dev *rtwdev)
 	if (!rtwdev->chip->ops->led_set)
 		return;
 
-	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE)
-		led->brightness_set = rtw_led_set;
-	else
-		led->brightness_set_blocking = rtw_led_set_blocking;
+	led->brightness_set_blocking = rtw_led_set;
 
 	snprintf(rtwdev->led_name, sizeof(rtwdev->led_name),
 		 "rtw88-%s", dev_name(rtwdev->dev));
