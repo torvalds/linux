@@ -28,13 +28,15 @@
 #define CPIO_TRAILER "TRAILER!!!"
 #define padlen(_off, _align) (((_align) - ((_off) & ((_align) - 1))) % (_align))
 
-static char padding[512];
+/* zero-padding the filename field for data alignment is limited by PATH_MAX */
+static char padding[PATH_MAX];
 static unsigned int offset;
 static unsigned int ino = 721;
 static time_t default_mtime;
 static bool do_file_mtime;
 static bool do_csum = false;
 static int outfd = STDOUT_FILENO;
+static unsigned int dalign;
 
 struct file_handler {
 	const char *type;
@@ -359,7 +361,7 @@ static int cpio_mkfile(const char *name, const char *location,
 	int file, retval, len;
 	int rc = -1;
 	time_t mtime;
-	int namesize;
+	int namesize, namepadlen;
 	unsigned int i;
 	uint32_t csum = 0;
 	ssize_t this_read;
@@ -407,14 +409,27 @@ static int cpio_mkfile(const char *name, const char *location,
 	}
 
 	size = 0;
+	namepadlen = 0;
 	for (i = 1; i <= nlinks; i++) {
-		/* data goes on last link */
-		if (i == nlinks)
-			size = buf.st_size;
-
 		if (name[0] == '/')
 			name++;
 		namesize = strlen(name) + 1;
+
+		/* data goes on last link, after any alignment padding */
+		if (i == nlinks)
+			size = buf.st_size;
+
+		if (dalign && size > dalign) {
+			namepadlen = padlen(offset + CPIO_HDR_LEN + namesize,
+					    dalign);
+			if (namesize + namepadlen > PATH_MAX) {
+				fprintf(stderr,
+					"%s: best-effort alignment %u missed\n",
+					name, dalign);
+				namepadlen = 0;
+			}
+		}
+
 		len = dprintf(outfd, "%s%08X%08X%08lX%08lX%08X%08lX"
 		       "%08lX%08X%08X%08X%08X%08X%08X",
 			do_csum ? "070702" : "070701", /* magic */
@@ -429,13 +444,13 @@ static int cpio_mkfile(const char *name, const char *location,
 			1,			/* minor */
 			0,			/* rmajor */
 			0,			/* rminor */
-			namesize,		/* namesize */
+			namesize + namepadlen,	/* namesize */
 			size ? csum : 0);	/* chksum */
 		offset += len;
 
 		if (len != CPIO_HDR_LEN ||
 		    push_buf(name, namesize) < 0 ||
-		    push_pad(padlen(offset, 4)) < 0)
+		    push_pad(namepadlen ? namepadlen : padlen(offset, 4)) < 0)
 			goto error;
 
 		if (size) {
@@ -552,7 +567,7 @@ static int cpio_mkfile_line(const char *line)
 static void usage(const char *prog)
 {
 	fprintf(stderr, "Usage:\n"
-		"\t%s [-t <timestamp>] [-c] [-o <output_file>] <cpio_list>\n"
+		"\t%s [-t <timestamp>] [-c] [-o <output_file>] [-a <data_align>] <cpio_list>\n"
 		"\n"
 		"<cpio_list> is a file containing newline separated entries that\n"
 		"describe the files to be included in the initramfs archive:\n"
@@ -590,7 +605,10 @@ static void usage(const char *prog)
 		"The default is to use the current time for all files, but\n"
 		"preserve modification time for regular files.\n"
 		"-c: calculate and store 32-bit checksums for file data.\n"
-		"<output_file>: write cpio to this file instead of stdout\n",
+		"<output_file>: write cpio to this file instead of stdout\n"
+		"<data_align>: attempt to align file data by zero-padding the\n"
+		"filename field up to data_align. Must be a multiple of 4.\n"
+		"Alignment is best-effort; PATH_MAX limits filename padding.\n",
 		prog);
 }
 
@@ -632,7 +650,7 @@ int main (int argc, char *argv[])
 
 	default_mtime = time(NULL);
 	while (1) {
-		int opt = getopt(argc, argv, "t:cho:");
+		int opt = getopt(argc, argv, "t:cho:a:");
 		char *invalid;
 
 		if (opt == -1)
@@ -657,6 +675,15 @@ int main (int argc, char *argv[])
 				     0600);
 			if (outfd < 0) {
 				fprintf(stderr, "failed to open %s\n", optarg);
+				usage(argv[0]);
+				exit(1);
+			}
+			break;
+		case 'a':
+			dalign = strtoul(optarg, &invalid, 10);
+			if (!*optarg || *invalid || (dalign & 3)) {
+				fprintf(stderr, "Invalid data_align: %s\n",
+						optarg);
 				usage(argv[0]);
 				exit(1);
 			}
