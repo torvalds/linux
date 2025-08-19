@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/kdb.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/ctype.h>
 #include "kdb_private.h"
 
@@ -246,11 +247,12 @@ void kdb_symbol_print(unsigned long addr, const kdb_symtab_t *symtab_p,
  */
 char *kdb_strdup(const char *str, gfp_t type)
 {
-	int n = strlen(str)+1;
+	size_t n = strlen(str) + 1;
 	char *s = kmalloc(n, type);
 	if (!s)
 		return NULL;
-	return strcpy(s, str);
+	memcpy(s, str, n);
+	return s;
 }
 
 /*
