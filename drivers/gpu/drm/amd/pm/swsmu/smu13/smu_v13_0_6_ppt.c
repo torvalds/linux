@@ -312,6 +312,8 @@ static void smu_v13_0_14_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(PER_INST_METRICS));
 	if (fw_ver >= 0x5551200)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
+	if (fw_ver >= 0x5551800)
+		smu_v13_0_6_cap_set(smu, SMU_CAP(VCN_RESET));
 	if (fw_ver >= 0x5551600) {
 		smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
 		smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
@@ -437,7 +439,8 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 	    ((pgm == 4) && (fw_ver >= 0x4557000)))
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
 
-	if ((pgm == 4) && (fw_ver >= 0x04557100))
+	if (((pgm == 0) && (fw_ver >= 0x00558200)) ||
+	    ((pgm == 4) && (fw_ver >= 0x04557100)))
 		smu_v13_0_6_cap_set(smu, SMU_CAP(VCN_RESET));
 }
 
