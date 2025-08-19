@@ -66,7 +66,6 @@ struct smbd_connection {
 	/* for debug purposes */
 	unsigned int count_get_receive_buffer;
 	unsigned int count_put_receive_buffer;
-	unsigned int count_reassembly_queue;
 	unsigned int count_enqueue_reassembly_queue;
 	unsigned int count_dequeue_reassembly_queue;
 	unsigned int count_send_empty;

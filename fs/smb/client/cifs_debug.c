@@ -482,12 +482,11 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			server->smbd_conn->count_get_receive_buffer,
 			server->smbd_conn->count_put_receive_buffer,
 			server->smbd_conn->count_send_empty);
-		seq_printf(m, "\nRead Queue count_reassembly_queue: %u "
+		seq_printf(m, "\nRead Queue "
 			"count_enqueue_reassembly_queue: %u "
 			"count_dequeue_reassembly_queue: %u "
 			"reassembly_data_length: %u "
 			"reassembly_queue_length: %u",
-			server->smbd_conn->count_reassembly_queue,
 			server->smbd_conn->count_enqueue_reassembly_queue,
 			server->smbd_conn->count_dequeue_reassembly_queue,
 			sc->recv_io.reassembly.data_length,
