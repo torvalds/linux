@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,omap-twl4030.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments SoC with twl4030 based audio setups
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
+
+description:
+  Audio setups on TI OMAP SoCs using TWL4030-family
+  audio codec connected via a McBSP port.
+
+properties:
+  compatible:
+    const: ti,omap-twl4030
+
+  ti,model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Name of the sound card (for example "omap3beagle").
+
+  ti,mcbsp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle for the McBSP node.
+
+  ti,codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle for the twl4030 audio node.
+
+  ti,mcbsp-voice:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the McBSP node connected to the voice port.
+
+  ti,jack-det-gpio:
+    description: GPIO specifier for jack detection.
+    maxItems: 1
+
+  ti,audio-routing:
+    description: |
+      A list of audio routing connections. Each entry is a pair of strings,
+      with the first being the connection's sink and the second being the
+      source. If not provided, all possible connections are available.
+
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    items:
+      enum:
+        # Board Connectors
+        - Headset Stereophone
+        - Earpiece Spk
+        - Handsfree Spk
+        - Ext Spk
+        - Main Mic
+        - Sub Mic
+        - Headset Mic
+        - Carkit Mic
+        - Digital0 Mic
+        - Digital1 Mic
+        - Line In
+
+        # CODEC Pins
+        - HSOL
+        - HSOR
+        - EARPIECE
+        - HFL
+        - HFR
+        - PREDRIVEL
+        - PREDRIVER
+        - CARKITL
+        - CARKITR
+        - MAINMIC
+        - SUBMIC
+        - HSMIC
+        - DIGIMIC0
+        - DIGIMIC1
+        - CARKITMIC
+        - AUXL
+        - AUXR
+
+        # Headset Mic Bias
+        - Mic Bias 1   # Used for Main Mic or Digimic0
+        - Mic Bias 2   # Used for Sub Mic or Digimic1
+
+required:
+  - compatible
+  - ti,model
+  - ti,mcbsp
+
+additionalProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "ti,omap-twl4030";
+        ti,model = "omap3beagle";
+        ti,mcbsp = <&mcbsp2>;
+    };
