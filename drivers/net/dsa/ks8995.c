@@ -3,6 +3,7 @@
  * SPI driver for Micrel/Kendin KS8995M and KSZ8864RMN ethernet switches
  *
  * Copyright (C) 2008 Gabor Juhos <juhosg at openwrt.org>
+ * Copyright (C) 2025 Linus Walleij <linus.walleij@linaro.org>
  *
  * This file was based on: drivers/spi/at25.c
  *     Copyright (C) 2006 David Brownell
@@ -10,6 +11,9 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bits.h>
+#include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -17,8 +21,8 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
-
 #include <linux/spi/spi.h>
+#include <net/dsa.h>
 
 #define DRV_VERSION		"0.1.1"
 #define DRV_DESC		"Micrel KS8995 Ethernet switch SPI driver"
@@ -29,18 +33,59 @@
 #define KS8995_REG_ID1		0x01    /* Chip ID1 */
 
 #define KS8995_REG_GC0		0x02    /* Global Control 0 */
+
+#define KS8995_GC0_P5_PHY	BIT(3)	/* Port 5 PHY enabled */
+
 #define KS8995_REG_GC1		0x03    /* Global Control 1 */
 #define KS8995_REG_GC2		0x04    /* Global Control 2 */
+
+#define KS8995_GC2_HUGE		BIT(2)	/* Huge packet support */
+#define KS8995_GC2_LEGAL	BIT(1)	/* Legal size override */
+
 #define KS8995_REG_GC3		0x05    /* Global Control 3 */
 #define KS8995_REG_GC4		0x06    /* Global Control 4 */
+
+#define KS8995_GC4_10BT		BIT(4)	/* Force switch to 10Mbit */
+#define KS8995_GC4_MII_FLOW	BIT(5)	/* MII full-duplex flow control enable */
+#define KS8995_GC4_MII_HD	BIT(6)	/* MII half-duplex mode enable */
+
 #define KS8995_REG_GC5		0x07    /* Global Control 5 */
 #define KS8995_REG_GC6		0x08    /* Global Control 6 */
 #define KS8995_REG_GC7		0x09    /* Global Control 7 */
 #define KS8995_REG_GC8		0x0a    /* Global Control 8 */
 #define KS8995_REG_GC9		0x0b    /* Global Control 9 */
 
-#define KS8995_REG_PC(p, r)	((0x10 * p) + r)	 /* Port Control */
-#define KS8995_REG_PS(p, r)	((0x10 * p) + r + 0xe)  /* Port Status */
+#define KS8995_GC9_SPECIAL	BIT(0)	/* Special tagging mode (DSA) */
+
+/* In DSA the ports 1-4 are numbered 0-3 and the CPU port is port 4 */
+#define KS8995_REG_PC(p, r)	(0x10 + (0x10 * (p)) + (r)) /* Port Control */
+#define KS8995_REG_PS(p, r)	(0x1e + (0x10 * (p)) + (r)) /* Port Status */
+
+#define KS8995_REG_PC0		0x00    /* Port Control 0 */
+#define KS8995_REG_PC1		0x01    /* Port Control 1 */
+#define KS8995_REG_PC2		0x02    /* Port Control 2 */
+#define KS8995_REG_PC3		0x03    /* Port Control 3 */
+#define KS8995_REG_PC4		0x04    /* Port Control 4 */
+#define KS8995_REG_PC5		0x05    /* Port Control 5 */
+#define KS8995_REG_PC6		0x06    /* Port Control 6 */
+#define KS8995_REG_PC7		0x07    /* Port Control 7 */
+#define KS8995_REG_PC8		0x08    /* Port Control 8 */
+#define KS8995_REG_PC9		0x09    /* Port Control 9 */
+#define KS8995_REG_PC10		0x0a    /* Port Control 10 */
+#define KS8995_REG_PC11		0x0b    /* Port Control 11 */
+#define KS8995_REG_PC12		0x0c    /* Port Control 12 */
+#define KS8995_REG_PC13		0x0d    /* Port Control 13 */
+
+#define KS8995_PC0_TAG_INS	BIT(2)	/* Enable tag insertion on port */
+#define KS8995_PC0_TAG_REM	BIT(1)	/* Enable tag removal on port */
+#define KS8995_PC0_PRIO_EN	BIT(0)	/* Enable priority handling */
+
+#define KS8995_PC2_TXEN		BIT(2)	/* Enable TX on port */
+#define KS8995_PC2_RXEN		BIT(1)	/* Enable RX on port */
+#define KS8995_PC2_LEARN_DIS	BIT(0)	/* Disable learning on port */
+
+#define KS8995_PC13_TXDIS	BIT(6)	/* Disable transmitter */
+#define KS8995_PC13_PWDN	BIT(3)	/* Power down */
 
 #define KS8995_REG_TPC0		0x60    /* TOS Priority Control 0 */
 #define KS8995_REG_TPC1		0x61    /* TOS Priority Control 1 */
@@ -91,6 +136,8 @@
 #define KS8995_CMD_WRITE	0x02U
 #define KS8995_CMD_READ		0x03U
 
+#define KS8995_CPU_PORT		4
+#define KS8995_NUM_PORTS	5 /* 5 ports including the CPU port */
 #define KS8995_RESET_DELAY	10 /* usec */
 
 enum ks8995_chip_variant {
@@ -138,11 +185,14 @@ static const struct ks8995_chip_params ks8995_chip[] = {
 
 struct ks8995_switch {
 	struct spi_device	*spi;
+	struct device		*dev;
+	struct dsa_switch	*ds;
 	struct mutex		lock;
 	struct gpio_desc	*reset_gpio;
 	struct bin_attribute	regs_attr;
 	const struct ks8995_chip_params	*chip;
 	int			revision_id;
+	unsigned int max_mtu[KS8995_NUM_PORTS];
 };
 
 static const struct spi_device_id ks8995_id[] = {
@@ -288,30 +338,6 @@ static int ks8995_reset(struct ks8995_switch *ks)
 	return ks8995_start(ks);
 }
 
-static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
-	const struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
-{
-	struct device *dev;
-	struct ks8995_switch *ks8995;
-
-	dev = kobj_to_dev(kobj);
-	ks8995 = dev_get_drvdata(dev);
-
-	return ks8995_read(ks8995, buf, off, count);
-}
-
-static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
-	const struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
-{
-	struct device *dev;
-	struct ks8995_switch *ks8995;
-
-	dev = kobj_to_dev(kobj);
-	ks8995 = dev_get_drvdata(dev);
-
-	return ks8995_write(ks8995, buf, off, count);
-}
-
 /* ks8995_get_revision - get chip revision
  * @ks: pointer to switch instance
  *
@@ -395,14 +421,325 @@ err_out:
 	return err;
 }
 
-static const struct bin_attribute ks8995_registers_attr = {
-	.attr = {
-		.name   = "registers",
-		.mode   = 0600,
-	},
-	.size   = KS8995_REGS_SIZE,
-	.read   = ks8995_registers_read,
-	.write  = ks8995_registers_write,
+static int ks8995_check_config(struct ks8995_switch *ks)
+{
+	int ret;
+	u8 val;
+
+	ret = ks8995_read_reg(ks, KS8995_REG_GC0, &val);
+	if (ret) {
+		dev_err(ks->dev, "failed to read KS8995_REG_GC0\n");
+		return ret;
+	}
+
+	dev_dbg(ks->dev, "port 5 PHY %senabled\n",
+		(val & KS8995_GC0_P5_PHY) ? "" : "not ");
+
+	val |= KS8995_GC0_P5_PHY;
+	ret = ks8995_write_reg(ks, KS8995_REG_GC0, val);
+	if (ret)
+		dev_err(ks->dev, "failed to set KS8995_REG_GC0\n");
+
+	dev_dbg(ks->dev, "set KS8995_REG_GC0 to 0x%02x\n", val);
+
+	return 0;
+}
+
+static void
+ks8995_mac_config(struct phylink_config *config, unsigned int mode,
+		  const struct phylink_link_state *state)
+{
+}
+
+static void
+ks8995_mac_link_up(struct phylink_config *config, struct phy_device *phydev,
+		   unsigned int mode, phy_interface_t interface,
+		   int speed, int duplex, bool tx_pause, bool rx_pause)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ks8995_switch *ks = dp->ds->priv;
+	int port = dp->index;
+	int ret;
+	u8 val;
+
+	/* Allow forcing the mode on the fixed CPU port, no autonegotiation.
+	 * We assume autonegotiation works on the PHY-facing ports.
+	 */
+	if (port != KS8995_CPU_PORT)
+		return;
+
+	dev_dbg(ks->dev, "MAC link up on CPU port (%d)\n", port);
+
+	ret = ks8995_read_reg(ks, KS8995_REG_GC4, &val);
+	if (ret) {
+		dev_err(ks->dev, "failed to read KS8995_REG_GC4\n");
+		return;
+	}
+
+	/* Conjure port config */
+	switch (speed) {
+	case SPEED_10:
+		dev_dbg(ks->dev, "set switch MII to 100Mbit mode\n");
+		val |= KS8995_GC4_10BT;
+		break;
+	case SPEED_100:
+	default:
+		dev_dbg(ks->dev, "set switch MII to 100Mbit mode\n");
+		val &= ~KS8995_GC4_10BT;
+		break;
+	}
+
+	if (duplex == DUPLEX_HALF) {
+		dev_dbg(ks->dev, "set switch MII to half duplex\n");
+		val |= KS8995_GC4_MII_HD;
+	} else {
+		dev_dbg(ks->dev, "set switch MII to full duplex\n");
+		val &= ~KS8995_GC4_MII_HD;
+	}
+
+	dev_dbg(ks->dev, "set KS8995_REG_GC4 to %02x\n", val);
+
+	/* Enable the CPU port */
+	ret = ks8995_write_reg(ks, KS8995_REG_GC4, val);
+	if (ret)
+		dev_err(ks->dev, "failed to set KS8995_REG_GC4\n");
+}
+
+static void
+ks8995_mac_link_down(struct phylink_config *config, unsigned int mode,
+		     phy_interface_t interface)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ks8995_switch *ks = dp->ds->priv;
+	int port = dp->index;
+
+	if (port != KS8995_CPU_PORT)
+		return;
+
+	dev_dbg(ks->dev, "MAC link down on CPU port (%d)\n", port);
+
+	/* Disable the CPU port */
+}
+
+static const struct phylink_mac_ops ks8995_phylink_mac_ops = {
+	.mac_config = ks8995_mac_config,
+	.mac_link_up = ks8995_mac_link_up,
+	.mac_link_down = ks8995_mac_link_down,
+};
+
+static enum
+dsa_tag_protocol ks8995_get_tag_protocol(struct dsa_switch *ds,
+					 int port,
+					 enum dsa_tag_protocol mp)
+{
+	/* This switch actually uses the 6 byte KS8995 protocol */
+	return DSA_TAG_PROTO_NONE;
+}
+
+static int ks8995_setup(struct dsa_switch *ds)
+{
+	return 0;
+}
+
+static int ks8995_port_enable(struct dsa_switch *ds, int port,
+			      struct phy_device *phy)
+{
+	struct ks8995_switch *ks = ds->priv;
+
+	dev_dbg(ks->dev, "enable port %d\n", port);
+
+	return 0;
+}
+
+static void ks8995_port_disable(struct dsa_switch *ds, int port)
+{
+	struct ks8995_switch *ks = ds->priv;
+
+	dev_dbg(ks->dev, "disable port %d\n", port);
+}
+
+static int ks8995_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+					struct switchdev_brport_flags flags,
+					struct netlink_ext_ack *extack)
+{
+	/* We support enabling/disabling learning */
+	if (flags.mask & ~(BR_LEARNING))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ks8995_port_bridge_flags(struct dsa_switch *ds, int port,
+				    struct switchdev_brport_flags flags,
+				    struct netlink_ext_ack *extack)
+{
+	struct ks8995_switch *ks = ds->priv;
+	int ret;
+	u8 val;
+
+	if (flags.mask & BR_LEARNING) {
+		ret = ks8995_read_reg(ks, KS8995_REG_PC(port, KS8995_REG_PC2), &val);
+		if (ret) {
+			dev_err(ks->dev, "failed to read KS8995_REG_PC2 on port %d\n", port);
+			return ret;
+		}
+
+		if (flags.val & BR_LEARNING)
+			val &= ~KS8995_PC2_LEARN_DIS;
+		else
+			val |= KS8995_PC2_LEARN_DIS;
+
+		ret = ks8995_write_reg(ks, KS8995_REG_PC(port, KS8995_REG_PC2), val);
+		if (ret) {
+			dev_err(ks->dev, "failed to write KS8995_REG_PC2 on port %d\n", port);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void ks8995_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
+{
+	struct ks8995_switch *ks = ds->priv;
+	int ret;
+	u8 val;
+
+	ret = ks8995_read_reg(ks, KS8995_REG_PC(port, KS8995_REG_PC2), &val);
+	if (ret) {
+		dev_err(ks->dev, "failed to read KS8995_REG_PC2 on port %d\n", port);
+		return;
+	}
+
+	/* Set the bits for the different STP states in accordance with
+	 * the datasheet, pages 36-37 "Spanning tree support".
+	 */
+	switch (state) {
+	case BR_STATE_DISABLED:
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		val &= ~KS8995_PC2_TXEN;
+		val &= ~KS8995_PC2_RXEN;
+		val |= KS8995_PC2_LEARN_DIS;
+		break;
+	case BR_STATE_LEARNING:
+		val &= ~KS8995_PC2_TXEN;
+		val &= ~KS8995_PC2_RXEN;
+		val &= ~KS8995_PC2_LEARN_DIS;
+		break;
+	case BR_STATE_FORWARDING:
+		val |= KS8995_PC2_TXEN;
+		val |= KS8995_PC2_RXEN;
+		val &= ~KS8995_PC2_LEARN_DIS;
+		break;
+	default:
+		dev_err(ks->dev, "unknown bridge state requested\n");
+		return;
+	}
+
+	ret = ks8995_write_reg(ks, KS8995_REG_PC(port, KS8995_REG_PC2), val);
+	if (ret) {
+		dev_err(ks->dev, "failed to write KS8995_REG_PC2 on port %d\n", port);
+		return;
+	}
+
+	dev_dbg(ks->dev, "set KS8995_REG_PC2 for port %d to %02x\n", port, val);
+}
+
+static void ks8995_phylink_get_caps(struct dsa_switch *dsa, int port,
+				    struct phylink_config *config)
+{
+	unsigned long *interfaces = config->supported_interfaces;
+
+	if (port == KS8995_CPU_PORT)
+		__set_bit(PHY_INTERFACE_MODE_MII, interfaces);
+
+	if (port <= 3) {
+		/* Internal PHYs */
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL, interfaces);
+		/* phylib default */
+		__set_bit(PHY_INTERFACE_MODE_MII, interfaces);
+	}
+
+	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100;
+}
+
+/* Huge packet support up to 1916 byte packages "inclusive"
+ * which means that tags are included. If the bit is not set
+ * it is 1536 bytes "inclusive". We present the length without
+ * tags or ethernet headers. The setting affects all ports.
+ */
+static int ks8995_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct ks8995_switch *ks = ds->priv;
+	unsigned int max_mtu;
+	int ret;
+	u8 val;
+	int i;
+
+	ks->max_mtu[port] = new_mtu;
+
+	/* Roof out the MTU for the entire switch to the greatest
+	 * common denominator: the biggest set for any one port will
+	 * be the biggest MTU for the switch.
+	 */
+	max_mtu = ETH_DATA_LEN;
+	for (i = 0; i < KS8995_NUM_PORTS; i++) {
+		if (ks->max_mtu[i] > max_mtu)
+			max_mtu = ks->max_mtu[i];
+	}
+
+	/* Translate to layer 2 size.
+	 * Add ethernet and (possible) VLAN headers, and checksum to the size.
+	 * For ETH_DATA_LEN (1500 bytes) this will add up to 1522 bytes.
+	 */
+	max_mtu += VLAN_ETH_HLEN;
+	max_mtu += ETH_FCS_LEN;
+
+	ret = ks8995_read_reg(ks, KS8995_REG_GC2, &val);
+	if (ret) {
+		dev_err(ks->dev, "failed to read KS8995_REG_GC2\n");
+		return ret;
+	}
+
+	if (max_mtu <= 1522) {
+		val &= ~KS8995_GC2_HUGE;
+		val &= ~KS8995_GC2_LEGAL;
+	} else if (max_mtu > 1522 && max_mtu <= 1536) {
+		/* This accepts packets up to 1536 bytes */
+		val &= ~KS8995_GC2_HUGE;
+		val |= KS8995_GC2_LEGAL;
+	} else {
+		/* This accepts packets up to 1916 bytes */
+		val |= KS8995_GC2_HUGE;
+		val |= KS8995_GC2_LEGAL;
+	}
+
+	dev_dbg(ks->dev, "new max MTU %d bytes (inclusive)\n", max_mtu);
+
+	ret = ks8995_write_reg(ks, KS8995_REG_GC2, val);
+	if (ret)
+		dev_err(ks->dev, "failed to set KS8995_REG_GC2\n");
+
+	return ret;
+}
+
+static int ks8995_get_max_mtu(struct dsa_switch *ds, int port)
+{
+	return 1916 - ETH_HLEN - ETH_FCS_LEN;
+}
+
+static const struct dsa_switch_ops ks8995_ds_ops = {
+	.get_tag_protocol = ks8995_get_tag_protocol,
+	.setup = ks8995_setup,
+	.port_pre_bridge_flags = ks8995_port_pre_bridge_flags,
+	.port_bridge_flags = ks8995_port_bridge_flags,
+	.port_enable = ks8995_port_enable,
+	.port_disable = ks8995_port_disable,
+	.port_stp_state_set = ks8995_port_stp_state_set,
+	.port_change_mtu = ks8995_change_mtu,
+	.port_max_mtu = ks8995_get_max_mtu,
+	.phylink_get_caps = ks8995_phylink_get_caps,
 };
 
 /* ------------------------------------------------------------------------ */
@@ -423,6 +760,7 @@ static int ks8995_probe(struct spi_device *spi)
 
 	mutex_init(&ks->lock);
 	ks->spi = spi;
+	ks->dev = &spi->dev;
 	ks->chip = &ks8995_chip[variant];
 
 	ks->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset",
@@ -438,9 +776,15 @@ static int ks8995_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	/* de-assert switch reset */
-	/* FIXME: this likely requires a delay */
-	gpiod_set_value_cansleep(ks->reset_gpio, 0);
+	if (ks->reset_gpio) {
+		/*
+		 * If a reset line was obtained, wait for 100us after
+		 * de-asserting RESET before accessing any registers, see
+		 * the KS8995MA datasheet, page 44.
+		 */
+		gpiod_set_value_cansleep(ks->reset_gpio, 0);
+		udelay(100);
+	}
 
 	spi_set_drvdata(spi, ks);
 
@@ -456,23 +800,31 @@ static int ks8995_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	memcpy(&ks->regs_attr, &ks8995_registers_attr, sizeof(ks->regs_attr));
-	ks->regs_attr.size = ks->chip->regs_size;
-
 	err = ks8995_reset(ks);
 	if (err)
 		return err;
 
-	sysfs_attr_init(&ks->regs_attr.attr);
-	err = sysfs_create_bin_file(&spi->dev.kobj, &ks->regs_attr);
-	if (err) {
-		dev_err(&spi->dev, "unable to create sysfs file, err=%d\n",
-				    err);
-		return err;
-	}
-
 	dev_info(&spi->dev, "%s device found, Chip ID:%x, Revision:%x\n",
 		 ks->chip->name, ks->chip->chip_id, ks->revision_id);
+
+	err = ks8995_check_config(ks);
+	if (err)
+		return err;
+
+	ks->ds = devm_kzalloc(&spi->dev, sizeof(*ks->ds), GFP_KERNEL);
+	if (!ks->ds)
+		return -ENOMEM;
+
+	ks->ds->dev = &spi->dev;
+	ks->ds->num_ports = KS8995_NUM_PORTS;
+	ks->ds->ops = &ks8995_ds_ops;
+	ks->ds->phylink_mac_ops = &ks8995_phylink_mac_ops;
+	ks->ds->priv = ks;
+
+	err = dsa_register_switch(ks->ds);
+	if (err)
+		return dev_err_probe(&spi->dev, err,
+				     "unable to register DSA switch\n");
 
 	return 0;
 }
@@ -481,8 +833,7 @@ static void ks8995_remove(struct spi_device *spi)
 {
 	struct ks8995_switch *ks = spi_get_drvdata(spi);
 
-	sysfs_remove_bin_file(&spi->dev.kobj, &ks->regs_attr);
-
+	dsa_unregister_switch(ks->ds);
 	/* assert reset */
 	gpiod_set_value_cansleep(ks->reset_gpio, 1);
 }
