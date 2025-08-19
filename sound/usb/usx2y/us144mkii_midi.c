@@ -41,6 +41,9 @@ void tascam_midi_in_urb_complete(struct urb *urb)
 	struct tascam_card *tascam = urb->context;
 	int ret;
 
+	if (!tascam)
+		goto out;
+
 	if (urb->status) {
 		if (urb->status != -ENOENT && urb->status != -ECONNRESET &&
 		    urb->status != -ESHUTDOWN && urb->status != -EPROTO) {
@@ -51,7 +54,7 @@ void tascam_midi_in_urb_complete(struct urb *urb)
 		goto out;
 	}
 
-	if (tascam && atomic_read(&tascam->midi_in_active) &&
+	if (atomic_read(&tascam->midi_in_active) &&
 	    urb->actual_length > 0) {
 		kfifo_in_spinlocked(&tascam->midi_in_fifo, urb->transfer_buffer,
 				    urb->actual_length, &tascam->midi_in_lock);
@@ -65,8 +68,9 @@ void tascam_midi_in_urb_complete(struct urb *urb)
 		dev_err(tascam->card->dev,
 			"Failed to resubmit MIDI IN URB: error %d\n", ret);
 		usb_unanchor_urb(urb);
-		usb_put_urb(urb);
+		goto out;
 	}
+
 out:
 	usb_put_urb(urb);
 }
