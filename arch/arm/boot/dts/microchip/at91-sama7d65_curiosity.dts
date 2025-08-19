@@ -346,7 +346,7 @@
 		bias-pull-up;
 	};
 
-	pinctrl_i2c10_default: i2c10-default{
+	pinctrl_i2c10_default: i2c10-default {
 		pinmux = <PIN_PB19__FLEXCOM10_IO1>,
 			 <PIN_PB20__FLEXCOM10_IO0>;
 		bias-pull-up;

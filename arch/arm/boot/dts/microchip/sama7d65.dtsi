@@ -91,7 +91,7 @@
 		};
 
 		sfrbu: sfr@e0008000 {
-			compatible ="microchip,sama7d65-sfrbu", "atmel,sama5d2-sfrbu", "syscon";
+			compatible = "microchip,sama7d65-sfrbu", "atmel,sama5d2-sfrbu", "syscon";
 			reg = <0xe0008000 0x20>;
 		};
 
