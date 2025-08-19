@@ -695,6 +695,27 @@ static inline u8 dw_pcie_ep_readb_dbi(struct dw_pcie_ep *ep, u8 func_no,
 	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x1);
 }
 
+static inline int dw_pcie_ep_read_cfg_byte(struct dw_pcie_ep *ep, u8 func_no,
+					   int where, u8 *val)
+{
+	*val = dw_pcie_ep_readb_dbi(ep, func_no, where);
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static inline int dw_pcie_ep_read_cfg_word(struct dw_pcie_ep *ep, u8 func_no,
+					   int where, u16 *val)
+{
+	*val = dw_pcie_ep_readw_dbi(ep, func_no, where);
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static inline int dw_pcie_ep_read_cfg_dword(struct dw_pcie_ep *ep, u8 func_no,
+					    int where, u32 *val)
+{
+	*val = dw_pcie_ep_readl_dbi(ep, func_no, where);
+	return PCIBIOS_SUCCESSFUL;
+}
+
 static inline unsigned int dw_pcie_ep_get_dbi2_offset(struct dw_pcie_ep *ep,
 						      u8 func_no)
 {
