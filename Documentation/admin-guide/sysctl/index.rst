@@ -66,25 +66,31 @@ This documentation is about:
 
 =============== ===============================================================
 abi/		execution domains & personalities
-debug/		<empty>
-dev/		device specific information (eg dev/cdrom/info)
+<$ARCH>		tuning controls for various CPU architecture (e.g. csky, s390)
+crypto/		<undocumented>
+debug/		<undocumented>
+dev/		device specific information (e.g. dev/cdrom/info)
 fs/		specific filesystems
 		filehandle, inode, dentry and quota tuning
 		binfmt_misc <Documentation/admin-guide/binfmt-misc.rst>
 kernel/		global kernel info / tuning
 		miscellaneous stuff
+		some architecture-specific controls
+		security (LSM) stuff
 net/		networking stuff, for documentation look in:
 		<Documentation/networking/>
 proc/		<empty>
 sunrpc/		SUN Remote Procedure Call (NFS)
+user/		Per user namespace limits
 vm/		memory management tuning
 		buffer and cache management
-user/		Per user per user namespace limits
+xen/		<undocumented>
 =============== ===============================================================
 
-These are the subdirs I have on my system. There might be more
-or other subdirs in another setup. If you see another dir, I'd
-really like to hear about it :-)
+These are the subdirs I have on my system or have been discovered by
+searching through the source code. There might be more or other subdirs
+in another setup. If you see another dir, I'd really like to hear about
+it :-)
 
 .. toctree::
    :maxdepth: 1
