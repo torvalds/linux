@@ -43,9 +43,10 @@ a) A **shared mount** can be replicated to as many mountpoints and all the
 
      # mount --make-shared /mnt
 
-   Note: mount(8) command now supports the --make-shared flag,
-   so the sample 'smount' program is no longer needed and has been
-   removed.
+   .. note::
+      mount(8) command now supports the --make-shared flag,
+      so the sample 'smount' program is no longer needed and has been
+      removed.
 
    ::
 
@@ -242,8 +243,9 @@ D)  Versioned files
 The section below explains the detailed semantics of
 bind, rbind, move, mount, umount and clone-namespace operations.
 
-Note: the word 'vfsmount' and the noun 'mount' have been used
-to mean the same thing, throughout this document.
+.. Note::
+   the word 'vfsmount' and the noun 'mount' have been used
+   to mean the same thing, throughout this document.
 
 a) Mount states
 
@@ -885,8 +887,12 @@ A) Datastructure
    non-NULL, they form a contiguous (ordered) segment of slave list.
 
    A example propagation tree looks as shown in the figure below.
-   [ NOTE: Though it looks like a forest, if we consider all the shared
-   mounts as a conceptual entity called 'pnode', it becomes a tree]::
+
+   .. note::
+      Though it looks like a forest, if we consider all the shared
+      mounts as a conceptual entity called 'pnode', it becomes a tree.
+
+   ::
 
 
                         A <--> B <--> C <---> D
