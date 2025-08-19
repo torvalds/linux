@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
 #include <linux/uio.h>
@@ -687,6 +688,8 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 
 	if (bdev_can_atomic_write(bdev))
 		filp->f_mode |= FMODE_CAN_ATOMIC_WRITE;
+	if (blk_get_integrity(bdev->bd_disk))
+		filp->f_mode |= FMODE_HAS_METADATA;
 
 	ret = bdev_open(bdev, mode, filp->private_data, NULL, filp);
 	if (ret)
