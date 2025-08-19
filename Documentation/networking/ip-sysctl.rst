@@ -209,7 +209,7 @@ neigh/default/unres_qlen_bytes - INTEGER
 
 	Setting negative value is meaningless and will return error.
 
-	Default: SK_WMEM_MAX, (same as net.core.wmem_default).
+	Default: SK_WMEM_DEFAULT, (same as net.core.wmem_default).
 
 		Exact value depends on architecture and kernel options,
 		but should be enough to allow queuing 256 packets
@@ -805,8 +805,8 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	This value results in initial window of 65535.
 
 	max: maximal size of receive buffer allowed for automatically
-	selected receiver buffers for TCP socket. This value does not override
-	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
+	selected receiver buffers for TCP socket.
+	Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
 	case this value is ignored.
 	Default: between 131072 and 32MB, depending on RAM size.
