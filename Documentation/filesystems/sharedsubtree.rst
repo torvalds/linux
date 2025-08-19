@@ -31,15 +31,10 @@ and versioned filesystem.
 -----------
 
 Shared subtree provides four different flavors of mounts; struct vfsmount to be
-precise
-
-	a. shared mount
-	b. slave mount
-	c. private mount
-	d. unbindable mount
+precise:
 
 
-a) A shared mount can be replicated to as many mountpoints and all the
+a) A **shared mount** can be replicated to as many mountpoints and all the
    replicas continue to be exactly same.
 
 	Here is an example:
@@ -83,7 +78,7 @@ a) A shared mount can be replicated to as many mountpoints and all the
 	contents will be visible under /tmp/a too.
 
 
-b) A slave mount is like a shared mount except that mount and umount events
+b) A **slave mount** is like a shared mount except that mount and umount events
    only propagate towards it.
 
 	All slave mounts have a master mount which is a shared.
@@ -131,12 +126,13 @@ b) A slave mount is like a shared mount except that mount and umount events
 	/mnt
 
 
-c) A private mount does not forward or receive propagation.
+c) A **private mount** does not forward or receive propagation.
 
 	This is the mount we are familiar with. Its the default type.
 
 
-d) A unbindable mount is a unbindable private mount
+d) An **unbindable mount** is, as the name suggests, an unbindable private
+   mount.
 
 	let's say we have a mount at /mnt and we make it unbindable::
 
@@ -252,24 +248,18 @@ d) A unbindable mount is a unbindable private mount
 
 a) Mount states
 
-	A given mount can be in one of the following states
-
-	1) shared
-	2) slave
-	3) shared and slave
-	4) private
-	5) unbindable
-
-	A 'propagation event' is defined as event generated on a vfsmount
+	A **propagation event** is defined as event generated on a vfsmount
 	that leads to mount or unmount actions in other vfsmounts.
 
-	A 'peer group' is defined as a group of vfsmounts that propagate
+	A **peer group** is defined as a group of vfsmounts that propagate
 	events to each other.
+
+	A given mount can be in one of the following states:
 
 	(1) Shared mounts
 
-		A 'shared mount' is defined as a vfsmount that belongs to a
-		'peer group'.
+		A **shared mount** is defined as a vfsmount that belongs to a
+		peer group.
 
 		For example::
 
@@ -284,7 +274,7 @@ a) Mount states
 
 	(2) Slave mounts
 
-		A 'slave mount' is defined as a vfsmount that receives
+		A **slave mount** is defined as a vfsmount that receives
 		propagation events and does not forward propagation events.
 
 		A slave mount as the name implies has a master mount from which
@@ -299,7 +289,7 @@ a) Mount states
 
 	(3) Shared and Slave
 
-		A vfsmount can be both shared as well as slave.  This state
+		A vfsmount can be both **shared** as well as **slave**.  This state
 		indicates that the mount is a slave of some vfsmount, and
 		has its own peer group too.  This vfsmount receives propagation
 		events from its master vfsmount, and also forwards propagation
@@ -318,12 +308,12 @@ a) Mount states
 
 	(4) Private mount
 
-		A 'private mount' is defined as vfsmount that does not
+		A **private mount** is defined as vfsmount that does not
 		receive or forward any propagation events.
 
 	(5) Unbindable mount
 
-		A 'unbindable mount' is defined as vfsmount that does not
+		A **unbindable mount** is defined as vfsmount that does not
 		receive or forward any propagation events and cannot
 		be bind mounted.
 
@@ -854,31 +844,26 @@ g) Clone Namespace
 
 A) Datastructure
 
-	4 new fields are introduced to struct vfsmount:
-
-	*   ->mnt_share
-	*   ->mnt_slave_list
-	*   ->mnt_slave
-	*   ->mnt_master
+	Several new fields are introduced to struct vfsmount:
 
 	->mnt_share
-		links together all the mount to/from which this vfsmount
+		Links together all the mount to/from which this vfsmount
 		send/receives propagation events.
 
 	->mnt_slave_list
-		links all the mounts to which this vfsmount propagates
+		Links all the mounts to which this vfsmount propagates
 		to.
 
 	->mnt_slave
-		links together all the slaves that its master vfsmount
+		Links together all the slaves that its master vfsmount
 		propagates to.
 
 	->mnt_master
-		points to the master vfsmount from which this vfsmount
+		Points to the master vfsmount from which this vfsmount
 		receives propagation.
 
 	->mnt_flags
-		takes two more flags to indicate the propagation status of
+		Takes two more flags to indicate the propagation status of
 		the vfsmount.  MNT_SHARE indicates that the vfsmount is a shared
 		vfsmount.  MNT_UNCLONABLE indicates that the vfsmount cannot be
 		replicated.
@@ -960,39 +945,36 @@ C) Algorithm:
 	The overall algorithm breaks the operation into 3 phases: (look at
 	attach_recursive_mnt() and propagate_mnt())
 
-	1. prepare phase.
-	2. commit phases.
-	3. abort phases.
+	1. Prepare phase.
 
-	Prepare phase:
+	   For each mount in the source tree:
 
-	for each mount in the source tree:
+	   a) Create the necessary number of mount trees to
+	      be attached to each of the mounts that receive
+	      propagation from the destination mount.
+	   b) Do not attach any of the trees to its destination.
+	      However note down its ->mnt_parent and ->mnt_mountpoint
+	   c) Link all the new mounts to form a propagation tree that
+	      is identical to the propagation tree of the destination
+	      mount.
 
-		   a) Create the necessary number of mount trees to
-		   	be attached to each of the mounts that receive
-			propagation from the destination mount.
-		   b) Do not attach any of the trees to its destination.
-		      However note down its ->mnt_parent and ->mnt_mountpoint
-		   c) Link all the new mounts to form a propagation tree that
-		      is identical to the propagation tree of the destination
-		      mount.
+	   If this phase is successful, there should be 'n' new
+           propagation trees; where 'n' is the number of mounts in the
+	   source tree.  Go to the commit phase
 
-		   If this phase is successful, there should be 'n' new
-		   propagation trees; where 'n' is the number of mounts in the
-		   source tree.  Go to the commit phase
+	   Also there should be 'm' new mount trees, where 'm' is
+	   the number of mounts to which the destination mount
+	   propagates to.
 
-		   Also there should be 'm' new mount trees, where 'm' is
-		   the number of mounts to which the destination mount
-		   propagates to.
+	   If any memory allocations fail, go to the abort phase.
 
-		   if any memory allocations fail, go to the abort phase.
+	2. Commit phase.
 
-	Commit phase
-		attach each of the mount trees to their corresponding
-		destination mounts.
+	   Attach each of the mount trees to their corresponding
+	   destination mounts.
 
-	Abort phase
-		delete all the newly created trees.
+	3. Abort phase.
+	   Delete all the newly created trees.
 
 	.. Note::
 	   all the propagation related functionality resides in the file pnode.c
