@@ -407,11 +407,12 @@ static void fbnic_get_stats64(struct net_device *dev,
 			      struct rtnl_link_stats64 *stats64)
 {
 	u64 rx_bytes, rx_packets, rx_dropped = 0, rx_errors = 0;
+	u64 rx_over = 0, rx_missed = 0, rx_length = 0;
 	u64 tx_bytes, tx_packets, tx_dropped = 0;
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
-	u64 rx_over = 0, rx_missed = 0;
+
 	unsigned int start, i;
 
 	fbnic_get_hw_stats(fbd);
@@ -489,6 +490,7 @@ static void fbnic_get_stats64(struct net_device *dev,
 	stats64->rx_missed_errors = rx_missed;
 
 	for (i = 0; i < fbn->num_rx_queues; i++) {
+		struct fbnic_ring *xdpr = fbn->tx[FBNIC_MAX_TXQS + i];
 		struct fbnic_ring *rxr = fbn->rx[i];
 
 		if (!rxr)
@@ -500,12 +502,64 @@ static void fbnic_get_stats64(struct net_device *dev,
 			rx_bytes = stats->bytes;
 			rx_packets = stats->packets;
 			rx_dropped = stats->dropped;
+			rx_length = stats->rx.length_errors;
 		} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 		stats64->rx_bytes += rx_bytes;
 		stats64->rx_packets += rx_packets;
 		stats64->rx_dropped += rx_dropped;
+		stats64->rx_errors += rx_length;
+		stats64->rx_length_errors += rx_length;
+
+		if (!xdpr)
+			continue;
+
+		stats = &xdpr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			tx_bytes = stats->bytes;
+			tx_packets = stats->packets;
+			tx_dropped = stats->dropped;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		stats64->tx_bytes += tx_bytes;
+		stats64->tx_packets += tx_packets;
+		stats64->tx_dropped += tx_dropped;
 	}
+}
+
+bool fbnic_check_split_frames(struct bpf_prog *prog, unsigned int mtu,
+			      u32 hds_thresh)
+{
+	if (!prog)
+		return false;
+
+	if (prog->aux->xdp_has_frags)
+		return false;
+
+	return mtu + ETH_HLEN > hds_thresh;
+}
+
+static int fbnic_bpf(struct net_device *netdev, struct netdev_bpf *bpf)
+{
+	struct bpf_prog *prog = bpf->prog, *prev_prog;
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	if (bpf->command != XDP_SETUP_PROG)
+		return -EINVAL;
+
+	if (fbnic_check_split_frames(prog, netdev->mtu,
+				     fbn->hds_thresh)) {
+		NL_SET_ERR_MSG_MOD(bpf->extack,
+				   "MTU too high, or HDS threshold is too low for single buffer XDP");
+		return -EOPNOTSUPP;
+	}
+
+	prev_prog = xchg(&fbn->xdp_prog, prog);
+	if (prev_prog)
+		bpf_prog_put(prev_prog);
+
+	return 0;
 }
 
 static const struct net_device_ops fbnic_netdev_ops = {
@@ -517,6 +571,7 @@ static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_set_mac_address	= fbnic_set_mac,
 	.ndo_set_rx_mode	= fbnic_set_rx_mode,
 	.ndo_get_stats64	= fbnic_get_stats64,
+	.ndo_bpf		= fbnic_bpf,
 	.ndo_hwtstamp_get	= fbnic_hwtstamp_get,
 	.ndo_hwtstamp_set	= fbnic_hwtstamp_set,
 };
@@ -568,6 +623,7 @@ static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
 	struct fbnic_ring *txr = fbn->tx[idx];
 	struct fbnic_queue_stats *stats;
 	u64 stop, wake, csum, lso;
+	struct fbnic_ring *xdpr;
 	unsigned int start;
 	u64 bytes, packets;
 
@@ -591,6 +647,19 @@ static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
 	tx->hw_gso_wire_packets = lso;
 	tx->stop = stop;
 	tx->wake = wake;
+
+	xdpr = fbn->tx[FBNIC_MAX_TXQS + idx];
+	if (xdpr) {
+		stats = &xdpr->stats;
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			bytes = stats->bytes;
+			packets = stats->packets;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		tx->bytes += bytes;
+		tx->packets += packets;
+	}
 }
 
 static void fbnic_get_base_stats(struct net_device *dev,
@@ -694,6 +763,10 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	fbn->tx_usecs = FBNIC_TX_USECS_DEFAULT;
 	fbn->rx_usecs = FBNIC_RX_USECS_DEFAULT;
 	fbn->rx_max_frames = FBNIC_RX_FRAMES_DEFAULT;
+
+	/* Initialize the hds_thresh */
+	netdev->cfg->hds_thresh = FBNIC_HDS_THRESH_DEFAULT;
+	fbn->hds_thresh = FBNIC_HDS_THRESH_DEFAULT;
 
 	default_queues = netif_get_num_default_rss_queues();
 	if (default_queues > fbd->max_num_queues)

@@ -2,16 +2,26 @@
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
 #include <linux/bitfield.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <net/netdev_queues.h>
 #include <net/page_pool/helpers.h>
 #include <net/tcp.h>
+#include <net/xdp.h>
 
 #include "fbnic.h"
 #include "fbnic_csr.h"
 #include "fbnic_netdev.h"
 #include "fbnic_txrx.h"
+
+enum {
+	FBNIC_XDP_PASS = 0,
+	FBNIC_XDP_CONSUME,
+	FBNIC_XDP_TX,
+	FBNIC_XDP_LEN_ERR,
+};
 
 enum {
 	FBNIC_XMIT_CB_TS	= 0x01,
@@ -606,6 +616,54 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	}
 }
 
+static void fbnic_clean_twq1(struct fbnic_napi_vector *nv, bool pp_allow_direct,
+			     struct fbnic_ring *ring, bool discard,
+			     unsigned int hw_head)
+{
+	u64 total_bytes = 0, total_packets = 0;
+	unsigned int head = ring->head;
+
+	while (hw_head != head) {
+		struct page *page;
+		u64 twd;
+
+		if (unlikely(!(ring->desc[head] & FBNIC_TWD_TYPE(AL))))
+			goto next_desc;
+
+		twd = le64_to_cpu(ring->desc[head]);
+		page = ring->tx_buf[head];
+
+		/* TYPE_AL is 2, TYPE_LAST_AL is 3. So this trick gives
+		 * us one increment per packet, with no branches.
+		 */
+		total_packets += FIELD_GET(FBNIC_TWD_TYPE_MASK, twd) -
+				 FBNIC_TWD_TYPE_AL;
+		total_bytes += FIELD_GET(FBNIC_TWD_LEN_MASK, twd);
+
+		page_pool_put_page(nv->page_pool, page, -1, pp_allow_direct);
+next_desc:
+		head++;
+		head &= ring->size_mask;
+	}
+
+	if (!total_bytes)
+		return;
+
+	ring->head = head;
+
+	if (discard) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.dropped += total_packets;
+		u64_stats_update_end(&ring->stats.syncp);
+		return;
+	}
+
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.bytes += total_bytes;
+	ring->stats.packets += total_packets;
+	u64_stats_update_end(&ring->stats.syncp);
+}
+
 static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
 			    struct fbnic_ring *ring,
 			    u64 tcd, int *ts_head, int *head0)
@@ -689,12 +747,21 @@ static void fbnic_page_pool_drain(struct fbnic_ring *ring, unsigned int idx,
 }
 
 static void fbnic_clean_twq(struct fbnic_napi_vector *nv, int napi_budget,
-			    struct fbnic_q_triad *qt, s32 ts_head, s32 head0)
+			    struct fbnic_q_triad *qt, s32 ts_head, s32 head0,
+			    s32 head1)
 {
 	if (head0 >= 0)
 		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, head0);
 	else if (ts_head >= 0)
 		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, ts_head);
+
+	if (head1 >= 0) {
+		qt->cmpl.deferred_head = -1;
+		if (napi_budget)
+			fbnic_clean_twq1(nv, true, &qt->sub1, false, head1);
+		else
+			qt->cmpl.deferred_head = head1;
+	}
 }
 
 static void
@@ -702,6 +769,7 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 		int napi_budget)
 {
 	struct fbnic_ring *cmpl = &qt->cmpl;
+	s32 head1 = cmpl->deferred_head;
 	s32 head0 = -1, ts_head = -1;
 	__le64 *raw_tcd, done;
 	u32 head = cmpl->head;
@@ -719,7 +787,10 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 
 		switch (FIELD_GET(FBNIC_TCD_TYPE_MASK, tcd)) {
 		case FBNIC_TCD_TYPE_0:
-			if (!(tcd & FBNIC_TCD_TWQ1))
+			if (tcd & FBNIC_TCD_TWQ1)
+				head1 = FIELD_GET(FBNIC_TCD_TYPE0_HEAD1_MASK,
+						  tcd);
+			else
 				head0 = FIELD_GET(FBNIC_TCD_TYPE0_HEAD0_MASK,
 						  tcd);
 			/* Currently all err status bits are related to
@@ -752,7 +823,7 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 	}
 
 	/* Unmap and free processed buffers */
-	fbnic_clean_twq(nv, napi_budget, qt, ts_head, head0);
+	fbnic_clean_twq(nv, napi_budget, qt, ts_head, head0, head1);
 }
 
 static void fbnic_clean_bdq(struct fbnic_napi_vector *nv, int napi_budget,
@@ -877,7 +948,7 @@ static void fbnic_pkt_prepare(struct fbnic_napi_vector *nv, u64 rcd,
 
 	headroom = hdr_pg_off - hdr_pg_start + FBNIC_RX_PAD;
 	frame_sz = hdr_pg_end - hdr_pg_start;
-	xdp_init_buff(&pkt->buff, frame_sz, NULL);
+	xdp_init_buff(&pkt->buff, frame_sz, &qt->xdp_rxq);
 	hdr_pg_start += (FBNIC_RCD_AL_BUFF_FRAG_MASK & rcd) *
 			FBNIC_BD_FRAG_SIZE;
 
@@ -888,13 +959,12 @@ static void fbnic_pkt_prepare(struct fbnic_napi_vector *nv, u64 rcd,
 
 	/* Build frame around buffer */
 	hdr_start = page_address(page) + hdr_pg_start;
-
+	net_prefetch(pkt->buff.data);
 	xdp_prepare_buff(&pkt->buff, hdr_start, headroom,
 			 len - FBNIC_RX_PAD, true);
 
-	pkt->data_truesize = 0;
-	pkt->data_len = 0;
-	pkt->nr_frags = 0;
+	pkt->hwtstamp = 0;
+	pkt->add_frag_failed = false;
 }
 
 static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
@@ -905,8 +975,8 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 	unsigned int pg_off = FIELD_GET(FBNIC_RCD_AL_BUFF_OFF_MASK, rcd);
 	unsigned int len = FIELD_GET(FBNIC_RCD_AL_BUFF_LEN_MASK, rcd);
 	struct page *page = fbnic_page_pool_get(&qt->sub1, pg_idx);
-	struct skb_shared_info *shinfo;
 	unsigned int truesize;
+	bool added;
 
 	truesize = FIELD_GET(FBNIC_RCD_AL_PAGE_FIN, rcd) ?
 		   FBNIC_BD_FRAG_SIZE - pg_off : ALIGN(len, 128);
@@ -918,34 +988,34 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 	dma_sync_single_range_for_cpu(nv->dev, page_pool_get_dma_addr(page),
 				      pg_off, truesize, DMA_BIDIRECTIONAL);
 
-	/* Add page to xdp shared info */
-	shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
-
-	/* We use gso_segs to store truesize */
-	pkt->data_truesize += truesize;
-
-	__skb_fill_page_desc_noacc(shinfo, pkt->nr_frags++, page, pg_off, len);
-
-	/* Store data_len in gso_size */
-	pkt->data_len += len;
+	added = xdp_buff_add_frag(&pkt->buff, page_to_netmem(page), pg_off, len,
+				  truesize);
+	if (unlikely(!added)) {
+		pkt->add_frag_failed = true;
+		netdev_err_once(nv->napi.dev,
+				"Failed to add fragment to xdp_buff\n");
+	}
 }
 
 static void fbnic_put_pkt_buff(struct fbnic_napi_vector *nv,
 			       struct fbnic_pkt_buff *pkt, int budget)
 {
-	struct skb_shared_info *shinfo;
 	struct page *page;
-	int nr_frags;
 
 	if (!pkt->buff.data_hard_start)
 		return;
 
-	shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
-	nr_frags = pkt->nr_frags;
+	if (xdp_buff_has_frags(&pkt->buff)) {
+		struct skb_shared_info *shinfo;
+		int nr_frags;
 
-	while (nr_frags--) {
-		page = skb_frag_page(&shinfo->frags[nr_frags]);
-		page_pool_put_full_page(nv->page_pool, page, !!budget);
+		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
+		nr_frags = shinfo->nr_frags;
+
+		while (nr_frags--) {
+			page = skb_frag_page(&shinfo->frags[nr_frags]);
+			page_pool_put_full_page(nv->page_pool, page, !!budget);
+		}
 	}
 
 	page = virt_to_page(pkt->buff.data_hard_start);
@@ -955,48 +1025,130 @@ static void fbnic_put_pkt_buff(struct fbnic_napi_vector *nv,
 static struct sk_buff *fbnic_build_skb(struct fbnic_napi_vector *nv,
 				       struct fbnic_pkt_buff *pkt)
 {
-	unsigned int nr_frags = pkt->nr_frags;
-	struct skb_shared_info *shinfo;
-	unsigned int truesize;
 	struct sk_buff *skb;
 
-	truesize = xdp_data_hard_end(&pkt->buff) + FBNIC_RX_TROOM -
-		   pkt->buff.data_hard_start;
-
-	/* Build frame around buffer */
-	skb = napi_build_skb(pkt->buff.data_hard_start, truesize);
-	if (unlikely(!skb))
+	skb = xdp_build_skb_from_buff(&pkt->buff);
+	if (!skb)
 		return NULL;
-
-	/* Push data pointer to start of data, put tail to end of data */
-	skb_reserve(skb, pkt->buff.data - pkt->buff.data_hard_start);
-	__skb_put(skb, pkt->buff.data_end - pkt->buff.data);
-
-	/* Add tracking for metadata at the start of the frame */
-	skb_metadata_set(skb, pkt->buff.data - pkt->buff.data_meta);
-
-	/* Add Rx frags */
-	if (nr_frags) {
-		/* Verify that shared info didn't move */
-		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
-		WARN_ON(skb_shinfo(skb) != shinfo);
-
-		skb->truesize += pkt->data_truesize;
-		skb->data_len += pkt->data_len;
-		shinfo->nr_frags = nr_frags;
-		skb->len += pkt->data_len;
-	}
-
-	skb_mark_for_recycle(skb);
-
-	/* Set MAC header specific fields */
-	skb->protocol = eth_type_trans(skb, nv->napi.dev);
 
 	/* Add timestamp if present */
 	if (pkt->hwtstamp)
 		skb_hwtstamps(skb)->hwtstamp = pkt->hwtstamp;
 
 	return skb;
+}
+
+static long fbnic_pkt_tx(struct fbnic_napi_vector *nv,
+			 struct fbnic_pkt_buff *pkt)
+{
+	struct fbnic_ring *ring = &nv->qt[0].sub1;
+	int size, offset, nsegs = 1, data_len = 0;
+	unsigned int tail = ring->tail;
+	struct skb_shared_info *shinfo;
+	skb_frag_t *frag = NULL;
+	struct page *page;
+	dma_addr_t dma;
+	__le64 *twd;
+
+	if (unlikely(xdp_buff_has_frags(&pkt->buff))) {
+		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
+		nsegs += shinfo->nr_frags;
+		data_len = shinfo->xdp_frags_size;
+		frag = &shinfo->frags[0];
+	}
+
+	if (fbnic_desc_unused(ring) < nsegs) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.dropped++;
+		u64_stats_update_end(&ring->stats.syncp);
+		return -FBNIC_XDP_CONSUME;
+	}
+
+	page = virt_to_page(pkt->buff.data_hard_start);
+	offset = offset_in_page(pkt->buff.data);
+	dma = page_pool_get_dma_addr(page);
+
+	size = pkt->buff.data_end - pkt->buff.data;
+
+	while (nsegs--) {
+		dma_sync_single_range_for_device(nv->dev, dma, offset, size,
+						 DMA_BIDIRECTIONAL);
+		dma += offset;
+
+		ring->tx_buf[tail] = page;
+
+		twd = &ring->desc[tail];
+		*twd = cpu_to_le64(FIELD_PREP(FBNIC_TWD_ADDR_MASK, dma) |
+				   FIELD_PREP(FBNIC_TWD_LEN_MASK, size) |
+				   FIELD_PREP(FBNIC_TWD_TYPE_MASK,
+					      FBNIC_TWD_TYPE_AL));
+
+		tail++;
+		tail &= ring->size_mask;
+
+		if (!data_len)
+			break;
+
+		offset = skb_frag_off(frag);
+		page = skb_frag_page(frag);
+		dma = page_pool_get_dma_addr(page);
+
+		size = skb_frag_size(frag);
+		data_len -= size;
+		frag++;
+	}
+
+	*twd |= FBNIC_TWD_TYPE(LAST_AL);
+
+	ring->tail = tail;
+
+	return -FBNIC_XDP_TX;
+}
+
+static void fbnic_pkt_commit_tail(struct fbnic_napi_vector *nv,
+				  unsigned int pkt_tail)
+{
+	struct fbnic_ring *ring = &nv->qt[0].sub1;
+
+	/* Force DMA writes to flush before writing to tail */
+	dma_wmb();
+
+	writel(pkt_tail, ring->doorbell);
+}
+
+static struct sk_buff *fbnic_run_xdp(struct fbnic_napi_vector *nv,
+				     struct fbnic_pkt_buff *pkt)
+{
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
+	struct bpf_prog *xdp_prog;
+	int act;
+
+	xdp_prog = READ_ONCE(fbn->xdp_prog);
+	if (!xdp_prog)
+		goto xdp_pass;
+
+	/* Should never happen, config paths enforce HDS threshold > MTU */
+	if (xdp_buff_has_frags(&pkt->buff) && !xdp_prog->aux->xdp_has_frags)
+		return ERR_PTR(-FBNIC_XDP_LEN_ERR);
+
+	act = bpf_prog_run_xdp(xdp_prog, &pkt->buff);
+	switch (act) {
+	case XDP_PASS:
+xdp_pass:
+		return fbnic_build_skb(nv, pkt);
+	case XDP_TX:
+		return ERR_PTR(fbnic_pkt_tx(nv, pkt));
+	default:
+		bpf_warn_invalid_xdp_action(nv->napi.dev, xdp_prog, act);
+		fallthrough;
+	case XDP_ABORTED:
+		trace_xdp_exception(nv->napi.dev, xdp_prog, act);
+		fallthrough;
+	case XDP_DROP:
+		break;
+	}
+
+	return ERR_PTR(-FBNIC_XDP_CONSUME);
 }
 
 static enum pkt_hash_types fbnic_skb_hash_type(u64 rcd)
@@ -1050,10 +1202,10 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			   struct fbnic_q_triad *qt, int budget)
 {
 	unsigned int packets = 0, bytes = 0, dropped = 0, alloc_failed = 0;
-	u64 csum_complete = 0, csum_none = 0;
+	u64 csum_complete = 0, csum_none = 0, length_errors = 0;
+	s32 head0 = -1, head1 = -1, pkt_tail = -1;
 	struct fbnic_ring *rcq = &qt->cmpl;
 	struct fbnic_pkt_buff *pkt;
-	s32 head0 = -1, head1 = -1;
 	__le64 *raw_rcd, done;
 	u32 head = rcq->head;
 
@@ -1094,8 +1246,10 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			/* We currently ignore the action table index */
 			break;
 		case FBNIC_RCD_TYPE_META:
-			if (likely(!fbnic_rcd_metadata_err(rcd)))
-				skb = fbnic_build_skb(nv, pkt);
+			if (unlikely(pkt->add_frag_failed))
+				skb = NULL;
+			else if (likely(!fbnic_rcd_metadata_err(rcd)))
+				skb = fbnic_run_xdp(nv, pkt);
 
 			/* Populate skb and invalidate XDP */
 			if (!IS_ERR_OR_NULL(skb)) {
@@ -1107,10 +1261,15 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 				bytes += skb->len;
 
 				napi_gro_receive(&nv->napi, skb);
+			} else if (skb == ERR_PTR(-FBNIC_XDP_TX)) {
+				pkt_tail = nv->qt[0].sub1.tail;
+				bytes += xdp_get_buff_len(&pkt->buff);
 			} else {
 				if (!skb) {
 					alloc_failed++;
 					dropped++;
+				} else if (skb == ERR_PTR(-FBNIC_XDP_LEN_ERR)) {
+					length_errors++;
 				} else {
 					dropped++;
 				}
@@ -1140,7 +1299,11 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	rcq->stats.rx.alloc_failed += alloc_failed;
 	rcq->stats.rx.csum_complete += csum_complete;
 	rcq->stats.rx.csum_none += csum_none;
+	rcq->stats.rx.length_errors += length_errors;
 	u64_stats_update_end(&rcq->stats.syncp);
+
+	if (pkt_tail >= 0)
+		fbnic_pkt_commit_tail(nv, pkt_tail);
 
 	/* Unmap and free processed buffers */
 	if (head0 >= 0)
@@ -1220,8 +1383,9 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	fbn->rx_stats.rx.alloc_failed += stats->rx.alloc_failed;
 	fbn->rx_stats.rx.csum_complete += stats->rx.csum_complete;
 	fbn->rx_stats.rx.csum_none += stats->rx.csum_none;
+	fbn->rx_stats.rx.length_errors += stats->rx.length_errors;
 	/* Remember to add new stats here */
-	BUILD_BUG_ON(sizeof(fbn->rx_stats.rx) / 8 != 3);
+	BUILD_BUG_ON(sizeof(fbn->rx_stats.rx) / 8 != 4);
 }
 
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
@@ -1243,6 +1407,22 @@ void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 6);
 }
 
+static void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
+					      struct fbnic_ring *xdpr)
+{
+	struct fbnic_queue_stats *stats = &xdpr->stats;
+
+	if (!(xdpr->flags & FBNIC_RING_F_STATS))
+		return;
+
+	/* Capture stats from queues before dissasociating them */
+	fbn->rx_stats.bytes += stats->bytes;
+	fbn->rx_stats.packets += stats->packets;
+	fbn->rx_stats.dropped += stats->dropped;
+	fbn->tx_stats.bytes += stats->bytes;
+	fbn->tx_stats.packets += stats->packets;
+}
+
 static void fbnic_remove_tx_ring(struct fbnic_net *fbn,
 				 struct fbnic_ring *txr)
 {
@@ -1254,6 +1434,19 @@ static void fbnic_remove_tx_ring(struct fbnic_net *fbn,
 	/* Remove pointer to the Tx ring */
 	WARN_ON(fbn->tx[txr->q_idx] && fbn->tx[txr->q_idx] != txr);
 	fbn->tx[txr->q_idx] = NULL;
+}
+
+static void fbnic_remove_xdp_ring(struct fbnic_net *fbn,
+				  struct fbnic_ring *xdpr)
+{
+	if (!(xdpr->flags & FBNIC_RING_F_STATS))
+		return;
+
+	fbnic_aggregate_ring_xdp_counters(fbn, xdpr);
+
+	/* Remove pointer to the Tx ring */
+	WARN_ON(fbn->tx[xdpr->q_idx] && fbn->tx[xdpr->q_idx] != xdpr);
+	fbn->tx[xdpr->q_idx] = NULL;
 }
 
 static void fbnic_remove_rx_ring(struct fbnic_net *fbn,
@@ -1277,10 +1470,12 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 
 	for (i = 0; i < nv->txt_count; i++) {
 		fbnic_remove_tx_ring(fbn, &nv->qt[i].sub0);
+		fbnic_remove_xdp_ring(fbn, &nv->qt[i].sub1);
 		fbnic_remove_tx_ring(fbn, &nv->qt[i].cmpl);
 	}
 
 	for (j = 0; j < nv->rxt_count; j++, i++) {
+		xdp_rxq_info_unreg(&nv->qt[i].xdp_rxq);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub0);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub1);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
@@ -1350,6 +1545,7 @@ static void fbnic_ring_init(struct fbnic_ring *ring, u32 __iomem *doorbell,
 	ring->doorbell = doorbell;
 	ring->q_idx = q_idx;
 	ring->flags = flags;
+	ring->deferred_head = -1;
 }
 
 static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
@@ -1359,10 +1555,17 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 {
 	int txt_count = txq_count, rxt_count = rxq_count;
 	u32 __iomem *uc_addr = fbd->uc_addr0;
+	int xdp_count = 0, qt_count, err;
 	struct fbnic_napi_vector *nv;
 	struct fbnic_q_triad *qt;
-	int qt_count, err;
 	u32 __iomem *db;
+
+	/* We need to reserve at least one Tx Queue Triad for an XDP ring */
+	if (rxq_count) {
+		xdp_count = 1;
+		if (!txt_count)
+			txt_count = 1;
+	}
 
 	qt_count = txt_count + rxq_count;
 	if (!qt_count)
@@ -1412,18 +1615,41 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	qt = nv->qt;
 
 	while (txt_count) {
+		u8 flags = FBNIC_RING_F_CTX | FBNIC_RING_F_STATS;
+
 		/* Configure Tx queue */
 		db = &uc_addr[FBNIC_QUEUE(txq_idx) + FBNIC_QUEUE_TWQ0_TAIL];
 
 		/* Assign Tx queue to netdev if applicable */
 		if (txq_count > 0) {
-			u8 flags = FBNIC_RING_F_CTX | FBNIC_RING_F_STATS;
 
 			fbnic_ring_init(&qt->sub0, db, txq_idx, flags);
 			fbn->tx[txq_idx] = &qt->sub0;
 			txq_count--;
 		} else {
 			fbnic_ring_init(&qt->sub0, db, 0,
+					FBNIC_RING_F_DISABLED);
+		}
+
+		/* Configure XDP queue */
+		db = &uc_addr[FBNIC_QUEUE(txq_idx) + FBNIC_QUEUE_TWQ1_TAIL];
+
+		/* Assign XDP queue to netdev if applicable
+		 *
+		 * The setup for this is in itself a bit different.
+		 * 1. We only need one XDP Tx queue per NAPI vector.
+		 * 2. We associate it to the first Rx queue index.
+		 * 3. The hardware side is associated based on the Tx Queue.
+		 * 4. The netdev queue is offset by FBNIC_MAX_TXQs.
+		 */
+		if (xdp_count > 0) {
+			unsigned int xdp_idx = FBNIC_MAX_TXQS + rxq_idx;
+
+			fbnic_ring_init(&qt->sub1, db, xdp_idx, flags);
+			fbn->tx[xdp_idx] = &qt->sub1;
+			xdp_count--;
+		} else {
+			fbnic_ring_init(&qt->sub1, db, 0,
 					FBNIC_RING_F_DISABLED);
 		}
 
@@ -1453,6 +1679,11 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 		fbnic_ring_init(&qt->cmpl, db, rxq_idx, FBNIC_RING_F_STATS);
 		fbn->rx[rxq_idx] = &qt->cmpl;
 
+		err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, rxq_idx,
+				       nv->napi.napi_id);
+		if (err)
+			goto free_ring_cur_qt;
+
 		/* Update Rx queue index */
 		rxt_count--;
 		rxq_idx += v_count;
@@ -1463,6 +1694,26 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 
 	return 0;
 
+	while (rxt_count < nv->rxt_count) {
+		qt--;
+
+		xdp_rxq_info_unreg(&qt->xdp_rxq);
+free_ring_cur_qt:
+		fbnic_remove_rx_ring(fbn, &qt->sub0);
+		fbnic_remove_rx_ring(fbn, &qt->sub1);
+		fbnic_remove_rx_ring(fbn, &qt->cmpl);
+		rxt_count++;
+	}
+	while (txt_count < nv->txt_count) {
+		qt--;
+
+		fbnic_remove_tx_ring(fbn, &qt->sub0);
+		fbnic_remove_xdp_ring(fbn, &qt->sub1);
+		fbnic_remove_tx_ring(fbn, &qt->cmpl);
+
+		txt_count++;
+	}
+	fbnic_napi_free_irq(fbd, nv);
 pp_destroy:
 	page_pool_destroy(nv->page_pool);
 napi_del:
@@ -1692,6 +1943,10 @@ static int fbnic_alloc_tx_qt_resources(struct fbnic_net *fbn,
 	if (err)
 		return err;
 
+	err = fbnic_alloc_tx_ring_resources(fbn, &qt->sub1);
+	if (err)
+		goto free_sub0;
+
 	err = fbnic_alloc_tx_ring_resources(fbn, &qt->cmpl);
 	if (err)
 		goto free_sub1;
@@ -1699,6 +1954,8 @@ static int fbnic_alloc_tx_qt_resources(struct fbnic_net *fbn,
 	return 0;
 
 free_sub1:
+	fbnic_free_ring_resources(dev, &qt->sub1);
+free_sub0:
 	fbnic_free_ring_resources(dev, &qt->sub0);
 	return err;
 }
@@ -1739,8 +1996,10 @@ static void fbnic_free_nv_resources(struct fbnic_net *fbn,
 	for (i = 0; i < nv->txt_count; i++)
 		fbnic_free_qt_resources(fbn, &nv->qt[i]);
 
-	for (j = 0; j < nv->rxt_count; j++, i++)
+	for (j = 0; j < nv->rxt_count; j++, i++) {
 		fbnic_free_qt_resources(fbn, &nv->qt[i]);
+		xdp_rxq_info_unreg_mem_model(&nv->qt[i].xdp_rxq);
+	}
 }
 
 static int fbnic_alloc_nv_resources(struct fbnic_net *fbn,
@@ -1752,19 +2011,32 @@ static int fbnic_alloc_nv_resources(struct fbnic_net *fbn,
 	for (i = 0; i < nv->txt_count; i++) {
 		err = fbnic_alloc_tx_qt_resources(fbn, &nv->qt[i]);
 		if (err)
-			goto free_resources;
+			goto free_qt_resources;
 	}
 
 	/* Allocate Rx Resources */
 	for (j = 0; j < nv->rxt_count; j++, i++) {
+		/* Register XDP memory model for completion queue */
+		err = xdp_reg_mem_model(&nv->qt[i].xdp_rxq.mem,
+					MEM_TYPE_PAGE_POOL,
+					nv->page_pool);
+		if (err)
+			goto xdp_unreg_mem_model;
+
 		err = fbnic_alloc_rx_qt_resources(fbn, &nv->qt[i]);
 		if (err)
-			goto free_resources;
+			goto xdp_unreg_cur_model;
 	}
 
 	return 0;
 
-free_resources:
+xdp_unreg_mem_model:
+	while (j-- && i--) {
+		fbnic_free_qt_resources(fbn, &nv->qt[i]);
+xdp_unreg_cur_model:
+		xdp_rxq_info_unreg_mem_model(&nv->qt[i].xdp_rxq);
+	}
+free_qt_resources:
 	while (i--)
 		fbnic_free_qt_resources(fbn, &nv->qt[i]);
 	return err;
@@ -1871,6 +2143,15 @@ static void fbnic_disable_twq0(struct fbnic_ring *txr)
 	fbnic_ring_wr32(txr, FBNIC_QUEUE_TWQ0_CTL, twq_ctl);
 }
 
+static void fbnic_disable_twq1(struct fbnic_ring *txr)
+{
+	u32 twq_ctl = fbnic_ring_rd32(txr, FBNIC_QUEUE_TWQ1_CTL);
+
+	twq_ctl &= ~FBNIC_QUEUE_TWQ_CTL_ENABLE;
+
+	fbnic_ring_wr32(txr, FBNIC_QUEUE_TWQ1_CTL, twq_ctl);
+}
+
 static void fbnic_disable_tcq(struct fbnic_ring *txr)
 {
 	fbnic_ring_wr32(txr, FBNIC_QUEUE_TCQ_CTL, 0);
@@ -1916,6 +2197,7 @@ void fbnic_disable(struct fbnic_net *fbn)
 			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			fbnic_disable_twq0(&qt->sub0);
+			fbnic_disable_twq1(&qt->sub1);
 			fbnic_disable_tcq(&qt->cmpl);
 		}
 
@@ -2030,6 +2312,8 @@ void fbnic_flush(struct fbnic_net *fbn)
 
 			/* Clean the work queues of unprocessed work */
 			fbnic_clean_twq0(nv, 0, &qt->sub0, true, qt->sub0.tail);
+			fbnic_clean_twq1(nv, false, &qt->sub1, true,
+					 qt->sub1.tail);
 
 			/* Reset completion queue descriptor ring */
 			memset(qt->cmpl.desc, 0, qt->cmpl.size);
@@ -2056,7 +2340,7 @@ void fbnic_flush(struct fbnic_net *fbn)
 			memset(qt->cmpl.desc, 0, qt->cmpl.size);
 
 			fbnic_put_pkt_buff(nv, qt->cmpl.pkt, 0);
-			qt->cmpl.pkt->buff.data_hard_start = NULL;
+			memset(qt->cmpl.pkt, 0, sizeof(struct fbnic_pkt_buff));
 		}
 	}
 }
@@ -2102,6 +2386,28 @@ static void fbnic_enable_twq0(struct fbnic_ring *twq)
 	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ0_SIZE, log_size & 0xf);
 
 	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ0_CTL, FBNIC_QUEUE_TWQ_CTL_ENABLE);
+}
+
+static void fbnic_enable_twq1(struct fbnic_ring *twq)
+{
+	u32 log_size = fls(twq->size_mask);
+
+	if (!twq->size_mask)
+		return;
+
+	/* Reset head/tail */
+	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ1_CTL, FBNIC_QUEUE_TWQ_CTL_RESET);
+	twq->tail = 0;
+	twq->head = 0;
+
+	/* Store descriptor ring address and size */
+	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ1_BAL, lower_32_bits(twq->dma));
+	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ1_BAH, upper_32_bits(twq->dma));
+
+	/* Write lower 4 bits of log size as 64K ring size is 0 */
+	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ1_SIZE, log_size & 0xf);
+
+	fbnic_ring_wr32(twq, FBNIC_QUEUE_TWQ1_CTL, FBNIC_QUEUE_TWQ_CTL_ENABLE);
 }
 
 static void fbnic_enable_tcq(struct fbnic_napi_vector *nv,
@@ -2232,13 +2538,22 @@ static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 {
 	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
 	u32 log_size = fls(rcq->size_mask);
-	u32 rcq_ctl;
+	u32 hds_thresh = fbn->hds_thresh;
+	u32 rcq_ctl = 0;
 
 	fbnic_config_drop_mode_rcq(nv, rcq);
 
-	rcq_ctl = FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PADLEN_MASK, FBNIC_RX_PAD) |
-		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_MAX_HDR_MASK,
-			      FBNIC_RX_MAX_HDR) |
+	/* Force lower bound on MAX_HEADER_BYTES. Below this, all frames should
+	 * be split at L4. It would also result in the frames being split at
+	 * L2/L3 depending on the frame size.
+	 */
+	if (fbn->hds_thresh < FBNIC_HDR_BYTES_MIN) {
+		rcq_ctl = FBNIC_QUEUE_RDE_CTL0_EN_HDR_SPLIT;
+		hds_thresh = FBNIC_HDR_BYTES_MIN;
+	}
+
+	rcq_ctl |= FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PADLEN_MASK, FBNIC_RX_PAD) |
+		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_MAX_HDR_MASK, hds_thresh) |
 		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PAYLD_OFF_MASK,
 			      FBNIC_RX_PAYLD_OFFSET) |
 		   FIELD_PREP(FBNIC_QUEUE_RDE_CTL1_PAYLD_PG_CL_MASK,
@@ -2280,6 +2595,7 @@ void fbnic_enable(struct fbnic_net *fbn)
 			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			fbnic_enable_twq0(&qt->sub0);
+			fbnic_enable_twq1(&qt->sub1);
 			fbnic_enable_tcq(nv, &qt->cmpl);
 		}
 

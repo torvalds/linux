@@ -2,6 +2,7 @@
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
 #include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <net/ipv6.h>
@@ -111,6 +112,20 @@ static const struct fbnic_stat fbnic_gstrings_hw_q_stats[] = {
 	 FBNIC_HW_RXB_DEQUEUE_STATS_LEN * FBNIC_RXB_DEQUEUE_INDICES + \
 	 FBNIC_HW_Q_STATS_LEN * FBNIC_MAX_QUEUES)
 
+#define FBNIC_QUEUE_STAT(name, stat) \
+	FBNIC_STAT_FIELDS(fbnic_ring, name, stat)
+
+static const struct fbnic_stat fbnic_gstrings_xdp_stats[] = {
+	FBNIC_QUEUE_STAT("xdp_tx_queue_%u_packets", stats.packets),
+	FBNIC_QUEUE_STAT("xdp_tx_queue_%u_bytes", stats.bytes),
+	FBNIC_QUEUE_STAT("xdp_tx_queue_%u_dropped", stats.dropped),
+};
+
+#define FBNIC_XDP_STATS_LEN ARRAY_SIZE(fbnic_gstrings_xdp_stats)
+
+#define FBNIC_STATS_LEN \
+	(FBNIC_HW_STATS_LEN + FBNIC_XDP_STATS_LEN * FBNIC_MAX_XDPQS)
+
 static void
 fbnic_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
@@ -160,6 +175,7 @@ static void fbnic_clone_swap_cfg(struct fbnic_net *orig,
 	swap(clone->num_rx_queues, orig->num_rx_queues);
 	swap(clone->num_tx_queues, orig->num_tx_queues);
 	swap(clone->num_napi, orig->num_napi);
+	swap(clone->hds_thresh, orig->hds_thresh);
 }
 
 static void fbnic_aggregate_vector_counters(struct fbnic_net *fbn,
@@ -277,15 +293,21 @@ fbnic_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 	ring->rx_mini_pending = fbn->hpq_size;
 	ring->rx_jumbo_pending = fbn->ppq_size;
 	ring->tx_pending = fbn->txq_size;
+
+	kernel_ring->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_ENABLED;
+	kernel_ring->hds_thresh_max = FBNIC_HDS_THRESH_MAX;
+	kernel_ring->hds_thresh = fbn->hds_thresh;
 }
 
 static void fbnic_set_rings(struct fbnic_net *fbn,
-			    struct ethtool_ringparam *ring)
+			    struct ethtool_ringparam *ring,
+			    struct kernel_ethtool_ringparam *kernel_ring)
 {
 	fbn->rcq_size = ring->rx_pending;
 	fbn->hpq_size = ring->rx_mini_pending;
 	fbn->ppq_size = ring->rx_jumbo_pending;
 	fbn->txq_size = ring->tx_pending;
+	fbn->hds_thresh = kernel_ring->hds_thresh;
 }
 
 static int
@@ -316,8 +338,24 @@ fbnic_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 		return -EINVAL;
 	}
 
+	if (kernel_ring->tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_DISABLED) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot disable TCP data split");
+		return -EINVAL;
+	}
+
+	/* If an XDP program is attached, we should check for potential frame
+	 * splitting. If the new HDS threshold can cause splitting, we should
+	 * only allow if the attached XDP program can handle frags.
+	 */
+	if (fbnic_check_split_frames(fbn->xdp_prog, netdev->mtu,
+				     kernel_ring->hds_thresh)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Use higher HDS threshold or multi-buf capable program");
+		return -EINVAL;
+	}
+
 	if (!netif_running(netdev)) {
-		fbnic_set_rings(fbn, ring);
+		fbnic_set_rings(fbn, ring, kernel_ring);
 		return 0;
 	}
 
@@ -325,7 +363,7 @@ fbnic_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 	if (!clone)
 		return -ENOMEM;
 
-	fbnic_set_rings(clone, ring);
+	fbnic_set_rings(clone, ring, kernel_ring);
 
 	err = fbnic_alloc_napi_vectors(clone);
 	if (err)
@@ -398,6 +436,16 @@ static void fbnic_get_rxb_dequeue_strings(u8 **data, unsigned int idx)
 		ethtool_sprintf(data, stat->string, idx);
 }
 
+static void fbnic_get_xdp_queue_strings(u8 **data, unsigned int idx)
+{
+	const struct fbnic_stat *stat;
+	int i;
+
+	stat = fbnic_gstrings_xdp_stats;
+	for (i = 0; i < FBNIC_XDP_STATS_LEN; i++, stat++)
+		ethtool_sprintf(data, stat->string, idx);
+}
+
 static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 {
 	const struct fbnic_stat *stat;
@@ -423,6 +471,9 @@ static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 			for (i = 0; i < FBNIC_HW_Q_STATS_LEN; i++, stat++)
 				ethtool_sprintf(&data, stat->string, idx);
 		}
+
+		for (i = 0; i < FBNIC_MAX_XDPQS; i++)
+			fbnic_get_xdp_queue_strings(&data, i);
 		break;
 	}
 }
@@ -437,6 +488,24 @@ static void fbnic_report_hw_stats(const struct fbnic_stat *stat,
 
 		stat++;
 		(*data)++;
+	}
+}
+
+static void fbnic_get_xdp_queue_stats(struct fbnic_ring *ring, u64 **data)
+{
+	const struct fbnic_stat *stat;
+	int i;
+
+	if (!ring) {
+		*data += FBNIC_XDP_STATS_LEN;
+		return;
+	}
+
+	stat = fbnic_gstrings_xdp_stats;
+	for (i = 0; i < FBNIC_XDP_STATS_LEN; i++, stat++, (*data)++) {
+		u8 *p = (u8 *)ring + stat->offset;
+
+		**data = *(u64 *)p;
 	}
 }
 
@@ -487,13 +556,16 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 				      FBNIC_HW_Q_STATS_LEN, &data);
 	}
 	spin_unlock(&fbd->hw_stats_lock);
+
+	for (i = 0; i < FBNIC_MAX_XDPQS; i++)
+		fbnic_get_xdp_queue_stats(fbn->tx[i + FBNIC_MAX_TXQS], &data);
 }
 
 static int fbnic_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return FBNIC_HW_STATS_LEN;
+		return FBNIC_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1678,6 +1750,8 @@ fbnic_get_rmon_stats(struct net_device *netdev,
 static const struct ethtool_ops fbnic_ethtool_ops = {
 	.supported_coalesce_params	= ETHTOOL_COALESCE_USECS |
 					  ETHTOOL_COALESCE_RX_MAX_FRAMES,
+	.supported_ring_params		= ETHTOOL_RING_USE_TCP_DATA_SPLIT |
+					  ETHTOOL_RING_USE_HDS_THRS,
 	.rxfh_max_num_contexts		= FBNIC_RPC_RSS_TBL_COUNT,
 	.get_drvinfo			= fbnic_get_drvinfo,
 	.get_regs_len			= fbnic_get_regs_len,
