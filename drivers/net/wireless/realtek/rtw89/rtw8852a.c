@@ -2109,10 +2109,17 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 {
 	u8 path;
 	u8 *rx_power = phy_ppdu->rssi;
+	u8 raw;
 
-	if (!status->signal)
-		status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A],
-							   rx_power[RF_PATH_B]));
+	if (!status->signal) {
+		if (phy_ppdu->to_self)
+			raw = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
+		else
+			raw = max(rx_power[RF_PATH_A], rx_power[RF_PATH_B]);
+
+		status->signal = RTW89_RSSI_RAW_TO_DBM(raw);
+	}
+
 	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
 		status->chains |= BIT(path);
 		status->chain_signal[path] = RTW89_RSSI_RAW_TO_DBM(rx_power[path]);
