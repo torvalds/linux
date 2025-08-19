@@ -193,7 +193,8 @@ root_gid=0
 dep_list=
 timestamp=
 cpio_list=$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)
-output="/dev/stdout"
+# gen_init_cpio writes to stdout by default
+output=""
 
 trap "rm -f $cpio_list" EXIT
 
@@ -207,7 +208,7 @@ while [ $# -gt 0 ]; do
 			shift
 			;;
 		"-o")	# generate cpio image named $1
-			output="$1"
+			output="-o $1"
 			shift
 			;;
 		"-u")	# map $1 to uid=0 (root)
@@ -246,4 +247,4 @@ done
 
 # If output_file is set we will generate cpio archive
 # we are careful to delete tmp files
-usr/gen_init_cpio $timestamp $cpio_list > $output
+usr/gen_init_cpio $output $timestamp $cpio_list
