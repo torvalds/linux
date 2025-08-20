@@ -1935,8 +1935,7 @@ static int gswip_gphy_fw_load(struct gswip_priv *priv, struct gswip_gphy_fw *gph
 		memcpy(fw_addr, fw->data, fw->size);
 	} else {
 		release_firmware(fw);
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed to alloc firmware memory\n");
+		return -ENOMEM;
 	}
 
 	release_firmware(fw);
