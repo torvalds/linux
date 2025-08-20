@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/intel,ixp4xx-udc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel IXP4xx SoC USB Device Controller (UDC)
+
+description: The IXP4xx SoCs has a full-speed USB Device
+  Controller with 16 endpoints and a built-in transceiver.
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+properties:
+  compatible:
+    const: intel,ixp4xx-udc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    usb@c800b000 {
+        compatible = "intel,ixp4xx-udc";
+        reg = <0xc800b000 0x1000>;
+        interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+    };
