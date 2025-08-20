@@ -25,6 +25,23 @@
 	clock-frequency = <25000000>;
 };
 
+&pinctrl {
+	/*
+	 * SCI0 Pin Configuration:
+	 * ------------------------
+	 * Signal     | Pin     | RZ/T2H (SW4) | RZ/N2H (DSW9)
+	 * -----------|---------|--------------|---------------
+	 * SCI0_RXD   | P27_4   | 5: ON, 6: OFF| 1: ON, 2: OFF
+	 * SCI0_TXD   | P27_5   | 7: ON, 8: OFF| 3: ON, 4: OFF
+	 */
+	sci0_pins: sci0-pins {
+		pinmux = <RZT2H_PORT_PINMUX(27, 4, 0x14)>,
+			 <RZT2H_PORT_PINMUX(27, 5, 0x14)>;
+	};
+};
+
 &sci0 {
+	pinctrl-0 = <&sci0_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
