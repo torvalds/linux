@@ -1668,4 +1668,45 @@ l0_%=:	r0 = 0;				\
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("dead jne branch due to disagreeing tnums")
+__success __log_level(2)
+__naked void jne_disagreeing_tnums(void *ctx)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	w0 = w0;			\
+	r0 >>= 30;			\
+	r0 <<= 30;			\
+	r1 = r0;			\
+	r1 += 1024;			\
+	if r1 != r0 goto +1;		\
+	r10 = 0;			\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("dead jeq branch due to disagreeing tnums")
+__success __log_level(2)
+__naked void jeq_disagreeing_tnums(void *ctx)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	w0 = w0;			\
+	r0 >>= 30;			\
+	r0 <<= 30;			\
+	r1 = r0;			\
+	r1 += 1024;			\
+	if r1 == r0 goto +1;		\
+	exit;				\
+	r10 = 0;			\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
