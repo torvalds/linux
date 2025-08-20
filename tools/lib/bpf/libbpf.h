@@ -24,8 +24,25 @@
 extern "C" {
 #endif
 
+/**
+ * @brief **libbpf_major_version()** provides the major version of libbpf.
+ * @return An integer, the major version number
+ */
 LIBBPF_API __u32 libbpf_major_version(void);
+
+/**
+ * @brief **libbpf_minor_version()** provides the minor version of libbpf.
+ * @return An integer, the minor version number
+ */
 LIBBPF_API __u32 libbpf_minor_version(void);
+
+/**
+ * @brief **libbpf_version_string()** provides the version of libbpf in a
+ * human-readable form, e.g., "v1.7".
+ * @return Pointer to a static string containing the version
+ *
+ * The format is *not* a part of a stable API and may change in the future.
+ */
 LIBBPF_API const char *libbpf_version_string(void);
 
 enum libbpf_errno {
@@ -49,6 +66,14 @@ enum libbpf_errno {
 	__LIBBPF_ERRNO__END,
 };
 
+/**
+ * @brief **libbpf_strerror()** converts the provided error code into a
+ * human-readable string.
+ * @param err The error code to convert
+ * @param buf Pointer to a buffer where the error message will be stored
+ * @param size The number of bytes in the buffer
+ * @return 0, on success; negative error code, otherwise
+ */
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
 /**
