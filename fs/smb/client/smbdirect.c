@@ -179,6 +179,8 @@ static int smbd_conn_upcall(
 	struct smbd_connection *info = id->context;
 	struct smbdirect_socket *sc = &info->socket;
 	const char *event_name = rdma_event_msg(event->event);
+	u8 peer_initiator_depth;
+	u8 peer_responder_resources;
 
 	log_rdma_event(INFO, "event=%s status=%d\n",
 		event_name, event->status);
@@ -204,6 +206,85 @@ static int smbd_conn_upcall(
 
 	case RDMA_CM_EVENT_ESTABLISHED:
 		log_rdma_event(INFO, "connected event=%s\n", event_name);
+
+		/*
+		 * Here we work around an inconsistency between
+		 * iWarp and other devices (at least rxe and irdma using RoCEv2)
+		 */
+		if (rdma_protocol_iwarp(id->device, id->port_num)) {
+			/*
+			 * iWarp devices report the peer's values
+			 * with the perspective of the peer here.
+			 * Tested with siw and irdma (in iwarp mode)
+			 * We need to change to our perspective here,
+			 * so we need to switch the values.
+			 */
+			peer_initiator_depth = event->param.conn.responder_resources;
+			peer_responder_resources = event->param.conn.initiator_depth;
+		} else {
+			/*
+			 * Non iWarp devices report the peer's values
+			 * already changed to our perspective here.
+			 * Tested with rxe and irdma (in roce mode).
+			 */
+			peer_initiator_depth = event->param.conn.initiator_depth;
+			peer_responder_resources = event->param.conn.responder_resources;
+		}
+		if (rdma_protocol_iwarp(id->device, id->port_num) &&
+		    event->param.conn.private_data_len == 8) {
+			/*
+			 * Legacy clients with only iWarp MPA v1 support
+			 * need a private blob in order to negotiate
+			 * the IRD/ORD values.
+			 */
+			const __be32 *ird_ord_hdr = event->param.conn.private_data;
+			u32 ird32 = be32_to_cpu(ird_ord_hdr[0]);
+			u32 ord32 = be32_to_cpu(ird_ord_hdr[1]);
+
+			/*
+			 * cifs.ko sends the legacy IRD/ORD negotiation
+			 * event if iWarp MPA v2 was used.
+			 *
+			 * Here we check that the values match and only
+			 * mark the client as legacy if they don't match.
+			 */
+			if ((u32)event->param.conn.initiator_depth != ird32 ||
+			    (u32)event->param.conn.responder_resources != ord32) {
+				/*
+				 * There are broken clients (old cifs.ko)
+				 * using little endian and also
+				 * struct rdma_conn_param only uses u8
+				 * for initiator_depth and responder_resources,
+				 * so we truncate the value to U8_MAX.
+				 *
+				 * smb_direct_accept_client() will then
+				 * do the real negotiation in order to
+				 * select the minimum between client and
+				 * server.
+				 */
+				ird32 = min_t(u32, ird32, U8_MAX);
+				ord32 = min_t(u32, ord32, U8_MAX);
+
+				info->legacy_iwarp = true;
+				peer_initiator_depth = (u8)ird32;
+				peer_responder_resources = (u8)ord32;
+			}
+		}
+
+		/*
+		 * negotiate the value by using the minimum
+		 * between client and server if the client provided
+		 * non 0 values.
+		 */
+		if (peer_initiator_depth != 0)
+			info->initiator_depth =
+					min_t(u8, info->initiator_depth,
+					      peer_initiator_depth);
+		if (peer_responder_resources != 0)
+			info->responder_resources =
+					min_t(u8, info->responder_resources,
+					      peer_responder_resources);
+
 		sc->status = SMBDIRECT_SOCKET_CONNECTED;
 		wake_up_interruptible(&info->status_wait);
 		break;
@@ -1551,13 +1632,16 @@ static struct smbd_connection *_smbd_get_connection(
 	struct ib_qp_init_attr qp_attr;
 	struct sockaddr_in *addr_in = (struct sockaddr_in *) dstaddr;
 	struct ib_port_immutable port_immutable;
-	u32 ird_ord_hdr[2];
+	__be32 ird_ord_hdr[2];
 
 	info = kzalloc(sizeof(struct smbd_connection), GFP_KERNEL);
 	if (!info)
 		return NULL;
 	sc = &info->socket;
 	sp = &sc->parameters;
+
+	info->initiator_depth = 1;
+	info->responder_resources = SMBD_CM_RESPONDER_RESOURCES;
 
 	sc->status = SMBDIRECT_SOCKET_CONNECTING;
 	rc = smbd_ia_open(info, dstaddr, port);
@@ -1639,22 +1723,22 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 	sc->ib.qp = sc->rdma.cm_id->qp;
 
-	memset(&conn_param, 0, sizeof(conn_param));
-	conn_param.initiator_depth = 0;
-
-	conn_param.responder_resources =
-		min(sc->ib.dev->attrs.max_qp_rd_atom,
-		    SMBD_CM_RESPONDER_RESOURCES);
-	info->responder_resources = conn_param.responder_resources;
+	info->responder_resources =
+		min_t(u8, info->responder_resources,
+		      sc->ib.dev->attrs.max_qp_rd_atom);
 	log_rdma_mr(INFO, "responder_resources=%d\n",
 		info->responder_resources);
+
+	memset(&conn_param, 0, sizeof(conn_param));
+	conn_param.initiator_depth = info->initiator_depth;
+	conn_param.responder_resources = info->responder_resources;
 
 	/* Need to send IRD/ORD in private data for iWARP */
 	sc->ib.dev->ops.get_port_immutable(
 		sc->ib.dev, sc->rdma.cm_id->port_num, &port_immutable);
 	if (port_immutable.core_cap_flags & RDMA_CORE_PORT_IWARP) {
-		ird_ord_hdr[0] = info->responder_resources;
-		ird_ord_hdr[1] = 1;
+		ird_ord_hdr[0] = cpu_to_be32(conn_param.responder_resources);
+		ird_ord_hdr[1] = cpu_to_be32(conn_param.initiator_depth);
 		conn_param.private_data = ird_ord_hdr;
 		conn_param.private_data_len = sizeof(ird_ord_hdr);
 	} else {
@@ -2121,6 +2205,12 @@ static int allocate_mr_list(struct smbd_connection *info)
 	atomic_set(&info->mr_used_count, 0);
 	init_waitqueue_head(&info->wait_for_mr_cleanup);
 	INIT_WORK(&info->mr_recovery_work, smbd_mr_recovery_work);
+
+	if (info->responder_resources == 0) {
+		log_rdma_mr(ERR, "responder_resources negotiated as 0\n");
+		return -EINVAL;
+	}
+
 	/* Allocate more MRs (2x) than hardware responder_resources */
 	for (i = 0; i < info->responder_resources * 2; i++) {
 		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
