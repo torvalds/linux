@@ -296,16 +296,16 @@ static int rzv2h_wdt_probe(struct platform_device *pdev)
 
 	priv->pclk = devm_clk_get_prepared(dev, "pclk");
 	if (IS_ERR(priv->pclk))
-		return dev_err_probe(dev, PTR_ERR(priv->pclk), "no pclk");
+		return dev_err_probe(dev, PTR_ERR(priv->pclk), "Failed to get pclk\n");
 
 	priv->oscclk = devm_clk_get_optional_prepared(dev, "oscclk");
 	if (IS_ERR(priv->oscclk))
-		return dev_err_probe(dev, PTR_ERR(priv->oscclk), "no oscclk");
+		return dev_err_probe(dev, PTR_ERR(priv->oscclk), "Failed to get oscclk\n");
 
 	priv->rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(priv->rstc))
 		return dev_err_probe(dev, PTR_ERR(priv->rstc),
-				     "failed to get cpg reset");
+				     "Failed to get cpg reset\n");
 
 	switch (priv->of_data->count_source) {
 	case COUNT_SOURCE_LOCO:
@@ -343,7 +343,7 @@ static int rzv2h_wdt_probe(struct platform_device *pdev)
 
 	ret = watchdog_init_timeout(&priv->wdev, 0, dev);
 	if (ret)
-		dev_warn(dev, "Specified timeout invalid, using default");
+		dev_warn(dev, "Specified timeout invalid, using default\n");
 
 	return devm_watchdog_register_device(dev, &priv->wdev);
 }
