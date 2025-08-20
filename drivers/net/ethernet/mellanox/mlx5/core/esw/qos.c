@@ -102,6 +102,8 @@ struct mlx5_esw_sched_node {
 	u8 level;
 	/* Valid only when this node represents a traffic class. */
 	u8 tc;
+	/* Valid only for a TC arbiter node or vport TC arbiter. */
+	u32 tc_bw[DEVLINK_RATE_TCS_MAX];
 };
 
 static void esw_qos_node_attach_to_parent(struct mlx5_esw_sched_node *node)
@@ -609,10 +611,7 @@ static void
 esw_qos_tc_arbiter_get_bw_shares(struct mlx5_esw_sched_node *tc_arbiter_node,
 				 u32 *tc_bw)
 {
-	struct mlx5_esw_sched_node *vports_tc_node;
-
-	list_for_each_entry(vports_tc_node, &tc_arbiter_node->children, entry)
-		tc_bw[vports_tc_node->tc] = vports_tc_node->bw_share;
+	memcpy(tc_bw, tc_arbiter_node->tc_bw, sizeof(tc_arbiter_node->tc_bw));
 }
 
 static void
@@ -629,6 +628,7 @@ esw_qos_set_tc_arbiter_bw_shares(struct mlx5_esw_sched_node *tc_arbiter_node,
 		u8 tc = vports_tc_node->tc;
 		u32 bw_share;
 
+		tc_arbiter_node->tc_bw[tc] = tc_bw[tc];
 		bw_share = tc_bw[tc] * fw_max_bw_share;
 		bw_share = esw_qos_calc_bw_share(bw_share, divider,
 						 fw_max_bw_share);
@@ -1060,6 +1060,7 @@ static void esw_qos_vport_disable(struct mlx5_vport *vport, struct netlink_ext_a
 		esw_qos_vport_tc_disable(vport, extack);
 
 	vport_node->bw_share = 0;
+	memset(vport_node->tc_bw, 0, sizeof(vport_node->tc_bw));
 	list_del_init(&vport_node->entry);
 	esw_qos_normalize_min_rate(vport_node->esw, vport_node->parent, extack);
 
@@ -1231,8 +1232,9 @@ static int esw_qos_vport_update(struct mlx5_vport *vport,
 				struct mlx5_esw_sched_node *parent,
 				struct netlink_ext_ack *extack)
 {
-	struct mlx5_esw_sched_node *curr_parent = vport->qos.sched_node->parent;
-	enum sched_node_type curr_type = vport->qos.sched_node->type;
+	struct mlx5_esw_sched_node *vport_node = vport->qos.sched_node;
+	struct mlx5_esw_sched_node *curr_parent = vport_node->parent;
+	enum sched_node_type curr_type = vport_node->type;
 	u32 curr_tc_bw[DEVLINK_RATE_TCS_MAX] = {0};
 	int err;
 
@@ -1244,10 +1246,8 @@ static int esw_qos_vport_update(struct mlx5_vport *vport,
 	if (err)
 		return err;
 
-	if (curr_type == SCHED_NODE_TYPE_TC_ARBITER_TSAR && curr_type == type) {
-		esw_qos_tc_arbiter_get_bw_shares(vport->qos.sched_node,
-						 curr_tc_bw);
-	}
+	if (curr_type == SCHED_NODE_TYPE_TC_ARBITER_TSAR && curr_type == type)
+		esw_qos_tc_arbiter_get_bw_shares(vport_node, curr_tc_bw);
 
 	esw_qos_vport_disable(vport, extack);
 
@@ -1258,8 +1258,8 @@ static int esw_qos_vport_update(struct mlx5_vport *vport,
 	}
 
 	if (curr_type == SCHED_NODE_TYPE_TC_ARBITER_TSAR && curr_type == type) {
-		esw_qos_set_tc_arbiter_bw_shares(vport->qos.sched_node,
-						 curr_tc_bw, extack);
+		esw_qos_set_tc_arbiter_bw_shares(vport_node, curr_tc_bw,
+						 extack);
 	}
 
 	return err;
