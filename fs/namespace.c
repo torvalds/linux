@@ -3652,10 +3652,13 @@ static int do_move_mount_old(struct path *path, const char *old_name)
 /*
  * add a mount into a namespace's mount tree
  */
-static int do_add_mount(struct mount *newmnt, struct mountpoint *mp,
-			const struct path *path, int mnt_flags)
+static int do_add_mount(struct mount *newmnt, const struct pinned_mountpoint *mp,
+			int mnt_flags)
 {
-	struct mount *parent = real_mount(path->mnt);
+	struct mount *parent = mp->parent;
+
+	if (IS_ERR(parent))
+		return PTR_ERR(parent);
 
 	mnt_flags &= ~MNT_INTERNAL_FLAGS;
 
@@ -3669,14 +3672,15 @@ static int do_add_mount(struct mount *newmnt, struct mountpoint *mp,
 	}
 
 	/* Refuse the same filesystem on the same mount point */
-	if (path->mnt->mnt_sb == newmnt->mnt.mnt_sb && path_mounted(path))
+	if (parent->mnt.mnt_sb == newmnt->mnt.mnt_sb &&
+	    parent->mnt.mnt_root == mp->mp->m_dentry)
 		return -EBUSY;
 
 	if (d_is_symlink(newmnt->mnt.mnt_root))
 		return -EINVAL;
 
 	newmnt->mnt.mnt_flags = mnt_flags;
-	return graft_tree(newmnt, parent, mp);
+	return graft_tree(newmnt, parent, mp->mp);
 }
 
 static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags);
@@ -3706,14 +3710,9 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 	mnt_warn_timestamp_expiry(mountpoint, mnt);
 
 	LOCK_MOUNT(mp, mountpoint);
-	if (IS_ERR(mp.parent)) {
-		return PTR_ERR(mp.parent);
-	} else {
-		error = do_add_mount(real_mount(mnt), mp.mp,
-				     mountpoint, mnt_flags);
-		if (!error)
-			retain_and_null_ptr(mnt); // consumed on success
-	}
+	error = do_add_mount(real_mount(mnt), &mp, mnt_flags);
+	if (!error)
+		retain_and_null_ptr(mnt); // consumed on success
 	return error;
 }
 
@@ -3819,11 +3818,10 @@ int finish_automount(struct vfsmount *__m, const struct path *path)
 	 * got", not "try to mount it on top".
 	 */
 	LOCK_MOUNT_EXACT(mp, path);
-	if (IS_ERR(mp.parent))
-		return mp.parent == ERR_PTR(-EBUSY) ? 0 : PTR_ERR(mp.parent);
+	if (mp.parent == ERR_PTR(-EBUSY))
+		return 0;
 
-	err = do_add_mount(mnt, mp.mp, path,
-			   path->mnt->mnt_flags | MNT_SHRINKABLE);
+	err = do_add_mount(mnt, &mp, path->mnt->mnt_flags | MNT_SHRINKABLE);
 	if (likely(!err))
 		retain_and_null_ptr(m);
 	return err;
