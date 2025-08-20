@@ -3433,7 +3433,7 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
 
 /**
  * can_move_mount_beneath - check that we can mount beneath the top mount
- * @from: mount to mount beneath
+ * @mnt_from: mount we are trying to move
  * @to:   mount under which to mount
  * @mp:   mountpoint of @to
  *
@@ -3443,7 +3443,7 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  *   root or the rootfs of the namespace.
  * - Make sure that the caller can unmount the topmost mount ensuring
  *   that the caller could reveal the underlying mountpoint.
- * - Ensure that nothing has been mounted on top of @from before we
+ * - Ensure that nothing has been mounted on top of @mnt_from before we
  *   grabbed @namespace_sem to avoid creating pointless shadow mounts.
  * - Prevent mounting beneath a mount if the propagation relationship
  *   between the source mount, parent mount, and top mount would lead to
@@ -3452,12 +3452,11 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  * Context: This function expects namespace_lock() to be held.
  * Return: On success 0, and on error a negative error code is returned.
  */
-static int can_move_mount_beneath(const struct path *from,
+static int can_move_mount_beneath(struct mount *mnt_from,
 				  const struct path *to,
 				  const struct mountpoint *mp)
 {
-	struct mount *mnt_from = real_mount(from->mnt),
-		     *mnt_to = real_mount(to->mnt),
+	struct mount *mnt_to = real_mount(to->mnt),
 		     *parent_mnt_to = mnt_to->mnt_parent;
 
 	if (!mnt_has_parent(mnt_to))
@@ -3470,7 +3469,7 @@ static int can_move_mount_beneath(const struct path *from,
 		return -EINVAL;
 
 	/* Avoid creating shadow mounts during mount propagation. */
-	if (path_overmounted(from))
+	if (mnt_from->overmount)
 		return -EINVAL;
 
 	/*
@@ -3565,16 +3564,21 @@ static int do_move_mount(struct path *old_path,
 			 struct path *new_path, enum mnt_tree_flags_t flags)
 {
 	struct mount *p;
-	struct mount *old;
+	struct mount *old = real_mount(old_path->mnt);
 	struct pinned_mountpoint mp;
 	int err;
 	bool beneath = flags & MNT_TREE_BENEATH;
+
+	if (!path_mounted(old_path))
+		return -EINVAL;
+
+	if (d_is_dir(new_path->dentry) != d_is_dir(old_path->dentry))
+		return -EINVAL;
 
 	err = do_lock_mount(new_path, &mp, beneath);
 	if (err)
 		return err;
 
-	old = real_mount(old_path->mnt);
 	p = real_mount(new_path->mnt);
 
 	err = -EINVAL;
@@ -3611,15 +3615,8 @@ static int do_move_mount(struct path *old_path,
 			goto out;
 	}
 
-	if (!path_mounted(old_path))
-		goto out;
-
-	if (d_is_dir(new_path->dentry) !=
-	    d_is_dir(old_path->dentry))
-		goto out;
-
 	if (beneath) {
-		err = can_move_mount_beneath(old_path, new_path, mp.mp);
+		err = can_move_mount_beneath(old, new_path, mp.mp);
 		if (err)
 			goto out;
 
