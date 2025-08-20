@@ -818,7 +818,7 @@ static u32 ufs_mtk_mcq_get_irq(struct ufs_hba *hba, unsigned int cpu)
 	unsigned int q_index;
 
 	q_index = map->mq_map[cpu];
-	if (q_index > nr) {
+	if (q_index >= nr) {
 		dev_err(hba->dev, "hwq index %d exceed %d\n",
 			q_index, nr);
 		return MTK_MCQ_INVALID_IRQ;
