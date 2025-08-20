@@ -40,6 +40,18 @@
 		regulator-always-on;
 	};
 
+#if SD0_SD
+	vqmmc_sdhi0: regulator-vqmmc-sdhi0 {
+		compatible = "regulator-gpio";
+		regulator-name = "SDHI0 VqmmC";
+		gpios = <&pinctrl RZT2H_GPIO(2, 6) GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios-states = <0>;
+		states = <3300000 0>, <1800000 1>;
+	};
+#endif
+
 #if SD1_MICRO_SD
 	vccq_sdhi1: regulator-vccq-sdhi1 {
 		compatible = "regulator-gpio";
@@ -107,6 +119,31 @@
 		};
 	};
 
+#if SD0_SD
+	sdhi0-pwen-hog {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(2, 5) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SD0_PWEN";
+	};
+#endif
+
+	sdhi0_sd_pins: sd0-sd-group {
+		data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 2, 0x29)>, /* SD0_DATA0 */
+				 <RZT2H_PORT_PINMUX(12, 3, 0x29)>, /* SD0_DATA1 */
+				 <RZT2H_PORT_PINMUX(12, 4, 0x29)>, /* SD0_DATA2 */
+				 <RZT2H_PORT_PINMUX(12, 5, 0x29)>; /* SD0_DATA3 */
+		};
+
+		ctrl-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
+				 <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
+				 <RZT2H_PORT_PINMUX(22, 5, 0x29)>, /* SD0_CD */
+				 <RZT2H_PORT_PINMUX(22, 6, 0x29)>; /* SD0_WP */
+		};
+	};
+
 #if SD1_MICRO_SD
 	sdhi1-pwen-hog {
 		gpio-hog;
@@ -149,6 +186,20 @@
 	non-removable;
 	mmc-hs200-1_8v;
 	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+#endif
+
+#if SD0_SD
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_sd_pins>;
+	pinctrl-1 = <&sdhi0_sd_pins>;
+	pinctrl-names = "default", "state_uhs";
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vqmmc_sdhi0>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 #endif

@@ -15,8 +15,17 @@
  * for eMMC.
  * DSW5[1] = ON; DSW5[2] = ON
  * DSW17[5] = OFF; DSW17[6] = ON
+ *
+ * To enable SD card and disable eMMC on SDHI0 disable the below macro
+ * and set the below switch setting:
+ * DSW5[1] = OFF; DSW5[2] = ON
+ * P22_6 = SD0_WP; DSW15[1] = OFF; DSW15[2] = ON
+ * P22_5 = SD0_CD; DSW15[3] = OFF; DSW15[4] = ON
+ * P02_6 = SD0_IOVS; DSW17[5] = OFF; DSW17[6] = ON
+ * P02_5 = SD0_PWEN; DSW17[7] = OFF; DSW17[8] = ON
  */
 #define SD0_EMMC       1
+#define SD0_SD		(!SD0_EMMC)
 
 /*
  * P17_4 = SD1_CD; DSW5[3] = ON; DSW19[1] = OFF; DSW19[2] = ON

@@ -14,8 +14,13 @@
  * Lets by default enable the eMMC, note we need the below SW settings
  * for eMMC.
  * SW2[1] = ON; SW2[2] = ON
+ *
+ * To enable SD card and disable eMMC on SDHI0 disable the below macro
+ * and set the below switch setting:
+ * SW2[1] = OFF; SW2[2] = ON
  */
 #define SD0_EMMC	1
+#define SD0_SD		(!SD0_EMMC)
 
 /*
  * P17_4 = SD1_CD; SW2[3] = ON
