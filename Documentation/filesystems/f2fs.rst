@@ -944,14 +944,16 @@ compression enabled files (refer to "Compression implementation" section for how
 enable compression on a regular inode).
 
 1) compress_mode=fs
-This is the default option. f2fs does automatic compression in the writeback of the
-compression enabled files.
+
+   This is the default option. f2fs does automatic compression in the writeback of the
+   compression enabled files.
 
 2) compress_mode=user
-This disables the automatic compression and gives the user discretion of choosing the
-target file and the timing. The user can do manual compression/decompression on the
-compression enabled files using F2FS_IOC_DECOMPRESS_FILE and F2FS_IOC_COMPRESS_FILE
-ioctls like the below.
+
+   This disables the automatic compression and gives the user discretion of choosing the
+   target file and the timing. The user can do manual compression/decompression on the
+   compression enabled files using F2FS_IOC_DECOMPRESS_FILE and F2FS_IOC_COMPRESS_FILE
+   ioctls like the below.
 
 To decompress a file::
 
