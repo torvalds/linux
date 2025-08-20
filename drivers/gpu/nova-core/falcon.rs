@@ -7,8 +7,8 @@ use hal::FalconHal;
 use kernel::bindings;
 use kernel::device;
 use kernel::prelude::*;
+use kernel::sync::aref::ARef;
 use kernel::time::Delta;
-use kernel::types::ARef;
 
 use crate::dma::DmaObject;
 use crate::driver::Bar0;
