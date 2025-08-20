@@ -1308,6 +1308,12 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		if (vdinf->vd_state == MPI3_DEVICE0_VD_STATE_OFFLINE)
 			tgtdev->is_hidden = 1;
 		tgtdev->non_stl = 1;
+		tgtdev->dev_spec.vd_inf.reset_to =
+			max_t(u8, vdinf->vd_reset_to,
+			      MPI3MR_INTADMCMD_TIMEOUT);
+		tgtdev->dev_spec.vd_inf.abort_to =
+			max_t(u8, vdinf->vd_abort_to,
+			      MPI3MR_INTADMCMD_TIMEOUT);
 		tgtdev->dev_spec.vd_inf.tg_id = vdinf_io_throttle_group;
 		tgtdev->dev_spec.vd_inf.tg_high =
 		    le16_to_cpu(vdinf->io_throttle_group_high) * 2048;
@@ -3917,11 +3923,13 @@ int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 	if (scsi_tgt_priv_data)
 		atomic_inc(&scsi_tgt_priv_data->block_io);
 
-	if (tgtdev && (tgtdev->dev_type == MPI3_DEVICE_DEVFORM_PCIE)) {
-		if (cmd_priv && tgtdev->dev_spec.pcie_inf.abort_to)
-			timeout = tgtdev->dev_spec.pcie_inf.abort_to;
-		else if (!cmd_priv && tgtdev->dev_spec.pcie_inf.reset_to)
-			timeout = tgtdev->dev_spec.pcie_inf.reset_to;
+	if (tgtdev) {
+		if (tgtdev->dev_type == MPI3_DEVICE_DEVFORM_PCIE)
+			timeout = cmd_priv ? tgtdev->dev_spec.pcie_inf.abort_to
+					   : tgtdev->dev_spec.pcie_inf.reset_to;
+		else if (tgtdev->dev_type == MPI3_DEVICE_DEVFORM_VD)
+			timeout = cmd_priv ? tgtdev->dev_spec.vd_inf.abort_to
+					   : tgtdev->dev_spec.vd_inf.reset_to;
 	}
 
 	init_completion(&drv_cmd->done);
