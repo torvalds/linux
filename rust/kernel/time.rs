@@ -25,6 +25,7 @@
 //! C header: [`include/linux/ktime.h`](srctree/include/linux/ktime.h).
 
 use core::marker::PhantomData;
+use core::ops;
 
 pub mod delay;
 pub mod hrtimer;
@@ -224,7 +225,7 @@ impl<C: ClockSource> Instant<C> {
     }
 }
 
-impl<C: ClockSource> core::ops::Sub for Instant<C> {
+impl<C: ClockSource> ops::Sub for Instant<C> {
     type Output = Delta;
 
     // By the type invariant, it never overflows.
@@ -232,6 +233,46 @@ impl<C: ClockSource> core::ops::Sub for Instant<C> {
     fn sub(self, other: Instant<C>) -> Delta {
         Delta {
             nanos: self.inner - other.inner,
+        }
+    }
+}
+
+impl<T: ClockSource> ops::Add<Delta> for Instant<T> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, rhs: Delta) -> Self::Output {
+        // INVARIANT: With arithmetic over/underflow checks enabled, this will panic if we overflow
+        // (e.g. go above `KTIME_MAX`)
+        let res = self.inner + rhs.nanos;
+
+        // INVARIANT: With overflow checks enabled, we verify here that the value is >= 0
+        #[cfg(CONFIG_RUST_OVERFLOW_CHECKS)]
+        assert!(res >= 0);
+
+        Self {
+            inner: res,
+            _c: PhantomData,
+        }
+    }
+}
+
+impl<T: ClockSource> ops::Sub<Delta> for Instant<T> {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, rhs: Delta) -> Self::Output {
+        // INVARIANT: With arithmetic over/underflow checks enabled, this will panic if we overflow
+        // (e.g. go above `KTIME_MAX`)
+        let res = self.inner - rhs.nanos;
+
+        // INVARIANT: With overflow checks enabled, we verify here that the value is >= 0
+        #[cfg(CONFIG_RUST_OVERFLOW_CHECKS)]
+        assert!(res >= 0);
+
+        Self {
+            inner: res,
+            _c: PhantomData,
         }
     }
 }
