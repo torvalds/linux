@@ -2696,10 +2696,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 				 child->mnt_mountpoint);
 		commit_tree(child);
 		if (q) {
+			struct mount *r = topmost_overmount(child);
 			struct mountpoint *mp = root.mp;
-			struct mount *r = child;
-			while (unlikely(r->overmount))
-				r = r->overmount;
+
 			if (unlikely(shorter) && child != source_mnt)
 				mp = shorter;
 			mnt_change_mountpoint(r, mp, q);
@@ -6168,9 +6167,7 @@ bool current_chrooted(void)
 
 	guard(mount_locked_reader)();
 
-	root = current->nsproxy->mnt_ns->root;
-	while (unlikely(root->overmount))
-		root = root->overmount;
+	root = topmost_overmount(current->nsproxy->mnt_ns->root);
 
 	return fs_root.mnt != &root->mnt || !path_mounted(&fs_root);
 }

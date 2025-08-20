@@ -235,4 +235,11 @@ static inline void mnt_notify_add(struct mount *m)
 }
 #endif
 
+static inline struct mount *topmost_overmount(struct mount *m)
+{
+	while (m->overmount)
+		m = m->overmount;
+	return m;
+}
+
 struct mnt_namespace *mnt_ns_from_dentry(struct dentry *dentry);
