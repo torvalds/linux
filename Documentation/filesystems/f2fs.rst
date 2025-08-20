@@ -822,11 +822,13 @@ ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
 extension list        "                        "
 
 -- buffered io
+------------------------------------------------------------------
 N/A                   COLD_DATA                WRITE_LIFE_EXTREME
 N/A                   HOT_DATA                 WRITE_LIFE_SHORT
 N/A                   WARM_DATA                WRITE_LIFE_NOT_SET
 
 -- direct io
+------------------------------------------------------------------
 WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
 WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
 WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
