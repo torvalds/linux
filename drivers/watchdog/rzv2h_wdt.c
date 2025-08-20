@@ -21,11 +21,17 @@
 #define WDTSR			0x04	/* WDT Status Register RW, 16 */
 #define WDTRCR			0x06	/* WDT Reset Control Register RW, 8  */
 
+/* This register is only available on RZ/T2H and RZ/N2H SoCs */
+#define WDTDCR			0x00	/* WDT Debug Control Register RW, 32  */
+
 #define WDTCR_TOPS_1024		0x00
+#define WDTCR_TOPS_4096		0x01
 #define WDTCR_TOPS_16384	0x03
 
 #define WDTCR_CKS_CLK_1		0x00
+#define WDTCR_CKS_CLK_4		0x10
 #define WDTCR_CKS_CLK_256	0x50
+#define WDTCR_CKS_CLK_8192	0x80
 
 #define WDTCR_RPES_0		0x300
 #define WDTCR_RPES_75		0x000
@@ -34,6 +40,8 @@
 #define WDTCR_RPSS_100		0x3000
 
 #define WDTRCR_RSTIRQS		BIT(7)
+
+#define WDTDCR_WDTSTOPCTRL	BIT(0)
 
 #define WDT_DEFAULT_TIMEOUT	60U
 
@@ -54,10 +62,12 @@ struct rzv2h_of_data {
 	u8 tops;
 	u16 timeout_cycles;
 	enum rzv2h_wdt_count_source count_source;
+	bool wdtdcr;
 };
 
 struct rzv2h_wdt_priv {
 	void __iomem *base;
+	void __iomem *wdtdcr;
 	struct clk *pclk;
 	struct clk *oscclk;
 	struct reset_control *rstc;
@@ -77,6 +87,20 @@ static int rzv2h_wdt_ping(struct watchdog_device *wdev)
 	writeb(0xFF, priv->base + WDTRR);
 
 	return 0;
+}
+
+static void rzt2h_wdt_wdtdcr_count_stop(struct rzv2h_wdt_priv *priv)
+{
+	u32 reg = readl(priv->wdtdcr + WDTDCR);
+
+	writel(reg | WDTDCR_WDTSTOPCTRL, priv->wdtdcr + WDTDCR);
+}
+
+static void rzt2h_wdt_wdtdcr_count_start(struct rzv2h_wdt_priv *priv)
+{
+	u32 reg = readl(priv->wdtdcr + WDTDCR);
+
+	writel(reg & ~WDTDCR_WDTSTOPCTRL, priv->wdtdcr + WDTDCR);
 }
 
 static void rzv2h_wdt_setup(struct watchdog_device *wdev, u16 wdtcr)
@@ -114,13 +138,20 @@ static int rzv2h_wdt_start(struct watchdog_device *wdev)
 
 	/*
 	 * WDTCR
-	 * - CKS[7:4] - Clock Division Ratio Select - 0101b: oscclk/256
+	 * - CKS[7:4] - Clock Division Ratio Select
+	 *     - 0101b: oscclk/256 for RZ/V2H(P)
+	 *     - 1000b: pclkl/8192 for RZ/T2H
 	 * - RPSS[13:12] - Window Start Position Select - 11b: 100%
 	 * - RPES[9:8] - Window End Position Select - 11b: 0%
-	 * - TOPS[1:0] - Timeout Period Select - 11b: 16384 cycles (3FFFh)
+	 * - TOPS[1:0] - Timeout Period Select
+	 *     - 11b: 16384 cycles (3FFFh) for RZ/V2H(P)
+	 *     - 01b: 4096 cycles (0FFFh) for RZ/T2H
 	 */
 	rzv2h_wdt_setup(wdev, of_data->cks_max | WDTCR_RPSS_100 |
 			WDTCR_RPES_0 | of_data->tops);
+
+	if (priv->of_data->wdtdcr)
+		rzt2h_wdt_wdtdcr_count_start(priv);
 
 	/*
 	 * Down counting starts after writing the sequence 00h -> FFh to the
@@ -139,6 +170,9 @@ static int rzv2h_wdt_stop(struct watchdog_device *wdev)
 	ret = reset_control_assert(priv->rstc);
 	if (ret)
 		return ret;
+
+	if (priv->of_data->wdtdcr)
+		rzt2h_wdt_wdtdcr_count_stop(priv);
 
 	ret = pm_runtime_put(wdev->parent);
 	if (ret < 0)
@@ -192,13 +226,18 @@ static int rzv2h_wdt_restart(struct watchdog_device *wdev,
 
 	/*
 	 * WDTCR
-	 * - CKS[7:4] - Clock Division Ratio Select - 0000b: oscclk/1
+	 * - CKS[7:4] - Clock Division Ratio Select
+	 *     - 0000b: oscclk/1 for RZ/V2H(P)
+	 *     - 0100b: pclkl/4 for RZ/T2H
 	 * - RPSS[13:12] - Window Start Position Select - 00b: 25%
 	 * - RPES[9:8] - Window End Position Select - 00b: 75%
 	 * - TOPS[1:0] - Timeout Period Select - 00b: 1024 cycles (03FFh)
 	 */
 	rzv2h_wdt_setup(wdev, priv->of_data->cks_min | WDTCR_RPSS_25 |
 			WDTCR_RPES_75 | WDTCR_TOPS_1024);
+
+	if (priv->of_data->wdtdcr)
+		rzt2h_wdt_wdtdcr_count_start(priv);
 
 	rzv2h_wdt_ping(wdev);
 
@@ -215,6 +254,28 @@ static const struct watchdog_ops rzv2h_wdt_ops = {
 	.ping = rzv2h_wdt_ping,
 	.restart = rzv2h_wdt_restart,
 };
+
+static int rzt2h_wdt_wdtdcr_init(struct platform_device *pdev,
+				 struct rzv2h_wdt_priv *priv)
+{
+	int ret;
+
+	priv->wdtdcr = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(priv->wdtdcr))
+		return PTR_ERR(priv->wdtdcr);
+
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret)
+		return ret;
+
+	rzt2h_wdt_wdtdcr_count_stop(priv);
+
+	ret = pm_runtime_put(&pdev->dev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 static int rzv2h_wdt_probe(struct platform_device *pdev)
 {
@@ -265,6 +326,12 @@ static int rzv2h_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (priv->of_data->wdtdcr) {
+		ret = rzt2h_wdt_wdtdcr_init(pdev, priv);
+		if (ret)
+			return dev_err_probe(dev, ret, "WDTDCR init failed\n");
+	}
+
 	priv->wdev.min_timeout = 1;
 	priv->wdev.timeout = WDT_DEFAULT_TIMEOUT;
 	priv->wdev.info = &rzv2h_wdt_ident;
@@ -281,6 +348,16 @@ static int rzv2h_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, &priv->wdev);
 }
 
+static const struct rzv2h_of_data rzt2h_wdt_of_data = {
+	.cks_min = WDTCR_CKS_CLK_4,
+	.cks_max = WDTCR_CKS_CLK_8192,
+	.cks_div = 8192,
+	.tops = WDTCR_TOPS_4096,
+	.timeout_cycles = 4096,
+	.count_source = COUNT_SOURCE_PCLK,
+	.wdtdcr = true,
+};
+
 static const struct rzv2h_of_data rzv2h_wdt_of_data = {
 	.cks_min = WDTCR_CKS_CLK_1,
 	.cks_max = WDTCR_CKS_CLK_256,
@@ -292,6 +369,7 @@ static const struct rzv2h_of_data rzv2h_wdt_of_data = {
 
 static const struct of_device_id rzv2h_wdt_ids[] = {
 	{ .compatible = "renesas,r9a09g057-wdt", .data = &rzv2h_wdt_of_data },
+	{ .compatible = "renesas,r9a09g077-wdt", .data = &rzt2h_wdt_of_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rzv2h_wdt_ids);
