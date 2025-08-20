@@ -13,4 +13,95 @@
 / {
 	model = "Renesas RZ/N2H EVK Board based on r9a09g087m44";
 	compatible = "renesas,rzn2h-evk", "renesas,r9a09g087m44", "renesas,r9a09g087";
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-3 {
+			/* DSW18-7: ON, DSW18-8: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(31, 6) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <4>;
+		};
+
+		led-4 {
+			/* DSW18-9: ON, DSW18-10: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(18, 1) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <5>;
+		};
+
+		led-5 {
+			/* DSW18-1: ON, DSW18-2: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(22, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <6>;
+		};
+
+		led-6 {
+			/* DSW18-3: ON, DSW18-4: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <7>;
+		};
+
+		led-7 {
+			/*
+			 * DSW18-5: ON, DSW18-6: OFF
+			 * DSW19-3: OFF, DSW19-4: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(14, 3) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <8>;
+		};
+
+		led-8 {
+			/*
+			 * USER_LED0
+			 * DSW15-8: OFF, DSW15-9: OFF, DSW15-10: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(14, 6) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <0>;
+		};
+
+		led-9 {
+			/*
+			 * USER_LED1
+			 * DSW15-5: OFF, DSW15-6: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(14, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <1>;
+		};
+
+		led-10 {
+			/*
+			 * USER_LED2
+			 * DSW17-3: OFF, DSW17-4: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(2, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <2>;
+		};
+
+		led-11 {
+			/*
+			 * USER_LED3
+			 * DSW17-1: OFF, DSW17-2: ON
+			 */
+			gpios = <&pinctrl RZT2H_GPIO(3, 0) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <3>;
+		};
+	};
 };
