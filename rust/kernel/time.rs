@@ -287,6 +287,78 @@ pub struct Delta {
     nanos: i64,
 }
 
+impl ops::Add for Delta {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            nanos: self.nanos + rhs.nanos,
+        }
+    }
+}
+
+impl ops::AddAssign for Delta {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        self.nanos += rhs.nanos;
+    }
+}
+
+impl ops::Sub for Delta {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            nanos: self.nanos - rhs.nanos,
+        }
+    }
+}
+
+impl ops::SubAssign for Delta {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        self.nanos -= rhs.nanos;
+    }
+}
+
+impl ops::Mul<i64> for Delta {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, rhs: i64) -> Self::Output {
+        Self {
+            nanos: self.nanos * rhs,
+        }
+    }
+}
+
+impl ops::MulAssign<i64> for Delta {
+    #[inline]
+    fn mul_assign(&mut self, rhs: i64) {
+        self.nanos *= rhs;
+    }
+}
+
+impl ops::Div for Delta {
+    type Output = i64;
+
+    #[inline]
+    fn div(self, rhs: Self) -> Self::Output {
+        #[cfg(CONFIG_64BIT)]
+        {
+            self.nanos / rhs.nanos
+        }
+
+        #[cfg(not(CONFIG_64BIT))]
+        {
+            // SAFETY: This function is always safe to call regardless of the input values
+            unsafe { bindings::div64_s64(self.nanos, rhs.nanos) }
+        }
+    }
+}
+
 impl Delta {
     /// A span of time equal to zero.
     pub const ZERO: Self = Self { nanos: 0 };
@@ -373,6 +445,32 @@ impl Delta {
         // SAFETY: It is always safe to call `ktime_to_ms()` with any value.
         unsafe {
             bindings::ktime_to_ms(self.as_nanos())
+        }
+    }
+
+    /// Return `self % dividend` where `dividend` is in nanoseconds.
+    ///
+    /// The kernel doesn't have any emulation for `s64 % s64` on 32 bit platforms, so this is
+    /// limited to 32 bit dividends.
+    #[inline]
+    pub fn rem_nanos(self, dividend: i32) -> Self {
+        #[cfg(CONFIG_64BIT)]
+        {
+            Self {
+                nanos: self.as_nanos() % i64::from(dividend),
+            }
+        }
+
+        #[cfg(not(CONFIG_64BIT))]
+        {
+            let mut rem = 0;
+
+            // SAFETY: `rem` is in the stack, so we can always provide a valid pointer to it.
+            unsafe { bindings::div_s64_rem(self.as_nanos(), dividend, &mut rem) };
+
+            Self {
+                nanos: i64::from(rem),
+            }
         }
     }
 }
