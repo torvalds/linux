@@ -18,6 +18,9 @@ use crate::bindings;
 use crate::page;
 use crate::pr_warn;
 
+mod iter;
+pub use self::iter::VmallocPageIter;
+
 /// The contiguous kernel allocator.
 ///
 /// `Kmalloc` is typically used for physically contiguous allocations up to page size, but also
