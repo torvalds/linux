@@ -1434,7 +1434,7 @@ static enum sci_status isci_remote_device_construct(struct isci_port *iport,
 	struct domain_device *dev = idev->domain_dev;
 	enum sci_status status;
 
-	if (dev->parent && dev_is_expander(dev->parent->dev_type))
+	if (dev_parent_is_expander(dev))
 		status = sci_remote_device_ea_construct(iport, idev);
 	else
 		status = sci_remote_device_da_construct(iport, idev);

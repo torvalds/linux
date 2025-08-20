@@ -2340,8 +2340,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	/* Print sas address of IO failed device */
 	if ((status != IO_SUCCESS) && (status != IO_OVERFLOW) &&
 		(status != IO_UNDERFLOW)) {
-		if (!((t->dev->parent) &&
-			(dev_is_expander(t->dev->parent->dev_type)))) {
+		if (!dev_parent_is_expander(t->dev)) {
 			for (i = 0, j = 4; i <= 3 && j <= 7; i++, j++)
 				sata_addr_low[i] = pm8001_ha->sas_addr[j];
 			for (i = 0, j = 0; i <= 3 && j <= 3; i++, j++)
@@ -4780,7 +4779,6 @@ static int pm80xx_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	u16 firstBurstSize = 0;
 	u16 ITNT = 2000;
 	struct domain_device *dev = pm8001_dev->sas_device;
-	struct domain_device *parent_dev = dev->parent;
 	struct pm8001_port *port = dev->port->lldd_port;
 
 	memset(&payload, 0, sizeof(payload));
@@ -4799,10 +4797,8 @@ static int pm80xx_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 			dev_is_expander(pm8001_dev->dev_type))
 			stp_sspsmp_sata = 0x01; /*ssp or smp*/
 	}
-	if (parent_dev && dev_is_expander(parent_dev->dev_type))
-		phy_id = parent_dev->ex_dev.ex_phy->phy_id;
-	else
-		phy_id = pm8001_dev->attached_phy;
+
+	phy_id = pm80xx_get_local_phy_id(dev);
 
 	opc = OPC_INB_REG_DEV;
 
