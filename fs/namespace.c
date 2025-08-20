@@ -82,6 +82,12 @@ static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
 static struct mnt_namespace *emptied_ns; /* protected by namespace_sem */
 static DEFINE_SEQLOCK(mnt_ns_tree_lock);
 
+static inline void namespace_lock(void);
+static void namespace_unlock(void);
+DEFINE_LOCK_GUARD_0(namespace_excl, namespace_lock(), namespace_unlock())
+DEFINE_LOCK_GUARD_0(namespace_shared, down_read(&namespace_sem),
+				      up_read(&namespace_sem))
+
 #ifdef CONFIG_FSNOTIFY
 LIST_HEAD(notify_list); /* protected by namespace_sem */
 #endif
@@ -1776,8 +1782,6 @@ static inline void namespace_lock(void)
 	down_write(&namespace_sem);
 }
 
-DEFINE_GUARD(namespace_lock, struct rw_semaphore *, namespace_lock(), namespace_unlock())
-
 enum umount_tree_flags {
 	UMOUNT_SYNC = 1,
 	UMOUNT_PROPAGATE = 2,
@@ -2306,7 +2310,7 @@ struct path *collect_paths(const struct path *path,
 	struct path *res = prealloc, *to_free = NULL;
 	unsigned n = 0;
 
-	guard(rwsem_read)(&namespace_sem);
+	guard(namespace_shared)();
 
 	if (!check_mnt(root))
 		return ERR_PTR(-EINVAL);
@@ -2361,7 +2365,7 @@ void dissolve_on_fput(struct vfsmount *mnt)
 			return;
 	}
 
-	scoped_guard(namespace_lock, &namespace_sem) {
+	scoped_guard(namespace_excl) {
 		if (!anon_ns_root(m))
 			return;
 
@@ -2435,7 +2439,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	struct mount *old_mnt = real_mount(path->mnt);
 	struct mount *new_mnt;
 
-	guard(rwsem_read)(&namespace_sem);
+	guard(namespace_shared)();
 
 	if (IS_MNT_UNBINDABLE(old_mnt))
 		return ERR_PTR(-EINVAL);
@@ -5957,7 +5961,7 @@ retry:
 	if (ret)
 		return ret;
 
-	scoped_guard(rwsem_read, &namespace_sem)
+	scoped_guard(namespace_shared)
 		ret = do_statmount(ks, kreq.mnt_id, kreq.mnt_ns_id, ns);
 
 	if (!ret)
@@ -6079,7 +6083,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	 * We only need to guard against mount topology changes as
 	 * listmount() doesn't care about any mount properties.
 	 */
-	scoped_guard(rwsem_read, &namespace_sem)
+	scoped_guard(namespace_shared)
 		ret = do_listmount(ns, kreq.mnt_id, last_mnt_id, kmnt_ids,
 				   nr_mnt_ids, (flags & LISTMOUNT_REVERSE));
 	if (ret <= 0)
