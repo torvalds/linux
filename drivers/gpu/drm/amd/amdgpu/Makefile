@@ -138,7 +138,6 @@ amdgpu-y += \
 # add DCE block
 amdgpu-y += \
 	dce_v10_0.o \
-	dce_v11_0.o \
 	amdgpu_vkms.o
 
 # add GFX block
