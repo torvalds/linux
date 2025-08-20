@@ -1096,14 +1096,11 @@ static void smi_timeout(struct timer_list *t)
 		/* Running with interrupts, only do long timeouts. */
 		timeout = jiffies + SI_TIMEOUT_JIFFIES;
 		smi_inc_stat(smi_info, long_timeouts);
-		goto do_mod_timer;
-	}
-
-	/*
-	 * If the state machine asks for a short delay, then shorten
-	 * the timer timeout.
-	 */
-	if (smi_result == SI_SM_CALL_WITH_DELAY) {
+	} else if (smi_result == SI_SM_CALL_WITH_DELAY) {
+		/*
+		 * If the state machine asks for a short delay, then shorten
+		 * the timer timeout.
+		 */
 		smi_inc_stat(smi_info, short_timeouts);
 		timeout = jiffies + 1;
 	} else {
@@ -1111,7 +1108,6 @@ static void smi_timeout(struct timer_list *t)
 		timeout = jiffies + SI_TIMEOUT_JIFFIES;
 	}
 
-do_mod_timer:
 	if (smi_result != SI_SM_IDLE)
 		smi_mod_timer(smi_info, timeout);
 	else
