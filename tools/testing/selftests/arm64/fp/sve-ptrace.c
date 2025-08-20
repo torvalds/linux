@@ -174,6 +174,38 @@ static int set_sve(pid_t pid, const struct vec_type *type,
 	return ret;
 }
 
+/* A read operation fails */
+static void read_fails(pid_t child, const struct vec_type *type)
+{
+	struct user_sve_header *new_sve = NULL;
+	size_t new_sve_size = 0;
+	void *ret;
+
+	ret = get_sve(child, type, (void **)&new_sve, &new_sve_size);
+
+	ksft_test_result(ret == NULL, "%s unsupported read fails\n",
+			 type->name);
+
+	free(new_sve);
+}
+
+/* A write operation fails */
+static void write_fails(pid_t child, const struct vec_type *type)
+{
+	struct user_sve_header sve;
+	int ret;
+
+	/* Just the header, no data */
+	memset(&sve, 0, sizeof(sve));
+	sve.size = sizeof(sve);
+	sve.flags = SVE_PT_REGS_SVE;
+	sve.vl = SVE_VL_MIN;
+	ret = set_sve(child, type, &sve);
+
+	ksft_test_result(ret != 0, "%s unsupported write fails\n",
+			 type->name);
+}
+
 /* Validate setting and getting the inherit flag */
 static void ptrace_set_get_inherit(pid_t child, const struct vec_type *type)
 {
@@ -718,6 +750,20 @@ static int do_parent(pid_t child)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(vec_types); i++) {
+		/*
+		 * If the vector type isn't supported reads and writes
+		 * should fail.
+		 */
+		if (!(getauxval(vec_types[i].hwcap_type) & vec_types[i].hwcap)) {
+			read_fails(child, &vec_types[i]);
+			write_fails(child, &vec_types[i]);
+		} else {
+			ksft_test_result_skip("%s unsupported read fails\n",
+					      vec_types[i].name);
+			ksft_test_result_skip("%s unsupported write fails\n",
+					      vec_types[i].name);
+		}
+
 		/* FPSIMD via SVE regset */
 		if (getauxval(vec_types[i].hwcap_type) & vec_types[i].hwcap) {
 			ptrace_sve_fpsimd(child, &vec_types[i]);
