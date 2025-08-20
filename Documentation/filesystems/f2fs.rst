@@ -953,15 +953,15 @@ target file and the timing. The user can do manual compression/decompression on 
 compression enabled files using F2FS_IOC_DECOMPRESS_FILE and F2FS_IOC_COMPRESS_FILE
 ioctls like the below.
 
-To decompress a file,
+To decompress a file::
 
-fd = open(filename, O_WRONLY, 0);
-ret = ioctl(fd, F2FS_IOC_DECOMPRESS_FILE);
+  fd = open(filename, O_WRONLY, 0);
+  ret = ioctl(fd, F2FS_IOC_DECOMPRESS_FILE);
 
-To compress a file,
+To compress a file::
 
-fd = open(filename, O_WRONLY, 0);
-ret = ioctl(fd, F2FS_IOC_COMPRESS_FILE);
+  fd = open(filename, O_WRONLY, 0);
+  ret = ioctl(fd, F2FS_IOC_COMPRESS_FILE);
 
 NVMe Zoned Namespace devices
 ----------------------------
@@ -991,32 +991,32 @@ reserved and used by another filesystem or for different purposes. Once that
 external usage is complete, the device aliasing file can be deleted, releasing
 the reserved space back to F2FS for its own use.
 
-<use-case>
+.. code-block::
 
-# ls /dev/vd*
-/dev/vdb (32GB) /dev/vdc (32GB)
-# mkfs.ext4 /dev/vdc
-# mkfs.f2fs -c /dev/vdc@vdc.file /dev/vdb
-# mount /dev/vdb /mnt/f2fs
-# ls -l /mnt/f2fs
-vdc.file
-# df -h
-/dev/vdb                            64G   33G   32G  52% /mnt/f2fs
+   # ls /dev/vd*
+   /dev/vdb (32GB) /dev/vdc (32GB)
+   # mkfs.ext4 /dev/vdc
+   # mkfs.f2fs -c /dev/vdc@vdc.file /dev/vdb
+   # mount /dev/vdb /mnt/f2fs
+   # ls -l /mnt/f2fs
+   vdc.file
+   # df -h
+   /dev/vdb                            64G   33G   32G  52% /mnt/f2fs
 
-# mount -o loop /dev/vdc /mnt/ext4
-# df -h
-/dev/vdb                            64G   33G   32G  52% /mnt/f2fs
-/dev/loop7                          32G   24K   30G   1% /mnt/ext4
-# umount /mnt/ext4
+   # mount -o loop /dev/vdc /mnt/ext4
+   # df -h
+   /dev/vdb                            64G   33G   32G  52% /mnt/f2fs
+   /dev/loop7                          32G   24K   30G   1% /mnt/ext4
+   # umount /mnt/ext4
 
-# f2fs_io getflags /mnt/f2fs/vdc.file
-get a flag on /mnt/f2fs/vdc.file ret=0, flags=nocow(pinned),immutable
-# f2fs_io setflags noimmutable /mnt/f2fs/vdc.file
-get a flag on noimmutable ret=0, flags=800010
-set a flag on /mnt/f2fs/vdc.file ret=0, flags=noimmutable
-# rm /mnt/f2fs/vdc.file
-# df -h
-/dev/vdb                            64G  753M   64G   2% /mnt/f2fs
+   # f2fs_io getflags /mnt/f2fs/vdc.file
+   get a flag on /mnt/f2fs/vdc.file ret=0, flags=nocow(pinned),immutable
+   # f2fs_io setflags noimmutable /mnt/f2fs/vdc.file
+   get a flag on noimmutable ret=0, flags=800010
+   set a flag on /mnt/f2fs/vdc.file ret=0, flags=noimmutable
+   # rm /mnt/f2fs/vdc.file
+   # df -h
+   /dev/vdb                            64G  753M   64G   2% /mnt/f2fs
 
 So, the key idea is, user can do any file operations on /dev/vdc, and
 reclaim the space after the use, while the space is counted as /data.
