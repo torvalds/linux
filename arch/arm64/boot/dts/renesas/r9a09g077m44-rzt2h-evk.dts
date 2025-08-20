@@ -8,6 +8,15 @@
 /dts-v1/;
 
 #include "r9a09g077m44.dtsi"
+
+/*
+ * SD0 can be connected to either eMMC (IC49) or SD card slot CN31
+ * Lets by default enable the eMMC, note we need the below SW settings
+ * for eMMC.
+ * SW2[1] = ON; SW2[2] = ON
+ */
+#define SD0_EMMC	1
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {
