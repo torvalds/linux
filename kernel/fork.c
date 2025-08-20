@@ -2124,9 +2124,7 @@ __latent_entropy struct task_struct *copy_process(
 
 	p->pagefault_disabled = 0;
 
-#ifdef CONFIG_LOCKDEP
 	lockdep_init_task(p);
-#endif
 
 	p->blocked_on = NULL; /* not blocked yet */
 
