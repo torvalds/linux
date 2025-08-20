@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2021, Intel Corporation. */
 
-#include "ice_virtchnl_allowlist.h"
+#include "allowlist.h"
 
 /* Purpose of this file is to share functionality to allowlist or denylist
  * opcodes used in PF <-> VF communication. Group of opcodes:

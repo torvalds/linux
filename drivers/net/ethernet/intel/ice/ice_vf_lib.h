@@ -13,7 +13,7 @@
 #include <linux/avf/virtchnl.h>
 #include "ice_type.h"
 #include "ice_flow.h"
-#include "ice_virtchnl_fdir.h"
+#include "virt/fdir.h"
 #include "ice_vsi_vlan_ops.h"
 
 #define ICE_MAX_SRIOV_VFS		256
