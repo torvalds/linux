@@ -1157,10 +1157,37 @@ unlock:
 	mmap_write_unlock(mm);
 }
 
-static bool can_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
+static bool insn_is_nop(struct insn *insn)
 {
-	if (memcmp(&auprobe->insn, x86_nops[5], 5))
+	return insn->opcode.nbytes == 1 && insn->opcode.bytes[0] == 0x90;
+}
+
+static bool insn_is_nopl(struct insn *insn)
+{
+	if (insn->opcode.nbytes != 2)
 		return false;
+
+	if (insn->opcode.bytes[0] != 0x0f || insn->opcode.bytes[1] != 0x1f)
+		return false;
+
+	if (!insn->modrm.nbytes)
+		return false;
+
+	if (X86_MODRM_REG(insn->modrm.bytes[0]) != 0)
+		return false;
+
+	/* 0f 1f /0 - NOPL */
+	return true;
+}
+
+static bool can_optimize(struct insn *insn, unsigned long vaddr)
+{
+	if (!insn->x86_64 || insn->length != 5)
+		return false;
+
+	if (!insn_is_nop(insn) && !insn_is_nopl(insn))
+		return false;
+
 	/* We can't do cross page atomic writes yet. */
 	return PAGE_SIZE - (vaddr & ~PAGE_MASK) >= 5;
 }
@@ -1177,7 +1204,7 @@ static void riprel_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 }
-static bool can_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
+static bool can_optimize(struct insn *insn, unsigned long vaddr)
 {
 	return false;
 }
@@ -1539,15 +1566,15 @@ static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
  */
 int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long addr)
 {
-	struct insn insn;
 	u8 fix_ip_or_call = UPROBE_FIX_IP;
+	struct insn insn;
 	int ret;
 
 	ret = uprobe_init_insn(auprobe, &insn, is_64bit_mm(mm));
 	if (ret)
 		return ret;
 
-	if (can_optimize(auprobe, addr))
+	if (can_optimize(&insn, addr))
 		set_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags);
 
 	ret = branch_setup_xol_ops(auprobe, &insn);
