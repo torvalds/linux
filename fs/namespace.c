@@ -3445,8 +3445,8 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
 /**
  * can_move_mount_beneath - check that we can mount beneath the top mount
  * @mnt_from: mount we are trying to move
- * @to:   mount under which to mount
- * @mp:   mountpoint of @to
+ * @mnt_to:   mount under which to mount
+ * @mp:   mountpoint of @mnt_to
  *
  * - Make sure that nothing can be mounted beneath the caller's current
  *   root or the rootfs of the namespace.
@@ -3462,11 +3462,10 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  * Return: On success 0, and on error a negative error code is returned.
  */
 static int can_move_mount_beneath(struct mount *mnt_from,
-				  const struct path *to,
+				  struct mount *mnt_to,
 				  const struct mountpoint *mp)
 {
-	struct mount *mnt_to = real_mount(to->mnt),
-		     *parent_mnt_to = mnt_to->mnt_parent;
+	struct mount *parent_mnt_to = mnt_to->mnt_parent;
 
 	if (IS_MNT_LOCKED(mnt_to))
 		return -EINVAL;
@@ -3613,7 +3612,9 @@ static int do_move_mount(struct path *old_path,
 	}
 
 	if (beneath) {
-		err = can_move_mount_beneath(old, new_path, mp.mp);
+		struct mount *over = real_mount(new_path->mnt);
+
+		err = can_move_mount_beneath(old, over, mp.mp);
 		if (err)
 			return err;
 	}
