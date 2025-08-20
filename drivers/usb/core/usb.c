@@ -1134,6 +1134,8 @@ u32 usb_endpoint_max_periodic_payload(struct usb_device *udev,
 	case USB_SPEED_SUPER:
 		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
 	default:
+		if (usb_endpoint_is_hs_isoc_double(udev, ep))
+			return le32_to_cpu(ep->eusb2_isoc_ep_comp.dwBytesPerInterval);
 		return usb_endpoint_maxp(&ep->desc) * usb_endpoint_maxp_mult(&ep->desc);
 	}
 }
