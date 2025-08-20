@@ -3566,7 +3566,6 @@ static inline bool may_use_mount(struct mount *mnt)
 static int do_move_mount(struct path *old_path,
 			 struct path *new_path, enum mnt_tree_flags_t flags)
 {
-	struct mount *p;
 	struct mount *old = real_mount(old_path->mnt);
 	int err;
 	bool beneath = flags & MNT_TREE_BENEATH;
@@ -3581,8 +3580,6 @@ static int do_move_mount(struct path *old_path,
 	if (IS_ERR(mp.parent))
 		return PTR_ERR(mp.parent);
 
-	p = real_mount(new_path->mnt);
-
 	if (check_mnt(old)) {
 		/* if the source is in our namespace... */
 		/* ... it should be detachable from parent */
@@ -3592,7 +3589,7 @@ static int do_move_mount(struct path *old_path,
 		if (IS_MNT_SHARED(old->mnt_parent))
 			return -EINVAL;
 		/* ... and the target should be in our namespace */
-		if (!check_mnt(p))
+		if (!check_mnt(mp.parent))
 			return -EINVAL;
 	} else {
 		/*
@@ -3605,13 +3602,13 @@ static int do_move_mount(struct path *old_path,
 		 * subsequent checks would've rejected that, but they lose
 		 * some corner cases if we check it early.
 		 */
-		if (old->mnt_ns == p->mnt_ns)
+		if (old->mnt_ns == mp.parent->mnt_ns)
 			return -EINVAL;
 		/*
 		 * Target should be either in our namespace or in an acceptable
 		 * anon namespace, sensu check_anonymous_mnt().
 		 */
-		if (!may_use_mount(p))
+		if (!may_use_mount(mp.parent))
 			return -EINVAL;
 	}
 
@@ -3619,22 +3616,20 @@ static int do_move_mount(struct path *old_path,
 		err = can_move_mount_beneath(old, new_path, mp.mp);
 		if (err)
 			return err;
-
-		p = p->mnt_parent;
 	}
 
 	/*
 	 * Don't move a mount tree containing unbindable mounts to a destination
 	 * mount which is shared.
 	 */
-	if (IS_MNT_SHARED(p) && tree_contains_unbindable(old))
+	if (IS_MNT_SHARED(mp.parent) && tree_contains_unbindable(old))
 		return -EINVAL;
 	if (!check_for_nsfs_mounts(old))
 		return -ELOOP;
-	if (mount_is_ancestor(old, p))
+	if (mount_is_ancestor(old, mp.parent))
 		return -ELOOP;
 
-	return attach_recursive_mnt(old, p, mp.mp);
+	return attach_recursive_mnt(old, mp.parent, mp.mp);
 }
 
 static int do_move_mount_old(struct path *path, const char *old_name)
