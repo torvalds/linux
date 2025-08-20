@@ -938,6 +938,13 @@
 		sound-name-prefix = "SpkrLeft";
 		#thermal-sensor-cells = <0>;
 		vdd-supply = <&vreg_l15b_1p8>;
+		/*
+		 * WSA8835 Port 1 (DAC)     <=> SWR0 Port 1 (SPKR_L)
+		 * WSA8835 Port 2 (COMP)    <=> SWR0 Port 2 (SPKR_L_COMP)
+		 * WSA8835 Port 3 (BOOST)   <=> SWR0 Port 3 (SPKR_L_BOOST)
+		 * WSA8835 Port 4 (VISENSE) <=> SWR0 Port 10 (SPKR_L_VI)
+		 */
+		qcom,port-mapping = <1 2 3 10>;
 	};
 
 	/* WSA883x, right/back speaker */
@@ -951,6 +958,13 @@
 		sound-name-prefix = "SpkrRight";
 		#thermal-sensor-cells = <0>;
 		vdd-supply = <&vreg_l15b_1p8>;
+		/*
+		 * WSA8835 Port 1 (DAC)     <=> SWR0 Port 4 (SPKR_R)
+		 * WSA8835 Port 2 (COMP)    <=> SWR0 Port 5 (SPKR_R_COMP)
+		 * WSA8835 Port 3 (BOOST)   <=> SWR0 Port 6 (SPKR_R_BOOST)
+		 * WSA8835 Port 4 (VISENSE) <=> SWR0 Port 11 (SPKR_R_VI)
+		 */
+		qcom,port-mapping = <4 5 6 11>;
 	};
 };
 
