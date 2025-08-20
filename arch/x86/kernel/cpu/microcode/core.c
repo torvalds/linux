@@ -48,6 +48,16 @@ static bool dis_ucode_ldr;
 bool force_minrev = IS_ENABLED(CONFIG_MICROCODE_LATE_FORCE_MINREV);
 
 /*
+ * Those below should be behind CONFIG_MICROCODE_DBG ifdeffery but in
+ * order to not uglify the code with ifdeffery and use IS_ENABLED()
+ * instead, leave them in. When microcode debugging is not enabled,
+ * those are meaningless anyway.
+ */
+/* base microcode revision for debugging */
+u32 base_rev;
+u32 microcode_rev[NR_CPUS] = {};
+
+/*
  * Synchronization.
  *
  * All non cpu-hotplug-callback call sites use:
@@ -118,7 +128,8 @@ bool __init microcode_loader_disabled(void)
 	 *    overwritten.
 	 */
 	if (!cpuid_feature() ||
-	    native_cpuid_ecx(1) & BIT(31) ||
+	    ((native_cpuid_ecx(1) & BIT(31)) &&
+	      !IS_ENABLED(CONFIG_MICROCODE_DBG)) ||
 	    amd_check_current_patch_level())
 		dis_ucode_ldr = true;
 
@@ -132,6 +143,14 @@ static void early_parse_cmdline(void)
 
 	if (cmdline_find_option(boot_command_line, "microcode", cmd_buf, sizeof(cmd_buf)) > 0) {
 		while ((s = strsep(&p, ","))) {
+			if (IS_ENABLED(CONFIG_MICROCODE_DBG)) {
+				if (strstr(s, "base_rev=")) {
+					/* advance to the option arg */
+					strsep(&s, "=");
+					if (kstrtouint(s, 16, &base_rev)) { ; }
+				}
+			}
+
 			if (!strcmp("force_minrev", s))
 				force_minrev = true;
 
