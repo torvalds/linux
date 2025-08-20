@@ -4670,7 +4670,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	if (!mnt_has_parent(new_mnt))
 		return -EINVAL; /* absolute root */
 	/* make sure we can reach put_old from new_root */
-	if (!is_path_reachable(old_mnt, old.dentry, &new))
+	if (!is_path_reachable(old_mnt, old_mp.mp->m_dentry, &new))
 		return -EINVAL;
 	/* make certain new is below the root */
 	if (!is_path_reachable(new_mnt, new.dentry, &root))
