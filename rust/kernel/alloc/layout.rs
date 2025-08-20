@@ -98,6 +98,11 @@ impl<T> ArrayLayout<T> {
     pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
+
+    /// Returns the size of the [`ArrayLayout`] in bytes.
+    pub const fn size(&self) -> usize {
+        self.len() * core::mem::size_of::<T>()
+    }
 }
 
 impl<T> From<ArrayLayout<T>> for Layout {
