@@ -110,7 +110,8 @@ struct ipmi_smi_msg {
 	enum ipmi_smi_msg_type type;
 
 	long msgid;
-	void *user_data;
+	/* Response to this message, will be NULL if not from a user request. */
+	struct ipmi_recv_msg *recv_msg;
 
 	int           data_size;
 	unsigned char data[IPMI_MAX_MSG_LENGTH];

@@ -1959,7 +1959,7 @@ static int i_ipmi_req_sysintf(struct ipmi_smi        *intf,
 	smi_msg->data[0] = (msg->netfn << 2) | (smi_addr->lun & 0x3);
 	smi_msg->data[1] = msg->cmd;
 	smi_msg->msgid = msgid;
-	smi_msg->user_data = recv_msg;
+	smi_msg->recv_msg = recv_msg;
 	if (msg->data_len > 0)
 		memcpy(&smi_msg->data[2], msg->data, msg->data_len);
 	smi_msg->data_size = msg->data_len + 2;
@@ -2040,7 +2040,7 @@ static int i_ipmi_req_ipmb(struct ipmi_smi        *intf,
 		 * Save the receive message so we can use it
 		 * to deliver the response.
 		 */
-		smi_msg->user_data = recv_msg;
+		smi_msg->recv_msg = recv_msg;
 	} else {
 		mutex_lock(&intf->seq_lock);
 
@@ -2153,7 +2153,7 @@ static int i_ipmi_req_ipmb_direct(struct ipmi_smi        *intf,
 	memcpy(smi_msg->data + 4, msg->data, msg->data_len);
 	smi_msg->data_size = msg->data_len + 4;
 
-	smi_msg->user_data = recv_msg;
+	smi_msg->recv_msg = recv_msg;
 
 	return 0;
 }
@@ -2216,7 +2216,7 @@ static int i_ipmi_req_lan(struct ipmi_smi        *intf,
 		 * Save the receive message so we can use it
 		 * to deliver the response.
 		 */
-		smi_msg->user_data = recv_msg;
+		smi_msg->recv_msg = recv_msg;
 	} else {
 		mutex_lock(&intf->seq_lock);
 
@@ -4066,7 +4066,7 @@ static int handle_ipmb_direct_rcv_rsp(struct ipmi_smi *intf,
 	struct ipmi_recv_msg *recv_msg;
 	struct ipmi_ipmb_direct_addr *daddr;
 
-	recv_msg = msg->user_data;
+	recv_msg = msg->recv_msg;
 	if (recv_msg == NULL) {
 		dev_warn(intf->si_dev,
 			 "IPMI direct message received with no owner. This could be because of a malformed message, or because of a hardware error.  Contact your hardware vendor for assistance.\n");
@@ -4489,7 +4489,7 @@ static int handle_bmc_rsp(struct ipmi_smi *intf,
 	struct ipmi_recv_msg *recv_msg;
 	struct ipmi_system_interface_addr *smi_addr;
 
-	recv_msg = msg->user_data;
+	recv_msg = msg->recv_msg;
 	if (recv_msg == NULL) {
 		dev_warn(intf->si_dev,
 			 "IPMI SMI message received with no owner. This could be because of a malformed message, or because of a hardware error.  Contact your hardware vendor for assistance.\n");
@@ -4563,14 +4563,14 @@ return_unspecified:
 	} else if ((msg->data_size >= 2)
 	    && (msg->data[0] == (IPMI_NETFN_APP_REQUEST << 2))
 	    && (msg->data[1] == IPMI_SEND_MSG_CMD)
-	    && (msg->user_data == NULL)) {
+	    && (msg->recv_msg == NULL)) {
 
 		if (intf->in_shutdown || intf->run_to_completion)
 			goto out;
 
 		/*
 		 * This is the local response to a command send, start
-		 * the timer for these.  The user_data will not be
+		 * the timer for these.  The recv_msg will not be
 		 * NULL if this is a response send, and we will let
 		 * response sends just go through.
 		 */
@@ -4630,7 +4630,7 @@ return_unspecified:
 			requeue = handle_ipmb_direct_rcv_rsp(intf, msg);
 	} else if ((msg->rsp[0] == ((IPMI_NETFN_APP_REQUEST|1) << 2))
 		   && (msg->rsp[1] == IPMI_SEND_MSG_CMD)
-		   && (msg->user_data != NULL)) {
+		   && (msg->recv_msg != NULL)) {
 		/*
 		 * It's a response to a response we sent.  For this we
 		 * deliver a send message response to the user.
@@ -4647,7 +4647,7 @@ return_unspecified:
 		cc = msg->rsp[2];
 
 process_response_response:
-		recv_msg = msg->user_data;
+		recv_msg = msg->recv_msg;
 
 		requeue = 0;
 		if (!recv_msg)
@@ -4836,9 +4836,9 @@ restart:
 	if (newmsg) {
 		cc = intf->handlers->sender(intf->send_info, newmsg);
 		if (cc) {
-			if (newmsg->user_data)
+			if (newmsg->recv_msg)
 				deliver_err_response(intf,
-						     newmsg->user_data, cc);
+						     newmsg->recv_msg, cc);
 			else
 				ipmi_free_smi_msg(newmsg);
 			goto restart;
@@ -5185,7 +5185,7 @@ struct ipmi_smi_msg *ipmi_alloc_smi_msg(void)
 	rv = kmalloc(sizeof(struct ipmi_smi_msg), GFP_ATOMIC);
 	if (rv) {
 		rv->done = free_smi_msg;
-		rv->user_data = NULL;
+		rv->recv_msg = NULL;
 		rv->type = IPMI_SMI_MSG_TYPE_NORMAL;
 		atomic_inc(&smi_msg_inuse_count);
 	}
