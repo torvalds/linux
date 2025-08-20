@@ -771,6 +771,7 @@ int of_reserved_mem_region_to_resource(const struct device_node *np,
 		return -EINVAL;
 
 	resource_set_range(res, rmem->base, rmem->size);
+	res->flags = IORESOURCE_MEM;
 	res->name = rmem->name;
 	return 0;
 }
