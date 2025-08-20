@@ -360,6 +360,7 @@ errors=%s		 Specify f2fs behavior on critical errors. This supports modes:
 			 panic immediately, continue without doing anything, and remount
 			 the partition in read-only mode. By default it uses "continue"
 			 mode.
+
 			 ====================== =============== =============== ========
 			 mode			continue	remount-ro	panic
 			 ====================== =============== =============== ========
