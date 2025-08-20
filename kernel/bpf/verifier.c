@@ -15897,6 +15897,8 @@ static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_sta
 		 */
 		if (tnum_is_const(t1) && tnum_is_const(t2))
 			return t1.value == t2.value;
+		if (!tnum_overlap(t1, t2))
+			return 0;
 		/* non-overlapping ranges */
 		if (umin1 > umax2 || umax1 < umin2)
 			return 0;
@@ -15921,6 +15923,8 @@ static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_sta
 		 */
 		if (tnum_is_const(t1) && tnum_is_const(t2))
 			return t1.value != t2.value;
+		if (!tnum_overlap(t1, t2))
+			return 1;
 		/* non-overlapping ranges */
 		if (umin1 > umax2 || umax1 < umin2)
 			return 1;
