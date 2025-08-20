@@ -512,7 +512,7 @@ static int mdp4_probe(struct platform_device *pdev)
 
 	mdp4_kms = devm_kzalloc(dev, sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms)
-		return dev_err_probe(dev, -ENOMEM, "failed to allocate kms\n");
+		return -ENOMEM;
 
 	mdp4_kms->mmio = msm_ioremap(pdev, NULL);
 	if (IS_ERR(mdp4_kms->mmio))
