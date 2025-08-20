@@ -50,8 +50,13 @@ enum hinic3_msix_state {
 	HINIC3_MSIX_DISABLE,
 };
 
+u32 hinic3_hwif_read_reg(struct hinic3_hwif *hwif, u32 reg);
+void hinic3_hwif_write_reg(struct hinic3_hwif *hwif, u32 reg, u32 val);
+
 void hinic3_set_msix_state(struct hinic3_hwdev *hwdev, u16 msix_idx,
 			   enum hinic3_msix_state flag);
+void hinic3_msix_intr_clear_resend_bit(struct hinic3_hwdev *hwdev, u16 msix_idx,
+				       u8 clear_resend_en);
 
 u16 hinic3_global_func_id(struct hinic3_hwdev *hwdev);
 

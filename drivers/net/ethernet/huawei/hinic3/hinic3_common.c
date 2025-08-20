@@ -51,3 +51,12 @@ void hinic3_dma_free_coherent_align(struct device *dev,
 	dma_free_coherent(dev, mem_align->real_size,
 			  mem_align->ori_vaddr, mem_align->ori_paddr);
 }
+
+/* Data provided to/by cmdq is arranged in structs with little endian fields but
+ * every dword (32bits) should be swapped since HW swaps it again when it
+ * copies it from/to host memory.
+ */
+void hinic3_cmdq_buf_swab32(void *data, int len)
+{
+	swab32_array(data, len / sizeof(u32));
+}

@@ -24,4 +24,6 @@ int hinic3_dma_zalloc_coherent_align(struct device *dev, u32 size, u32 align,
 void hinic3_dma_free_coherent_align(struct device *dev,
 				    struct hinic3_dma_addr_align *mem_align);
 
+void hinic3_cmdq_buf_swab32(void *data, int len);
+
 #endif
