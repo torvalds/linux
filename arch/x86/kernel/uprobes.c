@@ -336,6 +336,7 @@ asm (
 	 * call ret.
 	 */
 	"ret\n"
+	"int3\n"
 	".global uretprobe_trampoline_end\n"
 	"uretprobe_trampoline_end:\n"
 	".popsection\n"
@@ -891,6 +892,7 @@ asm (
 	"pop %r11\n"
 	"pop %rcx\n"
 	"ret\n"
+	"int3\n"
 	".balign " __stringify(PAGE_SIZE) "\n"
 	".popsection\n"
 );
