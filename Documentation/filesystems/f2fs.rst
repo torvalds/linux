@@ -294,9 +294,13 @@ compress_algorithm=%s	 Control compress algorithm, currently f2fs supports "lzo"
 			 "lz4", "zstd" and "lzo-rle" algorithm.
 compress_algorithm=%s:%d Control compress algorithm and its compress level, now, only
 			 "lz4" and "zstd" support compress level config.
+
+                         =========      ===========
 			 algorithm	level range
+                         =========      ===========
 			 lz4		3 - 16
 			 zstd		1 - 22
+                         =========      ===========
 compress_log_size=%u	 Support configuring compress cluster size. The size will
 			 be 4KB * (1 << %u). The default and minimum sizes are 16KB.
 compress_extension=%s	 Support adding specified extension, so that f2fs can enable
