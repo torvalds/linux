@@ -1481,7 +1481,7 @@ static int keembay_gpiochip_probe(struct keembay_pinctrl *kpc,
 	gc->direction_input	= keembay_gpio_set_direction_in;
 	gc->direction_output	= keembay_gpio_set_direction_out;
 	gc->get			= keembay_gpio_get;
-	gc->set_rv		= keembay_gpio_set;
+	gc->set			= keembay_gpio_set;
 	gc->set_config		= gpiochip_generic_config;
 	gc->base		= -1;
 	gc->ngpio		= kpc->npins;

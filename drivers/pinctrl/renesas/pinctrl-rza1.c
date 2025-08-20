@@ -846,7 +846,7 @@ static const struct gpio_chip rza1_gpiochip_template = {
 	.direction_input	= rza1_gpio_direction_input,
 	.direction_output	= rza1_gpio_direction_output,
 	.get			= rza1_gpio_get,
-	.set_rv			= rza1_gpio_set,
+	.set			= rza1_gpio_set,
 };
 /* ----------------------------------------------------------------------------
  * pinctrl operations

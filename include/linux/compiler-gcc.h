@@ -127,6 +127,8 @@
 #define __diag_GCC_8(s)
 #endif
 
+#define __diag_GCC_all(s)	__diag(s)
+
 #define __diag_ignore_all(option, comment) \
 	__diag(__diag_GCC_ignore option)
 

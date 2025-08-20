@@ -11,7 +11,7 @@
 
 /* Flag of calibration registers address. */
 #define TASDEV_UEFI_CALI_REG_ADDR_FLG	BIT(7)
-#define TASDEVICE_CALIBRATION_DATA_NAME	L"CALI_DATA"
+
 #define TASDEV_CALIB_N			5
 
 /*

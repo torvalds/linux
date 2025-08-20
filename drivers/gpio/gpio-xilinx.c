@@ -604,10 +604,10 @@ static int xgpio_probe(struct platform_device *pdev)
 	chip->gc.direction_input = xgpio_dir_in;
 	chip->gc.direction_output = xgpio_dir_out;
 	chip->gc.get = xgpio_get;
-	chip->gc.set_rv = xgpio_set;
+	chip->gc.set = xgpio_set;
 	chip->gc.request = xgpio_request;
 	chip->gc.free = xgpio_free;
-	chip->gc.set_multiple_rv = xgpio_set_multiple;
+	chip->gc.set_multiple = xgpio_set_multiple;
 
 	chip->gc.label = dev_name(dev);
 

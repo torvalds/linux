@@ -6978,6 +6978,12 @@ int napi_set_threaded(struct napi_struct *napi,
 	if (napi->config)
 		napi->config->threaded = threaded;
 
+	/* Setting/unsetting threaded mode on a napi might not immediately
+	 * take effect, if the current napi instance is actively being
+	 * polled. In this case, the switch between threaded mode and
+	 * softirq mode will happen in the next round of napi_schedule().
+	 * This should not cause hiccups/stalls to the live traffic.
+	 */
 	if (!threaded && napi->thread) {
 		napi_stop_kthread(napi);
 	} else {
@@ -6993,7 +6999,7 @@ int netif_set_threaded(struct net_device *dev,
 		       enum netdev_napi_threaded threaded)
 {
 	struct napi_struct *napi;
-	int err = 0;
+	int i, err = 0;
 
 	netdev_assert_locked_or_invisible(dev);
 
@@ -7011,23 +7017,13 @@ int netif_set_threaded(struct net_device *dev,
 
 	WRITE_ONCE(dev->threaded, threaded);
 
-	/* Make sure kthread is created before THREADED bit
-	 * is set.
-	 */
-	smp_mb__before_atomic();
+	/* The error should not occur as the kthreads are already created. */
+	list_for_each_entry(napi, &dev->napi_list, dev_list)
+		WARN_ON_ONCE(napi_set_threaded(napi, threaded));
 
-	/* Setting/unsetting threaded mode on a napi might not immediately
-	 * take effect, if the current napi instance is actively being
-	 * polled. In this case, the switch between threaded mode and
-	 * softirq mode will happen in the next round of napi_schedule().
-	 * This should not cause hiccups/stalls to the live traffic.
-	 */
-	list_for_each_entry(napi, &dev->napi_list, dev_list) {
-		if (!threaded && napi->thread)
-			napi_stop_kthread(napi);
-		else
-			assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
-	}
+	/* Override the config for all NAPIs even if currently not listed */
+	for (i = 0; i < dev->num_napi_configs; i++)
+		dev->napi_config[i].threaded = threaded;
 
 	return err;
 }
@@ -7361,8 +7357,9 @@ void netif_napi_add_weight_locked(struct net_device *dev,
 	 * Clear dev->threaded if kthread creation failed so that
 	 * threaded mode will not be enabled in napi_enable().
 	 */
-	if (dev->threaded && napi_kthread_create(napi))
-		dev->threaded = NETDEV_NAPI_THREADED_DISABLED;
+	if (napi_get_threaded_config(dev, napi))
+		if (napi_kthread_create(napi))
+			dev->threaded = NETDEV_NAPI_THREADED_DISABLED;
 	netif_napi_set_irq_locked(napi, -1);
 }
 EXPORT_SYMBOL(netif_napi_add_weight_locked);
@@ -11881,6 +11878,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		goto free_all;
 	dev->cfg_pending = dev->cfg;
 
+	dev->num_napi_configs = maxqs;
 	napi_config_sz = array_size(maxqs, sizeof(*dev->napi_config));
 	dev->napi_config = kvzalloc(napi_config_sz, GFP_KERNEL_ACCOUNT);
 	if (!dev->napi_config)

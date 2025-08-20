@@ -150,6 +150,11 @@
 
 #define INTEL_PANTHERLAKE_L		IFM(6, 0xCC) /* Cougar Cove / Crestmont */
 
+#define INTEL_WILDCATLAKE_L		IFM(6, 0xD5)
+
+#define INTEL_NOVALAKE			IFM(18, 0x01)
+#define INTEL_NOVALAKE_L		IFM(18, 0x03)
+
 /* "Small Core" Processors (Atom/E-Core) */
 
 #define INTEL_ATOM_BONNELL		IFM(6, 0x1C) /* Diamondville, Pineview */

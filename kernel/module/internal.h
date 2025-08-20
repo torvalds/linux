@@ -112,6 +112,13 @@ struct find_symbol_arg {
 	enum mod_license license;
 };
 
+/* modules using other modules */
+struct module_use {
+	struct list_head source_list;
+	struct list_head target_list;
+	struct module *source, *target;
+};
+
 int mod_verify_sig(const void *mod, struct load_info *info);
 int try_to_force_load(struct module *mod, const char *reason);
 bool find_symbol(struct find_symbol_arg *fsa);

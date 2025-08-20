@@ -1168,7 +1168,7 @@ static const struct gpio_chip chv_gpio_chip = {
 	.direction_input = chv_gpio_direction_input,
 	.direction_output = chv_gpio_direction_output,
 	.get = chv_gpio_get,
-	.set_rv = chv_gpio_set,
+	.set = chv_gpio_set,
 };
 
 static void chv_gpio_irq_ack(struct irq_data *d)

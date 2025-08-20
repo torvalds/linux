@@ -1163,7 +1163,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 		    le64_to_cpu(pplhdr->generation));
 
 	/* attempt to recover from log if we are starting a dirty array */
-	if (pplhdr && !mddev->pers && mddev->recovery_cp != MaxSector)
+	if (pplhdr && !mddev->pers && mddev->resync_offset != MaxSector)
 		ret = ppl_recover(log, pplhdr, pplhdr_offset);
 
 	/* write empty header if we are starting the array */
@@ -1422,14 +1422,14 @@ int ppl_init_log(struct r5conf *conf)
 
 	if (ret) {
 		goto err;
-	} else if (!mddev->pers && mddev->recovery_cp == 0 &&
+	} else if (!mddev->pers && mddev->resync_offset == 0 &&
 		   ppl_conf->recovered_entries > 0 &&
 		   ppl_conf->mismatch_count == 0) {
 		/*
 		 * If we are starting a dirty array and the recovery succeeds
 		 * without any issues, set the array as clean.
 		 */
-		mddev->recovery_cp = MaxSector;
+		mddev->resync_offset = MaxSector;
 		set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
 	} else if (mddev->pers && ppl_conf->mismatch_count > 0) {
 		/* no mismatch allowed when enabling PPL for a running array */
