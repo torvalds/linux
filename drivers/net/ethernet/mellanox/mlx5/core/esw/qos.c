@@ -1122,6 +1122,7 @@ static int mlx5_esw_qos_vport_enable(struct mlx5_vport *vport, enum sched_node_t
 	vport->qos.sched_node = sched_node;
 	err = esw_qos_vport_enable(vport, type, parent, extack);
 	if (err) {
+		__esw_qos_free_node(sched_node);
 		esw_qos_put(esw);
 		vport->qos.sched_node = NULL;
 	}
