@@ -904,8 +904,7 @@ static int mt6370_chg_probe(struct platform_device *pdev)
 
 	priv->wq = create_singlethread_workqueue(dev_name(priv->dev));
 	if (!priv->wq)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Failed to create workqueue\n");
+		return -ENOMEM;
 
 	ret = devm_add_action_or_reset(dev, mt6370_chg_destroy_wq, priv->wq);
 	if (ret)

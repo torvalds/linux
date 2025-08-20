@@ -546,7 +546,7 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 
 	chg->wqueue = create_singlethread_workqueue(dev_name(dev));
 	if (!chg->wqueue)
-		return dev_err_probe(dev, -ENOMEM, "failed to create workqueue\n");
+		return -ENOMEM;
 
 	ret = devm_work_autocancel(dev, &chg->chgin_work, max77705_chgin_isr_work);
 	if (ret) {
