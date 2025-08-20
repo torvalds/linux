@@ -10,15 +10,19 @@
 #include "hinic3_queue_common.h"
 
 #define HINIC3_MAX_AEQS              4
+#define HINIC3_MAX_CEQS              32
 
 #define HINIC3_AEQ_MAX_PAGES         4
+#define HINIC3_CEQ_MAX_PAGES         8
 
 #define HINIC3_AEQE_SIZE             64
+#define HINIC3_CEQE_SIZE             4
 
 #define HINIC3_AEQE_DESC_SIZE        4
 #define HINIC3_AEQE_DATA_SIZE        (HINIC3_AEQE_SIZE - HINIC3_AEQE_DESC_SIZE)
 
 #define HINIC3_DEFAULT_AEQ_LEN       0x10000
+#define HINIC3_DEFAULT_CEQ_LEN       0x10000
 
 #define HINIC3_EQ_IRQ_NAME_LEN       64
 
@@ -27,6 +31,7 @@
 
 enum hinic3_eq_type {
 	HINIC3_AEQ = 0,
+	HINIC3_CEQ = 1,
 };
 
 enum hinic3_eq_intr_mode {
@@ -78,6 +83,25 @@ struct hinic3_aeqs {
 	spinlock_t              aeq_lock;
 };
 
+enum hinic3_ceq_event {
+	HINIC3_CMDQ           = 3,
+	HINIC3_MAX_CEQ_EVENTS = 6,
+};
+
+typedef void (*hinic3_ceq_event_cb)(struct hinic3_hwdev *hwdev,
+				    __le32 ceqe_data);
+
+struct hinic3_ceqs {
+	struct hinic3_hwdev *hwdev;
+
+	hinic3_ceq_event_cb ceq_cb[HINIC3_MAX_CEQ_EVENTS];
+
+	struct hinic3_eq    ceq[HINIC3_MAX_CEQS];
+	u16                 num_ceqs;
+	/* lock for ceq event flag */
+	spinlock_t          ceq_lock;
+};
+
 int hinic3_aeqs_init(struct hinic3_hwdev *hwdev, u16 num_aeqs,
 		     struct msix_entry *msix_entries);
 void hinic3_aeqs_free(struct hinic3_hwdev *hwdev);
@@ -86,5 +110,13 @@ int hinic3_aeq_register_cb(struct hinic3_hwdev *hwdev,
 			   hinic3_aeq_event_cb hwe_cb);
 void hinic3_aeq_unregister_cb(struct hinic3_hwdev *hwdev,
 			      enum hinic3_aeq_type event);
+int hinic3_ceqs_init(struct hinic3_hwdev *hwdev, u16 num_ceqs,
+		     struct msix_entry *msix_entries);
+void hinic3_ceqs_free(struct hinic3_hwdev *hwdev);
+int hinic3_ceq_register_cb(struct hinic3_hwdev *hwdev,
+			   enum hinic3_ceq_event event,
+			   hinic3_ceq_event_cb callback);
+void hinic3_ceq_unregister_cb(struct hinic3_hwdev *hwdev,
+			      enum hinic3_ceq_event event);
 
 #endif
