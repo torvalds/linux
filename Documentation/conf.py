@@ -234,7 +234,7 @@ author = "The kernel development community"
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-# In a normal build, version and release are are set to KERNELVERSION and
+# In a normal build, version and release are set to KERNELVERSION and
 # KERNELRELEASE, respectively, from the Makefile via Sphinx command line
 # arguments.
 #
