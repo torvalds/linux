@@ -1041,6 +1041,10 @@ pd692x0_configure_managers(struct pd692x0_priv *priv, int nmanagers)
 		int pw_budget;
 
 		pw_budget = regulator_get_unclaimed_power_budget(supply);
+		if (!pw_budget)
+			/* Do nothing if no power budget */
+			continue;
+
 		/* Max power budget per manager */
 		if (pw_budget > 6000000)
 			pw_budget = 6000000;
