@@ -43,10 +43,9 @@
 #include "internal.h"
 
 static struct microcode_ops *microcode_ops;
-static bool dis_ucode_ldr = false;
+static bool dis_ucode_ldr;
 
 bool force_minrev = IS_ENABLED(CONFIG_MICROCODE_LATE_FORCE_MINREV);
-module_param(force_minrev, bool, S_IRUSR | S_IWUSR);
 
 /*
  * Synchronization.
@@ -126,13 +125,32 @@ bool __init microcode_loader_disabled(void)
 	return dis_ucode_ldr;
 }
 
+static void early_parse_cmdline(void)
+{
+	char cmd_buf[64] = {};
+	char *s, *p = cmd_buf;
+
+	if (cmdline_find_option(boot_command_line, "microcode", cmd_buf, sizeof(cmd_buf)) > 0) {
+		while ((s = strsep(&p, ","))) {
+			if (!strcmp("force_minrev", s))
+				force_minrev = true;
+
+			if (!strcmp(s, "dis_ucode_ldr"))
+				dis_ucode_ldr = true;
+		}
+	}
+
+	/* old, compat option */
+	if (cmdline_find_option_bool(boot_command_line, "dis_ucode_ldr") > 0)
+		dis_ucode_ldr = true;
+}
+
 void __init load_ucode_bsp(void)
 {
 	unsigned int cpuid_1_eax;
 	bool intel = true;
 
-	if (cmdline_find_option_bool(boot_command_line, "dis_ucode_ldr") > 0)
-		dis_ucode_ldr = true;
+	early_parse_cmdline();
 
 	if (microcode_loader_disabled())
 		return;

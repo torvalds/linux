@@ -1340,7 +1340,7 @@ config MICROCODE_LATE_LOADING
 	  use this at your own risk. Late loading taints the kernel unless the
 	  microcode header indicates that it is safe for late loading via the
 	  minimal revision check. This minimal revision check can be enforced on
-	  the kernel command line with "microcode.minrev=Y".
+	  the kernel command line with "microcode=force_minrev".
 
 config MICROCODE_LATE_FORCE_MINREV
 	bool "Enforce late microcode loading minimal revision check"
@@ -1356,7 +1356,7 @@ config MICROCODE_LATE_FORCE_MINREV
 	  revision check fails.
 
 	  This minimal revision check can also be controlled via the
-	  "microcode.minrev" parameter on the kernel command line.
+	  "microcode=force_minrev" parameter on the kernel command line.
 
 	  If unsure say Y.
 
