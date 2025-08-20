@@ -9,6 +9,7 @@
 #define to_stm32_pcie(x)	dev_get_drvdata((x)->dev)
 
 #define STM32MP25_PCIECR_TYPE_MASK	GENMASK(11, 8)
+#define STM32MP25_PCIECR_EP		0
 #define STM32MP25_PCIECR_LTSSM_EN	BIT(2)
 #define STM32MP25_PCIECR_RC		BIT(10)
 

@@ -434,6 +434,18 @@ config PCIE_STM32_HOST
 	  This driver can also be built as a module. If so, the module
 	  will be called pcie-stm32.
 
+config PCIE_STM32_EP
+	tristate "STMicroelectronics STM32MP25 PCIe Controller (endpoint mode)"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	help
+	  Enables Endpoint (EP) support for the DesignWare core based PCIe
+	  controller found in STM32MP25 SoC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pcie-stm32-ep.
+
 config PCI_DRA7XX
 	tristate
 
