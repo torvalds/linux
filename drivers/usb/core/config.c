@@ -507,7 +507,8 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	}
 
 	/* Parse a possible eUSB2 periodic endpoint companion descriptor */
-	if (bcdUSB == 0x0220 && !le16_to_cpu(d->wMaxPacketSize) &&
+	if (udev->speed == USB_SPEED_HIGH && bcdUSB == 0x0220 &&
+	    !le16_to_cpu(d->wMaxPacketSize) &&
 	    (usb_endpoint_xfer_isoc(d) || usb_endpoint_xfer_int(d)))
 		usb_parse_eusb2_isoc_endpoint_companion(ddev, cfgno, inum, asnum,
 							endpoint, buffer, size);
