@@ -1,8 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-==========================================
-WHAT IS Flash-Friendly File System (F2FS)?
-==========================================
+=================================
+Flash-Friendly File System (F2FS)
+=================================
+
+Overview
+========
 
 NAND flash memory-based storage devices, such as SSD, eMMC, and SD cards, have
 been equipped on a variety systems ranging from mobile to server systems. Since
