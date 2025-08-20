@@ -3564,10 +3564,8 @@ static inline bool may_use_mount(struct mount *mnt)
 static int do_move_mount(struct path *old_path,
 			 struct path *new_path, enum mnt_tree_flags_t flags)
 {
-	struct mnt_namespace *ns;
 	struct mount *p;
 	struct mount *old;
-	struct mount *parent;
 	struct pinned_mountpoint mp;
 	int err;
 	bool beneath = flags & MNT_TREE_BENEATH;
@@ -3578,8 +3576,6 @@ static int do_move_mount(struct path *old_path,
 
 	old = real_mount(old_path->mnt);
 	p = real_mount(new_path->mnt);
-	parent = old->mnt_parent;
-	ns = old->mnt_ns;
 
 	err = -EINVAL;
 
@@ -3588,11 +3584,11 @@ static int do_move_mount(struct path *old_path,
 		/* ... it should be detachable from parent */
 		if (!mnt_has_parent(old) || IS_MNT_LOCKED(old))
 			goto out;
+		/* ... which should not be shared */
+		if (IS_MNT_SHARED(old->mnt_parent))
+			goto out;
 		/* ... and the target should be in our namespace */
 		if (!check_mnt(p))
-			goto out;
-		/* parent of the source should not be shared */
-		if (IS_MNT_SHARED(parent))
 			goto out;
 	} else {
 		/*
@@ -3605,7 +3601,7 @@ static int do_move_mount(struct path *old_path,
 		 * subsequent checks would've rejected that, but they lose
 		 * some corner cases if we check it early.
 		 */
-		if (ns == p->mnt_ns)
+		if (old->mnt_ns == p->mnt_ns)
 			goto out;
 		/*
 		 * Target should be either in our namespace or in an acceptable
