@@ -18,6 +18,13 @@ struct hinic3_dma_addr_align {
 	dma_addr_t align_paddr;
 };
 
+struct hinic3_sge {
+	__le32 hi_addr;
+	__le32 lo_addr;
+	__le32 len;
+	__le32 rsvd;
+};
+
 int hinic3_dma_zalloc_coherent_align(struct device *dev, u32 size, u32 align,
 				     gfp_t flag,
 				     struct hinic3_dma_addr_align *mem_align);

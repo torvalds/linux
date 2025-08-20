@@ -10,10 +10,10 @@
 
 struct hinic3_sq_bufdesc {
 	/* 31-bits Length, L2NIC only uses length[17:0] */
-	u32 len;
-	u32 rsvd;
-	u32 hi_addr;
-	u32 lo_addr;
+	__le32 len;
+	__le32 rsvd;
+	__le32 hi_addr;
+	__le32 lo_addr;
 };
 
 /* Work queue is used to submit elements (tx, rx, cmd) to hw.
@@ -59,6 +59,7 @@ static inline void *hinic3_wq_get_one_wqebb(struct hinic3_wq *wq, u16 *pi)
 {
 	*pi = wq->prod_idx & wq->idx_mask;
 	wq->prod_idx++;
+
 	return get_q_element(&wq->qpages, *pi, NULL);
 }
 
@@ -67,10 +68,20 @@ static inline void hinic3_wq_put_wqebbs(struct hinic3_wq *wq, u16 num_wqebbs)
 	wq->cons_idx += num_wqebbs;
 }
 
+static inline u64 hinic3_wq_get_first_wqe_page_addr(const struct hinic3_wq *wq)
+{
+	return wq->qpages.pages[0].align_paddr;
+}
+
+int hinic3_wq_create(struct hinic3_hwdev *hwdev, struct hinic3_wq *wq,
+		     u32 q_depth, u16 wqebb_size);
+void hinic3_wq_destroy(struct hinic3_hwdev *hwdev, struct hinic3_wq *wq);
+void hinic3_wq_reset(struct hinic3_wq *wq);
 void hinic3_wq_get_multi_wqebbs(struct hinic3_wq *wq,
 				u16 num_wqebbs, u16 *prod_idx,
 				struct hinic3_sq_bufdesc **first_part_wqebbs,
 				struct hinic3_sq_bufdesc **second_part_wqebbs,
 				u16 *first_part_wqebbs_num);
+bool hinic3_wq_is_0_level_cla(const struct hinic3_wq *wq);
 
 #endif
