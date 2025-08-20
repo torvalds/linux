@@ -17,6 +17,13 @@
  */
 #define SD0_EMMC	1
 
+/*
+ * P17_4 = SD1_CD; SW2[3] = ON
+ * P08_5 = SD1_PWEN; SW2[3] = ON
+ * P08_6 = SD1_IOVS; SW2[3] = ON; SW5[3] = OFF; SW5[4] = ON
+ */
+#define SD1_MICRO_SD	1
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {
@@ -49,6 +56,7 @@
 			function-enumerator = <2>;
 		};
 
+#if (!SD1_MICRO_SD)
 		led-3 {
 			/* SW2-3: OFF */
 			gpios = <&pinctrl RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
@@ -56,6 +64,7 @@
 			function = LED_FUNCTION_DEBUG;
 			function-enumerator = <3>;
 		};
+#endif
 
 		led-4 {
 			/* SW8-3: ON, SW8-4: OFF */

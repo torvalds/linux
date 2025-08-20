@@ -18,6 +18,12 @@
  */
 #define SD0_EMMC       1
 
+/*
+ * P17_4 = SD1_CD; DSW5[3] = ON; DSW19[1] = OFF; DSW19[2] = ON
+ * P08_6 = SD1_IOVS; DSW5[3] = ON
+ */
+#define SD1_MICRO_SD	1
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 /*

@@ -14,6 +14,7 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		mmc0 = &sdhi0;
+		mmc1 = &sdhi1;
 		serial0 = &sci0;
 	};
 
@@ -38,6 +39,18 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+
+#if SD1_MICRO_SD
+	vccq_sdhi1: regulator-vccq-sdhi1 {
+		compatible = "regulator-gpio";
+		regulator-name = "SDHI1 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pinctrl RZT2H_GPIO(8, 6) GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+		states = <3300000 0>, <1800000 1>;
+	};
+#endif
 };
 
 &extal_clk {
@@ -93,6 +106,30 @@
 				 <RZT2H_PORT_PINMUX(13, 2, 0x29)>; /* SD0_RST# */
 		};
 	};
+
+#if SD1_MICRO_SD
+	sdhi1-pwen-hog {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SD1_PWEN";
+	};
+#endif
+
+	sdhi1_pins: sd1-group {
+		data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 7, 0x29)>, /* SD1_DATA0 */
+				 <RZT2H_PORT_PINMUX(17, 0, 0x29)>, /* SD1_DATA1 */
+				 <RZT2H_PORT_PINMUX(17, 1, 0x29)>, /* SD1_DATA2 */
+				 <RZT2H_PORT_PINMUX(17, 2, 0x29)>; /* SD1_DATA3 */
+		};
+
+		ctrl-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 5, 0x29)>, /* SD1_CLK */
+				 <RZT2H_PORT_PINMUX(16, 6, 0x29)>, /* SD1_CMD */
+				 <RZT2H_PORT_PINMUX(17, 4, 0x29)>; /* SD1_CD */
+		};
+	};
 };
 
 &sci0 {
@@ -112,6 +149,20 @@
 	non-removable;
 	mmc-hs200-1_8v;
 	fixed-emmc-driver-type = <1>;
+	status = "okay";
+};
+#endif
+
+#if SD1_MICRO_SD
+&sdhi1 {
+	pinctrl-0 = <&sdhi1_pins>;
+	pinctrl-1 = <&sdhi1_pins>;
+	pinctrl-names = "default", "state_uhs";
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vccq_sdhi1>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 #endif
