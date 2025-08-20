@@ -25,6 +25,15 @@ struct hinic3_sge {
 	__le32 rsvd;
 };
 
+static inline void hinic3_set_sge(struct hinic3_sge *sge, dma_addr_t addr,
+				  __le32 len)
+{
+	sge->hi_addr = cpu_to_le32(upper_32_bits(addr));
+	sge->lo_addr = cpu_to_le32(lower_32_bits(addr));
+	sge->len = len;
+	sge->rsvd = 0;
+}
+
 int hinic3_dma_zalloc_coherent_align(struct device *dev, u32 size, u32 align,
 				     gfp_t flag,
 				     struct hinic3_dma_addr_align *mem_align);

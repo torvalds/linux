@@ -141,8 +141,13 @@ struct hinic3_cmdqs {
 int hinic3_cmdqs_init(struct hinic3_hwdev *hwdev);
 void hinic3_cmdqs_free(struct hinic3_hwdev *hwdev);
 
+struct hinic3_cmd_buf *hinic3_alloc_cmd_buf(struct hinic3_hwdev *hwdev);
 void hinic3_free_cmd_buf(struct hinic3_hwdev *hwdev,
 			 struct hinic3_cmd_buf *cmd_buf);
+void hinic3_cmdq_ceq_handler(struct hinic3_hwdev *hwdev, __le32 ceqe_data);
+
+int hinic3_cmdq_direct_resp(struct hinic3_hwdev *hwdev, u8 mod, u8 cmd,
+			    struct hinic3_cmd_buf *buf_in, __le64 *out_param);
 
 void hinic3_cmdq_flush_sync_cmd(struct hinic3_hwdev *hwdev);
 int hinic3_reinit_cmdq_ctxts(struct hinic3_hwdev *hwdev);
