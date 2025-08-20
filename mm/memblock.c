@@ -780,9 +780,9 @@ bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_byt
 	}
 
 	if ((nr_pages << PAGE_SHIFT) > threshold_bytes) {
-		mem_size_mb = memblock_phys_mem_size() >> 20;
+		mem_size_mb = memblock_phys_mem_size() / SZ_1M;
 		pr_err("NUMA: no nodes coverage for %luMB of %luMB RAM\n",
-		       (nr_pages << PAGE_SHIFT) >> 20, mem_size_mb);
+		       (nr_pages << PAGE_SHIFT) / SZ_1M, mem_size_mb);
 		return false;
 	}
 
