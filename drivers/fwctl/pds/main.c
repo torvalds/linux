@@ -481,7 +481,7 @@ static int pdsfc_probe(struct auxiliary_device *adev,
 	pdsfc = fwctl_alloc_device(&padev->vf_pdev->dev, &pdsfc_ops,
 				   struct pdsfc_dev, fwctl);
 	if (!pdsfc)
-		return dev_err_probe(dev, -ENOMEM, "Failed to allocate fwctl device struct\n");
+		return -ENOMEM;
 	pdsfc->padev = padev;
 
 	err = pdsfc_identify(pdsfc);
