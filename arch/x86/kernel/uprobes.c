@@ -804,7 +804,7 @@ SYSCALL_DEFINE0(uprobe)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	struct uprobe_syscall_args args;
-	unsigned long ip, sp;
+	unsigned long ip, sp, sret;
 	int err;
 
 	/* Allow execution only from uprobe trampolines. */
@@ -831,6 +831,10 @@ SYSCALL_DEFINE0(uprobe)
 
 	sp = regs->sp;
 
+	err = shstk_pop((u64 *)&sret);
+	if (err == -EFAULT || (!err && sret != args.retaddr))
+		goto sigill;
+
 	handle_syscall_uprobe(regs, regs->ip);
 
 	/*
@@ -854,6 +858,9 @@ SYSCALL_DEFINE0(uprobe)
 	/* keep return address unless we are instructed otherwise */
 	if (args.retaddr - 5 != regs->ip)
 		args.retaddr = regs->ip;
+
+	if (shstk_push(args.retaddr) == -EFAULT)
+		goto sigill;
 
 	regs->ip = ip;
 
@@ -1123,14 +1130,6 @@ void arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
 {
 	struct mm_struct *mm = current->mm;
 	uprobe_opcode_t insn[5];
-
-	/*
-	 * Do not optimize if shadow stack is enabled, the return address hijack
-	 * code in arch_uretprobe_hijack_return_addr updates wrong frame when
-	 * the entry uprobe is optimized and the shadow stack crashes the app.
-	 */
-	if (shstk_is_enabled())
-		return;
 
 	if (!should_optimize(auprobe))
 		return;

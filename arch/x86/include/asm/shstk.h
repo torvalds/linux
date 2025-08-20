@@ -23,6 +23,8 @@ int setup_signal_shadow_stack(struct ksignal *ksig);
 int restore_signal_shadow_stack(void);
 int shstk_update_last_frame(unsigned long val);
 bool shstk_is_enabled(void);
+int shstk_pop(u64 *val);
+int shstk_push(u64 val);
 #else
 static inline long shstk_prctl(struct task_struct *task, int option,
 			       unsigned long arg2) { return -EINVAL; }
@@ -35,6 +37,8 @@ static inline int setup_signal_shadow_stack(struct ksignal *ksig) { return 0; }
 static inline int restore_signal_shadow_stack(void) { return 0; }
 static inline int shstk_update_last_frame(unsigned long val) { return 0; }
 static inline bool shstk_is_enabled(void) { return false; }
+static inline int shstk_pop(u64 *val) { return -ENOTSUPP; }
+static inline int shstk_push(u64 val) { return -ENOTSUPP; }
 #endif /* CONFIG_X86_USER_SHADOW_STACK */
 
 #endif /* __ASSEMBLER__ */

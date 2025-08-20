@@ -246,6 +246,46 @@ static unsigned long get_user_shstk_addr(void)
 	return ssp;
 }
 
+int shstk_pop(u64 *val)
+{
+	int ret = 0;
+	u64 ssp;
+
+	if (!features_enabled(ARCH_SHSTK_SHSTK))
+		return -ENOTSUPP;
+
+	fpregs_lock_and_load();
+
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
+	if (val && get_user(*val, (__user u64 *)ssp))
+		ret = -EFAULT;
+	else
+		wrmsrq(MSR_IA32_PL3_SSP, ssp + SS_FRAME_SIZE);
+	fpregs_unlock();
+
+	return ret;
+}
+
+int shstk_push(u64 val)
+{
+	u64 ssp;
+	int ret;
+
+	if (!features_enabled(ARCH_SHSTK_SHSTK))
+		return -ENOTSUPP;
+
+	fpregs_lock_and_load();
+
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
+	ssp -= SS_FRAME_SIZE;
+	ret = write_user_shstk_64((__user void *)ssp, val);
+	if (!ret)
+		wrmsrq(MSR_IA32_PL3_SSP, ssp);
+	fpregs_unlock();
+
+	return ret;
+}
+
 #define SHSTK_DATA_BIT BIT(63)
 
 static int put_shstk_data(u64 __user *addr, u64 data)
