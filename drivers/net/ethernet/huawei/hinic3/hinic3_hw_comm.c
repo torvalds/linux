@@ -8,6 +8,37 @@
 #include "hinic3_hwif.h"
 #include "hinic3_mbox.h"
 
+int hinic3_set_interrupt_cfg_direct(struct hinic3_hwdev *hwdev,
+				    const struct hinic3_interrupt_info *info)
+{
+	struct comm_cmd_cfg_msix_ctrl_reg msix_cfg = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	msix_cfg.func_id = hinic3_global_func_id(hwdev);
+	msix_cfg.msix_index = info->msix_index;
+	msix_cfg.opcode = MGMT_MSG_CMD_OP_SET;
+
+	msix_cfg.lli_credit_cnt = info->lli_credit_limit;
+	msix_cfg.lli_timer_cnt = info->lli_timer_cfg;
+	msix_cfg.pending_cnt = info->pending_limit;
+	msix_cfg.coalesce_timer_cnt = info->coalesc_timer_cfg;
+	msix_cfg.resend_timer_cnt = info->resend_timer_cfg;
+
+	mgmt_msg_params_init_default(&msg_params, &msix_cfg, sizeof(msix_cfg));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_CFG_MSIX_CTRL_REG, &msg_params);
+	if (err || msix_cfg.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to set interrupt config, err: %d, status: 0x%x\n",
+			err, msix_cfg.head.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int hinic3_func_reset(struct hinic3_hwdev *hwdev, u16 func_id, u64 reset_flag)
 {
 	struct comm_cmd_func_reset func_reset = {};

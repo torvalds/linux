@@ -85,8 +85,4 @@ void hinic3_set_netdev_ops(struct net_device *netdev);
 int hinic3_qps_irq_init(struct net_device *netdev);
 void hinic3_qps_irq_uninit(struct net_device *netdev);
 
-/* Temporary prototypes. Functions become static in later submission. */
-void qp_add_napi(struct hinic3_irq_cfg *irq_cfg);
-void qp_del_napi(struct hinic3_irq_cfg *irq_cfg);
-
 #endif
