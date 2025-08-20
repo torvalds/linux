@@ -3435,6 +3435,10 @@ static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
 		    skb_queue_empty(&c->data_q))
 			continue;
 
+		bt_dev_dbg(hdev, "hcon %p state %s queued %d", c,
+			   state_to_string(c->state),
+			   skb_queue_len(&c->data_q));
+
 		if (c->state != BT_CONNECTED && c->state != BT_CONFIG)
 			continue;
 
