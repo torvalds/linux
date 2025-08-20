@@ -118,13 +118,23 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * and vmentry.
 	 */
 	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
-	movl VMX_spec_ctrl(%_ASM_DI), %edi
-	movl PER_CPU_VAR(x86_spec_ctrl_current), %esi
-	cmp %edi, %esi
+#ifdef CONFIG_X86_64
+	mov VMX_spec_ctrl(%rdi), %rdx
+	cmp PER_CPU_VAR(x86_spec_ctrl_current), %rdx
 	je .Lspec_ctrl_done
+	movl %edx, %eax
+	shr $32, %rdx
+#else
+	mov VMX_spec_ctrl(%edi), %eax
+	mov PER_CPU_VAR(x86_spec_ctrl_current), %ecx
+	xor %eax, %ecx
+	mov VMX_spec_ctrl + 4(%edi), %edx
+	mov PER_CPU_VAR(x86_spec_ctrl_current + 4), %edi
+	xor %edx, %edi
+	or %edi, %ecx
+	je .Lspec_ctrl_done
+#endif
 	mov $MSR_IA32_SPEC_CTRL, %ecx
-	xor %edx, %edx
-	mov %edi, %eax
 	wrmsr
 
 .Lspec_ctrl_done:
