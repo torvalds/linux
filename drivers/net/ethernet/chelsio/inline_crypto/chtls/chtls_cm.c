@@ -171,7 +171,7 @@ static void chtls_purge_receive_queue(struct sock *sk)
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
-		skb_dst_set(skb, (void *)NULL);
+		skb_dstref_steal(skb);
 		kfree_skb(skb);
 	}
 }
@@ -194,7 +194,7 @@ static void chtls_purge_recv_queue(struct sock *sk)
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(&tlsk->sk_recv_queue)) != NULL) {
-		skb_dst_set(skb, NULL);
+		skb_dstref_steal(skb);
 		kfree_skb(skb);
 	}
 }
@@ -1734,7 +1734,7 @@ static int chtls_rx_data(struct chtls_dev *cdev, struct sk_buff *skb)
 		pr_err("can't find conn. for hwtid %u.\n", hwtid);
 		return -EINVAL;
 	}
-	skb_dst_set(skb, NULL);
+	skb_dstref_steal(skb);
 	process_cpl_msg(chtls_recv_data, sk, skb);
 	return 0;
 }
@@ -1786,7 +1786,7 @@ static int chtls_rx_pdu(struct chtls_dev *cdev, struct sk_buff *skb)
 		pr_err("can't find conn. for hwtid %u.\n", hwtid);
 		return -EINVAL;
 	}
-	skb_dst_set(skb, NULL);
+	skb_dstref_steal(skb);
 	process_cpl_msg(chtls_recv_pdu, sk, skb);
 	return 0;
 }
@@ -1855,7 +1855,7 @@ static int chtls_rx_cmp(struct chtls_dev *cdev, struct sk_buff *skb)
 		pr_err("can't find conn. for hwtid %u.\n", hwtid);
 		return -EINVAL;
 	}
-	skb_dst_set(skb, NULL);
+	skb_dstref_steal(skb);
 	process_cpl_msg(chtls_rx_hdr, sk, skb);
 
 	return 0;
