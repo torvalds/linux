@@ -313,7 +313,7 @@ static void return_hosed_msg(struct smi_info *smi_info, int cCode)
 
 static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 {
-	int              rv;
+	int rv;
 
 	if (!smi_info->waiting_msg) {
 		smi_info->curr_msg = NULL;
@@ -388,6 +388,17 @@ static void start_clear_flags(struct smi_info *smi_info)
 
 	start_new_msg(smi_info, msg, 3);
 	smi_info->si_state = SI_CLEARING_FLAGS;
+}
+
+static void start_get_flags(struct smi_info *smi_info)
+{
+	unsigned char msg[2];
+
+	msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
+	msg[1] = IPMI_GET_MSG_FLAGS_CMD;
+
+	start_new_msg(smi_info, msg, 2);
+	smi_info->si_state = SI_GETTING_FLAGS;
 }
 
 static void start_getting_msg_queue(struct smi_info *smi_info)
@@ -817,11 +828,7 @@ restart:
 			 * interrupts work with the SMI, that's not really
 			 * possible.
 			 */
-			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
-			msg[1] = IPMI_GET_MSG_FLAGS_CMD;
-
-			start_new_msg(smi_info, msg, 2);
-			smi_info->si_state = SI_GETTING_FLAGS;
+			start_get_flags(smi_info);
 			goto restart;
 		}
 	}
