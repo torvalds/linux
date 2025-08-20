@@ -1693,8 +1693,7 @@ static int ltc4282_probe(struct i2c_client *i2c)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Failed to allocate memory\n");
+		return -ENOMEM;
 
 	st->map = devm_regmap_init_i2c(i2c, &ltc4282_regmap_config);
 	if (IS_ERR(st->map))
