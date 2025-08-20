@@ -305,7 +305,7 @@ static int tas2563_save_calibration(struct tas2781_hda *h)
 	efi_char16_t efi_name[TAS2563_CAL_VAR_NAME_MAX];
 	unsigned long max_size = TAS2563_CAL_DATA_SIZE;
 	unsigned char var8[TAS2563_CAL_VAR_NAME_MAX];
-	struct tasdevice_priv *p = h->hda_priv;
+	struct tasdevice_priv *p = h->priv;
 	struct calidata *cd = &p->cali_data;
 	struct cali_reg *r = &cd->cali_reg_array;
 	unsigned int offset = 0;
