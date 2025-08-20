@@ -1378,36 +1378,6 @@ static u32 xhci_get_endpoint_type(struct usb_host_endpoint *ep)
 	return 0;
 }
 
-/* Return the maximum endpoint service interval time (ESIT) payload.
- * Basically, this is the maxpacket size, multiplied by the burst size
- * and mult size.
- */
-static u32 xhci_get_max_esit_payload(struct usb_device *udev,
-		struct usb_host_endpoint *ep)
-{
-	int max_burst;
-	int max_packet;
-
-	/* Only applies for interrupt or isochronous endpoints */
-	if (usb_endpoint_xfer_control(&ep->desc) ||
-			usb_endpoint_xfer_bulk(&ep->desc))
-		return 0;
-
-	/* SuperSpeedPlus Isoc ep sending over 48k per esit */
-	if ((udev->speed >= USB_SPEED_SUPER_PLUS) &&
-	    USB_SS_SSP_ISOC_COMP(ep->ss_ep_comp.bmAttributes))
-		return le32_to_cpu(ep->ssp_isoc_ep_comp.dwBytesPerInterval);
-
-	/* SuperSpeed or SuperSpeedPlus Isoc ep with less than 48k per esit */
-	if (udev->speed >= USB_SPEED_SUPER)
-		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
-
-	max_packet = usb_endpoint_maxp(&ep->desc);
-	max_burst = usb_endpoint_maxp_mult(&ep->desc);
-	/* A 0 in max burst means 1 transfer per ESIT */
-	return max_packet * max_burst;
-}
-
 /* Set up an endpoint with one ring segment.  Do not allocate stream rings.
  * Drivers will have to call usb_alloc_streams() to do that.
  */
@@ -1445,7 +1415,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	 * have no clue on scatter gather list entry size. For Isoc and Int,
 	 * set it to max available. See xHCI 1.1 spec 4.14.1.1 for details.
 	 */
-	max_esit_payload = xhci_get_max_esit_payload(udev, ep);
+	max_esit_payload = usb_endpoint_max_periodic_payload(udev, ep);
 	interval = xhci_get_endpoint_interval(udev, ep);
 
 	/* Periodic endpoint bInterval limit quirk */
