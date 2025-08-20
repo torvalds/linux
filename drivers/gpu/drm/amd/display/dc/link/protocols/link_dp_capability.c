@@ -2091,6 +2091,11 @@ static bool retrieve_link_cap(struct dc_link *link)
 			link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw,
 			sizeof(link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw));
 
+	core_link_read_dpcd(link,
+			DP_PANEL_REPLAY_CAPABILITY_SUPPORT,
+			&link->dpcd_caps.pr_caps_supported.raw,
+			sizeof(link->dpcd_caps.pr_caps_supported.raw));
+
 	/* Read DP tunneling information. */
 	status = dpcd_get_tunneling_device_data(link);
 	if (status != DC_OK)

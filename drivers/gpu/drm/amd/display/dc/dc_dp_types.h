@@ -1157,6 +1157,16 @@ struct dprx_states {
 	bool cable_id_written;
 };
 
+union dpcd_panel_replay_capability_supported {
+	struct {
+		unsigned char PANEL_REPLAY_SUPPORT          :1;
+		unsigned char SELECTIVE_UPDATE_SUPPORT      :1;
+		unsigned char EARLY_TRANSPORT_SUPPORT       :1;
+		unsigned char RESERVED				        :5;
+	} bits;
+	unsigned char raw;
+};
+
 enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_8BPC = 0,
 	DOWN_STREAM_MAX_10BPC,
@@ -1280,6 +1290,7 @@ struct dpcd_caps {
 	struct edp_psr_info psr_info;
 
 	struct replay_info pr_info;
+	union dpcd_panel_replay_capability_supported pr_caps_supported;
 	uint16_t edp_oled_emission_rate;
 	union dp_receive_port0_cap receive_port0_cap;
 	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
