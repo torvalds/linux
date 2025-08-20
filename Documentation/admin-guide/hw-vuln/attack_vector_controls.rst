@@ -214,7 +214,7 @@ Spectre_v1            X
 Spectre_v2            X                           X
 Spectre_v2_user                      X                           X            *       (Note 1)
 SRBDS                 X              X            X              X
-SRSO                  X                           X
+SRSO                  X              X            X              X
 SSB                                                                                   (Note 4)
 TAA                   X              X            X              X            *       (Note 2)
 TSA                   X              X            X              X
