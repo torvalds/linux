@@ -1047,7 +1047,7 @@ static bool __is_optimized(uprobe_opcode_t *insn, unsigned long vaddr)
 	return __in_uprobe_trampoline(vaddr + 5 + call->raddr);
 }
 
-static int is_optimized(struct mm_struct *mm, unsigned long vaddr, bool *optimized)
+static int is_optimized(struct mm_struct *mm, unsigned long vaddr)
 {
 	uprobe_opcode_t insn[5];
 	int err;
@@ -1055,8 +1055,7 @@ static int is_optimized(struct mm_struct *mm, unsigned long vaddr, bool *optimiz
 	err = copy_from_vaddr(mm, vaddr, &insn, 5);
 	if (err)
 		return err;
-	*optimized = __is_optimized((uprobe_opcode_t *)&insn, vaddr);
-	return 0;
+	return __is_optimized((uprobe_opcode_t *)&insn, vaddr);
 }
 
 static bool should_optimize(struct arch_uprobe *auprobe)
@@ -1069,17 +1068,14 @@ int set_swbp(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 	     unsigned long vaddr)
 {
 	if (should_optimize(auprobe)) {
-		bool optimized = false;
-		int err;
-
 		/*
 		 * We could race with another thread that already optimized the probe,
 		 * so let's not overwrite it with int3 again in this case.
 		 */
-		err = is_optimized(vma->vm_mm, vaddr, &optimized);
-		if (err)
-			return err;
-		if (optimized)
+		int ret = is_optimized(vma->vm_mm, vaddr);
+		if (ret < 0)
+			return ret;
+		if (ret)
 			return 0;
 	}
 	return uprobe_write_opcode(auprobe, vma, vaddr, UPROBE_SWBP_INSN,
@@ -1090,17 +1086,13 @@ int set_orig_insn(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 		  unsigned long vaddr)
 {
 	if (test_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags)) {
-		struct mm_struct *mm = vma->vm_mm;
-		bool optimized = false;
-		int err;
-
-		err = is_optimized(mm, vaddr, &optimized);
-		if (err)
-			return err;
-		if (optimized) {
-			err = swbp_unoptimize(auprobe, vma, vaddr);
-			WARN_ON_ONCE(err);
-			return err;
+		int ret = is_optimized(vma->vm_mm, vaddr);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			ret = swbp_unoptimize(auprobe, vma, vaddr);
+			WARN_ON_ONCE(ret);
+			return ret;
 		}
 	}
 	return uprobe_write_opcode(auprobe, vma, vaddr, *(uprobe_opcode_t *)&auprobe->insn,
