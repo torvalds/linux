@@ -3508,16 +3508,10 @@ cookie_hmac_alg - STRING
 	a listening sctp socket to a connecting client in the INIT-ACK chunk.
 	Valid values are:
 
-	* md5
-	* sha1
+	* sha256
 	* none
 
-	Ability to assign md5 or sha1 as the selected alg is predicated on the
-	configuration of those algorithms at build time (CONFIG_CRYPTO_MD5 and
-	CONFIG_CRYPTO_SHA1).
-
-	Default: Dependent on configuration.  MD5 if available, else SHA1 if
-	available, else none.
+	Default: sha256
 
 rcvbuf_policy - INTEGER
 	Determines if the receive buffer is attributed to the socket or to
