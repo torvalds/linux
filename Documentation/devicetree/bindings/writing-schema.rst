@@ -53,7 +53,7 @@ description
   The default without any indicators is flowed, plain scalar style where single
   line breaks and leading whitespace are stripped. Paragraphs are delimited by
   blank lines (i.e. double line break). This style cannot contain ": " in it as
-  it will be interpretted as a key. Any " #" sequence will be interpretted as
+  it will be interpreted as a key. Any " #" sequence will be interpreted as
   a comment. There's other restrictions on characters as well. Most
   restrictions are on what the first character can be.
 
