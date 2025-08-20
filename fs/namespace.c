@@ -1010,7 +1010,7 @@ static void unpin_mountpoint(struct pinned_mountpoint *m)
 	}
 }
 
-static inline int check_mnt(struct mount *mnt)
+static inline int check_mnt(const struct mount *mnt)
 {
 	return mnt->mnt_ns == current->nsproxy->mnt_ns;
 }
