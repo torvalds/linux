@@ -1139,6 +1139,25 @@ u32 usb_endpoint_max_periodic_payload(struct usb_device *udev,
 }
 EXPORT_SYMBOL_GPL(usb_endpoint_max_periodic_payload);
 
+/**
+ * usb_endpoint_is_hs_isoc_double - Tell whether an endpoint uses USB 2
+ *                                  Isochronous Double IN Bandwidth
+ * @udev: The USB device
+ * @ep: The endpoint
+ *
+ * Returns: true if an endpoint @ep conforms to USB 2 Isochronous Double IN
+ * Bandwidth ECN, false otherwise.
+ */
+bool usb_endpoint_is_hs_isoc_double(struct usb_device *udev,
+				    const struct usb_host_endpoint *ep)
+{
+	return ep->eusb2_isoc_ep_comp.bDescriptorType &&
+		le16_to_cpu(udev->descriptor.bcdUSB) == 0x220 &&
+		usb_endpoint_is_isoc_in(&ep->desc) &&
+		!le16_to_cpu(ep->desc.wMaxPacketSize);
+}
+EXPORT_SYMBOL_GPL(usb_endpoint_is_hs_isoc_double);
+
 /*
  * Notifications of device and interface registration
  */
