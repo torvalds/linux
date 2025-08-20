@@ -4803,6 +4803,7 @@ static void smi_work(struct work_struct *t)
 	int run_to_completion = READ_ONCE(intf->run_to_completion);
 	struct ipmi_smi_msg *newmsg = NULL;
 	struct ipmi_recv_msg *msg, *msg2;
+	int cc;
 
 	/*
 	 * Start the next message if available.
@@ -4811,7 +4812,7 @@ static void smi_work(struct work_struct *t)
 	 * because the lower layer is allowed to hold locks while calling
 	 * message delivery.
 	 */
-
+restart:
 	if (!run_to_completion)
 		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
 	if (intf->curr_msg == NULL && !intf->in_shutdown) {
@@ -4832,8 +4833,17 @@ static void smi_work(struct work_struct *t)
 	if (!run_to_completion)
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
 
-	if (newmsg)
-		intf->handlers->sender(intf->send_info, newmsg);
+	if (newmsg) {
+		cc = intf->handlers->sender(intf->send_info, newmsg);
+		if (cc) {
+			if (newmsg->user_data)
+				deliver_err_response(intf,
+						     newmsg->user_data, cc);
+			else
+				ipmi_free_smi_msg(newmsg);
+			goto restart;
+		}
+	}
 
 	handle_new_recv_msgs(intf);
 

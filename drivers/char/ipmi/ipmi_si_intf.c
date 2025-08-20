@@ -809,8 +809,6 @@ restart:
 	 * this if there is not yet an upper layer to handle anything.
 	 */
 	if (si_sm_result == SI_SM_ATTN || smi_info->got_attn) {
-		unsigned char msg[2];
-
 		if (smi_info->si_state != SI_NORMAL) {
 			/*
 			 * We got an ATTN, but we are doing something else.
@@ -907,8 +905,7 @@ static void flush_messages(void *send_info)
 	}
 }
 
-static void sender(void                *send_info,
-		   struct ipmi_smi_msg *msg)
+static int sender(void *send_info, struct ipmi_smi_msg *msg)
 {
 	struct smi_info   *smi_info = send_info;
 	unsigned long     flags;
@@ -921,7 +918,7 @@ static void sender(void                *send_info,
 		 * layer will call flush_messages to clear it out.
 		 */
 		smi_info->waiting_msg = msg;
-		return;
+		return IPMI_CC_NO_ERROR;
 	}
 
 	spin_lock_irqsave(&smi_info->si_lock, flags);
@@ -936,6 +933,7 @@ static void sender(void                *send_info,
 	smi_info->waiting_msg = msg;
 	check_start_timer_thread(smi_info);
 	spin_unlock_irqrestore(&smi_info->si_lock, flags);
+	return IPMI_CC_NO_ERROR;
 }
 
 static void set_run_to_completion(void *send_info, bool i_run_to_completion)
