@@ -198,6 +198,10 @@ static const struct rzv2h_mod_clk r9a09g047_mod_clks[] __initconst = {
 						BUS_MSTOP_NONE),
 	DEF_MOD_CRITICAL("gic_0_gicclk",	CLK_PLLDTY_ACPU_DIV4, 1, 3, 0, 19,
 						BUS_MSTOP(3, BIT(5))),
+	DEF_MOD("gpt_0_pclk_sfr",		CLK_PLLCLN_DIV8, 3, 1, 1, 17,
+						BUS_MSTOP(6, BIT(11))),
+	DEF_MOD("gpt_1_pclk_sfr",		CLK_PLLCLN_DIV8, 3, 2, 1, 18,
+						BUS_MSTOP(6, BIT(12))),
 	DEF_MOD("wdt_1_clkp",			CLK_PLLCLN_DIV16, 4, 13, 2, 13,
 						BUS_MSTOP(1, BIT(0))),
 	DEF_MOD("wdt_1_clk_loco",		CLK_QEXTAL, 4, 14, 2, 14,
@@ -322,6 +326,10 @@ static const struct rzv2h_reset r9a09g047_resets[] __initconst = {
 	DEF_RST(3, 6, 1, 7),		/* ICU_0_PRESETN_I */
 	DEF_RST(3, 8, 1, 9),		/* GIC_0_GICRESET_N */
 	DEF_RST(3, 9, 1, 10),		/* GIC_0_DBG_GICRESET_N */
+	DEF_RST(5, 9, 2, 10),		/* GPT_0_RST_P_REG */
+	DEF_RST(5, 10, 2, 11),		/* GPT_0_RST_S_REG */
+	DEF_RST(5, 11, 2, 12),		/* GPT_1_RST_P_REG */
+	DEF_RST(5, 12, 2, 13),		/* GPT_1_RST_S_REG */
 	DEF_RST(7, 6, 3, 7),		/* WDT_1_RESET */
 	DEF_RST(7, 7, 3, 8),		/* WDT_2_RESET */
 	DEF_RST(7, 8, 3, 9),		/* WDT_3_RESET */
