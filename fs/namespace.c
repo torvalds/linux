@@ -825,24 +825,16 @@ static bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 }
 
 /**
- * __lookup_mnt - find first child mount
+ * __lookup_mnt - mount hash lookup
  * @mnt:	parent mount
- * @dentry:	mountpoint
+ * @dentry:	dentry of mountpoint
  *
- * If @mnt has a child mount @c mounted @dentry find and return it.
+ * If @mnt has a child mount @c mounted on @dentry find and return it.
+ * Caller must either hold the spinlock component of @mount_lock or
+ * hold rcu_read_lock(), sample the seqcount component before the call
+ * and recheck it afterwards.
  *
- * Note that the child mount @c need not be unique. There are cases
- * where shadow mounts are created. For example, during mount
- * propagation when a source mount @mnt whose root got overmounted by a
- * mount @o after path lookup but before @namespace_sem could be
- * acquired gets copied and propagated. So @mnt gets copied including
- * @o. When @mnt is propagated to a destination mount @d that already
- * has another mount @n mounted at the same mountpoint then the source
- * mount @mnt will be tucked beneath @n, i.e., @n will be mounted on
- * @mnt and @mnt mounted on @d. Now both @n and @o are mounted at @mnt
- * on @dentry.
- *
- * Return: The first child of @mnt mounted @dentry or NULL.
+ * Return: The child of @mnt mounted on @dentry or %NULL.
  */
 struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 {
@@ -855,21 +847,12 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 	return NULL;
 }
 
-/*
- * lookup_mnt - Return the first child mount mounted at path
+/**
+ * lookup_mnt - Return the child mount mounted at given location
+ * @path:	location in the namespace
  *
- * "First" means first mounted chronologically.  If you create the
- * following mounts:
- *
- * mount /dev/sda1 /mnt
- * mount /dev/sda2 /mnt
- * mount /dev/sda3 /mnt
- *
- * Then lookup_mnt() on the base /mnt dentry in the root mount will
- * return successively the root dentry and vfsmount of /dev/sda1, then
- * /dev/sda2, then /dev/sda3, then NULL.
- *
- * lookup_mnt takes a reference to the found vfsmount.
+ * Acquires and returns a new reference to mount at given location
+ * or %NULL if nothing is mounted there.
  */
 struct vfsmount *lookup_mnt(const struct path *path)
 {
