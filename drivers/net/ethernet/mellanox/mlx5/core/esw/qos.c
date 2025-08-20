@@ -1109,8 +1109,10 @@ static int mlx5_esw_qos_vport_enable(struct mlx5_vport *vport, enum sched_node_t
 
 	parent_esw = parent ? parent->esw : esw;
 	sched_node = __esw_qos_alloc_node(parent_esw, 0, type, parent);
-	if (!sched_node)
+	if (!sched_node) {
+		esw_qos_put(esw);
 		return -ENOMEM;
+	}
 	if (!parent)
 		list_add_tail(&sched_node->entry, &esw->qos.domain->nodes);
 
