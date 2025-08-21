@@ -586,17 +586,16 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 }
 
 static int io_send_select_buffer(struct io_kiocb *req, unsigned int issue_flags,
-				 struct io_async_msghdr *kmsg)
+				 struct io_br_sel *sel, struct io_async_msghdr *kmsg)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-
-	int ret;
 	struct buf_sel_arg arg = {
 		.iovs = &kmsg->fast_iov,
 		.max_len = min_not_zero(sr->len, INT_MAX),
 		.nr_iovs = 1,
 		.buf_group = sr->buf_group,
 	};
+	int ret;
 
 	if (kmsg->vec.iovec) {
 		arg.nr_iovs = kmsg->vec.nr;
@@ -609,7 +608,7 @@ static int io_send_select_buffer(struct io_kiocb *req, unsigned int issue_flags,
 	else
 		arg.mode |= KBUF_MODE_EXPAND;
 
-	ret = io_buffers_select(req, &arg, issue_flags);
+	ret = io_buffers_select(req, &arg, sel, issue_flags);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -638,6 +637,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
+	struct io_br_sel sel = { };
 	struct socket *sock;
 	unsigned flags;
 	int min_ret = 0;
@@ -657,7 +657,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 
 retry_bundle:
 	if (io_do_buffer_select(req)) {
-		ret = io_send_select_buffer(req, issue_flags, kmsg);
+		ret = io_send_select_buffer(req, issue_flags, &sel, kmsg);
 		if (ret)
 			return ret;
 	}
@@ -1015,6 +1015,7 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
+	struct io_br_sel sel = { };
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
@@ -1035,7 +1036,6 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 retry_multishot:
 	if (io_do_buffer_select(req)) {
-		struct io_br_sel sel;
 		size_t len = sr->len;
 
 		sel = io_buffer_select(req, &len, sr->buf_group, issue_flags);
@@ -1099,7 +1099,7 @@ retry_multishot:
 }
 
 static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg,
-			      size_t *len, unsigned int issue_flags)
+			      struct io_br_sel *sel, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	int ret;
@@ -1124,15 +1124,15 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 			arg.mode |= KBUF_MODE_FREE;
 		}
 
-		if (*len)
-			arg.max_len = *len;
+		if (sel->val)
+			arg.max_len = sel->val;
 		else if (kmsg->msg.msg_inq > 1)
-			arg.max_len = min_not_zero(*len, (size_t) kmsg->msg.msg_inq);
+			arg.max_len = min_not_zero(sel->val, (size_t) kmsg->msg.msg_inq);
 
 		/* if mshot limited, ensure we don't go over */
 		if (sr->flags & IORING_RECV_MSHOT_LIM)
 			arg.max_len = min_not_zero(arg.max_len, sr->mshot_total_len);
-		ret = io_buffers_peek(req, &arg);
+		ret = io_buffers_peek(req, &arg, sel);
 		if (unlikely(ret < 0))
 			return ret;
 
@@ -1153,14 +1153,13 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 		iov_iter_init(&kmsg->msg.msg_iter, ITER_DEST, arg.iovs, ret,
 				arg.out_len);
 	} else {
-		struct io_br_sel sel;
+		size_t len = sel->val;
 
-		*len = sr->len;
-		sel = io_buffer_select(req, len, sr->buf_group, issue_flags);
-		if (!sel.addr)
+		*sel = io_buffer_select(req, &len, sr->buf_group, issue_flags);
+		if (!sel->addr)
 			return -ENOBUFS;
-		sr->buf = sel.addr;
-		sr->len = *len;
+		sr->buf = sel->addr;
+		sr->len = len;
 map_ubuf:
 		ret = import_ubuf(ITER_DEST, sr->buf, sr->len,
 				  &kmsg->msg.msg_iter);
@@ -1175,11 +1174,11 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
+	struct io_br_sel sel = { };
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	size_t len = sr->len;
 	bool mshot_finished;
 
 	if (!(req->flags & REQ_F_POLLED) &&
@@ -1196,7 +1195,8 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 
 retry_multishot:
 	if (io_do_buffer_select(req)) {
-		ret = io_recv_buf_select(req, kmsg, &len, issue_flags);
+		sel.val = sr->len;
+		ret = io_recv_buf_select(req, kmsg, &sel, issue_flags);
 		if (unlikely(ret < 0)) {
 			kmsg->msg.msg_inq = -1;
 			goto out_free;
