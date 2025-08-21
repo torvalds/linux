@@ -63,11 +63,14 @@ struct buf_sel_arg {
 };
 
 /*
- * Return value from io_buffer_list selection. Just returns the error or
- * user address for now, will be extended to return the buffer list in the
- * future.
+ * Return value from io_buffer_list selection, to avoid stashing it in
+ * struct io_kiocb. For legacy/classic provided buffers, keeping a reference
+ * across execution contexts are fine. But for ring provided buffers, the
+ * list may go away as soon as ->uring_lock is dropped. As the io_kiocb
+ * persists, it's better to just keep the buffer local for those cases.
  */
 struct io_br_sel {
+	struct io_buffer_list *buf_list;
 	/*
 	 * Some selection parts return the user address, others return an error.
 	 */
@@ -107,13 +110,6 @@ struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
 static inline bool io_kbuf_recycle_ring(struct io_kiocb *req,
 					struct io_buffer_list *bl)
 {
-	/*
-	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
-	 * the flag and hence ensure that bl->head doesn't get incremented.
-	 * If the tail has already been incremented, hang on to it.
-	 * The exception is partial io, that case we should increment bl->head
-	 * to monopolize the buffer.
-	 */
 	if (bl) {
 		req->flags &= ~(REQ_F_BUFFER_RING|REQ_F_BUFFERS_COMMIT);
 		return true;

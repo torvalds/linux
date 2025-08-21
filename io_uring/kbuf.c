@@ -171,8 +171,8 @@ static struct io_br_sel io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	if (*len == 0 || *len > buf->len)
 		*len = buf->len;
 	req->flags |= REQ_F_BUFFER_RING | REQ_F_BUFFERS_COMMIT;
-	req->buf_list = bl;
 	req->buf_index = buf->bid;
+	sel.buf_list = bl;
 	sel.addr = u64_to_user_ptr(buf->addr);
 
 	if (issue_flags & IO_URING_F_UNLOCKED || !io_file_can_poll(req)) {
@@ -186,8 +186,8 @@ static struct io_br_sel io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 		 * the transfer completes (or if we get -EAGAIN and must poll of
 		 * retry).
 		 */
-		io_kbuf_commit(req, bl, *len, 1);
-		req->buf_list = NULL;
+		io_kbuf_commit(req, sel.buf_list, *len, 1);
+		sel.buf_list = NULL;
 	}
 	return sel;
 }
@@ -294,7 +294,6 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 		req->flags |= REQ_F_BL_EMPTY;
 
 	req->flags |= REQ_F_BUFFER_RING;
-	req->buf_list = bl;
 	return iov - arg->iovs;
 }
 
@@ -302,16 +301,15 @@ int io_buffers_select(struct io_kiocb *req, struct buf_sel_arg *arg,
 		      struct io_br_sel *sel, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_buffer_list *bl;
 	int ret = -ENOENT;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	bl = io_buffer_get_list(ctx, arg->buf_group);
-	if (unlikely(!bl))
+	sel->buf_list = io_buffer_get_list(ctx, arg->buf_group);
+	if (unlikely(!sel->buf_list))
 		goto out_unlock;
 
-	if (bl->flags & IOBL_BUF_RING) {
-		ret = io_ring_buffers_peek(req, arg, bl);
+	if (sel->buf_list->flags & IOBL_BUF_RING) {
+		ret = io_ring_buffers_peek(req, arg, sel->buf_list);
 		/*
 		 * Don't recycle these buffers if we need to go through poll.
 		 * Nobody else can use them anyway, and holding on to provided
@@ -321,13 +319,16 @@ int io_buffers_select(struct io_kiocb *req, struct buf_sel_arg *arg,
 		 */
 		if (ret > 0) {
 			req->flags |= REQ_F_BUFFERS_COMMIT | REQ_F_BL_NO_RECYCLE;
-			io_kbuf_commit(req, bl, arg->out_len, ret);
+			io_kbuf_commit(req, sel->buf_list, arg->out_len, ret);
 		}
 	} else {
-		ret = io_provided_buffers_select(req, &arg->out_len, bl, arg->iovs);
+		ret = io_provided_buffers_select(req, &arg->out_len, sel->buf_list, arg->iovs);
 	}
 out_unlock:
-	io_ring_submit_unlock(ctx, issue_flags);
+	if (issue_flags & IO_URING_F_UNLOCKED) {
+		sel->buf_list = NULL;
+		mutex_unlock(&ctx->uring_lock);
+	}
 	return ret;
 }
 
@@ -348,10 +349,12 @@ int io_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 		ret = io_ring_buffers_peek(req, arg, bl);
 		if (ret > 0)
 			req->flags |= REQ_F_BUFFERS_COMMIT;
+		sel->buf_list = bl;
 		return ret;
 	}
 
 	/* don't support multiple buffer selections for legacy */
+	sel->buf_list = NULL;
 	return io_provided_buffers_select(req, &arg->max_len, bl, arg->iovs);
 }
 

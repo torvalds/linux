@@ -579,7 +579,7 @@ void io_req_rw_complete(struct io_kiocb *req, io_tw_token_t tw)
 	io_req_io_end(req);
 
 	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING))
-		req->cqe.flags |= io_put_kbuf(req, req->cqe.res, req->buf_list);
+		req->cqe.flags |= io_put_kbuf(req, req->cqe.res, NULL);
 
 	io_req_rw_cleanup(req, 0);
 	io_req_task_complete(req, tw);
@@ -648,7 +648,7 @@ static inline void io_rw_done(struct io_kiocb *req, ssize_t ret)
 }
 
 static int kiocb_done(struct io_kiocb *req, ssize_t ret,
-		       unsigned int issue_flags)
+		      struct io_br_sel *sel, unsigned int issue_flags)
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	unsigned final_ret = io_fixup_rw_res(req, ret);
@@ -662,7 +662,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		 * from the submission path.
 		 */
 		io_req_io_end(req);
-		io_req_set_res(req, final_ret, io_put_kbuf(req, ret, req->buf_list));
+		io_req_set_res(req, final_ret, io_put_kbuf(req, ret, sel->buf_list));
 		io_req_rw_cleanup(req, issue_flags);
 		return IOU_COMPLETE;
 	} else {
@@ -1024,10 +1024,10 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = __io_read(req, &sel, issue_flags);
 	if (ret >= 0)
-		return kiocb_done(req, ret, issue_flags);
+		return kiocb_done(req, ret, &sel, issue_flags);
 
 	if (req->flags & REQ_F_BUFFERS_COMMIT)
-		io_kbuf_recycle(req, req->buf_list, issue_flags);
+		io_kbuf_recycle(req, sel.buf_list, issue_flags);
 	return ret;
 }
 
@@ -1057,15 +1057,15 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		 * Reset rw->len to 0 again to avoid clamping future mshot
 		 * reads, in case the buffer size varies.
 		 */
-		if (io_kbuf_recycle(req, req->buf_list, issue_flags))
+		if (io_kbuf_recycle(req, sel.buf_list, issue_flags))
 			rw->len = 0;
 		return IOU_RETRY;
 	} else if (ret <= 0) {
-		io_kbuf_recycle(req, req->buf_list, issue_flags);
+		io_kbuf_recycle(req, sel.buf_list, issue_flags);
 		if (ret < 0)
 			req_set_fail(req);
 	} else if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
-		cflags = io_put_kbuf(req, ret, req->buf_list);
+		cflags = io_put_kbuf(req, ret, sel.buf_list);
 	} else {
 		/*
 		 * Any successful return value will keep the multishot read
@@ -1073,7 +1073,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		 * we fail to post a CQE, or multishot is no longer set, then
 		 * jump to the termination path. This request is then done.
 		 */
-		cflags = io_put_kbuf(req, ret, req->buf_list);
+		cflags = io_put_kbuf(req, ret, sel.buf_list);
 		rw->len = 0; /* similarly to above, reset len to 0 */
 
 		if (io_req_post_cqe(req, ret, cflags | IORING_CQE_F_MORE)) {
@@ -1202,7 +1202,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 			return -EAGAIN;
 		}
 done:
-		return kiocb_done(req, ret2, issue_flags);
+		return kiocb_done(req, ret2, NULL, issue_flags);
 	} else {
 ret_eagain:
 		iov_iter_restore(&io->iter, &io->iter_state);
@@ -1370,7 +1370,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		if (!smp_load_acquire(&req->iopoll_completed))
 			break;
 		nr_events++;
-		req->cqe.flags = io_put_kbuf(req, req->cqe.res, req->buf_list);
+		req->cqe.flags = io_put_kbuf(req, req->cqe.res, NULL);
 		if (req->opcode != IORING_OP_URING_CMD)
 			io_req_rw_cleanup(req, 0);
 	}
