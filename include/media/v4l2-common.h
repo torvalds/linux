@@ -566,10 +566,12 @@ int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
  * @div: The divisor between pixel rate and link frequency. Number of data lanes
  *	 times two on D-PHY, 1 on parallel. 0 otherwise.
  *
- * This function is intended for obtaining the link frequency from the
- * transmitter sub-device's pad. It returns the link rate, either from the
- * V4L2_CID_LINK_FREQ control implemented by the transmitter, or value
- * calculated based on the V4L2_CID_PIXEL_RATE implemented by the transmitter.
+ * This function obtains and returns the link frequency from the transmitter
+ * sub-device's pad. The link frequency is retrieved using the get_mbus_config
+ * sub-device pad operation. If this fails, the function falls back to obtaining
+ * the frequency either directly from the V4L2_CID_LINK_FREQ control if
+ * implemented by the transmitter, or by calculating it from the pixel rate
+ * obtained from the V4L2_CID_PIXEL_RATE control.
  *
  * Return:
  * * >0: Link frequency
