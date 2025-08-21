@@ -3135,7 +3135,7 @@ static inline bool smu_v13_0_6_is_link_reset_supported(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int var = (adev->pdev->device & 0xF);
 
-	if (var == 0x1)
+	if (var == 0x1 || var == 0x0)
 		return true;
 
 	return false;
