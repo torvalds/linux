@@ -3886,8 +3886,8 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	if (list_empty(mounts))
 		return;
 
-	namespace_lock();
-	lock_mount_hash();
+	guard(namespace_excl)();
+	guard(mount_writer)();
 
 	/* extract from the expiration list every vfsmount that matches the
 	 * following criteria:
@@ -3909,8 +3909,6 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 		touch_mnt_namespace(mnt->mnt_ns);
 		umount_tree(mnt, UMOUNT_PROPAGATE|UMOUNT_SYNC);
 	}
-	unlock_mount_hash();
-	namespace_unlock();
 }
 
 EXPORT_SYMBOL_GPL(mark_mounts_for_expiry);
