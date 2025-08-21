@@ -334,10 +334,8 @@ pid_t sys_fork(void)
 	 * will not use the rest with no other flag.
 	 */
 	return my_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
-#elif defined(__NR_fork)
-	return my_syscall0(__NR_fork);
 #else
-	return __nolibc_enosys(__func__);
+	return my_syscall0(__NR_fork);
 #endif
 }
 #endif
@@ -354,7 +352,7 @@ pid_t sys_vfork(void)
 {
 #if defined(__NR_vfork)
 	return my_syscall0(__NR_vfork);
-#elif defined(__NR_clone3)
+#else
 	/*
 	 * clone() could be used but has different argument orders per
 	 * architecture.
@@ -365,8 +363,6 @@ pid_t sys_vfork(void)
 	};
 
 	return my_syscall2(__NR_clone3, &args, sizeof(args));
-#else
-	return __nolibc_enosys(__func__);
 #endif
 }
 #endif
