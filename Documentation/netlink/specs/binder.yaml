@@ -26,27 +26,27 @@ attribute-sets:
         type: string
         doc: The binder context where the transaction occurred.
       -
-        name: from_pid
+        name: from-pid
         type: u32
         doc: The PID of the sender process.
       -
-        name: from_tid
+        name: from-tid
         type: u32
         doc: The TID of the sender thread.
       -
-        name: to_pid
+        name: to-pid
         type: u32
         doc: |
           The PID of the recipient process. This attribute may not be present
           if the target could not be determined.
       -
-        name: to_tid
+        name: to-tid
         type: u32
         doc: |
           The TID of the recipient thread. This attribute may not be present
           if the target could not be determined.
       -
-        name: is_reply
+        name: is-reply
         type: flag
         doc: When present, indicates the failed transaction is a reply.
       -
@@ -58,7 +58,7 @@ attribute-sets:
         type: u32
         doc: The application-defined code from the transaction.
       -
-        name: data_size
+        name: data-size
         type: u32
         doc: The transaction payload size in bytes.
 
@@ -78,14 +78,14 @@ operations:
         attributes:
           - error
           - context
-          - from_pid
-          - from_tid
-          - to_pid
-          - to_tid
-          - is_reply
+          - from-pid
+          - from-tid
+          - to-pid
+          - to-tid
+          - is-reply
           - flags
           - code
-          - data_size
+          - data-size
 
 mcast-groups:
   list:
