@@ -10,7 +10,7 @@
 use crate::{
     bindings,
     cred::Credential,
-    error::{code::*, Error, Result},
+    error::{code::*, to_result, Error, Result},
     sync::aref::{ARef, AlwaysRefCounted},
     types::{NotThreadSafe, Opaque},
 };
@@ -399,9 +399,8 @@ impl FileDescriptorReservation {
     pub fn get_unused_fd_flags(flags: u32) -> Result<Self> {
         // SAFETY: FFI call, there are no safety requirements on `flags`.
         let fd: i32 = unsafe { bindings::get_unused_fd_flags(flags) };
-        if fd < 0 {
-            return Err(Error::from_errno(fd));
-        }
+        to_result(fd)?;
+
         Ok(Self {
             fd: fd as u32,
             _not_send: NotThreadSafe,
