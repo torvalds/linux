@@ -566,7 +566,7 @@ mmc_spi_setup_data_message(struct mmc_spi_host *host, bool multiple, bool write)
 	if (write) {
 		t = &host->early_status;
 		memset(t, 0, sizeof(*t));
-		t->len = write ? sizeof(scratch->status) : 1;
+		t->len = sizeof(scratch->status);
 		t->tx_buf = host->ones;
 		t->rx_buf = scratch->status;
 		t->cs_change = 1;
