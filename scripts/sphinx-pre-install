@@ -1048,7 +1048,12 @@ class SphinxDependencyChecker(MissingCheckers):
         }
 
         archlinux_tex_pkgs = [
+            "texlive-basic",
+            "texlive-binextra",
             "texlive-core",
+            "texlive-fontsrecommended",
+            "texlive-langchinese",
+            "texlive-langcjk",
             "texlive-latexextra",
             "ttf-dejavu",
         ]
