@@ -3858,9 +3858,8 @@ discard:
  */
 void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list)
 {
-	read_seqlock_excl(&mount_lock);
+	guard(mount_locked_reader)();
 	list_add_tail(&real_mount(mnt)->mnt_expire, expiry_list);
-	read_sequnlock_excl(&mount_lock);
 }
 EXPORT_SYMBOL(mnt_set_expiry);
 
