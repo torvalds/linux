@@ -129,10 +129,10 @@ static inline bool io_kbuf_recycle(struct io_kiocb *req, struct io_buffer_list *
 {
 	if (req->flags & REQ_F_BL_NO_RECYCLE)
 		return false;
-	if (req->flags & REQ_F_BUFFER_SELECTED)
-		return io_kbuf_recycle_legacy(req, issue_flags);
 	if (req->flags & REQ_F_BUFFER_RING)
 		return io_kbuf_recycle_ring(req, bl);
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		return io_kbuf_recycle_legacy(req, issue_flags);
 	return false;
 }
 
