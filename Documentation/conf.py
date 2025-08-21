@@ -93,31 +93,31 @@ def config_init(app, config):
 
     # When SPHINXDIRS is used, we just need to get index.rst, if it exists
     if not os.path.samefile(doctree, app.srcdir):
-        doc = "index"
-        doc_name = os.path.basename(app.srcdir)
-        if os.path.exists(os.path.join(app.srcdir, doc + ".rst")):
-            latex_documents.append((doc, doc_name + ".tex",
-                                    "Linux %s Documentation" % doc_name.capitalize(),
+        doc = os.path.basename(app.srcdir)
+        fname = "index"
+        if os.path.exists(os.path.join(app.srcdir, fname + ".rst")):
+            latex_documents.append((fname, doc + ".tex",
+                                    "Linux %s Documentation" % doc.capitalize(),
                                     "The kernel development community",
                                     "manual"))
             return
 
     # When building all docs, or when a main index.rst doesn't exist, seek
     # for it on subdirectories
-    for fn in os.listdir(app.srcdir):
-        doc = os.path.join(fn, "index")
-        if not os.path.exists(os.path.join(app.srcdir, doc + ".rst")):
+    for doc in os.listdir(app.srcdir):
+        fname = os.path.join(doc, "index")
+        if not os.path.exists(os.path.join(app.srcdir, fname + ".rst")):
             continue
 
         has = False
         for l in latex_documents:
-            if l[0] == doc:
+            if l[0] == fname:
                 has = True
                 break
 
         if not has:
-            latex_documents.append((doc, fn + ".tex",
-                                    "Linux %s Documentation" % fn.capitalize(),
+            latex_documents.append((fname, doc + ".tex",
+                                    "Linux %s Documentation" % doc.capitalize(),
                                     "The kernel development community",
                                     "manual"))
 
