@@ -93,8 +93,6 @@ struct smb_direct_transport {
 	struct smbdirect_socket socket;
 
 	struct work_struct	send_immediate_work;
-
-	bool			legacy_iwarp;
 };
 
 #define KSMBD_TRANS(t) (&(t)->transport)
@@ -1687,7 +1685,7 @@ static int smb_direct_accept_client(struct smb_direct_transport *t)
 	conn_param.initiator_depth = sp->initiator_depth;
 	conn_param.responder_resources = sp->responder_resources;
 
-	if (t->legacy_iwarp) {
+	if (sc->rdma.legacy_iwarp) {
 		ird_ord_hdr[0] = cpu_to_be32(conn_param.responder_resources);
 		ird_ord_hdr[1] = cpu_to_be32(conn_param.initiator_depth);
 		conn_param.private_data = ird_ord_hdr;
@@ -2158,7 +2156,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 			ird32 = min_t(u32, ird32, U8_MAX);
 			ord32 = min_t(u32, ord32, U8_MAX);
 
-			t->legacy_iwarp = true;
+			sc->rdma.legacy_iwarp = true;
 			peer_initiator_depth = (u8)ird32;
 			peer_responder_resources = (u8)ord32;
 		}
