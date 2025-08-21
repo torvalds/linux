@@ -41,8 +41,6 @@ enum iwl_mld_d3_notif {
 struct iwl_mld_resume_key_iter_data {
 	struct iwl_mld *mld;
 	struct iwl_mld_wowlan_status *wowlan_status;
-	u32 num_keys;
-	bool unhandled_cipher;
 };
 
 struct iwl_mld_suspend_key_iter_data {
@@ -747,14 +745,7 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 	struct iwl_mld_wowlan_status *wowlan_status = data->wowlan_status;
 	u8 status_idx;
 
-	if (data->unhandled_cipher)
-		return;
-
 	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-		/* ignore WEP completely, nothing to do */
-		return;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
@@ -785,11 +776,7 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 						    &wowlan_status->bigtk[status_idx]);
 		}
 		break;
-	default:
-		data->unhandled_cipher = true;
-		return;
 	}
-	data->num_keys++;
 }
 
 static void
@@ -922,15 +909,10 @@ iwl_mld_update_sec_keys(struct iwl_mld *mld,
 	ieee80211_iter_keys(mld->hw, vif, iwl_mld_resume_keys_iter,
 			    &key_iter_data);
 
-	if (key_iter_data.unhandled_cipher)
-		return false;
-
-	IWL_DEBUG_WOWLAN(mld,
-			 "Number of installed keys: %d, Number of rekeys: %d\n",
-			 key_iter_data.num_keys,
+	IWL_DEBUG_WOWLAN(mld, "Number of rekeys: %d\n",
 			 wowlan_status->num_of_gtk_rekeys);
 
-	if (!key_iter_data.num_keys || !wowlan_status->num_of_gtk_rekeys)
+	if (!wowlan_status->num_of_gtk_rekeys)
 		return true;
 
 	iwl_mld_add_all_rekeys(mld, vif, wowlan_status,
