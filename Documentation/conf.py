@@ -9,6 +9,8 @@ import os
 import shutil
 import sys
 
+from  textwrap import dedent
+
 import sphinx
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -462,11 +464,11 @@ latex_elements = {
     "inputenc": "",
     "utf8extra": "",
     # Set document margins
-    "sphinxsetup": """
+    "sphinxsetup": dedent(r"""
         hmargin=0.5in, vmargin=1in,
         parsedliteralwraps=true,
         verbatimhintsturnover=false,
-    """,
+    """),
     #
     # Some of our authors are fond of deep nesting; tell latex to
     # cope.
@@ -475,20 +477,16 @@ latex_elements = {
     # For CJK One-half spacing, need to be in front of hyperref
     "extrapackages": r"\usepackage{setspace}",
     # Additional stuff for the LaTeX preamble.
-    "preamble": """
+    "preamble": dedent(r"""
         % Use some font with UTF-8 support with XeLaTeX
-        \\usepackage{fontspec}
-        \\setsansfont{DejaVu Sans}
-        \\setromanfont{DejaVu Serif}
-        \\setmonofont{DejaVu Sans Mono}
-    """,
-}
-
-# Load kerneldoc specific LaTeX settings
-latex_elements["preamble"] += """
+        \usepackage{fontspec}
+        \setsansfont{DejaVu Sans}
+        \setromanfont{DejaVu Serif}
+        \setmonofont{DejaVu Sans Mono}
         % Load kerneldoc specific LaTeX settings
-        \\input{kerneldoc-preamble.sty}
-"""
+        \input{kerneldoc-preamble.sty}
+    """)
+}
 
 # This will be filled up by config-inited event
 latex_documents = []
