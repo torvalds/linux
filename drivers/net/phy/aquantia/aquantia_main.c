@@ -893,22 +893,12 @@ static int aqr_gen3_config_init(struct phy_device *phydev)
 
 static int aqcs109_config_init(struct phy_device *phydev)
 {
-	int ret;
-
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
 		return -ENODEV;
 
-	ret = aqr_wait_reset_complete(phydev);
-	if (!ret)
-		aqr107_chip_info(phydev);
-
-	ret = aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
-	if (ret)
-		return ret;
-
-	return aqr_gen2_fill_interface_modes(phydev);
+	return aqr_gen2_config_init(phydev);
 }
 
 static void aqr107_link_change_notify(struct phy_device *phydev)
