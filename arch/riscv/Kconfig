@@ -620,7 +620,7 @@ config TOOLCHAIN_HAS_V
 	default y
 	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64imv)
 	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32imv)
-	depends on LLD_VERSION >= 140000 || LD_VERSION >= 23800
+	depends on LD_IS_LLD || LD_VERSION >= 23800
 	depends on AS_HAS_OPTION_ARCH
 
 config RISCV_ISA_V
@@ -721,7 +721,7 @@ config TOOLCHAIN_HAS_ZBB
 	default y
 	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zbb)
 	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zbb)
-	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23900
+	depends on LD_IS_LLD || LD_VERSION >= 23900
 	depends on AS_HAS_OPTION_ARCH
 
 # This symbol indicates that the toolchain supports all v1.0 vector crypto
@@ -736,7 +736,7 @@ config TOOLCHAIN_HAS_ZBA
 	default y
 	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zba)
 	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zba)
-	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23900
+	depends on LD_IS_LLD || LD_VERSION >= 23900
 	depends on AS_HAS_OPTION_ARCH
 
 config RISCV_ISA_ZBA
@@ -771,7 +771,7 @@ config TOOLCHAIN_HAS_ZBC
 	default y
 	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zbc)
 	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zbc)
-	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23900
+	depends on LD_IS_LLD || LD_VERSION >= 23900
 	depends on AS_HAS_OPTION_ARCH
 
 config RISCV_ISA_ZBC
@@ -794,7 +794,7 @@ config TOOLCHAIN_HAS_ZBKB
 	default y
 	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zbkb)
 	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zbkb)
-	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23900
+	depends on LD_IS_LLD || LD_VERSION >= 23900
 	depends on AS_HAS_OPTION_ARCH
 
 config RISCV_ISA_ZBKB
