@@ -334,6 +334,32 @@ struct smbdirect_recv_io {
 	u8 packet[];
 };
 
+enum smbdirect_mr_state {
+	SMBDIRECT_MR_READY,
+	SMBDIRECT_MR_REGISTERED,
+	SMBDIRECT_MR_INVALIDATED,
+	SMBDIRECT_MR_ERROR
+};
+
+struct smbdirect_mr_io {
+	struct smbdirect_socket *socket;
+	struct ib_cqe cqe;
+
+	struct list_head list;
+
+	enum smbdirect_mr_state state;
+	struct ib_mr *mr;
+	struct sg_table sgt;
+	enum dma_data_direction dir;
+	union {
+		struct ib_reg_wr wr;
+		struct ib_send_wr inv_wr;
+	};
+
+	bool need_invalidate;
+	struct completion invalidate_done;
+};
+
 struct smbdirect_rw_io {
 	struct smbdirect_socket *socket;
 	struct ib_cqe cqe;
