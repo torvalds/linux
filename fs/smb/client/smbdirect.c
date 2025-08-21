@@ -25,8 +25,8 @@ static struct smbdirect_recv_io *get_receive_buffer(
 static void put_receive_buffer(
 		struct smbdirect_socket *sc,
 		struct smbdirect_recv_io *response);
-static int allocate_receive_buffers(struct smbd_connection *info, int num_buf);
-static void destroy_receive_buffers(struct smbd_connection *info);
+static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf);
+static void destroy_receive_buffers(struct smbdirect_socket *sc);
 
 static void enqueue_reassembly(
 		struct smbd_connection *info,
@@ -1427,9 +1427,8 @@ static void put_receive_buffer(
 }
 
 /* Preallocate all receive buffer on transport establishment */
-static int allocate_receive_buffers(struct smbd_connection *info, int num_buf)
+static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *response;
 	int i;
 
@@ -1457,9 +1456,8 @@ allocate_failed:
 	return -ENOMEM;
 }
 
-static void destroy_receive_buffers(struct smbd_connection *info)
+static void destroy_receive_buffers(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *response;
 
 	while ((response = get_receive_buffer(sc)))
@@ -1571,7 +1569,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	sc->recv_io.reassembly.data_length = 0;
 
 	log_rdma_event(INFO, "free receive buffers\n");
-	destroy_receive_buffers(info);
+	destroy_receive_buffers(sc);
 
 	/*
 	 * For performance reasons, memory registration and deregistration
@@ -1649,7 +1647,7 @@ static void destroy_caches_and_workqueue(struct smbd_connection *info)
 {
 	struct smbdirect_socket *sc = &info->socket;
 
-	destroy_receive_buffers(info);
+	destroy_receive_buffers(sc);
 	destroy_workqueue(sc->workqueue);
 	mempool_destroy(sc->recv_io.mem.pool);
 	kmem_cache_destroy(sc->recv_io.mem.cache);
@@ -1710,7 +1708,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	if (!sc->workqueue)
 		goto out4;
 
-	rc = allocate_receive_buffers(info, sp->recv_credit_max);
+	rc = allocate_receive_buffers(sc, sp->recv_credit_max);
 	if (rc) {
 		log_rdma_event(ERR, "failed to allocate receive buffers\n");
 		goto out5;
