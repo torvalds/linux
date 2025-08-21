@@ -211,7 +211,6 @@ impl<C: ClockSource> Instant<C> {
     /// # Safety
     ///
     /// The caller promises that `ktime` is in the range from 0 to `KTIME_MAX`.
-    #[expect(unused)]
     #[inline]
     pub(crate) unsafe fn from_ktime(ktime: bindings::ktime_t) -> Self {
         debug_assert!(ktime >= 0);
