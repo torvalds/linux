@@ -785,12 +785,12 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 
 	mutex_unlock(&ucr->dev_mutex);
 
-	/* get OCP status */
-	host->ocp_stat = (val >> 4) & 0x03;
-
 	/* Treat failed detection as non-exist */
 	if (err)
 		goto no_card;
+
+	/* get OCP status */
+	host->ocp_stat = (val >> 4) & 0x03;
 
 	if (val & SD_CD) {
 		host->card_exist = true;
