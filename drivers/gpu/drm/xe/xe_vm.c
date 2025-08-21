@@ -2196,6 +2196,108 @@ int xe_vm_destroy_ioctl(struct drm_device *dev, void *data,
 	return err;
 }
 
+static int xe_vm_query_vmas(struct xe_vm *vm, u64 start, u64 end)
+{
+	struct drm_gpuva *gpuva;
+	u32 num_vmas = 0;
+
+	lockdep_assert_held(&vm->lock);
+	drm_gpuvm_for_each_va_range(gpuva, &vm->gpuvm, start, end)
+		num_vmas++;
+
+	return num_vmas;
+}
+
+static int get_mem_attrs(struct xe_vm *vm, u32 *num_vmas, u64 start,
+			 u64 end, struct drm_xe_mem_range_attr *attrs)
+{
+	struct drm_gpuva *gpuva;
+	int i = 0;
+
+	lockdep_assert_held(&vm->lock);
+
+	drm_gpuvm_for_each_va_range(gpuva, &vm->gpuvm, start, end) {
+		struct xe_vma *vma = gpuva_to_vma(gpuva);
+
+		if (i == *num_vmas)
+			return -ENOSPC;
+
+		attrs[i].start = xe_vma_start(vma);
+		attrs[i].end = xe_vma_end(vma);
+		attrs[i].atomic.val = vma->attr.atomic_access;
+		attrs[i].pat_index.val = vma->attr.pat_index;
+		attrs[i].preferred_mem_loc.devmem_fd = vma->attr.preferred_loc.devmem_fd;
+		attrs[i].preferred_mem_loc.migration_policy =
+		vma->attr.preferred_loc.migration_policy;
+
+		i++;
+	}
+
+	*num_vmas = i;
+	return 0;
+}
+
+int xe_vm_query_vmas_attrs_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct xe_device *xe = to_xe_device(dev);
+	struct xe_file *xef = to_xe_file(file);
+	struct drm_xe_mem_range_attr *mem_attrs;
+	struct drm_xe_vm_query_mem_range_attr *args = data;
+	u64 __user *attrs_user = u64_to_user_ptr(args->vector_of_mem_attr);
+	struct xe_vm *vm;
+	int err = 0;
+
+	if (XE_IOCTL_DBG(xe,
+			 ((args->num_mem_ranges == 0 &&
+			  (attrs_user || args->sizeof_mem_range_attr != 0)) ||
+			 (args->num_mem_ranges > 0 &&
+			  (!attrs_user ||
+			   args->sizeof_mem_range_attr !=
+			   sizeof(struct drm_xe_mem_range_attr))))))
+		return -EINVAL;
+
+	vm = xe_vm_lookup(xef, args->vm_id);
+	if (XE_IOCTL_DBG(xe, !vm))
+		return -EINVAL;
+
+	err = down_read_interruptible(&vm->lock);
+	if (err)
+		goto put_vm;
+
+	attrs_user = u64_to_user_ptr(args->vector_of_mem_attr);
+
+	if (args->num_mem_ranges == 0 && !attrs_user) {
+		args->num_mem_ranges = xe_vm_query_vmas(vm, args->start, args->start + args->range);
+		args->sizeof_mem_range_attr = sizeof(struct drm_xe_mem_range_attr);
+		goto unlock_vm;
+	}
+
+	mem_attrs = kvmalloc_array(args->num_mem_ranges, args->sizeof_mem_range_attr,
+				   GFP_KERNEL | __GFP_ACCOUNT |
+				   __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	if (!mem_attrs) {
+		err = args->num_mem_ranges > 1 ? -ENOBUFS : -ENOMEM;
+		goto unlock_vm;
+	}
+
+	memset(mem_attrs, 0, args->num_mem_ranges * args->sizeof_mem_range_attr);
+	err = get_mem_attrs(vm, &args->num_mem_ranges, args->start,
+			    args->start + args->range, mem_attrs);
+	if (err)
+		goto free_mem_attrs;
+
+	err = copy_to_user(attrs_user, mem_attrs,
+			   args->sizeof_mem_range_attr * args->num_mem_ranges);
+
+free_mem_attrs:
+	kvfree(mem_attrs);
+unlock_vm:
+	up_read(&vm->lock);
+put_vm:
+	xe_vm_put(vm);
+	return err;
+}
+
 static bool vma_matches(struct xe_vma *vma, u64 page_addr)
 {
 	if (page_addr > xe_vma_end(vma) - 1 ||
