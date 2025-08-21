@@ -990,7 +990,7 @@ static int msa311_check_partid(struct msa311_priv *msa311)
 	msa311->chip_name = devm_kasprintf(dev, GFP_KERNEL,
 					   "msa311-%02x", partid);
 	if (!msa311->chip_name)
-		return dev_err_probe(dev, -ENOMEM, "can't alloc chip name\n");
+		return -ENOMEM;
 
 	return 0;
 }
@@ -1069,8 +1069,7 @@ static int msa311_setup_interrupts(struct msa311_priv *msa311)
 
 	trig = devm_iio_trigger_alloc(dev, "%s-new-data", msa311->chip_name);
 	if (!trig)
-		return dev_err_probe(dev, -ENOMEM,
-				     "can't allocate newdata trigger\n");
+		return -ENOMEM;
 
 	msa311->new_data_trig = trig;
 	msa311->new_data_trig->ops = &msa311_new_data_trig_ops;
@@ -1153,8 +1152,7 @@ static int msa311_probe(struct i2c_client *i2c)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*msa311));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "IIO device allocation failed\n");
+		return -ENOMEM;
 
 	msa311 = iio_priv(indio_dev);
 	msa311->dev = dev;
