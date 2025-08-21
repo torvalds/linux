@@ -2186,7 +2186,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (drm_vblank_init(adev_to_drm(adev), adev->dm.display_indexes_num)) {
 		drm_err(adev_to_drm(adev),
-		"failed to initialize sw for display support.\n");
+		"failed to initialize vblank for display support.\n");
 		goto error;
 	}
 
