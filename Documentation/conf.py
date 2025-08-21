@@ -461,6 +461,7 @@ latex_elements = {
     # Latex figure (float) alignment
     # 'figure_align': 'htbp',
     # Don't mangle with UTF-8 chars
+    "fontenc": "",
     "inputenc": "",
     "utf8extra": "",
     # Set document margins
@@ -476,13 +477,14 @@ latex_elements = {
     "maxlistdepth": "10",
     # For CJK One-half spacing, need to be in front of hyperref
     "extrapackages": r"\usepackage{setspace}",
-    # Additional stuff for the LaTeX preamble.
-    "preamble": dedent(r"""
-        % Use some font with UTF-8 support with XeLaTeX
+    "fontpkg": dedent(r"""
         \usepackage{fontspec}
+        \setmainfont{DejaVu Serif}
         \setsansfont{DejaVu Sans}
-        \setromanfont{DejaVu Serif}
         \setmonofont{DejaVu Sans Mono}
+        \newfontfamily\headingfont{DejaVu Serif}
+    """),
+    "preamble": dedent(r"""
         % Load kerneldoc specific LaTeX settings
         \input{kerneldoc-preamble.sty}
     """)
