@@ -17,8 +17,6 @@
 
 #include "../kselftest_harness.h"
 
-#define __maybe_unused __attribute__((__unused__))
-
 static int sigio_count;
 
 static void handle_sigio(int signum __maybe_unused,
