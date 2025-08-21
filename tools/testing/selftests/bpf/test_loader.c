@@ -374,6 +374,7 @@ enum arch {
 	ARCH_X86_64	= 0x2,
 	ARCH_ARM64	= 0x4,
 	ARCH_RISCV64	= 0x8,
+	ARCH_S390X	= 0x10,
 };
 
 static int get_current_arch(void)
@@ -384,6 +385,8 @@ static int get_current_arch(void)
 	return ARCH_ARM64;
 #elif defined(__riscv) && __riscv_xlen == 64
 	return ARCH_RISCV64;
+#elif defined(__s390x__)
+	return ARCH_S390X;
 #endif
 	return ARCH_UNKNOWN;
 }
@@ -565,6 +568,8 @@ static int parse_test_spec(struct test_loader *tester,
 				arch = ARCH_ARM64;
 			} else if (strcmp(val, "RISCV64") == 0) {
 				arch = ARCH_RISCV64;
+			} else if (strcmp(val, "s390x") == 0) {
+				arch = ARCH_S390X;
 			} else {
 				PRINT_FAIL("bad arch spec: '%s'\n", val);
 				err = -EINVAL;
