@@ -175,7 +175,7 @@ static int rpi_exp_gpio_get(struct gpio_chip *gc, unsigned int off)
 	return !!get.state;
 }
 
-static void rpi_exp_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
+static int rpi_exp_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 {
 	struct rpi_exp_gpio *gpio;
 	struct gpio_get_set_state set;
@@ -188,10 +188,14 @@ static void rpi_exp_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 
 	ret = rpi_firmware_property(gpio->fw, RPI_FIRMWARE_SET_GPIO_STATE,
 					 &set, sizeof(set));
-	if (ret || set.gpio != 0)
+	if (ret || set.gpio != 0) {
 		dev_err(gc->parent,
 			"Failed to set GPIO %u state (%d %x)\n", off, ret,
 			set.gpio);
+		return ret ? ret : -EIO;
+	}
+
+	return 0;
 }
 
 static int rpi_exp_gpio_probe(struct platform_device *pdev)

@@ -41,6 +41,15 @@
 	};
 };
 
+&apbdma3 {
+	status = "okay";
+};
+
+&mmc0 {
+	status = "okay";
+	bus-width = <4>;
+};
+
 &gmac0 {
 	status = "okay";
 

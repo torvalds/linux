@@ -13,6 +13,7 @@
 #include <linux/units.h>
 
 #include "adf_accel_devices.h"
+#include "adf_cfg_services.h"
 #include "adf_common_drv.h"
 #include "adf_rl_admin.h"
 #include "adf_rl.h"
@@ -55,7 +56,7 @@ static int validate_user_input(struct adf_accel_dev *accel_dev,
 			}
 		}
 
-		if (sla_in->srv >= ADF_SVC_NONE) {
+		if (sla_in->srv >= SVC_BASE_COUNT) {
 			dev_notice(&GET_DEV(accel_dev),
 				   "Wrong service type\n");
 			return -EINVAL;
@@ -168,20 +169,6 @@ static struct rl_sla *find_parent(struct adf_rl *rl_data,
 	return NULL;
 }
 
-static enum adf_cfg_service_type srv_to_cfg_svc_type(enum adf_base_services rl_srv)
-{
-	switch (rl_srv) {
-	case ADF_SVC_ASYM:
-		return ASYM;
-	case ADF_SVC_SYM:
-		return SYM;
-	case ADF_SVC_DC:
-		return COMP;
-	default:
-		return UNUSED;
-	}
-}
-
 /**
  * adf_rl_get_sla_arr_of_type() - Returns a pointer to SLA type specific array
  * @rl_data: pointer to ratelimiting data
@@ -209,22 +196,6 @@ u32 adf_rl_get_sla_arr_of_type(struct adf_rl *rl_data, enum rl_node_type type,
 	}
 }
 
-static bool is_service_enabled(struct adf_accel_dev *accel_dev,
-			       enum adf_base_services rl_srv)
-{
-	enum adf_cfg_service_type arb_srv = srv_to_cfg_svc_type(rl_srv);
-	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
-	u8 rps_per_bundle = hw_data->num_banks_per_vf;
-	int i;
-
-	for (i = 0; i < rps_per_bundle; i++) {
-		if (GET_SRV_TYPE(accel_dev, i) == arb_srv)
-			return true;
-	}
-
-	return false;
-}
-
 /**
  * prepare_rp_ids() - Creates an array of ring pair IDs from bitmask
  * @accel_dev: pointer to acceleration device structure
@@ -243,7 +214,7 @@ static bool is_service_enabled(struct adf_accel_dev *accel_dev,
 static int prepare_rp_ids(struct adf_accel_dev *accel_dev, struct rl_sla *sla,
 			  const unsigned long rp_mask)
 {
-	enum adf_cfg_service_type arb_srv = srv_to_cfg_svc_type(sla->srv);
+	enum adf_cfg_service_type arb_srv = adf_srv_to_cfg_svc_type(sla->srv);
 	u16 rps_per_bundle = GET_HW_DATA(accel_dev)->num_banks_per_vf;
 	bool *rp_in_use = accel_dev->rate_limiting->rp_in_use;
 	size_t rp_cnt_max = ARRAY_SIZE(sla->ring_pairs_ids);
@@ -558,27 +529,26 @@ u32 adf_rl_calculate_slice_tokens(struct adf_accel_dev *accel_dev, u32 sla_val,
 	if (!sla_val)
 		return 0;
 
+	/* Handle generation specific slice count adjustment */
 	avail_slice_cycles = hw_data->clock_frequency;
-
-	switch (svc_type) {
-	case ADF_SVC_ASYM:
-		avail_slice_cycles *= device_data->slices.pke_cnt;
-		break;
-	case ADF_SVC_SYM:
-		avail_slice_cycles *= device_data->slices.cph_cnt;
-		break;
-	case ADF_SVC_DC:
-		avail_slice_cycles *= device_data->slices.dcpr_cnt;
-		break;
-	default:
-		break;
-	}
+	avail_slice_cycles *= hw_data->get_svc_slice_cnt(accel_dev, svc_type);
 
 	do_div(avail_slice_cycles, device_data->scan_interval);
 	allocated_tokens = avail_slice_cycles * sla_val;
 	do_div(allocated_tokens, device_data->scale_ref);
 
 	return allocated_tokens;
+}
+
+static u32 adf_rl_get_num_svc_aes(struct adf_accel_dev *accel_dev,
+				  enum adf_base_services svc)
+{
+	struct adf_rl_hw_data *device_data = &accel_dev->hw_device->rl_data;
+
+	if (svc >= SVC_BASE_COUNT)
+		return 0;
+
+	return device_data->svc_ae_mask[svc];
 }
 
 u32 adf_rl_calculate_ae_cycles(struct adf_accel_dev *accel_dev, u32 sla_val,
@@ -592,7 +562,7 @@ u32 adf_rl_calculate_ae_cycles(struct adf_accel_dev *accel_dev, u32 sla_val,
 		return 0;
 
 	avail_ae_cycles = hw_data->clock_frequency;
-	avail_ae_cycles *= hw_data->get_num_aes(hw_data) - 1;
+	avail_ae_cycles *= adf_rl_get_num_svc_aes(accel_dev, svc_type);
 	do_div(avail_ae_cycles, device_data->scan_interval);
 
 	sla_val *= device_data->max_tp[svc_type];
@@ -617,9 +587,8 @@ u32 adf_rl_calculate_pci_bw(struct adf_accel_dev *accel_dev, u32 sla_val,
 	sla_to_bytes *= device_data->max_tp[svc_type];
 	do_div(sla_to_bytes, device_data->scale_ref);
 
-	sla_to_bytes *= (svc_type == ADF_SVC_ASYM) ? RL_TOKEN_ASYM_SIZE :
-						     BYTES_PER_MBIT;
-	if (svc_type == ADF_SVC_DC && is_bw_out)
+	sla_to_bytes *= (svc_type == SVC_ASYM) ? RL_TOKEN_ASYM_SIZE : BYTES_PER_MBIT;
+	if (svc_type == SVC_DC && is_bw_out)
 		sla_to_bytes *= device_data->slices.dcpr_cnt -
 				device_data->dcpr_correction;
 
@@ -660,7 +629,7 @@ static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 	}
 	*sla_out = sla;
 
-	if (!is_service_enabled(accel_dev, sla_in->srv)) {
+	if (!adf_is_service_enabled(accel_dev, sla_in->srv)) {
 		dev_notice(&GET_DEV(accel_dev),
 			   "Provided service is not enabled\n");
 		ret = -EINVAL;
@@ -730,8 +699,8 @@ static int initialize_default_nodes(struct adf_accel_dev *accel_dev)
 	sla_in.type = RL_ROOT;
 	sla_in.parent_id = RL_PARENT_DEFAULT_ID;
 
-	for (i = 0; i < ADF_SVC_NONE; i++) {
-		if (!is_service_enabled(accel_dev, i))
+	for (i = 0; i < SVC_BASE_COUNT; i++) {
+		if (!adf_is_service_enabled(accel_dev, i))
 			continue;
 
 		sla_in.cir = device_data->scale_ref;
@@ -745,10 +714,9 @@ static int initialize_default_nodes(struct adf_accel_dev *accel_dev)
 
 	/* Init default cluster for each root */
 	sla_in.type = RL_CLUSTER;
-	for (i = 0; i < ADF_SVC_NONE; i++) {
+	for (i = 0; i < SVC_BASE_COUNT; i++) {
 		if (!rl_data->root[i])
 			continue;
-
 		sla_in.cir = rl_data->root[i]->cir;
 		sla_in.pir = sla_in.cir;
 		sla_in.srv = rl_data->root[i]->srv;
@@ -987,7 +955,7 @@ int adf_rl_get_capability_remaining(struct adf_accel_dev *accel_dev,
 	struct rl_sla *sla = NULL;
 	int i;
 
-	if (srv >= ADF_SVC_NONE)
+	if (srv >= SVC_BASE_COUNT)
 		return -EINVAL;
 
 	if (sla_id > RL_SLA_EMPTY_ID && !validate_sla_id(accel_dev, sla_id)) {
@@ -1086,9 +1054,9 @@ int adf_rl_init(struct adf_accel_dev *accel_dev)
 	int ret = 0;
 
 	/* Validate device parameters */
-	if (RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[ADF_SVC_ASYM]) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[ADF_SVC_SYM]) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[ADF_SVC_DC]) ||
+	if (RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[SVC_ASYM]) ||
+	    RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[SVC_SYM]) ||
+	    RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[SVC_DC]) ||
 	    RL_VALIDATE_NON_ZERO(rl_hw_data->scan_interval) ||
 	    RL_VALIDATE_NON_ZERO(rl_hw_data->pcie_scale_div) ||
 	    RL_VALIDATE_NON_ZERO(rl_hw_data->pcie_scale_mul) ||

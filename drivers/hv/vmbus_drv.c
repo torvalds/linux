@@ -2509,7 +2509,7 @@ static int vmbus_acpi_add(struct platform_device *pdev)
 	return 0;
 }
 #endif
-
+#ifndef HYPERVISOR_CALLBACK_VECTOR
 static int vmbus_set_irq(struct platform_device *pdev)
 {
 	struct irq_data *data;
@@ -2534,6 +2534,7 @@ static int vmbus_set_irq(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static int vmbus_device_add(struct platform_device *pdev)
 {
@@ -2549,11 +2550,11 @@ static int vmbus_device_add(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (!__is_defined(HYPERVISOR_CALLBACK_VECTOR))
-		ret = vmbus_set_irq(pdev);
+#ifndef HYPERVISOR_CALLBACK_VECTOR
+	ret = vmbus_set_irq(pdev);
 	if (ret)
 		return ret;
-
+#endif
 	for_each_of_range(&parser, &range) {
 		struct resource *res;
 

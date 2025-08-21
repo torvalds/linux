@@ -155,7 +155,7 @@ a device with limitations, it needs to be decreased.
 
 Special note about PCI: PCI-X specification requires PCI-X devices to support
 64-bit addressing (DAC) for all transactions.  And at least one platform (SGI
-SN2) requires 64-bit consistent allocations to operate correctly when the IO
+SN2) requires 64-bit coherent allocations to operate correctly when the IO
 bus is in PCI-X mode.
 
 For correct operation, you must set the DMA mask to inform the kernel about
@@ -174,7 +174,7 @@ used instead:
 
 		int dma_set_mask(struct device *dev, u64 mask);
 
-	The setup for consistent allocations is performed via a call
+	The setup for coherent allocations is performed via a call
 	to dma_set_coherent_mask()::
 
 		int dma_set_coherent_mask(struct device *dev, u64 mask);
@@ -241,7 +241,7 @@ it would look like this::
 
 The coherent mask will always be able to set the same or a smaller mask as
 the streaming mask. However for the rare case that a device driver only
-uses consistent allocations, one would have to check the return value from
+uses coherent allocations, one would have to check the return value from
 dma_set_coherent_mask().
 
 Finally, if your device can only drive the low 24-bits of
@@ -298,20 +298,20 @@ Types of DMA mappings
 
 There are two types of DMA mappings:
 
-- Consistent DMA mappings which are usually mapped at driver
+- Coherent DMA mappings which are usually mapped at driver
   initialization, unmapped at the end and for which the hardware should
   guarantee that the device and the CPU can access the data
   in parallel and will see updates made by each other without any
   explicit software flushing.
 
-  Think of "consistent" as "synchronous" or "coherent".
+  Think of "coherent" as "synchronous".
 
-  The current default is to return consistent memory in the low 32
+  The current default is to return coherent memory in the low 32
   bits of the DMA space.  However, for future compatibility you should
-  set the consistent mask even if this default is fine for your
+  set the coherent mask even if this default is fine for your
   driver.
 
-  Good examples of what to use consistent mappings for are:
+  Good examples of what to use coherent mappings for are:
 
 	- Network card DMA ring descriptors.
 	- SCSI adapter mailbox command data structures.
@@ -320,13 +320,13 @@ There are two types of DMA mappings:
 
   The invariant these examples all require is that any CPU store
   to memory is immediately visible to the device, and vice
-  versa.  Consistent mappings guarantee this.
+  versa.  Coherent mappings guarantee this.
 
   .. important::
 
-	     Consistent DMA memory does not preclude the usage of
+	     Coherent DMA memory does not preclude the usage of
 	     proper memory barriers.  The CPU may reorder stores to
-	     consistent memory just as it may normal memory.  Example:
+	     coherent memory just as it may normal memory.  Example:
 	     if it is important for the device to see the first word
 	     of a descriptor updated before the second, you must do
 	     something like::
@@ -365,10 +365,10 @@ Also, systems with caches that aren't DMA-coherent will work better
 when the underlying buffers don't share cache lines with other data.
 
 
-Using Consistent DMA mappings
-=============================
+Using Coherent DMA mappings
+===========================
 
-To allocate and map large (PAGE_SIZE or so) consistent DMA regions,
+To allocate and map large (PAGE_SIZE or so) coherent DMA regions,
 you should do::
 
 	dma_addr_t dma_handle;
@@ -385,10 +385,10 @@ __get_free_pages() (but takes size instead of a page order).  If your
 driver needs regions sized smaller than a page, you may prefer using
 the dma_pool interface, described below.
 
-The consistent DMA mapping interfaces, will by default return a DMA address
+The coherent DMA mapping interfaces, will by default return a DMA address
 which is 32-bit addressable.  Even if the device indicates (via the DMA mask)
-that it may address the upper 32-bits, consistent allocation will only
-return > 32-bit addresses for DMA if the consistent DMA mask has been
+that it may address the upper 32-bits, coherent allocation will only
+return > 32-bit addresses for DMA if the coherent DMA mask has been
 explicitly changed via dma_set_coherent_mask().  This is true of the
 dma_pool interface as well.
 
@@ -497,7 +497,7 @@ program address space.  Such platforms can and do report errors in the
 kernel logs when the DMA controller hardware detects violation of the
 permission setting.
 
-Only streaming mappings specify a direction, consistent mappings
+Only streaming mappings specify a direction, coherent mappings
 implicitly have a direction attribute setting of
 DMA_BIDIRECTIONAL.
 

@@ -174,11 +174,11 @@ static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
 
 	/*
 	 * rockchip_mmc_clk is mostly used by mmc controllers to sample
-	 * the intput data, which expects the fixed phase after the tuning
+	 * the input data, which expects the fixed phase after the tuning
 	 * process. However if the clock rate is changed, the phase is stale
 	 * and may break the data sampling. So here we try to restore the phase
 	 * for that case, except that
-	 * (1) cached_phase is invaild since we inevitably cached it when the
+	 * (1) cached_phase is invalid since we inevitably cached it when the
 	 * clock provider be reparented from orphan to its real parent in the
 	 * first place. Otherwise we may mess up the initialization of MMC cards
 	 * since we only set the default sample phase and drive phase later on.

@@ -23,6 +23,7 @@
 #include <linux/platform_data/dsa.h>
 
 enum ksz_chip_id {
+	KSZ8463_CHIP_ID = 0x8463,
 	KSZ8563_CHIP_ID = 0x8563,
 	KSZ8795_CHIP_ID = 0x8795,
 	KSZ8794_CHIP_ID = 0x8794,

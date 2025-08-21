@@ -475,5 +475,5 @@ const指针上操作，因此不需要进行类型转换，但需要临时放弃
 如 ``vfs_mkdir()`` 来实现。以下是一些进行此操作的位置:
 
  * ``sys_faccessat()``.
- * ``do_coredump()``.
+ * ``vfs_coredump()``.
  * nfs4recover.c.

@@ -236,7 +236,7 @@ int snd_gf1_rawmidi_new(struct snd_gus_card *gus, int device)
 	err = snd_rawmidi_new(gus->card, "GF1", device, 1, 1, &rmidi);
 	if (err < 0)
 		return err;
-	strcpy(rmidi->name, gus->interwave ? "AMD InterWave" : "GF1");
+	strscpy(rmidi->name, gus->interwave ? "AMD InterWave" : "GF1");
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_gf1_uart_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &snd_gf1_uart_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT | SNDRV_RAWMIDI_INFO_DUPLEX;

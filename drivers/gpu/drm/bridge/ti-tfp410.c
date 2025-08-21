@@ -89,7 +89,7 @@ tfp410_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct tfp410 *dvi = drm_connector_to_tfp410(connector);
 
-	return drm_bridge_detect(dvi->next_bridge);
+	return drm_bridge_detect(dvi->next_bridge, connector);
 }
 
 static const struct drm_connector_funcs tfp410_con_funcs = {
@@ -341,14 +341,14 @@ static int tfp410_init(struct device *dev, bool i2c)
 		return -ENXIO;
 	}
 
-	dvi = devm_kzalloc(dev, sizeof(*dvi), GFP_KERNEL);
-	if (!dvi)
-		return -ENOMEM;
+	dvi = devm_drm_bridge_alloc(dev, struct tfp410, bridge,
+				    &tfp410_bridge_funcs);
+	if (IS_ERR(dvi))
+		return PTR_ERR(dvi);
 
 	dvi->dev = dev;
 	dev_set_drvdata(dev, dvi);
 
-	dvi->bridge.funcs = &tfp410_bridge_funcs;
 	dvi->bridge.of_node = dev->of_node;
 	dvi->bridge.timings = &dvi->timings;
 	dvi->bridge.type = DRM_MODE_CONNECTOR_DVID;

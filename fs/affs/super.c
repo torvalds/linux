@@ -500,9 +500,9 @@ got_root:
 		return PTR_ERR(root_inode);
 
 	if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_INTL))
-		sb->s_d_op = &affs_intl_dentry_operations;
+		set_default_d_op(sb, &affs_intl_dentry_operations);
 	else
-		sb->s_d_op = &affs_dentry_operations;
+		set_default_d_op(sb, &affs_dentry_operations);
 
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {

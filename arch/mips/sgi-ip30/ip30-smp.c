@@ -5,7 +5,7 @@
  * and smp-bmips.c.
  *
  * Copyright (C) 2005-2007 Stanislaw Skowronek <skylark@unaligned.org>
- *               2006-2007, 2014-2015 Joshua Kinard <kumba@gentoo.org>
+ *               2006-2007, 2014-2015 Joshua Kinard <linux@kumba.dev>
  *               2009 Johannes Dickgreber <tanzy@gmx.de>
  */
 

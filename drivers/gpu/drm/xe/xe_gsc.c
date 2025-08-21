@@ -59,7 +59,8 @@ static int memcpy_fw(struct xe_gsc *gsc)
 
 	xe_map_memcpy_from(xe, storage, &gsc->fw.bo->vmap, 0, fw_size);
 	xe_map_memcpy_to(xe, &gsc->private->vmap, 0, storage, fw_size);
-	xe_map_memset(xe, &gsc->private->vmap, fw_size, 0, gsc->private->size - fw_size);
+	xe_map_memset(xe, &gsc->private->vmap, fw_size, 0,
+		      xe_bo_size(gsc->private) - fw_size);
 
 	kfree(storage);
 
@@ -82,7 +83,8 @@ static int emit_gsc_upload(struct xe_gsc *gsc)
 	bb->cs[bb->len++] = GSC_FW_LOAD;
 	bb->cs[bb->len++] = lower_32_bits(offset);
 	bb->cs[bb->len++] = upper_32_bits(offset);
-	bb->cs[bb->len++] = (gsc->private->size / SZ_4K) | GSC_FW_LOAD_LIMIT_VALID;
+	bb->cs[bb->len++] = (xe_bo_size(gsc->private) / SZ_4K) |
+		GSC_FW_LOAD_LIMIT_VALID;
 
 	job = xe_bb_create_job(gsc->q, bb);
 	if (IS_ERR(job)) {

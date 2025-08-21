@@ -7,7 +7,7 @@
 #ifndef __ASM_ARC_DSP_H
 #define __ASM_ARC_DSP_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * DSP-related saved registers - need to be saved only when you are
@@ -24,6 +24,6 @@ struct dsp_callee_regs {
 #endif
 };
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_ARC_DSP_H */

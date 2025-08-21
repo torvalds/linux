@@ -11,7 +11,7 @@
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 
-static struct {
+static const struct {
 	u32 usage_id;
 	int unit; /* 0 for default others from HID sensor spec */
 	int scale_val0; /* scale, whole number */

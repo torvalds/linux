@@ -17,7 +17,6 @@
 #include "i9xx_plane.h"
 #include "icl_dsi.h"
 #include "intel_atomic.h"
-#include "intel_atomic_plane.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_cursor.h"
@@ -29,6 +28,7 @@
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_pipe_crc.h"
+#include "intel_plane.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
 #include "intel_vblank.h"
@@ -417,10 +417,13 @@ int intel_crtc_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 
 static bool intel_crtc_needs_vblank_work(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
+
 	return crtc_state->hw.active &&
 		!crtc_state->preload_luts &&
 		!intel_crtc_needs_modeset(crtc_state) &&
-		intel_crtc_needs_color_update(crtc_state) &&
+		(intel_crtc_needs_color_update(crtc_state) &&
+		 !HAS_DOUBLE_BUFFERED_LUT(display)) &&
 		!intel_color_uses_dsb(crtc_state) &&
 		!crtc_state->use_dsb;
 }

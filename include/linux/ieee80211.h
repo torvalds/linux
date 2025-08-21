@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2024 Intel Corporation
+ * Copyright (c) 2018 - 2025 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -663,18 +663,6 @@ static inline bool ieee80211_s1g_has_cssid(__le16 fc)
 }
 
 /**
- * ieee80211_is_s1g_short_beacon - check if frame is an S1G short beacon
- * @fc: frame control bytes in little-endian byteorder
- * Return: whether or not the frame is an S1G short beacon,
- *	i.e. it is an S1G beacon with 'next TBTT' flag set
- */
-static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
-{
-	return ieee80211_is_s1g_beacon(fc) &&
-		(fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT));
-}
-
-/**
  * ieee80211_is_atim - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ATIM
  * @fc: frame control bytes in little-endian byteorder
  * Return: whether or not the frame is an ATIM frame
@@ -1278,7 +1266,7 @@ struct ieee80211_ext {
 			u8 sa[ETH_ALEN];
 			__le32 timestamp;
 			u8 change_seq;
-			u8 variable[0];
+			u8 variable[];
 		} __packed s1g_beacon;
 	} u;
 } __packed __aligned(2);
@@ -1536,7 +1524,7 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 dialog_token;
 					__le16 capability;
-					u8 variable[0];
+					u8 variable[];
 				} __packed tdls_discover_resp;
 				struct {
 					u8 action_code;
@@ -1721,35 +1709,35 @@ struct ieee80211_tdls_data {
 		struct {
 			u8 dialog_token;
 			__le16 capability;
-			u8 variable[0];
+			u8 variable[];
 		} __packed setup_req;
 		struct {
 			__le16 status_code;
 			u8 dialog_token;
 			__le16 capability;
-			u8 variable[0];
+			u8 variable[];
 		} __packed setup_resp;
 		struct {
 			__le16 status_code;
 			u8 dialog_token;
-			u8 variable[0];
+			u8 variable[];
 		} __packed setup_cfm;
 		struct {
 			__le16 reason_code;
-			u8 variable[0];
+			u8 variable[];
 		} __packed teardown;
 		struct {
 			u8 dialog_token;
-			u8 variable[0];
+			u8 variable[];
 		} __packed discover_req;
 		struct {
 			u8 target_channel;
 			u8 oper_class;
-			u8 variable[0];
+			u8 variable[];
 		} __packed chan_switch_req;
 		struct {
 			__le16 status_code;
-			u8 variable[0];
+			u8 variable[];
 		} __packed chan_switch_resp;
 	} u;
 } __packed;
@@ -2837,11 +2825,12 @@ static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
-#define IEEE80211_6GHZ_CTRL_REG_LPI_AP		0
-#define IEEE80211_6GHZ_CTRL_REG_SP_AP		1
-#define IEEE80211_6GHZ_CTRL_REG_VLP_AP		2
-#define IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP	3
-#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP	4
+#define IEEE80211_6GHZ_CTRL_REG_LPI_AP			0
+#define IEEE80211_6GHZ_CTRL_REG_SP_AP			1
+#define IEEE80211_6GHZ_CTRL_REG_VLP_AP			2
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP		3
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD	4
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP		8
 
 /**
  * struct ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
@@ -2859,12 +2848,30 @@ struct ieee80211_he_6ghz_oper {
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_80MHZ	2
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ	3
 #define IEEE80211_HE_6GHZ_OPER_CTRL_DUP_BEACON	0x4
-#define IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO	0x38
+#define IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO	0x78
 	u8 control;
 	u8 ccfs0;
 	u8 ccfs1;
 	u8 minrate;
 } __packed;
+
+/**
+ * enum ieee80211_reg_conn_bits - represents Regulatory connectivity field bits.
+ *
+ * This enumeration defines bit flags used to represent regulatory connectivity
+ * field bits.
+ *
+ * @IEEE80211_REG_CONN_LPI_VALID: Indicates whether the LPI bit is valid.
+ * @IEEE80211_REG_CONN_LPI_VALUE: Represents the value of the LPI bit.
+ * @IEEE80211_REG_CONN_SP_VALID: Indicates whether the SP bit is valid.
+ * @IEEE80211_REG_CONN_SP_VALUE: Represents the value of the SP bit.
+ */
+enum ieee80211_reg_conn_bits {
+	IEEE80211_REG_CONN_LPI_VALID = BIT(0),
+	IEEE80211_REG_CONN_LPI_VALUE = BIT(1),
+	IEEE80211_REG_CONN_SP_VALID = BIT(2),
+	IEEE80211_REG_CONN_SP_VALUE = BIT(3),
+};
 
 /* transmit power interpretation type of transmit power envelope element */
 enum ieee80211_tx_power_intrpt_type {
@@ -3847,6 +3854,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_FILS_PUBLIC_KEY = 12,
 	WLAN_EID_EXT_FILS_NONCE = 13,
 	WLAN_EID_EXT_FUTURE_CHAN_GUIDANCE = 14,
+	WLAN_EID_EXT_DH_PARAMETER = 32,
 	WLAN_EID_EXT_HE_CAPABILITY = 35,
 	WLAN_EID_EXT_HE_OPERATION = 36,
 	WLAN_EID_EXT_UORA = 37,
@@ -3870,6 +3878,8 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_EHT_CAPABILITY = 108,
 	WLAN_EID_EXT_TID_TO_LINK_MAPPING = 109,
 	WLAN_EID_EXT_BANDWIDTH_INDICATION = 135,
+	WLAN_EID_EXT_KNOWN_STA_IDENTIFCATION = 136,
+	WLAN_EID_EXT_NON_AP_STA_REG_CON = 137,
 };
 
 /* Action category code */
@@ -4005,6 +4015,16 @@ enum ieee80211_s1g_actioncode {
 	WLAN_S1G_SECT_GROUP_ID_LIST,
 	WLAN_S1G_SECT_ID_FEEDBACK,
 	WLAN_S1G_TWT_INFORMATION = 11,
+};
+
+/* Radio measurement action codes as defined in IEEE 802.11-2024 - Table 9-470 */
+enum ieee80211_radio_measurement_actioncode {
+	WLAN_RM_ACTION_RADIO_MEASUREMENT_REQUEST = 0,
+	WLAN_RM_ACTION_RADIO_MEASUREMENT_REPORT  = 1,
+	WLAN_RM_ACTION_LINK_MEASUREMENT_REQUEST  = 2,
+	WLAN_RM_ACTION_LINK_MEASUREMENT_REPORT   = 3,
+	WLAN_RM_ACTION_NEIGHBOR_REPORT_REQUEST   = 4,
+	WLAN_RM_ACTION_NEIGHBOR_REPORT_RESPONSE  = 5,
 };
 
 #define IEEE80211_WEP_IV_LEN		4
@@ -4901,6 +4921,39 @@ static inline bool ieee80211_is_ftm(struct sk_buff *skb)
 	return false;
 }
 
+/**
+ * ieee80211_is_s1g_short_beacon - check if frame is an S1G short beacon
+ * @fc: frame control bytes in little-endian byteorder
+ * @variable: pointer to the beacon frame elements
+ * @variable_len: length of the frame elements
+ * Return: whether or not the frame is an S1G short beacon. As per
+ *	IEEE80211-2024 11.1.3.10.1, The S1G beacon compatibility element shall
+ *	always be present as the first element in beacon frames generated at a
+ *	TBTT (Target Beacon Transmission Time), so any frame not containing
+ *	this element must have been generated at a TSBTT (Target Short Beacon
+ *	Transmission Time) that is not a TBTT. Additionally, short beacons are
+ *	prohibited from containing the S1G beacon compatibility element as per
+ *	IEEE80211-2024 9.3.4.3 Table 9-76, so if we have an S1G beacon with
+ *	either no elements or the first element is not the beacon compatibility
+ *	element, we have a short beacon.
+ */
+static inline bool ieee80211_is_s1g_short_beacon(__le16 fc, const u8 *variable,
+						 size_t variable_len)
+{
+	if (!ieee80211_is_s1g_beacon(fc))
+		return false;
+
+	/*
+	 * If the frame does not contain at least 1 element (this is perfectly
+	 * valid in a short beacon) and is an S1G beacon, we have a short
+	 * beacon.
+	 */
+	if (variable_len < 2)
+		return true;
+
+	return variable[0] != WLAN_EID_S1G_BCN_COMPAT;
+}
+
 struct element {
 	u8 id;
 	u8 datalen;
@@ -5322,6 +5375,13 @@ static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 
 	return get_unaligned_le16(common);
 }
+
+/* Defined in Figure 9-1074t in P802.11be_D7.0 */
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_PARAM_UPDATE           0x0001
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_RECO_MAX_LINKS_MASK    0x001e
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_NSTR_UPDATE               0x0020
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_EMLSR_ENA_ON_ONE_LINK     0x0040
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_BTM_MLD_RECO_MULTI_AP     0x0080
 
 /**
  * ieee80211_mle_get_ext_mld_capa_op - returns the extended MLD capabilities

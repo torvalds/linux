@@ -3181,6 +3181,8 @@ static inline void task_avdcache_update(struct task_security_struct *tsec,
 	tsec->avdcache.dir[spot].audited = audited;
 	tsec->avdcache.dir[spot].allowed = avd->allowed;
 	tsec->avdcache.dir[spot].permissive = avd->flags & AVD_FLAGS_PERMISSIVE;
+	tsec->avdcache.permissive_neveraudit =
+		(avd->flags == (AVD_FLAGS_PERMISSIVE|AVD_FLAGS_NEVERAUDIT));
 }
 
 /**
@@ -3207,10 +3209,13 @@ static int selinux_inode_permission(struct inode *inode, int requested)
 	if (!mask)
 		return 0;
 
+	tsec = selinux_cred(current_cred());
+	if (task_avdcache_permnoaudit(tsec))
+		return 0;
+
 	isec = inode_security_rcu(inode, requested & MAY_NOT_BLOCK);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
-	tsec = selinux_cred(current_cred());
 	perms = file_mask_to_av(inode->i_mode, mask);
 
 	rc = task_avdcache_search(tsec, isec, &avdc);
@@ -3274,6 +3279,13 @@ static int selinux_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 static int selinux_inode_getattr(const struct path *path)
 {
+	struct task_security_struct *tsec;
+
+	tsec = selinux_cred(current_cred());
+
+	if (task_avdcache_permnoaudit(tsec))
+		return 0;
+
 	return path_has_perm(current_cred(), path, FILE__GETATTR);
 }
 
@@ -3478,6 +3490,18 @@ static int selinux_inode_removexattr(struct mnt_idmap *idmap,
 	/* No one is allowed to remove a SELinux security label.
 	   You can change the label, but all data must be labeled. */
 	return -EACCES;
+}
+
+static int selinux_inode_file_setattr(struct dentry *dentry,
+				      struct file_kattr *fa)
+{
+	return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
+}
+
+static int selinux_inode_file_getattr(struct dentry *dentry,
+				      struct file_kattr *fa)
+{
+	return dentry_has_perm(current_cred(), dentry, FILE__GETATTR);
 }
 
 static int selinux_path_notify(const struct path *path, u64 mask,
@@ -7350,6 +7374,8 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(inode_getxattr, selinux_inode_getxattr),
 	LSM_HOOK_INIT(inode_listxattr, selinux_inode_listxattr),
 	LSM_HOOK_INIT(inode_removexattr, selinux_inode_removexattr),
+	LSM_HOOK_INIT(inode_file_getattr, selinux_inode_file_getattr),
+	LSM_HOOK_INIT(inode_file_setattr, selinux_inode_file_setattr),
 	LSM_HOOK_INIT(inode_set_acl, selinux_inode_set_acl),
 	LSM_HOOK_INIT(inode_get_acl, selinux_inode_get_acl),
 	LSM_HOOK_INIT(inode_remove_acl, selinux_inode_remove_acl),

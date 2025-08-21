@@ -1465,7 +1465,7 @@ static int rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_
 int rvu_npc_exact_promisc_disable(struct rvu *rvu, u16 pcifunc)
 {
 	struct npc_exact_table *table;
-	int pf = rvu_get_pf(pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, pcifunc);
 	u8 cgx_id, lmac_id;
 	u32 drop_mcam_idx;
 	bool *promisc;
@@ -1512,7 +1512,7 @@ int rvu_npc_exact_promisc_disable(struct rvu *rvu, u16 pcifunc)
 int rvu_npc_exact_promisc_enable(struct rvu *rvu, u16 pcifunc)
 {
 	struct npc_exact_table *table;
-	int pf = rvu_get_pf(pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, pcifunc);
 	u8 cgx_id, lmac_id;
 	u32 drop_mcam_idx;
 	bool *promisc;
@@ -1560,7 +1560,7 @@ int rvu_npc_exact_promisc_enable(struct rvu *rvu, u16 pcifunc)
 int rvu_npc_exact_mac_addr_reset(struct rvu *rvu, struct cgx_mac_addr_reset_req *req,
 				 struct msg_rsp *rsp)
 {
-	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, req->hdr.pcifunc);
 	u32 seq_id = req->index;
 	struct rvu_pfvf *pfvf;
 	u8 cgx_id, lmac_id;
@@ -1593,7 +1593,7 @@ int rvu_npc_exact_mac_addr_update(struct rvu *rvu,
 				  struct cgx_mac_addr_update_req *req,
 				  struct cgx_mac_addr_update_rsp *rsp)
 {
-	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, req->hdr.pcifunc);
 	struct npc_exact_table_entry *entry;
 	struct npc_exact_table *table;
 	struct rvu_pfvf *pfvf;
@@ -1675,7 +1675,7 @@ int rvu_npc_exact_mac_addr_add(struct rvu *rvu,
 			       struct cgx_mac_addr_add_req *req,
 			       struct cgx_mac_addr_add_rsp *rsp)
 {
-	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, req->hdr.pcifunc);
 	struct rvu_pfvf *pfvf;
 	u8 cgx_id, lmac_id;
 	int rc = 0;
@@ -1711,7 +1711,7 @@ int rvu_npc_exact_mac_addr_del(struct rvu *rvu,
 			       struct cgx_mac_addr_del_req *req,
 			       struct msg_rsp *rsp)
 {
-	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, req->hdr.pcifunc);
 	int rc;
 
 	rc = rvu_npc_exact_del_table_entry_by_id(rvu, req->index);
@@ -1736,7 +1736,7 @@ int rvu_npc_exact_mac_addr_del(struct rvu *rvu,
 int rvu_npc_exact_mac_addr_set(struct rvu *rvu, struct cgx_mac_addr_set_or_get *req,
 			       struct cgx_mac_addr_set_or_get *rsp)
 {
-	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, req->hdr.pcifunc);
 	u32 seq_id = req->index;
 	struct rvu_pfvf *pfvf;
 	u8 cgx_id, lmac_id;
@@ -2001,7 +2001,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 		}
 
 		/* Filter rules are only for PF */
-		pcifunc = RVU_PFFUNC(i, 0);
+		pcifunc = RVU_PFFUNC(rvu->pdev, i, 0);
 
 		dev_dbg(rvu->dev,
 			"%s:Drop rule cgx=%d lmac=%d chan(val=0x%llx, mask=0x%llx\n",

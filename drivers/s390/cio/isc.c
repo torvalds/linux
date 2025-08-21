@@ -7,6 +7,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <asm/isc.h>
 

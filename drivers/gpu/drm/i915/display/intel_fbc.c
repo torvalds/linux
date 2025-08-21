@@ -45,9 +45,10 @@
 #include <drm/drm_fourcc.h>
 
 #include "gem/i915_gem_stolen.h"
+
 #include "gt/intel_gt_types.h"
+
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "i915_vma.h"
@@ -55,6 +56,7 @@
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_device.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
@@ -550,10 +552,6 @@ static void ilk_fbc_deactivate(struct intel_fbc *fbc)
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
 		intel_de_write(display, ILK_DPFC_CONTROL(fbc->id), dpfc_ctl);
-
-		/* wa_18038517565 Enable DPFC clock gating after FBC disable */
-		if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
-			fbc_compressor_clkgate_disable_wa(fbc, false);
 	}
 }
 
@@ -1574,7 +1572,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		if (IS_ERR(cdclk_state))
 			return PTR_ERR(cdclk_state);
 
-		if (crtc_state->pixel_rate >= cdclk_state->logical.cdclk * 95 / 100) {
+		if (crtc_state->pixel_rate >= intel_cdclk_logical(cdclk_state) * 95 / 100) {
 			plane_state->no_fbc_reason = "pixel rate too high";
 			return 0;
 		}
@@ -1707,6 +1705,10 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	intel_fbc_invalidate_dirty_rect(fbc);
 
 	__intel_fbc_cleanup_cfb(fbc);
+
+	/* wa_18038517565 Enable DPFC clock gating after FBC disable */
+	if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
+		fbc_compressor_clkgate_disable_wa(fbc, false);
 
 	fbc->state.plane = NULL;
 	fbc->flip_pending = false;
@@ -2009,7 +2011,7 @@ void intel_fbc_reset_underrun(struct intel_display *display)
 
 static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = to_i915(fbc->display->drm);
+	struct intel_display *display = fbc->display;
 
 	/*
 	 * There's no guarantee that underrun_detected won't be set to true
@@ -2022,7 +2024,7 @@ static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 	if (READ_ONCE(fbc->underrun_detected))
 		return;
 
-	queue_work(i915->unordered_wq, &fbc->underrun_work);
+	queue_work(display->wq.unordered, &fbc->underrun_work);
 }
 
 /**

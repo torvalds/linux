@@ -48,6 +48,7 @@ static const struct sof_amd_acp_desc acp70_chip_info = {
 
 static const struct sof_dev_desc acp70_desc = {
 	.machines		= snd_soc_acpi_amd_acp70_sof_machines,
+	.alt_machines           = snd_soc_acpi_amd_acp70_sof_sdw_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
@@ -76,6 +77,7 @@ static int acp70_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_
 	switch (pci->revision) {
 	case ACP70_PCI_ID:
 	case ACP71_PCI_ID:
+	case ACP72_PCI_ID:
 			break;
 	default:
 		return -ENODEV;

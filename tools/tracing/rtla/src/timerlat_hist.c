@@ -757,6 +757,8 @@ static void timerlat_hist_usage(char *usage)
 		"	     --warm-up s: let the workload run for s seconds before collecting data",
 		"	     --trace-buffer-size kB: set the per-cpu trace buffer size in kB",
 		"	     --deepest-idle-state n: only go down to idle state n on cpus used by timerlat to reduce exit from idle latency",
+		"	     --on-threshold <action>: define action to be executed at latency threshold, multiple are allowed",
+		"	     --on-end <action>: define action to be executed at measurement end, multiple are allowed",
 		NULL,
 	};
 
@@ -786,10 +788,14 @@ static struct timerlat_params
 	int auto_thresh;
 	int retval;
 	int c;
+	char *trace_output = NULL;
 
 	params = calloc(1, sizeof(*params));
 	if (!params)
 		exit(1);
+
+	actions_init(&params->threshold_actions);
+	actions_init(&params->end_actions);
 
 	/* disabled by default */
 	params->dma_latency = -1;
@@ -801,6 +807,9 @@ static struct timerlat_params
 	params->output_divisor = 1000;
 	params->bucket_size = 1;
 	params->entries = 256;
+
+	/* default to BPF mode */
+	params->mode = TRACING_MODE_BPF;
 
 	while (1) {
 		static struct option long_options[] = {
@@ -838,6 +847,8 @@ static struct timerlat_params
 			{"warm-up",		required_argument,	0, '\2'},
 			{"trace-buffer-size",	required_argument,	0, '\3'},
 			{"deepest-idle-state",	required_argument,	0, '\4'},
+			{"on-threshold",	required_argument,	0, '\5'},
+			{"on-end",		required_argument,	0, '\6'},
 			{0, 0, 0, 0}
 		};
 
@@ -863,7 +874,7 @@ static struct timerlat_params
 			params->print_stack = auto_thresh;
 
 			/* set trace */
-			params->trace_output = "timerlat_trace.txt";
+			trace_output = "timerlat_trace.txt";
 
 			break;
 		case 'c':
@@ -953,13 +964,13 @@ static struct timerlat_params
 		case 't':
 			if (optarg) {
 				if (optarg[0] == '=')
-					params->trace_output = &optarg[1];
+					trace_output = &optarg[1];
 				else
-					params->trace_output = &optarg[0];
+					trace_output = &optarg[0];
 			} else if (optind < argc && argv[optind][0] != '-')
-				params->trace_output = argv[optind];
+				trace_output = argv[optind];
 			else
-				params->trace_output = "timerlat_trace.txt";
+				trace_output = "timerlat_trace.txt";
 			break;
 		case 'u':
 			params->user_workload = 1;
@@ -1029,10 +1040,27 @@ static struct timerlat_params
 		case '\4':
 			params->deepest_idle_state = get_llong_from_str(optarg);
 			break;
+		case '\5':
+			retval = actions_parse(&params->threshold_actions, optarg);
+			if (retval) {
+				err_msg("Invalid action %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+			break;
+		case '\6':
+			retval = actions_parse(&params->end_actions, optarg);
+			if (retval) {
+				err_msg("Invalid action %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+			break;
 		default:
 			timerlat_hist_usage("Invalid option");
 		}
 	}
+
+	if (trace_output)
+		actions_add_trace_output(&params->threshold_actions, trace_output);
 
 	if (geteuid()) {
 		err_msg("rtla needs root permission\n");
@@ -1053,6 +1081,15 @@ static struct timerlat_params
 
 	if (params->kernel_workload && params->user_workload)
 		timerlat_hist_usage("--kernel-threads and --user-threads are mutually exclusive!");
+
+	/*
+	 * If auto-analysis or trace output is enabled, switch from BPF mode to
+	 * mixed mode
+	 */
+	if (params->mode == TRACING_MODE_BPF &&
+	    (params->threshold_actions.present[ACTION_TRACE_OUTPUT] ||
+	     params->end_actions.present[ACTION_TRACE_OUTPUT] || !params->no_aa))
+		params->mode = TRACING_MODE_MIXED;
 
 	return params;
 }
@@ -1149,7 +1186,6 @@ int timerlat_hist_main(int argc, char *argv[])
 	pthread_t timerlat_u;
 	int retval;
 	int nr_cpus, i;
-	bool no_bpf = false;
 
 	params = timerlat_hist_parse_args(argc, argv);
 	if (!params)
@@ -1161,12 +1197,6 @@ int timerlat_hist_main(int argc, char *argv[])
 		goto out_exit;
 	}
 
-	retval = timerlat_hist_apply_config(tool, params);
-	if (retval) {
-		err_msg("Could not apply config\n");
-		goto out_free;
-	}
-
 	trace = &tool->trace;
 	/*
 	 * Save trace instance into global variable so that SIGINT can stop
@@ -1175,22 +1205,28 @@ int timerlat_hist_main(int argc, char *argv[])
 	 */
 	hist_inst = trace;
 
+	/*
+	 * Try to enable BPF, unless disabled explicitly.
+	 * If BPF enablement fails, fall back to tracefs mode.
+	 */
 	if (getenv("RTLA_NO_BPF") && strncmp(getenv("RTLA_NO_BPF"), "1", 2) == 0) {
 		debug_msg("RTLA_NO_BPF set, disabling BPF\n");
-		no_bpf = true;
-	}
-
-	if (!no_bpf && !tep_find_event_by_name(trace->tep, "osnoise", "timerlat_sample")) {
+		params->mode = TRACING_MODE_TRACEFS;
+	} else if (!tep_find_event_by_name(trace->tep, "osnoise", "timerlat_sample")) {
 		debug_msg("osnoise:timerlat_sample missing, disabling BPF\n");
-		no_bpf = true;
-	}
-
-	if (!no_bpf) {
+		params->mode = TRACING_MODE_TRACEFS;
+	} else {
 		retval = timerlat_bpf_init(params);
 		if (retval) {
 			debug_msg("Could not enable BPF\n");
-			no_bpf = true;
+			params->mode = TRACING_MODE_TRACEFS;
 		}
+	}
+
+	retval = timerlat_hist_apply_config(tool, params);
+	if (retval) {
+		err_msg("Could not apply config\n");
+		goto out_free;
 	}
 
 	retval = enable_timerlat(trace);
@@ -1245,12 +1281,15 @@ int timerlat_hist_main(int argc, char *argv[])
 		}
 	}
 
-	if (params->trace_output) {
+	if (params->threshold_actions.present[ACTION_TRACE_OUTPUT] ||
+	    params->end_actions.present[ACTION_TRACE_OUTPUT]) {
 		record = osnoise_init_trace_tool("timerlat");
 		if (!record) {
 			err_msg("Failed to enable the trace instance\n");
 			goto out_free;
 		}
+		params->threshold_actions.trace_output_inst = record->trace.inst;
+		params->end_actions.trace_output_inst = record->trace.inst;
 
 		if (params->events) {
 			retval = trace_events_enable(&record->trace, params->events);
@@ -1316,11 +1355,11 @@ int timerlat_hist_main(int argc, char *argv[])
 	 * tracing while enabling other instances. The trace instance is the
 	 * one with most valuable information.
 	 */
-	if (params->trace_output)
+	if (record)
 		trace_instance_start(&record->trace);
 	if (!params->no_aa)
 		trace_instance_start(&aa->trace);
-	if (no_bpf) {
+	if (params->mode == TRACING_MODE_TRACEFS) {
 		trace_instance_start(trace);
 	} else {
 		retval = timerlat_bpf_attach();
@@ -1333,7 +1372,7 @@ int timerlat_hist_main(int argc, char *argv[])
 	tool->start_time = time(NULL);
 	timerlat_hist_set_signals(params);
 
-	if (no_bpf) {
+	if (params->mode == TRACING_MODE_TRACEFS) {
 		while (!stop_tracing) {
 			sleep(params->sleep_time);
 
@@ -1348,8 +1387,20 @@ int timerlat_hist_main(int argc, char *argv[])
 				goto out_hist;
 			}
 
-			if (osnoise_trace_is_off(tool, record))
-				break;
+			if (osnoise_trace_is_off(tool, record)) {
+				actions_perform(&params->threshold_actions);
+
+				if (!params->threshold_actions.continue_flag)
+					/* continue flag not set, break */
+					break;
+
+				/* continue action reached, re-enable tracing */
+				if (record)
+					trace_instance_start(&record->trace);
+				if (!params->no_aa)
+					trace_instance_start(&aa->trace);
+				trace_instance_start(trace);
+			}
 
 			/* is there still any user-threads ? */
 			if (params->user_workload) {
@@ -1359,10 +1410,29 @@ int timerlat_hist_main(int argc, char *argv[])
 				}
 			}
 		}
-	} else
-		timerlat_bpf_wait(-1);
+	} else {
+		while (!stop_tracing) {
+			timerlat_bpf_wait(-1);
 
-	if (!no_bpf) {
+			if (!stop_tracing) {
+				/* Threshold overflow, perform actions on threshold */
+				actions_perform(&params->threshold_actions);
+
+				if (!params->threshold_actions.continue_flag)
+					/* continue flag not set, break */
+					break;
+
+				/* continue action reached, re-enable tracing */
+				if (record)
+					trace_instance_start(&record->trace);
+				if (!params->no_aa)
+					trace_instance_start(&aa->trace);
+				timerlat_bpf_restart_tracing();
+			}
+		}
+	}
+
+	if (params->mode != TRACING_MODE_TRACEFS) {
 		timerlat_bpf_detach();
 		retval = timerlat_hist_bpf_pull_data(tool);
 		if (retval) {
@@ -1378,6 +1448,8 @@ int timerlat_hist_main(int argc, char *argv[])
 
 	timerlat_print_stats(params, tool);
 
+	actions_perform(&params->end_actions);
+
 	return_value = PASSED;
 
 	if (osnoise_trace_is_off(tool, record) && !stop_tracing) {
@@ -1386,8 +1458,6 @@ int timerlat_hist_main(int argc, char *argv[])
 		if (!params->no_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
-		save_trace_to_file(record ? record->trace.inst : NULL,
-				   params->trace_output);
 		return_value = FAILED;
 	}
 
@@ -1409,10 +1479,12 @@ out_free:
 	osnoise_destroy_tool(aa);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);
+	actions_destroy(&params->threshold_actions);
+	actions_destroy(&params->end_actions);
+	if (params->mode != TRACING_MODE_TRACEFS)
+		timerlat_bpf_destroy();
 	free(params);
 	free_cpu_idle_disable_states();
-	if (!no_bpf)
-		timerlat_bpf_destroy();
 out_exit:
 	exit(return_value);
 }

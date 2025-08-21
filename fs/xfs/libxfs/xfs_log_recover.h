@@ -104,7 +104,7 @@ struct xlog_recover_item {
 	struct list_head	ri_list;
 	int			ri_cnt;	/* count of regions found */
 	int			ri_total;	/* total regions */
-	struct xfs_log_iovec	*ri_buf;	/* ptr to regions buffer */
+	struct kvec		*ri_buf;	/* ptr to regions buffer */
 	const struct xlog_recover_item_ops *ri_ops;
 };
 
@@ -117,7 +117,7 @@ struct xlog_recover {
 	struct list_head	r_itemq;	/* q for items */
 };
 
-#define ITEM_TYPE(i)	(*(unsigned short *)(i)->ri_buf[0].i_addr)
+#define ITEM_TYPE(i)	(*(unsigned short *)(i)->ri_buf[0].iov_base)
 
 #define	XLOG_RECOVER_CRCPASS	0
 #define	XLOG_RECOVER_PASS1	1

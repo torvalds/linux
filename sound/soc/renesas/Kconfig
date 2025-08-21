@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "SoC Audio support for Renesas SoCs"
+menu "Renesas"
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 
 config SND_SOC_PCM_SH7760

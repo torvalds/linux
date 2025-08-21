@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"
+#include "env.h"
 #include "machine.h"
 #include "event.h"
 #include "../util/unwind.h"
@@ -180,6 +181,7 @@ NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_1(struct thread *th
 noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 				int subtest __maybe_unused)
 {
+	struct perf_env host_env;
 	struct machine *machine;
 	struct thread *thread;
 	int err = -1;
@@ -188,15 +190,16 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 	callchain_param.record_mode = CALLCHAIN_DWARF;
 	dwarf_callchain_users = true;
 
-	machine = machine__new_live(/*kernel_maps=*/true, pid);
+	perf_env__init(&host_env);
+	machine = machine__new_live(&host_env, /*kernel_maps=*/true, pid);
 	if (!machine) {
 		pr_err("Could not get machine\n");
-		return -1;
+		goto out;
 	}
 
 	if (machine__create_kernel_maps(machine)) {
 		pr_err("Failed to create kernel maps\n");
-		return -1;
+		goto out;
 	}
 
 	if (verbose > 1)
@@ -213,6 +216,7 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 
  out:
 	machine__delete(machine);
+	perf_env__exit(&host_env);
 	return err;
 }
 

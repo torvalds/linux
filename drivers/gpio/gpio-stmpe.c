@@ -54,7 +54,7 @@ static int stmpe_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(ret & mask);
 }
 
-static void stmpe_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+static int stmpe_gpio_set(struct gpio_chip *chip, unsigned int offset, int val)
 {
 	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(chip);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
@@ -67,9 +67,9 @@ static void stmpe_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 	 * For them we need to write 0 to clear and 1 to set.
 	 */
 	if (stmpe->regs[STMPE_IDX_GPSR_LSB] == stmpe->regs[STMPE_IDX_GPCR_LSB])
-		stmpe_set_bits(stmpe, reg, mask, val ? mask : 0);
-	else
-		stmpe_reg_write(stmpe, reg, mask);
+		return stmpe_set_bits(stmpe, reg, mask, val ? mask : 0);
+
+	return stmpe_reg_write(stmpe, reg, mask);
 }
 
 static int stmpe_gpio_get_direction(struct gpio_chip *chip,
@@ -98,8 +98,11 @@ static int stmpe_gpio_direction_output(struct gpio_chip *chip,
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
 	u8 reg = stmpe->regs[STMPE_IDX_GPDR_LSB + (offset / 8)];
 	u8 mask = BIT(offset % 8);
+	int ret;
 
-	stmpe_gpio_set(chip, offset, val);
+	ret = stmpe_gpio_set(chip, offset, val);
+	if (ret)
+		return ret;
 
 	return stmpe_set_bits(stmpe, reg, mask, mask);
 }

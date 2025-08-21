@@ -114,7 +114,15 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 	}
 
 	if (fallocate(fd, 0, 0, size)) {
-		if (size == pagesize) {
+		/*
+		 * Some filesystems (eg, NFSv3) don't support
+		 * fallocate(), report this as a skip rather than a
+		 * test failure.
+		 */
+		if (errno == EOPNOTSUPP) {
+			ksft_print_msg("fallocate() not supported by filesystem\n");
+			result = KSFT_SKIP;
+		} else if (size == pagesize) {
 			ksft_print_msg("fallocate() failed (%s)\n", strerror(errno));
 			result = KSFT_FAIL;
 		} else {
@@ -298,8 +306,11 @@ static void run_with_memfd(test_fn fn, const char *desc)
 	log_test_start("%s ... with memfd", desc);
 
 	fd = memfd_create("test", 0);
-	if (fd < 0)
+	if (fd < 0) {
 		ksft_print_msg("memfd_create() failed (%s)\n", strerror(errno));
+		log_test_result(KSFT_SKIP);
+		return;
+	}
 
 	fn(fd, pagesize);
 	close(fd);
@@ -366,6 +377,8 @@ static void run_with_memfd_hugetlb(test_fn fn, const char *desc,
 	fd = memfd_create("test", flags);
 	if (fd < 0) {
 		ksft_print_msg("memfd_create() failed (%s)\n", strerror(errno));
+		log_test_result(KSFT_SKIP);
+		return;
 	}
 
 	fn(fd, hugetlbsize);

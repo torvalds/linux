@@ -3,6 +3,7 @@
  * Microchip KSZ8XXX series switch driver
  *
  * It supports the following switches:
+ * - KSZ8463
  * - KSZ8863, KSZ8873 aka KSZ88X3
  * - KSZ8895, KSZ8864 aka KSZ8895 family
  * - KSZ8794, KSZ8795, KSZ8765 aka KSZ87XX
@@ -35,14 +36,14 @@
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
-	regmap_update_bits(ksz_regmap_8(dev), addr, bits, set ? bits : 0);
+	ksz_rmw8(dev, addr, bits, set ? bits : 0);
 }
 
 static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 			 bool set)
 {
-	regmap_update_bits(ksz_regmap_8(dev), PORT_CTRL_ADDR(port, offset),
-			   bits, set ? bits : 0);
+	ksz_rmw8(dev, dev->dev_ops->get_port_addr(port, offset), bits,
+		 set ? bits : 0);
 }
 
 /**
@@ -140,6 +141,11 @@ int ksz8_reset_switch(struct ksz_device *dev)
 			KSZ8863_GLOBAL_SOFTWARE_RESET | KSZ8863_PCS_RESET, true);
 		ksz_cfg(dev, KSZ8863_REG_SW_RESET,
 			KSZ8863_GLOBAL_SOFTWARE_RESET | KSZ8863_PCS_RESET, false);
+	} else if (ksz_is_ksz8463(dev)) {
+		ksz_cfg(dev, KSZ8463_REG_SW_RESET,
+			KSZ8463_GLOBAL_SOFTWARE_RESET, true);
+		ksz_cfg(dev, KSZ8463_REG_SW_RESET,
+			KSZ8463_GLOBAL_SOFTWARE_RESET, false);
 	} else {
 		/* reset switch */
 		ksz_write8(dev, REG_POWER_MANAGEMENT_1,
@@ -194,6 +200,7 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 	case KSZ8794_CHIP_ID:
 	case KSZ8765_CHIP_ID:
 		return ksz8795_change_mtu(dev, frame_size);
+	case KSZ8463_CHIP_ID:
 	case KSZ88X3_CHIP_ID:
 	case KSZ8864_CHIP_ID:
 	case KSZ8895_CHIP_ID:
@@ -227,6 +234,11 @@ static int ksz8_port_queue_split(struct ksz_device *dev, int port, int queues)
 			       WEIGHTED_FAIR_QUEUE_ENABLE);
 		if (ret)
 			return ret;
+	} else if (ksz_is_ksz8463(dev)) {
+		mask_4q = KSZ8873_PORT_4QUEUE_SPLIT_EN;
+		mask_2q = KSZ8873_PORT_2QUEUE_SPLIT_EN;
+		reg_4q = P1CR1;
+		reg_2q = P1CR1 + 1;
 	} else {
 		mask_4q = KSZ8795_PORT_4QUEUE_SPLIT_EN;
 		mask_2q = KSZ8795_PORT_2QUEUE_SPLIT_EN;
@@ -371,6 +383,9 @@ static void ksz8863_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 	addr -= dev->info->reg_mib_cnt;
 	ctrl_addr = addr ? KSZ8863_MIB_PACKET_DROPPED_TX_0 :
 			   KSZ8863_MIB_PACKET_DROPPED_RX_0;
+	if (ksz_is_8895_family(dev) &&
+	    ctrl_addr == KSZ8863_MIB_PACKET_DROPPED_RX_0)
+		ctrl_addr = KSZ8895_MIB_PACKET_DROPPED_RX_0;
 	ctrl_addr += port;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
 
@@ -1265,12 +1280,15 @@ int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 
 void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 {
+	int offset = P_MIRROR_CTRL;
 	u8 data;
 
-	ksz_pread8(dev, port, P_MIRROR_CTRL, &data);
-	data &= ~PORT_VLAN_MEMBERSHIP;
+	if (ksz_is_ksz8463(dev))
+		offset = P1CR2;
+	ksz_pread8(dev, port, offset, &data);
+	data &= ~dev->port_mask;
 	data |= (member & dev->port_mask);
-	ksz_pwrite8(dev, port, P_MIRROR_CTRL, data);
+	ksz_pwrite8(dev, port, offset, data);
 }
 
 void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -1278,6 +1296,8 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	u8 learn[DSA_MAX_PORTS];
 	int first, index, cnt;
 	const u16 *regs;
+	int reg = S_FLUSH_TABLE_CTRL;
+	int mask = SW_FLUSH_DYN_MAC_TABLE;
 
 	regs = dev->info->regs;
 
@@ -1295,7 +1315,11 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 			ksz_pwrite8(dev, index, regs[P_STP_CTRL],
 				    learn[index] | PORT_LEARN_DISABLE);
 	}
-	ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_DYN_MAC_TABLE, true);
+	if (ksz_is_ksz8463(dev)) {
+		reg = KSZ8463_FLUSH_TABLE_CTRL;
+		mask = KSZ8463_FLUSH_DYN_MAC_TABLE;
+	}
+	ksz_cfg(dev, reg, mask, true);
 	for (index = first; index < cnt; index++) {
 		if (!(learn[index] & PORT_LEARN_DISABLE))
 			ksz_pwrite8(dev, index, regs[P_STP_CTRL], learn[index]);
@@ -1434,7 +1458,7 @@ int ksz8_fdb_del(struct ksz_device *dev, int port, const unsigned char *addr,
 int ksz8_port_vlan_filtering(struct ksz_device *dev, int port, bool flag,
 			     struct netlink_ext_ack *extack)
 {
-	if (ksz_is_ksz88x3(dev))
+	if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
 		return -ENOTSUPP;
 
 	/* Discard packets with VID not enabled on the switch */
@@ -1450,9 +1474,12 @@ int ksz8_port_vlan_filtering(struct ksz_device *dev, int port, bool flag,
 
 static void ksz8_port_enable_pvid(struct ksz_device *dev, int port, bool state)
 {
-	if (ksz_is_ksz88x3(dev)) {
-		ksz_cfg(dev, REG_SW_INSERT_SRC_PVID,
-			0x03 << (4 - 2 * port), state);
+	if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev)) {
+		int reg = REG_SW_INSERT_SRC_PVID;
+
+		if (ksz_is_ksz8463(dev))
+			reg = KSZ8463_REG_SW_CTRL_9;
+		ksz_cfg(dev, reg, 0x03 << (4 - 2 * port), state);
 	} else {
 		ksz_pwrite8(dev, port, REG_PORT_CTRL_12, state ? 0x0f : 0x00);
 	}
@@ -1467,7 +1494,7 @@ int ksz8_port_vlan_add(struct ksz_device *dev, int port,
 	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
 
-	if (ksz_is_ksz88x3(dev))
+	if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
 		return -ENOTSUPP;
 
 	/* If a VLAN is added with untagged flag different from the
@@ -1536,7 +1563,7 @@ int ksz8_port_vlan_del(struct ksz_device *dev, int port,
 	u16 data, pvid;
 	u8 fid, member, valid;
 
-	if (ksz_is_ksz88x3(dev))
+	if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
 		return -ENOTSUPP;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
@@ -1566,19 +1593,23 @@ int ksz8_port_mirror_add(struct ksz_device *dev, int port,
 			 struct dsa_mall_mirror_tc_entry *mirror,
 			 bool ingress, struct netlink_ext_ack *extack)
 {
+	int offset = P_MIRROR_CTRL;
+
+	if (ksz_is_ksz8463(dev))
+		offset = P1CR2;
 	if (ingress) {
-		ksz_port_cfg(dev, port, P_MIRROR_CTRL, PORT_MIRROR_RX, true);
+		ksz_port_cfg(dev, port, offset, PORT_MIRROR_RX, true);
 		dev->mirror_rx |= BIT(port);
 	} else {
-		ksz_port_cfg(dev, port, P_MIRROR_CTRL, PORT_MIRROR_TX, true);
+		ksz_port_cfg(dev, port, offset, PORT_MIRROR_TX, true);
 		dev->mirror_tx |= BIT(port);
 	}
 
-	ksz_port_cfg(dev, port, P_MIRROR_CTRL, PORT_MIRROR_SNIFFER, false);
+	ksz_port_cfg(dev, port, offset, PORT_MIRROR_SNIFFER, false);
 
 	/* configure mirror port */
 	if (dev->mirror_rx || dev->mirror_tx)
-		ksz_port_cfg(dev, mirror->to_local_port, P_MIRROR_CTRL,
+		ksz_port_cfg(dev, mirror->to_local_port, offset,
 			     PORT_MIRROR_SNIFFER, true);
 
 	return 0;
@@ -1587,20 +1618,23 @@ int ksz8_port_mirror_add(struct ksz_device *dev, int port,
 void ksz8_port_mirror_del(struct ksz_device *dev, int port,
 			  struct dsa_mall_mirror_tc_entry *mirror)
 {
+	int offset = P_MIRROR_CTRL;
 	u8 data;
 
+	if (ksz_is_ksz8463(dev))
+		offset = P1CR2;
 	if (mirror->ingress) {
-		ksz_port_cfg(dev, port, P_MIRROR_CTRL, PORT_MIRROR_RX, false);
+		ksz_port_cfg(dev, port, offset, PORT_MIRROR_RX, false);
 		dev->mirror_rx &= ~BIT(port);
 	} else {
-		ksz_port_cfg(dev, port, P_MIRROR_CTRL, PORT_MIRROR_TX, false);
+		ksz_port_cfg(dev, port, offset, PORT_MIRROR_TX, false);
 		dev->mirror_tx &= ~BIT(port);
 	}
 
-	ksz_pread8(dev, port, P_MIRROR_CTRL, &data);
+	ksz_pread8(dev, port, offset, &data);
 
 	if (!dev->mirror_rx && !dev->mirror_tx)
-		ksz_port_cfg(dev, mirror->to_local_port, P_MIRROR_CTRL,
+		ksz_port_cfg(dev, mirror->to_local_port, offset,
 			     PORT_MIRROR_SNIFFER, false);
 }
 
@@ -1625,17 +1659,24 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	const u16 *regs = dev->info->regs;
 	struct dsa_switch *ds = dev->ds;
 	const u32 *masks;
+	int offset;
 	u8 member;
 
 	masks = dev->info->masks;
 
 	/* enable broadcast storm limit */
-	ksz_port_cfg(dev, port, P_BCAST_STORM_CTRL, PORT_BROADCAST_STORM, true);
+	offset = P_BCAST_STORM_CTRL;
+	if (ksz_is_ksz8463(dev))
+		offset = P1CR1;
+	ksz_port_cfg(dev, port, offset, PORT_BROADCAST_STORM, true);
 
 	ksz8_port_queue_split(dev, port, dev->info->num_tx_queues);
 
 	/* replace priority */
-	ksz_port_cfg(dev, port, P_802_1P_CTRL,
+	offset = P_802_1P_CTRL;
+	if (ksz_is_ksz8463(dev))
+		offset = P1CR2;
+	ksz_port_cfg(dev, port, offset,
 		     masks[PORT_802_1P_REMAPPING], false);
 
 	if (cpu_port)
@@ -1675,6 +1716,7 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 	const u32 *masks;
 	const u16 *regs;
 	u8 remote;
+	u8 fiber_ports = 0;
 	int i;
 
 	masks = dev->info->masks;
@@ -1705,6 +1747,32 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 		else
 			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
 				     PORT_FORCE_FLOW_CTRL, false);
+		if (p->fiber)
+			fiber_ports |= (1 << i);
+	}
+	if (ksz_is_ksz8463(dev)) {
+		/* Setup fiber ports. */
+		if (fiber_ports) {
+			fiber_ports &= 3;
+			regmap_update_bits(ksz_regmap_16(dev),
+					   KSZ8463_REG_CFG_CTRL,
+					   fiber_ports << PORT_COPPER_MODE_S,
+					   0);
+			regmap_update_bits(ksz_regmap_16(dev),
+					   KSZ8463_REG_DSP_CTRL_6,
+					   COPPER_RECEIVE_ADJUSTMENT, 0);
+		}
+
+		/* Turn off PTP function as the switch's proprietary way of
+		 * handling timestamp is not supported in current Linux PTP
+		 * stack implementation.
+		 */
+		regmap_update_bits(ksz_regmap_16(dev),
+				   KSZ8463_PTP_MSG_CONF1,
+				   PTP_ENABLE, 0);
+		regmap_update_bits(ksz_regmap_16(dev),
+				   KSZ8463_PTP_CLK_CTRL,
+				   PTP_CLK_ENABLE, 0);
 	}
 }
 
@@ -1886,22 +1954,25 @@ int ksz8_setup(struct dsa_switch *ds)
 	ksz_cfg(dev, S_LINK_AGING_CTRL, SW_LINK_AUTO_AGING, true);
 
 	/* Enable aggressive back off algorithm in half duplex mode. */
-	regmap_update_bits(ksz_regmap_8(dev), REG_SW_CTRL_1,
-			   SW_AGGR_BACKOFF, SW_AGGR_BACKOFF);
+	ret = ksz_rmw8(dev, REG_SW_CTRL_1, SW_AGGR_BACKOFF, SW_AGGR_BACKOFF);
+	if (ret)
+		return ret;
 
 	/*
 	 * Make sure unicast VLAN boundary is set as default and
 	 * enable no excessive collision drop.
 	 */
-	regmap_update_bits(ksz_regmap_8(dev), REG_SW_CTRL_2,
-			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
-			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP);
+	ret = ksz_rmw8(dev, REG_SW_CTRL_2,
+		       UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
+		       UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP);
+	if (ret)
+		return ret;
 
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_REPLACE_VID, false);
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_MIRROR_RX_TX, false);
 
-	if (!ksz_is_ksz88x3(dev))
+	if (!ksz_is_ksz88x3(dev) && !ksz_is_ksz8463(dev))
 		ksz_cfg(dev, REG_SW_CTRL_19, SW_INS_TAG_ENABLE, true);
 
 	for (i = 0; i < (dev->info->num_vlans / 4); i++)
@@ -1945,6 +2016,84 @@ void ksz8_get_caps(struct ksz_device *dev, int port,
 u32 ksz8_get_port_addr(int port, int offset)
 {
 	return PORT_CTRL_ADDR(port, offset);
+}
+
+u32 ksz8463_get_port_addr(int port, int offset)
+{
+	return offset + 0x18 * port;
+}
+
+static u16 ksz8463_get_phy_addr(u16 phy, u16 reg, u16 offset)
+{
+	return offset + reg * 2 + phy * (P2MBCR - P1MBCR);
+}
+
+int ksz8463_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
+{
+	u16 sw_reg = 0;
+	u16 data = 0;
+	int ret;
+
+	if (phy > 1)
+		return -ENOSPC;
+	switch (reg) {
+	case MII_PHYSID1:
+		sw_reg = ksz8463_get_phy_addr(phy, 0, PHY1IHR);
+		break;
+	case MII_PHYSID2:
+		sw_reg = ksz8463_get_phy_addr(phy, 0, PHY1ILR);
+		break;
+	case MII_BMCR:
+	case MII_BMSR:
+	case MII_ADVERTISE:
+	case MII_LPA:
+		sw_reg = ksz8463_get_phy_addr(phy, reg, P1MBCR);
+		break;
+	case MII_TPISTATUS:
+		/* This register holds the PHY interrupt status for simulated
+		 * Micrel KSZ PHY.
+		 */
+		data = 0x0505;
+		break;
+	default:
+		break;
+	}
+	if (sw_reg) {
+		ret = ksz_read16(dev, sw_reg, &data);
+		if (ret)
+			return ret;
+	}
+	*val = data;
+
+	return 0;
+}
+
+int ksz8463_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
+{
+	u16 sw_reg = 0;
+	int ret;
+
+	if (phy > 1)
+		return -ENOSPC;
+
+	/* No write to fiber port. */
+	if (dev->ports[phy].fiber)
+		return 0;
+	switch (reg) {
+	case MII_BMCR:
+	case MII_ADVERTISE:
+		sw_reg = ksz8463_get_phy_addr(phy, reg, P1MBCR);
+		break;
+	default:
+		break;
+	}
+	if (sw_reg) {
+		ret = ksz_write16(dev, sw_reg, val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 int ksz8_switch_init(struct ksz_device *dev)

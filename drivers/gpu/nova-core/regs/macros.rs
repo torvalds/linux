@@ -71,6 +71,20 @@
 /// pr_info!("CPU CTL: {:#x}", cpuctl);
 /// cpuctl.set_start(true).write(&bar, CPU_BASE);
 /// ```
+///
+/// It is also possible to create a alias register by using the `=> ALIAS` syntax. This is useful
+/// for cases where a register's interpretation depends on the context:
+///
+/// ```no_run
+/// register!(SCRATCH_0 @ 0x0000100, "Scratch register 0" {
+///    31:0     value as u32, "Raw value";
+///
+/// register!(SCRATCH_0_BOOT_STATUS => SCRATCH_0, "Boot status of the firmware" {
+///     0:0     completed as bool, "Whether the firmware has completed booting";
+/// ```
+///
+/// In this example, `SCRATCH_0_BOOT_STATUS` uses the same I/O address as `SCRATCH_0`, while also
+/// providing its own `completed` method.
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     (
@@ -78,9 +92,20 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name $(, $comment)?);
+        register!(@common $name @ $offset $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $offset);
+    };
+
+    // Creates a alias register of fixed offset register `alias` with its own fields.
+    (
+        $name:ident => $alias:ident $(, $comment:literal)? {
+            $($fields:tt)*
+        }
+    ) => {
+        register!(@common $name @ $alias::OFFSET $(, $comment)?);
+        register!(@field_accessors $name { $($fields)* });
+        register!(@io $name @ $alias::OFFSET);
     };
 
     // Creates a register at a relative offset from a base address.
@@ -89,14 +114,27 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name $(, $comment)?);
+        register!(@common $name @ $offset $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io$name @ + $offset);
     };
 
+    // Creates a alias register of relative offset register `alias` with its own fields.
+    (
+        $name:ident => + $alias:ident $(, $comment:literal)? {
+            $($fields:tt)*
+        }
+    ) => {
+        register!(@common $name @ $alias::OFFSET $(, $comment)?);
+        register!(@field_accessors $name { $($fields)* });
+        register!(@io $name @ + $alias::OFFSET);
+    };
+
+    // All rules below are helpers.
+
     // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
     // and conversion to regular `u32`).
-    (@common $name:ident $(, $comment:literal)?) => {
+    (@common $name:ident @ $offset:expr $(, $comment:literal)?) => {
         $(
         #[doc=$comment]
         )?
@@ -104,7 +142,12 @@ macro_rules! register {
         #[derive(Clone, Copy, Default)]
         pub(crate) struct $name(u32);
 
-        // TODO: display the raw hex value, then the value of all the fields. This requires
+        #[allow(dead_code)]
+        impl $name {
+            pub(crate) const OFFSET: usize = $offset;
+        }
+
+        // TODO[REGA]: display the raw hex value, then the value of all the fields. This requires
         // matching the fields, which will complexify the syntax considerably...
         impl ::core::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
@@ -114,7 +157,7 @@ macro_rules! register {
             }
         }
 
-        impl core::ops::BitOr for $name {
+        impl ::core::ops::BitOr for $name {
             type Output = Self;
 
             fn bitor(self, rhs: Self) -> Self::Output {
@@ -161,7 +204,7 @@ macro_rules! register {
     (@check_field_bounds $hi:tt:$lo:tt $field:ident as bool) => {
         #[allow(clippy::eq_op)]
         const _: () = {
-            kernel::build_assert!(
+            ::kernel::build_assert!(
                 $hi == $lo,
                 concat!("boolean field `", stringify!($field), "` covers more than one bit")
             );
@@ -172,7 +215,7 @@ macro_rules! register {
     (@check_field_bounds $hi:tt:$lo:tt $field:ident as $type:tt) => {
         #[allow(clippy::eq_op)]
         const _: () = {
-            kernel::build_assert!(
+            ::kernel::build_assert!(
                 $hi >= $lo,
                 concat!("field `", stringify!($field), "`'s MSB is smaller than its LSB")
             );
@@ -234,7 +277,7 @@ macro_rules! register {
         @leaf_accessor $name:ident $hi:tt:$lo:tt $field:ident as $type:ty
             { $process:expr } $to_type:ty => $res_type:ty $(, $comment:literal)?;
     ) => {
-        kernel::macros::paste!(
+        ::kernel::macros::paste!(
         const [<$field:upper>]: ::core::ops::RangeInclusive<u8> = $lo..=$hi;
         const [<$field:upper _MASK>]: u32 = ((((1 << $hi) - 1) << 1) + 1) - ((1 << $lo) - 1);
         const [<$field:upper _SHIFT>]: u32 = Self::[<$field:upper _MASK>].trailing_zeros();
@@ -246,7 +289,7 @@ macro_rules! register {
         )?
         #[inline]
         pub(crate) fn $field(self) -> $res_type {
-            kernel::macros::paste!(
+            ::kernel::macros::paste!(
             const MASK: u32 = $name::[<$field:upper _MASK>];
             const SHIFT: u32 = $name::[<$field:upper _SHIFT>];
             );
@@ -255,7 +298,7 @@ macro_rules! register {
             $process(field)
         }
 
-        kernel::macros::paste!(
+        ::kernel::macros::paste!(
         $(
         #[doc="Sets the value of this field:"]
         #[doc=$comment]
@@ -264,7 +307,7 @@ macro_rules! register {
         pub(crate) fn [<set_ $field>](mut self, value: $to_type) -> Self {
             const MASK: u32 = $name::[<$field:upper _MASK>];
             const SHIFT: u32 = $name::[<$field:upper _SHIFT>];
-            let value = ((value as u32) << SHIFT) & MASK;
+            let value = (u32::from(value) << SHIFT) & MASK;
             self.0 = (self.0 & !MASK) | value;
 
             self
@@ -273,7 +316,7 @@ macro_rules! register {
     };
 
     // Creates the IO accessors for a fixed offset register.
-    (@io $name:ident @ $offset:literal) => {
+    (@io $name:ident @ $offset:expr) => {
         #[allow(dead_code)]
         impl $name {
             #[inline]

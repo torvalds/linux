@@ -175,11 +175,8 @@ void rtl8723b_set_FwMediaStatusRpt_cmd(struct adapter *padapter, u8 mstatus, u8 
 void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus);
 void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter);
 
-void CheckFwRsvdPageContent(struct adapter *padapter);
-
 void rtl8723b_set_FwPwrModeInIPS_cmd(struct adapter *padapter, u8 cmd_param);
 
 s32 FillH2CCmd8723B(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 
-#define FillH2CCmd FillH2CCmd8723B
 #endif

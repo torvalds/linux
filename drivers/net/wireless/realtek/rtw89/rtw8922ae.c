@@ -106,6 +106,7 @@ static struct pci_driver rtw89_8922ae_driver = {
 	.probe		= rtw89_pci_probe,
 	.remove		= rtw89_pci_remove,
 	.driver.pm	= &rtw89_pm_ops_be,
+	.err_handler    = &rtw89_pci_err_handler,
 };
 module_pci_driver(rtw89_8922ae_driver);
 

@@ -5389,20 +5389,34 @@ int dwc2_gadget_enter_hibernation(struct dwc2_hsotg *hsotg)
 	if (gusbcfg & GUSBCFG_ULPI_UTMI_SEL) {
 		/* ULPI interface */
 		gpwrdn |= GPWRDN_ULPI_LATCH_EN_DURING_HIB_ENTRY;
+		dwc2_writel(hsotg, gpwrdn, GPWRDN);
+		udelay(10);
+
+		/* Suspend the Phy Clock */
+		pcgcctl = dwc2_readl(hsotg, PCGCTL);
+		pcgcctl |= PCGCTL_STOPPCLK;
+		dwc2_writel(hsotg, pcgcctl, PCGCTL);
+		udelay(10);
+
+		gpwrdn = dwc2_readl(hsotg, GPWRDN);
+		gpwrdn |= GPWRDN_PMUACTV;
+		dwc2_writel(hsotg, gpwrdn, GPWRDN);
+		udelay(10);
+	} else {
+		/* UTMI+ Interface */
+		dwc2_writel(hsotg, gpwrdn, GPWRDN);
+		udelay(10);
+
+		gpwrdn = dwc2_readl(hsotg, GPWRDN);
+		gpwrdn |= GPWRDN_PMUACTV;
+		dwc2_writel(hsotg, gpwrdn, GPWRDN);
+		udelay(10);
+
+		pcgcctl = dwc2_readl(hsotg, PCGCTL);
+		pcgcctl |= PCGCTL_STOPPCLK;
+		dwc2_writel(hsotg, pcgcctl, PCGCTL);
+		udelay(10);
 	}
-	dwc2_writel(hsotg, gpwrdn, GPWRDN);
-	udelay(10);
-
-	/* Suspend the Phy Clock */
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl |= PCGCTL_STOPPCLK;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-	udelay(10);
-
-	gpwrdn = dwc2_readl(hsotg, GPWRDN);
-	gpwrdn |= GPWRDN_PMUACTV;
-	dwc2_writel(hsotg, gpwrdn, GPWRDN);
-	udelay(10);
 
 	/* Set flag to indicate that we are in hibernation */
 	hsotg->hibernated = 1;

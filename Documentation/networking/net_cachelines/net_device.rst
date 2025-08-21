@@ -68,6 +68,7 @@ unsigned_char                       addr_assign_type
 unsigned_char                       addr_len
 unsigned_char                       upper_level
 unsigned_char                       lower_level
+u8                                  threaded                                                            napi_poll(napi_enable,netif_set_threaded)
 unsigned_short                      neigh_priv_len
 unsigned_short                      padded
 unsigned_short                      dev_id
@@ -165,7 +166,6 @@ struct sfp_bus*                     sfp_bus
 struct lock_class_key*              qdisc_tx_busylock
 bool                                proto_down
 unsigned:1                          wol_enabled
-unsigned:1                          threaded                                                            napi_poll(napi_enable,dev_set_threaded)
 unsigned_long:1                     see_all_hwtstamp_requests
 unsigned_long:1                     change_proto_down
 unsigned_long:1                     netns_immutable

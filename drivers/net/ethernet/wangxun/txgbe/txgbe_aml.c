@@ -294,6 +294,7 @@ static void txgbe_mac_link_up_aml(struct phylink_config *config,
 	wx_fc_enable(wx, tx_pause, rx_pause);
 
 	txgbe_reconfig_mac(wx);
+	txgbe_enable_sec_tx_path(wx);
 
 	txcfg = rd32(wx, TXGBE_AML_MAC_TX_CFG);
 	txcfg &= ~TXGBE_AML_MAC_TX_CFG_SPEED_MASK;

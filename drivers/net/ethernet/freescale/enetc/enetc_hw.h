@@ -43,6 +43,9 @@
 
 #define ENETC_SIPMAR0	0x80
 #define ENETC_SIPMAR1	0x84
+#define ENETC_SICVLANR1	0x90
+#define ENETC_SICVLANR2	0x94
+#define  SICVLANR_ETYPE	GENMASK(15, 0)
 
 /* VF-PF Message passing */
 #define ENETC_DEFAULT_MSG_SIZE	1024	/* and max size */
@@ -507,7 +510,7 @@ static inline u64 _enetc_rd_reg64(void __iomem *reg)
 		tmp = ioread32(reg + 4);
 	} while (high != tmp);
 
-	return le64_to_cpu((__le64)high << 32 | low);
+	return (u64)high << 32 | low;
 }
 #endif
 
@@ -533,6 +536,7 @@ static inline u64 _enetc_rd_reg64_wa(void __iomem *reg)
 /* port register accessors - PF only */
 #define enetc_port_rd(hw, off)		enetc_rd_reg((hw)->port + (off))
 #define enetc_port_wr(hw, off, val)	enetc_wr_reg((hw)->port + (off), val)
+#define enetc_port_rd64(hw, off)	_enetc_rd_reg64_wa((hw)->port + (off))
 #define enetc_port_rd_mdio(hw, off)	_enetc_rd_mdio_reg_wa((hw)->port + (off))
 #define enetc_port_wr_mdio(hw, off, val)	_enetc_wr_mdio_reg_wa(\
 							(hw)->port + (off), val)

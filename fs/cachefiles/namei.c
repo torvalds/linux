@@ -388,10 +388,10 @@ try_again:
 	} else {
 		struct renamedata rd = {
 			.old_mnt_idmap	= &nop_mnt_idmap,
-			.old_dir	= d_inode(dir),
+			.old_parent	= dir,
 			.old_dentry	= rep,
 			.new_mnt_idmap	= &nop_mnt_idmap,
-			.new_dir	= d_inode(cache->graveyard),
+			.new_parent	= cache->graveyard,
 			.new_dentry	= grave,
 		};
 		trace_cachefiles_rename(object, d_inode(rep)->i_ino, why);

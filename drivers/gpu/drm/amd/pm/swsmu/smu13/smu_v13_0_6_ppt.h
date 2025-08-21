@@ -74,6 +74,8 @@ enum smu_v13_0_6_caps {
 extern void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu);
 bool smu_v13_0_6_cap_supported(struct smu_context *smu, enum smu_v13_0_6_caps cap);
 int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu);
+int smu_v13_0_6_get_metrics_table(struct smu_context *smu, void *metrics_table,
+				  bool bypass_cache);
 
 bool smu_v13_0_12_is_dpm_running(struct smu_context *smu);
 int smu_v13_0_12_get_max_metrics_size(void);

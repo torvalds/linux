@@ -4,6 +4,7 @@
 
 #include <linux/compiler_attributes.h>
 #include <linux/types.h>
+#include <linux/stdarg.h>
 
 int num_to_str(char *buf, int size, unsigned long long num, unsigned int width);
 
@@ -22,7 +23,7 @@ __scanf(2, 0) int vsscanf(const char *, const char *, va_list);
 
 /* These are for specific cases, do not use without real need */
 extern bool no_hash_pointers;
-int no_hash_pointers_enable(char *str);
+void hash_pointers_finalize(bool slub_debug);
 
 /* Used for Rust formatting ('%pA') */
 char *rust_fmt_argument(char *buf, char *end, const void *ptr);

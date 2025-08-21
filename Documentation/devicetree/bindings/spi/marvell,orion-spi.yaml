@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/marvell,orion-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Orion SPI controller
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory CLEMENT <gregory.clement@bootlin.com>
+
+allOf:
+  - $ref: /schemas/spi/spi-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - marvell,orion-spi
+          - marvell,armada-380-spi  # For ap80x and cp11x
+      - items:
+          - enum:
+              - marvell,armada-370-spi
+              - marvell,armada-375-spi
+              - marvell,armada-380-spi
+              - marvell,armada-390-spi
+              - marvell,armada-xp-spi
+          - const: marvell,orion-spi
+
+  cell-index:
+    description: Instance id for the SPI controller
+    deprecated: true
+
+  reg:
+    minItems: 1
+    items:
+      - description: control registers
+      - description: CS0 MBUS target/attribute registers for direct mode
+      - description: CS1 MBUS target/attribute registers for direct mode
+      - description: CS2 MBUS target/attribute registers for direct mode
+      - description: CS3 MBUS target/attribute registers for direct mode
+      - description: CS4 MBUS target/attribute registers for direct mode
+      - description: CS5 MBUS target/attribute registers for direct mode
+      - description: CS6 MBUS target/attribute registers for direct mode
+      - description: CS7 MBUS target/attribute registers for direct mode
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: core
+      - const: axi
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi@10600 {
+      compatible = "marvell,orion-spi";
+      #address-cells = <1>;
+      #size-cells = <0>;
+      cell-index = <0>;
+      reg = <0x10600 0x28>;
+      clocks = <&coreclk 0>;
+      interrupts = <23>;
+    };
+  - |
+    #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <1>;
+
+        spi@10600 {
+          compatible = "marvell,orion-spi";
+          #address-cells = <1>;
+          #size-cells = <0>;
+          cell-index = <0>;
+          reg = <MBUS_ID(0xf0, 0x01) 0x10600 0x28>, /* control */
+                <MBUS_ID(0x01, 0x1e) 0 0xffffffff>, /* CS0 */
+                <MBUS_ID(0x01, 0x5e) 0 0xffffffff>, /* CS1 */
+                <MBUS_ID(0x01, 0x9e) 0 0xffffffff>, /* CS2 */
+                <MBUS_ID(0x01, 0xde) 0 0xffffffff>, /* CS3 */
+                <MBUS_ID(0x01, 0x1f) 0 0xffffffff>, /* CS4 */
+                <MBUS_ID(0x01, 0x5f) 0 0xffffffff>, /* CS5 */
+                <MBUS_ID(0x01, 0x9f) 0 0xffffffff>, /* CS6 */
+                <MBUS_ID(0x01, 0xdf) 0 0xffffffff>; /* CS7 */
+          clocks = <&coreclk 0>;
+          interrupts = <23>;
+        };
+    };

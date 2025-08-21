@@ -800,6 +800,11 @@ struct drm_display_info {
 	struct drm_hdmi_info hdmi;
 
 	/**
+	 * @hdr_sink_metadata: HDR Metadata Information read from sink
+	 */
+	struct hdr_sink_metadata hdr_sink_metadata;
+
+	/**
 	 * @non_desktop: Non desktop display (HMD).
 	 */
 	bool non_desktop;
@@ -843,7 +848,9 @@ struct drm_display_info {
 	int vics_len;
 
 	/**
-	 * @quirks: EDID based quirks. Internal to EDID parsing.
+	 * @quirks: EDID based quirks. DRM core and drivers can query the
+	 * @drm_edid_quirk quirks using drm_edid_has_quirk(), the rest of
+	 * the quirks also tracked here are internal to EDID parsing.
 	 */
 	u32 quirks;
 
@@ -1189,6 +1196,29 @@ struct drm_connector_hdmi_audio_funcs {
 	 */
 	int (*mute_stream)(struct drm_connector *connector,
 			   bool enable, int direction);
+};
+
+void drm_connector_cec_phys_addr_invalidate(struct drm_connector *connector);
+void drm_connector_cec_phys_addr_set(struct drm_connector *connector);
+
+/**
+ * struct drm_connector_cec_funcs - drm_hdmi_connector control functions
+ */
+struct drm_connector_cec_funcs {
+	/**
+	 * @phys_addr_invalidate: mark CEC physical address as invalid
+	 *
+	 * The callback to mark CEC physical address as invalid, abstracting
+	 * the operation.
+	 */
+	void (*phys_addr_invalidate)(struct drm_connector *connector);
+
+	/**
+	 * @phys_addr_set: set CEC physical address
+	 *
+	 * The callback to set CEC physical address, abstracting the operation.
+	 */
+	void (*phys_addr_set)(struct drm_connector *connector, u16 addr);
 };
 
 /**
@@ -1833,6 +1863,26 @@ struct drm_connector_hdmi {
 };
 
 /**
+ * struct drm_connector_cec - DRM Connector CEC-related structure
+ */
+struct drm_connector_cec {
+	/**
+	 * @mutex: protects all fields in this structure.
+	 */
+	struct mutex mutex;
+
+	/**
+	 * @funcs: CEC Control Functions
+	 */
+	const struct drm_connector_cec_funcs *funcs;
+
+	/**
+	 * @data: CEC implementation-specific data
+	 */
+	void *data;
+};
+
+/**
  * struct drm_connector - central DRM connector control structure
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
@@ -2241,9 +2291,6 @@ struct drm_connector {
 	 */
 	struct llist_node free_node;
 
-	/** @hdr_sink_metadata: HDR Metadata Information read from sink */
-	struct hdr_sink_metadata hdr_sink_metadata;
-
 	/**
 	 * @hdmi: HDMI-related variable and properties.
 	 */
@@ -2253,6 +2300,11 @@ struct drm_connector {
 	 * @hdmi_audio: HDMI codec properties and non-DRM state.
 	 */
 	struct drm_connector_hdmi_audio hdmi_audio;
+
+	/**
+	 * @cec: CEC-related data.
+	 */
+	struct drm_connector_cec cec;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)

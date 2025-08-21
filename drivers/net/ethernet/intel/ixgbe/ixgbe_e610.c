@@ -56,7 +56,7 @@ static bool ixgbe_should_retry_aci_send_cmd_execute(u16 opcode)
  * Admin Command failed with error Y.
  */
 static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
-				      struct ixgbe_aci_desc *desc,
+				      struct libie_aq_desc *desc,
 				      void *buf, u16 buf_size)
 {
 	u16 opcode, buf_tail_size = buf_size % 4;
@@ -64,7 +64,7 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 	u32 hicr, i, buf_tail = 0;
 	bool valid_buf = false;
 
-	hw->aci.last_status = IXGBE_ACI_RC_OK;
+	hw->aci.last_status = LIBIE_AQ_RC_OK;
 
 	/* It's necessary to check if mechanism is enabled */
 	hicr = IXGBE_READ_REG(hw, IXGBE_PF_HICR);
@@ -73,7 +73,7 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 		return -EIO;
 
 	if (hicr & IXGBE_PF_HICR_C) {
-		hw->aci.last_status = IXGBE_ACI_RC_EBUSY;
+		hw->aci.last_status = LIBIE_AQ_RC_EBUSY;
 		return -EBUSY;
 	}
 
@@ -83,9 +83,9 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 		return -EINVAL;
 
 	if (buf)
-		desc->flags |= cpu_to_le16(IXGBE_ACI_FLAG_BUF);
+		desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_BUF);
 
-	if (desc->flags & cpu_to_le16(IXGBE_ACI_FLAG_BUF)) {
+	if (desc->flags & cpu_to_le16(LIBIE_AQ_FLAG_BUF)) {
 		if ((buf && !buf_size) ||
 		    (!buf && buf_size))
 			return -EINVAL;
@@ -98,12 +98,12 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 			memcpy(&buf_tail, buf + buf_size - buf_tail_size,
 			       buf_tail_size);
 
-		if (((buf_size + 3) & ~0x3) > IXGBE_ACI_LG_BUF)
-			desc->flags |= cpu_to_le16(IXGBE_ACI_FLAG_LB);
+		if (((buf_size + 3) & ~0x3) > LIBIE_AQ_LG_BUF)
+			desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 
 		desc->datalen = cpu_to_le16(buf_size);
 
-		if (desc->flags & cpu_to_le16(IXGBE_ACI_FLAG_RD)) {
+		if (desc->flags & cpu_to_le16(LIBIE_AQ_FLAG_RD)) {
 			for (i = 0; i < buf_size / 4; i++)
 				IXGBE_WRITE_REG(hw, IXGBE_PF_HIBA(i), ((u32 *)buf)[i]);
 			if (buf_tail_size)
@@ -174,7 +174,7 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 		return -EIO;
 
 	if (desc->retval) {
-		hw->aci.last_status = (enum ixgbe_aci_err)
+		hw->aci.last_status = (enum libie_aq_err)
 			le16_to_cpu(desc->retval);
 		return -EIO;
 	}
@@ -207,12 +207,12 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
  *
  * Return: the exit code of the operation.
  */
-int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct ixgbe_aci_desc *desc,
+int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct libie_aq_desc *desc,
 		       void *buf, u16 buf_size)
 {
 	u16 opcode = le16_to_cpu(desc->opcode);
-	struct ixgbe_aci_desc desc_cpy;
-	enum ixgbe_aci_err last_status;
+	struct libie_aq_desc desc_cpy;
+	enum libie_aq_err last_status;
 	u8 idx = 0, *buf_cpy = NULL;
 	bool is_cmd_for_retry;
 	unsigned long timeout;
@@ -237,7 +237,7 @@ int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct ixgbe_aci_desc *desc,
 		mutex_unlock(&hw->aci.lock);
 
 		if (!is_cmd_for_retry || !err ||
-		    last_status != IXGBE_ACI_RC_EBUSY)
+		    last_status != LIBIE_AQ_RC_EBUSY)
 			break;
 
 		if (buf)
@@ -286,7 +286,7 @@ bool ixgbe_aci_check_event_pending(struct ixgbe_hw *hw)
 int ixgbe_aci_get_event(struct ixgbe_hw *hw, struct ixgbe_aci_event *e,
 			bool *pending)
 {
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
 	if (!e || (!e->msg_buf && e->buf_len))
@@ -335,12 +335,12 @@ aci_get_event_exit:
  * Helper function to fill the descriptor desc with default values
  * and the provided opcode.
  */
-void ixgbe_fill_dflt_direct_cmd_desc(struct ixgbe_aci_desc *desc, u16 opcode)
+void ixgbe_fill_dflt_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode)
 {
 	/* Zero out the desc. */
 	memset(desc, 0, sizeof(*desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(IXGBE_ACI_FLAG_SI);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_SI);
 }
 
 /**
@@ -353,8 +353,8 @@ void ixgbe_fill_dflt_direct_cmd_desc(struct ixgbe_aci_desc *desc, u16 opcode)
  */
 static int ixgbe_aci_get_fw_ver(struct ixgbe_hw *hw)
 {
-	struct ixgbe_aci_cmd_get_ver *resp;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_get_ver *resp;
+	struct libie_aq_desc desc;
 	int err;
 
 	resp = &desc.params.get_ver;
@@ -393,12 +393,12 @@ static int ixgbe_aci_get_fw_ver(struct ixgbe_hw *hw)
  *
  * Return: the exit code of the operation.
  */
-static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
-			     enum ixgbe_aci_res_access_type access,
+static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+			     enum libie_aq_res_access_type access,
 			     u8 sdp_number, u32 *timeout)
 {
-	struct ixgbe_aci_cmd_req_res *cmd_resp;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_req_res *cmd_resp;
+	struct libie_aq_desc desc;
 	int err;
 
 	cmd_resp = &desc.params.res_owner;
@@ -417,7 +417,7 @@ static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
 	 * with a busy return value and the timeout field indicates the maximum
 	 * time the current owner of the resource has to free it.
 	 */
-	if (!err || hw->aci.last_status == IXGBE_ACI_RC_EBUSY)
+	if (!err || hw->aci.last_status == LIBIE_AQ_RC_EBUSY)
 		*timeout = le32_to_cpu(cmd_resp->timeout);
 
 	return err;
@@ -433,11 +433,11 @@ static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
  *
  * Return: the exit code of the operation.
  */
-static int ixgbe_aci_release_res(struct ixgbe_hw *hw,
-				 enum ixgbe_aci_res_ids res, u8 sdp_number)
+static int ixgbe_aci_release_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+				 u8 sdp_number)
 {
-	struct ixgbe_aci_cmd_req_res *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_req_res *cmd;
+	struct libie_aq_desc desc;
 
 	cmd = &desc.params.res_owner;
 
@@ -465,8 +465,8 @@ static int ixgbe_aci_release_res(struct ixgbe_hw *hw,
  *
  * Return: the exit code of the operation.
  */
-int ixgbe_acquire_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
-		      enum ixgbe_aci_res_access_type access, u32 timeout)
+int ixgbe_acquire_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+		      enum libie_aq_res_access_type access, u32 timeout)
 {
 #define IXGBE_RES_POLLING_DELAY_MS	10
 	u32 delay = IXGBE_RES_POLLING_DELAY_MS;
@@ -514,7 +514,7 @@ int ixgbe_acquire_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
  *
  * Release a common resource using ixgbe_aci_release_res.
  */
-void ixgbe_release_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res)
+void ixgbe_release_res(struct ixgbe_hw *hw, enum libie_aq_res_id res)
 {
 	u32 total_delay = 0;
 	int err;
@@ -547,7 +547,7 @@ void ixgbe_release_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res)
  */
 static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 				  struct ixgbe_hw_caps *caps,
-				  struct ixgbe_aci_cmd_list_caps_elem *elem,
+				  struct libie_aqc_list_caps_elem *elem,
 				  const char *prefix)
 {
 	u32 logical_id = le32_to_cpu(elem->logical_id);
@@ -556,67 +556,67 @@ static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 	u16 cap = le16_to_cpu(elem->cap);
 
 	switch (cap) {
-	case IXGBE_ACI_CAPS_VALID_FUNCTIONS:
+	case LIBIE_AQC_CAPS_VALID_FUNCTIONS:
 		caps->valid_functions = number;
 		break;
-	case IXGBE_ACI_CAPS_SRIOV:
+	case LIBIE_AQC_CAPS_SRIOV:
 		caps->sr_iov_1_1 = (number == 1);
 		break;
-	case IXGBE_ACI_CAPS_VMDQ:
+	case LIBIE_AQC_CAPS_VMDQ:
 		caps->vmdq = (number == 1);
 		break;
-	case IXGBE_ACI_CAPS_DCB:
+	case LIBIE_AQC_CAPS_DCB:
 		caps->dcb = (number == 1);
 		caps->active_tc_bitmap = logical_id;
 		caps->maxtc = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_RSS:
+	case LIBIE_AQC_CAPS_RSS:
 		caps->rss_table_size = number;
 		caps->rss_table_entry_width = logical_id;
 		break;
-	case IXGBE_ACI_CAPS_RXQS:
+	case LIBIE_AQC_CAPS_RXQS:
 		caps->num_rxq = number;
 		caps->rxq_first_id = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_TXQS:
+	case LIBIE_AQC_CAPS_TXQS:
 		caps->num_txq = number;
 		caps->txq_first_id = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_MSIX:
+	case LIBIE_AQC_CAPS_MSIX:
 		caps->num_msix_vectors = number;
 		caps->msix_vector_first_id = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_NVM_VER:
+	case LIBIE_AQC_CAPS_NVM_VER:
 		break;
-	case IXGBE_ACI_CAPS_PENDING_NVM_VER:
+	case LIBIE_AQC_CAPS_PENDING_NVM_VER:
 		caps->nvm_update_pending_nvm = true;
 		break;
-	case IXGBE_ACI_CAPS_PENDING_OROM_VER:
+	case LIBIE_AQC_CAPS_PENDING_OROM_VER:
 		caps->nvm_update_pending_orom = true;
 		break;
-	case IXGBE_ACI_CAPS_PENDING_NET_VER:
+	case LIBIE_AQC_CAPS_PENDING_NET_VER:
 		caps->nvm_update_pending_netlist = true;
 		break;
-	case IXGBE_ACI_CAPS_NVM_MGMT:
+	case LIBIE_AQC_CAPS_NVM_MGMT:
 		caps->nvm_unified_update =
 			(number & IXGBE_NVM_MGMT_UNIFIED_UPD_SUPPORT) ?
 			true : false;
 		break;
-	case IXGBE_ACI_CAPS_MAX_MTU:
+	case LIBIE_AQC_CAPS_MAX_MTU:
 		caps->max_mtu = number;
 		break;
-	case IXGBE_ACI_CAPS_PCIE_RESET_AVOIDANCE:
+	case LIBIE_AQC_CAPS_PCIE_RESET_AVOIDANCE:
 		caps->pcie_reset_avoidance = (number > 0);
 		break;
-	case IXGBE_ACI_CAPS_POST_UPDATE_RESET_RESTRICT:
+	case LIBIE_AQC_CAPS_POST_UPDATE_RESET_RESTRICT:
 		caps->reset_restrict_support = (number == 1);
 		break;
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG0:
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG1:
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG2:
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG3:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG0:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG1:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG2:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG3:
 	{
-		u8 index = cap - IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG0;
+		u8 index = cap - LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG0;
 
 		caps->ext_topo_dev_img_ver_high[index] = number;
 		caps->ext_topo_dev_img_ver_low[index] = logical_id;
@@ -637,62 +637,62 @@ static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 }
 
 /**
- * ixgbe_parse_valid_functions_cap - Parse IXGBE_ACI_CAPS_VALID_FUNCTIONS caps
+ * ixgbe_parse_valid_functions_cap - Parse LIBIE_AQC_CAPS_VALID_FUNCTIONS caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_VALID_FUNCTIONS for device capabilities.
+ * Parse LIBIE_AQC_CAPS_VALID_FUNCTIONS for device capabilities.
  */
 static void
 ixgbe_parse_valid_functions_cap(struct ixgbe_hw *hw,
 				struct ixgbe_hw_dev_caps *dev_p,
-				struct ixgbe_aci_cmd_list_caps_elem *cap)
+				struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_funcs = hweight32(le32_to_cpu(cap->number));
 }
 
 /**
- * ixgbe_parse_vf_dev_caps - Parse IXGBE_ACI_CAPS_VF device caps
+ * ixgbe_parse_vf_dev_caps - Parse LIBIE_AQC_CAPS_VF device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_VF for device capabilities.
+ * Parse LIBIE_AQC_CAPS_VF for device capabilities.
  */
 static void ixgbe_parse_vf_dev_caps(struct ixgbe_hw *hw,
 				    struct ixgbe_hw_dev_caps *dev_p,
-				    struct ixgbe_aci_cmd_list_caps_elem *cap)
+				    struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_vfs_exposed = le32_to_cpu(cap->number);
 }
 
 /**
- * ixgbe_parse_vsi_dev_caps - Parse IXGBE_ACI_CAPS_VSI device caps
+ * ixgbe_parse_vsi_dev_caps - Parse LIBIE_AQC_CAPS_VSI device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_VSI for device capabilities.
+ * Parse LIBIE_AQC_CAPS_VSI for device capabilities.
  */
 static void ixgbe_parse_vsi_dev_caps(struct ixgbe_hw *hw,
 				     struct ixgbe_hw_dev_caps *dev_p,
-				     struct ixgbe_aci_cmd_list_caps_elem *cap)
+				     struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_vsi_allocd_to_host = le32_to_cpu(cap->number);
 }
 
 /**
- * ixgbe_parse_fdir_dev_caps - Parse IXGBE_ACI_CAPS_FD device caps
+ * ixgbe_parse_fdir_dev_caps - Parse LIBIE_AQC_CAPS_FD device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_FD for device capabilities.
+ * Parse LIBIE_AQC_CAPS_FD for device capabilities.
  */
 static void ixgbe_parse_fdir_dev_caps(struct ixgbe_hw *hw,
 				      struct ixgbe_hw_dev_caps *dev_p,
-				      struct ixgbe_aci_cmd_list_caps_elem *cap)
+				      struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_flow_director_fltr = le32_to_cpu(cap->number);
 }
@@ -715,10 +715,10 @@ static void ixgbe_parse_dev_caps(struct ixgbe_hw *hw,
 				 struct ixgbe_hw_dev_caps *dev_p,
 				 void *buf, u32 cap_count)
 {
-	struct ixgbe_aci_cmd_list_caps_elem *cap_resp;
+	struct libie_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ixgbe_aci_cmd_list_caps_elem *)buf;
+	cap_resp = (struct libie_aqc_list_caps_elem *)buf;
 
 	memset(dev_p, 0, sizeof(*dev_p));
 
@@ -729,17 +729,17 @@ static void ixgbe_parse_dev_caps(struct ixgbe_hw *hw,
 				      "dev caps");
 
 		switch (cap) {
-		case IXGBE_ACI_CAPS_VALID_FUNCTIONS:
+		case LIBIE_AQC_CAPS_VALID_FUNCTIONS:
 			ixgbe_parse_valid_functions_cap(hw, dev_p,
 							&cap_resp[i]);
 			break;
-		case IXGBE_ACI_CAPS_VF:
+		case LIBIE_AQC_CAPS_VF:
 			ixgbe_parse_vf_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
-		case IXGBE_ACI_CAPS_VSI:
+		case LIBIE_AQC_CAPS_VSI:
 			ixgbe_parse_vsi_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
-		case  IXGBE_ACI_CAPS_FD:
+		case  LIBIE_AQC_CAPS_FD:
 			ixgbe_parse_fdir_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
 		default:
@@ -750,16 +750,16 @@ static void ixgbe_parse_dev_caps(struct ixgbe_hw *hw,
 }
 
 /**
- * ixgbe_parse_vf_func_caps - Parse IXGBE_ACI_CAPS_VF function caps
+ * ixgbe_parse_vf_func_caps - Parse LIBIE_AQC_CAPS_VF function caps
  * @hw: pointer to the HW struct
  * @func_p: pointer to function capabilities structure
  * @cap: pointer to the capability element to parse
  *
- * Extract function capabilities for IXGBE_ACI_CAPS_VF.
+ * Extract function capabilities for LIBIE_AQC_CAPS_VF.
  */
 static void ixgbe_parse_vf_func_caps(struct ixgbe_hw *hw,
 				     struct ixgbe_hw_func_caps *func_p,
-				     struct ixgbe_aci_cmd_list_caps_elem *cap)
+				     struct libie_aqc_list_caps_elem *cap)
 {
 	func_p->num_allocd_vfs = le32_to_cpu(cap->number);
 	func_p->vf_base_id = le32_to_cpu(cap->logical_id);
@@ -786,16 +786,16 @@ static u32 ixgbe_get_num_per_func(struct ixgbe_hw *hw, u32 max)
 }
 
 /**
- * ixgbe_parse_vsi_func_caps - Parse IXGBE_ACI_CAPS_VSI function caps
+ * ixgbe_parse_vsi_func_caps - Parse LIBIE_AQC_CAPS_VSI function caps
  * @hw: pointer to the HW struct
  * @func_p: pointer to function capabilities structure
  * @cap: pointer to the capability element to parse
  *
- * Extract function capabilities for IXGBE_ACI_CAPS_VSI.
+ * Extract function capabilities for LIBIE_AQC_CAPS_VSI.
  */
 static void ixgbe_parse_vsi_func_caps(struct ixgbe_hw *hw,
 				      struct ixgbe_hw_func_caps *func_p,
-				      struct ixgbe_aci_cmd_list_caps_elem *cap)
+				      struct libie_aqc_list_caps_elem *cap)
 {
 	func_p->guar_num_vsi = ixgbe_get_num_per_func(hw, IXGBE_MAX_VSI);
 }
@@ -818,10 +818,10 @@ static void ixgbe_parse_func_caps(struct ixgbe_hw *hw,
 				  struct ixgbe_hw_func_caps *func_p,
 				  void *buf, u32 cap_count)
 {
-	struct ixgbe_aci_cmd_list_caps_elem *cap_resp;
+	struct libie_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ixgbe_aci_cmd_list_caps_elem *)buf;
+	cap_resp = (struct libie_aqc_list_caps_elem *)buf;
 
 	memset(func_p, 0, sizeof(*func_p));
 
@@ -832,10 +832,10 @@ static void ixgbe_parse_func_caps(struct ixgbe_hw *hw,
 				      &cap_resp[i], "func caps");
 
 		switch (cap) {
-		case IXGBE_ACI_CAPS_VF:
+		case LIBIE_AQC_CAPS_VF:
 			ixgbe_parse_vf_func_caps(hw, func_p, &cap_resp[i]);
 			break;
-		case IXGBE_ACI_CAPS_VSI:
+		case LIBIE_AQC_CAPS_VSI:
 			ixgbe_parse_vsi_func_caps(hw, func_p, &cap_resp[i]);
 			break;
 		default:
@@ -869,8 +869,8 @@ static void ixgbe_parse_func_caps(struct ixgbe_hw *hw,
 int ixgbe_aci_list_caps(struct ixgbe_hw *hw, void *buf, u16 buf_size,
 			u32 *cap_count, enum ixgbe_aci_opc opc)
 {
-	struct ixgbe_aci_cmd_list_caps *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_list_caps *cmd;
+	struct libie_aq_desc desc;
 	int err;
 
 	cmd = &desc.params.get_cap;
@@ -914,7 +914,7 @@ int ixgbe_discover_dev_caps(struct ixgbe_hw *hw,
 	 * possible size that firmware can return.
 	 */
 	cap_count = IXGBE_ACI_MAX_BUFFER_SIZE /
-		    sizeof(struct ixgbe_aci_cmd_list_caps_elem);
+		    sizeof(struct libie_aqc_list_caps_elem);
 
 	err = ixgbe_aci_list_caps(hw, cbuf, IXGBE_ACI_MAX_BUFFER_SIZE,
 				  &cap_count,
@@ -953,7 +953,7 @@ int ixgbe_discover_func_caps(struct ixgbe_hw *hw,
 	 * possible size that firmware can return.
 	 */
 	cap_count = IXGBE_ACI_MAX_BUFFER_SIZE /
-		    sizeof(struct ixgbe_aci_cmd_list_caps_elem);
+		    sizeof(struct libie_aqc_list_caps_elem);
 
 	err = ixgbe_aci_list_caps(hw, cbuf, IXGBE_ACI_MAX_BUFFER_SIZE,
 				  &cap_count,
@@ -996,9 +996,9 @@ int ixgbe_get_caps(struct ixgbe_hw *hw)
 int ixgbe_aci_disable_rxen(struct ixgbe_hw *hw)
 {
 	struct ixgbe_aci_cmd_disable_rxen *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.disable_rxen;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_disable_rxen);
 
@@ -1024,10 +1024,10 @@ int ixgbe_aci_get_phy_caps(struct ixgbe_hw *hw, bool qual_mods, u8 report_mode,
 {
 	struct ixgbe_aci_cmd_get_phy_caps *cmd;
 	u16 pcaps_size = sizeof(*pcaps);
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
-	cmd = &desc.params.get_phy;
+	cmd = libie_aq_raw(&desc);
 
 	if (!pcaps || (report_mode & ~IXGBE_ACI_REPORT_MODE_M))
 		return -EINVAL;
@@ -1091,18 +1091,20 @@ void ixgbe_copy_phy_caps_to_cfg(struct ixgbe_aci_cmd_get_phy_caps_data *caps,
 int ixgbe_aci_set_phy_cfg(struct ixgbe_hw *hw,
 			  struct ixgbe_aci_cmd_set_phy_cfg_data *cfg)
 {
-	struct ixgbe_aci_desc desc;
+	struct ixgbe_aci_cmd_set_phy_cfg *cmd;
+	struct libie_aq_desc desc;
 	int err;
 
 	if (!cfg)
 		return -EINVAL;
 
+	cmd = libie_aq_raw(&desc);
 	/* Ensure that only valid bits of cfg->caps can be turned on. */
 	cfg->caps &= IXGBE_ACI_PHY_ENA_VALID_MASK;
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_phy_cfg);
-	desc.params.set_phy.lport_num = hw->bus.func;
-	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+	cmd->lport_num = hw->bus.func;
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	err = ixgbe_aci_send_cmd(hw, &desc, cfg, sizeof(*cfg));
 	if (!err)
@@ -1123,9 +1125,9 @@ int ixgbe_aci_set_phy_cfg(struct ixgbe_hw *hw,
 int ixgbe_aci_set_link_restart_an(struct ixgbe_hw *hw, bool ena_link)
 {
 	struct ixgbe_aci_cmd_restart_an *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.restart_an;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_restart_an);
 
@@ -1151,9 +1153,9 @@ int ixgbe_aci_set_link_restart_an(struct ixgbe_hw *hw, bool ena_link)
 static bool ixgbe_is_media_cage_present(struct ixgbe_hw *hw)
 {
 	struct ixgbe_aci_cmd_get_link_topo *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.get_link_topo;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_topo);
 
@@ -1346,7 +1348,7 @@ int ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 	struct ixgbe_aci_cmd_get_link_status *resp;
 	struct ixgbe_link_status *li_old, *li;
 	struct ixgbe_fc_info *hw_fc_info;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	bool tx_pause, rx_pause;
 	u8 cmd_flags;
 	int err;
@@ -1360,7 +1362,7 @@ int ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_status);
 	cmd_flags = (ena_lse) ? IXGBE_ACI_LSE_ENA : IXGBE_ACI_LSE_DIS;
-	resp = &desc.params.get_link_status;
+	resp = libie_aq_raw(&desc);
 	resp->cmd_flags = cpu_to_le16(cmd_flags);
 	resp->lport_num = hw->bus.func;
 
@@ -1423,9 +1425,9 @@ int ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 int ixgbe_aci_set_event_mask(struct ixgbe_hw *hw, u8 port_num, u16 mask)
 {
 	struct ixgbe_aci_cmd_set_event_mask *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.set_event_mask;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_event_mask);
 
@@ -1496,9 +1498,9 @@ static int ixgbe_start_hw_e610(struct ixgbe_hw *hw)
 int ixgbe_aci_set_port_id_led(struct ixgbe_hw *hw, bool orig_mode)
 {
 	struct ixgbe_aci_cmd_set_port_id_led *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.set_port_id_led;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_port_id_led);
 
@@ -2260,19 +2262,20 @@ int ixgbe_aci_get_netlist_node(struct ixgbe_hw *hw,
 			       struct ixgbe_aci_cmd_get_link_topo *cmd,
 			       u8 *node_part_number, u16 *node_handle)
 {
-	struct ixgbe_aci_desc desc;
+	struct ixgbe_aci_cmd_get_link_topo *resp;
+	struct libie_aq_desc desc;
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_topo);
-	desc.params.get_link_topo = *cmd;
+	resp = libie_aq_raw(&desc);
+	*resp = *cmd;
 
 	if (ixgbe_aci_send_cmd(hw, &desc, NULL, 0))
 		return -EOPNOTSUPP;
 
 	if (node_handle)
-		*node_handle =
-			le16_to_cpu(desc.params.get_link_topo.addr.handle);
+		*node_handle = le16_to_cpu(resp->addr.handle);
 	if (node_part_number)
-		*node_part_number = desc.params.get_link_topo.node_part_num;
+		*node_part_number = resp->node_part_num;
 
 	return 0;
 }
@@ -2286,8 +2289,7 @@ int ixgbe_aci_get_netlist_node(struct ixgbe_hw *hw,
  *
  * Return: the exit code of the operation.
  */
-int ixgbe_acquire_nvm(struct ixgbe_hw *hw,
-		      enum ixgbe_aci_res_access_type access)
+int ixgbe_acquire_nvm(struct ixgbe_hw *hw, enum libie_aq_res_access_type access)
 {
 	u32 fla;
 
@@ -2296,7 +2298,7 @@ int ixgbe_acquire_nvm(struct ixgbe_hw *hw,
 	if ((fla & IXGBE_GLNVM_FLA_LOCKED_M) == 0)
 		return 0;
 
-	return ixgbe_acquire_res(hw, IXGBE_NVM_RES_ID, access,
+	return ixgbe_acquire_res(hw, LIBIE_AQC_RES_ID_NVM, access,
 				 IXGBE_NVM_TIMEOUT);
 }
 
@@ -2315,7 +2317,7 @@ void ixgbe_release_nvm(struct ixgbe_hw *hw)
 	if ((fla & IXGBE_GLNVM_FLA_LOCKED_M) == 0)
 		return;
 
-	ixgbe_release_res(hw, IXGBE_NVM_RES_ID);
+	ixgbe_release_res(hw, LIBIE_AQC_RES_ID_NVM);
 }
 
 /**
@@ -2337,12 +2339,12 @@ int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 		       bool read_shadow_ram)
 {
 	struct ixgbe_aci_cmd_nvm *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
 	if (offset > IXGBE_ACI_NVM_MAX_OFFSET)
 		return -EINVAL;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_read);
 
@@ -2372,7 +2374,7 @@ int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 int ixgbe_aci_erase_nvm(struct ixgbe_hw *hw, u16 module_typeid)
 {
 	struct ixgbe_aci_cmd_nvm *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	__le16 len;
 	int err;
 
@@ -2385,7 +2387,7 @@ int ixgbe_aci_erase_nvm(struct ixgbe_hw *hw, u16 module_typeid)
 	if (err)
 		return err;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_erase);
 
@@ -2416,9 +2418,9 @@ int ixgbe_aci_update_nvm(struct ixgbe_hw *hw, u16 module_typeid,
 			 bool last_command, u8 command_flags)
 {
 	struct ixgbe_aci_cmd_nvm *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	/* In offset the highest byte must be zeroed. */
 	if (offset & 0xFF000000)
@@ -2436,7 +2438,7 @@ int ixgbe_aci_update_nvm(struct ixgbe_hw *hw, u16 module_typeid,
 	cmd->offset_high = FIELD_GET(IXGBE_ACI_NVM_OFFSET_HI_U_MASK, offset);
 	cmd->length = cpu_to_le16(length);
 
-	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	return ixgbe_aci_send_cmd(hw, &desc, data, length);
 }
@@ -2467,10 +2469,10 @@ int ixgbe_nvm_write_activate(struct ixgbe_hw *hw, u16 cmd_flags,
 			     u8 *response_flags)
 {
 	struct ixgbe_aci_cmd_nvm *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	s32 err;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 	ixgbe_fill_dflt_direct_cmd_desc(&desc,
 					ixgbe_aci_opc_nvm_write_activate);
 
@@ -2498,14 +2500,14 @@ int ixgbe_nvm_write_activate(struct ixgbe_hw *hw, u16 cmd_flags,
 int ixgbe_nvm_validate_checksum(struct ixgbe_hw *hw)
 {
 	struct ixgbe_aci_cmd_nvm_checksum *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
-	cmd = &desc.params.nvm_checksum;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_checksum);
 	cmd->flags = IXGBE_ACI_NVM_CHECKSUM_VERIFY;
@@ -2541,7 +2543,7 @@ static int ixgbe_discover_flash_size(struct ixgbe_hw *hw)
 	u32 min_size = 0, max_size = IXGBE_ACI_NVM_MAX_OFFSET + 1;
 	int err;
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
@@ -2552,7 +2554,7 @@ static int ixgbe_discover_flash_size(struct ixgbe_hw *hw)
 
 		err = ixgbe_read_flat_nvm(hw, offset, &len, &data, false);
 		if (err == -EIO &&
-		    hw->aci.last_status == IXGBE_ACI_RC_EINVAL) {
+		    hw->aci.last_status == LIBIE_AQ_RC_EINVAL) {
 			err = 0;
 			max_size = offset;
 		} else if (!err) {
@@ -2805,7 +2807,7 @@ static int ixgbe_read_flash_module(struct ixgbe_hw *hw,
 	if (!start)
 		return -EINVAL;
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
@@ -3389,7 +3391,7 @@ int ixgbe_get_flash_data(struct ixgbe_hw *hw)
  */
 int ixgbe_aci_nvm_update_empr(struct ixgbe_hw *hw)
 {
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_update_empr);
 
@@ -3415,15 +3417,15 @@ int ixgbe_nvm_set_pkg_data(struct ixgbe_hw *hw, bool del_pkg_data_flag,
 			   u8 *data, u16 length)
 {
 	struct ixgbe_aci_cmd_nvm_pkg_data *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
 	if (length != 0 && !data)
 		return -EINVAL;
 
-	cmd = &desc.params.pkg_data;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_pkg_data);
-	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	if (del_pkg_data_flag)
 		cmd->cmd_flags |= IXGBE_ACI_NVM_PKG_DELETE;
@@ -3453,17 +3455,17 @@ int ixgbe_nvm_pass_component_tbl(struct ixgbe_hw *hw, u8 *data, u16 length,
 				 u8 *comp_response_code)
 {
 	struct ixgbe_aci_cmd_nvm_pass_comp_tbl *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
 	if (!data || !comp_response || !comp_response_code)
 		return -EINVAL;
 
-	cmd = &desc.params.pass_comp_tbl;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc,
 					ixgbe_aci_opc_nvm_pass_component_tbl);
-	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	cmd->transfer_flag = transfer_flag;
 	err = ixgbe_aci_send_cmd(hw, &desc, data, length);
@@ -3617,7 +3619,7 @@ int ixgbe_read_ee_aci_e610(struct ixgbe_hw *hw, u16 offset, u16 *data)
 			return err;
 	}
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
@@ -3650,7 +3652,7 @@ int ixgbe_read_ee_aci_buffer_e610(struct ixgbe_hw *hw, u16 offset,
 			return err;
 	}
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
@@ -3690,7 +3692,7 @@ int ixgbe_validate_eeprom_checksum_e610(struct ixgbe_hw *hw, u16 *checksum_val)
 	if (checksum_val) {
 		u16 tmp_checksum;
 
-		err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+		err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 		if (err)
 			return err;
 
@@ -3965,6 +3967,10 @@ static const struct ixgbe_mac_operations mac_ops_e610 = {
 	.prot_autoc_write		= prot_autoc_write_generic,
 	.setup_fc			= ixgbe_setup_fc_e610,
 	.fc_autoneg			= ixgbe_fc_autoneg_e610,
+	.enable_mdd			= ixgbe_enable_mdd_x550,
+	.disable_mdd			= ixgbe_disable_mdd_x550,
+	.restore_mdd_vf			= ixgbe_restore_mdd_vf_x550,
+	.handle_mdd			= ixgbe_handle_mdd_x550,
 };
 
 static const struct ixgbe_phy_operations phy_ops_e610 = {

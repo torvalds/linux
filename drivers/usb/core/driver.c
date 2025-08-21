@@ -119,11 +119,11 @@ ssize_t usb_show_dynids(struct usb_dynids *dynids, char *buf)
 	guard(mutex)(&usb_dynids_lock);
 	list_for_each_entry(dynid, &dynids->list, node)
 		if (dynid->id.bInterfaceClass != 0)
-			count += scnprintf(&buf[count], PAGE_SIZE - count, "%04x %04x %02x\n",
+			count += sysfs_emit_at(&buf[count], count, "%04x %04x %02x\n",
 					   dynid->id.idVendor, dynid->id.idProduct,
 					   dynid->id.bInterfaceClass);
 		else
-			count += scnprintf(&buf[count], PAGE_SIZE - count, "%04x %04x\n",
+			count += sysfs_emit_at(&buf[count], count, "%04x %04x\n",
 					   dynid->id.idVendor, dynid->id.idProduct);
 	return count;
 }

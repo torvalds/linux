@@ -24,6 +24,12 @@
  *
  * vram_d3cold_threshold - Report/change vram used threshold(in MB) below
  * which vram save/restore is permissible during runtime D3cold entry/exit.
+ *
+ * lb_fan_control_version - Fan control version provisioned by late binding.
+ * Exposed only if supported by the device.
+ *
+ * lb_voltage_regulator_version - Voltage regulator version provisioned by late
+ * binding. Exposed only if supported by the device.
  */
 
 static ssize_t
@@ -64,6 +70,140 @@ vram_d3cold_threshold_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR_RW(vram_d3cold_threshold);
+
+static ssize_t
+lb_fan_control_version_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
+	struct xe_tile *root = xe_device_get_root_tile(xe);
+	u32 cap, ver_low = FAN_TABLE, ver_high = FAN_TABLE;
+	u16 major = 0, minor = 0, hotfix = 0, build = 0;
+	int ret;
+
+	xe_pm_runtime_get(xe);
+
+	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
+			    &cap, NULL);
+	if (ret)
+		goto out;
+
+	if (REG_FIELD_GET(V1_FAN_PROVISIONED, cap)) {
+		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_LOW, 0),
+				    &ver_low, NULL);
+		if (ret)
+			goto out;
+
+		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_HIGH, 0),
+				    &ver_high, NULL);
+		if (ret)
+			goto out;
+
+		major = REG_FIELD_GET(MAJOR_VERSION_MASK, ver_low);
+		minor = REG_FIELD_GET(MINOR_VERSION_MASK, ver_low);
+		hotfix = REG_FIELD_GET(HOTFIX_VERSION_MASK, ver_high);
+		build = REG_FIELD_GET(BUILD_VERSION_MASK, ver_high);
+	}
+out:
+	xe_pm_runtime_put(xe);
+
+	return ret ?: sysfs_emit(buf, "%u.%u.%u.%u\n", major, minor, hotfix, build);
+}
+static DEVICE_ATTR_ADMIN_RO(lb_fan_control_version);
+
+static ssize_t
+lb_voltage_regulator_version_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
+	struct xe_tile *root = xe_device_get_root_tile(xe);
+	u32 cap, ver_low = VR_CONFIG, ver_high = VR_CONFIG;
+	u16 major = 0, minor = 0, hotfix = 0, build = 0;
+	int ret;
+
+	xe_pm_runtime_get(xe);
+
+	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
+			    &cap, NULL);
+	if (ret)
+		goto out;
+
+	if (REG_FIELD_GET(VR_PARAMS_PROVISIONED, cap)) {
+		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_LOW, 0),
+				    &ver_low, NULL);
+		if (ret)
+			goto out;
+
+		ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_VERSION_HIGH, 0),
+				    &ver_high, NULL);
+		if (ret)
+			goto out;
+
+		major = REG_FIELD_GET(MAJOR_VERSION_MASK, ver_low);
+		minor = REG_FIELD_GET(MINOR_VERSION_MASK, ver_low);
+		hotfix = REG_FIELD_GET(HOTFIX_VERSION_MASK, ver_high);
+		build = REG_FIELD_GET(BUILD_VERSION_MASK, ver_high);
+	}
+out:
+	xe_pm_runtime_put(xe);
+
+	return ret ?: sysfs_emit(buf, "%u.%u.%u.%u\n", major, minor, hotfix, build);
+}
+static DEVICE_ATTR_ADMIN_RO(lb_voltage_regulator_version);
+
+static int late_bind_create_files(struct device *dev)
+{
+	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
+	struct xe_tile *root = xe_device_get_root_tile(xe);
+	u32 cap;
+	int ret;
+
+	xe_pm_runtime_get(xe);
+
+	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
+			    &cap, NULL);
+	if (ret) {
+		if (ret == -ENXIO) {
+			drm_dbg(&xe->drm, "Late binding not supported by firmware\n");
+			ret = 0;
+		}
+		goto out;
+	}
+
+	if (REG_FIELD_GET(V1_FAN_SUPPORTED, cap)) {
+		ret = sysfs_create_file(&dev->kobj, &dev_attr_lb_fan_control_version.attr);
+		if (ret)
+			goto out;
+	}
+
+	if (REG_FIELD_GET(VR_PARAMS_SUPPORTED, cap))
+		ret = sysfs_create_file(&dev->kobj, &dev_attr_lb_voltage_regulator_version.attr);
+out:
+	xe_pm_runtime_put(xe);
+
+	return ret;
+}
+
+static void late_bind_remove_files(struct device *dev)
+{
+	struct xe_device *xe = pdev_to_xe_device(to_pci_dev(dev));
+	struct xe_tile *root = xe_device_get_root_tile(xe);
+	u32 cap;
+	int ret;
+
+	xe_pm_runtime_get(xe);
+
+	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
+			    &cap, NULL);
+	if (ret)
+		goto out;
+
+	if (REG_FIELD_GET(V1_FAN_SUPPORTED, cap))
+		sysfs_remove_file(&dev->kobj, &dev_attr_lb_fan_control_version.attr);
+
+	if (REG_FIELD_GET(VR_PARAMS_SUPPORTED, cap))
+		sysfs_remove_file(&dev->kobj, &dev_attr_lb_voltage_regulator_version.attr);
+out:
+	xe_pm_runtime_put(xe);
+}
 
 /**
  * DOC: PCIe Gen5 Limitations
@@ -151,8 +291,10 @@ static void xe_device_sysfs_fini(void *arg)
 	if (xe->d3cold.capable)
 		sysfs_remove_file(&xe->drm.dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
 
-	if (xe->info.platform == XE_BATTLEMAGE)
+	if (xe->info.platform == XE_BATTLEMAGE) {
 		sysfs_remove_files(&xe->drm.dev->kobj, auto_link_downgrade_attrs);
+		late_bind_remove_files(xe->drm.dev);
+	}
 }
 
 int xe_device_sysfs_init(struct xe_device *xe)
@@ -168,6 +310,10 @@ int xe_device_sysfs_init(struct xe_device *xe)
 
 	if (xe->info.platform == XE_BATTLEMAGE) {
 		ret = sysfs_create_files(&dev->kobj, auto_link_downgrade_attrs);
+		if (ret)
+			return ret;
+
+		ret = late_bind_create_files(dev);
 		if (ret)
 			return ret;
 	}

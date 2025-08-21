@@ -75,69 +75,70 @@ struct block_entry {
 	struct list_head actions;
 };
 
+static int block_entry_bytenr_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *bytenr = key;
+	const struct block_entry *entry = rb_entry(node, struct block_entry, node);
+
+	if (entry->bytenr < *bytenr)
+		return 1;
+	else if (entry->bytenr > *bytenr)
+		return -1;
+
+	return 0;
+}
+
+static int block_entry_bytenr_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct block_entry *new_entry = rb_entry(new, struct block_entry, node);
+
+	return block_entry_bytenr_key_cmp(&new_entry->bytenr, existing);
+}
+
 static struct block_entry *insert_block_entry(struct rb_root *root,
 					      struct block_entry *be)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
-	struct block_entry *entry;
+	struct rb_node *node;
 
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct block_entry, node);
-		if (entry->bytenr > be->bytenr)
-			p = &(*p)->rb_left;
-		else if (entry->bytenr < be->bytenr)
-			p = &(*p)->rb_right;
-		else
-			return entry;
-	}
-
-	rb_link_node(&be->node, parent_node, p);
-	rb_insert_color(&be->node, root);
-	return NULL;
+	node = rb_find_add(&be->node, root, block_entry_bytenr_cmp);
+	return rb_entry_safe(node, struct block_entry, node);
 }
 
 static struct block_entry *lookup_block_entry(struct rb_root *root, u64 bytenr)
 {
-	struct rb_node *n;
-	struct block_entry *entry = NULL;
+	struct rb_node *node;
 
-	n = root->rb_node;
-	while (n) {
-		entry = rb_entry(n, struct block_entry, node);
-		if (entry->bytenr < bytenr)
-			n = n->rb_right;
-		else if (entry->bytenr > bytenr)
-			n = n->rb_left;
-		else
-			return entry;
-	}
-	return NULL;
+	node = rb_find(&bytenr, root, block_entry_bytenr_key_cmp);
+	return rb_entry_safe(node, struct block_entry, node);
+}
+
+static int root_entry_root_objectid_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *objectid = key;
+	const struct root_entry *entry = rb_entry(node, struct root_entry, node);
+
+	if (entry->root_objectid < *objectid)
+		return 1;
+	else if (entry->root_objectid > *objectid)
+		return -1;
+
+	return 0;
+}
+
+static int root_entry_root_objectid_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct root_entry *new_entry = rb_entry(new, struct root_entry, node);
+
+	return root_entry_root_objectid_key_cmp(&new_entry->root_objectid, existing);
 }
 
 static struct root_entry *insert_root_entry(struct rb_root *root,
 					    struct root_entry *re)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
-	struct root_entry *entry;
+	struct rb_node *node;
 
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct root_entry, node);
-		if (entry->root_objectid > re->root_objectid)
-			p = &(*p)->rb_left;
-		else if (entry->root_objectid < re->root_objectid)
-			p = &(*p)->rb_right;
-		else
-			return entry;
-	}
-
-	rb_link_node(&re->node, parent_node, p);
-	rb_insert_color(&re->node, root);
-	return NULL;
-
+	node = rb_find_add(&re->node, root, root_entry_root_objectid_cmp);
+	return rb_entry_safe(node, struct root_entry, node);
 }
 
 static int comp_refs(struct ref_entry *ref1, struct ref_entry *ref2)
@@ -161,48 +162,29 @@ static int comp_refs(struct ref_entry *ref1, struct ref_entry *ref2)
 	return 0;
 }
 
+static int ref_entry_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	struct ref_entry *new_entry = rb_entry(new, struct ref_entry, node);
+	struct ref_entry *existing_entry = rb_entry(existing, struct ref_entry, node);
+
+	return comp_refs(new_entry, existing_entry);
+}
+
 static struct ref_entry *insert_ref_entry(struct rb_root *root,
 					  struct ref_entry *ref)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
-	struct ref_entry *entry;
-	int cmp;
+	struct rb_node *node;
 
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct ref_entry, node);
-		cmp = comp_refs(entry, ref);
-		if (cmp > 0)
-			p = &(*p)->rb_left;
-		else if (cmp < 0)
-			p = &(*p)->rb_right;
-		else
-			return entry;
-	}
-
-	rb_link_node(&ref->node, parent_node, p);
-	rb_insert_color(&ref->node, root);
-	return NULL;
-
+	node = rb_find_add(&ref->node, root, ref_entry_cmp);
+	return rb_entry_safe(node, struct ref_entry, node);
 }
 
 static struct root_entry *lookup_root_entry(struct rb_root *root, u64 objectid)
 {
-	struct rb_node *n;
-	struct root_entry *entry = NULL;
+	struct rb_node *node;
 
-	n = root->rb_node;
-	while (n) {
-		entry = rb_entry(n, struct root_entry, node);
-		if (entry->root_objectid < objectid)
-			n = n->rb_right;
-		else if (entry->root_objectid > objectid)
-			n = n->rb_left;
-		else
-			return entry;
-	}
-	return NULL;
+	node = rb_find(&objectid, root, root_entry_root_objectid_key_cmp);
+	return rb_entry_safe(node, struct root_entry, node);
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -668,7 +650,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
  * our sanity checks pass as they are no longer needed.
  */
 int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
-		       struct btrfs_ref *generic_ref)
+		       const struct btrfs_ref *generic_ref)
 {
 	struct ref_entry *ref = NULL, *exist;
 	struct ref_action *ra = NULL;

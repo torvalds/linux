@@ -320,7 +320,7 @@ static void set_barrier_auto_waitcnt(struct amdgpu_device *adev, bool enable_wai
 	if (!down_read_trylock(&adev->reset_domain->sem))
 		return;
 
-	amdgpu_amdkfd_suspend(adev, false);
+	amdgpu_amdkfd_suspend(adev, true);
 
 	if (suspend_resume_compute_scheduler(adev, true))
 		goto out;
@@ -333,7 +333,7 @@ static void set_barrier_auto_waitcnt(struct amdgpu_device *adev, bool enable_wai
 out:
 	suspend_resume_compute_scheduler(adev, false);
 
-	amdgpu_amdkfd_resume(adev, false);
+	amdgpu_amdkfd_resume(adev, true);
 
 	up_read(&adev->reset_domain->sem);
 }

@@ -23,7 +23,7 @@
 
 #include <asm-generic/pgtable-nopmd.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/mmu.h>
 #include <asm/fixmap.h>
 
@@ -411,7 +411,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
-static inline int pte_swp_exclusive(pte_t pte)
+static inline bool pte_swp_exclusive(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
 }
@@ -430,5 +430,5 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 typedef pte_t *pte_addr_t;
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_OPENRISC_PGTABLE_H */

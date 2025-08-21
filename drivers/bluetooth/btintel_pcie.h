@@ -117,7 +117,9 @@ enum {
 enum {
 	BTINTEL_PCIE_CORE_HALTED,
 	BTINTEL_PCIE_HWEXP_INPROGRESS,
-	BTINTEL_PCIE_COREDUMP_INPROGRESS
+	BTINTEL_PCIE_COREDUMP_INPROGRESS,
+	BTINTEL_PCIE_RECOVERY_IN_PROGRESS,
+	BTINTEL_PCIE_SETUP_DONE
 };
 
 enum btintel_pcie_tlv_type {
@@ -154,8 +156,11 @@ enum msix_mbox_int_causes {
 /* Default interrupt timeout in msec */
 #define BTINTEL_DEFAULT_INTR_TIMEOUT_MS	3000
 
-/* The number of descriptors in TX/RX queues */
-#define BTINTEL_DESCS_COUNT	16
+/* The number of descriptors in TX queues */
+#define BTINTEL_PCIE_TX_DESCS_COUNT	32
+
+/* The number of descriptors in RX queues */
+#define BTINTEL_PCIE_RX_DESCS_COUNT	64
 
 /* Number of Queue for TX and RX
  * It indicates the index of the IA(Index Array)
@@ -176,9 +181,6 @@ enum {
 
 /* Doorbell vector for TFD */
 #define BTINTEL_PCIE_TX_DB_VEC	0
-
-/* Number of pending RX requests for downlink */
-#define BTINTEL_PCIE_RX_MAX_QUEUE	6
 
 /* Doorbell vector for FRBD */
 #define BTINTEL_PCIE_RX_DB_VEC	513

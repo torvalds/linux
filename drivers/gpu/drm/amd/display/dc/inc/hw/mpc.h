@@ -190,6 +190,42 @@ struct mpc_grph_gamut_adjustment {
 	enum mpcc_gamut_remap_id mpcc_gamut_remap_block_id;
 };
 
+struct mpc_rmcm_regs {
+	uint32_t rmcm_3dlut_mem_pwr_state;
+	uint32_t rmcm_3dlut_mem_pwr_force;
+	uint32_t rmcm_3dlut_mem_pwr_dis;
+	uint32_t rmcm_3dlut_mem_pwr_mode;
+	uint32_t rmcm_3dlut_size;
+	uint32_t rmcm_3dlut_mode;
+	uint32_t rmcm_3dlut_mode_cur;
+	uint32_t rmcm_3dlut_read_sel;
+	uint32_t rmcm_3dlut_30bit_en;
+	uint32_t rmcm_3dlut_wr_en_mask;
+	uint32_t rmcm_3dlut_ram_sel;
+	uint32_t rmcm_3dlut_out_norm_factor;
+	uint32_t rmcm_3dlut_fl_sel;
+	uint32_t rmcm_3dlut_out_offset_r;
+	uint32_t rmcm_3dlut_out_scale_r;
+	uint32_t rmcm_3dlut_fl_done;
+	uint32_t rmcm_3dlut_fl_soft_underflow;
+	uint32_t rmcm_3dlut_fl_hard_underflow;
+	uint32_t rmcm_cntl;
+	uint32_t rmcm_shaper_mem_pwr_state;
+	uint32_t rmcm_shaper_mem_pwr_force;
+	uint32_t rmcm_shaper_mem_pwr_dis;
+	uint32_t rmcm_shaper_mem_pwr_mode;
+	uint32_t rmcm_shaper_lut_mode;
+	uint32_t rmcm_shaper_mode_cur;
+	uint32_t rmcm_shaper_lut_write_en_mask;
+	uint32_t rmcm_shaper_lut_write_sel;
+	uint32_t rmcm_shaper_offset_b;
+	uint32_t rmcm_shaper_scale_b;
+	uint32_t rmcm_shaper_rama_exp_region_start_b;
+	uint32_t rmcm_shaper_rama_exp_region_start_seg_b;
+	uint32_t rmcm_shaper_rama_exp_region_end_b;
+	uint32_t rmcm_shaper_rama_exp_region_end_base_b;
+};
+
 struct mpcc_sm_cfg {
 	bool enable;
 	/* 0-single plane,2-row subsampling,4-column subsampling,6-checkboard subsampling */
@@ -301,6 +337,7 @@ struct mpcc_state {
 	uint32_t rgam_mode;
 	uint32_t rgam_lut;
 	struct mpc_grph_gamut_adjustment gamut_remap;
+	struct mpc_rmcm_regs rmcm_regs;
 };
 
 /**
@@ -1038,6 +1075,11 @@ struct mpc_funcs {
 	*/
 	void (*program_3dlut_size)(struct mpc *mpc, bool is_17x17x17, int mpcc_id);
 
+	/**
+	 * @mcm:
+	 *
+	 * MPC MCM new HW sequential programming functions
+	 */
 	struct {
 		void (*program_3dlut_size)(struct mpc *mpc, uint32_t width, int mpcc_id);
 		void (*program_bias_scale)(struct mpc *mpc, uint16_t bias, uint16_t scale, int mpcc_id);
@@ -1050,6 +1092,11 @@ struct mpc_funcs {
 			bool lut_bank_a, int mpcc_id);
 	} mcm;
 
+	/**
+	 * @rmcm:
+	 *
+	 * MPC RMCM new HW sequential programming functions
+	 */
 	struct {
 		void (*enable_3dlut_fl)(struct mpc *mpc, bool enable, int mpcc_id);
 		void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);

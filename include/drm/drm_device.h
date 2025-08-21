@@ -5,6 +5,7 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/sched.h>
 
 #include <drm/drm_mode_config.h>
 
@@ -29,6 +30,16 @@ struct pci_controller;
 #define DRM_WEDGE_RECOVERY_NONE		BIT(0)	/* optional telemetry collection */
 #define DRM_WEDGE_RECOVERY_REBIND	BIT(1)	/* unbind + bind driver */
 #define DRM_WEDGE_RECOVERY_BUS_RESET	BIT(2)	/* unbind + reset bus device + bind */
+
+/**
+ * struct drm_wedge_task_info - information about the guilty task of a wedge dev
+ */
+struct drm_wedge_task_info {
+	/** @pid: pid of the task */
+	pid_t pid;
+	/** @comm: command name of the task */
+	char comm[TASK_COMM_LEN];
+};
 
 /**
  * enum switch_power_state - power state of drm device

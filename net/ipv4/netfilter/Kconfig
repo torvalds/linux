@@ -13,8 +13,9 @@ config NF_DEFRAG_IPV4
 # old sockopt interface and eval loop
 config IP_NF_IPTABLES_LEGACY
 	tristate "Legacy IP tables support"
-	default	n
-	select NETFILTER_XTABLES
+	depends on NETFILTER_XTABLES_LEGACY
+	depends on NETFILTER_XTABLES
+	default	m if NETFILTER_XTABLES_LEGACY
 	help
 	  iptables is a legacy packet classifier.
 	  This is not needed if you are using iptables over nftables
@@ -182,8 +183,8 @@ config IP_NF_MATCH_TTL
 # `filter', generic and specific targets
 config IP_NF_FILTER
 	tristate "Packet filtering"
-	default m if NETFILTER_ADVANCED=n
-	select IP_NF_IPTABLES_LEGACY
+	default m if NETFILTER_ADVANCED=n || IP_NF_IPTABLES_LEGACY
+	depends on IP_NF_IPTABLES_LEGACY
 	help
 	  Packet filtering defines a table `filter', which has a series of
 	  rules for simple packet filtering at local input, forwarding and
@@ -220,10 +221,10 @@ config IP_NF_TARGET_SYNPROXY
 config IP_NF_NAT
 	tristate "iptables NAT support"
 	depends on NF_CONNTRACK
+	depends on IP_NF_IPTABLES_LEGACY
 	default m if NETFILTER_ADVANCED=n
 	select NF_NAT
 	select NETFILTER_XT_NAT
-	select IP_NF_IPTABLES_LEGACY
 	help
 	  This enables the `nat' table in iptables. This allows masquerading,
 	  port forwarding and other forms of full Network Address Port
@@ -263,8 +264,8 @@ endif # IP_NF_NAT
 # mangle + specific targets
 config IP_NF_MANGLE
 	tristate "Packet mangling"
-	default m if NETFILTER_ADVANCED=n
-	select IP_NF_IPTABLES_LEGACY
+	default m if NETFILTER_ADVANCED=n || IP_NF_IPTABLES_LEGACY
+	depends on IP_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `mangle' table to iptables: see the man page for
 	  iptables(8).  This table is used for various packet alterations
@@ -299,7 +300,7 @@ config IP_NF_TARGET_TTL
 # raw + specific targets
 config IP_NF_RAW
 	tristate  'raw table support (required for NOTRACK/TRACE)'
-	select IP_NF_IPTABLES_LEGACY
+	depends on IP_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `raw' table to iptables. This table is the very
 	  first in the netfilter framework and hooks in at the PREROUTING
@@ -313,7 +314,7 @@ config IP_NF_SECURITY
 	tristate "Security table"
 	depends on SECURITY
 	depends on NETFILTER_ADVANCED
-	select IP_NF_IPTABLES_LEGACY
+	depends on IP_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `security' table to iptables, for use
 	  with Mandatory Access Control (MAC) policy.
@@ -325,8 +326,9 @@ endif # IP_NF_IPTABLES
 # ARP tables
 config IP_NF_ARPTABLES
 	tristate "Legacy ARPTABLES support"
+	depends on NETFILTER_XTABLES_LEGACY
 	depends on NETFILTER_XTABLES
-	default n
+	default	n
 	help
 	  arptables is a legacy packet classifier.
 	  This is not needed if you are using arptables over nftables
@@ -342,6 +344,7 @@ config IP_NF_ARPFILTER
 	tristate "arptables-legacy packet filtering support"
 	select IP_NF_ARPTABLES
 	select NETFILTER_FAMILY_ARP
+	depends on NETFILTER_XTABLES_LEGACY
 	depends on NETFILTER_XTABLES
 	help
 	  ARP packet filtering defines a table `filter', which has a series of

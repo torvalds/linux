@@ -683,6 +683,7 @@ static void pwr_island_delay_set(struct ivpu_device *vdev)
 		return;
 
 	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_WCL:
 	case PCI_DEVICE_ID_PTL_P:
 		post = high ? 18 : 0;
 		post1 = 0;

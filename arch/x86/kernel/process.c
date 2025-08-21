@@ -334,13 +334,21 @@ DEFINE_PER_CPU(u64, msr_misc_features_shadow);
 
 static void set_cpuid_faulting(bool on)
 {
-	u64 msrval;
 
-	msrval = this_cpu_read(msr_misc_features_shadow);
-	msrval &= ~MSR_MISC_FEATURES_ENABLES_CPUID_FAULT;
-	msrval |= (on << MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT);
-	this_cpu_write(msr_misc_features_shadow, msrval);
-	wrmsrq(MSR_MISC_FEATURES_ENABLES, msrval);
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+		u64 msrval;
+
+		msrval = this_cpu_read(msr_misc_features_shadow);
+		msrval &= ~MSR_MISC_FEATURES_ENABLES_CPUID_FAULT;
+		msrval |= (on << MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT);
+		this_cpu_write(msr_misc_features_shadow, msrval);
+		wrmsrq(MSR_MISC_FEATURES_ENABLES, msrval);
+	} else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		if (on)
+			msr_set_bit(MSR_K7_HWCR, MSR_K7_HWCR_CPUID_USER_DIS_BIT);
+		else
+			msr_clear_bit(MSR_K7_HWCR, MSR_K7_HWCR_CPUID_USER_DIS_BIT);
+	}
 }
 
 static void disable_cpuid(void)
@@ -907,16 +915,24 @@ static __init bool prefer_mwait_c1_over_halt(void)
  */
 static __cpuidle void mwait_idle(void)
 {
+	if (need_resched())
+		return;
+
+	x86_idle_clear_cpu_buffers();
+
 	if (!current_set_polling_and_test()) {
 		const void *addr = &current_thread_info()->flags;
 
 		alternative_input("", "clflush (%[addr])", X86_BUG_CLFLUSH_MONITOR, [addr] "a" (addr));
 		__monitor(addr, 0, 0);
-		if (!need_resched()) {
-			__sti_mwait(0, 0);
-			raw_local_irq_disable();
-		}
+		if (need_resched())
+			goto out;
+
+		__sti_mwait(0, 0);
+		raw_local_irq_disable();
 	}
+
+out:
 	__current_clr_polling();
 }
 

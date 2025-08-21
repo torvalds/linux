@@ -157,7 +157,7 @@
 			};
 		};
 
-		gmac0: eth@e2000000 {
+		gmac0: ethernet@e2000000 {
 			phy-mode = "rgmii";
 			status = "okay";
 		};

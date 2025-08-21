@@ -12,6 +12,9 @@ tmpfile=""
 tmpfile_proc=""
 tmpfile_uniq=""
 ret=0
+have_socat=0
+
+socat -h > /dev/null && have_socat=1
 
 insert_count=2000
 [ "$KSFT_MACHINE_SLOW" = "yes" ] && insert_count=400
@@ -123,7 +126,7 @@ ctflush() {
         done
 }
 
-ctflood()
+ct_pingflood()
 {
 	local ns="$1"
 	local duration="$2"
@@ -152,6 +155,44 @@ ctflood()
 	wait
 }
 
+ct_udpflood()
+{
+	local ns="$1"
+	local duration="$2"
+	local now=$(date +%s)
+	local end=$((now + duration))
+
+	[ $have_socat -ne "1" ] && return
+
+        while [ $now -lt $end ]; do
+ip netns exec "$ns" bash<<"EOF"
+	for i in $(seq 1 100);do
+		dport=$(((RANDOM%65536)+1))
+
+		echo bar | socat -u STDIN UDP:"127.0.0.1:$dport" &
+	done > /dev/null 2>&1
+	wait
+EOF
+		now=$(date +%s)
+	done
+}
+
+ct_udpclash()
+{
+	local ns="$1"
+	local duration="$2"
+	local now=$(date +%s)
+	local end=$((now + duration))
+
+	[ -x udpclash ] || return
+
+        while [ $now -lt $end ]; do
+		ip netns exec "$ns" ./udpclash 127.0.0.1 $((RANDOM%65536)) > /dev/null 2>&1
+
+		now=$(date +%s)
+	done
+}
+
 # dump to /dev/null.  We don't want dumps to cause infinite loops
 # or use-after-free even when conntrack table is altered while dumps
 # are in progress.
@@ -167,6 +208,48 @@ ct_nulldump()
 	fi
 
 	wait
+}
+
+ct_nulldump_loop()
+{
+	local ns="$1"
+	local duration="$2"
+	local now=$(date +%s)
+	local end=$((now + duration))
+
+        while [ $now -lt $end ]; do
+		ct_nulldump "$ns"
+		sleep $((RANDOM%2))
+		now=$(date +%s)
+	done
+}
+
+change_timeouts()
+{
+	local ns="$1"
+	local r1=$((RANDOM%2))
+	local r2=$((RANDOM%2))
+
+	[ "$r1" -eq 1 ] && ip netns exec "$ns" sysctl -q net.netfilter.nf_conntrack_icmp_timeout=$((RANDOM%5))
+	[ "$r2" -eq 1 ] && ip netns exec "$ns" sysctl -q net.netfilter.nf_conntrack_udp_timeout=$((RANDOM%5))
+}
+
+ct_change_timeouts_loop()
+{
+	local ns="$1"
+	local duration="$2"
+	local now=$(date +%s)
+	local end=$((now + duration))
+
+        while [ $now -lt $end ]; do
+		change_timeouts "$ns"
+		sleep $((RANDOM%2))
+		now=$(date +%s)
+	done
+
+	# restore defaults
+	ip netns exec "$ns" sysctl -q net.netfilter.nf_conntrack_icmp_timeout=30
+	ip netns exec "$ns" sysctl -q net.netfilter.nf_conntrack_udp_timeout=30
 }
 
 check_taint()
@@ -198,10 +281,14 @@ insert_flood()
 
 	r=$((RANDOM%$insert_count))
 
-	ctflood "$n" "$timeout" "floodresize" &
+	ct_pingflood "$n" "$timeout" "floodresize" &
+	ct_udpflood "$n" "$timeout" &
+	ct_udpclash "$n" "$timeout" &
+
 	insert_ctnetlink "$n" "$r" &
 	ctflush "$n" "$timeout" &
-	ct_nulldump "$n" &
+	ct_nulldump_loop "$n" "$timeout" &
+	ct_change_timeouts_loop "$n" "$timeout" &
 
 	wait
 }
@@ -306,7 +393,7 @@ test_dump_all()
 
 	ip netns exec "$nsclient1" sysctl -q net.netfilter.nf_conntrack_icmp_timeout=3600
 
-	ctflood "$nsclient1" $timeout "dumpall" &
+	ct_pingflood "$nsclient1" $timeout "dumpall" &
 	insert_ctnetlink "$nsclient2" $insert_count
 
 	wait
@@ -368,7 +455,7 @@ test_conntrack_disable()
 	ct_flush_once "$nsclient1"
 	ct_flush_once "$nsclient2"
 
-	ctflood "$nsclient1" "$timeout" "conntrack disable"
+	ct_pingflood "$nsclient1" "$timeout" "conntrack disable"
 	ip netns exec "$nsclient2" ping -q -c 1 127.0.0.1 >/dev/null 2>&1
 
 	# Disabled, should not have picked up any connection.

@@ -10,6 +10,7 @@
  * Copyright (C) 2015 Valeo S.A.
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
@@ -81,6 +82,8 @@
 #define CMD_FLUSH_QUEUE_REPLY		68
 #define CMD_GET_CAPABILITIES_REQ	95
 #define CMD_GET_CAPABILITIES_RESP	96
+#define CMD_LED_ACTION_REQ		101
+#define CMD_LED_ACTION_RESP		102
 
 #define CMD_LEAF_LOG_MESSAGE		106
 
@@ -135,7 +138,7 @@ struct kvaser_cmd_cardinfo {
 	__le32 padding0;
 	__le32 clock_resolution;
 	__le32 mfgdate;
-	u8 ean[8];
+	__le32 ean[2];
 	u8 hw_revision;
 	union {
 		struct {
@@ -171,6 +174,21 @@ struct kvaser_cmd_busparams {
 	u8 tid;
 	u8 channel;
 	struct kvaser_usb_busparams busparams;
+} __packed;
+
+/* The device has one LED per CAN channel
+ * The LSB of action field controls the state:
+ *   0 = ON
+ *   1 = OFF
+ * The remaining bits of action field is the LED index
+ */
+#define KVASER_USB_LEAF_LED_IDX_MASK GENMASK(31, 1)
+#define KVASER_USB_LEAF_LED_YELLOW_CH0_IDX 2
+struct kvaser_cmd_led_action_req {
+	u8 tid;
+	u8 action;
+	__le16 duration_ms;
+	u8 padding[24];
 } __packed;
 
 struct kvaser_cmd_tx_can {
@@ -359,6 +377,8 @@ struct kvaser_cmd {
 		struct kvaser_cmd_cardinfo cardinfo;
 		struct kvaser_cmd_busparams busparams;
 
+		struct kvaser_cmd_led_action_req led_action_req;
+
 		struct kvaser_cmd_rx_can_header rx_can_header;
 		struct kvaser_cmd_tx_acknowledge_header tx_acknowledge_header;
 
@@ -409,6 +429,7 @@ static const u8 kvaser_usb_leaf_cmd_sizes_leaf[] = {
 	[CMD_ERROR_EVENT]		= kvaser_fsize(u.leaf.error_event),
 	/* ignored events: */
 	[CMD_FLUSH_QUEUE_REPLY]		= CMD_SIZE_ANY,
+	[CMD_LED_ACTION_RESP]		= CMD_SIZE_ANY,
 };
 
 static const u8 kvaser_usb_leaf_cmd_sizes_usbcan[] = {
@@ -423,6 +444,8 @@ static const u8 kvaser_usb_leaf_cmd_sizes_usbcan[] = {
 	[CMD_CAN_ERROR_EVENT]		= kvaser_fsize(u.usbcan.can_error_event),
 	[CMD_ERROR_EVENT]		= kvaser_fsize(u.usbcan.error_event),
 	[CMD_USBCAN_CLOCK_OVERFLOW_EVENT] = kvaser_fsize(u.usbcan.clk_overflow_event),
+	/* ignored events: */
+	[CMD_LED_ACTION_RESP]		= CMD_SIZE_ANY,
 };
 
 /* Summary of a kvaser error event, for a unified Leaf/Usbcan error
@@ -718,9 +741,13 @@ static int kvaser_usb_leaf_send_simple_cmd(const struct kvaser_usb *dev,
 static void kvaser_usb_leaf_get_software_info_leaf(struct kvaser_usb *dev,
 						   const struct leaf_cmd_softinfo *softinfo)
 {
+	u32 fw_version;
 	u32 sw_options = le32_to_cpu(softinfo->sw_options);
 
-	dev->fw_version = le32_to_cpu(softinfo->fw_version);
+	fw_version = le32_to_cpu(softinfo->fw_version);
+	dev->fw_version.major = FIELD_GET(KVASER_USB_SW_VERSION_MAJOR_MASK, fw_version);
+	dev->fw_version.minor = FIELD_GET(KVASER_USB_SW_VERSION_MINOR_MASK, fw_version);
+	dev->fw_version.build = FIELD_GET(KVASER_USB_SW_VERSION_BUILD_MASK, fw_version);
 	dev->max_tx_urbs = le16_to_cpu(softinfo->max_outstanding_tx);
 
 	if (sw_options & KVASER_USB_LEAF_SWOPTION_EXT_CAP)
@@ -761,6 +788,7 @@ static int kvaser_usb_leaf_get_software_info_inner(struct kvaser_usb *dev)
 {
 	struct kvaser_cmd cmd;
 	int err;
+	u32 fw_version;
 
 	err = kvaser_usb_leaf_send_simple_cmd(dev, CMD_GET_SOFTWARE_INFO, 0);
 	if (err)
@@ -775,7 +803,13 @@ static int kvaser_usb_leaf_get_software_info_inner(struct kvaser_usb *dev)
 		kvaser_usb_leaf_get_software_info_leaf(dev, &cmd.u.leaf.softinfo);
 		break;
 	case KVASER_USBCAN:
-		dev->fw_version = le32_to_cpu(cmd.u.usbcan.softinfo.fw_version);
+		fw_version = le32_to_cpu(cmd.u.usbcan.softinfo.fw_version);
+		dev->fw_version.major = FIELD_GET(KVASER_USB_SW_VERSION_MAJOR_MASK,
+						  fw_version);
+		dev->fw_version.minor = FIELD_GET(KVASER_USB_SW_VERSION_MINOR_MASK,
+						  fw_version);
+		dev->fw_version.build = FIELD_GET(KVASER_USB_SW_VERSION_BUILD_MASK,
+						  fw_version);
 		dev->max_tx_urbs =
 			le16_to_cpu(cmd.u.usbcan.softinfo.max_outstanding_tx);
 		dev->cfg = &kvaser_usb_leaf_usbcan_dev_cfg;
@@ -820,6 +854,10 @@ static int kvaser_usb_leaf_get_card_info(struct kvaser_usb *dev)
 	    (dev->driver_info->family == KVASER_USBCAN &&
 	     dev->nchannels > MAX_USBCAN_NET_DEVICES))
 		return -EINVAL;
+	dev->ean[1] = le32_to_cpu(cmd.u.cardinfo.ean[1]);
+	dev->ean[0] = le32_to_cpu(cmd.u.cardinfo.ean[0]);
+	dev->serial_number = le32_to_cpu(cmd.u.cardinfo.serial_number);
+	dev->hw_revision = cmd.u.cardinfo.hw_revision;
 
 	return 0;
 }
@@ -922,6 +960,34 @@ static int kvaser_usb_leaf_get_capabilities_leaf(struct kvaser_usb *dev)
 			 status);
 
 	return 0;
+}
+
+static int kvaser_usb_leaf_set_led(struct kvaser_usb_net_priv *priv,
+				   enum kvaser_usb_led_state state,
+				   u16 duration_ms)
+{
+	struct kvaser_usb *dev = priv->dev;
+	struct kvaser_cmd *cmd;
+	int ret;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->id = CMD_LED_ACTION_REQ;
+	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_led_action_req);
+	cmd->u.led_action_req.tid = 0xff;
+
+	cmd->u.led_action_req.duration_ms = cpu_to_le16(duration_ms);
+	cmd->u.led_action_req.action = state |
+				       FIELD_PREP(KVASER_USB_LEAF_LED_IDX_MASK,
+						  KVASER_USB_LEAF_LED_YELLOW_CH0_IDX +
+						  priv->channel);
+
+	ret = kvaser_usb_send_cmd(dev, cmd, cmd->len);
+	kfree(cmd);
+
+	return ret;
 }
 
 static int kvaser_usb_leaf_get_capabilities(struct kvaser_usb *dev)
@@ -1638,6 +1704,8 @@ static void kvaser_usb_leaf_handle_command(struct kvaser_usb *dev,
 		if (dev->driver_info->family != KVASER_LEAF)
 			goto warn;
 		break;
+	case CMD_LED_ACTION_RESP:
+		break;
 
 	default:
 warn:		dev_warn(&dev->intf->dev, "Unhandled command (%d)\n", cmd->id);
@@ -1927,6 +1995,7 @@ const struct kvaser_usb_dev_ops kvaser_usb_leaf_dev_ops = {
 	.dev_get_software_details = NULL,
 	.dev_get_card_info = kvaser_usb_leaf_get_card_info,
 	.dev_get_capabilities = kvaser_usb_leaf_get_capabilities,
+	.dev_set_led = kvaser_usb_leaf_set_led,
 	.dev_set_opt_mode = kvaser_usb_leaf_set_opt_mode,
 	.dev_start_chip = kvaser_usb_leaf_start_chip,
 	.dev_stop_chip = kvaser_usb_leaf_stop_chip,

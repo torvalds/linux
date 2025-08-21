@@ -164,7 +164,6 @@ struct plda_pcie_host_ops {
 
 struct plda_msi {
 	struct mutex lock;		/* Protect used bitmap */
-	struct irq_domain *msi_domain;
 	struct irq_domain *dev_domain;
 	u32 num_vectors;
 	u64 vector_phy;

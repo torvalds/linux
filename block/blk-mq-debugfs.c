@@ -521,7 +521,7 @@ CTX_RQ_SEQ_OPS(poll, HCTX_TYPE_POLL);
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {
 	const struct blk_mq_debugfs_attr *attr = m->private;
-	void *data = d_inode(m->file->f_path.dentry->d_parent)->i_private;
+	void *data = debugfs_get_aux(m->file);
 
 	return attr->show(data, m);
 }
@@ -531,7 +531,7 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 {
 	struct seq_file *m = file->private_data;
 	const struct blk_mq_debugfs_attr *attr = m->private;
-	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
+	void *data = debugfs_get_aux(file);
 
 	/*
 	 * Attributes that only implement .seq_ops are read-only and 'attr' is
@@ -546,7 +546,7 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 static int blk_mq_debugfs_open(struct inode *inode, struct file *file)
 {
 	const struct blk_mq_debugfs_attr *attr = inode->i_private;
-	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
+	void *data = debugfs_get_aux(file);
 	struct seq_file *m;
 	int ret;
 
@@ -612,11 +612,9 @@ static void debugfs_create_files(struct dentry *parent, void *data,
 	if (IS_ERR_OR_NULL(parent))
 		return;
 
-	d_inode(parent)->i_private = data;
-
 	for (; attr->name; attr++)
-		debugfs_create_file(attr->name, attr->mode, parent,
-				    (void *)attr, &blk_mq_debugfs_fops);
+		debugfs_create_file_aux(attr->name, attr->mode, parent,
+				    (void *)attr, data, &blk_mq_debugfs_fops);
 }
 
 void blk_mq_debugfs_register(struct request_queue *q)

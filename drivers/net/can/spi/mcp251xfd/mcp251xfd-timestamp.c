@@ -11,7 +11,7 @@
 
 #include "mcp251xfd.h"
 
-static u64 mcp251xfd_timestamp_raw_read(const struct cyclecounter *cc)
+static u64 mcp251xfd_timestamp_raw_read(struct cyclecounter *cc)
 {
 	const struct mcp251xfd_priv *priv;
 	u32 ts_raw = 0;

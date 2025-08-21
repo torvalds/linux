@@ -1910,8 +1910,22 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "msi";
+				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 409 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 411 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 412 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "msi0",
+						  "msi1",
+						  "msi2",
+						  "msi3",
+						  "msi4",
+						  "msi5",
+						  "msi6",
+						  "msi7";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
 				interrupt-map = <0 0 0 1 &intc 0 244 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
@@ -1973,8 +1987,22 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "msi";
+				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 414 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 415 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "msi0",
+						  "msi1",
+						  "msi2",
+						  "msi3",
+						  "msi4",
+						  "msi5",
+						  "msi6",
+						  "msi7";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
 				interrupt-map = <0 0 0 1 &intc 0 272 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
@@ -2034,8 +2062,22 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "msi";
+				interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "msi0",
+						  "msi1",
+						  "msi2",
+						  "msi3",
+						  "msi4",
+						  "msi5",
+						  "msi6",
+						  "msi7";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
 				interrupt-map = <0 0 0 1 &intc 0 142 IRQ_TYPE_LEVEL_HIGH>, /* int_a */

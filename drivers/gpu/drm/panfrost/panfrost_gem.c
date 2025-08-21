@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
@@ -10,6 +11,36 @@
 #include "panfrost_device.h"
 #include "panfrost_gem.h"
 #include "panfrost_mmu.h"
+
+#ifdef CONFIG_DEBUG_FS
+static void panfrost_gem_debugfs_bo_add(struct panfrost_device *pfdev,
+					struct panfrost_gem_object *bo)
+{
+	bo->debugfs.creator.tgid = current->group_leader->pid;
+	get_task_comm(bo->debugfs.creator.process_name, current->group_leader);
+
+	mutex_lock(&pfdev->debugfs.gems_lock);
+	list_add_tail(&bo->debugfs.node, &pfdev->debugfs.gems_list);
+	mutex_unlock(&pfdev->debugfs.gems_lock);
+}
+
+static void panfrost_gem_debugfs_bo_rm(struct panfrost_gem_object *bo)
+{
+	struct panfrost_device *pfdev = bo->base.base.dev->dev_private;
+
+	if (list_empty(&bo->debugfs.node))
+		return;
+
+	mutex_lock(&pfdev->debugfs.gems_lock);
+	list_del_init(&bo->debugfs.node);
+	mutex_unlock(&pfdev->debugfs.gems_lock);
+}
+#else
+static void panfrost_gem_debugfs_bo_add(struct panfrost_device *pfdev,
+					struct panfrost_gem_object *bo)
+{}
+static void panfrost_gem_debugfs_bo_rm(struct panfrost_gem_object *bo) {}
+#endif
 
 /* Called DRM core on the last userspace/kernel unreference of the
  * BO.
@@ -34,6 +65,10 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	 * our refcounting.
 	 */
 	WARN_ON_ONCE(!list_empty(&bo->mappings.list));
+
+	kfree_const(bo->label.str);
+	panfrost_gem_debugfs_bo_rm(bo);
+	mutex_destroy(&bo->label.lock);
 
 	if (bo->sgts) {
 		int i;
@@ -260,6 +295,9 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	mutex_init(&obj->mappings.lock);
 	obj->base.base.funcs = &panfrost_gem_funcs;
 	obj->base.map_wc = !pfdev->coherent;
+	mutex_init(&obj->label.lock);
+
+	panfrost_gem_debugfs_bo_add(pfdev, obj);
 
 	return &obj->base.base;
 }
@@ -300,5 +338,153 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 	bo = to_panfrost_bo(obj);
 	bo->noexec = true;
 
+	/*
+	 * We assign this generic label because this function cannot
+	 * be reached through any of the Panfrost UM driver-specific
+	 * code paths, unless one is given by explicitly calling the
+	 * SET_LABEL_BO ioctl. It is therefore preferable to have a
+	 * blanket BO tag that tells us the object was imported from
+	 * another driver than nothing at all.
+	 */
+	panfrost_gem_internal_set_label(obj, "GEM PRIME buffer");
+
 	return obj;
 }
+
+void
+panfrost_gem_set_label(struct drm_gem_object *obj, const char *label)
+{
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	const char *old_label;
+
+	scoped_guard(mutex, &bo->label.lock) {
+		old_label = bo->label.str;
+		bo->label.str = label;
+	}
+
+	kfree_const(old_label);
+}
+
+void
+panfrost_gem_internal_set_label(struct drm_gem_object *obj, const char *label)
+{
+	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
+	const char *str;
+
+	/* We should never attempt labelling a UM-exposed GEM object */
+	if (drm_WARN_ON(bo->base.base.dev, bo->base.base.handle_count > 0))
+		return;
+
+	if (!label)
+		return;
+
+	str = kstrdup_const(label, GFP_KERNEL);
+	if (!str) {
+		/* Failing to allocate memory for a label isn't a fatal condition */
+		drm_warn(bo->base.base.dev, "Not enough memory to allocate BO label");
+		return;
+	}
+
+	panfrost_gem_set_label(obj, str);
+}
+
+#ifdef CONFIG_DEBUG_FS
+struct gem_size_totals {
+	size_t size;
+	size_t resident;
+	size_t reclaimable;
+};
+
+struct flag_def {
+	u32 flag;
+	const char *name;
+};
+
+static void panfrost_gem_debugfs_print_flag_names(struct seq_file *m)
+{
+	int len;
+	int i;
+
+	static const struct flag_def gem_state_flags_names[] = {
+		{PANFROST_DEBUGFS_GEM_STATE_FLAG_IMPORTED, "imported"},
+		{PANFROST_DEBUGFS_GEM_STATE_FLAG_EXPORTED, "exported"},
+		{PANFROST_DEBUGFS_GEM_STATE_FLAG_PURGED, "purged"},
+		{PANFROST_DEBUGFS_GEM_STATE_FLAG_PURGEABLE, "purgeable"},
+	};
+
+	seq_puts(m, "GEM state flags: ");
+	for (i = 0, len = ARRAY_SIZE(gem_state_flags_names); i < len; i++) {
+		seq_printf(m, "%s (0x%x)%s", gem_state_flags_names[i].name,
+			   gem_state_flags_names[i].flag, (i < len - 1) ? ", " : "\n\n");
+	}
+}
+
+static void panfrost_gem_debugfs_bo_print(struct panfrost_gem_object *bo,
+					  struct seq_file *m,
+					  struct gem_size_totals *totals)
+{
+	unsigned int refcount = kref_read(&bo->base.base.refcount);
+	char creator_info[32] = {};
+	size_t resident_size;
+	u32 gem_state_flags = 0;
+
+	/* Skip BOs being destroyed. */
+	if (!refcount)
+		return;
+
+	resident_size = panfrost_gem_rss(&bo->base.base);
+
+	snprintf(creator_info, sizeof(creator_info),
+		 "%s/%d", bo->debugfs.creator.process_name, bo->debugfs.creator.tgid);
+	seq_printf(m, "%-32s%-16d%-16d%-16zd%-16zd0x%-16lx",
+		   creator_info,
+		   bo->base.base.name,
+		   refcount,
+		   bo->base.base.size,
+		   resident_size,
+		   drm_vma_node_start(&bo->base.base.vma_node));
+
+	if (bo->base.base.import_attach)
+		gem_state_flags |= PANFROST_DEBUGFS_GEM_STATE_FLAG_IMPORTED;
+	if (bo->base.base.dma_buf)
+		gem_state_flags |= PANFROST_DEBUGFS_GEM_STATE_FLAG_EXPORTED;
+
+	if (bo->base.madv < 0)
+		gem_state_flags |= PANFROST_DEBUGFS_GEM_STATE_FLAG_PURGED;
+	else if (bo->base.madv > 0)
+		gem_state_flags |= PANFROST_DEBUGFS_GEM_STATE_FLAG_PURGEABLE;
+
+	seq_printf(m, "0x%-10x", gem_state_flags);
+
+	scoped_guard(mutex, &bo->label.lock) {
+		seq_printf(m, "%s\n", bo->label.str ? : "");
+	}
+
+	totals->size += bo->base.base.size;
+	totals->resident += resident_size;
+	if (bo->base.madv > 0)
+		totals->reclaimable += resident_size;
+}
+
+void panfrost_gem_debugfs_print_bos(struct panfrost_device *pfdev,
+				    struct seq_file *m)
+{
+	struct gem_size_totals totals = {0};
+	struct panfrost_gem_object *bo;
+
+	panfrost_gem_debugfs_print_flag_names(m);
+
+	seq_puts(m, "created-by                      global-name     refcount        size            resident-size   file-offset       state       label\n");
+	seq_puts(m, "-----------------------------------------------------------------------------------------------------------------------------------\n");
+
+	scoped_guard(mutex, &pfdev->debugfs.gems_lock) {
+		list_for_each_entry(bo, &pfdev->debugfs.gems_list, debugfs.node) {
+			panfrost_gem_debugfs_bo_print(bo, m, &totals);
+		}
+	}
+
+	seq_puts(m, "===================================================================================================================================\n");
+	seq_printf(m, "Total size: %zd, Total resident: %zd, Total reclaimable: %zd\n",
+		   totals.size, totals.resident, totals.reclaimable);
+}
+#endif
