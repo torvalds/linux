@@ -502,10 +502,10 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			"max_frmr_depth: %u mr_type: 0x%x",
 			sp->responder_resources,
 			sp->max_frmr_depth,
-			server->smbd_conn->mr_type);
+			sc->mr_io.type);
 		seq_printf(m, "\nMR mr_ready_count: %u mr_used_count: %u",
-			atomic_read(&server->smbd_conn->mr_ready_count),
-			atomic_read(&server->smbd_conn->mr_used_count));
+			atomic_read(&sc->mr_io.ready.count),
+			atomic_read(&sc->mr_io.used.count));
 skip_rdma:
 #endif
 		seq_printf(m, "\nNumber of credits: %d,%d,%d Dialect 0x%x",

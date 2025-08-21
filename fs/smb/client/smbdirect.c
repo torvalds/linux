@@ -169,8 +169,6 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, disconnect_work);
-	struct smbd_connection *info =
-		container_of(sc, struct smbd_connection, socket);
 
 	/*
 	 * make sure this and other work is not queued again
@@ -179,7 +177,7 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 	 */
 	disable_work(&sc->disconnect_work);
 	disable_work(&sc->recv_io.posted.refill_work);
-	disable_work(&info->mr_recovery_work);
+	disable_work(&sc->mr_io.recovery_work);
 	disable_work(&sc->idle.immediate_work);
 	disable_delayed_work(&sc->idle.timer_work);
 
@@ -859,9 +857,9 @@ static int smbd_ia_open(
 	sp->max_frmr_depth = min_t(u32,
 		sp->max_frmr_depth,
 		sc->ib.dev->attrs.max_fast_reg_page_list_len);
-	info->mr_type = IB_MR_TYPE_MEM_REG;
+	sc->mr_io.type = IB_MR_TYPE_MEM_REG;
 	if (sc->ib.dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
-		info->mr_type = IB_MR_TYPE_SG_GAPS;
+		sc->mr_io.type = IB_MR_TYPE_SG_GAPS;
 
 	sc->ib.pd = ib_alloc_pd(sc->ib.dev, 0);
 	if (IS_ERR(sc->ib.pd)) {
@@ -1585,8 +1583,8 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	 * path when sending data, and then release memory registrations.
 	 */
 	log_rdma_event(INFO, "freeing mr list\n");
-	wake_up_all(&info->wait_mr);
-	while (atomic_read(&info->mr_used_count)) {
+	wake_up_all(&sc->mr_io.ready.wait_queue);
+	while (atomic_read(&sc->mr_io.used.count)) {
 		cifs_server_unlock(server);
 		msleep(1000);
 		cifs_server_lock(server);
@@ -2252,14 +2250,15 @@ static void register_mr_done(struct ib_cq *cq, struct ib_wc *wc)
  */
 static void smbd_mr_recovery_work(struct work_struct *work)
 {
-	struct smbd_connection *info =
-		container_of(work, struct smbd_connection, mr_recovery_work);
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, mr_io.recovery_work);
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
+	struct smbd_connection *info =
+		container_of(sc, struct smbd_connection, socket);
 	struct smbdirect_mr_io *smbdirect_mr;
 	int rc;
 
-	list_for_each_entry(smbdirect_mr, &info->mr_list, list) {
+	list_for_each_entry(smbdirect_mr, &sc->mr_io.all.list, list) {
 		if (smbdirect_mr->state == SMBDIRECT_MR_ERROR) {
 
 			/* recover this MR entry */
@@ -2273,11 +2272,11 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 			}
 
 			smbdirect_mr->mr = ib_alloc_mr(
-				sc->ib.pd, info->mr_type,
+				sc->ib.pd, sc->mr_io.type,
 				sp->max_frmr_depth);
 			if (IS_ERR(smbdirect_mr->mr)) {
 				log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
-					    info->mr_type,
+					    sc->mr_io.type,
 					    sp->max_frmr_depth);
 				smbd_disconnect_rdma_connection(info);
 				continue;
@@ -2295,8 +2294,8 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 		 * value is updated before waking up any calls to
 		 * get_mr() from the I/O issuing CPUs
 		 */
-		if (atomic_inc_return(&info->mr_ready_count) == 1)
-			wake_up(&info->wait_mr);
+		if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
+			wake_up(&sc->mr_io.ready.wait_queue);
 	}
 }
 
@@ -2305,8 +2304,8 @@ static void destroy_mr_list(struct smbd_connection *info)
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_mr_io *mr, *tmp;
 
-	disable_work_sync(&info->mr_recovery_work);
-	list_for_each_entry_safe(mr, tmp, &info->mr_list, list) {
+	disable_work_sync(&sc->mr_io.recovery_work);
+	list_for_each_entry_safe(mr, tmp, &sc->mr_io.all.list, list) {
 		if (mr->state == SMBDIRECT_MR_INVALIDATED)
 			ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl,
 				mr->sgt.nents, mr->dir);
@@ -2330,13 +2329,7 @@ static int allocate_mr_list(struct smbd_connection *info)
 	int i;
 	struct smbdirect_mr_io *smbdirect_mr, *tmp;
 
-	INIT_LIST_HEAD(&info->mr_list);
-	init_waitqueue_head(&info->wait_mr);
-	spin_lock_init(&info->mr_list_lock);
-	atomic_set(&info->mr_ready_count, 0);
-	atomic_set(&info->mr_used_count, 0);
-	init_waitqueue_head(&info->wait_for_mr_cleanup);
-	INIT_WORK(&info->mr_recovery_work, smbd_mr_recovery_work);
+	INIT_WORK(&sc->mr_io.recovery_work, smbd_mr_recovery_work);
 
 	if (sp->responder_resources == 0) {
 		log_rdma_mr(ERR, "responder_resources negotiated as 0\n");
@@ -2348,11 +2341,11 @@ static int allocate_mr_list(struct smbd_connection *info)
 		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
 		if (!smbdirect_mr)
 			goto cleanup_entries;
-		smbdirect_mr->mr = ib_alloc_mr(sc->ib.pd, info->mr_type,
+		smbdirect_mr->mr = ib_alloc_mr(sc->ib.pd, sc->mr_io.type,
 					sp->max_frmr_depth);
 		if (IS_ERR(smbdirect_mr->mr)) {
 			log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
-				    info->mr_type, sp->max_frmr_depth);
+				    sc->mr_io.type, sp->max_frmr_depth);
 			goto out;
 		}
 		smbdirect_mr->sgt.sgl = kcalloc(sp->max_frmr_depth,
@@ -2366,15 +2359,15 @@ static int allocate_mr_list(struct smbd_connection *info)
 		smbdirect_mr->state = SMBDIRECT_MR_READY;
 		smbdirect_mr->socket = sc;
 
-		list_add_tail(&smbdirect_mr->list, &info->mr_list);
-		atomic_inc(&info->mr_ready_count);
+		list_add_tail(&smbdirect_mr->list, &sc->mr_io.all.list);
+		atomic_inc(&sc->mr_io.ready.count);
 	}
 	return 0;
 
 out:
 	kfree(smbdirect_mr);
 cleanup_entries:
-	list_for_each_entry_safe(smbdirect_mr, tmp, &info->mr_list, list) {
+	list_for_each_entry_safe(smbdirect_mr, tmp, &sc->mr_io.all.list, list) {
 		list_del(&smbdirect_mr->list);
 		ib_dereg_mr(smbdirect_mr->mr);
 		kfree(smbdirect_mr->sgt.sgl);
@@ -2397,8 +2390,8 @@ static struct smbdirect_mr_io *get_mr(struct smbd_connection *info)
 	struct smbdirect_mr_io *ret;
 	int rc;
 again:
-	rc = wait_event_interruptible(info->wait_mr,
-		atomic_read(&info->mr_ready_count) ||
+	rc = wait_event_interruptible(sc->mr_io.ready.wait_queue,
+		atomic_read(&sc->mr_io.ready.count) ||
 		sc->status != SMBDIRECT_SOCKET_CONNECTED);
 	if (rc) {
 		log_rdma_mr(ERR, "wait_event_interruptible rc=%x\n", rc);
@@ -2410,18 +2403,18 @@ again:
 		return NULL;
 	}
 
-	spin_lock(&info->mr_list_lock);
-	list_for_each_entry(ret, &info->mr_list, list) {
+	spin_lock(&sc->mr_io.all.lock);
+	list_for_each_entry(ret, &sc->mr_io.all.list, list) {
 		if (ret->state == SMBDIRECT_MR_READY) {
 			ret->state = SMBDIRECT_MR_REGISTERED;
-			spin_unlock(&info->mr_list_lock);
-			atomic_dec(&info->mr_ready_count);
-			atomic_inc(&info->mr_used_count);
+			spin_unlock(&sc->mr_io.all.lock);
+			atomic_dec(&sc->mr_io.ready.count);
+			atomic_inc(&sc->mr_io.used.count);
 			return ret;
 		}
 	}
 
-	spin_unlock(&info->mr_list_lock);
+	spin_unlock(&sc->mr_io.all.lock);
 	/*
 	 * It is possible that we could fail to get MR because other processes may
 	 * try to acquire a MR at the same time. If this is the case, retry it.
@@ -2540,8 +2533,8 @@ map_mr_error:
 
 dma_map_error:
 	smbdirect_mr->state = SMBDIRECT_MR_ERROR;
-	if (atomic_dec_and_test(&info->mr_used_count))
-		wake_up(&info->wait_for_mr_cleanup);
+	if (atomic_dec_and_test(&sc->mr_io.used.count))
+		wake_up(&sc->mr_io.cleanup.wait_queue);
 
 	smbd_disconnect_rdma_connection(info);
 
@@ -2609,18 +2602,18 @@ int smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
 			smbdirect_mr->sgt.nents,
 			smbdirect_mr->dir);
 		smbdirect_mr->state = SMBDIRECT_MR_READY;
-		if (atomic_inc_return(&info->mr_ready_count) == 1)
-			wake_up(&info->wait_mr);
+		if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
+			wake_up(&sc->mr_io.ready.wait_queue);
 	} else
 		/*
 		 * Schedule the work to do MR recovery for future I/Os MR
 		 * recovery is slow and don't want it to block current I/O
 		 */
-		queue_work(sc->workqueue, &info->mr_recovery_work);
+		queue_work(sc->workqueue, &sc->mr_io.recovery_work);
 
 done:
-	if (atomic_dec_and_test(&info->mr_used_count))
-		wake_up(&info->wait_for_mr_cleanup);
+	if (atomic_dec_and_test(&sc->mr_io.used.count))
+		wake_up(&sc->mr_io.cleanup.wait_queue);
 
 	return rc;
 }

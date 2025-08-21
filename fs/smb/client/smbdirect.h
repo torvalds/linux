@@ -38,19 +38,6 @@ extern int smbd_receive_credit_max;
  */
 struct smbd_connection {
 	struct smbdirect_socket socket;
-
-
-	/* Memory registrations */
-	enum ib_mr_type mr_type;
-	struct list_head mr_list;
-	spinlock_t mr_list_lock;
-	/* The number of available MRs ready for memory registration */
-	atomic_t mr_ready_count;
-	atomic_t mr_used_count;
-	wait_queue_head_t wait_mr;
-	struct work_struct mr_recovery_work;
-	/* Used by transport to wait until all MRs are returned */
-	wait_queue_head_t wait_for_mr_cleanup;
 };
 
 /* Create a SMBDirect session */
