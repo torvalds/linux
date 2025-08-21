@@ -219,8 +219,7 @@ static int veml6040_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "IIO device allocation failed\n");
+		return -ENOMEM;
 
 	regmap = devm_regmap_init_i2c(client, &veml6040_regmap_config);
 	if (IS_ERR(regmap))

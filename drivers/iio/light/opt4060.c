@@ -1212,7 +1212,7 @@ static int opt4060_setup_trigger(struct opt4060_chip *chip, struct iio_dev *idev
 	name = devm_kasprintf(chip->dev, GFP_KERNEL, "%s-opt4060",
 			      dev_name(chip->dev));
 	if (!name)
-		return dev_err_probe(chip->dev, -ENOMEM, "Failed to alloc chip name\n");
+		return -ENOMEM;
 
 	ret = devm_request_threaded_irq(chip->dev, chip->irq, NULL, opt4060_irq_thread,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
