@@ -201,13 +201,9 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->buf_index = READ_ONCE(sqe->buf_index);
 	}
 
-	if (ioucmd->flags & IORING_URING_CMD_MULTISHOT) {
-		if (!(req->flags & REQ_F_BUFFER_SELECT))
-			return -EINVAL;
-	} else {
-		if (req->flags & REQ_F_BUFFER_SELECT)
-			return -EINVAL;
-	}
+	if (!!(ioucmd->flags & IORING_URING_CMD_MULTISHOT) !=
+	    !!(req->flags & REQ_F_BUFFER_SELECT))
+		return -EINVAL;
 
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
 
