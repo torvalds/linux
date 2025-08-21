@@ -2708,6 +2708,20 @@ static bool hid_check_device_match(struct hid_device *hdev,
 	return !hid_ignore_special_drivers && !(hdev->quirks & HID_QUIRK_IGNORE_SPECIAL_DRIVER);
 }
 
+static void hid_set_group(struct hid_device *hdev)
+{
+	int ret;
+
+	if (hid_ignore_special_drivers) {
+		hdev->group = HID_GROUP_GENERIC;
+	} else if (!hdev->group &&
+		   !(hdev->quirks & HID_QUIRK_HAVE_SPECIAL_DRIVER)) {
+		ret = hid_scan_report(hdev);
+		if (ret)
+			hid_warn(hdev, "bad device descriptor (%d)\n", ret);
+	}
+}
+
 static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 {
 	const struct hid_device_id *id;
@@ -2903,14 +2917,7 @@ int hid_add_device(struct hid_device *hdev)
 	/*
 	 * Scan generic devices for group information
 	 */
-	if (hid_ignore_special_drivers) {
-		hdev->group = HID_GROUP_GENERIC;
-	} else if (!hdev->group &&
-		   !(hdev->quirks & HID_QUIRK_HAVE_SPECIAL_DRIVER)) {
-		ret = hid_scan_report(hdev);
-		if (ret)
-			hid_warn(hdev, "bad device descriptor (%d)\n", ret);
-	}
+	hid_set_group(hdev);
 
 	hdev->id = atomic_inc_return(&id);
 
