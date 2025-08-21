@@ -145,8 +145,10 @@ static int imx_drm_dumb_create(struct drm_file *file_priv,
 	int ret;
 
 	args->width = ALIGN(width, 8);
+	args->pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	args->size = args->pitch * args->height;
 
-	ret = drm_gem_dma_dumb_create(file_priv, drm, args);
+	ret = drm_gem_dma_dumb_create_internal(file_priv, drm, args);
 	if (ret)
 		return ret;
 
