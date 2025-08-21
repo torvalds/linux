@@ -174,11 +174,38 @@ static const struct aqr107_hw_stat aqr107_hw_stats[] = {
 
 #define AQR107_SGMII_STAT_SZ ARRAY_SIZE(aqr107_hw_stats)
 
+static const struct {
+	int speed;
+	u16 reg;
+} aqr_global_cfg_regs[] = {
+	{ SPEED_10,	VEND1_GLOBAL_CFG_10M, },
+	{ SPEED_100,	VEND1_GLOBAL_CFG_100M, },
+	{ SPEED_1000,	VEND1_GLOBAL_CFG_1G, },
+	{ SPEED_2500,	VEND1_GLOBAL_CFG_2_5G, },
+	{ SPEED_5000,	VEND1_GLOBAL_CFG_5G, },
+	{ SPEED_10000,	VEND1_GLOBAL_CFG_10G, },
+};
+
+#define AQR_NUM_GLOBAL_CFG ARRAY_SIZE(aqr_global_cfg_regs)
+
+enum aqr_rate_adaptation {
+	AQR_RATE_ADAPT_NONE,
+	AQR_RATE_ADAPT_USX,
+	AQR_RATE_ADAPT_PAUSE,
+};
+
+struct aqr_global_syscfg {
+	int speed;
+	phy_interface_t interface;
+	enum aqr_rate_adaptation rate_adapt;
+};
+
 struct aqr107_priv {
 	u64 sgmii_stats[AQR107_SGMII_STAT_SZ];
 	unsigned long leds_active_low;
 	unsigned long leds_active_high;
 	bool wait_on_global_cfg;
+	struct aqr_global_syscfg global_cfg[AQR_NUM_GLOBAL_CFG];
 };
 
 #if IS_REACHABLE(CONFIG_HWMON)

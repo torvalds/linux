@@ -860,44 +860,24 @@ static int aqr_gen1_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static const u16 aqr_global_cfg_regs[] = {
-	VEND1_GLOBAL_CFG_10M,
-	VEND1_GLOBAL_CFG_100M,
-	VEND1_GLOBAL_CFG_1G,
-	VEND1_GLOBAL_CFG_2_5G,
-	VEND1_GLOBAL_CFG_5G,
-	VEND1_GLOBAL_CFG_10G,
-};
-
-static int aqr_gen2_fill_interface_modes(struct phy_device *phydev)
+/* Walk the media-speed configuration registers to determine which
+ * host-side serdes modes may be used by the PHY depending on the
+ * negotiated media speed.
+ */
+static int aqr_gen2_read_global_syscfg(struct phy_device *phydev)
 {
-	unsigned long *possible = phydev->possible_interfaces;
 	struct aqr107_priv *priv = phydev->priv;
 	unsigned int serdes_mode, rate_adapt;
 	phy_interface_t interface;
-	int i, val, ret;
+	int i, val;
 
-	/* It's been observed on some models that - when coming out of suspend
-	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
-	 * continue on returning zeroes for some time. Let's poll the 100M
-	 * register until it returns a real value as both 113c and 115c support
-	 * this mode.
-	 */
-	if (priv->wait_on_global_cfg) {
-		ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
-						VEND1_GLOBAL_CFG_100M, val,
-						val != 0, 1000, 100000, false);
-		if (ret)
-			return ret;
-	}
+	for (i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
+		struct aqr_global_syscfg *syscfg = &priv->global_cfg[i];
 
-	/* Walk the media-speed configuration registers to determine which
-	 * host-side serdes modes may be used by the PHY depending on the
-	 * negotiated media speed.
-	 */
-	for (i = 0; i < ARRAY_SIZE(aqr_global_cfg_regs); i++) {
+		syscfg->speed = aqr_global_cfg_regs[i].speed;
+
 		val = phy_read_mmd(phydev, MDIO_MMD_VEND1,
-				   aqr_global_cfg_regs[i]);
+				   aqr_global_cfg_regs[i].reg);
 		if (val < 0)
 			return val;
 
@@ -931,6 +911,55 @@ static int aqr_gen2_fill_interface_modes(struct phy_device *phydev)
 			break;
 		}
 
+		syscfg->interface = interface;
+
+		switch (rate_adapt) {
+		case VEND1_GLOBAL_CFG_RATE_ADAPT_NONE:
+			syscfg->rate_adapt = AQR_RATE_ADAPT_NONE;
+			break;
+		case VEND1_GLOBAL_CFG_RATE_ADAPT_USX:
+			syscfg->rate_adapt = AQR_RATE_ADAPT_USX;
+			break;
+		case VEND1_GLOBAL_CFG_RATE_ADAPT_PAUSE:
+			syscfg->rate_adapt = AQR_RATE_ADAPT_PAUSE;
+			break;
+		default:
+			phydev_warn(phydev, "unrecognized rate adapt mode %u\n",
+				    rate_adapt);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int aqr_gen2_fill_interface_modes(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+	struct aqr107_priv *priv = phydev->priv;
+	phy_interface_t interface;
+	int i, val, ret;
+
+	/* It's been observed on some models that - when coming out of suspend
+	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
+	 * continue on returning zeroes for some time. Let's poll the 100M
+	 * register until it returns a real value as both 113c and 115c support
+	 * this mode.
+	 */
+	if (priv->wait_on_global_cfg) {
+		ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
+						VEND1_GLOBAL_CFG_100M, val,
+						val != 0, 1000, 100000, false);
+		if (ret)
+			return ret;
+	}
+
+	ret = aqr_gen2_read_global_syscfg(phydev);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
+		interface = priv->global_cfg[i].interface;
 		if (interface != PHY_INTERFACE_MODE_NA)
 			__set_bit(interface, possible);
 	}
