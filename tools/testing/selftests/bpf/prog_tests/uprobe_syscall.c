@@ -403,8 +403,6 @@ static void *find_nop5(void *fn)
 
 typedef void (__attribute__((nocf_check)) *trigger_t)(void);
 
-static bool shstk_is_enabled;
-
 static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigger,
 			  void *addr, int executed)
 {
@@ -413,7 +411,6 @@ static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigge
 		__s32 raddr;
 	} __packed *call;
 	void *tramp = NULL;
-	__u8 *bp;
 
 	/* Uprobe gets optimized after first trigger, so let's press twice. */
 	trigger();
@@ -422,17 +419,11 @@ static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigge
 	/* Make sure bpf program got executed.. */
 	ASSERT_EQ(skel->bss->executed, executed, "executed");
 
-	if (shstk_is_enabled) {
-		/* .. and check optimization is disabled under shadow stack. */
-		bp = (__u8 *) addr;
-		ASSERT_EQ(*bp, 0xcc, "int3");
-	} else {
-		/* .. and check the trampoline is as expected. */
-		call = (struct __arch_relative_insn *) addr;
-		tramp = (void *) (call + 1) + call->raddr;
-		ASSERT_EQ(call->op, 0xe8, "call");
-		ASSERT_OK(find_uprobes_trampoline(tramp), "uprobes_trampoline");
-	}
+	/* .. and check the trampoline is as expected. */
+	call = (struct __arch_relative_insn *) addr;
+	tramp = (void *) (call + 1) + call->raddr;
+	ASSERT_EQ(call->op, 0xe8, "call");
+	ASSERT_OK(find_uprobes_trampoline(tramp), "uprobes_trampoline");
 
 	return tramp;
 }
@@ -440,7 +431,7 @@ static void *check_attach(struct uprobe_syscall_executed *skel, trigger_t trigge
 static void check_detach(void *addr, void *tramp)
 {
 	/* [uprobes_trampoline] stays after detach */
-	ASSERT_OK(!shstk_is_enabled && find_uprobes_trampoline(tramp), "uprobes_trampoline");
+	ASSERT_OK(find_uprobes_trampoline(tramp), "uprobes_trampoline");
 	ASSERT_OK(memcmp(addr, nop5, 5), "nop5");
 }
 
@@ -642,7 +633,6 @@ static void test_uretprobe_shadow_stack(void)
 	}
 
 	/* Run all the tests with shadow stack in place. */
-	shstk_is_enabled = true;
 
 	test_uprobe_regs_equal(false);
 	test_uprobe_regs_equal(true);
@@ -654,8 +644,6 @@ static void test_uretprobe_shadow_stack(void)
 	test_uprobe_usdt();
 
 	test_regs_change();
-
-	shstk_is_enabled = false;
 
 	ARCH_PRCTL(ARCH_SHSTK_DISABLE, ARCH_SHSTK_SHSTK);
 }
