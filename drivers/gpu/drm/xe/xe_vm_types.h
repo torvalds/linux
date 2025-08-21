@@ -102,6 +102,11 @@ struct xe_vma_mem_attr {
 	 * values. These are defined in uapi/drm/xe_drm.h.
 	 */
 	u32 atomic_access;
+
+	/**
+	 * @pat_index: The pat index to use when encoding the PTEs for this vma.
+	 */
+	u16 pat_index;
 };
 
 struct xe_vma {
@@ -151,11 +156,6 @@ struct xe_vma {
 
 	/** @tile_staged: bind is staged for this VMA */
 	u8 tile_staged;
-
-	/**
-	 * @pat_index: The pat index to use when encoding the PTEs for this vma.
-	 */
-	u16 pat_index;
 
 	/**
 	 * @ufence: The user fence that was provided with MAP.
