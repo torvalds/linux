@@ -463,14 +463,27 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             );
             return Err(EINVAL);
         }
-        if load_offsets.len % DMA_LEN > 0 {
-            dev_err!(
-                self.dev,
-                "DMA transfer length must be a multiple of {}",
-                DMA_LEN
-            );
-            return Err(EINVAL);
-        }
+
+        // DMA transfers can only be done in units of 256 bytes. Compute how many such transfers we
+        // need to perform.
+        let num_transfers = load_offsets.len.div_ceil(DMA_LEN);
+
+        // Check that the area we are about to transfer is within the bounds of the DMA object.
+        // Upper limit of transfer is `(num_transfers * DMA_LEN) + load_offsets.src_start`.
+        match num_transfers
+            .checked_mul(DMA_LEN)
+            .and_then(|size| size.checked_add(load_offsets.src_start))
+        {
+            None => {
+                dev_err!(self.dev, "DMA transfer length overflow");
+                return Err(EOVERFLOW);
+            }
+            Some(upper_bound) if upper_bound as usize > fw.size() => {
+                dev_err!(self.dev, "DMA transfer goes beyond range of DMA object");
+                return Err(EINVAL);
+            }
+            Some(_) => (),
+        };
 
         // Set up the base source DMA address.
 
@@ -486,7 +499,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             .set_imem(target_mem == FalconMem::Imem)
             .set_sec(if sec { 1 } else { 0 });
 
-        for pos in (0..load_offsets.len).step_by(DMA_LEN as usize) {
+        for pos in (0..num_transfers).map(|i| i * DMA_LEN) {
             // Perform a transfer of size `DMA_LEN`.
             regs::NV_PFALCON_FALCON_DMATRFMOFFS::default()
                 .set_offs(load_offsets.dst_start + pos)
