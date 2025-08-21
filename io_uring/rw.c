@@ -1026,6 +1026,8 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret >= 0)
 		return kiocb_done(req, ret, issue_flags);
 
+	if (req->flags & REQ_F_BUFFERS_COMMIT)
+		io_kbuf_recycle(req, req->buf_list, issue_flags);
 	return ret;
 }
 
