@@ -1816,7 +1816,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 
 		/*
 		 * fixup on a directory may create new entries,
-		 * make sure we always look for the highset possible
+		 * make sure we always look for the highest possible
 		 * offset
 		 */
 		key.offset = (u64)-1;
@@ -3619,7 +3619,7 @@ static int inode_logged(const struct btrfs_trans_handle *trans,
 
 	/*
 	 * The inode was previously logged and then evicted, set logged_trans to
-	 * the current transacion's ID, to avoid future tree searches as long as
+	 * the current transaction's ID, to avoid future tree searches as long as
 	 * the inode is not evicted again.
 	 */
 	spin_lock(&inode->lock);

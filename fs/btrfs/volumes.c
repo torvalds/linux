@@ -1377,8 +1377,8 @@ struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev,
 	}
 
 	/*
-	 * Make sure the last byte of label is properly NUL termiated.  We use
-	 * '%s' to print the label, if not properly NUL termiated we can access
+	 * Make sure the last byte of label is properly NUL terminated.  We use
+	 * '%s' to print the label, if not properly NUL terminated we can access
 	 * beyond the label.
 	 */
 	if (super->label[0] && super->label[BTRFS_LABEL_SIZE - 1])
@@ -4463,7 +4463,7 @@ out_overflow:
 }
 
 /*
- * Should be called with balance mutexe held
+ * Should be called with balance mutex held
  */
 int btrfs_balance(struct btrfs_fs_info *fs_info,
 		  struct btrfs_balance_control *bctl,
@@ -7486,7 +7486,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	/*
 	 * Lockdep complains about possible circular locking dependency between
 	 * a disk's open_mutex (struct gendisk.open_mutex), the rw semaphores
-	 * used for freeze procection of a fs (struct super_block.s_writers),
+	 * used for freeze protection of a fs (struct super_block.s_writers),
 	 * which we take when starting a transaction, and extent buffers of the
 	 * chunk tree if we call read_one_dev() while holding a lock on an
 	 * extent buffer of the chunk tree. Since we are mounting the filesystem
@@ -7918,8 +7918,6 @@ int btrfs_bg_type_to_factor(u64 flags)
 
 	return btrfs_raid_array[index].ncopies;
 }
-
-
 
 static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 				 u64 chunk_offset, u64 devid,

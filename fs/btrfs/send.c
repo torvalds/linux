@@ -1738,7 +1738,7 @@ static int read_symlink(struct btrfs_root *root,
 		 * An empty symlink inode. Can happen in rare error paths when
 		 * creating a symlink (transaction committed before the inode
 		 * eviction handler removed the symlink inode items and a crash
-		 * happened in between or the subvol was snapshoted in between).
+		 * happened in between or the subvol was snapshotted in between).
 		 * Print an informative message to dmesg/syslog so that the user
 		 * can delete the symlink.
 		 */
@@ -2768,7 +2768,7 @@ out:
  * processing an inode that is a directory and it just got renamed, and existing
  * entries in the cache may refer to inodes that have the directory in their
  * full path - in which case we would generate outdated paths (pre-rename)
- * for the inodes that the cache entries point to. Instead of prunning the
+ * for the inodes that the cache entries point to. Instead of pruning the
  * cache when inserting, do it after we finish processing each inode at
  * finish_inode_if_needed().
  */
@@ -7984,7 +7984,7 @@ static int ensure_commit_roots_uptodate(struct send_ctx *sctx)
 }
 
 /*
- * Make sure any existing dellaloc is flushed for any root used by a send
+ * Make sure any existing delalloc is flushed for any root used by a send
  * operation so that we do not miss any data and we do not race with writeback
  * finishing and changing a tree while send is using the tree. This could
  * happen if a subvolume is in RW mode, has delalloc, is turned to RO mode and

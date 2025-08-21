@@ -1971,7 +1971,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		 * called, which is where we will transfer a reserved extent's
 		 * size from the "reserved" counter to the "used" counter - this
 		 * happens when running delayed references. When we relocate the
-		 * chunk below, relocation first flushes dellaloc, waits for
+		 * chunk below, relocation first flushes delalloc, waits for
 		 * ordered extent completion (which is where we create delayed
 		 * references for data extents) and commits the current
 		 * transaction (which runs delayed references), and only after
@@ -2839,7 +2839,7 @@ next:
 		 * space or none at all (due to no need to COW, extent buffers
 		 * were already COWed in the current transaction and still
 		 * unwritten, tree heights lower than the maximum possible
-		 * height, etc). For data we generally reserve the axact amount
+		 * height, etc). For data we generally reserve the exact amount
 		 * of space we are going to allocate later, the exception is
 		 * when using compression, as we must reserve space based on the
 		 * uncompressed data size, because the compression is only done

@@ -370,7 +370,7 @@ int btrfs_inode_lock(struct btrfs_inode *inode, unsigned int ilock_flags)
 }
 
 /*
- * Unock inode i_rwsem.
+ * Unlock inode i_rwsem.
  *
  * ilock_flags should contain the same bits set as passed to btrfs_inode_lock()
  * to decide whether the lock acquired is shared or exclusive.
@@ -1990,7 +1990,7 @@ error:
 }
 
 /*
- * when nowcow writeback call back.  This checks for snapshots or COW copies
+ * When nocow writeback calls back.  This checks for snapshots or COW copies
  * of the extents that exist in the file, and COWs the file as required.
  *
  * If no cow copies or snapshots exist, we write directly to the existing
@@ -2233,7 +2233,7 @@ error:
 		 *    |   OE cleanup  |   Skip     | Untouched |
 		 *
 		 * nocow_one_range() failed, the range [cur_offset, nocow_end] is
-		 * alread cleaned up.
+		 * already cleaned up.
 		 */
 		oe_cleanup_start = start;
 		oe_cleanup_len = cur_offset - start;
@@ -2986,7 +2986,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * If we dropped an inline extent here, we know the range where it is
 	 * was not marked with the EXTENT_DELALLOC_NEW bit, so we update the
 	 * number of bytes only for that range containing the inline extent.
-	 * The remaining of the range will be processed when clearning the
+	 * The remaining of the range will be processed when clearing the
 	 * EXTENT_DELALLOC_BIT bit through the ordered extent completion.
 	 */
 	if (file_pos == 0 && !IS_ALIGNED(drop_args.bytes_found, sectorsize)) {
@@ -4905,7 +4905,7 @@ int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 e
 		goto out;
 
 	/*
-	 * Skip the truncatioin if the range in the target block is already aligned.
+	 * Skip the truncation if the range in the target block is already aligned.
 	 * The seemingly complex check will also handle the same block case.
 	 */
 	if (in_head_block && !IS_ALIGNED(start, blocksize))

@@ -58,7 +58,7 @@ size_t __attribute_const__ btrfs_get_num_csums(void)
  * We support the following block sizes for all systems:
  *
  * - 4K
- *   This is the most common block size. For PAGE SIZE > 4K cases the subage
+ *   This is the most common block size. For PAGE SIZE > 4K cases the subpage
  *   mode is used.
  *
  * - PAGE_SIZE

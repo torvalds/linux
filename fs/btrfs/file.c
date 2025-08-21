@@ -970,7 +970,7 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct folio *folio,
  * Return:
  * > 0          If we can nocow, and updates @write_bytes.
  *  0           If we can't do a nocow write.
- * -EAGAIN      If we can't do a nocow write because snapshoting of the inode's
+ * -EAGAIN      If we can't do a nocow write because snapshotting of the inode's
  *              root is in progress or because we are in a non-blocking IO
  *              context and need to block (@nowait is true).
  * < 0          If an error happened.
@@ -3345,7 +3345,7 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	 * We could also use the extent map tree to find such delalloc that is
 	 * being flushed, but using the ordered extents tree is more efficient
 	 * because it's usually much smaller as ordered extents are removed from
-	 * the tree once they complete. With the extent maps, we mau have them
+	 * the tree once they complete. With the extent maps, we may have them
 	 * in the extent map tree for a very long time, and they were either
 	 * created by previous writes or loaded by read operations.
 	 */

@@ -325,7 +325,7 @@ search_again:
 
 /*
  * is_data == BTRFS_REF_TYPE_BLOCK, tree block type is required,
- * is_data == BTRFS_REF_TYPE_DATA, data type is requiried,
+ * is_data == BTRFS_REF_TYPE_DATA, data type is required,
  * is_data == BTRFS_REF_TYPE_ANY, either type is OK.
  */
 int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
@@ -4316,7 +4316,7 @@ static int prepare_allocation_zoned(struct btrfs_fs_info *fs_info,
 		spin_lock(&fs_info->zone_active_bgs_lock);
 		list_for_each_entry(block_group, &fs_info->zone_active_bgs, active_bg_list) {
 			/*
-			 * No lock is OK here because avail is monotinically
+			 * No lock is OK here because avail is monotonically
 			 * decreasing, and this is just a hint.
 			 */
 			u64 avail = block_group->zone_capacity - block_group->alloc_offset;
@@ -5613,7 +5613,7 @@ static int check_next_block_uptodate(struct btrfs_trans_handle *trans,
  * If we are UPDATE_BACKREF then we will not, we need to update our backrefs.
  *
  * If we are DROP_REFERENCE this will figure out if we need to drop our current
- * reference, skipping it if we dropped it from a previous incompleted drop, or
+ * reference, skipping it if we dropped it from a previous uncompleted drop, or
  * dropping it if we still have a reference to it.
  */
 static int maybe_drop_reference(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -5760,7 +5760,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	/*
 	 * We have to walk down into this node, and if we're currently at the
-	 * DROP_REFERNCE stage and this block is shared then we need to switch
+	 * DROP_REFERENCE stage and this block is shared then we need to switch
 	 * to the UPDATE_BACKREF stage in order to convert to FULL_BACKREF.
 	 */
 	if (wc->stage == DROP_REFERENCE && wc->refs[level - 1] > 1) {

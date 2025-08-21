@@ -1690,7 +1690,7 @@ out:
  * @ctx->bytenr and @ctx->extent_item_pos. The bytenr of the found leaves are
  * added to the ulist at @ctx->refs, and that ulist is allocated by this
  * function. The caller should free the ulist with free_leaf_list() if
- * @ctx->ignore_extent_item_pos is false, otherwise a fimple ulist_free() is
+ * @ctx->ignore_extent_item_pos is false, otherwise a simple ulist_free() is
  * enough.
  *
  * Returns 0 on success and < 0 on error. On error @ctx->refs is not allocated.

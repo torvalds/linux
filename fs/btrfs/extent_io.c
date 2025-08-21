@@ -418,7 +418,7 @@ again:
 	if (delalloc_end + 1 - delalloc_start > max_bytes)
 		delalloc_end = delalloc_start + max_bytes - 1;
 
-	/* step two, lock all the folioss after the folios that has start */
+	/* step two, lock all the folios after the folios that has start */
 	ret = lock_delalloc_folios(inode, locked_folio, delalloc_start,
 				   delalloc_end);
 	ASSERT(!ret || ret == -EAGAIN);
@@ -772,7 +772,7 @@ static void alloc_new_bio(struct btrfs_inode *inode,
  *
  * The will either add the page into the existing @bio_ctrl->bbio, or allocate a
  * new one in @bio_ctrl->bbio.
- * The mirror number for this IO should already be initizlied in
+ * The mirror number for this IO should already be initialized in
  * @bio_ctrl->mirror_num.
  */
 static void submit_extent_folio(struct btrfs_bio_ctrl *bio_ctrl,
@@ -2225,7 +2225,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
  * @fs_info:	The fs_info for this file system.
  * @start:	The offset of the range to start waiting on writeback.
  * @end:	The end of the range, inclusive. This is meant to be used in
- *		conjuction with wait_marked_extents, so this will usually be
+ *		conjunction with wait_marked_extents, so this will usually be
  *		the_next_eb->start - 1.
  */
 void btrfs_btree_wait_writeback_range(struct btrfs_fs_info *fs_info, u64 start,
@@ -2495,7 +2495,7 @@ retry:
 			 * In above case, [32K, 96K) is asynchronously submitted
 			 * for compression, and [124K, 128K) needs to be written back.
 			 *
-			 * If we didn't wait wrtiteback for page 64K, [128K, 128K)
+			 * If we didn't wait writeback for page 64K, [128K, 128K)
 			 * won't be submitted as the page still has writeback flag
 			 * and will be skipped in the next check.
 			 *
@@ -2979,7 +2979,7 @@ static void cleanup_extent_buffer_folios(struct extent_buffer *eb)
 {
 	const int num_folios = num_extent_folios(eb);
 
-	/* We canont use num_extent_folios() as loop bound as eb->folios changes. */
+	/* We cannot use num_extent_folios() as loop bound as eb->folios changes. */
 	for (int i = 0; i < num_folios; i++) {
 		ASSERT(eb->folios[i]);
 		detach_extent_buffer_folio(eb, eb->folios[i]);

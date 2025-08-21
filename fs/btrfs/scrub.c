@@ -113,7 +113,7 @@ enum {
 	/* Which blocks are covered by extent items. */
 	scrub_bitmap_nr_has_extent = 0,
 
-	/* Which blocks are meteadata. */
+	/* Which blocks are metadata. */
 	scrub_bitmap_nr_is_metadata,
 
 	/*

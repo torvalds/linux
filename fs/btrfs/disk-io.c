@@ -3245,7 +3245,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 	/*
 	 * Subpage runtime limitation on v1 cache.
 	 *
-	 * V1 space cache still has some hard codeed PAGE_SIZE usage, while
+	 * V1 space cache still has some hard coded PAGE_SIZE usage, while
 	 * we're already defaulting to v2 cache, no need to bother v1 as it's
 	 * going to be deprecated anyway.
 	 */

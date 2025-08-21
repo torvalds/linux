@@ -957,7 +957,7 @@ static noinline int btrfs_mksnapshot(struct dentry *parent,
 
 	/*
 	 * Force new buffered writes to reserve space even when NOCOW is
-	 * possible. This is to avoid later writeback (running dealloc) to
+	 * possible. This is to avoid later writeback (running delalloc) to
 	 * fallback to COW mode and unexpectedly fail with ENOSPC.
 	 */
 	btrfs_drew_read_lock(&root->snapshot_lock);

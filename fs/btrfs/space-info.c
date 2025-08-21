@@ -479,7 +479,7 @@ static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * On the zoned mode, we always allocate one zone as one chunk.
-	 * Returning non-zone size alingned bytes here will result in
+	 * Returning non-zone size aligned bytes here will result in
 	 * less pressure for the async metadata reclaim process, and it
 	 * will over-commit too much leading to ENOSPC. Align down to the
 	 * zone size to avoid that.
@@ -1528,7 +1528,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	 * turned into error mode due to a transaction abort when flushing space
 	 * above, in that case fail with the abort error instead of returning
 	 * success to the caller if we can steal from the global rsv - this is
-	 * just to have caller fail immeditelly instead of later when trying to
+	 * just to have caller fail immediately instead of later when trying to
 	 * modify the fs, making it easier to debug -ENOSPC problems.
 	 */
 	if (BTRFS_FS_ERROR(fs_info)) {

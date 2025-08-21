@@ -103,7 +103,7 @@ static struct kmem_cache *btrfs_trans_handle_cachep;
  * | attached to transid N+1.			    |
  * |						    |
  * | To next stage:				    |
- * |  Until all tree blocks are super blocks are    |
+ * |  Until all tree blocks and super blocks are    |
  * |  written to block devices			    |
  * V						    |
  * Transaction N [[TRANS_STATE_COMPLETED]]	    V
@@ -2423,7 +2423,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * them.
 	 *
 	 * We needn't worry that this operation will corrupt the snapshots,
-	 * because all the tree which are snapshoted will be forced to COW
+	 * because all the tree which are snapshotted will be forced to COW
 	 * the nodes and leaves.
 	 */
 	ret = btrfs_run_delayed_items(trans);

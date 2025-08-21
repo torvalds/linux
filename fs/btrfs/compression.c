@@ -1290,7 +1290,7 @@ int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 #define ENTROPY_LVL_HIGH		(80)
 
 /*
- * For increasead precision in shannon_entropy calculation,
+ * For increased precision in shannon_entropy calculation,
  * let's do pow(n, M) to save more digits after comma:
  *
  * - maximum int bit length is 64
