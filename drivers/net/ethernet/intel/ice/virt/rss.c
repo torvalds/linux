@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2022, Intel Corporation. */
 
+#include "rss.h"
 #include "ice_vf_lib_private.h"
 #include "ice.h"
 
@@ -343,7 +344,7 @@ static bool ice_vf_adv_rss_offload_ena(u32 caps)
  *
  * This function adds/deletes a RSS config
  */
-static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
+int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 {
 	u32 v_opcode = add ? VIRTCHNL_OP_ADD_RSS_CFG : VIRTCHNL_OP_DEL_RSS_CFG;
 	struct virtchnl_rss_cfg *rss_cfg = (struct virtchnl_rss_cfg *)msg;
@@ -479,7 +480,7 @@ error_param:
  *
  * Configure the VF's RSS key
  */
-static int ice_vc_config_rss_key(struct ice_vf *vf, u8 *msg)
+int ice_vc_config_rss_key(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_rss_key *vrk =
@@ -526,7 +527,7 @@ error_param:
  *
  * Configure the VF's RSS LUT
  */
-static int ice_vc_config_rss_lut(struct ice_vf *vf, u8 *msg)
+int ice_vc_config_rss_lut(struct ice_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_lut *vrl = (struct virtchnl_rss_lut *)msg;
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
@@ -572,7 +573,7 @@ error_param:
  *
  * Configure the VF's RSS Hash function
  */
-static int ice_vc_config_rss_hfunc(struct ice_vf *vf, u8 *msg)
+int ice_vc_config_rss_hfunc(struct ice_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_hfunc *vrh = (struct virtchnl_rss_hfunc *)msg;
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
@@ -614,7 +615,7 @@ error_param:
  * ice_vc_get_rss_hashcfg - return the RSS Hash configuration
  * @vf: pointer to the VF info
  */
-static int ice_vc_get_rss_hashcfg(struct ice_vf *vf)
+int ice_vc_get_rss_hashcfg(struct ice_vf *vf)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_rss_hashcfg *vrh = NULL;
@@ -653,7 +654,7 @@ err:
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
  */
-static int ice_vc_set_rss_hashcfg(struct ice_vf *vf, u8 *msg)
+int ice_vc_set_rss_hashcfg(struct ice_vf *vf, u8 *msg)
 {
 	struct virtchnl_rss_hashcfg *vrh = (struct virtchnl_rss_hashcfg *)msg;
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;

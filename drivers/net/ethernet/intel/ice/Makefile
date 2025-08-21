@@ -51,6 +51,7 @@ ice-$(CONFIG_PCI_IOV) +=	\
 	virt/fdir.o		\
 	virt/queues.o		\
 	virt/virtchnl.o		\
+	virt/rss.o		\
 	ice_vf_mbx.o		\
 	ice_vf_vsi_vlan_ops.o	\
 	ice_vf_lib.o
