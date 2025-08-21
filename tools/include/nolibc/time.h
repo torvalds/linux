@@ -45,7 +45,7 @@ int sys_clock_getres(clockid_t clockid, struct timespec *res)
 {
 #if defined(__NR_clock_getres)
 	return my_syscall2(__NR_clock_getres, clockid, res);
-#elif defined(__NR_clock_getres_time64)
+#else
 	struct __kernel_timespec kres;
 	int ret;
 
@@ -53,8 +53,6 @@ int sys_clock_getres(clockid_t clockid, struct timespec *res)
 	if (res)
 		__nolibc_timespec_kernel_to_user(&kres, res);
 	return ret;
-#else
-	return __nolibc_enosys(__func__, clockid, res);
 #endif
 }
 
@@ -69,7 +67,7 @@ int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 {
 #if defined(__NR_clock_gettime)
 	return my_syscall2(__NR_clock_gettime, clockid, tp);
-#elif defined(__NR_clock_gettime64)
+#else
 	struct __kernel_timespec ktp;
 	int ret;
 
@@ -77,8 +75,6 @@ int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 	if (tp)
 		__nolibc_timespec_kernel_to_user(&ktp, tp);
 	return ret;
-#else
-	return __nolibc_enosys(__func__, clockid, tp);
 #endif
 }
 
