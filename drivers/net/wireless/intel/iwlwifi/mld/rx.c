@@ -1611,8 +1611,6 @@ iwl_mld_rx_with_sta(struct iwl_mld *mld, struct ieee80211_hdr *hdr,
 	return sta;
 }
 
-#define KEY_IDX_LEN 2
-
 static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 				struct ieee80211_hdr *hdr,
 				struct ieee80211_rx_status *rx_status,
@@ -1626,6 +1624,7 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 	u8 keyidx;
 	struct ieee80211_key_conf *key;
 	const u8 *frame = (void *)hdr;
+	const u8 *mmie;
 	u8 link_id;
 
 	if ((mpdu_status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
@@ -1674,11 +1673,15 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 			goto report;
 	}
 
-	if (mpdu_len < key->icv_len + IEEE80211_GMAC_PN_LEN + KEY_IDX_LEN)
+	/* get the real key ID */
+	if (mpdu_len < key->icv_len)
 		goto report;
 
-	/* get the real key ID */
-	keyidx = frame[mpdu_len - key->icv_len - IEEE80211_GMAC_PN_LEN - KEY_IDX_LEN];
+	mmie = frame + (mpdu_len - key->icv_len);
+
+	/* the position of the key_id in ieee80211_mmie_16 is the same */
+	keyidx = le16_to_cpu(((const struct ieee80211_mmie *) mmie)->key_id);
+
 	/* and if that's the other key, look it up */
 	if (keyidx != key->keyidx) {
 		/* shouldn't happen since firmware checked, but be safe

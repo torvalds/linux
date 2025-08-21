@@ -332,6 +332,7 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 	struct ieee80211_key_conf *key;
 	u32 len = le16_to_cpu(desc->mpdu_len);
 	const u8 *frame = (void *)hdr;
+	const u8 *mmie;
 
 	if ((status & IWL_RX_MPDU_STATUS_SEC_MASK) == IWL_RX_MPDU_STATUS_SEC_NONE)
 		return 0;
@@ -375,11 +376,15 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 			goto report;
 	}
 
-	if (len < key->icv_len + IEEE80211_GMAC_PN_LEN + 2)
+	if (len < key->icv_len)
 		goto report;
 
 	/* get the real key ID */
-	keyid = frame[len - key->icv_len - IEEE80211_GMAC_PN_LEN - 2];
+	mmie = frame + (len - key->icv_len);
+
+	/* the position of the key_id in ieee80211_mmie_16 is the same */
+	keyid = le16_to_cpu(((const struct ieee80211_mmie *) mmie)->key_id);
+
 	/* and if that's the other key, look it up */
 	if (keyid != key->keyidx) {
 		/*
