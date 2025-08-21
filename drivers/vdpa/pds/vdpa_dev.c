@@ -643,7 +643,7 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 
 	pdev = vdpa_aux->padev->vf_pdev;
 	dma_dev = &pdev->dev;
-	pdsv->vdpa_dev.dma_dev = dma_dev;
+	pdsv->vdpa_dev.vmap.dma_dev = dma_dev;
 
 	status = pds_vdpa_get_status(&pdsv->vdpa_dev);
 	if (status == 0xff) {
