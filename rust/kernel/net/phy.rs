@@ -196,11 +196,8 @@ impl Device {
         // SAFETY: `phydev` is pointing to a valid object by the type invariant of `Self`.
         // So it's just an FFI call.
         let ret = unsafe { bindings::phy_read_paged(phydev, page.into(), regnum.into()) };
-        if ret < 0 {
-            Err(Error::from_errno(ret))
-        } else {
-            Ok(ret as u16)
-        }
+
+        to_result(ret).map(|()| ret as u16)
     }
 
     /// Resolves the advertisements into PHY settings.
