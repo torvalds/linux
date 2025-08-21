@@ -2032,10 +2032,11 @@ void __detach_mounts(struct dentry *dentry)
 	struct pinned_mountpoint mp = {};
 	struct mount *mnt;
 
-	namespace_lock();
-	lock_mount_hash();
+	guard(namespace_excl)();
+	guard(mount_writer)();
+
 	if (!lookup_mountpoint(dentry, &mp))
-		goto out_unlock;
+		return;
 
 	event++;
 	while (mp.node.next) {
@@ -2047,9 +2048,6 @@ void __detach_mounts(struct dentry *dentry)
 		else umount_tree(mnt, UMOUNT_CONNECTED);
 	}
 	unpin_mountpoint(&mp);
-out_unlock:
-	unlock_mount_hash();
-	namespace_unlock();
 }
 
 /*
