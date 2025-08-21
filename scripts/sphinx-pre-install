@@ -901,7 +901,7 @@ class SphinxDependencyChecker(MissingCheckers):
             "dot":           "graphviz",
             "python-sphinx": "python3-sphinx",
             "virtualenv":    "python3-virtualenv",
-            "xelatex":       "texlive-xetex-bin",
+            "xelatex":       "texlive-xetex-bin texlive-dejavu",
             "yaml":          "python3-pyyaml",
         }
 
@@ -937,7 +937,7 @@ class SphinxDependencyChecker(MissingCheckers):
                     self.recommend_python = True
 
                 progs.update({
-                    "python-sphinx": "python311-Sphinx",
+                    "python-sphinx": "python311-Sphinx python311-Sphinx-latex",
                     "virtualenv":    "python311-virtualenv",
                     "yaml":          "python311-PyYAML",
                 })
@@ -945,7 +945,7 @@ class SphinxDependencyChecker(MissingCheckers):
             # Tumbleweed defaults to Python 3.11
 
             progs.update({
-                "python-sphinx": "python313-Sphinx",
+                "python-sphinx": "python313-Sphinx python313-Sphinx-latex",
                 "virtualenv":    "python313-virtualenv",
                 "yaml":          "python313-PyYAML",
             })
