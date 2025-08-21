@@ -24,9 +24,10 @@
  * =========
  *
  * Configfs is a filesystem-based manager of kernel objects. XE KMD registers a
- * configfs subsystem called ``'xe'`` that creates a directory in the mounted configfs directory
- * The user can create devices under this directory and configure them as necessary
- * See Documentation/filesystems/configfs.rst for more information about how configfs works.
+ * configfs subsystem called ``xe`` that creates a directory in the mounted
+ * configfs directory. The user can create devices under this directory and
+ * configure them as necessary. See Documentation/filesystems/configfs.rst for
+ * more information about how configfs works.
  *
  * Create devices
  * ==============
@@ -113,7 +114,7 @@
  *
  * The created device directories can be removed using ``rmdir``::
  *
- *	rmdir /sys/kernel/config/xe/0000:03:00.0/
+ *	# rmdir /sys/kernel/config/xe/0000:03:00.0/
  */
 
 struct xe_config_group_device {
