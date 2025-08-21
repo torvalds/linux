@@ -580,6 +580,16 @@ exit:
 static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	int ret;
+
+	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PANEL_REPLAY_CAP_SUPPORT,
+				    &intel_dp->pr_dpcd, sizeof(intel_dp->pr_dpcd));
+	if (ret < 0)
+		return;
+
+	if (!(intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+	      DP_PANEL_REPLAY_SUPPORT))
+		return;
 
 	if (intel_dp_is_edp(intel_dp)) {
 		if (!intel_alpm_aux_less_wake_supported(intel_dp)) {
@@ -611,6 +621,15 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 static void _psr_init_dpcd(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	int ret;
+
+	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
+				    sizeof(intel_dp->psr_dpcd));
+	if (ret < 0)
+		return;
+
+	if (!intel_dp->psr_dpcd[0])
+		return;
 
 	drm_dbg_kms(display->drm, "eDP panel supports PSR version %x\n",
 		    intel_dp->psr_dpcd[0]);
@@ -656,18 +675,9 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp)
 
 void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 {
-	drm_dp_dpcd_read(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
-			 sizeof(intel_dp->psr_dpcd));
+	_psr_init_dpcd(intel_dp);
 
-	drm_dp_dpcd_read(&intel_dp->aux, DP_PANEL_REPLAY_CAP_SUPPORT,
-			 &intel_dp->pr_dpcd, sizeof(intel_dp->pr_dpcd));
-
-	if (intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
-	    DP_PANEL_REPLAY_SUPPORT)
-		_panel_replay_init_dpcd(intel_dp);
-
-	if (intel_dp->psr_dpcd[0])
-		_psr_init_dpcd(intel_dp);
+	_panel_replay_init_dpcd(intel_dp);
 
 	if (intel_dp->psr.sink_psr2_support ||
 	    intel_dp->psr.sink_panel_replay_su_support)
