@@ -39,8 +39,16 @@
  * used to configure it::
  *
  *	/sys/kernel/config/xe/
- *		.. 0000:03:00.0/
- *			... survivability_mode
+ *	├── 0000:00:02.0
+ *	│   └── ...
+ *	├── 0000:00:02.1
+ *	│   └── ...
+ *	:
+ *	└── 0000:03:00.0
+ *	    ├── survivability_mode
+ *	    ├── engines_allowed
+ *	    └── enable_psmi
+ *
  *
  * Configure Attributes
  * ====================
