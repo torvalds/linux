@@ -566,7 +566,7 @@ static int parse_test_spec(struct test_loader *tester,
 			} else if (strcmp(val, "RISCV64") == 0) {
 				arch = ARCH_RISCV64;
 			} else {
-				PRINT_FAIL("bad arch spec: '%s'", val);
+				PRINT_FAIL("bad arch spec: '%s'\n", val);
 				err = -EINVAL;
 				goto cleanup;
 			}
