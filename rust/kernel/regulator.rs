@@ -267,11 +267,8 @@ impl<T: RegulatorState> Regulator<T> {
     pub fn get_voltage(&self) -> Result<Voltage> {
         // SAFETY: Safe as per the type invariants of `Regulator`.
         let voltage = unsafe { bindings::regulator_get_voltage(self.inner.as_ptr()) };
-        if voltage < 0 {
-            Err(kernel::error::Error::from_errno(voltage))
-        } else {
-            Ok(Voltage::from_microvolts(voltage))
-        }
+
+        to_result(voltage).map(|()| Voltage::from_microvolts(voltage))
     }
 
     fn get_internal(dev: &Device, name: &CStr) -> Result<Regulator<T>> {
