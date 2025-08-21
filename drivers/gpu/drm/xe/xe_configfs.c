@@ -5,6 +5,7 @@
 
 #include <linux/bitops.h>
 #include <linux/configfs.h>
+#include <linux/cleanup.h>
 #include <linux/find.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -164,9 +165,8 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev->lock);
+	guard(mutex)(&dev->lock);
 	dev->config.survivability_mode = survivability_mode;
-	mutex_unlock(&dev->lock);
 
 	return len;
 }
@@ -248,9 +248,8 @@ static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 		val |= mask;
 	}
 
-	mutex_lock(&dev->lock);
+	guard(mutex)(&dev->lock);
 	dev->config.engines_allowed = val;
-	mutex_unlock(&dev->lock);
 
 	return len;
 }
@@ -272,9 +271,8 @@ static ssize_t enable_psmi_store(struct config_item *item, const char *page, siz
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev->lock);
+	guard(mutex)(&dev->lock);
 	dev->config.enable_psmi = val;
-	mutex_unlock(&dev->lock);
 
 	return len;
 }
@@ -454,9 +452,8 @@ void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 	if (!dev)
 		return;
 
-	mutex_lock(&dev->lock);
+	guard(mutex)(&dev->lock);
 	dev->config.survivability_mode = 0;
-	mutex_unlock(&dev->lock);
 
 	config_group_put(&dev->group);
 }
