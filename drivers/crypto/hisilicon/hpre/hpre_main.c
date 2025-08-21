@@ -721,6 +721,7 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 
 	/* Config data buffer pasid needed by Kunpeng 920 */
 	hpre_config_pasid(qm);
+	hpre_open_sva_prefetch(qm);
 
 	hpre_enable_clock_gate(qm);
 
@@ -1449,8 +1450,6 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 	ret = hpre_set_user_domain_and_cache(qm);
 	if (ret)
 		return ret;
-
-	hpre_open_sva_prefetch(qm);
 
 	hisi_qm_dev_err_init(qm);
 	ret = hpre_show_last_regs_init(qm);
