@@ -1058,12 +1058,19 @@ class SphinxDependencyChecker(MissingCheckers):
         """
         Provide package installation hints for Gentoo.
         """
+        texlive_deps = [
+            "dev-texlive/texlive-latexextra",
+            "dev-texlive/texlive-xetex",
+            "media-fonts/dejavu",
+            "media-fonts/lm",
+        ]
+
         progs = {
             "convert":       "media-gfx/imagemagick",
             "dot":           "media-gfx/graphviz",
             "rsvg-convert":  "gnome-base/librsvg",
             "virtualenv":    "dev-python/virtualenv",
-            "xelatex":       "dev-texlive/texlive-xetex media-fonts/dejavu",
+            "xelatex":       " ".join(texlive_deps),
             "yaml":          "dev-python/pyyaml",
             "python-sphinx": "dev-python/sphinx",
         }
