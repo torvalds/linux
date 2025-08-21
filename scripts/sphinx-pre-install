@@ -984,13 +984,19 @@ class SphinxDependencyChecker(MissingCheckers):
         if re.search(r"OpenMandriva", self.system_release):
             packager_cmd = "dnf install"
             noto_sans = "noto-sans-cjk-fonts"
-            tex_pkgs = ["texlive-collection-fontsextra"]
+            tex_pkgs = [
+                "texlive-collection-basic",
+                "texlive-collection-langcjk",
+                "texlive-collection-fontsextra",
+                "texlive-collection-fontsrecommended"
+            ]
 
             # Tested on OpenMandriva Lx 4.3
             progs["convert"] = "imagemagick"
             progs["yaml"] = "python-pyyaml"
             progs["python-virtualenv"] = "python-virtualenv"
             progs["python-sphinx"] = "python-sphinx"
+            progs["xelatex"] = "texlive"
 
             self.check_program("python-virtualenv", DepManager.PYTHON_MANDATORY)
 
@@ -1004,7 +1010,9 @@ class SphinxDependencyChecker(MissingCheckers):
 
             if not self.distro_msg:
                 self.distro_msg = \
-                    "Note: for venv, ensurepip could be broken, preventing its install method."
+                    "Notes:\n"\
+                    "1. for venv, ensurepip could be broken, preventing its install method.\n" \
+                    "2. at least on OpenMandriva LX 4.3, texlive packages seem broken"
 
         else:
             packager_cmd = "urpmi"
