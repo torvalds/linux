@@ -119,6 +119,7 @@ static int ngbe_sw_init(struct wx *wx)
 						   num_online_cpus());
 	wx->rss_enabled = true;
 
+	wx->adaptive_itr = false;
 	wx->rx_itr_setting = WX_7K_ITR;
 	wx->tx_itr_setting = WX_7K_ITR;
 
