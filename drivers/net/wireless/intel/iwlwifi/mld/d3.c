@@ -1570,7 +1570,8 @@ static void
 iwl_mld_set_wowlan_config_cmd(struct iwl_mld *mld,
 			      struct cfg80211_wowlan *wowlan,
 			      struct iwl_wowlan_config_cmd *wowlan_config_cmd,
-			      struct ieee80211_sta *ap_sta)
+			      struct ieee80211_sta *ap_sta,
+			      struct ieee80211_bss_conf *link)
 {
 	wowlan_config_cmd->is_11n_connection =
 					ap_sta->deflink.ht_cap.ht_supported;
@@ -1579,6 +1580,9 @@ iwl_mld_set_wowlan_config_cmd(struct iwl_mld *mld,
 
 	if (ap_sta->mfp)
 		wowlan_config_cmd->flags |= IS_11W_ASSOC;
+
+	if (iwl_mld_beacon_protection_enabled(mld, link))
+		wowlan_config_cmd->flags |= HAS_BEACON_PROTECTION;
 
 	if (wowlan->disconnect)
 		wowlan_config_cmd->wakeup_filter |=
@@ -1777,7 +1781,7 @@ iwl_mld_wowlan_config(struct iwl_mld *mld, struct ieee80211_vif *bss_vif,
 		return ret;
 
 	iwl_mld_set_wowlan_config_cmd(mld, wowlan,
-				      &wowlan_config_cmd, ap_sta);
+				      &wowlan_config_cmd, ap_sta, link_conf);
 	ret = iwl_mld_send_cmd_pdu(mld, WOWLAN_CONFIGURATION,
 				   &wowlan_config_cmd);
 	if (ret)

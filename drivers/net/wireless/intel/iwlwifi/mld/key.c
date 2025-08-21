@@ -394,3 +394,15 @@ void iwl_mld_track_bigtk(struct iwl_mld *mld,
 	else
 		RCU_INIT_POINTER(link->bigtks[key->keyidx - 6], NULL);
 }
+
+bool iwl_mld_beacon_protection_enabled(struct iwl_mld *mld,
+				       struct ieee80211_bss_conf *link)
+{
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
+
+	if (WARN_ON(!mld_link))
+		return false;
+
+	return rcu_access_pointer(mld_link->bigtks[0]) ||
+		rcu_access_pointer(mld_link->bigtks[1]);
+}

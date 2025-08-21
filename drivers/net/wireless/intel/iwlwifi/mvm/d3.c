@@ -928,6 +928,10 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	if (ap_sta->mfp)
 		wowlan_config_cmd->flags |= IS_11W_ASSOC;
 
+	if (rcu_access_pointer(mvmvif->bcn_prot.keys[0]) ||
+	    rcu_access_pointer(mvmvif->bcn_prot.keys[1]))
+		wowlan_config_cmd->flags |= HAS_BEACON_PROTECTION;
+
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, WOWLAN_CONFIGURATION, 0) < 6) {
 		/* Query the last used seqno and set it */
 		int ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
