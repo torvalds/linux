@@ -85,7 +85,20 @@ static void madvise_atomic(struct xe_device *xe, struct xe_vm *vm,
 			   struct xe_vma **vmas, int num_vmas,
 			   struct drm_xe_madvise *op)
 {
-	/* Implementation pending */
+	int i;
+
+	xe_assert(vm->xe, op->type == DRM_XE_MEM_RANGE_ATTR_ATOMIC);
+	xe_assert(vm->xe, op->atomic.val <= DRM_XE_ATOMIC_CPU);
+
+	for (i = 0; i < num_vmas; i++) {
+		if ((xe_vma_is_userptr(vmas[i]) &&
+		     !(op->atomic.val == DRM_XE_ATOMIC_DEVICE &&
+		       xe->info.has_device_atomics_on_smem)))
+			continue;
+
+		vmas[i]->attr.atomic_access = op->atomic.val;
+	/*TODO: handle bo backed vmas */
+	}
 }
 
 static void madvise_pat_index(struct xe_device *xe, struct xe_vm *vm,

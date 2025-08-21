@@ -789,22 +789,9 @@ bool xe_svm_range_needs_migrate_to_vram(struct xe_svm_range *range, struct xe_vm
 	return true;
 }
 
-/**
- * xe_svm_handle_pagefault() - SVM handle page fault
- * @vm: The VM.
- * @vma: The CPU address mirror VMA.
- * @gt: The gt upon the fault occurred.
- * @fault_addr: The GPU fault address.
- * @atomic: The fault atomic access bit.
- *
- * Create GPU bindings for a SVM page fault. Optionally migrate to device
- * memory.
- *
- * Return: 0 on success, negative error code on error.
- */
-int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
-			    struct xe_gt *gt, u64 fault_addr,
-			    bool atomic)
+static int __xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
+				     struct xe_gt *gt, u64 fault_addr,
+				     bool need_vram)
 {
 	struct drm_gpusvm_ctx ctx = {
 		.read_only = xe_vma_read_only(vma),
@@ -812,9 +799,8 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP),
 		.check_pages_threshold = IS_DGFX(vm->xe) &&
 			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP) ? SZ_64K : 0,
-		.devmem_only = atomic && IS_DGFX(vm->xe) &&
-			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP),
-		.timeslice_ms = atomic && IS_DGFX(vm->xe) &&
+		.devmem_only = need_vram && IS_ENABLED(CONFIG_DRM_XE_PAGEMAP),
+		.timeslice_ms = need_vram && IS_DGFX(vm->xe) &&
 			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP) ?
 			vm->xe->atomic_svm_timeslice_ms : 0,
 	};
@@ -915,6 +901,32 @@ retry_bind:
 err_out:
 
 	return err;
+}
+
+/**
+ * xe_svm_handle_pagefault() - SVM handle page fault
+ * @vm: The VM.
+ * @vma: The CPU address mirror VMA.
+ * @gt: The gt upon the fault occurred.
+ * @fault_addr: The GPU fault address.
+ * @atomic: The fault atomic access bit.
+ *
+ * Create GPU bindings for a SVM page fault. Optionally migrate to device
+ * memory.
+ *
+ * Return: 0 on success, negative error code on error.
+ */
+int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
+			    struct xe_gt *gt, u64 fault_addr,
+			    bool atomic)
+{
+	int need_vram;
+
+	need_vram = xe_vma_need_vram_for_atomic(vm->xe, vma, atomic);
+	if (need_vram < 0)
+		return need_vram;
+
+	return __xe_svm_handle_pagefault(vm, vma, gt, fault_addr, need_vram ? true : false);
 }
 
 /**

@@ -4213,6 +4213,45 @@ void xe_vm_snapshot_free(struct xe_vm_snapshot *snap)
 }
 
 /**
+ * xe_vma_need_vram_for_atomic - Check if VMA needs VRAM migration for atomic operations
+ * @xe: Pointer to the XE device structure
+ * @vma: Pointer to the virtual memory area (VMA) structure
+ * @is_atomic: In pagefault path and atomic operation
+ *
+ * This function determines whether the given VMA needs to be migrated to
+ * VRAM in order to do atomic GPU operation.
+ *
+ * Return:
+ *   1        - Migration to VRAM is required
+ *   0        - Migration is not required
+ *   -EACCES  - Invalid access for atomic memory attr
+ *
+ */
+int xe_vma_need_vram_for_atomic(struct xe_device *xe, struct xe_vma *vma, bool is_atomic)
+{
+	if (!IS_DGFX(xe) || !is_atomic)
+		return 0;
+
+	/*
+	 * NOTE: The checks implemented here are platform-specific. For
+	 * instance, on a device supporting CXL atomics, these would ideally
+	 * work universally without additional handling.
+	 */
+	switch (vma->attr.atomic_access) {
+	case DRM_XE_ATOMIC_DEVICE:
+		return !xe->info.has_device_atomics_on_smem;
+
+	case DRM_XE_ATOMIC_CPU:
+		return -EACCES;
+
+	case DRM_XE_ATOMIC_UNDEFINED:
+	case DRM_XE_ATOMIC_GLOBAL:
+	default:
+		return 1;
+	}
+}
+
+/**
  * xe_vm_alloc_madvise_vma - Allocate VMA's with madvise ops
  * @vm: Pointer to the xe_vm structure
  * @start: Starting input address
