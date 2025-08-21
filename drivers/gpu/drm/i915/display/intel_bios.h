@@ -85,6 +85,8 @@ bool intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata)
 bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_hpd_invert(const struct intel_bios_encoder_data *devdata);
 enum port intel_bios_encoder_port(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_reject_edp_rate(const struct intel_bios_encoder_data *devdata,
+					int rate);
 enum aux_ch intel_bios_dp_aux_ch(const struct intel_bios_encoder_data *devdata);
 int intel_bios_dp_boost_level(const struct intel_bios_encoder_data *devdata);
 int intel_bios_dp_max_lane_count(const struct intel_bios_encoder_data *devdata);
