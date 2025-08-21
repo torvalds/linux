@@ -13,6 +13,13 @@
 #include "cifsproto.h"
 #include "smb2proto.h"
 
+const struct smbdirect_socket_parameters *smbd_get_parameters(struct smbd_connection *conn)
+{
+	struct smbdirect_socket *sc = &conn->socket;
+
+	return &sc->parameters;
+}
+
 static struct smbdirect_recv_io *get_receive_buffer(
 		struct smbd_connection *info);
 static void put_receive_buffer(

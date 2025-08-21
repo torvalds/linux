@@ -59,6 +59,8 @@ struct smbd_connection {
 struct smbd_connection *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr);
 
+const struct smbdirect_socket_parameters *smbd_get_parameters(struct smbd_connection *conn);
+
 /* Reconnect SMBDirect session */
 int smbd_reconnect(struct TCP_Server_Info *server);
 /* Destroy SMBDirect session */
