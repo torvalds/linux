@@ -594,41 +594,27 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 #if defined(__NR_lseek)
 	return my_syscall3(__NR_lseek, fd, offset, whence);
 #else
-	return __nolibc_enosys(__func__, fd, offset, whence);
-#endif
-}
+	__kernel_loff_t loff = 0;
+	off_t result;
+	int ret;
 
-static __attribute__((unused))
-int sys_llseek(int fd, unsigned long offset_high, unsigned long offset_low,
-	       __kernel_loff_t *result, int whence)
-{
-#if defined(__NR_llseek)
-	return my_syscall5(__NR_llseek, fd, offset_high, offset_low, result, whence);
-#else
-	return __nolibc_enosys(__func__, fd, offset_high, offset_low, result, whence);
+	/* Only exists on 32bit where nolibc off_t is also 32bit */
+	ret = my_syscall5(__NR_llseek, fd, 0, offset, &loff, whence);
+	if (ret < 0)
+		result = ret;
+	else if (loff != (off_t)loff)
+		result = -EOVERFLOW;
+	else
+		result = loff;
+
+	return result;
 #endif
 }
 
 static __attribute__((unused))
 off_t lseek(int fd, off_t offset, int whence)
 {
-	__kernel_loff_t loff = 0;
-	off_t result;
-	int ret;
-
-	result = sys_lseek(fd, offset, whence);
-	if (result == -ENOSYS) {
-		/* Only exists on 32bit where nolibc off_t is also 32bit */
-		ret = sys_llseek(fd, 0, offset, &loff, whence);
-		if (ret < 0)
-			result = ret;
-		else if (loff != (off_t)loff)
-			result = -EOVERFLOW;
-		else
-			result = loff;
-	}
-
-	return __sysret(result);
+	return __sysret(sys_lseek(fd, offset, whence));
 }
 
 
