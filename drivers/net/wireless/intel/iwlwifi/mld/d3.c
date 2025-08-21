@@ -831,24 +831,21 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 }
 
 static void
-iwl_mld_add_all_rekeys(struct ieee80211_vif *vif,
+iwl_mld_add_all_rekeys(struct iwl_mld *mld,
+		       struct ieee80211_vif *vif,
 		       struct iwl_mld_wowlan_status *wowlan_status,
-		       struct iwl_mld_resume_key_iter_data *key_iter_data,
 		       struct ieee80211_bss_conf *link_conf)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wowlan_status->gtk); i++)
-		iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
-					&wowlan_status->gtk[i],
+		iwl_mld_add_mcast_rekey(vif, mld, &wowlan_status->gtk[i],
 					link_conf);
 
-	iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
-				&wowlan_status->igtk, link_conf);
+	iwl_mld_add_mcast_rekey(vif, mld, &wowlan_status->igtk, link_conf);
 
 	for (i = 0; i < ARRAY_SIZE(wowlan_status->bigtk); i++)
-		iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
-					&wowlan_status->bigtk[i],
+		iwl_mld_add_mcast_rekey(vif, mld, &wowlan_status->bigtk[i],
 					link_conf);
 }
 
@@ -934,7 +931,7 @@ iwl_mld_update_sec_keys(struct iwl_mld *mld,
 	if (!key_iter_data.num_keys || !wowlan_status->num_of_gtk_rekeys)
 		return true;
 
-	iwl_mld_add_all_rekeys(vif, wowlan_status, &key_iter_data,
+	iwl_mld_add_all_rekeys(mld, vif, wowlan_status,
 			       link_conf);
 
 	iwl_mld_mlo_rekey(mld, wowlan_status, vif);
