@@ -1197,7 +1197,7 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 retry_multishot:
 	if (io_do_buffer_select(req)) {
 		ret = io_recv_buf_select(req, kmsg, &len, issue_flags);
-		if (unlikely(ret)) {
+		if (unlikely(ret < 0)) {
 			kmsg->msg.msg_inq = -1;
 			goto out_free;
 		}
