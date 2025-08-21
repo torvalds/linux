@@ -29,11 +29,18 @@
  * See Documentation/filesystems/configfs.rst for more information about how configfs works.
  *
  * Create devices
- * ===============
+ * ==============
  *
- * In order to create a device, the user has to create a directory inside ``'xe'``::
+ * To create a device, the ``xe`` module should already be loaded, but some
+ * attributes can only be set before binding the device. It can be accomplished
+ * by blocking the driver autoprobe:
  *
- *	mkdir /sys/kernel/config/xe/0000:03:00.0/
+ *	# echo 0 > /sys/bus/pci/drivers_autoprobe
+ *	# modprobe xe
+ *
+ * In order to create a device, the user has to create a directory inside ``xe``::
+ *
+ *	# mkdir /sys/kernel/config/xe/0000:03:00.0/
  *
  * Every device created is populated by the driver with entries that can be
  * used to configure it::
@@ -49,6 +56,12 @@
  *	    ├── engines_allowed
  *	    └── enable_psmi
  *
+ * After configuring the attributes as per next section, the device can be
+ * probed with::
+ *
+ *	# echo 0000:03:00.0 > /sys/bus/pci/drivers/xe/bind
+ *	# # or
+ *	# echo 0000:03:00.0 > /sys/bus/pci/drivers_probe
  *
  * Configure Attributes
  * ====================
@@ -60,7 +73,6 @@
  * effect when probing the device. Example to enable it::
  *
  *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
- *	# echo 0000:03:00.0 > /sys/bus/pci/drivers/xe/bind  (Enters survivability mode if supported)
  *
  * Allowed engines:
  * ----------------
