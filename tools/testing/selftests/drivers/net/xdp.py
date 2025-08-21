@@ -358,7 +358,10 @@ def test_xdp_native_tx_mb(cfg):
     """
     bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o",
                            "xdp.frags", 9000)
-    _test_xdp_native_tx(cfg, bpf_info, [8000])
+    # The first packet ensures we exercise the fragmented code path.
+    # And the subsequent 0-sized packet ensures the driver
+    # reinitializes xdp_buff correctly.
+    _test_xdp_native_tx(cfg, bpf_info, [8000, 0])
 
 
 def _validate_res(res, offset_lst, pkt_sz_lst):
