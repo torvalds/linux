@@ -56,8 +56,6 @@ def print_base(base):
     text += " .index:      {}\n".format(base['index'])
 
     text += " .resolution: {} nsecs\n".format(constants.LX_hrtimer_resolution)
-
-    text += " .get_time:   {}\n".format(base['get_time'])
     if constants.LX_CONFIG_HIGH_RES_TIMERS:
         text += "  .offset:     {} nsecs\n".format(base['offset'])
     text += "active timers:\n"
