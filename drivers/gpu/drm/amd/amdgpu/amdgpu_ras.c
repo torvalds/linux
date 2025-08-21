@@ -2702,6 +2702,7 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct amdgpu_device *adev = ras->adev;
 	struct list_head device_list, *device_list_handle =  NULL;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+	unsigned int error_query_mode;
 	enum ras_event_type type;
 
 	if (hive) {
@@ -2728,6 +2729,13 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 			INIT_LIST_HEAD(&device_list);
 			list_add_tail(&adev->gmc.xgmi.head, &device_list);
 			device_list_handle = &device_list;
+		}
+
+		if (amdgpu_ras_get_error_query_mode(adev, &error_query_mode)) {
+			if (error_query_mode == AMDGPU_RAS_FIRMWARE_ERROR_QUERY) {
+				/* wait 500ms to ensure pmfw polling mca bank info done */
+				msleep(500);
+			}
 		}
 
 		type = amdgpu_ras_get_fatal_error_event(adev);
