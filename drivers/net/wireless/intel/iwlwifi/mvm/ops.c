@@ -143,24 +143,6 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
-static void iwl_mvm_rx_esr_mode_notif(struct iwl_mvm *mvm,
-				      struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_esr_mode_notif *notif = (void *)pkt->data;
-	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
-
-	/* FW recommendations is only for entering EMLSR */
-	if (IS_ERR_OR_NULL(vif) || iwl_mvm_vif_from_mac80211(vif)->esr_active)
-		return;
-
-	if (le32_to_cpu(notif->action) == ESR_RECOMMEND_ENTER)
-		iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_FW);
-	else
-		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_FW,
-				  iwl_mvm_get_primary_link(vif));
-}
-
 static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb)
 {
@@ -345,9 +327,6 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_old_notif,
 		   RX_HANDLER_ASYNC_LOCKED_WIPHY,
 		   struct iwl_bt_coex_prof_old_notif),
-	RX_HANDLER_GRP(BT_COEX_GROUP, PROFILE_NOTIF, iwl_mvm_rx_bt_coex_notif,
-		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		       struct iwl_bt_coex_profile_notif),
 	RX_HANDLER_NO_SIZE(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif,
 			   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_NO_SIZE(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
@@ -456,11 +435,6 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_channel_switch_error_notif,
 		       RX_HANDLER_ASYNC_UNLOCKED,
 		       struct iwl_channel_switch_error_notif),
-
-	RX_HANDLER_GRP(DATA_PATH_GROUP, ESR_MODE_NOTIF,
-		       iwl_mvm_rx_esr_mode_notif,
-		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		       struct iwl_esr_mode_notif),
 
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MONITOR_NOTIF,
 		       iwl_mvm_rx_monitor_notif, RX_HANDLER_ASYNC_LOCKED,
@@ -661,7 +635,6 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(CHEST_COLLECTOR_FILTER_CONFIG_CMD),
 	HCMD_NAME(SCD_QUEUE_CONFIG_CMD),
 	HCMD_NAME(SEC_KEY_CMD),
-	HCMD_NAME(ESR_MODE_NOTIF),
 	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(THERMAL_DUAL_CHAIN_REQUEST),
 	HCMD_NAME(BEACON_FILTER_IN_NOTIF),
@@ -1220,29 +1193,6 @@ static const struct iwl_mei_ops mei_ops = {
 	.nic_stolen = iwl_mvm_mei_nic_stolen,
 };
 
-static void iwl_mvm_find_link_selection_vif(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (ieee80211_vif_is_mld(vif) && mvmvif->authorized)
-		iwl_mvm_select_links(mvmvif->mvm, vif);
-}
-
-static void iwl_mvm_trig_link_selection(struct wiphy *wiphy,
-					struct wiphy_work *wk)
-{
-	struct iwl_mvm *mvm =
-		container_of(wk, struct iwl_mvm, trig_link_selection_wk);
-
-	mutex_lock(&mvm->mutex);
-	ieee80211_iterate_active_interfaces(mvm->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mvm_find_link_selection_vif,
-					    NULL);
-	mutex_unlock(&mvm->mutex);
-}
-
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		      const struct iwl_fw *fw, struct dentry *dbgfs_dir)
@@ -1410,9 +1360,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 
 	wiphy_work_init(&mvm->async_handlers_wiphy_wk,
 			iwl_mvm_async_handlers_wiphy_wk);
-
-	wiphy_work_init(&mvm->trig_link_selection_wk,
-			iwl_mvm_trig_link_selection);
 
 	init_waitqueue_head(&mvm->rx_sync_waitq);
 
