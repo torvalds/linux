@@ -944,6 +944,15 @@ static int hid_scan_report(struct hid_device *hid)
 	hid->group = HID_GROUP_GENERIC;
 
 	/*
+	 * In case we are re-scanning after a BPF has been loaded,
+	 * we need to use the bpf report descriptor, not the original one.
+	 */
+	if (hid->bpf_rdesc && hid->bpf_rsize) {
+		start = hid->bpf_rdesc;
+		end = start + hid->bpf_rsize;
+	}
+
+	/*
 	 * The parsing is simpler than the one in hid_open_report() as we should
 	 * be robust against hid errors. Those errors will be raised by
 	 * hid_open_report() anyway.
@@ -2728,6 +2737,12 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 	int ret;
 
 	if (!hdev->bpf_rsize) {
+		/* we keep a reference to the currently scanned report descriptor */
+		const __u8  *original_rdesc = hdev->bpf_rdesc;
+
+		if (!original_rdesc)
+			original_rdesc = hdev->dev_rdesc;
+
 		/* in case a bpf program gets detached, we need to free the old one */
 		hid_free_bpf_rdesc(hdev);
 
@@ -2737,6 +2752,12 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 		/* call_hid_bpf_rdesc_fixup will always return a valid pointer */
 		hdev->bpf_rdesc = call_hid_bpf_rdesc_fixup(hdev, hdev->dev_rdesc,
 							   &hdev->bpf_rsize);
+
+		/* the report descriptor changed, we need to re-scan it */
+		if (original_rdesc != hdev->bpf_rdesc) {
+			hdev->group = 0;
+			hid_set_group(hdev);
+		}
 	}
 
 	if (!hid_check_device_match(hdev, hdrv, &id))
