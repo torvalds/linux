@@ -36,6 +36,7 @@ struct smbdirect_socket_parameters {
 	__u32 max_recv_size;
 	__u32 max_fragmented_recv_size;
 	__u32 max_read_write_size;
+	__u32 max_frmr_depth;
 	__u32 keepalive_interval_msec;
 	__u32 keepalive_timeout_msec;
 } __packed;
