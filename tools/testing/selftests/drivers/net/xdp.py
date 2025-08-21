@@ -290,6 +290,45 @@ def test_xdp_native_drop_mb(cfg):
     _test_drop(cfg, bpf_info, 8000)
 
 
+def _test_xdp_native_tx(cfg, bpf_info, payload_lens):
+    """
+    Tests the XDP_TX action.
+
+    Args:
+        cfg: Configuration object containing network settings.
+        bpf_info: BPFProgInfo object containing the BPF program metadata.
+        payload_lens: Array of packet lengths to send.
+    """
+    cfg.require_cmd("socat", remote=True)
+    prog_info = _load_xdp_prog(cfg, bpf_info)
+    port = rand_port()
+
+    _set_xdp_map("map_xdp_setup", TestConfig.MODE.value, XDPAction.TX.value)
+    _set_xdp_map("map_xdp_setup", TestConfig.PORT.value, port)
+
+    expected_pkts = 0
+    for payload_len in payload_lens:
+        test_string = "".join(
+            random.choice(string.ascii_lowercase) for _ in range(payload_len)
+        )
+
+        rx_udp = f"socat -{cfg.addr_ipver} -T 2 " + \
+                 f"-u UDP-RECV:{port},reuseport STDOUT"
+        tx_udp = f"echo -n {test_string} | socat -t 2 " + \
+                 f"-u STDIN UDP:{cfg.baddr}:{port}"
+
+        with bkg(rx_udp, host=cfg.remote, exit_wait=True) as rnc:
+            wait_port_listen(port, proto="udp", host=cfg.remote)
+            cmd(tx_udp, host=cfg.remote, shell=True)
+
+        ksft_eq(rnc.stdout.strip(), test_string, "UDP packet exchange failed")
+
+        expected_pkts += 1
+        stats = _get_stats(prog_info["maps"]["map_xdp_stats"])
+        ksft_eq(stats[XDPStats.RX.value], expected_pkts, "RX stats mismatch")
+        ksft_eq(stats[XDPStats.TX.value], expected_pkts, "TX stats mismatch")
+
+
 def test_xdp_native_tx_mb(cfg):
     """
     Tests the XDP_TX action for a multi-buff case.
@@ -297,27 +336,9 @@ def test_xdp_native_tx_mb(cfg):
     Args:
         cfg: Configuration object containing network settings.
     """
-    cfg.require_cmd("socat", remote=True)
-
-    bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o", "xdp.frags", 9000)
-    prog_info = _load_xdp_prog(cfg, bpf_info)
-    port = rand_port()
-
-    _set_xdp_map("map_xdp_setup", TestConfig.MODE.value, XDPAction.TX.value)
-    _set_xdp_map("map_xdp_setup", TestConfig.PORT.value, port)
-
-    test_string = ''.join(random.choice(string.ascii_lowercase) for _ in range(8000))
-    rx_udp = f"socat -{cfg.addr_ipver} -T 2 -u UDP-RECV:{port},reuseport STDOUT"
-    tx_udp = f"echo {test_string} | socat -t 2 -u STDIN UDP:{cfg.baddr}:{port}"
-
-    with bkg(rx_udp, host=cfg.remote, exit_wait=True) as rnc:
-        wait_port_listen(port, proto="udp", host=cfg.remote)
-        cmd(tx_udp, host=cfg.remote, shell=True)
-
-    stats = _get_stats(prog_info['maps']['map_xdp_stats'])
-
-    ksft_eq(rnc.stdout.strip(), test_string, "UDP packet exchange failed")
-    ksft_eq(stats[XDPStats.TX.value], 1, "TX stats mismatch")
+    bpf_info = BPFProgInfo("xdp_prog_frags", "xdp_native.bpf.o",
+                           "xdp.frags", 9000)
+    _test_xdp_native_tx(cfg, bpf_info, [8000])
 
 
 def _validate_res(res, offset_lst, pkt_sz_lst):
