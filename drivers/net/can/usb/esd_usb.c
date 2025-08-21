@@ -275,6 +275,7 @@ struct esd_usb {
 	int net_count;
 	u32 version;
 	int rxinitdone;
+	int in_usb_disconnect;
 	void *rxbuf[ESD_USB_MAX_RX_URBS];
 	dma_addr_t rxbuf_dma[ESD_USB_MAX_RX_URBS];
 };
@@ -947,9 +948,9 @@ nourbmem:
 	return ret;
 }
 
-static int esd_usb_close(struct net_device *netdev)
+/* Stop interface */
+static int esd_usb_stop(struct esd_usb_net_priv *priv)
 {
-	struct esd_usb_net_priv *priv = netdev_priv(netdev);
 	union esd_usb_msg *msg;
 	int err;
 	int i;
@@ -966,8 +967,10 @@ static int esd_usb_close(struct net_device *netdev)
 	for (i = 0; i <= ESD_USB_MAX_ID_SEGMENT; i++)
 		msg->filter.mask[i] = 0;
 	err = esd_usb_send_msg(priv->usb, msg);
-	if (err < 0)
-		netdev_err(netdev, "sending idadd message failed: %pe\n", ERR_PTR(err));
+	if (err < 0) {
+		netdev_err(priv->netdev, "sending idadd message failed: %pe\n", ERR_PTR(err));
+		goto bail;
+	}
 
 	/* set CAN controller to reset mode */
 	msg->hdr.len = sizeof(struct esd_usb_set_baudrate_msg) / sizeof(u32); /* # of 32bit words */
@@ -977,7 +980,23 @@ static int esd_usb_close(struct net_device *netdev)
 	msg->setbaud.baud = cpu_to_le32(ESD_USB_NO_BAUDRATE);
 	err = esd_usb_send_msg(priv->usb, msg);
 	if (err < 0)
-		netdev_err(netdev, "sending setbaud message failed: %pe\n", ERR_PTR(err));
+		netdev_err(priv->netdev, "sending setbaud message failed: %pe\n", ERR_PTR(err));
+
+bail:
+	kfree(msg);
+
+	return err;
+}
+
+static int esd_usb_close(struct net_device *netdev)
+{
+	struct esd_usb_net_priv *priv = netdev_priv(netdev);
+	int err = 0;
+
+	if (!priv->usb->in_usb_disconnect) {
+		/* It's moot to try this in usb_disconnect()! */
+		err = esd_usb_stop(priv);
+	}
 
 	priv->can.state = CAN_STATE_STOPPED;
 
@@ -985,9 +1004,7 @@ static int esd_usb_close(struct net_device *netdev)
 
 	close_candev(netdev);
 
-	kfree(msg);
-
-	return 0;
+	return err;
 }
 
 static const struct net_device_ops esd_usb_netdev_ops = {
@@ -1357,6 +1374,7 @@ static void esd_usb_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	if (dev) {
+		dev->in_usb_disconnect = 1;
 		for (i = 0; i < dev->net_count; i++) {
 			if (dev->nets[i]) {
 				netdev = dev->nets[i]->netdev;
