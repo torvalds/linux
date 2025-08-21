@@ -95,8 +95,6 @@ struct smb_direct_transport {
 	struct work_struct	send_immediate_work;
 
 	bool			legacy_iwarp;
-	u8			initiator_depth;
-	u8			responder_resources;
 };
 
 #define KSMBD_TRANS(t) (&(t)->transport)
@@ -301,6 +299,8 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
 
 	sp->negotiate_timeout_msec = SMB_DIRECT_NEGOTIATE_TIMEOUT * 1000;
+	sp->initiator_depth = SMB_DIRECT_CM_INITIATOR_DEPTH;
+	sp->responder_resources = 1;
 	sp->recv_credit_max = smb_direct_receive_credit_max;
 	sp->send_credit_target = smb_direct_send_credit_target;
 	sp->max_send_size = smb_direct_max_send_size;
@@ -310,9 +310,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 
 	sc->rdma.cm_id = cm_id;
 	cm_id->context = t;
-
-	t->initiator_depth = SMB_DIRECT_CM_INITIATOR_DEPTH;
-	t->responder_resources = 1;
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
@@ -1676,18 +1673,19 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 static int smb_direct_accept_client(struct smb_direct_transport *t)
 {
 	struct smbdirect_socket *sc = &t->socket;
+	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct rdma_conn_param conn_param;
 	__be32 ird_ord_hdr[2];
 	int ret;
 
 	/*
 	 * smb_direct_handle_connect_request()
-	 * already negotiated t->initiator_depth
-	 * and t->responder_resources
+	 * already negotiated sp->initiator_depth
+	 * and sp->responder_resources
 	 */
 	memset(&conn_param, 0, sizeof(conn_param));
-	conn_param.initiator_depth = t->initiator_depth;
-	conn_param.responder_resources = t->responder_resources;
+	conn_param.initiator_depth = sp->initiator_depth;
+	conn_param.responder_resources = sp->responder_resources;
 
 	if (t->legacy_iwarp) {
 		ird_ord_hdr[0] = cpu_to_be32(conn_param.responder_resources);
@@ -2103,6 +2101,8 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 					     struct rdma_cm_event *event)
 {
 	struct smb_direct_transport *t;
+	struct smbdirect_socket *sc;
+	struct smbdirect_socket_parameters *sp;
 	struct task_struct *handler;
 	u8 peer_initiator_depth;
 	u8 peer_responder_resources;
@@ -2118,6 +2118,8 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 	t = alloc_transport(new_cm_id);
 	if (!t)
 		return -ENOMEM;
+	sc = &t->socket;
+	sp = &sc->parameters;
 
 	peer_initiator_depth = event->param.conn.initiator_depth;
 	peer_responder_resources = event->param.conn.responder_resources;
@@ -2165,7 +2167,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 	/*
 	 * First set what the we as server are able to support
 	 */
-	t->initiator_depth = min_t(u8, t->initiator_depth,
+	sp->initiator_depth = min_t(u8, sp->initiator_depth,
 				   new_cm_id->device->attrs.max_qp_rd_atom);
 
 	/*
@@ -2174,10 +2176,10 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 	 * non 0 values.
 	 */
 	if (peer_initiator_depth != 0)
-		t->initiator_depth = min_t(u8, t->initiator_depth,
+		sp->initiator_depth = min_t(u8, sp->initiator_depth,
 					   peer_initiator_depth);
 	if (peer_responder_resources != 0)
-		t->responder_resources = min_t(u8, t->responder_resources,
+		sp->responder_resources = min_t(u8, sp->responder_resources,
 					       peer_responder_resources);
 
 	ret = smb_direct_connect(t);
