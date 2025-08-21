@@ -85,8 +85,8 @@ properties:
       - via,vt8500-rtc
       # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
       - whwave,sd3078
-      # Xircom X1205 I2C RTC
-      - xircom,x1205
+      # Xicor/Intersil X1205 I2C RTC
+      - xicor,x1205
 
   reg:
     maxItems: 1
