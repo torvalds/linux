@@ -50,8 +50,6 @@ struct smbd_connection {
 	int protocol;
 
 	/* Memory registrations */
-	/* Maximum number of RDMA read/write outstanding on this connection */
-	bool legacy_iwarp;
 	/* Maximum number of pages in a single RDMA write/read on this connection */
 	int max_frmr_depth;
 	/*

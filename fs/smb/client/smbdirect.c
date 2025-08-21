@@ -318,7 +318,7 @@ static int smbd_conn_upcall(
 				ird32 = min_t(u32, ird32, U8_MAX);
 				ord32 = min_t(u32, ord32, U8_MAX);
 
-				info->legacy_iwarp = true;
+				sc->rdma.legacy_iwarp = true;
 				peer_initiator_depth = (u8)ird32;
 				peer_responder_resources = (u8)ord32;
 			}
