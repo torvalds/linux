@@ -31,6 +31,7 @@
 #define PHY_ID_AQR113	0x31c31c40
 #define PHY_ID_AQR113C	0x31c31c12
 #define PHY_ID_AQR114C	0x31c31c22
+#define PHY_ID_AQR115	0x31c31c63
 #define PHY_ID_AQR115C	0x31c31c33
 #define PHY_ID_AQR813	0x31c31cb2
 
@@ -1345,6 +1346,31 @@ static struct phy_driver aqr_driver[] = {
 	.led_polarity_set = aqr_phy_led_polarity_set,
 },
 {
+	PHY_ID_MATCH_MODEL(PHY_ID_AQR115),
+	.name		= "Aquantia AQR115",
+	.probe		= aqr107_probe,
+	.get_rate_matching = aqr_gen2_get_rate_matching,
+	.config_init	= aqr_gen4_config_init,
+	.config_aneg	= aqr_config_aneg,
+	.config_intr	= aqr_config_intr,
+	.handle_interrupt = aqr_handle_interrupt,
+	.read_status	= aqr_gen2_read_status,
+	.get_tunable    = aqr107_get_tunable,
+	.set_tunable    = aqr107_set_tunable,
+	.suspend	= aqr_gen1_suspend,
+	.resume		= aqr_gen1_resume,
+	.get_sset_count	= aqr107_get_sset_count,
+	.get_strings	= aqr107_get_strings,
+	.get_stats	= aqr107_get_stats,
+	.get_features	= aqr115c_get_features,
+	.link_change_notify = aqr107_link_change_notify,
+	.led_brightness_set = aqr_phy_led_brightness_set,
+	.led_hw_is_supported = aqr_phy_led_hw_is_supported,
+	.led_hw_control_set = aqr_phy_led_hw_control_set,
+	.led_hw_control_get = aqr_phy_led_hw_control_get,
+	.led_polarity_set = aqr_phy_led_polarity_set,
+},
+{
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR115C),
 	.name           = "Aquantia AQR115C",
 	.probe          = aqr107_probe,
@@ -1413,6 +1439,7 @@ static const struct mdio_device_id __maybe_unused aqr_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR113) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR113C) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR114C) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR115) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR115C) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR813) },
 	{ }
