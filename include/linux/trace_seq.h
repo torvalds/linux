@@ -21,10 +21,10 @@
 	(sizeof(struct seq_buf) + sizeof(size_t) + sizeof(int)))
 
 struct trace_seq {
-	char			buffer[TRACE_SEQ_BUFFER_SIZE];
 	struct seq_buf		seq;
 	size_t			readpos;
 	int			full;
+	char                    buffer[TRACE_SEQ_BUFFER_SIZE];
 };
 
 static inline void
