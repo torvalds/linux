@@ -1346,6 +1346,31 @@ union dpcd_replay_configuration {
 	unsigned char raw;
 };
 
+union panel_replay_enable_and_configuration_1 {
+	struct {
+		unsigned char PANEL_REPLAY_ENABLE                     :1;
+		unsigned char PANEL_REPLAY_CRC_ENABLE                 :1;
+		unsigned char IRQ_HPD_ASSDP_MISSING                   :1;
+		unsigned char IRQ_HPD_VSCSDP_UNCORRECTABLE_ERROR      :1;
+		unsigned char IRQ_HPD_RFB_ERROR                       :1;
+		unsigned char IRQ_HPD_ACTIVE_FRAME_CRC_ERROR          :1;
+		unsigned char PANEL_REPLAY_SELECTIVE_UPDATE_ENABLE    :1;
+		unsigned char PANEL_REPLAY_EARLY_TRANSPORT_ENABLE     :1;
+	} bits;
+	unsigned char raw;
+};
+
+union panel_replay_enable_and_configuration_2 {
+	struct {
+		unsigned char SINK_REFRESH_RATE_UNLOCK_GRANTED        :1;
+		unsigned char RESERVED                                :1;
+		unsigned char SU_Y_GRANULARITY_EXT_VALUE_ENABLED      :1;
+		unsigned char SU_Y_GRANULARITY_EXT_VALUE              :4;
+		unsigned char SU_REGION_SCAN_LINE_CAPTURE_INDICATION  :1;
+	} bits;
+	unsigned char raw;
+};
+
 union dpcd_alpm_configuration {
 	struct {
 		unsigned char ENABLE                    : 1;
