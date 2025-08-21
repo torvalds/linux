@@ -3150,6 +3150,48 @@ out:
 	return r;
 }
 
+/* userspace programs need to invoke this ioctl explicitly on a FD to
+ * create a secondary kfd_process which replacing its primary kfd_process
+ */
+static int kfd_ioctl_create_process(struct file *filep, struct kfd_process *p, void *data)
+{
+	struct kfd_process *process;
+	int ret;
+
+	/* Each FD owns only one kfd_process */
+	if (p->context_id != KFD_CONTEXT_ID_PRIMARY)
+		return -EINVAL;
+
+	if (!filep->private_data || !p)
+		return -EINVAL;
+
+	mutex_lock(&kfd_processes_mutex);
+	if (p != filep->private_data) {
+		mutex_unlock(&kfd_processes_mutex);
+		return -EINVAL;
+	}
+
+	process = create_process(current, false);
+	if (IS_ERR(process)) {
+		mutex_unlock(&kfd_processes_mutex);
+		return PTR_ERR(process);
+	}
+
+	filep->private_data = process;
+	mutex_unlock(&kfd_processes_mutex);
+
+	ret = kfd_create_process_sysfs(process);
+	if (ret)
+		pr_warn("Failed to create sysfs entry for the kfd_process");
+
+	/* Each open() increases kref of the primary kfd_process,
+	 * so we need to reduce it here when we create a new secondary process replacing it
+	 */
+	kfd_unref_process(p);
+
+	return 0;
+}
+
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
 			    .cmd_drv = 0, .name = #ioctl}
@@ -3268,6 +3310,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_TRAP,
 			kfd_ioctl_set_debug_trap, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_CREATE_PROCESS,
+			kfd_ioctl_create_process, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
