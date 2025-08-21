@@ -77,6 +77,16 @@
  * available for migrations, but it's disabled. This is intended for debugging
  * purposes only.
  *
+ * PSMI
+ * ----
+ *
+ * Enable extra debugging capabilities to trace engine execution. Only useful
+ * during early platform enabling and requires additional hardware connected.
+ * Once it's enabled, additionals WAs are added and runtime configuration is
+ * done via debugfs. Example to enable it::
+ *
+ *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/enable_psmi
+ *
  * Remove devices
  * ==============
  *
@@ -89,8 +99,9 @@ struct xe_config_group_device {
 	struct config_group group;
 
 	struct xe_config_device {
-		bool survivability_mode;
 		u64 engines_allowed;
+		bool survivability_mode;
+		bool enable_psmi;
 	} config;
 
 	/* protects attributes */
@@ -98,8 +109,9 @@ struct xe_config_group_device {
 };
 
 static const struct xe_config_device device_defaults = {
-	.survivability_mode = false,
 	.engines_allowed = U64_MAX,
+	.survivability_mode = false,
+	.enable_psmi = false,
 };
 
 static void set_device_defaults(struct xe_config_device *config)
@@ -243,12 +255,38 @@ static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 	return len;
 }
 
-CONFIGFS_ATTR(, survivability_mode);
+static ssize_t enable_psmi_show(struct config_item *item, char *page)
+{
+	struct xe_config_device *dev = to_xe_config_device(item);
+
+	return sprintf(page, "%d\n", dev->enable_psmi);
+}
+
+static ssize_t enable_psmi_store(struct config_item *item, const char *page, size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	bool val;
+	int ret;
+
+	ret = kstrtobool(page, &val);
+	if (ret)
+		return ret;
+
+	mutex_lock(&dev->lock);
+	dev->config.enable_psmi = val;
+	mutex_unlock(&dev->lock);
+
+	return len;
+}
+
+CONFIGFS_ATTR(, enable_psmi);
 CONFIGFS_ATTR(, engines_allowed);
+CONFIGFS_ATTR(, survivability_mode);
 
 static struct configfs_attribute *xe_config_device_attrs[] = {
-	&attr_survivability_mode,
+	&attr_enable_psmi,
 	&attr_engines_allowed,
+	&attr_survivability_mode,
 	NULL,
 };
 
@@ -441,6 +479,26 @@ u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 	config_group_put(&dev->group);
 
 	return engines_allowed;
+}
+
+/**
+ * xe_configfs_get_psmi_enabled - get configfs enable_psmi setting
+ * @pdev: pci device
+ *
+ * Return: enable_psmi setting in configfs
+ */
+bool xe_configfs_get_psmi_enabled(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	bool ret;
+
+	if (!dev)
+		return false;
+
+	ret = dev->config.enable_psmi;
+	config_item_put(&dev->group.cg_item);
+
+	return ret;
 }
 
 int __init xe_configfs_init(void)
