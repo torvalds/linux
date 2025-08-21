@@ -979,6 +979,8 @@ class SphinxDependencyChecker(MissingCheckers):
 
         tex_pkgs = [
             "texlive-fontsextra",
+            "texlive-fonts-asian",
+            "fonts-ttf-dejavu",
         ]
 
         if re.search(r"OpenMandriva", self.system_release):
