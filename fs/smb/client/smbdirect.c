@@ -2345,9 +2345,8 @@ cleanup_entries:
  * issuing I/O trying to get MR at the same time, mr_list_lock is used to
  * protect this situation.
  */
-static struct smbdirect_mr_io *get_mr(struct smbd_connection *info)
+static struct smbdirect_mr_io *get_mr(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_mr_io *ret;
 	int rc;
 again:
@@ -2428,7 +2427,7 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 		return NULL;
 	}
 
-	smbdirect_mr = get_mr(info);
+	smbdirect_mr = get_mr(sc);
 	if (!smbdirect_mr) {
 		log_rdma_mr(ERR, "get_mr returning NULL\n");
 		return NULL;
