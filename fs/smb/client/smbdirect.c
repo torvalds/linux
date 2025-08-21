@@ -2229,14 +2229,15 @@ int smbd_send(struct TCP_Server_Info *server,
 
 static void register_mr_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct smbd_mr *mr;
-	struct ib_cqe *cqe;
+	struct smbdirect_mr_io *mr =
+		container_of(wc->wr_cqe, struct smbdirect_mr_io, cqe);
+	struct smbdirect_socket *sc = mr->socket;
+	struct smbd_connection *info =
+		container_of(sc, struct smbd_connection, socket);
 
 	if (wc->status) {
 		log_rdma_mr(ERR, "status=%d\n", wc->status);
-		cqe = wc->wr_cqe;
-		mr = container_of(cqe, struct smbd_mr, cqe);
-		smbd_disconnect_rdma_connection(mr->conn);
+		smbd_disconnect_rdma_connection(info);
 	}
 }
 
@@ -2254,11 +2255,11 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 	struct smbd_connection *info =
 		container_of(work, struct smbd_connection, mr_recovery_work);
 	struct smbdirect_socket *sc = &info->socket;
-	struct smbd_mr *smbdirect_mr;
+	struct smbdirect_mr_io *smbdirect_mr;
 	int rc;
 
 	list_for_each_entry(smbdirect_mr, &info->mr_list, list) {
-		if (smbdirect_mr->state == MR_ERROR) {
+		if (smbdirect_mr->state == SMBDIRECT_MR_ERROR) {
 
 			/* recover this MR entry */
 			rc = ib_dereg_mr(smbdirect_mr->mr);
@@ -2284,7 +2285,7 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 			/* This MR is being used, don't recover it */
 			continue;
 
-		smbdirect_mr->state = MR_READY;
+		smbdirect_mr->state = SMBDIRECT_MR_READY;
 
 		/* smbdirect_mr->state is updated by this function
 		 * and is read and updated by I/O issuing CPUs trying
@@ -2301,11 +2302,11 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 static void destroy_mr_list(struct smbd_connection *info)
 {
 	struct smbdirect_socket *sc = &info->socket;
-	struct smbd_mr *mr, *tmp;
+	struct smbdirect_mr_io *mr, *tmp;
 
 	disable_work_sync(&info->mr_recovery_work);
 	list_for_each_entry_safe(mr, tmp, &info->mr_list, list) {
-		if (mr->state == MR_INVALIDATED)
+		if (mr->state == SMBDIRECT_MR_INVALIDATED)
 			ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl,
 				mr->sgt.nents, mr->dir);
 		ib_dereg_mr(mr->mr);
@@ -2326,7 +2327,7 @@ static int allocate_mr_list(struct smbd_connection *info)
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int i;
-	struct smbd_mr *smbdirect_mr, *tmp;
+	struct smbdirect_mr_io *smbdirect_mr, *tmp;
 
 	INIT_LIST_HEAD(&info->mr_list);
 	init_waitqueue_head(&info->wait_mr);
@@ -2361,8 +2362,8 @@ static int allocate_mr_list(struct smbd_connection *info)
 			ib_dereg_mr(smbdirect_mr->mr);
 			goto out;
 		}
-		smbdirect_mr->state = MR_READY;
-		smbdirect_mr->conn = info;
+		smbdirect_mr->state = SMBDIRECT_MR_READY;
+		smbdirect_mr->socket = sc;
 
 		list_add_tail(&smbdirect_mr->list, &info->mr_list);
 		atomic_inc(&info->mr_ready_count);
@@ -2389,10 +2390,10 @@ cleanup_entries:
  * issuing I/O trying to get MR at the same time, mr_list_lock is used to
  * protect this situation.
  */
-static struct smbd_mr *get_mr(struct smbd_connection *info)
+static struct smbdirect_mr_io *get_mr(struct smbd_connection *info)
 {
 	struct smbdirect_socket *sc = &info->socket;
-	struct smbd_mr *ret;
+	struct smbdirect_mr_io *ret;
 	int rc;
 again:
 	rc = wait_event_interruptible(info->wait_mr,
@@ -2410,8 +2411,8 @@ again:
 
 	spin_lock(&info->mr_list_lock);
 	list_for_each_entry(ret, &info->mr_list, list) {
-		if (ret->state == MR_READY) {
-			ret->state = MR_REGISTERED;
+		if (ret->state == SMBDIRECT_MR_READY) {
+			ret->state = SMBDIRECT_MR_REGISTERED;
 			spin_unlock(&info->mr_list_lock);
 			atomic_dec(&info->mr_ready_count);
 			atomic_inc(&info->mr_used_count);
@@ -2453,12 +2454,12 @@ static int smbd_iter_to_mr(struct smbd_connection *info,
  * need_invalidate: true if this MR needs to be locally invalidated after I/O
  * return value: the MR registered, NULL if failed.
  */
-struct smbd_mr *smbd_register_mr(struct smbd_connection *info,
+struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 				 struct iov_iter *iter,
 				 bool writing, bool need_invalidate)
 {
 	struct smbdirect_socket *sc = &info->socket;
-	struct smbd_mr *smbdirect_mr;
+	struct smbdirect_mr_io *smbdirect_mr;
 	int rc, num_pages;
 	enum dma_data_direction dir;
 	struct ib_reg_wr *reg_wr;
@@ -2530,13 +2531,13 @@ struct smbd_mr *smbd_register_mr(struct smbd_connection *info,
 	log_rdma_mr(ERR, "ib_post_send failed rc=%x reg_wr->key=%x\n",
 		rc, reg_wr->key);
 
-	/* If all failed, attempt to recover this MR by setting it MR_ERROR*/
+	/* If all failed, attempt to recover this MR by setting it SMBDIRECT_MR_ERROR*/
 map_mr_error:
 	ib_dma_unmap_sg(sc->ib.dev, smbdirect_mr->sgt.sgl,
 			smbdirect_mr->sgt.nents, smbdirect_mr->dir);
 
 dma_map_error:
-	smbdirect_mr->state = MR_ERROR;
+	smbdirect_mr->state = SMBDIRECT_MR_ERROR;
 	if (atomic_dec_and_test(&info->mr_used_count))
 		wake_up(&info->wait_for_mr_cleanup);
 
@@ -2547,15 +2548,15 @@ dma_map_error:
 
 static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct smbd_mr *smbdirect_mr;
+	struct smbdirect_mr_io *smbdirect_mr;
 	struct ib_cqe *cqe;
 
 	cqe = wc->wr_cqe;
-	smbdirect_mr = container_of(cqe, struct smbd_mr, cqe);
-	smbdirect_mr->state = MR_INVALIDATED;
+	smbdirect_mr = container_of(cqe, struct smbdirect_mr_io, cqe);
+	smbdirect_mr->state = SMBDIRECT_MR_INVALIDATED;
 	if (wc->status != IB_WC_SUCCESS) {
 		log_rdma_mr(ERR, "invalidate failed status=%x\n", wc->status);
-		smbdirect_mr->state = MR_ERROR;
+		smbdirect_mr->state = SMBDIRECT_MR_ERROR;
 	}
 	complete(&smbdirect_mr->invalidate_done);
 }
@@ -2566,11 +2567,12 @@ static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */
-int smbd_deregister_mr(struct smbd_mr *smbdirect_mr)
+int smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
 {
 	struct ib_send_wr *wr;
-	struct smbd_connection *info = smbdirect_mr->conn;
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc = smbdirect_mr->socket;
+	struct smbd_connection *info =
+		container_of(sc, struct smbd_connection, socket);
 	int rc = 0;
 
 	if (smbdirect_mr->need_invalidate) {
@@ -2594,17 +2596,17 @@ int smbd_deregister_mr(struct smbd_mr *smbdirect_mr)
 		smbdirect_mr->need_invalidate = false;
 	} else
 		/*
-		 * For remote invalidation, just set it to MR_INVALIDATED
+		 * For remote invalidation, just set it to SMBDIRECT_MR_INVALIDATED
 		 * and defer to mr_recovery_work to recover the MR for next use
 		 */
-		smbdirect_mr->state = MR_INVALIDATED;
+		smbdirect_mr->state = SMBDIRECT_MR_INVALIDATED;
 
-	if (smbdirect_mr->state == MR_INVALIDATED) {
+	if (smbdirect_mr->state == SMBDIRECT_MR_INVALIDATED) {
 		ib_dma_unmap_sg(
 			sc->ib.dev, smbdirect_mr->sgt.sgl,
 			smbdirect_mr->sgt.nents,
 			smbdirect_mr->dir);
-		smbdirect_mr->state = MR_READY;
+		smbdirect_mr->state = SMBDIRECT_MR_READY;
 		if (atomic_inc_return(&info->mr_ready_count) == 1)
 			wake_up(&info->wait_mr);
 	} else

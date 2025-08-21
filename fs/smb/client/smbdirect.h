@@ -71,34 +71,11 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg);
 int smbd_send(struct TCP_Server_Info *server,
 	int num_rqst, struct smb_rqst *rqst);
 
-enum mr_state {
-	MR_READY,
-	MR_REGISTERED,
-	MR_INVALIDATED,
-	MR_ERROR
-};
-
-struct smbd_mr {
-	struct smbd_connection	*conn;
-	struct list_head	list;
-	enum mr_state		state;
-	struct ib_mr		*mr;
-	struct sg_table		sgt;
-	enum dma_data_direction	dir;
-	union {
-		struct ib_reg_wr	wr;
-		struct ib_send_wr	inv_wr;
-	};
-	struct ib_cqe		cqe;
-	bool			need_invalidate;
-	struct completion	invalidate_done;
-};
-
 /* Interfaces to register and deregister MR for RDMA read/write */
-struct smbd_mr *smbd_register_mr(
+struct smbdirect_mr_io *smbd_register_mr(
 	struct smbd_connection *info, struct iov_iter *iter,
 	bool writing, bool need_invalidate);
-int smbd_deregister_mr(struct smbd_mr *mr);
+int smbd_deregister_mr(struct smbdirect_mr_io *mr);
 
 #else
 #define cifs_rdma_enabled(server)	0
