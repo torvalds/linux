@@ -2385,8 +2385,7 @@ again:
 /*
  * Transcribe the pages from an iterator into an MR scatterlist.
  */
-static int smbd_iter_to_mr(struct smbd_connection *info,
-			   struct iov_iter *iter,
+static int smbd_iter_to_mr(struct iov_iter *iter,
 			   struct sg_table *sgt,
 			   unsigned int max_sg)
 {
@@ -2441,7 +2440,7 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 
 	log_rdma_mr(INFO, "num_pages=0x%x count=0x%zx depth=%u\n",
 		    num_pages, iov_iter_count(iter), sp->max_frmr_depth);
-	smbd_iter_to_mr(info, iter, &smbdirect_mr->sgt, sp->max_frmr_depth);
+	smbd_iter_to_mr(iter, &smbdirect_mr->sgt, sp->max_frmr_depth);
 
 	rc = ib_dma_map_sg(sc->ib.dev, smbdirect_mr->sgt.sgl,
 			   smbdirect_mr->sgt.nents, dir);
