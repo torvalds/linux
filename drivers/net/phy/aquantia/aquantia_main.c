@@ -991,9 +991,24 @@ static const u16 aqr_global_cfg_regs[] = {
 static int aqr107_fill_interface_modes(struct phy_device *phydev)
 {
 	unsigned long *possible = phydev->possible_interfaces;
+	struct aqr107_priv *priv = phydev->priv;
 	unsigned int serdes_mode, rate_adapt;
 	phy_interface_t interface;
-	int i, val;
+	int i, val, ret;
+
+	/* It's been observed on some models that - when coming out of suspend
+	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
+	 * continue on returning zeroes for some time. Let's poll the 100M
+	 * register until it returns a real value as both 113c and 115c support
+	 * this mode.
+	 */
+	if (priv->wait_on_global_cfg) {
+		ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
+						VEND1_GLOBAL_CFG_100M, val,
+						val != 0, 1000, 100000, false);
+		if (ret)
+			return ret;
+	}
 
 	/* Walk the media-speed configuration registers to determine which
 	 * host-side serdes modes may be used by the PHY depending on the
@@ -1042,25 +1057,6 @@ static int aqr107_fill_interface_modes(struct phy_device *phydev)
 	return 0;
 }
 
-static int aqr113c_fill_interface_modes(struct phy_device *phydev)
-{
-	int val, ret;
-
-	/* It's been observed on some models that - when coming out of suspend
-	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
-	 * continue on returning zeroes for some time. Let's poll the 100M
-	 * register until it returns a real value as both 113c and 115c support
-	 * this mode.
-	 */
-	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
-					VEND1_GLOBAL_CFG_100M, val, val != 0,
-					1000, 100000, false);
-	if (ret)
-		return ret;
-
-	return aqr107_fill_interface_modes(phydev);
-}
-
 static int aqr115c_get_features(struct phy_device *phydev)
 {
 	unsigned long *supported = phydev->supported;
@@ -1088,7 +1084,10 @@ static int aqr111_get_features(struct phy_device *phydev)
 
 static int aqr113c_config_init(struct phy_device *phydev)
 {
+	struct aqr107_priv *priv = phydev->priv;
 	int ret;
+
+	priv->wait_on_global_cfg = true;
 
 	ret = aqr107_config_init(phydev);
 	if (ret < 0)
@@ -1103,7 +1102,7 @@ static int aqr113c_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return aqr113c_fill_interface_modes(phydev);
+	return aqr107_fill_interface_modes(phydev);
 }
 
 static int aqr107_probe(struct phy_device *phydev)

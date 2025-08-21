@@ -178,6 +178,7 @@ struct aqr107_priv {
 	u64 sgmii_stats[AQR107_SGMII_STAT_SZ];
 	unsigned long leds_active_low;
 	unsigned long leds_active_high;
+	bool wait_on_global_cfg;
 };
 
 #if IS_REACHABLE(CONFIG_HWMON)
