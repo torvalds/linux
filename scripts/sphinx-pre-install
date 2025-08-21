@@ -764,9 +764,6 @@ class SphinxDependencyChecker(MissingCheckers):
 
         if self.pdf:
             pdf_pkgs = {
-                "texlive-lang-chinese": [
-                    "/usr/share/texlive/texmf-dist/tex/latex/ctex/ctexhook.sty",
-                ],
                 "fonts-dejavu": [
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                 ],
@@ -774,6 +771,15 @@ class SphinxDependencyChecker(MissingCheckers):
                     "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
                     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
                     "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+                ],
+                "tex-gyre": [
+                    "/usr/share/texmf/tex/latex/tex-gyre/tgtermes.sty"
+                ],
+                "texlive-fonts-recommended": [
+                    "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm",
+                ],
+                "texlive-lang-chinese": [
+                    "/usr/share/texlive/texmf-dist/tex/latex/ctex/ctexhook.sty",
                 ],
             }
 
