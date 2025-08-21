@@ -350,7 +350,7 @@ static ssize_t m24lr_read_reg_le(struct m24lr *m24lr, u64 *val,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
