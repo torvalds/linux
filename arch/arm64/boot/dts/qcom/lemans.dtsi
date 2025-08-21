@@ -5004,6 +5004,18 @@
 			gpio-ranges = <&tlmm 0 0 149>;
 			wakeup-parent = <&pdc>;
 
+			dp0_hot_plug_det: dp0-hot-plug-det-state {
+				pins = "gpio101";
+				function = "edp0_hot";
+				bias-disable;
+			};
+
+			dp1_hot_plug_det: dp1-hot-plug-det-state {
+				pins = "gpio102";
+				function = "edp1_hot";
+				bias-disable;
+			};
+
 			qup_i2c0_default: qup-i2c0-state {
 				pins = "gpio20", "gpio21";
 				function = "qup0_se0";
