@@ -2373,6 +2373,7 @@ void dissolve_on_fput(struct vfsmount *mnt)
 	}
 }
 
+/* locks: namespace_shared && pinned(mnt) || mount_locked_reader */
 static bool __has_locked_children(struct mount *mnt, struct dentry *dentry)
 {
 	struct mount *child;
@@ -2389,12 +2390,8 @@ static bool __has_locked_children(struct mount *mnt, struct dentry *dentry)
 
 bool has_locked_children(struct mount *mnt, struct dentry *dentry)
 {
-	bool res;
-
-	read_seqlock_excl(&mount_lock);
-	res = __has_locked_children(mnt, dentry);
-	read_sequnlock_excl(&mount_lock);
-	return res;
+	guard(mount_locked_reader)();
+	return __has_locked_children(mnt, dentry);
 }
 
 /*
