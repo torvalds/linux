@@ -142,10 +142,8 @@ int sys_chmod(const char *path, mode_t mode)
 {
 #if defined(__NR_fchmodat)
 	return my_syscall4(__NR_fchmodat, AT_FDCWD, path, mode, 0);
-#elif defined(__NR_chmod)
-	return my_syscall2(__NR_chmod, path, mode);
 #else
-	return __nolibc_enosys(__func__, path, mode);
+	return my_syscall2(__NR_chmod, path, mode);
 #endif
 }
 
@@ -165,10 +163,8 @@ int sys_chown(const char *path, uid_t owner, gid_t group)
 {
 #if defined(__NR_fchownat)
 	return my_syscall5(__NR_fchownat, AT_FDCWD, path, owner, group, 0);
-#elif defined(__NR_chown)
-	return my_syscall3(__NR_chown, path, owner, group);
 #else
-	return __nolibc_enosys(__func__, path, owner, group);
+	return my_syscall3(__NR_chown, path, owner, group);
 #endif
 }
 
@@ -582,10 +578,8 @@ int sys_link(const char *old, const char *new)
 {
 #if defined(__NR_linkat)
 	return my_syscall5(__NR_linkat, AT_FDCWD, old, AT_FDCWD, new, 0);
-#elif defined(__NR_link)
-	return my_syscall2(__NR_link, old, new);
 #else
-	return __nolibc_enosys(__func__, old, new);
+	return my_syscall2(__NR_link, old, new);
 #endif
 }
 
@@ -653,10 +647,8 @@ int sys_mkdir(const char *path, mode_t mode)
 {
 #if defined(__NR_mkdirat)
 	return my_syscall3(__NR_mkdirat, AT_FDCWD, path, mode);
-#elif defined(__NR_mkdir)
-	return my_syscall2(__NR_mkdir, path, mode);
 #else
-	return __nolibc_enosys(__func__, path, mode);
+	return my_syscall2(__NR_mkdir, path, mode);
 #endif
 }
 
@@ -675,10 +667,8 @@ int sys_rmdir(const char *path)
 {
 #if defined(__NR_rmdir)
 	return my_syscall1(__NR_rmdir, path);
-#elif defined(__NR_unlinkat)
-	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 #else
-	return __nolibc_enosys(__func__, path);
+	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 #endif
 }
 
@@ -698,10 +688,8 @@ long sys_mknod(const char *path, mode_t mode, dev_t dev)
 {
 #if defined(__NR_mknodat)
 	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
-#elif defined(__NR_mknod)
-	return my_syscall3(__NR_mknod, path, mode, dev);
 #else
-	return __nolibc_enosys(__func__, path, mode, dev);
+	return my_syscall3(__NR_mknod, path, mode, dev);
 #endif
 }
 
@@ -885,10 +873,8 @@ int sys_symlink(const char *old, const char *new)
 {
 #if defined(__NR_symlinkat)
 	return my_syscall3(__NR_symlinkat, old, AT_FDCWD, new);
-#elif defined(__NR_symlink)
-	return my_syscall2(__NR_symlink, old, new);
 #else
-	return __nolibc_enosys(__func__, old, new);
+	return my_syscall2(__NR_symlink, old, new);
 #endif
 }
 
@@ -942,10 +928,8 @@ int sys_unlink(const char *path)
 {
 #if defined(__NR_unlinkat)
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, 0);
-#elif defined(__NR_unlink)
-	return my_syscall1(__NR_unlink, path);
 #else
-	return __nolibc_enosys(__func__, path);
+	return my_syscall1(__NR_unlink, path);
 #endif
 }
 
