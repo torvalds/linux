@@ -304,9 +304,8 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 				err = PTR_ERR(this);
 				break;
 			}
-			read_seqlock_excl(&mount_lock);
-			mnt_set_mountpoint(n, dest_mp, this);
-			read_sequnlock_excl(&mount_lock);
+			scoped_guard(mount_locked_reader)
+				mnt_set_mountpoint(n, dest_mp, this);
 			if (n->mnt_master)
 				SET_MNT_MARK(n->mnt_master);
 			copy = this;
