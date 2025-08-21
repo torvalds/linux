@@ -50,6 +50,10 @@ struct smbdirect_socket {
 	/* RDMA related */
 	struct {
 		struct rdma_cm_id *cm_id;
+		/*
+		 * This is for iWarp MPA v1
+		 */
+		bool legacy_iwarp;
 	} rdma;
 
 	/* IB verbs related */
