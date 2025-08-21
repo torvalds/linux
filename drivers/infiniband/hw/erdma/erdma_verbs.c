@@ -671,7 +671,7 @@ static u32 vmalloc_to_dma_addrs(struct erdma_dev *dev, dma_addr_t **dma_addrs,
 
 	npages = (PAGE_ALIGN((u64)buf + len) - PAGE_ALIGN_DOWN((u64)buf)) >>
 		 PAGE_SHIFT;
-	pg_dma = vzalloc(npages * sizeof(dma_addr_t));
+	pg_dma = vcalloc(npages, sizeof(*pg_dma));
 	if (!pg_dma)
 		return 0;
 
