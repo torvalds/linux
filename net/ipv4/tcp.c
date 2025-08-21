@@ -3760,7 +3760,7 @@ int tcp_sock_set_maxseg(struct sock *sk, int val)
 	if (val && (val < TCP_MIN_MSS || val > MAX_TCP_WINDOW))
 		return -EINVAL;
 
-	tcp_sk(sk)->rx_opt.user_mss = val;
+	WRITE_ONCE(tcp_sk(sk)->rx_opt.user_mss, val);
 	return 0;
 }
 
@@ -4383,6 +4383,7 @@ int do_tcp_getsockopt(struct sock *sk, int level,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct net *net = sock_net(sk);
+	int user_mss;
 	int val, len;
 
 	if (copy_from_sockptr(&len, optlen, sizeof(int)))
@@ -4396,9 +4397,10 @@ int do_tcp_getsockopt(struct sock *sk, int level,
 	switch (optname) {
 	case TCP_MAXSEG:
 		val = tp->mss_cache;
-		if (tp->rx_opt.user_mss &&
+		user_mss = READ_ONCE(tp->rx_opt.user_mss);
+		if (user_mss &&
 		    ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)))
-			val = tp->rx_opt.user_mss;
+			val = user_mss;
 		if (tp->repair)
 			val = tp->rx_opt.mss_clamp;
 		break;
