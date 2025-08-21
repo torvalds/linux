@@ -73,6 +73,7 @@ obj-$(CONFIG_COMEDI_ADDI_APCI_3120)	+= addi_apci_3120.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3501)	+= addi_apci_3501.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3XXX)	+= addi_apci_3xxx.o
 obj-$(CONFIG_COMEDI_ADL_PCI6208)	+= adl_pci6208.o
+obj-$(CONFIG_COMEDI_ADL_PCI7250)	+= adl_pci7250.o
 obj-$(CONFIG_COMEDI_ADL_PCI7X3X)	+= adl_pci7x3x.o
 obj-$(CONFIG_COMEDI_ADL_PCI8164)	+= adl_pci8164.o
 obj-$(CONFIG_COMEDI_ADL_PCI9111)	+= adl_pci9111.o
