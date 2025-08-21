@@ -27,7 +27,7 @@
  * cache size, the idea being that when the cache is at its maximum number
  * of entries, then this should be the average number of entries per bucket.
  */
-#define TARGET_BUCKET_SIZE	64
+#define TARGET_BUCKET_SIZE	8
 
 struct nfsd_drc_bucket {
 	struct rb_root rb_head;
