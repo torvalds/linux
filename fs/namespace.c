@@ -906,17 +906,14 @@ bool __is_local_mountpoint(const struct dentry *dentry)
 {
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	struct mount *mnt, *n;
-	bool is_covered = false;
 
-	down_read(&namespace_sem);
-	rbtree_postorder_for_each_entry_safe(mnt, n, &ns->mounts, mnt_node) {
-		is_covered = (mnt->mnt_mountpoint == dentry);
-		if (is_covered)
-			break;
-	}
-	up_read(&namespace_sem);
+	guard(namespace_shared)();
 
-	return is_covered;
+	rbtree_postorder_for_each_entry_safe(mnt, n, &ns->mounts, mnt_node)
+		if (mnt->mnt_mountpoint == dentry)
+			return true;
+
+	return false;
 }
 
 struct pinned_mountpoint {
