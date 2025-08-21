@@ -29,10 +29,10 @@ static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf);
 static void destroy_receive_buffers(struct smbdirect_socket *sc);
 
 static void enqueue_reassembly(
-		struct smbd_connection *info,
+		struct smbdirect_socket *sc,
 		struct smbdirect_recv_io *response, int data_length);
 static struct smbdirect_recv_io *_get_first_reassembly(
-		struct smbd_connection *info);
+		struct smbdirect_socket *sc);
 
 static int smbd_post_recv(
 		struct smbd_connection *info,
@@ -705,7 +705,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			if (sc->recv_io.credits.target > old_recv_credit_target)
 				queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 
-			enqueue_reassembly(info, response, data_length);
+			enqueue_reassembly(sc, response, data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
 			put_receive_buffer(sc, response);
@@ -1336,12 +1336,10 @@ static int smbd_negotiate(struct smbd_connection *info)
  * data_length: the size of payload in this packet
  */
 static void enqueue_reassembly(
-	struct smbd_connection *info,
+	struct smbdirect_socket *sc,
 	struct smbdirect_recv_io *response,
 	int data_length)
 {
-	struct smbdirect_socket *sc = &info->socket;
-
 	spin_lock(&sc->recv_io.reassembly.lock);
 	list_add_tail(&response->list, &sc->recv_io.reassembly.list);
 	sc->recv_io.reassembly.queue_length++;
@@ -1362,9 +1360,8 @@ static void enqueue_reassembly(
  * Caller is responsible for locking
  * return value: the first entry if any, NULL if queue is empty
  */
-static struct smbdirect_recv_io *_get_first_reassembly(struct smbd_connection *info)
+static struct smbdirect_recv_io *_get_first_reassembly(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *ret = NULL;
 
 	if (!list_empty(&sc->recv_io.reassembly.list)) {
@@ -1556,7 +1553,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "drain the reassembly queue\n");
 	do {
 		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
-		response = _get_first_reassembly(info);
+		response = _get_first_reassembly(sc);
 		if (response) {
 			list_del(&response->list);
 			spin_unlock_irqrestore(
@@ -2032,7 +2029,7 @@ again:
 		to_read = size;
 		offset = sc->recv_io.reassembly.first_entry_offset;
 		while (data_read < size) {
-			response = _get_first_reassembly(info);
+			response = _get_first_reassembly(sc);
 			data_transfer = smbdirect_recv_io_payload(response);
 			data_length = le32_to_cpu(data_transfer->data_length);
 			remaining_data_length =
