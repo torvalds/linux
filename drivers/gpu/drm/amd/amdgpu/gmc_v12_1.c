@@ -249,6 +249,8 @@ static void gmc_v12_1_get_vm_pde(struct amdgpu_device *adev, int level,
 			adev->gmc.vram_start;
 	BUG_ON(*addr & 0xFFFF00000000003FULL);
 
+	*flags |= AMDGPU_PTE_SNOOPED;
+
 	if (!adev->gmc.translate_further)
 		return;
 
