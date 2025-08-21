@@ -92,6 +92,8 @@ u64 xe_svm_find_vma_start(struct xe_vm *vm, u64 addr, u64 end,  struct xe_vma *v
 
 void xe_svm_unmap_address_range(struct xe_vm *vm, u64 start, u64 end);
 
+u8 xe_svm_ranges_zap_ptes_in_range(struct xe_vm *vm, u64 start, u64 end);
+
 /**
  * xe_svm_range_has_dma_mapping() - SVM range has DMA mapping
  * @range: SVM range
@@ -308,6 +310,12 @@ u64 xe_svm_find_vma_start(struct xe_vm *vm, u64 addr, u64 end, struct xe_vma *vm
 static inline
 void xe_svm_unmap_address_range(struct xe_vm *vm, u64 start, u64 end)
 {
+}
+
+static inline
+u8 xe_svm_ranges_zap_ptes_in_range(struct xe_vm *vm, u64 start, u64 end)
+{
+	return 0;
 }
 
 #define xe_svm_assert_in_notifier(...) do {} while (0)
