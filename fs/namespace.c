@@ -2402,21 +2402,15 @@ bool has_locked_children(struct mount *mnt, struct dentry *dentry)
  * specified subtree.  Such references can act as pins for mount namespaces
  * that aren't checked by the mount-cycle checking code, thereby allowing
  * cycles to be made.
+ *
+ * locks: mount_locked_reader || namespace_shared && pinned(subtree)
  */
 static bool check_for_nsfs_mounts(struct mount *subtree)
 {
-	struct mount *p;
-	bool ret = false;
-
-	lock_mount_hash();
-	for (p = subtree; p; p = next_mnt(p, subtree))
+	for (struct mount *p = subtree; p; p = next_mnt(p, subtree))
 		if (mnt_ns_loop(p->mnt.mnt_root))
-			goto out;
-
-	ret = true;
-out:
-	unlock_mount_hash();
-	return ret;
+			return false;
+	return true;
 }
 
 /**
