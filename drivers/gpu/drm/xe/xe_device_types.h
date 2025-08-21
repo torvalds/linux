@@ -576,6 +576,14 @@ struct xe_device {
 	atomic64_t global_total_pages;
 #endif
 
+	/** @psmi: GPU debugging via additional validation HW */
+	struct {
+		/** @psmi.capture_obj: PSMI buffer for VRAM */
+		struct xe_bo *capture_obj[XE_MAX_TILES_PER_DEVICE + 1];
+		/** @psmi.region_mask: Mask of valid memory regions */
+		u8 region_mask;
+	} psmi;
+
 	/* private: */
 
 #if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)

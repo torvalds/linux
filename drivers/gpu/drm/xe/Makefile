@@ -98,6 +98,7 @@ xe-y += xe_bb.o \
 	xe_pcode.o \
 	xe_pm.o \
 	xe_preempt_fence.o \
+	xe_psmi.o \
 	xe_pt.o \
 	xe_pt_walk.o \
 	xe_pxp.o \

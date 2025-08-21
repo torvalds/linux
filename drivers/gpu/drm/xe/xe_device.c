@@ -54,6 +54,7 @@
 #include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_pmu.h"
+#include "xe_psmi.h"
 #include "xe_pxp.h"
 #include "xe_query.h"
 #include "xe_shrinker.h"
@@ -905,6 +906,10 @@ int xe_device_probe(struct xe_device *xe)
 		return err;
 
 	err = xe_pxp_init(xe);
+	if (err)
+		return err;
+
+	err = xe_psmi_init(xe);
 	if (err)
 		return err;
 

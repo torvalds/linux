@@ -20,6 +20,7 @@
 #include "xe_guc_ads.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_psmi.h"
 #include "xe_pxp_debugfs.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
@@ -399,6 +400,8 @@ void xe_debugfs_register(struct xe_device *xe)
 		xe_gt_debugfs_register(gt);
 
 	xe_pxp_debugfs_register(xe->pxp);
+
+	xe_psmi_debugfs_register(xe);
 
 	fault_create_debugfs_attr("fail_gt_reset", root, &gt_reset_failure);
 
