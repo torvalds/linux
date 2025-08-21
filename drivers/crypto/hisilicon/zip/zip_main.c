@@ -1331,7 +1331,7 @@ static int zip_pre_store_cap_reg(struct hisi_qm *qm)
 	size_t i, size;
 
 	size = ARRAY_SIZE(zip_cap_query_info);
-	zip_cap = devm_kzalloc(&pdev->dev, sizeof(*zip_cap) * size, GFP_KERNEL);
+	zip_cap = devm_kcalloc(&pdev->dev, size, sizeof(*zip_cap), GFP_KERNEL);
 	if (!zip_cap)
 		return -ENOMEM;
 

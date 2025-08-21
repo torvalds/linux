@@ -1213,7 +1213,7 @@ static int hpre_pre_store_cap_reg(struct hisi_qm *qm)
 	size_t i, size;
 
 	size = ARRAY_SIZE(hpre_cap_query_info);
-	hpre_cap = devm_kzalloc(dev, sizeof(*hpre_cap) * size, GFP_KERNEL);
+	hpre_cap = devm_kcalloc(dev, size, sizeof(*hpre_cap), GFP_KERNEL);
 	if (!hpre_cap)
 		return -ENOMEM;
 

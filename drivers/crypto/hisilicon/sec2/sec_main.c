@@ -1215,7 +1215,7 @@ static int sec_pre_store_cap_reg(struct hisi_qm *qm)
 	size_t i, size;
 
 	size = ARRAY_SIZE(sec_cap_query_info);
-	sec_cap = devm_kzalloc(&pdev->dev, sizeof(*sec_cap) * size, GFP_KERNEL);
+	sec_cap = devm_kcalloc(&pdev->dev, size, sizeof(*sec_cap), GFP_KERNEL);
 	if (!sec_cap)
 		return -ENOMEM;
 
