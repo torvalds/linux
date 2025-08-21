@@ -91,6 +91,19 @@ def config_init(app, config):
     # LaTeX and PDF output require a list of documents with are dependent
     # of the app.srcdir. Add them here
 
+    # When SPHINXDIRS is used, we just need to get index.rst, if it exists
+    if not os.path.samefile(doctree, app.srcdir):
+        doc = "index"
+        doc_name = os.path.basename(app.srcdir)
+        if os.path.exists(os.path.join(app.srcdir, doc + ".rst")):
+            latex_documents.append((doc, doc_name + ".tex",
+                                    "Linux %s Documentation" % doc_name.capitalize(),
+                                    "The kernel development community",
+                                    "manual"))
+            return
+
+    # When building all docs, or when a main index.rst doesn't exist, seek
+    # for it on subdirectories
     for fn in os.listdir(app.srcdir):
         doc = os.path.join(fn, "index")
         if not os.path.exists(os.path.join(app.srcdir, doc + ".rst")):
