@@ -41,8 +41,6 @@ struct smbd_connection {
 
 
 	/* Memory registrations */
-	/* Maximum number of pages in a single RDMA write/read on this connection */
-	int max_frmr_depth;
 	enum ib_mr_type mr_type;
 	struct list_head mr_list;
 	spinlock_t mr_list_lock;
