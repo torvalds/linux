@@ -4167,23 +4167,28 @@ u32 mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 }
 EXPORT_SYMBOL(mlx5_eswitch_get_vport_metadata_for_match);
 
-int mlx5_esw_vport_vhca_id_set(struct mlx5_eswitch *esw, u16 vport_num)
+int mlx5_esw_vport_vhca_id_map(struct mlx5_eswitch *esw,
+			       struct mlx5_vport *vport)
 {
 	u16 *old_entry, *vhca_map_entry, vhca_id;
-	int err;
 
-	err = mlx5_vport_get_vhca_id(esw->dev, vport_num, &vhca_id);
-	if (err) {
-		esw_warn(esw->dev, "Getting vhca_id for vport failed (vport=%u,err=%d)\n",
-			 vport_num, err);
-		return err;
+	if (WARN_ONCE(MLX5_VPORT_INVAL_VHCA_ID(vport),
+		      "vport %d vhca_id is not set", vport->vport)) {
+		int err;
+
+		err = mlx5_vport_get_vhca_id(vport->dev, vport->vport,
+					     &vhca_id);
+		if (err)
+			return err;
+		vport->vhca_id = vhca_id;
 	}
 
+	vhca_id = vport->vhca_id;
 	vhca_map_entry = kmalloc(sizeof(*vhca_map_entry), GFP_KERNEL);
 	if (!vhca_map_entry)
 		return -ENOMEM;
 
-	*vhca_map_entry = vport_num;
+	*vhca_map_entry = vport->vport;
 	old_entry = xa_store(&esw->offloads.vhca_map, vhca_id, vhca_map_entry, GFP_KERNEL);
 	if (xa_is_err(old_entry)) {
 		kfree(vhca_map_entry);
@@ -4193,17 +4198,12 @@ int mlx5_esw_vport_vhca_id_set(struct mlx5_eswitch *esw, u16 vport_num)
 	return 0;
 }
 
-void mlx5_esw_vport_vhca_id_clear(struct mlx5_eswitch *esw, u16 vport_num)
+void mlx5_esw_vport_vhca_id_unmap(struct mlx5_eswitch *esw,
+				  struct mlx5_vport *vport)
 {
-	u16 *vhca_map_entry, vhca_id;
-	int err;
+	u16 *vhca_map_entry;
 
-	err = mlx5_vport_get_vhca_id(esw->dev, vport_num, &vhca_id);
-	if (err)
-		esw_warn(esw->dev, "Getting vhca_id for vport failed (vport=%hu,err=%d)\n",
-			 vport_num, err);
-
-	vhca_map_entry = xa_erase(&esw->offloads.vhca_map, vhca_id);
+	vhca_map_entry = xa_erase(&esw->offloads.vhca_map, vport->vhca_id);
 	kfree(vhca_map_entry);
 }
 

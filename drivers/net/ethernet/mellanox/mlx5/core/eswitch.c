@@ -820,6 +820,7 @@ static int mlx5_esw_vport_caps_get(struct mlx5_eswitch *esw, struct mlx5_vport *
 
 	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
 	vport->info.roce_enabled = MLX5_GET(cmd_hca_cap, hca_caps, roce);
+	vport->vhca_id = MLX5_GET(cmd_hca_cap, hca_caps, vhca_id);
 
 	if (!MLX5_CAP_GEN_MAX(esw->dev, hca_cap_2))
 		goto out_free;
@@ -837,6 +838,18 @@ static int mlx5_esw_vport_caps_get(struct mlx5_eswitch *esw, struct mlx5_vport *
 out_free:
 	kfree(query_ctx);
 	return err;
+}
+
+bool mlx5_esw_vport_vhca_id(struct mlx5_eswitch *esw, u16 vportn, u16 *vhca_id)
+{
+	struct mlx5_vport *vport;
+
+	vport = mlx5_eswitch_get_vport(esw, vportn);
+	if (IS_ERR(vport) || MLX5_VPORT_INVAL_VHCA_ID(vport))
+		return false;
+
+	*vhca_id = vport->vhca_id;
+	return true;
 }
 
 static int esw_vport_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
@@ -929,7 +942,7 @@ int mlx5_esw_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 
 	if (!mlx5_esw_is_manager_vport(esw, vport_num) &&
 	    MLX5_CAP_GEN(esw->dev, vhca_resource_manager)) {
-		ret = mlx5_esw_vport_vhca_id_set(esw, vport_num);
+		ret = mlx5_esw_vport_vhca_id_map(esw, vport);
 		if (ret)
 			goto err_vhca_mapping;
 	}
@@ -973,7 +986,7 @@ void mlx5_esw_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 
 	if (!mlx5_esw_is_manager_vport(esw, vport_num) &&
 	    MLX5_CAP_GEN(esw->dev, vhca_resource_manager))
-		mlx5_esw_vport_vhca_id_clear(esw, vport_num);
+		mlx5_esw_vport_vhca_id_unmap(esw, vport);
 
 	if (vport->vport != MLX5_VPORT_PF &&
 	    (vport->info.ipsec_crypto_enabled || vport->info.ipsec_packet_enabled))
@@ -1735,6 +1748,7 @@ static int mlx5_esw_vport_alloc(struct mlx5_eswitch *esw,
 	vport->vport = vport_num;
 	vport->index = index;
 	vport->info.link_state = MLX5_VPORT_ADMIN_STATE_AUTO;
+	vport->vhca_id = MLX5_VHCA_ID_INVALID;
 	INIT_WORK(&vport->vport_change_handler, esw_vport_change_handler);
 	err = xa_insert(&esw->vports, vport_num, vport, GFP_KERNEL);
 	if (err)
