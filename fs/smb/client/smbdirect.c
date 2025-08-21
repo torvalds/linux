@@ -21,9 +21,9 @@ const struct smbdirect_socket_parameters *smbd_get_parameters(struct smbd_connec
 }
 
 static struct smbdirect_recv_io *get_receive_buffer(
-		struct smbd_connection *info);
+		struct smbdirect_socket *sc);
 static void put_receive_buffer(
-		struct smbd_connection *info,
+		struct smbdirect_socket *sc,
 		struct smbdirect_recv_io *response);
 static int allocate_receive_buffers(struct smbd_connection *info, int num_buf);
 static void destroy_receive_buffers(struct smbd_connection *info);
@@ -548,7 +548,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 	if (sc->recv_io.credits.target >
 		atomic_read(&sc->recv_io.credits.count)) {
 		while (true) {
-			response = get_receive_buffer(info);
+			response = get_receive_buffer(sc);
 			if (!response)
 				break;
 
@@ -557,7 +557,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 			if (rc) {
 				log_rdma_recv(ERR,
 					"post_recv failed rc=%d\n", rc);
-				put_receive_buffer(info, response);
+				put_receive_buffer(sc, response);
 				break;
 			}
 
@@ -623,7 +623,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		sc->recv_io.reassembly.full_packet_received = true;
 		negotiate_done =
 			process_negotiation_response(response, wc->byte_len);
-		put_receive_buffer(info, response);
+		put_receive_buffer(sc, response);
 		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING);
 		if (!negotiate_done) {
 			sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
@@ -708,7 +708,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			enqueue_reassembly(info, response, data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
-			put_receive_buffer(info, response);
+			put_receive_buffer(sc, response);
 
 		return;
 
@@ -723,7 +723,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	log_rdma_recv(ERR, "unexpected response type=%d\n", sc->recv_io.expected);
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
 error:
-	put_receive_buffer(info, response);
+	put_receive_buffer(sc, response);
 	smbd_disconnect_rdma_connection(info);
 }
 
@@ -1287,7 +1287,7 @@ static int smbd_negotiate(struct smbd_connection *info)
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int rc;
-	struct smbdirect_recv_io *response = get_receive_buffer(info);
+	struct smbdirect_recv_io *response = get_receive_buffer(sc);
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED);
 	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
@@ -1298,7 +1298,7 @@ static int smbd_negotiate(struct smbd_connection *info)
 		       rc, response->sge.addr,
 		       response->sge.length, response->sge.lkey);
 	if (rc) {
-		put_receive_buffer(info, response);
+		put_receive_buffer(sc, response);
 		return rc;
 	}
 
@@ -1381,9 +1381,8 @@ static struct smbdirect_recv_io *_get_first_reassembly(struct smbd_connection *i
  * pre-allocated in advance.
  * return value: the receive buffer, NULL if none is available
  */
-static struct smbdirect_recv_io *get_receive_buffer(struct smbd_connection *info)
+static struct smbdirect_recv_io *get_receive_buffer(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *ret = NULL;
 	unsigned long flags;
 
@@ -1407,9 +1406,8 @@ static struct smbdirect_recv_io *get_receive_buffer(struct smbd_connection *info
  * receive buffer is returned.
  */
 static void put_receive_buffer(
-	struct smbd_connection *info, struct smbdirect_recv_io *response)
+	struct smbdirect_socket *sc, struct smbdirect_recv_io *response)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	unsigned long flags;
 
 	if (likely(response->sge.length != 0)) {
@@ -1464,7 +1462,7 @@ static void destroy_receive_buffers(struct smbd_connection *info)
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_recv_io *response;
 
-	while ((response = get_receive_buffer(info)))
+	while ((response = get_receive_buffer(sc)))
 		mempool_free(response, sc->recv_io.mem.pool);
 }
 
@@ -1565,7 +1563,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 			list_del(&response->list);
 			spin_unlock_irqrestore(
 				&sc->recv_io.reassembly.lock, flags);
-			put_receive_buffer(info, response);
+			put_receive_buffer(sc, response);
 		} else
 			spin_unlock_irqrestore(
 				&sc->recv_io.reassembly.lock, flags);
@@ -2092,7 +2090,7 @@ again:
 				}
 				queue_removed++;
 				sc->statistics.dequeue_reassembly_queue++;
-				put_receive_buffer(info, response);
+				put_receive_buffer(sc, response);
 				offset = 0;
 				log_read(INFO, "put_receive_buffer offset=0\n");
 			} else
