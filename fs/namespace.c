@@ -2899,7 +2899,7 @@ static int do_change_type(struct path *path, int ms_flags)
 	struct mount *mnt = real_mount(path->mnt);
 	int recurse = ms_flags & MS_REC;
 	int type;
-	int err = 0;
+	int err;
 
 	if (!path_mounted(path))
 		return -EINVAL;
@@ -2908,23 +2908,22 @@ static int do_change_type(struct path *path, int ms_flags)
 	if (!type)
 		return -EINVAL;
 
-	namespace_lock();
+	guard(namespace_excl)();
+
 	err = may_change_propagation(mnt);
 	if (err)
-		goto out_unlock;
+		return err;
 
 	if (type == MS_SHARED) {
 		err = invent_group_ids(mnt, recurse);
 		if (err)
-			goto out_unlock;
+			return err;
 	}
 
 	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
 		change_mnt_propagation(m, type);
 
- out_unlock:
-	namespace_unlock();
-	return err;
+	return 0;
 }
 
 /* may_copy_tree() - check if a mount tree can be copied
