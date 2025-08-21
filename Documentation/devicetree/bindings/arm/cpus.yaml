@@ -145,11 +145,14 @@ properties:
       - arm,cortex-a78
       - arm,cortex-a78ae
       - arm,cortex-a78c
+      - arm,cortex-a320
       - arm,cortex-a510
       - arm,cortex-a520
+      - arm,cortex-a520ae
       - arm,cortex-a710
       - arm,cortex-a715
       - arm,cortex-a720
+      - arm,cortex-a720ae
       - arm,cortex-a725
       - arm,cortex-m0
       - arm,cortex-m0+
