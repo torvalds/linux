@@ -305,6 +305,7 @@ static bool iwl_ppag_value_valid(struct iwl_fw_runtime *fwrt, int chain,
 	return true;
 }
 
+/* Utility function for iwlmvm and iwlxvt */
 int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 			union iwl_ppag_table_cmd *cmd, int *cmd_size)
 {
