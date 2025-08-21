@@ -3349,47 +3349,44 @@ static inline int tree_contains_unbindable(struct mount *mnt)
 
 static int do_set_group(struct path *from_path, struct path *to_path)
 {
-	struct mount *from, *to;
+	struct mount *from = real_mount(from_path->mnt);
+	struct mount *to = real_mount(to_path->mnt);
 	int err;
 
-	from = real_mount(from_path->mnt);
-	to = real_mount(to_path->mnt);
-
-	namespace_lock();
+	guard(namespace_excl)();
 
 	err = may_change_propagation(from);
 	if (err)
-		goto out;
+		return err;
 	err = may_change_propagation(to);
 	if (err)
-		goto out;
+		return err;
 
-	err = -EINVAL;
 	/* To and From paths should be mount roots */
 	if (!path_mounted(from_path))
-		goto out;
+		return -EINVAL;
 	if (!path_mounted(to_path))
-		goto out;
+		return -EINVAL;
 
 	/* Setting sharing groups is only allowed across same superblock */
 	if (from->mnt.mnt_sb != to->mnt.mnt_sb)
-		goto out;
+		return -EINVAL;
 
 	/* From mount root should be wider than To mount root */
 	if (!is_subdir(to->mnt.mnt_root, from->mnt.mnt_root))
-		goto out;
+		return -EINVAL;
 
 	/* From mount should not have locked children in place of To's root */
 	if (__has_locked_children(from, to->mnt.mnt_root))
-		goto out;
+		return -EINVAL;
 
 	/* Setting sharing groups is only allowed on private mounts */
 	if (IS_MNT_SHARED(to) || IS_MNT_SLAVE(to))
-		goto out;
+		return -EINVAL;
 
 	/* From should not be private */
 	if (!IS_MNT_SHARED(from) && !IS_MNT_SLAVE(from))
-		goto out;
+		return -EINVAL;
 
 	if (IS_MNT_SLAVE(from)) {
 		hlist_add_behind(&to->mnt_slave, &from->mnt_slave);
@@ -3401,11 +3398,7 @@ static int do_set_group(struct path *from_path, struct path *to_path)
 		list_add(&to->mnt_share, &from->mnt_share);
 		set_mnt_shared(to);
 	}
-
-	err = 0;
-out:
-	namespace_unlock();
-	return err;
+	return 0;
 }
 
 /**
