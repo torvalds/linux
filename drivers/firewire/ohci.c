@@ -395,49 +395,17 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
 #define OHCI_PARAM_DEBUG_SELFIDS	2
-#define OHCI_PARAM_DEBUG_IRQS		4
 
 static int param_debug;
 module_param_named(debug, param_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Verbose logging, deprecated in v6.11 kernel or later. (default = 0"
 	", AT/AR events = "	__stringify(OHCI_PARAM_DEBUG_AT_AR)
 	", self-IDs = "		__stringify(OHCI_PARAM_DEBUG_SELFIDS)
-	", IRQs = "		__stringify(OHCI_PARAM_DEBUG_IRQS)
 	", or a combination, or all = -1)");
 
 static bool param_remote_dma;
 module_param_named(remote_dma, param_remote_dma, bool, 0444);
 MODULE_PARM_DESC(remote_dma, "Enable unfiltered remote DMA (default = N)");
-
-static void log_irqs(struct fw_ohci *ohci, u32 evt)
-{
-	if (likely(!(param_debug & OHCI_PARAM_DEBUG_IRQS)))
-		return;
-
-	ohci_notice(ohci, "IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
-	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
-	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
-	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
-	    evt & OHCI1394_reqTxComplete	? " AT_req"		: "",
-	    evt & OHCI1394_respTxComplete	? " AT_resp"		: "",
-	    evt & OHCI1394_isochRx		? " IR"			: "",
-	    evt & OHCI1394_isochTx		? " IT"			: "",
-	    evt & OHCI1394_postedWriteErr	? " postedWriteErr"	: "",
-	    evt & OHCI1394_cycleTooLong		? " cycleTooLong"	: "",
-	    evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
-	    evt & OHCI1394_cycleInconsistent	? " cycleInconsistent"	: "",
-	    evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
-	    evt & OHCI1394_unrecoverableError	? " unrecoverableError"	: "",
-	    evt & OHCI1394_busReset		? " busReset"		: "",
-	    evt & ~(OHCI1394_selfIDComplete | OHCI1394_RQPkt |
-		    OHCI1394_RSPkt | OHCI1394_reqTxComplete |
-		    OHCI1394_respTxComplete | OHCI1394_isochRx |
-		    OHCI1394_isochTx | OHCI1394_postedWriteErr |
-		    OHCI1394_cycleTooLong | OHCI1394_cycle64Seconds |
-		    OHCI1394_cycleInconsistent |
-		    OHCI1394_regAccessFail | OHCI1394_busReset)
-						? " ?"			: "");
-}
 
 static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 {
@@ -2226,7 +2194,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	reg_write(ohci, OHCI1394_IntEventClear,
 		  event & ~(OHCI1394_busReset | OHCI1394_postedWriteErr));
 	trace_irqs(ohci->card.index, event);
-	log_irqs(ohci, event);
+
 	// The flag is masked again at bus_reset_work() scheduled by selfID event.
 	if (event & OHCI1394_busReset)
 		reg_write(ohci, OHCI1394_IntMaskClear, OHCI1394_busReset);
