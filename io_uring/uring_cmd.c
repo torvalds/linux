@@ -202,8 +202,6 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	}
 
 	if (ioucmd->flags & IORING_URING_CMD_MULTISHOT) {
-		if (ioucmd->flags & IORING_URING_CMD_FIXED)
-			return -EINVAL;
 		if (!(req->flags & REQ_F_BUFFER_SELECT))
 			return -EINVAL;
 	} else {
