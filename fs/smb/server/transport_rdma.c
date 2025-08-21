@@ -147,9 +147,8 @@ static inline void
 }
 
 static struct
-smbdirect_recv_io *get_free_recvmsg(struct smb_direct_transport *t)
+smbdirect_recv_io *get_free_recvmsg(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_recv_io *recvmsg = NULL;
 
 	spin_lock(&sc->recv_io.free.lock);
@@ -163,11 +162,9 @@ smbdirect_recv_io *get_free_recvmsg(struct smb_direct_transport *t)
 	return recvmsg;
 }
 
-static void put_recvmsg(struct smb_direct_transport *t,
+static void put_recvmsg(struct smbdirect_socket *sc,
 			struct smbdirect_recv_io *recvmsg)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	if (likely(recvmsg->sge.length != 0)) {
 		ib_dma_unmap_single(sc->ib.dev,
 				    recvmsg->sge.addr,
@@ -400,7 +397,7 @@ static void free_transport(struct smb_direct_transport *t)
 		if (recvmsg) {
 			list_del(&recvmsg->list);
 			spin_unlock(&sc->recv_io.reassembly.lock);
-			put_recvmsg(t, recvmsg);
+			put_recvmsg(sc, recvmsg);
 		} else {
 			spin_unlock(&sc->recv_io.reassembly.lock);
 		}
@@ -515,7 +512,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	t = container_of(sc, struct smb_direct_transport, socket);
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
-		put_recvmsg(t, recvmsg);
+		put_recvmsg(sc, recvmsg);
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			pr_err("Recv error. status='%s (%d)' opcode=%d\n",
 			       ib_wc_status_msg(wc->status), wc->status,
@@ -543,7 +540,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	switch (sc->recv_io.expected) {
 	case SMBDIRECT_EXPECT_NEGOTIATE_REQ:
 		if (wc->byte_len < sizeof(struct smbdirect_negotiate_req)) {
-			put_recvmsg(t, recvmsg);
+			put_recvmsg(sc, recvmsg);
 			smb_direct_disconnect_rdma_connection(t);
 			return;
 		}
@@ -561,7 +558,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 		if (wc->byte_len <
 		    offsetof(struct smbdirect_data_transfer, padding)) {
-			put_recvmsg(t, recvmsg);
+			put_recvmsg(sc, recvmsg);
 			smb_direct_disconnect_rdma_connection(t);
 			return;
 		}
@@ -571,7 +568,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		data_offset = le32_to_cpu(data_transfer->data_offset);
 		if (wc->byte_len < data_offset ||
 		    wc->byte_len < (u64)data_offset + data_length) {
-			put_recvmsg(t, recvmsg);
+			put_recvmsg(sc, recvmsg);
 			smb_direct_disconnect_rdma_connection(t);
 			return;
 		}
@@ -579,7 +576,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		    data_length > sp->max_fragmented_recv_size ||
 		    (u64)remaining_data_length + (u64)data_length >
 		    (u64)sp->max_fragmented_recv_size) {
-			put_recvmsg(t, recvmsg);
+			put_recvmsg(sc, recvmsg);
 			smb_direct_disconnect_rdma_connection(t);
 			return;
 		}
@@ -621,7 +618,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			enqueue_reassembly(t, recvmsg, (int)data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
-			put_recvmsg(t, recvmsg);
+			put_recvmsg(sc, recvmsg);
 
 		return;
 	}
@@ -634,7 +631,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 * This is an internal error!
 	 */
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
-	put_recvmsg(t, recvmsg);
+	put_recvmsg(sc, recvmsg);
 	smb_direct_disconnect_rdma_connection(t);
 }
 
@@ -760,7 +757,7 @@ again:
 					spin_unlock_irq(&sc->recv_io.reassembly.lock);
 				}
 				queue_removed++;
-				put_recvmsg(st, recvmsg);
+				put_recvmsg(sc, recvmsg);
 				offset = 0;
 			} else {
 				offset += to_copy;
@@ -806,7 +803,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 
 	if (atomic_read(&sc->recv_io.credits.count) < sc->recv_io.credits.target) {
 		while (true) {
-			recvmsg = get_free_recvmsg(t);
+			recvmsg = get_free_recvmsg(sc);
 			if (!recvmsg)
 				break;
 
@@ -815,7 +812,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 			ret = smb_direct_post_recv(t, recvmsg);
 			if (ret) {
 				pr_err("Can't post recv: %d\n", ret);
-				put_recvmsg(t, recvmsg);
+				put_recvmsg(sc, recvmsg);
 				break;
 			}
 			credits++;
@@ -1792,7 +1789,7 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 
 	sc->recv_io.expected = SMBDIRECT_EXPECT_NEGOTIATE_REQ;
 
-	recvmsg = get_free_recvmsg(t);
+	recvmsg = get_free_recvmsg(sc);
 	if (!recvmsg)
 		return -ENOMEM;
 
@@ -1811,7 +1808,7 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 	smb_direct_post_recv_credits(&sc->recv_io.posted.refill_work);
 	return 0;
 out_err:
-	put_recvmsg(t, recvmsg);
+	put_recvmsg(sc, recvmsg);
 	return ret;
 }
 
@@ -1911,7 +1908,7 @@ static void smb_direct_destroy_pools(struct smb_direct_transport *t)
 	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_recv_io *recvmsg;
 
-	while ((recvmsg = get_free_recvmsg(t)))
+	while ((recvmsg = get_free_recvmsg(sc)))
 		mempool_free(recvmsg, sc->recv_io.mem.pool);
 
 	mempool_destroy(sc->recv_io.mem.pool);
@@ -2123,7 +2120,7 @@ out:
 	sc->recv_io.reassembly.queue_length--;
 	list_del(&recvmsg->list);
 	spin_unlock_irq(&sc->recv_io.reassembly.lock);
-	put_recvmsg(st, recvmsg);
+	put_recvmsg(sc, recvmsg);
 
 	return ret;
 }
