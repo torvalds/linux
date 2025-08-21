@@ -51,11 +51,13 @@ else:
     dyn_exclude_patterns.append("devicetree/bindings/**.yaml")
     dyn_exclude_patterns.append("core-api/kho/bindings/**.yaml")
 
-# Properly handle include/exclude patterns
-# ----------------------------------------
+# Properly handle directory patterns and LaTeX docs
+# -------------------------------------------------
 
-def update_patterns(app, config):
+def config_init(app, config):
     """
+    Initialize path-dependent variabled
+
     On Sphinx, all directories are relative to what it is passed as
     SOURCEDIR parameter for sphinx-build. Due to that, all patterns
     that have directory names on it need to be dynamically set, after
@@ -86,6 +88,25 @@ def update_patterns(app, config):
 
         config.exclude_patterns.append(rel_path)
 
+    # LaTeX and PDF output require a list of documents with are dependent
+    # of the app.srcdir. Add them here
+
+    for fn in os.listdir(app.srcdir):
+        doc = os.path.join(fn, "index")
+        if not os.path.exists(os.path.join(app.srcdir, doc + ".rst")):
+            continue
+
+        has = False
+        for l in latex_documents:
+            if l[0] == doc:
+                has = True
+                break
+
+        if not has:
+            latex_documents.append((doc, fn + ".tex",
+                                    "Linux %s Documentation" % fn.capitalize(),
+                                    "The kernel development community",
+                                    "manual"))
 
 # helper
 # ------
@@ -456,31 +477,8 @@ latex_elements["preamble"] += """
         \\input{kerneldoc-preamble.sty}
 """
 
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-# Sorted in alphabetical order
+# This will be filled up by config-inited event
 latex_documents = []
-
-# Add all other index files from Documentation/ subdirectories
-for fn in os.listdir("."):
-    doc = os.path.join(fn, "index")
-    if os.path.exists(doc + ".rst"):
-        has = False
-        for l in latex_documents:
-            if l[0] == doc:
-                has = True
-                break
-        if not has:
-            latex_documents.append(
-                (
-                    doc,
-                    fn + ".tex",
-                    "Linux %s Documentation" % fn.capitalize(),
-                    "The kernel development community",
-                    "manual",
-                )
-            )
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -577,4 +575,4 @@ loadConfig(globals())
 def setup(app):
     """Patterns need to be updated at init time on older Sphinx versions"""
 
-    app.connect('config-inited', update_patterns)
+    app.connect('config-inited', config_init)
