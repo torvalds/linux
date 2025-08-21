@@ -564,6 +564,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	INIT_WORK(&host->sdio_irq_work, sdio_irq_work);
 	timer_setup(&host->retune_timer, mmc_retune_timer, 0);
 
+	INIT_WORK(&host->supply.uv_work, mmc_undervoltage_workfn);
+
 	/*
 	 * By default, hosts do not support SGIO or large requests.
 	 * They have to set these according to their abilities.
