@@ -939,7 +939,7 @@ static int mlx90635_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*mlx90635));
 	if (!indio_dev)
-		return dev_err_probe(&client->dev, -ENOMEM, "failed to allocate device\n");
+		return -ENOMEM;
 
 	regmap = devm_regmap_init_i2c(client, &mlx90635_regmap);
 	if (IS_ERR(regmap))
