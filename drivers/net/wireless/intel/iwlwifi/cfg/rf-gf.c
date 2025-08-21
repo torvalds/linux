@@ -9,7 +9,7 @@
 #define IWL_GF_UCODE_API_MAX	100
 
 /* Lowest firmware API version supported */
-#define IWL_GF_UCODE_API_MIN	98
+#define IWL_GF_UCODE_API_MIN	100
 
 #define IWL_SO_A_GF_A_FW_PRE		"iwlwifi-so-a0-gf-a0"
 #define IWL_TY_A_GF_A_FW_PRE		"iwlwifi-ty-a0-gf-a0"

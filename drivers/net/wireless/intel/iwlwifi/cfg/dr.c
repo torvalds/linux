@@ -12,7 +12,7 @@
 #define IWL_DR_UCODE_API_MAX	102
 
 /* Lowest firmware API version supported */
-#define IWL_DR_UCODE_API_MIN	98
+#define IWL_DR_UCODE_API_MIN	100
 
 /* Memory offsets and lengths */
 #define IWL_DR_SMEM_OFFSET		0x400000
