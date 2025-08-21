@@ -71,6 +71,12 @@ struct iwl_mld_mcast_key_data {
 
 };
 
+struct iwl_mld_wowlan_mlo_key {
+	u8 key[WOWLAN_KEY_MAX_SIZE];
+	u8 idx, type, link_id;
+	u8 pn[6];
+};
+
 /**
  * struct iwl_mld_wowlan_status - contains wowlan status data from
  * all wowlan notifications
@@ -89,6 +95,8 @@ struct iwl_mld_mcast_key_data {
  * @bigtk: data of the last two used gtk's by the FW upon resume
  * @ptk: last seq numbers per tid passed by the FW,
  *	holds both in tkip and aes formats
+ * @num_mlo_keys: number of &struct iwl_mld_wowlan_mlo_key structs
+ * @mlo_keys: array of MLO keys
  */
 struct iwl_mld_wowlan_status {
 	u32 wakeup_reasons;
@@ -108,6 +116,9 @@ struct iwl_mld_wowlan_status {
 		struct ieee80211_key_seq tkip_seq[IWL_MAX_TID_COUNT];
 
 	} ptk;
+
+	int num_mlo_keys;
+	struct iwl_mld_wowlan_mlo_key mlo_keys[WOWLAN_MAX_MLO_KEYS];
 };
 
 #define NETDETECT_QUERY_BUF_LEN \
@@ -407,19 +418,65 @@ iwl_mld_convert_bigtk_resume_data(struct iwl_mld_wowlan_status *wowlan_status,
 	}
 }
 
+static void
+iwl_mld_convert_mlo_keys(struct iwl_mld *mld,
+			 const struct iwl_wowlan_info_notif *notif,
+			 struct iwl_mld_wowlan_status *wowlan_status)
+{
+	if (!notif->num_mlo_link_keys)
+		return;
+
+	wowlan_status->num_mlo_keys = notif->num_mlo_link_keys;
+
+	if (IWL_FW_CHECK(mld, wowlan_status->num_mlo_keys > WOWLAN_MAX_MLO_KEYS,
+			 "Too many MLO keys: %d, max %d\n",
+			 wowlan_status->num_mlo_keys, WOWLAN_MAX_MLO_KEYS))
+		wowlan_status->num_mlo_keys = WOWLAN_MAX_MLO_KEYS;
+
+	for (int i = 0; i < wowlan_status->num_mlo_keys; i++) {
+		const struct iwl_wowlan_mlo_gtk *fw_mlo_key = &notif->mlo_gtks[i];
+		struct iwl_mld_wowlan_mlo_key *driver_mlo_key =
+			&wowlan_status->mlo_keys[i];
+		u16 flags = le16_to_cpu(fw_mlo_key->flags);
+
+		driver_mlo_key->link_id =
+			u16_get_bits(flags, WOWLAN_MLO_GTK_FLAG_LINK_ID_MSK);
+		driver_mlo_key->type =
+			u16_get_bits(flags, WOWLAN_MLO_GTK_FLAG_KEY_TYPE_MSK);
+		driver_mlo_key->idx =
+			u16_get_bits(flags, WOWLAN_MLO_GTK_FLAG_KEY_ID_MSK);
+
+		BUILD_BUG_ON(sizeof(driver_mlo_key->key) != sizeof(fw_mlo_key->key));
+		BUILD_BUG_ON(sizeof(driver_mlo_key->pn) != sizeof(fw_mlo_key->pn));
+
+		memcpy(driver_mlo_key->key, fw_mlo_key->key, sizeof(fw_mlo_key->key));
+		memcpy(driver_mlo_key->pn, fw_mlo_key->pn, sizeof(fw_mlo_key->pn));
+	}
+}
+
 static bool
 iwl_mld_handle_wowlan_info_notif(struct iwl_mld *mld,
 				 struct iwl_mld_wowlan_status *wowlan_status,
 				 struct iwl_rx_packet *pkt)
 {
 	const struct iwl_wowlan_info_notif *notif = (void *)pkt->data;
-	u32 expected_len, len = iwl_rx_packet_payload_len(pkt);
+	u32 len = iwl_rx_packet_payload_len(pkt);
+	u32 len_with_mlo_keys;
 
-	expected_len = sizeof(*notif);
+	if (IWL_FW_CHECK(mld, len < sizeof(*notif),
+			 "Invalid wowlan_info_notif (expected=%zu got=%u)\n",
+			 sizeof(*notif), len))
+		return true;
 
-	if (IWL_FW_CHECK(mld, len < expected_len,
-			 "Invalid wowlan_info_notif (expected=%ud got=%ud)\n",
-			 expected_len, len))
+	/* Now that we know that we have at least sizeof(notif),
+	 * check also the variable length part
+	 */
+	len_with_mlo_keys = sizeof(*notif) +
+		notif->num_mlo_link_keys * sizeof(notif->mlo_gtks[0]);
+
+	if (IWL_FW_CHECK(mld, len < len_with_mlo_keys,
+			 "Invalid wowlan_info_notif (expected=%ud got=%u)\n",
+			 len_with_mlo_keys, len))
 		return true;
 
 	if (IWL_FW_CHECK(mld, notif->tid_offloaded_tx != IWL_WOWLAN_OFFLOAD_TID,
@@ -442,8 +499,10 @@ iwl_mld_handle_wowlan_info_notif(struct iwl_mld *mld,
 	wowlan_status->num_of_gtk_rekeys =
 		le32_to_cpu(notif->num_of_gtk_rekeys);
 	wowlan_status->wakeup_reasons = le32_to_cpu(notif->wakeup_reasons);
+
+	iwl_mld_convert_mlo_keys(mld, notif, wowlan_status);
+
 	return false;
-	/* TODO: mlo_links (task=MLO)*/
 }
 
 static bool
@@ -687,7 +746,6 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 	struct iwl_mld_wowlan_status *wowlan_status = data->wowlan_status;
 	u8 status_idx;
 
-	/* TODO: check key link id (task=MLO) */
 	if (data->unhandled_cipher)
 		return;
 
@@ -797,6 +855,57 @@ iwl_mld_add_all_rekeys(struct ieee80211_vif *vif,
 					link_conf);
 }
 
+static void iwl_mld_mlo_rekey(struct iwl_mld *mld,
+			      struct iwl_mld_wowlan_status *wowlan_status,
+			      struct ieee80211_vif *vif)
+{
+	struct iwl_mld_old_mlo_keys *old_keys __free(kfree) = NULL;
+
+	IWL_DEBUG_WOWLAN(mld, "Num of MLO Keys: %d\n", wowlan_status->num_mlo_keys);
+
+	if (!wowlan_status->num_mlo_keys)
+		return;
+
+	for (int i = 0; i < wowlan_status->num_mlo_keys; i++) {
+		struct iwl_mld_wowlan_mlo_key *mlo_key = &wowlan_status->mlo_keys[i];
+		struct ieee80211_key_conf *key;
+		struct ieee80211_key_seq seq;
+		u8 link_id = mlo_key->link_id;
+
+		if (IWL_FW_CHECK(mld, mlo_key->link_id >= IEEE80211_MLD_MAX_NUM_LINKS ||
+				      mlo_key->idx >= 8 ||
+				      mlo_key->type >= WOWLAN_MLO_GTK_KEY_NUM_TYPES,
+				      "Invalid MLO key link_id %d, idx %d, type %d\n",
+				      mlo_key->link_id, mlo_key->idx, mlo_key->type))
+			continue;
+
+		if (!(vif->valid_links & BIT(link_id)) ||
+		    (vif->active_links & BIT(link_id)))
+			continue;
+
+		IWL_DEBUG_WOWLAN(mld, "Add MLO key id %d, link id %d\n",
+				 mlo_key->idx, link_id);
+
+		key = ieee80211_gtk_rekey_add(vif, mlo_key->idx, mlo_key->key,
+					      sizeof(mlo_key->key), link_id);
+
+		if (IS_ERR(key))
+			continue;
+
+		/*
+		 * mac80211 expects the PN in big-endian
+		 * also note that seq is a union of all cipher types
+		 * (ccmp, gcmp, cmac, gmac), and they all have the same
+		 * pn field (of length 6) so just copy it to ccmp.pn.
+		 */
+		for (int j = 5; j >= 0; j--)
+			seq.ccmp.pn[5 - j] = mlo_key->pn[j];
+
+		/* group keys are non-QoS and use TID 0 */
+		ieee80211_set_key_rx_seq(key, 0, &seq);
+	}
+}
+
 static bool
 iwl_mld_update_sec_keys(struct iwl_mld *mld,
 			struct ieee80211_vif *vif,
@@ -831,9 +940,10 @@ iwl_mld_update_sec_keys(struct iwl_mld *mld,
 	iwl_mld_add_all_rekeys(vif, wowlan_status, &key_iter_data,
 			       link_conf);
 
+	iwl_mld_mlo_rekey(mld, wowlan_status, vif);
+
 	ieee80211_gtk_rekey_notify(vif, link_conf->bssid,
 				   (void *)&replay_ctr, GFP_KERNEL);
-	/* TODO: MLO rekey (task=MLO) */
 	return true;
 }
 
