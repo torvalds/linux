@@ -123,6 +123,10 @@ properties:
       - arm,arm1176jzf-s
       - arm,arm11mpcore
       - arm,armv8 # Only for s/w models
+      - arm,c1-nano
+      - arm,c1-premium
+      - arm,c1-pro
+      - arm,c1-ultra
       - arm,cortex-a5
       - arm,cortex-a7
       - arm,cortex-a8

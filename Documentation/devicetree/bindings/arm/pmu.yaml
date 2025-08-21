@@ -28,6 +28,10 @@ properties:
           - arm,arm1136-pmu
           - arm,arm1176-pmu
           - arm,arm11mpcore-pmu
+          - arm,c1-nano-pmu
+          - arm,c1-premium-pmu
+          - arm,c1-pro-pmu
+          - arm,c1-ultra-pmu
           - arm,cortex-a5-pmu
           - arm,cortex-a7-pmu
           - arm,cortex-a8-pmu
