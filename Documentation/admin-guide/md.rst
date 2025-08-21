@@ -758,7 +758,7 @@ These currently include:
 
   journal_mode (currently raid5 only)
       The cache mode for raid5. raid5 could include an extra disk for
-      caching. The mode can be "write-throuth" and "write-back". The
+      caching. The mode can be "write-through" or "write-back". The
       default is "write-through".
 
   ppl_write_hint
