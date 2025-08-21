@@ -1035,22 +1035,22 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 retry_multishot:
 	if (io_do_buffer_select(req)) {
-		void __user *buf;
+		struct io_br_sel sel;
 		size_t len = sr->len;
 
-		buf = io_buffer_select(req, &len, sr->buf_group, issue_flags);
-		if (!buf)
+		sel = io_buffer_select(req, &len, sr->buf_group, issue_flags);
+		if (!sel.addr)
 			return -ENOBUFS;
 
 		if (req->flags & REQ_F_APOLL_MULTISHOT) {
-			ret = io_recvmsg_prep_multishot(kmsg, sr, &buf, &len);
+			ret = io_recvmsg_prep_multishot(kmsg, sr, &sel.addr, &len);
 			if (ret) {
 				io_kbuf_recycle(req, req->buf_list, issue_flags);
 				return ret;
 			}
 		}
 
-		iov_iter_ubuf(&kmsg->msg.msg_iter, ITER_DEST, buf, len);
+		iov_iter_ubuf(&kmsg->msg.msg_iter, ITER_DEST, sel.addr, len);
 	}
 
 	kmsg->msg.msg_get_inq = 1;
@@ -1153,13 +1153,13 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 		iov_iter_init(&kmsg->msg.msg_iter, ITER_DEST, arg.iovs, ret,
 				arg.out_len);
 	} else {
-		void __user *buf;
+		struct io_br_sel sel;
 
 		*len = sr->len;
-		buf = io_buffer_select(req, len, sr->buf_group, issue_flags);
-		if (!buf)
+		sel = io_buffer_select(req, len, sr->buf_group, issue_flags);
+		if (!sel.addr)
 			return -ENOBUFS;
-		sr->buf = buf;
+		sr->buf = sel.addr;
 		sr->len = *len;
 map_ubuf:
 		ret = import_ubuf(ITER_DEST, sr->buf, sr->len,
