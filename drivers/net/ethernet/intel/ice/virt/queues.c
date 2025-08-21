@@ -2,6 +2,7 @@
 /* Copyright (C) 2022, Intel Corporation. */
 
 #include "virtchnl.h"
+#include "queues.h"
 #include "ice_vf_lib_private.h"
 #include "ice.h"
 #include "ice_base.h"
@@ -16,7 +17,7 @@
  * it's in a port VLAN so the PF needs to account for this in max frame size
  * checks and sending the max frame size to the VF.
  */
-static u16 ice_vc_get_max_frame_size(struct ice_vf *vf)
+u16 ice_vc_get_max_frame_size(struct ice_vf *vf)
 {
 	struct ice_port_info *pi = ice_vf_get_port_info(vf);
 	u16 max_frame_size;
@@ -230,7 +231,7 @@ void ice_vf_ena_rxq_interrupt(struct ice_vsi *vsi, u32 q_idx)
  *
  * called from the VF to enable all or specific queue(s)
  */
-static int ice_vc_ena_qs_msg(struct ice_vf *vf, u8 *msg)
+int ice_vc_ena_qs_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_queue_select *vqs =
@@ -357,7 +358,7 @@ int ice_vf_vsi_dis_single_txq(struct ice_vf *vf, struct ice_vsi *vsi, u16 q_id)
  *
  * called from the VF to disable all or specific queue(s)
  */
-static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
+int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_queue_select *vqs =
@@ -509,7 +510,7 @@ ice_cfg_interrupt(struct ice_vf *vf, struct ice_vsi *vsi,
  *
  * called from the VF to configure the IRQ to queue map
  */
-static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
+int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	u16 num_q_vectors_mapped, vsi_id, vector_id;
@@ -589,7 +590,7 @@ error_param:
  *
  * Return: 0 on success or negative error value.
  */
-static int ice_vc_cfg_q_bw(struct ice_vf *vf, u8 *msg)
+int ice_vc_cfg_q_bw(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_queues_bw_cfg *qbw =
@@ -673,7 +674,7 @@ err:
  *
  * Return: 0 on success or negative error value.
  */
-static int ice_vc_cfg_q_quanta(struct ice_vf *vf, u8 *msg)
+int ice_vc_cfg_q_quanta(struct ice_vf *vf, u8 *msg)
 {
 	u16 quanta_prof_id, quanta_size, start_qid, num_queues, end_qid, i;
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
@@ -745,7 +746,7 @@ err:
  *
  * called from the VF to configure the Rx/Tx queues
  */
-static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
+int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 {
 	struct virtchnl_vsi_queue_config_info *qci =
 	    (struct virtchnl_vsi_queue_config_info *)msg;
@@ -922,7 +923,7 @@ error_param:
  * return 0. If unsuccessful, PF will send message informing VF of number of
  * available queue pairs via virtchnl message response to VF.
  */
-static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
+int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_vf_res_request *vfres =
