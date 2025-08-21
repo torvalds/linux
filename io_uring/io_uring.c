@@ -1007,7 +1007,7 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res)
 	lockdep_assert_held(&req->ctx->uring_lock);
 
 	req_set_fail(req);
-	io_req_set_res(req, res, io_put_kbuf(req, res, IO_URING_F_UNLOCKED));
+	io_req_set_res(req, res, io_put_kbuf(req, res));
 	if (def->fail)
 		def->fail(req);
 	io_req_complete_defer(req);
