@@ -47,9 +47,9 @@ ice-y := ice_main.o	\
 	 ice_adapter.o
 ice-$(CONFIG_PCI_IOV) +=	\
 	ice_sriov.o		\
-	virt/virtchnl.o		\
 	virt/allowlist.o	\
 	virt/fdir.o		\
+	virt/queues.o		\
 	ice_vf_mbx.o		\
 	ice_vf_vsi_vlan_ops.o	\
 	ice_vf_lib.o
