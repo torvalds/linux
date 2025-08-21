@@ -40,7 +40,7 @@ enum iwl_mld_d3_notif {
 struct iwl_mld_resume_key_iter_data {
 	struct iwl_mld *mld;
 	struct iwl_mld_wowlan_status *wowlan_status;
-	u32 num_keys, gtk_cipher, igtk_cipher, bigtk_cipher;
+	u32 num_keys;
 	bool unhandled_cipher;
 };
 
@@ -708,11 +708,6 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 			return;
 		}
 
-		if (WARN_ON(data->gtk_cipher &&
-			    data->gtk_cipher != key->cipher))
-			return;
-
-		data->gtk_cipher = key->cipher;
 		status_idx = key->keyidx == wowlan_status->gtk[1].id;
 		iwl_mld_set_key_rx_seq(key, &wowlan_status->gtk[status_idx]);
 		break;
@@ -721,20 +716,10 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		if (key->keyidx == 4 || key->keyidx == 5) {
-			if (WARN_ON(data->igtk_cipher &&
-				    data->igtk_cipher != key->cipher))
-				return;
-
-			data->igtk_cipher = key->cipher;
 			if (key->keyidx == wowlan_status->igtk.id)
 				iwl_mld_set_key_rx_seq(key, &wowlan_status->igtk);
 		}
 		if (key->keyidx == 6 || key->keyidx == 7) {
-			if (WARN_ON(data->bigtk_cipher &&
-				    data->bigtk_cipher != key->cipher))
-				return;
-
-			data->bigtk_cipher = key->cipher;
 			status_idx = key->keyidx == wowlan_status->bigtk[1].id;
 			iwl_mld_set_key_rx_seq(key, &wowlan_status->bigtk[status_idx]);
 		}
@@ -750,65 +735,16 @@ static void
 iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 			struct iwl_mld *mld,
 			struct iwl_mld_mcast_key_data *key_data,
-			struct ieee80211_bss_conf *link_conf,
-			u32 cipher)
+			struct ieee80211_bss_conf *link_conf)
 {
 	struct ieee80211_key_conf *key_config;
-	struct {
-		struct ieee80211_key_conf conf;
-		u8 key[WOWLAN_KEY_MAX_SIZE];
-	} conf = {
-		.conf.cipher = cipher,
-		.conf.keyidx = key_data->id,
-	};
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
-	u8 key[WOWLAN_KEY_MAX_SIZE];
-
-	BUILD_BUG_ON(WLAN_KEY_LEN_CCMP != WLAN_KEY_LEN_GCMP);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_CCMP);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_GCMP_256);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_TKIP);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_BIP_GMAC_128);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_BIP_GMAC_256);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_AES_CMAC);
-	BUILD_BUG_ON(sizeof(conf.key) < sizeof(key_data->key));
 
 	if (!key_data->len)
 		return;
 
-	switch (cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_GCMP:
-		conf.conf.keylen = WLAN_KEY_LEN_CCMP;
-		break;
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		conf.conf.keylen = WLAN_KEY_LEN_GCMP_256;
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		conf.conf.keylen = WLAN_KEY_LEN_TKIP;
-		break;
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-		conf.conf.keylen = WLAN_KEY_LEN_BIP_GMAC_128;
-		break;
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		conf.conf.keylen = WLAN_KEY_LEN_BIP_GMAC_256;
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		conf.conf.keylen = WLAN_KEY_LEN_AES_CMAC;
-		break;
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		conf.conf.keylen = WLAN_KEY_LEN_BIP_CMAC_256;
-		break;
-	default:
-		WARN_ON(1);
-	}
-
-	memcpy(conf.conf.key, key_data->key, conf.conf.keylen);
-
-	memcpy(key, key_data->key, sizeof(key_data->key));
-
-	key_config = ieee80211_gtk_rekey_add(vif, key_data->id, key,
-					     sizeof(key), link_id);
+	key_config = ieee80211_gtk_rekey_add(vif, key_data->id, key_data->key,
+					     sizeof(key_data->key), link_id);
 	if (IS_ERR(key_config))
 		return;
 
@@ -850,18 +786,15 @@ iwl_mld_add_all_rekeys(struct ieee80211_vif *vif,
 	for (i = 0; i < ARRAY_SIZE(wowlan_status->gtk); i++)
 		iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
 					&wowlan_status->gtk[i],
-					link_conf,
-					key_iter_data->gtk_cipher);
+					link_conf);
 
 	iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
-				&wowlan_status->igtk,
-				link_conf, key_iter_data->igtk_cipher);
+				&wowlan_status->igtk, link_conf);
 
 	for (i = 0; i < ARRAY_SIZE(wowlan_status->bigtk); i++)
 		iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
 					&wowlan_status->bigtk[i],
-					link_conf,
-					key_iter_data->bigtk_cipher);
+					link_conf);
 }
 
 static bool
