@@ -249,6 +249,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	works well with -s/--summary option where no argument information is
 	required.
 
+--max-summary=N::
+	Maximum number of lines in the summary mode.  Note that this applies to
+	each entry (thread or cgroup).
+
 
 PAGEFAULTS
 ----------

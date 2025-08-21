@@ -16,7 +16,7 @@ enum trace_summary_mode {
 int trace_prepare_bpf_summary(enum trace_summary_mode mode);
 void trace_start_bpf_summary(void);
 void trace_end_bpf_summary(void);
-int trace_print_bpf_summary(FILE *fp);
+int trace_print_bpf_summary(FILE *fp, int max_summary);
 void trace_cleanup_bpf_summary(void);
 
 #else /* !HAVE_BPF_SKEL */
@@ -27,7 +27,7 @@ static inline int trace_prepare_bpf_summary(enum trace_summary_mode mode __maybe
 }
 static inline void trace_start_bpf_summary(void) {}
 static inline void trace_end_bpf_summary(void) {}
-static inline int trace_print_bpf_summary(FILE *fp __maybe_unused)
+static inline int trace_print_bpf_summary(FILE *fp __maybe_unused, int max_summary __maybe_unused)
 {
 	return 0;
 }
