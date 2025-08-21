@@ -1554,13 +1554,15 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
 	pr_debug("CPU %d exiting\n", policy->cpu);
 }
 
-static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
+static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy, bool policy_change)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 	union perf_cached perf;
 	u8 epp;
 
-	if (policy->min != cpudata->min_limit_freq || policy->max != cpudata->max_limit_freq)
+	if (policy_change ||
+	    policy->min != cpudata->min_limit_freq ||
+	    policy->max != cpudata->max_limit_freq)
 		amd_pstate_update_min_max_limit(policy);
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
@@ -1584,7 +1586,7 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
 
 	cpudata->policy = policy->policy;
 
-	ret = amd_pstate_epp_update_limit(policy);
+	ret = amd_pstate_epp_update_limit(policy, true);
 	if (ret)
 		return ret;
 
@@ -1658,7 +1660,7 @@ static int amd_pstate_epp_resume(struct cpufreq_policy *policy)
 		int ret;
 
 		/* enable amd pstate from suspend state*/
-		ret = amd_pstate_epp_update_limit(policy);
+		ret = amd_pstate_epp_update_limit(policy, false);
 		if (ret)
 			return ret;
 
