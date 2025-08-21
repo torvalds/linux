@@ -233,8 +233,10 @@ static int jdi_panel_prepare(struct drm_panel *panel)
 	mipi_dsi_dual(mipi_dsi_dcs_set_display_on_multi,
 		      &dsi_ctx, jdi->link1, jdi->link2);
 
-	if (dsi_ctx.accum_err < 0)
+	if (dsi_ctx.accum_err < 0) {
+		err = dsi_ctx.accum_err;
 		goto poweroff;
+	}
 
 	jdi->link1->mode_flags &= ~MIPI_DSI_MODE_LPM;
 	jdi->link2->mode_flags &= ~MIPI_DSI_MODE_LPM;
