@@ -314,8 +314,13 @@ def _test_xdp_native_tx(cfg, bpf_info, payload_lens):
 
         rx_udp = f"socat -{cfg.addr_ipver} -T 2 " + \
                  f"-u UDP-RECV:{port},reuseport STDOUT"
+
+        # Writing zero bytes to stdin gets ignored by socat,
+        # but with the shut-null flag socat generates a zero sized packet
+        # when the socket is closed.
+        tx_cmd_suffix = ",shut-null" if payload_len == 0 else ""
         tx_udp = f"echo -n {test_string} | socat -t 2 " + \
-                 f"-u STDIN UDP:{cfg.baddr}:{port}"
+                 f"-u STDIN UDP:{cfg.baddr}:{port}{tx_cmd_suffix}"
 
         with bkg(rx_udp, host=cfg.remote, exit_wait=True) as rnc:
             wait_port_listen(port, proto="udp", host=cfg.remote)
@@ -327,6 +332,21 @@ def _test_xdp_native_tx(cfg, bpf_info, payload_lens):
         stats = _get_stats(prog_info["maps"]["map_xdp_stats"])
         ksft_eq(stats[XDPStats.RX.value], expected_pkts, "RX stats mismatch")
         ksft_eq(stats[XDPStats.TX.value], expected_pkts, "TX stats mismatch")
+
+
+def test_xdp_native_tx_sb(cfg):
+    """
+    Tests the XDP_TX action for a single-buff case.
+
+    Args:
+        cfg: Configuration object containing network settings.
+    """
+    bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
+
+    # Ensure there's enough room for an ETH / IP / UDP header
+    pkt_hdr_len = 42 if cfg.addr_ipver == "4" else 62
+
+    _test_xdp_native_tx(cfg, bpf_info, [0, 1500 // 2, 1500 - pkt_hdr_len])
 
 
 def test_xdp_native_tx_mb(cfg):
@@ -665,6 +685,7 @@ def main():
                 test_xdp_native_pass_mb,
                 test_xdp_native_drop_sb,
                 test_xdp_native_drop_mb,
+                test_xdp_native_tx_sb,
                 test_xdp_native_tx_mb,
                 test_xdp_native_adjst_tail_grow_data,
                 test_xdp_native_adjst_tail_shrnk_data,
