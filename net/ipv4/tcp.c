@@ -3890,15 +3890,13 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 		WRITE_ONCE(inet_csk(sk)->icsk_delack_max, delack_max);
 		return 0;
 	}
+	case TCP_MAXSEG:
+		return tcp_sock_set_maxseg(sk, val);
 	}
 
 	sockopt_lock_sock(sk);
 
 	switch (optname) {
-	case TCP_MAXSEG:
-		err = tcp_sock_set_maxseg(sk, val);
-		break;
-
 	case TCP_NODELAY:
 		__tcp_sock_set_nodelay(sk, val);
 		break;
