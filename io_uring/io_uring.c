@@ -1007,7 +1007,7 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res)
 	lockdep_assert_held(&req->ctx->uring_lock);
 
 	req_set_fail(req);
-	io_req_set_res(req, res, io_put_kbuf(req, res));
+	io_req_set_res(req, res, io_put_kbuf(req, res, req->buf_list));
 	if (def->fail)
 		def->fail(req);
 	io_req_complete_defer(req);
@@ -2025,11 +2025,11 @@ fail:
 
 	switch (io_arm_poll_handler(req, 0)) {
 	case IO_APOLL_READY:
-		io_kbuf_recycle(req, 0);
+		io_kbuf_recycle(req, req->buf_list, 0);
 		io_req_task_queue(req);
 		break;
 	case IO_APOLL_ABORTED:
-		io_kbuf_recycle(req, 0);
+		io_kbuf_recycle(req, req->buf_list, 0);
 		io_queue_iowq(req);
 		break;
 	case IO_APOLL_OK:

@@ -80,14 +80,16 @@ int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg);
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 void io_kbuf_drop_legacy(struct io_kiocb *req);
 
-unsigned int __io_put_kbufs(struct io_kiocb *req, int len, int nbufs);
+unsigned int __io_put_kbufs(struct io_kiocb *req, struct io_buffer_list *bl,
+			    int len, int nbufs);
 bool io_kbuf_commit(struct io_kiocb *req,
 		    struct io_buffer_list *bl, int len, int nr);
 
 struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
 					    unsigned int bgid);
 
-static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
+static inline bool io_kbuf_recycle_ring(struct io_kiocb *req,
+					struct io_buffer_list *bl)
 {
 	/*
 	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
@@ -96,7 +98,7 @@ static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 	 * The exception is partial io, that case we should increment bl->head
 	 * to monopolize the buffer.
 	 */
-	if (req->buf_list) {
+	if (bl) {
 		req->flags &= ~(REQ_F_BUFFER_RING|REQ_F_BUFFERS_COMMIT);
 		return true;
 	}
@@ -110,29 +112,31 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 	return !(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING));
 }
 
-static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
+static inline bool io_kbuf_recycle(struct io_kiocb *req, struct io_buffer_list *bl,
+				   unsigned issue_flags)
 {
 	if (req->flags & REQ_F_BL_NO_RECYCLE)
 		return false;
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		return io_kbuf_recycle_legacy(req, issue_flags);
 	if (req->flags & REQ_F_BUFFER_RING)
-		return io_kbuf_recycle_ring(req);
+		return io_kbuf_recycle_ring(req, bl);
 	return false;
 }
 
-static inline unsigned int io_put_kbuf(struct io_kiocb *req, int len)
+static inline unsigned int io_put_kbuf(struct io_kiocb *req, int len,
+				       struct io_buffer_list *bl)
 {
 	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
 		return 0;
-	return __io_put_kbufs(req, len, 1);
+	return __io_put_kbufs(req, bl, len, 1);
 }
 
 static inline unsigned int io_put_kbufs(struct io_kiocb *req, int len,
-					int nbufs)
+					struct io_buffer_list *bl, int nbufs)
 {
 	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
 		return 0;
-	return __io_put_kbufs(req, len, nbufs);
+	return __io_put_kbufs(req, bl, len, nbufs);
 }
 #endif

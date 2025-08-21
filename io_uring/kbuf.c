@@ -354,9 +354,9 @@ int io_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg)
 	return io_provided_buffers_select(req, &arg->max_len, bl, arg->iovs);
 }
 
-static inline bool __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
+static inline bool __io_put_kbuf_ring(struct io_kiocb *req,
+				      struct io_buffer_list *bl, int len, int nr)
 {
-	struct io_buffer_list *bl = req->buf_list;
 	bool ret = true;
 
 	if (bl)
@@ -366,7 +366,8 @@ static inline bool __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
 	return ret;
 }
 
-unsigned int __io_put_kbufs(struct io_kiocb *req, int len, int nbufs)
+unsigned int __io_put_kbufs(struct io_kiocb *req, struct io_buffer_list *bl,
+			    int len, int nbufs)
 {
 	unsigned int ret;
 
@@ -377,7 +378,7 @@ unsigned int __io_put_kbufs(struct io_kiocb *req, int len, int nbufs)
 		return ret;
 	}
 
-	if (!__io_put_kbuf_ring(req, len, nbufs))
+	if (!__io_put_kbuf_ring(req, bl, len, nbufs))
 		ret |= IORING_CQE_F_BUF_MORE;
 	return ret;
 }

@@ -494,12 +494,12 @@ static int io_bundle_nbufs(struct io_async_msghdr *kmsg, int ret)
 	return nbufs;
 }
 
-static int io_net_kbuf_recyle(struct io_kiocb *req,
+static int io_net_kbuf_recyle(struct io_kiocb *req, struct io_buffer_list *bl,
 			      struct io_async_msghdr *kmsg, int len)
 {
 	req->flags |= REQ_F_BL_NO_RECYCLE;
 	if (req->flags & REQ_F_BUFFERS_COMMIT)
-		io_kbuf_commit(req, req->buf_list, len, io_bundle_nbufs(kmsg, len));
+		io_kbuf_commit(req, bl, len, io_bundle_nbufs(kmsg, len));
 	return IOU_RETRY;
 }
 
@@ -511,11 +511,11 @@ static inline bool io_send_finish(struct io_kiocb *req, int *ret,
 	unsigned int cflags;
 
 	if (!(sr->flags & IORING_RECVSEND_BUNDLE)) {
-		cflags = io_put_kbuf(req, *ret);
+		cflags = io_put_kbuf(req, *ret, req->buf_list);
 		goto finish;
 	}
 
-	cflags = io_put_kbufs(req, *ret, io_bundle_nbufs(kmsg, *ret));
+	cflags = io_put_kbufs(req, *ret, req->buf_list, io_bundle_nbufs(kmsg, *ret));
 
 	if (bundle_finished || req->flags & REQ_F_BL_EMPTY)
 		goto finish;
@@ -681,7 +681,7 @@ retry_bundle:
 			sr->len -= ret;
 			sr->buf += ret;
 			sr->done_io += ret;
-			return io_net_kbuf_recyle(req, kmsg, ret);
+			return io_net_kbuf_recyle(req, req->buf_list, kmsg, ret);
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -871,7 +871,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 	if (sr->flags & IORING_RECVSEND_BUNDLE) {
 		size_t this_ret = *ret - sr->done_io;
 
-		cflags |= io_put_kbufs(req, this_ret, io_bundle_nbufs(kmsg, this_ret));
+		cflags |= io_put_kbufs(req, this_ret, req->buf_list, io_bundle_nbufs(kmsg, this_ret));
 		if (sr->flags & IORING_RECV_RETRY)
 			cflags = req->cqe.flags | (cflags & CQE_F_MASK);
 		if (sr->mshot_len && *ret >= sr->mshot_len)
@@ -893,7 +893,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 			return false;
 		}
 	} else {
-		cflags |= io_put_kbuf(req, *ret);
+		cflags |= io_put_kbuf(req, *ret, req->buf_list);
 	}
 
 	/*
@@ -1045,7 +1045,7 @@ retry_multishot:
 		if (req->flags & REQ_F_APOLL_MULTISHOT) {
 			ret = io_recvmsg_prep_multishot(kmsg, sr, &buf, &len);
 			if (ret) {
-				io_kbuf_recycle(req, issue_flags);
+				io_kbuf_recycle(req, req->buf_list, issue_flags);
 				return ret;
 			}
 		}
@@ -1070,13 +1070,13 @@ retry_multishot:
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
 			if (issue_flags & IO_URING_F_MULTISHOT)
-				io_kbuf_recycle(req, issue_flags);
+				io_kbuf_recycle(req, req->buf_list, issue_flags);
 
 			return IOU_RETRY;
 		}
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
-			return io_net_kbuf_recyle(req, kmsg, ret);
+			return io_net_kbuf_recyle(req, req->buf_list, kmsg, ret);
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -1090,7 +1090,7 @@ retry_multishot:
 	else if (sr->done_io)
 		ret = sr->done_io;
 	else
-		io_kbuf_recycle(req, issue_flags);
+		io_kbuf_recycle(req, req->buf_list, issue_flags);
 
 	if (!io_recv_finish(req, &ret, kmsg, mshot_finished, issue_flags))
 		goto retry_multishot;
@@ -1214,7 +1214,7 @@ retry_multishot:
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
 			if (issue_flags & IO_URING_F_MULTISHOT)
-				io_kbuf_recycle(req, issue_flags);
+				io_kbuf_recycle(req, req->buf_list, issue_flags);
 
 			return IOU_RETRY;
 		}
@@ -1222,7 +1222,7 @@ retry_multishot:
 			sr->len -= ret;
 			sr->buf += ret;
 			sr->done_io += ret;
-			return io_net_kbuf_recyle(req, kmsg, ret);
+			return io_net_kbuf_recyle(req, req->buf_list, kmsg, ret);
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -1238,7 +1238,7 @@ out_free:
 	else if (sr->done_io)
 		ret = sr->done_io;
 	else
-		io_kbuf_recycle(req, issue_flags);
+		io_kbuf_recycle(req, req->buf_list, issue_flags);
 
 	if (!io_recv_finish(req, &ret, kmsg, mshot_finished, issue_flags))
 		goto retry_multishot;
