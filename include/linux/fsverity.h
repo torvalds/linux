@@ -26,8 +26,16 @@
 /* Arbitrary limit to bound the kmalloc() size.  Can be changed. */
 #define FS_VERITY_MAX_DESCRIPTOR_SIZE	16384
 
+struct fsverity_info;
+
 /* Verity operations for filesystems */
 struct fsverity_operations {
+	/**
+	 * The offset of the pointer to struct fsverity_info in the
+	 * filesystem-specific part of the inode, relative to the beginning of
+	 * the common part of the inode (the 'struct inode').
+	 */
+	ptrdiff_t inode_info_offs;
 
 	/**
 	 * Begin enabling verity on the given file.
@@ -124,15 +132,37 @@ struct fsverity_operations {
 
 #ifdef CONFIG_FS_VERITY
 
+/*
+ * Returns the address of the verity info pointer within the filesystem-specific
+ * part of the inode.  (To save memory on filesystems that don't support
+ * fsverity, a field in 'struct inode' itself is no longer used.)
+ */
+static inline struct fsverity_info **
+fsverity_info_addr(const struct inode *inode)
+{
+	VFS_WARN_ON_ONCE(inode->i_sb->s_vop->inode_info_offs == 0);
+	return (void *)inode + inode->i_sb->s_vop->inode_info_offs;
+}
+
 static inline struct fsverity_info *fsverity_get_info(const struct inode *inode)
 {
 	/*
-	 * Pairs with the cmpxchg_release() in fsverity_set_info().
-	 * I.e., another task may publish ->i_verity_info concurrently,
-	 * executing a RELEASE barrier.  We need to use smp_load_acquire() here
-	 * to safely ACQUIRE the memory the other task published.
+	 * Since this function can be called on inodes belonging to filesystems
+	 * that don't support fsverity at all, and fsverity_info_addr() doesn't
+	 * work on such filesystems, we have to start with an IS_VERITY() check.
+	 * Checking IS_VERITY() here is also useful to minimize the overhead of
+	 * fsverity_active() on non-verity files.
 	 */
-	return smp_load_acquire(&inode->i_verity_info);
+	if (!IS_VERITY(inode))
+		return NULL;
+
+	/*
+	 * Pairs with the cmpxchg_release() in fsverity_set_info().  I.e.,
+	 * another task may publish the inode's verity info concurrently,
+	 * executing a RELEASE barrier.  Use smp_load_acquire() here to safely
+	 * ACQUIRE the memory the other task published.
+	 */
+	return smp_load_acquire(fsverity_info_addr(inode));
 }
 
 /* enable.c */
@@ -156,12 +186,19 @@ void __fsverity_cleanup_inode(struct inode *inode);
  * fsverity_cleanup_inode() - free the inode's verity info, if present
  * @inode: an inode being evicted
  *
- * Filesystems must call this on inode eviction to free ->i_verity_info.
+ * Filesystems must call this on inode eviction to free the inode's verity info.
  */
 static inline void fsverity_cleanup_inode(struct inode *inode)
 {
-	if (inode->i_verity_info)
+	/*
+	 * Only IS_VERITY() inodes can have verity info, so start by checking
+	 * for IS_VERITY() (which is faster than retrieving the pointer to the
+	 * verity info).  This minimizes overhead for non-verity inodes.
+	 */
+	if (IS_VERITY(inode))
 		__fsverity_cleanup_inode(inode);
+	else
+		VFS_WARN_ON_ONCE(*fsverity_info_addr(inode) != NULL);
 }
 
 /* read_metadata.c */
@@ -267,12 +304,12 @@ static inline bool fsverity_verify_page(struct page *page)
  * fsverity_active() - do reads from the inode need to go through fs-verity?
  * @inode: inode to check
  *
- * This checks whether ->i_verity_info has been set.
+ * This checks whether the inode's verity info has been set.
  *
  * Filesystems call this from ->readahead() to check whether the pages need to
  * be verified or not.  Don't use IS_VERITY() for this purpose; it's subject to
  * a race condition where the file is being read concurrently with
- * FS_IOC_ENABLE_VERITY completing.  (S_VERITY is set before ->i_verity_info.)
+ * FS_IOC_ENABLE_VERITY completing.  (S_VERITY is set before the verity info.)
  *
  * Return: true if reads need to go through fs-verity, otherwise false
  */
@@ -287,7 +324,7 @@ static inline bool fsverity_active(const struct inode *inode)
  * @filp: the struct file being set up
  *
  * When opening a verity file, deny the open if it is for writing.  Otherwise,
- * set up the inode's ->i_verity_info if not already done.
+ * set up the inode's verity info if not already done.
  *
  * When combined with fscrypt, this must be called after fscrypt_file_open().
  * Otherwise, we won't have the key set up to decrypt the verity metadata.
