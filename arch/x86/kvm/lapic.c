@@ -74,6 +74,10 @@ module_param(lapic_timer_advance, bool, 0444);
 #define LAPIC_TIMER_ADVANCE_NS_MAX     5000
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
+
+static bool __read_mostly vector_hashing_enabled = true;
+module_param_named(vector_hashing, vector_hashing_enabled, bool, 0444);
+
 static int kvm_lapic_msr_read(struct kvm_lapic *apic, u32 reg, u64 *data);
 static int kvm_lapic_msr_write(struct kvm_lapic *apic, u32 reg, u64 data);
 
@@ -1150,7 +1154,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm,
 	if (!kvm_lowest_prio_delivery(irq))
 		return true;
 
-	if (!kvm_vector_hashing_enabled()) {
+	if (!vector_hashing_enabled) {
 		lowest = -1;
 		for_each_set_bit(i, bitmap, 16) {
 			if (!(*dst)[i])
@@ -1291,7 +1295,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 				r = 0;
 			r += kvm_apic_set_irq(vcpu, irq, dest_map);
 		} else if (kvm_apic_sw_enabled(vcpu->arch.apic)) {
-			if (!kvm_vector_hashing_enabled()) {
+			if (!vector_hashing_enabled) {
 				if (!lowest)
 					lowest = vcpu;
 				else if (kvm_apic_compare_prio(vcpu, lowest) < 0)

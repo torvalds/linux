@@ -164,9 +164,6 @@ module_param(kvmclock_periodic_sync, bool, 0444);
 static u32 __read_mostly tsc_tolerance_ppm = 250;
 module_param(tsc_tolerance_ppm, uint, 0644);
 
-static bool __read_mostly vector_hashing = true;
-module_param(vector_hashing, bool, 0444);
-
 bool __read_mostly enable_vmware_backdoor = false;
 module_param(enable_vmware_backdoor, bool, 0444);
 EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
@@ -13548,11 +13545,6 @@ bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 	return atomic_read(&kvm->arch.noncoherent_dma_count);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
-
-bool kvm_vector_hashing_enabled(void)
-{
-	return vector_hashing;
-}
 
 bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
 {
