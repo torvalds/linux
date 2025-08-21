@@ -6153,12 +6153,10 @@ void put_mnt_ns(struct mnt_namespace *ns)
 {
 	if (!refcount_dec_and_test(&ns->ns.count))
 		return;
-	namespace_lock();
+	guard(namespace_excl)();
 	emptied_ns = ns;
-	lock_mount_hash();
+	guard(mount_writer)();
 	umount_tree(ns->root, 0);
-	unlock_mount_hash();
-	namespace_unlock();
 }
 
 struct vfsmount *kern_mount(struct file_system_type *type)
