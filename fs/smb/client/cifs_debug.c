@@ -476,7 +476,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			"max_readwrite_size: %u rdma_readwrite_threshold: %u",
 			sp->keepalive_interval_msec * 1000,
 			sp->max_read_write_size,
-			server->smbd_conn->rdma_readwrite_threshold);
+			server->rdma_readwrite_threshold);
 		seq_printf(m, "\nDebug count_get_receive_buffer: %llu "
 			"count_put_receive_buffer: %llu count_send_empty: %llu",
 			sc->statistics.get_receive_buffer,

@@ -518,10 +518,6 @@ static bool process_negotiation_response(
 	}
 	sp->max_fragmented_send_size =
 		le32_to_cpu(packet->max_fragmented_size);
-	info->rdma_readwrite_threshold =
-		rdma_readwrite_threshold > sp->max_fragmented_send_size ?
-		sp->max_fragmented_send_size :
-		rdma_readwrite_threshold;
 
 
 	sp->max_read_write_size = min_t(u32,
@@ -1962,6 +1958,7 @@ struct smbd_connection *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr)
 {
 	struct smbd_connection *ret;
+	const struct smbdirect_socket_parameters *sp;
 	int port = SMBD_PORT;
 
 try_again:
@@ -1972,6 +1969,16 @@ try_again:
 		port = SMB_PORT;
 		goto try_again;
 	}
+	if (!ret)
+		return NULL;
+
+	sp = &ret->socket.parameters;
+
+	server->rdma_readwrite_threshold =
+		rdma_readwrite_threshold > sp->max_fragmented_send_size ?
+		sp->max_fragmented_send_size :
+		rdma_readwrite_threshold;
+
 	return ret;
 }
 
