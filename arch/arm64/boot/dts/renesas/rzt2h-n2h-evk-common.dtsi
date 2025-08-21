@@ -217,3 +217,8 @@
 	status = "okay";
 };
 #endif
+
+&wdt2 {
+	status = "okay";
+	timeout-sec = <60>;
+};
