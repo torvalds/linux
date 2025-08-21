@@ -1141,8 +1141,7 @@ static int hx9023s_probe(struct i2c_client *client)
 						    indio_dev->name,
 						    iio_device_id(indio_dev));
 		if (!data->trig)
-			return dev_err_probe(dev, -ENOMEM,
-					     "iio trigger alloc failed\n");
+			return -ENOMEM;
 
 		data->trig->ops = &hx9023s_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);
