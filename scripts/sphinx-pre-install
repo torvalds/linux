@@ -1069,10 +1069,10 @@ class SphinxDependencyChecker(MissingCheckers):
         Provide package installation hints for Gentoo.
         """
         texlive_deps = [
+            "dev-texlive/texlive-fontsrecommended",
             "dev-texlive/texlive-latexextra",
             "dev-texlive/texlive-xetex",
             "media-fonts/dejavu",
-            "media-fonts/lm",
         ]
 
         progs = {
