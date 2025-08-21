@@ -248,10 +248,8 @@ int sys_dup2(int old, int new)
 	}
 
 	return my_syscall3(__NR_dup3, old, new, 0);
-#elif defined(__NR_dup2)
-	return my_syscall2(__NR_dup2, old, new);
 #else
-	return __nolibc_enosys(__func__, old, new);
+	return my_syscall2(__NR_dup2, old, new);
 #endif
 }
 
