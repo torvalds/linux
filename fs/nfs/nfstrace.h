@@ -984,7 +984,7 @@ DECLARE_EVENT_CLASS(nfs_folio_event,
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->offset = offset,
+			__entry->offset = offset;
 			__entry->count = count;
 		),
 
@@ -1034,8 +1034,8 @@ DECLARE_EVENT_CLASS(nfs_folio_event_done,
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->offset = offset,
-			__entry->count = count,
+			__entry->offset = offset;
+			__entry->count = count;
 			__entry->ret = ret;
 		),
 
