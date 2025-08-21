@@ -195,6 +195,9 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 		goto error_new_virtqueue;
 	}
 
+	if (index == 0)
+		vdev->vmap = map;
+
 	vq->num_max = max_num;
 
 	/* Setup virtqueue callback */
