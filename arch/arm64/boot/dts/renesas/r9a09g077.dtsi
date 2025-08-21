@@ -160,6 +160,66 @@
 			status = "disabled";
 		};
 
+		wdt0: watchdog@80082000 {
+			compatible = "renesas,r9a09g077-wdt";
+			reg = <0 0x80082000 0 0x400>,
+			      <0 0x81295100 0 0x04>;
+			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKL>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt1: watchdog@80082400 {
+			compatible = "renesas,r9a09g077-wdt";
+			reg = <0 0x80082400 0 0x400>,
+			      <0 0x81295104 0 0x04>;
+			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKL>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt2: watchdog@80082800 {
+			compatible = "renesas,r9a09g077-wdt";
+			reg = <0 0x80082800 0 0x400>,
+			      <0 0x81295108 0 0x04>;
+			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKL>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt3: watchdog@80082c00 {
+			compatible = "renesas,r9a09g077-wdt";
+			reg = <0 0x80082c00 0 0x400>,
+			      <0 0x8129510c 0 0x04>;
+			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKL>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt4: watchdog@80083000 {
+			compatible = "renesas,r9a09g077-wdt";
+			reg = <0 0x80083000 0 0x400>,
+			      <0 0x81295110 0 0x04>;
+			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKL>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		wdt5: watchdog@80083400 {
+			compatible = "renesas,r9a09g077-wdt";
+			reg = <0 0x80083400 0 0x400>,
+			      <0 0x81295114 0 0x04>;
+			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKL>;
+			clock-names = "pclk";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@80088000 {
 			compatible = "renesas,riic-r9a09g077";
 			reg = <0 0x80088000 0 0x400>;
