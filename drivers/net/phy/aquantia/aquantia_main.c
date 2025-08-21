@@ -466,7 +466,7 @@ static int aqr105_config_aneg(struct phy_device *phydev)
 	return genphy_c45_check_and_restart_aneg(phydev, changed);
 }
 
-static int aqr105_read_rate(struct phy_device *phydev)
+static int aqr_gen1_read_rate(struct phy_device *phydev)
 {
 	int val;
 
@@ -505,7 +505,7 @@ static int aqr105_read_rate(struct phy_device *phydev)
 	return 0;
 }
 
-static int aqr105_read_status(struct phy_device *phydev)
+static int aqr_gen1_read_status(struct phy_device *phydev)
 {
 	int ret;
 	int val;
@@ -563,46 +563,17 @@ static int aqr105_read_status(struct phy_device *phydev)
 	}
 
 	/* Read rate from vendor register */
-	return aqr105_read_rate(phydev);
+	return aqr_gen1_read_rate(phydev);
 }
 
-static int aqr107_read_rate(struct phy_device *phydev)
+static int aqr_gen2_read_status(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
-	int i, val;
+	int i, ret;
 
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
-	if (val < 0)
-		return val;
-
-	if (val & MDIO_AN_TX_VEND_STATUS1_FULL_DUPLEX)
-		phydev->duplex = DUPLEX_FULL;
-	else
-		phydev->duplex = DUPLEX_HALF;
-
-	switch (FIELD_GET(MDIO_AN_TX_VEND_STATUS1_RATE_MASK, val)) {
-	case MDIO_AN_TX_VEND_STATUS1_10BASET:
-		phydev->speed = SPEED_10;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_100BASETX:
-		phydev->speed = SPEED_100;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_1000BASET:
-		phydev->speed = SPEED_1000;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_2500BASET:
-		phydev->speed = SPEED_2500;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_5000BASET:
-		phydev->speed = SPEED_5000;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_10GBASET:
-		phydev->speed = SPEED_10000;
-		break;
-	default:
-		phydev->speed = SPEED_UNKNOWN;
-		return 0;
-	}
+	ret = aqr_gen1_read_status(phydev);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < AQR_NUM_GLOBAL_CFG; i++) {
 		struct aqr_global_syscfg *syscfg = &priv->global_cfg[i];
@@ -618,66 +589,6 @@ static int aqr107_read_rate(struct phy_device *phydev)
 	}
 
 	return 0;
-}
-
-static int aqr107_read_status(struct phy_device *phydev)
-{
-	int val, ret;
-
-	ret = aqr_read_status(phydev);
-	if (ret)
-		return ret;
-
-	if (!phydev->link || phydev->autoneg == AUTONEG_DISABLE)
-		return 0;
-
-	/* The status register is not immediately correct on line side link up.
-	 * Poll periodically until it reflects the correct ON state.
-	 * Only return fail for read error, timeout defaults to OFF state.
-	 */
-	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PHYXS,
-					MDIO_PHYXS_VEND_IF_STATUS, val,
-					(FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val) !=
-					MDIO_PHYXS_VEND_IF_STATUS_TYPE_OFF),
-					AQR107_OP_IN_PROG_SLEEP,
-					AQR107_OP_IN_PROG_TIMEOUT, false);
-	if (ret && ret != -ETIMEDOUT)
-		return ret;
-
-	switch (FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val)) {
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KR:
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KX:
-		phydev->interface = PHY_INTERFACE_MODE_1000BASEKX;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XFI:
-		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_USXGMII:
-		phydev->interface = PHY_INTERFACE_MODE_USXGMII;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XAUI:
-		phydev->interface = PHY_INTERFACE_MODE_XAUI;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII:
-		phydev->interface = PHY_INTERFACE_MODE_SGMII;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_RXAUI:
-		phydev->interface = PHY_INTERFACE_MODE_RXAUI;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII:
-		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
-		break;
-	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OFF:
-	default:
-		phydev->link = false;
-		phydev->interface = PHY_INTERFACE_MODE_NA;
-		break;
-	}
-
-	/* Read possibly downshifted rate from vendor register */
-	return aqr107_read_rate(phydev);
 }
 
 static int aqr107_get_downshift(struct phy_device *phydev, u8 *data)
@@ -1180,7 +1091,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr105_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr105_read_status,
+	.read_status	= aqr_gen1_read_status,
 	.suspend	= aqr_gen1_suspend,
 	.resume		= aqr_gen1_resume,
 },
@@ -1201,7 +1112,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
@@ -1225,7 +1136,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
@@ -1250,7 +1161,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
@@ -1275,7 +1186,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
@@ -1310,7 +1221,7 @@ static struct phy_driver aqr_driver[] = {
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
 	.resume		= aqr_gen1_resume,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_rate_matching = aqr_gen2_get_rate_matching,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
@@ -1333,7 +1244,7 @@ static struct phy_driver aqr_driver[] = {
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
 	.resume		= aqr_gen1_resume,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_rate_matching = aqr_gen2_get_rate_matching,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
@@ -1351,7 +1262,7 @@ static struct phy_driver aqr_driver[] = {
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
 	.resume		= aqr_gen1_resume,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_rate_matching = aqr_gen2_get_rate_matching,
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
@@ -1367,7 +1278,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt       = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend        = aqr_gen1_suspend,
@@ -1391,7 +1302,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt       = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend        = aqr_gen1_suspend,
@@ -1415,7 +1326,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend        = aqr_gen1_suspend,
@@ -1440,7 +1351,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status    = aqr107_read_status,
+	.read_status    = aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend        = aqr_gen1_suspend,
@@ -1465,7 +1376,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.handle_interrupt = aqr_handle_interrupt,
-	.read_status	= aqr107_read_status,
+	.read_status	= aqr_gen2_read_status,
 	.get_tunable    = aqr107_get_tunable,
 	.set_tunable    = aqr107_set_tunable,
 	.suspend	= aqr_gen1_suspend,
