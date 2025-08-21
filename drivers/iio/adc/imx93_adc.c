@@ -320,8 +320,7 @@ static int imx93_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Failed allocating iio device\n");
+		return -ENOMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->dev = dev;

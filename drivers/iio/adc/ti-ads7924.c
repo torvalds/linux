@@ -355,8 +355,7 @@ static int ads7924_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed to allocate iio device\n");
+		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
 

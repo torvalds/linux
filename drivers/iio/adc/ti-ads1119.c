@@ -693,8 +693,7 @@ static int ads1119_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Failed to allocate IIO device\n");
+		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 	st->client = client;
@@ -750,8 +749,7 @@ static int ads1119_probe(struct i2c_client *client)
 						  indio_dev->name,
 						  iio_device_id(indio_dev));
 		if (!st->trig)
-			return dev_err_probe(dev, -ENOMEM,
-					     "Failed to allocate IIO trigger\n");
+			return -ENOMEM;
 
 		st->trig->ops = &ads1119_trigger_ops;
 		iio_trigger_set_drvdata(st->trig, indio_dev);

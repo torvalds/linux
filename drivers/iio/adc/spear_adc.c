@@ -275,8 +275,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct spear_adc_state));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed allocating iio device\n");
+		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 	st->dev = dev;
