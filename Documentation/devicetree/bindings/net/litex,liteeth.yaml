@@ -86,12 +86,12 @@ examples:
         phy-handle = <&eth_phy>;
 
         mdio {
-          #address-cells = <1>;
-          #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-          eth_phy: ethernet-phy@0 {
-            reg = <0>;
-          };
+            eth_phy: ethernet-phy@0 {
+                reg = <0>;
+            };
         };
     };
 ...
