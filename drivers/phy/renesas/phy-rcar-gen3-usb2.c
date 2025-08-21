@@ -302,7 +302,7 @@ static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 		device = !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
 		vbus_valid = !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_VBUSVALID);
 
-		return !(device && !vbus_valid);
+		return vbus_valid ? device : !device;
 	}
 
 	if (!ch->uses_otg_pins)
