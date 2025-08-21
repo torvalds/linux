@@ -117,6 +117,9 @@
 /* zip comp high performance */
 #define HZIP_HIGH_PERF_OFFSET		0x301208
 
+#define HZIP_LIT_LEN_EN_OFFSET		0x301204
+#define HZIP_LIT_LEN_EN_EN		BIT(4)
+
 enum {
 	HZIP_HIGH_COMP_RATE,
 	HZIP_HIGH_COMP_PERF,
@@ -454,6 +457,20 @@ bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg)
 	return false;
 }
 
+static void hisi_zip_literal_set(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + HZIP_LIT_LEN_EN_OFFSET);
+	val &= ~HZIP_LIT_LEN_EN_EN;
+
+	/* enable literal length in stream mode compression */
+	writel(val, qm->io_base + HZIP_LIT_LEN_EN_OFFSET);
+}
+
 static void hisi_zip_set_high_perf(struct hisi_qm *qm)
 {
 	u32 val;
@@ -617,6 +634,7 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), base + QM_CACHE_CTL);
 
 	hisi_zip_set_high_perf(qm);
+	hisi_zip_literal_set(qm);
 	hisi_zip_enable_clock_gate(qm);
 
 	ret = hisi_dae_set_user_domain(qm);
