@@ -368,3 +368,29 @@ int iwl_mld_update_sta_keys(struct iwl_mld *mld,
 			    &data);
 	return data.err;
 }
+
+void iwl_mld_track_bigtk(struct iwl_mld *mld,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_key_conf *key, bool add)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_mld_link *link;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (WARN_ON(key->keyidx < 6 || key->keyidx > 7))
+		return;
+
+	if (WARN_ON(key->link_id < 0))
+		return;
+
+	link = iwl_mld_link_dereference_check(mld_vif, key->link_id);
+	if (WARN_ON(!link))
+		return;
+
+	if (add)
+		rcu_assign_pointer(link->bigtks[key->keyidx - 6], key);
+	else
+		RCU_INIT_POINTER(link->bigtks[key->keyidx - 6], NULL);
+}

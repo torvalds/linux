@@ -125,8 +125,6 @@ struct iwl_mld_emlsr {
  * @ap_sta: pointer to AP sta, for easier access to it.
  *	Relevant only for STA vifs.
  * @authorized: indicates the AP station was set to authorized
- * @bigtks: BIGTKs of the AP, for beacon protection.
- *	Only valid for STA. (FIXME: needs to be per link)
  * @num_associated_stas: number of associated STAs. Relevant only for AP mode.
  * @ap_ibss_active: whether the AP/IBSS was started
  * @cca_40mhz_workaround: When we are connected in 2.4 GHz and 40 MHz, and the
@@ -158,7 +156,6 @@ struct iwl_mld_vif {
 		struct iwl_mld_session_protect session_protect;
 		struct ieee80211_sta *ap_sta;
 		bool authorized;
-		struct ieee80211_key_conf __rcu *bigtks[2];
 		u8 num_associated_stas;
 		bool ap_ibss_active;
 		enum iwl_mld_cca_40mhz_wa_status cca_40mhz_workaround;

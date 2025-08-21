@@ -2065,9 +2065,8 @@ static int iwl_mld_set_key_add(struct iwl_mld *mld,
 		return -EOPNOTSUPP;
 	}
 
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    (keyidx == 6 || keyidx == 7))
-		rcu_assign_pointer(mld_vif->bigtks[keyidx - 6], key);
+	if (keyidx == 6 || keyidx == 7)
+		iwl_mld_track_bigtk(mld, vif, key, true);
 
 	/* After exiting from RFKILL, hostapd configures GTK/ITGK before the
 	 * AP is started, but those keys can't be sent to the FW before the
@@ -2116,9 +2115,8 @@ static void iwl_mld_set_key_remove(struct iwl_mld *mld,
 		sta ? iwl_mld_sta_from_mac80211(sta) : NULL;
 	int keyidx = key->keyidx;
 
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    (keyidx == 6 || keyidx == 7))
-		RCU_INIT_POINTER(mld_vif->bigtks[keyidx - 6], NULL);
+	if (keyidx == 6 || keyidx == 7)
+		iwl_mld_track_bigtk(mld, vif, key, false);
 
 	if (mld_sta && key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 	    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||

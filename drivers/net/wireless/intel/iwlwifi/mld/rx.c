@@ -1619,12 +1619,14 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 				u32 mpdu_status,
 				u32 mpdu_len)
 {
+	struct iwl_mld_link *link;
 	struct wireless_dev *wdev;
 	struct iwl_mld_sta *mld_sta;
 	struct iwl_mld_vif *mld_vif;
 	u8 keyidx;
 	struct ieee80211_key_conf *key;
 	const u8 *frame = (void *)hdr;
+	u8 link_id;
 
 	if ((mpdu_status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
 	     IWL_RX_MPDU_STATUS_SEC_NONE)
@@ -1657,12 +1659,17 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 		return 0;
 	}
 
+	link_id = rx_status->link_valid ? rx_status->link_id : 0;
+	link = rcu_dereference(mld_vif->link[link_id]);
+	if (WARN_ON_ONCE(!link))
+		return -1;
+
 	/* both keys will have the same cipher and MIC length, use
 	 * whichever one is available
 	 */
-	key = rcu_dereference(mld_vif->bigtks[0]);
+	key = rcu_dereference(link->bigtks[0]);
 	if (!key) {
-		key = rcu_dereference(mld_vif->bigtks[1]);
+		key = rcu_dereference(link->bigtks[1]);
 		if (!key)
 			goto report;
 	}
@@ -1680,7 +1687,7 @@ static int iwl_mld_rx_mgmt_prot(struct ieee80211_sta *sta,
 		if (keyidx != 6 && keyidx != 7)
 			return -1;
 
-		key = rcu_dereference(mld_vif->bigtks[keyidx - 6]);
+		key = rcu_dereference(link->bigtks[keyidx - 6]);
 		if (!key)
 			goto report;
 	}

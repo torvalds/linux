@@ -11,6 +11,7 @@
 #include "mcc.h"
 #include "sta.h"
 #include "mlo.h"
+#include "key.h"
 
 #include "fw/api/d3.h"
 #include "fw/api/offload.h"
@@ -825,12 +826,8 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 	}
 
 	/* Also keep track of the new BIGTK */
-	if ((key_config->keyidx == 6 || key_config->keyidx == 7) &&
-	    vif->type == NL80211_IFTYPE_STATION) {
-		struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-
-		rcu_assign_pointer(mld_vif->bigtks[key_config->keyidx - 6], key_config);
-	}
+	if (key_config->keyidx == 6 || key_config->keyidx == 7)
+		iwl_mld_track_bigtk(mld, vif, key_config, true);
 }
 
 static void
