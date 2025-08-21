@@ -253,10 +253,56 @@ static int __xe_svm_garbage_collector(struct xe_vm *vm,
 	return 0;
 }
 
+static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 range_start, u64 range_end)
+{
+	struct xe_vma *vma;
+	struct xe_vma_mem_attr default_attr = {
+		.preferred_loc = {
+			.devmem_fd = DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE,
+			.migration_policy = DRM_XE_MIGRATE_ALL_PAGES,
+		},
+		.atomic_access = DRM_XE_ATOMIC_UNDEFINED,
+	};
+	int err = 0;
+
+	vma = xe_vm_find_vma_by_addr(vm, range_start);
+	if (!vma)
+		return -EINVAL;
+
+	if (xe_vma_has_default_mem_attrs(vma))
+		return 0;
+
+	vm_dbg(&vm->xe->drm, "Existing VMA start=0x%016llx, vma_end=0x%016llx",
+	       xe_vma_start(vma), xe_vma_end(vma));
+
+	if (xe_vma_start(vma) == range_start && xe_vma_end(vma) == range_end) {
+		default_attr.pat_index = vma->attr.default_pat_index;
+		default_attr.default_pat_index  = vma->attr.default_pat_index;
+		vma->attr = default_attr;
+	} else {
+		vm_dbg(&vm->xe->drm, "Split VMA start=0x%016llx, vma_end=0x%016llx",
+		       range_start, range_end);
+		err = xe_vm_alloc_cpu_addr_mirror_vma(vm, range_start, range_end - range_start);
+		if (err) {
+			drm_warn(&vm->xe->drm, "VMA SPLIT failed: %pe\n", ERR_PTR(err));
+			xe_vm_kill(vm, true);
+			return err;
+		}
+	}
+
+	/*
+	 * On call from xe_svm_handle_pagefault original VMA might be changed
+	 * signal this to lookup for VMA again.
+	 */
+	return -EAGAIN;
+}
+
 static int xe_svm_garbage_collector(struct xe_vm *vm)
 {
 	struct xe_svm_range *range;
-	int err;
+	u64 range_start;
+	u64 range_end;
+	int err, ret = 0;
 
 	lockdep_assert_held_write(&vm->lock);
 
@@ -271,6 +317,9 @@ static int xe_svm_garbage_collector(struct xe_vm *vm)
 		if (!range)
 			break;
 
+		range_start = xe_svm_range_start(range);
+		range_end = xe_svm_range_end(range);
+
 		list_del(&range->garbage_collector_link);
 		spin_unlock(&vm->svm.garbage_collector.lock);
 
@@ -283,11 +332,19 @@ static int xe_svm_garbage_collector(struct xe_vm *vm)
 			return err;
 		}
 
+		err = xe_svm_range_set_default_attr(vm, range_start, range_end);
+		if (err) {
+			if (err == -EAGAIN)
+				ret = -EAGAIN;
+			else
+				return err;
+		}
+
 		spin_lock(&vm->svm.garbage_collector.lock);
 	}
 	spin_unlock(&vm->svm.garbage_collector.lock);
 
-	return 0;
+	return ret;
 }
 
 static void xe_svm_garbage_collector_work_func(struct work_struct *w)
@@ -927,13 +984,26 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			    struct xe_gt *gt, u64 fault_addr,
 			    bool atomic)
 {
-	int need_vram;
-
+	int need_vram, ret;
+retry:
 	need_vram = xe_vma_need_vram_for_atomic(vm->xe, vma, atomic);
 	if (need_vram < 0)
 		return need_vram;
 
-	return __xe_svm_handle_pagefault(vm, vma, gt, fault_addr, need_vram ? true : false);
+	ret =  __xe_svm_handle_pagefault(vm, vma, gt, fault_addr,
+					 need_vram ? true : false);
+	if (ret == -EAGAIN) {
+		/*
+		 * Retry once on -EAGAIN to re-lookup the VMA, as the original VMA
+		 * may have been split by xe_svm_range_set_default_attr.
+		 */
+		vma = xe_vm_find_vma_by_addr(vm, fault_addr);
+		if (!vma)
+			return -EINVAL;
+
+		goto retry;
+	}
+	return ret;
 }
 
 /**
