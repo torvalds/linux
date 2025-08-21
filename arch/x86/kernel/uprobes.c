@@ -321,21 +321,21 @@ asm (
 	".pushsection .rodata\n"
 	".global uretprobe_trampoline_entry\n"
 	"uretprobe_trampoline_entry:\n"
-	"pushq %rax\n"
-	"pushq %rcx\n"
-	"pushq %r11\n"
-	"movq $" __stringify(__NR_uretprobe) ", %rax\n"
+	"push %rax\n"
+	"push %rcx\n"
+	"push %r11\n"
+	"mov $" __stringify(__NR_uretprobe) ", %rax\n"
 	"syscall\n"
 	".global uretprobe_syscall_check\n"
 	"uretprobe_syscall_check:\n"
-	"popq %r11\n"
-	"popq %rcx\n"
+	"pop %r11\n"
+	"pop %rcx\n"
 	/*
 	 * The uretprobe syscall replaces stored %rax value with final
 	 * return address, so we don't restore %rax in here and just
 	 * call ret.
 	 */
-	"retq\n"
+	"ret\n"
 	".global uretprobe_trampoline_end\n"
 	"uretprobe_trampoline_end:\n"
 	".popsection\n"
@@ -885,7 +885,7 @@ asm (
 	"push %rcx\n"
 	"push %r11\n"
 	"push %rax\n"
-	"movq $" __stringify(__NR_uprobe) ", %rax\n"
+	"mov $" __stringify(__NR_uprobe) ", %rax\n"
 	"syscall\n"
 	"pop %rax\n"
 	"pop %r11\n"
