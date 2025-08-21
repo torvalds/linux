@@ -1572,12 +1572,12 @@ rcu_torture_writer(void *arg)
 		return 0;
 	}
 	if (cur_ops->poll_active > 0) {
-		ulo = kzalloc(cur_ops->poll_active * sizeof(ulo[0]), GFP_KERNEL);
+		ulo = kcalloc(cur_ops->poll_active, sizeof(*ulo), GFP_KERNEL);
 		if (!WARN_ON(!ulo))
 			ulo_size = cur_ops->poll_active;
 	}
 	if (cur_ops->poll_active_full > 0) {
-		rgo = kzalloc(cur_ops->poll_active_full * sizeof(rgo[0]), GFP_KERNEL);
+		rgo = kcalloc(cur_ops->poll_active_full, sizeof(*rgo), GFP_KERNEL);
 		if (!WARN_ON(!rgo))
 			rgo_size = cur_ops->poll_active_full;
 	}
