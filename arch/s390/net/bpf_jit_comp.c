@@ -1806,10 +1806,22 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			}
 		}
 
-		/* brasl %r14,func */
-		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, (void *)func);
-		/* lgr %b0,%r2: load return value into %b0 */
-		EMIT4(0xb9040000, BPF_REG_0, REG_2);
+		if ((void *)func == arch_bpf_timed_may_goto) {
+			/*
+			 * arch_bpf_timed_may_goto() has a special ABI: the
+			 * parameters are in BPF_REG_AX and BPF_REG_10; the
+			 * return value is in BPF_REG_AX; and all GPRs except
+			 * REG_W0, REG_W1, and BPF_REG_AX are callee-saved.
+			 */
+
+			/* brasl %r0,func */
+			EMIT6_PCREL_RILB_PTR(0xc0050000, REG_0, (void *)func);
+		} else {
+			/* brasl %r14,func */
+			EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14, (void *)func);
+			/* lgr %b0,%r2: load return value into %b0 */
+			EMIT4(0xb9040000, BPF_REG_0, REG_2);
+		}
 
 		/*
 		 * Copy the potentially updated tail call counter back.
@@ -2992,4 +3004,9 @@ void arch_bpf_stack_walk(bool (*consume_fn)(void *, u64, u64, u64),
 			break;
 		prev_addr = addr;
 	}
+}
+
+bool bpf_jit_supports_timed_may_goto(void)
+{
+	return true;
 }
