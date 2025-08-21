@@ -764,9 +764,6 @@ class SphinxDependencyChecker(MissingCheckers):
 
         if self.pdf:
             pdf_pkgs = {
-                "texlive-lang-chinese": [
-                    "/usr/share/texlive/texmf-dist/tex/latex/ctex/ctexhook.sty",
-                ],
                 "fonts-dejavu": [
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                 ],
@@ -774,6 +771,15 @@ class SphinxDependencyChecker(MissingCheckers):
                     "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
                     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
                     "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+                ],
+                "tex-gyre": [
+                    "/usr/share/texmf/tex/latex/tex-gyre/tgtermes.sty"
+                ],
+                "texlive-fonts-recommended": [
+                    "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm",
+                ],
+                "texlive-lang-chinese": [
+                    "/usr/share/texlive/texmf-dist/tex/latex/ctex/ctexhook.sty",
                 ],
             }
 
@@ -895,7 +901,7 @@ class SphinxDependencyChecker(MissingCheckers):
             "dot":           "graphviz",
             "python-sphinx": "python3-sphinx",
             "virtualenv":    "python3-virtualenv",
-            "xelatex":       "texlive-xetex-bin",
+            "xelatex":       "texlive-xetex-bin texlive-dejavu",
             "yaml":          "python3-pyyaml",
         }
 
@@ -931,7 +937,7 @@ class SphinxDependencyChecker(MissingCheckers):
                     self.recommend_python = True
 
                 progs.update({
-                    "python-sphinx": "python311-Sphinx",
+                    "python-sphinx": "python311-Sphinx python311-Sphinx-latex",
                     "virtualenv":    "python311-virtualenv",
                     "yaml":          "python311-PyYAML",
                 })
@@ -939,7 +945,7 @@ class SphinxDependencyChecker(MissingCheckers):
             # Tumbleweed defaults to Python 3.11
 
             progs.update({
-                "python-sphinx": "python313-Sphinx",
+                "python-sphinx": "python313-Sphinx python313-Sphinx-latex",
                 "virtualenv":    "python313-virtualenv",
                 "yaml":          "python313-PyYAML",
             })
@@ -973,18 +979,26 @@ class SphinxDependencyChecker(MissingCheckers):
 
         tex_pkgs = [
             "texlive-fontsextra",
+            "texlive-fonts-asian",
+            "fonts-ttf-dejavu",
         ]
 
         if re.search(r"OpenMandriva", self.system_release):
             packager_cmd = "dnf install"
             noto_sans = "noto-sans-cjk-fonts"
-            tex_pkgs = ["texlive-collection-fontsextra"]
+            tex_pkgs = [
+                "texlive-collection-basic",
+                "texlive-collection-langcjk",
+                "texlive-collection-fontsextra",
+                "texlive-collection-fontsrecommended"
+            ]
 
             # Tested on OpenMandriva Lx 4.3
             progs["convert"] = "imagemagick"
             progs["yaml"] = "python-pyyaml"
             progs["python-virtualenv"] = "python-virtualenv"
             progs["python-sphinx"] = "python-sphinx"
+            progs["xelatex"] = "texlive"
 
             self.check_program("python-virtualenv", DepManager.PYTHON_MANDATORY)
 
@@ -998,7 +1012,9 @@ class SphinxDependencyChecker(MissingCheckers):
 
             if not self.distro_msg:
                 self.distro_msg = \
-                    "Note: for venv, ensurepip could be broken, preventing its install method."
+                    "Notes:\n"\
+                    "1. for venv, ensurepip could be broken, preventing its install method.\n" \
+                    "2. at least on OpenMandriva LX 4.3, texlive packages seem broken"
 
         else:
             packager_cmd = "urpmi"
@@ -1032,7 +1048,12 @@ class SphinxDependencyChecker(MissingCheckers):
         }
 
         archlinux_tex_pkgs = [
+            "texlive-basic",
+            "texlive-binextra",
             "texlive-core",
+            "texlive-fontsrecommended",
+            "texlive-langchinese",
+            "texlive-langcjk",
             "texlive-latexextra",
             "ttf-dejavu",
         ]
@@ -1052,12 +1073,19 @@ class SphinxDependencyChecker(MissingCheckers):
         """
         Provide package installation hints for Gentoo.
         """
+        texlive_deps = [
+            "dev-texlive/texlive-fontsrecommended",
+            "dev-texlive/texlive-latexextra",
+            "dev-texlive/texlive-xetex",
+            "media-fonts/dejavu",
+        ]
+
         progs = {
             "convert":       "media-gfx/imagemagick",
             "dot":           "media-gfx/graphviz",
             "rsvg-convert":  "gnome-base/librsvg",
             "virtualenv":    "dev-python/virtualenv",
-            "xelatex":       "dev-texlive/texlive-xetex media-fonts/dejavu",
+            "xelatex":       " ".join(texlive_deps),
             "yaml":          "dev-python/pyyaml",
             "python-sphinx": "dev-python/sphinx",
         }
