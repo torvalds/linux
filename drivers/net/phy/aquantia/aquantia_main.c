@@ -860,9 +860,93 @@ static int aqr_gen1_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static const u16 aqr_global_cfg_regs[] = {
+	VEND1_GLOBAL_CFG_10M,
+	VEND1_GLOBAL_CFG_100M,
+	VEND1_GLOBAL_CFG_1G,
+	VEND1_GLOBAL_CFG_2_5G,
+	VEND1_GLOBAL_CFG_5G,
+	VEND1_GLOBAL_CFG_10G,
+};
+
+static int aqr_gen2_fill_interface_modes(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+	struct aqr107_priv *priv = phydev->priv;
+	unsigned int serdes_mode, rate_adapt;
+	phy_interface_t interface;
+	int i, val, ret;
+
+	/* It's been observed on some models that - when coming out of suspend
+	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
+	 * continue on returning zeroes for some time. Let's poll the 100M
+	 * register until it returns a real value as both 113c and 115c support
+	 * this mode.
+	 */
+	if (priv->wait_on_global_cfg) {
+		ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
+						VEND1_GLOBAL_CFG_100M, val,
+						val != 0, 1000, 100000, false);
+		if (ret)
+			return ret;
+	}
+
+	/* Walk the media-speed configuration registers to determine which
+	 * host-side serdes modes may be used by the PHY depending on the
+	 * negotiated media speed.
+	 */
+	for (i = 0; i < ARRAY_SIZE(aqr_global_cfg_regs); i++) {
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				   aqr_global_cfg_regs[i]);
+		if (val < 0)
+			return val;
+
+		serdes_mode = FIELD_GET(VEND1_GLOBAL_CFG_SERDES_MODE, val);
+		rate_adapt = FIELD_GET(VEND1_GLOBAL_CFG_RATE_ADAPT, val);
+
+		switch (serdes_mode) {
+		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI:
+			if (rate_adapt == VEND1_GLOBAL_CFG_RATE_ADAPT_USX)
+				interface = PHY_INTERFACE_MODE_USXGMII;
+			else
+				interface = PHY_INTERFACE_MODE_10GBASER;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI5G:
+			interface = PHY_INTERFACE_MODE_5GBASER;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_OCSGMII:
+			interface = PHY_INTERFACE_MODE_2500BASEX;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_SGMII:
+			interface = PHY_INTERFACE_MODE_SGMII;
+			break;
+
+		default:
+			phydev_warn(phydev, "unrecognised serdes mode %u\n",
+				    serdes_mode);
+			interface = PHY_INTERFACE_MODE_NA;
+			break;
+		}
+
+		if (interface != PHY_INTERFACE_MODE_NA)
+			__set_bit(interface, possible);
+	}
+
+	return 0;
+}
+
 static int aqr_gen2_config_init(struct phy_device *phydev)
 {
-	return aqr_gen1_config_init(phydev);
+	int ret;
+
+	ret = aqr_gen1_config_init(phydev);
+	if (ret)
+		return ret;
+
+	return aqr_gen2_fill_interface_modes(phydev);
 }
 
 static int aqcs109_config_init(struct phy_device *phydev)
@@ -984,84 +1068,6 @@ static int aqr_gen1_resume(struct phy_device *phydev)
 	return aqr_gen1_wait_processor_intensive_op(phydev);
 }
 
-static const u16 aqr_global_cfg_regs[] = {
-	VEND1_GLOBAL_CFG_10M,
-	VEND1_GLOBAL_CFG_100M,
-	VEND1_GLOBAL_CFG_1G,
-	VEND1_GLOBAL_CFG_2_5G,
-	VEND1_GLOBAL_CFG_5G,
-	VEND1_GLOBAL_CFG_10G
-};
-
-static int aqr_gen2_fill_interface_modes(struct phy_device *phydev)
-{
-	unsigned long *possible = phydev->possible_interfaces;
-	struct aqr107_priv *priv = phydev->priv;
-	unsigned int serdes_mode, rate_adapt;
-	phy_interface_t interface;
-	int i, val, ret;
-
-	/* It's been observed on some models that - when coming out of suspend
-	 * - the FW signals that the PHY is ready but the GLOBAL_CFG registers
-	 * continue on returning zeroes for some time. Let's poll the 100M
-	 * register until it returns a real value as both 113c and 115c support
-	 * this mode.
-	 */
-	if (priv->wait_on_global_cfg) {
-		ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
-						VEND1_GLOBAL_CFG_100M, val,
-						val != 0, 1000, 100000, false);
-		if (ret)
-			return ret;
-	}
-
-	/* Walk the media-speed configuration registers to determine which
-	 * host-side serdes modes may be used by the PHY depending on the
-	 * negotiated media speed.
-	 */
-	for (i = 0; i < ARRAY_SIZE(aqr_global_cfg_regs); i++) {
-		val = phy_read_mmd(phydev, MDIO_MMD_VEND1,
-				   aqr_global_cfg_regs[i]);
-		if (val < 0)
-			return val;
-
-		serdes_mode = FIELD_GET(VEND1_GLOBAL_CFG_SERDES_MODE, val);
-		rate_adapt = FIELD_GET(VEND1_GLOBAL_CFG_RATE_ADAPT, val);
-
-		switch (serdes_mode) {
-		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI:
-			if (rate_adapt == VEND1_GLOBAL_CFG_RATE_ADAPT_USX)
-				interface = PHY_INTERFACE_MODE_USXGMII;
-			else
-				interface = PHY_INTERFACE_MODE_10GBASER;
-			break;
-
-		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI5G:
-			interface = PHY_INTERFACE_MODE_5GBASER;
-			break;
-
-		case VEND1_GLOBAL_CFG_SERDES_MODE_OCSGMII:
-			interface = PHY_INTERFACE_MODE_2500BASEX;
-			break;
-
-		case VEND1_GLOBAL_CFG_SERDES_MODE_SGMII:
-			interface = PHY_INTERFACE_MODE_SGMII;
-			break;
-
-		default:
-			phydev_warn(phydev, "unrecognised serdes mode %u\n",
-				    serdes_mode);
-			interface = PHY_INTERFACE_MODE_NA;
-			break;
-		}
-
-		if (interface != PHY_INTERFACE_MODE_NA)
-			__set_bit(interface, possible);
-	}
-
-	return 0;
-}
-
 static int aqr115c_get_features(struct phy_device *phydev)
 {
 	unsigned long *supported = phydev->supported;
@@ -1096,10 +1102,6 @@ static int aqr113c_config_init(struct phy_device *phydev)
 
 	ret = aqr_gen2_config_init(phydev);
 	if (ret < 0)
-		return ret;
-
-	ret = aqr_gen2_fill_interface_modes(phydev);
-	if (ret)
 		return ret;
 
 	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_TXDIS,
