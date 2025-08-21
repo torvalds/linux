@@ -679,8 +679,8 @@ iwl_mld_set_key_rx_seq_tids(struct ieee80211_key_conf *key,
 }
 
 static void
-iwl_mld_set_key_rx_seq(struct ieee80211_key_conf *key,
-		       struct iwl_mld_mcast_key_data *key_data)
+iwl_mld_update_mcast_rx_seq(struct ieee80211_key_conf *key,
+			    struct iwl_mld_mcast_key_data *key_data)
 {
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
@@ -768,7 +768,7 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 		}
 
 		status_idx = key->keyidx == wowlan_status->gtk[1].id;
-		iwl_mld_set_key_rx_seq(key, &wowlan_status->gtk[status_idx]);
+		iwl_mld_update_mcast_rx_seq(key, &wowlan_status->gtk[status_idx]);
 		break;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
@@ -776,11 +776,13 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		if (key->keyidx == 4 || key->keyidx == 5) {
 			if (key->keyidx == wowlan_status->igtk.id)
-				iwl_mld_set_key_rx_seq(key, &wowlan_status->igtk);
+				iwl_mld_update_mcast_rx_seq(key,
+							    &wowlan_status->igtk);
 		}
 		if (key->keyidx == 6 || key->keyidx == 7) {
 			status_idx = key->keyidx == wowlan_status->bigtk[1].id;
-			iwl_mld_set_key_rx_seq(key, &wowlan_status->bigtk[status_idx]);
+			iwl_mld_update_mcast_rx_seq(key,
+						    &wowlan_status->bigtk[status_idx]);
 		}
 		break;
 	default:
@@ -807,7 +809,7 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 	if (IS_ERR(key_config))
 		return;
 
-	iwl_mld_set_key_rx_seq(key_config, key_data);
+	iwl_mld_update_mcast_rx_seq(key_config, key_data);
 
 	/* The FW holds only one igtk so we keep track of the valid one */
 	if (key_config->keyidx == 4 || key_config->keyidx == 5) {
