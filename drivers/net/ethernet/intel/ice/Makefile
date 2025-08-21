@@ -50,7 +50,7 @@ ice-$(CONFIG_PCI_IOV) +=	\
 	virt/allowlist.o	\
 	virt/fdir.o		\
 	virt/queues.o		\
-	virt/rss.o		\
+	virt/virtchnl.o		\
 	ice_vf_mbx.o		\
 	ice_vf_vsi_vlan_ops.o	\
 	ice_vf_lib.o
