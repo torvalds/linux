@@ -2696,7 +2696,7 @@ static int airoha_pinconf_get(struct pinctrl_dev *pctrl_dev,
 		arg = 1;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -2788,7 +2788,7 @@ static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
 			break;
 		}
 		default:
-			return -EOPNOTSUPP;
+			return -ENOTSUPP;
 		}
 	}
 
@@ -2805,10 +2805,10 @@ static int airoha_pinconf_group_get(struct pinctrl_dev *pctrl_dev,
 		if (airoha_pinconf_get(pctrl_dev,
 				       airoha_pinctrl_groups[group].pins[i],
 				       config))
-			return -EOPNOTSUPP;
+			return -ENOTSUPP;
 
 		if (i && cur_config != *config)
-			return -EOPNOTSUPP;
+			return -ENOTSUPP;
 
 		cur_config = *config;
 	}
