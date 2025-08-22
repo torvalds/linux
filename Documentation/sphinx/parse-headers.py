@@ -4,20 +4,20 @@
 # pylint: disable=C0103,R0902,R0912,R0914,R0915
 
 """
-Convert a C header or source file (C_FILE), into a ReStructured Text
+Convert a C header or source file ``FILE_IN``, into a ReStructured Text
 included via ..parsed-literal block with cross-references for the
 documentation files that describe the API. It accepts an optional
-EXCEPTIONS_FILE with describes what elements will be either ignored or
-be pointed to a non-default reference.
+``FILE_RULES`` file to describes what elements will be either ignored or
+be pointed to a non-default reference type/name.
 
-The output is written at the (OUT_FILE).
+The output is written at ``FILE_OUT``.
 
 It is capable of identifying defines, functions, structs, typedefs,
 enums and enum symbols and create cross-references for all of them.
 It is also capable of distinguish #define used for specifying a Linux
 ioctl.
 
-The EXCEPTIONS_FILE contains a set of rules like:
+The optional ``FILE_RULES`` contains a set of rules like:
 
     ignore ioctl VIDIOC_ENUM_FMT
     replace ioctl VIDIOC_DQBUF vidioc_qbuf
@@ -400,17 +400,66 @@ class ParseHeader:
             f.write("\n\n.. parsed-literal::\n\n")
             f.write(text)
 
+class EnrichFormatter(argparse.HelpFormatter):
+    """
+    Better format the output, making easier to identify the positional args
+    and how they're used at the __doc__ description.
+    """
+    def __init__(self, *args, **kwargs):
+        """Initialize class and check if is TTY"""
+        super().__init__(*args, **kwargs)
+        self._tty = sys.stdout.isatty()
+
+    def enrich_text(self, text):
+        """Handle ReST markups (currently, only ``foo``)"""
+        if self._tty and text:
+            # Replace ``text`` with ANSI bold
+            return re.sub(r'\`\`(.+?)\`\`',
+                          lambda m: f'\033[1m{m.group(1)}\033[0m', text)
+        return text
+
+    def _fill_text(self, text, width, indent):
+        """Enrich descriptions with markups on it"""
+        enriched = self.enrich_text(text)
+        return "\n".join(indent + line for line in enriched.splitlines())
+
+    def _format_usage(self, usage, actions, groups, prefix):
+        """Enrich positional arguments at usage: line"""
+
+        prog = self._prog
+        parts = []
+
+        for action in actions:
+            if action.option_strings:
+                opt = action.option_strings[0]
+                if action.nargs != 0:
+                    opt += f" {action.dest.upper()}"
+                parts.append(f"[{opt}]")
+            else:
+                # Positional argument
+                parts.append(self.enrich_text(f"``{action.dest.upper()}``"))
+
+        usage_text = f"{prefix or 'usage: '} {prog} {' '.join(parts)}\n"
+        return usage_text
+
+    def _format_action_invocation(self, action):
+        """Enrich argument names"""
+        if not action.option_strings:
+            return self.enrich_text(f"``{action.dest.upper()}``")
+        else:
+            return ", ".join(action.option_strings)
+
 
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     formatter_class=EnrichFormatter)
 
     parser.add_argument("-d", "--debug", action="count", default=0,
                         help="Increase debug level. Can be used multiple times")
     parser.add_argument("file_in", help="Input C file")
     parser.add_argument("file_out", help="Output RST file")
-    parser.add_argument("file_exceptions", nargs="?",
+    parser.add_argument("file_rules", nargs="?",
                         help="Exceptions file (optional)")
 
     args = parser.parse_args()
@@ -418,8 +467,8 @@ def main():
     parser = ParseHeader(debug=args.debug)
     parser.parse_file(args.file_in)
 
-    if args.file_exceptions:
-        parser.process_exceptions(args.file_exceptions)
+    if args.file_rules:
+        parser.process_exceptions(args.file_rules)
 
     parser.debug_print()
     parser.write_output(args.file_in, args.file_out)
