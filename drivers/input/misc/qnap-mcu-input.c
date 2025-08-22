@@ -103,7 +103,7 @@ static int qnap_mcu_input_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return dev_err_probe(dev, -ENOMEM, "no memory for input device\n");
+		return -ENOMEM;
 
 	idev->input = input;
 	idev->dev = dev;
