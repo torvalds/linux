@@ -39,12 +39,13 @@
 
 #include "hfc_pci.h"
 
+static void hfcpci_softirq(struct timer_list *unused);
 static const char *hfcpci_revision = "2.0";
 
 static int HFC_cnt;
 static uint debug;
 static uint poll, tics;
-static struct timer_list hfc_tl;
+static DEFINE_TIMER(hfc_tl, hfcpci_softirq);
 static unsigned long hfc_jiffies;
 
 MODULE_AUTHOR("Karsten Keil");
@@ -2305,8 +2306,7 @@ hfcpci_softirq(struct timer_list *unused)
 		hfc_jiffies = jiffies + 1;
 	else
 		hfc_jiffies += tics;
-	hfc_tl.expires = hfc_jiffies;
-	add_timer(&hfc_tl);
+	mod_timer(&hfc_tl, hfc_jiffies);
 }
 
 static int __init
@@ -2332,10 +2332,8 @@ HFC_init(void)
 	if (poll != HFCPCI_BTRANS_THRESHOLD) {
 		printk(KERN_INFO "%s: Using alternative poll value of %d\n",
 		       __func__, poll);
-		timer_setup(&hfc_tl, hfcpci_softirq, 0);
-		hfc_tl.expires = jiffies + tics;
-		hfc_jiffies = hfc_tl.expires;
-		add_timer(&hfc_tl);
+		hfc_jiffies = jiffies + tics;
+		mod_timer(&hfc_tl, hfc_jiffies);
 	} else
 		tics = 0; /* indicate the use of controller's timer */
 
