@@ -144,7 +144,8 @@ struct cmdq_base {
 	#define CMDQ_BASE_OPCODE_MODIFY_CQ              0x90UL
 	#define CMDQ_BASE_OPCODE_QUERY_QP_EXTEND        0x91UL
 	#define CMDQ_BASE_OPCODE_QUERY_ROCE_STATS_EXT   0x92UL
-	#define CMDQ_BASE_OPCODE_LAST                  CMDQ_BASE_OPCODE_QUERY_ROCE_STATS_EXT
+	#define CMDQ_BASE_OPCODE_ROCE_MIRROR_CFG	0x99UL
+	#define CMDQ_BASE_OPCODE_LAST                   CMDQ_BASE_OPCODE_ROCE_MIRROR_CFG
 	u8	cmd_size;
 	__le16	flags;
 	__le16	cookie;
@@ -2107,6 +2108,43 @@ struct creq_query_roce_stats_ext_resp_sb {
 	__le64	missing_resp;
 	__le64	to_retransmit;
 	__le64	dup_req;
+};
+
+/* cmdq_roce_mirror_cfg (size:192b/24B) */
+struct cmdq_roce_mirror_cfg {
+	u8      opcode;
+	#define CMDQ_ROCE_MIRROR_CFG_OPCODE_ROCE_MIRROR_CFG	0x99UL
+	#define CMDQ_ROCE_MIRROR_CFG_OPCODE_LAST		\
+				CMDQ_ROCE_MIRROR_CFG_OPCODE_ROCE_MIRROR_CFG
+	u8      cmd_size;
+	__le16  flags;
+	__le16  cookie;
+	u8      resp_size;
+	u8      reserved8;
+	__le64  resp_addr;
+	u8      mirror_flags;
+	#define CMDQ_ROCE_MIRROR_CFG_MIRROR_ENABLE		0x1UL
+	u8      rsvd[7];
+};
+
+/* creq_roce_mirror_cfg_resp (size:128b/16B) */
+struct creq_roce_mirror_cfg_resp {
+	u8      type;
+	#define CREQ_ROCE_MIRROR_CFG_RESP_TYPE_MASK	0x3fUL
+	#define CREQ_ROCE_MIRROR_CFG_RESP_TYPE_SFT	0
+	#define CREQ_ROCE_MIRROR_CFG_RESP_TYPE_QP_EVENT	0x38UL
+	#define CREQ_ROCE_MIRROR_CFG_RESP_TYPE_LAST	\
+			CREQ_ROCE_MIRROR_CFG_RESP_TYPE_QP_EVENT
+	u8      status;
+	__le16  cookie;
+	__le32  reserved32;
+	u8      v;
+	#define CREQ_ROCE_MIRROR_CFG_RESP_V		0x1UL
+	u8      event;
+	#define CREQ_ROCE_MIRROR_CFG_RESP_EVENT_ROCE_MIRROR_CFG	0x99UL
+	#define CREQ_ROCE_MIRROR_CFG_RESP_EVENT_LAST	\
+			CREQ_ROCE_MIRROR_CFG_RESP_EVENT_ROCE_MIRROR_CFG
+	u8      reserved48[6];
 };
 
 /* cmdq_query_func (size:128b/16B) */

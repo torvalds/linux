@@ -1146,3 +1146,40 @@ out:
 	dma_free_coherent(&rcfw->pdev->dev, sbuf.size, sbuf.sb, sbuf.dma_addr);
 	return rc;
 }
+
+int bnxt_qplib_create_flow(struct bnxt_qplib_res *res)
+{
+	struct creq_roce_mirror_cfg_resp resp = {};
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct cmdq_roce_mirror_cfg req = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
+
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_ROCE_MIRROR_CFG,
+				 sizeof(req));
+
+	req.mirror_flags = (u8)CMDQ_ROCE_MIRROR_CFG_MIRROR_ENABLE;
+
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
+				sizeof(resp), 0);
+	return bnxt_qplib_rcfw_send_message(rcfw, &msg);
+}
+
+int bnxt_qplib_destroy_flow(struct bnxt_qplib_res *res)
+{
+	struct creq_roce_mirror_cfg_resp resp = {};
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct cmdq_roce_mirror_cfg req = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
+
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_ROCE_MIRROR_CFG,
+				 sizeof(req));
+
+	req.mirror_flags &= ~((u8)CMDQ_ROCE_MIRROR_CFG_MIRROR_ENABLE);
+
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
+				sizeof(resp), 0);
+
+	return bnxt_qplib_rcfw_send_message(rcfw, &msg);
+}

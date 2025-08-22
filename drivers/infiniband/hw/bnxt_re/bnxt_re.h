@@ -232,6 +232,7 @@ struct bnxt_re_dev {
 	u16 mirror_vnic_id;
 	union ib_gid ugid;
 	u32 ugid_index;
+	u8 sniffer_flow_created : 1;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\

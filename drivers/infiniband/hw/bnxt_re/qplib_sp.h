@@ -360,6 +360,8 @@ int bnxt_qplib_read_context(struct bnxt_qplib_rcfw *rcfw, u8 type, u32 xid,
 int bnxt_qplib_query_cc_param(struct bnxt_qplib_res *res,
 			      struct bnxt_qplib_cc_param *cc_param);
 void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw);
+int bnxt_qplib_create_flow(struct bnxt_qplib_res *res);
+int bnxt_qplib_destroy_flow(struct bnxt_qplib_res *res);
 
 #define BNXT_VAR_MAX_WQE       4352
 #define BNXT_VAR_MAX_SLOT_ALIGN 256
