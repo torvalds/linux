@@ -122,9 +122,6 @@ class KernelInclude(Include):
             exceptions_file = os.path.join(source_dir, self.options['exception-file'])
             parser.process_exceptions(exceptions_file)
 
-        if self.options.get("start-line") or self.options.get("end-line"):
-            raise self.severe('generate-cross-refs can\'t be used with "start-line" or "end-line"')
-
         # Store references on a symbol dict to be used at check time
         if 'warn-broken' in self.options:
             env._xref_files.add(path)
@@ -208,9 +205,6 @@ class KernelInclude(Include):
             rawtext = self.read_rawtext_with_xrefs(env, path)
 
             title = os.path.basename(path)
-
-            if startline or endline:
-                raise self.severe('generate-cross-refs can\'t be used together with "start-line" or "end-line"')
 
             if "code" not in self.options:
                 rawtext = ".. parsed-literal::\n\n" + rawtext
