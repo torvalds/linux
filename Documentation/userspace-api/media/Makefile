@@ -3,7 +3,7 @@
 # Rules to convert a .h file to inline RST documentation
 
 SRC_DIR=$(srctree)/Documentation/userspace-api/media
-PARSER = $(srctree)/Documentation/sphinx/parse-headers.pl
+PARSER = $(srctree)/tools/docs/parse-headers.py
 UAPI = $(srctree)/include/uapi/linux
 KAPI = $(srctree)/include/linux
 
