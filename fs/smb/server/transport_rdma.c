@@ -631,10 +631,9 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	smb_direct_disconnect_rdma_connection(sc);
 }
 
-static int smb_direct_post_recv(struct smb_direct_transport *t,
+static int smb_direct_post_recv(struct smbdirect_socket *sc,
 				struct smbdirect_recv_io *recvmsg)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct ib_recv_wr wr;
 	int ret;
@@ -791,8 +790,6 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, recv_io.posted.refill_work);
-	struct smb_direct_transport *t =
-		container_of(sc, struct smb_direct_transport, socket);
 	struct smbdirect_recv_io *recvmsg;
 	int credits = 0;
 	int ret;
@@ -805,7 +802,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 
 			recvmsg->first_segment = false;
 
-			ret = smb_direct_post_recv(t, recvmsg);
+			ret = smb_direct_post_recv(sc, recvmsg);
 			if (ret) {
 				pr_err("Can't post recv: %d\n", ret);
 				put_recvmsg(sc, recvmsg);
@@ -1785,7 +1782,7 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 	if (!recvmsg)
 		return -ENOMEM;
 
-	ret = smb_direct_post_recv(t, recvmsg);
+	ret = smb_direct_post_recv(sc, recvmsg);
 	if (ret) {
 		pr_err("Can't post recv: %d\n", ret);
 		goto out_err;
