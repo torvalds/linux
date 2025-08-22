@@ -1264,9 +1264,8 @@ static int smbd_post_recv(
 }
 
 /* Perform SMBD negotiate according to [MS-SMBD] 3.1.5.2 */
-static int smbd_negotiate(struct smbd_connection *info)
+static int smbd_negotiate(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int rc;
 	struct smbdirect_recv_io *response = get_receive_buffer(sc);
@@ -1879,7 +1878,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 	INIT_WORK(&sc->recv_io.posted.refill_work, smbd_post_send_credits);
 
-	rc = smbd_negotiate(info);
+	rc = smbd_negotiate(sc);
 	if (rc) {
 		log_rdma_event(ERR, "smbd_negotiate rc=%d\n", rc);
 		goto negotiation_failed;
