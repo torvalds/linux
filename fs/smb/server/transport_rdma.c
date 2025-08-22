@@ -180,12 +180,10 @@ static void put_recvmsg(struct smbdirect_socket *sc,
 	queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 }
 
-static void enqueue_reassembly(struct smb_direct_transport *t,
+static void enqueue_reassembly(struct smbdirect_socket *sc,
 			       struct smbdirect_recv_io *recvmsg,
 			       int data_length)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	spin_lock(&sc->recv_io.reassembly.lock);
 	list_add_tail(&recvmsg->list, &sc->recv_io.reassembly.list);
 	sc->recv_io.reassembly.queue_length++;
@@ -200,10 +198,8 @@ static void enqueue_reassembly(struct smb_direct_transport *t,
 	spin_unlock(&sc->recv_io.reassembly.lock);
 }
 
-static struct smbdirect_recv_io *get_first_reassembly(struct smb_direct_transport *t)
+static struct smbdirect_recv_io *get_first_reassembly(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	if (!list_empty(&sc->recv_io.reassembly.list))
 		return list_first_entry(&sc->recv_io.reassembly.list,
 				struct smbdirect_recv_io, list);
@@ -387,7 +383,7 @@ static void free_transport(struct smb_direct_transport *t)
 	ksmbd_debug(RDMA, "drain the reassembly queue\n");
 	do {
 		spin_lock(&sc->recv_io.reassembly.lock);
-		recvmsg = get_first_reassembly(t);
+		recvmsg = get_first_reassembly(sc);
 		if (recvmsg) {
 			list_del(&recvmsg->list);
 			spin_unlock(&sc->recv_io.reassembly.lock);
@@ -494,14 +490,12 @@ static int smb_direct_check_recvmsg(struct smbdirect_recv_io *recvmsg)
 static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct smbdirect_recv_io *recvmsg;
-	struct smb_direct_transport *t;
 	struct smbdirect_socket *sc;
 	struct smbdirect_socket_parameters *sp;
 
 	recvmsg = container_of(wc->wr_cqe, struct smbdirect_recv_io, cqe);
 	sc = recvmsg->socket;
 	sp = &sc->parameters;
-	t = container_of(sc, struct smb_direct_transport, socket);
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
 		put_recvmsg(sc, recvmsg);
@@ -539,7 +533,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		sc->recv_io.reassembly.full_packet_received = true;
 		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED);
 		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
-		enqueue_reassembly(t, recvmsg, 0);
+		enqueue_reassembly(sc, recvmsg, 0);
 		wake_up(&sc->status_wait);
 		return;
 	case SMBDIRECT_EXPECT_DATA_TRANSFER: {
@@ -607,7 +601,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			if (sc->recv_io.credits.target > old_recv_credit_target)
 				queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 
-			enqueue_reassembly(t, recvmsg, (int)data_length);
+			enqueue_reassembly(sc, recvmsg, (int)data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
 			put_recvmsg(sc, recvmsg);
@@ -702,7 +696,7 @@ again:
 		to_read = size;
 		offset = sc->recv_io.reassembly.first_entry_offset;
 		while (data_read < size) {
-			recvmsg = get_first_reassembly(st);
+			recvmsg = get_first_reassembly(sc);
 			data_transfer = smbdirect_recv_io_payload(recvmsg);
 			data_length = le32_to_cpu(data_transfer->data_length);
 			remaining_data_length =
@@ -2054,7 +2048,7 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	if (ret <= 0 || sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING)
 		return ret < 0 ? ret : -ETIMEDOUT;
 
-	recvmsg = get_first_reassembly(st);
+	recvmsg = get_first_reassembly(sc);
 	if (!recvmsg)
 		return -ECONNABORTED;
 
