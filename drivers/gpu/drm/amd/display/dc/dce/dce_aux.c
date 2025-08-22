@@ -725,14 +725,18 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 	for (i = 0; i < AUX_MAX_RETRIES; i++) {
 		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_INFORMATION,
 					LOG_FLAG_I2cAux_DceAux,
-					"dce_aux_transfer_with_retries: link_index=%u: START: retry %d of %d: address=0x%04x length=%u write=%d mot=%d",
+					"dce_aux_transfer_with_retries: link_index=%u: START: retry %d of %d: "
+					"address=0x%04x length=%u write=%d mot=%d is_i2c=%d is_dpia=%d ddc_hw_inst=%d",
 					ddc && ddc->link ? ddc->link->link_index : UINT_MAX,
 					i + 1,
 					(int)AUX_MAX_RETRIES,
 					payload->address,
 					payload->length,
 					(unsigned int) payload->write,
-					(unsigned int) payload->mot);
+					(unsigned int) payload->mot,
+					payload->i2c_over_aux,
+					(ddc->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) ? true : false,
+					ddc->link->ddc_hw_inst);
 		if (payload->write)
 			dce_aux_log_payload("  write", payload->data, payload->length, 16);
 
@@ -746,7 +750,9 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 
 		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_INFORMATION,
 					LOG_FLAG_I2cAux_DceAux,
-					"dce_aux_transfer_with_retries: link_index=%u: END: retry %d of %d: address=0x%04x length=%u write=%d mot=%d: ret=%d operation_result=%d payload->reply=%u",
+					"dce_aux_transfer_with_retries: link_index=%u: END: retry %d of %d: "
+					"address=0x%04x length=%u write=%d mot=%d: ret=%d operation_result=%d "
+					"payload->reply=%u  is_i2c=%d is_dpia=%d ddc_hw_inst=%d",
 					ddc && ddc->link ? ddc->link->link_index : UINT_MAX,
 					i + 1,
 					(int)AUX_MAX_RETRIES,
@@ -756,7 +762,10 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 					(unsigned int) payload->mot,
 					ret,
 					(int)operation_result,
-					(unsigned int) *payload->reply);
+					(unsigned int) *payload->reply,
+					payload->i2c_over_aux,
+					(ddc->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) ? true : false,
+					ddc->link->ddc_hw_inst);
 		if (!payload->write)
 			dce_aux_log_payload("  read", payload->data, ret > 0 ? ret : 0, 16);
 
