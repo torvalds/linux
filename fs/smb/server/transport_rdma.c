@@ -852,9 +852,8 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 	smb_direct_free_sendmsg(sc, sibling);
 }
 
-static int manage_credits_prior_sending(struct smb_direct_transport *t)
+static int manage_credits_prior_sending(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int new_credits;
 
 	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
@@ -1026,7 +1025,7 @@ static int smb_direct_create_header(struct smb_direct_transport *t,
 	/* Fill in the packet header */
 	packet = (struct smbdirect_data_transfer *)sendmsg->packet;
 	packet->credits_requested = cpu_to_le16(sp->send_credit_target);
-	packet->credits_granted = cpu_to_le16(manage_credits_prior_sending(t));
+	packet->credits_granted = cpu_to_le16(manage_credits_prior_sending(sc));
 
 	packet->flags = 0;
 	if (manage_keep_alive_before_sending(t))
@@ -1667,7 +1666,7 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 		resp->reserved = 0;
 		resp->credits_requested =
 				cpu_to_le16(sp->send_credit_target);
-		resp->credits_granted = cpu_to_le16(manage_credits_prior_sending(t));
+		resp->credits_granted = cpu_to_le16(manage_credits_prior_sending(sc));
 		resp->max_readwrite_size = cpu_to_le32(sp->max_read_write_size);
 		resp->preferred_send_size = cpu_to_le32(sp->max_send_size);
 		resp->max_receive_size = cpu_to_le32(sp->max_recv_size);
