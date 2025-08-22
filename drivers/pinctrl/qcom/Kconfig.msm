@@ -347,6 +347,14 @@ config PINCTRL_SM6125
 	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	 Technologies Inc SM6125 platform.
 
+config PINCTRL_SM6150
+	tristate "Qualcomm Technologies Inc SM6150 pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	 Technologies Inc SM6150 platform.
+
 config PINCTRL_SM6350
 	tristate "Qualcomm Technologies Inc SM6350 pin controller driver"
 	depends on ARM64 || COMPILE_TEST
