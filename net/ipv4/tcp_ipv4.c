@@ -2459,7 +2459,6 @@ do_time_wait:
 
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
-	.twsk_destructor= tcp_twsk_destructor,
 };
 
 void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)

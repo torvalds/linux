@@ -2050,7 +2050,6 @@ void tcp_v6_early_demux(struct sk_buff *skb)
 
 static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
-	.twsk_destructor = tcp_twsk_destructor,
 };
 
 INDIRECT_CALLABLE_SCOPE void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
