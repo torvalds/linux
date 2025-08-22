@@ -26,7 +26,7 @@
     environment variable name. Malformed variable names and references to
     non-existing variables are left unchanged.
 
-    This extension overrides Sphinx include directory, adding two extra
+    This extension overrides Sphinx include directory, adding some extra
     arguments:
 
     1. :generate-cross-refs:
@@ -35,14 +35,20 @@
         class, which converts C data structures into cross-references to
         be linked to ReST files containing a more comprehensive documentation;
 
-        Don't use it together with :start-line: and/or :end-line:, as
-        filtering input file line range is currently not supported.
-
     2. :exception-file:
 
-        Used together with :generate-cross-refs:. Points to a file containing
-        rules to ignore C data structs or to use a different reference name,
-        optionally using a different reference type.
+        Used together with :generate-cross-refs
+
+        Points to a file containing rules to ignore C data structs or to
+        use a different reference name, optionally using a different
+        reference type.
+
+    3. :warn-broken:
+
+        Used together with :generate-cross-refs:
+
+        Detect if the auto-generated cross references doesn't exist.
+
 """
 
 # ==============================================================================
@@ -50,6 +56,7 @@
 # ==============================================================================
 
 import os.path
+import re
 import sys
 
 from docutils import io, nodes, statemachine
@@ -58,23 +65,18 @@ from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
 from docutils.parsers.rst.directives.misc import Include
 
+from sphinx.util import logging
+
 srctree = os.path.abspath(os.environ["srctree"])
 sys.path.insert(0, os.path.join(srctree, "tools/docs/lib"))
 
 from parse_data_structs import ParseDataStructs
 
 __version__ = "1.0"
+logger = logging.getLogger(__name__)
 
-
-# ==============================================================================
-def setup(app):
-    """Setup Sphinx exension"""
-    app.add_directive("kernel-include", KernelInclude)
-    return {
-        "version": __version__,
-        "parallel_read_safe": True,
-        "parallel_write_safe": True,
-    }
+RE_DOMAIN_REF = re.compile(r'\\ :(ref|c:type|c:func):`([^<`]+)(?:<([^>]+)>)?`\\')
+RE_SIMPLE_REF = re.compile(r'`([^`]+)`')
 
 
 # ==============================================================================
@@ -86,6 +88,7 @@ class KernelInclude(Include):
 
     option_spec.update({
         'generate-cross-refs': directives.flag,
+        'warn-broken': directives.flag,
         'exception-file': directives.unchanged,
     })
 
@@ -103,9 +106,9 @@ class KernelInclude(Include):
         env.note_dependency(os.path.abspath(path))
 
         # return super(KernelInclude, self).run() # won't work, see HINTs in _run()
-        return self._run()
+        return self._run(env)
 
-    def _run(self):
+    def _run(self, env):
         """Include a file as part of the content of this reST file."""
 
         # HINT: I had to copy&paste the whole Include.run method. I'am not happy
@@ -151,6 +154,10 @@ class KernelInclude(Include):
 
             if "code" not in self.options:
                 rawtext = ".. parsed-literal::\n\n" + rawtext
+
+            # Store references on a symbol dict to be used at check time
+            if 'warn-broken' in self.options:
+                env._xref_files.add(path)
         else:
             try:
                 self.state.document.settings.record_dependencies.add(path)
@@ -239,3 +246,66 @@ class KernelInclude(Include):
             return codeblock.run()
         self.state_machine.insert_input(include_lines, path)
         return []
+
+# ==============================================================================
+
+reported = set()
+
+def check_missing_refs(app, env, node, contnode):
+    """Check broken refs for the files it creates xrefs"""
+    if not node.source:
+        return None
+
+    try:
+        xref_files = env._xref_files
+    except AttributeError:
+        logger.critical("FATAL: _xref_files not initialized!")
+        raise
+
+    # Only show missing references for kernel-include reference-parsed files
+    if node.source not in xref_files:
+        return None
+
+    target = node.get('reftarget', '')
+    domain = node.get('refdomain', 'std')
+    reftype = node.get('reftype', '')
+
+    msg = f"can't link to: {domain}:{reftype}:: {target}"
+
+    # Don't duplicate warnings
+    data = (node.source, msg)
+    if data in reported:
+        return None
+    reported.add(data)
+
+    logger.warning(msg, location=node, type='ref', subtype='missing')
+
+    return None
+
+def merge_xref_info(app, env, docnames, other):
+    """
+    As each process modify env._xref_files, we need to merge them back.
+    """
+    if not hasattr(other, "_xref_files"):
+        return
+    env._xref_files.update(getattr(other, "_xref_files", set()))
+
+def init_xref_docs(app, env, docnames):
+    """Initialize a list of files that we're generating cross references¨"""
+    app.env._xref_files = set()
+
+# ==============================================================================
+
+def setup(app):
+    """Setup Sphinx exension"""
+
+    app.connect("env-before-read-docs", init_xref_docs)
+    app.connect("env-merge-info", merge_xref_info)
+    app.add_directive("kernel-include", KernelInclude)
+    app.connect("missing-reference", check_missing_refs)
+
+    return {
+        "version": __version__,
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }
