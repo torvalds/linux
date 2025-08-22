@@ -890,10 +890,9 @@ static int manage_keep_alive_before_sending(struct smb_direct_transport *t)
 	return 0;
 }
 
-static int smb_direct_post_send(struct smb_direct_transport *t,
+static int smb_direct_post_send(struct smbdirect_socket *sc,
 				struct ib_send_wr *wr)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int ret;
 
 	atomic_inc(&sc->send_io.pending.count);
@@ -942,7 +941,7 @@ static int smb_direct_flush_send_list(struct smb_direct_transport *t,
 		last->wr.ex.invalidate_rkey = send_ctx->remote_key;
 	}
 
-	ret = smb_direct_post_send(t, &first->wr);
+	ret = smb_direct_post_send(sc, &first->wr);
 	if (!ret) {
 		smb_direct_send_ctx_init(send_ctx,
 					 send_ctx->need_invalidate_rkey,
@@ -1162,7 +1161,7 @@ static int post_sendmsg(struct smb_direct_transport *t,
 
 	msg->wr.wr_cqe = &msg->cqe;
 	msg->wr.send_flags = IB_SEND_SIGNALED;
-	return smb_direct_post_send(t, &msg->wr);
+	return smb_direct_post_send(sc, &msg->wr);
 }
 
 static int smb_direct_post_send_data(struct smb_direct_transport *t,
