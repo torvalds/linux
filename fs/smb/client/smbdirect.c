@@ -819,10 +819,9 @@ static bool frwr_is_supported(struct ib_device_attr *attrs)
 }
 
 static int smbd_ia_open(
-		struct smbd_connection *info,
+		struct smbdirect_socket *sc,
 		struct sockaddr *dstaddr, int port)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int rc;
 
@@ -1741,7 +1740,7 @@ static struct smbd_connection *_smbd_get_connection(
 	sp->keepalive_interval_msec = smbd_keep_alive_interval * 1000;
 	sp->keepalive_timeout_msec = KEEPALIVE_RECV_TIMEOUT * 1000;
 
-	rc = smbd_ia_open(info, dstaddr, port);
+	rc = smbd_ia_open(sc, dstaddr, port);
 	if (rc) {
 		log_rdma_event(INFO, "smbd_ia_open rc=%d\n", rc);
 		goto create_id_failed;
