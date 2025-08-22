@@ -3696,7 +3696,7 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 {
 	struct pinned_mountpoint mp = {};
 	struct super_block *sb;
-	struct vfsmount *mnt = fc_mount(fc);
+	struct vfsmount *mnt __free(mntput) = fc_mount(fc);
 	int error;
 
 	if (IS_ERR(mnt))
@@ -3704,10 +3704,11 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 
 	sb = fc->root->d_sb;
 	error = security_sb_kern_mount(sb);
-	if (!error && mount_too_revealing(sb, &mnt_flags))
-		error = -EPERM;
 	if (unlikely(error))
-		goto out;
+		return error;
+
+	if (unlikely(mount_too_revealing(sb, &mnt_flags)))
+		return -EPERM;
 
 	mnt_warn_timestamp_expiry(mountpoint, mnt);
 
@@ -3716,11 +3717,9 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 		error = do_add_mount(real_mount(mnt), mp.mp,
 				     mountpoint, mnt_flags);
 		if (!error)
-			mnt = NULL;	// consumed on success
+			retain_and_null_ptr(mnt); // consumed on success
 		unlock_mount(&mp);
 	}
-out:
-	mntput(mnt);
 	return error;
 }
 
