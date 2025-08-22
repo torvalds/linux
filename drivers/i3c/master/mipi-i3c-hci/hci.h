@@ -94,8 +94,7 @@ struct hci_xfer {
 		};
 		struct {
 			/* DMA specific */
-			dma_addr_t data_dma;
-			void *bounce_buf;
+			struct i3c_dma *dma;
 			int ring_number;
 			int ring_entry;
 		};
