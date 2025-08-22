@@ -550,7 +550,7 @@ static s64 v4l2_get_link_freq_ctrl(struct v4l2_ctrl_handler *handler,
 	return freq > 0 ? freq : -EINVAL;
 }
 
-s64 v4l2_get_link_freq(struct media_pad *pad, unsigned int mul,
+s64 v4l2_get_link_freq(const struct media_pad *pad, unsigned int mul,
 		       unsigned int div)
 {
 	struct v4l2_mbus_config mbus_config = {};
