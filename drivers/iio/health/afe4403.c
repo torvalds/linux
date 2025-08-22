@@ -529,10 +529,8 @@ static int afe4403_probe(struct spi_device *spi)
 						   "%s-dev%d",
 						   indio_dev->name,
 						   iio_device_id(indio_dev));
-		if (!afe->trig) {
-			dev_err(dev, "Unable to allocate IIO trigger\n");
+		if (!afe->trig)
 			return -ENOMEM;
-		}
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
 
