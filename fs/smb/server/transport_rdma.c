@@ -978,10 +978,9 @@ static int wait_for_credits(struct smbdirect_socket *sc,
 	} while (true);
 }
 
-static int wait_for_send_credits(struct smb_direct_transport *t,
+static int wait_for_send_credits(struct smbdirect_socket *sc,
 				 struct smbdirect_send_batch *send_ctx)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int ret;
 
 	if (send_ctx &&
@@ -1173,7 +1172,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 	int data_length;
 	struct scatterlist sg[SMBDIRECT_SEND_IO_MAX_SGE - 1];
 
-	ret = wait_for_send_credits(t, send_ctx);
+	ret = wait_for_send_credits(sc, send_ctx);
 	if (ret)
 		return ret;
 
