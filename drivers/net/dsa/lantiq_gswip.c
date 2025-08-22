@@ -1907,6 +1907,16 @@ static int gswip_probe(struct platform_device *pdev)
 	mutex_init(&priv->pce_table_lock);
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
+	/* The hardware has the 'major/minor' version bytes in the wrong order
+	 * preventing numerical comparisons. Construct a 16-bit unsigned integer
+	 * having the REV field as most significant byte and the MOD field as
+	 * least significant byte. This is effectively swapping the two bytes of
+	 * the version variable, but other than using swab16 it doesn't affect
+	 * the source variable.
+	 */
+	priv->version = GSWIP_VERSION_REV(version) << 8 |
+			GSWIP_VERSION_MOD(version);
+
 	np = dev->of_node;
 	switch (version) {
 	case GSWIP_VERSION_2_0:
@@ -1955,8 +1965,7 @@ static int gswip_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	dev_info(dev, "probed GSWIP version %lx mod %lx\n",
-		 (version & GSWIP_VERSION_REV_MASK) >> GSWIP_VERSION_REV_SHIFT,
-		 (version & GSWIP_VERSION_MOD_MASK) >> GSWIP_VERSION_MOD_SHIFT);
+		 GSWIP_VERSION_REV(version), GSWIP_VERSION_MOD(version));
 	return 0;
 
 disable_switch:

@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/swab.h>
 #include <net/dsa.h>
 
 /* GSWIP MDIO Registers */
@@ -85,14 +86,21 @@
 #define  GSWIP_SWRES_R1			BIT(1)	/* GSWIP Software reset */
 #define  GSWIP_SWRES_R0			BIT(0)	/* GSWIP Hardware reset */
 #define GSWIP_VERSION			0x013
-#define  GSWIP_VERSION_REV_SHIFT	0
 #define  GSWIP_VERSION_REV_MASK		GENMASK(7, 0)
-#define  GSWIP_VERSION_MOD_SHIFT	8
 #define  GSWIP_VERSION_MOD_MASK		GENMASK(15, 8)
+#define  GSWIP_VERSION_REV(v)		FIELD_GET(GSWIP_VERSION_REV_MASK, v)
+#define  GSWIP_VERSION_MOD(v)		FIELD_GET(GSWIP_VERSION_MOD_MASK, v)
 #define   GSWIP_VERSION_2_0		0x100
 #define   GSWIP_VERSION_2_1		0x021
 #define   GSWIP_VERSION_2_2		0x122
 #define   GSWIP_VERSION_2_2_ETC		0x022
+/* The hardware has the 'major/minor' version bytes in the wrong order
+ * preventing numerical comparisons. Swap the bytes of the 16-bit value
+ * to end up with REV being the most significant byte and MOD being the
+ * least significant byte, which then allows comparing it with the
+ * value stored in struct gswip_priv.
+ */
+#define GSWIP_VERSION_GE(priv, ver)	((priv)->version >= swab16(ver))
 
 #define GSWIP_BM_RAM_VAL(x)		(0x043 - (x))
 #define GSWIP_BM_RAM_ADDR		0x044
@@ -258,6 +266,7 @@ struct gswip_priv {
 	struct gswip_gphy_fw *gphy_fw;
 	u32 port_vlan_filter;
 	struct mutex pce_table_lock;
+	u16 version;
 };
 
 #endif /* __LANTIQ_GSWIP_H */
