@@ -584,15 +584,14 @@ nft_rbtree_deactivate(const struct net *net, const struct nft_set *set,
 	return NULL;
 }
 
-static void nft_rbtree_walk(const struct nft_ctx *ctx,
-			    struct nft_set *set,
-			    struct nft_set_iter *iter)
+static void nft_rbtree_do_walk(const struct nft_ctx *ctx,
+			       struct nft_set *set,
+			       struct nft_set_iter *iter)
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
 	struct nft_rbtree_elem *rbe;
 	struct rb_node *node;
 
-	read_lock_bh(&priv->lock);
 	for (node = rb_first(&priv->root); node != NULL; node = rb_next(node)) {
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
 
@@ -600,14 +599,34 @@ static void nft_rbtree_walk(const struct nft_ctx *ctx,
 			goto cont;
 
 		iter->err = iter->fn(ctx, set, iter, &rbe->priv);
-		if (iter->err < 0) {
-			read_unlock_bh(&priv->lock);
+		if (iter->err < 0)
 			return;
-		}
 cont:
 		iter->count++;
 	}
-	read_unlock_bh(&priv->lock);
+}
+
+static void nft_rbtree_walk(const struct nft_ctx *ctx,
+			    struct nft_set *set,
+			    struct nft_set_iter *iter)
+{
+	struct nft_rbtree *priv = nft_set_priv(set);
+
+	switch (iter->type) {
+	case NFT_ITER_UPDATE:
+		lockdep_assert_held(&nft_pernet(ctx->net)->commit_mutex);
+		nft_rbtree_do_walk(ctx, set, iter);
+		break;
+	case NFT_ITER_READ:
+		read_lock_bh(&priv->lock);
+		nft_rbtree_do_walk(ctx, set, iter);
+		read_unlock_bh(&priv->lock);
+		break;
+	default:
+		iter->err = -EINVAL;
+		WARN_ON_ONCE(1);
+		break;
+	}
 }
 
 static void nft_rbtree_gc_remove(struct net *net, struct nft_set *set,
