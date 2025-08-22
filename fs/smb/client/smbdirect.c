@@ -386,11 +386,10 @@ static int smbd_conn_upcall(
 static void
 smbd_qp_async_error_upcall(struct ib_event *event, void *context)
 {
-	struct smbd_connection *info = context;
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc = context;
 
-	log_rdma_event(ERR, "%s on device %s info %p\n",
-		ib_event_msg(event->event), event->device->name, info);
+	log_rdma_event(ERR, "%s on device %s socket %p\n",
+		ib_event_msg(event->event), event->device->name, sc);
 
 	switch (event->event) {
 	case IB_EVENT_CQ_ERR:
@@ -1779,7 +1778,7 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 
 	sc->ib.send_cq =
-		ib_alloc_cq_any(sc->ib.dev, info,
+		ib_alloc_cq_any(sc->ib.dev, sc,
 				sp->send_credit_target, IB_POLL_SOFTIRQ);
 	if (IS_ERR(sc->ib.send_cq)) {
 		sc->ib.send_cq = NULL;
@@ -1787,7 +1786,7 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 
 	sc->ib.recv_cq =
-		ib_alloc_cq_any(sc->ib.dev, info,
+		ib_alloc_cq_any(sc->ib.dev, sc,
 				sp->recv_credit_max, IB_POLL_SOFTIRQ);
 	if (IS_ERR(sc->ib.recv_cq)) {
 		sc->ib.recv_cq = NULL;
@@ -1796,7 +1795,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.event_handler = smbd_qp_async_error_upcall;
-	qp_attr.qp_context = info;
+	qp_attr.qp_context = sc;
 	qp_attr.cap.max_send_wr = sp->send_credit_target;
 	qp_attr.cap.max_recv_wr = sp->recv_credit_max;
 	qp_attr.cap.max_send_sge = SMBDIRECT_SEND_IO_MAX_SGE;
