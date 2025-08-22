@@ -135,7 +135,7 @@ static inline int get_buf_page_count(void *buf, int size)
 
 static void smb_direct_destroy_pools(struct smbdirect_socket *sc);
 static void smb_direct_post_recv_credits(struct work_struct *work);
-static int smb_direct_post_send_data(struct smb_direct_transport *t,
+static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
 				     struct kvec *iov, int niov,
 				     int remaining_data_length);
@@ -270,13 +270,11 @@ static void smb_direct_send_immediate_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, idle.immediate_work);
-	struct smb_direct_transport *t =
-		container_of(sc, struct smb_direct_transport, socket);
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
 		return;
 
-	smb_direct_post_send_data(t, NULL, NULL, 0, 0);
+	smb_direct_post_send_data(sc, NULL, NULL, 0, 0);
 }
 
 static void smb_direct_idle_connection_timer(struct work_struct *work)
@@ -1153,12 +1151,11 @@ static int post_sendmsg(struct smbdirect_socket *sc,
 	return smb_direct_post_send(sc, &msg->wr);
 }
 
-static int smb_direct_post_send_data(struct smb_direct_transport *t,
+static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
 				     struct kvec *iov, int niov,
 				     int remaining_data_length)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int i, j, ret;
 	struct smbdirect_send_io *msg;
 	int data_length;
@@ -1337,7 +1334,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 
 		remaining_data_length -= bytes;
 
-		ret = smb_direct_post_send_data(st, &send_ctx,
+		ret = smb_direct_post_send_data(sc, &send_ctx,
 						vecs, nvecs,
 						remaining_data_length);
 		if (unlikely(ret)) {
