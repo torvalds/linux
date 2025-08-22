@@ -224,8 +224,7 @@ static void smbd_disconnect_rdma_connection(struct smbdirect_socket *sc)
 static int smbd_conn_upcall(
 		struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
-	struct smbd_connection *info = id->context;
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc = id->context;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	const char *event_name = rdma_event_msg(event->event);
 	u8 peer_initiator_depth;
@@ -730,7 +729,7 @@ static struct rdma_cm_id *smbd_create_id(
 	int rc;
 	__be16 *sport;
 
-	id = rdma_create_id(&init_net, smbd_conn_upcall, info,
+	id = rdma_create_id(&init_net, smbd_conn_upcall, sc,
 		RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(id)) {
 		rc = PTR_ERR(id);
