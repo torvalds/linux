@@ -2569,7 +2569,7 @@ static bool tcp_try_undo_loss(struct sock *sk, bool frto_undo)
 		if (frto_undo)
 			NET_INC_STATS(sock_net(sk),
 					LINUX_MIB_TCPSPURIOUSRTOS);
-		inet_csk(sk)->icsk_retransmits = 0;
+		WRITE_ONCE(inet_csk(sk)->icsk_retransmits, 0);
 		if (tcp_is_non_sack_preventing_reopen(sk))
 			return true;
 		if (frto_undo || tcp_is_sack(tp)) {
@@ -3851,7 +3851,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	if (after(ack, prior_snd_una)) {
 		flag |= FLAG_SND_UNA_ADVANCED;
-		icsk->icsk_retransmits = 0;
+		WRITE_ONCE(icsk->icsk_retransmits, 0);
 
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
 		if (static_branch_unlikely(&clean_acked_data_enabled.key))
@@ -6636,7 +6636,7 @@ static void tcp_rcv_synrecv_state_fastopen(struct sock *sk)
 		tcp_try_undo_recovery(sk);
 
 	tcp_update_rto_time(tp);
-	inet_csk(sk)->icsk_retransmits = 0;
+	WRITE_ONCE(inet_csk(sk)->icsk_retransmits, 0);
 	/* In tcp_fastopen_synack_timer() on the first SYNACK RTO we set
 	 * retrans_stamp but don't enter CA_Loss, so in case that happened we
 	 * need to zero retrans_stamp here to prevent spurious
