@@ -202,6 +202,11 @@ void vfio_pci_config_access(struct vfio_pci_device *device, bool write,
 		       write ? "write to" : "read from", config);
 }
 
+void vfio_pci_device_reset(struct vfio_pci_device *device)
+{
+	ioctl_assert(device->fd, VFIO_DEVICE_RESET, NULL);
+}
+
 static unsigned int vfio_pci_get_group_from_dev(const char *bdf)
 {
 	char dev_iommu_group_path[PATH_MAX] = {0};
