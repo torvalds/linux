@@ -139,6 +139,59 @@ static bool dcn401_smu_send_msg_with_param_delay(struct clk_mgr_internal *clk_mg
 	return false;
 }
 
+bool dcn401_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, unsigned int *version)
+{
+	smu_print("SMU Get SMU version\n");
+
+	if (dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_GetSmuVersion, 0, version)) {
+
+		smu_print("SMU version: %d\n", *version);
+
+		return true;
+	}
+
+	return false;
+}
+
+/* Message output should match SMU11_DRIVER_IF_VERSION in smu11_driver_if.h */
+bool dcn401_smu_check_driver_if_version(struct clk_mgr_internal *clk_mgr)
+{
+	uint32_t response = 0;
+
+	smu_print("SMU Check driver if version\n");
+
+	if (dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_GetDriverIfVersion, 0, &response)) {
+
+		smu_print("SMU driver if version: %d\n", response);
+
+		if (response == SMU14_DRIVER_IF_VERSION)
+			return true;
+	}
+
+	return false;
+}
+
+/* Message output should match DALSMC_VERSION in dalsmc.h */
+bool dcn401_smu_check_msg_header_version(struct clk_mgr_internal *clk_mgr)
+{
+	uint32_t response = 0;
+
+	smu_print("SMU Check msg header version\n");
+
+	if (dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_GetMsgHeaderVersion, 0, &response)) {
+
+		smu_print("SMU msg header version: %d\n", response);
+
+		if (response == DALSMC_VERSION)
+			return true;
+	}
+
+	return false;
+}
+
 void dcn401_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool support)
 {
 	smu_print("FCLK P-state support value is : %d\n", support);
@@ -161,6 +214,22 @@ void dcn401_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsi
 
 	dcn401_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_SetCabForUclkPstate, param, NULL);
 	smu_print("Numways for SubVP : %d\n", num_ways);
+}
+
+void dcn401_smu_set_dram_addr_high(struct clk_mgr_internal *clk_mgr, uint32_t addr_high)
+{
+	smu_print("SMU Set DRAM addr high: %d\n", addr_high);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SetDalDramAddrHigh, addr_high, NULL);
+}
+
+void dcn401_smu_set_dram_addr_low(struct clk_mgr_internal *clk_mgr, uint32_t addr_low)
+{
+	smu_print("SMU Set DRAM addr low: %d\n", addr_low);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SetDalDramAddrLow, addr_low, NULL);
 }
 
 void dcn401_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
@@ -345,6 +414,55 @@ unsigned int dcn401_smu_get_num_of_umc_channels(struct clk_mgr_internal *clk_mgr
 	dcn401_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_GetNumUmcChannels, 0, &response);
 
 	smu_print("SMU Get Num UMC Channels: num_umc_channels = %d\n", response);
+
+	return response;
+}
+
+/*
+ * Frequency in MHz returned in lower 16 bits for valid DPM level
+ *
+ * Call with dpm_level = 0xFF to query features, return value will be:
+ *     Bits 7:0 - number of DPM levels
+ *     Bit   28 - 1 = auto DPM on
+ *     Bit   29 - 1 = sweep DPM on
+ *     Bit   30 - 1 = forced DPM on
+ *     Bit   31 - 0 = discrete, 1 = fine-grained
+ *
+ * With fine-grained DPM, only min and max frequencies will be reported
+ *
+ * Returns 0 on failure
+ */
+unsigned int dcn401_smu_get_dpm_freq_by_index(struct clk_mgr_internal *clk_mgr, uint32_t clk, uint8_t dpm_level)
+{
+	uint32_t response = 0;
+
+	/* bits 23:16 for clock type, lower 8 bits for DPM level */
+	uint32_t param = (clk << 16) | dpm_level;
+
+	smu_print("SMU Get dpm freq by index: clk = %d, dpm_level = %d\n", clk, dpm_level);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_GetDpmFreqByIndex, param, &response);
+
+	smu_print("SMU dpm freq: %d MHz\n", response);
+
+	return response;
+}
+
+/* Returns the max DPM frequency in DC mode in MHz, 0 on failure */
+unsigned int dcn401_smu_get_dc_mode_max_dpm_freq(struct clk_mgr_internal *clk_mgr, uint32_t clk)
+{
+	uint32_t response = 0;
+
+	/* bits 23:16 for clock type */
+	uint32_t param = clk << 16;
+
+	smu_print("SMU Get DC mode max DPM freq: clk = %d\n", clk);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_GetDcModeMaxDpmFreq, param, &response);
+
+	smu_print("SMU DC mode max DMP freq: %d MHz\n", response);
 
 	return response;
 }
