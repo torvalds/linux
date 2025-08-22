@@ -211,8 +211,7 @@ struct sock *inet6_lookup_listener(const struct net *net,
 	unsigned int hash2;
 
 	/* Lookup redirect from BPF */
-	if (static_branch_unlikely(&bpf_sk_lookup_enabled) &&
-	    hashinfo == net->ipv4.tcp_death_row.hashinfo) {
+	if (static_branch_unlikely(&bpf_sk_lookup_enabled)) {
 		result = inet6_lookup_run_sk_lookup(net, IPPROTO_TCP, skb, doff,
 						    saddr, sport, daddr, hnum, dif,
 						    inet6_ehashfn);
