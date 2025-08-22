@@ -23,12 +23,8 @@ extern unsigned int		nlm_debug;
 
 #define dprintk(fmt, ...)						\
 	dfprintk(FACILITY, fmt, ##__VA_ARGS__)
-#define dprintk_cont(fmt, ...)						\
-	dfprintk_cont(FACILITY, fmt, ##__VA_ARGS__)
 #define dprintk_rcu(fmt, ...)						\
 	dfprintk_rcu(FACILITY, fmt, ##__VA_ARGS__)
-#define dprintk_rcu_cont(fmt, ...)					\
-	dfprintk_rcu_cont(FACILITY, fmt, ##__VA_ARGS__)
 
 #undef ifdebug
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -37,29 +33,14 @@ extern unsigned int		nlm_debug;
 # define dfprintk(fac, fmt, ...)					\
 do {									\
 	ifdebug(fac)							\
-		printk(KERN_DEFAULT fmt, ##__VA_ARGS__);		\
-} while (0)
-
-# define dfprintk_cont(fac, fmt, ...)					\
-do {									\
-	ifdebug(fac)							\
-		printk(KERN_CONT fmt, ##__VA_ARGS__);			\
+		printk(KERN_DEFAULT fmt, ##__VA_ARGS__);				\
 } while (0)
 
 # define dfprintk_rcu(fac, fmt, ...)					\
 do {									\
 	ifdebug(fac) {							\
 		rcu_read_lock();					\
-		printk(KERN_DEFAULT fmt, ##__VA_ARGS__);		\
-		rcu_read_unlock();					\
-	}								\
-} while (0)
-
-# define dfprintk_rcu_cont(fac, fmt, ...)				\
-do {									\
-	ifdebug(fac) {							\
-		rcu_read_lock();					\
-		printk(KERN_CONT fmt, ##__VA_ARGS__);			\
+		printk(KERN_DEFAULT fmt, ##__VA_ARGS__);				\
 		rcu_read_unlock();					\
 	}								\
 } while (0)
@@ -68,7 +49,6 @@ do {									\
 #else
 # define ifdebug(fac)		if (0)
 # define dfprintk(fac, fmt, ...)	do {} while (0)
-# define dfprintk_cont(fac, fmt, ...)	do {} while (0)
 # define dfprintk_rcu(fac, fmt, ...)	do {} while (0)
 # define RPC_IFDEBUG(x)
 #endif
