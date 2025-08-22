@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/amlogic,pinctrl.h>
+#include <dt-bindings/power/amlogic,s7d-pwrc.h>
 
 / {
 	cpus {
@@ -41,6 +42,15 @@
 			enable-method = "psci";
 		};
 
+	};
+
+	sm: secure-monitor {
+		compatible = "amlogic,meson-gxbb-sm";
+
+		pwrc: power-controller {
+			compatible = "amlogic,s7d-pwrc";
+			#power-domain-cells = <1>;
+		};
 	};
 
 	timer {
