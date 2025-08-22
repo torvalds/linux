@@ -1766,11 +1766,10 @@ static int smb_direct_accept_client(struct smbdirect_socket *sc)
 	return 0;
 }
 
-static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
+static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
-	int ret;
 	struct smbdirect_recv_io *recvmsg;
+	int ret;
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED);
 	sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED;
@@ -2131,7 +2130,7 @@ static int smb_direct_connect(struct smb_direct_transport *st)
 		return ret;
 	}
 
-	ret = smb_direct_prepare_negotiation(st);
+	ret = smb_direct_prepare_negotiation(sc);
 	if (ret) {
 		pr_err("Can't negotiate: %d\n", ret);
 		return ret;
