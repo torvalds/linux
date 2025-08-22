@@ -3067,7 +3067,8 @@ static int __init early_amd_iommu_init(void)
 
 	if (!boot_cpu_has(X86_FEATURE_CX16)) {
 		pr_err("Failed to initialize. The CMPXCHG16B feature is required.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/*
