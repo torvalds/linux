@@ -1719,9 +1719,8 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 	return 0;
 }
 
-static int smb_direct_accept_client(struct smb_direct_transport *t)
+static int smb_direct_accept_client(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct rdma_conn_param conn_param;
 	__be32 ird_ord_hdr[2];
@@ -1788,7 +1787,7 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 		goto out_err;
 	}
 
-	ret = smb_direct_accept_client(t);
+	ret = smb_direct_accept_client(sc);
 	if (ret) {
 		pr_err("Can't accept client\n");
 		goto out_err;
