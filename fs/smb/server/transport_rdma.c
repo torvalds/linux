@@ -993,10 +993,8 @@ static int wait_for_send_credits(struct smbdirect_socket *sc,
 	return wait_for_credits(sc, &sc->send_io.credits.wait_queue, &sc->send_io.credits.count, 1);
 }
 
-static int wait_for_rw_credits(struct smb_direct_transport *t, int credits)
+static int wait_for_rw_credits(struct smbdirect_socket *sc, int credits)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	return wait_for_credits(sc,
 				&sc->rw_io.credits.wait_queue,
 				&sc->rw_io.credits.count,
@@ -1464,7 +1462,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 	ksmbd_debug(RDMA, "RDMA %s, len %#x, needed credits %#x\n",
 		    str_read_write(is_read), buf_len, credits_needed);
 
-	ret = wait_for_rw_credits(t, credits_needed);
+	ret = wait_for_rw_credits(sc, credits_needed);
 	if (ret < 0)
 		return ret;
 
