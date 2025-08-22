@@ -1207,11 +1207,10 @@ static int smbd_post_send_empty(struct smbdirect_socket *sc)
 	return smbd_post_send_iter(sc, NULL, &remaining_data_length);
 }
 
-static int smbd_post_send_full_iter(struct smbd_connection *info,
+static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
 				    struct iov_iter *iter,
 				    int *_remaining_data_length)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	int rc = 0;
 
 	/*
@@ -2168,13 +2167,13 @@ int smbd_send(struct TCP_Server_Info *server,
 			klen += rqst->rq_iov[i].iov_len;
 		iov_iter_kvec(&iter, ITER_SOURCE, rqst->rq_iov, rqst->rq_nvec, klen);
 
-		rc = smbd_post_send_full_iter(info, &iter, &remaining_data_length);
+		rc = smbd_post_send_full_iter(sc, &iter, &remaining_data_length);
 		if (rc < 0)
 			break;
 
 		if (iov_iter_count(&rqst->rq_iter) > 0) {
 			/* And then the data pages if there are any */
-			rc = smbd_post_send_full_iter(info, &rqst->rq_iter,
+			rc = smbd_post_send_full_iter(sc, &rqst->rq_iter,
 						      &remaining_data_length);
 			if (rc < 0)
 				break;
