@@ -213,10 +213,19 @@
  */
 #define GSWIP_MAX_PACKET_LENGTH	2400
 
+struct gswip_pce_microcode {
+	u16 val_3;
+	u16 val_2;
+	u16 val_1;
+	u16 val_0;
+};
+
 struct gswip_hw_info {
 	int max_ports;
 	unsigned int allowed_cpu_ports;
 	unsigned int mii_ports;
+	const struct gswip_pce_microcode (*pce_microcode)[];
+	size_t pce_microcode_size;
 	void (*phylink_get_caps)(struct dsa_switch *ds, int port,
 				 struct phylink_config *config);
 };

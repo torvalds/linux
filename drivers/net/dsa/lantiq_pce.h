@@ -7,6 +7,8 @@
  * Copyright (C) 2017 - 2018 Hauke Mehrtens <hauke@hauke-m.de>
  */
 
+#include "lantiq_gswip.h"
+
 enum {
 	OUT_MAC0 = 0,
 	OUT_MAC1,
@@ -72,13 +74,6 @@ enum {
 	FLAG_NN2,
 	FLAG_END,
 	FLAG_NO,	/*13*/
-};
-
-struct gswip_pce_microcode {
-	u16 val_3;
-	u16 val_2;
-	u16 val_1;
-	u16 val_0;
 };
 
 #define MC_ENTRY(val, msk, ns, out, len, type, flags, ipv4_len) \
