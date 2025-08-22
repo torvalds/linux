@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/amlogic,pinctrl.h>
+#include <dt-bindings/power/amlogic,s6-pwrc.h>
 / {
 	cpus {
 		#address-cells = <2>;
@@ -38,6 +39,15 @@
 			compatible = "arm,cortex-a510";
 			reg = <0x0 0x300>;
 			enable-method = "psci";
+		};
+	};
+
+	sm: secure-monitor {
+		compatible = "amlogic,meson-gxbb-sm";
+
+		pwrc: power-controller {
+			compatible = "amlogic,s6-pwrc";
+			#power-domain-cells = <1>;
 		};
 	};
 
