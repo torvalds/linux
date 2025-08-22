@@ -2549,8 +2549,7 @@ enum mnt_tree_flags_t {
 /**
  * attach_recursive_mnt - attach a source mount tree
  * @source_mnt: mount tree to be attached
- * @dest_mnt:   mount that @source_mnt will be mounted on
- * @dest_mp:    the mountpoint @source_mnt will be mounted at
+ * @dest:	the context for mounting at the place where the tree should go
  *
  *  NOTE: in the table below explains the semantics when a source mount
  *  of a given type is attached to a destination mount of a given type.
@@ -2613,10 +2612,11 @@ enum mnt_tree_flags_t {
  *         Otherwise a negative error code is returned.
  */
 static int attach_recursive_mnt(struct mount *source_mnt,
-				struct mount *dest_mnt,
-				struct mountpoint *dest_mp)
+				const struct pinned_mountpoint *dest)
 {
 	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
+	struct mount *dest_mnt = dest->parent;
+	struct mountpoint *dest_mp = dest->mp;
 	HLIST_HEAD(tree_list);
 	struct mnt_namespace *ns = dest_mnt->mnt_ns;
 	struct pinned_mountpoint root = {};
@@ -2859,16 +2859,16 @@ static inline void unlock_mount(struct pinned_mountpoint *m)
 	struct pinned_mountpoint mp __cleanup(unlock_mount) = {}; \
 	lock_mount_exact((path), &mp)
 
-static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
+static int graft_tree(struct mount *mnt, const struct pinned_mountpoint *mp)
 {
 	if (mnt->mnt.mnt_sb->s_flags & SB_NOUSER)
 		return -EINVAL;
 
-	if (d_is_dir(mp->m_dentry) !=
+	if (d_is_dir(mp->mp->m_dentry) !=
 	      d_is_dir(mnt->mnt.mnt_root))
 		return -ENOTDIR;
 
-	return attach_recursive_mnt(mnt, p, mp);
+	return attach_recursive_mnt(mnt, mp);
 }
 
 static int may_change_propagation(const struct mount *m)
@@ -3050,7 +3050,7 @@ static int do_loopback(struct path *path, const char *old_name,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	err = graft_tree(mnt, mp.parent, mp.mp);
+	err = graft_tree(mnt, &mp);
 	if (err) {
 		lock_mount_hash();
 		umount_tree(mnt, UMOUNT_SYNC);
@@ -3629,7 +3629,7 @@ static int do_move_mount(struct path *old_path,
 	if (mount_is_ancestor(old, mp.parent))
 		return -ELOOP;
 
-	return attach_recursive_mnt(old, mp.parent, mp.mp);
+	return attach_recursive_mnt(old, &mp);
 }
 
 static int do_move_mount_old(struct path *path, const char *old_name)
@@ -3680,7 +3680,7 @@ static int do_add_mount(struct mount *newmnt, const struct pinned_mountpoint *mp
 		return -EINVAL;
 
 	newmnt->mnt.mnt_flags = mnt_flags;
-	return graft_tree(newmnt, parent, mp->mp);
+	return graft_tree(newmnt, mp);
 }
 
 static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags);
