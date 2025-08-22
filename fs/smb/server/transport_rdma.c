@@ -1819,10 +1819,9 @@ static unsigned int smb_direct_get_max_fr_pages(struct smbdirect_socket *sc)
 		     256);
 }
 
-static int smb_direct_init_params(struct smb_direct_transport *t,
+static int smb_direct_init_params(struct smbdirect_socket *sc,
 				  struct ib_qp_cap *cap)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct ib_device *device = sc->ib.dev;
 	int max_send_sges, max_rw_wrs, max_send_wrs;
@@ -2127,7 +2126,7 @@ static int smb_direct_connect(struct smb_direct_transport *st)
 	int ret;
 	struct ib_qp_cap qp_cap;
 
-	ret = smb_direct_init_params(st, &qp_cap);
+	ret = smb_direct_init_params(sc, &qp_cap);
 	if (ret) {
 		pr_err("Can't configure RDMA parameters\n");
 		return ret;
