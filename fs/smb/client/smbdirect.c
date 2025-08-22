@@ -957,9 +957,8 @@ dma_mapping_failed:
  * buffer as possible, and extend the receive credits to remote peer
  * return value: the new credtis being granted.
  */
-static int manage_credits_prior_sending(struct smbd_connection *info)
+static int manage_credits_prior_sending(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	int new_credits;
 
 	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
@@ -1127,7 +1126,7 @@ wait_send_queue:
 	packet = smbdirect_send_io_payload(request);
 	packet->credits_requested = cpu_to_le16(sp->send_credit_target);
 
-	new_credits = manage_credits_prior_sending(info);
+	new_credits = manage_credits_prior_sending(sc);
 	atomic_add(new_credits, &sc->recv_io.credits.count);
 	packet->credits_granted = cpu_to_le16(new_credits);
 
