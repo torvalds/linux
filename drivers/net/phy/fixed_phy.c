@@ -158,9 +158,9 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 	return 0;
 }
 
-int fixed_phy_add(int phy_addr, const struct fixed_phy_status *status)
+void fixed_phy_add(const struct fixed_phy_status *status)
 {
-	return fixed_phy_add_gpiod(PHY_POLL, phy_addr, status, NULL);
+	fixed_phy_add_gpiod(PHY_POLL, 0, status, NULL);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_add);
 
