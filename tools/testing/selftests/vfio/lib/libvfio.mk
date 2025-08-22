@@ -8,6 +8,7 @@ LIBVFIO_C += lib/vfio_pci_driver.c
 
 ifeq ($(ARCH:x86_64=x86),x86)
 LIBVFIO_C += lib/drivers/ioat/ioat.c
+LIBVFIO_C += lib/drivers/dsa/dsa.c
 endif
 
 LIBVFIO_O := $(patsubst %.c, $(OUTPUT)/%.o, $(LIBVFIO_C))
