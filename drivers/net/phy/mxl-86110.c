@@ -662,8 +662,8 @@ static struct phy_driver mxl_phy_drvs[] = {
 		.set_wol		= mxl86110_set_wol,
 		.led_brightness_set	= mxl86110_led_brightness_set,
 		.led_hw_is_supported	= mxl86110_led_hw_is_supported,
-		.led_hw_control_get     = mxl86110_led_hw_control_get,
-		.led_hw_control_set     = mxl86110_led_hw_control_set,
+		.led_hw_control_get	= mxl86110_led_hw_control_get,
+		.led_hw_control_set	= mxl86110_led_hw_control_set,
 	},
 };
 
