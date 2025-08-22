@@ -1662,7 +1662,7 @@ static struct sk_buff *rtw_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubfra
 	return sub_skb;
 }
 
-static void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, struct rx_pkt_attrib *pattrib)
+static void rtw_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, struct rx_pkt_attrib *pattrib)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
@@ -1771,7 +1771,7 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 
 		/* Indicate the packets to upper layer */
 		if (sub_pkt)
-			rtw_os_recv_indicate_pkt(padapter, sub_pkt, &prframe->u.hdr.attrib);
+			rtw_recv_indicate_pkt(padapter, sub_pkt, &prframe->u.hdr.attrib);
 	}
 
 	prframe->u.hdr.len = 0;
@@ -1890,7 +1890,7 @@ static int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *prec
 
 	skb->len = precv_frame->u.hdr.len;
 
-	rtw_os_recv_indicate_pkt(padapter, skb, pattrib);
+	rtw_recv_indicate_pkt(padapter, skb, pattrib);
 
 	/* pointers to NULL before rtw_free_recvframe() */
 	precv_frame->u.hdr.pkt = NULL;
