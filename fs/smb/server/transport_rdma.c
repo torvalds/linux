@@ -1625,10 +1625,9 @@ static void smb_direct_qpair_handler(struct ib_event *event, void *context)
 	}
 }
 
-static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
+static int smb_direct_send_negotiate_response(struct smbdirect_socket *sc,
 					      int failed)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_send_io *sendmsg;
 	struct smbdirect_negotiate_resp *resp;
@@ -2069,7 +2068,7 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	sc->recv_io.credits.target = min_t(u16, sc->recv_io.credits.target, sp->recv_credit_max);
 	sc->recv_io.credits.target = max_t(u16, sc->recv_io.credits.target, 1);
 
-	ret = smb_direct_send_negotiate_response(st, ret);
+	ret = smb_direct_send_negotiate_response(sc, ret);
 out:
 	spin_lock_irq(&sc->recv_io.reassembly.lock);
 	sc->recv_io.reassembly.queue_length--;
