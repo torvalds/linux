@@ -9,15 +9,6 @@
 #include <net/cfg80211.h>
 #include <linux/unaligned.h>
 
-void rtw_os_free_recvframe(union recv_frame *precvframe)
-{
-	if (precvframe->u.hdr.pkt) {
-		dev_kfree_skb_any(precvframe->u.hdr.pkt);/* free skb by driver */
-
-		precvframe->u.hdr.pkt = NULL;
-	}
-}
-
 /* alloc os related resource in union recv_frame */
 void rtw_os_recv_resource_alloc(struct adapter *padapter, union recv_frame *precvframe)
 {

@@ -147,8 +147,10 @@ int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_
 	struct adapter *padapter = precvframe->u.hdr.adapter;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
-	rtw_os_free_recvframe(precvframe);
-
+	if (precvframe->u.hdr.pkt) {
+		dev_kfree_skb_any(precvframe->u.hdr.pkt);/* free skb by driver */
+		precvframe->u.hdr.pkt = NULL;
+	}
 
 	spin_lock_bh(&pfree_recv_queue->lock);
 
