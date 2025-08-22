@@ -25,6 +25,24 @@
     Substrings of the form $name or ${name} are replaced by the value of
     environment variable name. Malformed variable names and references to
     non-existing variables are left unchanged.
+
+    This extension overrides Sphinx include directory, adding two extra
+    arguments:
+
+    1. :generate-cross-refs:
+
+        If present, instead of reading the file, it calls ParseDataStructs()
+        class, which converts C data structures into cross-references to
+        be linked to ReST files containing a more comprehensive documentation;
+
+        Don't use it together with :start-line: and/or :end-line:, as
+        filtering input file line range is currently not supported.
+
+    2. :exception-file:
+
+        Used together with :generate-cross-refs:. Points to a file containing
+        rules to ignore C data structs or to use a different reference name,
+        optionally using a different reference type.
 """
 
 # ==============================================================================
@@ -32,12 +50,18 @@
 # ==============================================================================
 
 import os.path
+import sys
 
 from docutils import io, nodes, statemachine
 from docutils.utils.error_reporting import SafeString, ErrorString
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
 from docutils.parsers.rst.directives.misc import Include
+
+srctree = os.path.abspath(os.environ["srctree"])
+sys.path.insert(0, os.path.join(srctree, "tools/docs/lib"))
+
+from parse_data_structs import ParseDataStructs
 
 __version__ = "1.0"
 
@@ -56,6 +80,14 @@ def setup(app):
 # ==============================================================================
 class KernelInclude(Include):
     """KernelInclude (``kernel-include``) directive"""
+
+    # Add extra options
+    option_spec = Include.option_spec.copy()
+
+    option_spec.update({
+        'generate-cross-refs': directives.flag,
+        'exception-file': directives.unchanged,
+    })
 
     def run(self):
         env = self.state.document.settings.env
@@ -99,28 +131,49 @@ class KernelInclude(Include):
         e_handler = self.state.document.settings.input_encoding_error_handler
         tab_width = self.options.get("tab-width",
                                      self.state.document.settings.tab_width)
-        try:
-            self.state.document.settings.record_dependencies.add(path)
-            include_file = io.FileInput(source_path=path, encoding=encoding,
-                                        error_handler=e_handler)
-        except UnicodeEncodeError:
-            raise self.severe('Problems with "%s" directive path:\n'
-                              'Cannot encode input file path "%s" '
-                              "(wrong locale?)." % (self.name, SafeString(path)))
-        except IOError as error:
-            raise self.severe('Problems with "%s" directive path:\n%s.'
-                              % (self.name, ErrorString(error)))
         startline = self.options.get("start-line", None)
         endline = self.options.get("end-line", None)
-        try:
-            if startline or (endline is not None):
-                lines = include_file.readlines()
-                rawtext = "".join(lines[startline:endline])
-            else:
-                rawtext = include_file.read()
-        except UnicodeError as error:
-            raise self.severe('Problem with "%s" directive:\n%s' %
-                              (self.name, ErrorString(error)))
+
+        # Get optional arguments to related to cross-references generation
+        if 'generate-cross-refs' in self.options:
+            parser = ParseDataStructs()
+            parser.parse_file(path)
+
+            exceptions_file = self.options.get('exception-file')
+            if exceptions_file:
+                exceptions_file = os.path.join(source_dir, exceptions_file)
+                parser.process_exceptions(exceptions_file)
+
+            title = os.path.basename(path)
+            rawtext = parser.gen_output()
+            if startline or endline:
+                raise self.severe('generate-cross-refs can\'t be used together with "start-line" or "end-line"')
+
+            if "code" not in self.options:
+                rawtext = ".. parsed-literal::\n\n" + rawtext
+        else:
+            try:
+                self.state.document.settings.record_dependencies.add(path)
+                include_file = io.FileInput(source_path=path, encoding=encoding,
+                                            error_handler=e_handler)
+            except UnicodeEncodeError:
+                raise self.severe('Problems with "%s" directive path:\n'
+                                'Cannot encode input file path "%s" '
+                                "(wrong locale?)." % (self.name, SafeString(path)))
+            except IOError as error:
+                raise self.severe('Problems with "%s" directive path:\n%s.'
+                                % (self.name, ErrorString(error)))
+
+            try:
+                if startline or (endline is not None):
+                    lines = include_file.readlines()
+                    rawtext = "".join(lines[startline:endline])
+                else:
+                    rawtext = include_file.read()
+            except UnicodeError as error:
+                raise self.severe('Problem with "%s" directive:\n%s' %
+                                (self.name, ErrorString(error)))
+
         # start-after/end-before: no restrictions on newlines in match-text,
         # and no restrictions on matching inside lines vs. line boundaries
         after_text = self.options.get("start-after", None)
@@ -171,6 +224,7 @@ class KernelInclude(Include):
             else:
                 literal_block += nodes.Text(text, text)
             return [literal_block]
+
         if "code" in self.options:
             self.options["source"] = path
             codeblock = CodeBlock(self.name,
