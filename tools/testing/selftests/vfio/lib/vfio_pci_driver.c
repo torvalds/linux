@@ -4,7 +4,15 @@
 #include "../../../kselftest.h"
 #include <vfio_util.h>
 
-static struct vfio_pci_driver_ops *driver_ops[] = {};
+#ifdef __x86_64__
+extern struct vfio_pci_driver_ops ioat_ops;
+#endif
+
+static struct vfio_pci_driver_ops *driver_ops[] = {
+#ifdef __x86_64__
+	&ioat_ops,
+#endif
+};
 
 void vfio_pci_driver_probe(struct vfio_pci_device *device)
 {
