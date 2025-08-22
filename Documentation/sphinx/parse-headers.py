@@ -162,7 +162,8 @@ class ParseHeader:
                 if not ref_name:
                     ref_name = symbol.lower()
 
-                if replace_underscores:
+                # c-type references don't support hash
+                if ref_type == ":ref" and replace_underscores:
                     ref_name = ref_name.replace("_", "-")
 
                 ref_link = f"{ref_type}:`{symbol} <{ref_name}>`"
@@ -258,8 +259,7 @@ class ParseHeader:
                 if match:
                     name = match.group(2).strip()
                     symbol = match.group(3)
-                    self.store_type("typedef", symbol, ref_name=name,
-                                    replace_underscores=False)
+                    self.store_type("typedef", symbol, ref_name=name)
                     continue
 
                 for re_enum in self.RE_ENUMS:
@@ -272,8 +272,7 @@ class ParseHeader:
                 for re_struct in self.RE_STRUCTS:
                     match = re_struct.match(line)
                     if match:
-                        self.store_type("struct", match.group(1),
-                                        replace_underscores=False)
+                        self.store_type("struct", match.group(1))
                         break
 
     def process_exceptions(self, fname: str):
