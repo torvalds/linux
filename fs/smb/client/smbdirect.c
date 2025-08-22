@@ -40,8 +40,8 @@ static int smbd_post_recv(
 
 static int smbd_post_send_empty(struct smbd_connection *info);
 
-static void destroy_mr_list(struct smbd_connection *info);
-static int allocate_mr_list(struct smbd_connection *info);
+static void destroy_mr_list(struct smbdirect_socket *sc);
+static int allocate_mr_list(struct smbdirect_socket *sc);
 
 struct smb_extract_to_rdma {
 	struct ib_sge		*sge;
@@ -1582,7 +1582,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 		msleep(1000);
 		cifs_server_lock(server);
 	}
-	destroy_mr_list(info);
+	destroy_mr_list(sc);
 
 	ib_free_cq(sc->ib.send_cq);
 	ib_free_cq(sc->ib.recv_cq);
@@ -1907,7 +1907,7 @@ static struct smbd_connection *_smbd_get_connection(
 		goto negotiation_failed;
 	}
 
-	rc = allocate_mr_list(info);
+	rc = allocate_mr_list(sc);
 	if (rc) {
 		log_rdma_mr(ERR, "memory registration allocation failed\n");
 		goto allocate_mr_failed;
@@ -2289,9 +2289,8 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 	}
 }
 
-static void destroy_mr_list(struct smbd_connection *info)
+static void destroy_mr_list(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_mr_io *mr, *tmp;
 
 	disable_work_sync(&sc->mr_io.recovery_work);
@@ -2312,9 +2311,8 @@ static void destroy_mr_list(struct smbd_connection *info)
  * Recovery is done in smbd_mr_recovery_work. The content of list entry changes
  * as MRs are used and recovered for I/O, but the list links will not change
  */
-static int allocate_mr_list(struct smbd_connection *info)
+static int allocate_mr_list(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int i;
 	struct smbdirect_mr_io *smbdirect_mr, *tmp;
