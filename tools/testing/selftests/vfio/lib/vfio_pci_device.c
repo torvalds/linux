@@ -26,6 +26,33 @@
 	VFIO_ASSERT_EQ(__ret, 0, "ioctl(%s, %s, %s) returned %d\n", #_fd, #_op, #_arg, __ret); \
 } while (0)
 
+iova_t __to_iova(struct vfio_pci_device *device, void *vaddr)
+{
+	struct vfio_dma_region *region;
+
+	list_for_each_entry(region, &device->dma_regions, link) {
+		if (vaddr < region->vaddr)
+			continue;
+
+		if (vaddr >= region->vaddr + region->size)
+			continue;
+
+		return region->iova + (vaddr - region->vaddr);
+	}
+
+	return INVALID_IOVA;
+}
+
+iova_t to_iova(struct vfio_pci_device *device, void *vaddr)
+{
+	iova_t iova;
+
+	iova = __to_iova(device, vaddr);
+	VFIO_ASSERT_NE(iova, INVALID_IOVA, "%p is not mapped into device.\n", vaddr);
+
+	return iova;
+}
+
 static void vfio_pci_irq_set(struct vfio_pci_device *device,
 			     u32 index, u32 vector, u32 count, int *fds)
 {
@@ -112,28 +139,34 @@ static void vfio_pci_irq_get(struct vfio_pci_device *device, u32 index,
 	ioctl_assert(device->fd, VFIO_DEVICE_GET_IRQ_INFO, irq_info);
 }
 
-void vfio_pci_dma_map(struct vfio_pci_device *device, u64 iova, u64 size, void *vaddr)
+void vfio_pci_dma_map(struct vfio_pci_device *device,
+		      struct vfio_dma_region *region)
 {
 	struct vfio_iommu_type1_dma_map map = {
 		.argsz = sizeof(map),
 		.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE,
-		.vaddr = (u64)vaddr,
-		.iova = iova,
-		.size = size,
+		.vaddr = (u64)region->vaddr,
+		.iova = region->iova,
+		.size = region->size,
 	};
 
 	ioctl_assert(device->container_fd, VFIO_IOMMU_MAP_DMA, &map);
+
+	list_add(&region->link, &device->dma_regions);
 }
 
-void vfio_pci_dma_unmap(struct vfio_pci_device *device, u64 iova, u64 size)
+void vfio_pci_dma_unmap(struct vfio_pci_device *device,
+			struct vfio_dma_region *region)
 {
 	struct vfio_iommu_type1_dma_unmap unmap = {
 		.argsz = sizeof(unmap),
-		.iova = iova,
-		.size = size,
+		.iova = region->iova,
+		.size = region->size,
 	};
 
 	ioctl_assert(device->container_fd, VFIO_IOMMU_UNMAP_DMA, &unmap);
+
+	list_del(&region->link);
 }
 
 static void vfio_pci_region_get(struct vfio_pci_device *device, int index,
@@ -259,6 +292,8 @@ static void vfio_pci_group_setup(struct vfio_pci_device *device, const char *bdf
 static void vfio_pci_iommu_setup(struct vfio_pci_device *device, unsigned long iommu_type)
 {
 	int ret;
+
+	INIT_LIST_HEAD(&device->dma_regions);
 
 	ret = ioctl(device->container_fd, VFIO_CHECK_EXTENSION, iommu_type);
 	VFIO_ASSERT_GT(ret, 0, "VFIO IOMMU type %lu not supported\n", iommu_type);

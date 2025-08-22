@@ -51,6 +51,17 @@ struct vfio_pci_bar {
 	void *vaddr;
 };
 
+typedef u64 iova_t;
+
+#define INVALID_IOVA UINT64_MAX
+
+struct vfio_dma_region {
+	struct list_head link;
+	void *vaddr;
+	iova_t iova;
+	u64 size;
+};
+
 struct vfio_pci_device {
 	int fd;
 	int group_fd;
@@ -62,6 +73,8 @@ struct vfio_pci_device {
 
 	struct vfio_irq_info msi_info;
 	struct vfio_irq_info msix_info;
+
+	struct list_head dma_regions;
 
 	/* eventfds for MSI and MSI-x interrupts */
 	int msi_eventfds[PCI_MSIX_FLAGS_QSIZE + 1];
@@ -85,9 +98,10 @@ struct vfio_pci_device *vfio_pci_device_init(const char *bdf, int iommu_type);
 void vfio_pci_device_cleanup(struct vfio_pci_device *device);
 void vfio_pci_device_reset(struct vfio_pci_device *device);
 
-void vfio_pci_dma_map(struct vfio_pci_device *device, u64 iova, u64 size,
-		      void *vaddr);
-void vfio_pci_dma_unmap(struct vfio_pci_device *device, u64 iova, u64 size);
+void vfio_pci_dma_map(struct vfio_pci_device *device,
+		      struct vfio_dma_region *region);
+void vfio_pci_dma_unmap(struct vfio_pci_device *device,
+			struct vfio_dma_region *region);
 
 void vfio_pci_config_access(struct vfio_pci_device *device, bool write,
 			    size_t config, size_t size, void *data);
@@ -137,5 +151,8 @@ static inline void vfio_pci_msix_disable(struct vfio_pci_device *device)
 {
 	vfio_pci_irq_disable(device, VFIO_PCI_MSIX_IRQ_INDEX);
 }
+
+iova_t __to_iova(struct vfio_pci_device *device, void *vaddr);
+iova_t to_iova(struct vfio_pci_device *device, void *vaddr);
 
 #endif /* SELFTESTS_VFIO_LIB_INCLUDE_VFIO_UTIL_H */
