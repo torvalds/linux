@@ -42,10 +42,10 @@
 		#interrupt-cells = <1>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "msi";
-		interrupt-map = <0 0 0 1 &gic 0 47 4>,
-				<0 0 0 2 &gic 0 48 4>,
-				<0 0 0 3 &gic 0 49 4>,
-				<0 0 0 4 &gic 0 50 4>;
+		interrupt-map = <0 0 0 1 &gic GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &gic GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &gic GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &gic GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-map-mask = <0 0 0 0x7>;
 	};
 
