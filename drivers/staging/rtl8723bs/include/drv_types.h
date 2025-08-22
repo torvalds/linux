@@ -33,7 +33,6 @@
 #include <xmit_osdep.h>
 #include <rtw_recv.h>
 
-#include <recv_osdep.h>
 #include <rtw_efuse.h>
 #include <hal_intf.h>
 #include <hal_com.h>
