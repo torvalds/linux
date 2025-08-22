@@ -9,46 +9,6 @@
 #include <net/cfg80211.h>
 #include <linux/unaligned.h>
 
-struct sk_buff *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
-{
-	u16 eth_type;
-	struct sk_buff *sub_skb;
-	struct rx_pkt_attrib *pattrib;
-
-	pattrib = &prframe->u.hdr.attrib;
-
-	sub_skb = rtw_skb_alloc(nSubframe_Length + 12);
-	if (!sub_skb)
-		return NULL;
-
-	skb_reserve(sub_skb, 12);
-	skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
-
-	eth_type = get_unaligned_be16(&sub_skb->data[6]);
-
-	if (sub_skb->len >= 8 &&
-		((!memcmp(sub_skb->data, rfc1042_header, SNAP_SIZE) &&
-		  eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
-		 !memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE))) {
-		/*
-		 * remove RFC1042 or Bridge-Tunnel encapsulation and replace
-		 * EtherType
-		 */
-		skb_pull(sub_skb, SNAP_SIZE);
-		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->src, ETH_ALEN);
-		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->dst, ETH_ALEN);
-	} else {
-		__be16 len;
-		/* Leave Ethernet header part of hdr and full payload */
-		len = htons(sub_skb->len);
-		memcpy(skb_push(sub_skb, 2), &len, 2);
-		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->src, ETH_ALEN);
-		memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->dst, ETH_ALEN);
-	}
-
-	return sub_skb;
-}
-
 void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, struct rx_pkt_attrib *pattrib)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
