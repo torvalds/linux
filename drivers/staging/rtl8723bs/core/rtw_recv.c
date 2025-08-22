@@ -1622,7 +1622,7 @@ static signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	return _SUCCESS;
 }
 
-static struct sk_buff *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
+static struct sk_buff *rtw_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 *pdata)
 {
 	u16 eth_type;
 	struct sk_buff *sub_skb;
@@ -1691,7 +1691,7 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 		if (a_len < ETH_HLEN + nSubframe_Length)
 			break;
 
-		sub_pkt = rtw_os_alloc_msdu_pkt(prframe, nSubframe_Length, pdata);
+		sub_pkt = rtw_alloc_msdu_pkt(prframe, nSubframe_Length, pdata);
 		if (!sub_pkt)
 			break;
 
