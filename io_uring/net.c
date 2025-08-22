@@ -178,10 +178,8 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	if (hdr->vec.nr > IO_VEC_CACHE_SOFT_CAP)
 		io_vec_free(&hdr->vec);
 
-	if (io_alloc_cache_put(&req->ctx->netmsg_cache, hdr)) {
-		req->async_data = NULL;
-		req->flags &= ~(REQ_F_ASYNC_DATA|REQ_F_NEED_CLEANUP);
-	}
+	if (io_alloc_cache_put(&req->ctx->netmsg_cache, hdr))
+		io_req_async_data_clear(req, REQ_F_NEED_CLEANUP);
 }
 
 static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req)

@@ -281,6 +281,19 @@ static inline bool req_has_async_data(struct io_kiocb *req)
 	return req->flags & REQ_F_ASYNC_DATA;
 }
 
+static inline void io_req_async_data_clear(struct io_kiocb *req,
+					   io_req_flags_t extra_flags)
+{
+	req->flags &= ~(REQ_F_ASYNC_DATA|extra_flags);
+	req->async_data = NULL;
+}
+
+static inline void io_req_async_data_free(struct io_kiocb *req)
+{
+	kfree(req->async_data);
+	io_req_async_data_clear(req, 0);
+}
+
 static inline void io_put_file(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_FIXED_FILE) && req->file)
