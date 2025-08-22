@@ -1006,11 +1006,10 @@ static int calc_rw_credits(struct smbdirect_socket *sc,
 			    sc->rw_io.credits.num_pages);
 }
 
-static int smb_direct_create_header(struct smb_direct_transport *t,
+static int smb_direct_create_header(struct smbdirect_socket *sc,
 				    int size, int remaining_data_length,
 				    struct smbdirect_send_io **sendmsg_out)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_send_io *sendmsg;
 	struct smbdirect_data_transfer *packet;
@@ -1174,7 +1173,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 	for (i = 0; i < niov; i++)
 		data_length += iov[i].iov_len;
 
-	ret = smb_direct_create_header(t, data_length, remaining_data_length,
+	ret = smb_direct_create_header(sc, data_length, remaining_data_length,
 				       &msg);
 	if (ret) {
 		atomic_inc(&sc->send_io.credits.count);
