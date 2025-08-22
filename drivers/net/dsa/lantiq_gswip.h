@@ -216,6 +216,7 @@
 struct gswip_hw_info {
 	int max_ports;
 	unsigned int allowed_cpu_ports;
+	unsigned int mii_ports;
 	void (*phylink_get_caps)(struct dsa_switch *ds, int port,
 				 struct phylink_config *config);
 };
