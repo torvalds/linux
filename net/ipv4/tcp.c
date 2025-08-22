@@ -3376,7 +3376,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	WRITE_ONCE(tp->write_seq, seq);
 
 	icsk->icsk_backoff = 0;
-	icsk->icsk_probes_out = 0;
+	WRITE_ONCE(icsk->icsk_probes_out, 0);
 	icsk->icsk_probes_tstamp = 0;
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	WRITE_ONCE(icsk->icsk_rto_min, TCP_RTO_MIN);

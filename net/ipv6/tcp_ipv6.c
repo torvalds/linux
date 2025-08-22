@@ -2232,7 +2232,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   jiffies_delta_to_clock_t(timer_expires - jiffies),
 		   READ_ONCE(icsk->icsk_retransmits),
 		   from_kuid_munged(seq_user_ns(seq), sk_uid(sp)),
-		   icsk->icsk_probes_out,
+		   READ_ONCE(icsk->icsk_probes_out),
 		   sock_i_ino(sp),
 		   refcount_read(&sp->sk_refcnt), sp,
 		   jiffies_to_clock_t(icsk->icsk_rto),

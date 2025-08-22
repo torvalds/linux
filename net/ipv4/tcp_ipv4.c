@@ -2960,7 +2960,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 		jiffies_delta_to_clock_t(timer_expires - jiffies),
 		READ_ONCE(icsk->icsk_retransmits),
 		from_kuid_munged(seq_user_ns(f), sk_uid(sk)),
-		icsk->icsk_probes_out,
+		READ_ONCE(icsk->icsk_probes_out),
 		sock_i_ino(sk),
 		refcount_read(&sk->sk_refcnt), sk,
 		jiffies_to_clock_t(icsk->icsk_rto),
