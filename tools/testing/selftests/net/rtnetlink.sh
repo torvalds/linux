@@ -325,6 +325,11 @@ kci_test_addrlft()
 
 kci_test_promote_secondaries()
 {
+	run_cmd ifconfig "$devdummy"
+	if [ $ret -ne 0 ]; then
+		end_test "SKIP: ifconfig not installed"
+		return $ksft_skip
+	fi
 	promote=$(sysctl -n net.ipv4.conf.$devdummy.promote_secondaries)
 
 	sysctl -q net.ipv4.conf.$devdummy.promote_secondaries=1
@@ -1202,6 +1207,12 @@ do_test_address_proto()
 	local count
 	local ret=0
 	local err
+
+	run_cmd_grep 'proto' ip address help
+	if [ $? -ne 0 ];then
+		end_test "SKIP: addr proto ${what}: iproute2 too old"
+		return $ksft_skip
+	fi
 
 	ip address add dev "$devdummy" "$addr3"
 	check_err $?
