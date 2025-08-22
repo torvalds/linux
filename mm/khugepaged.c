@@ -2402,7 +2402,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages, int *result,
 		mm_slot = khugepaged_scan.mm_slot;
 		slot = &mm_slot->slot;
 	} else {
-		slot = list_entry(khugepaged_scan.mm_head.next,
+		slot = list_first_entry(&khugepaged_scan.mm_head,
 				     struct mm_slot, mm_node);
 		mm_slot = mm_slot_entry(slot, struct khugepaged_mm_slot, slot);
 		khugepaged_scan.address = 0;
@@ -2515,9 +2515,8 @@ breakouterloop_mmap_lock:
 		 * khugepaged runs here, khugepaged_exit will find
 		 * mm_slot not pointing to the exiting mm.
 		 */
-		if (slot->mm_node.next != &khugepaged_scan.mm_head) {
-			slot = list_entry(slot->mm_node.next,
-					  struct mm_slot, mm_node);
+		if (!list_is_last(&slot->mm_node, &khugepaged_scan.mm_head)) {
+			slot = list_next_entry(slot, mm_node);
 			khugepaged_scan.mm_slot =
 				mm_slot_entry(slot, struct khugepaged_mm_slot, slot);
 			khugepaged_scan.address = 0;
