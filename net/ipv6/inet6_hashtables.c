@@ -305,8 +305,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				       dif, sdif))) {
 			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
-				if (sk->sk_protocol == IPPROTO_TCP &&
-				    tcp_twsk_unique(sk, sk2, twp))
+				if (tcp_twsk_unique(sk, sk2, twp))
 					break;
 			}
 			goto not_unique;
