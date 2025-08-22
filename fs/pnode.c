@@ -29,6 +29,7 @@ static inline struct mount *next_slave(struct mount *p)
 	return hlist_entry(p->mnt_slave.next, struct mount, mnt_slave);
 }
 
+/* locks: namespace_shared && is_mounted(mnt) */
 static struct mount *get_peer_under_root(struct mount *mnt,
 					 struct mnt_namespace *ns,
 					 const struct path *root)
@@ -50,7 +51,7 @@ static struct mount *get_peer_under_root(struct mount *mnt,
  * Get ID of closest dominating peer group having a representative
  * under the given root.
  *
- * Caller must hold namespace_sem
+ * locks: namespace_shared
  */
 int get_dominating_id(struct mount *mnt, const struct path *root)
 {

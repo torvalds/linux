@@ -4592,7 +4592,7 @@ SYSCALL_DEFINE5(move_mount,
 /*
  * Return true if path is reachable from root
  *
- * namespace_sem or mount_lock is held
+ * locks: mount_locked_reader || namespace_shared && is_mounted(mnt)
  */
 bool is_path_reachable(struct mount *mnt, struct dentry *dentry,
 			 const struct path *root)
@@ -4606,11 +4606,8 @@ bool is_path_reachable(struct mount *mnt, struct dentry *dentry,
 
 bool path_is_under(const struct path *path1, const struct path *path2)
 {
-	bool res;
-	read_seqlock_excl(&mount_lock);
-	res = is_path_reachable(real_mount(path1->mnt), path1->dentry, path2);
-	read_sequnlock_excl(&mount_lock);
-	return res;
+	guard(mount_locked_reader)();
+	return is_path_reachable(real_mount(path1->mnt), path1->dentry, path2);
 }
 EXPORT_SYMBOL(path_is_under);
 
@@ -5689,6 +5686,7 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 			     STATMOUNT_MNT_UIDMAP | \
 			     STATMOUNT_MNT_GIDMAP)
 
+/* locks: namespace_shared */
 static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 			struct mnt_namespace *ns)
 {
@@ -5949,6 +5947,7 @@ retry:
 	return ret;
 }
 
+/* locks: namespace_shared */
 static ssize_t do_listmount(struct mnt_namespace *ns, u64 mnt_parent_id,
 			    u64 last_mnt_id, u64 *mnt_ids, size_t nr_mnt_ids,
 			    bool reverse)
