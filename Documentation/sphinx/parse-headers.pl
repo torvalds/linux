@@ -31,8 +31,6 @@ my %enums;
 my %enum_symbols;
 my %structs;
 
-require Data::Dumper if ($debug);
-
 #
 # read the file and get identifiers
 #
@@ -197,6 +195,9 @@ if ($file_exceptions) {
 		} else {
 			$reftype = $def_reftype{$type};
 		}
+		if (!$reftype) {
+		    print STDERR "Warning: can't find ref type for $type";
+		}
 		$new = "$reftype:`$old <$new>`";
 
 		if ($type eq "ioctl") {
@@ -229,12 +230,26 @@ if ($file_exceptions) {
 }
 
 if ($debug) {
-	print Data::Dumper->Dump([\%ioctls], [qw(*ioctls)]) if (%ioctls);
-	print Data::Dumper->Dump([\%typedefs], [qw(*typedefs)]) if (%typedefs);
-	print Data::Dumper->Dump([\%enums], [qw(*enums)]) if (%enums);
-	print Data::Dumper->Dump([\%structs], [qw(*structs)]) if (%structs);
-	print Data::Dumper->Dump([\%defines], [qw(*defines)]) if (%defines);
-	print Data::Dumper->Dump([\%enum_symbols], [qw(*enum_symbols)]) if (%enum_symbols);
+	my @all_hashes = (
+		{ioctl      => \%ioctls},
+		{typedef    => \%typedefs},
+		{enum       => \%enums},
+		{struct     => \%structs},
+		{define     => \%defines},
+		{symbol     => \%enum_symbols}
+	);
+
+	foreach my $hash (@all_hashes) {
+		while (my ($name, $hash_ref) = each %$hash) {
+			next unless %$hash_ref;  # Skip empty hashes
+
+			print "$name:\n";
+			for my $key (sort keys %$hash_ref) {
+				print "  $key -> $hash_ref->{$key}\n";
+			}
+			print "\n";
+		}
+	}
 }
 
 #
