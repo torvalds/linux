@@ -89,6 +89,12 @@ properties:
     description:
       If this property is present, the controller cannot drive the GPIO lines.
 
+patternProperties:
+  "^.+-hog(-[0-9]+)?$":
+    type: object
+    required:
+      - gpio-hog
+
 required:
   - compatible
   - reg
