@@ -75,6 +75,7 @@ struct mlx5hws_context_attr {
 struct mlx5hws_table_attr {
 	enum mlx5hws_table_type type;
 	u32 level;
+	u16 uid;
 };
 
 enum mlx5hws_matcher_flow_src {
