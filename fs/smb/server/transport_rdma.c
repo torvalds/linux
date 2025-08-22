@@ -1962,10 +1962,9 @@ err:
 	return -ENOMEM;
 }
 
-static int smb_direct_create_qpair(struct smb_direct_transport *t,
+static int smb_direct_create_qpair(struct smbdirect_socket *sc,
 				   struct ib_qp_cap *cap)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int ret;
 	struct ib_qp_init_attr qp_attr;
@@ -2130,7 +2129,7 @@ static int smb_direct_connect(struct smb_direct_transport *st)
 		return ret;
 	}
 
-	ret = smb_direct_create_qpair(st, &qp_cap);
+	ret = smb_direct_create_qpair(sc, &qp_cap);
 	if (ret) {
 		pr_err("Can't accept RDMA client: %d\n", ret);
 		return ret;
