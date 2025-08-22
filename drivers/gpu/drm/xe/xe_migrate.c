@@ -408,7 +408,7 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 
 	/* Special layout, prepared below.. */
 	vm = xe_vm_create(xe, XE_VM_FLAG_MIGRATION |
-			  XE_VM_FLAG_SET_TILE_ID(tile));
+			  XE_VM_FLAG_SET_TILE_ID(tile), NULL);
 	if (IS_ERR(vm))
 		return ERR_CAST(vm);
 
