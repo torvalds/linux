@@ -334,7 +334,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	sp->keepalive_timeout_msec = SMB_DIRECT_KEEPALIVE_RECV_TIMEOUT * 1000;
 
 	sc->rdma.cm_id = cm_id;
-	cm_id->context = t;
+	cm_id->context = sc;
 
 	sc->ib.dev = sc->rdma.cm_id->device;
 
@@ -1600,8 +1600,7 @@ static void smb_direct_shutdown(struct ksmbd_transport *t)
 static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 				 struct rdma_cm_event *event)
 {
-	struct smb_direct_transport *t = cm_id->context;
-	struct smbdirect_socket *sc = &t->socket;
+	struct smbdirect_socket *sc = cm_id->context;
 
 	ksmbd_debug(RDMA, "RDMA CM event. cm_id=%p event=%s (%d)\n",
 		    cm_id, rdma_event_msg(event->event), event->event);
