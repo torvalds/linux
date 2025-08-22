@@ -51,6 +51,14 @@ struct smbdirect_socket {
 	enum smbdirect_socket_status status;
 	wait_queue_head_t status_wait;
 
+	/*
+	 * This points to the workqueue to
+	 * be used for this socket.
+	 * It can be per socket (on the client)
+	 * or point to a global workqueue (on the server)
+	 */
+	struct workqueue_struct *workqueue;
+
 	struct work_struct disconnect_work;
 
 	/* RDMA related */
