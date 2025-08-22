@@ -956,11 +956,10 @@ static int smb_direct_flush_send_list(struct smbdirect_socket *sc,
 	return ret;
 }
 
-static int wait_for_credits(struct smb_direct_transport *t,
+static int wait_for_credits(struct smbdirect_socket *sc,
 			    wait_queue_head_t *waitq, atomic_t *total_credits,
 			    int needed)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int ret;
 
 	do {
@@ -992,14 +991,14 @@ static int wait_for_send_credits(struct smb_direct_transport *t,
 			return ret;
 	}
 
-	return wait_for_credits(t, &sc->send_io.credits.wait_queue, &sc->send_io.credits.count, 1);
+	return wait_for_credits(sc, &sc->send_io.credits.wait_queue, &sc->send_io.credits.count, 1);
 }
 
 static int wait_for_rw_credits(struct smb_direct_transport *t, int credits)
 {
 	struct smbdirect_socket *sc = &t->socket;
 
-	return wait_for_credits(t,
+	return wait_for_credits(sc,
 				&sc->rw_io.credits.wait_queue,
 				&sc->rw_io.credits.count,
 				credits);
