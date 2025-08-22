@@ -112,10 +112,10 @@ def _load_xdp_prog(cfg, bpf_info):
     defer(ip, f"link set dev {cfg.remote_ifname} mtu 1500", host=cfg.remote)
 
     cmd(
-    f"ip link set dev {cfg.ifname} mtu {bpf_info.mtu} xdp obj {abs_path} sec {bpf_info.xdp_sec}",
+    f"ip link set dev {cfg.ifname} mtu {bpf_info.mtu} xdpdrv obj {abs_path} sec {bpf_info.xdp_sec}",
     shell=True
     )
-    defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdp off")
+    defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdpdrv off")
 
     xdp_info = ip(f"-d link show dev {cfg.ifname}", json=True)[0]
     prog_info["id"] = xdp_info["xdp"]["prog"]["id"]
