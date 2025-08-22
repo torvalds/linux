@@ -171,13 +171,24 @@ class KernelInclude(Include):
         if 'warn-broken' in self.options:
             env._xref_files.add(path)
 
-        if "toc" in self.options:
-            rawtext = parser.gen_toc()
-        else:
+        if "toc" not in self.options:
+
             rawtext = ".. parsed-literal::\n\n" + parser.gen_output()
             self.apply_range(rawtext)
 
-        title = os.path.basename(path)
+            include_lines = statemachine.string2lines(rawtext, tab_width,
+                                                      convert_whitespace=True)
+
+            # Sphinx always blame the ".. <directive>", so placing
+            # line numbers here won't make any difference
+
+            self.state_machine.insert_input(include_lines, path)
+            return []
+
+        # TOC output is a ReST file, not a literal. So, we can add line
+        # numbers
+
+        rawtext = parser.gen_toc()
 
         include_lines = statemachine.string2lines(rawtext, tab_width,
                                                   convert_whitespace=True)
