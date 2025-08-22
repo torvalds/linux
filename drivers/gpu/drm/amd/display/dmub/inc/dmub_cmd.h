@@ -2364,6 +2364,7 @@ struct dmub_cmd_fams2_global_config {
 	union dmub_fams2_global_feature_config features;
 	uint32_t recovery_timeout_us;
 	uint32_t hwfq_flip_programming_delay_us;
+	uint32_t max_allow_to_target_delta_us; // how early DCN could assert P-State allow compared to the P-State target
 };
 
 union dmub_cmd_fams2_config {
@@ -4171,6 +4172,12 @@ enum replay_version {
  */
 struct dmub_cmd_replay_set_version_data {
 	/**
+	 * Panel Instance.
+	 * Panel instance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
 	 * PSR version that FW should implement.
 	 */
 	enum replay_version version;
@@ -4178,12 +4185,6 @@ struct dmub_cmd_replay_set_version_data {
 	 * PSR control version.
 	 */
 	uint8_t cmd_version;
-	/**
-	 * Panel Instance.
-	 * Panel instance to identify which psr_state to use
-	 * Currently the support is only for 0 or 1
-	 */
-	uint8_t panel_inst;
 	/**
 	 * Explicit padding to 4 byte boundary.
 	 */
