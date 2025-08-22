@@ -128,6 +128,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	const int flags = variant->mmap_flags;
 	struct vfio_dma_region region;
 	struct iommu_mapping mapping;
+	u64 mapping_size = size;
 	int rc;
 
 	region.vaddr = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, -1, 0);
@@ -150,6 +151,13 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	if (rc == -EOPNOTSUPP)
 		goto unmap;
 
+	/*
+	 * IOMMUFD compatibility-mode does not support huge mappings when
+	 * using VFIO_TYPE1_IOMMU.
+	 */
+	if (!strcmp(variant->iommu_mode, "iommufd_compat_type1"))
+		mapping_size = SZ_4K;
+
 	ASSERT_EQ(0, rc);
 	printf("Found IOMMU mappings for IOVA 0x%lx:\n", region.iova);
 	printf("PGD: 0x%016lx\n", mapping.pgd);
@@ -158,7 +166,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	printf("PMD: 0x%016lx\n", mapping.pmd);
 	printf("PTE: 0x%016lx\n", mapping.pte);
 
-	switch (size) {
+	switch (mapping_size) {
 	case SZ_4K:
 		ASSERT_NE(0, mapping.pte);
 		break;
@@ -172,7 +180,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 		ASSERT_NE(0, mapping.pud);
 		break;
 	default:
-		VFIO_FAIL("Unrecognized size: 0x%lx\n", size);
+		VFIO_FAIL("Unrecognized size: 0x%lx\n", mapping_size);
 	}
 
 unmap:
