@@ -105,14 +105,14 @@ config AMIGA_BUILTIN_SERIAL
 	  To compile this driver as a module, choose M here.
 
 config HPDCA
-	tristate "HP DCA serial support"
+	bool "HP DCA serial support"
 	depends on DIO && SERIAL_8250
 	help
 	  If you want to use the internal "DCA" serial ports on an HP300
 	  machine, say Y here.
 
 config HPAPCI
-	tristate "HP APCI serial support"
+	bool "HP APCI serial support"
 	depends on HP300 && SERIAL_8250
 	help
 	  If you want to use the internal "APCI" serial ports on an HP400
