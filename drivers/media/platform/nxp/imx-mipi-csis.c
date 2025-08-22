@@ -55,13 +55,12 @@
 /* CSIS common control */
 #define MIPI_CSIS_CMN_CTRL			0x04
 #define MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW	BIT(16)
-#define MIPI_CSIS_CMN_CTRL_INTER_MODE		BIT(10)
+#define MIPI_CSIS_CMN_CTRL_INTERLEAVE_MODE_DT	BIT(10)
+#define MIPI_CSIS_CMN_CTRL_LANE_NUMBER(n)	((n) << 8)
+#define MIPI_CSIS_CMN_CTRL_LANE_NUMBER_MASK	(3 << 8)
 #define MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW_CTRL	BIT(2)
-#define MIPI_CSIS_CMN_CTRL_RESET		BIT(1)
-#define MIPI_CSIS_CMN_CTRL_ENABLE		BIT(0)
-
-#define MIPI_CSIS_CMN_CTRL_LANE_NR_OFFSET	8
-#define MIPI_CSIS_CMN_CTRL_LANE_NR_MASK		(3 << 8)
+#define MIPI_CSIS_CMN_CTRL_SW_RESET		BIT(1)
+#define MIPI_CSIS_CMN_CTRL_CSI_EN		BIT(0)
 
 /* CSIS clock control */
 #define MIPI_CSIS_CLK_CTRL			0x08
@@ -87,7 +86,7 @@
 #define MIPI_CSIS_INT_MSK_ERR_WRONG_CFG		BIT(3)
 #define MIPI_CSIS_INT_MSK_ERR_ECC		BIT(2)
 #define MIPI_CSIS_INT_MSK_ERR_CRC		BIT(1)
-#define MIPI_CSIS_INT_MSK_ERR_UNKNOWN		BIT(0)
+#define MIPI_CSIS_INT_MSK_ERR_ID		BIT(0)
 
 /* CSIS Interrupt source */
 #define MIPI_CSIS_INT_SRC			0x14
@@ -107,7 +106,7 @@
 #define MIPI_CSIS_INT_SRC_ERR_WRONG_CFG		BIT(3)
 #define MIPI_CSIS_INT_SRC_ERR_ECC		BIT(2)
 #define MIPI_CSIS_INT_SRC_ERR_CRC		BIT(1)
-#define MIPI_CSIS_INT_SRC_ERR_UNKNOWN		BIT(0)
+#define MIPI_CSIS_INT_SRC_ERR_ID		BIT(0)
 #define MIPI_CSIS_INT_SRC_ERRORS		0xfffff
 
 /* D-PHY status control */
@@ -123,8 +122,8 @@
 #define MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE_MASK	GENMASK(31, 24)
 #define MIPI_CSIS_DPHY_CMN_CTRL_CLKSETTLE(n)	((n) << 22)
 #define MIPI_CSIS_DPHY_CMN_CTRL_CLKSETTLE_MASK	GENMASK(23, 22)
-#define MIPI_CSIS_DPHY_CMN_CTRL_DPDN_SWAP_CLK	BIT(6)
-#define MIPI_CSIS_DPHY_CMN_CTRL_DPDN_SWAP_DAT	BIT(5)
+#define MIPI_CSIS_DPHY_CMN_CTRL_S_DPDN_SWAP_CLK	BIT(6)
+#define MIPI_CSIS_DPHY_CMN_CTRL_S_DPDN_SWAP_DAT	BIT(5)
 #define MIPI_CSIS_DPHY_CMN_CTRL_ENABLE_DAT	BIT(1)
 #define MIPI_CSIS_DPHY_CMN_CTRL_ENABLE_CLK	BIT(0)
 #define MIPI_CSIS_DPHY_CMN_CTRL_ENABLE		(0x1f << 0)
@@ -179,21 +178,23 @@
 #define MIPI_CSIS_ISPCFG_PIXEL_MODE_SINGLE	(0 << 12)
 #define MIPI_CSIS_ISPCFG_PIXEL_MODE_DUAL	(1 << 12)
 #define MIPI_CSIS_ISPCFG_PIXEL_MODE_QUAD	(2 << 12)	/* i.MX8M[MNP] only */
-#define MIPI_CSIS_ISPCFG_PIXEL_MASK		(3 << 12)
-#define MIPI_CSIS_ISPCFG_ALIGN_32BIT		BIT(11)
-#define MIPI_CSIS_ISPCFG_FMT(fmt)		((fmt) << 2)
-#define MIPI_CSIS_ISPCFG_FMT_MASK		(0x3f << 2)
+#define MIPI_CSIS_ISPCFG_PIXEL_MODE_MASK	(3 << 12)
+#define MIPI_CSIS_ISPCFG_PARALLEL		BIT(11)
+#define MIPI_CSIS_ISPCFG_DATAFORMAT(fmt)	((fmt) << 2)
+#define MIPI_CSIS_ISPCFG_DATAFORMAT_MASK	(0x3f << 2)
 
 /* ISP Image Resolution register */
 #define MIPI_CSIS_ISP_RESOL_CH(n)		(0x44 + (n) * 0x10)
+#define MIPI_CSIS_ISP_RESOL_VRESOL(n)		((n) << 16)
+#define MIPI_CSIS_ISP_RESOL_HRESOL(n)		((n) << 0)
 #define CSIS_MAX_PIX_WIDTH			0xffff
 #define CSIS_MAX_PIX_HEIGHT			0xffff
 
 /* ISP SYNC register */
 #define MIPI_CSIS_ISP_SYNC_CH(n)		(0x48 + (n) * 0x10)
-#define MIPI_CSIS_ISP_SYNC_HSYNC_LINTV_OFFSET	18
-#define MIPI_CSIS_ISP_SYNC_VSYNC_SINTV_OFFSET	12
-#define MIPI_CSIS_ISP_SYNC_VSYNC_EINTV_OFFSET	0
+#define MIPI_CSIS_ISP_SYNC_HSYNC_LINTV(n)	((n) << 18)
+#define MIPI_CSIS_ISP_SYNC_VSYNC_SINTV(n)	((n) << 12)
+#define MIPI_CSIS_ISP_SYNC_VSYNC_EINTV(n)	((n) << 0)
 
 /* ISP shadow registers */
 #define MIPI_CSIS_SDW_CONFIG_CH(n)		(0x80 + (n) * 0x10)
@@ -246,7 +247,7 @@ static const struct mipi_csis_event mipi_csis_events[] = {
 	{ false, MIPI_CSIS_INT_SRC_ERR_WRONG_CFG,	"Wrong Configuration Error" },
 	{ false, MIPI_CSIS_INT_SRC_ERR_ECC,		"ECC Error" },
 	{ false, MIPI_CSIS_INT_SRC_ERR_CRC,		"CRC Error" },
-	{ false, MIPI_CSIS_INT_SRC_ERR_UNKNOWN,		"Unknown Error" },
+	{ false, MIPI_CSIS_INT_SRC_ERR_ID,		"Unknown ID Error" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_DT_NOT_SUPPORT,	"Data Type Not Supported" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_DT_IGNORE,	"Data Type Ignored" },
 	{ true, MIPI_CSIS_DBG_INTR_SRC_ERR_FRAME_SIZE,	"Frame Size Error" },
@@ -517,7 +518,7 @@ static void mipi_csis_sw_reset(struct mipi_csis_device *csis)
 	u32 val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
 
 	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL,
-			val | MIPI_CSIS_CMN_CTRL_RESET);
+			val | MIPI_CSIS_CMN_CTRL_SW_RESET);
 	usleep_range(10, 20);
 }
 
@@ -527,9 +528,9 @@ static void mipi_csis_system_enable(struct mipi_csis_device *csis, int on)
 
 	val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
 	if (on)
-		val |= MIPI_CSIS_CMN_CTRL_ENABLE;
+		val |= MIPI_CSIS_CMN_CTRL_CSI_EN;
 	else
-		val &= ~MIPI_CSIS_CMN_CTRL_ENABLE;
+		val &= ~MIPI_CSIS_CMN_CTRL_CSI_EN;
 	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL, val);
 
 	val = mipi_csis_read(csis, MIPI_CSIS_DPHY_CMN_CTRL);
@@ -549,8 +550,8 @@ static void __mipi_csis_set_format(struct mipi_csis_device *csis,
 
 	/* Color format */
 	val = mipi_csis_read(csis, MIPI_CSIS_ISP_CONFIG_CH(0));
-	val &= ~(MIPI_CSIS_ISPCFG_ALIGN_32BIT | MIPI_CSIS_ISPCFG_FMT_MASK
-		| MIPI_CSIS_ISPCFG_PIXEL_MASK);
+	val &= ~(MIPI_CSIS_ISPCFG_PARALLEL | MIPI_CSIS_ISPCFG_PIXEL_MODE_MASK |
+		 MIPI_CSIS_ISPCFG_DATAFORMAT_MASK);
 
 	/*
 	 * YUV 4:2:2 can be transferred with 8 or 16 bits per clock sample
@@ -568,12 +569,13 @@ static void __mipi_csis_set_format(struct mipi_csis_device *csis,
 	if (csis_fmt->data_type == MIPI_CSI2_DT_YUV422_8B)
 		val |= MIPI_CSIS_ISPCFG_PIXEL_MODE_DUAL;
 
-	val |= MIPI_CSIS_ISPCFG_FMT(csis_fmt->data_type);
+	val |= MIPI_CSIS_ISPCFG_DATAFORMAT(csis_fmt->data_type);
 	mipi_csis_write(csis, MIPI_CSIS_ISP_CONFIG_CH(0), val);
 
 	/* Pixel resolution */
-	val = format->width | (format->height << 16);
-	mipi_csis_write(csis, MIPI_CSIS_ISP_RESOL_CH(0), val);
+	mipi_csis_write(csis, MIPI_CSIS_ISP_RESOL_CH(0),
+			MIPI_CSIS_ISP_RESOL_VRESOL(format->height) |
+			MIPI_CSIS_ISP_RESOL_HRESOL(format->width));
 }
 
 static int mipi_csis_calculate_params(struct mipi_csis_device *csis,
@@ -633,10 +635,10 @@ static void mipi_csis_set_params(struct mipi_csis_device *csis,
 	u32 val;
 
 	val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
-	val &= ~MIPI_CSIS_CMN_CTRL_LANE_NR_MASK;
-	val |= (lanes - 1) << MIPI_CSIS_CMN_CTRL_LANE_NR_OFFSET;
+	val &= ~MIPI_CSIS_CMN_CTRL_LANE_NUMBER_MASK;
+	val |= MIPI_CSIS_CMN_CTRL_LANE_NUMBER(lanes - 1);
 	if (csis->info->version == MIPI_CSIS_V3_3)
-		val |= MIPI_CSIS_CMN_CTRL_INTER_MODE;
+		val |= MIPI_CSIS_CMN_CTRL_INTERLEAVE_MODE_DT;
 	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL, val);
 
 	__mipi_csis_set_format(csis, format, csis_fmt);
@@ -645,10 +647,10 @@ static void mipi_csis_set_params(struct mipi_csis_device *csis,
 			MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE(csis->hs_settle) |
 			MIPI_CSIS_DPHY_CMN_CTRL_CLKSETTLE(csis->clk_settle));
 
-	val = (0 << MIPI_CSIS_ISP_SYNC_HSYNC_LINTV_OFFSET)
-	    | (0 << MIPI_CSIS_ISP_SYNC_VSYNC_SINTV_OFFSET)
-	    | (0 << MIPI_CSIS_ISP_SYNC_VSYNC_EINTV_OFFSET);
-	mipi_csis_write(csis, MIPI_CSIS_ISP_SYNC_CH(0), val);
+	mipi_csis_write(csis, MIPI_CSIS_ISP_SYNC_CH(0),
+			MIPI_CSIS_ISP_SYNC_HSYNC_LINTV(0) |
+			MIPI_CSIS_ISP_SYNC_VSYNC_SINTV(0) |
+			MIPI_CSIS_ISP_SYNC_VSYNC_EINTV(0));
 
 	val = mipi_csis_read(csis, MIPI_CSIS_CLK_CTRL);
 	val |= MIPI_CSIS_CLK_CTRL_WCLK_SRC;
