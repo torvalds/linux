@@ -53,8 +53,6 @@ struct smbd_connection {
 	struct work_struct mr_recovery_work;
 	/* Used by transport to wait until all MRs are returned */
 	wait_queue_head_t wait_for_mr_cleanup;
-
-	struct workqueue_struct *workqueue;
 };
 
 /* Create a SMBDirect session */
