@@ -916,11 +916,10 @@ static void smb_direct_send_ctx_init(struct smbdirect_send_batch *send_ctx,
 	send_ctx->remote_key = remote_key;
 }
 
-static int smb_direct_flush_send_list(struct smb_direct_transport *t,
+static int smb_direct_flush_send_list(struct smbdirect_socket *sc,
 				      struct smbdirect_send_batch *send_ctx,
 				      bool is_last)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_send_io *first, *last;
 	int ret;
 
@@ -988,7 +987,7 @@ static int wait_for_send_credits(struct smb_direct_transport *t,
 
 	if (send_ctx &&
 	    (send_ctx->wr_cnt >= 16 || atomic_read(&sc->send_io.credits.count) <= 1)) {
-		ret = smb_direct_flush_send_list(t, send_ctx, false);
+		ret = smb_direct_flush_send_list(sc, send_ctx, false);
 		if (ret)
 			return ret;
 	}
@@ -1358,7 +1357,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 	}
 
 done:
-	ret = smb_direct_flush_send_list(st, &send_ctx, true);
+	ret = smb_direct_flush_send_list(sc, &send_ctx, true);
 	if (unlikely(!ret && error))
 		ret = error;
 
