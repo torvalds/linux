@@ -3801,8 +3801,9 @@ static int lock_mount_exact(const struct path *path,
 	return err;
 }
 
-int finish_automount(struct vfsmount *m, const struct path *path)
+int finish_automount(struct vfsmount *__m, const struct path *path)
 {
+	struct vfsmount *m __free(mntput) = __m;
 	struct pinned_mountpoint mp = {};
 	struct mount *mnt;
 	int err;
@@ -3814,10 +3815,8 @@ int finish_automount(struct vfsmount *m, const struct path *path)
 
 	mnt = real_mount(m);
 
-	if (m->mnt_root == path->dentry) {
-		err = -ELOOP;
-		goto discard;
-	}
+	if (m->mnt_root == path->dentry)
+		return -ELOOP;
 
 	/*
 	 * we don't want to use lock_mount() - in this case finding something
@@ -3825,19 +3824,14 @@ int finish_automount(struct vfsmount *m, const struct path *path)
 	 * got", not "try to mount it on top".
 	 */
 	err = lock_mount_exact(path, &mp);
-	if (unlikely(err)) {
-		mntput(m);
+	if (unlikely(err))
 		return err == -EBUSY ? 0 : err;
-	}
+
 	err = do_add_mount(mnt, mp.mp, path,
 			   path->mnt->mnt_flags | MNT_SHRINKABLE);
+	if (likely(!err))
+		retain_and_null_ptr(m);
 	unlock_mount(&mp);
-	if (unlikely(err))
-		goto discard;
-	return 0;
-
-discard:
-	mntput(m);
 	return err;
 }
 
