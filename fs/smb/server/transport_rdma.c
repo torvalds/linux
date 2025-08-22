@@ -1001,11 +1001,9 @@ static int wait_for_rw_credits(struct smbdirect_socket *sc, int credits)
 				credits);
 }
 
-static int calc_rw_credits(struct smb_direct_transport *t,
+static int calc_rw_credits(struct smbdirect_socket *sc,
 			   char *buf, unsigned int len)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	return DIV_ROUND_UP(get_buf_page_count(buf, len),
 			    sc->rw_io.credits.num_pages);
 }
@@ -1453,7 +1451,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 			buf_len = 0;
 		}
 
-		credits_needed += calc_rw_credits(t, desc_buf, desc_buf_len);
+		credits_needed += calc_rw_credits(sc, desc_buf, desc_buf_len);
 		desc_buf += desc_buf_len;
 		buf_len -= desc_buf_len;
 		desc_num++;
