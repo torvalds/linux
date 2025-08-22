@@ -984,9 +984,8 @@ static int manage_credits_prior_sending(struct smbdirect_socket *sc)
  * 1 if SMBDIRECT_FLAG_RESPONSE_REQUESTED needs to be set
  * 0: otherwise
  */
-static int manage_keep_alive_before_sending(struct smbd_connection *info)
+static int manage_keep_alive_before_sending(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 
 	if (sc->idle.keepalive == SMBDIRECT_KEEPALIVE_PENDING) {
@@ -1130,7 +1129,7 @@ wait_send_queue:
 	packet->credits_granted = cpu_to_le16(new_credits);
 
 	packet->flags = 0;
-	if (manage_keep_alive_before_sending(info))
+	if (manage_keep_alive_before_sending(sc))
 		packet->flags |= cpu_to_le16(SMBDIRECT_FLAG_RESPONSE_REQUESTED);
 
 	packet->reserved = 0;
