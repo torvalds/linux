@@ -62,7 +62,8 @@ struct vfio_iommu_mode {
 FIXTURE_VARIANT_ADD_IOMMU_MODE(vfio_type1_iommu, ##__VA_ARGS__); \
 FIXTURE_VARIANT_ADD_IOMMU_MODE(vfio_type1v2_iommu, ##__VA_ARGS__); \
 FIXTURE_VARIANT_ADD_IOMMU_MODE(iommufd_compat_type1, ##__VA_ARGS__); \
-FIXTURE_VARIANT_ADD_IOMMU_MODE(iommufd_compat_type1v2, ##__VA_ARGS__)
+FIXTURE_VARIANT_ADD_IOMMU_MODE(iommufd_compat_type1v2, ##__VA_ARGS__); \
+FIXTURE_VARIANT_ADD_IOMMU_MODE(iommufd, ##__VA_ARGS__)
 
 struct vfio_pci_bar {
 	struct vfio_region_info info;
@@ -165,6 +166,9 @@ struct vfio_pci_device {
 	const struct vfio_iommu_mode *iommu_mode;
 	int group_fd;
 	int container_fd;
+
+	int iommufd;
+	u32 ioas_id;
 
 	struct vfio_device_info info;
 	struct vfio_region_info config_space;
