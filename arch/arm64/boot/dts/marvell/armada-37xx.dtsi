@@ -524,6 +524,7 @@
 			pcie_intc: interrupt-controller {
 				interrupt-controller;
 				#interrupt-cells = <1>;
+				#address-cells = <0>;
 			};
 		};
 	};
