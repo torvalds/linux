@@ -1218,6 +1218,7 @@ struct ieee80211_sub_if_data {
 	} debugfs;
 #endif
 
+	u32 tx_handlers_drop;
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
 };

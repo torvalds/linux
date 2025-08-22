@@ -1814,6 +1814,7 @@ static int invoke_tx_handlers_early(struct ieee80211_tx_data *tx)
 
  txh_done:
 	if (unlikely(res == TX_DROP)) {
+		tx->sdata->tx_handlers_drop++;
 		I802_DEBUG_INC(tx->local->tx_handlers_drop);
 		if (tx->skb)
 			ieee80211_free_txskb(&tx->local->hw, tx->skb);
@@ -1858,6 +1859,7 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 
  txh_done:
 	if (unlikely(res == TX_DROP)) {
+		tx->sdata->tx_handlers_drop++;
 		I802_DEBUG_INC(tx->local->tx_handlers_drop);
 		if (tx->skb)
 			ieee80211_free_txskb(&tx->local->hw, tx->skb);
@@ -1942,6 +1944,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 
 	if (unlikely(res_prepare == TX_DROP)) {
 		ieee80211_free_txskb(&local->hw, skb);
+		tx.sdata->tx_handlers_drop++;
 		return true;
 	} else if (unlikely(res_prepare == TX_QUEUED)) {
 		return true;
@@ -3728,8 +3731,10 @@ void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	r = ieee80211_xmit_fast_finish(sdata, sta, fast_tx->pn_offs,
 				       fast_tx->key, &tx);
 	tx.skb = NULL;
-	if (r == TX_DROP)
+	if (r == TX_DROP) {
+		tx.sdata->tx_handlers_drop++;
 		goto free;
+	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		sdata = container_of(sdata->bss,
