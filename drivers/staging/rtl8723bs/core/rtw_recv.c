@@ -91,11 +91,22 @@ exit:
 
 void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 {
+	signed int i;
+	union recv_frame *precvframe;
 	struct adapter	*padapter = precvpriv->adapter;
 
 	rtw_free_uc_swdec_pending_queue(padapter);
 
-	rtw_os_recv_resource_free(precvpriv);
+	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
+
+	for (i = 0; i < NR_RECVFRAME; i++) {
+		if (precvframe->u.hdr.pkt) {
+			/* free skb by driver */
+			dev_kfree_skb_any(precvframe->u.hdr.pkt);
+			precvframe->u.hdr.pkt = NULL;
+		}
+		precvframe++;
+	}
 
 	vfree(precvpriv->pallocated_frame_buf);
 

@@ -9,24 +9,6 @@
 #include <net/cfg80211.h>
 #include <linux/unaligned.h>
 
-/* free os related resource in union recv_frame */
-void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
-{
-	signed int i;
-	union recv_frame *precvframe;
-
-	precvframe = (union recv_frame *) precvpriv->precv_frame_buf;
-
-	for (i = 0; i < NR_RECVFRAME; i++) {
-		if (precvframe->u.hdr.pkt) {
-			/* free skb by driver */
-			dev_kfree_skb_any(precvframe->u.hdr.pkt);
-			precvframe->u.hdr.pkt = NULL;
-		}
-		precvframe++;
-	}
-}
-
 /* free os related resource in struct recv_buf */
 void rtw_os_recvbuf_resource_free(struct adapter *padapter, struct recv_buf *precvbuf)
 {
