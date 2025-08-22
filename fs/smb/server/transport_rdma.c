@@ -414,9 +414,8 @@ static void free_transport(struct smb_direct_transport *t)
 }
 
 static struct smbdirect_send_io
-*smb_direct_alloc_sendmsg(struct smb_direct_transport *t)
+*smb_direct_alloc_sendmsg(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	struct smbdirect_send_io *msg;
 
 	msg = mempool_alloc(sc->send_io.mem.pool, KSMBD_DEFAULT_GFP);
@@ -428,10 +427,9 @@ static struct smbdirect_send_io
 	return msg;
 }
 
-static void smb_direct_free_sendmsg(struct smb_direct_transport *t,
+static void smb_direct_free_sendmsg(struct smbdirect_socket *sc,
 				    struct smbdirect_send_io *msg)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int i;
 
 	if (msg->num_sge > 0) {
@@ -821,13 +819,11 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct smbdirect_send_io *sendmsg, *sibling;
-	struct smb_direct_transport *t;
 	struct smbdirect_socket *sc;
 	struct list_head *pos, *prev, *end;
 
 	sendmsg = container_of(wc->wr_cqe, struct smbdirect_send_io, cqe);
 	sc = sendmsg->socket;
-	t = container_of(sc, struct smb_direct_transport, socket);
 
 	ksmbd_debug(RDMA, "Send completed. status='%s (%d)', opcode=%d\n",
 		    ib_wc_status_msg(wc->status), wc->status,
@@ -849,11 +845,11 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 	for (pos = &sendmsg->sibling_list, prev = pos->prev, end = sendmsg->sibling_list.next;
 	     prev != end; pos = prev, prev = prev->prev) {
 		sibling = container_of(pos, struct smbdirect_send_io, sibling_list);
-		smb_direct_free_sendmsg(t, sibling);
+		smb_direct_free_sendmsg(sc, sibling);
 	}
 
 	sibling = container_of(pos, struct smbdirect_send_io, sibling_list);
-	smb_direct_free_sendmsg(t, sibling);
+	smb_direct_free_sendmsg(sc, sibling);
 }
 
 static int manage_credits_prior_sending(struct smb_direct_transport *t)
@@ -957,7 +953,7 @@ static int smb_direct_flush_send_list(struct smb_direct_transport *t,
 		wake_up(&sc->send_io.credits.wait_queue);
 		list_for_each_entry_safe(first, last, &send_ctx->msg_list,
 					 sibling_list) {
-			smb_direct_free_sendmsg(t, first);
+			smb_direct_free_sendmsg(sc, first);
 		}
 	}
 	return ret;
@@ -1032,7 +1028,7 @@ static int smb_direct_create_header(struct smb_direct_transport *t,
 	int header_length;
 	int ret;
 
-	sendmsg = smb_direct_alloc_sendmsg(t);
+	sendmsg = smb_direct_alloc_sendmsg(sc);
 	if (IS_ERR(sendmsg))
 		return PTR_ERR(sendmsg);
 
@@ -1075,7 +1071,7 @@ static int smb_direct_create_header(struct smb_direct_transport *t,
 						 DMA_TO_DEVICE);
 	ret = ib_dma_mapping_error(sc->ib.dev, sendmsg->sge[0].addr);
 	if (ret) {
-		smb_direct_free_sendmsg(t, sendmsg);
+		smb_direct_free_sendmsg(sc, sendmsg);
 		return ret;
 	}
 
@@ -1231,7 +1227,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 		goto err;
 	return 0;
 err:
-	smb_direct_free_sendmsg(t, msg);
+	smb_direct_free_sendmsg(sc, msg);
 	atomic_inc(&sc->send_io.credits.count);
 	return ret;
 }
@@ -1660,7 +1656,7 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 	struct smbdirect_negotiate_resp *resp;
 	int ret;
 
-	sendmsg = smb_direct_alloc_sendmsg(t);
+	sendmsg = smb_direct_alloc_sendmsg(sc);
 	if (IS_ERR(sendmsg))
 		return -ENOMEM;
 
@@ -1696,7 +1692,7 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 						 DMA_TO_DEVICE);
 	ret = ib_dma_mapping_error(sc->ib.dev, sendmsg->sge[0].addr);
 	if (ret) {
-		smb_direct_free_sendmsg(t, sendmsg);
+		smb_direct_free_sendmsg(sc, sendmsg);
 		return ret;
 	}
 
@@ -1706,7 +1702,7 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 
 	ret = post_sendmsg(t, NULL, sendmsg);
 	if (ret) {
-		smb_direct_free_sendmsg(t, sendmsg);
+		smb_direct_free_sendmsg(sc, sendmsg);
 		return ret;
 	}
 
