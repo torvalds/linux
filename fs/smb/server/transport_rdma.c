@@ -180,7 +180,7 @@ static void put_recvmsg(struct smb_direct_transport *t,
 	list_add(&recvmsg->list, &sc->recv_io.free.list);
 	spin_unlock(&sc->recv_io.free.lock);
 
-	queue_work(smb_direct_wq, &sc->recv_io.posted.refill_work);
+	queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 }
 
 static void enqueue_reassembly(struct smb_direct_transport *t,
@@ -268,7 +268,7 @@ smb_direct_disconnect_rdma_connection(struct smb_direct_transport *t)
 {
 	struct smbdirect_socket *sc = &t->socket;
 
-	queue_work(smb_direct_wq, &sc->disconnect_work);
+	queue_work(sc->workqueue, &sc->disconnect_work);
 }
 
 static void smb_direct_send_immediate_work(struct work_struct *work)
@@ -305,9 +305,9 @@ static void smb_direct_idle_connection_timer(struct work_struct *work)
 	 * in order to wait for a response
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(smb_direct_wq, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_timeout_msec));
-	queue_work(smb_direct_wq, &sc->idle.immediate_work);
+	queue_work(sc->workqueue, &sc->idle.immediate_work);
 }
 
 static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
@@ -323,6 +323,8 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	sc = &t->socket;
 	smbdirect_socket_init(sc);
 	sp = &sc->parameters;
+
+	sc->workqueue = smb_direct_wq;
 
 	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
 
@@ -535,7 +537,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 * order to trigger our next keepalive message.
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
-	mod_delayed_work(smb_direct_wq, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_interval_msec));
 
 	switch (sc->recv_io.expected) {
@@ -607,14 +609,14 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 		if (le16_to_cpu(data_transfer->flags) &
 		    SMBDIRECT_FLAG_RESPONSE_REQUESTED)
-			queue_work(smb_direct_wq, &sc->idle.immediate_work);
+			queue_work(sc->workqueue, &sc->idle.immediate_work);
 
 		if (atomic_read(&sc->send_io.credits.count) > 0)
 			wake_up(&sc->send_io.credits.wait_queue);
 
 		if (data_length) {
 			if (sc->recv_io.credits.target > old_recv_credit_target)
-				queue_work(smb_direct_wq, &sc->recv_io.posted.refill_work);
+				queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 
 			enqueue_reassembly(t, recvmsg, (int)data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
@@ -823,7 +825,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 	}
 
 	if (credits)
-		queue_work(smb_direct_wq, &sc->idle.immediate_work);
+		queue_work(sc->workqueue, &sc->idle.immediate_work);
 }
 
 static void send_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -895,7 +897,7 @@ static int manage_keep_alive_before_sending(struct smb_direct_transport *t)
 		 * Now use the keepalive timeout (instead of keepalive interval)
 		 * in order to wait for a response
 		 */
-		mod_delayed_work(smb_direct_wq, &sc->idle.timer_work,
+		mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
 				 msecs_to_jiffies(sp->keepalive_timeout_msec));
 		return 1;
 	}
@@ -1766,7 +1768,7 @@ static int smb_direct_accept_client(struct smb_direct_transport *t)
 	 * so that the timer will cause a disconnect.
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(smb_direct_wq, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->negotiate_timeout_msec));
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED);
