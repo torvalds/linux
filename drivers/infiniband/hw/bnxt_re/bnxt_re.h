@@ -286,4 +286,7 @@ static inline int bnxt_re_read_context_allowed(struct bnxt_re_dev *rdev)
 #define BNXT_RE_CONTEXT_TYPE_MRW_SIZE_P7	192
 #define BNXT_RE_CONTEXT_TYPE_SRQ_SIZE_P7	192
 
+#define BNXT_RE_HWRM_CMD_TIMEOUT(rdev)		\
+		((rdev)->chip_ctx->hwrm_cmd_max_timeout * 1000)
+
 #endif
