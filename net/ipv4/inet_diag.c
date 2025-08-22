@@ -519,7 +519,6 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 }
 
 struct sock *inet_diag_find_one_icsk(struct net *net,
-				     struct inet_hashinfo *hashinfo,
 				     const struct inet_diag_req_v2 *req)
 {
 	struct sock *sk;
@@ -562,8 +561,7 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 }
 EXPORT_SYMBOL_GPL(inet_diag_find_one_icsk);
 
-int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
-			    struct netlink_callback *cb,
+int inet_diag_dump_one_icsk(struct netlink_callback *cb,
 			    const struct inet_diag_req_v2 *req)
 {
 	struct sk_buff *in_skb = cb->skb;
@@ -573,7 +571,7 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
 	struct sock *sk;
 	int err;
 
-	sk = inet_diag_find_one_icsk(net, hashinfo, req);
+	sk = inet_diag_find_one_icsk(net, req);
 	if (IS_ERR(sk))
 		return PTR_ERR(sk);
 
@@ -1018,7 +1016,7 @@ static void twsk_build_assert(void)
 #endif
 }
 
-void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
+void inet_diag_dump_icsk(struct sk_buff *skb,
 			 struct netlink_callback *cb,
 			 const struct inet_diag_req_v2 *r)
 {
@@ -1026,10 +1024,12 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 	struct inet_diag_dump_data *cb_data = cb->data;
 	struct net *net = sock_net(skb->sk);
 	u32 idiag_states = r->idiag_states;
+	struct inet_hashinfo *hashinfo;
 	int i, num, s_i, s_num;
 	struct nlattr *bc;
 	struct sock *sk;
 
+	hashinfo = net->ipv4.tcp_death_row.hashinfo;
 	bc = cb_data->inet_diag_nla_bc;
 	if (idiag_states & TCPF_SYN_RECV)
 		idiag_states |= TCPF_NEW_SYN_RECV;

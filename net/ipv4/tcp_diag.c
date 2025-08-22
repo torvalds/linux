@@ -180,21 +180,13 @@ static size_t tcp_diag_get_aux_size(struct sock *sk, bool net_admin)
 static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			  const struct inet_diag_req_v2 *r)
 {
-	struct inet_hashinfo *hinfo;
-
-	hinfo = sock_net(cb->skb->sk)->ipv4.tcp_death_row.hashinfo;
-
-	inet_diag_dump_icsk(hinfo, skb, cb, r);
+	inet_diag_dump_icsk(skb, cb, r);
 }
 
 static int tcp_diag_dump_one(struct netlink_callback *cb,
 			     const struct inet_diag_req_v2 *req)
 {
-	struct inet_hashinfo *hinfo;
-
-	hinfo = sock_net(cb->skb->sk)->ipv4.tcp_death_row.hashinfo;
-
-	return inet_diag_dump_one_icsk(hinfo, cb, req);
+	return inet_diag_dump_one_icsk(cb, req);
 }
 
 #ifdef CONFIG_INET_DIAG_DESTROY
@@ -202,13 +194,10 @@ static int tcp_diag_destroy(struct sk_buff *in_skb,
 			    const struct inet_diag_req_v2 *req)
 {
 	struct net *net = sock_net(in_skb->sk);
-	struct inet_hashinfo *hinfo;
 	struct sock *sk;
 	int err;
 
-	hinfo = net->ipv4.tcp_death_row.hashinfo;
-	sk = inet_diag_find_one_icsk(net, hinfo, req);
-
+	sk = inet_diag_find_one_icsk(net, req);
 	if (IS_ERR(sk))
 		return PTR_ERR(sk);
 
