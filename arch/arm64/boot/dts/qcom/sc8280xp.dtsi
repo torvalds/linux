@@ -2177,10 +2177,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 0 GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 0 GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 0 GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc 0 GIC_SPI GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 GIC_SPI GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 GIC_SPI GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 GIC_SPI GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE_4_AUX_CLK>,
 				 <&gcc GCC_PCIE_4_CFG_AHB_CLK>,
@@ -2290,10 +2290,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 526 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 0 GIC_SPI 527 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 0 GIC_SPI 528 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 0 GIC_SPI 529 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc 0 GIC_SPI GIC_SPI 526 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 GIC_SPI GIC_SPI 527 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 GIC_SPI GIC_SPI 528 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 GIC_SPI GIC_SPI 529 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE_3B_AUX_CLK>,
 				 <&gcc GCC_PCIE_3B_CFG_AHB_CLK>,
@@ -2401,10 +2401,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 499 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 0 GIC_SPI 542 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 0 GIC_SPI 543 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 0 GIC_SPI 544 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc 0 GIC_SPI GIC_SPI 499 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 GIC_SPI GIC_SPI 542 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 GIC_SPI GIC_SPI 543 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 GIC_SPI GIC_SPI 544 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE_3A_AUX_CLK>,
 				 <&gcc GCC_PCIE_3A_CFG_AHB_CLK>,
@@ -2515,10 +2515,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 0 GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 0 GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 0 GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc 0 GIC_SPI GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 GIC_SPI GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 GIC_SPI GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 GIC_SPI GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE_2B_AUX_CLK>,
 				 <&gcc GCC_PCIE_2B_CFG_AHB_CLK>,
@@ -2626,10 +2626,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 0 GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 0 GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 0 GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc 0 GIC_SPI GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 GIC_SPI GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 GIC_SPI GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 GIC_SPI GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE_2A_AUX_CLK>,
 				 <&gcc GCC_PCIE_2A_CFG_AHB_CLK>,

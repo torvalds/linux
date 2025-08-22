@@ -856,10 +856,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 479 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 480 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 481 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 482 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc GIC_SPI 479 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc GIC_SPI 480 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc GIC_SPI 481 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc GIC_SPI 482 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE3_AXI_M_CLK>,
 				 <&gcc GCC_PCIE3_AXI_S_CLK>,
@@ -959,10 +959,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 464 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 465 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 466 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 467 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc GIC_SPI 466 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc GIC_SPI 467 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE2_AXI_M_CLK>,
 				 <&gcc GCC_PCIE2_AXI_S_CLK>,
@@ -1062,10 +1062,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 449 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 450 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 451 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 452 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc GIC_SPI 450 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc GIC_SPI 451 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc GIC_SPI 452 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE1_AXI_M_CLK>,
 				 <&gcc GCC_PCIE1_AXI_S_CLK>,
@@ -1165,10 +1165,10 @@
 
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <0 0 0 1 &intc 0 434 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 2 &intc 0 435 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 3 &intc 0 436 IRQ_TYPE_LEVEL_HIGH>,
-					<0 0 0 4 &intc 0 437 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 1 &intc GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc GIC_SPI 437 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE0_AXI_M_CLK>,
 				 <&gcc GCC_PCIE0_AXI_S_CLK>,
