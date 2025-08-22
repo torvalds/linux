@@ -2106,11 +2106,10 @@ out:
 	return ret;
 }
 
-static int smb_direct_connect(struct smb_direct_transport *st)
+static int smb_direct_connect(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &st->socket;
-	int ret;
 	struct ib_qp_cap qp_cap;
+	int ret;
 
 	ret = smb_direct_init_params(sc, &qp_cap);
 	if (ret) {
@@ -2232,7 +2231,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 		sp->responder_resources = min_t(u8, sp->responder_resources,
 					       peer_responder_resources);
 
-	ret = smb_direct_connect(t);
+	ret = smb_direct_connect(sc);
 	if (ret)
 		goto out_err;
 
