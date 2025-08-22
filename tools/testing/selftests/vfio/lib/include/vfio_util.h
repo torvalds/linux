@@ -47,6 +47,12 @@
 	VFIO_LOG_AND_EXIT(_fmt, ##__VA_ARGS__);			\
 } while (0)
 
+struct vfio_iommu_mode {
+	const char *name;
+	const char *container_path;
+	unsigned long iommu_type;
+};
+
 struct vfio_pci_bar {
 	struct vfio_region_info info;
 	void *vaddr;
@@ -144,6 +150,8 @@ struct vfio_pci_driver {
 
 struct vfio_pci_device {
 	int fd;
+
+	const struct vfio_iommu_mode *iommu_mode;
 	int group_fd;
 	int container_fd;
 
@@ -177,7 +185,9 @@ struct vfio_pci_device {
 const char *vfio_selftests_get_bdf(int *argc, char *argv[]);
 const char *vfio_pci_get_cdev_path(const char *bdf);
 
-struct vfio_pci_device *vfio_pci_device_init(const char *bdf, int iommu_type);
+extern const char *default_iommu_mode;
+
+struct vfio_pci_device *vfio_pci_device_init(const char *bdf, const char *iommu_mode);
 void vfio_pci_device_cleanup(struct vfio_pci_device *device);
 void vfio_pci_device_reset(struct vfio_pci_device *device);
 

@@ -18,7 +18,6 @@
 #include "../../../kselftest.h"
 #include <vfio_util.h>
 
-#define VFIO_DEV_PATH	"/dev/vfio/vfio"
 #define PCI_SYSFS_PATH	"/sys/bus/pci/devices"
 
 #define ioctl_assert(_fd, _op, _arg) do {						       \
@@ -261,10 +260,11 @@ static unsigned int vfio_pci_get_group_from_dev(const char *bdf)
 
 static void vfio_pci_container_setup(struct vfio_pci_device *device)
 {
+	const char *path = device->iommu_mode->container_path;
 	int version;
 
-	device->container_fd = open(VFIO_DEV_PATH, O_RDWR);
-	VFIO_ASSERT_GE(device->container_fd, 0, "open(%s) failed\n", VFIO_DEV_PATH);
+	device->container_fd = open(path, O_RDWR);
+	VFIO_ASSERT_GE(device->container_fd, 0, "open(%s) failed\n", path);
 
 	version = ioctl(device->container_fd, VFIO_GET_API_VERSION);
 	VFIO_ASSERT_EQ(version, VFIO_API_VERSION);
@@ -290,8 +290,9 @@ static void vfio_pci_group_setup(struct vfio_pci_device *device, const char *bdf
 	ioctl_assert(device->group_fd, VFIO_GROUP_SET_CONTAINER, &device->container_fd);
 }
 
-static void vfio_pci_iommu_setup(struct vfio_pci_device *device, unsigned long iommu_type)
+static void vfio_pci_iommu_setup(struct vfio_pci_device *device)
 {
+	unsigned long iommu_type = device->iommu_mode->iommu_type;
 	int ret;
 
 	INIT_LIST_HEAD(&device->dma_regions);
@@ -363,16 +364,45 @@ const char *vfio_pci_get_cdev_path(const char *bdf)
 	return cdev_path;
 }
 
-struct vfio_pci_device *vfio_pci_device_init(const char *bdf, int iommu_type)
+static const struct vfio_iommu_mode iommu_modes[] = {
+	{
+		.name = "vfio_type1_iommu",
+		.container_path = "/dev/vfio/vfio",
+		.iommu_type = VFIO_TYPE1_IOMMU,
+	},
+};
+
+const char *default_iommu_mode = "vfio_type1_iommu";
+
+static const struct vfio_iommu_mode *lookup_iommu_mode(const char *iommu_mode)
+{
+	int i;
+
+	if (!iommu_mode)
+		iommu_mode = default_iommu_mode;
+
+	for (i = 0; i < ARRAY_SIZE(iommu_modes); i++) {
+		if (strcmp(iommu_mode, iommu_modes[i].name))
+			continue;
+
+		return &iommu_modes[i];
+	}
+
+	VFIO_FAIL("Unrecognized IOMMU mode: %s\n", iommu_mode);
+}
+
+struct vfio_pci_device *vfio_pci_device_init(const char *bdf, const char *iommu_mode)
 {
 	struct vfio_pci_device *device;
 
 	device = calloc(1, sizeof(*device));
 	VFIO_ASSERT_NOT_NULL(device);
 
+	device->iommu_mode = lookup_iommu_mode(iommu_mode);
+
 	vfio_pci_container_setup(device);
 	vfio_pci_group_setup(device, bdf);
-	vfio_pci_iommu_setup(device, iommu_type);
+	vfio_pci_iommu_setup(device);
 	vfio_pci_device_setup(device, bdf);
 
 	vfio_pci_driver_probe(device);

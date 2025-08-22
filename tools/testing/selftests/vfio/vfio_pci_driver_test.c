@@ -60,7 +60,7 @@ FIXTURE_SETUP(vfio_pci_driver_test)
 {
 	struct vfio_pci_driver *driver;
 
-	self->device = vfio_pci_device_init(device_bdf, VFIO_TYPE1_IOMMU);
+	self->device = vfio_pci_device_init(device_bdf, default_iommu_mode);
 
 	driver = &self->device->driver;
 
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
 
 	device_bdf = vfio_selftests_get_bdf(&argc, argv);
 
-	device = vfio_pci_device_init(device_bdf, VFIO_TYPE1_IOMMU);
+	device = vfio_pci_device_init(device_bdf, default_iommu_mode);
 	if (!device->driver.ops) {
 		fprintf(stderr, "No driver found for device %s\n", device_bdf);
 		return KSFT_SKIP;
