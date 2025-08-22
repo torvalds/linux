@@ -1003,10 +1003,9 @@ static int manage_keep_alive_before_sending(struct smbd_connection *info)
 }
 
 /* Post the send request */
-static int smbd_post_send(struct smbd_connection *info,
+static int smbd_post_send(struct smbdirect_socket *sc,
 		struct smbdirect_send_io *request)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct ib_send_wr send_wr;
 	int rc, i;
 
@@ -1169,7 +1168,7 @@ wait_send_queue:
 	request->sge[0].length = header_length;
 	request->sge[0].lkey = sc->ib.pd->local_dma_lkey;
 
-	rc = smbd_post_send(info, request);
+	rc = smbd_post_send(sc, request);
 	if (!rc)
 		return 0;
 
