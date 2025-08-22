@@ -1038,11 +1038,10 @@ static int smbd_post_send(struct smbdirect_socket *sc,
 	return rc;
 }
 
-static int smbd_post_send_iter(struct smbd_connection *info,
+static int smbd_post_send_iter(struct smbdirect_socket *sc,
 			       struct iov_iter *iter,
 			       int *_remaining_data_length)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int i, rc;
 	int header_length;
@@ -1206,13 +1205,14 @@ static int smbd_post_send_empty(struct smbd_connection *info)
 	int remaining_data_length = 0;
 
 	sc->statistics.send_empty++;
-	return smbd_post_send_iter(info, NULL, &remaining_data_length);
+	return smbd_post_send_iter(sc, NULL, &remaining_data_length);
 }
 
 static int smbd_post_send_full_iter(struct smbd_connection *info,
 				    struct iov_iter *iter,
 				    int *_remaining_data_length)
 {
+	struct smbdirect_socket *sc = &info->socket;
 	int rc = 0;
 
 	/*
@@ -1222,7 +1222,7 @@ static int smbd_post_send_full_iter(struct smbd_connection *info,
 	 */
 
 	while (iov_iter_count(iter) > 0) {
-		rc = smbd_post_send_iter(info, iter, _remaining_data_length);
+		rc = smbd_post_send_iter(sc, iter, _remaining_data_length);
 		if (rc < 0)
 			break;
 	}
