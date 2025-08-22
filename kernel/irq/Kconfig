@@ -143,6 +143,7 @@ config GENERIC_IRQ_KEXEC_CLEAR_VM_FORWARD
 config IRQ_KUNIT_TEST
 	bool "KUnit tests for IRQ management APIs" if !KUNIT_ALL_TESTS
 	depends on KUNIT=y
+	depends on SPARSE_IRQ
 	default KUNIT_ALL_TESTS
 	select IRQ_DOMAIN
 	imply SMP
