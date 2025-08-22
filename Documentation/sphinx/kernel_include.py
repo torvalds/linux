@@ -113,6 +113,42 @@ class KernelInclude(Include):
             except UnicodeError as error:
                 raise self.severe('Problem with directive:\n%s' % ErrorString(error))
 
+    def apply_range(self, rawtext):
+        """
+        Handles start-line, end-line, start-after and end-before parameters
+        """
+
+        # Get to-be-included content
+        startline = self.options.get('start-line', None)
+        endline = self.options.get('end-line', None)
+        try:
+            if startline or (endline is not None):
+                lines = rawtext.splitlines()
+                rawtext = '\n'.join(lines[startline:endline])
+        except UnicodeError as error:
+            raise self.severe(f'Problem with "{self.name}" directive:\n'
+                              + io.error_string(error))
+        # start-after/end-before: no restrictions on newlines in match-text,
+        # and no restrictions on matching inside lines vs. line boundaries
+        after_text = self.options.get("start-after", None)
+        if after_text:
+            # skip content in rawtext before *and incl.* a matching text
+            after_index = rawtext.find(after_text)
+            if after_index < 0:
+                raise self.severe('Problem with "start-after" option of "%s" '
+                                  "directive:\nText not found." % self.name)
+            rawtext = rawtext[after_index + len(after_text) :]
+        before_text = self.options.get("end-before", None)
+        if before_text:
+            # skip content in rawtext after *and incl.* a matching text
+            before_index = rawtext.find(before_text)
+            if before_index < 0:
+                raise self.severe('Problem with "end-before" option of "%s" '
+                                  "directive:\nText not found." % self.name)
+            rawtext = rawtext[:before_index]
+
+        return rawtext
+
     def xref_text(self, env, path, tab_width):
         """
         Read and add contents from a C file parsed to have cross references.
@@ -162,38 +198,6 @@ class KernelInclude(Include):
         self.state_machine.insert_input(result, path)
 
         return []
-
-    def apply_range(self, rawtext):
-        # Get to-be-included content
-        startline = self.options.get('start-line', None)
-        endline = self.options.get('end-line', None)
-        try:
-            if startline or (endline is not None):
-                lines = rawtext.splitlines()
-                rawtext = '\n'.join(lines[startline:endline])
-        except UnicodeError as error:
-            raise self.severe(f'Problem with "{self.name}" directive:\n'
-                              + io.error_string(error))
-        # start-after/end-before: no restrictions on newlines in match-text,
-        # and no restrictions on matching inside lines vs. line boundaries
-        after_text = self.options.get("start-after", None)
-        if after_text:
-            # skip content in rawtext before *and incl.* a matching text
-            after_index = rawtext.find(after_text)
-            if after_index < 0:
-                raise self.severe('Problem with "start-after" option of "%s" '
-                                  "directive:\nText not found." % self.name)
-            rawtext = rawtext[after_index + len(after_text) :]
-        before_text = self.options.get("end-before", None)
-        if before_text:
-            # skip content in rawtext after *and incl.* a matching text
-            before_index = rawtext.find(before_text)
-            if before_index < 0:
-                raise self.severe('Problem with "end-before" option of "%s" '
-                                  "directive:\nText not found." % self.name)
-            rawtext = rawtext[:before_index]
-
-        return rawtext
 
     def literal(self, path, tab_width, rawtext):
         """Output a literal block"""
