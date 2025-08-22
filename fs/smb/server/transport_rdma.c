@@ -1115,11 +1115,10 @@ static int get_mapped_sg_list(struct ib_device *device, void *buf, int size,
 	return ib_dma_map_sg(device, sg_list, npages, dir);
 }
 
-static int post_sendmsg(struct smb_direct_transport *t,
+static int post_sendmsg(struct smbdirect_socket *sc,
 			struct smbdirect_send_batch *send_ctx,
 			struct smbdirect_send_io *msg)
 {
-	struct smbdirect_socket *sc = &t->socket;
 	int i;
 
 	for (i = 0; i < msg->num_sge; i++)
@@ -1210,7 +1209,7 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 		}
 	}
 
-	ret = post_sendmsg(t, send_ctx, msg);
+	ret = post_sendmsg(sc, send_ctx, msg);
 	if (ret)
 		goto err;
 	return 0;
@@ -1688,7 +1687,7 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 	sendmsg->sge[0].length = sizeof(*resp);
 	sendmsg->sge[0].lkey = sc->ib.pd->local_dma_lkey;
 
-	ret = post_sendmsg(t, NULL, sendmsg);
+	ret = post_sendmsg(sc, NULL, sendmsg);
 	if (ret) {
 		smb_direct_free_sendmsg(sc, sendmsg);
 		return ret;
