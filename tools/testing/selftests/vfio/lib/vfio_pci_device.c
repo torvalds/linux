@@ -364,6 +364,7 @@ const char *vfio_pci_get_cdev_path(const char *bdf)
 	return cdev_path;
 }
 
+/* Reminder: Keep in sync with FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(). */
 static const struct vfio_iommu_mode iommu_modes[] = {
 	{
 		.name = "vfio_type1_iommu",

@@ -53,6 +53,14 @@ struct vfio_iommu_mode {
 	unsigned long iommu_type;
 };
 
+/*
+ * Generator for VFIO selftests fixture variants that replicate across all
+ * possible IOMMU modes. Tests must define FIXTURE_VARIANT_ADD_IOMMU_MODE()
+ * which should then use FIXTURE_VARIANT_ADD() to create the variant.
+ */
+#define FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(...) \
+FIXTURE_VARIANT_ADD_IOMMU_MODE(vfio_type1_iommu, ##__VA_ARGS__)
+
 struct vfio_pci_bar {
 	struct vfio_region_info info;
 	void *vaddr;
