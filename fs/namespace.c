@@ -4622,7 +4622,9 @@ EXPORT_SYMBOL(path_is_under);
 SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		const char __user *, put_old)
 {
-	struct path new, old, root;
+	struct path new __free(path_put) = {};
+	struct path old __free(path_put) = {};
+	struct path root __free(path_put) = {};
 	struct mount *new_mnt, *root_mnt, *old_mnt, *root_parent, *ex_parent;
 	struct pinned_mountpoint old_mp = {};
 	int error;
@@ -4633,21 +4635,21 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	error = user_path_at(AT_FDCWD, new_root,
 			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &new);
 	if (error)
-		goto out0;
+		return error;
 
 	error = user_path_at(AT_FDCWD, put_old,
 			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &old);
 	if (error)
-		goto out1;
+		return error;
 
 	error = security_sb_pivotroot(&old, &new);
 	if (error)
-		goto out2;
+		return error;
 
 	get_fs_root(current->fs, &root);
 	error = lock_mount(&old, &old_mp);
 	if (error)
-		goto out3;
+		return error;
 
 	error = -EINVAL;
 	new_mnt = real_mount(new.mnt);
@@ -4705,13 +4707,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	error = 0;
 out4:
 	unlock_mount(&old_mp);
-out3:
-	path_put(&root);
-out2:
-	path_put(&old);
-out1:
-	path_put(&new);
-out0:
 	return error;
 }
 
