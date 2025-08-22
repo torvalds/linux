@@ -16,7 +16,12 @@ description: |
 
 properties:
   compatible:
-    const: kontron,sl28cpld
+    oneOf:
+      - items:
+          - enum:
+              - kontron,sa67mcu
+          - const: kontron,sl28cpld
+      - const: kontron,sl28cpld
 
   reg:
     description:
