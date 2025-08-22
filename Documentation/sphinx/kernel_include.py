@@ -160,6 +160,52 @@ class KernelInclude(Include):
 
         return rawtext
 
+    def literal(self, path, tab_width, rawtext):
+        """Output a literal block"""
+
+        # Convert tabs to spaces, if `tab_width` is positive.
+        if tab_width >= 0:
+            text = rawtext.expandtabs(tab_width)
+        else:
+            text = rawtext
+        literal_block = nodes.literal_block(rawtext, source=path,
+                                            classes=self.options.get("class", []))
+        literal_block.line = 1
+        self.add_name(literal_block)
+        if "number-lines" in self.options:
+            try:
+                startline = int(self.options["number-lines"] or 1)
+            except ValueError:
+                raise self.error(":number-lines: with non-integer start value")
+            endline = startline + len(include_lines)
+            if text.endswith("\n"):
+                text = text[:-1]
+            tokens = NumberLines([([], text)], startline, endline)
+            for classes, value in tokens:
+                if classes:
+                    literal_block += nodes.inline(value, value,
+                                                    classes=classes)
+                else:
+                    literal_block += nodes.Text(value, value)
+        else:
+            literal_block += nodes.Text(text, text)
+        return [literal_block]
+
+    def code(self, path, include_lines):
+        """Output a code block"""
+
+        self.options["source"] = path
+        codeblock = CodeBlock(self.name,
+                                [self.options.pop("code")],  # arguments
+                                self.options,
+                                include_lines,
+                                self.lineno,
+                                self.content_offset,
+                                self.block_text,
+                                self.state,
+                                self.state_machine)
+        return codeblock.run()
+
     def run(self):
         """Include a file as part of the content of this reST file."""
         env = self.state.document.settings.env
@@ -200,6 +246,13 @@ class KernelInclude(Include):
         startline = self.options.get("start-line", None)
         endline = self.options.get("end-line", None)
 
+        if "literal" in self.options:
+            ouptut_type = "literal"
+        elif "code" in self.options:
+            ouptut_type = "code"
+        else:
+            ouptut_type = "normal"
+
         # Get optional arguments to related to cross-references generation
         if 'generate-cross-refs' in self.options:
             rawtext = self.read_rawtext_with_xrefs(env, path)
@@ -213,50 +266,15 @@ class KernelInclude(Include):
 
         rawtext = self.apply_range(rawtext)
 
+        if ouptut_type == "literal":
+            return self.literal(path, tab_width, rawtext)
+
         include_lines = statemachine.string2lines(rawtext, tab_width,
                                                   convert_whitespace=True)
-        if "literal" in self.options:
-            # Convert tabs to spaces, if `tab_width` is positive.
-            if tab_width >= 0:
-                text = rawtext.expandtabs(tab_width)
-            else:
-                text = rawtext
-            literal_block = nodes.literal_block(rawtext, source=path,
-                                                classes=self.options.get("class", [])
-            )
-            literal_block.line = 1
-            self.add_name(literal_block)
-            if "number-lines" in self.options:
-                try:
-                    startline = int(self.options["number-lines"] or 1)
-                except ValueError:
-                    raise self.error(":number-lines: with non-integer start value")
-                endline = startline + len(include_lines)
-                if text.endswith("\n"):
-                    text = text[:-1]
-                tokens = NumberLines([([], text)], startline, endline)
-                for classes, value in tokens:
-                    if classes:
-                        literal_block += nodes.inline(value, value,
-                                                      classes=classes)
-                    else:
-                        literal_block += nodes.Text(value, value)
-            else:
-                literal_block += nodes.Text(text, text)
-            return [literal_block]
 
-        if "code" in self.options:
-            self.options["source"] = path
-            codeblock = CodeBlock(self.name,
-                                  [self.options.pop("code")],  # arguments
-                                  self.options,
-                                  include_lines,  # content
-                                  self.lineno,
-                                  self.content_offset,
-                                  self.block_text,
-                                  self.state,
-                                  self.state_machine)
-            return codeblock.run()
+        if ouptut_type == "code":
+            return self.code(path, include_lines)
+
         self.state_machine.insert_input(include_lines, path)
         return []
 
