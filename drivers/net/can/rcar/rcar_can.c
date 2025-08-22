@@ -16,6 +16,7 @@
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/pm_runtime.h>
 
 #define RCAR_CAN_DRV_NAME	"rcar_can"
 
@@ -92,7 +93,6 @@ struct rcar_can_priv {
 	struct net_device *ndev;
 	struct napi_struct napi;
 	struct rcar_can_regs __iomem *regs;
-	struct clk *clk;
 	struct clk *can_clk;
 	u32 tx_head;
 	u32 tx_tail;
@@ -506,18 +506,17 @@ static int rcar_can_open(struct net_device *ndev)
 	struct rcar_can_priv *priv = netdev_priv(ndev);
 	int err;
 
-	err = clk_prepare_enable(priv->clk);
+	err = pm_runtime_resume_and_get(ndev->dev.parent);
 	if (err) {
-		netdev_err(ndev,
-			   "failed to enable peripheral clock, error %d\n",
-			   err);
+		netdev_err(ndev, "pm_runtime_resume_and_get() failed %pe\n",
+			   ERR_PTR(err));
 		goto out;
 	}
 	err = clk_prepare_enable(priv->can_clk);
 	if (err) {
 		netdev_err(ndev, "failed to enable CAN clock, error %d\n",
 			   err);
-		goto out_clock;
+		goto out_rpm;
 	}
 	err = open_candev(ndev);
 	if (err) {
@@ -539,8 +538,8 @@ out_close:
 	close_candev(ndev);
 out_can_clock:
 	clk_disable_unprepare(priv->can_clk);
-out_clock:
-	clk_disable_unprepare(priv->clk);
+out_rpm:
+	pm_runtime_put(ndev->dev.parent);
 out:
 	return err;
 }
@@ -578,7 +577,7 @@ static int rcar_can_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 	napi_disable(&priv->napi);
 	clk_disable_unprepare(priv->can_clk);
-	clk_disable_unprepare(priv->clk);
+	pm_runtime_put(ndev->dev.parent);
 	close_candev(ndev);
 	return 0;
 }
@@ -721,12 +720,15 @@ static int rcar_can_get_berr_counter(const struct net_device *ndev,
 	struct rcar_can_priv *priv = netdev_priv(ndev);
 	int err;
 
-	err = clk_prepare_enable(priv->clk);
+	err = pm_runtime_resume_and_get(ndev->dev.parent);
 	if (err)
 		return err;
+
 	bec->txerr = readb(&priv->regs->tecr);
 	bec->rxerr = readb(&priv->regs->recr);
-	clk_disable_unprepare(priv->clk);
+
+	pm_runtime_put(ndev->dev.parent);
+
 	return 0;
 }
 
@@ -770,13 +772,6 @@ static int rcar_can_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 
-	priv->clk = devm_clk_get(dev, "clkp1");
-	if (IS_ERR(priv->clk)) {
-		err = PTR_ERR(priv->clk);
-		dev_err(dev, "cannot get peripheral clock, error %d\n", err);
-		goto fail_clk;
-	}
-
 	if (!(BIT(clock_select) & RCAR_SUPPORTED_CLOCKS)) {
 		err = -EINVAL;
 		dev_err(dev, "invalid CAN clock selected\n");
@@ -806,16 +801,20 @@ static int rcar_can_probe(struct platform_device *pdev)
 
 	netif_napi_add_weight(ndev, &priv->napi, rcar_can_rx_poll,
 			      RCAR_CAN_NAPI_WEIGHT);
+
+	pm_runtime_enable(dev);
+
 	err = register_candev(ndev);
 	if (err) {
 		dev_err(dev, "register_candev() failed, error %d\n", err);
-		goto fail_candev;
+		goto fail_rpm;
 	}
 
 	dev_info(dev, "device registered (IRQ%d)\n", ndev->irq);
 
 	return 0;
-fail_candev:
+fail_rpm:
+	pm_runtime_disable(dev);
 	netif_napi_del(&priv->napi);
 fail_clk:
 	free_candev(ndev);
@@ -829,6 +828,7 @@ static void rcar_can_remove(struct platform_device *pdev)
 	struct rcar_can_priv *priv = netdev_priv(ndev);
 
 	unregister_candev(ndev);
+	pm_runtime_disable(&pdev->dev);
 	netif_napi_del(&priv->napi);
 	free_candev(ndev);
 }
@@ -852,22 +852,22 @@ static int rcar_can_suspend(struct device *dev)
 	writew(ctlr, &priv->regs->ctlr);
 	priv->can.state = CAN_STATE_SLEEPING;
 
-	clk_disable(priv->clk);
+	pm_runtime_put(dev);
 	return 0;
 }
 
 static int rcar_can_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct rcar_can_priv *priv = netdev_priv(ndev);
 	int err;
 
 	if (!netif_running(ndev))
 		return 0;
 
-	err = clk_enable(priv->clk);
+	err = pm_runtime_resume_and_get(dev);
 	if (err) {
-		netdev_err(ndev, "clk_enable() failed, error %d\n", err);
+		netdev_err(ndev, "pm_runtime_resume_and_get() failed %pe\n",
+			   ERR_PTR(err));
 		return err;
 	}
 
