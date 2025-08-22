@@ -1812,10 +1812,8 @@ out_err:
 	return ret;
 }
 
-static unsigned int smb_direct_get_max_fr_pages(struct smb_direct_transport *t)
+static unsigned int smb_direct_get_max_fr_pages(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	return min_t(unsigned int,
 		     sc->ib.dev->attrs.max_fast_reg_page_list_len,
 		     256);
@@ -1846,7 +1844,7 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	 * are needed for MR registration, RDMA R/W, local & remote
 	 * MR invalidation.
 	 */
-	sc->rw_io.credits.num_pages = smb_direct_get_max_fr_pages(t);
+	sc->rw_io.credits.num_pages = smb_direct_get_max_fr_pages(sc);
 	sc->rw_io.credits.max = DIV_ROUND_UP(sp->max_read_write_size,
 					 (sc->rw_io.credits.num_pages - 1) *
 					 PAGE_SIZE);
