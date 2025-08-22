@@ -9,12 +9,6 @@
 #include <net/cfg80211.h>
 #include <linux/unaligned.h>
 
-/* alloc os related resource in union recv_frame */
-void rtw_os_recv_resource_alloc(struct adapter *padapter, union recv_frame *precvframe)
-{
-	precvframe->u.hdr.pkt_newalloc = precvframe->u.hdr.pkt = NULL;
-}
-
 /* free os related resource in union recv_frame */
 void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 {

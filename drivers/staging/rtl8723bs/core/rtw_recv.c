@@ -66,7 +66,8 @@ signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *pada
 
 		list_add_tail(&(precvframe->u.list), &(precvpriv->free_recv_queue.queue));
 
-		rtw_os_recv_resource_alloc(padapter, precvframe);
+		precvframe->u.hdr.pkt_newalloc = NULL;
+		precvframe->u.hdr.pkt = NULL;
 
 		precvframe->u.hdr.len = 0;
 
