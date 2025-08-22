@@ -97,8 +97,7 @@ SYM_FUNC_START(asm_fred_entry_from_kvm)
 	push %rdi			/* fred_ss handed in by the caller */
 	push %rbp
 	pushf
-	mov $__KERNEL_CS, %rax
-	push %rax
+	push $__KERNEL_CS
 
 	/*
 	 * Unlike the IDT event delivery, FRED _always_ pushes an error code
