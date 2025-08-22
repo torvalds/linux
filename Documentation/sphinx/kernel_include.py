@@ -62,9 +62,8 @@ import sys
 from docutils import io, nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.utils.error_reporting import SafeString, ErrorString
-from docutils.parsers.rst import directives
+from docutils.parsers.rst import Directive, directives
 from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
-from docutils.parsers.rst.directives.misc import Include
 
 from sphinx.util import logging
 
@@ -81,18 +80,43 @@ RE_SIMPLE_REF = re.compile(r'`([^`]+)`')
 
 
 # ==============================================================================
-class KernelInclude(Include):
-    """KernelInclude (``kernel-include``) directive"""
+class KernelInclude(Directive):
+    """
+    KernelInclude (``kernel-include``) directive
 
-    # Add extra options
-    option_spec = Include.option_spec.copy()
+    Most of the stuff here came from Include directive defined at:
+        docutils/parsers/rst/directives/misc.py
 
-    option_spec.update({
+    Yet, overriding the class don't has any benefits: the original class
+    only have run() and argument list. Not all of them are implemented,
+    when checked against latest Sphinx version, as with time more arguments
+    were added.
+
+    So, keep its own list of supported arguments
+    """
+
+    required_arguments = 1
+    optional_arguments = 0
+    final_argument_whitespace = True
+    option_spec = {
+        'literal': directives.flag,
+        'code': directives.unchanged,
+        'encoding': directives.encoding,
+        'tab-width': int,
+        'start-line': int,
+        'end-line': int,
+        'start-after': directives.unchanged_required,
+        'end-before': directives.unchanged_required,
+        # ignored except for 'literal' or 'code':
+        'number-lines': directives.unchanged,  # integer or None
+        'class': directives.class_option,
+
+        # Arguments that aren't from Sphinx Include directive
         'generate-cross-refs': directives.flag,
         'warn-broken': directives.flag,
         'toc': directives.flag,
         'exception-file': directives.unchanged,
-    })
+    }
 
     def read_rawtext(self, path, encoding):
             """Read and process file content with error handling"""
