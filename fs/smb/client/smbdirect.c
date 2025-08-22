@@ -873,9 +873,8 @@ out1:
  * After negotiation, the transport is connected and ready for
  * carrying upper layer SMB payload
  */
-static int smbd_post_send_negotiate_req(struct smbd_connection *info)
+static int smbd_post_send_negotiate_req(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct ib_send_wr send_wr;
 	int rc = -ENOMEM;
@@ -1285,7 +1284,7 @@ static int smbd_negotiate(struct smbd_connection *info)
 		return rc;
 	}
 
-	rc = smbd_post_send_negotiate_req(info);
+	rc = smbd_post_send_negotiate_req(sc);
 	if (rc)
 		return rc;
 
