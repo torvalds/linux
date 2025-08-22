@@ -261,10 +261,8 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 }
 
 static void
-smb_direct_disconnect_rdma_connection(struct smb_direct_transport *t)
+smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
 	queue_work(sc->workqueue, &sc->disconnect_work);
 }
 
@@ -286,11 +284,9 @@ static void smb_direct_idle_connection_timer(struct work_struct *work)
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, idle.timer_work.work);
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	struct smb_direct_transport *t =
-		container_of(sc, struct smb_direct_transport, socket);
 
 	if (sc->idle.keepalive != SMBDIRECT_KEEPALIVE_NONE) {
-		smb_direct_disconnect_rdma_connection(t);
+		smb_direct_disconnect_rdma_connection(sc);
 		return;
 	}
 
@@ -517,7 +513,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			pr_err("Recv error. status='%s (%d)' opcode=%d\n",
 			       ib_wc_status_msg(wc->status), wc->status,
 			       wc->opcode);
-			smb_direct_disconnect_rdma_connection(t);
+			smb_direct_disconnect_rdma_connection(sc);
 		}
 		return;
 	}
@@ -541,7 +537,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	case SMBDIRECT_EXPECT_NEGOTIATE_REQ:
 		if (wc->byte_len < sizeof(struct smbdirect_negotiate_req)) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(t);
+			smb_direct_disconnect_rdma_connection(sc);
 			return;
 		}
 		sc->recv_io.reassembly.full_packet_received = true;
@@ -559,7 +555,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (wc->byte_len <
 		    offsetof(struct smbdirect_data_transfer, padding)) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(t);
+			smb_direct_disconnect_rdma_connection(sc);
 			return;
 		}
 
@@ -569,7 +565,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (wc->byte_len < data_offset ||
 		    wc->byte_len < (u64)data_offset + data_length) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(t);
+			smb_direct_disconnect_rdma_connection(sc);
 			return;
 		}
 		if (remaining_data_length > sp->max_fragmented_recv_size ||
@@ -577,7 +573,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		    (u64)remaining_data_length + (u64)data_length >
 		    (u64)sp->max_fragmented_recv_size) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(t);
+			smb_direct_disconnect_rdma_connection(sc);
 			return;
 		}
 
@@ -632,7 +628,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
 	put_recvmsg(sc, recvmsg);
-	smb_direct_disconnect_rdma_connection(t);
+	smb_direct_disconnect_rdma_connection(sc);
 }
 
 static int smb_direct_post_recv(struct smb_direct_transport *t,
@@ -666,7 +662,7 @@ static int smb_direct_post_recv(struct smb_direct_transport *t,
 				    recvmsg->sge.addr, recvmsg->sge.length,
 				    DMA_FROM_DEVICE);
 		recvmsg->sge.length = 0;
-		smb_direct_disconnect_rdma_connection(t);
+		smb_direct_disconnect_rdma_connection(sc);
 		return ret;
 	}
 	return ret;
@@ -844,7 +840,7 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 		pr_err("Send error. status='%s (%d)', opcode=%d\n",
 		       ib_wc_status_msg(wc->status), wc->status,
 		       wc->opcode);
-		smb_direct_disconnect_rdma_connection(t);
+		smb_direct_disconnect_rdma_connection(sc);
 	}
 
 	if (atomic_dec_and_test(&sc->send_io.pending.count))
@@ -913,7 +909,7 @@ static int smb_direct_post_send(struct smb_direct_transport *t,
 		pr_err("failed to post send: %d\n", ret);
 		if (atomic_dec_and_test(&sc->send_io.pending.count))
 			wake_up(&sc->send_io.pending.zero_wait_queue);
-		smb_direct_disconnect_rdma_connection(t);
+		smb_direct_disconnect_rdma_connection(sc);
 	}
 	return ret;
 }
@@ -1409,15 +1405,13 @@ static void read_write_done(struct ib_cq *cq, struct ib_wc *wc,
 	struct smbdirect_rw_io *msg =
 		container_of(wc->wr_cqe, struct smbdirect_rw_io, cqe);
 	struct smbdirect_socket *sc = msg->socket;
-	struct smb_direct_transport *t =
-		container_of(sc, struct smb_direct_transport, socket);
 
 	if (wc->status != IB_WC_SUCCESS) {
 		msg->error = -EIO;
 		pr_err("read/write error. opcode = %d, status = %s(%d)\n",
 		       wc->opcode, ib_wc_status_msg(wc->status), wc->status);
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			smb_direct_disconnect_rdma_connection(t);
+			smb_direct_disconnect_rdma_connection(sc);
 	}
 
 	complete(msg->completion);
@@ -1655,7 +1649,7 @@ static void smb_direct_qpair_handler(struct ib_event *event, void *context)
 	switch (event->event) {
 	case IB_EVENT_CQ_ERR:
 	case IB_EVENT_QP_FATAL:
-		smb_direct_disconnect_rdma_connection(t);
+		smb_direct_disconnect_rdma_connection(sc);
 		break;
 	default:
 		break;
