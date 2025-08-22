@@ -6084,6 +6084,7 @@
 
 		intc: interrupt-controller@17a00000 {
 			compatible = "arm,gic-v3";
+			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			reg = <0x0 0x17a00000 0x0 0x10000>,     /* GICD */
