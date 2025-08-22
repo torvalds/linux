@@ -2,53 +2,81 @@
 # SPDX-License-Identifier: GPL-2.0
 # pylint: disable=R0903, R0912, R0914, R0915, C0209,W0707
 
+
 """
-    kernel-include
-    ~~~~~~~~~~~~~~
+Implementation of the ``kernel-include`` reST-directive.
 
-    Implementation of the ``kernel-include`` reST-directive.
+:copyright:  Copyright (C) 2016  Markus Heiser
+:license:    GPL Version 2, June 1991 see linux/COPYING for details.
 
-    :copyright:  Copyright (C) 2016  Markus Heiser
-    :license:    GPL Version 2, June 1991 see linux/COPYING for details.
+The ``kernel-include`` reST-directive is a replacement for the ``include``
+directive. The ``kernel-include`` directive expand environment variables in
+the path name and allows to include files from arbitrary locations.
 
-    The ``kernel-include`` reST-directive is a replacement for the ``include``
-    directive. The ``kernel-include`` directive expand environment variables in
-    the path name and allows to include files from arbitrary locations.
+.. hint::
 
-    .. hint::
+    Including files from arbitrary locations (e.g. from ``/etc``) is a
+    security risk for builders. This is why the ``include`` directive from
+    docutils *prohibit* pathnames pointing to locations *above* the filesystem
+    tree where the reST document with the include directive is placed.
 
-      Including files from arbitrary locations (e.g. from ``/etc``) is a
-      security risk for builders. This is why the ``include`` directive from
-      docutils *prohibit* pathnames pointing to locations *above* the filesystem
-      tree where the reST document with the include directive is placed.
+Substrings of the form $name or ${name} are replaced by the value of
+environment variable name. Malformed variable names and references to
+non-existing variables are left unchanged.
 
-    Substrings of the form $name or ${name} are replaced by the value of
-    environment variable name. Malformed variable names and references to
-    non-existing variables are left unchanged.
+**Supported Sphinx Include Options**:
 
-    This extension overrides Sphinx include directory, adding some extra
-    arguments:
+:param literal:
+    If present, the included file is inserted as a literal block.
 
-    1. :generate-cross-refs:
+:param code:
+    Specify the language for syntax highlighting (e.g., 'c', 'python').
 
-        If present, instead of reading the file, it calls ParseDataStructs()
-        class, which converts C data structures into cross-references to
-        be linked to ReST files containing a more comprehensive documentation;
+:param encoding:
+    Specify the encoding of the included file (default: 'utf-8').
 
-    2. :exception-file:
+:param tab-width:
+    Specify the number of spaces that a tab represents.
 
-        Used together with :generate-cross-refs
+:param start-line:
+    Line number at which to start including the file (1-based).
 
-        Points to a file containing rules to ignore C data structs or to
-        use a different reference name, optionally using a different
-        reference type.
+:param end-line:
+    Line number at which to stop including the file (inclusive).
 
-    3. :warn-broken:
+:param start-after:
+    Include lines after the first line matching this text.
 
-        Used together with :generate-cross-refs:
+:param end-before:
+    Include lines before the first line matching this text.
 
-        Detect if the auto-generated cross references doesn't exist.
+:param number-lines:
+    Number the included lines (integer specifies start number).
+    Only effective with 'literal' or 'code' options.
 
+:param class:
+    Specify HTML class attribute for the included content.
+
+**Kernel-specific Extensions**:
+
+:param generate-cross-refs:
+    If present, instead of directly including the file, it calls
+    ParseDataStructs() to convert C data structures into cross-references
+    that link to comprehensive documentation in other ReST files.
+
+:param exception-file:
+    (Used with generate-cross-refs)
+
+    Path to a file containing rules for handling special cases:
+    - Ignore specific C data structures
+    - Use alternative reference names
+    - Specify different reference types
+
+:param warn-broken:
+    (Used with generate-cross-refs)
+
+    Enables warnings when auto-generated cross-references don't point to
+    existing documentation targets.
 """
 
 # ==============================================================================
