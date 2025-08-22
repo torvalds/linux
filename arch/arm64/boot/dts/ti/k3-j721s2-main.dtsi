@@ -1437,6 +1437,7 @@
 
 		pcie1_intc: interrupt-controller {
 			interrupt-controller;
+			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			interrupt-parent = <&gic500>;
 			interrupts = <GIC_SPI 324 IRQ_TYPE_EDGE_RISING>;
