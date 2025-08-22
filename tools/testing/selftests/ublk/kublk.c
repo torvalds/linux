@@ -1400,7 +1400,7 @@ static int cmd_dev_get_features(void)
 
 			if (!((1ULL << i)  & features))
 				continue;
-			if (i < sizeof(feat_map) / sizeof(feat_map[0]))
+			if (i < ARRAY_SIZE(feat_map))
 				feat = feat_map[i];
 			else
 				feat = "unknown";
@@ -1477,7 +1477,7 @@ static void __cmd_create_help(char *exe, bool recovery)
 	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
 	printf("\tdefault: nthreads=nr_queues");
 
-	for (i = 0; i < sizeof(tgt_ops_list) / sizeof(tgt_ops_list[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tgt_ops_list); i++) {
 		const struct ublk_tgt_ops *ops = tgt_ops_list[i];
 
 		if (ops->usage)
