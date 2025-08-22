@@ -951,6 +951,7 @@ static unsigned int chtls_select_mss(const struct chtls_sock *csk,
 	struct tcp_sock *tp;
 	unsigned int mss;
 	struct sock *sk;
+	u16 user_mss;
 
 	mss = ntohs(req->tcpopt.mss);
 	sk = csk->sk;
@@ -969,8 +970,9 @@ static unsigned int chtls_select_mss(const struct chtls_sock *csk,
 		tcpoptsz += round_up(TCPOLEN_TIMESTAMP, 4);
 
 	tp->advmss = dst_metric_advmss(dst);
-	if (USER_MSS(tp) && tp->advmss > USER_MSS(tp))
-		tp->advmss = USER_MSS(tp);
+	user_mss = USER_MSS(tp);
+	if (user_mss && tp->advmss > user_mss)
+		tp->advmss = user_mss;
 	if (tp->advmss > pmtu - iphdrsz)
 		tp->advmss = pmtu - iphdrsz;
 	if (mss && tp->advmss > mss)

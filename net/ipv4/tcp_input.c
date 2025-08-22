@@ -6297,7 +6297,7 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 	u16 mss = tp->rx_opt.mss_clamp, try_exp = 0;
 	bool syn_drop = false;
 
-	if (mss == tp->rx_opt.user_mss) {
+	if (mss == READ_ONCE(tp->rx_opt.user_mss)) {
 		struct tcp_options_received opt;
 
 		/* Get original SYNACK MSS value if user MSS sets mss_clamp */
@@ -7117,7 +7117,7 @@ u16 tcp_get_syncookie_mss(struct request_sock_ops *rsk_ops,
 		return 0;
 	}
 
-	mss = tcp_parse_mss_option(th, tp->rx_opt.user_mss);
+	mss = tcp_parse_mss_option(th, READ_ONCE(tp->rx_opt.user_mss));
 	if (!mss)
 		mss = af_ops->mss_clamp;
 
@@ -7131,7 +7131,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 {
 	struct tcp_fastopen_cookie foc = { .len = -1 };
 	struct tcp_options_received tmp_opt;
-	struct tcp_sock *tp = tcp_sk(sk);
+	const struct tcp_sock *tp = tcp_sk(sk);
 	struct net *net = sock_net(sk);
 	struct sock *fastopen_sk = NULL;
 	struct request_sock *req;
@@ -7182,7 +7182,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = af_ops->mss_clamp;
-	tmp_opt.user_mss  = tp->rx_opt.user_mss;
+	tmp_opt.user_mss  = READ_ONCE(tp->rx_opt.user_mss);
 	tcp_parse_options(sock_net(sk), skb, &tmp_opt, 0,
 			  want_cookie ? NULL : &foc);
 

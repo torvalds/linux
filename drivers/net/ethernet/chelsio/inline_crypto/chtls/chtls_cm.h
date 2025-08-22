@@ -90,7 +90,7 @@ struct deferred_skb_cb {
 
 #define SND_WSCALE(tp) ((tp)->rx_opt.snd_wscale)
 #define RCV_WSCALE(tp) ((tp)->rx_opt.rcv_wscale)
-#define USER_MSS(tp) ((tp)->rx_opt.user_mss)
+#define USER_MSS(tp) (READ_ONCE((tp)->rx_opt.user_mss))
 #define TS_RECENT_STAMP(tp) ((tp)->rx_opt.ts_recent_stamp)
 #define WSCALE_OK(tp) ((tp)->rx_opt.wscale_ok)
 #define TSTAMP_OK(tp) ((tp)->rx_opt.tstamp_ok)
