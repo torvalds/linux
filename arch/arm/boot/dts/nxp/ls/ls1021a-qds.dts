@@ -211,8 +211,8 @@
 		device-width = <1>;
 		ranges = <0 3 0 0x100>;
 
-		mdio-mux-emi1 {
-			compatible = "mdio-mux-mmioreg";
+		mdio-mux@54 {
+			compatible = "mdio-mux-mmioreg", "mdio-mux";
 			mdio-parent-bus = <&mdio0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
