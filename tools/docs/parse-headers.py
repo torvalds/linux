@@ -36,6 +36,9 @@ def main():
 
     parser.add_argument("-d", "--debug", action="count", default=0,
                         help="Increase debug level. Can be used multiple times")
+    parser.add_argument("-t", "--toc", action="store_true",
+                        help="instead of a literal block, outputs a TOC table at the RST file")
+
     parser.add_argument("file_in", help="Input C file")
     parser.add_argument("file_out", help="Output RST file")
     parser.add_argument("file_rules", nargs="?",
@@ -50,7 +53,7 @@ def main():
         parser.process_exceptions(args.file_rules)
 
     parser.debug_print()
-    parser.write_output(args.file_in, args.file_out)
+    parser.write_output(args.file_in, args.file_out, args.toc)
 
 
 if __name__ == "__main__":

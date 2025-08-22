@@ -97,33 +97,39 @@ class ParseDataStructs:
             "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":ref",
+            "description": "IOCTL Commands",
         },
         "define": {
             "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":ref",
+            "description": "Macros and Definitions",
         },
         # We're calling each definition inside an enum as "symbol"
         "symbol": {
             "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":ref",
+            "description": "Enumeration values",
         },
         "typedef": {
             "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":c:type",
+            "description": "Type Definitions",
         },
-        # This is the name of the enum itself
+        # This is the description of the enum itself
         "enum": {
             "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":c:type",
+            "description": "Enumerations",
         },
         "struct": {
             "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":c:type",
+            "description": "Structures",
         },
     }
 
@@ -359,7 +365,7 @@ class ParseDataStructs:
 
             print()
 
-    def write_output(self, file_in: str, file_out: str):
+    def gen_output(self):
         """Write the formatted output to a file."""
 
         # Avoid extra blank lines
@@ -387,12 +393,60 @@ class ParseDataStructs:
         text = re.sub(r"\\ ([\n ])", r"\1", text)
         text = re.sub(r" \\ ", " ", text)
 
+        return text
 
+    def gen_toc(self):
+        """
+        Create a TOC table pointing to each symbol from the header
+        """
+        text = []
+
+        # Add header
+        text.append(".. contents:: Table of Contents")
+        text.append("   :depth: 2")
+        text.append("   :local:")
+        text.append("")
+
+        # Sort symbol types per description
+        symbol_descriptions = []
+        for k, v in self.DEF_SYMBOL_TYPES.items():
+            symbol_descriptions.append((v['description'], k))
+
+        symbol_descriptions.sort()
+
+        # Process each category
+        for description, c_type in symbol_descriptions:
+
+            refs = self.symbols[c_type]
+            if not refs:  # Skip empty categories
+                continue
+
+            text.append(f"{description}")
+            text.append("-" * len(description))
+            text.append("")
+
+            # Sort symbols alphabetically
+            for symbol, ref in sorted(refs.items()):
+                text.append(f"* :{ref}:")
+
+            text.append("")  # Add empty line between categories
+
+        return "\n".join(text)
+
+    def write_output(self, file_in: str, file_out: str, toc: bool):
         title = os.path.basename(file_in)
+
+        if toc:
+            text = self.gen_toc()
+        else:
+            text = self.gen_output()
 
         with open(file_out, "w", encoding="utf-8", errors="backslashreplace") as f:
             f.write(".. -*- coding: utf-8; mode: rst -*-\n\n")
             f.write(f"{title}\n")
-            f.write("=" * len(title))
-            f.write("\n\n.. parsed-literal::\n\n")
+            f.write("=" * len(title) + "\n\n")
+
+            if not toc:
+                f.write(".. parsed-literal::\n\n")
+
             f.write(text)
