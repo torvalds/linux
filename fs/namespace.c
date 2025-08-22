@@ -2727,6 +2727,27 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	return err;
 }
 
+static inline struct mount *where_to_mount(const struct path *path,
+					   struct dentry **dentry,
+					   bool beneath)
+{
+	struct mount *m;
+
+	if (unlikely(beneath)) {
+		m = topmost_overmount(real_mount(path->mnt));
+		*dentry = m->mnt_mountpoint;
+		return m->mnt_parent;
+	}
+	m = __lookup_mnt(path->mnt, path->dentry);
+	if (unlikely(m)) {
+		m = topmost_overmount(m);
+		*dentry = m->mnt.mnt_root;
+		return m;
+	}
+	*dentry = path->dentry;
+	return real_mount(path->mnt);
+}
+
 /**
  * do_lock_mount - acquire environment for mounting
  * @path:	target path
@@ -2758,81 +2779,65 @@ static int attach_recursive_mnt(struct mount *source_mnt,
  * case we also require the location to be at the root of a mount
  * that has a parent (i.e. is not a root of some namespace).
  */
-static void do_lock_mount(struct path *path, struct pinned_mountpoint *res, bool beneath)
+static void do_lock_mount(const struct path *path,
+			  struct pinned_mountpoint *res,
+			  bool beneath)
 {
-	struct vfsmount *mnt = path->mnt;
-	struct dentry *dentry;
-	struct path under = {};
-	int err = -ENOENT;
+	int err;
 
 	if (unlikely(beneath) && !path_mounted(path)) {
 		res->parent = ERR_PTR(-EINVAL);
 		return;
 	}
 
-	for (;;) {
-		struct mount *m = real_mount(mnt);
+	do {
+		struct dentry *dentry, *d;
+		struct mount *m, *n;
 
-		if (beneath) {
-			path_put(&under);
-			read_seqlock_excl(&mount_lock);
-			if (unlikely(!mnt_has_parent(m))) {
-				read_sequnlock_excl(&mount_lock);
-				res->parent = ERR_PTR(-EINVAL);
-				return;
+		scoped_guard(mount_locked_reader) {
+			m = where_to_mount(path, &dentry, beneath);
+			if (&m->mnt != path->mnt) {
+				mntget(&m->mnt);
+				dget(dentry);
 			}
-			under.mnt = mntget(&m->mnt_parent->mnt);
-			under.dentry = dget(m->mnt_mountpoint);
-			read_sequnlock_excl(&mount_lock);
-			dentry = under.dentry;
-		} else {
-			dentry = path->dentry;
 		}
 
 		inode_lock(dentry->d_inode);
 		namespace_lock();
 
-		if (unlikely(cant_mount(dentry) || !is_mounted(mnt)))
-			break;		// not to be mounted on
+		// check if the chain of mounts (if any) has changed.
+		scoped_guard(mount_locked_reader)
+			n = where_to_mount(path, &d, beneath);
 
-		if (beneath && unlikely(m->mnt_mountpoint != dentry ||
-				        &m->mnt_parent->mnt != under.mnt)) {
+		if (unlikely(n != m || dentry != d))
+			err = -EAGAIN;		// something moved, retry
+		else if (unlikely(cant_mount(dentry) || !is_mounted(path->mnt)))
+			err = -ENOENT;		// not to be mounted on
+		else if (beneath && &m->mnt == path->mnt && !m->overmount)
+			err = -EINVAL;
+		else
+			err = get_mountpoint(dentry, res);
+
+		if (unlikely(err)) {
+			res->parent = ERR_PTR(err);
 			namespace_unlock();
 			inode_unlock(dentry->d_inode);
-			continue;	// got moved
+		} else {
+			res->parent = m;
 		}
-
-		mnt = lookup_mnt(path);
-		if (unlikely(mnt)) {
-			namespace_unlock();
-			inode_unlock(dentry->d_inode);
-			path_put(path);
-			path->mnt = mnt;
-			path->dentry = dget(mnt->mnt_root);
-			continue;	// got overmounted
+		/*
+		 * Drop the temporary references.  This is subtle - on success
+		 * we are doing that under namespace_sem, which would normally
+		 * be forbidden.  However, in that case we are guaranteed that
+		 * refcounts won't reach zero, since we know that path->mnt
+		 * is mounted and thus all mounts reachable from it are pinned
+		 * and stable, along with their mountpoints and roots.
+		 */
+		if (&m->mnt != path->mnt) {
+			dput(dentry);
+			mntput(&m->mnt);
 		}
-		err = get_mountpoint(dentry, res);
-		if (err)
-			break;
-		if (beneath) {
-			/*
-			 * @under duplicates the references that will stay
-			 * at least until namespace_unlock(), so the path_put()
-			 * below is safe (and OK to do under namespace_lock -
-			 * we are not dropping the final references here).
-			 */
-			path_put(&under);
-			res->parent = real_mount(path->mnt)->mnt_parent;
-			return;
-		}
-		res->parent = real_mount(path->mnt);
-		return;
-	}
-	namespace_unlock();
-	inode_unlock(dentry->d_inode);
-	if (beneath)
-		path_put(&under);
-	res->parent = ERR_PTR(err);
+	} while (err == -EAGAIN);
 }
 
 static void __unlock_mount(struct pinned_mountpoint *m)
@@ -3613,6 +3618,8 @@ static int do_move_mount(struct path *old_path,
 	if (beneath) {
 		struct mount *over = real_mount(new_path->mnt);
 
+		if (mp.parent != over->mnt_parent)
+			over = mp.parent->overmount;
 		err = can_move_mount_beneath(old, over, mp.mp);
 		if (err)
 			return err;
