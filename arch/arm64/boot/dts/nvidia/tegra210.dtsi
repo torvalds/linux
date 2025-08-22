@@ -540,7 +540,7 @@
 		interrupt-controller;
 	};
 
-	apbdma: dma@60020000 {
+	apbdma: dma-controller@60020000 {
 		compatible = "nvidia,tegra210-apbdma", "nvidia,tegra148-apbdma";
 		reg = <0x0 0x60020000 0x0 0x1400>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
