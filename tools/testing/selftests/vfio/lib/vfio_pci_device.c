@@ -344,12 +344,17 @@ struct vfio_pci_device *vfio_pci_device_init(const char *bdf, int iommu_type)
 	vfio_pci_iommu_setup(device, iommu_type);
 	vfio_pci_device_setup(device, bdf);
 
+	vfio_pci_driver_probe(device);
+
 	return device;
 }
 
 void vfio_pci_device_cleanup(struct vfio_pci_device *device)
 {
 	int i;
+
+	if (device->driver.initialized)
+		vfio_pci_driver_remove(device);
 
 	vfio_pci_bar_unmap_all(device);
 
