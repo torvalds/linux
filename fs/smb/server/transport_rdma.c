@@ -1639,8 +1639,7 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 
 static void smb_direct_qpair_handler(struct ib_event *event, void *context)
 {
-	struct smb_direct_transport *t = context;
-	struct smbdirect_socket *sc = &t->socket;
+	struct smbdirect_socket *sc = context;
 
 	ksmbd_debug(RDMA, "Received QP event. cm_id=%p, event=%s (%d)\n",
 		    sc->rdma.cm_id, ib_event_msg(event->event), event->event);
@@ -1980,7 +1979,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 		return ret;
 	}
 
-	sc->ib.send_cq = ib_alloc_cq(sc->ib.dev, t,
+	sc->ib.send_cq = ib_alloc_cq(sc->ib.dev, sc,
 				 sp->send_credit_target + cap->max_rdma_ctxs,
 				 0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(sc->ib.send_cq)) {
@@ -1990,7 +1989,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 		goto err;
 	}
 
-	sc->ib.recv_cq = ib_alloc_cq(sc->ib.dev, t,
+	sc->ib.recv_cq = ib_alloc_cq(sc->ib.dev, sc,
 				     sp->recv_credit_max, 0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(sc->ib.recv_cq)) {
 		pr_err("Can't create RDMA recv CQ\n");
@@ -2001,7 +2000,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.event_handler = smb_direct_qpair_handler;
-	qp_attr.qp_context = t;
+	qp_attr.qp_context = sc;
 	qp_attr.cap = *cap;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	qp_attr.qp_type = IB_QPT_RC;
