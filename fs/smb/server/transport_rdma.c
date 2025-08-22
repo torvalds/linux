@@ -907,8 +907,7 @@ static int smb_direct_post_send(struct smb_direct_transport *t,
 	return ret;
 }
 
-static void smb_direct_send_ctx_init(struct smb_direct_transport *t,
-				     struct smbdirect_send_batch *send_ctx,
+static void smb_direct_send_ctx_init(struct smbdirect_send_batch *send_ctx,
 				     bool need_invalidate_rkey,
 				     unsigned int remote_key)
 {
@@ -945,7 +944,7 @@ static int smb_direct_flush_send_list(struct smb_direct_transport *t,
 
 	ret = smb_direct_post_send(t, &first->wr);
 	if (!ret) {
-		smb_direct_send_ctx_init(t, send_ctx,
+		smb_direct_send_ctx_init(send_ctx,
 					 send_ctx->need_invalidate_rkey,
 					 send_ctx->remote_key);
 	} else {
@@ -1261,7 +1260,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 	remaining_data_length = buflen;
 	ksmbd_debug(RDMA, "Sending smb (RDMA): smb_len=%u\n", buflen);
 
-	smb_direct_send_ctx_init(st, &send_ctx, need_invalidate, remote_key);
+	smb_direct_send_ctx_init(&send_ctx, need_invalidate, remote_key);
 	while (remaining_data_length) {
 		struct kvec vecs[SMBDIRECT_SEND_IO_MAX_SGE - 1]; /* minus smbdirect hdr */
 		size_t possible_bytes = max_iov_size;
