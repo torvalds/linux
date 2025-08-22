@@ -26,6 +26,8 @@ properties:
 
   pendown-gpio: true
 
+  wakeup-source: true
+
   ti,max-rt:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: maximum pressure.
