@@ -719,10 +719,9 @@ error:
 }
 
 static struct rdma_cm_id *smbd_create_id(
-		struct smbd_connection *info,
+		struct smbdirect_socket *sc,
 		struct sockaddr *dstaddr, int port)
 {
-	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct rdma_cm_id *id;
 	int rc;
@@ -830,7 +829,7 @@ static int smbd_ia_open(
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED);
 	sc->status = SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED;
 
-	sc->rdma.cm_id = smbd_create_id(info, dstaddr, port);
+	sc->rdma.cm_id = smbd_create_id(sc, dstaddr, port);
 	if (IS_ERR(sc->rdma.cm_id)) {
 		rc = PTR_ERR(sc->rdma.cm_id);
 		goto out1;
