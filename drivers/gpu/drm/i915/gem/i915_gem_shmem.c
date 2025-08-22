@@ -441,11 +441,20 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	written = file->f_op->write_iter(&kiocb, &iter);
 	BUG_ON(written == -EIOCBQUEUED);
 
-	if (written != size)
-		return -EIO;
-
+	/*
+	 * First, check if write_iter returned a negative error.
+	 * If the write failed, return the real error code immediately.
+	 * This prevents it from being overwritten by the short write check below.
+	 */
 	if (written < 0)
 		return written;
+	/*
+	 * Check for a short write (written bytes != requested size).
+	 * Even if some data was written, return -EIO to indicate that the
+	 * write was not fully completed.
+	 */
+	if (written != size)
+		return -EIO;
 
 	return 0;
 }
