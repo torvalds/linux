@@ -3014,7 +3014,7 @@ static struct mount *__do_loopback(struct path *old_path, int recurse)
 static int do_loopback(struct path *path, const char *old_name,
 				int recurse)
 {
-	struct path old_path;
+	struct path old_path __free(path_put) = {};
 	struct mount *mnt = NULL, *parent;
 	struct pinned_mountpoint mp = {};
 	int err;
@@ -3024,13 +3024,12 @@ static int do_loopback(struct path *path, const char *old_name,
 	if (err)
 		return err;
 
-	err = -EINVAL;
 	if (mnt_ns_loop(old_path.dentry))
-		goto out;
+		return -EINVAL;
 
 	err = lock_mount(path, &mp);
 	if (err)
-		goto out;
+		return err;
 
 	parent = real_mount(path->mnt);
 	if (!check_mnt(parent))
@@ -3050,8 +3049,6 @@ static int do_loopback(struct path *path, const char *old_name,
 	}
 out2:
 	unlock_mount(&mp);
-out:
-	path_put(&old_path);
 	return err;
 }
 
