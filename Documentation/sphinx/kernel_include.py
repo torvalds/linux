@@ -92,7 +92,47 @@ class KernelInclude(Include):
         'exception-file': directives.unchanged,
     })
 
+    def read_rawtext(self, path, encoding):
+            """Read and process file content with error handling"""
+            try:
+                self.state.document.settings.record_dependencies.add(path)
+                include_file = io.FileInput(source_path=path,
+                                            encoding=encoding,
+                                            error_handler=self.state.document.settings.input_encoding_error_handler)
+            except UnicodeEncodeError:
+                raise self.severe('Problems with directive path:\n'
+                                'Cannot encode input file path "%s" '
+                                '(wrong locale?).' % SafeString(path))
+            except IOError as error:
+                raise self.severe('Problems with directive path:\n%s.' % ErrorString(error))
+
+            try:
+                return include_file.read()
+            except UnicodeError as error:
+                raise self.severe('Problem with directive:\n%s' % ErrorString(error))
+
+    def read_rawtext_with_xrefs(self, env, path):
+        parser = ParseDataStructs()
+        parser.parse_file(path)
+
+        if 'exception-file' in self.options:
+            source_dir = os.path.dirname(os.path.abspath(
+                self.state_machine.input_lines.source(
+                    self.lineno - self.state_machine.input_offset - 1)))
+            exceptions_file = os.path.join(source_dir, self.options['exception-file'])
+            parser.process_exceptions(exceptions_file)
+
+        if self.options.get("start-line") or self.options.get("end-line"):
+            raise self.severe('generate-cross-refs can\'t be used with "start-line" or "end-line"')
+
+        # Store references on a symbol dict to be used at check time
+        if 'warn-broken' in self.options:
+            env._xref_files.add(path)
+
+        return parser.gen_output()
+
     def run(self):
+        """Include a file as part of the content of this reST file."""
         env = self.state.document.settings.env
         path = os.path.realpath(os.path.expandvars(self.arguments[0]))
 
@@ -104,12 +144,6 @@ class KernelInclude(Include):
         self.arguments[0] = path
 
         env.note_dependency(os.path.abspath(path))
-
-        # return super(KernelInclude, self).run() # won't work, see HINTs in _run()
-        return self._run(env)
-
-    def _run(self, env):
-        """Include a file as part of the content of this reST file."""
 
         # HINT: I had to copy&paste the whole Include.run method. I'am not happy
         # with this, but due to security reasons, the Include.run method does
@@ -139,47 +173,17 @@ class KernelInclude(Include):
 
         # Get optional arguments to related to cross-references generation
         if 'generate-cross-refs' in self.options:
-            parser = ParseDataStructs()
-            parser.parse_file(path)
-
-            exceptions_file = self.options.get('exception-file')
-            if exceptions_file:
-                exceptions_file = os.path.join(source_dir, exceptions_file)
-                parser.process_exceptions(exceptions_file)
+            rawtext = self.read_rawtext_with_xrefs(env, path)
 
             title = os.path.basename(path)
-            rawtext = parser.gen_output()
+
             if startline or endline:
                 raise self.severe('generate-cross-refs can\'t be used together with "start-line" or "end-line"')
 
             if "code" not in self.options:
                 rawtext = ".. parsed-literal::\n\n" + rawtext
-
-            # Store references on a symbol dict to be used at check time
-            if 'warn-broken' in self.options:
-                env._xref_files.add(path)
         else:
-            try:
-                self.state.document.settings.record_dependencies.add(path)
-                include_file = io.FileInput(source_path=path, encoding=encoding,
-                                            error_handler=e_handler)
-            except UnicodeEncodeError:
-                raise self.severe('Problems with "%s" directive path:\n'
-                                'Cannot encode input file path "%s" '
-                                "(wrong locale?)." % (self.name, SafeString(path)))
-            except IOError as error:
-                raise self.severe('Problems with "%s" directive path:\n%s.'
-                                % (self.name, ErrorString(error)))
-
-            try:
-                if startline or (endline is not None):
-                    lines = include_file.readlines()
-                    rawtext = "".join(lines[startline:endline])
-                else:
-                    rawtext = include_file.read()
-            except UnicodeError as error:
-                raise self.severe('Problem with "%s" directive:\n%s' %
-                                (self.name, ErrorString(error)))
+            rawtext = self.read_rawtext(path, encoding)
 
         # start-after/end-before: no restrictions on newlines in match-text,
         # and no restrictions on matching inside lines vs. line boundaries
