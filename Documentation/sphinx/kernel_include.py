@@ -89,6 +89,7 @@ class KernelInclude(Include):
     option_spec.update({
         'generate-cross-refs': directives.flag,
         'warn-broken': directives.flag,
+        'toc': directives.flag,
         'exception-file': directives.unchanged,
     })
 
@@ -111,7 +112,7 @@ class KernelInclude(Include):
             except UnicodeError as error:
                 raise self.severe('Problem with directive:\n%s' % ErrorString(error))
 
-    def read_rawtext_with_xrefs(self, env, path):
+    def read_rawtext_with_xrefs(self, env, path, output_type):
         parser = ParseDataStructs()
         parser.parse_file(path)
 
@@ -126,7 +127,10 @@ class KernelInclude(Include):
         if 'warn-broken' in self.options:
             env._xref_files.add(path)
 
-        return parser.gen_output()
+        if output_type == "toc":
+            return parser.gen_toc()
+
+        return ".. parsed-literal::\n\n" + parser.gen_output()
 
     def apply_range(self, rawtext):
         # Get to-be-included content
@@ -243,39 +247,43 @@ class KernelInclude(Include):
         e_handler = self.state.document.settings.input_encoding_error_handler
         tab_width = self.options.get("tab-width",
                                      self.state.document.settings.tab_width)
-        startline = self.options.get("start-line", None)
-        endline = self.options.get("end-line", None)
 
         if "literal" in self.options:
-            ouptut_type = "literal"
+            output_type = "literal"
         elif "code" in self.options:
-            ouptut_type = "code"
+            output_type = "code"
         else:
-            ouptut_type = "normal"
+            output_type = "rst"
 
         # Get optional arguments to related to cross-references generation
-        if 'generate-cross-refs' in self.options:
-            rawtext = self.read_rawtext_with_xrefs(env, path)
+        if "generate-cross-refs" in self.options:
+            if "toc" in self.options:
+                 output_type = "toc"
+
+            rawtext = self.read_rawtext_with_xrefs(env, path, output_type)
+
+            # When :generate-cross-refs: is used, the input is always a C
+            # file, so it has to be handled as a parsed-literal
+            if output_type == "rst":
+                output_type = "literal"
 
             title = os.path.basename(path)
-
-            if "code" not in self.options:
-                rawtext = ".. parsed-literal::\n\n" + rawtext
         else:
             rawtext = self.read_rawtext(path, encoding)
 
         rawtext = self.apply_range(rawtext)
 
-        if ouptut_type == "literal":
+        if output_type == "literal":
             return self.literal(path, tab_width, rawtext)
 
         include_lines = statemachine.string2lines(rawtext, tab_width,
                                                   convert_whitespace=True)
 
-        if ouptut_type == "code":
+        if output_type == "code":
             return self.code(path, include_lines)
 
         self.state_machine.insert_input(include_lines, path)
+
         return []
 
 # ==============================================================================
