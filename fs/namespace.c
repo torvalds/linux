@@ -3781,9 +3781,29 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	return err;
 }
 
-int finish_automount(struct vfsmount *m, const struct path *path)
+static int lock_mount_exact(const struct path *path,
+			    struct pinned_mountpoint *mp)
 {
 	struct dentry *dentry = path->dentry;
+	int err;
+
+	inode_lock(dentry->d_inode);
+	namespace_lock();
+	if (unlikely(cant_mount(dentry)))
+		err = -ENOENT;
+	else if (path_overmounted(path))
+		err = -EBUSY;
+	else
+		err = get_mountpoint(dentry, mp);
+	if (unlikely(err)) {
+		namespace_unlock();
+		inode_unlock(dentry->d_inode);
+	}
+	return err;
+}
+
+int finish_automount(struct vfsmount *m, const struct path *path)
+{
 	struct pinned_mountpoint mp = {};
 	struct mount *mnt;
 	int err;
@@ -3805,20 +3825,11 @@ int finish_automount(struct vfsmount *m, const struct path *path)
 	 * that overmounts our mountpoint to be means "quitely drop what we've
 	 * got", not "try to mount it on top".
 	 */
-	inode_lock(dentry->d_inode);
-	namespace_lock();
-	if (unlikely(cant_mount(dentry))) {
-		err = -ENOENT;
-		goto discard_locked;
+	err = lock_mount_exact(path, &mp);
+	if (unlikely(err)) {
+		mntput(m);
+		return err == -EBUSY ? 0 : err;
 	}
-	if (path_overmounted(path)) {
-		err = 0;
-		goto discard_locked;
-	}
-	err = get_mountpoint(dentry, &mp);
-	if (err)
-		goto discard_locked;
-
 	err = do_add_mount(mnt, mp.mp, path,
 			   path->mnt->mnt_flags | MNT_SHRINKABLE);
 	unlock_mount(&mp);
@@ -3826,9 +3837,6 @@ int finish_automount(struct vfsmount *m, const struct path *path)
 		goto discard;
 	return 0;
 
-discard_locked:
-	namespace_unlock();
-	inode_unlock(dentry->d_inode);
 discard:
 	mntput(m);
 	return err;
