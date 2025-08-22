@@ -120,12 +120,12 @@ class ParseHeader:
         },
         # This is the name of the enum itself
         "enum": {
-            "prefix": "",
+            "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":c:type",
         },
         "struct": {
-            "prefix": "",
+            "prefix": "\\ ",
             "suffix": "\\ ",
             "ref_type": ":c:type",
         },
@@ -390,6 +390,8 @@ class ParseHeader:
 
         # Remove "\ " where not needed: before spaces and at the end of lines
         text = re.sub(r"\\ ([\n ])", r"\1", text)
+        text = re.sub(r" \\ ", " ", text)
+
 
         title = os.path.basename(file_in)
 
