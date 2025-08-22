@@ -5380,6 +5380,7 @@
 						reg = <1>;
 
 						mdss_dp0_out: endpoint {
+							data-lanes = <0 1>;
 							remote-endpoint = <&usb_1_ss0_qmpphy_dp_in>;
 						};
 					};
@@ -5463,6 +5464,7 @@
 						reg = <1>;
 
 						mdss_dp1_out: endpoint {
+							data-lanes = <0 1>;
 							remote-endpoint = <&usb_1_ss1_qmpphy_dp_in>;
 						};
 					};
@@ -5545,6 +5547,7 @@
 						reg = <1>;
 
 						mdss_dp2_out: endpoint {
+							data-lanes = <0 1>;
 							remote-endpoint = <&usb_1_ss2_qmpphy_dp_in>;
 						};
 					};
