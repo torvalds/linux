@@ -55,9 +55,9 @@ void hinic3_free_txqs(struct net_device *netdev)
 static void hinic3_set_buf_desc(struct hinic3_sq_bufdesc *buf_descs,
 				dma_addr_t addr, u32 len)
 {
-	buf_descs->hi_addr = upper_32_bits(addr);
-	buf_descs->lo_addr = lower_32_bits(addr);
-	buf_descs->len  = len;
+	buf_descs->hi_addr = cpu_to_le32(upper_32_bits(addr));
+	buf_descs->lo_addr = cpu_to_le32(lower_32_bits(addr));
+	buf_descs->len = cpu_to_le32(len);
 }
 
 static int hinic3_tx_map_skb(struct net_device *netdev, struct sk_buff *skb,

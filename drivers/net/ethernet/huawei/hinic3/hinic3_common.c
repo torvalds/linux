@@ -3,6 +3,7 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/iopoll.h>
 
 #include "hinic3_common.h"
 
@@ -50,4 +51,26 @@ void hinic3_dma_free_coherent_align(struct device *dev,
 {
 	dma_free_coherent(dev, mem_align->real_size,
 			  mem_align->ori_vaddr, mem_align->ori_paddr);
+}
+
+int hinic3_wait_for_timeout(void *priv_data, wait_cpl_handler handler,
+			    u32 wait_total_ms, u32 wait_once_us)
+{
+	enum hinic3_wait_return ret;
+	int err;
+
+	err = read_poll_timeout(handler, ret, ret == HINIC3_WAIT_PROCESS_CPL,
+				wait_once_us, wait_total_ms * USEC_PER_MSEC,
+				false, priv_data);
+
+	return err;
+}
+
+/* Data provided to/by cmdq is arranged in structs with little endian fields but
+ * every dword (32bits) should be swapped since HW swaps it again when it
+ * copies it from/to host memory.
+ */
+void hinic3_cmdq_buf_swab32(void *data, int len)
+{
+	swab32_array(data, len / sizeof(u32));
 }

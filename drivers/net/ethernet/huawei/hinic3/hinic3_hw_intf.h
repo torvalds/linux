@@ -70,6 +70,20 @@ enum comm_cmd {
 	COMM_CMD_SET_DMA_ATTR            = 25,
 };
 
+struct comm_cmd_cfg_msix_ctrl_reg {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   rsvd1;
+	u16                  msix_index;
+	u8                   pending_cnt;
+	u8                   coalesce_timer_cnt;
+	u8                   resend_timer_cnt;
+	u8                   lli_timer_cnt;
+	u8                   lli_credit_cnt;
+	u8                   rsvd2[5];
+};
+
 enum comm_func_reset_bits {
 	COMM_FUNC_RESET_BIT_FLUSH        = BIT(0),
 	COMM_FUNC_RESET_BIT_MQM          = BIT(1),
@@ -98,6 +112,28 @@ struct comm_cmd_feature_nego {
 	u8                   opcode;
 	u8                   rsvd;
 	u64                  s_feature[COMM_MAX_FEATURE_QWORD];
+};
+
+struct comm_cmd_set_ceq_ctrl_reg {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u16                  q_id;
+	u32                  ctrl0;
+	u32                  ctrl1;
+	u32                  rsvd1;
+};
+
+struct comm_cmdq_ctxt_info {
+	__le64 curr_wqe_page_pfn;
+	__le64 wq_block_pfn;
+};
+
+struct comm_cmd_set_cmdq_ctxt {
+	struct mgmt_msg_head       head;
+	u16                        func_id;
+	u8                         cmdq_id;
+	u8                         rsvd1[5];
+	struct comm_cmdq_ctxt_info ctxt;
 };
 
 /* Services supported by HW. HW uses these values when delivering events.
