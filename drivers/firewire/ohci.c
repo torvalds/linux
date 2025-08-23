@@ -760,7 +760,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 *
 	 * Alas some chips sometimes emit bus reset packets with a
 	 * wrong generation.  We set the correct generation for these
-	 * at a slightly incorrect time (in bus_reset_work).
+	 * at a slightly incorrect time (in handle_selfid_complete_event).
 	 */
 	if (evt == OHCI1394_evt_bus_reset) {
 		if (!(ohci->quirks & QUIRK_RESET_PACKET))
@@ -1830,9 +1830,9 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 	return self_id_count;
 }
 
-static void bus_reset_work(struct work_struct *work)
+static irqreturn_t handle_selfid_complete_event(int irq, void *data)
 {
-	struct fw_ohci *ohci = from_work(ohci, work, bus_reset_work);
+	struct fw_ohci *ohci = data;
 	int self_id_count, generation, new_generation, i, j;
 	u32 reg, quadlet;
 	void *free_rom = NULL;
@@ -1843,11 +1843,11 @@ static void bus_reset_work(struct work_struct *work)
 	if (!(reg & OHCI1394_NodeID_idValid)) {
 		ohci_notice(ohci,
 			    "node ID not valid, new bus reset in progress\n");
-		return;
+		goto end;
 	}
 	if ((reg & OHCI1394_NodeID_nodeNumber) == 63) {
 		ohci_notice(ohci, "malconfigured bus\n");
-		return;
+		goto end;
 	}
 	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
 			       OHCI1394_NodeID_nodeNumber);
@@ -1861,7 +1861,7 @@ static void bus_reset_work(struct work_struct *work)
 	reg = reg_read(ohci, OHCI1394_SelfIDCount);
 	if (ohci1394_self_id_count_is_error(reg)) {
 		ohci_notice(ohci, "self ID receive error\n");
-		return;
+		goto end;
 	}
 
 	trace_self_id_complete(ohci->card.index, reg, ohci->self_id, has_be_header_quirk(ohci));
@@ -1876,7 +1876,7 @@ static void bus_reset_work(struct work_struct *work)
 
 	if (self_id_count > 252) {
 		ohci_notice(ohci, "bad selfIDSize (%08x)\n", reg);
-		return;
+		goto end;
 	}
 
 	quadlet = cond_le32_to_cpu(ohci->self_id[0], has_be_header_quirk(ohci));
@@ -1903,7 +1903,7 @@ static void bus_reset_work(struct work_struct *work)
 
 			ohci_notice(ohci, "bad self ID %d/%d (%08x != ~%08x)\n",
 				    j, self_id_count, id, id2);
-			return;
+			goto end;
 		}
 		ohci->self_id_buffer[j] = id;
 	}
@@ -1913,13 +1913,13 @@ static void bus_reset_work(struct work_struct *work)
 		if (self_id_count < 0) {
 			ohci_notice(ohci,
 				    "could not construct local self ID\n");
-			return;
+			goto end;
 		}
 	}
 
 	if (self_id_count == 0) {
 		ohci_notice(ohci, "no self IDs\n");
-		return;
+		goto end;
 	}
 	rmb();
 
@@ -1941,7 +1941,7 @@ static void bus_reset_work(struct work_struct *work)
 	new_generation = ohci1394_self_id_count_get_generation(reg);
 	if (new_generation != generation) {
 		ohci_notice(ohci, "new bus reset, discarding self ids\n");
-		return;
+		goto end;
 	}
 
 	// FIXME: Document how the locking works.
@@ -2002,6 +2002,8 @@ static void bus_reset_work(struct work_struct *work)
 				 self_id_count, ohci->self_id_buffer,
 				 ohci->csr_state_setclear_abdicate);
 	ohci->csr_state_setclear_abdicate = false;
+end:
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t irq_handler(int irq, void *data)
@@ -2023,12 +2025,9 @@ static irqreturn_t irq_handler(int irq, void *data)
 		  event & ~(OHCI1394_busReset | OHCI1394_postedWriteErr));
 	trace_irqs(ohci->card.index, event);
 
-	// The flag is masked again at bus_reset_work() scheduled by selfID event.
+	// The flag is masked again at handle_selfid_complete_event() scheduled by selfID event.
 	if (event & OHCI1394_busReset)
 		reg_write(ohci, OHCI1394_IntMaskClear, OHCI1394_busReset);
-
-	if (event & OHCI1394_selfIDComplete)
-		queue_work(selfid_workqueue, &ohci->bus_reset_work);
 
 	if (event & OHCI1394_RQPkt)
 		queue_work(ohci->card.async_wq, &ohci->ar_request_ctx.work);
@@ -2100,7 +2099,10 @@ static irqreturn_t irq_handler(int irq, void *data)
 	} else
 		flush_writes(ohci);
 
-	return IRQ_HANDLED;
+	if (event & OHCI1394_selfIDComplete)
+		return IRQ_WAKE_THREAD;
+	else
+		return IRQ_HANDLED;
 }
 
 static int software_reset(struct fw_ohci *ohci)
@@ -2413,7 +2415,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * then set up the real values for the two registers.
 	 *
 	 * We use ohci->lock to avoid racing with the code that sets
-	 * ohci->next_config_rom to NULL (see bus_reset_work).
+	 * ohci->next_config_rom to NULL (see handle_selfid_complete_event).
 	 */
 
 	next_config_rom = dmam_alloc_coherent(ohci->card.device, CONFIG_ROM_SIZE,
@@ -3620,7 +3622,9 @@ static int pci_probe(struct pci_dev *dev,
 		goto fail_msi;
 	}
 
-	err = request_threaded_irq(irq, irq_handler, NULL,
+	// IRQF_ONESHOT is not applied so that any events are handled in the hardIRQ handler during
+	// invoking the threaded IRQ handler for SelfIDComplete event.
+	err = request_threaded_irq(irq, irq_handler, handle_selfid_complete_event,
 				   pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED, ohci_driver_name,
 				   ohci);
 	if (err < 0) {
