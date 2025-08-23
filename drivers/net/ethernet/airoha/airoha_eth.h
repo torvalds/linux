@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/reset.h>
+#include <linux/soc/airoha/airoha_offload.h>
 #include <net/dsa.h>
 
 #define AIROHA_MAX_NUM_GDM_PORTS	4
@@ -546,6 +547,7 @@ struct airoha_gdm_port {
 #define AIROHA_RXD4_FOE_ENTRY		GENMASK(15, 0)
 
 struct airoha_ppe {
+	struct airoha_ppe_dev dev;
 	struct airoha_eth *eth;
 
 	void *foe;
@@ -622,7 +624,7 @@ bool airoha_is_valid_gdm_port(struct airoha_eth *eth,
 
 void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
 			  u16 hash);
-int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data);
+int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev, void *type_data);
 int airoha_ppe_init(struct airoha_eth *eth);
 void airoha_ppe_deinit(struct airoha_eth *eth);
 void airoha_ppe_init_upd_mem(struct airoha_gdm_port *port);

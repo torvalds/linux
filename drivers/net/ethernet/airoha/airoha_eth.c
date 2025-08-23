@@ -2599,13 +2599,15 @@ static int airoha_dev_setup_tc_block_cb(enum tc_setup_type type,
 					void *type_data, void *cb_priv)
 {
 	struct net_device *dev = cb_priv;
+	struct airoha_gdm_port *port = netdev_priv(dev);
+	struct airoha_eth *eth = port->qdma->eth;
 
 	if (!tc_can_offload(dev))
 		return -EOPNOTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return airoha_ppe_setup_tc_block_cb(dev, type_data);
+		return airoha_ppe_setup_tc_block_cb(&eth->ppe->dev, type_data);
 	case TC_SETUP_CLSMATCHALL:
 		return airoha_dev_tc_matchall(dev, type_data);
 	default:

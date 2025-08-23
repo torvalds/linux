@@ -6,8 +6,9 @@
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/rhashtable.h>
-#include <linux/soc/airoha/airoha_offload.h>
 #include <net/ipv6.h>
 #include <net/pkt_cls.h>
 
@@ -1282,10 +1283,10 @@ error_npu_put:
 	return err;
 }
 
-int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data)
+int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev, void *type_data)
 {
-	struct airoha_gdm_port *port = netdev_priv(dev);
-	struct airoha_eth *eth = port->qdma->eth;
+	struct airoha_ppe *ppe = dev->priv;
+	struct airoha_eth *eth = ppe->eth;
 	int err = 0;
 
 	mutex_lock(&flow_offload_mutex);
@@ -1338,6 +1339,61 @@ void airoha_ppe_init_upd_mem(struct airoha_gdm_port *port)
 		     PPE_UPDMEM_WR_MASK | PPE_UPDMEM_REQ_MASK);
 }
 
+struct airoha_ppe_dev *airoha_ppe_get_dev(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct device_node *np;
+	struct airoha_eth *eth;
+
+	np = of_parse_phandle(dev->of_node, "airoha,eth", 0);
+	if (!np)
+		return ERR_PTR(-ENODEV);
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		dev_err(dev, "cannot find device node %s\n", np->name);
+		of_node_put(np);
+		return ERR_PTR(-ENODEV);
+	}
+	of_node_put(np);
+
+	if (!try_module_get(THIS_MODULE)) {
+		dev_err(dev, "failed to get the device driver module\n");
+		goto error_pdev_put;
+	}
+
+	eth = platform_get_drvdata(pdev);
+	if (!eth)
+		goto error_module_put;
+
+	if (!device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER)) {
+		dev_err(&pdev->dev,
+			"failed to create device link to consumer %s\n",
+			dev_name(dev));
+		goto error_module_put;
+	}
+
+	return &eth->ppe->dev;
+
+error_module_put:
+	module_put(THIS_MODULE);
+error_pdev_put:
+	platform_device_put(pdev);
+
+	return ERR_PTR(-ENODEV);
+}
+EXPORT_SYMBOL_GPL(airoha_ppe_get_dev);
+
+void airoha_ppe_put_dev(struct airoha_ppe_dev *dev)
+{
+	struct airoha_ppe *ppe = dev->priv;
+	struct airoha_eth *eth = ppe->eth;
+
+	module_put(THIS_MODULE);
+	put_device(eth->dev);
+}
+EXPORT_SYMBOL_GPL(airoha_ppe_put_dev);
+
 int airoha_ppe_init(struct airoha_eth *eth)
 {
 	struct airoha_ppe *ppe;
@@ -1346,6 +1402,9 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	ppe = devm_kzalloc(eth->dev, sizeof(*ppe), GFP_KERNEL);
 	if (!ppe)
 		return -ENOMEM;
+
+	ppe->dev.ops.setup_tc_block_cb = airoha_ppe_setup_tc_block_cb;
+	ppe->dev.priv = ppe;
 
 	foe_size = PPE_NUM_ENTRIES * sizeof(struct airoha_foe_entry);
 	ppe->foe = dmam_alloc_coherent(eth->dev, foe_size, &ppe->foe_dma,
