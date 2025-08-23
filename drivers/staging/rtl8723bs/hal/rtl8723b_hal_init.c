@@ -445,47 +445,33 @@ void rtl8723b_InitializeFirmwareVars(struct adapter *padapter)
 /* 				Efuse related code */
 /*  */
 static u8 hal_EfuseSwitchToBank(
-	struct adapter *padapter, u8 bank, bool bPseudoTest
+	struct adapter *padapter, u8 bank
 )
 {
 	u8 bRet = false;
 	u32 value32 = 0;
-#ifdef HAL_EFUSE_MEMORY
-	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	struct efuse_hal *pEfuseHal = &pHalData->EfuseHal;
-#endif
 
-
-	if (bPseudoTest) {
-#ifdef HAL_EFUSE_MEMORY
-		pEfuseHal->fakeEfuseBank = bank;
-#else
-		fakeEfuseBank = bank;
-#endif
-		bRet = true;
-	} else {
-		value32 = rtw_read32(padapter, EFUSE_TEST);
-		bRet = true;
-		switch (bank) {
-		case 0:
-			value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_WIFI_SEL_0);
-			break;
-		case 1:
-			value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_BT_SEL_0);
-			break;
-		case 2:
-			value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_BT_SEL_1);
-			break;
-		case 3:
-			value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_BT_SEL_2);
-			break;
-		default:
-			value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_WIFI_SEL_0);
-			bRet = false;
-			break;
-		}
-		rtw_write32(padapter, EFUSE_TEST, value32);
+	value32 = rtw_read32(padapter, EFUSE_TEST);
+	bRet = true;
+	switch (bank) {
+	case 0:
+		value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_WIFI_SEL_0);
+		break;
+	case 1:
+		value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_BT_SEL_0);
+		break;
+	case 2:
+		value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_BT_SEL_1);
+		break;
+	case 3:
+		value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_BT_SEL_2);
+		break;
+	default:
+		value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_WIFI_SEL_0);
+		bRet = false;
+		break;
 	}
+	rtw_write32(padapter, EFUSE_TEST, value32);
 
 	return bRet;
 }
@@ -692,7 +678,7 @@ static void hal_ReadEFuse_WiFi(
 	memset(efuseTbl, 0xFF, EFUSE_MAX_MAP_LEN);
 
 	/*  switch bank back to bank 0 for later BT and wifi use. */
-	hal_EfuseSwitchToBank(padapter, 0, false);
+	hal_EfuseSwitchToBank(padapter, 0);
 
 	while (AVAILABLE_EFUSE_ADDR(eFuse_Addr)) {
 		efuse_OneByteRead(padapter, eFuse_Addr++, &efuseHeader, false);
@@ -782,7 +768,7 @@ static void hal_ReadEFuse_BT(
 	Hal_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_AVAILABLE_EFUSE_BYTES_BANK, &total);
 
 	for (bank = 1; bank < 3; bank++) { /*  8723b Max bake 0~2 */
-		if (hal_EfuseSwitchToBank(padapter, bank, false) == false)
+		if (hal_EfuseSwitchToBank(padapter, bank) == false)
 			goto exit;
 
 		eFuse_Addr = 0;
@@ -833,7 +819,7 @@ static void hal_ReadEFuse_BT(
 	}
 
 	/*  switch bank back to bank 0 for later BT and wifi use. */
-	hal_EfuseSwitchToBank(padapter, 0, false);
+	hal_EfuseSwitchToBank(padapter, 0);
 
 	/*  Copy from Efuse map to output pointer memory!!! */
 	for (i = 0; i < _size_byte; i++)
