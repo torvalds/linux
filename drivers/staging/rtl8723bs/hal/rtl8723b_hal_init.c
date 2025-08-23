@@ -883,14 +883,13 @@ void Hal_ReadEFuse(
 	u8 efuseType,
 	u16 _offset,
 	u16 _size_byte,
-	u8 *pbuf,
-	bool bPseudoTest
+	u8 *pbuf
 )
 {
 	if (efuseType == EFUSE_WIFI)
-		hal_ReadEFuse_WiFi(padapter, _offset, _size_byte, pbuf, bPseudoTest);
+		hal_ReadEFuse_WiFi(padapter, _offset, _size_byte, pbuf, false);
 	else
-		hal_ReadEFuse_BT(padapter, _offset, _size_byte, pbuf, bPseudoTest);
+		hal_ReadEFuse_BT(padapter, _offset, _size_byte, pbuf, false);
 }
 
 static u16 hal_EfuseGetCurrentSize_WiFi(

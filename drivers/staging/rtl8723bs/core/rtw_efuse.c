@@ -271,7 +271,7 @@ static void Efuse_ReadAllMap(struct adapter *padapter, u8 efuseType, u8 *Efuse)
 
 	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, false);
 
-	Hal_ReadEFuse(padapter, efuseType, 0, mapLen, Efuse, false);
+	Hal_ReadEFuse(padapter, efuseType, 0, mapLen, Efuse);
 
 	Efuse_PowerSwitch(padapter, false, false);
 }
