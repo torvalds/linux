@@ -3778,8 +3778,8 @@ static int cgroup_core_local_stat_show(struct seq_file *seq, void *v)
 					cgrp->freezer.freeze_start_nsec);
 	} while (read_seqcount_retry(&cgrp->freezer.freeze_seq, sequence));
 
-	seq_printf(seq, "frozen_usec %llu\n",
-		   (unsigned long long) freeze_time / NSEC_PER_USEC);
+	do_div(freeze_time, NSEC_PER_USEC);
+	seq_printf(seq, "frozen_usec %llu\n", freeze_time);
 
 	return 0;
 }
