@@ -134,4 +134,5 @@ int gf100_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct 
 int gk104_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_clk **);
 int gk20a_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_clk **);
 int gm20b_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_clk **);
+int gp10b_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_clk **);
 #endif
