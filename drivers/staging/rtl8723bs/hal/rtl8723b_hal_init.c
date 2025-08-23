@@ -448,11 +448,9 @@ static u8 hal_EfuseSwitchToBank(
 	struct adapter *padapter, u8 bank
 )
 {
-	u8 bRet = false;
-	u32 value32 = 0;
+	u8 bRet = true;
+	u32 value32 = rtw_read32(padapter, EFUSE_TEST);
 
-	value32 = rtw_read32(padapter, EFUSE_TEST);
-	bRet = true;
 	switch (bank) {
 	case 0:
 		value32 = (value32 & ~EFUSE_SEL_MASK) | EFUSE_SEL(EFUSE_WIFI_SEL_0);
