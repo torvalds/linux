@@ -230,10 +230,6 @@ struct airoha_hw_stats {
 };
 
 enum {
-	PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED = 0x0f,
-};
-
-enum {
 	AIROHA_FOE_STATE_INVALID,
 	AIROHA_FOE_STATE_UNBIND,
 	AIROHA_FOE_STATE_BIND,
@@ -622,8 +618,8 @@ static inline bool airhoa_is_lan_gdm_port(struct airoha_gdm_port *port)
 bool airoha_is_valid_gdm_port(struct airoha_eth *eth,
 			      struct airoha_gdm_port *port);
 
-void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
-			  u16 hash);
+void airoha_ppe_check_skb(struct airoha_ppe_dev *dev, struct sk_buff *skb,
+			  u16 hash, bool rx_wlan);
 int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev, void *type_data);
 int airoha_ppe_init(struct airoha_eth *eth);
 void airoha_ppe_deinit(struct airoha_eth *eth);
