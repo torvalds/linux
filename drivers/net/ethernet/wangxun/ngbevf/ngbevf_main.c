@@ -100,6 +100,7 @@ static int ngbevf_sw_init(struct wx *wx)
 	wx->mac.max_tx_queues = NGBEVF_MAX_TX_QUEUES;
 	wx->mac.max_rx_queues = NGBEVF_MAX_RX_QUEUES;
 	/* Enable dynamic interrupt throttling rates */
+	wx->adaptive_itr = true;
 	wx->rx_itr_setting = 1;
 	wx->tx_itr_setting = 1;
 	/* set default ring sizes */

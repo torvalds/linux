@@ -4,6 +4,7 @@
 #ifndef _WX_VF_LIB_H_
 #define _WX_VF_LIB_H_
 
+void wx_write_eitr_vf(struct wx_q_vector *q_vector);
 void wx_configure_msix_vf(struct wx *wx);
 int wx_write_uc_addr_list_vf(struct net_device *netdev);
 void wx_setup_psrtype_vf(struct wx *wx);
