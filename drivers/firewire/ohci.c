@@ -228,12 +228,9 @@ struct fw_ohci {
 
 	__le32    *self_id;
 	dma_addr_t self_id_bus;
-	struct work_struct bus_reset_work;
 
 	u32 self_id_buffer[512];
 };
-
-static struct workqueue_struct *selfid_workqueue;
 
 static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 {
@@ -3512,8 +3509,6 @@ static int pci_probe(struct pci_dev *dev,
 	spin_lock_init(&ohci->lock);
 	mutex_init(&ohci->phy_reg_mutex);
 
-	INIT_WORK(&ohci->bus_reset_work, bus_reset_work);
-
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM) ||
 	    pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE) {
 		ohci_err(ohci, "invalid MMIO resource\n");
@@ -3668,7 +3663,6 @@ static void pci_remove(struct pci_dev *dev)
 		reg_write(ohci, OHCI1394_IntMaskClear, ~0);
 		flush_writes(ohci);
 	}
-	cancel_work_sync(&ohci->bus_reset_work);
 	fw_core_remove_card(&ohci->card);
 
 	/*
@@ -3741,17 +3735,12 @@ static struct pci_driver fw_ohci_pci_driver = {
 
 static int __init fw_ohci_init(void)
 {
-	selfid_workqueue = alloc_workqueue(KBUILD_MODNAME, WQ_MEM_RECLAIM, 0);
-	if (!selfid_workqueue)
-		return -ENOMEM;
-
 	return pci_register_driver(&fw_ohci_pci_driver);
 }
 
 static void __exit fw_ohci_cleanup(void)
 {
 	pci_unregister_driver(&fw_ohci_pci_driver);
-	destroy_workqueue(selfid_workqueue);
 }
 
 module_init(fw_ohci_init);
