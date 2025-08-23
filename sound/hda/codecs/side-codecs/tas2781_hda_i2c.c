@@ -267,7 +267,7 @@ static const struct snd_kcontrol_new tas2770_snd_controls[] = {
 static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Analog Volume", TAS2781_AMP_LEVEL,
 		1, 0, 20, 0, tas2781_amp_getvol,
-		tas2781_amp_putvol, amp_vol_tlv),
+		tas2781_amp_putvol, tas2781_amp_tlv),
 	ACARD_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
 		tas2781_force_fwload_get, tas2781_force_fwload_put),
 };
@@ -305,7 +305,7 @@ static int tas2563_save_calibration(struct tas2781_hda *h)
 	efi_char16_t efi_name[TAS2563_CAL_VAR_NAME_MAX];
 	unsigned long max_size = TAS2563_CAL_DATA_SIZE;
 	unsigned char var8[TAS2563_CAL_VAR_NAME_MAX];
-	struct tasdevice_priv *p = h->hda_priv;
+	struct tasdevice_priv *p = h->priv;
 	struct calidata *cd = &p->cali_data;
 	struct cali_reg *r = &cd->cali_reg_array;
 	unsigned int offset = 0;
