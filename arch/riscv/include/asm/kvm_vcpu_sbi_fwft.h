@@ -16,6 +16,7 @@ struct kvm_sbi_fwft_feature;
 struct kvm_sbi_fwft_config {
 	const struct kvm_sbi_fwft_feature *feature;
 	bool supported;
+	bool enabled;
 	unsigned long flags;
 };
 
