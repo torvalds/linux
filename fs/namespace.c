@@ -88,6 +88,8 @@ DEFINE_LOCK_GUARD_0(namespace_excl, namespace_lock(), namespace_unlock())
 DEFINE_LOCK_GUARD_0(namespace_shared, down_read(&namespace_sem),
 				      up_read(&namespace_sem))
 
+DEFINE_FREE(mntput, struct vfsmount *, if (!IS_ERR(_T)) mntput(_T))
+
 #ifdef CONFIG_FSNOTIFY
 LIST_HEAD(notify_list); /* protected by namespace_sem */
 #endif
