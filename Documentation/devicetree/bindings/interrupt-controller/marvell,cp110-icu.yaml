@@ -49,6 +49,9 @@ patternProperties:
       reg:
         maxItems: 1
 
+      '#address-cells':
+        const: 0
+
       '#interrupt-cells':
         const: 2
 
