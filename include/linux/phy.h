@@ -1268,9 +1268,13 @@ struct phy_driver {
 #define to_phy_driver(d) container_of_const(to_mdio_common_driver(d),		\
 				      struct phy_driver, mdiodrv)
 
-#define PHY_ID_MATCH_EXACT(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 0)
-#define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 4)
-#define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 10)
+#define PHY_ID_MATCH_EXTACT_MASK GENMASK(31, 0)
+#define PHY_ID_MATCH_MODEL_MASK GENMASK(31, 4)
+#define PHY_ID_MATCH_VENDOR_MASK GENMASK(31, 10)
+
+#define PHY_ID_MATCH_EXACT(id) .phy_id = (id), .phy_id_mask = PHY_ID_MATCH_EXTACT_MASK
+#define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = PHY_ID_MATCH_MODEL_MASK
+#define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = PHY_ID_MATCH_VENDOR_MASK
 
 /**
  * phy_id_compare - compare @id1 with @id2 taking account of @mask
@@ -1284,6 +1288,19 @@ struct phy_driver {
 static inline bool phy_id_compare(u32 id1, u32 id2, u32 mask)
 {
 	return !((id1 ^ id2) & mask);
+}
+
+/**
+ * phy_id_compare_vendor - compare @id with @vendor mask
+ * @id: PHY ID
+ * @vendor_mask: PHY Vendor mask
+ *
+ * Return: true if the bits from @id match @vendor using the
+ *	   generic PHY Vendor mask.
+ */
+static inline bool phy_id_compare_vendor(u32 id, u32 vendor_mask)
+{
+	return phy_id_compare(id, vendor_mask, PHY_ID_MATCH_VENDOR_MASK);
 }
 
 /**
