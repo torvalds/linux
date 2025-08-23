@@ -1192,23 +1192,67 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif_link *mvif,
 /** starec & wtbl **/
 int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
 			 struct ieee80211_ampdu_params *params,
-			 struct mt7996_vif_link *link,
-			 struct mt7996_sta_link *msta_link, bool enable)
+			 struct ieee80211_vif *vif, bool enable)
 {
-	if (enable && !params->amsdu)
-		msta_link->wcid.amsdu = false;
+	struct ieee80211_sta *sta = params->sta;
+	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
+	int ret = 0;
 
-	return mt7996_mcu_sta_ba(dev, &link->mt76, params, &msta_link->wcid,
-				 enable, true);
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct mt7996_sta_link *msta_link;
+		struct mt7996_vif_link *link;
+
+		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		if (!msta_link)
+			continue;
+
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
+
+		if (enable && !params->amsdu)
+			msta_link->wcid.amsdu = false;
+
+		ret = mt7996_mcu_sta_ba(dev, &link->mt76, params,
+					&msta_link->wcid, enable, true);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
 			 struct ieee80211_ampdu_params *params,
-			 struct mt7996_vif_link *link,
-			 struct mt7996_sta_link *msta_link, bool enable)
+			 struct ieee80211_vif *vif, bool enable)
 {
-	return mt7996_mcu_sta_ba(dev, &link->mt76, params, &msta_link->wcid,
-				 enable, false);
+	struct ieee80211_sta *sta = params->sta;
+	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
+	int ret = 0;
+
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct mt7996_sta_link *msta_link;
+		struct mt7996_vif_link *link;
+
+		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		if (!msta_link)
+			continue;
+
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
+
+		ret = mt7996_mcu_sta_ba(dev, &link->mt76, params,
+					&msta_link->wcid, enable, false);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 static void
