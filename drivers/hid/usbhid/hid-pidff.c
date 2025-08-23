@@ -1194,6 +1194,9 @@ static int pidff_find_special_keys(int *keys, struct hid_field *fld,
 {
 	int found = 0;
 
+	if (!fld)
+		return 0;
+
 	for (int i = 0; i < count; i++) {
 		keys[i] = pidff_find_usage(fld, usage_page | usagetable[i]) + 1;
 		if (keys[i])
@@ -1299,11 +1302,13 @@ static int pidff_find_special_fields(struct pidff_device *pidff)
 		return -1;
 	}
 
-	if (!pidff->axes_enable)
+	if (!pidff->axes_enable) {
 		hid_info(pidff->hid, "axes enable field not found!\n");
-	else
-		hid_dbg(pidff->hid, "axes enable report count: %u\n",
-			pidff->axes_enable->report_count);
+		return 0;
+	}
+
+	hid_dbg(pidff->hid, "axes enable report count: %u\n",
+		pidff->axes_enable->report_count);
 
 	uint found = PIDFF_FIND_GENERAL_DESKTOP(direction_axis_id, axes_enable,
 						direction_axis);
@@ -1311,7 +1316,7 @@ static int pidff_find_special_fields(struct pidff_device *pidff)
 	pidff->axis_count = found;
 	hid_dbg(pidff->hid, "found direction axes: %u", found);
 
-	for (int i = 0; i < sizeof(pidff_direction_axis); i++) {
+	for (int i = 0; i < ARRAY_SIZE(pidff_direction_axis); i++) {
 		if (!pidff->direction_axis_id[i])
 			continue;
 
