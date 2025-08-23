@@ -29,18 +29,6 @@ u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
-static bool
-Efuse_Write1ByteToFakeContent(u16 Offset, u8 Value)
-{
-	if (Offset >= EFUSE_MAX_HW_SIZE)
-		return false;
-	if (fakeEfuseBank == 0)
-		fakeEfuseContent[Offset] = Value;
-	else
-		fakeBTEfuseContent[fakeEfuseBank - 1][Offset] = Value;
-	return true;
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	Efuse_PowerSwitch
  *
@@ -179,42 +167,6 @@ u8	*data)
 		*data = 0xff;
 		bResult = false;
 	}
-
-	return bResult;
-}
-
-/*  11/16/2008 MH Write one byte to reald Efuse. */
-u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoTest)
-{
-	u8 tmpidx = 0;
-	u8 bResult = false;
-
-	if (bPseudoTest)
-		return Efuse_Write1ByteToFakeContent(addr, data);
-
-	/*  -----------------e-fuse reg ctrl --------------------------------- */
-	/* address */
-
-	/*  <20130227, Kordan> 8192E MP chip A-cut had better not set 0x34[11] until B-Cut. */
-
-	/*  <20130121, Kordan> For SMIC EFUSE specificatoin. */
-	/* 0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8]) */
-	/* PHY_SetMacReg(padapter, 0x34, BIT11, 1); */
-	rtw_write16(padapter, 0x34, rtw_read16(padapter, 0x34) | (BIT11));
-	rtw_write32(padapter, EFUSE_CTRL, 0x90600000 | ((addr << 8 | data)));
-
-	while ((0x80 &  rtw_read8(padapter, EFUSE_CTRL + 3)) && (tmpidx < 100)) {
-		mdelay(1);
-		tmpidx++;
-	}
-
-	if (tmpidx < 100)
-		bResult = true;
-	else
-		bResult = false;
-
-	/*  disable Efuse program enable */
-	PHY_SetMacReg(padapter, EFUSE_TEST, BIT(11), 0);
 
 	return bResult;
 }
