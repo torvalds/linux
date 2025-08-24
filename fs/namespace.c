@@ -2084,7 +2084,7 @@ static int can_umount(const struct path *path, int flags)
 }
 
 // caller is responsible for flags being sane
-int path_umount(struct path *path, int flags)
+int path_umount(const struct path *path, int flags)
 {
 	struct mount *mnt = real_mount(path->mnt);
 	int ret;
