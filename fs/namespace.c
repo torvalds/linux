@@ -3643,7 +3643,7 @@ static int do_move_mount(const struct path *old_path,
 
 static int do_move_mount_old(const struct path *path, const char *old_name)
 {
-	struct path old_path;
+	struct path old_path __free(path_put) = {};
 	int err;
 
 	if (!old_name || !*old_name)
@@ -3653,9 +3653,7 @@ static int do_move_mount_old(const struct path *path, const char *old_name)
 	if (err)
 		return err;
 
-	err = do_move_mount(&old_path, path, 0);
-	path_put(&old_path);
-	return err;
+	return do_move_mount(&old_path, path, 0);
 }
 
 /*
