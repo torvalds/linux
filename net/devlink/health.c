@@ -116,6 +116,9 @@ __devlink_health_reporter_create(struct devlink *devlink,
 	if (WARN_ON(ops->default_graceful_period && !ops->recover))
 		return ERR_PTR(-EINVAL);
 
+	if (WARN_ON(ops->default_burst_period && !ops->default_graceful_period))
+		return ERR_PTR(-EINVAL);
+
 	reporter = kzalloc(sizeof(*reporter), GFP_KERNEL);
 	if (!reporter)
 		return ERR_PTR(-ENOMEM);
@@ -294,6 +297,10 @@ devlink_nl_health_reporter_fill(struct sk_buff *msg,
 			       reporter->graceful_period))
 		goto reporter_nest_cancel;
 	if (reporter->ops->recover &&
+	    devlink_nl_put_u64(msg, DEVLINK_ATTR_HEALTH_REPORTER_BURST_PERIOD,
+			       reporter->burst_period))
+		goto reporter_nest_cancel;
+	if (reporter->ops->recover &&
 	    nla_put_u8(msg, DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER,
 		       reporter->auto_recover))
 		goto reporter_nest_cancel;
@@ -458,16 +465,33 @@ int devlink_nl_health_reporter_set_doit(struct sk_buff *skb,
 
 	if (!reporter->ops->recover &&
 	    (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD] ||
-	     info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER]))
+	     info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER] ||
+	     info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_BURST_PERIOD]))
 		return -EOPNOTSUPP;
 
 	if (!reporter->ops->dump &&
 	    info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_DUMP])
 		return -EOPNOTSUPP;
 
-	if (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD])
+	if (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD]) {
 		reporter->graceful_period =
 			nla_get_u64(info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD]);
+		if (!reporter->graceful_period)
+			reporter->burst_period = 0;
+	}
+
+	if (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_BURST_PERIOD]) {
+		u64 burst_period =
+			nla_get_u64(info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_BURST_PERIOD]);
+
+		if (!reporter->graceful_period && burst_period) {
+			NL_SET_ERR_MSG_MOD(info->extack,
+					   "Cannot set burst period without a grace period.");
+			return -EINVAL;
+		}
+
+		reporter->burst_period = burst_period;
+	}
 
 	if (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER])
 		reporter->auto_recover =
