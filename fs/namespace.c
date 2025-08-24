@@ -3466,8 +3466,8 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  * Context: This function expects namespace_lock() to be held.
  * Return: On success 0, and on error a negative error code is returned.
  */
-static int can_move_mount_beneath(struct mount *mnt_from,
-				  struct mount *mnt_to,
+static int can_move_mount_beneath(const struct mount *mnt_from,
+				  const struct mount *mnt_to,
 				  const struct mountpoint *mp)
 {
 	struct mount *parent_mnt_to = mnt_to->mnt_parent;
