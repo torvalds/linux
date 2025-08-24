@@ -4092,15 +4092,13 @@ int path_mount(const char *dev_name, const struct path *path,
 int do_mount(const char *dev_name, const char __user *dir_name,
 		const char *type_page, unsigned long flags, void *data_page)
 {
-	struct path path;
+	struct path path __free(path_put) = {};
 	int ret;
 
 	ret = user_path_at(AT_FDCWD, dir_name, LOOKUP_FOLLOW, &path);
 	if (ret)
 		return ret;
-	ret = path_mount(dev_name, &path, type_page, flags, data_page);
-	path_put(&path);
-	return ret;
+	return path_mount(dev_name, &path, type_page, flags, data_page);
 }
 
 static struct ucounts *inc_mnt_namespaces(struct user_namespace *ns)
