@@ -10,6 +10,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/iommu.h>
@@ -465,8 +466,11 @@ static int aie2_hw_resume(struct amdxdna_dev *xdna)
 		return ret;
 	}
 
-	list_for_each_entry(client, &xdna->client_list, node)
-		aie2_hwctx_resume(client);
+	list_for_each_entry(client, &xdna->client_list, node) {
+		ret = aie2_hwctx_resume(client);
+		if (ret)
+			break;
+	}
 
 	return ret;
 }
@@ -779,65 +783,56 @@ static int aie2_get_clock_metadata(struct amdxdna_client *client,
 	return ret;
 }
 
-static int aie2_get_hwctx_status(struct amdxdna_client *client,
-				 struct amdxdna_drm_get_info *args)
+static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
-	struct amdxdna_drm_query_hwctx __user *buf;
-	struct amdxdna_dev *xdna = client->xdna;
-	struct amdxdna_drm_query_hwctx *tmp;
-	struct amdxdna_client *tmp_client;
-	struct amdxdna_hwctx *hwctx;
-	unsigned long hwctx_id;
-	bool overflow = false;
-	u32 req_bytes = 0;
-	u32 hw_i = 0;
-	int ret = 0;
-	int idx;
+	struct amdxdna_drm_query_hwctx __user *buf, *tmp __free(kfree) = NULL;
+	struct amdxdna_drm_get_info *get_info_args = arg;
 
-	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+	if (get_info_args->buffer_size < sizeof(*tmp))
+		return -EINVAL;
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
-	buf = u64_to_user_ptr(args->buffer);
+	tmp->pid = hwctx->client->pid;
+	tmp->context_id = hwctx->id;
+	tmp->start_col = hwctx->start_col;
+	tmp->num_col = hwctx->num_col;
+	tmp->command_submissions = hwctx->priv->seq;
+	tmp->command_completions = hwctx->priv->completed;
+
+	buf = u64_to_user_ptr(get_info_args->buffer);
+
+	if (copy_to_user(buf, tmp, sizeof(*tmp)))
+		return -EFAULT;
+
+	get_info_args->buffer += sizeof(*tmp);
+	get_info_args->buffer_size -= sizeof(*tmp);
+
+	return 0;
+}
+
+static int aie2_get_hwctx_status(struct amdxdna_client *client,
+				 struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_drm_get_info info_args;
+	struct amdxdna_client *tmp_client;
+	int ret;
+
+	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+
+	info_args.buffer = args->buffer;
+	info_args.buffer_size = args->buffer_size;
+
 	list_for_each_entry(tmp_client, &xdna->client_list, node) {
-		idx = srcu_read_lock(&tmp_client->hwctx_srcu);
-		amdxdna_for_each_hwctx(tmp_client, hwctx_id, hwctx) {
-			req_bytes += sizeof(*tmp);
-			if (args->buffer_size < req_bytes) {
-				/* Continue iterating to get the required size */
-				overflow = true;
-				continue;
-			}
-
-			memset(tmp, 0, sizeof(*tmp));
-			tmp->pid = tmp_client->pid;
-			tmp->context_id = hwctx->id;
-			tmp->start_col = hwctx->start_col;
-			tmp->num_col = hwctx->num_col;
-			tmp->command_submissions = hwctx->priv->seq;
-			tmp->command_completions = hwctx->priv->completed;
-
-			if (copy_to_user(&buf[hw_i], tmp, sizeof(*tmp))) {
-				ret = -EFAULT;
-				srcu_read_unlock(&tmp_client->hwctx_srcu, idx);
-				goto out;
-			}
-			hw_i++;
-		}
-		srcu_read_unlock(&tmp_client->hwctx_srcu, idx);
+		ret = amdxdna_hwctx_walk(tmp_client, &info_args, aie2_hwctx_status_cb);
+		if (ret)
+			break;
 	}
 
-	if (overflow) {
-		XDNA_ERR(xdna, "Invalid buffer size. Given: %u Need: %u.",
-			 args->buffer_size, req_bytes);
-		ret = -EINVAL;
-	}
-
-out:
-	kfree(tmp);
-	args->buffer_size = req_bytes;
+	args->buffer_size = (u32)(info_args.buffer - args->buffer);
 	return ret;
 }
 

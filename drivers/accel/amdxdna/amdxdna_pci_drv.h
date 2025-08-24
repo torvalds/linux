@@ -116,8 +116,6 @@ struct amdxdna_device_id {
 struct amdxdna_client {
 	struct list_head		node;
 	pid_t				pid;
-	struct mutex			hwctx_lock; /* protect hwctx */
-	/* do NOT wait this srcu when hwctx_lock is held */
 	struct srcu_struct		hwctx_srcu;
 	struct xarray			hwctx_xa;
 	u32				next_hwctxid;
