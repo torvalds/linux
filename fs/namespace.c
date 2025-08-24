@@ -3224,7 +3224,8 @@ static void set_mount_attributes(struct mount *mnt, unsigned int mnt_flags)
 	touch_mnt_namespace(mnt->mnt_ns);
 }
 
-static void mnt_warn_timestamp_expiry(struct path *mountpoint, struct vfsmount *mnt)
+static void mnt_warn_timestamp_expiry(const struct path *mountpoint,
+				      struct vfsmount *mnt)
 {
 	struct super_block *sb = mnt->mnt_sb;
 
