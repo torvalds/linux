@@ -17,6 +17,8 @@ struct gpu_node {
 
 struct nvgrace_egm_dev {
 	struct auxiliary_device aux_dev;
+	phys_addr_t egmphys;
+	size_t egmlength;
 	u64 egmpxm;
 	struct list_head gpus;
 };

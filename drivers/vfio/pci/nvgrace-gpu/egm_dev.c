@@ -17,6 +17,26 @@ int nvgrace_gpu_has_egm_property(struct pci_dev *pdev, u64 *pegmpxm)
 					pegmpxm);
 }
 
+int nvgrace_gpu_fetch_egm_property(struct pci_dev *pdev, u64 *pegmphys,
+				   u64 *pegmlength)
+{
+	int ret;
+
+	/*
+	 * The memory information is present in the system ACPI tables as DSD
+	 * properties nvidia,egm-base-pa and nvidia,egm-size.
+	 */
+	ret = device_property_read_u64(&pdev->dev, "nvidia,egm-size",
+				       pegmlength);
+	if (ret)
+		return ret;
+
+	ret = device_property_read_u64(&pdev->dev, "nvidia,egm-base-pa",
+				       pegmphys);
+
+	return ret;
+}
+
 int add_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
 {
 	struct gpu_node *node;
@@ -54,7 +74,7 @@ static void nvgrace_gpu_release_aux_device(struct device *device)
 
 struct nvgrace_egm_dev *
 nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
-			      u64 egmpxm)
+			      u64 egmphys, u64 egmlength, u64 egmpxm)
 {
 	struct nvgrace_egm_dev *egm_dev;
 	int ret;
@@ -64,6 +84,8 @@ nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
 		goto create_err;
 
 	egm_dev->egmpxm = egmpxm;
+	egm_dev->egmphys = egmphys;
+	egm_dev->egmlength = egmlength;
 	INIT_LIST_HEAD(&egm_dev->gpus);
 
 	egm_dev->aux_dev.id = egmpxm;
