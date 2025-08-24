@@ -1474,9 +1474,9 @@ void Hal_EfuseParsePackageType_8723B(
 	u8 package;
 	u8 efuseContent;
 
-	Efuse_PowerSwitch(padapter, false, true);
+	Hal_EfusePowerSwitch(padapter, false, true);
 	efuse_OneByteRead(padapter, 0x1FB, &efuseContent);
-	Efuse_PowerSwitch(padapter, false, false);
+	Hal_EfusePowerSwitch(padapter, false, false);
 
 	package = efuseContent & 0x7;
 	switch (package) {

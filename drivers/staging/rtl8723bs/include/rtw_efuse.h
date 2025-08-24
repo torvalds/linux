@@ -93,8 +93,6 @@ extern u8 fakeBTEfuseModifiedMap[];
 u8 Efuse_CalculateWordCnts(u8 word_en);
 u8 efuse_OneByteRead(struct adapter *padapter, u16 addr, u8 *data);
 
-void Efuse_PowerSwitch(struct adapter *padapter, u8 bWrite, u8  PwrState);
-
 u8 EFUSE_Read1Byte(struct adapter *padapter, u16 Address);
 void EFUSE_ShadowMapUpdate(struct adapter *padapter, u8 efuseType);
 void EFUSE_ShadowRead(struct adapter *padapter, u8 Type, u16 Offset, u32 *Value);
