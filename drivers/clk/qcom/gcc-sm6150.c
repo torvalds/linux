@@ -22,6 +22,7 @@
 #include "clk-regmap.h"
 #include "common.h"
 #include "reset.h"
+#include "gdsc.h"
 
 enum {
 	P_BI_TCXO,
@@ -2849,6 +2850,51 @@ static struct clk_branch gcc_usb2_sec_clkref_clk = {
 	},
 };
 
+static struct gdsc pcie_0_gdsc = {
+	.gdscr = 0x6b004,
+	.pd = {
+		.name = "pcie_0_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = POLL_CFG_GDSCR,
+};
+
+static struct gdsc ufs_phy_gdsc = {
+	.gdscr = 0x77004,
+	.pd = {
+		.name = "ufs_phy_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = POLL_CFG_GDSCR,
+};
+
+static struct gdsc emac_gdsc = {
+	.gdscr = 0x6004,
+	.pd = {
+		.name = "emac_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = POLL_CFG_GDSCR,
+};
+
+static struct gdsc usb30_prim_gdsc = {
+	.gdscr = 0xf004,
+	.pd = {
+		.name = "usb30_prim_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = POLL_CFG_GDSCR,
+};
+
+static struct gdsc usb20_sec_gdsc = {
+	.gdscr = 0xa6004,
+	.pd = {
+		.name = "usb20_sec_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = POLL_CFG_GDSCR,
+};
+
 
 struct clk_hw *gcc_sm6150_hws[] = {
 	&gpll0_out_aux2.hw,
@@ -3024,6 +3070,15 @@ static struct clk_regmap *gcc_sm6150_clocks[] = {
 	[GCC_USB2_SEC_CLKREF_CLK] = &gcc_usb2_sec_clkref_clk.clkr,
 };
 
+static struct gdsc *gcc_sm6150_gdscs[] = {
+	[EMAC_GDSC] = &emac_gdsc,
+	[PCIE_0_GDSC] = &pcie_0_gdsc,
+	[UFS_PHY_GDSC] = &ufs_phy_gdsc,
+	[USB30_PRIM_GDSC] = &usb30_prim_gdsc,
+	[USB20_SEC_GDSC] = &usb20_sec_gdsc,
+};
+
+
 static const struct qcom_reset_map gcc_sm6150_resets[] = {
 	[GCC_QUSB2PHY_PRIM_BCR] = { 0xd000 },
 	[GCC_QUSB2PHY_SEC_BCR] = { 0xd004 },
@@ -3072,6 +3127,8 @@ static const struct qcom_cc_desc gcc_sm6150_desc = {
 	.num_clk_hws = ARRAY_SIZE(gcc_sm6150_hws),
 	.resets = gcc_sm6150_resets,
 	.num_resets = ARRAY_SIZE(gcc_sm6150_resets),
+	.gdscs = gcc_sm6150_gdscs,
+	.num_gdscs = ARRAY_SIZE(gcc_sm6150_gdscs),
 };
 
 static const struct of_device_id gcc_sm6150_match_table[] = {
