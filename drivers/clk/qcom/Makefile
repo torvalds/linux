@@ -146,6 +146,7 @@ obj-$(CONFIG_SM_DISPCC_MILOS) += dispcc-milos.o
 obj-$(CONFIG_SM_GCC_4450) += gcc-sm4450.o
 obj-$(CONFIG_SM_GCC_6115) += gcc-sm6115.o
 obj-$(CONFIG_SM_GCC_6125) += gcc-sm6125.o
+obj-$(CONFIG_SM_GCC_6150) += gcc-sm6150.o
 obj-$(CONFIG_SM_GCC_6350) += gcc-sm6350.o
 obj-$(CONFIG_SM_GCC_6375) += gcc-sm6375.o
 obj-$(CONFIG_SM_GCC_7150) += gcc-sm7150.o
