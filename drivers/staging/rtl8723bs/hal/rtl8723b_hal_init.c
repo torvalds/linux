@@ -568,13 +568,6 @@ void Hal_GetEfuseDefinition(
 	}
 }
 
-/*  */
-/* 	The following is for compile ok */
-/* 	That should be merged with the original in the future */
-/*  */
-#define EFUSE_ACCESS_ON_8723			0x69	/*  For RTL8723 only. */
-#define REG_EFUSE_ACCESS_8723			0x00CF	/*  Efuse access protection for RTL8723 */
-
 void Hal_EfusePowerSwitch(
 	struct adapter *padapter, u8 PwrState
 )
@@ -609,7 +602,7 @@ void Hal_EfusePowerSwitch(
 			} while (1);
 		}
 
-		rtw_write8(padapter, REG_EFUSE_ACCESS_8723, EFUSE_ACCESS_ON_8723);
+		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
 		/*  Reset: 0x0000h[28], default valid */
 		tmpV16 =  rtw_read16(padapter, REG_SYS_FUNC_EN);
