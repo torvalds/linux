@@ -15,6 +15,7 @@ static DEFINE_XARRAY(egm_chardevs);
 struct chardev {
 	struct device device;
 	struct cdev cdev;
+	atomic_t open_count;
 };
 
 static struct nvgrace_egm_dev *
@@ -30,6 +31,26 @@ static int nvgrace_egm_open(struct inode *inode, struct file *file)
 {
 	struct chardev *egm_chardev =
 		container_of(inode->i_cdev, struct chardev, cdev);
+	struct nvgrace_egm_dev *egm_dev =
+		egm_chardev_to_nvgrace_egm_dev(egm_chardev);
+	void *memaddr;
+
+	if (atomic_inc_return(&egm_chardev->open_count) > 1)
+		return 0;
+
+	/*
+	 * nvgrace-egm module is responsible to manage the EGM memory as
+	 * the host kernel has no knowledge of it. Clear the region before
+	 * handing over to userspace.
+	 */
+	memaddr = memremap(egm_dev->egmphys, egm_dev->egmlength, MEMREMAP_WB);
+	if (!memaddr) {
+		atomic_dec(&egm_chardev->open_count);
+		return -EINVAL;
+	}
+
+	memset((u8 *)memaddr, 0, egm_dev->egmlength);
+	memunmap(memaddr);
 
 	file->private_data = egm_chardev;
 
@@ -38,7 +59,11 @@ static int nvgrace_egm_open(struct inode *inode, struct file *file)
 
 static int nvgrace_egm_release(struct inode *inode, struct file *file)
 {
-	file->private_data = NULL;
+	struct chardev *egm_chardev =
+		container_of(inode->i_cdev, struct chardev, cdev);
+
+	if (atomic_dec_and_test(&egm_chardev->open_count))
+		file->private_data = NULL;
 
 	return 0;
 }
@@ -96,6 +121,7 @@ setup_egm_chardev(struct nvgrace_egm_dev *egm_dev)
 	egm_chardev->device.parent = &egm_dev->aux_dev.dev;
 	cdev_init(&egm_chardev->cdev, &file_ops);
 	egm_chardev->cdev.owner = THIS_MODULE;
+	atomic_set(&egm_chardev->open_count, 0);
 
 	ret = dev_set_name(&egm_chardev->device, "egm%lld", egm_dev->egmpxm);
 	if (ret)
