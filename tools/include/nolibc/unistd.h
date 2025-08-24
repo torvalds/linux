@@ -33,7 +33,7 @@
 static __attribute__((unused))
 int sys_faccessat(int fd, const char *path, int amode, int flag)
 {
-       return my_syscall4(__NR_faccessat, fd, path, amode, flag);
+	return my_syscall4(__NR_faccessat, fd, path, amode, flag);
 }
 
 static __attribute__((unused))
