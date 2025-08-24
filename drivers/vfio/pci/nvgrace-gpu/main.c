@@ -1009,7 +1009,17 @@ static struct pci_driver nvgrace_gpu_vfio_pci_driver = {
 	.driver_managed_dma = true,
 };
 
-module_pci_driver(nvgrace_gpu_vfio_pci_driver);
+static int __init nvgrace_gpu_vfio_pci_init(void)
+{
+	return pci_register_driver(&nvgrace_gpu_vfio_pci_driver);
+}
+module_init(nvgrace_gpu_vfio_pci_init);
+
+static void __exit nvgrace_gpu_vfio_pci_cleanup(void)
+{
+	pci_unregister_driver(&nvgrace_gpu_vfio_pci_driver);
+}
+module_exit(nvgrace_gpu_vfio_pci_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ankit Agrawal <ankita@nvidia.com>");
