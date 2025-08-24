@@ -1511,14 +1511,6 @@ void Hal_EfuseParseCustomerID_8723B(
 		pHalData->EEPROMCustomerID = 0;
 }
 
-void Hal_EfuseParseAntennaDiversity_8723B(
-	struct adapter *padapter,
-	u8 *hwinfo,
-	bool AutoLoadFail
-)
-{
-}
-
 void Hal_EfuseParseXtal_8723B(
 	struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail
 )
