@@ -9,6 +9,8 @@
 #ifndef _NET_SEG6_HMAC_H
 #define _NET_SEG6_HMAC_H
 
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <net/flow.h>
 #include <net/ip6_fib.h>
 #include <net/sock.h>
@@ -26,9 +28,15 @@ struct seg6_hmac_info {
 	struct rcu_head rcu;
 
 	u32 hmackeyid;
+	/* The raw key, kept only so it can be returned back to userspace */
 	char secret[SEG6_HMAC_SECRET_LEN];
 	u8 slen;
 	u8 alg_id;
+	/* The prepared key, which the calculations actually use */
+	union {
+		struct hmac_sha1_key sha1;
+		struct hmac_sha256_key sha256;
+	} key;
 };
 
 extern int seg6_hmac_compute(struct seg6_hmac_info *hinfo,
