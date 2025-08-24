@@ -1537,15 +1537,6 @@ struct v4l2_ctrl_h264_pred_weights {
 	struct v4l2_h264_weight_factors weight_factors[2];
 };
 
-#define V4L2_H264_SLICE_TYPE_P				0
-#define V4L2_H264_SLICE_TYPE_B				1
-#define V4L2_H264_SLICE_TYPE_I				2
-#define V4L2_H264_SLICE_TYPE_SP				3
-#define V4L2_H264_SLICE_TYPE_SI				4
-
-#define V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED	0x01
-#define V4L2_H264_SLICE_FLAG_SP_FOR_SWITCH		0x02
-
 #define V4L2_H264_TOP_FIELD_REF				0x1
 #define V4L2_H264_BOTTOM_FIELD_REF			0x2
 #define V4L2_H264_FRAME_REF				0x3
@@ -1566,8 +1557,17 @@ struct v4l2_h264_reference {
  * Maximum DPB size, as specified by section 'A.3.1 Level limits
  * common to the Baseline, Main, and Extended profiles'.
  */
-#define V4L2_H264_NUM_DPB_ENTRIES 16
-#define V4L2_H264_REF_LIST_LEN (2 * V4L2_H264_NUM_DPB_ENTRIES)
+#define V4L2_H264_NUM_DPB_ENTRIES		16
+#define V4L2_H264_REF_LIST_LEN			(2 * V4L2_H264_NUM_DPB_ENTRIES)
+
+#define V4L2_H264_SLICE_TYPE_P				0
+#define V4L2_H264_SLICE_TYPE_B				1
+#define V4L2_H264_SLICE_TYPE_I				2
+#define V4L2_H264_SLICE_TYPE_SP				3
+#define V4L2_H264_SLICE_TYPE_SI				4
+
+#define V4L2_H264_SLICE_FLAG_DIRECT_SPATIAL_MV_PRED		0x01
+#define V4L2_H264_SLICE_FLAG_SP_FOR_SWITCH			0x02
 
 #define V4L2_CID_STATELESS_H264_SLICE_PARAMS	(V4L2_CID_CODEC_STATELESS_BASE + 6)
 /**
@@ -1706,7 +1706,6 @@ struct v4l2_ctrl_h264_decode_params {
 	__u32 reserved;
 	__u32 flags;
 };
-
 
 /* Stateless FWHT control, used by the vicodec driver */
 
