@@ -2984,7 +2984,7 @@ static int do_change_type(const struct path *path, int ms_flags)
  *
  * Returns true if the mount tree can be copied, false otherwise.
  */
-static inline bool may_copy_tree(struct path *path)
+static inline bool may_copy_tree(const struct path *path)
 {
 	struct mount *mnt = real_mount(path->mnt);
 	const struct dentry_operations *d_op;
@@ -3006,7 +3006,7 @@ static inline bool may_copy_tree(struct path *path)
 }
 
 
-static struct mount *__do_loopback(struct path *old_path, int recurse)
+static struct mount *__do_loopback(const struct path *old_path, int recurse)
 {
 	struct mount *old = real_mount(old_path->mnt);
 
