@@ -2300,7 +2300,7 @@ static inline bool extend_array(struct path **res, struct path **to_free,
 	return p;
 }
 
-struct path *collect_paths(const struct path *path,
+const struct path *collect_paths(const struct path *path,
 			      struct path *prealloc, unsigned count)
 {
 	struct mount *root = real_mount(path->mnt);
@@ -2334,7 +2334,7 @@ struct path *collect_paths(const struct path *path,
 	return res;
 }
 
-void drop_collected_paths(const struct path *paths, struct path *prealloc)
+void drop_collected_paths(const struct path *paths, const struct path *prealloc)
 {
 	for (const struct path *p = paths; p->mnt; p++)
 		path_put(p);
