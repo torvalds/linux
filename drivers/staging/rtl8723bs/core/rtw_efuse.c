@@ -164,13 +164,13 @@ static void Efuse_ReadAllMap(struct adapter *padapter, u8 efuseType, u8 *Efuse)
 {
 	u16 mapLen = 0;
 
-	Hal_EfusePowerSwitch(padapter, false, true);
+	Hal_EfusePowerSwitch(padapter, true);
 
 	Hal_GetEfuseDefinition(padapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
 	Hal_ReadEFuse(padapter, efuseType, 0, mapLen, Efuse);
 
-	Hal_EfusePowerSwitch(padapter, false, false);
+	Hal_EfusePowerSwitch(padapter, false);
 }
 
 /*-----------------------------------------------------------------------------

@@ -568,8 +568,6 @@ void Hal_GetEfuseDefinition(
 	}
 }
 
-#define VOLTAGE_V25		0x03
-
 /*  */
 /* 	The following is for compile ok */
 /* 	That should be merged with the original in the future */
@@ -578,7 +576,7 @@ void Hal_GetEfuseDefinition(
 #define REG_EFUSE_ACCESS_8723			0x00CF	/*  Efuse access protection for RTL8723 */
 
 void Hal_EfusePowerSwitch(
-	struct adapter *padapter, u8 bWrite, u8 PwrState
+	struct adapter *padapter, u8 PwrState
 )
 {
 	u8 tempval;
@@ -626,25 +624,8 @@ void Hal_EfusePowerSwitch(
 			tmpV16 |= (LOADER_CLK_EN | ANA8M);
 			rtw_write16(padapter, REG_SYS_CLKR, tmpV16);
 		}
-
-		if (bWrite) {
-			/*  Enable LDO 2.5V before read/write action */
-			tempval = rtw_read8(padapter, EFUSE_TEST+3);
-			tempval &= 0x0F;
-			tempval |= (VOLTAGE_V25 << 4);
-			rtw_write8(padapter, EFUSE_TEST+3, (tempval | 0x80));
-
-			/* rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON); */
-		}
 	} else {
 		rtw_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
-
-		if (bWrite) {
-			/*  Disable LDO 2.5V after read/write action */
-			tempval = rtw_read8(padapter, EFUSE_TEST+3);
-			rtw_write8(padapter, EFUSE_TEST+3, (tempval & 0x7F));
-		}
-
 	}
 }
 
@@ -1474,9 +1455,9 @@ void Hal_EfuseParsePackageType_8723B(
 	u8 package;
 	u8 efuseContent;
 
-	Hal_EfusePowerSwitch(padapter, false, true);
+	Hal_EfusePowerSwitch(padapter, true);
 	efuse_OneByteRead(padapter, 0x1FB, &efuseContent);
-	Hal_EfusePowerSwitch(padapter, false, false);
+	Hal_EfusePowerSwitch(padapter, false);
 
 	package = efuseContent & 0x7;
 	switch (package) {
