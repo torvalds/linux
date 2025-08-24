@@ -18,7 +18,7 @@
 
 static DEFINE_IDA(session_ida);
 
-#define SESSION_HASH_BITS		3
+#define SESSION_HASH_BITS		12
 static DEFINE_HASHTABLE(sessions_table, SESSION_HASH_BITS);
 static DECLARE_RWSEM(sessions_table_lock);
 
