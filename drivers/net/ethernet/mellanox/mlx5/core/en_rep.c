@@ -1447,7 +1447,7 @@ static void mlx5e_rep_vnic_reporter_create(struct mlx5e_priv *priv,
 
 	reporter = devl_port_health_reporter_create(dl_port,
 						    &mlx5_rep_vnic_reporter_ops,
-						    0, rpriv);
+						    rpriv);
 	if (IS_ERR(reporter)) {
 		mlx5_core_err(priv->mdev,
 			      "Failed to create representor vnic reporter, err = %ld\n",

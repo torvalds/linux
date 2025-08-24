@@ -108,11 +108,11 @@ devlink_port_health_reporter_find_by_name(struct devlink_port *devlink_port,
 static struct devlink_health_reporter *
 __devlink_health_reporter_create(struct devlink *devlink,
 				 const struct devlink_health_reporter_ops *ops,
-				 u64 graceful_period, void *priv)
+				 void *priv)
 {
 	struct devlink_health_reporter *reporter;
 
-	if (WARN_ON(graceful_period && !ops->recover))
+	if (WARN_ON(ops->default_graceful_period && !ops->recover))
 		return ERR_PTR(-EINVAL);
 
 	reporter = kzalloc(sizeof(*reporter), GFP_KERNEL);
@@ -122,7 +122,7 @@ __devlink_health_reporter_create(struct devlink *devlink,
 	reporter->priv = priv;
 	reporter->ops = ops;
 	reporter->devlink = devlink;
-	reporter->graceful_period = graceful_period;
+	reporter->graceful_period = ops->default_graceful_period;
 	reporter->auto_recover = !!ops->recover;
 	reporter->auto_dump = !!ops->dump;
 	return reporter;
@@ -134,13 +134,12 @@ __devlink_health_reporter_create(struct devlink *devlink,
  *
  * @port: devlink_port to which health reports will relate
  * @ops: devlink health reporter ops
- * @graceful_period: min time (in msec) between recovery attempts
  * @priv: driver priv pointer
  */
 struct devlink_health_reporter *
 devl_port_health_reporter_create(struct devlink_port *port,
 				 const struct devlink_health_reporter_ops *ops,
-				 u64 graceful_period, void *priv)
+				 void *priv)
 {
 	struct devlink_health_reporter *reporter;
 
@@ -150,8 +149,7 @@ devl_port_health_reporter_create(struct devlink_port *port,
 						   ops->name))
 		return ERR_PTR(-EEXIST);
 
-	reporter = __devlink_health_reporter_create(port->devlink, ops,
-						    graceful_period, priv);
+	reporter = __devlink_health_reporter_create(port->devlink, ops, priv);
 	if (IS_ERR(reporter))
 		return reporter;
 
@@ -164,14 +162,13 @@ EXPORT_SYMBOL_GPL(devl_port_health_reporter_create);
 struct devlink_health_reporter *
 devlink_port_health_reporter_create(struct devlink_port *port,
 				    const struct devlink_health_reporter_ops *ops,
-				    u64 graceful_period, void *priv)
+				    void *priv)
 {
 	struct devlink_health_reporter *reporter;
 	struct devlink *devlink = port->devlink;
 
 	devl_lock(devlink);
-	reporter = devl_port_health_reporter_create(port, ops,
-						    graceful_period, priv);
+	reporter = devl_port_health_reporter_create(port, ops, priv);
 	devl_unlock(devlink);
 	return reporter;
 }
@@ -182,13 +179,12 @@ EXPORT_SYMBOL_GPL(devlink_port_health_reporter_create);
  *
  * @devlink: devlink instance which the health reports will relate
  * @ops: devlink health reporter ops
- * @graceful_period: min time (in msec) between recovery attempts
  * @priv: driver priv pointer
  */
 struct devlink_health_reporter *
 devl_health_reporter_create(struct devlink *devlink,
 			    const struct devlink_health_reporter_ops *ops,
-			    u64 graceful_period, void *priv)
+			    void *priv)
 {
 	struct devlink_health_reporter *reporter;
 
@@ -197,8 +193,7 @@ devl_health_reporter_create(struct devlink *devlink,
 	if (devlink_health_reporter_find_by_name(devlink, ops->name))
 		return ERR_PTR(-EEXIST);
 
-	reporter = __devlink_health_reporter_create(devlink, ops,
-						    graceful_period, priv);
+	reporter = __devlink_health_reporter_create(devlink, ops, priv);
 	if (IS_ERR(reporter))
 		return reporter;
 
@@ -210,13 +205,12 @@ EXPORT_SYMBOL_GPL(devl_health_reporter_create);
 struct devlink_health_reporter *
 devlink_health_reporter_create(struct devlink *devlink,
 			       const struct devlink_health_reporter_ops *ops,
-			       u64 graceful_period, void *priv)
+			       void *priv)
 {
 	struct devlink_health_reporter *reporter;
 
 	devl_lock(devlink);
-	reporter = devl_health_reporter_create(devlink, ops,
-					       graceful_period, priv);
+	reporter = devl_health_reporter_create(devlink, ops, priv);
 	devl_unlock(devlink);
 	return reporter;
 }

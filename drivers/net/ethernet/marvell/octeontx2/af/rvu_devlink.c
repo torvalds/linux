@@ -505,7 +505,9 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 
 	rvu_reporters->nix_event_ctx = nix_event_context;
 	rvu_reporters->rvu_hw_nix_intr_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_nix_intr_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_nix_intr_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_nix_intr_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_nix_intr reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_nix_intr_reporter));
@@ -513,7 +515,9 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 	}
 
 	rvu_reporters->rvu_hw_nix_gen_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_nix_gen_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_nix_gen_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_nix_gen_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_nix_gen reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_nix_gen_reporter));
@@ -521,7 +525,9 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 	}
 
 	rvu_reporters->rvu_hw_nix_err_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_nix_err_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_nix_err_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_nix_err_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_nix_err reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_nix_err_reporter));
@@ -529,7 +535,9 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 	}
 
 	rvu_reporters->rvu_hw_nix_ras_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_nix_ras_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_nix_ras_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_nix_ras_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_nix_ras reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_nix_ras_reporter));
@@ -1051,7 +1059,9 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 
 	rvu_reporters->npa_event_ctx = npa_event_context;
 	rvu_reporters->rvu_hw_npa_intr_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_npa_intr_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_npa_intr_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_npa_intr_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_npa_intr reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_npa_intr_reporter));
@@ -1059,7 +1069,9 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 	}
 
 	rvu_reporters->rvu_hw_npa_gen_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_npa_gen_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_npa_gen_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_npa_gen_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_npa_gen reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_npa_gen_reporter));
@@ -1067,7 +1079,9 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 	}
 
 	rvu_reporters->rvu_hw_npa_err_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_npa_err_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_npa_err_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_npa_err_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_npa_err reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_npa_err_reporter));
@@ -1075,7 +1089,9 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 	}
 
 	rvu_reporters->rvu_hw_npa_ras_reporter =
-		devlink_health_reporter_create(rvu_dl->dl, &rvu_hw_npa_ras_reporter_ops, 0, rvu);
+		devlink_health_reporter_create(rvu_dl->dl,
+					       &rvu_hw_npa_ras_reporter_ops,
+					       rvu);
 	if (IS_ERR(rvu_reporters->rvu_hw_npa_ras_reporter)) {
 		dev_warn(rvu->dev, "Failed to create hw_npa_ras reporter, err=%ld\n",
 			 PTR_ERR(rvu_reporters->rvu_hw_npa_ras_reporter));
