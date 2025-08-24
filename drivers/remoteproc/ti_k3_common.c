@@ -155,11 +155,19 @@ int k3_rproc_release(struct k3_rproc *kproc)
 }
 EXPORT_SYMBOL_GPL(k3_rproc_release);
 
+static void k3_rproc_free_channel(void *data)
+{
+	struct k3_rproc *kproc = data;
+
+	mbox_free_channel(kproc->mbox);
+}
+
 int k3_rproc_request_mbox(struct rproc *rproc)
 {
 	struct k3_rproc *kproc = rproc->priv;
 	struct mbox_client *client = &kproc->client;
 	struct device *dev = kproc->dev;
+	int ret;
 
 	client->dev = dev;
 	client->tx_done = NULL;
@@ -171,6 +179,10 @@ int k3_rproc_request_mbox(struct rproc *rproc)
 	if (IS_ERR(kproc->mbox))
 		return dev_err_probe(dev, PTR_ERR(kproc->mbox),
 				     "mbox_request_channel failed\n");
+
+	ret = devm_add_action_or_reset(dev, k3_rproc_free_channel, kproc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
