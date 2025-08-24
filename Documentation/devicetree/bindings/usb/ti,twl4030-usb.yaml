@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ti,twl4030-usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TWL4030 USB PHY and Comparator
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
+
+description:
+  Bindings for the USB PHY and comparator module found within the
+  TWL4030 family of companion chips. If a sibling node is compatible with
+  "ti,twl4030-bci", the driver for that node will query this device for
+  USB power status.
+
+properties:
+  compatible:
+    const: ti,twl4030-usb
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: OTG interrupt number for ID events.
+      - description: USB interrupt number for VBUS events.
+
+  usb1v5-supply:
+    description: Phandle to the vusb1v5 regulator.
+
+  usb1v8-supply:
+    description: Phandle to the vusb1v8 regulator.
+
+  usb3v1-supply:
+    description: Phandle to the vusb3v1 regulator.
+
+  usb_mode:
+    description: |
+      The mode used by the PHY to connect to the controller:
+        1: ULPI mode
+        2: CEA2011_3PIN mode
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2]
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - interrupts
+  - usb1v5-supply
+  - usb1v8-supply
+  - usb3v1-supply
+  - usb_mode
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    usb-phy {
+        compatible = "ti,twl4030-usb";
+
+        interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-parent = <&gic>;
+
+        usb1v5-supply = <&reg_vusb1v5>;
+        usb1v8-supply = <&reg_vusb1v8>;
+        usb3v1-supply  = <&reg_vusb3v1>;
+        usb_mode = <1>;
+
+        #phy-cells = <0>;
+    };
