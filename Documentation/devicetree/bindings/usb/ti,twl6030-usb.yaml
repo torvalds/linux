@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ti,twl6030-usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TWL6030 USB Comparator
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
+
+description:
+  Bindings for the USB comparator module found within the TWL6030
+  family of companion chips.
+
+properties:
+  compatible:
+    const: ti,twl6030-usb
+
+  interrupts:
+    items:
+      - description: OTG for ID events in host mode
+      - description: USB device mode for VBUS events
+
+  usb-supply:
+    description:
+      Phandle to the VUSB regulator. For TWL6030, this should be the 'vusb'
+      regulator. For TWL6032 subclass, it should be the 'ldousb' regulator.
+
+required:
+  - compatible
+  - interrupts
+  - usb-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    usb {
+        compatible = "ti,twl6030-usb";
+
+        interrupts = <4 IRQ_TYPE_LEVEL_HIGH>, <10 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-parent = <&gic>;
+
+        usb-supply = <&reg_vusb>;
+    };
