@@ -530,8 +530,7 @@ static struct nft_pipapo_elem *pipapo_get(const struct nft_pipapo_match *m,
 	local_bh_disable();
 
 #if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
-	if (boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX) &&
-	    irq_fpu_usable()) {
+	if (boot_cpu_has(X86_FEATURE_AVX2) && irq_fpu_usable()) {
 		e = pipapo_get_avx2(m, data, genmask, tstamp);
 		local_bh_enable();
 		return e;

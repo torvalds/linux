@@ -1099,7 +1099,7 @@ bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
 	    desc->field_count < NFT_PIPAPO_MIN_FIELDS)
 		return false;
 
-	if (!boot_cpu_has(X86_FEATURE_AVX2) || !boot_cpu_has(X86_FEATURE_AVX))
+	if (!boot_cpu_has(X86_FEATURE_AVX2))
 		return false;
 
 	est->size = pipapo_estimate_size(desc);
