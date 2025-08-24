@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/property.h>
+#include <linux/string_choices.h>
 #include <linux/string_helpers.h>
 
 #include "nhi.h"
@@ -146,7 +147,7 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 		dev_WARN(&ring->nhi->pdev->dev,
 					 "interrupt for %s %d is already %s\n",
 					 RING_TYPE(ring), ring->hop,
-					 active ? "enabled" : "disabled");
+					 str_enabled_disabled(active));
 
 	if (active)
 		iowrite32(new, ring->nhi->iobase + reg);

@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/ktime.h>
+#include <linux/string_choices.h>
 #include <linux/units.h>
 
 #include "sb_regs.h"
@@ -172,8 +173,8 @@ void usb4_switch_check_wakes(struct tb_switch *sw)
 			return;
 
 		tb_sw_dbg(sw, "PCIe wake: %s, USB3 wake: %s\n",
-			  (val & ROUTER_CS_6_WOPS) ? "yes" : "no",
-			  (val & ROUTER_CS_6_WOUS) ? "yes" : "no");
+			  str_yes_no(val & ROUTER_CS_6_WOPS),
+			  str_yes_no(val & ROUTER_CS_6_WOUS));
 
 		wakeup = val & (ROUTER_CS_6_WOPS | ROUTER_CS_6_WOUS);
 	}
@@ -191,9 +192,9 @@ void usb4_switch_check_wakes(struct tb_switch *sw)
 			break;
 
 		tb_port_dbg(port, "USB4 wake: %s, connection wake: %s, disconnection wake: %s\n",
-			    (val & PORT_CS_18_WOU4S) ? "yes" : "no",
-			    (val & PORT_CS_18_WOCS) ? "yes" : "no",
-			    (val & PORT_CS_18_WODS) ? "yes" : "no");
+			    str_yes_no(val & PORT_CS_18_WOU4S),
+			    str_yes_no(val & PORT_CS_18_WOCS),
+			    str_yes_no(val & PORT_CS_18_WODS));
 
 		wakeup_usb4 = val & (PORT_CS_18_WOU4S | PORT_CS_18_WOCS |
 				     PORT_CS_18_WODS);
@@ -260,7 +261,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 	tbt3 = !(val & ROUTER_CS_6_TNS);
 
 	tb_sw_dbg(sw, "TBT3 support: %s, xHCI: %s\n",
-		  tbt3 ? "yes" : "no", xhci ? "yes" : "no");
+		  str_yes_no(tbt3), str_yes_no(xhci));
 
 	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
 	if (ret)
