@@ -20,6 +20,10 @@ properties:
   reg:
     maxItems: 1
 
+  label:
+    description:
+      A descriptive name for this channel, like "ambient" or "psu".
+
   "#thermal-sensor-cells":
     const: 1
 
@@ -45,6 +49,7 @@ examples:
             reg = <0x48>;
             interrupt-parent = <&gpio7>;
             interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
+            label = "somelabel";
             vcc-supply = <&supply>;
             #thermal-sensor-cells = <1>;
         };
