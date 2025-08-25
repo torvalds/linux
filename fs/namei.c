@@ -1518,6 +1518,7 @@ static inline int traverse_mounts(struct path *path, bool *jumped,
 				  int *count, unsigned lookup_flags)
 {
 	unsigned flags = smp_load_acquire(&path->dentry->d_flags);
+	int ret;
 
 	/* fastpath */
 	if (likely(!(flags & DCACHE_MANAGED_DENTRY))) {
@@ -1526,7 +1527,11 @@ static inline int traverse_mounts(struct path *path, bool *jumped,
 			return -ENOENT;
 		return 0;
 	}
-	return __traverse_mounts(path, flags, jumped, count, lookup_flags);
+
+	ret = __traverse_mounts(path, flags, jumped, count, lookup_flags);
+	if (*jumped && unlikely(lookup_flags & LOOKUP_NO_XDEV))
+		return -EXDEV;
+	return ret;
 }
 
 int follow_down_one(struct path *path)
@@ -1631,9 +1636,7 @@ static inline int handle_mounts(struct nameidata *nd, struct dentry *dentry,
 	}
 	ret = traverse_mounts(path, &jumped, &nd->total_link_count, nd->flags);
 	if (jumped) {
-		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
-			ret = -EXDEV;
-		else
+		if (!unlikely(nd->flags & LOOKUP_NO_XDEV))
 			nd->state |= ND_JUMPED;
 	}
 	if (unlikely(ret)) {
