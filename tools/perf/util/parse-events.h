@@ -216,6 +216,7 @@ struct parse_events_modifier {
 	bool guest : 1;		/* 'G' */
 	bool host : 1;		/* 'H' */
 	bool retire_lat : 1;	/* 'R' */
+	bool dont_regroup : 1;	/* 'X' */
 };
 
 int parse_events__modifier_event(struct parse_events_state *parse_state, void *loc,

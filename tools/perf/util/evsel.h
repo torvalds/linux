@@ -89,6 +89,7 @@ struct evsel {
 		bool			use_config_name;
 		bool			skippable;
 		bool			retire_lat;
+		bool			dont_regroup;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
 		struct list_head	config_terms;
