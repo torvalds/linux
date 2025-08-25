@@ -40,7 +40,8 @@ enum domain_type {
  * @vdev_dec: iris video device structure for decoder
  * @vdev_enc: iris video device structure for encoder
  * @iris_v4l2_file_ops: iris v4l2 file ops
- * @iris_v4l2_ioctl_ops: iris v4l2 ioctl ops
+ * @iris_v4l2_ioctl_ops_dec: iris v4l2 ioctl ops for decoder
+ * @iris_v4l2_ioctl_ops_enc: iris v4l2 ioctl ops for encoder
  * @iris_vb2_ops: iris vb2 ops
  * @icc_tbl: table of iris interconnects
  * @icc_count: count of iris interconnects
@@ -81,7 +82,8 @@ struct iris_core {
 	struct video_device			*vdev_dec;
 	struct video_device			*vdev_enc;
 	const struct v4l2_file_operations	*iris_v4l2_file_ops;
-	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops;
+	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops_dec;
+	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops_enc;
 	const struct vb2_ops			*iris_vb2_ops;
 	struct icc_bulk_data			*icc_tbl;
 	u32					icc_count;

@@ -157,16 +157,17 @@ static int iris_register_video_device(struct iris_core *core, enum domain_type t
 
 	vdev->release = video_device_release;
 	vdev->fops = core->iris_v4l2_file_ops;
-	vdev->ioctl_ops = core->iris_v4l2_ioctl_ops;
 	vdev->vfl_dir = VFL_DIR_M2M;
 	vdev->v4l2_dev = &core->v4l2_dev;
 	vdev->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
 
 	if (type == DECODER) {
 		strscpy(vdev->name, "qcom-iris-decoder", sizeof(vdev->name));
+		vdev->ioctl_ops = core->iris_v4l2_ioctl_ops_dec;
 		core->vdev_dec = vdev;
 	} else if (type == ENCODER) {
 		strscpy(vdev->name, "qcom-iris-encoder", sizeof(vdev->name));
+		vdev->ioctl_ops = core->iris_v4l2_ioctl_ops_enc;
 		core->vdev_enc = vdev;
 	} else {
 		ret = -EINVAL;
