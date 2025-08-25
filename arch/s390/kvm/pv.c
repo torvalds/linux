@@ -624,6 +624,17 @@ int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 	int cc, ret;
 	u16 dummy;
 
+	/* Add the notifier only once. No races because we hold kvm->lock */
+	if (kvm->arch.pv.mmu_notifier.ops != &kvm_s390_pv_mmu_notifier_ops) {
+		/* The notifier will be unregistered when the VM is destroyed */
+		kvm->arch.pv.mmu_notifier.ops = &kvm_s390_pv_mmu_notifier_ops;
+		ret = mmu_notifier_register(&kvm->arch.pv.mmu_notifier, kvm->mm);
+		if (ret) {
+			kvm->arch.pv.mmu_notifier.ops = NULL;
+			return ret;
+		}
+	}
+
 	ret = kvm_s390_pv_alloc_vm(kvm);
 	if (ret)
 		return ret;
@@ -659,11 +670,6 @@ int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 		return -EIO;
 	}
 	kvm->arch.gmap->guest_handle = uvcb.guest_handle;
-	/* Add the notifier only once. No races because we hold kvm->lock */
-	if (kvm->arch.pv.mmu_notifier.ops != &kvm_s390_pv_mmu_notifier_ops) {
-		kvm->arch.pv.mmu_notifier.ops = &kvm_s390_pv_mmu_notifier_ops;
-		mmu_notifier_register(&kvm->arch.pv.mmu_notifier, kvm->mm);
-	}
 	return 0;
 }
 
