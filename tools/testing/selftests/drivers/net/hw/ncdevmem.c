@@ -419,6 +419,77 @@ static const char *tcp_data_split_str(int val)
 	}
 }
 
+static struct ethtool_rings_get_rsp *get_ring_config(void)
+{
+	struct ethtool_rings_get_req *get_req;
+	struct ethtool_rings_get_rsp *get_rsp;
+	struct ynl_error yerr;
+	struct ynl_sock *ys;
+
+	ys = ynl_sock_create(&ynl_ethtool_family, &yerr);
+	if (!ys) {
+		fprintf(stderr, "YNL: %s\n", yerr.msg);
+		return NULL;
+	}
+
+	get_req = ethtool_rings_get_req_alloc();
+	ethtool_rings_get_req_set_header_dev_index(get_req, ifindex);
+	get_rsp = ethtool_rings_get(ys, get_req);
+	ethtool_rings_get_req_free(get_req);
+
+	ynl_sock_destroy(ys);
+
+	return get_rsp;
+}
+
+static void restore_ring_config(const struct ethtool_rings_get_rsp *config)
+{
+	struct ethtool_rings_get_req *get_req;
+	struct ethtool_rings_get_rsp *get_rsp;
+	struct ethtool_rings_set_req *req;
+	struct ynl_error yerr;
+	struct ynl_sock *ys;
+	int ret;
+
+	if (!config)
+		return;
+
+	ys = ynl_sock_create(&ynl_ethtool_family, &yerr);
+	if (!ys) {
+		fprintf(stderr, "YNL: %s\n", yerr.msg);
+		return;
+	}
+
+	req = ethtool_rings_set_req_alloc();
+	ethtool_rings_set_req_set_header_dev_index(req, ifindex);
+	ethtool_rings_set_req_set_tcp_data_split(req,
+						ETHTOOL_TCP_DATA_SPLIT_UNKNOWN);
+
+	ret = ethtool_rings_set(ys, req);
+	if (ret < 0)
+		fprintf(stderr, "YNL restoring HDS cfg: %s\n", ys->err.msg);
+
+	get_req = ethtool_rings_get_req_alloc();
+	ethtool_rings_get_req_set_header_dev_index(get_req, ifindex);
+	get_rsp = ethtool_rings_get(ys, get_req);
+	ethtool_rings_get_req_free(get_req);
+
+	/* use explicit value if UKNOWN didn't give us the previous */
+	if (get_rsp->tcp_data_split != config->tcp_data_split) {
+		ethtool_rings_set_req_set_tcp_data_split(req,
+							config->tcp_data_split);
+		ret = ethtool_rings_set(ys, req);
+		if (ret < 0)
+			fprintf(stderr, "YNL restoring expl HDS cfg: %s\n",
+				ys->err.msg);
+	}
+
+	ethtool_rings_get_rsp_free(get_rsp);
+	ethtool_rings_set_req_free(req);
+
+	ynl_sock_destroy(ys);
+}
+
 static int configure_headersplit(bool on)
 {
 	struct ethtool_rings_get_req *get_req;
@@ -436,8 +507,13 @@ static int configure_headersplit(bool on)
 
 	req = ethtool_rings_set_req_alloc();
 	ethtool_rings_set_req_set_header_dev_index(req, ifindex);
-	/* 0 - off, 1 - auto, 2 - on */
-	ethtool_rings_set_req_set_tcp_data_split(req, on ? 2 : 0);
+	if (on)
+		ethtool_rings_set_req_set_tcp_data_split(req,
+						ETHTOOL_TCP_DATA_SPLIT_ENABLED);
+	else
+		ethtool_rings_set_req_set_tcp_data_split(req,
+						ETHTOOL_TCP_DATA_SPLIT_UNKNOWN);
+
 	ret = ethtool_rings_set(ys, req);
 	if (ret < 0)
 		fprintf(stderr, "YNL failed: %s\n", ys->err.msg);
@@ -745,6 +821,7 @@ static struct netdev_queue_id *create_queues(void)
 
 static int do_server(struct memory_buffer *mem)
 {
+	struct ethtool_rings_get_rsp *ring_config;
 	char ctrl_data[sizeof(int) * 20000];
 	size_t non_page_aligned_frags = 0;
 	struct sockaddr_in6 client_addr;
@@ -767,9 +844,15 @@ static int do_server(struct memory_buffer *mem)
 		return -1;
 	}
 
+	ring_config = get_ring_config();
+	if (!ring_config) {
+		pr_err("Failed to get current ring configuration");
+		return -1;
+	}
+
 	if (configure_headersplit(1)) {
 		pr_err("Failed to enable TCP header split");
-		return -1;
+		goto err_free_ring_config;
 	}
 
 	/* Configure RSS to divert all traffic from our devmem queues */
@@ -959,12 +1042,15 @@ err_reset_flow_steering:
 err_reset_rss:
 	reset_rss();
 err_reset_headersplit:
-	configure_headersplit(0);
+	restore_ring_config(ring_config);
+err_free_ring_config:
+	ethtool_rings_get_rsp_free(ring_config);
 	return err;
 }
 
 int run_devmem_tests(void)
 {
+	struct ethtool_rings_get_rsp *ring_config;
 	struct netdev_queue_id *queues;
 	struct memory_buffer *mem;
 	struct ynl_sock *ys;
@@ -976,10 +1062,16 @@ int run_devmem_tests(void)
 		return -1;
 	}
 
+	ring_config = get_ring_config();
+	if (!ring_config) {
+		pr_err("Failed to get current ring configuration");
+		goto err_free_mem;
+	}
+
 	/* Configure RSS to divert all traffic from our devmem queues */
 	if (configure_rss()) {
 		pr_err("rss error");
-		goto err_free_mem;
+		goto err_free_ring_config;
 	}
 
 	if (configure_headersplit(1)) {
@@ -1000,13 +1092,13 @@ int run_devmem_tests(void)
 
 	if (configure_headersplit(0)) {
 		pr_err("Failed to configure header split");
-		goto err_reset_rss;
+		goto err_reset_headersplit;
 	}
 
 	queues = create_queues();
 	if (!queues) {
 		pr_err("Failed to create queues");
-		goto err_reset_rss;
+		goto err_reset_headersplit;
 	}
 
 	if (!bind_rx_queue(ifindex, mem->fd, queues, num_queues, &ys)) {
@@ -1016,7 +1108,7 @@ int run_devmem_tests(void)
 
 	if (configure_headersplit(1)) {
 		pr_err("Failed to configure header split");
-		goto err_reset_rss;
+		goto err_reset_headersplit;
 	}
 
 	queues = create_queues();
@@ -1042,9 +1134,11 @@ int run_devmem_tests(void)
 err_unbind:
 	ynl_sock_destroy(ys);
 err_reset_headersplit:
-	configure_headersplit(0);
+	restore_ring_config(ring_config);
 err_reset_rss:
 	reset_rss();
+err_free_ring_config:
+	ethtool_rings_get_rsp_free(ring_config);
 err_free_mem:
 	provider->free(mem);
 	return err;
