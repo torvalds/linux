@@ -37,13 +37,7 @@
 #define AO_RTC_ALT_CLK_CNTL0	0x94
 #define AO_RTC_ALT_CLK_CNTL1	0x98
 
-/*
- * Like every other peripheral clock gate in Amlogic Clock drivers,
- * we are using CLK_IGNORE_UNUSED here, so we keep the state of the
- * bootloader. The goal is to remove this flag at some point.
- * Actually removing it will require some extensive test to be done safely.
- */
-#define G12A_AO_PCLK(_name, _reg, _bit)					\
+#define G12A_AO_PCLK(_name, _reg, _bit, _flags)				\
 static struct clk_regmap g12a_ao_##_name = {				\
 	.data = &(struct clk_regmap_gate_data) {			\
 		.offset = (_reg),					\
@@ -56,26 +50,35 @@ static struct clk_regmap g12a_ao_##_name = {				\
 			.fw_name = "mpeg-clk",				\
 		},							\
 		.num_parents = 1,					\
-		.flags = CLK_IGNORE_UNUSED,				\
+		.flags = (_flags),					\
 	},								\
 }
 
-G12A_AO_PCLK(ahb,	AO_CLK_GATE0,    0);
-G12A_AO_PCLK(ir_in,	AO_CLK_GATE0,    1);
-G12A_AO_PCLK(i2c_m0,	AO_CLK_GATE0,    2);
-G12A_AO_PCLK(i2c_s0,	AO_CLK_GATE0,    3);
-G12A_AO_PCLK(uart,	AO_CLK_GATE0,    4);
-G12A_AO_PCLK(prod_i2c,	AO_CLK_GATE0,    5);
-G12A_AO_PCLK(uart2,	AO_CLK_GATE0,    6);
-G12A_AO_PCLK(ir_out,	AO_CLK_GATE0,    7);
-G12A_AO_PCLK(saradc,	AO_CLK_GATE0,    8);
+/*
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+G12A_AO_PCLK(ahb,	AO_CLK_GATE0,    0, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(ir_in,	AO_CLK_GATE0,    1, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(i2c_m0,	AO_CLK_GATE0,    2, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(i2c_s0,	AO_CLK_GATE0,    3, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(uart,	AO_CLK_GATE0,    4, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(prod_i2c,	AO_CLK_GATE0,    5, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(uart2,	AO_CLK_GATE0,    6, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(ir_out,	AO_CLK_GATE0,    7, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(saradc,	AO_CLK_GATE0,    8, CLK_IGNORE_UNUSED);
 
-G12A_AO_PCLK(mailbox,	AO_CLK_GATE0_SP, 0);
-G12A_AO_PCLK(m3,	AO_CLK_GATE0_SP, 1);
-G12A_AO_PCLK(ahb_sram,	AO_CLK_GATE0_SP, 2);
-G12A_AO_PCLK(rti,	AO_CLK_GATE0_SP, 3);
-G12A_AO_PCLK(m4_fclk,	AO_CLK_GATE0_SP, 4);
-G12A_AO_PCLK(m4_hclk,	AO_CLK_GATE0_SP, 5);
+G12A_AO_PCLK(mailbox,	AO_CLK_GATE0_SP, 0, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(m3,	AO_CLK_GATE0_SP, 1, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(ahb_sram,	AO_CLK_GATE0_SP, 2, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(rti,	AO_CLK_GATE0_SP, 3, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(m4_fclk,	AO_CLK_GATE0_SP, 4, CLK_IGNORE_UNUSED);
+G12A_AO_PCLK(m4_hclk,	AO_CLK_GATE0_SP, 5, CLK_IGNORE_UNUSED);
 
 static struct clk_regmap g12a_ao_cts_oscin = {
 	.data = &(struct clk_regmap_gate_data){

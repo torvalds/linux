@@ -1840,64 +1840,73 @@ static struct clk_regmap a1_cecb_32k_out = {
 	},
 };
 
-#define A1_PCLK(_name, _reg, _bit) \
-	MESON_PCLK(a1_##_name, _reg, _bit, &a1_sys.hw)
+#define A1_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(a1_##_name, _reg, _bit, &a1_sys.hw, _flags)
 
-static A1_PCLK(clktree,		SYS_CLK_EN0,	0);
-static A1_PCLK(reset_ctrl,	SYS_CLK_EN0,	1);
-static A1_PCLK(analog_ctrl,	SYS_CLK_EN0,	2);
-static A1_PCLK(pwr_ctrl,	SYS_CLK_EN0,	3);
-static A1_PCLK(pad_ctrl,	SYS_CLK_EN0,	4);
-static A1_PCLK(sys_ctrl,	SYS_CLK_EN0,	5);
-static A1_PCLK(temp_sensor,	SYS_CLK_EN0,	6);
-static A1_PCLK(am2axi_dev,	SYS_CLK_EN0,	7);
-static A1_PCLK(spicc_b,		SYS_CLK_EN0,	8);
-static A1_PCLK(spicc_a,		SYS_CLK_EN0,	9);
-static A1_PCLK(msr,		SYS_CLK_EN0,	10);
-static A1_PCLK(audio,		SYS_CLK_EN0,	11);
-static A1_PCLK(jtag_ctrl,	SYS_CLK_EN0,	12);
-static A1_PCLK(saradc_en,	SYS_CLK_EN0,	13);
-static A1_PCLK(pwm_ef,		SYS_CLK_EN0,	14);
-static A1_PCLK(pwm_cd,		SYS_CLK_EN0,	15);
-static A1_PCLK(pwm_ab,		SYS_CLK_EN0,	16);
-static A1_PCLK(cec,		SYS_CLK_EN0,	17);
-static A1_PCLK(i2c_s,		SYS_CLK_EN0,	18);
-static A1_PCLK(ir_ctrl,		SYS_CLK_EN0,	19);
-static A1_PCLK(i2c_m_d,		SYS_CLK_EN0,	20);
-static A1_PCLK(i2c_m_c,		SYS_CLK_EN0,	21);
-static A1_PCLK(i2c_m_b,		SYS_CLK_EN0,	22);
-static A1_PCLK(i2c_m_a,		SYS_CLK_EN0,	23);
-static A1_PCLK(acodec,		SYS_CLK_EN0,	24);
-static A1_PCLK(otp,		SYS_CLK_EN0,	25);
-static A1_PCLK(sd_emmc_a,	SYS_CLK_EN0,	26);
-static A1_PCLK(usb_phy,		SYS_CLK_EN0,	27);
-static A1_PCLK(usb_ctrl,	SYS_CLK_EN0,	28);
-static A1_PCLK(sys_dspb,	SYS_CLK_EN0,	29);
-static A1_PCLK(sys_dspa,	SYS_CLK_EN0,	30);
-static A1_PCLK(dma,		SYS_CLK_EN0,	31);
+/*
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+static A1_PCLK(clktree,		SYS_CLK_EN0,	 0, CLK_IGNORE_UNUSED);
+static A1_PCLK(reset_ctrl,	SYS_CLK_EN0,	 1, CLK_IGNORE_UNUSED);
+static A1_PCLK(analog_ctrl,	SYS_CLK_EN0,	 2, CLK_IGNORE_UNUSED);
+static A1_PCLK(pwr_ctrl,	SYS_CLK_EN0,	 3, CLK_IGNORE_UNUSED);
+static A1_PCLK(pad_ctrl,	SYS_CLK_EN0,	 4, CLK_IGNORE_UNUSED);
+static A1_PCLK(sys_ctrl,	SYS_CLK_EN0,	 5, CLK_IGNORE_UNUSED);
+static A1_PCLK(temp_sensor,	SYS_CLK_EN0,	 6, CLK_IGNORE_UNUSED);
+static A1_PCLK(am2axi_dev,	SYS_CLK_EN0,	 7, CLK_IGNORE_UNUSED);
+static A1_PCLK(spicc_b,		SYS_CLK_EN0,	 8, CLK_IGNORE_UNUSED);
+static A1_PCLK(spicc_a,		SYS_CLK_EN0,	 9, CLK_IGNORE_UNUSED);
+static A1_PCLK(msr,		SYS_CLK_EN0,	10, CLK_IGNORE_UNUSED);
+static A1_PCLK(audio,		SYS_CLK_EN0,	11, CLK_IGNORE_UNUSED);
+static A1_PCLK(jtag_ctrl,	SYS_CLK_EN0,	12, CLK_IGNORE_UNUSED);
+static A1_PCLK(saradc_en,	SYS_CLK_EN0,	13, CLK_IGNORE_UNUSED);
+static A1_PCLK(pwm_ef,		SYS_CLK_EN0,	14, CLK_IGNORE_UNUSED);
+static A1_PCLK(pwm_cd,		SYS_CLK_EN0,	15, CLK_IGNORE_UNUSED);
+static A1_PCLK(pwm_ab,		SYS_CLK_EN0,	16, CLK_IGNORE_UNUSED);
+static A1_PCLK(cec,		SYS_CLK_EN0,	17, CLK_IGNORE_UNUSED);
+static A1_PCLK(i2c_s,		SYS_CLK_EN0,	18, CLK_IGNORE_UNUSED);
+static A1_PCLK(ir_ctrl,		SYS_CLK_EN0,	19, CLK_IGNORE_UNUSED);
+static A1_PCLK(i2c_m_d,		SYS_CLK_EN0,	20, CLK_IGNORE_UNUSED);
+static A1_PCLK(i2c_m_c,		SYS_CLK_EN0,	21, CLK_IGNORE_UNUSED);
+static A1_PCLK(i2c_m_b,		SYS_CLK_EN0,	22, CLK_IGNORE_UNUSED);
+static A1_PCLK(i2c_m_a,		SYS_CLK_EN0,	23, CLK_IGNORE_UNUSED);
+static A1_PCLK(acodec,		SYS_CLK_EN0,	24, CLK_IGNORE_UNUSED);
+static A1_PCLK(otp,		SYS_CLK_EN0,	25, CLK_IGNORE_UNUSED);
+static A1_PCLK(sd_emmc_a,	SYS_CLK_EN0,	26, CLK_IGNORE_UNUSED);
+static A1_PCLK(usb_phy,		SYS_CLK_EN0,	27, CLK_IGNORE_UNUSED);
+static A1_PCLK(usb_ctrl,	SYS_CLK_EN0,	28, CLK_IGNORE_UNUSED);
+static A1_PCLK(sys_dspb,	SYS_CLK_EN0,	29, CLK_IGNORE_UNUSED);
+static A1_PCLK(sys_dspa,	SYS_CLK_EN0,	30, CLK_IGNORE_UNUSED);
+static A1_PCLK(dma,		SYS_CLK_EN0,	31, CLK_IGNORE_UNUSED);
 
-static A1_PCLK(irq_ctrl,	SYS_CLK_EN1,	0);
-static A1_PCLK(nic,		SYS_CLK_EN1,	1);
-static A1_PCLK(gic,		SYS_CLK_EN1,	2);
-static A1_PCLK(uart_c,		SYS_CLK_EN1,	3);
-static A1_PCLK(uart_b,		SYS_CLK_EN1,	4);
-static A1_PCLK(uart_a,		SYS_CLK_EN1,	5);
-static A1_PCLK(sys_psram,	SYS_CLK_EN1,	6);
-static A1_PCLK(rsa,		SYS_CLK_EN1,	8);
-static A1_PCLK(coresight,	SYS_CLK_EN1,	9);
+static A1_PCLK(irq_ctrl,	SYS_CLK_EN1,	 0, CLK_IGNORE_UNUSED);
+static A1_PCLK(nic,		SYS_CLK_EN1,	 1, CLK_IGNORE_UNUSED);
+static A1_PCLK(gic,		SYS_CLK_EN1,	 2, CLK_IGNORE_UNUSED);
+static A1_PCLK(uart_c,		SYS_CLK_EN1,	 3, CLK_IGNORE_UNUSED);
+static A1_PCLK(uart_b,		SYS_CLK_EN1,	 4, CLK_IGNORE_UNUSED);
+static A1_PCLK(uart_a,		SYS_CLK_EN1,	 5, CLK_IGNORE_UNUSED);
+static A1_PCLK(sys_psram,	SYS_CLK_EN1,	 6, CLK_IGNORE_UNUSED);
+static A1_PCLK(rsa,		SYS_CLK_EN1,	 8, CLK_IGNORE_UNUSED);
+static A1_PCLK(coresight,	SYS_CLK_EN1,	 9, CLK_IGNORE_UNUSED);
 
-static A1_PCLK(am2axi_vad,	AXI_CLK_EN,	0);
-static A1_PCLK(audio_vad,	AXI_CLK_EN,	1);
-static A1_PCLK(axi_dmc,		AXI_CLK_EN,	3);
-static A1_PCLK(axi_psram,	AXI_CLK_EN,	4);
-static A1_PCLK(ramb,		AXI_CLK_EN,	5);
-static A1_PCLK(rama,		AXI_CLK_EN,	6);
-static A1_PCLK(axi_spifc,	AXI_CLK_EN,	7);
-static A1_PCLK(axi_nic,		AXI_CLK_EN,	8);
-static A1_PCLK(axi_dma,		AXI_CLK_EN,	9);
-static A1_PCLK(cpu_ctrl,	AXI_CLK_EN,	10);
-static A1_PCLK(rom,		AXI_CLK_EN,	11);
-static A1_PCLK(prod_i2c,	AXI_CLK_EN,	12);
+static A1_PCLK(am2axi_vad,	AXI_CLK_EN,	 0, CLK_IGNORE_UNUSED);
+static A1_PCLK(audio_vad,	AXI_CLK_EN,	 1, CLK_IGNORE_UNUSED);
+static A1_PCLK(axi_dmc,		AXI_CLK_EN,	 3, CLK_IGNORE_UNUSED);
+static A1_PCLK(axi_psram,	AXI_CLK_EN,	 4, CLK_IGNORE_UNUSED);
+static A1_PCLK(ramb,		AXI_CLK_EN,	 5, CLK_IGNORE_UNUSED);
+static A1_PCLK(rama,		AXI_CLK_EN,	 6, CLK_IGNORE_UNUSED);
+static A1_PCLK(axi_spifc,	AXI_CLK_EN,	 7, CLK_IGNORE_UNUSED);
+static A1_PCLK(axi_nic,		AXI_CLK_EN,	 8, CLK_IGNORE_UNUSED);
+static A1_PCLK(axi_dma,		AXI_CLK_EN,	 9, CLK_IGNORE_UNUSED);
+static A1_PCLK(cpu_ctrl,	AXI_CLK_EN,	10, CLK_IGNORE_UNUSED);
+static A1_PCLK(rom,		AXI_CLK_EN,	11, CLK_IGNORE_UNUSED);
+static A1_PCLK(prod_i2c,	AXI_CLK_EN,	12, CLK_IGNORE_UNUSED);
 
 /* Array of all clocks registered by this provider */
 static struct clk_hw *a1_peripherals_hw_clks[] = {

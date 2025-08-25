@@ -4384,89 +4384,99 @@ static struct clk_regmap sm1_nna_core_clk = {
 	},
 };
 
-#define G12A_PCLK(_name, _reg, _bit) \
-	MESON_PCLK(_name, _reg, _bit, &g12a_clk81.hw)
+#define G12A_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(_name, _reg, _bit, &g12a_clk81.hw, _flags)
 
-#define G12A_PCLK_RO(_name, _reg, _bit) \
-	MESON_PCLK_RO(_name, _reg, _bit, &g12a_clk81.hw)
+#define G12A_PCLK_RO(_name, _reg, _bit, _flags) \
+	MESON_PCLK_RO(_name, _reg, _bit, &g12a_clk81.hw, _flags)
 
-/* Everything Else (EE) domain gates */
-static G12A_PCLK(g12a_ddr,			HHI_GCLK_MPEG0,	0);
-static G12A_PCLK(g12a_dos,			HHI_GCLK_MPEG0,	1);
-static G12A_PCLK(g12a_audio_locker,		HHI_GCLK_MPEG0,	2);
-static G12A_PCLK(g12a_mipi_dsi_host,		HHI_GCLK_MPEG0,	3);
-static G12A_PCLK(g12a_eth_phy,			HHI_GCLK_MPEG0,	4);
-static G12A_PCLK(g12a_isa,			HHI_GCLK_MPEG0,	5);
-static G12A_PCLK(g12a_pl301,			HHI_GCLK_MPEG0,	6);
-static G12A_PCLK(g12a_periphs,			HHI_GCLK_MPEG0,	7);
-static G12A_PCLK(g12a_spicc_0,			HHI_GCLK_MPEG0,	8);
-static G12A_PCLK(g12a_i2c,			HHI_GCLK_MPEG0,	9);
-static G12A_PCLK(g12a_sana,			HHI_GCLK_MPEG0,	10);
-static G12A_PCLK(g12a_sd,			HHI_GCLK_MPEG0,	11);
-static G12A_PCLK(g12a_rng0,			HHI_GCLK_MPEG0,	12);
-static G12A_PCLK(g12a_uart0,			HHI_GCLK_MPEG0,	13);
-static G12A_PCLK(g12a_spicc_1,			HHI_GCLK_MPEG0,	14);
-static G12A_PCLK(g12a_hiu_reg,			HHI_GCLK_MPEG0,	19);
-static G12A_PCLK(g12a_mipi_dsi_phy,		HHI_GCLK_MPEG0,	20);
-static G12A_PCLK(g12a_assist_misc,		HHI_GCLK_MPEG0,	23);
-static G12A_PCLK(g12a_emmc_a,			HHI_GCLK_MPEG0,	24);
-static G12A_PCLK(g12a_emmc_b,			HHI_GCLK_MPEG0,	25);
-static G12A_PCLK(g12a_emmc_c,			HHI_GCLK_MPEG0,	26);
-static G12A_PCLK(g12a_audio_codec,		HHI_GCLK_MPEG0,	28);
+/*
+ * Everything Else (EE) domain gates
+ *
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+static G12A_PCLK(g12a_ddr,			HHI_GCLK_MPEG0,	 0, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_dos,			HHI_GCLK_MPEG0,	 1, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_audio_locker,		HHI_GCLK_MPEG0,	 2, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_mipi_dsi_host,		HHI_GCLK_MPEG0,	 3, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_eth_phy,			HHI_GCLK_MPEG0,	 4, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_isa,			HHI_GCLK_MPEG0,	 5, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_pl301,			HHI_GCLK_MPEG0,	 6, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_periphs,			HHI_GCLK_MPEG0,	 7, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_spicc_0,			HHI_GCLK_MPEG0,	 8, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_i2c,			HHI_GCLK_MPEG0,	 9, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_sana,			HHI_GCLK_MPEG0,	10, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_sd,			HHI_GCLK_MPEG0,	11, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_rng0,			HHI_GCLK_MPEG0,	12, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_uart0,			HHI_GCLK_MPEG0,	13, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_spicc_1,			HHI_GCLK_MPEG0,	14, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_hiu_reg,			HHI_GCLK_MPEG0,	19, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_mipi_dsi_phy,		HHI_GCLK_MPEG0,	20, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_assist_misc,		HHI_GCLK_MPEG0,	23, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_emmc_a,			HHI_GCLK_MPEG0,	24, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_emmc_b,			HHI_GCLK_MPEG0,	25, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_emmc_c,			HHI_GCLK_MPEG0,	26, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_audio_codec,		HHI_GCLK_MPEG0,	28, CLK_IGNORE_UNUSED);
 
-static G12A_PCLK(g12a_audio,			HHI_GCLK_MPEG1,	0);
-static G12A_PCLK(g12a_eth_core,			HHI_GCLK_MPEG1,	3);
-static G12A_PCLK(g12a_demux,			HHI_GCLK_MPEG1,	4);
-static G12A_PCLK(g12a_audio_ififo,		HHI_GCLK_MPEG1,	11);
-static G12A_PCLK(g12a_adc,			HHI_GCLK_MPEG1,	13);
-static G12A_PCLK(g12a_uart1,			HHI_GCLK_MPEG1,	16);
-static G12A_PCLK(g12a_g2d,			HHI_GCLK_MPEG1,	20);
-static G12A_PCLK(g12a_reset,			HHI_GCLK_MPEG1,	23);
-static G12A_PCLK(g12a_pcie_comb,		HHI_GCLK_MPEG1,	24);
-static G12A_PCLK(g12a_parser,			HHI_GCLK_MPEG1,	25);
-static G12A_PCLK(g12a_usb_general,		HHI_GCLK_MPEG1,	26);
-static G12A_PCLK(g12a_pcie_phy,			HHI_GCLK_MPEG1,	27);
-static G12A_PCLK(g12a_ahb_arb0,			HHI_GCLK_MPEG1,	29);
+static G12A_PCLK(g12a_audio,			HHI_GCLK_MPEG1,	 0, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_eth_core,			HHI_GCLK_MPEG1,	 3, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_demux,			HHI_GCLK_MPEG1,	 4, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_audio_ififo,		HHI_GCLK_MPEG1,	11, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_adc,			HHI_GCLK_MPEG1,	13, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_uart1,			HHI_GCLK_MPEG1,	16, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_g2d,			HHI_GCLK_MPEG1,	20, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_reset,			HHI_GCLK_MPEG1,	23, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_pcie_comb,		HHI_GCLK_MPEG1,	24, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_parser,			HHI_GCLK_MPEG1,	25, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_usb_general,		HHI_GCLK_MPEG1,	26, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_pcie_phy,			HHI_GCLK_MPEG1,	27, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_ahb_arb0,			HHI_GCLK_MPEG1,	29, CLK_IGNORE_UNUSED);
 
-static G12A_PCLK(g12a_ahb_data_bus,		HHI_GCLK_MPEG2,	1);
-static G12A_PCLK(g12a_ahb_ctrl_bus,		HHI_GCLK_MPEG2,	2);
-static G12A_PCLK(g12a_htx_hdcp22,		HHI_GCLK_MPEG2,	3);
-static G12A_PCLK(g12a_htx_pclk,			HHI_GCLK_MPEG2,	4);
-static G12A_PCLK(g12a_bt656,			HHI_GCLK_MPEG2,	6);
-static G12A_PCLK(g12a_usb1_to_ddr,		HHI_GCLK_MPEG2,	8);
-static G12A_PCLK(g12b_mipi_isp_gate,		HHI_GCLK_MPEG2,	17);
-static G12A_PCLK(g12a_mmc_pclk,			HHI_GCLK_MPEG2,	11);
-static G12A_PCLK(g12a_uart2,			HHI_GCLK_MPEG2,	15);
-static G12A_PCLK(g12a_vpu_intr,			HHI_GCLK_MPEG2,	25);
-static G12A_PCLK(g12b_csi_phy1,			HHI_GCLK_MPEG2,	28);
-static G12A_PCLK(g12b_csi_phy0,			HHI_GCLK_MPEG2,	29);
-static G12A_PCLK(g12a_gic,			HHI_GCLK_MPEG2,	30);
+static G12A_PCLK(g12a_ahb_data_bus,		HHI_GCLK_MPEG2,	 1, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_ahb_ctrl_bus,		HHI_GCLK_MPEG2,	 2, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_htx_hdcp22,		HHI_GCLK_MPEG2,	 3, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_htx_pclk,			HHI_GCLK_MPEG2,	 4, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_bt656,			HHI_GCLK_MPEG2,	 6, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_usb1_to_ddr,		HHI_GCLK_MPEG2,	 8, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12b_mipi_isp_gate,		HHI_GCLK_MPEG2,	17, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_mmc_pclk,			HHI_GCLK_MPEG2,	11, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_uart2,			HHI_GCLK_MPEG2,	15, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vpu_intr,			HHI_GCLK_MPEG2,	25, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12b_csi_phy1,			HHI_GCLK_MPEG2,	28, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12b_csi_phy0,			HHI_GCLK_MPEG2,	29, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_gic,			HHI_GCLK_MPEG2,	30, CLK_IGNORE_UNUSED);
 
-static G12A_PCLK(g12a_vclk2_venci0,		HHI_GCLK_OTHER,	1);
-static G12A_PCLK(g12a_vclk2_venci1,		HHI_GCLK_OTHER,	2);
-static G12A_PCLK(g12a_vclk2_vencp0,		HHI_GCLK_OTHER,	3);
-static G12A_PCLK(g12a_vclk2_vencp1,		HHI_GCLK_OTHER,	4);
-static G12A_PCLK(g12a_vclk2_venct0,		HHI_GCLK_OTHER,	5);
-static G12A_PCLK(g12a_vclk2_venct1,		HHI_GCLK_OTHER,	6);
-static G12A_PCLK(g12a_vclk2_other,		HHI_GCLK_OTHER,	7);
-static G12A_PCLK(g12a_vclk2_enci,		HHI_GCLK_OTHER,	8);
-static G12A_PCLK(g12a_vclk2_encp,		HHI_GCLK_OTHER,	9);
-static G12A_PCLK(g12a_dac_clk,			HHI_GCLK_OTHER,	10);
-static G12A_PCLK(g12a_aoclk_gate,		HHI_GCLK_OTHER,	14);
-static G12A_PCLK(g12a_iec958_gate,		HHI_GCLK_OTHER,	16);
-static G12A_PCLK(g12a_enc480p,			HHI_GCLK_OTHER,	20);
-static G12A_PCLK(g12a_rng1,			HHI_GCLK_OTHER,	21);
-static G12A_PCLK(g12a_vclk2_enct,		HHI_GCLK_OTHER,	22);
-static G12A_PCLK(g12a_vclk2_encl,		HHI_GCLK_OTHER,	23);
-static G12A_PCLK(g12a_vclk2_venclmmc,		HHI_GCLK_OTHER,	24);
-static G12A_PCLK(g12a_vclk2_vencl,		HHI_GCLK_OTHER,	25);
-static G12A_PCLK(g12a_vclk2_other1,		HHI_GCLK_OTHER,	26);
+static G12A_PCLK(g12a_vclk2_venci0,		HHI_GCLK_OTHER,	 1, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_venci1,		HHI_GCLK_OTHER,	 2, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_vencp0,		HHI_GCLK_OTHER,	 3, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_vencp1,		HHI_GCLK_OTHER,	 4, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_venct0,		HHI_GCLK_OTHER,	 5, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_venct1,		HHI_GCLK_OTHER,	 6, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_other,		HHI_GCLK_OTHER,	 7, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_enci,		HHI_GCLK_OTHER,	 8, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_encp,		HHI_GCLK_OTHER,	 9, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_dac_clk,			HHI_GCLK_OTHER,	10, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_aoclk_gate,		HHI_GCLK_OTHER,	14, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_iec958_gate,		HHI_GCLK_OTHER,	16, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_enc480p,			HHI_GCLK_OTHER,	20, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_rng1,			HHI_GCLK_OTHER,	21, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_enct,		HHI_GCLK_OTHER,	22, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_encl,		HHI_GCLK_OTHER,	23, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_venclmmc,		HHI_GCLK_OTHER,	24, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_vencl,		HHI_GCLK_OTHER,	25, CLK_IGNORE_UNUSED);
+static G12A_PCLK(g12a_vclk2_other1,		HHI_GCLK_OTHER,	26, CLK_IGNORE_UNUSED);
 
-static G12A_PCLK_RO(g12a_dma,			HHI_GCLK_OTHER2, 0);
-static G12A_PCLK_RO(g12a_efuse,			HHI_GCLK_OTHER2, 1);
-static G12A_PCLK_RO(g12a_rom_boot,		HHI_GCLK_OTHER2, 2);
-static G12A_PCLK_RO(g12a_reset_sec,		HHI_GCLK_OTHER2, 3);
-static G12A_PCLK_RO(g12a_sec_ahb_apb3,		HHI_GCLK_OTHER2, 4);
+static G12A_PCLK_RO(g12a_dma,			HHI_GCLK_OTHER2, 0, 0);
+static G12A_PCLK_RO(g12a_efuse,			HHI_GCLK_OTHER2, 1, 0);
+static G12A_PCLK_RO(g12a_rom_boot,		HHI_GCLK_OTHER2, 2, 0);
+static G12A_PCLK_RO(g12a_reset_sec,		HHI_GCLK_OTHER2, 3, 0);
+static G12A_PCLK_RO(g12a_sec_ahb_apb3,		HHI_GCLK_OTHER2, 4, 0);
 
 /* Array of all clocks provided by this provider */
 static struct clk_hw *g12a_hw_clks[] = {

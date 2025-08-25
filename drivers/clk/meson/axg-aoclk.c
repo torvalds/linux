@@ -34,7 +34,7 @@
 #define AO_RTC_ALT_CLK_CNTL0	0x94
 #define AO_RTC_ALT_CLK_CNTL1	0x98
 
-#define AXG_AO_GATE(_name, _bit)					\
+#define AXG_AO_GATE(_name, _bit, _flags)				\
 static struct clk_regmap axg_ao_##_name = {				\
 	.data = &(struct clk_regmap_gate_data) {			\
 		.offset = (AO_RTI_GEN_CNTL_REG0),			\
@@ -47,17 +47,17 @@ static struct clk_regmap axg_ao_##_name = {				\
 			.fw_name = "mpeg-clk",				\
 		},							\
 		.num_parents = 1,					\
-		.flags = CLK_IGNORE_UNUSED,				\
+		.flags = (_flags),					\
 	},								\
 }
 
-AXG_AO_GATE(remote, 0);
-AXG_AO_GATE(i2c_master, 1);
-AXG_AO_GATE(i2c_slave, 2);
-AXG_AO_GATE(uart1, 3);
-AXG_AO_GATE(uart2, 5);
-AXG_AO_GATE(ir_blaster, 6);
-AXG_AO_GATE(saradc, 7);
+AXG_AO_GATE(remote,	0, CLK_IGNORE_UNUSED);
+AXG_AO_GATE(i2c_master,	1, CLK_IGNORE_UNUSED);
+AXG_AO_GATE(i2c_slave,	2, CLK_IGNORE_UNUSED);
+AXG_AO_GATE(uart1,	3, CLK_IGNORE_UNUSED);
+AXG_AO_GATE(uart2,	5, CLK_IGNORE_UNUSED);
+AXG_AO_GATE(ir_blaster,	6, CLK_IGNORE_UNUSED);
+AXG_AO_GATE(saradc,	7, CLK_IGNORE_UNUSED);
 
 static struct clk_regmap axg_ao_cts_oscin = {
 	.data = &(struct clk_regmap_gate_data){

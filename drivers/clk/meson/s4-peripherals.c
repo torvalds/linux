@@ -3165,61 +3165,70 @@ static struct clk_regmap s4_gen_clk = {
 	},
 };
 
-#define S4_PCLK(_name, _reg, _bit) \
-	MESON_PCLK(_name, _reg, _bit, &s4_sys_clk.hw)
+#define S4_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(_name, _reg, _bit, &s4_sys_clk.hw, _flags)
 
-static S4_PCLK(s4_ddr,		CLKCTRL_SYS_CLK_EN0_REG0, 0);
-static S4_PCLK(s4_dos,		CLKCTRL_SYS_CLK_EN0_REG0, 1);
-static S4_PCLK(s4_ethphy,	CLKCTRL_SYS_CLK_EN0_REG0, 4);
-static S4_PCLK(s4_mali,		CLKCTRL_SYS_CLK_EN0_REG0, 6);
-static S4_PCLK(s4_aocpu,	CLKCTRL_SYS_CLK_EN0_REG0, 13);
-static S4_PCLK(s4_aucpu,	CLKCTRL_SYS_CLK_EN0_REG0, 14);
-static S4_PCLK(s4_cec,		CLKCTRL_SYS_CLK_EN0_REG0, 16);
-static S4_PCLK(s4_sdemmca,	CLKCTRL_SYS_CLK_EN0_REG0, 24);
-static S4_PCLK(s4_sdemmcb,	CLKCTRL_SYS_CLK_EN0_REG0, 25);
-static S4_PCLK(s4_nand,		CLKCTRL_SYS_CLK_EN0_REG0, 26);
-static S4_PCLK(s4_smartcard,	CLKCTRL_SYS_CLK_EN0_REG0, 27);
-static S4_PCLK(s4_acodec,	CLKCTRL_SYS_CLK_EN0_REG0, 28);
-static S4_PCLK(s4_spifc,	CLKCTRL_SYS_CLK_EN0_REG0, 29);
-static S4_PCLK(s4_msr_clk,	CLKCTRL_SYS_CLK_EN0_REG0, 30);
-static S4_PCLK(s4_ir_ctrl,	CLKCTRL_SYS_CLK_EN0_REG0, 31);
+/*
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+static S4_PCLK(s4_ddr,		CLKCTRL_SYS_CLK_EN0_REG0,  0, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_dos,		CLKCTRL_SYS_CLK_EN0_REG0,  1, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_ethphy,	CLKCTRL_SYS_CLK_EN0_REG0,  4, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_mali,		CLKCTRL_SYS_CLK_EN0_REG0,  6, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_aocpu,	CLKCTRL_SYS_CLK_EN0_REG0, 13, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_aucpu,	CLKCTRL_SYS_CLK_EN0_REG0, 14, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_cec,		CLKCTRL_SYS_CLK_EN0_REG0, 16, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_sdemmca,	CLKCTRL_SYS_CLK_EN0_REG0, 24, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_sdemmcb,	CLKCTRL_SYS_CLK_EN0_REG0, 25, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_nand,		CLKCTRL_SYS_CLK_EN0_REG0, 26, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_smartcard,	CLKCTRL_SYS_CLK_EN0_REG0, 27, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_acodec,	CLKCTRL_SYS_CLK_EN0_REG0, 28, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_spifc,	CLKCTRL_SYS_CLK_EN0_REG0, 29, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_msr_clk,	CLKCTRL_SYS_CLK_EN0_REG0, 30, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_ir_ctrl,	CLKCTRL_SYS_CLK_EN0_REG0, 31, CLK_IGNORE_UNUSED);
 
-static S4_PCLK(s4_audio,	CLKCTRL_SYS_CLK_EN0_REG1, 0);
-static S4_PCLK(s4_eth,		CLKCTRL_SYS_CLK_EN0_REG1, 3);
-static S4_PCLK(s4_uart_a,	CLKCTRL_SYS_CLK_EN0_REG1, 5);
-static S4_PCLK(s4_uart_b,	CLKCTRL_SYS_CLK_EN0_REG1, 6);
-static S4_PCLK(s4_uart_c,	CLKCTRL_SYS_CLK_EN0_REG1, 7);
-static S4_PCLK(s4_uart_d,	CLKCTRL_SYS_CLK_EN0_REG1, 8);
-static S4_PCLK(s4_uart_e,	CLKCTRL_SYS_CLK_EN0_REG1, 9);
-static S4_PCLK(s4_aififo,	CLKCTRL_SYS_CLK_EN0_REG1, 11);
-static S4_PCLK(s4_ts_ddr,	CLKCTRL_SYS_CLK_EN0_REG1, 15);
-static S4_PCLK(s4_ts_pll,	CLKCTRL_SYS_CLK_EN0_REG1, 16);
-static S4_PCLK(s4_g2d,		CLKCTRL_SYS_CLK_EN0_REG1, 20);
-static S4_PCLK(s4_spicc0,	CLKCTRL_SYS_CLK_EN0_REG1, 21);
-static S4_PCLK(s4_usb,		CLKCTRL_SYS_CLK_EN0_REG1, 26);
-static S4_PCLK(s4_i2c_m_a,	CLKCTRL_SYS_CLK_EN0_REG1, 30);
-static S4_PCLK(s4_i2c_m_b,	CLKCTRL_SYS_CLK_EN0_REG1, 31);
+static S4_PCLK(s4_audio,	CLKCTRL_SYS_CLK_EN0_REG1,  0, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_eth,		CLKCTRL_SYS_CLK_EN0_REG1,  3, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_uart_a,	CLKCTRL_SYS_CLK_EN0_REG1,  5, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_uart_b,	CLKCTRL_SYS_CLK_EN0_REG1,  6, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_uart_c,	CLKCTRL_SYS_CLK_EN0_REG1,  7, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_uart_d,	CLKCTRL_SYS_CLK_EN0_REG1,  8, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_uart_e,	CLKCTRL_SYS_CLK_EN0_REG1,  9, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_aififo,	CLKCTRL_SYS_CLK_EN0_REG1, 11, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_ts_ddr,	CLKCTRL_SYS_CLK_EN0_REG1, 15, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_ts_pll,	CLKCTRL_SYS_CLK_EN0_REG1, 16, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_g2d,		CLKCTRL_SYS_CLK_EN0_REG1, 20, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_spicc0,	CLKCTRL_SYS_CLK_EN0_REG1, 21, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_usb,		CLKCTRL_SYS_CLK_EN0_REG1, 26, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_i2c_m_a,	CLKCTRL_SYS_CLK_EN0_REG1, 30, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_i2c_m_b,	CLKCTRL_SYS_CLK_EN0_REG1, 31, CLK_IGNORE_UNUSED);
 
-static S4_PCLK(s4_i2c_m_c,	CLKCTRL_SYS_CLK_EN0_REG2, 0);
-static S4_PCLK(s4_i2c_m_d,	CLKCTRL_SYS_CLK_EN0_REG2, 1);
-static S4_PCLK(s4_i2c_m_e,	CLKCTRL_SYS_CLK_EN0_REG2, 2);
-static S4_PCLK(s4_hdmitx_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 4);
-static S4_PCLK(s4_i2c_s_a,	CLKCTRL_SYS_CLK_EN0_REG2, 5);
-static S4_PCLK(s4_usb1_to_ddr,	CLKCTRL_SYS_CLK_EN0_REG2, 8);
-static S4_PCLK(s4_hdcp22,	CLKCTRL_SYS_CLK_EN0_REG2, 10);
-static S4_PCLK(s4_mmc_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 11);
-static S4_PCLK(s4_rsa,		CLKCTRL_SYS_CLK_EN0_REG2, 18);
-static S4_PCLK(s4_cpu_debug,	CLKCTRL_SYS_CLK_EN0_REG2, 19);
-static S4_PCLK(s4_vpu_intr,	CLKCTRL_SYS_CLK_EN0_REG2, 25);
-static S4_PCLK(s4_demod,	CLKCTRL_SYS_CLK_EN0_REG2, 27);
-static S4_PCLK(s4_sar_adc,	CLKCTRL_SYS_CLK_EN0_REG2, 28);
-static S4_PCLK(s4_gic,		CLKCTRL_SYS_CLK_EN0_REG2, 30);
+static S4_PCLK(s4_i2c_m_c,	CLKCTRL_SYS_CLK_EN0_REG2,  0, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_i2c_m_d,	CLKCTRL_SYS_CLK_EN0_REG2,  1, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_i2c_m_e,	CLKCTRL_SYS_CLK_EN0_REG2,  2, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_hdmitx_apb,	CLKCTRL_SYS_CLK_EN0_REG2,  4, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_i2c_s_a,	CLKCTRL_SYS_CLK_EN0_REG2,  5, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_usb1_to_ddr,	CLKCTRL_SYS_CLK_EN0_REG2,  8, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_hdcp22,	CLKCTRL_SYS_CLK_EN0_REG2, 10, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_mmc_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 11, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_rsa,		CLKCTRL_SYS_CLK_EN0_REG2, 18, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_cpu_debug,	CLKCTRL_SYS_CLK_EN0_REG2, 19, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_vpu_intr,	CLKCTRL_SYS_CLK_EN0_REG2, 25, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_demod,	CLKCTRL_SYS_CLK_EN0_REG2, 27, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_sar_adc,	CLKCTRL_SYS_CLK_EN0_REG2, 28, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_gic,		CLKCTRL_SYS_CLK_EN0_REG2, 30, CLK_IGNORE_UNUSED);
 
-static S4_PCLK(s4_pwm_ab,	CLKCTRL_SYS_CLK_EN0_REG3, 7);
-static S4_PCLK(s4_pwm_cd,	CLKCTRL_SYS_CLK_EN0_REG3, 8);
-static S4_PCLK(s4_pwm_ef,	CLKCTRL_SYS_CLK_EN0_REG3, 9);
-static S4_PCLK(s4_pwm_gh,	CLKCTRL_SYS_CLK_EN0_REG3, 10);
-static S4_PCLK(s4_pwm_ij,	CLKCTRL_SYS_CLK_EN0_REG3, 11);
+static S4_PCLK(s4_pwm_ab,	CLKCTRL_SYS_CLK_EN0_REG3,  7, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_pwm_cd,	CLKCTRL_SYS_CLK_EN0_REG3,  8, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_pwm_ef,	CLKCTRL_SYS_CLK_EN0_REG3,  9, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_pwm_gh,	CLKCTRL_SYS_CLK_EN0_REG3, 10, CLK_IGNORE_UNUSED);
+static S4_PCLK(s4_pwm_ij,	CLKCTRL_SYS_CLK_EN0_REG3, 11, CLK_IGNORE_UNUSED);
 
 /* Array of all clocks provided by this provider */
 static struct clk_hw *s4_peripherals_hw_clks[] = {

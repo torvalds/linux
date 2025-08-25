@@ -1915,59 +1915,69 @@ static struct clk_regmap axg_gen_clk = {
 	},
 };
 
-#define AXG_PCLK(_name, _reg, _bit) \
-	MESON_PCLK(axg_##_name, _reg, _bit, &axg_clk81.hw)
+#define AXG_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(axg_##_name, _reg, _bit, &axg_clk81.hw, _flags)
 
-/* Everything Else (EE) domain gates */
-static AXG_PCLK(ddr,			HHI_GCLK_MPEG0,  0);
-static AXG_PCLK(audio_locker,		HHI_GCLK_MPEG0,  2);
-static AXG_PCLK(mipi_dsi_host,		HHI_GCLK_MPEG0,  3);
-static AXG_PCLK(isa,			HHI_GCLK_MPEG0,  5);
-static AXG_PCLK(pl301,			HHI_GCLK_MPEG0,  6);
-static AXG_PCLK(periphs,		HHI_GCLK_MPEG0,  7);
-static AXG_PCLK(spicc_0,		HHI_GCLK_MPEG0,  8);
-static AXG_PCLK(i2c,			HHI_GCLK_MPEG0,  9);
-static AXG_PCLK(rng0,			HHI_GCLK_MPEG0, 12);
-static AXG_PCLK(uart0,			HHI_GCLK_MPEG0, 13);
-static AXG_PCLK(mipi_dsi_phy,		HHI_GCLK_MPEG0, 14);
-static AXG_PCLK(spicc_1,		HHI_GCLK_MPEG0, 15);
-static AXG_PCLK(pcie_a,			HHI_GCLK_MPEG0, 16);
-static AXG_PCLK(pcie_b,			HHI_GCLK_MPEG0, 17);
-static AXG_PCLK(hiu_reg,		HHI_GCLK_MPEG0, 19);
-static AXG_PCLK(assist_misc,		HHI_GCLK_MPEG0, 23);
-static AXG_PCLK(emmc_b,			HHI_GCLK_MPEG0, 25);
-static AXG_PCLK(emmc_c,			HHI_GCLK_MPEG0, 26);
-static AXG_PCLK(dma,			HHI_GCLK_MPEG0, 27);
-static AXG_PCLK(spi,			HHI_GCLK_MPEG0, 30);
+/*
+ * Everything Else (EE) domain gates
+ *
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+static AXG_PCLK(ddr,			HHI_GCLK_MPEG0,  0, CLK_IGNORE_UNUSED);
+static AXG_PCLK(audio_locker,		HHI_GCLK_MPEG0,  2, CLK_IGNORE_UNUSED);
+static AXG_PCLK(mipi_dsi_host,		HHI_GCLK_MPEG0,  3, CLK_IGNORE_UNUSED);
+static AXG_PCLK(isa,			HHI_GCLK_MPEG0,  5, CLK_IGNORE_UNUSED);
+static AXG_PCLK(pl301,			HHI_GCLK_MPEG0,  6, CLK_IGNORE_UNUSED);
+static AXG_PCLK(periphs,		HHI_GCLK_MPEG0,  7, CLK_IGNORE_UNUSED);
+static AXG_PCLK(spicc_0,		HHI_GCLK_MPEG0,  8, CLK_IGNORE_UNUSED);
+static AXG_PCLK(i2c,			HHI_GCLK_MPEG0,  9, CLK_IGNORE_UNUSED);
+static AXG_PCLK(rng0,			HHI_GCLK_MPEG0, 12, CLK_IGNORE_UNUSED);
+static AXG_PCLK(uart0,			HHI_GCLK_MPEG0, 13, CLK_IGNORE_UNUSED);
+static AXG_PCLK(mipi_dsi_phy,		HHI_GCLK_MPEG0, 14, CLK_IGNORE_UNUSED);
+static AXG_PCLK(spicc_1,		HHI_GCLK_MPEG0, 15, CLK_IGNORE_UNUSED);
+static AXG_PCLK(pcie_a,			HHI_GCLK_MPEG0, 16, CLK_IGNORE_UNUSED);
+static AXG_PCLK(pcie_b,			HHI_GCLK_MPEG0, 17, CLK_IGNORE_UNUSED);
+static AXG_PCLK(hiu_reg,		HHI_GCLK_MPEG0, 19, CLK_IGNORE_UNUSED);
+static AXG_PCLK(assist_misc,		HHI_GCLK_MPEG0, 23, CLK_IGNORE_UNUSED);
+static AXG_PCLK(emmc_b,			HHI_GCLK_MPEG0, 25, CLK_IGNORE_UNUSED);
+static AXG_PCLK(emmc_c,			HHI_GCLK_MPEG0, 26, CLK_IGNORE_UNUSED);
+static AXG_PCLK(dma,			HHI_GCLK_MPEG0, 27, CLK_IGNORE_UNUSED);
+static AXG_PCLK(spi,			HHI_GCLK_MPEG0, 30, CLK_IGNORE_UNUSED);
 
-static AXG_PCLK(audio,			HHI_GCLK_MPEG1,  0);
-static AXG_PCLK(eth_core,		HHI_GCLK_MPEG1,  3);
-static AXG_PCLK(uart1,			HHI_GCLK_MPEG1, 16);
-static AXG_PCLK(g2d,			HHI_GCLK_MPEG1, 20);
-static AXG_PCLK(usb0,			HHI_GCLK_MPEG1, 21);
-static AXG_PCLK(usb1,			HHI_GCLK_MPEG1, 22);
-static AXG_PCLK(reset,			HHI_GCLK_MPEG1, 23);
-static AXG_PCLK(usb_general,		HHI_GCLK_MPEG1, 26);
-static AXG_PCLK(ahb_arb0,		HHI_GCLK_MPEG1, 29);
-static AXG_PCLK(efuse,			HHI_GCLK_MPEG1, 30);
-static AXG_PCLK(boot_rom,		HHI_GCLK_MPEG1, 31);
+static AXG_PCLK(audio,			HHI_GCLK_MPEG1,  0, CLK_IGNORE_UNUSED);
+static AXG_PCLK(eth_core,		HHI_GCLK_MPEG1,  3, CLK_IGNORE_UNUSED);
+static AXG_PCLK(uart1,			HHI_GCLK_MPEG1, 16, CLK_IGNORE_UNUSED);
+static AXG_PCLK(g2d,			HHI_GCLK_MPEG1, 20, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb0,			HHI_GCLK_MPEG1, 21, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb1,			HHI_GCLK_MPEG1, 22, CLK_IGNORE_UNUSED);
+static AXG_PCLK(reset,			HHI_GCLK_MPEG1, 23, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb_general,		HHI_GCLK_MPEG1, 26, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ahb_arb0,		HHI_GCLK_MPEG1, 29, CLK_IGNORE_UNUSED);
+static AXG_PCLK(efuse,			HHI_GCLK_MPEG1, 30, CLK_IGNORE_UNUSED);
+static AXG_PCLK(boot_rom,		HHI_GCLK_MPEG1, 31, CLK_IGNORE_UNUSED);
 
-static AXG_PCLK(ahb_data_bus,		HHI_GCLK_MPEG2,  1);
-static AXG_PCLK(ahb_ctrl_bus,		HHI_GCLK_MPEG2,  2);
-static AXG_PCLK(usb1_to_ddr,		HHI_GCLK_MPEG2,  8);
-static AXG_PCLK(usb0_to_ddr,		HHI_GCLK_MPEG2,  9);
-static AXG_PCLK(mmc_pclk,		HHI_GCLK_MPEG2, 11);
-static AXG_PCLK(vpu_intr,		HHI_GCLK_MPEG2, 25);
-static AXG_PCLK(sec_ahb_ahb3_bridge,	HHI_GCLK_MPEG2, 26);
-static AXG_PCLK(gic,			HHI_GCLK_MPEG2, 30);
+static AXG_PCLK(ahb_data_bus,		HHI_GCLK_MPEG2,  1, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ahb_ctrl_bus,		HHI_GCLK_MPEG2,  2, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb1_to_ddr,		HHI_GCLK_MPEG2,  8, CLK_IGNORE_UNUSED);
+static AXG_PCLK(usb0_to_ddr,		HHI_GCLK_MPEG2,  9, CLK_IGNORE_UNUSED);
+static AXG_PCLK(mmc_pclk,		HHI_GCLK_MPEG2, 11, CLK_IGNORE_UNUSED);
+static AXG_PCLK(vpu_intr,		HHI_GCLK_MPEG2, 25, CLK_IGNORE_UNUSED);
+static AXG_PCLK(sec_ahb_ahb3_bridge,	HHI_GCLK_MPEG2, 26, CLK_IGNORE_UNUSED);
+static AXG_PCLK(gic,			HHI_GCLK_MPEG2, 30, CLK_IGNORE_UNUSED);
 
 /* Always On (AO) domain gates */
 
-static AXG_PCLK(ao_media_cpu,		HHI_GCLK_AO, 0);
-static AXG_PCLK(ao_ahb_sram,		HHI_GCLK_AO, 1);
-static AXG_PCLK(ao_ahb_bus,		HHI_GCLK_AO, 2);
-static AXG_PCLK(ao_iface,		HHI_GCLK_AO, 3);
-static AXG_PCLK(ao_i2c,			HHI_GCLK_AO, 4);
+static AXG_PCLK(ao_media_cpu,		HHI_GCLK_AO, 0, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_ahb_sram,		HHI_GCLK_AO, 1, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_ahb_bus,		HHI_GCLK_AO, 2, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_iface,		HHI_GCLK_AO, 3, CLK_IGNORE_UNUSED);
+static AXG_PCLK(ao_i2c,			HHI_GCLK_AO, 4, CLK_IGNORE_UNUSED);
 
 /* Array of all clocks provided by this provider */
 

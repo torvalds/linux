@@ -2701,100 +2701,109 @@ static struct clk_regmap meson8b_cts_i958 = {
 	},
 };
 
-#define MESON8B_PCLK(_name, _reg, _bit) \
-	MESON_PCLK(_name, _reg, _bit, &meson8b_clk81.hw)
+#define MESON8B_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(_name, _reg, _bit, &meson8b_clk81.hw, _flags)
 
-/* Everything Else (EE) domain gates */
+/*
+ * Everything Else (EE) domain gates
+ *
+ * NOTE: The gates below are marked with CLK_IGNORE_UNUSED for historic reasons
+ * Users are encouraged to test without it and submit changes to:
+ *  - remove the flag if not necessary
+ *  - replace the flag with something more adequate, such as CLK_IS_CRITICAL,
+ *    if appropriate.
+ *  - add a comment explaining why the use of CLK_IGNORE_UNUSED is desirable
+ *    for a particular clock.
+ */
+static MESON8B_PCLK(meson8b_ddr,		HHI_GCLK_MPEG0,  0, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_dos,		HHI_GCLK_MPEG0,  1, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_isa,		HHI_GCLK_MPEG0,  5, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_pl301,		HHI_GCLK_MPEG0,  6, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_periphs,		HHI_GCLK_MPEG0,  7, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_spicc,		HHI_GCLK_MPEG0,  8, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_i2c,		HHI_GCLK_MPEG0,  9, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_sar_adc,		HHI_GCLK_MPEG0, 10, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_smart_card,		HHI_GCLK_MPEG0, 11, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_rng0,		HHI_GCLK_MPEG0, 12, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_uart0,		HHI_GCLK_MPEG0, 13, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_sdhc,		HHI_GCLK_MPEG0, 14, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_stream,		HHI_GCLK_MPEG0, 15, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_async_fifo,		HHI_GCLK_MPEG0, 16, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_sdio,		HHI_GCLK_MPEG0, 17, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_abuf,		HHI_GCLK_MPEG0, 18, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_hiu_iface,		HHI_GCLK_MPEG0, 19, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_assist_misc,	HHI_GCLK_MPEG0, 23, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_spi,		HHI_GCLK_MPEG0, 30, CLK_IGNORE_UNUSED);
 
-static MESON8B_PCLK(meson8b_ddr,		HHI_GCLK_MPEG0, 0);
-static MESON8B_PCLK(meson8b_dos,		HHI_GCLK_MPEG0, 1);
-static MESON8B_PCLK(meson8b_isa,		HHI_GCLK_MPEG0, 5);
-static MESON8B_PCLK(meson8b_pl301,		HHI_GCLK_MPEG0, 6);
-static MESON8B_PCLK(meson8b_periphs,		HHI_GCLK_MPEG0, 7);
-static MESON8B_PCLK(meson8b_spicc,		HHI_GCLK_MPEG0, 8);
-static MESON8B_PCLK(meson8b_i2c,		HHI_GCLK_MPEG0, 9);
-static MESON8B_PCLK(meson8b_sar_adc,		HHI_GCLK_MPEG0, 10);
-static MESON8B_PCLK(meson8b_smart_card,		HHI_GCLK_MPEG0, 11);
-static MESON8B_PCLK(meson8b_rng0,		HHI_GCLK_MPEG0, 12);
-static MESON8B_PCLK(meson8b_uart0,		HHI_GCLK_MPEG0, 13);
-static MESON8B_PCLK(meson8b_sdhc,		HHI_GCLK_MPEG0, 14);
-static MESON8B_PCLK(meson8b_stream,		HHI_GCLK_MPEG0, 15);
-static MESON8B_PCLK(meson8b_async_fifo,		HHI_GCLK_MPEG0, 16);
-static MESON8B_PCLK(meson8b_sdio,		HHI_GCLK_MPEG0, 17);
-static MESON8B_PCLK(meson8b_abuf,		HHI_GCLK_MPEG0, 18);
-static MESON8B_PCLK(meson8b_hiu_iface,		HHI_GCLK_MPEG0, 19);
-static MESON8B_PCLK(meson8b_assist_misc,	HHI_GCLK_MPEG0, 23);
-static MESON8B_PCLK(meson8b_spi,		HHI_GCLK_MPEG0, 30);
+static MESON8B_PCLK(meson8b_i2s_spdif,		HHI_GCLK_MPEG1,  2, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_eth,		HHI_GCLK_MPEG1,  3, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_demux,		HHI_GCLK_MPEG1,  4, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_blkmv,		HHI_GCLK_MPEG1, 14, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_aiu,		HHI_GCLK_MPEG1, 15, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_uart1,		HHI_GCLK_MPEG1, 16, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_g2d,		HHI_GCLK_MPEG1, 20, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_usb0,		HHI_GCLK_MPEG1, 21, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_usb1,		HHI_GCLK_MPEG1, 22, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_reset,		HHI_GCLK_MPEG1, 23, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_nand,		HHI_GCLK_MPEG1, 24, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_dos_parser,		HHI_GCLK_MPEG1, 25, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_usb,		HHI_GCLK_MPEG1, 26, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vdin1,		HHI_GCLK_MPEG1, 28, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_ahb_arb0,		HHI_GCLK_MPEG1, 29, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_efuse,		HHI_GCLK_MPEG1, 30, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_boot_rom,		HHI_GCLK_MPEG1, 31, CLK_IGNORE_UNUSED);
 
-static MESON8B_PCLK(meson8b_i2s_spdif,		HHI_GCLK_MPEG1, 2);
-static MESON8B_PCLK(meson8b_eth,		HHI_GCLK_MPEG1, 3);
-static MESON8B_PCLK(meson8b_demux,		HHI_GCLK_MPEG1, 4);
-static MESON8B_PCLK(meson8b_blkmv,		HHI_GCLK_MPEG1, 14);
-static MESON8B_PCLK(meson8b_aiu,		HHI_GCLK_MPEG1, 15);
-static MESON8B_PCLK(meson8b_uart1,		HHI_GCLK_MPEG1, 16);
-static MESON8B_PCLK(meson8b_g2d,		HHI_GCLK_MPEG1, 20);
-static MESON8B_PCLK(meson8b_usb0,		HHI_GCLK_MPEG1, 21);
-static MESON8B_PCLK(meson8b_usb1,		HHI_GCLK_MPEG1, 22);
-static MESON8B_PCLK(meson8b_reset,		HHI_GCLK_MPEG1, 23);
-static MESON8B_PCLK(meson8b_nand,		HHI_GCLK_MPEG1, 24);
-static MESON8B_PCLK(meson8b_dos_parser,		HHI_GCLK_MPEG1, 25);
-static MESON8B_PCLK(meson8b_usb,		HHI_GCLK_MPEG1, 26);
-static MESON8B_PCLK(meson8b_vdin1,		HHI_GCLK_MPEG1, 28);
-static MESON8B_PCLK(meson8b_ahb_arb0,		HHI_GCLK_MPEG1, 29);
-static MESON8B_PCLK(meson8b_efuse,		HHI_GCLK_MPEG1, 30);
-static MESON8B_PCLK(meson8b_boot_rom,		HHI_GCLK_MPEG1, 31);
+static MESON8B_PCLK(meson8b_ahb_data_bus,	HHI_GCLK_MPEG2,  1, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_ahb_ctrl_bus,	HHI_GCLK_MPEG2,  2, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_hdmi_intr_sync,	HHI_GCLK_MPEG2,  3, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_hdmi_pclk,		HHI_GCLK_MPEG2,  4, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_usb1_ddr_bridge,	HHI_GCLK_MPEG2,  8, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_usb0_ddr_bridge,	HHI_GCLK_MPEG2,  9, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_mmc_pclk,		HHI_GCLK_MPEG2, 11, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_dvin,		HHI_GCLK_MPEG2, 12, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_uart2,		HHI_GCLK_MPEG2, 15, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_sana,		HHI_GCLK_MPEG2, 22, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vpu_intr,		HHI_GCLK_MPEG2, 25, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_sec_ahb_ahb3_bridge, HHI_GCLK_MPEG2, 26, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_clk81_a9,		HHI_GCLK_MPEG2, 29, CLK_IGNORE_UNUSED);
 
-static MESON8B_PCLK(meson8b_ahb_data_bus,	HHI_GCLK_MPEG2, 1);
-static MESON8B_PCLK(meson8b_ahb_ctrl_bus,	HHI_GCLK_MPEG2, 2);
-static MESON8B_PCLK(meson8b_hdmi_intr_sync,	HHI_GCLK_MPEG2, 3);
-static MESON8B_PCLK(meson8b_hdmi_pclk,		HHI_GCLK_MPEG2, 4);
-static MESON8B_PCLK(meson8b_usb1_ddr_bridge,	HHI_GCLK_MPEG2, 8);
-static MESON8B_PCLK(meson8b_usb0_ddr_bridge,	HHI_GCLK_MPEG2, 9);
-static MESON8B_PCLK(meson8b_mmc_pclk,		HHI_GCLK_MPEG2, 11);
-static MESON8B_PCLK(meson8b_dvin,		HHI_GCLK_MPEG2, 12);
-static MESON8B_PCLK(meson8b_uart2,		HHI_GCLK_MPEG2, 15);
-static MESON8B_PCLK(meson8b_sana,		HHI_GCLK_MPEG2, 22);
-static MESON8B_PCLK(meson8b_vpu_intr,		HHI_GCLK_MPEG2, 25);
-static MESON8B_PCLK(meson8b_sec_ahb_ahb3_bridge, HHI_GCLK_MPEG2, 26);
-static MESON8B_PCLK(meson8b_clk81_a9,		HHI_GCLK_MPEG2, 29);
-
-static MESON8B_PCLK(meson8b_vclk2_venci0,	HHI_GCLK_OTHER, 1);
-static MESON8B_PCLK(meson8b_vclk2_venci1,	HHI_GCLK_OTHER, 2);
-static MESON8B_PCLK(meson8b_vclk2_vencp0,	HHI_GCLK_OTHER, 3);
-static MESON8B_PCLK(meson8b_vclk2_vencp1,	HHI_GCLK_OTHER, 4);
-static MESON8B_PCLK(meson8b_gclk_venci_int,	HHI_GCLK_OTHER, 8);
-static MESON8B_PCLK(meson8b_gclk_vencp_int,	HHI_GCLK_OTHER, 9);
-static MESON8B_PCLK(meson8b_dac_clk,		HHI_GCLK_OTHER, 10);
-static MESON8B_PCLK(meson8b_aoclk_gate,		HHI_GCLK_OTHER, 14);
-static MESON8B_PCLK(meson8b_iec958_gate,	HHI_GCLK_OTHER, 16);
-static MESON8B_PCLK(meson8b_enc480p,		HHI_GCLK_OTHER, 20);
-static MESON8B_PCLK(meson8b_rng1,		HHI_GCLK_OTHER, 21);
-static MESON8B_PCLK(meson8b_gclk_vencl_int,	HHI_GCLK_OTHER, 22);
-static MESON8B_PCLK(meson8b_vclk2_venclmcc,	HHI_GCLK_OTHER, 24);
-static MESON8B_PCLK(meson8b_vclk2_vencl,	HHI_GCLK_OTHER, 25);
-static MESON8B_PCLK(meson8b_vclk2_other,	HHI_GCLK_OTHER, 26);
-static MESON8B_PCLK(meson8b_edp,		HHI_GCLK_OTHER, 31);
+static MESON8B_PCLK(meson8b_vclk2_venci0,	HHI_GCLK_OTHER,  1, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vclk2_venci1,	HHI_GCLK_OTHER,  2, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vclk2_vencp0,	HHI_GCLK_OTHER,  3, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vclk2_vencp1,	HHI_GCLK_OTHER,  4, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_gclk_venci_int,	HHI_GCLK_OTHER,  8, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_gclk_vencp_int,	HHI_GCLK_OTHER,  9, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_dac_clk,		HHI_GCLK_OTHER, 10, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_aoclk_gate,		HHI_GCLK_OTHER, 14, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_iec958_gate,	HHI_GCLK_OTHER, 16, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_enc480p,		HHI_GCLK_OTHER, 20, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_rng1,		HHI_GCLK_OTHER, 21, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_gclk_vencl_int,	HHI_GCLK_OTHER, 22, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vclk2_venclmcc,	HHI_GCLK_OTHER, 24, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vclk2_vencl,	HHI_GCLK_OTHER, 25, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_vclk2_other,	HHI_GCLK_OTHER, 26, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_edp,		HHI_GCLK_OTHER, 31, CLK_IGNORE_UNUSED);
 
 /* AIU gates */
-static MESON_PCLK(meson8b_aiu_glue,		HHI_GCLK_MPEG1, 6, &meson8b_aiu.hw);
+static MESON_PCLK(meson8b_aiu_glue, HHI_GCLK_MPEG1, 6, &meson8b_aiu.hw, CLK_IGNORE_UNUSED);
 
-#define MESON_AIU_PCLK(_name, _reg, _bit) \
-	MESON_PCLK(_name, _reg, _bit, &meson8b_aiu_glue.hw)
+#define MESON_AIU_PCLK(_name, _reg, _bit, _flags) \
+	MESON_PCLK(_name, _reg, _bit, &meson8b_aiu_glue.hw, _flags)
 
-static MESON_AIU_PCLK(meson8b_iec958,		HHI_GCLK_MPEG1, 7);
-static MESON_AIU_PCLK(meson8b_i2s_out,		HHI_GCLK_MPEG1, 8);
-static MESON_AIU_PCLK(meson8b_amclk,		HHI_GCLK_MPEG1, 9);
-static MESON_AIU_PCLK(meson8b_aififo2,		HHI_GCLK_MPEG1, 10);
-static MESON_AIU_PCLK(meson8b_mixer,		HHI_GCLK_MPEG1, 11);
-static MESON_AIU_PCLK(meson8b_mixer_iface,	HHI_GCLK_MPEG1, 12);
-static MESON_AIU_PCLK(meson8b_adc,		HHI_GCLK_MPEG1, 13);
+static MESON_AIU_PCLK(meson8b_iec958,		HHI_GCLK_MPEG1,  7, CLK_IGNORE_UNUSED);
+static MESON_AIU_PCLK(meson8b_i2s_out,		HHI_GCLK_MPEG1,  8, CLK_IGNORE_UNUSED);
+static MESON_AIU_PCLK(meson8b_amclk,		HHI_GCLK_MPEG1,  9, CLK_IGNORE_UNUSED);
+static MESON_AIU_PCLK(meson8b_aififo2,		HHI_GCLK_MPEG1, 10, CLK_IGNORE_UNUSED);
+static MESON_AIU_PCLK(meson8b_mixer,		HHI_GCLK_MPEG1, 11, CLK_IGNORE_UNUSED);
+static MESON_AIU_PCLK(meson8b_mixer_iface,	HHI_GCLK_MPEG1, 12, CLK_IGNORE_UNUSED);
+static MESON_AIU_PCLK(meson8b_adc,		HHI_GCLK_MPEG1, 13, CLK_IGNORE_UNUSED);
 
 /* Always On (AO) domain gates */
 
-static MESON8B_PCLK(meson8b_ao_media_cpu,	HHI_GCLK_AO, 0);
-static MESON8B_PCLK(meson8b_ao_ahb_sram,	HHI_GCLK_AO, 1);
-static MESON8B_PCLK(meson8b_ao_ahb_bus,		HHI_GCLK_AO, 2);
-static MESON8B_PCLK(meson8b_ao_iface,		HHI_GCLK_AO, 3);
+static MESON8B_PCLK(meson8b_ao_media_cpu,	HHI_GCLK_AO, 0, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_ao_ahb_sram,	HHI_GCLK_AO, 1, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_ao_ahb_bus,		HHI_GCLK_AO, 2, CLK_IGNORE_UNUSED);
+static MESON8B_PCLK(meson8b_ao_iface,		HHI_GCLK_AO, 3, CLK_IGNORE_UNUSED);
 
 static struct clk_hw *meson8_hw_clks[] = {
 	[CLKID_PLL_FIXED]	    = &meson8b_fixed_pll.hw,
