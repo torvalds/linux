@@ -252,9 +252,6 @@ static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
  */
 static DEFINE_PER_CPU(u64, bank_map);
 
-/* Map of banks that have more than MCA_MISC0 available. */
-static DEFINE_PER_CPU(u64, smca_misc_banks_map);
-
 static void amd_threshold_interrupt(void);
 static void amd_deferred_error_interrupt(void);
 
@@ -263,28 +260,6 @@ static void default_deferred_error_interrupt(void)
 	pr_err("Unexpected deferred interrupt at vector %x\n", DEFERRED_ERROR_VECTOR);
 }
 void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
-
-static void smca_set_misc_banks_map(unsigned int bank, unsigned int cpu)
-{
-	u32 low, high;
-
-	/*
-	 * For SMCA enabled processors, BLKPTR field of the first MISC register
-	 * (MCx_MISC0) indicates presence of additional MISC regs set (MISC1-4).
-	 */
-	if (rdmsr_safe(MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
-		return;
-
-	if (!(low & MCI_CONFIG_MCAX))
-		return;
-
-	if (rdmsr_safe(MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high))
-		return;
-
-	if (low & MASK_BLKPTR_LO)
-		per_cpu(smca_misc_banks_map, cpu) |= BIT_ULL(bank);
-
-}
 
 static void smca_configure(unsigned int bank, unsigned int cpu)
 {
@@ -325,8 +300,6 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 
 		wrmsr(smca_config, low, high);
 	}
-
-	smca_set_misc_banks_map(bank, cpu);
 
 	if (rdmsr_safe(MSR_AMD64_SMCA_MCx_IPID(bank), &low, &high)) {
 		pr_warn("Failed to read MCA_IPID for bank %d\n", bank);
@@ -525,18 +498,6 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
-static u32 smca_get_block_address(unsigned int bank, unsigned int block,
-				  unsigned int cpu)
-{
-	if (!block)
-		return MSR_AMD64_SMCA_MCx_MISC(bank);
-
-	if (!(per_cpu(smca_misc_banks_map, cpu) & BIT_ULL(bank)))
-		return 0;
-
-	return MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
-}
-
 static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 			     unsigned int bank, unsigned int block,
 			     unsigned int cpu)
@@ -546,8 +507,15 @@ static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 	if ((bank >= per_cpu(mce_num_banks, cpu)) || (block >= NR_BLOCKS))
 		return addr;
 
-	if (mce_flags.smca)
-		return smca_get_block_address(bank, block, cpu);
+	if (mce_flags.smca) {
+		if (!block)
+			return MSR_AMD64_SMCA_MCx_MISC(bank);
+
+		if (!(low & MASK_BLKPTR_LO))
+			return 0;
+
+		return MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
+	}
 
 	/* Fall back to method we used for older processors: */
 	switch (block) {
