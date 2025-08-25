@@ -106,7 +106,30 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	bool is_aarch32 = vcpu_mode_is_32bit(vcpu);
-	u64 esr = 0;
+	u64 esr = 0, fsc;
+	int level;
+
+	/*
+	 * If injecting an abort from a failed S1PTW, rewalk the S1 PTs to
+	 * find the failing level. If we can't find it, assume the error was
+	 * transient and restart without changing the state.
+	 */
+	if (kvm_vcpu_abt_iss1tw(vcpu)) {
+		u64 hpfar = kvm_vcpu_get_fault_ipa(vcpu);
+		int ret;
+
+		if (hpfar == INVALID_GPA)
+			return;
+
+		ret = __kvm_find_s1_desc_level(vcpu, addr, hpfar, &level);
+		if (ret)
+			return;
+
+		WARN_ON_ONCE(level < -1 || level > 3);
+		fsc = ESR_ELx_FSC_SEA_TTW(level);
+	} else {
+		fsc = ESR_ELx_FSC_EXTABT;
+	}
 
 	/* This delight is brought to you by FEAT_DoubleFault2. */
 	if (effective_sctlr2_ease(vcpu))
@@ -133,7 +156,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 	if (!is_iabt)
 		esr |= ESR_ELx_EC_DABT_LOW << ESR_ELx_EC_SHIFT;
 
-	esr |= ESR_ELx_FSC_EXTABT;
+	esr |= fsc;
 
 	vcpu_write_sys_reg(vcpu, addr, exception_far_elx(vcpu));
 	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
