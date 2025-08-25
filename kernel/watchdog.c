@@ -752,6 +752,12 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	if (!watchdog_enabled)
 		return HRTIMER_NORESTART;
 
+	/*
+	 * pass the buddy check if a panic is in process
+	 */
+	if (panic_in_progress())
+		return HRTIMER_NORESTART;
+
 	watchdog_hardlockup_kick();
 
 	/* kick the softlockup detector */
