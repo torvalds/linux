@@ -52,6 +52,8 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 	u32 dma_mr_value, pcs_value, value;
 	unsigned int count;
 
+	dev_err_once(vdev->device, "DEPRECATION: VFIO AMD XGBE platform reset is deprecated and will be removed in a future kernel release\n");
+
 	if (!xgmac_regs->ioaddr) {
 		xgmac_regs->ioaddr =
 			ioremap(xgmac_regs->addr, xgmac_regs->size);

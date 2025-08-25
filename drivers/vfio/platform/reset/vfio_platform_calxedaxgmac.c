@@ -50,6 +50,8 @@ static int vfio_platform_calxedaxgmac_reset(struct vfio_platform_device *vdev)
 {
 	struct vfio_platform_region *reg = &vdev->regions[0];
 
+	dev_err_once(vdev->device, "DEPRECATION: VFIO Calxeda xgmac platform reset is deprecated and will be removed in a future kernel release\n");
+
 	if (!reg->ioaddr) {
 		reg->ioaddr =
 			ioremap(reg->addr, reg->size);
