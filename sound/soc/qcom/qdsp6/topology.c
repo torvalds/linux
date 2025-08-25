@@ -314,7 +314,7 @@ static struct audioreach_module_priv_data *audioreach_get_module_priv_data(
 		struct snd_soc_tplg_vendor_array *mod_array;
 
 		mod_array = (struct snd_soc_tplg_vendor_array *)((u8 *)private->array + sz);
-		if (mod_array->type == SND_SOC_AR_TPLG_MODULE_CFG_TYPE) {
+		if (le32_to_cpu(mod_array->type) == SND_SOC_AR_TPLG_MODULE_CFG_TYPE) {
 			struct audioreach_module_priv_data *pdata;
 
 			pdata = kzalloc(struct_size(pdata, data, le32_to_cpu(mod_array->size)),
