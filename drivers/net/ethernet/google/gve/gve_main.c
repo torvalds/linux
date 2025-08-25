@@ -2870,6 +2870,8 @@ static void gve_shutdown(struct pci_dev *pdev)
 	struct gve_priv *priv = netdev_priv(netdev);
 	bool was_up = netif_running(priv->dev);
 
+	netif_device_detach(netdev);
+
 	rtnl_lock();
 	netdev_lock(netdev);
 	if (was_up && gve_close(priv->dev)) {

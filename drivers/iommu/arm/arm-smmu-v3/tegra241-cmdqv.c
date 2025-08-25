@@ -301,9 +301,11 @@ static void tegra241_vintf_user_handle_error(struct tegra241_vintf *vintf)
 	struct iommu_vevent_tegra241_cmdqv vevent_data;
 	int i;
 
-	for (i = 0; i < LVCMDQ_ERR_MAP_NUM_64; i++)
-		vevent_data.lvcmdq_err_map[i] =
-			readq_relaxed(REG_VINTF(vintf, LVCMDQ_ERR_MAP_64(i)));
+	for (i = 0; i < LVCMDQ_ERR_MAP_NUM_64; i++) {
+		u64 err = readq_relaxed(REG_VINTF(vintf, LVCMDQ_ERR_MAP_64(i)));
+
+		vevent_data.lvcmdq_err_map[i] = cpu_to_le64(err);
+	}
 
 	iommufd_viommu_report_event(viommu, IOMMU_VEVENTQ_TYPE_TEGRA241_CMDQV,
 				    &vevent_data, sizeof(vevent_data));

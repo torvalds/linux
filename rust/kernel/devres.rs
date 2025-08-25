@@ -115,10 +115,11 @@ pub struct Devres<T: Send> {
     /// Contains all the fields shared with [`Self::callback`].
     // TODO: Replace with `UnsafePinned`, once available.
     //
-    // Subsequently, the `drop_in_place()` in `Devres::drop` and the explicit `Send` and `Sync'
-    // impls can be removed.
+    // Subsequently, the `drop_in_place()` in `Devres::drop` and `Devres::new` as well as the
+    // explicit `Send` and `Sync' impls can be removed.
     #[pin]
     inner: Opaque<Inner<T>>,
+    _add_action: (),
 }
 
 impl<T: Send> Devres<T> {
@@ -140,7 +141,15 @@ impl<T: Send> Devres<T> {
             dev: dev.into(),
             callback,
             // INVARIANT: `inner` is properly initialized.
-            inner <- {
+            inner <- Opaque::pin_init(try_pin_init!(Inner {
+                    devm <- Completion::new(),
+                    revoke <- Completion::new(),
+                    data <- Revocable::new(data),
+            })),
+            // TODO: Replace with "initializer code blocks" [1] once available.
+            //
+            // [1] https://github.com/Rust-for-Linux/pin-init/pull/69
+            _add_action: {
                 // SAFETY: `this` is a valid pointer to uninitialized memory.
                 let inner = unsafe { &raw mut (*this.as_ptr()).inner };
 
@@ -152,13 +161,13 @@ impl<T: Send> Devres<T> {
                 //    live at least as long as the returned `impl PinInit<Self, Error>`.
                 to_result(unsafe {
                     bindings::devm_add_action(dev.as_raw(), Some(callback), inner.cast())
-                })?;
+                }).inspect_err(|_| {
+                    let inner = Opaque::cast_into(inner);
 
-                Opaque::pin_init(try_pin_init!(Inner {
-                    devm <- Completion::new(),
-                    revoke <- Completion::new(),
-                    data <- Revocable::new(data),
-                }))
+                    // SAFETY: `inner` is a valid pointer to an `Inner<T>` and valid for both reads
+                    // and writes.
+                    unsafe { core::ptr::drop_in_place(inner) };
+                })?;
             },
         })
     }

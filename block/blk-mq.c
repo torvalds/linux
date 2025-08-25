@@ -5033,6 +5033,7 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 	unsigned int memflags;
 	int i;
 	struct xarray elv_tbl, et_tbl;
+	bool queues_frozen = false;
 
 	lockdep_assert_held(&set->tag_list_lock);
 
@@ -5056,9 +5057,6 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 		blk_mq_sysfs_unregister_hctxs(q);
 	}
 
-	list_for_each_entry(q, &set->tag_list, tag_set_list)
-		blk_mq_freeze_queue_nomemsave(q);
-
 	/*
 	 * Switch IO scheduler to 'none', cleaning up the data associated
 	 * with the previous scheduler. We will switch back once we are done
@@ -5068,6 +5066,9 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 		if (blk_mq_elv_switch_none(q, &elv_tbl))
 			goto switch_back;
 
+	list_for_each_entry(q, &set->tag_list, tag_set_list)
+		blk_mq_freeze_queue_nomemsave(q);
+	queues_frozen = true;
 	if (blk_mq_realloc_tag_set_tags(set, nr_hw_queues) < 0)
 		goto switch_back;
 
@@ -5091,8 +5092,12 @@ fallback:
 	}
 switch_back:
 	/* The blk_mq_elv_switch_back unfreezes queue for us. */
-	list_for_each_entry(q, &set->tag_list, tag_set_list)
+	list_for_each_entry(q, &set->tag_list, tag_set_list) {
+		/* switch_back expects queue to be frozen */
+		if (!queues_frozen)
+			blk_mq_freeze_queue_nomemsave(q);
 		blk_mq_elv_switch_back(q, &elv_tbl, &et_tbl);
+	}
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_sysfs_register_hctxs(q);

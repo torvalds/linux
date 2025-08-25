@@ -926,15 +926,21 @@ static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
 
 static netmem_ref __bnxt_alloc_rx_netmem(struct bnxt *bp, dma_addr_t *mapping,
 					 struct bnxt_rx_ring_info *rxr,
+					 unsigned int *offset,
 					 gfp_t gfp)
 {
 	netmem_ref netmem;
 
-	netmem = page_pool_alloc_netmems(rxr->page_pool, gfp);
+	if (PAGE_SIZE > BNXT_RX_PAGE_SIZE) {
+		netmem = page_pool_alloc_frag_netmem(rxr->page_pool, offset, BNXT_RX_PAGE_SIZE, gfp);
+	} else {
+		netmem = page_pool_alloc_netmems(rxr->page_pool, gfp);
+		*offset = 0;
+	}
 	if (!netmem)
 		return 0;
 
-	*mapping = page_pool_get_dma_addr_netmem(netmem);
+	*mapping = page_pool_get_dma_addr_netmem(netmem) + *offset;
 	return netmem;
 }
 
@@ -1029,7 +1035,7 @@ static int bnxt_alloc_rx_netmem(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	dma_addr_t mapping;
 	netmem_ref netmem;
 
-	netmem = __bnxt_alloc_rx_netmem(bp, &mapping, rxr, gfp);
+	netmem = __bnxt_alloc_rx_netmem(bp, &mapping, rxr, &offset, gfp);
 	if (!netmem)
 		return -ENOMEM;
 
@@ -3819,7 +3825,6 @@ static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
 	if (BNXT_RX_PAGE_MODE(bp))
 		pp.pool_size += bp->rx_ring_size / rx_size_fac;
 	pp.nid = numa_node;
-	pp.napi = &rxr->bnapi->napi;
 	pp.netdev = bp->dev;
 	pp.dev = &bp->pdev->dev;
 	pp.dma_dir = bp->rx_dir;
@@ -3849,6 +3854,12 @@ err_destroy_pp:
 	page_pool_destroy(rxr->page_pool);
 	rxr->page_pool = NULL;
 	return PTR_ERR(pool);
+}
+
+static void bnxt_enable_rx_page_pool(struct bnxt_rx_ring_info *rxr)
+{
+	page_pool_enable_direct_recycling(rxr->head_pool, &rxr->bnapi->napi);
+	page_pool_enable_direct_recycling(rxr->page_pool, &rxr->bnapi->napi);
 }
 
 static int bnxt_alloc_rx_agg_bmap(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
@@ -3889,6 +3900,7 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 		rc = bnxt_alloc_rx_page_pool(bp, rxr, cpu_node);
 		if (rc)
 			return rc;
+		bnxt_enable_rx_page_pool(rxr);
 
 		rc = xdp_rxq_info_reg(&rxr->xdp_rxq, bp->dev, i, 0);
 		if (rc < 0)
@@ -5320,7 +5332,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 {
 	int i;
 
-	netdev_assert_locked(bp->dev);
+	netdev_assert_locked_or_invisible(bp->dev);
 
 	/* Under netdev instance lock and all our NAPIs have been disabled.
 	 * It's safe to delete the hash table.
@@ -16031,6 +16043,7 @@ static int bnxt_queue_start(struct net_device *dev, void *qmem, int idx)
 			goto err_reset;
 	}
 
+	bnxt_enable_rx_page_pool(rxr);
 	napi_enable_locked(&bnapi->napi);
 	bnxt_db_nq_arm(bp, &cpr->cp_db, cpr->cp_raw_cons);
 

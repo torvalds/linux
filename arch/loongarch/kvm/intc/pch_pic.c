@@ -195,6 +195,11 @@ static int kvm_pch_pic_read(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
+	if (addr & (len - 1)) {
+		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
+		return -EINVAL;
+	}
+
 	/* statistics of pch pic reading */
 	vcpu->stat.pch_pic_read_exits++;
 	ret = loongarch_pch_pic_read(s, addr, len, val);
@@ -299,6 +304,11 @@ static int kvm_pch_pic_write(struct kvm_vcpu *vcpu,
 
 	if (!s) {
 		kvm_err("%s: pch pic irqchip not valid!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (addr & (len - 1)) {
+		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
 		return -EINVAL;
 	}
 

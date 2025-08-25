@@ -339,6 +339,7 @@ static int start_readonly;
  * so all the races disappear.
  */
 static bool create_on_open = true;
+static bool legacy_async_del_gendisk = true;
 
 /*
  * We have a system wide 'event count' that is incremented
@@ -877,15 +878,18 @@ void mddev_unlock(struct mddev *mddev)
 		export_rdev(rdev, mddev);
 	}
 
-	/* Call del_gendisk after release reconfig_mutex to avoid
-	 * deadlock (e.g. call del_gendisk under the lock and an
-	 * access to sysfs files waits the lock)
-	 * And MD_DELETED is only used for md raid which is set in
-	 * do_md_stop. dm raid only uses md_stop to stop. So dm raid
-	 * doesn't need to check MD_DELETED when getting reconfig lock
-	 */
-	if (test_bit(MD_DELETED, &mddev->flags))
-		del_gendisk(mddev->gendisk);
+	if (!legacy_async_del_gendisk) {
+		/*
+		 * Call del_gendisk after release reconfig_mutex to avoid
+		 * deadlock (e.g. call del_gendisk under the lock and an
+		 * access to sysfs files waits the lock)
+		 * And MD_DELETED is only used for md raid which is set in
+		 * do_md_stop. dm raid only uses md_stop to stop. So dm raid
+		 * doesn't need to check MD_DELETED when getting reconfig lock
+		 */
+		if (test_bit(MD_DELETED, &mddev->flags))
+			del_gendisk(mddev->gendisk);
+	}
 }
 EXPORT_SYMBOL_GPL(mddev_unlock);
 
@@ -1419,7 +1423,7 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *freshest, stru
 		else {
 			if (sb->events_hi == sb->cp_events_hi &&
 				sb->events_lo == sb->cp_events_lo) {
-				mddev->resync_offset = sb->resync_offset;
+				mddev->resync_offset = sb->recovery_cp;
 			} else
 				mddev->resync_offset = 0;
 		}
@@ -1547,13 +1551,13 @@ static void super_90_sync(struct mddev *mddev, struct md_rdev *rdev)
 	mddev->minor_version = sb->minor_version;
 	if (mddev->in_sync)
 	{
-		sb->resync_offset = mddev->resync_offset;
+		sb->recovery_cp = mddev->resync_offset;
 		sb->cp_events_hi = (mddev->events>>32);
 		sb->cp_events_lo = (u32)mddev->events;
 		if (mddev->resync_offset == MaxSector)
 			sb->state = (1<< MD_SB_CLEAN);
 	} else
-		sb->resync_offset = 0;
+		sb->recovery_cp = 0;
 
 	sb->layout = mddev->layout;
 	sb->chunk_size = mddev->chunk_sectors << 9;
@@ -4835,9 +4839,42 @@ out_unlock:
 static struct md_sysfs_entry md_metadata =
 __ATTR_PREALLOC(metadata_version, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
 
+static bool rdev_needs_recovery(struct md_rdev *rdev, sector_t sectors)
+{
+	return rdev->raid_disk >= 0 &&
+	       !test_bit(Journal, &rdev->flags) &&
+	       !test_bit(Faulty, &rdev->flags) &&
+	       !test_bit(In_sync, &rdev->flags) &&
+	       rdev->recovery_offset < sectors;
+}
+
+static enum sync_action md_get_active_sync_action(struct mddev *mddev)
+{
+	struct md_rdev *rdev;
+	bool is_recover = false;
+
+	if (mddev->resync_offset < MaxSector)
+		return ACTION_RESYNC;
+
+	if (mddev->reshape_position != MaxSector)
+		return ACTION_RESHAPE;
+
+	rcu_read_lock();
+	rdev_for_each_rcu(rdev, mddev) {
+		if (rdev_needs_recovery(rdev, MaxSector)) {
+			is_recover = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return is_recover ? ACTION_RECOVER : ACTION_IDLE;
+}
+
 enum sync_action md_sync_action(struct mddev *mddev)
 {
 	unsigned long recovery = mddev->recovery;
+	enum sync_action active_action;
 
 	/*
 	 * frozen has the highest priority, means running sync_thread will be
@@ -4861,8 +4898,17 @@ enum sync_action md_sync_action(struct mddev *mddev)
 	    !test_bit(MD_RECOVERY_NEEDED, &recovery))
 		return ACTION_IDLE;
 
-	if (test_bit(MD_RECOVERY_RESHAPE, &recovery) ||
-	    mddev->reshape_position != MaxSector)
+	/*
+	 * Check if any sync operation (resync/recover/reshape) is
+	 * currently active. This ensures that only one sync operation
+	 * can run at a time. Returns the type of active operation, or
+	 * ACTION_IDLE if none are active.
+	 */
+	active_action = md_get_active_sync_action(mddev);
+	if (active_action != ACTION_IDLE)
+		return active_action;
+
+	if (test_bit(MD_RECOVERY_RESHAPE, &recovery))
 		return ACTION_RESHAPE;
 
 	if (test_bit(MD_RECOVERY_RECOVER, &recovery))
@@ -5818,6 +5864,13 @@ static void md_kobj_release(struct kobject *ko)
 {
 	struct mddev *mddev = container_of(ko, struct mddev, kobj);
 
+	if (legacy_async_del_gendisk) {
+		if (mddev->sysfs_state)
+			sysfs_put(mddev->sysfs_state);
+		if (mddev->sysfs_level)
+			sysfs_put(mddev->sysfs_level);
+		del_gendisk(mddev->gendisk);
+	}
 	put_disk(mddev->gendisk);
 }
 
@@ -6020,6 +6073,9 @@ out_unlock:
 static int md_alloc_and_put(dev_t dev, char *name)
 {
 	struct mddev *mddev = md_alloc(dev, name);
+
+	if (legacy_async_del_gendisk)
+		pr_warn("md: async del_gendisk mode will be removed in future, please upgrade to mdadm-4.5+\n");
 
 	if (IS_ERR(mddev))
 		return PTR_ERR(mddev);
@@ -6431,10 +6487,22 @@ static void md_clean(struct mddev *mddev)
 	mddev->persistent = 0;
 	mddev->level = LEVEL_NONE;
 	mddev->clevel[0] = 0;
-	/* if UNTIL_STOP is set, it's cleared here */
-	mddev->hold_active = 0;
-	/* Don't clear MD_CLOSING, or mddev can be opened again. */
-	mddev->flags &= BIT_ULL_MASK(MD_CLOSING);
+
+	/*
+	 * For legacy_async_del_gendisk mode, it can stop the array in the
+	 * middle of assembling it, then it still can access the array. So
+	 * it needs to clear MD_CLOSING. If not legacy_async_del_gendisk,
+	 * it can't open the array again after stopping it. So it doesn't
+	 * clear MD_CLOSING.
+	 */
+	if (legacy_async_del_gendisk && mddev->hold_active) {
+		clear_bit(MD_CLOSING, &mddev->flags);
+	} else {
+		/* if UNTIL_STOP is set, it's cleared here */
+		mddev->hold_active = 0;
+		/* Don't clear MD_CLOSING, or mddev can be opened again. */
+		mddev->flags &= BIT_ULL_MASK(MD_CLOSING);
+	}
 	mddev->sb_flags = 0;
 	mddev->ro = MD_RDWR;
 	mddev->metadata_type[0] = 0;
@@ -6658,7 +6726,8 @@ static int do_md_stop(struct mddev *mddev, int mode)
 
 		export_array(mddev);
 		md_clean(mddev);
-		set_bit(MD_DELETED, &mddev->flags);
+		if (!legacy_async_del_gendisk)
+			set_bit(MD_DELETED, &mddev->flags);
 	}
 	md_new_event();
 	sysfs_notify_dirent_safe(mddev->sysfs_state);
@@ -8968,11 +9037,7 @@ static sector_t md_sync_position(struct mddev *mddev, enum sync_action action)
 		start = MaxSector;
 		rcu_read_lock();
 		rdev_for_each_rcu(rdev, mddev)
-			if (rdev->raid_disk >= 0 &&
-			    !test_bit(Journal, &rdev->flags) &&
-			    !test_bit(Faulty, &rdev->flags) &&
-			    !test_bit(In_sync, &rdev->flags) &&
-			    rdev->recovery_offset < start)
+			if (rdev_needs_recovery(rdev, start))
 				start = rdev->recovery_offset;
 		rcu_read_unlock();
 
@@ -9331,12 +9396,8 @@ void md_do_sync(struct md_thread *thread)
 			    test_bit(MD_RECOVERY_RECOVER, &mddev->recovery)) {
 				rcu_read_lock();
 				rdev_for_each_rcu(rdev, mddev)
-					if (rdev->raid_disk >= 0 &&
-					    mddev->delta_disks >= 0 &&
-					    !test_bit(Journal, &rdev->flags) &&
-					    !test_bit(Faulty, &rdev->flags) &&
-					    !test_bit(In_sync, &rdev->flags) &&
-					    rdev->recovery_offset < mddev->curr_resync)
+					if (mddev->delta_disks >= 0 &&
+					    rdev_needs_recovery(rdev, mddev->curr_resync))
 						rdev->recovery_offset = mddev->curr_resync;
 				rcu_read_unlock();
 			}
@@ -10392,6 +10453,7 @@ module_param_call(start_ro, set_ro, get_ro, NULL, S_IRUSR|S_IWUSR);
 module_param(start_dirty_degraded, int, S_IRUGO|S_IWUSR);
 module_param_call(new_array, add_named_array, NULL, NULL, S_IWUSR);
 module_param(create_on_open, bool, S_IRUSR|S_IWUSR);
+module_param(legacy_async_del_gendisk, bool, 0600);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MD RAID framework");
