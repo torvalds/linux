@@ -148,6 +148,8 @@ struct die_var_type {
 	u64 addr;
 	int reg;
 	int offset;
+	/* Whether the register holds a address to the type */
+	bool is_reg_var_addr;
 };
 
 /* Return type info of a member at offset */

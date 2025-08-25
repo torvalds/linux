@@ -868,6 +868,11 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			int offset = var->offset;
 			struct type_state_stack *stack;
 
+			/* If the reg location holds the pointer value, dereference the type */
+			if (!var->is_reg_var_addr && is_pointer_type(&mem_die) &&
+				__die_get_real_type(&mem_die, &mem_die) == NULL)
+				continue;
+
 			if (var->reg != DWARF_REG_FB)
 				offset -= fb_offset;
 
@@ -892,6 +897,10 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			Dwarf_Die orig_type;
 
 			reg = &state->regs[var->reg];
+
+			/* For gp registers, skip the address registers for now */
+			if (var->is_reg_var_addr)
+				continue;
 
 			if (reg->ok && reg->kind == TSR_KIND_TYPE &&
 			    !is_better_type(&reg->type, &mem_die))

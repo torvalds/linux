@@ -1627,12 +1627,21 @@ static int __die_collect_vars_cb(Dwarf_Die *die_mem, void *arg)
 	if (!check_allowed_ops(ops, nops))
 		return DIE_FIND_CB_SIBLING;
 
-	if (die_get_real_type(die_mem, &type_die) == NULL)
+	if (__die_get_real_type(die_mem, &type_die) == NULL)
 		return DIE_FIND_CB_SIBLING;
 
 	vt = malloc(sizeof(*vt));
 	if (vt == NULL)
 		return DIE_FIND_CB_END;
+
+	/* Usually a register holds the value of a variable */
+	vt->is_reg_var_addr = false;
+
+	if (((ops->atom >= DW_OP_breg0 && ops->atom <= DW_OP_breg31) ||
+	      ops->atom == DW_OP_bregx || ops->atom == DW_OP_fbreg) &&
+	      !is_breg_access_indirect(ops, nops))
+		/* The register contains an address of the variable. */
+		vt->is_reg_var_addr = true;
 
 	vt->die_off = dwarf_dieoffset(&type_die);
 	vt->addr = start;
