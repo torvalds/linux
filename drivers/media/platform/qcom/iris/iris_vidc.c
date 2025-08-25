@@ -656,6 +656,8 @@ static const struct v4l2_ioctl_ops iris_v4l2_ioctl_ops_enc = {
 	.vidioc_s_selection             = iris_s_selection,
 	.vidioc_s_parm                  = iris_s_parm,
 	.vidioc_g_parm                  = iris_g_parm,
+	.vidioc_streamon                = v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff               = v4l2_m2m_ioctl_streamoff,
 };
 
 void iris_init_ops(struct iris_core *core)

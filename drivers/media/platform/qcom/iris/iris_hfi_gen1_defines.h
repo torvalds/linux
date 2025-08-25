@@ -82,10 +82,12 @@
 #define HFI_PROPERTY_SYS_IMAGE_VERSION			0x6
 
 #define HFI_PROPERTY_PARAM_FRAME_SIZE			0x1001
+#define HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_INFO	0x1002
 #define HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT	0x1003
 #define HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT	0x1005
 #define HFI_PROPERTY_PARAM_WORK_MODE			0x1015
 #define HFI_PROPERTY_PARAM_WORK_ROUTE			0x1017
+#define HFI_PROPERTY_CONFIG_FRAME_RATE			0x2001
 #define HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE		0x2002
 
 #define HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM		0x1003001
@@ -348,6 +350,17 @@ struct hfi_uncompressed_plane_actual_constraints_info {
 	struct hfi_uncompressed_plane_constraints plane_format[2];
 };
 
+struct hfi_uncompressed_plane_actual {
+	int actual_stride;
+	u32 actual_plane_buffer_height;
+};
+
+struct hfi_uncompressed_plane_actual_info {
+	u32 buffer_type;
+	u32 num_planes;
+	struct hfi_uncompressed_plane_actual plane_format[2];
+};
+
 struct hfi_buffer_count_actual {
 	u32 type;
 	u32 count_actual;
@@ -373,6 +386,11 @@ struct hfi_buffer_requirements {
 	u32 count_actual;
 	u32 contiguous;
 	u32 alignment;
+};
+
+struct hfi_framerate {
+	u32 buffer_type;
+	u32 framerate;
 };
 
 struct hfi_event_data {

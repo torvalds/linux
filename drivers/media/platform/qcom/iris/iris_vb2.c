@@ -7,9 +7,11 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 
+#include "iris_common.h"
 #include "iris_instance.h"
 #include "iris_vb2.h"
 #include "iris_vdec.h"
+#include "iris_venc.h"
 #include "iris_power.h"
 
 static int iris_check_inst_mbpf(struct iris_inst *inst)
@@ -174,19 +176,35 @@ int iris_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (ret)
 		goto error;
 
-	if (V4L2_TYPE_IS_OUTPUT(q->type))
-		ret = iris_vdec_streamon_input(inst);
-	else if (V4L2_TYPE_IS_CAPTURE(q->type))
-		ret = iris_vdec_streamon_output(inst);
+	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
+		if (inst->domain == DECODER)
+			ret = iris_vdec_streamon_input(inst);
+		else
+			ret = iris_venc_streamon_input(inst);
+	} else if (V4L2_TYPE_IS_CAPTURE(q->type)) {
+		if (inst->domain == DECODER)
+			ret = iris_vdec_streamon_output(inst);
+		else
+			ret = iris_venc_streamon_output(inst);
+	}
 	if (ret)
 		goto error;
 
 	buf_type = iris_v4l2_type_to_driver(q->type);
 
-	if (inst->state == IRIS_INST_STREAMING)
-		ret = iris_queue_internal_deferred_buffers(inst, BUF_DPB);
-	if (!ret)
-		ret = iris_queue_deferred_buffers(inst, buf_type);
+	if (inst->domain == DECODER) {
+		if (inst->state == IRIS_INST_STREAMING)
+			ret = iris_queue_internal_deferred_buffers(inst, BUF_DPB);
+		if (!ret)
+			ret = iris_queue_deferred_buffers(inst, buf_type);
+	} else {
+		if (inst->state == IRIS_INST_STREAMING) {
+			ret = iris_queue_deferred_buffers(inst, BUF_INPUT);
+			if (!ret)
+				ret = iris_queue_deferred_buffers(inst, BUF_OUTPUT);
+		}
+	}
+
 	if (ret)
 		goto error;
 
@@ -218,7 +236,7 @@ void iris_vb2_stop_streaming(struct vb2_queue *q)
 	    !V4L2_TYPE_IS_CAPTURE(q->type))
 		goto exit;
 
-	ret = iris_vdec_session_streamoff(inst, q->type);
+	ret = iris_session_streamoff(inst, q->type);
 	if (ret)
 		goto exit;
 

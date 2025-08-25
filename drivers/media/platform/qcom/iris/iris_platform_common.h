@@ -227,14 +227,18 @@ struct iris_platform_data {
 	u32 max_core_mbpf;
 	/* max number of macroblocks per second supported */
 	u32 max_core_mbps;
-	const u32 *input_config_params_default;
-	unsigned int input_config_params_default_size;
-	const u32 *input_config_params_hevc;
-	unsigned int input_config_params_hevc_size;
-	const u32 *input_config_params_vp9;
-	unsigned int input_config_params_vp9_size;
-	const u32 *output_config_params;
-	unsigned int output_config_params_size;
+	const u32 *dec_input_config_params_default;
+	unsigned int dec_input_config_params_default_size;
+	const u32 *dec_input_config_params_hevc;
+	unsigned int dec_input_config_params_hevc_size;
+	const u32 *dec_input_config_params_vp9;
+	unsigned int dec_input_config_params_vp9_size;
+	const u32 *dec_output_config_params;
+	unsigned int dec_output_config_params_size;
+	const u32 *enc_input_config_params;
+	unsigned int enc_input_config_params_size;
+	const u32 *enc_output_config_params;
+	unsigned int enc_output_config_params_size;
 	const u32 *dec_input_prop;
 	unsigned int dec_input_prop_size;
 	const u32 *dec_output_prop_avc;

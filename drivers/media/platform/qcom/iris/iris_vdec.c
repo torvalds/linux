@@ -7,6 +7,7 @@
 #include <media/v4l2-mem2mem.h>
 
 #include "iris_buffer.h"
+#include "iris_common.h"
 #include "iris_ctrls.h"
 #include "iris_instance.h"
 #include "iris_power.h"
@@ -312,125 +313,6 @@ void iris_vdec_src_change(struct iris_inst *inst)
 	v4l2_event_queue_fh(&inst->fh, &event);
 }
 
-
-static void iris_vdec_flush_deferred_buffers(struct iris_inst *inst,
-					     enum iris_buffer_type type)
-{
-	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
-	struct v4l2_m2m_buffer *buffer, *n;
-	struct iris_buffer *buf;
-
-	if (type == BUF_INPUT) {
-		v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buffer, n) {
-			buf = to_iris_buffer(&buffer->vb);
-			if (buf->attr & BUF_ATTR_DEFERRED) {
-				if (!(buf->attr & BUF_ATTR_BUFFER_DONE)) {
-					buf->attr |= BUF_ATTR_BUFFER_DONE;
-					buf->data_size = 0;
-					iris_vb2_buffer_done(inst, buf);
-				}
-			}
-		}
-	} else {
-		v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, buffer, n) {
-			buf = to_iris_buffer(&buffer->vb);
-			if (buf->attr & BUF_ATTR_DEFERRED) {
-				if (!(buf->attr & BUF_ATTR_BUFFER_DONE)) {
-					buf->attr |= BUF_ATTR_BUFFER_DONE;
-					buf->data_size = 0;
-					iris_vb2_buffer_done(inst, buf);
-				}
-			}
-		}
-	}
-}
-
-static void iris_vdec_kill_session(struct iris_inst *inst)
-{
-	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
-
-	if (!inst->session_id)
-		return;
-
-	hfi_ops->session_close(inst);
-	iris_inst_change_state(inst, IRIS_INST_ERROR);
-}
-
-int iris_vdec_session_streamoff(struct iris_inst *inst, u32 plane)
-{
-	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
-	enum iris_buffer_type buffer_type;
-	int ret;
-
-	switch (plane) {
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		buffer_type = BUF_INPUT;
-		break;
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
-		buffer_type = BUF_OUTPUT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = hfi_ops->session_stop(inst, plane);
-	if (ret)
-		goto error;
-
-	ret = iris_inst_state_change_streamoff(inst, plane);
-	if (ret)
-		goto error;
-
-	iris_vdec_flush_deferred_buffers(inst, buffer_type);
-
-	return 0;
-
-error:
-	iris_vdec_kill_session(inst);
-	iris_vdec_flush_deferred_buffers(inst, buffer_type);
-
-	return ret;
-}
-
-static int iris_vdec_process_streamon_input(struct iris_inst *inst)
-{
-	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
-	enum iris_inst_sub_state set_sub_state = 0;
-	int ret;
-
-	iris_scale_power(inst);
-
-	ret = hfi_ops->session_start(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-	if (ret)
-		return ret;
-
-	if (inst->sub_state & IRIS_INST_SUB_INPUT_PAUSE) {
-		ret = iris_inst_change_sub_state(inst, IRIS_INST_SUB_INPUT_PAUSE, 0);
-		if (ret)
-			return ret;
-	}
-
-	if (inst->sub_state & IRIS_INST_SUB_DRC ||
-	    inst->sub_state & IRIS_INST_SUB_DRAIN ||
-	    inst->sub_state & IRIS_INST_SUB_FIRST_IPSC) {
-		if (!(inst->sub_state & IRIS_INST_SUB_INPUT_PAUSE)) {
-			if (hfi_ops->session_pause) {
-				ret = hfi_ops->session_pause(inst,
-							     V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-				if (ret)
-					return ret;
-			}
-			set_sub_state = IRIS_INST_SUB_INPUT_PAUSE;
-		}
-	}
-
-	ret = iris_inst_state_change_streamon(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-	if (ret)
-		return ret;
-
-	return iris_inst_change_sub_state(inst, 0, set_sub_state);
-}
-
 int iris_vdec_streamon_input(struct iris_inst *inst)
 {
 	int ret;
@@ -457,71 +339,7 @@ int iris_vdec_streamon_input(struct iris_inst *inst)
 	if (ret)
 		return ret;
 
-	return iris_vdec_process_streamon_input(inst);
-}
-
-static int iris_vdec_process_streamon_output(struct iris_inst *inst)
-{
-	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
-	bool drain_active = false, drc_active = false;
-	enum iris_inst_sub_state clear_sub_state = 0;
-	int ret = 0;
-
-	iris_scale_power(inst);
-
-	drain_active = inst->sub_state & IRIS_INST_SUB_DRAIN &&
-		inst->sub_state & IRIS_INST_SUB_DRAIN_LAST;
-
-	drc_active = inst->sub_state & IRIS_INST_SUB_DRC &&
-		inst->sub_state & IRIS_INST_SUB_DRC_LAST;
-
-	if (drc_active)
-		clear_sub_state = IRIS_INST_SUB_DRC | IRIS_INST_SUB_DRC_LAST;
-	else if (drain_active)
-		clear_sub_state = IRIS_INST_SUB_DRAIN | IRIS_INST_SUB_DRAIN_LAST;
-
-	if (inst->sub_state & IRIS_INST_SUB_INPUT_PAUSE) {
-		ret = iris_alloc_and_queue_input_int_bufs(inst);
-		if (ret)
-			return ret;
-		ret = iris_set_stage(inst, STAGE);
-		if (ret)
-			return ret;
-		ret = iris_set_pipe(inst, PIPE);
-		if (ret)
-			return ret;
-	}
-
-	if (inst->state == IRIS_INST_INPUT_STREAMING &&
-	    inst->sub_state & IRIS_INST_SUB_INPUT_PAUSE) {
-		if (!drain_active)
-			ret = hfi_ops->session_resume_drc(inst,
-							  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-		else if (hfi_ops->session_resume_drain)
-			ret = hfi_ops->session_resume_drain(inst,
-							    V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-		if (ret)
-			return ret;
-		clear_sub_state |= IRIS_INST_SUB_INPUT_PAUSE;
-	}
-
-	if (inst->sub_state & IRIS_INST_SUB_FIRST_IPSC)
-		clear_sub_state |= IRIS_INST_SUB_FIRST_IPSC;
-
-	ret = hfi_ops->session_start(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-	if (ret)
-		return ret;
-
-	if (inst->sub_state & IRIS_INST_SUB_OUTPUT_PAUSE)
-		clear_sub_state |= IRIS_INST_SUB_OUTPUT_PAUSE;
-
-	ret = iris_inst_state_change_streamon(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-	if (ret)
-		return ret;
-
-	inst->last_buffer_dequeued = false;
-
-	return iris_inst_change_sub_state(inst, clear_sub_state, 0);
+	return iris_process_streamon_input(inst);
 }
 
 int iris_vdec_streamon_output(struct iris_inst *inst)
@@ -543,7 +361,7 @@ int iris_vdec_streamon_output(struct iris_inst *inst)
 	if (ret)
 		return ret;
 
-	ret = iris_vdec_process_streamon_output(inst);
+	ret = iris_process_streamon_output(inst);
 	if (ret)
 		goto error;
 
@@ -554,7 +372,7 @@ int iris_vdec_streamon_output(struct iris_inst *inst)
 	return ret;
 
 error:
-	iris_vdec_session_streamoff(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+	iris_session_streamoff(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 
 	return ret;
 }

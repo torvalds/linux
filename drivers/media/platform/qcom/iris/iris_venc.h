@@ -18,5 +18,7 @@ int iris_venc_subscribe_event(struct iris_inst *inst, const struct v4l2_event_su
 int iris_venc_s_selection(struct iris_inst *inst, struct v4l2_selection *s);
 int iris_venc_g_param(struct iris_inst *inst, struct v4l2_streamparm *s_parm);
 int iris_venc_s_param(struct iris_inst *inst, struct v4l2_streamparm *s_parm);
+int iris_venc_streamon_input(struct iris_inst *inst);
+int iris_venc_streamon_output(struct iris_inst *inst);
 
 #endif

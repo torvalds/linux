@@ -658,9 +658,23 @@ static const u32 sm8550_vdec_input_config_param_vp9[] = {
 	HFI_PROP_LEVEL,
 };
 
+static const u32 sm8550_venc_input_config_params[] = {
+	HFI_PROP_COLOR_FORMAT,
+	HFI_PROP_RAW_RESOLUTION,
+	HFI_PROP_CROP_OFFSETS,
+	HFI_PROP_LINEAR_STRIDE_SCANLINE,
+	HFI_PROP_SIGNAL_COLOR_INFO,
+};
+
 static const u32 sm8550_vdec_output_config_params[] = {
 	HFI_PROP_COLOR_FORMAT,
 	HFI_PROP_LINEAR_STRIDE_SCANLINE,
+};
+
+static const u32 sm8550_venc_output_config_params[] = {
+	HFI_PROP_BITSTREAM_RESOLUTION,
+	HFI_PROP_CROP_OFFSETS,
+	HFI_PROP_FRAME_RATE,
 };
 
 static const u32 sm8550_vdec_subscribe_input_properties[] = {
@@ -726,22 +740,32 @@ struct iris_platform_data sm8550_data = {
 	.max_session_count = 16,
 	.max_core_mbpf = NUM_MBS_8K * 2,
 	.max_core_mbps = ((7680 * 4320) / 256) * 60,
-	.input_config_params_default =
+	.dec_input_config_params_default =
 		sm8550_vdec_input_config_params_default,
-	.input_config_params_default_size =
+	.dec_input_config_params_default_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_params_default),
-	.input_config_params_hevc =
+	.dec_input_config_params_hevc =
 		sm8550_vdec_input_config_param_hevc,
-	.input_config_params_hevc_size =
+	.dec_input_config_params_hevc_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_hevc),
-	.input_config_params_vp9 =
+	.dec_input_config_params_vp9 =
 		sm8550_vdec_input_config_param_vp9,
-	.input_config_params_vp9_size =
+	.dec_input_config_params_vp9_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_vp9),
-	.output_config_params =
+	.dec_output_config_params =
 		sm8550_vdec_output_config_params,
-	.output_config_params_size =
+	.dec_output_config_params_size =
 		ARRAY_SIZE(sm8550_vdec_output_config_params),
+
+	.enc_input_config_params =
+		sm8550_venc_input_config_params,
+	.enc_input_config_params_size =
+		ARRAY_SIZE(sm8550_venc_input_config_params),
+	.enc_output_config_params =
+		sm8550_venc_output_config_params,
+	.enc_output_config_params_size =
+		ARRAY_SIZE(sm8550_venc_output_config_params),
+
 	.dec_input_prop = sm8550_vdec_subscribe_input_properties,
 	.dec_input_prop_size = ARRAY_SIZE(sm8550_vdec_subscribe_input_properties),
 	.dec_output_prop_avc = sm8550_vdec_subscribe_output_properties_avc,
@@ -804,22 +828,32 @@ struct iris_platform_data sm8650_data = {
 	.max_session_count = 16,
 	.max_core_mbpf = NUM_MBS_8K * 2,
 	.max_core_mbps = ((7680 * 4320) / 256) * 60,
-	.input_config_params_default =
+	.dec_input_config_params_default =
 		sm8550_vdec_input_config_params_default,
-	.input_config_params_default_size =
+	.dec_input_config_params_default_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_params_default),
-	.input_config_params_hevc =
+	.dec_input_config_params_hevc =
 		sm8550_vdec_input_config_param_hevc,
-	.input_config_params_hevc_size =
+	.dec_input_config_params_hevc_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_hevc),
-	.input_config_params_vp9 =
+	.dec_input_config_params_vp9 =
 		sm8550_vdec_input_config_param_vp9,
-	.input_config_params_vp9_size =
+	.dec_input_config_params_vp9_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_vp9),
-	.output_config_params =
+	.dec_output_config_params =
 		sm8550_vdec_output_config_params,
-	.output_config_params_size =
+	.dec_output_config_params_size =
 		ARRAY_SIZE(sm8550_vdec_output_config_params),
+
+	.enc_input_config_params =
+		sm8550_venc_input_config_params,
+	.enc_input_config_params_size =
+		ARRAY_SIZE(sm8550_venc_input_config_params),
+	.enc_output_config_params =
+		sm8550_venc_output_config_params,
+	.enc_output_config_params_size =
+		ARRAY_SIZE(sm8550_venc_output_config_params),
+
 	.dec_input_prop = sm8550_vdec_subscribe_input_properties,
 	.dec_input_prop_size = ARRAY_SIZE(sm8550_vdec_subscribe_input_properties),
 	.dec_output_prop_avc = sm8550_vdec_subscribe_output_properties_avc,
@@ -872,22 +906,32 @@ struct iris_platform_data sm8750_data = {
 	.num_vpp_pipe = 4,
 	.max_session_count = 16,
 	.max_core_mbpf = NUM_MBS_8K * 2,
-	.input_config_params_default =
+	.dec_input_config_params_default =
 		sm8550_vdec_input_config_params_default,
-	.input_config_params_default_size =
+	.dec_input_config_params_default_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_params_default),
-	.input_config_params_hevc =
+	.dec_input_config_params_hevc =
 		sm8550_vdec_input_config_param_hevc,
-	.input_config_params_hevc_size =
+	.dec_input_config_params_hevc_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_hevc),
-	.input_config_params_vp9 =
+	.dec_input_config_params_vp9 =
 		sm8550_vdec_input_config_param_vp9,
-	.input_config_params_vp9_size =
+	.dec_input_config_params_vp9_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_vp9),
-	.output_config_params =
+	.dec_output_config_params =
 		sm8550_vdec_output_config_params,
-	.output_config_params_size =
+	.dec_output_config_params_size =
 		ARRAY_SIZE(sm8550_vdec_output_config_params),
+
+	.enc_input_config_params =
+		sm8550_venc_input_config_params,
+	.enc_input_config_params_size =
+		ARRAY_SIZE(sm8550_venc_input_config_params),
+	.enc_output_config_params =
+		sm8550_venc_output_config_params,
+	.enc_output_config_params_size =
+		ARRAY_SIZE(sm8550_venc_output_config_params),
+
 	.dec_input_prop = sm8550_vdec_subscribe_input_properties,
 	.dec_input_prop_size = ARRAY_SIZE(sm8550_vdec_subscribe_input_properties),
 	.dec_output_prop_avc = sm8550_vdec_subscribe_output_properties_avc,
@@ -946,22 +990,32 @@ struct iris_platform_data qcs8300_data = {
 	.max_session_count = 16,
 	.max_core_mbpf = ((4096 * 2176) / 256) * 4,
 	.max_core_mbps = (((3840 * 2176) / 256) * 120),
-	.input_config_params_default =
+	.dec_input_config_params_default =
 		sm8550_vdec_input_config_params_default,
-	.input_config_params_default_size =
+	.dec_input_config_params_default_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_params_default),
-	.input_config_params_hevc =
+	.dec_input_config_params_hevc =
 		sm8550_vdec_input_config_param_hevc,
-	.input_config_params_hevc_size =
+	.dec_input_config_params_hevc_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_hevc),
-	.input_config_params_vp9 =
+	.dec_input_config_params_vp9 =
 		sm8550_vdec_input_config_param_vp9,
-	.input_config_params_vp9_size =
+	.dec_input_config_params_vp9_size =
 		ARRAY_SIZE(sm8550_vdec_input_config_param_vp9),
-	.output_config_params =
+	.dec_output_config_params =
 		sm8550_vdec_output_config_params,
-	.output_config_params_size =
+	.dec_output_config_params_size =
 		ARRAY_SIZE(sm8550_vdec_output_config_params),
+
+	.enc_input_config_params =
+		sm8550_venc_input_config_params,
+	.enc_input_config_params_size =
+		ARRAY_SIZE(sm8550_venc_input_config_params),
+	.enc_output_config_params =
+		sm8550_venc_output_config_params,
+	.enc_output_config_params_size =
+		ARRAY_SIZE(sm8550_venc_output_config_params),
+
 	.dec_input_prop = sm8550_vdec_subscribe_input_properties,
 	.dec_input_prop_size = ARRAY_SIZE(sm8550_vdec_subscribe_input_properties),
 	.dec_output_prop_avc = sm8550_vdec_subscribe_output_properties_avc,

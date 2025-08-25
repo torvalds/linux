@@ -21,6 +21,5 @@ int iris_vdec_streamon_output(struct iris_inst *inst);
 int iris_vdec_qbuf(struct iris_inst *inst, struct vb2_v4l2_buffer *vbuf);
 int iris_vdec_start_cmd(struct iris_inst *inst);
 int iris_vdec_stop_cmd(struct iris_inst *inst);
-int iris_vdec_session_streamoff(struct iris_inst *inst, u32 plane);
 
 #endif
