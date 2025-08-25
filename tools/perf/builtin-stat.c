@@ -613,33 +613,40 @@ enum counter_recovery {
 	COUNTER_FATAL,
 };
 
-static enum counter_recovery stat_handle_error(struct evsel *counter)
+static enum counter_recovery stat_handle_error(struct evsel *counter, int err)
 {
 	char msg[BUFSIZ];
+
+	if (counter->skippable) {
+		if (verbose > 0) {
+			ui__warning("skipping event %s that kernel failed to open .\n",
+				    evsel__name(counter));
+		}
+		counter->supported = false;
+		counter->errored = true;
+		return COUNTER_SKIP;
+	}
+
 	/*
 	 * PPC returns ENXIO for HW counters until 2.6.37
 	 * (behavior changed with commit b0a873e).
 	 */
-	if (errno == EINVAL || errno == ENOSYS ||
-	    errno == ENOENT || errno == ENXIO) {
-		if (verbose > 0)
+	if (err == EINVAL || err == ENOSYS || err == ENOENT || err == ENXIO) {
+		if (verbose > 0) {
 			ui__warning("%s event is not supported by the kernel.\n",
 				    evsel__name(counter));
+		}
 		counter->supported = false;
 		/*
 		 * errored is a sticky flag that means one of the counter's
 		 * cpu event had a problem and needs to be reexamined.
 		 */
 		counter->errored = true;
-
-		if ((evsel__leader(counter) != counter) ||
-		    !(counter->core.leader->nr_members > 1))
-			return COUNTER_SKIP;
-	} else if (evsel__fallback(counter, &target, errno, msg, sizeof(msg))) {
+	} else if (evsel__fallback(counter, &target, err, msg, sizeof(msg))) {
 		if (verbose > 0)
 			ui__warning("%s\n", msg);
 		return COUNTER_RETRY;
-	} else if (target__has_per_thread(&target) && errno != EOPNOTSUPP &&
+	} else if (target__has_per_thread(&target) && err != EOPNOTSUPP &&
 		   evsel_list->core.threads &&
 		   evsel_list->core.threads->err_thread != -1) {
 		/*
@@ -651,29 +658,16 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 			evsel_list->core.threads->err_thread = -1;
 			return COUNTER_RETRY;
 		}
-	} else if (counter->skippable) {
-		if (verbose > 0)
-			ui__warning("skipping event %s that kernel failed to open .\n",
-				    evsel__name(counter));
-		counter->supported = false;
-		counter->errored = true;
-		return COUNTER_SKIP;
-	}
-
-	if (errno == EOPNOTSUPP) {
+	} else if (err == EOPNOTSUPP) {
 		if (verbose > 0) {
 			ui__warning("%s event is not supported by the kernel.\n",
 				    evsel__name(counter));
 		}
 		counter->supported = false;
 		counter->errored = true;
-
-		if ((evsel__leader(counter) != counter) ||
-		    !(counter->core.leader->nr_members > 1))
-			return COUNTER_SKIP;
 	}
 
-	evsel__open_strerror(counter, &target, errno, msg, sizeof(msg));
+	evsel__open_strerror(counter, &target, err, msg, sizeof(msg));
 	ui__error("%s\n", msg);
 
 	if (child_pid != -1)
@@ -761,7 +755,7 @@ try_again:
 				continue;
 			}
 
-			switch (stat_handle_error(counter)) {
+			switch (stat_handle_error(counter, errno)) {
 			case COUNTER_FATAL:
 				err = -1;
 				goto err_out;
@@ -803,7 +797,7 @@ try_again_reset:
 			if (create_perf_stat_counter(counter, &stat_config, &target,
 						     evlist_cpu_itr.cpu_map_idx) < 0) {
 
-				switch (stat_handle_error(counter)) {
+				switch (stat_handle_error(counter, errno)) {
 				case COUNTER_FATAL:
 					err = -1;
 					goto err_out;
