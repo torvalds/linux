@@ -389,6 +389,7 @@ config AD7779
 	depends on SPI
 	select CRC8
 	select IIO_BUFFER
+	select IIO_BACKEND
 	help
 	  Say yes here to build support for Analog Devices AD777X family
 	  (AD7770, AD7771, AD7779) analog to digital converter (ADC).
