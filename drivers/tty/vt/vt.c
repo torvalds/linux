@@ -141,6 +141,7 @@ static const struct consw *con_driver_map[MAX_NR_CONSOLES];
 static int con_open(struct tty_struct *, struct file *);
 static void vc_init(struct vc_data *vc, int do_clear);
 static void gotoxy(struct vc_data *vc, int new_x, int new_y);
+static void restore_cur(struct vc_data *vc);
 static void save_cur(struct vc_data *vc);
 static void reset_terminal(struct vc_data *vc, int do_clear);
 static void con_flush_chars(struct tty_struct *tty);
@@ -1341,6 +1342,10 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 		kfree(vc->vc_screenbuf);
 		vc_cons[currcons].d = NULL;
 	}
+	if (vc->vc_saved_screen != NULL) {
+		kfree(vc->vc_saved_screen);
+		vc->vc_saved_screen = NULL;
+	}
 	return vc;
 }
 
@@ -1875,6 +1880,45 @@ static int get_bracketed_paste(struct tty_struct *tty)
 	return vc->vc_bracketed_paste;
 }
 
+/* console_lock is held */
+static void enter_alt_screen(struct vc_data *vc)
+{
+	unsigned int size = vc->vc_rows * vc->vc_cols * 2;
+
+	if (vc->vc_saved_screen != NULL)
+		return; /* Already inside an alt-screen */
+	vc->vc_saved_screen = kmemdup((u16 *)vc->vc_origin, size, GFP_KERNEL);
+	if (vc->vc_saved_screen == NULL)
+		return;
+	vc->vc_saved_rows = vc->vc_rows;
+	vc->vc_saved_cols = vc->vc_cols;
+	save_cur(vc);
+	/* clear entire screen */
+	csi_J(vc, CSI_J_FULL);
+}
+
+/* console_lock is held */
+static void leave_alt_screen(struct vc_data *vc)
+{
+	unsigned int rows = min(vc->vc_saved_rows, vc->vc_rows);
+	unsigned int cols = min(vc->vc_saved_cols, vc->vc_cols);
+	u16 *src, *dest;
+
+	if (vc->vc_saved_screen == NULL)
+		return; /* Not inside an alt-screen */
+	for (unsigned int r = 0; r < rows; r++) {
+		src = vc->vc_saved_screen + r * vc->vc_saved_cols;
+		dest = ((u16 *)vc->vc_origin) + r * vc->vc_cols;
+		memcpy(dest, src, 2 * cols);
+	}
+	restore_cur(vc);
+	/* Update the entire screen */
+	if (con_should_update(vc))
+		do_update_region(vc, vc->vc_origin, vc->vc_screenbuf_size / 2);
+	kfree(vc->vc_saved_screen);
+	vc->vc_saved_screen = NULL;
+}
+
 enum {
 	CSI_DEC_hl_CURSOR_KEYS	= 1,	/* CKM: cursor keys send ^[Ox/^[[x */
 	CSI_DEC_hl_132_COLUMNS	= 3,	/* COLM: 80/132 mode switch */
@@ -1885,6 +1929,7 @@ enum {
 	CSI_DEC_hl_MOUSE_X10	= 9,
 	CSI_DEC_hl_SHOW_CURSOR	= 25,	/* TCEM */
 	CSI_DEC_hl_MOUSE_VT200	= 1000,
+	CSI_DEC_hl_ALT_SCREEN	= 1049,
 	CSI_DEC_hl_BRACKETED_PASTE = 2004,
 };
 
@@ -1940,6 +1985,12 @@ static void csi_DEC_hl(struct vc_data *vc, bool on_off)
 			break;
 		case CSI_DEC_hl_BRACKETED_PASTE:
 			vc->vc_bracketed_paste = on_off;
+			break;
+		case CSI_DEC_hl_ALT_SCREEN:
+			if (on_off)
+				enter_alt_screen(vc);
+			else
+				leave_alt_screen(vc);
 			break;
 		}
 }
@@ -2178,6 +2229,13 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	vc->vc_decawm		= 1;
 	vc->vc_deccm		= global_cursor_default;
 	vc->vc_decim		= 0;
+
+	if (vc->vc_saved_screen != NULL) {
+		kfree(vc->vc_saved_screen);
+		vc->vc_saved_screen = NULL;
+		vc->vc_saved_rows = 0;
+		vc->vc_saved_cols = 0;
+	}
 
 	vt_reset_keyboard(vc->vc_num);
 
