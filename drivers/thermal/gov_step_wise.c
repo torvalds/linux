@@ -69,16 +69,14 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 				     const struct thermal_trip_desc *td,
 				     int trip_threshold)
 {
+	bool throttle = tz->temperature >= trip_threshold;
 	const struct thermal_trip *trip = &td->trip;
 	enum thermal_trend trend = get_tz_trend(tz, trip);
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	struct thermal_instance *instance;
-	bool throttle = false;
 
-	if (tz->temperature >= trip_threshold) {
-		throttle = true;
+	if (throttle)
 		trace_thermal_zone_trip(tz, trip_id, trip->type);
-	}
 
 	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%d]:trend=%d,throttle=%d\n",
 		trip_id, trip->type, trip_threshold, trend, throttle);
