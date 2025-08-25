@@ -222,7 +222,6 @@ static int fxls8962af_power_off(struct fxls8962af_data *data)
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
-	pm_runtime_mark_last_busy(dev);
 	ret = pm_runtime_put_autosuspend(dev);
 	if (ret)
 		dev_err(dev, "failed to power off\n");
