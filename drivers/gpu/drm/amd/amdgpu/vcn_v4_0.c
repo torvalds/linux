@@ -1621,7 +1621,6 @@ static int vcn_v4_0_stop(struct amdgpu_vcn_inst *vinst)
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
 		vcn_v4_0_stop_dpg_mode(vinst);
-		r = 0;
 		goto done;
 	}
 
