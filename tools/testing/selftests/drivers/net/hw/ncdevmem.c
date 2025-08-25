@@ -464,6 +464,8 @@ static void restore_ring_config(const struct ethtool_rings_get_rsp *config)
 	ethtool_rings_set_req_set_header_dev_index(req, ifindex);
 	ethtool_rings_set_req_set_tcp_data_split(req,
 						ETHTOOL_TCP_DATA_SPLIT_UNKNOWN);
+	if (config->_present.hds_thresh)
+		ethtool_rings_set_req_set_hds_thresh(req, config->hds_thresh);
 
 	ret = ethtool_rings_set(ys, req);
 	if (ret < 0)
@@ -490,7 +492,8 @@ static void restore_ring_config(const struct ethtool_rings_get_rsp *config)
 	ynl_sock_destroy(ys);
 }
 
-static int configure_headersplit(bool on)
+static int
+configure_headersplit(const struct ethtool_rings_get_rsp *old, bool on)
 {
 	struct ethtool_rings_get_req *get_req;
 	struct ethtool_rings_get_rsp *get_rsp;
@@ -507,13 +510,15 @@ static int configure_headersplit(bool on)
 
 	req = ethtool_rings_set_req_alloc();
 	ethtool_rings_set_req_set_header_dev_index(req, ifindex);
-	if (on)
+	if (on) {
 		ethtool_rings_set_req_set_tcp_data_split(req,
 						ETHTOOL_TCP_DATA_SPLIT_ENABLED);
-	else
+		if (old->_present.hds_thresh)
+			ethtool_rings_set_req_set_hds_thresh(req, 0);
+	} else {
 		ethtool_rings_set_req_set_tcp_data_split(req,
 						ETHTOOL_TCP_DATA_SPLIT_UNKNOWN);
-
+	}
 	ret = ethtool_rings_set(ys, req);
 	if (ret < 0)
 		fprintf(stderr, "YNL failed: %s\n", ys->err.msg);
@@ -850,7 +855,7 @@ static int do_server(struct memory_buffer *mem)
 		return -1;
 	}
 
-	if (configure_headersplit(1)) {
+	if (configure_headersplit(ring_config, 1)) {
 		pr_err("Failed to enable TCP header split");
 		goto err_free_ring_config;
 	}
@@ -1074,7 +1079,7 @@ int run_devmem_tests(void)
 		goto err_free_ring_config;
 	}
 
-	if (configure_headersplit(1)) {
+	if (configure_headersplit(ring_config, 1)) {
 		pr_err("Failed to configure header split");
 		goto err_reset_rss;
 	}
@@ -1090,7 +1095,7 @@ int run_devmem_tests(void)
 		goto err_unbind;
 	}
 
-	if (configure_headersplit(0)) {
+	if (configure_headersplit(ring_config, 0)) {
 		pr_err("Failed to configure header split");
 		goto err_reset_headersplit;
 	}
@@ -1106,7 +1111,7 @@ int run_devmem_tests(void)
 		goto err_unbind;
 	}
 
-	if (configure_headersplit(1)) {
+	if (configure_headersplit(ring_config, 1)) {
 		pr_err("Failed to configure header split");
 		goto err_reset_headersplit;
 	}
