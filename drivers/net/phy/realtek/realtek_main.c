@@ -756,7 +756,8 @@ static int rtl8211f_resume(struct phy_device *phydev)
 static int rtl8211x_led_hw_is_supported(struct phy_device *phydev, u8 index,
 					unsigned long rules)
 {
-	const unsigned long mask = BIT(TRIGGER_NETDEV_LINK_10) |
+	const unsigned long mask = BIT(TRIGGER_NETDEV_LINK) |
+				   BIT(TRIGGER_NETDEV_LINK_10) |
 				   BIT(TRIGGER_NETDEV_LINK_100) |
 				   BIT(TRIGGER_NETDEV_LINK_1000) |
 				   BIT(TRIGGER_NETDEV_RX) |
@@ -814,6 +815,12 @@ static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (val & RTL8211F_LEDCR_LINK_1000)
 		__set_bit(TRIGGER_NETDEV_LINK_1000, rules);
 
+	if ((val & RTL8211F_LEDCR_LINK_10) &&
+	    (val & RTL8211F_LEDCR_LINK_100) &&
+	    (val & RTL8211F_LEDCR_LINK_1000)) {
+		__set_bit(TRIGGER_NETDEV_LINK, rules);
+	}
+
 	if (val & RTL8211F_LEDCR_ACT_TXRX) {
 		__set_bit(TRIGGER_NETDEV_RX, rules);
 		__set_bit(TRIGGER_NETDEV_TX, rules);
@@ -831,14 +838,20 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	if (index >= RTL8211x_LED_COUNT)
 		return -EINVAL;
 
-	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_10, &rules)) {
 		reg |= RTL8211F_LEDCR_LINK_10;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_100, &rules)) {
 		reg |= RTL8211F_LEDCR_LINK_100;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_1000, &rules)) {
 		reg |= RTL8211F_LEDCR_LINK_1000;
+	}
 
 	if (test_bit(TRIGGER_NETDEV_RX, &rules) ||
 	    test_bit(TRIGGER_NETDEV_TX, &rules)) {
@@ -886,6 +899,12 @@ static int rtl8211e_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (cr2 & RTL8211E_LEDCR2_LINK_1000)
 		__set_bit(TRIGGER_NETDEV_LINK_1000, rules);
 
+	if ((cr2 & RTL8211E_LEDCR2_LINK_10) &&
+	    (cr2 & RTL8211E_LEDCR2_LINK_100) &&
+	    (cr2 & RTL8211E_LEDCR2_LINK_1000)) {
+		__set_bit(TRIGGER_NETDEV_LINK, rules);
+	}
+
 	return ret;
 }
 
@@ -913,14 +932,20 @@ static int rtl8211e_led_hw_control_set(struct phy_device *phydev, u8 index,
 	if (ret < 0)
 		return ret;
 
-	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_10, &rules)) {
 		cr2 |= RTL8211E_LEDCR2_LINK_10;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_100, &rules)) {
 		cr2 |= RTL8211E_LEDCR2_LINK_100;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_1000, &rules)) {
 		cr2 |= RTL8211E_LEDCR2_LINK_1000;
+	}
 
 	cr2 <<= RTL8211E_LEDCR2_SHIFT * index;
 	ret = rtl821x_modify_ext_page(phydev, RTL8211E_LEDCR_EXT_PAGE,
