@@ -319,6 +319,10 @@ static void gmc_v12_1_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 {
 	u32 inst;
 
+	if (AMDGPU_IS_GFXHUB(vmhub) &&
+	    !adev->gfx.is_poweron)
+		return;
+
 	if (vmhub >= AMDGPU_MMHUB0(0))
 		inst = 0;
 	else
