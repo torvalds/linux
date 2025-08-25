@@ -20,7 +20,9 @@
  * If the temperature is higher than a trip point,
  *    a. if the trend is THERMAL_TREND_RAISING, use higher cooling
  *       state for this trip point
- *    b. if the trend is THERMAL_TREND_DROPPING, do nothing
+ *    b. if the trend is THERMAL_TREND_DROPPING, use a lower cooling state
+ *       for this trip point, but keep the cooling state above the applicable
+ *       minimum
  * If the temperature is lower than a trip point,
  *    a. if the trend is THERMAL_TREND_RAISING, do nothing
  *    b. if the trend is THERMAL_TREND_DROPPING, use the minimum applicable
@@ -51,6 +53,17 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	if (throttle) {
 		if (trend == THERMAL_TREND_RAISING)
 			return clamp(cur_state + 1, instance->lower, instance->upper);
+
+		/*
+		 * If the zone temperature is falling, the cooling level can
+		 * be reduced, but it should still be above the lower state of
+		 * the given thermal instance to pull the temperature further
+		 * down.
+		 */
+		if (trend == THERMAL_TREND_DROPPING)
+			return clamp(cur_state - 1,
+				     min(instance->lower + 1, instance->upper),
+				     instance->upper);
 	} else if (trend == THERMAL_TREND_DROPPING) {
 		if (cur_state <= instance->lower)
 			return THERMAL_NO_TARGET;
