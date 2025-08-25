@@ -300,3 +300,29 @@ int iris_venc_subscribe_event(struct iris_inst *inst,
 		return -EINVAL;
 	}
 }
+
+int iris_venc_s_selection(struct iris_inst *inst, struct v4l2_selection *s)
+{
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+		s->r.left = 0;
+		s->r.top = 0;
+
+		if (s->r.width > inst->fmt_src->fmt.pix_mp.width ||
+		    s->r.height > inst->fmt_src->fmt.pix_mp.height)
+			return -EINVAL;
+
+		inst->crop.left = s->r.left;
+		inst->crop.top = s->r.top;
+		inst->crop.width = s->r.width;
+		inst->crop.height = s->r.height;
+		inst->fmt_dst->fmt.pix_mp.width = inst->crop.width;
+		inst->fmt_dst->fmt.pix_mp.height = inst->crop.height;
+		return iris_venc_s_fmt_output(inst, inst->fmt_dst);
+	default:
+		return -EINVAL;
+	}
+}
