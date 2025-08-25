@@ -50,6 +50,12 @@ struct fbnic_rmon_stats {
 	struct fbnic_stat_counter hist_tx[ETHTOOL_RMON_HIST_MAX];
 };
 
+/* Note: not updated by fbnic_get_hw_stats() */
+struct fbnic_pause_stats {
+	struct fbnic_stat_counter tx_pause_frames;
+	struct fbnic_stat_counter rx_pause_frames;
+};
+
 struct fbnic_eth_mac_stats {
 	struct fbnic_stat_counter FramesTransmittedOK;
 	struct fbnic_stat_counter FramesReceivedOK;
@@ -73,6 +79,7 @@ struct fbnic_phy_stats {
 
 struct fbnic_mac_stats {
 	struct fbnic_eth_mac_stats eth_mac;
+	struct fbnic_pause_stats pause;
 	struct fbnic_eth_ctrl_stats eth_ctrl;
 	struct fbnic_rmon_stats rmon;
 };

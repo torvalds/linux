@@ -536,6 +536,7 @@ static void fbnic_reset_hw_mac_stats(struct fbnic_dev *fbd,
 	const struct fbnic_mac *mac = fbd->mac;
 
 	mac->get_eth_mac_stats(fbd, true, &mac_stats->eth_mac);
+	mac->get_pause_stats(fbd, true, &mac_stats->pause);
 	mac->get_eth_ctrl_stats(fbd, true, &mac_stats->eth_ctrl);
 	mac->get_rmon_stats(fbd, true, &mac_stats->rmon);
 }

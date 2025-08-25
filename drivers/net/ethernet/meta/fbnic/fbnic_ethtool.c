@@ -1642,6 +1642,22 @@ static void fbnic_set_counter(u64 *stat, struct fbnic_stat_counter *counter)
 }
 
 static void
+fbnic_get_pause_stats(struct net_device *netdev,
+		      struct ethtool_pause_stats *pause_stats)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_mac_stats *mac_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	mac_stats = &fbd->hw_stats.mac;
+
+	fbd->mac->get_pause_stats(fbd, false, &mac_stats->pause);
+
+	pause_stats->tx_pause_frames = mac_stats->pause.tx_pause_frames.value;
+	pause_stats->rx_pause_frames = mac_stats->pause.rx_pause_frames.value;
+}
+
+static void
 fbnic_get_fec_stats(struct net_device *netdev,
 		    struct ethtool_fec_stats *fec_stats)
 {
@@ -1801,6 +1817,7 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.set_coalesce			= fbnic_set_coalesce,
 	.get_ringparam			= fbnic_get_ringparam,
 	.set_ringparam			= fbnic_set_ringparam,
+	.get_pause_stats		= fbnic_get_pause_stats,
 	.get_pauseparam			= fbnic_phylink_get_pauseparam,
 	.set_pauseparam			= fbnic_phylink_set_pauseparam,
 	.get_strings			= fbnic_get_strings,

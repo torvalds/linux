@@ -710,6 +710,16 @@ fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
 }
 
 static void
+fbnic_mac_get_pause_stats(struct fbnic_dev *fbd, bool reset,
+			  struct fbnic_pause_stats *pause_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, pause_stats->tx_pause_frames,
+			    MAC_STAT_TX_XOFF_STB);
+	fbnic_mac_stat_rd64(fbd, reset, pause_stats->rx_pause_frames,
+			    MAC_STAT_RX_XOFF_STB);
+}
+
+static void
 fbnic_mac_get_eth_ctrl_stats(struct fbnic_dev *fbd, bool reset,
 			     struct fbnic_eth_ctrl_stats *ctrl_stats)
 {
@@ -856,6 +866,7 @@ static const struct fbnic_mac fbnic_mac_asic = {
 	.get_fec_stats = fbnic_mac_get_fec_stats,
 	.get_pcs_stats = fbnic_mac_get_pcs_stats,
 	.get_eth_mac_stats = fbnic_mac_get_eth_mac_stats,
+	.get_pause_stats = fbnic_mac_get_pause_stats,
 	.get_eth_ctrl_stats = fbnic_mac_get_eth_ctrl_stats,
 	.get_rmon_stats = fbnic_mac_get_rmon_stats,
 	.link_down = fbnic_mac_link_down_asic,
