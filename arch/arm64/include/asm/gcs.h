@@ -21,7 +21,7 @@ static inline void gcsstr(u64 *addr, u64 val)
 	register u64 *_addr __asm__ ("x0") = addr;
 	register long _val __asm__ ("x1") = val;
 
-	/* GCSSTTR x1, x0 */
+	/* GCSSTTR x1, [x0] */
 	asm volatile(
 		".inst 0xd91f1c01\n"
 		:
@@ -79,6 +79,41 @@ static inline int gcs_check_locked(struct task_struct *task,
 		return -EBUSY;
 
 	return 0;
+}
+
+static inline int gcssttr(unsigned long __user *addr, unsigned long val)
+{
+	register unsigned long __user *_addr __asm__ ("x0") = addr;
+	register unsigned long _val __asm__ ("x1") = val;
+	int err = 0;
+
+	/* GCSSTTR x1, [x0] */
+	asm volatile(
+		"1: .inst 0xd91f1c01\n"
+		"2: \n"
+		_ASM_EXTABLE_UACCESS_ERR(1b, 2b, %w0)
+		: "+r" (err)
+		: "rZ" (_val), "r" (_addr)
+		: "memory");
+
+	return err;
+}
+
+static inline void put_user_gcs(unsigned long val, unsigned long __user *addr,
+				int *err)
+{
+	int ret;
+
+	if (!access_ok((char __user *)addr, sizeof(u64))) {
+		*err = -EFAULT;
+		return;
+	}
+
+	uaccess_ttbr0_enable();
+	ret = gcssttr(addr, val);
+	if (ret != 0)
+		*err = ret;
+	uaccess_ttbr0_disable();
 }
 
 #else
