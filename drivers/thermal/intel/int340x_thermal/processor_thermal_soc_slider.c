@@ -53,6 +53,43 @@ static u8 slider_values[] = {
 	[SOC_POWER_SLIDER_POWERSAVE] = SOC_SLIDER_VALUE_MAXIMUM,
 };
 
+/* Lock to protect module param updates */
+static DEFINE_MUTEX(slider_param_lock);
+
+static int slider_balanced_param = SOC_SLIDER_VALUE_BALANCE;
+
+static int slider_def_balance_set(const char *arg, const struct kernel_param *kp)
+{
+	u8 slider_val;
+	int ret;
+
+	guard(mutex)(&slider_param_lock);
+
+	ret = kstrtou8(arg, 16, &slider_val);
+	if (!ret) {
+		if (slider_val > SOC_SLIDER_VALUE_MAXIMUM)
+			return -EINVAL;
+
+		slider_balanced_param = slider_val;
+	}
+
+	return ret;
+}
+
+static int slider_def_balance_get(char *buf, const struct kernel_param *kp)
+{
+	guard(mutex)(&slider_param_lock);
+	return sysfs_emit(buf, "%02x\n", slider_values[SOC_POWER_SLIDER_BALANCE]);
+}
+
+static const struct kernel_param_ops slider_def_balance_ops = {
+	.set = slider_def_balance_set,
+	.get = slider_def_balance_get,
+};
+
+module_param_cb(slider_balance, &slider_def_balance_ops, NULL, 0644);
+MODULE_PARM_DESC(slider_balance, "Set slider default value for balance");
+
 /* Convert from platform power profile option to SoC slider value */
 static int convert_profile_to_power_slider(enum platform_profile_option profile)
 {
@@ -114,6 +151,10 @@ static int power_slider_platform_profile_set(struct device *dev,
 	proc_priv = dev_get_drvdata(dev);
 	if (!proc_priv)
 		return -EOPNOTSUPP;
+
+	guard(mutex)(&slider_param_lock);
+
+	slider_values[SOC_POWER_SLIDER_BALANCE] = slider_balanced_param;
 
 	slider = convert_profile_to_power_slider(profile);
 	if (slider < 0)
