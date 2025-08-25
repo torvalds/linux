@@ -216,6 +216,23 @@ struct hfi_session_empty_buffer_compressed_pkt {
 	u32 data;
 };
 
+struct hfi_session_empty_buffer_uncompressed_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 view_id;
+	u32 time_stamp_hi;
+	u32 time_stamp_lo;
+	u32 flags;
+	u32 mark_target;
+	u32 mark_data;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 offset;
+	u32 input_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data;
+};
+
 struct hfi_session_fill_buffer_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 stream_id;
@@ -456,6 +473,26 @@ struct hfi_msg_session_empty_buffer_done_pkt {
 	u32 offset;
 	u32 filled_len;
 	u32 input_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data[];
+};
+
+struct hfi_msg_session_fbd_compressed_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 time_stamp_hi;
+	u32 time_stamp_lo;
+	u32 error_type;
+	u32 flags;
+	u32 mark_target;
+	u32 mark_data;
+	u32 stats;
+	u32 offset;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 input_tag;
+	u32 output_tag;
+	u32 picture_type;
 	u32 packet_buffer;
 	u32 extradata_buffer;
 	u32 data[];

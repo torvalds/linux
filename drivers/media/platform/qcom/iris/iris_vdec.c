@@ -377,44 +377,6 @@ error:
 	return ret;
 }
 
-static int
-iris_vdec_vb2_buffer_to_driver(struct vb2_buffer *vb2, struct iris_buffer *buf)
-{
-	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2);
-
-	buf->type = iris_v4l2_type_to_driver(vb2->type);
-	buf->index = vb2->index;
-	buf->fd = vb2->planes[0].m.fd;
-	buf->buffer_size = vb2->planes[0].length;
-	buf->data_offset = vb2->planes[0].data_offset;
-	buf->data_size = vb2->planes[0].bytesused - vb2->planes[0].data_offset;
-	buf->flags = vbuf->flags;
-	buf->timestamp = vb2->timestamp;
-	buf->attr = 0;
-
-	return 0;
-}
-
-static void
-iris_set_ts_metadata(struct iris_inst *inst, struct vb2_v4l2_buffer *vbuf)
-{
-	u32 mask = V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	struct vb2_buffer *vb = &vbuf->vb2_buf;
-	u64 ts_us = vb->timestamp;
-
-	if (inst->metadata_idx >= ARRAY_SIZE(inst->tss))
-		inst->metadata_idx = 0;
-
-	do_div(ts_us, NSEC_PER_USEC);
-
-	inst->tss[inst->metadata_idx].flags = vbuf->flags & mask;
-	inst->tss[inst->metadata_idx].tc = vbuf->timecode;
-	inst->tss[inst->metadata_idx].ts_us = ts_us;
-	inst->tss[inst->metadata_idx].ts_ns = vb->timestamp;
-
-	inst->metadata_idx++;
-}
-
 int iris_vdec_qbuf(struct iris_inst *inst, struct vb2_v4l2_buffer *vbuf)
 {
 	struct iris_buffer *buf = to_iris_buffer(vbuf);
@@ -422,7 +384,7 @@ int iris_vdec_qbuf(struct iris_inst *inst, struct vb2_v4l2_buffer *vbuf)
 	struct vb2_queue *q;
 	int ret;
 
-	ret = iris_vdec_vb2_buffer_to_driver(vb2, buf);
+	ret = iris_vb2_buffer_to_driver(vb2, buf);
 	if (ret)
 		return ret;
 

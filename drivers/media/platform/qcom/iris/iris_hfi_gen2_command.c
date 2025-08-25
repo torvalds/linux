@@ -1045,13 +1045,19 @@ static int iris_hfi_gen2_session_drain(struct iris_inst *inst, u32 plane)
 					inst_hfi_gen2->packet->size);
 }
 
-static u32 iris_hfi_gen2_buf_type_from_driver(enum iris_buffer_type buffer_type)
+static u32 iris_hfi_gen2_buf_type_from_driver(u32 domain, enum iris_buffer_type buffer_type)
 {
 	switch (buffer_type) {
 	case BUF_INPUT:
-		return HFI_BUFFER_BITSTREAM;
+		if (domain == DECODER)
+			return HFI_BUFFER_BITSTREAM;
+		else
+			return HFI_BUFFER_RAW;
 	case BUF_OUTPUT:
-		return HFI_BUFFER_RAW;
+		if (domain == DECODER)
+			return HFI_BUFFER_RAW;
+		else
+			return HFI_BUFFER_BITSTREAM;
 	case BUF_BIN:
 		return HFI_BUFFER_BIN;
 	case BUF_COMV:
@@ -1091,16 +1097,17 @@ static int iris_set_num_comv(struct iris_inst *inst)
 						   &num_comv, sizeof(u32));
 }
 
-static void iris_hfi_gen2_get_buffer(struct iris_buffer *buffer, struct iris_hfi_buffer *buf)
+static void iris_hfi_gen2_get_buffer(u32 domain, struct iris_buffer *buffer,
+				     struct iris_hfi_buffer *buf)
 {
 	memset(buf, 0, sizeof(*buf));
-	buf->type = iris_hfi_gen2_buf_type_from_driver(buffer->type);
+	buf->type = iris_hfi_gen2_buf_type_from_driver(domain, buffer->type);
 	buf->index = buffer->index;
 	buf->base_address = buffer->device_addr;
 	buf->addr_offset = 0;
 	buf->buffer_size = buffer->buffer_size;
 
-	if (buffer->type == BUF_INPUT)
+	if (domain == DECODER && buffer->type == BUF_INPUT)
 		buf->buffer_size = ALIGN(buffer->buffer_size, 256);
 	buf->data_offset = buffer->data_offset;
 	buf->data_size = buffer->data_size;
@@ -1117,7 +1124,7 @@ static int iris_hfi_gen2_session_queue_buffer(struct iris_inst *inst, struct iri
 	u32 port;
 	int ret;
 
-	iris_hfi_gen2_get_buffer(buffer, &hfi_buffer);
+	iris_hfi_gen2_get_buffer(inst->domain, buffer, &hfi_buffer);
 	if (buffer->type == BUF_COMV) {
 		ret = iris_set_num_comv(inst);
 		if (ret)
@@ -1144,7 +1151,7 @@ static int iris_hfi_gen2_session_release_buffer(struct iris_inst *inst, struct i
 	struct iris_hfi_buffer hfi_buffer;
 	u32 port;
 
-	iris_hfi_gen2_get_buffer(buffer, &hfi_buffer);
+	iris_hfi_gen2_get_buffer(inst->domain, buffer, &hfi_buffer);
 	hfi_buffer.flags |= HFI_BUF_HOST_FLAG_RELEASE;
 	port = iris_hfi_gen2_get_port_from_buf_type(inst, buffer->type);
 

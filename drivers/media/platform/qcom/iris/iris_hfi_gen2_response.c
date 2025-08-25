@@ -480,12 +480,22 @@ static int iris_hfi_gen2_handle_session_buffer(struct iris_inst *inst,
 	if (!iris_hfi_gen2_is_valid_hfi_port(pkt->port, buffer->type))
 		return 0;
 
-	if (buffer->type == HFI_BUFFER_BITSTREAM)
-		return iris_hfi_gen2_handle_input_buffer(inst, buffer);
-	else if (buffer->type == HFI_BUFFER_RAW)
-		return iris_hfi_gen2_handle_output_buffer(inst, buffer);
-	else
-		return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
+	if (inst->domain == DECODER) {
+		if (buffer->type == HFI_BUFFER_BITSTREAM)
+			return iris_hfi_gen2_handle_input_buffer(inst, buffer);
+		else if (buffer->type == HFI_BUFFER_RAW)
+			return iris_hfi_gen2_handle_output_buffer(inst, buffer);
+		else
+			return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
+	} else {
+		if (buffer->type == HFI_BUFFER_RAW)
+			return iris_hfi_gen2_handle_input_buffer(inst, buffer);
+		else if (buffer->type == HFI_BUFFER_BITSTREAM)
+			return iris_hfi_gen2_handle_output_buffer(inst, buffer);
+		else
+			return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
+	}
+	return 0;
 }
 
 static int iris_hfi_gen2_handle_session_drain(struct iris_inst *inst,

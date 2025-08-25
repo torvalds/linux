@@ -556,29 +556,6 @@ static u32 iris_vpu_dec_scratch1_size(struct iris_inst *inst)
 		iris_vpu_dec_line_size(inst);
 }
 
-static inline
-u32 size_enc_single_pipe(u32 rc_type, u32 bitbin_size, u32 num_vpp_pipes,
-			 u32 frame_width, u32 frame_height, u32 lcu_size)
-{
-	u32 size_aligned_height = ALIGN((frame_height), lcu_size);
-	u32 size_aligned_width = ALIGN((frame_width), lcu_size);
-	u32 size_single_pipe_eval = 0, sao_bin_buffer_size = 0;
-	u32 padded_bin_sz;
-
-	if ((size_aligned_width * size_aligned_height) > (3840 * 2160))
-		size_single_pipe_eval = (bitbin_size / num_vpp_pipes);
-	else if (num_vpp_pipes > 2)
-		size_single_pipe_eval = bitbin_size / 2;
-	else
-		size_single_pipe_eval = bitbin_size;
-
-	sao_bin_buffer_size = (64 * ((((frame_width) + 32) * ((frame_height) + 32)) >> 10)) + 384;
-	padded_bin_sz = ALIGN(size_single_pipe_eval, 256);
-	size_single_pipe_eval = sao_bin_buffer_size + padded_bin_sz;
-
-	return ALIGN(size_single_pipe_eval, 256);
-}
-
 static inline u32 size_bin_bitstream_enc(u32 width, u32 height,
 					 u32 rc_type)
 {

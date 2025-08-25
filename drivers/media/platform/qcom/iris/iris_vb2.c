@@ -327,7 +327,10 @@ void iris_vb2_buf_queue(struct vb2_buffer *vb2)
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
 
-	ret = iris_vdec_qbuf(inst, vbuf);
+	if (inst->domain == DECODER)
+		ret = iris_vdec_qbuf(inst, vbuf);
+	else
+		ret = iris_venc_qbuf(inst, vbuf);
 
 exit:
 	if (ret) {

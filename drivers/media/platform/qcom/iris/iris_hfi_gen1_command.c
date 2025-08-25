@@ -273,23 +273,44 @@ static int iris_hfi_gen1_session_continue(struct iris_inst *inst, u32 plane)
 
 static int iris_hfi_gen1_queue_input_buffer(struct iris_inst *inst, struct iris_buffer *buf)
 {
-	struct hfi_session_empty_buffer_compressed_pkt ip_pkt;
+	struct hfi_session_empty_buffer_compressed_pkt com_ip_pkt;
+	struct hfi_session_empty_buffer_uncompressed_pkt uncom_ip_pkt;
 
-	ip_pkt.shdr.hdr.size = sizeof(struct hfi_session_empty_buffer_compressed_pkt);
-	ip_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_EMPTY_BUFFER;
-	ip_pkt.shdr.session_id = inst->session_id;
-	ip_pkt.time_stamp_hi = upper_32_bits(buf->timestamp);
-	ip_pkt.time_stamp_lo = lower_32_bits(buf->timestamp);
-	ip_pkt.flags = buf->flags;
-	ip_pkt.mark_target = 0;
-	ip_pkt.mark_data = 0;
-	ip_pkt.offset = buf->data_offset;
-	ip_pkt.alloc_len = buf->buffer_size;
-	ip_pkt.filled_len = buf->data_size;
-	ip_pkt.input_tag = buf->index;
-	ip_pkt.packet_buffer = buf->device_addr;
-
-	return iris_hfi_queue_cmd_write(inst->core, &ip_pkt, ip_pkt.shdr.hdr.size);
+	if (inst->domain == DECODER) {
+		com_ip_pkt.shdr.hdr.size = sizeof(struct hfi_session_empty_buffer_compressed_pkt);
+		com_ip_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_EMPTY_BUFFER;
+		com_ip_pkt.shdr.session_id = inst->session_id;
+		com_ip_pkt.time_stamp_hi = upper_32_bits(buf->timestamp);
+		com_ip_pkt.time_stamp_lo = lower_32_bits(buf->timestamp);
+		com_ip_pkt.flags = buf->flags;
+		com_ip_pkt.mark_target = 0;
+		com_ip_pkt.mark_data = 0;
+		com_ip_pkt.offset = buf->data_offset;
+		com_ip_pkt.alloc_len = buf->buffer_size;
+		com_ip_pkt.filled_len = buf->data_size;
+		com_ip_pkt.input_tag = buf->index;
+		com_ip_pkt.packet_buffer = buf->device_addr;
+		return iris_hfi_queue_cmd_write(inst->core, &com_ip_pkt,
+						com_ip_pkt.shdr.hdr.size);
+	} else {
+		uncom_ip_pkt.shdr.hdr.size =
+			sizeof(struct hfi_session_empty_buffer_uncompressed_pkt);
+		uncom_ip_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_EMPTY_BUFFER;
+		uncom_ip_pkt.shdr.session_id = inst->session_id;
+		uncom_ip_pkt.time_stamp_hi = upper_32_bits(buf->timestamp);
+		uncom_ip_pkt.time_stamp_lo = lower_32_bits(buf->timestamp);
+		uncom_ip_pkt.view_id = 0;
+		uncom_ip_pkt.flags = buf->flags;
+		uncom_ip_pkt.mark_target = 0;
+		uncom_ip_pkt.mark_data = 0;
+		uncom_ip_pkt.offset = buf->data_offset;
+		uncom_ip_pkt.alloc_len = buf->buffer_size;
+		uncom_ip_pkt.filled_len = buf->data_size;
+		uncom_ip_pkt.input_tag = buf->index;
+		uncom_ip_pkt.packet_buffer = buf->device_addr;
+		return iris_hfi_queue_cmd_write(inst->core, &uncom_ip_pkt,
+						uncom_ip_pkt.shdr.hdr.size);
+	}
 }
 
 static int iris_hfi_gen1_queue_output_buffer(struct iris_inst *inst, struct iris_buffer *buf)
