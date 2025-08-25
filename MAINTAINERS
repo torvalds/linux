@@ -17818,7 +17818,6 @@ F:	net/ipv6/syncookies.c
 F:	net/ipv6/tcp*.c
 
 NETWORKING [TLS]
-M:	Boris Pismenny <borisp@nvidia.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Jakub Kicinski <kuba@kernel.org>
 L:	netdev@vger.kernel.org
