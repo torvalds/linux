@@ -3716,6 +3716,7 @@ static int dump_perf_event_processes(char *msg, size_t size)
 }
 
 int __weak arch_evsel__open_strerror(struct evsel *evsel __maybe_unused,
+				     int err __maybe_unused,
 				     char *msg __maybe_unused,
 				     size_t size __maybe_unused)
 {
@@ -3725,6 +3726,7 @@ int __weak arch_evsel__open_strerror(struct evsel *evsel __maybe_unused,
 int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			 int err, char *msg, size_t size)
 {
+	struct perf_pmu *pmu;
 	char sbuf[STRERR_BUFSIZE];
 	int printed = 0, enforced = 0;
 	int ret;
@@ -3840,7 +3842,8 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			return scnprintf(msg, size, "The 'aux_action' feature is not supported, update the kernel.");
 		if (perf_missing_features.aux_output)
 			return scnprintf(msg, size, "The 'aux_output' feature is not supported, update the kernel.");
-		if (!target__has_cpu(target))
+		pmu = evsel__find_pmu(evsel);
+		if (!pmu->is_core && !target__has_cpu(target))
 			return scnprintf(msg, size,
 	"Invalid event (%s) in per-thread mode, enable system wide with '-a'.",
 					evsel__name(evsel));
@@ -3853,7 +3856,7 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 		break;
 	}
 
-	ret = arch_evsel__open_strerror(evsel, msg, size);
+	ret = arch_evsel__open_strerror(evsel, err, msg, size);
 	if (ret)
 		return ret;
 

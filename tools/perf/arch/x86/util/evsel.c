@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/env.h"
 #include "util/pmu.h"
 #include "util/pmus.h"
+#include "util/stat.h"
+#include "util/strbuf.h"
 #include "linux/string.h"
 #include "topdown.h"
 #include "evsel.h"
@@ -102,13 +106,15 @@ void arch__post_evsel_config(struct evsel *evsel, struct perf_event_attr *attr)
 	}
 }
 
-int arch_evsel__open_strerror(struct evsel *evsel, char *msg, size_t size)
+static int amd_evsel__open_strerror(struct evsel *evsel, char *msg, size_t size)
 {
-	if (!x86__is_amd_cpu())
+	struct perf_pmu *pmu;
+
+	if (evsel->core.attr.precise_ip == 0)
 		return 0;
 
-	if (!evsel->core.attr.precise_ip &&
-	    !(evsel->pmu && !strncmp(evsel->pmu->name, "ibs", 3)))
+	pmu = evsel__find_pmu(evsel);
+	if (!pmu || strncmp(pmu->name, "ibs", 3))
 		return 0;
 
 	/* More verbose IBS errors. */
@@ -118,6 +124,54 @@ int arch_evsel__open_strerror(struct evsel *evsel, char *msg, size_t size)
 		return scnprintf(msg, size, "AMD IBS doesn't support privilege filtering. Try "
 				 "again without the privilege modifiers (like 'k') at the end.");
 	}
-
 	return 0;
+}
+
+static int intel_evsel__open_strerror(struct evsel *evsel, int err, char *msg, size_t size)
+{
+	struct strbuf sb = STRBUF_INIT;
+	int ret;
+
+	if (err != EINVAL)
+		return 0;
+
+	if (!topdown_sys_has_perf_metrics())
+		return 0;
+
+	if (arch_is_topdown_slots(evsel)) {
+		if (!evsel__is_group_leader(evsel)) {
+			evlist__uniquify_evsel_names(evsel->evlist, &stat_config);
+			evlist__format_evsels(evsel->evlist, &sb, 2048);
+			ret = scnprintf(msg, size, "Topdown slots event can only be group leader "
+					"in '%s'.", sb.buf);
+			strbuf_release(&sb);
+			return ret;
+		}
+	} else if (arch_is_topdown_metrics(evsel)) {
+		struct evsel *pos;
+
+		evlist__for_each_entry(evsel->evlist, pos) {
+			if (pos == evsel || !arch_is_topdown_metrics(pos))
+				continue;
+
+			if (pos->core.attr.config != evsel->core.attr.config)
+				continue;
+
+			evlist__uniquify_evsel_names(evsel->evlist, &stat_config);
+			evlist__format_evsels(evsel->evlist, &sb, 2048);
+			ret = scnprintf(msg, size, "Perf metric event '%s' is duplicated "
+					"in the same group (only one event is allowed) in '%s'.",
+					evsel__name(evsel), sb.buf);
+			strbuf_release(&sb);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+int arch_evsel__open_strerror(struct evsel *evsel, int err, char *msg, size_t size)
+{
+	return x86__is_amd_cpu()
+		? amd_evsel__open_strerror(evsel, msg, size)
+		: intel_evsel__open_strerror(evsel, err, msg, size);
 }
