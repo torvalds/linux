@@ -789,7 +789,7 @@ int exfat_create_upcase_table(struct super_block *sb)
 			return ret;
 		}
 
-		if (exfat_get_next_cluster(sb, &(clu.dir)))
+		if (exfat_get_next_cluster(sb, &clu.dir))
 			return -EIO;
 	}
 
