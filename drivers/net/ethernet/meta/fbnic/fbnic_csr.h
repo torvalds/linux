@@ -790,6 +790,21 @@ enum {
 #define FBNIC_CSR_END_PCS		0x10668 /* CSR section delimiter */
 
 #define FBNIC_CSR_START_RSFEC		0x10800 /* CSR section delimiter */
+
+/* We have 4 RSFEC engines present in our part, however we are only using 1.
+ * As such only CCW(0) and NCCW(0) will never be non-zero and the other
+ * registers can be ignored.
+ */
+#define FBNIC_RSFEC_CCW_LO(n)	(0x10802 + 8 * (n))	/* 0x42008 + 32*n */
+#define FBNIC_RSFEC_CCW_HI(n)	(0x10803 + 8 * (n))	/* 0x4200c + 32*n */
+#define FBNIC_RSFEC_NCCW_LO(n)	(0x10804 + 8 * (n))	/* 0x42010 + 32*n */
+#define FBNIC_RSFEC_NCCW_HI(n)	(0x10805 + 8 * (n))	/* 0x42014 + 32*n */
+
+#define FBNIC_PCS_MAX_LANES			4
+#define FBNIC_PCS_SYMBLERR_LO(n) \
+				(0x10880 + 2 * (n))	/* 0x42200 + 8*n */
+#define FBNIC_PCS_SYMBLERR_HI(n) \
+				(0x10881 + 2 * (n))	/* 0x42204 + 8*n */
 #define FBNIC_CSR_END_RSFEC		0x108c8 /* CSR section delimiter */
 
 /* MAC MAC registers (ASIC only) */

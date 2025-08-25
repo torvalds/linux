@@ -512,6 +512,24 @@ static void fbnic_get_pcie_stats_asic64(struct fbnic_dev *fbd,
 			   &pcie->ob_rd_no_np_cred);
 }
 
+static void fbnic_reset_phy_stats(struct fbnic_dev *fbd,
+				  struct fbnic_phy_stats *phy_stats)
+{
+	const struct fbnic_mac *mac = fbd->mac;
+
+	mac->get_fec_stats(fbd, true, &phy_stats->fec);
+	mac->get_pcs_stats(fbd, true, &phy_stats->pcs);
+}
+
+static void fbnic_get_phy_stats32(struct fbnic_dev *fbd,
+				  struct fbnic_phy_stats *phy_stats)
+{
+	const struct fbnic_mac *mac = fbd->mac;
+
+	mac->get_fec_stats(fbd, false, &phy_stats->fec);
+	mac->get_pcs_stats(fbd, false, &phy_stats->pcs);
+}
+
 static void fbnic_reset_hw_mac_stats(struct fbnic_dev *fbd,
 				     struct fbnic_mac_stats *mac_stats)
 {
@@ -525,6 +543,7 @@ static void fbnic_reset_hw_mac_stats(struct fbnic_dev *fbd,
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
 	spin_lock(&fbd->hw_stats.lock);
+	fbnic_reset_phy_stats(fbd, &fbd->hw_stats.phy);
 	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_reset_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
@@ -553,6 +572,7 @@ void fbnic_init_hw_stats(struct fbnic_dev *fbd)
 
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
+	fbnic_get_phy_stats32(fbd, &fbd->hw_stats.phy);
 	fbnic_get_tmi_stats32(fbd, &fbd->hw_stats.tmi);
 	fbnic_get_tti_stats32(fbd, &fbd->hw_stats.tti);
 	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);

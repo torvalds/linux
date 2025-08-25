@@ -23,6 +23,16 @@ struct fbnic_hw_stat {
 	struct fbnic_stat_counter bytes;
 };
 
+struct fbnic_fec_stats {
+	struct fbnic_stat_counter corrected_blocks, uncorrectable_blocks;
+};
+
+struct fbnic_pcs_stats {
+	struct {
+		struct fbnic_stat_counter lanes[FBNIC_PCS_MAX_LANES];
+	} SymbolErrorDuringCarrier;
+};
+
 /* Note: not updated by fbnic_get_hw_stats() */
 struct fbnic_eth_ctrl_stats {
 	struct fbnic_stat_counter MACControlFramesTransmitted;
@@ -54,6 +64,11 @@ struct fbnic_eth_mac_stats {
 	struct fbnic_stat_counter MulticastFramesReceivedOK;
 	struct fbnic_stat_counter BroadcastFramesReceivedOK;
 	struct fbnic_stat_counter FrameTooLongErrors;
+};
+
+struct fbnic_phy_stats {
+	struct fbnic_fec_stats fec;
+	struct fbnic_pcs_stats pcs;
 };
 
 struct fbnic_mac_stats {
@@ -116,6 +131,7 @@ struct fbnic_pcie_stats {
 };
 
 struct fbnic_hw_stats {
+	struct fbnic_phy_stats phy;
 	struct fbnic_mac_stats mac;
 	struct fbnic_tmi_stats tmi;
 	struct fbnic_tti_stats tti;
