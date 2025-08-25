@@ -458,8 +458,6 @@ latex_elements = {
     "papersize": "a4paper",
     "passoptionstopackages": dedent(r"""
         \PassOptionsToPackage{svgnames}{xcolor}
-        % Avoid encoding troubles when creating indexes
-        \PassOptionsToPackage{xindy}{language=english,codepage=utf8,noautomatic}
     """),
     # The font size ('10pt', '11pt' or '12pt').
     "pointsize": "11pt",
