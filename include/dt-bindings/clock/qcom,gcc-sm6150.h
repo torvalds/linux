@@ -180,9 +180,16 @@
 /* GCC GDSCRs */
 #define PCIE_0_GDSC						0
 #define UFS_PHY_GDSC						1
-#define USB30_PRIM_GDSC                     2
+#define USB30_PRIM_GDSC                     			2
 #define USB20_SEC_GDSC						3
 #define EMAC_GDSC						4
+#define HLOS1_VOTE_AGGRE_NOC_MMU_AUDIO_TBU_GDSC			5
+#define HLOS1_VOTE_AGGRE_NOC_MMU_TBU1_GDSC			6
+#define HLOS1_VOTE_AGGRE_NOC_MMU_TBU2_GDSC			7
+#define HLOS1_VOTE_AGGRE_NOC_MMU_PCIE_TBU_GDSC			8
+#define HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC			9
+#define HLOS1_VOTE_MMNOC_MMU_TBU_SF_GDSC			10
+#define HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC			11
 
 /* GCC Resets */
 #define GCC_QUSB2PHY_PRIM_BCR			0
