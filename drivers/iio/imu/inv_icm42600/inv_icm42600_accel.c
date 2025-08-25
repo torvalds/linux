@@ -315,7 +315,6 @@ static int inv_icm42600_accel_read_sensor(struct iio_dev *indio_dev,
 		ret = -EINVAL;
 exit:
 	mutex_unlock(&st->lock);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	return ret;
 }
@@ -567,7 +566,6 @@ static int inv_icm42600_accel_write_scale(struct iio_dev *indio_dev,
 	ret = inv_icm42600_set_accel_conf(st, &conf, NULL);
 
 	mutex_unlock(&st->lock);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
@@ -675,7 +673,6 @@ static int inv_icm42600_accel_write_odr(struct iio_dev *indio_dev,
 
 out_unlock:
 	mutex_unlock(&st->lock);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
@@ -727,7 +724,6 @@ static int inv_icm42600_accel_read_offset(struct inv_icm42600_state *st,
 	memcpy(data, st->buffer, sizeof(data));
 
 	mutex_unlock(&st->lock);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	if (ret)
 		return ret;
@@ -865,7 +861,6 @@ static int inv_icm42600_accel_write_offset(struct inv_icm42600_state *st,
 
 out_unlock:
 	mutex_unlock(&st->lock);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	return ret;
 }

@@ -430,7 +430,6 @@ out_unlock:
 	if (sleep)
 		msleep(sleep);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
