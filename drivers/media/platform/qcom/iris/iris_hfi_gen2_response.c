@@ -29,7 +29,8 @@ struct iris_hfi_gen2_packet_handle {
 	int (*handle)(struct iris_inst *inst, struct iris_hfi_packet *pkt);
 };
 
-static u32 iris_hfi_gen2_buf_type_to_driver(enum hfi_buffer_type buf_type)
+static u32 iris_hfi_gen2_buf_type_to_driver(struct iris_inst *inst,
+					    enum hfi_buffer_type buf_type)
 {
 	switch (buf_type) {
 	case HFI_BUFFER_BITSTREAM:
@@ -47,7 +48,10 @@ static u32 iris_hfi_gen2_buf_type_to_driver(enum hfi_buffer_type buf_type)
 	case HFI_BUFFER_LINE:
 		return BUF_LINE;
 	case HFI_BUFFER_DPB:
-		return BUF_DPB;
+		if (inst->domain == DECODER)
+			return BUF_DPB;
+		else
+			return BUF_SCRATCH_2;
 	case HFI_BUFFER_PERSIST:
 		return BUF_PERSIST;
 	default:
@@ -421,7 +425,7 @@ static void iris_hfi_gen2_handle_dequeue_buffers(struct iris_inst *inst)
 static int iris_hfi_gen2_handle_release_internal_buffer(struct iris_inst *inst,
 							struct iris_hfi_buffer *buffer)
 {
-	u32 buf_type = iris_hfi_gen2_buf_type_to_driver(buffer->type);
+	u32 buf_type = iris_hfi_gen2_buf_type_to_driver(inst, buffer->type);
 	struct iris_buffers *buffers = &inst->buffers[buf_type];
 	struct iris_buffer *buf, *iter;
 	bool found = false;

@@ -294,16 +294,30 @@ void iris_get_internal_buffers(struct iris_inst *inst, u32 plane)
 	const u32 *internal_buf_type;
 	u32 internal_buffer_count, i;
 
-	if (V4L2_TYPE_IS_OUTPUT(plane)) {
-		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
-		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
-		for (i = 0; i < internal_buffer_count; i++)
-			iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+	if (inst->domain == DECODER) {
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+			internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+			for (i = 0; i < internal_buffer_count; i++)
+				iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+		} else {
+			internal_buf_type = platform_data->dec_op_int_buf_tbl;
+			internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+			for (i = 0; i < internal_buffer_count; i++)
+				iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+		}
 	} else {
-		internal_buf_type = platform_data->dec_op_int_buf_tbl;
-		internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
-		for (i = 0; i < internal_buffer_count; i++)
-			iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->enc_ip_int_buf_tbl;
+			internal_buffer_count = platform_data->enc_ip_int_buf_tbl_size;
+			for (i = 0; i < internal_buffer_count; i++)
+				iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+		} else {
+			internal_buf_type = platform_data->enc_op_int_buf_tbl;
+			internal_buffer_count = platform_data->enc_op_int_buf_tbl_size;
+			for (i = 0; i < internal_buffer_count; i++)
+				iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+		}
 	}
 }
 
@@ -344,12 +358,22 @@ int iris_create_internal_buffers(struct iris_inst *inst, u32 plane)
 	const u32 *internal_buf_type;
 	int ret;
 
-	if (V4L2_TYPE_IS_OUTPUT(plane)) {
-		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
-		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+	if (inst->domain == DECODER) {
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+			internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+		} else {
+			internal_buf_type = platform_data->dec_op_int_buf_tbl;
+			internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+		}
 	} else {
-		internal_buf_type = platform_data->dec_op_int_buf_tbl;
-		internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->enc_ip_int_buf_tbl;
+			internal_buffer_count = platform_data->enc_ip_int_buf_tbl_size;
+		} else {
+			internal_buf_type = platform_data->enc_op_int_buf_tbl;
+			internal_buffer_count = platform_data->enc_op_int_buf_tbl_size;
+		}
 	}
 
 	for (i = 0; i < internal_buffer_count; i++) {
@@ -411,12 +435,22 @@ int iris_queue_internal_buffers(struct iris_inst *inst, u32 plane)
 	u32 internal_buffer_count, i;
 	int ret;
 
-	if (V4L2_TYPE_IS_OUTPUT(plane)) {
-		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
-		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+	if (inst->domain == DECODER) {
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+			internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+		} else {
+			internal_buf_type = platform_data->dec_op_int_buf_tbl;
+			internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+		}
 	} else {
-		internal_buf_type = platform_data->dec_op_int_buf_tbl;
-		internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->enc_ip_int_buf_tbl;
+			internal_buffer_count = platform_data->enc_ip_int_buf_tbl_size;
+		} else {
+			internal_buf_type = platform_data->enc_op_int_buf_tbl;
+			internal_buffer_count = platform_data->enc_op_int_buf_tbl_size;
+		}
 	}
 
 	for (i = 0; i < internal_buffer_count; i++) {
@@ -460,12 +494,22 @@ static int iris_destroy_internal_buffers(struct iris_inst *inst, u32 plane, bool
 	u32 i, len;
 	int ret;
 
-	if (V4L2_TYPE_IS_OUTPUT(plane)) {
-		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
-		len = platform_data->dec_ip_int_buf_tbl_size;
+	if (inst->domain == DECODER) {
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+			len = platform_data->dec_ip_int_buf_tbl_size;
+		} else {
+			internal_buf_type = platform_data->dec_op_int_buf_tbl;
+			len = platform_data->dec_op_int_buf_tbl_size;
+		}
 	} else {
-		internal_buf_type = platform_data->dec_op_int_buf_tbl;
-		len = platform_data->dec_op_int_buf_tbl_size;
+		if (V4L2_TYPE_IS_OUTPUT(plane)) {
+			internal_buf_type = platform_data->enc_ip_int_buf_tbl;
+			len = platform_data->enc_ip_int_buf_tbl_size;
+		} else {
+			internal_buf_type = platform_data->enc_op_int_buf_tbl;
+			len = platform_data->enc_op_int_buf_tbl_size;
+		}
 	}
 
 	for (i = 0; i < len; i++) {
@@ -486,7 +530,10 @@ static int iris_destroy_internal_buffers(struct iris_inst *inst, u32 plane, bool
 	}
 
 	if (force) {
-		buffers = &inst->buffers[BUF_PERSIST];
+		if (inst->domain == DECODER)
+			buffers = &inst->buffers[BUF_PERSIST];
+		else
+			buffers = &inst->buffers[BUF_ARP];
 
 		list_for_each_entry_safe(buf, next, &buffers->list, list) {
 			ret = iris_destroy_internal_buffer(inst, buf);
@@ -537,8 +584,13 @@ static int iris_release_input_internal_buffers(struct iris_inst *inst)
 	u32 internal_buffer_count, i;
 	int ret;
 
-	internal_buf_type = platform_data->dec_ip_int_buf_tbl;
-	internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+	if (inst->domain == DECODER) {
+		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+	} else {
+		internal_buf_type = platform_data->enc_ip_int_buf_tbl;
+		internal_buffer_count = platform_data->enc_ip_int_buf_tbl_size;
+	}
 
 	for (i = 0; i < internal_buffer_count; i++) {
 		ret = iris_release_internal_buffers(inst, internal_buf_type[i]);
@@ -549,9 +601,9 @@ static int iris_release_input_internal_buffers(struct iris_inst *inst)
 	return 0;
 }
 
-int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst)
+int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst, enum iris_buffer_type buffer_type)
 {
-	struct iris_buffers *buffers = &inst->buffers[BUF_PERSIST];
+	struct iris_buffers *buffers = &inst->buffers[buffer_type];
 	struct iris_buffer *buffer, *next;
 	int ret;
 	u32 i;
@@ -559,10 +611,10 @@ int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst)
 	if (!list_empty(&buffers->list))
 		return 0;
 
-	iris_fill_internal_buf_info(inst, BUF_PERSIST);
+	iris_fill_internal_buf_info(inst, buffer_type);
 
 	for (i = 0; i < buffers->min_count; i++) {
-		ret = iris_create_internal_buffer(inst, BUF_PERSIST, i);
+		ret = iris_create_internal_buffer(inst, buffer_type, i);
 		if (ret)
 			return ret;
 	}

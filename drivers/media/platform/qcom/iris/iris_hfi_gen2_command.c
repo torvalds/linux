@@ -111,21 +111,40 @@ static u32 iris_hfi_gen2_get_port(struct iris_inst *inst, u32 plane)
 	}
 }
 
-static u32 iris_hfi_gen2_get_port_from_buf_type(enum iris_buffer_type buffer_type)
+static u32 iris_hfi_gen2_get_port_from_buf_type(struct iris_inst *inst,
+						enum iris_buffer_type buffer_type)
 {
-	switch (buffer_type) {
-	case BUF_INPUT:
-	case BUF_BIN:
-	case BUF_COMV:
-	case BUF_NON_COMV:
-	case BUF_LINE:
-		return HFI_PORT_BITSTREAM;
-	case BUF_OUTPUT:
-	case BUF_DPB:
-		return HFI_PORT_RAW;
-	case BUF_PERSIST:
-	default:
-		return HFI_PORT_NONE;
+	if (inst->domain == DECODER) {
+		switch (buffer_type) {
+		case BUF_INPUT:
+		case BUF_BIN:
+		case BUF_COMV:
+		case BUF_NON_COMV:
+		case BUF_LINE:
+			return HFI_PORT_BITSTREAM;
+		case BUF_OUTPUT:
+		case BUF_DPB:
+			return HFI_PORT_RAW;
+		case BUF_PERSIST:
+		default:
+			return HFI_PORT_NONE;
+		}
+	} else {
+		switch (buffer_type) {
+		case BUF_INPUT:
+		case BUF_VPSS:
+			return HFI_PORT_RAW;
+		case BUF_OUTPUT:
+		case BUF_BIN:
+		case BUF_COMV:
+		case BUF_NON_COMV:
+		case BUF_LINE:
+		case BUF_SCRATCH_2:
+			return HFI_PORT_BITSTREAM;
+		case BUF_ARP:
+		default:
+			return HFI_PORT_NONE;
+		}
 	}
 }
 
@@ -1042,9 +1061,14 @@ static u32 iris_hfi_gen2_buf_type_from_driver(enum iris_buffer_type buffer_type)
 	case BUF_LINE:
 		return HFI_BUFFER_LINE;
 	case BUF_DPB:
+	case BUF_SCRATCH_2:
 		return HFI_BUFFER_DPB;
 	case BUF_PERSIST:
 		return HFI_BUFFER_PERSIST;
+	case BUF_ARP:
+		return HFI_BUFFER_ARP;
+	case BUF_VPSS:
+		return HFI_BUFFER_VPSS;
 	default:
 		return 0;
 	}
@@ -1100,7 +1124,7 @@ static int iris_hfi_gen2_session_queue_buffer(struct iris_inst *inst, struct iri
 			return ret;
 	}
 
-	port = iris_hfi_gen2_get_port_from_buf_type(buffer->type);
+	port = iris_hfi_gen2_get_port_from_buf_type(inst, buffer->type);
 	iris_hfi_gen2_packet_session_command(inst,
 					     HFI_CMD_BUFFER,
 					     HFI_HOST_FLAGS_INTR_REQUIRED,
@@ -1122,7 +1146,7 @@ static int iris_hfi_gen2_session_release_buffer(struct iris_inst *inst, struct i
 
 	iris_hfi_gen2_get_buffer(buffer, &hfi_buffer);
 	hfi_buffer.flags |= HFI_BUF_HOST_FLAG_RELEASE;
-	port = iris_hfi_gen2_get_port_from_buf_type(buffer->type);
+	port = iris_hfi_gen2_get_port_from_buf_type(inst, buffer->type);
 
 	iris_hfi_gen2_packet_session_command(inst,
 					     HFI_CMD_BUFFER,

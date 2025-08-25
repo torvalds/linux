@@ -176,6 +176,8 @@ int iris_open(struct file *filp)
 	INIT_LIST_HEAD(&inst->buffers[BUF_DPB].list);
 	INIT_LIST_HEAD(&inst->buffers[BUF_PERSIST].list);
 	INIT_LIST_HEAD(&inst->buffers[BUF_SCRATCH_1].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_SCRATCH_2].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_VPSS].list);
 	init_completion(&inst->completion);
 	init_completion(&inst->flush_completion);
 
@@ -265,13 +267,17 @@ static void iris_check_num_queued_internal_buffers(struct iris_inst *inst, u32 p
 				count, internal_buf_type[i]);
 	}
 
-	buffers = &inst->buffers[BUF_PERSIST];
+	if (inst->domain == DECODER)
+		buffers = &inst->buffers[BUF_PERSIST];
+	else
+		buffers = &inst->buffers[BUF_ARP];
 
 	count = 0;
 	list_for_each_entry_safe(buf, next, &buffers->list, list)
 		count++;
 	if (count)
-		dev_err(inst->core->dev, "%d buffer of type BUF_PERSIST not released", count);
+		dev_err(inst->core->dev, "%d buffer of type %d not released",
+			count, inst->domain == DECODER ? BUF_PERSIST : BUF_ARP);
 }
 
 int iris_close(struct file *filp)

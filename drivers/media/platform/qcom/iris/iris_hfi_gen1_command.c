@@ -21,6 +21,10 @@ static u32 iris_hfi_gen1_buf_type_from_driver(enum iris_buffer_type buffer_type)
 		return HFI_BUFFER_INTERNAL_SCRATCH;
 	case BUF_SCRATCH_1:
 		return HFI_BUFFER_INTERNAL_SCRATCH_1;
+	case BUF_SCRATCH_2:
+		return HFI_BUFFER_INTERNAL_SCRATCH_2;
+	case BUF_ARP:
+		return HFI_BUFFER_INTERNAL_PERSIST;
 	default:
 		return -EINVAL;
 	}
@@ -358,6 +362,8 @@ static int iris_hfi_gen1_session_queue_buffer(struct iris_inst *inst, struct iri
 	case BUF_PERSIST:
 	case BUF_BIN:
 	case BUF_SCRATCH_1:
+	case BUF_SCRATCH_2:
+	case BUF_ARP:
 		return iris_hfi_gen1_queue_internal_buffer(inst, buf);
 	default:
 		return -EINVAL;

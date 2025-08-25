@@ -321,7 +321,7 @@ int iris_vdec_streamon_input(struct iris_inst *inst)
 	if (ret)
 		return ret;
 
-	ret = iris_alloc_and_queue_persist_bufs(inst);
+	ret = iris_alloc_and_queue_persist_bufs(inst, BUF_PERSIST);
 	if (ret)
 		return ret;
 
