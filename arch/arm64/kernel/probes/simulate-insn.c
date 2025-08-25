@@ -126,7 +126,7 @@ simulate_b_cond(u32 opcode, long addr, struct pt_regs *regs)
 }
 
 void __kprobes
-simulate_br_blr_ret(u32 opcode, long addr, struct pt_regs *regs)
+simulate_br_blr(u32 opcode, long addr, struct pt_regs *regs)
 {
 	int xn = (opcode >> 5) & 0x1f;
 
@@ -136,6 +136,14 @@ simulate_br_blr_ret(u32 opcode, long addr, struct pt_regs *regs)
 	/* Link register is x30 */
 	if (((opcode >> 21) & 0x3) == 1)
 		set_x_reg(regs, 30, addr + 4);
+}
+
+void __kprobes
+simulate_ret(u32 opcode, long addr, struct pt_regs *regs)
+{
+	int xn = (opcode >> 5) & 0x1f;
+
+	instruction_pointer_set(regs, get_x_reg(regs, xn));
 }
 
 void __kprobes
