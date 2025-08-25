@@ -491,7 +491,9 @@ static void __fbnic_pm_attach(struct device *dev)
 	struct net_device *netdev = fbd->netdev;
 	struct fbnic_net *fbn;
 
+	rtnl_lock();
 	fbnic_reset_hw_stats(fbd);
+	rtnl_unlock();
 
 	if (fbnic_init_failure(fbd))
 		return;
