@@ -105,7 +105,7 @@ static u64 effective_tcr2(struct kvm_vcpu *vcpu, enum trans_regime regime)
 		    !(__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TCR2En))
 			return 0;
 
-		return __vcpu_sys_reg(vcpu, TCR2_EL1);
+		return vcpu_read_sys_reg(vcpu, TCR2_EL1);
 	}
 
 	return vcpu_read_sys_reg(vcpu, TCR2_EL2);
@@ -956,7 +956,7 @@ static void compute_s1_direct_permissions(struct kvm_vcpu *vcpu,
 		wxn = (vcpu_read_sys_reg(vcpu, SCTLR_EL2) & SCTLR_ELx_WXN);
 		break;
 	case TR_EL10:
-		wxn = (__vcpu_sys_reg(vcpu, SCTLR_EL1) & SCTLR_ELx_WXN);
+		wxn = (vcpu_read_sys_reg(vcpu, SCTLR_EL1) & SCTLR_ELx_WXN);
 		break;
 	}
 
