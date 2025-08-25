@@ -23,8 +23,8 @@
  *    b. if the trend is THERMAL_TREND_DROPPING, do nothing
  * If the temperature is lower than a trip point,
  *    a. if the trend is THERMAL_TREND_RAISING, do nothing
- *    b. if the trend is THERMAL_TREND_DROPPING, use lower cooling
- *       state for this trip point, if the cooling state already
+ *    b. if the trend is THERMAL_TREND_DROPPING, use the minimum applicable
+ *       cooling state for this trip point, or if the cooling state already
  *       equals lower limit, deactivate the thermal instance
  */
 static unsigned long get_target_state(struct thermal_instance *instance,
