@@ -469,7 +469,7 @@ static void reset_rss(void)
 	run_command("ethtool -X %s default >&2", ifname, start_queue);
 }
 
-static int configure_channels(unsigned int rx, unsigned int tx)
+static int check_changing_channels(unsigned int rx, unsigned int tx)
 {
 	struct ethtool_channels_get_req *gchan;
 	struct ethtool_channels_set_req *schan;
@@ -525,20 +525,32 @@ static int configure_channels(unsigned int rx, unsigned int tx)
 			ethtool_channels_set_req_set_tx_count(schan, tx - rx);
 		}
 
-		ret = ethtool_channels_set(ys, schan);
-		if (ret)
-			fprintf(stderr, "YNL set channels: %s\n", ys->err.msg);
 	} else if (chan->_present.rx_count) {
 		ethtool_channels_set_req_set_rx_count(schan, rx);
 		ethtool_channels_set_req_set_tx_count(schan, tx);
-
-		ret = ethtool_channels_set(ys, schan);
-		if (ret)
-			fprintf(stderr, "YNL set channels: %s\n", ys->err.msg);
 	} else {
 		fprintf(stderr, "Error: device has neither combined nor rx channels\n");
 		ret = -1;
+		goto exit_free_schan;
 	}
+
+	ret = ethtool_channels_set(ys, schan);
+	if (ret) {
+		fprintf(stderr, "YNL set channels: %s\n", ys->err.msg);
+	} else {
+		/* We were expecting a failure, go back to previous settings */
+		ethtool_channels_set_req_set_combined_count(schan,
+							    chan->combined_count);
+		ethtool_channels_set_req_set_rx_count(schan, chan->rx_count);
+		ethtool_channels_set_req_set_tx_count(schan, chan->tx_count);
+
+		ret = ethtool_channels_set(ys, schan);
+		if (ret)
+			fprintf(stderr, "YNL un-setting channels: %s\n",
+				ys->err.msg);
+	}
+
+exit_free_schan:
 	ethtool_channels_set_req_free(schan);
 exit_free_chan:
 	ethtool_channels_get_rsp_free(chan);
@@ -1019,16 +1031,14 @@ int run_devmem_tests(void)
 	}
 
 	/* Deactivating a bound queue should not be legal */
-	if (!configure_channels(num_queues, num_queues)) {
+	if (!check_changing_channels(num_queues, num_queues)) {
 		pr_err("Deactivating a bound queue should be illegal");
-		goto err_reset_channels;
+		goto err_unbind;
 	}
 
 	err = 0;
 	goto err_unbind;
 
-err_reset_channels:
-	/* TODO */
 err_unbind:
 	ynl_sock_destroy(ys);
 err_reset_headersplit:
