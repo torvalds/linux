@@ -143,7 +143,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(GetMinDpmFreq,			     PPSMC_MSG_GetMinDpmFreq,			1),
 	MSG_MAP(GetMaxDpmFreq,			     PPSMC_MSG_GetMaxDpmFreq,			1),
 	MSG_MAP(GetDpmFreqByIndex,		     PPSMC_MSG_GetDpmFreqByIndex,		1),
-	MSG_MAP(SetPptLimit,			     PPSMC_MSG_SetPptLimit,			0),
+	MSG_MAP(SetPptLimit,			     PPSMC_MSG_SetPptLimit,			1),
 	MSG_MAP(GetPptLimit,			     PPSMC_MSG_GetPptLimit,			1),
 	MSG_MAP(GfxDeviceDriverReset,		     PPSMC_MSG_GfxDriverReset,			SMU_MSG_RAS_PRI | SMU_MSG_NO_PRECHECK),
 	MSG_MAP(DramLogSetDramAddrHigh,		     PPSMC_MSG_DramLogSetDramAddrHigh,		0),
@@ -413,6 +413,10 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 			smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
 
 		if (amdgpu_sriov_vf(adev)) {
+			if (fw_ver >= 0x00558200)
+				amdgpu_virt_attr_set(&adev->virt.virt_caps,
+						     AMDGPU_VIRT_CAP_POWER_LIMIT,
+						     AMDGPU_CAP_ATTR_RW);
 			if ((pgm == 0 && fw_ver >= 0x00558000) ||
 			    (pgm == 7 && fw_ver >= 0x7551000)) {
 				smu_v13_0_6_cap_set(smu,

@@ -3254,9 +3254,6 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 	int err;
 	u32 value;
 
-	if (amdgpu_sriov_vf(adev))
-		return -EINVAL;
-
 	err = kstrtou32(buf, 10, &value);
 	if (err)
 		return err;
@@ -3597,6 +3594,10 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		    (amdgpu_sriov_vf(adev) && gc_ver == IP_VERSION(11, 0, 3)))
 			return 0;
 	}
+
+	if (attr == &sensor_dev_attr_power1_cap.dev_attr.attr &&
+	    amdgpu_virt_cap_is_rw(&adev->virt.virt_caps, AMDGPU_VIRT_CAP_POWER_LIMIT))
+		effective_mode |= S_IWUSR;
 
 	/* not implemented yet for APUs having < GC 9.3.0 (Renoir) */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
