@@ -90,6 +90,47 @@ static const struct kernel_param_ops slider_def_balance_ops = {
 module_param_cb(slider_balance, &slider_def_balance_ops, NULL, 0644);
 MODULE_PARM_DESC(slider_balance, "Set slider default value for balance");
 
+static u8 slider_offset;
+
+static int slider_def_offset_set(const char *arg, const struct kernel_param *kp)
+{
+	u8 offset;
+	int ret;
+
+	guard(mutex)(&slider_param_lock);
+
+	ret = kstrtou8(arg, 16, &offset);
+	if (!ret) {
+		if (offset > SOC_SLIDER_VALUE_MAXIMUM)
+			return -EINVAL;
+
+		slider_offset = offset;
+	}
+
+	return ret;
+}
+
+static int slider_def_offset_get(char *buf, const struct kernel_param *kp)
+{
+	guard(mutex)(&slider_param_lock);
+	return sysfs_emit(buf, "%02x\n", slider_offset);
+}
+
+static const struct kernel_param_ops slider_offset_ops = {
+	.set = slider_def_offset_set,
+	.get = slider_def_offset_get,
+};
+
+/*
+ * To enhance power efficiency dynamically, the firmware can optionally
+ * auto-adjust the slider value based on the current workload. This
+ * adjustment is controlled by the "slider_offset" module parameter.
+ * This offset permits the firmware to increase the slider value
+ * up to and including "SoC slider + slider offset,".
+ */
+module_param_cb(slider_offset, &slider_offset_ops, NULL, 0644);
+MODULE_PARM_DESC(slider_offset, "Set slider offset");
+
 /* Convert from platform power profile option to SoC slider value */
 static int convert_profile_to_power_slider(enum platform_profile_option profile)
 {
@@ -130,6 +171,8 @@ static inline void write_soc_slider(struct proc_thermal_device *proc_priv, u64 v
 	writeq(val, proc_priv->mmio_base + SOC_POWER_SLIDER_OFFSET);
 }
 
+#define SLIDER_OFFSET_MASK	GENMASK_ULL(6, 4)
+
 static void set_soc_power_profile(struct proc_thermal_device *proc_priv, int slider)
 {
 	u64 val;
@@ -137,6 +180,11 @@ static void set_soc_power_profile(struct proc_thermal_device *proc_priv, int sli
 	val = read_soc_slider(proc_priv);
 	val &= ~SLIDER_MASK;
 	val |= FIELD_PREP(SLIDER_MASK, slider) | BIT(SLIDER_ENABLE_BIT);
+
+	/* Set the slider offset from module params */
+	val &= ~SLIDER_OFFSET_MASK;
+	val |= FIELD_PREP(SLIDER_OFFSET_MASK, slider_offset);
+
 	write_soc_slider(proc_priv, val);
 }
 
