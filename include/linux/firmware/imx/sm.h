@@ -41,10 +41,28 @@ static inline int scmi_imx_misc_ctrl_set(u32 id, u32 val)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_IMX_SCMI_CPU_DRV)
 int scmi_imx_cpu_start(u32 cpuid, bool start);
 int scmi_imx_cpu_started(u32 cpuid, bool *started);
 int scmi_imx_cpu_reset_vector_set(u32 cpuid, u64 vector, bool start, bool boot,
 				  bool resume);
+#else
+static inline int scmi_imx_cpu_start(u32 cpuid, bool start)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int scmi_imx_cpu_started(u32 cpuid, bool *started)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int scmi_imx_cpu_reset_vector_set(u32 cpuid, u64 vector, bool start,
+						bool boot, bool resume)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 enum scmi_imx_lmm_op {
 	SCMI_IMX_LMM_BOOT,
