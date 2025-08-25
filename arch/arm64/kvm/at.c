@@ -807,8 +807,8 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 	return par;
 }
 
-static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
-			  enum trans_regime regime)
+static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
+			  struct s1_walk_result *wr)
 {
 	u64 par;
 
@@ -823,7 +823,7 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
 		par  = SYS_PAR_EL1_NSE;
 		par |= wr->pa & GENMASK_ULL(47, 12);
 
-		if (regime == TR_EL10 &&
+		if (wi->regime == TR_EL10 &&
 		    (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_DC)) {
 			par |= FIELD_PREP(SYS_PAR_EL1_ATTR,
 					  MEMATTR(WbRaWa, WbRaWa));
@@ -838,14 +838,14 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
 
 		par  = SYS_PAR_EL1_NSE;
 
-		mair = (regime == TR_EL10 ?
+		mair = (wi->regime == TR_EL10 ?
 			vcpu_read_sys_reg(vcpu, MAIR_EL1) :
 			vcpu_read_sys_reg(vcpu, MAIR_EL2));
 
 		mair >>= FIELD_GET(PTE_ATTRINDX_MASK, wr->desc) * 8;
 		mair &= 0xff;
 
-		sctlr = (regime == TR_EL10 ?
+		sctlr = (wi->regime == TR_EL10 ?
 			 vcpu_read_sys_reg(vcpu, SCTLR_EL1) :
 			 vcpu_read_sys_reg(vcpu, SCTLR_EL2));
 
@@ -1243,7 +1243,7 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		fail_s1_walk(&wr, ESR_ELx_FSC_PERM_L(wr.level), false);
 
 compute_par:
-	return compute_par_s1(vcpu, &wr, wi.regime);
+	return compute_par_s1(vcpu, &wi, &wr);
 }
 
 /*
