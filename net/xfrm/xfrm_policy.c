@@ -2594,7 +2594,7 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 static dscp_t xfrm_get_dscp(const struct flowi *fl, int family)
 {
 	if (family == AF_INET)
-		return inet_dsfield_to_dscp(fl->u.ip4.flowi4_tos);
+		return fl->u.ip4.flowi4_dscp;
 
 	return 0;
 }
@@ -3462,7 +3462,7 @@ decode_session4(const struct xfrm_flow_keys *flkeys, struct flowi *fl, bool reve
 	}
 
 	fl4->flowi4_proto = flkeys->basic.ip_proto;
-	fl4->flowi4_tos = flkeys->ip.tos & ~INET_ECN_MASK;
+	fl4->flowi4_dscp = inet_dsfield_to_dscp(flkeys->ip.tos);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -3594,7 +3594,7 @@ static bool xfrm_icmp_flow_decode(struct sk_buff *skb, unsigned short family,
 
 	fl1->flowi_oif = fl->flowi_oif;
 	fl1->flowi_mark = fl->flowi_mark;
-	fl1->flowi_tos = fl->flowi_tos;
+	fl1->flowi_dscp = fl->flowi_dscp;
 	nf_nat_decode_session(newskb, fl1, family);
 	ret = false;
 

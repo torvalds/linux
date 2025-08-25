@@ -440,7 +440,7 @@ static inline bool fib4_rules_early_flow_dissect(struct net *net,
 
 static inline bool fib_dscp_masked_match(dscp_t dscp, const struct flowi4 *fl4)
 {
-	return dscp == inet_dsfield_to_dscp(RT_TOS(fl4->flowi4_tos));
+	return dscp == (fl4->flowi4_dscp & INET_DSCP_LEGACY_TOS_MASK);
 }
 
 /* Exported by fib_frontend.c */

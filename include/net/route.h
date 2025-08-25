@@ -189,7 +189,7 @@ static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
 {
 	struct flowi4 fl4 = {
 		.flowi4_oif = oif,
-		.flowi4_tos = inet_dscp_to_dsfield(dscp),
+		.flowi4_dscp = dscp,
 		.flowi4_scope = scope,
 		.daddr = daddr,
 		.saddr = saddr,

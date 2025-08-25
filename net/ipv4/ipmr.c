@@ -42,6 +42,7 @@
 #include <linux/init.h>
 #include <linux/if_ether.h>
 #include <linux/slab.h>
+#include <net/flow.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -2120,7 +2121,7 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 	struct flowi4 fl4 = {
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
-		.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(iph)),
+		.flowi4_dscp = ip4h_dscp(iph),
 		.flowi4_oif = (rt_is_output_route(rt) ?
 			       skb->dev->ifindex : 0),
 		.flowi4_iif = (rt_is_output_route(rt) ?

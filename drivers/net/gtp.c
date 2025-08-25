@@ -21,9 +21,10 @@
 #include <linux/file.h>
 #include <linux/gtp.h>
 
+#include <net/flow.h>
+#include <net/inet_dscp.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
-#include <net/inet_dscp.h>
 #include <net/inet_sock.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -352,7 +353,7 @@ static struct rtable *ip4_route_output_gtp(struct flowi4 *fl4,
 	fl4->flowi4_oif		= sk->sk_bound_dev_if;
 	fl4->daddr		= daddr;
 	fl4->saddr		= saddr;
-	fl4->flowi4_tos		= inet_dscp_to_dsfield(inet_sk_dscp(inet_sk(sk)));
+	fl4->flowi4_dscp	= inet_sk_dscp(inet_sk(sk));
 	fl4->flowi4_scope	= ip_sock_rt_scope(sk);
 	fl4->flowi4_proto	= sk->sk_protocol;
 
@@ -2401,7 +2402,7 @@ static int gtp_genl_send_echo_req(struct sk_buff *skb, struct genl_info *info)
 
 	udp_tunnel_xmit_skb(rt, sk, skb_to_send,
 			    fl4.saddr, fl4.daddr,
-			    fl4.flowi4_tos,
+			    inet_dscp_to_dsfield(fl4.flowi4_dscp),
 			    ip4_dst_hoplimit(&rt->dst),
 			    0,
 			    port, port,
