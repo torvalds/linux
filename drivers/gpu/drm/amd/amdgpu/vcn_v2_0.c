@@ -267,9 +267,9 @@ static int vcn_v2_0_sw_fini(struct amdgpu_ip_block *ip_block)
 
 	amdgpu_vcn_sysfs_reset_mask_fini(adev);
 
-	r = amdgpu_vcn_sw_fini(adev, 0);
+	amdgpu_vcn_sw_fini(adev, 0);
 
-	return r;
+	return 0;
 }
 
 /**

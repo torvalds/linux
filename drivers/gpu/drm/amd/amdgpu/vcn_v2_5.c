@@ -442,9 +442,7 @@ static int vcn_v2_5_sw_fini(struct amdgpu_ip_block *ip_block)
 		r = amdgpu_vcn_suspend(adev, i);
 		if (r)
 			return r;
-		r = amdgpu_vcn_sw_fini(adev, i);
-		if (r)
-			return r;
+		amdgpu_vcn_sw_fini(adev, i);
 	}
 
 	return 0;

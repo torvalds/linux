@@ -349,9 +349,7 @@ static int vcn_v3_0_sw_fini(struct amdgpu_ip_block *ip_block)
 		if (r)
 			return r;
 
-		r = amdgpu_vcn_sw_fini(adev, i);
-		if (r)
-			return r;
+		amdgpu_vcn_sw_fini(adev, i);
 	}
 
 	return 0;

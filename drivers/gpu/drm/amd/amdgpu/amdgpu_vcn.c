@@ -257,12 +257,12 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev, int i)
 	return 0;
 }
 
-int amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i)
+void amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i)
 {
 	int j;
 
 	if (adev->vcn.harvest_config & (1 << i))
-		return 0;
+		return;
 
 	amdgpu_bo_free_kernel(
 		&adev->vcn.inst[i].dpg_sram_bo,
@@ -292,8 +292,6 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i)
 
 	mutex_destroy(&adev->vcn.inst[i].vcn_pg_lock);
 	mutex_destroy(&adev->vcn.inst[i].vcn1_jpeg1_workaround);
-
-	return 0;
 }
 
 bool amdgpu_vcn_is_disabled_vcn(struct amdgpu_device *adev, enum vcn_ring_type type, uint32_t vcn_instance)

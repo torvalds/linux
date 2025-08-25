@@ -245,13 +245,10 @@ static int vcn_v5_0_1_sw_fini(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-		r = amdgpu_vcn_sw_fini(adev, i);
-		if (r)
-			return r;
-	}
-
 	amdgpu_vcn_sysfs_reset_mask_fini(adev);
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+		amdgpu_vcn_sw_fini(adev, i);
 
 	return 0;
 }

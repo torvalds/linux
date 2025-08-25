@@ -230,11 +230,11 @@ static int vcn_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 
 	jpeg_v1_0_sw_fini(ip_block);
 
-	r = amdgpu_vcn_sw_fini(adev, 0);
+	amdgpu_vcn_sw_fini(adev, 0);
 
 	kfree(adev->vcn.ip_dump);
 
-	return r;
+	return 0;
 }
 
 /**
