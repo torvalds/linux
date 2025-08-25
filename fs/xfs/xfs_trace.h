@@ -455,6 +455,7 @@ DEFINE_EVENT(xfs_zone_alloc_class, name,			\
 		 xfs_extlen_t len),				\
 	TP_ARGS(oz, rgbno, len))
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_record_blocks);
+DEFINE_ZONE_ALLOC_EVENT(xfs_zone_skip_blocks);
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_alloc_blocks);
 
 TRACE_EVENT(xfs_zone_gc_select_victim,

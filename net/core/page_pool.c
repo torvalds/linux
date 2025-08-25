@@ -1201,6 +1201,35 @@ void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *),
 	pool->xdp_mem_id = mem->id;
 }
 
+/**
+ * page_pool_enable_direct_recycling() - mark page pool as owned by NAPI
+ * @pool: page pool to modify
+ * @napi: NAPI instance to associate the page pool with
+ *
+ * Associate a page pool with a NAPI instance for lockless page recycling.
+ * This is useful when a new page pool has to be added to a NAPI instance
+ * without disabling that NAPI instance, to mark the point at which control
+ * path "hands over" the page pool to the NAPI instance. In most cases driver
+ * can simply set the @napi field in struct page_pool_params, and does not
+ * have to call this helper.
+ *
+ * The function is idempotent, but does not implement any refcounting.
+ * Single page_pool_disable_direct_recycling() will disable recycling,
+ * no matter how many times enable was called.
+ */
+void page_pool_enable_direct_recycling(struct page_pool *pool,
+				       struct napi_struct *napi)
+{
+	if (READ_ONCE(pool->p.napi) == napi)
+		return;
+	WARN_ON(!napi || pool->p.napi);
+
+	mutex_lock(&page_pools_lock);
+	WRITE_ONCE(pool->p.napi, napi);
+	mutex_unlock(&page_pools_lock);
+}
+EXPORT_SYMBOL(page_pool_enable_direct_recycling);
+
 void page_pool_disable_direct_recycling(struct page_pool *pool)
 {
 	/* Disable direct recycling based on pool->cpuid.

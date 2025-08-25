@@ -345,7 +345,7 @@ static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 				was_space = false;
 				err = cn_printf(cn, "%c", '\0');
 				if (err)
-					return err;
+					return false;
 				(*argv)[(*argc)++] = cn->used;
 			}
 		}

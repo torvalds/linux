@@ -341,7 +341,11 @@ struct fw_address_handler {
 	u64 length;
 	fw_address_callback_t address_callback;
 	void *callback_data;
+
+	// Only for core functions.
 	struct list_head link;
+	struct kref kref;
+	struct completion done;
 };
 
 struct fw_address_region {

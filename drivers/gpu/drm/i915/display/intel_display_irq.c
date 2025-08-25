@@ -1506,9 +1506,13 @@ u32 gen11_gu_misc_irq_ack(struct intel_display *display, const u32 master_ctl)
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
 		return 0;
 
+	intel_display_rpm_assert_block(display);
+
 	iir = intel_de_read(display, GEN11_GU_MISC_IIR);
 	if (likely(iir))
 		intel_de_write(display, GEN11_GU_MISC_IIR, iir);
+
+	intel_display_rpm_assert_unblock(display);
 
 	return iir;
 }

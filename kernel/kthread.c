@@ -893,6 +893,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(kthread_affine_preferred);
 
 /*
  * Re-affine kthreads according to their preferences

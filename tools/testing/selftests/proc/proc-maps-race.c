@@ -202,11 +202,11 @@ static void print_first_lines(char *text, int nr)
 		int offs = end - text;
 
 		text[offs] = '\0';
-		printf(text);
+		printf("%s", text);
 		text[offs] = '\n';
 		printf("\n");
 	} else {
-		printf(text);
+		printf("%s", text);
 	}
 }
 
@@ -221,7 +221,7 @@ static void print_last_lines(char *text, int nr)
 		nr--;
 		start--;
 	}
-	printf(start);
+	printf("%s", start);
 }
 
 static void print_boundaries(const char *title, FIXTURE_DATA(proc_maps_race) *self)
