@@ -31,6 +31,68 @@ static enum platform_inst_fw_cap_type iris_get_cap_id(u32 id)
 		return LEVEL_VP9;
 	case V4L2_CID_MPEG_VIDEO_HEVC_TIER:
 		return TIER;
+	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:
+		return HEADER_MODE;
+	case V4L2_CID_MPEG_VIDEO_PREPEND_SPSPPS_TO_IDR:
+		return PREPEND_SPSPPS_TO_IDR;
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		return BITRATE;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
+		return BITRATE_PEAK;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		return BITRATE_MODE;
+	case V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE:
+		return FRAME_SKIP_MODE;
+	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:
+		return FRAME_RC_ENABLE;
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		return GOP_SIZE;
+	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
+		return ENTROPY_MODE;
+	case V4L2_CID_MPEG_VIDEO_H264_MIN_QP:
+		return MIN_FRAME_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP:
+		return MIN_FRAME_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_MAX_QP:
+		return MAX_FRAME_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP:
+		return MAX_FRAME_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_MIN_QP:
+		return I_FRAME_MIN_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_MIN_QP:
+		return I_FRAME_MIN_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_MIN_QP:
+		return P_FRAME_MIN_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_MIN_QP:
+		return P_FRAME_MIN_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_MIN_QP:
+		return B_FRAME_MIN_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_MIN_QP:
+		return B_FRAME_MIN_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_MAX_QP:
+		return I_FRAME_MAX_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_MAX_QP:
+		return I_FRAME_MAX_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_MAX_QP:
+		return P_FRAME_MAX_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_MAX_QP:
+		return P_FRAME_MAX_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_MAX_QP:
+		return B_FRAME_MAX_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_MAX_QP:
+		return B_FRAME_MAX_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:
+		return I_FRAME_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP:
+		return I_FRAME_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:
+		return P_FRAME_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_QP:
+		return P_FRAME_QP_HEVC;
+	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP:
+		return B_FRAME_QP_H264;
+	case V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_QP:
+		return B_FRAME_QP_HEVC;
 	default:
 		return INST_FW_CAP_MAX;
 	}
@@ -56,6 +118,68 @@ static u32 iris_get_v4l2_id(enum platform_inst_fw_cap_type cap_id)
 		return V4L2_CID_MPEG_VIDEO_VP9_LEVEL;
 	case TIER:
 		return V4L2_CID_MPEG_VIDEO_HEVC_TIER;
+	case HEADER_MODE:
+		return V4L2_CID_MPEG_VIDEO_HEADER_MODE;
+	case PREPEND_SPSPPS_TO_IDR:
+		return V4L2_CID_MPEG_VIDEO_PREPEND_SPSPPS_TO_IDR;
+	case BITRATE:
+		return V4L2_CID_MPEG_VIDEO_BITRATE;
+	case BITRATE_PEAK:
+		return V4L2_CID_MPEG_VIDEO_BITRATE_PEAK;
+	case BITRATE_MODE:
+		return V4L2_CID_MPEG_VIDEO_BITRATE_MODE;
+	case FRAME_SKIP_MODE:
+		return V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE;
+	case FRAME_RC_ENABLE:
+		return V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE;
+	case GOP_SIZE:
+		return V4L2_CID_MPEG_VIDEO_GOP_SIZE;
+	case ENTROPY_MODE:
+		return V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE;
+	case MIN_FRAME_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_MIN_QP;
+	case MIN_FRAME_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP;
+	case MAX_FRAME_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_MAX_QP;
+	case MAX_FRAME_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP;
+	case I_FRAME_MIN_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_I_FRAME_MIN_QP;
+	case I_FRAME_MIN_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_MIN_QP;
+	case P_FRAME_MIN_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_P_FRAME_MIN_QP;
+	case P_FRAME_MIN_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_MIN_QP;
+	case B_FRAME_MIN_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_B_FRAME_MIN_QP;
+	case B_FRAME_MIN_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_MIN_QP;
+	case I_FRAME_MAX_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_I_FRAME_MAX_QP;
+	case I_FRAME_MAX_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_MAX_QP;
+	case P_FRAME_MAX_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_P_FRAME_MAX_QP;
+	case P_FRAME_MAX_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_MAX_QP;
+	case B_FRAME_MAX_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_B_FRAME_MAX_QP;
+	case B_FRAME_MAX_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_MAX_QP;
+	case I_FRAME_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP;
+	case I_FRAME_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP;
+	case P_FRAME_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP;
+	case P_FRAME_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_QP;
+	case B_FRAME_QP_H264:
+		return V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP;
+	case B_FRAME_QP_HEVC:
+		return V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_QP;
 	default:
 		return 0;
 	}
@@ -101,7 +225,10 @@ int iris_ctrls_init(struct iris_inst *inst)
 			num_ctrls++;
 	}
 
-	/* Adding 1 to num_ctrls to include V4L2_CID_MIN_BUFFERS_FOR_CAPTURE */
+	/* Adding 1 to num_ctrls to include
+	 * V4L2_CID_MIN_BUFFERS_FOR_CAPTURE for decoder and
+	 * V4L2_CID_MIN_BUFFERS_FOR_OUTPUT for encoder
+	 */
 
 	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, num_ctrls + 1);
 	if (ret)
@@ -143,8 +270,13 @@ int iris_ctrls_init(struct iris_inst *inst)
 		ctrl_idx++;
 	}
 
-	v4l2_ctrl_new_std(&inst->ctrl_handler, NULL,
-			  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, 1, 32, 1, 4);
+	if (inst->domain == DECODER) {
+		v4l2_ctrl_new_std(&inst->ctrl_handler, NULL,
+				  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, 1, 32, 1, 4);
+	} else {
+		v4l2_ctrl_new_std(&inst->ctrl_handler, NULL,
+				  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT, 1, 32, 1, 4);
+	}
 
 	ret = inst->ctrl_handler.error;
 	if (ret)
@@ -162,22 +294,39 @@ void iris_session_init_caps(struct iris_core *core)
 	struct platform_inst_fw_cap *caps;
 	u32 i, num_cap, cap_id;
 
-	caps = core->iris_platform_data->inst_fw_caps;
-	num_cap = core->iris_platform_data->inst_fw_caps_size;
+	caps = core->iris_platform_data->inst_fw_caps_dec;
+	num_cap = core->iris_platform_data->inst_fw_caps_dec_size;
 
 	for (i = 0; i < num_cap; i++) {
 		cap_id = caps[i].cap_id;
 		if (!iris_valid_cap_id(cap_id))
 			continue;
 
-		core->inst_fw_caps[cap_id].cap_id = caps[i].cap_id;
-		core->inst_fw_caps[cap_id].min = caps[i].min;
-		core->inst_fw_caps[cap_id].max = caps[i].max;
-		core->inst_fw_caps[cap_id].step_or_mask = caps[i].step_or_mask;
-		core->inst_fw_caps[cap_id].value = caps[i].value;
-		core->inst_fw_caps[cap_id].flags = caps[i].flags;
-		core->inst_fw_caps[cap_id].hfi_id = caps[i].hfi_id;
-		core->inst_fw_caps[cap_id].set = caps[i].set;
+		core->inst_fw_caps_dec[cap_id].cap_id = caps[i].cap_id;
+		core->inst_fw_caps_dec[cap_id].min = caps[i].min;
+		core->inst_fw_caps_dec[cap_id].max = caps[i].max;
+		core->inst_fw_caps_dec[cap_id].step_or_mask = caps[i].step_or_mask;
+		core->inst_fw_caps_dec[cap_id].value = caps[i].value;
+		core->inst_fw_caps_dec[cap_id].flags = caps[i].flags;
+		core->inst_fw_caps_dec[cap_id].hfi_id = caps[i].hfi_id;
+		core->inst_fw_caps_dec[cap_id].set = caps[i].set;
+	}
+
+	caps = core->iris_platform_data->inst_fw_caps_enc;
+	num_cap = core->iris_platform_data->inst_fw_caps_enc_size;
+
+	for (i = 0; i < num_cap; i++) {
+		cap_id = caps[i].cap_id;
+		if (!iris_valid_cap_id(cap_id))
+			continue;
+
+		core->inst_fw_caps_enc[cap_id].cap_id = caps[i].cap_id;
+		core->inst_fw_caps_enc[cap_id].min = caps[i].min;
+		core->inst_fw_caps_enc[cap_id].max = caps[i].max;
+		core->inst_fw_caps_enc[cap_id].step_or_mask = caps[i].step_or_mask;
+		core->inst_fw_caps_enc[cap_id].value = caps[i].value;
+		core->inst_fw_caps_enc[cap_id].flags = caps[i].flags;
+		core->inst_fw_caps_enc[cap_id].hfi_id = caps[i].hfi_id;
 	}
 }
 
