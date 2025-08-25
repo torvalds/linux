@@ -421,9 +421,9 @@ static void fbnic_get_hw_rxq_stats32(struct fbnic_dev *fbd,
 void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,
 			  struct fbnic_hw_q_stats *hw_q)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	fbnic_get_hw_rxq_stats32(fbd, hw_q);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 static void fbnic_reset_pcie_stats_asic(struct fbnic_dev *fbd,
@@ -512,14 +512,21 @@ static void fbnic_get_pcie_stats_asic64(struct fbnic_dev *fbd,
 
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_reset_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
 	fbnic_reset_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
+}
+
+void fbnic_init_hw_stats(struct fbnic_dev *fbd)
+{
+	spin_lock_init(&fbd->hw_stats.lock);
+
+	fbnic_reset_hw_stats(fbd);
 }
 
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
@@ -533,19 +540,19 @@ static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 
 void fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	__fbnic_get_hw_stats32(fbd);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 void fbnic_get_hw_stats(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	__fbnic_get_hw_stats32(fbd);
 
 	fbnic_get_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_get_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_get_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_pcie_stats_asic64(fbd, &fbd->hw_stats.pcie);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }

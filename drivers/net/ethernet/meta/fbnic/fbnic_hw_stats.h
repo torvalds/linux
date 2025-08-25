@@ -5,6 +5,7 @@
 #define _FBNIC_HW_STATS_H_
 
 #include <linux/ethtool.h>
+#include <linux/spinlock.h>
 
 #include "fbnic_csr.h"
 
@@ -122,11 +123,15 @@ struct fbnic_hw_stats {
 	struct fbnic_rxb_stats rxb;
 	struct fbnic_hw_q_stats hw_q[FBNIC_MAX_QUEUES];
 	struct fbnic_pcie_stats pcie;
+
+	/* Lock protecting the access to hw stats */
+	spinlock_t lock;
 };
 
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset);
 
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd);
+void fbnic_init_hw_stats(struct fbnic_dev *fbd);
 void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,
 			  struct fbnic_hw_q_stats *hw_q);
 void fbnic_get_hw_stats32(struct fbnic_dev *fbd);

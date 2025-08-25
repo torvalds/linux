@@ -518,7 +518,7 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 
 	fbnic_get_hw_stats(fbn->fbd);
 
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	fbnic_report_hw_stats(fbnic_gstrings_hw_stats, &fbd->hw_stats,
 			      FBNIC_HW_FIXED_STATS_LEN, &data);
 
@@ -555,7 +555,7 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 		fbnic_report_hw_stats(fbnic_gstrings_hw_q_stats, hw_q,
 				      FBNIC_HW_Q_STATS_LEN, &data);
 	}
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 
 	for (i = 0; i < FBNIC_MAX_XDPQS; i++)
 		fbnic_get_xdp_queue_stats(fbn->tx[i + FBNIC_MAX_TXQS], &data);
