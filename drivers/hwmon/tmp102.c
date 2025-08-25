@@ -53,6 +53,7 @@
 #define CONVERSION_TIME_MS		35	/* in milli-seconds */
 
 struct tmp102 {
+	const char *label;
 	struct regmap *regmap;
 	u16 config_orig;
 	unsigned long ready_time;
@@ -68,6 +69,16 @@ static inline int tmp102_reg_to_mC(s16 val)
 static inline u16 tmp102_mC_to_reg(int val)
 {
 	return (val * 128) / 1000;
+}
+
+static int tmp102_read_string(struct device *dev, enum hwmon_sensor_types type,
+			      u32 attr, int channel, const char **str)
+{
+	struct tmp102 *tmp102 = dev_get_drvdata(dev);
+
+	*str = tmp102->label;
+
+	return 0;
 }
 
 static int tmp102_read(struct device *dev, enum hwmon_sensor_types type,
@@ -128,12 +139,18 @@ static int tmp102_write(struct device *dev, enum hwmon_sensor_types type,
 static umode_t tmp102_is_visible(const void *data, enum hwmon_sensor_types type,
 				 u32 attr, int channel)
 {
+	const struct tmp102 *tmp102 = data;
+
 	if (type != hwmon_temp)
 		return 0;
 
 	switch (attr) {
 	case hwmon_temp_input:
 		return 0444;
+	case hwmon_temp_label:
+		if (tmp102->label)
+			return 0444;
+		return 0;
 	case hwmon_temp_max_hyst:
 	case hwmon_temp_max:
 		return 0644;
@@ -146,12 +163,13 @@ static const struct hwmon_channel_info * const tmp102_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
-			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_MAX | HWMON_T_MAX_HYST),
 	NULL
 };
 
 static const struct hwmon_ops tmp102_hwmon_ops = {
 	.is_visible = tmp102_is_visible,
+	.read_string = tmp102_read_string,
 	.read = tmp102_read,
 	.write = tmp102_write,
 };
@@ -212,6 +230,8 @@ static int tmp102_probe(struct i2c_client *client)
 	tmp102 = devm_kzalloc(dev, sizeof(*tmp102), GFP_KERNEL);
 	if (!tmp102)
 		return -ENOMEM;
+
+	of_property_read_string(dev->of_node, "label", &tmp102->label);
 
 	i2c_set_clientdata(client, tmp102);
 
