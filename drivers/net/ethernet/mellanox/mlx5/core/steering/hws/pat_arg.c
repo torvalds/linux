@@ -279,7 +279,7 @@ int mlx5hws_pat_get_pattern(struct mlx5hws_context *ctx,
 	return ret;
 
 clean_pattern:
-	mlx5hws_cmd_header_modify_pattern_destroy(ctx->mdev, *pattern_id);
+	mlx5hws_cmd_header_modify_pattern_destroy(ctx->mdev, ptrn_id);
 out_unlock:
 	mutex_unlock(&ctx->pattern_cache->lock);
 	return ret;
