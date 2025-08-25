@@ -265,7 +265,7 @@ static int paiext_event_valid(struct perf_event *event)
 		event->hw.config_base = offsetof(struct paiext_cb, acc);
 		return 0;
 	}
-	return -EINVAL;
+	return -ENOENT;
 }
 
 /* Might be called on different CPU than the one the event is intended for. */
