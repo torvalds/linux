@@ -2435,6 +2435,7 @@ static __be32
 nfsd4_layoutget(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, union nfsd4_op_u *u)
 {
+	struct net *net = SVC_NET(rqstp);
 	struct nfsd4_layoutget *lgp = &u->layoutget;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	const struct nfsd4_layout_ops *ops;
@@ -2484,6 +2485,10 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	     lgp->lg_seg.length > NFS4_MAX_UINT64 - lgp->lg_seg.offset))
 		goto out;
 	if (lgp->lg_seg.length == 0)
+		goto out;
+
+	nfserr = nfserr_grace;
+	if (locks_in_grace(net))
 		goto out;
 
 	nfserr = nfsd4_preprocess_layout_stateid(rqstp, cstate, &lgp->lg_sid,
