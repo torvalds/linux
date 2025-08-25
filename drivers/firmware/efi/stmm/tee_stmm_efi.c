@@ -185,8 +185,7 @@ static void *setup_mm_hdr(u8 **dptr, size_t payload_size, size_t func)
 
 	var_hdr = (struct smm_variable_communicate_header *)mm_hdr->data;
 	var_hdr->function = func;
-	if (dptr)
-		*dptr = comm_buf;
+	*dptr = comm_buf;
 
 	return var_hdr->data;
 }
