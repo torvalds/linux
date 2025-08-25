@@ -2895,6 +2895,68 @@ static struct gdsc usb20_sec_gdsc = {
 	.flags = POLL_CFG_GDSCR,
 };
 
+static struct gdsc hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc = {
+	.gdscr = 0x7d040,
+	.pd = {
+		.name = "hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_aggre_noc_mmu_tbu1_gdsc = {
+	.gdscr = 0x7d044,
+	.pd = {
+		.name = "hlos1_vote_aggre_noc_mmu_tbu1_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_aggre_noc_mmu_tbu2_gdsc = {
+	.gdscr = 0x7d048,
+	.pd = {
+		.name = "hlos1_vote_aggre_noc_mmu_tbu2_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc = {
+	.gdscr = 0x7d04c,
+	.pd = {
+		.name = "hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc = {
+	.gdscr = 0x7d050,
+	.pd = {
+		.name = "hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf_gdsc = {
+	.gdscr = 0x7d054,
+	.pd = {
+		.name = "hlos1_vote_mmnoc_mmu_tbu_sf_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc = {
+	.gdscr = 0x7d058,
+	.pd = {
+		.name = "hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
 
 struct clk_hw *gcc_sm6150_hws[] = {
 	&gpll0_out_aux2.hw,
@@ -3074,10 +3136,16 @@ static struct gdsc *gcc_sm6150_gdscs[] = {
 	[EMAC_GDSC] = &emac_gdsc,
 	[PCIE_0_GDSC] = &pcie_0_gdsc,
 	[UFS_PHY_GDSC] = &ufs_phy_gdsc,
-	[USB30_PRIM_GDSC] = &usb30_prim_gdsc,
 	[USB20_SEC_GDSC] = &usb20_sec_gdsc,
+	[USB30_PRIM_GDSC] = &usb30_prim_gdsc,
+	[HLOS1_VOTE_AGGRE_NOC_MMU_AUDIO_TBU_GDSC] = &hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc,
+	[HLOS1_VOTE_AGGRE_NOC_MMU_TBU1_GDSC] = &hlos1_vote_aggre_noc_mmu_tbu1_gdsc,
+	[HLOS1_VOTE_AGGRE_NOC_MMU_TBU2_GDSC] = &hlos1_vote_aggre_noc_mmu_tbu2_gdsc,
+	[HLOS1_VOTE_AGGRE_NOC_MMU_PCIE_TBU_GDSC] = &hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc,
+	[HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC] = &hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc,
+	[HLOS1_VOTE_MMNOC_MMU_TBU_SF_GDSC] = &hlos1_vote_mmnoc_mmu_tbu_sf_gdsc,
+	[HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC] = &hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc,
 };
-
 
 static const struct qcom_reset_map gcc_sm6150_resets[] = {
 	[GCC_QUSB2PHY_PRIM_BCR] = { 0xd000 },
