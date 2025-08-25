@@ -13,8 +13,6 @@
 #include "iris_vdec.h"
 #include "iris_vpu_buffer.h"
 
-#define DEFAULT_WIDTH 320
-#define DEFAULT_HEIGHT 240
 #define DEFAULT_CODEC_ALIGNMENT 16
 
 int iris_vdec_inst_init(struct iris_inst *inst)

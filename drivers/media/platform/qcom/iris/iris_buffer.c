@@ -63,7 +63,12 @@
 static u32 iris_yuv_buffer_size_nv12(struct iris_inst *inst)
 {
 	u32 y_plane, uv_plane, y_stride, uv_stride, y_scanlines, uv_scanlines;
-	struct v4l2_format *f = inst->fmt_dst;
+	struct v4l2_format *f;
+
+	if (inst->domain == DECODER)
+		f = inst->fmt_dst;
+	else
+		f = inst->fmt_src;
 
 	y_stride = ALIGN(f->fmt.pix_mp.width, Y_STRIDE_ALIGN);
 	uv_stride = ALIGN(f->fmt.pix_mp.width, UV_STRIDE_ALIGN);
@@ -194,7 +199,7 @@ static u32 iris_yuv_buffer_size_qc08c(struct iris_inst *inst)
 	return ALIGN(y_meta_plane + y_plane + uv_meta_plane + uv_plane, PIXELS_4K);
 }
 
-static u32 iris_bitstream_buffer_size(struct iris_inst *inst)
+static u32 iris_dec_bitstream_buffer_size(struct iris_inst *inst)
 {
 	struct platform_inst_caps *caps = inst->core->iris_platform_data->inst_caps;
 	u32 base_res_mbs = NUM_MBS_4K;
@@ -219,18 +224,50 @@ static u32 iris_bitstream_buffer_size(struct iris_inst *inst)
 	return ALIGN(frame_size, PIXELS_4K);
 }
 
+static u32 iris_enc_bitstream_buffer_size(struct iris_inst *inst)
+{
+	u32 aligned_width, aligned_height, bitstream_size, yuv_size;
+	struct v4l2_format *f;
+
+	f = inst->fmt_dst;
+
+	aligned_width = ALIGN(f->fmt.pix_mp.width, 32);
+	aligned_height = ALIGN(f->fmt.pix_mp.height, 32);
+	bitstream_size = aligned_width * aligned_height * 3;
+	yuv_size = (aligned_width * aligned_height * 3) >> 1;
+	if (aligned_width * aligned_height > (4096 * 2176))
+		/* bitstream_size = 0.25 * yuv_size; */
+		bitstream_size = (bitstream_size >> 3);
+	else if (aligned_width * aligned_height > (1280 * 720))
+		/* bitstream_size = 0.5 * yuv_size; */
+		bitstream_size = (bitstream_size >> 2);
+
+	return ALIGN(bitstream_size, 4096);
+}
+
 int iris_get_buffer_size(struct iris_inst *inst,
 			 enum iris_buffer_type buffer_type)
 {
-	switch (buffer_type) {
-	case BUF_INPUT:
-		return iris_bitstream_buffer_size(inst);
-	case BUF_OUTPUT:
-		return iris_yuv_buffer_size_nv12(inst);
-	case BUF_DPB:
-		return iris_yuv_buffer_size_qc08c(inst);
-	default:
-		return 0;
+	if (inst->domain == DECODER) {
+		switch (buffer_type) {
+		case BUF_INPUT:
+			return iris_dec_bitstream_buffer_size(inst);
+		case BUF_OUTPUT:
+			return iris_yuv_buffer_size_nv12(inst);
+		case BUF_DPB:
+			return iris_yuv_buffer_size_qc08c(inst);
+		default:
+			return 0;
+		}
+	} else {
+		switch (buffer_type) {
+		case BUF_INPUT:
+			return iris_yuv_buffer_size_nv12(inst);
+		case BUF_OUTPUT:
+			return iris_enc_bitstream_buffer_size(inst);
+		default:
+			return 0;
+		}
 	}
 }
 
