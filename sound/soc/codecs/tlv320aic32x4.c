@@ -1277,8 +1277,8 @@ static int aic32x4_setup_regulators(struct device *dev,
 	/* Check if the regulator requirements are fulfilled */
 
 	if (IS_ERR(aic32x4->supply_iov)) {
-		dev_err(dev, "Missing supply 'iov'\n");
-		return PTR_ERR(aic32x4->supply_iov);
+		return dev_err_probe(dev, PTR_ERR(aic32x4->supply_iov),
+				     "Missing supply 'iov'\n");
 	}
 
 	if (IS_ERR(aic32x4->supply_ldo)) {
@@ -1286,12 +1286,12 @@ static int aic32x4_setup_regulators(struct device *dev,
 			return -EPROBE_DEFER;
 
 		if (IS_ERR(aic32x4->supply_dv)) {
-			dev_err(dev, "Missing supply 'dv' or 'ldoin'\n");
-			return PTR_ERR(aic32x4->supply_dv);
+			return dev_err_probe(dev, PTR_ERR(aic32x4->supply_dv),
+					     "Missing supply 'dv' or 'ldoin'\n");
 		}
 		if (IS_ERR(aic32x4->supply_av)) {
-			dev_err(dev, "Missing supply 'av' or 'ldoin'\n");
-			return PTR_ERR(aic32x4->supply_av);
+			return dev_err_probe(dev, PTR_ERR(aic32x4->supply_av),
+					     "Missing supply 'av' or 'ldoin'\n");
 		}
 	} else {
 		if (PTR_ERR(aic32x4->supply_dv) == -EPROBE_DEFER)
@@ -1383,10 +1383,8 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	ret = aic32x4_setup_regulators(dev, aic32x4);
-	if (ret) {
-		dev_err(dev, "Failed to setup regulators\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to setup regulators\n");
 
 	if (aic32x4->rstn_gpio) {
 		ndelay(10);
