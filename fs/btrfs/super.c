@@ -276,6 +276,7 @@ static int btrfs_parse_compress(struct btrfs_fs_context *ctx,
 				const struct fs_parameter *param, int opt)
 {
 	const char *string = param->string;
+	int ret;
 
 	/*
 	 * Provide the same semantics as older kernels that don't use fs
@@ -294,15 +295,19 @@ static int btrfs_parse_compress(struct btrfs_fs_context *ctx,
 		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
 	} else if (btrfs_match_compress_type(string, "zlib", true)) {
 		ctx->compress_type = BTRFS_COMPRESS_ZLIB;
-		ctx->compress_level = btrfs_compress_str2level(BTRFS_COMPRESS_ZLIB,
-							       string + 4);
+		ret = btrfs_compress_str2level(BTRFS_COMPRESS_ZLIB, string + 4,
+					       &ctx->compress_level);
+		if (ret < 0)
+			goto error;
 		btrfs_set_opt(ctx->mount_opt, COMPRESS);
 		btrfs_clear_opt(ctx->mount_opt, NODATACOW);
 		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
 	} else if (btrfs_match_compress_type(string, "lzo", true)) {
 		ctx->compress_type = BTRFS_COMPRESS_LZO;
-		ctx->compress_level = btrfs_compress_str2level(BTRFS_COMPRESS_LZO,
-							       string + 3);
+		ret = btrfs_compress_str2level(BTRFS_COMPRESS_LZO, string + 3,
+					       &ctx->compress_level);
+		if (ret < 0)
+			goto error;
 		if (string[3] == ':' && string[4])
 			btrfs_warn(NULL, "Compression level ignored for LZO");
 		btrfs_set_opt(ctx->mount_opt, COMPRESS);
@@ -310,8 +315,10 @@ static int btrfs_parse_compress(struct btrfs_fs_context *ctx,
 		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
 	} else if (btrfs_match_compress_type(string, "zstd", true)) {
 		ctx->compress_type = BTRFS_COMPRESS_ZSTD;
-		ctx->compress_level = btrfs_compress_str2level(BTRFS_COMPRESS_ZSTD,
-							       string + 4);
+		ret = btrfs_compress_str2level(BTRFS_COMPRESS_ZSTD, string + 4,
+					       &ctx->compress_level);
+		if (ret < 0)
+			goto error;
 		btrfs_set_opt(ctx->mount_opt, COMPRESS);
 		btrfs_clear_opt(ctx->mount_opt, NODATACOW);
 		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
@@ -322,10 +329,14 @@ static int btrfs_parse_compress(struct btrfs_fs_context *ctx,
 		btrfs_clear_opt(ctx->mount_opt, COMPRESS);
 		btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
 	} else {
-		btrfs_err(NULL, "unrecognized compression value %s", string);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 	return 0;
+error:
+	btrfs_err(NULL, "failed to parse compression option '%s'", string);
+	return ret;
+
 }
 
 static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
