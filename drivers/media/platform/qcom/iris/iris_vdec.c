@@ -263,6 +263,19 @@ int iris_vdec_s_fmt(struct iris_inst *inst, struct v4l2_format *f)
 	return 0;
 }
 
+int iris_vdec_validate_format(struct iris_inst *inst, u32 pixelformat)
+{
+	const struct iris_fmt *fmt = NULL;
+
+	if (pixelformat != V4L2_PIX_FMT_NV12) {
+		fmt = find_format(inst, pixelformat, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+		if (!fmt)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 int iris_vdec_subscribe_event(struct iris_inst *inst, const struct v4l2_event_subscription *sub)
 {
 	int ret = 0;

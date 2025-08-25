@@ -21,7 +21,8 @@ struct iris_inst;
 #define DEFAULT_MAX_HOST_BUF_COUNT		64
 #define DEFAULT_MAX_HOST_BURST_BUF_COUNT	256
 #define DEFAULT_FPS				30
-#define NUM_MBS_8K				((8192 * 4352) / 256)
+#define MAXIMUM_FPS				480
+#define NUM_MBS_8K                             ((8192 * 4352) / 256)
 
 enum stage_type {
 	STAGE_1 = 1,
@@ -183,6 +184,8 @@ struct iris_platform_data {
 	u32 max_session_count;
 	/* max number of macroblocks per frame supported */
 	u32 max_core_mbpf;
+	/* max number of macroblocks per second supported */
+	u32 max_core_mbps;
 	const u32 *input_config_params_default;
 	unsigned int input_config_params_default_size;
 	const u32 *input_config_params_hevc;
