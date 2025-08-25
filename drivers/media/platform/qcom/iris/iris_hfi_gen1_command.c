@@ -534,6 +534,114 @@ iris_hfi_gen1_packet_session_set_property(struct hfi_session_set_property_pkt *p
 		packet->shdr.hdr.size += sizeof(u32) + sizeof(*wm);
 		break;
 	}
+	case HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT: {
+		struct hfi_profile_level *in = pdata, *pl = prop_data;
+
+		pl->level = in->level;
+		pl->profile = in->profile;
+		if (pl->profile <= 0)
+			/* Profile not supported, falling back to high */
+			pl->profile = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH;
+
+		if (!pl->level)
+			/* Level not supported, falling back to 1 */
+			pl->level = 1;
+
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*pl);
+		break;
+	}
+	case HFI_PROPERTY_CONFIG_VENC_SYNC_FRAME_SEQUENCE_HEADER: {
+		struct hfi_enable *en = prop_data;
+		u32 *in = pdata;
+
+		en->enable = *in;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*en);
+		break;
+	}
+	case HFI_PROPERTY_CONFIG_VENC_TARGET_BITRATE: {
+		struct hfi_bitrate *brate = prop_data;
+		u32 *in = pdata;
+
+		brate->bitrate = *in;
+		brate->layer_id = 0;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*brate);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_VENC_RATE_CONTROL: {
+		u32 *in = pdata;
+
+		switch (*in) {
+		case HFI_RATE_CONTROL_OFF:
+		case HFI_RATE_CONTROL_CBR_CFR:
+		case HFI_RATE_CONTROL_CBR_VFR:
+		case HFI_RATE_CONTROL_VBR_CFR:
+		case HFI_RATE_CONTROL_VBR_VFR:
+		case HFI_RATE_CONTROL_CQ:
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		packet->data[1] = *in;
+		packet->shdr.hdr.size += sizeof(u32) * 2;
+		break;
+	}
+	case HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL: {
+		struct hfi_h264_entropy_control *entropy = prop_data;
+		u32 *in = pdata;
+
+		entropy->entropy_mode = *in;
+		if (entropy->entropy_mode == HFI_H264_ENTROPY_CABAC)
+			entropy->cabac_model = HFI_H264_CABAC_MODEL_0;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*entropy);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_VENC_SESSION_QP_RANGE_V2: {
+		struct hfi_quantization_range_v2 *range = prop_data;
+		struct hfi_quantization_range_v2 *in = pdata;
+		u32 min_qp, max_qp;
+
+		min_qp = in->min_qp.qp_packed;
+		max_qp = in->max_qp.qp_packed;
+
+		/* We'll be packing in the qp, so make sure we
+		 * won't be losing data when masking
+		 */
+		if (min_qp > 0xff || max_qp > 0xff)
+			return -ERANGE;
+
+		range->min_qp.layer_id = 0xFF;
+		range->max_qp.layer_id = 0xFF;
+		range->min_qp.qp_packed = (min_qp & 0xFF) | ((min_qp & 0xFF) << 8) |
+			((min_qp & 0xFF) << 16);
+		range->max_qp.qp_packed = (max_qp & 0xFF) | ((max_qp & 0xFF) << 8) |
+			((max_qp & 0xFF) << 16);
+		range->min_qp.enable = 7;
+		range->max_qp.enable = 7;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*range);
+		break;
+	}
+	case HFI_PROPERTY_CONFIG_FRAME_RATE: {
+		struct hfi_framerate *frate = prop_data;
+		struct hfi_framerate *in = pdata;
+
+		frate->buffer_type = in->buffer_type;
+		frate->framerate = in->framerate;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*frate);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_INFO: {
+		struct hfi_uncompressed_plane_actual_info *plane_actual_info = prop_data;
+		struct hfi_uncompressed_plane_actual_info *in = pdata;
+
+		plane_actual_info->buffer_type = in->buffer_type;
+		plane_actual_info->num_planes = in->num_planes;
+		plane_actual_info->plane_format[0] = in->plane_format[0];
+		if (in->num_planes > 1)
+			plane_actual_info->plane_format[1] = in->plane_format[1];
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*plane_actual_info);
+		break;
+	}
 	default:
 		return -EINVAL;
 	}

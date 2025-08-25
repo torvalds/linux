@@ -469,14 +469,14 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 	buf->timestamp = timestamp_us;
 
 	switch (pic_type) {
-	case HFI_PICTURE_IDR:
-	case HFI_PICTURE_I:
+	case HFI_GEN1_PICTURE_IDR:
+	case HFI_GEN1_PICTURE_I:
 		flags |= V4L2_BUF_FLAG_KEYFRAME;
 		break;
-	case HFI_PICTURE_P:
+	case HFI_GEN1_PICTURE_P:
 		flags |= V4L2_BUF_FLAG_PFRAME;
 		break;
-	case HFI_PICTURE_B:
+	case HFI_GEN1_PICTURE_B:
 		flags |= V4L2_BUF_FLAG_BFRAME;
 		break;
 	case HFI_FRAME_NOTCODED:

@@ -227,9 +227,13 @@ static u32 iris_dec_bitstream_buffer_size(struct iris_inst *inst)
 static u32 iris_enc_bitstream_buffer_size(struct iris_inst *inst)
 {
 	u32 aligned_width, aligned_height, bitstream_size, yuv_size;
+	int bitrate_mode, frame_rc;
 	struct v4l2_format *f;
 
 	f = inst->fmt_dst;
+
+	bitrate_mode = inst->fw_caps[BITRATE_MODE].value;
+	frame_rc = inst->fw_caps[FRAME_RC_ENABLE].value;
 
 	aligned_width = ALIGN(f->fmt.pix_mp.width, 32);
 	aligned_height = ALIGN(f->fmt.pix_mp.height, 32);
@@ -241,6 +245,10 @@ static u32 iris_enc_bitstream_buffer_size(struct iris_inst *inst)
 	else if (aligned_width * aligned_height > (1280 * 720))
 		/* bitstream_size = 0.5 * yuv_size; */
 		bitstream_size = (bitstream_size >> 2);
+
+	if ((!frame_rc || bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CQ) &&
+	    bitstream_size < yuv_size)
+		bitstream_size = (bitstream_size << 1);
 
 	return ALIGN(bitstream_size, 4096);
 }

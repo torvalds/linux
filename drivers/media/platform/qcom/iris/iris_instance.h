@@ -63,7 +63,7 @@ struct iris_fmt {
  * @last_buffer_dequeued: a flag to indicate that last buffer is sent by driver
  * @frame_rate: frame rate of current instance
  * @operating_rate: operating rate of current instance
-
+ * @hfi_rc_type: rate control type
  */
 
 struct iris_inst {
@@ -101,6 +101,7 @@ struct iris_inst {
 	bool				last_buffer_dequeued;
 	u32				frame_rate;
 	u32				operating_rate;
+	u32				hfi_rc_type;
 };
 
 #endif

@@ -114,15 +114,25 @@
 #define HFI_MSG_SESSION_RELEASE_RESOURCES		0x22100a
 #define HFI_MSG_SESSION_RELEASE_BUFFERS			0x22100c
 
-#define HFI_PICTURE_I					0x00000001
-#define HFI_PICTURE_P					0x00000002
-#define HFI_PICTURE_B					0x00000004
-#define HFI_PICTURE_IDR					0x00000008
+#define HFI_GEN1_PICTURE_I					0x00000001
+#define HFI_GEN1_PICTURE_P					0x00000002
+#define HFI_GEN1_PICTURE_B					0x00000004
+#define HFI_GEN1_PICTURE_IDR			0x00000008
 #define HFI_FRAME_NOTCODED				0x7f002000
 #define HFI_FRAME_YUV					0x7f004000
 #define HFI_UNUSED_PICT					0x10000000
-#define HFI_BUFFERFLAG_DATACORRUPT			0x00000008
-#define HFI_BUFFERFLAG_DROP_FRAME			0x20000000
+#define HFI_BUFFERFLAG_DATACORRUPT                     0x00000008
+#define HFI_BUFFERFLAG_DROP_FRAME                      0x20000000
+#define HFI_RATE_CONTROL_OFF			0x1000001
+#define HFI_RATE_CONTROL_VBR_VFR		0x1000002
+#define HFI_RATE_CONTROL_VBR_CFR		0x1000003
+#define HFI_RATE_CONTROL_CBR_VFR		0x1000004
+#define HFI_RATE_CONTROL_CBR_CFR		0x1000005
+#define HFI_RATE_CONTROL_CQ				0x1000008
+
+#define HFI_H264_ENTROPY_CAVLC			0x1
+#define HFI_H264_ENTROPY_CABAC			0x2
+
 #define HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL		0x2005002
 #define HFI_PROPERTY_PARAM_VENC_H264_DEBLOCK_CONTROL		0x2005003
 #define HFI_PROPERTY_PARAM_VENC_RATE_CONTROL			0x2005004
@@ -386,6 +396,31 @@ struct hfi_buffer_requirements {
 	u32 count_actual;
 	u32 contiguous;
 	u32 alignment;
+};
+
+struct hfi_bitrate {
+	u32 bitrate;
+	u32 layer_id;
+};
+
+#define HFI_H264_CABAC_MODEL_0			0x1
+
+struct hfi_h264_entropy_control {
+	u32 entropy_mode;
+	u32 cabac_model;
+};
+
+struct hfi_quantization_v2 {
+	u32 qp_packed;
+	u32 layer_id;
+	u32 enable;
+	u32 reserved[3];
+};
+
+struct hfi_quantization_range_v2 {
+	struct hfi_quantization_v2 min_qp;
+	struct hfi_quantization_v2 max_qp;
+	u32 reserved[4];
 };
 
 struct hfi_framerate {
