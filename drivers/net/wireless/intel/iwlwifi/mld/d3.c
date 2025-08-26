@@ -745,37 +745,32 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 	struct iwl_mld_wowlan_status *wowlan_status = data->wowlan_status;
 	u8 status_idx;
 
-	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-	case WLAN_CIPHER_SUITE_TKIP:
+	if (key->keyidx >= 0 && key->keyidx <= 3) {
+		/* PTK */
 		if (sta) {
 			iwl_mld_update_ptk_rx_seq(data->mld, wowlan_status,
 						  sta, key,
 						  key->cipher ==
 						  WLAN_CIPHER_SUITE_TKIP);
-			return;
-		}
-
-		status_idx = key->keyidx == wowlan_status->gtk[1].id;
-		iwl_mld_update_mcast_rx_seq(key, &wowlan_status->gtk[status_idx]);
-		break;
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		if (key->keyidx == 4 || key->keyidx == 5) {
-			if (key->keyidx == wowlan_status->igtk.id)
-				iwl_mld_update_mcast_rx_seq(key,
-							    &wowlan_status->igtk);
-		}
-		if (key->keyidx == 6 || key->keyidx == 7) {
-			status_idx = key->keyidx == wowlan_status->bigtk[1].id;
+		/* GTK */
+		} else {
+			status_idx = key->keyidx == wowlan_status->gtk[1].id;
 			iwl_mld_update_mcast_rx_seq(key,
-						    &wowlan_status->bigtk[status_idx]);
+						    &wowlan_status->gtk[status_idx]);
 		}
-		break;
+	}
+
+	/* IGTK */
+	if (key->keyidx == 4 || key->keyidx == 5) {
+		if (key->keyidx == wowlan_status->igtk.id)
+			iwl_mld_update_mcast_rx_seq(key, &wowlan_status->igtk);
+	}
+
+	/* BIGTK */
+	if (key->keyidx == 6 || key->keyidx == 7) {
+		status_idx = key->keyidx == wowlan_status->bigtk[1].id;
+		iwl_mld_update_mcast_rx_seq(key,
+					    &wowlan_status->bigtk[status_idx]);
 	}
 }
 
