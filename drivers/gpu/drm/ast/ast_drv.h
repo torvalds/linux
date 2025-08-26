@@ -172,7 +172,6 @@ struct ast_device {
 	enum ast_config_mode config_mode;
 	enum ast_chip chip;
 
-	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
 

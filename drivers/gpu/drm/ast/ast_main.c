@@ -242,7 +242,6 @@ static int ast_get_dram_info(struct ast_device *ast)
 		break;
 	case ast_use_defaults:
 	default:
-		ast->dram_bus_width = 16;
 		ast->dram_type = AST_DRAM_1Gx16;
 		if (IS_AST_GEN6(ast))
 			ast->mclk = 800;
@@ -250,11 +249,6 @@ static int ast_get_dram_info(struct ast_device *ast)
 			ast->mclk = 396;
 		return 0;
 	}
-
-	if (mcr_cfg & 0x40)
-		ast->dram_bus_width = 16;
-	else
-		ast->dram_bus_width = 32;
 
 	if (IS_AST_GEN6(ast)) {
 		switch (mcr_cfg & 0x03) {
