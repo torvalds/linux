@@ -201,6 +201,9 @@ struct fbnic_mac_addr *__fbnic_mc_sync(struct fbnic_dev *fbd,
 void fbnic_sift_macda(struct fbnic_dev *fbd);
 void fbnic_write_macda(struct fbnic_dev *fbd);
 
+void fbnic_promisc_sync(struct fbnic_dev *fbd,
+			bool uc_promisc, bool mc_promisc);
+
 struct fbnic_ip_addr *__fbnic_ip4_sync(struct fbnic_dev *fbd,
 				       struct fbnic_ip_addr *ip_addr,
 				       const struct in_addr *addr,

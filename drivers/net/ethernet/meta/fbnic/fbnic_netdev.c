@@ -220,49 +220,8 @@ void __fbnic_set_rx_mode(struct net_device *netdev)
 	uc_promisc |= !!(netdev->flags & IFF_PROMISC);
 	mc_promisc |= !!(netdev->flags & IFF_ALLMULTI) || uc_promisc;
 
-	/* Populate last TCAM entry with promiscuous entry and 0/1 bit mask */
-	mac_addr = &fbd->mac_addr[FBNIC_RPC_TCAM_MACDA_PROMISC_IDX];
-	if (uc_promisc) {
-		if (!is_zero_ether_addr(mac_addr->value.addr8) ||
-		    mac_addr->state != FBNIC_TCAM_S_VALID) {
-			eth_zero_addr(mac_addr->value.addr8);
-			eth_broadcast_addr(mac_addr->mask.addr8);
-			clear_bit(FBNIC_MAC_ADDR_T_ALLMULTI,
-				  mac_addr->act_tcam);
-			set_bit(FBNIC_MAC_ADDR_T_PROMISC,
-				mac_addr->act_tcam);
-			mac_addr->state = FBNIC_TCAM_S_ADD;
-		}
-	} else if (mc_promisc &&
-		   (!fbnic_bmc_present(fbd) || !fbd->fw_cap.all_multi)) {
-		/* We have to add a special handler for multicast as the
-		 * BMC may have an all-multi rule already in place. As such
-		 * adding a rule ourselves won't do any good so we will have
-		 * to modify the rules for the ALL MULTI below if the BMC
-		 * already has the rule in place.
-		 */
-		if (!is_multicast_ether_addr(mac_addr->value.addr8) ||
-		    mac_addr->state != FBNIC_TCAM_S_VALID) {
-			eth_zero_addr(mac_addr->value.addr8);
-			eth_broadcast_addr(mac_addr->mask.addr8);
-			mac_addr->value.addr8[0] ^= 1;
-			mac_addr->mask.addr8[0] ^= 1;
-			set_bit(FBNIC_MAC_ADDR_T_ALLMULTI,
-				mac_addr->act_tcam);
-			clear_bit(FBNIC_MAC_ADDR_T_PROMISC,
-				  mac_addr->act_tcam);
-			mac_addr->state = FBNIC_TCAM_S_ADD;
-		}
-	} else if (mac_addr->state == FBNIC_TCAM_S_VALID) {
-		if (test_bit(FBNIC_MAC_ADDR_T_BMC, mac_addr->act_tcam)) {
-			clear_bit(FBNIC_MAC_ADDR_T_ALLMULTI,
-				  mac_addr->act_tcam);
-			clear_bit(FBNIC_MAC_ADDR_T_PROMISC,
-				  mac_addr->act_tcam);
-		} else {
-			mac_addr->state = FBNIC_TCAM_S_DELETE;
-		}
-	}
+	/* Update the promiscuous rules */
+	fbnic_promisc_sync(fbd, uc_promisc, mc_promisc);
 
 	/* Add rules for BMC all multicast if it is enabled */
 	fbnic_bmc_rpc_all_multi_config(fbd, mc_promisc);
