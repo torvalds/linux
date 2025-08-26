@@ -210,85 +210,6 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	drm_info(dev, "Using %s\n", info_str[ast->tx_chip]);
 }
 
-static int ast_get_dram_info(struct ast_device *ast)
-{
-	struct drm_device *dev = &ast->base;
-	struct device_node *np = dev->dev->of_node;
-	uint32_t mcr_cfg;
-
-	switch (ast->config_mode) {
-	case ast_use_dt:
-		/*
-		 * If some properties are missing, use reasonable
-		 * defaults for GEN5
-		 */
-		if (of_property_read_u32(np, "aspeed,mcr-configuration", &mcr_cfg))
-			mcr_cfg = 0x00000577;
-		break;
-	case ast_use_p2a:
-		ast_write32(ast, 0xf004, 0x1e6e0000);
-		ast_write32(ast, 0xf000, 0x1);
-		mcr_cfg = ast_read32(ast, 0x10004);
-		break;
-	case ast_use_defaults:
-	default:
-		ast->dram_type = AST_DRAM_1Gx16;
-		return 0;
-	}
-
-	if (IS_AST_GEN6(ast)) {
-		switch (mcr_cfg & 0x03) {
-		case 0:
-			ast->dram_type = AST_DRAM_1Gx16;
-			break;
-		default:
-		case 1:
-			ast->dram_type = AST_DRAM_2Gx16;
-			break;
-		case 2:
-			ast->dram_type = AST_DRAM_4Gx16;
-			break;
-		case 3:
-			ast->dram_type = AST_DRAM_8Gx16;
-			break;
-		}
-	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
-		switch (mcr_cfg & 0x03) {
-		case 0:
-			ast->dram_type = AST_DRAM_512Mx16;
-			break;
-		default:
-		case 1:
-			ast->dram_type = AST_DRAM_1Gx16;
-			break;
-		case 2:
-			ast->dram_type = AST_DRAM_2Gx16;
-			break;
-		case 3:
-			ast->dram_type = AST_DRAM_4Gx16;
-			break;
-		}
-	} else {
-		switch (mcr_cfg & 0x0c) {
-		case 0:
-		case 4:
-			ast->dram_type = AST_DRAM_512Mx16;
-			break;
-		case 8:
-			if (mcr_cfg & 0x40)
-				ast->dram_type = AST_DRAM_1Gx16;
-			else
-				ast->dram_type = AST_DRAM_512Mx32;
-			break;
-		case 0xc:
-			ast->dram_type = AST_DRAM_1Gx32;
-			break;
-		}
-	}
-
-	return 0;
-}
-
 struct drm_device *ast_device_create(struct pci_dev *pdev,
 				     const struct drm_driver *drv,
 				     enum ast_chip chip,
@@ -310,10 +231,6 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ast->config_mode = config_mode;
 	ast->regs = regs;
 	ast->ioregs = ioregs;
-
-	ret = ast_get_dram_info(ast);
-	if (ret)
-		return ERR_PTR(ret);
 
 	ast_detect_tx_chip(ast, need_post);
 	switch (ast->tx_chip) {

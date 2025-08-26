@@ -172,8 +172,6 @@ struct ast_device {
 	enum ast_config_mode config_mode;
 	enum ast_chip chip;
 
-	uint32_t dram_type;
-
 	void __iomem	*vram;
 	unsigned long	vram_base;
 	unsigned long	vram_size;
