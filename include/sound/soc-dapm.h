@@ -718,7 +718,7 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	bool (*custom_stop_condition)(struct snd_soc_dapm_widget *, enum snd_soc_dapm_direction));
 void snd_soc_dapm_dai_free_widgets(struct snd_soc_dapm_widget_list **list);
 
-struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(struct snd_kcontrol *kcontrol);
+struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_to_dapm(struct snd_kcontrol *kcontrol);
 struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_to_widget(struct snd_kcontrol *kcontrol);
 
 int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level);
@@ -730,6 +730,7 @@ void snd_soc_dapm_init_bias_level(struct snd_soc_dapm_context *dapm, enum snd_so
 #define snd_soc_component_get_bias_level(c)		snd_soc_dapm_get_bias_level(&(c)->dapm)
 #define snd_soc_component_init_bias_level(c, l)		snd_soc_dapm_init_bias_level(&(c)->dapm, l)
 #define snd_soc_dapm_kcontrol_widget			snd_soc_dapm_kcontrol_to_widget
+#define snd_soc_dapm_kcontrol_dapm			snd_soc_dapm_kcontrol_to_dapm
 
 #define for_each_dapm_widgets(list, i, widget)				\
 	for ((i) = 0;							\

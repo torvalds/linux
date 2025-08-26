@@ -888,19 +888,17 @@ struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_to_widget(struct snd_kcontrol 
 EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_to_widget);
 
 /**
- * snd_soc_dapm_kcontrol_dapm() - Returns the dapm context associated to a
- *  kcontrol
+ * snd_soc_dapm_kcontrol_to_dapm() - Returns the dapm context associated to a kcontrol
  * @kcontrol: The kcontrol
  *
  * Note: This function must only be used on kcontrols that are known to have
  * been registered for a CODEC. Otherwise the behaviour is undefined.
  */
-struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(
-	struct snd_kcontrol *kcontrol)
+struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_to_dapm(struct snd_kcontrol *kcontrol)
 {
 	return dapm_kcontrol_get_wlist(kcontrol)->widgets[0]->dapm;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_dapm);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_to_dapm);
 
 static void dapm_reset(struct snd_soc_card *card)
 {
