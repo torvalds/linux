@@ -2111,6 +2111,7 @@ static struct smbd_connection *_smbd_get_connection(
 	int rc;
 	struct smbd_connection *info;
 	struct smbdirect_socket *sc;
+	struct smbdirect_socket_parameters init_params = {};
 	struct smbdirect_socket_parameters *sp;
 	struct rdma_conn_param conn_param;
 	struct ib_qp_cap qp_cap;
@@ -2121,20 +2122,10 @@ static struct smbd_connection *_smbd_get_connection(
 	char wq_name[80];
 	struct workqueue_struct *workqueue;
 
-	info = kzalloc_obj(struct smbd_connection);
-	if (!info)
-		return NULL;
-	sc = &info->socket;
-	scnprintf(wq_name, ARRAY_SIZE(wq_name), "smbd_%p", sc);
-	workqueue = create_workqueue(wq_name);
-	if (!workqueue)
-		goto create_wq_failed;
-	smbdirect_socket_init(sc);
-	sc->workqueue = workqueue;
-	sp = &sc->parameters;
-
-	INIT_WORK(&sc->disconnect_work, smbd_disconnect_rdma_work);
-
+	/*
+	 * Create the initial parameters
+	 */
+	sp = &init_params;
 	sp->resolve_addr_timeout_msec = RDMA_RESOLVE_TIMEOUT;
 	sp->resolve_route_timeout_msec = RDMA_RESOLVE_TIMEOUT;
 	sp->rdma_connect_timeout_msec = RDMA_RESOLVE_TIMEOUT;
@@ -2149,6 +2140,22 @@ static struct smbd_connection *_smbd_get_connection(
 	sp->max_frmr_depth = smbd_max_frmr_depth;
 	sp->keepalive_interval_msec = smbd_keep_alive_interval * 1000;
 	sp->keepalive_timeout_msec = KEEPALIVE_RECV_TIMEOUT * 1000;
+
+	info = kzalloc_obj(*info);
+	if (!info)
+		return NULL;
+	sc = &info->socket;
+	scnprintf(wq_name, ARRAY_SIZE(wq_name), "smbd_%p", sc);
+	workqueue = create_workqueue(wq_name);
+	if (!workqueue)
+		goto create_wq_failed;
+	smbdirect_socket_prepare_create(sc, sp, workqueue);
+	/*
+	 * from here we operate on the copy.
+	 */
+	sp = &sc->parameters;
+
+	INIT_WORK(&sc->disconnect_work, smbd_disconnect_rdma_work);
 
 	rc = smbd_ia_open(sc, dstaddr, port);
 	if (rc) {
