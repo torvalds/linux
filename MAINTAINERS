@@ -26782,7 +26782,7 @@ F:	drivers/nvdimm/nd_virtio.c
 F:	drivers/nvdimm/virtio_pmem.c
 
 VIRTIO RTC DRIVER
-M:	Peter Hilber <quic_philber@quicinc.com>
+M:	Peter Hilber <peter.hilber@oss.qualcomm.com>
 L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/virtio/virtio_rtc_*
