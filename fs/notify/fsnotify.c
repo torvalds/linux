@@ -66,7 +66,7 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 		 * removed all zero refcount inodes, in any case.  Test to
 		 * be sure.
 		 */
-		if (!atomic_read(&inode->i_count)) {
+		if (!icount_read(inode)) {
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
