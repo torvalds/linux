@@ -318,9 +318,6 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
 
-	if (unlikely(test_bit(STATUS_SUSPENDED, &trans->status)))
-		return -EHOSTDOWN;
-
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
 
@@ -408,8 +405,6 @@ int iwl_trans_start_hw(struct iwl_trans *trans)
 	might_sleep();
 
 	clear_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status);
-	/* opmode may not resume if it detects errors */
-	clear_bit(STATUS_SUSPENDED, &trans->status);
 
 	return iwl_trans_pcie_start_hw(trans);
 }
@@ -509,31 +504,18 @@ iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,
 
 int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset)
 {
-	int err;
-
 	might_sleep();
 
-	err = iwl_trans_pcie_d3_suspend(trans, reset);
-
-	if (!err)
-		set_bit(STATUS_SUSPENDED, &trans->status);
-
-	return err;
+	return iwl_trans_pcie_d3_suspend(trans, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_suspend);
 
 int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
 			bool reset)
 {
-	int err;
-
 	might_sleep();
 
-	err = iwl_trans_pcie_d3_resume(trans, status, reset);
-
-	clear_bit(STATUS_SUSPENDED, &trans->status);
-
-	return err;
+	return iwl_trans_pcie_d3_resume(trans, status, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_resume);
 
