@@ -1267,13 +1267,15 @@ struct rtw89_pci_bd_ram {
 	u8 min_num;
 };
 
-struct rtw89_pci_gen_def {
+struct rtw89_pci_isr_def {
 	u32 isr_rdu;
 	u32 isr_halt_c2h;
 	u32 isr_wdt_timeout;
 	struct rtw89_reg2_def isr_clear_rpq;
 	struct rtw89_reg2_def isr_clear_rxq;
+};
 
+struct rtw89_pci_gen_def {
 	int (*mac_pre_init)(struct rtw89_dev *rtwdev);
 	int (*mac_pre_deinit)(struct rtw89_dev *rtwdev);
 	int (*mac_post_init)(struct rtw89_dev *rtwdev);
@@ -1311,6 +1313,7 @@ struct rtw89_pci_ssid_quirk {
 
 struct rtw89_pci_info {
 	const struct rtw89_pci_gen_def *gen_def;
+	const struct rtw89_pci_isr_def *isr_def;
 	enum mac_ax_bd_trunc_mode txbd_trunc_mode;
 	enum mac_ax_bd_trunc_mode rxbd_trunc_mode;
 	enum mac_ax_rxbd_mode rxbd_mode;
@@ -1628,6 +1631,8 @@ extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be;
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_dual[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_single[RTW89_TXCH_NUM];
+extern const struct rtw89_pci_isr_def rtw89_pci_isr_ax;
+extern const struct rtw89_pci_isr_def rtw89_pci_isr_be;
 extern const struct rtw89_pci_gen_def rtw89_pci_gen_ax;
 extern const struct rtw89_pci_gen_def rtw89_pci_gen_be;
 

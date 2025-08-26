@@ -17,6 +17,7 @@ static const struct rtw89_pci_ssid_quirk rtw8922a_pci_ssid_quirks[] = {
 
 static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.gen_def		= &rtw89_pci_gen_be,
+	.isr_def		= &rtw89_pci_isr_be,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,

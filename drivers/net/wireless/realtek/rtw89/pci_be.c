@@ -665,13 +665,16 @@ static int __maybe_unused rtw89_pci_resume_be(struct device *dev)
 SIMPLE_DEV_PM_OPS(rtw89_pm_ops_be, rtw89_pci_suspend_be, rtw89_pci_resume_be);
 EXPORT_SYMBOL(rtw89_pm_ops_be);
 
-const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
+const struct rtw89_pci_isr_def rtw89_pci_isr_be = {
 	.isr_rdu = B_BE_RDU_CH1_INT_V1 | B_BE_RDU_CH0_INT_V1,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
 	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
+};
+EXPORT_SYMBOL(rtw89_pci_isr_be);
 
+const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_be,
 	.mac_pre_deinit = rtw89_pci_ops_mac_pre_deinit_be,
 	.mac_post_init = rtw89_pci_ops_mac_post_init_be,
