@@ -532,7 +532,8 @@ void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
 		le32_to_cpu(notif->consec_missed_beacons_other_link);
 	struct ieee80211_bss_conf *link_conf =
 		iwl_mld_fw_id_to_link_conf(mld, fw_link_id);
-	u32 bss_param_ch_cnt_link_id;
+	struct ieee80211_bss_conf *other_link;
+	u32 bss_param_ch_cnt_link_id, other_link_fw_id;
 	struct ieee80211_vif *vif;
 	u8 link_id;
 
@@ -586,6 +587,17 @@ void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
 	/* We are processing a notification before link activation */
 	if (le32_to_cpu(notif->other_link_id) == FW_CTXT_ID_INVALID)
 		return;
+
+	other_link_fw_id = le32_to_cpu(notif->other_link_id);
+	other_link = iwl_mld_fw_id_to_link_conf(mld, other_link_fw_id);
+
+	if (IWL_FW_CHECK(mld, !other_link, "link doesn't exist for: %d\n",
+			 other_link_fw_id))
+		return;
+
+	IWL_DEBUG_EHT(mld,
+		      "missed bcn on the other link (link_id=%u): %u\n",
+		      other_link->link_id, scnd_lnk_bcn_lost);
 
 	/* Exit EMLSR if we lost more than
 	 * IWL_MLD_MISSED_BEACONS_EXIT_ESR_THRESH beacons on boths links
