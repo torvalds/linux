@@ -3705,25 +3705,20 @@ static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags
 static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 			   unsigned int mnt_flags)
 {
-	struct vfsmount *mnt;
 	struct pinned_mountpoint mp = {};
-	struct super_block *sb = fc->root->d_sb;
+	struct super_block *sb;
+	struct vfsmount *mnt = fc_mount(fc);
 	int error;
 
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
+
+	sb = fc->root->d_sb;
 	error = security_sb_kern_mount(sb);
 	if (!error && mount_too_revealing(sb, &mnt_flags))
 		error = -EPERM;
-
-	if (unlikely(error)) {
-		fc_drop_locked(fc);
-		return error;
-	}
-
-	up_write(&sb->s_umount);
-
-	mnt = vfs_create_mount(fc);
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
+	if (unlikely(error))
+		goto out;
 
 	mnt_warn_timestamp_expiry(mountpoint, mnt);
 
@@ -3731,10 +3726,12 @@ static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
 	if (!error) {
 		error = do_add_mount(real_mount(mnt), mp.mp,
 				     mountpoint, mnt_flags);
+		if (!error)
+			mnt = NULL;	// consumed on success
 		unlock_mount(&mp);
 	}
-	if (error < 0)
-		mntput(mnt);
+out:
+	mntput(mnt);
 	return error;
 }
 
@@ -3788,8 +3785,6 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 		err = parse_monolithic_mount_data(fc, data);
 	if (!err && !mount_capable(fc))
 		err = -EPERM;
-	if (!err)
-		err = vfs_get_tree(fc);
 	if (!err)
 		err = do_new_mount_fc(fc, path, mnt_flags);
 
