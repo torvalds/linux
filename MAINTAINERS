@@ -20774,8 +20774,8 @@ S:	Supported
 F:	drivers/dma/qcom/hidma*
 
 QUALCOMM I2C QCOM GENI DRIVER
-M:	Mukesh Kumar Savaliya <quic_msavaliy@quicinc.com>
-M:	Viken Dadhaniya <quic_vdadhani@quicinc.com>
+M:	Mukesh Kumar Savaliya <mukesh.savaliya@oss.qualcomm.com>
+M:	Viken Dadhaniya <viken.dadhaniya@oss.qualcomm.com>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
