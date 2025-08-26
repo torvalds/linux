@@ -451,6 +451,10 @@ static int __init kho_parse_scratch_size(char *p)
 	if (!total_size)
 		return -EINVAL;
 
+	/* The string should be fully consumed by now. */
+	if (*p)
+		return -EINVAL;
+
 	scratch_size_lowmem = sizes[0];
 	scratch_size_global = sizes[1];
 	scratch_size_pernode = sizes[2];
