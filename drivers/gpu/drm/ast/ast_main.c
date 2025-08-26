@@ -355,8 +355,6 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ret = ast_get_dram_info(ast);
 	if (ret)
 		return ERR_PTR(ret);
-	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d\n",
-		 ast->mclk, ast->dram_type, ast->dram_bus_width);
 
 	ast_detect_tx_chip(ast, need_post);
 	switch (ast->tx_chip) {
