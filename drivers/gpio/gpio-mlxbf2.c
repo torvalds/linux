@@ -369,10 +369,8 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gs->gpio_io);
 
 	ret = mlxbf2_gpio_get_lock_res(pdev);
-	if (ret) {
-		dev_err(dev, "Failed to get yu_arm_gpio_lock resource\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get yu_arm_gpio_lock resource\n");
 
 	if (device_property_read_u32(dev, "npins", &npins))
 		npins = MLXBF2_GPIO_MAX_PINS_PER_BLOCK;
@@ -387,10 +385,8 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 			NULL,
 			0);
 
-	if (ret) {
-		dev_err(dev, "bgpio_init failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "bgpio_init failed\n");
 
 	gc->direction_input = mlxbf2_gpio_direction_input;
 	gc->direction_output = mlxbf2_gpio_direction_output;
@@ -414,19 +410,15 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 		 */
 		ret = devm_request_irq(dev, irq, mlxbf2_gpio_irq_handler,
 				       IRQF_SHARED, name, gs);
-		if (ret) {
-			dev_err(dev, "failed to request IRQ");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to request IRQ");
 	}
 
 	platform_set_drvdata(pdev, gs);
 
 	ret = devm_gpiochip_add_data(dev, &gs->gc, gs);
-	if (ret) {
-		dev_err(dev, "Failed adding memory mapped gpiochip\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed adding memory mapped gpiochip\n");
 
 	return 0;
 }
