@@ -3047,18 +3047,17 @@ static int do_loopback(const struct path *path, const char *old_name,
 	return err;
 }
 
-static struct file *open_detached_copy(struct path *path, bool recursive)
+static struct mnt_namespace *get_detached_copy(const struct path *path, bool recursive)
 {
 	struct mnt_namespace *ns, *mnt_ns = current->nsproxy->mnt_ns, *src_mnt_ns;
 	struct user_namespace *user_ns = mnt_ns->user_ns;
 	struct mount *mnt, *p;
-	struct file *file;
 
 	ns = alloc_mnt_ns(user_ns, true);
 	if (IS_ERR(ns))
-		return ERR_CAST(ns);
+		return ns;
 
-	namespace_lock();
+	guard(namespace_excl)();
 
 	/*
 	 * Record the sequence number of the source mount namespace.
@@ -3075,8 +3074,7 @@ static struct file *open_detached_copy(struct path *path, bool recursive)
 
 	mnt = __do_loopback(path, recursive);
 	if (IS_ERR(mnt)) {
-		namespace_unlock();
-		free_mnt_ns(ns);
+		emptied_ns = ns;
 		return ERR_CAST(mnt);
 	}
 
@@ -3085,11 +3083,19 @@ static struct file *open_detached_copy(struct path *path, bool recursive)
 		ns->nr_mounts++;
 	}
 	ns->root = mnt;
-	mntget(&mnt->mnt);
-	namespace_unlock();
+	return ns;
+}
+
+static struct file *open_detached_copy(struct path *path, bool recursive)
+{
+	struct mnt_namespace *ns = get_detached_copy(path, recursive);
+	struct file *file;
+
+	if (IS_ERR(ns))
+		return ERR_CAST(ns);
 
 	mntput(path->mnt);
-	path->mnt = &mnt->mnt;
+	path->mnt = mntget(&ns->root->mnt);
 	file = dentry_open(path, O_PATH, current_cred());
 	if (IS_ERR(file))
 		dissolve_on_fput(path->mnt);
