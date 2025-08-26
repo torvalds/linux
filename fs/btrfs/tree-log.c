@@ -330,8 +330,11 @@ struct walk_control {
 	 */
 	bool ignore_cur_inode;
 
-	/* the root we are currently replaying */
-	struct btrfs_root *replay_dest;
+	/*
+	 * The root we are currently replaying to. This is NULL for the replay
+	 * stage LOG_WALK_PIN_ONLY.
+	 */
+	struct btrfs_root *root;
 
 	/* the trans handle for the current replay */
 	struct btrfs_trans_handle *trans;
@@ -2575,7 +2578,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 		.level = level
 	};
 	struct btrfs_path *path;
-	struct btrfs_root *root = wc->replay_dest;
+	struct btrfs_root *root = wc->root;
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_key key;
 	int i;
@@ -7479,11 +7482,10 @@ again:
 			goto error;
 		}
 
-		wc.replay_dest = btrfs_get_fs_root(fs_info, found_key.offset,
-						   true);
-		if (IS_ERR(wc.replay_dest)) {
-			ret = PTR_ERR(wc.replay_dest);
-			wc.replay_dest = NULL;
+		wc.root = btrfs_get_fs_root(fs_info, found_key.offset, true);
+		if (IS_ERR(wc.root)) {
+			ret = PTR_ERR(wc.root);
+			wc.root = NULL;
 			if (ret != -ENOENT) {
 				btrfs_put_root(log);
 				btrfs_abort_transaction(trans, ret);
@@ -7510,8 +7512,8 @@ again:
 			goto next;
 		}
 
-		wc.replay_dest->log_root = log;
-		ret = btrfs_record_root_in_trans(trans, wc.replay_dest);
+		wc.root->log_root = log;
+		ret = btrfs_record_root_in_trans(trans, wc.root);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto next;
@@ -7524,9 +7526,9 @@ again:
 		}
 
 		if (wc.stage == LOG_WALK_REPLAY_ALL) {
-			struct btrfs_root *root = wc.replay_dest;
+			struct btrfs_root *root = wc.root;
 
-			ret = fixup_inode_link_counts(trans, wc.replay_dest, path);
+			ret = fixup_inode_link_counts(trans, root, path);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto next;
@@ -7546,9 +7548,9 @@ again:
 			}
 		}
 next:
-		if (wc.replay_dest) {
-			wc.replay_dest->log_root = NULL;
-			btrfs_put_root(wc.replay_dest);
+		if (wc.root) {
+			wc.root->log_root = NULL;
+			btrfs_put_root(wc.root);
 		}
 		btrfs_put_root(log);
 
