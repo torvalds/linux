@@ -56,8 +56,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.14.0.5.50"
-#define MPI3MR_DRIVER_RELDATE	"27-June-2025"
+#define MPI3MR_DRIVER_VERSION	"8.15.0.5.50"
+#define MPI3MR_DRIVER_RELDATE	"12-August-2025"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -697,6 +697,8 @@ struct tgt_dev_vd {
 	u16 tg_id;
 	u32 tg_high;
 	u32 tg_low;
+	u8 abort_to;
+	u8 reset_to;
 	struct mpi3mr_throttle_group_info *tg;
 };
 
@@ -738,6 +740,8 @@ enum mpi3mr_dev_state {
  * @wwid: World wide ID
  * @enclosure_logical_id: Enclosure logical identifier
  * @dev_spec: Device type specific information
+ * @abort_to: Timeout for abort TM
+ * @reset_to: Timeout for Target/LUN reset TM
  * @ref_count: Reference count
  * @state: device state
  */
