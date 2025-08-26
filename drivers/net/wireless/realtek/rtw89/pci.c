@@ -804,14 +804,16 @@ void rtw89_pci_recognize_intrs_v3(struct rtw89_dev *rtwdev,
 	isrs->ind_isrs = rtw89_read32(rtwdev, R_BE_PCIE_HISR) & rtwpci->ind_intrs;
 	isrs->halt_c2h_isrs = isrs->ind_isrs & B_BE_HS0ISR_IND_INT ?
 			      rtw89_read32(rtwdev, R_BE_HISR0) & rtwpci->halt_c2h_intrs : 0;
-	isrs->isrs[0] = isrs->ind_isrs & B_BE_HCI_AXIDMA_INT ?
-			rtw89_read32(rtwdev, R_BE_HAXI_HISR00) & rtwpci->intrs[0] : 0;
 	isrs->isrs[1] = rtw89_read32(rtwdev, R_BE_PCIE_DMA_ISR) & rtwpci->intrs[1];
+
+	/* isrs[0] is not used, so borrow to store RDU status to share common
+	 * flow in rtw89_pci_interrupt_threadfn().
+	 */
+	isrs->isrs[0] = isrs->isrs[1] & (B_BE_PCIE_RDU_CH1_INT |
+					 B_BE_PCIE_RDU_CH0_INT);
 
 	if (isrs->halt_c2h_isrs)
 		rtw89_write32(rtwdev, R_BE_HISR0, isrs->halt_c2h_isrs);
-	if (isrs->isrs[0])
-		rtw89_write32(rtwdev, R_BE_HAXI_HISR00, isrs->isrs[0]);
 	if (isrs->isrs[1])
 		rtw89_write32(rtwdev, R_BE_PCIE_DMA_ISR, isrs->isrs[1]);
 	rtw89_write32(rtwdev, R_BE_PCIE_HISR, isrs->ind_isrs);
@@ -868,7 +870,6 @@ EXPORT_SYMBOL(rtw89_pci_disable_intr_v2);
 void rtw89_pci_enable_intr_v3(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
 {
 	rtw89_write32(rtwdev, R_BE_HIMR0, rtwpci->halt_c2h_intrs);
-	rtw89_write32(rtwdev, R_BE_HAXI_HIMR00, rtwpci->intrs[0]);
 	rtw89_write32(rtwdev, R_BE_PCIE_DMA_IMR_0_V1, rtwpci->intrs[1]);
 	rtw89_write32(rtwdev, R_BE_PCIE_HIMR0, rtwpci->ind_intrs);
 }
@@ -3827,24 +3828,12 @@ static void rtw89_pci_default_intr_mask_v3(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
-	rtwpci->ind_intrs = B_BE_HCI_AXIDMA_INT_EN0 |
-			    B_BE_HS0_IND_INT_EN0;
-	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
-	rtwpci->intrs[0] = B_BE_RDU_CH1_INT_EN_V2 |
-			   B_BE_RDU_CH0_INT_EN_V2;
-	rtwpci->intrs[1] = B_BE_PCIE_RX_RX0P2_IMR0_V1 |
-			   B_BE_PCIE_RX_RPQ0_IMR0_V1;
-}
-
-static void rtw89_pci_low_power_intr_mask_v3(struct rtw89_dev *rtwdev)
-{
-	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
-
-	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0 |
-			    B_BE_HS1_IND_INT_EN0;
+	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0;
 	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
 	rtwpci->intrs[0] = 0;
-	rtwpci->intrs[1] = B_BE_PCIE_RX_RX0P2_IMR0_V1 |
+	rtwpci->intrs[1] = B_BE_PCIE_RDU_CH1_IMR |
+			   B_BE_PCIE_RDU_CH0_IMR |
+			   B_BE_PCIE_RX_RX0P2_IMR0_V1 |
 			   B_BE_PCIE_RX_RPQ0_IMR0_V1;
 }
 
@@ -3854,8 +3843,6 @@ void rtw89_pci_config_intr_mask_v3(struct rtw89_dev *rtwdev)
 
 	if (rtwpci->under_recovery)
 		rtw89_pci_recovery_intr_mask_v3(rtwdev);
-	else if (rtwpci->low_power)
-		rtw89_pci_low_power_intr_mask_v3(rtwdev);
 	else
 		rtw89_pci_default_intr_mask_v3(rtwdev);
 }
