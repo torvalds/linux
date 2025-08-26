@@ -1724,6 +1724,47 @@ sd_init(struct sched_domain_topology_level *tl,
 	return sd;
 }
 
+#ifdef CONFIG_SCHED_SMT
+int cpu_smt_flags(void)
+{
+	return SD_SHARE_CPUCAPACITY | SD_SHARE_LLC;
+}
+
+const struct cpumask *tl_smt_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_smt_mask(cpu);
+}
+#endif
+
+#ifdef CONFIG_SCHED_CLUSTER
+int cpu_cluster_flags(void)
+{
+	return SD_CLUSTER | SD_SHARE_LLC;
+}
+
+const struct cpumask *tl_cls_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_clustergroup_mask(cpu);
+}
+#endif
+
+#ifdef CONFIG_SCHED_MC
+int cpu_core_flags(void)
+{
+	return SD_SHARE_LLC;
+}
+
+const struct cpumask *tl_mc_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_coregroup_mask(cpu);
+}
+#endif
+
+const struct cpumask *tl_pkg_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_node_mask(cpu);
+}
+
 /*
  * Topology list, bottom-up.
  */
@@ -1760,6 +1801,10 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
 }
 
 #ifdef CONFIG_NUMA
+static int cpu_numa_flags(void)
+{
+	return SD_NUMA;
+}
 
 static const struct cpumask *sd_numa_mask(struct sched_domain_topology_level *tl, int cpu)
 {
