@@ -701,6 +701,7 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 	trace_v3d_cpu_job_end(&v3d->drm, job->job_type);
 	v3d_job_update_stats(&job->base, V3D_CPU);
 
+	/* Synchronous operation, so no fence to wait on. */
 	return NULL;
 }
 
@@ -716,6 +717,7 @@ v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 
 	v3d_job_update_stats(job, V3D_CACHE_CLEAN);
 
+	/* Synchronous operation, so no fence to wait on. */
 	return NULL;
 }
 
@@ -797,7 +799,7 @@ v3d_render_job_timedout(struct drm_sched_job *sched_job)
 }
 
 static enum drm_gpu_sched_stat
-v3d_generic_job_timedout(struct drm_sched_job *sched_job)
+v3d_tfu_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
@@ -837,7 +839,7 @@ static const struct drm_sched_backend_ops v3d_render_sched_ops = {
 
 static const struct drm_sched_backend_ops v3d_tfu_sched_ops = {
 	.run_job = v3d_tfu_job_run,
-	.timedout_job = v3d_generic_job_timedout,
+	.timedout_job = v3d_tfu_job_timedout,
 	.free_job = v3d_sched_job_free,
 };
 
@@ -849,13 +851,11 @@ static const struct drm_sched_backend_ops v3d_csd_sched_ops = {
 
 static const struct drm_sched_backend_ops v3d_cache_clean_sched_ops = {
 	.run_job = v3d_cache_clean_job_run,
-	.timedout_job = v3d_generic_job_timedout,
 	.free_job = v3d_sched_job_free
 };
 
 static const struct drm_sched_backend_ops v3d_cpu_sched_ops = {
 	.run_job = v3d_cpu_job_run,
-	.timedout_job = v3d_generic_job_timedout,
 	.free_job = v3d_cpu_job_free
 };
 
