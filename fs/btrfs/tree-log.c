@@ -306,15 +306,20 @@ void btrfs_end_log_trans(struct btrfs_root *root)
  * are state fields used for that specific part
  */
 struct walk_control {
-	/* should we free the extent on disk when done?  This is used
-	 * at transaction commit time while freeing a log tree
+	/*
+	 * Signal that we are freeing the metadata extents of a log tree.
+	 * This is used at transaction commit time while freeing a log tree.
 	 */
-	int free;
+	bool free;
 
-	/* pin only walk, we record which extents on disk belong to the
-	 * log trees
+	/*
+	 * Signal that we are pinning the metadata extents of a log tree and the
+	 * data extents its leaves point to (if using mixed block groups).
+	 * This happens in the first stage of log replay to ensure that during
+	 * replay, while we are modifying subvolume trees, we don't overwrite
+	 * the metadata extents of log trees.
 	 */
-	int pin;
+	bool pin;
 
 	/* what stage of the replay code we're currently in */
 	int stage;
@@ -3415,7 +3420,7 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	struct walk_control wc = {
-		.free = 1,
+		.free = true,
 		.process_func = process_one_buffer
 	};
 
@@ -7433,7 +7438,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	}
 
 	wc.trans = trans;
-	wc.pin = 1;
+	wc.pin = true;
 
 	ret = walk_log_tree(trans, log_root_tree, &wc);
 	if (ret) {
@@ -7557,7 +7562,7 @@ next:
 
 	/* step one is to pin it all, step two is to replay just inodes */
 	if (wc.pin) {
-		wc.pin = 0;
+		wc.pin = false;
 		wc.process_func = replay_one_buffer;
 		wc.stage = LOG_WALK_REPLAY_INODES;
 		goto again;
