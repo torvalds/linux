@@ -1864,14 +1864,6 @@ cleanup:
 	return err;
 }
 
-static bool validate_add_rxsc(struct nlattr **attrs)
-{
-	if (!attrs[MACSEC_RXSC_ATTR_SCI])
-		return false;
-
-	return true;
-}
-
 static int macsec_add_rxsc(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
@@ -1889,7 +1881,7 @@ static int macsec_add_rxsc(struct sk_buff *skb, struct genl_info *info)
 	if (parse_rxsc_config(attrs, tb_rxsc))
 		return -EINVAL;
 
-	if (!validate_add_rxsc(tb_rxsc))
+	if (!tb_rxsc[MACSEC_RXSC_ATTR_SCI])
 		return -EINVAL;
 
 	rtnl_lock();
@@ -2487,7 +2479,7 @@ static int macsec_upd_rxsc(struct sk_buff *skb, struct genl_info *info)
 	if (parse_rxsc_config(attrs, tb_rxsc))
 		return -EINVAL;
 
-	if (!validate_add_rxsc(tb_rxsc))
+	if (!tb_rxsc[MACSEC_RXSC_ATTR_SCI])
 		return -EINVAL;
 
 	rtnl_lock();
