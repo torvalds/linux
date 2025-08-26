@@ -1018,12 +1018,12 @@ static inline unsigned int folio_large_order(const struct folio *folio)
 }
 
 #ifdef NR_PAGES_IN_LARGE_FOLIO
-static inline long folio_large_nr_pages(const struct folio *folio)
+static inline unsigned long folio_large_nr_pages(const struct folio *folio)
 {
 	return folio->_nr_pages;
 }
 #else
-static inline long folio_large_nr_pages(const struct folio *folio)
+static inline unsigned long folio_large_nr_pages(const struct folio *folio)
 {
 	return 1L << folio_large_order(folio);
 }
@@ -2062,7 +2062,7 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
  *
  * Return: A positive power of two.
  */
-static inline long folio_nr_pages(const struct folio *folio)
+static inline unsigned long folio_nr_pages(const struct folio *folio)
 {
 	if (!folio_test_large(folio))
 		return 1;
@@ -2097,7 +2097,7 @@ static inline long folio_nr_pages(const struct folio *folio)
  * page.  compound_nr() can be called on a tail page, and is defined to
  * return 1 in that case.
  */
-static inline long compound_nr(const struct page *page)
+static inline unsigned long compound_nr(const struct page *page)
 {
 	const struct folio *folio = (struct folio *)page;
 
