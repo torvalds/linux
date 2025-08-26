@@ -6,6 +6,8 @@
 
 #include "smbdirect_internal.h"
 
+static void smbdirect_socket_cleanup_work(struct work_struct *work);
+
 __maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_socket_prepare_create(struct smbdirect_socket *sc,
 					    const struct smbdirect_socket_parameters *sp,
@@ -23,6 +25,8 @@ static void smbdirect_socket_prepare_create(struct smbdirect_socket *sc,
 	 * Remember the callers workqueue
 	 */
 	sc->workqueue = workqueue;
+
+	INIT_WORK(&sc->disconnect_work, smbdirect_socket_cleanup_work);
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
@@ -45,7 +49,6 @@ static void smbdirect_socket_set_logging(struct smbdirect_socket *sc,
 	sc->logging.vaprintf = vaprintf;
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 {
 	/*
@@ -62,4 +65,74 @@ static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 	wake_up_all(&sc->rw_io.credits.wait_queue);
 	wake_up_all(&sc->mr_io.ready.wait_queue);
 	wake_up_all(&sc->mr_io.cleanup.wait_queue);
+}
+
+static void smbdirect_socket_cleanup_work(struct work_struct *work)
+{
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, disconnect_work);
+
+	/*
+	 * This should not never be called in an interrupt!
+	 */
+	WARN_ON_ONCE(in_interrupt());
+
+	if (!sc->first_error) {
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
+			"%s called with first_error==0\n",
+			smbdirect_socket_status_string(sc->status));
+
+		sc->first_error = -ECONNABORTED;
+	}
+
+	/*
+	 * make sure this and other work is not queued again
+	 * but here we don't block and avoid
+	 * disable[_delayed]_work_sync()
+	 */
+	disable_work(&sc->disconnect_work);
+	disable_work(&sc->connect.work);
+	disable_work(&sc->recv_io.posted.refill_work);
+	disable_work(&sc->mr_io.recovery_work);
+	disable_work(&sc->idle.immediate_work);
+	disable_delayed_work(&sc->idle.timer_work);
+
+	switch (sc->status) {
+	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
+	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
+	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
+	case SMBDIRECT_SOCKET_CONNECTED:
+	case SMBDIRECT_SOCKET_ERROR:
+		sc->status = SMBDIRECT_SOCKET_DISCONNECTING;
+		rdma_disconnect(sc->rdma.cm_id);
+		break;
+
+	case SMBDIRECT_SOCKET_CREATED:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_NEEDED:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED:
+		/*
+		 * rdma_{accept,connect}() never reached
+		 * RDMA_CM_EVENT_ESTABLISHED
+		 */
+		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		break;
+
+	case SMBDIRECT_SOCKET_DISCONNECTING:
+	case SMBDIRECT_SOCKET_DISCONNECTED:
+	case SMBDIRECT_SOCKET_DESTROYED:
+		break;
+	}
+
+	/*
+	 * Wake up all waiters in all wait queues
+	 * in order to notice the broken connection.
+	 */
+	smbdirect_socket_wake_up_all(sc);
 }
