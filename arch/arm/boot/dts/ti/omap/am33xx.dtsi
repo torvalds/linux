@@ -45,7 +45,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+		cpu: cpu@0 {
 			compatible = "arm,cortex-a8";
 			enable-method = "ti,am3352";
 			device_type = "cpu";
