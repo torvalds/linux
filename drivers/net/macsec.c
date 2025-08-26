@@ -3760,7 +3760,7 @@ static const struct device_type macsec_type = {
 static const struct nla_policy macsec_rtnl_policy[IFLA_MACSEC_MAX + 1] = {
 	[IFLA_MACSEC_SCI] = { .type = NLA_U64 },
 	[IFLA_MACSEC_PORT] = { .type = NLA_U16 },
-	[IFLA_MACSEC_ICV_LEN] = { .type = NLA_U8 },
+	[IFLA_MACSEC_ICV_LEN] = NLA_POLICY_RANGE(NLA_U8, MACSEC_MIN_ICV_LEN, MACSEC_STD_ICV_LEN),
 	[IFLA_MACSEC_CIPHER_SUITE] = { .type = NLA_U64 },
 	[IFLA_MACSEC_WINDOW] = { .type = NLA_U32 },
 	[IFLA_MACSEC_ENCODING_SA] = { .type = NLA_U8 },
@@ -4260,9 +4260,6 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 	case MACSEC_CIPHER_ID_GCM_AES_XPN_128:
 	case MACSEC_CIPHER_ID_GCM_AES_XPN_256:
 	case MACSEC_DEFAULT_CIPHER_ID:
-		if (icv_len < MACSEC_MIN_ICV_LEN ||
-		    icv_len > MACSEC_STD_ICV_LEN)
-			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
