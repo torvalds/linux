@@ -237,11 +237,12 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 	return -ENOENT;
 }
 
-static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
+static u8 *iwl_pnvm_get_from_fs(struct iwl_trans *trans, size_t *len)
 {
 	const struct firmware *pnvm;
 	char pnvm_name[MAX_PNVM_NAME];
 	size_t new_len;
+	u8 *data;
 	int ret;
 
 	iwl_pnvm_get_fs_name(trans, pnvm_name, sizeof(pnvm_name));
@@ -250,31 +251,32 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	if (ret) {
 		IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
 			     pnvm_name, ret);
-		return ret;
+		return NULL;
 	}
 
 	new_len = pnvm->size;
-	*data = kvmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	data = kvmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
 	release_firmware(pnvm);
 
-	if (!*data)
-		return -ENOMEM;
+	if (!data)
+		return NULL;
 
 	*len = new_len;
 
-	return 0;
+	return data;
 }
 
 static const u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len,
 				    __le32 sku_id[3], const struct iwl_fw *fw)
 {
 	struct pnvm_sku_package *package;
-	u8 *image = NULL;
 
 	/* Get PNVM from BIOS for non-Intel SKU */
 	if (sku_id[2]) {
 		package = iwl_uefi_get_pnvm(trans_p, len);
 		if (!IS_ERR_OR_NULL(package)) {
+			u8 *image = NULL;
+
 			if (*len >= sizeof(*package)) {
 				/* we need only the data */
 				*len -= sizeof(*package);
@@ -298,9 +300,7 @@ static const u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len,
 	}
 
 	/* If it's not available, or for Intel SKU, try from the filesystem */
-	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
-		return NULL;
-	return image;
+	return iwl_pnvm_get_from_fs(trans_p, len);
 }
 
 static void
