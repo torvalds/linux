@@ -336,6 +336,9 @@ struct walk_control {
 	 */
 	struct btrfs_root *root;
 
+	/* The log tree we are currently processing (not NULL for any stage). */
+	struct btrfs_root *log;
+
 	/* the trans handle for the current replay */
 	struct btrfs_trans_handle *trans;
 
@@ -344,17 +347,17 @@ struct walk_control {
 	 * passed in, and it must be checked or read if you need the data
 	 * inside it
 	 */
-	int (*process_func)(struct btrfs_root *log, struct extent_buffer *eb,
+	int (*process_func)(struct extent_buffer *eb,
 			    struct walk_control *wc, u64 gen, int level);
 };
 
 /*
  * process_func used to pin down extents, write them or wait on them
  */
-static int process_one_buffer(struct btrfs_root *log,
-			      struct extent_buffer *eb,
+static int process_one_buffer(struct extent_buffer *eb,
 			      struct walk_control *wc, u64 gen, int level)
 {
+	struct btrfs_root *log = wc->log;
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_fs_info *fs_info = log->fs_info;
 	int ret = 0;
@@ -2569,7 +2572,7 @@ out:
  * only in the log (references come from either directory items or inode
  * back refs).
  */
-static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
+static int replay_one_buffer(struct extent_buffer *eb,
 			     struct walk_control *wc, u64 gen, int level)
 {
 	int nritems;
@@ -2579,6 +2582,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	};
 	struct btrfs_path *path;
 	struct btrfs_root *root = wc->root;
+	struct btrfs_root *log = wc->log;
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_key key;
 	int i;
@@ -2779,11 +2783,10 @@ static int clean_log_buffer(struct btrfs_trans_handle *trans,
 }
 
 static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
-				   struct btrfs_root *log,
 				   struct btrfs_path *path, int *level,
 				   struct walk_control *wc)
 {
-	struct btrfs_fs_info *fs_info = log->fs_info;
+	struct btrfs_fs_info *fs_info = wc->log->fs_info;
 	u64 bytenr;
 	u64 ptr_gen;
 	struct extent_buffer *next;
@@ -2821,7 +2824,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		}
 
 		if (*level == 1) {
-			ret = wc->process_func(log, next, wc, ptr_gen, *level - 1);
+			ret = wc->process_func(next, wc, ptr_gen, *level - 1);
 			if (ret) {
 				free_extent_buffer(next);
 				return ret;
@@ -2872,7 +2875,6 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 }
 
 static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *log,
 				 struct btrfs_path *path, int *level,
 				 struct walk_control *wc)
 {
@@ -2888,7 +2890,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 			WARN_ON(*level == 0);
 			return 0;
 		} else {
-			ret = wc->process_func(log, path->nodes[*level], wc,
+			ret = wc->process_func(path->nodes[*level], wc,
 				 btrfs_header_generation(path->nodes[*level]),
 				 *level);
 			if (ret)
@@ -2912,9 +2914,9 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
  * the tree freeing any blocks that have a ref count of zero after being
  * decremented.
  */
-static int walk_log_tree(struct btrfs_trans_handle *trans,
-			 struct btrfs_root *log, struct walk_control *wc)
+static int walk_log_tree(struct btrfs_trans_handle *trans, struct walk_control *wc)
 {
+	struct btrfs_root *log = wc->log;
 	int ret = 0;
 	int wret;
 	int level;
@@ -2932,7 +2934,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	path->slots[level] = 0;
 
 	while (1) {
-		wret = walk_down_log_tree(trans, log, path, &level, wc);
+		wret = walk_down_log_tree(trans, path, &level, wc);
 		if (wret > 0)
 			break;
 		if (wret < 0) {
@@ -2940,7 +2942,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		wret = walk_up_log_tree(trans, log, path, &level, wc);
+		wret = walk_up_log_tree(trans, path, &level, wc);
 		if (wret > 0)
 			break;
 		if (wret < 0) {
@@ -2951,7 +2953,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 
 	/* was the root node processed? if not, catch it here */
 	if (path->nodes[orig_level]) {
-		ret = wc->process_func(log, path->nodes[orig_level], wc,
+		ret = wc->process_func(path->nodes[orig_level], wc,
 			 btrfs_header_generation(path->nodes[orig_level]),
 			 orig_level);
 		if (ret)
@@ -3423,11 +3425,12 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 	int ret;
 	struct walk_control wc = {
 		.free = true,
-		.process_func = process_one_buffer
+		.process_func = process_one_buffer,
+		.log = log,
 	};
 
 	if (log->node) {
-		ret = walk_log_tree(trans, log, &wc);
+		ret = walk_log_tree(trans, &wc);
 		if (ret) {
 			/*
 			 * We weren't able to traverse the entire log tree, the
@@ -7441,8 +7444,10 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 
 	wc.trans = trans;
 	wc.pin = true;
+	wc.log = log_root_tree;
 
-	ret = walk_log_tree(trans, log_root_tree, &wc);
+	ret = walk_log_tree(trans, &wc);
+	wc.log = NULL;
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto error;
@@ -7454,7 +7459,6 @@ again:
 	key.offset = (u64)-1;
 
 	while (1) {
-		struct btrfs_root *log;
 		struct btrfs_key found_key;
 
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
@@ -7474,9 +7478,10 @@ again:
 		if (found_key.objectid != BTRFS_TREE_LOG_OBJECTID)
 			break;
 
-		log = btrfs_read_tree_root(log_root_tree, &found_key);
-		if (IS_ERR(log)) {
-			ret = PTR_ERR(log);
+		wc.log = btrfs_read_tree_root(log_root_tree, &found_key);
+		if (IS_ERR(wc.log)) {
+			ret = PTR_ERR(wc.log);
+			wc.log = NULL;
 			btrfs_abort_transaction(trans, ret);
 			goto error;
 		}
@@ -7486,7 +7491,8 @@ again:
 			ret = PTR_ERR(wc.root);
 			wc.root = NULL;
 			if (ret != -ENOENT) {
-				btrfs_put_root(log);
+				btrfs_put_root(wc.log);
+				wc.log = NULL;
 				btrfs_abort_transaction(trans, ret);
 				goto error;
 			}
@@ -7502,23 +7508,24 @@ again:
 			 * block from being modified, and we'll just bail for
 			 * each subsequent pass.
 			 */
-			ret = btrfs_pin_extent_for_log_replay(trans, log->node);
+			ret = btrfs_pin_extent_for_log_replay(trans, wc.log->node);
 			if (ret) {
-				btrfs_put_root(log);
+				btrfs_put_root(wc.log);
+				wc.log = NULL;
 				btrfs_abort_transaction(trans, ret);
 				goto error;
 			}
 			goto next;
 		}
 
-		wc.root->log_root = log;
+		wc.root->log_root = wc.log;
 		ret = btrfs_record_root_in_trans(trans, wc.root);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto next;
 		}
 
-		ret = walk_log_tree(trans, log, &wc);
+		ret = walk_log_tree(trans, &wc);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto next;
@@ -7551,7 +7558,8 @@ next:
 			wc.root->log_root = NULL;
 			btrfs_put_root(wc.root);
 		}
-		btrfs_put_root(log);
+		btrfs_put_root(wc.log);
+		wc.log = NULL;
 
 		if (ret)
 			goto error;
