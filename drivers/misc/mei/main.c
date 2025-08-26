@@ -51,12 +51,15 @@ static int mei_open(struct inode *inode, struct file *file)
 
 	int err;
 
-	dev = container_of(inode->i_cdev, struct mei_device, cdev);
+	dev = idr_find(&mei_idr, iminor(inode));
+	if (!dev)
+		return -ENODEV;
+	get_device(&dev->dev);
 
 	mutex_lock(&dev->device_lock);
 
 	if (dev->dev_state != MEI_DEV_ENABLED) {
-		dev_dbg(dev->dev, "dev_state != MEI_ENABLED  dev_state = %s\n",
+		dev_dbg(&dev->dev, "dev_state != MEI_ENABLED  dev_state = %s\n",
 		    mei_dev_state_str(dev->dev_state));
 		err = -ENODEV;
 		goto err_unlock;
@@ -77,6 +80,7 @@ static int mei_open(struct inode *inode, struct file *file)
 
 err_unlock:
 	mutex_unlock(&dev->device_lock);
+	put_device(&dev->dev);
 	return err;
 }
 
@@ -152,6 +156,7 @@ out:
 	file->private_data = NULL;
 
 	mutex_unlock(&dev->device_lock);
+	put_device(&dev->dev);
 	return rets;
 }
 
@@ -477,7 +482,7 @@ static int mei_vt_support_check(struct mei_device *dev, const uuid_le *uuid)
 
 	me_cl = mei_me_cl_by_uuid(dev, uuid);
 	if (!me_cl) {
-		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
+		dev_dbg(&dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 			uuid);
 		return -ENOTTY;
 	}
@@ -1115,7 +1120,10 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 
 	dev->dev_state = state;
 
-	clsdev = class_find_device_by_devt(&mei_class, dev->cdev.dev);
+	if (!dev->cdev)
+		return;
+
+	clsdev = class_find_device_by_devt(&mei_class, dev->cdev->dev);
 	if (clsdev) {
 		sysfs_notify(&clsdev->kobj, NULL, "dev_state");
 		put_device(clsdev);
@@ -1191,7 +1199,7 @@ static int mei_minor_get(struct mei_device *dev)
 	if (ret >= 0)
 		dev->minor = ret;
 	else if (ret == -ENOSPC)
-		dev_err(dev->dev, "too many mei devices\n");
+		dev_err(&dev->dev, "too many mei devices\n");
 
 	mutex_unlock(&mei_minor_lock);
 	return ret;
@@ -1209,9 +1217,13 @@ static void mei_minor_free(struct mei_device *dev)
 	mutex_unlock(&mei_minor_lock);
 }
 
+static void mei_device_release(struct device *dev)
+{
+	kfree(dev_get_drvdata(dev));
+}
+
 int mei_register(struct mei_device *dev, struct device *parent)
 {
-	struct device *clsdev; /* class device */
 	int ret, devno;
 
 	ret = mei_minor_get(dev);
@@ -1220,35 +1232,53 @@ int mei_register(struct mei_device *dev, struct device *parent)
 
 	/* Fill in the data structures */
 	devno = MKDEV(MAJOR(mei_devt), dev->minor);
-	cdev_init(&dev->cdev, &mei_fops);
-	dev->cdev.owner = parent->driver->owner;
+
+	device_initialize(&dev->dev);
+	dev->dev.devt = devno;
+	dev->dev.class = &mei_class;
+	dev->dev.parent = parent;
+	dev->dev.groups = mei_groups;
+	dev->dev.release = mei_device_release;
+	dev_set_drvdata(&dev->dev, dev);
+
+	dev->cdev = cdev_alloc();
+	if (!dev->cdev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	dev->cdev->ops = &mei_fops;
+	dev->cdev->owner = parent->driver->owner;
+	cdev_set_parent(dev->cdev, &dev->dev.kobj);
 
 	/* Add the device */
-	ret = cdev_add(&dev->cdev, devno, 1);
+	ret = cdev_add(dev->cdev, devno, 1);
 	if (ret) {
-		dev_err(parent, "unable to add device %d:%d\n",
+		dev_err(parent, "unable to add cdev for device %d:%d\n",
 			MAJOR(mei_devt), dev->minor);
-		goto err_dev_add;
+		goto err_del_cdev;
 	}
 
-	clsdev = device_create_with_groups(&mei_class, parent, devno,
-					   dev, mei_groups,
-					   "mei%d", dev->minor);
-
-	if (IS_ERR(clsdev)) {
-		dev_err(parent, "unable to create device %d:%d\n",
-			MAJOR(mei_devt), dev->minor);
-		ret = PTR_ERR(clsdev);
-		goto err_dev_create;
+	ret = dev_set_name(&dev->dev, "mei%d", dev->minor);
+	if (ret) {
+		dev_err(parent, "unable to set name to device %d:%d ret = %d\n",
+			MAJOR(mei_devt), dev->minor, ret);
+		goto err_del_cdev;
 	}
 
-	mei_dbgfs_register(dev, dev_name(clsdev));
+	ret = device_add(&dev->dev);
+	if (ret) {
+		dev_err(parent, "unable to add device %d:%d ret = %d\n",
+			MAJOR(mei_devt), dev->minor, ret);
+		goto err_del_cdev;
+	}
+
+	mei_dbgfs_register(dev, dev_name(&dev->dev));
 
 	return 0;
 
-err_dev_create:
-	cdev_del(&dev->cdev);
-err_dev_add:
+err_del_cdev:
+	cdev_del(dev->cdev);
+err:
 	mei_minor_free(dev);
 	return ret;
 }
@@ -1258,8 +1288,8 @@ void mei_deregister(struct mei_device *dev)
 {
 	int devno;
 
-	devno = dev->cdev.dev;
-	cdev_del(&dev->cdev);
+	devno = dev->cdev->dev;
+	cdev_del(dev->cdev);
 
 	mei_dbgfs_deregister(dev);
 

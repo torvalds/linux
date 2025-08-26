@@ -106,11 +106,15 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 		}
 	}
 
+	ret = mei_register(dev, device);
+	if (ret)
+		goto deinterrupt;
+
 	pm_runtime_get_noresume(device);
 	pm_runtime_set_active(device);
 	pm_runtime_enable(device);
 
-	/* Continue to char device setup in spite of firmware handshake failure.
+	/* Continue in spite of firmware handshake failure.
 	 * In order to provide access to the firmware status registers to the user
 	 * space via sysfs.
 	 */
@@ -120,18 +124,12 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 	pm_runtime_set_autosuspend_delay(device, MEI_GSC_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(device);
 
-	ret = mei_register(dev, device);
-	if (ret)
-		goto register_err;
-
 	pm_runtime_put_noidle(device);
 	return 0;
 
-register_err:
-	mei_stop(dev);
+deinterrupt:
 	if (!mei_me_hw_use_polling(hw))
 		devm_free_irq(device, hw->irq, dev);
-
 err:
 	dev_err(device, "probe failed: %d\n", ret);
 	dev_set_drvdata(device, NULL);
@@ -252,7 +250,7 @@ static int __maybe_unused mei_gsc_pm_runtime_resume(struct device *device)
 
 	irq_ret = mei_me_irq_thread_handler(1, dev);
 	if (irq_ret != IRQ_HANDLED)
-		dev_err(dev->dev, "thread handler fail %d\n", irq_ret);
+		dev_err(&dev->dev, "thread handler fail %d\n", irq_ret);
 
 	return 0;
 }

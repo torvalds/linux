@@ -275,12 +275,12 @@ int mei_cl_dma_unmap(struct mei_cl *cl, const struct file *fp);
 #define MEI_CL_PRM(cl) (cl)->host_client_id, mei_cl_me_id(cl)
 
 #define cl_dbg(dev, cl, format, arg...) \
-	dev_dbg((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+	dev_dbg(&(dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #define cl_warn(dev, cl, format, arg...) \
-	dev_warn((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+	dev_warn(&(dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #define cl_err(dev, cl, format, arg...) \
-	dev_err((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+	dev_err(&(dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #endif /* _MEI_CLIENT_H_ */

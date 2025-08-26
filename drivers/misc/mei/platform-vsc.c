@@ -152,7 +152,7 @@ static int mei_vsc_hw_start(struct mei_device *mei_dev)
 				MEI_VSC_POLL_TIMEOUT_US, true,
 				hw, &buf, sizeof(buf));
 	if (ret) {
-		dev_err(mei_dev->dev, "wait fw ready failed: %d\n", ret);
+		dev_err(&mei_dev->dev, "wait fw ready failed: %d\n", ret);
 		return ret;
 	}
 
@@ -259,7 +259,7 @@ static int mei_vsc_hw_reset(struct mei_device *mei_dev, bool intr_enable)
 	if (!intr_enable)
 		return 0;
 
-	return vsc_tp_init(hw->tp, mei_dev->dev);
+	return vsc_tp_init(hw->tp, mei_dev->parent);
 }
 
 static const struct mei_hw_ops mei_vsc_hw_ops = {
@@ -325,7 +325,7 @@ static void mei_vsc_event_cb(void *context)
 	mei_dev->hbuf_is_ready = mei_hbuf_is_ready(mei_dev);
 	ret = mei_irq_write_handler(mei_dev, &cmpl_list);
 	if (ret)
-		dev_err(mei_dev->dev, "dispatch write request failed: %d\n", ret);
+		dev_err(&mei_dev->dev, "dispatch write request failed: %d\n", ret);
 
 	mei_dev->hbuf_is_ready = mei_hbuf_is_ready(mei_dev);
 	mei_irq_compl_handler(mei_dev, &cmpl_list);
@@ -343,12 +343,12 @@ static int mei_vsc_probe(struct platform_device *pdev)
 	if (!tp)
 		return dev_err_probe(dev, -ENODEV, "no platform data\n");
 
-	mei_dev = devm_kzalloc(dev, size_add(sizeof(*mei_dev), sizeof(*hw)),
-			       GFP_KERNEL);
+	mei_dev = kzalloc(size_add(sizeof(*mei_dev), sizeof(*hw)), GFP_KERNEL);
 	if (!mei_dev)
 		return -ENOMEM;
 
 	mei_device_init(mei_dev, dev, false, &mei_vsc_hw_ops);
+
 	mei_dev->fw_f_fw_ver_supported = 0;
 	mei_dev->kind = "ivsc";
 
@@ -360,22 +360,22 @@ static int mei_vsc_probe(struct platform_device *pdev)
 
 	vsc_tp_register_event_cb(tp, mei_vsc_event_cb, mei_dev);
 
+	ret = mei_register(mei_dev, dev);
+	if (ret)
+		goto err_dereg;
+
 	ret = mei_start(mei_dev);
 	if (ret) {
 		dev_err_probe(dev, ret, "init hw failed\n");
 		goto err_cancel;
 	}
 
-	ret = mei_register(mei_dev, dev);
-	if (ret)
-		goto err_stop;
-
-	pm_runtime_enable(mei_dev->dev);
+	pm_runtime_enable(mei_dev->parent);
 
 	return 0;
 
-err_stop:
-	mei_stop(mei_dev);
+err_dereg:
+	mei_deregister(mei_dev);
 
 err_cancel:
 	mei_cancel_work(mei_dev);
@@ -392,7 +392,7 @@ static void mei_vsc_remove(struct platform_device *pdev)
 	struct mei_device *mei_dev = platform_get_drvdata(pdev);
 	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
 
-	pm_runtime_disable(mei_dev->dev);
+	pm_runtime_disable(mei_dev->parent);
 
 	mei_stop(mei_dev);
 

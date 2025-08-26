@@ -470,8 +470,9 @@ struct mei_dev_timeouts {
 /**
  * struct mei_device -  MEI private device struct
  *
- * @dev         : device on a bus
- * @cdev        : character device
+ * @parent      : device on a bus
+ * @dev         : device object
+ * @cdev        : character device pointer
  * @minor       : minor number allocated for device
  *
  * @write_list  : write pending list
@@ -556,8 +557,9 @@ struct mei_dev_timeouts {
  * @hw          : hw specific data
  */
 struct mei_device {
-	struct device *dev;
-	struct cdev cdev;
+	struct device *parent;
+	struct device dev;
+	struct cdev *cdev;
 	int minor;
 
 	struct list_head write_list;
@@ -703,7 +705,7 @@ static inline u32 mei_slots2data(int slots)
  * mei init function prototypes
  */
 void mei_device_init(struct mei_device *dev,
-		     struct device *device,
+		     struct device *parent,
 		     bool slow_fw,
 		     const struct mei_hw_ops *hw_ops);
 int mei_reset(struct mei_device *dev);
