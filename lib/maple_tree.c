@@ -405,11 +405,11 @@ static __always_inline bool mt_is_alloc(struct maple_tree *mt)
  * a reuse of the last bit in the node type.  This is possible by using bit 1 to
  * indicate if bit 2 is part of the type or the slot.
  *
- * Note types:
- *  0x??1 = Root
- *  0x?00 = 16 bit nodes
- *  0x010 = 32 bit nodes
- *  0x110 = 64 bit nodes
+ * Node types:
+ *  0b??1 = Root
+ *  0b?00 = 16 bit nodes
+ *  0b010 = 32 bit nodes
+ *  0b110 = 64 bit nodes
  *
  * Slot size and alignment
  *  0b??1 : Root
@@ -427,7 +427,7 @@ static __always_inline bool mt_is_alloc(struct maple_tree *mt)
 #define MAPLE_PARENT_16B_SLOT_MASK	0xFC
 
 #define MAPLE_PARENT_RANGE64		0x06
-#define MAPLE_PARENT_RANGE32		0x04
+#define MAPLE_PARENT_RANGE32		0x02
 #define MAPLE_PARENT_NOT_RANGE16	0x02
 
 /*

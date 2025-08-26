@@ -57,17 +57,17 @@
  * MT_FLAGS_ALLOC_RANGE flag.
  *
  *  Node types:
- *   0x??1 = Root
- *   0x?00 = 16 bit nodes
- *   0x010 = 32 bit nodes
- *   0x110 = 64 bit nodes
+ *   0b??1 = Root
+ *   0b?00 = 16 bit nodes
+ *   0b010 = 32 bit nodes
+ *   0b110 = 64 bit nodes
  *
  *  Slot size and location in the parent pointer:
  *   type  : slot location
- *   0x??1 : Root
- *   0x?00 : 16 bit values, type in 0-1, slot in 2-6
- *   0x010 : 32 bit values, type in 0-2, slot in 3-6
- *   0x110 : 64 bit values, type in 0-2, slot in 3-6
+ *   0b??1 : Root
+ *   0b?00 : 16 bit values, type in 0-1, slot in 2-6
+ *   0b010 : 32 bit values, type in 0-2, slot in 3-6
+ *   0b110 : 64 bit values, type in 0-2, slot in 3-6
  */
 
 /*
