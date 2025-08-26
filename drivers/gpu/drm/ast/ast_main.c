@@ -214,7 +214,7 @@ static int ast_get_dram_info(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct device_node *np = dev->dev->of_node;
-	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
+	uint32_t mcr_cfg;
 
 	switch (ast->config_mode) {
 	case ast_use_dt:
@@ -222,22 +222,13 @@ static int ast_get_dram_info(struct ast_device *ast)
 		 * If some properties are missing, use reasonable
 		 * defaults for GEN5
 		 */
-		if (of_property_read_u32(np, "aspeed,mcr-configuration",
-					 &mcr_cfg))
+		if (of_property_read_u32(np, "aspeed,mcr-configuration", &mcr_cfg))
 			mcr_cfg = 0x00000577;
-		if (of_property_read_u32(np, "aspeed,mcr-scu-mpll",
-					 &mcr_scu_mpll))
-			mcr_scu_mpll = 0x000050C0;
-		if (of_property_read_u32(np, "aspeed,mcr-scu-strap",
-					 &mcr_scu_strap))
-			mcr_scu_strap = 0;
 		break;
 	case ast_use_p2a:
 		ast_write32(ast, 0xf004, 0x1e6e0000);
 		ast_write32(ast, 0xf000, 0x1);
 		mcr_cfg = ast_read32(ast, 0x10004);
-		mcr_scu_mpll = ast_read32(ast, 0x10120);
-		mcr_scu_strap = ast_read32(ast, 0x10170);
 		break;
 	case ast_use_defaults:
 	default:
