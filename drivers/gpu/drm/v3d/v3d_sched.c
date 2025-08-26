@@ -194,11 +194,11 @@ v3d_stats_update(struct v3d_stats *stats, u64 now)
 }
 
 void
-v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
+v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q)
 {
 	struct v3d_dev *v3d = job->v3d;
-	struct v3d_file_priv *file = job->file_priv;
-	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
+	struct v3d_queue_state *queue = &v3d->queue[q];
+	struct v3d_stats *global_stats = &queue->stats;
 	u64 now = local_clock();
 	unsigned long flags;
 
@@ -209,10 +209,10 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
 		preempt_disable();
 
 	/* Don't update the local stats if the file context has already closed */
-	if (file)
-		v3d_stats_update(&file->stats[queue], now);
-	else
-		drm_dbg(&v3d->drm, "The file descriptor was closed before job completion\n");
+	spin_lock(&queue->queue_lock);
+	if (job->file_priv)
+		v3d_stats_update(&job->file_priv->stats[q], now);
+	spin_unlock(&queue->queue_lock);
 
 	v3d_stats_update(global_stats, now);
 
