@@ -29,3 +29,4 @@ Linux Kernel中的文件系统
    ubifs
    ubifs-authentication
    gfs2
+   gfs2-uevents
