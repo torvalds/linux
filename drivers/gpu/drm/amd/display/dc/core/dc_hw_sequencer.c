@@ -911,6 +911,13 @@ void hwss_build_fast_sequence(struct dc *dc,
 					current_mpc_pipe->stream && current_mpc_pipe->plane_state &&
 					current_mpc_pipe->plane_state->update_flags.bits.addr_update &&
 					!current_mpc_pipe->plane_state->skip_manual_trigger) {
+				if (dc->hwss.program_cursor_offload_now) {
+					block_sequence[*num_steps].params.program_cursor_update_now_params.dc = dc;
+					block_sequence[*num_steps].params.program_cursor_update_now_params.pipe_ctx = current_mpc_pipe;
+					block_sequence[*num_steps].func = PROGRAM_CURSOR_UPDATE_NOW;
+					(*num_steps)++;
+				}
+
 				block_sequence[*num_steps].params.program_manual_trigger_params.pipe_ctx = current_mpc_pipe;
 				block_sequence[*num_steps].func = OPTC_PROGRAM_MANUAL_TRIGGER;
 				(*num_steps)++;
@@ -1003,6 +1010,11 @@ void hwss_execute_sequence(struct dc *dc,
 			break;
 		case DMUB_HW_CONTROL_LOCK_FAST:
 			dc->hwss.dmub_hw_control_lock_fast(params);
+			break;
+		case PROGRAM_CURSOR_UPDATE_NOW:
+			dc->hwss.program_cursor_offload_now(
+				params->program_cursor_update_now_params.dc,
+				params->program_cursor_update_now_params.pipe_ctx);
 			break;
 		default:
 			ASSERT(false);

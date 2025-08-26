@@ -496,6 +496,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 			return true;
 		}
 	}
+
+	if (dc->hwss.notify_cursor_offload_drr_update)
+		dc->hwss.notify_cursor_offload_drr_update(dc, dc->current_state, stream);
+
 	return false;
 }
 
@@ -2188,7 +2192,13 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe);
 	}
 
+	for (i = 0; i < dc->current_state->stream_count; i++)
+		dc_dmub_srv_control_cursor_offload(dc, dc->current_state, dc->current_state->streams[i], false);
+
 	result = dc->hwss.apply_ctx_to_hw(dc, context);
+
+	for (i = 0; i < context->stream_count; i++)
+		dc_dmub_srv_control_cursor_offload(dc, context, context->streams[i], true);
 
 	if (result != DC_OK) {
 		/* Application of dc_state to hardware stopped. */
@@ -4488,6 +4498,8 @@ static void commit_planes_for_stream(struct dc *dc,
 				pipe_ctx->plane_state->skip_manual_trigger)
 			continue;
 
+		if (dc->hwss.program_cursor_offload_now)
+			dc->hwss.program_cursor_offload_now(dc, pipe_ctx);
 		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
 			pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
 	}

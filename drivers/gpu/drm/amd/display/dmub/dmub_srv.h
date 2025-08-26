@@ -132,6 +132,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_IB_MEM,
 	DMUB_WINDOW_SHARED_STATE,
 	DMUB_WINDOW_LSDMA_BUFFER,
+	DMUB_WINDOW_CURSOR_OFFLOAD,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -535,7 +536,8 @@ struct dmub_srv_create_params {
  * @fw_version: the current firmware version, if any
  * @is_virtual: false if hardware support only
  * @shared_state: dmub shared state between firmware and driver
- * @fw_state: dmub firmware state pointer
+ * @cursor_offload_v1: Cursor offload state
+ * @fw_state: dmub firmware state pointer (debug purpose only)
  */
 struct dmub_srv {
 	enum dmub_asic asic;
@@ -544,7 +546,9 @@ struct dmub_srv {
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
 	struct dmub_fb ib_mem_gart;
+	struct dmub_fb cursor_offload_fb;
 	volatile struct dmub_shared_state_feature_block *shared_state;
+	volatile struct dmub_cursor_offload_v1 *cursor_offload_v1;
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */

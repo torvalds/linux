@@ -154,6 +154,11 @@ struct dmub_hw_control_lock_fast_params {
 	bool lock;
 };
 
+struct program_cursor_update_now_params {
+	struct dc *dc;
+	struct pipe_ctx *pipe_ctx;
+};
+
 union block_sequence_params {
 	struct update_plane_addr_params update_plane_addr_params;
 	struct subvp_pipe_control_lock_fast_params subvp_pipe_control_lock_fast_params;
@@ -174,6 +179,7 @@ union block_sequence_params {
 	struct subvp_save_surf_addr subvp_save_surf_addr;
 	struct wait_for_dcc_meta_propagation_params wait_for_dcc_meta_propagation_params;
 	struct dmub_hw_control_lock_fast_params dmub_hw_control_lock_fast_params;
+	struct program_cursor_update_now_params program_cursor_update_now_params;
 };
 
 enum block_sequence_func {
@@ -196,6 +202,7 @@ enum block_sequence_func {
 	DMUB_SUBVP_SAVE_SURF_ADDR,
 	HUBP_WAIT_FOR_DCC_META_PROP,
 	DMUB_HW_CONTROL_LOCK_FAST,
+	PROGRAM_CURSOR_UPDATE_NOW,
 	/* This must be the last value in this enum, add new ones above */
 	HWSS_BLOCK_SEQUENCE_FUNC_COUNT
 };
@@ -310,6 +317,13 @@ struct hw_sequencer_funcs {
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
 	void (*set_cursor_sdr_white_level)(struct pipe_ctx *pipe);
+	void (*abort_cursor_offload_update)(struct dc *dc, const struct pipe_ctx *pipe);
+	void (*begin_cursor_offload_update)(struct dc *dc, const struct pipe_ctx *pipe);
+	void (*commit_cursor_offload_update)(struct dc *dc, const struct pipe_ctx *pipe);
+	void (*update_cursor_offload_pipe)(struct dc *dc, const struct pipe_ctx *pipe);
+	void (*notify_cursor_offload_drr_update)(struct dc *dc, struct dc_state *context,
+						 const struct dc_stream_state *stream);
+	void (*program_cursor_offload_now)(struct dc *dc, const struct pipe_ctx *pipe);
 
 	/* Colour Related */
 	void (*program_gamut_remap)(struct pipe_ctx *pipe_ctx);

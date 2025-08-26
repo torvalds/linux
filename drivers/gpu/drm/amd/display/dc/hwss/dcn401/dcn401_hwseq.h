@@ -110,4 +110,6 @@ void dcn401_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp);
 void dcn401_initialize_min_clocks(struct dc *dc);
+void dcn401_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe);
+
 #endif /* __DC_HWSS_DCN401_H__ */

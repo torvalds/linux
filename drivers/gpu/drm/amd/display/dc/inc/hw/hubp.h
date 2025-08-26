@@ -126,6 +126,7 @@ struct hubp {
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
 	struct dc_cursor_position curs_pos;
+	bool cursor_offload;
 	bool power_gated;
 
 	struct cursor_position_cache_hubp  pos;

@@ -1473,7 +1473,10 @@ void dcn401_dmub_hw_control_lock(struct dc *dc,
 	/* use always for now */
 	union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
 
-	if (!dc->ctx || !dc->ctx->dmub_srv || !dc->debug.fams2_config.bits.enable)
+	if (!dc->ctx || !dc->ctx->dmub_srv)
+		return;
+
+	if (!dc->debug.fams2_config.bits.enable && !dc_dmub_srv_is_cursor_offload_enabled(dc))
 		return;
 
 	hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
@@ -2668,4 +2671,59 @@ void dcn401_plane_atomic_power_down(struct dc *dc,
 
 	if (hws->funcs.dpp_root_clock_control)
 		hws->funcs.dpp_root_clock_control(hws, dpp->inst, false);
+}
+
+void dcn401_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	volatile struct dmub_cursor_offload_v1 *cs = dc->ctx->dmub_srv->dmub->cursor_offload_v1;
+	const struct pipe_ctx *top_pipe = resource_get_otg_master(pipe);
+	const struct hubp *hubp = pipe->plane_res.hubp;
+	const struct dpp *dpp = pipe->plane_res.dpp;
+	volatile struct dmub_cursor_offload_pipe_data_dcn401_v1 *p;
+	uint32_t stream_idx, write_idx, payload_idx;
+
+	if (!top_pipe || !hubp || !dpp)
+		return;
+
+	stream_idx = top_pipe->pipe_idx;
+	write_idx = cs->offload_streams[stream_idx].write_idx;
+	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
+
+	p = &cs->offload_streams[stream_idx].payloads[payload_idx].pipe_data[pipe->pipe_idx].dcn401;
+
+	p->CURSOR0_0_CURSOR_SURFACE_ADDRESS = hubp->att.SURFACE_ADDR;
+	p->CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH = hubp->att.SURFACE_ADDR_HIGH;
+	p->CURSOR0_0_CURSOR_SIZE__CURSOR_WIDTH = hubp->att.size.bits.width;
+	p->CURSOR0_0_CURSOR_SIZE__CURSOR_HEIGHT = hubp->att.size.bits.height;
+	p->CURSOR0_0_CURSOR_POSITION__CURSOR_X_POSITION = hubp->pos.position.bits.x_pos;
+	p->CURSOR0_0_CURSOR_POSITION__CURSOR_Y_POSITION = hubp->pos.position.bits.y_pos;
+	p->CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_X = hubp->pos.hot_spot.bits.x_hot;
+	p->CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_Y = hubp->pos.hot_spot.bits.y_hot;
+	p->CURSOR0_0_CURSOR_DST_OFFSET__CURSOR_DST_X_OFFSET = hubp->pos.dst_offset.bits.dst_x_offset;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_ENABLE = hubp->pos.cur_ctl.bits.cur_enable;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE = hubp->att.cur_ctl.bits.mode;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY = hubp->pos.cur_ctl.bits.cur_2x_magnify;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH = hubp->att.cur_ctl.bits.pitch;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_LINES_PER_CHUNK = hubp->pos.cur_ctl.bits.line_per_chunk;
+
+	p->CM_CUR0_CURSOR0_CONTROL__CUR0_ENABLE = dpp->att.cur0_ctl.bits.cur0_enable;
+	p->CM_CUR0_CURSOR0_CONTROL__CUR0_MODE = dpp->att.cur0_ctl.bits.mode;
+	p->CM_CUR0_CURSOR0_CONTROL__CUR0_EXPANSION_MODE = dpp->att.cur0_ctl.bits.expansion_mode;
+	p->CM_CUR0_CURSOR0_CONTROL__CUR0_ROM_EN = dpp->att.cur0_ctl.bits.cur0_rom_en;
+	p->CM_CUR0_CURSOR0_COLOR0__CUR0_COLOR0 = 0x000000;
+	p->CM_CUR0_CURSOR0_COLOR1__CUR0_COLOR1 = 0xFFFFFF;
+
+	p->CM_CUR0_CURSOR0_FP_SCALE_BIAS_G_Y__CUR0_FP_BIAS_G_Y =
+		dpp->att.fp_scale_bias_g_y.bits.fp_bias_g_y;
+	p->CM_CUR0_CURSOR0_FP_SCALE_BIAS_G_Y__CUR0_FP_SCALE_G_Y =
+		dpp->att.fp_scale_bias_g_y.bits.fp_scale_g_y;
+	p->CM_CUR0_CURSOR0_FP_SCALE_BIAS_RB_CRCB__CUR0_FP_BIAS_RB_CRCB =
+		dpp->att.fp_scale_bias_rb_crcb.bits.fp_bias_rb_crcb;
+	p->CM_CUR0_CURSOR0_FP_SCALE_BIAS_RB_CRCB__CUR0_FP_SCALE_RB_CRCB =
+		dpp->att.fp_scale_bias_rb_crcb.bits.fp_scale_rb_crcb;
+
+	p->HUBPREQ0_CURSOR_SETTINGS__CURSOR0_DST_Y_OFFSET = hubp->att.settings.bits.dst_y_offset;
+	p->HUBPREQ0_CURSOR_SETTINGS__CURSOR0_CHUNK_HDL_ADJUST = hubp->att.settings.bits.chunk_hdl_adjust;
+
+	cs->offload_streams[stream_idx].payloads[payload_idx].pipe_mask |= (1u << pipe->pipe_idx);
 }

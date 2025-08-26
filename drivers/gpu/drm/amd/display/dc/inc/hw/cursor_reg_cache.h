@@ -83,12 +83,34 @@ union reg_cur0_control_cfg {
 	} bits;
 	uint32_t raw;
 };
+
 struct cursor_position_cache_dpp {
 	union reg_cur0_control_cfg cur0_ctl;
 };
 
 struct cursor_attribute_cache_dpp {
 	union reg_cur0_control_cfg cur0_ctl;
+	union reg_cur0_fp_scale_bias {
+		struct {
+			uint32_t  fp_bias: 16;
+			uint32_t fp_scale: 16;
+		} bits;
+		uint32_t raw;
+	} fp_scale_bias;
+	union reg_cur0_fp_scale_bias_g_y {
+		struct {
+			uint32_t  fp_bias_g_y: 16;
+			uint32_t fp_scale_g_y: 16;
+		} bits;
+		uint32_t raw;
+	} fp_scale_bias_g_y;
+	union reg_cur0_fp_scale_bias_rb_crcb {
+		struct {
+			uint32_t  fp_bias_rb_crcb: 16;
+			uint32_t fp_scale_rb_crcb: 16;
+		} bits;
+		uint32_t raw;
+	} fp_scale_bias_rb_crcb;
 };
 
 struct cursor_attributes_cfg {
