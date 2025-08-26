@@ -602,6 +602,11 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 #define SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status) \
 	__SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status, /* nothing */)
 
+#ifndef __SMBDIRECT_SOCKET_DISCONNECT
+#define __SMBDIRECT_SOCKET_DISCONNECT(__sc) \
+		smbdirect_socket_schedule_cleanup(__sc, -ECONNABORTED)
+#endif /* ! __SMBDIRECT_SOCKET_DISCONNECT */
+
 #define SMBDIRECT_CHECK_STATUS_DISCONNECT(__sc, __expected_status) \
 	__SMBDIRECT_CHECK_STATUS_WARN(__sc, __expected_status, \
 		__SMBDIRECT_SOCKET_DISCONNECT(__sc);)

@@ -67,6 +67,101 @@ static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 	wake_up_all(&sc->mr_io.cleanup.wait_queue);
 }
 
+__maybe_unused /* this is temporary while this file is included in others */
+static void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
+						const char *macro_name,
+						unsigned int lvl,
+						const char *func,
+						unsigned int line,
+						int error,
+						enum smbdirect_socket_status *force_status)
+{
+	bool was_first = false;
+
+	if (!sc->first_error) {
+		___smbdirect_log_generic(sc, func, line,
+			lvl,
+			SMBDIRECT_LOG_RDMA_EVENT,
+			"%s(%1pe%s%s) called from %s in line=%u status=%s\n",
+			macro_name,
+			SMBDIRECT_DEBUG_ERR_PTR(error),
+			force_status ? ", " : "",
+			force_status ? smbdirect_socket_status_string(*force_status) : "",
+			func, line,
+			smbdirect_socket_status_string(sc->status));
+		if (error)
+			sc->first_error = error;
+		else
+			sc->first_error = -ECONNABORTED;
+		was_first = true;
+	}
+
+	/*
+	 * make sure other work (than disconnect_work)
+	 * is not queued again but here we don't block and avoid
+	 * disable[_delayed]_work_sync()
+	 */
+	disable_work(&sc->connect.work);
+	disable_work(&sc->recv_io.posted.refill_work);
+	disable_work(&sc->mr_io.recovery_work);
+	disable_work(&sc->idle.immediate_work);
+	disable_delayed_work(&sc->idle.timer_work);
+
+	switch (sc->status) {
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED:
+	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
+	case SMBDIRECT_SOCKET_ERROR:
+	case SMBDIRECT_SOCKET_DISCONNECTING:
+	case SMBDIRECT_SOCKET_DISCONNECTED:
+	case SMBDIRECT_SOCKET_DESTROYED:
+		/*
+		 * Keep the current error status
+		 */
+		break;
+
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
+	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
+		sc->status = SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED;
+		break;
+
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_NEEDED:
+	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING:
+		sc->status = SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED;
+		break;
+
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED:
+	case SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING:
+		sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED;
+		break;
+
+	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
+	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
+		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
+		break;
+
+	case SMBDIRECT_SOCKET_CREATED:
+		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
+		break;
+
+	case SMBDIRECT_SOCKET_CONNECTED:
+		sc->status = SMBDIRECT_SOCKET_ERROR;
+		break;
+	}
+
+	if (force_status && (was_first || *force_status > sc->status))
+		sc->status = *force_status;
+
+	/*
+	 * Wake up all waiters in all wait queues
+	 * in order to notice the broken connection.
+	 */
+	smbdirect_socket_wake_up_all(sc);
+
+	queue_work(sc->workqueue, &sc->disconnect_work);
+}
+
 static void smbdirect_socket_cleanup_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
