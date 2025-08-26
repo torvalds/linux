@@ -156,7 +156,7 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	ahb_clk = devm_clk_get(&pdev->dev, "ahb");
+	ahb_clk = devm_clk_get_enabled(&pdev->dev, "ahb");
 	if (IS_ERR(ahb_clk))
 		return PTR_ERR(ahb_clk);
 
@@ -172,7 +172,6 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	rbspi = spi_controller_get_devdata(host);
 	rbspi->base = spi_base;
 	rbspi->clk = ahb_clk;
-	platform_set_drvdata(pdev, rbspi);
 
 	err = devm_spi_register_controller(&pdev->dev, host);
 	if (err) {
@@ -180,21 +179,10 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = clk_prepare_enable(ahb_clk);
-	if (err)
-		return err;
-
 	/* Enable SPI */
 	rb4xx_write(rbspi, AR71XX_SPI_REG_FS, AR71XX_SPI_FS_GPIO);
 
 	return 0;
-}
-
-static void rb4xx_spi_remove(struct platform_device *pdev)
-{
-	struct rb4xx_spi *rbspi = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(rbspi->clk);
 }
 
 static const struct of_device_id rb4xx_spi_dt_match[] = {
@@ -205,7 +193,6 @@ MODULE_DEVICE_TABLE(of, rb4xx_spi_dt_match);
 
 static struct platform_driver rb4xx_spi_drv = {
 	.probe = rb4xx_spi_probe,
-	.remove = rb4xx_spi_remove,
 	.driver = {
 		.name = "rb4xx-spi",
 		.of_match_table = rb4xx_spi_dt_match,
