@@ -7,7 +7,7 @@
 
 #include "xe_bo.h"
 #include "xe_gt_stats.h"
-#include "xe_gt_tlb_invalidation.h"
+#include "xe_gt_tlb_inval.h"
 #include "xe_migrate.h"
 #include "xe_module.h"
 #include "xe_pm.h"
@@ -225,7 +225,7 @@ static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
 
 	xe_device_wmb(xe);
 
-	err = xe_vm_range_tilemask_tlb_invalidation(vm, adj_start, adj_end, tile_mask);
+	err = xe_vm_range_tilemask_tlb_inval(vm, adj_start, adj_end, tile_mask);
 	WARN_ON_ONCE(err);
 
 range_notifier_event_end:

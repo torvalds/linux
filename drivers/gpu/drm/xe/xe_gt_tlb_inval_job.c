@@ -7,7 +7,7 @@
 #include "xe_dep_scheduler.h"
 #include "xe_exec_queue.h"
 #include "xe_gt.h"
-#include "xe_gt_tlb_invalidation.h"
+#include "xe_gt_tlb_inval.h"
 #include "xe_gt_tlb_inval_job.h"
 #include "xe_migrate.h"
 #include "xe_pm.h"
@@ -41,11 +41,11 @@ static struct dma_fence *xe_gt_tlb_inval_job_run(struct xe_dep_job *dep_job)
 {
 	struct xe_gt_tlb_inval_job *job =
 		container_of(dep_job, typeof(*job), dep);
-	struct xe_gt_tlb_invalidation_fence *ifence =
+	struct xe_gt_tlb_inval_fence *ifence =
 		container_of(job->fence, typeof(*ifence), base);
 
-	xe_gt_tlb_invalidation_range(job->gt, ifence, job->start,
-				     job->end, job->asid);
+	xe_gt_tlb_inval_range(job->gt, ifence, job->start,
+			      job->end, job->asid);
 
 	return job->fence;
 }
@@ -93,7 +93,7 @@ struct xe_gt_tlb_inval_job *xe_gt_tlb_inval_job_create(struct xe_exec_queue *q,
 		q->tlb_inval[xe_gt_tlb_inval_context(gt)].dep_scheduler;
 	struct drm_sched_entity *entity =
 		xe_dep_scheduler_entity(dep_scheduler);
-	struct xe_gt_tlb_invalidation_fence *ifence;
+	struct xe_gt_tlb_inval_fence *ifence;
 	int err;
 
 	job = kmalloc(sizeof(*job), GFP_KERNEL);
@@ -140,7 +140,7 @@ static void xe_gt_tlb_inval_job_destroy(struct kref *ref)
 {
 	struct xe_gt_tlb_inval_job *job = container_of(ref, typeof(*job),
 						       refcount);
-	struct xe_gt_tlb_invalidation_fence *ifence =
+	struct xe_gt_tlb_inval_fence *ifence =
 		container_of(job->fence, typeof(*ifence), base);
 	struct xe_device *xe = gt_to_xe(job->gt);
 	struct xe_exec_queue *q = job->q;
@@ -148,7 +148,7 @@ static void xe_gt_tlb_inval_job_destroy(struct kref *ref)
 	if (!job->fence_armed)
 		kfree(ifence);
 	else
-		/* Ref from xe_gt_tlb_invalidation_fence_init */
+		/* Ref from xe_gt_tlb_inval_fence_init */
 		dma_fence_put(job->fence);
 
 	drm_sched_job_cleanup(&job->dep.drm);
@@ -194,7 +194,7 @@ struct dma_fence *xe_gt_tlb_inval_job_push(struct xe_gt_tlb_inval_job *job,
 					   struct xe_migrate *m,
 					   struct dma_fence *fence)
 {
-	struct xe_gt_tlb_invalidation_fence *ifence =
+	struct xe_gt_tlb_inval_fence *ifence =
 		container_of(job->fence, typeof(*ifence), base);
 
 	if (!dma_fence_is_signaled(fence)) {
@@ -226,7 +226,7 @@ struct dma_fence *xe_gt_tlb_inval_job_push(struct xe_gt_tlb_inval_job *job,
 	xe_migrate_job_lock(m, job->q);
 
 	/* Creation ref pairs with put in xe_gt_tlb_inval_job_destroy */
-	xe_gt_tlb_invalidation_fence_init(job->gt, ifence, false);
+	xe_gt_tlb_inval_fence_init(job->gt, ifence, false);
 	dma_fence_get(job->fence);	/* Pairs with put in DRM scheduler */
 
 	drm_sched_job_arm(&job->dep.drm);

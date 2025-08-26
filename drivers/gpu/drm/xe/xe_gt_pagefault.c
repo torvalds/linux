@@ -16,7 +16,6 @@
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
 #include "xe_gt_stats.h"
-#include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_migrate.h"

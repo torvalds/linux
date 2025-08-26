@@ -5,8 +5,6 @@
 
 #include <drm/drm_managed.h>
 
-#include "xe_gt_tlb_invalidation.h"
-
 #include "abi/guc_actions_abi.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
@@ -15,6 +13,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_gt_stats.h"
+#include "xe_gt_tlb_inval.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
@@ -39,7 +38,7 @@ static long tlb_timeout_jiffies(struct xe_gt *gt)
 	return hw_tlb_timeout + 2 * delay;
 }
 
-static void xe_gt_tlb_invalidation_fence_fini(struct xe_gt_tlb_invalidation_fence *fence)
+static void xe_gt_tlb_inval_fence_fini(struct xe_gt_tlb_inval_fence *fence)
 {
 	if (WARN_ON_ONCE(!fence->gt))
 		return;
@@ -49,66 +48,66 @@ static void xe_gt_tlb_invalidation_fence_fini(struct xe_gt_tlb_invalidation_fenc
 }
 
 static void
-__invalidation_fence_signal(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence)
+__inval_fence_signal(struct xe_device *xe, struct xe_gt_tlb_inval_fence *fence)
 {
 	bool stack = test_bit(FENCE_STACK_BIT, &fence->base.flags);
 
-	trace_xe_gt_tlb_invalidation_fence_signal(xe, fence);
-	xe_gt_tlb_invalidation_fence_fini(fence);
+	trace_xe_gt_tlb_inval_fence_signal(xe, fence);
+	xe_gt_tlb_inval_fence_fini(fence);
 	dma_fence_signal(&fence->base);
 	if (!stack)
 		dma_fence_put(&fence->base);
 }
 
 static void
-invalidation_fence_signal(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence)
+inval_fence_signal(struct xe_device *xe, struct xe_gt_tlb_inval_fence *fence)
 {
 	list_del(&fence->link);
-	__invalidation_fence_signal(xe, fence);
+	__inval_fence_signal(xe, fence);
 }
 
-void xe_gt_tlb_invalidation_fence_signal(struct xe_gt_tlb_invalidation_fence *fence)
+void xe_gt_tlb_inval_fence_signal(struct xe_gt_tlb_inval_fence *fence)
 {
 	if (WARN_ON_ONCE(!fence->gt))
 		return;
 
-	__invalidation_fence_signal(gt_to_xe(fence->gt), fence);
+	__inval_fence_signal(gt_to_xe(fence->gt), fence);
 }
 
 static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 {
 	struct xe_gt *gt = container_of(work, struct xe_gt,
-					tlb_invalidation.fence_tdr.work);
+					tlb_inval.fence_tdr.work);
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_gt_tlb_invalidation_fence *fence, *next;
+	struct xe_gt_tlb_inval_fence *fence, *next;
 
 	LNL_FLUSH_WORK(&gt->uc.guc.ct.g2h_worker);
 
-	spin_lock_irq(&gt->tlb_invalidation.pending_lock);
+	spin_lock_irq(&gt->tlb_inval.pending_lock);
 	list_for_each_entry_safe(fence, next,
-				 &gt->tlb_invalidation.pending_fences, link) {
+				 &gt->tlb_inval.pending_fences, link) {
 		s64 since_inval_ms = ktime_ms_delta(ktime_get(),
-						    fence->invalidation_time);
+						    fence->inval_time);
 
 		if (msecs_to_jiffies(since_inval_ms) < tlb_timeout_jiffies(gt))
 			break;
 
-		trace_xe_gt_tlb_invalidation_fence_timeout(xe, fence);
+		trace_xe_gt_tlb_inval_fence_timeout(xe, fence);
 		xe_gt_err(gt, "TLB invalidation fence timeout, seqno=%d recv=%d",
-			  fence->seqno, gt->tlb_invalidation.seqno_recv);
+			  fence->seqno, gt->tlb_inval.seqno_recv);
 
 		fence->base.error = -ETIME;
-		invalidation_fence_signal(xe, fence);
+		inval_fence_signal(xe, fence);
 	}
-	if (!list_empty(&gt->tlb_invalidation.pending_fences))
+	if (!list_empty(&gt->tlb_inval.pending_fences))
 		queue_delayed_work(system_wq,
-				   &gt->tlb_invalidation.fence_tdr,
+				   &gt->tlb_inval.fence_tdr,
 				   tlb_timeout_jiffies(gt));
-	spin_unlock_irq(&gt->tlb_invalidation.pending_lock);
+	spin_unlock_irq(&gt->tlb_inval.pending_lock);
 }
 
 /**
- * xe_gt_tlb_invalidation_init_early - Initialize GT TLB invalidation state
+ * xe_gt_tlb_inval_init_early - Initialize GT TLB invalidation state
  * @gt: GT structure
  *
  * Initialize GT TLB invalidation state, purely software initialization, should
@@ -116,40 +115,40 @@ static void xe_gt_tlb_fence_timeout(struct work_struct *work)
  *
  * Return: 0 on success, negative error code on error.
  */
-int xe_gt_tlb_invalidation_init_early(struct xe_gt *gt)
+int xe_gt_tlb_inval_init_early(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
-	gt->tlb_invalidation.seqno = 1;
-	INIT_LIST_HEAD(&gt->tlb_invalidation.pending_fences);
-	spin_lock_init(&gt->tlb_invalidation.pending_lock);
-	spin_lock_init(&gt->tlb_invalidation.lock);
-	INIT_DELAYED_WORK(&gt->tlb_invalidation.fence_tdr,
+	gt->tlb_inval.seqno = 1;
+	INIT_LIST_HEAD(&gt->tlb_inval.pending_fences);
+	spin_lock_init(&gt->tlb_inval.pending_lock);
+	spin_lock_init(&gt->tlb_inval.lock);
+	INIT_DELAYED_WORK(&gt->tlb_inval.fence_tdr,
 			  xe_gt_tlb_fence_timeout);
 
-	err = drmm_mutex_init(&xe->drm, &gt->tlb_invalidation.seqno_lock);
+	err = drmm_mutex_init(&xe->drm, &gt->tlb_inval.seqno_lock);
 	if (err)
 		return err;
 
-	gt->tlb_invalidation.job_wq =
+	gt->tlb_inval.job_wq =
 		drmm_alloc_ordered_workqueue(&gt_to_xe(gt)->drm, "gt-tbl-inval-job-wq",
 					     WQ_MEM_RECLAIM);
-	if (IS_ERR(gt->tlb_invalidation.job_wq))
-		return PTR_ERR(gt->tlb_invalidation.job_wq);
+	if (IS_ERR(gt->tlb_inval.job_wq))
+		return PTR_ERR(gt->tlb_inval.job_wq);
 
 	return 0;
 }
 
 /**
- * xe_gt_tlb_invalidation_reset - Initialize GT TLB invalidation reset
+ * xe_gt_tlb_inval_reset - Initialize GT TLB invalidation reset
  * @gt: GT structure
  *
  * Signal any pending invalidation fences, should be called during a GT reset
  */
-void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
+void xe_gt_tlb_inval_reset(struct xe_gt *gt)
 {
-	struct xe_gt_tlb_invalidation_fence *fence, *next;
+	struct xe_gt_tlb_inval_fence *fence, *next;
 	int pending_seqno;
 
 	/*
@@ -165,9 +164,9 @@ void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 	 * appear.
 	 */
 
-	mutex_lock(&gt->tlb_invalidation.seqno_lock);
-	spin_lock_irq(&gt->tlb_invalidation.pending_lock);
-	cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
+	mutex_lock(&gt->tlb_inval.seqno_lock);
+	spin_lock_irq(&gt->tlb_inval.pending_lock);
+	cancel_delayed_work(&gt->tlb_inval.fence_tdr);
 	/*
 	 * We might have various kworkers waiting for TLB flushes to complete
 	 * which are not tracked with an explicit TLB fence, however at this
@@ -175,34 +174,34 @@ void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 	 * make sure we signal them here under the assumption that we have
 	 * completed a full GT reset.
 	 */
-	if (gt->tlb_invalidation.seqno == 1)
+	if (gt->tlb_inval.seqno == 1)
 		pending_seqno = TLB_INVALIDATION_SEQNO_MAX - 1;
 	else
-		pending_seqno = gt->tlb_invalidation.seqno - 1;
-	WRITE_ONCE(gt->tlb_invalidation.seqno_recv, pending_seqno);
+		pending_seqno = gt->tlb_inval.seqno - 1;
+	WRITE_ONCE(gt->tlb_inval.seqno_recv, pending_seqno);
 
 	list_for_each_entry_safe(fence, next,
-				 &gt->tlb_invalidation.pending_fences, link)
-		invalidation_fence_signal(gt_to_xe(gt), fence);
-	spin_unlock_irq(&gt->tlb_invalidation.pending_lock);
-	mutex_unlock(&gt->tlb_invalidation.seqno_lock);
+				 &gt->tlb_inval.pending_fences, link)
+		inval_fence_signal(gt_to_xe(gt), fence);
+	spin_unlock_irq(&gt->tlb_inval.pending_lock);
+	mutex_unlock(&gt->tlb_inval.seqno_lock);
 }
 
 /**
  *
- * xe_gt_tlb_invalidation_fini - Clean up GT TLB invalidation state
+ * xe_gt_tlb_inval_fini - Clean up GT TLB invalidation state
  *
  * Cancel pending fence workers and clean up any additional
  * GT TLB invalidation state.
  */
-void xe_gt_tlb_invalidation_fini(struct xe_gt *gt)
+void xe_gt_tlb_inval_fini(struct xe_gt *gt)
 {
-	xe_gt_tlb_invalidation_reset(gt);
+	xe_gt_tlb_inval_reset(gt);
 }
 
-static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
+static bool tlb_inval_seqno_past(struct xe_gt *gt, int seqno)
 {
-	int seqno_recv = READ_ONCE(gt->tlb_invalidation.seqno_recv);
+	int seqno_recv = READ_ONCE(gt->tlb_inval.seqno_recv);
 
 	if (seqno - seqno_recv < -(TLB_INVALIDATION_SEQNO_MAX / 2))
 		return false;
@@ -213,9 +212,9 @@ static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
 	return seqno_recv >= seqno;
 }
 
-static int send_tlb_invalidation(struct xe_guc *guc,
-				 struct xe_gt_tlb_invalidation_fence *fence,
-				 u32 *action, int len)
+static int send_tlb_inval(struct xe_guc *guc,
+			  struct xe_gt_tlb_inval_fence *fence,
+			  u32 *action, int len)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_device *xe = gt_to_xe(gt);
@@ -230,44 +229,44 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 	 * need to be updated.
 	 */
 
-	mutex_lock(&gt->tlb_invalidation.seqno_lock);
-	seqno = gt->tlb_invalidation.seqno;
+	mutex_lock(&gt->tlb_inval.seqno_lock);
+	seqno = gt->tlb_inval.seqno;
 	fence->seqno = seqno;
-	trace_xe_gt_tlb_invalidation_fence_send(xe, fence);
+	trace_xe_gt_tlb_inval_fence_send(xe, fence);
 	action[1] = seqno;
 	ret = xe_guc_ct_send(&guc->ct, action, len,
 			     G2H_LEN_DW_TLB_INVALIDATE, 1);
 	if (!ret) {
-		spin_lock_irq(&gt->tlb_invalidation.pending_lock);
+		spin_lock_irq(&gt->tlb_inval.pending_lock);
 		/*
 		 * We haven't actually published the TLB fence as per
 		 * pending_fences, but in theory our seqno could have already
 		 * been written as we acquired the pending_lock. In such a case
 		 * we can just go ahead and signal the fence here.
 		 */
-		if (tlb_invalidation_seqno_past(gt, seqno)) {
-			__invalidation_fence_signal(xe, fence);
+		if (tlb_inval_seqno_past(gt, seqno)) {
+			__inval_fence_signal(xe, fence);
 		} else {
-			fence->invalidation_time = ktime_get();
+			fence->inval_time = ktime_get();
 			list_add_tail(&fence->link,
-				      &gt->tlb_invalidation.pending_fences);
+				      &gt->tlb_inval.pending_fences);
 
-			if (list_is_singular(&gt->tlb_invalidation.pending_fences))
+			if (list_is_singular(&gt->tlb_inval.pending_fences))
 				queue_delayed_work(system_wq,
-						   &gt->tlb_invalidation.fence_tdr,
+						   &gt->tlb_inval.fence_tdr,
 						   tlb_timeout_jiffies(gt));
 		}
-		spin_unlock_irq(&gt->tlb_invalidation.pending_lock);
+		spin_unlock_irq(&gt->tlb_inval.pending_lock);
 	} else {
-		__invalidation_fence_signal(xe, fence);
+		__inval_fence_signal(xe, fence);
 	}
 	if (!ret) {
-		gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
+		gt->tlb_inval.seqno = (gt->tlb_inval.seqno + 1) %
 			TLB_INVALIDATION_SEQNO_MAX;
-		if (!gt->tlb_invalidation.seqno)
-			gt->tlb_invalidation.seqno = 1;
+		if (!gt->tlb_inval.seqno)
+			gt->tlb_inval.seqno = 1;
 	}
-	mutex_unlock(&gt->tlb_invalidation.seqno_lock);
+	mutex_unlock(&gt->tlb_inval.seqno_lock);
 	xe_gt_stats_incr(gt, XE_GT_STATS_ID_TLB_INVAL, 1);
 
 	return ret;
@@ -278,7 +277,7 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 		XE_GUC_TLB_INVAL_FLUSH_CACHE)
 
 /**
- * xe_gt_tlb_invalidation_guc - Issue a TLB invalidation on this GT for the GuC
+ * xe_gt_tlb_inval_guc - Issue a TLB invalidation on this GT for the GuC
  * @gt: GT structure
  * @fence: invalidation fence which will be signal on TLB invalidation
  * completion
@@ -288,18 +287,17 @@ static int send_tlb_invalidation(struct xe_guc *guc,
  *
  * Return: 0 on success, negative error code on error
  */
-static int xe_gt_tlb_invalidation_guc(struct xe_gt *gt,
-				      struct xe_gt_tlb_invalidation_fence *fence)
+static int xe_gt_tlb_inval_guc(struct xe_gt *gt,
+			       struct xe_gt_tlb_inval_fence *fence)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_TLB_INVALIDATION,
-		0,  /* seqno, replaced in send_tlb_invalidation */
+		0,  /* seqno, replaced in send_tlb_inval */
 		MAKE_INVAL_OP(XE_GUC_TLB_INVAL_GUC),
 	};
 	int ret;
 
-	ret = send_tlb_invalidation(&gt->uc.guc, fence, action,
-				    ARRAY_SIZE(action));
+	ret = send_tlb_inval(&gt->uc.guc, fence, action, ARRAY_SIZE(action));
 	/*
 	 * -ECANCELED indicates the CT is stopped for a GT reset. TLB caches
 	 *  should be nuked on a GT reset so this error can be ignored.
@@ -311,7 +309,7 @@ static int xe_gt_tlb_invalidation_guc(struct xe_gt *gt,
 }
 
 /**
- * xe_gt_tlb_invalidation_ggtt - Issue a TLB invalidation on this GT for the GGTT
+ * xe_gt_tlb_inval_ggtt - Issue a TLB invalidation on this GT for the GGTT
  * @gt: GT structure
  *
  * Issue a TLB invalidation for the GGTT. Completion of TLB invalidation is
@@ -319,22 +317,22 @@ static int xe_gt_tlb_invalidation_guc(struct xe_gt *gt,
  *
  * Return: 0 on success, negative error code on error
  */
-int xe_gt_tlb_invalidation_ggtt(struct xe_gt *gt)
+int xe_gt_tlb_inval_ggtt(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int fw_ref;
 
 	if (xe_guc_ct_enabled(&gt->uc.guc.ct) &&
 	    gt->uc.guc.submission_state.enabled) {
-		struct xe_gt_tlb_invalidation_fence fence;
+		struct xe_gt_tlb_inval_fence fence;
 		int ret;
 
-		xe_gt_tlb_invalidation_fence_init(gt, &fence, true);
-		ret = xe_gt_tlb_invalidation_guc(gt, &fence);
+		xe_gt_tlb_inval_fence_init(gt, &fence, true);
+		ret = xe_gt_tlb_inval_guc(gt, &fence);
 		if (ret)
 			return ret;
 
-		xe_gt_tlb_invalidation_fence_wait(&fence);
+		xe_gt_tlb_inval_fence_wait(&fence);
 	} else if (xe_device_uc_enabled(xe) && !xe_device_wedged(xe)) {
 		struct xe_mmio *mmio = &gt->mmio;
 
@@ -357,34 +355,34 @@ int xe_gt_tlb_invalidation_ggtt(struct xe_gt *gt)
 	return 0;
 }
 
-static int send_tlb_invalidation_all(struct xe_gt *gt,
-				     struct xe_gt_tlb_invalidation_fence *fence)
+static int send_tlb_inval_all(struct xe_gt *gt,
+			      struct xe_gt_tlb_inval_fence *fence)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_TLB_INVALIDATION_ALL,
-		0,  /* seqno, replaced in send_tlb_invalidation */
+		0,  /* seqno, replaced in send_tlb_inval */
 		MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL),
 	};
 
-	return send_tlb_invalidation(&gt->uc.guc, fence, action, ARRAY_SIZE(action));
+	return send_tlb_inval(&gt->uc.guc, fence, action, ARRAY_SIZE(action));
 }
 
 /**
  * xe_gt_tlb_invalidation_all - Invalidate all TLBs across PF and all VFs.
  * @gt: the &xe_gt structure
- * @fence: the &xe_gt_tlb_invalidation_fence to be signaled on completion
+ * @fence: the &xe_gt_tlb_inval_fence to be signaled on completion
  *
  * Send a request to invalidate all TLBs across PF and all VFs.
  *
  * Return: 0 on success, negative error code on error
  */
-int xe_gt_tlb_invalidation_all(struct xe_gt *gt, struct xe_gt_tlb_invalidation_fence *fence)
+int xe_gt_tlb_inval_all(struct xe_gt *gt, struct xe_gt_tlb_inval_fence *fence)
 {
 	int err;
 
 	xe_gt_assert(gt, gt == fence->gt);
 
-	err = send_tlb_invalidation_all(gt, fence);
+	err = send_tlb_inval_all(gt, fence);
 	if (err)
 		xe_gt_err(gt, "TLB invalidation request failed (%pe)", ERR_PTR(err));
 
@@ -399,8 +397,7 @@ int xe_gt_tlb_invalidation_all(struct xe_gt *gt, struct xe_gt_tlb_invalidation_f
 #define MAX_RANGE_TLB_INVALIDATION_LENGTH (rounddown_pow_of_two(ULONG_MAX))
 
 /**
- * xe_gt_tlb_invalidation_range - Issue a TLB invalidation on this GT for an
- * address range
+ * xe_gt_tlb_inval_range - Issue a TLB invalidation on this GT for an address range
  *
  * @gt: GT structure
  * @fence: invalidation fence which will be signal on TLB invalidation
@@ -415,9 +412,8 @@ int xe_gt_tlb_invalidation_all(struct xe_gt *gt, struct xe_gt_tlb_invalidation_f
  *
  * Return: Negative error code on error, 0 on success
  */
-int xe_gt_tlb_invalidation_range(struct xe_gt *gt,
-				 struct xe_gt_tlb_invalidation_fence *fence,
-				 u64 start, u64 end, u32 asid)
+int xe_gt_tlb_inval_range(struct xe_gt *gt, struct xe_gt_tlb_inval_fence *fence,
+			  u64 start, u64 end, u32 asid)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 #define MAX_TLB_INVALIDATION_LEN	7
@@ -429,13 +425,13 @@ int xe_gt_tlb_invalidation_range(struct xe_gt *gt,
 
 	/* Execlists not supported */
 	if (gt_to_xe(gt)->info.force_execlist) {
-		__invalidation_fence_signal(xe, fence);
+		__inval_fence_signal(xe, fence);
 		return 0;
 	}
 
 	action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
-	action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
-	if (!xe->info.has_range_tlb_invalidation ||
+	action[len++] = 0; /* seqno, replaced in send_tlb_inval */
+	if (!xe->info.has_range_tlb_inval ||
 	    length > MAX_RANGE_TLB_INVALIDATION_LENGTH) {
 		action[len++] = MAKE_INVAL_OP(XE_GUC_TLB_INVAL_FULL);
 	} else {
@@ -484,33 +480,33 @@ int xe_gt_tlb_invalidation_range(struct xe_gt *gt,
 
 	xe_gt_assert(gt, len <= MAX_TLB_INVALIDATION_LEN);
 
-	return send_tlb_invalidation(&gt->uc.guc, fence, action, len);
+	return send_tlb_inval(&gt->uc.guc, fence, action, len);
 }
 
 /**
- * xe_gt_tlb_invalidation_vm - Issue a TLB invalidation on this GT for a VM
+ * xe_gt_tlb_inval_vm - Issue a TLB invalidation on this GT for a VM
  * @gt: graphics tile
  * @vm: VM to invalidate
  *
  * Invalidate entire VM's address space
  */
-void xe_gt_tlb_invalidation_vm(struct xe_gt *gt, struct xe_vm *vm)
+void xe_gt_tlb_inval_vm(struct xe_gt *gt, struct xe_vm *vm)
 {
-	struct xe_gt_tlb_invalidation_fence fence;
+	struct xe_gt_tlb_inval_fence fence;
 	u64 range = 1ull << vm->xe->info.va_bits;
 	int ret;
 
-	xe_gt_tlb_invalidation_fence_init(gt, &fence, true);
+	xe_gt_tlb_inval_fence_init(gt, &fence, true);
 
-	ret = xe_gt_tlb_invalidation_range(gt, &fence, 0, range, vm->usm.asid);
+	ret = xe_gt_tlb_inval_range(gt, &fence, 0, range, vm->usm.asid);
 	if (ret < 0)
 		return;
 
-	xe_gt_tlb_invalidation_fence_wait(&fence);
+	xe_gt_tlb_inval_fence_wait(&fence);
 }
 
 /**
- * xe_guc_tlb_invalidation_done_handler - TLB invalidation done handler
+ * xe_guc_tlb_inval_done_handler - TLB invalidation done handler
  * @guc: guc
  * @msg: message indicating TLB invalidation done
  * @len: length of message
@@ -521,11 +517,11 @@ void xe_gt_tlb_invalidation_vm(struct xe_gt *gt, struct xe_vm *vm)
  *
  * Return: 0 on success, -EPROTO for malformed messages.
  */
-int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
+int xe_guc_tlb_inval_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_gt_tlb_invalidation_fence *fence, *next;
+	struct xe_gt_tlb_inval_fence *fence, *next;
 	unsigned long flags;
 
 	if (unlikely(len != 1))
@@ -546,74 +542,74 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	 * officially process the CT message like if racing against
 	 * process_g2h_msg().
 	 */
-	spin_lock_irqsave(&gt->tlb_invalidation.pending_lock, flags);
-	if (tlb_invalidation_seqno_past(gt, msg[0])) {
-		spin_unlock_irqrestore(&gt->tlb_invalidation.pending_lock, flags);
+	spin_lock_irqsave(&gt->tlb_inval.pending_lock, flags);
+	if (tlb_inval_seqno_past(gt, msg[0])) {
+		spin_unlock_irqrestore(&gt->tlb_inval.pending_lock, flags);
 		return 0;
 	}
 
-	WRITE_ONCE(gt->tlb_invalidation.seqno_recv, msg[0]);
+	WRITE_ONCE(gt->tlb_inval.seqno_recv, msg[0]);
 
 	list_for_each_entry_safe(fence, next,
-				 &gt->tlb_invalidation.pending_fences, link) {
-		trace_xe_gt_tlb_invalidation_fence_recv(xe, fence);
+				 &gt->tlb_inval.pending_fences, link) {
+		trace_xe_gt_tlb_inval_fence_recv(xe, fence);
 
-		if (!tlb_invalidation_seqno_past(gt, fence->seqno))
+		if (!tlb_inval_seqno_past(gt, fence->seqno))
 			break;
 
-		invalidation_fence_signal(xe, fence);
+		inval_fence_signal(xe, fence);
 	}
 
-	if (!list_empty(&gt->tlb_invalidation.pending_fences))
+	if (!list_empty(&gt->tlb_inval.pending_fences))
 		mod_delayed_work(system_wq,
-				 &gt->tlb_invalidation.fence_tdr,
+				 &gt->tlb_inval.fence_tdr,
 				 tlb_timeout_jiffies(gt));
 	else
-		cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
+		cancel_delayed_work(&gt->tlb_inval.fence_tdr);
 
-	spin_unlock_irqrestore(&gt->tlb_invalidation.pending_lock, flags);
+	spin_unlock_irqrestore(&gt->tlb_inval.pending_lock, flags);
 
 	return 0;
 }
 
 static const char *
-invalidation_fence_get_driver_name(struct dma_fence *dma_fence)
+inval_fence_get_driver_name(struct dma_fence *dma_fence)
 {
 	return "xe";
 }
 
 static const char *
-invalidation_fence_get_timeline_name(struct dma_fence *dma_fence)
+inval_fence_get_timeline_name(struct dma_fence *dma_fence)
 {
-	return "invalidation_fence";
+	return "inval_fence";
 }
 
-static const struct dma_fence_ops invalidation_fence_ops = {
-	.get_driver_name = invalidation_fence_get_driver_name,
-	.get_timeline_name = invalidation_fence_get_timeline_name,
+static const struct dma_fence_ops inval_fence_ops = {
+	.get_driver_name = inval_fence_get_driver_name,
+	.get_timeline_name = inval_fence_get_timeline_name,
 };
 
 /**
- * xe_gt_tlb_invalidation_fence_init - Initialize TLB invalidation fence
+ * xe_gt_tlb_inval_fence_init - Initialize TLB invalidation fence
  * @gt: GT
  * @fence: TLB invalidation fence to initialize
  * @stack: fence is stack variable
  *
- * Initialize TLB invalidation fence for use. xe_gt_tlb_invalidation_fence_fini
+ * Initialize TLB invalidation fence for use. xe_gt_tlb_inval_fence_fini
  * will be automatically called when fence is signalled (all fences must signal),
  * even on error.
  */
-void xe_gt_tlb_invalidation_fence_init(struct xe_gt *gt,
-				       struct xe_gt_tlb_invalidation_fence *fence,
-				       bool stack)
+void xe_gt_tlb_inval_fence_init(struct xe_gt *gt,
+				struct xe_gt_tlb_inval_fence *fence,
+				bool stack)
 {
 	xe_pm_runtime_get_noresume(gt_to_xe(gt));
 
-	spin_lock_irq(&gt->tlb_invalidation.lock);
-	dma_fence_init(&fence->base, &invalidation_fence_ops,
-		       &gt->tlb_invalidation.lock,
+	spin_lock_irq(&gt->tlb_inval.lock);
+	dma_fence_init(&fence->base, &inval_fence_ops,
+		       &gt->tlb_inval.lock,
 		       dma_fence_context_alloc(1), 1);
-	spin_unlock_irq(&gt->tlb_invalidation.lock);
+	spin_unlock_irq(&gt->tlb_inval.lock);
 	INIT_LIST_HEAD(&fence->link);
 	if (stack)
 		set_bit(FENCE_STACK_BIT, &fence->base.flags);

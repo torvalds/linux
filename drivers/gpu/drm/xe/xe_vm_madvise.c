@@ -224,7 +224,7 @@ static int xe_vm_invalidate_madvise_range(struct xe_vm *vm, u64 start, u64 end)
 
 	xe_device_wmb(vm->xe);
 
-	return xe_vm_range_tilemask_tlb_invalidation(vm, start, end, tile_mask);
+	return xe_vm_range_tilemask_tlb_inval(vm, start, end, tile_mask);
 }
 
 static bool madvise_args_are_sane(struct xe_device *xe, const struct drm_xe_madvise *args)

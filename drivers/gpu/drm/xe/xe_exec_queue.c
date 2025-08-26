@@ -75,7 +75,7 @@ static int alloc_dep_schedulers(struct xe_device *xe, struct xe_exec_queue *q)
 		if (!gt)
 			continue;
 
-		wq = gt->tlb_invalidation.job_wq;
+		wq = gt->tlb_inval.job_wq;
 
 #define MAX_TLB_INVAL_JOBS	16	/* Picking a reasonable value */
 		dep_scheduler = xe_dep_scheduler_create(xe, wq, q->name,
