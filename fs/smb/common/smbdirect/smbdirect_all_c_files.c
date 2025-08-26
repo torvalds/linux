@@ -16,3 +16,4 @@
 #error SMBDIRECT_USE_INLINE_C_FILES define needed
 #endif
 #include "smbdirect_socket.c"
+#include "smbdirect_connection.c"
