@@ -108,6 +108,7 @@ struct udp_sock {
 	 * the last UDP socket cacheline.
 	 */
 	struct hlist_node	tunnel_list;
+	struct socket_drop_counters drop_counters;
 };
 
 #define udp_test_bit(nr, sk)			\
