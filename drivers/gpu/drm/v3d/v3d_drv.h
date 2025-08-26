@@ -327,9 +327,9 @@ struct v3d_job {
 	struct v3d_perfmon *perfmon;
 
 	/* File descriptor of the process that submitted the job that could be used
-	 * for collecting stats by process of GPU usage.
+	 * to collect per-process information about the GPU.
 	 */
-	struct drm_file *file;
+	struct v3d_file_priv *file_priv;
 
 	/* Callback for the freeing of the job on refcount going to 0. */
 	void (*free)(struct kref *ref);
