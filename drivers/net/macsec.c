@@ -1677,8 +1677,7 @@ static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 	[MACSEC_SA_ATTR_KEY] = { .type = NLA_BINARY,
 				 .len = MACSEC_MAX_KEY_LEN, },
 	[MACSEC_SA_ATTR_SSCI] = { .type = NLA_U32 },
-	[MACSEC_SA_ATTR_SALT] = { .type = NLA_BINARY,
-				  .len = MACSEC_SALT_LEN, },
+	[MACSEC_SA_ATTR_SALT] = NLA_POLICY_EXACT_LEN(MACSEC_SALT_LEN),
 };
 
 static const struct nla_policy macsec_genl_offload_policy[NUM_MACSEC_OFFLOAD_ATTR] = {
@@ -1796,14 +1795,6 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 
 	if (secy->xpn) {
 		if (!tb_sa[MACSEC_SA_ATTR_SSCI] || !tb_sa[MACSEC_SA_ATTR_SALT]) {
-			rtnl_unlock();
-			return -EINVAL;
-		}
-
-		if (nla_len(tb_sa[MACSEC_SA_ATTR_SALT]) != MACSEC_SALT_LEN) {
-			pr_notice("macsec: nl: add_rxsa: bad salt length: %d != %d\n",
-				  nla_len(tb_sa[MACSEC_SA_ATTR_SALT]),
-				  MACSEC_SALT_LEN);
 			rtnl_unlock();
 			return -EINVAL;
 		}
@@ -2026,14 +2017,6 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 
 	if (secy->xpn) {
 		if (!tb_sa[MACSEC_SA_ATTR_SSCI] || !tb_sa[MACSEC_SA_ATTR_SALT]) {
-			rtnl_unlock();
-			return -EINVAL;
-		}
-
-		if (nla_len(tb_sa[MACSEC_SA_ATTR_SALT]) != MACSEC_SALT_LEN) {
-			pr_notice("macsec: nl: add_txsa: bad salt length: %d != %d\n",
-				  nla_len(tb_sa[MACSEC_SA_ATTR_SALT]),
-				  MACSEC_SALT_LEN);
 			rtnl_unlock();
 			return -EINVAL;
 		}
