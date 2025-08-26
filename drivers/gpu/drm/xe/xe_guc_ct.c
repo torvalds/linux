@@ -30,9 +30,9 @@
 #include "xe_guc_log.h"
 #include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
+#include "xe_guc_tlb_inval.h"
 #include "xe_map.h"
 #include "xe_pm.h"
-#include "xe_tlb_inval.h"
 #include "xe_trace_guc.h"
 
 static void receive_g2h(struct xe_guc_ct *ct);
