@@ -426,9 +426,13 @@
 #define B_BE_RDU_CH4_INT_IMR_V1 BIT(29)
 #define B_BE_RDU_CH3_INT_IMR_V1 BIT(28)
 #define B_BE_RDU_CH2_INT_IMR_V1 BIT(27)
+#define B_BE_RDU_CH1_INT_EN_V2 BIT(27)
 #define B_BE_RDU_CH1_INT_IMR_V1 BIT(26)
+#define B_BE_RDU_CH0_INT_EN_V2 BIT(26)
 #define B_BE_RDU_CH0_INT_IMR_V1 BIT(25)
+#define B_BE_RXDMA_STUCK_INT_EN_V2 BIT(25)
 #define B_BE_RXDMA_STUCK_INT_EN_V1 BIT(24)
+#define B_BE_TXDMA_STUCK_INT_EN_V2 BIT(24)
 #define B_BE_TXDMA_STUCK_INT_EN_V1 BIT(23)
 #define B_BE_TXDMA_CH14_INT_EN_V1 BIT(22)
 #define B_BE_TXDMA_CH13_INT_EN_V1 BIT(21)
@@ -459,9 +463,13 @@
 #define B_BE_RDU_CH4_INT_V1 BIT(29)
 #define B_BE_RDU_CH3_INT_V1 BIT(28)
 #define B_BE_RDU_CH2_INT_V1 BIT(27)
+#define B_BE_RDU_CH1_INT_V2 BIT(27)
 #define B_BE_RDU_CH1_INT_V1 BIT(26)
+#define B_BE_RDU_CH0_INT_V2 BIT(26)
 #define B_BE_RDU_CH0_INT_V1 BIT(25)
+#define B_BE_RXDMA_STUCK_INT_V2 BIT(25)
 #define B_BE_RXDMA_STUCK_INT_V1 BIT(24)
+#define B_BE_TXDMA_STUCK_INT_V2 BIT(24)
 #define B_BE_TXDMA_STUCK_INT_V1 BIT(23)
 #define B_BE_TXDMA_CH14_INT_V1 BIT(22)
 #define B_BE_TXDMA_CH13_INT_V1 BIT(21)
@@ -1633,6 +1641,7 @@ extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_dual[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_single[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_isr_def rtw89_pci_isr_ax;
 extern const struct rtw89_pci_isr_def rtw89_pci_isr_be;
+extern const struct rtw89_pci_isr_def rtw89_pci_isr_be_v1;
 extern const struct rtw89_pci_gen_def rtw89_pci_gen_ax;
 extern const struct rtw89_pci_gen_def rtw89_pci_gen_be;
 
@@ -1655,12 +1664,15 @@ void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev);
 void rtw89_pci_config_intr_mask_v1(struct rtw89_dev *rtwdev);
 void rtw89_pci_config_intr_mask_v2(struct rtw89_dev *rtwdev);
+void rtw89_pci_config_intr_mask_v3(struct rtw89_dev *rtwdev);
 void rtw89_pci_enable_intr(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 void rtw89_pci_disable_intr(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 void rtw89_pci_enable_intr_v1(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 void rtw89_pci_disable_intr_v1(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 void rtw89_pci_enable_intr_v2(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 void rtw89_pci_disable_intr_v2(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
+void rtw89_pci_enable_intr_v3(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
+void rtw89_pci_disable_intr_v3(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 void rtw89_pci_recognize_intrs(struct rtw89_dev *rtwdev,
 			       struct rtw89_pci *rtwpci,
 			       struct rtw89_pci_isrs *isrs);
@@ -1668,6 +1680,9 @@ void rtw89_pci_recognize_intrs_v1(struct rtw89_dev *rtwdev,
 				  struct rtw89_pci *rtwpci,
 				  struct rtw89_pci_isrs *isrs);
 void rtw89_pci_recognize_intrs_v2(struct rtw89_dev *rtwdev,
+				  struct rtw89_pci *rtwpci,
+				  struct rtw89_pci_isrs *isrs);
+void rtw89_pci_recognize_intrs_v3(struct rtw89_dev *rtwdev,
 				  struct rtw89_pci *rtwpci,
 				  struct rtw89_pci_isrs *isrs);
 
