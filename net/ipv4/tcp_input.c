@@ -4830,7 +4830,7 @@ static bool tcp_ooo_try_coalesce(struct sock *sk,
 noinline_for_tracing static void
 tcp_drop_reason(struct sock *sk, struct sk_buff *skb, enum skb_drop_reason reason)
 {
-	sk_drops_add(sk, skb);
+	sk_drops_skbadd(sk, skb);
 	sk_skb_reason_drop(sk, skb, reason);
 }
 

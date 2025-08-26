@@ -2682,9 +2682,14 @@ struct sock_skb_cb {
 #define sock_skb_cb_check_size(size) \
 	BUILD_BUG_ON((size) > SOCK_SKB_CB_OFFSET)
 
+static inline void sk_drops_add(struct sock *sk, int segs)
+{
+	atomic_add(segs, &sk->sk_drops);
+}
+
 static inline void sk_drops_inc(struct sock *sk)
 {
-	atomic_inc(&sk->sk_drops);
+	sk_drops_add(sk, 1);
 }
 
 static inline int sk_drops_read(const struct sock *sk)
@@ -2704,11 +2709,11 @@ sock_skb_set_dropcount(const struct sock *sk, struct sk_buff *skb)
 						sk_drops_read(sk) : 0;
 }
 
-static inline void sk_drops_add(struct sock *sk, const struct sk_buff *skb)
+static inline void sk_drops_skbadd(struct sock *sk, const struct sk_buff *skb)
 {
 	int segs = max_t(u16, 1, skb_shinfo(skb)->gso_segs);
 
-	atomic_add(segs, &sk->sk_drops);
+	sk_drops_add(sk, segs);
 }
 
 static inline ktime_t sock_read_timestamp(struct sock *sk)
