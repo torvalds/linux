@@ -1679,7 +1679,7 @@ static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 };
 
 static const struct nla_policy macsec_genl_offload_policy[NUM_MACSEC_OFFLOAD_ATTR] = {
-	[MACSEC_OFFLOAD_ATTR_TYPE] = { .type = NLA_U8 },
+	[MACSEC_OFFLOAD_ATTR_TYPE] = NLA_POLICY_MAX(NLA_U8, MACSEC_OFFLOAD_MAX),
 };
 
 /* Offloads an operation to a device driver */
@@ -3771,7 +3771,7 @@ static const struct nla_policy macsec_rtnl_policy[IFLA_MACSEC_MAX + 1] = {
 	[IFLA_MACSEC_SCB] = { .type = NLA_U8 },
 	[IFLA_MACSEC_REPLAY_PROTECT] = { .type = NLA_U8 },
 	[IFLA_MACSEC_VALIDATION] = { .type = NLA_U8 },
-	[IFLA_MACSEC_OFFLOAD] = { .type = NLA_U8 },
+	[IFLA_MACSEC_OFFLOAD] = NLA_POLICY_MAX(NLA_U8, MACSEC_OFFLOAD_MAX),
 };
 
 static void macsec_free_netdev(struct net_device *dev)
