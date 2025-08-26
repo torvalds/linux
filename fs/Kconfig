@@ -250,7 +250,6 @@ config ARCH_SUPPORTS_HUGETLBFS
 menuconfig HUGETLBFS
 	bool "HugeTLB file system support"
 	depends on ARCH_SUPPORTS_HUGETLBFS
-	depends on (SYSFS || SYSCTL)
 	select MEMFD_CREATE
 	select PADATA if SMP
 	help
