@@ -204,6 +204,11 @@ struct v3d_dev {
 	 * all jobs.
 	 */
 	struct v3d_perfmon *global_perfmon;
+
+	/* Global reset counter. The counter must be incremented when
+	 * a GPU reset happens. It must be protected by @reset_lock.
+	 */
+	unsigned int reset_counter;
 };
 
 static inline struct v3d_dev *
@@ -233,6 +238,12 @@ struct v3d_file_priv {
 
 	/* Stores the GPU stats for a specific queue for this fd. */
 	struct v3d_stats stats[V3D_MAX_QUEUES];
+
+	/* Per-fd reset counter, must be incremented when a job submitted
+	 * by this fd causes a GPU reset. It must be protected by
+	 * &struct v3d_dev->reset_lock.
+	 */
+	unsigned int reset_counter;
 };
 
 struct v3d_bo {

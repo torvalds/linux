@@ -126,28 +126,28 @@ static inline void sharp_memory_set_tx_buffer_addresses(u8 *buffer,
 
 static void sharp_memory_set_tx_buffer_data(u8 *buffer,
 					    struct drm_framebuffer *fb,
+					    const struct iosys_map *vmap,
 					    struct drm_rect clip,
 					    u32 pitch,
 					    struct drm_format_conv_state *fmtcnv_state)
 {
 	int ret;
-	struct iosys_map dst, vmap;
-	struct drm_gem_dma_object *dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
+	struct iosys_map dst;
 
 	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
 	if (ret)
 		return;
 
 	iosys_map_set_vaddr(&dst, buffer);
-	iosys_map_set_vaddr(&vmap, dma_obj->vaddr);
 
-	drm_fb_xrgb8888_to_mono(&dst, &pitch, &vmap, fb, &clip, fmtcnv_state);
+	drm_fb_xrgb8888_to_mono(&dst, &pitch, vmap, fb, &clip, fmtcnv_state);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 }
 
 static int sharp_memory_update_display(struct sharp_memory_device *smd,
 				       struct drm_framebuffer *fb,
+				       const struct iosys_map *vmap,
 				       struct drm_rect clip,
 				       struct drm_format_conv_state *fmtcnv_state)
 {
@@ -163,7 +163,7 @@ static int sharp_memory_update_display(struct sharp_memory_device *smd,
 	sharp_memory_set_tx_buffer_mode(&tx_buffer[0],
 					SHARP_MEMORY_DISPLAY_UPDATE_MODE, vcom);
 	sharp_memory_set_tx_buffer_addresses(&tx_buffer[1], clip, pitch);
-	sharp_memory_set_tx_buffer_data(&tx_buffer[2], fb, clip, pitch, fmtcnv_state);
+	sharp_memory_set_tx_buffer_data(&tx_buffer[2], fb, vmap, clip, pitch, fmtcnv_state);
 
 	ret = sharp_memory_spi_write(smd->spi, tx_buffer, tx_buffer_size);
 
@@ -206,7 +206,8 @@ static int sharp_memory_clear_display(struct sharp_memory_device *smd)
 	return ret;
 }
 
-static void sharp_memory_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect,
+static void sharp_memory_fb_dirty(struct drm_framebuffer *fb, const struct iosys_map *vmap,
+				  struct drm_rect *rect,
 				  struct drm_format_conv_state *fmtconv_state)
 {
 	struct drm_rect clip;
@@ -218,7 +219,7 @@ static void sharp_memory_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *r
 	clip.y1 = rect->y1;
 	clip.y2 = rect->y2;
 
-	sharp_memory_update_display(smd, fb, clip, fmtconv_state);
+	sharp_memory_update_display(smd, fb, vmap, clip, fmtconv_state);
 }
 
 static int sharp_memory_plane_atomic_check(struct drm_plane *plane,
@@ -242,7 +243,7 @@ static void sharp_memory_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_plane_state *plane_state = plane->state;
-	struct drm_format_conv_state fmtcnv_state = DRM_FORMAT_CONV_STATE_INIT;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct sharp_memory_device *smd;
 	struct drm_rect rect;
 
@@ -251,15 +252,15 @@ static void sharp_memory_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, plane_state, &rect))
-		sharp_memory_fb_dirty(plane_state->fb, &rect, &fmtcnv_state);
-
-	drm_format_conv_state_release(&fmtcnv_state);
+		sharp_memory_fb_dirty(plane_state->fb, shadow_plane_state->data,
+				      &rect, &shadow_plane_state->fmtcnv_state);
 }
 
 static const struct drm_plane_helper_funcs sharp_memory_plane_helper_funcs = {
 	.prepare_fb = drm_gem_plane_helper_prepare_fb,
 	.atomic_check = sharp_memory_plane_atomic_check,
 	.atomic_update = sharp_memory_plane_atomic_update,
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 };
 
 static bool sharp_memory_format_mod_supported(struct drm_plane *plane,
@@ -273,9 +274,7 @@ static const struct drm_plane_funcs sharp_memory_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
-	.reset = drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
 	.format_mod_supported = sharp_memory_format_mod_supported,
 };
 

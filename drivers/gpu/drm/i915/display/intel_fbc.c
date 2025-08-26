@@ -552,10 +552,6 @@ static void ilk_fbc_deactivate(struct intel_fbc *fbc)
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
 		intel_de_write(display, ILK_DPFC_CONTROL(fbc->id), dpfc_ctl);
-
-		/* wa_18038517565 Enable DPFC clock gating after FBC disable */
-		if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
-			fbc_compressor_clkgate_disable_wa(fbc, false);
 	}
 }
 
@@ -1709,6 +1705,10 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	intel_fbc_invalidate_dirty_rect(fbc);
 
 	__intel_fbc_cleanup_cfb(fbc);
+
+	/* wa_18038517565 Enable DPFC clock gating after FBC disable */
+	if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
+		fbc_compressor_clkgate_disable_wa(fbc, false);
 
 	fbc->state.plane = NULL;
 	fbc->flip_pending = false;

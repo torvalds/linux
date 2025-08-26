@@ -401,10 +401,12 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 
 	while (index <= end_index) {
 		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
-		index++;
-		if (IS_ERR(folio))
+		if (IS_ERR(folio)) {
+			index++;
 			continue;
+		}
 
+		index = folio_end(folio) >> PAGE_SHIFT;
 		/*
 		 * Here we just clear all Ordered bits for every page in the
 		 * range, then btrfs_mark_ordered_io_finished() will handle
@@ -2013,7 +2015,7 @@ static int nocow_one_range(struct btrfs_inode *inode, struct folio *locked_folio
 	 * cleaered by the caller.
 	 */
 	if (ret < 0)
-		btrfs_cleanup_ordered_extents(inode, file_pos, end);
+		btrfs_cleanup_ordered_extents(inode, file_pos, len);
 	return ret;
 }
 
