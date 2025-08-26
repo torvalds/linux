@@ -75,6 +75,8 @@
  *
  *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
  *
+ * This attribute can only be set before binding to the device.
+ *
  * Allowed engines:
  * ----------------
  *
@@ -99,6 +101,8 @@
  * available for migrations, but it's disabled. This is intended for debugging
  * purposes only.
  *
+ * This attribute can only be set before binding to the device.
+ *
  * PSMI
  * ----
  *
@@ -108,6 +112,8 @@
  * done via debugfs. Example to enable it::
  *
  *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/enable_psmi
+ *
+ * This attribute can only be set before binding to the device.
  *
  * Remove devices
  * ==============
@@ -169,6 +175,32 @@ static struct xe_config_device *to_xe_config_device(struct config_item *item)
 	return &to_xe_config_group_device(item)->config;
 }
 
+static bool is_bound(struct xe_config_group_device *dev)
+{
+	unsigned int domain, bus, slot, function;
+	struct pci_dev *pdev;
+	const char *name;
+	bool ret;
+
+	lockdep_assert_held(&dev->lock);
+
+	name = dev->group.cg_item.ci_name;
+	if (sscanf(name, "%x:%x:%x.%x", &domain, &bus, &slot, &function) != 4)
+		return false;
+
+	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
+	if (!pdev)
+		return false;
+
+	ret = pci_get_drvdata(pdev);
+	pci_dev_put(pdev);
+
+	if (ret)
+		pci_dbg(pdev, "Already bound to driver\n");
+
+	return ret;
+}
+
 static ssize_t survivability_mode_show(struct config_item *item, char *page)
 {
 	struct xe_config_device *dev = to_xe_config_device(item);
@@ -187,6 +219,9 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 		return ret;
 
 	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
 	dev->config.survivability_mode = survivability_mode;
 
 	return len;
@@ -270,6 +305,9 @@ static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 	}
 
 	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
 	dev->config.engines_allowed = val;
 
 	return len;
@@ -293,6 +331,9 @@ static ssize_t enable_psmi_store(struct config_item *item, const char *page, siz
 		return ret;
 
 	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
 	dev->config.enable_psmi = val;
 
 	return len;
