@@ -454,7 +454,7 @@ static int tascam_probe(struct usb_interface *intf,
 	}
 
 	if (handshake_buf[0] != 0x12 && handshake_buf[0] != 0x16 &&
-	    handshake_buf[0] != 0x30) {
+	    handshake_buf[0] != 0x30 && handshake_buf[0] != 0x32) {
 		dev_err(&dev->dev, "Unexpected handshake value: 0x%x\n",
 			handshake_buf[0]);
 		return -ENODEV;

@@ -257,7 +257,7 @@ static void tascam_midi_out_work_handler(struct work_struct *work)
 			if (bytes_to_send < 9)
 				memset(buf + bytes_to_send, 0xfd,
 				       9 - bytes_to_send);
-			buf[8] = 0x00;
+			buf[8] = 0xe0;
 
 			set_bit(urb_index, &tascam->midi_out_urbs_in_flight);
 			urb->transfer_buffer_length = 9;
