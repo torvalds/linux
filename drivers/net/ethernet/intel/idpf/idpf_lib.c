@@ -1142,7 +1142,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	if (!vport)
 		return vport;
 
-	num_max_q = max(max_q->max_txq, max_q->max_rxq);
+	num_max_q = max(max_q->max_txq, max_q->max_rxq) + IDPF_RESERVED_VECS;
 	if (!adapter->vport_config[idx]) {
 		struct idpf_vport_config *vport_config;
 		struct idpf_q_coalesce *q_coal;
