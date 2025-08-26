@@ -551,11 +551,6 @@ void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
 	if (WARN_ON(!vif))
 		return;
 
-	mld->trans->dbg.dump_file_name_ext_valid = true;
-	snprintf(mld->trans->dbg.dump_file_name_ext, IWL_FW_INI_MAX_NAME,
-		 "LinkId_%d_MacType_%d", fw_link_id,
-		 iwl_mld_mac80211_iftype_to_fw(vif));
-
 	iwl_dbg_tlv_time_point(&mld->fwrt,
 			       IWL_FW_INI_TIME_POINT_MISSED_BEACONS, &tp_data);
 

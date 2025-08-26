@@ -1619,10 +1619,6 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_INFO(mvm, "missed beacon mac_type=%u,\n", mac_type);
 
-	mvm->trans->dbg.dump_file_name_ext_valid = true;
-	snprintf(mvm->trans->dbg.dump_file_name_ext, IWL_FW_INI_MAX_NAME,
-		 "MacId_%d_MacType_%d", id, mac_type);
-
 	rx_missed_bcon = le32_to_cpu(mb->consec_missed_beacons);
 	rx_missed_bcon_since_rx =
 		le32_to_cpu(mb->consec_missed_beacons_since_last_rx);

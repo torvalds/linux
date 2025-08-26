@@ -658,8 +658,6 @@ struct iwl_pc_data {
  * @restart_required: indicates debug restart is required
  * @last_tp_resetfw: last handling of reset during debug timepoint
  * @imr_data: IMR debug data allocation
- * @dump_file_name_ext: dump file name extension
- * @dump_file_name_ext_valid: dump file name extension if valid or not
  * @num_pc: number of program counter for cpu
  * @pc_data: details of the program counter
  * @yoyo_bin_loaded: tells if a yoyo debug file has been loaded
@@ -698,8 +696,6 @@ struct iwl_trans_debug {
 	bool restart_required;
 	u32 last_tp_resetfw;
 	struct iwl_imr_data imr_data;
-	u8 dump_file_name_ext[IWL_FW_INI_MAX_NAME];
-	bool dump_file_name_ext_valid;
 	u32 num_pc;
 	struct iwl_pc_data *pc_data;
 	bool yoyo_bin_loaded;
