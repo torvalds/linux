@@ -7491,8 +7491,6 @@ again:
 			ret = PTR_ERR(wc.root);
 			wc.root = NULL;
 			if (ret != -ENOENT) {
-				btrfs_put_root(wc.log);
-				wc.log = NULL;
 				btrfs_abort_transaction(trans, ret);
 				goto error;
 			}
@@ -7510,8 +7508,6 @@ again:
 			 */
 			ret = btrfs_pin_extent_for_log_replay(trans, wc.log->node);
 			if (ret) {
-				btrfs_put_root(wc.log);
-				wc.log = NULL;
 				btrfs_abort_transaction(trans, ret);
 				goto error;
 			}
@@ -7597,6 +7593,7 @@ next:
 error:
 	if (wc.trans)
 		btrfs_end_transaction(wc.trans);
+	btrfs_put_root(wc.log);
 	clear_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 	btrfs_free_path(path);
 	return ret;
