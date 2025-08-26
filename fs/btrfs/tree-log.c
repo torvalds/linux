@@ -2779,11 +2779,11 @@ static int clean_log_buffer(struct btrfs_trans_handle *trans,
 }
 
 static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
-				   struct btrfs_root *root,
+				   struct btrfs_root *log,
 				   struct btrfs_path *path, int *level,
 				   struct walk_control *wc)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = log->fs_info;
 	u64 bytenr;
 	u64 ptr_gen;
 	struct extent_buffer *next;
@@ -2821,8 +2821,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		}
 
 		if (*level == 1) {
-			ret = wc->process_func(root, next, wc, ptr_gen,
-					       *level - 1);
+			ret = wc->process_func(log, next, wc, ptr_gen, *level - 1);
 			if (ret) {
 				free_extent_buffer(next);
 				return ret;
@@ -2873,7 +2872,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 }
 
 static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
+				 struct btrfs_root *log,
 				 struct btrfs_path *path, int *level,
 				 struct walk_control *wc)
 {
@@ -2889,7 +2888,7 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 			WARN_ON(*level == 0);
 			return 0;
 		} else {
-			ret = wc->process_func(root, path->nodes[*level], wc,
+			ret = wc->process_func(log, path->nodes[*level], wc,
 				 btrfs_header_generation(path->nodes[*level]),
 				 *level);
 			if (ret)
