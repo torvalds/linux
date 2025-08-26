@@ -41,18 +41,17 @@
 	if ((sleep_before_op) && __sleep_us) \
 		usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
 	for (;;) { \
+		bool __expired = __timeout_us && \
+			ktime_compare(ktime_get(), __timeout) > 0; \
+		/* guarantee 'op' and 'cond' are evaluated after timeout expired */ \
+		barrier(); \
 		op; \
 		if (cond) { \
 			___ret = 0; \
 			break; \
 		} \
-		if (__timeout_us && \
-		    ktime_compare(ktime_get(), __timeout) > 0) { \
-			op; \
-			if (cond) \
-				___ret = 0; \
-			else \
-				___ret = -ETIMEDOUT; \
+		if (__expired) { \
+			___ret = -ETIMEDOUT; \
 			break; \
 		} \
 		if (__sleep_us) \
@@ -97,17 +96,16 @@
 			__left_ns -= __delay_ns; \
 	} \
 	for (;;) { \
+		bool __expired = __timeout_us && __left_ns < 0; \
+		/* guarantee 'op' and 'cond' are evaluated after timeout expired */ \
+		barrier(); \
 		op; \
 		if (cond) { \
 			___ret = 0; \
 			break; \
 		} \
-		if (__timeout_us && __left_ns < 0) { \
-			op; \
-			if (cond) \
-				___ret = 0; \
-			else \
-				___ret = -ETIMEDOUT; \
+		if (__expired) { \
+			___ret = -ETIMEDOUT; \
 			break; \
 		} \
 		if (__delay_us) { \
