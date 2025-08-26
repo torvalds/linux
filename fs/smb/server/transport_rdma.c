@@ -21,8 +21,6 @@
 #include <rdma/rdma_cm.h>
 #include <rdma/rw.h>
 
-#define __SMBDIRECT_SOCKET_DISCONNECT(__sc) smb_direct_disconnect_rdma_connection(__sc)
-
 #include "glob.h"
 #include "connection.h"
 #include "smb_common.h"
@@ -31,8 +29,6 @@
 #include "../common/smbdirect/smbdirect_pdu.h"
 #include "../common/smbdirect/smbdirect_socket.h"
 #include "transport_rdma.h"
-
-static void smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc);
 
 /*
  * This is a temporary solution until all code
@@ -298,75 +294,6 @@ static struct smbdirect_recv_io *get_first_reassembly(struct smbdirect_socket *s
 		return NULL;
 }
 
-static void
-smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
-{
-	if (sc->first_error == 0)
-		sc->first_error = -ECONNABORTED;
-
-	/*
-	 * make sure other work (than disconnect_work) is
-	 * not queued again but here we don't block and avoid
-	 * disable[_delayed]_work_sync()
-	 */
-	disable_work(&sc->connect.work);
-	disable_work(&sc->recv_io.posted.refill_work);
-	disable_work(&sc->idle.immediate_work);
-	disable_delayed_work(&sc->idle.timer_work);
-
-	switch (sc->status) {
-	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
-	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED:
-	case SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED:
-	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
-	case SMBDIRECT_SOCKET_ERROR:
-	case SMBDIRECT_SOCKET_DISCONNECTING:
-	case SMBDIRECT_SOCKET_DISCONNECTED:
-	case SMBDIRECT_SOCKET_DESTROYED:
-		/*
-		 * Keep the current error status
-		 */
-		break;
-
-	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
-	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_NEEDED:
-	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED:
-	case SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
-	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_CREATED:
-	case SMBDIRECT_SOCKET_LISTENING:
-		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		break;
-
-	case SMBDIRECT_SOCKET_CONNECTED:
-		sc->status = SMBDIRECT_SOCKET_ERROR;
-		break;
-	}
-
-	/*
-	 * Wake up all waiters in all wait queues
-	 * in order to notice the broken connection.
-	 */
-	smbdirect_socket_wake_up_all(sc);
-
-	queue_work(sc->workqueue, &sc->disconnect_work);
-}
-
 static void smb_direct_send_immediate_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -385,7 +312,7 @@ static void smb_direct_idle_connection_timer(struct work_struct *work)
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 
 	if (sc->idle.keepalive != SMBDIRECT_KEEPALIVE_NONE) {
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ETIMEDOUT);
 		return;
 	}
 
@@ -635,7 +562,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			pr_err("Recv error. status='%s (%d)' opcode=%d\n",
 			       ib_wc_status_msg(wc->status), wc->status,
 			       wc->opcode);
-			smb_direct_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		}
 		return;
 	}
@@ -669,7 +596,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (wc->byte_len <
 		    offsetof(struct smbdirect_data_transfer, padding)) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 			return;
 		}
 
@@ -679,7 +606,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (wc->byte_len < data_offset ||
 		    wc->byte_len < (u64)data_offset + data_length) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 			return;
 		}
 		if (remaining_data_length > sp->max_fragmented_recv_size ||
@@ -687,7 +614,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		    (u64)remaining_data_length + (u64)data_length >
 		    (u64)sp->max_fragmented_recv_size) {
 			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 			return;
 		}
 
@@ -743,7 +670,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
 	put_recvmsg(sc, recvmsg);
-	smb_direct_disconnect_rdma_connection(sc);
+	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 }
 
 static void smb_direct_negotiate_recv_work(struct work_struct *work);
@@ -766,7 +693,7 @@ static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			pr_err("Negotiate Recv error. status='%s (%d)' opcode=%d\n",
 			       ib_wc_status_msg(wc->status), wc->status,
 			       wc->opcode);
-			smb_direct_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		}
 		return;
 	}
@@ -785,7 +712,7 @@ static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	if (WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_NEGOTIATE_REQ)) {
 		put_recvmsg(sc, recv_io);
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 
@@ -854,12 +781,12 @@ static void smb_direct_negotiate_recv_work(struct work_struct *work)
 	 */
 	recv_io = get_first_reassembly(sc);
 	if (!recv_io) {
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 
 	if (SMBDIRECT_CHECK_STATUS_WARN(sc, SMBDIRECT_SOCKET_NEGOTIATE_NEEDED)) {
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
@@ -895,7 +822,7 @@ static int smb_direct_post_recv(struct smbdirect_socket *sc,
 				    recvmsg->sge.addr, recvmsg->sge.length,
 				    DMA_FROM_DEVICE);
 		recvmsg->sge.length = 0;
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, ret);
 		return ret;
 	}
 	return ret;
@@ -1098,7 +1025,7 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 		 */
 		pr_err("unexpected send completion wc->status=%s (%d) wc->opcode=%d\n",
 		       ib_wc_status_msg(wc->status), wc->status, wc->opcode);
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 
@@ -1119,7 +1046,7 @@ skip_free:
 		pr_err("Send error. status='%s (%d)', opcode=%d\n",
 		       ib_wc_status_msg(wc->status), wc->status,
 		       wc->opcode);
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 
@@ -1193,7 +1120,7 @@ static int smb_direct_post_send(struct smbdirect_socket *sc,
 	ret = ib_post_send(sc->ib.qp, wr, NULL);
 	if (ret) {
 		pr_err("failed to post send: %d\n", ret);
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, ret);
 	}
 	return ret;
 }
@@ -1791,7 +1718,7 @@ static void read_write_done(struct ib_cq *cq, struct ib_wc *wc,
 		pr_err("read/write error. opcode = %d, status = %s(%d)\n",
 		       wc->opcode, ib_wc_status_msg(wc->status), wc->status);
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			smb_direct_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, msg->error);
 	}
 
 	complete(msg->completion);
@@ -2045,7 +1972,7 @@ static void smb_direct_qpair_handler(struct ib_event *event, void *context)
 	switch (event->event) {
 	case IB_EVENT_CQ_ERR:
 	case IB_EVENT_QP_FATAL:
-		smb_direct_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		break;
 	default:
 		break;
