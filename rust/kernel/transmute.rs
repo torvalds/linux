@@ -79,6 +79,24 @@ pub unsafe trait FromBytes {
             None
         }
     }
+
+    /// Creates an owned instance of `Self` by copying `bytes`.
+    ///
+    /// Unlike [`FromBytes::from_bytes`], which requires aligned input, this method can be used on
+    /// non-aligned data at the cost of a copy.
+    fn from_bytes_copy(bytes: &[u8]) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        if bytes.len() == size_of::<Self>() {
+            // SAFETY: we just verified that `bytes` has the same size as `Self`, and per the
+            // invariants of `FromBytes`, any byte sequence of the correct length is a valid value
+            // for `Self`.
+            Some(unsafe { core::ptr::read_unaligned(bytes.as_ptr().cast::<Self>()) })
+        } else {
+            None
+        }
+    }
 }
 
 macro_rules! impl_frombytes {
