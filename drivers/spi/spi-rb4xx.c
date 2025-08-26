@@ -199,7 +199,7 @@ static struct platform_driver rb4xx_spi_drv = {
 	.remove = rb4xx_spi_remove,
 	.driver = {
 		.name = "rb4xx-spi",
-		.of_match_table = of_match_ptr(rb4xx_spi_dt_match),
+		.of_match_table = rb4xx_spi_dt_match,
 	},
 };
 

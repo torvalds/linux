@@ -917,6 +917,7 @@ config SPI_ROCKCHIP_SFC
 config SPI_RB4XX
 	tristate "Mikrotik RB4XX SPI master"
 	depends on SPI_MASTER && ATH79
+	depends on OF
 	help
 	  SPI controller driver for the Mikrotik RB4xx series boards.
 
