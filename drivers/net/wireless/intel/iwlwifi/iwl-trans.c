@@ -510,12 +510,11 @@ int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset)
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_suspend);
 
-int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
-			bool reset)
+int iwl_trans_d3_resume(struct iwl_trans *trans, bool reset)
 {
 	might_sleep();
 
-	return iwl_trans_pcie_d3_resume(trans, status, reset);
+	return iwl_trans_pcie_d3_resume(trans, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_resume);
 

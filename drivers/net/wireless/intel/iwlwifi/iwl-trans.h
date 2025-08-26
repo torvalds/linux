@@ -275,16 +275,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 #define IWL_9000_MAX_RX_HW_QUEUES	1
 
 /**
- * enum iwl_d3_status - WoWLAN image/device status
- * @IWL_D3_STATUS_ALIVE: firmware is still running after resume
- * @IWL_D3_STATUS_RESET: device was reset while suspended
- */
-enum iwl_d3_status {
-	IWL_D3_STATUS_ALIVE,
-	IWL_D3_STATUS_RESET,
-};
-
-/**
  * enum iwl_trans_status: transport status flags
  * @STATUS_SYNC_HCMD_ACTIVE: a SYNC command is being processed
  * @STATUS_DEVICE_ENABLED: APM is enabled
@@ -951,8 +941,7 @@ void iwl_trans_stop_device(struct iwl_trans *trans);
 
 int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset);
 
-int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
-			bool reset);
+int iwl_trans_d3_resume(struct iwl_trans *trans, bool reset);
 
 struct iwl_trans_dump_data *
 iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,

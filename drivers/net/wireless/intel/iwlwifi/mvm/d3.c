@@ -2984,7 +2984,6 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm)
 {
 	int ret;
-	enum iwl_d3_status d3_status;
 	struct iwl_host_cmd cmd = {
 		.id = D0I3_END_CMD,
 		.flags = CMD_WANT_SKB,
@@ -2992,14 +2991,9 @@ static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm)
 	bool reset = fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
-	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, !reset);
+	ret = iwl_trans_d3_resume(mvm->trans, !reset);
 	if (ret)
 		return ret;
-
-	if (d3_status != IWL_D3_STATUS_ALIVE) {
-		IWL_INFO(mvm, "Device was reset during suspend\n");
-		return -ENOENT;
-	}
 
 	/*
 	 * We should trigger resume flow using command only for 22000 family

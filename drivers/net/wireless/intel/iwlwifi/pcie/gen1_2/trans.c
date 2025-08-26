@@ -1530,7 +1530,6 @@ int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool reset)
 }
 
 int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
-			     enum iwl_d3_status *status,
 			     bool reset)
 {
 	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1545,8 +1544,11 @@ int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 			    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	ret = iwl_finish_nic_init(trans);
-	if (ret)
+	if (ret) {
+		IWL_ERR(trans, "Failed to init nic upon resume. err = %d\n",
+			ret);
 		return ret;
+	}
 
 	/*
 	 * Reconfigure IVAR table in case of MSIX or reset ict table in
@@ -1581,14 +1583,12 @@ int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 
 	val = iwl_read32(trans, CSR_RESET);
 	if (val & CSR_RESET_REG_FLAG_NEVO_RESET) {
-		*status = IWL_D3_STATUS_RESET;
+		IWL_INFO(trans, "Device was reset during suspend\n");
 		trans->state = IWL_TRANS_NO_FW;
-	} else {
-		*status = IWL_D3_STATUS_ALIVE;
-		return iwl_pcie_d3_handshake(trans, false);
+		return -ENOENT;
 	}
 
-	return 0;
+	return iwl_pcie_d3_handshake(trans, false);
 }
 
 static void

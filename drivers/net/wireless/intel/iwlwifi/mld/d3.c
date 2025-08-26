@@ -1195,7 +1195,6 @@ static int iwl_mld_wait_d3_notif(struct iwl_mld *mld,
 		WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION)
 	};
 	struct iwl_notification_wait wait_d3_notif;
-	enum iwl_d3_status d3_status;
 	int ret;
 
 	if (with_wowlan)
@@ -1211,14 +1210,8 @@ static int iwl_mld_wait_d3_notif(struct iwl_mld *mld,
 					   iwl_mld_handle_d3_notif,
 					   resume_data);
 
-	ret = iwl_trans_d3_resume(mld->trans, &d3_status, false);
-	if (ret || d3_status != IWL_D3_STATUS_ALIVE) {
-		if (d3_status != IWL_D3_STATUS_ALIVE) {
-			IWL_INFO(mld, "Device was reset during suspend\n");
-			ret = -ENOENT;
-		} else {
-			IWL_ERR(mld, "Transport resume failed\n");
-		}
+	ret = iwl_trans_d3_resume(mld->trans, false);
+	if (ret) {
 		iwl_remove_notification(&mld->notif_wait, &wait_d3_notif);
 		return ret;
 	}
