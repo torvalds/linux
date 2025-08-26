@@ -877,16 +877,15 @@ static bool dapm_kcontrol_set_value(const struct snd_kcontrol *kcontrol,
 }
 
 /**
- * snd_soc_dapm_kcontrol_widget() - Returns the widget associated to a
+ * snd_soc_dapm_kcontrol_to_widget() - Returns the widget associated to a
  *   kcontrol
  * @kcontrol: The kcontrol
  */
-struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_widget(
-				struct snd_kcontrol *kcontrol)
+struct snd_soc_dapm_widget *snd_soc_dapm_kcontrol_to_widget(struct snd_kcontrol *kcontrol)
 {
 	return dapm_kcontrol_get_wlist(kcontrol)->widgets[0];
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_widget);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_to_widget);
 
 /**
  * snd_soc_dapm_kcontrol_dapm() - Returns the dapm context associated to a
