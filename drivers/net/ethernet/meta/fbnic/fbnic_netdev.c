@@ -179,11 +179,10 @@ static int fbnic_mc_unsync(struct net_device *netdev, const unsigned char *addr)
 	return ret;
 }
 
-void __fbnic_set_rx_mode(struct net_device *netdev)
+void __fbnic_set_rx_mode(struct fbnic_dev *fbd)
 {
-	struct fbnic_net *fbn = netdev_priv(netdev);
 	bool uc_promisc = false, mc_promisc = false;
-	struct fbnic_dev *fbd = fbn->fbd;
+	struct net_device *netdev = fbd->netdev;
 	struct fbnic_mac_addr *mac_addr;
 	int err;
 
@@ -237,9 +236,12 @@ void __fbnic_set_rx_mode(struct net_device *netdev)
 
 static void fbnic_set_rx_mode(struct net_device *netdev)
 {
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
+
 	/* No need to update the hardware if we are not running */
 	if (netif_running(netdev))
-		__fbnic_set_rx_mode(netdev);
+		__fbnic_set_rx_mode(fbd);
 }
 
 static int fbnic_set_mac(struct net_device *netdev, void *p)
@@ -256,10 +258,9 @@ static int fbnic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-void fbnic_clear_rx_mode(struct net_device *netdev)
+void fbnic_clear_rx_mode(struct fbnic_dev *fbd)
 {
-	struct fbnic_net *fbn = netdev_priv(netdev);
-	struct fbnic_dev *fbd = fbn->fbd;
+	struct net_device *netdev = fbd->netdev;
 	int idx;
 
 	for (idx = ARRAY_SIZE(fbd->mac_addr); idx--;) {
