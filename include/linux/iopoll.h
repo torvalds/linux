@@ -36,23 +36,30 @@
 	u64 __timeout_us = (timeout_us); \
 	unsigned long __sleep_us = (sleep_us); \
 	ktime_t __timeout = ktime_add_us(ktime_get(), __timeout_us); \
+	int ___ret; \
 	might_sleep_if((__sleep_us) != 0); \
 	if ((sleep_before_op) && __sleep_us) \
 		usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
 	for (;;) { \
 		op; \
-		if (cond) \
+		if (cond) { \
+			___ret = 0; \
 			break; \
+		} \
 		if (__timeout_us && \
 		    ktime_compare(ktime_get(), __timeout) > 0) { \
 			op; \
+			if (cond) \
+				___ret = 0; \
+			else \
+				___ret = -ETIMEDOUT; \
 			break; \
 		} \
 		if (__sleep_us) \
 			usleep_range((__sleep_us >> 2) + 1, __sleep_us); \
 		cpu_relax(); \
 	} \
-	(cond) ? 0 : -ETIMEDOUT; \
+	___ret; \
 })
 
 /**
@@ -83,6 +90,7 @@
 	s64 __left_ns = __timeout_us * NSEC_PER_USEC; \
 	unsigned long __delay_us = (delay_us); \
 	u64 __delay_ns = __delay_us * NSEC_PER_USEC; \
+	int ___ret; \
 	if ((delay_before_op) && __delay_us) { \
 		udelay(__delay_us); \
 		if (__timeout_us) \
@@ -90,10 +98,16 @@
 	} \
 	for (;;) { \
 		op; \
-		if (cond) \
+		if (cond) { \
+			___ret = 0; \
 			break; \
+		} \
 		if (__timeout_us && __left_ns < 0) { \
 			op; \
+			if (cond) \
+				___ret = 0; \
+			else \
+				___ret = -ETIMEDOUT; \
 			break; \
 		} \
 		if (__delay_us) { \
@@ -105,7 +119,7 @@
 		if (__timeout_us) \
 			__left_ns--; \
 	} \
-	(cond) ? 0 : -ETIMEDOUT; \
+	___ret; \
 })
 
 /**
