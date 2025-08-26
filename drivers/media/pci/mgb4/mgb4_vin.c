@@ -610,8 +610,7 @@ static int vidioc_s_dv_timings(struct file *file, void *fh,
 	    timings->bt.height < video_timings_cap.bt.min_height ||
 	    timings->bt.height > video_timings_cap.bt.max_height)
 		return -EINVAL;
-	if (timings->bt.width == vindev->timings.bt.width &&
-	    timings->bt.height == vindev->timings.bt.height)
+	if (v4l2_match_dv_timings(timings, &vindev->timings, 0, false))
 		return 0;
 	if (vb2_is_busy(&vindev->queue))
 		return -EBUSY;
