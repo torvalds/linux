@@ -20847,8 +20847,8 @@ S:	Maintained
 F:	drivers/firmware/qcom/qcom_qseecom_uefisecapp.c
 
 QUALCOMM RMNET DRIVER
-M:	Subash Abhinov Kasiviswanathan <quic_subashab@quicinc.com>
-M:	Sean Tranchetti <quic_stranche@quicinc.com>
+M:	Subash Abhinov Kasiviswanathan <subash.a.kasiviswanathan@oss.qualcomm.com>
+M:	Sean Tranchetti <sean.tranchetti@oss.qualcomm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst
