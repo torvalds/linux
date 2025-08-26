@@ -3080,14 +3080,12 @@ static struct file *open_detached_copy(struct path *path, bool recursive)
 		return ERR_CAST(mnt);
 	}
 
-	lock_mount_hash();
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		mnt_add_to_ns(ns, p);
 		ns->nr_mounts++;
 	}
 	ns->root = mnt;
 	mntget(&mnt->mnt);
-	unlock_mount_hash();
 	namespace_unlock();
 
 	mntput(path->mnt);
