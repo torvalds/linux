@@ -38,6 +38,7 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.rx_ring_eq_is_full	= false,
 	.check_rx_tag		= false,
 	.no_rxbd_fs		= false,
+	.group_bd_addr		= false,
 
 	.init_cfg_reg		= R_AX_HAXI_INIT_CFG1,
 	.txhci_en_bit		= B_AX_TXHCI_EN_V1,

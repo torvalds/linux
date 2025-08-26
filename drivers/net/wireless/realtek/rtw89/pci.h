@@ -808,8 +808,24 @@
 #define R_BE_CH13_TXBD_NUM_V1 0xB04C
 #define R_BE_CH14_TXBD_NUM_V1 0xB04E
 
+#define R_BE_CH0_TXBD_CFG 0xB030
+#define R_BE_CH2_TXBD_CFG 0xB034
+#define R_BE_CH4_TXBD_CFG 0xB038
+#define R_BE_CH6_TXBD_CFG 0xB03C
+#define R_BE_CH8_TXBD_CFG 0xB040
+#define R_BE_CH10_TXBD_CFG 0xB044
+#define R_BE_CH12_TXBD_CFG 0xB048
+#define B_BE_TX_FLAG BIT(14)
+#define B_BE_TX_START_OFFSET_MASK GENMASK(12, 4)
+#define B_BE_TX_NUM_SEL_MASK GENMASK(2, 0)
+
 #define R_BE_RXQ0_RXBD_NUM_V1 0xB050
 #define R_BE_RPQ0_RXBD_NUM_V1 0xB052
+
+#define R_BE_RX_CH0_RXBD_CONFIG 0xB050
+#define R_BE_RX_CH1_RXBD_CONFIG 0xB052
+#define B_BE_RX_START_OFFSET_MASK GENMASK(11, 4)
+#define B_BE_RX_NUM_SEL_MASK GENMASK(2, 0)
 
 #define R_BE_CH0_TXBD_IDX_V1 0xB100
 #define R_BE_CH1_TXBD_IDX_V1 0xB104
@@ -861,10 +877,24 @@
 #define R_BE_CH14_TXBD_DESA_L_V1 0xB270
 #define R_BE_CH14_TXBD_DESA_H_V1 0xB274
 
+#define R_BE_ACQ_TXBD_DESA_L 0xB200
+#define B_BE_TX_ACQ_DESA_L_MASK GENMASK(31, 3)
+#define R_BE_ACQ_TXBD_DESA_H 0xB204
+#define B_BE_TX_ACQ_DESA_H_MASK GENMASK(7, 0)
+#define R_BE_NACQ_TXBD_DESA_L 0xB240
+#define B_BE_TX_NACQ_DESA_L_MASK GENMASK(31, 3)
+#define R_BE_NACQ_TXBD_DESA_H 0xB244
+#define B_BE_TX_NACQ_DESA_H_MASK GENMASK(7, 0)
+
 #define R_BE_RXQ0_RXBD_DESA_L_V1 0xB300
 #define R_BE_RXQ0_RXBD_DESA_H_V1 0xB304
 #define R_BE_RPQ0_RXBD_DESA_L_V1 0xB308
 #define R_BE_RPQ0_RXBD_DESA_H_V1 0xB30C
+
+#define R_BE_HOST0_RXBD_DESA_L 0xB300
+#define B_BE_RX_HOST0_DESA_L_MASK GENMASK(31, 3)
+#define R_BE_HOST0_RXBD_DESA_H 0xB304
+#define B_BE_RX_HOST0_DESA_H_MASK GENMASK(7, 0)
 
 #define R_BE_WP_ADDR_H_SEL0_3_V1 0xB420
 #define R_BE_WP_ADDR_H_SEL4_7_V1 0xB424
@@ -1273,7 +1303,7 @@ struct rtw89_pci_bd_idx_addr {
 };
 
 struct rtw89_pci_ch_dma_addr {
-	u32 num;
+	u32 num; /* also `offset` addr for group_bd_addr design */
 	u32 idx;
 	u32 bdram;
 	u32 desa_l;
@@ -1355,6 +1385,7 @@ struct rtw89_pci_info {
 	bool rx_ring_eq_is_full;
 	bool check_rx_tag;
 	bool no_rxbd_fs;
+	bool group_bd_addr;
 
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
@@ -1669,6 +1700,7 @@ extern const struct pci_error_handlers rtw89_pci_err_handler;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be;
+extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be_v1;
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_dual[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_single[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_isr_def rtw89_pci_isr_ax;
