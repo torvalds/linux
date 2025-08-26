@@ -422,20 +422,14 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 {
 	struct smb_direct_transport *t;
 	struct smbdirect_socket *sc;
+	struct smbdirect_socket_parameters init_params = {};
 	struct smbdirect_socket_parameters *sp;
 	struct ksmbd_conn *conn;
 
-	t = kzalloc_obj(*t, KSMBD_DEFAULT_GFP);
-	if (!t)
-		return NULL;
-	sc = &t->socket;
-	smbdirect_socket_init(sc);
-	sp = &sc->parameters;
-
-	sc->workqueue = smb_direct_wq;
-
-	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
-
+	/*
+	 * Create the initial parameters
+	 */
+	sp = &init_params;
 	sp->negotiate_timeout_msec = SMB_DIRECT_NEGOTIATE_TIMEOUT * 1000;
 	sp->initiator_depth = SMB_DIRECT_CM_INITIATOR_DEPTH;
 	sp->responder_resources = 1;
@@ -447,6 +441,18 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	sp->max_read_write_size = smb_direct_max_read_write_size;
 	sp->keepalive_interval_msec = SMB_DIRECT_KEEPALIVE_SEND_INTERVAL * 1000;
 	sp->keepalive_timeout_msec = SMB_DIRECT_KEEPALIVE_RECV_TIMEOUT * 1000;
+
+	t = kzalloc_obj(*t, KSMBD_DEFAULT_GFP);
+	if (!t)
+		return NULL;
+	sc = &t->socket;
+	smbdirect_socket_prepare_create(sc, sp, smb_direct_wq);
+	/*
+	 * from here we operate on the copy.
+	 */
+	sp = &sc->parameters;
+
+	INIT_WORK(&sc->disconnect_work, smb_direct_disconnect_rdma_work);
 
 	sc->rdma.cm_id = cm_id;
 	cm_id->context = sc;
