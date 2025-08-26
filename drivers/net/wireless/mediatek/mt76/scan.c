@@ -112,9 +112,6 @@ void mt76_scan_work(struct work_struct *work)
 	local_bh_enable();
 
 out:
-	if (!duration)
-		return;
-
 	if (dev->scan.chan)
 		duration = max_t(int, duration,
 			         msecs_to_jiffies(req->duration +
