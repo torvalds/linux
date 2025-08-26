@@ -35,10 +35,10 @@
  * DRAM type
  */
 
-static int ast_2100_get_dram_type_p2a(struct ast_device *ast)
+static enum ast_dram_layout ast_2100_get_dram_layout_p2a(struct ast_device *ast)
 {
 	u32 mcr_cfg;
-	int dram_type;
+	enum ast_dram_layout dram_layout;
 
 	ast_write32(ast, 0xf004, 0x1e6e0000);
 	ast_write32(ast, 0xf000, 0x1);
@@ -47,20 +47,21 @@ static int ast_2100_get_dram_type_p2a(struct ast_device *ast)
 	switch (mcr_cfg & 0x0c) {
 	case 0:
 	case 4:
-		dram_type = AST_DRAM_512Mx16;
+	default:
+		dram_layout = AST_DRAM_512Mx16;
 		break;
 	case 8:
 		if (mcr_cfg & 0x40)
-			dram_type = AST_DRAM_1Gx16;
+			dram_layout = AST_DRAM_1Gx16;
 		else
-			dram_type = AST_DRAM_512Mx32;
+			dram_layout = AST_DRAM_512Mx32;
 		break;
 	case 0xc:
-		dram_type = AST_DRAM_1Gx32;
+		dram_layout = AST_DRAM_1Gx32;
 		break;
 	}
 
-	return dram_type;
+	return dram_layout;
 }
 
 /*
@@ -298,9 +299,7 @@ static void ast_post_chip_2100(struct ast_device *ast)
 	u8 j;
 	u32 data, temp, i;
 	const struct ast_dramstruct *dram_reg_info;
-	int dram_type;
-
-	dram_type = ast_2100_get_dram_type_p2a(ast);
+	enum ast_dram_layout dram_layout  = ast_2100_get_dram_layout_p2a(ast);
 
 	j = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 
@@ -327,7 +326,7 @@ static void ast_post_chip_2100(struct ast_device *ast)
 				for (i = 0; i < 15; i++)
 					udelay(dram_reg_info->data);
 			} else if (AST_DRAMSTRUCT_IS(dram_reg_info, DRAM_TYPE)) {
-				switch (dram_type) {
+				switch (dram_layout) {
 				case AST_DRAM_1Gx16:
 					data = 0x00000d89;
 					break;
