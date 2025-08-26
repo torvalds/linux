@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
+#include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include "iwl-csr.h"
 #include "iwl-drv.h"
