@@ -3249,15 +3249,6 @@ static void rtw89_pci_free_tx_ring(struct rtw89_dev *rtwdev,
 				   struct pci_dev *pdev,
 				   struct rtw89_pci_tx_ring *tx_ring)
 {
-	int ring_sz;
-	u8 *head;
-	dma_addr_t dma;
-
-	head = tx_ring->bd_ring.head;
-	dma = tx_ring->bd_ring.dma;
-	ring_sz = tx_ring->bd_ring.desc_size * tx_ring->bd_ring.len;
-	dma_free_coherent(&pdev->dev, ring_sz, head, dma);
-
 	tx_ring->bd_ring.head = NULL;
 }
 
@@ -3265,6 +3256,7 @@ static void rtw89_pci_free_tx_rings(struct rtw89_dev *rtwdev,
 				    struct pci_dev *pdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct rtw89_pci_dma_pool *bd_pool = &rtwpci->tx.bd_pool;
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	struct rtw89_pci_tx_ring *tx_ring;
 	int i;
@@ -3276,6 +3268,8 @@ static void rtw89_pci_free_tx_rings(struct rtw89_dev *rtwdev,
 		rtw89_pci_free_tx_wd_ring(rtwdev, pdev, tx_ring);
 		rtw89_pci_free_tx_ring(rtwdev, pdev, tx_ring);
 	}
+
+	dma_free_coherent(&pdev->dev, bd_pool->size, bd_pool->head, bd_pool->dma);
 }
 
 static void rtw89_pci_free_rx_ring(struct rtw89_dev *rtwdev,
@@ -3286,8 +3280,6 @@ static void rtw89_pci_free_rx_ring(struct rtw89_dev *rtwdev,
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	u32 buf_sz;
-	u8 *head;
-	int ring_sz = rx_ring->bd_ring.desc_size * rx_ring->bd_ring.len;
 	int i;
 
 	buf_sz = rx_ring->buf_sz;
@@ -3303,10 +3295,6 @@ static void rtw89_pci_free_rx_ring(struct rtw89_dev *rtwdev,
 		rx_ring->buf[i] = NULL;
 	}
 
-	head = rx_ring->bd_ring.head;
-	dma = rx_ring->bd_ring.dma;
-	dma_free_coherent(&pdev->dev, ring_sz, head, dma);
-
 	rx_ring->bd_ring.head = NULL;
 }
 
@@ -3314,6 +3302,7 @@ static void rtw89_pci_free_rx_rings(struct rtw89_dev *rtwdev,
 				    struct pci_dev *pdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct rtw89_pci_dma_pool *bd_pool = &rtwpci->rx.bd_pool;
 	struct rtw89_pci_rx_ring *rx_ring;
 	int i;
 
@@ -3321,6 +3310,8 @@ static void rtw89_pci_free_rx_rings(struct rtw89_dev *rtwdev,
 		rx_ring = &rtwpci->rx.rings[i];
 		rtw89_pci_free_rx_ring(rtwdev, pdev, rx_ring);
 	}
+
+	dma_free_coherent(&pdev->dev, bd_pool->size, bd_pool->head, bd_pool->dma);
 }
 
 static void rtw89_pci_free_trx_rings(struct rtw89_dev *rtwdev,
@@ -3412,12 +3403,10 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 				   struct pci_dev *pdev,
 				   struct rtw89_pci_tx_ring *tx_ring,
 				   u32 desc_size, u32 len,
-				   enum rtw89_tx_channel txch)
+				   enum rtw89_tx_channel txch,
+				   void *head, dma_addr_t dma)
 {
 	const struct rtw89_pci_ch_dma_addr *txch_addr;
-	int ring_sz = desc_size * len;
-	u8 *head;
-	dma_addr_t dma;
 	int ret;
 
 	ret = rtw89_pci_alloc_tx_wd_ring(rtwdev, pdev, tx_ring, txch);
@@ -3429,12 +3418,6 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 	ret = rtw89_pci_get_txch_addrs(rtwdev, txch, &txch_addr);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get address of txch %d", txch);
-		goto err_free_wd_ring;
-	}
-
-	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
-	if (!head) {
-		ret = -ENOMEM;
 		goto err_free_wd_ring;
 	}
 
@@ -3460,25 +3443,48 @@ static int rtw89_pci_alloc_tx_rings(struct rtw89_dev *rtwdev,
 				    struct pci_dev *pdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct rtw89_pci_dma_pool *bd_pool = &rtwpci->tx.bd_pool;
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	struct rtw89_pci_tx_ring *tx_ring;
-	u32 desc_size;
-	u32 len;
 	u32 i, tx_allocated;
+	dma_addr_t dma;
+	u32 desc_size;
+	u32 ring_sz;
+	u32 pool_sz;
+	u32 ch_num;
+	void *head;
+	u32 len;
 	int ret;
+
+	BUILD_BUG_ON(RTW89_PCI_TXBD_NUM_MAX % 16);
+
+	desc_size = sizeof(struct rtw89_pci_tx_bd_32);
+	len = RTW89_PCI_TXBD_NUM_MAX;
+	ch_num = RTW89_TXCH_NUM - hweight32(info->tx_dma_ch_mask);
+	ring_sz = desc_size * len;
+	pool_sz = ring_sz * ch_num;
+
+	head = dma_alloc_coherent(&pdev->dev, pool_sz, &dma, GFP_KERNEL);
+	if (!head)
+		return -ENOMEM;
+
+	bd_pool->head = head;
+	bd_pool->dma = dma;
+	bd_pool->size = pool_sz;
 
 	for (i = 0; i < RTW89_TXCH_NUM; i++) {
 		if (info->tx_dma_ch_mask & BIT(i))
 			continue;
 		tx_ring = &rtwpci->tx.rings[i];
-		desc_size = sizeof(struct rtw89_pci_tx_bd_32);
-		len = RTW89_PCI_TXBD_NUM_MAX;
 		ret = rtw89_pci_alloc_tx_ring(rtwdev, pdev, tx_ring,
-					      desc_size, len, i);
+					      desc_size, len, i, head, dma);
 		if (ret) {
 			rtw89_err(rtwdev, "failed to alloc tx ring %d\n", i);
 			goto err_free;
 		}
+
+		head += ring_sz;
+		dma += ring_sz;
 	}
 
 	return 0;
@@ -3490,20 +3496,20 @@ err_free:
 		rtw89_pci_free_tx_ring(rtwdev, pdev, tx_ring);
 	}
 
+	dma_free_coherent(&pdev->dev, bd_pool->size, bd_pool->head, bd_pool->dma);
+
 	return ret;
 }
 
 static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 				   struct pci_dev *pdev,
 				   struct rtw89_pci_rx_ring *rx_ring,
-				   u32 desc_size, u32 len, u32 rxch)
+				   u32 desc_size, u32 len, u32 rxch,
+				   void *head, dma_addr_t dma)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	const struct rtw89_pci_ch_dma_addr *rxch_addr;
 	struct sk_buff *skb;
-	u8 *head;
-	dma_addr_t dma;
-	int ring_sz = desc_size * len;
 	int buf_sz = RTW89_PCI_RX_BUF_SIZE;
 	int i, allocated;
 	int ret;
@@ -3512,12 +3518,6 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get address of rxch %d", rxch);
 		return ret;
-	}
-
-	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
-	if (!head) {
-		ret = -ENOMEM;
-		goto err;
 	}
 
 	rx_ring->bd_ring.head = head;
@@ -3568,12 +3568,8 @@ err_free:
 		rx_ring->buf[i] = NULL;
 	}
 
-	head = rx_ring->bd_ring.head;
-	dma = rx_ring->bd_ring.dma;
-	dma_free_coherent(&pdev->dev, ring_sz, head, dma);
-
 	rx_ring->bd_ring.head = NULL;
-err:
+
 	return ret;
 }
 
@@ -3581,22 +3577,43 @@ static int rtw89_pci_alloc_rx_rings(struct rtw89_dev *rtwdev,
 				    struct pci_dev *pdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct rtw89_pci_dma_pool *bd_pool = &rtwpci->rx.bd_pool;
 	struct rtw89_pci_rx_ring *rx_ring;
-	u32 desc_size;
-	u32 len;
 	int i, rx_allocated;
+	dma_addr_t dma;
+	u32 desc_size;
+	u32 ring_sz;
+	u32 pool_sz;
+	void *head;
+	u32 len;
 	int ret;
+
+	desc_size = sizeof(struct rtw89_pci_rx_bd_32);
+	len = RTW89_PCI_RXBD_NUM_MAX;
+	ring_sz = desc_size * len;
+	pool_sz = ring_sz * RTW89_RXCH_NUM;
+
+	head = dma_alloc_coherent(&pdev->dev, pool_sz, &dma, GFP_KERNEL);
+	if (!head)
+		return -ENOMEM;
+
+	bd_pool->head = head;
+	bd_pool->dma = dma;
+	bd_pool->size = pool_sz;
 
 	for (i = 0; i < RTW89_RXCH_NUM; i++) {
 		rx_ring = &rtwpci->rx.rings[i];
-		desc_size = sizeof(struct rtw89_pci_rx_bd_32);
-		len = RTW89_PCI_RXBD_NUM_MAX;
+
 		ret = rtw89_pci_alloc_rx_ring(rtwdev, pdev, rx_ring,
-					      desc_size, len, i);
+					      desc_size, len, i,
+					      head, dma);
 		if (ret) {
 			rtw89_err(rtwdev, "failed to alloc rx ring %d\n", i);
 			goto err_free;
 		}
+
+		head += ring_sz;
+		dma += ring_sz;
 	}
 
 	return 0;
@@ -3607,6 +3624,8 @@ err_free:
 		rx_ring = &rtwpci->rx.rings[i];
 		rtw89_pci_free_rx_ring(rtwdev, pdev, rx_ring);
 	}
+
+	dma_free_coherent(&pdev->dev, bd_pool->size, bd_pool->head, bd_pool->dma);
 
 	return ret;
 }
